@@ -18,6 +18,7 @@ import (
 	_ "golang.org/x/image/webp" // coverJPEG: YouTube's thumbnails are often WebP
 
 	"kando/apps/kando/films"
+	"kando/apps/kando/vault"
 	"kando/packages/media"
 
 	ns "github.com/nsgo-dev/nsgo/core"
@@ -50,8 +51,8 @@ func (a *app) ensurePoster(item films.Film) {
 	}
 	tools, _ := a.pipeline.(media.Tools)
 	cover := coverSources{ffmpeg: tools.FFmpeg, video: video, dest: dest}
-	if item.Thumbnail != "" && a.lib.posterDir != "" {
-		cover.site, cover.siteCache = item.Thumbnail, siteThumbnailPath(a.lib.posterDir, item.Thumbnail)
+	if dir := posterFolder(a.lib.posterDir, video); item.Thumbnail != "" && dir != "" {
+		cover.site, cover.siteCache = item.Thumbnail, siteThumbnailPath(dir, item.Thumbnail)
 	}
 	if cover.ffmpeg == "" && cover.site == "" && !fileExists(dest) {
 		a.markPosterMiss(video)
@@ -195,10 +196,22 @@ func posterDest(posterDir, video string) string {
 	if strings.TrimSuffix(filepath.Base(video), filepath.Ext(video)) == "video" {
 		return filepath.Join(filepath.Dir(video), "cover.jpg")
 	}
+	posterDir = posterFolder(posterDir, video)
 	if posterDir == "" {
 		return ""
 	}
 	return filepath.Join(posterDir, posterKey(video)+".jpg")
+}
+
+// posterVaultDir is the hidden folder inside an encrypted library (package vault) where its posters and site thumbnails are kept in place of the app's cache, which is not encrypted: a frame of a film would show there what the library hides.
+const posterVaultDir = ".kando-posters"
+
+// posterFolder is where the poster or site thumbnail of the video at video is kept: inside its library when that library is encrypted and open (vault.RootOf), else posterDir, the app's cache.
+func posterFolder(posterDir, video string) string {
+	if root, ok := vault.RootOf(video); ok {
+		return filepath.Join(root, posterVaultDir)
+	}
+	return posterDir
 }
 
 func fileExists(path string) bool {
@@ -216,6 +229,18 @@ func (a *app) thumbnailOf(item films.Film) ns.ImageSource {
 	return a.lib.thumbs[item.Thumbnail]
 }
 
+// thumbnailFolder is where the site thumbnail of item is kept: inside the library its job saves into when that library is encrypted and open, as its posters are (posterFolder), else the app's cache. A film still downloading has no video to tell its library by.
+func (a *app) thumbnailFolder(item films.Film) string {
+	lib := a.snap().LibraryDir
+	if job, ok := a.library.Find(item.JobID); ok && job.LibraryDir != "" {
+		lib = job.LibraryDir
+	}
+	if vault.Mounted(lib) {
+		return filepath.Join(lib, posterVaultDir)
+	}
+	return a.lib.posterDir
+}
+
 // libraryHasImage reports whether source names a picture.
 func libraryHasImage(source ns.ImageSource) bool { return source.URI != "" || len(source.Data) > 0 }
 
@@ -229,7 +254,7 @@ func (a *app) ensureThumbnail(item films.Film) {
 		a.lib.thumbBusy = map[string]bool{}
 	}
 	a.lib.thumbBusy[address] = true
-	dest := siteThumbnailPath(a.lib.posterDir, address)
+	dest := siteThumbnailPath(a.thumbnailFolder(item), address)
 	update := a.update
 	go func() {
 		var err error

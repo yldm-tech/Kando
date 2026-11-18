@@ -595,6 +595,12 @@ func (a *app) refreshLibrary() {
 	if dir == "" {
 		return
 	}
+	// An encrypted library that is locked has only its image in its folder: its films are not gone, so none is dropped or looked for elsewhere, and the folder lists nothing until it is unlocked (lockFilesAway).
+	if a.lockFilesAway(dir) {
+		a.edit(func(s *session) { s.Videos = nil })
+		a.areasShelfChanged()
+		return
+	}
 	moved, err := media.GatherVideos(dir)
 	if err != nil {
 		a.saveErr = err.Error()

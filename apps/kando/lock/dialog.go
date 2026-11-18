@@ -1,4 +1,4 @@
-// Package lock is the password of a library: the dialog that sets, changes or removes it or asks for it before another library opens, and the screen a locked library shows in place of its films. The password is an app lock, not encryption, which the dialog that sets it says. The keys are made and checked by the app (shelf.Lock), never here.
+// Package lock is the password of a library: the dialog that sets, changes or removes it or asks for it before another library opens, and the screen a locked library shows in place of its films. On macOS the password encrypts the library's files (package vault); elsewhere it is an app lock, not encryption. The dialog that sets it says which. The keys are made and checked by the app (shelf.Lock), never here.
 package lock
 
 import (
@@ -34,6 +34,12 @@ const (
 	Mismatch
 	// SaveFailed is a password that could not be kept in library.json; Look.Detail says why.
 	SaveFailed
+	// Busy is a library a job is still downloading or processing a film into, whose files cannot be encrypted or decrypted, nor its image given another password, until it is done.
+	Busy
+	// NoSpace is a disk without room for the second copy of the library's files that encrypting or decrypting it makes first.
+	NoSpace
+	// VaultFailed is a library whose encrypted image could not be made, opened, given another password or removed for another reason than a wrong password; its files are as they were.
+	VaultFailed
 )
 
 // Look is what the dialog and the screen show: what is asked for, the library's name, why the last try did not go through, and whether the password is being checked or its key made, which takes a moment.
@@ -44,6 +50,11 @@ type Look struct {
 	// Detail is why the password could not be kept, in the interface's language, with SaveFailed.
 	Detail string
 	Busy   bool
+	// Encrypts is whether a password encrypts the library's files here (vault.Supported), which the dialog that sets it says.
+	Encrypts bool
+	// Copying is whether the library's files are being moved into its encrypted image (Set) or out of it (Remove), Percent how far that has gone.
+	Copying bool
+	Percent int
 }
 
 // Dialog asks for the passwords Mode needs while Open returns true, over the window. Its button, or Return in a field, runs OnSubmit with what was typed, "" for a field the mode does not have, and empties the fields, so a wrong password is typed again; it is disabled while Look is Busy or a field is empty. Cancel, Escape and closing it run OnCancel. A press outside it keeps it, so what was typed is not lost.
@@ -59,10 +70,11 @@ func (d Dialog) Render(cx *core.Scope) core.Node {
 	// Look follows the app's whole revision; the memos let the dialog be built again only when what it asks for changes, not as the password is checked.
 	look := core.NewMemo(cx, d.Look)
 	type ask struct {
-		mode Mode
-		name string
+		mode     Mode
+		name     string
+		encrypts bool
 	}
-	asks := core.NewMemo(cx, func() ask { l := look.Get(); return ask{l.Mode, l.Name} })
+	asks := core.NewMemo(cx, func() ask { l := look.Get(); return ask{l.Mode, l.Name, l.Encrypts} })
 	cancel := func() {
 		if d.OnCancel != nil {
 			d.OnCancel()
@@ -83,7 +95,9 @@ func (d Dialog) Render(cx *core.Scope) core.Node {
 				}
 			}
 			description := ""
-			if a.mode == Set {
+			if a.mode == Set && a.encrypts {
+				description = locales.LockSetNoteEncrypted(cx)
+			} else if a.mode == Set {
 				description = locales.LockSetNote(cx)
 			}
 			return ui.Dialog{
@@ -99,9 +113,9 @@ func (d Dialog) Render(cx *core.Scope) core.Node {
 						cancel()
 					}
 				},
-				Children: []core.Node{core.View{Style: core.Style{Gap: 8}, Children: append(f.fields(submit), problemLine(cx, look.Get))}},
+				Children: []core.Node{core.View{Style: core.Style{Gap: 8}, Children: append(f.fields(submit), problemLine(cx, look.Get), copyingLine(cx, look.Get))}},
 				Footer: []core.Node{
-					ui.Button{Text: locales.LockCancel(cx), Variant: ui.ButtonSecondary, TestID: "lock-cancel", OnPress: cancel},
+					ui.Button{Text: locales.LockCancel(cx), Variant: ui.ButtonSecondary, TestID: "lock-cancel", Disabled: func() bool { return look.Get().Copying }, OnPress: cancel},
 					ui.Button{Text: action(cx, a.mode), TestID: "lock-submit", Disabled: func() bool { return look.Get().Busy || !f.filled() }, OnPress: submit},
 				},
 			}
@@ -219,6 +233,29 @@ func problemText(cx *core.Scope, l Look) string {
 		return locales.LockMismatch(cx)
 	case SaveFailed:
 		return l.Detail
+	case Busy:
+		return locales.LockBusy(cx)
+	case NoSpace:
+		return locales.LockNoSpace(cx)
+	case VaultFailed:
+		return locales.LockVaultFailed(cx)
 	}
 	return ""
+}
+
+// copyingLine says how far moving the library's files into or out of its encrypted image has gone, while it runs.
+func copyingLine(cx *core.Scope, look func() Look) core.Node {
+	colors := ui.ColorsOf(cx)
+	return core.Show{
+		When: func() bool { return look().Copying },
+		Then: func(cx *core.Scope) core.Node {
+			return core.Text{TestID: "lock-copying", Role: core.RoleStatus, ContentFunc: func() string {
+				l := look()
+				if l.Mode == Remove {
+					return locales.LockDecrypting(cx, l.Percent)
+				}
+				return locales.LockEncrypting(cx, l.Percent)
+			}, Style: ui.TypeBody, StyleFunc: ui.Colored(colors.Muted)}
+		},
+	}
 }

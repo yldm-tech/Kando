@@ -550,11 +550,14 @@ var Parameters = map[string][]string{
 	"LibrarySortSaveFailed":                    {"error_"},
 	"LibraryViewSaveFailed":                    {"error_"},
 	"LockChangeTitle":                          {"name"},
+	"LockDecrypting":                           {"percent"},
+	"LockEncrypting":                           {"percent"},
 	"LockLibraryIsLocked":                      {"name"},
 	"LockLibraryLocked":                        {"name"},
 	"LockRemoveTitle":                          {"name"},
 	"LockScreenTitle":                          {"name"},
 	"LockSetTitle":                             {"name"},
+	"LockStillInUse":                           {"name"},
 	"LockUnlockTitle":                          {"name"},
 	"MenuOpenLinkFailed":                       {"url"},
 	"MenuRevealLibrary":                        {"platform"},
@@ -866,11 +869,14 @@ type Translation struct {
 	LibrarySortSaveFailed                    func(error_ string) string
 	LibraryViewSaveFailed                    func(error_ string) string
 	LockChangeTitle                          func(name string) string
+	LockDecrypting                           func(percent int) string
+	LockEncrypting                           func(percent int) string
 	LockLibraryIsLocked                      func(name string) string
 	LockLibraryLocked                        func(name string) string
 	LockRemoveTitle                          func(name string) string
 	LockScreenTitle                          func(name string) string
 	LockSetTitle                             func(name string) string
+	LockStillInUse                           func(name string) string
 	LockUnlockTitle                          func(name string) string
 	MenuOpenLinkFailed                       func(url string) string
 	MenuRevealLibrary                        func(platform string) string
@@ -1406,6 +1412,7 @@ const (
 	textLibraryShelfNotSaved
 	textLibraryVideoFilter
 	textLibraryWindowTitle
+	textLockBusy
 	textLockCancel
 	textLockChangeButton
 	textLockFieldConfirm
@@ -1416,12 +1423,15 @@ const (
 	textLockMenuRemove
 	textLockMenuSet
 	textLockMismatch
+	textLockNoSpace
 	textLockNow
 	textLockRemoveButton
 	textLockScreenOthers
 	textLockSetButton
 	textLockSetNote
+	textLockSetNoteEncrypted
 	textLockUnlockButton
+	textLockVaultFailed
 	textLockWrong
 	textLogsShowLogFile
 	textMenuAbout
@@ -2374,6 +2384,7 @@ var keyOfText = [numTexts]string{
 	"libraryShelfNotSaved",
 	"libraryVideoFilter",
 	"libraryWindowTitle",
+	"lockBusy",
 	"lockCancel",
 	"lockChangeButton",
 	"lockFieldConfirm",
@@ -2384,12 +2395,15 @@ var keyOfText = [numTexts]string{
 	"lockMenuRemove",
 	"lockMenuSet",
 	"lockMismatch",
+	"lockNoSpace",
 	"lockNow",
 	"lockRemoveButton",
 	"lockScreenOthers",
 	"lockSetButton",
 	"lockSetNote",
+	"lockSetNoteEncrypted",
 	"lockUnlockButton",
+	"lockVaultFailed",
 	"lockWrong",
 	"logsShowLogFile",
 	"menuAbout",
@@ -3340,6 +3354,7 @@ var textsEn = i18n.NewTexts(""+
 	"Kando couldn't read the film list in full, so it won't save the list until it restarts."+
 	"Videos"+
 	"Kando"+
+	"A film is being processed in this library. Try again once it's done."+
 	"Cancel"+
 	"Change Password"+
 	"Confirm Password"+
@@ -3350,12 +3365,15 @@ var textsEn = i18n.NewTexts(""+
 	"Remove Password…"+
 	"Set Password…"+
 	"The new passwords don't match."+
+	"There isn't enough free space on the disk. This needs about as much free space as the library takes."+
 	"Lock Now"+
 	"Remove Password"+
 	"Open Another Library…"+
 	"Set Password"+
 	"Kando will ask for this password before it shows the library. This is a lock in Kando, not encryption: the library's files stay readable on disk. A forgotten password cannot be recovered."+
+	"Kando will move the library's files into an encrypted disk image. While the library is locked, they cannot be opened in Finder or any other app. This needs about as much free space as the library takes. A forgotten password cannot be recovered, and neither can the library's films."+
 	"Unlock"+
+	"Kando couldn't finish this. The library's files are as they were."+
 	"Wrong password. Try again."+
 	"Show Log File"+
 	"About Kando"+
@@ -4303,6 +4321,7 @@ var textsEn = i18n.NewTexts(""+
 		87,
 		6,
 		5,
+		68,
 		6,
 		15,
 		16,
@@ -4313,12 +4332,15 @@ var textsEn = i18n.NewTexts(""+
 		18,
 		15,
 		30,
+		100,
 		8,
 		15,
 		23,
 		12,
 		187,
+		281,
 		6,
+		65,
 		26,
 		13,
 		11,
@@ -5269,6 +5291,7 @@ var textsJa = i18n.NewTexts(""+
 	"動画の一覧を最後まで読み込めなかったため、再起動するまで一覧を保存しません。"+
 	"動画"+
 	"Kando"+
+	"このライブラリで処理中のビデオがあります。処理が終わってからもう一度お試しください。"+
 	"キャンセル"+
 	"パスワードを変更"+
 	"パスワードの確認"+
@@ -5279,12 +5302,15 @@ var textsJa = i18n.NewTexts(""+
 	"パスワードを削除…"+
 	"パスワードを設定…"+
 	"新しいパスワードが一致しません。"+
+	"ディスクの空き容量が足りません。ライブラリとほぼ同じ大きさの空き容量が必要です。"+
 	"今すぐロック"+
 	"パスワードを削除"+
 	"ほかのライブラリを開く…"+
 	"パスワードを設定"+
 	"ライブラリを表示する前に Kando がこのパスワードを求めます。これは Kando の中のロックで、暗号化ではありません。ライブラリのファイルはディスク上でそのまま開けます。忘れたパスワードは復元できません。"+
+	"Kando はライブラリのファイルを暗号化されたディスクイメージに移します。ライブラリがロックされている間は、Finder やほかの App でもファイルを開けません。ライブラリとほぼ同じ大きさの空き容量が必要です。忘れたパスワードは復元できず、ライブラリのビデオも取り戻せません。"+
 	"ロックを解除"+
+	"Kando はこの操作を完了できませんでした。ライブラリのファイルは元のままです。"+
 	"パスワードが違います。もう一度入力してください。"+
 	"ログファイルを表示"+
 	"Kando について"+
@@ -6232,6 +6258,7 @@ var textsJa = i18n.NewTexts(""+
 		114,
 		6,
 		5,
+		126,
 		15,
 		24,
 		24,
@@ -6242,12 +6269,15 @@ var textsJa = i18n.NewTexts(""+
 		27,
 		27,
 		48,
+		120,
 		18,
 		24,
 		36,
 		24,
 		287,
+		387,
 		18,
+		111,
 		72,
 		27,
 		18,
@@ -7198,6 +7228,7 @@ var textsKo = i18n.NewTexts(""+
 	"동영상 목록을 끝까지 읽지 못해 다시 시작할 때까지 목록을 저장하지 않습니다."+
 	"동영상"+
 	"Kando"+
+	"이 라이브러리에서 처리 중인 비디오가 있습니다. 처리가 끝난 후 다시 시도하십시오."+
 	"취소"+
 	"암호 변경"+
 	"암호 확인"+
@@ -7208,12 +7239,15 @@ var textsKo = i18n.NewTexts(""+
 	"암호 제거…"+
 	"암호 설정…"+
 	"새로운 암호가 일치하지 않습니다."+
+	"디스크 여유 공간이 부족합니다. 라이브러리와 비슷한 크기의 여유 공간이 필요합니다."+
 	"지금 잠그기"+
 	"암호 제거"+
 	"다른 라이브러리 열기…"+
 	"암호 설정"+
 	"라이브러리를 보여주기 전에 Kando가 이 암호를 요청합니다. 이것은 Kando 안의 잠금이며 암호화가 아닙니다. 라이브러리의 파일은 디스크에서 그대로 열 수 있습니다. 잊어버린 암호는 복구할 수 없습니다."+
+	"Kando가 라이브러리의 파일을 암호화된 디스크 이미지로 옮깁니다. 라이브러리가 잠겨 있는 동안에는 Finder나 다른 앱에서도 파일을 열 수 없습니다. 라이브러리와 비슷한 크기의 여유 공간이 필요합니다. 잊어버린 암호는 복구할 수 없으며 라이브러리의 비디오도 되찾을 수 없습니다."+
 	"잠금 해제"+
+	"Kando가 이 작업을 완료하지 못했습니다. 라이브러리의 파일은 그대로입니다."+
 	"암호가 올바르지 않습니다. 다시 시도하십시오."+
 	"로그 파일 보기"+
 	"Kando에 관하여"+
@@ -8161,6 +8195,7 @@ var textsKo = i18n.NewTexts(""+
 		107,
 		9,
 		5,
+		114,
 		6,
 		13,
 		13,
@@ -8171,12 +8206,15 @@ var textsKo = i18n.NewTexts(""+
 		16,
 		16,
 		46,
+		116,
 		16,
 		13,
 		32,
 		13,
 		269,
+		375,
 		13,
+		101,
 		63,
 		20,
 		18,
@@ -9127,6 +9165,7 @@ var textsZhHans = i18n.NewTexts(""+
 	"资料库的影片列表没有完整读取，所以重新启动前看懂不会保存这个列表。"+
 	"视频"+
 	"看懂"+
+	"这个资料库里有影片正在处理，处理完后再试。"+
 	"取消"+
 	"更改密码"+
 	"确认密码"+
@@ -9137,12 +9176,15 @@ var textsZhHans = i18n.NewTexts(""+
 	"移除密码…"+
 	"设置密码…"+
 	"两次输入的新密码不一致。"+
+	"磁盘空间不够。需要和资料库差不多大的空闲空间。"+
 	"立即锁定"+
 	"移除密码"+
 	"打开其他资料库…"+
 	"设置密码"+
 	"看懂会在显示这个资料库之前要求输入这个密码。这是看懂里的锁，不是加密：资料库的文件在磁盘上仍可直接打开。忘记密码后无法找回。"+
+	"看懂会把这个资料库的文件移进一个加密的磁盘映像。资料库锁定时，在访达或其他 app 里都打不开这些文件。需要和资料库差不多大的空闲空间。忘记密码后无法找回，资料库里的影片也无法找回。"+
 	"解锁"+
+	"看懂没能完成这个操作，资料库的文件保持原样。"+
 	"密码不正确，请重试。"+
 	"显示日志文件"+
 	"关于看懂"+
@@ -10090,6 +10132,7 @@ var textsZhHans = i18n.NewTexts(""+
 		99,
 		6,
 		6,
+		63,
 		6,
 		12,
 		12,
@@ -10100,12 +10143,15 @@ var textsZhHans = i18n.NewTexts(""+
 		15,
 		15,
 		36,
+		69,
 		12,
 		12,
 		24,
 		12,
 		186,
+		263,
 		6,
+		66,
 		30,
 		18,
 		12,
@@ -11056,6 +11102,7 @@ var textsZhHant = i18n.NewTexts(""+
 	"資料庫的影片清單沒有完整讀取，所以重新啟動前看懂不會儲存這個清單。"+
 	"影片"+
 	"看懂"+
+	"這個資料庫裡有影片正在處理，處理完後再試。"+
 	"取消"+
 	"更改密碼"+
 	"確認密碼"+
@@ -11066,12 +11113,15 @@ var textsZhHant = i18n.NewTexts(""+
 	"移除密碼…"+
 	"設定密碼…"+
 	"兩次輸入的新密碼不一致。"+
+	"磁碟空間不足。需要和資料庫差不多大的可用空間。"+
 	"立即鎖定"+
 	"移除密碼"+
 	"打開其他資料庫…"+
 	"設定密碼"+
 	"看懂會在顯示這個資料庫之前要求輸入這個密碼。這是看懂裡的鎖，不是加密：資料庫的檔案在磁碟上仍可直接打開。忘記密碼後無法找回。"+
+	"看懂會把這個資料庫的檔案移進一個加密的磁碟映像檔。資料庫鎖定時，在 Finder 或其他 App 裡都打不開這些檔案。需要和資料庫差不多大的可用空間。忘記密碼後無法找回，資料庫裡的影片也無法找回。"+
 	"解鎖"+
+	"看懂沒能完成這個操作，資料庫的檔案保持原樣。"+
 	"密碼不正確，請再試一次。"+
 	"顯示記錄檔"+
 	"關於看懂"+
@@ -12019,6 +12069,7 @@ var textsZhHant = i18n.NewTexts(""+
 		99,
 		6,
 		6,
+		63,
 		6,
 		12,
 		12,
@@ -12029,12 +12080,15 @@ var textsZhHant = i18n.NewTexts(""+
 		15,
 		15,
 		36,
+		69,
 		12,
 		12,
 		24,
 		12,
 		186,
+		268,
 		6,
+		66,
 		36,
 		15,
 		12,
@@ -13067,6 +13121,12 @@ func Supply(lang string, t Translation) {
 	if t.LockChangeTitle != nil {
 		s.LockChangeTitle = t.LockChangeTitle
 	}
+	if t.LockDecrypting != nil {
+		s.LockDecrypting = t.LockDecrypting
+	}
+	if t.LockEncrypting != nil {
+		s.LockEncrypting = t.LockEncrypting
+	}
 	if t.LockLibraryIsLocked != nil {
 		s.LockLibraryIsLocked = t.LockLibraryIsLocked
 	}
@@ -13081,6 +13141,9 @@ func Supply(lang string, t Translation) {
 	}
 	if t.LockSetTitle != nil {
 		s.LockSetTitle = t.LockSetTitle
+	}
+	if t.LockStillInUse != nil {
+		s.LockStillInUse = t.LockStillInUse
 	}
 	if t.LockUnlockTitle != nil {
 		s.LockUnlockTitle = t.LockUnlockTitle
@@ -21057,6 +21120,15 @@ func LibraryWindowTitle(cx *core.Scope) string { return For(cx).LibraryWindowTit
 // LibraryWindowTitle is the package's LibraryWindowTitle in the language of msgs.
 func (msgs Messages) LibraryWindowTitle() string { return msgs.text(textLibraryWindowTitle) }
 
+// LockBusy says "A film is being processed in this library. Try again once it's done."
+// in the language the app shows under cx.
+//
+// Error in the library password dialog when the library cannot be encrypted, decrypted or given another password yet because a job is still downloading or processing a film into it.
+func LockBusy(cx *core.Scope) string { return For(cx).LockBusy() }
+
+// LockBusy is the package's LockBusy in the language of msgs.
+func (msgs Messages) LockBusy() string { return msgs.text(textLockBusy) }
+
 // LockCancel says "Cancel"
 // in the language the app shows under cx.
 //
@@ -21101,6 +21173,66 @@ func (msgs Messages) LockChangeTitle(name string) string {
 			return "更改「" + name + "」的密码"
 		case "zh-Hant":
 			return "更改「" + name + "」的密碼"
+		}
+	}
+}
+
+// LockDecrypting says "Decrypting… {percent}%"
+// in the language the app shows under cx.
+//
+// Line in the library password dialog while removing the password moves the library's files out of its encrypted disk image, with how much is done.
+func LockDecrypting(cx *core.Scope, percent int) string { return For(cx).LockDecrypting(percent) }
+
+// LockDecrypting is the package's LockDecrypting in the language of msgs.
+func (msgs Messages) LockDecrypting(percent int) string {
+	if i18n.IsPseudo(msgs.lang) {
+		return i18n.Pseudo(msgs.lang, Messages{lang: Source, mark: true}.LockDecrypting(percent))
+	}
+	for lang := msgs.lang; ; lang = i18n.Parent(lang) {
+		if f := supplied[lang].LockDecrypting; f != nil {
+			return f(percent)
+		}
+		switch lang {
+		case "", "en":
+			return "Decrypting… " + msgs.arg(i18n.FormatNumber("en", float64(percent))) + "%"
+		case "ja":
+			return "復号中… " + i18n.FormatNumber("ja", float64(percent)) + "%"
+		case "ko":
+			return "복호화 중… " + i18n.FormatNumber("ko", float64(percent)) + "%"
+		case "zh-Hans":
+			return "正在解密… " + i18n.FormatNumber("zh-Hans", float64(percent)) + "%"
+		case "zh-Hant":
+			return "正在解密… " + i18n.FormatNumber("zh-Hant", float64(percent)) + "%"
+		}
+	}
+}
+
+// LockEncrypting says "Encrypting… {percent}%"
+// in the language the app shows under cx.
+//
+// Line in the library password dialog while setting the password moves the library's files into an encrypted disk image, with how much is done.
+func LockEncrypting(cx *core.Scope, percent int) string { return For(cx).LockEncrypting(percent) }
+
+// LockEncrypting is the package's LockEncrypting in the language of msgs.
+func (msgs Messages) LockEncrypting(percent int) string {
+	if i18n.IsPseudo(msgs.lang) {
+		return i18n.Pseudo(msgs.lang, Messages{lang: Source, mark: true}.LockEncrypting(percent))
+	}
+	for lang := msgs.lang; ; lang = i18n.Parent(lang) {
+		if f := supplied[lang].LockEncrypting; f != nil {
+			return f(percent)
+		}
+		switch lang {
+		case "", "en":
+			return "Encrypting… " + msgs.arg(i18n.FormatNumber("en", float64(percent))) + "%"
+		case "ja":
+			return "暗号化中… " + i18n.FormatNumber("ja", float64(percent)) + "%"
+		case "ko":
+			return "암호화 중… " + i18n.FormatNumber("ko", float64(percent)) + "%"
+		case "zh-Hans":
+			return "正在加密… " + i18n.FormatNumber("zh-Hans", float64(percent)) + "%"
+		case "zh-Hant":
+			return "正在加密… " + i18n.FormatNumber("zh-Hant", float64(percent)) + "%"
 		}
 	}
 }
@@ -21239,6 +21371,15 @@ func LockMismatch(cx *core.Scope) string { return For(cx).LockMismatch() }
 // LockMismatch is the package's LockMismatch in the language of msgs.
 func (msgs Messages) LockMismatch() string { return msgs.text(textLockMismatch) }
 
+// LockNoSpace says "There isn't enough free space on the disk. This needs about as much free space as the library takes."
+// in the language the app shows under cx.
+//
+// Error in the library password dialog when the disk has no room for a second copy of the library's files, which encrypting or decrypting it makes before removing the first.
+func LockNoSpace(cx *core.Scope) string { return For(cx).LockNoSpace() }
+
+// LockNoSpace is the package's LockNoSpace in the language of msgs.
+func (msgs Messages) LockNoSpace() string { return msgs.text(textLockNoSpace) }
+
 // LockNow says "Lock Now"
 // in the language the app shows under cx.
 //
@@ -21344,6 +21485,15 @@ func LockSetNote(cx *core.Scope) string { return For(cx).LockSetNote() }
 // LockSetNote is the package's LockSetNote in the language of msgs.
 func (msgs Messages) LockSetNote() string { return msgs.text(textLockSetNote) }
 
+// LockSetNoteEncrypted says "Kando will move the library's files into an encrypted disk image. While the library is locked, they cannot be opened in Finder or any other app. This needs about as much free space as the library takes. A forgotten password cannot be recovered, and neither can the library's films."
+// in the language the app shows under cx.
+//
+// Text under the title of the dialog that gives a library a password, on macOS, where the password encrypts the library's files: what it protects, what it needs and that a forgotten password loses the files.
+func LockSetNoteEncrypted(cx *core.Scope) string { return For(cx).LockSetNoteEncrypted() }
+
+// LockSetNoteEncrypted is the package's LockSetNoteEncrypted in the language of msgs.
+func (msgs Messages) LockSetNoteEncrypted() string { return msgs.text(textLockSetNoteEncrypted) }
+
 // LockSetTitle says "Set a Password for “{name}”"
 // in the language the app shows under cx.
 //
@@ -21370,6 +21520,36 @@ func (msgs Messages) LockSetTitle(name string) string {
 			return "为「" + name + "」设置密码"
 		case "zh-Hant":
 			return "為「" + name + "」設定密碼"
+		}
+	}
+}
+
+// LockStillInUse says "“{name}” stays open while another app is using a file in it. Kando locks it once that file is closed."
+// in the language the app shows under cx.
+//
+// Message bar text when a locked library's encrypted disk image cannot be closed because another app, such as a video player opened from Finder, still has one of its files open.
+func LockStillInUse(cx *core.Scope, name string) string { return For(cx).LockStillInUse(name) }
+
+// LockStillInUse is the package's LockStillInUse in the language of msgs.
+func (msgs Messages) LockStillInUse(name string) string {
+	if i18n.IsPseudo(msgs.lang) {
+		return i18n.Pseudo(msgs.lang, Messages{lang: Source, mark: true}.LockStillInUse(name))
+	}
+	for lang := msgs.lang; ; lang = i18n.Parent(lang) {
+		if f := supplied[lang].LockStillInUse; f != nil {
+			return f(name)
+		}
+		switch lang {
+		case "", "en":
+			return "“" + msgs.arg(name) + "” stays open while another app is using a file in it. Kando locks it once that file is closed."
+		case "ja":
+			return "「" + name + "」のファイルをほかの App が使用しているため、開いたままにしています。そのファイルが閉じられると Kando がロックします。"
+		case "ko":
+			return "“" + name + "”의 파일을 다른 앱이 사용 중이어서 열어 둡니다. 그 파일이 닫히면 Kando가 잠급니다."
+		case "zh-Hans":
+			return "“" + name + "”里有文件正被其他 app 使用，暂时保持打开。那个文件关闭后看懂会把它锁上。"
+		case "zh-Hant":
+			return "「" + name + "」裡有檔案正被其他 App 使用，暫時保持開啟。那個檔案關閉後看懂會把它鎖上。"
 		}
 	}
 }
@@ -21412,6 +21592,15 @@ func (msgs Messages) LockUnlockTitle(name string) string {
 		}
 	}
 }
+
+// LockVaultFailed says "Kando couldn't finish this. The library's files are as they were."
+// in the language the app shows under cx.
+//
+// Error in the library password dialog and on the lock screen when the encrypted disk image of the library could not be made, opened, given another password or removed for a reason other than a wrong password; the details go to the log.
+func LockVaultFailed(cx *core.Scope) string { return For(cx).LockVaultFailed() }
+
+// LockVaultFailed is the package's LockVaultFailed in the language of msgs.
+func (msgs Messages) LockVaultFailed() string { return msgs.text(textLockVaultFailed) }
 
 // LockWrong says "Wrong password. Try again."
 // in the language the app shows under cx.

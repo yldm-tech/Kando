@@ -745,9 +745,13 @@ func (a *app) pump() {
 // queueCanRun reports whether the queue can start job now that it is its turn: its library is the open one or another the app knows. A job waiting in a library the app has forgotten does not start until that library is opened again, so no new work begins in a folder the user took off the list. A job already running when its library is forgotten goes on into it: forgetting leaves the folder on disk, and a running job is never stopped for a library change. A job saved before jobs named their library runs in whichever library is open.
 func (a *app) queueCanRun(job core.Job) bool {
 	if job.LibraryDir == "" {
-		return strings.TrimSpace(a.snap().LibraryDir) != ""
+		return strings.TrimSpace(a.snap().LibraryDir) != "" && !a.lockFilesAway(a.snap().LibraryDir)
 	}
 	dir := filepath.Clean(job.LibraryDir)
+	// A job in an encrypted library that is locked waits until it is unlocked: its folder holds only the image, and what the job wrote there would be neither encrypted nor seen once the image is attached over it (lockFilesAway).
+	if a.lockFilesAway(dir) {
+		return false
+	}
 	return slices.ContainsFunc(a.knownLibraries(), func(known string) bool { return filepath.Clean(known) == dir })
 }
 

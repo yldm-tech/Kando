@@ -11,13 +11,14 @@ import (
 	"kando/apps/kando/remote"
 	"kando/apps/kando/shelf"
 	"kando/apps/kando/sidebar"
+	"kando/apps/kando/vault"
 	kcore "kando/packages/core"
 
 	"github.com/nsgo-dev/nsgo/core"
 	nsdesktop "github.com/nsgo-dev/nsgo/desktop"
 )
 
-// A library's password (package lock, shelf.Lock) is an app lock, not encryption: while a library that has one is locked, Kando shows nothing of its films, in the window or outside it, and its files stay ordinary files on disk. The lock is kept in library.json (shelf.Library.Locks); which library is unlocked is kept only in memory, so quitting locks it again.
+// A library's password (package lock, shelf.Lock): while a library that has one is locked, Kando shows nothing of its films, in the window or outside it. On macOS the password also encrypts the library's files, which are then not on disk to open while it is locked (lock_vault.go); elsewhere it is an app lock, and its files stay ordinary files on disk. The password's key is kept in library.json (shelf.Library.Locks); an encrypted library's image tells by itself that it has a password, as for one brought from another Mac. Which library is unlocked is kept only in memory, so quitting locks it again.
 
 // lockUI is the libraries' passwords as the window asks for them.
 type lockUI struct {
@@ -30,6 +31,8 @@ type lockUI struct {
 	passed string
 	// run numbers the password checks, which run off the engine's goroutine as each takes a moment; an answer the dialog or the screen no longer waits for is dropped.
 	run int
+	// vault is the state of the encrypted libraries' images (lock_vault.go).
+	vault lockVault
 }
 
 // lockDialog is the password dialog: whether it is open and release, which gives back the window's modal flag it holds (holdModal); what it asks for, of the library at dir (a cleaned path); then, the action an Unlock lets through once the password is right (lockThen), nil when it opens the library; and its last try.
@@ -51,9 +54,9 @@ type lockTry struct {
 
 func newLockUI() lockUI { return lockUI{} }
 
-// lockHooks locks the library left when another opens.
+// lockHooks locks the library left when another opens, and after each change detaches the images of encrypted libraries nothing needs any more (lockSettle).
 func (a *app) lockHooks() areaHooks {
-	return areaHooks{libraryChanged: a.lockLibraryChanged}
+	return areaHooks{libraryChanged: a.lockLibraryChanged, afterChange: a.lockSettle}
 }
 
 // lockLibraryChanged locks the library that was unlocked when another library opened, unless the one that opened is the one just unlocked in the dialog; the lock screen's try is dropped with the library it was for.
@@ -71,16 +74,15 @@ func (a *app) lockKeys(cx *core.Scope) []shortcut {
 	}
 }
 
-// LibraryHasPassword reports whether the library at dir has a password.
+// LibraryHasPassword reports whether the library at dir has a password: library.json keeps its key, or its files are in an encrypted image.
 func (a *app) LibraryHasPassword(dir string) bool {
 	_, ok := a.library.LockOf(dir)
-	return ok
+	return ok || vault.Has(dir)
 }
 
 // LibraryLocked reports whether the library at dir has a password that has not been typed since the app started, so nothing of its films shows.
 func (a *app) LibraryLocked(dir string) bool {
-	_, ok := a.library.LockOf(dir)
-	return ok && filepath.Clean(dir) != a.lock.unlocked
+	return a.LibraryHasPassword(dir) && filepath.Clean(dir) != a.lock.unlocked
 }
 
 // lockShut reports whether the open library is locked: the lock screen covers the window, and the films, the queue's jobs, the saved lines and the control socket show nothing of it.
@@ -203,6 +205,14 @@ func (a *app) lockAsk(mode lock.Mode, dir string) {
 	a.lock.dialog = lockDialog{open: true, release: a.holdModal(), mode: mode, dir: filepath.Clean(dir)}
 }
 
+// lockCancel is the dialog's Cancel and Escape: it closes the dialog, but not while the library's files are being moved into or out of its image, which goes on to the end whatever the dialog does.
+func (a *app) lockCancel() {
+	if a.lock.vault.work != "" {
+		return
+	}
+	a.lockClose()
+}
+
 // lockClose closes the password dialog and gives back the window's modal flag; the answer of a check still going is dropped. Cancel, Escape and a try that went through close it.
 func (a *app) lockClose() {
 	if a.lock.dialog.release != nil {
@@ -224,32 +234,81 @@ func (a *app) lockSubmit(current, next, confirm string) {
 		return
 	}
 	old, has := a.library.LockOf(dir)
-	if mode != lock.Set && !has {
+	encrypted := vault.Has(dir)
+	if mode != lock.Set && !has && !encrypted {
 		a.lockClose()
 		return
+	}
+	// Setting a password encrypts the library where that can be done; changing or removing one acts on the image of a library that has one.
+	task := lockVaultTask{mode: mode, dir: dir, current: current, next: next, encrypt: (mode == lock.Set && lockEncrypts()) || ((mode == lock.Change || mode == lock.Remove) && encrypted)}
+	if task.encrypt {
+		if a.lockJobIn(dir) || a.lockMoving(dir) {
+			d.problem, d.detail = lock.Busy, ""
+			return
+		}
+		open := filepath.Clean(a.snap().LibraryDir)
+		task.reopen, task.open = dir == open, vault.Mounted(dir)
+		// The open film of the library closes, as its files are about to move or its image to be detached.
+		if dir == open {
+			a.openKey = ""
+			a.stopPlayback()
+		}
+		a.lock.vault.work, a.lock.vault.copying, a.lock.vault.percent = dir, mode == lock.Set || mode == lock.Remove, 0
 	}
 	a.lock.run++
 	run := a.lock.run
 	d.problem, d.detail, d.waiting = lock.NoProblem, "", run
 	update := a.update
+	task.progress = func(done, total int64) {
+		percent := 100
+		if total > 0 {
+			percent = int(done * 100 / total)
+		}
+		update(func() {
+			if a.lock.vault.work == dir {
+				a.lock.vault.percent = percent
+			}
+		})
+	}
 	go func() {
-		ok := mode == lock.Set || old.Matches(current)
+		// Without a key in library.json, as for an encrypted library brought from another Mac, the image itself checks the password.
+		ok := mode == lock.Set || !has || old.Matches(current)
 		var made shelf.Lock
 		var err error
 		if ok && makes {
 			made, err = shelf.NewLock(next)
 		}
-		update(func() { a.lockAnswered(run, ok, made, err) })
+		var verr error
+		if ok && err == nil {
+			verr = task.run(context.Background())
+		}
+		update(func() { a.lockAnswered(run, ok, made, err, verr, has) })
 	}()
 }
 
-// lockAnswered takes the answer of the dialog's check run: a wrong current password says so and lets the user try again; a right one unlocks the library and opens it, or gives it the key made of the new password, or takes its password away, and saves library.json. A lock that cannot be saved stays as it was, and the dialog says why. Engine goroutine only.
-func (a *app) lockAnswered(run int, ok bool, made shelf.Lock, err error) {
+// lockMoving reports whether a film is being copied into or out of the library at dir.
+func (a *app) lockMoving(dir string) bool {
+	c := a.lib.move.copying
+	return c != nil && (filepath.Clean(c.from) == dir || filepath.Clean(c.to) == dir)
+}
+
+// lockAnswered takes the answer of the dialog's check run: a wrong current password says so and lets the user try again; a right one unlocks the library and opens it, or gives it the key made of the new password, or takes its password away, and saves library.json. verr is how the library's encrypted image took it (lockVaultTask), hasKey whether library.json kept a key to check the password against. A lock that cannot be saved stays as it was, and the dialog says why. Engine goroutine only.
+func (a *app) lockAnswered(run int, ok bool, made shelf.Lock, err, verr error, hasKey bool) {
 	d := &a.lock.dialog
 	if !d.open || d.waiting != run {
 		return
 	}
 	d.waiting = 0
+	mode, dir := d.mode, d.dir
+	worked := a.lock.vault.work == dir
+	a.lock.vault.work, a.lock.vault.copying = "", false
+	if vault.Mounted(dir) {
+		a.lockVaultOpened(dir)
+	}
+	if worked {
+		// The library's files are back where the shelf reads them, encrypted or not, or were never moved.
+		defer a.refreshLibrary()
+	}
 	switch {
 	case !ok:
 		d.problem = lock.Wrong
@@ -257,8 +316,13 @@ func (a *app) lockAnswered(run int, ok bool, made shelf.Lock, err error) {
 	case err != nil:
 		d.problem, d.detail = lock.SaveFailed, a.messages().LibraryShelfSaveFailed(err.Error())
 		return
+	case verr != nil:
+		d.problem, d.detail = lockVaultProblem(dir, verr, hasKey), ""
+		return
 	}
-	mode, dir := d.mode, d.dir
+	if mode == lock.Set && worked {
+		a.lockForgetCache(dir)
+	}
 	if then := d.then; mode == lock.Unlock && then != nil {
 		a.lockClose()
 		a.lock.passed = dir
@@ -277,7 +341,8 @@ func (a *app) lockAnswered(run int, ok bool, made shelf.Lock, err error) {
 	if mode == lock.Remove {
 		made = shelf.Lock{}
 	}
-	if why := a.lockKeep(dir, made); why != "" {
+	// An encrypted library keeps its password in its image whatever library.json says, so a key that cannot be saved there only means the password is checked by the image.
+	if why := a.lockKeep(dir, made); why != "" && !worked {
 		d.problem, d.detail = lock.SaveFailed, why
 		return
 	}
@@ -306,8 +371,8 @@ func (a *app) lockKeep(dir string, l shelf.Lock) string {
 // lockScreenUnlock is the lock screen's button with the password typed: it is checked off the engine's goroutine, and a right one shows the library.
 func (a *app) lockScreenUnlock(password string) {
 	dir := filepath.Clean(a.snap().LibraryDir)
-	l, ok := a.library.LockOf(dir)
-	if !ok || !a.lockShut() || a.lock.screen.waiting != 0 {
+	l, hasKey := a.library.LockOf(dir)
+	if !a.lockShut() || a.lock.screen.waiting != 0 {
 		return
 	}
 	a.lock.run++
@@ -315,23 +380,36 @@ func (a *app) lockScreenUnlock(password string) {
 	a.lock.screen = lockTry{waiting: run}
 	update := a.update
 	go func() {
-		ok := l.Matches(password)
-		update(func() { a.lockScreenAnswered(run, dir, ok) })
+		// An encrypted library's image is attached once the password is right; without a key in library.json the image itself checks it.
+		ok := !hasKey || l.Matches(password)
+		var err error
+		if ok {
+			err = lockVaultTask{mode: lock.Unlock, dir: dir, current: password}.run(context.Background())
+		}
+		update(func() { a.lockScreenAnswered(run, dir, ok, err, hasKey) })
 	}()
 }
 
-// lockScreenAnswered takes the answer of the lock screen's check run for the library at dir, unless another library opened meanwhile. Engine goroutine only.
-func (a *app) lockScreenAnswered(run int, dir string, ok bool) {
+// lockScreenAnswered takes the answer of the lock screen's check run for the library at dir, unless another library opened meanwhile, and err, how its encrypted image took the password. The library's films show, and the jobs waiting for it to be unlocked start (queueCanRun). Engine goroutine only.
+func (a *app) lockScreenAnswered(run int, dir string, ok bool, err error, hasKey bool) {
+	if vault.Mounted(dir) {
+		a.lockVaultOpened(dir)
+	}
 	if a.lock.screen.waiting != run || filepath.Clean(a.snap().LibraryDir) != dir {
 		return
 	}
-	if !ok {
+	switch {
+	case !ok:
 		a.lock.screen = lockTry{problem: lock.Wrong}
+		return
+	case err != nil:
+		a.lock.screen = lockTry{problem: lockVaultProblem(dir, err, hasKey)}
 		return
 	}
 	a.lock.screen = lockTry{}
 	a.lock.unlocked = dir
-	a.areasShelfChanged()
+	a.refreshLibrary()
+	a.pump()
 }
 
 // lockMoved keys the lock of a library whose folder was renamed in Finder, and which library is unlocked, by its new path, and reports whether library.json changed (retargetLibraryPrefix).
@@ -356,7 +434,8 @@ func (a *app) lockRemoteGate(ctx context.Context) error {
 // lockLook is what the dialog shows.
 func (a *app) lockLook() lock.Look {
 	d := a.lock.dialog
-	return lock.Look{Mode: d.mode, Name: sidebar.Title(d.dir), Problem: d.problem, Detail: d.detail, Busy: d.waiting != 0}
+	v := a.lock.vault
+	return lock.Look{Mode: d.mode, Name: sidebar.Title(d.dir), Problem: d.problem, Detail: d.detail, Busy: d.waiting != 0, Encrypts: lockEncrypts(), Copying: v.copying && v.work == d.dir, Percent: v.percent}
 }
 
 // lockScreenLook is what the lock screen shows.
@@ -400,7 +479,7 @@ func (a *app) lockOverlay(cx *core.Scope) core.Node {
 			Open:     live.Func(a, func() bool { return a.lock.dialog.open }),
 			Look:     live.Func(a, a.lockLook),
 			OnSubmit: func(current, next, confirm string) { live.Do(a, func() { a.lockSubmit(current, next, confirm) })() },
-			OnCancel: live.Do(a, a.lockClose),
+			OnCancel: live.Do(a, a.lockCancel),
 		},
 	}
 }

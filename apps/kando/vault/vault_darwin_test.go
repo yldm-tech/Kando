@@ -1,0 +1,222 @@
+//go:build darwin
+
+package vault
+
+import (
+	"context"
+	"errors"
+	"os"
+	"path/filepath"
+	"slices"
+	"testing"
+)
+
+// library makes a library folder holding a film in a folder of its own, with a hidden file beside it, and a loose video, and detaches its image when the test ends.
+func library(t *testing.T) string {
+	t.Helper()
+	dir := filepath.Join(t.TempDir(), "Talks.kando")
+	files := map[string]string{
+		"Film/film.mp4":               "picture",
+		"Film/film.srt":               "1\n00:00:00,000 --> 00:00:01,000\nhi\n",
+		"Film/.film.translation.json": "{}",
+		"loose.mp4":                   "loose picture",
+	}
+	for name, body := range files {
+		path := filepath.Join(dir, name)
+		if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
+			t.Fatal(err)
+		}
+		if err := os.WriteFile(path, []byte(body), 0o644); err != nil {
+			t.Fatal(err)
+		}
+	}
+	t.Cleanup(func() {
+		_ = Close(context.Background(), dir, true)
+		_ = detach(context.Background(), filepath.Join(dir, mountName), true)
+	})
+	return dir
+}
+
+// names are the names in dir, but Finder's and the image volume's own.
+func names(t *testing.T, dir string) []string {
+	t.Helper()
+	items, err := os.ReadDir(dir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var out []string
+	for _, item := range items {
+		switch item.Name() {
+		case markerName, ".metadata_never_index", ".fseventsd", ".Spotlight-V100", ".Trashes", ".TemporaryItems", ".DS_Store":
+			continue
+		}
+		out = append(out, item.Name())
+	}
+	return out
+}
+
+func read(t *testing.T, path string) string {
+	t.Helper()
+	b, err := os.ReadFile(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	return string(b)
+}
+
+func TestALibraryLocksIntoItsImageAndOpensAgain(t *testing.T) {
+	ctx := context.Background()
+	dir := library(t)
+	if Has(dir) {
+		t.Fatal("a plain folder counts as encrypted")
+	}
+	var last [2]int64
+	if err := Create(ctx, dir, "right horse", func(done, total int64) { last = [2]int64{done, total} }); err != nil {
+		t.Fatal(err)
+	}
+	if got := names(t, dir); !slices.Equal(got, []string{ImageName}) {
+		t.Fatalf("the locked folder holds %v, want only the image", got)
+	}
+	if !Has(dir) || Mounted(dir) {
+		t.Fatalf("after Create: Has %v, Mounted %v; want an encrypted, locked library", Has(dir), Mounted(dir))
+	}
+	if last[0] != last[1] || last[1] == 0 {
+		t.Fatalf("progress ended at %d of %d bytes", last[0], last[1])
+	}
+	if err := Create(ctx, dir, "again", nil); !errors.Is(err, ErrExists) {
+		t.Fatalf("a second Create: %v, want ErrExists", err)
+	}
+
+	if err := Open(ctx, dir, "wrong horse"); !errors.Is(err, ErrNotOpened) {
+		t.Fatalf("Open with a wrong password: %v, want ErrNotOpened", err)
+	}
+	if Mounted(dir) {
+		t.Fatal("a wrong password opened the library")
+	}
+	if err := Open(ctx, dir, "right horse"); err != nil {
+		t.Fatal(err)
+	}
+	if !Mounted(dir) || !Has(dir) {
+		t.Fatal("the library is not open after Open")
+	}
+	if got := read(t, filepath.Join(dir, "Film", "film.mp4")); got != "picture" {
+		t.Fatalf("film.mp4 holds %q after Open", got)
+	}
+	if got := read(t, filepath.Join(dir, "Film", ".film.translation.json")); got != "{}" {
+		t.Fatalf("the hidden file holds %q after Open", got)
+	}
+	if got := names(t, dir); !slices.Equal(got, []string{"Film", "loose.mp4"}) {
+		t.Fatalf("the open library holds %v", got)
+	}
+	// What is written while it is open is kept in the image.
+	if err := os.WriteFile(filepath.Join(dir, "new.mp4"), []byte("new"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := Close(ctx, dir, false); err != nil {
+		t.Fatal(err)
+	}
+	if got := names(t, dir); !slices.Equal(got, []string{ImageName}) {
+		t.Fatalf("the folder holds %v after Close, want only the image", got)
+	}
+	if err := Open(ctx, dir, "right horse"); err != nil {
+		t.Fatal(err)
+	}
+	if got := read(t, filepath.Join(dir, "new.mp4")); got != "new" {
+		t.Fatalf("new.mp4 holds %q after opening again", got)
+	}
+}
+
+func TestOpenTakesInWhatWasLeftBesideTheImage(t *testing.T) {
+	ctx := context.Background()
+	dir := library(t)
+	if err := Create(ctx, dir, "pw", nil); err != nil {
+		t.Fatal(err)
+	}
+	// A copy left by a Create cut short, the same as the image's, and a file dropped into the locked folder in Finder: one the image has otherwise, and a new one.
+	for name, body := range map[string]string{"loose.mp4": "loose picture", "Film/film.srt": "edited", "dropped.mp4": "dropped"} {
+		path := filepath.Join(dir, name)
+		_ = os.MkdirAll(filepath.Dir(path), 0o755)
+		if err := os.WriteFile(path, []byte(body), 0o644); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if err := Open(ctx, dir, "pw"); err != nil {
+		t.Fatal(err)
+	}
+	if got := names(t, dir); !slices.Equal(got, []string{"Film", "dropped.mp4", "loose.mp4"}) {
+		t.Fatalf("the open library holds %v", got)
+	}
+	if got := read(t, filepath.Join(dir, "Film", "film.srt")); got == "edited" {
+		t.Fatal("a stray file took the place of the image's")
+	}
+	if got := read(t, filepath.Join(dir, "Film", "film 2.srt")); got != "edited" {
+		t.Fatalf("the stray file that differs holds %q beside the image's, want it kept", got)
+	}
+	if err := Close(ctx, dir, false); err != nil {
+		t.Fatal(err)
+	}
+	if got := names(t, dir); !slices.Equal(got, []string{ImageName}) {
+		t.Fatalf("the folder holds %v after Close, want only the image", got)
+	}
+}
+
+func TestChangeAndRemoveThePassword(t *testing.T) {
+	ctx := context.Background()
+	dir := library(t)
+	if err := Create(ctx, dir, "old", nil); err != nil {
+		t.Fatal(err)
+	}
+	if err := ChangePassword(ctx, dir, "old", "new"); err != nil {
+		t.Fatal(err)
+	}
+	if err := Open(ctx, dir, "old"); !errors.Is(err, ErrNotOpened) {
+		t.Fatalf("Open with the old password: %v, want ErrNotOpened", err)
+	}
+	if err := Open(ctx, dir, "new"); err != nil {
+		t.Fatal(err)
+	}
+	if err := Remove(ctx, dir, "new", nil); !errors.Is(err, ErrOpen) {
+		t.Fatalf("Remove while open: %v, want ErrOpen", err)
+	}
+	if err := Close(ctx, dir, false); err != nil {
+		t.Fatal(err)
+	}
+	if err := Remove(ctx, dir, "new", nil); err != nil {
+		t.Fatal(err)
+	}
+	if Has(dir) || Mounted(dir) {
+		t.Fatal("the library is still encrypted after Remove")
+	}
+	if got := names(t, dir); !slices.Equal(got, []string{"Film", "loose.mp4"}) {
+		t.Fatalf("the folder holds %v after Remove", got)
+	}
+	if got := read(t, filepath.Join(dir, "Film", ".film.translation.json")); got != "{}" {
+		t.Fatalf("the hidden file holds %q after Remove", got)
+	}
+}
+
+// Close detaches an image a Create, Open or Remove cut short left attached at the mount folder, as quitting Kando while one ran would, so its files are not left readable.
+func TestCloseDetachesAnImageLeftAttachedMidway(t *testing.T) {
+	ctx := context.Background()
+	dir := library(t)
+	if err := Create(ctx, dir, "pw", nil); err != nil {
+		t.Fatal(err)
+	}
+	mount := filepath.Join(dir, mountName)
+	if err := attach(ctx, filepath.Join(dir, ImageName), mount, "pw"); err != nil {
+		t.Fatal(err)
+	}
+	if err := Close(ctx, dir, false); err != nil {
+		t.Fatal(err)
+	}
+	if otherDevice(mount, dir) {
+		t.Fatal("the image is still attached at the mount folder after Close")
+	}
+	// The next Open clears the empty mount folder and opens the library as ever.
+	if err := Open(ctx, dir, "pw"); err != nil {
+		t.Fatal(err)
+	}
+	if got := names(t, dir); !slices.Equal(got, []string{"Film", "loose.mp4"}) {
+		t.Fatalf("the library holds %v after opening", got)
+	}
+}

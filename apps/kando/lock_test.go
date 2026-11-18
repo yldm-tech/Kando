@@ -25,9 +25,13 @@ const (
 	lockFilm     = "Private Talk"
 )
 
-// lockLibrary starts the app on a library of one done film, lockFilm, whose library.json and settings.json are files of their own, and another library with a film of its own the app knows beside it. It returns both libraries' folders and library.json's path.
+// lockLibrary starts the app, with the password an app lock alone (lockEncrypts), on a library of one done film, lockFilm, whose library.json and settings.json are files of their own, and another library with a film of its own the app knows beside it. It returns both libraries' folders and library.json's path.
 func lockLibrary(t *testing.T) (a *app, tt *nsgotest.App, updates chan func(), dir, other, shelfPath string) {
 	t.Helper()
+	// These tests are of the lock in Kando; lock_vault_test.go tests the encryption macOS adds to it.
+	prev := lockEncrypts
+	lockEncrypts = func() bool { return false }
+	t.Cleanup(func() { lockEncrypts = prev })
 	dir = filepath.Join(t.TempDir(), "Private.kando")
 	other = filepath.Join(t.TempDir(), "Public.kando")
 	video := filepath.Join(dir, lockFilm, "talk.mp4")

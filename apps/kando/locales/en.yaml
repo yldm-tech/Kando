@@ -1702,6 +1702,9 @@ libraryViewSaveFailed:
 libraryWindowTitle:
   message: "Kando"
   description: "Title of the main window: the app's name."
+lockBusy:
+  message: "A film is being processed in this library. Try again once it's done."
+  description: "Error in the library password dialog when the library cannot be encrypted, decrypted or given another password yet because a job is still downloading or processing a film into it."
 lockCancel:
   message: "Cancel"
   description: "Button of the library password dialog that closes it without changing anything."
@@ -1713,6 +1716,16 @@ lockChangeTitle:
   description: "Title of the dialog that changes a library's password; it asks for the current one first."
   placeholders:
     name: { type: "String", example: "Private" }
+lockDecrypting:
+  message: "Decrypting… {percent}%"
+  description: "Line in the library password dialog while removing the password moves the library's files out of its encrypted disk image, with how much is done."
+  placeholders:
+    percent: { type: "int", example: "42" }
+lockEncrypting:
+  message: "Encrypting… {percent}%"
+  description: "Line in the library password dialog while setting the password moves the library's files into an encrypted disk image, with how much is done."
+  placeholders:
+    percent: { type: "int", example: "42" }
 lockFieldConfirm:
   message: "Confirm Password"
   description: "Placeholder and accessible name of the field where the new library password is typed a second time."
@@ -1747,6 +1760,9 @@ lockMenuSet:
 lockMismatch:
   message: "The new passwords don't match."
   description: "Error in the library password dialog when the new password was typed differently the second time."
+lockNoSpace:
+  message: "There isn't enough free space on the disk. This needs about as much free space as the library takes."
+  description: "Error in the library password dialog when the disk has no room for a second copy of the library's files, which encrypting or decrypting it makes before removing the first."
 lockNow:
   message: "Lock Now"
   description: "Command of the File menu and the command palette that locks the open library, which has a password, so Kando asks for the password again before it shows it."
@@ -1772,9 +1788,17 @@ lockSetButton:
 lockSetNote:
   message: "Kando will ask for this password before it shows the library. This is a lock in Kando, not encryption: the library's files stay readable on disk. A forgotten password cannot be recovered."
   description: "Text under the title of the dialog that gives a library a password: what the password does and does not protect, and that it cannot be recovered."
+lockSetNoteEncrypted:
+  message: "Kando will move the library's files into an encrypted disk image. While the library is locked, they cannot be opened in Finder or any other app. This needs about as much free space as the library takes. A forgotten password cannot be recovered, and neither can the library's films."
+  description: "Text under the title of the dialog that gives a library a password, on macOS, where the password encrypts the library's files: what it protects, what it needs and that a forgotten password loses the files."
 lockSetTitle:
   message: "Set a Password for “{name}”"
   description: "Title of the dialog that gives a library a password."
+  placeholders:
+    name: { type: "String", example: "Private" }
+lockStillInUse:
+  message: "“{name}” stays open while another app is using a file in it. Kando locks it once that file is closed."
+  description: "Message bar text when a locked library's encrypted disk image cannot be closed because another app, such as a video player opened from Finder, still has one of its files open."
   placeholders:
     name: { type: "String", example: "Private" }
 lockUnlockButton:
@@ -1785,6 +1809,9 @@ lockUnlockTitle:
   description: "Title of the dialog that asks for a locked library's password before switching to it."
   placeholders:
     name: { type: "String", example: "Private" }
+lockVaultFailed:
+  message: "Kando couldn't finish this. The library's files are as they were."
+  description: "Error in the library password dialog and on the lock screen when the encrypted disk image of the library could not be made, opened, given another password or removed for a reason other than a wrong password; the details go to the log."
 lockWrong:
   message: "Wrong password. Try again."
   description: "Error in the library password dialog and on the lock screen when the password typed is not the library's."

@@ -19,7 +19,8 @@ import (
 //   - sidebar-empty: a new empty library, every count 0 (library_empty)
 //   - sidebar-focused: 全部影片 chosen with a click, so the sidebar holds the focus and rings the chosen row
 //   - sidebar-languages: the films heard in three languages, so the sidebar lists them under the sources, and 英语 chosen, the grid showing the films heard in English
-//   - lock-set-password: the switcher's 设置密码… for 我的影片, its new password typed once
+//   - lock-set-password: the switcher's 设置密码… for 我的影片, its new password typed once; on macOS the dialog says the files are encrypted (lockEncrypts)
+//   - lock-encrypting: that dialog once 设置密码 was pressed, 42% of 我的影片's files moved into its encrypted image
 //   - lock-unlock-wrong: 英语听力 locked and chosen in the switcher, its password dialog after a wrong password
 //   - lock-screen: 我的影片 locked as the app starts, its lock screen over the window
 func TestScreenshotsSidebar(t *testing.T) {
@@ -32,6 +33,19 @@ func TestScreenshotsSidebar(t *testing.T) {
 		tt.Type("id:lock-new", "password")
 		if !tt.Exists("id:lock-dialog") {
 			t.Fatal("the password dialog did not open")
+		}
+	})
+	f.shoot(t, "lock-encrypting", func(t *testing.T, a *app, tt *nsgotest.App, _ chan func()) {
+		screenshotReady(t, f, a)
+		refresh(tt, a)
+		tt.Press("id:sidebar-switcher")
+		tt.ChoosePopup(testlocale.Messages().LockMenuSet())
+		// The copy is shown as it stands partway, without moving the sample library's files.
+		a.lock.dialog.waiting = 1
+		a.lock.vault.work, a.lock.vault.copying, a.lock.vault.percent = a.lock.dialog.dir, true, 42
+		refresh(tt, a)
+		if !tt.Exists("id:lock-copying") {
+			t.Fatalf("the dialog does not say how far encrypting has gone: %q", tt.Texts())
 		}
 	})
 	f.shoot(t, "lock-unlock-wrong", func(t *testing.T, a *app, tt *nsgotest.App, updates chan func()) {
