@@ -244,6 +244,15 @@ func TestScreenshotsPlayer(t *testing.T) {
 	shot(p, "player-landscape")
 }
 
+func TestScreenshotsMiniPlayer(t *testing.T) {
+	shot := screenshots(t)
+	p, _ := openPlayer(t)
+	p.at(3200 * time.Millisecond)
+	p.app.Press("id:player-minimize")
+	p.app.WaitFor("id:player-mini", wait)
+	shot(p, "player-mini")
+}
+
 func TestScreenshotsTablet(t *testing.T) {
 	shot := screenshots(t)
 	p, _ := openPlayer(t, nsgotest.Size(1180, 820))
@@ -265,6 +274,15 @@ func TestScreenshotsPlayerStudy(t *testing.T) {
 	p.app.WaitFor("id:player-explain-text", wait)
 	shot(p, "player-explain")
 	p.app.Press("id:player-explain-close")
+	p.app.Press(`id:player-card >> text:"morning"`)
+	p.app.WaitFor("id:player-word-vocab", wait)
+	p.app.Press("id:player-word-vocab")
+	p.app.WaitFor("id:player-word-vocab >> text:"+msgs.PlayerWordInVocabulary(), wait)
+	shot(p, "player-word")
+	p.app.Press("id:player-word-close")
+	p.app.Press("id:player-tab-words")
+	p.app.WaitFor("id:player-film-word", wait)
+	shot(p, "player-words")
 	p.app.Press("id:player-tab-notes")
 	p.app.WaitFor("id:player-saved-line", wait)
 	shot(p, "player-notes")

@@ -39,7 +39,6 @@ const (
 	pairPage
 	introductionPage
 	filmPage
-	playerPage
 	reviewPage
 	vocabularyPage
 	linesPage
@@ -58,16 +57,15 @@ const (
 	tabs
 )
 
-// route is a page of a stack and what it shows: the computer and library a film's page is of, the film, and the key of the film the player plays.
+// route is a page of a stack and what it shows: the computer and library a film's page is of, and the film.
 type route struct {
 	page    page
 	desktop string
 	library sync.Library
 	film    sync.Film
-	key     string
 }
 
-// App is the app with the session cfg configures: the tabs of the Library, Learn and Settings, each a stack of the pages it opens, under a stack of what covers them, pairing, the introduction, the player and the page that says a computer no longer takes the phone; the introduction in the tabs' place until the user has been through it.
+// App is the app with the session cfg configures: the tabs of the Library, Learn and Settings, each a stack of the pages it opens, under a stack of what covers them, pairing, the introduction and the page that says a computer no longer takes the phone; the film playing over the tabs, or minimized in a bar over them; the introduction in the tabs' place until the user has been through it.
 func App(cx *core.Scope, cfg session.Config) core.Node {
 	theme.Apply(cx)
 	colors := ui.ColorsOf(cx)
@@ -117,7 +115,9 @@ func App(cx *core.Scope, cfg session.Config) core.Node {
 			}
 		}
 	}
-	play := func(key string) { outer.Push(route{page: playerPage, key: key}) }
+	// The film playing shows over the tabs, or in the mini player over them.
+	layer := player.NewLayer(cx, s)
+	play := layer.Play
 	// A computer that no longer takes the phone shows the page that says so over everything, one computer at a time; revoked is the one it shows.
 	revoked := ""
 	cx.Effect(func() {
@@ -132,7 +132,8 @@ func App(cx *core.Scope, cfg session.Config) core.Node {
 	tabStack := func(n *base.Nav[route]) func(cx *core.Scope) core.Node {
 		return func(cx *core.Scope) core.Node {
 			look.InTab(cx, shell.OverTabBar(cx))
-			return n.Stack(core.Style{FlexGrow: 1}, func(cx *core.Scope, r route, depth func() int) base.NavPage {
+			look.ProvideMini(cx, layer.Room)
+			stack := n.Stack(core.Style{FlexGrow: 1}, func(cx *core.Scope, r route, depth func() int) base.NavPage {
 				back := func() { n.Pop(1) }
 				openFilm := func(desktop string, lib sync.Library, f sync.Film) {
 					n.Push(route{page: filmPage, desktop: desktop, library: lib, film: f})
@@ -171,9 +172,10 @@ func App(cx *core.Scope, cfg session.Config) core.Node {
 					}
 					return jobs.Page(cx, s, act)
 				}
-				return films.Page(cx, s, films.Actions{Pair: openPair, Play: play, Add: openAdd, Jobs: openJobs,
+				return films.Page(cx, s, films.Actions{Pair: openPair, Play: play, PlayAt: layer.PlayAt, Add: openAdd, Jobs: openJobs,
 					Film: func(e catalog.Entry) { openFilm(e.Desktop, e.Library, e.Film) }})
 			})
+			return core.View{Style: core.Style{FlexGrow: 1}, Children: []core.Node{stack, player.MiniBar(cx, layer)}}
 		}
 	}
 	change := func(i int) {
@@ -214,17 +216,18 @@ func App(cx *core.Scope, cfg session.Config) core.Node {
 			return base.NavPage{TestID: "introduction", HeaderHidden: true, StyleFunc: ui.Filled(colors.Background), Children: []core.Node{
 				onboarding.Page(cx, s, func() { outer.Pop(1) }),
 			}}
-		case playerPage:
-			return player.Page(cx, s, r.key, func() { outer.Pop(1) })
 		case revokedPage:
 			return settings.RevokedPage(cx, s, r.desktop, openPair, unpaired, func() {
 				revoked = ""
 				outer.Pop(1)
 			})
 		}
-		return base.NavPage{TestID: "root", HeaderHidden: true, StyleFunc: ui.Filled(colors.Background), Children: []core.Node{root,
+		return base.NavPage{TestID: "root", HeaderHidden: true, StyleFunc: ui.Filled(colors.Background), StatusBarFunc: layer.StatusBar, Children: []core.Node{
+			// Under the player, the tabs are out of assistive technology's reach.
+			core.View{Style: core.Style{FlexGrow: 1}, AccessibilityElementsHidden: layer.Full, Children: []core.Node{root}},
 			add.Sheet(cx, s, adding.Get, func() { adding.Set(false) }, openJobs),
 			ui.Toasts{Toaster: toaster, TestID: "toasts"},
+			layer.Node(cx),
 		}}
 	})
 }

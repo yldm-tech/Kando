@@ -432,6 +432,7 @@ func (s *Session) LookUp(key, word, line string, done func(sync.WordEntry, error
 // keepLookup keeps e as the lookup under lk, in the session at once and on disk after the saves handed before.
 func (s *Session) keepLookup(lk string, e sync.WordEntry) {
 	s.lookups[lk] = store.Lookup{Entry: e, At: s.cfg.Now()}
+	s.lookupRev.Update(func(n int) int { return n + 1 })
 	m := maps.Clone(s.lookups)
 	s.lookupMu.Lock()
 	s.lookupSaving++

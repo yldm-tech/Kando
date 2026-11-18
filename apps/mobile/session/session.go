@@ -146,8 +146,9 @@ type Session struct {
 	studyMu      gosync.Mutex
 	studySaving  map[string]uint64
 	studySaved   map[string]uint64
-	// lookups are the words looked up through the desktops, read with the store; lookupMu orders their saves.
+	// lookups are the words looked up through the desktops, read with the store, and lookupRev counts their changes, for bindings to read; lookupMu orders their saves.
 	lookups                   map[string]store.Lookup
+	lookupRev                 *core.Signal[int]
 	lookupMu                  gosync.Mutex
 	lookupSaving, lookupSaved uint64
 	// remote follows the computers' queues (queue.go).
@@ -212,7 +213,7 @@ func New(cx *core.Scope, cfg Config) *Session {
 		studies:      core.NewSignalFunc(cx, map[string]study.Library{}, nil),
 		studyLoading: map[string]bool{}, studyRuns: map[string]*studyRun{}, finding: map[string]bool{},
 		studySaving: map[string]uint64{}, studySaved: map[string]uint64{},
-		lookups: map[string]store.Lookup{},
+		lookups: map[string]store.Lookup{}, lookupRev: core.NewSignal(cx, 0),
 	}
 	s.ctx, s.cancel = context.WithCancel(context.Background())
 	s.learn = newLearn(s)
@@ -267,6 +268,7 @@ func New(cx *core.Scope, cfg Config) *Session {
 			// A word looked up before the store was read stays.
 			maps.Copy(lookups, s.lookups)
 			s.lookups = lookups
+			s.lookupRev.Update(func(n int) int { return n + 1 })
 			if migrated {
 				s.SetPrefs(prefs)
 			} else {

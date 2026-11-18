@@ -3,6 +3,7 @@ package films
 
 import (
 	"context"
+	"time"
 
 	"kando/apps/mobile/catalog"
 	"kando/apps/mobile/computers"
@@ -25,8 +26,9 @@ type Actions struct {
 	Pair func()
 	// Film opens a film's page.
 	Film func(catalog.Entry)
-	// Play plays the film kept on the phone under key, from where it was left on the phone.
-	Play func(key string)
+	// Play plays the film kept on the phone under key, from where it was left on the phone, and PlayAt from at.
+	Play   func(key string)
+	PlayAt func(key string, at time.Duration)
 	// Add opens the Add sheet, and Jobs the Jobs page, which a tablet shows as a section of its own instead.
 	Add, Jobs func()
 }

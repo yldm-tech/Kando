@@ -99,8 +99,5 @@ func (v *view) resume(e catalog.Entry) {
 	v.act.Play(e.Key())
 }
 
-// playAt plays the film kept under key from at: the player starts where the phone last left it, so that is where it is left.
-func (v *view) playAt(key string, at time.Duration) {
-	v.s.SavePosition(key, at)
-	v.act.Play(key)
-}
+// playAt plays the film kept under key from at.
+func (v *view) playAt(key string, at time.Duration) { v.act.PlayAt(key, at) }

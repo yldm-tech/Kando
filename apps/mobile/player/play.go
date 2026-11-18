@@ -93,6 +93,8 @@ type play struct {
 	// said is the toast last shown of each kind (say), and toasts how many were.
 	said   map[string]string
 	toasts int
+	// status is the status bar while the player shows (Layer.StatusBar).
+	status func() core.StatusBarSetting
 }
 
 // say shows title in a toast in place of the last one of kind, as a line saved and then taken back says only the latter.

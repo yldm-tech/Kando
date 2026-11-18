@@ -546,6 +546,13 @@ var Parameters = map[string][]string{
 	"SettingsGoalValue":      {"count"},
 	"SettingsRemindDetail":   {"hour"},
 	"VocabRemoveTitle":       {"word"},
+	"PlayerMiniOpen":         {"title"},
+	"PlayerTabWordsCount":    {"count"},
+	"PlayerWordAddNamed":     {"word"},
+	"PlayerWordAdded":        {"word"},
+	"PlayerWordRemoveNamed":  {"word"},
+	"PlayerWordRemoved":      {"word"},
+	"PlayerWordTimes":        {"count"},
 }
 
 // Translation is a language's messages another package supplies:
@@ -639,6 +646,13 @@ type Translation struct {
 	SettingsGoalValue      func(count int) string
 	SettingsRemindDetail   func(hour int) string
 	VocabRemoveTitle       func(word string) string
+	PlayerMiniOpen         func(title string) string
+	PlayerTabWordsCount    func(count int) string
+	PlayerWordAddNamed     func(word string) string
+	PlayerWordAdded        func(word string) string
+	PlayerWordRemoveNamed  func(word string) string
+	PlayerWordRemoved      func(word string) string
+	PlayerWordTimes        func(count int) string
 }
 
 var supplied = map[string]Translation{}
@@ -807,7 +821,6 @@ const (
 	textPairTitle
 	textPlayerAudioOnly
 	textPlayerAudioOnlyNote
-	textPlayerBack
 	textPlayerCannotSave
 	textPlayerCantPlay
 	textPlayerClose
@@ -916,6 +929,13 @@ const (
 	textStyleYellow
 	textVocabEmpty
 	textVocabRemoveMessage
+	textPlayerCannotAddWord
+	textPlayerMini
+	textPlayerMinimize
+	textPlayerTabWords
+	textPlayerWordAdd
+	textPlayerWordInVocabulary
+	textPlayerWordsEmpty
 	numTexts
 )
 
@@ -1084,7 +1104,6 @@ var keyOfText = [numTexts]string{
 	"pairTitle",
 	"playerAudioOnly",
 	"playerAudioOnlyNote",
-	"playerBack",
 	"playerCannotSave",
 	"playerCantPlay",
 	"playerClose",
@@ -1193,6 +1212,13 @@ var keyOfText = [numTexts]string{
 	"styleYellow",
 	"vocabEmpty",
 	"vocabRemoveMessage",
+	"playerCannotAddWord",
+	"playerMini",
+	"playerMinimize",
+	"playerTabWords",
+	"playerWordAdd",
+	"playerWordInVocabulary",
+	"playerWordsEmpty",
 }
 
 // textsEn are the messages without arguments in en.
@@ -1359,7 +1385,6 @@ var textsEn = i18n.NewTexts(""+
 	"Pair with a Computer"+
 	"Audio Only"+
 	"Hides the picture, to listen as you would to a podcast."+
-	"Back"+
 	"Open this film once while its computer is reachable to save its lines."+
 	"This video can't play on this phone."+
 	"Close"+
@@ -1467,7 +1492,14 @@ var textsEn = i18n.NewTexts(""+
 	"White"+
 	"Yellow"+
 	"Words you look up and save while you watch show here"+
-	"It leaves the vocabulary on every device.",
+	"It leaves the vocabulary on every device."+
+	"Open this film once while its computer is reachable to add its words to the vocabulary."+
+	"Now Playing"+
+	"Minimize Player"+
+	"Words"+
+	"Add to Vocabulary"+
+	"In Vocabulary · Remove"+
+	"Words you tap in the lines show here, to add to your vocabulary.",
 	[]uint16{
 		7,
 		15,
@@ -1631,7 +1663,6 @@ var textsEn = i18n.NewTexts(""+
 		20,
 		10,
 		55,
-		4,
 		70,
 		36,
 		5,
@@ -1740,6 +1771,13 @@ var textsEn = i18n.NewTexts(""+
 		6,
 		52,
 		41,
+		87,
+		11,
+		15,
+		5,
+		17,
+		23,
+		64,
 	})
 
 // textsJa are the messages without arguments in ja.
@@ -1906,7 +1944,6 @@ var textsJa = i18n.NewTexts(""+
 	"コンピュータとペアリング"+
 	"音声のみ"+
 	"画面を隠して、ポッドキャストのように聞けます。"+
-	"戻る"+
 	"パソコンにつながる場所で一度この映像を開くと、文を保存できるようになります。"+
 	"この動画はこのスマートフォンでは再生できません。"+
 	"閉じる"+
@@ -2014,7 +2051,14 @@ var textsJa = i18n.NewTexts(""+
 	"白"+
 	"黄"+
 	"視聴中に調べて保存した単語がここに表示されます"+
-	"すべての端末の単語帳から削除されます。",
+	"すべての端末の単語帳から削除されます。"+
+	"パソコンにつながる場所で一度この映像を開くと、単語を単語帳に追加できるようになります。"+
+	"再生中"+
+	"プレーヤーをしまう"+
+	"単語"+
+	"単語帳に追加"+
+	"単語帳にあります · 削除"+
+	"字幕でタップした単語がここに表示され、単語帳に追加できます。",
 	[]uint16{
 		9,
 		18,
@@ -2178,7 +2222,6 @@ var textsJa = i18n.NewTexts(""+
 		36,
 		12,
 		69,
-		6,
 		114,
 		72,
 		9,
@@ -2287,6 +2330,13 @@ var textsJa = i18n.NewTexts(""+
 		3,
 		69,
 		57,
+		129,
+		9,
+		27,
+		6,
+		18,
+		34,
+		90,
 	})
 
 // textsKo are the messages without arguments in ko.
@@ -2453,7 +2503,6 @@ var textsKo = i18n.NewTexts(""+
 	"컴퓨터와 페어링"+
 	"소리만 듣기"+
 	"화면을 숨기고 팟캐스트처럼 들을 수 있습니다."+
-	"뒤로"+
 	"컴퓨터에 연결된 상태에서 이 영상을 한 번 열면 문장을 저장할 수 있습니다."+
 	"이 영상은 이 휴대폰에서 재생할 수 없습니다."+
 	"닫기"+
@@ -2561,7 +2610,14 @@ var textsKo = i18n.NewTexts(""+
 	"흰색"+
 	"노란색"+
 	"보면서 찾아 저장한 단어가 여기에 표시돼요"+
-	"모든 기기의 단어장에서 삭제됩니다.",
+	"모든 기기의 단어장에서 삭제됩니다."+
+	"컴퓨터에 연결된 상태에서 이 영상을 한 번 열면 단어를 단어장에 추가할 수 있습니다."+
+	"재생 중"+
+	"플레이어 최소화"+
+	"단어"+
+	"단어장에 추가"+
+	"단어장에 있음 · 삭제"+
+	"자막에서 누른 단어가 여기에 표시되며, 단어장에 추가할 수 있습니다.",
 	[]uint16{
 		10,
 		16,
@@ -2725,7 +2781,6 @@ var textsKo = i18n.NewTexts(""+
 		22,
 		16,
 		63,
-		6,
 		102,
 		61,
 		6,
@@ -2834,6 +2889,13 @@ var textsKo = i18n.NewTexts(""+
 		9,
 		59,
 		49,
+		115,
+		10,
+		22,
+		6,
+		19,
+		29,
+		94,
 	})
 
 // textsZhHans are the messages without arguments in zh-Hans.
@@ -3000,7 +3062,6 @@ var textsZhHans = i18n.NewTexts(""+
 	"与电脑配对"+
 	"只听声音"+
 	"不显示画面，适合通勤时练听力。"+
-	"返回"+
 	"在能连上电脑时打开一次这部影片，就能收藏它的句子。"+
 	"这个视频无法在这部手机上播放。"+
 	"关闭"+
@@ -3108,7 +3169,14 @@ var textsZhHans = i18n.NewTexts(""+
 	"白色"+
 	"黄色"+
 	"看片时查过并收藏的生词会出现在这里"+
-	"它会从所有设备的生词本里移除。",
+	"它会从所有设备的生词本里移除。"+
+	"在能连上电脑时打开一次这部影片，就能把它的词加入生词本。"+
+	"正在播放"+
+	"收起播放器"+
+	"生词"+
+	"加入生词本"+
+	"已在生词本 · 移除"+
+	"在字幕里点过的词会出现在这里，可以加入生词本。",
 	[]uint16{
 		6,
 		12,
@@ -3272,7 +3340,6 @@ var textsZhHans = i18n.NewTexts(""+
 		15,
 		12,
 		45,
-		6,
 		75,
 		45,
 		6,
@@ -3381,6 +3448,13 @@ var textsZhHans = i18n.NewTexts(""+
 		6,
 		51,
 		45,
+		84,
+		12,
+		15,
+		6,
+		15,
+		25,
+		69,
 	})
 
 // textsZhHant are the messages without arguments in zh-Hant.
@@ -3547,7 +3621,6 @@ var textsZhHant = i18n.NewTexts(""+
 	"與電腦配對"+
 	"只聽聲音"+
 	"不顯示畫面，適合通勤時練聽力。"+
-	"返回"+
 	"在能連上電腦時打開一次這部影片，就能收藏它的句子。"+
 	"這個影片無法在這支手機上播放。"+
 	"關閉"+
@@ -3655,7 +3728,14 @@ var textsZhHant = i18n.NewTexts(""+
 	"白色"+
 	"黃色"+
 	"看片時查過並收藏的生詞會出現在這裡"+
-	"它會從所有裝置的生詞本裡移除。",
+	"它會從所有裝置的生詞本裡移除。"+
+	"在能連上電腦時打開一次這部影片，就能把它的詞加入生詞本。"+
+	"正在播放"+
+	"收起播放器"+
+	"生詞"+
+	"加入生詞本"+
+	"已在生詞本 · 移除"+
+	"在字幕裡點過的詞會出現在這裡，可以加入生詞本。",
 	[]uint16{
 		6,
 		12,
@@ -3819,7 +3899,6 @@ var textsZhHant = i18n.NewTexts(""+
 		15,
 		12,
 		45,
-		6,
 		75,
 		45,
 		6,
@@ -3928,6 +4007,13 @@ var textsZhHant = i18n.NewTexts(""+
 		6,
 		51,
 		45,
+		84,
+		12,
+		15,
+		6,
+		15,
+		25,
+		69,
 	})
 
 // texts returns the messages without arguments in lang, nil for a
@@ -4244,6 +4330,27 @@ func Supply(lang string, t Translation) {
 	}
 	if t.VocabRemoveTitle != nil {
 		s.VocabRemoveTitle = t.VocabRemoveTitle
+	}
+	if t.PlayerMiniOpen != nil {
+		s.PlayerMiniOpen = t.PlayerMiniOpen
+	}
+	if t.PlayerTabWordsCount != nil {
+		s.PlayerTabWordsCount = t.PlayerTabWordsCount
+	}
+	if t.PlayerWordAddNamed != nil {
+		s.PlayerWordAddNamed = t.PlayerWordAddNamed
+	}
+	if t.PlayerWordAdded != nil {
+		s.PlayerWordAdded = t.PlayerWordAdded
+	}
+	if t.PlayerWordRemoveNamed != nil {
+		s.PlayerWordRemoveNamed = t.PlayerWordRemoveNamed
+	}
+	if t.PlayerWordRemoved != nil {
+		s.PlayerWordRemoved = t.PlayerWordRemoved
+	}
+	if t.PlayerWordTimes != nil {
+		s.PlayerWordTimes = t.PlayerWordTimes
 	}
 	supplied[lang] = s
 	Catalog.Add(lang)
@@ -7716,15 +7823,6 @@ func PlayerAudioOnlyNote(cx *core.Scope) string { return For(cx).PlayerAudioOnly
 // PlayerAudioOnlyNote is the package's PlayerAudioOnlyNote in the language of msgs.
 func (msgs Messages) PlayerAudioOnlyNote() string { return msgs.text(textPlayerAudioOnlyNote) }
 
-// PlayerBack says "Back"
-// in the language the app shows under cx.
-//
-// Spoken name of the player's button that leaves it.
-func PlayerBack(cx *core.Scope) string { return For(cx).PlayerBack() }
-
-// PlayerBack is the package's PlayerBack in the language of msgs.
-func (msgs Messages) PlayerBack() string { return msgs.text(textPlayerBack) }
-
 // PlayerCannotSave says "Open this film once while its computer is reachable to save its lines."
 // in the language the app shows under cx.
 //
@@ -9561,6 +9659,292 @@ func (msgs Messages) VocabRemoveTitle(word string) string {
 		}
 	}
 }
+
+// PlayerCannotAddWord says "Open this film once while its computer is reachable to add its words to the vocabulary."
+// in the language the app shows under cx.
+//
+// Toast when a word can't go in the vocabulary yet, as the film's library on the computer isn't known.
+func PlayerCannotAddWord(cx *core.Scope) string { return For(cx).PlayerCannotAddWord() }
+
+// PlayerCannotAddWord is the package's PlayerCannotAddWord in the language of msgs.
+func (msgs Messages) PlayerCannotAddWord() string { return msgs.text(textPlayerCannotAddWord) }
+
+// PlayerMini says "Now Playing"
+// in the language the app shows under cx.
+//
+// Spoken name of the mini player, the bar over the tabs while the player is minimized.
+func PlayerMini(cx *core.Scope) string { return For(cx).PlayerMini() }
+
+// PlayerMini is the package's PlayerMini in the language of msgs.
+func (msgs Messages) PlayerMini() string { return msgs.text(textPlayerMini) }
+
+// PlayerMiniOpen says "Open {title}"
+// in the language the app shows under cx.
+//
+// Spoken name of the mini player's button that opens the player again.
+func PlayerMiniOpen(cx *core.Scope, title string) string { return For(cx).PlayerMiniOpen(title) }
+
+// PlayerMiniOpen is the package's PlayerMiniOpen in the language of msgs.
+func (msgs Messages) PlayerMiniOpen(title string) string {
+	if i18n.IsPseudo(msgs.lang) {
+		return i18n.Pseudo(msgs.lang, Messages{lang: Source, mark: true}.PlayerMiniOpen(title))
+	}
+	for lang := msgs.lang; ; lang = i18n.Parent(lang) {
+		if f := supplied[lang].PlayerMiniOpen; f != nil {
+			return f(title)
+		}
+		switch lang {
+		case "", "en":
+			return "Open " + msgs.arg(title)
+		case "ja":
+			return title + " を開く"
+		case "ko":
+			return title + " 열기"
+		case "zh-Hans":
+			return "打开 " + title
+		case "zh-Hant":
+			return "打開 " + title
+		}
+	}
+}
+
+// PlayerMinimize says "Minimize Player"
+// in the language the app shows under cx.
+//
+// Spoken name of the player's button that minimizes it to a bar over the tabs while the film plays on.
+func PlayerMinimize(cx *core.Scope) string { return For(cx).PlayerMinimize() }
+
+// PlayerMinimize is the package's PlayerMinimize in the language of msgs.
+func (msgs Messages) PlayerMinimize() string { return msgs.text(textPlayerMinimize) }
+
+// PlayerTabWords says "Words"
+// in the language the app shows under cx.
+//
+// Tab of the player's panel: the film's words looked up or in the vocabulary, while there are none.
+func PlayerTabWords(cx *core.Scope) string { return For(cx).PlayerTabWords() }
+
+// PlayerTabWords is the package's PlayerTabWords in the language of msgs.
+func (msgs Messages) PlayerTabWords() string { return msgs.text(textPlayerTabWords) }
+
+// PlayerTabWordsCount says "Words {count}"
+// in the language the app shows under cx.
+//
+// Tab of the player's panel with how many of the film's words were looked up or are in the vocabulary.
+func PlayerTabWordsCount(cx *core.Scope, count int) string { return For(cx).PlayerTabWordsCount(count) }
+
+// PlayerTabWordsCount is the package's PlayerTabWordsCount in the language of msgs.
+func (msgs Messages) PlayerTabWordsCount(count int) string {
+	if i18n.IsPseudo(msgs.lang) {
+		return i18n.Pseudo(msgs.lang, Messages{lang: Source, mark: true}.PlayerTabWordsCount(count))
+	}
+	for lang := msgs.lang; ; lang = i18n.Parent(lang) {
+		if f := supplied[lang].PlayerTabWordsCount; f != nil {
+			return f(count)
+		}
+		switch lang {
+		case "", "en":
+			return "Words " + msgs.arg(i18n.FormatNumber("en", float64(count)))
+		case "ja":
+			return "単語 " + i18n.FormatNumber("ja", float64(count))
+		case "ko":
+			return "단어 " + i18n.FormatNumber("ko", float64(count))
+		case "zh-Hans":
+			return "生词 " + i18n.FormatNumber("zh-Hans", float64(count))
+		case "zh-Hant":
+			return "生詞 " + i18n.FormatNumber("zh-Hant", float64(count))
+		}
+	}
+}
+
+// PlayerWordAdd says "Add to Vocabulary"
+// in the language the app shows under cx.
+//
+// Button of the word card that puts the word in the vocabulary.
+func PlayerWordAdd(cx *core.Scope) string { return For(cx).PlayerWordAdd() }
+
+// PlayerWordAdd is the package's PlayerWordAdd in the language of msgs.
+func (msgs Messages) PlayerWordAdd() string { return msgs.text(textPlayerWordAdd) }
+
+// PlayerWordAddNamed says "Add {word} to Vocabulary"
+// in the language the app shows under cx.
+//
+// Spoken name of a word's star in the Words tab while the word isn't in the vocabulary.
+func PlayerWordAddNamed(cx *core.Scope, word string) string { return For(cx).PlayerWordAddNamed(word) }
+
+// PlayerWordAddNamed is the package's PlayerWordAddNamed in the language of msgs.
+func (msgs Messages) PlayerWordAddNamed(word string) string {
+	if i18n.IsPseudo(msgs.lang) {
+		return i18n.Pseudo(msgs.lang, Messages{lang: Source, mark: true}.PlayerWordAddNamed(word))
+	}
+	for lang := msgs.lang; ; lang = i18n.Parent(lang) {
+		if f := supplied[lang].PlayerWordAddNamed; f != nil {
+			return f(word)
+		}
+		switch lang {
+		case "", "en":
+			return "Add " + msgs.arg(word) + " to Vocabulary"
+		case "ja":
+			return word + " を単語帳に追加"
+		case "ko":
+			return word + "을(를) 단어장에 추가"
+		case "zh-Hans":
+			return "把 " + word + " 加入生词本"
+		case "zh-Hant":
+			return "把 " + word + " 加入生詞本"
+		}
+	}
+}
+
+// PlayerWordAdded says "{word} added to Vocabulary"
+// in the language the app shows under cx.
+//
+// Toast once a word is put in the vocabulary.
+func PlayerWordAdded(cx *core.Scope, word string) string { return For(cx).PlayerWordAdded(word) }
+
+// PlayerWordAdded is the package's PlayerWordAdded in the language of msgs.
+func (msgs Messages) PlayerWordAdded(word string) string {
+	if i18n.IsPseudo(msgs.lang) {
+		return i18n.Pseudo(msgs.lang, Messages{lang: Source, mark: true}.PlayerWordAdded(word))
+	}
+	for lang := msgs.lang; ; lang = i18n.Parent(lang) {
+		if f := supplied[lang].PlayerWordAdded; f != nil {
+			return f(word)
+		}
+		switch lang {
+		case "", "en":
+			return msgs.arg(word) + " added to Vocabulary"
+		case "ja":
+			return word + " を単語帳に追加しました"
+		case "ko":
+			return word + "을(를) 단어장에 추가했습니다"
+		case "zh-Hans":
+			return "已把 " + word + " 加入生词本"
+		case "zh-Hant":
+			return "已把 " + word + " 加入生詞本"
+		}
+	}
+}
+
+// PlayerWordInVocabulary says "In Vocabulary · Remove"
+// in the language the app shows under cx.
+//
+// Button of the word card while the word is in the vocabulary; a tap takes it out.
+func PlayerWordInVocabulary(cx *core.Scope) string { return For(cx).PlayerWordInVocabulary() }
+
+// PlayerWordInVocabulary is the package's PlayerWordInVocabulary in the language of msgs.
+func (msgs Messages) PlayerWordInVocabulary() string { return msgs.text(textPlayerWordInVocabulary) }
+
+// PlayerWordRemoveNamed says "Remove {word} from Vocabulary"
+// in the language the app shows under cx.
+//
+// Spoken name of a word's star in the Words tab while the word is in the vocabulary.
+func PlayerWordRemoveNamed(cx *core.Scope, word string) string {
+	return For(cx).PlayerWordRemoveNamed(word)
+}
+
+// PlayerWordRemoveNamed is the package's PlayerWordRemoveNamed in the language of msgs.
+func (msgs Messages) PlayerWordRemoveNamed(word string) string {
+	if i18n.IsPseudo(msgs.lang) {
+		return i18n.Pseudo(msgs.lang, Messages{lang: Source, mark: true}.PlayerWordRemoveNamed(word))
+	}
+	for lang := msgs.lang; ; lang = i18n.Parent(lang) {
+		if f := supplied[lang].PlayerWordRemoveNamed; f != nil {
+			return f(word)
+		}
+		switch lang {
+		case "", "en":
+			return "Remove " + msgs.arg(word) + " from Vocabulary"
+		case "ja":
+			return word + " を単語帳から削除"
+		case "ko":
+			return "단어장에서 " + word + " 삭제"
+		case "zh-Hans":
+			return "从生词本移除 " + word
+		case "zh-Hant":
+			return "從生詞本移除 " + word
+		}
+	}
+}
+
+// PlayerWordRemoved says "{word} removed from Vocabulary"
+// in the language the app shows under cx.
+//
+// Toast once a word is taken out of the vocabulary.
+func PlayerWordRemoved(cx *core.Scope, word string) string { return For(cx).PlayerWordRemoved(word) }
+
+// PlayerWordRemoved is the package's PlayerWordRemoved in the language of msgs.
+func (msgs Messages) PlayerWordRemoved(word string) string {
+	if i18n.IsPseudo(msgs.lang) {
+		return i18n.Pseudo(msgs.lang, Messages{lang: Source, mark: true}.PlayerWordRemoved(word))
+	}
+	for lang := msgs.lang; ; lang = i18n.Parent(lang) {
+		if f := supplied[lang].PlayerWordRemoved; f != nil {
+			return f(word)
+		}
+		switch lang {
+		case "", "en":
+			return msgs.arg(word) + " removed from Vocabulary"
+		case "ja":
+			return word + " を単語帳から削除しました"
+		case "ko":
+			return "단어장에서 " + word + "을(를) 삭제했습니다"
+		case "zh-Hans":
+			return "已从生词本移除 " + word
+		case "zh-Hant":
+			return "已從生詞本移除 " + word
+		}
+	}
+}
+
+// PlayerWordTimes says "{count, plural, one {Said # time in this film} other {Said # times in this film}}"
+// in the language the app shows under cx.
+//
+// Under a word in the Words tab: how many times the film's lines say it.
+func PlayerWordTimes(cx *core.Scope, count int) string { return For(cx).PlayerWordTimes(count) }
+
+// PlayerWordTimes is the package's PlayerWordTimes in the language of msgs.
+func (msgs Messages) PlayerWordTimes(count int) string {
+	if i18n.IsPseudo(msgs.lang) {
+		return i18n.Pseudo(msgs.lang, Messages{lang: Source, mark: true}.PlayerWordTimes(count))
+	}
+	for lang := msgs.lang; ; lang = i18n.Parent(lang) {
+		if f := supplied[lang].PlayerWordTimes; f != nil {
+			return f(count)
+		}
+		switch lang {
+		case "", "en":
+			var b strings.Builder
+			switch i18n.Cardinal("en", float64(count)) {
+			case i18n.One:
+				b.WriteString("Said ")
+				b.WriteString(msgs.arg(i18n.FormatNumber("en", float64(count))))
+				b.WriteString(" time in this film")
+			default:
+				b.WriteString("Said ")
+				b.WriteString(msgs.arg(i18n.FormatNumber("en", float64(count))))
+				b.WriteString(" times in this film")
+			}
+			return b.String()
+		case "ja":
+			return "この映像で " + i18n.FormatNumber("ja", float64(count)) + " 回"
+		case "ko":
+			return "이 영상에서 " + i18n.FormatNumber("ko", float64(count)) + "번"
+		case "zh-Hans":
+			return "片中出现 " + i18n.FormatNumber("zh-Hans", float64(count)) + " 次"
+		case "zh-Hant":
+			return "片中出現 " + i18n.FormatNumber("zh-Hant", float64(count)) + " 次"
+		}
+	}
+}
+
+// PlayerWordsEmpty says "Words you tap in the lines show here, to add to your vocabulary."
+// in the language the app shows under cx.
+//
+// Words tab while no word of the film was looked up or is in the vocabulary.
+func PlayerWordsEmpty(cx *core.Scope) string { return For(cx).PlayerWordsEmpty() }
+
+// PlayerWordsEmpty is the package's PlayerWordsEmpty in the language of msgs.
+func (msgs Messages) PlayerWordsEmpty() string { return msgs.text(textPlayerWordsEmpty) }
 
 // dated is lang with the hour cycle the user set, which times take.
 func (msgs Messages) dated(lang string) string {

@@ -235,7 +235,7 @@ func TestALineSavedInThePlayerShowsInLearn(t *testing.T) {
 	d.SetOff(true)
 	p.app.Press("id:player-save")
 	p.app.WaitFor("id:player-toasts >> text:"+msgs.PlayerSavedToast(), wait)
-	p.app.Press("id:player-back")
+	p.app.Press("id:player-minimize")
 	p.openTab(learnTab, msgs.LearnTitle())
 	p.app.WaitFor("id:learn-lines", wait)
 	p.app.Press("id:learn-lines")
@@ -461,4 +461,162 @@ func TestANoteBeingWrittenStaysWithItsLineAndCanBeCleared(t *testing.T) {
 	p.app.Press("id:player-note-save")
 	p.app.WaitFor("id:player-toasts >> text:"+msgs.PlayerNoteCleared(), wait)
 	p.app.WaitUntil(wait, func() bool { r, ok := line(); return ok && fieldText(r, sync.FieldNote) == "" })
+}
+
+// words are the computer's word records of library "lib" not removed.
+func words(d *synctest.Desktop) []sync.Record {
+	return slices.DeleteFunc(d.Records("lib", sync.KindWord), func(r sync.Record) bool { return r.Removed != nil })
+}
+
+// A word looked up goes in the vocabulary from its card, with the line it was looked up in, and the computer gets it; the Words tab lists it with how many times the film says it, and its star takes it out again, on the computer too.
+func TestAWordLookedUpGoesInTheVocabularyFromItsCardAndTheWordsTab(t *testing.T) {
+	d := newDesktop(t)
+	d.SetEntry("morning", sync.WordEntry{Word: "morning", Reading: "/ˈmɔːnɪŋ/", Meaning: "n. 早晨", Language: "简体中文"})
+	p, _ := studyPlayer(t, d)
+	p.app.Press("id:player-tab-words")
+	p.app.WaitFor("id:player-words-empty", wait)
+
+	p.app.Press(`id:player-card >> text:"morning"`)
+	p.app.WaitFor("id:player-word-vocab", wait)
+	if !p.app.Exists("id:player-word-vocab >> text:" + msgs.PlayerWordAdd()) {
+		t.Fatalf("the word card offers %q", p.texts("id:player-word-vocab"))
+	}
+	p.app.Press("id:player-word-vocab")
+	p.app.WaitFor("id:player-toasts >> text:"+msgs.PlayerWordAdded("morning"), wait)
+	p.app.WaitUntil(wait, func() bool { return len(words(d)) == 1 })
+	w := words(d)[0]
+	if w.Film != "f1" || fieldText(w, sync.FieldWord) != "morning" || fieldText(w, sync.FieldMeaning) != "n. 早晨" || fieldText(w, sync.FieldContext) != "Good morning." ||
+		fieldText(w, sync.FieldContextTranslation) != "早上好。" || fieldText(w, sync.FieldSpoken) != "ja" || fieldText(w, sync.FieldTitle) != "Morning Talk" {
+		t.Fatalf("the computer has %+v", w)
+	}
+	if !p.app.Exists("id:player-word-vocab >> text:" + msgs.PlayerWordInVocabulary()) {
+		t.Fatalf("once added the word card offers %q", p.texts("id:player-word-vocab"))
+	}
+	p.app.Press("id:player-word-close")
+
+	if got := p.texts("id:player-words"); !strings.Contains(got, "morning\n/ˈmɔːnɪŋ/\nn. 早晨\n"+msgs.PlayerWordTimes(1)) {
+		t.Fatalf("the Words tab reads %q", got)
+	}
+	if !p.app.Exists("id:player-tab-words >> text:" + msgs.PlayerTabWordsCount(1)) {
+		t.Fatal("the Words tab does not count the word")
+	}
+	p.app.Press(`label:"` + msgs.PlayerWordRemoveNamed("morning") + `"`)
+	p.app.WaitFor("id:player-toasts >> text:"+msgs.PlayerWordRemoved("morning"), wait)
+	p.app.WaitUntil(wait, func() bool { return len(words(d)) == 0 && len(d.Records("lib", sync.KindWord)) == 1 })
+	// Looked up, it stays in the tab, to add again.
+	if !p.app.Exists(`label:"` + msgs.PlayerWordAddNamed("morning") + `"`) {
+		t.Fatalf("the Words tab reads %q", p.texts("id:player-words"))
+	}
+}
+
+// A word the computer has in the vocabulary from the film shows in the Words tab, starred; a tap shows its card.
+func TestTheComputersWordsOfTheFilmShowInTheWordsTab(t *testing.T) {
+	d := newDesktop(t)
+	at := now().Add(-time.Hour)
+	field := func(v any) sync.Field { return sync.Field{Value: sync.Value(v)} }
+	d.SetState("lib", at, sync.Record{Kind: sync.KindWord, ID: "deskword", Film: "f1", Fields: map[string]sync.Field{
+		sync.FieldWord: field("see"), sync.FieldSpoken: field("ja"), sync.FieldMeaning: field("v. 看见"), sync.FieldContext: field("See you."),
+		sync.FieldTitle: field("Morning Talk"), sync.FieldStartMS: field(7000), sync.FieldSavedAt: field(at), sync.FieldReview: field(sync.Review{Due: at}),
+	}})
+	p, _ := studyPlayer(t, d)
+	p.app.Press("id:player-tab-words")
+	p.app.WaitUntil(wait, func() bool { return p.app.Exists(`label:"` + msgs.PlayerWordRemoveNamed("see") + `"`) })
+	if got := p.texts("id:player-words"); !strings.Contains(got, "see\nv. 看见\n"+msgs.PlayerWordTimes(1)) {
+		t.Fatalf("the Words tab reads %q", got)
+	}
+	p.app.Press("id:player-film-word")
+	p.app.WaitUntil(wait, func() bool { return p.app.Exists("id:player-word-line") })
+	if got := p.app.Find("id:player-word-line").Text; got != "See you." {
+		t.Fatalf("the word's card shows the line %q", got)
+	}
+}
+
+// Minimized, the player leaves a bar over the tabs while the film plays on: it shows the line playing, holds and plays the film, plays the next line, and opens the same player again, where the film is.
+func TestTheMiniPlayerPlaysOnOverTheTabs(t *testing.T) {
+	p, f := openPlayer(t)
+	p.at(3200 * time.Millisecond)
+	p.app.Press("id:player-minimize")
+	p.app.WaitFor("id:player-mini", wait)
+	if p.app.Exists("id:player-card") || p.app.Exists("id:player-tabs") {
+		t.Fatal("minimized, the player still shows")
+	}
+	if !p.app.Exists("id:film-page") && !p.app.Exists("id:film-play") {
+		t.Fatal("minimized, the film's page does not show under the mini player")
+	}
+	p.app.WaitUntil(wait, func() bool {
+		films, _ := store.Open(p.dir).Films()
+		return len(films) == 1 && films[0].PositionMS == 3200
+	})
+	if p.app.Find("id:player-video").Video.Paused {
+		t.Fatal("minimized, the film stopped")
+	}
+	if got := p.app.Find("id:player-mini-line").Text; got != "你好吗？" {
+		t.Fatalf("the mini player shows %q", got)
+	}
+	if got := p.app.Find("id:player-mini-original").Text; got != "How are you?" {
+		t.Fatalf("the mini player's original reads %q", got)
+	}
+	p.at(5200 * time.Millisecond)
+	if got := p.app.Find("id:player-mini-line").Text; got != "Fine, thanks." {
+		t.Fatalf("an untranslated line shows %q", got)
+	}
+	if got := p.app.Find("id:player-mini-original").Text; got != f.Film.Title {
+		t.Fatalf("under an untranslated line the mini player shows %q", got)
+	}
+	p.app.Press("id:player-mini-play")
+	if !p.app.Find("id:player-video").Video.Paused {
+		t.Fatal("the mini player's button did not hold the film")
+	}
+	p.app.Press("id:player-mini-next")
+	if s := p.seeks(); s[len(s)-1] != 7*sec || p.app.Find("id:player-video").Video.Paused {
+		t.Fatalf("next line went to %v", s)
+	}
+	loads := len(p.seeks())
+	p.app.Press("id:player-mini-open")
+	p.app.WaitFor("id:player-card", wait)
+	if p.app.Exists("id:player-mini") {
+		t.Fatal("the mini player shows over the player")
+	}
+	if len(p.seeks()) != loads || p.app.Find("id:player-video").Video.Paused {
+		t.Fatalf("the player opened again went to %v", p.seeks()[loads:])
+	}
+	// Played again from its page, the film opens the same player.
+	p.app.Press("id:player-minimize")
+	p.app.WaitFor("id:player-mini", wait)
+	p.app.Press("id:film-play")
+	p.app.WaitFor("id:player-card", wait)
+	if len(p.seeks()) != loads {
+		t.Fatalf("played from its page, the film went to %v", p.seeks()[loads:])
+	}
+}
+
+// A film played from a line a search found while it plays in the mini player plays from that line, in the same player.
+func TestAFilmPlayedFromALineWhileMinimizedGoesThere(t *testing.T) {
+	p, f := openPlayer(t)
+	p.at(7500 * time.Millisecond)
+	p.app.Press("id:player-minimize")
+	p.app.WaitFor("id:player-mini", wait)
+	p.openTab(filmsTab, msgs.FilmsTitle())
+	p.app.WaitFor("id:films-search", wait)
+	p.app.Type("id:films-search", "HOW ARE")
+	p.app.WaitFor("id:films-hit-"+f.Desktop+"-f1", wait)
+	p.app.Press(talkRow(f.Desktop))
+	p.app.WaitFor("id:player-card", wait)
+	if s := p.seeks(); s[len(s)-1] != 3*sec {
+		t.Fatalf("the player went to %v", s)
+	}
+	p.app.WaitUntil(wait, func() bool { return p.keptPosition() == 3000 })
+}
+
+// A film deleted from the phone while it plays in the mini player stops, and the mini player goes.
+func TestDeletingTheFilmPlayingMinimizedStopsIt(t *testing.T) {
+	p, _ := openPlayer(t)
+	p.app.Press("id:player-minimize")
+	p.app.WaitFor("id:player-mini", wait)
+	p.app.Press("id:film-delete")
+	p.app.Answer(1)
+	p.app.WaitForGone("id:player-mini", wait)
+	if p.app.Exists("id:player-video") {
+		t.Fatal("the deleted film still plays")
+	}
 }

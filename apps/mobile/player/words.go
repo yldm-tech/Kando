@@ -172,6 +172,7 @@ func wordBody(cx *core.Scope, p *play, w *words, compact bool) []core.Node {
 					return core.Text{TestID: "player-word-reading", ContentFunc: func() string { return l().entry.Reading }, Style: look.Subhead, StyleFunc: ui.Colored(colors.Muted)}
 				}},
 			}},
+			core.Show{When: func() bool { return compact }, Then: func(cx *core.Scope) core.Node { return vocabStar(cx, p, w) }},
 			ui.IconButton{TestID: "player-word-close", Icon: lucide.X, LabelFunc: func() string { return locales.PlayerClose(cx) }, Variant: ui.IconButtonGhost, Size: 36, OnPress: w.closeLookup},
 		}},
 		core.Show{When: func() bool { return l().busy }, Then: func(cx *core.Scope) core.Node {
@@ -197,10 +198,10 @@ func wordBody(cx *core.Scope, p *play, w *words, compact bool) []core.Node {
 	}
 }
 
-// wordSheet is the word looked up in a sheet over the player, upright and on a tablet, with the button that plays its line again.
+// wordSheet is the word looked up in a sheet over the player, upright and on a tablet, with the buttons that put it in the vocabulary, or take it out, and play its line again.
 func wordSheet(cx *core.Scope, p *play, w *words, when func() bool) core.Node {
 	body := wordBody(cx, p, w, false)
-	body = append(body, look.Button{TestID: "player-word-replay", Kind: look.Tinted, Icon: lucide.RotateCcw, Text: func() string { return locales.PlayerReplayLine(cx) },
+	body = append(body, vocabButton(cx, p, w), look.Button{TestID: "player-word-replay", Kind: look.Tinted, Icon: lucide.RotateCcw, Text: func() string { return locales.PlayerReplayLine(cx) },
 		OnPress: func() {
 			i := w.lookup.GetUntracked().line
 			w.closeLookup()
@@ -211,7 +212,7 @@ func wordSheet(cx *core.Scope, p *play, w *words, when func() bool) core.Node {
 	}}
 }
 
-// wordPopover is the word looked up in a card at the corner of the picture, on a phone on its side, where a sheet would cover the line.
+// wordPopover is the word looked up in a card at the corner of the picture, on a phone on its side, where a sheet would cover the line, with a star that puts it in the vocabulary or takes it out.
 func wordPopover(cx *core.Scope, p *play, w *words, when func() bool) core.Node {
 	colors := ui.ColorsOf(cx)
 	return core.Show{When: func() bool { return w.lookup.Get().open && when() }, Then: func(cx *core.Scope) core.Node {

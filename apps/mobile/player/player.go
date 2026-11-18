@@ -1,4 +1,4 @@
-// Package player plays a film kept on the phone and studies it, in the dark whatever the system's appearance: the video, the card of the line playing, whose words a tap looks up and which a tap saves, replays, loops or has explained, the transport, and a panel of tabs: the film's lines, which follow the one playing and play from the one tapped, the notes on the lines saved, the film in equal parts, and what the film is. Looking a word up and explaining a line go through the film's computer, whose AI service answers (session.LookUp, Explain); the lines saved and their notes sync with it (session.ToggleSave, SetNote). Where it was left is kept with the film, and so is how far its lines are moved against the picture.
+// Package player plays a film kept on the phone and studies it, in the dark whatever the system's appearance: the video, the card of the line playing, whose words a tap looks up and puts in the vocabulary and which a tap saves, replays, loops or has explained, the transport, and a panel of tabs: the film's lines, which follow the one playing and play from the one tapped, its words looked up or in the vocabulary, the notes on the lines saved, the film in equal parts, and what the film is. Looking a word up and explaining a line go through the film's computer, whose AI service answers (session.LookUp, Explain); the lines saved, their notes and the words put in the vocabulary sync with it (session.ToggleSave, SetNote, ToggleWord). Where it was left is kept with the film, and so is how far its lines are moved against the picture. The player shows over the app, and minimized it leaves a bar over the tabs while the film plays on (Layer, MiniBar).
 //
 // The layout follows the window: on a phone held upright the video sits on top, the card, the transport and the panel under it; turned sideways the video fills the screen with the lines over it, a tap shows the controls over it, and the list of lines can slide in at its side; on a tablet held sideways the panel takes a column beside the video.
 package player
@@ -10,11 +10,9 @@ import (
 
 	"kando/apps/mobile/locales"
 	"kando/apps/mobile/look"
-	"kando/apps/mobile/session"
 	"kando/apps/mobile/theme"
 	kcore "kando/packages/core"
 
-	"github.com/nsgo-dev/nsgo/base"
 	"github.com/nsgo-dev/nsgo/core"
 	"github.com/nsgo-dev/nsgo/icons/lucide"
 	"github.com/nsgo-dev/nsgo/ui"
@@ -60,17 +58,55 @@ func layoutOf(w core.Size) layout {
 	return upright
 }
 
-// Page plays the film kept under key.
-func Page(cx *core.Scope, s *session.Session, key string, back func()) base.NavPage {
+// view is the player of the film kept under key, over the app while l shows it, else minimized: then its video plays on out of sight, in the mini player's stead, and the rest of it is out of the way.
+func view(cx *core.Scope, l *Layer, key string) core.Node {
 	theme.Dark(cx)
+	s := l.s
 	f, _ := s.Film(key)
 	p := newPlay(cx, s, key)
+	shown := l.Full
 	shape := core.NewMemo(cx, func() layout { return layoutOf(cx.Env().Window()) })
 	controls := core.NewSignal(cx, true)
 	// panelOn shows the list of lines at the side of a phone on its side.
 	panelOn := core.NewSignal(cx, false)
 	settingsOpen := core.NewSignal(cx, false)
 	w := newWords(cx, p)
+	p.status = func() core.StatusBarSetting {
+		hidden := core.ToggleOff
+		if shape.Get() == full && !controls.Get() {
+			hidden = core.ToggleOn
+		}
+		return core.StatusBarSetting{Foreground: core.StatusBarLight, Hidden: hidden}
+	}
+	l.cur.Set(p)
+	cx.Cleanup(func() {
+		if l.cur.GetUntracked() == p {
+			l.cur.Set(nil)
+		}
+	})
+	// Minimized, the player keeps where the film is, and what showed over it closes, the keyboard with it.
+	cx.Effect(func() {
+		if shown() {
+			return
+		}
+		core.Untracked(cx, func() bool {
+			w.closeLookup()
+			w.closeExplain()
+			settingsOpen.Set(false)
+			panelOn.Set(false)
+			p.save()
+			return true
+		})
+		cx.DismissKeyboard()
+	})
+	// Back, as Android's button or Escape, minimizes the player while it shows; the sheets over it take it first.
+	cx.OnBackPress(func() bool {
+		if !l.full.GetUntracked() {
+			return false
+		}
+		l.Minimize()
+		return true
+	})
 
 	video := core.Video{TestID: "player-video", Ref: p.ref, Label: f.Film.Title,
 		Source:           filepath.Join(s.Store().FilmDir(f.Desktop, f.Film.ID), f.Video),
@@ -118,11 +154,14 @@ func Page(cx *core.Scope, s *session.Session, key string, back func()) base.NavP
 			core.Show{When: onPicture, Then: func(cx *core.Scope) core.Node { return subtitles(cx, p, w, shape.Get, overlaid) }},
 			pills(cx, p, func() bool { return shape.Get() != full || controls.Get() }), failed}}
 
-	bar := topBar(cx, p, f.Film.Title, back, func() { settingsOpen.Set(true) }, shape.Get, panelOn)
+	bar := topBar(cx, p, f.Film.Title, l.Minimize, func() { settingsOpen.Set(true) }, shape.Get, panelOn)
 	transport := transport(cx, p)
-	// On its side the phone shows the top bar and the transport over the video while the controls show.
+	// On its side the phone shows the top bar and the transport over the video while the controls show; minimized, neither shows.
 	over := func(top bool) func() core.Style {
 		return func() core.Style {
+			if !shown() {
+				return core.Style{Display: core.DisplayNone}
+			}
 			if shape.Get() != full {
 				return core.Style{}
 			}
@@ -141,7 +180,7 @@ func Page(cx *core.Scope, s *session.Session, key string, back func()) base.NavP
 		}
 	}
 	cardPart := core.View{StyleFunc: func() core.Style {
-		if shape.Get() == full {
+		if shape.Get() == full || !shown() {
 			return core.Style{Display: core.DisplayNone}
 		}
 		return core.Style{Padding: core.Edges{Top: 10, Right: 12, Left: 12}}
@@ -160,6 +199,9 @@ func Page(cx *core.Scope, s *session.Session, key string, back func()) base.NavP
 	}}
 	tabs := panel(cx, p, w)
 	list := core.View{TestID: "player-lines-pane", StyleFunc: func() core.Style {
+		if !shown() {
+			return core.Style{Display: core.DisplayNone}
+		}
 		switch shape.Get() {
 		case full:
 			if !panelOn.Get() {
@@ -177,9 +219,14 @@ func Page(cx *core.Scope, s *session.Session, key string, back func()) base.NavP
 	}}
 
 	colors := ui.ColorsOf(cx)
-	root := core.View{TestID: "player", Style: core.Style{FlexGrow: 1, FlexShrink: 1},
+	return core.View{TestID: "player", PointerEvents: core.PointerEventsAuto, AccessibilityElementsHidden: func() bool { return !shown() },
+		Style: core.Style{Position: core.Absolute, Left: core.Pt(0), Top: core.Pt(0), ZIndex: 20},
 		StyleFunc: func() core.Style {
-			st := core.Style{Background: colors.Background()}
+			if !shown() {
+				// Out of sight, the video plays on, at a size of its own so the platform keeps it.
+				return core.Style{Width: core.Pt(2), Height: core.Pt(2), Overflow: core.Hidden, Opacity: core.Alpha(0), PointerEvents: core.PointerEventsNone}
+			}
+			st := core.Style{Right: core.Pt(0), Bottom: core.Pt(0), Background: colors.Background()}
 			switch shape.Get() {
 			case side:
 				st.Direction = core.Row
@@ -196,27 +243,20 @@ func Page(cx *core.Scope, s *session.Session, key string, back func()) base.NavP
 			wordSheet(cx, p, w, func() bool { return shape.Get() != full }),
 			explainSheet(cx, p, w),
 			settingsSheet(cx, p, settingsOpen),
-			ui.Toasts{Toaster: p.toast, Placement: ui.ToastBottom, TestID: "player-toasts"},
+			core.Show{When: shown, Then: func(cx *core.Scope) core.Node {
+				return ui.Toasts{Toaster: p.toast, Placement: ui.ToastBottom, TestID: "player-toasts"}
+			}},
 		}}
-	return base.NavPage{TestID: "player-page", HeaderHidden: true,
-		StatusBarFunc: func() core.StatusBarSetting {
-			hidden := core.ToggleOff
-			if shape.Get() == full && !controls.Get() {
-				hidden = core.ToggleOn
-			}
-			return core.StatusBarSetting{Foreground: core.StatusBarLight, Hidden: hidden}
-		},
-		Children: []core.Node{root}}
 }
 
 // fill fills the parent, over what is in it.
 var fill = core.Style{Position: core.Absolute, Left: core.Pt(0), Top: core.Pt(0), Right: core.Pt(0), Bottom: core.Pt(0)}
 
-// topBar is the button back, the film's title, and the button of the playback settings; on a phone on its side, the button that slides the list of lines in too.
-func topBar(cx *core.Scope, p *play, title string, back, settings func(), shape func() layout, panelOn *core.Signal[bool]) core.Node {
+// topBar is the button that minimizes the player, the film's title, and the button of the playback settings; on a phone on its side, the button that slides the list of lines in too.
+func topBar(cx *core.Scope, p *play, title string, minimize, settings func(), shape func() layout, panelOn *core.Signal[bool]) core.Node {
 	colors := ui.ColorsOf(cx)
 	return core.View{Style: core.Style{Direction: core.Row, AlignItems: core.AlignCenter, Gap: 4, Padding: core.Symmetric(4, 8), MinHeight: core.Pt(44)}, Children: []core.Node{
-		ui.IconButton{TestID: "player-back", Icon: lucide.ChevronLeft, LabelFunc: func() string { return locales.PlayerBack(cx) }, Variant: ui.IconButtonGhost, Size: 40, OnPress: back},
+		ui.IconButton{TestID: "player-minimize", Icon: lucide.ChevronDown, LabelFunc: func() string { return locales.PlayerMinimize(cx) }, Variant: ui.IconButtonGhost, Size: 40, OnPress: minimize},
 		core.Text{Content: title, Role: core.RoleHeader, MaxLines: 1, Style: look.Title.Merge(core.Style{FlexGrow: 1, FlexShrink: 1, MinWidth: core.Pt(0)}), StyleFunc: ui.Colored(colors.Text)},
 		core.Show{When: func() bool { return shape() == full }, Then: func(cx *core.Scope) core.Node {
 			return ui.IconButton{TestID: "player-panel-toggle", Icon: lucide.PanelRight, LabelFunc: func() string { return locales.PlayerLines(cx) }, Variant: ui.IconButtonGhost, Size: 40,

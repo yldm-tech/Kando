@@ -295,6 +295,28 @@ func Remove(id, film string, now time.Time) sync.Record {
 	return sync.Record{Kind: sync.KindLine, ID: id, Film: film, Removed: &sync.Stamp{At: now}}
 }
 
+// AddWord is the record of word put in the vocabulary at now under the new ID id, as e, the computer's lookup of it, gives it: its dictionary form, else word as tapped, with its reading and meaning; looked up in c, a line of film titled title, whose language spoken is as whisper names it. It is due for review at once, as the computer's own words are when added.
+func AddWord(id, film, title, spoken, word string, e sync.WordEntry, c Cue, now time.Time) sync.Record {
+	at := sync.Stamp{At: now}
+	field := func(v any) sync.Field { return sync.Field{Value: sync.Value(v), Stamp: at} }
+	text := strings.TrimSpace(e.Word)
+	if text == "" {
+		text = strings.TrimSpace(word)
+	}
+	return sync.Record{Kind: sync.KindWord, ID: id, Film: film, Fields: map[string]sync.Field{
+		sync.FieldWord: field(text), sync.FieldSpoken: field(spoken),
+		sync.FieldReading: field(strings.TrimSpace(e.Reading)), sync.FieldMeaning: field(strings.TrimSpace(e.Meaning)), sync.FieldLanguage: field(e.Language),
+		sync.FieldContext: field(c.Original), sync.FieldContextTranslation: field(c.Translation),
+		sync.FieldTitle: field(title), sync.FieldStartMS: field(c.Start.Milliseconds()),
+		sync.FieldSavedAt: field(now), sync.FieldReview: field(sync.Review{Due: now}),
+	}}
+}
+
+// RemoveWord is the tombstone of the word id of the vocabulary, looked up in film, at now.
+func RemoveWord(id, film string, now time.Time) sync.Record {
+	return sync.Record{Kind: sync.KindWord, ID: id, Film: film, Removed: &sync.Stamp{At: now}}
+}
+
 // Note is the change of the note of the saved line id of film to note, trimmed, at now, made from the note the computer has (Field.Base), so a note written meanwhile on another device is not lost but recorded as a conflict.
 func Note(l Library, id, film, note string, now time.Time) sync.Record {
 	f := sync.Field{Value: sync.Value(strings.TrimSpace(note)), Stamp: sync.Stamp{At: now}}

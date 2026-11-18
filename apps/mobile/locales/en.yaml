@@ -800,9 +800,6 @@ playerAudioOnly:
 playerAudioOnlyNote:
   message: "Hides the picture, to listen as you would to a podcast."
   description: "Under the Audio Only switch in the playback settings."
-playerBack:
-  message: "Back"
-  description: "Spoken name of the player's button that leaves it."
 playerCannotSave:
   message: "Open this film once while its computer is reachable to save its lines."
   description: "Toast when a line is saved from a film whose library the phone does not know yet, as one downloaded by an older version and opened away from the computer."
@@ -1254,3 +1251,59 @@ vocabRemoveTitle:
   description: "Title of the alert that removes a word."
   placeholders:
     word: { type: "String", example: "river" }
+playerCannotAddWord:
+  message: "Open this film once while its computer is reachable to add its words to the vocabulary."
+  description: "Toast when a word can't go in the vocabulary yet, as the film's library on the computer isn't known."
+playerMini:
+  message: "Now Playing"
+  description: "Spoken name of the mini player, the bar over the tabs while the player is minimized."
+playerMiniOpen:
+  message: "Open {title}"
+  description: "Spoken name of the mini player's button that opens the player again."
+  placeholders:
+    title: { type: "String", example: "Morning Talk" }
+playerMinimize:
+  message: "Minimize Player"
+  description: "Spoken name of the player's button that minimizes it to a bar over the tabs while the film plays on."
+playerTabWords:
+  message: "Words"
+  description: "Tab of the player's panel: the film's words looked up or in the vocabulary, while there are none."
+playerTabWordsCount:
+  message: "Words {count}"
+  description: "Tab of the player's panel with how many of the film's words were looked up or are in the vocabulary."
+  placeholders:
+    count: { type: "int", example: "5" }
+playerWordAdd:
+  message: "Add to Vocabulary"
+  description: "Button of the word card that puts the word in the vocabulary."
+playerWordAddNamed:
+  message: "Add {word} to Vocabulary"
+  description: "Spoken name of a word's star in the Words tab while the word isn't in the vocabulary."
+  placeholders:
+    word: { type: "String", example: "river" }
+playerWordAdded:
+  message: "{word} added to Vocabulary"
+  description: "Toast once a word is put in the vocabulary."
+  placeholders:
+    word: { type: "String", example: "river" }
+playerWordInVocabulary:
+  message: "In Vocabulary · Remove"
+  description: "Button of the word card while the word is in the vocabulary; a tap takes it out."
+playerWordRemoveNamed:
+  message: "Remove {word} from Vocabulary"
+  description: "Spoken name of a word's star in the Words tab while the word is in the vocabulary."
+  placeholders:
+    word: { type: "String", example: "river" }
+playerWordRemoved:
+  message: "{word} removed from Vocabulary"
+  description: "Toast once a word is taken out of the vocabulary."
+  placeholders:
+    word: { type: "String", example: "river" }
+playerWordTimes:
+  message: "{count, plural, one {Said # time in this film} other {Said # times in this film}}"
+  description: "Under a word in the Words tab: how many times the film's lines say it."
+  placeholders:
+    count: { type: "int", example: "3" }
+playerWordsEmpty:
+  message: "Words you tap in the lines show here, to add to your vocabulary."
+  description: "Words tab while no word of the film was looked up or is in the vocabulary."
