@@ -46,6 +46,38 @@ commonOK:
 commonRetry:
   message: "Try Again"
   description: "Row or button that asks the computer again after it could not be reached."
+computerContext:
+  message: "Use Context When Translating"
+  description: "Switch on a computer's page: whether its translation sends the lines before each batch to the AI service."
+computerContextDetail:
+  message: "Lets the AI see the lines before each batch, for smoother translations."
+  description: "Detail under the Use Context When Translating switch."
+computerContextFailed:
+  message: "Couldn't Change the Setting on {computer}"
+  description: "Title of the alert when the computer could not be reached to change its context switch."
+  placeholders:
+    computer: { type: "String", example: "Studio" }
+computerContextFailedMessage:
+  message: "Make sure the computer is on and Phone Sync is on, then try again."
+  description: "Message of the alert when the computer could not be reached to change a setting."
+computerReadOnly:
+  message: "This device can only view this computer's settings."
+  description: "Note on a computer's page when the computer made this device read-only."
+computerService:
+  message: "Translation Service"
+  description: "Row on a computer's page naming the AI service the computer translates and explains with."
+computerServiceNone:
+  message: "Not Set Up"
+  description: "Value of the Translation Service row when the computer has no AI service set up."
+computerServiceNote:
+  message: "The computer keeps its AI service and key. Change them in Kando on the computer."
+  description: "Note under a computer's translation settings: the AI service can only be changed on the computer."
+computerTranslation:
+  message: "Translation"
+  description: "Heading of a computer's page in Settings over its translation settings."
+computerUnknown:
+  message: "Shown once this device reaches the computer."
+  description: "Note on a computer's page before a sync reached it, so its settings are not known yet."
 computersCertificate:
   message: "{name} answered with another certificate. Pair with it again."
   description: "In a computer's section: it answered with another certificate."

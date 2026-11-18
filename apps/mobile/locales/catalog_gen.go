@@ -464,6 +464,7 @@ var Parameters = map[string][]string{
 	"AddNoLinks":             {"name"},
 	"AddNote":                {"name"},
 	"AddNoteOffline":         {"name"},
+	"ComputerContextFailed":  {"computer"},
 	"ComputersCertificate":   {"name"},
 	"ComputersOptions":       {"name"},
 	"ComputersUnpairTitle":   {"name"},
@@ -557,6 +558,7 @@ type Translation struct {
 	AddNoLinks             func(name string) string
 	AddNote                func(name string) string
 	AddNoteOffline         func(name string) string
+	ComputerContextFailed  func(computer string) string
 	ComputersCertificate   func(name string) string
 	ComputersOptions       func(name string) string
 	ComputersUnpairTitle   func(name string) string
@@ -656,6 +658,15 @@ const (
 	textCommonCancel
 	textCommonOK
 	textCommonRetry
+	textComputerContext
+	textComputerContextDetail
+	textComputerContextFailedMessage
+	textComputerReadOnly
+	textComputerService
+	textComputerServiceNone
+	textComputerServiceNote
+	textComputerTranslation
+	textComputerUnknown
 	textComputersPairAgain
 	textComputersUnpair
 	textComputersUnpairMessage
@@ -933,6 +944,15 @@ var keyOfText = [numTexts]string{
 	"commonCancel",
 	"commonOK",
 	"commonRetry",
+	"computerContext",
+	"computerContextDetail",
+	"computerContextFailedMessage",
+	"computerReadOnly",
+	"computerService",
+	"computerServiceNone",
+	"computerServiceNote",
+	"computerTranslation",
+	"computerUnknown",
 	"computersPairAgain",
 	"computersUnpair",
 	"computersUnpairMessage",
@@ -1208,6 +1228,15 @@ var textsEn = i18n.NewTexts(""+
 	"Cancel"+
 	"OK"+
 	"Try Again"+
+	"Use Context When Translating"+
+	"Lets the AI see the lines before each batch, for smoother translations."+
+	"Make sure the computer is on and Phone Sync is on, then try again."+
+	"This device can only view this computer's settings."+
+	"Translation Service"+
+	"Not Set Up"+
+	"The computer keeps its AI service and key. Change them in Kando on the computer."+
+	"Translation"+
+	"Shown once this device reaches the computer."+
 	"Pair Again"+
 	"Unpair"+
 	"The films downloaded from it stay on this phone."+
@@ -1480,6 +1509,15 @@ var textsEn = i18n.NewTexts(""+
 		6,
 		2,
 		9,
+		28,
+		71,
+		66,
+		51,
+		19,
+		10,
+		80,
+		11,
+		44,
 		10,
 		6,
 		48,
@@ -1755,6 +1793,15 @@ var textsJa = i18n.NewTexts(""+
 	"キャンセル"+
 	"OK"+
 	"再試行"+
+	"翻訳で前後の文脈を使う"+
+	"各バッチの前の台詞も AI に渡し、より自然な翻訳にします。"+
+	"コンピュータの電源とスマホ同期がオンになっていることを確認して、もう一度お試しください。"+
+	"この端末はこのコンピュータの設定を表示することしかできません。"+
+	"翻訳サービス"+
+	"未設定"+
+	"AI サービスとキーはコンピュータに保存されています。コンピュータの Kando で変更してください。"+
+	"翻訳"+
+	"このコンピュータに接続すると表示されます。"+
 	"もう一度ペアリング"+
 	"ペアリングを解除"+
 	"ダウンロード済みの動画はこのスマートフォンに残ります。"+
@@ -2027,6 +2074,15 @@ var textsJa = i18n.NewTexts(""+
 		15,
 		2,
 		9,
+		33,
+		82,
+		132,
+		93,
+		18,
+		9,
+		133,
+		6,
+		63,
 		27,
 		24,
 		81,
@@ -2302,6 +2358,15 @@ var textsKo = i18n.NewTexts(""+
 	"취소"+
 	"확인"+
 	"다시 시도"+
+	"번역할 때 문맥 사용"+
+	"각 묶음 앞의 대사도 AI에 보내 더 자연스럽게 번역합니다."+
+	"컴퓨터가 켜져 있고 휴대폰 동기화가 켜져 있는지 확인한 후 다시 시도하세요."+
+	"이 기기는 이 컴퓨터의 설정을 보기만 할 수 있습니다."+
+	"번역 서비스"+
+	"설정 안 됨"+
+	"AI 서비스와 키는 컴퓨터에 저장됩니다. 컴퓨터의 Kando에서 변경하세요."+
+	"번역"+
+	"이 컴퓨터에 연결되면 표시됩니다."+
 	"다시 페어링"+
 	"페어링 해제"+
 	"다운로드한 영상은 이 휴대폰에 남습니다."+
@@ -2574,6 +2639,15 @@ var textsKo = i18n.NewTexts(""+
 		6,
 		6,
 		13,
+		27,
+		77,
+		104,
+		72,
+		16,
+		14,
+		94,
+		6,
+		46,
 		16,
 		16,
 		56,
@@ -2849,6 +2923,15 @@ var textsZhHans = i18n.NewTexts(""+
 	"取消"+
 	"好"+
 	"重试"+
+	"翻译时参考上下文"+
+	"让 AI 看到每批之前的台词，译文更连贯。"+
+	"请确认电脑已开机并打开了手机同步，然后再试一次。"+
+	"这台设备只能查看这台电脑的设置。"+
+	"翻译服务"+
+	"未设置"+
+	"AI 服务和密钥保存在电脑上，请在电脑上的看懂里更改。"+
+	"翻译"+
+	"连上这台电脑后显示。"+
 	"重新配对"+
 	"取消配对"+
 	"从它下载的影片仍会留在这部手机上。"+
@@ -3121,6 +3204,15 @@ var textsZhHans = i18n.NewTexts(""+
 		6,
 		3,
 		6,
+		24,
+		55,
+		72,
+		48,
+		12,
+		9,
+		75,
+		6,
+		30,
 		12,
 		12,
 		51,
@@ -3396,6 +3488,15 @@ var textsZhHant = i18n.NewTexts(""+
 	"取消"+
 	"好"+
 	"重試"+
+	"翻譯時參考上下文"+
+	"讓 AI 看到每批之前的台詞，譯文更連貫。"+
+	"請確認電腦已開機並開啟了手機同步，然後再試一次。"+
+	"這台裝置只能檢視這台電腦的設定。"+
+	"翻譯服務"+
+	"未設定"+
+	"AI 服務和金鑰保存在電腦上，請在電腦上的看懂裡更改。"+
+	"翻譯"+
+	"連上這台電腦後顯示。"+
 	"重新配對"+
 	"取消配對"+
 	"從它下載的影片仍會留在這支手機上。"+
@@ -3668,6 +3769,15 @@ var textsZhHant = i18n.NewTexts(""+
 		6,
 		3,
 		6,
+		24,
+		55,
+		72,
+		48,
+		12,
+		9,
+		75,
+		6,
+		30,
 		12,
 		12,
 		51,
@@ -3998,6 +4108,9 @@ func Supply(lang string, t Translation) {
 	}
 	if t.AddNoteOffline != nil {
 		s.AddNoteOffline = t.AddNoteOffline
+	}
+	if t.ComputerContextFailed != nil {
+		s.ComputerContextFailed = t.ComputerContextFailed
 	}
 	if t.ComputersCertificate != nil {
 		s.ComputersCertificate = t.ComputersCertificate
@@ -4446,6 +4559,123 @@ func CommonRetry(cx *core.Scope) string { return For(cx).CommonRetry() }
 
 // CommonRetry is the package's CommonRetry in the language of msgs.
 func (msgs Messages) CommonRetry() string { return msgs.text(textCommonRetry) }
+
+// ComputerContext says "Use Context When Translating"
+// in the language the app shows under cx.
+//
+// Switch on a computer's page: whether its translation sends the lines before each batch to the AI service.
+func ComputerContext(cx *core.Scope) string { return For(cx).ComputerContext() }
+
+// ComputerContext is the package's ComputerContext in the language of msgs.
+func (msgs Messages) ComputerContext() string { return msgs.text(textComputerContext) }
+
+// ComputerContextDetail says "Lets the AI see the lines before each batch, for smoother translations."
+// in the language the app shows under cx.
+//
+// Detail under the Use Context When Translating switch.
+func ComputerContextDetail(cx *core.Scope) string { return For(cx).ComputerContextDetail() }
+
+// ComputerContextDetail is the package's ComputerContextDetail in the language of msgs.
+func (msgs Messages) ComputerContextDetail() string { return msgs.text(textComputerContextDetail) }
+
+// ComputerContextFailed says "Couldn't Change the Setting on {computer}"
+// in the language the app shows under cx.
+//
+// Title of the alert when the computer could not be reached to change its context switch.
+func ComputerContextFailed(cx *core.Scope, computer string) string {
+	return For(cx).ComputerContextFailed(computer)
+}
+
+// ComputerContextFailed is the package's ComputerContextFailed in the language of msgs.
+func (msgs Messages) ComputerContextFailed(computer string) string {
+	if i18n.IsPseudo(msgs.lang) {
+		return i18n.Pseudo(msgs.lang, Messages{lang: Source, mark: true}.ComputerContextFailed(computer))
+	}
+	for lang := msgs.lang; ; lang = i18n.Parent(lang) {
+		if f := supplied[lang].ComputerContextFailed; f != nil {
+			return f(computer)
+		}
+		switch lang {
+		case "", "en":
+			return "Couldn't Change the Setting on " + msgs.arg(computer)
+		case "ja":
+			return computer + " の設定を変更できませんでした"
+		case "ko":
+			return computer + "의 설정을 변경할 수 없습니다"
+		case "zh-Hans":
+			return "无法更改 " + computer + " 上的设置"
+		case "zh-Hant":
+			return "無法更改 " + computer + " 上的設定"
+		}
+	}
+}
+
+// ComputerContextFailedMessage says "Make sure the computer is on and Phone Sync is on, then try again."
+// in the language the app shows under cx.
+//
+// Message of the alert when the computer could not be reached to change a setting.
+func ComputerContextFailedMessage(cx *core.Scope) string {
+	return For(cx).ComputerContextFailedMessage()
+}
+
+// ComputerContextFailedMessage is the package's ComputerContextFailedMessage in the language of msgs.
+func (msgs Messages) ComputerContextFailedMessage() string {
+	return msgs.text(textComputerContextFailedMessage)
+}
+
+// ComputerReadOnly says "This device can only view this computer's settings."
+// in the language the app shows under cx.
+//
+// Note on a computer's page when the computer made this device read-only.
+func ComputerReadOnly(cx *core.Scope) string { return For(cx).ComputerReadOnly() }
+
+// ComputerReadOnly is the package's ComputerReadOnly in the language of msgs.
+func (msgs Messages) ComputerReadOnly() string { return msgs.text(textComputerReadOnly) }
+
+// ComputerService says "Translation Service"
+// in the language the app shows under cx.
+//
+// Row on a computer's page naming the AI service the computer translates and explains with.
+func ComputerService(cx *core.Scope) string { return For(cx).ComputerService() }
+
+// ComputerService is the package's ComputerService in the language of msgs.
+func (msgs Messages) ComputerService() string { return msgs.text(textComputerService) }
+
+// ComputerServiceNone says "Not Set Up"
+// in the language the app shows under cx.
+//
+// Value of the Translation Service row when the computer has no AI service set up.
+func ComputerServiceNone(cx *core.Scope) string { return For(cx).ComputerServiceNone() }
+
+// ComputerServiceNone is the package's ComputerServiceNone in the language of msgs.
+func (msgs Messages) ComputerServiceNone() string { return msgs.text(textComputerServiceNone) }
+
+// ComputerServiceNote says "The computer keeps its AI service and key. Change them in Kando on the computer."
+// in the language the app shows under cx.
+//
+// Note under a computer's translation settings: the AI service can only be changed on the computer.
+func ComputerServiceNote(cx *core.Scope) string { return For(cx).ComputerServiceNote() }
+
+// ComputerServiceNote is the package's ComputerServiceNote in the language of msgs.
+func (msgs Messages) ComputerServiceNote() string { return msgs.text(textComputerServiceNote) }
+
+// ComputerTranslation says "Translation"
+// in the language the app shows under cx.
+//
+// Heading of a computer's page in Settings over its translation settings.
+func ComputerTranslation(cx *core.Scope) string { return For(cx).ComputerTranslation() }
+
+// ComputerTranslation is the package's ComputerTranslation in the language of msgs.
+func (msgs Messages) ComputerTranslation() string { return msgs.text(textComputerTranslation) }
+
+// ComputerUnknown says "Shown once this device reaches the computer."
+// in the language the app shows under cx.
+//
+// Note on a computer's page before a sync reached it, so its settings are not known yet.
+func ComputerUnknown(cx *core.Scope) string { return For(cx).ComputerUnknown() }
+
+// ComputerUnknown is the package's ComputerUnknown in the language of msgs.
+func (msgs Messages) ComputerUnknown() string { return msgs.text(textComputerUnknown) }
 
 // ComputersCertificate says "{name} answered with another certificate. Pair with it again."
 // in the language the app shows under cx.

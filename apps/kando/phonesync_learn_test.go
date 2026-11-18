@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"net/http"
@@ -11,6 +12,7 @@ import (
 	"time"
 
 	"kando/apps/kando/saved"
+	"kando/packages/media"
 	"kando/packages/study"
 	psync "kando/packages/sync"
 )
@@ -126,5 +128,42 @@ func TestPhoneSyncSharesTheLanguageTranslatedInto(t *testing.T) {
 	got, err = phoneAsk(t, p, c.Settings)
 	if err != nil || got.Target != "" || got.TargetName != "Klingon" {
 		t.Fatalf("settings %+v, %v", got, err)
+	}
+}
+
+// A phone sees the AI service this computer translates with, by its name and model and never its address or key, and turns the context switch on and off, which settings.json keeps.
+func TestPhoneSyncSharesTheAIServiceAndTheContextSwitch(t *testing.T) {
+	a, p, _, _, c, _ := phoneStateLibrary(t)
+	a.pipeline = media.Tools{Translator: media.ChatTranslator{BaseURL: "https://api.openai.com/v1", Model: "gpt-4.1-mini", APIKey: "sk-secret"}}
+	a.prefs.translateContext = true
+	got, err := phoneAsk(t, p, c.Settings)
+	if err != nil || got.Service != "OpenAI" || got.Model != "gpt-4.1-mini" || got.Context == nil || !*got.Context {
+		t.Fatalf("settings %+v, %v; want OpenAI's gpt-4.1-mini with the context on", got, err)
+	}
+	raw, err := json.Marshal(got)
+	if err != nil || bytes.Contains(raw, []byte("sk-secret")) || bytes.Contains(raw, []byte("api.openai.com")) {
+		t.Fatalf("the settings a phone reads carry the service's key or address: %s", raw)
+	}
+
+	got, err = phoneAsk(t, p, func(ctx context.Context) (psync.Settings, error) {
+		return c.PutSettings(ctx, psync.SettingsPut{Context: new(false)})
+	})
+	if err != nil || got.Context == nil || *got.Context || a.prefs.translateContext {
+		t.Fatalf("put answered %+v, %v; the desktop's context is %v", got, err, a.prefs.translateContext)
+	}
+	var file savedSettings
+	data, err := os.ReadFile(a.settingsPath)
+	if err == nil {
+		err = json.Unmarshal(data, &file)
+	}
+	if err != nil || file.TranslateContext == nil || *file.TranslateContext {
+		t.Fatalf("settings.json keeps the context as %v, %v", file.TranslateContext, err)
+	}
+
+	// Without a service set up, none is named.
+	a.pipeline = media.Tools{}
+	got, err = phoneAsk(t, p, c.Settings)
+	if err != nil || got.Service != "" || got.Model != "" {
+		t.Fatalf("settings without a service %+v, %v", got, err)
 	}
 }

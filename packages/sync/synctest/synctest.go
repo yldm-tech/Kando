@@ -54,8 +54,10 @@ type Desktop struct {
 	queue queue
 	// ledgers are the libraries' learning state, by library ID (state.go).
 	ledgers map[string]*sync.Ledger
-	// target is the language the desktop translates into (settings.go).
-	target string
+	// target is the language the desktop translates into, context whether its translation sends the lines before a batch, and service and model the AI service it translates with (settings.go).
+	target         string
+	context        bool
+	service, model string
 	// refuse, putHeld and puts are how the learning state's puts are answered and how many were (state.go).
 	refuse  func(sync.Record) bool
 	putHeld chan struct{}
@@ -76,7 +78,7 @@ type Desktop struct {
 // New starts a desktop named name on loopback, closed when the test ends. It offers no code until Offer.
 func New(t testing.TB, name string) *Desktop {
 	t.Helper()
-	d := &Desktop{Name: name, tokens: map[string]bool{}, names: map[string]string{}, modTime: time.Unix(1_700_000_000, 0), target: "zh-Hans"}
+	d := &Desktop{Name: name, tokens: map[string]bool{}, names: map[string]string{}, modTime: time.Unix(1_700_000_000, 0), target: "zh-Hans", context: true}
 	d.queue.receive = sync.ReceiveQueue
 	d.desk = &sync.Desk{Service: jobService{d}, State: stateService{d}, Settings: settingsService{d}, Study: studyService{d}, Journal: sync.NewJournal(), Desktop: name}
 	mux := http.NewServeMux()

@@ -32,6 +32,8 @@ type learn struct {
 	// revoked are the computers that answered that they no longer take the phone, until the user saw it (DismissRevoked).
 	revoked   *core.Signal[[]string]
 	dismissed map[string]bool
+	// settings are the paired computers' settings as each last answered them this run (computer.go).
+	settings *core.Signal[map[string]DesktopSettings]
 	// again is set when a sync was asked for while one ran, which runs once it is done, so a change made meanwhile is not left until the next.
 	again bool
 	// waiting is how many libraries' syncs the sync running waits for (syncStudy).
@@ -56,6 +58,7 @@ func newLearn(s *Session) *learn {
 		problem:   core.NewSignal(s.cx, NoProblem),
 		revoked:   core.NewSignalFunc[[]string](s.cx, nil, nil),
 		dismissed: map[string]bool{},
+		settings:  core.NewSignalFunc[map[string]DesktopSettings](s.cx, nil, nil),
 	}
 	s.work.Go(func() {
 		libs, _ := s.st.Learnings()
@@ -194,8 +197,8 @@ type learnResult struct {
 	state    bool
 	libs     []sync.Library
 	settings *sync.Settings
-	// targetPut is set when the phone's language was put to the computer.
-	targetPut bool
+	// targetPut is set when the phone's language was put to the computer, and readOnly when the computer takes no change of the phone's.
+	targetPut, readOnly bool
 }
 
 // SyncLearning brings the learning state up to date with every paired computer that serves it, each library the computer lists synced as a film's is (syncStudy): the phone's changes put first, then the computer's asked for; and the language translated into, the phone's put to a computer that has not taken it yet, else the computer's taken. A computer out of reach is left as it was. LearnSyncing is true until every library's sync is done.
@@ -250,6 +253,7 @@ func learnAsk(ctx context.Context, c *sync.Client, desktop string, putTarget boo
 		out.err = err
 		return out
 	}
+	out.readOnly = h.ReadOnly
 	if slices.Contains(h.Ops, sync.OpSettingsPut) && putTarget && !h.ReadOnly {
 		got, err := c.PutSettings(ctx, sync.SettingsPut{Target: target})
 		if err == nil {
@@ -293,6 +297,7 @@ func (s *Session) learnAsked(results []learnResult) {
 		reached = true
 		if r.settings != nil {
 			s.learnTakeSettings(r.desktop, *r.settings, r.targetPut)
+			s.setDesktopSettings(r.desktop, DesktopSettings{Settings: *r.settings, ReadOnly: r.readOnly})
 		}
 		if !r.state {
 			continue
@@ -423,6 +428,7 @@ func (s *Session) learnForget(id string) {
 	}
 	s.DismissRevoked(id)
 	delete(s.learn.dismissed, id)
+	s.forgetDesktopSettings(id)
 	if p := s.prefs.Get(); slices.Contains(p.TargetPending, id) {
 		p.TargetPending = slices.DeleteFunc(slices.Clone(p.TargetPending), func(x string) bool { return x == id })
 		s.SetPrefs(p)
