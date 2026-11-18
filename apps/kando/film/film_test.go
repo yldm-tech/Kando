@@ -247,15 +247,15 @@ func (f *fakeApp) Notes() []Note                           { return f.notes }
 func (f *fakeApp) NotesWords() *bool                       { return &f.notesWords }
 func (f *fakeApp) DueCount() int                           { return f.due }
 func (f *fakeApp) StartReview()                            { f.call("review") }
-func (f *fakeApp) RemoveNote(n Note) {
-	f.call("remove note " + n.ID)
-	f.notes = slices.DeleteFunc(f.notes, func(o Note) bool { return o.ID == n.ID })
-}
 func (f *fakeApp) LookUpWord(i int, word string)           { f.call(fmt.Sprintf("look up %d %s", i, word)) }
 func (f *fakeApp) CloseLookup()                            { f.call("close lookup") }
 func (f *fakeApp) ToggleLookupWord()                       { f.call("toggle word") }
 func (f *fakeApp) ExplainLookupLine()                      { f.call("explain lookup") }
 func (f *fakeApp) LookupSettings()                         { f.call("lookup settings") }
+func (f *fakeApp) RemoveNote(n Note) {
+	f.call("remove note " + n.ID)
+	f.notes = slices.DeleteFunc(f.notes, func(o Note) bool { return o.ID == n.ID })
+}
 func (f *fakeApp) SavedLines() []int {
 	var out []int
 	for i, on := range f.saved {
