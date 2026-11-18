@@ -85,11 +85,13 @@ func (p phoneSubscriptions) TakeSubscription(ctx context.Context, caller psync.C
 			return psync.Subscription{}, err
 		}
 		before := len(sub.Added)
-		if why := a.subscribeAddWaiting(sub, req.Links); why != nil {
-			return psync.Subscription{}, psync.Errorf(psync.CodeNotReady, "%s", why(remoteMessages()))
-		}
+		why := a.subscribeAddWaiting(sub, req.Links)
+		// The videos queued before one could not be are logged too, as the queue has them either way.
 		if n := len(sub.Added) - before; n > 0 {
 			a.phoneLog(caller.Name, settings.ActivitySubscriptionAdded, sub.Name, n, 0)
+		}
+		if why != nil {
+			return psync.Subscription{}, psync.Errorf(psync.CodeNotReady, "%s", why(remoteMessages()))
 		}
 		return phoneSubscriptionOf(*sub), nil
 	})

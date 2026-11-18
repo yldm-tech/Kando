@@ -2,6 +2,7 @@
 package phonesync
 
 import (
+	"bytes"
 	"context"
 	"crypto/tls"
 	"encoding/json"
@@ -734,11 +735,29 @@ func playable(films []Film) []served {
 	return out
 }
 
-// call answers a protocol v2 call from dev, as the device is now (a read-only one changes nothing, psync.Caller.ReadOnly), within sourceTimeout, which is longer than an events call waits (psync.MaxEventWait).
+// call answers a protocol v2 call from dev, as the device is now (a read-only one changes nothing, psync.Caller.ReadOnly), within callTimeout of its operation.
 func (s *Server) call(w http.ResponseWriter, r *http.Request, dev Device) {
-	ctx, cancel := sourceContext(r)
+	// The body is read here to learn the operation, and handed on to HandleCall as it was; one too long or not a call is HandleCall's to refuse.
+	data, err := io.ReadAll(io.LimitReader(r.Body, psync.MaxCall+1))
+	if err != nil {
+		data = nil
+	}
+	var head struct {
+		Op string `json:"op"`
+	}
+	_ = json.Unmarshal(data, &head)
+	r.Body = io.NopCloser(bytes.NewReader(data))
+	ctx, cancel := context.WithTimeout(r.Context(), callTimeout(head.Op))
 	defer cancel()
 	psync.HandleCall(w, r.WithContext(ctx), s.desk, psync.Caller{DeviceID: dev.ID, Name: dev.Name, ReadOnly: dev.ReadOnly})
+}
+
+// callTimeout is how long a protocol v2 call of op waits for the app: sourceTimeout, which is longer than an events call waits (psync.MaxEventWait), but for subscribing, which reads the whole list with yt-dlp first and which a phone waits psync.SubscribeWait for.
+func callTimeout(op string) time.Duration {
+	if op == psync.OpSubscribe {
+		return psync.SubscribeWait
+	}
+	return sourceTimeout
 }
 
 // PublishJobs makes jobs what phones are told of the app's queue, in the order a list gives them, and wakes the phones waiting for its changes. It reports whether anything changed.
