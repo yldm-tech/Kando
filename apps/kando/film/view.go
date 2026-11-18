@@ -121,6 +121,7 @@ func (v View) Render(cx *core.Scope) core.Node {
 			s.gradients(),
 			s.bigPlay(),
 			s.subtitles(),
+			s.correcting(),
 			s.osd(),
 			s.uploadCapsule(),
 			s.topBar(),

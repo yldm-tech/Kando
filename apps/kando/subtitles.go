@@ -38,17 +38,22 @@ func playerErrTextIn(m locales.Messages, id string) string {
 
 // subtitleView is the subtitle file open on the film page. err is one of the player's error IDs, or "".
 type subtitleView struct {
-	key   string
-	path  string
-	cues  []core.Segment
-	err   string
-	ready bool
-	mod   time.Time
-	size  int64
-	seen  bool
+	key  string
+	path string
+	// machine is the file's cues as the pipeline wrote them, and edits the user's corrections of them, kept in the film's corrections file (media.CorrectionsPath); editsErr is set when that file could not be read, which is then not written over. cues are the lines as they show, the corrections laid over the machine's and those marked as no speech left out (core.CorrectSegments), and from the corrected line each of them comes from, index for index.
+	machine  []core.Segment
+	edits    []core.Correction
+	editsErr bool
+	cues     []core.Segment
+	from     []core.Corrected
+	err      string
+	ready    bool
+	mod      time.Time
+	size     int64
+	seen     bool
 }
 
-// loadSubtitles reads path off the engine's goroutine, and the frames of the 片段 its lines cut the film into once read (loadClipFrames). An empty path means this film has no subtitle yet.
+// loadSubtitles reads path off the engine's goroutine, with the user's corrections of the film (media.LoadCorrections), and the frames of the 片段 its lines cut the film into once read (loadClipFrames). An empty path means this film has no subtitle yet.
 func (a *app) loadSubtitles(key, path string) {
 	if a.player.subs.key == key && a.player.subs.path == path {
 		return
@@ -67,6 +72,7 @@ func (a *app) loadSubtitles(key, path string) {
 	go func() {
 		data, err := os.ReadFile(path)
 		info, statErr := os.Stat(path)
+		edits, editsErr := media.LoadCorrections(media.CorrectionsPath(path))
 		var cues []core.Segment
 		msg := ""
 		if err != nil {
@@ -83,7 +89,9 @@ func (a *app) loadSubtitles(key, path string) {
 			if a.player.subs.key != key || a.player.subs.path != path {
 				return
 			}
-			a.player.subs.cues = cues
+			a.player.subs.machine = cues
+			a.player.subs.edits, a.player.subs.editsErr = edits, editsErr != nil
+			a.playerCorrectSubs()
 			a.player.subs.err = msg
 			a.player.subs.ready = true
 			if statErr == nil {
@@ -112,4 +120,13 @@ func (a *app) reloadOpenSubtitles() {
 	key, path := a.player.subs.key, a.player.subs.path
 	a.player.subs.path = ""
 	a.loadSubtitles(key, path)
+}
+
+// playerCorrectSubs lays the user's corrections of the open film over the lines the machine wrote, as the picture, the subtitle list and the keys take them (subtitleView.cues).
+func (a *app) playerCorrectSubs() {
+	subs := &a.player.subs
+	subs.cues, subs.from = core.CorrectSegments(subs.machine, subs.edits)
+	if len(subs.machine) == 0 {
+		subs.cues, subs.from = nil, nil
+	}
 }
