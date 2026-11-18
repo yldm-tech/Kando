@@ -356,15 +356,13 @@ func Run(ctx context.Context, p Pipeline, job core.Job, language string, report 
 	// The final proofread reads the translation through as a whole, when the job asks for it (WithReview): the changes that apply by themselves go into what is exported, and every change is kept beside the video once it is. A film not translated, or whose missing lines alone were translated, is not proofread again; a job stopped while it proofreads stops.
 	var proofs []core.Proof
 	reviewed := false
-	if notTranslated == "" && !same && job.Redo != core.RedoMissing {
+	if _, asked := reviewOf(ctx); asked && reviews(p) && notTranslated == "" && !same && job.Redo != core.RedoMissing {
 		proofs, reviewed = review(ctx, p, original, translated, filmTitle(job), language)
 		if ctxErr := ctx.Err(); ctxErr != nil {
 			return fail("translate", ctxErr)
 		}
-		if _, asked := reviewOf(ctx); asked && reviews(p) {
-			job.Progress = core.Progress{}
-			report(job)
-		}
+		job.Progress = core.Progress{}
+		report(job)
 	}
 
 	enter(core.StageExporting)
