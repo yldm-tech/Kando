@@ -461,20 +461,35 @@ func For(cx *core.Scope) Messages {
 // its method, for the TSX declarations of the messages
 // (tsx.RegisterMessages).
 var Parameters = map[string][]string{
-	"ComputersCertificate": {"name"},
-	"ComputersFilmCount":   {"count"},
-	"ComputersOptions":     {"name"},
-	"ComputersUnpairTitle": {"name"},
-	"ComputersUnpaired":    {"name"},
-	"ComputersUnreachable": {"name"},
-	"DownloadsUsed":        {"size"},
-	"FilmDeleteTitle":      {"title"},
-	"FilmDownloading":      {"percent"},
-	"FilmPaused":           {"percent"},
-	"LibraryGone":          {"name"},
-	"OnboardingPaired":     {"name"},
-	"OnboardingStep":       {"step", "count"},
-	"PairErrUnreachable":   {"address"},
+	"ComputersCertificate":   {"name"},
+	"ComputersFilmCount":     {"count"},
+	"ComputersOptions":       {"name"},
+	"ComputersUnpairTitle":   {"name"},
+	"ComputersUnpaired":      {"name"},
+	"ComputersUnreachable":   {"name"},
+	"DownloadsUsed":          {"size"},
+	"FilmDeleteTitle":        {"title"},
+	"FilmDownloading":        {"percent"},
+	"FilmPaused":             {"percent"},
+	"LibraryGone":            {"name"},
+	"OnboardingPaired":       {"name"},
+	"OnboardingStep":         {"step", "count"},
+	"PairErrUnreachable":     {"address"},
+	"PlayerAsking":           {"computer"},
+	"PlayerCardPlace":        {"index", "count", "time_"},
+	"PlayerDelayPill":        {"seconds"},
+	"PlayerDelayReset":       {"seconds"},
+	"PlayerDelaySeconds":     {"seconds"},
+	"PlayerExplainBy":        {"model", "computer"},
+	"PlayerInfoLengthValue":  {"time_", "count"},
+	"PlayerNoteFor":          {"index"},
+	"PlayerPart":             {"index", "from", "to"},
+	"PlayerSleepMinutes":     {"minutes"},
+	"PlayerSleepPillIn":      {"time_"},
+	"PlayerStudyFailed":      {"computer"},
+	"PlayerStudyNoAI":        {"computer"},
+	"PlayerStudyUnreachable": {"computer"},
+	"PlayerTabNotesCount":    {"count"},
 }
 
 // Translation is a language's messages another package supplies:
@@ -482,21 +497,36 @@ var Parameters = map[string][]string{
 // of the others; a key or a field left out leaves the message to the
 // catalog.
 type Translation struct {
-	Texts                map[string]string
-	ComputersCertificate func(name string) string
-	ComputersFilmCount   func(count int) string
-	ComputersOptions     func(name string) string
-	ComputersUnpairTitle func(name string) string
-	ComputersUnpaired    func(name string) string
-	ComputersUnreachable func(name string) string
-	DownloadsUsed        func(size string) string
-	FilmDeleteTitle      func(title string) string
-	FilmDownloading      func(percent int) string
-	FilmPaused           func(percent int) string
-	LibraryGone          func(name string) string
-	OnboardingPaired     func(name string) string
-	OnboardingStep       func(step int, count int) string
-	PairErrUnreachable   func(address string) string
+	Texts                  map[string]string
+	ComputersCertificate   func(name string) string
+	ComputersFilmCount     func(count int) string
+	ComputersOptions       func(name string) string
+	ComputersUnpairTitle   func(name string) string
+	ComputersUnpaired      func(name string) string
+	ComputersUnreachable   func(name string) string
+	DownloadsUsed          func(size string) string
+	FilmDeleteTitle        func(title string) string
+	FilmDownloading        func(percent int) string
+	FilmPaused             func(percent int) string
+	LibraryGone            func(name string) string
+	OnboardingPaired       func(name string) string
+	OnboardingStep         func(step int, count int) string
+	PairErrUnreachable     func(address string) string
+	PlayerAsking           func(computer string) string
+	PlayerCardPlace        func(index int, count int, time_ string) string
+	PlayerDelayPill        func(seconds string) string
+	PlayerDelayReset       func(seconds string) string
+	PlayerDelaySeconds     func(seconds string) string
+	PlayerExplainBy        func(model string, computer string) string
+	PlayerInfoLengthValue  func(time_ string, count int) string
+	PlayerNoteFor          func(index int) string
+	PlayerPart             func(index int, from string, to string) string
+	PlayerSleepMinutes     func(minutes int) string
+	PlayerSleepPillIn      func(time_ string) string
+	PlayerStudyFailed      func(computer string) string
+	PlayerStudyNoAI        func(computer string) string
+	PlayerStudyUnreachable func(computer string) string
+	PlayerTabNotesCount    func(count int) string
 }
 
 var supplied = map[string]Translation{}
@@ -560,22 +590,74 @@ const (
 	textPairErrWrongCode
 	textPairHint
 	textPairTitle
+	textPlayerAudioOnly
+	textPlayerAudioOnlyNote
 	textPlayerBack
+	textPlayerCannotSave
 	textPlayerCantPlay
+	textPlayerClose
+	textPlayerDelay
+	textPlayerDelayEarlier
+	textPlayerDelayLater
+	textPlayerDelayNote
+	textPlayerExplain
+	textPlayerExplainTitle
+	textPlayerFollow
+	textPlayerFollowHeld
+	textPlayerFollowNote
+	textPlayerHiddenLine
+	textPlayerHintReveal
+	textPlayerHintWords
+	textPlayerInfoComputer
+	textPlayerInfoLanguages
+	textPlayerInfoLength
+	textPlayerInfoLibrary
+	textPlayerInfoTitle
 	textPlayerKeepAwake
 	textPlayerLines
 	textPlayerLoopLine
 	textPlayerModeBilingual
+	textPlayerModeHidden
 	textPlayerModeOriginal
 	textPlayerModeTranslation
 	textPlayerNextLine
 	textPlayerNoLines
+	textPlayerNoteEmpty
+	textPlayerNotePlaceholder
+	textPlayerNoteSave
+	textPlayerNoteSaved
+	textPlayerNotesEmpty
+	textPlayerOnPicture
+	textPlayerOnPictureNote
+	textPlayerPanel
+	textPlayerPartsHint
 	textPlayerPause
 	textPlayerPlay
 	textPlayerPosition
 	textPlayerPrevLine
+	textPlayerReplay
+	textPlayerReplayLine
+	textPlayerSave
+	textPlayerSaved
+	textPlayerSavedToast
+	textPlayerSettings
+	textPlayerSleep
+	textPlayerSleepFilm
+	textPlayerSleepLine
+	textPlayerSleepLineDone
+	textPlayerSleepOff
+	textPlayerSleepPaused
+	textPlayerSleepPillFilm
+	textPlayerSleepPillLine
 	textPlayerSpeed
+	textPlayerStudyUnpaired
 	textPlayerSubtitles
+	textPlayerTabInfo
+	textPlayerTabLines
+	textPlayerTabNotes
+	textPlayerTabParts
+	textPlayerUnsavedToast
+	textPlayerWordInLine
 	textSessionDownloading
 	textSettingsAbout
 	textSettingsComputers
@@ -651,22 +733,74 @@ var keyOfText = [numTexts]string{
 	"pairErrWrongCode",
 	"pairHint",
 	"pairTitle",
+	"playerAudioOnly",
+	"playerAudioOnlyNote",
 	"playerBack",
+	"playerCannotSave",
 	"playerCantPlay",
+	"playerClose",
+	"playerDelay",
+	"playerDelayEarlier",
+	"playerDelayLater",
+	"playerDelayNote",
+	"playerExplain",
+	"playerExplainTitle",
+	"playerFollow",
+	"playerFollowHeld",
+	"playerFollowNote",
+	"playerHiddenLine",
+	"playerHintReveal",
+	"playerHintWords",
+	"playerInfoComputer",
+	"playerInfoLanguages",
+	"playerInfoLength",
+	"playerInfoLibrary",
+	"playerInfoTitle",
 	"playerKeepAwake",
 	"playerLines",
 	"playerLoopLine",
 	"playerModeBilingual",
+	"playerModeHidden",
 	"playerModeOriginal",
 	"playerModeTranslation",
 	"playerNextLine",
 	"playerNoLines",
+	"playerNoteEmpty",
+	"playerNotePlaceholder",
+	"playerNoteSave",
+	"playerNoteSaved",
+	"playerNotesEmpty",
+	"playerOnPicture",
+	"playerOnPictureNote",
+	"playerPanel",
+	"playerPartsHint",
 	"playerPause",
 	"playerPlay",
 	"playerPosition",
 	"playerPrevLine",
+	"playerReplay",
+	"playerReplayLine",
+	"playerSave",
+	"playerSaved",
+	"playerSavedToast",
+	"playerSettings",
+	"playerSleep",
+	"playerSleepFilm",
+	"playerSleepLine",
+	"playerSleepLineDone",
+	"playerSleepOff",
+	"playerSleepPaused",
+	"playerSleepPillFilm",
+	"playerSleepPillLine",
 	"playerSpeed",
+	"playerStudyUnpaired",
 	"playerSubtitles",
+	"playerTabInfo",
+	"playerTabLines",
+	"playerTabNotes",
+	"playerTabParts",
+	"playerUnsavedToast",
+	"playerWordInLine",
 	"sessionDownloading",
 	"settingsAbout",
 	"settingsComputers",
@@ -740,22 +874,74 @@ var textsEn = i18n.NewTexts(""+
 	"That isn't the code your computer shows."+
 	"On your computer, open Kando's Settings › Phone Sync, then enter the address and code it shows."+
 	"Pair with a Computer"+
+	"Audio Only"+
+	"Hides the picture, to listen as you would to a podcast."+
 	"Back"+
+	"Open this film once while its computer is reachable to save its lines."+
 	"This video can't play on this phone."+
+	"Close"+
+	"Subtitle Timing"+
+	"Earlier"+
+	"Later"+
+	"Lines ahead of the voice? Move them later; behind it, earlier. For this film only."+
+	"Explain"+
+	"Explain This Line"+
+	"Shadowing"+
+	"Say it, then play"+
+	"Holds after each line so you can say it, then plays on when you play it."+
+	"Hidden line. Tap to show it."+
+	"Tap the blurred line to show it"+
+	"Tap a word to look it up"+
+	"Computer"+
+	"Languages"+
+	"Length"+
+	"Library"+
+	"Title"+
 	"Playing a film"+
 	"Lines"+
 	"Loop"+
 	"Bilingual"+
+	"Hidden"+
 	"Original Only"+
 	"Translation Only"+
 	"Next Line"+
 	"This film has no subtitles."+
+	"Write something first"+
+	"Like: “picks up” here isn't “lifts”"+
+	"Save"+
+	"Note saved"+
+	"Save a line from the card, or write a note above."+
+	"Subtitles on the Picture"+
+	"Upright, the lines show in the card under the picture."+
+	"Player Content"+
+	"The film in equal parts. Tap one to play from it."+
 	"Pause"+
 	"Play"+
 	"Position"+
 	"Previous Line"+
+	"Replay"+
+	"Replay Line"+
+	"Save"+
+	"Saved"+
+	"Line saved"+
+	"Playback Settings"+
+	"Sleep Timer"+
+	"End of Film"+
+	"End of Line"+
+	"Sleep timer: paused after the line"+
+	"Off"+
+	"Sleep timer: paused"+
+	"Stops after this film"+
+	"Stops after this line"+
 	"Speed"+
+	"This film's computer is no longer paired with this phone."+
 	"Subtitles"+
+	"Info"+
+	"Lines"+
+	"Notes"+
+	"Parts"+
+	"Line removed from saved"+
+	"In this line"+
 	"Downloading films"+
 	"About"+
 	"Computers"+
@@ -826,22 +1012,74 @@ var textsEn = i18n.NewTexts(""+
 		40,
 		97,
 		20,
+		10,
+		55,
 		4,
+		70,
 		36,
+		5,
+		15,
+		7,
+		5,
+		82,
+		7,
+		17,
+		9,
+		17,
+		72,
+		28,
+		31,
+		24,
+		8,
+		9,
+		6,
+		7,
+		5,
 		14,
 		5,
 		4,
 		9,
+		6,
 		13,
 		16,
 		9,
 		27,
+		21,
+		43,
+		4,
+		10,
+		49,
+		24,
+		54,
+		14,
+		49,
 		5,
 		4,
 		8,
 		13,
+		6,
+		11,
+		4,
 		5,
+		10,
+		17,
+		11,
+		11,
+		11,
+		34,
+		3,
+		19,
+		21,
+		21,
+		5,
+		57,
 		9,
+		4,
+		5,
+		5,
+		5,
+		23,
+		12,
 		17,
 		5,
 		9,
@@ -915,22 +1153,74 @@ var textsJa = i18n.NewTexts(""+
 	"コンピュータに表示されているコードと違います。"+
 	"コンピュータで Kando の「設定 › スマートフォン同期」を開き、表示されたアドレスとペアリングコードを入力してください。"+
 	"コンピュータとペアリング"+
+	"音声のみ"+
+	"画面を隠して、ポッドキャストのように聞けます。"+
 	"戻る"+
+	"パソコンにつながる場所で一度この映像を開くと、文を保存できるようになります。"+
 	"この動画はこのスマートフォンでは再生できません。"+
+	"閉じる"+
+	"字幕のタイミング"+
+	"早める"+
+	"遅らせる"+
+	"字幕が声より早ければ遅らせ、遅ければ早めます。この映像だけに適用されます。"+
+	"解説"+
+	"この文を解説"+
+	"シャドーイング"+
+	"声に出してから再生"+
+	"1 文ごとに一時停止します。声に出してから再生してください。"+
+	"隠れた行。タップすると表示されます。"+
+	"ぼかした行をタップで表示"+
+	"単語をタップで意味を表示"+
+	"パソコン"+
+	"言語"+
+	"長さ"+
+	"ライブラリ"+
+	"タイトル"+
 	"動画を再生中"+
 	"セリフ一覧"+
 	"セリフをリピート"+
 	"二言語"+
+	"非表示"+
 	"原文のみ"+
 	"訳文のみ"+
 	"次のセリフ"+
 	"この動画には字幕がありません。"+
+	"先に何か書いてください"+
+	"例：ここの picks up は「拾う」ではない"+
+	"保存"+
+	"メモを保存しました"+
+	"カードの「保存」を押すか、上にメモを書きましょう。"+
+	"画面にも字幕を表示"+
+	"縦向きでは、通常は下のカードにだけ表示します。"+
+	"プレーヤーの内容"+
+	"映像を同じ長さに分けました。タップするとそこから再生します。"+
 	"一時停止"+
 	"再生"+
 	"再生位置"+
 	"前のセリフ"+
+	"もう一度"+
+	"この文をもう一度"+
+	"保存"+
+	"保存済み"+
+	"この文を保存しました"+
+	"再生設定"+
+	"スリープタイマー"+
+	"映像の終わり"+
+	"この文の後"+
+	"スリープタイマー：文の終わりで停止しました"+
+	"オフ"+
+	"スリープタイマー：一時停止しました"+
+	"映像の終わりで停止"+
+	"この文の後に停止"+
 	"再生速度"+
+	"この映像のパソコンとはもうペアリングされていません。"+
 	"字幕"+
+	"情報"+
+	"字幕"+
+	"メモ"+
+	"パート"+
+	"保存を取り消しました"+
+	"この文では"+
 	"動画をダウンロード中"+
 	"このアプリについて"+
 	"コンピュータ"+
@@ -1001,22 +1291,74 @@ var textsJa = i18n.NewTexts(""+
 		69,
 		171,
 		36,
+		12,
+		69,
 		6,
+		114,
 		72,
+		9,
+		24,
+		9,
+		12,
+		111,
+		6,
+		18,
+		21,
+		27,
+		86,
+		54,
+		36,
+		36,
+		12,
+		6,
+		6,
+		15,
+		12,
 		18,
 		15,
 		24,
+		9,
 		9,
 		12,
 		12,
 		15,
 		45,
+		33,
+		52,
+		6,
+		27,
+		75,
+		27,
+		69,
+		24,
+		90,
 		12,
 		6,
 		12,
 		15,
 		12,
+		24,
 		6,
+		12,
+		30,
+		12,
+		24,
+		18,
+		15,
+		63,
+		6,
+		51,
+		27,
+		24,
+		12,
+		78,
+		6,
+		6,
+		6,
+		6,
+		9,
+		30,
+		15,
 		30,
 		27,
 		18,
@@ -1090,22 +1432,74 @@ var textsKo = i18n.NewTexts(""+
 	"컴퓨터에 표시된 코드가 아닙니다."+
 	"컴퓨터에서 Kando의 ‘설정 › 휴대폰 동기화’를 열고 표시된 주소와 페어링 코드를 입력하세요."+
 	"컴퓨터와 페어링"+
+	"소리만 듣기"+
+	"화면을 숨기고 팟캐스트처럼 들을 수 있습니다."+
 	"뒤로"+
+	"컴퓨터에 연결된 상태에서 이 영상을 한 번 열면 문장을 저장할 수 있습니다."+
 	"이 영상은 이 휴대폰에서 재생할 수 없습니다."+
+	"닫기"+
+	"자막 타이밍"+
+	"앞당기기"+
+	"늦추기"+
+	"자막이 소리보다 빠르면 늦추고, 느리면 앞당기세요. 이 영상에만 적용됩니다."+
+	"설명"+
+	"이 문장 설명"+
+	"섀도잉"+
+	"따라 말한 뒤 재생"+
+	"문장마다 멈춥니다. 따라 말한 뒤 다시 재생하세요."+
+	"가려진 줄. 탭하면 보입니다."+
+	"흐린 줄을 탭해서 보기"+
+	"단어를 탭해서 뜻 보기"+
+	"컴퓨터"+
+	"언어"+
+	"길이"+
+	"보관함"+
+	"제목"+
 	"영상 재생 중"+
 	"대사 목록"+
 	"대사 반복"+
 	"이중 언어"+
+	"가리기"+
 	"원문만"+
 	"번역만"+
 	"다음 대사"+
 	"이 영상에는 자막이 없습니다."+
+	"먼저 내용을 적어 주세요"+
+	"예: 여기서 picks up은 '줍다'가 아님"+
+	"저장"+
+	"메모를 저장했습니다"+
+	"카드에서 '저장'을 누르거나 위에 메모를 적어 보세요."+
+	"화면에도 자막 표시"+
+	"세로 화면에서는 기본적으로 아래 카드에만 표시합니다."+
+	"플레이어 내용"+
+	"영상을 같은 길이로 나눴습니다. 탭하면 그곳부터 재생합니다."+
 	"일시 정지"+
 	"재생"+
 	"재생 위치"+
 	"이전 대사"+
+	"다시 듣기"+
+	"이 문장 다시 듣기"+
+	"저장"+
+	"저장됨"+
+	"이 문장을 저장했습니다"+
+	"재생 설정"+
+	"취침 타이머"+
+	"영상 끝"+
+	"이 문장 끝"+
+	"취침 타이머: 문장이 끝나 멈췄습니다"+
+	"끔"+
+	"취침 타이머: 일시 정지했습니다"+
+	"영상 끝에서 정지"+
+	"이 문장 후 정지"+
 	"재생 속도"+
+	"이 영상의 컴퓨터와 더 이상 페어링되어 있지 않습니다."+
 	"자막"+
+	"정보"+
+	"자막"+
+	"메모"+
+	"구간"+
+	"저장을 취소했습니다"+
+	"이 문장에서"+
 	"영상 다운로드 중"+
 	"정보"+
 	"컴퓨터"+
@@ -1176,22 +1570,74 @@ var textsKo = i18n.NewTexts(""+
 		46,
 		128,
 		22,
+		16,
+		63,
 		6,
+		102,
 		61,
+		6,
+		16,
+		12,
+		9,
+		104,
+		6,
+		17,
+		9,
+		24,
+		68,
+		38,
+		30,
+		30,
+		9,
+		6,
+		6,
+		9,
+		6,
 		17,
 		13,
 		13,
 		13,
 		9,
 		9,
+		9,
 		13,
 		40,
+		33,
+		45,
+		6,
+		28,
+		72,
+		26,
+		75,
+		19,
+		83,
 		13,
 		6,
 		13,
 		13,
 		13,
+		24,
 		6,
+		9,
+		32,
+		13,
+		16,
+		10,
+		14,
+		50,
+		3,
+		43,
+		23,
+		21,
+		13,
+		74,
+		6,
+		6,
+		6,
+		6,
+		6,
+		28,
+		16,
 		23,
 		6,
 		9,
@@ -1265,22 +1711,74 @@ var textsZhHans = i18n.NewTexts(""+
 	"这不是电脑上显示的配对码。"+
 	"在电脑上打开看懂的“设置 › 手机同步”，输入那里显示的地址和配对码。"+
 	"与电脑配对"+
+	"只听声音"+
+	"不显示画面，适合通勤时练听力。"+
 	"返回"+
+	"在能连上电脑时打开一次这部影片，就能收藏它的句子。"+
 	"这个视频无法在这部手机上播放。"+
+	"关闭"+
+	"字幕时间"+
+	"提前"+
+	"推后"+
+	"字幕比声音早就往后调，晚就往前调。只对这部片生效。"+
+	"解释"+
+	"解释这一句"+
+	"跟读模式"+
+	"跟读：读一遍，再点播放"+
+	"每句播完自动暂停，读一遍再继续。"+
+	"已模糊的一行，轻点显示"+
+	"轻点模糊的那行显示"+
+	"点词查释义"+
+	"电脑"+
+	"语言"+
+	"时长"+
+	"资料库"+
+	"标题"+
 	"正在播放影片"+
 	"字幕列表"+
 	"循环"+
 	"双语"+
+	"遮挡"+
 	"仅原文"+
 	"仅译文"+
 	"下一句"+
 	"这部影片没有字幕。"+
+	"先写点什么"+
+	"比如：这里的 picks up 不是“捡起”"+
+	"保存"+
+	"笔记已保存"+
+	"点句子下面的「收藏」，或在上面记一笔。"+
+	"画面上也显示字幕"+
+	"竖屏时默认只在下方卡片显示。"+
+	"播放器内容"+
+	"按时间把字幕平均切成几段，点一段就跳过去。"+
 	"暂停"+
 	"播放"+
 	"播放位置"+
 	"上一句"+
+	"重听"+
+	"重听这句"+
+	"收藏"+
+	"已收藏"+
+	"已收藏这一句"+
+	"播放设置"+
+	"定时停止"+
+	"这集完"+
+	"这句完"+
+	"定时停止：这句播完了"+
+	"关"+
+	"定时停止：已暂停"+
+	"这集完停止"+
+	"这句完停止"+
 	"播放速度"+
+	"这部影片的电脑已不再与这部手机配对。"+
 	"字幕"+
+	"信息"+
+	"字幕"+
+	"笔记"+
+	"片段"+
+	"已取消收藏"+
+	"在这句里"+
 	"正在下载影片"+
 	"关于"+
 	"电脑"+
@@ -1351,22 +1849,74 @@ var textsZhHans = i18n.NewTexts(""+
 		39,
 		101,
 		15,
-		6,
+		12,
 		45,
+		6,
+		75,
+		45,
+		6,
+		12,
+		6,
+		6,
+		75,
+		6,
+		15,
+		12,
+		33,
+		48,
+		33,
+		27,
+		15,
+		6,
+		6,
+		6,
+		9,
+		6,
 		18,
 		12,
+		6,
 		6,
 		6,
 		9,
 		9,
 		9,
 		27,
+		15,
+		46,
+		6,
+		15,
+		57,
+		24,
+		42,
+		15,
+		63,
 		6,
 		6,
 		12,
 		9,
+		6,
 		12,
 		6,
+		9,
+		18,
+		12,
+		12,
+		9,
+		9,
+		30,
+		3,
+		24,
+		15,
+		15,
+		12,
+		54,
+		6,
+		6,
+		6,
+		6,
+		6,
+		15,
+		12,
 		18,
 		6,
 		6,
@@ -1440,22 +1990,74 @@ var textsZhHant = i18n.NewTexts(""+
 	"這不是電腦上顯示的配對碼。"+
 	"在電腦上開啟看懂的「設定 › 手機同步」，輸入那裡顯示的位址和配對碼。"+
 	"與電腦配對"+
+	"只聽聲音"+
+	"不顯示畫面，適合通勤時練聽力。"+
 	"返回"+
+	"在能連上電腦時打開一次這部影片，就能收藏它的句子。"+
 	"這個影片無法在這支手機上播放。"+
+	"關閉"+
+	"字幕時間"+
+	"提前"+
+	"延後"+
+	"字幕比聲音早就往後調，晚就往前調。只對這部片生效。"+
+	"解釋"+
+	"解釋這一句"+
+	"跟讀模式"+
+	"跟讀：讀一遍，再點播放"+
+	"每句播完自動暫停，讀一遍再繼續。"+
+	"已模糊的一行，輕點顯示"+
+	"輕點模糊的那行顯示"+
+	"點詞查釋義"+
+	"電腦"+
+	"語言"+
+	"時長"+
+	"資料庫"+
+	"標題"+
 	"正在播放影片"+
 	"字幕列表"+
 	"循環"+
 	"雙語"+
+	"遮擋"+
 	"僅原文"+
 	"僅譯文"+
 	"下一句"+
 	"這部影片沒有字幕。"+
+	"先寫點什麼"+
+	"比如：這裡的 picks up 不是「撿起」"+
+	"儲存"+
+	"筆記已儲存"+
+	"點句子下面的「收藏」，或在上面記一筆。"+
+	"畫面上也顯示字幕"+
+	"直向時預設只在下方卡片顯示。"+
+	"播放器內容"+
+	"按時間把字幕平均切成幾段，點一段就跳過去。"+
 	"暫停"+
 	"播放"+
 	"播放位置"+
 	"上一句"+
+	"重聽"+
+	"重聽這句"+
+	"收藏"+
+	"已收藏"+
+	"已收藏這一句"+
+	"播放設定"+
+	"定時停止"+
+	"這集完"+
+	"這句完"+
+	"定時停止：這句播完了"+
+	"關"+
+	"定時停止：已暫停"+
+	"這集完停止"+
+	"這句完停止"+
 	"播放速度"+
+	"這部影片的電腦已不再與這支手機配對。"+
 	"字幕"+
+	"資訊"+
+	"字幕"+
+	"筆記"+
+	"片段"+
+	"已取消收藏"+
+	"在這句裡"+
 	"正在下載影片"+
 	"關於"+
 	"電腦"+
@@ -1526,22 +2128,74 @@ var textsZhHant = i18n.NewTexts(""+
 		39,
 		101,
 		15,
-		6,
+		12,
 		45,
+		6,
+		75,
+		45,
+		6,
+		12,
+		6,
+		6,
+		75,
+		6,
+		15,
+		12,
+		33,
+		48,
+		33,
+		27,
+		15,
+		6,
+		6,
+		6,
+		9,
+		6,
 		18,
 		12,
+		6,
 		6,
 		6,
 		9,
 		9,
 		9,
 		27,
+		15,
+		46,
+		6,
+		15,
+		57,
+		24,
+		42,
+		15,
+		63,
 		6,
 		6,
 		12,
 		9,
+		6,
 		12,
 		6,
+		9,
+		18,
+		12,
+		12,
+		9,
+		9,
+		30,
+		3,
+		24,
+		15,
+		15,
+		12,
+		54,
+		6,
+		6,
+		6,
+		6,
+		6,
+		15,
+		12,
 		18,
 		6,
 		6,
@@ -1657,6 +2311,51 @@ func Supply(lang string, t Translation) {
 	}
 	if t.PairErrUnreachable != nil {
 		s.PairErrUnreachable = t.PairErrUnreachable
+	}
+	if t.PlayerAsking != nil {
+		s.PlayerAsking = t.PlayerAsking
+	}
+	if t.PlayerCardPlace != nil {
+		s.PlayerCardPlace = t.PlayerCardPlace
+	}
+	if t.PlayerDelayPill != nil {
+		s.PlayerDelayPill = t.PlayerDelayPill
+	}
+	if t.PlayerDelayReset != nil {
+		s.PlayerDelayReset = t.PlayerDelayReset
+	}
+	if t.PlayerDelaySeconds != nil {
+		s.PlayerDelaySeconds = t.PlayerDelaySeconds
+	}
+	if t.PlayerExplainBy != nil {
+		s.PlayerExplainBy = t.PlayerExplainBy
+	}
+	if t.PlayerInfoLengthValue != nil {
+		s.PlayerInfoLengthValue = t.PlayerInfoLengthValue
+	}
+	if t.PlayerNoteFor != nil {
+		s.PlayerNoteFor = t.PlayerNoteFor
+	}
+	if t.PlayerPart != nil {
+		s.PlayerPart = t.PlayerPart
+	}
+	if t.PlayerSleepMinutes != nil {
+		s.PlayerSleepMinutes = t.PlayerSleepMinutes
+	}
+	if t.PlayerSleepPillIn != nil {
+		s.PlayerSleepPillIn = t.PlayerSleepPillIn
+	}
+	if t.PlayerStudyFailed != nil {
+		s.PlayerStudyFailed = t.PlayerStudyFailed
+	}
+	if t.PlayerStudyNoAI != nil {
+		s.PlayerStudyNoAI = t.PlayerStudyNoAI
+	}
+	if t.PlayerStudyUnreachable != nil {
+		s.PlayerStudyUnreachable = t.PlayerStudyUnreachable
+	}
+	if t.PlayerTabNotesCount != nil {
+		s.PlayerTabNotesCount = t.PlayerTabNotesCount
 	}
 	supplied[lang] = s
 	Catalog.Add(lang)
@@ -2650,6 +3349,54 @@ func PairTitle(cx *core.Scope) string { return For(cx).PairTitle() }
 // PairTitle is the package's PairTitle in the language of msgs.
 func (msgs Messages) PairTitle() string { return msgs.text(textPairTitle) }
 
+// PlayerAsking says "Asking {computer}…"
+// in the language the app shows under cx.
+//
+// In the word card and the explanation sheet while the computer's AI service is asked.
+func PlayerAsking(cx *core.Scope, computer string) string { return For(cx).PlayerAsking(computer) }
+
+// PlayerAsking is the package's PlayerAsking in the language of msgs.
+func (msgs Messages) PlayerAsking(computer string) string {
+	if i18n.IsPseudo(msgs.lang) {
+		return i18n.Pseudo(msgs.lang, Messages{lang: Source, mark: true}.PlayerAsking(computer))
+	}
+	for lang := msgs.lang; ; lang = i18n.Parent(lang) {
+		if f := supplied[lang].PlayerAsking; f != nil {
+			return f(computer)
+		}
+		switch lang {
+		case "", "en":
+			return "Asking " + msgs.arg(computer) + "…"
+		case "ja":
+			return computer + " に問い合わせ中…"
+		case "ko":
+			return computer + "에 묻는 중…"
+		case "zh-Hans":
+			return "正在问 " + computer + "…"
+		case "zh-Hant":
+			return "正在詢問 " + computer + "…"
+		}
+	}
+}
+
+// PlayerAudioOnly says "Audio Only"
+// in the language the app shows under cx.
+//
+// Playback setting, and the words over the covered picture: the picture is hidden and only the sound plays.
+func PlayerAudioOnly(cx *core.Scope) string { return For(cx).PlayerAudioOnly() }
+
+// PlayerAudioOnly is the package's PlayerAudioOnly in the language of msgs.
+func (msgs Messages) PlayerAudioOnly() string { return msgs.text(textPlayerAudioOnly) }
+
+// PlayerAudioOnlyNote says "Hides the picture, to listen as you would to a podcast."
+// in the language the app shows under cx.
+//
+// Under the Audio Only switch in the playback settings.
+func PlayerAudioOnlyNote(cx *core.Scope) string { return For(cx).PlayerAudioOnlyNote() }
+
+// PlayerAudioOnlyNote is the package's PlayerAudioOnlyNote in the language of msgs.
+func (msgs Messages) PlayerAudioOnlyNote() string { return msgs.text(textPlayerAudioOnlyNote) }
+
 // PlayerBack says "Back"
 // in the language the app shows under cx.
 //
@@ -2659,6 +3406,15 @@ func PlayerBack(cx *core.Scope) string { return For(cx).PlayerBack() }
 // PlayerBack is the package's PlayerBack in the language of msgs.
 func (msgs Messages) PlayerBack() string { return msgs.text(textPlayerBack) }
 
+// PlayerCannotSave says "Open this film once while its computer is reachable to save its lines."
+// in the language the app shows under cx.
+//
+// Toast when a line is saved from a film whose library the phone does not know yet, as one downloaded by an older version and opened away from the computer.
+func PlayerCannotSave(cx *core.Scope) string { return For(cx).PlayerCannotSave() }
+
+// PlayerCannotSave is the package's PlayerCannotSave in the language of msgs.
+func (msgs Messages) PlayerCannotSave() string { return msgs.text(textPlayerCannotSave) }
+
 // PlayerCantPlay says "This video can't play on this phone."
 // in the language the app shows under cx.
 //
@@ -2667,6 +3423,401 @@ func PlayerCantPlay(cx *core.Scope) string { return For(cx).PlayerCantPlay() }
 
 // PlayerCantPlay is the package's PlayerCantPlay in the language of msgs.
 func (msgs Messages) PlayerCantPlay() string { return msgs.text(textPlayerCantPlay) }
+
+// PlayerCardPlace says "Line {index} of {count} · {time}"
+// in the language the app shows under cx.
+//
+// At the top of the player's card: which line of the film it shows, and when it starts.
+func PlayerCardPlace(cx *core.Scope, index int, count int, time_ string) string {
+	return For(cx).PlayerCardPlace(index, count, time_)
+}
+
+// PlayerCardPlace is the package's PlayerCardPlace in the language of msgs.
+func (msgs Messages) PlayerCardPlace(index int, count int, time_ string) string {
+	if i18n.IsPseudo(msgs.lang) {
+		return i18n.Pseudo(msgs.lang, Messages{lang: Source, mark: true}.PlayerCardPlace(index, count, time_))
+	}
+	for lang := msgs.lang; ; lang = i18n.Parent(lang) {
+		if f := supplied[lang].PlayerCardPlace; f != nil {
+			return f(index, count, time_)
+		}
+		switch lang {
+		case "", "en":
+			return "Line " + msgs.arg(i18n.FormatNumber("en", float64(index))) + " of " + msgs.arg(i18n.FormatNumber("en", float64(count))) + " · " + msgs.arg(time_)
+		case "ja":
+			return i18n.FormatNumber("ja", float64(count)) + " 文中 " + i18n.FormatNumber("ja", float64(index)) + " 文目 · " + time_
+		case "ko":
+			return i18n.FormatNumber("ko", float64(count)) + "개 중 " + i18n.FormatNumber("ko", float64(index)) + "번째 문장 · " + time_
+		case "zh-Hans":
+			return "第 " + i18n.FormatNumber("zh-Hans", float64(index)) + " / " + i18n.FormatNumber("zh-Hans", float64(count)) + " 句 · " + time_
+		case "zh-Hant":
+			return "第 " + i18n.FormatNumber("zh-Hant", float64(index)) + " / " + i18n.FormatNumber("zh-Hant", float64(count)) + " 句 · " + time_
+		}
+	}
+}
+
+// PlayerClose says "Close"
+// in the language the app shows under cx.
+//
+// Spoken name of the × that closes the word card or the explanation.
+func PlayerClose(cx *core.Scope) string { return For(cx).PlayerClose() }
+
+// PlayerClose is the package's PlayerClose in the language of msgs.
+func (msgs Messages) PlayerClose() string { return msgs.text(textPlayerClose) }
+
+// PlayerDelay says "Subtitle Timing"
+// in the language the app shows under cx.
+//
+// Heading in the playback settings of the control that moves the film's lines against its sound.
+func PlayerDelay(cx *core.Scope) string { return For(cx).PlayerDelay() }
+
+// PlayerDelay is the package's PlayerDelay in the language of msgs.
+func (msgs Messages) PlayerDelay() string { return msgs.text(textPlayerDelay) }
+
+// PlayerDelayEarlier says "Earlier"
+// in the language the app shows under cx.
+//
+// Spoken name of the − button that shows the lines earlier.
+func PlayerDelayEarlier(cx *core.Scope) string { return For(cx).PlayerDelayEarlier() }
+
+// PlayerDelayEarlier is the package's PlayerDelayEarlier in the language of msgs.
+func (msgs Messages) PlayerDelayEarlier() string { return msgs.text(textPlayerDelayEarlier) }
+
+// PlayerDelayLater says "Later"
+// in the language the app shows under cx.
+//
+// Spoken name of the + button that shows the lines later.
+func PlayerDelayLater(cx *core.Scope) string { return For(cx).PlayerDelayLater() }
+
+// PlayerDelayLater is the package's PlayerDelayLater in the language of msgs.
+func (msgs Messages) PlayerDelayLater() string { return msgs.text(textPlayerDelayLater) }
+
+// PlayerDelayNote says "Lines ahead of the voice? Move them later; behind it, earlier. For this film only."
+// in the language the app shows under cx.
+//
+// Under the subtitle timing control in the playback settings.
+func PlayerDelayNote(cx *core.Scope) string { return For(cx).PlayerDelayNote() }
+
+// PlayerDelayNote is the package's PlayerDelayNote in the language of msgs.
+func (msgs Messages) PlayerDelayNote() string { return msgs.text(textPlayerDelayNote) }
+
+// PlayerDelayPill says "Subtitles {seconds} s"
+// in the language the app shows under cx.
+//
+// Pill over the picture while the film's lines are moved against its sound, as Subtitles +0.3 s.
+func PlayerDelayPill(cx *core.Scope, seconds string) string { return For(cx).PlayerDelayPill(seconds) }
+
+// PlayerDelayPill is the package's PlayerDelayPill in the language of msgs.
+func (msgs Messages) PlayerDelayPill(seconds string) string {
+	if i18n.IsPseudo(msgs.lang) {
+		return i18n.Pseudo(msgs.lang, Messages{lang: Source, mark: true}.PlayerDelayPill(seconds))
+	}
+	for lang := msgs.lang; ; lang = i18n.Parent(lang) {
+		if f := supplied[lang].PlayerDelayPill; f != nil {
+			return f(seconds)
+		}
+		switch lang {
+		case "", "en":
+			return "Subtitles " + msgs.arg(seconds) + " s"
+		case "ja":
+			return "字幕 " + seconds + " 秒"
+		case "ko":
+			return "자막 " + seconds + "초"
+		case "zh-Hans":
+			return "字幕 " + seconds + " 秒"
+		case "zh-Hant":
+			return "字幕 " + seconds + " 秒"
+		}
+	}
+}
+
+// PlayerDelayReset says "{seconds} seconds, tap to reset"
+// in the language the app shows under cx.
+//
+// Spoken name of the value between − and +, which a tap sets back to 0.
+func PlayerDelayReset(cx *core.Scope, seconds string) string {
+	return For(cx).PlayerDelayReset(seconds)
+}
+
+// PlayerDelayReset is the package's PlayerDelayReset in the language of msgs.
+func (msgs Messages) PlayerDelayReset(seconds string) string {
+	if i18n.IsPseudo(msgs.lang) {
+		return i18n.Pseudo(msgs.lang, Messages{lang: Source, mark: true}.PlayerDelayReset(seconds))
+	}
+	for lang := msgs.lang; ; lang = i18n.Parent(lang) {
+		if f := supplied[lang].PlayerDelayReset; f != nil {
+			return f(seconds)
+		}
+		switch lang {
+		case "", "en":
+			return msgs.arg(seconds) + " seconds, tap to reset"
+		case "ja":
+			return seconds + " 秒、タップで元に戻す"
+		case "ko":
+			return seconds + "초, 탭하면 초기화"
+		case "zh-Hans":
+			return seconds + " 秒，轻点归零"
+		case "zh-Hant":
+			return seconds + " 秒，輕點歸零"
+		}
+	}
+}
+
+// PlayerDelaySeconds says "{seconds} s"
+// in the language the app shows under cx.
+//
+// The value between − and +: how far the lines are moved, as +0.3 s.
+func PlayerDelaySeconds(cx *core.Scope, seconds string) string {
+	return For(cx).PlayerDelaySeconds(seconds)
+}
+
+// PlayerDelaySeconds is the package's PlayerDelaySeconds in the language of msgs.
+func (msgs Messages) PlayerDelaySeconds(seconds string) string {
+	if i18n.IsPseudo(msgs.lang) {
+		return i18n.Pseudo(msgs.lang, Messages{lang: Source, mark: true}.PlayerDelaySeconds(seconds))
+	}
+	for lang := msgs.lang; ; lang = i18n.Parent(lang) {
+		if f := supplied[lang].PlayerDelaySeconds; f != nil {
+			return f(seconds)
+		}
+		switch lang {
+		case "", "en":
+			return msgs.arg(seconds) + " s"
+		case "ja":
+			return seconds + " 秒"
+		case "ko":
+			return seconds + "초"
+		case "zh-Hans":
+			return seconds + " 秒"
+		case "zh-Hant":
+			return seconds + " 秒"
+		}
+	}
+}
+
+// PlayerExplain says "Explain"
+// in the language the app shows under cx.
+//
+// Action under the player's card: has the computer's AI service explain the line.
+func PlayerExplain(cx *core.Scope) string { return For(cx).PlayerExplain() }
+
+// PlayerExplain is the package's PlayerExplain in the language of msgs.
+func (msgs Messages) PlayerExplain() string { return msgs.text(textPlayerExplain) }
+
+// PlayerExplainBy says "{model} on {computer}"
+// in the language the app shows under cx.
+//
+// Under the explanation's title: which model, on which computer, wrote it.
+func PlayerExplainBy(cx *core.Scope, model string, computer string) string {
+	return For(cx).PlayerExplainBy(model, computer)
+}
+
+// PlayerExplainBy is the package's PlayerExplainBy in the language of msgs.
+func (msgs Messages) PlayerExplainBy(model string, computer string) string {
+	if i18n.IsPseudo(msgs.lang) {
+		return i18n.Pseudo(msgs.lang, Messages{lang: Source, mark: true}.PlayerExplainBy(model, computer))
+	}
+	for lang := msgs.lang; ; lang = i18n.Parent(lang) {
+		if f := supplied[lang].PlayerExplainBy; f != nil {
+			return f(model, computer)
+		}
+		switch lang {
+		case "", "en":
+			return msgs.arg(model) + " on " + msgs.arg(computer)
+		case "ja":
+			return computer + " の " + model
+		case "ko":
+			return computer + "의 " + model
+		case "zh-Hans":
+			return computer + " 上的 " + model
+		case "zh-Hant":
+			return computer + " 上的 " + model
+		}
+	}
+}
+
+// PlayerExplainTitle says "Explain This Line"
+// in the language the app shows under cx.
+//
+// Title of the sheet that explains a line.
+func PlayerExplainTitle(cx *core.Scope) string { return For(cx).PlayerExplainTitle() }
+
+// PlayerExplainTitle is the package's PlayerExplainTitle in the language of msgs.
+func (msgs Messages) PlayerExplainTitle() string { return msgs.text(textPlayerExplainTitle) }
+
+// PlayerFollow says "Shadowing"
+// in the language the app shows under cx.
+//
+// Playback setting, and the pill over the picture while it is on: the film holds after each line for the learner to say it.
+func PlayerFollow(cx *core.Scope) string { return For(cx).PlayerFollow() }
+
+// PlayerFollow is the package's PlayerFollow in the language of msgs.
+func (msgs Messages) PlayerFollow() string { return msgs.text(textPlayerFollow) }
+
+// PlayerFollowHeld says "Say it, then play"
+// in the language the app shows under cx.
+//
+// Pill over the picture while shadowing has held the film after a line.
+func PlayerFollowHeld(cx *core.Scope) string { return For(cx).PlayerFollowHeld() }
+
+// PlayerFollowHeld is the package's PlayerFollowHeld in the language of msgs.
+func (msgs Messages) PlayerFollowHeld() string { return msgs.text(textPlayerFollowHeld) }
+
+// PlayerFollowNote says "Holds after each line so you can say it, then plays on when you play it."
+// in the language the app shows under cx.
+//
+// Under the Shadowing switch in the playback settings.
+func PlayerFollowNote(cx *core.Scope) string { return For(cx).PlayerFollowNote() }
+
+// PlayerFollowNote is the package's PlayerFollowNote in the language of msgs.
+func (msgs Messages) PlayerFollowNote() string { return msgs.text(textPlayerFollowNote) }
+
+// PlayerHiddenLine says "Hidden line. Tap to show it."
+// in the language the app shows under cx.
+//
+// Spoken name of a line of the player's card that the subtitle mode blurs.
+func PlayerHiddenLine(cx *core.Scope) string { return For(cx).PlayerHiddenLine() }
+
+// PlayerHiddenLine is the package's PlayerHiddenLine in the language of msgs.
+func (msgs Messages) PlayerHiddenLine() string { return msgs.text(textPlayerHiddenLine) }
+
+// PlayerHintReveal says "Tap the blurred line to show it"
+// in the language the app shows under cx.
+//
+// Hint at the top of the player's card while the subtitle mode blurs a line.
+func PlayerHintReveal(cx *core.Scope) string { return For(cx).PlayerHintReveal() }
+
+// PlayerHintReveal is the package's PlayerHintReveal in the language of msgs.
+func (msgs Messages) PlayerHintReveal() string { return msgs.text(textPlayerHintReveal) }
+
+// PlayerHintWords says "Tap a word to look it up"
+// in the language the app shows under cx.
+//
+// Hint at the top of the player's card.
+func PlayerHintWords(cx *core.Scope) string { return For(cx).PlayerHintWords() }
+
+// PlayerHintWords is the package's PlayerHintWords in the language of msgs.
+func (msgs Messages) PlayerHintWords() string { return msgs.text(textPlayerHintWords) }
+
+// PlayerInfoComputer says "Computer"
+// in the language the app shows under cx.
+//
+// Row of the player's Info tab: the computer the film is from.
+func PlayerInfoComputer(cx *core.Scope) string { return For(cx).PlayerInfoComputer() }
+
+// PlayerInfoComputer is the package's PlayerInfoComputer in the language of msgs.
+func (msgs Messages) PlayerInfoComputer() string { return msgs.text(textPlayerInfoComputer) }
+
+// PlayerInfoLanguages says "Languages"
+// in the language the app shows under cx.
+//
+// Row of the player's Info tab: the language spoken and the one the subtitles are translated into.
+func PlayerInfoLanguages(cx *core.Scope) string { return For(cx).PlayerInfoLanguages() }
+
+// PlayerInfoLanguages is the package's PlayerInfoLanguages in the language of msgs.
+func (msgs Messages) PlayerInfoLanguages() string { return msgs.text(textPlayerInfoLanguages) }
+
+// PlayerInfoLength says "Length"
+// in the language the app shows under cx.
+//
+// Row of the player's Info tab: how long the film plays and how many lines it has.
+func PlayerInfoLength(cx *core.Scope) string { return For(cx).PlayerInfoLength() }
+
+// PlayerInfoLength is the package's PlayerInfoLength in the language of msgs.
+func (msgs Messages) PlayerInfoLength() string { return msgs.text(textPlayerInfoLength) }
+
+// PlayerInfoLengthValue says "{time} · {count, plural, one {# line} other {# lines}}"
+// in the language the app shows under cx.
+//
+// Value of the Length row: how long the film plays and how many lines it has.
+func PlayerInfoLengthValue(cx *core.Scope, time_ string, count int) string {
+	return For(cx).PlayerInfoLengthValue(time_, count)
+}
+
+// PlayerInfoLengthValue is the package's PlayerInfoLengthValue in the language of msgs.
+func (msgs Messages) PlayerInfoLengthValue(time_ string, count int) string {
+	if i18n.IsPseudo(msgs.lang) {
+		return i18n.Pseudo(msgs.lang, Messages{lang: Source, mark: true}.PlayerInfoLengthValue(time_, count))
+	}
+	for lang := msgs.lang; ; lang = i18n.Parent(lang) {
+		if f := supplied[lang].PlayerInfoLengthValue; f != nil {
+			return f(time_, count)
+		}
+		switch lang {
+		case "", "en":
+			var b strings.Builder
+			b.WriteString(msgs.arg(time_))
+			b.WriteString(" · ")
+			switch i18n.Cardinal("en", float64(count)) {
+			case i18n.One:
+				b.WriteString(msgs.arg(i18n.FormatNumber("en", float64(count))))
+				b.WriteString(" line")
+			default:
+				b.WriteString(msgs.arg(i18n.FormatNumber("en", float64(count))))
+				b.WriteString(" lines")
+			}
+			return b.String()
+		case "ja":
+			var b strings.Builder
+			b.WriteString(time_)
+			b.WriteString(" · ")
+			switch i18n.Cardinal("ja", float64(count)) {
+			default:
+				b.WriteString(i18n.FormatNumber("ja", float64(count)))
+				b.WriteString(" 文")
+			}
+			return b.String()
+		case "ko":
+			var b strings.Builder
+			b.WriteString(time_)
+			b.WriteString(" · ")
+			switch i18n.Cardinal("ko", float64(count)) {
+			default:
+				b.WriteString(i18n.FormatNumber("ko", float64(count)))
+				b.WriteString("문장")
+			}
+			return b.String()
+		case "zh-Hans":
+			var b strings.Builder
+			b.WriteString(time_)
+			b.WriteString(" · ")
+			switch i18n.Cardinal("zh-Hans", float64(count)) {
+			default:
+				b.WriteString(i18n.FormatNumber("zh-Hans", float64(count)))
+				b.WriteString(" 句")
+			}
+			return b.String()
+		case "zh-Hant":
+			var b strings.Builder
+			b.WriteString(time_)
+			b.WriteString(" · ")
+			switch i18n.Cardinal("zh-Hant", float64(count)) {
+			default:
+				b.WriteString(i18n.FormatNumber("zh-Hant", float64(count)))
+				b.WriteString(" 句")
+			}
+			return b.String()
+		}
+	}
+}
+
+// PlayerInfoLibrary says "Library"
+// in the language the app shows under cx.
+//
+// Row of the player's Info tab: the library on the computer the film is in.
+func PlayerInfoLibrary(cx *core.Scope) string { return For(cx).PlayerInfoLibrary() }
+
+// PlayerInfoLibrary is the package's PlayerInfoLibrary in the language of msgs.
+func (msgs Messages) PlayerInfoLibrary() string { return msgs.text(textPlayerInfoLibrary) }
+
+// PlayerInfoTitle says "Title"
+// in the language the app shows under cx.
+//
+// Row of the player's Info tab: the film's title.
+func PlayerInfoTitle(cx *core.Scope) string { return For(cx).PlayerInfoTitle() }
+
+// PlayerInfoTitle is the package's PlayerInfoTitle in the language of msgs.
+func (msgs Messages) PlayerInfoTitle() string { return msgs.text(textPlayerInfoTitle) }
 
 // PlayerKeepAwake says "Playing a film"
 // in the language the app shows under cx.
@@ -2704,6 +3855,15 @@ func PlayerModeBilingual(cx *core.Scope) string { return For(cx).PlayerModeBilin
 // PlayerModeBilingual is the package's PlayerModeBilingual in the language of msgs.
 func (msgs Messages) PlayerModeBilingual() string { return msgs.text(textPlayerModeBilingual) }
 
+// PlayerModeHidden says "Hidden"
+// in the language the app shows under cx.
+//
+// Subtitle mode: neither line shows; the card blurs both until a tap shows them.
+func PlayerModeHidden(cx *core.Scope) string { return For(cx).PlayerModeHidden() }
+
+// PlayerModeHidden is the package's PlayerModeHidden in the language of msgs.
+func (msgs Messages) PlayerModeHidden() string { return msgs.text(textPlayerModeHidden) }
+
 // PlayerModeOriginal says "Original Only"
 // in the language the app shows under cx.
 //
@@ -2739,6 +3899,149 @@ func PlayerNoLines(cx *core.Scope) string { return For(cx).PlayerNoLines() }
 
 // PlayerNoLines is the package's PlayerNoLines in the language of msgs.
 func (msgs Messages) PlayerNoLines() string { return msgs.text(textPlayerNoLines) }
+
+// PlayerNoteEmpty says "Write something first"
+// in the language the app shows under cx.
+//
+// Toast when an empty note is saved.
+func PlayerNoteEmpty(cx *core.Scope) string { return For(cx).PlayerNoteEmpty() }
+
+// PlayerNoteEmpty is the package's PlayerNoteEmpty in the language of msgs.
+func (msgs Messages) PlayerNoteEmpty() string { return msgs.text(textPlayerNoteEmpty) }
+
+// PlayerNoteFor says "Note on line {index}"
+// in the language the app shows under cx.
+//
+// Heading and spoken name of the note field in the player's Notes tab.
+func PlayerNoteFor(cx *core.Scope, index int) string { return For(cx).PlayerNoteFor(index) }
+
+// PlayerNoteFor is the package's PlayerNoteFor in the language of msgs.
+func (msgs Messages) PlayerNoteFor(index int) string {
+	if i18n.IsPseudo(msgs.lang) {
+		return i18n.Pseudo(msgs.lang, Messages{lang: Source, mark: true}.PlayerNoteFor(index))
+	}
+	for lang := msgs.lang; ; lang = i18n.Parent(lang) {
+		if f := supplied[lang].PlayerNoteFor; f != nil {
+			return f(index)
+		}
+		switch lang {
+		case "", "en":
+			return "Note on line " + msgs.arg(i18n.FormatNumber("en", float64(index)))
+		case "ja":
+			return i18n.FormatNumber("ja", float64(index)) + " 文目にメモ"
+		case "ko":
+			return i18n.FormatNumber("ko", float64(index)) + "번째 문장 메모"
+		case "zh-Hans":
+			return "给这一句记一笔 · 第 " + i18n.FormatNumber("zh-Hans", float64(index)) + " 句"
+		case "zh-Hant":
+			return "給這一句記一筆 · 第 " + i18n.FormatNumber("zh-Hant", float64(index)) + " 句"
+		}
+	}
+}
+
+// PlayerNotePlaceholder says "Like: “picks up” here isn't “lifts”"
+// in the language the app shows under cx.
+//
+// Placeholder of the note field in the player's Notes tab.
+func PlayerNotePlaceholder(cx *core.Scope) string { return For(cx).PlayerNotePlaceholder() }
+
+// PlayerNotePlaceholder is the package's PlayerNotePlaceholder in the language of msgs.
+func (msgs Messages) PlayerNotePlaceholder() string { return msgs.text(textPlayerNotePlaceholder) }
+
+// PlayerNoteSave says "Save"
+// in the language the app shows under cx.
+//
+// Button beside the note field in the player's Notes tab.
+func PlayerNoteSave(cx *core.Scope) string { return For(cx).PlayerNoteSave() }
+
+// PlayerNoteSave is the package's PlayerNoteSave in the language of msgs.
+func (msgs Messages) PlayerNoteSave() string { return msgs.text(textPlayerNoteSave) }
+
+// PlayerNoteSaved says "Note saved"
+// in the language the app shows under cx.
+//
+// Toast once a note is saved.
+func PlayerNoteSaved(cx *core.Scope) string { return For(cx).PlayerNoteSaved() }
+
+// PlayerNoteSaved is the package's PlayerNoteSaved in the language of msgs.
+func (msgs Messages) PlayerNoteSaved() string { return msgs.text(textPlayerNoteSaved) }
+
+// PlayerNotesEmpty says "Save a line from the card, or write a note above."
+// in the language the app shows under cx.
+//
+// In the player's Notes tab when no line of the film is saved.
+func PlayerNotesEmpty(cx *core.Scope) string { return For(cx).PlayerNotesEmpty() }
+
+// PlayerNotesEmpty is the package's PlayerNotesEmpty in the language of msgs.
+func (msgs Messages) PlayerNotesEmpty() string { return msgs.text(textPlayerNotesEmpty) }
+
+// PlayerOnPicture says "Subtitles on the Picture"
+// in the language the app shows under cx.
+//
+// Playback setting: the lines show over the picture while the phone is upright too.
+func PlayerOnPicture(cx *core.Scope) string { return For(cx).PlayerOnPicture() }
+
+// PlayerOnPicture is the package's PlayerOnPicture in the language of msgs.
+func (msgs Messages) PlayerOnPicture() string { return msgs.text(textPlayerOnPicture) }
+
+// PlayerOnPictureNote says "Upright, the lines show in the card under the picture."
+// in the language the app shows under cx.
+//
+// Under the Subtitles on the Picture switch.
+func PlayerOnPictureNote(cx *core.Scope) string { return For(cx).PlayerOnPictureNote() }
+
+// PlayerOnPictureNote is the package's PlayerOnPictureNote in the language of msgs.
+func (msgs Messages) PlayerOnPictureNote() string { return msgs.text(textPlayerOnPictureNote) }
+
+// PlayerPanel says "Player Content"
+// in the language the app shows under cx.
+//
+// Spoken name of the tabs under the player's card.
+func PlayerPanel(cx *core.Scope) string { return For(cx).PlayerPanel() }
+
+// PlayerPanel is the package's PlayerPanel in the language of msgs.
+func (msgs Messages) PlayerPanel() string { return msgs.text(textPlayerPanel) }
+
+// PlayerPart says "Part {index} · {from}–{to}"
+// in the language the app shows under cx.
+//
+// A part of the film in the player's Parts tab, with when it starts and ends.
+func PlayerPart(cx *core.Scope, index int, from string, to string) string {
+	return For(cx).PlayerPart(index, from, to)
+}
+
+// PlayerPart is the package's PlayerPart in the language of msgs.
+func (msgs Messages) PlayerPart(index int, from string, to string) string {
+	if i18n.IsPseudo(msgs.lang) {
+		return i18n.Pseudo(msgs.lang, Messages{lang: Source, mark: true}.PlayerPart(index, from, to))
+	}
+	for lang := msgs.lang; ; lang = i18n.Parent(lang) {
+		if f := supplied[lang].PlayerPart; f != nil {
+			return f(index, from, to)
+		}
+		switch lang {
+		case "", "en":
+			return "Part " + msgs.arg(i18n.FormatNumber("en", float64(index))) + " · " + msgs.arg(from) + "–" + msgs.arg(to)
+		case "ja":
+			return "パート " + i18n.FormatNumber("ja", float64(index)) + " · " + from + "–" + to
+		case "ko":
+			return "구간 " + i18n.FormatNumber("ko", float64(index)) + " · " + from + "–" + to
+		case "zh-Hans":
+			return "片段 " + i18n.FormatNumber("zh-Hans", float64(index)) + " · " + from + "–" + to
+		case "zh-Hant":
+			return "片段 " + i18n.FormatNumber("zh-Hant", float64(index)) + " · " + from + "–" + to
+		}
+	}
+}
+
+// PlayerPartsHint says "The film in equal parts. Tap one to play from it."
+// in the language the app shows under cx.
+//
+// At the top of the player's Parts tab.
+func PlayerPartsHint(cx *core.Scope) string { return For(cx).PlayerPartsHint() }
+
+// PlayerPartsHint is the package's PlayerPartsHint in the language of msgs.
+func (msgs Messages) PlayerPartsHint() string { return msgs.text(textPlayerPartsHint) }
 
 // PlayerPause says "Pause"
 // in the language the app shows under cx.
@@ -2776,6 +4079,194 @@ func PlayerPrevLine(cx *core.Scope) string { return For(cx).PlayerPrevLine() }
 // PlayerPrevLine is the package's PlayerPrevLine in the language of msgs.
 func (msgs Messages) PlayerPrevLine() string { return msgs.text(textPlayerPrevLine) }
 
+// PlayerReplay says "Replay"
+// in the language the app shows under cx.
+//
+// Action under the player's card: plays the line again from its start.
+func PlayerReplay(cx *core.Scope) string { return For(cx).PlayerReplay() }
+
+// PlayerReplay is the package's PlayerReplay in the language of msgs.
+func (msgs Messages) PlayerReplay() string { return msgs.text(textPlayerReplay) }
+
+// PlayerReplayLine says "Replay Line"
+// in the language the app shows under cx.
+//
+// Button of the word card: plays the line the word was tapped in again.
+func PlayerReplayLine(cx *core.Scope) string { return For(cx).PlayerReplayLine() }
+
+// PlayerReplayLine is the package's PlayerReplayLine in the language of msgs.
+func (msgs Messages) PlayerReplayLine() string { return msgs.text(textPlayerReplayLine) }
+
+// PlayerSave says "Save"
+// in the language the app shows under cx.
+//
+// Action under the player's card: saves the line to study.
+func PlayerSave(cx *core.Scope) string { return For(cx).PlayerSave() }
+
+// PlayerSave is the package's PlayerSave in the language of msgs.
+func (msgs Messages) PlayerSave() string { return msgs.text(textPlayerSave) }
+
+// PlayerSaved says "Saved"
+// in the language the app shows under cx.
+//
+// The Save action once the line is saved; a tap takes it back.
+func PlayerSaved(cx *core.Scope) string { return For(cx).PlayerSaved() }
+
+// PlayerSaved is the package's PlayerSaved in the language of msgs.
+func (msgs Messages) PlayerSaved() string { return msgs.text(textPlayerSaved) }
+
+// PlayerSavedToast says "Line saved"
+// in the language the app shows under cx.
+//
+// Toast once a line is saved.
+func PlayerSavedToast(cx *core.Scope) string { return For(cx).PlayerSavedToast() }
+
+// PlayerSavedToast is the package's PlayerSavedToast in the language of msgs.
+func (msgs Messages) PlayerSavedToast() string { return msgs.text(textPlayerSavedToast) }
+
+// PlayerSettings says "Playback Settings"
+// in the language the app shows under cx.
+//
+// Title of the player's settings sheet, and spoken name of the … button that opens it.
+func PlayerSettings(cx *core.Scope) string { return For(cx).PlayerSettings() }
+
+// PlayerSettings is the package's PlayerSettings in the language of msgs.
+func (msgs Messages) PlayerSettings() string { return msgs.text(textPlayerSettings) }
+
+// PlayerSleep says "Sleep Timer"
+// in the language the app shows under cx.
+//
+// Heading of the sleep timer's choices in the playback settings.
+func PlayerSleep(cx *core.Scope) string { return For(cx).PlayerSleep() }
+
+// PlayerSleep is the package's PlayerSleep in the language of msgs.
+func (msgs Messages) PlayerSleep() string { return msgs.text(textPlayerSleep) }
+
+// PlayerSleepFilm says "End of Film"
+// in the language the app shows under cx.
+//
+// Sleep timer choice: holds the film at its end.
+func PlayerSleepFilm(cx *core.Scope) string { return For(cx).PlayerSleepFilm() }
+
+// PlayerSleepFilm is the package's PlayerSleepFilm in the language of msgs.
+func (msgs Messages) PlayerSleepFilm() string { return msgs.text(textPlayerSleepFilm) }
+
+// PlayerSleepLine says "End of Line"
+// in the language the app shows under cx.
+//
+// Sleep timer choice: holds the film once the line playing ends.
+func PlayerSleepLine(cx *core.Scope) string { return For(cx).PlayerSleepLine() }
+
+// PlayerSleepLine is the package's PlayerSleepLine in the language of msgs.
+func (msgs Messages) PlayerSleepLine() string { return msgs.text(textPlayerSleepLine) }
+
+// PlayerSleepLineDone says "Sleep timer: paused after the line"
+// in the language the app shows under cx.
+//
+// Toast once the sleep timer held the film at the end of a line.
+func PlayerSleepLineDone(cx *core.Scope) string { return For(cx).PlayerSleepLineDone() }
+
+// PlayerSleepLineDone is the package's PlayerSleepLineDone in the language of msgs.
+func (msgs Messages) PlayerSleepLineDone() string { return msgs.text(textPlayerSleepLineDone) }
+
+// PlayerSleepMinutes says "{minutes} min"
+// in the language the app shows under cx.
+//
+// Sleep timer choice: holds the film after so many minutes.
+func PlayerSleepMinutes(cx *core.Scope, minutes int) string {
+	return For(cx).PlayerSleepMinutes(minutes)
+}
+
+// PlayerSleepMinutes is the package's PlayerSleepMinutes in the language of msgs.
+func (msgs Messages) PlayerSleepMinutes(minutes int) string {
+	if i18n.IsPseudo(msgs.lang) {
+		return i18n.Pseudo(msgs.lang, Messages{lang: Source, mark: true}.PlayerSleepMinutes(minutes))
+	}
+	for lang := msgs.lang; ; lang = i18n.Parent(lang) {
+		if f := supplied[lang].PlayerSleepMinutes; f != nil {
+			return f(minutes)
+		}
+		switch lang {
+		case "", "en":
+			return msgs.arg(i18n.FormatNumber("en", float64(minutes))) + " min"
+		case "ja":
+			return i18n.FormatNumber("ja", float64(minutes)) + " 分"
+		case "ko":
+			return i18n.FormatNumber("ko", float64(minutes)) + "분"
+		case "zh-Hans":
+			return i18n.FormatNumber("zh-Hans", float64(minutes)) + " 分"
+		case "zh-Hant":
+			return i18n.FormatNumber("zh-Hant", float64(minutes)) + " 分"
+		}
+	}
+}
+
+// PlayerSleepOff says "Off"
+// in the language the app shows under cx.
+//
+// Sleep timer choice: no timer.
+func PlayerSleepOff(cx *core.Scope) string { return For(cx).PlayerSleepOff() }
+
+// PlayerSleepOff is the package's PlayerSleepOff in the language of msgs.
+func (msgs Messages) PlayerSleepOff() string { return msgs.text(textPlayerSleepOff) }
+
+// PlayerSleepPaused says "Sleep timer: paused"
+// in the language the app shows under cx.
+//
+// Toast once the sleep timer held the film after its minutes.
+func PlayerSleepPaused(cx *core.Scope) string { return For(cx).PlayerSleepPaused() }
+
+// PlayerSleepPaused is the package's PlayerSleepPaused in the language of msgs.
+func (msgs Messages) PlayerSleepPaused() string { return msgs.text(textPlayerSleepPaused) }
+
+// PlayerSleepPillFilm says "Stops after this film"
+// in the language the app shows under cx.
+//
+// Pill over the picture while the sleep timer is set to the end of the film.
+func PlayerSleepPillFilm(cx *core.Scope) string { return For(cx).PlayerSleepPillFilm() }
+
+// PlayerSleepPillFilm is the package's PlayerSleepPillFilm in the language of msgs.
+func (msgs Messages) PlayerSleepPillFilm() string { return msgs.text(textPlayerSleepPillFilm) }
+
+// PlayerSleepPillIn says "Stops in {time}"
+// in the language the app shows under cx.
+//
+// Pill over the picture while a timed sleep timer runs.
+func PlayerSleepPillIn(cx *core.Scope, time_ string) string { return For(cx).PlayerSleepPillIn(time_) }
+
+// PlayerSleepPillIn is the package's PlayerSleepPillIn in the language of msgs.
+func (msgs Messages) PlayerSleepPillIn(time_ string) string {
+	if i18n.IsPseudo(msgs.lang) {
+		return i18n.Pseudo(msgs.lang, Messages{lang: Source, mark: true}.PlayerSleepPillIn(time_))
+	}
+	for lang := msgs.lang; ; lang = i18n.Parent(lang) {
+		if f := supplied[lang].PlayerSleepPillIn; f != nil {
+			return f(time_)
+		}
+		switch lang {
+		case "", "en":
+			return "Stops in " + msgs.arg(time_)
+		case "ja":
+			return time_ + " 後に停止"
+		case "ko":
+			return time_ + " 후 정지"
+		case "zh-Hans":
+			return time_ + " 后停止"
+		case "zh-Hant":
+			return time_ + " 後停止"
+		}
+	}
+}
+
+// PlayerSleepPillLine says "Stops after this line"
+// in the language the app shows under cx.
+//
+// Pill over the picture while the sleep timer is set to the end of the line.
+func PlayerSleepPillLine(cx *core.Scope) string { return For(cx).PlayerSleepPillLine() }
+
+// PlayerSleepPillLine is the package's PlayerSleepPillLine in the language of msgs.
+func (msgs Messages) PlayerSleepPillLine() string { return msgs.text(textPlayerSleepPillLine) }
+
 // PlayerSpeed says "Speed"
 // in the language the app shows under cx.
 //
@@ -2785,6 +4276,111 @@ func PlayerSpeed(cx *core.Scope) string { return For(cx).PlayerSpeed() }
 // PlayerSpeed is the package's PlayerSpeed in the language of msgs.
 func (msgs Messages) PlayerSpeed() string { return msgs.text(textPlayerSpeed) }
 
+// PlayerStudyFailed says "The AI service on {computer} didn't answer. Try again."
+// in the language the app shows under cx.
+//
+// In the word card or the explanation when the computer's AI service failed.
+func PlayerStudyFailed(cx *core.Scope, computer string) string {
+	return For(cx).PlayerStudyFailed(computer)
+}
+
+// PlayerStudyFailed is the package's PlayerStudyFailed in the language of msgs.
+func (msgs Messages) PlayerStudyFailed(computer string) string {
+	if i18n.IsPseudo(msgs.lang) {
+		return i18n.Pseudo(msgs.lang, Messages{lang: Source, mark: true}.PlayerStudyFailed(computer))
+	}
+	for lang := msgs.lang; ; lang = i18n.Parent(lang) {
+		if f := supplied[lang].PlayerStudyFailed; f != nil {
+			return f(computer)
+		}
+		switch lang {
+		case "", "en":
+			return "The AI service on " + msgs.arg(computer) + " didn't answer. Try again."
+		case "ja":
+			return computer + " の AI サービスが応答しませんでした。もう一度お試しください。"
+		case "ko":
+			return computer + "의 AI 서비스가 응답하지 않았습니다. 다시 시도해 주세요."
+		case "zh-Hans":
+			return computer + " 上的 AI 服务没有回应，请重试。"
+		case "zh-Hant":
+			return computer + " 上的 AI 服務沒有回應，請重試。"
+		}
+	}
+}
+
+// PlayerStudyNoAI says "Set up an AI service in Kando's settings on {computer} to look words up and explain lines."
+// in the language the app shows under cx.
+//
+// In the word card or the explanation when the computer has no AI service.
+func PlayerStudyNoAI(cx *core.Scope, computer string) string {
+	return For(cx).PlayerStudyNoAI(computer)
+}
+
+// PlayerStudyNoAI is the package's PlayerStudyNoAI in the language of msgs.
+func (msgs Messages) PlayerStudyNoAI(computer string) string {
+	if i18n.IsPseudo(msgs.lang) {
+		return i18n.Pseudo(msgs.lang, Messages{lang: Source, mark: true}.PlayerStudyNoAI(computer))
+	}
+	for lang := msgs.lang; ; lang = i18n.Parent(lang) {
+		if f := supplied[lang].PlayerStudyNoAI; f != nil {
+			return f(computer)
+		}
+		switch lang {
+		case "", "en":
+			return "Set up an AI service in Kando's settings on " + msgs.arg(computer) + " to look words up and explain lines."
+		case "ja":
+			return computer + " の看懂の設定で AI サービスを設定すると、単語を調べたり文を解説したりできます。"
+		case "ko":
+			return computer + "의 看懂 설정에서 AI 서비스를 설정하면 단어를 찾고 문장을 설명할 수 있습니다."
+		case "zh-Hans":
+			return "在 " + computer + " 上的看懂设置里配好 AI 服务，就能查词和解释句子。"
+		case "zh-Hant":
+			return "在 " + computer + " 上的看懂設定裡設好 AI 服務，就能查詞和解釋句子。"
+		}
+	}
+}
+
+// PlayerStudyUnpaired says "This film's computer is no longer paired with this phone."
+// in the language the app shows under cx.
+//
+// In the word card or the explanation when the film's computer is not paired any more.
+func PlayerStudyUnpaired(cx *core.Scope) string { return For(cx).PlayerStudyUnpaired() }
+
+// PlayerStudyUnpaired is the package's PlayerStudyUnpaired in the language of msgs.
+func (msgs Messages) PlayerStudyUnpaired() string { return msgs.text(textPlayerStudyUnpaired) }
+
+// PlayerStudyUnreachable says "Can't reach {computer}. Words are looked up on it, so be on the same network."
+// in the language the app shows under cx.
+//
+// In the word card or the explanation when the computer cannot be reached.
+func PlayerStudyUnreachable(cx *core.Scope, computer string) string {
+	return For(cx).PlayerStudyUnreachable(computer)
+}
+
+// PlayerStudyUnreachable is the package's PlayerStudyUnreachable in the language of msgs.
+func (msgs Messages) PlayerStudyUnreachable(computer string) string {
+	if i18n.IsPseudo(msgs.lang) {
+		return i18n.Pseudo(msgs.lang, Messages{lang: Source, mark: true}.PlayerStudyUnreachable(computer))
+	}
+	for lang := msgs.lang; ; lang = i18n.Parent(lang) {
+		if f := supplied[lang].PlayerStudyUnreachable; f != nil {
+			return f(computer)
+		}
+		switch lang {
+		case "", "en":
+			return "Can't reach " + msgs.arg(computer) + ". Words are looked up on it, so be on the same network."
+		case "ja":
+			return computer + " に接続できません。単語はパソコンで調べるので、同じネットワークにつないでください。"
+		case "ko":
+			return computer + "에 연결할 수 없습니다. 단어는 컴퓨터에서 찾으므로 같은 네트워크에 연결하세요."
+		case "zh-Hans":
+			return "连不上 " + computer + "。查词要通过它，请连到同一个网络。"
+		case "zh-Hant":
+			return "連不上 " + computer + "。查詞要透過它，請連到同一個網路。"
+		}
+	}
+}
+
 // PlayerSubtitles says "Subtitles"
 // in the language the app shows under cx.
 //
@@ -2793,6 +4389,90 @@ func PlayerSubtitles(cx *core.Scope) string { return For(cx).PlayerSubtitles() }
 
 // PlayerSubtitles is the package's PlayerSubtitles in the language of msgs.
 func (msgs Messages) PlayerSubtitles() string { return msgs.text(textPlayerSubtitles) }
+
+// PlayerTabInfo says "Info"
+// in the language the app shows under cx.
+//
+// Tab of the player's panel: what the film is.
+func PlayerTabInfo(cx *core.Scope) string { return For(cx).PlayerTabInfo() }
+
+// PlayerTabInfo is the package's PlayerTabInfo in the language of msgs.
+func (msgs Messages) PlayerTabInfo() string { return msgs.text(textPlayerTabInfo) }
+
+// PlayerTabLines says "Lines"
+// in the language the app shows under cx.
+//
+// Tab of the player's panel: the film's lines.
+func PlayerTabLines(cx *core.Scope) string { return For(cx).PlayerTabLines() }
+
+// PlayerTabLines is the package's PlayerTabLines in the language of msgs.
+func (msgs Messages) PlayerTabLines() string { return msgs.text(textPlayerTabLines) }
+
+// PlayerTabNotes says "Notes"
+// in the language the app shows under cx.
+//
+// Tab of the player's panel: the lines saved and their notes, while none is saved.
+func PlayerTabNotes(cx *core.Scope) string { return For(cx).PlayerTabNotes() }
+
+// PlayerTabNotes is the package's PlayerTabNotes in the language of msgs.
+func (msgs Messages) PlayerTabNotes() string { return msgs.text(textPlayerTabNotes) }
+
+// PlayerTabNotesCount says "Notes {count}"
+// in the language the app shows under cx.
+//
+// Tab of the player's panel with how many of the film's lines are saved.
+func PlayerTabNotesCount(cx *core.Scope, count int) string { return For(cx).PlayerTabNotesCount(count) }
+
+// PlayerTabNotesCount is the package's PlayerTabNotesCount in the language of msgs.
+func (msgs Messages) PlayerTabNotesCount(count int) string {
+	if i18n.IsPseudo(msgs.lang) {
+		return i18n.Pseudo(msgs.lang, Messages{lang: Source, mark: true}.PlayerTabNotesCount(count))
+	}
+	for lang := msgs.lang; ; lang = i18n.Parent(lang) {
+		if f := supplied[lang].PlayerTabNotesCount; f != nil {
+			return f(count)
+		}
+		switch lang {
+		case "", "en":
+			return "Notes " + msgs.arg(i18n.FormatNumber("en", float64(count)))
+		case "ja":
+			return "メモ " + i18n.FormatNumber("ja", float64(count))
+		case "ko":
+			return "메모 " + i18n.FormatNumber("ko", float64(count))
+		case "zh-Hans":
+			return "笔记 " + i18n.FormatNumber("zh-Hans", float64(count))
+		case "zh-Hant":
+			return "筆記 " + i18n.FormatNumber("zh-Hant", float64(count))
+		}
+	}
+}
+
+// PlayerTabParts says "Parts"
+// in the language the app shows under cx.
+//
+// Tab of the player's panel: the film in equal parts.
+func PlayerTabParts(cx *core.Scope) string { return For(cx).PlayerTabParts() }
+
+// PlayerTabParts is the package's PlayerTabParts in the language of msgs.
+func (msgs Messages) PlayerTabParts() string { return msgs.text(textPlayerTabParts) }
+
+// PlayerUnsavedToast says "Line removed from saved"
+// in the language the app shows under cx.
+//
+// Toast once a saved line is taken back.
+func PlayerUnsavedToast(cx *core.Scope) string { return For(cx).PlayerUnsavedToast() }
+
+// PlayerUnsavedToast is the package's PlayerUnsavedToast in the language of msgs.
+func (msgs Messages) PlayerUnsavedToast() string { return msgs.text(textPlayerUnsavedToast) }
+
+// PlayerWordInLine says "In this line"
+// in the language the app shows under cx.
+//
+// Heading over the line a word was tapped in, in the word card.
+func PlayerWordInLine(cx *core.Scope) string { return For(cx).PlayerWordInLine() }
+
+// PlayerWordInLine is the package's PlayerWordInLine in the language of msgs.
+func (msgs Messages) PlayerWordInLine() string { return msgs.text(textPlayerWordInLine) }
 
 // SessionDownloading says "Downloading films"
 // in the language the app shows under cx.

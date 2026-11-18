@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"kando/apps/mobile/store"
+	"kando/packages/sync"
 	"kando/packages/sync/synctest"
 
 	"github.com/nsgo-dev/nsgo/core"
@@ -226,7 +227,7 @@ func TestScreenshotsPlayer(t *testing.T) {
 	shot := screenshots(t)
 	p, _ := openPlayer(t)
 	p.at(3200 * time.Millisecond)
-	p.app.WaitFor("id:player-subtitles >> text:你好吗？", wait)
+	p.app.WaitUntil(wait, func() bool { return p.texts("id:player-card-translation") == "你好吗？" })
 	shot(p, "player")
 	p.app.Resize(844, 390)
 	shot(p, "player-landscape")
@@ -236,6 +237,29 @@ func TestScreenshotsTablet(t *testing.T) {
 	shot := screenshots(t)
 	p, _ := openPlayer(t, nsgotest.Size(1180, 820))
 	p.at(3200 * time.Millisecond)
-	p.app.WaitFor("id:player-subtitles >> text:你好吗？", wait)
+	p.app.WaitUntil(wait, func() bool { return p.texts("id:player-card-translation") == "你好吗？" })
 	shot(p, "player-tablet")
+}
+
+func TestScreenshotsPlayerStudy(t *testing.T) {
+	shot := screenshots(t)
+	d := newDesktop(t)
+	d.SetEntry("morning", sync.WordEntry{Word: "morning", Reading: "/ˈmɔːnɪŋ/", Meaning: "n. 早晨；上午。这里和 good 连用，是早上见面时的问候。", Language: "简体中文"})
+	d.SetExplanation("整句是早上见面时的问候，相当于「早上好」。\n\nGood morning 是固定说法，不说 good morning to you 也同样自然。")
+	// Without reporting the video's progress, which a target cannot, the card shows the first line.
+	p, _ := openStudy(t, d)
+	shot(p, "player-card")
+	p.app.Press("id:player-save")
+	p.app.Press("id:player-explain-line")
+	p.app.WaitFor("id:player-explain-text", wait)
+	shot(p, "player-explain")
+	p.app.Press("id:player-explain-close")
+	p.app.Press("id:player-tab-notes")
+	p.app.WaitFor("id:player-saved-line", wait)
+	shot(p, "player-notes")
+	p.app.Press("id:player-more")
+	p.app.Press("id:player-settings-follow")
+	p.app.Press("id:player-settings-sleep-15")
+	p.app.WaitFor("id:player-settings", wait)
+	shot(p, "player-settings")
 }

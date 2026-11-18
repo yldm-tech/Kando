@@ -18,6 +18,7 @@ import (
 	"kando/apps/mobile/langs"
 	"kando/apps/mobile/locales"
 	"kando/apps/mobile/store"
+	"kando/apps/mobile/study"
 	"kando/packages/sync"
 
 	"github.com/nsgo-dev/nsgo/core"
@@ -127,9 +128,24 @@ type Session struct {
 	filmMu    gosync.Mutex
 	filmSaves map[string]*filmSave
 	closed    chan struct{}
+	// ctx ends with the session, so the learning state's syncs, lookups and explanations on their way do not hold the app up as it closes (study.go).
+	ctx    context.Context
+	cancel context.CancelFunc
 	// prefsMu orders the saves of the preferences as saveMu does the desktops': prefsSaving is the generation SetPrefs last gave out, prefsSaved the one last written.
 	prefsMu                 gosync.Mutex
 	prefsSaving, prefsSaved uint64
+	// studies are the libraries' learning state, by desktop and library (studyKey), each read from disk the first time a film of it opens (study.go); studyLoading the ones being read, studyRuns the syncs running, finding the films whose library is being asked for. studyMu orders their saves as prefsMu does the preferences', by library.
+	studies      *core.Signal[map[string]study.Library]
+	studyLoading map[string]bool
+	studyRuns    map[string]*studyRun
+	finding      map[string]bool
+	studyMu      gosync.Mutex
+	studySaving  map[string]uint64
+	studySaved   map[string]uint64
+	// lookups are the words looked up through the desktops, read with the store; lookupMu orders their saves.
+	lookups                   map[string]store.Lookup
+	lookupMu                  gosync.Mutex
+	lookupSaving, lookupSaved uint64
 }
 
 // filmSave is what is still to be written of a film's record: next, once pending; or its folder deleted, once removed.
@@ -170,21 +186,27 @@ func New(cx *core.Scope, cfg Config) *Session {
 	secrets.Accessible = core.SecretAfterFirstUnlockThisDeviceOnly
 	s := &Session{
 		cx: cx, st: store.Open(cfg.Dir), cfg: cfg, secrets: secrets,
-		loaded:    core.NewSignal(cx, false),
-		desktops:  core.NewSignalFunc[[]store.Desktop](cx, nil, nil),
-		films:     core.NewSignalFunc[[]store.Film](cx, nil, nil),
-		transfers: core.NewSignalFunc(cx, map[string]Transfer{}, nil),
-		used:      core.NewSignal(cx, int64(0)),
-		prefs:     core.NewSignalFunc(cx, store.Prefs{}, nil),
-		jobs:      map[string]*job{},
-		following: map[string]*follow{},
-		clients:   map[string]*sync.Client{},
-		posters:   map[string][]byte{},
-		filmSaves: map[string]*filmSave{},
-		closed:    make(chan struct{}),
+		loaded:       core.NewSignal(cx, false),
+		desktops:     core.NewSignalFunc[[]store.Desktop](cx, nil, nil),
+		films:        core.NewSignalFunc[[]store.Film](cx, nil, nil),
+		transfers:    core.NewSignalFunc(cx, map[string]Transfer{}, nil),
+		used:         core.NewSignal(cx, int64(0)),
+		prefs:        core.NewSignalFunc(cx, store.Prefs{}, nil),
+		jobs:         map[string]*job{},
+		following:    map[string]*follow{},
+		clients:      map[string]*sync.Client{},
+		posters:      map[string][]byte{},
+		filmSaves:    map[string]*filmSave{},
+		closed:       make(chan struct{}),
+		studies:      core.NewSignalFunc(cx, map[string]study.Library{}, nil),
+		studyLoading: map[string]bool{}, studyRuns: map[string]*studyRun{}, finding: map[string]bool{},
+		studySaving: map[string]uint64{}, studySaved: map[string]uint64{},
+		lookups: map[string]store.Lookup{},
 	}
+	s.ctx, s.cancel = context.WithCancel(context.Background())
 	cx.Cleanup(func() {
 		close(s.closed)
+		s.cancel()
 		for _, j := range s.jobs {
 			j.cancel()
 		}
@@ -211,6 +233,7 @@ func New(cx *core.Scope, cfg Config) *Session {
 		films, _ := s.st.Films()
 		used, _ := s.st.Used()
 		prefs, _ := s.st.Prefs()
+		lookups, _ := s.st.Lookups()
 		// A phone that paired or downloaded before the introduction existed has been introduced already.
 		migrated := !prefs.Onboarded && (len(desktops) > 0 || len(films) > 0)
 		prefs.Onboarded = prefs.Onboarded || migrated
@@ -224,6 +247,9 @@ func New(cx *core.Scope, cfg Config) *Session {
 			s.desktops.Set(desktops)
 			s.films.Set(films)
 			s.used.Set(used)
+			// A word looked up before the store was read stays.
+			maps.Copy(lookups, s.lookups)
+			s.lookups = lookups
 			if migrated {
 				s.SetPrefs(prefs)
 			} else {
@@ -629,6 +655,14 @@ func (s *Session) start(f store.Film) {
 				s.cx.Post(report)
 			}
 		})
+		if err == nil && got.LibraryID == "" {
+			// The library's ID goes with the film, as its learning state goes by it, so lines can be saved from it away from the desktop; a desktop that does not answer leaves it to be asked for when the film opens (OpenStudy).
+			lctx, lcancel := context.WithTimeout(ctx, studyTimeout)
+			if got.LibraryID = libraryOf(lctx, c, got); got.LibraryID != "" {
+				_ = s.st.SaveFilm(got)
+			}
+			lcancel()
+		}
 		stopped := ctx.Err() != nil
 		cancel()
 		if j.remove.Load() {
