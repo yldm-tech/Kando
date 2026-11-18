@@ -169,7 +169,7 @@ func App(cx *core.Scope, cfg session.Config) core.Node {
 							n.Push(route{page: computerPage, desktop: id})
 							s.SyncLearning()
 						},
-						Unpaired:     unpaired})
+						Unpaired: unpaired})
 				case computerPage:
 					return settings.ComputerPage(cx, s, r.desktop, unpaired, back)
 				case targetPage:

@@ -19,7 +19,9 @@ func TestAComputersPageShowsItsServiceAndSetsItsContext(t *testing.T) {
 	p.openTab(settingsTab, msgs.SettingsTitle())
 	p.app.Press("id:settings-computer-" + id)
 	p.app.WaitFor("id:computer-page", wait)
-	p.app.WaitUntil(wait, func() bool { return p.texts("id:computer-service") == msgs.ComputerService()+"\nOpenAI · gpt-4.1-mini" })
+	p.app.WaitUntil(wait, func() bool {
+		return p.texts("id:computer-service") == msgs.ComputerService()+"\nOpenAI · gpt-4.1-mini"
+	})
 	if !p.app.Find("id:computer-context-switch").Props.Checked {
 		t.Fatal("the context switch is off while the computer's is on")
 	}
@@ -66,6 +68,8 @@ func TestAComputersPageBeforeItIsReached(t *testing.T) {
 	d.SetOff(false)
 	p.app.Back()
 	p.app.Press("id:settings-computer-" + id)
-	p.app.WaitUntil(wait, func() bool { return p.texts("id:computer-service") == msgs.ComputerService()+"\n"+msgs.ComputerServiceNone() })
+	p.app.WaitUntil(wait, func() bool {
+		return p.texts("id:computer-service") == msgs.ComputerService()+"\n"+msgs.ComputerServiceNone()
+	})
 	p.app.WaitUntil(wait, func() bool { return !p.app.Find("id:computer-context-switch").Props.Disabled })
 }
