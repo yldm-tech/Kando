@@ -392,10 +392,10 @@ func Run(ctx context.Context, p Pipeline, job core.Job, language string, report 
 	return job
 }
 
-// downloadFailKind is why job's download failed, as err says (ClassifyDownload): a site that still wants a login while the browser's is borrowed has let that login run out.
+// downloadFailKind is why job's download failed, as err says (ClassifyDownload): a site that still wants a login while the browser's is borrowed has let that login run out. A job that borrows none (core.CookiesNone, as the Add sheet's 未登录 chose) only wants one.
 func downloadFailKind(job core.Job, err error) core.FailKind {
 	kind := ClassifyDownload(err.Error())
-	if job.Cookies != "" && (kind == core.FailLogin || kind == core.FailAge) {
+	if job.Browser() != "" && (kind == core.FailLogin || kind == core.FailAge) {
 		kind = core.FailLoginExpired
 	}
 	return kind
