@@ -176,13 +176,12 @@ func SortMenu(cx *core.Scope, a App) []nsdesktop.MenuItem {
 	m := locales.For(cx)
 	items := make([]nsdesktop.MenuItem, 0, len(Sorts)+3)
 	for _, order := range Sorts {
-		// TODO(nsgo#118): make the orders and the directions radio items, the one shown chosen, as MyGo's Menu.Item(...).Radio drew them; NSGo's menu items are only checkable https://github.com/nsgo-dev/nsgo/issues/118
-		items = append(items, nsdesktop.MenuItem{Label: SortLabel(m, order), Checkable: true, Checked: order == current.By, OnSelect: live.Do(a, func() { a.SetLibrarySort(Order{By: order}) })})
+		items = append(items, nsdesktop.MenuItem{Label: SortLabel(m, order), Radio: true, Checked: order == current.By, OnSelect: live.Do(a, func() { a.SetLibrarySort(Order{By: order}) })})
 	}
 	ascending := current.Ascending()
 	return append(items, nsdesktop.MenuItem{Separator: true},
-		nsdesktop.MenuItem{Label: m.FilmsSortAscending(), Checkable: true, Checked: ascending, OnSelect: live.Do(a, func() { a.SetLibrarySort(current.Toward(true)) })},
-		nsdesktop.MenuItem{Label: m.FilmsSortDescending(), Checkable: true, Checked: !ascending, OnSelect: live.Do(a, func() { a.SetLibrarySort(current.Toward(false)) })},
+		nsdesktop.MenuItem{Label: m.FilmsSortAscending(), Radio: true, Checked: ascending, OnSelect: live.Do(a, func() { a.SetLibrarySort(current.Toward(true)) })},
+		nsdesktop.MenuItem{Label: m.FilmsSortDescending(), Radio: true, Checked: !ascending, OnSelect: live.Do(a, func() { a.SetLibrarySort(current.Toward(false)) })},
 	)
 }
 

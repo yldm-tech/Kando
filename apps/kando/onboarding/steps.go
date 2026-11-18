@@ -158,8 +158,8 @@ func (t tile) Render(cx *core.Scope) core.Node {
 			FocusVisible: ui.FocusRing(cx, 2)},
 		StyleFunc: look,
 		Children: []core.Node{
-			// TODO(nsgo#207): give core.Text the language it is written in, as MyGo's Text.Lang did, so 日本語 and 中文 are drawn with their own glyph forms https://github.com/nsgo-dev/nsgo/issues/207
-			core.Text{Content: own, MaxLines: 1, EllipsizeMode: core.EllipsizeTail, Style: core.Style{FontSize: 13, FontWeight: core.FontWeightSemibold}, StyleFunc: ui.Colored(colors.Text)},
+			// Its own name is in its own language, so 日本語 and 中文 are drawn with their own glyph forms.
+			core.Text{Content: own, MaxLines: 1, EllipsizeMode: core.EllipsizeTail, Style: core.Style{FontSize: 13, FontWeight: core.FontWeightSemibold, Language: code}, StyleFunc: ui.Colored(colors.Text)},
 			core.Text{ContentFunc: func() string { return languageName(cx, code) }, MaxLines: 1, EllipsizeMode: core.EllipsizeTail, Style: core.Style{FontSize: 11}, StyleFunc: ui.Colored(k.Placeholder)},
 			// The empty ring is drawn in the shade, which checkOff takes as its current color.
 			core.Icon{SVGFunc: func() *core.SVG {

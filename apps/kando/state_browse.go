@@ -178,15 +178,13 @@ func (a *app) browseLoad(rawURL string) {
 	a.browseNavigate(rawURL)
 }
 
-// browseNavigate has the web view load rawURL. The web view loads its source as it changes; an address the source holds already, which the page has left since, the page itself goes to.
+// browseNavigate has the web view load rawURL. The web view loads its source as it changes; an address the source holds already, which the page has left since, the web view loads again itself (core.Ref.Load).
 func (a *app) browseNavigate(rawURL string) {
 	if rawURL != a.browse.source {
 		a.browse.source = rawURL
 		return
 	}
-	// TODO(nsgo#202): give core.Ref a LoadURL for web views, so the app loads an address again without the page's help; the web view loads only when its source changes, so the address its source holds already goes through a script of the page's https://github.com/nsgo-dev/nsgo/issues/202
-	quoted, _ := json.Marshal(rawURL)
-	a.browse.view.InjectJavaScript("location.assign(" + string(quoted) + ")")
+	a.browse.view.Load(core.WebSrc(rawURL))
 }
 
 // browseAfterChange closes the confirmation, giving back the window's modal flag, when the window went to another page, which no longer draws it, pauses the page's videos and turns its sound off while another page shows, and turns the sound on again without playing them once the browser's shows, as the hidden web view keeps its page and a video in it plays on, keeps the message bar about what is still so (browseFollowNotice), tells the page's own buttons what changed for them (browsePagePush) and reads the chosen browser's sign-in into the pages the first time the browser's page shows (browseSignInOnOpen). It reports whether it closed the confirmation, changed the bar or started reading the sign-in.
@@ -279,7 +277,7 @@ func (a *app) browseFollow() {
 	a.browse.shown = shown
 }
 
-// browseFailed says in the message bar that a page did not load, and why, as the web view reports it. A navigation the web view refused, to a file, the app's own schemes or another app's, says nothing, as it never started; nor does a load the app cut short (cutShort), whose failure the platform reports as cancelled, or any failure while the start shows.
+// browseFailed says in the message bar that a page did not load, and why, as the web view reports it; the web view reports no load the page itself cut short by starting another, nor one that turned into a file. A navigation the web view refused, to a file, the app's own schemes or another app's, says nothing, as it never started; nor does a load the app cut short (cutShort), whose failure the platform reports as cancelled, or any failure while the start shows.
 func (a *app) browseFailed(err error) {
 	var failed *core.WebError
 	if errors.As(err, &failed) && failed.URL != "" && failed.URL != browseBlank && !browse.Allowed(failed.URL) {
@@ -289,7 +287,6 @@ func (a *app) browseFailed(err error) {
 		return
 	}
 	a.browse.loading = false
-	// TODO(nsgo#202): give core.WebError the platform's error code, so a load the page itself cut short by starting another (NSURLErrorCancelled, -999) or one that turned into a file (WebKit's 102, frame load interrupted) says nothing, as MyGo dropped them; until then the bar says so until the next load starts, at once for the first and not at all for the second https://github.com/nsgo-dev/nsgo/issues/202
 	a.browseLoadFailed(err.Error())
 }
 

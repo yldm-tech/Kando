@@ -14,9 +14,10 @@ type sidebarUI struct {
 	spoken string
 	// watch is how far the films the sidebar shows were watched, sidebar.WatchAll or another of its Watch values, together with filter and spoken; like them it is not saved, and another library starts without it. Unlike the language it stays chosen when no film is in that state any longer, as after the last film in progress was marked watched, so the page says there is none rather than showing every film by itself.
 	watch string
-	// query is what the search field under the switcher holds: the library page shows the done films whose names hold it (films.ByTitle). It is not saved, and another library starts without it, as with filter. queryFocus asks the field for the keyboard focus once, as ⌘F does (sidebarSearch).
-	query      string
-	queryFocus bool
+	// query is what the search field under the switcher holds: the library page shows the done films whose names hold it (films.ByTitle). It is not saved, and another library starts without it, as with filter. queryFocus asks the field for the keyboard focus once, as ⌘F does (sidebarSearch). posterFocus asks the library page's first poster for it once, as Return in the field does when it leaves several films (SubmitQuery).
+	query       string
+	queryFocus  bool
+	posterFocus bool
 	// ready is what the status line last learned about whether a job can start (readiness.go).
 	ready readiness
 	// libraryCounts is how many films each known library that is not open holds, by its cleaned path, read off the UI thread for the library switcher's menu (countLibraries).

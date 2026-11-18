@@ -3,6 +3,7 @@ package main
 import (
 	"encoding/json"
 	"errors"
+	"fmt"
 	"net/url"
 	"os"
 	"path/filepath"
@@ -66,7 +67,7 @@ func browseOpen(t *testing.T, a *app, tt *nsgotest.App, rawURL string) {
 	a.browseLoad(rawURL)
 	refresh(tt, a)
 	browseReport(tt, ns.WebNavigation{URL: rawURL, CanGoBack: a.browse.canBack, CanGoForward: a.browse.canForward})
-	if got := tt.FindMounted(browsePage).Web.Source.Src; a.browse.url != rawURL || (got != rawURL && len(browseScripts(tt)) == 0) {
+	if got := tt.FindMounted(browsePage).Web.Source.Src; a.browse.url != rawURL || (got != rawURL && len(browseCommands(tt, nsgotest.WebLoad)) == 0) {
 		t.Fatalf("page at %q loading %q, want %q", a.browse.url, got, rawURL)
 	}
 }
@@ -120,15 +121,18 @@ func TestBrowseEnterLoadsTheAddress(t *testing.T) {
 	}
 }
 
-// An address the web view's source holds already, which the page has left since, loads through the page, as the source has not changed.
+// An address the web view's source holds already, which the page has left since, loads again through the web view, as the source has not changed, and not through a script of the page's.
 func TestBrowseLoadsTheSameAddressAgain(t *testing.T) {
 	a, tt, _, _ := browseApp(t, &fakePipeline{})
 	browseOpen(t, a, tt, "https://example.com/a")
 	browseReport(tt, ns.WebNavigation{URL: "https://example.com/b", CanGoBack: true})
 	a.browseLoad("https://example.com/a")
 	refresh(tt, a)
-	if got := browseScripts(tt); !slices.Equal(got, []string{`location.assign("https://example.com/a")`}) {
-		t.Fatalf("scripts %q", got)
+	if got := browseCommands(tt, nsgotest.WebLoad); len(got) != 1 || len(browseScripts(tt)) != 0 {
+		t.Fatalf("loads %q, scripts %q", got, browseScripts(tt))
+	}
+	if load := tt.FindMounted(browsePage).WebCommands; load[len(load)-1].Command != nsgotest.WebLoad || !strings.Contains(fmt.Sprint(load[len(load)-1].Value, load[len(load)-1].Data), "https://example.com/a") {
+		t.Fatalf("the web view loaded %+v", load[len(load)-1])
 	}
 }
 

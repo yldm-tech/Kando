@@ -36,6 +36,29 @@ func TestKandoLightAndDark(t *testing.T) {
 	}
 }
 
+// With the system's contrast turned up the light theme's secondary text is darker, and it goes back as contrast is turned down.
+func TestMutedTextFollowsTheContrast(t *testing.T) {
+	env := core.Environment{OS: core.OSMacOS, Idiom: core.IdiomDesktop}
+	app := nsgotest.Start(t, func(cx *core.Scope) core.Node {
+		Apply(cx)
+		return core.View{TestID: "muted", Style: core.Style{Width: core.Pt(10), Height: core.Pt(10)}, StyleFunc: func() core.Style { return core.Style{Background: cx.Palette().TextMuted} }}
+	}, nsgotest.Environment(env))
+	muted := func() core.Color { return app.Find("id:muted").Style.Background }
+	if got := muted(); got != lightMuted {
+		t.Fatalf("muted text %#x, want %#x", uint32(got), uint32(lightMuted))
+	}
+	env.IncreaseContrast = true
+	app.SetEnvironment(env)
+	if got := muted(); got != lightMutedContrast {
+		t.Fatalf("muted text %#x with more contrast, want %#x", uint32(got), uint32(lightMutedContrast))
+	}
+	env.IncreaseContrast = false
+	app.SetEnvironment(env)
+	if got := muted(); got != lightMuted {
+		t.Fatalf("muted text %#x once contrast is back, want %#x", uint32(got), uint32(lightMuted))
+	}
+}
+
 // Kando's own roles are set in both palettes, and a binding that reads one turns with the system's appearance: the light window's white card turns the dark one's as the environment turns dark, and back.
 func TestRolesFollowTheAppearance(t *testing.T) {
 	for name := range lightRoles {

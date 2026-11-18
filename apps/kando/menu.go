@@ -76,11 +76,15 @@ func (a *app) menuFollow() {
 		return
 	}
 	items := a.menuBar(a.menu.cx)
-	a.menu.cx.Untrack(func() { a.syncMenu(items) })
+	dock := a.menuLibraries(a.menu.cx)
+	if len(dock) == 0 {
+		dock = nil
+	}
+	a.menu.cx.Untrack(func() { a.syncMenu(items, dock) })
 }
 
-// syncMenu installs items as the menu bar when they differ from the menu installed, so a change that alters none of it leaves the menu bar alone, even while one of its menus is open. Each menu is installed under a scope of its own in the holder installMenu made, and the one before goes once the new one is in: the items' handlers run under that scope, and the menu bar goes back to the platform's default when it goes. It runs under those scopes (core.Scope.Run), not under the effect that calls it, whose next run would take the menu away.
-func (a *app) syncMenu(items []nsdesktop.MenuItem) {
+// syncMenu installs items as the menu bar, and dock as the menu of the app's icon, when they differ from the menus installed, so a change that alters none of it leaves the menu bar alone, even while one of its menus is open. Each menu is installed under a scope of its own in the holder installMenu made, and the one before goes once the new one is in: the items' handlers run under that scope, and the menu bar goes back to the platform's default when it goes. It runs under those scopes (core.Scope.Run), not under the effect that calls it, whose next run would take the menu away. The icon's menu lists the libraries as File › 切换资料库 does, and none without a library; it changes only with the menu bar, which holds the same items, so the menu bar's signature covers it.
+func (a *app) syncMenu(items, dock []nsdesktop.MenuItem) {
 	sig := menuSignature(items)
 	if sig == a.menu.menuSig {
 		return
@@ -89,13 +93,15 @@ func (a *app) syncMenu(items []nsdesktop.MenuItem) {
 	holder := a.menu.holder
 	holder.Run(func() {
 		next := holder.Child()
-		next.Run(func() { nsdesktop.SetApplicationMenu(next, items) })
+		next.Run(func() {
+			nsdesktop.SetApplicationMenu(next, items)
+			nsdesktop.SetDockMenu(next, dock)
+		})
 		if a.menu.installed != nil {
 			a.menu.installed.Dispose()
 		}
 		a.menu.installed = next
 	})
-	// TODO(nsgo#142): give the Dock icon a menu of the libraries, as File › 切换资料库 lists them (menuLibraries) and MyGo's App.Dock.SetMenu did; NSGo has no Dock or taskbar menu https://github.com/nsgo-dev/nsgo/issues/142
 }
 
 // menuBar builds the menu bar from the shortcut table and the app's state now, its words in the language the app shows under cx. Each row of the table is an item of the menu its Group names, enabled while its When holds; the rows without a key come last in their menu, after a separator. A ⌘ row carries its key as the item's shortcut, which runs it. A row without ⌘ shows no shortcut in the menu, because the menu would take its key before a focused text field could; its key is on the cheat sheet. While the cheat sheet is open, only the overlays' own rows stay enabled, as the window's shortcuts wait behind it; while a modal dialog such as a file panel is up, none of the rows are (holds).
@@ -153,10 +159,13 @@ func (a *app) menuBar(cx *core.Scope) []nsdesktop.MenuItem {
 	var bar []nsdesktop.MenuItem
 	for _, group := range order {
 		var sub []nsdesktop.MenuItem
+		// holds is the role of a menu the system knows, its Window or Help menu.
+		holds := nsdesktop.MenuRoleNone
 		switch group {
 		case groupApp:
 			sub = then([]nsdesktop.MenuItem{role(locales.MenuAbout(cx), nsdesktop.MenuAbout)}, items(group)...)
-			// TODO(nsgo#118): put the system's Services submenu here, as MyGo's RoleServices did; NSGo has no Services role https://github.com/nsgo-dev/nsgo/issues/118
+			// 服务 is the system's Services menu, which AppKit fills; the other platforms leave it out.
+			sub = then(sub, nsdesktop.MenuItem{Label: locales.MenuServices(cx), Role: nsdesktop.MenuServices})
 			sub = then(sub, role(locales.MenuHide(cx), nsdesktop.MenuHide), role(locales.MenuHideOthers(cx), nsdesktop.MenuHideOthers), role(locales.MenuShowAll(cx), nsdesktop.MenuShowAll))
 			// Quit is the app's own item, not MenuQuit's, so a running job can ask first (requestQuit).
 			sub = then(sub, nsdesktop.MenuItem{Label: locales.MenuQuit(cx), Shortcut: "mod+q", OnSelect: live.Do(a, a.requestQuit)})
@@ -170,18 +179,22 @@ func (a *app) menuBar(cx *core.Scope) []nsdesktop.MenuItem {
 			sub = then(then(items(group), library...), role(locales.MenuCloseWindow(cx), nsdesktop.MenuClose))
 		case groupEdit:
 			sub = []nsdesktop.MenuItem{role(locales.MenuUndo(cx), nsdesktop.MenuUndo), role(locales.MenuRedo(cx), nsdesktop.MenuRedo)}
-			// TODO(nsgo#118): add 粘贴并匹配样式, 删除 and the 语音 submenu's 开始朗读 and 停止朗读, as MyGo's RolePasteAndMatchStyle, RoleDelete, RoleStartSpeaking and RoleStopSpeaking gave the Edit menu; NSGo has no such roles https://github.com/nsgo-dev/nsgo/issues/118
-			sub = then(sub, role(locales.MenuCut(cx), nsdesktop.MenuCut), role(locales.MenuCopy(cx), nsdesktop.MenuCopy), role(locales.MenuPaste(cx), nsdesktop.MenuPaste), role(locales.MenuSelectAll(cx), nsdesktop.MenuSelectAll))
+			// 粘贴并匹配样式, 删除 and 语音 keep what the Edit menu of the platform's default menu bar has; the platforms without speech leave its items out.
+			sub = then(sub, role(locales.MenuCut(cx), nsdesktop.MenuCut), role(locales.MenuCopy(cx), nsdesktop.MenuCopy), role(locales.MenuPaste(cx), nsdesktop.MenuPaste), role(locales.MenuPasteAndMatchStyle(cx), nsdesktop.MenuPasteAndMatchStyle), role(locales.MenuDelete(cx), nsdesktop.MenuDelete), role(locales.MenuSelectAll(cx), nsdesktop.MenuSelectAll))
+			sub = then(sub, nsdesktop.MenuItem{Label: locales.MenuSpeech(cx), Items: []nsdesktop.MenuItem{role(locales.MenuStartSpeaking(cx), nsdesktop.MenuStartSpeaking), role(locales.MenuStopSpeaking(cx), nsdesktop.MenuStopSpeaking)}})
 			sub = then(sub, items(group)...)
 		case groupView:
 			// 切换全屏幕 keeps ⌃⌘F on every page, as the default menu bar's View menu has it. The table's 全屏 is the player's single key F, which works only while a film is open.
 			sub = then(items(group), role(locales.MenuToggleFullScreen(cx), nsdesktop.MenuToggleFullScreen))
 		case groupWindow:
 			sub = then([]nsdesktop.MenuItem{role(locales.MenuMinimize(cx), nsdesktop.MenuMinimize), role(locales.MenuZoom(cx), nsdesktop.MenuZoom)}, items(group)...)
-			// TODO(nsgo#118): end the Window menu with 前置全部窗口 and make it the system's Window menu, which lists the open windows, as MyGo's RoleFront and RoleWindow did https://github.com/nsgo-dev/nsgo/issues/118
+			sub = then(sub, role(locales.MenuBringAllToFront(cx), nsdesktop.MenuBringAllToFront))
+			// It is the system's Window menu, which lists the open windows.
+			holds = nsdesktop.MenuWindowMenu
 		case groupHelp:
 			// With a menu bar, 重新查看入门引导 is the menu's own item (state_onboarding.go), placed in the prototype's order: 快捷键速查, 重新查看入门引导, then after a separator the plain rows, the website and release-notes links (state_menu.go) and then the feedback items.
-			// TODO(nsgo#118): make it the system's Help menu, with its search field, as MyGo's RoleHelp did https://github.com/nsgo-dev/nsgo/issues/118
+			// It is the system's Help menu, with its search field.
+			holds = nsdesktop.MenuHelpMenu
 			var guide []nsdesktop.MenuItem
 			if appMenuBar {
 				guide = append(guide, nsdesktop.MenuItem{Label: locales.MenuReopenGuide(cx), Disabled: a.holds(false), OnSelect: a.menuSelect(false, a.reopenOnboarding)})
@@ -191,25 +204,24 @@ func (a *app) menuBar(cx *core.Scope) []nsdesktop.MenuItem {
 			sub = items(group)
 		}
 		if len(sub) > 0 {
-			bar = append(bar, nsdesktop.MenuItem{Label: groupTitle(cx, group), Items: sub})
+			bar = append(bar, nsdesktop.MenuItem{Label: groupTitle(cx, group), Role: holds, Items: sub})
 		}
 	}
 	return bar
 }
 
-// menuLibraries are the items of File › 切换资料库: an item for each library the app knows, named as Settings › 通用 names them in the language the app shows under cx, a locked one marked so, with the open one checked. Choosing one switches to it as the sidebar's switcher does.
+// menuLibraries are the items of File › 切换资料库 and of the app icon's menu: an item for each library the app knows, named as Settings › 通用 names them in the language the app shows under cx, a locked one marked so, with the open one checked. Choosing one switches to it as the sidebar's switcher does.
 func (a *app) menuLibraries(cx *core.Scope) []nsdesktop.MenuItem {
 	dirs := a.knownLibraries()
 	labels := films.LibraryLabels(a.messages(), dirs)
 	open := filepath.Clean(a.snap().LibraryDir)
 	items := make([]nsdesktop.MenuItem, len(dirs))
 	for i, dir := range dirs {
-		// TODO(nsgo#118): make the libraries radio items, one of which is chosen, as MyGo's MenuItemRadio drew them; NSGo's menu items are only checkable https://github.com/nsgo-dev/nsgo/issues/118
 		items[i] = nsdesktop.MenuItem{
-			Label:     a.lockLibraryLabel(cx, dir, labels[i]),
-			Checkable: true,
-			Checked:   filepath.Clean(dir) == open,
-			Disabled:  a.holds(false),
+			Label:    a.lockLibraryLabel(cx, dir, labels[i]),
+			Radio:    true,
+			Checked:  filepath.Clean(dir) == open,
+			Disabled: a.holds(false),
 			OnSelect: a.menuSelect(false, func() {
 				// The menu may flip the ✓ itself; forgetting the installed menu sets it from the app's state again.
 				a.menu.menuSig = ""
@@ -316,7 +328,7 @@ func menuSignature(items []nsdesktop.MenuItem) string {
 	var walk func([]nsdesktop.MenuItem)
 	walk = func(items []nsdesktop.MenuItem) {
 		for _, it := range items {
-			fmt.Fprintf(&b, "%d|%s|%s|%t|%t|%t|%t[", it.Role, it.Label, it.Shortcut, it.Separator, it.Disabled, it.Checkable, it.Checked)
+			fmt.Fprintf(&b, "%d|%s|%s|%t|%t|%t|%t|%t[", it.Role, it.Label, it.Shortcut, it.Separator, it.Disabled, it.Checkable, it.Radio, it.Checked)
 			walk(it.Items)
 			b.WriteString("]")
 		}

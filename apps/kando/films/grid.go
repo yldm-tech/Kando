@@ -34,9 +34,16 @@ func (g grid) Render(cx *core.Scope) core.Node {
 	a := g.a
 	cards := core.View{TestID: "films-grid",
 		Style: core.Style{Display: core.DisplayGrid, GridTemplateColumns: gridTracks(CardMinWidth), ColumnGap: CardGapX, RowGap: CardGapY, AlignItems: core.AlignStart},
-		Children: []core.Node{core.Each(g.done, func(item Film) string { return item.Key }, func(cx *core.Scope, item func() Film, _ func() int) core.Node {
-			return doneCard{a: a, item: item, done: g.done}
+		Children: []core.Node{core.Each(g.done, func(item Film) string { return item.Key }, func(cx *core.Scope, item func() Film, index func() int) core.Node {
+			return doneCard{a: a, item: item, done: g.done, index: index}
 		})}}
+	// A request for the first poster's focus that finds no poster is dropped, so a poster does not take the focus when it shows later.
+	cx.Effect(func() {
+		a.Track()
+		if focus := a.PosterFocus(); *focus && len(g.done()) == 0 {
+			*focus = false
+		}
+	})
 	return core.View{Style: core.Style{Margin: core.Edges{Top: 26}, Gap: 14}, Children: []core.Node{doneHeading{a: a, done: g.done}, cards}}
 }
 
@@ -95,8 +102,9 @@ var (
 type doneCard struct {
 	a    App
 	item func() Film
-	// done is the films the grid shows, in its order, which a ⇧-click selects among.
-	done func() []Film
+	// done is the films the grid shows, in its order, which a ⇧-click selects among; index is where the card is among them.
+	done  func() []Film
+	index func() int
 }
 
 // Render implements core.Node.
@@ -113,7 +121,17 @@ func (d doneCard) Render(cx *core.Scope) core.Node {
 	seen := live.Memo(cx, a, func() watched { return watchedOf(a, item()) })
 	selected := live.Func(a, func() bool { return a.Selection().Has(item().Key) })
 	menu := func() []nsdesktop.MenuItem { return menuOf(cx, a, item(), d.done(), false) }
+	ref := &core.Ref{}
+	// The first poster takes the keyboard focus when it is asked for (PosterFocus).
+	cx.Effect(func() {
+		a.Track()
+		if focus := a.PosterFocus(); *focus && d.index() == 0 {
+			*focus = false
+			ref.Focus()
+		}
+	})
 	poster := base.Button{
+		Ref:       ref,
 		TestID:    "film-" + item().Key,
 		LabelFunc: name,
 		Selected:  selected,

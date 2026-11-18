@@ -25,7 +25,8 @@ import (
 // The shelf: which library folders the app knows, which one is open, and following them when they are renamed in Finder. The shelf's state is the nodra session in state.go.
 
 func (a *app) pickLibrary() {
-	a.pickFolder(func(dir string) {
+	m := a.messages()
+	a.pickFolder(ns.PickDirectoriesOptions{Title: m.LibraryImportTitle(), Button: m.LibraryImportButton()}, func(dir string) {
 		a.switchLibrary(dir)
 		a.edit(func(s *session) { s.MakingLibrary = false })
 		a.page = pageFilms
@@ -33,7 +34,8 @@ func (a *app) pickLibrary() {
 }
 
 func (a *app) pickLibraryParent() {
-	a.pickFolder(func(dir string) {
+	m := a.messages()
+	a.pickFolder(ns.PickDirectoriesOptions{Title: m.LibraryPlaceTitle(), Button: m.LibraryPlaceButton(), Start: a.libraryPlace()}, func(dir string) {
 		a.edit(func(s *session) { s.LibraryParent = dir })
 	})
 }

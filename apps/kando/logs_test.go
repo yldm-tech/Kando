@@ -22,7 +22,7 @@ func logsAt(t *testing.T, a *app) string {
 	t.Helper()
 	dir := filepath.Join(t.TempDir(), "Library", "Logs", "Kando")
 	was, out, flags := logsDir, log.Writer(), log.Flags()
-	logsDir = func() (string, error) { return dir, nil }
+	logsDir = func(*ns.Scope) (string, error) { return dir, nil }
 	t.Cleanup(func() {
 		a.logsClose()
 		logsDir = was
@@ -79,7 +79,7 @@ func TestNoLogFileWhereTheFolderCannotBeMade(t *testing.T) {
 		t.Fatal(err)
 	}
 	was := logsDir
-	logsDir = func() (string, error) { return filepath.Join(blocker, "Logs"), nil }
+	logsDir = func(*ns.Scope) (string, error) { return filepath.Join(blocker, "Logs"), nil }
 	t.Cleanup(func() { logsDir = was })
 	a.logsOpen()
 	if a.logs.file != nil {
@@ -237,5 +237,42 @@ func TestFailedJobLogHasNoSecrets(t *testing.T) {
 		if strings.Contains(got, secret) {
 			t.Fatalf("log keeps %q:\n%s", secret, got)
 		}
+	}
+}
+
+// TestLogsGoWhereThePlatformKeepsThem checks that the log file's folder is the one NSGo names for the app's logs.
+func TestLogsGoWhereThePlatformKeepsThem(t *testing.T) {
+	a, _, _ := newTestApp(t, &fakePipeline{})
+	dir, err := logsDir(a.cx)
+	if err != nil || dir == "" || dir != a.cx.LogsDir() {
+		t.Fatalf("logs go in %q (%v), want %q", dir, err, a.cx.LogsDir())
+	}
+}
+
+// TestLogsOfEarlierVersionsMoveToTheNewFolder opens the log where an earlier version left one in its own folder: the earlier files move into the new folder, the new run's lines follow the earlier ones in the same file, and the old folder goes.
+func TestLogsOfEarlierVersionsMoveToTheNewFolder(t *testing.T) {
+	a, _, _ := newTestApp(t, &fakePipeline{})
+	old := filepath.Join(t.TempDir(), "Library", "Logs", "Kando")
+	if err := os.MkdirAll(old, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	for name, body := range map[string]string{feedback.LogName: "the run before the update\n", "kando.1.log": "an older run\n"} {
+		if err := os.WriteFile(filepath.Join(old, name), []byte(body), 0o600); err != nil {
+			t.Fatal(err)
+		}
+	}
+	was := logsOldDir
+	logsOldDir = func() (string, error) { return old, nil }
+	t.Cleanup(func() { logsOldDir = was })
+	path := logsAt(t, a)
+	got := readLog(t, path)
+	if !strings.HasPrefix(got, "the run before the update\n") || !strings.Contains(got, "Kando "+appVersion+" started on") {
+		t.Fatalf("log:\n%s", got)
+	}
+	if got := readLog(t, filepath.Join(filepath.Dir(path), "kando.1.log")); got != "an older run\n" {
+		t.Fatalf("kando.1.log holds %q", got)
+	}
+	if _, err := os.Stat(old); !errors.Is(err, os.ErrNotExist) {
+		t.Fatalf("the old logs folder stayed: %v", err)
 	}
 }

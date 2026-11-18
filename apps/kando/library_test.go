@@ -2403,3 +2403,26 @@ func TestLibraryFollowsTheDay(t *testing.T) {
 	}
 	tt.Settle()
 }
+
+// TestPanelsSayWhatTheyAreFor checks the titles, buttons and filters of the panels that pick local videos, a library to open and the folder a new library goes in, which starts in the folder the sheet shows.
+func TestPanelsSayWhatTheyAreFor(t *testing.T) {
+	a, tt, _ := newTestApp(t, &fakePipeline{})
+	m := testlocale.Messages()
+	var files ns.FilesRequest
+	tt.PickFiles = func(r ns.FilesRequest) []ns.File { files = r; return nil }
+	a.pickVideos()
+	tt.Settle()
+	if files.Title != m.LibraryPickVideosTitle() || files.Button != m.LibraryPickVideosButton() || files.TypesName != m.LibraryVideoFilter() || len(files.Types) != len(libraryVideoExtensions) {
+		t.Fatalf("the videos' panel asks %+v", files)
+	}
+	var dirs []ns.DirectoriesRequest
+	tt.PickDirectories = func(r ns.DirectoriesRequest) []ns.Directory { dirs = append(dirs, r); return nil }
+	a.pickLibrary()
+	tt.Settle()
+	a.pickLibraryParent()
+	tt.Settle()
+	if len(dirs) != 2 || dirs[0].Title != m.LibraryImportTitle() || dirs[0].Button != m.LibraryImportButton() ||
+		dirs[1].Title != m.LibraryPlaceTitle() || dirs[1].Button != m.LibraryPlaceButton() || dirs[1].Start != a.libraryPlace() {
+		t.Fatalf("the folder panels ask %+v", dirs)
+	}
+}

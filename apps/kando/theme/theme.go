@@ -14,15 +14,22 @@ var (
 	lightBackground = core.RGB(0xFFFFFF)
 	lightText       = core.RGB(0x1D1D1F)
 	lightMuted      = core.RGB(0x6A6A70)
+	// lightMutedContrast is the light theme's secondary text while the user asks the system for more contrast: darker again, as the platforms' own secondary text is then.
+	lightMutedContrast = core.RGB(0x48484D)
 )
 
 // Kando is NSGo's default theme in Kando's colors: the window shows the light palette or the dark one as the system does (Appearance), and the player and the cheat sheet force the dark one on their subtree with Dark. Every color the app sets on a theme is set here, Kando's own roles (Of) in both palettes; a component reads them through ui.ColorsOf, Of or core.Scope.Palette inside a StyleFunc, so they follow the subtree's theme and appearance.
-func Kando() *core.Theme {
+func Kando() *core.Theme { return kando(false) }
+
+// kando is Kando's theme, its light secondary text darker while contrast is on (core.Env.IncreaseContrast).
+func kando(contrast bool) *core.Theme {
 	t := core.DefaultTheme()
 	l := &t.Light
 	l.Background, l.Surface = lightBackground, lightBackground
 	l.Text, l.TextMuted = lightText, lightMuted
-	// TODO(nsgo#141): keep the platform's darker secondary text while the user asks for more contrast, as MyGo's Preferences().HighContrast let the light palette do; core.Env reports no contrast preference https://github.com/nsgo-dev/nsgo/issues/141
+	if contrast {
+		l.TextMuted = lightMutedContrast
+	}
 	// The roles NSGo derives from the text's color, at its opacities, derived from Kando's darker text.
 	l.SurfaceHover, l.SurfacePressed = lightText.Faded(0.08), lightText.Faded(0.14)
 	l.Border, l.Scrollbar = lightText.Faded(0.16), lightText.Faded(0.30)
@@ -44,8 +51,17 @@ func Kando() *core.Theme {
 	return t
 }
 
-// Apply gives cx and everything it builds Kando's theme. The root of each window calls it once: the main window's view and the settings window's.
-func Apply(cx *core.Scope) { cx.SetTheme(Kando()) }
+// Apply gives cx and everything it builds Kando's theme, and gives them the theme again when the user turns the system's contrast up or down. The root of each window calls it once: the main window's view and the settings window's.
+func Apply(cx *core.Scope) {
+	contrast := cx.Env().IncreaseContrast()
+	cx.SetTheme(kando(contrast))
+	cx.Effect(func() {
+		if now := cx.Env().IncreaseContrast(); now != contrast {
+			contrast = now
+			cx.SetTheme(kando(now))
+		}
+	})
+}
 
 // Dark shows cx and everything it builds in the dark palette, whatever the window shows: the player and the cheat sheet call it at their root.
 func Dark(cx *core.Scope) { cx.SetSubtreeAppearance(core.AppearanceDark) }

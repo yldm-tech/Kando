@@ -180,7 +180,7 @@ func readJSON(path string, v any) error {
 	return json.Unmarshal(data, v)
 }
 
-// writeJSON writes v to path through a file beside it, so a record is never left half written.
+// writeJSON writes v to path through a file beside it, so a record is never left half written. Each write has a file of its own, so two goroutines saving the same record at once do not write into or move each other's; which of them lands last is the caller's to order, as the session does with a film's saves.
 func writeJSON(path string, v any) error {
 	data, err := json.MarshalIndent(v, "", "  ")
 	if err != nil {
@@ -189,9 +189,19 @@ func writeJSON(path string, v any) error {
 	if err := os.MkdirAll(filepath.Dir(path), 0o700); err != nil {
 		return err
 	}
-	tmp := path + ".tmp"
-	if err := os.WriteFile(tmp, data, 0o600); err != nil {
+	tmp, err := os.CreateTemp(filepath.Dir(path), filepath.Base(path)+".*.tmp")
+	if err != nil {
 		return err
 	}
-	return os.Rename(tmp, path)
+	_, err = tmp.Write(data)
+	if cerr := tmp.Close(); err == nil {
+		err = cerr
+	}
+	if err == nil {
+		err = replace(tmp.Name(), path)
+	}
+	if err != nil {
+		_ = os.Remove(tmp.Name())
+	}
+	return err
 }

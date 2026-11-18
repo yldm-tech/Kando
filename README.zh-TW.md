@@ -35,7 +35,7 @@
 - 可選擇從播放器把影片檔與雙語字幕檔上傳到你自己的物件儲存空間（Cloudflare R2、Amazon S3、阿里雲 OSS、騰訊雲 COS，或任何 S3 相容的儲存服務）。請參閱[組態設定](#configuration)。
 - 播放、字幕、學習與視窗都有鍵盤快速鍵，列在速查表（⌘/，Windows 和 Linux 上是 Ctrl+/）和「設定 › 快速鍵」中。
 - 視窗會跟隨系統的淺色或深色外觀；播放器、指令面板和速查表一律是深色的。
-- 回報問題時可以附上記錄檔：「輔助說明 › 顯示記錄檔」（或指令面板）會在 Finder 中顯示它。macOS 上是 `~/Library/Logs/Kando/kando.log`，其他系統在使用者設定目錄的 `Kando/logs` 資料夾裡。記錄檔記下每個失敗任務的原因（不含看懂儲存的金鑰和 AI 服務的位址）和出錯工具輸出的最後 64 KB，看起來像金鑰的內容都寫成 `***`。檔案超過 5 MB 時另起一份，保留之前的兩份。
+- 回報問題時可以附上記錄檔：「輔助說明 › 顯示記錄檔」（或指令面板）會在 Finder 中顯示它。記錄檔 `kando.log` 在 macOS 上位於 `~/Library/Logs/ai.yldm.kando`，Windows 上位於 `%LOCALAPPDATA%\ai.yldm.kando\Logs`，Linux 上位於 `~/.local/state/ai.yldm.kando`。記錄檔記下每個失敗任務的原因（不含看懂儲存的金鑰和 AI 服務的位址）和出錯工具輸出的最後 64 KB，看起來像金鑰的內容都寫成 `***`。檔案超過 5 MB 時另起一份，保留之前的兩份。
 
 ![顯示雙語字幕的播放器，以及側邊面板中的台詞清單](docs/assets/zh-TW/player.png)
 
@@ -89,7 +89,7 @@ cd Kando
 make build
 ```
 
-`make build` 會針對你目前所在的平台執行 `go tool nsgo build`（以 `TARGET=` 建置其他平台，例如 `make build TARGET=windows_x64`），把應用程式寫到 `apps/kando/build/`，把用來發布的檔案寫到 `apps/kando/build/releases/`：在 macOS 上是以 ad-hoc 方式簽署的 `Kando.app` 和一個 `.dmg`；在 Windows 上是程式本身，安裝了 `makensis` 時還有 NSIS 安裝程式（否則是在任何系統上都能編譯的 `.nsi` 指令碼）；在 Linux 上是程式本身、一個 `.deb`、一個 Arch 的 `.pkg.tar.gz` 和一個 `.AppImage`。它會設定 `GOFLAGS=-tags=nodra_nomygo`，和正式版本一樣把應用程式用不到的程式碼排除在外。沒有 `make` 時（例如預設的 Windows），請在存放庫根目錄直接執行 `go tool nsgo build -target windows_x64 apps/kando`。
+`make build` 會針對你目前所在的平台執行 `go tool nsgo build`（以 `TARGET=` 建置其他平台，例如 `make build TARGET=windows_x64`），把應用程式寫到 `apps/kando/build/`，把用來發布的檔案寫到 `apps/kando/build/releases/`：在 macOS 上是以 ad-hoc 方式簽署的 `Kando.app` 和一個 `.dmg`；在 Windows 上是程式本身，安裝了 `makensis` 時還有 NSIS 安裝程式（否則是在任何系統上都能編譯的 `.nsi` 指令碼）；在 Linux 上是程式本身、一個 `.deb`、一個 Arch 的 `.pkg.tar.gz` 和一個 `.AppImage`。它會帶上 `nodra_nomygo` 標籤（`apps/kando/nsgo.yaml` 的 `build.tags` 為應用程式的每次建置、開發執行和測試都加上它），和正式版本一樣把應用程式用不到的程式碼排除在外。沒有 `make` 時（例如預設的 Windows），請在存放庫根目錄直接執行 `go tool nsgo build -target windows_x64 apps/kando`。
 
 ## 系統需求
 

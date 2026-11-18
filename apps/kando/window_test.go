@@ -19,8 +19,14 @@ func windowAlphaOf(v *nsgotest.View) float64 {
 	return a
 }
 
-// windowRoot is the main view's root, the row that holds the sidebar and the content beside it.
+// windowRoot is the main view's root, the column that holds the title bar of Windows and Linux (package chrome) over the row of the sidebar and the content, and paints the window where it shows no material.
 func windowRoot(t *testing.T, tt *nsgotest.App) *nsgotest.View {
+	t.Helper()
+	return tt.Find("id:main-window")
+}
+
+// windowBody is the row under the title bar that holds the sidebar and the content beside it.
+func windowBody(t *testing.T, tt *nsgotest.App) *nsgotest.View {
 	t.Helper()
 	side := tt.Find("id:sidebar")
 	if side.Parent == nil {
@@ -51,7 +57,7 @@ func TestMaterialShowsThroughTheSidebarOnly(t *testing.T) {
 	tt.SetEnvironment(env)
 	root := windowRoot(t, tt)
 	side := tt.Find("id:sidebar")
-	content := windowChildOf(t, root, tt.Find(whole(testlocale.Messages().FilmsStart())))
+	content := windowChildOf(t, windowBody(t, tt), tt.Find(whole(testlocale.Messages().FilmsStart())))
 	if a := windowAlphaOf(root); a != 0 {
 		t.Fatalf("the window's root is painted at alpha %v over the material", a)
 	}
@@ -128,7 +134,7 @@ func TestSidebarSourceLeavesTheSettings(t *testing.T) {
 func TestWindowFollowsTheSystemAppearance(t *testing.T) {
 	a, tt, _ := newTestApp(t, &fakePipeline{})
 	content := func() *nsgotest.View {
-		return windowChildOf(t, windowRoot(t, tt), tt.Find(whole(testlocale.Messages().FilmsStart())))
+		return windowChildOf(t, windowBody(t, tt), tt.Find(whole(testlocale.Messages().FilmsStart())))
 	}
 	status := func() ns.Color { return tt.Find("id:sidebar-status").TextStyle.Color }
 	if bg := content().Style.Background; bg != ns.RGB(0xFFFFFF) {

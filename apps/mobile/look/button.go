@@ -20,7 +20,7 @@ const (
 	Plain
 )
 
-// Button is a phone's full-width capsule button, 50 points tall (44 Plain), with an optional leading icon. While Busy it shows a spinner in the icon's place on the tinted look and takes no presses, and BusyLabel, when set, is what assistive technology reads meanwhile.
+// Button is a phone's full-width capsule button, 50 points tall (44 Plain), with an optional leading icon. While Busy it shows a spinner in the icon's place, in the button's text color, and takes no presses, and BusyLabel, when set, is what assistive technology reads meanwhile.
 // TODO(nsgo#482): ui.Button is 32pt tall at most (size.go:10-15,31) and takes no Style (button.go:28-50), so a phone's large or full-width button is base.Button with the app's own style; use ui.Button once it has a size or style for that https://github.com/nsgo-dev/nsgo/issues/482
 type Button struct {
 	Text      func() string
@@ -49,12 +49,7 @@ func (b Button) Render(cx *core.Scope) core.Node {
 		shape.FlexGrow, shape.FlexShrink, shape.FlexBasis, shape.MinWidth = b.Flex, 1, core.Pt(0), core.Pt(0)
 	}
 	kindStyle := func() core.Style {
-		kind := b.Kind
-		// TODO(nsgo#486): ui.Spinner and ProgressRing draw in the accent alone (spinner.go:36-38, progressring.go:70), which vanishes on the accent's fill, so a busy primary button turns tinted; keep it primary with a ring in OnAccent once the color can be set https://github.com/nsgo-dev/nsgo/issues/486
-		if busy() && kind == Primary {
-			kind = Tinted
-		}
-		switch kind {
+		switch b.Kind {
 		case Tinted:
 			return core.Style{Background: tints.Accent(), Color: colors.Accent()}
 		case Danger:
@@ -71,6 +66,16 @@ func (b Button) Render(cx *core.Scope) core.Node {
 			st.Disabled = &core.Style{Opacity: core.Alpha(0.4)}
 		}
 		return st
+	}
+	// ink is the button's text color, which its spinner takes.
+	ink := func() core.Color {
+		switch b.Kind {
+		case Primary:
+			return colors.OnAccent()
+		case Danger:
+			return colors.Danger()
+		}
+		return colors.Accent()
 	}
 	var lead core.Node
 	if b.Icon != nil {
@@ -89,7 +94,17 @@ func (b Button) Render(cx *core.Scope) core.Node {
 		OnPress:  func(core.PressEvent) { b.OnPress() },
 		Disabled: func() bool { return busy() || (b.Disabled != nil && b.Disabled()) },
 		Children: []core.Node{
-			core.Show{When: busy, Then: func(*core.Scope) core.Node { return ui.Spinner{Size: 20} }, Else: func(*core.Scope) core.Node { return lead }},
+			core.Show{When: busy, Then: func(*core.Scope) core.Node { return ui.Spinner{Size: 20, Tint: ink} }, Else: func(*core.Scope) core.Node { return lead }},
 			core.Text{ContentFunc: b.Text, MaxLines: 1, Style: core.Style{FontSize: 17, LineHeight: 22, FontWeight: core.FontWeightSemibold, FlexShrink: 1}},
 		}}
+}
+
+// Pill is a small capsule button, for a way out at a screen's top, as Skip.
+func Pill(cx *core.Scope, testID string, text func() string, press func()) core.Node {
+	colors := ui.ColorsOf(cx)
+	return base.Button{TestID: testID, LabelFunc: text, OnPress: func(core.PressEvent) { press() },
+		Style: core.Style{MinHeight: core.Pt(32), Padding: core.Symmetric(0, 14), CornerRadius: 16, AlignItems: core.AlignCenter, JustifyContent: core.JustifyCenter,
+			Active: &core.Style{Opacity: core.Alpha(0.7)}},
+		StyleFunc: func() core.Style { return core.Style{Background: ui.Alpha(colors.Text(), 0.07), Color: colors.Text()} },
+		Children:  []core.Node{core.Text{ContentFunc: text, MaxLines: 1, Style: Subhead.Merge(core.Style{FontWeight: core.FontWeightSemibold})}}}
 }

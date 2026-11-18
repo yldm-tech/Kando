@@ -14,6 +14,5 @@ test:
 dev:
 	go tool nsgo dev apps/kando
 
-# A release build leaves nodra's MyGo helpers out of the app (apps/kando/nsgo.yaml says why), as the Package workflow does.
 build:
-	GOFLAGS=-tags=nodra_nomygo go tool nsgo build -target $(TARGET) apps/kando
+	go tool nsgo build -target $(TARGET) apps/kando
