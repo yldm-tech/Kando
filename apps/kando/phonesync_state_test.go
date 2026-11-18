@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
+	"runtime"
 	"slices"
 	"testing"
 	"time"
@@ -303,6 +304,10 @@ func TestPhoneSyncKeepsTheLinesOfALibraryNotOpenWithOnlyOldSavedLines(t *testing
 func TestPhoneSyncKeepsNothingOfAPutTheStudyRecordCouldNotKeep(t *testing.T) {
 	if os.Geteuid() == 0 {
 		t.Skip("root writes into a folder without write permission")
+	}
+	// A folder's read-only bit does not stop files being written in it on Windows, so the failed save this test needs cannot be made there.
+	if runtime.GOOS == "windows" {
+		t.Skip("Windows has no read-only folders")
 	}
 	a, p, dir, _, c, clock := phoneStateLibrary(t)
 	lib := phoneLibraryID(dir)
