@@ -1,7 +1,6 @@
 package main
 
 import (
-	"os"
 	"strings"
 	"time"
 
@@ -310,7 +309,7 @@ func (a *app) libraryHeroQuote() {
 	}
 }
 
-// loadQuote keeps the first bilingual line of the subtitle file at path for the hero. A subtitle file is small, and the line is read once, so it is read here rather than off the UI thread; a file that cannot be read has no line.
+// loadQuote keeps the first bilingual line of the subtitle file at path, as the user corrected it (media.ReadSubtitles), for the hero. A subtitle file is small, and the line is read once, so it is read here rather than off the UI thread; a file that cannot be read has no line.
 func (a *app) loadQuote(path string) {
 	if path == "" {
 		return
@@ -319,10 +318,8 @@ func (a *app) loadQuote(path string) {
 		return
 	}
 	var q quote
-	if data, err := os.ReadFile(path); err == nil {
-		if cues, err := media.ParseSRT(data); err == nil {
-			q = firstQuote(cues)
-		}
+	if cues, err := media.ReadSubtitles(path); err == nil {
+		q = firstQuote(cues)
 	}
 	if a.lib.quotes == nil {
 		a.lib.quotes = map[string]quote{}

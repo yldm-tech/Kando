@@ -53,7 +53,7 @@ func (a *app) readiness() sidebar.Readiness {
 	if !a.side.ready.checked {
 		return sidebar.Readiness{State: sidebar.Checking, Message: checkingTools}
 	}
-	return a.side.ready.status
+	return a.privacyReadiness(a.side.ready.status)
 }
 
 // checkReadiness finds the first thing a job would miss, in the order the pipeline needs them: the tools, the speech model, the translation model and the EveryAPI sign-in. It runs at startup, after 重新检测 and when the speech model or the AI service changes. signIn asks the everyapi CLI again even when an earlier answer is kept or a check is running; without it, a running check's answer is waited for.
@@ -75,7 +75,8 @@ func (a *app) checkReadiness(signIn bool) {
 		return
 	}
 	credential := tools.Translator.Credential
-	if credential == nil {
+	// Asking the everyapi CLI asks EveryAPI's servers, which offline mode does not (privacyReadiness says why the service will not translate).
+	if credential == nil || a.privacy.offline {
 		a.side.ready.status = sidebar.Readiness{State: sidebar.Ready, Message: readyMessage}
 		return
 	}

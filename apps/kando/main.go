@@ -44,6 +44,7 @@ type app struct {
 	lib      libraryUI  // state_library.go
 	queue    jobQueue   // queue.go
 	player   playerUI   // state_player.go
+	correct  correctUI  // state_correct.go
 	prefs    settingsUI // state_settings.go
 	cloud    cloudUI    // state_cloud.go
 	overlay  overlayUI  // state_overlay.go
@@ -66,6 +67,7 @@ type app struct {
 	phone    phoneUI    // state_phonesync.go
 	lock     lockUI     // state_lock.go
 	tray     trayUI     // state_tray.go
+	privacy  privacyUI  // state_privacy.go
 }
 
 // newApp makes the app's state. update is how background jobs report; nil reports through the revision (appUpdate), as main and the tests that start the app with nsgotest do, while a test that runs no app passes its own to apply the reports itself.
@@ -78,6 +80,7 @@ func newApp(pipeline media.Pipeline, update func(fn func())) *app {
 		lib:      newLibraryUI(),
 		queue:    newJobQueue(),
 		player:   newPlayerUI(),
+		correct:  newCorrectUI(),
 		prefs:    newSettingsUI(),
 		cloud:    newCloudUI(),
 		overlay:  newOverlayUI(),
@@ -100,6 +103,7 @@ func newApp(pipeline media.Pipeline, update func(fn func())) *app {
 		phone:    newPhoneUI(),
 		lock:     newLockUI(),
 		tray:     newTrayUI(),
+		privacy:  newPrivacyUI(),
 	}
 	if a.update == nil {
 		a.update = a.appUpdate

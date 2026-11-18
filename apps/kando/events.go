@@ -64,6 +64,7 @@ func (a *app) areas() []areaHooks {
 		a.settingsHooks(),
 		a.cloudHooks(),
 		a.playerHooks(),
+		a.correctHooks(),
 		a.overlayHooks(),
 		a.menuHooks(),
 		a.feedbackHooks(),
@@ -79,6 +80,7 @@ func (a *app) areas() []areaHooks {
 		a.signinHooks(),
 		a.phoneSyncHooks(),
 		a.trayHooks(),
+		a.privacyHooks(),
 		// The encrypted libraries' images come last: the quit detaches them once the queue and the player have stopped using their files.
 		a.lockVaultHooks(),
 	}

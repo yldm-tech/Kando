@@ -43,11 +43,11 @@ func (r Readiness) Text(cx *core.Scope) string {
 	return r.Message(cx)
 }
 
-// The status dots, the same in both appearances. The card is the theme's card color, translucent, with its shade's hairline, and the message is in its strong ink (theme.Of).
+// The status dots, the design's status colors (theme.StatusOK and its kin), the same in both appearances. The card is the theme's card color, translucent, with its shade's hairline, and the message is in its strong ink (theme.Of).
 var (
-	readyDot   = core.RGB(0x30D158)
-	missingDot = core.RGB(0xFF9F0A)
-	failedDot  = core.RGB(0xFF453A)
+	readyDot   = theme.StatusOK
+	missingDot = theme.StatusWarn
+	failedDot  = theme.StatusFailed
 )
 
 // footer is the status card pinned to the bottom of the sidebar: an 8-point dot, green when a job can start and orange when something is missing, the message saying which, a gear that opens the settings where it is fixed, and before the gear, where the app has no menu bar (PaletteButton), a button that opens the command palette, its key in its tooltip.
@@ -84,12 +84,16 @@ func (f footer) Render(cx *core.Scope) core.Node {
 			Style: core.Style{FlexShrink: 0}})
 	}
 	buttons = append(buttons, gear)
-	// The status sits on the sidebar itself, the last of its rows, with no card of its own.
+	// The status is the design's card at the foot of the sidebar: the card's color at 55% with a hairline outside its edge and 11-point corners.
 	// A group named 状态, as MyGo's labeled row was: assistive technology reads the name before the dot's and the message's.
 	return core.View{
+		TestID:    "sidebar-status-card",
 		Role:      core.RoleGroup,
 		LabelFunc: func() string { return locales.SidebarStatus(cx) },
-		Style:     core.Style{FlexShrink: 0, Margin: core.Edges{Top: 8, Right: insetEnd, Bottom: 8, Left: insetStart}, Padding: core.Symmetric(10, 12), Gap: 8},
+		Style:     core.Style{FlexShrink: 0, Margin: core.Edges{Top: 8, Right: insetEnd, Bottom: 8, Left: insetStart}, Padding: core.Symmetric(10, 12), Gap: 8, CornerRadius: 11},
+		StyleFunc: func() core.Style {
+			return core.Style{Background: k.Card().Faded(0.55), Shadows: []core.BoxShadow{{Spread: 0.5, Color: k.Shade(0.06)}}}
+		},
 		Children: []core.Node{
 			jobsLine{a},
 			core.View{Style: core.Style{Direction: core.Row, Gap: 10, AlignItems: core.AlignCenter}, Children: buttons},

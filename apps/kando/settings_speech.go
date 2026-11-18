@@ -176,6 +176,10 @@ func (a *app) downloadSpeechModel(id string) {
 		a.prefs.downloadErr = settings.ErrNoModelsDir
 		return
 	}
+	if a.privacy.offline {
+		a.prefs.downloadErr = media.ErrOffline
+		return
+	}
 	ctx, cancel := context.WithCancel(context.Background())
 	a.prefs.downloading = id
 	a.prefs.downloadWritten = 0

@@ -192,7 +192,7 @@ type chipLook struct {
 	ok    bool
 }
 
-// linkChip names the platform of a link being typed, in the language of m and in the platform's color: YouTube's red, 哔哩哔哩's blue, and gray for another site. A list or a channel says so after the name; a link to a video of a list, as watch?v=…&list=…, is that video and says nothing more. Several links, between spaces or on lines of their own, are counted, in gray.
+// linkChip names the platform of a link being typed, in the language of m and in the platform's source mark (theme): YouTube's red, 哔哩哔哩's blue, and indigo for another site. A list or a channel says so after the name; a link to a video of a list, as watch?v=…&list=…, is that video and says nothing more. Several links, between spaces or on lines of their own, are counted, in gray.
 func linkChip(m locales.Messages, raw string) (label string, color ns.Color, ok bool) {
 	if fields := strings.Fields(raw); len(fields) > 1 {
 		return m.FilmsLinkCount(len(fields)), ns.RGB(0x6A6A70), true
@@ -210,11 +210,11 @@ func linkChip(m locales.Messages, raw string) (label string, color ns.Color, ok 
 	}
 	switch link.Platform {
 	case core.PlatformYouTube:
-		color = ns.RGB(0xE62117)
+		color = theme.SourceYouTube
 	case core.PlatformBilibili:
-		color = ns.RGB(0x00A1D6)
+		color = theme.SourceBilibili
 	default:
-		color = ns.RGB(0x6A6A70)
+		color = theme.SourceOther
 	}
 	return label, color, true
 }

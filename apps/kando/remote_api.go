@@ -300,7 +300,7 @@ func remoteKeeps(until string, f remote.Film, c remote.Cue) bool {
 	return f.WatchedMS > 0 && lines.Seen(time.Duration(c.StartMS)*time.Millisecond, time.Duration(f.WatchedMS)*time.Millisecond)
 }
 
-// remoteFilmCues reads the film's subtitles, cue by cue, off the UI thread: each line of the speech from the original .srt, with its translation from the bilingual one. A film without subtitles, or whose subtitles are gone from disk, is not_found.
+// remoteFilmCues reads the film's subtitles, cue by cue, off the UI thread: each line of the speech from the original .srt, with its translation from the bilingual one, and the user's corrections laid over them (remoteCorrect). A film without subtitles, or whose subtitles are gone from disk, is not_found.
 func remoteFilmCues(f remote.Film) ([]remote.Cue, error) {
 	if f.Subtitles == "" && f.OriginalSubtitles == "" {
 		return nil, remote.Errorf(remote.CodeNotFound, "%q has no subtitles yet", f.Title)
@@ -316,7 +316,28 @@ func remoteFilmCues(f remote.Film) ([]remote.Cue, error) {
 	if original == nil && bilingual == nil {
 		return nil, remote.Errorf(remote.CodeNotFound, "the subtitles of %q are no longer on disk", f.Title)
 	}
-	return remoteCues(original, bilingual), nil
+	path := f.Subtitles
+	if path == "" {
+		path = f.OriginalSubtitles
+	}
+	return remoteCorrect(remoteCues(original, bilingual), media.CorrectionsPath(path)), nil
+}
+
+// remoteCorrect lays the user's corrections of the film, kept in the corrections file at path (media.CorrectionsPath), over cues, as the player shows them: the lines marked as no speech left out. A corrections file that cannot be read leaves the cues as they are.
+func remoteCorrect(cues []remote.Cue, path string) []remote.Cue {
+	edits, err := media.LoadCorrections(path)
+	if err != nil || len(edits) == 0 {
+		return cues
+	}
+	in := make([]core.Line, len(cues))
+	for i, c := range cues {
+		in[i] = core.Line{Start: time.Duration(c.StartMS) * time.Millisecond, End: time.Duration(c.EndMS) * time.Millisecond, Original: c.Text, Translation: c.Translation}
+	}
+	out := []remote.Cue{}
+	for _, l := range core.Spoken(core.Correct(in, edits)) {
+		out = append(out, remote.Cue{StartMS: l.Start.Milliseconds(), EndMS: l.End.Milliseconds(), Text: l.Original, Translation: l.Translation})
+	}
+	return out
 }
 
 // remoteSearch is the lines of the open library's subtitles, or of film p.FilmID's when it is set, that hold p.Query, ignoring case as the palette finds them (lines.Matches), film by film in the order films.list gives them, at most p.Limit of them when it is set. The films are listed on the UI thread and their subtitles read off it; a film of the library whose subtitles are not on disk or cannot be read is passed over, while p.FilmID's answers as subtitles.get does.

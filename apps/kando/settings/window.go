@@ -164,6 +164,13 @@ type App interface {
 	YieldSubs() bool
 	SetYieldSubs(on bool)
 
+	// Offline is whether offline mode is on, which the 隐私 page's switch turns; SetOffline turns it on or off and saves that. AILocal reports whether the AI service in use runs on this computer (media.ChatTranslator.Local), which offline mode lets through. ClearCache removes the rebuildable caches off the UI thread, and CacheClear is where that stands.
+	Offline() bool
+	SetOffline(on bool)
+	AILocal() bool
+	ClearCache()
+	CacheClear() CacheClear
+
 	// Shortcuts is the app's shortcut table, its words in the language the app shows under cx.
 	Shortcuts(cx *core.Scope) []Shortcut
 	// ShortcutQuery is the text of the 快捷键 page's search field.
@@ -215,8 +222,11 @@ func (s screen) layout(cx *core.Scope, account core.Node) core.Node {
 		header{a: a, section: section.Get},
 		core.Scroll{TestID: "settings-page", Style: core.Style{FlexGrow: 1, FlexShrink: 1, MinHeight: core.Pt(0)}, Children: []core.Node{content}},
 	}}
-	return core.View{TestID: "settings-window", Style: core.Style{Direction: core.Row, FlexGrow: 1, FlexShrink: 1, AlignItems: core.AlignStretch}, StyleFunc: ui.Filled(theme.Of(cx).Window),
-		Children: []core.Node{rail{a: a}, pane}}
+	// Its text is in the platform's font of the design (theme.FontOf), as the main window's is.
+	k := theme.Of(cx)
+	return core.View{TestID: "settings-window", Style: core.Style{Direction: core.Row, FlexGrow: 1, FlexShrink: 1, AlignItems: core.AlignStretch},
+		StyleFunc: func() core.Style { return core.Style{Background: k.Window(), FontFamily: theme.FontOf(cx)} },
+		Children:  []core.Node{rail{a: a}, pane}}
 }
 
 // header is the page's title bar: 50 points high with a line under it, the title 15-point bold where the page's content starts. It moves the window, as the title bar it stands in for does.
@@ -351,6 +361,8 @@ func (s screen) page(cx *core.Scope, id string, account core.Node) core.Node {
 		return translate{s}
 	case SectionLook:
 		return look{s}
+	case SectionPrivacy:
+		return privacy{s}
 	case SectionShortcuts:
 		return shortcuts{s}
 	case SectionPhone:
