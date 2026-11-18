@@ -849,15 +849,60 @@ playerDelaySeconds:
 playerExplain:
   message: "Explain"
   description: "Action under the player's card: has the computer's AI service explain the line."
+playerExplainAnswering:
+  message: "Answering…"
+  description: "Under a follow-up question about the line explained while the computer's AI service answers it."
+playerExplainAsk:
+  message: "Ask"
+  description: "Button beside the follow-up field of the explanation sheet: asks the question typed."
+playerExplainAskLabel:
+  message: "Ask About This Line"
+  description: "Spoken name of the follow-up field of the explanation sheet."
+playerExplainAskPlaceholder:
+  message: "Ask about this line…"
+  description: "Placeholder of the follow-up field of the explanation sheet."
+playerExplainBreakdown:
+  message: "Breakdown"
+  description: "Heading of the explanation's section that takes the line's words and phrases one by one."
 playerExplainBy:
   message: "{model} on {computer}"
-  description: "Under the explanation's title: which model, on which computer, wrote it."
+  description: "Under the explanation's title when the model runs on the computer itself: which model, on which computer, wrote it."
   placeholders:
     model: { type: "String", example: "gpt-4o-mini" }
     computer: { type: "String", example: "Studio" }
+playerExplainMeaning:
+  message: "Meaning"
+  description: "Heading of the explanation's section that says what the line means."
+playerExplainMore:
+  message: "More: Tone and Related Expressions"
+  description: "Button under the explanation that shows its tone and related expressions too."
+playerExplainOnlyBefore:
+  message: "From this line and the ones before it only"
+  description: "Footnote of the explanation: the computer's AI service is given no line after the one explained, so it gives nothing away."
+playerExplainRelated:
+  message: "Related Expressions"
+  description: "Heading of the explanation's section of related expressions, shown after More."
+playerExplainSave:
+  message: "Save Line to Notes"
+  description: "Button of the explanation sheet: saves the line, with what the explanation says it means as its note, so it comes up in review."
+playerExplainSaved:
+  message: "In Notes · it will come up in review"
+  description: "The explanation sheet's save button once the line is saved."
 playerExplainTitle:
   message: "Explain This Line"
   description: "Title of the sheet that explains a line."
+playerExplainTone:
+  message: "Tone"
+  description: "Heading of the explanation's section on the line's tone, shown after More."
+playerExplainTranslation:
+  message: "About the Translation"
+  description: "Heading of the explanation's section on what is worth knowing of the line's translation."
+playerExplainVia:
+  message: "{model}, asked through {computer}"
+  description: "Under the explanation's title when the model is a cloud service the computer asked, not one running on it."
+  placeholders:
+    model: { type: "String", example: "gpt-4o-mini" }
+    computer: { type: "String", example: "Studio" }
 playerFollow:
   message: "Shadowing"
   description: "Playback setting, and the pill over the picture while it is on: the film holds after each line for the learner to say it."
@@ -978,6 +1023,62 @@ playerPosition:
 playerPrevLine:
   message: "Previous Line"
   description: "Spoken name of the player's button that plays from the line before."
+playerRecapBusy:
+  message: "Summing up what you watched on {computer}…"
+  description: "In the recap sheet while the computer's AI service sums up the part of the film watched."
+  placeholders:
+    computer: { type: "String", example: "Studio" }
+playerRecapContinue:
+  message: "Continue from {at}"
+  description: "Main button of the recap sheet: plays the film on from where it was left."
+  placeholders:
+    at: { type: "String", example: "1:40" }
+playerRecapExcerptsFailed:
+  message: "Lines you watched: the AI service on {computer} could not sum them up"
+  description: "Footnote of the recap sheet when the computer's AI service failed and the sheet shows lines watched instead."
+  placeholders:
+    computer: { type: "String", example: "Studio" }
+playerRecapExcerptsNoAI:
+  message: "Lines you watched, not summed up: {computer} has no AI service set up"
+  description: "Footnote of the recap sheet when the computer has no AI service and the sheet shows lines watched instead."
+  placeholders:
+    computer: { type: "String", example: "Studio" }
+playerRecapExcerptsUnpaired:
+  message: "Lines you watched, not summed up: this film's computer is no longer paired"
+  description: "Footnote of the recap sheet when the film's computer is not paired any more and the sheet shows lines watched instead."
+playerRecapExcerptsUnreachable:
+  message: "Lines you watched, not summed up: can't reach {computer}"
+  description: "Footnote of the recap sheet when the computer cannot be reached and the sheet shows lines watched instead."
+  placeholders:
+    computer: { type: "String", example: "Studio" }
+playerRecapJump:
+  message: "Play from {at}: {text}"
+  description: "Spoken name of a moment of the recap, which plays the film from there."
+  placeholders:
+    at: { type: "String", example: "1:40" }
+    text: { type: "String", example: "They meet at the station." }
+playerRecapNote:
+  message: "Only what you watched · summed up by {model}"
+  description: "Footnote of the recap sheet: the computer asked a cloud model, which was given only the lines watched."
+  placeholders:
+    model: { type: "String", example: "gpt-4o-mini" }
+playerRecapNoteOn:
+  message: "Only what you watched · summed up by {model} on {computer}"
+  description: "Footnote of the recap sheet: a model running on the computer itself wrote it from the lines watched only."
+  placeholders:
+    model: { type: "String", example: "gpt-4o-mini" }
+    computer: { type: "String", example: "Studio" }
+playerRecapStartOver:
+  message: "Start Over"
+  description: "Button of the recap sheet: plays the film from its start."
+playerRecapStoppedAt:
+  message: "You stopped at {at}"
+  description: "Under the recap sheet's title: where the film was left."
+  placeholders:
+    at: { type: "String", example: "1:40" }
+playerRecapTitle:
+  message: "Previously"
+  description: "Title of the recap sheet a film left partway opens with: what happened in the part watched."
 playerReplay:
   message: "Replay"
   description: "Action under the player's card: plays the line again from its start."

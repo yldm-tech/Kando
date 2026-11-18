@@ -65,6 +65,8 @@ type route struct {
 	library sync.Library
 	film    sync.Film
 	key     string
+	// held opens the player held where the film was left, with the recap of the part watched (player.Page).
+	held bool
 }
 
 // App is the app with the session cfg configures: the tabs of the Library, Learn and Settings, each a stack of the pages it opens, under a stack of what covers them, pairing, the introduction, the player and the page that says a computer no longer takes the phone; the introduction in the tabs' place until the user has been through it.
@@ -118,6 +120,8 @@ func App(cx *core.Scope, cfg session.Config) core.Node {
 		}
 	}
 	play := func(key string) { outer.Push(route{page: playerPage, key: key}) }
+	// A film's page opens the player held where the film was left, with the recap of the part watched, as a poster does on the computer; Continue Watching and a line found play at once.
+	playHeld := func(key string) { outer.Push(route{page: playerPage, key: key, held: true}) }
 	// A computer that no longer takes the phone shows the page that says so over everything, one computer at a time; revoked is the one it shows.
 	revoked := ""
 	cx.Effect(func() {
@@ -163,7 +167,7 @@ func App(cx *core.Scope, cfg session.Config) core.Node {
 				case targetPage:
 					return settings.TargetPage(cx, s, back)
 				case filmPage:
-					return film.Page(cx, s, r.desktop, r.library.Name, r.film, play, back)
+					return film.Page(cx, s, r.desktop, r.library.Name, r.film, playHeld, back)
 				case jobsPage:
 					act := jobs.Actions{Add: openAdd, Pair: openPair, Film: openFilm, Back: back}
 					if depth() == 0 {
@@ -215,7 +219,7 @@ func App(cx *core.Scope, cfg session.Config) core.Node {
 				onboarding.Page(cx, s, func() { outer.Pop(1) }),
 			}}
 		case playerPage:
-			return player.Page(cx, s, r.key, func() { outer.Pop(1) })
+			return player.Page(cx, s, r.key, r.held, func() { outer.Pop(1) })
 		case revokedPage:
 			return settings.RevokedPage(cx, s, r.desktop, openPair, unpaired, func() {
 				revoked = ""

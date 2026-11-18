@@ -161,12 +161,188 @@ func TestExplainAsksTheComputer(t *testing.T) {
 	if got := p.app.Find("id:player-explain-text").Text; got != "A greeting for the morning." {
 		t.Fatalf("the explanation reads %q", got)
 	}
-	if got := p.app.Find("id:player-explain-by").Text; got != msgs.PlayerExplainBy("test-model", "Studio") {
+	// A computer that does not say its model runs on it is taken to ask a cloud service.
+	if got := p.app.Find("id:player-explain-by").Text; got != msgs.PlayerExplainVia("test-model", "Studio") {
 		t.Fatalf("the byline reads %q", got)
 	}
 	x := d.Explains()
 	if len(x) != 1 || x[0].Index != 1 || len(x[0].Lines) != 3 || x[0].Lines[1].Original != "How are you?" || x[0].Lines[1].StartMS != 3000 {
 		t.Fatalf("the computer was asked %+v", x)
+	}
+}
+
+// The explanation shows the computer's sections under their headings, its tone and related expressions after More; a follow-up question goes to the computer with the line, the lines around it and what was explained and answered before, and its answer shows under it; Save Line to Notes saves the line with what it means as its note.
+func TestExplainShowsSectionsAnswersFollowUpsAndSavesToNotes(t *testing.T) {
+	d := newDesktop(t)
+	d.SetExplanationSections(
+		sync.ExplainSection{Kind: sync.ExplainMeaning, Text: "Asks how someone is."},
+		sync.ExplainSection{Kind: sync.ExplainBreakdown, Text: "how · 怎样"},
+		sync.ExplainSection{Kind: sync.ExplainTone, Text: "Friendly."},
+	)
+	p, _ := studyPlayer(t, d)
+	p.at(3200 * time.Millisecond)
+	p.app.Press("id:player-explain-line")
+	p.app.WaitFor("id:player-explain-note", wait)
+	got := p.texts("id:player-explain-sections")
+	for _, want := range []string{msgs.PlayerExplainMeaning(), "Asks how someone is.", msgs.PlayerExplainBreakdown(), "how · 怎样"} {
+		if !strings.Contains(got, want) {
+			t.Fatalf("the sections read %q, want %q in them", got, want)
+		}
+	}
+	if strings.Contains(got, "Friendly.") || p.app.Exists("id:player-explain-text") {
+		t.Fatalf("before More the sheet reads %q", p.texts("id:player-explain"))
+	}
+	if got := p.app.Find("id:player-explain-note").Text; got != msgs.PlayerExplainOnlyBefore() {
+		t.Fatalf("the footnote reads %q", got)
+	}
+	p.app.Press("id:player-explain-more")
+	p.app.WaitUntil(wait, func() bool { return strings.Contains(p.texts("id:player-explain-sections"), "Friendly.") })
+	if !strings.Contains(p.texts("id:player-explain-sections"), msgs.PlayerExplainTone()) || p.app.Exists("id:player-explain-more") {
+		t.Fatalf("after More the sections read %q", p.texts("id:player-explain-sections"))
+	}
+
+	p.app.Type("id:player-explain-ask", "Why how?")
+	p.app.Press("id:player-explain-send")
+	p.app.WaitUntil(wait, func() bool {
+		return p.app.Exists("id:player-explain-answer") && p.app.Find("id:player-explain-answer").Text == "Answered: Why how?"
+	})
+	if got := p.app.Find("id:player-explain-ask").Text; got != "" {
+		t.Fatalf("after asking the field reads %q", got)
+	}
+	p.app.Type("id:player-explain-ask", "And the reply?")
+	p.app.Submit("id:player-explain-ask")
+	p.app.WaitUntil(wait, func() bool { return len(d.Asks()) == 2 })
+	asks := d.Asks()
+	first, second := asks[0], asks[1]
+	if first.Question != "Why how?" || first.Index != 1 || first.Lines[1].Original != "How are you?" || first.Film != "f1" || first.Library != "lib" ||
+		len(first.Explained) != 3 || first.Explained[0].Text != "Asks how someone is." || len(first.Asked) != 0 {
+		t.Fatalf("the computer was asked %+v", first)
+	}
+	if second.Question != "And the reply?" || len(second.Asked) != 1 || second.Asked[0] != (sync.ExplainQA{Question: "Why how?", Answer: "Answered: Why how?"}) {
+		t.Fatalf("the second question carried %+v", second)
+	}
+
+	p.app.Press("id:player-explain-save")
+	p.app.WaitUntil(wait, func() bool {
+		for _, r := range d.Records("lib", sync.KindLine) {
+			if r.Removed == nil && string(r.Fields[sync.FieldStartMS].Value) == "3000" {
+				return fieldText(r, sync.FieldNote) == "Asks how someone is."
+			}
+		}
+		return false
+	})
+	if got := p.app.Find("id:player-explain-save").Props.Label; got != msgs.PlayerExplainSaved() {
+		t.Fatalf("once saved the button reads %q", got)
+	}
+}
+
+// Without an AI service on the computer, a follow-up question says so under it.
+func TestAFollowUpWithoutAnAIServiceSaysWhere(t *testing.T) {
+	d := newDesktop(t)
+	p, _ := studyPlayer(t, d)
+	p.app.Press("id:player-explain-line")
+	p.app.WaitFor("id:player-explain-text", wait)
+	d.SetNoAI(true)
+	p.app.Type("id:player-explain-ask", "Why?")
+	p.app.Press("id:player-explain-send")
+	p.app.WaitUntil(wait, func() bool {
+		return p.app.Exists("id:player-explain-answer") && p.app.Find("id:player-explain-answer").Text == msgs.PlayerStudyNoAI("Studio")
+	})
+}
+
+// openStudyAt opens the talk from its page, as openStudy does, left at at on the phone before: the player holds there.
+func openStudyAt(t *testing.T, d *synctest.Desktop, at time.Duration) *phone {
+	t.Helper()
+	dir := t.TempDir()
+	f := keepTalkFrom(t, dir, store.DesktopID(d.Fingerprint))
+	f.PositionMS = at.Milliseconds()
+	if err := store.Open(dir).SaveFilm(f); err != nil {
+		t.Fatal(err)
+	}
+	p := startPhone(t, dir, pairedWith(t, d, dir))
+	p.app.WaitFor(talkRow(f.Desktop), wait)
+	p.app.Press(talkRow(f.Desktop))
+	p.app.WaitFor("id:film-play", wait)
+	p.app.Press("id:film-play")
+	p.app.WaitFor("id:player-video", wait)
+	return p
+}
+
+// A film opened from its page where it was left holds there and shows the recap of the part watched: the computer is sent the lines up to where it was left, never a later one, and its moments show, each playing the film from its line; Continue plays on from where it was left.
+func TestAFilmLeftPartwayOpensWithARecapOfWhatWasWatched(t *testing.T) {
+	d := newDesktop(t)
+	p := openStudyAt(t, d, 6*sec)
+	p.app.WaitFor("id:player-recap-note", wait)
+	if !p.app.Find("id:player-video").Video.Paused {
+		t.Fatal("the film plays under the recap")
+	}
+	if got := p.app.Find("id:player-recap-at").Text; got != msgs.PlayerRecapStoppedAt("0:06") {
+		t.Fatalf("the recap says %q", got)
+	}
+	recaps := d.Recaps()
+	if len(recaps) != 1 || len(recaps[0].Lines) != 3 || recaps[0].Lines[2].Original != "Fine, thanks." || recaps[0].Film != "f1" {
+		t.Fatalf("the computer was asked %+v", recaps)
+	}
+	if got := p.texts("id:player-recap-items"); got != "0:01\nBegan: Good morning.\n0:05\nThen: Fine, thanks." {
+		t.Fatalf("the recap reads %q", got)
+	}
+	if got := p.app.Find("id:player-recap-note").Text; got != msgs.PlayerRecapNote("test-model") {
+		t.Fatalf("the footnote reads %q", got)
+	}
+	p.app.Press("id:player-recap-continue")
+	p.app.WaitUntil(wait, func() bool { return !p.app.Exists("id:player-recap") })
+	if s := p.seeks(); len(s) == 0 || s[len(s)-1] != 6*sec || p.app.Find("id:player-video").Video.Paused {
+		t.Fatalf("continue went to %v", s)
+	}
+}
+
+// A moment of the recap plays the film from its line, with the film's subtitle delay; the recap closed with × leaves the film held.
+func TestARecapMomentPlaysFromItsLine(t *testing.T) {
+	d := newDesktop(t)
+	d.SetRecap(sync.RecapItem{StartMS: 3000, Text: "They greet."})
+	p := openStudyAt(t, d, 6*sec)
+	p.app.WaitFor("id:player-recap-item", wait)
+	p.app.Press("id:player-recap-item")
+	p.app.WaitUntil(wait, func() bool { return !p.app.Exists("id:player-recap") })
+	if s := p.seeks(); len(s) == 0 || s[len(s)-1] != 3*sec || p.app.Find("id:player-video").Video.Paused {
+		t.Fatalf("the moment went to %v", s)
+	}
+
+	p = openStudyAt(t, newDesktop(t), 6*sec)
+	p.app.WaitFor("id:player-recap-note", wait)
+	p.app.Press("id:player-recap-close")
+	p.app.WaitUntil(wait, func() bool { return !p.app.Exists("id:player-recap") })
+	if !p.app.Find("id:player-video").Video.Paused {
+		t.Fatal("closing the recap played the film")
+	}
+}
+
+// Without an AI service on the computer the recap shows the lines watched, saying they are not summed up and why; Start Over plays from the start.
+func TestARecapWithoutAnAIServiceShowsTheLinesWatched(t *testing.T) {
+	d := newDesktop(t)
+	d.SetNoAI(true)
+	p := openStudyAt(t, d, 6*sec)
+	p.app.WaitFor("id:player-recap-note", wait)
+	if got := p.app.Find("id:player-recap-note").Text; got != msgs.PlayerRecapExcerptsNoAI("Studio") {
+		t.Fatalf("the footnote reads %q", got)
+	}
+	if got := p.texts("id:player-recap-items"); got != "0:01\n早上好。\n0:03\n你好吗？\n0:05\nFine, thanks." {
+		t.Fatalf("the recap reads %q", got)
+	}
+	p.app.Press("id:player-recap-start-over")
+	p.app.WaitUntil(wait, func() bool { return !p.app.Exists("id:player-recap") })
+	if s := p.seeks(); len(s) == 0 || s[len(s)-1] != 0 || p.app.Find("id:player-video").Video.Paused {
+		t.Fatalf("start over went to %v", s)
+	}
+}
+
+// A film left before its first line plays at once, without a recap: nothing of it was watched.
+func TestAFilmLeftBeforeItsFirstLinePlaysWithoutARecap(t *testing.T) {
+	d := newDesktop(t)
+	p := openStudyAt(t, d, 500*time.Millisecond)
+	p.app.WaitUntil(wait, func() bool { return p.app.Exists("id:player-line") && !p.app.Find("id:player-video").Video.Paused })
+	if p.app.Exists("id:player-recap") || len(d.Recaps()) != 0 {
+		t.Fatal("a film nothing of which was watched opened with a recap")
 	}
 }
 

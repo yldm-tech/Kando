@@ -1,4 +1,4 @@
-// Package player plays a film kept on the phone and studies it, in the dark whatever the system's appearance: the video, the card of the line playing, whose words a tap looks up and which a tap saves, replays, loops or has explained, the transport, and a panel of tabs: the film's lines, which follow the one playing and play from the one tapped, the notes on the lines saved, the film in equal parts, and what the film is. Looking a word up and explaining a line go through the film's computer, whose AI service answers (session.LookUp, Explain); the lines saved and their notes sync with it (session.ToggleSave, SetNote). Where it was left is kept with the film, and so is how far its lines are moved against the picture.
+// Package player plays a film kept on the phone and studies it, in the dark whatever the system's appearance: the video, the card of the line playing, whose words a tap looks up and which a tap saves, replays, loops or has explained, the transport, and a panel of tabs: the film's lines, which follow the one playing and play from the one tapped, the notes on the lines saved, the film in equal parts, and what the film is. Looking a word up, explaining a line and answering questions about it, and the recap of the part watched that a film opened where it was left shows, go through the film's computer, whose AI service answers (session.LookUp, Explain, Ask, Recap); the lines saved and their notes sync with it (session.ToggleSave, SetNote). Where it was left is kept with the film, and so is how far its lines are moved against the picture.
 //
 // The layout follows the window: on a phone held upright the video sits on top, the card, the transport and the panel under it; turned sideways the video fills the screen with the lines over it, a tap shows the controls over it, and the list of lines can slide in at its side; on a tablet held sideways the panel takes a column beside the video.
 package player
@@ -60,11 +60,12 @@ func layoutOf(w core.Size) layout {
 	return upright
 }
 
-// Page plays the film kept under key.
-func Page(cx *core.Scope, s *session.Session, key string, back func()) base.NavPage {
+// Page plays the film kept under key. Opened held (held), as from the film's page, a film left partway holds where it was left and shows the recap of the part watched (recapSheet) until it is played; otherwise it plays at once.
+func Page(cx *core.Scope, s *session.Session, key string, held bool, back func()) base.NavPage {
 	theme.Dark(cx)
 	f, _ := s.Film(key)
 	p := newPlay(cx, s, key)
+	r := newRecapper(cx, p, held)
 	shape := core.NewMemo(cx, func() layout { return layoutOf(cx.Env().Window()) })
 	controls := core.NewSignal(cx, true)
 	// panelOn shows the list of lines at the side of a phone on its side.
@@ -195,6 +196,7 @@ func Page(cx *core.Scope, s *session.Session, key string, back func()) base.NavP
 			wordPopover(cx, p, w, func() bool { return shape.Get() == full }),
 			wordSheet(cx, p, w, func() bool { return shape.Get() != full }),
 			explainSheet(cx, p, w),
+			recapSheet(cx, p, r),
 			settingsSheet(cx, p, settingsOpen),
 			ui.Toasts{Toaster: p.toast, Placement: ui.ToastBottom, TestID: "player-toasts"},
 		}}
