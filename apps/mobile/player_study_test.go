@@ -620,3 +620,35 @@ func TestDeletingTheFilmPlayingMinimizedStopsIt(t *testing.T) {
 		t.Fatal("the deleted film still plays")
 	}
 }
+
+// Back, as Android's button or Escape, closes the word card over the player first, then minimizes the player, and only then goes back in the tab under it, the film staying in the mini player as it was.
+func TestBackMinimizesThePlayerBeforeItLeavesThePageUnderIt(t *testing.T) {
+	d := newDesktop(t)
+	d.SetEntry("morning", sync.WordEntry{Word: "morning", Meaning: "n. 早晨", Language: "简体中文"})
+	p, f := studyPlayer(t, d)
+	p.app.Press(`id:player-card >> text:"morning"`)
+	p.app.WaitFor("id:player-word-vocab", wait)
+	p.app.Back()
+	p.app.WaitForGone("id:player-word-vocab", wait)
+	if !p.app.Exists("id:player-card") || p.app.Exists("id:player-mini") {
+		t.Fatal("back closed more than the word card")
+	}
+	p.app.Back()
+	p.app.WaitFor("id:player-mini", wait)
+	if p.app.Exists("id:player-card") || !p.app.Exists("id:film-play") {
+		t.Fatal("back did not minimize the player over the film's page")
+	}
+	// The film page's actions keep clear of the mini player.
+	if play, mini := p.app.Find("id:film-play").Bounds(), p.app.Find("id:player-mini").Bounds(); play.Origin.Y+play.Size.Height > mini.Origin.Y {
+		t.Fatalf("the mini player %+v covers the film's Play button %+v", mini, play)
+	}
+	paused := p.app.Find("id:player-video").Video.Paused
+	p.app.Back()
+	p.app.WaitFor(talkRow(f.Desktop), wait)
+	if !p.app.Exists("id:player-mini") {
+		t.Fatal("going back in the tab closed the mini player")
+	}
+	if p.app.Find("id:player-video").Video.Paused != paused {
+		t.Fatal("going back in the tab played or held the film in the mini player")
+	}
+}
