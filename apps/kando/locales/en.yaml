@@ -5548,8 +5548,10 @@ subscribeWhenNew:
   message: "When There Are New Videos"
   description: "Row of a subscription's rules: what happens to new videos."
 subscribeWhenNewAuto:
-  message: "They join the queue and are downloaded and subtitled by the rules"
-  description: "Note of the When There Are New Videos row while Add Automatically is chosen."
+  message: "Up to {count} a check join the queue and are downloaded and subtitled by the rules; the rest wait here"
+  description: "Note of the When There Are New Videos row while Add Automatically is chosen: a check queues at most count new videos, and lists the others on the page for the user to add or skip."
+  placeholders:
+    count: { type: "int", example: "3" }
 subscribeWhenNewAsk:
   message: "They're listed here first and start once you add them"
   description: "Note of the When There Are New Videos row while Ask Me First is chosen."
@@ -5640,6 +5642,13 @@ subscribeNoteHeld:
   description: "Message on a subscription's page after a check listed its new videos for the user to add or skip."
   placeholders:
     count: { type: "int", example: "2" }
+subscribeNoteCapped:
+  message: "{found, plural, one {Found # new video} other {Found # new videos}} and added the first {added} to the queue. {held, plural, one {The other one is waiting for you below.} other {The other # are waiting for you below.}}"
+  description: "Message on a subscription's page after a check that adds new videos by itself found more than it adds at once: the first added are queued, the held others are listed below for the user to add or skip."
+  placeholders:
+    found: { type: "int", example: "5" }
+    added: { type: "int", example: "3" }
+    held: { type: "int", example: "2" }
 subscribeNoteNone:
   message: "No new videos."
   description: "Message on a subscription's page after a check found nothing new."
@@ -5790,6 +5799,9 @@ vocabLearning:
   description: "Study stats dialog, under the mastery bar: how many words and saved lines are being learned."
   placeholders:
     count: { type: "int", example: "3" }
+vocabLibrarySeparator:
+  message: ", "
+  description: "Study stats dialog: what goes between two library names in vocabStatsLibraries."
 vocabLineCount:
   message: "{count, plural, one {# line} other {# lines}}"
   description: "Study stats dialog: how many lines are saved, the big number of the saved lines card."
@@ -5867,6 +5879,16 @@ vocabOtherDevices:
 vocabPreview:
   message: "Preview (first 3)"
   description: "Export Vocabulary tab: label over the first three records as the file will hold them."
+vocabStatsLibraries:
+  message: "Counted from {libraries}"
+  description: "Study stats dialog, top of the Stats tab: the libraries whose study is added up in the stats, by their names joined with vocabLibrarySeparator. Locked libraries are never counted."
+  placeholders:
+    libraries: { type: "String", example: "Kando, Anime" }
+vocabStatsLocked:
+  message: "{count, plural, one {# locked library is not counted} other {# locked libraries are not counted}}"
+  description: "Study stats dialog, under vocabStatsLibraries: how many libraries are left out of the stats because they are locked with a password."
+  placeholders:
+    count: { type: "int", example: "1" }
 vocabStatsMenuItem:
   message: "Study Stats"
   description: "Study menu item that opens the study stats dialog."

@@ -96,3 +96,51 @@ func TestStats(t *testing.T) {
 		t.Fatalf("a day missed: streak %d, longest %d", s.Streak, s.Longest)
 	}
 }
+
+// TestStatsOfSeveralBooks checks the stats of several libraries' books together: a day counts once the minutes of all of them add up to a minute, so the streak runs across the books; each day's time is the books' together, this device's apart from the others'; the words and lines, those due and how well they are known are all the books'; and a device counts once however many books it added to.
+func TestStatsOfSeveralBooks(t *testing.T) {
+	films := Book{Device: "mac"}
+	talks := Book{Device: "mac"}
+	films.Watch(day(14), 3*time.Minute)
+	films.Watch(day(15), 30*time.Second)
+	talks.Watch(day(15), 30*time.Second)
+	talks.Watch(day(16), 2*time.Minute)
+	talks.MergeWatched([]Watched{{Day: Day(day(16)), Device: "phone", Time: 4 * time.Minute}})
+	films.Words = []Word{{ID: "w1", Text: "trickle", Device: "mac", Box: MasteredBox, Due: day(30)}}
+	talks.Words = []Word{{ID: "w2", Text: "meander", Device: "phone", Due: day(1)}}
+	talks.Lines = []Line{{ID: "a", Device: "mac", Video: "talk.mp4", Box: 2, Due: day(30)}}
+
+	s := StatsOf(day(16), "mac", films, talks)
+	if s.Streak != 3 || s.Longest != 3 {
+		t.Fatalf("streak %d, longest %d; want 3, 3 (day 15 has a minute only with both books)", s.Streak, s.Longest)
+	}
+	if got := s.Days[5]; got.Day != "2026-11-15" || got.Here != time.Minute || got.Elsewhere != 0 {
+		t.Fatalf("day 15 %+v", got)
+	}
+	if got := s.Days[6]; got.Here != 2*time.Minute || got.Elsewhere != 4*time.Minute {
+		t.Fatalf("day 16 %+v", got)
+	}
+	if s.Week != 10*time.Minute {
+		t.Fatalf("week %v", s.Week)
+	}
+	if s.Words != 2 || s.WordsDue != 1 || s.Lines != 1 || s.LinesDue != 0 {
+		t.Fatalf("words %d (%d due), lines %d (%d due)", s.Words, s.WordsDue, s.Lines, s.LinesDue)
+	}
+	if s.Mastered != 1 || s.Learning != 1 || s.New != 1 {
+		t.Fatalf("mastered %d, learning %d, new %d", s.Mastered, s.Learning, s.New)
+	}
+	if s.Devices != 2 {
+		t.Fatalf("devices %d", s.Devices)
+	}
+	// One book alone says what its own Stats says, and no book says nothing.
+	if one, own := StatsOf(day(16), "mac", talks), talks.Stats(day(16)); one != own {
+		t.Fatalf("one book %+v, its own stats %+v", one, own)
+	}
+	if none := StatsOf(day(16), "mac"); none != (Stats{Days: none.Days}) || none.Days[6].Day != "2026-11-16" {
+		t.Fatalf("no book %+v", none)
+	}
+	// The books are left as they were.
+	if len(films.Watched) != 2 || len(talks.Watched) != 3 || len(films.Words) != 1 {
+		t.Fatalf("the books changed: %+v %+v", films.Watched, talks.Watched)
+	}
+}

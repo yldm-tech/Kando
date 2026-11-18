@@ -157,6 +157,7 @@ func init() {
 		{name: "translate", synopsis: "<film-id> [--wait]", summary: "Translate the lines a film's translation left untranslated", app: true, run: runTranslate},
 		{name: "remove", synopsis: "<job-id>", summary: "Take a job off the library, stopping it if it runs; its files stay", app: true, run: runRemove},
 		{name: "move", synopsis: "<film-id> --to <library>", summary: "Move a film, its files and everything kept of it, to another library", app: true, run: runMove},
+		{name: "subscriptions", synopsis: "[list | add <link> | check <subscription-id>]", summary: "List the library's subscriptions, subscribe to a channel or playlist, or check one for new videos now", app: true, run: runSubscriptions},
 		{name: "sites", synopsis: "[query] [--limit N]", summary: "Search the websites Kando downloads from", app: true, run: runSites},
 		{name: "open", synopsis: "[film-id] [--at T]", summary: "Bring Kando to the front, showing a film or the library", app: true, run: runOpen},
 		{name: "mcp", summary: "Serve MCP on standard input and output for AI agents", run: runMCP},
@@ -192,8 +193,12 @@ func writeUsage(w io.Writer) {
 	fmt.Fprintln(w, "Kando run with a command drives the Kando app, starting it when it is not running. Run with no command, it opens its window.")
 	fmt.Fprintln(w)
 	fmt.Fprintln(w, "Commands:")
+	width := 0
 	for _, c := range commands {
-		fmt.Fprintf(w, "  %-10s %s\n", c.name, c.summary)
+		width = max(width, len(c.name))
+	}
+	for _, c := range commands {
+		fmt.Fprintf(w, "  %-*s %s\n", width, c.name, c.summary)
 	}
 	fmt.Fprintln(w)
 	fmt.Fprintln(w, "Every command that talks to the app takes --json to print the app's answer as JSON, and an error as {\"error\": {\"code\", \"message\"}}.")
