@@ -166,7 +166,7 @@ func (b Book) stamp() Stamp {
 	return Stamp{At: now(), Device: b.Device}
 }
 
-// Key is how a Line names the video at path: its path under the book's library folder, with forward slashes, or for a video kept outside the library its full path as it is.
+// Key is how a Line names the video at path: its path under the book's library folder, with forward slashes, or for a video kept outside the library its full path as it is. A relative path, as a book with no folder is given, is a path under the library too, so it also takes forward slashes, as Abs reads it.
 func (b Book) Key(path string) string {
 	if path == "" {
 		return ""
@@ -177,7 +177,10 @@ func (b Book) Key(path string) string {
 			return filepath.ToSlash(rel)
 		}
 	}
-	return filepath.Clean(path)
+	if path = filepath.Clean(path); !filepath.IsAbs(path) {
+		return filepath.ToSlash(path)
+	}
+	return path
 }
 
 // Abs is the path on disk of the video of l.

@@ -82,6 +82,18 @@ func TestKeyKeepsOutsideVideosWhole(t *testing.T) {
 	}
 }
 
+// TestKeyWritesRelativePathsWithSlashes checks that a relative path, as a book with no library folder is given, is keyed with forward slashes whatever the system's separator, so it names the same line as the key saved on another device and as Abs reads it.
+func TestKeyWritesRelativePathsWithSlashes(t *testing.T) {
+	var b Book
+	native := filepath.Join("Talk", "video.mp4")
+	if key := b.Key(native); key != "Talk/video.mp4" || b.Abs(Line{Video: key}) != native {
+		t.Fatalf("Key(%q) = %q, Abs %q", native, key, b.Abs(Line{Video: key}))
+	}
+	if key := b.Key("Talk/video.mp4"); key != "Talk/video.mp4" {
+		t.Fatalf("Key of a slash path = %q", key)
+	}
+}
+
 func TestMoveVideosFollowsRenamedFolders(t *testing.T) {
 	dir := t.TempDir()
 	b, _ := Load(dir)
