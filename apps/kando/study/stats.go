@@ -177,15 +177,17 @@ func statsTab(cx *core.Scope, a StatsApp) core.Node {
 	}}
 }
 
-// libraries says which libraries the stats count, and how many locked ones they leave out when there are any.
+// libraries says which libraries the stats count when they count any, as they do not while every library is locked or missing or none is open, and how many locked ones they leave out when there are any.
 func libraries(cx *core.Scope, a StatsApp) core.Node {
 	colors := ui.ColorsOf(cx)
 	names := live.Func(a, a.StatsLibraries)
 	locked := live.Func(a, a.StatsLocked)
 	return core.View{Style: core.Style{Gap: 2}, Children: []core.Node{
-		core.Text{TestID: "stats-libraries", ContentFunc: func() string {
-			return locales.VocabStatsLibraries(cx, strings.Join(names(), locales.VocabLibrarySeparator(cx)))
-		}, Style: ui.TypeCaption, StyleFunc: ui.Colored(colors.Muted)},
+		core.Show{When: func() bool { return len(names()) > 0 }, Then: func(cx *core.Scope) core.Node {
+			return core.Text{TestID: "stats-libraries", ContentFunc: func() string {
+				return locales.VocabStatsLibraries(cx, strings.Join(names(), locales.VocabLibrarySeparator(cx)))
+			}, Style: ui.TypeCaption, StyleFunc: ui.Colored(colors.Muted)}
+		}},
 		core.Show{When: func() bool { return locked() > 0 }, Then: func(cx *core.Scope) core.Node {
 			return core.Text{TestID: "stats-locked", ContentFunc: func() string { return locales.VocabStatsLocked(cx, locked()) }, Style: ui.TypeCaption, StyleFunc: ui.Colored(colors.Muted)}
 		}},
