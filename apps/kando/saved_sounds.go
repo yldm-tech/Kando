@@ -32,6 +32,11 @@ func (a *app) savedKeepSound(l saved.Line) {
 				log.Printf("saved: the sound of %s was not kept: %v", id, err)
 				out = ""
 			}
+			// Taken out of the study record while it was cut: the sound goes too, unless the library changed meanwhile, whose book this one is not.
+			if out != "" && saved.StoredSound(a.saved.book, id) == out && a.savedFind(id) < 0 && a.saved.book.WordByID(id) < 0 {
+				_ = os.Remove(out)
+				out = ""
+			}
 			a.savedSoundKept(id, out)
 		})
 	}()

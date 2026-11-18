@@ -353,6 +353,25 @@ func TestSavedLineKeepsItsSound(t *testing.T) {
 	}
 }
 
+// TestSavedLineTakenOutWhileItsSoundIsCut saves a line and takes it out again at once, while its sound is still being cut: once the cut ends no sound of it is left in the library.
+func TestSavedLineTakenOutWhileItsSoundIsCut(t *testing.T) {
+	tools := media.Tools{FFmpeg: fakeTool(t, filepath.Join(t.TempDir(), "bin"), "ffmpeg")}
+	a, tt, updates, item := playerFilm(t, 12, tools)
+	playerOpenFilm(t, a, tt, updates, item)
+	playerLoadFilm(tt, a, 12*time.Second)
+	playerPlayTo(tt, a, 1500*time.Millisecond)
+	tt.Key("b")
+	kept := saved.StoredSound(a.saved.book, a.saved.book.Lines[0].ID)
+	tt.Key("b")
+	waitUntil(t, tt, a, updates, func() bool { return len(a.saved.keeping) == 0 })
+	if len(a.saved.book.Lines) != 0 {
+		t.Fatalf("%d lines saved", len(a.saved.book.Lines))
+	}
+	if saved.HasSound(kept) {
+		t.Fatal("the sound of a line taken out while it was cut stayed")
+	}
+}
+
 // TestReviewHasTheWordsAndTheNotes reviews a saved line with a note and a word of the vocabulary, both due: the line's note shows with its translation, and the word shows with its reading over the line it was looked up in, its meaning and the line's translation once revealed; Good schedules the word in the study record, and the review counts both.
 func TestReviewHasTheWordsAndTheNotes(t *testing.T) {
 	a, tt, _ := playerOpen(t)

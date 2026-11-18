@@ -48,6 +48,24 @@ func KeepSound(ctx context.Context, ffmpeg, video string, l Line, delay time.Dur
 	return os.Rename(tmp, out)
 }
 
+// MoveSound moves the sound kept of the line id in from's library to to's, kept there under next, as the line moves with its film to another library and may take another id there; nothing is done when from keeps none. Across disks, as into or out of an encrypted library, it is copied and then taken away from from.
+func MoveSound(from Book, id string, to Book, next string) error {
+	src, dst := StoredSound(from, id), StoredSound(to, next)
+	if src == "" || dst == "" || src == dst || !HasSound(src) {
+		return nil
+	}
+	if err := os.MkdirAll(filepath.Dir(dst), 0o755); err != nil {
+		return err
+	}
+	if os.Rename(src, dst) == nil {
+		return nil
+	}
+	if err := copySound(src, dst); err != nil {
+		return err
+	}
+	return os.Remove(src)
+}
+
 // copySound copies the sound kept at from to to.
 func copySound(from, to string) error {
 	in, err := os.Open(from)

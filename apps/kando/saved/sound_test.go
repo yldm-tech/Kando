@@ -113,3 +113,25 @@ func TestVocabSoundsGoOnTheAnkiNotes(t *testing.T) {
 		t.Fatalf("the CSV rows play sounds: %q", csv)
 	}
 }
+
+// TestMoveSoundFollowsTheLine moves a line's kept sound from one library to another under the id the line has there, leaving none behind; a line without a kept sound moves nothing.
+func TestMoveSoundFollowsTheLine(t *testing.T) {
+	from, _ := Load(t.TempDir())
+	to, _ := Load(t.TempDir())
+	src := StoredSound(from, "aaaa1111")
+	if err := os.MkdirAll(filepath.Dir(src), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(src, []byte("kept\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := MoveSound(from, "aaaa1111", to, "bbbb2222"); err != nil {
+		t.Fatal(err)
+	}
+	if HasSound(src) || !HasSound(StoredSound(to, "bbbb2222")) {
+		t.Fatal("the sound did not move with its line")
+	}
+	if err := MoveSound(from, "cccc3333", to, "dddd4444"); err != nil || HasSound(StoredSound(to, "dddd4444")) {
+		t.Fatalf("a line without a sound moved one: %v", err)
+	}
+}
