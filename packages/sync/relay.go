@@ -138,7 +138,8 @@ func SealRelay(key []byte, name string, plain []byte) ([]byte, error) {
 	if err != nil {
 		return nil, err
 	}
-	out := make([]byte, len(relayMagic)+aead.NonceSize(), len(relayMagic)+aead.NonceSize()+len(plain)+aead.Overhead())
+	// Seal appends and grows out itself: no capacity hint sized from len(plain), whose sum could overflow.
+	out := make([]byte, len(relayMagic)+aead.NonceSize())
 	copy(out, relayMagic)
 	nonce := out[len(relayMagic):]
 	if _, err := rand.Read(nonce); err != nil {
