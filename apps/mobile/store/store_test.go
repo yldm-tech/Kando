@@ -71,3 +71,19 @@ func TestFilmsAreListedNewestFirstAndCounted(t *testing.T) {
 		t.Fatalf("after deleting: %+v", films)
 	}
 }
+
+// The phone's own preferences start empty and read back as kept.
+func TestPrefsAreKept(t *testing.T) {
+	dir := t.TempDir()
+	if got, err := Open(dir).Prefs(); err != nil || got.Onboarded || got.Target != "" || got.Spoken != nil {
+		t.Fatalf("before any: %+v, %v", got, err)
+	}
+	want := Prefs{Onboarded: true, Spoken: []string{"en", "ja"}, Target: "zh-Hans"}
+	if err := Open(dir).SavePrefs(want); err != nil {
+		t.Fatal(err)
+	}
+	got, err := Open(dir).Prefs()
+	if err != nil || !got.Onboarded || got.Target != "zh-Hans" || len(got.Spoken) != 2 || got.Spoken[1] != "ja" {
+		t.Fatalf("read back %+v, %v", got, err)
+	}
+}

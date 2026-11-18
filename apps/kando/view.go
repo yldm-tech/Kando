@@ -1,6 +1,7 @@
 package main
 
 import (
+	"kando/apps/kando/chrome"
 	"kando/apps/kando/desktop"
 	"kando/apps/kando/live"
 	"kando/apps/kando/locales"
@@ -29,12 +30,11 @@ const (
 // appVersion is the version the app shows and reports: main sets it to the one nsgo build gave the app, nsgo.yaml's, which Release bumps. Without one, as in tests and go run, it stays this fixed one, which the tests and screenshots show.
 var appVersion = "0.1.0"
 
-// view is the main window's content, built once: the theme, the title bar, the shortcut table, the sidebar, the page and the overlays above them. Each part keeps its own decisions in its own file: sidebarShown, sidebarColumn, contentBand and trafficLights in bind_sidebar.go, filmFillsWindow, filmOwnsTitleBar and filmPadding in bind_film.go, libraryColumn and dropFiles in bind_films.go, browseColumn in bind_browse.go, the shortcut table in keys.go, the window's frame and close button in state_window.go, overlays in state_overlay.go. What changes later reaches the parts through their bindings (package live), so nothing here is built again.
+// view is the main window's content, built once: the theme, the title bar (package chrome on Windows and Linux), the shortcut table, the sidebar, the page and the overlays above them. Each part keeps its own decisions in its own file: sidebarShown, sidebarColumn, contentBand and trafficLights in bind_sidebar.go, filmFillsWindow, filmOwnsTitleBar and filmPadding in bind_film.go, libraryColumn and dropFiles in bind_films.go, browseColumn in bind_browse.go, the shortcut table in keys.go, the window's frame and close button in state_window.go, overlays in state_overlay.go. What changes later reaches the parts through their bindings (package live), so nothing here is built again.
 func (a *app) view(cx *core.Scope) core.Node {
 	theme.Apply(cx)
-	// The title bar is the app's own: the traffic lights sit in the sidebar card's top row, and the band under the title bar drags the window.
-	nsdesktop.SetTitleBar(cx, nsdesktop.TitleBarHidden, 0)
-	nsdesktop.SetWindowControls(cx, trafficLights())
+	// The title bar is the app's own: on macOS the traffic lights sit in the sidebar card's top row, and the band under the title bar drags the window; on Windows and Linux the bar of package chrome runs across the top of the window.
+	chrome.SetUp(cx, trafficLights())
 	// The window's title follows the interface's language as Settings › 通用 changes it.
 	cx.Effect(func() { nsdesktop.SetTitle(cx, locales.LibraryWindowTitle(cx)) })
 	a.windowFollow(cx)
@@ -44,7 +44,7 @@ func (a *app) view(cx *core.Scope) core.Node {
 	band := core.View{
 		Desktop: core.DesktopViewProps{WindowDrag: core.WindowDragOn},
 		StyleFunc: live.Func(a, func() core.Style {
-			bar := nsdesktop.TitleBar(cx)
+			bar := chrome.Covered(cx)
 			left := bar.Left
 			if showSidebar() {
 				left = 0
@@ -58,8 +58,16 @@ func (a *app) view(cx *core.Scope) core.Node {
 		StyleFunc: ui.Filled(colors.Background),
 		Children:  []core.Node{band, a.mainColumn(cx)},
 	}
+	body := core.View{
+		Style: core.Style{Direction: core.Row, FlexGrow: 1, FlexShrink: 1, MinHeight: core.Pt(0), AlignItems: core.AlignStretch},
+		Children: []core.Node{
+			core.Show{When: showSidebar, Then: func(*core.Scope) core.Node { return a.sidebarColumn() }},
+			content,
+		},
+	}
 	return core.View{
-		Style: core.Style{Direction: core.Row, FlexGrow: 1, FlexShrink: 1, AlignItems: core.AlignStretch},
+		TestID: "main-window",
+		Style:  core.Style{FlexGrow: 1, FlexShrink: 1, AlignItems: core.AlignStretch},
 		// The window's text is in the platform's font of the design (theme.FontOf), which every text under it inherits, in the interface's language as it changes.
 		StyleFunc: func() core.Style {
 			s := core.Style{FontFamily: theme.FontOf(cx)}
@@ -69,8 +77,8 @@ func (a *app) view(cx *core.Scope) core.Node {
 			return s
 		},
 		Children: []core.Node{
-			core.Show{When: showSidebar, Then: func(*core.Scope) core.Node { return a.sidebarColumn() }},
-			content,
+			chrome.Bar{App: a, Title: func() string { return locales.LibraryWindowTitle(cx) }},
+			body,
 			a.wireKeys(cx),
 			a.overlays(cx),
 		},

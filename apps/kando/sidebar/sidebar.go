@@ -4,6 +4,7 @@ import (
 	"path/filepath"
 	"strings"
 
+	"kando/apps/kando/chrome"
 	"kando/apps/kando/desktop"
 	"kando/apps/kando/live"
 	"kando/apps/kando/locales"
@@ -146,7 +147,7 @@ func (v View) Render(cx *ns.Scope) ns.Node {
 				Style:   ns.Style{FlexShrink: 0},
 				StyleFunc: func() ns.Style {
 					top := ns.Points(10)
-					if nsdesktop.TitleBar(cx).Top > 0 {
+					if chrome.Covered(cx).Top > 0 {
 						top = LightsRow
 					}
 					return ns.Style{Height: ns.Pt(top)}

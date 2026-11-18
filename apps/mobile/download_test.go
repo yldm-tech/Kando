@@ -14,7 +14,6 @@ import (
 // openTalk pairs the phone with d and opens the talk's page from its library.
 func (p *phone) openTalk(d *synctest.Desktop) string {
 	p.t.Helper()
-	p.app.WaitFor("id:welcome", wait)
 	p.pair(d)
 	p.app.WaitFor("id:computers-library-lib", wait)
 	p.app.Press("id:computers-library-lib")
@@ -57,7 +56,7 @@ func TestADownloadPausesAndResumes(t *testing.T) {
 	// The film now shows among the downloads, with the space it takes.
 	p.app.HeaderBack("id:film-page")
 	p.app.HeaderBack("id:library-page")
-	p.openTab(downloadsTab, msgs.DownloadsTitle())
+	p.openTab(filmsTab, msgs.FilmsTitle())
 	p.app.WaitFor("id:downloads-film-f1", wait)
 	if got := p.texts("id:downloads-used"); !strings.Contains(got, "MB") && !strings.Contains(got, "KB") {
 		t.Errorf("the downloads show %q, without the space they take", got)
