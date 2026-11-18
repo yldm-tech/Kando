@@ -10,7 +10,6 @@ import (
 	"kando/apps/kando/desktop"
 	"kando/apps/kando/live"
 	"kando/apps/kando/shelf"
-	"kando/apps/kando/theme"
 	"kando/packages/media"
 
 	"github.com/nsgo-dev/nsgo"
@@ -150,7 +149,7 @@ func main() {
 	opts := []nsgo.Option{
 		nsgo.WindowSize(1100, 720),
 		nsgo.WindowConstraints(core.WindowConstraints{MinWidth: 900, MinHeight: 560}),
-		nsgo.Appearance(theme.Appearance),
+		nsgo.Appearance(a.settingsAppearance()),
 		nsgo.WindowMaterial(sidebarMaterial()),
 	}
 	if socket := os.Getenv("KANDO_SOCKET"); socket != "" {

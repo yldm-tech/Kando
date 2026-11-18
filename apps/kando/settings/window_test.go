@@ -60,6 +60,9 @@ type fakeApp struct {
 	everyAPI                EveryAPI
 	language                string
 	context                 bool
+	contextLines, batchSize int
+	retries                 *int
+	appearance, preset      string
 	prompt                  string
 	interfaceLang           string
 	cue                     subtitle.Look

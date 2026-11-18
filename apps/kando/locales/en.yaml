@@ -530,6 +530,88 @@ correctUndone:
 correctUnreadable:
   message: "This film’s corrections couldn’t be read, so they can’t be changed"
   description: "Message on the picture when the film's corrections file could not be read, which is then not written over."
+settingsAIBatchSize:
+  message: "Lines per Request"
+  description: "Row title and accessible name of the field setting how many subtitle lines one translation request carries."
+settingsAIBatchSizeHint:
+  message: "More lines take fewer requests; fewer suit a small model."
+  description: "Under Lines per Request."
+settingsAIRequests:
+  message: "Requests"
+  description: "Section label on the AI Service page above how many lines a translation request carries and how many times it is retried."
+settingsAIRequestsNote:
+  message: "By default each request carries {size} lines and is retried {retries, plural, one {once} other {# times}}."
+  description: "Footnote under the Requests card giving the defaults."
+  placeholders:
+    size: { type: "int", example: "40" }
+    retries: { type: "int", example: "2" }
+settingsAIRequestsRestore:
+  message: "Restore Defaults"
+  description: "Button beside the Requests label that brings Lines per Request and Retries back to their defaults."
+settingsAIRetries:
+  message: "Retries"
+  description: "Row title and accessible name of the field setting how many times a failed translation request is sent again."
+settingsAIRetriesHint:
+  message: "After a rate limit, a server error or no answer."
+  description: "Under Retries: which failures are retried."
+settingsGeneralAppearance:
+  message: "Appearance"
+  description: "Row title and accessible name of the drop-down choosing light, dark or the system's appearance."
+settingsGeneralAppearanceDark:
+  message: "Dark"
+  description: "Appearance option."
+settingsGeneralAppearanceLight:
+  message: "Light"
+  description: "Appearance option."
+settingsGeneralAppearanceSystem:
+  message: "Follow System"
+  description: "Appearance option that follows the system's light or dark mode; the default."
+settingsShortcutsPreset:
+  message: "Preset"
+  description: "Row title and accessible name of the drop-down choosing whose keys the player follows: the system's, IINA's or mpv's."
+settingsShortcutsPresetMac:
+  message: "Mac Default"
+  description: "Preset option on macOS for Kando's own keys."
+settingsShortcutsPresetNote:
+  message: "The player's keys follow {player} where it has the same command; the keys for studying lines stay as they are. Single-key shortcuts work only when no text field has the focus."
+  description: "Note under the shortcut search field while the IINA or mpv preset is chosen. player is the preset's name."
+  placeholders:
+    player: { type: "String", example: "mpv" }
+settingsShortcutsPresetSystem:
+  message: "System Default"
+  description: "Preset option on Windows and Linux for Kando's own keys."
+settingsSpeechCommand:
+  message: "Command"
+  description: "Caption above the whisper-cli command a job runs with these settings."
+settingsSpeechHints:
+  message: "Proper Noun Hints"
+  description: "Caption and accessible name of the field where names and terms the videos say are typed, which whisper then spells as written."
+settingsSpeechHintsNote:
+  message: "One per line or separated by commas. whisper spells them as written."
+  description: "Under the Proper Noun Hints field."
+settingsSpeechHintsPlaceholder:
+  message: "Names, places, terms…"
+  description: "Placeholder of the Proper Noun Hints field."
+settingsSpeechParams:
+  message: "Recognition"
+  description: "Section label on the Speech Recognition page above the thread count, the hints and the command."
+settingsSpeechThreads:
+  message: "Threads"
+  description: "Row title and accessible name of the drop-down choosing how many CPU threads whisper uses."
+settingsSpeechThreadsAuto:
+  message: "Automatic ({count})"
+  description: "Threads drop-down option letting Kando choose; count is how many it uses on this computer."
+  placeholders:
+    count: { type: "int", example: "8" }
+settingsSpeechThreadsHint:
+  message: "More is faster, but takes CPU from playback."
+  description: "Under Threads."
+settingsTranslateContextLines:
+  message: "Context Lines"
+  description: "Row title and accessible name of the field setting how many earlier lines go with each translation batch while Smart translation is on."
+settingsTranslateContextLinesHint:
+  message: "More reads more smoothly, but each request is longer and costs more."
+  description: "Under Context Lines."
 subexportBilingual:
   message: "Both"
   description: "Choice in the Export Subtitles dialog: export each line's translation and original together."
@@ -4416,13 +4498,13 @@ settingsGeneralVersion:
   message: "Version"
   description: "Row title: Kando's version."
 settingsKeywordsAI:
-  message: "translation service EveryAPI OpenAI OpenRouter Groq DeepSeek xAI Mistral Qwen Kimi Zhipu SiliconFlow Ollama LM Studio Base URL API Key model test connection"
+  message: "translation service EveryAPI OpenAI OpenRouter Groq DeepSeek xAI Mistral Qwen Kimi Zhipu SiliconFlow Ollama LM Studio Base URL API Key model test connection batch lines per request retries"
   description: "Search keywords of the AI Service settings section, separated by spaces, besides its title: the services it offers and its fields. Not shown."
 settingsKeywordsAccount:
   message: "Google sign in sign out object storage upload R2 S3 OSS COS Endpoint Region Bucket Access Key Secret path style"
   description: "Search keywords of the Account & Upload settings section, separated by spaces, besides its title. Not shown."
 settingsKeywordsGeneral:
-  message: "library location Finder File Explorer file manager interface language version components yt-dlp ffmpeg whisper-cli detect again command line terminal kando install MCP Claude Code Cursor copy config update notifications notify browser sign-in signed in cookies members-only age-restricted Chrome Safari Firefox Edge Brave Chromium keychain Full Disk Access"
+  message: "library location Finder File Explorer file manager interface language version components yt-dlp ffmpeg whisper-cli detect again command line terminal kando install MCP Claude Code Cursor copy config update notifications notify browser sign-in signed in cookies members-only age-restricted Chrome Safari Firefox Edge Brave Chromium keychain Full Disk Access appearance light dark mode follow system"
   description: "Search keywords of the General settings section, separated by spaces, besides its title. Not shown; the sidebar's search finds the section by them. Use the words the section's page shows."
 settingsKeywordsLook:
   message: "subtitles display bilingual original only translation only order translation original dim blank make room preview preset font size color bold"
@@ -4434,13 +4516,13 @@ settingsKeywordsPrivacy:
   message: "privacy offline network internet cache clear"
   description: "Words the settings search finds the Privacy section by, besides its title."
 settingsKeywordsShortcuts:
-  message: "keyboard keys commands"
+  message: "keyboard keys commands preset IINA mpv"
   description: "Search keywords of the Keyboard Shortcuts settings section, separated by spaces, besides its title. Not shown."
 settingsKeywordsSpeech:
-  message: "whisper models download recognition transcription HuggingFace Hugging Face Vimpo hyperframes spoken language download source mirror hf-mirror.com model file ggml"
+  message: "whisper models download recognition transcription HuggingFace Hugging Face Vimpo hyperframes spoken language download source mirror hf-mirror.com model file ggml threads proper nouns hints prompt command"
   description: "Search keywords of the Speech Recognition settings section, separated by spaces, besides its title. Not shown."
 settingsKeywordsTranslate:
-  message: "target language smart translation context prompt restore default"
+  message: "target language smart translation context prompt restore default context lines"
   description: "Search keywords of the Translation settings section, separated by spaces, besides its title. Not shown."
 settingsLanguageArabic:
   message: "Arabic"

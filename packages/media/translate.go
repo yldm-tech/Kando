@@ -18,16 +18,29 @@ import (
 	"kando/packages/core"
 )
 
-// translateBatch bounds how many lines go into one request, keeping replies within common output token limits.
-const translateBatch = 40
+// translateBatch is how many lines go into one request unless ChatTranslator.BatchSize says otherwise, keeping replies within common output token limits. MinBatchSize and MaxBatchSize bound what Settings › AI 服务 offers.
+const (
+	translateBatch = 40
+	MinBatchSize   = 10
+	MaxBatchSize   = 100
+)
+
+// DefaultBatchSize is how many lines go into one request when ChatTranslator.BatchSize is 0.
+const DefaultBatchSize = translateBatch
 
 // DefaultSubtitlePrompt is the style instruction used when ChatTranslator.Prompt is empty. {{language}} becomes the target language. The JSON reply rule is appended separately and is not part of this text.
 const DefaultSubtitlePrompt = "You are a professional subtitle translator. Translate every subtitle line into {{language}}.\n- Keep each translation natural, concise and suitable for on-screen subtitles.\n- Lines may be sentence fragments that continue in the next line; translate them so they read naturally in order."
 
 const subtitleReplyRule = "The user sends a JSON array of subtitle lines in order. Reply with only a JSON array of strings with exactly the same number of elements, each the translation of the line at the same index. Do not merge, split, or skip lines."
 
-// contextLines is how many earlier lines of the same video go with a batch when context is on. Subtitle text is short, but an entire film can still crowd a small model.
-const contextLines = 80
+// contextLines is how many earlier lines of the same video go with a batch when context is on and ChatTranslator.ContextLines is 0. Subtitle text is short, but an entire film can still crowd a small model. MaxContextLines bounds what Settings › 翻译 offers.
+const (
+	contextLines    = 80
+	MaxContextLines = 200
+)
+
+// DefaultContextLines is how many earlier lines go with a batch when ChatTranslator.ContextLines is 0.
+const DefaultContextLines = contextLines
 
 // ChatTranslator translates through an OpenAI-compatible /chat/completions endpoint, such as EveryAPI, OpenAI or a local Ollama server.
 type ChatTranslator struct {
@@ -36,8 +49,13 @@ type ChatTranslator struct {
 	Model   string
 	// Prompt is the style instruction. {{language}} is replaced with the target language. Empty uses DefaultSubtitlePrompt.
 	Prompt string
-	// Context includes earlier lines of the same video with each batch.
-	Context bool
+	// Context includes earlier lines of the same video with each batch, at most ContextLines of them, DefaultContextLines when 0.
+	Context      bool
+	ContextLines int
+	// BatchSize is how many lines go into one request, DefaultBatchSize when 0.
+	BatchSize int
+	// Attempts is how many times a request is sent while it fails with a rate limit, a server error or no usable answer: the first time and Attempts-1 retries. 0 is DefaultRetries+1.
+	Attempts int
 	// Credential, when set, replaces BaseURL and APIKey for each translation. renew asks for a new key after the API rejected the previous one.
 	Credential func(ctx context.Context, renew bool) (Endpoint, error)
 	// Client defaults to an http.Client with a two-minute timeout.
@@ -114,11 +132,12 @@ func (t ChatTranslator) Translate(ctx context.Context, segments []core.Segment, 
 	var lastErr error
 	// The batches an earlier run of this translation kept are not sent again; each batch translated now is kept as soon as it is (withCheckpoint).
 	kept := openCheckpoint(ctx, segments, language)
-	batches := (len(segments) + translateBatch - 1) / translateBatch
-	for start := 0; start < len(segments); start += translateBatch {
-		batch := segments[start:min(start+translateBatch, len(segments))]
+	size := t.batchSize()
+	batches := (len(segments) + size - 1) / size
+	for start := 0; start < len(segments); start += size {
+		batch := segments[start:min(start+size, len(segments))]
 		progress := core.Fraction(float64(start) / float64(len(segments)))
-		progress.Batch, progress.Batches, progress.BatchSize = start/translateBatch+1, batches, translateBatch
+		progress.Batch, progress.Batches, progress.BatchSize = start/size+1, batches, size
 		progress.Lines, progress.Of = start, len(segments)
 		texts := make([]string, len(batch))
 		for i, s := range batch {
@@ -136,8 +155,8 @@ func (t ChatTranslator) Translate(ctx context.Context, segments []core.Segment, 
 		}
 		reportProgress(ctx, progress)
 		var contextSoFar []string
-		if t.Context {
-			contextSoFar = earlier
+		if n := t.contextLines(); n > 0 {
+			contextSoFar = earlier[max(0, len(earlier)-n):]
 		}
 		lines, err := t.translateTexts(ctx, endpoint, texts, language, contextSoFar, progress)
 		earlier = append(earlier, texts...)
@@ -294,9 +313,6 @@ func subtitlePrompt(custom, language string, earlier []string, terms []core.Term
 	if glossary := glossaryPrompt(terms); glossary != "" {
 		prompt += "\n\n" + glossary
 	}
-	if len(earlier) > contextLines {
-		earlier = earlier[len(earlier)-contextLines:]
-	}
 	if len(earlier) > 0 {
 		encoded, _ := json.Marshal(earlier)
 		prompt += "\n\nEarlier lines from the same video, for context only. Do not translate them again:\n" + string(encoded)
@@ -309,6 +325,10 @@ const maxBatchSends = 3
 
 // translateTexts sends one batch, again while the reply is not its lines, up to maxBatchSends times. progress is where the translation stands while it is sent, which a retry's wait is reported with.
 func (t ChatTranslator) translateTexts(ctx context.Context, endpoint Endpoint, texts []string, language string, earlier []string, progress core.Progress) ([]string, error) {
+	// A batch sent again in halves takes the first half as context for the second, which keeps to the lines context allows when it is on.
+	if n := t.contextLines(); n > 0 && len(earlier) > n {
+		earlier = earlier[len(earlier)-n:]
+	}
 	input, err := json.Marshal(texts)
 	if err != nil {
 		return nil, err
@@ -505,6 +525,39 @@ const (
 	maxRetryAfter = 30 * time.Second
 )
 
+// DefaultRetries is how many times a failed request is sent again when ChatTranslator.Attempts is 0; MaxRetries bounds what Settings › AI 服务 offers.
+const (
+	DefaultRetries = maxAttempts - 1
+	MaxRetries     = 6
+)
+
+// attempts is how many times a request is sent at most (Attempts).
+func (t ChatTranslator) attempts() int {
+	if t.Attempts > 0 {
+		return t.Attempts
+	}
+	return maxAttempts
+}
+
+// batchSize is how many lines go into one request (BatchSize).
+func (t ChatTranslator) batchSize() int {
+	if t.BatchSize > 0 {
+		return t.BatchSize
+	}
+	return translateBatch
+}
+
+// contextLines is how many earlier lines go with a batch (ContextLines), 0 when context is off.
+func (t ChatTranslator) contextLines() int {
+	switch {
+	case !t.Context:
+		return 0
+	case t.ContextLines > 0:
+		return t.ContextLines
+	}
+	return contextLines
+}
+
 // retryBaseDelay doubles after each failed attempt unless the server sends Retry-After.
 var retryBaseDelay = 2 * time.Second
 
@@ -517,7 +570,7 @@ func (t ChatTranslator) complete(ctx context.Context, endpoint Endpoint, body []
 	delay := retryBaseDelay
 	for attempt := 1; ; attempt++ {
 		reply, retryAfter, err := completeOnce(ctx, client, endpoint, body)
-		if err == nil || retryAfter < 0 || attempt == maxAttempts {
+		if err == nil || retryAfter < 0 || attempt >= t.attempts() {
 			return reply, err
 		}
 		var status *statusError
@@ -527,7 +580,7 @@ func (t ChatTranslator) complete(ctx context.Context, endpoint Endpoint, body []
 		}
 		delay *= 2
 		waiting := progress
-		waiting.RetryIn, waiting.Attempt, waiting.Attempts = wait, attempt, maxAttempts-1
+		waiting.RetryIn, waiting.Attempt, waiting.Attempts = wait, attempt, t.attempts()-1
 		waiting.Unanswered = !errors.As(err, &status)
 		reportProgress(ctx, waiting)
 		timer := time.NewTimer(wait)

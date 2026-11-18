@@ -10,6 +10,7 @@ import (
 
 	"kando/apps/kando/browserext"
 	"kando/apps/kando/clitool"
+	"kando/apps/kando/hotkey"
 	"kando/apps/kando/locales/testlocale"
 	"kando/apps/kando/phonesync"
 	"kando/apps/kando/settings"
@@ -81,6 +82,14 @@ func TestScreenshotsSettings(t *testing.T) {
 	shootSettingsScrolled(t, f, settings.SectionSpeech, "settings-speech-download-failed", shown, models, turbo, func(a *app) {
 		a.prefs.downloadErr = settings.DownloadError{ID: "large-v3-turbo-q5", Err: fmt.Errorf("%w: unexpected EOF", media.ErrDisconnected)}
 	})
+	// The end of 语音识别 with four threads and two proper nouns as hints, and the whisper-cli command they make.
+	shootSettingsScrolled(t, f, settings.SectionSpeech, "settings-speech-params", shown, models, turbo, func(a *app) {
+		tools := a.pipeline.(media.Tools)
+		tools.WhisperThreads, tools.WhisperHints = 4, "Monterey\nKando"
+		a.pipeline = tools
+	})
+	// 快捷键 with the mpv preset: the line keys on Ctrl+← and Ctrl+→, the volume on 9 and 0.
+	shootSettings(t, f, settings.SectionShortcuts, "settings-shortcuts-mpv", shown, models, turbo, func(a *app) { a.prefs.shortcutPreset = hotkey.PresetMPV })
 }
 
 // shotKitsDownloading takes ffmpeg and whisper-cli out of a's tools and gives Kando a folder of its own in the fixture's fake home, as on a computer that lacks them, for the scenes of their downloads.

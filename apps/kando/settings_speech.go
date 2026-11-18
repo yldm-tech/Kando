@@ -23,6 +23,9 @@ type savedSpeech struct {
 	WhisperModel   string `json:"whisperModel,omitempty"`
 	SpeechLanguage string `json:"speechLanguage,omitempty"`
 	SpeechSource   string `json:"speechSource,omitempty"`
+	// WhisperThreads is how many threads whisper recognizes speech with, 0 for as many as suit the computer; WhisperHints the words it should spell as written, as typed (media.Tools.WhisperThreads and WhisperHints).
+	WhisperThreads int    `json:"whisperThreads,omitempty"`
+	WhisperHints   string `json:"whisperHints,omitempty"`
 }
 
 // clean trims the model's path, the language and the download source, drops a language whisper is not offered for (media.SpeechLanguages), which leaves whisper to detect it, and a source Kando does not know, which leaves the models to download from Hugging Face.
@@ -35,6 +38,12 @@ func (s *savedSpeech) clean() {
 	if s.SpeechSource = strings.TrimSpace(s.SpeechSource); !slices.Contains(media.SpeechSources(), s.SpeechSource) {
 		s.SpeechSource = ""
 	}
+	if !slices.Contains(media.WhisperThreadChoices, s.WhisperThreads) {
+		s.WhisperThreads = 0
+	}
+	if strings.TrimSpace(s.WhisperHints) == "" {
+		s.WhisperHints = ""
+	}
 }
 
 func (a *app) saveSpeech(saved *savedSettings) {
@@ -42,6 +51,8 @@ func (a *app) saveSpeech(saved *savedSettings) {
 	if tools, ok := a.pipeline.(media.Tools); ok {
 		saved.WhisperModel = tools.WhisperModel
 		saved.SpeechLanguage = tools.SpeechLanguage
+		saved.WhisperThreads = tools.WhisperThreads
+		saved.WhisperHints = tools.WhisperHints
 	}
 }
 
@@ -58,6 +69,7 @@ func (a *app) restoreSpeech(saved savedSettings) {
 		}
 	}
 	tools.SpeechLanguage = saved.SpeechLanguage
+	tools.WhisperThreads, tools.WhisperHints = saved.WhisperThreads, saved.WhisperHints
 	a.pipeline = tools
 }
 
@@ -72,6 +84,47 @@ func (a *app) useSpeechLanguage(code string) {
 	if err := a.saveSettings(); err != nil {
 		a.saveErr = a.messages().SettingsSpeechLanguageSaveFailed(err.Error())
 	}
+}
+
+// useSpeechThreads makes whisper recognize speech with n threads from the next job on, 0 for as many as suit the computer (media.WhisperThreadChoices); any other count is ignored.
+func (a *app) useSpeechThreads(n int) {
+	tools, ok := a.pipeline.(media.Tools)
+	if !ok || (n != 0 && !slices.Contains(media.WhisperThreadChoices, n)) || tools.WhisperThreads == n {
+		return
+	}
+	tools.WhisperThreads = n
+	a.pipeline = tools
+	if err := a.saveSettings(); err != nil {
+		a.saveErr = a.messages().SettingsSaveFailed(err.Error())
+	}
+}
+
+// useSpeechHints gives whisper the words typed as hints from the next job on (media.Tools.WhisperHints), and saves them.
+func (a *app) useSpeechHints(hints string) {
+	tools, ok := a.pipeline.(media.Tools)
+	if !ok || tools.WhisperHints == hints {
+		return
+	}
+	tools.WhisperHints = hints
+	a.pipeline = tools
+	if err := a.saveSettings(); err != nil {
+		a.saveErr = a.messages().SettingsSaveFailed(err.Error())
+	}
+}
+
+// speechCommand is the whisper-cli command, the program and its arguments, a job runs to recognize speech with the settings as they are, as Settings › 语音识别 shows it: the program's name, the model's file name, the language, the threads and the hints, the audio file audio.wav as the job writes it.
+func (a *app) speechCommand() []string {
+	tools, _ := a.pipeline.(media.Tools)
+	model := filepath.Base(tools.WhisperModel)
+	if tools.WhisperModel == "" {
+		model = "<model>"
+	}
+	tools.WhisperModel = model
+	language := tools.SpeechLanguage
+	if language == "" {
+		language = "auto"
+	}
+	return append([]string{"whisper-cli"}, tools.WhisperArgs(language, "transcript", "audio.wav")...)
 }
 
 // useSpeechSource downloads the whisper models from source from the next download on (one already running keeps its source): source is one of media.SpeechSources. Any other source is ignored. Why the last download failed goes, as its hint to try the other source no longer applies.

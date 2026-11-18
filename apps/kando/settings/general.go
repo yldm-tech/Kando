@@ -48,7 +48,7 @@ func (g general) Render(cx *core.Scope) core.Node {
 		form.Label(locales.SettingsGeneralLibrary(cx), 6),
 		form.Card(libraryRows{g.s}),
 		form.Note(static(locales.SettingsGeneralLibraryNote(cx)), 10),
-		form.Card(language, form.Separator(true), notify, form.Separator(true), updateRows{g.s}),
+		form.Card(language, form.Separator(true), appearanceRow(cx, a), form.Separator(true), notify, form.Separator(true), updateRows{g.s}),
 		form.Label(locales.SettingsGeneralBackground(cx), 14),
 		form.Card(background{g.s}),
 		form.Label(locales.SettingsGeneralComponents(cx), 14, redetect),
