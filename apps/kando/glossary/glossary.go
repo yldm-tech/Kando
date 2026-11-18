@@ -134,9 +134,12 @@ func (s Store) Terms(id string) (series, global []core.Term) {
 	return series, s.Global
 }
 
-// Set puts t in the glossary of its scope, the series with id for a series term, in place of an entry for the same source there, and takes the same source out of the other one this store keeps, so a term moved from the series to every film, or back, is in one of them alone. A term whose scope is the film's, or the series' without a series, is taken out of both. It reports whether anything changed.
+// Set puts t in the glossary of its scope, the series with id for a series term, in place of an entry for the same source there, and takes the same source out of the other one this store keeps, so a term moved from the series to every film, or back, is in one of them alone. A series term for an id the store has no series of adds one, unnamed, as for a film whose job names a series glossary.json lost. A term whose scope is the film's, or the series' with no id, is taken out of both. It reports whether anything changed.
 func (s *Store) Set(id string, t core.Term) bool {
-	before := s.clone()
+	before := s.Clone()
+	if _, ok := s.Find(id); !ok && id != "" && t.Scope == core.ScopeSeries && t.Valid() {
+		s.Series = append(s.Series, Series{ID: id})
+	}
 	series, hasSeries := s.Find(id)
 	switch {
 	case t.Scope == core.ScopeGlobal:
@@ -155,7 +158,7 @@ func (s *Store) Set(id string, t core.Term) bool {
 
 // Remove takes source out of the global terms and out of the series with id, and reports whether it was in either.
 func (s *Store) Remove(id, source string) bool {
-	before := s.clone()
+	before := s.Clone()
 	s.Global = core.RemoveTerm(s.Global, source)
 	if series, ok := s.Find(id); ok {
 		series.Terms = core.RemoveTerm(series.Terms, source)
@@ -163,7 +166,8 @@ func (s *Store) Remove(id, source string) bool {
 	return !before.equal(*s)
 }
 
-func (s Store) clone() Store {
+// Clone is a copy of s that shares nothing with it, so a change to one of them leaves the other as it was.
+func (s Store) Clone() Store {
 	out := Store{path: s.path, Global: slices.Clone(s.Global)}
 	for _, series := range s.Series {
 		series.Terms = slices.Clone(series.Terms)

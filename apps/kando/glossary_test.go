@@ -92,6 +92,124 @@ func TestTermsTabKeepsEachScopeWhereItBelongs(t *testing.T) {
 	}
 }
 
+// glossaryBlock keeps glossary.json from being written, a directory standing where its temporary file goes, until the returned func takes it away.
+func glossaryBlock(t *testing.T, a *app) func() {
+	t.Helper()
+	tmp := a.gloss.store.Path() + ".tmp"
+	if err := os.MkdirAll(filepath.Join(tmp, "x"), 0o700); err != nil {
+		t.Fatal(err)
+	}
+	return func() {
+		if err := os.RemoveAll(tmp); err != nil {
+			t.Fatal(err)
+		}
+	}
+}
+
+// A term moved out of the film's own while glossary.json cannot be written stays in the film's file, and a series term moved on from there stays in the series, in memory as on disk.
+func TestAMovedTermIsKeptWhenTheGlossaryCannotBeSaved(t *testing.T) {
+	a, tt, own := glossaryOpen(t)
+	msgs := testlocale.Messages()
+	tt.Type("id:film-term-source", "Hello")
+	tt.Type("id:film-term-target", "哈喽")
+	tt.Press("id:film-term-add")
+	want := []core.Term{{Source: "Hello", Target: "哈喽", Scope: core.ScopeFilm, Origin: core.OriginUser}}
+
+	unblock := glossaryBlock(t, a)
+	tt.Press("id:film-term-scope")
+	if terms, err := media.LoadTerms(own); err != nil || !reflect.DeepEqual(terms, want) {
+		t.Fatalf("after a failed move to the series the film's file holds %+v, %v", terms, err)
+	}
+	if !reflect.DeepEqual(a.gloss.film, want) {
+		t.Fatalf("after a failed move to the series the film holds %+v", a.gloss.film)
+	}
+	if series, global := a.gloss.store.Terms("geo"); len(series) != 0 || len(global) != 0 {
+		t.Fatalf("after a failed move the store holds series %+v, global %+v", series, global)
+	}
+	if a.player.film.osd != msgs.GlossarySaveFailed() {
+		t.Fatalf("the picture says %q", a.player.film.osd)
+	}
+
+	unblock()
+	tt.Press("id:film-term-scope")
+	if series, _ := a.gloss.store.Terms("geo"); len(series) != 1 {
+		t.Fatalf("the move to the series was not kept: %+v", series)
+	}
+	glossaryBlock(t, a)
+	tt.Press("id:film-term-scope")
+	if series, global := a.gloss.store.Terms("geo"); len(series) != 1 || len(global) != 0 {
+		t.Fatalf("after a failed move to every film the store holds series %+v, global %+v", series, global)
+	}
+	if terms := a.FilmTerms(); len(terms) != 1 || terms[0].Scope != core.ScopeSeries {
+		t.Fatalf("after a failed move to every film the film lists %+v", terms)
+	}
+	saved, err := glossary.Load(a.gloss.store.Path())
+	if series, global := saved.Terms("geo"); err != nil || len(series) != 1 || len(global) != 0 {
+		t.Fatalf("glossary.json holds %+v, %v", saved, err)
+	}
+}
+
+// While glossary.json cannot be read, a term of the film's own is not moved out of its file, to the series or to every film, since glossary.json is not written over.
+func TestAFilmTermStaysWhileTheGlossaryCannotBeRead(t *testing.T) {
+	a, tt, own := glossaryOpen(t)
+	msgs := testlocale.Messages()
+	tt.Type("id:film-term-source", "Hello")
+	tt.Type("id:film-term-target", "哈喽")
+	tt.Press("id:film-term-add")
+	want := []core.Term{{Source: "Hello", Target: "哈喽", Scope: core.ScopeFilm, Origin: core.OriginUser}}
+	path := a.gloss.store.Path()
+	if err := os.WriteFile(path, []byte("{"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	apply(tt, a, a.glossaryLoad)
+	if a.gloss.storeErr == nil {
+		t.Fatal("a glossary.json that is not JSON read")
+	}
+
+	// The job still names the series glossary.json held, which the store no longer has.
+	tt.Press("id:film-term-scope")
+	if terms, _ := media.LoadTerms(own); !reflect.DeepEqual(terms, want) {
+		t.Fatalf("moved to the series, the film's file holds %+v", terms)
+	}
+	if a.player.film.osd != msgs.GlossaryUnreadable() {
+		t.Fatalf("the picture says %q", a.player.film.osd)
+	}
+	tt.Press("id:film-terms-leave-series")
+	tt.Press("id:film-term-scope")
+	if terms, _ := media.LoadTerms(own); !reflect.DeepEqual(terms, want) {
+		t.Fatalf("moved to every film, the film's file holds %+v", terms)
+	}
+	if data, _ := os.ReadFile(path); string(data) != "{" {
+		t.Fatalf("glossary.json was written over: %s", data)
+	}
+	if terms := a.FilmTerms(); !reflect.DeepEqual(terms, want) {
+		t.Fatalf("the film lists %+v", terms)
+	}
+}
+
+// A film whose terms file a newer Kando wrote keeps its glossary as it was: a term moved from every film to the film's own stays with every film.
+func TestATermStaysWhenTheFilmsFileIsNewer(t *testing.T) {
+	a, tt, own := glossaryOpen(t)
+	msgs := testlocale.Messages()
+	apply(tt, a, func() {
+		a.gloss.store.Set("geo", core.Term{Source: "delta", Target: "三角洲", Scope: core.ScopeGlobal})
+	})
+	newer := []byte(`{"version": 2, "terms": [{"source": "a", "target": "b", "scope": "film"}]}`)
+	if err := os.WriteFile(own, newer, 0o600); err != nil {
+		t.Fatal(err)
+	}
+	tt.Press("id:film-term-scope")
+	if data, _ := os.ReadFile(own); string(data) != string(newer) {
+		t.Fatalf("the newer file was written over: %s", data)
+	}
+	if _, global := a.gloss.store.Terms("geo"); len(global) != 1 || global[0].Source != "delta" {
+		t.Fatalf("the global term was taken out: %+v", global)
+	}
+	if a.player.film.osd != msgs.GlossaryNewer() {
+		t.Fatalf("the picture says %q", a.player.film.osd)
+	}
+}
+
 // 不是系列 takes the open film out of its series, which library.json keeps: the series' terms no longer apply to it, and they stay with the series.
 func TestLeavingASeries(t *testing.T) {
 	a, tt, _ := glossaryOpen(t)

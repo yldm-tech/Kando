@@ -5,6 +5,7 @@ import (
 
 	"kando/apps/kando/live"
 	"kando/apps/kando/locales"
+	"kando/apps/kando/theme"
 	"kando/packages/core"
 
 	"github.com/nsgo-dev/nsgo/base"
@@ -32,11 +33,15 @@ type Glossary interface {
 	AddTerm()
 }
 
-// scopeColors are the pill of each scope (prototype script 3010): the film's a plain glass, a series' blue and every film's green.
-var scopeColors = map[core.TermScope]ns.Color{
-	core.ScopeFilm:   ns.RGBA(0xFFFFFF, 0.12),
-	core.ScopeSeries: ns.RGBA(0x64AAFF, 0.45),
-	core.ScopeGlobal: ns.RGBA(0x30D158, 0.35),
+// scopeColor is the pill of scope (prototype script 3010) in the palette under cx: the film's a plain glass, a series' the accent's blue and every film's green. It reads the palette, so it goes in a StyleFunc.
+func scopeColor(cx *ns.Scope, scope core.TermScope) ns.Color {
+	switch scope {
+	case core.ScopeSeries:
+		return ui.Alpha(theme.Of(cx).AccentInk(), 0.45)
+	case core.ScopeGlobal:
+		return ui.Alpha(theme.Of(cx).SuccessInk(), 0.35)
+	}
+	return ns.RGBA(0xFFFFFF, 0.12)
 }
 
 // scopeName is what the 术语 tab calls a scope in the language the interface shows under cx.
@@ -131,7 +136,7 @@ func (s *screen) termRow(cx *ns.Scope, term func() core.Term, index func() int, 
 					Style: ns.Style{FontSize: 13, LineHeight: 17, Color: onGlass}},
 				ns.Text{TestID: "film-term-meta", ContentFunc: meta, Style: ns.Style{FontSize: 11, LineHeight: 14, Color: onGlass, Opacity: ns.Alpha(0.6)}},
 			}},
-			pillButton(cx, pill{id: "film-term-scope", label: func() string { return scopeName(cx, term().Scope) }, name: scopeLabel, color: func() ns.Color { return scopeColors[term().Scope] },
+			pillButton(cx, pill{id: "film-term-scope", label: func() string { return scopeName(cx, term().Scope) }, name: scopeLabel, color: func() ns.Color { return scopeColor(cx, term().Scope) },
 				disabled: live.Func(a, func() bool { return !a.TermsWritable() }), press: live.Do(a, func() { a.CycleTermScope(source()) })}),
 			// A locked term's lock sits on a lighter disc, as the prototype marks it (template 978).
 			ns.View{Style: ns.Style{CornerRadius: 14, FlexShrink: 0},

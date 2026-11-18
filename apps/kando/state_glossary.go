@@ -46,12 +46,15 @@ func (a *app) glossaryLoad() {
 }
 
 // glossarySave writes glossary.json, and says on the picture when it could not; a file that could not be read at startup is not written over.
-func (a *app) glossarySave() bool {
+func (a *app) glossarySave() bool { return a.glossaryWrite(a.gloss.store) }
+
+// glossaryWrite writes store to glossary.json, and says on the picture when it could not; a file that could not be read at startup is not written over.
+func (a *app) glossaryWrite(store glossary.Store) bool {
 	if a.gloss.storeErr != nil {
 		a.flash(a.messages().GlossaryUnreadable())
 		return false
 	}
-	if err := a.gloss.store.Save(); err != nil {
+	if err := store.Save(); err != nil {
 		a.flash(a.messages().GlossarySaveFailed())
 		return false
 	}
@@ -245,27 +248,39 @@ func (a *app) glossaryTerm(source string) (core.Term, bool) {
 	return terms[i], true
 }
 
-// glossaryPut puts t in the glossary of its scope and takes the same words out of the others the open film has, so the film has one entry for them; a t without a target is taken out of all of them. It saves what changed and reports whether it could.
+// glossaryPut puts t in the glossary of its scope and takes the same words out of the others the open film has, so the film has one entry for them; a t without a target is taken out of all of them. It saves what changed and reports whether it could; when glossary.json cannot take the change, the film's terms file is written back as it was, so a term moved out of it is not lost.
 func (a *app) glossaryPut(t core.Term) bool {
 	job, _ := a.glossaryJob()
-	film := core.RemoveTerm(a.gloss.film, t.Source)
+	old := a.gloss.film
+	film := core.RemoveTerm(old, t.Source)
 	if t.Valid() && t.Scope == core.ScopeFilm {
 		film = core.SetTerm(film, t)
 	}
-	if !slices.Equal(film, a.gloss.film) && !a.glossarySetFilm(film) {
-		return false
-	}
-	store := a.gloss.store
+	// The change is made on a copy, which takes the place of the store once glossary.json holds it: a series' terms are shared with the store otherwise (glossary.Store.Clone).
+	store := a.gloss.store.Clone()
 	var changed bool
 	if t.Valid() {
-		changed = a.gloss.store.Set(job.Series, t)
+		changed = store.Set(job.Series, t)
 	} else {
-		changed = a.gloss.store.Remove(job.Series, t.Source)
+		changed = store.Remove(job.Series, t.Source)
 	}
-	if changed && !a.glossarySave() {
-		a.gloss.store = store
+	// A glossary.json that cannot be read is not written over, so the film's file is not changed either: a term moved out of it would be in neither.
+	if changed && a.gloss.storeErr != nil {
+		a.flash(a.messages().GlossaryUnreadable())
 		return false
 	}
+	filmChanged := !slices.Equal(film, old)
+	if filmChanged && !a.glossarySetFilm(film) {
+		return false
+	}
+	if changed && !a.glossaryWrite(store) {
+		// The film's file goes back to what it held; it says on the picture only if that could not be written either.
+		if filmChanged {
+			a.glossarySetFilm(old)
+		}
+		return false
+	}
+	a.gloss.store = store
 	return true
 }
 

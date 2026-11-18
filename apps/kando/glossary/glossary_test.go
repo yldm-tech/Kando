@@ -87,3 +87,31 @@ func TestSetMovesATermBetweenScopes(t *testing.T) {
 		t.Fatal("Name reports changes wrongly")
 	}
 }
+
+// A series term for a series the store does not have, as when glossary.json lost it while a film's job still names it, adds the series rather than dropping the term.
+func TestSetAddsTheSeriesATermNames(t *testing.T) {
+	var s Store
+	term := core.Term{Source: "meander", Target: "河曲", Scope: core.ScopeSeries}
+	if !s.Set("lost", term) {
+		t.Fatal("a series term for a series the store lacks changed nothing")
+	}
+	if series, ok := s.Find("lost"); !ok || series.Name != "" || len(series.Terms) != 1 {
+		t.Fatalf("series %+v %v", series, ok)
+	}
+	if s.Set("other", core.Term{Source: "delta", Target: "三角洲", Scope: core.ScopeGlobal}); len(s.Series) != 1 {
+		t.Fatalf("a global term added a series: %+v", s.Series)
+	}
+}
+
+// Clone shares nothing with the store it copies: a change to a series' terms in the copy leaves the store's as they were.
+func TestCloneSharesNoTerms(t *testing.T) {
+	var s Store
+	s.Name("s", "Series")
+	s.Set("s", core.Term{Source: "meander", Target: "河曲", Scope: core.ScopeSeries})
+	c := s.Clone()
+	c.Set("s", core.Term{Source: "meander", Target: "河曲", Scope: core.ScopeGlobal})
+	c.Set("s", core.Term{Source: "delta", Target: "三角洲", Scope: core.ScopeSeries})
+	if series, global := s.Terms("s"); len(series) != 1 || series[0].Source != "meander" || len(global) != 0 {
+		t.Fatalf("the store changed with its copy: series %+v, global %+v", series, global)
+	}
+}

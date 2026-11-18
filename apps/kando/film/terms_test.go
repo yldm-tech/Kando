@@ -3,8 +3,14 @@ package film
 import (
 	"testing"
 
+	"kando/apps/kando/live"
 	"kando/apps/kando/locales/testlocale"
+	"kando/apps/kando/theme"
 	"kando/packages/core"
+
+	ns "github.com/nsgo-dev/nsgo/core"
+	"github.com/nsgo-dev/nsgo/nsgotest"
+	"github.com/nsgo-dev/nsgo/ui"
 )
 
 // fakeGlossary is the fake app's glossary: the terms the tab lists and what the tab asks of them, kept as a real app would.
@@ -110,5 +116,28 @@ func TestTermsTabOfAFilmWithoutTermsFile(t *testing.T) {
 	}
 	if app.Exists("id:film-terms-series") {
 		t.Fatal("a film of no series names one")
+	}
+}
+
+// A term's scope pill is in the theme's colors for the dark player: a series' in the accent ink, every film's in the success ink, the film's own a plain glass.
+func TestTermScopePillReadsTheTheme(t *testing.T) {
+	a := newFakeApp()
+	a.side, a.writable, a.series, a.seriesFilms = "terms", true, "地理课", 3
+	a.terms = []core.Term{{Source: "delta", Target: "三角洲", Scope: core.ScopeSeries}}
+	var k theme.Colors
+	app := nsgotest.Start(t, func(cx *ns.Scope) ns.Node {
+		a.Attach(cx)
+		theme.Apply(cx)
+		return ns.View{Style: ns.Style{FlexGrow: 1, FlexShrink: 1, AlignItems: ns.AlignStretch}, Children: []ns.Node{ns.Func(func(cx *ns.Scope) ns.Node {
+			theme.Dark(cx)
+			k = theme.Of(cx)
+			return View{App: a, Item: live.Func(a, func() Item { return a.item })}
+		})}}
+	}, nsgotest.Size(1100, 720), nsgotest.Environment(testlocale.Environment(ns.Environment{OS: ns.OSMacOS, Idiom: ns.IdiomDesktop, AppleKeyboard: true})))
+	for _, want := range []ns.Color{ui.Alpha(k.AccentInk(), 0.45), ui.Alpha(k.SuccessInk(), 0.35), ns.RGBA(0xFFFFFF, 0.12)} {
+		if got := app.Find("id:film-term-scope").Style.Background; got != want {
+			t.Fatalf("the %s pill is %#x, want %#x", a.terms[0].Scope, uint32(got), uint32(want))
+		}
+		app.Press("id:film-term-scope")
 	}
 }
