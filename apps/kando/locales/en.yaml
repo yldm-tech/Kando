@@ -530,6 +530,128 @@ correctUndone:
 correctUnreadable:
   message: "This film’s corrections couldn’t be read, so they can’t be changed"
   description: "Message on the picture when the film's corrections file could not be read, which is then not written over."
+explainAnswering:
+  message: "Answering…"
+  description: "In place of the answer to a follow-up question about the line explained in the player's side panel, while the AI service answers it."
+explainAskFailed:
+  message: "No answer came back: {error}"
+  description: "In place of the answer to a follow-up question about the line explained, when the AI service failed to answer; error is the service's reason, as it gave it."
+  placeholders:
+    error: { type: "String", example: "401 Unauthorized" }
+explainAskLabel:
+  message: "Ask About This Line"
+  description: "Accessible name of the field under a line's explanation in the player's side panel, where a follow-up question about the line is typed."
+explainAskPlaceholder:
+  message: "Ask about this line… ({key} to send)"
+  description: "Placeholder of the follow-up question field under a line's explanation; key is the key that sends it as the system writes it (Return on a Mac, Enter elsewhere)."
+  placeholders:
+    key: { type: "String", example: "↩" }
+explainBack:
+  message: "Back to Subtitles"
+  description: "Accessible name of the button at the top of a line's explanation in the player's side panel that goes back to the subtitle list; the button shows ‹ and the Subtitles tab's name."
+explainBreakdown:
+  message: "Breakdown"
+  description: "Heading of the section of a line's explanation that takes its key words and phrases one by one."
+explainBusy:
+  message: "Asking {model} to explain the line…"
+  description: "In place of a line's explanation in the player's side panel while the AI model explains it."
+  placeholders:
+    model: { type: "String", example: "gpt-4o-mini" }
+explainCard:
+  message: "Line Explanation"
+  description: "Accessible name of the explanation of a subtitle line that the player's side panel shows in place of its tabs."
+explainFailed:
+  message: "No explanation came back: {error}"
+  description: "In place of a line's explanation when the AI service failed to explain it; error is the service's reason, as it gave it."
+  placeholders:
+    error: { type: "String", example: "401 Unauthorized" }
+explainMeaning:
+  message: "Meaning"
+  description: "Heading of the section of a line's explanation that says what the whole line means."
+explainMore:
+  message: "More: Tone and Related Expressions"
+  description: "Button under a line's explanation that shows its last two sections, the line's tone and related expressions."
+explainNoAI:
+  message: "Explaining lines needs an AI service. Choose a model in “AI Service” first."
+  description: "In place of a line's explanation, or of the answer to a follow-up question, when no AI service is set."
+explainNote:
+  message: "Written by {model} · from this line and the ones before it only"
+  description: "Footnote under a line's explanation when a cloud AI service wrote it: which model, and that it was given only this line and the lines before it, nothing that comes later."
+  placeholders:
+    model: { type: "String", example: "gpt-4o-mini" }
+explainNoteLocal:
+  message: "Written on this computer by {model} · from this line and the ones before it only"
+  description: "Footnote under a line's explanation when a model running on this computer (Ollama, LM Studio) wrote it, so nothing left the computer: which model, and that it was given only this line and the lines before it."
+  placeholders:
+    model: { type: "String", example: "qwen2.5:7b" }
+explainOsdInNotes:
+  message: "This line is already in your notes"
+  description: "Message on the picture when Save Line to Notes is pressed for a line saved already."
+explainOsdNoted:
+  message: "Saved to notes · it will come up in review"
+  description: "Message on the picture once a line explained went into the saved lines, which the daily review asks, with the explanation as its note."
+explainRelated:
+  message: "Related Expressions"
+  description: "Heading of the section of a line's explanation that lists expressions related to it."
+explainSave:
+  message: "Save Line to Notes"
+  description: "Button under a line's explanation that saves the line, with the explanation as its note, so it comes up in the daily review."
+explainSaved:
+  message: "In Notes · it will come up in review"
+  description: "The Save Line to Notes button once the line is saved."
+explainSettings:
+  message: "Open AI Service Settings"
+  description: "Button in place of a line's explanation that opens the AI Service section of Settings, when no AI service could explain it."
+explainTerms:
+  message: "Terms"
+  description: "Heading of the section of a line's explanation that lists the terms of the film's glossary the line holds."
+explainTone:
+  message: "Tone"
+  description: "Heading of the section of a line's explanation that says its tone or the situation it is said in."
+explainTranslation:
+  message: "About the Translation"
+  description: "Heading of the section of a line's explanation about its translation: why it is translated so, whether the tone fits."
+recapBusy:
+  message: "Summing up what you watched…"
+  description: "On the Recap card of a film opened where it stopped last time, while the AI service sums up the part already watched."
+recapCard:
+  message: "Recap"
+  description: "Accessible name of the card over the picture when a film opens where it stopped last time: what happened in the part watched, and where to play from."
+recapClose:
+  message: "Close Recap"
+  description: "Accessible name and tooltip of the × that closes the Recap card."
+recapContinue:
+  message: "Continue from {at}"
+  description: "Button of the Recap card that plays the film on from where it stopped last time."
+  placeholders:
+    at: { type: "String", example: "1:40" }
+recapExcerptNote:
+  message: "Lines you watched, not summed up: no AI service can answer"
+  description: "Footnote of the Recap card when no AI service could sum up the part watched (none set, or offline mode with a cloud service), so the card shows three lines of it as they are."
+recapFailedNote:
+  message: "Lines you watched: the AI service could not sum them up"
+  description: "Footnote of the Recap card when the AI service failed to sum up the part watched, so the card shows three lines of it as they are."
+recapHeading:
+  message: "Previously"
+  description: "Small heading over the moments of the part watched on the Recap card."
+recapLastAt:
+  message: "You stopped at {at}"
+  description: "Title of the Recap card: where the film stopped last time."
+  placeholders:
+    at: { type: "String", example: "1:40" }
+recapNote:
+  message: "Only what you watched · summed up by {model}"
+  description: "Footnote of the Recap card when a cloud AI service summed up the part watched: only that part was sent, and which model wrote the summary."
+  placeholders:
+    model: { type: "String", example: "gpt-4o-mini" }
+recapNoteLocal:
+  message: "Only what you watched · summed up on this computer by {model}"
+  description: "Footnote of the Recap card when a model running on this computer (Ollama, LM Studio) summed up the part watched, so nothing left the computer."
+  placeholders:
+    model: { type: "String", example: "qwen2.5:7b" }
+recapStartOver:
+  message: "Start Over"
+  description: "Button of the Recap card that plays the film from its start."
 subexportBilingual:
   message: "Both"
   description: "Choice in the Export Subtitles dialog: export each line's translation and original together."
@@ -888,7 +1010,7 @@ filmDismiss:
   description: "Close button of the upload notice over the picture."
 filmExplainLine:
   message: "Explain Line"
-  description: "First item of a subtitle line's right-click menu in the side panel: the AI service explains the line's meaning, key words and grammar in the command palette."
+  description: "First item of a subtitle line's right-click menu in the side panel: the AI service explains the line's meaning, key words and grammar in the side panel, in place of the subtitle list."
 filmFaceBold:
   message: "Bold {line}"
   description: "Accessible name of a line's bold toggle."
@@ -2823,27 +2945,9 @@ paletteAsking:
   description: "Answer card while the question is on its way to the AI model."
   placeholders:
     model: { type: "String", example: "gpt-4o-mini" }
-paletteExplainFailed:
-  message: "No explanation came back: {error}"
-  description: "Explanation card when the AI service returned no explanation of the line; error is the service's error message."
-  placeholders:
-    error: { type: "String", example: "context deadline exceeded" }
 paletteExplainLine:
   message: "Explain Line"
-  description: "Study menu item and shortcut row (E): the AI service explains the subtitle line playing, its meaning, key words and grammar, in the command palette."
-paletteExplainNoAI:
-  message: "Explaining lines needs an AI service. Choose a model in “AI Service” first."
-  description: "Explanation card when Explain Line was chosen with no AI service set."
-paletteExplainNote:
-  message: "Explained by {model}"
-  description: "Footnote under the explanation of a subtitle line (Explain Line): which model explained it."
-  placeholders:
-    model: { type: "String", example: "gpt-4o-mini" }
-paletteExplaining:
-  message: "Asking {model} to explain the line…"
-  description: "Explanation card while the line is on its way to the AI model (Explain Line)."
-  placeholders:
-    model: { type: "String", example: "gpt-4o-mini" }
+  description: "Study menu item and shortcut row (E): the AI service explains the subtitle line playing, its meaning, key words and grammar, in the player's side panel."
 paletteFieldLabel:
   message: "Films, commands or watched lines"
   description: "Accessible name of the command palette's field over the library, where it finds films, commands and lines but takes no question."
@@ -2866,9 +2970,6 @@ paletteHeadingAnswer:
 paletteHeadingCommands:
   message: "Commands"
   description: "Heading of the commands the command palette found."
-paletteHeadingExplain:
-  message: "Explanation"
-  description: "Heading of the card with the explanation of a subtitle line (Explain Line), in place of paletteHeadingAnswer."
 paletteHeadingFilms:
   message: "Films"
   description: "Heading of the films of the library whose names hold what was typed in the command palette; choosing one plays it."
@@ -4706,7 +4807,7 @@ settingsPrivacySaveFailed:
   placeholders:
     error: { type: "String", example: "permission denied" }
 settingsPrivacyStepAI:
-  message: "Translation, proofreading, explanations and word lookups"
+  message: "Translation, proofreading, explanations, recaps and word lookups"
   description: "Row of the network table in Settings › Privacy: what the AI service does."
 settingsPrivacyStepAICloud:
   message: "{service}, which receives the subtitle text"

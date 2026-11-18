@@ -39,8 +39,6 @@ type Answer struct {
 	Note string
 	// Action is a button under the text, such as one that opens the settings that make answers possible; "" for none.
 	Action string
-	// Explain heads the card as the explanation of a line (Explain Line) rather than as an answer to a question.
-	Explain bool
 }
 
 // View is what the palette shows.
@@ -418,12 +416,7 @@ func (c answer) Render(cx *core.Scope) core.Node {
 			}
 		})
 		return core.Group{
-			heading(func() string {
-				if get().Explain {
-					return locales.PaletteHeadingExplain(cx)
-				}
-				return locales.PaletteHeadingAnswer(cx)
-			}, 4),
+			heading(func() string { return locales.PaletteHeadingAnswer(cx) }, 4),
 			core.View{Style: core.Style{Margin: core.Edges{Right: 2, Bottom: 6, Left: 2}, Padding: core.Symmetric(12, 14), CornerRadius: cardRadius, Background: cardFill, Gap: 8, AlignItems: core.AlignStretch},
 				Children: []core.Node{
 					// The keyboard stays in the field while the question is on its way, so a screen reader reads the answer as it comes.
@@ -515,5 +508,5 @@ func equalAnswer(a, b *Answer) bool {
 	if a == nil || b == nil {
 		return a == b
 	}
-	return a.Busy == b.Busy && a.Text == b.Text && a.Note == b.Note && a.Action == b.Action && a.Explain == b.Explain && slices.Equal(a.Refs, b.Refs)
+	return a.Busy == b.Busy && a.Text == b.Text && a.Note == b.Note && a.Action == b.Action && slices.Equal(a.Refs, b.Refs)
 }

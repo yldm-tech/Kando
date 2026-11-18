@@ -73,6 +73,8 @@ type app struct {
 	subs     subscribeUI // state_subscribe.go
 	vocab    vocabUI     // state_vocab.go
 	export   subexportUI // state_subexport.go
+	explain  explainUI   // state_explain.go
+	recap    recapUI     // state_recap.go
 }
 
 // newApp makes the app's state. update is how background jobs report; nil reports through the revision (appUpdate), as main and the tests that start the app with nsgotest do, while a test that runs no app passes its own to apply the reports itself.
@@ -113,6 +115,8 @@ func newApp(pipeline media.Pipeline, update func(fn func())) *app {
 		subs:     newSubscribeUI(),
 		vocab:    newVocabUI(),
 		export:   newSubexportUI(),
+		explain:  newExplainUI(),
+		recap:    newRecapUI(),
 	}
 	if a.update == nil {
 		a.update = a.appUpdate

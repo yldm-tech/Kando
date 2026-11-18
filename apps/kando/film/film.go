@@ -19,6 +19,8 @@ type App interface {
 	live.State
 	Corrector
 	Glossary
+	Explainer
+	Recapper
 	OpenKey() string
 	SetOpenKey(string)
 	StopPlayback()
@@ -163,7 +165,7 @@ type App interface {
 	FeedbackSubtitles()
 	// MoveOpenFilmMenu is the submenu 移到资料库 of ⋯ for the open film: the other libraries Kando knows, each moving the film there when chosen, which closes it; none when there is no other library.
 	MoveOpenFilmMenu(cx *ns.Scope) []nsdesktop.MenuItem
-	// ExplainLine has the AI service explain cue i, its meaning, key words and grammar, in the command palette.
+	// ExplainLine has the AI service explain cue i, its meaning, key words and grammar, in the side panel (SideExplain), and holds the film.
 	ExplainLine(i int)
 	// LineSaved reports whether cue i is among the lines the learner saved; ToggleSaveLine saves it, or removes it from them, and says which on the picture.
 	LineSaved(i int) bool

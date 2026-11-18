@@ -1957,7 +1957,7 @@ func playerOpenWithLines(t *testing.T) (*app, *nsgotest.App, chan func()) {
 // playerOpenWithLinesAndAI is playerOpenWithLines with an AI service set, which explains every line it is asked about; seen is what it was sent.
 func playerOpenWithLinesAndAI(t *testing.T) (*app, *nsgotest.App, chan func(), *[]string) {
 	t.Helper()
-	srv, seen := fakeLLM(t, `{"answer":"讲解。","refs":[]}`)
+	srv, seen := fakeLLM(t, `{"meaning":"讲解。"}`)
 	a, tt, updates, item := playerFilm(t, 12, media.Tools{Translator: media.ChatTranslator{BaseURL: srv.URL + "/v1", APIKey: "k", Model: "m1"}})
 	playerOpenFilm(t, a, tt, updates, item)
 	playerLoadFilm(tt, a, 12*time.Second)
@@ -1994,14 +1994,12 @@ func playerWantHeldOn(t *testing.T, a *app, tt *nsgotest.App, updates chan func(
 	}
 	*seen = nil
 	tt.Key("e")
-	waitUntil(t, tt, a, updates, func() bool { return a.palette.answer != nil && !a.palette.answer.busy })
-	if sent := strings.Join(*seen, "\n"); !strings.Contains(sent, "要讲解的一句：["+cmdpalette.Clock(lineCues[i].Start)+"] "+original) {
-		t.Fatalf("E explained %q, want %q", sent, original)
+	waitUntil(t, tt, a, updates, func() bool { return a.explain.line.open && !a.explain.line.busy })
+	// The line is sent the first time it is explained; held on it again, E shows what was said of it then (explainUI.cache).
+	if sent := strings.Join(*seen, "\n"); a.explain.line.index != i || a.explain.line.line.Original != original || len(*seen) > 0 && !strings.Contains(sent, "要讲解的一句：["+cmdpalette.Clock(lineCues[i].Start)+"] "+original) {
+		t.Fatalf("E explained line %d %q, sent %q, want %q", a.explain.line.index, a.explain.line.line.Original, sent, original)
 	}
-	tt.Key("escape")
-	if a.palette.open {
-		t.Fatal("Escape left the palette open")
-	}
+	apply(tt, a, a.CloseExplain)
 	before := len(playerSeeks(tt))
 	tt.Key("r")
 	if got := playerSeeks(tt); len(got) != before+1 || got[len(got)-1] != lineCues[i].Start+a.player.film.delay {

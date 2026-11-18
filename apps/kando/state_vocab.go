@@ -277,7 +277,7 @@ func (a *app) ToggleLookupWord() {
 	a.savedWrite()
 }
 
-// ExplainLookupLine is the card's Explain Line: the card closes and the command palette explains the line the word was clicked in (ExplainLine).
+// ExplainLookupLine is the card's Explain Line: the card closes and the side panel explains the line the word was clicked in (ExplainLine).
 func (a *app) ExplainLookupLine() {
 	i := a.vocab.lookup.cue
 	a.CloseLookup()

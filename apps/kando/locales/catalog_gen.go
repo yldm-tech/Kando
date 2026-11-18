@@ -493,6 +493,16 @@ var Parameters = map[string][]string{
 	"CorrectStepStart":                         {"line"},
 	"CorrectUndo":                              {"step"},
 	"CorrectUndone":                            {"step"},
+	"ExplainAskFailed":                         {"error_"},
+	"ExplainAskPlaceholder":                    {"key"},
+	"ExplainBusy":                              {"model"},
+	"ExplainFailed":                            {"error_"},
+	"ExplainNote":                              {"model"},
+	"ExplainNoteLocal":                         {"model"},
+	"RecapContinue":                            {"at"},
+	"RecapLastAt":                              {"at"},
+	"RecapNote":                                {"model"},
+	"RecapNoteLocal":                           {"model"},
 	"SubexportCountEdited":                     {"count"},
 	"SubexportCountLines":                      {"count"},
 	"SubexportCountMissing":                    {"count", "how"},
@@ -672,9 +682,6 @@ var Parameters = map[string][]string{
 	"PaletteAskFailed":                         {"error_"},
 	"PaletteAskRow":                            {"question"},
 	"PaletteAsking":                            {"model"},
-	"PaletteExplainFailed":                     {"error_"},
-	"PaletteExplainNote":                       {"model"},
-	"PaletteExplaining":                        {"model"},
 	"PaletteFooter":                            {"platform"},
 	"PaletteFooterFilm":                        {"platform"},
 	"PaletteJumpTo":                            {"time_"},
@@ -924,6 +931,16 @@ type Translation struct {
 	CorrectStepStart                         func(line int) string
 	CorrectUndo                              func(step string) string
 	CorrectUndone                            func(step string) string
+	ExplainAskFailed                         func(error_ string) string
+	ExplainAskPlaceholder                    func(key string) string
+	ExplainBusy                              func(model string) string
+	ExplainFailed                            func(error_ string) string
+	ExplainNote                              func(model string) string
+	ExplainNoteLocal                         func(model string) string
+	RecapContinue                            func(at string) string
+	RecapLastAt                              func(at string) string
+	RecapNote                                func(model string) string
+	RecapNoteLocal                           func(model string) string
 	SubexportCountEdited                     func(count int) string
 	SubexportCountLines                      func(count int) string
 	SubexportCountMissing                    func(count int, how string) string
@@ -1103,9 +1120,6 @@ type Translation struct {
 	PaletteAskFailed                         func(error_ string) string
 	PaletteAskRow                            func(question string) string
 	PaletteAsking                            func(model string) string
-	PaletteExplainFailed                     func(error_ string) string
-	PaletteExplainNote                       func(model string) string
-	PaletteExplaining                        func(model string) string
 	PaletteFooter                            func(platform string) string
 	PaletteFooterFilm                        func(platform string) string
 	PaletteJumpTo                            func(time_ string) string
@@ -1445,6 +1459,30 @@ const (
 	textCorrectSubmit
 	textCorrectTranslation
 	textCorrectUnreadable
+	textExplainAnswering
+	textExplainAskLabel
+	textExplainBack
+	textExplainBreakdown
+	textExplainCard
+	textExplainMeaning
+	textExplainMore
+	textExplainNoAI
+	textExplainOsdInNotes
+	textExplainOsdNoted
+	textExplainRelated
+	textExplainSave
+	textExplainSaved
+	textExplainSettings
+	textExplainTerms
+	textExplainTone
+	textExplainTranslation
+	textRecapBusy
+	textRecapCard
+	textRecapClose
+	textRecapExcerptNote
+	textRecapFailedNote
+	textRecapHeading
+	textRecapStartOver
 	textSubexportBilingual
 	textSubexportCancel
 	textSubexportContent
@@ -1890,12 +1928,10 @@ const (
 	textOnboardingWelcome
 	textOnboardingWelcomeDescription
 	textPaletteExplainLine
-	textPaletteExplainNoAI
 	textPaletteFieldLabel
 	textPaletteFieldLabelFilm
 	textPaletteHeadingAnswer
 	textPaletteHeadingCommands
-	textPaletteHeadingExplain
 	textPaletteHeadingFilms
 	textPaletteHeadingLines
 	textPaletteMenuItem
@@ -2690,6 +2726,30 @@ var keyOfText = [numTexts]string{
 	"correctSubmit",
 	"correctTranslation",
 	"correctUnreadable",
+	"explainAnswering",
+	"explainAskLabel",
+	"explainBack",
+	"explainBreakdown",
+	"explainCard",
+	"explainMeaning",
+	"explainMore",
+	"explainNoAI",
+	"explainOsdInNotes",
+	"explainOsdNoted",
+	"explainRelated",
+	"explainSave",
+	"explainSaved",
+	"explainSettings",
+	"explainTerms",
+	"explainTone",
+	"explainTranslation",
+	"recapBusy",
+	"recapCard",
+	"recapClose",
+	"recapExcerptNote",
+	"recapFailedNote",
+	"recapHeading",
+	"recapStartOver",
 	"subexportBilingual",
 	"subexportCancel",
 	"subexportContent",
@@ -3135,12 +3195,10 @@ var keyOfText = [numTexts]string{
 	"onboardingWelcome",
 	"onboardingWelcomeDescription",
 	"paletteExplainLine",
-	"paletteExplainNoAI",
 	"paletteFieldLabel",
 	"paletteFieldLabelFilm",
 	"paletteHeadingAnswer",
 	"paletteHeadingCommands",
-	"paletteHeadingExplain",
 	"paletteHeadingFilms",
 	"paletteHeadingLines",
 	"paletteMenuItem",
@@ -3933,6 +3991,30 @@ var textsEn = i18n.NewTexts(""+
 	"Save"+
 	"Translation"+
 	"This film’s corrections couldn’t be read, so they can’t be changed"+
+	"Answering…"+
+	"Ask About This Line"+
+	"Back to Subtitles"+
+	"Breakdown"+
+	"Line Explanation"+
+	"Meaning"+
+	"More: Tone and Related Expressions"+
+	"Explaining lines needs an AI service. Choose a model in “AI Service” first."+
+	"This line is already in your notes"+
+	"Saved to notes · it will come up in review"+
+	"Related Expressions"+
+	"Save Line to Notes"+
+	"In Notes · it will come up in review"+
+	"Open AI Service Settings"+
+	"Terms"+
+	"Tone"+
+	"About the Translation"+
+	"Summing up what you watched…"+
+	"Recap"+
+	"Close Recap"+
+	"Lines you watched, not summed up: no AI service can answer"+
+	"Lines you watched: the AI service could not sum them up"+
+	"Previously"+
+	"Start Over"+
 	"Both"+
 	"Cancel"+
 	"Lines"+
@@ -4378,12 +4460,10 @@ var textsEn = i18n.NewTexts(""+
 	"Welcome to Kando"+
 	"Paste a YouTube or Bilibili link, or drag in a local video, and learn as you watch. First, choose your languages."+
 	"Explain Line"+
-	"Explaining lines needs an AI service. Choose a model in “AI Service” first."+
 	"Films, commands or watched lines"+
 	"Commands, lines or questions"+
 	"Answer"+
 	"Commands"+
-	"Explanation"+
 	"Films"+
 	"Lines"+
 	"Ask This Film / Commands…"+
@@ -4784,7 +4864,7 @@ var textsEn = i18n.NewTexts(""+
 	"Data on this computer"+
 	"Offline mode"+
 	"Kando doesn't download videos from links, call a cloud AI service, upload, or download components and models. Speech recognition still runs on this computer, and so do translation and proofreading with Ollama or LM Studio."+
-	"Translation, proofreading, explanations and word lookups"+
+	"Translation, proofreading, explanations, recaps and word lookups"+
 	"Browse"+
 	"Web pages you open in Kando"+
 	"Download from a link"+
@@ -5173,6 +5253,30 @@ var textsEn = i18n.NewTexts(""+
 		4,
 		11,
 		72,
+		12,
+		19,
+		17,
+		9,
+		16,
+		7,
+		34,
+		79,
+		34,
+		43,
+		19,
+		18,
+		37,
+		24,
+		5,
+		4,
+		21,
+		30,
+		5,
+		11,
+		58,
+		55,
+		10,
+		10,
 		4,
 		6,
 		5,
@@ -5618,12 +5722,10 @@ var textsEn = i18n.NewTexts(""+
 		16,
 		113,
 		12,
-		79,
 		32,
 		28,
 		6,
 		8,
-		11,
 		5,
 		5,
 		27,
@@ -6024,7 +6126,7 @@ var textsEn = i18n.NewTexts(""+
 		21,
 		12,
 		222,
-		56,
+		64,
 		6,
 		27,
 		20,
@@ -6416,6 +6518,30 @@ var textsJa = i18n.NewTexts(""+
 	"保存"+
 	"訳文"+
 	"この作品の修正を読み込めないため、変更できません"+
+	"回答しています…"+
+	"この行について質問"+
+	"字幕に戻る"+
+	"語句"+
+	"この行の解説"+
+	"意味"+
+	"続き：語調と関連表現"+
+	"セリフを解説するには AI サービスが必要です。まず「AI サービス」でモデルを選んでください。"+
+	"この行はすでにノートにあります"+
+	"ノートに保存しました · 復習に出ます"+
+	"関連表現"+
+	"この行をノートに保存"+
+	"ノートにあります · 復習に出ます"+
+	"「AI サービス」設定を開く"+
+	"用語"+
+	"語調"+
+	"この訳について"+
+	"見た部分をまとめています…"+
+	"これまでのあらすじ"+
+	"あらすじを閉じる"+
+	"見たセリフの抜粋 · 使える AI サービスがないため要約していません"+
+	"見たセリフの抜粋 · AI サービスが要約できませんでした"+
+	"これまで"+
+	"最初から見る"+
 	"2 か国語"+
 	"キャンセル"+
 	"内容"+
@@ -6861,12 +6987,10 @@ var textsJa = i18n.NewTexts(""+
 	"Kando へようこそ"+
 	"YouTube や bilibili のリンクを貼り付けるか、ローカル動画をドラッグすれば、観ながら学べます。まず言語を選びましょう。"+
 	"このセリフを解説"+
-	"セリフを解説するには AI サービスが必要です。まず「AI サービス」でモデルを選んでください。"+
 	"動画、コマンド、または見たセリフ"+
 	"コマンド、セリフ、または質問"+
 	"回答"+
 	"コマンド"+
-	"解説"+
 	"動画"+
 	"セリフ"+
 	"この動画に質問 / コマンド…"+
@@ -7267,7 +7391,7 @@ var textsJa = i18n.NewTexts(""+
 	"このコンピュータのデータ"+
 	"オフラインモード"+
 	"オンにすると、リンクから動画をダウンロードせず、クラウドの AI サービスを呼ばず、アップロードせず、コンポーネントやモデルもダウンロードしません。音声認識はこのコンピュータで続けて行い、Ollama や LM Studio を使うときは翻訳と校正も続けます。"+
-	"翻訳・校正・解説・単語検索"+
+	"翻訳・校正・解説・あらすじ・単語検索"+
 	"ブラウズ"+
 	"Kando で開いたウェブページ"+
 	"リンクからダウンロード"+
@@ -7656,6 +7780,30 @@ var textsJa = i18n.NewTexts(""+
 		6,
 		6,
 		72,
+		24,
+		27,
+		15,
+		6,
+		18,
+		6,
+		30,
+		130,
+		45,
+		52,
+		12,
+		30,
+		46,
+		36,
+		6,
+		6,
+		21,
+		39,
+		27,
+		24,
+		92,
+		76,
+		12,
+		18,
 		11,
 		15,
 		6,
@@ -8101,12 +8249,10 @@ var textsJa = i18n.NewTexts(""+
 		21,
 		165,
 		24,
-		130,
 		48,
 		42,
 		6,
 		12,
-		6,
 		6,
 		9,
 		39,
@@ -8507,7 +8653,7 @@ var textsJa = i18n.NewTexts(""+
 		36,
 		24,
 		346,
-		39,
+		54,
 		12,
 		36,
 		33,
@@ -8899,6 +9045,30 @@ var textsKo = i18n.NewTexts(""+
 	"저장"+
 	"번역"+
 	"이 영상의 수정 내용을 읽을 수 없어 바꿀 수 없습니다"+
+	"답변하는 중…"+
+	"이 대사에 대해 질문"+
+	"자막으로 돌아가기"+
+	"어구 풀이"+
+	"대사 설명"+
+	"의미"+
+	"더 보기: 어조와 관련 표현"+
+	"대사를 설명하려면 AI 서비스가 필요합니다. 먼저 ‘AI 서비스’에서 모델을 선택하십시오."+
+	"이 대사는 이미 노트에 있습니다"+
+	"노트에 저장했습니다 · 복습에 나옵니다"+
+	"관련 표현"+
+	"이 대사를 노트에 저장"+
+	"노트에 있음 · 복습에 나옵니다"+
+	"AI 서비스 설정 열기"+
+	"용어"+
+	"어조"+
+	"이 번역에 대해"+
+	"본 부분을 요약하는 중…"+
+	"지난 이야기"+
+	"지난 이야기 닫기"+
+	"본 대사 발췌 · 사용할 수 있는 AI 서비스가 없어 요약하지 않았습니다"+
+	"본 대사 발췌 · AI 서비스가 요약하지 못했습니다"+
+	"지난 내용"+
+	"처음부터 보기"+
 	"2개 언어"+
 	"취소"+
 	"내용"+
@@ -9344,12 +9514,10 @@ var textsKo = i18n.NewTexts(""+
 	"Kando에 오신 것을 환영합니다"+
 	"YouTube, Bilibili 링크를 붙여 넣거나 로컬 동영상을 끌어다 놓으면 보면서 배울 수 있습니다. 먼저 언어를 선택하세요."+
 	"이 대사 설명"+
-	"대사를 설명하려면 AI 서비스가 필요합니다. 먼저 ‘AI 서비스’에서 모델을 선택하십시오."+
 	"영상, 명령 또는 본 대사"+
 	"명령, 대사 또는 질문"+
 	"답변"+
 	"명령"+
-	"설명"+
 	"영상"+
 	"대사"+
 	"이 영상에 질문 / 명령…"+
@@ -9750,7 +9918,7 @@ var textsKo = i18n.NewTexts(""+
 	"이 컴퓨터의 데이터"+
 	"오프라인 모드"+
 	"켜면 링크의 동영상을 다운로드하지 않고, 클라우드 AI 서비스를 호출하지 않으며, 업로드하지 않고, 구성 요소와 모델도 다운로드하지 않습니다. 음성 인식은 이 컴퓨터에서 계속 진행되며 Ollama나 LM Studio를 쓸 때는 번역과 교정도 계속됩니다."+
-	"번역, 교정, 해설, 단어 찾기"+
+	"번역, 교정, 해설, 지난 이야기 요약, 단어 찾기"+
 	"탐색"+
 	"Kando에서 연 웹 페이지"+
 	"링크에서 다운로드"+
@@ -10139,6 +10307,30 @@ var textsKo = i18n.NewTexts(""+
 		6,
 		6,
 		72,
+		19,
+		27,
+		25,
+		13,
+		13,
+		6,
+		35,
+		120,
+		43,
+		54,
+		13,
+		30,
+		42,
+		26,
+		6,
+		6,
+		20,
+		33,
+		16,
+		23,
+		93,
+		65,
+		13,
+		19,
 		11,
 		6,
 		6,
@@ -10584,10 +10776,8 @@ var textsKo = i18n.NewTexts(""+
 		38,
 		153,
 		17,
-		120,
 		32,
 		28,
-		6,
 		6,
 		6,
 		6,
@@ -10990,7 +11180,7 @@ var textsKo = i18n.NewTexts(""+
 		26,
 		19,
 		321,
-		37,
+		62,
 		6,
 		29,
 		25,
@@ -11382,6 +11572,30 @@ var textsZhHans = i18n.NewTexts(""+
 	"提交"+
 	"译文"+
 	"这部影片的修改记录读不出来，不能更改"+
+	"正在回答…"+
+	"追问这句"+
+	"返回字幕"+
+	"拆解"+
+	"讲解这句"+
+	"意思"+
+	"展开：语气、相关表达"+
+	"讲解台词要用 AI 服务，先在「AI 服务」里选好一个模型。"+
+	"这句已在笔记里"+
+	"已存到笔记 · 会进入复习"+
+	"相关表达"+
+	"存这句到笔记"+
+	"已在笔记里 · 会进入复习"+
+	"打开「AI 服务」设置"+
+	"术语"+
+	"语气"+
+	"关于这句译文"+
+	"正在总结你看过的部分…"+
+	"前情提要"+
+	"关闭前情"+
+	"摘自你看过的台词 · 没有可用的 AI 服务，未作总结"+
+	"摘自你看过的台词 · AI 服务没能总结"+
+	"前情"+
+	"从头看"+
 	"双语"+
 	"取消"+
 	"内容"+
@@ -11827,12 +12041,10 @@ var textsZhHans = i18n.NewTexts(""+
 	"欢迎使用看懂"+
 	"粘贴 YouTube、哔哩哔哩链接或拖入本地视频，就能边看边学。先选好语言。"+
 	"讲解这句"+
-	"讲解台词要用 AI 服务，先在「AI 服务」里选好一个模型。"+
 	"影片、命令或看过的台词"+
 	"命令、台词或问题"+
 	"回答"+
 	"命令"+
-	"讲解"+
 	"影片"+
 	"台词"+
 	"问这部影片 / 命令…"+
@@ -12233,7 +12445,7 @@ var textsZhHans = i18n.NewTexts(""+
 	"本机数据"+
 	"离线模式"+
 	"开启后不下载在线视频、不调用云端 AI 服务、不上传，也不下载组件和模型。语音识别照常在本机进行；用 Ollama 或 LM Studio 时，翻译和校对也照常进行。"+
-	"翻译、校对、讲解和查词"+
+	"翻译、校对、讲解、前情提要和查词"+
 	"浏览"+
 	"在看懂里打开的网页"+
 	"下载在线视频"+
@@ -12622,6 +12834,30 @@ var textsZhHans = i18n.NewTexts(""+
 		6,
 		6,
 		54,
+		15,
+		12,
+		12,
+		6,
+		12,
+		6,
+		30,
+		76,
+		21,
+		34,
+		12,
+		18,
+		34,
+		27,
+		6,
+		6,
+		18,
+		33,
+		12,
+		12,
+		68,
+		49,
+		6,
+		9,
 		6,
 		6,
 		6,
@@ -13067,10 +13303,8 @@ var textsZhHans = i18n.NewTexts(""+
 		18,
 		98,
 		12,
-		76,
 		33,
 		24,
-		6,
 		6,
 		6,
 		6,
@@ -13473,7 +13707,7 @@ var textsZhHans = i18n.NewTexts(""+
 		12,
 		12,
 		203,
-		33,
+		48,
 		6,
 		27,
 		18,
@@ -13865,6 +14099,30 @@ var textsZhHant = i18n.NewTexts(""+
 	"提交"+
 	"譯文"+
 	"這部影片的修改紀錄讀不出來，不能更改"+
+	"正在回答…"+
+	"追問這句"+
+	"返回字幕"+
+	"拆解"+
+	"講解這句"+
+	"意思"+
+	"展開：語氣、相關表達"+
+	"講解台詞需要 AI 服務，請先在「AI 服務」中選好一個模型。"+
+	"這句已在筆記裡"+
+	"已存到筆記 · 會進入複習"+
+	"相關表達"+
+	"存這句到筆記"+
+	"已在筆記裡 · 會進入複習"+
+	"打開「AI 服務」設定"+
+	"術語"+
+	"語氣"+
+	"關於這句譯文"+
+	"正在總結你看過的部分…"+
+	"前情提要"+
+	"關閉前情"+
+	"摘自你看過的台詞 · 沒有可用的 AI 服務，未作總結"+
+	"摘自你看過的台詞 · AI 服務沒能總結"+
+	"前情"+
+	"從頭看"+
 	"雙語"+
 	"取消"+
 	"內容"+
@@ -14310,12 +14568,10 @@ var textsZhHant = i18n.NewTexts(""+
 	"歡迎使用看懂"+
 	"貼上 YouTube、嗶哩嗶哩連結或拖入本機影片，就能邊看邊學。先選好語言。"+
 	"講解這句"+
-	"講解台詞需要 AI 服務，請先在「AI 服務」中選好一個模型。"+
 	"影片、指令或看過的台詞"+
 	"指令、台詞或問題"+
 	"回答"+
 	"指令"+
-	"講解"+
 	"影片"+
 	"台詞"+
 	"問這部影片 / 指令…"+
@@ -14716,7 +14972,7 @@ var textsZhHant = i18n.NewTexts(""+
 	"本機資料"+
 	"離線模式"+
 	"開啟後不下載線上影片、不呼叫雲端 AI 服務、不上傳，也不下載元件和模型。語音辨識照常在本機進行；使用 Ollama 或 LM Studio 時，翻譯和校對也照常進行。"+
-	"翻譯、校對、講解和查詞"+
+	"翻譯、校對、講解、前情提要和查詞"+
 	"瀏覽"+
 	"在看懂裡開啟的網頁"+
 	"下載線上影片"+
@@ -15105,6 +15361,30 @@ var textsZhHant = i18n.NewTexts(""+
 		6,
 		6,
 		54,
+		15,
+		12,
+		12,
+		6,
+		12,
+		6,
+		30,
+		79,
+		21,
+		34,
+		12,
+		18,
+		34,
+		27,
+		6,
+		6,
+		18,
+		33,
+		12,
+		12,
+		68,
+		49,
+		6,
+		9,
 		6,
 		6,
 		6,
@@ -15550,10 +15830,8 @@ var textsZhHant = i18n.NewTexts(""+
 		18,
 		98,
 		12,
-		79,
 		33,
 		24,
-		6,
 		6,
 		6,
 		6,
@@ -15956,7 +16234,7 @@ var textsZhHant = i18n.NewTexts(""+
 		12,
 		12,
 		206,
-		33,
+		48,
 		6,
 		27,
 		18,
@@ -16377,6 +16655,36 @@ func Supply(lang string, t Translation) {
 	}
 	if t.CorrectUndone != nil {
 		s.CorrectUndone = t.CorrectUndone
+	}
+	if t.ExplainAskFailed != nil {
+		s.ExplainAskFailed = t.ExplainAskFailed
+	}
+	if t.ExplainAskPlaceholder != nil {
+		s.ExplainAskPlaceholder = t.ExplainAskPlaceholder
+	}
+	if t.ExplainBusy != nil {
+		s.ExplainBusy = t.ExplainBusy
+	}
+	if t.ExplainFailed != nil {
+		s.ExplainFailed = t.ExplainFailed
+	}
+	if t.ExplainNote != nil {
+		s.ExplainNote = t.ExplainNote
+	}
+	if t.ExplainNoteLocal != nil {
+		s.ExplainNoteLocal = t.ExplainNoteLocal
+	}
+	if t.RecapContinue != nil {
+		s.RecapContinue = t.RecapContinue
+	}
+	if t.RecapLastAt != nil {
+		s.RecapLastAt = t.RecapLastAt
+	}
+	if t.RecapNote != nil {
+		s.RecapNote = t.RecapNote
+	}
+	if t.RecapNoteLocal != nil {
+		s.RecapNoteLocal = t.RecapNoteLocal
 	}
 	if t.SubexportCountEdited != nil {
 		s.SubexportCountEdited = t.SubexportCountEdited
@@ -16914,15 +17222,6 @@ func Supply(lang string, t Translation) {
 	}
 	if t.PaletteAsking != nil {
 		s.PaletteAsking = t.PaletteAsking
-	}
-	if t.PaletteExplainFailed != nil {
-		s.PaletteExplainFailed = t.PaletteExplainFailed
-	}
-	if t.PaletteExplainNote != nil {
-		s.PaletteExplainNote = t.PaletteExplainNote
-	}
-	if t.PaletteExplaining != nil {
-		s.PaletteExplaining = t.PaletteExplaining
 	}
 	if t.PaletteFooter != nil {
 		s.PaletteFooter = t.PaletteFooter
@@ -19703,6 +20002,524 @@ func CorrectUnreadable(cx *core.Scope) string { return For(cx).CorrectUnreadable
 // CorrectUnreadable is the package's CorrectUnreadable in the language of msgs.
 func (msgs Messages) CorrectUnreadable() string { return msgs.text(textCorrectUnreadable) }
 
+// ExplainAnswering says "Answering…"
+// in the language the app shows under cx.
+//
+// In place of the answer to a follow-up question about the line explained in the player's side panel, while the AI service answers it.
+func ExplainAnswering(cx *core.Scope) string { return For(cx).ExplainAnswering() }
+
+// ExplainAnswering is the package's ExplainAnswering in the language of msgs.
+func (msgs Messages) ExplainAnswering() string { return msgs.text(textExplainAnswering) }
+
+// ExplainAskFailed says "No answer came back: {error}"
+// in the language the app shows under cx.
+//
+// In place of the answer to a follow-up question about the line explained, when the AI service failed to answer; error is the service's reason, as it gave it.
+func ExplainAskFailed(cx *core.Scope, error_ string) string { return For(cx).ExplainAskFailed(error_) }
+
+// ExplainAskFailed is the package's ExplainAskFailed in the language of msgs.
+func (msgs Messages) ExplainAskFailed(error_ string) string {
+	if i18n.IsPseudo(msgs.lang) {
+		return i18n.Pseudo(msgs.lang, Messages{lang: Source, mark: true}.ExplainAskFailed(error_))
+	}
+	for lang := msgs.lang; ; lang = i18n.Parent(lang) {
+		if f := supplied[lang].ExplainAskFailed; f != nil {
+			return f(error_)
+		}
+		switch lang {
+		case "", "en":
+			return "No answer came back: " + msgs.arg(error_)
+		case "ja":
+			return "回答を取得できませんでした：" + error_
+		case "ko":
+			return "답변을 받지 못했습니다: " + error_
+		case "zh-Hans":
+			return "没有拿到回答：" + error_
+		case "zh-Hant":
+			return "沒有拿到回答：" + error_
+		}
+	}
+}
+
+// ExplainAskLabel says "Ask About This Line"
+// in the language the app shows under cx.
+//
+// Accessible name of the field under a line's explanation in the player's side panel, where a follow-up question about the line is typed.
+func ExplainAskLabel(cx *core.Scope) string { return For(cx).ExplainAskLabel() }
+
+// ExplainAskLabel is the package's ExplainAskLabel in the language of msgs.
+func (msgs Messages) ExplainAskLabel() string { return msgs.text(textExplainAskLabel) }
+
+// ExplainAskPlaceholder says "Ask about this line… ({key} to send)"
+// in the language the app shows under cx.
+//
+// Placeholder of the follow-up question field under a line's explanation; key is the key that sends it as the system writes it (Return on a Mac, Enter elsewhere).
+func ExplainAskPlaceholder(cx *core.Scope, key string) string {
+	return For(cx).ExplainAskPlaceholder(key)
+}
+
+// ExplainAskPlaceholder is the package's ExplainAskPlaceholder in the language of msgs.
+func (msgs Messages) ExplainAskPlaceholder(key string) string {
+	if i18n.IsPseudo(msgs.lang) {
+		return i18n.Pseudo(msgs.lang, Messages{lang: Source, mark: true}.ExplainAskPlaceholder(key))
+	}
+	for lang := msgs.lang; ; lang = i18n.Parent(lang) {
+		if f := supplied[lang].ExplainAskPlaceholder; f != nil {
+			return f(key)
+		}
+		switch lang {
+		case "", "en":
+			return "Ask about this line… (" + msgs.arg(key) + " to send)"
+		case "ja":
+			return "この行について質問…（" + key + " で送信）"
+		case "ko":
+			return "이 대사에 대해 질문… (" + key + "로 보내기)"
+		case "zh-Hans":
+			return "追问这句…（" + key + " 发送）"
+		case "zh-Hant":
+			return "追問這句…（" + key + " 送出）"
+		}
+	}
+}
+
+// ExplainBack says "Back to Subtitles"
+// in the language the app shows under cx.
+//
+// Accessible name of the button at the top of a line's explanation in the player's side panel that goes back to the subtitle list; the button shows ‹ and the Subtitles tab's name.
+func ExplainBack(cx *core.Scope) string { return For(cx).ExplainBack() }
+
+// ExplainBack is the package's ExplainBack in the language of msgs.
+func (msgs Messages) ExplainBack() string { return msgs.text(textExplainBack) }
+
+// ExplainBreakdown says "Breakdown"
+// in the language the app shows under cx.
+//
+// Heading of the section of a line's explanation that takes its key words and phrases one by one.
+func ExplainBreakdown(cx *core.Scope) string { return For(cx).ExplainBreakdown() }
+
+// ExplainBreakdown is the package's ExplainBreakdown in the language of msgs.
+func (msgs Messages) ExplainBreakdown() string { return msgs.text(textExplainBreakdown) }
+
+// ExplainBusy says "Asking {model} to explain the line…"
+// in the language the app shows under cx.
+//
+// In place of a line's explanation in the player's side panel while the AI model explains it.
+func ExplainBusy(cx *core.Scope, model string) string { return For(cx).ExplainBusy(model) }
+
+// ExplainBusy is the package's ExplainBusy in the language of msgs.
+func (msgs Messages) ExplainBusy(model string) string {
+	if i18n.IsPseudo(msgs.lang) {
+		return i18n.Pseudo(msgs.lang, Messages{lang: Source, mark: true}.ExplainBusy(model))
+	}
+	for lang := msgs.lang; ; lang = i18n.Parent(lang) {
+		if f := supplied[lang].ExplainBusy; f != nil {
+			return f(model)
+		}
+		switch lang {
+		case "", "en":
+			return "Asking " + msgs.arg(model) + " to explain the line…"
+		case "ja":
+			return model + " にこの行の解説を依頼しています…"
+		case "ko":
+			return model + "에게 이 대사의 설명을 요청하는 중…"
+		case "zh-Hans":
+			return "正在请 " + model + " 讲解这句…"
+		case "zh-Hant":
+			return "正在請 " + model + " 講解這句…"
+		}
+	}
+}
+
+// ExplainCard says "Line Explanation"
+// in the language the app shows under cx.
+//
+// Accessible name of the explanation of a subtitle line that the player's side panel shows in place of its tabs.
+func ExplainCard(cx *core.Scope) string { return For(cx).ExplainCard() }
+
+// ExplainCard is the package's ExplainCard in the language of msgs.
+func (msgs Messages) ExplainCard() string { return msgs.text(textExplainCard) }
+
+// ExplainFailed says "No explanation came back: {error}"
+// in the language the app shows under cx.
+//
+// In place of a line's explanation when the AI service failed to explain it; error is the service's reason, as it gave it.
+func ExplainFailed(cx *core.Scope, error_ string) string { return For(cx).ExplainFailed(error_) }
+
+// ExplainFailed is the package's ExplainFailed in the language of msgs.
+func (msgs Messages) ExplainFailed(error_ string) string {
+	if i18n.IsPseudo(msgs.lang) {
+		return i18n.Pseudo(msgs.lang, Messages{lang: Source, mark: true}.ExplainFailed(error_))
+	}
+	for lang := msgs.lang; ; lang = i18n.Parent(lang) {
+		if f := supplied[lang].ExplainFailed; f != nil {
+			return f(error_)
+		}
+		switch lang {
+		case "", "en":
+			return "No explanation came back: " + msgs.arg(error_)
+		case "ja":
+			return "解説を取得できませんでした：" + error_
+		case "ko":
+			return "설명을 받지 못했습니다: " + error_
+		case "zh-Hans":
+			return "没有拿到讲解：" + error_
+		case "zh-Hant":
+			return "沒有拿到講解：" + error_
+		}
+	}
+}
+
+// ExplainMeaning says "Meaning"
+// in the language the app shows under cx.
+//
+// Heading of the section of a line's explanation that says what the whole line means.
+func ExplainMeaning(cx *core.Scope) string { return For(cx).ExplainMeaning() }
+
+// ExplainMeaning is the package's ExplainMeaning in the language of msgs.
+func (msgs Messages) ExplainMeaning() string { return msgs.text(textExplainMeaning) }
+
+// ExplainMore says "More: Tone and Related Expressions"
+// in the language the app shows under cx.
+//
+// Button under a line's explanation that shows its last two sections, the line's tone and related expressions.
+func ExplainMore(cx *core.Scope) string { return For(cx).ExplainMore() }
+
+// ExplainMore is the package's ExplainMore in the language of msgs.
+func (msgs Messages) ExplainMore() string { return msgs.text(textExplainMore) }
+
+// ExplainNoAI says "Explaining lines needs an AI service. Choose a model in “AI Service” first."
+// in the language the app shows under cx.
+//
+// In place of a line's explanation, or of the answer to a follow-up question, when no AI service is set.
+func ExplainNoAI(cx *core.Scope) string { return For(cx).ExplainNoAI() }
+
+// ExplainNoAI is the package's ExplainNoAI in the language of msgs.
+func (msgs Messages) ExplainNoAI() string { return msgs.text(textExplainNoAI) }
+
+// ExplainNote says "Written by {model} · from this line and the ones before it only"
+// in the language the app shows under cx.
+//
+// Footnote under a line's explanation when a cloud AI service wrote it: which model, and that it was given only this line and the lines before it, nothing that comes later.
+func ExplainNote(cx *core.Scope, model string) string { return For(cx).ExplainNote(model) }
+
+// ExplainNote is the package's ExplainNote in the language of msgs.
+func (msgs Messages) ExplainNote(model string) string {
+	if i18n.IsPseudo(msgs.lang) {
+		return i18n.Pseudo(msgs.lang, Messages{lang: Source, mark: true}.ExplainNote(model))
+	}
+	for lang := msgs.lang; ; lang = i18n.Parent(lang) {
+		if f := supplied[lang].ExplainNote; f != nil {
+			return f(model)
+		}
+		switch lang {
+		case "", "en":
+			return "Written by " + msgs.arg(model) + " · from this line and the ones before it only"
+		case "ja":
+			return model + " が生成 · この行とそれ以前の内容だけに基づく"
+		case "ko":
+			return model + " 생성 · 이 대사와 그 앞의 내용만 근거로 함"
+		case "zh-Hans":
+			return model + " 生成 · 只依据这句和之前的内容"
+		case "zh-Hant":
+			return model + " 生成 · 只依據這句和之前的內容"
+		}
+	}
+}
+
+// ExplainNoteLocal says "Written on this computer by {model} · from this line and the ones before it only"
+// in the language the app shows under cx.
+//
+// Footnote under a line's explanation when a model running on this computer (Ollama, LM Studio) wrote it, so nothing left the computer: which model, and that it was given only this line and the lines before it.
+func ExplainNoteLocal(cx *core.Scope, model string) string { return For(cx).ExplainNoteLocal(model) }
+
+// ExplainNoteLocal is the package's ExplainNoteLocal in the language of msgs.
+func (msgs Messages) ExplainNoteLocal(model string) string {
+	if i18n.IsPseudo(msgs.lang) {
+		return i18n.Pseudo(msgs.lang, Messages{lang: Source, mark: true}.ExplainNoteLocal(model))
+	}
+	for lang := msgs.lang; ; lang = i18n.Parent(lang) {
+		if f := supplied[lang].ExplainNoteLocal; f != nil {
+			return f(model)
+		}
+		switch lang {
+		case "", "en":
+			return "Written on this computer by " + msgs.arg(model) + " · from this line and the ones before it only"
+		case "ja":
+			return "このコンピュータの " + model + " が生成 · この行とそれ以前の内容だけに基づく"
+		case "ko":
+			return "이 컴퓨터의 " + model + " 생성 · 이 대사와 그 앞의 내용만 근거로 함"
+		case "zh-Hans":
+			return "本机 " + model + " 生成 · 只依据这句和之前的内容"
+		case "zh-Hant":
+			return "本機 " + model + " 生成 · 只依據這句和之前的內容"
+		}
+	}
+}
+
+// ExplainOsdInNotes says "This line is already in your notes"
+// in the language the app shows under cx.
+//
+// Message on the picture when Save Line to Notes is pressed for a line saved already.
+func ExplainOsdInNotes(cx *core.Scope) string { return For(cx).ExplainOsdInNotes() }
+
+// ExplainOsdInNotes is the package's ExplainOsdInNotes in the language of msgs.
+func (msgs Messages) ExplainOsdInNotes() string { return msgs.text(textExplainOsdInNotes) }
+
+// ExplainOsdNoted says "Saved to notes · it will come up in review"
+// in the language the app shows under cx.
+//
+// Message on the picture once a line explained went into the saved lines, which the daily review asks, with the explanation as its note.
+func ExplainOsdNoted(cx *core.Scope) string { return For(cx).ExplainOsdNoted() }
+
+// ExplainOsdNoted is the package's ExplainOsdNoted in the language of msgs.
+func (msgs Messages) ExplainOsdNoted() string { return msgs.text(textExplainOsdNoted) }
+
+// ExplainRelated says "Related Expressions"
+// in the language the app shows under cx.
+//
+// Heading of the section of a line's explanation that lists expressions related to it.
+func ExplainRelated(cx *core.Scope) string { return For(cx).ExplainRelated() }
+
+// ExplainRelated is the package's ExplainRelated in the language of msgs.
+func (msgs Messages) ExplainRelated() string { return msgs.text(textExplainRelated) }
+
+// ExplainSave says "Save Line to Notes"
+// in the language the app shows under cx.
+//
+// Button under a line's explanation that saves the line, with the explanation as its note, so it comes up in the daily review.
+func ExplainSave(cx *core.Scope) string { return For(cx).ExplainSave() }
+
+// ExplainSave is the package's ExplainSave in the language of msgs.
+func (msgs Messages) ExplainSave() string { return msgs.text(textExplainSave) }
+
+// ExplainSaved says "In Notes · it will come up in review"
+// in the language the app shows under cx.
+//
+// The Save Line to Notes button once the line is saved.
+func ExplainSaved(cx *core.Scope) string { return For(cx).ExplainSaved() }
+
+// ExplainSaved is the package's ExplainSaved in the language of msgs.
+func (msgs Messages) ExplainSaved() string { return msgs.text(textExplainSaved) }
+
+// ExplainSettings says "Open AI Service Settings"
+// in the language the app shows under cx.
+//
+// Button in place of a line's explanation that opens the AI Service section of Settings, when no AI service could explain it.
+func ExplainSettings(cx *core.Scope) string { return For(cx).ExplainSettings() }
+
+// ExplainSettings is the package's ExplainSettings in the language of msgs.
+func (msgs Messages) ExplainSettings() string { return msgs.text(textExplainSettings) }
+
+// ExplainTerms says "Terms"
+// in the language the app shows under cx.
+//
+// Heading of the section of a line's explanation that lists the terms of the film's glossary the line holds.
+func ExplainTerms(cx *core.Scope) string { return For(cx).ExplainTerms() }
+
+// ExplainTerms is the package's ExplainTerms in the language of msgs.
+func (msgs Messages) ExplainTerms() string { return msgs.text(textExplainTerms) }
+
+// ExplainTone says "Tone"
+// in the language the app shows under cx.
+//
+// Heading of the section of a line's explanation that says its tone or the situation it is said in.
+func ExplainTone(cx *core.Scope) string { return For(cx).ExplainTone() }
+
+// ExplainTone is the package's ExplainTone in the language of msgs.
+func (msgs Messages) ExplainTone() string { return msgs.text(textExplainTone) }
+
+// ExplainTranslation says "About the Translation"
+// in the language the app shows under cx.
+//
+// Heading of the section of a line's explanation about its translation: why it is translated so, whether the tone fits.
+func ExplainTranslation(cx *core.Scope) string { return For(cx).ExplainTranslation() }
+
+// ExplainTranslation is the package's ExplainTranslation in the language of msgs.
+func (msgs Messages) ExplainTranslation() string { return msgs.text(textExplainTranslation) }
+
+// RecapBusy says "Summing up what you watched…"
+// in the language the app shows under cx.
+//
+// On the Recap card of a film opened where it stopped last time, while the AI service sums up the part already watched.
+func RecapBusy(cx *core.Scope) string { return For(cx).RecapBusy() }
+
+// RecapBusy is the package's RecapBusy in the language of msgs.
+func (msgs Messages) RecapBusy() string { return msgs.text(textRecapBusy) }
+
+// RecapCard says "Recap"
+// in the language the app shows under cx.
+//
+// Accessible name of the card over the picture when a film opens where it stopped last time: what happened in the part watched, and where to play from.
+func RecapCard(cx *core.Scope) string { return For(cx).RecapCard() }
+
+// RecapCard is the package's RecapCard in the language of msgs.
+func (msgs Messages) RecapCard() string { return msgs.text(textRecapCard) }
+
+// RecapClose says "Close Recap"
+// in the language the app shows under cx.
+//
+// Accessible name and tooltip of the × that closes the Recap card.
+func RecapClose(cx *core.Scope) string { return For(cx).RecapClose() }
+
+// RecapClose is the package's RecapClose in the language of msgs.
+func (msgs Messages) RecapClose() string { return msgs.text(textRecapClose) }
+
+// RecapContinue says "Continue from {at}"
+// in the language the app shows under cx.
+//
+// Button of the Recap card that plays the film on from where it stopped last time.
+func RecapContinue(cx *core.Scope, at string) string { return For(cx).RecapContinue(at) }
+
+// RecapContinue is the package's RecapContinue in the language of msgs.
+func (msgs Messages) RecapContinue(at string) string {
+	if i18n.IsPseudo(msgs.lang) {
+		return i18n.Pseudo(msgs.lang, Messages{lang: Source, mark: true}.RecapContinue(at))
+	}
+	for lang := msgs.lang; ; lang = i18n.Parent(lang) {
+		if f := supplied[lang].RecapContinue; f != nil {
+			return f(at)
+		}
+		switch lang {
+		case "", "en":
+			return "Continue from " + msgs.arg(at)
+		case "ja":
+			return at + " から続ける"
+		case "ko":
+			return at + "부터 이어 보기"
+		case "zh-Hans":
+			return "从 " + at + " 继续"
+		case "zh-Hant":
+			return "從 " + at + " 繼續"
+		}
+	}
+}
+
+// RecapExcerptNote says "Lines you watched, not summed up: no AI service can answer"
+// in the language the app shows under cx.
+//
+// Footnote of the Recap card when no AI service could sum up the part watched (none set, or offline mode with a cloud service), so the card shows three lines of it as they are.
+func RecapExcerptNote(cx *core.Scope) string { return For(cx).RecapExcerptNote() }
+
+// RecapExcerptNote is the package's RecapExcerptNote in the language of msgs.
+func (msgs Messages) RecapExcerptNote() string { return msgs.text(textRecapExcerptNote) }
+
+// RecapFailedNote says "Lines you watched: the AI service could not sum them up"
+// in the language the app shows under cx.
+//
+// Footnote of the Recap card when the AI service failed to sum up the part watched, so the card shows three lines of it as they are.
+func RecapFailedNote(cx *core.Scope) string { return For(cx).RecapFailedNote() }
+
+// RecapFailedNote is the package's RecapFailedNote in the language of msgs.
+func (msgs Messages) RecapFailedNote() string { return msgs.text(textRecapFailedNote) }
+
+// RecapHeading says "Previously"
+// in the language the app shows under cx.
+//
+// Small heading over the moments of the part watched on the Recap card.
+func RecapHeading(cx *core.Scope) string { return For(cx).RecapHeading() }
+
+// RecapHeading is the package's RecapHeading in the language of msgs.
+func (msgs Messages) RecapHeading() string { return msgs.text(textRecapHeading) }
+
+// RecapLastAt says "You stopped at {at}"
+// in the language the app shows under cx.
+//
+// Title of the Recap card: where the film stopped last time.
+func RecapLastAt(cx *core.Scope, at string) string { return For(cx).RecapLastAt(at) }
+
+// RecapLastAt is the package's RecapLastAt in the language of msgs.
+func (msgs Messages) RecapLastAt(at string) string {
+	if i18n.IsPseudo(msgs.lang) {
+		return i18n.Pseudo(msgs.lang, Messages{lang: Source, mark: true}.RecapLastAt(at))
+	}
+	for lang := msgs.lang; ; lang = i18n.Parent(lang) {
+		if f := supplied[lang].RecapLastAt; f != nil {
+			return f(at)
+		}
+		switch lang {
+		case "", "en":
+			return "You stopped at " + msgs.arg(at)
+		case "ja":
+			return "前回は " + at + " まで"
+		case "ko":
+			return "지난번 " + at + "까지 봤어요"
+		case "zh-Hans":
+			return "上次看到 " + at
+		case "zh-Hant":
+			return "上次看到 " + at
+		}
+	}
+}
+
+// RecapNote says "Only what you watched · summed up by {model}"
+// in the language the app shows under cx.
+//
+// Footnote of the Recap card when a cloud AI service summed up the part watched: only that part was sent, and which model wrote the summary.
+func RecapNote(cx *core.Scope, model string) string { return For(cx).RecapNote(model) }
+
+// RecapNote is the package's RecapNote in the language of msgs.
+func (msgs Messages) RecapNote(model string) string {
+	if i18n.IsPseudo(msgs.lang) {
+		return i18n.Pseudo(msgs.lang, Messages{lang: Source, mark: true}.RecapNote(model))
+	}
+	for lang := msgs.lang; ; lang = i18n.Parent(lang) {
+		if f := supplied[lang].RecapNote; f != nil {
+			return f(model)
+		}
+		switch lang {
+		case "", "en":
+			return "Only what you watched · summed up by " + msgs.arg(model)
+		case "ja":
+			return "見た部分だけを要約 · " + model + " が生成"
+		case "ko":
+			return "본 부분만 요약 · " + model + " 생성"
+		case "zh-Hans":
+			return "只总结你看过的部分 · " + model + " 生成"
+		case "zh-Hant":
+			return "只總結你看過的部分 · " + model + " 生成"
+		}
+	}
+}
+
+// RecapNoteLocal says "Only what you watched · summed up on this computer by {model}"
+// in the language the app shows under cx.
+//
+// Footnote of the Recap card when a model running on this computer (Ollama, LM Studio) summed up the part watched, so nothing left the computer.
+func RecapNoteLocal(cx *core.Scope, model string) string { return For(cx).RecapNoteLocal(model) }
+
+// RecapNoteLocal is the package's RecapNoteLocal in the language of msgs.
+func (msgs Messages) RecapNoteLocal(model string) string {
+	if i18n.IsPseudo(msgs.lang) {
+		return i18n.Pseudo(msgs.lang, Messages{lang: Source, mark: true}.RecapNoteLocal(model))
+	}
+	for lang := msgs.lang; ; lang = i18n.Parent(lang) {
+		if f := supplied[lang].RecapNoteLocal; f != nil {
+			return f(model)
+		}
+		switch lang {
+		case "", "en":
+			return "Only what you watched · summed up on this computer by " + msgs.arg(model)
+		case "ja":
+			return "見た部分だけを要約 · このコンピュータの " + model + " が生成"
+		case "ko":
+			return "본 부분만 요약 · 이 컴퓨터의 " + model + " 생성"
+		case "zh-Hans":
+			return "只总结你看过的部分 · 本机 " + model + " 生成"
+		case "zh-Hant":
+			return "只總結你看過的部分 · 本機 " + model + " 生成"
+		}
+	}
+}
+
+// RecapStartOver says "Start Over"
+// in the language the app shows under cx.
+//
+// Button of the Recap card that plays the film from its start.
+func RecapStartOver(cx *core.Scope) string { return For(cx).RecapStartOver() }
+
+// RecapStartOver is the package's RecapStartOver in the language of msgs.
+func (msgs Messages) RecapStartOver() string { return msgs.text(textRecapStartOver) }
+
 // SubexportBilingual says "Both"
 // in the language the app shows under cx.
 //
@@ -21285,7 +22102,7 @@ func (msgs Messages) FilmDismiss() string { return msgs.text(textFilmDismiss) }
 // FilmExplainLine says "Explain Line"
 // in the language the app shows under cx.
 //
-// First item of a subtitle line's right-click menu in the side panel: the AI service explains the line's meaning, key words and grammar in the command palette.
+// First item of a subtitle line's right-click menu in the side panel: the AI service explains the line's meaning, key words and grammar in the side panel, in place of the subtitle list.
 func FilmExplainLine(cx *core.Scope) string { return For(cx).FilmExplainLine() }
 
 // FilmExplainLine is the package's FilmExplainLine in the language of msgs.
@@ -30147,117 +30964,14 @@ func (msgs Messages) PaletteAsking(model string) string {
 	}
 }
 
-// PaletteExplainFailed says "No explanation came back: {error}"
-// in the language the app shows under cx.
-//
-// Explanation card when the AI service returned no explanation of the line; error is the service's error message.
-func PaletteExplainFailed(cx *core.Scope, error_ string) string {
-	return For(cx).PaletteExplainFailed(error_)
-}
-
-// PaletteExplainFailed is the package's PaletteExplainFailed in the language of msgs.
-func (msgs Messages) PaletteExplainFailed(error_ string) string {
-	if i18n.IsPseudo(msgs.lang) {
-		return i18n.Pseudo(msgs.lang, Messages{lang: Source, mark: true}.PaletteExplainFailed(error_))
-	}
-	for lang := msgs.lang; ; lang = i18n.Parent(lang) {
-		if f := supplied[lang].PaletteExplainFailed; f != nil {
-			return f(error_)
-		}
-		switch lang {
-		case "", "en":
-			return "No explanation came back: " + msgs.arg(error_)
-		case "ja":
-			return "解説を得られませんでした：" + error_
-		case "ko":
-			return "설명을 받지 못했습니다: " + error_
-		case "zh-Hans":
-			return "没有拿到讲解：" + error_
-		case "zh-Hant":
-			return "沒有拿到講解：" + error_
-		}
-	}
-}
-
 // PaletteExplainLine says "Explain Line"
 // in the language the app shows under cx.
 //
-// Study menu item and shortcut row (E): the AI service explains the subtitle line playing, its meaning, key words and grammar, in the command palette.
+// Study menu item and shortcut row (E): the AI service explains the subtitle line playing, its meaning, key words and grammar, in the player's side panel.
 func PaletteExplainLine(cx *core.Scope) string { return For(cx).PaletteExplainLine() }
 
 // PaletteExplainLine is the package's PaletteExplainLine in the language of msgs.
 func (msgs Messages) PaletteExplainLine() string { return msgs.text(textPaletteExplainLine) }
-
-// PaletteExplainNoAI says "Explaining lines needs an AI service. Choose a model in “AI Service” first."
-// in the language the app shows under cx.
-//
-// Explanation card when Explain Line was chosen with no AI service set.
-func PaletteExplainNoAI(cx *core.Scope) string { return For(cx).PaletteExplainNoAI() }
-
-// PaletteExplainNoAI is the package's PaletteExplainNoAI in the language of msgs.
-func (msgs Messages) PaletteExplainNoAI() string { return msgs.text(textPaletteExplainNoAI) }
-
-// PaletteExplainNote says "Explained by {model}"
-// in the language the app shows under cx.
-//
-// Footnote under the explanation of a subtitle line (Explain Line): which model explained it.
-func PaletteExplainNote(cx *core.Scope, model string) string {
-	return For(cx).PaletteExplainNote(model)
-}
-
-// PaletteExplainNote is the package's PaletteExplainNote in the language of msgs.
-func (msgs Messages) PaletteExplainNote(model string) string {
-	if i18n.IsPseudo(msgs.lang) {
-		return i18n.Pseudo(msgs.lang, Messages{lang: Source, mark: true}.PaletteExplainNote(model))
-	}
-	for lang := msgs.lang; ; lang = i18n.Parent(lang) {
-		if f := supplied[lang].PaletteExplainNote; f != nil {
-			return f(model)
-		}
-		switch lang {
-		case "", "en":
-			return "Explained by " + msgs.arg(model)
-		case "ja":
-			return model + " が解説"
-		case "ko":
-			return model + " 설명"
-		case "zh-Hans":
-			return model + " 讲解"
-		case "zh-Hant":
-			return model + " 講解"
-		}
-	}
-}
-
-// PaletteExplaining says "Asking {model} to explain the line…"
-// in the language the app shows under cx.
-//
-// Explanation card while the line is on its way to the AI model (Explain Line).
-func PaletteExplaining(cx *core.Scope, model string) string { return For(cx).PaletteExplaining(model) }
-
-// PaletteExplaining is the package's PaletteExplaining in the language of msgs.
-func (msgs Messages) PaletteExplaining(model string) string {
-	if i18n.IsPseudo(msgs.lang) {
-		return i18n.Pseudo(msgs.lang, Messages{lang: Source, mark: true}.PaletteExplaining(model))
-	}
-	for lang := msgs.lang; ; lang = i18n.Parent(lang) {
-		if f := supplied[lang].PaletteExplaining; f != nil {
-			return f(model)
-		}
-		switch lang {
-		case "", "en":
-			return "Asking " + msgs.arg(model) + " to explain the line…"
-		case "ja":
-			return model + " にこのセリフの解説を頼んでいます…"
-		case "ko":
-			return model + "에 이 대사의 설명을 요청하는 중…"
-		case "zh-Hans":
-			return "正在请 " + model + " 讲解这句…"
-		case "zh-Hant":
-			return "正在請 " + model + " 講解這句…"
-		}
-	}
-}
 
 // PaletteFieldLabel says "Films, commands or watched lines"
 // in the language the app shows under cx.
@@ -30446,15 +31160,6 @@ func PaletteHeadingCommands(cx *core.Scope) string { return For(cx).PaletteHeadi
 
 // PaletteHeadingCommands is the package's PaletteHeadingCommands in the language of msgs.
 func (msgs Messages) PaletteHeadingCommands() string { return msgs.text(textPaletteHeadingCommands) }
-
-// PaletteHeadingExplain says "Explanation"
-// in the language the app shows under cx.
-//
-// Heading of the card with the explanation of a subtitle line (Explain Line), in place of paletteHeadingAnswer.
-func PaletteHeadingExplain(cx *core.Scope) string { return For(cx).PaletteHeadingExplain() }
-
-// PaletteHeadingExplain is the package's PaletteHeadingExplain in the language of msgs.
-func (msgs Messages) PaletteHeadingExplain() string { return msgs.text(textPaletteHeadingExplain) }
 
 // PaletteHeadingFilms says "Films"
 // in the language the app shows under cx.
@@ -38722,7 +39427,7 @@ func (msgs Messages) SettingsPrivacySaveFailed(error_ string) string {
 	}
 }
 
-// SettingsPrivacyStepAI says "Translation, proofreading, explanations and word lookups"
+// SettingsPrivacyStepAI says "Translation, proofreading, explanations, recaps and word lookups"
 // in the language the app shows under cx.
 //
 // Row of the network table in Settings › Privacy: what the AI service does.
