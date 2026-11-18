@@ -30,6 +30,13 @@ type Service interface {
 	UpdateYTDLP(ctx context.Context, caller Caller) (ToolUpdate, error)
 }
 
+// StateService is what a desktop does for the learning state's calls (state.go), whichever transport carries them. Desk has stamped what PutState is given with the caller, at no later than its own clock, before it gets it. Its errors are as Service's.
+type StateService interface {
+	GetState(ctx context.Context, caller Caller, req StateGet) (StateChanges, error)
+	PutState(ctx context.Context, caller Caller, req StatePut) (StatePutResult, error)
+	ResolveConflict(ctx context.Context, caller Caller, req ConflictResolve) (StatePutResult, error)
+}
+
 // CallError is an error with a protocol code, which a Service returns and a client reads from the Reply.
 type CallError struct {
 	Code    string
@@ -52,6 +59,8 @@ const (
 // Desk answers protocol v2's calls for a desktop: the jobs' list and the events from Journal, everything else from Service. It is safe for concurrent use.
 type Desk struct {
 	Service Service
+	// State answers the learning state's calls, nil for a desktop that does not serve it, which answers them CodeUnsupported.
+	State   StateService
 	Journal *Journal
 	// Desktop is the desktop's name; Now the clock, nil for time.Now.
 	Desktop string
@@ -80,9 +89,9 @@ type remembered struct {
 	at    time.Time
 }
 
-// Answer answers call from caller. A call the device sent before answers the reply it got then, unless it only read (OpHello, OpJobs, OpJob, OpEvents), which reads again. The same call arriving while the first is still being answered, as a relay delivers twice or a phone sends again after the network dropped, waits for the first one's reply and answers it.
+// Answer answers call from caller. A call the device sent before answers the reply it got then, unless it only read (OpHello, OpJobs, OpJob, OpEvents, OpStateGet), which reads again. The same call arriving while the first is still being answered, as a relay delivers twice or a phone sends again after the network dropped, waits for the first one's reply and answers it.
 func (d *Desk) Answer(ctx context.Context, caller Caller, call Call) Reply {
-	mutates := call.Op == OpJobCreate || call.Op == OpJobCancel || call.Op == OpJobRetry || call.Op == OpJobPause || call.Op == OpJobResume || call.Op == OpUpdateYTDLP
+	mutates := call.Op == OpJobCreate || call.Op == OpJobCancel || call.Op == OpJobRetry || call.Op == OpJobPause || call.Op == OpJobResume || call.Op == OpUpdateYTDLP || call.Op == OpStatePut || call.Op == OpStateResolve
 	if !mutates || call.ID == "" {
 		reply, _ := d.reply(ctx, caller, call)
 		return reply
@@ -185,6 +194,9 @@ func (d *Desk) answer(ctx context.Context, caller Caller, call Call) (any, error
 		if h.Options == nil {
 			h.Options = []string{}
 		}
+		if h.State == nil {
+			h.State = []string{}
+		}
 		return h, nil
 	case OpJobCreate:
 		var req JobCreate
@@ -212,6 +224,8 @@ func (d *Desk) answer(ctx context.Context, caller Caller, call Call) (any, error
 		return d.Service.ActOnJob(ctx, caller, call.Op, ref.ID)
 	case OpUpdateYTDLP:
 		return d.Service.UpdateYTDLP(ctx, caller)
+	case OpStateGet, OpStatePut, OpStateResolve:
+		return d.answerState(ctx, caller, call)
 	case OpEvents:
 		var w EventsWait
 		if err := args(call, &w); err != nil {
@@ -220,6 +234,73 @@ func (d *Desk) answer(ctx context.Context, caller Caller, call Call) (any, error
 		return d.Journal.Wait(ctx, w.Epoch, w.Since, time.Duration(w.WaitMS)*time.Millisecond), nil
 	}
 	return nil, Errorf(CodeUnsupported, "no operation %q", call.Op)
+}
+
+// answerState runs a call of the learning state (state.go).
+func (d *Desk) answerState(ctx context.Context, caller Caller, call Call) (any, error) {
+	if d.State == nil {
+		return nil, Errorf(CodeUnsupported, "this desktop does not serve the learning state")
+	}
+	switch call.Op {
+	case OpStateGet:
+		var req StateGet
+		if err := args(call, &req); err != nil {
+			return nil, err
+		}
+		return d.State.GetState(ctx, caller, req)
+	case OpStatePut:
+		var req StatePut
+		if err := args(call, &req); err != nil {
+			return nil, err
+		}
+		if err := d.stampPut(caller, &req); err != nil {
+			return nil, err
+		}
+		return d.State.PutState(ctx, caller, req)
+	}
+	var req ConflictResolve
+	if err := args(call, &req); err != nil {
+		return nil, err
+	}
+	if req.ID == "" || len(req.Value) == 0 || !json.Valid(req.Value) {
+		return nil, Errorf(CodeInvalid, "a resolution names a conflict and the value to keep")
+	}
+	return d.State.ResolveConflict(ctx, caller, req)
+}
+
+// stampPut checks req and stamps every change in it with the calling device, whatever device it names, and its time with the desk's clock's when it is later, or none, so a device's clock running ahead cannot have its changes win over every later one.
+func (d *Desk) stampPut(caller Caller, req *StatePut) error {
+	now := d.now()
+	stamp := func(s Stamp) Stamp {
+		if s.At.IsZero() || s.At.After(now) {
+			s.At = now
+		}
+		s.Device = caller.DeviceID
+		return s
+	}
+	for i := range req.Records {
+		r := &req.Records[i]
+		if r.Kind == "" || r.ID == "" {
+			return Errorf(CodeInvalid, "a record names its kind and ID")
+		}
+		r.Rev = 0
+		if r.Removed != nil {
+			if !Tombstoned(r.Kind) {
+				return Errorf(CodeInvalid, "a %s is not removed but set to null", r.Kind)
+			}
+			s := stamp(*r.Removed)
+			r.Removed, r.Fields = &s, nil
+			continue
+		}
+		for name, f := range r.Fields {
+			if len(f.Value) == 0 || !json.Valid(f.Value) {
+				return Errorf(CodeInvalid, "field %s of %s %s holds no value", name, r.Kind, r.ID)
+			}
+			f.Stamp = stamp(f.Stamp)
+			r.Fields[name] = f
+		}
+	}
+	return nil
 }
 
 // args reads call's arguments into v; none read as v's zero value.

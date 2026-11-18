@@ -14,7 +14,7 @@ import (
 //
 // Jobs. A phone sends a link with OpJobCreate. The desktop's setting for links from phones decides what comes of it: queued at once (ReceiveQueue), put before the user on the desktop to start or not (ReceiveAsk, answered as Pending), or refused (ReceiveOff, CodeLinksOff). Nothing is ever added to a locked library, nor is a job of one listed or acted on: to a phone it is not found. OpJobs lists the jobs a phone follows, the desktop's queue (waiting, running, failed or canceled) and those that ended since the desktop started, each with its steps' progress and, for one that failed, a typed Failure. OpJobCancel, OpJobRetry, OpJobPause and OpJobResume act on one; OpUpdateYTDLP updates the downloader the desktop uses, after which the downloads that failed because it was too old run again.
 //
-// Events. The desktop numbers every change of what it tells phones with a revision, counting up from 1 since it started, in an epoch named afresh at each start. OpEvents waits, up to the wait it is given (at most MaxEventWait), for changes after a revision and answers the newest of each (a job's last state, not each step it went through), with the revision to wait after next. Waiting with another epoch than the desktop's, as before the phone has listed the jobs, or after a revision the desktop no longer remembers, answers Reset at once: the phone lists the jobs again (OpJobs answers the revision its list is at) and waits after that. Event kinds a phone does not know are skipped, so later kinds, as the learning state's, can be added.
+// Events. The desktop numbers every change of what it tells phones with a revision, counting up from 1 since it started, in an epoch named afresh at each start. OpEvents waits, up to the wait it is given (at most MaxEventWait), for changes after a revision and answers the newest of each (a job's last state, not each step it went through), with the revision to wait after next. Waiting with another epoch than the desktop's, as before the phone has listed the jobs, or after a revision the desktop no longer remembers, answers Reset at once: the phone lists the jobs again (OpJobs answers the revision its list is at) and waits after that. Event kinds a phone does not know are skipped, so later kinds can be added, as the learning state's (EventState) were.
 
 // CallVersion is the version a Call speaks.
 const CallVersion = 2
@@ -77,6 +77,8 @@ type Hello struct {
 	// Ops are the operations it answers; Options the job options (JobOptions' JSON names) it understands.
 	Ops     []string `json:"ops"`
 	Options []string `json:"options"`
+	// State are the kinds of record of the learning state the desktop syncs (KindPosition, KindLine…), none when it does not serve it.
+	State []string `json:"state"`
 	// Receive is what it does with a link a phone sends: ReceiveQueue, ReceiveAsk or ReceiveOff.
 	Receive string `json:"receive"`
 	// Epoch names the desktop's run, which the revisions of its events count in.
@@ -252,7 +254,7 @@ type Events struct {
 	Events []Event `json:"events"`
 }
 
-// Event is a change: of a job (EventJob, with the job as it is now) or a job no longer followed (EventJobGone, with its ID).
+// Event is a change: of a job (EventJob, with the job as it is now), a job no longer followed (EventJobGone, with its ID), or of a library's learning state (EventState, with the library's ID).
 type Event struct {
 	Rev  int64  `json:"rev"`
 	Kind string `json:"kind"`

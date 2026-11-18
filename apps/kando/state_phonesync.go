@@ -53,6 +53,9 @@ type phoneUI struct {
 	now    func() time.Time
 	// receiveOff is 接收手机发来的链接 turned off, and receiveAsk 收到后 set to 先问我, which settings.json keeps (state_phonesync_jobs.go).
 	receiveOff, receiveAsk bool
+	// ledgers are the libraries' learning state as phones were last told it, by library folder, each read the first time a phone asks (state_phonesync_state.go); stateSign sums up the open library's state as phones were last told it changed (phoneSyncPublishState).
+	ledgers   map[string]*phoneLedger
+	stateSign uint64
 }
 
 func newPhoneUI() phoneUI { return phoneUI{} }
@@ -72,7 +75,7 @@ func (s *savedPhoneSync) clean() {
 	}
 }
 
-// phoneSyncHooks: the switch, the port and what to do with a phone's links are saved and taken back; a switch left on starts the server once the window is ready, and the server stops as the app quits. After each change the code on offer follows the page (phoneSyncFollow), and the server is told the jobs phones follow (phoneSyncPublish).
+// phoneSyncHooks: the switch, the port and what to do with a phone's links are saved and taken back; a switch left on starts the server once the window is ready, and the server stops as the app quits. After each change the code on offer follows the page (phoneSyncFollow), and the server is told the jobs phones follow (phoneSyncPublish) and whether the open library's learning state changed (phoneSyncPublishState).
 func (a *app) phoneSyncHooks() areaHooks {
 	return areaHooks{
 		save: func(saved *savedSettings) {
@@ -89,6 +92,7 @@ func (a *app) phoneSyncHooks() areaHooks {
 		},
 		afterChange: func() bool {
 			a.phoneSyncPublish()
+			a.phoneSyncPublishState()
 			return a.phoneSyncFollow()
 		},
 		quitting: a.phoneSyncStop,
@@ -132,6 +136,7 @@ func (a *app) phoneSyncStart() {
 		Port:    a.phone.port,
 		Source:  phoneSource{a},
 		Jobs:    phoneJobs{a},
+		State:   phoneState{a},
 		Addrs:   a.phone.listen,
 		Changed: func() { update(a.phoneSyncPull) },
 		Now:     a.phone.now,

@@ -1,4 +1,4 @@
-// Package synctest is a stand-in for Kando's phone sync server on loopback, speaking protocols v1 and v2 (package sync) from memory, for the phone's tests: it pairs with the code it offers, lists its libraries and films, and serves their subtitles, posters and videos by ranges with an ETag. A video can be made to stall partway (Stall), as a network that drops does, so a download's pause and resume can be tested. Over v2 it takes the links a phone sends into a queue of its own, which the test moves along (jobs.go).
+// Package synctest is a stand-in for Kando's phone sync server on loopback, speaking protocols v1 and v2 (package sync) from memory, for the phone's tests: it pairs with the code it offers, lists its libraries and films, and serves their subtitles, posters and videos by ranges with an ETag. A video can be made to stall partway (Stall), as a network that drops does, so a download's pause and resume can be tested. Over v2 it takes the links a phone sends into a queue of its own, which the test moves along (jobs.go), and keeps each library's learning state in a ledger, which the test changes as the desktop would (state.go).
 package synctest
 
 import (
@@ -49,8 +49,10 @@ type Desktop struct {
 	tries  int
 	tokens map[string]bool
 	// names are the paired devices' names by token, which v2's calls name the caller by.
-	names   map[string]string
-	queue   queue
+	names map[string]string
+	queue queue
+	// ledgers are the libraries' learning state, by library ID (state.go).
+	ledgers map[string]*sync.Ledger
 	desk    *sync.Desk
 	libs    []sync.Library
 	films   []Film
@@ -65,7 +67,7 @@ func New(t testing.TB, name string) *Desktop {
 	t.Helper()
 	d := &Desktop{Name: name, tokens: map[string]bool{}, names: map[string]string{}, modTime: time.Unix(1_700_000_000, 0)}
 	d.queue.receive = sync.ReceiveQueue
-	d.desk = &sync.Desk{Service: jobService{d}, Journal: sync.NewJournal(), Desktop: name}
+	d.desk = &sync.Desk{Service: jobService{d}, State: stateService{d}, Journal: sync.NewJournal(), Desktop: name}
 	mux := http.NewServeMux()
 	mux.HandleFunc("POST "+sync.PathPair, d.pair)
 	mux.HandleFunc("GET "+sync.PathLibraries, d.authed(d.libraries))

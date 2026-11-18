@@ -79,6 +79,16 @@ func (j *Journal) PublishJobs(jobs []Job) bool {
 	return true
 }
 
+// PublishState records that library's learning state changed (EventState), so the phones waiting hear it and ask for the changes.
+func (j *Journal) PublishState(library string) {
+	j.mu.Lock()
+	defer j.mu.Unlock()
+	j.rev++
+	j.add(Event{Rev: j.rev, Kind: EventState, ID: library})
+	close(j.wake)
+	j.wake = make(chan struct{})
+}
+
 // add keeps e, forgetting the oldest event past keep. The caller holds mu.
 func (j *Journal) add(e Event) {
 	j.events = append(j.events, e)
@@ -129,7 +139,7 @@ func (j *Journal) Wait(ctx context.Context, epoch string, since int64, wait time
 	}
 }
 
-// since is the newest event of each job after revision since, and whether since was not one to count from (Reset). The caller holds mu.
+// since is the newest event of each job, and of each library's learning state, after revision since, and whether since was not one to count from (Reset). The caller holds mu.
 func (j *Journal) since(epoch string, since int64) (Events, bool) {
 	out := Events{Epoch: j.epoch, Rev: j.rev, Events: []Event{}}
 	oldest := j.rev + 1
@@ -143,11 +153,11 @@ func (j *Journal) since(epoch string, since int64) (Events, bool) {
 	last := map[string]int{}
 	for i, e := range j.events {
 		if e.Rev > since {
-			last[e.ID] = i
+			last[e.about()] = i
 		}
 	}
 	for i, e := range j.events {
-		if e.Rev > since && last[e.ID] == i {
+		if e.Rev > since && last[e.about()] == i {
 			out.Events = append(out.Events, e)
 		}
 	}
@@ -162,4 +172,12 @@ func (job Job) clone() Job {
 		job.Failure = &f
 	}
 	return job
+}
+
+// about is what e is a change of, which a newer event of takes its place: a job, or a library's learning state.
+func (e Event) about() string {
+	if e.Kind == EventState {
+		return "state/" + e.ID
+	}
+	return "job/" + e.ID
 }

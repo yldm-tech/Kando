@@ -120,3 +120,24 @@ func (c *Client) send(ctx context.Context, method, path string, body []byte) (*h
 	header.Set("Content-Type", "application/json")
 	return c.request(ctx, method, path, body, header)
 }
+
+// State is the changes of library's learning state after revision since of epoch, all of it with Reset for an epoch of "" (StateGet).
+func (c *Client) State(ctx context.Context, library, epoch string, since int64) (StateChanges, error) {
+	var out StateChanges
+	err := c.Call(ctx, OpStateGet, StateGet{Library: library, Epoch: epoch, Since: since}, &out)
+	return out, err
+}
+
+// PutState sends the device's changes of library's records (StatePut), and answers them as the desktop merged them.
+func (c *Client) PutState(ctx context.Context, library string, records []Record) (StatePutResult, error) {
+	var out StatePutResult
+	err := c.Call(ctx, OpStatePut, StatePut{Library: library, Records: records}, &out)
+	return out, err
+}
+
+// ResolveConflict resolves conflict id of library with value, the value to keep.
+func (c *Client) ResolveConflict(ctx context.Context, library, id string, value []byte) (StatePutResult, error) {
+	var out StatePutResult
+	err := c.Call(ctx, OpStateResolve, ConflictResolve{Library: library, ID: id, Value: value}, &out)
+	return out, err
+}

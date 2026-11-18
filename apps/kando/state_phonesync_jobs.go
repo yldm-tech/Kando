@@ -15,8 +15,8 @@ import (
 
 // Phone Sync's protocol v2 (packages/sync, v2.go): a paired phone sends links to the desktop and follows and controls its queue. phoneJobs answers the calls that act on the queue, on the engine's goroutine (remote.OnUI); the jobs a phone follows are published to the server after every change of the app's state (phoneSyncPublish), and the server answers the list and the events from them. What the desktop does with a link a phone sends is the page's 接收手机发来的链接 and 收到后 (phoneUI.receiveOff, receiveAsk): queued at once, with 来自 <phone> on its card (core.Job.Device), put in the link field for the user to start, or refused. A locked library is never written: a link is refused while the open library is locked, and the jobs of a locked library are neither listed nor acted on (remoteQueue, remoteFindJob).
 
-// phoneOps are the operations the desktop answers. Pausing and resuming a job are not among them yet: the queue cannot hold a job where it is.
-var phoneOps = []string{psync.OpHello, psync.OpJobCreate, psync.OpJobs, psync.OpJob, psync.OpJobCancel, psync.OpJobRetry, psync.OpUpdateYTDLP, psync.OpEvents}
+// phoneOps are the operations the desktop answers, the learning state's among them (state_phonesync_state.go). Pausing and resuming a job are not among them yet: the queue cannot hold a job where it is.
+var phoneOps = []string{psync.OpHello, psync.OpJobCreate, psync.OpJobs, psync.OpJob, psync.OpJobCancel, psync.OpJobRetry, psync.OpUpdateYTDLP, psync.OpEvents, psync.OpStateGet, psync.OpStatePut, psync.OpStateResolve}
 
 // phoneReceive is what the desktop does with a link a phone sends, as Hello says it.
 func (a *app) phoneReceive() string {
@@ -88,7 +88,7 @@ type phoneJobs struct{ a *app }
 func (j phoneJobs) Hello(ctx context.Context, _ psync.Caller) (psync.Hello, error) {
 	a := j.a
 	return remote.OnUI(ctx, a.update, func() (psync.Hello, error) {
-		return psync.Hello{Ops: phoneOps, Options: []string{}, Receive: a.phoneReceive()}, nil
+		return psync.Hello{Ops: phoneOps, Options: []string{}, State: phonesync.StateKinds, Receive: a.phoneReceive()}, nil
 	})
 }
 

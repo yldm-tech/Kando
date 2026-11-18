@@ -66,6 +66,8 @@ type Config struct {
 	Source Source
 	// Jobs is the app's queue as protocol v2's calls act on it; nil answers only hello, with no operation but the reads.
 	Jobs psync.Service
+	// State is the libraries' learning state as protocol v2's calls read and write it; nil answers them unsupported.
+	State psync.StateService
 	// Addrs are the addresses to listen on, looked at again every rescanEvery as the computer joins other networks; nil is LANAddrs. Tests give loopback.
 	Addrs func() []netip.Addr
 	// Changed is told, on any goroutine, that what the settings show changed: the code on offer, the devices, or the addresses listened on.
@@ -144,7 +146,7 @@ func Start(cfg Config) (*Server, error) {
 	if jobs == nil {
 		jobs = noJobs{}
 	}
-	s.desk = &psync.Desk{Service: jobs, Journal: psync.NewJournal(), Desktop: cfg.Name, Now: cfg.Now}
+	s.desk = &psync.Desk{Service: jobs, State: cfg.State, Journal: psync.NewJournal(), Desktop: cfg.Name, Now: cfg.Now}
 	s.http = &http.Server{
 		Handler:           s.routes(),
 		TLSConfig:         &tls.Config{Certificates: []tls.Certificate{cert}, MinVersion: tls.VersionTLS13},
@@ -719,6 +721,9 @@ func (s *Server) call(w http.ResponseWriter, r *http.Request, dev Device) {
 
 // PublishJobs makes jobs what phones are told of the app's queue, in the order a list gives them, and wakes the phones waiting for its changes. It reports whether anything changed.
 func (s *Server) PublishJobs(jobs []psync.Job) bool { return s.desk.Journal.PublishJobs(jobs) }
+
+// PublishState tells the phones waiting for events that the learning state of the library of ID lib changed (psync.EventState).
+func (s *Server) PublishState(lib string) { s.desk.Journal.PublishState(lib) }
 
 // noJobs is the queue of an app that gives the server none: it says hello, and lists no jobs.
 type noJobs struct{}
