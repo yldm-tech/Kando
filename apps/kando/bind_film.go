@@ -343,12 +343,6 @@ func (a *app) closeFilm() {
 
 // escapeFilm closes what is open over the film, the transport's menus, then the style view, then leaves full screen, and else closes the film. The window does not leave full screen on Esc by itself, so without this Esc in full screen would close the film and leave the library filling the screen.
 func (a *app) escapeFilm() {
-	// A search being typed in is emptied first, as the field's own Escape does (film's searchField): this row may run in its place.
-	// TODO(nsgo#204): run the binding the platform matched for a key, not the newest binding of that key's name (core.Tree.pressKey), so the search field's Escape (core.KeyAlways) is not taken over by this row (core.KeyAuto) once wireKeys binds the table again while the field has the focus https://github.com/nsgo-dev/nsgo/issues/204
-	if f := &a.player.film; f.searchFocused && f.search != "" {
-		f.search = ""
-		return
-	}
 	if f := &a.player.film; f.modeMenu || f.speedMenu {
 		f.modeMenu, f.speedMenu = false, false
 		return
@@ -445,7 +439,7 @@ func (a *app) playerSaveSettings() {
 func (a *app) playerKeys(cx *ns.Scope) []shortcut {
 	playing := func() bool { return a.openKey != "" && a.playerLoaded() }
 	open := func() bool { return a.openKey != "" }
-	// Space and the arrows are left to the speed or mode menu while one is open, for its rows (wireKeys says why only then).
+	// Space and the arrows are left to the speed or mode menu while one is open, for its rows, wherever the keyboard focus is.
 	menus := func() bool { return a.player.film.modeMenu || a.player.film.speedMenu }
 	transport := func() bool { return playing() && !menus() }
 	volume := func() bool { return open() && !menus() }
