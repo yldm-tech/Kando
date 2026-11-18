@@ -19,6 +19,7 @@ type App interface {
 	live.State
 	Corrector
 	Glossary
+	Reviewer
 	Streamer
 	Explainer
 	Recapper

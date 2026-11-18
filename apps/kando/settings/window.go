@@ -180,6 +180,10 @@ type App interface {
 	// TranslateContextLines is how many earlier lines go with a batch while TranslateContext is on; SetTranslateContextLines changes it, kept between MinContextLines and media.MaxContextLines, and Save keeps it.
 	TranslateContextLines() int
 	SetTranslateContextLines(n int)
+	// Review is whether a job proofreads the translation as a whole once it is made (the final proofread); ReviewAuto is which of its changes apply without the user, one of core.ProofAutos, which SetReviewAuto changes. Save keeps them.
+	Review() *bool
+	ReviewAuto() string
+	SetReviewAuto(auto string)
 
 	// Appearance is the one the windows show, AppearanceLight or AppearanceDark, or "" to follow the system's; SetAppearance shows and saves it.
 	Appearance() string

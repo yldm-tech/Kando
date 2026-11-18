@@ -45,6 +45,7 @@ type app struct {
 	player   playerUI    // state_player.go
 	correct  correctUI   // state_correct.go
 	gloss    glossaryUI  // state_glossary.go
+	review   reviewUI    // state_review.go
 	prefs    settingsUI  // state_settings.go
 	cloud    cloudUI     // state_cloud.go
 	overlay  overlayUI   // state_overlay.go
@@ -89,6 +90,7 @@ func newApp(pipeline media.Pipeline, update func(fn func())) *app {
 		player:   newPlayerUI(),
 		correct:  newCorrectUI(),
 		gloss:    newGlossaryUI(),
+		review:   newReviewUI(),
 		prefs:    newSettingsUI(),
 		cloud:    newCloudUI(),
 		overlay:  newOverlayUI(),

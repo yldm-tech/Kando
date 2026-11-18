@@ -46,6 +46,7 @@ type fakeApp struct {
 	live.Rev
 	fakeCorrector
 	fakeGlossary
+	fakeReviewer
 	fakeStreamer
 	fakeExplainer
 	item       Item
