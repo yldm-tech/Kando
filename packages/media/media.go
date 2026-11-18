@@ -271,8 +271,11 @@ func Run(ctx context.Context, p Pipeline, job core.Job, language string, report 
 			spokenNow = hearLanguage
 		}
 		lines, n, ok := platformLines(ctx, p, job, spokenNow, original)
-		if ctxErr := ctx.Err(); ctxErr != nil {
-			return fail("translate", ctxErr)
+		// Only a job that fetched its site's subtitles can have been stopped in the fetch, which leaves it without them though the site has them; one that fetched none goes on as before, as a job stopped meanwhile is stopped by the steps after.
+		if _, fetches := p.(PlatformSubtitler); fetches && job.SubtitleSource == core.SubtitlesPlatform {
+			if ctxErr := ctx.Err(); ctxErr != nil {
+				return fail("translate", ctxErr)
+			}
 		}
 		if ok {
 			original, platform, localLines = lines, true, n
