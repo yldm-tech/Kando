@@ -154,3 +154,23 @@ func TestLinksNotTakenYetAreKept(t *testing.T) {
 		t.Fatalf("read back %+v, %v", got, err)
 	}
 }
+
+// A video looked at again in Browse moves to the front, keeping its title when the page has not given one yet, and only the last MaxVisits are kept.
+func TestVisitedKeepsTheLastVideosNewestFirst(t *testing.T) {
+	var visits []Visit
+	for _, u := range []string{"a", "b", "c", "d", "e", "f"} {
+		visits = Visited(visits, Visit{URL: "https://example.com/" + u, Title: strings.ToUpper(u)})
+	}
+	if len(visits) != MaxVisits || visits[0].URL != "https://example.com/f" || visits[MaxVisits-1].URL != "https://example.com/b" {
+		t.Fatalf("visits %+v", visits)
+	}
+	visits = Visited(visits, Visit{URL: "https://example.com/c"})
+	if len(visits) != MaxVisits || visits[0] != (Visit{URL: "https://example.com/c", Title: "C"}) || visits[1].URL != "https://example.com/f" {
+		t.Fatalf("looked at again: %+v", visits)
+	}
+	for i, v := range visits[1:] {
+		if v.URL == "https://example.com/c" {
+			t.Fatalf("visit %d is the one moved to the front: %+v", i+1, visits)
+		}
+	}
+}

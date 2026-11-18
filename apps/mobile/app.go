@@ -4,6 +4,7 @@ import (
 	"slices"
 
 	"kando/apps/mobile/add"
+	"kando/apps/mobile/browse"
 	"kando/apps/mobile/catalog"
 	"kando/apps/mobile/film"
 	"kando/apps/mobile/films"
@@ -47,11 +48,13 @@ const (
 	goalPage
 	revokedPage
 	jobsPage
+	browsePage
 )
 
-// The tabs, in the order the tab bar shows them. Jobs is a section of its own on a tablet only; on a phone it opens from the Library.
+// The tabs, in the order the tab bar shows them. Jobs is a section of its own on a tablet only; on a phone it opens from the Library. Browse is left out of store builds (browse.Available).
 const (
 	filmsTab = iota
+	browseTab
 	learnTab
 	jobsTab
 	settingsTab
@@ -73,13 +76,11 @@ func App(cx *core.Scope, cfg session.Config) core.Node {
 	colors := ui.ColorsOf(cx)
 	s := session.New(cx, cfg)
 	outer := base.NewNav(cx, route{page: rootPage})
-	navs := [tabs]*base.Nav[route]{base.NewNav(cx, route{page: filmsPage}), base.NewNav(cx, route{page: learnPage}), base.NewNav(cx, route{page: jobsPage}), base.NewNav(cx, route{page: settingsPage})}
+	navs := [tabs]*base.Nav[route]{base.NewNav(cx, route{page: filmsPage}), base.NewNav(cx, route{page: browsePage}), base.NewNav(cx, route{page: learnPage}), base.NewNav(cx, route{page: jobsPage}),
+		base.NewNav(cx, route{page: settingsPage})}
 	selected := core.NewSignal(cx, filmsTab)
 	// shown are the tabs the shell shows, in order: the shell knows a tab by its place among them.
-	shown := []int{filmsTab, learnTab, settingsTab}
-	if look.Tablet(cx) {
-		shown = []int{filmsTab, learnTab, jobsTab, settingsTab}
-	}
+	shown := shownTabs(look.Tablet(cx))
 	adding := core.NewSignal(cx, false)
 	openAdd := func() { adding.Set(true) }
 	// openJobs shows the Jobs page: a tablet's section, or a page of the Library's stack on a phone, which goes to the Library.
@@ -164,6 +165,8 @@ func App(cx *core.Scope, cfg session.Config) core.Node {
 					return settings.TargetPage(cx, s, back)
 				case filmPage:
 					return film.Page(cx, s, r.desktop, r.library.Name, r.film, play, back)
+				case browsePage:
+					return browse.Page(cx, s, browse.Actions{Pair: openPair, Shown: func() bool { return selected.Get() == browseTab }})
 				case jobsPage:
 					act := jobs.Actions{Add: openAdd, Pair: openPair, Film: openFilm, Back: back}
 					if depth() == 0 {
@@ -188,6 +191,7 @@ func App(cx *core.Scope, cfg session.Config) core.Node {
 	sh := func(cx *core.Scope) core.Node {
 		all := [tabs]shell.Tab{
 			filmsTab:    {Text: func() string { return locales.FilmsTitle(cx) }, Icon: lucide.SquarePlay, SystemIcon: "play.rectangle.on.rectangle", TestID: "tab-films", Content: tabStack(navs[filmsTab])},
+			browseTab:   {Text: func() string { return locales.BrowseTitle(cx) }, Icon: lucide.Globe, SystemIcon: "globe", TestID: "tab-browse", Content: tabStack(navs[browseTab])},
 			learnTab:    {Text: func() string { return locales.LearnTitle(cx) }, Icon: lucide.GraduationCap, SystemIcon: "rectangle.stack", TestID: "tab-learn", Content: tabStack(navs[learnTab])},
 			jobsTab:     {Text: func() string { return locales.JobsTitle(cx) }, Icon: lucide.ListChecks, SystemIcon: "checklist", TestID: "tab-jobs", Content: tabStack(navs[jobsTab])},
 			settingsTab: {Text: func() string { return locales.SettingsTitle(cx) }, Icon: lucide.Settings, SystemIcon: "gearshape", TestID: "tab-settings", Content: tabStack(navs[settingsTab])},
@@ -227,4 +231,17 @@ func App(cx *core.Scope, cfg session.Config) core.Node {
 			ui.Toasts{Toaster: toaster, TestID: "toasts"},
 		}}
 	})
+}
+
+// shownTabs are the tabs the shell shows, in order, on a tablet or a phone: Browse where the build has it, and Jobs on a tablet.
+func shownTabs(tablet bool) []int {
+	shown := []int{filmsTab}
+	if browse.Available {
+		shown = append(shown, browseTab)
+	}
+	shown = append(shown, learnTab)
+	if tablet {
+		shown = append(shown, jobsTab)
+	}
+	return append(shown, settingsTab)
 }

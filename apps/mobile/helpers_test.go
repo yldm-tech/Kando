@@ -76,7 +76,7 @@ func newDesktop(t *testing.T) *synctest.Desktop {
 	return d
 }
 
-// openTab shows tab i (filmsTab, learnTab, settingsTab), named name, pressing the drawn bar's tab, which headless always shows. Where the system's bar shows in its place, on an iOS target, it reports the change as the platform would, which nsgotest allows headless only: there it skips the test, so a screenshot scene must not depend on it.
+// openTab shows tab i (filmsTab, browseTab, learnTab, settingsTab), named name, pressing the drawn bar's tab, which headless always shows. Where the system's bar shows in its place, on an iOS target, it reports the change as the platform would, which nsgotest allows headless only: there it skips the test, so a screenshot scene must not depend on it.
 func (p *phone) openTab(i int, name string) {
 	p.t.Helper()
 	if p.app.Exists("id:tab-bar >> label:" + name) {
@@ -84,7 +84,7 @@ func (p *phone) openTab(i int, name string) {
 		return
 	}
 	// A phone's bar shows no Jobs, so a tab's place on it is not its number.
-	p.app.Emit("id:tab-bar", "change", float64(slices.Index([]int{filmsTab, learnTab, settingsTab}, i)))
+	p.app.Emit("id:tab-bar", "change", float64(slices.Index(shownTabs(false), i)))
 }
 
 // startPairing goes through a new phone's introduction to its pairing step.

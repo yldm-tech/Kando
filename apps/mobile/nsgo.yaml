@@ -7,6 +7,7 @@ icon:
   png: ../kando/resources/icon.png
 i18n: { dir: locales, source: en }
 
+# A build for the App Store or Google Play adds the store tag (tags: [store] here, or GOFLAGS=-tags=store), which leaves Browse out (browse.Available): its pages send other services' videos to a downloader, which App Store guideline 5.2.3 and Google Play's policy may refuse.
 build:
   output: build
   targets: [ios, android_arm64]
