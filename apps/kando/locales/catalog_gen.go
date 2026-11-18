@@ -930,6 +930,7 @@ var Parameters = map[string][]string{
 	"SettingsPhoneDeviceOnline":                {"platform"},
 	"SettingsPhoneReadOnlyLabel":               {"name"},
 	"SettingsPhoneRevokeTitle":                 {"name"},
+	"SettingsPhoneRelayStoreName":              {"kind", "bucket"},
 	"SettingsPhoneSyncedCounts":                {"words", "lines", "films"},
 	"SettingsPhoneResolveFailed":               {"error_"},
 	"SettingsPhoneConflictWord":                {"word"},
@@ -1432,6 +1433,7 @@ type Translation struct {
 	SettingsPhoneDeviceOnline                func(platform string) string
 	SettingsPhoneReadOnlyLabel               func(name string) string
 	SettingsPhoneRevokeTitle                 func(name string) string
+	SettingsPhoneRelayStoreName              func(kind string, bucket string) string
 	SettingsPhoneSyncedCounts                func(words int, lines int, films int) string
 	SettingsPhoneResolveFailed               func(error_ string) string
 	SettingsPhoneConflictWord                func(word string) string
@@ -2807,6 +2809,18 @@ const (
 	textSettingsPhoneRevokeJobs
 	textSettingsPhoneRevokeOffline
 	textSettingsPhoneRevokePairAgain
+	textSettingsPhoneAway
+	textSettingsPhoneRelay
+	textSettingsPhoneRelayHint
+	textSettingsPhoneRelayStore
+	textSettingsPhoneRelayNoStore
+	textSettingsPhoneRelaySetUp
+	textSettingsPhoneRelayStatus
+	textSettingsPhoneRelayWorking
+	textSettingsPhoneRelayChecking
+	textSettingsPhoneRelayNeedsStore
+	textSettingsPhoneRelayOffline
+	textSettingsPhoneRevokeStorage
 	textSettingsPhoneRevokeConfirm
 	textSettingsPhoneRevokeCancel
 	textSettingsPhoneLearning
@@ -4176,6 +4190,18 @@ var keyOfText = [numTexts]string{
 	"settingsPhoneRevokeJobs",
 	"settingsPhoneRevokeOffline",
 	"settingsPhoneRevokePairAgain",
+	"settingsPhoneAway",
+	"settingsPhoneRelay",
+	"settingsPhoneRelayHint",
+	"settingsPhoneRelayStore",
+	"settingsPhoneRelayNoStore",
+	"settingsPhoneRelaySetUp",
+	"settingsPhoneRelayStatus",
+	"settingsPhoneRelayWorking",
+	"settingsPhoneRelayChecking",
+	"settingsPhoneRelayNeedsStore",
+	"settingsPhoneRelayOffline",
+	"settingsPhoneRevokeStorage",
 	"settingsPhoneRevokeConfirm",
 	"settingsPhoneRevokeCancel",
 	"settingsPhoneLearning",
@@ -5543,6 +5569,18 @@ var textsEn = i18n.NewTexts(""+
 	"Links it already sent stay in the queue and are processed as usual."+
 	"Films and learning records saved on the phone stay there; they can't be deleted from here."+
 	"To use it again, pair it with a new code."+
+	"Away From This Network"+
+	"Sync through your storage"+
+	"When a phone is away from this network, its links, jobs and progress go through the storage in Account & Upload, encrypted with its pairing key. Each exchange takes from a few seconds to a couple of minutes."+
+	"Storage"+
+	"Not set up"+
+	"Set Up…"+
+	"Status"+
+	"Working"+
+	"Checking the storage…"+
+	"Set up a storage in Account & Upload first"+
+	"Paused while Offline mode is on"+
+	"Its messages in your storage are deleted. Links it already holds keep working for up to 7 days; to cut them off now, change the storage's access key in Account & Upload."+
 	"Revoke This Phone"+
 	"Cancel"+
 	"Learning Records"+
@@ -6907,6 +6945,18 @@ var textsEn = i18n.NewTexts(""+
 		67,
 		90,
 		41,
+		22,
+		25,
+		207,
+		7,
+		10,
+		9,
+		6,
+		7,
+		23,
+		42,
+		31,
+		169,
 		17,
 		6,
 		16,
@@ -8274,6 +8324,18 @@ var textsJa = i18n.NewTexts(""+
 	"送信済みのリンクはキューに残り、通常どおり処理されます。"+
 	"スマートフォンにオフライン保存した作品と学習記録は残り、ここからは削除できません。"+
 	"再び使うには、新しいコードでペアリングし直してください。"+
+	"同じネットワークにいないとき"+
+	"ストレージ経由で同期"+
+	"スマートフォンがこのネットワークにいないとき、リンク・ジョブ・進捗は「アカウントとアップロード」のストレージを経由し、ペアリングキーで暗号化されます。1 回のやり取りに数秒から数分かかります。"+
+	"使用するストレージ"+
+	"未設定"+
+	"設定…"+
+	"状態"+
+	"正常"+
+	"ストレージを確認中…"+
+	"先に「アカウントとアップロード」でストレージを設定してください"+
+	"オフラインモード中は一時停止"+
+	"ストレージにあるこのデバイスのメッセージは削除されます。すでに渡したリンクは最長 7 日間使えます。すぐに無効にするには、「アカウントとアップロード」でストレージのアクセスキーを変更してください。"+
 	"このデバイスを取り消す"+
 	"キャンセル"+
 	"学習記録"+
@@ -9638,6 +9700,18 @@ var textsJa = i18n.NewTexts(""+
 		84,
 		123,
 		84,
+		42,
+		30,
+		284,
+		27,
+		9,
+		9,
+		6,
+		6,
+		30,
+		93,
+		42,
+		288,
 		33,
 		15,
 		12,
@@ -11005,6 +11079,18 @@ var textsKo = i18n.NewTexts(""+
 	"이미 보낸 링크는 대기열에 남아 평소처럼 처리됩니다."+
 	"휴대폰에 오프라인으로 저장한 영상과 학습 기록은 남으며, 여기서 지울 수 없습니다."+
 	"다시 쓰려면 새 코드로 다시 페어링해야 합니다."+
+	"같은 네트워크에 없을 때"+
+	"내 스토리지를 거쳐 동기화"+
+	"휴대폰이 이 네트워크에 없을 때 링크, 작업, 진행 상황은 ‘계정 및 업로드’의 스토리지를 거쳐 오가며 페어링 키로 암호화됩니다. 한 번 주고받는 데 몇 초에서 몇 분이 걸립니다."+
+	"사용할 스토리지"+
+	"설정 안 됨"+
+	"설정…"+
+	"상태"+
+	"정상"+
+	"스토리지 확인 중…"+
+	"먼저 ‘계정 및 업로드’에서 스토리지를 설정하세요"+
+	"오프라인 모드에서는 일시 중지"+
+	"스토리지에 있는 이 기기의 메시지가 삭제됩니다. 이미 받은 링크는 최대 7일 동안 작동합니다. 바로 끊으려면 ‘계정 및 업로드’에서 스토리지 액세스 키를 바꾸세요."+
 	"이 기기 해제"+
 	"취소"+
 	"학습 기록"+
@@ -12369,6 +12455,18 @@ var textsKo = i18n.NewTexts(""+
 		73,
 		114,
 		64,
+		33,
+		36,
+		240,
+		22,
+		14,
+		9,
+		6,
+		6,
+		26,
+		71,
+		42,
+		223,
 		17,
 		6,
 		13,
@@ -13736,6 +13834,18 @@ var textsZhHans = i18n.NewTexts(""+
 	"它已经发来的链接留在队列里，照常处理。"+
 	"手机上已经离线保存的影片和学习记录留在手机上，没法从这里删除。"+
 	"以后要再用，得用新的配对码重新配对。"+
+	"不在同一网络时"+
+	"经你的存储同步"+
+	"手机不在这个网络里时，链接、任务和进度经「账号与上传」里的存储中转，用配对密钥加密。每次往来要几秒到几分钟。"+
+	"用哪个存储"+
+	"还没设置"+
+	"去设置…"+
+	"状态"+
+	"正常"+
+	"正在检查存储…"+
+	"先在「账号与上传」里设置存储"+
+	"离线模式下暂停"+
+	"它在你存储里的消息会删除。它已经拿到的链接最多还能用 7 天；要马上作废，到「账号与上传」换一个存储访问密钥。"+
 	"撤销这台设备"+
 	"取消"+
 	"学习记录"+
@@ -15100,6 +15210,18 @@ var textsZhHans = i18n.NewTexts(""+
 		57,
 		93,
 		54,
+		21,
+		21,
+		162,
+		15,
+		12,
+		12,
+		6,
+		6,
+		21,
+		42,
+		21,
+		159,
 		18,
 		6,
 		12,
@@ -16467,6 +16589,18 @@ var textsZhHant = i18n.NewTexts(""+
 	"它已經傳來的連結留在佇列裡，照常處理。"+
 	"手機上已經離線儲存的影片和學習紀錄留在手機上，沒法從這裡刪除。"+
 	"以後要再用，得用新的配對碼重新配對。"+
+	"不在同一網路時"+
+	"經你的儲存空間同步"+
+	"手機不在這個網路裡時，連結、任務和進度經「帳號與上傳」裡的儲存空間中轉，用配對金鑰加密。每次往來要幾秒到幾分鐘。"+
+	"使用哪個儲存空間"+
+	"尚未設定"+
+	"去設定…"+
+	"狀態"+
+	"正常"+
+	"正在檢查儲存空間…"+
+	"先在「帳號與上傳」裡設定儲存空間"+
+	"離線模式下暫停"+
+	"它在你儲存空間裡的訊息會刪除。它已經拿到的連結最多還能用 7 天；要馬上作廢，到「帳號與上傳」換一個儲存空間存取金鑰。"+
 	"撤銷這台裝置"+
 	"取消"+
 	"學習紀錄"+
@@ -17831,6 +17965,18 @@ var textsZhHant = i18n.NewTexts(""+
 		57,
 		93,
 		54,
+		21,
+		27,
+		168,
+		24,
+		12,
+		12,
+		6,
+		6,
+		27,
+		48,
+		21,
+		171,
 		18,
 		6,
 		12,
@@ -19318,6 +19464,9 @@ func Supply(lang string, t Translation) {
 	}
 	if t.SettingsPhoneRevokeTitle != nil {
 		s.SettingsPhoneRevokeTitle = t.SettingsPhoneRevokeTitle
+	}
+	if t.SettingsPhoneRelayStoreName != nil {
+		s.SettingsPhoneRelayStoreName = t.SettingsPhoneRelayStoreName
 	}
 	if t.SettingsPhoneSyncedCounts != nil {
 		s.SettingsPhoneSyncedCounts = t.SettingsPhoneSyncedCounts
@@ -48807,6 +48956,162 @@ func SettingsPhoneRevokePairAgain(cx *core.Scope) string {
 // SettingsPhoneRevokePairAgain is the package's SettingsPhoneRevokePairAgain in the language of msgs.
 func (msgs Messages) SettingsPhoneRevokePairAgain() string {
 	return msgs.text(textSettingsPhoneRevokePairAgain)
+}
+
+// SettingsPhoneAway says "Away From This Network"
+// in the language the app shows under cx.
+//
+// Heading of the card on the Phone Sync settings page about syncing with phones that are not on the computer's network.
+func SettingsPhoneAway(cx *core.Scope) string { return For(cx).SettingsPhoneAway() }
+
+// SettingsPhoneAway is the package's SettingsPhoneAway in the language of msgs.
+func (msgs Messages) SettingsPhoneAway() string { return msgs.text(textSettingsPhoneAway) }
+
+// SettingsPhoneRelay says "Sync through your storage"
+// in the language the app shows under cx.
+//
+// Switch on the Phone Sync settings page that turns the storage relay on: phones away from the local network reach the computer through the object storage set up in Account & Upload.
+func SettingsPhoneRelay(cx *core.Scope) string { return For(cx).SettingsPhoneRelay() }
+
+// SettingsPhoneRelay is the package's SettingsPhoneRelay in the language of msgs.
+func (msgs Messages) SettingsPhoneRelay() string { return msgs.text(textSettingsPhoneRelay) }
+
+// SettingsPhoneRelayHint says "When a phone is away from this network, its links, jobs and progress go through the storage in Account & Upload, encrypted with its pairing key. Each exchange takes from a few seconds to a couple of minutes."
+// in the language the app shows under cx.
+//
+// Subtitle of the storage relay switch on the Phone Sync settings page.
+func SettingsPhoneRelayHint(cx *core.Scope) string { return For(cx).SettingsPhoneRelayHint() }
+
+// SettingsPhoneRelayHint is the package's SettingsPhoneRelayHint in the language of msgs.
+func (msgs Messages) SettingsPhoneRelayHint() string { return msgs.text(textSettingsPhoneRelayHint) }
+
+// SettingsPhoneRelayStore says "Storage"
+// in the language the app shows under cx.
+//
+// Row title on the Phone Sync settings page naming the object storage the relay goes through.
+func SettingsPhoneRelayStore(cx *core.Scope) string { return For(cx).SettingsPhoneRelayStore() }
+
+// SettingsPhoneRelayStore is the package's SettingsPhoneRelayStore in the language of msgs.
+func (msgs Messages) SettingsPhoneRelayStore() string { return msgs.text(textSettingsPhoneRelayStore) }
+
+// SettingsPhoneRelayStoreName says "{kind} · {bucket}"
+// in the language the app shows under cx.
+//
+// The storage the relay goes through: its kind (R2, S3, OSS, COS or S3-compatible) and its bucket's name.
+func SettingsPhoneRelayStoreName(cx *core.Scope, kind string, bucket string) string {
+	return For(cx).SettingsPhoneRelayStoreName(kind, bucket)
+}
+
+// SettingsPhoneRelayStoreName is the package's SettingsPhoneRelayStoreName in the language of msgs.
+func (msgs Messages) SettingsPhoneRelayStoreName(kind string, bucket string) string {
+	if i18n.IsPseudo(msgs.lang) {
+		return i18n.Pseudo(msgs.lang, Messages{lang: Source, mark: true}.SettingsPhoneRelayStoreName(kind, bucket))
+	}
+	for lang := msgs.lang; ; lang = i18n.Parent(lang) {
+		if f := supplied[lang].SettingsPhoneRelayStoreName; f != nil {
+			return f(kind, bucket)
+		}
+		switch lang {
+		case "", "en":
+			return msgs.arg(kind) + " · " + msgs.arg(bucket)
+		case "ja":
+			return kind + " · " + bucket
+		case "ko":
+			return kind + " · " + bucket
+		case "zh-Hans":
+			return kind + " · " + bucket
+		case "zh-Hant":
+			return kind + " · " + bucket
+		}
+	}
+}
+
+// SettingsPhoneRelayNoStore says "Not set up"
+// in the language the app shows under cx.
+//
+// Shown in the Storage row of the Phone Sync settings page when no object storage is set up in Account & Upload.
+func SettingsPhoneRelayNoStore(cx *core.Scope) string { return For(cx).SettingsPhoneRelayNoStore() }
+
+// SettingsPhoneRelayNoStore is the package's SettingsPhoneRelayNoStore in the language of msgs.
+func (msgs Messages) SettingsPhoneRelayNoStore() string {
+	return msgs.text(textSettingsPhoneRelayNoStore)
+}
+
+// SettingsPhoneRelaySetUp says "Set Up…"
+// in the language the app shows under cx.
+//
+// Button in the Storage row of the Phone Sync settings page that opens Settings › Account & Upload.
+func SettingsPhoneRelaySetUp(cx *core.Scope) string { return For(cx).SettingsPhoneRelaySetUp() }
+
+// SettingsPhoneRelaySetUp is the package's SettingsPhoneRelaySetUp in the language of msgs.
+func (msgs Messages) SettingsPhoneRelaySetUp() string { return msgs.text(textSettingsPhoneRelaySetUp) }
+
+// SettingsPhoneRelayStatus says "Status"
+// in the language the app shows under cx.
+//
+// Row title on the Phone Sync settings page for whether the storage relay works.
+func SettingsPhoneRelayStatus(cx *core.Scope) string { return For(cx).SettingsPhoneRelayStatus() }
+
+// SettingsPhoneRelayStatus is the package's SettingsPhoneRelayStatus in the language of msgs.
+func (msgs Messages) SettingsPhoneRelayStatus() string {
+	return msgs.text(textSettingsPhoneRelayStatus)
+}
+
+// SettingsPhoneRelayWorking says "Working"
+// in the language the app shows under cx.
+//
+// Status of the storage relay when its last exchange with the storage went through.
+func SettingsPhoneRelayWorking(cx *core.Scope) string { return For(cx).SettingsPhoneRelayWorking() }
+
+// SettingsPhoneRelayWorking is the package's SettingsPhoneRelayWorking in the language of msgs.
+func (msgs Messages) SettingsPhoneRelayWorking() string {
+	return msgs.text(textSettingsPhoneRelayWorking)
+}
+
+// SettingsPhoneRelayChecking says "Checking the storage…"
+// in the language the app shows under cx.
+//
+// Status of the storage relay before its first exchange with the storage has finished.
+func SettingsPhoneRelayChecking(cx *core.Scope) string { return For(cx).SettingsPhoneRelayChecking() }
+
+// SettingsPhoneRelayChecking is the package's SettingsPhoneRelayChecking in the language of msgs.
+func (msgs Messages) SettingsPhoneRelayChecking() string {
+	return msgs.text(textSettingsPhoneRelayChecking)
+}
+
+// SettingsPhoneRelayNeedsStore says "Set up a storage in Account & Upload first"
+// in the language the app shows under cx.
+//
+// Status of the storage relay when it is on but no object storage is set up.
+func SettingsPhoneRelayNeedsStore(cx *core.Scope) string {
+	return For(cx).SettingsPhoneRelayNeedsStore()
+}
+
+// SettingsPhoneRelayNeedsStore is the package's SettingsPhoneRelayNeedsStore in the language of msgs.
+func (msgs Messages) SettingsPhoneRelayNeedsStore() string {
+	return msgs.text(textSettingsPhoneRelayNeedsStore)
+}
+
+// SettingsPhoneRelayOffline says "Paused while Offline mode is on"
+// in the language the app shows under cx.
+//
+// Status of the storage relay while Offline mode (Settings › Privacy) stops every network use.
+func SettingsPhoneRelayOffline(cx *core.Scope) string { return For(cx).SettingsPhoneRelayOffline() }
+
+// SettingsPhoneRelayOffline is the package's SettingsPhoneRelayOffline in the language of msgs.
+func (msgs Messages) SettingsPhoneRelayOffline() string {
+	return msgs.text(textSettingsPhoneRelayOffline)
+}
+
+// SettingsPhoneRevokeStorage says "Its messages in your storage are deleted. Links it already holds keep working for up to 7 days; to cut them off now, change the storage's access key in Account & Upload."
+// in the language the app shows under cx.
+//
+// Consequence of revoking a phone while the storage relay is on, in the confirmation's list.
+func SettingsPhoneRevokeStorage(cx *core.Scope) string { return For(cx).SettingsPhoneRevokeStorage() }
+
+// SettingsPhoneRevokeStorage is the package's SettingsPhoneRevokeStorage in the language of msgs.
+func (msgs Messages) SettingsPhoneRevokeStorage() string {
+	return msgs.text(textSettingsPhoneRevokeStorage)
 }
 
 // SettingsPhoneRevokeConfirm says "Revoke This Phone"

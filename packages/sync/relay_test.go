@@ -623,3 +623,58 @@ func TestRelayKeepsAReadOnlyDeviceReadOnly(t *testing.T) {
 		t.Fatalf("once the device may write again: %+v", reply)
 	}
 }
+
+// downRelay is a memRelay whose listings fail while down, as a store that does not take the key.
+type downRelay struct {
+	*memRelay
+	down chan bool
+}
+
+var errStoreDown = errors.New("the store refuses the key")
+
+func (d downRelay) List(ctx context.Context, prefix string) ([]RelayObject, error) {
+	select {
+	case down := <-d.down:
+		if down {
+			return nil, errStoreDown
+		}
+	default:
+	}
+	return d.memRelay.List(ctx, prefix)
+}
+
+func TestRelayToldItsHealthAfterEachTurn(t *testing.T) {
+	g := newRelayRig(t)
+	store := downRelay{memRelay: g.store, down: make(chan bool, 1)}
+	health := make(chan error, 16)
+	g.relay.Bucket = store
+	g.relay.Every, g.relay.MinWrite = 10*time.Millisecond, time.Millisecond
+	g.relay.Health = func(err error) { health <- err }
+	store.down <- true
+	ctx, cancel := context.WithCancel(context.Background())
+	done := make(chan struct{})
+	go func() {
+		defer close(done)
+		g.relay.Run(ctx)
+	}()
+	defer func() {
+		cancel()
+		<-done
+	}()
+	next := func() error {
+		t.Helper()
+		select {
+		case err := <-health:
+			return err
+		case <-time.After(5 * time.Second):
+			t.Fatal("the relay told nothing of its turn")
+		}
+		return nil
+	}
+	if err := next(); !errors.Is(err, errStoreDown) {
+		t.Fatalf("a turn whose listing failed: %v", err)
+	}
+	if err := next(); err != nil {
+		t.Fatalf("a turn that went through: %v", err)
+	}
+}

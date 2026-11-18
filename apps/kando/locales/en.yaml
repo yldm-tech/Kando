@@ -6494,6 +6494,48 @@ settingsPhoneRevokeOffline:
 settingsPhoneRevokePairAgain:
   message: "To use it again, pair it with a new code."
   description: "Consequence of revoking a phone, in the confirmation's list."
+settingsPhoneAway:
+  message: "Away From This Network"
+  description: "Heading of the card on the Phone Sync settings page about syncing with phones that are not on the computer's network."
+settingsPhoneRelay:
+  message: "Sync through your storage"
+  description: "Switch on the Phone Sync settings page that turns the storage relay on: phones away from the local network reach the computer through the object storage set up in Account & Upload."
+settingsPhoneRelayHint:
+  message: "When a phone is away from this network, its links, jobs and progress go through the storage in Account & Upload, encrypted with its pairing key. Each exchange takes from a few seconds to a couple of minutes."
+  description: "Subtitle of the storage relay switch on the Phone Sync settings page."
+settingsPhoneRelayStore:
+  message: "Storage"
+  description: "Row title on the Phone Sync settings page naming the object storage the relay goes through."
+settingsPhoneRelayStoreName:
+  message: "{kind} · {bucket}"
+  description: "The storage the relay goes through: its kind (R2, S3, OSS, COS or S3-compatible) and its bucket's name."
+  placeholders:
+    kind: { type: "String", example: "R2" }
+    bucket: { type: "String", example: "kando-films" }
+settingsPhoneRelayNoStore:
+  message: "Not set up"
+  description: "Shown in the Storage row of the Phone Sync settings page when no object storage is set up in Account & Upload."
+settingsPhoneRelaySetUp:
+  message: "Set Up…"
+  description: "Button in the Storage row of the Phone Sync settings page that opens Settings › Account & Upload."
+settingsPhoneRelayStatus:
+  message: "Status"
+  description: "Row title on the Phone Sync settings page for whether the storage relay works."
+settingsPhoneRelayWorking:
+  message: "Working"
+  description: "Status of the storage relay when its last exchange with the storage went through."
+settingsPhoneRelayChecking:
+  message: "Checking the storage…"
+  description: "Status of the storage relay before its first exchange with the storage has finished."
+settingsPhoneRelayNeedsStore:
+  message: "Set up a storage in Account & Upload first"
+  description: "Status of the storage relay when it is on but no object storage is set up."
+settingsPhoneRelayOffline:
+  message: "Paused while Offline mode is on"
+  description: "Status of the storage relay while Offline mode (Settings › Privacy) stops every network use."
+settingsPhoneRevokeStorage:
+  message: "Its messages in your storage are deleted. Links it already holds keep working for up to 7 days; to cut them off now, change the storage's access key in Account & Upload."
+  description: "Consequence of revoking a phone while the storage relay is on, in the confirmation's list."
 settingsPhoneRevokeConfirm:
   message: "Revoke This Phone"
   description: "Destructive button of the confirmation that revokes a paired phone."
