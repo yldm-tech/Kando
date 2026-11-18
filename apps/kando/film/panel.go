@@ -23,7 +23,7 @@ import (
 )
 
 // panelTabs are the side panel's tabs, by the FilmSide each one is; tabLabel names them.
-var panelTabs = []string{"", "clips", "terms", "info", "style"}
+var panelTabs = []string{"", "clips", "terms", SideNotes, "info", "style"}
 
 // tabLabel is what a tab of the side panel is called in the language the interface shows under cx.
 func tabLabel(cx *ns.Scope, id string) string {
@@ -32,6 +32,8 @@ func tabLabel(cx *ns.Scope, id string) string {
 		return locales.FilmTabClips(cx)
 	case "terms":
 		return locales.FilmTabTerms(cx)
+	case SideNotes:
+		return locales.FilmTabNotes(cx)
 	case "info":
 		return locales.FilmTabInfo(cx)
 	case "style":
@@ -51,7 +53,7 @@ var (
 // panelMotionStyle moves the panel in from the right and fades it as it comes and goes.
 var panelMotionStyle = ns.Transition{Duration: panelMotion, Easing: ns.EaseInOut, Properties: ns.TransitionOpacity | ns.TransitionTransform}
 
-// panel is the glass side panel floating over the right of the picture: the subtitle list, the 片段, the glossary and the film's files under four tabs, or the subtitle style in their place. It slides in from the right as it comes and out as it goes, and is gone once it has.
+// panel is the glass side panel floating over the right of the picture: the subtitle list, the 片段, the glossary, the saved lines and words with the review, and the film's files under five tabs, or the subtitle style in their place. It slides in from the right as it comes and out as it goes, and is gone once it has.
 func (s *screen) panel() ns.Node {
 	a := s.a
 	return ns.Presence{When: s.room, Then: func(cx *ns.Scope) ns.Node {
@@ -73,6 +75,8 @@ func (s *screen) panel() ns.Node {
 						return s.clipsTab(cx)
 					case "terms":
 						return s.termsTab(cx)
+					case SideNotes:
+						return s.notesTab(cx)
 					case "info":
 						return s.infoTab(cx)
 					case SideExplain:

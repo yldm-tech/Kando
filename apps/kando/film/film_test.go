@@ -92,6 +92,9 @@ type fakeApp struct {
 	looping    bool
 	saved      map[int]bool
 	savedOnly  bool
+	notes      []Note
+	notesWords bool
+	due        int
 	calls      []string
 
 	// evenChapters is 导入平台章节 turned off, and chapterUses the cuts SetFilmChapterUse was asked for.
@@ -240,6 +243,14 @@ func (f *fakeApp) ExplainLine(i int)                       { f.call(fmt.Sprintf(
 func (f *fakeApp) LineSaved(i int) bool                    { return f.saved[i] }
 func (f *fakeApp) SavedOnly() *bool                        { return &f.savedOnly }
 func (f *fakeApp) Lookup() Lookup                          { return f.lookup }
+func (f *fakeApp) Notes() []Note                           { return f.notes }
+func (f *fakeApp) NotesWords() *bool                       { return &f.notesWords }
+func (f *fakeApp) DueCount() int                           { return f.due }
+func (f *fakeApp) StartReview()                            { f.call("review") }
+func (f *fakeApp) RemoveNote(n Note) {
+	f.call("remove note " + n.ID)
+	f.notes = slices.DeleteFunc(f.notes, func(o Note) bool { return o.ID == n.ID })
+}
 func (f *fakeApp) LookUpWord(i int, word string)           { f.call(fmt.Sprintf("look up %d %s", i, word)) }
 func (f *fakeApp) CloseLookup()                            { f.call("close lookup") }
 func (f *fakeApp) ToggleLookupWord()                       { f.call("toggle word") }
@@ -1555,6 +1566,13 @@ func TestWordsOfTheOriginalLookUp(t *testing.T) {
 	if got := a.calls[len(a.calls)-3:]; !slices.Equal(got, []string{"toggle word", "explain lookup", "close lookup"}) {
 		t.Fatalf("the card's buttons made %q", got)
 	}
+	if app.Exists("id:film-lookup-term") {
+		t.Fatal("the card names a glossary term the film has none of")
+	}
+	change(app, a, func() { a.lookup.Term = "hello → 您好" })
+	if !app.Exists(whole(msgs.VocabLookupTerm("hello → 您好"))) {
+		t.Fatalf("the card does not name the film's term: %q", app.Texts())
+	}
 	change(app, a, func() { a.lookup.Saved = true })
 	if !app.Exists(whole(msgs.VocabInVocabulary())) {
 		t.Fatal("a word in the vocabulary is not said to be")
@@ -1568,5 +1586,62 @@ func TestWordsOfTheOriginalLookUp(t *testing.T) {
 	app.Press("id:film-lookup-settings")
 	if a.calls[len(a.calls)-1] != "lookup settings" {
 		t.Fatalf("Open Settings made %q", a.calls)
+	}
+}
+
+// TestNotesTabListsTheFilmsLinesAndWords checks the 笔记 tab: the review card says how many are due and starts the review; the lines show by default, each with its translation and note, and the words on their own choice, each with its meaning, reading and line; a click on a row plays from its line, the delay counted, and its × takes it out; with nothing saved each choice says how to save some.
+func TestNotesTabListsTheFilmsLinesAndWords(t *testing.T) {
+	a := newFakeApp()
+	a.delay = 500 * time.Millisecond
+	a.due = 3
+	a.notes = []Note{
+		{ID: "l1", Start: time.Second, Original: "Hello.", Translation: "你好。", Note: "打招呼"},
+		{ID: "w1", Word: true, Start: 4 * time.Second, Original: "Bye now.", Translation: "再见。", Text: "bye", Reading: "/baɪ/", Meaning: "再见"},
+	}
+	app := start(t, a)
+	msgs := testlocale.Messages()
+	app.Press("id:film-tab-notes")
+	if a.side != SideNotes {
+		t.Fatalf("the notes tab: side %q", a.side)
+	}
+	for _, want := range []string{msgs.FilmNotesReview(), msgs.FilmNotesReviewDue(), msgs.FilmNotesDueCount(3), msgs.FilmNotesLines(1), msgs.FilmNotesWords(1), "Hello.", "你好。", "打招呼", msgs.FilmNotesSoundKept()} {
+		if !app.Exists(whole(want)) {
+			t.Fatalf("the notes tab misses %q: %q", want, app.Texts())
+		}
+	}
+	if app.Exists(whole("bye　再见")) {
+		t.Fatal("the lines list a word")
+	}
+	app.Press("id:film-notes-review")
+	if !slices.Contains(a.calls, "review") {
+		t.Fatalf("the review card made %q", a.calls)
+	}
+	app.Press("id:film-note-play")
+	if len(a.calls) == 0 || a.calls[len(a.calls)-1] != "seek 1.5s" {
+		t.Fatalf("a click on the line made %q", a.calls)
+	}
+	app.Press("id:film-notes-words")
+	if !a.notesWords {
+		t.Fatal("the words were not chosen")
+	}
+	for _, want := range []string{"bye　再见", "Bye now.", "0:04.0 · /baɪ/"} {
+		if !app.Exists(whole(want)) {
+			t.Fatalf("the words miss %q: %q", want, app.Texts())
+		}
+	}
+	if app.Exists(whole("Hello.")) || app.Exists("id:film-notes-sound") {
+		t.Fatal("the words list a line")
+	}
+	app.Press("id:film-note-remove")
+	if !slices.Contains(a.calls, "remove note w1") {
+		t.Fatalf("× made %q", a.calls)
+	}
+	change(app, a, func() {})
+	if !app.Exists(whole(msgs.FilmNotesEmptyWords())) {
+		t.Fatalf("no word left, the tab shows %q", app.Texts())
+	}
+	change(app, a, func() { a.notes, a.notesWords, a.due = nil, false, 0 })
+	if !app.Exists(whole(msgs.FilmNotesEmptyLines())) || !app.Exists(whole(msgs.FilmNotesReviewEmpty())) {
+		t.Fatalf("nothing saved, the tab shows %q", app.Texts())
 	}
 }

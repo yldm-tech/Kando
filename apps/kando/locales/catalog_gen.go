@@ -493,6 +493,12 @@ var Parameters = map[string][]string{
 	"CorrectStepStart":                         {"line"},
 	"CorrectUndo":                              {"step"},
 	"CorrectUndone":                            {"step"},
+	"FilmNotesDueCount":                        {"count"},
+	"FilmNotesLines":                           {"count"},
+	"FilmNotesPlay":                            {"time_", "text"},
+	"FilmNotesRemoveWord":                      {"word"},
+	"FilmNotesReviewLabel":                     {"count"},
+	"FilmNotesWords":                           {"count"},
 	"SettingsAIRequestsNote":                   {"size", "retries"},
 	"SettingsShortcutsPresetNote":              {"player"},
 	"SettingsSpeechThreadsAuto":                {"count"},
@@ -912,6 +918,7 @@ var Parameters = map[string][]string{
 	"VocabLongest":                             {"count"},
 	"VocabLookupCard":                          {"word"},
 	"VocabLookupFailed":                        {"error_"},
+	"VocabLookupTerm":                          {"term"},
 	"VocabMastered":                            {"count"},
 	"VocabMinutes":                             {"count"},
 	"VocabNew":                                 {"count"},
@@ -995,6 +1002,12 @@ type Translation struct {
 	CorrectStepStart                         func(line int) string
 	CorrectUndo                              func(step string) string
 	CorrectUndone                            func(step string) string
+	FilmNotesDueCount                        func(count int) string
+	FilmNotesLines                           func(count int) string
+	FilmNotesPlay                            func(time_ string, text string) string
+	FilmNotesRemoveWord                      func(word string) string
+	FilmNotesReviewLabel                     func(count int) string
+	FilmNotesWords                           func(count int) string
 	SettingsAIRequestsNote                   func(size int, retries int) string
 	SettingsShortcutsPresetNote              func(player string) string
 	SettingsSpeechThreadsAuto                func(count int) string
@@ -1414,6 +1427,7 @@ type Translation struct {
 	VocabLongest                             func(count int) string
 	VocabLookupCard                          func(word string) string
 	VocabLookupFailed                        func(error_ string) string
+	VocabLookupTerm                          func(term string) string
 	VocabMastered                            func(count int) string
 	VocabMinutes                             func(count int) string
 	VocabNew                                 func(count int) string
@@ -1587,6 +1601,16 @@ const (
 	textCorrectSubmit
 	textCorrectTranslation
 	textCorrectUnreadable
+	textFilmNotesEmptyLines
+	textFilmNotesEmptyWords
+	textFilmNotesKind
+	textFilmNotesRemoveLine
+	textFilmNotesReview
+	textFilmNotesReviewDone
+	textFilmNotesReviewDue
+	textFilmNotesReviewEmpty
+	textFilmNotesSoundKept
+	textFilmTabNotes
 	textSettingsAIBatchSize
 	textSettingsAIBatchSizeHint
 	textSettingsAIRequests
@@ -2773,6 +2797,7 @@ const (
 	textVocabExportEmpty
 	textVocabExportIntro
 	textVocabExportMenuItem
+	textVocabExporting
 	textVocabFormat
 	textVocabFormatAnki
 	textVocabFormatCSV
@@ -2956,6 +2981,16 @@ var keyOfText = [numTexts]string{
 	"correctSubmit",
 	"correctTranslation",
 	"correctUnreadable",
+	"filmNotesEmptyLines",
+	"filmNotesEmptyWords",
+	"filmNotesKind",
+	"filmNotesRemoveLine",
+	"filmNotesReview",
+	"filmNotesReviewDone",
+	"filmNotesReviewDue",
+	"filmNotesReviewEmpty",
+	"filmNotesSoundKept",
+	"filmTabNotes",
 	"settingsAIBatchSize",
 	"settingsAIBatchSizeHint",
 	"settingsAIRequests",
@@ -4142,6 +4177,7 @@ var keyOfText = [numTexts]string{
 	"vocabExportEmpty",
 	"vocabExportIntro",
 	"vocabExportMenuItem",
+	"vocabExporting",
 	"vocabFormat",
 	"vocabFormatAnki",
 	"vocabFormatCSV",
@@ -4323,6 +4359,16 @@ var textsEn = i18n.NewTexts(""+
 	"Save"+
 	"Translation"+
 	"This film’s corrections couldn’t be read, so they can’t be changed"+
+	"No saved lines in this film yet. Press B on a line you want to keep, or Save Line to Notes under Explain Line, and it joins the daily review."+
+	"No words from this film yet. Click a word on the subtitles to look it up, then Add to Vocabulary."+
+	"Show"+
+	"Remove from Saved Lines"+
+	"Today's Review"+
+	"All done for today"+
+	"Hear the line, recall it, mark how it went"+
+	"Saved lines and words show up here"+
+	"Each line's audio is cut when you save it, so the review does not need the video."+
+	"Notes"+
 	"Lines per Request"+
 	"More lines take fewer requests; fewer suit a small model."+
 	"Requests"+
@@ -5041,9 +5087,9 @@ var textsEn = i18n.NewTexts(""+
 	"Remove from Saved Lines"+
 	"Again"+
 	"Good"+
-	"Review Saved Lines"+
+	"Review"+
 	"No audio"+
-	"No saved line is due for review."+
+	"No saved line or word is due for review."+
 	"Play Again"+
 	"Show Translation"+
 	"Review"+
@@ -5509,6 +5555,7 @@ var textsEn = i18n.NewTexts(""+
 	"Nothing to export yet. Click a word on the subtitles while a film plays to look it up and add it."+
 	"Export this library's vocabulary to keep reviewing it in Anki or a spreadsheet."+
 	"Export Vocabulary…"+
+	"Exporting with each line's audio…"+
 	"Format"+
 	"Anki"+
 	"CSV"+
@@ -5687,6 +5734,16 @@ var textsEn = i18n.NewTexts(""+
 		4,
 		11,
 		72,
+		141,
+		97,
+		4,
+		23,
+		14,
+		18,
+		42,
+		34,
+		81,
+		5,
 		17,
 		57,
 		8,
@@ -6405,9 +6462,9 @@ var textsEn = i18n.NewTexts(""+
 		23,
 		5,
 		4,
-		18,
+		6,
 		8,
-		32,
+		40,
 		10,
 		16,
 		6,
@@ -6873,6 +6930,7 @@ var textsEn = i18n.NewTexts(""+
 		97,
 		79,
 		20,
+		35,
 		6,
 		4,
 		3,
@@ -7054,6 +7112,16 @@ var textsJa = i18n.NewTexts(""+
 	"保存"+
 	"訳文"+
 	"この作品の修正を読み込めないため、変更できません"+
+	"この作品にはまだ保存したセリフがありません。覚えたいセリフで B を押すか、「このセリフを解説」で「この行をノートに保存」を押すと、毎日の復習に入ります。"+
+	"この作品の単語はまだありません。字幕の単語をクリックして調べ、「単語帳に追加」を押してください。"+
+	"表示"+
+	"ノートから削除"+
+	"今日の復習"+
+	"今日の復習は終わりました"+
+	"音声とセリフで、思い出せたら次へ"+
+	"保存したセリフと単語がここに表示されます"+
+	"保存したときにセリフの音声を切り出すので、復習に元の動画は要りません。"+
+	"ノート"+
 	"1 回あたりの行数"+
 	"多いほどリクエストが減ります。小さなモデルには少なめが向いています。"+
 	"リクエスト"+
@@ -7774,7 +7842,7 @@ var textsJa = i18n.NewTexts(""+
 	"覚えた"+
 	"復習"+
 	"音声なし"+
-	"今復習するセリフはありません。"+
+	"今復習するセリフや単語はありません。"+
 	"もう一度聞く"+
 	"訳を表示"+
 	"復習"+
@@ -8240,6 +8308,7 @@ var textsJa = i18n.NewTexts(""+
 	"まだ書き出せるものがありません。再生中に字幕の単語をクリックして調べると、単語帳に追加できます。"+
 	"このライブラリの単語を書き出して、Anki や表計算ソフトで復習を続けられます。"+
 	"単語を書き出す…"+
+	"各セリフの音声と一緒に書き出しています…"+
 	"形式"+
 	"Anki"+
 	"CSV"+
@@ -8418,6 +8487,16 @@ var textsJa = i18n.NewTexts(""+
 		6,
 		6,
 		72,
+		225,
+		144,
+		6,
+		21,
+		15,
+		36,
+		48,
+		60,
+		105,
+		9,
 		23,
 		102,
 		15,
@@ -9138,7 +9217,7 @@ var textsJa = i18n.NewTexts(""+
 		9,
 		6,
 		12,
-		45,
+		54,
 		18,
 		12,
 		6,
@@ -9604,6 +9683,7 @@ var textsJa = i18n.NewTexts(""+
 		144,
 		110,
 		24,
+		60,
 		6,
 		4,
 		3,
@@ -9785,6 +9865,16 @@ var textsKo = i18n.NewTexts(""+
 	"저장"+
 	"번역"+
 	"이 영상의 수정 내용을 읽을 수 없어 바꿀 수 없습니다"+
+	"이 영상에는 아직 저장한 대사가 없습니다. 기억하고 싶은 대사에서 B를 누르거나 「이 대사 설명」에서 「이 대사를 노트에 저장」을 누르면 매일 복습에 들어갑니다."+
+	"이 영상의 단어가 아직 없습니다. 자막의 단어를 클릭해 찾아본 뒤 「단어장에 추가」를 누르세요."+
+	"보기"+
+	"노트에서 삭제"+
+	"오늘의 복습"+
+	"오늘 복습을 모두 마쳤습니다"+
+	"원음과 대사로, 떠오르면 다음으로"+
+	"저장한 대사와 단어가 여기에 나타납니다"+
+	"저장할 때 대사의 원음을 잘라 두므로 복습에 원본 영상이 필요 없습니다."+
+	"노트"+
 	"요청당 줄 수"+
 	"많을수록 요청 수가 줄고, 작은 모델에는 적게 두는 편이 좋습니다."+
 	"요청"+
@@ -10505,7 +10595,7 @@ var textsKo = i18n.NewTexts(""+
 	"알아요"+
 	"복습"+
 	"오디오 없음"+
-	"지금 복습할 대사가 없습니다."+
+	"지금 복습할 대사나 단어가 없습니다."+
 	"다시 듣기"+
 	"번역 보기"+
 	"복습"+
@@ -10971,6 +11061,7 @@ var textsKo = i18n.NewTexts(""+
 	"아직 내보낼 것이 없습니다. 재생 중에 자막의 단어를 클릭해 찾아보면 단어장에 추가할 수 있습니다."+
 	"이 라이브러리의 단어를 내보내 Anki나 스프레드시트에서 계속 복습할 수 있습니다."+
 	"단어 내보내기…"+
+	"각 대사의 원음과 함께 내보내는 중…"+
 	"형식"+
 	"Anki"+
 	"CSV"+
@@ -11149,6 +11240,16 @@ var textsKo = i18n.NewTexts(""+
 		6,
 		6,
 		72,
+		222,
+		131,
+		6,
+		19,
+		16,
+		39,
+		46,
+		55,
+		98,
+		6,
 		17,
 		89,
 		6,
@@ -11869,7 +11970,7 @@ var textsKo = i18n.NewTexts(""+
 		9,
 		6,
 		16,
-		40,
+		50,
 		13,
 		13,
 		6,
@@ -12335,6 +12436,7 @@ var textsKo = i18n.NewTexts(""+
 		135,
 		110,
 		22,
+		50,
 		6,
 		4,
 		3,
@@ -12516,6 +12618,16 @@ var textsZhHans = i18n.NewTexts(""+
 	"提交"+
 	"译文"+
 	"这部影片的修改记录读不出来，不能更改"+
+	"这部影片还没有存下的句子。听到想记住的句子按 B，或在「讲解这句」里点「存这句到笔记」，它会进入每天的复习。"+
+	"这部影片还没有生词。点字幕上的词查一下，再点「加入生词本」。"+
+	"显示"+
+	"从笔记移除"+
+	"今日复习"+
+	"今天的都复习完了"+
+	"原声 + 原句，想起来就过"+
+	"存下句子和生词后会出现在这里"+
+	"存下时就切好这句的原声，以后复习不需要原视频。"+
+	"笔记"+
 	"每批句数"+
 	"句数多，请求就少；小模型适合少一些。"+
 	"请求"+
@@ -13236,7 +13348,7 @@ var textsZhHans = i18n.NewTexts(""+
 	"记住了"+
 	"复习"+
 	"没有音频"+
-	"目前没有要复习的句子。"+
+	"目前没有要复习的句子或生词。"+
 	"再听一遍"+
 	"显示译文"+
 	"复习"+
@@ -13702,6 +13814,7 @@ var textsZhHans = i18n.NewTexts(""+
 	"还没有可以导出的。播放时点字幕里的词，查完就能加入生词本。"+
 	"把这个资料库的生词导出来，在 Anki 或表格里接着复习。"+
 	"导出生词…"+
+	"正在导出，连同每句的原声…"+
 	"格式"+
 	"Anki 卡片"+
 	"CSV 表格"+
@@ -13880,6 +13993,16 @@ var textsZhHans = i18n.NewTexts(""+
 		6,
 		6,
 		54,
+		158,
+		90,
+		6,
+		15,
+		12,
+		24,
+		33,
+		42,
+		69,
+		6,
 		12,
 		54,
 		6,
@@ -14600,7 +14723,7 @@ var textsZhHans = i18n.NewTexts(""+
 		9,
 		6,
 		12,
-		33,
+		42,
 		12,
 		12,
 		6,
@@ -15066,6 +15189,7 @@ var textsZhHans = i18n.NewTexts(""+
 		87,
 		75,
 		15,
+		39,
 		6,
 		11,
 		10,
@@ -15247,6 +15371,16 @@ var textsZhHant = i18n.NewTexts(""+
 	"提交"+
 	"譯文"+
 	"這部影片的修改紀錄讀不出來，不能更改"+
+	"這部影片還沒有存下的句子。聽到想記住的句子按 B，或在「講解這句」裡點「存這句到筆記」，它會進入每天的複習。"+
+	"這部影片還沒有生詞。點字幕上的詞查一下，再點「加入生詞本」。"+
+	"顯示"+
+	"從筆記移除"+
+	"今日複習"+
+	"今天的都複習完了"+
+	"原聲 + 原句，想起來就過"+
+	"存下句子和生詞後會出現在這裡"+
+	"存下時就切好這句的原聲，以後複習不需要原影片。"+
+	"筆記"+
 	"每批句數"+
 	"句數多，請求就少；小模型適合少一些。"+
 	"請求"+
@@ -15967,7 +16101,7 @@ var textsZhHant = i18n.NewTexts(""+
 	"記住了"+
 	"複習"+
 	"沒有音訊"+
-	"目前沒有要複習的句子。"+
+	"目前沒有要複習的句子或生詞。"+
 	"再聽一遍"+
 	"顯示譯文"+
 	"複習"+
@@ -16433,6 +16567,7 @@ var textsZhHant = i18n.NewTexts(""+
 	"還沒有可以匯出的。播放時點字幕裡的詞，查完就能加入生詞本。"+
 	"把這個資料庫的生詞匯出來，在 Anki 或表格裡接著複習。"+
 	"匯出生詞…"+
+	"正在匯出，連同每句的原聲…"+
 	"格式"+
 	"Anki 卡片"+
 	"CSV 表格"+
@@ -16611,6 +16746,16 @@ var textsZhHant = i18n.NewTexts(""+
 		6,
 		6,
 		54,
+		158,
+		90,
+		6,
+		15,
+		12,
+		24,
+		33,
+		42,
+		69,
+		6,
 		12,
 		54,
 		6,
@@ -17331,7 +17476,7 @@ var textsZhHant = i18n.NewTexts(""+
 		9,
 		6,
 		12,
-		33,
+		42,
 		12,
 		12,
 		6,
@@ -17797,6 +17942,7 @@ var textsZhHant = i18n.NewTexts(""+
 		87,
 		75,
 		15,
+		39,
 		6,
 		11,
 		10,
@@ -18007,6 +18153,24 @@ func Supply(lang string, t Translation) {
 	}
 	if t.CorrectUndone != nil {
 		s.CorrectUndone = t.CorrectUndone
+	}
+	if t.FilmNotesDueCount != nil {
+		s.FilmNotesDueCount = t.FilmNotesDueCount
+	}
+	if t.FilmNotesLines != nil {
+		s.FilmNotesLines = t.FilmNotesLines
+	}
+	if t.FilmNotesPlay != nil {
+		s.FilmNotesPlay = t.FilmNotesPlay
+	}
+	if t.FilmNotesRemoveWord != nil {
+		s.FilmNotesRemoveWord = t.FilmNotesRemoveWord
+	}
+	if t.FilmNotesReviewLabel != nil {
+		s.FilmNotesReviewLabel = t.FilmNotesReviewLabel
+	}
+	if t.FilmNotesWords != nil {
+		s.FilmNotesWords = t.FilmNotesWords
 	}
 	if t.SettingsAIRequestsNote != nil {
 		s.SettingsAIRequestsNote = t.SettingsAIRequestsNote
@@ -19264,6 +19428,9 @@ func Supply(lang string, t Translation) {
 	}
 	if t.VocabLookupFailed != nil {
 		s.VocabLookupFailed = t.VocabLookupFailed
+	}
+	if t.VocabLookupTerm != nil {
+		s.VocabLookupTerm = t.VocabLookupTerm
 	}
 	if t.VocabMastered != nil {
 		s.VocabMastered = t.VocabMastered
@@ -21545,6 +21712,346 @@ func CorrectUnreadable(cx *core.Scope) string { return For(cx).CorrectUnreadable
 
 // CorrectUnreadable is the package's CorrectUnreadable in the language of msgs.
 func (msgs Messages) CorrectUnreadable() string { return msgs.text(textCorrectUnreadable) }
+
+// FilmNotesDueCount says "{count, number}"
+// in the language the app shows under cx.
+//
+// The big number on the Notes tab's review card: how many saved lines and words are due for review.
+func FilmNotesDueCount(cx *core.Scope, count int) string { return For(cx).FilmNotesDueCount(count) }
+
+// FilmNotesDueCount is the package's FilmNotesDueCount in the language of msgs.
+func (msgs Messages) FilmNotesDueCount(count int) string {
+	if i18n.IsPseudo(msgs.lang) {
+		return i18n.Pseudo(msgs.lang, Messages{lang: Source, mark: true}.FilmNotesDueCount(count))
+	}
+	for lang := msgs.lang; ; lang = i18n.Parent(lang) {
+		if f := supplied[lang].FilmNotesDueCount; f != nil {
+			return f(count)
+		}
+		switch lang {
+		case "", "en":
+			return msgs.arg(i18n.FormatNumber("en", float64(count)))
+		case "ja":
+			return i18n.FormatNumber("ja", float64(count))
+		case "ko":
+			return i18n.FormatNumber("ko", float64(count))
+		case "zh-Hans":
+			return i18n.FormatNumber("zh-Hans", float64(count))
+		case "zh-Hant":
+			return i18n.FormatNumber("zh-Hant", float64(count))
+		}
+	}
+}
+
+// FilmNotesEmptyLines says "No saved lines in this film yet. Press B on a line you want to keep, or Save Line to Notes under Explain Line, and it joins the daily review."
+// in the language the app shows under cx.
+//
+// Notes tab of the player's side panel, listing the lines, when the film has none saved.
+func FilmNotesEmptyLines(cx *core.Scope) string { return For(cx).FilmNotesEmptyLines() }
+
+// FilmNotesEmptyLines is the package's FilmNotesEmptyLines in the language of msgs.
+func (msgs Messages) FilmNotesEmptyLines() string { return msgs.text(textFilmNotesEmptyLines) }
+
+// FilmNotesEmptyWords says "No words from this film yet. Click a word on the subtitles to look it up, then Add to Vocabulary."
+// in the language the app shows under cx.
+//
+// Notes tab of the player's side panel, listing the words, when no word of the vocabulary was looked up in this film.
+func FilmNotesEmptyWords(cx *core.Scope) string { return For(cx).FilmNotesEmptyWords() }
+
+// FilmNotesEmptyWords is the package's FilmNotesEmptyWords in the language of msgs.
+func (msgs Messages) FilmNotesEmptyWords() string { return msgs.text(textFilmNotesEmptyWords) }
+
+// FilmNotesKind says "Show"
+// in the language the app shows under cx.
+//
+// Accessible name of the Notes tab's choice between the saved lines and the words.
+func FilmNotesKind(cx *core.Scope) string { return For(cx).FilmNotesKind() }
+
+// FilmNotesKind is the package's FilmNotesKind in the language of msgs.
+func (msgs Messages) FilmNotesKind() string { return msgs.text(textFilmNotesKind) }
+
+// FilmNotesLines says "Lines {count}"
+// in the language the app shows under cx.
+//
+// Notes tab: the choice that lists the film's saved lines, with how many there are.
+func FilmNotesLines(cx *core.Scope, count int) string { return For(cx).FilmNotesLines(count) }
+
+// FilmNotesLines is the package's FilmNotesLines in the language of msgs.
+func (msgs Messages) FilmNotesLines(count int) string {
+	if i18n.IsPseudo(msgs.lang) {
+		return i18n.Pseudo(msgs.lang, Messages{lang: Source, mark: true}.FilmNotesLines(count))
+	}
+	for lang := msgs.lang; ; lang = i18n.Parent(lang) {
+		if f := supplied[lang].FilmNotesLines; f != nil {
+			return f(count)
+		}
+		switch lang {
+		case "", "en":
+			return "Lines " + msgs.arg(i18n.FormatNumber("en", float64(count)))
+		case "ja":
+			return "セリフ " + i18n.FormatNumber("ja", float64(count))
+		case "ko":
+			return "대사 " + i18n.FormatNumber("ko", float64(count))
+		case "zh-Hans":
+			return "句子 " + i18n.FormatNumber("zh-Hans", float64(count))
+		case "zh-Hant":
+			return "句子 " + i18n.FormatNumber("zh-Hant", float64(count))
+		}
+	}
+}
+
+// FilmNotesPlay says "Play from {time}: {text}"
+// in the language the app shows under cx.
+//
+// Accessible name of a row of the Notes tab: plays the film from the line's start.
+func FilmNotesPlay(cx *core.Scope, time_ string, text string) string {
+	return For(cx).FilmNotesPlay(time_, text)
+}
+
+// FilmNotesPlay is the package's FilmNotesPlay in the language of msgs.
+func (msgs Messages) FilmNotesPlay(time_ string, text string) string {
+	if i18n.IsPseudo(msgs.lang) {
+		return i18n.Pseudo(msgs.lang, Messages{lang: Source, mark: true}.FilmNotesPlay(time_, text))
+	}
+	for lang := msgs.lang; ; lang = i18n.Parent(lang) {
+		if f := supplied[lang].FilmNotesPlay; f != nil {
+			return f(time_, text)
+		}
+		switch lang {
+		case "", "en":
+			return "Play from " + msgs.arg(time_) + ": " + msgs.arg(text)
+		case "ja":
+			return time_ + " から再生：" + text
+		case "ko":
+			return time_ + "부터 재생: " + text
+		case "zh-Hans":
+			return "从 " + time_ + " 播放：" + text
+		case "zh-Hant":
+			return "從 " + time_ + " 播放：" + text
+		}
+	}
+}
+
+// FilmNotesRemoveLine says "Remove from Saved Lines"
+// in the language the app shows under cx.
+//
+// Accessible name and tooltip of the × of a saved line on the Notes tab: takes it out of the saved lines.
+func FilmNotesRemoveLine(cx *core.Scope) string { return For(cx).FilmNotesRemoveLine() }
+
+// FilmNotesRemoveLine is the package's FilmNotesRemoveLine in the language of msgs.
+func (msgs Messages) FilmNotesRemoveLine() string { return msgs.text(textFilmNotesRemoveLine) }
+
+// FilmNotesRemoveWord says "Remove “{word}” from Vocabulary"
+// in the language the app shows under cx.
+//
+// Accessible name and tooltip of the × of a word on the Notes tab: takes it out of the vocabulary.
+func FilmNotesRemoveWord(cx *core.Scope, word string) string {
+	return For(cx).FilmNotesRemoveWord(word)
+}
+
+// FilmNotesRemoveWord is the package's FilmNotesRemoveWord in the language of msgs.
+func (msgs Messages) FilmNotesRemoveWord(word string) string {
+	if i18n.IsPseudo(msgs.lang) {
+		return i18n.Pseudo(msgs.lang, Messages{lang: Source, mark: true}.FilmNotesRemoveWord(word))
+	}
+	for lang := msgs.lang; ; lang = i18n.Parent(lang) {
+		if f := supplied[lang].FilmNotesRemoveWord; f != nil {
+			return f(word)
+		}
+		switch lang {
+		case "", "en":
+			return "Remove “" + msgs.arg(word) + "” from Vocabulary"
+		case "ja":
+			return "「" + word + "」を単語帳から削除"
+		case "ko":
+			return "단어장에서 「" + word + "」 삭제"
+		case "zh-Hans":
+			return "从生词本移除「" + word + "」"
+		case "zh-Hant":
+			return "從生詞本移除「" + word + "」"
+		}
+	}
+}
+
+// FilmNotesReview says "Today's Review"
+// in the language the app shows under cx.
+//
+// Title of the card at the top of the Notes tab that starts the review of the saved lines and words due.
+func FilmNotesReview(cx *core.Scope) string { return For(cx).FilmNotesReview() }
+
+// FilmNotesReview is the package's FilmNotesReview in the language of msgs.
+func (msgs Messages) FilmNotesReview() string { return msgs.text(textFilmNotesReview) }
+
+// FilmNotesReviewDone says "All done for today"
+// in the language the app shows under cx.
+//
+// Notes tab's review card, when nothing is due now but lines or words are saved.
+func FilmNotesReviewDone(cx *core.Scope) string { return For(cx).FilmNotesReviewDone() }
+
+// FilmNotesReviewDone is the package's FilmNotesReviewDone in the language of msgs.
+func (msgs Messages) FilmNotesReviewDone() string { return msgs.text(textFilmNotesReviewDone) }
+
+// FilmNotesReviewDue says "Hear the line, recall it, mark how it went"
+// in the language the app shows under cx.
+//
+// Notes tab's review card, when lines or words are due: what the review does.
+func FilmNotesReviewDue(cx *core.Scope) string { return For(cx).FilmNotesReviewDue() }
+
+// FilmNotesReviewDue is the package's FilmNotesReviewDue in the language of msgs.
+func (msgs Messages) FilmNotesReviewDue() string { return msgs.text(textFilmNotesReviewDue) }
+
+// FilmNotesReviewEmpty says "Saved lines and words show up here"
+// in the language the app shows under cx.
+//
+// Notes tab's review card, when nothing is saved in this film yet.
+func FilmNotesReviewEmpty(cx *core.Scope) string { return For(cx).FilmNotesReviewEmpty() }
+
+// FilmNotesReviewEmpty is the package's FilmNotesReviewEmpty in the language of msgs.
+func (msgs Messages) FilmNotesReviewEmpty() string { return msgs.text(textFilmNotesReviewEmpty) }
+
+// FilmNotesReviewLabel says "{count, plural, =0 {Today's Review, nothing due} one {Today's Review, # due} other {Today's Review, # due}}"
+// in the language the app shows under cx.
+//
+// Accessible name of the Notes tab's review card, with how many saved lines and words are due.
+func FilmNotesReviewLabel(cx *core.Scope, count int) string {
+	return For(cx).FilmNotesReviewLabel(count)
+}
+
+// FilmNotesReviewLabel is the package's FilmNotesReviewLabel in the language of msgs.
+func (msgs Messages) FilmNotesReviewLabel(count int) string {
+	if i18n.IsPseudo(msgs.lang) {
+		return i18n.Pseudo(msgs.lang, Messages{lang: Source, mark: true}.FilmNotesReviewLabel(count))
+	}
+	for lang := msgs.lang; ; lang = i18n.Parent(lang) {
+		if f := supplied[lang].FilmNotesReviewLabel; f != nil {
+			return f(count)
+		}
+		switch lang {
+		case "", "en":
+			var b strings.Builder
+			switch {
+			case count == 0:
+				b.WriteString("Today's Review, nothing due")
+			default:
+				switch i18n.Cardinal("en", float64(count)) {
+				case i18n.One:
+					b.WriteString("Today's Review, ")
+					b.WriteString(msgs.arg(i18n.FormatNumber("en", float64(count))))
+					b.WriteString(" due")
+				default:
+					b.WriteString("Today's Review, ")
+					b.WriteString(msgs.arg(i18n.FormatNumber("en", float64(count))))
+					b.WriteString(" due")
+				}
+			}
+			return b.String()
+		case "ja":
+			var b strings.Builder
+			switch {
+			case count == 0:
+				b.WriteString("今日の復習、期日のものなし")
+			default:
+				switch i18n.Cardinal("ja", float64(count)) {
+				default:
+					b.WriteString("今日の復習、")
+					b.WriteString(i18n.FormatNumber("ja", float64(count)))
+					b.WriteString(" 件")
+				}
+			}
+			return b.String()
+		case "ko":
+			var b strings.Builder
+			switch {
+			case count == 0:
+				b.WriteString("오늘의 복습, 기한된 것 없음")
+			default:
+				switch i18n.Cardinal("ko", float64(count)) {
+				default:
+					b.WriteString("오늘의 복습, ")
+					b.WriteString(i18n.FormatNumber("ko", float64(count)))
+					b.WriteString("개")
+				}
+			}
+			return b.String()
+		case "zh-Hans":
+			var b strings.Builder
+			switch {
+			case count == 0:
+				b.WriteString("今日复习，没有到期的")
+			default:
+				switch i18n.Cardinal("zh-Hans", float64(count)) {
+				default:
+					b.WriteString("今日复习，")
+					b.WriteString(i18n.FormatNumber("zh-Hans", float64(count)))
+					b.WriteString(" 条到期")
+				}
+			}
+			return b.String()
+		case "zh-Hant":
+			var b strings.Builder
+			switch {
+			case count == 0:
+				b.WriteString("今日複習，沒有到期的")
+			default:
+				switch i18n.Cardinal("zh-Hant", float64(count)) {
+				default:
+					b.WriteString("今日複習，")
+					b.WriteString(i18n.FormatNumber("zh-Hant", float64(count)))
+					b.WriteString(" 條到期")
+				}
+			}
+			return b.String()
+		}
+	}
+}
+
+// FilmNotesSoundKept says "Each line's audio is cut when you save it, so the review does not need the video."
+// in the language the app shows under cx.
+//
+// Note under the saved lines of the Notes tab.
+func FilmNotesSoundKept(cx *core.Scope) string { return For(cx).FilmNotesSoundKept() }
+
+// FilmNotesSoundKept is the package's FilmNotesSoundKept in the language of msgs.
+func (msgs Messages) FilmNotesSoundKept() string { return msgs.text(textFilmNotesSoundKept) }
+
+// FilmNotesWords says "Words {count}"
+// in the language the app shows under cx.
+//
+// Notes tab: the choice that lists the words of the vocabulary looked up in this film, with how many there are.
+func FilmNotesWords(cx *core.Scope, count int) string { return For(cx).FilmNotesWords(count) }
+
+// FilmNotesWords is the package's FilmNotesWords in the language of msgs.
+func (msgs Messages) FilmNotesWords(count int) string {
+	if i18n.IsPseudo(msgs.lang) {
+		return i18n.Pseudo(msgs.lang, Messages{lang: Source, mark: true}.FilmNotesWords(count))
+	}
+	for lang := msgs.lang; ; lang = i18n.Parent(lang) {
+		if f := supplied[lang].FilmNotesWords; f != nil {
+			return f(count)
+		}
+		switch lang {
+		case "", "en":
+			return "Words " + msgs.arg(i18n.FormatNumber("en", float64(count)))
+		case "ja":
+			return "単語 " + i18n.FormatNumber("ja", float64(count))
+		case "ko":
+			return "단어 " + i18n.FormatNumber("ko", float64(count))
+		case "zh-Hans":
+			return "生词 " + i18n.FormatNumber("zh-Hans", float64(count))
+		case "zh-Hant":
+			return "生詞 " + i18n.FormatNumber("zh-Hant", float64(count))
+		}
+	}
+}
+
+// FilmTabNotes says "Notes"
+// in the language the app shows under cx.
+//
+// Side panel tab listing the film's saved lines and the words looked up in it, with the review.
+func FilmTabNotes(cx *core.Scope) string { return For(cx).FilmTabNotes() }
+
+// FilmTabNotes is the package's FilmTabNotes in the language of msgs.
+func (msgs Messages) FilmTabNotes() string { return msgs.text(textFilmTabNotes) }
 
 // SettingsAIBatchSize says "Lines per Request"
 // in the language the app shows under cx.
@@ -38574,10 +39081,10 @@ func SavedReviewAgain(cx *core.Scope) string { return For(cx).SavedReviewAgain()
 // SavedReviewAgain is the package's SavedReviewAgain in the language of msgs.
 func (msgs Messages) SavedReviewAgain() string { return msgs.text(textSavedReviewAgain) }
 
-// SavedReviewDone says "{count, plural, one {Reviewed # line.} other {Reviewed # lines.}} Each comes back when it is due."
+// SavedReviewDone says "{count, plural, one {Reviewed # card.} other {Reviewed # cards.}} Each comes back when it is due."
 // in the language the app shows under cx.
 //
-// Review, once no line is left: how many were reviewed.
+// Review, once nothing is left: how many saved lines and words were reviewed.
 func SavedReviewDone(cx *core.Scope, count int) string { return For(cx).SavedReviewDone(count) }
 
 // SavedReviewDone is the package's SavedReviewDone in the language of msgs.
@@ -38596,11 +39103,11 @@ func (msgs Messages) SavedReviewDone(count int) string {
 			case i18n.One:
 				b.WriteString("Reviewed ")
 				b.WriteString(msgs.arg(i18n.FormatNumber("en", float64(count))))
-				b.WriteString(" line.")
+				b.WriteString(" card.")
 			default:
 				b.WriteString("Reviewed ")
 				b.WriteString(msgs.arg(i18n.FormatNumber("en", float64(count))))
-				b.WriteString(" lines.")
+				b.WriteString(" cards.")
 			}
 			b.WriteString(" Each comes back when it is due.")
 			return b.String()
@@ -38609,17 +39116,17 @@ func (msgs Messages) SavedReviewDone(count int) string {
 		case "ko":
 			return i18n.FormatNumber("ko", float64(count)) + "개를 복습했습니다. 기한이 되면 다시 나옵니다."
 		case "zh-Hans":
-			return "已复习 " + i18n.FormatNumber("zh-Hans", float64(count)) + " 句，到期时会再出现。"
+			return "已复习 " + i18n.FormatNumber("zh-Hans", float64(count)) + " 条，到期时会再出现。"
 		case "zh-Hant":
-			return "已複習 " + i18n.FormatNumber("zh-Hant", float64(count)) + " 句，到期時會再出現。"
+			return "已複習 " + i18n.FormatNumber("zh-Hant", float64(count)) + " 條，到期時會再出現。"
 		}
 	}
 }
 
-// SavedReviewDue says "{count, plural, =0 {Nothing to Review} one {Review # Line} other {Review # Lines}}"
+// SavedReviewDue says "{count, plural, =0 {Nothing to Review} one {Review # Due} other {Review # Due}}"
 // in the language the app shows under cx.
 //
-// Button of the Saved Lines sheet that starts the review of the lines due, with how many are due; off when none is.
+// Button of the Saved Lines sheet that starts the review of the saved lines and words due, with how many are due; off when none is.
 func SavedReviewDue(cx *core.Scope, count int) string { return For(cx).SavedReviewDue(count) }
 
 // SavedReviewDue is the package's SavedReviewDue in the language of msgs.
@@ -38642,11 +39149,11 @@ func (msgs Messages) SavedReviewDue(count int) string {
 				case i18n.One:
 					b.WriteString("Review ")
 					b.WriteString(msgs.arg(i18n.FormatNumber("en", float64(count))))
-					b.WriteString(" Line")
+					b.WriteString(" Due")
 				default:
 					b.WriteString("Review ")
 					b.WriteString(msgs.arg(i18n.FormatNumber("en", float64(count))))
-					b.WriteString(" Lines")
+					b.WriteString(" Due")
 				}
 			}
 			return b.String()
@@ -38686,7 +39193,7 @@ func (msgs Messages) SavedReviewDue(count int) string {
 				default:
 					b.WriteString("复习 ")
 					b.WriteString(i18n.FormatNumber("zh-Hans", float64(count)))
-					b.WriteString(" 句")
+					b.WriteString(" 条")
 				}
 			}
 			return b.String()
@@ -38700,7 +39207,7 @@ func (msgs Messages) SavedReviewDue(count int) string {
 				default:
 					b.WriteString("複習 ")
 					b.WriteString(i18n.FormatNumber("zh-Hant", float64(count)))
-					b.WriteString(" 句")
+					b.WriteString(" 條")
 				}
 			}
 			return b.String()
@@ -38717,10 +39224,10 @@ func SavedReviewGood(cx *core.Scope) string { return For(cx).SavedReviewGood() }
 // SavedReviewGood is the package's SavedReviewGood in the language of msgs.
 func (msgs Messages) SavedReviewGood() string { return msgs.text(textSavedReviewGood) }
 
-// SavedReviewLeft says "{count, plural, one {# line left} other {# lines left}}"
+// SavedReviewLeft says "{count, plural, one {# card left} other {# cards left}}"
 // in the language the app shows under cx.
 //
-// Beside the review's title: how many lines are left to review, the one shown with them.
+// Beside the review's title: how many saved lines and words are left to review, the one shown with them.
 func SavedReviewLeft(cx *core.Scope, count int) string { return For(cx).SavedReviewLeft(count) }
 
 // SavedReviewLeft is the package's SavedReviewLeft in the language of msgs.
@@ -38738,10 +39245,10 @@ func (msgs Messages) SavedReviewLeft(count int) string {
 			switch i18n.Cardinal("en", float64(count)) {
 			case i18n.One:
 				b.WriteString(msgs.arg(i18n.FormatNumber("en", float64(count))))
-				b.WriteString(" line left")
+				b.WriteString(" card left")
 			default:
 				b.WriteString(msgs.arg(i18n.FormatNumber("en", float64(count))))
-				b.WriteString(" lines left")
+				b.WriteString(" cards left")
 			}
 			return b.String()
 		case "ja":
@@ -38749,17 +39256,17 @@ func (msgs Messages) SavedReviewLeft(count int) string {
 		case "ko":
 			return i18n.FormatNumber("ko", float64(count)) + "개 남음"
 		case "zh-Hans":
-			return "还剩 " + i18n.FormatNumber("zh-Hans", float64(count)) + " 句"
+			return "还剩 " + i18n.FormatNumber("zh-Hans", float64(count)) + " 条"
 		case "zh-Hant":
-			return "還剩 " + i18n.FormatNumber("zh-Hant", float64(count)) + " 句"
+			return "還剩 " + i18n.FormatNumber("zh-Hant", float64(count)) + " 條"
 		}
 	}
 }
 
-// SavedReviewMenuItem says "Review Saved Lines"
+// SavedReviewMenuItem says "Review"
 // in the language the app shows under cx.
 //
-// Study menu item and shortcut row (N): reviews the saved lines that are due, one at a time.
+// Study menu item and shortcut row (N): reviews the saved lines and the words of the vocabulary that are due, one at a time.
 func SavedReviewMenuItem(cx *core.Scope) string { return For(cx).SavedReviewMenuItem() }
 
 // SavedReviewMenuItem is the package's SavedReviewMenuItem in the language of msgs.
@@ -38774,10 +39281,10 @@ func SavedReviewNoAudio(cx *core.Scope) string { return For(cx).SavedReviewNoAud
 // SavedReviewNoAudio is the package's SavedReviewNoAudio in the language of msgs.
 func (msgs Messages) SavedReviewNoAudio() string { return msgs.text(textSavedReviewNoAudio) }
 
-// SavedReviewNothingDue says "No saved line is due for review."
+// SavedReviewNothingDue says "No saved line or word is due for review."
 // in the language the app shows under cx.
 //
-// Review opened with no saved line due.
+// Review opened with no saved line or word due.
 func SavedReviewNothingDue(cx *core.Scope) string { return For(cx).SavedReviewNothingDue() }
 
 // SavedReviewNothingDue is the package's SavedReviewNothingDue in the language of msgs.
@@ -47583,6 +48090,15 @@ func VocabExportMenuItem(cx *core.Scope) string { return For(cx).VocabExportMenu
 // VocabExportMenuItem is the package's VocabExportMenuItem in the language of msgs.
 func (msgs Messages) VocabExportMenuItem() string { return msgs.text(textVocabExportMenuItem) }
 
+// VocabExporting says "Exporting with each line's audio…"
+// in the language the app shows under cx.
+//
+// Export Vocabulary tab, while the export for Anki cuts the audio of the line of each word.
+func VocabExporting(cx *core.Scope) string { return For(cx).VocabExporting() }
+
+// VocabExporting is the package's VocabExporting in the language of msgs.
+func (msgs Messages) VocabExporting() string { return msgs.text(textVocabExporting) }
+
 // VocabExported says "Exported to {file}"
 // in the language the app shows under cx.
 //
@@ -47942,6 +48458,36 @@ func VocabLookupSettings(cx *core.Scope) string { return For(cx).VocabLookupSett
 
 // VocabLookupSettings is the package's VocabLookupSettings in the language of msgs.
 func (msgs Messages) VocabLookupSettings() string { return msgs.text(textVocabLookupSettings) }
+
+// VocabLookupTerm says "Film glossary: {term}"
+// in the language the app shows under cx.
+//
+// Card of a word looked up, when the film's glossary has a term for the word: the term and its translation, as source → target.
+func VocabLookupTerm(cx *core.Scope, term string) string { return For(cx).VocabLookupTerm(term) }
+
+// VocabLookupTerm is the package's VocabLookupTerm in the language of msgs.
+func (msgs Messages) VocabLookupTerm(term string) string {
+	if i18n.IsPseudo(msgs.lang) {
+		return i18n.Pseudo(msgs.lang, Messages{lang: Source, mark: true}.VocabLookupTerm(term))
+	}
+	for lang := msgs.lang; ; lang = i18n.Parent(lang) {
+		if f := supplied[lang].VocabLookupTerm; f != nil {
+			return f(term)
+		}
+		switch lang {
+		case "", "en":
+			return "Film glossary: " + msgs.arg(term)
+		case "ja":
+			return "この作品の用語：" + term
+		case "ko":
+			return "이 영상의 용어: " + term
+		case "zh-Hans":
+			return "本片术语：" + term
+		case "zh-Hant":
+			return "本片術語：" + term
+		}
+	}
+}
 
 // VocabMastered says "Mastered {count}"
 // in the language the app shows under cx.

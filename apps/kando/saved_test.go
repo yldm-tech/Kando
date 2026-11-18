@@ -285,7 +285,7 @@ func TestReviewSchedulesTheLines(t *testing.T) {
 	}
 }
 
-// TestReviewCutsAndPlaysTheSound reviews a saved line with ffmpeg at hand (the fake one): N cuts the line's sound off the engine's goroutine into the review's own folder, the card plays it once it is cut, and Escape, closing the review, takes the folder away.
+// TestReviewCutsAndPlaysTheSound reviews a saved line with ffmpeg at hand (the fake one): B cuts the line's sound off the engine's goroutine into the library as the line is saved, the review N opens meanwhile plays it once it is cut, and Escape, closing the review, takes the review's own folder away and leaves the sound kept in the library.
 func TestReviewCutsAndPlaysTheSound(t *testing.T) {
 	tools := media.Tools{FFmpeg: fakeTool(t, filepath.Join(t.TempDir(), "bin"), "ffmpeg")}
 	a, tt, updates, item := playerFilm(t, 12, tools)
@@ -301,8 +301,9 @@ func TestReviewCutsAndPlaysTheSound(t *testing.T) {
 	t.Cleanup(func() { _ = os.RemoveAll(dir) })
 	waitUntil(t, tt, a, updates, func() bool { return a.ReviewCard().Clip != "" })
 	card := a.ReviewCard()
-	if filepath.Dir(card.Clip) != dir || !card.Playing || card.Plays != 1 || card.NoAudio {
-		t.Fatalf("once cut the card is %+v, want its sound in %s playing", card, dir)
+	kept := saved.StoredSound(a.saved.book, a.saved.book.Lines[0].ID)
+	if card.Clip != kept || filepath.Dir(kept) != filepath.Join(a.snap().LibraryDir, saved.SoundDir) || !card.Playing || card.Plays != 1 || card.NoAudio {
+		t.Fatalf("once cut the card is %+v, want its sound %s playing", card, kept)
 	}
 	if data, err := os.ReadFile(card.Clip); err != nil || !strings.HasPrefix(string(data), "kando fake sound ") {
 		t.Fatalf("the sound holds %q, %v", data, err)
@@ -316,6 +317,111 @@ func TestReviewCutsAndPlaysTheSound(t *testing.T) {
 	}
 	if _, err := os.Stat(dir); !os.IsNotExist(err) {
 		t.Fatalf("the review's folder of sounds is still there: %v", err)
+	}
+	if !saved.HasSound(kept) {
+		t.Fatal("the review took the kept sound away")
+	}
+}
+
+// TestSavedLineKeepsItsSound saves a line with ffmpeg at hand: its sound is cut into the library as it is saved, the review then plays that sound without cutting it again, even once the video is gone, and B again takes the line out with its sound.
+func TestSavedLineKeepsItsSound(t *testing.T) {
+	tools := media.Tools{FFmpeg: fakeTool(t, filepath.Join(t.TempDir(), "bin"), "ffmpeg")}
+	a, tt, updates, item := playerFilm(t, 12, tools)
+	playerOpenFilm(t, a, tt, updates, item)
+	playerLoadFilm(tt, a, 12*time.Second)
+	playerPlayTo(tt, a, 1500*time.Millisecond)
+	tt.Key("b")
+	kept := saved.StoredSound(a.saved.book, a.saved.book.Lines[0].ID)
+	waitUntil(t, tt, a, updates, func() bool { return len(a.saved.keeping) == 0 })
+	if !saved.HasSound(kept) {
+		t.Fatalf("no sound kept at %s", kept)
+	}
+	if err := os.Rename(item.VideoPath, item.VideoPath+".gone"); err != nil {
+		t.Fatal(err)
+	}
+	tt.Key("n")
+	if card := a.ReviewCard(); card.Clip != kept || len(a.saved.review.cutting) != 0 || !card.Playing {
+		t.Fatalf("the review of a line whose video is gone: %+v, cutting %v", card, a.saved.review.cutting)
+	}
+	tt.Key("escape")
+	if err := os.Rename(item.VideoPath+".gone", item.VideoPath); err != nil {
+		t.Fatal(err)
+	}
+	tt.Key("b")
+	if saved.HasSound(kept) {
+		t.Fatal("the sound of a line taken out stayed")
+	}
+}
+
+// TestReviewHasTheWordsAndTheNotes reviews a saved line with a note and a word of the vocabulary, both due: the line's note shows with its translation, and the word shows with its reading over the line it was looked up in, its meaning and the line's translation once revealed; Good schedules the word in the study record, and the review counts both.
+func TestReviewHasTheWordsAndTheNotes(t *testing.T) {
+	a, tt, _ := playerOpen(t)
+	now := time.Date(2026, 11, 16, 9, 0, 0, 0, time.UTC)
+	a.saved.now = func() time.Time { return now }
+	playerPlayTo(tt, a, 1500*time.Millisecond)
+	tt.Key("b")
+	apply(tt, a, func() {
+		book := &a.saved.book
+		book.SetNote(book.Lines[0].ID, "打招呼")
+		now = now.Add(time.Minute)
+		book.AddWord(saved.Word{Text: "bye", Reading: "/baɪ/", Meaning: "再见", Context: "Bye.", ContextTranslation: "再会。", Video: "talk/talk.mp4", Start: 4 * time.Second, End: 5 * time.Second, Film: "talk"})
+		a.savedWrite()
+	})
+	if n := a.DueCount(); n != 2 {
+		t.Fatalf("%d due, want the line and the word", n)
+	}
+	msgs := a.messages()
+	tt.Key("n")
+	if !tt.Exists("id:review >> "+whole("Hello.")) || tt.Exists("id:review-note") {
+		t.Fatalf("the line shows %q", tt.Texts())
+	}
+	tt.Key("space")
+	if !tt.Exists("id:review-note") || !tt.Exists("id:review >> "+whole("打招呼")) {
+		t.Fatalf("the revealed line shows no note: %q", tt.Texts())
+	}
+	tt.Key("2")
+	card := a.ReviewCard()
+	if !card.Word || !tt.Exists("id:review >> "+whole("bye")) || !tt.Exists("id:review >> "+whole("/baɪ/")) || !tt.Exists("id:review >> "+whole("Bye.")) || tt.Exists("id:review-translation") {
+		t.Fatalf("the word shows %+v: %q", card, tt.Texts())
+	}
+	tt.Key("space")
+	if !tt.Exists("id:review >> "+whole("再见")) || !tt.Exists("id:review >> "+whole("再会。")) {
+		t.Fatalf("the revealed word shows %q", tt.Texts())
+	}
+	tt.Key("2")
+	if !tt.Exists(whole(msgs.SavedReviewDone(2))) {
+		t.Fatalf("once done the review shows %q", tt.Texts())
+	}
+	book, _ := saved.Load(a.snap().LibraryDir)
+	if w := book.Words[0]; w.Box != 1 || !w.Due.Equal(now.Add(24*time.Hour)) || w.Stamps.Review.Device != a.saved.device {
+		t.Fatalf("the word is in box %d due %v", w.Box, w.Due)
+	}
+}
+
+// TestNotesTabListsTheOpenFilms reads the player's 笔记 tab of the open film: its saved lines and its words, each by where its line starts, none of another film's; the × of a word takes it out of the study record.
+func TestNotesTabListsTheOpenFilms(t *testing.T) {
+	a, tt, _ := playerOpen(t)
+	playerPlayTo(tt, a, 1500*time.Millisecond)
+	tt.Key("b")
+	apply(tt, a, func() {
+		book := &a.saved.book
+		book.AddWord(saved.Word{Text: "bye", Meaning: "再见", Context: "Bye.", Video: "talk/talk.mp4", Start: 4 * time.Second})
+		book.AddWord(saved.Word{Text: "elsewhere", Video: "other/other.mp4", Start: time.Second})
+		a.savedWrite()
+	})
+	notes := a.Notes()
+	if len(notes) != 2 || notes[0].Word || notes[0].Original != "Hello." || !notes[1].Word || notes[1].Text != "bye" || notes[1].Start != 4*time.Second {
+		t.Fatalf("the notes are %+v", notes)
+	}
+	tt.Press("id:film-tab-notes")
+	tt.Press("id:film-notes-words")
+	if !tt.Exists(whole("bye　再见")) || tt.Exists(whole("elsewhere")) {
+		t.Fatalf("the words tab shows %q", tt.Texts())
+	}
+	tt.Press("id:film-note-remove")
+	book, _ := saved.Load(a.snap().LibraryDir)
+	if book.WordIndex("bye", "") >= 0 || book.WordIndex("elsewhere", "") < 0 || a.player.film.osd != a.messages().VocabOsdRemoved("bye") {
+		t.Fatalf("× left %+v; the picture says %q", book.Words, a.player.film.osd)
 	}
 }
 

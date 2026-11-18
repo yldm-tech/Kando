@@ -530,6 +530,67 @@ correctUndone:
 correctUnreadable:
   message: "This film’s corrections couldn’t be read, so they can’t be changed"
   description: "Message on the picture when the film's corrections file could not be read, which is then not written over."
+filmNotesDueCount:
+  message: "{count, number}"
+  description: "The big number on the Notes tab's review card: how many saved lines and words are due for review."
+  placeholders:
+    count: { type: "int", example: "3" }
+filmNotesEmptyLines:
+  message: "No saved lines in this film yet. Press B on a line you want to keep, or Save Line to Notes under Explain Line, and it joins the daily review."
+  description: "Notes tab of the player's side panel, listing the lines, when the film has none saved."
+filmNotesEmptyWords:
+  message: "No words from this film yet. Click a word on the subtitles to look it up, then Add to Vocabulary."
+  description: "Notes tab of the player's side panel, listing the words, when no word of the vocabulary was looked up in this film."
+filmNotesKind:
+  message: "Show"
+  description: "Accessible name of the Notes tab's choice between the saved lines and the words."
+filmNotesLines:
+  message: "Lines {count}"
+  description: "Notes tab: the choice that lists the film's saved lines, with how many there are."
+  placeholders:
+    count: { type: "int", example: "3" }
+filmNotesPlay:
+  message: "Play from {time}: {text}"
+  description: "Accessible name of a row of the Notes tab: plays the film from the line's start."
+  placeholders:
+    time: { type: "String", example: "1:02.4" }
+    text: { type: "String", example: "Every river begins as a trickle." }
+filmNotesRemoveLine:
+  message: "Remove from Saved Lines"
+  description: "Accessible name and tooltip of the × of a saved line on the Notes tab: takes it out of the saved lines."
+filmNotesRemoveWord:
+  message: "Remove “{word}” from Vocabulary"
+  description: "Accessible name and tooltip of the × of a word on the Notes tab: takes it out of the vocabulary."
+  placeholders:
+    word: { type: "String", example: "trickle" }
+filmNotesReview:
+  message: "Today's Review"
+  description: "Title of the card at the top of the Notes tab that starts the review of the saved lines and words due."
+filmNotesReviewDone:
+  message: "All done for today"
+  description: "Notes tab's review card, when nothing is due now but lines or words are saved."
+filmNotesReviewDue:
+  message: "Hear the line, recall it, mark how it went"
+  description: "Notes tab's review card, when lines or words are due: what the review does."
+filmNotesReviewEmpty:
+  message: "Saved lines and words show up here"
+  description: "Notes tab's review card, when nothing is saved in this film yet."
+filmNotesReviewLabel:
+  message: "{count, plural, =0 {Today's Review, nothing due} one {Today's Review, # due} other {Today's Review, # due}}"
+  description: "Accessible name of the Notes tab's review card, with how many saved lines and words are due."
+  placeholders:
+    count: { type: "int", example: "3" }
+filmNotesSoundKept:
+  message: "Each line's audio is cut when you save it, so the review does not need the video."
+  description: "Note under the saved lines of the Notes tab."
+filmNotesWords:
+  message: "Words {count}"
+  description: "Notes tab: the choice that lists the words of the vocabulary looked up in this film, with how many there are."
+  placeholders:
+    count: { type: "int", example: "2" }
+filmTabNotes:
+  message: "Notes"
+  description: "Side panel tab listing the film's saved lines and the words looked up in it, with the review."
 settingsAIBatchSize:
   message: "Lines per Request"
   description: "Row title and accessible name of the field setting how many subtitle lines one translation request carries."
@@ -4268,32 +4329,32 @@ savedReviewAgain:
   message: "Again"
   description: "Review button (1): the learner did not know the line, which comes back before the review ends."
 savedReviewDone:
-  message: "{count, plural, one {Reviewed # line.} other {Reviewed # lines.}} Each comes back when it is due."
-  description: "Review, once no line is left: how many were reviewed."
+  message: "{count, plural, one {Reviewed # card.} other {Reviewed # cards.}} Each comes back when it is due."
+  description: "Review, once nothing is left: how many saved lines and words were reviewed."
   placeholders:
     count: { type: "int", example: "8" }
 savedReviewDue:
-  message: "{count, plural, =0 {Nothing to Review} one {Review # Line} other {Review # Lines}}"
-  description: "Button of the Saved Lines sheet that starts the review of the lines due, with how many are due; off when none is."
+  message: "{count, plural, =0 {Nothing to Review} one {Review # Due} other {Review # Due}}"
+  description: "Button of the Saved Lines sheet that starts the review of the saved lines and words due, with how many are due; off when none is."
   placeholders:
     count: { type: "int", example: "3" }
 savedReviewGood:
   message: "Good"
   description: "Review button (2): the learner knew the line, which comes back later each time."
 savedReviewLeft:
-  message: "{count, plural, one {# line left} other {# lines left}}"
-  description: "Beside the review's title: how many lines are left to review, the one shown with them."
+  message: "{count, plural, one {# card left} other {# cards left}}"
+  description: "Beside the review's title: how many saved lines and words are left to review, the one shown with them."
   placeholders:
     count: { type: "int", example: "5" }
 savedReviewMenuItem:
-  message: "Review Saved Lines"
-  description: "Study menu item and shortcut row (N): reviews the saved lines that are due, one at a time."
+  message: "Review"
+  description: "Study menu item and shortcut row (N): reviews the saved lines and the words of the vocabulary that are due, one at a time."
 savedReviewNoAudio:
   message: "No audio"
   description: "Review, in place of Play Again, for a line whose audio cannot be had: ffmpeg is not installed, the video is gone, or cutting it failed."
 savedReviewNothingDue:
-  message: "No saved line is due for review."
-  description: "Review opened with no saved line due."
+  message: "No saved line or word is due for review."
+  description: "Review opened with no saved line or word due."
 savedReviewReplay:
   message: "Play Again"
   description: "Review button (R): plays the line's audio again from its start."
@@ -6259,6 +6320,9 @@ vocabExportIntro:
 vocabExportMenuItem:
   message: "Export Vocabulary…"
   description: "Study menu item that opens the study stats dialog at its Export Vocabulary tab."
+vocabExporting:
+  message: "Exporting with each line's audio…"
+  description: "Export Vocabulary tab, while the export for Anki cuts the audio of the line of each word."
 vocabExported:
   message: "Exported to {file}"
   description: "Export Vocabulary tab, after the export: the file it wrote."
@@ -6332,6 +6396,11 @@ vocabLookupNoAI:
 vocabLookupSettings:
   message: "Open Settings"
   description: "Button of the card of a word looked up, when no AI service can answer: opens the AI Service settings."
+vocabLookupTerm:
+  message: "Film glossary: {term}"
+  description: "Card of a word looked up, when the film's glossary has a term for the word: the term and its translation, as source → target."
+  placeholders:
+    term: { type: "String", example: "meander → 河曲" }
 vocabMastered:
   message: "Mastered {count}"
   description: "Study stats dialog, under the mastery bar: how many words and saved lines are mastered."
