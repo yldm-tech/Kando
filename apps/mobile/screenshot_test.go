@@ -12,6 +12,7 @@ import (
 	"kando/apps/mobile/store"
 	"kando/packages/sync/synctest"
 
+	"github.com/nsgo-dev/nsgo/core"
 	"github.com/nsgo-dev/nsgo/nsgotest"
 )
 
@@ -29,24 +30,71 @@ func screenshots(t *testing.T) func(p *phone, scene string) {
 	}
 }
 
-func TestScreenshotsWelcome(t *testing.T) {
-	shot := screenshots(t)
-	p := startPhone(t, "")
-	p.app.WaitFor("id:welcome", wait)
-	shot(p, "welcome")
-}
-
-func TestScreenshotsPair(t *testing.T) {
+func TestScreenshotsOnboarding(t *testing.T) {
 	shot := screenshots(t)
 	d := newDesktop(t)
 	p := startPhone(t, "")
-	p.app.WaitFor("id:welcome", wait)
-	p.app.Press("id:welcome-pair")
+	p.app.WaitFor("id:onboarding-intro", wait)
+	shot(p, "onboarding-intro")
+	p.app.Press("id:onboarding-continue")
+	p.app.WaitFor("id:onboarding-languages", wait)
+	p.app.Press("id:onboarding-spoken-ja")
+	p.app.Press("id:onboarding-spoken-en")
+	shot(p, "onboarding-languages")
+	p.app.Press("id:onboarding-continue")
+	p.app.WaitFor("id:onboarding-pairing", wait)
 	p.fillPairing(d.Addr.String(), "123456")
-	shot(p, "pair")
+	shot(p, "onboarding-pair")
 	p.app.Press("id:pair-continue")
 	p.app.WaitFor("id:pair-fingerprint", wait)
-	shot(p, "pair-compare")
+	shot(p, "onboarding-pair-compare")
+	p.app.Press("id:pair-confirm")
+	p.app.WaitFor("id:onboarding-paired", wait)
+	shot(p, "onboarding-paired")
+}
+
+func TestScreenshotsSettings(t *testing.T) {
+	shot := screenshots(t)
+	d := newDesktop(t)
+	dir := t.TempDir()
+	p := startPhone(t, dir, pairedWith(t, d, dir))
+	p.app.WaitFor("id:computers-library-lib", wait)
+	p.openTab(settingsTab, msgs.SettingsTitle())
+	p.app.WaitFor("id:settings-computer-"+store.DesktopID(d.Fingerprint), wait)
+	shot(p, "settings")
+	p.app.Press("id:settings-target")
+	p.app.WaitFor("id:settings-target-page", wait)
+	shot(p, "settings-target")
+}
+
+func TestScreenshotsLearn(t *testing.T) {
+	shot := screenshots(t)
+	dir := t.TempDir()
+	keepTalk(t, dir)
+	p := startPhone(t, dir)
+	p.app.WaitFor("id:downloads-film-f1", wait)
+	p.openTab(learnTab, msgs.LearnTitle())
+	p.app.WaitFor("id:learn-empty", wait)
+	shot(p, "learn")
+}
+
+func TestScreenshotsTabletShell(t *testing.T) {
+	shot := screenshots(t)
+	d := newDesktop(t)
+	dir := t.TempDir()
+	keepTalkFrom(t, dir, store.DesktopID(d.Fingerprint))
+	p := startPhone(t, dir, pairedWith(t, d, dir), nsgotest.Size(1180, 820), nsgotest.Environment(core.Environment{Locale: lang, Idiom: core.IdiomTablet}))
+	p.app.WaitFor("id:computers-library-lib", wait)
+	// A target reports its own idiom, which an app on a computer's or a phone's is not a tablet's.
+	if !p.app.Exists("id:sidebar") {
+		t.Skip("the target is not a tablet")
+	}
+	p.app.WaitFor("id:computers-library-lib", wait)
+	shot(p, "tablet-library")
+	p.app.Resize(820, 1180)
+	p.app.WaitFor("id:tab-bar", wait)
+	p.app.WaitFor("id:computers-library-lib", wait)
+	shot(p, "tablet-library-upright")
 }
 
 func TestScreenshotsBrowse(t *testing.T) {
@@ -56,7 +104,7 @@ func TestScreenshotsBrowse(t *testing.T) {
 	// TODO(nsgo#475): paired beforehand, as popping the pairing page crashes on iOS; pair through the page again once a popped input no longer crashes https://github.com/nsgo-dev/nsgo/issues/475
 	p := startPhone(t, dir, pairedWith(t, d, dir))
 	p.app.WaitFor("id:computers-library-lib", wait)
-	shot(p, "computers")
+	shot(p, "films")
 	p.app.Press("id:computers-library-lib")
 	p.app.WaitFor("id:library-film-f1", wait)
 	shot(p, "library")
@@ -80,7 +128,7 @@ func TestScreenshotsDownloads(t *testing.T) {
 	keepTalk(t, dir)
 	p := startPhone(t, dir)
 	p.app.WaitFor("id:downloads-film-f1", wait)
-	shot(p, "downloads")
+	shot(p, "films-unpaired")
 	p.app.Press("id:downloads-film-f1")
 	p.app.WaitFor("id:film-play", wait)
 	shot(p, "film-downloaded")

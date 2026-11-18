@@ -530,6 +530,115 @@ correctUndone:
 correctUnreadable:
   message: "This film’s corrections couldn’t be read, so they can’t be changed"
   description: "Message on the picture when the film's corrections file could not be read, which is then not written over."
+subexportBilingual:
+  message: "Both"
+  description: "Choice in the Export Subtitles dialog: export each line's translation and original together."
+subexportCancel:
+  message: "Cancel"
+  description: "Button closing the Export Subtitles dialog without exporting."
+subexportContent:
+  message: "Lines"
+  description: "Row of the Export Subtitles dialog choosing which lines to export: the originals, the translations or both."
+subexportCountEdited:
+  message: "includes {count, plural, one {# line} other {# lines}} you corrected"
+  description: "Part of the summary in the Export Subtitles dialog: how many of the exported lines the user corrected, which are exported as corrected."
+  placeholders:
+    count: { type: "int", example: "2" }
+subexportCountLines:
+  message: "{count, plural, one {# line} other {# lines}}"
+  description: "First part of the summary in the Export Subtitles dialog: how many lines the film has, leaving out those marked as no speech."
+  placeholders:
+    count: { type: "int", example: "18" }
+subexportCountMissing:
+  message: "{count} untranslated ({how})"
+  description: "Part of the summary in the Export Subtitles dialog: how many lines have no translation, and what the export does with them, one of the choices of the row Lines Without a Translation."
+  placeholders:
+    count: { type: "int", example: "1" }
+    how: { type: "String", example: "Leave Out" }
+subexportCountNoSpeech:
+  message: "leaves out {count, plural, one {# line} other {# lines}} marked as no speech"
+  description: "Last part of the summary in the Export Subtitles dialog: how many lines the user marked as no speech, which are not exported."
+  placeholders:
+    count: { type: "int", example: "1" }
+subexportCountTranslated:
+  message: "{translated}/{lines} translated"
+  description: "Part of the summary in the Export Subtitles dialog: how many of the lines have a translation, out of all of them."
+  placeholders:
+    translated: { type: "int", example: "17" }
+    lines: { type: "int", example: "18" }
+subexportDelay:
+  message: "Write the Subtitle Delay into the Times"
+  description: "Accessible name of the switch in the Export Subtitles dialog that moves every exported time by the film's subtitle delay."
+subexportDelayAt:
+  message: "Write the subtitle delay into the times ({delay})"
+  description: "Label of the switch in the Export Subtitles dialog that moves every exported time by the film's subtitle delay, shown with the delay."
+  placeholders:
+    delay: { type: "String", example: "+0.3 s" }
+subexportDescription:
+  message: "UTF-8. Lines you corrected are exported as you corrected them."
+  description: "Text under the title of the Export Subtitles dialog."
+subexportDone:
+  message: "Exported {file}"
+  description: "Message on the picture after the subtitles were exported, with the name of the file written."
+  placeholders:
+    file: { type: "String", example: "video.dual.srt" }
+subexportFailed:
+  message: "Couldn’t export the subtitles"
+  description: "Message on the picture when the exported subtitles could not be written."
+subexportFormat:
+  message: "Format"
+  description: "Row of the Export Subtitles dialog choosing the file format: SRT, WebVTT or ASS."
+subexportKandoFile:
+  message: "That name is kept for Kando’s own subtitles of the film, so the export was not saved there. Save it under another name."
+  description: "Message on the picture when the user chose to save the export under one of the names Kando keeps the film's subtitles under, which is then put back as it was (or removed, when no such file was there)."
+subexportKandoFileChanged:
+  message: "That name is kept for Kando’s own subtitles of the film, which changed while you chose where to save, so the export was removed from it. If the film’s subtitles are missing, process it again."
+  description: "Message on the picture when the user saved the export under one of the names Kando keeps the film's subtitles under while Kando was writing them, so the export is removed rather than an older copy put back."
+subexportKandoFileStuck:
+  message: "The export was saved over Kando’s own subtitles of the film and couldn’t be taken back out. Process the film again to make its subtitles anew."
+  description: "Message on the picture when the user saved the export under one of the names Kando keeps the film's subtitles under and Kando could not put that file back or remove it."
+subexportMenu:
+  message: "Export Subtitles…"
+  description: "Item of the File menu and the command palette opening the Export Subtitles dialog for the film open in the player."
+subexportMissing:
+  message: "Lines Without a Translation"
+  description: "Row of the Export Subtitles dialog choosing what an exported line without a translation becomes."
+subexportMissingOriginal:
+  message: "Use the Original"
+  description: "Choice of the row Lines Without a Translation: the original stands in for the missing translation."
+subexportMissingPlaceholder:
+  message: "Leave a Placeholder"
+  description: "Choice of the row Lines Without a Translation: a placeholder stands in for the missing translation."
+subexportMissingSkip:
+  message: "Leave Out"
+  description: "Choice of the row Lines Without a Translation: the missing translation is left out, so only the original shows in a bilingual export and the line is not exported in a translation export."
+subexportOrder:
+  message: "Order"
+  description: "Row of the Export Subtitles dialog choosing which line of a bilingual cue goes on top."
+subexportOriginal:
+  message: "Original"
+  description: "Choice in the Export Subtitles dialog: export the original lines only."
+subexportOriginalFirst:
+  message: "Original on Top"
+  description: "Choice of the row Order in the Export Subtitles dialog."
+subexportPlaceholder:
+  message: "[Not translated]"
+  description: "Text written into an exported subtitle file in place of a line's missing translation, when the user chose Leave a Placeholder."
+subexportSaveAs:
+  message: "Save As…"
+  description: "Button of the Export Subtitles dialog asking where to save the exported file."
+subexportTitle:
+  message: "Export Subtitles"
+  description: "Title of the Export Subtitles dialog, and its line in the shortcut cheat sheet."
+subexportToFolder:
+  message: "Export to the Film’s Folder"
+  description: "Main button of the Export Subtitles dialog: writes the exported file beside the film's video, at the path shown above it."
+subexportTranslation:
+  message: "Translation"
+  description: "Choice in the Export Subtitles dialog: export the translations only."
+subexportTranslationFirst:
+  message: "Translation on Top"
+  description: "Choice of the row Order in the Export Subtitles dialog."
 feedbackAttachEnv:
   message: "App and System Versions"
   description: "Check box attaching the app's and the system's versions."

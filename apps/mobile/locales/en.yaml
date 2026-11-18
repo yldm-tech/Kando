@@ -25,15 +25,9 @@ computersOptions:
   description: "Spoken name of the … button beside a computer's name, which offers to unpair it."
   placeholders:
     name: { type: "String", example: "Studio" }
-computersPair:
-  message: "Pair Another Computer"
-  description: "Spoken name of the + button in the Computers header."
 computersPairAgain:
   message: "Pair Again"
   description: "Row under a computer that no longer takes this phone: opens pairing."
-computersTitle:
-  message: "Computers"
-  description: "Tab and title of the computers section."
 computersUnpair:
   message: "Unpair"
   description: "Action sheet button that confirms unpairing a computer."
@@ -55,12 +49,9 @@ computersUnreachable:
   description: "In a computer's section and on a library's page: it does not answer."
   placeholders:
     name: { type: "String", example: "Studio" }
-downloadsEmpty:
-  message: "No Downloads"
-  description: "Downloads tab when no film is on the phone."
 downloadsTitle:
-  message: "Downloads"
-  description: "Tab and title of the films downloaded to the phone."
+  message: "On This Phone"
+  description: "Heading of the Library tab's section of the films downloaded to this phone."
 downloadsUsed:
   message: "{size} used"
   description: "Under the downloads: the space they take."
@@ -117,6 +108,27 @@ filmStopped:
 filmUnpaired:
   message: "Pair with the computer again to download."
   description: "Why a download stopped: the computer no longer takes this phone, or answers with another certificate."
+filmsNoDesktop:
+  message: "No Desktop App Yet?"
+  description: "Button on the Library's card that opens the page where the desktop app is downloaded."
+filmsPair:
+  message: "Connect a Computer"
+  description: "Button on the Library's card that opens pairing with a computer."
+filmsTitle:
+  message: "Library"
+  description: "Tab and title of the Library: the films on the phone and the computers' libraries."
+filmsUnpairedBody:
+  message: "Downloading, transcription and translation all happen in Kando on your computer. Once connected, its libraries show up here."
+  description: "Body of the Library's card while no computer is paired."
+filmsUnpairedTitle:
+  message: "Not connected to a computer yet"
+  description: "Title of the Library's card while no computer is paired."
+learnEmpty:
+  message: "Words and lines you save will show here"
+  description: "Learn tab while nothing is saved."
+learnTitle:
+  message: "Learn"
+  description: "Tab and title of Learn: the saved words and lines and their review."
 libraryEmpty:
   message: "No films ready yet"
   description: "A library's page when it has no film done processing."
@@ -125,6 +137,53 @@ libraryGone:
   description: "A library's page when the computer no longer serves it: it was removed or locked."
   placeholders:
     name: { type: "String", example: "Studio" }
+onboardingContinue:
+  message: "Continue"
+  description: "Button that goes to the introduction's next step."
+onboardingIntroBody:
+  message: "Paste a link and Kando on your computer downloads the video, recognizes the speech and translates it line by line. Your phone plays the films with both lines, and replays any line you didn't catch."
+  description: "Body of the introduction's first step."
+onboardingIntroTitle:
+  message: "Watch the original, with subtitles in your language."
+  description: "Title of the introduction's first step."
+onboardingLanguagesBody:
+  message: "Languages you don't pick are still recognized."
+  description: "Under the title of the introduction's languages step."
+onboardingLanguagesTitle:
+  message: "Which languages do you watch?"
+  description: "Title of the introduction's step that asks for the languages the user watches."
+onboardingNoDesktop:
+  message: "No desktop app yet? Download it from github.com/yldm-tech/Kando for macOS, Linux and Windows."
+  description: "Link under the pairing form of the introduction, which opens the desktop app's page."
+onboardingPairBody:
+  message: "Kando on your computer does the downloading, recognition and translation; your phone is for watching and learning."
+  description: "Body of the introduction's pairing step."
+onboardingPairTitle:
+  message: "Connect your computer"
+  description: "Title of the introduction's pairing step."
+onboardingPaired:
+  message: "Connected to {name}"
+  description: "On the introduction's last step once pairing worked, by the computer's name."
+  placeholders:
+    name: { type: "String", example: "Studio" }
+onboardingSkip:
+  message: "Skip"
+  description: "Button at the top of the introduction that leaves it."
+onboardingSkipPairing:
+  message: "Skip for Now"
+  description: "Button on the introduction's last step that leaves it without pairing."
+onboardingStart:
+  message: "Get Started"
+  description: "Button that leaves the introduction once a computer is paired."
+onboardingStep:
+  message: "Step {step} of {count}"
+  description: "Spoken name of the introduction's step dots."
+  placeholders:
+    step: { type: "int", example: "1" }
+    count: { type: "int", example: "3" }
+onboardingTarget:
+  message: "Translate subtitles into"
+  description: "Heading of the languages subtitles can be translated into, on the introduction's languages step."
 pairAddress:
   message: "Address"
   description: "Label of the field for the computer's address (IP and port), as its Phone Sync settings show it."
@@ -232,9 +291,36 @@ playerSubtitles:
 sessionDownloading:
   message: "Downloading films"
   description: "Why the app keeps the screen on while films download, where the system lists it."
-welcomePair:
-  message: "Pair"
-  description: "Button on the first screen, and on Computers with none paired: opens pairing."
-welcomeTitle:
-  message: "Pair with Kando on your computer"
-  description: "Heading of the first screen, and of Computers with none paired."
+settingsAbout:
+  message: "About"
+  description: "Heading of Settings' section about the app."
+settingsComputers:
+  message: "Computers"
+  description: "Heading of Settings' section of the paired computers."
+settingsIntroduction:
+  message: "Show the Introduction Again"
+  description: "Row in Settings that shows the introduction again."
+settingsNoComputer:
+  message: "Not connected"
+  description: "At the foot of a tablet's sidebar while no computer is paired."
+settingsPair:
+  message: "Connect a Computer"
+  description: "Row in Settings that opens pairing, while no computer is paired."
+settingsPairAnother:
+  message: "Connect Another Computer"
+  description: "Row in Settings that opens pairing with one more computer."
+settingsSource:
+  message: "Source Code"
+  description: "Row in Settings that opens Kando's source code on GitHub."
+settingsSubtitles:
+  message: "Subtitles"
+  description: "Heading of Settings' section of the subtitles."
+settingsTarget:
+  message: "Translate Into"
+  description: "Row in Settings, and the title of its page, that picks the language subtitles are translated into."
+settingsTargetNote:
+  message: "Subtitles are translated into this language. For now the choice is kept on this phone; Kando on your computer still translates into the language set there."
+  description: "Under the languages subtitles can be translated into."
+settingsTitle:
+  message: "Settings"
+  description: "Tab and title of Settings."
