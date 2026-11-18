@@ -59,6 +59,18 @@ type Desk struct {
 
 	mu      gosync.Mutex
 	replies map[string][]remembered
+	// running is the calls that change something being answered now, by device and call ID, so the same call sent again meanwhile waits for their reply rather than doing the work a second time.
+	running map[callKey]*inFlight
+}
+
+// callKey is a device's call.
+type callKey struct{ device, id string }
+
+// inFlight is a call being answered: done closes once reply is set, and kept says whether the reply was remembered, which a call cut short by its context is not.
+type inFlight struct {
+	done  chan struct{}
+	reply Reply
+	kept  bool
 }
 
 // remembered is a reply a device's call got, and when.
@@ -68,14 +80,40 @@ type remembered struct {
 	at    time.Time
 }
 
-// Answer answers call from caller. A call the device sent before answers the reply it got then, unless it only read (OpHello, OpJobs, OpJob, OpEvents), which reads again.
+// Answer answers call from caller. A call the device sent before answers the reply it got then, unless it only read (OpHello, OpJobs, OpJob, OpEvents), which reads again. The same call arriving while the first is still being answered, as a relay delivers twice or a phone sends again after the network dropped, waits for the first one's reply and answers it.
 func (d *Desk) Answer(ctx context.Context, caller Caller, call Call) Reply {
 	mutates := call.Op == OpJobCreate || call.Op == OpJobCancel || call.Op == OpJobRetry || call.Op == OpJobPause || call.Op == OpJobResume || call.Op == OpUpdateYTDLP
-	if mutates && call.ID != "" {
-		if r, ok := d.recall(caller.DeviceID, call.ID); ok {
+	if !mutates || call.ID == "" {
+		reply, _ := d.reply(ctx, caller, call)
+		return reply
+	}
+	key := callKey{caller.DeviceID, call.ID}
+	for {
+		r, ok, first := d.claim(key)
+		if ok {
 			return r
 		}
+		if first == nil {
+			break
+		}
+		select {
+		case <-first.done:
+			if first.kept {
+				return first.reply
+			}
+			// The first one was cut short before it reached the desktop's work, so this one tries again.
+		case <-ctx.Done():
+			return Reply{ID: call.ID, Op: call.Op, Error: &ErrorBody{Code: CodeFailed, Message: ctx.Err().Error()}}
+		}
 	}
+	reply, err := d.reply(ctx, caller, call)
+	// A call that did not reach the desktop's work, as one cut short by its context, is not remembered, so sending it again tries again.
+	d.settle(key, reply, !errors.Is(err, context.Canceled) && !errors.Is(err, context.DeadlineExceeded))
+	return reply
+}
+
+// reply runs call and answers its Reply, with the error it ended with.
+func (d *Desk) reply(ctx context.Context, caller Caller, call Call) (Reply, error) {
 	result, err := d.answer(ctx, caller, call)
 	reply := Reply{ID: call.ID, Op: call.Op}
 	if err == nil {
@@ -89,11 +127,37 @@ func (d *Desk) Answer(ctx context.Context, caller Caller, call Call) Reply {
 		reply.Result = nil
 		reply.Error = &ErrorBody{Code: e.Code, Message: e.Message}
 	}
-	// A call that did not reach the desktop's work, as one cut short by its context, is not remembered, so sending it again tries again.
-	if mutates && call.ID != "" && !errors.Is(err, context.Canceled) && !errors.Is(err, context.DeadlineExceeded) {
-		d.remember(caller.DeviceID, call.ID, reply)
+	return reply, err
+}
+
+// claim is the reply key got, while it is remembered; else the call answering key now, which the caller waits for; else neither, and key is marked as being answered by the caller, who must settle it.
+func (d *Desk) claim(key callKey) (Reply, bool, *inFlight) {
+	d.mu.Lock()
+	defer d.mu.Unlock()
+	if r, ok := d.recallLocked(key.device, key.id); ok {
+		return r, true, nil
 	}
-	return reply
+	if f, ok := d.running[key]; ok {
+		return Reply{}, false, f
+	}
+	if d.running == nil {
+		d.running = map[callKey]*inFlight{}
+	}
+	d.running[key] = &inFlight{done: make(chan struct{})}
+	return Reply{}, false, nil
+}
+
+// settle ends the call answering key with reply, remembering it when keep is set, and lets the same call sent meanwhile answer it.
+func (d *Desk) settle(key callKey, reply Reply, keep bool) {
+	d.mu.Lock()
+	defer d.mu.Unlock()
+	if keep {
+		d.rememberLocked(key.device, key.id, reply)
+	}
+	f := d.running[key]
+	delete(d.running, key)
+	f.reply, f.kept = reply, keep
+	close(f.done)
 }
 
 func (d *Desk) now() time.Time {
@@ -169,10 +233,8 @@ func args(call Call, v any) error {
 	return nil
 }
 
-// recall is the reply device's call id got, while it is remembered.
-func (d *Desk) recall(device, id string) (Reply, bool) {
-	d.mu.Lock()
-	defer d.mu.Unlock()
+// recallLocked is the reply device's call id got, while it is remembered. d.mu is held.
+func (d *Desk) recallLocked(device, id string) (Reply, bool) {
 	now := d.now()
 	for _, r := range d.replies[device] {
 		if r.id == id && now.Sub(r.at) < ReplyMemory {
@@ -182,10 +244,8 @@ func (d *Desk) recall(device, id string) (Reply, bool) {
 	return Reply{}, false
 }
 
-// remember keeps the reply device's call id got, forgetting the device's oldest past RepliesPerDevice and those older than ReplyMemory.
-func (d *Desk) remember(device, id string, reply Reply) {
-	d.mu.Lock()
-	defer d.mu.Unlock()
+// rememberLocked keeps the reply device's call id got, forgetting the device's oldest past RepliesPerDevice and those older than ReplyMemory. d.mu is held.
+func (d *Desk) rememberLocked(device, id string, reply Reply) {
 	if d.replies == nil {
 		d.replies = map[string][]remembered{}
 	}

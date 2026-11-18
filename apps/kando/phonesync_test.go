@@ -484,6 +484,17 @@ func TestPhoneSyncAsksFirstOrRefusesLinks(t *testing.T) {
 	if a.lib.notice.Text != m.PhoneSyncLinkAsk("Evan's iPhone") {
 		t.Fatalf("message bar %q", a.lib.notice.Text)
 	}
+	// Another link joins what the field holds, the user's typing or links phones sent before, rather than replacing it, and the same link again is not added twice.
+	a.queue.source = link + " https://youtu.be/typed"
+	other := "https://www.youtube.com/watch?v=M7lc1UVf-VE"
+	for _, l := range []string{other, link} {
+		if created, err := phoneSend(t, a, tt, updates, c, l); err != nil || !created.Pending {
+			t.Fatalf("created %+v, %v", created, err)
+		}
+	}
+	if want := link + " https://youtu.be/typed " + other; a.queue.source != want || len(a.library.Jobs) != jobs {
+		t.Fatalf("link field %q, want %q; %d jobs queued", a.queue.source, want, len(a.library.Jobs)-jobs)
+	}
 
 	tt.Press("settings-phone-receive")
 	if !a.phone.receiveOff {
@@ -498,6 +509,48 @@ func TestPhoneSyncAsksFirstOrRefusesLinks(t *testing.T) {
 	data, err := os.ReadFile(a.settingsPath)
 	if err != nil || !strings.Contains(string(data), `"phoneReceiveOff": true`) || !strings.Contains(string(data), `"phoneReceiveAsk": true`) {
 		t.Fatalf("settings.json: %s, %v", data, err)
+	}
+}
+
+// A phone cancels and retries the jobs it lists of a library that is not the open one: the job the queue runs for it, one waiting for it, and one the queue ran to its end, as the list keeps it.
+func TestPhoneSyncActsOnJobsOfAnotherLibrary(t *testing.T) {
+	a, tt, updates, dir, c := phonePaired(t)
+	second := t.TempDir()
+	a.edit(func(s *session) { s.Libraries = []string{dir, second} })
+	if _, err := phoneSend(t, a, tt, updates, c, "https://www.youtube.com/watch?v=jNQXAC9IVRw"); err != nil {
+		t.Fatal(err)
+	}
+	waitUntil(t, tt, a, updates, func() bool { return a.RunningJob() != "" })
+	running := a.RunningJob()
+	var waiting string
+	for _, job := range a.library.Jobs {
+		if job.Stage == core.StageQueued {
+			waiting = job.ID
+		}
+	}
+	if waiting == "" {
+		t.Fatalf("no job waits behind %s: %+v", running, a.library.Jobs)
+	}
+	a.edit(func(s *session) { s.LibraryDir = second })
+	refresh(tt, a)
+
+	act := func(op, id string) (psync.Job, error) {
+		return phoneCall(t, a, tt, updates, func(ctx context.Context) (psync.Job, error) { return c.ActOnJob(ctx, op, id) })
+	}
+	for _, id := range []string{waiting, running} {
+		if job, err := act(psync.OpJobCancel, id); err != nil || job.ID != id || job.State != psync.JobCanceled {
+			t.Fatalf("canceled %s: %+v, %v", id, job, err)
+		}
+	}
+	list, err := phoneCall(t, a, tt, updates, c.Jobs)
+	if err != nil || !slices.ContainsFunc(list.Jobs, func(j psync.Job) bool { return j.ID == running && j.State == psync.JobCanceled }) {
+		t.Fatalf("jobs %+v, %v: the stopped job the queue ran is not listed", list.Jobs, err)
+	}
+	if job, err := act(psync.OpJobRetry, running); err != nil || job.ID != running || (job.State != psync.JobWaiting && job.State != psync.JobRunning) {
+		t.Fatalf("retried %+v, %v", job, err)
+	}
+	if job, _ := a.library.Find(running); job.LibraryDir != dir {
+		t.Fatalf("the retried job saves into %q, want %q", job.LibraryDir, dir)
 	}
 }
 

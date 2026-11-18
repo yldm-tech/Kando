@@ -143,17 +143,21 @@ func (j phoneJobs) CreateJob(ctx context.Context, caller psync.Caller, req psync
 	})
 }
 
-// phoneSyncAsk puts link, sent by the phone named device, in the link field above the library for the user to start or not, and the message bar says where it came from. The window goes to the library unless a film is open, which is left playing.
+// phoneSyncAsk adds link, sent by the phone named device, to the link field above the library, after what is there already, for the user to start or not, and the message bar says where it came from. The window goes to the library unless a film is open, which is left playing.
 func (a *app) phoneSyncAsk(device, link string) {
 	if a.openKey == "" && a.page != pageFilms {
 		a.Select(pageFilms)
 	}
-	a.queue.source, a.queue.status, a.queue.linkFocus = link, "", true
+	// The field takes several links between spaces (Start), so the link joins what is there, the user's typing or links phones sent before, rather than replacing it.
+	if !slices.Contains(strings.Fields(a.queue.source), link) {
+		a.queue.source = strings.TrimSpace(strings.TrimSpace(a.queue.source) + " " + link)
+	}
+	a.queue.status, a.queue.linkFocus = "", true
 	a.tell(a.messages().PhoneSyncLinkAsk(device))
 	a.windowUnhide()
 }
 
-// ActOnJob cancels or retries a job as the control socket's jobs.cancel and jobs.retry do (remoteCancel, remoteRetry), which neither move the window; pausing and resuming are not answered yet.
+// ActOnJob cancels or retries a job as the control socket's jobs.cancel and jobs.retry do (remoteCancel, remoteRetry), which neither move the window; pausing and resuming are not answered yet. It answers the job as they leave it: a job of another library leaves 处理中 once it has stopped, so it is looked up on the shelf rather than with remoteFindJob, and one of a video found in the folder leaves the shelf once stopped, as it was (queueFolderEnded).
 func (j phoneJobs) ActOnJob(ctx context.Context, _ psync.Caller, op, id string) (psync.Job, error) {
 	a := j.a
 	var err error
@@ -169,13 +173,12 @@ func (j phoneJobs) ActOnJob(ctx context.Context, _ psync.Caller, op, id string) 
 		return psync.Job{}, phoneRemoteErr(err)
 	}
 	return remote.OnUI(ctx, a.update, func() (psync.Job, error) {
-		job, err := a.remoteFindJob(id)
-		if err != nil {
-			// A job of a video found in the folder leaves the shelf once stopped, as it was (queueFolderEnded).
-			if ended, ok := a.queue.folderEnded[id]; ok {
-				return a.phoneJobOf(ended), nil
-			}
-			return psync.Job{}, phoneRemoteErr(err)
+		job, ok := a.library.Find(id)
+		if ended, done := a.queue.folderEnded[id]; !ok && done {
+			return a.phoneJobOf(ended), nil
+		}
+		if !ok {
+			return psync.Job{}, psync.Errorf(psync.CodeNotFound, "job %q was removed", id)
 		}
 		return a.phoneJobOf(job), nil
 	})

@@ -20,6 +20,9 @@ type fakeService struct {
 	receive string
 	made    int
 	callers []Caller
+	// entered, when set, is told of each CreateJob as it starts, which then waits for gate to close.
+	entered chan struct{}
+	gate    chan struct{}
 }
 
 func (f *fakeService) Hello(context.Context, Caller) (Hello, error) {
@@ -29,6 +32,10 @@ func (f *fakeService) Hello(context.Context, Caller) (Hello, error) {
 }
 
 func (f *fakeService) CreateJob(_ context.Context, caller Caller, req JobCreate) (JobCreated, error) {
+	if f.entered != nil {
+		f.entered <- struct{}{}
+		<-f.gate
+	}
 	f.mu.Lock()
 	defer f.mu.Unlock()
 	f.callers = append(f.callers, caller)
@@ -170,6 +177,45 @@ func TestACallSentAgainDoesItsWorkOnce(t *testing.T) {
 	desk.Forget("d1")
 	if err := c.CallID(ctx, "call-1", OpJobCreate, JobCreate{Link: "https://youtu.be/abc"}, &again); err != nil || f.made != 3 {
 		t.Fatalf("made %d jobs after forgetting, %v", f.made, err)
+	}
+}
+
+// The same call arriving again while the first is still being answered waits for its reply rather than doing the work a second time.
+func TestACallSentAgainWhileAnsweredWaitsForTheFirst(t *testing.T) {
+	ctx := context.Background()
+	f := &fakeService{receive: ReceiveQueue, entered: make(chan struct{}, 2), gate: make(chan struct{})}
+	desk := newDesk(f)
+	call := Call{ID: "c", V: CallVersion, Op: OpJobCreate, Args: json.RawMessage(`{"link":"https://youtu.be/abc"}`)}
+	replies := make(chan Reply, 2)
+	go func() { replies <- desk.Answer(ctx, Caller{DeviceID: "d1"}, call) }()
+	<-f.entered
+	go func() { replies <- desk.Answer(ctx, Caller{DeviceID: "d1"}, call) }()
+	select {
+	case <-f.entered:
+		t.Fatal("the call sent again ran while the first was being answered")
+	case <-time.After(200 * time.Millisecond):
+	}
+	close(f.gate)
+	first, again := <-replies, <-replies
+	if f.made != 1 || first.Error != nil || string(first.Result) != string(again.Result) {
+		t.Fatalf("made %d jobs: %+v then %+v", f.made, first, again)
+	}
+	// One that gives up waiting answers its own context's end, and the first is still remembered.
+	f.gate = make(chan struct{})
+	slow := Call{ID: "d", V: CallVersion, Op: OpJobCreate, Args: json.RawMessage(`{"link":"https://youtu.be/def"}`)}
+	go func() { replies <- desk.Answer(ctx, Caller{DeviceID: "d1"}, slow) }()
+	<-f.entered
+	short, cancel := context.WithCancel(ctx)
+	cancel()
+	if r := desk.Answer(short, Caller{DeviceID: "d1"}, slow); r.Error == nil || r.Error.Code != CodeFailed {
+		t.Fatalf("a call that gave up waiting answered %+v", r)
+	}
+	close(f.gate)
+	if r := <-replies; r.Error != nil {
+		t.Fatalf("the first call answered %+v", r)
+	}
+	if r := desk.Answer(ctx, Caller{DeviceID: "d1"}, slow); r.Error != nil || f.made != 2 {
+		t.Fatalf("made %d jobs, sent again answered %+v", f.made, r)
 	}
 }
 
