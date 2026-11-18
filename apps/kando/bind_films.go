@@ -471,7 +471,7 @@ func (a *app) TrashFilm(item films.Film) {
 	}
 }
 
-// filmFiles is what moving a film to the Trash moves: the folder of a film inside the library root, or, when that folder holds other videos or any folder too, or is the root itself, the video and its subtitles, Kando's transcript beside subtitles of the user's among them (media.TranscriptOf). A video outside the library has none.
+// filmFiles is what moving a film to the Trash moves: the folder of a film inside the library root, or, when that folder holds other videos or any folder too, or is the root itself, the video, its subtitles and the hidden files a job keeps beside it (media.Companions), so none is left behind in the folder. A video outside the library has none.
 func filmFiles(root string, item films.Film) []string {
 	video := item.VideoPath
 	if video == "" || !films.InDir(root, video) {
@@ -482,8 +482,7 @@ func filmFiles(root string, item films.Film) []string {
 		return []string{dir}
 	}
 	files := []string{video}
-	base := strings.TrimSuffix(video, filepath.Ext(video))
-	for _, sub := range []string{item.SubtitlePath, base + ".srt", media.TranscriptOf(video), base + ".bilingual.srt"} {
+	for _, sub := range append([]string{item.SubtitlePath}, media.Companions(video)...) {
 		if sub != "" && fileExists(sub) && !slices.Contains(files, sub) {
 			files = append(files, sub)
 		}

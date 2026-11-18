@@ -664,13 +664,14 @@ func TestFilmFilesKeepsOtherVideosOfTheFolder(t *testing.T) {
 	if err := os.Mkdir(dir, 0o755); err != nil {
 		t.Fatal(err)
 	}
-	for _, name := range []string{"one.mp4", "one.bilingual.srt", "two.mp4"} {
+	// The hidden files a job keeps beside a film go with it, and those of the other video stay.
+	for _, name := range []string{"one.mp4", "one.bilingual.srt", ".one.translation.json", ".one.pending.srt", ".one.pending.json", ".one.proofread.srt", "two.mp4", ".two.translation.json"} {
 		if err := os.WriteFile(filepath.Join(dir, name), []byte("x"), 0o644); err != nil {
 			t.Fatal(err)
 		}
 	}
 	got := filmFiles(lib, filmOf(filepath.Join(dir, "one.mp4")))
-	want := []string{filepath.Join(dir, "one.mp4"), filepath.Join(dir, "one.bilingual.srt")}
+	want := []string{filepath.Join(dir, "one.mp4"), filepath.Join(dir, "one.bilingual.srt"), filepath.Join(dir, ".one.translation.json"), filepath.Join(dir, ".one.pending.srt"), filepath.Join(dir, ".one.pending.json"), filepath.Join(dir, ".one.proofread.srt")}
 	if strings.Join(got, ",") != strings.Join(want, ",") {
 		t.Fatalf("filmFiles = %v, want %v", got, want)
 	}
