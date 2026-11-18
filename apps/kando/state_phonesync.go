@@ -110,8 +110,8 @@ func (a *app) phoneSyncHooks() areaHooks {
 			a.phoneSyncPublish()
 			a.phoneSyncPublishState()
 			a.phoneClockArm()
-			a.phoneRelayFollow()
-			return a.phoneSyncFollow()
+			stopped := a.phoneRelayFollow()
+			return a.phoneSyncFollow() || stopped
 		},
 		quitting: a.phoneSyncStop,
 	}

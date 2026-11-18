@@ -155,11 +155,13 @@ func TestPhoneRelayFollowsTheSwitchAndTheStore(t *testing.T) {
 	if a.phone.relaySig != a.phoneRelaySig() || !relayJoinable(t, a, tt, updates, c) {
 		t.Fatal("Phone Sync did not take up the new bucket")
 	}
-	// 离线模式 stops the relay without turning its switch off.
+	// 离线模式 stops the relay at once, without waiting for the settings to settle, and without turning its switch off.
 	running = a.phone.server
 	a.privacy.offline = true
 	refresh(tt, a)
-	tt.Advance(phoneRelayRestartAfter)
+	if a.phone.server == running {
+		t.Fatal("Offline mode left the relay running until the settings settled")
+	}
 	waitUntil(t, tt, a, updates, func() bool { return a.phone.server != nil && a.phone.server != running })
 	if relayJoinable(t, a, tt, updates, c) || !a.PhoneSync().Relay.On || !a.PhoneSync().Relay.Offline {
 		t.Fatalf("the relay under Offline mode: %+v", a.PhoneSync().Relay)

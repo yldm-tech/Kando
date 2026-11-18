@@ -92,10 +92,17 @@ func (a *app) phoneRelayRestart() {
 	a.phoneSyncStart()
 }
 
-// phoneRelayFollow restarts a running Phone Sync phoneRelayRestartAfter after the store the relay would run in stopped being the one it started with. UI thread only.
-func (a *app) phoneRelayFollow() {
-	if a.phone.server == nil || a.phone.relayArmed || a.cx == nil || a.phoneRelaySig() == a.phone.relaySig {
-		return
+// phoneRelayFollow restarts a running Phone Sync phoneRelayRestartAfter after the store the relay would run in stopped being the one it started with. 离线模式 turned on stops a running relay at once rather than after the wait, as it stops everything else under way over the network; it reports whether it did, which changes what the page reads. UI thread only.
+func (a *app) phoneRelayFollow() bool {
+	if a.phone.server == nil || a.phoneRelaySig() == a.phone.relaySig {
+		return false
+	}
+	if a.privacy.offline && a.phone.relaySig != "" {
+		a.phoneRelayRestart()
+		return true
+	}
+	if a.phone.relayArmed || a.cx == nil {
+		return false
 	}
 	a.phone.relayArmed = true
 	gen := a.phone.gen
@@ -105,6 +112,7 @@ func (a *app) phoneRelayFollow() {
 			a.phoneRelayRestart()
 		}
 	}))
+	return false
 }
 
 // phoneRelayStatus is the relay as the 手机同步 page shows it, in the interface's language.
