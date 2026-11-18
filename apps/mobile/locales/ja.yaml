@@ -21,6 +21,7 @@ computerReadOnly: "この端末はこのコンピュータの設定を表示す�
 computerService: "翻訳サービス"
 computerServiceNone: "未設定"
 computerServiceNote: "AI サービスとキーはコンピュータに保存されています。コンピュータの Kando で変更してください。"
+computerTooOld: "このコンピュータの Kando をアップデートすると、ここで翻訳の設定を確認・変更できます。"
 computerTranslation: "翻訳"
 computerUnknown: "このコンピュータに接続すると表示されます。"
 computersCertificate: "{name} の証明書がペアリング時と異なります。もう一度ペアリングしてください。"

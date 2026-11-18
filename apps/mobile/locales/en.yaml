@@ -72,6 +72,9 @@ computerServiceNone:
 computerServiceNote:
   message: "The computer keeps its AI service and key. Change them in Kando on the computer."
   description: "Note under a computer's translation settings: the AI service can only be changed on the computer."
+computerTooOld:
+  message: "Update Kando on this computer to see and change its translation settings here."
+  description: "Note on a computer's page when the computer's Kando is too old to share its AI service and context switch."
 computerTranslation:
   message: "Translation"
   description: "Heading of a computer's page in Settings over its translation settings."

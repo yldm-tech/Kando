@@ -671,6 +671,7 @@ const (
 	textComputerService
 	textComputerServiceNone
 	textComputerServiceNote
+	textComputerTooOld
 	textComputerTranslation
 	textComputerUnknown
 	textComputersPairAgain
@@ -978,6 +979,7 @@ var keyOfText = [numTexts]string{
 	"computerService",
 	"computerServiceNone",
 	"computerServiceNote",
+	"computerTooOld",
 	"computerTranslation",
 	"computerUnknown",
 	"computersPairAgain",
@@ -1283,6 +1285,7 @@ var textsEn = i18n.NewTexts(""+
 	"Translation Service"+
 	"Not Set Up"+
 	"The computer keeps its AI service and key. Change them in Kando on the computer."+
+	"Update Kando on this computer to see and change its translation settings here."+
 	"Translation"+
 	"Shown once this device reaches the computer."+
 	"Pair Again"+
@@ -1585,6 +1588,7 @@ var textsEn = i18n.NewTexts(""+
 		19,
 		10,
 		80,
+		78,
 		11,
 		44,
 		10,
@@ -1890,6 +1894,7 @@ var textsJa = i18n.NewTexts(""+
 	"翻訳サービス"+
 	"未設定"+
 	"AI サービスとキーはコンピュータに保存されています。コンピュータの Kando で変更してください。"+
+	"このコンピュータの Kando をアップデートすると、ここで翻訳の設定を確認・変更できます。"+
 	"翻訳"+
 	"このコンピュータに接続すると表示されます。"+
 	"もう一度ペアリング"+
@@ -2192,6 +2197,7 @@ var textsJa = i18n.NewTexts(""+
 		18,
 		9,
 		133,
+		124,
 		6,
 		63,
 		27,
@@ -2497,6 +2503,7 @@ var textsKo = i18n.NewTexts(""+
 	"번역 서비스"+
 	"설정 안 됨"+
 	"AI 서비스와 키는 컴퓨터에 저장됩니다. 컴퓨터의 Kando에서 변경하세요."+
+	"이 컴퓨터의 Kando를 업데이트하면 여기에서 번역 설정을 보고 변경할 수 있습니다."+
 	"번역"+
 	"이 컴퓨터에 연결되면 표시됩니다."+
 	"다시 페어링"+
@@ -2799,6 +2806,7 @@ var textsKo = i18n.NewTexts(""+
 		16,
 		14,
 		94,
+		109,
 		6,
 		46,
 		16,
@@ -3104,6 +3112,7 @@ var textsZhHans = i18n.NewTexts(""+
 	"翻译服务"+
 	"未设置"+
 	"AI 服务和密钥保存在电脑上，请在电脑上的看懂里更改。"+
+	"把这台电脑上的看懂更新到新版本，就能在这里查看和更改它的翻译设置。"+
 	"翻译"+
 	"连上这台电脑后显示。"+
 	"重新配对"+
@@ -3406,6 +3415,7 @@ var textsZhHans = i18n.NewTexts(""+
 		12,
 		9,
 		75,
+		99,
 		6,
 		30,
 		12,
@@ -3711,6 +3721,7 @@ var textsZhHant = i18n.NewTexts(""+
 	"翻譯服務"+
 	"未設定"+
 	"AI 服務和金鑰保存在電腦上，請在電腦上的看懂裡更改。"+
+	"把這台電腦上的看懂更新到新版本，就能在這裡檢視和更改它的翻譯設定。"+
 	"翻譯"+
 	"連上這台電腦後顯示。"+
 	"重新配對"+
@@ -4013,6 +4024,7 @@ var textsZhHant = i18n.NewTexts(""+
 		12,
 		9,
 		75,
+		99,
 		6,
 		30,
 		12,
@@ -4925,6 +4937,15 @@ func ComputerServiceNote(cx *core.Scope) string { return For(cx).ComputerService
 
 // ComputerServiceNote is the package's ComputerServiceNote in the language of msgs.
 func (msgs Messages) ComputerServiceNote() string { return msgs.text(textComputerServiceNote) }
+
+// ComputerTooOld says "Update Kando on this computer to see and change its translation settings here."
+// in the language the app shows under cx.
+//
+// Note on a computer's page when the computer's Kando is too old to share its AI service and context switch.
+func ComputerTooOld(cx *core.Scope) string { return For(cx).ComputerTooOld() }
+
+// ComputerTooOld is the package's ComputerTooOld in the language of msgs.
+func (msgs Messages) ComputerTooOld() string { return msgs.text(textComputerTooOld) }
 
 // ComputerTranslation says "Translation"
 // in the language the app shows under cx.

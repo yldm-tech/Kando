@@ -12,7 +12,7 @@ import (
 	"github.com/nsgo-dev/nsgo/ui"
 )
 
-// ComputerPage is a paired computer's page: the AI service it translates with, which only the computer changes, as it keeps the service's key; whether its translation sends the lines before a batch with it, which the phone turns on and off there; and the way to unpair it. What the computer answered at the last sync this run is what it shows; before one reached it, it says so. unpaired runs once the user unpaired it, which takes the page away.
+// ComputerPage is a paired computer's page: the AI service it translates with, which only the computer changes, as it keeps the service's key; whether its translation sends the lines before a batch with it, which the phone turns on and off there; and the way to unpair it. What the computer answered at the last sync this run is what it shows; before one reached it, or when its Kando is too old to share them, it says so. unpaired runs once the user unpaired it, which takes the page away.
 func ComputerPage(cx *core.Scope, s *session.Session, id string, unpaired func(id string), back func()) base.NavPage {
 	colors := ui.ColorsOf(cx)
 	d := func() store.Desktop { d, _ := s.Desktop(id); return d }
@@ -29,7 +29,7 @@ func ComputerPage(cx *core.Scope, s *session.Session, id string, unpaired func(i
 	service := func() string {
 		st, ok := got()
 		switch {
-		case !ok:
+		case !ok || st.Context == nil:
 			return ""
 		case st.Service == "":
 			return locales.ComputerServiceNone(cx)
@@ -81,6 +81,8 @@ func ComputerPage(cx *core.Scope, s *session.Session, id string, unpaired func(i
 						switch {
 						case !ok:
 							return locales.ComputerUnknown(cx)
+						case st.Context == nil:
+							return locales.ComputerTooOld(cx)
 						case st.ReadOnly:
 							return locales.ComputerReadOnly(cx)
 						}
