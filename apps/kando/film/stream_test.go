@@ -10,14 +10,14 @@ import (
 
 // fakeStreamer is the app's side of a film that keeps no video: whether it streams here, and the calls the player made.
 type fakeStreamer struct {
-	streams bool
-	asked   []string
+	streams     bool
+	streamAsked []string
 }
 
 func (f *fakeStreamer) FilmStreams() bool { return f.streams }
-func (f *fakeStreamer) DownloadVideo()    { f.asked = append(f.asked, "download") }
-func (f *fakeStreamer) StreamOnline()     { f.asked = append(f.asked, "online") }
-func (f *fakeStreamer) StreamAgain()      { f.asked = append(f.asked, "again") }
+func (f *fakeStreamer) DownloadVideo()    { f.streamAsked = append(f.streamAsked, "download") }
+func (f *fakeStreamer) StreamOnline()     { f.streamAsked = append(f.streamAsked, "online") }
+func (f *fakeStreamer) StreamAgain()      { f.streamAsked = append(f.streamAsked, "again") }
 
 // subtitlesOnly is a done YouTube film that keeps no video, whose stream would not play for err.
 func subtitlesOnly(err string) *fakeApp {
@@ -47,8 +47,8 @@ func TestOfflineStopsAStreamedFilm(t *testing.T) {
 	}
 	app.Press("id:film-stream-online")
 	app.Press("id:film-stream-download")
-	if !slices.Equal(a.asked, []string{"online", "download"}) {
-		t.Fatalf("asked %v", a.asked)
+	if !slices.Equal(a.streamAsked, []string{"online", "download"}) {
+		t.Fatalf("asked %v", a.streamAsked)
 	}
 
 	change(app, a, func() { a.item.VideoComing = true })
@@ -78,8 +78,8 @@ func TestAFilmThatCannotStreamOffersItsVideo(t *testing.T) {
 		t.Fatalf("title %q", got.Text)
 	}
 	app.Press("id:film-stream-retry")
-	if !slices.Equal(a.asked, []string{"again"}) {
-		t.Fatalf("asked %v", a.asked)
+	if !slices.Equal(a.streamAsked, []string{"again"}) {
+		t.Fatalf("asked %v", a.streamAsked)
 	}
 
 	change(app, a, func() { a.err = "" })
@@ -104,8 +104,8 @@ func TestInfoSaysAFilmKeepsNoVideo(t *testing.T) {
 			t.Fatalf("streams %v: %s", streams, texts)
 		}
 		app.Press("id:film-info-download")
-		if !slices.Equal(a.asked, []string{"download"}) {
-			t.Fatalf("asked %v", a.asked)
+		if !slices.Equal(a.streamAsked, []string{"download"}) {
+			t.Fatalf("asked %v", a.streamAsked)
 		}
 		change(app, a, func() { a.item.VideoComing = true })
 		if texts := strings.Join(app.Texts(), "\n"); !strings.Contains(texts, msgs.FilmInfoStreamQueued()) || app.Enabled("id:film-info-download") {
