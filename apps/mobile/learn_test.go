@@ -500,3 +500,69 @@ func TestARefusedChangeLeavesTheOthers(t *testing.T) {
 	p.learnRefresh()
 	p.app.WaitUntil(wait, func() bool { return p.texts("id:learn-review-title") == msgs.LearnReviewDue(1) })
 }
+
+// Dictation plays each line due from the film kept on the phone, from just before it starts to just after it ends, and marks what the learner typed once they check it; the grade they give then goes to the computer, as a card's does.
+func TestTheReviewDictatesTheLinesOfAFilmOnThePhone(t *testing.T) {
+	d := studyDesktop(t)
+	dir, f := keptFrom(t, d)
+	p := startPhone(t, dir, pairedWith(t, d, dir), nsgotest.Environment(core.Environment{Locale: lang, Audio: true}))
+	video := filepath.Join(store.Open(dir).FilmDir(f.Desktop, f.Film.ID), f.Video)
+	p.app.AudioDurations = map[string]time.Duration{video: 10 * time.Second}
+	p.waitLearned(f.Desktop)
+	p.openTab(learnTab, msgs.LearnTitle())
+	p.app.WaitUntil(wait, func() bool { return p.texts("id:learn-review-title") == msgs.LearnReviewDue(2) })
+	p.app.Press("id:learn-review-dictation")
+	p.app.Press("id:learn-review-start")
+
+	// The word comes first: its line is the one it was looked up in, which the film's subtitles end at two seconds.
+	p.app.WaitFor("id:dictation-card", wait)
+	p.app.Press("id:dictation-play")
+	if len(p.app.Players) != 1 || !p.app.Players[0].Playing || p.app.Players[0].Position != 750*time.Millisecond || p.app.Players[0].Source.URI != video {
+		t.Fatalf("the players %+v; want the film's from 0.75s", p.app.Players)
+	}
+	p.app.Advance(2 * time.Second)
+	if pl := p.app.Players[0]; pl.Playing || pl.Position != 750*time.Millisecond {
+		t.Fatalf("the line's clip played on to %v (playing %v); want it stopped after 2.25s and back at its start", pl.Position, pl.Playing)
+	}
+	p.app.Type("id:dictation-input", "おはよう")
+	p.app.Press("id:review-show")
+	if got, want := p.texts("id:dictation-score"), msgs.DictationScore(4, 9); got != want {
+		t.Errorf("the check says %q, want %q", got, want)
+	}
+	if got := p.texts("id:dictation-translation"); got != "早上好。" {
+		t.Errorf("the line's translation shows %q", got)
+	}
+	p.app.Press("id:review-known")
+
+	p.app.WaitUntil(wait, func() bool { return p.texts("id:dictation-input") == "" })
+	p.app.Type("id:dictation-input", "fine THANKS")
+	p.app.Press("id:review-show")
+	if got, want := p.texts("id:dictation-score"), msgs.DictationScore(2, 2); got != want {
+		t.Errorf("the check says %q, want %q", got, want)
+	}
+	p.app.Press("id:review-known")
+	p.app.WaitFor("id:review-done", wait)
+	p.app.Press("id:review-finish")
+	p.app.WaitUntil(wait, func() bool {
+		return reviewOf(t, d, sync.KindWord, "w-morning").Box == 1 && reviewOf(t, d, sync.KindLine, "l-fine").Box == 1
+	})
+	if prefs, err := store.Open(dir).Prefs(); err != nil || prefs.Review != "dictation" {
+		t.Errorf("the review mode kept is %q, %v", prefs.Review, err)
+	}
+}
+
+// A line whose film is not on the phone cannot be heard: dictation shows it as a card, and says why.
+func TestDictationShowsACardForAFilmNotOnThePhone(t *testing.T) {
+	d := studyDesktop(t)
+	dir := t.TempDir()
+	p := startPhone(t, dir, pairedWith(t, d, dir))
+	p.waitLearned(store.DesktopID(d.Fingerprint))
+	p.openTab(learnTab, msgs.LearnTitle())
+	p.app.WaitFor("id:learn-review-start", wait)
+	p.app.Press("id:learn-review-dictation")
+	p.app.Press("id:learn-review-start")
+	p.app.WaitFor("id:review-no-film", wait)
+	if p.app.Exists("id:dictation-card") || p.texts("id:review-text") != "おはよう" || p.texts("id:review-show") != msgs.ReviewShow() {
+		t.Fatalf("a line not on the phone shows %q", p.texts("id:review-page"))
+	}
+}

@@ -484,3 +484,60 @@ func (s *Session) learnSave(write func() error) {
 		}
 	})
 }
+
+// LineClips are the clips of items' lines to dictate (learning.ClipOf), by their keys, read off the engine's goroutine and answered on it: an item whose film is not kept whole on the phone has none, as its line cannot be heard.
+func (s *Session) LineClips(items []learning.Item, done func(map[string]learning.Clip)) {
+	type kept struct {
+		video string
+		film  store.Film
+	}
+	films := map[string]kept{}
+	for _, it := range items {
+		key := store.Key(it.Desktop, it.Film)
+		if f, ok := s.Film(key); ok && f.Done() && it.Film != "" {
+			films[key] = kept{video: filepath.Join(s.st.FilmDir(f.Desktop, f.Film.ID), f.Video), film: f}
+		}
+	}
+	s.work.Go(func() {
+		out := map[string]learning.Clip{}
+		cues := map[string][]sync.Cue{}
+		for _, it := range items {
+			key := store.Key(it.Desktop, it.Film)
+			k, ok := films[key]
+			if !ok {
+				continue
+			}
+			if _, read := cues[key]; !read {
+				cues[key], _, _ = s.st.Cues(k.film.Desktop, k.film.Film.ID)
+			}
+			if c, ok := learning.ClipOf(it, k.video, time.Duration(k.film.DelayMS)*time.Millisecond, cues[key]); ok {
+				out[it.Key()] = c
+			}
+		}
+		s.cx.Post(func() { done(out) })
+	})
+}
+
+// ReviewMode is how the Learn tab reviews, as the learner last picked it: ReviewCards or ReviewDictation.
+func (s *Session) ReviewMode() string {
+	if m := s.prefs.Get().Review; m == ReviewDictation {
+		return m
+	}
+	return ReviewCards
+}
+
+// SetReviewMode keeps m as how the Learn tab reviews.
+func (s *Session) SetReviewMode(m string) {
+	p := s.prefs.Get()
+	p.Review = ""
+	if m == ReviewDictation {
+		p.Review = m
+	}
+	s.SetPrefs(p)
+}
+
+// The ways the Learn tab reviews: a card that shows its answer on a press, or the line heard and typed in, then checked.
+const (
+	ReviewCards     = "cards"
+	ReviewDictation = "dictation"
+)

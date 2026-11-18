@@ -212,3 +212,47 @@ func TestExportWritesTheWordsAsTheComputerDoes(t *testing.T) {
 		t.Errorf("Anki's notes without the lines read %q, %v; want %q", data, err, want)
 	}
 }
+
+// A dictation marks each word of the line the learner typed, whatever its case, punctuation and order, each typed word standing for one of the line's; a line in Japanese is checked a character at a time.
+func TestDictateMarksTheWordsHeard(t *testing.T) {
+	words, hit, total := Dictate("Fine, thanks. Fine!", "fine THANKS")
+	if hit != 2 || total != 3 || !words[0].Typed || !words[1].Typed || words[2].Typed || words[0].Text != "Fine," {
+		t.Errorf("Dictate = %+v, %d/%d", words, hit, total)
+	}
+	words, hit, total = Dictate("It’s a well-known fact — 42.", "its a well-known fact 42")
+	if hit != 4 || total != 5 || words[0].Typed || words[4].Counted {
+		t.Errorf("Dictate = %+v, %d/%d; want the dash left out and it’s not its", words, hit, total)
+	}
+	words, hit, total = Dictate("おはようございます。", "おはよう")
+	if hit != 4 || total != 9 || len(words) != 10 || words[9].Counted {
+		t.Errorf("Dictate = %+v, %d/%d", words, hit, total)
+	}
+	if _, hit, total := Dictate("Hello.", ""); hit != 0 || total != 1 {
+		t.Errorf("nothing typed: %d/%d", hit, total)
+	}
+}
+
+// A line's clip is its own span, a word's the line it was looked up in, which the film's subtitles end, both moved by the film's delay and padded; a word with no line, or a film not on the phone, has none.
+func TestClipOf(t *testing.T) {
+	cues := []sync.Cue{{StartMS: 1000, EndMS: 2000, Original: "Good morning."}, {StartMS: 3000, EndMS: 4500, Original: "How are you?"}}
+	line := Item{Kind: Line, Text: "Fine.", Meaning: "很好。", Start: 5 * time.Second, End: 6500 * time.Millisecond}
+	c, ok := ClipOf(line, "/v.mp4", time.Second, cues)
+	if !ok || c.From != 5750*time.Millisecond || c.To != 7750*time.Millisecond || c.Line != "Fine." || c.Translation != "很好。" || c.Video != "/v.mp4" {
+		t.Errorf("the line's clip %+v, %v", c, ok)
+	}
+	word := Item{Kind: Word, Text: "how", Meaning: "怎样", Context: "How are you?", ContextTranslation: "你好吗？", Start: 3 * time.Second}
+	c, ok = ClipOf(word, "/v.mp4", 0, cues)
+	if !ok || c.From != 2750*time.Millisecond || c.To != 4750*time.Millisecond || c.Line != "How are you?" || c.Translation != "你好吗？" {
+		t.Errorf("the word's clip %+v, %v", c, ok)
+	}
+	word.Start = 9 * time.Second
+	if c, ok = ClipOf(word, "/v.mp4", 0, cues); !ok || c.To != 13250*time.Millisecond {
+		t.Errorf("a line not among the subtitles plays %+v, %v; want four seconds", c, ok)
+	}
+	if _, ok := ClipOf(Item{Kind: Word, Text: "how"}, "/v.mp4", 0, cues); ok {
+		t.Error("a word with no line has a clip")
+	}
+	if _, ok := ClipOf(line, "", 0, cues); ok {
+		t.Error("a line with no video has a clip")
+	}
+}

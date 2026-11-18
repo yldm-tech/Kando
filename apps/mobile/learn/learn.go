@@ -43,7 +43,7 @@ func Page(cx *core.Scope, s *session.Session, act Actions) base.NavPage {
 			status(cx, s),
 			goal(cx, s),
 			core.Show{When: empty, Then: func(cx *core.Scope) core.Node { return nothingSaved(cx, s, act.Pair) },
-				Else: func(cx *core.Scope) core.Node { return review(cx, due.Get, act.Review) }},
+				Else: func(cx *core.Scope) core.Node { return review(cx, s, due.Get, act.Review) }},
 			week(cx, s),
 			core.Show{When: func() bool { return !empty() }, Then: func(cx *core.Scope) core.Node { return lists(cx, items.Get, act) }},
 		}}}}
@@ -95,8 +95,8 @@ func goal(cx *core.Scope, s *session.Session) core.Node {
 	)
 }
 
-// review is the card that starts the review of the items due, or says none is.
-func review(cx *core.Scope, due func() []learning.Item, start func()) core.Node {
+// review is the card that starts the review of the items due, or says none is, with the way the review goes: cards, or the lines dictated.
+func review(cx *core.Scope, s *session.Session, due func() []learning.Item, start func()) core.Node {
 	colors := ui.ColorsOf(cx)
 	n := func() int { return len(due()) }
 	return card(cx, "learn-review", 12,
@@ -117,6 +117,15 @@ func review(cx *core.Scope, due func() []learning.Item, start func()) core.Node 
 				}, Style: look.Subhead, StyleFunc: ui.Colored(colors.Muted)},
 			}},
 		}},
+		// ui.Tabs' labels are strings, so the modes are built again as the language changes.
+		core.Dynamic(func(cx *core.Scope) core.Node {
+			return ui.Tabs[string]{TestID: "learn-review-mode", Label: locales.LearnReviewMode(cx), Equal: true,
+				Options: []ui.Option[string]{
+					{Value: session.ReviewCards, Label: locales.LearnReviewCards(cx), TestID: "learn-review-cards"},
+					{Value: session.ReviewDictation, Label: locales.LearnReviewDictation(cx), TestID: "learn-review-dictation"},
+				},
+				Value: s.ReviewMode, OnChange: s.SetReviewMode}
+		}),
 		core.Show{When: func() bool { return n() > 0 }, Then: func(cx *core.Scope) core.Node {
 			return look.Button{TestID: "learn-review-start", Kind: look.Primary, Text: func() string { return locales.LearnReviewStart(cx) }, OnPress: start}
 		}},

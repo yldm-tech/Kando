@@ -112,6 +112,39 @@ computersUnreachable:
   description: "In a computer's section and on a library's page: it does not answer."
   placeholders:
     name: { type: "String", example: "Studio" }
+dictationCantPlay:
+  message: "This line can't be played on this device."
+  description: "Under the dictation card's heading when the film's sound could not be played."
+dictationCheck:
+  message: "Check"
+  description: "Button of the review that checks what the learner typed in a dictation."
+dictationHint:
+  message: "Listen as many times as you like, then type what you hear."
+  description: "Under the dictation card's heading."
+dictationLabel:
+  message: "What You Heard"
+  description: "Accessibility label of the dictation card's text box."
+dictationNoFilm:
+  message: "Save this film to this device to hear its lines."
+  description: "Under a review card in dictation mode when the film is not kept on the phone, so the line cannot be played."
+dictationPlaceholder:
+  message: "Type what you heard"
+  description: "Placeholder of the dictation card's text box."
+dictationPlay:
+  message: "Play the Line"
+  description: "Accessibility label of the dictation card's play button."
+dictationScore:
+  message: "{hit} of {total, plural, one {# word} other {# words}} heard right"
+  description: "Dictation card after the check: how many of the line's words the learner typed."
+  placeholders:
+    hit: { type: "int", example: 3 }
+    total: { type: "int", example: 5 }
+dictationStop:
+  message: "Stop"
+  description: "Accessibility label of the dictation card's play button while the line plays."
+dictationTitle:
+  message: "Dictate This Line"
+  description: "Heading of the dictation card in the review."
 exportAnki:
   message: "Anki"
   description: "Export page: the format of notes Anki's File › Import reads."
@@ -666,6 +699,12 @@ learnReminderTitle:
 learnRemove:
   message: "Remove"
   description: "Destructive button of the alert that removes a word or a line."
+learnReviewCards:
+  message: "Cards"
+  description: "Review mode: a card that shows its answer on a press."
+learnReviewDictation:
+  message: "Dictation"
+  description: "Review mode: the line is played and the learner types what they hear."
 learnReviewDue:
   message: "{count, plural, one {Review # item} other {Review # items}}"
   description: "Title of Learn's review card: how many words and lines are due."
@@ -676,6 +715,9 @@ learnReviewDueDetail:
   description: "Under the review card's title: how long the review takes."
   placeholders:
     count: { type: "int", example: "3" }
+learnReviewMode:
+  message: "Review Mode"
+  description: "Accessibility label of Learn's choice of how the review goes: cards or dictation."
 learnReviewNone:
   message: "Nothing to review today"
   description: "Title of Learn's review card while nothing is due."

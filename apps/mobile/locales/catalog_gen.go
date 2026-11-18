@@ -470,6 +470,7 @@ var Parameters = map[string][]string{
 	"ComputersUnpairTitle":   {"name"},
 	"ComputersUnpaired":      {"name"},
 	"ComputersUnreachable":   {"name"},
+	"DictationScore":         {"hit", "total"},
 	"ExportCount":            {"words", "lines"},
 	"FilmDeleteTitle":        {"title"},
 	"FilmDownloading":        {"percent"},
@@ -565,6 +566,7 @@ type Translation struct {
 	ComputersUnpairTitle   func(name string) string
 	ComputersUnpaired      func(name string) string
 	ComputersUnreachable   func(name string) string
+	DictationScore         func(hit int, total int) string
 	ExportCount            func(words int, lines int) string
 	FilmDeleteTitle        func(title string) string
 	FilmDownloading        func(percent int) string
@@ -672,6 +674,15 @@ const (
 	textComputersPairAgain
 	textComputersUnpair
 	textComputersUnpairMessage
+	textDictationCantPlay
+	textDictationCheck
+	textDictationHint
+	textDictationLabel
+	textDictationNoFilm
+	textDictationPlaceholder
+	textDictationPlay
+	textDictationStop
+	textDictationTitle
 	textExportAnki
 	textExportAnkiDetail
 	textExportCSV
@@ -778,6 +789,9 @@ const (
 	textLearnOffline
 	textLearnReminderTitle
 	textLearnRemove
+	textLearnReviewCards
+	textLearnReviewDictation
+	textLearnReviewMode
 	textLearnReviewNone
 	textLearnReviewNoneDetail
 	textLearnReviewStart
@@ -963,6 +977,15 @@ var keyOfText = [numTexts]string{
 	"computersPairAgain",
 	"computersUnpair",
 	"computersUnpairMessage",
+	"dictationCantPlay",
+	"dictationCheck",
+	"dictationHint",
+	"dictationLabel",
+	"dictationNoFilm",
+	"dictationPlaceholder",
+	"dictationPlay",
+	"dictationStop",
+	"dictationTitle",
 	"exportAnki",
 	"exportAnkiDetail",
 	"exportCSV",
@@ -1069,6 +1092,9 @@ var keyOfText = [numTexts]string{
 	"learnOffline",
 	"learnReminderTitle",
 	"learnRemove",
+	"learnReviewCards",
+	"learnReviewDictation",
+	"learnReviewMode",
 	"learnReviewNone",
 	"learnReviewNoneDetail",
 	"learnReviewStart",
@@ -1252,6 +1278,15 @@ var textsEn = i18n.NewTexts(""+
 	"Pair Again"+
 	"Unpair"+
 	"The films downloaded from it stay on this phone."+
+	"This line can't be played on this device."+
+	"Check"+
+	"Listen as many times as you like, then type what you hear."+
+	"What You Heard"+
+	"Save this film to this device to hear its lines."+
+	"Type what you heard"+
+	"Play the Line"+
+	"Stop"+
+	"Dictate This Line"+
 	"Anki"+
 	"Notes for Anki's File › Import: the word on the front, the rest on the back"+
 	"CSV Spreadsheet"+
@@ -1358,6 +1393,9 @@ var textsEn = i18n.NewTexts(""+
 	"Can't reach your computer. Showing what this device kept; your reviews are sent later."+
 	"Time to review"+
 	"Remove"+
+	"Cards"+
+	"Dictation"+
+	"Review Mode"+
 	"Nothing to review today"+
 	"What you saved comes back here when it's due."+
 	"Start Review"+
@@ -1538,6 +1576,15 @@ var textsEn = i18n.NewTexts(""+
 		10,
 		6,
 		48,
+		41,
+		5,
+		58,
+		14,
+		48,
+		19,
+		13,
+		4,
+		17,
 		4,
 		77,
 		15,
@@ -1644,6 +1691,9 @@ var textsEn = i18n.NewTexts(""+
 		86,
 		14,
 		6,
+		5,
+		9,
+		11,
 		23,
 		45,
 		12,
@@ -1827,6 +1877,15 @@ var textsJa = i18n.NewTexts(""+
 	"もう一度ペアリング"+
 	"ペアリングを解除"+
 	"ダウンロード済みの動画はこのスマートフォンに残ります。"+
+	"この端末ではこのセリフを再生できません。"+
+	"答え合わせ"+
+	"何度でも聞いて、聞こえたとおりに入力してください。"+
+	"聞き取った内容"+
+	"この映画を端末に保存すると、セリフを書き取れます。"+
+	"聞こえた内容を入力"+
+	"セリフを再生"+
+	"停止"+
+	"このセリフを書き取る"+
 	"Anki"+
 	"Anki の「ファイル › 読み込む」用：表に単語、裏にそれ以外"+
 	"CSV"+
@@ -1933,6 +1992,9 @@ var textsJa = i18n.NewTexts(""+
 	"コンピュータに接続できません。この端末に保存した内容を表示しています。復習の記録は後で送信します。"+
 	"復習の時間です"+
 	"削除"+
+	"カード"+
+	"ディクテーション"+
+	"復習の方法"+
 	"今日の復習はありません"+
 	"保存したものは復習の時期になるとここに戻ってきます。"+
 	"復習を始める"+
@@ -2113,6 +2175,15 @@ var textsJa = i18n.NewTexts(""+
 		27,
 		24,
 		81,
+		60,
+		15,
+		75,
+		21,
+		75,
+		27,
+		18,
+		6,
+		30,
 		4,
 		82,
 		3,
@@ -2219,6 +2290,9 @@ var textsJa = i18n.NewTexts(""+
 		147,
 		21,
 		6,
+		9,
+		24,
+		15,
 		33,
 		78,
 		18,
@@ -2402,6 +2476,15 @@ var textsKo = i18n.NewTexts(""+
 	"다시 페어링"+
 	"페어링 해제"+
 	"다운로드한 영상은 이 휴대폰에 남습니다."+
+	"이 기기에서는 이 대사를 재생할 수 없습니다."+
+	"확인"+
+	"원하는 만큼 들은 뒤 들은 대로 입력하세요."+
+	"들은 내용"+
+	"이 영상을 기기에 저장하면 대사를 받아쓸 수 있습니다."+
+	"들은 내용을 입력하세요"+
+	"대사 재생"+
+	"정지"+
+	"이 대사 받아쓰기"+
 	"Anki"+
 	"Anki의 '파일 › 가져오기'용: 앞면에 단어, 나머지는 뒷면"+
 	"CSV"+
@@ -2508,6 +2591,9 @@ var textsKo = i18n.NewTexts(""+
 	"컴퓨터에 연결할 수 없어 이 기기에 저장된 내용을 보여 줍니다. 복습 기록은 나중에 보냅니다."+
 	"복습할 시간이에요"+
 	"삭제"+
+	"카드"+
+	"받아쓰기"+
+	"복습 방식"+
 	"오늘은 복습할 게 없어요"+
 	"저장한 항목은 복습할 때가 되면 여기에 다시 나타나요."+
 	"복습 시작"+
@@ -2688,6 +2774,15 @@ var textsKo = i18n.NewTexts(""+
 		16,
 		16,
 		56,
+		61,
+		6,
+		58,
+		13,
+		74,
+		32,
+		13,
+		6,
+		23,
 		4,
 		75,
 		3,
@@ -2794,6 +2889,9 @@ var textsKo = i18n.NewTexts(""+
 		126,
 		25,
 		6,
+		6,
+		12,
+		13,
 		33,
 		74,
 		13,
@@ -2977,6 +3075,15 @@ var textsZhHans = i18n.NewTexts(""+
 	"重新配对"+
 	"取消配对"+
 	"从它下载的影片仍会留在这部手机上。"+
+	"这台设备播放不了这句。"+
+	"核对"+
+	"想听几遍都行，然后把听到的写下来。"+
+	"听到的内容"+
+	"把这部影片存到这台设备上，就能听写它的台词。"+
+	"在这里写下听到的内容"+
+	"播放这句"+
+	"停止"+
+	"听写这句"+
 	"Anki 卡片"+
 	"供 Anki「文件 › 导入」读取：正面是生词，其余在背面"+
 	"CSV 表格"+
@@ -3083,6 +3190,9 @@ var textsZhHans = i18n.NewTexts(""+
 	"连不上电脑，显示的是这台设备存下的内容；复习记录稍后再同步。"+
 	"该复习了"+
 	"移除"+
+	"卡片"+
+	"听写"+
+	"复习方式"+
 	"今天没有要复习的"+
 	"收藏的内容到期时会回到这里。"+
 	"开始复习"+
@@ -3263,6 +3373,15 @@ var textsZhHans = i18n.NewTexts(""+
 		12,
 		12,
 		51,
+		33,
+		6,
+		51,
+		15,
+		66,
+		30,
+		12,
+		6,
+		12,
 		11,
 		73,
 		10,
@@ -3369,6 +3488,9 @@ var textsZhHans = i18n.NewTexts(""+
 		90,
 		12,
 		6,
+		6,
+		6,
+		12,
 		24,
 		42,
 		12,
@@ -3552,6 +3674,15 @@ var textsZhHant = i18n.NewTexts(""+
 	"重新配對"+
 	"取消配對"+
 	"從它下載的影片仍會留在這支手機上。"+
+	"這台裝置播放不了這句。"+
+	"核對"+
+	"想聽幾遍都行，然後把聽到的寫下來。"+
+	"聽到的內容"+
+	"把這部影片存到這台裝置上，就能聽寫它的台詞。"+
+	"在這裡寫下聽到的內容"+
+	"播放這句"+
+	"停止"+
+	"聽寫這句"+
 	"Anki 卡片"+
 	"供 Anki「檔案 › 匯入」讀取：正面是生詞，其餘在背面"+
 	"CSV 表格"+
@@ -3658,6 +3789,9 @@ var textsZhHant = i18n.NewTexts(""+
 	"連不上電腦，顯示的是這台裝置存下的內容；複習紀錄稍後再同步。"+
 	"該複習了"+
 	"移除"+
+	"卡片"+
+	"聽寫"+
+	"複習方式"+
 	"今天沒有要複習的"+
 	"收藏的內容到期時會回到這裡。"+
 	"開始複習"+
@@ -3838,6 +3972,15 @@ var textsZhHant = i18n.NewTexts(""+
 		12,
 		12,
 		51,
+		33,
+		6,
+		51,
+		15,
+		66,
+		30,
+		12,
+		6,
+		12,
 		11,
 		73,
 		10,
@@ -3944,6 +4087,9 @@ var textsZhHant = i18n.NewTexts(""+
 		90,
 		12,
 		6,
+		6,
+		6,
+		12,
 		24,
 		42,
 		12,
@@ -4188,6 +4334,9 @@ func Supply(lang string, t Translation) {
 	}
 	if t.ComputersUnreachable != nil {
 		s.ComputersUnreachable = t.ComputersUnreachable
+	}
+	if t.DictationScore != nil {
+		s.DictationScore = t.DictationScore
 	}
 	if t.ExportCount != nil {
 		s.ExportCount = t.ExportCount
@@ -4924,6 +5073,131 @@ func (msgs Messages) ComputersUnreachable(name string) string {
 		}
 	}
 }
+
+// DictationCantPlay says "This line can't be played on this device."
+// in the language the app shows under cx.
+//
+// Under the dictation card's heading when the film's sound could not be played.
+func DictationCantPlay(cx *core.Scope) string { return For(cx).DictationCantPlay() }
+
+// DictationCantPlay is the package's DictationCantPlay in the language of msgs.
+func (msgs Messages) DictationCantPlay() string { return msgs.text(textDictationCantPlay) }
+
+// DictationCheck says "Check"
+// in the language the app shows under cx.
+//
+// Button of the review that checks what the learner typed in a dictation.
+func DictationCheck(cx *core.Scope) string { return For(cx).DictationCheck() }
+
+// DictationCheck is the package's DictationCheck in the language of msgs.
+func (msgs Messages) DictationCheck() string { return msgs.text(textDictationCheck) }
+
+// DictationHint says "Listen as many times as you like, then type what you hear."
+// in the language the app shows under cx.
+//
+// Under the dictation card's heading.
+func DictationHint(cx *core.Scope) string { return For(cx).DictationHint() }
+
+// DictationHint is the package's DictationHint in the language of msgs.
+func (msgs Messages) DictationHint() string { return msgs.text(textDictationHint) }
+
+// DictationLabel says "What You Heard"
+// in the language the app shows under cx.
+//
+// Accessibility label of the dictation card's text box.
+func DictationLabel(cx *core.Scope) string { return For(cx).DictationLabel() }
+
+// DictationLabel is the package's DictationLabel in the language of msgs.
+func (msgs Messages) DictationLabel() string { return msgs.text(textDictationLabel) }
+
+// DictationNoFilm says "Save this film to this device to hear its lines."
+// in the language the app shows under cx.
+//
+// Under a review card in dictation mode when the film is not kept on the phone, so the line cannot be played.
+func DictationNoFilm(cx *core.Scope) string { return For(cx).DictationNoFilm() }
+
+// DictationNoFilm is the package's DictationNoFilm in the language of msgs.
+func (msgs Messages) DictationNoFilm() string { return msgs.text(textDictationNoFilm) }
+
+// DictationPlaceholder says "Type what you heard"
+// in the language the app shows under cx.
+//
+// Placeholder of the dictation card's text box.
+func DictationPlaceholder(cx *core.Scope) string { return For(cx).DictationPlaceholder() }
+
+// DictationPlaceholder is the package's DictationPlaceholder in the language of msgs.
+func (msgs Messages) DictationPlaceholder() string { return msgs.text(textDictationPlaceholder) }
+
+// DictationPlay says "Play the Line"
+// in the language the app shows under cx.
+//
+// Accessibility label of the dictation card's play button.
+func DictationPlay(cx *core.Scope) string { return For(cx).DictationPlay() }
+
+// DictationPlay is the package's DictationPlay in the language of msgs.
+func (msgs Messages) DictationPlay() string { return msgs.text(textDictationPlay) }
+
+// DictationScore says "{hit} of {total, plural, one {# word} other {# words}} heard right"
+// in the language the app shows under cx.
+//
+// Dictation card after the check: how many of the line's words the learner typed.
+func DictationScore(cx *core.Scope, hit int, total int) string {
+	return For(cx).DictationScore(hit, total)
+}
+
+// DictationScore is the package's DictationScore in the language of msgs.
+func (msgs Messages) DictationScore(hit int, total int) string {
+	if i18n.IsPseudo(msgs.lang) {
+		return i18n.Pseudo(msgs.lang, Messages{lang: Source, mark: true}.DictationScore(hit, total))
+	}
+	for lang := msgs.lang; ; lang = i18n.Parent(lang) {
+		if f := supplied[lang].DictationScore; f != nil {
+			return f(hit, total)
+		}
+		switch lang {
+		case "", "en":
+			var b strings.Builder
+			b.WriteString(msgs.arg(i18n.FormatNumber("en", float64(hit))))
+			b.WriteString(" of ")
+			switch i18n.Cardinal("en", float64(total)) {
+			case i18n.One:
+				b.WriteString(msgs.arg(i18n.FormatNumber("en", float64(total))))
+				b.WriteString(" word")
+			default:
+				b.WriteString(msgs.arg(i18n.FormatNumber("en", float64(total))))
+				b.WriteString(" words")
+			}
+			b.WriteString(" heard right")
+			return b.String()
+		case "ja":
+			return i18n.FormatNumber("ja", float64(total)) + " 語中 " + i18n.FormatNumber("ja", float64(hit)) + " 語を聞き取れました"
+		case "ko":
+			return i18n.FormatNumber("ko", float64(total)) + "개 중 " + i18n.FormatNumber("ko", float64(hit)) + "개를 맞게 들었습니다"
+		case "zh-Hans":
+			return "听对了 " + i18n.FormatNumber("zh-Hans", float64(total)) + " 个词中的 " + i18n.FormatNumber("zh-Hans", float64(hit)) + " 个"
+		case "zh-Hant":
+			return "聽對了 " + i18n.FormatNumber("zh-Hant", float64(total)) + " 個詞中的 " + i18n.FormatNumber("zh-Hant", float64(hit)) + " 個"
+		}
+	}
+}
+
+// DictationStop says "Stop"
+// in the language the app shows under cx.
+//
+// Accessibility label of the dictation card's play button while the line plays.
+func DictationStop(cx *core.Scope) string { return For(cx).DictationStop() }
+
+// DictationStop is the package's DictationStop in the language of msgs.
+func (msgs Messages) DictationStop() string { return msgs.text(textDictationStop) }
+
+// DictationTitle says "Dictate This Line"
+// in the language the app shows under cx.
+//
+// Heading of the dictation card in the review.
+func DictationTitle(cx *core.Scope) string { return For(cx).DictationTitle() }
+
+// DictationTitle is the package's DictationTitle in the language of msgs.
+func (msgs Messages) DictationTitle() string { return msgs.text(textDictationTitle) }
 
 // ExportAnki says "Anki"
 // in the language the app shows under cx.
@@ -7372,6 +7646,24 @@ func LearnRemove(cx *core.Scope) string { return For(cx).LearnRemove() }
 // LearnRemove is the package's LearnRemove in the language of msgs.
 func (msgs Messages) LearnRemove() string { return msgs.text(textLearnRemove) }
 
+// LearnReviewCards says "Cards"
+// in the language the app shows under cx.
+//
+// Review mode: a card that shows its answer on a press.
+func LearnReviewCards(cx *core.Scope) string { return For(cx).LearnReviewCards() }
+
+// LearnReviewCards is the package's LearnReviewCards in the language of msgs.
+func (msgs Messages) LearnReviewCards() string { return msgs.text(textLearnReviewCards) }
+
+// LearnReviewDictation says "Dictation"
+// in the language the app shows under cx.
+//
+// Review mode: the line is played and the learner types what they hear.
+func LearnReviewDictation(cx *core.Scope) string { return For(cx).LearnReviewDictation() }
+
+// LearnReviewDictation is the package's LearnReviewDictation in the language of msgs.
+func (msgs Messages) LearnReviewDictation() string { return msgs.text(textLearnReviewDictation) }
+
 // LearnReviewDue says "{count, plural, one {Review # item} other {Review # items}}"
 // in the language the app shows under cx.
 //
@@ -7444,6 +7736,15 @@ func (msgs Messages) LearnReviewDueDetail(count int) string {
 		}
 	}
 }
+
+// LearnReviewMode says "Review Mode"
+// in the language the app shows under cx.
+//
+// Accessibility label of Learn's choice of how the review goes: cards or dictation.
+func LearnReviewMode(cx *core.Scope) string { return For(cx).LearnReviewMode() }
+
+// LearnReviewMode is the package's LearnReviewMode in the language of msgs.
+func (msgs Messages) LearnReviewMode() string { return msgs.text(textLearnReviewMode) }
 
 // LearnReviewNone says "Nothing to review today"
 // in the language the app shows under cx.
