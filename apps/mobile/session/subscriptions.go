@@ -148,7 +148,7 @@ func (s *Session) setSubscriptionBusy(key string, on bool) {
 	s.subs.busy.Set(m)
 }
 
-// actOnSubscription runs call on sub's computer, off the engine's goroutine, while sub is busy: the subscription it answers takes sub's place, and an error is told as a queue's action that failed (QueueEvents.Failed). A subscription the computer no longer has leaves the list.
+// actOnSubscription runs call on sub's computer, off the engine's goroutine, while sub is busy: the subscription it answers takes sub's place, and an error is told as a queue's action that failed (QueueEvents.Failed), after which a computer that answered is read again. A subscription the computer no longer has leaves the list.
 func (s *Session) actOnSubscription(sub Subscription, call func(ctx context.Context, c *sync.Client) (sync.Subscription, error)) {
 	c := s.Client(sub.Desktop)
 	key := sub.Key()
@@ -169,6 +169,10 @@ func (s *Session) actOnSubscription(sub Subscription, call func(ctx context.Cont
 				s.queueFailed(sub.Desktop, err)
 			case err != nil:
 				s.queueFailed(sub.Desktop, err)
+				// A computer that did part of it, as queueing some of the waiting videos and not the others, is read again for what it did.
+				if errors.As(err, &e) {
+					s.readSubscriptions(sub.Desktop)
+				}
 			case got.ID != "":
 				s.putSubscription(sub.Desktop, got)
 			}

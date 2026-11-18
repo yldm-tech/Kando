@@ -158,6 +158,23 @@ func TestScreenshotsLibrary(t *testing.T) {
 	shot(p, "films-search")
 }
 
+func TestScreenshotsLibrarySubscriptions(t *testing.T) {
+	shot := screenshots(t)
+	d := newDesktopWithMovies(t)
+	d.AddSubscription(earthScience())
+	d.AddSubscription(sync.Subscription{ID: "s2", Library: "movies", Name: "线性代数的几何意义", Kind: sync.SubscriptionCollection, Platform: sync.PlatformBilibili, Auto: true, AddPerCheck: 3})
+	d.AddSubscription(sync.Subscription{ID: "s3", Library: "lib", Name: "日语听力每日一练", Kind: sync.SubscriptionCollection, Platform: sync.PlatformBilibili, Gone: true, AddPerCheck: 3})
+	dir := t.TempDir()
+	p := startPhone(t, dir, pairedWith(t, d, dir))
+	id := store.DesktopID(d.Fingerprint)
+	p.app.WaitFor("id:films-subscription-"+id+"-s3", wait)
+	p.app.WaitFor(filmRow(id, "f2"), wait)
+	shot(p, "films-subscriptions")
+	p.app.Press("id:films-subscription-" + id + "-s1")
+	p.app.WaitFor("id:films-subscription-auto-switch", wait)
+	shot(p, "films-subscription-sheet")
+}
+
 func TestScreenshotsLibraryLoading(t *testing.T) {
 	shot := screenshots(t)
 	d := newDesktop(t)
