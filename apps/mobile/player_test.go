@@ -1,7 +1,9 @@
 package main
 
 import (
+	"os"
 	"path/filepath"
+	"runtime"
 	"slices"
 	"strings"
 	"testing"
@@ -124,6 +126,53 @@ func TestTheLineListMarksTheLinePlayingAndPlaysTheOneTapped(t *testing.T) {
 	if s := p.seeks(); s[len(s)-1] != 7*sec {
 		t.Fatalf("tapping the fourth line went to %v, want 7s", s)
 	}
+}
+
+// keptPosition is the position the film's record on disk holds, -1 for none read.
+func (p *phone) keptPosition() int64 {
+	films, err := store.Open(p.dir).Films()
+	if err != nil || len(films) != 1 {
+		return -1
+	}
+	return films[0].PositionMS
+}
+
+// Positions kept one after another, as a film seeked back and forth, are written in the order they were kept: the record ends with the last, not with an older one written after it.
+func TestPositionsKeptOneAfterAnotherEndWithTheLast(t *testing.T) {
+	p, _ := openPlayer(t)
+	for range 20 {
+		p.at(9 * sec)
+		p.at(1 * sec)
+	}
+	p.at(7 * sec)
+	p.app.WaitUntil(wait, func() bool { return p.keptPosition() == 7000 })
+	time.Sleep(300 * time.Millisecond)
+	if got := p.keptPosition(); got != 7000 {
+		t.Fatalf("the record ended with %d, want 7000", got)
+	}
+}
+
+// A position that could not be written, as with the film's folder not writable for a while, is written once it can be, though the player does not ask again: the in-memory record already holds it.
+func TestAPositionThatCouldNotBeWrittenIsWrittenOnceItCan(t *testing.T) {
+	if runtime.GOOS == "windows" || os.Geteuid() == 0 {
+		t.Skip("a folder's mode keeps files out of it only for a user other than root, on a system other than Windows")
+	}
+	p, f := openPlayer(t)
+	folder := store.Open(p.dir).FilmDir(f.Desktop, f.Film.ID)
+	if err := os.Chmod(folder, 0o500); err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = os.Chmod(folder, 0o700) })
+	p.at(6 * sec)
+	// The first write fails while the folder is read-only.
+	time.Sleep(300 * time.Millisecond)
+	if got := p.keptPosition(); got == 6000 {
+		t.Fatalf("the position was written into a read-only folder")
+	}
+	if err := os.Chmod(folder, 0o700); err != nil {
+		t.Fatal(err)
+	}
+	p.app.WaitUntil(wait, func() bool { return p.keptPosition() == 6000 })
 }
 
 func TestThePlayerKeepsWhereTheFilmWasLeft(t *testing.T) {

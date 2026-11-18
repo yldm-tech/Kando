@@ -180,7 +180,7 @@ func readJSON(path string, v any) error {
 	return json.Unmarshal(data, v)
 }
 
-// writeJSON writes v to path through a file beside it, so a record is never left half written. Each write has a file of its own, so two goroutines saving the same record at once, as the player keeping its position and Follow keeping the desktop's record can, do not write into or move each other's.
+// writeJSON writes v to path through a file beside it, so a record is never left half written. Each write has a file of its own, so two goroutines saving the same record at once do not write into or move each other's; which of them lands last is the caller's to order, as the session does with a film's saves.
 func writeJSON(path string, v any) error {
 	data, err := json.MarshalIndent(v, "", "  ")
 	if err != nil {
