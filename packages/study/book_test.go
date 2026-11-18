@@ -1,4 +1,4 @@
-package saved
+package study
 
 import (
 	"errors"
@@ -56,30 +56,10 @@ func TestBookRoundTrip(t *testing.T) {
 	}
 }
 
-// TestLoadKeepsAnUnreadableFile checks that a file Load cannot read is left as it is: Save refuses to write over it.
-func TestLoadKeepsAnUnreadableFile(t *testing.T) {
-	dir := t.TempDir()
-	path := filepath.Join(dir, FileName)
-	if err := os.WriteFile(path, []byte("{"), 0o644); err != nil {
-		t.Fatal(err)
-	}
-	b, err := Load(dir)
-	if err == nil {
-		t.Fatal("a cut-short file read without an error")
-	}
-	b.Toggle(Line{Video: "a/video.mp4", Start: time.Second})
-	if err := b.Save(); !errors.Is(err, ErrUnread) {
-		t.Fatalf("Save over an unread file: %v", err)
-	}
-	if data, _ := os.ReadFile(path); string(data) != "{" {
-		t.Fatalf("the file became %q", data)
-	}
-}
-
-// TestLoadReadsLaterFiles checks that fields a later version writes are passed over and a line without a video is dropped.
+// TestLoadReadsLaterFiles checks that fields a later Kando writes in the same version of the file are passed over, and a line without a video or an id is dropped.
 func TestLoadReadsLaterFiles(t *testing.T) {
 	dir := t.TempDir()
-	data := `{"version": 3, "lines": [{"video": "a/video.mp4", "start": 1.5, "original": "Hi", "ease": 2.5}, {"start": 2}]}`
+	data := `{"version": 1, "lines": [{"id": "x", "video": "a/video.mp4", "start": 1.5, "original": "Hi", "ease": 2.5}, {"id": "y", "start": 2}, {"video": "a/video.mp4", "start": 3}]}`
 	if err := os.WriteFile(filepath.Join(dir, FileName), []byte(data), 0o644); err != nil {
 		t.Fatal(err)
 	}

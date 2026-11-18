@@ -37,6 +37,13 @@ type App interface {
 	// DueCount is how many saved lines are due for review; StartReview closes the sheet and reviews them (Review).
 	DueCount() int
 	StartReview()
+	// NoteEditing is the saved line whose note the sheet is writing, by its ID, "" while none is. EditNote opens the note of line id, keeping the one open before; NoteDraft is the note as typed so far, which SetNoteDraft follows; SaveNote keeps it, an empty one taking the note away, and CancelNote drops it.
+	NoteEditing() string
+	EditNote(id string)
+	NoteDraft() string
+	SetNoteDraft(text string)
+	SaveNote()
+	CancelNote()
 }
 
 // Export is how the export of the saved lines goes: Busy while it runs, Done lines of Total; once Finished, the Lines and the Sounds it wrote, or Err, why it failed, or Stopped once the user stopped it. NoFFmpeg reports that ffmpeg is not installed, so no line has its audio.
@@ -55,6 +62,8 @@ type Entry struct {
 	ID                          string
 	Film, Original, Translation string
 	Start                       time.Duration
+	// Note is what the learner wrote about the line, "" for none.
+	Note string
 	// Gone reports that the line's video is not in the library now, so it does not play.
 	Gone bool
 }
@@ -177,9 +186,11 @@ func exportStatus(cx *core.Scope, export func() Export) core.Node {
 	}}
 }
 
-// entryRow is a saved line of the sheet: its film and time over its original and its translation, which a click plays from, and the × that removes it. A line whose video is gone does not play and says so.
+// entryRow is a saved line of the sheet: its film and time over its original, its translation and the learner's note, which a click plays from, the pencil that opens the note's field under the line, and the × that removes it. A line whose video is gone does not play and says so.
 func entryRow(cx *core.Scope, a App, entry func() Entry) core.Node {
 	colors, k := ui.ColorsOf(cx), theme.Of(cx)
+	id := core.Untracked(cx, entry).ID
+	editing := live.Func(a, func() bool { return a.NoteEditing() != "" && a.NoteEditing() == entry().ID })
 	where := func() string {
 		e := entry()
 		if e.Gone {
@@ -188,7 +199,10 @@ func entryRow(cx *core.Scope, a App, entry func() Entry) core.Node {
 		return locales.SavedWhere(cx, e.Film, saved.Clock(e.Start))
 	}
 	open := base.Button{
-		LabelFunc: func() string { return strings.TrimSpace(where() + " " + entry().Original + " " + entry().Translation) },
+		LabelFunc: func() string {
+			e := entry()
+			return strings.Join(slices.DeleteFunc([]string{where(), e.Original, e.Translation, e.Note}, func(s string) bool { return s == "" }), " ")
+		},
 		Disabled:  func() bool { return entry().Gone },
 		OnPress:   live.On(a, func(core.PressEvent) { a.OpenSaved(entry().ID) }),
 		Style:     core.Style{FlexGrow: 1, FlexShrink: 1, MinWidth: core.Pt(0), Gap: 2, Padding: core.Symmetric(8, 10), CornerRadius: 8, FocusVisible: ui.FocusRing(cx, -2)},
@@ -199,11 +213,43 @@ func entryRow(cx *core.Scope, a App, entry func() Entry) core.Node {
 			core.Show{When: func() bool { return entry().Translation != "" }, Then: func(*core.Scope) core.Node {
 				return core.Text{ContentFunc: func() string { return entry().Translation }, Style: ui.TypeBody, StyleFunc: ui.Colored(colors.Muted)}
 			}},
+			core.Show{When: func() bool { return entry().Note != "" && !editing() }, Then: func(cx *core.Scope) core.Node {
+				k := theme.Of(cx)
+				return core.View{TestID: "saved-note-" + id,
+					Style:     core.Style{Margin: core.Edges{Top: 4}, Padding: core.Symmetric(6, 8), CornerRadius: 6, BorderWidth: 1},
+					StyleFunc: func() core.Style { return core.Style{Background: k.WarnFill(), BorderColor: k.WarnRing()} },
+					Children: []core.Node{
+						core.Text{ContentFunc: func() string { return entry().Note }, Style: ui.TypeBody, StyleFunc: ui.Colored(k.WarnText)},
+					}}
+			}},
 		},
 	}
-	remove := ui.IconButton{Icon: lucide.X, LabelFunc: func() string { return locales.SavedRemoveLine(cx) }, Size: 24, TestID: "saved-remove-" + core.Untracked(cx, entry).ID,
+	note := ui.IconButton{Icon: lucide.NotebookPen, LabelFunc: func() string { return locales.SavedNoteEdit(cx) }, Size: 24, TestID: "saved-note-edit-" + id,
+		OnPress: live.Do(a, func() { a.EditNote(entry().ID) })}
+	remove := ui.IconButton{Icon: lucide.X, LabelFunc: func() string { return locales.SavedRemoveLine(cx) }, Size: 24, TestID: "saved-remove-" + id,
 		OnPress: live.Do(a, func() { a.RemoveSaved(entry().ID) })}
-	return core.View{Style: core.Style{Direction: core.Row, AlignItems: core.AlignStart, Gap: 4}, Children: []core.Node{open, core.View{Style: core.Style{Padding: core.Edges{Top: 6}}, Children: []core.Node{remove}}}}
+	row := core.View{Style: core.Style{Direction: core.Row, AlignItems: core.AlignStart, Gap: 4}, Children: []core.Node{
+		open,
+		core.View{Style: core.Style{Direction: core.Row, Gap: 2, Padding: core.Edges{Top: 6}}, Children: []core.Node{note, remove}},
+	}}
+	return core.View{Children: []core.Node{
+		row,
+		core.Show{When: editing, Then: func(cx *core.Scope) core.Node { return noteEditor(cx, a, id) }},
+	}}
+}
+
+// noteEditor is the field under saved line id where the learner writes a note on it, with Cancel and Save.
+func noteEditor(cx *core.Scope, a App, id string) core.Node {
+	field := ui.Input{TestID: "saved-note-field-" + id, Multiline: true, AutoFocus: true, LabelFunc: func() string { return locales.SavedNote(cx) },
+		PlaceholderFunc: func() string { return locales.SavedNotePlaceholder(cx) },
+		Value:           live.Func(a, a.NoteDraft),
+		OnChange:        live.On(a, a.SetNoteDraft),
+		Style:           core.Style{MinHeight: core.Pt(56)}}
+	buttons := core.View{Style: core.Style{Direction: core.Row, Gap: 8, JustifyContent: core.JustifyEnd}, Children: []core.Node{
+		textButton(locales.SavedNoteCancel, ui.Button{Variant: ui.ButtonSecondary, TestID: "saved-note-cancel", OnPress: live.Do(a, a.CancelNote)}),
+		textButton(locales.SavedNoteSave, ui.Button{TestID: "saved-note-save", OnPress: live.Do(a, a.SaveNote)}),
+	}}
+	return core.View{Style: core.Style{Gap: 8, Padding: core.Edges{Top: 2, Right: 10, Bottom: 10, Left: 10}}, Children: []core.Node{field, buttons}}
 }
 
 // textButton is a ui.Button whose text follows the interface language.

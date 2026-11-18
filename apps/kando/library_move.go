@@ -468,7 +468,7 @@ func (a *app) libraryMoveBook(dir string) (*saved.Book, error) {
 		a.savedSync()
 		return &a.saved.book, a.saved.book.Unread()
 	}
-	book, err := saved.Load(dir)
+	book, err := a.savedLoad(dir)
 	return &book, err
 }
 

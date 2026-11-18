@@ -4,4 +4,5 @@ use ./apps/kando
 use ./apps/mobile
 use ./packages/core
 use ./packages/media
+use ./packages/study
 use ./packages/sync

@@ -21,6 +21,7 @@ require (
 	golang.org/x/text v0.44.0
 	kando/packages/core v0.0.0
 	kando/packages/media v0.0.0
+	kando/packages/study v0.0.0
 	kando/packages/sync v0.0.0
 	rsc.io/qr v0.2.0
 )
@@ -28,6 +29,7 @@ require (
 replace (
 	kando/packages/core => ../../packages/core
 	kando/packages/media => ../../packages/media
+	kando/packages/study => ../../packages/study
 	kando/packages/sync => ../../packages/sync
 )
 

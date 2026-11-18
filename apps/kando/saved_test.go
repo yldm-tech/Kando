@@ -18,7 +18,7 @@ import (
 	ns "github.com/nsgo-dev/nsgo/core"
 )
 
-// TestSaveLineKeepsItInTheLibrary saves the line playing with B: it goes into saved-lines.json in the library folder, by the video's path under the folder, with its two lines and its times, the picture says so, and B again takes it out.
+// TestSaveLineKeepsItInTheLibrary saves the line playing with B: it goes into the study record in the library folder, by the video's path under the folder, with its two lines and its times, the picture says so, and B again takes it out.
 func TestSaveLineKeepsItInTheLibrary(t *testing.T) {
 	a, tt, _ := playerOpen(t)
 	at := time.Date(2026, 11, 16, 9, 0, 0, 0, time.UTC)
@@ -28,7 +28,7 @@ func TestSaveLineKeepsItInTheLibrary(t *testing.T) {
 	dir := a.snap().LibraryDir
 	book, err := saved.Load(dir)
 	if err != nil || len(book.Lines) != 1 {
-		t.Fatalf("saved-lines.json holds %+v, %v", book.Lines, err)
+		t.Fatalf("the study record holds %+v, %v", book.Lines, err)
 	}
 	l := book.Lines[0]
 	if l.Video != "talk/talk.mp4" || l.Start != time.Second || l.End != 2500*time.Millisecond || l.Original != "Hello." || l.Translation != "你好。" || l.Film != "talk" || !l.SavedAt.Equal(at) {
@@ -46,7 +46,7 @@ func TestSaveLineKeepsItInTheLibrary(t *testing.T) {
 	}
 }
 
-// TestSavedLineTakesItsTranslationLater saves a line of the open film that has no translation yet, as while the film is still being translated, and reads the film's subtitles again with the line translated: the saved line takes the translation, in saved-lines.json as well; a translated line saved before keeps the one it was saved with.
+// TestSavedLineTakesItsTranslationLater saves a line of the open film that has no translation yet, as while the film is still being translated, and reads the film's subtitles again with the line translated: the saved line takes the translation, in the study record as well; a translated line saved before keeps the one it was saved with.
 func TestSavedLineTakesItsTranslationLater(t *testing.T) {
 	a, tt, _ := playerOpen(t)
 	playerPlayTo(tt, a, 1500*time.Millisecond)
@@ -59,7 +59,7 @@ func TestSavedLineTakesItsTranslationLater(t *testing.T) {
 	apply(tt, a, func() { a.player.subs.cues = translated })
 	book, _ := saved.Load(a.snap().LibraryDir)
 	if len(book.Lines) != 2 || book.Lines[0].Original != "Bye." || book.Lines[0].Translation != "再见。" || book.Lines[1].Translation != "你好。" {
-		t.Fatalf("saved-lines.json holds %+v", book.Lines)
+		t.Fatalf("the study record holds %+v", book.Lines)
 	}
 	if lines := a.savedBook().Lines; lines[0].Translation != "再见。" {
 		t.Fatalf("the saved lines hold %+v", lines)
@@ -76,7 +76,7 @@ func TestSavedLinesFollowAMovedVideo(t *testing.T) {
 	a.moveVideos(func(p string) (string, bool) { return next, p == old })
 	book, _ := saved.Load(dir)
 	if len(book.Lines) != 1 || book.Lines[0].Video != "Talk 2/talk.mp4" || book.Lines[0].Original != "Bye." {
-		t.Fatalf("after the move saved-lines.json holds %+v", book.Lines)
+		t.Fatalf("after the move the study record holds %+v", book.Lines)
 	}
 }
 
@@ -97,7 +97,7 @@ func TestSavedChipFollowsTheFilm(t *testing.T) {
 	}
 }
 
-// TestSavedSheetOpensTheLine saves a line, opens Study › Saved Lines… from the library, and checks that the sheet lists it under its film, that a click plays the film from the line, and that × takes it out of saved-lines.json.
+// TestSavedSheetOpensTheLine saves a line, opens Study › Saved Lines… from the library, and checks that the sheet lists it under its film, that a click plays the film from the line, and that × takes it out of the study record.
 func TestSavedSheetOpensTheLine(t *testing.T) {
 	a, tt, _ := playerOpen(t)
 	playerPlayTo(tt, a, 4500*time.Millisecond)
@@ -117,6 +117,74 @@ func TestSavedSheetOpensTheLine(t *testing.T) {
 	tt.Press("id:saved-remove-" + savedID(a.saved.book.Lines[0]))
 	if book, _ := saved.Load(a.snap().LibraryDir); len(book.Lines) != 0 || !tt.Exists(whole(msgs.SavedEmpty())) {
 		t.Fatalf("× left %+v, the sheet shows %q", book.Lines, tt.Texts())
+	}
+}
+
+// TestSavedLinesComeOverFromSavedLinesJSON opens a library whose lines an older Kando saved in saved-lines.json: they come over into the library's study record, which is written at once, stamped with no device as the old file names none, the old file stays as it was, and the sheet lists them.
+func TestSavedLinesComeOverFromSavedLinesJSON(t *testing.T) {
+	a, tt, _ := playerOpen(t)
+	tt.Key("escape")
+	dir := a.snap().LibraryDir
+	legacy := filepath.Join(dir, "saved-lines.json")
+	old := `{"lines": [{"video": "talk/talk.mp4", "start": 4, "end": 5, "original": "Bye.", "translation": "再见。", "film": "talk", "savedAt": "2026-11-16T09:00:00Z", "box": 1, "due": "2026-11-17T09:00:00Z"}]}`
+	if err := os.WriteFile(legacy, []byte(old), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	apply(tt, a, func() {
+		a.saved.book = saved.Book{}
+		a.savedSync()
+	})
+	book, err := saved.Load(dir)
+	if err != nil || len(book.Lines) != 1 || book.Migrated() {
+		t.Fatalf("%s holds %+v, %v, migrated %v", saved.FileName, book.Lines, err, book.Migrated())
+	}
+	l := book.Lines[0]
+	if l.ID == "" || l.Device != "" || l.Original != "Bye." || l.Translation != "再见。" || l.Box != 1 || !l.Due.Equal(time.Date(2026, 11, 17, 9, 0, 0, 0, time.UTC)) {
+		t.Fatalf("the line came over as %+v", l)
+	}
+	if data, _ := os.ReadFile(legacy); string(data) != old {
+		t.Fatalf("saved-lines.json became %q", data)
+	}
+	apply(tt, a, a.OpenSavedSheet)
+	if !tt.Exists("id:saved >> " + whole("Bye.")) {
+		t.Fatalf("the sheet shows %q", tt.Texts())
+	}
+}
+
+// TestSavedLineNoteIsKept saves a line, writes a note on it in the Saved Lines sheet, and checks that the note is in the library's study record, stamped on this computer, shows under the line, and that a note emptied takes it away.
+func TestSavedLineNoteIsKept(t *testing.T) {
+	a, tt, _ := playerOpen(t)
+	at := time.Date(2026, 11, 16, 9, 0, 0, 0, time.UTC)
+	a.saved.now = func() time.Time { return at }
+	playerPlayTo(tt, a, 4500*time.Millisecond)
+	tt.Key("b")
+	tt.Key("escape")
+	apply(tt, a, a.OpenSavedSheet)
+	id := a.saved.book.Lines[0].ID
+	at = at.Add(time.Hour)
+	tt.Press("id:saved-note-edit-" + id)
+	tt.Type("id:saved-note-field-"+id, "  Bye = 再见  ")
+	tt.Press("id:saved-note-save")
+	dir := a.snap().LibraryDir
+	book, _ := saved.Load(dir)
+	if len(book.Lines) != 1 {
+		t.Fatalf("lines %+v", book.Lines)
+	}
+	l := book.Lines[0]
+	if l.Note != "Bye = 再见" || a.saved.device == "" || l.Device != a.saved.device || l.Stamps.Note.Device != a.saved.device || !l.Stamps.Note.At.Equal(at) || !l.Stamps.Original.At.Equal(at.Add(-time.Hour)) {
+		t.Fatalf("the line is %+v, this computer %q", l, a.saved.device)
+	}
+	if !tt.Exists("id:saved-note-"+id) || tt.Exists("id:saved-note-field-"+id) {
+		t.Fatalf("the sheet shows %q", tt.Texts())
+	}
+	tt.Press("id:saved-note-edit-" + id)
+	if got := a.NoteDraft(); got != "Bye = 再见" {
+		t.Fatalf("the field opened with %q", got)
+	}
+	apply(tt, a, func() { a.SetNoteDraft("") })
+	tt.Press("id:saved-note-save")
+	if book, _ := saved.Load(dir); book.Lines[0].Note != "" || tt.Exists("id:saved-note-"+id) {
+		t.Fatalf("an emptied note left %+v", book.Lines[0])
 	}
 }
 

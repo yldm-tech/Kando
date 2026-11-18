@@ -1611,7 +1611,7 @@ libraryMoveGone:
   description: "Message bar when Undo after a move finds the film gone from the library it was moved to."
 libraryMoveLinesUnread:
   message: "Couldn't read the saved lines of {library}, so nothing was moved."
-  description: "Message bar when a film is to be moved between libraries but one library's saved-lines file cannot be read; writing it would lose what is in it, so Kando moves nothing."
+  description: "Message bar when a film is to be moved between libraries but one library's saved lines file (study.json, or saved-lines.json before it) cannot be read; writing it would lose what is in it, so Kando moves nothing."
   placeholders:
     library: { type: "String", example: "English Listening" }
 libraryMoveNoVideo:
@@ -3356,6 +3356,21 @@ savedMenuItem:
 savedNoneInFilm:
   message: "No saved lines in this film"
   description: "Note in the player's subtitle list while it shows the saved lines alone (the Saved chip) and the film has none, as after the last one was removed."
+savedNote:
+  message: "Note"
+  description: "Accessible name of the field in the Saved Lines sheet where the learner writes a note on a saved line."
+savedNoteCancel:
+  message: "Cancel"
+  description: "Button under the note field of a saved line in the Saved Lines sheet: closes the field without keeping what was typed."
+savedNoteEdit:
+  message: "Write a Note"
+  description: "Accessible name and tooltip of the pencil button beside a saved line in the Saved Lines sheet: opens a field to write or change the learner's note on the line."
+savedNotePlaceholder:
+  message: "What to remember about this line"
+  description: "Placeholder of the empty note field of a saved line in the Saved Lines sheet."
+savedNoteSave:
+  message: "Save"
+  description: "Button under the note field of a saved line in the Saved Lines sheet: keeps the note; an empty field takes the note away."
 savedOsdRemoved:
   message: "Removed from Saved Lines"
   description: "Message on the picture after a saved subtitle line was taken out of the saved lines (B again)."
@@ -3364,7 +3379,7 @@ savedOsdSaved:
   description: "Message on the picture after a subtitle line was saved (B)."
 savedReadFailed:
   message: "The saved lines of this library could not be read. They are left as they are, and lines saved now are not kept."
-  description: "Message bar text when the library's saved-lines.json is there but cannot be read; Kando does not write over it."
+  description: "Message bar text when the library's saved lines file (study.json, or saved-lines.json in a library Kando has not moved them out of yet) is there but cannot be read; Kando does not write over it."
 savedRemoveLine:
   message: "Remove from Saved Lines"
   description: "Item of a saved subtitle line's right-click menu in the player's side panel: takes the line out of the saved lines."

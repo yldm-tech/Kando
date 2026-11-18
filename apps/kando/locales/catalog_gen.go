@@ -1755,6 +1755,11 @@ const (
 	textSavedMark
 	textSavedMenuItem
 	textSavedNoneInFilm
+	textSavedNote
+	textSavedNoteCancel
+	textSavedNoteEdit
+	textSavedNotePlaceholder
+	textSavedNoteSave
 	textSavedOsdRemoved
 	textSavedOsdSaved
 	textSavedReadFailed
@@ -2740,6 +2745,11 @@ var keyOfText = [numTexts]string{
 	"savedMark",
 	"savedMenuItem",
 	"savedNoneInFilm",
+	"savedNote",
+	"savedNoteCancel",
+	"savedNoteEdit",
+	"savedNotePlaceholder",
+	"savedNoteSave",
 	"savedOsdRemoved",
 	"savedOsdSaved",
 	"savedReadFailed",
@@ -3723,6 +3733,11 @@ var textsEn = i18n.NewTexts(""+
 	"Saved"+
 	"Saved Lines…"+
 	"No saved lines in this film"+
+	"Note"+
+	"Cancel"+
+	"Write a Note"+
+	"What to remember about this line"+
+	"Save"+
 	"Removed from Saved Lines"+
 	"Line Saved"+
 	"The saved lines of this library could not be read. They are left as they are, and lines saved now are not kept."+
@@ -4703,6 +4718,11 @@ var textsEn = i18n.NewTexts(""+
 		5,
 		14,
 		27,
+		4,
+		6,
+		12,
+		32,
+		4,
 		24,
 		10,
 		111,
@@ -5686,6 +5706,11 @@ var textsJa = i18n.NewTexts(""+
 	"保存済み"+
 	"保存したセリフ…"+
 	"この動画に保存したセリフはありません"+
+	"メモ"+
+	"キャンセル"+
+	"メモを書く"+
+	"この行について覚えておきたいこと"+
+	"保存"+
 	"保存を解除しました"+
 	"セリフを保存しました"+
 	"このライブラリの保存したセリフを読み込めませんでした。ファイルはそのままにし、今保存したセリフは残りません。"+
@@ -6666,6 +6691,11 @@ var textsJa = i18n.NewTexts(""+
 		12,
 		24,
 		54,
+		6,
+		15,
+		15,
+		48,
+		6,
 		27,
 		30,
 		162,
@@ -7649,6 +7679,11 @@ var textsKo = i18n.NewTexts(""+
 	"저장됨"+
 	"저장한 대사…"+
 	"이 영상에 저장한 대사가 없습니다"+
+	"메모"+
+	"취소"+
+	"메모 쓰기"+
+	"이 문장에서 기억할 점"+
+	"저장"+
 	"저장을 해제했습니다"+
 	"대사를 저장했습니다"+
 	"이 라이브러리의 저장한 대사를 읽을 수 없습니다. 파일은 그대로 두며, 지금 저장하는 대사는 남지 않습니다."+
@@ -8629,6 +8664,11 @@ var textsKo = i18n.NewTexts(""+
 		9,
 		19,
 		46,
+		6,
+		6,
+		13,
+		30,
+		6,
 		28,
 		28,
 		146,
@@ -9612,6 +9652,11 @@ var textsZhHans = i18n.NewTexts(""+
 	"已收藏"+
 	"收藏的句子…"+
 	"这部影片还没有收藏的句子"+
+	"笔记"+
+	"取消"+
+	"写笔记"+
+	"想记住这句的什么"+
+	"保存"+
 	"已取消收藏"+
 	"已收藏这句"+
 	"无法读取此资料库收藏的句子。文件保持原样，现在收藏的句子不会保存。"+
@@ -10592,6 +10637,11 @@ var textsZhHans = i18n.NewTexts(""+
 		9,
 		18,
 		36,
+		6,
+		6,
+		9,
+		24,
+		6,
 		15,
 		15,
 		99,
@@ -11575,6 +11625,11 @@ var textsZhHant = i18n.NewTexts(""+
 	"已收藏"+
 	"收藏的句子…"+
 	"這部影片還沒有收藏的句子"+
+	"筆記"+
+	"取消"+
+	"寫筆記"+
+	"想記住這句的什麼"+
+	"儲存"+
 	"已取消收藏"+
 	"已收藏這句"+
 	"無法讀取此資料庫收藏的句子。檔案保持原樣，現在收藏的句子不會儲存。"+
@@ -12555,6 +12610,11 @@ var textsZhHant = i18n.NewTexts(""+
 		9,
 		18,
 		36,
+		6,
+		6,
+		9,
+		24,
+		6,
 		15,
 		15,
 		99,
@@ -20928,7 +20988,7 @@ func (msgs Messages) LibraryMoveGone() string { return msgs.text(textLibraryMove
 // LibraryMoveLinesUnread says "Couldn't read the saved lines of {library}, so nothing was moved."
 // in the language the app shows under cx.
 //
-// Message bar when a film is to be moved between libraries but one library's saved-lines file cannot be read; writing it would lose what is in it, so Kando moves nothing.
+// Message bar when a film is to be moved between libraries but one library's saved lines file (study.json, or saved-lines.json before it) cannot be read; writing it would lose what is in it, so Kando moves nothing.
 func LibraryMoveLinesUnread(cx *core.Scope, library string) string {
 	return For(cx).LibraryMoveLinesUnread(library)
 }
@@ -29087,6 +29147,51 @@ func SavedNoneInFilm(cx *core.Scope) string { return For(cx).SavedNoneInFilm() }
 // SavedNoneInFilm is the package's SavedNoneInFilm in the language of msgs.
 func (msgs Messages) SavedNoneInFilm() string { return msgs.text(textSavedNoneInFilm) }
 
+// SavedNote says "Note"
+// in the language the app shows under cx.
+//
+// Accessible name of the field in the Saved Lines sheet where the learner writes a note on a saved line.
+func SavedNote(cx *core.Scope) string { return For(cx).SavedNote() }
+
+// SavedNote is the package's SavedNote in the language of msgs.
+func (msgs Messages) SavedNote() string { return msgs.text(textSavedNote) }
+
+// SavedNoteCancel says "Cancel"
+// in the language the app shows under cx.
+//
+// Button under the note field of a saved line in the Saved Lines sheet: closes the field without keeping what was typed.
+func SavedNoteCancel(cx *core.Scope) string { return For(cx).SavedNoteCancel() }
+
+// SavedNoteCancel is the package's SavedNoteCancel in the language of msgs.
+func (msgs Messages) SavedNoteCancel() string { return msgs.text(textSavedNoteCancel) }
+
+// SavedNoteEdit says "Write a Note"
+// in the language the app shows under cx.
+//
+// Accessible name and tooltip of the pencil button beside a saved line in the Saved Lines sheet: opens a field to write or change the learner's note on the line.
+func SavedNoteEdit(cx *core.Scope) string { return For(cx).SavedNoteEdit() }
+
+// SavedNoteEdit is the package's SavedNoteEdit in the language of msgs.
+func (msgs Messages) SavedNoteEdit() string { return msgs.text(textSavedNoteEdit) }
+
+// SavedNotePlaceholder says "What to remember about this line"
+// in the language the app shows under cx.
+//
+// Placeholder of the empty note field of a saved line in the Saved Lines sheet.
+func SavedNotePlaceholder(cx *core.Scope) string { return For(cx).SavedNotePlaceholder() }
+
+// SavedNotePlaceholder is the package's SavedNotePlaceholder in the language of msgs.
+func (msgs Messages) SavedNotePlaceholder() string { return msgs.text(textSavedNotePlaceholder) }
+
+// SavedNoteSave says "Save"
+// in the language the app shows under cx.
+//
+// Button under the note field of a saved line in the Saved Lines sheet: keeps the note; an empty field takes the note away.
+func SavedNoteSave(cx *core.Scope) string { return For(cx).SavedNoteSave() }
+
+// SavedNoteSave is the package's SavedNoteSave in the language of msgs.
+func (msgs Messages) SavedNoteSave() string { return msgs.text(textSavedNoteSave) }
+
 // SavedOsdRemoved says "Removed from Saved Lines"
 // in the language the app shows under cx.
 //
@@ -29108,7 +29213,7 @@ func (msgs Messages) SavedOsdSaved() string { return msgs.text(textSavedOsdSaved
 // SavedReadFailed says "The saved lines of this library could not be read. They are left as they are, and lines saved now are not kept."
 // in the language the app shows under cx.
 //
-// Message bar text when the library's saved-lines.json is there but cannot be read; Kando does not write over it.
+// Message bar text when the library's saved lines file (study.json, or saved-lines.json in a library Kando has not moved them out of yet) is there but cannot be read; Kando does not write over it.
 func SavedReadFailed(cx *core.Scope) string { return For(cx).SavedReadFailed() }
 
 // SavedReadFailed is the package's SavedReadFailed in the language of msgs.
