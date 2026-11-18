@@ -75,10 +75,10 @@ func (a *app) explainHooks() areaHooks {
 	}
 }
 
-// explainFollowFilm closes the explanation once its film is not the one open, the side panel going back to the subtitle list, and reports whether it did.
+// explainFollowFilm closes the explanation once its film is not the one open, the side panel going back to the subtitle list, and reports whether it did. Closing the film counts, its video kept until another opens (closeFilm), so opening the same film again does not bring back the explanation or keep what it asked on its way.
 func (a *app) explainFollowFilm() bool {
 	l := a.explain.line
-	if !l.open || a.player.film.video == l.video {
+	if !l.open || (a.openKey != "" && a.player.play != nil && a.player.film.video == l.video) {
 		return false
 	}
 	a.explainClose()

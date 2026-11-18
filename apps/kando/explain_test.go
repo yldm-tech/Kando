@@ -245,3 +245,25 @@ func TestExplainGoesWithItsFilm(t *testing.T) {
 		t.Fatalf("another film kept the explanation: side %q", a.player.filmSide)
 	}
 }
+
+// TestExplainGoesWhenItsFilmCloses checks that closing the film closes the explanation and stops what it asks, so opening the same film again shows the subtitle list, not the old explanation.
+func TestExplainGoesWhenItsFilmCloses(t *testing.T) {
+	tools, _ := explainLLM(t)
+	a, tt, updates := explainOpen(t, tools, 0)
+	apply(tt, a, func() { a.ExplainLine(1) })
+	if !a.explain.line.busy || len(a.explain.cancel) == 0 {
+		t.Fatalf("explain: line %+v", a.explain.line)
+	}
+	gen := a.explain.gen
+	apply(tt, a, a.closeFilm)
+	if a.explain.line.open || a.player.filmSide != "" || a.explain.cancel != nil || a.explain.gen == gen {
+		t.Fatalf("closing the film kept the explanation: side %q line %+v", a.player.filmSide, a.explain.line)
+	}
+	item, _ := a.paletteFilm("rivers")
+	apply(tt, a, func() { a.Open(item) })
+	waitUntil(t, tt, a, updates, func() bool { return a.player.subs.ready })
+	refresh(tt, a)
+	if a.explain.line.open || a.player.filmSide != "" || tt.Exists("id:film-explain") {
+		t.Fatalf("the same film opened again with the old explanation: side %q", a.player.filmSide)
+	}
+}
