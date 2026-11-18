@@ -9,6 +9,7 @@ import (
 	"kando/apps/mobile/look"
 	"kando/apps/mobile/pair"
 	"kando/apps/mobile/session"
+	"kando/apps/mobile/store"
 	"kando/apps/mobile/theme"
 
 	"github.com/nsgo-dev/nsgo/core"
@@ -27,18 +28,15 @@ const (
 // DownloadURL is where the desktop app is, which the last step names.
 const DownloadURL = "https://github.com/yldm-tech/Kando"
 
-// Page is the introduction; done runs once the user leaves it, finished or skipped, with their choices kept and the introduction marked as seen.
+// Page is the introduction; done runs once the user leaves it, finished or skipped, with the introduction marked as seen. The languages are kept as they are chosen, not as it is left.
 func Page(cx *core.Scope, s *session.Session, done func()) core.Node {
 	colors := ui.ColorsOf(cx)
 	step := core.NewSignal(cx, intro)
-	prefs := s.Prefs()
-	spoken := core.NewSignalFunc(cx, slices.Clone(prefs.Spoken), nil)
-	target := core.NewSignal(cx, s.Target())
 	// paired is the name of the computer paired at the last step, "" before.
 	paired := core.NewSignal(cx, "")
 	finish := func() {
 		p := s.Prefs()
-		p.Onboarded, p.Spoken, p.Target = true, spoken.Get(), target.Get()
+		p.Onboarded = true
 		s.SetPrefs(p)
 		done()
 	}
@@ -64,7 +62,7 @@ func Page(cx *core.Scope, s *session.Session, done func()) core.Node {
 
 	body := core.View{Style: core.Style{FlexGrow: 1, FlexShrink: 1, MinHeight: core.Pt(0)}, Children: []core.Node{
 		core.Show{When: func() bool { return step.Get() == intro }, Then: func(cx *core.Scope) core.Node { return introStep(cx) }},
-		core.Show{When: func() bool { return step.Get() == languages }, Then: func(cx *core.Scope) core.Node { return languagesStep(cx, spoken, target) }},
+		core.Show{When: func() bool { return step.Get() == languages }, Then: func(cx *core.Scope) core.Node { return languagesStep(cx, s) }},
 		core.Show{When: func() bool { return step.Get() == pairing }, Then: func(cx *core.Scope) core.Node {
 			return pairingStep(cx, s, paired, finish)
 		}},
@@ -102,25 +100,31 @@ func introStep(cx *core.Scope) core.Node {
 	}}
 }
 
-// languagesStep asks which languages the user watches and which one they want subtitles in.
-func languagesStep(cx *core.Scope, spoken *core.Signal[[]string], target *core.Signal[string]) core.Node {
+// languagesStep asks which languages the user watches and which one they want subtitles in, keeping each choice as it is made, so that leaving the introduction any way, even by the system's back, keeps it. The target stays unchosen ("", which follows the phone's language) until the user presses one; the phone's own shows as checked meanwhile.
+func languagesStep(cx *core.Scope, s *session.Session) core.Node {
 	colors := ui.ColorsOf(cx)
+	keep := func(change func(*store.Prefs)) {
+		p := s.Prefs()
+		change(&p)
+		s.SetPrefs(p)
+	}
 	var watched, into []core.Node
 	for _, l := range langs.Spoken {
 		watched = append(watched, look.Chip{TestID: "onboarding-spoken-" + l.Code, Text: func() string { return l.Name },
-			On: func() bool { return slices.Contains(spoken.Get(), l.Code) },
+			On: func() bool { return slices.Contains(s.Prefs().Spoken, l.Code) },
 			OnPress: func() {
-				spoken.Update(func(list []string) []string {
-					if i := slices.Index(list, l.Code); i >= 0 {
-						return slices.Delete(slices.Clone(list), i, i+1)
+				keep(func(p *store.Prefs) {
+					if i := slices.Index(p.Spoken, l.Code); i >= 0 {
+						p.Spoken = slices.Delete(slices.Clone(p.Spoken), i, i+1)
+						return
 					}
-					return append(slices.Clone(list), l.Code)
+					p.Spoken = append(slices.Clone(p.Spoken), l.Code)
 				})
 			}})
 	}
 	for _, l := range langs.Targets {
 		into = append(into, look.Chip{TestID: "onboarding-target-" + l.Code, Radio: true, Text: func() string { return l.Name },
-			On: func() bool { return target.Get() == l.Code }, OnPress: func() { target.Set(l.Code) }})
+			On: func() bool { return s.Target() == l.Code }, OnPress: func() { keep(func(p *store.Prefs) { p.Target = l.Code }) }})
 	}
 	return core.Scroll{TestID: "onboarding-languages", Style: core.Style{FlexGrow: 1, FlexShrink: 1}, Children: []core.Node{
 		core.View{Style: core.Style{Gap: 28, Padding: core.Edges{Top: 16, Bottom: 16}}, Children: []core.Node{
@@ -137,11 +141,7 @@ func languagesStep(cx *core.Scope, spoken *core.Signal[[]string], target *core.S
 // pairingStep pairs the phone with a computer, or lets the user go on without one; paired takes the name of the computer once it is.
 func pairingStep(cx *core.Scope, s *session.Session, paired *core.Signal[string], finish func()) core.Node {
 	colors := ui.ColorsOf(cx)
-	flow := pair.New(cx, s, func() {
-		if d := s.Desktops(); len(d) > 0 {
-			paired.Set(d[len(d)-1].Name)
-		}
-	}, func() core.Points { return 0 })
+	flow := pair.New(cx, s, func(d store.Desktop) { paired.Set(d.Name) }, func() core.Points { return 0 })
 	done := func() bool { return paired.Get() != "" }
 	note := core.View{TestID: "onboarding-desktop-app", Role: core.RoleLink, LabelFunc: func() string { return locales.OnboardingNoDesktop(cx) },
 		OnPress: func(core.PressEvent) { cx.OpenURL(DownloadURL, nil) }, Style: core.Style{Padding: core.Symmetric(8, 0), Active: &core.Style{Opacity: core.Alpha(0.6)}},

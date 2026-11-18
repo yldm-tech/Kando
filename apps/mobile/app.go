@@ -1,6 +1,8 @@
 package main
 
 import (
+	"slices"
+
 	"kando/apps/mobile/film"
 	"kando/apps/mobile/films"
 	"kando/apps/mobile/learn"
@@ -71,6 +73,14 @@ func App(cx *core.Scope, cfg session.Config) core.Node {
 		navs[filmsTab].PopToRoot()
 		outer.Pop(1)
 	}
+	// Unpaired, a computer's libraries go from the Library's stack with the pages opened from them: with no client left they would keep showing what they last loaded and could not load again. A kept film's page, opened from the downloads, stays.
+	unpaired := func(id string) {
+		n := navs[filmsTab]
+		routes := n.Routes()
+		if i := slices.IndexFunc(routes, func(r route) bool { return r.page == libraryPage && r.desktop == id }); i >= 0 {
+			n.Pop(len(routes) - i)
+		}
+	}
 	play := func(key string) { outer.Push(route{page: playerPage, key: key}) }
 	tabStack := func(n *base.Nav[route]) func(cx *core.Scope) core.Node {
 		return func(cx *core.Scope) core.Node {
@@ -86,7 +96,8 @@ func App(cx *core.Scope, cfg session.Config) core.Node {
 				case settingsPage:
 					return settings.Page(cx, s, settings.Actions{Pair: openPair,
 						Target:       func() { n.Push(route{page: targetPage}) },
-						Introduction: func() { outer.Push(route{page: introductionPage}) }})
+						Introduction: func() { outer.Push(route{page: introductionPage}) },
+						Unpaired:     unpaired})
 				case targetPage:
 					return settings.TargetPage(cx, s, back)
 				case libraryPage:

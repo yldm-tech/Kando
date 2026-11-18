@@ -17,9 +17,10 @@ import (
 	"github.com/nsgo-dev/nsgo/ui"
 )
 
-// Actions are where the tab leads.
+// Actions are where the tab leads; Unpaired runs once the user unpaired computer id, for the pages of it to go.
 type Actions struct {
 	Pair, Target, Introduction func()
+	Unpaired                   func(id string)
 }
 
 // Page is the tab's root page.
@@ -32,7 +33,7 @@ func Page(cx *core.Scope, s *session.Session, act Actions) base.NavPage {
 			core.View{StyleFunc: look.Column(cx), Children: []core.Node{
 				section(cx, func() string { return locales.SettingsComputers(cx) },
 					core.Each(s.Desktops, func(d store.Desktop) string { return d.ID }, func(cx *core.Scope, d func() store.Desktop, i func() int) core.Node {
-						return computer(cx, s, d, i)
+						return computer(cx, s, d, i, act.Unpaired)
 					}),
 					look.Row{TestID: "settings-pair", Index: pairRow, Inset: 56, TitleTone: look.ToneAccent,
 						Leading: look.IconTile(cx, lucide.Plus, look.ToneAccent),
@@ -69,8 +70,8 @@ func section(cx *core.Scope, title func() string, rows ...core.Node) core.Node {
 	return core.View{Style: core.Style{Gap: 8}, Children: []core.Node{look.SectionTitle(cx, title), look.Group{Children: rows}}}
 }
 
-// computer is a paired computer's row: its name and address, with its options, which unpair it.
-func computer(cx *core.Scope, s *session.Session, d func() store.Desktop, i func() int) core.Node {
+// computer is a paired computer's row: its name and address, with its options, which unpair it; unpaired runs once they did.
+func computer(cx *core.Scope, s *session.Session, d func() store.Desktop, i func() int, unpaired func(id string)) core.Node {
 	options := func() {
 		id, name := d().ID, d().Name
 		// A tablet asks in a dialog in the middle of the screen, as its sheets show, rather than an action sheet with nothing to point at.
@@ -81,6 +82,7 @@ func computer(cx *core.Scope, s *session.Session, d func() store.Desktop, i func
 			}}, func(i int) {
 			if i == 1 {
 				s.Unpair(id)
+				unpaired(id)
 			}
 		})
 	}

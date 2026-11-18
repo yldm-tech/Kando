@@ -60,7 +60,7 @@ func ParseTarget(address, code string) (Target, bool) {
 
 // Page is the pairing page; done runs once the phone is paired, back leaves it.
 func Page(cx *core.Scope, s *session.Session, done, back func()) base.NavPage {
-	f := New(cx, s, done, func() core.Points { return ui.NavInset(cx) })
+	f := New(cx, s, func(store.Desktop) { done() }, func() core.Points { return ui.NavInset(cx) })
 	return ui.NavPage(cx, base.NavPage{TitleFunc: func() string { return locales.PairTitle(cx) }, TestID: "pair-page", Children: []core.Node{
 		core.View{Style: core.Style{FlexGrow: 1, FlexShrink: 1}, Children: []core.Node{f.Body, look.ActionBar(cx, f.Actions)}},
 	}}, ui.NavHeader{OnBack: back, Scroll: f.Scroll})
@@ -72,8 +72,8 @@ type Flow struct {
 	Scroll        *core.Ref
 }
 
-// New is the pairing flow under cx, which a pairing under way ends with; done runs once the phone is paired, and top is the room the fingerprint keeps clear of above it, which does not scroll.
-func New(cx *core.Scope, s *session.Session, done func(), top func() core.Points) Flow {
+// New is the pairing flow under cx, which a pairing under way ends with; done runs once the phone is paired, with the computer it paired with, and top is the room the fingerprint keeps clear of above it, which does not scroll.
+func New(cx *core.Scope, s *session.Session, done func(store.Desktop), top func() core.Points) Flow {
 	colors := ui.ColorsOf(cx)
 	address := core.NewSignal(cx, "")
 	code := core.NewSignal(cx, "")
@@ -104,8 +104,9 @@ func New(cx *core.Scope, s *session.Session, done func(), top func() core.Points
 					at.Set(editing)
 					return
 				}
-				s.AddDesktop(store.Desktop{ID: store.DesktopID(f.fingerprint), Name: resp.Desktop, Addr: f.addr, Fingerprint: f.fingerprint, Token: resp.Token, DeviceID: resp.DeviceID})
-				done()
+				d := store.Desktop{ID: store.DesktopID(f.fingerprint), Name: resp.Desktop, Addr: f.addr, Fingerprint: f.fingerprint, Token: resp.Token, DeviceID: resp.DeviceID}
+				s.AddDesktop(d)
+				done(d)
 			})
 		}()
 	}
