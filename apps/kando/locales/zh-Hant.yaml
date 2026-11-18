@@ -1293,6 +1293,7 @@ settingsSpeechBlurbSmall: "日常影片夠用，中文和其他語言也大致�
 settingsSpeechBlurbTiny: "只想快速試一下。錯字較多，只適合發音清楚的英語。"
 settingsSpeechCancel: "取消"
 settingsSpeechChooseFile: "選擇模型檔案…"
+settingsSpeechChooseFileTitle: "選擇模型檔案"
 settingsSpeechDownload: "下載"
 settingsSpeechDownloadDisconnected: "連線中斷了。檢查網路後再下載一次。"
 settingsSpeechDownloadDisconnectedMirror: "連線 Hugging Face 失敗。檢查網路，或從 hf-mirror.com 下載。"

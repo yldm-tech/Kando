@@ -2215,6 +2215,7 @@ const (
 	textSettingsSpeechBlurbTiny
 	textSettingsSpeechCancel
 	textSettingsSpeechChooseFile
+	textSettingsSpeechChooseFileTitle
 	textSettingsSpeechDownload
 	textSettingsSpeechDownloadDisconnected
 	textSettingsSpeechDownloadDisconnectedMirror
@@ -3373,6 +3374,7 @@ var keyOfText = [numTexts]string{
 	"settingsSpeechBlurbTiny",
 	"settingsSpeechCancel",
 	"settingsSpeechChooseFile",
+	"settingsSpeechChooseFileTitle",
 	"settingsSpeechDownload",
 	"settingsSpeechDownloadDisconnected",
 	"settingsSpeechDownloadDisconnectedMirror",
@@ -4529,6 +4531,7 @@ var textsEn = i18n.NewTexts(""+
 	"For a quick try only. It makes many mistakes and suits only clearly spoken English."+
 	"Cancel"+
 	"Choose Model File…"+
+	"Choose Model File"+
 	"Download"+
 	"The connection dropped. Check your network and download again."+
 	"The connection to Hugging Face failed. Check your network, or download from hf-mirror.com."+
@@ -5682,6 +5685,7 @@ var textsEn = i18n.NewTexts(""+
 		83,
 		6,
 		20,
+		17,
 		8,
 		62,
 		90,
@@ -6838,6 +6842,7 @@ var textsJa = i18n.NewTexts(""+
 	"とりあえず試したいとき向け。誤りが多く、発音のはっきりした英語にしか向きません。"+
 	"キャンセル"+
 	"モデルファイルを選択…"+
+	"モデルファイルを選択"+
 	"ダウンロード"+
 	"接続が切れました。ネットワークを確認して、もう一度ダウンロードしてください。"+
 	"Hugging Face に接続できませんでした。ネットワークを確認するか、hf-mirror.com からダウンロードしてください。"+
@@ -7991,6 +7996,7 @@ var textsJa = i18n.NewTexts(""+
 		120,
 		15,
 		33,
+		30,
 		18,
 		114,
 		147,
@@ -9147,6 +9153,7 @@ var textsKo = i18n.NewTexts(""+
 	"빠르게 시험해 보고 싶을 때 사용합니다. 오류가 많아 발음이 또렷한 영어에만 적합합니다."+
 	"취소"+
 	"모델 파일 선택…"+
+	"모델 파일 선택"+
 	"다운로드"+
 	"연결이 끊어졌습니다. 네트워크를 확인한 뒤 다시 다운로드하세요."+
 	"Hugging Face에 연결하지 못했습니다. 네트워크를 확인하거나 hf-mirror.com에서 다운로드하세요."+
@@ -10300,6 +10307,7 @@ var textsKo = i18n.NewTexts(""+
 		121,
 		6,
 		23,
+		20,
 		12,
 		89,
 		120,
@@ -11456,6 +11464,7 @@ var textsZhHans = i18n.NewTexts(""+
 	"只想快速试一下。错字较多，只适合发音清楚的英语。"+
 	"取消"+
 	"选择模型文件…"+
+	"选择模型文件"+
 	"下载"+
 	"连接断了。检查网络后再下载一次。"+
 	"连接 Hugging Face 失败。检查网络，或从 hf-mirror.com 下载。"+
@@ -12609,6 +12618,7 @@ var textsZhHans = i18n.NewTexts(""+
 		72,
 		6,
 		21,
+		18,
 		6,
 		48,
 		74,
@@ -13765,6 +13775,7 @@ var textsZhHant = i18n.NewTexts(""+
 	"只想快速試一下。錯字較多，只適合發音清楚的英語。"+
 	"取消"+
 	"選擇模型檔案…"+
+	"選擇模型檔案"+
 	"下載"+
 	"連線中斷了。檢查網路後再下載一次。"+
 	"連線 Hugging Face 失敗。檢查網路，或從 hf-mirror.com 下載。"+
@@ -14918,6 +14929,7 @@ var textsZhHant = i18n.NewTexts(""+
 		72,
 		6,
 		21,
+		18,
 		6,
 		51,
 		74,
@@ -36883,6 +36895,19 @@ func SettingsSpeechChooseFile(cx *core.Scope) string { return For(cx).SettingsSp
 // SettingsSpeechChooseFile is the package's SettingsSpeechChooseFile in the language of msgs.
 func (msgs Messages) SettingsSpeechChooseFile() string {
 	return msgs.text(textSettingsSpeechChooseFile)
+}
+
+// SettingsSpeechChooseFileTitle says "Choose Model File"
+// in the language the app shows under cx.
+//
+// Title of the file dialog that Choose Model File… opens to use a whisper.cpp model file already on this computer.
+func SettingsSpeechChooseFileTitle(cx *core.Scope) string {
+	return For(cx).SettingsSpeechChooseFileTitle()
+}
+
+// SettingsSpeechChooseFileTitle is the package's SettingsSpeechChooseFileTitle in the language of msgs.
+func (msgs Messages) SettingsSpeechChooseFileTitle() string {
+	return msgs.text(textSettingsSpeechChooseFileTitle)
 }
 
 // SettingsSpeechDownload says "Download"

@@ -4607,6 +4607,9 @@ settingsSpeechCancel:
 settingsSpeechChooseFile:
   message: "Choose Model File…"
   description: "Button at the end of the whisper Models heading. It opens a file panel to use a whisper.cpp model file (.bin) already on this computer instead of downloading one."
+settingsSpeechChooseFileTitle:
+  message: "Choose Model File"
+  description: "Title of the file dialog that Choose Model File… opens to use a whisper.cpp model file already on this computer."
 settingsSpeechDownload:
   message: "Download"
   description: "Button downloading a whisper model."
