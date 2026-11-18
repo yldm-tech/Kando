@@ -63,6 +63,7 @@ type app struct {
 	logs     logsUI      // state_logs.go
 	browse   browseUI    // state_browse.go
 	playlist playlistUI  // state_playlist.go
+	addsheet addSheetUI  // state_addsheet.go
 	online   onlineUI    // state_online.go
 	saved    savedUI     // state_saved.go
 	signin   signinUI    // state_signin.go
@@ -107,6 +108,7 @@ func newApp(pipeline media.Pipeline, update func(fn func())) *app {
 		logs:     newLogsUI(),
 		browse:   newBrowseUI(),
 		playlist: newPlaylistUI(),
+		addsheet: addSheetUI{},
 		saved:    newSavedUI(),
 		signin:   signinUI{},
 		phone:    newPhoneUI(),

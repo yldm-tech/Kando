@@ -170,6 +170,99 @@ accountUploadingPercent:
 accountVideoMissing:
   message: "The video file isn't on this computer"
   description: "Upload error when the film's video file is not on disk."
+addSheetAdd:
+  message: "Add and Start"
+  description: "Add sheet: primary button that adds the video and starts processing it."
+addSheetCancel:
+  message: "Cancel"
+  description: "Add sheet: button that closes it without adding anything."
+addSheetConfirmInKando:
+  message: "Opened in Kando: confirm there to add it."
+  description: "Browser extension popup after a video was sent while the app asks first on its Add sheet."
+addSheetDrm:
+  message: "{site} videos are DRM-protected"
+  description: "Add sheet: bold head of the note for a site whose videos are encrypted."
+  placeholders:
+    site: { type: "String", example: "Netflix" }
+addSheetDrmWhy:
+  message: "They are encrypted, and Kando does not get around that, so this one cannot be downloaded. If you have the video on disk, drop it into the window."
+  description: "Add sheet: why a DRM-protected video is not added, and what to do instead."
+addSheetEpisodes:
+  message: "What to add"
+  description: "Add sheet: accessible name of the choice between the video alone and its whole playlist."
+addSheetKindInList:
+  message: "Video in a playlist"
+  description: "Add sheet: small line beside the site's name for a link to a video of a playlist."
+addSheetKindVideo:
+  message: "Single video"
+  description: "Add sheet: small line beside the site's name for a link to one video."
+addSheetLabel:
+  message: "Add online video"
+  description: "Accessible name of the Add sheet, the card a link to one online video opens before it is added."
+addSheetListVideos:
+  message: "List Videos"
+  description: "Add sheet: primary button while the whole playlist is chosen; it lists the playlist's videos before they are added."
+addSheetOK:
+  message: "OK"
+  description: "Add sheet: the only button for a DRM-protected video, which closes it."
+addSheetOnlyThis:
+  message: "Only this video"
+  description: "Add sheet: radio that adds the video of the link alone."
+addSheetQuality:
+  message: "Download"
+  description: "Add sheet: row title and pop-up name of the picture the download asks for."
+addSheetResumeBrowser:
+  message: "You were at {time} in the browser; once processed, the film continues from there."
+  description: "Add sheet: note for a link the browser extension or the bookmarklet sent from a page that was playing the video."
+  placeholders:
+    time: { type: "String", example: "1:24" }
+addSheetResumeLink:
+  message: "The link starts at {time}; once processed, the film continues from there."
+  description: "Add sheet: note for a pasted link that names where the video starts (t=)."
+  placeholders:
+    time: { type: "String", example: "1:24" }
+addSheetSignIn:
+  message: "Sign-in"
+  description: "Add sheet: row title and pop-up name of the browser whose sign-in the download borrows."
+addSheetSignInBrowser:
+  message: "{browser}'s sign-in"
+  description: "Add sheet: option of the sign-in pop-up that borrows a browser's sign-in."
+  placeholders:
+    browser: { type: "String", example: "Chrome" }
+addSheetSignInHint:
+  message: "Members-only and higher-quality videos need a sign-in; passwords are never saved"
+  description: "Add sheet: line under the sign-in row."
+addSheetSignInNone:
+  message: "Not signed in"
+  description: "Add sheet: option of the sign-in pop-up that borrows no browser's sign-in."
+addSheetSource:
+  message: "Original lines from"
+  description: "Add sheet: accessible name of the choice of where the film's original lines come from."
+addSheetSourceLocal:
+  message: "Recognize on this computer"
+  description: "Add sheet: radio that hears the speech with the speech recognition alone."
+addSheetSourcePlatform:
+  message: "The uploader's subtitles"
+  description: "Add sheet: radio that takes the subtitles the uploader put on the site as the original lines, where they match the speech."
+addSheetSourcePlatformHint:
+  message: "Checked against the speech; lines that do not match are recognized on this computer"
+  description: "Add sheet: line under the uploader's subtitles radio."
+addSheetUnknown:
+  message: "{host} is not among the sites Kando knows"
+  description: "Add sheet: bold head of the note for a site neither Kando nor yt-dlp's list knows."
+  placeholders:
+    host: { type: "String", example: "example.com" }
+addSheetUnknownWhy:
+  message: "yt-dlp tries its generic extractor first. Whether that works shows once the download starts, and the card says what to do if it does not."
+  description: "Add sheet: what happens to a link of a site Kando does not know."
+addSheetUntitled:
+  message: "{site} video"
+  description: "Add sheet: how the video is named when its page gave no title, by its site or host."
+  placeholders:
+    site: { type: "String", example: "YouTube" }
+addSheetWholeList:
+  message: "The whole playlist"
+  description: "Add sheet: radio that adds every video of the playlist the link's video is in, which the playlist dialog lists first."
 appSettings:
   message: "Settings…"
   description: "App menu item and shortcut row (⌘,) that opens Settings."
@@ -3472,6 +3565,17 @@ playlistSeveral:
   description: "Title of the playlist dialog when several playlist or channel links were added at once."
   placeholders:
     count: { type: "int", example: "2" }
+playlistSubscribe:
+  message: "{kind, select, channel {Subscribe to this channel} other {Subscribe to this playlist}}"
+  description: "Switch of the playlist dialog: subscribe to the list as its videos are added, so new ones are added as they come out."
+  placeholders:
+    kind: { type: "String", example: "playlist" }
+playlistSubscribeHint:
+  message: "New videos are added as they come out; change the rules under Subscriptions in the sidebar"
+  description: "Line under the subscribe switch of the playlist dialog."
+playlistSubscribeOnly:
+  message: "Subscribe"
+  description: "Button of the playlist dialog when the library has every video already and the subscribe switch is on: it subscribes without adding any."
 playlistTimedOut:
   message: "Reading the videos took too long. Try again later."
   description: "Line of the playlist dialog when yt-dlp did not finish listing the videos in time."
@@ -4541,6 +4645,15 @@ settingsGeneralAutoDownloadHint:
 settingsGeneralBackground:
   message: "Background"
   description: "Heading of the card in Settings › General about running Kando with its window closed: opening it at login, keeping it running and its tray icon."
+settingsGeneralBookmarklet:
+  message: "Bookmarklet"
+  description: "Row of Settings › General › Browser Extension: the bookmarklet that sends a video's page to Kando from any browser."
+settingsGeneralBookmarkletCopy:
+  message: "Copy Code"
+  description: "Button of the bookmarklet row that puts its code on the clipboard."
+settingsGeneralBookmarkletHint:
+  message: "For any browser: make a bookmark whose address is the copied code, then click it on a video's page"
+  description: "Line under the bookmarklet row in Settings › General."
 settingsGeneralBrowser:
   message: "Browser Extension"
   description: "Heading of the General settings card about Kando's extension for Chrome, Edge, Firefox and other browsers."
@@ -4582,6 +4695,12 @@ settingsGeneralBrowserSeparator:
 settingsGeneralBrowserShowFolder:
   message: "Show Extension Folder"
   description: "Button of the Extension row: shows the folder of Kando's browser extension in the file manager, to load it in the browser."
+settingsGeneralBrowserStartAtOnce:
+  message: "Start as soon as a link arrives"
+  description: "Switch in Settings › General › Browser Extension: a video the extension sends is added at once, without the Add sheet."
+settingsGeneralBrowserStartAtOnceHint:
+  message: "When off, Kando asks first, so you can choose the quality, the original lines and the sign-in"
+  description: "Line under the start-at-once switch in Settings › General."
 settingsGeneralCLI:
   message: "Command Line & MCP"
   description: "Heading of the General settings card about Kando's command line and its MCP server for AI assistants."
@@ -4889,7 +5008,7 @@ settingsKeywordsAccount:
   message: "Google sign in sign out object storage upload R2 S3 OSS COS Endpoint Region Bucket Access Key Secret path style"
   description: "Search keywords of the Account & Upload settings section, separated by spaces, besides its title. Not shown."
 settingsKeywordsGeneral:
-  message: "library location Finder File Explorer file manager interface language version components yt-dlp ffmpeg whisper-cli detect again command line terminal kando install MCP Claude Code Cursor copy config update notifications notify browser sign-in signed in cookies members-only age-restricted Chrome Safari Firefox Edge Brave Chromium keychain Full Disk Access appearance light dark mode follow system"
+  message: "library location Finder File Explorer file manager interface language version components yt-dlp ffmpeg whisper-cli detect again command line terminal kando install MCP Claude Code Cursor copy config update notifications notify browser sign-in signed in cookies members-only age-restricted Chrome Safari Firefox Edge Brave Chromium keychain Full Disk Access appearance light dark mode follow system bookmarklet bookmark start at once"
   description: "Search keywords of the General settings section, separated by spaces, besides its title. Not shown; the sidebar's search finds the section by them. Use the words the section's page shows."
 settingsKeywordsLook:
   message: "subtitles display bilingual original only translation only order translation original dim blank make room preview preset font size color bold"

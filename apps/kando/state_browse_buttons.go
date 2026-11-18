@@ -1,6 +1,8 @@
 package main
 
 import (
+	"time"
+
 	"kando/apps/kando/browse"
 	"kando/apps/kando/films"
 	"kando/apps/kando/sites/catalog"
@@ -97,12 +99,15 @@ func (a *app) browsePagePush() {
 }
 
 // browsePageAdd is a click on one of the page's own buttons, which adds the video at link as 下载视频 does (browseAdd), named by the title the page gave it. It takes it only while the browser's page shows, from a page of a site the catalog lists, and only a link to one video of such a site (browse.ParseAdd and kcore.Link.OneVideo), as any script of the page can post what its buttons do.
-func (a *app) browsePageAdd(origin, link, title string) {
+func (a *app) browsePageAdd(origin, link, title string, at time.Duration) {
 	if a.page != pageBrowse || !a.browseShowing() || !catalog.Load().On(origin) || !catalog.Load().On(link) {
 		return
 	}
 	if parsed, ok := kcore.ParseLink(link); !ok || !parsed.OneVideo() {
 		return
 	}
+	// 下载视频 on a page that plays the video says where it was, so the film opens there once done (core.Job.ResumeAt).
+	a.queue.stamp = addSheetResumeStamp(at)
+	defer func() { a.queue.stamp = nil }()
 	a.browseAdd(link, title)
 }

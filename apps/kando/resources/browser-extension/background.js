@@ -69,9 +69,9 @@ const ask = async (urls) => {
   return null;
 };
 
-// add adds one video, as a button of a page, the popup or the menu item asks, and answers with what the library has of it, and what happened in the app's words.
-const add = async (url, title) => {
-  const { result, error } = await call("browser.add", { url, title: title || "" });
+// add adds one video, as a button of a page, the popup or the menu item asks, and answers with what the library has of it, and what happened in the app's words. at is where the page's player was in it, in seconds, which 下载视频 says, so the film opens there once done; 0 for none.
+const add = async (url, title, at) => {
+  const { result, error } = await call("browser.add", { url, title: title || "", at: Number.isFinite(at) && at > 0 ? Math.floor(at) : 0 });
   warn(error);
   if (!result) return { have: {}, error };
   return { have: { [url]: result.have || "" }, message: result.message || "", failed: !!result.failed };
@@ -92,7 +92,7 @@ api.runtime.onMessage.addListener((msg, sender, reply) => {
       let m;
       try { m = JSON.parse(msg.slice(KANDO.add.length)); } catch (e) { return false; }
       if (!m || typeof m.url !== "string" || KANDO.videoOf(m.url) !== m.url) return false;
-      add(m.url, typeof m.title === "string" ? m.title : "").then((r) => reply(state({ have: r.have })));
+      add(m.url, typeof m.title === "string" ? m.title : "", typeof m.at === "number" ? m.at : 0).then((r) => reply(state({ have: r.have })));
       return true;
     }
     return false;

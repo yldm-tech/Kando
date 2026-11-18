@@ -35,6 +35,7 @@ type fakeApp struct {
 	fetch                   map[string]ToolFetch
 	cli                     CLI
 	ext                     BrowserExtension
+	startAtOnce             bool
 	signIn                  SignIn
 	phone                   PhoneSync
 	background              Background
@@ -149,12 +150,17 @@ func (f *fakeApp) BrowserExtension() BrowserExtension    { return f.ext }
 func (f *fakeApp) ConnectBrowsers()                      { f.call("connect browsers") }
 func (f *fakeApp) DisconnectBrowsers()                   { f.call("disconnect browsers") }
 func (f *fakeApp) ShowExtensionFolder()                  { f.call("show extension folder") }
-func (f *fakeApp) SignIn() SignIn                        { return f.signIn }
-func (f *fakeApp) SetSignInBrowser(id string)            { f.call("sign in with " + id); f.signIn.Browser = id }
-func (f *fakeApp) CheckSignIn()                          { f.call("check sign-in") }
-func (f *fakeApp) OpenFullDiskAccess()                   { f.call("full disk access") }
-func (f *fakeApp) CheckForUpdates()                      { f.call("check updates") }
-func (f *fakeApp) PhoneSync() PhoneSync                  { return f.phone }
+func (f *fakeApp) LinkStartAtOnce() bool                 { return f.startAtOnce }
+func (f *fakeApp) SetLinkStartAtOnce(on bool) {
+	f.call(fmt.Sprintf("start at once %v", on))
+	f.startAtOnce = on
+}
+func (f *fakeApp) SignIn() SignIn             { return f.signIn }
+func (f *fakeApp) SetSignInBrowser(id string) { f.call("sign in with " + id); f.signIn.Browser = id }
+func (f *fakeApp) CheckSignIn()               { f.call("check sign-in") }
+func (f *fakeApp) OpenFullDiskAccess()        { f.call("full disk access") }
+func (f *fakeApp) CheckForUpdates()           { f.call("check updates") }
+func (f *fakeApp) PhoneSync() PhoneSync       { return f.phone }
 func (f *fakeApp) SetPhoneSync(on bool) {
 	f.call("phone sync " + strconv.FormatBool(on))
 	f.phone.On = on

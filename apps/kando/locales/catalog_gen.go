@@ -472,6 +472,12 @@ var Parameters = map[string][]string{
 	"AccountUploadUnsaved":                     {"error_"},
 	"AccountUploaded":                          {"key"},
 	"AccountUploadingPercent":                  {"percent"},
+	"AddSheetDrm":                              {"site"},
+	"AddSheetResumeBrowser":                    {"time_"},
+	"AddSheetResumeLink":                       {"time_"},
+	"AddSheetSignInBrowser":                    {"browser"},
+	"AddSheetUnknown":                          {"host"},
+	"AddSheetUntitled":                         {"site"},
 	"BrowseAddedTitled":                        {"title"},
 	"BrowseClearFailed":                        {"error_"},
 	"BrowseDownloadTitled":                     {"title"},
@@ -717,6 +723,7 @@ var Parameters = map[string][]string{
 	"PlaylistFailed":                           {"error_"},
 	"PlaylistHave":                             {"count"},
 	"PlaylistSeveral":                          {"count"},
+	"PlaylistSubscribe":                        {"kind"},
 	"PlaylistVideos":                           {"count"},
 	"PrecheckChannel":                          {"site"},
 	"PrecheckFailedDownload":                   {"detail"},
@@ -974,6 +981,12 @@ type Translation struct {
 	AccountUploadUnsaved                     func(error_ string) string
 	AccountUploaded                          func(key string) string
 	AccountUploadingPercent                  func(percent int) string
+	AddSheetDrm                              func(site string) string
+	AddSheetResumeBrowser                    func(time_ string) string
+	AddSheetResumeLink                       func(time_ string) string
+	AddSheetSignInBrowser                    func(browser string) string
+	AddSheetUnknown                          func(host string) string
+	AddSheetUntitled                         func(site string) string
 	BrowseAddedTitled                        func(title string) string
 	BrowseClearFailed                        func(error_ string) string
 	BrowseDownloadTitled                     func(title string) string
@@ -1219,6 +1232,7 @@ type Translation struct {
 	PlaylistFailed                           func(error_ string) string
 	PlaylistHave                             func(count int) string
 	PlaylistSeveral                          func(count int) string
+	PlaylistSubscribe                        func(kind string) string
 	PlaylistVideos                           func(count int) string
 	PrecheckChannel                          func(site string) string
 	PrecheckFailedDownload                   func(detail string) string
@@ -1502,6 +1516,27 @@ const (
 	textAccountUploading
 	textAccountUploadingOther
 	textAccountVideoMissing
+	textAddSheetAdd
+	textAddSheetCancel
+	textAddSheetConfirmInKando
+	textAddSheetDrmWhy
+	textAddSheetEpisodes
+	textAddSheetKindInList
+	textAddSheetKindVideo
+	textAddSheetLabel
+	textAddSheetListVideos
+	textAddSheetOK
+	textAddSheetOnlyThis
+	textAddSheetQuality
+	textAddSheetSignIn
+	textAddSheetSignInHint
+	textAddSheetSignInNone
+	textAddSheetSource
+	textAddSheetSourceLocal
+	textAddSheetSourcePlatform
+	textAddSheetSourcePlatformHint
+	textAddSheetUnknownWhy
+	textAddSheetWholeList
 	textAppSettings
 	textBrowseAdded
 	textBrowseAddressLabel
@@ -2169,6 +2204,8 @@ const (
 	textPlaylistCancel
 	textPlaylistEmpty
 	textPlaylistReading
+	textPlaylistSubscribeHint
+	textPlaylistSubscribeOnly
 	textPlaylistTimedOut
 	textPlaylistUntitled
 	textPlaylistUntitledChannel
@@ -2371,6 +2408,9 @@ const (
 	textSettingsGeneralAutoDownload
 	textSettingsGeneralAutoDownloadHint
 	textSettingsGeneralBackground
+	textSettingsGeneralBookmarklet
+	textSettingsGeneralBookmarkletCopy
+	textSettingsGeneralBookmarkletHint
 	textSettingsGeneralBrowser
 	textSettingsGeneralBrowserBrowsers
 	textSettingsGeneralBrowserConnect
@@ -2383,6 +2423,8 @@ const (
 	textSettingsGeneralBrowserNotShipped
 	textSettingsGeneralBrowserSeparator
 	textSettingsGeneralBrowserShowFolder
+	textSettingsGeneralBrowserStartAtOnce
+	textSettingsGeneralBrowserStartAtOnceHint
 	textSettingsGeneralCLI
 	textSettingsGeneralCLIClaudeCode
 	textSettingsGeneralCLICopied
@@ -2871,6 +2913,27 @@ var keyOfText = [numTexts]string{
 	"accountUploading",
 	"accountUploadingOther",
 	"accountVideoMissing",
+	"addSheetAdd",
+	"addSheetCancel",
+	"addSheetConfirmInKando",
+	"addSheetDrmWhy",
+	"addSheetEpisodes",
+	"addSheetKindInList",
+	"addSheetKindVideo",
+	"addSheetLabel",
+	"addSheetListVideos",
+	"addSheetOK",
+	"addSheetOnlyThis",
+	"addSheetQuality",
+	"addSheetSignIn",
+	"addSheetSignInHint",
+	"addSheetSignInNone",
+	"addSheetSource",
+	"addSheetSourceLocal",
+	"addSheetSourcePlatform",
+	"addSheetSourcePlatformHint",
+	"addSheetUnknownWhy",
+	"addSheetWholeList",
 	"appSettings",
 	"browseAdded",
 	"browseAddressLabel",
@@ -3538,6 +3601,8 @@ var keyOfText = [numTexts]string{
 	"playlistCancel",
 	"playlistEmpty",
 	"playlistReading",
+	"playlistSubscribeHint",
+	"playlistSubscribeOnly",
 	"playlistTimedOut",
 	"playlistUntitled",
 	"playlistUntitledChannel",
@@ -3740,6 +3805,9 @@ var keyOfText = [numTexts]string{
 	"settingsGeneralAutoDownload",
 	"settingsGeneralAutoDownloadHint",
 	"settingsGeneralBackground",
+	"settingsGeneralBookmarklet",
+	"settingsGeneralBookmarkletCopy",
+	"settingsGeneralBookmarkletHint",
 	"settingsGeneralBrowser",
 	"settingsGeneralBrowserBrowsers",
 	"settingsGeneralBrowserConnect",
@@ -3752,6 +3820,8 @@ var keyOfText = [numTexts]string{
 	"settingsGeneralBrowserNotShipped",
 	"settingsGeneralBrowserSeparator",
 	"settingsGeneralBrowserShowFolder",
+	"settingsGeneralBrowserStartAtOnce",
+	"settingsGeneralBrowserStartAtOnceHint",
 	"settingsGeneralCLI",
 	"settingsGeneralCLIClaudeCode",
 	"settingsGeneralCLICopied",
@@ -4238,6 +4308,27 @@ var textsEn = i18n.NewTexts(""+
 	"Uploading"+
 	"Uploading another film"+
 	"The video file isn't on this computer"+
+	"Add and Start"+
+	"Cancel"+
+	"Opened in Kando: confirm there to add it."+
+	"They are encrypted, and Kando does not get around that, so this one cannot be downloaded. If you have the video on disk, drop it into the window."+
+	"What to add"+
+	"Video in a playlist"+
+	"Single video"+
+	"Add online video"+
+	"List Videos"+
+	"OK"+
+	"Only this video"+
+	"Download"+
+	"Sign-in"+
+	"Members-only and higher-quality videos need a sign-in; passwords are never saved"+
+	"Not signed in"+
+	"Original lines from"+
+	"Recognize on this computer"+
+	"The uploader's subtitles"+
+	"Checked against the speech; lines that do not match are recognized on this computer"+
+	"yt-dlp tries its generic extractor first. Whether that works shows once the download starts, and the card says what to do if it does not."+
+	"The whole playlist"+
 	"Settings…"+
 	"Added to the library. Processing started."+
 	"Address"+
@@ -4905,6 +4996,8 @@ var textsEn = i18n.NewTexts(""+
 	"Cancel"+
 	"No videos found."+
 	"Finding Videos…"+
+	"New videos are added as they come out; change the rules under Subscriptions in the sidebar"+
+	"Subscribe"+
 	"Reading the videos took too long. Try again later."+
 	"Playlist"+
 	"Channel"+
@@ -5107,6 +5200,9 @@ var textsEn = i18n.NewTexts(""+
 	"Download and install updates automatically"+
 	"The new version opens the next time you launch Kando."+
 	"Background"+
+	"Bookmarklet"+
+	"Copy Code"+
+	"For any browser: make a bookmark whose address is the copied code, then click it on a video's page"+
 	"Browser Extension"+
 	"Browsers"+
 	"Connect"+
@@ -5119,6 +5215,8 @@ var textsEn = i18n.NewTexts(""+
 	"This copy of Kando has no extension folder."+
 	", "+
 	"Show Extension Folder"+
+	"Start as soon as a link arrives"+
+	"When off, Kando asks first, so you can choose the quality, the original lines and the sign-in"+
 	"Command Line & MCP"+
 	"Claude Code"+
 	"Copied"+
@@ -5191,7 +5289,7 @@ var textsEn = i18n.NewTexts(""+
 	"Version"+
 	"translation service EveryAPI OpenAI OpenRouter Groq DeepSeek xAI Mistral Qwen Kimi Zhipu SiliconFlow Ollama LM Studio Base URL API Key model test connection batch lines per request retries"+
 	"Google sign in sign out object storage upload R2 S3 OSS COS Endpoint Region Bucket Access Key Secret path style"+
-	"library location Finder File Explorer file manager interface language version components yt-dlp ffmpeg whisper-cli detect again command line terminal kando install MCP Claude Code Cursor copy config update notifications notify browser sign-in signed in cookies members-only age-restricted Chrome Safari Firefox Edge Brave Chromium keychain Full Disk Access appearance light dark mode follow system"+
+	"library location Finder File Explorer file manager interface language version components yt-dlp ffmpeg whisper-cli detect again command line terminal kando install MCP Claude Code Cursor copy config update notifications notify browser sign-in signed in cookies members-only age-restricted Chrome Safari Firefox Edge Brave Chromium keychain Full Disk Access appearance light dark mode follow system bookmarklet bookmark start at once"+
 	"subtitles display bilingual original only translation only order translation original dim blank make room preview preset font size color bold"+
 	"iPhone Android phone mobile sync pair QR code Wi-Fi network device revoke"+
 	"privacy offline network internet cache clear"+
@@ -5602,6 +5700,27 @@ var textsEn = i18n.NewTexts(""+
 		9,
 		22,
 		37,
+		13,
+		6,
+		41,
+		145,
+		11,
+		19,
+		12,
+		16,
+		11,
+		2,
+		15,
+		8,
+		7,
+		80,
+		13,
+		19,
+		26,
+		24,
+		83,
+		137,
+		18,
 		11,
 		41,
 		7,
@@ -6269,6 +6388,8 @@ var textsEn = i18n.NewTexts(""+
 		6,
 		16,
 		17,
+		90,
+		9,
 		50,
 		8,
 		7,
@@ -6471,6 +6592,9 @@ var textsEn = i18n.NewTexts(""+
 		42,
 		53,
 		10,
+		11,
+		9,
+		98,
 		17,
 		8,
 		7,
@@ -6483,6 +6607,8 @@ var textsEn = i18n.NewTexts(""+
 		43,
 		2,
 		21,
+		31,
+		93,
 		18,
 		11,
 		6,
@@ -6555,7 +6681,7 @@ var textsEn = i18n.NewTexts(""+
 		7,
 		188,
 		111,
-		397,
+		432,
 		141,
 		73,
 		44,
@@ -6969,6 +7095,27 @@ var textsJa = i18n.NewTexts(""+
 	"アップロード中"+
 	"別の動画をアップロード中"+
 	"動画ファイルがこのコンピュータにありません"+
+	"追加して開始"+
+	"キャンセル"+
+	"Kando で開きました。確認すると追加されます。"+
+	"動画は暗号化されており、Kando はそれを回避しないためダウンロードできません。手元に動画ファイルがあれば、ウインドウにドロップしてください。"+
+	"追加する範囲"+
+	"再生リスト内の動画"+
+	"単体の動画"+
+	"オンライン動画を追加"+
+	"動画を一覧表示"+
+	"OK"+
+	"この動画だけ"+
+	"ダウンロード画質"+
+	"ログイン"+
+	"メンバー限定や高画質の動画にはログインが必要です。パスワードは保存しません"+
+	"ログインしない"+
+	"原文の取得元"+
+	"このコンピュータで認識"+
+	"投稿者の字幕"+
+	"音声と照合し、合わない行はこのコンピュータで認識します"+
+	"yt-dlp はまず汎用の抽出機能で試します。うまくいくかはダウンロードが始まるまでわからず、だめならカードに対処法が表示されます。"+
+	"再生リスト全体"+
 	"設定…"+
 	"ライブラリに追加して処理を開始しました。"+
 	"アドレス"+
@@ -7636,6 +7783,8 @@ var textsJa = i18n.NewTexts(""+
 	"キャンセル"+
 	"動画が見つかりませんでした。"+
 	"動画を探しています…"+
+	"今後の新しい動画は自動で追加されます。ルールはサイドバーの「購読」で変更できます"+
+	"購読"+
 	"動画の読み込みに時間がかかりすぎました。しばらくしてからもう一度お試しください。"+
 	"再生リスト"+
 	"チャンネル"+
@@ -7838,6 +7987,9 @@ var textsJa = i18n.NewTexts(""+
 	"アップデートを自動的にダウンロードしてインストール"+
 	"新しいバージョンは次回 Kando を起動したときに有効になります。"+
 	"バックグラウンド"+
+	"ブックマークレット"+
+	"コードをコピー"+
+	"どのブラウザでも使えます。コピーしたコードを URL にしたブックマークを作り、動画のページでクリックします"+
 	"ブラウザ拡張機能"+
 	"ブラウザ"+
 	"接続"+
@@ -7850,6 +8002,8 @@ var textsJa = i18n.NewTexts(""+
 	"この Kando には拡張機能のフォルダがありません。"+
 	"、"+
 	"拡張機能のフォルダを表示"+
+	"リンクが届いたらすぐに開始"+
+	"オフのときは確認カードが開き、画質・原文の取得元・ログインを変更できます"+
 	"コマンドラインと MCP"+
 	"Claude Code"+
 	"コピーしました"+
@@ -7922,7 +8076,7 @@ var textsJa = i18n.NewTexts(""+
 	"バージョン"+
 	"翻訳 サービス EveryAPI OpenAI OpenRouter Groq DeepSeek xAI Mistral Qwen Kimi Zhipu SiliconFlow Ollama LM Studio Base URL API Key モデル 接続テスト 行数 リクエスト 再試行"+
 	"Google ログイン ログアウト オブジェクトストレージ アップロード R2 S3 OSS COS Endpoint Region Bucket Access Key Secret パス形式"+
-	"ライブラリ 場所 Finder エクスプローラー ファイルマネージャー 表示言語 バージョン コンポーネント yt-dlp ffmpeg whisper-cli 再検出 コマンドライン ターミナル kando インストール MCP Claude Code Cursor 設定をコピー アップデート 通知 ブラウザ ログイン Cookie メンバー限定 年齢確認 Chrome Safari Firefox Edge キーチェーン フルディスクアクセス 外観 ライト ダーク システム"+
+	"ライブラリ 場所 Finder エクスプローラー ファイルマネージャー 表示言語 バージョン コンポーネント yt-dlp ffmpeg whisper-cli 再検出 コマンドライン ターミナル kando インストール MCP Claude Code Cursor 設定をコピー アップデート 通知 ブラウザ ログイン Cookie メンバー限定 年齢確認 Chrome Safari Firefox Edge キーチェーン フルディスクアクセス 外観 ライト ダーク システム ブックマークレット ブックマーク すぐに開始"+
 	"字幕 表示方法 二言語 原文のみ 訳文のみ 順序 訳文 原文 薄く 空白 移動 プレビュー プリセット フォント サイズ 色 太字"+
 	"iPhone Android スマホ スマートフォン 同期 ペアリング QR コード Wi-Fi ネットワーク デバイス 取り消し"+
 	"プライバシー オフライン ネットワーク インターネット キャッシュ 消去"+
@@ -8333,6 +8487,27 @@ var textsJa = i18n.NewTexts(""+
 		21,
 		36,
 		63,
+		18,
+		15,
+		63,
+		204,
+		18,
+		27,
+		15,
+		30,
+		21,
+		2,
+		18,
+		24,
+		12,
+		111,
+		21,
+		18,
+		33,
+		18,
+		81,
+		184,
+		21,
 		9,
 		60,
 		12,
@@ -9001,6 +9176,8 @@ var textsJa = i18n.NewTexts(""+
 		42,
 		30,
 		120,
+		6,
+		120,
 		15,
 		15,
 		134,
@@ -9202,6 +9379,9 @@ var textsJa = i18n.NewTexts(""+
 		75,
 		88,
 		24,
+		27,
+		21,
+		152,
 		24,
 		12,
 		6,
@@ -9214,6 +9394,8 @@ var textsJa = i18n.NewTexts(""+
 		67,
 		3,
 		36,
+		39,
+		108,
 		28,
 		11,
 		21,
@@ -9286,7 +9468,7 @@ var textsJa = i18n.NewTexts(""+
 		15,
 		193,
 		156,
-		485,
+		548,
 		163,
 		133,
 		98,
@@ -9700,6 +9882,27 @@ var textsKo = i18n.NewTexts(""+
 	"업로드 중"+
 	"다른 영상을 업로드하는 중"+
 	"동영상 파일이 이 컴퓨터에 없습니다"+
+	"추가하고 시작"+
+	"취소"+
+	"Kando에서 열었습니다. 확인하면 추가됩니다."+
+	"동영상이 암호화되어 있고 Kando는 이를 우회하지 않으므로 다운로드할 수 없습니다. 동영상 파일이 있다면 창에 끌어다 놓으세요."+
+	"추가할 범위"+
+	"재생목록의 동영상"+
+	"단일 동영상"+
+	"온라인 동영상 추가"+
+	"동영상 목록 보기"+
+	"확인"+
+	"이 동영상만"+
+	"다운로드 화질"+
+	"로그인"+
+	"멤버십 동영상과 고화질에는 로그인이 필요하며, 비밀번호는 저장하지 않습니다"+
+	"로그인 안 함"+
+	"원문 출처"+
+	"이 컴퓨터에서 인식"+
+	"업로더의 자막"+
+	"음성과 대조하고, 맞지 않는 줄은 이 컴퓨터에서 인식합니다"+
+	"yt-dlp가 먼저 범용 추출기로 시도합니다. 다운로드가 시작되어야 성공 여부를 알 수 있으며, 실패하면 카드에서 방법을 안내합니다."+
+	"재생목록 전체"+
 	"설정…"+
 	"라이브러리에 추가하고 처리를 시작했습니다."+
 	"주소"+
@@ -10367,6 +10570,8 @@ var textsKo = i18n.NewTexts(""+
 	"취소"+
 	"동영상을 찾지 못했습니다."+
 	"동영상을 찾는 중…"+
+	"앞으로 새 동영상이 자동으로 추가되며, 규칙은 사이드바의 ‘구독’에서 바꿀 수 있습니다"+
+	"구독"+
 	"동영상을 읽는 데 너무 오래 걸렸습니다. 나중에 다시 시도하세요."+
 	"재생목록"+
 	"채널"+
@@ -10569,6 +10774,9 @@ var textsKo = i18n.NewTexts(""+
 	"자동으로 업데이트 다운로드 및 설치"+
 	"새 버전은 다음에 Kando를 열 때 적용됩니다."+
 	"백그라운드"+
+	"북마클릿"+
+	"코드 복사"+
+	"모든 브라우저에서 사용 가능: 복사한 코드를 주소로 하는 북마크를 만들고 동영상 페이지에서 클릭하세요"+
 	"브라우저 확장 프로그램"+
 	"브라우저"+
 	"연결"+
@@ -10581,6 +10789,8 @@ var textsKo = i18n.NewTexts(""+
 	"이 Kando에는 확장 프로그램 폴더가 없습니다."+
 	", "+
 	"확장 프로그램 폴더 보기"+
+	"링크가 도착하면 바로 시작"+
+	"끄면 확인 카드가 먼저 열려 화질, 원문 출처, 로그인을 바꿀 수 있습니다"+
 	"명령줄 및 MCP"+
 	"Claude Code"+
 	"복사됨"+
@@ -10653,7 +10863,7 @@ var textsKo = i18n.NewTexts(""+
 	"버전"+
 	"번역 서비스 EveryAPI OpenAI OpenRouter Groq DeepSeek xAI Mistral Qwen Kimi Zhipu SiliconFlow Ollama LM Studio Base URL API Key 모델 연결 테스트 줄 수 요청 재시도"+
 	"Google 로그인 로그아웃 오브젝트 스토리지 업로드 R2 S3 OSS COS Endpoint Region Bucket Access Key Secret 경로 스타일"+
-	"라이브러리 위치 Finder 파일 탐색기 파일 관리자 인터페이스 언어 버전 구성 요소 yt-dlp ffmpeg whisper-cli 다시 감지 명령줄 터미널 kando 설치 MCP Claude Code Cursor 설정 복사 업데이트 알림 브라우저 로그인 쿠키 멤버십 연령 확인 Chrome Safari Firefox Edge 키체인 전체 디스크 접근 권한 화면 모드 라이트 다크 시스템"+
+	"라이브러리 위치 Finder 파일 탐색기 파일 관리자 인터페이스 언어 버전 구성 요소 yt-dlp ffmpeg whisper-cli 다시 감지 명령줄 터미널 kando 설치 MCP Claude Code Cursor 설정 복사 업데이트 알림 브라우저 로그인 쿠키 멤버십 연령 확인 Chrome Safari Firefox Edge 키체인 전체 디스크 접근 권한 화면 모드 라이트 다크 시스템 북마클릿 북마크 바로 시작"+
 	"자막 표시 방식 이중 언어 원문만 번역만 순서 번역 원문 흐리게 비워 두기 이동 미리 보기 프리셋 서체 크기 색상 굵게"+
 	"iPhone Android 휴대폰 스마트폰 동기화 페어링 QR 코드 Wi-Fi 네트워크 기기 해제"+
 	"개인정보 오프라인 네트워크 인터넷 캐시 지우기"+
@@ -11064,6 +11274,27 @@ var textsKo = i18n.NewTexts(""+
 		13,
 		36,
 		49,
+		19,
+		6,
+		58,
+		172,
+		16,
+		25,
+		16,
+		26,
+		23,
+		6,
+		16,
+		19,
+		9,
+		107,
+		17,
+		13,
+		26,
+		19,
+		80,
+		174,
+		19,
 		9,
 		61,
 		6,
@@ -11731,6 +11962,8 @@ var textsKo = i18n.NewTexts(""+
 		6,
 		36,
 		26,
+		122,
+		6,
 		88,
 		12,
 		6,
@@ -11933,6 +12166,9 @@ var textsKo = i18n.NewTexts(""+
 		49,
 		57,
 		15,
+		12,
+		13,
+		142,
 		32,
 		12,
 		6,
@@ -11945,6 +12181,8 @@ var textsKo = i18n.NewTexts(""+
 		59,
 		2,
 		33,
+		36,
+		97,
 		17,
 		11,
 		9,
@@ -12017,7 +12255,7 @@ var textsKo = i18n.NewTexts(""+
 		6,
 		180,
 		137,
-		400,
+		437,
 		158,
 		100,
 		65,
@@ -12431,6 +12669,27 @@ var textsZhHans = i18n.NewTexts(""+
 	"正在上传"+
 	"正在上传另一部影片"+
 	"视频文件不在本地"+
+	"添加并开始"+
+	"取消"+
+	"已在看懂中打开，确认后添加。"+
+	"视频已加密，看懂不会绕过加密，所以无法下载。如果你有这个视频的本地文件，把它拖进窗口即可。"+
+	"添加范围"+
+	"播放列表中的视频"+
+	"单个视频"+
+	"添加在线视频"+
+	"列出视频"+
+	"好"+
+	"只添加这个视频"+
+	"下载画质"+
+	"登录"+
+	"会员视频和更高画质需要登录；不会保存密码"+
+	"不登录"+
+	"原文来自"+
+	"在这台电脑上识别"+
+	"上传者的字幕"+
+	"先和语音核对，对不上的句子在这台电脑上识别"+
+	"yt-dlp 会先用通用解析器尝试。能否下载要等开始下载才知道，不行的话卡片上会告诉你怎么办。"+
+	"整个播放列表"+
 	"设置…"+
 	"已加入资料库，开始处理。"+
 	"网址"+
@@ -13098,6 +13357,8 @@ var textsZhHans = i18n.NewTexts(""+
 	"取消"+
 	"没有找到视频。"+
 	"正在查找视频…"+
+	"以后的新视频会自动加入队列，可在侧栏「订阅」里修改规则"+
+	"订阅"+
 	"读取视频用时太久，请稍后再试。"+
 	"播放列表"+
 	"频道"+
@@ -13300,6 +13561,9 @@ var textsZhHans = i18n.NewTexts(""+
 	"自动下载并安装更新"+
 	"新版本在下次打开看懂时生效。"+
 	"后台运行"+
+	"书签小工具"+
+	"拷贝代码"+
+	"适用于任何浏览器：新建书签，把拷贝的代码粘贴为网址，然后在视频页面上点它"+
 	"浏览器扩展"+
 	"浏览器"+
 	"连接"+
@@ -13312,6 +13576,8 @@ var textsZhHans = i18n.NewTexts(""+
 	"这个版本的看懂没有附带扩展文件夹。"+
 	"、"+
 	"显示扩展文件夹"+
+	"链接到达后立即开始"+
+	"关闭时会先弹出确认卡片，可以改画质、原文来源和登录"+
 	"命令行与 MCP"+
 	"Claude Code"+
 	"已拷贝"+
@@ -13384,7 +13650,7 @@ var textsZhHans = i18n.NewTexts(""+
 	"版本"+
 	"翻译 服务 EveryAPI OpenAI OpenRouter Groq DeepSeek xAI Mistral 通义千问 Kimi 智谱 硅基流动 Ollama LM Studio Base URL API Key 模型 测试连接 每批 句数 请求 重试"+
 	"Google 登录 退出 对象存储 上传 R2 S3 OSS COS Endpoint Region Bucket Access Key Secret 路径样式"+
-	"资料库 位置 访达 文件资源管理器 文件管理器 界面语言 版本 组件 yt-dlp ffmpeg whisper-cli 重新检测 命令行 终端 kando 安装 MCP Claude Code Cursor 拷贝配置 更新 通知 浏览器 登录 借用 Cookie 会员 年龄验证 Chrome Safari Firefox Edge 钥匙串 完全磁盘访问权限 外观 浅色 深色 跟随系统"+
+	"资料库 位置 访达 文件资源管理器 文件管理器 界面语言 版本 组件 yt-dlp ffmpeg whisper-cli 重新检测 命令行 终端 kando 安装 MCP Claude Code Cursor 拷贝配置 更新 通知 浏览器 登录 借用 Cookie 会员 年龄验证 Chrome Safari Firefox Edge 钥匙串 完全磁盘访问权限 外观 浅色 深色 跟随系统 书签小工具 书签 立即开始"+
 	"字幕 显示方式 双语 仅原文 仅译文 顺序 译文 原文 弱化 留空 让位 预览 预设 字体 字号 颜色 粗体"+
 	"iPhone Android 手机 移动 同步 配对 二维码 Wi-Fi 网络 设备 撤销"+
 	"隐私 离线 联网 网络 缓存 清除"+
@@ -13795,6 +14061,27 @@ var textsZhHans = i18n.NewTexts(""+
 		12,
 		27,
 		24,
+		15,
+		6,
+		42,
+		135,
+		12,
+		24,
+		12,
+		18,
+		12,
+		3,
+		21,
+		12,
+		6,
+		60,
+		9,
+		12,
+		24,
+		18,
+		63,
+		127,
+		18,
 		9,
 		36,
 		6,
@@ -14462,6 +14749,8 @@ var textsZhHans = i18n.NewTexts(""+
 		6,
 		21,
 		21,
+		81,
+		6,
 		45,
 		12,
 		6,
@@ -14665,6 +14954,9 @@ var textsZhHans = i18n.NewTexts(""+
 		42,
 		12,
 		15,
+		12,
+		108,
+		15,
 		9,
 		6,
 		9,
@@ -14676,6 +14968,8 @@ var textsZhHans = i18n.NewTexts(""+
 		51,
 		3,
 		21,
+		27,
+		75,
 		16,
 		11,
 		9,
@@ -14748,7 +15042,7 @@ var textsZhHans = i18n.NewTexts(""+
 		6,
 		186,
 		108,
-		354,
+		390,
 		130,
 		79,
 		41,
@@ -15162,6 +15456,27 @@ var textsZhHant = i18n.NewTexts(""+
 	"正在上傳"+
 	"正在上傳另一部影片"+
 	"影片檔不在本機"+
+	"加入並開始"+
+	"取消"+
+	"已在看懂中開啟，確認後加入。"+
+	"影片已加密，看懂不會繞過加密，所以無法下載。如果你有這部影片的本機檔案，把它拖進視窗即可。"+
+	"加入範圍"+
+	"播放清單中的影片"+
+	"單一影片"+
+	"加入線上影片"+
+	"列出影片"+
+	"好"+
+	"只加入這部影片"+
+	"下載畫質"+
+	"登入"+
+	"會員影片和更高畫質需要登入；不會儲存密碼"+
+	"不登入"+
+	"原文來自"+
+	"在這台電腦上辨識"+
+	"上傳者的字幕"+
+	"先和語音核對，對不上的句子在這台電腦上辨識"+
+	"yt-dlp 會先用通用解析器嘗試。能否下載要等開始下載才知道，不行的話卡片上會告訴你怎麼辦。"+
+	"整個播放清單"+
 	"設定…"+
 	"已加入資料庫，開始處理。"+
 	"網址"+
@@ -15829,6 +16144,8 @@ var textsZhHant = i18n.NewTexts(""+
 	"取消"+
 	"找不到影片。"+
 	"正在尋找影片…"+
+	"之後的新影片會自動加入佇列，可在側欄「訂閱」裡修改規則"+
+	"訂閱"+
 	"讀取影片花太久時間，請稍後再試。"+
 	"播放清單"+
 	"頻道"+
@@ -16031,6 +16348,9 @@ var textsZhHant = i18n.NewTexts(""+
 	"自動下載並安裝更新"+
 	"新版本在下次開啟看懂時生效。"+
 	"背景執行"+
+	"書籤小工具"+
+	"拷貝程式碼"+
+	"適用於任何瀏覽器：新增書籤，把拷貝的程式碼貼上為網址，然後在影片頁面上點它"+
 	"瀏覽器擴充功能"+
 	"瀏覽器"+
 	"連接"+
@@ -16043,6 +16363,8 @@ var textsZhHant = i18n.NewTexts(""+
 	"這個版本的看懂沒有附帶擴充功能資料夾。"+
 	"、"+
 	"顯示擴充功能資料夾"+
+	"連結到達後立即開始"+
+	"關閉時會先跳出確認卡片，可以改畫質、原文來源和登入"+
 	"命令列與 MCP"+
 	"Claude Code"+
 	"已拷貝"+
@@ -16115,7 +16437,7 @@ var textsZhHant = i18n.NewTexts(""+
 	"版本"+
 	"翻譯 服務 EveryAPI OpenAI OpenRouter Groq DeepSeek xAI Mistral 通義千問 Kimi 智譜 矽基流動 Ollama LM Studio Base URL API Key 模型 測試連線 每批 句數 請求 重試"+
 	"Google 登入 登出 物件儲存 上傳 R2 S3 OSS COS Endpoint Region Bucket Access Key Secret 路徑樣式"+
-	"資料庫 位置 Finder 檔案總管 檔案管理員 介面語言 版本 元件 yt-dlp ffmpeg whisper-cli 重新偵測 命令列 終端機 kando 安裝 MCP Claude Code Cursor 拷貝設定 更新 通知 瀏覽器 登入 借用 Cookie 會員 年齡驗證 Chrome Safari Firefox Edge 鑰匙圈 完整取用磁碟 外觀 淺色 深色 跟隨系統"+
+	"資料庫 位置 Finder 檔案總管 檔案管理員 介面語言 版本 元件 yt-dlp ffmpeg whisper-cli 重新偵測 命令列 終端機 kando 安裝 MCP Claude Code Cursor 拷貝設定 更新 通知 瀏覽器 登入 借用 Cookie 會員 年齡驗證 Chrome Safari Firefox Edge 鑰匙圈 完整取用磁碟 外觀 淺色 深色 跟隨系統 書籤小工具 書籤 立即開始"+
 	"字幕 顯示方式 雙語 僅原文 僅譯文 順序 譯文 原文 淡化 留空 讓位 預覽 預設 字體 字級 顏色 粗體"+
 	"iPhone Android 手機 行動 同步 配對 QR 碼 Wi-Fi 網路 裝置 撤銷"+
 	"隱私 離線 連網 網路 快取 清除"+
@@ -16526,6 +16848,27 @@ var textsZhHant = i18n.NewTexts(""+
 		12,
 		27,
 		21,
+		15,
+		6,
+		42,
+		135,
+		12,
+		24,
+		12,
+		18,
+		12,
+		3,
+		21,
+		12,
+		6,
+		60,
+		9,
+		12,
+		24,
+		18,
+		63,
+		127,
+		18,
 		9,
 		36,
 		6,
@@ -17193,6 +17536,8 @@ var textsZhHant = i18n.NewTexts(""+
 		6,
 		18,
 		21,
+		81,
+		6,
 		48,
 		12,
 		6,
@@ -17395,6 +17740,9 @@ var textsZhHant = i18n.NewTexts(""+
 		27,
 		42,
 		12,
+		15,
+		15,
+		111,
 		21,
 		9,
 		6,
@@ -17407,6 +17755,8 @@ var textsZhHant = i18n.NewTexts(""+
 		57,
 		3,
 		27,
+		27,
+		75,
 		16,
 		11,
 		9,
@@ -17479,7 +17829,7 @@ var textsZhHant = i18n.NewTexts(""+
 		6,
 		186,
 		108,
-		342,
+		378,
 		130,
 		76,
 		41,
@@ -17944,6 +18294,24 @@ func Supply(lang string, t Translation) {
 	}
 	if t.AccountUploadingPercent != nil {
 		s.AccountUploadingPercent = t.AccountUploadingPercent
+	}
+	if t.AddSheetDrm != nil {
+		s.AddSheetDrm = t.AddSheetDrm
+	}
+	if t.AddSheetResumeBrowser != nil {
+		s.AddSheetResumeBrowser = t.AddSheetResumeBrowser
+	}
+	if t.AddSheetResumeLink != nil {
+		s.AddSheetResumeLink = t.AddSheetResumeLink
+	}
+	if t.AddSheetSignInBrowser != nil {
+		s.AddSheetSignInBrowser = t.AddSheetSignInBrowser
+	}
+	if t.AddSheetUnknown != nil {
+		s.AddSheetUnknown = t.AddSheetUnknown
+	}
+	if t.AddSheetUntitled != nil {
+		s.AddSheetUntitled = t.AddSheetUntitled
 	}
 	if t.BrowseAddedTitled != nil {
 		s.BrowseAddedTitled = t.BrowseAddedTitled
@@ -18679,6 +19047,9 @@ func Supply(lang string, t Translation) {
 	}
 	if t.PlaylistSeveral != nil {
 		s.PlaylistSeveral = t.PlaylistSeveral
+	}
+	if t.PlaylistSubscribe != nil {
+		s.PlaylistSubscribe = t.PlaylistSubscribe
 	}
 	if t.PlaylistVideos != nil {
 		s.PlaylistVideos = t.PlaylistVideos
@@ -20107,6 +20478,383 @@ func AccountVideoMissing(cx *core.Scope) string { return For(cx).AccountVideoMis
 
 // AccountVideoMissing is the package's AccountVideoMissing in the language of msgs.
 func (msgs Messages) AccountVideoMissing() string { return msgs.text(textAccountVideoMissing) }
+
+// AddSheetAdd says "Add and Start"
+// in the language the app shows under cx.
+//
+// Add sheet: primary button that adds the video and starts processing it.
+func AddSheetAdd(cx *core.Scope) string { return For(cx).AddSheetAdd() }
+
+// AddSheetAdd is the package's AddSheetAdd in the language of msgs.
+func (msgs Messages) AddSheetAdd() string { return msgs.text(textAddSheetAdd) }
+
+// AddSheetCancel says "Cancel"
+// in the language the app shows under cx.
+//
+// Add sheet: button that closes it without adding anything.
+func AddSheetCancel(cx *core.Scope) string { return For(cx).AddSheetCancel() }
+
+// AddSheetCancel is the package's AddSheetCancel in the language of msgs.
+func (msgs Messages) AddSheetCancel() string { return msgs.text(textAddSheetCancel) }
+
+// AddSheetConfirmInKando says "Opened in Kando: confirm there to add it."
+// in the language the app shows under cx.
+//
+// Browser extension popup after a video was sent while the app asks first on its Add sheet.
+func AddSheetConfirmInKando(cx *core.Scope) string { return For(cx).AddSheetConfirmInKando() }
+
+// AddSheetConfirmInKando is the package's AddSheetConfirmInKando in the language of msgs.
+func (msgs Messages) AddSheetConfirmInKando() string { return msgs.text(textAddSheetConfirmInKando) }
+
+// AddSheetDrm says "{site} videos are DRM-protected"
+// in the language the app shows under cx.
+//
+// Add sheet: bold head of the note for a site whose videos are encrypted.
+func AddSheetDrm(cx *core.Scope, site string) string { return For(cx).AddSheetDrm(site) }
+
+// AddSheetDrm is the package's AddSheetDrm in the language of msgs.
+func (msgs Messages) AddSheetDrm(site string) string {
+	if i18n.IsPseudo(msgs.lang) {
+		return i18n.Pseudo(msgs.lang, Messages{lang: Source, mark: true}.AddSheetDrm(site))
+	}
+	for lang := msgs.lang; ; lang = i18n.Parent(lang) {
+		if f := supplied[lang].AddSheetDrm; f != nil {
+			return f(site)
+		}
+		switch lang {
+		case "", "en":
+			return msgs.arg(site) + " videos are DRM-protected"
+		case "ja":
+			return site + " の動画は DRM で保護されています"
+		case "ko":
+			return site + " 동영상은 DRM으로 보호됩니다"
+		case "zh-Hans":
+			return site + " 的视频受 DRM 保护"
+		case "zh-Hant":
+			return site + " 的影片受 DRM 保護"
+		}
+	}
+}
+
+// AddSheetDrmWhy says "They are encrypted, and Kando does not get around that, so this one cannot be downloaded. If you have the video on disk, drop it into the window."
+// in the language the app shows under cx.
+//
+// Add sheet: why a DRM-protected video is not added, and what to do instead.
+func AddSheetDrmWhy(cx *core.Scope) string { return For(cx).AddSheetDrmWhy() }
+
+// AddSheetDrmWhy is the package's AddSheetDrmWhy in the language of msgs.
+func (msgs Messages) AddSheetDrmWhy() string { return msgs.text(textAddSheetDrmWhy) }
+
+// AddSheetEpisodes says "What to add"
+// in the language the app shows under cx.
+//
+// Add sheet: accessible name of the choice between the video alone and its whole playlist.
+func AddSheetEpisodes(cx *core.Scope) string { return For(cx).AddSheetEpisodes() }
+
+// AddSheetEpisodes is the package's AddSheetEpisodes in the language of msgs.
+func (msgs Messages) AddSheetEpisodes() string { return msgs.text(textAddSheetEpisodes) }
+
+// AddSheetKindInList says "Video in a playlist"
+// in the language the app shows under cx.
+//
+// Add sheet: small line beside the site's name for a link to a video of a playlist.
+func AddSheetKindInList(cx *core.Scope) string { return For(cx).AddSheetKindInList() }
+
+// AddSheetKindInList is the package's AddSheetKindInList in the language of msgs.
+func (msgs Messages) AddSheetKindInList() string { return msgs.text(textAddSheetKindInList) }
+
+// AddSheetKindVideo says "Single video"
+// in the language the app shows under cx.
+//
+// Add sheet: small line beside the site's name for a link to one video.
+func AddSheetKindVideo(cx *core.Scope) string { return For(cx).AddSheetKindVideo() }
+
+// AddSheetKindVideo is the package's AddSheetKindVideo in the language of msgs.
+func (msgs Messages) AddSheetKindVideo() string { return msgs.text(textAddSheetKindVideo) }
+
+// AddSheetLabel says "Add online video"
+// in the language the app shows under cx.
+//
+// Accessible name of the Add sheet, the card a link to one online video opens before it is added.
+func AddSheetLabel(cx *core.Scope) string { return For(cx).AddSheetLabel() }
+
+// AddSheetLabel is the package's AddSheetLabel in the language of msgs.
+func (msgs Messages) AddSheetLabel() string { return msgs.text(textAddSheetLabel) }
+
+// AddSheetListVideos says "List Videos"
+// in the language the app shows under cx.
+//
+// Add sheet: primary button while the whole playlist is chosen; it lists the playlist's videos before they are added.
+func AddSheetListVideos(cx *core.Scope) string { return For(cx).AddSheetListVideos() }
+
+// AddSheetListVideos is the package's AddSheetListVideos in the language of msgs.
+func (msgs Messages) AddSheetListVideos() string { return msgs.text(textAddSheetListVideos) }
+
+// AddSheetOK says "OK"
+// in the language the app shows under cx.
+//
+// Add sheet: the only button for a DRM-protected video, which closes it.
+func AddSheetOK(cx *core.Scope) string { return For(cx).AddSheetOK() }
+
+// AddSheetOK is the package's AddSheetOK in the language of msgs.
+func (msgs Messages) AddSheetOK() string { return msgs.text(textAddSheetOK) }
+
+// AddSheetOnlyThis says "Only this video"
+// in the language the app shows under cx.
+//
+// Add sheet: radio that adds the video of the link alone.
+func AddSheetOnlyThis(cx *core.Scope) string { return For(cx).AddSheetOnlyThis() }
+
+// AddSheetOnlyThis is the package's AddSheetOnlyThis in the language of msgs.
+func (msgs Messages) AddSheetOnlyThis() string { return msgs.text(textAddSheetOnlyThis) }
+
+// AddSheetQuality says "Download"
+// in the language the app shows under cx.
+//
+// Add sheet: row title and pop-up name of the picture the download asks for.
+func AddSheetQuality(cx *core.Scope) string { return For(cx).AddSheetQuality() }
+
+// AddSheetQuality is the package's AddSheetQuality in the language of msgs.
+func (msgs Messages) AddSheetQuality() string { return msgs.text(textAddSheetQuality) }
+
+// AddSheetResumeBrowser says "You were at {time} in the browser; once processed, the film continues from there."
+// in the language the app shows under cx.
+//
+// Add sheet: note for a link the browser extension or the bookmarklet sent from a page that was playing the video.
+func AddSheetResumeBrowser(cx *core.Scope, time_ string) string {
+	return For(cx).AddSheetResumeBrowser(time_)
+}
+
+// AddSheetResumeBrowser is the package's AddSheetResumeBrowser in the language of msgs.
+func (msgs Messages) AddSheetResumeBrowser(time_ string) string {
+	if i18n.IsPseudo(msgs.lang) {
+		return i18n.Pseudo(msgs.lang, Messages{lang: Source, mark: true}.AddSheetResumeBrowser(time_))
+	}
+	for lang := msgs.lang; ; lang = i18n.Parent(lang) {
+		if f := supplied[lang].AddSheetResumeBrowser; f != nil {
+			return f(time_)
+		}
+		switch lang {
+		case "", "en":
+			return "You were at " + msgs.arg(time_) + " in the browser; once processed, the film continues from there."
+		case "ja":
+			return "ブラウザで " + time_ + " まで見ていました。処理が終わるとそこから続けて再生します。"
+		case "ko":
+			return "브라우저에서 " + time_ + "까지 봤습니다. 처리가 끝나면 그 지점부터 이어서 재생합니다."
+		case "zh-Hans":
+			return "你在浏览器里看到了 " + time_ + "，处理完后从这里接着播放。"
+		case "zh-Hant":
+			return "你在瀏覽器裡看到了 " + time_ + "，處理完後從這裡接著播放。"
+		}
+	}
+}
+
+// AddSheetResumeLink says "The link starts at {time}; once processed, the film continues from there."
+// in the language the app shows under cx.
+//
+// Add sheet: note for a pasted link that names where the video starts (t=).
+func AddSheetResumeLink(cx *core.Scope, time_ string) string {
+	return For(cx).AddSheetResumeLink(time_)
+}
+
+// AddSheetResumeLink is the package's AddSheetResumeLink in the language of msgs.
+func (msgs Messages) AddSheetResumeLink(time_ string) string {
+	if i18n.IsPseudo(msgs.lang) {
+		return i18n.Pseudo(msgs.lang, Messages{lang: Source, mark: true}.AddSheetResumeLink(time_))
+	}
+	for lang := msgs.lang; ; lang = i18n.Parent(lang) {
+		if f := supplied[lang].AddSheetResumeLink; f != nil {
+			return f(time_)
+		}
+		switch lang {
+		case "", "en":
+			return "The link starts at " + msgs.arg(time_) + "; once processed, the film continues from there."
+		case "ja":
+			return "リンクは " + time_ + " から始まります。処理が終わるとそこから再生します。"
+		case "ko":
+			return "링크가 " + time_ + "부터 시작합니다. 처리가 끝나면 그 지점부터 재생합니다."
+		case "zh-Hans":
+			return "链接从 " + time_ + " 开始，处理完后从这里播放。"
+		case "zh-Hant":
+			return "連結從 " + time_ + " 開始，處理完後從這裡播放。"
+		}
+	}
+}
+
+// AddSheetSignIn says "Sign-in"
+// in the language the app shows under cx.
+//
+// Add sheet: row title and pop-up name of the browser whose sign-in the download borrows.
+func AddSheetSignIn(cx *core.Scope) string { return For(cx).AddSheetSignIn() }
+
+// AddSheetSignIn is the package's AddSheetSignIn in the language of msgs.
+func (msgs Messages) AddSheetSignIn() string { return msgs.text(textAddSheetSignIn) }
+
+// AddSheetSignInBrowser says "{browser}'s sign-in"
+// in the language the app shows under cx.
+//
+// Add sheet: option of the sign-in pop-up that borrows a browser's sign-in.
+func AddSheetSignInBrowser(cx *core.Scope, browser string) string {
+	return For(cx).AddSheetSignInBrowser(browser)
+}
+
+// AddSheetSignInBrowser is the package's AddSheetSignInBrowser in the language of msgs.
+func (msgs Messages) AddSheetSignInBrowser(browser string) string {
+	if i18n.IsPseudo(msgs.lang) {
+		return i18n.Pseudo(msgs.lang, Messages{lang: Source, mark: true}.AddSheetSignInBrowser(browser))
+	}
+	for lang := msgs.lang; ; lang = i18n.Parent(lang) {
+		if f := supplied[lang].AddSheetSignInBrowser; f != nil {
+			return f(browser)
+		}
+		switch lang {
+		case "", "en":
+			return msgs.arg(browser) + "'s sign-in"
+		case "ja":
+			return browser + " のログイン"
+		case "ko":
+			return browser + " 로그인"
+		case "zh-Hans":
+			return "使用 " + browser + " 的登录"
+		case "zh-Hant":
+			return "使用 " + browser + " 的登入"
+		}
+	}
+}
+
+// AddSheetSignInHint says "Members-only and higher-quality videos need a sign-in; passwords are never saved"
+// in the language the app shows under cx.
+//
+// Add sheet: line under the sign-in row.
+func AddSheetSignInHint(cx *core.Scope) string { return For(cx).AddSheetSignInHint() }
+
+// AddSheetSignInHint is the package's AddSheetSignInHint in the language of msgs.
+func (msgs Messages) AddSheetSignInHint() string { return msgs.text(textAddSheetSignInHint) }
+
+// AddSheetSignInNone says "Not signed in"
+// in the language the app shows under cx.
+//
+// Add sheet: option of the sign-in pop-up that borrows no browser's sign-in.
+func AddSheetSignInNone(cx *core.Scope) string { return For(cx).AddSheetSignInNone() }
+
+// AddSheetSignInNone is the package's AddSheetSignInNone in the language of msgs.
+func (msgs Messages) AddSheetSignInNone() string { return msgs.text(textAddSheetSignInNone) }
+
+// AddSheetSource says "Original lines from"
+// in the language the app shows under cx.
+//
+// Add sheet: accessible name of the choice of where the film's original lines come from.
+func AddSheetSource(cx *core.Scope) string { return For(cx).AddSheetSource() }
+
+// AddSheetSource is the package's AddSheetSource in the language of msgs.
+func (msgs Messages) AddSheetSource() string { return msgs.text(textAddSheetSource) }
+
+// AddSheetSourceLocal says "Recognize on this computer"
+// in the language the app shows under cx.
+//
+// Add sheet: radio that hears the speech with the speech recognition alone.
+func AddSheetSourceLocal(cx *core.Scope) string { return For(cx).AddSheetSourceLocal() }
+
+// AddSheetSourceLocal is the package's AddSheetSourceLocal in the language of msgs.
+func (msgs Messages) AddSheetSourceLocal() string { return msgs.text(textAddSheetSourceLocal) }
+
+// AddSheetSourcePlatform says "The uploader's subtitles"
+// in the language the app shows under cx.
+//
+// Add sheet: radio that takes the subtitles the uploader put on the site as the original lines, where they match the speech.
+func AddSheetSourcePlatform(cx *core.Scope) string { return For(cx).AddSheetSourcePlatform() }
+
+// AddSheetSourcePlatform is the package's AddSheetSourcePlatform in the language of msgs.
+func (msgs Messages) AddSheetSourcePlatform() string { return msgs.text(textAddSheetSourcePlatform) }
+
+// AddSheetSourcePlatformHint says "Checked against the speech; lines that do not match are recognized on this computer"
+// in the language the app shows under cx.
+//
+// Add sheet: line under the uploader's subtitles radio.
+func AddSheetSourcePlatformHint(cx *core.Scope) string { return For(cx).AddSheetSourcePlatformHint() }
+
+// AddSheetSourcePlatformHint is the package's AddSheetSourcePlatformHint in the language of msgs.
+func (msgs Messages) AddSheetSourcePlatformHint() string {
+	return msgs.text(textAddSheetSourcePlatformHint)
+}
+
+// AddSheetUnknown says "{host} is not among the sites Kando knows"
+// in the language the app shows under cx.
+//
+// Add sheet: bold head of the note for a site neither Kando nor yt-dlp's list knows.
+func AddSheetUnknown(cx *core.Scope, host string) string { return For(cx).AddSheetUnknown(host) }
+
+// AddSheetUnknown is the package's AddSheetUnknown in the language of msgs.
+func (msgs Messages) AddSheetUnknown(host string) string {
+	if i18n.IsPseudo(msgs.lang) {
+		return i18n.Pseudo(msgs.lang, Messages{lang: Source, mark: true}.AddSheetUnknown(host))
+	}
+	for lang := msgs.lang; ; lang = i18n.Parent(lang) {
+		if f := supplied[lang].AddSheetUnknown; f != nil {
+			return f(host)
+		}
+		switch lang {
+		case "", "en":
+			return msgs.arg(host) + " is not among the sites Kando knows"
+		case "ja":
+			return host + " は既知のサイトにありません"
+		case "ko":
+			return host + "은(는) 알려진 사이트 목록에 없습니다"
+		case "zh-Hans":
+			return host + " 不在已知网站列表中"
+		case "zh-Hant":
+			return host + " 不在已知網站清單中"
+		}
+	}
+}
+
+// AddSheetUnknownWhy says "yt-dlp tries its generic extractor first. Whether that works shows once the download starts, and the card says what to do if it does not."
+// in the language the app shows under cx.
+//
+// Add sheet: what happens to a link of a site Kando does not know.
+func AddSheetUnknownWhy(cx *core.Scope) string { return For(cx).AddSheetUnknownWhy() }
+
+// AddSheetUnknownWhy is the package's AddSheetUnknownWhy in the language of msgs.
+func (msgs Messages) AddSheetUnknownWhy() string { return msgs.text(textAddSheetUnknownWhy) }
+
+// AddSheetUntitled says "{site} video"
+// in the language the app shows under cx.
+//
+// Add sheet: how the video is named when its page gave no title, by its site or host.
+func AddSheetUntitled(cx *core.Scope, site string) string { return For(cx).AddSheetUntitled(site) }
+
+// AddSheetUntitled is the package's AddSheetUntitled in the language of msgs.
+func (msgs Messages) AddSheetUntitled(site string) string {
+	if i18n.IsPseudo(msgs.lang) {
+		return i18n.Pseudo(msgs.lang, Messages{lang: Source, mark: true}.AddSheetUntitled(site))
+	}
+	for lang := msgs.lang; ; lang = i18n.Parent(lang) {
+		if f := supplied[lang].AddSheetUntitled; f != nil {
+			return f(site)
+		}
+		switch lang {
+		case "", "en":
+			return msgs.arg(site) + " video"
+		case "ja":
+			return site + " の動画"
+		case "ko":
+			return site + " 동영상"
+		case "zh-Hans":
+			return site + " 视频"
+		case "zh-Hant":
+			return site + " 影片"
+		}
+	}
+}
+
+// AddSheetWholeList says "The whole playlist"
+// in the language the app shows under cx.
+//
+// Add sheet: radio that adds every video of the playlist the link's video is in, which the playlist dialog lists first.
+func AddSheetWholeList(cx *core.Scope) string { return For(cx).AddSheetWholeList() }
+
+// AddSheetWholeList is the package's AddSheetWholeList in the language of msgs.
+func (msgs Messages) AddSheetWholeList() string { return msgs.text(textAddSheetWholeList) }
 
 // AppSettings says "Settings…"
 // in the language the app shows under cx.
@@ -34824,6 +35572,89 @@ func (msgs Messages) PlaylistSeveral(count int) string {
 	}
 }
 
+// PlaylistSubscribe says "{kind, select, channel {Subscribe to this channel} other {Subscribe to this playlist}}"
+// in the language the app shows under cx.
+//
+// Switch of the playlist dialog: subscribe to the list as its videos are added, so new ones are added as they come out.
+func PlaylistSubscribe(cx *core.Scope, kind string) string { return For(cx).PlaylistSubscribe(kind) }
+
+// PlaylistSubscribe is the package's PlaylistSubscribe in the language of msgs.
+func (msgs Messages) PlaylistSubscribe(kind string) string {
+	if i18n.IsPseudo(msgs.lang) {
+		return i18n.Pseudo(msgs.lang, Messages{lang: Source, mark: true}.PlaylistSubscribe(kind))
+	}
+	for lang := msgs.lang; ; lang = i18n.Parent(lang) {
+		if f := supplied[lang].PlaylistSubscribe; f != nil {
+			return f(kind)
+		}
+		switch lang {
+		case "", "en":
+			var b strings.Builder
+			switch kind {
+			case "channel":
+				b.WriteString("Subscribe to this channel")
+			default:
+				b.WriteString("Subscribe to this playlist")
+			}
+			return b.String()
+		case "ja":
+			var b strings.Builder
+			switch kind {
+			case "channel":
+				b.WriteString("このチャンネルを購読")
+			default:
+				b.WriteString("この再生リストを購読")
+			}
+			return b.String()
+		case "ko":
+			var b strings.Builder
+			switch kind {
+			case "channel":
+				b.WriteString("이 채널 구독")
+			default:
+				b.WriteString("이 재생목록 구독")
+			}
+			return b.String()
+		case "zh-Hans":
+			var b strings.Builder
+			switch kind {
+			case "channel":
+				b.WriteString("订阅这个频道")
+			default:
+				b.WriteString("订阅这个播放列表")
+			}
+			return b.String()
+		case "zh-Hant":
+			var b strings.Builder
+			switch kind {
+			case "channel":
+				b.WriteString("訂閱這個頻道")
+			default:
+				b.WriteString("訂閱這個播放清單")
+			}
+			return b.String()
+		}
+	}
+}
+
+// PlaylistSubscribeHint says "New videos are added as they come out; change the rules under Subscriptions in the sidebar"
+// in the language the app shows under cx.
+//
+// Line under the subscribe switch of the playlist dialog.
+func PlaylistSubscribeHint(cx *core.Scope) string { return For(cx).PlaylistSubscribeHint() }
+
+// PlaylistSubscribeHint is the package's PlaylistSubscribeHint in the language of msgs.
+func (msgs Messages) PlaylistSubscribeHint() string { return msgs.text(textPlaylistSubscribeHint) }
+
+// PlaylistSubscribeOnly says "Subscribe"
+// in the language the app shows under cx.
+//
+// Button of the playlist dialog when the library has every video already and the subscribe switch is on: it subscribes without adding any.
+func PlaylistSubscribeOnly(cx *core.Scope) string { return For(cx).PlaylistSubscribeOnly() }
+
+// PlaylistSubscribeOnly is the package's PlaylistSubscribeOnly in the language of msgs.
+func (msgs Messages) PlaylistSubscribeOnly() string { return msgs.text(textPlaylistSubscribeOnly) }
+
 // PlaylistTimedOut says "Reading the videos took too long. Try again later."
 // in the language the app shows under cx.
 //
@@ -39740,6 +40571,43 @@ func (msgs Messages) SettingsGeneralBackground() string {
 	return msgs.text(textSettingsGeneralBackground)
 }
 
+// SettingsGeneralBookmarklet says "Bookmarklet"
+// in the language the app shows under cx.
+//
+// Row of Settings › General › Browser Extension: the bookmarklet that sends a video's page to Kando from any browser.
+func SettingsGeneralBookmarklet(cx *core.Scope) string { return For(cx).SettingsGeneralBookmarklet() }
+
+// SettingsGeneralBookmarklet is the package's SettingsGeneralBookmarklet in the language of msgs.
+func (msgs Messages) SettingsGeneralBookmarklet() string {
+	return msgs.text(textSettingsGeneralBookmarklet)
+}
+
+// SettingsGeneralBookmarkletCopy says "Copy Code"
+// in the language the app shows under cx.
+//
+// Button of the bookmarklet row that puts its code on the clipboard.
+func SettingsGeneralBookmarkletCopy(cx *core.Scope) string {
+	return For(cx).SettingsGeneralBookmarkletCopy()
+}
+
+// SettingsGeneralBookmarkletCopy is the package's SettingsGeneralBookmarkletCopy in the language of msgs.
+func (msgs Messages) SettingsGeneralBookmarkletCopy() string {
+	return msgs.text(textSettingsGeneralBookmarkletCopy)
+}
+
+// SettingsGeneralBookmarkletHint says "For any browser: make a bookmark whose address is the copied code, then click it on a video's page"
+// in the language the app shows under cx.
+//
+// Line under the bookmarklet row in Settings › General.
+func SettingsGeneralBookmarkletHint(cx *core.Scope) string {
+	return For(cx).SettingsGeneralBookmarkletHint()
+}
+
+// SettingsGeneralBookmarkletHint is the package's SettingsGeneralBookmarkletHint in the language of msgs.
+func (msgs Messages) SettingsGeneralBookmarkletHint() string {
+	return msgs.text(textSettingsGeneralBookmarkletHint)
+}
+
 // SettingsGeneralBrowser says "Browser Extension"
 // in the language the app shows under cx.
 //
@@ -39918,6 +40786,32 @@ func SettingsGeneralBrowserShowFolder(cx *core.Scope) string {
 // SettingsGeneralBrowserShowFolder is the package's SettingsGeneralBrowserShowFolder in the language of msgs.
 func (msgs Messages) SettingsGeneralBrowserShowFolder() string {
 	return msgs.text(textSettingsGeneralBrowserShowFolder)
+}
+
+// SettingsGeneralBrowserStartAtOnce says "Start as soon as a link arrives"
+// in the language the app shows under cx.
+//
+// Switch in Settings › General › Browser Extension: a video the extension sends is added at once, without the Add sheet.
+func SettingsGeneralBrowserStartAtOnce(cx *core.Scope) string {
+	return For(cx).SettingsGeneralBrowserStartAtOnce()
+}
+
+// SettingsGeneralBrowserStartAtOnce is the package's SettingsGeneralBrowserStartAtOnce in the language of msgs.
+func (msgs Messages) SettingsGeneralBrowserStartAtOnce() string {
+	return msgs.text(textSettingsGeneralBrowserStartAtOnce)
+}
+
+// SettingsGeneralBrowserStartAtOnceHint says "When off, Kando asks first, so you can choose the quality, the original lines and the sign-in"
+// in the language the app shows under cx.
+//
+// Line under the start-at-once switch in Settings › General.
+func SettingsGeneralBrowserStartAtOnceHint(cx *core.Scope) string {
+	return For(cx).SettingsGeneralBrowserStartAtOnceHint()
+}
+
+// SettingsGeneralBrowserStartAtOnceHint is the package's SettingsGeneralBrowserStartAtOnceHint in the language of msgs.
+func (msgs Messages) SettingsGeneralBrowserStartAtOnceHint() string {
+	return msgs.text(textSettingsGeneralBrowserStartAtOnceHint)
 }
 
 // SettingsGeneralCLI says "Command Line & MCP"
@@ -41372,7 +42266,7 @@ func SettingsKeywordsAccount(cx *core.Scope) string { return For(cx).SettingsKey
 // SettingsKeywordsAccount is the package's SettingsKeywordsAccount in the language of msgs.
 func (msgs Messages) SettingsKeywordsAccount() string { return msgs.text(textSettingsKeywordsAccount) }
 
-// SettingsKeywordsGeneral says "library location Finder File Explorer file manager interface language version components yt-dlp ffmpeg whisper-cli detect again command line terminal kando install MCP Claude Code Cursor copy config update notifications notify browser sign-in signed in cookies members-only age-restricted Chrome Safari Firefox Edge Brave Chromium keychain Full Disk Access appearance light dark mode follow system"
+// SettingsKeywordsGeneral says "library location Finder File Explorer file manager interface language version components yt-dlp ffmpeg whisper-cli detect again command line terminal kando install MCP Claude Code Cursor copy config update notifications notify browser sign-in signed in cookies members-only age-restricted Chrome Safari Firefox Edge Brave Chromium keychain Full Disk Access appearance light dark mode follow system bookmarklet bookmark start at once"
 // in the language the app shows under cx.
 //
 // Search keywords of the General settings section, separated by spaces, besides its title. Not shown; the sidebar's search finds the section by them. Use the words the section's page shows.

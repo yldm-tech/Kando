@@ -418,6 +418,22 @@ func (a *app) subscribeQueueIn(dir, source string) error {
 	return nil
 }
 
+// subscribeFollow has the open library subscribe to the list at source, whose videos listing holds now count as seen, as the playlist dialog's switch asks when it adds them; a list the library follows already, a library that is locked or none open, is left as it is. It reports whether it subscribed.
+func (a *app) subscribeFollow(source string, listing media.Listing) bool {
+	dir := a.snap().LibraryDir
+	if strings.TrimSpace(dir) == "" || a.lockShut() {
+		return false
+	}
+	if _, ok := a.subs.store.Following(source, dir); ok {
+		return false
+	}
+	sub := subscribe.New(source, dir, listing, time.Now())
+	a.subs.store.Subs = append(a.subs.store.Subs, sub)
+	a.subscribeSave()
+	a.subs.notes[sub.ID] = subscribeNote{Note: subscribe.Note{Kind: subscribe.NoteSubscribed, Text: sub.Name}}
+	return true
+}
+
 // subscribeAskClose closes the dialog a link is pasted in, stops its reading and gives back the window's modal flag.
 func (a *app) subscribeAskClose() {
 	ask := a.subs.ask

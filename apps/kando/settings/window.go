@@ -72,6 +72,9 @@ type App interface {
 	ConnectBrowsers()
 	DisconnectBrowsers()
 	ShowExtensionFolder()
+	// LinkStartAtOnce is the card's 链接到达后立即开始: a link the browser extension sends is added at once rather than on the Add sheet. SetLinkStartAtOnce turns it on or off; the page saves after it.
+	LinkStartAtOnce() bool
+	SetLinkStartAtOnce(on bool)
 	// SignIn is the browser whose sign-in every download borrows and what the last check of it found, which the 浏览器登录 card shows. SetSignInBrowser chooses one, "" for none, saves it and checks its sign-in at once, off the UI thread, which on macOS asks the user to allow its key in the Keychain the first time; CheckSignIn checks it again. OpenFullDiskAccess opens the pane of System Settings that lets Kando read Safari's sign-in.
 	SignIn() SignIn
 	SetSignInBrowser(id string)
