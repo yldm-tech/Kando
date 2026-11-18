@@ -252,18 +252,38 @@ func TestScreenshotsTablet(t *testing.T) {
 	shot(p, "player-tablet")
 }
 
+func TestScreenshotsPlayerRecap(t *testing.T) {
+	shot := screenshots(t)
+	d := newDesktop(t)
+	d.SetRecap(sync.RecapItem{StartMS: 1000, Text: "两人在早上见面，互相问候。"}, sync.RecapItem{StartMS: 3000, Text: "一方问对方最近过得怎么样。"}, sync.RecapItem{StartMS: 5000, Text: "对方说一切都好，并道谢。"})
+	p := openStudyAt(t, d, 6*sec)
+	p.app.WaitFor("id:player-recap-note", wait)
+	shot(p, "player-recap")
+}
+
 func TestScreenshotsPlayerStudy(t *testing.T) {
 	shot := screenshots(t)
 	d := newDesktop(t)
 	d.SetEntry("morning", sync.WordEntry{Word: "morning", Reading: "/ˈmɔːnɪŋ/", Meaning: "n. 早晨；上午。这里和 good 连用，是早上见面时的问候。", Language: "简体中文"})
-	d.SetExplanation("整句是早上见面时的问候，相当于「早上好」。\n\nGood morning 是固定说法，不说 good morning to you 也同样自然。")
+	d.SetExplanationSections(
+		sync.ExplainSection{Kind: sync.ExplainMeaning, Text: "整句是早上见面时的问候，相当于「早上好」。"},
+		sync.ExplainSection{Kind: sync.ExplainBreakdown, Text: "good morning · 早上好，早上见面时的固定问候"},
+		sync.ExplainSection{Kind: sync.ExplainTone, Text: "轻松、友好，熟人和陌生人之间都能用。"},
+	)
 	// Without reporting the video's progress, which a target cannot, the card shows the first line.
 	p, _ := openStudy(t, d)
 	shot(p, "player-card")
 	p.app.Press("id:player-save")
 	p.app.Press("id:player-explain-line")
-	p.app.WaitFor("id:player-explain-text", wait)
+	p.app.WaitFor("id:player-explain-note", wait)
 	shot(p, "player-explain")
+	p.app.Press("id:player-explain-more")
+	p.app.Type("id:player-explain-ask", "晚上能说吗？")
+	p.app.Press("id:player-explain-send")
+	p.app.WaitUntil(wait, func() bool {
+		return len(p.app.Query("id:player-explain-answer")) == 1 && p.app.Find("id:player-explain-answer").Text != msgs.PlayerExplainAnswering()
+	})
+	shot(p, "player-explain-follow-up")
 	p.app.Press("id:player-explain-close")
 	p.app.Press("id:player-tab-notes")
 	p.app.WaitFor("id:player-saved-line", wait)

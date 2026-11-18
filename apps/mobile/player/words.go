@@ -323,7 +323,10 @@ func explainSheet(cx *core.Scope, p *play, w *words) core.Node {
 	colors := ui.ColorsOf(cx)
 	e := func() explanation { return w.explain.Get() }
 	ai := func() core.Color { return theme.AI }
-	ready := func() bool { x := e(); return !x.busy && !x.failed && (len(x.answer.Sections) > 0 || x.answer.Text != "") }
+	ready := func() bool {
+		x := e()
+		return !x.busy && !x.failed && (len(x.answer.Sections) > 0 || x.answer.Text != "")
+	}
 	by := func() string {
 		x := e().answer
 		if x.Local {
@@ -469,4 +472,3 @@ func explainHeading(cx *core.Scope, kind string) string {
 	}
 	return ""
 }
-
