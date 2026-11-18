@@ -120,8 +120,7 @@ func main() {
 	if code, ok := cli.Main(os.Args[1:], appVersion); ok {
 		os.Exit(code)
 	}
-	// One copy of Kando runs per user, as two would both write library.json and settings.json. A second launch reopens the first (run's OnReopen), which brings its window forward, and hands it the files it names (run's OnOpenFiles): on macOS LaunchServices runs one instance of the bundle, on Windows and Linux nsgo.Run hands the launch to the running copy and ends.
-	// TODO(nsgo#332): let a copy started with KANDO_SOCKET run beside the user's own on Windows and Linux, as it does on macOS (remote.launchCommand's open -n) and as MyGo's RequestSingleInstanceLock let Kando decide; nsgo.Run hands every launch of the app's ID to the running copy, so the command line waits on a socket nothing listens on https://github.com/nsgo-dev/nsgo/issues/332
+	// One copy of Kando runs per user, as two would both write library.json and settings.json. A second launch reopens the first (run's OnReopen), which brings its window forward, and hands it the files it names (run's OnOpenFiles): on macOS LaunchServices runs one instance of the bundle, on Windows and Linux nsgo.Run hands the launch to the running copy and ends. A copy started with KANDO_SOCKET, as tests and the command line's second copy start it, runs beside the user's own: on macOS through open -n (remote.launchCommand), on Windows and Linux under an instance lock of its socket's own (nsgo.InstanceKey).
 	// The programs Kando downloads for itself go beside its settings, and are looked up before those on PATH.
 	media.OwnToolsDir = filepath.Join(filepath.Dir(shelf.DefaultPath()), "tools")
 	// A new library goes in the videos folder the system names, as Windows' when it was moved, rather than always in ~/Videos.
@@ -147,6 +146,9 @@ func main() {
 		nsgo.WindowConstraints(core.WindowConstraints{MinWidth: 900, MinHeight: 560}),
 		nsgo.Appearance(theme.Appearance),
 		nsgo.WindowMaterial(sidebarMaterial()),
+	}
+	if socket := os.Getenv("KANDO_SOCKET"); socket != "" {
+		opts = append(opts, nsgo.InstanceKey(socket))
 	}
 	if f, ok := a.windowFrame(); ok {
 		opts = append(opts, nsgo.WindowFrame(f))
