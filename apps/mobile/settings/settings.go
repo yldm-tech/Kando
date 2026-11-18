@@ -1,4 +1,4 @@
-// Package settings is the Settings tab: the computers the phone is paired with, each of which it can unpair, and the way to pair another; the language subtitles are translated into, which the computers translate into too, and how the player draws them; the phone's own daily goal and review reminder; and where Kando's source is, with the introduction to see again. It has the page the phone shows once a computer no longer takes it too (revoked.go).
+// Package settings is the Settings tab: the computers the phone is paired with, each of which it can unpair, and the way to pair another; the language subtitles are translated into, which the computers translate into too, and how the player draws them; the phone's own daily goal and review reminder, its widgets on iOS (widgets.go) and a tablet's keyboard shortcuts (shortcuts.go); and where Kando's source is, with the introduction to see again. It has the page the phone shows once a computer no longer takes it too (revoked.go).
 package settings
 
 import (
@@ -18,9 +18,10 @@ import (
 	"github.com/nsgo-dev/nsgo/ui"
 )
 
-// Actions are where the tab leads; Unpaired runs once the user unpaired computer id, for the pages of it to go.
+// Actions are where the tab leads; Unpaired runs once the user unpaired computer id, for the pages of it to go. Shortcuts opens the keyboard shortcuts, which a tablet lists, and Widgets the widgets, which iOS has.
 type Actions struct {
 	Pair, Target, Style, Goal, Introduction func()
+	Shortcuts, Widgets                      func()
 	Unpaired                                func(id string)
 }
 
@@ -59,18 +60,7 @@ func Page(cx *core.Scope, s *session.Session, act Actions) base.NavPage {
 							return sizeName(cx, st.Size) + " · " + colorName(cx, st.Color)
 						},
 						OnPress: act.Style}),
-				section(cx, func() string { return locales.SettingsThisDevice(cx) },
-					look.Row{TestID: "settings-goal", Inset: 56, Chevron: true,
-						Leading: look.IconTile(cx, lucide.Target, look.ToneAccent),
-						Title:   func() string { return locales.SettingsGoal(cx) },
-						Value:   func() string { return locales.SettingsGoalValue(cx, s.Goal()) },
-						OnPress: act.Goal},
-					look.Row{TestID: "settings-remind", Index: func() int { return 1 }, Inset: 56, TitleLines: 1,
-						Leading: look.IconTile(cx, lucide.Bell, look.ToneAccent),
-						Title:   func() string { return locales.SettingsRemind(cx) },
-						Detail:  func() string { return locales.SettingsRemindDetail(cx, learning.ReminderHour) },
-						Trailing: ui.Switch{TestID: "settings-remind-switch", Label: locales.SettingsRemind(cx), Variant: ui.SwitchSystem,
-							Checked: func() bool { return s.Prefs().Remind }, OnChange: s.SetRemind}}),
+				section(cx, func() string { return locales.SettingsThisDevice(cx) }, deviceRows(cx, s, act)...),
 				section(cx, func() string { return locales.SettingsAbout(cx) },
 					look.Row{TestID: "settings-source", Inset: 56,
 						Leading: look.IconTile(cx, lucide.Code, look.ToneAccent),
@@ -84,6 +74,39 @@ func Page(cx *core.Scope, s *session.Session, act Actions) base.NavPage {
 			}},
 		}},
 	}}, title, nil, nil)
+}
+
+// deviceRows are the rows of what this phone or tablet does on its own: its daily goal and review reminder, its widgets on iOS, which alone has them, and the keyboard shortcuts on a tablet, which is the one used with a hardware keyboard.
+func deviceRows(cx *core.Scope, s *session.Session, act Actions) []core.Node {
+	rows := []core.Node{
+		look.Row{TestID: "settings-goal", Inset: 56, Chevron: true,
+			Leading: look.IconTile(cx, lucide.Target, look.ToneAccent),
+			Title:   func() string { return locales.SettingsGoal(cx) },
+			Value:   func() string { return locales.SettingsGoalValue(cx, s.Goal()) },
+			OnPress: act.Goal},
+		look.Row{TestID: "settings-remind", Index: func() int { return 1 }, Inset: 56, TitleLines: 1,
+			Leading: look.IconTile(cx, lucide.Bell, look.ToneAccent),
+			Title:   func() string { return locales.SettingsRemind(cx) },
+			Detail:  func() string { return locales.SettingsRemindDetail(cx, learning.ReminderHour) },
+			Trailing: ui.Switch{TestID: "settings-remind-switch", Label: locales.SettingsRemind(cx), Variant: ui.SwitchSystem,
+				Checked: func() bool { return s.Prefs().Remind }, OnChange: s.SetRemind}},
+	}
+	if cx.Env().OS() == core.OSIOS && act.Widgets != nil {
+		i := len(rows)
+		rows = append(rows, look.Row{TestID: "settings-widgets", Index: func() int { return i }, Inset: 56, Chevron: true,
+			Leading: look.IconTile(cx, lucide.LayoutGrid, look.ToneAccent),
+			Title:   func() string { return locales.SettingsWidgets(cx) },
+			OnPress: act.Widgets})
+	}
+	if look.Tablet(cx) && act.Shortcuts != nil {
+		i := len(rows)
+		rows = append(rows, look.Row{TestID: "settings-shortcuts", Index: func() int { return i }, Inset: 56, Chevron: true,
+			Leading: look.IconTile(cx, lucide.Keyboard, look.ToneAccent),
+			Title:   func() string { return locales.SettingsShortcuts(cx) },
+			Value:   func() string { return locales.SettingsShortcutsValue(cx) },
+			OnPress: act.Shortcuts})
+	}
+	return rows
 }
 
 // section is a titled group of rows.

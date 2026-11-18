@@ -651,6 +651,13 @@ func (s *Session) Poster(ctx context.Context, c *sync.Client, desktop, id string
 	return data, nil
 }
 
+// KnownPoster is the poster of the film under key that Poster has fetched this session, nil for none: it may be called from any goroutine, as the widgets read it (kando/apps/mobile/widgets).
+func (s *Session) KnownPoster(key string) []byte {
+	s.postersMu.Lock()
+	defer s.postersMu.Unlock()
+	return s.posters[key]
+}
+
 func (s *Session) start(f store.Film) {
 	key := f.Key()
 	if j, running := s.jobs[key]; running || f.Done() {

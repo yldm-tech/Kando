@@ -29,6 +29,8 @@ type Actions struct {
 	Play func(key string)
 	// Add opens the Add sheet, and Jobs the Jobs page, which a tablet shows as a section of its own instead.
 	Add, Jobs func()
+	// Searches counts the times the user asked for the search from the keyboard (shortcuts.Search): the tab focuses its search field each time it grows. Nil for none.
+	Searches func() int
 }
 
 // view is the tab's state: what the user searched for, and the source and the library the list is narrowed to, none for all.
@@ -41,6 +43,8 @@ type view struct {
 	library *core.Signal[catalog.Scope]
 	entries *core.Memo[[]catalog.Entry]
 	lines   *core.Resource[map[string][]sync.Cue]
+	// field is the search field's.
+	field *core.Ref
 }
 
 // Page is the tab's root page.
@@ -50,6 +54,7 @@ func Page(cx *core.Scope, s *session.Session, act Actions) base.NavPage {
 		source:  core.NewSignal(cx, ""),
 		library: core.NewSignal(cx, catalog.Scope{}),
 		entries: core.NewMemoFunc(cx, s.Entries, nil),
+		field:   &core.Ref{},
 	}
 	// The lines kept on the phone are read for a search once there is one, and again as the films on the phone change. Both inputs are memos, so typing on or a saved position, which change neither, does not read them again: the resource loads afresh whenever its source reruns.
 	searching := core.NewMemo(cx, func() bool { return v.query.Get() != "" })
@@ -65,6 +70,16 @@ func Page(cx *core.Scope, s *session.Session, act Actions) base.NavPage {
 			v.library.Set(catalog.Scope{})
 		}
 	})
+	if act.Searches != nil {
+		// The search asked for from another tab shows with this one, which the shell selects first: the field is focused once it has.
+		asked := act.Searches()
+		cx.Effect(func() {
+			if n := act.Searches(); n != asked {
+				asked = n
+				cx.Post(v.field.Focus)
+			}
+		})
+	}
 	title := func() string { return locales.FilmsTitle(cx) }
 	pulled := core.NewSignal(cx, false)
 	cx.Effect(func() {
@@ -144,7 +159,7 @@ func (v *view) resumable() []catalog.Entry { return catalog.Continue(v.scoped(),
 func (v *view) search(cx *core.Scope) core.Node {
 	colors := ui.ColorsOf(cx)
 	return core.View{Children: []core.Node{
-		ui.Input{TestID: "films-search", Role: core.RoleSearchField, Value: v.query.Get, OnChange: v.query.Set,
+		ui.Input{TestID: "films-search", Ref: v.field, Role: core.RoleSearchField, Value: v.query.Get, OnChange: v.query.Set,
 			PlaceholderFunc: func() string { return locales.FilmsSearch(cx) }, LabelFunc: func() string { return locales.FilmsSearch(cx) },
 			ReturnKeyType: core.ReturnKeySearch, AutoCapitalize: core.AutoCapitalizeNone, NoAutoCorrect: true,
 			Style: core.Style{Height: core.Pt(40), FontSize: 16, CornerRadius: 11, BorderWidth: 0, Padding: core.Edges{Left: 36, Right: 12}},

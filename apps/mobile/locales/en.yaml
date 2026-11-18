@@ -1174,6 +1174,15 @@ settingsRemindDetail:
   description: "Under the review reminder's switch: when it shows."
   placeholders:
     hour: { type: "int", example: "21" }
+settingsShortcuts:
+  message: "Keyboard Shortcuts"
+  description: "Row of Settings on a tablet, and the title of its page: the shortcuts of a hardware keyboard."
+settingsShortcutsNote:
+  message: "These work while a hardware keyboard is connected."
+  description: "Over the list of keyboard shortcuts."
+settingsShortcutsValue:
+  message: "Hardware Keyboard"
+  description: "At the end of the Keyboard Shortcuts row: what they are for."
 settingsSource:
   message: "Source Code"
   description: "Row in Settings that opens Kando's source code on GitHub."
@@ -1195,6 +1204,50 @@ settingsThisDevice:
 settingsTitle:
   message: "Settings"
   description: "Tab and title of Settings."
+settingsWidgets:
+  message: "Widgets"
+  description: "Row of Settings on an iPhone or iPad, and the title of its page: the app's Home Screen and Lock Screen widgets."
+settingsWidgetsHow:
+  message: "Touch and hold the Home Screen or the Lock Screen, tap Edit, then Add Widget, and search for “{app}”."
+  description: "Top of the Widgets page: how to add one. app is the app's name."
+  placeholders:
+    app: { type: "String", example: "Kando" }
+settingsWidgetsLockScreen:
+  message: "Lock Screen"
+  description: "Beside the preview of the Lock Screen widget."
+shortcutsAdd:
+  message: "Add a Video"
+  description: "A keyboard shortcut: the Add sheet."
+shortcutsExplain:
+  message: "Explain This Line"
+  description: "A keyboard shortcut: have the computer's AI explain the line."
+shortcutsJoin:
+  message: ", "
+  description: "Between the names of the sections in the row of the shortcuts that go to them, as Library, Learn, Jobs, Settings."
+shortcutsLines:
+  message: "Previous / Next Line"
+  description: "A keyboard shortcut: play from the line before or after."
+shortcutsLoop:
+  message: "Loop This Line"
+  description: "A keyboard shortcut: loop the line, or stop looping."
+shortcutsPlayPause:
+  message: "Play / Pause"
+  description: "A keyboard shortcut: start or hold the film."
+shortcutsReplay:
+  message: "Replay This Line"
+  description: "A keyboard shortcut: play the line again."
+shortcutsSave:
+  message: "Save This Line"
+  description: "A keyboard shortcut: save the line, or take it back."
+shortcutsSearch:
+  message: "Search Films and Lines"
+  description: "A keyboard shortcut: the Library's search."
+shortcutsSpace:
+  message: "Space"
+  description: "The space bar, as a keyboard shortcut's key."
+shortcutsSubtitles:
+  message: "Switch Subtitles: Bilingual / Original / Translation / Hidden"
+  description: "A keyboard shortcut: the next subtitle mode, in this order."
 styleBottom:
   message: "Bottom of the Picture"
   description: "Subtitle position: at the foot of the picture."
@@ -1254,3 +1307,42 @@ vocabRemoveTitle:
   description: "Title of the alert that removes a word."
   placeholders:
     word: { type: "String", example: "river" }
+widgetContinue:
+  message: "Continue"
+  description: "Over the film of the Continue widget."
+widgetContinuePercent:
+  message: "Continue · {percent}%"
+  description: "Over the film of the wide Continue widget: how far it was watched."
+  placeholders:
+    percent: { type: "int", example: "42" }
+widgetDays:
+  message: "{count, plural, one {day} other {days}}"
+  description: "After the big number of the streak widget: days in a row films played."
+  placeholders:
+    count: { type: "int", example: "5" }
+widgetDue:
+  message: "{count, plural, =0 {Nothing to review} one {# to review} other {# to review}}"
+  description: "In a widget: how many words and lines are due for review."
+  placeholders:
+    count: { type: "int", example: "12" }
+widgetDueShort:
+  message: "to review"
+  description: "Under the number of the Lock Screen widget: words and lines due for review."
+widgetFoot:
+  message: "{due, plural, one {# to review} other {# to review}} · {streak, plural, one {#-day streak} other {#-day streak}}"
+  description: "Foot of the wide Continue widget: words and lines due, and days in a row films played."
+  placeholders:
+    due: { type: "int", example: "12" }
+    streak: { type: "int", example: "5" }
+widgetNoFilm:
+  message: "Nothing to continue"
+  description: "The Continue widget while no film was left partway."
+widgetNoFilmHint:
+  message: "Films you leave partway show here."
+  description: "Under Nothing to continue in the Continue widget."
+widgetStreak:
+  message: "Streak"
+  description: "Top of the streak widget, beside a flame."
+widgetTapToReview:
+  message: "Tap to review"
+  description: "Foot of the streak widget."

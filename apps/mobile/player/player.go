@@ -71,6 +71,7 @@ func Page(cx *core.Scope, s *session.Session, key string, back func()) base.NavP
 	panelOn := core.NewSignal(cx, false)
 	settingsOpen := core.NewSignal(cx, false)
 	w := newWords(cx, p)
+	keys(cx, p, w)
 
 	video := core.Video{TestID: "player-video", Ref: p.ref, Label: f.Film.Title,
 		Source:           filepath.Join(s.Store().FilmDir(f.Desktop, f.Film.ID), f.Video),
