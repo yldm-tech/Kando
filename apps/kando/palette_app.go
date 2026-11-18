@@ -23,6 +23,7 @@ import (
 	"kando/packages/media"
 
 	"github.com/nsgo-dev/nsgo/core"
+	nsdesktop "github.com/nsgo-dev/nsgo/desktop"
 )
 
 // The command palette's behavior: what it finds for the query, what choosing a row does, and asking the AI service about the open film. package palette draws it.
@@ -295,7 +296,7 @@ func (a *app) paletteLines() []paletteHit {
 	return out
 }
 
-// paletteCommands are the commands the palette offers now, their labels in the language the app shows under cx: in the player, the subtitle modes it is not in; then every row of the shortcut table that applies now but the palette's own and the screen the window shows already, the player's first while a film is open; then a row for each settings section.
+// paletteCommands are the commands the palette offers now, their labels in the language the app shows under cx: in the player, the subtitle modes it is not in; then every row of the shortcut table that applies now, and where there is no menu bar its own items (chromeCommands), but the palette's own and the screen the window shows already, the player's first while a film is open, a submenu's row as a row for each of its items (paletteSubmenu); then a row for each settings section.
 func (a *app) paletteCommands(cx *core.Scope) []paletteCommand {
 	var out []paletteCommand
 	_, inFilm := a.paletteOpenFilm()
@@ -310,7 +311,7 @@ func (a *app) paletteCommands(cx *core.Scope) []paletteCommand {
 			}})
 		}
 	}
-	rows := slices.Clone(a.shortcuts(cx))
+	rows := slices.Concat(a.shortcuts(cx), a.chromeCommands(cx))
 	if inFilm {
 		rank := func(group string) int {
 			switch group {
@@ -326,7 +327,11 @@ func (a *app) paletteCommands(cx *core.Scope) []paletteCommand {
 		slices.SortStableFunc(rows, func(x, y shortcut) int { return rank(x.Group) - rank(y.Group) })
 	}
 	for _, s := range rows {
-		if s.Run == nil || (s.When != nil && !s.When()) {
+		if s.When != nil && !s.When() {
+			continue
+		}
+		if s.Run == nil {
+			out = append(out, paletteSubmenu(s.Label, groupTitle(cx, s.Group), s.Items)...)
 			continue
 		}
 		if s.Key == paletteKey {
@@ -339,6 +344,24 @@ func (a *app) paletteCommands(cx *core.Scope) []paletteCommand {
 	}
 	for _, id := range settings.IDs() {
 		out = append(out, paletteCommand{label: locales.PaletteSettingsSection(cx, settings.Title(cx, id)), run: func() { a.OpenSettings(id) }})
+	}
+	return out
+}
+
+// paletteSubmenu are the palette's rows for the items of a row of the menu bar that is a submenu (shortcut.Items), such as 排序方式 or 切换资料库, named after it ("排序方式 › 名称"), so the palette reaches them where no menu bar shows them: the items that do something now, but not a checked one, which is the choice already made. Their OnSelect runs once the palette has closed, after the modal flag it held is given back (paletteRun), which menuSelect checks.
+func paletteSubmenu(label, group string, items func() []nsdesktop.MenuItem) []paletteCommand {
+	if items == nil {
+		return nil
+	}
+	var out []paletteCommand
+	for _, it := range items() {
+		switch {
+		case it.Separator, it.Disabled, it.Checked:
+		case it.Items != nil:
+			out = append(out, paletteSubmenu(label+" › "+it.Label, group, func() []nsdesktop.MenuItem { return it.Items })...)
+		case it.OnSelect != nil:
+			out = append(out, paletteCommand{label: label + " › " + it.Label, group: group, run: it.OnSelect})
+		}
 	}
 	return out
 }

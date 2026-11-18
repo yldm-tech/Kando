@@ -3,6 +3,7 @@ package sidebar
 import (
 	"strings"
 
+	"kando/apps/kando/chrome"
 	"kando/apps/kando/hotkey"
 	"kando/apps/kando/live"
 	"kando/apps/kando/locales"
@@ -50,7 +51,7 @@ var (
 	failedDot  = theme.StatusFailed
 )
 
-// footer is the status card pinned to the bottom of the sidebar: an 8-point dot, green when a job can start and orange when something is missing, the message saying which, a gear that opens the settings where it is fixed, and before the gear, where the app has no menu bar (PaletteButton), a button that opens the command palette, its key in its tooltip.
+// footer is the status card pinned to the bottom of the sidebar: an 8-point dot, green when a job can start and orange when something is missing, the message saying which, a gear that opens the settings where it is fixed, and before the gear, where the app has neither a menu bar (PaletteButton) nor a title bar with the palette's button (package chrome, on Windows and Linux), a button that opens the command palette, its key in its tooltip.
 type footer struct{ a App }
 
 // Render implements core.Node.
@@ -76,7 +77,7 @@ func (f footer) Render(cx *core.Scope) core.Node {
 	gear := ui.IconButton{Icon: svg(iconGear), LabelFunc: func() string { return locales.SidebarSettings(cx) }, Size: 26, Tint: k.Strong, TestID: "sidebar-settings",
 		OnPress: live.Do(a, func() { a.OpenSettings(a.Readiness().Section) })}
 	buttons := []core.Node{dot, message}
-	if a.PaletteButton() {
+	if a.PaletteButton() && chrome.KindOf(cx) == chrome.None {
 		// The palette's button is the gear's twin, so the two read as the card's pair of actions.
 		palette := ui.IconButton{Icon: lucide.Command, LabelFunc: func() string { return locales.SidebarCommands(cx) }, Size: 26, Tint: k.Strong, TestID: "sidebar-palette",
 			OnPress: live.Do(a, a.TogglePalette)}

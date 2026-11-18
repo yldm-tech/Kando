@@ -371,6 +371,21 @@ cheatsheetTitle:
 cheatsheetVolume:
   message: "Volume Up / Down"
   description: "Cheat sheet line for the ↑ and ↓ keys in the player."
+chromeClose:
+  message: "Close"
+  description: "Accessible name of the round close button at the right end of the window's header bar on Linux, which closes the window."
+chromeMaximize:
+  message: "Maximize"
+  description: "Accessible name of the round button in the window's header bar on Linux that maximizes the window, and the command palette's row that does so on Windows and Linux."
+chromeMinimize:
+  message: "Minimize"
+  description: "Accessible name of the round button in the window's header bar on Linux that minimizes the window."
+chromeRestore:
+  message: "Restore"
+  description: "Accessible name of the header bar's maximize button on Linux while the window is maximized, and the command palette's row that takes the window back to its size, as Windows names it."
+chromeSearch:
+  message: "Search commands and lines"
+  description: "Button in the window's title bar on Windows and Linux that opens the command palette, which finds commands, films and subtitle lines already watched. Its shortcut (Ctrl+K) shows after it."
 cloudSignedIn:
   message: "Signed in. You can close this page."
   description: "The browser page Google's sign-in returns to, once the app has the sign-in."

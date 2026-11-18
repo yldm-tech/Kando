@@ -876,13 +876,19 @@ func TestFindKeepsSearchingSubtitlesInAFilm(t *testing.T) {
 	}
 }
 
-// TestSidebarOpensThePaletteWithoutAMenuBar checks that where the app has no menu bar of its own, as on Windows and Linux, the status card has a button that opens the command palette, which lists the shortcut cheat sheet first, its tooltip naming the key as the platform writes it; and that where the menu bar carries the palette and the cheat sheet, as on macOS, it has none.
+// TestSidebarOpensThePaletteWithoutAMenuBar checks that where the app has no menu bar of its own and no title bar with the palette's button, the status card has a button that opens the command palette, which lists the shortcut cheat sheet first, its tooltip naming the key as the platform writes it; that on Windows and Linux, whose title bar has that button (package chrome), the card has none; and that where the menu bar carries the palette and the cheat sheet, as on macOS, it has none.
 func TestSidebarOpensThePaletteWithoutAMenuBar(t *testing.T) {
 	keep := appMenuBar
 	t.Cleanup(func() { appMenuBar = keep })
 	appMenuBar = false
-	usePlatform(t, ns.OSWindows)
 	msgs := testlocale.Messages()
+	for _, os := range []ns.OS{ns.OSWindows, ns.OSLinux} {
+		usePlatform(t, os)
+		if _, tt, _ := newTestApp(t, &fakePipeline{}); tt.Exists("id:sidebar-palette") {
+			t.Fatalf("%v: the status card has the palette's button beside the title bar's", os)
+		}
+	}
+	usePlatform(t, ns.OSMacOS)
 	a, tt, _ := newTestApp(t, &fakePipeline{})
 	if got := tt.Find("id:sidebar-palette").Props.Label; got != msgs.SidebarCommands() {
 		t.Fatalf("the status card's palette button is named %q", got)
@@ -890,7 +896,7 @@ func TestSidebarOpensThePaletteWithoutAMenuBar(t *testing.T) {
 	tt.Hover("id:sidebar-palette")
 	tt.Advance(time.Second)
 	refresh(tt, a)
-	wantText(t, tt, msgs.SidebarCommandsTooltip("Ctrl+K"))
+	wantText(t, tt, msgs.SidebarCommandsTooltip("⌘K"))
 	tt.Press("id:sidebar-palette")
 	refresh(tt, a)
 	if !a.palette.open {
