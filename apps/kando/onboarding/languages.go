@@ -55,6 +55,9 @@ func Known(code string) bool { return slices.Contains(tileCodes, code) }
 // LanguageCode is the language the target language target is written in, "" for one Kando does not know.
 func LanguageCode(target string) string { return core.BaseLanguage(core.TargetTag(target)) }
 
+// targetTag is the BCP 47 tag of the target language the settings keep, as zh-Hans for 简体中文, "" for one Kando does not know.
+func targetTag(target string) string { return core.TargetTag(target) }
+
 // Effective is the languages chosen in learning that the first step shows as chosen: those whose tiles it shows for target, in the tiles' order.
 func Effective(learning []string, target string) []string {
 	var out []string

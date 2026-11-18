@@ -260,7 +260,7 @@ func (a *app) ExportSaved() {
 	}
 	a.savedSync()
 	a.OpenSavedSheet()
-	a.pickFolder(func(dir string) {
+	a.pickFolder(core.PickDirectoriesOptions{}, func(dir string) {
 		a.savedStopExport()
 		ctx, cancel := context.WithCancel(context.Background())
 		a.saved.export.gen++

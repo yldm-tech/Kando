@@ -7,6 +7,7 @@ import (
 	"net/url"
 	"path/filepath"
 	"slices"
+	"strings"
 	"testing"
 	"time"
 
@@ -75,6 +76,7 @@ type fakeApp struct {
 	focus      bool
 	focused    bool
 	osd        string
+	lookup     Lookup
 	info       Info
 	upload     Upload
 	uploadNote bool
@@ -89,6 +91,10 @@ type fakeApp struct {
 	saved      map[int]bool
 	savedOnly  bool
 	calls      []string
+
+	// evenChapters is 导入平台章节 turned off, and chapterUses the cuts SetFilmChapterUse was asked for.
+	evenChapters bool
+	chapterUses  []core.ChapterUse
 }
 
 func newFakeApp() *fakeApp {
@@ -230,6 +236,12 @@ func (f *fakeApp) Flash(text string)                       { f.osd = text }
 func (f *fakeApp) ExplainLine(i int)                       { f.call(fmt.Sprintf("explain %d", i)) }
 func (f *fakeApp) LineSaved(i int) bool                    { return f.saved[i] }
 func (f *fakeApp) SavedOnly() *bool                        { return &f.savedOnly }
+func (f *fakeApp) Lookup() Lookup                          { return f.lookup }
+func (f *fakeApp) LookUpWord(i int, word string)           { f.call(fmt.Sprintf("look up %d %s", i, word)) }
+func (f *fakeApp) CloseLookup()                            { f.call("close lookup") }
+func (f *fakeApp) ToggleLookupWord()                       { f.call("toggle word") }
+func (f *fakeApp) ExplainLookupLine()                      { f.call("explain lookup") }
+func (f *fakeApp) LookupSettings()                         { f.call("lookup settings") }
 func (f *fakeApp) SavedLines() []int {
 	var out []int
 	for i, on := range f.saved {
@@ -577,6 +589,8 @@ func TestCueRowsFollowTheMode(t *testing.T) {
 	a.mode = SubOriginal
 	a.play = &fakePlay{head: 1500 * time.Millisecond, length: 10 * time.Second}
 	app := start(t, a)
+	// The panel slides in from the right on its first frames; the pointer reaches its rows once it has.
+	app.Advance(panelMotion + 100*time.Millisecond)
 	blurred := func(text string) bool {
 		e := app.Find(inList(text)).Style.Effects
 		return e != nil && len(e.Filters) > 0
@@ -1042,7 +1056,7 @@ func TestSubtitleOutlineFollowsTheGlyphs(t *testing.T) {
 	for _, outline := range []bool{false, true} {
 		app := nsgotest.Start(t, func(cx *ns.Scope) ns.Node {
 			// On a white page, so the white line shows nothing dark of its own, inset so the ring outside its box is on the page.
-			return ns.View{TestID: "line", Style: ns.Style{FlexGrow: 1, Padding: ns.Symmetric(30, 20), Background: ns.RGBA(0xFFFFFF, 1)}, Children: []ns.Node{subtitleLine(func() string { return line.text }, line, false, outline)}}
+			return ns.View{TestID: "line", Style: ns.Style{FlexGrow: 1, Padding: ns.Symmetric(30, 20), Background: ns.RGBA(0xFFFFFF, 1)}, Children: []ns.Node{subtitleLine(func() string { return line.text }, line, false, outline, nil)}}
 		}, nsgotest.Size(400, 120))
 		copies := app.Query(whole(line.text))
 		want := 1
@@ -1501,5 +1515,55 @@ func TestInfoTabSaysWhereTheOriginalLinesCameFrom(t *testing.T) {
 		if got := app.Find("id:film-info-original"); got == nil || got.Text != tc.want {
 			t.Fatalf("%+v: info tab %q", tc, app.Texts())
 		}
+	}
+}
+
+// TestWordsOfTheOriginalLookUp checks that a click on a word of the original line on the picture looks the word up in its cue, and a click on the translation does not; and that the card of the word looked up shows what the app says of it, its buttons reporting their clicks, Open Settings in place of the others when no AI service can answer.
+func TestWordsOfTheOriginalLookUp(t *testing.T) {
+	a := newFakeApp()
+	a.item.Language = "简体中文"
+	app := start(t, a)
+	msgs := testlocale.Messages()
+	app.Play("id:film-video", ns.VideoInfo{Duration: 10 * time.Second})
+	app.Progress("id:film-video", 1500*time.Millisecond, 10*time.Second)
+	app.Press(`id:film-subtitle-lines >> text:"Hello"`)
+	if !slices.Contains(a.calls, "look up 0 Hello") {
+		t.Fatalf("a click on Hello made %q", a.calls)
+	}
+	a.calls = nil
+	app.Press(`id:film-subtitle-lines >> text:"你好。"`)
+	if slices.ContainsFunc(a.calls, func(c string) bool { return strings.HasPrefix(c, "look up") }) {
+		t.Fatalf("a click on the translation looked up: %q", a.calls)
+	}
+	if app.Exists("id:film-lookup") {
+		t.Fatal("a card shows with no word looked up")
+	}
+	change(app, a, func() {
+		a.lookup = Lookup{Open: true, Word: "hello", Reading: "/həˈləʊ/", Meaning: "int. 你好", Line: "Hello."}
+	})
+	for _, want := range []string{"hello", "/həˈləʊ/", "int. 你好", "Hello.", msgs.VocabAddToVocabulary(), msgs.FilmExplainLine()} {
+		if !app.Exists(whole(want)) {
+			t.Fatalf("the card has no %q", want)
+		}
+	}
+	app.Press("id:film-lookup-save")
+	app.Press("id:film-lookup-explain")
+	app.Press("id:film-lookup-close")
+	if got := a.calls[len(a.calls)-3:]; !slices.Equal(got, []string{"toggle word", "explain lookup", "close lookup"}) {
+		t.Fatalf("the card's buttons made %q", got)
+	}
+	change(app, a, func() { a.lookup.Saved = true })
+	if !app.Exists(whole(msgs.VocabInVocabulary())) {
+		t.Fatal("a word in the vocabulary is not said to be")
+	}
+	change(app, a, func() {
+		a.lookup = Lookup{Open: true, Word: "Hello", Line: "Hello.", Failed: true, NeedsAI: true, Say: func(cx *ns.Scope) string { return "no AI" }}
+	})
+	if !app.Exists(whole("no AI")) || app.Exists("id:film-lookup-save") || app.Exists("id:film-lookup-explain") {
+		t.Fatal("the card without an AI service")
+	}
+	app.Press("id:film-lookup-settings")
+	if a.calls[len(a.calls)-1] != "lookup settings" {
+		t.Fatalf("Open Settings made %q", a.calls)
 	}
 }

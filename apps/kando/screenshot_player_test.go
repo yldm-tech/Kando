@@ -6,6 +6,8 @@ import (
 	"time"
 
 	"kando/apps/kando/locales/testlocale"
+	"kando/packages/core"
+	"kando/packages/media"
 
 	ns "github.com/nsgo-dev/nsgo/core"
 	"github.com/nsgo-dev/nsgo/nsgotest"
@@ -62,6 +64,38 @@ func TestScreenshotsPlayer(t *testing.T) {
 			t.Fatalf("no original lines in the info tab: %q", tt.Texts())
 		}
 	})
+	// The film's YouTube description marks five chapters, whose titles were translated: the 片段 tab is cut at them, and the info tab says where they came from.
+	chaptered := func(steps func(t *testing.T, tt *nsgotest.App)) func(t *testing.T, a *app, tt *nsgotest.App, updates chan func()) {
+		return func(t *testing.T, a *app, tt *nsgotest.App, updates chan func()) {
+			job, ok := a.library.Find("j1")
+			if !ok {
+				t.Fatal("no j1")
+			}
+			s := time.Second
+			kept := media.FilmChapters{Language: "简体中文", Chapters: []core.Chapter{
+				{Start: 0, Title: "Intro", Translation: "开场"}, {Start: 24 * s, Title: "Where Rivers Begin", Translation: "河流的源头"}, {Start: 58 * s, Title: "Carving Valleys", Translation: "切出山谷"},
+				{Start: 102 * s, Title: "Meanders and Oxbow Lakes", Translation: "河曲与牛轭湖"}, {Start: 146 * s, Title: "Building Deltas", Translation: "三角洲的形成"},
+			}}
+			if err := media.SaveChapters(job.VideoPath, kept); err != nil {
+				t.Fatal(err)
+			}
+			open(t, a, tt, updates, "j1", 0)
+			waitUntil(t, tt, a, updates, func() bool { return len(a.Info().Chapters) == 5 })
+			steps(t, tt)
+		}
+	}
+	f.shoot(t, "player-clips-chapters", chaptered(func(t *testing.T, tt *nsgotest.App) {
+		tt.Press("id:film-tab-clips")
+		if !tt.Exists("id:film-clips-note") {
+			t.Fatalf("no chapters in the clips tab: %q", tt.Texts())
+		}
+	}))
+	f.shoot(t, "player-info-chapters", chaptered(func(t *testing.T, tt *nsgotest.App) {
+		tt.Press("id:film-tab-info")
+		if !tt.Exists("id:film-info-chapters") {
+			t.Fatalf("no chapters in the info tab: %q", tt.Texts())
+		}
+	}))
 	f.shoot(t, "player-menu", held(func(t *testing.T, _ *app, tt *nsgotest.App) { tt.Press("id:film-mode") }))
 	f.shoot(t, "player-style", held(func(t *testing.T, _ *app, tt *nsgotest.App) {
 		tt.Press("id:film-mode")

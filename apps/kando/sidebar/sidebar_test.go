@@ -278,8 +278,8 @@ func TestSwitcherMenuListsTheLibrariesWithCounts(t *testing.T) {
 	if !slices.Equal(labels, want) {
 		t.Fatalf("switcher menu %q, want %q", labels, want)
 	}
-	if !app.PopupMenu[0].Checked || app.PopupMenu[1].Checked {
-		t.Errorf("the open library is not the one checked: %+v", app.PopupMenu[:2])
+	if !app.PopupMenu[0].Checked || app.PopupMenu[1].Checked || !app.PopupMenu[0].Radio || !app.PopupMenu[1].Radio {
+		t.Errorf("the libraries are not radio items with the open one chosen: %+v", app.PopupMenu[:2])
 	}
 	app.ChoosePopup(msgs.SidebarLibraryCount("课程", 3))
 	if !slices.Equal(a.calls, []string{"choose /films/课程.kando"}) {

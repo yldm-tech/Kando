@@ -35,7 +35,7 @@ Kando は、ある言語で話されている動画からその言語を学ぶ�
 - 任意で、プレーヤーから動画とその二言語字幕を自分のオブジェクトストレージ（Cloudflare R2、Amazon S3、Alibaba Cloud OSS、Tencent Cloud COS、または任意の S3 互換ストレージ）にアップロードできます。[設定項目](#configuration) を参照してください。
 - 再生、字幕、学習、ウィンドウ操作のキーボードショートカットがあり、チートシート（⌘/、Windows と Linux では Ctrl+/）と「設定」›「キーボードショートカット」に一覧があります。
 - ウィンドウはシステムのライトまたはダークの外観に合わせて表示されます。プレーヤー、コマンドパレット、チートシートは常にダークです。
-- 不具合の報告に添えられるログファイルがあります。「ヘルプ」›「ログファイルを表示」（またはコマンドパレット）で表示できます。macOS では `~/Library/Logs/Kando/kando.log`、ほかの OS ではユーザー設定フォルダ内の `Kando/logs` フォルダにある `kando.log` です。失敗した各ジョブの理由（Kando が保存しているキーと AI サービスのアドレスは除く）と、失敗したツールの出力の最後の 64 KB を記録します。キーのように見える文字列はすべて `***` と書かれます。5 MB を超えると新しいファイルになり、その前の 2 つが残ります。
+- 不具合の報告に添えられるログファイルがあります。「ヘルプ」›「ログファイルを表示」（またはコマンドパレット）で表示できます。`kando.log` は macOS では `~/Library/Logs/ai.yldm.kando`、Windows では `%LOCALAPPDATA%\ai.yldm.kando\Logs`、Linux では `~/.local/state/ai.yldm.kando` にあります。失敗した各ジョブの理由（Kando が保存しているキーと AI サービスのアドレスは除く）と、失敗したツールの出力の最後の 64 KB を記録します。キーのように見える文字列はすべて `***` と書かれます。5 MB を超えると新しいファイルになり、その前の 2 つが残ります。
 
 ![二言語字幕を表示したプレーヤーと、サイドパネルのセリフ一覧](docs/assets/ja/player.png)
 
@@ -89,7 +89,7 @@ cd Kando
 make build
 ```
 
-`make build` は現在のプラットフォーム向けに `go tool nsgo build` を実行し（`make build TARGET=windows_x64` のように `TARGET=` で他のプラットフォームもビルドできます）、アプリを `apps/kando/build/` に、配布するファイルを `apps/kando/build/releases/` に書き出します。macOS ではアドホック署名された `Kando.app` と `.dmg`、Windows ではプログラム本体と、`makensis` がインストールされていれば NSIS のインストーラー（なければどのシステムでもコンパイルできる `.nsi` スクリプト）、Linux ではプログラム本体、`.deb`、Arch の `.pkg.tar.gz`、`.AppImage` が作られます。リリースと同じく `GOFLAGS=-tags=nodra_nomygo` を設定し、アプリが使わないコードを含めません。標準の Windows のように `make` がない環境では、リポジトリのルートで `go tool nsgo build -target windows_x64 apps/kando` を直接実行してください。
+`make build` は現在のプラットフォーム向けに `go tool nsgo build` を実行し（`make build TARGET=windows_x64` のように `TARGET=` で他のプラットフォームもビルドできます）、アプリを `apps/kando/build/` に、配布するファイルを `apps/kando/build/releases/` に書き出します。macOS ではアドホック署名された `Kando.app` と `.dmg`、Windows ではプログラム本体と、`makensis` がインストールされていれば NSIS のインストーラー（なければどのシステムでもコンパイルできる `.nsi` スクリプト）、Linux ではプログラム本体、`.deb`、Arch の `.pkg.tar.gz`、`.AppImage` が作られます。リリースと同じく `nodra_nomygo` タグ（`apps/kando/nsgo.yaml` の `build.tags` がアプリのすべてのビルド、開発実行、テストに付けます）でビルドし、アプリが使わないコードを含めません。標準の Windows のように `make` がない環境では、リポジトリのルートで `go tool nsgo build -target windows_x64 apps/kando` を直接実行してください。
 
 ## 動作要件
 

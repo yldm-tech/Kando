@@ -1000,6 +1000,10 @@ func (a *app) show(job core.Job) {
 			a.player.subs.path = ""
 		}
 		a.loadSubtitles(job.ID, job.SubtitlePath)
+		// The job translated the chapters' titles before it completed (media.Run), so the open film's 片段 and info tab read them again.
+		if rewritten && a.player.film.infoFor != "" {
+			a.readFilmInfo(a.player.film.infoFor)
+		}
 	}
 	a.areasShelfChanged()
 	a.queueNotifyEnded(was.Stage, ended)

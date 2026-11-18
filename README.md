@@ -35,7 +35,7 @@ The interface is in English, Simplified Chinese, Traditional Chinese, Japanese a
 - Optional upload of a film's video and bilingual subtitles to your own object storage (Cloudflare R2, Amazon S3, Alibaba Cloud OSS, Tencent Cloud COS or any S3-compatible store), from the player. See [Configuration](#configuration).
 - Keyboard shortcuts for playback, subtitles, study and windows, listed in a cheat sheet (⌘/, or Ctrl+/ on Windows and Linux) and in Settings › Keyboard Shortcuts.
 - The window follows the system's light or dark appearance; the player, the command palette and the cheat sheet are always dark.
-- A log file for bug reports: Help › Show Log File (or the command palette) reveals it. It is `~/Library/Logs/Kando/kando.log` on macOS, and `kando.log` in the `Kando/logs` folder of the user's configuration folder elsewhere; it records why each failed job failed, without the keys Kando holds or the AI service's address, and the end of what the tool that failed printed (its last 64 KB). Anything shaped like a key is written as `***`. Past 5 MB a new file starts, and the two before it are kept.
+- A log file for bug reports: Help › Show Log File (or the command palette) reveals it. It is `kando.log` in `~/Library/Logs/ai.yldm.kando` on macOS, in `%LOCALAPPDATA%\ai.yldm.kando\Logs` on Windows and in `~/.local/state/ai.yldm.kando` on Linux; it records why each failed job failed, without the keys Kando holds or the AI service's address, and the end of what the tool that failed printed (its last 64 KB). Anything shaped like a key is written as `***`. Past 5 MB a new file starts, and the two before it are kept.
 
 ![The player with bilingual subtitles and the side panel's list of lines](docs/assets/en/player.png)
 
@@ -83,7 +83,7 @@ cd Kando
 make build
 ```
 
-`make build` runs `go tool nsgo build` for the platform you are on (`TARGET=` builds others, such as `make build TARGET=windows_x64`) and writes the app under `apps/kando/build/` and what to hand out under `apps/kando/build/releases/`: on macOS an ad-hoc signed `Kando.app` and a `.dmg`; on Windows the program, and its NSIS installer when `makensis` is installed (otherwise the `.nsi` script, which compiles anywhere); on Linux the program, a `.deb`, an Arch `.pkg.tar.gz` and an `.AppImage`. It sets `GOFLAGS=-tags=nodra_nomygo`, which leaves code the app does not use out of it, as releases do. Without `make`, as on a stock Windows, run `go tool nsgo build -target windows_x64 apps/kando` from the repository root.
+`make build` runs `go tool nsgo build` for the platform you are on (`TARGET=` builds others, such as `make build TARGET=windows_x64`) and writes the app under `apps/kando/build/` and what to hand out under `apps/kando/build/releases/`: on macOS an ad-hoc signed `Kando.app` and a `.dmg`; on Windows the program, and its NSIS installer when `makensis` is installed (otherwise the `.nsi` script, which compiles anywhere); on Linux the program, a `.deb`, an Arch `.pkg.tar.gz` and an `.AppImage`. It builds with the `nodra_nomygo` tag that `build.tags` in `apps/kando/nsgo.yaml` gives every build, dev run and test of the app, which leaves code the app does not use out of it, as releases do. Without `make`, as on a stock Windows, run `go tool nsgo build -target windows_x64 apps/kando` from the repository root.
 
 ## Requirements
 

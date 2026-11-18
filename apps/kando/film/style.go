@@ -129,7 +129,7 @@ func presetCard(cx *core.Scope, id string, label func() string, box bool, sample
 			lineText(func() string { return locales.FilmPresetSample(cx) }, line, core.Style{LineHeight: 26, Color: onGlass}),
 		}}
 	} else {
-		shown = subtitleLine(func() string { return locales.FilmPresetSample(cx) }, line, false, true)
+		shown = subtitleLine(func() string { return locales.FilmPresetSample(cx) }, line, false, true, nil)
 	}
 	return base.Button{TestID: id, Role: core.RoleRadio, LabelFunc: label, Selected: on,
 		OnPress: func(core.PressEvent) { press() },

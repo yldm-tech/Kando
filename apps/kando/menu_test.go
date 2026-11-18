@@ -195,10 +195,25 @@ func TestMenuKeepsTheDefaultCommands(t *testing.T) {
 	if full, ok := roles["显示"][nsdesktop.MenuToggleFullScreen]; !ok || full.Disabled {
 		t.Fatalf("显示 has no enabled full screen item without a film: %+v", roles["显示"])
 	}
-	// TODO(nsgo#118): check 粘贴并匹配样式 and the 语音 items here again once NSGo has their roles (menu.go) https://github.com/nsgo-dev/nsgo/issues/118
-	for _, role := range []nsdesktop.MenuRole{nsdesktop.MenuUndo, nsdesktop.MenuRedo, nsdesktop.MenuCut, nsdesktop.MenuCopy, nsdesktop.MenuPaste, nsdesktop.MenuSelectAll} {
+	for _, role := range []nsdesktop.MenuRole{nsdesktop.MenuUndo, nsdesktop.MenuRedo, nsdesktop.MenuCut, nsdesktop.MenuCopy, nsdesktop.MenuPaste, nsdesktop.MenuPasteAndMatchStyle, nsdesktop.MenuDelete, nsdesktop.MenuSelectAll} {
 		if _, ok := roles["编辑"][role]; !ok {
 			t.Fatalf("编辑 has no item of role %v", role)
+		}
+	}
+	if speech := findMenuItem(t, a.menuBar(a.cx), "编辑", "语音"); len(speech.Items) != 2 || speech.Items[0].Role != nsdesktop.MenuStartSpeaking || speech.Items[1].Role != nsdesktop.MenuStopSpeaking {
+		t.Fatalf("编辑 › 语音 is %+v, want 开始朗读 and 停止朗读", speech.Items)
+	}
+	if _, ok := roles["看懂"][nsdesktop.MenuServices]; !ok {
+		t.Fatalf("看懂 has no 服务: %+v", roles["看懂"])
+	}
+	if _, ok := roles["窗口"][nsdesktop.MenuBringAllToFront]; !ok {
+		t.Fatalf("窗口 has no 前置全部窗口: %+v", roles["窗口"])
+	}
+	// The Window and Help menus are the system's, which list the windows and search the help.
+	for _, m := range a.menuBar(a.cx) {
+		want := map[string]nsdesktop.MenuRole{"窗口": nsdesktop.MenuWindowMenu, "帮助": nsdesktop.MenuHelpMenu}[m.Label]
+		if m.Role != want {
+			t.Fatalf("%s has role %v, want %v", m.Label, m.Role, want)
 		}
 	}
 }
@@ -342,14 +357,14 @@ func TestMenuBarInEnglish(t *testing.T) {
 	testlocale.Use(t, "en")
 	a, _, _ := newTestApp(t, &fakePipeline{})
 	bar := a.menuBar(a.cx)
-	// TODO(nsgo#118): check Edit › Paste and Match Style and Window › Bring All to Front here again once NSGo has their roles (menu.go) https://github.com/nsgo-dev/nsgo/issues/118
 	for _, want := range [][2]string{
 		{"Kando", "About Kando"}, {"Kando", "Settings…"}, {"Kando", "Hide Kando"}, {"Kando", "Quit Kando"},
 		{"File", "New Library…"}, {"File", "Open Library…"}, {"File", "Switch Library"}, {"File", testlocale.Messages().MenuRevealLibrary(platformName())}, {"File", "Close Window"},
-		{"Edit", "Undo"}, {"Edit", "Copy"},
+		{"Kando", "Services"},
+		{"Edit", "Undo"}, {"Edit", "Copy"}, {"Edit", "Paste and Match Style"}, {"Edit", "Delete"}, {"Edit", "Speech"},
 		{"View", "Toggle Full Screen"},
 		{"Study", "Ask This Film / Commands…"},
-		{"Window", "Minimize"}, {"Window", "Library"}, {"Window", "Player"},
+		{"Window", "Minimize"}, {"Window", "Library"}, {"Window", "Player"}, {"Window", "Bring All to Front"},
 		{"Help", "Shortcut Cheat Sheet"}, {"Help", "Kando Website"}, {"Help", "Release Notes"},
 	} {
 		findMenuItem(t, bar, want[0], want[1])
@@ -397,8 +412,8 @@ func libraryChoices(t *testing.T, items []nsdesktop.MenuItem) []string {
 	t.Helper()
 	var out []string
 	for _, it := range items {
-		if !it.Checkable {
-			t.Fatalf("%q is not an item that can be chosen", it.Label)
+		if !it.Radio {
+			t.Fatalf("%q is not one of a group of choices", it.Label)
 		}
 		label := it.Label
 		if it.Checked {
@@ -433,6 +448,43 @@ func TestMenuSwitchesTheLibrary(t *testing.T) {
 	sw = findMenuItem(t, a.menuBar(a.cx), "文件", "切换资料库")
 	if got, want := libraryChoices(t, sw.Items), []string{"甲", "乙*"}; !slices.Equal(got, want) {
 		t.Fatalf("after switching 切换资料库 lists %q, want %q", got, want)
+	}
+}
+
+// TestDockMenuListsTheLibraries checks the app icon's menu: it lists the known libraries as 文件 › 切换资料库 does, with the open one chosen, choosing another opens it, and it follows a switch made elsewhere.
+func TestDockMenuListsTheLibraries(t *testing.T) {
+	a, tt, _, first, second := twoLibraries(t)
+	useMenuBar(t, a, tt)
+	dock := func() []string {
+		t.Helper()
+		var out []string
+		for _, it := range tt.DockMenu {
+			if !it.Radio {
+				t.Fatalf("the Dock menu's %q is not one of a group of choices", it.Label)
+			}
+			label := it.Label
+			if it.Checked {
+				label += "*"
+			}
+			out = append(out, label)
+		}
+		return out
+	}
+	if got, want := dock(), []string{"甲*", "乙"}; !slices.Equal(got, want) {
+		t.Fatalf("the Dock menu lists %q, want %q", got, want)
+	}
+	tt.ChooseDockMenu("乙")
+	refresh(tt, a)
+	if a.snap().LibraryDir != second {
+		t.Fatalf("the Dock menu's 乙 opened %q", a.snap().LibraryDir)
+	}
+	if got, want := dock(), []string{"甲", "乙*"}; !slices.Equal(got, want) {
+		t.Fatalf("after switching the Dock menu lists %q, want %q", got, want)
+	}
+	a.Choose(first)
+	refresh(tt, a)
+	if got, want := dock(), []string{"甲*", "乙"}; !slices.Equal(got, want) {
+		t.Fatalf("after the sidebar switched back the Dock menu lists %q, want %q", got, want)
 	}
 }
 
@@ -490,12 +542,14 @@ func TestMenuSwitchLibraryNamesTwinsByPath(t *testing.T) {
 	}
 }
 
-// TestMenuWithoutLibraries checks that with no library known, 文件 has no 切换资料库.
+// TestMenuWithoutLibraries checks that with no library known, 文件 has no 切换资料库 and the app's icon no menu.
 func TestMenuWithoutLibraries(t *testing.T) {
 	a, tt, _ := newTestApp(t, &fakePipeline{})
 	a.edit(func(s *session) { s.LibraryDir, s.Libraries = "", nil })
-	refresh(tt, a)
-	// TODO(nsgo#142): check again that the Dock menu lists the libraries, switches them and follows a switch made elsewhere, and that it goes without a library, as TestDockMenuListsTheLibraries did, once NSGo has a Dock menu (menu.go's syncMenu) https://github.com/nsgo-dev/nsgo/issues/142
+	useMenuBar(t, a, tt)
+	if tt.DockMenu != nil {
+		t.Fatalf("the Dock menu lists %+v without a library", tt.DockMenu)
+	}
 	for _, m := range a.menuBar(a.cx) {
 		for _, it := range m.Items {
 			if it.Label == "切换资料库" {

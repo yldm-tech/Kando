@@ -15,6 +15,7 @@ import (
 	"time"
 
 	"kando/apps/mobile/download"
+	"kando/apps/mobile/langs"
 	"kando/apps/mobile/locales"
 	"kando/apps/mobile/store"
 	"kando/packages/sync"
@@ -104,6 +105,7 @@ type Session struct {
 	films     *core.Signal[[]store.Film]
 	transfers *core.Signal[map[string]Transfer]
 	used      *core.Signal[int64]
+	prefs     *core.Signal[store.Prefs]
 	jobs      map[string]*job
 	// following are the films Follow is bringing up to date, by key, so a film opened again meanwhile does not ask its desktop twice.
 	following map[string]*follow
@@ -121,7 +123,26 @@ type Session struct {
 	saving   uint64
 	saved    uint64
 	savedIDs []string
+	// filmMu orders the writes of the films' records, which run on goroutines of their own: filmSaves holds, by key, what is still to be written of a film while a goroutine writes it, so a film's record is written one save at a time, the latest last, and a save that fails is tried again until it is written, a later one takes its place or the session ends (closed).
+	filmMu    gosync.Mutex
+	filmSaves map[string]*filmSave
+	closed    chan struct{}
+	// prefsMu orders the saves of the preferences as saveMu does the desktops': prefsSaving is the generation SetPrefs last gave out, prefsSaved the one last written.
+	prefsMu                 gosync.Mutex
+	prefsSaving, prefsSaved uint64
 }
+
+// filmSave is what is still to be written of a film's record: next, once pending; or its folder deleted, once removed.
+type filmSave struct {
+	next             store.Film
+	pending, removed bool
+}
+
+// The waits between the tries of a film's record that could not be written: the first, doubled each time up to the last.
+const (
+	filmRetryFirst = 100 * time.Millisecond
+	filmRetryLast  = 5 * time.Second
+)
 
 // job is a download running on a goroutine of its own.
 type job struct {
@@ -154,12 +175,16 @@ func New(cx *core.Scope, cfg Config) *Session {
 		films:     core.NewSignalFunc[[]store.Film](cx, nil, nil),
 		transfers: core.NewSignalFunc(cx, map[string]Transfer{}, nil),
 		used:      core.NewSignal(cx, int64(0)),
+		prefs:     core.NewSignalFunc(cx, store.Prefs{}, nil),
 		jobs:      map[string]*job{},
 		following: map[string]*follow{},
 		clients:   map[string]*sync.Client{},
 		posters:   map[string][]byte{},
+		filmSaves: map[string]*filmSave{},
+		closed:    make(chan struct{}),
 	}
 	cx.Cleanup(func() {
+		close(s.closed)
 		for _, j := range s.jobs {
 			j.cancel()
 		}
@@ -185,6 +210,10 @@ func New(cx *core.Scope, cfg Config) *Session {
 		s.saveMu.Unlock()
 		films, _ := s.st.Films()
 		used, _ := s.st.Used()
+		prefs, _ := s.st.Prefs()
+		// A phone that paired or downloaded before the introduction existed has been introduced already.
+		migrated := !prefs.Onboarded && (len(desktops) > 0 || len(films) > 0)
+		prefs.Onboarded = prefs.Onboarded || migrated
 		parts := map[string]int64{}
 		for _, f := range films {
 			if !f.Done() {
@@ -195,6 +224,11 @@ func New(cx *core.Scope, cfg Config) *Session {
 			s.desktops.Set(desktops)
 			s.films.Set(films)
 			s.used.Set(used)
+			if migrated {
+				s.SetPrefs(prefs)
+			} else {
+				s.prefs.Set(prefs)
+			}
 			t := map[string]Transfer{}
 			for key, done := range parts {
 				// A download the app was closed during waits to be resumed.
@@ -210,6 +244,33 @@ func New(cx *core.Scope, cfg Config) *Session {
 
 // Loaded reports whether the store has been read.
 func (s *Session) Loaded() bool { return s.loaded.Get() }
+
+// Prefs are the user's choices on this phone.
+func (s *Session) Prefs() store.Prefs { return s.prefs.Get() }
+
+// SetPrefs keeps p as the user's choices.
+func (s *Session) SetPrefs(p store.Prefs) {
+	s.prefs.Set(p)
+	s.prefsMu.Lock()
+	s.prefsSaving++
+	gen := s.prefsSaving
+	s.prefsMu.Unlock()
+	s.work.Go(func() {
+		s.prefsMu.Lock()
+		defer s.prefsMu.Unlock()
+		if gen > s.prefsSaved && s.st.SavePrefs(p) == nil {
+			s.prefsSaved = gen
+		}
+	})
+}
+
+// Target is the language the user wants subtitles translated into: their choice, else the phone's own language where the computer translates into it (langs.DefaultTarget).
+func (s *Session) Target() string {
+	if t := s.prefs.Get().Target; t != "" {
+		return t
+	}
+	return langs.DefaultTarget(s.cx.Env().Locale())
+}
 
 // Platform is the platform pairing names (sync.PlatformIOS, sync.PlatformAndroid).
 func (s *Session) Platform() string { return s.cfg.Platform }
@@ -381,16 +442,16 @@ func (s *Session) Follow(key string, changed func()) {
 			}
 			// The subtitles first: a record kept with the desktop's date says they are the desktop's, so an app closed between the two asks for them again.
 			s.work.Go(func() {
-				if err := s.st.SaveCues(cur.Desktop, cur.Film.ID, cues); err != nil {
-					s.cx.Post(func() { delete(s.following, key) })
-					return
-				}
-				_ = s.st.SaveFilm(cur)
+				err := s.st.SaveCues(cur.Desktop, cur.Film.ID, cues)
 				s.cx.Post(func() {
 					delete(s.following, key)
-					// Taken again as it stands now, so a position kept while the files were written stays.
+					if err != nil {
+						return
+					}
+					// Taken again as it stands now, so a position kept while the subtitles were written stays, and kept after the saves of the position before it.
 					if cur, ok := s.followed(key, listed); ok {
 						s.replace(cur)
+						s.saveFilm(cur)
 						for _, fn := range fw.changed {
 							fn()
 						}
@@ -446,7 +507,68 @@ func (s *Session) SavePosition(key string, at time.Duration) {
 	}
 	f.PositionMS = at.Milliseconds()
 	s.replace(f)
-	s.work.Go(func() { _ = s.st.SaveFilm(f) })
+	s.saveFilm(f)
+}
+
+// saveFilm keeps f's record on disk after the saves of it handed before, the latest last, trying again until it is written (filmSaves).
+func (s *Session) saveFilm(f store.Film) {
+	key := f.Key()
+	s.filmMu.Lock()
+	defer s.filmMu.Unlock()
+	if fs, busy := s.filmSaves[key]; busy {
+		fs.next, fs.pending, fs.removed = f, true, false
+		return
+	}
+	s.filmSaves[key] = &filmSave{next: f, pending: true}
+	s.work.Go(func() { s.writeFilm(key) })
+}
+
+// writeFilm writes what is to be written of the film under key, one save at a time, until nothing is left, on a goroutine of its own.
+func (s *Session) writeFilm(key string) {
+	wait := filmRetryFirst
+	for {
+		s.filmMu.Lock()
+		fs := s.filmSaves[key]
+		f, removed := fs.next, fs.removed
+		if !fs.pending && !removed {
+			delete(s.filmSaves, key)
+			s.filmMu.Unlock()
+			return
+		}
+		fs.pending = false
+		if removed {
+			delete(s.filmSaves, key)
+		}
+		s.filmMu.Unlock()
+		if removed {
+			s.deleteFilm(f)
+			return
+		}
+		if err := s.st.SaveFilm(f); err == nil {
+			wait = filmRetryFirst
+			continue
+		}
+		s.filmMu.Lock()
+		superseded := fs.pending || fs.removed
+		fs.pending = true
+		if !superseded {
+			fs.next = f
+		}
+		s.filmMu.Unlock()
+		if superseded {
+			// A later save or the film's removal is written at once instead.
+			continue
+		}
+		select {
+		case <-s.closed:
+			s.filmMu.Lock()
+			delete(s.filmSaves, key)
+			s.filmMu.Unlock()
+			return
+		case <-time.After(wait):
+		}
+		wait = min(2*wait, filmRetryLast)
+	}
 }
 
 // Poster is the poster of a remote film, fetched once and kept for the session: it may be called from any goroutine, as a resource's fetcher.
@@ -549,11 +671,21 @@ func (s *Session) remove(key string) {
 		return
 	}
 	s.dropFilm(key)
-	s.work.Go(func() {
-		_ = s.st.DeleteFilm(f.Desktop, f.Film.ID)
-		used, _ := s.st.Used()
-		s.cx.Post(func() { s.used.Set(used) })
-	})
+	s.filmMu.Lock()
+	defer s.filmMu.Unlock()
+	if fs, busy := s.filmSaves[key]; busy {
+		// The folder goes once the record being written is, so the write does not make it again.
+		fs.next, fs.pending, fs.removed = f, false, true
+		return
+	}
+	s.work.Go(func() { s.deleteFilm(f) })
+}
+
+// deleteFilm removes f's folder, off the engine's goroutine.
+func (s *Session) deleteFilm(f store.Film) {
+	_ = s.st.DeleteFilm(f.Desktop, f.Film.ID)
+	used, _ := s.st.Used()
+	s.cx.Post(func() { s.used.Set(used) })
 }
 
 func (s *Session) dropFilm(key string) {

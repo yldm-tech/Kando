@@ -23,6 +23,8 @@ type Trace struct {
 	Info func(Info)
 	// Spoken is the language the transcription heard, as whisper's code (ja, en), once it knows it.
 	Spoken func(language string)
+	// Chapters is the chapters the site marks in the video (core.Chapter), once the download has looked it up; a video without any reports none.
+	Chapters func([]core.Chapter)
 }
 
 type traceKey struct{}
@@ -46,6 +48,12 @@ func reportProgress(ctx context.Context, p core.Progress) {
 func reportInfo(ctx context.Context, info Info) {
 	if trace := traceOf(ctx); trace != nil && trace.Info != nil {
 		trace.Info(info)
+	}
+}
+
+func reportChapters(ctx context.Context, chapters []core.Chapter) {
+	if trace := traceOf(ctx); trace != nil && trace.Chapters != nil && len(chapters) > 0 {
+		trace.Chapters(chapters)
 	}
 }
 

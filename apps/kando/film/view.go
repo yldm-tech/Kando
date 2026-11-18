@@ -122,6 +122,7 @@ func (v View) Render(cx *core.Scope) core.Node {
 			s.bigPlay(),
 			s.subtitles(),
 			s.correcting(),
+			s.lookupCard(),
 			s.osd(),
 			s.uploadCapsule(),
 			s.topBar(),
@@ -344,7 +345,6 @@ func fileURL(path string) string {
 	if path == "" {
 		return ""
 	}
-	// TODO(nsgo#365): NSGo's image loader reads file:///C:/dir/poster.jpg as \C:\dir\poster.jpg on Windows, so the poster does not show there until it reads the drive back https://github.com/nsgo-dev/nsgo/issues/365
 	return kcore.FileURL(path)
 }
 

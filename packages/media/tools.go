@@ -310,6 +310,7 @@ func (t Tools) ytdlpDownload(ctx context.Context, source, temp string, named *bo
 			*named = *named || info.Title != ""
 			reportInfo(ctx, info)
 		},
+		chapters: func(chapters []core.Chapter) { reportChapters(ctx, chapters) },
 	}
 	args := []string{
 		"--no-playlist",

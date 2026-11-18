@@ -10,7 +10,7 @@ import (
 	"github.com/nsgo-dev/nsgo/ui"
 )
 
-// online is the 在线视频 card of 通用: whether a link's film takes the subtitles its uploader put on the site as its original lines, checked against the speech, and the picture its download asks for.
+// online is the 在线视频 card of 通用: whether a link's film takes the subtitles its uploader put on the site as its original lines, checked against the speech, the picture its download asks for, and whether films are cut at the chapters their site marks.
 type online struct{ s screen }
 
 // Render implements core.Node.
@@ -38,8 +38,14 @@ func (o online) Render(cx *core.Scope) core.Node {
 			}),
 			Style: core.Style{Width: core.Pt(140)}}
 	})
+	chapters := form.SwitchRow{Title: locales.SettingsGeneralChapters(cx), Subtitle: locales.SettingsGeneralChaptersHint(cx), TestID: "settings-import-chapters",
+		On: live.Func(a, a.ImportChapters),
+		OnChange: live.On(a, func(on bool) {
+			a.SetImportChapters(on)
+			a.Save()
+		})}
 	return core.Group([]core.Node{
 		form.Label(locales.SettingsGeneralOnline(cx), 14),
-		form.Card(platform, form.Separator(true), form.Row{Title: locales.SettingsGeneralQuality(cx), NoGroup: true, Trailing: []core.Node{quality}}),
+		form.Card(platform, form.Separator(true), form.Row{Title: locales.SettingsGeneralQuality(cx), NoGroup: true, Trailing: []core.Node{quality}}, form.Separator(true), chapters),
 	})
 }

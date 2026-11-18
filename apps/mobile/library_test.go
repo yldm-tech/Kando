@@ -9,16 +9,15 @@ import (
 	"kando/packages/sync/synctest"
 )
 
-// Once paired, the Computers tab lists the desktop's libraries, a library its films with their languages, lengths and sizes, and pull to refresh reads them again.
+// Once paired, the Library lists the desktop's libraries, a library its films with their languages, lengths and sizes, and pull to refresh reads them again.
 func TestListsTheLibrariesAndTheirFilms(t *testing.T) {
 	d := newDesktop(t)
 	p := startPhone(t, "")
-	p.app.WaitFor("id:welcome", wait)
 	p.pair(d)
-	// Nothing is downloaded yet.
-	p.openTab(downloadsTab, msgs.DownloadsTitle())
-	p.app.WaitFor("id:downloads-empty", wait)
-	p.openTab(computersTab, msgs.ComputersTitle())
+	// Nothing is downloaded yet, and the computer paired leaves no card asking to pair.
+	if p.app.Exists("id:downloads") || p.app.Exists("id:films-unpaired") {
+		t.Fatal("with nothing downloaded and a computer paired, the Library shows the downloads or asks to pair")
+	}
 	desk := "id:computers-desktop-" + store.DesktopID(d.Fingerprint)
 	p.app.WaitFor("id:computers-library-lib", wait)
 	if got := p.texts(desk); !strings.Contains(got, "Studio") || !strings.Contains(got, "Japanese Class") || !strings.Contains(got, msgs.ComputersFilmCount(1)) {
@@ -38,7 +37,6 @@ func TestListsTheLibrariesAndTheirFilms(t *testing.T) {
 func TestOfflineTheDownloadsStillShow(t *testing.T) {
 	d := newDesktop(t)
 	p := startPhone(t, "")
-	p.app.WaitFor("id:welcome", wait)
 	p.pair(d)
 	p.app.WaitUntil(wait, func() bool { kept, _ := store.Open(p.dir).Desktops(); return len(kept) == 1 })
 	d.Close()
@@ -46,7 +44,6 @@ func TestOfflineTheDownloadsStillShow(t *testing.T) {
 	keepTalk(t, dir)
 	p = startPhone(t, dir)
 	p.app.WaitFor("id:downloads-film-f1", wait)
-	p.openTab(computersTab, msgs.ComputersTitle())
 	problem := "id:computers-problem-" + store.DesktopID(d.Fingerprint)
 	p.app.WaitFor(problem, wait)
 	if got, want := p.texts(problem), msgs.ComputersUnreachable("Studio"); !strings.Contains(got, want) {
@@ -58,7 +55,6 @@ func TestOfflineTheDownloadsStillShow(t *testing.T) {
 	if p.app.Exists("id:computers-pair-again-" + id) {
 		t.Fatal("an unreachable desktop offers to pair again")
 	}
-	p.openTab(downloadsTab, msgs.DownloadsTitle())
 	p.app.Press("id:downloads-film-f1")
 	p.app.WaitFor("id:film-play", wait)
 }
@@ -67,11 +63,10 @@ func TestOfflineTheDownloadsStillShow(t *testing.T) {
 func TestARevokedPhoneIsAskedToPairAgain(t *testing.T) {
 	d := newDesktop(t)
 	p := startPhone(t, "")
-	p.app.WaitFor("id:welcome", wait)
 	p.pair(d)
 	d.RevokeAll()
 	id := store.DesktopID(d.Fingerprint)
-	p.app.PullToRefresh("id:computers-scroll")
+	p.app.PullToRefresh("id:films-scroll")
 	p.app.WaitFor("id:computers-pair-again-"+id, wait)
 	if got, want := p.texts("id:computers-problem-"+id), msgs.ComputersUnpaired("Studio"); !strings.Contains(got, want) {
 		t.Fatalf("the desktop's section says %q, want %q", got, want)

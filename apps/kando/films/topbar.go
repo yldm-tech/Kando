@@ -4,6 +4,7 @@ import (
 	"path/filepath"
 	"strings"
 
+	"kando/apps/kando/chrome"
 	"kando/apps/kando/live"
 	"kando/apps/kando/locales"
 	"kando/apps/kando/sidebar"
@@ -13,7 +14,6 @@ import (
 
 	"github.com/nsgo-dev/nsgo/base"
 	ns "github.com/nsgo-dev/nsgo/core"
-	nsdesktop "github.com/nsgo-dev/nsgo/desktop"
 	"github.com/nsgo-dev/nsgo/icons/lucide"
 	"github.com/nsgo-dev/nsgo/ui"
 )
@@ -65,7 +65,7 @@ func (b topBar) Render(cx *ns.Scope) ns.Node {
 		Style: ns.Style{Position: ns.Absolute, Top: ns.Pt(0), Left: ns.Pt(0), Right: ns.Pt(0), Direction: ns.Row, AlignItems: ns.AlignStretch, JustifyContent: ns.JustifySpaceBetween,
 			Gap: 16},
 		StyleFunc: func() ns.Style {
-			bar := nsdesktop.TitleBar(cx)
+			bar := chrome.Covered(cx)
 			return ns.Style{MinHeight: ns.Pt(max(65, bar.Top)), Padding: ns.Edges{Top: 10, Right: 14 + bar.Right, Bottom: 18, Left: 24}, Gradients: []ns.Gradient{barFade(colors.Background())}}
 		},
 		Children: []ns.Node{head, end},
