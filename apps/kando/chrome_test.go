@@ -1,6 +1,7 @@
 package main
 
 import (
+	"path/filepath"
 	"slices"
 	"strings"
 	"testing"
@@ -238,7 +239,7 @@ func TestPaletteRunsTheMenuOnlyCommands(t *testing.T) {
 	usePlatform(t, ns.OSLinux)
 	useNoMenuBar(t)
 	a, tt, _ := newTestApp(t, &fakePipeline{})
-	other := t.TempDir() + "/乙.kando"
+	other := filepath.Join(t.TempDir(), "乙.kando")
 	a.edit(func(s *session) { s.Libraries = []string{"/videos", other} })
 	refresh(tt, a)
 	run := func(label string) {
