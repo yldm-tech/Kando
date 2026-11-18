@@ -122,6 +122,9 @@ func TestBrowseWithoutAComputerAndPagesThatFail(t *testing.T) {
 	p.app.WaitFor("id:browse-pair", wait)
 	p.app.Press("id:browse-pair")
 	p.app.WaitFor("id:pair-page", wait)
+	if cmds := p.app.FindMounted(browseWeb).WebCommands; !strings.Contains(cmds[len(cmds)-1].Value, "pause()") {
+		t.Fatal("the page under pairing goes on playing")
+	}
 }
 
 // What is typed in the address field opens as an address, or as a search for it; back with nothing to go back to in the page shows the start, and back from the start the page again.

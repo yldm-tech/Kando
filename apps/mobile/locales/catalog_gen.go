@@ -669,6 +669,7 @@ const (
 	textBrowseSend
 	textBrowseSent
 	textBrowseSiteBilibili
+	textBrowseSiteNiconico
 	textBrowseSites
 	textBrowseTitle
 	textBrowseVideoUnpaired
@@ -961,6 +962,7 @@ var keyOfText = [numTexts]string{
 	"browseSend",
 	"browseSent",
 	"browseSiteBilibili",
+	"browseSiteNiconico",
 	"browseSites",
 	"browseTitle",
 	"browseVideoUnpaired",
@@ -1251,6 +1253,7 @@ var textsEn = i18n.NewTexts(""+
 	"Send to Computer"+
 	"Sent"+
 	"Bilibili"+
+	"Niconico"+
 	"Popular Sites"+
 	"Browse"+
 	"Video on this page · pair with a computer to send it"+
@@ -1537,6 +1540,7 @@ var textsEn = i18n.NewTexts(""+
 		6,
 		16,
 		4,
+		8,
 		8,
 		13,
 		6,
@@ -1828,6 +1832,7 @@ var textsJa = i18n.NewTexts(""+
 	"パソコンに送る"+
 	"送信済み"+
 	"bilibili"+
+	"ニコニコ動画"+
 	"よく使うサイト"+
 	"ブラウズ"+
 	"このページに動画があります · 送るにはパソコンとペアリングしてください"+
@@ -2115,6 +2120,7 @@ var textsJa = i18n.NewTexts(""+
 		21,
 		12,
 		8,
+		18,
 		21,
 		12,
 		103,
@@ -2405,6 +2411,7 @@ var textsKo = i18n.NewTexts(""+
 	"컴퓨터로 보내기"+
 	"보냄"+
 	"빌리빌리"+
+	"니코니코 동화"+
 	"자주 가는 사이트"+
 	"둘러보기"+
 	"이 페이지에 동영상이 있습니다 · 보내려면 컴퓨터와 페어링하세요"+
@@ -2692,6 +2699,7 @@ var textsKo = i18n.NewTexts(""+
 		22,
 		6,
 		12,
+		19,
 		23,
 		12,
 		90,
@@ -2982,6 +2990,7 @@ var textsZhHans = i18n.NewTexts(""+
 	"发到电脑"+
 	"已发送"+
 	"哔哩哔哩"+
+	"ニコニコ動画"+
 	"常用网站"+
 	"浏览"+
 	"这一页有视频 · 先连接一台电脑才能发送"+
@@ -3269,6 +3278,7 @@ var textsZhHans = i18n.NewTexts(""+
 		12,
 		9,
 		12,
+		18,
 		12,
 		6,
 		55,
@@ -3559,6 +3569,7 @@ var textsZhHant = i18n.NewTexts(""+
 	"傳到電腦"+
 	"已傳送"+
 	"嗶哩嗶哩"+
+	"ニコニコ動画"+
 	"常用網站"+
 	"瀏覽"+
 	"這一頁有影片 · 先連接一台電腦才能傳送"+
@@ -3846,6 +3857,7 @@ var textsZhHant = i18n.NewTexts(""+
 		12,
 		9,
 		12,
+		18,
 		12,
 		6,
 		55,
@@ -4717,6 +4729,15 @@ func BrowseSiteBilibili(cx *core.Scope) string { return For(cx).BrowseSiteBilibi
 
 // BrowseSiteBilibili is the package's BrowseSiteBilibili in the language of msgs.
 func (msgs Messages) BrowseSiteBilibili() string { return msgs.text(textBrowseSiteBilibili) }
+
+// BrowseSiteNiconico says "Niconico"
+// in the language the app shows under cx.
+//
+// Browse: the Japanese video site niconico's name (nicovideo.jp) on its tile.
+func BrowseSiteNiconico(cx *core.Scope) string { return For(cx).BrowseSiteNiconico() }
+
+// BrowseSiteNiconico is the package's BrowseSiteNiconico in the language of msgs.
+func (msgs Messages) BrowseSiteNiconico() string { return msgs.text(textBrowseSiteNiconico) }
 
 // BrowseSites says "Popular Sites"
 // in the language the app shows under cx.

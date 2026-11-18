@@ -166,7 +166,7 @@ func App(cx *core.Scope, cfg session.Config) core.Node {
 				case filmPage:
 					return film.Page(cx, s, r.desktop, r.library.Name, r.film, play, back)
 				case browsePage:
-					return browse.Page(cx, s, browse.Actions{Pair: openPair, Shown: func() bool { return selected.Get() == browseTab }})
+					return browse.Page(cx, s, browse.Actions{Pair: openPair, Shown: func() bool { return selected.Get() == browseTab && outer.Depth() == 0 }})
 				case jobsPage:
 					act := jobs.Actions{Add: openAdd, Pair: openPair, Film: openFilm, Back: back}
 					if depth() == 0 {

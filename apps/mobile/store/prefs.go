@@ -40,10 +40,10 @@ func Visited(visits []Visit, v Visit) []Visit {
 			}
 			continue
 		}
-		if len(out) == MaxVisits {
-			break
+		// The rest are still looked through, for an earlier visit of v's address past the last kept, whose title v takes.
+		if len(out) < MaxVisits {
+			out = append(out, old)
 		}
-		out = append(out, old)
 	}
 	return out
 }

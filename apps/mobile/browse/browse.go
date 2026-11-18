@@ -20,7 +20,7 @@ import (
 	"github.com/nsgo-dev/nsgo/ui"
 )
 
-// Actions are where Browse leads: Pair opens pairing, for a page's video to have a computer to go to. Shown reports whether the tab shows, as the shell keeps it while another does.
+// Actions are where Browse leads: Pair opens pairing, for a page's video to have a computer to go to. Shown reports whether the tab shows, as the shell keeps it while another does, and nothing covers it, as pairing or the player.
 type Actions struct {
 	Pair  func()
 	Shown func() bool

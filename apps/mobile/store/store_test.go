@@ -173,4 +173,10 @@ func TestVisitedKeepsTheLastVideosNewestFirst(t *testing.T) {
 			t.Fatalf("visit %d is the one moved to the front: %+v", i+1, visits)
 		}
 	}
+	// The oldest kept, looked at again before the page names it, keeps its title.
+	oldest := visits[MaxVisits-1]
+	visits = Visited(visits, Visit{URL: oldest.URL})
+	if visits[0] != oldest || len(visits) != MaxVisits {
+		t.Fatalf("the oldest looked at again: %+v", visits)
+	}
 }

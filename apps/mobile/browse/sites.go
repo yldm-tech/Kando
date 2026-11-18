@@ -24,6 +24,6 @@ var sites = []site{
 	{id: "bilibili", name: func(cx *core.Scope) string { return locales.BrowseSiteBilibili(cx) }, url: "https://m.bilibili.com/", mark: core.RGB(0x00A1D6), letter: "B"},
 	{id: "ted", name: named("TED"), url: "https://www.ted.com/talks", mark: core.RGB(0xE62B1E), letter: "T"},
 	{id: "vimeo", name: named("Vimeo"), url: "https://vimeo.com/watch", mark: core.RGB(0x1AB7EA), letter: "V"},
-	{id: "nicovideo", name: named("ニコニコ動画"), url: "https://sp.nicovideo.jp/", mark: core.RGB(0x3A3A3C), letter: "ニ"},
+	{id: "nicovideo", name: func(cx *core.Scope) string { return locales.BrowseSiteNiconico(cx) }, url: "https://sp.nicovideo.jp/", mark: core.RGB(0x3A3A3C), letter: "ニ"},
 	{id: "dailymotion", name: named("Dailymotion"), url: "https://www.dailymotion.com/", mark: core.RGB(0x0066DC), letter: "d"},
 }

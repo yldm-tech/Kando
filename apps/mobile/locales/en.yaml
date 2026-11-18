@@ -73,6 +73,9 @@ browseSent:
 browseSiteBilibili:
   message: "Bilibili"
   description: "Browse: the video site bilibili's name on its tile."
+browseSiteNiconico:
+  message: "Niconico"
+  description: "Browse: the Japanese video site niconico's name (nicovideo.jp) on its tile."
 browseSites:
   message: "Popular Sites"
   description: "Browse: heading of the sites' tiles on the start."
