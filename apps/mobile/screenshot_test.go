@@ -52,9 +52,9 @@ func TestScreenshotsPair(t *testing.T) {
 func TestScreenshotsBrowse(t *testing.T) {
 	shot := screenshots(t)
 	d := newDesktop(t)
-	dir := t.TempDir()
-	// TODO(nsgo#475): paired beforehand, as popping the pairing page crashes on iOS; pair through the page again once a popped input no longer crashes https://github.com/nsgo-dev/nsgo/issues/475
-	p := startPhone(t, dir, pairedWith(t, d, dir))
+	p := startPhone(t, t.TempDir())
+	p.app.WaitFor("id:welcome", wait)
+	p.pair(d)
 	p.app.WaitFor("id:computers-library-lib", wait)
 	shot(p, "computers")
 	p.app.Press("id:computers-library-lib")
