@@ -53,6 +53,8 @@ type Rules struct {
 	Filter   Filter  `json:"filter"`
 	Keywords string  `json:"keywords,omitempty"`
 	Cadence  Cadence `json:"cadence"`
+	// Series makes the videos it adds a series, which share a glossary (core.Job.Series).
+	Series bool `json:"series,omitempty"`
 }
 
 // DefaultRules are a new subscription's: every new video is queued, and the list is checked each time the app opens.

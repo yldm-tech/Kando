@@ -18,6 +18,7 @@ import (
 type App interface {
 	live.State
 	Corrector
+	Glossary
 	OpenKey() string
 	SetOpenKey(string)
 	StopPlayback()
@@ -67,7 +68,7 @@ type App interface {
 	VideoEnded()
 	VideoFailed(err error)
 	Subs() Subs
-	// FilmSide is the side panel's tab: "" for 字幕, "clips" for 片段, "info" for 信息. 样式 is shown through StyleView.
+	// FilmSide is the side panel's tab: "" for 字幕, "clips" for 片段, "terms" for 术语, "info" for 信息. 样式 is shown through StyleView.
 	FilmSide() string
 	SetFilmSide(string)
 	Seek(at time.Duration)

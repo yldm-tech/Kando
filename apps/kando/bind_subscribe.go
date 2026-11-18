@@ -134,8 +134,12 @@ func (a *app) SetSubscriptionRules(r subscribe.Rules) {
 	if !ok || sub.Rules == r {
 		return
 	}
+	series := sub.Series != r.Series
 	sub.Rules = r
 	a.subscribeSave()
+	if series {
+		a.glossarySubscriptionSeries(*sub)
+	}
 }
 
 // CheckSubscription checks the subscription before any other lined up, once the check that runs ends; one that is not checked, or is being checked, is left as it is. Without yt-dlp the page says it cannot be.

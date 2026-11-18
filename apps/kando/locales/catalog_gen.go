@@ -541,6 +541,12 @@ var Parameters = map[string][]string{
 	"FilmsSpokenEmpty":                         {"language"},
 	"FilmsTranslateAll":                        {"count"},
 	"FilmsUntranslated":                        {"count"},
+	"GlossaryMetaLocked":                       {"scope"},
+	"GlossaryScopeLabel":                       {"scope", "next"},
+	"GlossaryLock":                             {"term"},
+	"GlossaryUnlock":                           {"term"},
+	"GlossaryRemove":                           {"term"},
+	"GlossarySeriesLine":                       {"name", "count"},
 	"KitsDownloadFailedStatus":                 {"status"},
 	"LibraryAddedSome":                         {"count", "error_"},
 	"LibraryAddedStarting":                     {"count"},
@@ -933,6 +939,12 @@ type Translation struct {
 	FilmsSpokenEmpty                         func(language string) string
 	FilmsTranslateAll                        func(count int) string
 	FilmsUntranslated                        func(count int) string
+	GlossaryMetaLocked                       func(scope string) string
+	GlossaryScopeLabel                       func(scope string, next string) string
+	GlossaryLock                             func(term string) string
+	GlossaryUnlock                           func(term string) string
+	GlossaryRemove                           func(term string) string
+	GlossarySeriesLine                       func(name string, count int) string
 	KitsDownloadFailedStatus                 func(status int) string
 	LibraryAddedSome                         func(count int, error_ string) string
 	LibraryAddedStarting                     func(count int) string
@@ -1467,6 +1479,7 @@ const (
 	textFilmTabClips
 	textFilmTabInfo
 	textFilmTabStyle
+	textFilmTabTerms
 	textFilmTranslateAgain
 	textFilmTranslateMissing
 	textFilmUnmute
@@ -1571,6 +1584,21 @@ const (
 	textFilmsWatchEmptyWatched
 	textFilmsWatchShowAll
 	textFilmsWatched
+	textGlossaryIntro
+	textGlossaryEmpty
+	textGlossaryScopeFilm
+	textGlossaryScopeSeries
+	textGlossaryScopeGlobal
+	textGlossaryLeaveSeries
+	textGlossaryAddGroup
+	textGlossarySource
+	textGlossarySourceHint
+	textGlossaryTarget
+	textGlossaryTargetHint
+	textGlossaryAdd
+	textGlossaryUnreadable
+	textGlossarySaveFailed
+	textGlossaryNewer
 	textKitsDownloadDisconnected
 	textKitsDownloadStalled
 	textLibraryAddedOneStarting
@@ -2334,6 +2362,8 @@ const (
 	textSubscribeKeywordsHint
 	textSubscribeCadence
 	textSubscribeCadenceNote
+	textSubscribeSeries
+	textSubscribeSeriesNote
 	textSubscribeCadenceOpen
 	textSubscribeCadenceHourly
 	textSubscribeCadenceDaily
@@ -2625,6 +2655,7 @@ var keyOfText = [numTexts]string{
 	"filmTabClips",
 	"filmTabInfo",
 	"filmTabStyle",
+	"filmTabTerms",
 	"filmTranslateAgain",
 	"filmTranslateMissing",
 	"filmUnmute",
@@ -2729,6 +2760,21 @@ var keyOfText = [numTexts]string{
 	"filmsWatchEmptyWatched",
 	"filmsWatchShowAll",
 	"filmsWatched",
+	"glossaryIntro",
+	"glossaryEmpty",
+	"glossaryScopeFilm",
+	"glossaryScopeSeries",
+	"glossaryScopeGlobal",
+	"glossaryLeaveSeries",
+	"glossaryAddGroup",
+	"glossarySource",
+	"glossarySourceHint",
+	"glossaryTarget",
+	"glossaryTargetHint",
+	"glossaryAdd",
+	"glossaryUnreadable",
+	"glossarySaveFailed",
+	"glossaryNewer",
 	"kitsDownloadDisconnected",
 	"kitsDownloadStalled",
 	"libraryAddedOneStarting",
@@ -3492,6 +3538,8 @@ var keyOfText = [numTexts]string{
 	"subscribeKeywordsHint",
 	"subscribeCadence",
 	"subscribeCadenceNote",
+	"subscribeSeries",
+	"subscribeSeriesNote",
 	"subscribeCadenceOpen",
 	"subscribeCadenceHourly",
 	"subscribeCadenceDaily",
@@ -3781,6 +3829,7 @@ var textsEn = i18n.NewTexts(""+
 	"Clips"+
 	"Info"+
 	"Style"+
+	"Terms"+
 	"Translate Again Into"+
 	"Translate Missing Lines"+
 	"Unmute"+
@@ -3885,6 +3934,21 @@ var textsEn = i18n.NewTexts(""+
 	"No watched films here yet."+
 	"Show All Films"+
 	"Watched"+
+	"Terms apply at once. A locked term is translated exactly as written here, and no machine pass changes it."+
+	"This film has no terms yet."+
+	"This Film"+
+	"Series"+
+	"All Films"+
+	"Not a Series"+
+	"Add a Term"+
+	"Term"+
+	"As the lines say it"+
+	"Translation"+
+	"Translate it as"+
+	"Add"+
+	"The glossary file could not be read, so it was not changed."+
+	"Could not save the glossary."+
+	"This film's terms were written by a newer Kando and cannot be changed here."+
 	"the connection dropped"+
 	"the server stopped sending data"+
 	"Added. Processing started."+
@@ -4648,6 +4712,8 @@ var textsEn = i18n.NewTexts(""+
 	"Only titles with one of these words, separated by commas"+
 	"Check for New Videos"+
 	"Only while Kando is open, never in the background"+
+	"Treat as a Series"+
+	"Its videos share a glossary, so names and terms are translated the same way in every one"+
 	"On Open"+
 	"Hourly"+
 	"Daily"+
@@ -4934,6 +5000,7 @@ var textsEn = i18n.NewTexts(""+
 		5,
 		4,
 		5,
+		5,
 		20,
 		23,
 		6,
@@ -5038,6 +5105,21 @@ var textsEn = i18n.NewTexts(""+
 		26,
 		14,
 		7,
+		105,
+		27,
+		9,
+		6,
+		9,
+		12,
+		10,
+		4,
+		19,
+		11,
+		15,
+		3,
+		59,
+		28,
+		75,
 		22,
 		31,
 		26,
@@ -5801,6 +5883,8 @@ var textsEn = i18n.NewTexts(""+
 		56,
 		20,
 		49,
+		17,
+		88,
 		7,
 		6,
 		5,
@@ -6090,6 +6174,7 @@ var textsJa = i18n.NewTexts(""+
 	"クリップ"+
 	"情報"+
 	"スタイル"+
+	"用語"+
 	"再翻訳先"+
 	"未翻訳の行を翻訳"+
 	"消音を解除"+
@@ -6194,6 +6279,21 @@ var textsJa = i18n.NewTexts(""+
 	"ここにはまだ視聴済みの動画はありません。"+
 	"すべての動画を表示"+
 	"視聴済み"+
+	"用語はすぐに反映されます。ロックした用語は常にここに書いたとおりに訳され、機械が書き換えることはありません。"+
+	"この作品にはまだ用語がありません。"+
+	"この作品"+
+	"シリーズ"+
+	"すべての作品"+
+	"シリーズではない"+
+	"用語を追加"+
+	"原文"+
+	"セリフでの表記"+
+	"訳語"+
+	"訳し方"+
+	"追加"+
+	"用語集ファイルを読み込めないため、変更しませんでした。"+
+	"用語集を保存できませんでした。"+
+	"この作品の用語は新しいバージョンの Kando で書かれたため、ここでは変更できません。"+
 	"接続が切れました"+
 	"サーバーからデータが届かなくなりました"+
 	"追加して処理を開始しました。"+
@@ -6957,6 +7057,8 @@ var textsJa = i18n.NewTexts(""+
 	"タイトルにこれらの語を含む動画だけ。カンマで区切ります"+
 	"新しい動画の確認"+
 	"Kando を開いているあいだだけ確認し、バックグラウンドでは動きません"+
+	"シリーズとして扱う"+
+	"この購読の動画で用語集を共有し、人名や用語をどの回でも同じように訳します"+
 	"起動時"+
 	"1 時間ごと"+
 	"毎日"+
@@ -7243,6 +7345,7 @@ var textsJa = i18n.NewTexts(""+
 		12,
 		6,
 		12,
+		6,
 		12,
 		24,
 		15,
@@ -7347,6 +7450,21 @@ var textsJa = i18n.NewTexts(""+
 		60,
 		27,
 		12,
+		162,
+		51,
+		12,
+		12,
+		18,
+		24,
+		15,
+		6,
+		21,
+		6,
+		9,
+		6,
+		81,
+		45,
+		118,
 		24,
 		57,
 		42,
@@ -8110,6 +8228,8 @@ var textsJa = i18n.NewTexts(""+
 		81,
 		24,
 		96,
+		27,
+		108,
 		9,
 		14,
 		6,
@@ -8399,6 +8519,7 @@ var textsKo = i18n.NewTexts(""+
 	"클립"+
 	"정보"+
 	"스타일"+
+	"용어"+
 	"다시 번역할 언어"+
 	"번역 안 된 대사 번역"+
 	"음소거 해제"+
@@ -8503,6 +8624,21 @@ var textsKo = i18n.NewTexts(""+
 	"여기에는 아직 시청 완료한 영상이 없습니다."+
 	"모든 영상 보기"+
 	"시청 완료"+
+	"용어는 바로 적용됩니다. 잠근 용어는 항상 여기 적힌 대로 번역되며, 기계가 바꾸지 않습니다."+
+	"이 영상에는 아직 용어가 없습니다."+
+	"이 영상"+
+	"시리즈"+
+	"모든 영상"+
+	"시리즈 아님"+
+	"용어 추가"+
+	"원문"+
+	"대사 속 표기"+
+	"번역"+
+	"번역어"+
+	"추가"+
+	"용어집 파일을 읽을 수 없어 변경하지 않았습니다."+
+	"용어집을 저장하지 못했습니다."+
+	"이 영상의 용어는 더 새로운 Kando에서 저장되어 여기서 바꿀 수 없습니다."+
 	"연결이 끊어졌습니다"+
 	"서버에서 데이터가 더 이상 오지 않습니다"+
 	"추가하고 처리를 시작했습니다."+
@@ -9266,6 +9402,8 @@ var textsKo = i18n.NewTexts(""+
 	"제목에 이 단어 중 하나가 있어야 추가해요. 쉼표로 구분"+
 	"새 동영상 확인"+
 	"Kando가 열려 있을 때만 확인하고, 백그라운드에서는 실행하지 않아요"+
+	"시리즈로 취급"+
+	"이 구독의 영상이 용어집을 함께 써서 이름과 용어를 모든 편에서 같게 번역합니다"+
 	"열 때"+
 	"매시간"+
 	"매일"+
@@ -9552,6 +9690,7 @@ var textsKo = i18n.NewTexts(""+
 		6,
 		6,
 		9,
+		6,
 		23,
 		28,
 		16,
@@ -9656,6 +9795,21 @@ var textsKo = i18n.NewTexts(""+
 		60,
 		20,
 		13,
+		126,
+		47,
+		10,
+		9,
+		13,
+		16,
+		13,
+		6,
+		17,
+		6,
+		9,
+		6,
+		67,
+		42,
+		97,
 		28,
 		56,
 		42,
@@ -10419,6 +10573,8 @@ var textsKo = i18n.NewTexts(""+
 		75,
 		20,
 		91,
+		19,
+		110,
 		7,
 		9,
 		6,
@@ -10708,6 +10864,7 @@ var textsZhHans = i18n.NewTexts(""+
 	"片段"+
 	"信息"+
 	"样式"+
+	"术语"+
 	"重新翻译为"+
 	"补译未译的句子"+
 	"取消静音"+
@@ -10812,6 +10969,21 @@ var textsZhHans = i18n.NewTexts(""+
 	"这里还没有看完的影片。"+
 	"显示全部影片"+
 	"已看完"+
+	"术语立即生效。锁定的条目一律照这里的写法翻译，机器不会改写。"+
+	"这部片还没有术语。"+
+	"本片"+
+	"系列"+
+	"全局"+
+	"不是系列"+
+	"添加术语"+
+	"原文"+
+	"台词里的写法"+
+	"译法"+
+	"译成"+
+	"添加"+
+	"术语表文件读不出来，没有改动。"+
+	"术语表没能保存。"+
+	"这部片的术语是更新版本的看懂写的，这里不能改。"+
 	"连接断了"+
 	"服务器一直没有发来数据"+
 	"已加入，开始处理。"+
@@ -11575,6 +11747,8 @@ var textsZhHans = i18n.NewTexts(""+
 	"标题里含这些词才加入，用逗号分隔"+
 	"检查更新"+
 	"只在看懂开着时检查，不常驻后台"+
+	"作为一个系列"+
+	"这个订阅里的视频共用术语表，人名和术语各集译法一致"+
 	"打开时"+
 	"每小时"+
 	"每天"+
@@ -11861,6 +12035,7 @@ var textsZhHans = i18n.NewTexts(""+
 		6,
 		6,
 		6,
+		6,
 		15,
 		21,
 		12,
@@ -11965,6 +12140,21 @@ var textsZhHans = i18n.NewTexts(""+
 		33,
 		18,
 		9,
+		90,
+		27,
+		6,
+		6,
+		6,
+		12,
+		12,
+		6,
+		18,
+		6,
+		6,
+		6,
+		45,
+		24,
+		69,
 		12,
 		33,
 		27,
@@ -12728,6 +12918,8 @@ var textsZhHans = i18n.NewTexts(""+
 		48,
 		12,
 		45,
+		18,
+		75,
 		9,
 		9,
 		6,
@@ -13017,6 +13209,7 @@ var textsZhHant = i18n.NewTexts(""+
 	"片段"+
 	"資訊"+
 	"樣式"+
+	"術語"+
 	"重新翻譯為"+
 	"補譯未譯的句子"+
 	"取消靜音"+
@@ -13121,6 +13314,21 @@ var textsZhHant = i18n.NewTexts(""+
 	"這裡還沒有看完的影片。"+
 	"顯示全部影片"+
 	"已看完"+
+	"術語立即生效。鎖定的條目一律照這裡的寫法翻譯，機器不會改寫。"+
+	"這部片還沒有術語。"+
+	"本片"+
+	"系列"+
+	"全域"+
+	"不是系列"+
+	"新增術語"+
+	"原文"+
+	"台詞裡的寫法"+
+	"譯法"+
+	"譯成"+
+	"新增"+
+	"術語表檔案讀不出來，沒有改動。"+
+	"術語表沒能儲存。"+
+	"這部片的術語是較新版本的看懂寫的，這裡不能改。"+
 	"連線中斷了"+
 	"伺服器一直沒有傳來資料"+
 	"已加入，開始處理。"+
@@ -13884,6 +14092,8 @@ var textsZhHant = i18n.NewTexts(""+
 	"標題裡含這些詞才加入，用逗號分隔"+
 	"檢查更新"+
 	"只在看懂開著時檢查，不常駐背景"+
+	"作為一個系列"+
+	"這個訂閱裡的影片共用術語表，人名和術語各集譯法一致"+
 	"開啟時"+
 	"每小時"+
 	"每天"+
@@ -14170,6 +14380,7 @@ var textsZhHant = i18n.NewTexts(""+
 		6,
 		6,
 		6,
+		6,
 		15,
 		21,
 		12,
@@ -14274,6 +14485,21 @@ var textsZhHant = i18n.NewTexts(""+
 		33,
 		18,
 		9,
+		90,
+		27,
+		6,
+		6,
+		6,
+		12,
+		12,
+		6,
+		18,
+		6,
+		6,
+		6,
+		45,
+		24,
+		69,
 		15,
 		33,
 		27,
@@ -15037,6 +15263,8 @@ var textsZhHant = i18n.NewTexts(""+
 		48,
 		12,
 		45,
+		18,
+		75,
 		9,
 		9,
 		6,
@@ -15471,6 +15699,24 @@ func Supply(lang string, t Translation) {
 	}
 	if t.FilmsUntranslated != nil {
 		s.FilmsUntranslated = t.FilmsUntranslated
+	}
+	if t.GlossaryMetaLocked != nil {
+		s.GlossaryMetaLocked = t.GlossaryMetaLocked
+	}
+	if t.GlossaryScopeLabel != nil {
+		s.GlossaryScopeLabel = t.GlossaryScopeLabel
+	}
+	if t.GlossaryLock != nil {
+		s.GlossaryLock = t.GlossaryLock
+	}
+	if t.GlossaryUnlock != nil {
+		s.GlossaryUnlock = t.GlossaryUnlock
+	}
+	if t.GlossaryRemove != nil {
+		s.GlossaryRemove = t.GlossaryRemove
+	}
+	if t.GlossarySeriesLine != nil {
+		s.GlossarySeriesLine = t.GlossarySeriesLine
 	}
 	if t.KitsDownloadFailedStatus != nil {
 		s.KitsDownloadFailedStatus = t.KitsDownloadFailedStatus
@@ -20976,6 +21222,15 @@ func FilmTabStyle(cx *core.Scope) string { return For(cx).FilmTabStyle() }
 // FilmTabStyle is the package's FilmTabStyle in the language of msgs.
 func (msgs Messages) FilmTabStyle() string { return msgs.text(textFilmTabStyle) }
 
+// FilmTabTerms says "Terms"
+// in the language the app shows under cx.
+//
+// Side panel tab with the film's glossary: how names and terms are translated.
+func FilmTabTerms(cx *core.Scope) string { return For(cx).FilmTabTerms() }
+
+// FilmTabTerms is the package's FilmTabTerms in the language of msgs.
+func (msgs Messages) FilmTabTerms() string { return msgs.text(textFilmTabTerms) }
+
 // FilmTranscribeAgain says "Transcribe Again in {language}"
 // in the language the app shows under cx.
 //
@@ -23604,6 +23859,339 @@ func FilmsWatched(cx *core.Scope) string { return For(cx).FilmsWatched() }
 
 // FilmsWatched is the package's FilmsWatched in the language of msgs.
 func (msgs Messages) FilmsWatched() string { return msgs.text(textFilmsWatched) }
+
+// GlossaryIntro says "Terms apply at once. A locked term is translated exactly as written here, and no machine pass changes it."
+// in the language the app shows under cx.
+//
+// Note at the top of the Terms tab of the player's side panel.
+func GlossaryIntro(cx *core.Scope) string { return For(cx).GlossaryIntro() }
+
+// GlossaryIntro is the package's GlossaryIntro in the language of msgs.
+func (msgs Messages) GlossaryIntro() string { return msgs.text(textGlossaryIntro) }
+
+// GlossaryEmpty says "This film has no terms yet."
+// in the language the app shows under cx.
+//
+// Terms tab: shown instead of the list when the film's glossary is empty.
+func GlossaryEmpty(cx *core.Scope) string { return For(cx).GlossaryEmpty() }
+
+// GlossaryEmpty is the package's GlossaryEmpty in the language of msgs.
+func (msgs Messages) GlossaryEmpty() string { return msgs.text(textGlossaryEmpty) }
+
+// GlossaryScopeFilm says "This Film"
+// in the language the app shows under cx.
+//
+// Scope of a term (its pill in the Terms tab): it applies to this film only.
+func GlossaryScopeFilm(cx *core.Scope) string { return For(cx).GlossaryScopeFilm() }
+
+// GlossaryScopeFilm is the package's GlossaryScopeFilm in the language of msgs.
+func (msgs Messages) GlossaryScopeFilm() string { return msgs.text(textGlossaryScopeFilm) }
+
+// GlossaryScopeSeries says "Series"
+// in the language the app shows under cx.
+//
+// Scope of a term (its pill in the Terms tab): it applies to every film of this film's series.
+func GlossaryScopeSeries(cx *core.Scope) string { return For(cx).GlossaryScopeSeries() }
+
+// GlossaryScopeSeries is the package's GlossaryScopeSeries in the language of msgs.
+func (msgs Messages) GlossaryScopeSeries() string { return msgs.text(textGlossaryScopeSeries) }
+
+// GlossaryScopeGlobal says "All Films"
+// in the language the app shows under cx.
+//
+// Scope of a term (its pill in the Terms tab): it applies to every film.
+func GlossaryScopeGlobal(cx *core.Scope) string { return For(cx).GlossaryScopeGlobal() }
+
+// GlossaryScopeGlobal is the package's GlossaryScopeGlobal in the language of msgs.
+func (msgs Messages) GlossaryScopeGlobal() string { return msgs.text(textGlossaryScopeGlobal) }
+
+// GlossaryMetaLocked says "{scope} · Locked"
+// in the language the app shows under cx.
+//
+// Line under a locked term in the Terms tab: where it applies, and that it is locked.
+func GlossaryMetaLocked(cx *core.Scope, scope string) string {
+	return For(cx).GlossaryMetaLocked(scope)
+}
+
+// GlossaryMetaLocked is the package's GlossaryMetaLocked in the language of msgs.
+func (msgs Messages) GlossaryMetaLocked(scope string) string {
+	if i18n.IsPseudo(msgs.lang) {
+		return i18n.Pseudo(msgs.lang, Messages{lang: Source, mark: true}.GlossaryMetaLocked(scope))
+	}
+	for lang := msgs.lang; ; lang = i18n.Parent(lang) {
+		if f := supplied[lang].GlossaryMetaLocked; f != nil {
+			return f(scope)
+		}
+		switch lang {
+		case "", "en":
+			return msgs.arg(scope) + " · Locked"
+		case "ja":
+			return scope + " · ロック済み"
+		case "ko":
+			return scope + " · 잠김"
+		case "zh-Hans":
+			return scope + " · 已锁定"
+		case "zh-Hant":
+			return scope + " · 已鎖定"
+		}
+	}
+}
+
+// GlossaryScopeLabel says "Applies to: {scope}. Press to change it to {next}."
+// in the language the app shows under cx.
+//
+// Accessible name and tooltip of a term's scope pill in the Terms tab.
+func GlossaryScopeLabel(cx *core.Scope, scope string, next string) string {
+	return For(cx).GlossaryScopeLabel(scope, next)
+}
+
+// GlossaryScopeLabel is the package's GlossaryScopeLabel in the language of msgs.
+func (msgs Messages) GlossaryScopeLabel(scope string, next string) string {
+	if i18n.IsPseudo(msgs.lang) {
+		return i18n.Pseudo(msgs.lang, Messages{lang: Source, mark: true}.GlossaryScopeLabel(scope, next))
+	}
+	for lang := msgs.lang; ; lang = i18n.Parent(lang) {
+		if f := supplied[lang].GlossaryScopeLabel; f != nil {
+			return f(scope, next)
+		}
+		switch lang {
+		case "", "en":
+			return "Applies to: " + msgs.arg(scope) + ". Press to change it to " + msgs.arg(next) + "."
+		case "ja":
+			return "適用範囲：" + scope + "。押すと「" + next + "」に変わります"
+		case "ko":
+			return "적용 범위: " + scope + ". 누르면 ‘" + next + "’(으)로 바뀝니다"
+		case "zh-Hans":
+			return "作用范围：" + scope + "，点一下改为「" + next + "」"
+		case "zh-Hant":
+			return "作用範圍：" + scope + "，點一下改為「" + next + "」"
+		}
+	}
+}
+
+// GlossaryLock says "Lock “{term}”"
+// in the language the app shows under cx.
+//
+// Accessible name of the button that locks a term in the Terms tab.
+func GlossaryLock(cx *core.Scope, term string) string { return For(cx).GlossaryLock(term) }
+
+// GlossaryLock is the package's GlossaryLock in the language of msgs.
+func (msgs Messages) GlossaryLock(term string) string {
+	if i18n.IsPseudo(msgs.lang) {
+		return i18n.Pseudo(msgs.lang, Messages{lang: Source, mark: true}.GlossaryLock(term))
+	}
+	for lang := msgs.lang; ; lang = i18n.Parent(lang) {
+		if f := supplied[lang].GlossaryLock; f != nil {
+			return f(term)
+		}
+		switch lang {
+		case "", "en":
+			return "Lock “" + msgs.arg(term) + "”"
+		case "ja":
+			return "「" + term + "」をロック"
+		case "ko":
+			return "‘" + term + "’ 잠그기"
+		case "zh-Hans":
+			return "锁定「" + term + "」"
+		case "zh-Hant":
+			return "鎖定「" + term + "」"
+		}
+	}
+}
+
+// GlossaryUnlock says "Unlock “{term}”"
+// in the language the app shows under cx.
+//
+// Accessible name of the button that unlocks a locked term in the Terms tab.
+func GlossaryUnlock(cx *core.Scope, term string) string { return For(cx).GlossaryUnlock(term) }
+
+// GlossaryUnlock is the package's GlossaryUnlock in the language of msgs.
+func (msgs Messages) GlossaryUnlock(term string) string {
+	if i18n.IsPseudo(msgs.lang) {
+		return i18n.Pseudo(msgs.lang, Messages{lang: Source, mark: true}.GlossaryUnlock(term))
+	}
+	for lang := msgs.lang; ; lang = i18n.Parent(lang) {
+		if f := supplied[lang].GlossaryUnlock; f != nil {
+			return f(term)
+		}
+		switch lang {
+		case "", "en":
+			return "Unlock “" + msgs.arg(term) + "”"
+		case "ja":
+			return "「" + term + "」のロックを解除"
+		case "ko":
+			return "‘" + term + "’ 잠금 해제"
+		case "zh-Hans":
+			return "解锁「" + term + "」"
+		case "zh-Hant":
+			return "解鎖「" + term + "」"
+		}
+	}
+}
+
+// GlossaryRemove says "Remove “{term}”"
+// in the language the app shows under cx.
+//
+// Accessible name of the button that removes a term from the glossary in the Terms tab.
+func GlossaryRemove(cx *core.Scope, term string) string { return For(cx).GlossaryRemove(term) }
+
+// GlossaryRemove is the package's GlossaryRemove in the language of msgs.
+func (msgs Messages) GlossaryRemove(term string) string {
+	if i18n.IsPseudo(msgs.lang) {
+		return i18n.Pseudo(msgs.lang, Messages{lang: Source, mark: true}.GlossaryRemove(term))
+	}
+	for lang := msgs.lang; ; lang = i18n.Parent(lang) {
+		if f := supplied[lang].GlossaryRemove; f != nil {
+			return f(term)
+		}
+		switch lang {
+		case "", "en":
+			return "Remove “" + msgs.arg(term) + "”"
+		case "ja":
+			return "「" + term + "」を削除"
+		case "ko":
+			return "‘" + term + "’ 삭제"
+		case "zh-Hans":
+			return "删除「" + term + "」"
+		case "zh-Hant":
+			return "刪除「" + term + "」"
+		}
+	}
+}
+
+// GlossarySeriesLine says "Series “{name}” · {count, plural, one {# film} other {# films}}"
+// in the language the app shows under cx.
+//
+// Terms tab: the series the film is part of and how many films of the library are in it.
+func GlossarySeriesLine(cx *core.Scope, name string, count int) string {
+	return For(cx).GlossarySeriesLine(name, count)
+}
+
+// GlossarySeriesLine is the package's GlossarySeriesLine in the language of msgs.
+func (msgs Messages) GlossarySeriesLine(name string, count int) string {
+	if i18n.IsPseudo(msgs.lang) {
+		return i18n.Pseudo(msgs.lang, Messages{lang: Source, mark: true}.GlossarySeriesLine(name, count))
+	}
+	for lang := msgs.lang; ; lang = i18n.Parent(lang) {
+		if f := supplied[lang].GlossarySeriesLine; f != nil {
+			return f(name, count)
+		}
+		switch lang {
+		case "", "en":
+			var b strings.Builder
+			b.WriteString("Series “")
+			b.WriteString(msgs.arg(name))
+			b.WriteString("” · ")
+			switch i18n.Cardinal("en", float64(count)) {
+			case i18n.One:
+				b.WriteString(msgs.arg(i18n.FormatNumber("en", float64(count))))
+				b.WriteString(" film")
+			default:
+				b.WriteString(msgs.arg(i18n.FormatNumber("en", float64(count))))
+				b.WriteString(" films")
+			}
+			return b.String()
+		case "ja":
+			return "シリーズ「" + name + "」· " + i18n.FormatNumber("ja", float64(count)) + " 本"
+		case "ko":
+			return "시리즈 ‘" + name + "’ · " + i18n.FormatNumber("ko", float64(count)) + "편"
+		case "zh-Hans":
+			return "系列「" + name + "」· " + i18n.FormatNumber("zh-Hans", float64(count)) + " 集"
+		case "zh-Hant":
+			return "系列「" + name + "」· " + i18n.FormatNumber("zh-Hant", float64(count)) + " 集"
+		}
+	}
+}
+
+// GlossaryLeaveSeries says "Not a Series"
+// in the language the app shows under cx.
+//
+// Terms tab: button that takes the film out of its series, after which it no longer uses the series' terms.
+func GlossaryLeaveSeries(cx *core.Scope) string { return For(cx).GlossaryLeaveSeries() }
+
+// GlossaryLeaveSeries is the package's GlossaryLeaveSeries in the language of msgs.
+func (msgs Messages) GlossaryLeaveSeries() string { return msgs.text(textGlossaryLeaveSeries) }
+
+// GlossaryAddGroup says "Add a Term"
+// in the language the app shows under cx.
+//
+// Terms tab: heading over the fields a new term is typed in.
+func GlossaryAddGroup(cx *core.Scope) string { return For(cx).GlossaryAddGroup() }
+
+// GlossaryAddGroup is the package's GlossaryAddGroup in the language of msgs.
+func (msgs Messages) GlossaryAddGroup() string { return msgs.text(textGlossaryAddGroup) }
+
+// GlossarySource says "Term"
+// in the language the app shows under cx.
+//
+// Terms tab: accessible name of the field for the words as the film's lines write them.
+func GlossarySource(cx *core.Scope) string { return For(cx).GlossarySource() }
+
+// GlossarySource is the package's GlossarySource in the language of msgs.
+func (msgs Messages) GlossarySource() string { return msgs.text(textGlossarySource) }
+
+// GlossarySourceHint says "As the lines say it"
+// in the language the app shows under cx.
+//
+// Placeholder of the field for a new term's words, as the film's lines write them.
+func GlossarySourceHint(cx *core.Scope) string { return For(cx).GlossarySourceHint() }
+
+// GlossarySourceHint is the package's GlossarySourceHint in the language of msgs.
+func (msgs Messages) GlossarySourceHint() string { return msgs.text(textGlossarySourceHint) }
+
+// GlossaryTarget says "Translation"
+// in the language the app shows under cx.
+//
+// Terms tab: accessible name of the field for how the term is to be translated.
+func GlossaryTarget(cx *core.Scope) string { return For(cx).GlossaryTarget() }
+
+// GlossaryTarget is the package's GlossaryTarget in the language of msgs.
+func (msgs Messages) GlossaryTarget() string { return msgs.text(textGlossaryTarget) }
+
+// GlossaryTargetHint says "Translate it as"
+// in the language the app shows under cx.
+//
+// Placeholder of the field for a new term's translation.
+func GlossaryTargetHint(cx *core.Scope) string { return For(cx).GlossaryTargetHint() }
+
+// GlossaryTargetHint is the package's GlossaryTargetHint in the language of msgs.
+func (msgs Messages) GlossaryTargetHint() string { return msgs.text(textGlossaryTargetHint) }
+
+// GlossaryAdd says "Add"
+// in the language the app shows under cx.
+//
+// Terms tab: button that adds the term typed in the fields beside it.
+func GlossaryAdd(cx *core.Scope) string { return For(cx).GlossaryAdd() }
+
+// GlossaryAdd is the package's GlossaryAdd in the language of msgs.
+func (msgs Messages) GlossaryAdd() string { return msgs.text(textGlossaryAdd) }
+
+// GlossaryUnreadable says "The glossary file could not be read, so it was not changed."
+// in the language the app shows under cx.
+//
+// Message over the picture when glossary.json could not be read at startup, so a change of a series' or every film's term is not saved over it.
+func GlossaryUnreadable(cx *core.Scope) string { return For(cx).GlossaryUnreadable() }
+
+// GlossaryUnreadable is the package's GlossaryUnreadable in the language of msgs.
+func (msgs Messages) GlossaryUnreadable() string { return msgs.text(textGlossaryUnreadable) }
+
+// GlossarySaveFailed says "Could not save the glossary."
+// in the language the app shows under cx.
+//
+// Message over the picture when a change of the glossary could not be written to disk.
+func GlossarySaveFailed(cx *core.Scope) string { return For(cx).GlossarySaveFailed() }
+
+// GlossarySaveFailed is the package's GlossarySaveFailed in the language of msgs.
+func (msgs Messages) GlossarySaveFailed() string { return msgs.text(textGlossarySaveFailed) }
+
+// GlossaryNewer says "This film's terms were written by a newer Kando and cannot be changed here."
+// in the language the app shows under cx.
+//
+// Message over the picture when the film's terms file was written by a newer version of Kando.
+func GlossaryNewer(cx *core.Scope) string { return For(cx).GlossaryNewer() }
+
+// GlossaryNewer is the package's GlossaryNewer in the language of msgs.
+func (msgs Messages) GlossaryNewer() string { return msgs.text(textGlossaryNewer) }
 
 // KitsDownloadDisconnected says "the connection dropped"
 // in the language the app shows under cx.
@@ -40216,6 +40804,24 @@ func SubscribeCadenceNote(cx *core.Scope) string { return For(cx).SubscribeCaden
 
 // SubscribeCadenceNote is the package's SubscribeCadenceNote in the language of msgs.
 func (msgs Messages) SubscribeCadenceNote() string { return msgs.text(textSubscribeCadenceNote) }
+
+// SubscribeSeries says "Treat as a Series"
+// in the language the app shows under cx.
+//
+// Switch in a subscription's rules: its videos are a series, which share a glossary.
+func SubscribeSeries(cx *core.Scope) string { return For(cx).SubscribeSeries() }
+
+// SubscribeSeries is the package's SubscribeSeries in the language of msgs.
+func (msgs Messages) SubscribeSeries() string { return msgs.text(textSubscribeSeries) }
+
+// SubscribeSeriesNote says "Its videos share a glossary, so names and terms are translated the same way in every one"
+// in the language the app shows under cx.
+//
+// Note under the Treat as a Series switch.
+func SubscribeSeriesNote(cx *core.Scope) string { return For(cx).SubscribeSeriesNote() }
+
+// SubscribeSeriesNote is the package's SubscribeSeriesNote in the language of msgs.
+func (msgs Messages) SubscribeSeriesNote() string { return msgs.text(textSubscribeSeriesNote) }
 
 // SubscribeCadenceOpen says "On Open"
 // in the language the app shows under cx.

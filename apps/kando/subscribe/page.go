@@ -291,7 +291,7 @@ func (p page) waiting(cx *ns.Scope) ns.Node {
 	}}
 }
 
-// rules is the card of the rules: what happens to new videos, which ones are taken with the keyword field when keywords are chosen, and how often the subscription is checked.
+// rules is the card of the rules: what happens to new videos, which ones are taken with the keyword field when keywords are chosen, how often the subscription is checked, and whether its videos are a series, which share a glossary.
 func (p page) rules(cx *ns.Scope) ns.Node {
 	a := p.a
 	rules := live.Memo(cx, a, a.SubscriptionRules)
@@ -345,6 +345,14 @@ func (p page) rules(cx *ns.Scope) ns.Node {
 			keywords,
 			form.Separator(true),
 			form.Row{Title: locales.SubscribeCadence(cx), Subtitle: locales.SubscribeCadenceNote(cx), Trailing: []ns.Node{cadence}},
+			form.Separator(true),
+			form.SwitchRow{TestID: "subscription-series", Title: locales.SubscribeSeries(cx), Subtitle: locales.SubscribeSeriesNote(cx),
+				On: func() bool { return rules().Series },
+				OnChange: live.On(a, func(on bool) {
+					r := rules()
+					r.Series = on
+					a.SetSubscriptionRules(r)
+				})},
 		),
 	}}
 }

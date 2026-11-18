@@ -44,6 +44,7 @@ func (p *fakePlay) Length() time.Duration { return p.length }
 type fakeApp struct {
 	live.Rev
 	fakeCorrector
+	fakeGlossary
 	item       Item
 	play       *fakePlay
 	path       string

@@ -117,6 +117,8 @@ type Job struct {
 	FromFolder bool
 	// Device is the name of the paired phone that sent the job's link (phone sync), as its card says 来自 <device>; empty for a job added on the desktop. It stays when the job is run again.
 	Device string
+	// Series is the ID of the series the user said the film is part of, whose glossary its translation uses with its own (Term, ScopeSeries); empty for a film of no series. It stays when the job is run again.
+	Series string
 }
 
 // Quality is how good a picture the download of a link asks for (Job.Quality).

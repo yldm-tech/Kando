@@ -799,6 +799,7 @@ func (a *app) queueRun(job core.Job) {
 	}
 	// A link the user chose no picture or original lines for takes those Settings › 通用 › 在线视频 names, from its first run, and keeps them (onlineFor).
 	job = a.onlineFor(job)
+	job, terms := a.glossaryStart(job)
 	// Jobs written by older versions, or jobs interrupted before their language
 	// was saved, can come back from the shelf without a target language. Use the
 	// current translation setting before handing the job to the pipeline; an
@@ -820,6 +821,7 @@ func (a *app) queueRun(job core.Job) {
 		language = job.RedoLanguage
 	}
 	ctx, cancel := context.WithCancelCause(context.Background())
+	ctx = media.WithGlossary(ctx, terms)
 	done := make(chan struct{})
 	a.queue.active, a.queue.cancel, a.queue.done, a.queue.cancelled = job.ID, cancel, done, false
 	a.queueKeepAwake()
@@ -962,6 +964,10 @@ func (a *app) show(job core.Job) {
 	// The phone a job came from stays on its card whatever reports it later, as the running pipeline's copy of a job a phone's link made before it was named (core.Job.Device).
 	if job.Device == "" {
 		job.Device = was.Device
+	}
+	// The series is the user's, as the glossary's 术语 tab changes it while the job runs (core.Job.Series): the pipeline's copy of a job the library holds does not change it.
+	if was.ID != "" {
+		job.Series = was.Series
 	}
 	// A job that has just completed again under its subtitle path, as one translating its film again does, has rewritten the file the open film shows.
 	rewritten := job.Stage == core.StageComplete && was.Stage != "" && was.Stage != core.StageComplete

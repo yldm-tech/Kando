@@ -1137,6 +1137,9 @@ filmTabInfo:
 filmTabStyle:
   message: "Style"
   description: "Side panel tab with the subtitle style."
+filmTabTerms:
+  message: "Terms"
+  description: "Side panel tab with the film's glossary: how names and terms are translated."
 filmTranscribeAgain:
   message: "Transcribe Again in {language}"
   description: "Button in a film's Info tab, under the Spoken Language drop-down, shown when the language chosen there is not the one heard in the film: processes the film again, transcribing its speech in that language."
@@ -1692,6 +1695,83 @@ filmsWatchShowAll:
 filmsWatched:
   message: "Watched"
   description: "Accessible name of the check mark over a poster: the film was played to its end."
+glossaryIntro:
+  message: "Terms apply at once. A locked term is translated exactly as written here, and no machine pass changes it."
+  description: "Note at the top of the Terms tab of the player's side panel."
+glossaryEmpty:
+  message: "This film has no terms yet."
+  description: "Terms tab: shown instead of the list when the film's glossary is empty."
+glossaryScopeFilm:
+  message: "This Film"
+  description: "Scope of a term (its pill in the Terms tab): it applies to this film only."
+glossaryScopeSeries:
+  message: "Series"
+  description: "Scope of a term (its pill in the Terms tab): it applies to every film of this film's series."
+glossaryScopeGlobal:
+  message: "All Films"
+  description: "Scope of a term (its pill in the Terms tab): it applies to every film."
+glossaryMetaLocked:
+  message: "{scope} · Locked"
+  description: "Line under a locked term in the Terms tab: where it applies, and that it is locked."
+  placeholders:
+    scope: { type: "String", example: "This Film" }
+glossaryScopeLabel:
+  message: "Applies to: {scope}. Press to change it to {next}."
+  description: "Accessible name and tooltip of a term's scope pill in the Terms tab."
+  placeholders:
+    scope: { type: "String", example: "This Film" }
+    next: { type: "String", example: "Series" }
+glossaryLock:
+  message: "Lock “{term}”"
+  description: "Accessible name of the button that locks a term in the Terms tab."
+  placeholders:
+    term: { type: "String", example: "河曲" }
+glossaryUnlock:
+  message: "Unlock “{term}”"
+  description: "Accessible name of the button that unlocks a locked term in the Terms tab."
+  placeholders:
+    term: { type: "String", example: "河曲" }
+glossaryRemove:
+  message: "Remove “{term}”"
+  description: "Accessible name of the button that removes a term from the glossary in the Terms tab."
+  placeholders:
+    term: { type: "String", example: "meander" }
+glossarySeriesLine:
+  message: "Series “{name}” · {count, plural, one {# film} other {# films}}"
+  description: "Terms tab: the series the film is part of and how many films of the library are in it."
+  placeholders:
+    name: { type: "String", example: "Geography" }
+    count: { type: "int", example: "3" }
+glossaryLeaveSeries:
+  message: "Not a Series"
+  description: "Terms tab: button that takes the film out of its series, after which it no longer uses the series' terms."
+glossaryAddGroup:
+  message: "Add a Term"
+  description: "Terms tab: heading over the fields a new term is typed in."
+glossarySource:
+  message: "Term"
+  description: "Terms tab: accessible name of the field for the words as the film's lines write them."
+glossarySourceHint:
+  message: "As the lines say it"
+  description: "Placeholder of the field for a new term's words, as the film's lines write them."
+glossaryTarget:
+  message: "Translation"
+  description: "Terms tab: accessible name of the field for how the term is to be translated."
+glossaryTargetHint:
+  message: "Translate it as"
+  description: "Placeholder of the field for a new term's translation."
+glossaryAdd:
+  message: "Add"
+  description: "Terms tab: button that adds the term typed in the fields beside it."
+glossaryUnreadable:
+  message: "The glossary file could not be read, so it was not changed."
+  description: "Message over the picture when glossary.json could not be read at startup, so a change of a series' or every film's term is not saved over it."
+glossarySaveFailed:
+  message: "Could not save the glossary."
+  description: "Message over the picture when a change of the glossary could not be written to disk."
+glossaryNewer:
+  message: "This film's terms were written by a newer Kando and cannot be changed here."
+  description: "Message over the picture when the film's terms file was written by a newer version of Kando."
 kitsDownloadDisconnected:
   message: "the connection dropped"
   description: "Why Kando's download of a program failed, after 'Download failed:': the connection to the server broke off."
@@ -5326,6 +5406,12 @@ subscribeCadence:
 subscribeCadenceNote:
   message: "Only while Kando is open, never in the background"
   description: "Note of the Check for New Videos row."
+subscribeSeries:
+  message: "Treat as a Series"
+  description: "Switch in a subscription's rules: its videos are a series, which share a glossary."
+subscribeSeriesNote:
+  message: "Its videos share a glossary, so names and terms are translated the same way in every one"
+  description: "Note under the Treat as a Series switch."
 subscribeCadenceOpen:
   message: "On Open"
   description: "Choice of the Check for New Videos row: each time Kando opens."

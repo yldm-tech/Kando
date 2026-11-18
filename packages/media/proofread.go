@@ -42,7 +42,7 @@ func (t ChatTranslator) Proofread(ctx context.Context, segments []core.Segment, 
 			return nil, err
 		}
 	}
-	system := strings.ReplaceAll(proofreadPrompt, "{{title}}", strings.TrimSpace(title))
+	system := strings.ReplaceAll(proofreadPrompt, "{{title}}", strings.TrimSpace(title)) + proofreadTerms(glossaryOf(ctx))
 	renewed := false
 	out := make([]core.Segment, len(segments))
 	copy(out, segments)
