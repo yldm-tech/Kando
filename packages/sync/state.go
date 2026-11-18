@@ -8,7 +8,7 @@ import (
 	"time"
 )
 
-// The learning state (yldm-tech/Kando#217) is what a learner makes of a library's films on any of their devices: where each film was left (KindPosition), the lines saved with their notes and review schedule (KindLine), the corrections of the machine's lines (KindCorrection) and the vocabulary (KindWord). It travels as records over the same calls as the jobs (OpStateGet, OpStatePut, OpStateResolve), so the storage relay (yldm-tech/Kando#219) carries it as it carries them.
+// The learning state (yldm-tech/Kando#217) is what a learner makes of a library's films on any of their devices: where each film was left (KindPosition), the lines saved with their notes and review schedule (KindLine), the corrections of the machine's lines (KindCorrection), the vocabulary (KindWord) and how long each device played the library's films each day (KindWatched). It travels as records over the same calls as the jobs (OpStateGet, OpStatePut, OpStateResolve), so the storage relay (yldm-tech/Kando#219) carries it as it carries them.
 //
 // Records. A record is a kind, an ID unique among the library's records of its kind, the film it belongs to and its fields. Each field carries its value as JSON and a Stamp, when and on which device it last changed, so two devices' records merge field by field, the later change winning (MergeRecord). A line or a word removed leaves its record behind with Removed set, a tombstone, which wins over any change of the record: the record is gone on every device for good, and saving the line again makes a record of another ID. A position or a correction is never removed; its fields are set to null instead, which is how a correction taken back or a film watched to its end reads, so a later change can set them again.
 //
@@ -34,6 +34,7 @@ const (
 	KindLine       = "line"
 	KindCorrection = "correction"
 	KindWord       = "word"
+	KindWatched    = "watched"
 )
 
 // The fields of a KindPosition record, whose ID is its film's ID (Film.ID).
@@ -82,6 +83,28 @@ const (
 	FieldContext            = "context"
 	FieldContextTranslation = "context_translation"
 )
+
+// The fields of a KindWatched record: how long films of the library played on one device on one day (yldm-tech/Kando#224), whose ID names the device and the day (WatchedID) and whose Film is "". Only the device it names changes it, and its time only grows, so of two copies the later is the longer; the study stats of every device add up the records of all of them.
+const (
+	// FieldWatchedMS is how long films played, in milliseconds, as a number.
+	FieldWatchedMS = "watched_ms"
+)
+
+// WatchedID is the ID of the KindWatched record of device's time on day, a day as "2026-11-16" in the device's own calendar.
+func WatchedID(device, day string) string { return device + "/" + day }
+
+// ParseWatchedID is the device and the day a WatchedID names.
+func ParseWatchedID(id string) (device, day string, ok bool) {
+	i := strings.LastIndex(id, "/")
+	if i <= 0 {
+		return "", "", false
+	}
+	device, day = id[:i], id[i+1:]
+	if _, err := time.Parse(time.DateOnly, day); err != nil {
+		return "", "", false
+	}
+	return device, day, true
+}
 
 // Review is a line's or a word's review schedule (FieldReview): its box, from 0, and when it is due.
 type Review struct {

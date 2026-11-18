@@ -167,3 +167,42 @@ func TestPhoneSyncSharesTheAIServiceAndTheContextSwitch(t *testing.T) {
 		t.Fatalf("settings without a service %+v, %v", got, err)
 	}
 }
+
+// A phone reads how long films of the library played on each device each day, this computer's among them, and puts its own, which the study record keeps, so the stats on either side add up every device's; it cannot put another device's.
+func TestPhoneSyncSharesTheTimeWatched(t *testing.T) {
+	a, p, dir, _, c, clock := phoneStateLibrary(t)
+	lib := phoneLibraryID(dir)
+	a.saved.book.Watch(clock.Now(), 10*time.Minute)
+	a.savedWrite()
+	refresh(p.tt, a)
+	h, err := phoneAsk(t, p, c.Hello)
+	if err != nil || !slices.Contains(h.State, psync.KindWatched) {
+		t.Fatalf("hello %+v, %v; want the time watched among the state", h, err)
+	}
+	got, err := phoneAsk(t, p, func(ctx context.Context) (psync.StateChanges, error) { return c.State(ctx, lib, "", 0) })
+	if err != nil {
+		t.Fatal(err)
+	}
+	day := study.Day(clock.Now())
+	mine := phoneStateFind(t, got.Records, psync.KindWatched, psync.WatchedID(a.saved.book.Device, day))
+	var ms float64
+	if err := json.Unmarshal(mine.Fields[psync.FieldWatchedMS].Value, &ms); err != nil || ms != 600_000 {
+		t.Fatalf("this computer's time reads %v, %v", ms, err)
+	}
+
+	phone := a.phone.devices[0].ID
+	put := []psync.Record{{Kind: psync.KindWatched, ID: psync.WatchedID(phone, day), Fields: map[string]psync.Field{psync.FieldWatchedMS: {Value: psync.Value(300_000), Stamp: psync.Stamp{At: clock.Now()}}}}}
+	if _, err := phoneAsk(t, p, func(ctx context.Context) (psync.StatePutResult, error) { return c.PutState(ctx, lib, put) }); err != nil {
+		t.Fatal(err)
+	}
+	if !slices.Contains(a.saved.book.Watched, study.Watched{Day: day, Device: phone, Time: 5 * time.Minute}) {
+		t.Errorf("the study record's time watched %+v; want the phone's five minutes", a.saved.book.Watched)
+	}
+	if disk, err := study.Load(dir); err != nil || !slices.Contains(disk.Watched, study.Watched{Day: day, Device: phone, Time: 5 * time.Minute}) {
+		t.Errorf("the study record on disk keeps %+v, %v", disk.Watched, err)
+	}
+
+	other := []psync.Record{{Kind: psync.KindWatched, ID: psync.WatchedID(a.saved.book.Device, day), Fields: map[string]psync.Field{psync.FieldWatchedMS: {Value: psync.Value(0)}}}}
+	_, err = phoneAsk(t, p, func(ctx context.Context) (psync.StatePutResult, error) { return c.PutState(ctx, lib, other) })
+	phoneWantCode(t, err, http.StatusBadRequest, psync.CodeInvalid)
+}
