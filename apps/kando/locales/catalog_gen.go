@@ -689,6 +689,9 @@ var Parameters = map[string][]string{
 	"PlayerOsdSpeed":                           {"rate"},
 	"PlayerOsdSubtitleSize":                    {"size"},
 	"PlayerOsdVolume":                          {"percent"},
+	"PlayerStreamFailedDetail":                 {"site"},
+	"PlayerStreamNoneDetail":                   {"site"},
+	"PlayerStreamOfflineDetail":                {"site"},
 	"PlaylistAdd":                              {"count"},
 	"PlaylistChannelLimit":                     {"limit"},
 	"PlaylistFailed":                           {"error_"},
@@ -746,6 +749,7 @@ var Parameters = map[string][]string{
 	"QueueStatusFailed":                        {"error_"},
 	"QueueSwapRemoved":                         {"name"},
 	"QueueUpdateFailed":                        {"error_"},
+	"QueueVideoFailed":                         {"name", "reason"},
 	"QueueYtdlpHintStandalone":                 {"dir"},
 	"QueueYtdlpHintSystem":                     {"dir"},
 	"QueueYtdlpLatest":                         {"version"},
@@ -1120,6 +1124,9 @@ type Translation struct {
 	PlayerOsdSpeed                           func(rate string) string
 	PlayerOsdSubtitleSize                    func(size int) string
 	PlayerOsdVolume                          func(percent int) string
+	PlayerStreamFailedDetail                 func(site string) string
+	PlayerStreamNoneDetail                   func(site string) string
+	PlayerStreamOfflineDetail                func(site string) string
 	PlaylistAdd                              func(count int) string
 	PlaylistChannelLimit                     func(limit int) string
 	PlaylistFailed                           func(error_ string) string
@@ -1177,6 +1184,7 @@ type Translation struct {
 	QueueStatusFailed                        func(error_ string) string
 	QueueSwapRemoved                         func(name string) string
 	QueueUpdateFailed                        func(error_ string) string
+	QueueVideoFailed                         func(name string, reason string) string
 	QueueYtdlpHintStandalone                 func(dir string) string
 	QueueYtdlpHintSystem                     func(dir string) string
 	QueueYtdlpLatest                         func(version string) string
@@ -1529,6 +1537,10 @@ const (
 	textFilmFontSans
 	textFilmFontSerif
 	textFilmFullScreen
+	textFilmInfoStream
+	textFilmInfoStreamNone
+	textFilmInfoStreamQueued
+	textFilmInfoStreamTitle
 	textFilmJobRecord
 	textFilmKeySpace
 	textFilmKindBilingual
@@ -1707,6 +1719,7 @@ const (
 	textFilmsStageTranscribing
 	textFilmsStageTranslating
 	textFilmsStart
+	textFilmsSubtitlesOnly
 	textFilmsSupportedSites
 	textFilmsTranslate
 	textFilmsTranslateAgain
@@ -1939,6 +1952,14 @@ const (
 	textPlayerSaveSpeedFailed
 	textPlayerSaveSubtitlesFailed
 	textPlayerSaveVolumeFailed
+	textPlayerStreamDownload
+	textPlayerStreamDownloadLater
+	textPlayerStreamFailed
+	textPlayerStreamGoOnline
+	textPlayerStreamNone
+	textPlayerStreamOffline
+	textPlayerStreamQueued
+	textPlayerStreamRetry
 	textPlayerSubsMissing
 	textPlayerSubsUnreadable
 	textPlayerUnplayable
@@ -2201,6 +2222,8 @@ const (
 	textSettingsGeneralQuality
 	textSettingsGeneralQuality720
 	textSettingsGeneralQualityBest
+	textSettingsGeneralQualitySubtitles
+	textSettingsGeneralQualitySubtitlesHint
 	textSettingsGeneralRedetect
 	textSettingsGeneralRetry
 	textSettingsGeneralSignIn
@@ -2306,6 +2329,8 @@ const (
 	textSettingsPrivacySteps
 	textSettingsPrivacyStepSpeech
 	textSettingsPrivacyStepSpeechDetail
+	textSettingsPrivacyStepStream
+	textSettingsPrivacyStepStreamDetail
 	textSettingsPrivacyStepTools
 	textSettingsPrivacyStepToolsDetail
 	textSettingsPrivacyStepUpdates
@@ -2774,6 +2799,10 @@ var keyOfText = [numTexts]string{
 	"filmFontSans",
 	"filmFontSerif",
 	"filmFullScreen",
+	"filmInfoStream",
+	"filmInfoStreamNone",
+	"filmInfoStreamQueued",
+	"filmInfoStreamTitle",
 	"filmJobRecord",
 	"filmKeySpace",
 	"filmKindBilingual",
@@ -2952,6 +2981,7 @@ var keyOfText = [numTexts]string{
 	"filmsStageTranscribing",
 	"filmsStageTranslating",
 	"filmsStart",
+	"filmsSubtitlesOnly",
 	"filmsSupportedSites",
 	"filmsTranslate",
 	"filmsTranslateAgain",
@@ -3184,6 +3214,14 @@ var keyOfText = [numTexts]string{
 	"playerSaveSpeedFailed",
 	"playerSaveSubtitlesFailed",
 	"playerSaveVolumeFailed",
+	"playerStreamDownload",
+	"playerStreamDownloadLater",
+	"playerStreamFailed",
+	"playerStreamGoOnline",
+	"playerStreamNone",
+	"playerStreamOffline",
+	"playerStreamQueued",
+	"playerStreamRetry",
 	"playerSubsMissing",
 	"playerSubsUnreadable",
 	"playerUnplayable",
@@ -3446,6 +3484,8 @@ var keyOfText = [numTexts]string{
 	"settingsGeneralQuality",
 	"settingsGeneralQuality720",
 	"settingsGeneralQualityBest",
+	"settingsGeneralQualitySubtitles",
+	"settingsGeneralQualitySubtitlesHint",
 	"settingsGeneralRedetect",
 	"settingsGeneralRetry",
 	"settingsGeneralSignIn",
@@ -3551,6 +3591,8 @@ var keyOfText = [numTexts]string{
 	"settingsPrivacySteps",
 	"settingsPrivacyStepSpeech",
 	"settingsPrivacyStepSpeechDetail",
+	"settingsPrivacyStepStream",
+	"settingsPrivacyStepStreamDetail",
 	"settingsPrivacyStepTools",
 	"settingsPrivacyStepToolsDetail",
 	"settingsPrivacyStepUpdates",
@@ -4017,6 +4059,10 @@ var textsEn = i18n.NewTexts(""+
 	"Sans Serif"+
 	"Serif"+
 	"Full Screen"+
+	"The video isn't on this computer and takes no space: only its sound was downloaded to make the subtitles, and deleted after. It streams when you watch it, with the subtitles over it. Offline it can't play, but subtitles, explanations, notes and export still work."+
+	"The video isn't on this computer and takes no space: only its sound was downloaded to make the subtitles, and deleted after. Download the video to watch it; subtitles, explanations, notes and export still work."+
+	"The video downloads to this computer while online; once it's done, the film plays offline."+
+	"Subtitles Only · Streams Online"+
 	"Job record"+
 	"Space"+
 	"Bilingual subtitles"+
@@ -4195,6 +4241,7 @@ var textsEn = i18n.NewTexts(""+
 	"Transcribing"+
 	"Translating"+
 	"Start Processing"+
+	"Subtitles only"+
 	"Supported Websites…"+
 	"Translate"+
 	"Translate Again Into"+
@@ -4427,6 +4474,14 @@ var textsEn = i18n.NewTexts(""+
 	"Couldn't save the speed"+
 	"Couldn't save subtitle settings"+
 	"Couldn't save the volume"+
+	"Download Video"+
+	"Download Video When Online"+
+	"Couldn't stream this film"+
+	"Turn Off Offline Mode"+
+	"This film is subtitles only and can't stream here"+
+	"This film is subtitles only, so it can't play offline"+
+	"Download Scheduled"+
+	"Try Again"+
 	"The subtitle file is gone"+
 	"Couldn't read the subtitles"+
 	"This video can't be played"+
@@ -4689,6 +4744,8 @@ var textsEn = i18n.NewTexts(""+
 	"Download quality"+
 	"720p"+
 	"Best"+
+	"Subtitles Only"+
+	"Keeps no video: only the sound is downloaded to make the subtitles and is deleted once they're done. The film streams from its site when you watch it, with the subtitles over it."+
 	"Detect Again"+
 	"Retry"+
 	"Browser Sign-In"+
@@ -4794,6 +4851,8 @@ var textsEn = i18n.NewTexts(""+
 	"What uses the network"+
 	"Speech recognition"+
 	"whisper.cpp, with the model on this computer"+
+	"Online Playback"+
+	"“Subtitles Only” films stream their video from the site when you watch them; the subtitles are drawn on this computer"+
 	"Components and speech models"+
 	"Only when you press Download"+
 	"Update checks"+
@@ -5257,6 +5316,10 @@ var textsEn = i18n.NewTexts(""+
 		10,
 		5,
 		11,
+		263,
+		210,
+		90,
+		32,
 		10,
 		5,
 		19,
@@ -5435,6 +5498,7 @@ var textsEn = i18n.NewTexts(""+
 		12,
 		11,
 		16,
+		14,
 		21,
 		9,
 		20,
@@ -5667,6 +5731,14 @@ var textsEn = i18n.NewTexts(""+
 		23,
 		31,
 		24,
+		14,
+		26,
+		25,
+		21,
+		49,
+		53,
+		18,
+		9,
 		25,
 		27,
 		26,
@@ -5929,6 +6001,8 @@ var textsEn = i18n.NewTexts(""+
 		16,
 		4,
 		4,
+		14,
+		178,
 		12,
 		5,
 		15,
@@ -6034,6 +6108,8 @@ var textsEn = i18n.NewTexts(""+
 		21,
 		18,
 		44,
+		15,
+		121,
 		28,
 		28,
 		13,
@@ -6500,6 +6576,10 @@ var textsJa = i18n.NewTexts(""+
 	"ゴシック体"+
 	"明朝体"+
 	"フルスクリーン"+
+	"動画はこのコンピュータになく、容量を使いません。字幕を作るために音声だけをダウンロードし、終わったあと削除しました。見るときはオンラインで再生し、字幕を重ねて表示します。オフラインでは再生できませんが、字幕、解説、メモ、書き出しは使えます。"+
+	"動画はこのコンピュータになく、容量を使いません。字幕を作るために音声だけをダウンロードし、終わったあと削除しました。動画をダウンロードすれば見られます。字幕、解説、メモ、書き出しは使えます。"+
+	"オンラインのときに動画をダウンロードします。終わればオフラインでも見られます。"+
+	"字幕のみ · オンライン再生"+
 	"ジョブの記録"+
 	"スペース"+
 	"二言語字幕"+
@@ -6678,6 +6758,7 @@ var textsJa = i18n.NewTexts(""+
 	"文字起こし中"+
 	"翻訳中"+
 	"処理を開始"+
+	"字幕のみ"+
 	"対応サイト…"+
 	"翻訳"+
 	"再翻訳先"+
@@ -6910,6 +6991,14 @@ var textsJa = i18n.NewTexts(""+
 	"再生速度の設定を保存できませんでした"+
 	"字幕の設定を保存できませんでした"+
 	"音量の設定を保存できませんでした"+
+	"動画をダウンロード"+
+	"オンラインになったら動画をダウンロード"+
+	"この作品をオンライン再生できませんでした"+
+	"オフラインモードをオフにする"+
+	"この作品は「字幕のみ」で、ここではまだオンライン再生できません"+
+	"この作品は「字幕のみ」のため、オフラインでは再生できません"+
+	"ダウンロード予定"+
+	"再試行"+
 	"字幕ファイルが見つかりません"+
 	"字幕を読み込めません"+
 	"この動画は再生できません"+
@@ -7172,6 +7261,8 @@ var textsJa = i18n.NewTexts(""+
 	"ダウンロード画質"+
 	"720p"+
 	"最高画質"+
+	"字幕のみ"+
+	"動画は保存しません。字幕を作るために音声だけをダウンロードし、終わったら削除します。見るときはオンラインで再生し、字幕を重ねて表示します。"+
 	"再検出"+
 	"再試行"+
 	"ブラウザのログイン"+
@@ -7277,6 +7368,8 @@ var textsJa = i18n.NewTexts(""+
 	"ネットワークを使うもの"+
 	"音声認識"+
 	"whisper.cpp。モデルはこのコンピュータにあります"+
+	"オンライン再生"+
+	"「字幕のみ」の作品は見るときに元のサイトから動画を再生し、字幕はこのコンピュータで重ねます"+
 	"コンポーネントと音声モデル"+
 	"「ダウンロード」を押したときだけ"+
 	"アップデートの確認"+
@@ -7740,6 +7833,10 @@ var textsJa = i18n.NewTexts(""+
 		15,
 		9,
 		21,
+		360,
+		285,
+		117,
+		37,
 		18,
 		12,
 		15,
@@ -7918,6 +8015,7 @@ var textsJa = i18n.NewTexts(""+
 		18,
 		9,
 		15,
+		12,
 		18,
 		6,
 		12,
@@ -8150,6 +8248,14 @@ var textsJa = i18n.NewTexts(""+
 		54,
 		48,
 		48,
+		27,
+		57,
+		60,
+		42,
+		93,
+		87,
+		24,
+		9,
 		42,
 		30,
 		36,
@@ -8412,6 +8518,8 @@ var textsJa = i18n.NewTexts(""+
 		24,
 		4,
 		12,
+		12,
+		207,
 		9,
 		9,
 		27,
@@ -8517,6 +8625,8 @@ var textsJa = i18n.NewTexts(""+
 		33,
 		12,
 		65,
+		21,
+		135,
 		39,
 		48,
 		27,
@@ -8983,6 +9093,10 @@ var textsKo = i18n.NewTexts(""+
 	"고딕체"+
 	"명조체"+
 	"전체 화면"+
+	"동영상은 이 컴퓨터에 없어 공간을 차지하지 않습니다. 자막을 만들 때 오디오만 내려받았고 끝난 뒤 삭제했습니다. 볼 때 온라인으로 재생하고 자막을 위에 겹쳐 보여 줍니다. 오프라인에서는 재생할 수 없지만 자막, 설명, 메모, 내보내기는 쓸 수 있습니다."+
+	"동영상은 이 컴퓨터에 없어 공간을 차지하지 않습니다. 자막을 만들 때 오디오만 내려받았고 끝난 뒤 삭제했습니다. 동영상을 내려받으면 볼 수 있습니다. 자막, 설명, 메모, 내보내기는 쓸 수 있습니다."+
+	"온라인일 때 동영상을 내려받습니다. 끝나면 오프라인에서도 볼 수 있습니다."+
+	"자막만 · 온라인 재생"+
 	"작업 기록"+
 	"스페이스"+
 	"이중 언어 자막"+
@@ -9161,6 +9275,7 @@ var textsKo = i18n.NewTexts(""+
 	"전사 중"+
 	"번역 중"+
 	"처리 시작"+
+	"자막만"+
 	"지원하는 웹사이트…"+
 	"번역"+
 	"다시 번역할 언어"+
@@ -9393,6 +9508,14 @@ var textsKo = i18n.NewTexts(""+
 	"재생 속도 설정을 저장할 수 없습니다"+
 	"자막 설정을 저장할 수 없습니다"+
 	"음량 설정을 저장할 수 없습니다"+
+	"동영상 내려받기"+
+	"온라인이 되면 동영상 다운로드"+
+	"이 영화를 온라인으로 재생하지 못했습니다"+
+	"오프라인 모드 끄기"+
+	"이 영화는 '자막만'이라 여기서는 아직 온라인으로 재생할 수 없습니다"+
+	"이 영화는 '자막만'이라 오프라인에서는 재생할 수 없습니다"+
+	"다운로드 예약됨"+
+	"다시 시도"+
 	"자막 파일이 없습니다"+
 	"자막을 읽을 수 없습니다"+
 	"이 동영상은 재생할 수 없습니다"+
@@ -9655,6 +9778,8 @@ var textsKo = i18n.NewTexts(""+
 	"다운로드 화질"+
 	"720p"+
 	"최고 화질"+
+	"자막만"+
+	"동영상을 저장하지 않습니다. 자막을 만들 때 오디오만 내려받고 끝나면 삭제합니다. 볼 때는 온라인으로 재생하고 자막을 위에 겹쳐 보여 줍니다."+
 	"다시 감지"+
 	"다시 시도"+
 	"브라우저 로그인"+
@@ -9760,6 +9885,8 @@ var textsKo = i18n.NewTexts(""+
 	"네트워크를 사용하는 항목"+
 	"음성 인식"+
 	"whisper.cpp. 모델은 이 컴퓨터에 있습니다"+
+	"온라인 재생"+
+	"'자막만' 영화는 볼 때 원래 사이트에서 동영상을 재생하고, 자막은 이 컴퓨터에서 겹쳐 보여 줍니다"+
 	"구성 요소와 음성 모델"+
 	"'다운로드'를 누를 때만"+
 	"업데이트 확인"+
@@ -10223,6 +10350,10 @@ var textsKo = i18n.NewTexts(""+
 		9,
 		9,
 		13,
+		341,
+		267,
+		103,
+		29,
 		13,
 		12,
 		20,
@@ -10401,6 +10532,7 @@ var textsKo = i18n.NewTexts(""+
 		10,
 		10,
 		13,
+		9,
 		28,
 		6,
 		23,
@@ -10633,6 +10765,14 @@ var textsKo = i18n.NewTexts(""+
 		50,
 		43,
 		43,
+		22,
+		42,
+		58,
+		26,
+		94,
+		80,
+		22,
+		13,
 		29,
 		33,
 		43,
@@ -10895,6 +11035,8 @@ var textsKo = i18n.NewTexts(""+
 		19,
 		4,
 		13,
+		9,
+		195,
 		13,
 		13,
 		22,
@@ -11000,6 +11142,8 @@ var textsKo = i18n.NewTexts(""+
 		35,
 		13,
 		52,
+		16,
+		133,
 		30,
 		31,
 		19,
@@ -11466,6 +11610,10 @@ var textsZhHans = i18n.NewTexts(""+
 	"黑体"+
 	"宋体"+
 	"全屏"+
+	"视频没有存在本机，不占空间；只下载过音频来做字幕，转完已删除。观看时在线播放，字幕叠加在上面。离线时不能播放，但字幕、讲解、笔记和导出照常可用。"+
+	"视频没有存在本机，不占空间；只下载过音频来做字幕，转完已删除。把视频下载到本机就能观看；字幕、讲解、笔记和导出照常可用。"+
+	"联网时会把视频下载到本机，下载完可以离线观看。"+
+	"仅字幕 · 在线播放"+
 	"任务记录"+
 	"空格"+
 	"双语字幕"+
@@ -11644,6 +11792,7 @@ var textsZhHans = i18n.NewTexts(""+
 	"生成字幕中"+
 	"翻译中"+
 	"开始处理"+
+	"仅字幕"+
 	"支持的网站…"+
 	"翻译"+
 	"重新翻译为"+
@@ -11876,6 +12025,14 @@ var textsZhHans = i18n.NewTexts(""+
 	"播放速度设置无法保存"+
 	"字幕设置无法保存"+
 	"音量设置无法保存"+
+	"下载视频到本机"+
+	"联网后下载视频"+
+	"没能在线播放这部影片"+
+	"关闭离线模式"+
+	"这部是「仅字幕」，在这里还不能在线播放"+
+	"这部是「仅字幕」，离线时不能播放"+
+	"已安排下载"+
+	"重试"+
 	"字幕文件不在了"+
 	"字幕无法读取"+
 	"这个视频播不了"+
@@ -12138,6 +12295,8 @@ var textsZhHans = i18n.NewTexts(""+
 	"默认下载"+
 	"720P"+
 	"最高画质"+
+	"仅字幕"+
+	"不保存视频：只下载音频做字幕，转完即删；观看时在线播放，字幕叠加在上面。"+
 	"重新检测"+
 	"重试"+
 	"浏览器登录"+
@@ -12243,6 +12402,8 @@ var textsZhHans = i18n.NewTexts(""+
 	"每一步会不会联网"+
 	"语音识别"+
 	"whisper.cpp，模型在本机"+
+	"在线播放"+
+	"「仅字幕」的影片观看时从原网站播放视频；字幕在本机叠加"+
 	"组件和语音模型"+
 	"只在你点「下载」时"+
 	"检查更新"+
@@ -12706,6 +12867,10 @@ var textsZhHans = i18n.NewTexts(""+
 		6,
 		6,
 		6,
+		216,
+		180,
+		69,
+		25,
 		12,
 		6,
 		12,
@@ -12884,6 +13049,7 @@ var textsZhHans = i18n.NewTexts(""+
 		15,
 		9,
 		12,
+		9,
 		18,
 		6,
 		15,
@@ -13116,6 +13282,14 @@ var textsZhHans = i18n.NewTexts(""+
 		30,
 		24,
 		24,
+		21,
+		21,
+		30,
+		18,
+		57,
+		48,
+		15,
+		6,
 		21,
 		18,
 		21,
@@ -13378,6 +13552,8 @@ var textsZhHans = i18n.NewTexts(""+
 		12,
 		4,
 		12,
+		9,
+		108,
 		12,
 		6,
 		15,
@@ -13483,6 +13659,8 @@ var textsZhHans = i18n.NewTexts(""+
 		24,
 		12,
 		29,
+		12,
+		81,
 		21,
 		27,
 		12,
@@ -13949,6 +14127,10 @@ var textsZhHant = i18n.NewTexts(""+
 	"黑體"+
 	"宋體"+
 	"全螢幕"+
+	"影片沒有存在本機，不佔空間；只下載過音訊來做字幕，轉完已刪除。觀看時線上播放，字幕疊加在上面。離線時無法播放，但字幕、講解、筆記和匯出照常可用。"+
+	"影片沒有存在本機，不佔空間；只下載過音訊來做字幕，轉完已刪除。把影片下載到本機就能觀看；字幕、講解、筆記和匯出照常可用。"+
+	"連網時會把影片下載到本機，下載完可以離線觀看。"+
+	"僅字幕 · 線上播放"+
 	"工作記錄"+
 	"空白鍵"+
 	"雙語字幕"+
@@ -14127,6 +14309,7 @@ var textsZhHant = i18n.NewTexts(""+
 	"產生字幕中"+
 	"翻譯中"+
 	"開始處理"+
+	"僅字幕"+
 	"支援的網站…"+
 	"翻譯"+
 	"重新翻譯為"+
@@ -14359,6 +14542,14 @@ var textsZhHant = i18n.NewTexts(""+
 	"播放速度設定無法儲存"+
 	"字幕設定無法儲存"+
 	"音量設定無法儲存"+
+	"下載影片到本機"+
+	"連網後下載影片"+
+	"無法線上播放這部影片"+
+	"關閉離線模式"+
+	"這部是「僅字幕」，在這裡還無法線上播放"+
+	"這部是「僅字幕」，離線時無法播放"+
+	"已安排下載"+
+	"重試"+
 	"字幕檔已不存在"+
 	"無法讀取字幕"+
 	"這部影片無法播放"+
@@ -14621,6 +14812,8 @@ var textsZhHant = i18n.NewTexts(""+
 	"預設下載"+
 	"720P"+
 	"最高畫質"+
+	"僅字幕"+
+	"不保存影片：只下載音訊來做字幕，轉完即刪；觀看時線上播放，字幕疊加在上面。"+
 	"重新偵測"+
 	"重試"+
 	"瀏覽器登入"+
@@ -14726,6 +14919,8 @@ var textsZhHant = i18n.NewTexts(""+
 	"每一步會不會連網"+
 	"語音辨識"+
 	"whisper.cpp，模型在本機"+
+	"線上播放"+
+	"「僅字幕」的影片觀看時從原網站播放影片；字幕在本機疊加"+
 	"元件和語音模型"+
 	"只在你點「下載」時"+
 	"檢查更新"+
@@ -15189,6 +15384,10 @@ var textsZhHant = i18n.NewTexts(""+
 		6,
 		6,
 		9,
+		216,
+		180,
+		69,
+		25,
 		12,
 		9,
 		12,
@@ -15367,6 +15566,7 @@ var textsZhHant = i18n.NewTexts(""+
 		15,
 		9,
 		12,
+		9,
 		18,
 		6,
 		15,
@@ -15599,6 +15799,14 @@ var textsZhHant = i18n.NewTexts(""+
 		30,
 		24,
 		24,
+		21,
+		21,
+		30,
+		18,
+		57,
+		48,
+		15,
+		6,
 		21,
 		18,
 		24,
@@ -15861,6 +16069,8 @@ var textsZhHant = i18n.NewTexts(""+
 		12,
 		4,
 		12,
+		9,
+		111,
 		12,
 		6,
 		15,
@@ -15966,6 +16176,8 @@ var textsZhHant = i18n.NewTexts(""+
 		24,
 		12,
 		29,
+		12,
+		81,
 		21,
 		27,
 		12,
@@ -16966,6 +17178,15 @@ func Supply(lang string, t Translation) {
 	if t.PlayerOsdVolume != nil {
 		s.PlayerOsdVolume = t.PlayerOsdVolume
 	}
+	if t.PlayerStreamFailedDetail != nil {
+		s.PlayerStreamFailedDetail = t.PlayerStreamFailedDetail
+	}
+	if t.PlayerStreamNoneDetail != nil {
+		s.PlayerStreamNoneDetail = t.PlayerStreamNoneDetail
+	}
+	if t.PlayerStreamOfflineDetail != nil {
+		s.PlayerStreamOfflineDetail = t.PlayerStreamOfflineDetail
+	}
 	if t.PlaylistAdd != nil {
 		s.PlaylistAdd = t.PlaylistAdd
 	}
@@ -17136,6 +17357,9 @@ func Supply(lang string, t Translation) {
 	}
 	if t.QueueUpdateFailed != nil {
 		s.QueueUpdateFailed = t.QueueUpdateFailed
+	}
+	if t.QueueVideoFailed != nil {
+		s.QueueVideoFailed = t.QueueVideoFailed
 	}
 	if t.QueueYtdlpHintStandalone != nil {
 		s.QueueYtdlpHintStandalone = t.QueueYtdlpHintStandalone
@@ -21496,6 +21720,42 @@ func (msgs Messages) FilmInfoLanguages(spoken string, target string) string {
 	}
 }
 
+// FilmInfoStream says "The video isn't on this computer and takes no space: only its sound was downloaded to make the subtitles, and deleted after. It streams when you watch it, with the subtitles over it. Offline it can't play, but subtitles, explanations, notes and export still work."
+// in the language the app shows under cx.
+//
+// Text of the Info tab's card of a Subtitles Only film that streams when watched.
+func FilmInfoStream(cx *core.Scope) string { return For(cx).FilmInfoStream() }
+
+// FilmInfoStream is the package's FilmInfoStream in the language of msgs.
+func (msgs Messages) FilmInfoStream() string { return msgs.text(textFilmInfoStream) }
+
+// FilmInfoStreamNone says "The video isn't on this computer and takes no space: only its sound was downloaded to make the subtitles, and deleted after. Download the video to watch it; subtitles, explanations, notes and export still work."
+// in the language the app shows under cx.
+//
+// Text of the Info tab's card of a Subtitles Only film that Kando cannot stream here.
+func FilmInfoStreamNone(cx *core.Scope) string { return For(cx).FilmInfoStreamNone() }
+
+// FilmInfoStreamNone is the package's FilmInfoStreamNone in the language of msgs.
+func (msgs Messages) FilmInfoStreamNone() string { return msgs.text(textFilmInfoStreamNone) }
+
+// FilmInfoStreamQueued says "The video downloads to this computer while online; once it's done, the film plays offline."
+// in the language the app shows under cx.
+//
+// Text of the Info tab's card of a Subtitles Only film whose video download is scheduled.
+func FilmInfoStreamQueued(cx *core.Scope) string { return For(cx).FilmInfoStreamQueued() }
+
+// FilmInfoStreamQueued is the package's FilmInfoStreamQueued in the language of msgs.
+func (msgs Messages) FilmInfoStreamQueued() string { return msgs.text(textFilmInfoStreamQueued) }
+
+// FilmInfoStreamTitle says "Subtitles Only · Streams Online"
+// in the language the app shows under cx.
+//
+// Title of the card in the player's Info tab of a Subtitles Only film that streams when watched.
+func FilmInfoStreamTitle(cx *core.Scope) string { return For(cx).FilmInfoStreamTitle() }
+
+// FilmInfoStreamTitle is the package's FilmInfoStreamTitle in the language of msgs.
+func (msgs Messages) FilmInfoStreamTitle() string { return msgs.text(textFilmInfoStreamTitle) }
+
 // FilmJobRecord says "Job record"
 // in the language the app shows under cx.
 //
@@ -25500,6 +25760,15 @@ func FilmsStart(cx *core.Scope) string { return For(cx).FilmsStart() }
 
 // FilmsStart is the package's FilmsStart in the language of msgs.
 func (msgs Messages) FilmsStart() string { return msgs.text(textFilmsStart) }
+
+// FilmsSubtitlesOnly says "Subtitles only"
+// in the language the app shows under cx.
+//
+// Part of the line under a poster: the film keeps no video (it was downloaded as Subtitles Only) and streams when watched.
+func FilmsSubtitlesOnly(cx *core.Scope) string { return For(cx).FilmsSubtitlesOnly() }
+
+// FilmsSubtitlesOnly is the package's FilmsSubtitlesOnly in the language of msgs.
+func (msgs Messages) FilmsSubtitlesOnly() string { return msgs.text(textFilmsSubtitlesOnly) }
 
 // FilmsSupportedSites says "Supported Websites…"
 // in the language the app shows under cx.
@@ -31219,6 +31488,176 @@ func PlayerSaveVolumeFailed(cx *core.Scope) string { return For(cx).PlayerSaveVo
 // PlayerSaveVolumeFailed is the package's PlayerSaveVolumeFailed in the language of msgs.
 func (msgs Messages) PlayerSaveVolumeFailed() string { return msgs.text(textPlayerSaveVolumeFailed) }
 
+// PlayerStreamDownload says "Download Video"
+// in the language the app shows under cx.
+//
+// Button that downloads the video of a Subtitles Only film to this computer, beside its subtitles, so it plays offline.
+func PlayerStreamDownload(cx *core.Scope) string { return For(cx).PlayerStreamDownload() }
+
+// PlayerStreamDownload is the package's PlayerStreamDownload in the language of msgs.
+func (msgs Messages) PlayerStreamDownload() string { return msgs.text(textPlayerStreamDownload) }
+
+// PlayerStreamDownloadLater says "Download Video When Online"
+// in the language the app shows under cx.
+//
+// Button on the card of a Subtitles Only film opened offline: schedules the download of its video, which starts once offline mode is off.
+func PlayerStreamDownloadLater(cx *core.Scope) string { return For(cx).PlayerStreamDownloadLater() }
+
+// PlayerStreamDownloadLater is the package's PlayerStreamDownloadLater in the language of msgs.
+func (msgs Messages) PlayerStreamDownloadLater() string {
+	return msgs.text(textPlayerStreamDownloadLater)
+}
+
+// PlayerStreamFailed says "Couldn't stream this film"
+// in the language the app shows under cx.
+//
+// Title of the card over the player when streaming a Subtitles Only film failed.
+func PlayerStreamFailed(cx *core.Scope) string { return For(cx).PlayerStreamFailed() }
+
+// PlayerStreamFailed is the package's PlayerStreamFailed in the language of msgs.
+func (msgs Messages) PlayerStreamFailed() string { return msgs.text(textPlayerStreamFailed) }
+
+// PlayerStreamFailedDetail says "{site} didn't give a stream Kando can play. Check your network and try again, or download the video to watch it."
+// in the language the app shows under cx.
+//
+// Text of the card over the player when streaming a Subtitles Only film failed. site is the film's site, such as YouTube.
+func PlayerStreamFailedDetail(cx *core.Scope, site string) string {
+	return For(cx).PlayerStreamFailedDetail(site)
+}
+
+// PlayerStreamFailedDetail is the package's PlayerStreamFailedDetail in the language of msgs.
+func (msgs Messages) PlayerStreamFailedDetail(site string) string {
+	if i18n.IsPseudo(msgs.lang) {
+		return i18n.Pseudo(msgs.lang, Messages{lang: Source, mark: true}.PlayerStreamFailedDetail(site))
+	}
+	for lang := msgs.lang; ; lang = i18n.Parent(lang) {
+		if f := supplied[lang].PlayerStreamFailedDetail; f != nil {
+			return f(site)
+		}
+		switch lang {
+		case "", "en":
+			return msgs.arg(site) + " didn't give a stream Kando can play. Check your network and try again, or download the video to watch it."
+		case "ja":
+			return site + "から再生できるストリームを取得できませんでした。ネットワークを確認してもう一度試すか、動画をダウンロードして見てください。"
+		case "ko":
+			return site + "에서 재생할 수 있는 스트림을 받지 못했습니다. 네트워크를 확인하고 다시 시도하거나 동영상을 내려받아 보세요."
+		case "zh-Hans":
+			return site + "没有给出可以播放的视频流。请检查网络后重试，或者把视频下载到本机再看。"
+		case "zh-Hant":
+			return site + "沒有提供可以播放的影片串流。請檢查網路後重試，或者把影片下載到本機再看。"
+		}
+	}
+}
+
+// PlayerStreamGoOnline says "Turn Off Offline Mode"
+// in the language the app shows under cx.
+//
+// Button on the card of a Subtitles Only film opened offline: turns offline mode off and streams the film.
+func PlayerStreamGoOnline(cx *core.Scope) string { return For(cx).PlayerStreamGoOnline() }
+
+// PlayerStreamGoOnline is the package's PlayerStreamGoOnline in the language of msgs.
+func (msgs Messages) PlayerStreamGoOnline() string { return msgs.text(textPlayerStreamGoOnline) }
+
+// PlayerStreamNone says "This film is subtitles only and can't stream here"
+// in the language the app shows under cx.
+//
+// Title of the card over the player when a Subtitles Only film is opened where Kando cannot stream its site's video (any site but YouTube, and any system but macOS for now).
+func PlayerStreamNone(cx *core.Scope) string { return For(cx).PlayerStreamNone() }
+
+// PlayerStreamNone is the package's PlayerStreamNone in the language of msgs.
+func (msgs Messages) PlayerStreamNone() string { return msgs.text(textPlayerStreamNone) }
+
+// PlayerStreamNoneDetail says "Kando can't stream videos from {site} on this computer yet. Download the video to watch it; subtitles, explanations, notes and export still work."
+// in the language the app shows under cx.
+//
+// Text of the card over the player when Kando cannot stream a Subtitles Only film's video here. site is the film's site, such as Bilibili.
+func PlayerStreamNoneDetail(cx *core.Scope, site string) string {
+	return For(cx).PlayerStreamNoneDetail(site)
+}
+
+// PlayerStreamNoneDetail is the package's PlayerStreamNoneDetail in the language of msgs.
+func (msgs Messages) PlayerStreamNoneDetail(site string) string {
+	if i18n.IsPseudo(msgs.lang) {
+		return i18n.Pseudo(msgs.lang, Messages{lang: Source, mark: true}.PlayerStreamNoneDetail(site))
+	}
+	for lang := msgs.lang; ; lang = i18n.Parent(lang) {
+		if f := supplied[lang].PlayerStreamNoneDetail; f != nil {
+			return f(site)
+		}
+		switch lang {
+		case "", "en":
+			return "Kando can't stream videos from " + msgs.arg(site) + " on this computer yet. Download the video to watch it; subtitles, explanations, notes and export still work."
+		case "ja":
+			return "このコンピュータでは、まだ" + site + "の動画をオンライン再生できません。動画をダウンロードすれば見られます。字幕、解説、メモ、書き出しはこれまでどおり使えます。"
+		case "ko":
+			return "이 컴퓨터에서는 아직 " + site + " 동영상을 온라인으로 재생할 수 없습니다. 동영상을 내려받으면 볼 수 있습니다. 자막, 설명, 메모, 내보내기는 그대로 쓸 수 있습니다."
+		case "zh-Hans":
+			return "看懂在这台电脑上还不能从" + site + "在线播放。把视频下载到本机就能观看；字幕、讲解、笔记和导出照常可用。"
+		case "zh-Hant":
+			return "看懂在這台電腦上還無法從" + site + "線上播放。把影片下載到本機就能觀看；字幕、講解、筆記和匯出照常可用。"
+		}
+	}
+}
+
+// PlayerStreamOffline says "This film is subtitles only, so it can't play offline"
+// in the language the app shows under cx.
+//
+// Title of the card over the player when a Subtitles Only film (its video was never kept) is opened while offline mode is on.
+func PlayerStreamOffline(cx *core.Scope) string { return For(cx).PlayerStreamOffline() }
+
+// PlayerStreamOffline is the package's PlayerStreamOffline in the language of msgs.
+func (msgs Messages) PlayerStreamOffline() string { return msgs.text(textPlayerStreamOffline) }
+
+// PlayerStreamOfflineDetail says "Its video isn't on this computer: it streams from {site} when you watch it. Subtitles, explanations, notes and export still work."
+// in the language the app shows under cx.
+//
+// Text of the card over the player when a Subtitles Only film is opened while offline mode is on. site is where the video streams from, such as YouTube.
+func PlayerStreamOfflineDetail(cx *core.Scope, site string) string {
+	return For(cx).PlayerStreamOfflineDetail(site)
+}
+
+// PlayerStreamOfflineDetail is the package's PlayerStreamOfflineDetail in the language of msgs.
+func (msgs Messages) PlayerStreamOfflineDetail(site string) string {
+	if i18n.IsPseudo(msgs.lang) {
+		return i18n.Pseudo(msgs.lang, Messages{lang: Source, mark: true}.PlayerStreamOfflineDetail(site))
+	}
+	for lang := msgs.lang; ; lang = i18n.Parent(lang) {
+		if f := supplied[lang].PlayerStreamOfflineDetail; f != nil {
+			return f(site)
+		}
+		switch lang {
+		case "", "en":
+			return "Its video isn't on this computer: it streams from " + msgs.arg(site) + " when you watch it. Subtitles, explanations, notes and export still work."
+		case "ja":
+			return "動画はこのコンピュータにありません。見るときは" + site + "からオンラインで再生します。字幕、解説、メモ、書き出しはこれまでどおり使えます。"
+		case "ko":
+			return "동영상이 이 컴퓨터에 없습니다. 볼 때 " + site + "에서 온라인으로 재생합니다. 자막, 설명, 메모, 내보내기는 그대로 쓸 수 있습니다."
+		case "zh-Hans":
+			return "视频没有存在本机，观看时要从" + site + "在线播放。字幕、讲解、笔记和导出照常可用。"
+		case "zh-Hant":
+			return "影片沒有存在本機，觀看時要從" + site + "線上播放。字幕、講解、筆記和匯出照常可用。"
+		}
+	}
+}
+
+// PlayerStreamQueued says "Download Scheduled"
+// in the language the app shows under cx.
+//
+// Disabled button of a Subtitles Only film whose video download is waiting or running.
+func PlayerStreamQueued(cx *core.Scope) string { return For(cx).PlayerStreamQueued() }
+
+// PlayerStreamQueued is the package's PlayerStreamQueued in the language of msgs.
+func (msgs Messages) PlayerStreamQueued() string { return msgs.text(textPlayerStreamQueued) }
+
+// PlayerStreamRetry says "Try Again"
+// in the language the app shows under cx.
+//
+// Button on the card of a Subtitles Only film whose stream failed: looks the stream up again.
+func PlayerStreamRetry(cx *core.Scope) string { return For(cx).PlayerStreamRetry() }
+
+// PlayerStreamRetry is the package's PlayerStreamRetry in the language of msgs.
+func (msgs Messages) PlayerStreamRetry() string { return msgs.text(textPlayerStreamRetry) }
+
 // PlayerSubsMissing says "The subtitle file is gone"
 // in the language the app shows under cx.
 //
@@ -34184,6 +34623,38 @@ func (msgs Messages) QueueUpdateFailed(error_ string) string {
 	}
 }
 
+// QueueVideoFailed says "Couldn't download the video of “{name}”, so it stays subtitles only. {reason}"
+// in the language the app shows under cx.
+//
+// Message bar when downloading the video of a Subtitles Only film failed. reason is a full sentence saying why.
+func QueueVideoFailed(cx *core.Scope, name string, reason string) string {
+	return For(cx).QueueVideoFailed(name, reason)
+}
+
+// QueueVideoFailed is the package's QueueVideoFailed in the language of msgs.
+func (msgs Messages) QueueVideoFailed(name string, reason string) string {
+	if i18n.IsPseudo(msgs.lang) {
+		return i18n.Pseudo(msgs.lang, Messages{lang: Source, mark: true}.QueueVideoFailed(name, reason))
+	}
+	for lang := msgs.lang; ; lang = i18n.Parent(lang) {
+		if f := supplied[lang].QueueVideoFailed; f != nil {
+			return f(name, reason)
+		}
+		switch lang {
+		case "", "en":
+			return "Couldn't download the video of “" + msgs.arg(name) + "”, so it stays subtitles only. " + msgs.arg(reason)
+		case "ja":
+			return "「" + name + "」の動画をダウンロードできなかったため、「字幕のみ」のままです。" + reason
+		case "ko":
+			return "{name}의 동영상을 내려받지 못해 '자막만'으로 남아 있습니다. " + reason
+		case "zh-Hans":
+			return "没能下载「" + name + "」的视频，它仍是「仅字幕」。" + reason
+		case "zh-Hant":
+			return "無法下載「" + name + "」的影片，它仍是「僅字幕」。" + reason
+		}
+	}
+}
+
 // QueueYtdlpHintBrew says "run brew upgrade yt-dlp in a terminal"
 // in the language the app shows under cx.
 //
@@ -36940,6 +37411,32 @@ func (msgs Messages) SettingsGeneralQualityBest() string {
 	return msgs.text(textSettingsGeneralQualityBest)
 }
 
+// SettingsGeneralQualitySubtitles says "Subtitles Only"
+// in the language the app shows under cx.
+//
+// Download quality: keep no video. Only the sound is downloaded to make the subtitles and is deleted after; the film streams from its site when watched.
+func SettingsGeneralQualitySubtitles(cx *core.Scope) string {
+	return For(cx).SettingsGeneralQualitySubtitles()
+}
+
+// SettingsGeneralQualitySubtitles is the package's SettingsGeneralQualitySubtitles in the language of msgs.
+func (msgs Messages) SettingsGeneralQualitySubtitles() string {
+	return msgs.text(textSettingsGeneralQualitySubtitles)
+}
+
+// SettingsGeneralQualitySubtitlesHint says "Keeps no video: only the sound is downloaded to make the subtitles and is deleted once they're done. The film streams from its site when you watch it, with the subtitles over it."
+// in the language the app shows under cx.
+//
+// Note under the download quality when Subtitles Only is chosen.
+func SettingsGeneralQualitySubtitlesHint(cx *core.Scope) string {
+	return For(cx).SettingsGeneralQualitySubtitlesHint()
+}
+
+// SettingsGeneralQualitySubtitlesHint is the package's SettingsGeneralQualitySubtitlesHint in the language of msgs.
+func (msgs Messages) SettingsGeneralQualitySubtitlesHint() string {
+	return msgs.text(textSettingsGeneralQualitySubtitlesHint)
+}
+
 // SettingsGeneralRedetect says "Detect Again"
 // in the language the app shows under cx.
 //
@@ -38898,6 +39395,30 @@ func SettingsPrivacyStepSpeechDetail(cx *core.Scope) string {
 // SettingsPrivacyStepSpeechDetail is the package's SettingsPrivacyStepSpeechDetail in the language of msgs.
 func (msgs Messages) SettingsPrivacyStepSpeechDetail() string {
 	return msgs.text(textSettingsPrivacyStepSpeechDetail)
+}
+
+// SettingsPrivacyStepStream says "Online Playback"
+// in the language the app shows under cx.
+//
+// Row of the privacy page's network table: streaming Subtitles Only films.
+func SettingsPrivacyStepStream(cx *core.Scope) string { return For(cx).SettingsPrivacyStepStream() }
+
+// SettingsPrivacyStepStream is the package's SettingsPrivacyStepStream in the language of msgs.
+func (msgs Messages) SettingsPrivacyStepStream() string {
+	return msgs.text(textSettingsPrivacyStepStream)
+}
+
+// SettingsPrivacyStepStreamDetail says "“Subtitles Only” films stream their video from the site when you watch them; the subtitles are drawn on this computer"
+// in the language the app shows under cx.
+//
+// Detail of the privacy page's Online Playback row.
+func SettingsPrivacyStepStreamDetail(cx *core.Scope) string {
+	return For(cx).SettingsPrivacyStepStreamDetail()
+}
+
+// SettingsPrivacyStepStreamDetail is the package's SettingsPrivacyStepStreamDetail in the language of msgs.
+func (msgs Messages) SettingsPrivacyStepStreamDetail() string {
+	return msgs.text(textSettingsPrivacyStepStreamDetail)
 }
 
 // SettingsPrivacyStepTools says "Components and speech models"

@@ -16,8 +16,10 @@ type playerUI struct {
 	// play is the video open in the system's player (playback.go), from when startPlayback opens it until it stops; it plays only once the player has loaded it (filmPlay.loaded). playPath is its video, the film's own, "" without one.
 	play     *filmPlay
 	playPath string
-	// playErr is playerErrUnplayable when the video would not play, playerErrPlugins when GStreamer lacks the plug-ins for it, or "".
+	// playErr is playerErrUnplayable when the video would not play, playerErrPlugins when GStreamer lacks the plug-ins for it, one of film's stream errors for a film that keeps no video and does not stream (playerStream), or "".
 	playErr string
+	// streams reports whether a film that keeps no video, from source, streams on this computer; nil is media.Streams. Tests set it, as which ones stream depends on the system.
+	streams func(source string) bool
 	// playGen counts the videos opened and the seeks made, so a report meant for one before is dropped.
 	playGen  int
 	playFrom time.Duration
@@ -282,7 +284,8 @@ func (a *app) playerAfterChange() bool {
 	a.playerKeepAwake()
 	a.playerLoopSchedule()
 	tip := a.playerSubTip()
-	return changed || tip
+	stream := a.playerStreamFollow()
+	return changed || tip || stream
 }
 
 // playerTipFor is how long the tip that the subtitles can be dragged shows.

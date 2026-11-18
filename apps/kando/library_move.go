@@ -304,8 +304,13 @@ func (a *app) libraryMoveCheck(m locales.Messages, item films.Film, from string)
 	case a.libraryMoveBusy(item):
 		return refuse(remote.CodeNotReady, func(m locales.Messages) string { return m.LibraryMoveProcessing(name) })
 	}
+	// A film that keeps no video (core.Job.SubtitlesOnly) is on disk as its subtitles, whose folder moves.
+	kept := item.VideoPath
+	if item.SubtitlesOnly && item.SubtitlePath != "" {
+		kept = item.SubtitlePath
+	}
 	if films.InDir(from, item.VideoPath) {
-		if _, err := os.Stat(item.VideoPath); err != nil {
+		if _, err := os.Stat(kept); err != nil {
 			return refuse(remote.CodeFailed, locales.Messages.LibraryFileMissing)
 		}
 	}

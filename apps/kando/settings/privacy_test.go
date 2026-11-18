@@ -14,7 +14,7 @@ func TestPrivacyPageSaysWhatUsesTheNetwork(t *testing.T) {
 	msgs := testlocale.Messages()
 	tag := func(id string) string { return app.Find("id:settings-privacy-tag-" + id).Text }
 	// Online with a cloud AI service: downloads go over the network, the translation sends the subtitles to EveryAPI, speech stays here.
-	if tag("download") != msgs.SettingsPrivacyTagNetwork() || tag("speech") != msgs.SettingsPrivacyTagLocal() || tag("ai") != msgs.SettingsPrivacyTagCloud() || tag("phone") != msgs.SettingsPrivacyTagLAN() {
+	if tag("download") != msgs.SettingsPrivacyTagNetwork() || tag("stream") != msgs.SettingsPrivacyTagNetwork() || tag("speech") != msgs.SettingsPrivacyTagLocal() || tag("ai") != msgs.SettingsPrivacyTagCloud() || tag("phone") != msgs.SettingsPrivacyTagLAN() {
 		t.Fatalf("tags online: %q", app.Texts())
 	}
 	if !app.Exists(whole(msgs.SettingsPrivacyStepAICloud("EveryAPI"))) {
@@ -26,7 +26,7 @@ func TestPrivacyPageSaysWhatUsesTheNetwork(t *testing.T) {
 	}
 	app.Settle()
 	// Offline: every step over the internet is off, the update row says the daily check goes on, and Phone Sync stays on the local network.
-	for _, id := range []string{"download", "ai", "upload", "tools", "browse"} {
+	for _, id := range []string{"download", "ai", "upload", "stream", "tools", "browse"} {
 		if tag(id) != msgs.SettingsPrivacyTagOff() {
 			t.Errorf("tag of %s offline = %q", id, tag(id))
 		}

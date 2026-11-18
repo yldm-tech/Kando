@@ -108,6 +108,8 @@ type Job struct {
 	SpeechLanguage string
 	// Quality is how good a picture the download of a link asks the site for, as the user chose it; empty until the queue gives the job the one Settings › 通用 › 在线视频 names, as it first runs. Like SpeechLanguage it is the user's choice, so it stays when a run fails or the film is processed again. A video already downloaded is not downloaded again for another quality.
 	Quality Quality
+	// SubtitlesOnly is true for a link's film that keeps no video (QualitySubtitles): its download fetched the sound alone, which was removed once the subtitles were exported. VideoPath still names where that sound was, as the subtitles and the files kept beside them are named after it, and the film is watched by streaming Source. Downloading its video (RedoVideo) clears it.
+	SubtitlesOnly bool
 	// SubtitleSource is where the job takes the original lines of a link's film from, as the user chose it: the subtitles the uploader put on the site, checked against the speech (SubtitlesPlatform), or the speech recognition alone (SubtitlesLocal). Empty until the queue gives the job the one Settings › 通用 › 在线视频 names, as it first runs; a local video is always heard.
 	SubtitleSource SubtitleSource
 	// PlatformSubtitles is true once the film's original lines are the subtitles its site carries, which matched the speech the job heard (media.Run); LocalLines then counts the lines of those subtitles that lines the speech recognition heard replaced, where the speech did not match them. A job transcribing the video again finds them anew; one processing a done film again entirely (RedoAll) keeps the film's until it completes.
@@ -129,11 +131,18 @@ const (
 	QualityBest Quality = "best"
 	// Quality720 asks for the best picture no taller than 720 lines, or the best there is when the site has none that small.
 	Quality720 Quality = "720"
+	// QualitySubtitles (仅字幕) keeps no video: the download asks for the sound alone, which is removed once the film's subtitles are made, and the film is streamed from its site when it is watched (Job.SubtitlesOnly).
+	QualitySubtitles Quality = "subtitles"
 )
 
 // Known reports whether q is one of the qualities Kando downloads; empty is not.
 func (q Quality) Known() bool {
-	return q == QualityBest || q == Quality720
+	return q == QualityBest || q == Quality720 || q == QualitySubtitles
+}
+
+// KeepsVideo reports whether a download at q keeps the film's video: every quality but QualitySubtitles.
+func (q Quality) KeepsVideo() bool {
+	return q != QualitySubtitles
 }
 
 // SubtitleSource is where a job takes the original lines of a link's film from (Job.SubtitleSource).
@@ -161,6 +170,8 @@ const (
 	RedoTranslation Redo = "translation"
 	// RedoMissing translates only the lines the film's subtitles left untranslated and keeps the others as they are.
 	RedoMissing Redo = "missing"
+	// RedoVideo downloads the video of a film that keeps none (Job.SubtitlesOnly), at Job.Quality, beside its subtitles, which it neither transcribes nor translates again.
+	RedoVideo Redo = "video"
 )
 
 // TranslatesOnly reports whether a job redoing r only translates the film's exported transcript again, without downloading or transcribing it.

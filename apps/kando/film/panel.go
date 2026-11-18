@@ -846,9 +846,11 @@ type infoState struct {
 	// chapters is how many chapters its site marks, and cut whether it is cut at them (chapterInfo).
 	chapters int
 	cut      bool
+	// subtitlesOnly is whether the film keeps no video, streams whether its video can stream here, and videoComing whether the download of its video waits or runs (streamInfo).
+	subtitlesOnly, streams, videoComing bool
 }
 
-// infoTab shows where the film is: its folder, the files in it and where it came from, and for a done film the language spoken in it, which the user can correct.
+// infoTab shows where the film is: its folder, the files in it, for a film that keeps no video that it streams (streamInfo), and where it came from, and for a done film the language spoken in it, which the user can correct.
 func (s *screen) infoTab(cx *ns.Scope) ns.Node {
 	a := s.a
 	// The tab is built again when the film's folder has been read, its job moved on or the language changed; it holds no field that keeps the focus.
@@ -872,7 +874,8 @@ func (s *screen) infoTab(cx *ns.Scope) ns.Node {
 			speech:   item.JobID != "" && item.Stage == core.StageComplete,
 			platform: item.PlatformSubtitles, local: item.LocalLines,
 			heard:    item.JobID != "" && item.Stage == core.StageComplete && !item.PlatformSubtitles && strings.HasPrefix(item.Source, "http"),
-			chapters: len(a.Info().Chapters), cut: CutsAtSite(a.Info(), a.ImportChapters())}
+			chapters: len(a.Info().Chapters), cut: CutsAtSite(a.Info(), a.ImportChapters()),
+			subtitlesOnly: item.SubtitlesOnly, streams: item.SubtitlesOnly && a.FilmStreams(), videoComing: item.VideoComing}
 	})
 	return ns.Dynamic(func(cx *ns.Scope) ns.Node {
 		st := state()
@@ -916,6 +919,9 @@ func (s *screen) infoTab(cx *ns.Scope) ns.Node {
 				})))
 			}
 			groups = append(groups, panelHeading(locales.FilmFiles(cx)), panelGroup(rows...))
+		}
+		if card := s.streamInfo(cx, st); card != nil {
+			groups = append(groups, card)
 		}
 		var source ns.Node
 		if st.source == "" || strings.HasPrefix(st.source, "file://") {

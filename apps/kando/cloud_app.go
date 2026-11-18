@@ -76,7 +76,8 @@ func (a *app) SignOutGoogle() {
 
 // UploadView is what the player's upload button and capsule show of item's upload, in the interface's language: the player reads it in its bindings, which follow the language as it changes.
 func (a *app) UploadView(item films.Film) film.Upload {
-	if strings.TrimSpace(item.VideoPath) == "" {
+	// A film that keeps no video (core.Job.SubtitlesOnly) has none to upload.
+	if strings.TrimSpace(item.VideoPath) == "" || item.SubtitlesOnly {
 		return film.Upload{}
 	}
 	m := a.messages()

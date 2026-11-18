@@ -385,9 +385,12 @@ func (m moreButton) Render(cx *core.Scope) core.Node {
 	return core.View{Ref: place, Style: core.Style{FlexShrink: 0}, Children: []core.Node{button}}
 }
 
-// doneMeta is the line under a poster's title, in the language of m: where the film comes from, that it has no subtitles yet, and how many lines its translation left untranslated. How long it is shows on the poster.
+// doneMeta is the line under a poster's title, in the language of m: where the film comes from, that it keeps no video (仅字幕), that it has no subtitles yet, and how many lines its translation left untranslated. How long it is shows on the poster.
 func doneMeta(m locales.Messages, item Film) string {
 	parts := []string{SourceLabel(m, item)}
+	if item.SubtitlesOnly {
+		parts = append(parts, m.FilmsSubtitlesOnly())
+	}
 	if item.SubtitlePath == "" {
 		parts = append(parts, m.FilmsNoSubtitles())
 	}

@@ -37,6 +37,7 @@ func TestJobOfTellsEachStep(t *testing.T) {
 		{"exporting", core.Job{Stage: core.StageExporting, Source: link}, psync.JobRunning, "download:done:1 transcribe:done:1 translate:running:-1 "},
 		{"a local video", core.Job{Stage: core.StageTranscribing, Source: "file:///films/talk.mp4"}, psync.JobRunning, "download:skipped:0 transcribe:running:-1 translate:waiting:0 "},
 		{"translating a done film again", core.Job{Stage: core.StageTranslating, Source: link, Redo: core.RedoMissing}, psync.JobRunning, "download:skipped:0 transcribe:skipped:0 translate:running:-1 "},
+		{"downloading a film's video", core.Job{Stage: core.StageDownloading, Source: link, Redo: core.RedoVideo, SubtitlesOnly: true}, psync.JobRunning, "download:running:-1 transcribe:skipped:0 translate:skipped:0 "},
 		{"done", core.Job{Stage: core.StageComplete, Source: link, VideoPath: "/v.mp4"}, psync.JobDone, "download:done:1 transcribe:done:1 translate:done:1 "},
 		{"done in its own language", core.Job{Stage: core.StageComplete, Source: link, SameLanguage: true}, psync.JobDone, "download:done:1 transcribe:done:1 translate:skipped:0 "},
 		{"done untranslated", core.Job{Stage: core.StageComplete, Source: link, TranslationErr: "no AI service"}, psync.JobDone, "download:done:1 transcribe:done:1 translate:failed:0 "},
@@ -55,6 +56,10 @@ func TestJobOfTellsEachStep(t *testing.T) {
 	done := JobOf(core.Job{ID: "j1", Stage: core.StageComplete, Source: link, VideoPath: "/v.mp4", Device: "Evan's iPhone"}, facts)
 	if done.Film != "j1" || done.Device != "Evan's iPhone" || done.Link != link {
 		t.Fatalf("done %+v", done)
+	}
+	// A film that keeps no video is not among the films a phone is served.
+	if streamed := JobOf(core.Job{ID: "j2", Stage: core.StageComplete, Source: link, VideoPath: "/v.webm", SubtitlesOnly: true}, facts); streamed.Film != "" {
+		t.Fatalf("a film that keeps no video is served as %q", streamed.Film)
 	}
 	// A local video's path is the desktop's own, which a phone is not told.
 	if local := JobOf(core.Job{Stage: core.StageQueued, Source: "file:///Users/evan/talk.mp4"}, facts); local.Link != "" {

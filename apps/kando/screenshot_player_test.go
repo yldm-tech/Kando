@@ -5,6 +5,7 @@ import (
 	"testing"
 	"time"
 
+	"kando/apps/kando/film"
 	"kando/apps/kando/locales/testlocale"
 	"kando/packages/core"
 	"kando/packages/media"
@@ -62,6 +63,52 @@ func TestScreenshotsPlayer(t *testing.T) {
 		tt.Press("id:film-tab-info")
 		if !tt.Exists("id:film-info-original") {
 			t.Fatalf("no original lines in the info tab: %q", tt.Texts())
+		}
+	})
+	// j1 kept no video (仅字幕): its sound was downloaded to make its subtitles and deleted. The fixture's video stays on disk for the other scenes, so the scenes say what the player says once it found none.
+	subtitlesOnly := func(a *app) {
+		for i, job := range a.library.Jobs {
+			if job.ID == "j1" {
+				a.library.Jobs[i].Quality, a.library.Jobs[i].SubtitlesOnly = core.QualitySubtitles, true
+			}
+		}
+		a.player.streams = func(string) bool { return true }
+	}
+	// Opened offline, it cannot stream: the card over the picture offers to turn offline mode off or to download the video once online.
+	f.shoot(t, "player-subtitles-only-offline", func(t *testing.T, a *app, tt *nsgotest.App, updates chan func()) {
+		subtitlesOnly(a)
+		a.player.panel = false
+		screenshotOpen(t, a, tt, updates, "j1", protoCues[1].Start)
+		apply(tt, a, func() {
+			a.dropPlayback()
+			a.privacy.offline = true
+			a.player.playErr = film.ErrStreamOffline
+		})
+		if !tt.Exists("id:film-stream") {
+			t.Fatalf("no card over the picture: %q", tt.Texts())
+		}
+	})
+	// Where it cannot stream, as a bilibili film or any off macOS for now, the card offers to download the video.
+	f.shoot(t, "player-subtitles-only-download", func(t *testing.T, a *app, tt *nsgotest.App, updates chan func()) {
+		subtitlesOnly(a)
+		a.player.streams = func(string) bool { return false }
+		a.player.panel = false
+		screenshotOpen(t, a, tt, updates, "j1", protoCues[1].Start)
+		apply(tt, a, func() {
+			a.dropPlayback()
+			a.player.playErr = film.ErrStreamNone
+		})
+		if !tt.Exists("id:film-stream-download") {
+			t.Fatalf("no download button: %q", tt.Texts())
+		}
+	})
+	// The info tab says the film keeps no video and streams when watched, and offers to download it.
+	f.shoot(t, "player-info-subtitles-only", func(t *testing.T, a *app, tt *nsgotest.App, updates chan func()) {
+		subtitlesOnly(a)
+		open(t, a, tt, updates, "j1", 0)
+		tt.Press("id:film-tab-info")
+		if !tt.Exists("id:film-info-stream") {
+			t.Fatalf("no card in the info tab: %q", tt.Texts())
 		}
 	})
 	// The film's YouTube description marks five chapters, whose titles were translated: the 片段 tab is cut at them, and the info tab says where they came from.

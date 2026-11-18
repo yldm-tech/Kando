@@ -43,6 +43,9 @@ type Film struct {
 	// PlatformSubtitles is true for a film whose original lines are its site's subtitles, and LocalLines how many of their lines the speech recognition replaced (core.Job.PlatformSubtitles).
 	PlatformSubtitles bool
 	LocalLines        int
+	// SubtitlesOnly is true for a film that keeps no video, which streams from its site when watched (core.Job.SubtitlesOnly); VideoComing is true while its job waits to download the video, or downloads it (core.RedoVideo).
+	SubtitlesOnly bool
+	VideoComing   bool
 	// Stopped reports a failed job that was cancelled rather than one that went wrong; Canceled reads it.
 	Stopped bool
 	// Library is the name of the library the job saves into when that is not the open one, as for a job that kept running after another library was opened; empty for the open library's films.
@@ -116,6 +119,7 @@ func FromJob(job core.Job, name, detail string) Film {
 		Progress: job.Progress, Thumbnail: job.Thumbnail, Untranslated: job.Untranslated, TranslationErr: job.TranslationErr, SameLanguage: job.SameLanguage,
 		Stopped: errors.Is(job.Err, context.Canceled), Target: jobTarget(job), Device: job.Device,
 		PlatformSubtitles: job.PlatformSubtitles, LocalLines: job.LocalLines,
+		SubtitlesOnly: job.SubtitlesOnly, VideoComing: job.Redo == core.RedoVideo && !job.Stage.Done(),
 	}
 }
 

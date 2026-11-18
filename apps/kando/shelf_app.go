@@ -638,7 +638,10 @@ func (a *app) retargetRenamed() bool {
 		}
 	}
 	for _, job := range a.library.Jobs {
-		add(job.VideoPath)
+		// A film that keeps no video has none to be renamed with its folder, and is not paired with a video that turns up (core.Job.SubtitlesOnly).
+		if !job.SubtitlesOnly {
+			add(job.VideoPath)
+		}
 		add(job.SubtitlePath)
 	}
 	// A video no job processed keeps the title given in Kando by its path alone, so its folder renamed in Finder is paired the same way a job's is.
@@ -679,7 +682,7 @@ func (a *app) retargetLibrary(moved map[string]string) bool {
 	return changed
 }
 
-// dropMissing drops the finished jobs of the open library whose video is gone from disk. library.json holds the jobs of every library, and another library's videos may be on a disk that is not mounted or in a folder moved away for now, so only the open library's jobs are looked at, and none while the library folder itself cannot be found. A video kept outside the library where it was picked is dropped only while its folder is there, as a missing folder is as likely a disk that is not mounted.
+// dropMissing drops the finished jobs of the open library whose video is gone from disk, or for a film that keeps no video its subtitles (shelfKept). library.json holds the jobs of every library, and another library's videos may be on a disk that is not mounted or in a folder moved away for now, so only the open library's jobs are looked at, and none while the library folder itself cannot be found. A video kept outside the library where it was picked is dropped only while its folder is there, as a missing folder is as likely a disk that is not mounted.
 func (a *app) dropMissing() bool {
 	root := a.snap().LibraryDir
 	if root == "" {
@@ -691,7 +694,7 @@ func (a *app) dropMissing() bool {
 	kept := make([]core.Job, 0, len(a.library.Jobs))
 	changed := false
 	for _, job := range a.library.Jobs {
-		if job.VideoPath != "" && job.Stage.Done() && films.InLibrary(root, job) && shelfVideoGone(root, job.VideoPath) {
+		if job.VideoPath != "" && job.Stage.Done() && films.InLibrary(root, job) && shelfVideoGone(root, shelfKept(job)) {
 			changed = true
 			if a.openKey == job.ID {
 				a.openKey = ""
@@ -719,6 +722,14 @@ func (a *app) dropMissing() bool {
 		}
 	}
 	return changed
+}
+
+// shelfKept is the file a done job's film is on disk as: its video, or for a film that keeps none (core.Job.SubtitlesOnly) its subtitles, which dropMissing drops it without.
+func shelfKept(job core.Job) string {
+	if job.SubtitlesOnly && job.SubtitlePath != "" {
+		return job.SubtitlePath
+	}
+	return job.VideoPath
 }
 
 // shelfVideoGone reports whether video is gone from disk for good as far as dropMissing can tell: it does not exist, rather than failing to be read, and when it is outside the library root, its folder is there.

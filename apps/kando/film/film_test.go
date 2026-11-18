@@ -46,6 +46,7 @@ type fakeApp struct {
 	live.Rev
 	fakeCorrector
 	fakeGlossary
+	fakeStreamer
 	item       Item
 	play       *fakePlay
 	path       string

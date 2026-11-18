@@ -18,9 +18,10 @@ import (
 
 // filmPlay is the video open on the film page, which the system's player plays, picture and sound (core.Video, mounted by film.View): the app keeps what it asked the player for and what the player reported, and the page binds the one and hears the other.
 type filmPlay struct {
-	// path is the film's video, as the library keeps it: where it continues from, its subtitle delay and what the system shows of it go by it. source is what the system's player plays: path, or a copy of it the player can open (playerRemux), "" while that copy is being made.
+	// path is the film's video, as the library keeps it: where it continues from, its subtitle delay and what the system shows of it go by it. source is what the system's player plays: path, or a copy of it the player can open (playerRemux), "" while that copy is being made; for a film that keeps no video (stream), the address of its stream, "" while it is looked up (playback_stream.go).
 	path   string
 	source string
+	stream bool
 	// remux is the step the copy in source was made by, 0 for the video itself.
 	remux film.RemuxStep
 	// loaded is set once the system's player has opened the source and knows its length, duration.
@@ -70,7 +71,7 @@ func (a *app) playerNow() time.Time {
 	return time.Now()
 }
 
-// startPlayback opens path on the film page, in the system's player, held where it is asked to open (playFrom: where the film stopped last time, or its first frame) or, for 继续, 从头看 and a jump to a line, playing from where it was asked to (playFrom, playJump). A missing file leaves the page as a subtitle list. A jump within the open film's video (playSame) seeks it rather than open it again.
+// startPlayback opens path on the film page, in the system's player, held where it is asked to open (playFrom: where the film stopped last time, or its first frame) or, for 继续, 从头看 and a jump to a line, playing from where it was asked to (playFrom, playJump). A missing file leaves the page as a subtitle list, but for a film that keeps no video, which streams (playerStream). A jump within the open film's video (playSame) seeks it rather than open it again.
 func (a *app) startPlayback(path string) {
 	at := a.player.playFrom
 	jump, same := a.player.playJump, a.player.playSame
@@ -97,11 +98,19 @@ func (a *app) startPlayback(path string) {
 	}
 	a.playerNowPlayingClear()
 	if !opens {
+		// A film that keeps no video streams from its site instead.
+		a.playerStream(path, at, jump)
 		return
 	}
+	a.playerOpen(path, path, at, jump)
+}
+
+// playerOpen opens source in the system's player as the open film's video at path, held at at, or playing from there when jump (startPlayback), and returns it.
+func (a *app) playerOpen(path, source string, at time.Duration, jump bool) *filmPlay {
 	a.player.playGen++
 	a.player.playPath = path
-	a.player.play = &filmPlay{path: path, source: path, head: at, headAt: a.playerNow(), paused: !jump, played: jump, rate: a.playerSpeed(), clock: a.playerNow, seek: a.player.ref.Seek}
+	a.player.play = &filmPlay{path: path, source: source, head: at, headAt: a.playerNow(), paused: !jump, played: jump, rate: a.playerSpeed(), clock: a.playerNow, seek: a.player.ref.Seek}
+	return a.player.play
 }
 
 // playerVideo is what the system's player plays and how: the open video's source, held until it has loaded, so it starts where it was asked to, and at the player's volume and speed. A volume of 0 plays muted, as the system's player plays a volume of 0 at full volume.
@@ -192,10 +201,15 @@ func (a *app) playerEnded() {
 	a.playerKeepLoop()
 }
 
-// playerFailed is the system's player saying it cannot play the open video. A video in a container or of a codec it does not take, as an MKV or a WebM on macOS, plays from a copy ffmpeg makes (playerRemux), first with its streams as they are and then encoded anew; without ffmpeg, or when neither copy plays, the page says the video cannot be played. On Linux without the GStreamer plug-ins the video needs (film.MissingPlugins) no copy would play either, so the page says which to install at once.
+// playerFailed is the system's player saying it cannot play the open video. A stream says so on its card (playerStreamFailed). A video in a container or of a codec it does not take, as an MKV or a WebM on macOS, plays from a copy ffmpeg makes (playerRemux), first with its streams as they are and then encoded anew; without ffmpeg, or when neither copy plays, the page says the video cannot be played. On Linux without the GStreamer plug-ins the video needs (film.MissingPlugins) no copy would play either, so the page says which to install at once.
 func (a *app) playerFailed(err error) {
 	p := a.player.play
 	if p == nil {
+		return
+	}
+	if p.stream {
+		log.Printf("player: the system's player cannot play the stream of %s: %v", filepath.Base(p.path), err)
+		a.playerStreamFailed(p)
 		return
 	}
 	log.Printf("player: the system's player cannot play %s: %v", filepath.Base(p.source), err)

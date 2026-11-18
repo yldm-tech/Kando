@@ -284,15 +284,16 @@ func TestRunRedoAllFetchesTheSubtitlesAgain(t *testing.T) {
 	}
 }
 
-// The download asks for the picture the job chose: the best unless 720P was.
+// The download asks for the picture the job chose: the best unless 720P was, and the sound alone for 仅字幕.
 func TestDownloadAsksForTheQuality(t *testing.T) {
 	tool, args := argsYTDLP(t)
 	tools := Tools{YTDLP: tool, OutputDir: t.TempDir()}
 	for quality, want := range map[core.Quality]string{
-		"":                "-f\nbv*+ba/b\n",
-		core.QualityBest:  "-f\nbv*+ba/b\n",
-		core.Quality720:   "-f\nbv*[height<=720]+ba/b[height<=720]/bv*+ba/b\n",
-		core.Quality("x"): "-f\nbv*+ba/b\n",
+		"":                    "-f\nbv*+ba/b\n",
+		core.QualityBest:      "-f\nbv*+ba/b\n",
+		core.Quality720:       "-f\nbv*[height<=720]+ba/b[height<=720]/bv*+ba/b\n",
+		core.QualitySubtitles: "-f\nba/b\n",
+		core.Quality("x"):     "-f\nbv*+ba/b\n",
 	} {
 		tools.Download(withQuality(context.Background(), quality), "https://www.youtube.com/watch?v=jNQXAC9IVRw")
 		if data, _ := os.ReadFile(args); !strings.Contains(string(data), want) {

@@ -37,7 +37,8 @@ func JobOf(job core.Job, facts JobFacts) psync.Job {
 		out.State, at = psync.JobRunning, 2
 	case core.StageComplete:
 		out.State, at = psync.JobDone, 3
-		if job.VideoPath != "" {
+		// A film that keeps no video (core.Job.SubtitlesOnly) is not among the films the phone is served.
+		if job.VideoPath != "" && !job.SubtitlesOnly {
 			out.Film = job.ID
 		}
 	case core.StageFailed:
@@ -47,10 +48,12 @@ func JobOf(job core.Job, facts JobFacts) psync.Job {
 		}
 	}
 	names := []string{psync.StepDownload, psync.StepTranscribe, psync.StepTranslate}
+	// A job downloading the video of a film that keeps none (core.RedoVideo) neither transcribes nor translates it.
+	video := job.Redo == core.RedoVideo
 	skipped := []bool{
 		strings.HasPrefix(job.Source, "file:") || job.Redo.TranslatesOnly(),
-		job.Redo.TranslatesOnly(),
-		job.Stage == core.StageComplete && job.SameLanguage,
+		job.Redo.TranslatesOnly() || video,
+		job.Stage == core.StageComplete && job.SameLanguage || video,
 	}
 	// A step that failed for a reason found before it began, as a tool missing (the pipeline's check), is the first the job needs.
 	if job.Stage == core.StageFailed {

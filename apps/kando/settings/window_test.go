@@ -441,7 +441,7 @@ func TestGeneralPage(t *testing.T) {
 	}
 }
 
-// 在线视频 turns the site's subtitles off and on, chooses the picture downloads ask for, and turns the site's chapters off and on, saving each change.
+// 在线视频 turns the site's subtitles off and on, chooses the picture downloads ask for, 仅字幕 with a note of what it keeps, and turns the site's chapters off and on, saving each change.
 func TestGeneralPageChoosesHowLinksDownload(t *testing.T) {
 	a := newFakeApp()
 	app := start(t, a)
@@ -483,6 +483,18 @@ func TestGeneralPageChoosesHowLinksDownload(t *testing.T) {
 	app.Press("id:settings-import-chapters")
 	if a.evenChapters || saves() != 5 {
 		t.Fatalf("chapters stayed off, saves %d", saves())
+	}
+	// 仅字幕 keeps no video, which the row says under it while it is chosen.
+	if app.Exists(whole(msgs.SettingsGeneralQualitySubtitlesHint())) {
+		t.Fatal("the note of 仅字幕 shows for 720p")
+	}
+	app.Press("id:settings-download-quality")
+	app.Press("role:option " + msgs.SettingsGeneralQualitySubtitles())
+	if a.quality != kcore.QualitySubtitles || saves() != 6 {
+		t.Fatalf("quality %q, saves %d", a.quality, saves())
+	}
+	if !app.Exists(whole(msgs.SettingsGeneralQualitySubtitlesHint())) {
+		t.Fatalf("missing %q in %q", msgs.SettingsGeneralQualitySubtitlesHint(), app.Texts())
 	}
 }
 

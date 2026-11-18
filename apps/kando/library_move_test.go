@@ -452,3 +452,26 @@ func TestMoveLooksOnlyAtTheOtherLibraries(t *testing.T) {
 		t.Fatalf("reach %v, want %v", a.lib.move.reach, want)
 	}
 }
+
+// TestMoveSubtitlesOnlyFilm checks that a film that keeps no video moves with its folder, its job pointing at the path its sound had in the other library.
+func TestMoveSubtitlesOnlyFilm(t *testing.T) {
+	f := newMoveFixture(t)
+	a, tt := f.a, f.tt
+	if err := os.Remove(f.video); err != nil {
+		t.Fatal(err)
+	}
+	job, _ := a.library.Find("film")
+	job.SubtitlesOnly = true
+	a.library.Upsert(job)
+	a.refreshLibrary()
+	refresh(tt, a)
+	a.MoveFilm(must(films.Find(a.films(), "film")), f.to)
+	refresh(tt, a)
+	job, _ = a.library.Find("film")
+	if job.VideoPath != filepath.Join(f.to, "Talk", "video.mp4") || job.SubtitlePath != filepath.Join(f.to, "Talk", "video.bilingual.srt") || !job.SubtitlesOnly {
+		t.Fatalf("the job is %+v, notice %q", job, a.lib.notice.Text)
+	}
+	if _, err := os.Stat(job.SubtitlePath); err != nil {
+		t.Fatal(err)
+	}
+}

@@ -477,6 +477,24 @@ func TestLibraryKeepsTheSpokenLanguage(t *testing.T) {
 	}
 }
 
+// A film that keeps no video is kept as one, and a job downloading its video says so after a restart.
+func TestLibraryKeepsSubtitlesOnlyFilms(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "library.json")
+	lib, _ := Load(path)
+	lib.Upsert(core.Job{ID: "a", Source: "https://www.youtube.com/watch?v=jNQXAC9IVRw", Stage: core.StageQueued, Quality: core.QualityBest, SubtitlesOnly: true, Redo: core.RedoVideo})
+	if err := lib.Save(); err != nil {
+		t.Fatal(err)
+	}
+	data, _ := os.ReadFile(path)
+	if !strings.Contains(string(data), `"subtitlesOnly": true`) {
+		t.Fatalf("library.json %s", data)
+	}
+	loaded, _ := Load(path)
+	if job := loaded.Jobs[0]; !job.SubtitlesOnly || job.Redo != core.RedoVideo {
+		t.Fatalf("job %+v", job)
+	}
+}
+
 // The quality and the source of the original lines a job was given, and whether its film took its site's subtitles, are kept with it; a library written before them reads back without them.
 func TestLibraryKeepsTheDownloadChoices(t *testing.T) {
 	path := filepath.Join(t.TempDir(), "library.json")

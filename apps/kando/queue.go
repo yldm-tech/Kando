@@ -566,9 +566,12 @@ func (a *app) queueRedoEnded(job core.Job) core.Job {
 	if !errors.Is(job.Err, context.Canceled) && !errors.Is(job.Err, core.ErrLibrarySwitched) {
 		m := a.messages()
 		reason, section := failureHint(m, films.Film{Detail: statusText(m, job)})
-		if job.Redo == core.RedoAll {
+		switch job.Redo {
+		case core.RedoAll:
 			a.warn(m.QueueReprocessFailed(jobName(job), reason), section)
-		} else {
+		case core.RedoVideo:
+			a.warn(m.QueueVideoFailed(jobName(job), reason), section)
+		default:
 			a.warn(m.QueueRedoFailed(jobName(job), reason), section)
 		}
 		a.libraryNoticeJob(job.ID, core.StageComplete)

@@ -123,6 +123,7 @@ func (v View) Render(cx *core.Scope) core.Node {
 			s.subtitles(),
 			s.correcting(),
 			s.lookupCard(),
+			s.streamCard(),
 			s.osd(),
 			s.uploadCapsule(),
 			s.topBar(),
@@ -185,6 +186,9 @@ func (s *screen) stage() core.Node {
 	note := live.Memo(cx, a, func() stageNoteState {
 		item := s.item()
 		switch {
+		case StreamErr(a.PlayErr()):
+			// A film that does not stream says why on a card of its own (streamCard).
+			return stageNoteState{}
 		case a.PlayErr() != "":
 			return stageNoteState{err: a.PlayErr()}
 		case a.PlayPath() != "" && a.Play() == nil:

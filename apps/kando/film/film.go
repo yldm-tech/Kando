@@ -19,6 +19,7 @@ type App interface {
 	live.State
 	Corrector
 	Glossary
+	Streamer
 	OpenKey() string
 	SetOpenKey(string)
 	StopPlayback()
@@ -273,6 +274,9 @@ type Item struct {
 	// PlatformSubtitles is true for a film whose original lines are its site's subtitles, checked against the speech, and LocalLines how many of their lines the speech recognition replaced.
 	PlatformSubtitles bool
 	LocalLines        int
+	// SubtitlesOnly is true for a film that keeps no video, which streams from its site when watched, and VideoComing while the download of its video waits or runs (DownloadVideo).
+	SubtitlesOnly bool
+	VideoComing   bool
 }
 
 // title is how the film is named in the title bar.

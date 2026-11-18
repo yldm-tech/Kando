@@ -63,6 +63,8 @@ type Pipeline interface {
 // A link's download that finds chapters the site marks in the video, the timestamps of a YouTube video's description or a bilibili video's 视频看点 (core.Chapter), keeps them beside the video (ChaptersPath), and each job that translates the film translates their titles into the language of its subtitles, after its lines and apart from them: a failure leaves them as the site wrote them, and the job goes on.
 //
 // The translation keeps each batch it has done in a hidden file beside the video (withCheckpoint) until the job exports, so a job whose translation stopped partway, cancelled, quit or failed, does not pay for those batches again when it runs again with the same lines and language.
+//
+// A link's job at core.QualitySubtitles downloads the sound alone and removes it once the subtitles are exported, keeping job.VideoPath, which the subtitles are named after, and setting job.SubtitlesOnly. A job whose Redo is core.RedoVideo downloads the video of such a film at job.Quality, puts it under the name its subtitles go by (placeVideo) and completes, neither transcribing nor translating; one that fails leaves the film as it was.
 func Run(ctx context.Context, p Pipeline, job core.Job, language string, report func(core.Job)) core.Job {
 	// heard is the language a RedoAll job's transcription heard, which becomes the film's SpokenLanguage only once the job is complete, so a redo that fails or is stopped leaves the film's as it was.
 	var heard string
@@ -115,6 +117,23 @@ func Run(ctx context.Context, p Pipeline, job core.Job, language string, report 
 		return job
 	}
 
+	// A film that keeps no video downloads it beside its subtitles, and nothing more (core.RedoVideo).
+	if job.Redo == core.RedoVideo {
+		enter(core.StageDownloading)
+		video, err := p.Download(ctx, job.Source)
+		if err == nil {
+			video, err = placeVideo(job.VideoPath, video)
+		}
+		if err != nil {
+			job.FailKind = downloadFailKind(job, err)
+			return fail("download", err)
+		}
+		job.VideoPath, job.SubtitlesOnly = video, false
+		job.Redo, job.RedoLanguage = "", ""
+		enter(core.StageComplete)
+		return job
+	}
+
 	// A job that has not completed yet needs only its download and speech tools to start: without a translator it still makes the film's subtitles, the original lines alone (core.Job.TranslationErr). A redo needs the translator, as it would otherwise replace the film's translated subtitles with fewer.
 	tc, translateChecked := p.(TranslateChecker)
 	check := p.Check
@@ -137,8 +156,11 @@ func Run(ctx context.Context, p Pipeline, job core.Job, language string, report 
 	var model, hearLanguage string
 	// transcript is where the job keeps the original speech, which Export writes too: the film's transcript (TranscriptOf), or for a video whose "<video>.srt" is not Kando's, a file beside it of Kando's own (asideTranscriptPath).
 	var transcript string
+	// sound is whether the file at job.VideoPath is the sound alone, downloaded to make the subtitles of a film that keeps no video (core.QualitySubtitles), which goes once they are exported.
+	sound := false
 	if !job.Redo.TranslatesOnly() {
 		_, local := localVideoPath(job.Source)
+		sound = !local && job.Quality == core.QualitySubtitles
 		video := job.VideoPath
 		// same is false once the video is not the file an earlier run heard, as one downloaded again.
 		same := true
@@ -149,11 +171,7 @@ func Run(ctx context.Context, p Pipeline, job core.Job, language string, report 
 			var err error
 			video, err = p.Download(ctx, job.Source)
 			if err != nil {
-				job.FailKind = ClassifyDownload(err.Error())
-				// A site that still wants a login while the browser's is borrowed has let that login run out.
-				if job.Cookies != "" && (job.FailKind == core.FailLogin || job.FailKind == core.FailAge) {
-					job.FailKind = core.FailLoginExpired
-				}
+				job.FailKind = downloadFailKind(job, err)
 				return fail("download", err)
 			}
 			// A link downloaded again lands on the same path as before, so the transcript beside it may have been made from the file this download replaced, such as a silent track that never merged.
@@ -356,6 +374,13 @@ func Run(ctx context.Context, p Pipeline, job core.Job, language string, report 
 		}
 	}
 	_ = os.Remove(proofreadTranscriptPath(job.VideoPath))
+	// A film whose video this run downloaded or kept has one again, as after a video download that failed and left the film at a quality that keeps it.
+	switch {
+	case sound:
+		job.SubtitlesOnly = removeSound(job.VideoPath)
+	case !job.Redo.TranslatesOnly():
+		job.SubtitlesOnly = false
+	}
 	job.Proofread, job.SameLanguage = proofread, same
 	job.PlatformSubtitles, job.LocalLines = platform, localLines
 	job.SubtitlePath = subtitles
@@ -365,6 +390,15 @@ func Run(ctx context.Context, p Pipeline, job core.Job, language string, report 
 
 	enter(core.StageComplete)
 	return job
+}
+
+// downloadFailKind is why job's download failed, as err says (ClassifyDownload): a site that still wants a login while the browser's is borrowed has let that login run out.
+func downloadFailKind(job core.Job, err error) core.FailKind {
+	kind := ClassifyDownload(err.Error())
+	if job.Cookies != "" && (kind == core.FailLogin || kind == core.FailAge) {
+		kind = core.FailLoginExpired
+	}
+	return kind
 }
 
 // blankLines are the times of lines with no text, the translation of lines none of which was translated.

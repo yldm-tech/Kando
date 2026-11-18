@@ -136,6 +136,7 @@ func steps(cx *core.Scope, a App) []step {
 	}
 	out = append(out,
 		network("upload", locales.SettingsPrivacyStepUpload(cx), locales.SettingsPrivacyStepUploadDetail(cx), tagManual, locales.SettingsPrivacyTagManual(cx)),
+		network("stream", locales.SettingsPrivacyStepStream(cx), locales.SettingsPrivacyStepStreamDetail(cx), tagNetwork, locales.SettingsPrivacyTagNetwork(cx)),
 		network("tools", locales.SettingsPrivacyStepTools(cx), locales.SettingsPrivacyStepToolsDetail(cx), tagManual, locales.SettingsPrivacyTagManual(cx)),
 		network("browse", locales.SettingsPrivacyStepBrowse(cx), locales.SettingsPrivacyStepBrowseDetail(cx), tagManual, locales.SettingsPrivacyTagManual(cx)),
 	)

@@ -938,6 +938,18 @@ filmInfoLanguages:
   placeholders:
     spoken: { type: "String", example: "Japanese" }
     target: { type: "String", example: "Simplified Chinese" }
+filmInfoStream:
+  message: "The video isn't on this computer and takes no space: only its sound was downloaded to make the subtitles, and deleted after. It streams when you watch it, with the subtitles over it. Offline it can't play, but subtitles, explanations, notes and export still work."
+  description: "Text of the Info tab's card of a Subtitles Only film that streams when watched."
+filmInfoStreamNone:
+  message: "The video isn't on this computer and takes no space: only its sound was downloaded to make the subtitles, and deleted after. Download the video to watch it; subtitles, explanations, notes and export still work."
+  description: "Text of the Info tab's card of a Subtitles Only film that Kando cannot stream here."
+filmInfoStreamQueued:
+  message: "The video downloads to this computer while online; once it's done, the film plays offline."
+  description: "Text of the Info tab's card of a Subtitles Only film whose video download is scheduled."
+filmInfoStreamTitle:
+  message: "Subtitles Only · Streams Online"
+  description: "Title of the card in the player's Info tab of a Subtitles Only film that streams when watched."
 filmJobRecord:
   message: "Job record"
   description: "Label in the Info tab over the path of the library file that records the jobs."
@@ -1814,6 +1826,9 @@ filmsStageTranslating:
 filmsStart:
   message: "Start Processing"
   description: "Toolbar button that adds the pasted link to the queue."
+filmsSubtitlesOnly:
+  message: "Subtitles only"
+  description: "Part of the line under a poster: the film keeps no video (it was downloaded as Subtitles Only) and streams when watched."
 filmsSupportedSites:
   message: "Supported Websites…"
   description: "Button on the empty library's page that opens the sheet listing the websites Kando downloads from."
@@ -3059,6 +3074,45 @@ playerSaveSubtitlesFailed:
 playerSaveVolumeFailed:
   message: "Couldn't save the volume"
   description: "Message on the picture when the volume could not be saved."
+playerStreamDownload:
+  message: "Download Video"
+  description: "Button that downloads the video of a Subtitles Only film to this computer, beside its subtitles, so it plays offline."
+playerStreamDownloadLater:
+  message: "Download Video When Online"
+  description: "Button on the card of a Subtitles Only film opened offline: schedules the download of its video, which starts once offline mode is off."
+playerStreamFailed:
+  message: "Couldn't stream this film"
+  description: "Title of the card over the player when streaming a Subtitles Only film failed."
+playerStreamFailedDetail:
+  message: "{site} didn't give a stream Kando can play. Check your network and try again, or download the video to watch it."
+  description: "Text of the card over the player when streaming a Subtitles Only film failed. site is the film's site, such as YouTube."
+  placeholders:
+    site: { type: "String", example: "YouTube" }
+playerStreamGoOnline:
+  message: "Turn Off Offline Mode"
+  description: "Button on the card of a Subtitles Only film opened offline: turns offline mode off and streams the film."
+playerStreamNone:
+  message: "This film is subtitles only and can't stream here"
+  description: "Title of the card over the player when a Subtitles Only film is opened where Kando cannot stream its site's video (any site but YouTube, and any system but macOS for now)."
+playerStreamNoneDetail:
+  message: "Kando can't stream videos from {site} on this computer yet. Download the video to watch it; subtitles, explanations, notes and export still work."
+  description: "Text of the card over the player when Kando cannot stream a Subtitles Only film's video here. site is the film's site, such as Bilibili."
+  placeholders:
+    site: { type: "String", example: "Bilibili" }
+playerStreamOffline:
+  message: "This film is subtitles only, so it can't play offline"
+  description: "Title of the card over the player when a Subtitles Only film (its video was never kept) is opened while offline mode is on."
+playerStreamOfflineDetail:
+  message: "Its video isn't on this computer: it streams from {site} when you watch it. Subtitles, explanations, notes and export still work."
+  description: "Text of the card over the player when a Subtitles Only film is opened while offline mode is on. site is where the video streams from, such as YouTube."
+  placeholders:
+    site: { type: "String", example: "YouTube" }
+playerStreamQueued:
+  message: "Download Scheduled"
+  description: "Disabled button of a Subtitles Only film whose video download is waiting or running."
+playerStreamRetry:
+  message: "Try Again"
+  description: "Button on the card of a Subtitles Only film whose stream failed: looks the stream up again."
 playerSubsMissing:
   message: "The subtitle file is gone"
   description: "Shown in the subtitle list when the subtitle file has been deleted or moved."
@@ -3696,6 +3750,12 @@ queueUpdateFailed:
   description: "Message bar when yt-dlp could not be updated, with why or how to update it."
   placeholders:
     error: { type: "String", example: "exit status 1" }
+queueVideoFailed:
+  message: "Couldn't download the video of “{name}”, so it stays subtitles only. {reason}"
+  description: "Message bar when downloading the video of a Subtitles Only film failed. reason is a full sentence saying why."
+  placeholders:
+    name: { type: "String", example: "Learn Rust" }
+    reason: { type: "String", example: "Check your network, then retry." }
 queueYtdlpHintBrew:
   message: "run brew upgrade yt-dlp in a terminal"
   description: "How to update a yt-dlp installed with Homebrew that Kando cannot update; it follows a colon in a sentence."
@@ -4325,6 +4385,12 @@ settingsGeneralQuality720:
 settingsGeneralQualityBest:
   message: "Best"
   description: "Download quality: the best picture and sound the site has."
+settingsGeneralQualitySubtitles:
+  message: "Subtitles Only"
+  description: "Download quality: keep no video. Only the sound is downloaded to make the subtitles and is deleted after; the film streams from its site when watched."
+settingsGeneralQualitySubtitlesHint:
+  message: "Keeps no video: only the sound is downloaded to make the subtitles and is deleted once they're done. The film streams from its site when you watch it, with the subtitles over it."
+  description: "Note under the download quality when Subtitles Only is chosen."
 settingsGeneralRedetect:
   message: "Detect Again"
   description: "Button looking for ffmpeg, yt-dlp and whisper-cli again."
@@ -4745,6 +4811,12 @@ settingsPrivacyStepSpeech:
 settingsPrivacyStepSpeechDetail:
   message: "whisper.cpp, with the model on this computer"
   description: "Under the speech recognition row of the network table."
+settingsPrivacyStepStream:
+  message: "Online Playback"
+  description: "Row of the privacy page's network table: streaming Subtitles Only films."
+settingsPrivacyStepStreamDetail:
+  message: "“Subtitles Only” films stream their video from the site when you watch them; the subtitles are drawn on this computer"
+  description: "Detail of the privacy page's Online Playback row."
 settingsPrivacyStepTools:
   message: "Components and speech models"
   description: "Row of the network table in Settings › Privacy: downloading yt-dlp, ffmpeg, whisper-cli and models."
