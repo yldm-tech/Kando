@@ -343,7 +343,7 @@ func (a *app) browseGo() {
 	if text == "" {
 		return
 	}
-	a.browseLoad(browse.Target(text, a.prefs.interfaceLanguage))
+	a.browseLoad(kcore.AddressTarget(text, a.prefs.interfaceLanguage))
 }
 
 // browseDownload adds the page shown to the library's queue, read from the page itself, as a site that changes its page without loading another may not have said so; the address the web view last reported stands in when the page cannot answer. A video the library has already, as 下载视频 then says, it shows there instead (browseShowHad).
