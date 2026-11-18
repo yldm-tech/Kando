@@ -226,3 +226,45 @@ func TestTheSameSnapshotIsNotWrittenAgain(t *testing.T) {
 		}
 	}
 }
+
+// Days that passed while the app was in the background are read again once it shows: the study widget's timeline is dated from the day the app shows on, not left on the midnights of the day it was last written.
+func TestKeepReadsTheDaysAgainWhenTheAppShows(t *testing.T) {
+	dir := t.TempDir()
+	var mu gosync.Mutex
+	clock := now()
+	published := [][]widget.Entry{}
+	app := nsgotest.Start(t, func(cx *core.Scope) core.Node {
+		s := session.New(cx, session.Config{Dir: dir, Device: "Test Phone", Platform: sync.PlatformIOS, Now: func() time.Time {
+			mu.Lock()
+			defer mu.Unlock()
+			return clock
+		}})
+		Keep(cx, s, func(kind string, entries ...widget.Entry) error {
+			if kind == Study {
+				mu.Lock()
+				defer mu.Unlock()
+				published = append(published, entries)
+			}
+			return nil
+		})
+		return core.View{}
+	}, nsgotest.Environment(core.Environment{Locale: "en"}))
+	firstMidnight := func() time.Time {
+		mu.Lock()
+		defer mu.Unlock()
+		if len(published) == 0 {
+			return time.Time{}
+		}
+		return published[len(published)-1][1].Date
+	}
+	tomorrow := time.Date(2026, 11, 18, 0, 0, 0, 0, time.Local)
+	app.WaitUntil(10*time.Second, func() bool { return firstMidnight().Equal(tomorrow) })
+
+	app.SetEnvironment(core.Environment{Locale: "en", Lifecycle: core.LifecycleBackground})
+	mu.Lock()
+	clock = clock.AddDate(0, 0, 5)
+	mu.Unlock()
+	app.SetEnvironment(core.Environment{Locale: "en", Lifecycle: core.LifecycleActive})
+	want := tomorrow.AddDate(0, 0, 5)
+	app.WaitUntil(10*time.Second, func() bool { return firstMidnight().Equal(want) })
+}

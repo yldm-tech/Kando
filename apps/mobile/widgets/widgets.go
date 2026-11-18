@@ -135,7 +135,10 @@ func Keep(cx *core.Scope, s *session.Session, publish func(kind string, entries 
 	}()
 	cx.Cleanup(func() { close(done) })
 	var last change
+	// The days are dated from the time of the read, and the study widget's timeline runs out a few midnights on: they are read again each time the app shows after it was in the background, so days that passed meanwhile do not leave the widgets on the last of them.
+	shown := core.NewMemo(cx, func() bool { return cx.Env().Lifecycle() != core.LifecycleBackground })
 	cx.Effect(func() {
+		_ = shown.Get()
 		if !s.Loaded() {
 			return
 		}
