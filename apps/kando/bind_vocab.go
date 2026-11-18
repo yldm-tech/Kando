@@ -114,7 +114,7 @@ func (a *app) ExportVocab() {
 	if len(a.vocabRows()) == 0 {
 		return
 	}
-	a.pickFolder(func(dir string) {
+	a.pickFolder(core.PickDirectoriesOptions{}, func(dir string) {
 		path, err := saved.ExportVocab(dir, a.vocabRows(), a.vocab.stats.options)
 		if err != nil {
 			a.vocab.stats.exported = study.VocabExported{Err: err.Error()}

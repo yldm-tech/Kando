@@ -202,6 +202,8 @@ func TestPaletteReachesEveryMenuCommand(t *testing.T) {
 	skip := map[nsdesktop.MenuRole]bool{
 		nsdesktop.MenuAbout: true, nsdesktop.MenuHide: true, nsdesktop.MenuHideOthers: true, nsdesktop.MenuShowAll: true,
 		nsdesktop.MenuUndo: true, nsdesktop.MenuRedo: true, nsdesktop.MenuCut: true, nsdesktop.MenuCopy: true, nsdesktop.MenuPaste: true, nsdesktop.MenuSelectAll: true,
+		// The system's own items NSGo adds to macOS's menus, which act on the text field or the windows and have no counterpart on Windows or Linux.
+		nsdesktop.MenuServices: true, nsdesktop.MenuPasteAndMatchStyle: true, nsdesktop.MenuDelete: true, nsdesktop.MenuStartSpeaking: true, nsdesktop.MenuStopSpeaking: true, nsdesktop.MenuBringAllToFront: true,
 	}
 	var walk func(prefix string, items []nsdesktop.MenuItem)
 	walk = func(prefix string, items []nsdesktop.MenuItem) {
