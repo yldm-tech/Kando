@@ -94,15 +94,20 @@ func deviceRow(cx *core.Scope, a App, id string, asking *core.Signal[string]) co
 	return core.Group{row, confirm}
 }
 
-// revokeConfirm is what revoking phone id, named name, does, under its row: its key stops working at once, the jobs it sent go on, what it saved for offline stays on it, and pairing it again takes a new code; with 撤销这台设备, which revokes it, and 取消, which closes it (done).
+// revokeConfirm is what revoking phone id, named name, does, under its row: its key stops working at once, the jobs it sent go on, what it saved for offline stays on it, pairing it again takes a new code, and while the storage relay is on, its messages there are deleted but the links it holds last until they lapse; with 撤销这台设备, which revokes it, and 取消, which closes it (done).
 func revokeConfirm(cx *core.Scope, a App, id, name string, done func()) core.Node {
 	colors := ui.ColorsOf(cx)
 	k := theme.Of(cx)
 	text := func(s string, size core.Points, color func() core.Color) core.Node {
 		return core.Text{Content: s, Style: core.Style{FontSize: size, LineHeight: size + 5}, StyleFunc: ui.Colored(color)}
 	}
+	consequences := []string{locales.SettingsPhoneRevokeKey(cx), locales.SettingsPhoneRevokeJobs(cx), locales.SettingsPhoneRevokeOffline(cx), locales.SettingsPhoneRevokePairAgain(cx)}
+	// The relay's links the phone holds outlive its key until they lapse, which only a new key of the storage cuts short (packages/sync/relay.go, Revocation).
+	if a.PhoneSync().Relay.On {
+		consequences = append(consequences, locales.SettingsPhoneRevokeStorage(cx))
+	}
 	var points []core.Node
-	for _, p := range []string{locales.SettingsPhoneRevokeKey(cx), locales.SettingsPhoneRevokeJobs(cx), locales.SettingsPhoneRevokeOffline(cx), locales.SettingsPhoneRevokePairAgain(cx)} {
+	for _, p := range consequences {
 		points = append(points, core.View{Style: core.Style{Direction: core.Row, Gap: 6}, Children: []core.Node{text("•", 12, colors.Muted), text(p, 12, colors.Text)}})
 	}
 	buttons := core.View{Style: core.Style{Direction: core.Row, Gap: 8, Margin: core.Edges{Top: 4}}, Children: []core.Node{

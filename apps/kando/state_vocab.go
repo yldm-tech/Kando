@@ -5,6 +5,7 @@ import (
 	"context"
 	"errors"
 	"path/filepath"
+	"slices"
 	"strings"
 	"time"
 
@@ -14,6 +15,7 @@ import (
 	"kando/apps/kando/lookup"
 	"kando/apps/kando/saved"
 	"kando/apps/kando/settings"
+	kcore "kando/packages/core"
 
 	"github.com/nsgo-dev/nsgo/core"
 )
@@ -38,7 +40,7 @@ type vocabLookup struct {
 	line, translation string
 	video, film       string
 	spoken            string
-	start             time.Duration
+	start, end        time.Duration
 	busy, failed      bool
 	needsAI           bool
 	language          string
@@ -172,7 +174,7 @@ func (a *app) Lookup() film.Lookup {
 	if !l.open {
 		return film.Lookup{}
 	}
-	out := film.Lookup{Open: true, Word: l.word, Line: l.line, Busy: l.busy, Failed: l.failed, NeedsAI: l.needsAI, Say: l.say}
+	out := film.Lookup{Open: true, Word: l.word, Line: l.line, Busy: l.busy, Failed: l.failed, NeedsAI: l.needsAI, Say: l.say, Term: vocabTerm(a.FilmTerms(), l.word, l.entry.Word)}
 	if !l.busy && !l.failed {
 		out.Word = cmp.Or(l.entry.Word, l.word)
 		out.Reading, out.Meaning = l.entry.Reading, l.entry.Meaning
@@ -180,6 +182,33 @@ func (a *app) Lookup() film.Lookup {
 		out.Saved = book.WordIndex(out.Word, l.spoken) >= 0
 	}
 	return out
+}
+
+// vocabTerm is the term of terms, the open film's glossary, for the word looked up, as clicked or as its dictionary form gives it, "source → target", "" for none: a term whose words are that word, in any case, or one with that word among its words, as "river" of "Mekong River"; the first of these the glossary lists.
+func vocabTerm(terms []kcore.Term, words ...string) string {
+	var keys []string
+	for _, w := range words {
+		if k := strings.ToLower(strings.TrimSpace(w)); k != "" {
+			keys = append(keys, k)
+		}
+	}
+	if len(keys) == 0 {
+		return ""
+	}
+	pair := func(t kcore.Term) string { return t.Source + " → " + t.Target }
+	for _, t := range terms {
+		if slices.Contains(keys, strings.ToLower(strings.TrimSpace(t.Source))) {
+			return pair(t)
+		}
+	}
+	for _, t := range terms {
+		for _, part := range lookup.Tokens(t.Source) {
+			if part.Word && slices.Contains(keys, strings.ToLower(part.Text)) {
+				return pair(t)
+			}
+		}
+	}
+	return ""
 }
 
 // LookUpWord is a click on word in line i of the open film's lines, on the picture: the film holds, and the card over it shows what word means there, from the words looked up before on this computer, or else as the AI service set in 「AI 服务」 says, which it is asked off the engine's goroutine. Without an AI service that can answer, as while offline mode is on and it is not on this computer, the card says why and offers its settings.
@@ -197,7 +226,7 @@ func (a *app) LookUpWord(i int, word string) {
 	item, _ := a.openFilm()
 	q := vocabQuery(item, a.prefs.language, word, original)
 	a.vocab.lookup = vocabLookup{open: true, word: word, cue: i, line: original, translation: translation, video: a.player.film.video,
-		film: cmp.Or(item.Name, item.Title), spoken: q.Spoken, start: cues[i].Start, language: q.Language}
+		film: cmp.Or(item.Name, item.Title), spoken: q.Spoken, start: cues[i].Start, end: cues[i].End, language: q.Language}
 	if e, ok := a.vocabCache().Get(q); ok {
 		a.vocab.lookup.entry = e
 		return
@@ -262,7 +291,7 @@ func (a *app) CloseLookup() {
 	a.vocab.lookup = vocabLookup{}
 }
 
-// ToggleLookupWord is the card's Add to Vocabulary: the word looked up goes into the open library's vocabulary with what it means and the line it was clicked in, or, once it is there, out of it; the picture says which.
+// ToggleLookupWord is the card's Add to Vocabulary: the word looked up goes into the open library's vocabulary with what it means and the line it was clicked in, whose sound is cut to be kept with it (savedKeepSound), or, once it is there, out of it with that sound; the picture says which.
 func (a *app) ToggleLookupWord() {
 	l := a.vocab.lookup
 	if !l.open || l.busy || l.failed {
@@ -274,12 +303,14 @@ func (a *app) ToggleLookupWord() {
 	if book.RemoveWord(text, l.spoken) {
 		a.flash(a.messages().VocabOsdRemoved(text))
 		a.savedWrite()
+		a.savedDropSound(book.RemovedWords[len(book.RemovedWords)-1].ID)
 		return
 	}
 	book.AddWord(saved.Word{Text: text, Spoken: l.spoken, Reading: l.entry.Reading, Meaning: l.entry.Meaning, Language: l.language,
-		Context: l.line, ContextTranslation: l.translation, Video: book.Key(l.video), Start: l.start, Film: l.film, SavedAt: a.saved.now()})
+		Context: l.line, ContextTranslation: l.translation, Video: book.Key(l.video), Start: l.start, End: l.end, Film: l.film, SavedAt: a.saved.now()})
 	a.flash(a.messages().VocabOsdAdded(text))
 	a.savedWrite()
+	a.savedKeepSound(saved.WordLine(book.Words[0]))
 }
 
 // ExplainLookupLine is the card's Explain Line: the card closes and the side panel explains the line the word was clicked in (ExplainLine).

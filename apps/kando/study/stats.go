@@ -50,9 +50,10 @@ type VocabSummary struct {
 	Words, Lines, Films int
 }
 
-// VocabExported is what the last export did: the File it wrote, Shown as the dialog says it, or Err, why it failed; the zero value before one.
+// VocabExported is what the last export did: the File it wrote, Shown as the dialog says it, or Err, why it failed; Busy while it runs, as while the export for Anki cuts the lines' audio; the zero value before one.
 type VocabExported struct {
 	File, Shown, Err string
+	Busy             bool
 }
 
 // The dialog's measures.
@@ -106,6 +107,8 @@ func (d StatsDialog) Render(cx *core.Scope) core.Node {
 				text := func() string {
 					e := exported()
 					switch {
+					case e.Busy:
+						return locales.VocabExporting(cx)
 					case e.Err != "":
 						return locales.VocabExportFailed(cx, e.Err)
 					case e.File != "":
@@ -122,7 +125,7 @@ func (d StatsDialog) Render(cx *core.Scope) core.Node {
 		}},
 		core.Show{When: func() bool { return tab() == TabExport }, Then: func(cx *core.Scope) core.Node {
 			return textButton(locales.VocabExport, ui.Button{Variant: ui.ButtonSecondary, TestID: "stats-export", OnPress: live.Do(a, a.ExportVocab),
-				Disabled: func() bool { s := summary(); return s.Words+s.Lines == 0 }})
+				Disabled: func() bool { s := summary(); return s.Words+s.Lines == 0 || exported().Busy }})
 		}},
 		textButton(locales.VocabDone, ui.Button{TestID: "stats-done", OnPress: live.Do(a, a.CloseStats)}),
 	}}

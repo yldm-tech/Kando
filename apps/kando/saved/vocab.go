@@ -3,12 +3,15 @@ package saved
 import (
 	"bufio"
 	"bytes"
+	"context"
 	"encoding/csv"
 	"fmt"
 	"io"
 	"os"
 	"path/filepath"
+	"slices"
 	"strings"
+	"time"
 
 	"kando/packages/study"
 )
@@ -170,4 +173,64 @@ func ExportVocab(dir string, rows [][]string, o VocabOptions) (string, error) {
 		return "", err
 	}
 	return path, nil
+}
+
+// VocabAudio is the folder beside the vocabulary's notes for Anki that holds the sound of the line each word was looked up in, and of each saved line, whose files go into Anki's collection.media folder.
+const VocabAudio = "Kando Vocabulary audio"
+
+// VocabSounds writes into the folder dir the sound of the line each of b's words was looked up in, and with o.Lines of each saved line, as the export writes them (soundFor): cut out of its video, or copied from the sound kept when it was saved. It returns the files' names by the word's or the line's id; one without a sound is not there. progress, when set, is told after each. A stopped ctx stops it.
+func VocabSounds(ctx context.Context, ffmpeg string, b Book, o VocabOptions, delay func(video string) time.Duration, dir string, progress func(done, total int)) (map[string]string, error) {
+	lines := make([]Line, 0, len(b.Words)+len(b.Lines))
+	for _, w := range b.Words {
+		if w.Video != "" {
+			lines = append(lines, WordLine(w))
+		}
+	}
+	if o.Lines {
+		lines = append(lines, b.Lines...)
+	}
+	out := map[string]string{}
+	for i, l := range lines {
+		if err := ctx.Err(); err != nil {
+			return out, err
+		}
+		name, err := soundFor(ctx, ffmpeg, b, l, delay, dir)
+		if err != nil {
+			return out, err
+		}
+		if name != "" {
+			out[l.ID] = name
+		}
+		if progress != nil {
+			progress(i+1, len(lines))
+		}
+	}
+	return out, nil
+}
+
+// WithSounds is rows, as VocabRows makes them of words and lines with o, with the sound of each word's line and each saved line on the back of its note for Anki, [sound:file] before the film, sounds naming the file by the word's or the line's id (VocabSounds). Rows of another format, and records without a sound, are as they were.
+func WithSounds(rows [][]string, words []Word, lines []Line, o VocabOptions, sounds map[string]string) [][]string {
+	if o.Format != VocabAnki || len(sounds) == 0 {
+		return rows
+	}
+	ids := make([]string, 0, len(rows))
+	for _, w := range words {
+		ids = append(ids, w.ID)
+	}
+	if o.Lines {
+		for _, l := range lines {
+			ids = append(ids, l.ID)
+		}
+	}
+	out := make([][]string, len(rows))
+	for k, row := range rows {
+		out[k] = row
+		if k >= len(ids) || len(row) == 0 {
+			continue
+		}
+		if name := sounds[ids[k]]; name != "" {
+			out[k] = slices.Insert(slices.Clone(row), len(row)-1, "[sound:"+name+"]")
+		}
+	}
+	return out
 }

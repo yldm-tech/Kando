@@ -21,6 +21,7 @@ type App interface {
 	Glossary
 	Reviewer
 	Progresser
+	Notebook
 	Streamer
 	Explainer
 	Recapper
@@ -73,7 +74,7 @@ type App interface {
 	VideoEnded()
 	VideoFailed(err error)
 	Subs() Subs
-	// FilmSide is the side panel's tab: "" for 字幕, "clips" for 片段, "terms" for 术语, "info" for 信息. 样式 is shown through StyleView.
+	// FilmSide is the side panel's tab: "" for 字幕, "clips" for 片段, "terms" for 术语, SideNotes for 笔记, "info" for 信息. 样式 is shown through StyleView.
 	FilmSide() string
 	SetFilmSide(string)
 	Seek(at time.Duration)
@@ -187,10 +188,11 @@ type App interface {
 	LookupSettings()
 }
 
-// Lookup is the word looked up on the picture, as its card shows it: the word, its reading and what it means in Line, the line it was clicked in; Busy while the AI service is asked, Failed when no meaning came, with Say saying why, NeedsAI when the AI service's settings are what helps; Saved once the word is in the vocabulary.
+// Lookup is the word looked up on the picture, as its card shows it: the word, its reading and what it means in Line, the line it was clicked in; Term, the film's glossary's term for it, "source → target", "" when the glossary has none; Busy while the AI service is asked, Failed when no meaning came, with Say saying why, NeedsAI when the AI service's settings are what helps; Saved once the word is in the vocabulary.
 type Lookup struct {
 	Open                         bool
 	Word, Reading, Meaning, Line string
+	Term                         string
 	Busy, Failed, NeedsAI, Saved bool
 	Say                          func(*ns.Scope) string
 }

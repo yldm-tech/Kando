@@ -112,3 +112,14 @@ func TestScreenshotsRevoked(t *testing.T) {
 	p.app.WaitFor("id:revoked-page", wait)
 	shot(p, "revoked")
 }
+
+func TestScreenshotsSyncConflicts(t *testing.T) {
+	shot := screenshots(t)
+	d, key := conflictDesktop(t)
+	p := openConflicts(t, d)
+	p.app.WaitFor("id:conflict-"+key, wait)
+	shot(p, "sync-conflicts")
+	p.app.Press("id:conflict-both-" + key)
+	p.app.WaitFor("id:conflicts-done", wait)
+	shot(p, "sync-conflicts-done")
+}

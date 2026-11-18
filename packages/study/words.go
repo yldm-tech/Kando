@@ -16,10 +16,10 @@ type Word struct {
 	Reading, Meaning, Language string
 	// Context is the line it was looked up in, and ContextTranslation that line's translation, "" for none.
 	Context, ContextTranslation string
-	// Video, Start and Film are where the line is: its video's path as Key gives it, the line's start and the film's title.
-	Video string
-	Start time.Duration
-	Film  string
+	// Video, Start, End and Film are where the line is: its video's path as Key gives it, the line's start and end, End 0 when it is not known, as for a word added on a device that did not keep it, and the film's title.
+	Video      string
+	Start, End time.Duration
+	Film       string
 	// SavedAt is when it was added.
 	SavedAt time.Time
 	// Box and Due are its review schedule, as a Line's (Intervals).
@@ -52,8 +52,8 @@ func (b Book) WordIndex(text, spoken string) int {
 	return slices.IndexFunc(b.Words, func(w Word) bool { return WordKey(w.Text) == key && spokenKey(w.Spoken) == lang })
 }
 
-// wordByID is the index of the word id, or -1.
-func (b Book) wordByID(id string) int {
+// WordByID is the index of the word id, or -1.
+func (b Book) WordByID(id string) int {
 	if id == "" {
 		return -1
 	}
@@ -71,7 +71,7 @@ func (b *Book) AddWord(w Word) bool {
 		w.SavedAt = at.At
 	}
 	at.At = w.SavedAt
-	if w.ID == "" || b.wordByID(w.ID) >= 0 {
+	if w.ID == "" || b.WordByID(w.ID) >= 0 {
 		w.ID = NewID()
 	}
 	if w.Device == "" {
@@ -119,6 +119,18 @@ func (b *Book) GradeWord(text, spoken string, good bool, now time.Time) bool {
 	return true
 }
 
+// DueWords is the indexes of the words due for review at now, the one due longest first, as Due is of the lines.
+func (b Book) DueWords(now time.Time) []int {
+	var out []int
+	for i, w := range b.Words {
+		if !w.Due.After(now) {
+			out = append(out, i)
+		}
+	}
+	slices.SortStableFunc(out, func(x, y int) int { return b.Words[x].Due.Compare(b.Words[y].Due) })
+	return out
+}
+
 // schedule is the box and the due date of something in box after a review at now (Intervals).
 func schedule(box int, good bool, now time.Time) (int, time.Time) {
 	if !good {
@@ -138,7 +150,7 @@ func (b *Book) MergeWords(words []Word, removed []Removed) bool {
 		if in.ID == "" || slices.ContainsFunc(b.RemovedWords, func(r Removed) bool { return r.ID == in.ID }) {
 			continue
 		}
-		i := b.wordByID(in.ID)
+		i := b.WordByID(in.ID)
 		if i < 0 {
 			i = b.WordIndex(in.Text, in.Spoken)
 		}
@@ -181,7 +193,7 @@ func (b *Book) forgetWord(r Removed) bool {
 		b.RemovedWords[k] = r
 		changed = true
 	}
-	if i := b.wordByID(r.ID); i >= 0 {
+	if i := b.WordByID(r.ID); i >= 0 {
 		b.Words = slices.Delete(b.Words, i, i+1)
 		changed = true
 	}
@@ -208,6 +220,9 @@ func mergeWord(a, b Word) Word {
 	if out.SavedAt.IsZero() || (!other.SavedAt.IsZero() && other.SavedAt.Before(out.SavedAt)) {
 		out.SavedAt = other.SavedAt
 	}
+	if out.End <= out.Start && other.End > other.Start {
+		out.End = other.End
+	}
 	if other.Stamps.Meaning.After(out.Stamps.Meaning) {
 		out.Reading, out.Meaning, out.Language, out.Stamps.Meaning = other.Reading, other.Meaning, other.Language, other.Stamps.Meaning
 	}
@@ -221,5 +236,5 @@ func mergeWord(a, b Word) Word {
 func sameWord(a, b Word) bool {
 	same := func(x, y Stamp) bool { return x.At.Equal(y.At) && x.Device == y.Device }
 	return a.ID == b.ID && a.Reading == b.Reading && a.Meaning == b.Meaning && a.Language == b.Language &&
-		a.Box == b.Box && a.Due.Equal(b.Due) && a.SavedAt.Equal(b.SavedAt) && same(a.Stamps.Meaning, b.Stamps.Meaning) && same(a.Stamps.Review, b.Stamps.Review)
+		a.End == b.End && a.Box == b.Box && a.Due.Equal(b.Due) && a.SavedAt.Equal(b.SavedAt) && same(a.Stamps.Meaning, b.Stamps.Meaning) && same(a.Stamps.Review, b.Stamps.Review)
 }
