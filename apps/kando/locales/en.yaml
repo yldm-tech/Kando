@@ -2684,6 +2684,12 @@ paletteSettingsSection:
   description: "Command palette command that opens a section of Settings."
   placeholders:
     section: { type: "String", example: "AI Service" }
+paletteSubmenuItem:
+  message: "{menu} › {item}"
+  description: "Command palette command, where the app has no menu bar, for an item of a menu bar submenu such as Sort By › Name or Switch Library › a library's name."
+  placeholders:
+    menu: { type: "String", example: "Sort By" }
+    item: { type: "String", example: "Name" }
 paletteSubtitleMode:
   message: "Subtitles: {mode}"
   description: "Brief notice over the player after the palette switched the subtitles' display mode."

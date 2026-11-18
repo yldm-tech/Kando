@@ -51,7 +51,7 @@ var (
 	failedDot  = theme.StatusFailed
 )
 
-// footer is the status card pinned to the bottom of the sidebar: an 8-point dot, green when a job can start and orange when something is missing, the message saying which, a gear that opens the settings where it is fixed, and before the gear, where the app has neither a menu bar (PaletteButton) nor a title bar with the palette's button (package chrome, on Windows and Linux), a button that opens the command palette, its key in its tooltip.
+// footer is the status card pinned to the bottom of the sidebar: an 8-point dot, green when a job can start and orange when something is missing, the message saying which, a gear that opens the settings where it is fixed, and before the gear, where the app has no menu bar (PaletteButton) and no title bar with the palette's button shows (chrome.Shows: on Windows and Linux out of full screen), a button that opens the command palette, its key in its tooltip.
 type footer struct{ a App }
 
 // Render implements core.Node.
@@ -77,12 +77,14 @@ func (f footer) Render(cx *core.Scope) core.Node {
 	gear := ui.IconButton{Icon: svg(iconGear), LabelFunc: func() string { return locales.SidebarSettings(cx) }, Size: 26, Tint: k.Strong, TestID: "sidebar-settings",
 		OnPress: live.Do(a, func() { a.OpenSettings(a.Readiness().Section) })}
 	buttons := []core.Node{dot, message}
-	if a.PaletteButton() && chrome.KindOf(cx) == chrome.None {
-		// The palette's button is the gear's twin, so the two read as the card's pair of actions.
-		palette := ui.IconButton{Icon: lucide.Command, LabelFunc: func() string { return locales.SidebarCommands(cx) }, Size: 26, Tint: k.Strong, TestID: "sidebar-palette",
-			OnPress: live.Do(a, a.TogglePalette)}
-		buttons = append(buttons, ui.Tooltip{TextFunc: func() string { return locales.SidebarCommandsTooltip(cx, hotkey.Label(cx, a.PaletteKey())) }, Trigger: palette,
-			Style: core.Style{FlexShrink: 0}})
+	if a.PaletteButton() {
+		// The palette's button is the gear's twin, so the two read as the card's pair of actions. It gives way to the title bar's while that shows (chrome.Shows), and comes back in full screen, which hides the bar, so a pointer still reaches the palette and its 切换全屏 there.
+		buttons = append(buttons, core.Show{When: func() bool { return !chrome.Shows(cx) }, Then: func(cx *core.Scope) core.Node {
+			palette := ui.IconButton{Icon: lucide.Command, LabelFunc: func() string { return locales.SidebarCommands(cx) }, Size: 26, Tint: k.Strong, TestID: "sidebar-palette",
+				OnPress: live.Do(a, a.TogglePalette)}
+			return ui.Tooltip{TextFunc: func() string { return locales.SidebarCommandsTooltip(cx, hotkey.Label(cx, a.PaletteKey())) }, Trigger: palette,
+				Style: core.Style{FlexShrink: 0}}
+		}})
 	}
 	buttons = append(buttons, gear)
 	// The status is the design's card at the foot of the sidebar: the card's color at 55% with a hairline outside its edge and 11-point corners.

@@ -740,6 +740,7 @@ paletteNothingFound: "動画もコマンドも見たセリフも見つかりま�
 palettePlaceholder: "動画、コマンド、または見たセリフ…"
 palettePlaceholderFilm: "コマンド、セリフ、またはこの動画に質問…"
 paletteSettingsSection: "設定 › {section}"
+paletteSubmenuItem: "{menu} › {item}"
 paletteSubtitleMode: "字幕：{mode}"
 paletteSwitchTo: "{mode}に切り替え"
 phoneSyncLinkAsk: "{device} からリンクが届きました。上のリンク欄に入れてあります。「処理を開始」で追加できます。"

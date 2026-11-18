@@ -740,6 +740,7 @@ paletteNothingFound: "영상이나 명령, 본 대사를 찾지 못했습니다.
 palettePlaceholder: "영상, 명령 또는 본 대사…"
 palettePlaceholderFilm: "명령, 대사 또는 이 영상에 질문…"
 paletteSettingsSection: "설정 › {section}"
+paletteSubmenuItem: "{menu} › {item}"
 paletteSubtitleMode: "자막: {mode}"
 paletteSwitchTo: "{mode}(으)로 전환"
 phoneSyncLinkAsk: "{device}에서 링크를 보냈습니다. 위의 링크 칸에 넣어 두었으니 ‘처리 시작’을 누르면 대기열에 추가됩니다."

@@ -331,7 +331,7 @@ func (a *app) paletteCommands(cx *core.Scope) []paletteCommand {
 			continue
 		}
 		if s.Run == nil {
-			out = append(out, paletteSubmenu(s.Label, groupTitle(cx, s.Group), s.Items)...)
+			out = append(out, paletteSubmenu(cx, s.Label, groupTitle(cx, s.Group), s.Items)...)
 			continue
 		}
 		if s.Key == paletteKey {
@@ -348,8 +348,8 @@ func (a *app) paletteCommands(cx *core.Scope) []paletteCommand {
 	return out
 }
 
-// paletteSubmenu are the palette's rows for the items of a row of the menu bar that is a submenu (shortcut.Items), such as 排序方式 or 切换资料库, named after it ("排序方式 › 名称"), so the palette reaches them where no menu bar shows them: the items that do something now, but not a checked one, which is the choice already made. Their OnSelect runs once the palette has closed, after the modal flag it held is given back (paletteRun), which menuSelect checks.
-func paletteSubmenu(label, group string, items func() []nsdesktop.MenuItem) []paletteCommand {
+// paletteSubmenu are the palette's rows for the items of a row of the menu bar that is a submenu (shortcut.Items), such as 排序方式 or 切换资料库, named after it in the language the app shows under cx (paletteSubmenuItem, "排序方式 › 名称"), so the palette reaches them where no menu bar shows them: the items that do something now, but not a checked one, which is the choice already made. Their OnSelect runs once the palette has closed, after the modal flag it held is given back (paletteRun), which menuSelect checks.
+func paletteSubmenu(cx *core.Scope, label, group string, items func() []nsdesktop.MenuItem) []paletteCommand {
 	if items == nil {
 		return nil
 	}
@@ -358,9 +358,9 @@ func paletteSubmenu(label, group string, items func() []nsdesktop.MenuItem) []pa
 		switch {
 		case it.Separator, it.Disabled, it.Checked:
 		case it.Items != nil:
-			out = append(out, paletteSubmenu(label+" › "+it.Label, group, func() []nsdesktop.MenuItem { return it.Items })...)
+			out = append(out, paletteSubmenu(cx, locales.PaletteSubmenuItem(cx, label, it.Label), group, func() []nsdesktop.MenuItem { return it.Items })...)
 		case it.OnSelect != nil:
-			out = append(out, paletteCommand{label: label + " › " + it.Label, group: group, run: it.OnSelect})
+			out = append(out, paletteCommand{label: locales.PaletteSubmenuItem(cx, label, it.Label), group: group, run: it.OnSelect})
 		}
 	}
 	return out

@@ -876,7 +876,7 @@ func TestFindKeepsSearchingSubtitlesInAFilm(t *testing.T) {
 	}
 }
 
-// TestSidebarOpensThePaletteWithoutAMenuBar checks that where the app has no menu bar of its own and no title bar with the palette's button, the status card has a button that opens the command palette, which lists the shortcut cheat sheet first, its tooltip naming the key as the platform writes it; that on Windows and Linux, whose title bar has that button (package chrome), the card has none; and that where the menu bar carries the palette and the cheat sheet, as on macOS, it has none.
+// TestSidebarOpensThePaletteWithoutAMenuBar checks the status card's button that opens the command palette where the app has no menu bar of its own, as on Windows and Linux: none while the title bar with the palette's button shows (package chrome); in full screen, which hides that bar, the card has it, its tooltip naming the key as the platform writes it, and it opens the palette, which lists the shortcut cheat sheet first; out of full screen it gives way to the bar's again. Where the menu bar carries the palette and the cheat sheet, as on macOS, the card has none.
 func TestSidebarOpensThePaletteWithoutAMenuBar(t *testing.T) {
 	keep := appMenuBar
 	t.Cleanup(func() { appMenuBar = keep })
@@ -884,33 +884,46 @@ func TestSidebarOpensThePaletteWithoutAMenuBar(t *testing.T) {
 	msgs := testlocale.Messages()
 	for _, os := range []ns.OS{ns.OSWindows, ns.OSLinux} {
 		usePlatform(t, os)
-		if _, tt, _ := newTestApp(t, &fakePipeline{}); tt.Exists("id:sidebar-palette") {
+		a, tt, _ := newTestApp(t, &fakePipeline{})
+		if tt.Exists("id:sidebar-palette") {
 			t.Fatalf("%v: the status card has the palette's button beside the title bar's", os)
 		}
-	}
-	usePlatform(t, ns.OSMacOS)
-	a, tt, _ := newTestApp(t, &fakePipeline{})
-	if got := tt.Find("id:sidebar-palette").Props.Label; got != msgs.SidebarCommands() {
-		t.Fatalf("the status card's palette button is named %q", got)
-	}
-	tt.Hover("id:sidebar-palette")
-	tt.Advance(time.Second)
-	refresh(tt, a)
-	wantText(t, tt, msgs.SidebarCommandsTooltip("⌘K"))
-	tt.Press("id:sidebar-palette")
-	refresh(tt, a)
-	if !a.palette.open {
-		t.Fatal("the button did not open the palette")
-	}
-	if v := a.PaletteView(a.cx); len(v.Commands) == 0 || v.Commands[0].Label != msgs.CheatsheetMenuItem() {
-		t.Fatalf("the palette opens with %+v", v.Commands)
-	}
-	tt.Press(msgs.CheatsheetMenuItem())
-	refresh(tt, a)
-	if !a.overlay.cheatsheet || a.palette.open {
-		t.Fatalf("cheat sheet %v, palette %v", a.overlay.cheatsheet, a.palette.open)
+		env := testEnvironment()
+		env.FullScreen = true
+		tt.SetEnvironment(env)
+		refresh(tt, a)
+		if tt.Exists("id:chrome-bar") {
+			t.Fatalf("%v: the title bar shows in full screen", os)
+		}
+		if got := tt.Find("id:sidebar-palette").Props.Label; got != msgs.SidebarCommands() {
+			t.Fatalf("%v: in full screen the status card's palette button is named %q", os, got)
+		}
+		tt.Hover("id:sidebar-palette")
+		tt.Advance(time.Second)
+		refresh(tt, a)
+		wantText(t, tt, msgs.SidebarCommandsTooltip("Ctrl+K"))
+		tt.Press("id:sidebar-palette")
+		refresh(tt, a)
+		if !a.palette.open {
+			t.Fatalf("%v: the button did not open the palette", os)
+		}
+		if v := a.PaletteView(a.cx); len(v.Commands) == 0 || v.Commands[0].Label != msgs.CheatsheetMenuItem() {
+			t.Fatalf("%v: the palette opens with %+v", os, v.Commands)
+		}
+		tt.Press(msgs.CheatsheetMenuItem())
+		refresh(tt, a)
+		if !a.overlay.cheatsheet || a.palette.open {
+			t.Fatalf("%v: cheat sheet %v, palette %v", os, a.overlay.cheatsheet, a.palette.open)
+		}
+		env.FullScreen = false
+		tt.SetEnvironment(env)
+		refresh(tt, a)
+		if tt.Exists("id:sidebar-palette") || !tt.Exists("id:chrome-search") {
+			t.Fatalf("%v: out of full screen the card's button stays or the bar's does not come back", os)
+		}
 	}
 
+	usePlatform(t, ns.OSMacOS)
 	appMenuBar = true
 	_, mac, _ := newTestApp(t, &fakePipeline{})
 	if mac.Exists("id:sidebar-palette") {

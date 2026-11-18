@@ -207,7 +207,7 @@ func TestPaletteReachesEveryMenuCommand(t *testing.T) {
 		for _, it := range items {
 			label := it.Label
 			if prefix != "" {
-				label = prefix + " › " + it.Label
+				label = msgs.PaletteSubmenuItem(prefix, it.Label)
 			}
 			switch {
 			case it.Separator, it.Disabled, it.Checked, skip[it.Role], it.Label == msgs.PaletteMenuItem():
@@ -227,7 +227,7 @@ func TestPaletteReachesEveryMenuCommand(t *testing.T) {
 	for _, m := range menu {
 		walk("", m.Items)
 	}
-	if want := msgs.MenuSwitchLibrary() + " › "; !slices.ContainsFunc(palette, func(l string) bool { return strings.HasPrefix(l, want) }) {
+	if want := msgs.PaletteSubmenuItem(msgs.MenuSwitchLibrary(), ""); !slices.ContainsFunc(palette, func(l string) bool { return strings.HasPrefix(l, want) }) {
 		t.Fatalf("the palette cannot switch libraries: %q", palette)
 	}
 }
@@ -261,7 +261,7 @@ func TestPaletteRunsTheMenuOnlyCommands(t *testing.T) {
 		t.Fatalf("the window's rows sent %v, want %v", got, want)
 	}
 	for _, c := range a.paletteCommands(a.cx) {
-		if strings.HasPrefix(c.label, msgs.MenuSwitchLibrary()+" › ") && strings.Contains(c.label, "乙") {
+		if strings.HasPrefix(c.label, msgs.PaletteSubmenuItem(msgs.MenuSwitchLibrary(), "")) && strings.Contains(c.label, "乙") {
 			onEngine(a, c.run)
 			refresh(tt, a)
 		}
@@ -269,7 +269,7 @@ func TestPaletteRunsTheMenuOnlyCommands(t *testing.T) {
 	if a.snap().LibraryDir != other {
 		t.Fatalf("切换资料库 opened %q, want %q", a.snap().LibraryDir, other)
 	}
-	if strings.Contains(strings.Join(paletteLabels(a), "\n"), msgs.MenuSwitchLibrary()+" › 乙") {
+	if strings.Contains(strings.Join(paletteLabels(a), "\n"), msgs.PaletteSubmenuItem(msgs.MenuSwitchLibrary(), "乙")) {
 		t.Fatal("the palette offers the library already open")
 	}
 }
@@ -281,4 +281,74 @@ func paletteLabels(a *app) []string {
 		out = append(out, c.label)
 	}
 	return out
+}
+
+// TestPaletteQuitAndCloseAskWhileAJobRuns checks the palette's rows and the header bar's button that end the app where there is no menu bar: 退出看懂 quits through the app's own quit, which asks first while a job runs, as ⌘Q does; the header bar's close button and 关闭窗口 send the window its close, which, with 关掉窗口后继续在后台运行 off, quits through the same question; and 在文件管理器中显示资料库 shows the open library in the file manager.
+func TestPaletteQuitAndCloseAskWhileAJobRuns(t *testing.T) {
+	msgs := testlocale.Messages()
+	usePlatform(t, ns.OSLinux)
+	useNoMenuBar(t)
+	setWindowHidesOnClose(t, false)
+	g := newGatePipeline()
+	a, tt, updates := newTestApp(t, g)
+	t.Cleanup(a.stop)
+	a.tray.keepRunning = false
+	if err := a.Enqueue("https://example.com/a"); err != nil {
+		t.Fatal(err)
+	}
+	nextStarted(t, g, updates)
+	refresh(tt, a)
+	run := func(label string) {
+		t.Helper()
+		for _, c := range a.paletteCommands(a.cx) {
+			if c.label == label {
+				onEngine(a, c.run)
+				refresh(tt, a)
+				return
+			}
+		}
+		t.Fatalf("the palette has no %q in %q", label, paletteLabels(a))
+	}
+	asked := func(what string) {
+		t.Helper()
+		if !a.queue.quitAsk || tt.Quits != 0 || !shows(tt, msgs.QueueQuitWhileRunningTitle()) {
+			t.Fatalf("%s while a job runs: asked %v, quits %d", what, a.queue.quitAsk, tt.Quits)
+		}
+		a.queue.quitAsk = false
+		if a.queue.quitRelease != nil {
+			a.queue.quitRelease()
+			a.queue.quitRelease = nil
+		}
+		refresh(tt, a)
+	}
+
+	run(msgs.MenuQuit())
+	asked("退出看懂")
+
+	before := len(tt.Window)
+	tt.Press("id:chrome-close")
+	run(msgs.MenuCloseWindow())
+	if got, want := windowCommands(tt)[before:], []ns.WindowAction{ns.WindowClose, ns.WindowClose}; !slices.Equal(got, want) {
+		t.Fatalf("close sent %v, want %v", got, want)
+	}
+	// The window's close the system reports back for that command, which the test app, opening no main window on Linux, does not.
+	e := &ns.WindowClosing{}
+	a.windowClosing(e)
+	refresh(tt, a)
+	if !windowClosingCanceled(e) {
+		t.Fatal("the window closed while a job runs")
+	}
+	asked("closing the window")
+
+	var revealed string
+	prev := revealInFolder
+	revealInFolder = func(_ *ns.Scope, path string, done func(error)) { revealed = path; done(nil) }
+	t.Cleanup(func() { revealInFolder = prev })
+	dir := t.TempDir()
+	a.edit(func(s *session) { s.LibraryDir = dir })
+	refresh(tt, a)
+	run(msgs.MenuRevealLibrary(platformName()))
+	if want := dir; revealed != want {
+		t.Fatalf("the reveal row showed %q, want %q", revealed, want)
+	}
 }

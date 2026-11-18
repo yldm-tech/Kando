@@ -626,6 +626,7 @@ var Parameters = map[string][]string{
 	"PaletteJumpTo":                            {"time_"},
 	"PaletteLibrarySaveFailed":                 {"error_"},
 	"PaletteSettingsSection":                   {"section"},
+	"PaletteSubmenuItem":                       {"menu", "item"},
 	"PaletteSubtitleMode":                      {"mode"},
 	"PaletteSwitchTo":                          {"mode"},
 	"PhoneSyncLinkAsk":                         {"device"},
@@ -1018,6 +1019,7 @@ type Translation struct {
 	PaletteJumpTo                            func(time_ string) string
 	PaletteLibrarySaveFailed                 func(error_ string) string
 	PaletteSettingsSection                   func(section string) string
+	PaletteSubmenuItem                       func(menu string, item string) string
 	PaletteSubtitleMode                      func(mode string) string
 	PaletteSwitchTo                          func(mode string) string
 	PhoneSyncLinkAsk                         func(device string) string
@@ -15787,6 +15789,9 @@ func Supply(lang string, t Translation) {
 	if t.PaletteSettingsSection != nil {
 		s.PaletteSettingsSection = t.PaletteSettingsSection
 	}
+	if t.PaletteSubmenuItem != nil {
+		s.PaletteSubmenuItem = t.PaletteSubmenuItem
+	}
 	if t.PaletteSubtitleMode != nil {
 		s.PaletteSubtitleMode = t.PaletteSubtitleMode
 	}
@@ -28320,6 +28325,38 @@ func (msgs Messages) PaletteSettingsSection(section string) string {
 			return "设置 › " + section
 		case "zh-Hant":
 			return "設定 › " + section
+		}
+	}
+}
+
+// PaletteSubmenuItem says "{menu} › {item}"
+// in the language the app shows under cx.
+//
+// Command palette command, where the app has no menu bar, for an item of a menu bar submenu such as Sort By › Name or Switch Library › a library's name.
+func PaletteSubmenuItem(cx *core.Scope, menu string, item string) string {
+	return For(cx).PaletteSubmenuItem(menu, item)
+}
+
+// PaletteSubmenuItem is the package's PaletteSubmenuItem in the language of msgs.
+func (msgs Messages) PaletteSubmenuItem(menu string, item string) string {
+	if i18n.IsPseudo(msgs.lang) {
+		return i18n.Pseudo(msgs.lang, Messages{lang: Source, mark: true}.PaletteSubmenuItem(menu, item))
+	}
+	for lang := msgs.lang; ; lang = i18n.Parent(lang) {
+		if f := supplied[lang].PaletteSubmenuItem; f != nil {
+			return f(menu, item)
+		}
+		switch lang {
+		case "", "en":
+			return msgs.arg(menu) + " › " + msgs.arg(item)
+		case "ja":
+			return menu + " › " + item
+		case "ko":
+			return menu + " › " + item
+		case "zh-Hans":
+			return menu + " › " + item
+		case "zh-Hant":
+			return menu + " › " + item
 		}
 	}
 }
