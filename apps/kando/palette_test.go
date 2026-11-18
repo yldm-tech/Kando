@@ -809,7 +809,7 @@ func TestPaletteFindsFilmsByName(t *testing.T) {
 	}
 }
 
-// TestPaletteExplainsTheLinePlaying checks that E, in a film with lines, opens the palette with the AI service explaining the line playing, with no question typed: it sends that line, past the furthest point played as well, with the lines just before it, and not the film's other lines, and the card shows the line's original over the explanation, a chip that plays the line and which model explained it.
+// TestPaletteExplainsTheLinePlaying checks that I, in a film with lines, opens the palette with the AI service explaining the line playing, with no question typed: it sends that line, past the furthest point played as well, with the lines just before it, and not the film's other lines, and the card shows the line's original over the explanation, a chip that plays the line and which model explained it.
 func TestPaletteExplainsTheLinePlaying(t *testing.T) {
 	srv, seen := fakeLLM(t, `{"answer":"河曲是河流的大弯道。","refs":["1:10"]}`)
 	tools := media.Tools{Translator: media.ChatTranslator{BaseURL: srv.URL + "/v1", APIKey: "k", Model: "m1"}}
@@ -818,14 +818,14 @@ func TestPaletteExplainsTheLinePlaying(t *testing.T) {
 	a.OpenAt(item, 71*time.Second)
 	waitUntil(t, tt, a, updates, func() bool { return a.player.subs.ready })
 	refresh(tt, a)
-	tt.Key("e")
+	tt.Key("i")
 	msgs := testlocale.Messages()
 	if !a.palette.open || a.palette.answer == nil || !a.palette.answer.busy {
-		t.Fatalf("E: palette open %v answer %+v", a.palette.open, a.palette.answer)
+		t.Fatalf("I: palette open %v answer %+v", a.palette.open, a.palette.answer)
 	}
 	// The card is the line's explanation from the start, not an answer to a question.
 	if !hasText(tt, msgs.PaletteExplaining("m1")) || !hasText(tt, msgs.PaletteHeadingExplain()) || hasText(tt, msgs.PaletteHeadingAnswer()) {
-		t.Fatalf("E: texts %q", tt.Texts())
+		t.Fatalf("I: texts %q", tt.Texts())
 	}
 	waitUntil(t, tt, a, updates, func() bool { return a.palette.answer != nil && !a.palette.answer.busy })
 	for _, want := range []string{"These sweeping curves are called meanders.\n\n河曲是河流的大弯道。", "▶ 1:10", msgs.PaletteExplainNote("m1"), msgs.PaletteHeadingExplain()} {

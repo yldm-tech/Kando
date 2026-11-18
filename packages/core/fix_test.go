@@ -1,0 +1,52 @@
+package core
+
+import "testing"
+
+// TestFixOfFindsWhatChanged checks that FixOf finds the words an edit of a line changed: the run of characters that differ in a language written without spaces, whole words in one written with them, and nothing for an edit too small to be worth looking for elsewhere.
+func TestFixOfFindsWhatChanged(t *testing.T) {
+	for _, c := range []struct {
+		before, after string
+		want          Fix
+		ok            bool
+	}{
+		{"河曲是河流的大弯道。", "曲流是河流的大弯道。", Fix{From: "河曲", To: "曲流"}, true},
+		{"我叫约翰。", "我叫琼恩。", Fix{From: "约翰", To: "琼恩"}, true},
+		{"Jon is here.", "John is here.", Fix{From: "Jon", To: "John"}, true},
+		{"See you, Jon.", "See you, John.", Fix{From: "Jon", To: "John"}, true},
+		{"the red barn", "the old red barn", Fix{}, false},
+		{"meet the river delta", "meet the river deltas", Fix{From: "delta", To: "deltas"}, true},
+		{"你好。", "你好！", Fix{}, false},
+		{"一样", "一样", Fix{}, false},
+		{"它们是曲流", "它们是", Fix{From: "曲流", To: ""}, true},
+	} {
+		got, ok := FixOf(c.before, c.after)
+		if ok != c.ok || got != c.want {
+			t.Errorf("FixOf(%q, %q) = %+v, %v; want %+v, %v", c.before, c.after, got, ok, c.want, c.ok)
+		}
+	}
+}
+
+// TestFixAppliesToWholeWords checks that a fix finds and replaces its words in another line: anywhere in Chinese, only as whole words in English, so fixing "Jon" leaves "Jonathan" alone.
+func TestFixAppliesToWholeWords(t *testing.T) {
+	jon := Fix{From: "Jon", To: "John"}
+	for _, c := range []struct {
+		text, want string
+		in         bool
+	}{
+		{"Jon, wait.", "John, wait.", true},
+		{"Ask Jon and Jon's sister.", "Ask John and John's sister.", true},
+		{"Jonathan left.", "Jonathan left.", false},
+		{"DeJon left.", "DeJon left.", false},
+	} {
+		if got := jon.In(c.text); got != c.in {
+			t.Errorf("In(%q) = %v", c.text, got)
+		}
+		if got := jon.Apply(c.text); got != c.want {
+			t.Errorf("Apply(%q) = %q, want %q", c.text, got, c.want)
+		}
+	}
+	river := Fix{From: "河曲", To: "曲流"}
+	if !river.In("这些河曲很美") || river.Apply("这些河曲很美，河曲") != "这些曲流很美，曲流" {
+		t.Errorf("Chinese: %q", river.Apply("这些河曲很美，河曲"))
+	}
+}

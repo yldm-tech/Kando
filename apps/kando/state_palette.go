@@ -95,11 +95,11 @@ func (a *app) paletteHooks() areaHooks {
 	}
 }
 
-// paletteKeys are the palette's shortcuts: ⌘K opens it, and closes it again, anywhere in the window. It is the prototype's 学习 › 问这部影片…, which the menu bar puts before 窗口; over the library, without a film, it finds commands and lines, so its label names both. The cheat sheet lists it under 窗口, as the prototype's sheet does (cheatsheetLayout). E has the AI service explain the subtitle line playing in the palette (ExplainLine), while the open film has lines.
+// paletteKeys are the palette's shortcuts: ⌘K opens it, and closes it again, anywhere in the window. It is the prototype's 学习 › 问这部影片…, which the menu bar puts before 窗口; over the library, without a film, it finds commands and lines, so its label names both. The cheat sheet lists it under 窗口, as the prototype's sheet does (cheatsheetLayout). I has the AI service explain the subtitle line selected for correcting, or with none the line playing, in the palette (ExplainLine), while the open film has lines; the prototype puts it in the Subtitles menu, after selecting the line (E) and 这句不对 (⇧E).
 func (a *app) paletteKeys(cx *core.Scope) []shortcut {
 	return []shortcut{
 		{Group: groupStudy, Label: locales.PaletteMenuItem(cx), Key: paletteKey, Run: a.togglePalette},
-		{Group: groupStudy, Label: locales.PaletteExplainLine(cx), Key: "e", When: func() bool { return len(a.playerCues()) > 0 }, Run: a.paletteExplainPlaying},
+		{Group: groupSubtitles, Label: locales.PaletteExplainLine(cx), Key: "i", When: func() bool { return len(a.playerCues()) > 0 }, Run: a.paletteExplainPlaying},
 	}
 }
 

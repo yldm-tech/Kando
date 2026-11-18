@@ -3,6 +3,8 @@ package main
 import (
 	"os"
 	"path/filepath"
+	"slices"
+	"strings"
 	"testing"
 	"time"
 
@@ -33,14 +35,14 @@ func correctTexts(a *app) []string {
 	return out
 }
 
-// TestEditingALineKeepsItApartFromTheSubtitles selects the playing line with Return, edits its translation, and checks that the edit shows, is kept in the film's corrections file rather than in its subtitles, and that Undo and Redo, named in the Edit menu, take it back and make it again.
+// TestEditingALineKeepsItApartFromTheSubtitles selects the playing line with E, edits its translation, and checks that the edit shows, is kept in the film's corrections file rather than in its subtitles, and that Undo and Redo, named in the Edit menu, take it back and make it again.
 func TestEditingALineKeepsItApartFromTheSubtitles(t *testing.T) {
 	a, tt, sidecar := correctOpen(t)
 	useMenuBar(t, a, tt)
 	msgs := testlocale.Messages()
-	tt.Key("enter")
+	tt.Key("e")
 	if a.correctSelected() != 0 || a.player.play.Playing() || !tt.Exists("id:film-correct-bar") {
-		t.Fatalf("Return selected %d, playing %v, bar %v; %q", a.correctSelected(), a.player.play.Playing(), tt.Exists("id:film-correct-bar"), tt.Texts())
+		t.Fatalf("E selected %d, playing %v, bar %v; %q", a.correctSelected(), a.player.play.Playing(), tt.Exists("id:film-correct-bar"), tt.Texts())
 	}
 	tt.Key("enter")
 	if !tt.Exists("id:film-correct-editor") {
@@ -91,7 +93,7 @@ func TestEditingALineKeepsItApartFromTheSubtitles(t *testing.T) {
 func TestTheSelectedLineMovesAndGoes(t *testing.T) {
 	a, tt, sidecar := correctOpen(t)
 	msgs := testlocale.Messages()
-	tt.Key("enter")
+	tt.Key("e")
 	tt.Key("shift+right")
 	if a.correctSelected() != 1 {
 		t.Fatalf("⇧→ selected %d", a.correctSelected())
@@ -115,7 +117,7 @@ func TestTheSelectedLineMovesAndGoes(t *testing.T) {
 	if a.correctSelected() >= 0 || a.openKey == "" {
 		t.Fatalf("Escape: selected %d, open %q", a.correctSelected(), a.openKey)
 	}
-	tt.Key("enter")
+	tt.Key("e")
 	tt.Key("mod+backspace")
 	if got := correctTexts(a); len(got) != 1 {
 		t.Fatalf("lines after no speech %q", got)
@@ -169,7 +171,7 @@ func TestCorrectingNeedsAReadableCorrectionsFile(t *testing.T) {
 	playerOpenFilm(t, a, tt, updates, item)
 	playerLoadFilm(tt, a, 12*time.Second)
 	playerPlayTo(tt, a, 1500*time.Millisecond)
-	tt.Key("enter")
+	tt.Key("e")
 	tt.Key("mod+backspace")
 	wantText(t, tt, testlocale.Messages().CorrectUnreadable())
 	if data, _ := os.ReadFile(sidecar); string(data) != "{not json" {
@@ -208,9 +210,9 @@ func TestAShortLineMovesOnlyTheWayPressed(t *testing.T) {
 	playerOpenFilm(t, a, tt, updates, item)
 	playerLoadFilm(tt, a, 12*time.Second)
 	playerPlayTo(tt, a, 1100*time.Millisecond)
-	tt.Key("enter")
+	tt.Key("e")
 	if a.correctSelected() != 0 {
-		t.Fatalf("Return selected %d", a.correctSelected())
+		t.Fatalf("E selected %d", a.correctSelected())
 	}
 	tt.Key("ctrl+alt+right")
 	tt.Key("ctrl+alt+shift+left")
@@ -227,7 +229,7 @@ func TestAShortLineMovesOnlyTheWayPressed(t *testing.T) {
 // TestEscapeInTheFieldsPutsThemAway checks, with the app's own keys bound, that Escape while the fields that edit a line show puts them away and keeps the line selected, a second lets go of the line, and only a third leaves the film.
 func TestEscapeInTheFieldsPutsThemAway(t *testing.T) {
 	a, tt, _ := correctOpen(t)
-	tt.Key("enter")
+	tt.Key("e")
 	tt.Key("enter")
 	if !tt.Exists("id:film-correct-editor") {
 		t.Fatal("Return on the selected line did not edit it")
@@ -249,7 +251,7 @@ func TestEscapeInTheFieldsPutsThemAway(t *testing.T) {
 // TestAnEmptyOriginalIsNotKept checks that submitting a line with its original field empty keeps nothing and says why, as a cue holding only its translation would read back as an original.
 func TestAnEmptyOriginalIsNotKept(t *testing.T) {
 	a, tt, sidecar := correctOpen(t)
-	tt.Key("enter")
+	tt.Key("e")
 	tt.Key("enter")
 	tt.Clear("id:film-correct-original")
 	tt.Press("id:film-correct-submit")
@@ -270,7 +272,7 @@ func TestUndoWaitsForTheSubtitlesRead(t *testing.T) {
 	a, tt, updates := playerOpen(t)
 	playerPlayTo(tt, a, 1500*time.Millisecond)
 	sidecar := media.CorrectionsPath(a.player.subs.path)
-	tt.Key("enter")
+	tt.Key("e")
 	tt.Key("ctrl+alt+left")
 	if edits, _ := media.LoadCorrections(sidecar); len(edits) != 1 {
 		t.Fatalf("corrections %+v", edits)
@@ -301,3 +303,191 @@ func TestUndoWaitsForTheSubtitlesRead(t *testing.T) {
 }
 
 var _ film.Corrector = (*app)(nil)
+
+// correctNames are the lines of a film whose translation writes the name John as 约翰 in three lines, one of which the user corrected already, and whose original misspells it as Jon in two.
+const correctNames = "1\n00:00:01,000 --> 00:00:02,500\n约翰来了。\nJon is here.\n\n2\n00:00:04,000 --> 00:00:05,000\n约翰，等等。\nJon, wait.\n\n3\n00:00:06,000 --> 00:00:07,000\n这是约翰的书。\nThis is John's book.\n\n4\n00:00:08,000 --> 00:00:09,000\n乔纳森走了。\nJonathan left.\n\n"
+
+// correctNamesOpen is the film of correctNames open and loaded, held on its first line, its third line's translation corrected to 这是约翰的。, translated by the AI service of tools, and the path of its corrections file.
+func correctNamesOpen(t *testing.T, p media.Pipeline) (*app, *nsgotest.App, chan func(), string) {
+	t.Helper()
+	a, tt, updates, item := playerFilm(t, 12, p)
+	if err := os.WriteFile(item.SubtitlePath, []byte(correctNames), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	sidecar := media.CorrectionsPath(item.SubtitlePath)
+	edited := "这是约翰的。"
+	if err := media.SaveCorrections(sidecar, []core.Correction{{Span: core.Span{Start: 6 * time.Second, End: 7 * time.Second}, Translation: &edited}}); err != nil {
+		t.Fatal(err)
+	}
+	playerOpenFilm(t, a, tt, updates, item)
+	playerLoadFilm(tt, a, 12*time.Second)
+	playerPlayTo(tt, a, 1500*time.Millisecond)
+	return a, tt, updates, sidecar
+}
+
+// correctEdit edits the translation of line i of the open film, selected with E, to translation, as typed in its field and saved.
+func correctEdit(t *testing.T, a *app, tt *nsgotest.App, i int, translation string) {
+	t.Helper()
+	apply(tt, a, func() { a.SelectLine(i) })
+	tt.Key("enter")
+	tt.Clear("id:film-correct-translation")
+	tt.Type("id:film-correct-translation", translation)
+	tt.Press("id:film-correct-submit")
+}
+
+// TestShortcutsFollowTheDesign checks the keys the prototype gives correcting a line: E selects the line playing, and Return no longer does; I explains the line selected, or with none the one playing; ⇧E asks for other translations of it.
+func TestShortcutsFollowTheDesign(t *testing.T) {
+	srv, seen := fakeLLM(t, `{"answer":"打招呼。","refs":[]}`)
+	tools := media.Tools{Translator: media.ChatTranslator{BaseURL: srv.URL + "/v1", APIKey: "k", Model: "m1"}}
+	a, tt, updates, _ := correctNamesOpen(t, tools)
+	tt.Key("enter")
+	if a.correctSelected() >= 0 {
+		t.Fatal("Return selected a line")
+	}
+	tt.Key("e")
+	if a.correctSelected() != 0 {
+		t.Fatalf("E selected %d", a.correctSelected())
+	}
+	apply(tt, a, func() { a.StepSelection(1) })
+	tt.Key("i")
+	waitUntil(t, tt, a, updates, func() bool { return a.palette.answer != nil && !a.palette.answer.busy })
+	if sent := strings.Join(*seen, "\n"); !strings.Contains(sent, "要讲解的一句：[0:04] Jon, wait.") {
+		t.Fatalf("I explained %q, want the selected line", sent)
+	}
+	rows := map[string]string{}
+	for _, s := range a.shortcuts(a.cx) {
+		if s.Group == groupSubtitles {
+			rows[s.Key] = s.Label
+		}
+	}
+	msgs := testlocale.Messages()
+	if rows["e"] != msgs.CorrectKeySelect() || rows["shift+e"] != msgs.CorrectKeyCandidates() || rows["i"] != msgs.PaletteExplainLine() {
+		t.Fatalf("subtitle rows %q", rows)
+	}
+}
+
+// TestThisLineIsWrongOffersCandidates checks 这句不对: ⇧E on the line playing asks the AI service for other translations of it, sending the line with the lines around it and the glossary, holds the film and shows them under the line as it is, the first highlighted; ↓ and ↑ move the highlight, Escape puts them away with the line unchanged, and Return keeps the one highlighted as the user's correction, which Undo names and takes back.
+func TestThisLineIsWrongOffersCandidates(t *testing.T) {
+	srv, seen := fakeLLM(t, `["约翰到了。", "约翰在这儿。"]`)
+	tools := media.Tools{Translator: media.ChatTranslator{BaseURL: srv.URL + "/v1", APIKey: "k", Model: "m1"}}
+	a, tt, updates, sidecar := correctNamesOpen(t, tools)
+	useMenuBar(t, a, tt)
+	msgs := testlocale.Messages()
+	tt.Key("shift+e")
+	if a.correctSelected() != 0 || !tt.Exists("id:film-candidates") || a.player.play.Playing() {
+		t.Fatalf("⇧E: selected %d, list %v", a.correctSelected(), tt.Exists("id:film-candidates"))
+	}
+	wantText(t, tt, msgs.CorrectCandidatesBusy())
+	waitUntil(t, tt, a, updates, func() bool { return a.Candidates().Open && !a.Candidates().Busy })
+	sent := strings.Join(*seen, "\n")
+	for _, want := range []string{"Jon is here.", "约翰来了。", "Jon, wait.", "简体中文"} {
+		if !strings.Contains(sent, want) {
+			t.Fatalf("the request lacks %q: %s", want, sent)
+		}
+	}
+	for _, want := range []string{msgs.CorrectCandidatesTitle(), "约翰来了。", "约翰到了。", "约翰在这儿。"} {
+		wantText(t, tt, want)
+	}
+	if c := a.Candidates(); c.At != 1 || len(c.Options) != 2 {
+		t.Fatalf("candidates %+v", c)
+	}
+	tt.Key("down")
+	tt.Key("down")
+	tt.Key("up")
+	tt.Key("up")
+	tt.Key("up")
+	if c := a.Candidates(); c.At != 0 {
+		t.Fatalf("↓↓↑↑↑ highlighted %d", c.At)
+	}
+	tt.Key("escape")
+	if tt.Exists("id:film-candidates") || a.correctSelected() != 0 || a.openKey == "" {
+		t.Fatalf("Escape: list %v, selected %d, open %q", tt.Exists("id:film-candidates"), a.correctSelected(), a.openKey)
+	}
+	tt.Key("shift+e")
+	waitUntil(t, tt, a, updates, func() bool { return a.Candidates().Open && !a.Candidates().Busy })
+	tt.Key("down")
+	tt.Key("enter")
+	if got := correctTexts(a)[0]; got != "约翰在这儿。\nJon is here." {
+		t.Fatalf("Return kept %q", got)
+	}
+	if tt.Exists("id:film-candidates") || a.correctSelected() != 0 {
+		t.Fatal("the list stayed, or the line was let go")
+	}
+	wantText(t, tt, msgs.CorrectCandidateKept())
+	edits, _ := media.LoadCorrections(sidecar)
+	if len(edits) != 2 || edits[1].Translation == nil || *edits[1].Translation != "约翰在这儿。" {
+		t.Fatalf("corrections %+v", edits)
+	}
+	choose(tt, a, findMenuItem(t, a.menuBar(a.cx), msgs.MenuGroupEdit(), msgs.CorrectUndo(msgs.CorrectStepCandidate(1))))
+	if got := correctTexts(a)[0]; got != "约翰来了。\nJon is here." {
+		t.Fatalf("Undo left %q", got)
+	}
+}
+
+// TestThisLineIsWrongNeedsAnAIService checks that 这句不对 without an AI service says so and offers its settings, and that Return then puts the list away.
+func TestThisLineIsWrongNeedsAnAIService(t *testing.T) {
+	a, tt, _, _ := correctNamesOpen(t, nil)
+	tt.Key("shift+e")
+	wantText(t, tt, testlocale.Messages().CorrectCandidatesNoAI())
+	if !tt.Exists("id:film-candidates-settings") {
+		t.Fatal("no settings offered")
+	}
+	tt.Key("enter")
+	if tt.Exists("id:film-candidates") || len(a.correct.undo) != 0 {
+		t.Fatal("Return did not put the list away, or changed the line")
+	}
+}
+
+// TestAFixSpreadsAcrossTheFilm checks that an edit changing words other lines hold asks whether to change them too, naming how many and how many of those the user corrected; that ⌘↩ changes them all, as one change Undo takes back whole, and the glossary term that wrote the words, which it locks; and that Escape leaves them, keeping the film open.
+func TestAFixSpreadsAcrossTheFilm(t *testing.T) {
+	a, tt, updates, sidecar := correctNamesOpen(t, nil)
+	useMenuBar(t, a, tt)
+	msgs := testlocale.Messages()
+	waitUntil(t, tt, a, updates, func() bool { return a.gloss.filmRead })
+	apply(tt, a, func() {
+		if !a.glossaryPut(core.Term{Source: "John", Target: "约翰", Scope: core.ScopeFilm, Origin: core.OriginAuto}) {
+			t.Fatal("the term was not kept")
+		}
+	})
+	correctEdit(t, a, tt, 0, "琼恩来了。")
+	if want := msgs.CorrectSpreadAskEdited("约翰", "琼恩", 2, 1); !hasText(tt, want) {
+		t.Fatalf("no %q in %q", want, tt.Texts())
+	}
+	choose(tt, a, findMenuItem(t, a.menuBar(a.cx), msgs.MenuGroupSubtitles(), msgs.CorrectKeySpreadAll()))
+	want := []string{"琼恩来了。\nJon is here.", "琼恩，等等。\nJon, wait.", "这是琼恩的。\nThis is John's book.", "乔纳森走了。\nJonathan left."}
+	if got := correctTexts(a); !slices.Equal(got, want) {
+		t.Fatalf("lines %q, want %q", got, want)
+	}
+	wantText(t, tt, msgs.CorrectSpreadDoneTerm(2))
+	if term, ok := a.glossaryTerm("John"); !ok || term.Target != "琼恩" || !term.Locked || term.Origin != core.OriginUser {
+		t.Fatalf("term %+v", term)
+	}
+	edits, _ := media.LoadCorrections(sidecar)
+	if len(edits) != 3 {
+		t.Fatalf("corrections %+v", edits)
+	}
+	choose(tt, a, findMenuItem(t, a.menuBar(a.cx), msgs.MenuGroupEdit(), msgs.CorrectUndo(msgs.CorrectStepSpread("约翰", "琼恩"))))
+	if got := correctTexts(a); got[1] != "约翰，等等。\nJon, wait." || got[2] != "这是约翰的。\nThis is John's book." || got[0] != "琼恩来了。\nJon is here." {
+		t.Fatalf("Undo left %q", got)
+	}
+	if term, _ := a.glossaryTerm("John"); term.Target != "约翰" || term.Locked {
+		t.Fatalf("Undo left the term %+v", term)
+	}
+	// The original: Jon to John, which Jonathan does not hold.
+	apply(tt, a, func() { a.SelectLine(1) })
+	tt.Key("enter")
+	tt.Clear("id:film-correct-original")
+	tt.Type("id:film-correct-original", "John, wait.")
+	tt.Press("id:film-correct-submit")
+	if want := msgs.CorrectSpreadAsk("Jon", "John", 1); !hasText(tt, want) {
+		t.Fatalf("no %q in %q", want, tt.Texts())
+	}
+	tt.Key("escape")
+	wantText(t, tt, msgs.CorrectSpreadOnly())
+	if a.openKey == "" || a.correct.spread != nil {
+		t.Fatalf("Escape: open %q, bar %v", a.openKey, a.correct.spread != nil)
+	}
+	if got := correctTexts(a)[0]; got != "琼恩来了。\nJon is here." {
+		t.Fatalf("Escape changed %q", got)
+	}
+}
