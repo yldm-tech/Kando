@@ -50,3 +50,6 @@ func Column(cx *core.Scope) func() core.Style {
 		return s
 	}
 }
+
+// Tablet reports whether the app runs on a tablet, whose shell shows a sidebar on its side and whose sheets show in the middle of the screen.
+func Tablet(cx *core.Scope) bool { return cx.Env().Idiom() == core.IdiomTablet }

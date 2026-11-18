@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"kando/apps/kando/account"
+	"kando/apps/kando/chrome"
 	"kando/apps/kando/locales"
 	"kando/apps/kando/settings"
 	"kando/apps/kando/theme"
@@ -211,16 +212,16 @@ func (a *app) settingsView(cx *core.Scope) core.Node {
 		}
 	})
 	theme.Apply(cx)
-	// The traffic lights sit in a band 50 high, as the prototype's settings rail has them. No material: the prototype's settings draw their rail and pages in plain colors, without a backdrop blur.
+	// The window's controls sit in a band 50 high, as the prototype's settings rail has them: macOS's traffic lights at its start, the caption buttons NSGo draws at its end on Windows (minimize, and maximize disabled, as the window does not maximize), and on Linux, where GTK draws none in a hidden title bar, a round close button of GNOME's header bars at the end of the page's title (chrome.Close). It is a window of its own, which the system's switcher and taskbar list, so it keeps the window controls of its platform rather than the ✕ the design draws on a dialog over the main window. No material: the prototype's settings draw their rail and pages in plain colors, without a backdrop blur.
 	nsdesktop.SetTitleBar(cx, nsdesktop.TitleBarHidden, 50)
 	nsdesktop.SetWindowControls(cx, nsdesktop.WindowControls{TrafficLights: core.Point{X: 18, Y: 18}})
 	cx.Effect(func() { nsdesktop.SetTitle(cx, locales.SettingsWindowTitle(cx)) })
-	return a.settingsWindow()
+	return a.settingsWindow(chrome.Close(cx))
 }
 
-// settingsWindow is the settings, with the 账号与上传 page of package account, in the settings window or over the main window.
-func (a *app) settingsWindow() core.Node {
-	return settings.Window{App: a, Version: appVersion, Account: account.View{App: a}}
+// settingsWindow is the settings, with the 账号与上传 page of package account, in the settings window or over the main window. closeButton is the settings window's own close button where the system draws none, nil over the main window, whose dialog closes as dialogs do.
+func (a *app) settingsWindow(closeButton core.Node) core.Node {
+	return settings.Window{App: a, Version: appVersion, Account: account.View{App: a}, Close: closeButton}
 }
 
 // showSettingsWindow brings the settings window to the front, opening it the first time. It opens from a post under the app's scope, which owns it, rather than under the handler that asked, whose part of the window may go first, as the sidebar's gear goes when a film fills the window. Where the platform opens no windows of the app's, the settings show over the main window instead (settingsOverlay). Without the app's scope, as in tests that start no app, there is nothing to open.
@@ -286,7 +287,7 @@ func (a *app) settingsOverlay(*core.Scope) core.Node {
 		},
 		Bare:     true,
 		Style:    core.Style{Width: core.Pt(880), Height: core.Pt(640), MaxWidth: core.Pct(100), MaxHeight: core.Pct(100)},
-		Children: []core.Node{a.settingsWindow()},
+		Children: []core.Node{a.settingsWindow(nil)},
 		TestID:   "settings-in-window",
 	}
 }

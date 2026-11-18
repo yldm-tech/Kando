@@ -199,6 +199,8 @@ type Window struct {
 	App     App
 	Version string
 	Account core.Node
+	// Close is the window's own close button at the end of the page's title, for a settings window the system draws no controls in (Linux's); nil elsewhere and over the main window.
+	Close core.Node
 }
 
 // Render implements core.Node.
@@ -207,12 +209,12 @@ func (w Window) Render(cx *core.Scope) core.Node {
 	// The words the window's pieces take as plain strings, the accessibility labels and the buttons' among them, are read as it is built, so it is built again when the interface's language changes, which happens from the language drop-down, whose focus goes then anyway.
 	return core.Dynamic(func(cx *core.Scope) core.Node {
 		_ = i18n.Language(cx)
-		return core.Func(func(cx *core.Scope) core.Node { return s.layout(cx, w.Account) })
+		return core.Func(func(cx *core.Scope) core.Node { return s.layout(cx, w.Account, w.Close) })
 	})
 }
 
 // layout is the window in the language the app shows now.
-func (s screen) layout(cx *core.Scope, account core.Node) core.Node {
+func (s screen) layout(cx *core.Scope, account, closeButton core.Node) core.Node {
 	a := s.a
 	section := core.NewMemo(cx, live.Func(a, a.SettingsSection))
 	// The page is built again when the category changes; within it, what changes with the app's state follows it in bindings, so a field being typed in keeps the focus.
@@ -227,7 +229,7 @@ func (s screen) layout(cx *core.Scope, account core.Node) core.Node {
 	content := core.View{Style: core.Style{Width: core.Pct(100), Padding: core.Edges{Top: 14, Right: 28, Bottom: 28, Left: 28}, Gap: 6, AlignItems: core.AlignStretch},
 		Children: []core.Node{page, saveErr}}
 	pane := core.View{Style: core.Style{FlexGrow: 1, FlexShrink: 1, MinWidth: core.Pt(0), AlignItems: core.AlignStretch}, Children: []core.Node{
-		header{a: a, section: section.Get},
+		header{a: a, section: section.Get, close: closeButton},
 		core.Scroll{TestID: "settings-page", Style: core.Style{FlexGrow: 1, FlexShrink: 1, MinHeight: core.Pt(0)}, Children: []core.Node{content}},
 	}}
 	// Its text is in the platform's font of the design (theme.FontOf), as the main window's is.
@@ -237,10 +239,11 @@ func (s screen) layout(cx *core.Scope, account core.Node) core.Node {
 		Children:  []core.Node{rail{a: a}, pane}}
 }
 
-// header is the page's title bar: 50 points high with a line under it, the title 15-point bold where the page's content starts. It moves the window, as the title bar it stands in for does.
+// header is the page's title bar: 50 points high with a line under it, the title 15-point bold where the page's content starts, and at its end the window's close button when it has one of its own (Window.Close), clear of the window controls the system draws there (desktop.TitleBar). It moves the window, as the title bar it stands in for does.
 type header struct {
 	a       App
 	section func() string
+	close   core.Node
 }
 
 // Render implements core.Node.
@@ -248,8 +251,17 @@ func (h header) Render(cx *core.Scope) core.Node {
 	title := core.Text{TestID: "settings-title", Role: core.RoleHeader, MaxLines: 1, EllipsizeMode: core.EllipsizeTail,
 		ContentFunc: func() string { return Title(cx, h.section()) },
 		Style:       core.Style{FontSize: 15, LineHeight: 18, FontWeight: ui.Bold}, StyleFunc: ui.Colored(ui.ColorsOf(cx).Text)}
+	title.Style.FlexGrow, title.Style.FlexShrink = 1, 1
 	bar := core.View{Desktop: core.DesktopViewProps{WindowDrag: core.WindowDragOn},
-		Style: core.Style{Direction: core.Row, Height: core.Pt(50), Padding: core.Symmetric(0, 28), AlignItems: core.AlignCenter}, Children: []core.Node{title}}
+		Style: core.Style{Direction: core.Row, Height: core.Pt(50), AlignItems: core.AlignCenter, Gap: 12},
+		StyleFunc: func() core.Style {
+			end := core.Points(28)
+			if h.close != nil {
+				end = 13
+			}
+			return core.Style{Padding: core.Edges{Left: 28, Right: end + nsdesktop.TitleBar(cx).Right}}
+		},
+		Children: []core.Node{title, h.close}}
 	line := core.View{Style: core.Style{Height: core.Pt(1), FlexShrink: 0}, StyleFunc: ui.Filled(form.Line(cx))}
 	return core.View{Style: core.Style{FlexShrink: 0, AlignItems: core.AlignStretch}, Children: []core.Node{bar, line}}
 }

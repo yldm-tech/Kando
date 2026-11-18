@@ -9,6 +9,7 @@ import (
 	"kando/apps/kando/film/subtitle"
 	"kando/apps/kando/live"
 	"kando/apps/kando/locales"
+	"kando/apps/kando/lookup"
 	kcore "kando/packages/core"
 
 	"github.com/nsgo-dev/nsgo/core"
@@ -29,6 +30,9 @@ type styledLine struct {
 	face Face
 	// dim draws the line at 60%, as an original standing in for a missing translation.
 	dim bool
+	// original marks the cue's original, whose words a click looks up (LookUpWord); cue is the index of the cue the line is of, set for the lines on the picture.
+	original bool
+	cue      int
 }
 
 // The subtitles' places, from the player's bottom: 44 points, or 30% of its height when High. While the controls show they yield to them by 60 points, or 4% of the height when High. A drag and the keys that move them keep them 8 points inside the picture, and the keys move them by 2% of its height a press.
@@ -75,11 +79,11 @@ func (s *screen) subtitles() core.Node {
 		case i < 0:
 			return nil
 		case i == a.Peek():
-			return styledLines(bothLines{a}, list[i].Text)
+			return ofCue(styledLines(bothLines{a}, list[i].Text), i)
 		case a.SubMode() == SubOff:
 			return nil
 		}
-		return pictureLines(s.lineSettings(), list[i].Text)
+		return ofCue(pictureLines(s.lineSettings(), list[i].Text), i)
 	}, slices.Equal[[]styledLine]).Get
 	tip := live.Memo(cx, a, a.SubTip)
 	return core.Show{When: func() bool { return len(lines()) > 0 || tip() }, Then: func(cx *core.Scope) core.Node { return s.subtitleLayer(cx, lines, tip) }}
@@ -181,12 +185,18 @@ func (s *screen) subtitleLayer(cx *core.Scope, lines func() []styledLine, tip fu
 		}
 		a.ToggleFullScreen()
 	})
+	// A click on a word of the original looks it up, holding the film (LookUpWord); a click elsewhere on the lines is the picture's, as above.
 	body := core.Dynamic(func(cx *core.Scope) core.Node {
 		l := look()
 		children := []core.Node{}
 		for _, line := range lines() {
 			text := line.text
-			children = append(children, subtitleLine(func() string { return text }, line, l.Box, l.Shadow))
+			var words *lineWords
+			if line.original {
+				cue := line.cue
+				words = &lineWords{look: live.On(a, func(word string) { a.LookUpWord(cue, word) }), press: press}
+			}
+			children = append(children, subtitleLine(func() string { return text }, line, l.Box, l.Shadow, words))
 		}
 		return core.Group(children)
 	})
@@ -239,8 +249,14 @@ func (s *screen) subtitleLayer(cx *core.Scope, lines func() []styledLine, tip fu
 	}
 }
 
-// subtitleLine draws one line of a cue, on its own box with Box, outlined with Shadow. A view's shadow is a box's and would not follow the glyphs, so the outline is the line drawn again in black under it (outlineCopies), after the prototype's text-shadow (0 0 3px, 0 1px 2px and 0 0 1px).
-func subtitleLine(text func() string, line styledLine, box, outline bool) core.Node {
+// lineWords is what a click on a line's words does: look looks up the word clicked, and press is the click on the rest of the line.
+type lineWords struct {
+	look  func(word string)
+	press func(core.PressEvent)
+}
+
+// subtitleLine draws one line of a cue, on its own box with Box, outlined with Shadow. A view's shadow is a box's and would not follow the glyphs, so the outline is the line drawn again in black under it (outlineCopies), after the prototype's text-shadow (0 0 3px, 0 1px 2px and 0 0 1px). With words, the line drawn on top takes the clicks: a click on one of its words looks it up.
+func subtitleLine(text func() string, line styledLine, box, outline bool, words *lineWords) core.Node {
 	padX, padY := core.Points(0), core.Points(0)
 	holder := core.Style{MaxWidth: core.Pct(100), CornerRadius: 6}
 	if box {
@@ -253,7 +269,7 @@ func subtitleLine(text func() string, line styledLine, box, outline bool) core.N
 	}
 	color, _ := core.ParseColor(line.face.Color)
 	if !outline {
-		return core.View{Style: holder, Children: []core.Node{lineText(text, line, core.Style{Color: color})}}
+		return core.View{Style: holder, Children: []core.Node{withWords(lineText(text, line, core.Style{Color: color}), text, words)}}
 	}
 	// Positioned views paint over those in the flow, so the line sizes the box from the flow unseen and is drawn again over its outline.
 	children := []core.Node{lineText(text, line, core.Style{Color: core.RGBA(0x000000, 0)})}
@@ -264,8 +280,31 @@ func subtitleLine(text func() string, line styledLine, box, outline bool) core.N
 		}
 		children = append(children, lineText(text, line, st))
 	}
-	children = append(children, lineText(text, line, core.Style{Position: core.Absolute, Left: core.Pt(padX), Right: core.Pt(padX), Top: core.Pt(padY), Color: color}))
+	children = append(children, withWords(lineText(text, line, core.Style{Position: core.Absolute, Left: core.Pt(padX), Right: core.Pt(padX), Top: core.Pt(padY), Color: color}), text, words))
 	return core.View{Style: holder, Children: children}
+}
+
+// withWords has the text t of a line take the clicks on it with words: its words are spans a click looks up, which the pointer shows as such, and a click between them is words.press. Without words t is as it was.
+func withWords(t core.Text, text func() string, words *lineWords) core.Text {
+	if words == nil {
+		return t
+	}
+	t.PointerEvents = core.PointerEventsAuto
+	t.OnPress = words.press
+	t.SpansFunc = func() []core.Span {
+		var spans []core.Span
+		for _, tok := range lookup.Tokens(text()) {
+			sp := core.Span{Content: tok.Text}
+			if tok.Word {
+				word := tok.Text
+				sp.OnPress = func(core.PressEvent) { words.look(word) }
+				sp.Style = core.Style{Cursor: core.CursorPointer}
+			}
+			spans = append(spans, sp)
+		}
+		return spans
+	}
+	return t
 }
 
 // outlineCopies are the black copies under an outlined line: a soft glow, the shadow below it, and eight hard copies a point around it, which make a stroke along the glyphs that holds over a bright picture.
@@ -280,7 +319,7 @@ var outlineCopies = []struct {
 }
 
 // lineText is the text of a subtitle line in its face, over extra. Every copy but the first, which sizes the line, is left out of what assistive technology reads.
-func lineText(text func() string, line styledLine, extra core.Style) core.Node {
+func lineText(text func() string, line styledLine, extra core.Style) core.Text {
 	st := core.Style{FontSize: core.Points(line.face.Size), LineHeightMultiple: 1.3, TextAlign: core.TextAlignCenter, FontFamily: subtitle.FontFamily(line.face.Family)}
 	if line.face.Bold {
 		st.FontWeight = core.FontWeightBold
@@ -367,9 +406,17 @@ func faced(look *Look, lines []kcore.CueLine) []styledLine {
 		if l.Original {
 			face = look.Original
 		}
-		out[i] = styledLine{text: l.Text, face: face, dim: l.Dim}
+		out[i] = styledLine{text: l.Text, face: face, dim: l.Dim, original: l.Original}
 	}
 	return out
+}
+
+// ofCue marks lines as those of cue i.
+func ofCue(lines []styledLine, i int) []styledLine {
+	for k := range lines {
+		lines[k].cue = i
+	}
+	return lines
 }
 
 // DelayText writes a subtitle delay as the mode menu and the OSD show it, to a tenth of a second, in the language the interface shows under cx: "+0.3 秒", "-0.1 秒", "0.0 秒".

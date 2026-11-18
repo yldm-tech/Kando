@@ -167,6 +167,21 @@ type App interface {
 	// SavedLines is the indexes of the cues saved, in order. SavedOnly is whether the subtitle list shows them alone.
 	SavedLines() []int
 	SavedOnly() *bool
+	// Lookup is the word looked up on the picture, the zero Lookup while none is. LookUpWord looks up word, clicked in the original of cue i on the picture; CloseLookup closes its card; ToggleLookupWord puts the word in the vocabulary, or takes it out; ExplainLookupLine has the AI service explain the line it was clicked in; LookupSettings opens the AI service's settings, for a lookup no AI service could answer.
+	Lookup() Lookup
+	LookUpWord(i int, word string)
+	CloseLookup()
+	ToggleLookupWord()
+	ExplainLookupLine()
+	LookupSettings()
+}
+
+// Lookup is the word looked up on the picture, as its card shows it: the word, its reading and what it means in Line, the line it was clicked in; Busy while the AI service is asked, Failed when no meaning came, with Say saying why, NeedsAI when the AI service's settings are what helps; Saved once the word is in the vocabulary.
+type Lookup struct {
+	Open                         bool
+	Word, Reading, Meaning, Line string
+	Busy, Failed, NeedsAI, Saved bool
+	Say                          func(*ns.Scope) string
 }
 
 // Video is what the system's player plays and how. Source is "" while there is nothing to play, as while a video the system cannot open is copied into one it can (Remux).
