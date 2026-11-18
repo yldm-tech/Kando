@@ -92,3 +92,22 @@ func TestDeletingADownloadedFilm(t *testing.T) {
 	p.app.WaitForGone("id:downloads-film-f1", wait)
 	p.waitFile(filepath.Join("films", f.Desktop, f.Film.ID), -1)
 }
+
+// A download is done once its last byte is kept, without waiting on the desktop to say which library the film is in, which the phone asks for after.
+func TestADownloadEndsWithoutWaitingForItsLibrary(t *testing.T) {
+	d := newDesktop(t)
+	p := startPhone(t, "")
+	p.openTalk(d)
+	release := d.Hold()
+	defer release()
+	p.app.Press("id:film-download")
+	p.app.WaitFor("id:film-play", wait)
+	if films, _ := store.Open(p.dir).Films(); len(films) != 1 || films[0].LibraryID != "" {
+		t.Fatalf("the film kept is %+v", films)
+	}
+	release()
+	p.app.WaitUntil(wait, func() bool {
+		films, _ := store.Open(p.dir).Films()
+		return len(films) == 1 && films[0].LibraryID == "lib"
+	})
+}

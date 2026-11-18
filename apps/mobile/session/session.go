@@ -655,14 +655,6 @@ func (s *Session) start(f store.Film) {
 				s.cx.Post(report)
 			}
 		})
-		if err == nil && got.LibraryID == "" {
-			// The library's ID goes with the film, as its learning state goes by it, so lines can be saved from it away from the desktop; a desktop that does not answer leaves it to be asked for when the film opens (OpenStudy).
-			lctx, lcancel := context.WithTimeout(ctx, studyTimeout)
-			if got.LibraryID = libraryOf(lctx, c, got); got.LibraryID != "" {
-				_ = s.st.SaveFilm(got)
-			}
-			lcancel()
-		}
 		stopped := ctx.Err() != nil
 		cancel()
 		if j.remove.Load() {
@@ -692,6 +684,10 @@ func (s *Session) finished(key string, j *job, got store.Film, err error, stoppe
 	switch {
 	case err == nil:
 		s.setTransfer(key, nil)
+		if got.LibraryID == "" {
+			// The library's ID goes with the film, as its learning state goes by it, so lines can be saved from it away from the desktop; it is asked for once the film is done, so the download does not wait on it, and a desktop that does not answer leaves it to be asked for when the film opens (OpenStudy).
+			s.findLibrary(got)
+		}
 	case stopped:
 		s.setTransfer(key, func(t Transfer) Transfer { t.State = Paused; return t })
 	default:
