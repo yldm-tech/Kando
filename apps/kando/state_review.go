@@ -120,7 +120,10 @@ func (a *app) reviewDecide(after []core.Proof) {
 		}
 		return
 	}
+	// A read of the proofs file started before this decision would bring back what the file held then: it is dropped (gen). The subtitles are read again even when their size and time look unchanged, as a change that swaps a line for one of the same length within the time a file system such as exFAT tells apart leaves both as they were.
 	a.review.proofs = after
+	a.review.gen++
+	a.player.subs.seen = false
 	a.reloadOpenSubtitles()
 	delete(a.lib.quotes, a.review.path)
 	a.libraryHeroQuote()
