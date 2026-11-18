@@ -5933,3 +5933,235 @@ vocabWordsDue:
 windowMenuMain:
   message: "Main Window"
   description: "Item of the Window menu (macOS) that shows Kando's main window again after its close button put it away while Kando keeps running."
+phoneSyncPaused:
+  message: "{device} paused “{title}”."
+  description: "Library message bar when a paired phone paused a job where it was; the job waits until it is continued on the phone or on this computer."
+  placeholders:
+    device: { type: "String", example: "Evan's iPhone" }
+    title: { type: "String", example: "Ocean Currents Explained" }
+filmsQueuePausedOn:
+  message: "Paused on {device}"
+  description: "Line under a waiting job's title when a paired phone paused it; it does not start until it is continued."
+  placeholders:
+    device: { type: "String", example: "Evan's iPhone" }
+filmsQueueContinueHere:
+  message: "Continue on This Computer"
+  description: "Button on a processing card that a paired phone paused: lets the job wait for its turn again on this computer."
+settingsPhoneReadOnlyFailed:
+  message: "Couldn't change what the phone may do: {error}"
+  description: "Settings › Phone Sync, under the paired phones, when the read-only switch of a phone could not be saved."
+  placeholders:
+    error: { type: "String", example: "permission denied" }
+settingsPhoneDeviceOnline:
+  message: "{platform, select, ios {iPhone} android {Android} other {Phone}} · Online"
+  description: "Under a paired phone's name while it connected within the last few minutes. {platform} is ios, android or empty."
+  placeholders:
+    platform: { type: "String", example: "ios" }
+settingsPhoneReadOnly:
+  message: "Read-only"
+  description: "Label beside the switch on a paired phone's row: when on, the phone can watch and read but changes nothing on this computer (no links, job actions, or learning-state edits)."
+settingsPhoneReadOnlyLabel:
+  message: "{name} Read-Only"
+  description: "Accessibility name of a paired phone's read-only switch."
+  placeholders:
+    name: { type: "String", example: "Evan's iPhone" }
+settingsPhoneRevokeTitle:
+  message: "Revoke {name}?"
+  description: "Heading of the confirmation under a paired phone's row before it is revoked, as when the phone was lost."
+  placeholders:
+    name: { type: "String", example: "Evan's iPhone" }
+settingsPhoneRevokeKey:
+  message: "Its pairing key stops working at once: it can no longer reach this computer."
+  description: "Consequence of revoking a phone, in the confirmation's list."
+settingsPhoneRevokeJobs:
+  message: "Links it already sent stay in the queue and are processed as usual."
+  description: "Consequence of revoking a phone, in the confirmation's list."
+settingsPhoneRevokeOffline:
+  message: "Films and learning records saved on the phone stay there; they can't be deleted from here."
+  description: "Consequence of revoking a phone, in the confirmation's list."
+settingsPhoneRevokePairAgain:
+  message: "To use it again, pair it with a new code."
+  description: "Consequence of revoking a phone, in the confirmation's list."
+settingsPhoneRevokeConfirm:
+  message: "Revoke This Phone"
+  description: "Destructive button of the confirmation that revokes a paired phone."
+settingsPhoneRevokeCancel:
+  message: "Cancel"
+  description: "Button that closes the confirmation of revoking a phone without revoking it."
+settingsPhoneLearning:
+  message: "Learning Records"
+  description: "Heading of the card saying how much of the open library's learning state (words, saved lines, where films were left) the phones have been told."
+settingsPhoneSynced:
+  message: "Synced"
+  description: "Row title before the counts of the learning records synced with phones."
+settingsPhoneSyncedCounts:
+  message: "{words, plural, one {# word} other {# words}} · {lines, plural, one {# saved line} other {# saved lines}} · {films, plural, one {progress in # film} other {progress in # films}}"
+  description: "Counts of the open library's learning records synced with phones."
+  placeholders:
+    words: { type: "int", example: "6" }
+    lines: { type: "int", example: "2" }
+    films: { type: "int", example: "3" }
+settingsPhoneConflicts:
+  message: "Sync Conflicts"
+  description: "Heading of the card listing the open library's sync conflicts: the same translation or note changed on two devices."
+settingsPhoneNoConflicts:
+  message: "No conflicts. When two devices change the same thing, you choose here."
+  description: "The sync conflicts card when there is none."
+settingsPhoneConflictsNote:
+  message: "Words, saved lines and where you left off merge by themselves; only the same translation or note changed on two devices needs you to choose."
+  description: "Footnote under the sync conflicts card."
+settingsPhoneResolveFailed:
+  message: "Couldn't settle the conflict: {error}"
+  description: "Under the sync conflicts card when the version chosen could not be kept."
+  placeholders:
+    error: { type: "String", example: "the library is locked" }
+settingsPhoneConflictWord:
+  message: "word “{word}”"
+  description: "Where a sync conflict is: a vocabulary word's meaning or note."
+  placeholders:
+    word: { type: "String", example: "basis vector" }
+settingsPhoneThisComputer:
+  message: "This Computer"
+  description: "Name of this computer where a sync conflict's version or an activity entry was made on the desktop."
+settingsPhoneConflictUse:
+  message: "Use This"
+  description: "Button under one version of a sync conflict that keeps it."
+settingsPhoneConflictUseLabel:
+  message: "Use the Version from {device}"
+  description: "Accessibility name of Use This under a sync conflict's version."
+  placeholders:
+    device: { type: "String", example: "Evan's iPhone" }
+settingsPhoneConflictBoth:
+  message: "Keep Both"
+  description: "Button of a sync conflict between two notes that keeps both, one after the other."
+settingsPhoneConflictOriginal:
+  message: "Original"
+  description: "What a sync conflict is of: a line's original text."
+settingsPhoneConflictTranslation:
+  message: "Translation"
+  description: "What a sync conflict is of: a line's translation."
+settingsPhoneConflictMeaning:
+  message: "Meaning"
+  description: "What a sync conflict is of: a vocabulary word's meaning."
+settingsPhoneConflictNote:
+  message: "Note"
+  description: "What a sync conflict is of: a note on a line or a word."
+settingsPhoneActivity:
+  message: "Recent Activity from Phones"
+  description: "Heading of the card listing what paired phones did lately, since Kando opened."
+settingsPhoneNoActivity:
+  message: "Nothing yet since Kando opened."
+  description: "The recent activity card when no phone did anything since Kando opened."
+settingsPhoneDidLink:
+  message: "Sent the link “{title}”"
+  description: "Recent activity: a phone sent a link."
+  placeholders:
+    title: { type: "String", example: "https://youtu.be/abc" }
+settingsPhoneDidPause:
+  message: "Paused “{title}”"
+  description: "Recent activity: a phone paused a job."
+  placeholders:
+    title: { type: "String", example: "Ocean Currents Explained" }
+settingsPhoneDidResume:
+  message: "Let “{title}” go on"
+  description: "Recent activity: a job paused was let go on."
+  placeholders:
+    title: { type: "String", example: "Ocean Currents Explained" }
+settingsPhoneDidCancel:
+  message: "Canceled “{title}”"
+  description: "Recent activity: a phone canceled a job."
+  placeholders:
+    title: { type: "String", example: "Ocean Currents Explained" }
+settingsPhoneDidRetry:
+  message: "Retried “{title}”"
+  description: "Recent activity: a phone retried a job."
+  placeholders:
+    title: { type: "String", example: "Ocean Currents Explained" }
+settingsPhoneDidUpdateYTDLP:
+  message: "Updated yt-dlp"
+  description: "Recent activity: a phone had the desktop update its downloader."
+settingsPhoneDidWatch:
+  message: "Watched “{title}” to {time}"
+  description: "Recent activity: a phone stopped a film at a point."
+  placeholders:
+    title: { type: "String", example: "The Tide Pools of Monterey" }
+    time: { type: "String", example: "2:05" }
+settingsPhoneDidLines:
+  message: "Changed {count, plural, one {# saved line} other {# saved lines}}"
+  description: "Recent activity: a phone saved, edited or removed saved lines."
+  placeholders:
+    count: { type: "int", example: "2" }
+settingsPhoneDidWords:
+  message: "Changed {count, plural, one {# word} other {# words}} in the vocabulary"
+  description: "Recent activity: a phone added, edited or removed vocabulary words."
+  placeholders:
+    count: { type: "int", example: "2" }
+settingsPhoneDidEdits:
+  message: "Corrected {count, plural, one {# line} other {# lines}} of “{title}”"
+  description: "Recent activity: a phone corrected lines of a film's subtitles."
+  placeholders:
+    title: { type: "String", example: "Rust Talk" }
+    count: { type: "int", example: "1" }
+settingsPhoneDidResolve:
+  message: "Settled {count, plural, one {# conflict} other {# conflicts}}"
+  description: "Recent activity: a sync conflict was settled."
+  placeholders:
+    count: { type: "int", example: "1" }
+settingsPhoneDidPair:
+  message: "Paired"
+  description: "Recent activity: a phone paired with this computer."
+settingsPhoneDidRevoke:
+  message: "Revoked {title}"
+  description: "Recent activity, by this computer: a phone was revoked."
+  placeholders:
+    title: { type: "String", example: "Evan's iPhone" }
+settingsPhoneDidReadOnly:
+  message: "Made {title} read-only"
+  description: "Recent activity, by this computer: a phone was made read-only."
+  placeholders:
+    title: { type: "String", example: "Evan's iPhone" }
+settingsPhoneDidReadWrite:
+  message: "Let {title} make changes again"
+  description: "Recent activity, by this computer: a read-only phone may change things again."
+  placeholders:
+    title: { type: "String", example: "Evan's iPhone" }
+phoneSyncAgoNow:
+  message: "Just now"
+  description: "When something happened: less than a minute ago."
+phoneSyncAgoMinutes:
+  message: "{count, plural, one {# minute ago} other {# minutes ago}}"
+  description: "When something happened, in minutes."
+  placeholders:
+    count: { type: "int", example: "10" }
+phoneSyncAgoHours:
+  message: "{count, plural, one {# hour ago} other {# hours ago}}"
+  description: "When something happened, in hours."
+  placeholders:
+    count: { type: "int", example: "3" }
+phoneSyncAgoDays:
+  message: "{count, plural, one {# day ago} other {# days ago}}"
+  description: "When something happened, in days."
+  placeholders:
+    count: { type: "int", example: "2" }
+filmsHandoff:
+  message: "Left off “{title}” at {time} on {device}"
+  description: "Bar on the library page when a paired phone last left a film somewhere: offers to continue it on this computer."
+  placeholders:
+    device: { type: "String", example: "iPhone 15" }
+    title: { type: "String", example: "The Tide Pools of Monterey" }
+    time: { type: "String", example: "2:05" }
+filmsHandoffWhen:
+  message: "{when} · Where you leave off syncs between this computer and your phones"
+  description: "Second line of the handoff bar: when the phone left the film, and that the place syncs."
+  placeholders:
+    when: { type: "String", example: "10 minutes ago" }
+filmsHandoffResume:
+  message: "Continue from {time}"
+  description: "Button of the handoff bar: opens the film where the phone left it."
+  placeholders:
+    time: { type: "String", example: "2:05" }
+filmsHeroKickerContinueOn:
+  message: "Continue Watching · Left Off on {device}"
+  description: "Small heading over the hero's title when the film is one to continue and a paired phone left it there."
+  placeholders:
+    device: { type: "String", example: "iPhone 15" }

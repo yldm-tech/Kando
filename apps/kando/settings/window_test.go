@@ -151,6 +151,17 @@ func (f *fakeApp) SetPhoneAskFirst(ask bool) {
 	f.phone.AskFirst = ask
 	f.call(fmt.Sprintf("ask first %v", ask))
 }
+func (f *fakeApp) SetPhoneReadOnly(id string, on bool) {
+	f.call(fmt.Sprintf("read-only %s %v", id, on))
+	for i := range f.phone.Devices {
+		if f.phone.Devices[i].ID == id {
+			f.phone.Devices[i].ReadOnly = on
+		}
+	}
+}
+func (f *fakeApp) ResolvePhoneConflict(id string, keep PhoneKeep) {
+	f.call(fmt.Sprintf("resolve %s %d", id, keep))
+}
 func (f *fakeApp) JobNotifications() bool                { return f.notify }
 func (f *fakeApp) SetJobNotifications(on bool)           { f.notify = on }
 func (f *fakeApp) Background() Background                { return f.background }
@@ -955,13 +966,68 @@ func TestPhonePageSaysWhereTheCodeStands(t *testing.T) {
 	change(app, a, func() {
 		a.phone.Devices = []PhoneDevice{{ID: "d1", Name: "iPhone 17", Platform: "ios", LastSeen: time.Date(2026, 11, 17, 9, 41, 0, 0, time.Local)}}
 	})
+	// 撤销 says what revoking the phone does first, and 撤销这台设备 revokes it.
 	app.Press("id:settings-phone-revoke-d1")
+	if slices.Contains(a.calls, "revoke d1") || !app.Exists("id:settings-phone-revoke-ask-d1") || !app.Exists(whole(msgs.SettingsPhoneRevokeKey())) {
+		t.Fatalf("revoked without asking: calls %q, texts %q", a.calls, app.Texts())
+	}
+	app.Press("id:settings-phone-revoke-cancel-d1")
+	if app.Exists("id:settings-phone-revoke-ask-d1") || slices.Contains(a.calls, "revoke d1") {
+		t.Fatalf("取消 did not close the confirmation: calls %q", a.calls)
+	}
+	app.Press("id:settings-phone-revoke-d1")
+	app.Press("id:settings-phone-revoke-confirm-d1")
 	if !slices.Contains(a.calls, "new phone code") || !slices.Contains(a.calls, "revoke d1") || !app.Exists(whole("iPhone 17")) {
 		t.Fatalf("calls %q, texts %q", a.calls, app.Texts())
+	}
+	// The read-only switch.
+	app.Press("id:settings-phone-read-only-d1")
+	if !slices.Contains(a.calls, "read-only d1 true") {
+		t.Fatalf("calls %q after the read-only switch", a.calls)
 	}
 	change(app, a, func() { a.phone = PhoneSync{On: true, Err: "address already in use"} })
 	if !app.Exists(whole(msgs.SettingsPhoneStartFailed("address already in use"))) {
 		t.Fatalf("texts %q after a failed start", app.Texts())
+	}
+}
+
+// The page lists the open library's sync conflicts, each version with 用这个 and two notes with 两条都留, how much of its learning state the phones were told, and what the phones did lately; an online phone has the green dot and says so.
+func TestPhonePageShowsConflictsAndActivity(t *testing.T) {
+	a := newFakeApp()
+	a.section = SectionPhone
+	now := time.Now()
+	a.phone = PhoneSync{On: true, Running: true, Addrs: []string{"192.168.1.20:52817"},
+		Devices: []PhoneDevice{{ID: "d1", Name: "iPhone 15", Platform: "ios", LastSeen: now, Online: true}},
+		Stats:   PhoneStats{Shown: true, Words: 6, Lines: 2, Positions: 3},
+		Conflicts: []PhoneConflict{
+			{ID: "c1", Field: FieldTranslation, Film: "How Rivers Shape Landscapes", At: 52 * time.Second, Line: "That is how steep V-shaped valleys are formed.",
+				Kept: PhoneVersion{Device: "iPhone 15", At: now, Text: "陡峭的 V 形谷就是这样切出来的。"}, Lost: PhoneVersion{At: now, Text: "这就是陡峭的 V 形河谷的成因。"}},
+			{ID: "c2", Field: FieldNote, Word: "basis vector", At: -1, Both: true,
+				Kept: PhoneVersion{Device: "iPad Air", At: now, Text: "基向量"}, Lost: PhoneVersion{At: now, Text: "basis = 坐标轴的方向"}},
+		},
+		Activity: []PhoneActivity{{At: now, Device: "iPhone 15", Kind: ActivityPosition, Title: "The Tide Pools of Monterey", Position: 125 * time.Second}},
+	}
+	app := start(t, a)
+	msgs := testlocale.Messages()
+	for _, want := range []string{
+		msgs.SettingsPhoneSyncedCounts(6, 2, 3), msgs.SettingsPhoneDeviceOnline("ios"), "陡峭的 V 形谷就是这样切出来的。", "That is how steep V-shaped valleys are formed.",
+		msgs.SettingsPhoneDidWatch("The Tide Pools of Monterey", "2:05"), "2",
+	} {
+		if !app.Exists(whole(want)) {
+			t.Fatalf("no %q among %q", want, app.Texts())
+		}
+	}
+	if app.Exists("id:settings-phone-conflict-both-c1") || !app.Exists("id:settings-phone-conflict-both-c2") {
+		t.Fatal("两条都留 is offered for a translation, or not for two notes")
+	}
+	app.Press("id:settings-phone-conflict-lost-c1")
+	app.Press("id:settings-phone-conflict-both-c2")
+	if !slices.Contains(a.calls, "resolve c1 1") || !slices.Contains(a.calls, "resolve c2 2") {
+		t.Fatalf("calls %q", a.calls)
+	}
+	change(app, a, func() { a.phone.Conflicts, a.phone.Activity = nil, nil })
+	if !app.Exists("id:settings-phone-no-conflicts") || !app.Exists("id:settings-phone-no-activity") {
+		t.Fatalf("texts %q with no conflict and no activity", app.Texts())
 	}
 }
 

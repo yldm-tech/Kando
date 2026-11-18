@@ -120,6 +120,12 @@ type App interface {
 	Enqueue(sources ...string) error
 	// Cancel stops job id if it is waiting or running. Its card stays, marked 已取消. Enqueue, Cancel and RunningJob are the contract of the job queue; queue.go in the main package says how much of it runs today. Job control is per job: a page cancels the job it shows, never "whatever runs".
 	Cancel(id string)
+	// ContinueHere lets a waiting job a paired phone paused (Film.PausedBy) wait for its turn again, as 在这台电脑上继续 on its card does.
+	ContinueHere(id string)
+	// Handoff is where a paired phone last left a film of the open library, offered to continue from here; CloseHandoff closes the offer until a phone leaves a film again. LeftOn is the paired phone that last left the video at path where it resumes, "" when it was this computer.
+	Handoff() Handoff
+	CloseHandoff()
+	LeftOn(path string) string
 	// RunningJob is the ID of the job being processed now, or "" when none is. A job waiting in the queue is not running; its Film.Stage is core.StageQueued.
 	RunningJob() string
 	// QueueFilms is the films of 处理中 in the shelf's order, newest first (Queue): the open library's that are waiting, running, failed or were cancelled, and those the queue runs or will run for another library, with Film.Library naming it.
@@ -215,6 +221,7 @@ func (v View) Render(cx *core.Scope) core.Node {
 		return core.Scroll{Style: core.Style{FlexGrow: 1, MinHeight: core.Pt(0)}, Children: []core.Node{
 			core.View{Style: core.Style{Width: core.Pct(100), Padding: core.Edges{Top: contentTop, Right: PagePadX, Bottom: pagePadBottom, Left: PagePadX}}, Children: []core.Node{
 				notice{a},
+				handoffBar{a},
 				core.Show{
 					When: live.Func(a, func() bool { return a.LibraryDir() == "" }),
 					Then: func(*core.Scope) core.Node { return noLibrary{a} },
@@ -367,6 +374,7 @@ func (l listPage) Render(cx *core.Scope) core.Node {
 	above := core.Scroll{Style: core.Style{FlexShrink: 1, MinHeight: core.Pt(0), MaxHeight: core.Pct(50)}, Children: []core.Node{
 		core.View{Style: core.Style{Width: core.Pct(100)}, Children: []core.Node{
 			notice{a},
+			handoffBar{a},
 			core.Show{When: func() bool { return len(model().queue) > 0 }, Then: func(*core.Scope) core.Node {
 				return queueSection{a: a, source: l.source, queue: func() []Film { return model().queue }}
 			}},

@@ -38,6 +38,7 @@ type fakeApp struct {
 	played                           map[string]time.Time
 	furthest                         map[string]time.Duration
 	remedies                         map[string]Remedy
+	handoff                          Handoff
 	hints                            map[string]string
 	details                          map[string]string
 	notice                           Notice
@@ -189,7 +190,16 @@ func (f *fakeApp) MarkUnwatched(items ...Film) {
 }
 func (f *fakeApp) Enqueue(...string) error { return nil }
 func (f *fakeApp) Cancel(id string)        { f.call("cancel", id) }
-func (f *fakeApp) RunningJob() string      { return "running" }
+func (f *fakeApp) ContinueHere(id string)  { f.call("continue-here", id) }
+func (f *fakeApp) Handoff() Handoff        { return f.handoff }
+func (f *fakeApp) CloseHandoff()           { f.call("close-handoff"); f.handoff = Handoff{} }
+func (f *fakeApp) LeftOn(path string) string {
+	if f.handoff.Film.VideoPath == path {
+		return f.handoff.Device
+	}
+	return ""
+}
+func (f *fakeApp) RunningJob() string { return "running" }
 func (f *fakeApp) QueueFilms() []Film {
 	var out []Film
 	for _, item := range f.items {

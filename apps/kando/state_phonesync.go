@@ -57,6 +57,10 @@ type phoneUI struct {
 	ledgers   map[string]*phoneLedger
 	priming   map[string]bool
 	stateSign uint64
+	// activity is what the phones did since Kando opened, the latest first (phoneLog); handoffClosed names the place a phone left a film whose offer to continue here the user closed (phoneHandoffClose); readOnlyErr and resolveErr are why the last change of a phone's read-only switch, or the last conflict settled on the page, failed (state_phonesync_linked.go).
+	activity                []settings.PhoneActivity
+	handoffClosed           string
+	readOnlyErr, resolveErr string
 }
 
 func newPhoneUI() phoneUI { return phoneUI{} }
@@ -181,6 +185,7 @@ func (a *app) phoneSyncStop() {
 	a.phoneStateKeepAll()
 	a.phone.running, a.phone.fingerprint, a.phone.shown = false, nil, false
 	a.phone.offer, a.phone.addrs, a.phone.devices, a.phone.revokeErr = phonesync.Offer{}, nil, nil, ""
+	a.phone.readOnlyErr, a.phone.resolveErr = "", ""
 	a.phoneSyncQR()
 }
 
@@ -215,8 +220,11 @@ func (a *app) phoneSyncRevoke(id string) {
 		return
 	}
 	a.phone.revokeErr = ""
+	name, _ := a.phoneDeviceName(id)
 	if err := a.phone.server.Revoke(id); err != nil {
 		a.phone.revokeErr = err.Error()
+	} else {
+		a.phoneLog("", settings.ActivityRevoked, name, 0, 0)
 	}
 	a.phoneSyncPull()
 }
@@ -229,7 +237,19 @@ func (a *app) phoneSyncPull() {
 	}
 	a.phone.offer = srv.Offer()
 	a.phone.addrs = srv.Addrs()
-	a.phone.devices = srv.Devices()
+	devices := srv.Devices()
+	// A phone listed now that was not is one that just paired. The first pull after a start lists those paired before.
+	if a.phone.devices != nil {
+		for _, d := range devices {
+			if !slices.ContainsFunc(a.phone.devices, func(o phonesync.Device) bool { return o.ID == d.ID }) {
+				a.phoneLog(d.Name, settings.ActivityPaired, "", 0, 0)
+			}
+		}
+	}
+	if devices == nil {
+		devices = []phonesync.Device{}
+	}
+	a.phone.devices = devices
 	a.phoneSyncQR()
 }
 
@@ -265,9 +285,11 @@ func (a *app) phoneSyncStatus() settings.PhoneSync {
 	if o := a.phone.offer; o.State != phonesync.OfferNone {
 		st.Code, st.Used, st.Expired = o.Code, o.State == phonesync.OfferUsed, o.State == phonesync.OfferExpired
 	}
+	now := a.phoneStateNow()
 	for _, dev := range a.phone.devices {
-		st.Devices = append(st.Devices, settings.PhoneDevice{ID: dev.ID, Name: dev.Name, Platform: dev.Platform, Paired: dev.Paired, LastSeen: dev.LastSeen})
+		st.Devices = append(st.Devices, settings.PhoneDevice{ID: dev.ID, Name: dev.Name, Platform: dev.Platform, Paired: dev.Paired, LastSeen: dev.LastSeen, Online: dev.Online(now), ReadOnly: dev.ReadOnly})
 	}
+	a.phoneSyncLinked(&st)
 	return st
 }
 

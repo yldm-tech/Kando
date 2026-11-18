@@ -352,6 +352,15 @@ func (s *Server) Revoke(id string) error {
 	return nil
 }
 
+// SetReadOnly makes device id read-only (on), so its next calls that change something are refused, or lets it change things again, and keeps that with the device.
+func (s *Server) SetReadOnly(id string, on bool) error {
+	if err := s.devices.setReadOnly(id, on); err != nil {
+		return err
+	}
+	s.cfg.Changed()
+	return nil
+}
+
 // routes are protocol v1's paths and v2's call.
 func (s *Server) routes() http.Handler {
 	mux := http.NewServeMux()
@@ -712,11 +721,11 @@ func playable(films []Film) []served {
 	return out
 }
 
-// call answers a protocol v2 call from dev, within sourceTimeout, which is longer than an events call waits (psync.MaxEventWait).
+// call answers a protocol v2 call from dev, as the device is now (a read-only one changes nothing, psync.Caller.ReadOnly), within sourceTimeout, which is longer than an events call waits (psync.MaxEventWait).
 func (s *Server) call(w http.ResponseWriter, r *http.Request, dev Device) {
 	ctx, cancel := sourceContext(r)
 	defer cancel()
-	psync.HandleCall(w, r.WithContext(ctx), s.desk, psync.Caller{DeviceID: dev.ID, Name: dev.Name})
+	psync.HandleCall(w, r.WithContext(ctx), s.desk, psync.Caller{DeviceID: dev.ID, Name: dev.Name, ReadOnly: dev.ReadOnly})
 }
 
 // PublishJobs makes jobs what phones are told of the app's queue, in the order a list gives them, and wakes the phones waiting for its changes. It reports whether anything changed.

@@ -9,14 +9,15 @@ import (
 	"kando/apps/kando/films"
 	"kando/apps/kando/phonesync"
 	"kando/apps/kando/remote"
+	"kando/apps/kando/settings"
 	"kando/packages/core"
 	psync "kando/packages/sync"
 )
 
 // Phone Sync's protocol v2 (packages/sync, v2.go): a paired phone sends links to the desktop and follows and controls its queue. phoneJobs answers the calls that act on the queue, on the engine's goroutine (remote.OnUI); the jobs a phone follows are published to the server after every change of the app's state (phoneSyncPublish), and the server answers the list and the events from them. What the desktop does with a link a phone sends is the page's 接收手机发来的链接 and 收到后 (phoneUI.receiveOff, receiveAsk): queued at once, with 来自 <phone> on its card (core.Job.Device), put in the link field for the user to start, or refused. A locked library is never written: a link is refused while the open library is locked, and the jobs of a locked library are neither listed nor acted on (remoteQueue, remoteFindJob).
 
-// phoneOps are the operations the desktop answers, the learning state's among them (state_phonesync_state.go). Pausing and resuming a job are not among them yet: the queue cannot hold a job where it is.
-var phoneOps = []string{psync.OpHello, psync.OpJobCreate, psync.OpJobs, psync.OpJob, psync.OpJobCancel, psync.OpJobRetry, psync.OpUpdateYTDLP, psync.OpEvents, psync.OpStateGet, psync.OpStatePut, psync.OpStateResolve}
+// phoneOps are the operations the desktop answers, the learning state's among them (state_phonesync_state.go).
+var phoneOps = []string{psync.OpHello, psync.OpJobCreate, psync.OpJobs, psync.OpJob, psync.OpJobCancel, psync.OpJobRetry, psync.OpJobPause, psync.OpJobResume, psync.OpUpdateYTDLP, psync.OpEvents, psync.OpStateGet, psync.OpStatePut, psync.OpStateResolve}
 
 // phoneReceive is what the desktop does with a link a phone sends, as Hello says it.
 func (a *app) phoneReceive() string {
@@ -116,6 +117,7 @@ func (j phoneJobs) CreateJob(ctx context.Context, caller psync.Caller, req psync
 		}
 		if a.phone.receiveAsk {
 			a.phoneSyncAsk(caller.Name, link.URL)
+			a.phoneLog(caller.Name, settings.ActivityLink, link.URL, 0, 0)
 			return psync.JobCreated{Pending: true}, nil
 		}
 		if strings.TrimSpace(a.prefs.language) == "" {
@@ -138,6 +140,7 @@ func (j phoneJobs) CreateJob(ctx context.Context, caller psync.Caller, req psync
 		job.Device = caller.Name
 		a.show(job)
 		a.tell(a.messages().PhoneSyncLinkQueued(caller.Name))
+		a.phoneLog(caller.Name, settings.ActivityLink, link.URL, 0, 0)
 		pj := a.phoneJobOf(job)
 		return psync.JobCreated{Job: &pj}, nil
 	})
@@ -157,8 +160,8 @@ func (a *app) phoneSyncAsk(device, link string) {
 	a.windowUnhide()
 }
 
-// ActOnJob cancels or retries a job as the control socket's jobs.cancel and jobs.retry do (remoteCancel, remoteRetry), which neither move the window; pausing and resuming are not answered yet. It answers the job as they leave it: a job of another library leaves 处理中 once it has stopped, so it is looked up on the shelf rather than with remoteFindJob, and one of a video found in the folder leaves the shelf once stopped, as it was (queueFolderEnded).
-func (j phoneJobs) ActOnJob(ctx context.Context, _ psync.Caller, op, id string) (psync.Job, error) {
+// ActOnJob cancels or retries a job as the control socket's jobs.cancel and jobs.retry do (remoteCancel, remoteRetry), which neither move the window, and pauses one where it is in the phone's name or lets it go on (phoneHold). It answers the job as they leave it: a job of another library leaves 处理中 once it has stopped, so it is looked up on the shelf rather than with remoteFindJob, and one of a video found in the folder leaves the shelf once stopped, as it was (queueFolderEnded).
+func (j phoneJobs) ActOnJob(ctx context.Context, caller psync.Caller, op, id string) (psync.Job, error) {
 	a := j.a
 	var err error
 	switch op {
@@ -166,6 +169,8 @@ func (j phoneJobs) ActOnJob(ctx context.Context, _ psync.Caller, op, id string) 
 		_, err = a.remoteCancel(ctx, id)
 	case psync.OpJobRetry:
 		_, err = a.remoteRetry(ctx, id)
+	case psync.OpJobPause, psync.OpJobResume:
+		err = a.phoneHold(ctx, caller, op == psync.OpJobPause, id)
 	default:
 		return psync.Job{}, psync.Errorf(psync.CodeUnsupported, "%s is not answered by this desktop", op)
 	}
@@ -175,17 +180,42 @@ func (j phoneJobs) ActOnJob(ctx context.Context, _ psync.Caller, op, id string) 
 	return remote.OnUI(ctx, a.update, func() (psync.Job, error) {
 		job, ok := a.library.Find(id)
 		if ended, done := a.queue.folderEnded[id]; !ok && done {
-			return a.phoneJobOf(ended), nil
-		}
-		if !ok {
+			job, ok = ended, true
+		} else if !ok {
 			return psync.Job{}, psync.Errorf(psync.CodeNotFound, "job %q was removed", id)
+		}
+		if kind, logged := phoneActivityOf[op]; logged {
+			a.phoneLog(caller.Name, kind, a.libraryJobName(job), 0, 0)
 		}
 		return a.phoneJobOf(job), nil
 	})
 }
 
+// phoneActivityOf is what the page's list of what the phones did says of each action on a job.
+var phoneActivityOf = map[string]string{psync.OpJobCancel: settings.ActivityCanceled, psync.OpJobRetry: settings.ActivityRetried, psync.OpJobPause: settings.ActivityPaused, psync.OpJobResume: settings.ActivityResumed}
+
+// phoneHold pauses job id where it is in the name of the phone calling (queueHold), or lets it go on (queueLetGo), and the message bar says which phone paused it. A job of a locked library, or one the phone does not follow, is not found (remoteFindJob); one done or failed cannot be paused.
+func (a *app) phoneHold(ctx context.Context, caller psync.Caller, pause bool, id string) error {
+	_, err := remote.OnUI(ctx, a.update, func() (struct{}, error) {
+		if _, err := a.remoteFindJob(id); err != nil {
+			return struct{}{}, phoneRemoteErr(err)
+		}
+		if !pause {
+			a.queueLetGo(id)
+			return struct{}{}, nil
+		}
+		job, err := a.queueHold(id, caller.Name)
+		if err != nil {
+			return struct{}{}, psync.Errorf(psync.CodeConflict, "%v", err)
+		}
+		a.tell(a.messages().PhoneSyncPaused(caller.Name, a.libraryJobName(job)))
+		return struct{}{}, nil
+	})
+	return err
+}
+
 // UpdateYTDLP starts 更新并重试 as a card of a download yt-dlp was too old for does (queueUpdateYTDLP): the downloads that failed for it run again once it is updated, as their events tell.
-func (j phoneJobs) UpdateYTDLP(ctx context.Context, _ psync.Caller) (psync.ToolUpdate, error) {
+func (j phoneJobs) UpdateYTDLP(ctx context.Context, caller psync.Caller) (psync.ToolUpdate, error) {
 	a := j.a
 	return remote.OnUI(ctx, a.update, func() (psync.ToolUpdate, error) {
 		if a.queue.ytdlp.updating {
@@ -195,6 +225,7 @@ func (j phoneJobs) UpdateYTDLP(ctx context.Context, _ psync.Caller) (psync.ToolU
 		if !a.queue.ytdlp.updating {
 			return psync.ToolUpdate{}, psync.Errorf(psync.CodeNotReady, "%s", remoteMessages().PrecheckNoTools())
 		}
+		a.phoneLog(caller.Name, settings.ActivityYTDLP, "", 0, 0)
 		return psync.ToolUpdate{Started: true}, nil
 	})
 }
