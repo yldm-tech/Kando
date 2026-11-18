@@ -262,6 +262,9 @@ func queueMetaAt(m locales.Messages, item Film, now time.Time) string {
 			}
 			return m.FilmsQueueRateLimited(seconds, p.Attempt, p.Attempts)
 		}
+		if p.Of > 0 && p.Reviewing {
+			return left(m.FilmsQueueReviewingLines(p.Lines, p.Of))
+		}
 		if p.Of > 0 && p.Proofreading {
 			return left(m.FilmsQueueProofreadingLines(p.Lines, p.Of))
 		}

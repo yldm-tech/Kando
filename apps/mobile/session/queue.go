@@ -36,16 +36,29 @@ const (
 // Queue is a computer's queue as the phone follows it.
 type Queue struct {
 	Reach Reach
-	// Ops are the operations the computer answers, as it said when it last answered (sync.Hello).
-	Ops []string
+	// Ops are the operations the computer answers, as it said when it last answered (sync.Hello), and Options the job options it takes with a link.
+	Ops     []string
+	Options []string
+	// Receive is what the computer does with a link (sync.ReceiveQueue, ReceiveAsk or ReceiveOff), and ReadOnly is set while its user made this phone read-only, as it said when it last answered.
+	Receive  string
+	ReadOnly bool
 	// Jobs are its jobs as it last told them: the running one, the waiting ones in the order they will run, then the others, newest first.
 	Jobs []sync.Job
 	// Seen is when it last answered, zero before it has.
 	Seen time.Time
+	// Relayed is a computer the phone last heard of through the user's storage, away from its network (relay.go): Online while the state.json it writes there is fresh, Offline once it is sync.RelayStale old. Its jobs are as that file last said, and the links and actions sent to it are left in the storage, where it answers them within a minute or two while it runs.
+	Relayed bool
 }
 
-// Can reports whether the computer answers op.
-func (q Queue) Can(op string) bool { return slices.Contains(q.Ops, op) }
+// Can reports whether the computer answers op for this phone: none that changes something (sync.Mutates) while it made the phone read-only.
+func (q Queue) Can(op string) bool {
+	return slices.Contains(q.Ops, op) && !(q.ReadOnly && sync.Mutates(op))
+}
+
+// Offers reports whether the phone offers job option name (sync.OptionQuality, OptionSubtitles) with a link to the computer: one it takes, while it queues links at once, as one that asks its user first starts them with its own settings.
+func (q Queue) Offers(name string) bool {
+	return q.Reach == Online && q.Can(sync.OpJobCreate) && q.Receive == sync.ReceiveQueue && slices.Contains(q.Options, name)
+}
 
 // Outgoing is a link sent from this phone that its computer has not taken yet: waiting for the computer while Refusal is nil, else refused for Refusal's reason (its Code one of sync's, its Message in the computer's words), which is kept with the link.
 type Outgoing struct {
@@ -75,6 +88,9 @@ type remote struct {
 	// linksMu orders the saves of the links as prefsMu does the preferences'.
 	linksMu                 gosync.Mutex
 	linksSaving, linksSaved uint64
+	// relays are the computers' storage relays, by ID, and relayCalls the calls left in them whose replies the session waits for, by call ID (relay.go).
+	relays     map[string]*relayLink
+	relayCalls map[string]relayCall
 }
 
 // follower is the goroutine following a computer's queue.
@@ -105,6 +121,9 @@ func newRemote(cx *core.Scope) *remote {
 		busy:    core.NewSignalFunc(cx, map[string]bool{}, nil),
 		follows: map[string]*follower{},
 		sending: map[string]bool{},
+		relays:  map[string]*relayLink{},
+		// The calls left in the computers' storage (relay.go).
+		relayCalls: map[string]relayCall{},
 	}
 }
 
@@ -117,27 +136,52 @@ func (s *Session) Queue(id string) Queue { return s.remote.queues.Get()[id] }
 // Outgoing are the links sent from this phone that their computers have not taken yet, oldest first.
 func (s *Session) Outgoing() []Outgoing { return s.remote.links.Get() }
 
+// Unfinished counts what the Jobs page holds that is not done, over every paired computer, as the badge on the way to it shows: active are the jobs running, waiting or paused and the links waiting on the phone, failed the jobs that failed and the links refused, which need the user. Read it in a binding.
+func (s *Session) Unfinished() (active, failed int) {
+	for _, q := range s.remote.queues.Get() {
+		for _, j := range q.Jobs {
+			switch j.State {
+			case sync.JobRunning, sync.JobWaiting, sync.JobPaused:
+				active++
+			case sync.JobFailed:
+				failed++
+			}
+		}
+	}
+	for _, o := range s.remote.links.Get() {
+		if o.Refusal != nil {
+			failed++
+		} else {
+			active++
+		}
+	}
+	return active, failed
+}
+
 // Busy reports whether an action on job id of desktop is under way.
 func (s *Session) Busy(desktop, id string) bool { return s.remote.busy.Get()[store.Key(desktop, id)] }
 
 // Updating reports whether desktop was asked to update its downloader and has not answered yet.
 func (s *Session) Updating(desktop string) bool { return s.Busy(desktop, ytdlpKey) }
 
-// Send sends link to desktop for it to process: kept on the phone until the computer takes or refuses it, and sent again under the same call ID while it cannot be reached.
-func (s *Session) Send(desktop, link string) {
-	l := store.Link{ID: sync.NewCallID(), Desktop: desktop, URL: link, Added: s.cfg.Now()}
+// Send sends link to desktop for it to process with opts: kept on the phone until the computer takes or refuses it, and sent again under the same call ID while it cannot be reached.
+func (s *Session) Send(desktop, link string, opts sync.JobOptions) {
+	l := store.Link{ID: sync.NewCallID(), Desktop: desktop, URL: link, Options: opts, Added: s.cfg.Now()}
 	s.setLinks(append(slices.Clone(s.remote.links.Get()), Outgoing{Link: l}))
 	s.sendLink(l)
 }
 
-// Resend sends a refused link again, as a new call, so the computer looks at it afresh.
+// Resend sends a refused link again, as a new call, so the computer looks at it afresh. One refused as the computer made the phone read-only has the computer asked afresh too (follow), so its page shows what it lets the phone do now.
 func (s *Session) Resend(id string) {
 	list := slices.Clone(s.remote.links.Get())
 	i := slices.IndexFunc(list, func(o Outgoing) bool { return o.ID == id })
 	if i < 0 || s.remote.sending[id] {
 		return
 	}
-	list[i] = Outgoing{Link: store.Link{ID: sync.NewCallID(), Desktop: list[i].Desktop, URL: list[i].URL, Added: list[i].Added}}
+	if r := list[i].Refusal; r != nil && r.Code == sync.CodeReadOnly {
+		s.follow(list[i].Desktop)
+	}
+	list[i] = Outgoing{Link: store.Link{ID: sync.NewCallID(), Desktop: list[i].Desktop, URL: list[i].URL, Options: list[i].Options, Added: list[i].Added}}
 	s.setLinks(list)
 	s.sendLink(list[i].Link)
 }
@@ -147,10 +191,14 @@ func (s *Session) Forget(id string) {
 	s.setLinks(slices.DeleteFunc(slices.Clone(s.remote.links.Get()), func(o Outgoing) bool { return o.ID == id }))
 }
 
-// Act runs op, one of sync.OpJobCancel, OpJobRetry, OpJobPause and OpJobResume, on job id of desktop.
+// Act runs op, one of sync.OpJobCancel, OpJobRetry, OpJobPause and OpJobResume, on job id of desktop: away from its network, through its storage, where the action waits for the computer.
 func (s *Session) Act(desktop, op, id string) {
 	c := s.Client(desktop)
 	key := store.Key(desktop, id)
+	if s.remote.queues.GetUntracked()[desktop].Relayed {
+		s.relayAct(desktop, key, op, sync.JobRef{ID: id})
+		return
+	}
 	if c == nil || s.remote.busy.Get()[key] {
 		return
 	}
@@ -174,6 +222,10 @@ func (s *Session) Act(desktop, op, id string) {
 func (s *Session) UpdateYTDLP(desktop string) {
 	c := s.Client(desktop)
 	key := store.Key(desktop, ytdlpKey)
+	if s.remote.queues.GetUntracked()[desktop].Relayed {
+		s.relayAct(desktop, key, sync.OpUpdateYTDLP, nil)
+		return
+	}
 	if c == nil || s.remote.busy.Get()[key] {
 		return
 	}
@@ -264,7 +316,9 @@ func (s *Session) follow(id string) {
 	f := &follower{cancel: cancel}
 	s.remote.follows[id] = f
 	s.setQueue(id, func(q Queue) Queue { q.Reach = Reaching; return q })
-	s.work.Go(func() { s.followQueue(ctx, id, c, f) })
+	d, _ := s.Desktop(id)
+	rl := s.relayOf(id)
+	s.work.Go(func() { s.followQueue(ctx, id, d.DeviceID, c, rl, f) })
 }
 
 // unfollow stops following the queue of desktop id.
@@ -275,9 +329,10 @@ func (s *Session) unfollow(id string) {
 	}
 }
 
-// forgetQueue drops what the phone knew of desktop id's queue and the links waiting for it, as it is unpaired.
+// forgetQueue drops what the phone knew of desktop id's queue, the links waiting for it and its relay, as it is unpaired.
 func (s *Session) forgetQueue(id string) {
 	s.unfollow(id)
+	s.forgetRelay(id)
 	q := maps.Clone(s.remote.queues.GetUntracked())
 	delete(q, id)
 	s.remote.queues.Set(q)
@@ -292,8 +347,8 @@ func (s *Session) stopFollowing() {
 	s.remote.end()
 }
 
-// followQueue follows desktop id's queue on a goroutine of its own until ctx ends: it says hello, lists the jobs and waits for their events, listing again when the computer says to or after it could not be reached, and posts what it learns while f is still the desktop's follower.
-func (s *Session) followQueue(ctx context.Context, id string, c *sync.Client, f *follower) {
+// followQueue follows desktop id's queue on a goroutine of its own until ctx ends: it says hello, joins the computer's storage relay when it offers one (relay.go), lists the jobs and waits for their events, listing again when the computer says to or after it could not be reached, and posts what it learns while f is still the desktop's follower. While the computer does not answer on its network, the phone, the paired device, follows it through the relay rl when it joined one, every relayEvery, trying its network first each time.
+func (s *Session) followQueue(ctx context.Context, id, device string, c *sync.Client, rl *relayLink, f *follower) {
 	post := func(fn func()) {
 		s.cx.Post(func() {
 			if s.remote.follows[id] == f {
@@ -323,7 +378,12 @@ func (s *Session) followQueue(ctx context.Context, id string, c *sync.Client, f 
 		return ok
 	}
 	for ctx.Err() == nil {
-		hello, err := c.Hello(ctx)
+		hctx, hcancel := ctx, context.CancelFunc(func() {})
+		if rl.joined(s, id, device) {
+			hctx, hcancel = context.WithTimeout(ctx, lanTry)
+		}
+		hello, err := c.Hello(hctx)
+		hcancel()
 		if ctx.Err() != nil {
 			return
 		}
@@ -338,11 +398,22 @@ func (s *Session) followQueue(ctx context.Context, id string, c *sync.Client, f 
 			continue
 		}
 		if err != nil {
+			if ProblemOf(err) != Unpaired && s.followRelay(ctx, id, device, rl, post) {
+				wait = reachFirst
+				if !pause(s.relayEvery()) {
+					return
+				}
+				continue
+			}
 			unreachable(err)
 			if !backOff() {
 				return
 			}
 			continue
+		}
+		s.relayJoin(ctx, id, device, c, hello, rl)
+		if ctx.Err() != nil {
+			return
 		}
 		list, err := c.Jobs(ctx)
 		if ctx.Err() != nil {
@@ -357,8 +428,9 @@ func (s *Session) followQueue(ctx context.Context, id string, c *sync.Client, f 
 		}
 		post(func() {
 			s.setQueue(id, func(Queue) Queue {
-				return Queue{Reach: Online, Ops: hello.Ops, Jobs: list.Jobs, Seen: s.cfg.Now()}
+				return Queue{Reach: Online, Ops: hello.Ops, Options: hello.Options, Receive: hello.Receive, ReadOnly: hello.ReadOnly, Jobs: list.Jobs, Seen: s.cfg.Now()}
 			})
+			s.relayLanded(id)
 			s.sendWaiting(id)
 		})
 		if !slices.Contains(hello.Ops, sync.OpEvents) {
@@ -475,9 +547,13 @@ func rank(j sync.Job) int {
 	return 2
 }
 
-// sendWaiting sends the links waiting for desktop, as it answers again; a computer that answers without taking links refuses them on the phone.
+// sendWaiting sends the links waiting for desktop, as it answers again, or leaves them in its storage as the phone follows it there; a computer that answers without taking links refuses them on the phone, unless the phone, away from it, has not heard what it takes yet.
 func (s *Session) sendWaiting(desktop string) {
-	if !s.remote.queues.GetUntracked()[desktop].Can(sync.OpJobCreate) {
+	q := s.remote.queues.GetUntracked()[desktop]
+	if q.Relayed && len(q.Ops) == 0 {
+		return
+	}
+	if !q.Can(sync.OpJobCreate) {
 		s.refuseWaiting(desktop)
 		return
 	}
@@ -488,62 +564,98 @@ func (s *Session) sendWaiting(desktop string) {
 	}
 }
 
-// refuseWaiting refuses the links waiting for desktop, a computer that takes no links, as one too old to would: they say why until the user sends them again or drops them, rather than waiting for a computer that will not take them.
+// refuseWaiting refuses the links waiting for desktop, a computer that takes no links, as it would: one too old to take any, or one that made the phone read-only. They say why until the user sends them again or drops them, rather than waiting for a computer that will not take them.
 func (s *Session) refuseWaiting(desktop string) {
 	links := s.remote.links.GetUntracked()
 	if !slices.ContainsFunc(links, func(o Outgoing) bool { return o.Desktop == desktop && o.Refusal == nil }) {
 		return
 	}
+	code := sync.CodeUnsupported
+	if q := s.remote.queues.GetUntracked()[desktop]; q.ReadOnly && slices.Contains(q.Ops, sync.OpJobCreate) {
+		code = sync.CodeReadOnly
+	}
 	s.setLinks(slices.Clone(links), func(o *Outgoing) {
 		if o.Desktop == desktop && o.Refusal == nil {
-			o.Refusal = &sync.ErrorBody{Code: sync.CodeUnsupported}
+			o.Refusal = &sync.ErrorBody{Code: code}
 		}
 	})
 }
 
-// sendLink sends l to its computer unless it is going already: taken, it leaves the phone; refused, it stays with why; while the computer cannot be reached, it waits, and is sent again after resendAfter if the computer answers otherwise meanwhile, since its follower sends the waiting links only as the computer comes back.
+// sendLink sends l to its computer unless it is going already: taken, it leaves the phone; refused, it stays with why; while the computer cannot be reached, it waits, and is sent again after resendAfter if the computer answers otherwise meanwhile, since its follower sends the waiting links only as the computer comes back. Away from the computer's network, it is left in the computer's storage instead (relayLeave).
 func (s *Session) sendLink(l store.Link) {
+	if s.remote.queues.GetUntracked()[l.Desktop].Relayed {
+		s.relayLeave(l)
+		return
+	}
 	c := s.Client(l.Desktop)
 	if c == nil || s.remote.sending[l.ID] {
 		return
 	}
 	s.remote.sending[l.ID] = true
+	opts := sendOptions(s.remote.queues.GetUntracked()[l.Desktop], l.Options)
 	s.work.Go(func() {
 		ctx, cancel := context.WithTimeout(s.remote.ctx, actFor)
 		defer cancel()
 		var created sync.JobCreated
-		err := c.CallID(ctx, l.ID, sync.OpJobCreate, sync.JobCreate{Link: l.URL}, &created)
+		err := c.CallID(ctx, l.ID, sync.OpJobCreate, sync.JobCreate{Link: l.URL, Options: opts}, &created)
 		s.cx.Post(func() {
 			delete(s.remote.sending, l.ID)
-			var e *sync.Error
-			switch {
-			case err == nil:
-				s.Forget(l.ID)
-				// A computer that took the link answers: one the follower last found out of reach is followed again at once rather than after its wait.
-				if s.remote.queues.GetUntracked()[l.Desktop].Reach != Online {
-					s.follow(l.Desktop)
-				}
-				if created.Job != nil {
-					s.upsertJobs(l.Desktop, []sync.Job{*created.Job})
-				}
-				if s.remote.events.Sent != nil {
-					s.remote.events.Sent(l.Desktop, created)
-				}
-			case errors.As(err, &e) && e.Status == http.StatusNotFound:
-				// A computer without protocol v2's call speaks v1 alone, which takes no links, whatever its answer says.
-				s.refuseWaiting(l.Desktop)
-			case errors.As(err, &e) && e.Code != "" && e.Code != sync.CodeUnauthorized:
-				body := e.ErrorBody
-				s.setLinks(slices.Clone(s.remote.links.GetUntracked()), func(o *Outgoing) {
-					if o.ID == l.ID {
-						o.Refusal = &body
-					}
-				})
-			case s.remote.ctx.Err() == nil:
-				s.resendLater(l)
-			}
+			s.linkAnswered(l, created, err, false)
 		})
 	})
+}
+
+// sendOptions are the options l was chosen with that its computer q takes as it last said; all of them while it has not answered, which then refuses those it does not take. A computer that stopped taking an option since, or asks its user first now, processes the link with its own settings rather than refusing it.
+func sendOptions(q Queue, opts sync.JobOptions) sync.JobOptions {
+	if q.Reach != Online {
+		return opts
+	}
+	if !q.Offers(sync.OptionQuality) {
+		opts.Quality = ""
+	}
+	if !q.Offers(sync.OptionSubtitles) {
+		opts.Subtitles = ""
+	}
+	return opts
+}
+
+// linkAnswered takes what l's computer answered, on its network or through its storage (relayed): taken, the link leaves the phone; refused, it stays with why; not answered, it goes again.
+func (s *Session) linkAnswered(l store.Link, created sync.JobCreated, err error, relayed bool) {
+	var e *sync.Error
+	switch {
+	case err == nil:
+		s.Forget(l.ID)
+		// A computer that took the link answers: one the follower last found out of reach is followed again at once rather than after its wait.
+		if !relayed && s.remote.queues.GetUntracked()[l.Desktop].Reach != Online {
+			s.follow(l.Desktop)
+		}
+		if created.Job != nil {
+			s.upsertJobs(l.Desktop, []sync.Job{*created.Job})
+		}
+		if s.remote.events.Sent != nil {
+			s.remote.events.Sent(l.Desktop, created)
+		}
+	case !relayed && errors.As(err, &e) && e.Status == http.StatusNotFound:
+		// A computer without protocol v2's call speaks v1 alone, which takes no links, whatever its answer says.
+		s.refuseWaiting(l.Desktop)
+	case errors.As(err, &e) && e.Code != "" && e.Code != sync.CodeUnauthorized:
+		s.noteReadOnly(l.Desktop, err)
+		body := e.ErrorBody
+		s.setLinks(slices.Clone(s.remote.links.GetUntracked()), func(o *Outgoing) {
+			if o.ID == l.ID {
+				o.Refusal, o.Relayed = &body, false
+			}
+		})
+	case relayed:
+		// A reply that does not read: the link goes again, under the same ID.
+		s.setLinks(slices.Clone(s.remote.links.GetUntracked()), func(o *Outgoing) {
+			if o.ID == l.ID {
+				o.Relayed = false
+			}
+		})
+	case s.remote.ctx.Err() == nil:
+		s.resendLater(l)
+	}
 }
 
 // resendLater sends l again after resendAfter, if it still waits and its computer answers then; one that does not is sent its waiting links by its follower as it comes back.
@@ -564,10 +676,19 @@ func (s *Session) resendLater(l store.Link) {
 	})
 }
 
-// queueFailed tells Failed of err, from an action on desktop's queue.
+// queueFailed tells Failed of err, from an action on desktop's queue. A computer that answers the phone is read-only, as its user made it since it last said hello, is taken as read-only from then on, so the page drops the buttons it refuses.
 func (s *Session) queueFailed(desktop string, err error) {
+	s.noteReadOnly(desktop, err)
 	if s.remote.events.Failed != nil {
 		s.remote.events.Failed(desktop, err)
+	}
+}
+
+// noteReadOnly takes desktop as having made the phone read-only when err is its refusal for it.
+func (s *Session) noteReadOnly(desktop string, err error) {
+	var e *sync.Error
+	if errors.As(err, &e) && e.Code == sync.CodeReadOnly && !s.remote.queues.GetUntracked()[desktop].ReadOnly {
+		s.setQueue(desktop, func(q Queue) Queue { q.ReadOnly = true; return q })
 	}
 }
 

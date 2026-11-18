@@ -17,7 +17,35 @@ import (
 // Phone Sync's protocol v2 (packages/sync, v2.go): a paired phone sends links to the desktop and follows and controls its queue. phoneJobs answers the calls that act on the queue, on the engine's goroutine (remote.OnUI); the jobs a phone follows are published to the server after every change of the app's state (phoneSyncPublish), and the server answers the list and the events from them. What the desktop does with a link a phone sends is the page's 接收手机发来的链接 and 收到后 (phoneUI.receiveOff, receiveAsk): queued at once, with 来自 <phone> on its card (core.Job.Device), put in the link field for the user to start, or refused. A locked library is never written: a link is refused while the open library is locked, and the jobs of a locked library are neither listed nor acted on (remoteQueue, remoteFindJob).
 
 // phoneOps are the operations the desktop answers, the learning state's (state_phonesync_state.go), the lookups and explanations (state_phonesync_study.go) and the settings' (state_phonesync_settings.go) among them.
-var phoneOps = []string{psync.OpHello, psync.OpJobCreate, psync.OpJobs, psync.OpJob, psync.OpJobCancel, psync.OpJobRetry, psync.OpJobPause, psync.OpJobResume, psync.OpUpdateYTDLP, psync.OpEvents, psync.OpStateGet, psync.OpStatePut, psync.OpStateResolve, psync.OpLookUp, psync.OpExplain, psync.OpSettingsGet, psync.OpSettingsPut}
+var phoneOps = []string{psync.OpHello, psync.OpJobCreate, psync.OpJobs, psync.OpJob, psync.OpJobCancel, psync.OpJobRetry, psync.OpJobPause, psync.OpJobResume, psync.OpUpdateYTDLP, psync.OpEvents, psync.OpStateGet, psync.OpStatePut, psync.OpStateResolve, psync.OpLookUp, psync.OpExplain, psync.OpExplainAsk, psync.OpRecap, psync.OpSettingsGet, psync.OpSettingsPut}
+
+// phoneOptions are the job options a phone may send with a link (psync.Hello.Options): the picture its download asks for and where its original lines come from, which the desktop's Settings › 通用 › 在线视频 names for every link otherwise.
+var phoneOptions = []string{psync.OptionQuality, psync.OptionSubtitles}
+
+// phoneJobOptions is what the options a phone sent with a link make of its job: a quality and a source of original lines, each "" for the desktop's own (onlineFor). A value the protocol does not name is refused.
+func phoneJobOptions(o psync.JobOptions) (core.Quality, core.SubtitleSource, error) {
+	var q core.Quality
+	var src core.SubtitleSource
+	switch o.Quality {
+	case "":
+	case psync.QualityBest:
+		q = core.QualityBest
+	case psync.Quality720:
+		q = core.Quality720
+	default:
+		return "", "", psync.Errorf(psync.CodeInvalid, "quality %q is not one this desktop downloads at", o.Quality)
+	}
+	switch o.Subtitles {
+	case "":
+	case psync.SubtitlesPlatform:
+		src = core.SubtitlesPlatform
+	case psync.SubtitlesRecognize:
+		src = core.SubtitlesLocal
+	default:
+		return "", "", psync.Errorf(psync.CodeInvalid, "subtitles %q is not a source this desktop takes", o.Subtitles)
+	}
+	return q, src, nil
+}
 
 // phoneReceive is what the desktop does with a link a phone sends, as Hello says it.
 func (a *app) phoneReceive() string {
@@ -89,15 +117,16 @@ type phoneJobs struct{ a *app }
 func (j phoneJobs) Hello(ctx context.Context, _ psync.Caller) (psync.Hello, error) {
 	a := j.a
 	return remote.OnUI(ctx, a.update, func() (psync.Hello, error) {
-		return psync.Hello{Ops: phoneOps, Options: []string{}, State: phonesync.StateKinds, Receive: a.phoneReceive()}, nil
+		return psync.Hello{Ops: phoneOps, Options: phoneOptions, State: phonesync.StateKinds, Receive: a.phoneReceive()}, nil
 	})
 }
 
-// CreateJob does with the link what the page's setting says: queues it as 开始处理 does, with the phone's name on its card, puts it in the link field for the user to start (phoneSyncAsk), or refuses it. A video the library has a job for already answers that job. A link is refused while the open library is locked, and with the reason the library's message bar would give while a job cannot start.
+// CreateJob does with the link what the page's setting says: queues it as 开始处理 does, with the phone's name on its card and the quality and source of original lines the phone chose (phoneJobOptions), puts it in the link field for the user to start (phoneSyncAsk), where it starts with the desktop's own settings, as the phone, told Hello.Receive, offers no options then, or refuses it. A video the library has a job for already answers that job. A link is refused while the open library is locked, and with the reason the library's message bar would give while a job cannot start.
 func (j phoneJobs) CreateJob(ctx context.Context, caller psync.Caller, req psync.JobCreate) (psync.JobCreated, error) {
 	a := j.a
-	if req.Options != (psync.JobOptions{}) {
-		return psync.JobCreated{}, psync.Errorf(psync.CodeUnsupported, "this desktop takes no job options yet")
+	quality, subtitles, err := phoneJobOptions(req.Options)
+	if err != nil {
+		return psync.JobCreated{}, err
 	}
 	link, ok := core.ParseLink(req.Link)
 	if !ok || link.Platform == core.PlatformLocal {
@@ -123,7 +152,7 @@ func (j phoneJobs) CreateJob(ctx context.Context, caller psync.Caller, req psync
 		if strings.TrimSpace(a.prefs.language) == "" {
 			return psync.JobCreated{}, psync.Errorf(psync.CodeNotReady, "%s", m.QueueNoLanguage())
 		}
-		id, err := a.queueTakeFrom(link.URL, caller.Name)
+		id, err := a.queueTakeFrom(link.URL, caller.Name, quality, subtitles)
 		var dup *queueDuplicate
 		switch {
 		case errors.As(err, &dup):

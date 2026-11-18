@@ -8,6 +8,7 @@ import (
 	"strings"
 	"time"
 
+	"kando/apps/kando/addsheet"
 	"kando/apps/kando/desktop"
 	"kando/apps/kando/films"
 	"kando/apps/kando/live"
@@ -136,7 +137,13 @@ func (a *app) NewLibraryPath() (string, error) {
 
 // Start adds the links in the top bar to the queue, several when what was pasted holds several, between spaces or on lines of their own; a playlist or a channel among them opens the dialog that lists its videos (playlistAsk). The field empties once they are added; otherwise the message bar says why and the links stay, to be fixed.
 func (a *app) Start() {
-	if a.libraryEnqueue(strings.Fields(a.queue.source)...) {
+	sources := strings.Fields(a.queue.source)
+	// One link to an online video asks first, on the Add sheet (state_addsheet.go); anything else is added as it is.
+	if len(sources) == 1 && a.addSheetAsk(sources[0], addsheet.FromField, "", 0) {
+		a.queue.source = ""
+		return
+	}
+	if a.libraryEnqueue(sources...) {
 		a.queue.source = ""
 	}
 }

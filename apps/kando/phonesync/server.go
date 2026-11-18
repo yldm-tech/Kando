@@ -72,8 +72,9 @@ type Config struct {
 	Settings psync.SettingsService
 	// Study is the lookups and explanations protocol v2's calls ask for; nil answers them unsupported.
 	Study psync.StudyService
-	// Relay is the user's bucket the storage relay runs in (relay.go), nil while the relay is off.
-	Relay psync.RelayBucket
+	// Relay is the user's bucket the storage relay runs in (relay.go), nil while the relay is off. RelayHealth, when set, is told on a goroutine of the relay's after each of its turns what failed of it, nil for a turn that went through (psync.Relay.Health).
+	Relay       psync.RelayBucket
+	RelayHealth func(err error)
 	// Addrs are the addresses to listen on, looked at again every rescanEvery as the computer joins other networks; nil is LANAddrs. Tests give loopback.
 	Addrs func() []netip.Addr
 	// Changed is told, on any goroutine, that what the settings show changed: the code on offer, the devices, or the addresses listened on.

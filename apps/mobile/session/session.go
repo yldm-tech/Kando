@@ -94,6 +94,8 @@ type Config struct {
 	Device, Platform string
 	// Now is the clock pairings and downloads are dated by; time.Now when nil.
 	Now func() time.Time
+	// RelayEvery is how often the phone reads a computer's state.json through the storage relay while away from its network (relay.go), sync.RelayPoll when 0. Tests shorten it.
+	RelayEvery time.Duration
 }
 
 // Session is the app's state. Its methods belong to the engine's goroutine.
@@ -155,6 +157,8 @@ type Session struct {
 	remote *remote
 	// learn is the learner's study (learning.go).
 	learn *learn
+	// settle is the conflicts being resolved (conflicts.go).
+	settle *settle
 }
 
 // filmSave is what is still to be written of a film's record: next, once pending; or its folder deleted, once removed.
@@ -217,6 +221,7 @@ func New(cx *core.Scope, cfg Config) *Session {
 	}
 	s.ctx, s.cancel = context.WithCancel(context.Background())
 	s.learn = newLearn(s)
+	s.settle = newSettle(cx)
 	cx.Cleanup(func() {
 		close(s.closed)
 		s.cancel()
@@ -562,8 +567,14 @@ func (s *Session) Delete(key string) {
 	s.remove(key)
 }
 
-// SavePosition keeps where the film under key was left playing, and that it was left there now, even where it was left there before: a film played from the beginning again is newer on the phone than where a computer left it (catalog.Merge).
-func (s *Session) SavePosition(key string, at time.Duration) {
+// SavePosition keeps where the film under key was left playing, and that it was left there now, even where it was left there before: a film played from the beginning again is newer on the phone than where a computer left it (catalog.Merge). Its computer takes it through the film's library's learning state (yldm-tech/Kando#217), at once or once it can be reached, so the computer and the other devices go on from there; a film whose library is not known yet (Studyable) keeps it on the phone alone.
+func (s *Session) SavePosition(key string, at time.Duration) { s.savePosition(key, at, true) }
+
+// KeepPosition is SavePosition for a film that plays on: the computer takes the position with the next sync of the film's library rather than at once, so a film playing does not call the computer every few seconds.
+func (s *Session) KeepPosition(key string, at time.Duration) { s.savePosition(key, at, false) }
+
+// savePosition keeps where the film under key was left, and syncs its library when send is set.
+func (s *Session) savePosition(key string, at time.Duration, send bool) {
 	f, ok := s.Film(key)
 	if !ok {
 		return
@@ -571,6 +582,18 @@ func (s *Session) SavePosition(key string, at time.Duration) {
 	f.PositionMS, f.PositionAt = at.Milliseconds(), s.cfg.Now()
 	s.replace(f)
 	s.saveFilm(f)
+	if f.LibraryID == "" {
+		return
+	}
+	// A library still being read from disk is not written over: the player's next save sends the position.
+	k := studyKey(f.Desktop, f.LibraryID)
+	if _, ok := s.studies.GetUntracked()[k]; !ok && (!s.learn.ready.GetUntracked() || s.studyLoading[k]) {
+		return
+	}
+	s.setStudy(f.Desktop, f.LibraryID, study.Change(s.studies.GetUntracked()[k], study.Position(f.Film.ID, at, f.PositionAt)))
+	if send {
+		s.syncStudy(f.Desktop, f.LibraryID)
+	}
 }
 
 // saveFilm keeps f's record on disk after the saves of it handed before, the latest last, trying again until it is written (filmSaves).

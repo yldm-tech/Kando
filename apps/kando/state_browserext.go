@@ -8,12 +8,16 @@ import (
 	"runtime"
 	"strings"
 
+	"kando/apps/kando/addsheet"
 	"kando/apps/kando/browse"
 	"kando/apps/kando/browserext"
+	"kando/apps/kando/live"
 	"kando/apps/kando/remote"
 	"kando/apps/kando/settings"
 	"kando/apps/kando/sites/catalog"
 	kcore "kando/packages/core"
+
+	nsdesktop "github.com/nsgo-dev/nsgo/desktop"
 )
 
 // The browser extension (browserext/, resources/browser-extension): Settings › 通用 › 浏览器扩展, which registers Kando's native messaging host with the browsers and gives out the extension's folder, and the control socket's methods the host relays the extension's buttons to (remote.MethodBrowserState, MethodBrowserAdd, MethodBrowserShow), which follow the built-in browser's buttons (state_browse_buttons.go).
@@ -47,9 +51,10 @@ func (a *app) browserExtFolder() string {
 	return filepath.Join(a.browserExtDir(), browserext.FolderName)
 }
 
-// browserExtHooks: once the window exists, the host is registered again with the browsers it is registered with, for the executable as it is now, as after Kando moved or its AppImage was replaced, and the extension's folder given out before is brought up to the app's, off the UI thread; the browsers load the new one once the extension is reloaded.
+// browserExtHooks: once the window exists, the links of Kando's own scheme the bookmarklet opens are heard (browserExtOpenLinks), and the host is registered again with the browsers it is registered with, for the executable as it is now, as after Kando moved or its AppImage was replaced, and the extension's folder given out before is brought up to the app's, off the UI thread; the browsers load the new one once the extension is reloaded.
 func (a *app) browserExtHooks() areaHooks {
 	return areaHooks{ready: func() {
+		nsdesktop.OnOpenLinks(a.cx, live.On(a, a.browserExtOpenLinks))
 		env, src, dst := a.ext.env(a.browserExtDir()), a.ext.shipped(), a.browserExtFolder()
 		go func() {
 			_ = browserext.Refresh(env)
@@ -58,6 +63,26 @@ func (a *app) browserExtHooks() areaHooks {
 			}
 		}()
 	}}
+}
+
+// browserExtOpenLinks takes the links of Kando's own scheme the system opened Kando with, which the bookmarklet makes (browserext.ReadLink): the video of the page it names opens the Add sheet in front, whatever 链接到达后立即开始 says, as any page could make such a link. A page that is not one online video Kando can add now goes into the library's link field, and its message bar says what precheck finds wrong with it. Any other link is left alone.
+func (a *app) browserExtOpenLinks(links []string) {
+	for _, link := range links {
+		page, title, at, ok := browserext.ReadLink(link)
+		if !ok {
+			continue
+		}
+		if !a.addSheetAsk(page, addsheet.FromBrowser, title, at) {
+			if a.page != pageFilms || a.openKey != "" {
+				a.Select(pageFilms)
+			}
+			a.queue.source, a.queue.linkFocus = page, true
+			if msg, section := a.precheck([]string{page}); msg != "" {
+				a.warn(msg, section)
+			}
+		}
+		a.remoteRaise()
+	}
 }
 
 // browserExtCheck looks for the browsers and the host again off the UI thread, keeping what the last look found on the page until it lands.
@@ -193,7 +218,7 @@ func (a *app) remoteBrowserState(ctx context.Context, p remote.BrowserStateParam
 	})
 }
 
-// remoteBrowserAdd adds the video at p.URL as a click on one of the built-in browser's buttons does (browseAdd): a video the library has already the window shows there, in front (browseShowFilm), and any other is added as the library's link field adds it (libraryEnqueue), whose message bar says what precheck finds wrong, with the setting that fixes it, or why the queue refused it; the window then comes to the front on the library, as the extension's page has nowhere to say it.
+// remoteBrowserAdd adds the video at p.URL as a click on one of the built-in browser's buttons does (browseAdd): a video the library has already the window shows there, in front (browseShowFilm); any other opens the Add sheet in front, unless Settings › 通用 › 浏览器扩展's 链接到达后立即开始 is on, or is added as the library's link field adds it (libraryEnqueue), whose message bar says what precheck finds wrong, with the setting that fixes it, or why the queue refused it; the window then comes to the front on the library, as the extension's page has nowhere to say it. Where the page's player was (p.At), or else where the link starts, is where the film opens once done.
 func (a *app) remoteBrowserAdd(ctx context.Context, p remote.BrowserAddParams) (remote.BrowserAdded, error) {
 	link, title, ok := browse.AddVideo(p.URL, p.Title)
 	if !ok || !browserExtVideo(link) {
@@ -205,7 +230,16 @@ func (a *app) remoteBrowserAdd(ctx context.Context, p remote.BrowserAddParams) (
 			a.remoteRaise()
 			return remote.BrowserAdded{Have: browserExtHave(job), Shown: true}, nil
 		}
-		if !a.libraryEnqueue(link) {
+		at := browse.PlayedTo(p.At)
+		if at <= 0 {
+			at = kcore.StartAt(link)
+		}
+		// Unless 链接到达后立即开始 is on, the window asks first, on the Add sheet, which the extension's popup says.
+		if !a.addsheet.startAtOnce && a.addSheetAsk(link, addsheet.FromBrowser, title, at) {
+			a.remoteRaise()
+			return remote.BrowserAdded{Message: a.messages().AddSheetConfirmInKando()}, nil
+		}
+		if !a.addSheetEnqueue(link, addSheetResumeStamp(at)) {
 			a.Select(pageFilms)
 			a.remoteRaise()
 			return remote.BrowserAdded{Failed: true, Message: a.lib.notice.Text}, nil

@@ -38,3 +38,33 @@ func TestJobsKeepTheOrderAListGivesThem(t *testing.T) {
 		}
 	}
 }
+
+// A computer that made the phone read-only answers no call that changes something, and the phone offers a job option only to a computer that takes it while it queues links at once.
+func TestWhatAComputerLetsThePhoneDo(t *testing.T) {
+	q := Queue{Reach: Online, Ops: []string{sync.OpJobs, sync.OpJobCreate, sync.OpJobCancel}, Options: []string{sync.OptionQuality}, Receive: sync.ReceiveQueue}
+	if !q.Can(sync.OpJobCreate) || !q.Can(sync.OpJobCancel) || q.Can(sync.OpJobPause) {
+		t.Fatal("Can does not follow the operations the computer answers")
+	}
+	if !q.Offers(sync.OptionQuality) || q.Offers(sync.OptionSubtitles) {
+		t.Fatal("Offers does not follow the options the computer takes")
+	}
+	all := sync.JobOptions{Quality: sync.Quality720, Subtitles: sync.SubtitlesRecognize}
+	if got := sendOptions(q, all); got != (sync.JobOptions{Quality: sync.Quality720}) {
+		t.Fatalf("a link goes with %+v to a computer that takes the quality alone", got)
+	}
+	asks := q
+	asks.Receive = sync.ReceiveAsk
+	if asks.Offers(sync.OptionQuality) || sendOptions(asks, all) != (sync.JobOptions{}) {
+		t.Fatal("a computer that asks its user first is offered options it would not keep")
+	}
+	away := q
+	away.Reach = Offline
+	if away.Offers(sync.OptionQuality) || sendOptions(away, all) != all {
+		t.Fatal("a link waiting for a computer out of reach does not keep the options it was chosen with")
+	}
+	ro := q
+	ro.ReadOnly = true
+	if ro.Can(sync.OpJobCreate) || ro.Can(sync.OpJobCancel) || !ro.Can(sync.OpJobs) || ro.Offers(sync.OptionQuality) {
+		t.Fatal("a read-only phone is let change something, or not read")
+	}
+}

@@ -23,6 +23,8 @@ func (a *app) SetPhoneAskFirst(ask bool) { a.phoneSyncSetAsk(ask) }
 
 func (a *app) SetPhoneReadOnly(id string, on bool) { a.phoneSyncSetReadOnly(id, on) }
 
+func (a *app) SetPhoneRelay(on bool) { a.phoneRelaySet(on) }
+
 func (a *app) ResolvePhoneConflict(id string, keep settings.PhoneKeep) { a.phoneSyncResolve(id, keep) }
 
 func (a *app) PhoneNow() time.Time { return a.phoneStateNow() }

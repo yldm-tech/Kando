@@ -261,7 +261,7 @@ func (p *play) progress(at, length time.Duration) {
 		p.say("sleep", locales.PlayerSleepPaused(p.cx))
 	}
 	if d := at - p.saved; d >= saveEvery || d <= -saveEvery {
-		p.save()
+		p.keep(false)
 	}
 }
 
@@ -292,10 +292,17 @@ func (p *play) ended() {
 	}
 }
 
-// save keeps the position playing with the film.
-func (p *play) save() {
+// save keeps the position playing with the film, as the film is held or left, and sends it to the film's computer.
+func (p *play) save() { p.keep(true) }
+
+// keep keeps the position playing with the film; send sends it to the film's computer at once, else it goes with the next sync, as while the film plays on.
+func (p *play) keep(send bool) {
 	p.saved = p.at.GetUntracked()
-	p.s.SavePosition(p.key, p.saved)
+	if send {
+		p.s.SavePosition(p.key, p.saved)
+	} else {
+		p.s.KeepPosition(p.key, p.saved)
+	}
 	p.s.Watch(p.watched)
 	p.watched = 0
 }

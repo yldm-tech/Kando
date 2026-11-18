@@ -170,6 +170,99 @@ accountUploadingPercent:
 accountVideoMissing:
   message: "The video file isn't on this computer"
   description: "Upload error when the film's video file is not on disk."
+addSheetAdd:
+  message: "Add and Start"
+  description: "Add sheet: primary button that adds the video and starts processing it."
+addSheetCancel:
+  message: "Cancel"
+  description: "Add sheet: button that closes it without adding anything."
+addSheetConfirmInKando:
+  message: "Opened in Kando: confirm there to add it."
+  description: "Browser extension popup after a video was sent while the app asks first on its Add sheet."
+addSheetDrm:
+  message: "{site} videos are DRM-protected"
+  description: "Add sheet: bold head of the note for a site whose videos are encrypted."
+  placeholders:
+    site: { type: "String", example: "Netflix" }
+addSheetDrmWhy:
+  message: "They are encrypted, and Kando does not get around that, so this one cannot be downloaded. If you have the video on disk, drop it into the window."
+  description: "Add sheet: why a DRM-protected video is not added, and what to do instead."
+addSheetEpisodes:
+  message: "What to add"
+  description: "Add sheet: accessible name of the choice between the video alone and its whole playlist."
+addSheetKindInList:
+  message: "Video in a playlist"
+  description: "Add sheet: small line beside the site's name for a link to a video of a playlist."
+addSheetKindVideo:
+  message: "Single video"
+  description: "Add sheet: small line beside the site's name for a link to one video."
+addSheetLabel:
+  message: "Add online video"
+  description: "Accessible name of the Add sheet, the card a link to one online video opens before it is added."
+addSheetListVideos:
+  message: "List Videos"
+  description: "Add sheet: primary button while the whole playlist is chosen; it lists the playlist's videos before they are added."
+addSheetOK:
+  message: "OK"
+  description: "Add sheet: the only button for a DRM-protected video, which closes it."
+addSheetOnlyThis:
+  message: "Only this video"
+  description: "Add sheet: radio that adds the video of the link alone."
+addSheetQuality:
+  message: "Download"
+  description: "Add sheet: row title and pop-up name of the picture the download asks for."
+addSheetResumeBrowser:
+  message: "You were at {time} in the browser; once processed, the film continues from there."
+  description: "Add sheet: note for a link the browser extension or the bookmarklet sent from a page that was playing the video."
+  placeholders:
+    time: { type: "String", example: "1:24" }
+addSheetResumeLink:
+  message: "The link starts at {time}; once processed, the film continues from there."
+  description: "Add sheet: note for a pasted link that names where the video starts (t=)."
+  placeholders:
+    time: { type: "String", example: "1:24" }
+addSheetSignIn:
+  message: "Sign-in"
+  description: "Add sheet: row title and pop-up name of the browser whose sign-in the download borrows."
+addSheetSignInBrowser:
+  message: "{browser}'s sign-in"
+  description: "Add sheet: option of the sign-in pop-up that borrows a browser's sign-in."
+  placeholders:
+    browser: { type: "String", example: "Chrome" }
+addSheetSignInHint:
+  message: "Members-only and higher-quality videos need a sign-in; passwords are never saved"
+  description: "Add sheet: line under the sign-in row."
+addSheetSignInNone:
+  message: "Not signed in"
+  description: "Add sheet: option of the sign-in pop-up that borrows no browser's sign-in."
+addSheetSource:
+  message: "Original lines from"
+  description: "Add sheet: accessible name of the choice of where the film's original lines come from."
+addSheetSourceLocal:
+  message: "Recognize on this computer"
+  description: "Add sheet: radio that hears the speech with the speech recognition alone."
+addSheetSourcePlatform:
+  message: "The uploader's subtitles"
+  description: "Add sheet: radio that takes the subtitles the uploader put on the site as the original lines, where they match the speech."
+addSheetSourcePlatformHint:
+  message: "Checked against the speech; lines that do not match are recognized on this computer"
+  description: "Add sheet: line under the uploader's subtitles radio."
+addSheetUnknown:
+  message: "{host} is not among the sites Kando knows"
+  description: "Add sheet: bold head of the note for a site neither Kando nor yt-dlp's list knows."
+  placeholders:
+    host: { type: "String", example: "example.com" }
+addSheetUnknownWhy:
+  message: "yt-dlp tries its generic extractor first. Whether that works shows once the download starts, and the card says what to do if it does not."
+  description: "Add sheet: what happens to a link of a site Kando does not know."
+addSheetUntitled:
+  message: "{site} video"
+  description: "Add sheet: how the video is named when its page gave no title, by its site or host."
+  placeholders:
+    site: { type: "String", example: "YouTube" }
+addSheetWholeList:
+  message: "The whole playlist"
+  description: "Add sheet: radio that adds every video of the playlist the link's video is in, which the playlist dialog lists first."
 appSettings:
   message: "Settings…"
   description: "App menu item and shortcut row (⌘,) that opens Settings."
@@ -530,6 +623,67 @@ correctUndone:
 correctUnreadable:
   message: "This film’s corrections couldn’t be read, so they can’t be changed"
   description: "Message on the picture when the film's corrections file could not be read, which is then not written over."
+filmNotesDueCount:
+  message: "{count, number}"
+  description: "The big number on the Notes tab's review card: how many saved lines and words are due for review."
+  placeholders:
+    count: { type: "int", example: "3" }
+filmNotesEmptyLines:
+  message: "No saved lines in this film yet. Press B on a line you want to keep, or Save Line to Notes under Explain Line, and it joins the daily review."
+  description: "Notes tab of the player's side panel, listing the lines, when the film has none saved."
+filmNotesEmptyWords:
+  message: "No words from this film yet. Click a word on the subtitles to look it up, then Add to Vocabulary."
+  description: "Notes tab of the player's side panel, listing the words, when no word of the vocabulary was looked up in this film."
+filmNotesKind:
+  message: "Show"
+  description: "Accessible name of the Notes tab's choice between the saved lines and the words."
+filmNotesLines:
+  message: "Lines {count}"
+  description: "Notes tab: the choice that lists the film's saved lines, with how many there are."
+  placeholders:
+    count: { type: "int", example: "3" }
+filmNotesPlay:
+  message: "Play from {time}: {text}"
+  description: "Accessible name of a row of the Notes tab: plays the film from the line's start."
+  placeholders:
+    time: { type: "String", example: "1:02.4" }
+    text: { type: "String", example: "Every river begins as a trickle." }
+filmNotesRemoveLine:
+  message: "Remove from Saved Lines"
+  description: "Accessible name and tooltip of the × of a saved line on the Notes tab: takes it out of the saved lines."
+filmNotesRemoveWord:
+  message: "Remove “{word}” from Vocabulary"
+  description: "Accessible name and tooltip of the × of a word on the Notes tab: takes it out of the vocabulary."
+  placeholders:
+    word: { type: "String", example: "trickle" }
+filmNotesReview:
+  message: "Today's Review"
+  description: "Title of the card at the top of the Notes tab that starts the review of the saved lines and words due."
+filmNotesReviewDone:
+  message: "All done for today"
+  description: "Notes tab's review card, when nothing is due now but lines or words are saved."
+filmNotesReviewDue:
+  message: "Hear the line, recall it, mark how it went"
+  description: "Notes tab's review card, when lines or words are due: what the review does."
+filmNotesReviewEmpty:
+  message: "Saved lines and words show up here"
+  description: "Notes tab's review card, when nothing is saved in this film yet."
+filmNotesReviewLabel:
+  message: "{count, plural, =0 {Today's Review, nothing due} one {Today's Review, # due} other {Today's Review, # due}}"
+  description: "Accessible name of the Notes tab's review card, with how many saved lines and words are due."
+  placeholders:
+    count: { type: "int", example: "3" }
+filmNotesSoundKept:
+  message: "Each line's audio is cut when you save it, so the review does not need the video."
+  description: "Note under the saved lines of the Notes tab."
+filmNotesWords:
+  message: "Words {count}"
+  description: "Notes tab: the choice that lists the words of the vocabulary looked up in this film, with how many there are."
+  placeholders:
+    count: { type: "int", example: "2" }
+filmTabNotes:
+  message: "Notes"
+  description: "Side panel tab listing the film's saved lines and the words looked up in it, with the review."
 settingsAIBatchSize:
   message: "Lines per Request"
   description: "Row title and accessible name of the field setting how many subtitle lines one translation request carries."
@@ -3472,6 +3626,17 @@ playlistSeveral:
   description: "Title of the playlist dialog when several playlist or channel links were added at once."
   placeholders:
     count: { type: "int", example: "2" }
+playlistSubscribe:
+  message: "{kind, select, channel {Subscribe to this channel} other {Subscribe to this playlist}}"
+  description: "Switch of the playlist dialog: subscribe to the list as its videos are added, so new ones are added as they come out."
+  placeholders:
+    kind: { type: "String", example: "playlist" }
+playlistSubscribeHint:
+  message: "New videos are added as they come out; change the rules under Subscriptions in the sidebar"
+  description: "Line under the subscribe switch of the playlist dialog."
+playlistSubscribeOnly:
+  message: "Subscribe"
+  description: "Button of the playlist dialog when the library has every video already and the subscribe switch is on: it subscribes without adding any."
 playlistTimedOut:
   message: "Reading the videos took too long. Try again later."
   description: "Line of the playlist dialog when yt-dlp did not finish listing the videos in time."
@@ -4268,32 +4433,32 @@ savedReviewAgain:
   message: "Again"
   description: "Review button (1): the learner did not know the line, which comes back before the review ends."
 savedReviewDone:
-  message: "{count, plural, one {Reviewed # line.} other {Reviewed # lines.}} Each comes back when it is due."
-  description: "Review, once no line is left: how many were reviewed."
+  message: "{count, plural, one {Reviewed # card.} other {Reviewed # cards.}} Each comes back when it is due."
+  description: "Review, once nothing is left: how many saved lines and words were reviewed."
   placeholders:
     count: { type: "int", example: "8" }
 savedReviewDue:
-  message: "{count, plural, =0 {Nothing to Review} one {Review # Line} other {Review # Lines}}"
-  description: "Button of the Saved Lines sheet that starts the review of the lines due, with how many are due; off when none is."
+  message: "{count, plural, =0 {Nothing to Review} one {Review # Due} other {Review # Due}}"
+  description: "Button of the Saved Lines sheet that starts the review of the saved lines and words due, with how many are due; off when none is."
   placeholders:
     count: { type: "int", example: "3" }
 savedReviewGood:
   message: "Good"
   description: "Review button (2): the learner knew the line, which comes back later each time."
 savedReviewLeft:
-  message: "{count, plural, one {# line left} other {# lines left}}"
-  description: "Beside the review's title: how many lines are left to review, the one shown with them."
+  message: "{count, plural, one {# card left} other {# cards left}}"
+  description: "Beside the review's title: how many saved lines and words are left to review, the one shown with them."
   placeholders:
     count: { type: "int", example: "5" }
 savedReviewMenuItem:
-  message: "Review Saved Lines"
-  description: "Study menu item and shortcut row (N): reviews the saved lines that are due, one at a time."
+  message: "Review"
+  description: "Study menu item and shortcut row (N): reviews the saved lines and the words of the vocabulary that are due, one at a time."
 savedReviewNoAudio:
   message: "No audio"
   description: "Review, in place of Play Again, for a line whose audio cannot be had: ffmpeg is not installed, the video is gone, or cutting it failed."
 savedReviewNothingDue:
-  message: "No saved line is due for review."
-  description: "Review opened with no saved line due."
+  message: "No saved line or word is due for review."
+  description: "Review opened with no saved line or word due."
 savedReviewReplay:
   message: "Play Again"
   description: "Review button (R): plays the line's audio again from its start."
@@ -4541,6 +4706,15 @@ settingsGeneralAutoDownloadHint:
 settingsGeneralBackground:
   message: "Background"
   description: "Heading of the card in Settings › General about running Kando with its window closed: opening it at login, keeping it running and its tray icon."
+settingsGeneralBookmarklet:
+  message: "Bookmarklet"
+  description: "Row of Settings › General › Browser Extension: the bookmarklet that sends a video's page to Kando from any browser."
+settingsGeneralBookmarkletCopy:
+  message: "Copy Code"
+  description: "Button of the bookmarklet row that puts its code on the clipboard."
+settingsGeneralBookmarkletHint:
+  message: "For any browser: make a bookmark whose address is the copied code, then click it on a video's page"
+  description: "Line under the bookmarklet row in Settings › General."
 settingsGeneralBrowser:
   message: "Browser Extension"
   description: "Heading of the General settings card about Kando's extension for Chrome, Edge, Firefox and other browsers."
@@ -4582,6 +4756,12 @@ settingsGeneralBrowserSeparator:
 settingsGeneralBrowserShowFolder:
   message: "Show Extension Folder"
   description: "Button of the Extension row: shows the folder of Kando's browser extension in the file manager, to load it in the browser."
+settingsGeneralBrowserStartAtOnce:
+  message: "Start as soon as a link arrives"
+  description: "Switch in Settings › General › Browser Extension: a video the extension sends is added at once, without the Add sheet."
+settingsGeneralBrowserStartAtOnceHint:
+  message: "When off, Kando asks first, so you can choose the quality, the original lines and the sign-in"
+  description: "Line under the start-at-once switch in Settings › General."
 settingsGeneralCLI:
   message: "Command Line & MCP"
   description: "Heading of the General settings card about Kando's command line and its MCP server for AI assistants."
@@ -4889,7 +5069,7 @@ settingsKeywordsAccount:
   message: "Google sign in sign out object storage upload R2 S3 OSS COS Endpoint Region Bucket Access Key Secret path style"
   description: "Search keywords of the Account & Upload settings section, separated by spaces, besides its title. Not shown."
 settingsKeywordsGeneral:
-  message: "library location Finder File Explorer file manager interface language version components yt-dlp ffmpeg whisper-cli detect again command line terminal kando install MCP Claude Code Cursor copy config update notifications notify browser sign-in signed in cookies members-only age-restricted Chrome Safari Firefox Edge Brave Chromium keychain Full Disk Access appearance light dark mode follow system"
+  message: "library location Finder File Explorer file manager interface language version components yt-dlp ffmpeg whisper-cli detect again command line terminal kando install MCP Claude Code Cursor copy config update notifications notify browser sign-in signed in cookies members-only age-restricted Chrome Safari Firefox Edge Brave Chromium keychain Full Disk Access appearance light dark mode follow system bookmarklet bookmark start at once"
   description: "Search keywords of the General settings section, separated by spaces, besides its title. Not shown; the sidebar's search finds the section by them. Use the words the section's page shows."
 settingsKeywordsLook:
   message: "subtitles display bilingual original only translation only order translation original dim blank make room preview preset font size color bold"
@@ -4907,7 +5087,7 @@ settingsKeywordsSpeech:
   message: "whisper models download recognition transcription HuggingFace Hugging Face Vimpo hyperframes spoken language download source mirror hf-mirror.com model file ggml threads proper nouns hints prompt command"
   description: "Search keywords of the Speech Recognition settings section, separated by spaces, besides its title. Not shown."
 settingsKeywordsTranslate:
-  message: "target language smart translation context prompt restore default context lines"
+  message: "target language smart translation context prompt restore default context lines final proofread consistency"
   description: "Search keywords of the Translation settings section, separated by spaces, besides its title. Not shown."
 settingsLanguageArabic:
   message: "Arabic"
@@ -6259,6 +6439,9 @@ vocabExportIntro:
 vocabExportMenuItem:
   message: "Export Vocabulary…"
   description: "Study menu item that opens the study stats dialog at its Export Vocabulary tab."
+vocabExporting:
+  message: "Exporting with each line's audio…"
+  description: "Export Vocabulary tab, while the export for Anki cuts the audio of the line of each word."
 vocabExported:
   message: "Exported to {file}"
   description: "Export Vocabulary tab, after the export: the file it wrote."
@@ -6332,6 +6515,11 @@ vocabLookupNoAI:
 vocabLookupSettings:
   message: "Open Settings"
   description: "Button of the card of a word looked up, when no AI service can answer: opens the AI Service settings."
+vocabLookupTerm:
+  message: "Film glossary: {term}"
+  description: "Card of a word looked up, when the film's glossary has a term for the word: the term and its translation, as source → target."
+  placeholders:
+    term: { type: "String", example: "meander → 河曲" }
 vocabMastered:
   message: "Mastered {count}"
   description: "Study stats dialog, under the mastery bar: how many words and saved lines are mastered."
@@ -6494,6 +6682,48 @@ settingsPhoneRevokeOffline:
 settingsPhoneRevokePairAgain:
   message: "To use it again, pair it with a new code."
   description: "Consequence of revoking a phone, in the confirmation's list."
+settingsPhoneAway:
+  message: "Away From This Network"
+  description: "Heading of the card on the Phone Sync settings page about syncing with phones that are not on the computer's network."
+settingsPhoneRelay:
+  message: "Sync through your storage"
+  description: "Switch on the Phone Sync settings page that turns the storage relay on: phones away from the local network reach the computer through the object storage set up in Account & Upload."
+settingsPhoneRelayHint:
+  message: "When a phone is away from this network, its links, jobs and progress go through the storage in Account & Upload, encrypted with its pairing key. Each exchange takes from a few seconds to a couple of minutes."
+  description: "Subtitle of the storage relay switch on the Phone Sync settings page."
+settingsPhoneRelayStore:
+  message: "Storage"
+  description: "Row title on the Phone Sync settings page naming the object storage the relay goes through."
+settingsPhoneRelayStoreName:
+  message: "{kind} · {bucket}"
+  description: "The storage the relay goes through: its kind (R2, S3, OSS, COS or S3-compatible) and its bucket's name."
+  placeholders:
+    kind: { type: "String", example: "R2" }
+    bucket: { type: "String", example: "kando-films" }
+settingsPhoneRelayNoStore:
+  message: "Not set up"
+  description: "Shown in the Storage row of the Phone Sync settings page when no object storage is set up in Account & Upload."
+settingsPhoneRelaySetUp:
+  message: "Set Up…"
+  description: "Button in the Storage row of the Phone Sync settings page that opens Settings › Account & Upload."
+settingsPhoneRelayStatus:
+  message: "Status"
+  description: "Row title on the Phone Sync settings page for whether the storage relay works."
+settingsPhoneRelayWorking:
+  message: "Working"
+  description: "Status of the storage relay when its last exchange with the storage went through."
+settingsPhoneRelayChecking:
+  message: "Checking the storage…"
+  description: "Status of the storage relay before its first exchange with the storage has finished."
+settingsPhoneRelayNeedsStore:
+  message: "Set up a storage in Account & Upload first"
+  description: "Status of the storage relay when it is on but no object storage is set up."
+settingsPhoneRelayOffline:
+  message: "Paused while Offline mode is on"
+  description: "Status of the storage relay while Offline mode (Settings › Privacy) stops every network use."
+settingsPhoneRevokeStorage:
+  message: "Its messages in your storage are deleted. Links it already holds keep working for up to 7 days; to cut them off now, change the storage's access key in Account & Upload."
+  description: "Consequence of revoking a phone while the storage relay is on, in the confirmation's list."
 settingsPhoneRevokeConfirm:
   message: "Revoke This Phone"
   description: "Destructive button of the confirmation that revokes a paired phone."
@@ -6682,3 +6912,172 @@ filmsHeroKickerContinueOn:
   description: "Small heading over the hero's title when the film is one to continue and a paired phone left it there."
   placeholders:
     device: { type: "String", example: "iPhone 15" }
+settingsReview:
+  message: "Final Proofread"
+  description: "Heading of the Translation settings' group about reading the whole translation through again once a film is translated."
+settingsReviewOn:
+  message: "Read the whole film again after translating"
+  description: "Switch in Settings › Translation: once a film is translated, the AI service reads its whole translation through again and suggests changes."
+settingsReviewOnHint:
+  message: "Makes names, forms of address and terms the same throughout and smooths the wording. It changes only the machine's translation, never a line you edited."
+  description: "Line under the final proofread switch in Settings › Translation."
+settingsReviewAuto:
+  message: "Apply Automatically"
+  description: "Row in Settings › Translation choosing which changes of the final proofread take effect without asking."
+settingsReviewAutoHint:
+  message: "The rest wait for you under Proofread in the subtitle list."
+  description: "Line under the row choosing which final proofread changes apply automatically; Proofread is the subtitle list's chip."
+settingsReviewAutoConsistency:
+  message: "Consistency Only"
+  description: "Option: only the final proofread's changes that make names and terms consistent apply automatically."
+settingsReviewAutoAll:
+  message: "All"
+  description: "Option: every change of the final proofread applies automatically."
+settingsReviewAutoNone:
+  message: "Ask for All"
+  description: "Option: no change of the final proofread applies automatically; each waits for the user."
+reviewChip:
+  message: "Proofread"
+  description: "Chip over the subtitle list that shows the changes of the film's final proofread in place of the lines; its count follows it."
+reviewOff:
+  message: "The final proofread is off (Settings › Translation)."
+  description: "Head of the subtitle list's Proofread view while the final proofread is turned off in the settings."
+reviewHeadWaiting:
+  message: "{changes, plural, one {# change} other {# changes}} · {waiting} waiting for you"
+  description: "Head of the subtitle list's Proofread view: how many changes the final proofread made or suggested, and how many wait for the user."
+  placeholders:
+    changes: { type: "int", example: "12" }
+    waiting: { type: "int", example: "3" }
+reviewHeadDone:
+  message: "{changes, plural, one {# change} other {# changes}} · all decided"
+  description: "Head of the subtitle list's Proofread view once no change waits for the user."
+  placeholders:
+    changes: { type: "int", example: "12" }
+reviewAcceptAll:
+  message: "Accept All"
+  description: "Button accepting every change of the final proofread that waits for the user."
+reviewRollBack:
+  message: "Roll Back"
+  description: "Button taking back the whole final proofread: the changes that applied by themselves are undone and those waiting are turned down; those the user accepted stay."
+reviewNote:
+  message: "The final proofread changes only the machine's translation; lines you edited stay as you wrote them. Which changes apply by themselves is chosen in Settings › Translation."
+  description: "Note under the changes of the final proofread in the subtitle list."
+reviewKindConsistency:
+  message: "Consistency"
+  description: "Kind of a final proofread change that makes a name, form of address or term match the rest of the film."
+reviewKindFluency:
+  message: "Fluency"
+  description: "Kind of a final proofread change that makes a line read naturally."
+reviewKindMeaning:
+  message: "Meaning"
+  description: "Kind of a final proofread change that corrects what a line says."
+reviewStatusMine:
+  message: "You edited this line, so this change no longer applies"
+  description: "Where a final proofread change stands when the user corrected the line's translation themselves."
+reviewStatusApplied:
+  message: "Applied automatically"
+  description: "Where a final proofread change stands: it took effect by itself."
+reviewStatusPending:
+  message: "Waiting for you"
+  description: "Where a final proofread change stands: it waits for the user to accept or turn it down."
+reviewStatusAccepted:
+  message: "Accepted"
+  description: "Where a final proofread change stands: the user accepted it."
+reviewStatusRejected:
+  message: "Undone"
+  description: "Where a final proofread change stands: the user turned it down or rolled it back."
+reviewAccept:
+  message: "Accept"
+  description: "Button accepting one change of the final proofread."
+reviewReject:
+  message: "Don't Use"
+  description: "Button turning down one change of the final proofread."
+reviewUndo:
+  message: "Undo This"
+  description: "Button rolling back one change of the final proofread that took effect."
+reviewPlayLine:
+  message: "Play from {time}"
+  description: "Accessible name of the time of a final proofread change, which plays the film from its line."
+  placeholders:
+    time: { type: "String", example: "1:04.2" }
+reviewRolledBack:
+  message: "Final proofread rolled back (what you accepted stays)"
+  description: "Shown on the picture after the user rolled back the final proofread."
+reviewNewer:
+  message: "A newer version of Kando saved this film's proofread, so it can't be changed here"
+  description: "Shown on the picture when the final proofread's file was written by a newer Kando and cannot be changed."
+reviewSaveFailed:
+  message: "Couldn't save the final proofread"
+  description: "Shown on the picture when accepting or undoing a final proofread change could not be written to disk."
+filmsQueueReviewingLines:
+  message: "Final proofread · {lines} of {total} lines"
+  description: "Line under the title of a job reading its whole translation through again once translated: how many translated lines are done of how many."
+  placeholders:
+    lines: { type: "int", example: "100" }
+    total: { type: "int", example: "480" }
+queueStatusReviewing:
+  message: "Proofreading the translation…"
+  description: "Status of a job reading its whole translation through again once translated (the final proofread)."
+glossaryGuessTitle:
+  message: "These look like one series"
+  description: "Title of the card in the Terms tab asking whether films whose names look like episodes of one show are a series."
+glossaryGuessHint:
+  message: "Once confirmed, a term can be set to Series, and changing a name or term once changes it in every episode. This was guessed from the file names alone, so you're asked first."
+  description: "Explanation on the card asking whether films are one series; Series is the term scope."
+glossaryGuessYes:
+  message: "Same Series"
+  description: "Button confirming that the films the card names are one series."
+glossaryGuessNo:
+  message: "Not a Series"
+  description: "Button saying the films the card names are not a series; it is not asked again."
+glossarySeriesConfirmed:
+  message: "Made a series of {films, plural, one {# film} other {# films}}"
+  description: "Shown on the picture after the user confirmed that films are one series."
+  placeholders:
+    films: { type: "int", example: "4" }
+filmLayerSpeech:
+  message: "Original · Speech recognition"
+  description: "Layer of a film's subtitles in the player's progress badge: the original lines heard by speech recognition."
+filmLayerTranslation:
+  message: "Translation"
+  description: "Layer of a film's subtitles in the player's progress badge: the lines translated."
+filmLayerReview:
+  message: "Final proofread · Whole film"
+  description: "Layer of a film's subtitles in the player's progress badge: the final proofread reading the whole translation through."
+filmBadgeRunning:
+  message: "Subtitles {percent}% · translating"
+  description: "Accessible name and tooltip of the player's progress badge while the film's subtitles are being made."
+  placeholders:
+    percent: { type: "int", example: "40" }
+filmBadgeAttention:
+  message: "Subtitles {percent}% · {lines, plural, one {# line needs} other {# lines need}} attention"
+  description: "Accessible name and tooltip of the player's progress badge while a done film has lines left untranslated."
+  placeholders:
+    percent: { type: "int", example: "96" }
+    lines: { type: "int", example: "3" }
+filmBadgeSubtitles:
+  message: "Subtitles {percent}%"
+  description: "Head of the panel the player's progress badge opens: how much of the film is translated."
+  placeholders:
+    percent: { type: "int", example: "40" }
+filmBadgePercent:
+  message: "{percent}%"
+  description: "How much of a layer of the film's subtitles is made, in the progress badge's panel."
+  placeholders:
+    percent: { type: "int", example: "40" }
+filmBadgeUntranslated:
+  message: "{lines, plural, one {# line} other {# lines}} not translated"
+  description: "Summary in the progress badge's panel for a done film with lines left untranslated."
+  placeholders:
+    lines: { type: "int", example: "3" }
+filmBadgeUntranslatedNote:
+  message: "{lines, plural, one {# line wasn't} other {# lines weren't}} translated. Only these are translated again, not the whole film."
+  description: "Note in the progress badge's panel over the button that translates the lines left untranslated."
+  placeholders:
+    lines: { type: "int", example: "3" }
+filmBadgeTranslateMissing:
+  message: "Translate"
+  description: "Button in the progress badge's panel translating only the lines left untranslated."
+filmBadgeSettings:
+  message: "Settings…"
+  description: "Row of the progress badge's panel opening Settings › Translation."

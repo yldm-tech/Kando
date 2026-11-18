@@ -16,6 +16,8 @@ type Layer struct {
 	full *core.Signal[bool]
 	// cur is the player's state while it is built, nil before.
 	cur *core.Signal[*play]
+	// held is set while the film playing was opened held where it was left (PlayHeld): its player shows the recap of the part watched until it is played (newRecapper).
+	held bool
 }
 
 // miniRoom is how much of a tab page's foot the mini player covers: its bar and the gap under it.
@@ -39,8 +41,15 @@ func NewLayer(cx *core.Scope, s *session.Session) *Layer {
 }
 
 // Play shows the player of the film kept under key over the app: the one minimized when it plays that film, else a new one, which starts where the film was left.
-func (l *Layer) Play(key string) {
+func (l *Layer) Play(key string) { l.open(key, false) }
+
+// PlayHeld shows the player of the film kept under key over the app held where the film was left, with the recap of the part watched, as from the film's page; the one minimized when it plays that film shows as it is.
+func (l *Layer) PlayHeld(key string) { l.open(key, true) }
+
+// open shows the player of the film kept under key over the app, a new one opened held (held) unless it is the one minimized.
+func (l *Layer) open(key string, held bool) {
 	if l.key.GetUntracked() != key {
+		l.held = held
 		l.key.Set(key)
 	}
 	l.full.Set(true)

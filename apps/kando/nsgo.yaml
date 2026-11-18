@@ -23,6 +23,9 @@ file_types:
   - { name: Flash Video, extensions: [flv], id: com.adobe.flash.video, role: viewer, conforms: [public.movie] }
 # The NSIS installer adds Kando to these types' Open With, and the Linux desktop entry lists their MIME types.
 
+# Kando's own links: the bookmarklet of Settings › 通用 › 浏览器扩展 opens kando://add?url=… on a video's page (browserext.ReadLink). Only the macOS package registers them with the system.
+url_schemes: [kando]
+
 release: { github: yldm-tech/Kando }
 
 # The same Ed25519 key as Kando's MyGo builds verified their updates with: NSGO_UPDATES_KEY is the first 32 bytes, the seed, of the MYGO_UPDATER_PRIVATE_KEY secret's 64, which the Package workflow takes from it.

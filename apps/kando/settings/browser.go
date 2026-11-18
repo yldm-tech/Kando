@@ -3,6 +3,8 @@ package settings
 import (
 	"strings"
 
+	"kando/apps/kando/browserext"
+	"kando/apps/kando/desktop"
 	"kando/apps/kando/live"
 	"kando/apps/kando/locales"
 	"kando/apps/kando/settings/form"
@@ -83,15 +85,46 @@ func (b browserExt) Render(cx *core.Scope) core.Node {
 				a.ShowExtensionFolder()
 			}
 		})}}}
+	startAtOnce := form.SwitchRow{Title: locales.SettingsGeneralBrowserStartAtOnce(cx), Subtitle: locales.SettingsGeneralBrowserStartAtOnceHint(cx), TestID: "settings-browser-start-at-once",
+		On: live.Func(a, a.LinkStartAtOnce),
+		OnChange: live.On(a, func(on bool) {
+			a.SetLinkStartAtOnce(on)
+			a.Save()
+		})}
+	rows := []core.Node{browsers, form.Separator(true), folder}
+	// The bookmarklet opens a link of Kando's own scheme, which only the macOS package registers with the system (nsgo.yaml's url_schemes), so it is offered there alone.
+	// TODO(nsgo): register the app's url_schemes with Windows (HKCU\Software\Classes) and the Linux desktop entry (x-scheme-handler), and hand the running app the links a second launch is started with to desktop.OnOpenLinks, then offer the bookmarklet there too
+	if desktop.Platform(cx) == "macOS" {
+		rows = append(rows, form.Separator(true), bookmarklet(cx))
+	}
+	rows = append(rows, form.Separator(true), startAtOnce)
 	failed := core.Show{When: live.Func(a, func() bool { return a.BrowserExtension().Err != "" }), Then: func(cx *core.Scope) core.Node {
 		return core.Text{ContentFunc: live.Func(a, func() string { return a.BrowserExtension().Err }),
 			Style: core.Style{FontSize: 11, Padding: core.Edges{Top: 4, Right: 12, Left: 12}}, StyleFunc: ui.Colored(colors.Danger)}
 	}}
 	return core.Group([]core.Node{
 		form.Label(locales.SettingsGeneralBrowser(cx), 14),
-		form.Card(browsers, form.Separator(true), folder),
+		form.Card(rows...),
 		failed,
 	})
+}
+
+// bookmarklet is the 书签小工具 row: the bookmarklet works in any browser, without the extension, and 拷贝代码 puts its address on the clipboard, for a bookmark's address, reading 已拷贝 once it did.
+func bookmarklet(cx *core.Scope) core.Node {
+	copied := core.NewSignal(cx, false)
+	label := locales.SettingsGeneralBookmarkletCopy(cx)
+	return form.Row{Title: locales.SettingsGeneralBookmarklet(cx), Subtitle: locales.SettingsGeneralBookmarkletHint(cx), TestID: "settings-bookmarklet",
+		Trailing: []core.Node{form.Button{TestID: "settings-bookmarklet-copy", Label: label,
+			TextFunc: func() string {
+				if copied.Get() {
+					return locales.SettingsGeneralCLICopied(cx)
+				}
+				return label
+			},
+			OnPress: func() {
+				cx.SetClipboard(browserext.Bookmarklet())
+				copied.Set(true)
+			}}}}
 }
 
 // browserDetail is the line under 浏览器, in the language the app shows under cx: what the connection is for until the app has looked or while no browser is connected, to move Kando first while it runs from a place that goes away, that no browser was found, or which browsers are connected.

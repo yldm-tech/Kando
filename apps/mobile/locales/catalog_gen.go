@@ -461,98 +461,125 @@ func For(cx *core.Scope) Messages {
 // its method, for the TSX declarations of the messages
 // (tsx.RegisterMessages).
 var Parameters = map[string][]string{
-	"AddNoLinks":             {"name"},
-	"AddNote":                {"name"},
-	"AddNoteOffline":         {"name"},
-	"ComputersCertificate":   {"name"},
-	"ComputersOptions":       {"name"},
-	"ComputersUnpairTitle":   {"name"},
-	"ComputersUnpaired":      {"name"},
-	"ComputersUnreachable":   {"name"},
-	"FilmDeleteTitle":        {"title"},
-	"FilmDownloading":        {"percent"},
-	"FilmPaused":             {"percent"},
-	"FilmsCount":             {"count"},
-	"FilmsDownloadSize":      {"size"},
-	"FilmsHit":               {"time_", "line"},
-	"FilmsLeft":              {"time_"},
-	"FilmsLeftHere":          {"device"},
-	"FilmsLeftOn":            {"device", "time_"},
-	"FilmsLibrary":           {"name"},
-	"FilmsLibraryOn":         {"library", "computer"},
-	"FilmsNoResults":         {"query"},
-	"FilmsOptions":           {"title"},
-	"LearnDueIn":             {"count"},
-	"FilmsUsed":              {"size"},
-	"FilmsWatchedTo":         {"time_"},
-	"JobsActionFailed":       {"name"},
-	"JobsActive":             {"count"},
-	"JobsActiveFailed":       {"active", "failed"},
-	"JobsCancelTitle":        {"title", "name"},
-	"JobsCanceledTitle":      {"name"},
-	"JobsDoneBody":           {"title"},
-	"JobsDoneTitle":          {"name"},
-	"JobsFailedCount":        {"count"},
-	"JobsFilmGone":           {"name"},
-	"JobsFrom":               {"status", "device"},
-	"JobsLinksOff":           {"name"},
-	"JobsNotReady":           {"name", "message"},
-	"JobsPercent":            {"percent"},
-	"JobsRefused":            {"name", "message"},
-	"JobsRemedyDesktop":      {"name"},
-	"JobsRemedySetup":        {"name", "message"},
-	"JobsRemedyUpdate":       {"name"},
-	"JobsSent":               {"name"},
-	"JobsSentExisting":       {"name"},
-	"JobsSentPending":        {"name"},
-	"JobsStepPercent":        {"step", "percent"},
-	"JobsWaitingFor":         {"name"},
-	"LearnGoalLeft":          {"count"},
-	"LearnGoalOf":            {"count"},
-	"LearnItemOptions":       {"text"},
-	"LearnLineCount":         {"count"},
-	"LearnMinutes":           {"count"},
-	"LearnReminderBody":      {"count"},
-	"LearnReviewDue":         {"count"},
-	"LearnReviewDueDetail":   {"count"},
-	"LearnStreak":            {"count"},
-	"LearnWeekBars":          {"count"},
-	"LearnWordCount":         {"count"},
-	"OnboardingPaired":       {"name"},
-	"OnboardingStep":         {"step", "count"},
-	"PairErrUnreachable":     {"address"},
-	"PlayerAsking":           {"computer"},
-	"PlayerCardPlace":        {"index", "count", "time_"},
-	"PlayerDelayPill":        {"seconds"},
-	"PlayerDelayReset":       {"seconds"},
-	"PlayerDelaySeconds":     {"seconds"},
-	"PlayerExplainBy":        {"model", "computer"},
-	"PlayerInfoLengthValue":  {"time_", "count"},
-	"PlayerNoteFor":          {"index"},
-	"PlayerPart":             {"index", "from", "to"},
-	"PlayerSleepMinutes":     {"minutes"},
-	"PlayerSleepPillIn":      {"time_"},
-	"PlayerStudyFailed":      {"computer"},
-	"PlayerStudyNoAI":        {"computer"},
-	"PlayerStudyUnreachable": {"computer"},
-	"ReviewDoneAgain":        {"count"},
-	"ReviewDoneCount":        {"count"},
-	"ReviewFrom":             {"title"},
-	"ReviewProgress":         {"at", "total"},
-	"RevokedBody":            {"name"},
-	"RevokedPending":         {"count"},
-	"RevokedTitle":           {"name"},
-	"PlayerTabNotesCount":    {"count"},
-	"SettingsGoalValue":      {"count"},
-	"SettingsRemindDetail":   {"hour"},
-	"VocabRemoveTitle":       {"word"},
-	"PlayerMiniOpen":         {"title"},
-	"PlayerTabWordsCount":    {"count"},
-	"PlayerWordAddNamed":     {"word"},
-	"PlayerWordAdded":        {"word"},
-	"PlayerWordRemoveNamed":  {"word"},
-	"PlayerWordRemoved":      {"word"},
-	"PlayerWordTimes":        {"count"},
+	"AddAsComputer":                  {"name"},
+	"AddNoLinks":                     {"name"},
+	"AddNote":                        {"name"},
+	"AddNoteOffline":                 {"name"},
+	"AddNoteOfflineRelay":            {"name"},
+	"AddNoteRelay":                   {"name"},
+	"AddSubtitlesRecognizeNote":      {"name"},
+	"ComputersCertificate":           {"name"},
+	"ComputersOptions":               {"name"},
+	"ComputersUnpairTitle":           {"name"},
+	"ComputersUnpaired":              {"name"},
+	"ComputersUnreachable":           {"name"},
+	"FilmDeleteTitle":                {"title"},
+	"FilmDownloading":                {"percent"},
+	"FilmPaused":                     {"percent"},
+	"FilmsCount":                     {"count"},
+	"FilmsDownloadSize":              {"size"},
+	"FilmsHit":                       {"time_", "line"},
+	"FilmsLeft":                      {"time_"},
+	"FilmsLeftHere":                  {"device"},
+	"FilmsLeftOn":                    {"device", "time_"},
+	"FilmsLibrary":                   {"name"},
+	"FilmsLibraryOn":                 {"library", "computer"},
+	"FilmsNoResults":                 {"query"},
+	"FilmsOptions":                   {"title"},
+	"JobsBadgeLabel":                 {"count"},
+	"JobsReadOnly":                   {"name"},
+	"LearnDueIn":                     {"count"},
+	"FilmsUsed":                      {"size"},
+	"FilmsWatchedTo":                 {"time_"},
+	"JobsActionFailed":               {"name"},
+	"JobsActive":                     {"count"},
+	"JobsActiveFailed":               {"active", "failed"},
+	"JobsCancelTitle":                {"title", "name"},
+	"JobsCanceledTitle":              {"name"},
+	"JobsDoneBody":                   {"title"},
+	"JobsDoneTitle":                  {"name"},
+	"JobsFailedCount":                {"count"},
+	"JobsFilmGone":                   {"name"},
+	"JobsFrom":                       {"status", "device"},
+	"JobsLinksOff":                   {"name"},
+	"JobsNotReady":                   {"name", "message"},
+	"JobsInStorage":                  {"name"},
+	"JobsRelayed":                    {"summary"},
+	"JobsPercent":                    {"percent"},
+	"JobsRefused":                    {"name", "message"},
+	"JobsRemedyDesktop":              {"name"},
+	"JobsRemedySetup":                {"name", "message"},
+	"JobsRemedyUpdate":               {"name"},
+	"JobsSent":                       {"name"},
+	"JobsSentExisting":               {"name"},
+	"JobsSentPending":                {"name"},
+	"JobsStepPercent":                {"step", "percent"},
+	"JobsWaitingFor":                 {"name"},
+	"LearnGoalLeft":                  {"count"},
+	"LearnGoalOf":                    {"count"},
+	"LearnItemOptions":               {"text"},
+	"LearnLineCount":                 {"count"},
+	"LearnMinutes":                   {"count"},
+	"LearnReminderBody":              {"count"},
+	"LearnReviewDue":                 {"count"},
+	"LearnReviewDueDetail":           {"count"},
+	"LearnStreak":                    {"count"},
+	"LearnWeekBars":                  {"count"},
+	"LearnWordCount":                 {"count"},
+	"OnboardingPaired":               {"name"},
+	"OnboardingStep":                 {"step", "count"},
+	"PairErrUnreachable":             {"address"},
+	"PlayerAsking":                   {"computer"},
+	"PlayerCardPlace":                {"index", "count", "time_"},
+	"PlayerDelayPill":                {"seconds"},
+	"PlayerDelayReset":               {"seconds"},
+	"PlayerDelaySeconds":             {"seconds"},
+	"PlayerExplainBy":                {"model", "computer"},
+	"PlayerExplainVia":               {"model", "computer"},
+	"PlayerInfoLengthValue":          {"time_", "count"},
+	"PlayerNoteFor":                  {"index"},
+	"PlayerPart":                     {"index", "from", "to"},
+	"PlayerRecapBusy":                {"computer"},
+	"PlayerRecapContinue":            {"at"},
+	"PlayerRecapExcerptsFailed":      {"computer"},
+	"PlayerRecapExcerptsNoAI":        {"computer"},
+	"PlayerRecapExcerptsUnreachable": {"computer"},
+	"PlayerRecapJump":                {"at", "text"},
+	"PlayerRecapNote":                {"model"},
+	"PlayerRecapNoteOn":              {"model", "computer"},
+	"PlayerRecapStoppedAt":           {"at"},
+	"PlayerSleepMinutes":             {"minutes"},
+	"PlayerSleepPillIn":              {"time_"},
+	"PlayerStudyFailed":              {"computer"},
+	"PlayerStudyNoAI":                {"computer"},
+	"PlayerStudyUnreachable":         {"computer"},
+	"ReviewDoneAgain":                {"count"},
+	"ReviewDoneCount":                {"count"},
+	"ReviewFrom":                     {"title"},
+	"ReviewProgress":                 {"at", "total"},
+	"RevokedBody":                    {"name"},
+	"RevokedPending":                 {"count"},
+	"RevokedTitle":                   {"name"},
+	"PlayerTabNotesCount":            {"count"},
+	"SettingsConflictDate":           {"when"},
+	"SettingsConflictReadOnly":       {"computer"},
+	"SettingsConflictToday":          {"when"},
+	"SettingsConflictUnpaired":       {"computer"},
+	"SettingsConflictUnreachable":    {"computer"},
+	"SettingsConflictUseLabel":       {"device"},
+	"SettingsConflictWord":           {"word"},
+	"SettingsConflictYesterday":      {"when"},
+	"SettingsConflictsCount":         {"count"},
+	"SettingsGoalValue":              {"count"},
+	"SettingsRemindDetail":           {"hour"},
+	"VocabRemoveTitle":               {"word"},
+	"PlayerMiniOpen":                 {"title"},
+	"PlayerTabWordsCount":            {"count"},
+	"PlayerWordAddNamed":             {"word"},
+	"PlayerWordAdded":                {"word"},
+	"PlayerWordRemoveNamed":          {"word"},
+	"PlayerWordRemoved":              {"word"},
+	"PlayerWordTimes":                {"count"},
 }
 
 // Translation is a language's messages another package supplies:
@@ -560,99 +587,126 @@ var Parameters = map[string][]string{
 // of the others; a key or a field left out leaves the message to the
 // catalog.
 type Translation struct {
-	Texts                  map[string]string
-	AddNoLinks             func(name string) string
-	AddNote                func(name string) string
-	AddNoteOffline         func(name string) string
-	ComputersCertificate   func(name string) string
-	ComputersOptions       func(name string) string
-	ComputersUnpairTitle   func(name string) string
-	ComputersUnpaired      func(name string) string
-	ComputersUnreachable   func(name string) string
-	FilmDeleteTitle        func(title string) string
-	FilmDownloading        func(percent int) string
-	FilmPaused             func(percent int) string
-	FilmsCount             func(count int) string
-	FilmsDownloadSize      func(size string) string
-	FilmsHit               func(time_ string, line string) string
-	FilmsLeft              func(time_ string) string
-	FilmsLeftHere          func(device string) string
-	FilmsLeftOn            func(device string, time_ string) string
-	FilmsLibrary           func(name string) string
-	FilmsLibraryOn         func(library string, computer string) string
-	FilmsNoResults         func(query string) string
-	FilmsOptions           func(title string) string
-	LearnDueIn             func(count int) string
-	FilmsUsed              func(size string) string
-	FilmsWatchedTo         func(time_ string) string
-	JobsActionFailed       func(name string) string
-	JobsActive             func(count int) string
-	JobsActiveFailed       func(active int, failed int) string
-	JobsCancelTitle        func(title string, name string) string
-	JobsCanceledTitle      func(name string) string
-	JobsDoneBody           func(title string) string
-	JobsDoneTitle          func(name string) string
-	JobsFailedCount        func(count int) string
-	JobsFilmGone           func(name string) string
-	JobsFrom               func(status string, device string) string
-	JobsLinksOff           func(name string) string
-	JobsNotReady           func(name string, message string) string
-	JobsPercent            func(percent int) string
-	JobsRefused            func(name string, message string) string
-	JobsRemedyDesktop      func(name string) string
-	JobsRemedySetup        func(name string, message string) string
-	JobsRemedyUpdate       func(name string) string
-	JobsSent               func(name string) string
-	JobsSentExisting       func(name string) string
-	JobsSentPending        func(name string) string
-	JobsStepPercent        func(step string, percent int) string
-	JobsWaitingFor         func(name string) string
-	LearnGoalLeft          func(count int) string
-	LearnGoalOf            func(count int) string
-	LearnItemOptions       func(text string) string
-	LearnLineCount         func(count int) string
-	LearnMinutes           func(count int) string
-	LearnReminderBody      func(count int) string
-	LearnReviewDue         func(count int) string
-	LearnReviewDueDetail   func(count int) string
-	LearnStreak            func(count int) string
-	LearnWeekBars          func(count int) string
-	LearnWordCount         func(count int) string
-	OnboardingPaired       func(name string) string
-	OnboardingStep         func(step int, count int) string
-	PairErrUnreachable     func(address string) string
-	PlayerAsking           func(computer string) string
-	PlayerCardPlace        func(index int, count int, time_ string) string
-	PlayerDelayPill        func(seconds string) string
-	PlayerDelayReset       func(seconds string) string
-	PlayerDelaySeconds     func(seconds string) string
-	PlayerExplainBy        func(model string, computer string) string
-	PlayerInfoLengthValue  func(time_ string, count int) string
-	PlayerNoteFor          func(index int) string
-	PlayerPart             func(index int, from string, to string) string
-	PlayerSleepMinutes     func(minutes int) string
-	PlayerSleepPillIn      func(time_ string) string
-	PlayerStudyFailed      func(computer string) string
-	PlayerStudyNoAI        func(computer string) string
-	PlayerStudyUnreachable func(computer string) string
-	ReviewDoneAgain        func(count int) string
-	ReviewDoneCount        func(count int) string
-	ReviewFrom             func(title string) string
-	ReviewProgress         func(at int, total int) string
-	RevokedBody            func(name string) string
-	RevokedPending         func(count int) string
-	RevokedTitle           func(name string) string
-	PlayerTabNotesCount    func(count int) string
-	SettingsGoalValue      func(count int) string
-	SettingsRemindDetail   func(hour int) string
-	VocabRemoveTitle       func(word string) string
-	PlayerMiniOpen         func(title string) string
-	PlayerTabWordsCount    func(count int) string
-	PlayerWordAddNamed     func(word string) string
-	PlayerWordAdded        func(word string) string
-	PlayerWordRemoveNamed  func(word string) string
-	PlayerWordRemoved      func(word string) string
-	PlayerWordTimes        func(count int) string
+	Texts                          map[string]string
+	AddAsComputer                  func(name string) string
+	AddNoLinks                     func(name string) string
+	AddNote                        func(name string) string
+	AddNoteOffline                 func(name string) string
+	AddNoteOfflineRelay            func(name string) string
+	AddNoteRelay                   func(name string) string
+	AddSubtitlesRecognizeNote      func(name string) string
+	ComputersCertificate           func(name string) string
+	ComputersOptions               func(name string) string
+	ComputersUnpairTitle           func(name string) string
+	ComputersUnpaired              func(name string) string
+	ComputersUnreachable           func(name string) string
+	FilmDeleteTitle                func(title string) string
+	FilmDownloading                func(percent int) string
+	FilmPaused                     func(percent int) string
+	FilmsCount                     func(count int) string
+	FilmsDownloadSize              func(size string) string
+	FilmsHit                       func(time_ string, line string) string
+	FilmsLeft                      func(time_ string) string
+	FilmsLeftHere                  func(device string) string
+	FilmsLeftOn                    func(device string, time_ string) string
+	FilmsLibrary                   func(name string) string
+	FilmsLibraryOn                 func(library string, computer string) string
+	FilmsNoResults                 func(query string) string
+	FilmsOptions                   func(title string) string
+	JobsBadgeLabel                 func(count int) string
+	JobsReadOnly                   func(name string) string
+	LearnDueIn                     func(count int) string
+	FilmsUsed                      func(size string) string
+	FilmsWatchedTo                 func(time_ string) string
+	JobsActionFailed               func(name string) string
+	JobsActive                     func(count int) string
+	JobsActiveFailed               func(active int, failed int) string
+	JobsCancelTitle                func(title string, name string) string
+	JobsCanceledTitle              func(name string) string
+	JobsDoneBody                   func(title string) string
+	JobsDoneTitle                  func(name string) string
+	JobsFailedCount                func(count int) string
+	JobsFilmGone                   func(name string) string
+	JobsFrom                       func(status string, device string) string
+	JobsLinksOff                   func(name string) string
+	JobsNotReady                   func(name string, message string) string
+	JobsInStorage                  func(name string) string
+	JobsRelayed                    func(summary string) string
+	JobsPercent                    func(percent int) string
+	JobsRefused                    func(name string, message string) string
+	JobsRemedyDesktop              func(name string) string
+	JobsRemedySetup                func(name string, message string) string
+	JobsRemedyUpdate               func(name string) string
+	JobsSent                       func(name string) string
+	JobsSentExisting               func(name string) string
+	JobsSentPending                func(name string) string
+	JobsStepPercent                func(step string, percent int) string
+	JobsWaitingFor                 func(name string) string
+	LearnGoalLeft                  func(count int) string
+	LearnGoalOf                    func(count int) string
+	LearnItemOptions               func(text string) string
+	LearnLineCount                 func(count int) string
+	LearnMinutes                   func(count int) string
+	LearnReminderBody              func(count int) string
+	LearnReviewDue                 func(count int) string
+	LearnReviewDueDetail           func(count int) string
+	LearnStreak                    func(count int) string
+	LearnWeekBars                  func(count int) string
+	LearnWordCount                 func(count int) string
+	OnboardingPaired               func(name string) string
+	OnboardingStep                 func(step int, count int) string
+	PairErrUnreachable             func(address string) string
+	PlayerAsking                   func(computer string) string
+	PlayerCardPlace                func(index int, count int, time_ string) string
+	PlayerDelayPill                func(seconds string) string
+	PlayerDelayReset               func(seconds string) string
+	PlayerDelaySeconds             func(seconds string) string
+	PlayerExplainBy                func(model string, computer string) string
+	PlayerExplainVia               func(model string, computer string) string
+	PlayerInfoLengthValue          func(time_ string, count int) string
+	PlayerNoteFor                  func(index int) string
+	PlayerPart                     func(index int, from string, to string) string
+	PlayerRecapBusy                func(computer string) string
+	PlayerRecapContinue            func(at string) string
+	PlayerRecapExcerptsFailed      func(computer string) string
+	PlayerRecapExcerptsNoAI        func(computer string) string
+	PlayerRecapExcerptsUnreachable func(computer string) string
+	PlayerRecapJump                func(at string, text string) string
+	PlayerRecapNote                func(model string) string
+	PlayerRecapNoteOn              func(model string, computer string) string
+	PlayerRecapStoppedAt           func(at string) string
+	PlayerSleepMinutes             func(minutes int) string
+	PlayerSleepPillIn              func(time_ string) string
+	PlayerStudyFailed              func(computer string) string
+	PlayerStudyNoAI                func(computer string) string
+	PlayerStudyUnreachable         func(computer string) string
+	ReviewDoneAgain                func(count int) string
+	ReviewDoneCount                func(count int) string
+	ReviewFrom                     func(title string) string
+	ReviewProgress                 func(at int, total int) string
+	RevokedBody                    func(name string) string
+	RevokedPending                 func(count int) string
+	RevokedTitle                   func(name string) string
+	PlayerTabNotesCount            func(count int) string
+	SettingsConflictDate           func(hc string, when time.Time) string
+	SettingsConflictReadOnly       func(computer string) string
+	SettingsConflictToday          func(hc string, when time.Time) string
+	SettingsConflictUnpaired       func(computer string) string
+	SettingsConflictUnreachable    func(computer string) string
+	SettingsConflictUseLabel       func(device string) string
+	SettingsConflictWord           func(word string) string
+	SettingsConflictYesterday      func(hc string, when time.Time) string
+	SettingsConflictsCount         func(count int) string
+	SettingsGoalValue              func(count int) string
+	SettingsRemindDetail           func(hour int) string
+	VocabRemoveTitle               func(word string) string
+	PlayerMiniOpen                 func(title string) string
+	PlayerTabWordsCount            func(count int) string
+	PlayerWordAddNamed             func(word string) string
+	PlayerWordAdded                func(word string) string
+	PlayerWordRemoveNamed          func(word string) string
+	PlayerWordRemoved              func(word string) string
+	PlayerWordTimes                func(count int) string
 }
 
 var supplied = map[string]Translation{}
@@ -664,7 +718,14 @@ const (
 	textAddLinkPlaceholder
 	textAddNotALink
 	textAddPaste
+	textAddQuality
+	textAddQuality720
+	textAddQualityBest
 	textAddSend
+	textAddSubtitles
+	textAddSubtitlesPlatform
+	textAddSubtitlesPlatformNote
+	textAddSubtitlesRecognize
 	textAddTitle
 	textAppName
 	textCommonCancel
@@ -713,6 +774,7 @@ const (
 	textFilmsTitle
 	textFilmsUnpairedBody
 	textFilmsUnpairedTitle
+	textJobsEmpty
 	textLearnDueNow
 	textJobsCancel
 	textJobsCancelConfirm
@@ -746,6 +808,8 @@ const (
 	textJobsNotAVideo
 	textJobsOffline
 	textJobsOfflineSummary
+	textJobsOfflineRelay
+	textJobsViaStorage
 	textJobsOlder
 	textJobsOnline
 	textJobsOpen
@@ -829,7 +893,20 @@ const (
 	textPlayerDelayLater
 	textPlayerDelayNote
 	textPlayerExplain
+	textPlayerExplainAnswering
+	textPlayerExplainAsk
+	textPlayerExplainAskLabel
+	textPlayerExplainAskPlaceholder
+	textPlayerExplainBreakdown
+	textPlayerExplainMeaning
+	textPlayerExplainMore
+	textPlayerExplainOnlyBefore
+	textPlayerExplainRelated
+	textPlayerExplainSave
+	textPlayerExplainSaved
 	textPlayerExplainTitle
+	textPlayerExplainTone
+	textPlayerExplainTranslation
 	textPlayerFollow
 	textPlayerFollowHeld
 	textPlayerFollowNote
@@ -864,6 +941,9 @@ const (
 	textPlayerPlay
 	textPlayerPosition
 	textPlayerPrevLine
+	textPlayerRecapExcerptsUnpaired
+	textPlayerRecapStartOver
+	textPlayerRecapTitle
 	textPlayerReplay
 	textPlayerReplayLine
 	textPlayerSave
@@ -898,6 +978,21 @@ const (
 	textSessionDownloading
 	textSettingsAbout
 	textSettingsComputers
+	textSettingsConflictBoth
+	textSettingsConflictMeaning
+	textSettingsConflictNote
+	textSettingsConflictOriginal
+	textSettingsConflictOtherDevice
+	textSettingsConflictThisPhone
+	textSettingsConflictThisTablet
+	textSettingsConflictTranslation
+	textSettingsConflictUse
+	textSettingsConflicts
+	textSettingsConflictsDetail
+	textSettingsConflictsDone
+	textSettingsConflictsDoneDetail
+	textSettingsConflictsNone
+	textSettingsConflictsNote
 	textSettingsGoal
 	textSettingsIntroduction
 	textSettingsNoComputer
@@ -907,6 +1002,7 @@ const (
 	textSettingsSource
 	textSettingsSubtitleStyle
 	textSettingsSubtitles
+	textSettingsSync
 	textSettingsTarget
 	textSettingsTargetNote
 	textSettingsThisDevice
@@ -947,7 +1043,14 @@ var keyOfText = [numTexts]string{
 	"addLinkPlaceholder",
 	"addNotALink",
 	"addPaste",
+	"addQuality",
+	"addQuality720",
+	"addQualityBest",
 	"addSend",
+	"addSubtitles",
+	"addSubtitlesPlatform",
+	"addSubtitlesPlatformNote",
+	"addSubtitlesRecognize",
 	"addTitle",
 	"appName",
 	"commonCancel",
@@ -996,6 +1099,7 @@ var keyOfText = [numTexts]string{
 	"filmsTitle",
 	"filmsUnpairedBody",
 	"filmsUnpairedTitle",
+	"jobsEmpty",
 	"learnDueNow",
 	"jobsCancel",
 	"jobsCancelConfirm",
@@ -1029,6 +1133,8 @@ var keyOfText = [numTexts]string{
 	"jobsNotAVideo",
 	"jobsOffline",
 	"jobsOfflineSummary",
+	"jobsOfflineRelay",
+	"jobsViaStorage",
 	"jobsOlder",
 	"jobsOnline",
 	"jobsOpen",
@@ -1112,7 +1218,20 @@ var keyOfText = [numTexts]string{
 	"playerDelayLater",
 	"playerDelayNote",
 	"playerExplain",
+	"playerExplainAnswering",
+	"playerExplainAsk",
+	"playerExplainAskLabel",
+	"playerExplainAskPlaceholder",
+	"playerExplainBreakdown",
+	"playerExplainMeaning",
+	"playerExplainMore",
+	"playerExplainOnlyBefore",
+	"playerExplainRelated",
+	"playerExplainSave",
+	"playerExplainSaved",
 	"playerExplainTitle",
+	"playerExplainTone",
+	"playerExplainTranslation",
 	"playerFollow",
 	"playerFollowHeld",
 	"playerFollowNote",
@@ -1147,6 +1266,9 @@ var keyOfText = [numTexts]string{
 	"playerPlay",
 	"playerPosition",
 	"playerPrevLine",
+	"playerRecapExcerptsUnpaired",
+	"playerRecapStartOver",
+	"playerRecapTitle",
 	"playerReplay",
 	"playerReplayLine",
 	"playerSave",
@@ -1181,6 +1303,21 @@ var keyOfText = [numTexts]string{
 	"sessionDownloading",
 	"settingsAbout",
 	"settingsComputers",
+	"settingsConflictBoth",
+	"settingsConflictMeaning",
+	"settingsConflictNote",
+	"settingsConflictOriginal",
+	"settingsConflictOtherDevice",
+	"settingsConflictThisPhone",
+	"settingsConflictThisTablet",
+	"settingsConflictTranslation",
+	"settingsConflictUse",
+	"settingsConflicts",
+	"settingsConflictsDetail",
+	"settingsConflictsDone",
+	"settingsConflictsDoneDetail",
+	"settingsConflictsNone",
+	"settingsConflictsNote",
 	"settingsGoal",
 	"settingsIntroduction",
 	"settingsNoComputer",
@@ -1190,6 +1327,7 @@ var keyOfText = [numTexts]string{
 	"settingsSource",
 	"settingsSubtitleStyle",
 	"settingsSubtitles",
+	"settingsSync",
 	"settingsTarget",
 	"settingsTargetNote",
 	"settingsThisDevice",
@@ -1228,7 +1366,14 @@ var textsEn = i18n.NewTexts(""+
 	"Paste a YouTube, Bilibili or other link"+
 	"This isn't a link to a video on the web."+
 	"Paste"+
+	"Quality"+
+	"720p"+
+	"Best"+
 	"Send"+
+	"Original Subtitles"+
+	"The Uploader's Subtitles"+
+	"Most accurate when someone wrote them. The lines that match the speech are translated as they are."+
+	"Recognized on the Computer"+
 	"Add Video"+
 	"Kando"+
 	"Cancel"+
@@ -1277,6 +1422,7 @@ var textsEn = i18n.NewTexts(""+
 	"Library"+
 	"Downloading, transcription and translation all happen in Kando on your computer. Once connected, its libraries show up here."+
 	"Not connected to a computer yet"+
+	"No jobs. Tap + to send a video's link."+
 	"Due for review"+
 	"Cancel Job"+
 	"Cancel Job"+
@@ -1310,6 +1456,8 @@ var textsEn = i18n.NewTexts(""+
 	"The computer couldn't read this link as a video."+
 	"Offline"+
 	"Offline. Links you send wait on this phone and go once it's back."+
+	"Offline. Links you send wait in your storage and start once it's back."+
+	"Via storage"+
 	"Kando on this computer is too old to take links. Update it."+
 	"Online"+
 	"Open"+
@@ -1393,7 +1541,20 @@ var textsEn = i18n.NewTexts(""+
 	"Later"+
 	"Lines ahead of the voice? Move them later; behind it, earlier. For this film only."+
 	"Explain"+
+	"Answering…"+
+	"Ask"+
+	"Ask About This Line"+
+	"Ask about this line…"+
+	"Breakdown"+
+	"Meaning"+
+	"More: Tone and Related Expressions"+
+	"From this line and the ones before it only"+
+	"Related Expressions"+
+	"Save Line to Notes"+
+	"In Notes · it will come up in review"+
 	"Explain This Line"+
+	"Tone"+
+	"About the Translation"+
 	"Shadowing"+
 	"Say it, then play"+
 	"Holds after each line so you can say it, then plays on when you play it."+
@@ -1428,6 +1589,9 @@ var textsEn = i18n.NewTexts(""+
 	"Play"+
 	"Position"+
 	"Previous Line"+
+	"Lines you watched, not summed up: this film's computer is no longer paired"+
+	"Start Over"+
+	"Previously"+
 	"Replay"+
 	"Replay Line"+
 	"Save"+
@@ -1462,6 +1626,21 @@ var textsEn = i18n.NewTexts(""+
 	"Downloading films"+
 	"About"+
 	"Computers"+
+	"Keep Both"+
+	"Meaning"+
+	"Note"+
+	"Line"+
+	"Another Device"+
+	"This Phone"+
+	"This Tablet"+
+	"Translation"+
+	"Use This"+
+	"Sync Conflicts"+
+	"Two devices changed the same thing. Keep one."+
+	"No Conflicts Left"+
+	"Everything matches on all devices."+
+	"None"+
+	"When two devices change the same translated line or the same note, choose which to keep here. Words, saved lines and progress merge on their own."+
 	"Daily Goal"+
 	"Show the Introduction Again"+
 	"Not connected"+
@@ -1471,6 +1650,7 @@ var textsEn = i18n.NewTexts(""+
 	"Source Code"+
 	"Subtitle Style"+
 	"Subtitles"+
+	"Sync"+
 	"Translate Into"+
 	"Subtitles are translated into this language, by this device and by the computers it's connected to, which take your choice."+
 	"This Device"+
@@ -1506,7 +1686,14 @@ var textsEn = i18n.NewTexts(""+
 		39,
 		40,
 		5,
+		7,
 		4,
+		4,
+		4,
+		18,
+		24,
+		98,
+		26,
 		9,
 		5,
 		6,
@@ -1555,6 +1742,7 @@ var textsEn = i18n.NewTexts(""+
 		7,
 		124,
 		31,
+		38,
 		14,
 		10,
 		10,
@@ -1588,6 +1776,8 @@ var textsEn = i18n.NewTexts(""+
 		48,
 		7,
 		65,
+		70,
+		11,
 		59,
 		6,
 		4,
@@ -1671,7 +1861,20 @@ var textsEn = i18n.NewTexts(""+
 		5,
 		82,
 		7,
+		12,
+		3,
+		19,
+		22,
+		9,
+		7,
+		34,
+		42,
+		19,
+		18,
+		37,
 		17,
+		4,
+		21,
 		9,
 		17,
 		72,
@@ -1706,6 +1909,9 @@ var textsEn = i18n.NewTexts(""+
 		4,
 		8,
 		13,
+		74,
+		10,
+		10,
 		6,
 		11,
 		4,
@@ -1740,6 +1946,21 @@ var textsEn = i18n.NewTexts(""+
 		17,
 		5,
 		9,
+		9,
+		7,
+		4,
+		4,
+		14,
+		10,
+		11,
+		11,
+		8,
+		14,
+		45,
+		17,
+		34,
+		4,
+		145,
 		10,
 		27,
 		13,
@@ -1749,6 +1970,7 @@ var textsEn = i18n.NewTexts(""+
 		11,
 		14,
 		9,
+		4,
 		14,
 		123,
 		11,
@@ -1787,7 +2009,14 @@ var textsJa = i18n.NewTexts(""+
 	"YouTube や bilibili などのリンクを貼り付け"+
 	"Web 上の動画のリンクではありません。"+
 	"貼り付け"+
+	"画質"+
+	"720p"+
+	"最高画質"+
 	"送信"+
+	"元の字幕"+
+	"投稿者の字幕"+
+	"人が付けた字幕があれば最も正確です。音声と合う行はそのまま翻訳します。"+
+	"パソコンで認識"+
 	"動画を追加"+
 	"Kando"+
 	"キャンセル"+
@@ -1836,6 +2065,7 @@ var textsJa = i18n.NewTexts(""+
 	"ライブラリ"+
 	"ダウンロード、文字起こし、翻訳はすべてコンピュータの Kando が行います。接続すると、コンピュータのライブラリがここに表示されます。"+
 	"まだコンピュータに接続していません"+
+	"ジョブはありません。+ をタップして動画のリンクを送信します。"+
 	"復習の時期"+
 	"ジョブをキャンセル"+
 	"キャンセルする"+
@@ -1869,6 +2099,8 @@ var textsJa = i18n.NewTexts(""+
 	"パソコンはこのリンクを動画として読み取れませんでした。"+
 	"オフライン"+
 	"オフラインです。送ったリンクはこのスマートフォンで待機し、オンラインになると送信されます。"+
+	"オフラインです。送ったリンクはストレージで待機し、オンラインになると開始されます。"+
+	"ストレージ経由"+
 	"このパソコンの Kando は古いため、リンクを受け取れません。アップデートしてください。"+
 	"オンライン"+
 	"開く"+
@@ -1952,7 +2184,20 @@ var textsJa = i18n.NewTexts(""+
 	"遅らせる"+
 	"字幕が声より早ければ遅らせ、遅ければ早めます。この映像だけに適用されます。"+
 	"解説"+
+	"回答しています…"+
+	"質問"+
+	"この行について質問"+
+	"この行について質問…"+
+	"語句"+
+	"意味"+
+	"続き：語調と関連表現"+
+	"この行とそれ以前の内容だけに基づく"+
+	"関連表現"+
+	"この行をノートに保存"+
+	"ノートにあります · 復習に出ます"+
 	"この文を解説"+
+	"語調"+
+	"この訳について"+
 	"シャドーイング"+
 	"声に出してから再生"+
 	"1 文ごとに一時停止します。声に出してから再生してください。"+
@@ -1987,6 +2232,9 @@ var textsJa = i18n.NewTexts(""+
 	"再生"+
 	"再生位置"+
 	"前のセリフ"+
+	"見たセリフの抜粋 · この映像のコンピュータとのペアリングが解除されたため要約していません"+
+	"最初から見る"+
+	"これまでのあらすじ"+
 	"もう一度"+
 	"この文をもう一度"+
 	"保存"+
@@ -2021,6 +2269,21 @@ var textsJa = i18n.NewTexts(""+
 	"動画をダウンロード中"+
 	"このアプリについて"+
 	"コンピュータ"+
+	"両方残す"+
+	"意味"+
+	"メモ"+
+	"原文"+
+	"ほかの端末"+
+	"このスマートフォン"+
+	"このタブレット"+
+	"訳文"+
+	"これを使う"+
+	"同期の競合"+
+	"2 台の端末が同じ箇所を変更しました。どちらかを残してください。"+
+	"競合はありません"+
+	"すべての端末で内容が一致しています。"+
+	"なし"+
+	"2 台の端末が同じ訳文や同じメモを変更したときは、ここで残す方を選びます。単語、保存した文、進み具合は自動でまとめられます。"+
 	"1 日の目標"+
 	"紹介をもう一度見る"+
 	"未接続"+
@@ -2030,6 +2293,7 @@ var textsJa = i18n.NewTexts(""+
 	"ソースコード"+
 	"字幕のスタイル"+
 	"字幕"+
+	"同期"+
 	"翻訳先の言語"+
 	"字幕はこの言語に翻訳されます。変更すると、接続しているコンピュータもこの言語で翻訳します。"+
 	"この端末"+
@@ -2066,6 +2330,13 @@ var textsJa = i18n.NewTexts(""+
 		52,
 		12,
 		6,
+		4,
+		12,
+		6,
+		12,
+		18,
+		105,
+		21,
 		15,
 		5,
 		15,
@@ -2114,6 +2385,7 @@ var textsJa = i18n.NewTexts(""+
 		15,
 		190,
 		51,
+		89,
 		15,
 		27,
 		21,
@@ -2147,6 +2419,8 @@ var textsJa = i18n.NewTexts(""+
 		81,
 		15,
 		135,
+		123,
+		21,
 		121,
 		15,
 		6,
@@ -2230,7 +2504,20 @@ var textsJa = i18n.NewTexts(""+
 		12,
 		111,
 		6,
+		24,
+		6,
+		27,
+		30,
+		6,
+		6,
+		30,
+		51,
+		12,
+		30,
+		46,
 		18,
+		6,
+		21,
 		21,
 		27,
 		86,
@@ -2265,6 +2552,9 @@ var textsJa = i18n.NewTexts(""+
 		6,
 		12,
 		15,
+		130,
+		18,
+		27,
 		12,
 		24,
 		6,
@@ -2299,6 +2589,21 @@ var textsJa = i18n.NewTexts(""+
 		30,
 		27,
 		18,
+		12,
+		6,
+		6,
+		6,
+		15,
+		27,
+		21,
+		6,
+		15,
+		15,
+		92,
+		24,
+		54,
+		6,
+		182,
 		14,
 		27,
 		9,
@@ -2307,6 +2612,7 @@ var textsJa = i18n.NewTexts(""+
 		24,
 		18,
 		21,
+		6,
 		6,
 		18,
 		135,
@@ -2346,7 +2652,14 @@ var textsKo = i18n.NewTexts(""+
 	"YouTube, bilibili 등의 링크 붙여넣기"+
 	"웹 동영상 링크가 아닙니다."+
 	"붙여넣기"+
+	"화질"+
+	"720p"+
+	"최고 화질"+
 	"보내기"+
+	"원문 자막"+
+	"업로더 자막"+
+	"사람이 만든 자막이 있으면 가장 정확합니다. 음성과 맞는 줄은 그대로 번역합니다."+
+	"컴퓨터에서 인식"+
 	"동영상 추가"+
 	"Kando"+
 	"취소"+
@@ -2395,6 +2708,7 @@ var textsKo = i18n.NewTexts(""+
 	"보관함"+
 	"다운로드, 받아쓰기, 번역은 모두 컴퓨터의 Kando에서 이루어집니다. 연결하면 컴퓨터의 보관함이 여기에 표시됩니다."+
 	"아직 컴퓨터에 연결하지 않았습니다"+
+	"작업이 없습니다. +를 눌러 동영상 링크를 보내세요."+
 	"복습할 차례"+
 	"작업 취소"+
 	"작업 취소"+
@@ -2428,6 +2742,8 @@ var textsKo = i18n.NewTexts(""+
 	"컴퓨터가 이 링크를 동영상으로 인식하지 못했습니다."+
 	"오프라인"+
 	"오프라인입니다. 보낸 링크는 이 휴대폰에서 기다렸다가 다시 연결되면 보내집니다."+
+	"오프라인입니다. 보낸 링크는 스토리지에서 기다렸다가 다시 연결되면 시작됩니다."+
+	"스토리지 경유"+
 	"이 컴퓨터의 Kando가 오래되어 링크를 받을 수 없습니다. 업데이트하세요."+
 	"온라인"+
 	"열기"+
@@ -2511,7 +2827,20 @@ var textsKo = i18n.NewTexts(""+
 	"늦추기"+
 	"자막이 소리보다 빠르면 늦추고, 느리면 앞당기세요. 이 영상에만 적용됩니다."+
 	"설명"+
+	"답변하는 중…"+
+	"질문"+
+	"이 대사에 대해 질문"+
+	"이 대사에 대해 질문…"+
+	"어구 풀이"+
+	"의미"+
+	"더 보기: 어조와 관련 표현"+
+	"이 대사와 그 앞의 내용만 근거로 함"+
+	"관련 표현"+
+	"이 대사를 노트에 저장"+
+	"노트에 있음 · 복습에 나옵니다"+
 	"이 문장 설명"+
+	"어조"+
+	"이 번역에 대해"+
 	"섀도잉"+
 	"따라 말한 뒤 재생"+
 	"문장마다 멈춥니다. 따라 말한 뒤 다시 재생하세요."+
@@ -2546,6 +2875,9 @@ var textsKo = i18n.NewTexts(""+
 	"재생"+
 	"재생 위치"+
 	"이전 대사"+
+	"본 대사 발췌 · 이 영상의 컴퓨터와 더 이상 페어링되어 있지 않아 요약하지 않았습니다"+
+	"처음부터 보기"+
+	"지난 이야기"+
 	"다시 듣기"+
 	"이 문장 다시 듣기"+
 	"저장"+
@@ -2580,6 +2912,21 @@ var textsKo = i18n.NewTexts(""+
 	"영상 다운로드 중"+
 	"정보"+
 	"컴퓨터"+
+	"둘 다 남기기"+
+	"뜻"+
+	"메모"+
+	"원문"+
+	"다른 기기"+
+	"이 휴대폰"+
+	"이 태블릿"+
+	"번역"+
+	"이것 사용"+
+	"동기화 충돌"+
+	"두 기기가 같은 곳을 바꿨습니다. 하나를 남기세요."+
+	"남은 충돌 없음"+
+	"모든 기기의 내용이 같습니다."+
+	"없음"+
+	"두 기기가 같은 번역이나 같은 메모를 바꾸면 여기서 남길 쪽을 고르세요. 단어, 저장한 문장, 진행 상황은 자동으로 합쳐집니다."+
 	"하루 목표"+
 	"소개 다시 보기"+
 	"연결 안 됨"+
@@ -2589,6 +2936,7 @@ var textsKo = i18n.NewTexts(""+
 	"소스 코드"+
 	"자막 스타일"+
 	"자막"+
+	"동기화"+
 	"번역할 언어"+
 	"자막은 이 언어로 번역돼요. 바꾸면 연결된 컴퓨터도 이 언어로 번역해요."+
 	"이 기기"+
@@ -2624,7 +2972,14 @@ var textsKo = i18n.NewTexts(""+
 		44,
 		37,
 		12,
+		6,
+		4,
+		13,
 		9,
+		13,
+		16,
+		111,
+		22,
 		16,
 		5,
 		6,
@@ -2673,6 +3028,7 @@ var textsKo = i18n.NewTexts(""+
 		9,
 		155,
 		48,
+		69,
 		16,
 		13,
 		13,
@@ -2706,6 +3062,8 @@ var textsKo = i18n.NewTexts(""+
 		72,
 		12,
 		112,
+		111,
+		19,
 		96,
 		9,
 		6,
@@ -2789,7 +3147,20 @@ var textsKo = i18n.NewTexts(""+
 		9,
 		104,
 		6,
+		19,
+		6,
+		27,
+		30,
+		13,
+		6,
+		35,
+		48,
+		13,
+		30,
+		42,
 		17,
+		6,
+		20,
 		9,
 		24,
 		68,
@@ -2824,6 +3195,9 @@ var textsKo = i18n.NewTexts(""+
 		6,
 		13,
 		13,
+		117,
+		19,
+		16,
 		13,
 		24,
 		6,
@@ -2858,6 +3232,21 @@ var textsKo = i18n.NewTexts(""+
 		23,
 		6,
 		9,
+		17,
+		3,
+		6,
+		6,
+		13,
+		13,
+		13,
+		6,
+		13,
+		16,
+		68,
+		20,
+		40,
+		6,
+		171,
 		13,
 		20,
 		14,
@@ -2867,6 +3256,7 @@ var textsKo = i18n.NewTexts(""+
 		13,
 		16,
 		6,
+		9,
 		16,
 		98,
 		10,
@@ -2905,7 +3295,14 @@ var textsZhHans = i18n.NewTexts(""+
 	"粘贴 YouTube、哔哩哔哩等链接"+
 	"这不是网上视频的链接。"+
 	"粘贴"+
+	"画质"+
+	"720p"+
+	"最高画质"+
 	"发送"+
+	"原文字幕"+
+	"用上传者的字幕"+
+	"有人工字幕时最准，和原声对得上的句子直接拿来翻译。"+
+	"电脑识别"+
 	"添加视频"+
 	"看懂"+
 	"取消"+
@@ -2954,6 +3351,7 @@ var textsZhHans = i18n.NewTexts(""+
 	"片库"+
 	"下载、识别、翻译都在电脑上的看懂里完成。连上以后，电脑上的片库会出现在这里。"+
 	"还没连上电脑"+
+	"没有任务。点 + 把视频链接发给电脑。"+
 	"待复习"+
 	"取消任务"+
 	"取消任务"+
@@ -2987,6 +3385,8 @@ var textsZhHans = i18n.NewTexts(""+
 	"电脑认不出这是视频链接。"+
 	"离线"+
 	"电脑离线。新链接先排在这台手机上，电脑上线后自动处理。"+
+	"电脑离线。新链接先存在你的存储里，电脑上线后自动开始。"+
+	"经存储"+
 	"这台电脑上的看懂版本太旧，不能接收链接。请更新它。"+
 	"在线"+
 	"打开"+
@@ -3070,7 +3470,20 @@ var textsZhHans = i18n.NewTexts(""+
 	"推后"+
 	"字幕比声音早就往后调，晚就往前调。只对这部片生效。"+
 	"解释"+
+	"正在回答…"+
+	"追问"+
+	"追问这句"+
+	"追问这句…"+
+	"拆解"+
+	"意思"+
+	"展开：语气、相关表达"+
+	"只依据这句和之前的内容"+
+	"相关表达"+
+	"存这句到笔记"+
+	"已在笔记里 · 会进入复习"+
 	"解释这一句"+
+	"语气"+
+	"关于这句译文"+
 	"跟读模式"+
 	"跟读：读一遍，再点播放"+
 	"每句播完自动暂停，读一遍再继续。"+
@@ -3105,6 +3518,9 @@ var textsZhHans = i18n.NewTexts(""+
 	"播放"+
 	"播放位置"+
 	"上一句"+
+	"摘自你看过的台词 · 这部影片的电脑已不再配对，未作总结"+
+	"从头看"+
+	"前情提要"+
 	"重听"+
 	"重听这句"+
 	"收藏"+
@@ -3139,6 +3555,21 @@ var textsZhHans = i18n.NewTexts(""+
 	"正在下载影片"+
 	"关于"+
 	"电脑"+
+	"两条都留"+
+	"释义"+
+	"笔记"+
+	"原文"+
+	"其他设备"+
+	"这台手机"+
+	"这台平板"+
+	"译文"+
+	"用这个"+
+	"同步冲突"+
+	"两台设备改了同一处，留下一个。"+
+	"没有冲突了"+
+	"所有设备上的内容都一致。"+
+	"无"+
+	"两台设备改了同一句译文或同一条笔记时，在这里选择保留哪一个。单词、收藏的句子和进度会自动合并。"+
 	"每日目标"+
 	"重新查看引导"+
 	"未连接电脑"+
@@ -3148,6 +3579,7 @@ var textsZhHans = i18n.NewTexts(""+
 	"源代码"+
 	"字幕样式"+
 	"字幕"+
+	"同步"+
 	"翻译成"+
 	"字幕会翻译成这种语言。改了以后，连着的电脑也会按它翻译。"+
 	"这台设备"+
@@ -3184,6 +3616,13 @@ var textsZhHans = i18n.NewTexts(""+
 		33,
 		6,
 		6,
+		4,
+		12,
+		6,
+		12,
+		21,
+		75,
+		12,
 		12,
 		6,
 		6,
@@ -3232,6 +3671,7 @@ var textsZhHans = i18n.NewTexts(""+
 		6,
 		114,
 		18,
+		51,
 		9,
 		12,
 		12,
@@ -3265,6 +3705,8 @@ var textsZhHans = i18n.NewTexts(""+
 		36,
 		6,
 		81,
+		81,
+		9,
 		75,
 		6,
 		6,
@@ -3349,6 +3791,19 @@ var textsZhHans = i18n.NewTexts(""+
 		75,
 		6,
 		15,
+		6,
+		12,
+		15,
+		6,
+		6,
+		30,
+		33,
+		12,
+		18,
+		34,
+		15,
+		6,
+		18,
 		12,
 		33,
 		48,
@@ -3383,6 +3838,9 @@ var textsZhHans = i18n.NewTexts(""+
 		6,
 		12,
 		9,
+		79,
+		9,
+		12,
 		6,
 		12,
 		6,
@@ -3418,6 +3876,21 @@ var textsZhHans = i18n.NewTexts(""+
 		6,
 		6,
 		12,
+		6,
+		6,
+		6,
+		12,
+		12,
+		12,
+		6,
+		9,
+		12,
+		45,
+		15,
+		36,
+		3,
+		141,
+		12,
 		18,
 		15,
 		12,
@@ -3425,6 +3898,7 @@ var textsZhHans = i18n.NewTexts(""+
 		12,
 		9,
 		12,
+		6,
 		6,
 		9,
 		84,
@@ -3464,7 +3938,14 @@ var textsZhHant = i18n.NewTexts(""+
 	"貼上 YouTube、嗶哩嗶哩等連結"+
 	"這不是網路影片的連結。"+
 	"貼上"+
+	"畫質"+
+	"720p"+
+	"最高畫質"+
 	"傳送"+
+	"原文字幕"+
+	"用上傳者的字幕"+
+	"有人工字幕時最準，和原聲對得上的句子直接拿來翻譯。"+
+	"電腦辨識"+
 	"新增影片"+
 	"看懂"+
 	"取消"+
@@ -3513,6 +3994,7 @@ var textsZhHant = i18n.NewTexts(""+
 	"片庫"+
 	"下載、辨識、翻譯都在電腦上的看懂裡完成。連上以後，電腦上的片庫會出現在這裡。"+
 	"還沒連上電腦"+
+	"沒有任務。點 + 把影片連結傳給電腦。"+
 	"待複習"+
 	"取消任務"+
 	"取消任務"+
@@ -3546,6 +4028,8 @@ var textsZhHant = i18n.NewTexts(""+
 	"電腦認不出這是影片連結。"+
 	"離線"+
 	"電腦離線。新連結先排在這支手機上，電腦上線後自動處理。"+
+	"電腦離線。新連結先存在你的儲存空間裡，電腦上線後自動開始。"+
+	"經儲存空間"+
 	"這台電腦上的看懂版本太舊，無法接收連結。請更新它。"+
 	"線上"+
 	"打開"+
@@ -3629,7 +4113,20 @@ var textsZhHant = i18n.NewTexts(""+
 	"延後"+
 	"字幕比聲音早就往後調，晚就往前調。只對這部片生效。"+
 	"解釋"+
+	"正在回答…"+
+	"追問"+
+	"追問這句"+
+	"追問這句…"+
+	"拆解"+
+	"意思"+
+	"展開：語氣、相關表達"+
+	"只依據這句和之前的內容"+
+	"相關表達"+
+	"存這句到筆記"+
+	"已在筆記裡 · 會進入複習"+
 	"解釋這一句"+
+	"語氣"+
+	"關於這句譯文"+
 	"跟讀模式"+
 	"跟讀：讀一遍，再點播放"+
 	"每句播完自動暫停，讀一遍再繼續。"+
@@ -3664,6 +4161,9 @@ var textsZhHant = i18n.NewTexts(""+
 	"播放"+
 	"播放位置"+
 	"上一句"+
+	"摘自你看過的台詞 · 這部影片的電腦已不再配對，未作總結"+
+	"從頭看"+
+	"前情提要"+
 	"重聽"+
 	"重聽這句"+
 	"收藏"+
@@ -3698,6 +4198,21 @@ var textsZhHant = i18n.NewTexts(""+
 	"正在下載影片"+
 	"關於"+
 	"電腦"+
+	"兩條都留"+
+	"釋義"+
+	"筆記"+
+	"原文"+
+	"其他裝置"+
+	"這台手機"+
+	"這台平板"+
+	"譯文"+
+	"用這個"+
+	"同步衝突"+
+	"兩台裝置改了同一處，留下一個。"+
+	"沒有衝突了"+
+	"所有裝置上的內容都一致。"+
+	"無"+
+	"兩台裝置改了同一句譯文或同一則筆記時，在這裡選擇保留哪一個。單字、收藏的句子和進度會自動合併。"+
 	"每日目標"+
 	"重新查看引導"+
 	"未連接電腦"+
@@ -3707,6 +4222,7 @@ var textsZhHant = i18n.NewTexts(""+
 	"原始碼"+
 	"字幕樣式"+
 	"字幕"+
+	"同步"+
 	"翻譯成"+
 	"字幕會翻譯成這種語言。改了以後，連著的電腦也會按它翻譯。"+
 	"這台裝置"+
@@ -3743,6 +4259,13 @@ var textsZhHant = i18n.NewTexts(""+
 		33,
 		6,
 		6,
+		4,
+		12,
+		6,
+		12,
+		21,
+		75,
+		12,
 		12,
 		6,
 		6,
@@ -3791,6 +4314,7 @@ var textsZhHant = i18n.NewTexts(""+
 		6,
 		114,
 		18,
+		51,
 		9,
 		12,
 		12,
@@ -3824,6 +4348,8 @@ var textsZhHant = i18n.NewTexts(""+
 		36,
 		6,
 		81,
+		87,
+		15,
 		75,
 		6,
 		6,
@@ -3908,6 +4434,19 @@ var textsZhHant = i18n.NewTexts(""+
 		75,
 		6,
 		15,
+		6,
+		12,
+		15,
+		6,
+		6,
+		30,
+		33,
+		12,
+		18,
+		34,
+		15,
+		6,
+		18,
 		12,
 		33,
 		48,
@@ -3942,6 +4481,9 @@ var textsZhHant = i18n.NewTexts(""+
 		6,
 		12,
 		9,
+		79,
+		9,
+		12,
 		6,
 		12,
 		6,
@@ -3977,6 +4519,21 @@ var textsZhHant = i18n.NewTexts(""+
 		6,
 		6,
 		12,
+		6,
+		6,
+		6,
+		12,
+		12,
+		12,
+		6,
+		9,
+		12,
+		45,
+		15,
+		36,
+		3,
+		141,
+		12,
 		18,
 		15,
 		12,
@@ -3984,6 +4541,7 @@ var textsZhHant = i18n.NewTexts(""+
 		12,
 		9,
 		12,
+		6,
 		6,
 		9,
 		84,
@@ -4076,6 +4634,9 @@ func Supply(lang string, t Translation) {
 		}
 	}
 	s := supplied[lang]
+	if t.AddAsComputer != nil {
+		s.AddAsComputer = t.AddAsComputer
+	}
 	if t.AddNoLinks != nil {
 		s.AddNoLinks = t.AddNoLinks
 	}
@@ -4084,6 +4645,15 @@ func Supply(lang string, t Translation) {
 	}
 	if t.AddNoteOffline != nil {
 		s.AddNoteOffline = t.AddNoteOffline
+	}
+	if t.AddNoteOfflineRelay != nil {
+		s.AddNoteOfflineRelay = t.AddNoteOfflineRelay
+	}
+	if t.AddNoteRelay != nil {
+		s.AddNoteRelay = t.AddNoteRelay
+	}
+	if t.AddSubtitlesRecognizeNote != nil {
+		s.AddSubtitlesRecognizeNote = t.AddSubtitlesRecognizeNote
 	}
 	if t.ComputersCertificate != nil {
 		s.ComputersCertificate = t.ComputersCertificate
@@ -4139,6 +4709,12 @@ func Supply(lang string, t Translation) {
 	if t.FilmsOptions != nil {
 		s.FilmsOptions = t.FilmsOptions
 	}
+	if t.JobsBadgeLabel != nil {
+		s.JobsBadgeLabel = t.JobsBadgeLabel
+	}
+	if t.JobsReadOnly != nil {
+		s.JobsReadOnly = t.JobsReadOnly
+	}
 	if t.LearnDueIn != nil {
 		s.LearnDueIn = t.LearnDueIn
 	}
@@ -4183,6 +4759,12 @@ func Supply(lang string, t Translation) {
 	}
 	if t.JobsNotReady != nil {
 		s.JobsNotReady = t.JobsNotReady
+	}
+	if t.JobsInStorage != nil {
+		s.JobsInStorage = t.JobsInStorage
+	}
+	if t.JobsRelayed != nil {
+		s.JobsRelayed = t.JobsRelayed
 	}
 	if t.JobsPercent != nil {
 		s.JobsPercent = t.JobsPercent
@@ -4274,6 +4856,9 @@ func Supply(lang string, t Translation) {
 	if t.PlayerExplainBy != nil {
 		s.PlayerExplainBy = t.PlayerExplainBy
 	}
+	if t.PlayerExplainVia != nil {
+		s.PlayerExplainVia = t.PlayerExplainVia
+	}
 	if t.PlayerInfoLengthValue != nil {
 		s.PlayerInfoLengthValue = t.PlayerInfoLengthValue
 	}
@@ -4282,6 +4867,33 @@ func Supply(lang string, t Translation) {
 	}
 	if t.PlayerPart != nil {
 		s.PlayerPart = t.PlayerPart
+	}
+	if t.PlayerRecapBusy != nil {
+		s.PlayerRecapBusy = t.PlayerRecapBusy
+	}
+	if t.PlayerRecapContinue != nil {
+		s.PlayerRecapContinue = t.PlayerRecapContinue
+	}
+	if t.PlayerRecapExcerptsFailed != nil {
+		s.PlayerRecapExcerptsFailed = t.PlayerRecapExcerptsFailed
+	}
+	if t.PlayerRecapExcerptsNoAI != nil {
+		s.PlayerRecapExcerptsNoAI = t.PlayerRecapExcerptsNoAI
+	}
+	if t.PlayerRecapExcerptsUnreachable != nil {
+		s.PlayerRecapExcerptsUnreachable = t.PlayerRecapExcerptsUnreachable
+	}
+	if t.PlayerRecapJump != nil {
+		s.PlayerRecapJump = t.PlayerRecapJump
+	}
+	if t.PlayerRecapNote != nil {
+		s.PlayerRecapNote = t.PlayerRecapNote
+	}
+	if t.PlayerRecapNoteOn != nil {
+		s.PlayerRecapNoteOn = t.PlayerRecapNoteOn
+	}
+	if t.PlayerRecapStoppedAt != nil {
+		s.PlayerRecapStoppedAt = t.PlayerRecapStoppedAt
 	}
 	if t.PlayerSleepMinutes != nil {
 		s.PlayerSleepMinutes = t.PlayerSleepMinutes
@@ -4321,6 +4933,33 @@ func Supply(lang string, t Translation) {
 	}
 	if t.PlayerTabNotesCount != nil {
 		s.PlayerTabNotesCount = t.PlayerTabNotesCount
+	}
+	if t.SettingsConflictDate != nil {
+		s.SettingsConflictDate = t.SettingsConflictDate
+	}
+	if t.SettingsConflictReadOnly != nil {
+		s.SettingsConflictReadOnly = t.SettingsConflictReadOnly
+	}
+	if t.SettingsConflictToday != nil {
+		s.SettingsConflictToday = t.SettingsConflictToday
+	}
+	if t.SettingsConflictUnpaired != nil {
+		s.SettingsConflictUnpaired = t.SettingsConflictUnpaired
+	}
+	if t.SettingsConflictUnreachable != nil {
+		s.SettingsConflictUnreachable = t.SettingsConflictUnreachable
+	}
+	if t.SettingsConflictUseLabel != nil {
+		s.SettingsConflictUseLabel = t.SettingsConflictUseLabel
+	}
+	if t.SettingsConflictWord != nil {
+		s.SettingsConflictWord = t.SettingsConflictWord
+	}
+	if t.SettingsConflictYesterday != nil {
+		s.SettingsConflictYesterday = t.SettingsConflictYesterday
+	}
+	if t.SettingsConflictsCount != nil {
+		s.SettingsConflictsCount = t.SettingsConflictsCount
 	}
 	if t.SettingsGoalValue != nil {
 		s.SettingsGoalValue = t.SettingsGoalValue
@@ -4363,6 +5002,36 @@ func (msgs Messages) arg(s string) string {
 		return i18n.Arg(s)
 	}
 	return s
+}
+
+// AddAsComputer says "As on {name}"
+// in the language the app shows under cx.
+//
+// Add sheet: the choice that leaves the quality, or where the original subtitles come from, to the computer's own setting.
+func AddAsComputer(cx *core.Scope, name string) string { return For(cx).AddAsComputer(name) }
+
+// AddAsComputer is the package's AddAsComputer in the language of msgs.
+func (msgs Messages) AddAsComputer(name string) string {
+	if i18n.IsPseudo(msgs.lang) {
+		return i18n.Pseudo(msgs.lang, Messages{lang: Source, mark: true}.AddAsComputer(name))
+	}
+	for lang := msgs.lang; ; lang = i18n.Parent(lang) {
+		if f := supplied[lang].AddAsComputer; f != nil {
+			return f(name)
+		}
+		switch lang {
+		case "", "en":
+			return "As on " + msgs.arg(name)
+		case "ja":
+			return name + " の設定どおり"
+		case "ko":
+			return name + " 설정대로"
+		case "zh-Hans":
+			return "按 " + name + " 的设置"
+		case "zh-Hant":
+			return "依 " + name + " 的設定"
+		}
+	}
 }
 
 // AddComputer says "Send To"
@@ -4491,6 +5160,68 @@ func (msgs Messages) AddNoteOffline(name string) string {
 	}
 }
 
+// AddNoteOfflineRelay says "{name} is offline. The link waits in your storage and starts once it's back."
+// in the language the app shows under cx.
+//
+// Add sheet: under the form while the computer is reached through the user's storage away from its network, but has not written there lately.
+func AddNoteOfflineRelay(cx *core.Scope, name string) string {
+	return For(cx).AddNoteOfflineRelay(name)
+}
+
+// AddNoteOfflineRelay is the package's AddNoteOfflineRelay in the language of msgs.
+func (msgs Messages) AddNoteOfflineRelay(name string) string {
+	if i18n.IsPseudo(msgs.lang) {
+		return i18n.Pseudo(msgs.lang, Messages{lang: Source, mark: true}.AddNoteOfflineRelay(name))
+	}
+	for lang := msgs.lang; ; lang = i18n.Parent(lang) {
+		if f := supplied[lang].AddNoteOfflineRelay; f != nil {
+			return f(name)
+		}
+		switch lang {
+		case "", "en":
+			return msgs.arg(name) + " is offline. The link waits in your storage and starts once it's back."
+		case "ja":
+			return name + " はオフラインです。リンクはストレージで待機し、オンラインになると開始されます。"
+		case "ko":
+			return name + "이(가) 오프라인입니다. 링크는 스토리지에서 기다렸다가 다시 연결되면 시작됩니다."
+		case "zh-Hans":
+			return name + " 离线。链接先存在你的存储里，电脑上线后自动开始。"
+		case "zh-Hant":
+			return name + " 離線。連結先存在你的儲存空間裡，電腦上線後自動開始。"
+		}
+	}
+}
+
+// AddNoteRelay says "Away from its network, the link goes through your storage. {name} takes it within a minute or two."
+// in the language the app shows under cx.
+//
+// Add sheet: under the form while the computer is reached through the user's storage away from its network.
+func AddNoteRelay(cx *core.Scope, name string) string { return For(cx).AddNoteRelay(name) }
+
+// AddNoteRelay is the package's AddNoteRelay in the language of msgs.
+func (msgs Messages) AddNoteRelay(name string) string {
+	if i18n.IsPseudo(msgs.lang) {
+		return i18n.Pseudo(msgs.lang, Messages{lang: Source, mark: true}.AddNoteRelay(name))
+	}
+	for lang := msgs.lang; ; lang = i18n.Parent(lang) {
+		if f := supplied[lang].AddNoteRelay; f != nil {
+			return f(name)
+		}
+		switch lang {
+		case "", "en":
+			return "Away from its network, the link goes through your storage. " + msgs.arg(name) + " takes it within a minute or two."
+		case "ja":
+			return "同じネットワークにいないので、リンクはストレージ経由で " + name + " に届きます。1〜2 分ほどで処理が始まります。"
+		case "ko":
+			return "같은 네트워크에 없어 링크가 스토리지를 거쳐 " + name + "에 전달됩니다. 1~2분 안에 처리가 시작됩니다."
+		case "zh-Hans":
+			return "不在同一网络，链接经你的存储送到 " + name + "，几十秒到几分钟后开始处理。"
+		case "zh-Hant":
+			return "不在同一網路，連結經你的儲存空間送到 " + name + "，幾十秒到幾分鐘後開始處理。"
+		}
+	}
+}
+
 // AddPaste says "Paste"
 // in the language the app shows under cx.
 //
@@ -4500,6 +5231,33 @@ func AddPaste(cx *core.Scope) string { return For(cx).AddPaste() }
 // AddPaste is the package's AddPaste in the language of msgs.
 func (msgs Messages) AddPaste() string { return msgs.text(textAddPaste) }
 
+// AddQuality says "Quality"
+// in the language the app shows under cx.
+//
+// Add sheet: label over the choices of the picture the computer downloads.
+func AddQuality(cx *core.Scope) string { return For(cx).AddQuality() }
+
+// AddQuality is the package's AddQuality in the language of msgs.
+func (msgs Messages) AddQuality() string { return msgs.text(textAddQuality) }
+
+// AddQuality720 says "720p"
+// in the language the app shows under cx.
+//
+// Add sheet: the computer downloads the best picture no taller than 720 lines.
+func AddQuality720(cx *core.Scope) string { return For(cx).AddQuality720() }
+
+// AddQuality720 is the package's AddQuality720 in the language of msgs.
+func (msgs Messages) AddQuality720() string { return msgs.text(textAddQuality720) }
+
+// AddQualityBest says "Best"
+// in the language the app shows under cx.
+//
+// Add sheet: the computer downloads the best picture the site has.
+func AddQualityBest(cx *core.Scope) string { return For(cx).AddQualityBest() }
+
+// AddQualityBest is the package's AddQualityBest in the language of msgs.
+func (msgs Messages) AddQualityBest() string { return msgs.text(textAddQualityBest) }
+
 // AddSend says "Send"
 // in the language the app shows under cx.
 //
@@ -4508,6 +5266,76 @@ func AddSend(cx *core.Scope) string { return For(cx).AddSend() }
 
 // AddSend is the package's AddSend in the language of msgs.
 func (msgs Messages) AddSend() string { return msgs.text(textAddSend) }
+
+// AddSubtitles says "Original Subtitles"
+// in the language the app shows under cx.
+//
+// Add sheet: label over the choices of where the video's original lines come from.
+func AddSubtitles(cx *core.Scope) string { return For(cx).AddSubtitles() }
+
+// AddSubtitles is the package's AddSubtitles in the language of msgs.
+func (msgs Messages) AddSubtitles() string { return msgs.text(textAddSubtitles) }
+
+// AddSubtitlesPlatform says "The Uploader's Subtitles"
+// in the language the app shows under cx.
+//
+// Add sheet: the original lines are the subtitles the uploader put on the site, where they match the speech.
+func AddSubtitlesPlatform(cx *core.Scope) string { return For(cx).AddSubtitlesPlatform() }
+
+// AddSubtitlesPlatform is the package's AddSubtitlesPlatform in the language of msgs.
+func (msgs Messages) AddSubtitlesPlatform() string { return msgs.text(textAddSubtitlesPlatform) }
+
+// AddSubtitlesPlatformNote says "Most accurate when someone wrote them. The lines that match the speech are translated as they are."
+// in the language the app shows under cx.
+//
+// Add sheet: under The Uploader's Subtitles.
+func AddSubtitlesPlatformNote(cx *core.Scope) string { return For(cx).AddSubtitlesPlatformNote() }
+
+// AddSubtitlesPlatformNote is the package's AddSubtitlesPlatformNote in the language of msgs.
+func (msgs Messages) AddSubtitlesPlatformNote() string {
+	return msgs.text(textAddSubtitlesPlatformNote)
+}
+
+// AddSubtitlesRecognize says "Recognized on the Computer"
+// in the language the app shows under cx.
+//
+// Add sheet: the original lines are what the computer's speech recognition hears.
+func AddSubtitlesRecognize(cx *core.Scope) string { return For(cx).AddSubtitlesRecognize() }
+
+// AddSubtitlesRecognize is the package's AddSubtitlesRecognize in the language of msgs.
+func (msgs Messages) AddSubtitlesRecognize() string { return msgs.text(textAddSubtitlesRecognize) }
+
+// AddSubtitlesRecognizeNote says "Whisper on {name} transcribes the speech."
+// in the language the app shows under cx.
+//
+// Add sheet: under Recognized on the Computer.
+func AddSubtitlesRecognizeNote(cx *core.Scope, name string) string {
+	return For(cx).AddSubtitlesRecognizeNote(name)
+}
+
+// AddSubtitlesRecognizeNote is the package's AddSubtitlesRecognizeNote in the language of msgs.
+func (msgs Messages) AddSubtitlesRecognizeNote(name string) string {
+	if i18n.IsPseudo(msgs.lang) {
+		return i18n.Pseudo(msgs.lang, Messages{lang: Source, mark: true}.AddSubtitlesRecognizeNote(name))
+	}
+	for lang := msgs.lang; ; lang = i18n.Parent(lang) {
+		if f := supplied[lang].AddSubtitlesRecognizeNote; f != nil {
+			return f(name)
+		}
+		switch lang {
+		case "", "en":
+			return "Whisper on " + msgs.arg(name) + " transcribes the speech."
+		case "ja":
+			return name + " の whisper が音声を書き起こします。"
+		case "ko":
+			return name + "의 whisper가 음성을 받아씁니다."
+		case "zh-Hans":
+			return name + " 上的 whisper 听写原声。"
+		case "zh-Hant":
+			return name + " 上的 whisper 聽寫原聲。"
+		}
+	}
+}
 
 // AddTitle says "Add Video"
 // in the language the app shows under cx.
@@ -5525,6 +6353,75 @@ func FilmsUnpairedTitle(cx *core.Scope) string { return For(cx).FilmsUnpairedTit
 // FilmsUnpairedTitle is the package's FilmsUnpairedTitle in the language of msgs.
 func (msgs Messages) FilmsUnpairedTitle() string { return msgs.text(textFilmsUnpairedTitle) }
 
+// JobsBadgeLabel says "Jobs, {count} unfinished"
+// in the language the app shows under cx.
+//
+// Spoken name of the Jobs button and section while jobs run, wait or failed, or links wait to be sent.
+func JobsBadgeLabel(cx *core.Scope, count int) string { return For(cx).JobsBadgeLabel(count) }
+
+// JobsBadgeLabel is the package's JobsBadgeLabel in the language of msgs.
+func (msgs Messages) JobsBadgeLabel(count int) string {
+	if i18n.IsPseudo(msgs.lang) {
+		return i18n.Pseudo(msgs.lang, Messages{lang: Source, mark: true}.JobsBadgeLabel(count))
+	}
+	for lang := msgs.lang; ; lang = i18n.Parent(lang) {
+		if f := supplied[lang].JobsBadgeLabel; f != nil {
+			return f(count)
+		}
+		switch lang {
+		case "", "en":
+			return "Jobs, " + msgs.arg(i18n.FormatNumber("en", float64(count))) + " unfinished"
+		case "ja":
+			return "ジョブ、未完了 " + i18n.FormatNumber("ja", float64(count)) + " 件"
+		case "ko":
+			return "작업, 완료되지 않음 " + i18n.FormatNumber("ko", float64(count)) + "개"
+		case "zh-Hans":
+			return "任务，" + i18n.FormatNumber("zh-Hans", float64(count)) + " 个未完成"
+		case "zh-Hant":
+			return "任務，" + i18n.FormatNumber("zh-Hant", float64(count)) + " 個未完成"
+		}
+	}
+}
+
+// JobsEmpty says "No jobs. Tap + to send a video's link."
+// in the language the app shows under cx.
+//
+// Jobs page, under a computer's card when it has no jobs and no links wait for it.
+func JobsEmpty(cx *core.Scope) string { return For(cx).JobsEmpty() }
+
+// JobsEmpty is the package's JobsEmpty in the language of msgs.
+func (msgs Messages) JobsEmpty() string { return msgs.text(textJobsEmpty) }
+
+// JobsReadOnly says "{name} made this phone read-only: it shows the jobs but can't send links or change them. Turn off Read-only for this phone in the computer's Settings › Phone Sync."
+// in the language the app shows under cx.
+//
+// Jobs page and Add sheet: the computer's user made this phone read-only; also why a link was refused.
+func JobsReadOnly(cx *core.Scope, name string) string { return For(cx).JobsReadOnly(name) }
+
+// JobsReadOnly is the package's JobsReadOnly in the language of msgs.
+func (msgs Messages) JobsReadOnly(name string) string {
+	if i18n.IsPseudo(msgs.lang) {
+		return i18n.Pseudo(msgs.lang, Messages{lang: Source, mark: true}.JobsReadOnly(name))
+	}
+	for lang := msgs.lang; ; lang = i18n.Parent(lang) {
+		if f := supplied[lang].JobsReadOnly; f != nil {
+			return f(name)
+		}
+		switch lang {
+		case "", "en":
+			return msgs.arg(name) + " made this phone read-only: it shows the jobs but can't send links or change them. Turn off Read-only for this phone in the computer's Settings › Phone Sync."
+		case "ja":
+			return name + " はこのスマートフォンを読み取り専用にしています。ジョブは見られますが、リンクの送信や変更はできません。パソコンの「設定 › スマートフォン同期」でこの端末の「読み取り専用」をオフにしてください。"
+		case "ko":
+			return name + "에서 이 휴대폰을 읽기 전용으로 설정했습니다. 작업은 볼 수 있지만 링크를 보내거나 바꿀 수 없습니다. 컴퓨터의 ‘설정 › 휴대폰 동기화’에서 이 휴대폰의 ‘읽기 전용’을 끄세요."
+		case "zh-Hans":
+			return name + " 把这台手机设成了只读：能看任务，不能发链接或改任务。到电脑的「设置 › 手机同步」里关掉这台手机的「只读」。"
+		case "zh-Hant":
+			return name + " 把這支手機設成了唯讀：能看任務，不能傳連結或更改任務。到電腦的「設定 › 手機同步」裡關掉這支手機的「唯讀」。"
+		}
+	}
+}
+
 // LearnDueIn says "{count, plural, one {Due in # day} other {Due in # days}}"
 // in the language the app shows under cx.
 //
@@ -6322,6 +7219,84 @@ func JobsOfflineSummary(cx *core.Scope) string { return For(cx).JobsOfflineSumma
 
 // JobsOfflineSummary is the package's JobsOfflineSummary in the language of msgs.
 func (msgs Messages) JobsOfflineSummary() string { return msgs.text(textJobsOfflineSummary) }
+
+// JobsOfflineRelay says "Offline. Links you send wait in your storage and start once it's back."
+// in the language the app shows under cx.
+//
+// Jobs page, a computer's card while it is reached through the user's storage away from its network but has not written there lately.
+func JobsOfflineRelay(cx *core.Scope) string { return For(cx).JobsOfflineRelay() }
+
+// JobsOfflineRelay is the package's JobsOfflineRelay in the language of msgs.
+func (msgs Messages) JobsOfflineRelay() string { return msgs.text(textJobsOfflineRelay) }
+
+// JobsInStorage says "In your storage, waiting for {name}"
+// in the language the app shows under cx.
+//
+// Where a link stands once it was left in the user's storage for the computer to take, away from its network.
+func JobsInStorage(cx *core.Scope, name string) string { return For(cx).JobsInStorage(name) }
+
+// JobsInStorage is the package's JobsInStorage in the language of msgs.
+func (msgs Messages) JobsInStorage(name string) string {
+	if i18n.IsPseudo(msgs.lang) {
+		return i18n.Pseudo(msgs.lang, Messages{lang: Source, mark: true}.JobsInStorage(name))
+	}
+	for lang := msgs.lang; ; lang = i18n.Parent(lang) {
+		if f := supplied[lang].JobsInStorage; f != nil {
+			return f(name)
+		}
+		switch lang {
+		case "", "en":
+			return "In your storage, waiting for " + msgs.arg(name)
+		case "ja":
+			return "ストレージに保存済み。" + name + " を待っています"
+		case "ko":
+			return "스토리지에 저장됨, " + name + " 대기 중"
+		case "zh-Hans":
+			return "已存进你的存储，等 " + name + " 处理"
+		case "zh-Hant":
+			return "已存進你的儲存空間，等 " + name + " 處理"
+		}
+	}
+}
+
+// JobsRelayed says "{summary} · through your storage"
+// in the language the app shows under cx.
+//
+// Jobs page, a computer's card while it is reached through the user's storage away from its network: what its queue does, then how it is reached.
+func JobsRelayed(cx *core.Scope, summary string) string { return For(cx).JobsRelayed(summary) }
+
+// JobsRelayed is the package's JobsRelayed in the language of msgs.
+func (msgs Messages) JobsRelayed(summary string) string {
+	if i18n.IsPseudo(msgs.lang) {
+		return i18n.Pseudo(msgs.lang, Messages{lang: Source, mark: true}.JobsRelayed(summary))
+	}
+	for lang := msgs.lang; ; lang = i18n.Parent(lang) {
+		if f := supplied[lang].JobsRelayed; f != nil {
+			return f(summary)
+		}
+		switch lang {
+		case "", "en":
+			return msgs.arg(summary) + " · through your storage"
+		case "ja":
+			return summary + " · ストレージ経由"
+		case "ko":
+			return summary + " · 스토리지 경유"
+		case "zh-Hans":
+			return summary + " · 经你的存储"
+		case "zh-Hant":
+			return summary + " · 經你的儲存空間"
+		}
+	}
+}
+
+// JobsViaStorage says "Via storage"
+// in the language the app shows under cx.
+//
+// Jobs page, a computer's card: it answers through the user's storage, away from its network.
+func JobsViaStorage(cx *core.Scope) string { return For(cx).JobsViaStorage() }
+
+// JobsViaStorage is the package's JobsViaStorage in the language of msgs.
+func (msgs Messages) JobsViaStorage() string { return msgs.text(textJobsViaStorage) }
 
 // JobsOlder says "Kando on this computer is too old to take links. Update it."
 // in the language the app shows under cx.
@@ -8021,10 +8996,57 @@ func PlayerExplain(cx *core.Scope) string { return For(cx).PlayerExplain() }
 // PlayerExplain is the package's PlayerExplain in the language of msgs.
 func (msgs Messages) PlayerExplain() string { return msgs.text(textPlayerExplain) }
 
+// PlayerExplainAnswering says "Answering…"
+// in the language the app shows under cx.
+//
+// Under a follow-up question about the line explained while the computer's AI service answers it.
+func PlayerExplainAnswering(cx *core.Scope) string { return For(cx).PlayerExplainAnswering() }
+
+// PlayerExplainAnswering is the package's PlayerExplainAnswering in the language of msgs.
+func (msgs Messages) PlayerExplainAnswering() string { return msgs.text(textPlayerExplainAnswering) }
+
+// PlayerExplainAsk says "Ask"
+// in the language the app shows under cx.
+//
+// Button beside the follow-up field of the explanation sheet: asks the question typed.
+func PlayerExplainAsk(cx *core.Scope) string { return For(cx).PlayerExplainAsk() }
+
+// PlayerExplainAsk is the package's PlayerExplainAsk in the language of msgs.
+func (msgs Messages) PlayerExplainAsk() string { return msgs.text(textPlayerExplainAsk) }
+
+// PlayerExplainAskLabel says "Ask About This Line"
+// in the language the app shows under cx.
+//
+// Spoken name of the follow-up field of the explanation sheet.
+func PlayerExplainAskLabel(cx *core.Scope) string { return For(cx).PlayerExplainAskLabel() }
+
+// PlayerExplainAskLabel is the package's PlayerExplainAskLabel in the language of msgs.
+func (msgs Messages) PlayerExplainAskLabel() string { return msgs.text(textPlayerExplainAskLabel) }
+
+// PlayerExplainAskPlaceholder says "Ask about this line…"
+// in the language the app shows under cx.
+//
+// Placeholder of the follow-up field of the explanation sheet.
+func PlayerExplainAskPlaceholder(cx *core.Scope) string { return For(cx).PlayerExplainAskPlaceholder() }
+
+// PlayerExplainAskPlaceholder is the package's PlayerExplainAskPlaceholder in the language of msgs.
+func (msgs Messages) PlayerExplainAskPlaceholder() string {
+	return msgs.text(textPlayerExplainAskPlaceholder)
+}
+
+// PlayerExplainBreakdown says "Breakdown"
+// in the language the app shows under cx.
+//
+// Heading of the explanation's section that takes the line's words and phrases one by one.
+func PlayerExplainBreakdown(cx *core.Scope) string { return For(cx).PlayerExplainBreakdown() }
+
+// PlayerExplainBreakdown is the package's PlayerExplainBreakdown in the language of msgs.
+func (msgs Messages) PlayerExplainBreakdown() string { return msgs.text(textPlayerExplainBreakdown) }
+
 // PlayerExplainBy says "{model} on {computer}"
 // in the language the app shows under cx.
 //
-// Under the explanation's title: which model, on which computer, wrote it.
+// Under the explanation's title when the model runs on the computer itself: which model, on which computer, wrote it.
 func PlayerExplainBy(cx *core.Scope, model string, computer string) string {
 	return For(cx).PlayerExplainBy(model, computer)
 }
@@ -8053,6 +9075,60 @@ func (msgs Messages) PlayerExplainBy(model string, computer string) string {
 	}
 }
 
+// PlayerExplainMeaning says "Meaning"
+// in the language the app shows under cx.
+//
+// Heading of the explanation's section that says what the line means.
+func PlayerExplainMeaning(cx *core.Scope) string { return For(cx).PlayerExplainMeaning() }
+
+// PlayerExplainMeaning is the package's PlayerExplainMeaning in the language of msgs.
+func (msgs Messages) PlayerExplainMeaning() string { return msgs.text(textPlayerExplainMeaning) }
+
+// PlayerExplainMore says "More: Tone and Related Expressions"
+// in the language the app shows under cx.
+//
+// Button under the explanation that shows its tone and related expressions too.
+func PlayerExplainMore(cx *core.Scope) string { return For(cx).PlayerExplainMore() }
+
+// PlayerExplainMore is the package's PlayerExplainMore in the language of msgs.
+func (msgs Messages) PlayerExplainMore() string { return msgs.text(textPlayerExplainMore) }
+
+// PlayerExplainOnlyBefore says "From this line and the ones before it only"
+// in the language the app shows under cx.
+//
+// Footnote of the explanation: the computer's AI service is given no line after the one explained, so it gives nothing away.
+func PlayerExplainOnlyBefore(cx *core.Scope) string { return For(cx).PlayerExplainOnlyBefore() }
+
+// PlayerExplainOnlyBefore is the package's PlayerExplainOnlyBefore in the language of msgs.
+func (msgs Messages) PlayerExplainOnlyBefore() string { return msgs.text(textPlayerExplainOnlyBefore) }
+
+// PlayerExplainRelated says "Related Expressions"
+// in the language the app shows under cx.
+//
+// Heading of the explanation's section of related expressions, shown after More.
+func PlayerExplainRelated(cx *core.Scope) string { return For(cx).PlayerExplainRelated() }
+
+// PlayerExplainRelated is the package's PlayerExplainRelated in the language of msgs.
+func (msgs Messages) PlayerExplainRelated() string { return msgs.text(textPlayerExplainRelated) }
+
+// PlayerExplainSave says "Save Line to Notes"
+// in the language the app shows under cx.
+//
+// Button of the explanation sheet: saves the line, with what the explanation says it means as its note, so it comes up in review.
+func PlayerExplainSave(cx *core.Scope) string { return For(cx).PlayerExplainSave() }
+
+// PlayerExplainSave is the package's PlayerExplainSave in the language of msgs.
+func (msgs Messages) PlayerExplainSave() string { return msgs.text(textPlayerExplainSave) }
+
+// PlayerExplainSaved says "In Notes · it will come up in review"
+// in the language the app shows under cx.
+//
+// The explanation sheet's save button once the line is saved.
+func PlayerExplainSaved(cx *core.Scope) string { return For(cx).PlayerExplainSaved() }
+
+// PlayerExplainSaved is the package's PlayerExplainSaved in the language of msgs.
+func (msgs Messages) PlayerExplainSaved() string { return msgs.text(textPlayerExplainSaved) }
+
 // PlayerExplainTitle says "Explain This Line"
 // in the language the app shows under cx.
 //
@@ -8061,6 +9137,58 @@ func PlayerExplainTitle(cx *core.Scope) string { return For(cx).PlayerExplainTit
 
 // PlayerExplainTitle is the package's PlayerExplainTitle in the language of msgs.
 func (msgs Messages) PlayerExplainTitle() string { return msgs.text(textPlayerExplainTitle) }
+
+// PlayerExplainTone says "Tone"
+// in the language the app shows under cx.
+//
+// Heading of the explanation's section on the line's tone, shown after More.
+func PlayerExplainTone(cx *core.Scope) string { return For(cx).PlayerExplainTone() }
+
+// PlayerExplainTone is the package's PlayerExplainTone in the language of msgs.
+func (msgs Messages) PlayerExplainTone() string { return msgs.text(textPlayerExplainTone) }
+
+// PlayerExplainTranslation says "About the Translation"
+// in the language the app shows under cx.
+//
+// Heading of the explanation's section on what is worth knowing of the line's translation.
+func PlayerExplainTranslation(cx *core.Scope) string { return For(cx).PlayerExplainTranslation() }
+
+// PlayerExplainTranslation is the package's PlayerExplainTranslation in the language of msgs.
+func (msgs Messages) PlayerExplainTranslation() string {
+	return msgs.text(textPlayerExplainTranslation)
+}
+
+// PlayerExplainVia says "{model}, asked through {computer}"
+// in the language the app shows under cx.
+//
+// Under the explanation's title when the model is a cloud service the computer asked, not one running on it.
+func PlayerExplainVia(cx *core.Scope, model string, computer string) string {
+	return For(cx).PlayerExplainVia(model, computer)
+}
+
+// PlayerExplainVia is the package's PlayerExplainVia in the language of msgs.
+func (msgs Messages) PlayerExplainVia(model string, computer string) string {
+	if i18n.IsPseudo(msgs.lang) {
+		return i18n.Pseudo(msgs.lang, Messages{lang: Source, mark: true}.PlayerExplainVia(model, computer))
+	}
+	for lang := msgs.lang; ; lang = i18n.Parent(lang) {
+		if f := supplied[lang].PlayerExplainVia; f != nil {
+			return f(model, computer)
+		}
+		switch lang {
+		case "", "en":
+			return msgs.arg(model) + ", asked through " + msgs.arg(computer)
+		case "ja":
+			return model + " · " + computer + " 経由"
+		case "ko":
+			return model + " · " + computer + "을(를) 통해 질문"
+		case "zh-Hans":
+			return model + " · 经 " + computer + " 询问"
+		case "zh-Hant":
+			return model + " · 經 " + computer + " 詢問"
+		}
+	}
+}
 
 // PlayerFollow says "Shadowing"
 // in the language the app shows under cx.
@@ -8504,6 +9632,317 @@ func PlayerPrevLine(cx *core.Scope) string { return For(cx).PlayerPrevLine() }
 
 // PlayerPrevLine is the package's PlayerPrevLine in the language of msgs.
 func (msgs Messages) PlayerPrevLine() string { return msgs.text(textPlayerPrevLine) }
+
+// PlayerRecapBusy says "Summing up what you watched on {computer}…"
+// in the language the app shows under cx.
+//
+// In the recap sheet while the computer's AI service sums up the part of the film watched.
+func PlayerRecapBusy(cx *core.Scope, computer string) string {
+	return For(cx).PlayerRecapBusy(computer)
+}
+
+// PlayerRecapBusy is the package's PlayerRecapBusy in the language of msgs.
+func (msgs Messages) PlayerRecapBusy(computer string) string {
+	if i18n.IsPseudo(msgs.lang) {
+		return i18n.Pseudo(msgs.lang, Messages{lang: Source, mark: true}.PlayerRecapBusy(computer))
+	}
+	for lang := msgs.lang; ; lang = i18n.Parent(lang) {
+		if f := supplied[lang].PlayerRecapBusy; f != nil {
+			return f(computer)
+		}
+		switch lang {
+		case "", "en":
+			return "Summing up what you watched on " + msgs.arg(computer) + "…"
+		case "ja":
+			return computer + " で見た部分をまとめています…"
+		case "ko":
+			return computer + "에서 본 부분을 요약하는 중…"
+		case "zh-Hans":
+			return "正在请 " + computer + " 总结你看过的部分…"
+		case "zh-Hant":
+			return "正在請 " + computer + " 總結你看過的部分…"
+		}
+	}
+}
+
+// PlayerRecapContinue says "Continue from {at}"
+// in the language the app shows under cx.
+//
+// Main button of the recap sheet: plays the film on from where it was left.
+func PlayerRecapContinue(cx *core.Scope, at string) string { return For(cx).PlayerRecapContinue(at) }
+
+// PlayerRecapContinue is the package's PlayerRecapContinue in the language of msgs.
+func (msgs Messages) PlayerRecapContinue(at string) string {
+	if i18n.IsPseudo(msgs.lang) {
+		return i18n.Pseudo(msgs.lang, Messages{lang: Source, mark: true}.PlayerRecapContinue(at))
+	}
+	for lang := msgs.lang; ; lang = i18n.Parent(lang) {
+		if f := supplied[lang].PlayerRecapContinue; f != nil {
+			return f(at)
+		}
+		switch lang {
+		case "", "en":
+			return "Continue from " + msgs.arg(at)
+		case "ja":
+			return at + " から続ける"
+		case "ko":
+			return at + "부터 이어 보기"
+		case "zh-Hans":
+			return "从 " + at + " 继续"
+		case "zh-Hant":
+			return "從 " + at + " 繼續"
+		}
+	}
+}
+
+// PlayerRecapExcerptsFailed says "Lines you watched: the AI service on {computer} could not sum them up"
+// in the language the app shows under cx.
+//
+// Footnote of the recap sheet when the computer's AI service failed and the sheet shows lines watched instead.
+func PlayerRecapExcerptsFailed(cx *core.Scope, computer string) string {
+	return For(cx).PlayerRecapExcerptsFailed(computer)
+}
+
+// PlayerRecapExcerptsFailed is the package's PlayerRecapExcerptsFailed in the language of msgs.
+func (msgs Messages) PlayerRecapExcerptsFailed(computer string) string {
+	if i18n.IsPseudo(msgs.lang) {
+		return i18n.Pseudo(msgs.lang, Messages{lang: Source, mark: true}.PlayerRecapExcerptsFailed(computer))
+	}
+	for lang := msgs.lang; ; lang = i18n.Parent(lang) {
+		if f := supplied[lang].PlayerRecapExcerptsFailed; f != nil {
+			return f(computer)
+		}
+		switch lang {
+		case "", "en":
+			return "Lines you watched: the AI service on " + msgs.arg(computer) + " could not sum them up"
+		case "ja":
+			return "見たセリフの抜粋 · " + computer + " の AI サービスが要約できませんでした"
+		case "ko":
+			return "본 대사 발췌 · " + computer + "의 AI 서비스가 요약하지 못했습니다"
+		case "zh-Hans":
+			return "摘自你看过的台词 · " + computer + " 上的 AI 服务没能总结"
+		case "zh-Hant":
+			return "摘自你看過的台詞 · " + computer + " 上的 AI 服務沒能總結"
+		}
+	}
+}
+
+// PlayerRecapExcerptsNoAI says "Lines you watched, not summed up: {computer} has no AI service set up"
+// in the language the app shows under cx.
+//
+// Footnote of the recap sheet when the computer has no AI service and the sheet shows lines watched instead.
+func PlayerRecapExcerptsNoAI(cx *core.Scope, computer string) string {
+	return For(cx).PlayerRecapExcerptsNoAI(computer)
+}
+
+// PlayerRecapExcerptsNoAI is the package's PlayerRecapExcerptsNoAI in the language of msgs.
+func (msgs Messages) PlayerRecapExcerptsNoAI(computer string) string {
+	if i18n.IsPseudo(msgs.lang) {
+		return i18n.Pseudo(msgs.lang, Messages{lang: Source, mark: true}.PlayerRecapExcerptsNoAI(computer))
+	}
+	for lang := msgs.lang; ; lang = i18n.Parent(lang) {
+		if f := supplied[lang].PlayerRecapExcerptsNoAI; f != nil {
+			return f(computer)
+		}
+		switch lang {
+		case "", "en":
+			return "Lines you watched, not summed up: " + msgs.arg(computer) + " has no AI service set up"
+		case "ja":
+			return "見たセリフの抜粋 · " + computer + " に使える AI サービスがないため要約していません"
+		case "ko":
+			return "본 대사 발췌 · " + computer + "에 사용할 수 있는 AI 서비스가 없어 요약하지 않았습니다"
+		case "zh-Hans":
+			return "摘自你看过的台词 · " + computer + " 上没有可用的 AI 服务，未作总结"
+		case "zh-Hant":
+			return "摘自你看過的台詞 · " + computer + " 上沒有可用的 AI 服務，未作總結"
+		}
+	}
+}
+
+// PlayerRecapExcerptsUnpaired says "Lines you watched, not summed up: this film's computer is no longer paired"
+// in the language the app shows under cx.
+//
+// Footnote of the recap sheet when the film's computer is not paired any more and the sheet shows lines watched instead.
+func PlayerRecapExcerptsUnpaired(cx *core.Scope) string { return For(cx).PlayerRecapExcerptsUnpaired() }
+
+// PlayerRecapExcerptsUnpaired is the package's PlayerRecapExcerptsUnpaired in the language of msgs.
+func (msgs Messages) PlayerRecapExcerptsUnpaired() string {
+	return msgs.text(textPlayerRecapExcerptsUnpaired)
+}
+
+// PlayerRecapExcerptsUnreachable says "Lines you watched, not summed up: can't reach {computer}"
+// in the language the app shows under cx.
+//
+// Footnote of the recap sheet when the computer cannot be reached and the sheet shows lines watched instead.
+func PlayerRecapExcerptsUnreachable(cx *core.Scope, computer string) string {
+	return For(cx).PlayerRecapExcerptsUnreachable(computer)
+}
+
+// PlayerRecapExcerptsUnreachable is the package's PlayerRecapExcerptsUnreachable in the language of msgs.
+func (msgs Messages) PlayerRecapExcerptsUnreachable(computer string) string {
+	if i18n.IsPseudo(msgs.lang) {
+		return i18n.Pseudo(msgs.lang, Messages{lang: Source, mark: true}.PlayerRecapExcerptsUnreachable(computer))
+	}
+	for lang := msgs.lang; ; lang = i18n.Parent(lang) {
+		if f := supplied[lang].PlayerRecapExcerptsUnreachable; f != nil {
+			return f(computer)
+		}
+		switch lang {
+		case "", "en":
+			return "Lines you watched, not summed up: can't reach " + msgs.arg(computer)
+		case "ja":
+			return "見たセリフの抜粋 · " + computer + " に接続できないため要約していません"
+		case "ko":
+			return "본 대사 발췌 · " + computer + "에 연결할 수 없어 요약하지 않았습니다"
+		case "zh-Hans":
+			return "摘自你看过的台词 · 连不上 " + computer + "，未作总结"
+		case "zh-Hant":
+			return "摘自你看過的台詞 · 連不上 " + computer + "，未作總結"
+		}
+	}
+}
+
+// PlayerRecapJump says "Play from {at}: {text}"
+// in the language the app shows under cx.
+//
+// Spoken name of a moment of the recap, which plays the film from there.
+func PlayerRecapJump(cx *core.Scope, at string, text string) string {
+	return For(cx).PlayerRecapJump(at, text)
+}
+
+// PlayerRecapJump is the package's PlayerRecapJump in the language of msgs.
+func (msgs Messages) PlayerRecapJump(at string, text string) string {
+	if i18n.IsPseudo(msgs.lang) {
+		return i18n.Pseudo(msgs.lang, Messages{lang: Source, mark: true}.PlayerRecapJump(at, text))
+	}
+	for lang := msgs.lang; ; lang = i18n.Parent(lang) {
+		if f := supplied[lang].PlayerRecapJump; f != nil {
+			return f(at, text)
+		}
+		switch lang {
+		case "", "en":
+			return "Play from " + msgs.arg(at) + ": " + msgs.arg(text)
+		case "ja":
+			return at + " から再生：" + text
+		case "ko":
+			return at + "부터 재생: " + text
+		case "zh-Hans":
+			return "从 " + at + " 播放：" + text
+		case "zh-Hant":
+			return "從 " + at + " 播放：" + text
+		}
+	}
+}
+
+// PlayerRecapNote says "Only what you watched · summed up by {model}"
+// in the language the app shows under cx.
+//
+// Footnote of the recap sheet: the computer asked a cloud model, which was given only the lines watched.
+func PlayerRecapNote(cx *core.Scope, model string) string { return For(cx).PlayerRecapNote(model) }
+
+// PlayerRecapNote is the package's PlayerRecapNote in the language of msgs.
+func (msgs Messages) PlayerRecapNote(model string) string {
+	if i18n.IsPseudo(msgs.lang) {
+		return i18n.Pseudo(msgs.lang, Messages{lang: Source, mark: true}.PlayerRecapNote(model))
+	}
+	for lang := msgs.lang; ; lang = i18n.Parent(lang) {
+		if f := supplied[lang].PlayerRecapNote; f != nil {
+			return f(model)
+		}
+		switch lang {
+		case "", "en":
+			return "Only what you watched · summed up by " + msgs.arg(model)
+		case "ja":
+			return "見た部分だけを要約 · " + model + " が生成"
+		case "ko":
+			return "본 부분만 요약 · " + model + " 생성"
+		case "zh-Hans":
+			return "只总结你看过的部分 · " + model + " 生成"
+		case "zh-Hant":
+			return "只總結你看過的部分 · " + model + " 生成"
+		}
+	}
+}
+
+// PlayerRecapNoteOn says "Only what you watched · summed up by {model} on {computer}"
+// in the language the app shows under cx.
+//
+// Footnote of the recap sheet: a model running on the computer itself wrote it from the lines watched only.
+func PlayerRecapNoteOn(cx *core.Scope, model string, computer string) string {
+	return For(cx).PlayerRecapNoteOn(model, computer)
+}
+
+// PlayerRecapNoteOn is the package's PlayerRecapNoteOn in the language of msgs.
+func (msgs Messages) PlayerRecapNoteOn(model string, computer string) string {
+	if i18n.IsPseudo(msgs.lang) {
+		return i18n.Pseudo(msgs.lang, Messages{lang: Source, mark: true}.PlayerRecapNoteOn(model, computer))
+	}
+	for lang := msgs.lang; ; lang = i18n.Parent(lang) {
+		if f := supplied[lang].PlayerRecapNoteOn; f != nil {
+			return f(model, computer)
+		}
+		switch lang {
+		case "", "en":
+			return "Only what you watched · summed up by " + msgs.arg(model) + " on " + msgs.arg(computer)
+		case "ja":
+			return "見た部分だけを要約 · " + computer + " の " + model + " が生成"
+		case "ko":
+			return "본 부분만 요약 · " + computer + "의 " + model + " 생성"
+		case "zh-Hans":
+			return "只总结你看过的部分 · " + computer + " 上的 " + model + " 生成"
+		case "zh-Hant":
+			return "只總結你看過的部分 · " + computer + " 上的 " + model + " 生成"
+		}
+	}
+}
+
+// PlayerRecapStartOver says "Start Over"
+// in the language the app shows under cx.
+//
+// Button of the recap sheet: plays the film from its start.
+func PlayerRecapStartOver(cx *core.Scope) string { return For(cx).PlayerRecapStartOver() }
+
+// PlayerRecapStartOver is the package's PlayerRecapStartOver in the language of msgs.
+func (msgs Messages) PlayerRecapStartOver() string { return msgs.text(textPlayerRecapStartOver) }
+
+// PlayerRecapStoppedAt says "You stopped at {at}"
+// in the language the app shows under cx.
+//
+// Under the recap sheet's title: where the film was left.
+func PlayerRecapStoppedAt(cx *core.Scope, at string) string { return For(cx).PlayerRecapStoppedAt(at) }
+
+// PlayerRecapStoppedAt is the package's PlayerRecapStoppedAt in the language of msgs.
+func (msgs Messages) PlayerRecapStoppedAt(at string) string {
+	if i18n.IsPseudo(msgs.lang) {
+		return i18n.Pseudo(msgs.lang, Messages{lang: Source, mark: true}.PlayerRecapStoppedAt(at))
+	}
+	for lang := msgs.lang; ; lang = i18n.Parent(lang) {
+		if f := supplied[lang].PlayerRecapStoppedAt; f != nil {
+			return f(at)
+		}
+		switch lang {
+		case "", "en":
+			return "You stopped at " + msgs.arg(at)
+		case "ja":
+			return "前回は " + at + " まで"
+		case "ko":
+			return "지난번 " + at + "까지 봤어요"
+		case "zh-Hans":
+			return "上次看到 " + at
+		case "zh-Hant":
+			return "上次看到 " + at
+		}
+	}
+}
+
+// PlayerRecapTitle says "Previously"
+// in the language the app shows under cx.
+//
+// Title of the recap sheet a film left partway opens with: what happened in the part watched.
+func PlayerRecapTitle(cx *core.Scope) string { return For(cx).PlayerRecapTitle() }
+
+// PlayerRecapTitle is the package's PlayerRecapTitle in the language of msgs.
+func (msgs Messages) PlayerRecapTitle() string { return msgs.text(textPlayerRecapTitle) }
 
 // PlayerReplay says "Replay"
 // in the language the app shows under cx.
@@ -9291,6 +10730,450 @@ func SettingsComputers(cx *core.Scope) string { return For(cx).SettingsComputers
 // SettingsComputers is the package's SettingsComputers in the language of msgs.
 func (msgs Messages) SettingsComputers() string { return msgs.text(textSettingsComputers) }
 
+// SettingsConflictBoth says "Keep Both"
+// in the language the app shows under cx.
+//
+// Under a sync conflict of two notes or two meanings: keeps both, one after the other.
+func SettingsConflictBoth(cx *core.Scope) string { return For(cx).SettingsConflictBoth() }
+
+// SettingsConflictBoth is the package's SettingsConflictBoth in the language of msgs.
+func (msgs Messages) SettingsConflictBoth() string { return msgs.text(textSettingsConflictBoth) }
+
+// SettingsConflictDate says "{when, date, ::MMMd}, {when, time, short}"
+// in the language the app shows under cx.
+//
+// When a version of a sync conflict was made, before yesterday.
+func SettingsConflictDate(cx *core.Scope, when time.Time) string {
+	return For(cx).SettingsConflictDate(when)
+}
+
+// SettingsConflictDate is the package's SettingsConflictDate in the language of msgs.
+func (msgs Messages) SettingsConflictDate(when time.Time) string {
+	if i18n.IsPseudo(msgs.lang) {
+		return i18n.Pseudo(msgs.lang, Messages{lang: Source, mark: true}.SettingsConflictDate(when))
+	}
+	for lang := msgs.lang; ; lang = i18n.Parent(lang) {
+		if f := supplied[lang].SettingsConflictDate; f != nil {
+			return f(msgs.hc, when)
+		}
+		switch lang {
+		case "", "en":
+			return msgs.arg(i18n.FormatDate(msgs.dated("en"), when, i18n.DateOptions{Skeleton: "MMMd"})) + ", " + msgs.arg(i18n.FormatDate(msgs.dated("en"), when, i18n.DateOptions{Time: i18n.ShortStyle}))
+		case "ja":
+			return i18n.FormatDate(msgs.dated("ja"), when, i18n.DateOptions{Skeleton: "MMMd"}) + " " + i18n.FormatDate(msgs.dated("ja"), when, i18n.DateOptions{Time: i18n.ShortStyle})
+		case "ko":
+			return i18n.FormatDate(msgs.dated("ko"), when, i18n.DateOptions{Skeleton: "MMMd"}) + " " + i18n.FormatDate(msgs.dated("ko"), when, i18n.DateOptions{Time: i18n.ShortStyle})
+		case "zh-Hans":
+			return i18n.FormatDate(msgs.dated("zh-Hans"), when, i18n.DateOptions{Skeleton: "MMMd"}) + " " + i18n.FormatDate(msgs.dated("zh-Hans"), when, i18n.DateOptions{Time: i18n.ShortStyle})
+		case "zh-Hant":
+			return i18n.FormatDate(msgs.dated("zh-Hant"), when, i18n.DateOptions{Skeleton: "MMMd"}) + " " + i18n.FormatDate(msgs.dated("zh-Hant"), when, i18n.DateOptions{Time: i18n.ShortStyle})
+		}
+	}
+}
+
+// SettingsConflictMeaning says "Meaning"
+// in the language the app shows under cx.
+//
+// Badge of a sync conflict over a word's meaning.
+func SettingsConflictMeaning(cx *core.Scope) string { return For(cx).SettingsConflictMeaning() }
+
+// SettingsConflictMeaning is the package's SettingsConflictMeaning in the language of msgs.
+func (msgs Messages) SettingsConflictMeaning() string { return msgs.text(textSettingsConflictMeaning) }
+
+// SettingsConflictNote says "Note"
+// in the language the app shows under cx.
+//
+// Badge of a sync conflict over a note.
+func SettingsConflictNote(cx *core.Scope) string { return For(cx).SettingsConflictNote() }
+
+// SettingsConflictNote is the package's SettingsConflictNote in the language of msgs.
+func (msgs Messages) SettingsConflictNote() string { return msgs.text(textSettingsConflictNote) }
+
+// SettingsConflictOriginal says "Line"
+// in the language the app shows under cx.
+//
+// Badge of a sync conflict over a line's original text, as corrected.
+func SettingsConflictOriginal(cx *core.Scope) string { return For(cx).SettingsConflictOriginal() }
+
+// SettingsConflictOriginal is the package's SettingsConflictOriginal in the language of msgs.
+func (msgs Messages) SettingsConflictOriginal() string {
+	return msgs.text(textSettingsConflictOriginal)
+}
+
+// SettingsConflictOtherDevice says "Another Device"
+// in the language the app shows under cx.
+//
+// Where a version of a sync conflict was made, when the computer does not name the device.
+func SettingsConflictOtherDevice(cx *core.Scope) string { return For(cx).SettingsConflictOtherDevice() }
+
+// SettingsConflictOtherDevice is the package's SettingsConflictOtherDevice in the language of msgs.
+func (msgs Messages) SettingsConflictOtherDevice() string {
+	return msgs.text(textSettingsConflictOtherDevice)
+}
+
+// SettingsConflictReadOnly says "{computer} lets this device only view what it has, so the conflict stays."
+// in the language the app shows under cx.
+//
+// Under the sync conflicts when the computer refused to resolve one: the user made this device read-only there.
+func SettingsConflictReadOnly(cx *core.Scope, computer string) string {
+	return For(cx).SettingsConflictReadOnly(computer)
+}
+
+// SettingsConflictReadOnly is the package's SettingsConflictReadOnly in the language of msgs.
+func (msgs Messages) SettingsConflictReadOnly(computer string) string {
+	if i18n.IsPseudo(msgs.lang) {
+		return i18n.Pseudo(msgs.lang, Messages{lang: Source, mark: true}.SettingsConflictReadOnly(computer))
+	}
+	for lang := msgs.lang; ; lang = i18n.Parent(lang) {
+		if f := supplied[lang].SettingsConflictReadOnly; f != nil {
+			return f(computer)
+		}
+		switch lang {
+		case "", "en":
+			return msgs.arg(computer) + " lets this device only view what it has, so the conflict stays."
+		case "ja":
+			return computer + " はこの端末に閲覧だけを許可しているため、競合はそのままです。"
+		case "ko":
+			return computer + "에서 이 기기는 보기만 할 수 있어 충돌이 그대로 남습니다."
+		case "zh-Hans":
+			return computer + " 只允许这台设备查看，冲突保持不变。"
+		case "zh-Hant":
+			return computer + " 只允許這台裝置檢視，衝突保持不變。"
+		}
+	}
+}
+
+// SettingsConflictThisPhone says "This Phone"
+// in the language the app shows under cx.
+//
+// Where a version of a sync conflict was made: on this phone.
+func SettingsConflictThisPhone(cx *core.Scope) string { return For(cx).SettingsConflictThisPhone() }
+
+// SettingsConflictThisPhone is the package's SettingsConflictThisPhone in the language of msgs.
+func (msgs Messages) SettingsConflictThisPhone() string {
+	return msgs.text(textSettingsConflictThisPhone)
+}
+
+// SettingsConflictThisTablet says "This Tablet"
+// in the language the app shows under cx.
+//
+// Where a version of a sync conflict was made: on this tablet.
+func SettingsConflictThisTablet(cx *core.Scope) string { return For(cx).SettingsConflictThisTablet() }
+
+// SettingsConflictThisTablet is the package's SettingsConflictThisTablet in the language of msgs.
+func (msgs Messages) SettingsConflictThisTablet() string {
+	return msgs.text(textSettingsConflictThisTablet)
+}
+
+// SettingsConflictToday says "Today {when, time, short}"
+// in the language the app shows under cx.
+//
+// When a version of a sync conflict was made, today.
+func SettingsConflictToday(cx *core.Scope, when time.Time) string {
+	return For(cx).SettingsConflictToday(when)
+}
+
+// SettingsConflictToday is the package's SettingsConflictToday in the language of msgs.
+func (msgs Messages) SettingsConflictToday(when time.Time) string {
+	if i18n.IsPseudo(msgs.lang) {
+		return i18n.Pseudo(msgs.lang, Messages{lang: Source, mark: true}.SettingsConflictToday(when))
+	}
+	for lang := msgs.lang; ; lang = i18n.Parent(lang) {
+		if f := supplied[lang].SettingsConflictToday; f != nil {
+			return f(msgs.hc, when)
+		}
+		switch lang {
+		case "", "en":
+			return "Today " + msgs.arg(i18n.FormatDate(msgs.dated("en"), when, i18n.DateOptions{Time: i18n.ShortStyle}))
+		case "ja":
+			return "今日 " + i18n.FormatDate(msgs.dated("ja"), when, i18n.DateOptions{Time: i18n.ShortStyle})
+		case "ko":
+			return "오늘 " + i18n.FormatDate(msgs.dated("ko"), when, i18n.DateOptions{Time: i18n.ShortStyle})
+		case "zh-Hans":
+			return "今天 " + i18n.FormatDate(msgs.dated("zh-Hans"), when, i18n.DateOptions{Time: i18n.ShortStyle})
+		case "zh-Hant":
+			return "今天 " + i18n.FormatDate(msgs.dated("zh-Hant"), when, i18n.DateOptions{Time: i18n.ShortStyle})
+		}
+	}
+}
+
+// SettingsConflictTranslation says "Translation"
+// in the language the app shows under cx.
+//
+// Badge of a sync conflict over a line's translation.
+func SettingsConflictTranslation(cx *core.Scope) string { return For(cx).SettingsConflictTranslation() }
+
+// SettingsConflictTranslation is the package's SettingsConflictTranslation in the language of msgs.
+func (msgs Messages) SettingsConflictTranslation() string {
+	return msgs.text(textSettingsConflictTranslation)
+}
+
+// SettingsConflictUnpaired says "{computer} no longer takes this device, so the conflict stays."
+// in the language the app shows under cx.
+//
+// Under the sync conflicts when the computer refused to resolve one: it unpaired this device.
+func SettingsConflictUnpaired(cx *core.Scope, computer string) string {
+	return For(cx).SettingsConflictUnpaired(computer)
+}
+
+// SettingsConflictUnpaired is the package's SettingsConflictUnpaired in the language of msgs.
+func (msgs Messages) SettingsConflictUnpaired(computer string) string {
+	if i18n.IsPseudo(msgs.lang) {
+		return i18n.Pseudo(msgs.lang, Messages{lang: Source, mark: true}.SettingsConflictUnpaired(computer))
+	}
+	for lang := msgs.lang; ; lang = i18n.Parent(lang) {
+		if f := supplied[lang].SettingsConflictUnpaired; f != nil {
+			return f(computer)
+		}
+		switch lang {
+		case "", "en":
+			return msgs.arg(computer) + " no longer takes this device, so the conflict stays."
+		case "ja":
+			return computer + " はこの端末を受け付けなくなったため、競合はそのままです。"
+		case "ko":
+			return computer + "이(가) 더 이상 이 기기를 받지 않아 충돌이 그대로 남습니다."
+		case "zh-Hans":
+			return computer + " 已不再接受这台设备，冲突保持不变。"
+		case "zh-Hant":
+			return computer + " 已不再接受這台裝置，衝突保持不變。"
+		}
+	}
+}
+
+// SettingsConflictUnreachable says "Couldn't reach {computer}. Try again when it's on and on the same network."
+// in the language the app shows under cx.
+//
+// Under the sync conflicts when resolving one failed: the computer could not be reached.
+func SettingsConflictUnreachable(cx *core.Scope, computer string) string {
+	return For(cx).SettingsConflictUnreachable(computer)
+}
+
+// SettingsConflictUnreachable is the package's SettingsConflictUnreachable in the language of msgs.
+func (msgs Messages) SettingsConflictUnreachable(computer string) string {
+	if i18n.IsPseudo(msgs.lang) {
+		return i18n.Pseudo(msgs.lang, Messages{lang: Source, mark: true}.SettingsConflictUnreachable(computer))
+	}
+	for lang := msgs.lang; ; lang = i18n.Parent(lang) {
+		if f := supplied[lang].SettingsConflictUnreachable; f != nil {
+			return f(computer)
+		}
+		switch lang {
+		case "", "en":
+			return "Couldn't reach " + msgs.arg(computer) + ". Try again when it's on and on the same network."
+		case "ja":
+			return computer + " に接続できません。電源が入り、同じネットワークにつながってからもう一度お試しください。"
+		case "ko":
+			return computer + "에 연결할 수 없습니다. 켜져 있고 같은 네트워크에 있을 때 다시 시도하세요."
+		case "zh-Hans":
+			return "无法连接 " + computer + "。请在它开机并连上同一网络后再试。"
+		case "zh-Hant":
+			return "無法連線 " + computer + "。請在它開機並連上同一網路後再試。"
+		}
+	}
+}
+
+// SettingsConflictUse says "Use This"
+// in the language the app shows under cx.
+//
+// Beside a version of a sync conflict: keeps it on every device.
+func SettingsConflictUse(cx *core.Scope) string { return For(cx).SettingsConflictUse() }
+
+// SettingsConflictUse is the package's SettingsConflictUse in the language of msgs.
+func (msgs Messages) SettingsConflictUse() string { return msgs.text(textSettingsConflictUse) }
+
+// SettingsConflictUseLabel says "Use the version from {device}"
+// in the language the app shows under cx.
+//
+// Spoken label of Use This beside a version of a sync conflict, with the device it was made on.
+func SettingsConflictUseLabel(cx *core.Scope, device string) string {
+	return For(cx).SettingsConflictUseLabel(device)
+}
+
+// SettingsConflictUseLabel is the package's SettingsConflictUseLabel in the language of msgs.
+func (msgs Messages) SettingsConflictUseLabel(device string) string {
+	if i18n.IsPseudo(msgs.lang) {
+		return i18n.Pseudo(msgs.lang, Messages{lang: Source, mark: true}.SettingsConflictUseLabel(device))
+	}
+	for lang := msgs.lang; ; lang = i18n.Parent(lang) {
+		if f := supplied[lang].SettingsConflictUseLabel; f != nil {
+			return f(device)
+		}
+		switch lang {
+		case "", "en":
+			return "Use the version from " + msgs.arg(device)
+		case "ja":
+			return device + " の版を使う"
+		case "ko":
+			return device + "의 버전 사용"
+		case "zh-Hans":
+			return "使用 " + device + " 上的版本"
+		case "zh-Hant":
+			return "使用 " + device + " 上的版本"
+		}
+	}
+}
+
+// SettingsConflictWord says "Word “{word}”"
+// in the language the app shows under cx.
+//
+// Where a sync conflict is: the word of the vocabulary it is of.
+func SettingsConflictWord(cx *core.Scope, word string) string {
+	return For(cx).SettingsConflictWord(word)
+}
+
+// SettingsConflictWord is the package's SettingsConflictWord in the language of msgs.
+func (msgs Messages) SettingsConflictWord(word string) string {
+	if i18n.IsPseudo(msgs.lang) {
+		return i18n.Pseudo(msgs.lang, Messages{lang: Source, mark: true}.SettingsConflictWord(word))
+	}
+	for lang := msgs.lang; ; lang = i18n.Parent(lang) {
+		if f := supplied[lang].SettingsConflictWord; f != nil {
+			return f(word)
+		}
+		switch lang {
+		case "", "en":
+			return "Word “" + msgs.arg(word) + "”"
+		case "ja":
+			return "単語「" + word + "」"
+		case "ko":
+			return "단어 “" + word + "”"
+		case "zh-Hans":
+			return "单词“" + word + "”"
+		case "zh-Hant":
+			return "單字「" + word + "」"
+		}
+	}
+}
+
+// SettingsConflictYesterday says "Yesterday {when, time, short}"
+// in the language the app shows under cx.
+//
+// When a version of a sync conflict was made, yesterday.
+func SettingsConflictYesterday(cx *core.Scope, when time.Time) string {
+	return For(cx).SettingsConflictYesterday(when)
+}
+
+// SettingsConflictYesterday is the package's SettingsConflictYesterday in the language of msgs.
+func (msgs Messages) SettingsConflictYesterday(when time.Time) string {
+	if i18n.IsPseudo(msgs.lang) {
+		return i18n.Pseudo(msgs.lang, Messages{lang: Source, mark: true}.SettingsConflictYesterday(when))
+	}
+	for lang := msgs.lang; ; lang = i18n.Parent(lang) {
+		if f := supplied[lang].SettingsConflictYesterday; f != nil {
+			return f(msgs.hc, when)
+		}
+		switch lang {
+		case "", "en":
+			return "Yesterday " + msgs.arg(i18n.FormatDate(msgs.dated("en"), when, i18n.DateOptions{Time: i18n.ShortStyle}))
+		case "ja":
+			return "昨日 " + i18n.FormatDate(msgs.dated("ja"), when, i18n.DateOptions{Time: i18n.ShortStyle})
+		case "ko":
+			return "어제 " + i18n.FormatDate(msgs.dated("ko"), when, i18n.DateOptions{Time: i18n.ShortStyle})
+		case "zh-Hans":
+			return "昨天 " + i18n.FormatDate(msgs.dated("zh-Hans"), when, i18n.DateOptions{Time: i18n.ShortStyle})
+		case "zh-Hant":
+			return "昨天 " + i18n.FormatDate(msgs.dated("zh-Hant"), when, i18n.DateOptions{Time: i18n.ShortStyle})
+		}
+	}
+}
+
+// SettingsConflicts says "Sync Conflicts"
+// in the language the app shows under cx.
+//
+// Row in Settings, and the title of its page, listing what two devices changed apart, to pick the version to keep.
+func SettingsConflicts(cx *core.Scope) string { return For(cx).SettingsConflicts() }
+
+// SettingsConflicts is the package's SettingsConflicts in the language of msgs.
+func (msgs Messages) SettingsConflicts() string { return msgs.text(textSettingsConflicts) }
+
+// SettingsConflictsCount says "{count, plural, one {# to resolve} other {# to resolve}}"
+// in the language the app shows under cx.
+//
+// Beside Sync Conflicts in Settings: how many are open.
+func SettingsConflictsCount(cx *core.Scope, count int) string {
+	return For(cx).SettingsConflictsCount(count)
+}
+
+// SettingsConflictsCount is the package's SettingsConflictsCount in the language of msgs.
+func (msgs Messages) SettingsConflictsCount(count int) string {
+	if i18n.IsPseudo(msgs.lang) {
+		return i18n.Pseudo(msgs.lang, Messages{lang: Source, mark: true}.SettingsConflictsCount(count))
+	}
+	for lang := msgs.lang; ; lang = i18n.Parent(lang) {
+		if f := supplied[lang].SettingsConflictsCount; f != nil {
+			return f(count)
+		}
+		switch lang {
+		case "", "en":
+			var b strings.Builder
+			switch i18n.Cardinal("en", float64(count)) {
+			case i18n.One:
+				b.WriteString(msgs.arg(i18n.FormatNumber("en", float64(count))))
+				b.WriteString(" to resolve")
+			default:
+				b.WriteString(msgs.arg(i18n.FormatNumber("en", float64(count))))
+				b.WriteString(" to resolve")
+			}
+			return b.String()
+		case "ja":
+			return i18n.FormatNumber("ja", float64(count)) + " 件未解決"
+		case "ko":
+			return i18n.FormatNumber("ko", float64(count)) + "개 해결 필요"
+		case "zh-Hans":
+			return i18n.FormatNumber("zh-Hans", float64(count)) + " 个待处理"
+		case "zh-Hant":
+			return i18n.FormatNumber("zh-Hant", float64(count)) + " 個待處理"
+		}
+	}
+}
+
+// SettingsConflictsDetail says "Two devices changed the same thing. Keep one."
+// in the language the app shows under cx.
+//
+// Under Sync Conflicts in Settings while some are open.
+func SettingsConflictsDetail(cx *core.Scope) string { return For(cx).SettingsConflictsDetail() }
+
+// SettingsConflictsDetail is the package's SettingsConflictsDetail in the language of msgs.
+func (msgs Messages) SettingsConflictsDetail() string { return msgs.text(textSettingsConflictsDetail) }
+
+// SettingsConflictsDone says "No Conflicts Left"
+// in the language the app shows under cx.
+//
+// The Sync Conflicts page when none is open.
+func SettingsConflictsDone(cx *core.Scope) string { return For(cx).SettingsConflictsDone() }
+
+// SettingsConflictsDone is the package's SettingsConflictsDone in the language of msgs.
+func (msgs Messages) SettingsConflictsDone() string { return msgs.text(textSettingsConflictsDone) }
+
+// SettingsConflictsDoneDetail says "Everything matches on all devices."
+// in the language the app shows under cx.
+//
+// Under No Conflicts Left.
+func SettingsConflictsDoneDetail(cx *core.Scope) string { return For(cx).SettingsConflictsDoneDetail() }
+
+// SettingsConflictsDoneDetail is the package's SettingsConflictsDoneDetail in the language of msgs.
+func (msgs Messages) SettingsConflictsDoneDetail() string {
+	return msgs.text(textSettingsConflictsDoneDetail)
+}
+
+// SettingsConflictsNone says "None"
+// in the language the app shows under cx.
+//
+// Beside Sync Conflicts in Settings when none is open.
+func SettingsConflictsNone(cx *core.Scope) string { return For(cx).SettingsConflictsNone() }
+
+// SettingsConflictsNone is the package's SettingsConflictsNone in the language of msgs.
+func (msgs Messages) SettingsConflictsNone() string { return msgs.text(textSettingsConflictsNone) }
+
+// SettingsConflictsNote says "When two devices change the same translated line or the same note, choose which to keep here. Words, saved lines and progress merge on their own."
+// in the language the app shows under cx.
+//
+// At the top of the Sync Conflicts page.
+func SettingsConflictsNote(cx *core.Scope) string { return For(cx).SettingsConflictsNote() }
+
+// SettingsConflictsNote is the package's SettingsConflictsNote in the language of msgs.
+func (msgs Messages) SettingsConflictsNote() string { return msgs.text(textSettingsConflictsNote) }
+
 // SettingsGoal says "Daily Goal"
 // in the language the app shows under cx.
 //
@@ -9431,6 +11314,15 @@ func SettingsSubtitles(cx *core.Scope) string { return For(cx).SettingsSubtitles
 
 // SettingsSubtitles is the package's SettingsSubtitles in the language of msgs.
 func (msgs Messages) SettingsSubtitles() string { return msgs.text(textSettingsSubtitles) }
+
+// SettingsSync says "Sync"
+// in the language the app shows under cx.
+//
+// Heading of Settings' section of what syncs between this device and the computers.
+func SettingsSync(cx *core.Scope) string { return For(cx).SettingsSync() }
+
+// SettingsSync is the package's SettingsSync in the language of msgs.
+func (msgs Messages) SettingsSync() string { return msgs.text(textSettingsSync) }
 
 // SettingsTarget says "Translate Into"
 // in the language the app shows under cx.

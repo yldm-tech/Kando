@@ -1,4 +1,4 @@
-// Package add is the Add sheet: a link to a video, pasted or typed, the site it is on, and the computer it goes to, which downloads, transcribes and translates it while the Jobs page follows it.
+// Package add is the Add sheet: a link to a video, pasted or typed, the site it is on, the computer it goes to, which downloads, transcribes and translates it while the Jobs page follows it, and, where that computer takes them, the picture it downloads and where the original lines come from.
 package add
 
 import (
@@ -24,6 +24,9 @@ func Sheet(cx *core.Scope, s *session.Session, open func() bool, close func(), s
 	text := core.NewSignal(cx, "")
 	// chosen is the computer the user picked, "" for the first one that answers.
 	chosen := core.NewSignal(cx, "")
+	// quality and subtitles are the job options the user picked (sync.JobOptions), "" for the computer's own setting.
+	quality := core.NewSignal(cx, "")
+	subtitles := core.NewSignal(cx, "")
 	link := func() (kcore.Link, bool) {
 		l, ok := kcore.ParseLink(text.Get())
 		return l, ok && l.Platform != kcore.PlatformLocal
@@ -58,18 +61,22 @@ func Sheet(cx *core.Scope, s *session.Session, open func() bool, close func(), s
 		if !ok || to == "" || !takes(s.Queue(to)) {
 			return
 		}
-		s.Send(to, l.URL)
+		// Only the options the sheet shows for this computer go with the link: one picked for another computer, or before this one went offline, is not on screen and not sent.
+		q := s.Queue(to)
+		var opts sync.JobOptions
+		if q.Offers(sync.OptionQuality) {
+			opts.Quality = quality.Get()
+		}
+		if q.Offers(sync.OptionSubtitles) {
+			opts.Subtitles = subtitles.Get()
+		}
+		s.Send(to, l.URL, opts)
 		text.Set("")
 		close()
 		sent()
 	}
 	paste := func() { cx.ReadClipboard(func(clip string) { text.Set(firstLink(clip)) }) }
-	return ui.Dialog{TestID: "add-sheet", Open: open, TitleFunc: func() string { return locales.AddTitle(cx) },
-		OnOpenChange: func(open bool, _ base.Reason) {
-			if !open {
-				close()
-			}
-		},
+	return look.Dialog{TestID: "add-sheet", Open: open, Title: func() string { return locales.AddTitle(cx) }, OnClose: close,
 		OnConfirm: send,
 		Children: []core.Node{
 			core.View{Style: core.Style{Gap: 8}, Children: []core.Node{
@@ -103,6 +110,12 @@ func Sheet(cx *core.Scope, s *session.Session, open func() bool, close func(), s
 					)}},
 				}}
 			}},
+			core.Show{When: func() bool { return s.Queue(desktop()).Offers(sync.OptionQuality) }, Then: func(cx *core.Scope) core.Node {
+				return qualityChoice(cx, desktopName, quality)
+			}},
+			core.Show{When: func() bool { return s.Queue(desktop()).Offers(sync.OptionSubtitles) }, Then: func(cx *core.Scope) core.Node {
+				return subtitlesChoice(cx, desktopName, subtitles)
+			}},
 			core.Text{TestID: "add-note", ContentFunc: func() string {
 				q := s.Queue(desktop())
 				switch {
@@ -110,10 +123,16 @@ func Sheet(cx *core.Scope, s *session.Session, open func() bool, close func(), s
 					return locales.JobsOlder(cx)
 				case q.Reach == session.Revoked:
 					return locales.ComputersUnpaired(cx, desktopName())
+				case q.ReadOnly:
+					return locales.JobsReadOnly(cx, desktopName())
 				case !takes(q):
 					return locales.AddNoLinks(cx, desktopName())
+				case q.Reach == session.Online && q.Relayed:
+					return locales.AddNoteRelay(cx, desktopName())
 				case q.Reach == session.Online:
 					return locales.AddNote(cx, desktopName())
+				case q.Relayed:
+					return locales.AddNoteOfflineRelay(cx, desktopName())
 				}
 				return locales.AddNoteOffline(cx, desktopName())
 			}, Style: look.Caption, StyleFunc: ui.Colored(colors.Muted)},
@@ -123,6 +142,43 @@ func Sheet(cx *core.Scope, s *session.Session, open func() bool, close func(), s
 			look.Button{Kind: look.Primary, Text: func() string { return locales.AddSend(cx) }, Icon: lucide.Send, TestID: "add-send",
 				Disabled: func() bool { to := desktop(); return !valid() || to == "" || !takes(s.Queue(to)) }, OnPress: send},
 		}}
+}
+
+// qualityChoice is the picture the computer downloads, as chips: its own setting, the best there is, or 720p.
+func qualityChoice(cx *core.Scope, computer func() string, quality *core.Signal[string]) core.Node {
+	colors := ui.ColorsOf(cx)
+	label := func() string { return locales.AddQuality(cx) }
+	chip := func(value, id string, text func() string) core.Node {
+		return look.Chip{TestID: "add-quality-" + id, Radio: true, Text: text, On: func() bool { return quality.Get() == value }, OnPress: func() { quality.Set(value) }}
+	}
+	return core.View{Style: core.Style{Gap: 8}, Children: []core.Node{
+		core.Text{ContentFunc: label, Style: look.Section.Merge(core.Style{Padding: core.Edges{Left: 4}}), StyleFunc: ui.Colored(colors.Muted)},
+		core.View{Role: core.RoleRadioGroup, LabelFunc: label, Children: []core.Node{look.Chips(
+			chip("", "computer", func() string { return locales.AddAsComputer(cx, computer()) }),
+			chip(sync.QualityBest, "best", func() string { return locales.AddQualityBest(cx) }),
+			chip(sync.Quality720, "720", func() string { return locales.AddQuality720(cx) }),
+		)}},
+	}}
+}
+
+// subtitlesChoice is where the original lines come from, as a group of rows: the computer's own setting, the subtitles the uploader put on the site, or the computer's speech recognition.
+func subtitlesChoice(cx *core.Scope, computer func() string, subtitles *core.Signal[string]) core.Node {
+	colors := ui.ColorsOf(cx)
+	label := func() string { return locales.AddSubtitles(cx) }
+	row := func(i int, value, id string, title, detail func() string) core.Node {
+		on := func() bool { return subtitles.Get() == value }
+		return look.Row{TestID: "add-subtitles-" + id, Index: func() int { return i }, Title: title, Detail: detail, Checked: on,
+			Trailing: core.Show{When: on, Then: func(*core.Scope) core.Node { return ui.Icon(lucide.Check, 20, colors.Accent) }},
+			OnPress:  func() { subtitles.Set(value) }}
+	}
+	return core.View{Style: core.Style{Gap: 8}, Children: []core.Node{
+		core.Text{ContentFunc: label, Style: look.Section.Merge(core.Style{Padding: core.Edges{Left: 4}}), StyleFunc: ui.Colored(colors.Muted)},
+		core.View{Role: core.RoleRadioGroup, LabelFunc: label, Children: []core.Node{look.Group{Children: []core.Node{
+			row(0, "", "computer", func() string { return locales.AddAsComputer(cx, computer()) }, nil),
+			row(1, sync.SubtitlesPlatform, "platform", func() string { return locales.AddSubtitlesPlatform(cx) }, func() string { return locales.AddSubtitlesPlatformNote(cx) }),
+			row(2, sync.SubtitlesRecognize, "recognize", func() string { return locales.AddSubtitlesRecognize(cx) }, func() string { return locales.AddSubtitlesRecognizeNote(cx, computer()) }),
+		}}}},
+	}}
 }
 
 // pasteButton puts the clipboard's link in the field.

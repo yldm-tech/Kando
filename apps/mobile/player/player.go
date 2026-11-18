@@ -1,4 +1,4 @@
-// Package player plays a film kept on the phone and studies it, in the dark whatever the system's appearance: the video, the card of the line playing, whose words a tap looks up and puts in the vocabulary and which a tap saves, replays, loops or has explained, the transport, and a panel of tabs: the film's lines, which follow the one playing and play from the one tapped, its words looked up or in the vocabulary, the notes on the lines saved, the film in equal parts, and what the film is. Looking a word up and explaining a line go through the film's computer, whose AI service answers (session.LookUp, Explain); the lines saved, their notes and the words put in the vocabulary sync with it (session.ToggleSave, SetNote, ToggleWord). Where it was left is kept with the film, and so is how far its lines are moved against the picture. The player shows over the app, and minimized it leaves a bar over the tabs while the film plays on (Layer, MiniBar).
+// Package player plays a film kept on the phone and studies it, in the dark whatever the system's appearance: the video, the card of the line playing, whose words a tap looks up and puts in the vocabulary and which a tap saves, replays, loops or has explained, the transport, and a panel of tabs: the film's lines, which follow the one playing and play from the one tapped, its words looked up or in the vocabulary, the notes on the lines saved, the film in equal parts, and what the film is. Looking a word up, explaining a line and answering questions about it, and the recap of the part watched that a film opened where it was left shows, go through the film's computer, whose AI service answers (session.LookUp, Explain, Ask, Recap); the lines saved, their notes and the words put in the vocabulary sync with it (session.ToggleSave, SetNote, ToggleWord). Where it was left is kept with the film, and so is how far its lines are moved against the picture. The player shows over the app, and minimized it leaves a bar over the tabs while the film plays on (Layer, MiniBar).
 //
 // The layout follows the window: on a phone held upright the video sits on top, the card, the transport and the panel under it; turned sideways the video fills the screen with the lines over it, a tap shows the controls over it, and the list of lines can slide in at its side; on a tablet held sideways the panel takes a column beside the video.
 package player
@@ -65,6 +65,7 @@ func view(cx *core.Scope, l *Layer, key string) core.Node {
 	f, _ := s.Film(key)
 	p := newPlay(cx, s, key)
 	shown := l.Full
+	r := newRecapper(cx, p, l.held)
 	shape := core.NewMemo(cx, func() layout { return layoutOf(cx.Env().Window()) })
 	controls := core.NewSignal(cx, true)
 	// panelOn shows the list of lines at the side of a phone on its side.
@@ -242,6 +243,7 @@ func view(cx *core.Scope, l *Layer, key string) core.Node {
 			wordPopover(cx, p, w, func() bool { return shape.Get() == full }),
 			wordSheet(cx, p, w, func() bool { return shape.Get() != full }),
 			explainSheet(cx, p, w),
+			recapSheet(cx, p, r),
 			settingsSheet(cx, p, settingsOpen),
 			core.Show{When: shown, Then: func(cx *core.Scope) core.Node {
 				return ui.Toasts{Toaster: p.toast, Placement: ui.ToastBottom, TestID: "player-toasts"}
