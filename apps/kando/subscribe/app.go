@@ -120,9 +120,9 @@ const (
 	NoteNone       NoteKind = ""
 	NoteSubscribed NoteKind = "subscribed"
 	NoteAlready    NoteKind = "already"
-	// NoteChecked is a check that worked: Count new videos, queued or held as Held says, and Skipped that the rules skipped.
+	// NoteChecked is a check that worked: Count new videos, queued or held as Held says, of which Over were held past AddPerCheck though the rest were queued, and Skipped that the rules skipped.
 	NoteChecked NoteKind = "checked"
-	// NoteNotQueued is new videos that could not be queued and are held instead, Text saying why.
+	// NoteNotQueued is new videos that could not be queued and are held instead, Text saying why; a check's keeps its counts, as NoteChecked has them.
 	NoteNotQueued NoteKind = "notQueued"
 	NoteAdded     NoteKind = "added"
 	NoteRenamed   NoteKind = "renamed"
@@ -137,6 +137,7 @@ const (
 type Note struct {
 	Kind           NoteKind
 	Count, Skipped int
+	Over           int
 	Held           bool
 	Text           string
 }

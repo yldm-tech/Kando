@@ -256,3 +256,47 @@ func writeLines(w io.Writer, found []remote.Line) error {
 	}
 	return table(w, rows)
 }
+
+// writeSubscriptions writes the subscriptions `kando subscriptions` lists, one a row: its id, its name, what it follows, whether it adds new videos by itself or asks, how many wait in the window and how many it added, and what is wrong with it, if anything.
+func writeSubscriptions(w io.Writer, subs []remote.Subscription) error {
+	rows := [][]string{{"ID", "NAME", "KIND", "MODE", "WAITING", "ADDED", "STATE"}}
+	for _, s := range subs {
+		rows = append(rows, []string{s.ID, s.Name, s.Kind, s.Mode, fmt.Sprint(len(s.Waiting)), fmt.Sprint(s.Added), subscriptionState(s)})
+	}
+	return table(w, rows)
+}
+
+// subscriptionState is what is wrong with s, as the window's sidebar marks it, or why its last check failed; "-" when nothing is.
+func subscriptionState(s remote.Subscription) string {
+	switch {
+	case s.Stopped:
+		return "stopped"
+	case s.Gone:
+		return "deleted on its site"
+	case s.Paused:
+		return "paused"
+	case s.Renamed != "":
+		return "renamed to " + s.Renamed
+	}
+	return orDash(s.Error)
+}
+
+// writeChecked writes what `kando subscriptions check` found: how many new videos, and what became of them.
+func writeChecked(w io.Writer, c remote.SubscriptionChecked) error {
+	line := "No new videos."
+	if c.New > 0 {
+		videos := "videos"
+		if c.New == 1 {
+			videos = "video"
+		}
+		line = fmt.Sprintf("Found %d new %s: %d queued, %d waiting in Kando.", c.New, videos, c.Queued, c.Held)
+	}
+	if c.Skipped > 0 {
+		line += fmt.Sprintf(" Skipped %d that don't fit the rules.", c.Skipped)
+	}
+	if c.Note != "" {
+		line += " " + c.Note
+	}
+	_, err := fmt.Fprintln(w, printable(line))
+	return err
+}

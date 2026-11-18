@@ -135,6 +135,19 @@ func (f *fakeApp) handle(method string, params json.RawMessage) (any, error) {
 		return remote.Moved{ID: "f1", Library: "/Movies/English.kando", Name: "English"}, nil
 	case remote.MethodSites:
 		return []remote.Site{{Name: "Vimeo", Domain: "vimeo.com"}}, nil
+	case remote.MethodSubscriptions:
+		return []remote.Subscription{sampleSubscription}, nil
+	case remote.MethodSubscribe:
+		return remote.Subscribed{Subscription: sampleSubscription}, nil
+	case remote.MethodSubscriptionCheck:
+		p, err := remote.Params[remote.IDParams](params)
+		if err != nil {
+			return nil, err
+		}
+		if p.ID != "s1" {
+			return nil, remote.Errorf(remote.CodeNotFound, "no subscription %q in the open library", p.ID)
+		}
+		return remote.SubscriptionChecked{Subscription: sampleSubscription, New: 5, Queued: 3, Held: 2}, nil
 	case remote.MethodShow:
 		p, err := remote.Params[remote.ShowParams](params)
 		if err != nil {
@@ -281,22 +294,25 @@ func TestListTools(t *testing.T) {
 		readOnly, destructive, idempotent, openWorld bool
 	}
 	want := map[string]hints{
-		"kando_status":           {readOnly: true, idempotent: true},
-		"kando_list_films":       {readOnly: true, idempotent: true},
-		"kando_get_film":         {readOnly: true, idempotent: true},
-		"kando_get_subtitles":    {readOnly: true, idempotent: true},
-		"kando_search_subtitles": {readOnly: true, idempotent: true},
-		"kando_get_job":          {readOnly: true, idempotent: true},
-		"kando_add_videos":       {openWorld: true},
-		"kando_list_playlist":    {readOnly: true, idempotent: true, openWorld: true},
-		"kando_list_jobs":        {readOnly: true, idempotent: true},
-		"kando_cancel_job":       {destructive: true, idempotent: true},
-		"kando_retry_job":        {destructive: true, openWorld: true},
-		"kando_translate_film":   {openWorld: true},
-		"kando_remove_job":       {destructive: true, idempotent: true},
-		"kando_move_film":        {},
-		"kando_search_sites":     {readOnly: true, idempotent: true},
-		"kando_open":             {idempotent: true},
+		"kando_status":             {readOnly: true, idempotent: true},
+		"kando_list_films":         {readOnly: true, idempotent: true},
+		"kando_get_film":           {readOnly: true, idempotent: true},
+		"kando_get_subtitles":      {readOnly: true, idempotent: true},
+		"kando_search_subtitles":   {readOnly: true, idempotent: true},
+		"kando_get_job":            {readOnly: true, idempotent: true},
+		"kando_add_videos":         {openWorld: true},
+		"kando_list_playlist":      {readOnly: true, idempotent: true, openWorld: true},
+		"kando_list_jobs":          {readOnly: true, idempotent: true},
+		"kando_cancel_job":         {destructive: true, idempotent: true},
+		"kando_retry_job":          {destructive: true, openWorld: true},
+		"kando_translate_film":     {openWorld: true},
+		"kando_remove_job":         {destructive: true, idempotent: true},
+		"kando_move_film":          {},
+		"kando_search_sites":       {readOnly: true, idempotent: true},
+		"kando_open":               {idempotent: true},
+		"kando_list_subscriptions": {readOnly: true, idempotent: true},
+		"kando_subscribe":          {idempotent: true, openWorld: true},
+		"kando_check_subscription": {openWorld: true},
 	}
 	if len(res.Tools) != len(want) {
 		t.Errorf("%d tools, want %d", len(res.Tools), len(want))
@@ -797,5 +813,34 @@ func TestFolderLanguageAndTranslateTools(t *testing.T) {
 	job := structured[remote.Job](t, call(t, cs, "kando_translate_film", map[string]any{"id": "f1"}))
 	if job.ID != "j0" || job.Stage != "queued" || string(f.lastParams(remote.MethodTranslate)) != `{"id":"f1"}` {
 		t.Errorf("translate = %+v, params %s", job, f.lastParams(remote.MethodTranslate))
+	}
+}
+
+var sampleSubscription = remote.Subscription{ID: "s1", Name: "Earth Science", Source: "https://www.youtube.com/@earthscience", Kind: "channel", Mode: "auto", Filter: "all", Cadence: "open", AddPerCheck: 3, Waiting: []remote.ListVideo{}}
+
+// The subscription tools list the open library's subscriptions, subscribe it to a link and check one now, each passing what the agent gave to the app; an id the app does not know is a tool error that says so.
+func TestSubscriptionTools(t *testing.T) {
+	path := shortSocket(t)
+	f := newFake()
+	serveFake(t, path, f)
+	cs := connect(t)
+
+	subs := structured[listSubscriptionsOutput](t, call(t, cs, "kando_list_subscriptions", nil))
+	if len(subs.Subscriptions) != 1 || subs.Subscriptions[0].ID != "s1" || subs.Subscriptions[0].AddPerCheck != 3 {
+		t.Errorf("subscriptions = %+v", subs)
+	}
+	got := structured[remote.Subscribed](t, call(t, cs, "kando_subscribe", map[string]any{"source": "https://www.youtube.com/@earthscience"}))
+	if got.Subscription.ID != "s1" || got.Already {
+		t.Errorf("subscribed = %+v", got)
+	}
+	if params := string(f.lastParams(remote.MethodSubscribe)); params != `{"source":"https://www.youtube.com/@earthscience"}` {
+		t.Errorf("subscribe params = %s", params)
+	}
+	checked := structured[remote.SubscriptionChecked](t, call(t, cs, "kando_check_subscription", map[string]any{"id": "s1"}))
+	if checked.New != 5 || checked.Queued != 3 || checked.Held != 2 {
+		t.Errorf("checked = %+v", checked)
+	}
+	if res := call(t, cs, "kando_check_subscription", map[string]any{"id": "s9"}); !res.IsError || !strings.Contains(text(t, res), "no subscription") {
+		t.Errorf("unknown subscription = %+v", res)
 	}
 }

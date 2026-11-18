@@ -284,16 +284,24 @@ func (a *app) subscribeStopCheck() {
 	a.subs.checking, a.subs.cancel = "", nil
 }
 
-// subscribeChecked takes the report of the check run of the subscription with id: what the list holds, or why it could not be listed. New videos that fit the rules are queued, or held for the user when the subscription asks first or they could not be queued; the page says what happened, and the next check lined up starts.
+// subscribeChecked takes the report of the check run of the subscription with id (subscribeTook), and starts the next check lined up.
 func (a *app) subscribeChecked(run int, id string, listing media.Listing, err error) {
 	if run != a.subs.run {
 		return
 	}
 	a.subs.checking, a.subs.cancel = "", nil
 	defer a.subscribeNext()
-	sub, ok := a.subscribeFind(id)
-	if !ok || errors.Is(err, context.Canceled) {
+	if errors.Is(err, context.Canceled) {
 		return
+	}
+	a.subscribeTook(id, listing, err)
+}
+
+// subscribeTook folds what a check of the subscription with id found into it: what the list holds, or why it could not be listed. New videos that fit the rules are queued, at most subscribe.AddPerCheck of them, or held for the user when the subscription asks first, when they are past that many, or when they could not be queued; the page says what happened. It returns the subscription, false when it is gone.
+func (a *app) subscribeTook(id string, listing media.Listing, err error) (*subscribe.Sub, bool) {
+	sub, ok := a.subscribeFind(id)
+	if !ok {
+		return nil, false
 	}
 	now := time.Now()
 	if err != nil {
@@ -307,7 +315,7 @@ func (a *app) subscribeChecked(run int, id string, listing media.Listing, err er
 			a.subs.notes[id] = subscribeNote{Note: subscribe.Note{Kind: subscribe.NoteFailed}, why: subscribeFailure(*sub)}
 		}
 		a.subscribeSave()
-		return
+		return sub, true
 	}
 	found := sub.Take(listing, now)
 	note := subscribeNote{Note: subscribe.Note{Kind: subscribe.NoteChecked, Count: len(found.Fresh), Skipped: found.Skipped}}
@@ -317,13 +325,20 @@ func (a *app) subscribeChecked(run int, id string, listing media.Listing, err er
 		sub.Hold(found.Fresh)
 		note.Held = true
 	default:
-		if failed, why := a.subscribeEnqueue(sub, found.Fresh); len(failed) > 0 {
-			sub.Hold(failed)
-			note = subscribeNote{Note: subscribe.Note{Kind: subscribe.NoteNotQueued}, why: why}
+		queue, over := subscribe.Cap(found.Fresh)
+		failed, why := a.subscribeEnqueue(sub, queue)
+		// Held in the list's order: those that could not be queued came before those past the cap.
+		sub.Hold(failed)
+		sub.Hold(over)
+		note.Over = len(over)
+		if len(failed) > 0 {
+			// The counts stay for the control socket (remoteSubscriptionCheck); the page says only why.
+			note.Kind, note.why = subscribe.NoteNotQueued, why
 		}
 	}
 	a.subs.notes[id] = note
 	a.subscribeSave()
+	return sub, true
 }
 
 // subscribeFailure says why the last check of sub failed, as its page says it: yt-dlp took too long, or what it said.
