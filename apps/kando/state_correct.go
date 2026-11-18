@@ -386,6 +386,7 @@ func (a *app) correctCanUndo() bool { return a.correctUndoable() && len(a.correc
 func (a *app) correctCanRedo() bool { return a.correctUndoable() && len(a.correct.redo) > 0 }
 
 func (a *app) correctUndoable() bool {
+	// TODO(nsgo#671): drop the focus checks (a.correct.editing, a.player.film.searchFocused) once a MenuAuto Undo or Redo item hands ⌘Z and ⇧⌘Z to the focused field's undo: and redo: on macOS, so the corrections' items can stay in the Edit menu while a field has the focus; until then the system's items have to be the Edit menu's then, or typing in the field could not be undone https://github.com/nsgo-dev/nsgo/issues/671
 	return a.openKey != "" && a.correctLoaded() && !a.correct.editing && !a.player.film.searchFocused
 }
 
