@@ -430,6 +430,7 @@ type storedWord struct {
 	ContextTranslation string           `json:"contextTranslation,omitempty"`
 	Video              string           `json:"video,omitempty"`
 	Start              float64          `json:"start,omitempty"`
+	End                float64          `json:"end,omitempty"`
 	Film               string           `json:"film,omitempty"`
 	SavedAt            time.Time        `json:"savedAt,omitzero"`
 	Box                int              `json:"box"`
@@ -515,7 +516,7 @@ func (b Book) encode() storedBook {
 	for _, w := range b.Words {
 		out.Words = append(out.Words, storedWord{
 			ID: w.ID, Device: w.Device, Text: w.Text, Spoken: w.Spoken, Reading: w.Reading, Meaning: w.Meaning, Language: w.Language,
-			Context: w.Context, ContextTranslation: w.ContextTranslation, Video: w.Video, Start: w.Start.Seconds(), Film: w.Film,
+			Context: w.Context, ContextTranslation: w.ContextTranslation, Video: w.Video, Start: w.Start.Seconds(), End: w.End.Seconds(), Film: w.Film,
 			SavedAt: w.SavedAt, Box: w.Box, Due: w.Due,
 			Stamps: storedWordStamps{Meaning: toStored(w.Stamps.Meaning), Review: toStored(w.Stamps.Review)},
 		})
@@ -573,7 +574,7 @@ func (b *Book) decode(data []byte) error {
 		}
 		b.Words = append(b.Words, Word{
 			ID: s.ID, Device: s.Device, Text: s.Text, Spoken: s.Spoken, Reading: s.Reading, Meaning: s.Meaning, Language: s.Language,
-			Context: s.Context, ContextTranslation: s.ContextTranslation, Video: s.Video, Start: fromSeconds(s.Start), Film: s.Film,
+			Context: s.Context, ContextTranslation: s.ContextTranslation, Video: s.Video, Start: fromSeconds(s.Start), End: fromSeconds(s.End), Film: s.Film,
 			SavedAt: s.SavedAt, Box: max(s.Box, 0), Due: s.Due,
 			Stamps: WordStamps{Meaning: fromStored(s.Stamps.Meaning), Review: fromStored(s.Stamps.Review)},
 		})

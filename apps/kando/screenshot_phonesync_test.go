@@ -6,6 +6,7 @@ import (
 	"testing"
 	"time"
 
+	"kando/apps/kando/cloud"
 	"kando/apps/kando/phonesync"
 	"kando/apps/kando/settings"
 	psync "kando/packages/sync"
@@ -13,7 +14,7 @@ import (
 	"github.com/nsgo-dev/nsgo/nsgotest"
 )
 
-// TestScreenshotsPhoneSync renders what the desktop shows of the paired phones (screenshot_helpers_test.go): the library offering to continue The Tide Pools of Monterey (j8) where an iPhone left it at 2:05 ten minutes ago, the hero naming the iPhone (phone-handoff); Ocean Currents Explained (j6) paused on the iPhone, with 在这台电脑上继续 (queue-paused-on-phone); and Settings › 手机同步 with an iPhone online, and an iPad made read-only (settings-phone-devices), and further down the learning records synced, a translation and a note in conflict, and what the phones did (settings-phone-conflicts). No server starts: the scenes set what a running server and the ledger of the open library would hold.
+// TestScreenshotsPhoneSync renders what the desktop shows of the paired phones (screenshot_helpers_test.go): the library offering to continue The Tide Pools of Monterey (j8) where an iPhone left it at 2:05 ten minutes ago, the hero naming the iPhone (phone-handoff); Ocean Currents Explained (j6) paused on the iPhone, with 在这台电脑上继续 (queue-paused-on-phone); and Settings › 手机同步 with an iPhone online, and an iPad made read-only (settings-phone-devices), and further down the learning records synced, a translation and a note in conflict, and what the phones did (settings-phone-conflicts); and the storage relay on through an R2 bucket that answers (settings-phone-relay). No server starts: the scenes set what a running server and the ledger of the open library would hold.
 func TestScreenshotsPhoneSync(t *testing.T) {
 	f := newScreenshotFixture(t)
 	f.shoot(t, "phone-handoff", func(t *testing.T, a *app, tt *nsgotest.App, _ chan func()) {
@@ -40,6 +41,14 @@ func TestScreenshotsPhoneSync(t *testing.T) {
 	shootSettingsScrolled(t, f, settings.SectionPhone, "settings-phone-conflicts", shown, models, turbo, func(a *app) {
 		shotPhoneSync(a)
 		shotPhoneLinked(a, "")
+	})
+	// 不在同一网络时 with the storage relay on, through an R2 bucket whose last turn went through.
+	shootSettingsScrolled(t, f, settings.SectionPhone, "settings-phone-relay", shown, models, turbo, func(a *app) {
+		shotPhoneSync(a)
+		a.cloud.storage = cloud.KindR2
+		a.cloud.r2Endpoint, a.cloud.r2Bucket = "https://0123456789abcdef.r2.cloudflarestorage.com", "kando-films"
+		a.cloud.r2AccessKey, a.cloud.r2Secret = "access-key", "secret"
+		a.phone.relay, a.phone.relayOK = true, true
 	})
 }
 

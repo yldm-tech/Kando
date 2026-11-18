@@ -69,10 +69,10 @@ func TestCountsLeaveTombstonesOut(t *testing.T) {
 
 func TestJoinedKeepsBothNotes(t *testing.T) {
 	c := psync.Conflict{Kind: psync.KindLine, Field: psync.FieldNote, Kept: psync.Field{Value: psync.Value("a")}, Lost: psync.Field{Value: psync.Value("b")}}
-	if got := Text(Joined(c)); got != "a\nb" {
+	if got := Text(psync.Joined(c)); got != "a\nb" {
 		t.Fatalf("joined %q", got)
 	}
-	if !Joinable(psync.KindLine, psync.FieldNote) || !Joinable(psync.KindWord, psync.FieldMeaning) || Joinable(psync.KindLine, psync.FieldTranslation) {
+	if !psync.Joinable(psync.KindLine, psync.FieldNote) || !psync.Joinable(psync.KindWord, psync.FieldMeaning) || psync.Joinable(psync.KindLine, psync.FieldTranslation) {
 		t.Fatal("Joinable")
 	}
 	if Text(psync.Value(5)) != "" {

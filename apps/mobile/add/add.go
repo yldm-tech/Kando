@@ -112,8 +112,12 @@ func Sheet(cx *core.Scope, s *session.Session, open func() bool, close func(), s
 					return locales.ComputersUnpaired(cx, desktopName())
 				case !takes(q):
 					return locales.AddNoLinks(cx, desktopName())
+				case q.Reach == session.Online && q.Relayed:
+					return locales.AddNoteRelay(cx, desktopName())
 				case q.Reach == session.Online:
 					return locales.AddNote(cx, desktopName())
+				case q.Relayed:
+					return locales.AddNoteOfflineRelay(cx, desktopName())
 				}
 				return locales.AddNoteOffline(cx, desktopName())
 			}, Style: look.Caption, StyleFunc: ui.Colored(colors.Muted)},

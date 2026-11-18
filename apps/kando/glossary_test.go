@@ -4,6 +4,7 @@ import (
 	"os"
 	"path/filepath"
 	"reflect"
+	"strings"
 	"testing"
 
 	"kando/apps/kando/glossary"
@@ -270,5 +271,103 @@ func TestSubscriptionSeries(t *testing.T) {
 	}
 	if subscribe.DefaultRules().Series {
 		t.Fatal("a new subscription is a series")
+	}
+}
+
+// The films of a playlist added from the dialog are a series named after it, those it queued and the one the library had; a channel's are not.
+func TestAPlaylistsFilmsAreASeries(t *testing.T) {
+	p := newListingPipeline(map[string]media.Listing{testPlaylist: testListing, testChannel: {Title: "Veritasium", Videos: []media.ListedVideo{
+		{URL: "https://www.youtube.com/watch?v=ddddddddddd"}, {URL: "https://www.youtube.com/watch?v=eeeeeeeeeee"},
+	}}})
+	a, tt, updates := newTestApp(t, p)
+	a.library.Jobs = []core.Job{{ID: "have", Source: "https://youtu.be/bbbbbbbbbbb", Stage: core.StageComplete, VideoPath: "/videos/Episode 2/video.mp4", LibraryDir: "/videos"}}
+	refresh(tt, a)
+	startJob(t, tt, testPlaylist)
+	<-p.calls
+	waitUntil(t, tt, a, updates, func() bool { return !a.playlist.loading })
+	tt.Press("id:playlist-add")
+	if len(a.library.Jobs) != 3 {
+		t.Fatalf("jobs %+v", a.library.Jobs)
+	}
+	id := a.library.Jobs[0].Series
+	for _, job := range a.library.Jobs {
+		if job.Series == "" || job.Series != id {
+			t.Fatalf("%s is in series %q, want %q", job.Source, job.Series, id)
+		}
+	}
+	if series, ok := a.gloss.store.Find(id); !ok || series.Name != "French in Action" {
+		t.Fatalf("the series is %+v", series)
+	}
+
+	startJob(t, tt, testChannel)
+	<-p.calls
+	waitUntil(t, tt, a, updates, func() bool { return !a.playlist.loading })
+	tt.Press("id:playlist-add")
+	for _, job := range a.library.Jobs {
+		if strings.Contains(job.Source, "ddddddddddd") && job.Series != "" {
+			t.Fatalf("a channel's film is in series %q", job.Series)
+		}
+	}
+}
+
+// glossaryEpisodes is "talk" named as the first episode of 地理课, with the second episode and another film in its library, open with its 术语 tab showing.
+func glossaryEpisodes(t *testing.T) (*app, *nsgotest.App) {
+	t.Helper()
+	a, tt, updates := playerOpen(t)
+	a.glossaryLoad()
+	dir := a.library.Jobs[0].LibraryDir
+	a.library.Jobs[0].Title = "地理课 第1集"
+	a.library.Jobs = append(a.library.Jobs,
+		core.Job{ID: "ep2", Title: "地理课 第2集", Source: "https://www.youtube.com/watch?v=ooooooooooo", Stage: core.StageComplete, LibraryDir: dir},
+		core.Job{ID: "else", Title: "Tokyo Story", Source: "https://www.youtube.com/watch?v=ppppppppppp", Stage: core.StageComplete, LibraryDir: dir})
+	refresh(tt, a)
+	waitUntil(t, tt, a, updates, func() bool { return a.gloss.filmRead })
+	tt.Press("id:film-tab-terms")
+	return a, tt
+}
+
+// Films whose names say they are episodes of one show are offered as a series, which Same Series makes them, named after the show and kept in library.json.
+func TestFilmsNamedAsEpisodesBecomeASeriesOnceConfirmed(t *testing.T) {
+	a, tt := glossaryEpisodes(t)
+	msgs := testlocale.Messages()
+	wantText(t, tt, msgs.GlossaryGuessTitle())
+	wantText(t, tt, "地理课 第1集 · 地理课 第2集")
+	tt.Press("id:film-terms-guess-yes")
+	talk, _ := a.library.Find("talk")
+	ep2, _ := a.library.Find("ep2")
+	other, _ := a.library.Find("else")
+	if talk.Series == "" || ep2.Series != talk.Series || other.Series != "" {
+		t.Fatalf("series: talk %q, ep2 %q, else %q", talk.Series, ep2.Series, other.Series)
+	}
+	if name, n := a.FilmSeries(); name != "地理课" || n != 2 {
+		t.Fatalf("the film's series is %q of %d", name, n)
+	}
+	if tt.Exists("id:film-terms-guess") {
+		t.Fatal("the question stayed once answered")
+	}
+	wantText(t, tt, msgs.GlossarySeriesLine("地理课", 2))
+
+	// Leaving it does not bring the question back.
+	tt.Press("id:film-terms-leave-series")
+	if show, names := a.SeriesGuess(); show != "" || len(names) != 0 {
+		t.Fatalf("the show was offered again after the film left it: %q %q", show, names)
+	}
+}
+
+// Not a Series keeps that the show is not one, in glossary.json, and it is not asked again.
+func TestFilmsNamedAsEpisodesAreNotAskedAgainOnceTurnedDown(t *testing.T) {
+	a, tt := glossaryEpisodes(t)
+	tt.Press("id:film-terms-guess-no")
+	if tt.Exists("id:film-terms-guess") {
+		t.Fatal("the question stayed once turned down")
+	}
+	saved, err := glossary.Load(a.gloss.store.Path())
+	if err != nil || len(saved.NotSeries) != 1 {
+		t.Fatalf("glossary.json holds %+v, %v", saved, err)
+	}
+	for _, job := range a.library.Jobs {
+		if job.Series != "" {
+			t.Fatalf("%s joined series %q", job.ID, job.Series)
+		}
 	}
 }

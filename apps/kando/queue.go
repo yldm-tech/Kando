@@ -851,6 +851,9 @@ func (a *app) queueRun(job core.Job) {
 	}
 	ctx, cancel := context.WithCancelCause(context.Background())
 	ctx = media.WithGlossary(ctx, terms)
+	if a.prefs.review {
+		ctx = media.WithReview(ctx, a.prefs.reviewAuto)
+	}
 	done := make(chan struct{})
 	a.queue.active, a.queue.cancel, a.queue.done, a.queue.cancelled = job.ID, cancel, done, false
 	a.queueKeepAwake()
@@ -1077,6 +1080,9 @@ func statusText(m locales.Messages, job core.Job) string {
 	case core.StageTranslating:
 		if job.Progress.Proofreading {
 			return m.QueueStatusProofreading()
+		}
+		if job.Progress.Reviewing {
+			return m.QueueStatusReviewing()
 		}
 		return m.QueueStatusTranslating()
 	case core.StageExporting:

@@ -48,3 +48,16 @@ func (f *fakeApp) SpeechCommand() []string {
 func (f *fakeApp) ShortcutPreset() string { return f.preset }
 
 func (f *fakeApp) SetShortcutPreset(preset string) { f.preset = preset }
+
+// Review is on until a test turns it off, as the app's is.
+func (f *fakeApp) Review() *bool {
+	if f.review == nil {
+		on := true
+		f.review = &on
+	}
+	return f.review
+}
+
+func (f *fakeApp) ReviewAuto() string { return f.reviewAuto }
+
+func (f *fakeApp) SetReviewAuto(auto string) { f.reviewAuto = auto }

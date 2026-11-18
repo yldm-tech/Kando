@@ -64,6 +64,8 @@ type fakeApp struct {
 	language                string
 	context                 bool
 	contextLines, batchSize int
+	review                  *bool
+	reviewAuto              string
 	retries                 *int
 	appearance, preset      string
 	prompt                  string
@@ -182,6 +184,10 @@ func (f *fakeApp) SetPhoneReadOnly(id string, on bool) {
 			f.phone.Devices[i].ReadOnly = on
 		}
 	}
+}
+func (f *fakeApp) SetPhoneRelay(on bool) {
+	f.phone.Relay.On = on
+	f.call(fmt.Sprintf("relay %v", on))
 }
 func (f *fakeApp) ResolvePhoneConflict(id string, keep PhoneKeep) {
 	f.call(fmt.Sprintf("resolve %s %d", id, keep))

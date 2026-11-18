@@ -64,6 +64,13 @@ func newMoveFixture(t *testing.T) *moveFixture {
 	if err := book.Save(); err != nil {
 		t.Fatal(err)
 	}
+	kept := saved.StoredSound(book, book.Lines[0].ID)
+	if err := os.MkdirAll(filepath.Dir(kept), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(kept, []byte("sound"), 0o644); err != nil {
+		t.Fatal(err)
+	}
 	a, tt, updates := newTestApp(t, &fakePipeline{})
 	a.edit(func(s *session) {
 		s.LibraryDir = from
@@ -112,12 +119,19 @@ func wantLines(t *testing.T, dir, video string, others ...string) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if book.Find(book.Key(video), time.Second) < 0 {
+	i := book.Find(book.Key(video), time.Second)
+	if i < 0 {
 		t.Fatalf("the saved lines of %s are %+v, want the film's line by %s", dir, book.Lines, book.Key(video))
+	}
+	if !saved.HasSound(saved.StoredSound(book, book.Lines[i].ID)) {
+		t.Fatalf("the sound kept of the film's line is not in %s", dir)
 	}
 	for _, other := range others {
 		if b, _ := saved.Load(other); len(b.Lines) != 0 {
 			t.Fatalf("the saved lines of %s still hold %+v", other, b.Lines)
+		}
+		if entries, _ := os.ReadDir(filepath.Join(other, saved.SoundDir)); len(entries) != 0 {
+			t.Fatalf("the sounds of %s still hold %v", other, entries)
 		}
 	}
 }

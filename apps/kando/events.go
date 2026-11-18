@@ -66,6 +66,7 @@ func (a *app) areas() []areaHooks {
 		a.playerHooks(),
 		a.correctHooks(),
 		a.glossaryHooks(),
+		a.reviewHooks(),
 		a.overlayHooks(),
 		a.menuHooks(),
 		a.feedbackHooks(),

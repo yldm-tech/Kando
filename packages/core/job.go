@@ -58,6 +58,8 @@ type Progress struct {
 	Attempt, Attempts int
 	// Proofreading is true while the translation stage proofreads the transcript before it translates it (media.Proofreader): Batch and Lines then count the lines being proofread.
 	Proofreading bool
+	// Reviewing is true while the translation stage proofreads the translation as a whole once it is made (media.Reviewer, the final proofread): Batch and Lines then count the translated lines being read.
+	Reviewing bool
 	// Unanswered is true while the translation waits to try again a request that got no usable answer, as one that timed out, lost its connection or came back cut off; false while it waits out a rate limit or a server error.
 	Unanswered bool
 }
