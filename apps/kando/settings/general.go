@@ -15,7 +15,7 @@ import (
 	"github.com/nsgo-dev/nsgo/ui"
 )
 
-// general is the 通用 page: the library, the interface language, the notifications of finished videos, the version and its updates, the programs Kando runs, its command line and MCP server (cli.go), the browser whose sign-in downloads borrow (signin.go), and its browser extension (browser.go).
+// general is the 通用 page: the library, the interface language, the notifications of finished videos, the version and its updates, running in the background (background.go), the programs Kando runs, its command line and MCP server (cli.go), the browser whose sign-in downloads borrow (signin.go), and its browser extension (browser.go).
 type general struct{ s screen }
 
 // Render implements core.Node.
@@ -49,6 +49,8 @@ func (g general) Render(cx *core.Scope) core.Node {
 		form.Card(libraryRows{g.s}),
 		form.Note(static(locales.SettingsGeneralLibraryNote(cx)), 10),
 		form.Card(language, form.Separator(true), notify, form.Separator(true), updateRows{g.s}),
+		form.Label(locales.SettingsGeneralBackground(cx), 14),
+		form.Card(background{g.s}),
 		form.Label(locales.SettingsGeneralComponents(cx), 14, redetect),
 		form.Card(
 			tool("FF", "ffmpeg", locales.SettingsGeneralUseFFmpeg(cx), func(t media.Tools) string { return t.FFmpeg }),

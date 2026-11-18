@@ -82,6 +82,11 @@ type App interface {
 	// JobNotifications is whether Kando posts a notification when a video's job is done or failed while it is in the background; SetJobNotifications changes it.
 	JobNotifications() bool
 	SetJobNotifications(on bool)
+	// Background is how Kando runs with its window closed, which the 后台运行 card shows. SetLaunchAtLogin has the system open Kando at login or no more, where it can; SetKeepRunning and SetTrayIcon change whether closing the window keeps Kando running and whether its status icon shows, which shows or goes at once.
+	Background() Background
+	SetLaunchAtLogin(on bool)
+	SetKeepRunning(on bool)
+	SetTrayIcon(on bool)
 
 	// InstalledSpeechModel is the file on disk of the whisper catalog model id, "" when it is not downloaded. The app looks the models up when the window opens, when the model in use changes and on 重新检测, never while the page is drawn.
 	InstalledSpeechModel(id string) string

@@ -274,10 +274,11 @@ func TestClosingTheWindowOnMacKeepsKandoRunning(t *testing.T) {
 	}
 }
 
-// TestClosingTheWindowElsewhereQuits checks that on Linux and Windows the main window's close button quits, through the quit that asks first while a job runs, and lets the window close once that quit goes ahead.
+// TestClosingTheWindowElsewhereQuits checks that on Linux and Windows, with 关掉窗口后继续在后台运行 off, the main window's close button quits, through the quit that asks first while a job runs, and lets the window close once that quit goes ahead.
 func TestClosingTheWindowElsewhereQuits(t *testing.T) {
 	setWindowHidesOnClose(t, false)
 	a, tt, _ := newTestApp(t, &fakePipeline{})
+	a.tray.keepRunning = false
 	e := &ns.WindowClosing{}
 	a.windowClosing(e)
 	tt.Settle()

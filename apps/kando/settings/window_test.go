@@ -32,6 +32,7 @@ type fakeApp struct {
 	ext                     BrowserExtension
 	signIn                  SignIn
 	phone                   PhoneSync
+	background              Background
 	notify                  bool
 	models                  map[string]string
 	owned                   map[string]bool
@@ -135,6 +136,10 @@ func (f *fakeApp) NewPhoneCode()                         { f.call("new phone cod
 func (f *fakeApp) RevokePhone(id string)                 { f.call("revoke " + id) }
 func (f *fakeApp) JobNotifications() bool                { return f.notify }
 func (f *fakeApp) SetJobNotifications(on bool)           { f.notify = on }
+func (f *fakeApp) Background() Background                { return f.background }
+func (f *fakeApp) SetLaunchAtLogin(on bool)              { f.background.LaunchAtLogin = on }
+func (f *fakeApp) SetKeepRunning(on bool)                { f.background.KeepRunning = on }
+func (f *fakeApp) SetTrayIcon(on bool)                   { f.background.TrayIcon = on }
 func (f *fakeApp) InstalledSpeechModel(id string) string { return f.models[id] }
 func (f *fakeApp) UseSpeechModel(path string)            { f.call("use " + path); f.tools.WhisperModel = path }
 func (f *fakeApp) PickSpeechModel()                      { f.call("pick model") }

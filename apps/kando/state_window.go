@@ -77,7 +77,7 @@ func (a *app) windowFrame() (core.WindowFrame, bool) {
 	return f, f.Width > 0 && f.Height > 0
 }
 
-// windowHidesOnClose says the main window's close button only puts the window away and Kando runs on, its jobs and its sound with it, until the Dock icon brings the window back: on macOS, where an app outlives its windows. On Linux and Windows closing the main window quits, after the queue asks when a job is running. Tests set it to check both.
+// windowHidesOnClose says the main window's close button always only puts the window away and Kando runs on, its jobs and its sound with it, until the Dock icon brings the window back: on macOS, where an app outlives its windows. On Linux and Windows it does so while 关掉窗口后继续在后台运行 is on (trayUI.keepRunning), as it is by default, and the status icon or launching Kando again brings the window back; with it off, closing the main window quits, after the queue asks when a job is running. Tests set it to check both.
 var windowHidesOnClose = runtime.GOOS == "darwin"
 
 // windowHooks: the main window's frame is kept in settings.json; once the window exists its close button is caught (windowClosing). A quit that goes ahead lets the window close.
@@ -166,13 +166,13 @@ func (a *app) windowWatch() {
 	})
 }
 
-// windowClosing decides what the main window's close button, ⌘W or 关闭窗口 do. A quit under way closes the window. Otherwise the window stays: on macOS it is put away while Kando runs on, and elsewhere the app quits, which asks first when a job is running (queueBeforeQuit) and closes the window once it may.
+// windowClosing decides what the main window's close button, ⌘W, Alt+F4 or 关闭窗口 do. A quit under way closes the window. Otherwise the window stays: on macOS, and elsewhere while Kando keeps running with its window closed (trayUI.keepRunning), it is put away while Kando runs on, and else the app quits, which asks first when a job is running (queueBeforeQuit) and closes the window once it may.
 func (a *app) windowClosing(c *core.WindowClosing) {
 	if a.window.quitting {
 		return
 	}
 	c.Cancel()
-	if !windowHidesOnClose {
+	if !windowHidesOnClose && !a.tray.keepRunning {
 		a.requestQuit()
 		return
 	}
@@ -190,7 +190,7 @@ func (a *app) windowHide() {
 	a.window.main.Hide()
 }
 
-// windowShowMain brings the main window back to the front: the Dock icon, 窗口 › 主窗口, and the queue asking before a quit show it so.
+// windowShowMain brings the main window back to the front: the Dock icon, launching Kando again, 窗口 › 主窗口, the status icon's 打开看懂, and the queue asking before a quit show it so.
 func (a *app) windowShowMain() {
 	a.window.leavingFullScreen = false
 	a.windowSight(true)

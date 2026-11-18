@@ -887,6 +887,9 @@ filmSpokenLanguage:
 filmSpokenLanguageUnknown:
   message: "Unknown"
   description: "Shown in a film's Spoken Language drop-down when the speech recognition did not say which language it heard and the user named none."
+filmsQueuePaused:
+  message: "Queued · queue paused"
+  description: "Line under a waiting job's title while the whole queue is paused (from the tray icon or the menu bar), so nothing starts until it is resumed."
 filmsRemoveConfirmMany:
   message: "Remove {count, plural, one {# film} other {# films}} from the library?"
   description: "Title of the dialog confirming that several selected films are removed from the library."
@@ -2891,6 +2894,9 @@ queueNotifyUntranslated:
 queueOpenSettingsNoApp:
   message: "Couldn't open System Settings: no app opened it."
   description: "Message bar when the Full Disk Access pane of System Settings could not be opened because the system had no app open it."
+queuePause:
+  message: "Pause Queue"
+  description: "Checkable item of the tray icon's menu and of the File menu: stops the running job, which goes back to the head of the queue, and starts no job until it is chosen again."
 queueQuitWhileRunningCancel:
   message: "Cancel"
   description: "Default button of the dialog asking whether to quit while a video is being processed: Kando keeps running and the job with it."
@@ -3642,6 +3648,9 @@ settingsGeneralAutoDownload:
 settingsGeneralAutoDownloadHint:
   message: "The new version opens the next time you launch Kando."
   description: "Under the automatic download switch in Settings › General."
+settingsGeneralBackground:
+  message: "Background"
+  description: "Heading of the card in Settings › General about running Kando with its window closed: opening it at login, keeping it running and its tray icon."
 settingsGeneralBrowser:
   message: "Browser Extension"
   description: "Heading of the General settings card about Kando's extension for Chrome, Edge, Firefox and other browsers."
@@ -3785,6 +3794,12 @@ settingsGeneralInstalled:
 settingsGeneralInterfaceLanguage:
   message: "Interface language"
   description: "Row title and pop-up name: the language of Kando's interface."
+settingsGeneralKeepRunning:
+  message: "Keep running after the window closes"
+  description: "Switch in Settings › General (Windows and Linux): closing the main window only hides it and Kando keeps processing; off, closing the window quits."
+settingsGeneralKeepRunningHint:
+  message: "The queue keeps processing."
+  description: "Hint under the switch that keeps Kando running after its window closes."
 settingsGeneralLanguageName:
   message: "English"
   description: "This catalog's language named in itself, as the Interface language pop-up lists it, so the choice stays readable whatever language Kando shows."
@@ -3793,6 +3808,12 @@ settingsGeneralLastCheck:
   description: "Under Version in Settings › General: when Kando last checked for updates; {when} is a date and time."
   placeholders:
     when: { type: "DateTime" }
+settingsGeneralLaunchAtLogin:
+  message: "Open Kando at login"
+  description: "Switch in Settings › General (macOS) that has the system open Kando when the user logs in."
+settingsGeneralLaunchAtLoginHint:
+  message: "Runs quietly in the menu bar without opening a window."
+  description: "Hint under the switch that opens Kando at login: a Kando opened so shows no window."
 settingsGeneralLibrary:
   message: "Library"
   description: "Heading of the General page's library card."
@@ -3887,6 +3908,14 @@ settingsGeneralToolsNoteScoop:
   description: "Footnote under the programs Kando runs on Windows, where it does not download them; {command} installs all of them with the Scoop package manager and is not translated."
   placeholders:
     command: { type: "String", example: "scoop install yt-dlp ffmpeg whisper-cpp" }
+settingsGeneralTrayIcon:
+  message: "{platform, select, macOS {Show icon in the menu bar} Windows {Show icon in the notification area} other {Show icon in the system tray}}"
+  description: "Switch in Settings › General that shows Kando's status icon. {platform} is the system the app runs on: macOS, Windows or another (Linux); each case names where that system shows such icons."
+  placeholders:
+    platform: { type: "String", example: "macOS" }
+settingsGeneralTrayIconHint:
+  message: "See the progress, pause the queue, open or quit Kando."
+  description: "Hint under the switch that shows Kando's status icon: what its menu offers."
 settingsGeneralUpdateAvailable:
   message: "Version {version} is available"
   description: "Under Version in Settings › General when the last check found a newer version; {version} is its number, such as 0.4.0."
@@ -4659,6 +4688,50 @@ sourceXigua:
 sourceYouku:
   message: "Youku"
   description: "Name of the Chinese video site Youku (youku.com)."
+trayJob:
+  message: "{title} — {stage} · {percent}% overall"
+  description: "Item of the tray icon's menu naming the job running: its film's title, the stage it is in (as Downloading) and how far the whole job has gone."
+  placeholders:
+    title: { type: "String", example: "Morning Market in Kyoto" }
+    stage: { type: "String", example: "Translating" }
+    percent: { type: "int", example: "62" }
+trayOpen:
+  message: "Open Kando"
+  description: "Item of the tray icon's menu that brings Kando's main window to the front."
+trayPaused:
+  message: "Paused"
+  description: "Text beside the menu bar icon (macOS) while the queue is paused, in place of the running job's percentage."
+trayPercent:
+  message: "{percent}%"
+  description: "Text beside the menu bar icon (macOS) while a job runs: how far the whole job has gone."
+  placeholders:
+    percent: { type: "int", example: "62" }
+trayQueue:
+  message: "{count, plural, =0 {The queue is empty} one {# video waiting} other {# videos waiting}}"
+  description: "Item of the tray icon's menu: how many videos wait in the queue behind the one running."
+  placeholders:
+    count: { type: "int", example: "3" }
+trayStateBackground:
+  message: "Window closed, processing in the background"
+  description: "First item of the tray icon's menu while a job runs and the main window is closed."
+trayStateIdle:
+  message: "Idle"
+  description: "First item of the tray icon's menu while no job runs."
+trayStatePaused:
+  message: "Queue paused"
+  description: "First item of the tray icon's menu while the queue is paused."
+trayStateRunning:
+  message: "Processing"
+  description: "First item of the tray icon's menu while a job runs."
+trayTooltipJob:
+  message: "Kando: {title} {percent}%"
+  description: "Tooltip of the tray icon while a job runs: its film's title and how far the whole job has gone."
+  placeholders:
+    title: { type: "String", example: "Morning Market in Kyoto" }
+    percent: { type: "int", example: "62" }
+trayTooltipPaused:
+  message: "Kando: queue paused"
+  description: "Tooltip of the tray icon while the queue is paused."
 updatesCheck:
   message: "Check for Updates…"
   description: "Item of the app menu (and the command palette) that checks for a newer version of Kando and shows the update window."

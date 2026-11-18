@@ -195,7 +195,7 @@ func Watchable(item Film) bool {
 	return item.JobID != "" && item.VideoPath != "" && !item.Stage.Done()
 }
 
-// QueueMeta is the line under a waiting or running job's title, in the language of m: the stage and how far it has gone, as its tool reports it, and about how long it has left once that can be told (Remaining), or how many jobs run before a waiting one.
+// QueueMeta is the line under a waiting or running job's title, in the language of m: the stage and how far it has gone, as its tool reports it, and about how long it has left once that can be told (Remaining), or how many jobs run before a waiting one, or that it waits for the paused queue.
 func QueueMeta(m locales.Messages, item Film) string { return queueMetaAt(m, item, time.Now()) }
 
 // queueMetaAt is QueueMeta at the time now.
@@ -213,6 +213,9 @@ func queueMetaAt(m locales.Messages, item Film, now time.Time) string {
 	}
 	switch item.Stage {
 	case core.StageQueued:
+		if item.Paused {
+			return m.FilmsQueuePaused()
+		}
 		if item.Ahead > 0 {
 			return m.FilmsQueueWaitingAhead(item.Ahead)
 		}

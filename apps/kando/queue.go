@@ -47,6 +47,8 @@ type jobQueue struct {
 	done   chan struct{}
 	// stopped is set once the app quits (queueQuit): no job starts after it.
 	stopped bool
+	// paused is set while the user paused the whole queue (queue_pause.go): the job running then went back to the head of the queue, and no job starts until it is resumed. It lasts until Kando quits.
+	paused bool
 	// quitAsk is the confirmation of a quit while a job runs (queue_quit.go); quitRelease gives back the window's modal flag it holds. quitConfirmed is set once the user chose to quit anyway, or a signal asked the app to quit (queueWatchSignals), so the quit that follows is not asked again.
 	quitAsk       bool
 	quitRelease   func()
@@ -141,7 +143,11 @@ func (a *app) queueHooks() areaHooks {
 }
 
 // queueKeys are the queue's shortcuts.
-func (a *app) queueKeys(*ns.Scope) []shortcut { return nil }
+func (a *app) queueKeys(cx *ns.Scope) []shortcut {
+	return []shortcut{
+		{Group: groupFile, Label: locales.QueuePause(cx), Checked: func() bool { return a.queue.paused }, Run: a.queueTogglePause},
+	}
+}
 
 // errBusy was Enqueue's answer while a job ran, before jobs waited in a queue. Enqueue no longer returns it; it stays so code written against the one-job contract still builds. It is made when it is said, in the language of m, the one shown then.
 func errBusy(m locales.Messages) error { return errors.New(m.QueueBusy()) }
@@ -717,7 +723,7 @@ func (a *app) queueAdd(job core.Job) {
 
 // pump starts the oldest queued job when no job is running. Each job saves into its own library (queueRun), so a job queued in a library that is not open runs too, as long as that library is one the app still knows (queueCanRun). A queued job on the shelf that the queue has not seen, such as one read back as queued after a restart, joins the end of the queue, oldest first.
 func (a *app) pump() {
-	if a.queue.active != "" || a.queue.stopped {
+	if a.queue.active != "" || a.queue.stopped || a.queue.paused {
 		return
 	}
 	for i := len(a.library.Jobs) - 1; i >= 0; i-- {
@@ -812,8 +818,9 @@ func (a *app) queueRun(job core.Job) {
 	go func() {
 		defer cancel(nil)
 		defer close(done)
-		// A job stopped because the app quits reports nothing more: its card would say 已取消 and keep it from running again at the next launch, and the next job must not start.
+		// A job stopped because the app quits reports nothing more: its card would say 已取消 and keep it from running again at the next launch, and the next job must not start. Neither does one stopped because the queue was paused, which goes back to the head of the queue once its pipeline has returned (queuePausedJob).
 		quitting := func() bool { return errors.Is(context.Cause(ctx), errQuitting) }
+		pausing := func() bool { return errors.Is(context.Cause(ctx), errPausing) }
 		// A report that only moves the progress waits in latest, and at most one update carries it to the engine's goroutine, no sooner than queueProgressEvery after the one before: a tool that reports many times a second neither queues an update for each nor has every binding follow each, and the card shows the newest when the update runs. Any other report goes as it comes and takes the place of a progress report still waiting, as it carries the newest progress itself, so the bar never moves back.
 		var latest atomic.Pointer[core.Job]
 		var sent atomic.Int64
@@ -826,8 +833,8 @@ func (a *app) queueRun(job core.Job) {
 			})
 		}
 		last := job
-		media.Run(ctx, pipeline, job, language, func(j core.Job) {
-			if quitting() {
+		result := media.Run(ctx, pipeline, job, language, func(j core.Job) {
+			if quitting() || pausing() {
 				return
 			}
 			onlyProgress := j.Stage == last.Stage && j.Title == last.Title && j.Thumbnail == last.Thumbnail && j.VideoPath == last.VideoPath && j.Err == nil
@@ -846,6 +853,10 @@ func (a *app) queueRun(job core.Job) {
 			}
 		})
 		if quitting() {
+			return
+		}
+		if pausing() {
+			update(func() { a.queuePausedJob(job.ID, result) })
 			return
 		}
 		update(func() { a.finished(job.ID) })

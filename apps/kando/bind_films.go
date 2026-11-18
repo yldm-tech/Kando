@@ -489,12 +489,13 @@ func (a *app) films() []films.Film {
 // statusOf is what a job's card says of where it is, in the interface's language (statusText), as films.List and films.Queue take it.
 func (a *app) statusOf(job core.Job) string { return statusText(a.messages(), job) }
 
-// QueueFilms is the films of 处理中: the open library's jobs that are waiting, running, failed or were cancelled, and the jobs the queue runs or will run for other libraries (queueElsewhere), but for those of a locked library (lockVisible). A waiting one says how many jobs run before it (queueAhead).
+// QueueFilms is the films of 处理中: the open library's jobs that are waiting, running, failed or were cancelled, and the jobs the queue runs or will run for other libraries (queueElsewhere), but for those of a locked library (lockVisible). A waiting one says how many jobs run before it (queueAhead), or that the queue is paused (queue_pause.go).
 func (a *app) QueueFilms() []films.Film {
 	items := films.Queue(a.snap().LibraryDir, a.lockVisible(a.library.Jobs), a.queueElsewhere, jobName, a.statusOf)
 	ahead := a.queueAhead()
 	for i := range items {
 		items[i].Ahead = ahead[items[i].JobID]
+		items[i].Paused = a.queue.paused && items[i].Stage == core.StageQueued
 	}
 	return items
 }

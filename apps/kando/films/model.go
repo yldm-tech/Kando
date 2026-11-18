@@ -46,6 +46,8 @@ type Film struct {
 	Library string
 	// Ahead is how many jobs run before a waiting one; 0 for any other film.
 	Ahead int
+	// Paused is true for a waiting film while the whole queue is paused, so none starts until it is resumed.
+	Paused bool
 	// Target is the language the film's job translates into: the one a job processing or translating a done film again was asked for (core.Job.RedoLanguage), else Language.
 	Target string
 }
