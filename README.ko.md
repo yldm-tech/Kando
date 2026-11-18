@@ -89,7 +89,7 @@ cd Kando
 make build
 ```
 
-`make build`는 현재 플랫폼용으로 `go tool nsgo build`를 실행하고(`make build TARGET=windows_x64`처럼 `TARGET=`으로 다른 플랫폼도 빌드합니다), 앱은 `apps/kando/build/`에, 배포할 파일은 `apps/kando/build/releases/`에 생성합니다. macOS에서는 ad-hoc 서명된 `Kando.app`과 `.dmg`가, Windows에서는 프로그램과, `makensis`가 설치되어 있으면 NSIS 설치 프로그램(없으면 어느 시스템에서나 컴파일할 수 있는 `.nsi` 스크립트)이, Linux에서는 프로그램, `.deb`, Arch용 `.pkg.tar.gz`, `.AppImage`가 만들어집니다. 릴리스와 마찬가지로 `GOFLAGS=-tags=nodra_nomygo`를 설정해 앱이 쓰지 않는 코드를 넣지 않습니다. 기본 Windows처럼 `make`가 없는 환경에서는 저장소 루트에서 `go tool nsgo build -target windows_x64 apps/kando`를 직접 실행하세요.
+`make build`는 현재 플랫폼용으로 `go tool nsgo build`를 실행하고(`make build TARGET=windows_x64`처럼 `TARGET=`으로 다른 플랫폼도 빌드합니다), 앱은 `apps/kando/build/`에, 배포할 파일은 `apps/kando/build/releases/`에 생성합니다. macOS에서는 ad-hoc 서명된 `Kando.app`과 `.dmg`가, Windows에서는 프로그램과, `makensis`가 설치되어 있으면 NSIS 설치 프로그램(없으면 어느 시스템에서나 컴파일할 수 있는 `.nsi` 스크립트)이, Linux에서는 프로그램, `.deb`, Arch용 `.pkg.tar.gz`, `.AppImage`가 만들어집니다. 릴리스와 마찬가지로 `nodra_nomygo` 태그(`apps/kando/nsgo.yaml`의 `build.tags`가 앱의 모든 빌드, 개발 실행, 테스트에 붙입니다)로 빌드해 앱이 쓰지 않는 코드를 넣지 않습니다. 기본 Windows처럼 `make`가 없는 환경에서는 저장소 루트에서 `go tool nsgo build -target windows_x64 apps/kando`를 직접 실행하세요.
 
 ## 요구 사항
 

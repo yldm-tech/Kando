@@ -89,7 +89,7 @@ cd Kando
 make build
 ```
 
-`make build` は現在のプラットフォーム向けに `go tool nsgo build` を実行し（`make build TARGET=windows_x64` のように `TARGET=` で他のプラットフォームもビルドできます）、アプリを `apps/kando/build/` に、配布するファイルを `apps/kando/build/releases/` に書き出します。macOS ではアドホック署名された `Kando.app` と `.dmg`、Windows ではプログラム本体と、`makensis` がインストールされていれば NSIS のインストーラー（なければどのシステムでもコンパイルできる `.nsi` スクリプト）、Linux ではプログラム本体、`.deb`、Arch の `.pkg.tar.gz`、`.AppImage` が作られます。リリースと同じく `GOFLAGS=-tags=nodra_nomygo` を設定し、アプリが使わないコードを含めません。標準の Windows のように `make` がない環境では、リポジトリのルートで `go tool nsgo build -target windows_x64 apps/kando` を直接実行してください。
+`make build` は現在のプラットフォーム向けに `go tool nsgo build` を実行し（`make build TARGET=windows_x64` のように `TARGET=` で他のプラットフォームもビルドできます）、アプリを `apps/kando/build/` に、配布するファイルを `apps/kando/build/releases/` に書き出します。macOS ではアドホック署名された `Kando.app` と `.dmg`、Windows ではプログラム本体と、`makensis` がインストールされていれば NSIS のインストーラー（なければどのシステムでもコンパイルできる `.nsi` スクリプト）、Linux ではプログラム本体、`.deb`、Arch の `.pkg.tar.gz`、`.AppImage` が作られます。リリースと同じく `nodra_nomygo` タグ（`apps/kando/nsgo.yaml` の `build.tags` がアプリのすべてのビルド、開発実行、テストに付けます）でビルドし、アプリが使わないコードを含めません。標準の Windows のように `make` がない環境では、リポジトリのルートで `go tool nsgo build -target windows_x64 apps/kando` を直接実行してください。
 
 ## 動作要件
 

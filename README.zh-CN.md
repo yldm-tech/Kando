@@ -89,7 +89,7 @@ cd Kando
 make build
 ```
 
-`make build` 会针对当前平台运行 `go tool nsgo build`（用 `TARGET=` 构建其他平台，例如 `make build TARGET=windows_x64`），把应用写入 `apps/kando/build/`，把用来分发的文件写入 `apps/kando/build/releases/`：在 macOS 上是经过临时签名（ad-hoc）的 `Kando.app` 和一个 `.dmg`；在 Windows 上是程序本身，安装了 `makensis` 时还有 NSIS 安装程序（否则是在任何系统上都能编译的 `.nsi` 脚本）；在 Linux 上是程序本身、一个 `.deb`、一个 Arch 的 `.pkg.tar.gz` 和一个 `.AppImage`。它会设置 `GOFLAGS=-tags=nodra_nomygo`，和正式版本一样把应用用不到的代码排除在外。没有 `make` 时（例如未额外安装工具的 Windows），在仓库根目录直接运行 `go tool nsgo build -target windows_x64 apps/kando`。
+`make build` 会针对当前平台运行 `go tool nsgo build`（用 `TARGET=` 构建其他平台，例如 `make build TARGET=windows_x64`），把应用写入 `apps/kando/build/`，把用来分发的文件写入 `apps/kando/build/releases/`：在 macOS 上是经过临时签名（ad-hoc）的 `Kando.app` 和一个 `.dmg`；在 Windows 上是程序本身，安装了 `makensis` 时还有 NSIS 安装程序（否则是在任何系统上都能编译的 `.nsi` 脚本）；在 Linux 上是程序本身、一个 `.deb`、一个 Arch 的 `.pkg.tar.gz` 和一个 `.AppImage`。它会带上 `nodra_nomygo` 标签（`apps/kando/nsgo.yaml` 的 `build.tags` 给应用的每次构建、开发运行和测试都加上它），和正式版本一样把应用用不到的代码排除在外。没有 `make` 时（例如未额外安装工具的 Windows），在仓库根目录直接运行 `go tool nsgo build -target windows_x64 apps/kando`。
 
 ## 运行依赖
 
