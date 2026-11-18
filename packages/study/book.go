@@ -11,6 +11,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"maps"
 	"math"
 	"os"
 	"path/filepath"
@@ -84,8 +85,9 @@ type Book struct {
 	// Device is the id of the device the book's changes are made on, which they are stamped with; Now is the clock they are stamped by, time.Now when nil.
 	Device string
 	Now    func() time.Time
-	// imported is the SHA-256 of saved-lines.json as the book last took its lines, so Load takes them again only once an older Kando has written it since. migrated is set when Load took lines from it, so the book needs saving.
+	// imported is the SHA-256 of saved-lines.json as the book last took its lines, so Load takes them again only once an older Kando has written it since. taken is the lines that file held then (legacyKey), which Load does not take again, wherever they went in the book since. migrated is set when Load took lines from it, so the book needs saving.
 	imported string
+	taken    map[string]took
 	migrated bool
 	// unread is why Load could not read the file. While it is set Save does not write, as the file may hold lines this book lacks.
 	unread error
@@ -327,16 +329,17 @@ func (b *Book) TakeVideo(path string) []Line {
 }
 
 // AddVideo puts lines, the lines another book kept of a video (TakeVideo), in this book as the lines of the video at path, each with its id, its note, its times and schedule, among the others by when it was saved, newest first. A line this book has already, at the same start of that video, stays as it is.
+//
+// A line whose id this book removed, as one that comes back when a move to another library is undone, takes a new id and the removal stays: a device that has the removal takes the line out by its id when the books merge (Merge), so the line under its old id would go there and then here.
 func (b *Book) AddVideo(path string, lines []Line) {
 	key := b.Key(path)
 	for _, l := range lines {
 		if b.Find(key, l.Start) >= 0 {
 			continue
 		}
-		if l.ID == "" || b.Index(l.ID) >= 0 {
+		if l.ID == "" || b.Index(l.ID) >= 0 || slices.ContainsFunc(b.Removed, func(r Removed) bool { return r.ID == l.ID }) {
 			l.ID = NewID()
 		}
-		b.Removed = slices.DeleteFunc(b.Removed, func(r Removed) bool { return r.ID == l.ID })
 		if l.Video != key {
 			l.Video = key
 			l.Stamps.Video = b.stamp()
@@ -376,6 +379,7 @@ func NewID() string {
 type storedBook struct {
 	Version  int          `json:"version"`
 	Imported string       `json:"imported,omitempty"`
+	Taken    []storedTook `json:"taken,omitempty"`
 	Lines    []storedLine `json:"lines"`
 	Removed  []storedGone `json:"removed,omitempty"`
 }
@@ -409,6 +413,13 @@ type storedLine struct {
 	Stamps      storedStamps `json:"stamps"`
 }
 
+// storedTook is a line of saved-lines.json the book took already (Book.taken): its video and start, and when it was saved, which name it there.
+type storedTook struct {
+	Video   string    `json:"video"`
+	Start   float64   `json:"start"`
+	SavedAt time.Time `json:"savedAt,omitzero"`
+}
+
 type storedGone struct {
 	ID    string      `json:"id"`
 	Video string      `json:"video"`
@@ -436,6 +447,10 @@ func (b Book) encode() storedBook {
 	for _, r := range b.Removed {
 		out.Removed = append(out.Removed, storedGone{ID: r.ID, Video: r.Video, Start: r.Start.Seconds(), At: toStored(r.At)})
 	}
+	for _, k := range slices.Sorted(maps.Keys(b.taken)) {
+		t := b.taken[k]
+		out.Taken = append(out.Taken, storedTook{Video: t.Video, Start: t.Start.Seconds(), SavedAt: t.SavedAt})
+	}
 	return out
 }
 
@@ -449,6 +464,9 @@ func (b *Book) decode(data []byte) error {
 		return fmt.Errorf("%s is version %d, which a later Kando wrote", FileName, stored.Version)
 	}
 	b.imported = stored.Imported
+	for _, s := range stored.Taken {
+		b.took(took{Video: s.Video, Start: fromSeconds(s.Start), SavedAt: s.SavedAt})
+	}
 	for _, s := range stored.Lines {
 		if s.ID == "" || s.Video == "" || s.Start < 0 {
 			continue

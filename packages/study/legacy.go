@@ -8,6 +8,7 @@ import (
 	"os"
 	"path/filepath"
 	"slices"
+	"strconv"
 	"time"
 )
 
@@ -31,9 +32,29 @@ type legacyLine struct {
 	Due         time.Time `json:"due,omitzero"`
 }
 
+// took is a line of saved-lines.json the book took already, named as the file names it: by its video, its start and when it was saved.
+type took struct {
+	Video   string
+	Start   time.Duration
+	SavedAt time.Time
+}
+
+// key is t as Book.taken keys it, its start to the millisecond and its time in UTC, so it is the same read from either file.
+func (t took) key() string {
+	return t.Video + "\x00" + strconv.FormatInt(t.Start.Milliseconds(), 10) + "\x00" + t.SavedAt.UTC().Format(time.RFC3339Nano)
+}
+
+// took records t among the lines of saved-lines.json the book took.
+func (b *Book) took(t took) {
+	if b.taken == nil {
+		b.taken = map[string]took{}
+	}
+	b.taken[t.key()] = t
+}
+
 // importLegacy takes the lines of the library's saved-lines.json that the book lacks, unless the book took the file as it is now already (imported). found is whether the book was read from its own file: without one, a saved-lines.json that cannot be read is the error, as saving the book would leave its lines behind; with one, such a file is passed over, to be tried again on the next Load, so it does not keep the book's lines from the learner.
 //
-// A line the book has, at the same start of the same video, stays as it is in the book. A line removed from the book stays removed, unless the file has it saved again after its removal, as an older Kando does when the learner saves it again there. A line taken over gets an id and has its fields stamped when it was saved, on no device, as the file does not say which.
+// A line the file had already when the book last took its lines (taken) is not taken again, wherever it went in the book since: moved to another video's path (MoveVideos), removed there, or moved to another library. A line the book has, at the same start of the same video, stays as it is in the book. A line removed from the book stays removed, unless the file has it saved again after its removal, as an older Kando does when the learner saves it again there. A line taken over gets an id and has its fields stamped when it was saved, on no device, as the file does not say which.
 func (b *Book) importLegacy(found bool) error {
 	data, err := os.ReadFile(filepath.Join(b.dir, LegacyFileName))
 	if errors.Is(err, os.ErrNotExist) {
@@ -58,8 +79,15 @@ func (b *Book) importLegacy(found bool) error {
 		return err
 	}
 	fresh := len(b.Lines) == 0
+	before := b.taken
+	b.taken = nil
 	for _, s := range stored.Lines {
 		if s.Video == "" || s.Start < 0 {
+			continue
+		}
+		t := took{Video: s.Video, Start: fromSeconds(s.Start), SavedAt: s.SavedAt}
+		b.took(t)
+		if _, ok := before[t.key()]; ok {
 			continue
 		}
 		l := Line{

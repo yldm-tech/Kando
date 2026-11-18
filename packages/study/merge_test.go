@@ -124,3 +124,45 @@ func TestMergeRemovesLines(t *testing.T) {
 		t.Fatalf("the line saved again: %+v", phone.Lines)
 	}
 }
+
+// TestMoveAndUndoKeepTheLinesAcrossDevices checks a video's lines moved to another library and back, as a library move and its undo: they go with their ids, notes and schedules, the book they leave keeps a removal for each, and the lines that come back take new ids, the removals of their old ones staying, so a device that synced the removal keeps the lines once the books merge again, as does the book they came back to.
+func TestMoveAndUndoKeepTheLinesAcrossDevices(t *testing.T) {
+	clock := 0
+	mac := bookOn("mac", &clock)
+	mac.Toggle(Line{Video: "Talk/video.mp4", Start: time.Second, Original: "Hi", SavedAt: at(0)})
+	clock = 1
+	mac.SetNote(mac.Lines[0].ID, "a greeting")
+	mac.Lines[0].Box = 2
+	id := mac.Lines[0].ID
+	phone := bookOn("phone", &clock)
+	phone.Merge(mac.Lines, mac.Removed)
+
+	clock = 2
+	other := bookOn("mac", &clock)
+	other.AddVideo("Talk/video.mp4", mac.TakeVideo("Talk/video.mp4"))
+	if len(mac.Lines) != 0 || len(mac.Removed) != 1 || mac.Removed[0].ID != id {
+		t.Fatalf("left behind %+v, removed %+v", mac.Lines, mac.Removed)
+	}
+	if len(other.Lines) != 1 || other.Lines[0].ID != id || other.Lines[0].Note != "a greeting" || other.Lines[0].Box != 2 || !other.Lines[0].SavedAt.Equal(at(0)) {
+		t.Fatalf("moved as %+v", other.Lines)
+	}
+	if !phone.Merge(mac.Lines, mac.Removed) || len(phone.Lines) != 0 {
+		t.Fatalf("the phone kept %+v", phone.Lines)
+	}
+
+	clock = 3
+	mac.AddVideo("Talk/video.mp4", other.TakeVideo("Talk/video.mp4"))
+	if len(mac.Lines) != 1 || mac.Lines[0].ID == id || mac.Lines[0].Note != "a greeting" || mac.Lines[0].Box != 2 || !mac.Lines[0].SavedAt.Equal(at(0)) {
+		t.Fatalf("came back as %+v", mac.Lines)
+	}
+	if !slices.ContainsFunc(mac.Removed, func(r Removed) bool { return r.ID == id }) {
+		t.Fatalf("the removal of the old id went: %+v", mac.Removed)
+	}
+	mac.Merge(phone.Lines, phone.Removed)
+	if len(mac.Lines) != 1 || mac.Lines[0].Original != "Hi" {
+		t.Fatalf("after merging the phone the mac has %+v", mac.Lines)
+	}
+	if !phone.Merge(mac.Lines, mac.Removed) || len(phone.Lines) != 1 || phone.Lines[0].Note != "a greeting" {
+		t.Fatalf("the phone has %+v", phone.Lines)
+	}
+}

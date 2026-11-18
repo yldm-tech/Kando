@@ -318,3 +318,33 @@ func TestReviewCutsAndPlaysTheSound(t *testing.T) {
 		t.Fatalf("the review's folder of sounds is still there: %v", err)
 	}
 }
+
+// TestStudyDeviceIsKeptAcrossLaunches checks that the id this computer is given in the study record the first time a library's saved lines are read is written to settings.json at once, and that the next launch reads it back and stamps its books with it rather than making another.
+func TestStudyDeviceIsKeptAcrossLaunches(t *testing.T) {
+	for _, env := range []string{"KANDO_OUTPUT_DIR", "KANDO_LLM_BASE_URL", "KANDO_LLM_MODEL", "KANDO_LLM_API_KEY", "EVERYAPI_API_KEY", "KANDO_R2_SECRET"} {
+		t.Setenv(env, "")
+	}
+	path := filepath.Join(t.TempDir(), "settings.json")
+	if err := os.WriteFile(path, []byte(`{"language": "日本語"}`+"\n"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	library := t.TempDir()
+	a := newApp(media.Tools{}, func(func()) {})
+	a.settingsPath = path
+	a.restoreSettings(a.loadSettings())
+	book, err := a.savedLoad(library)
+	if err != nil || a.saved.device == "" || book.Device != a.saved.device {
+		t.Fatalf("the book is stamped by %q, this computer %q, %v", book.Device, a.saved.device, err)
+	}
+	if saved := loadSavedSettings(path); saved.StudyDevice != a.saved.device || saved.Language != "日本語" {
+		t.Fatalf("settings.json holds device %q, language %q, want %q", saved.StudyDevice, saved.Language, a.saved.device)
+	}
+
+	b := newApp(media.Tools{}, func(func()) {})
+	b.settingsPath = path
+	b.restoreSettings(b.loadSettings())
+	again, err := b.savedLoad(library)
+	if err != nil || b.saved.device != a.saved.device || again.Device != a.saved.device {
+		t.Fatalf("the next launch stamps by %q, this computer %q, want %q (%v)", again.Device, b.saved.device, a.saved.device, err)
+	}
+}

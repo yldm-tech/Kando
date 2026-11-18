@@ -260,3 +260,56 @@ func TestSaveKeepsWhatSyncNeeds(t *testing.T) {
 		t.Fatalf("removed %+v", got.Removed)
 	}
 }
+
+// TestLoadDoesNotTakeAMovedLineAgain checks that a line taken from saved-lines.json and moved since, as its video was renamed, or removed after the move, does not come back under its old path once an older Kando writes that file again, while the line that Kando saved since does.
+func TestLoadDoesNotTakeAMovedLineAgain(t *testing.T) {
+	dir := t.TempDir()
+	legacy := filepath.Join(dir, LegacyFileName)
+	writeFile(t, legacy, legacyFile)
+	b, _ := Load(dir)
+	b.Now = func() time.Time { return time.Date(2026, 11, 17, 9, 0, 0, 0, time.UTC) }
+	old, next := filepath.Join(dir, "Talk", "video.mp4"), filepath.Join(dir, "New", "video.mp4")
+	if !b.MoveVideos(func(path string) (string, bool) { return next, path == old }) {
+		t.Fatal("no line moved")
+	}
+	if !b.Remove("New/video.mp4", 10*time.Second) {
+		t.Fatal("no line to remove")
+	}
+	if err := b.Save(); err != nil {
+		t.Fatal(err)
+	}
+
+	// An older Kando, which knows only saved-lines.json and the old path, saves a line on the 18th.
+	writeFile(t, legacy, `{"lines": [
+		{"video": "Talk/video.mp4", "start": 20, "original": "and ends", "savedAt": "2026-11-18T09:00:00Z", "box": 0, "due": "2026-11-18T09:00:00Z"},
+		{"video": "Talk/video.mp4", "start": 10, "original": "begins", "savedAt": "2026-11-16T09:01:00Z", "box": 0, "due": "2026-11-16T09:01:00Z"},
+		{"video": "Talk/video.mp4", "start": 2.3, "end": 4, "original": "Every river", "translation": "每条河", "film": "Talk", "savedAt": "2026-11-16T09:00:00Z", "box": 2, "due": "2026-11-20T09:00:00Z"}
+	]}`)
+	b, err := Load(dir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	lines := func() []string {
+		var got []string
+		for _, l := range b.Lines {
+			got = append(got, l.Video+" "+l.Original)
+		}
+		return got
+	}
+	want := []string{"Talk/video.mp4 and ends", "New/video.mp4 Every river"}
+	if got := lines(); !slices.Equal(got, want) {
+		t.Fatalf("lines %q, want %q", got, want)
+	}
+	if err := b.Save(); err != nil {
+		t.Fatal(err)
+	}
+
+	// The older Kando writes the file again with nothing new: what this book took stays taken across a save.
+	writeFile(t, legacy, readFile(t, legacy)+"\n")
+	if b, err = Load(dir); err != nil {
+		t.Fatal(err)
+	}
+	if got := lines(); !slices.Equal(got, want) {
+		t.Fatalf("read again: lines %q, want %q", got, want)
+	}
+}
