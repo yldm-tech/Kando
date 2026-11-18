@@ -41,6 +41,7 @@ func settingsSheet(cx *core.Scope, p *play, open *core.Signal[bool]) core.Node {
 		core.Scroll{TestID: "player-settings", Style: core.Style{MaxHeight: core.Pct(85)}, Children: []core.Node{
 			core.View{Style: core.Style{Gap: 18, Padding: core.Edges{Bottom: 8}}, Children: []core.Node{
 				core.Text{ContentFunc: func() string { return locales.PlayerSettings(cx) }, Role: core.RoleHeader, Style: look.Title, StyleFunc: ui.Colored(colors.Text)},
+				// TODO(nsgo#145): ui.Tabs' Label is a string only (ui/tabs.go:40), so the speed and sleep tabs' spoken names keep the language they were built in; pass a LabelFunc once Tabs has one https://github.com/nsgo-dev/nsgo/issues/145
 				core.View{Style: core.Style{Gap: 8}, Children: []core.Node{
 					heading(func() string { return locales.PlayerSpeed(cx) }),
 					ui.Tabs[float32]{TestID: "player-settings-speed", Label: locales.PlayerSpeed(cx), Equal: true, Options: speeds, Value: p.speed, OnChange: func(r float32) { _ = p.rate.Set(r) }},
