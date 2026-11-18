@@ -1472,3 +1472,33 @@ func TestNudgeLift(t *testing.T) {
 		}
 	}
 }
+
+// A done link's info tab says where its original lines came from: its site's subtitles, with how many lines the speech recognition heard in their place, or the speech recognition alone. A local video says nothing of it.
+func TestInfoTabSaysWhereTheOriginalLinesCameFrom(t *testing.T) {
+	msgs := testlocale.Messages()
+	for _, tc := range []struct {
+		source   string
+		platform bool
+		local    int
+		want     string
+	}{
+		{"https://www.youtube.com/watch?v=jNQXAC9IVRw", true, 0, msgs.FilmOriginalPlatform()},
+		{"https://www.youtube.com/watch?v=jNQXAC9IVRw", true, 3, msgs.FilmOriginalPlatformMixed(3)},
+		{"https://www.youtube.com/watch?v=jNQXAC9IVRw", false, 0, msgs.FilmOriginalHeard()},
+		{"file:///films/talk/talk.mp4", false, 0, ""},
+	} {
+		a := newFakeApp()
+		a.side = "info"
+		a.item.Source, a.item.PlatformSubtitles, a.item.LocalLines = tc.source, tc.platform, tc.local
+		app := start(t, a)
+		if tc.want == "" {
+			if app.Exists("id:film-info-original") {
+				t.Fatalf("%s: a local video says where its lines came from", tc.source)
+			}
+			continue
+		}
+		if got := app.Find("id:film-info-original"); got == nil || got.Text != tc.want {
+			t.Fatalf("%+v: info tab %q", tc, app.Texts())
+		}
+	}
+}

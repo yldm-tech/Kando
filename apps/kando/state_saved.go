@@ -6,12 +6,14 @@ import (
 	"maps"
 	"slices"
 	"sort"
+	"strings"
 	"time"
 
 	"kando/apps/kando/film"
 	"kando/apps/kando/locales"
 	"kando/apps/kando/saved"
 	kcore "kando/packages/core"
+	"kando/packages/study"
 
 	"github.com/nsgo-dev/nsgo/core"
 )
@@ -19,6 +21,10 @@ import (
 // savedUI is the lines the learner saved (package saved): the open library's book, read from its folder.
 type savedUI struct {
 	book saved.Book
+	// device is this computer's id in the study record, which the lines saved and changed here are stamped with (study.Line.Device), kept in settings.json; "" until the first book is read (savedLoad).
+	device string
+	// note is the saved line whose note the sheet is editing, by its id, "" while none is, and draft the note as typed so far (bind_saved.go).
+	note, draft string
 	// now is the clock the saved lines are stamped and scheduled by; tests set it.
 	now func() time.Time
 	// only is whether the player's subtitle list shows the saved lines alone, for the film onlyFor, the open key it was picked in; another film opens showing them all.
@@ -49,9 +55,18 @@ type savedExport struct {
 
 func newSavedUI() savedUI { return savedUI{now: time.Now} }
 
+// savedStudy is the saved lines' part of settings.json: this computer's id in the study record (savedUI.device).
+type savedStudy struct {
+	StudyDevice string `json:"studyDevice,omitempty"`
+}
+
+func (s *savedStudy) clean() { s.StudyDevice = strings.TrimSpace(s.StudyDevice) }
+
 // savedHooks: the open library's saved lines are read once its films are, and again when another library opens; lines of videos that moved follow them; the open film's lines saved without a translation take the one its subtitles have, each time they are read.
 func (a *app) savedHooks() areaHooks {
 	return areaHooks{
+		save:           func(saved *savedSettings) { saved.savedStudy = savedStudy{StudyDevice: a.saved.device} },
+		restore:        func(saved savedSettings) { a.saved.device = saved.StudyDevice },
 		shelfChanged:   a.savedSync,
 		libraryChanged: a.savedSync,
 		afterChange: func() bool {
@@ -88,11 +103,26 @@ func (a *app) savedSync() {
 	if a.saved.book.Dir() == dir && dir != "" {
 		return
 	}
-	book, err := saved.Load(dir)
+	book, err := a.savedLoad(dir)
 	a.saved.book = book
 	if err != nil {
 		a.saveErr = a.messages().SavedReadFailed()
 	}
+	if a.saved.book.Migrated() {
+		a.savedWrite()
+	}
+}
+
+// savedLoad reads the saved lines of the library at dir (saved.Load), to be changed on this computer by the saved lines' clock. The first time, this computer is given its id in the study record, which settings.json keeps from then on.
+func (a *app) savedLoad(dir string) (saved.Book, error) {
+	if a.saved.device == "" {
+		a.saved.device = study.NewID()
+		_ = a.saveSettingsChanged()
+	}
+	book, err := saved.Load(dir)
+	book.Device = a.saved.device
+	book.Now = func() time.Time { return a.saved.now() }
+	return book, err
 }
 
 // savedBook is the saved lines of the library open now, none while they are not read yet (savedSync) or while the library is locked (lockShut), for the bindings.

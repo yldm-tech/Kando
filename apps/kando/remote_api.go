@@ -904,14 +904,14 @@ func (a *app) remoteFind(id string) (films.Film, error) {
 	return item, nil
 }
 
-// remoteFindJob is job id when it is on the open library's shelf, or one the queue runs or will run for another library (queueElsewhere), as 处理中 shows it. UI thread only.
+// remoteFindJob is job id when it is on the open library's shelf, or one the queue runs or will run for another library (queueElsewhere), as 处理中 shows it, or ran to the end for another library since launch (jobQueue.ran), as jobs.list lists it (remoteQueue), so a client can act on every job it lists. UI thread only.
 func (a *app) remoteFindJob(id string) (core.Job, error) {
 	root := a.snap().LibraryDir
 	if strings.TrimSpace(root) == "" {
 		return core.Job{}, remote.Errorf(remote.CodeNotReady, "%s", remoteMessages().PrecheckNoLibrary())
 	}
 	job, ok := a.library.Find(id)
-	if id == "" || !ok || (!films.InLibrary(root, job) && !a.queueElsewhere(job)) || a.lockHidesJob(job) {
+	if id == "" || !ok || (!films.InLibrary(root, job) && !a.queueElsewhere(job) && !a.queue.ran[job.ID]) || a.lockHidesJob(job) {
 		return core.Job{}, remote.Errorf(remote.CodeNotFound, "no job %q in the open library", id)
 	}
 	return job, nil

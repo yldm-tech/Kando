@@ -60,13 +60,14 @@ func standInFFmpeg(t *testing.T, dir string) string {
 	return path
 }
 
-// TestWriteNotesIsAnAnkiTextFile writes notes whose lines hold quotes, tabs, line breaks and a leading #, and reads them back as Anki's text import does (rslib's csv reader: a tab between fields, " quoting with "" for a quote, # starting a comment line, and no column names, so the fields go into Basic's Front and Back in order): every note is one record of two fields, front the original and back the translation, the sound and where the line is, each as it was.
+// TestWriteNotesIsAnAnkiTextFile writes notes whose lines hold quotes, tabs, line breaks and a leading #, and reads them back as Anki's text import does (rslib's csv reader: a tab between fields, " quoting with "" for a quote, # starting a comment line, and no column names, so the fields go into Basic's Front and Back in order): every note is one record of two fields, front the original and back the translation, the learner's note, the sound and where the line is, each as it was.
 func TestWriteNotesIsAnAnkiTextFile(t *testing.T) {
 	var b strings.Builder
 	rows := []Row{
 		{Line: Line{Original: "\"Every river\"\nbegins", Translation: "每条河\t始于", Film: "#Talk", Start: 72400 * time.Millisecond}, Sound: "kando-1.m4a"},
 		{Line: Line{Original: "#1 \"fan", Film: "Talk", Start: time.Second}},
 		{Line: Line{Original: "Bye.", Translation: "再见。\r\n", Start: 2 * time.Second}},
+		{Line: Line{Original: "It picks up sand.", Translation: "裹挟起泥沙。", Note: "picks up: \"裹挟\"\n不是捡起", Start: 3 * time.Second}, Sound: "kando-2.m4a"},
 	}
 	if err := WriteNotes(&b, rows); err != nil {
 		t.Fatal(err)
@@ -86,6 +87,7 @@ func TestWriteNotesIsAnAnkiTextFile(t *testing.T) {
 		{"\"Every river\"\nbegins", "每条河\t始于\n[sound:kando-1.m4a]\n#Talk · 1:12.4"},
 		{"#1 \"fan", "Talk · 0:01.0"},
 		{"Bye.", "再见。\n0:02.0"},
+		{"It picks up sand.", "裹挟起泥沙。\npicks up: \"裹挟\"\n不是捡起\n[sound:kando-2.m4a]\n0:03.0"},
 	}
 	if !slices.EqualFunc(got, want, slices.Equal[[]string]) {
 		t.Fatalf("notes read back as\n%q\nwant\n%q", got, want)

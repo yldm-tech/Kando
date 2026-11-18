@@ -477,6 +477,29 @@ func TestLibraryKeepsTheSpokenLanguage(t *testing.T) {
 	}
 }
 
+// The quality and the source of the original lines a job was given, and whether its film took its site's subtitles, are kept with it; a library written before them reads back without them.
+func TestLibraryKeepsTheDownloadChoices(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "library.json")
+	lib, _ := Load(path)
+	lib.Upsert(core.Job{ID: "a", Source: "https://www.youtube.com/watch?v=jNQXAC9IVRw", Stage: core.StageComplete, Quality: core.Quality720, SubtitleSource: core.SubtitlesPlatform, PlatformSubtitles: true, LocalLines: 3})
+	if err := lib.Save(); err != nil {
+		t.Fatal(err)
+	}
+	loaded, _ := Load(path)
+	if job := loaded.Jobs[0]; job.Quality != core.Quality720 || job.SubtitleSource != core.SubtitlesPlatform || !job.PlatformSubtitles || job.LocalLines != 3 {
+		t.Fatalf("job %+v", job)
+	}
+
+	old := filepath.Join(t.TempDir(), "library.json")
+	if err := os.WriteFile(old, []byte(`{"jobs":[{"id":"b","source":"https://www.youtube.com/watch?v=jNQXAC9IVRw","stage":"complete"}]}`), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	loaded, _ = Load(old)
+	if job := loaded.Jobs[0]; job.Quality != "" || job.SubtitleSource != "" || job.PlatformSubtitles || job.LocalLines != 0 {
+		t.Fatalf("old job %+v", job)
+	}
+}
+
 // A job processing a video found in the library's folder stays one across a restart, so if the job read back as queued then fails, the video is still put back as the film it was rather than left as a failed card.
 func TestLibraryKeepsAJobFromTheFolder(t *testing.T) {
 	path := filepath.Join(t.TempDir(), "library.json")
@@ -492,6 +515,20 @@ func TestLibraryKeepsAJobFromTheFolder(t *testing.T) {
 	}
 	if b, _ := loaded.Find("b"); b.FromFolder {
 		t.Fatalf("job added %+v", b)
+	}
+}
+
+// The paired phone a job's link came from stays with the job across a restart, so its card still says where it came from.
+func TestLibraryKeepsTheDeviceAJobCameFrom(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "library.json")
+	lib, _ := Load(path)
+	lib.Upsert(core.Job{ID: "a", Source: "https://www.youtube.com/watch?v=jNQXAC9IVRw", Stage: core.StageQueued, Device: "Evan's iPhone"})
+	if err := lib.Save(); err != nil {
+		t.Fatal(err)
+	}
+	loaded, _ := Load(path)
+	if a, _ := loaded.Find("a"); a.Device != "Evan's iPhone" {
+		t.Fatalf("job %+v", a)
 	}
 }
 

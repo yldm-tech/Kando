@@ -40,6 +40,9 @@ type Film struct {
 	// SameLanguage is true for a film heard in the language its subtitles are for, which was not translated: its subtitles are its own lines alone (core.Job.SameLanguage).
 	SameLanguage   bool
 	TranslationErr string
+	// PlatformSubtitles is true for a film whose original lines are its site's subtitles, and LocalLines how many of their lines the speech recognition replaced (core.Job.PlatformSubtitles).
+	PlatformSubtitles bool
+	LocalLines        int
 	// Stopped reports a failed job that was cancelled rather than one that went wrong; Canceled reads it.
 	Stopped bool
 	// Library is the name of the library the job saves into when that is not the open one, as for a job that kept running after another library was opened; empty for the open library's films.
@@ -50,6 +53,8 @@ type Film struct {
 	Paused bool
 	// Target is the language the film's job translates into: the one a job processing or translating a done film again was asked for (core.Job.RedoLanguage), else Language.
 	Target string
+	// Device is the paired phone that sent the job's link, empty for a film added on the desktop (core.Job.Device).
+	Device string
 }
 
 // List is the open library's films: the jobs that belong on its shelf, then the videos found in its folder that no job holds. Such a video shows the bilingual subtitles found beside it (media.Video.Subtitles), as a film copied from another library or one whose job records were lost has them. names is the title the user gave each video in Kando, by path (shelf.Library.Names), which a film shows in place of the name nameOf gives its job or its file's name.
@@ -109,7 +114,8 @@ func FromJob(job core.Job, name, detail string) Film {
 		Detail: detail, Stage: job.Stage, JobID: job.ID,
 		VideoPath: job.VideoPath, SubtitlePath: job.SubtitlePath, Language: job.Language, Spoken: job.SpokenLanguage, SpeechLanguage: job.SpeechLanguage,
 		Progress: job.Progress, Thumbnail: job.Thumbnail, Untranslated: job.Untranslated, TranslationErr: job.TranslationErr, SameLanguage: job.SameLanguage,
-		Stopped: errors.Is(job.Err, context.Canceled), Target: jobTarget(job),
+		Stopped: errors.Is(job.Err, context.Canceled), Target: jobTarget(job), Device: job.Device,
+		PlatformSubtitles: job.PlatformSubtitles, LocalLines: job.LocalLines,
 	}
 }
 

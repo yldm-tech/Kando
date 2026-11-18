@@ -176,6 +176,24 @@ func (c *Client) getJSON(ctx context.Context, method, path string, body []byte, 
 
 // do sends a request with the token, and turns an answer of 400 or more into an *Error.
 func (c *Client) do(ctx context.Context, method, path string, body []byte, header http.Header) (*http.Response, error) {
+	resp, err := c.request(ctx, method, path, body, header)
+	if err != nil {
+		return nil, err
+	}
+	if resp.StatusCode < 400 {
+		return resp, nil
+	}
+	defer resp.Body.Close()
+	e := &Error{Status: resp.StatusCode}
+	data, _ := io.ReadAll(io.LimitReader(resp.Body, 64<<10))
+	if json.Unmarshal(data, &e.ErrorBody) != nil {
+		e.Message = strings.TrimSpace(string(data))
+	}
+	return nil, e
+}
+
+// request sends a request with the token and answers the response whatever its status.
+func (c *Client) request(ctx context.Context, method, path string, body []byte, header http.Header) (*http.Response, error) {
 	var reader io.Reader
 	if body != nil {
 		reader = bytes.NewReader(body)
@@ -190,18 +208,5 @@ func (c *Client) do(ctx context.Context, method, path string, body []byte, heade
 	if c.Token != "" {
 		req.Header.Set("Authorization", "Bearer "+c.Token)
 	}
-	resp, err := c.http.Do(req)
-	if err != nil {
-		return nil, err
-	}
-	if resp.StatusCode < 400 {
-		return resp, nil
-	}
-	defer resp.Body.Close()
-	e := &Error{Status: resp.StatusCode}
-	data, _ := io.ReadAll(io.LimitReader(resp.Body, 64<<10))
-	if json.Unmarshal(data, &e.ErrorBody) != nil {
-		e.Message = strings.TrimSpace(string(data))
-	}
-	return nil, e
+	return c.http.Do(req)
 }

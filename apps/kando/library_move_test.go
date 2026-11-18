@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"errors"
+	"maps"
 	"os"
 	"path/filepath"
 	"slices"
@@ -432,4 +433,22 @@ func TestRemoteMovesAFilm(t *testing.T) {
 	a.library.Jobs[0].Stage = core.StageTranscribing
 	_, err = remoteCall[remote.Moved](t, f.updates, remote.MethodMove, remote.MoveParams{ID: "film", To: "英语听力"})
 	remoteWantCode(t, err, remote.CodeNotReady)
+}
+
+// TestMoveLooksOnlyAtTheOtherLibraries: 移到资料库 never lists the open library, so whether its folder is there is not read, and with no other library known nothing is read and no report goes through update, so the files opened with Kando at startup are the only report the library's ready posts (TestOpenedFilesWaitForTheWindow).
+func TestMoveLooksOnlyAtTheOtherLibraries(t *testing.T) {
+	a, tt, updates := newTestApp(t, &fakePipeline{})
+	open := t.TempDir()
+	a.edit(func(s *session) { s.LibraryDir, s.Libraries = open, []string{open} })
+	a.libraryMoveLook()
+	if len(updates) != 0 || a.lib.move.reach != nil {
+		t.Fatalf("looked with no other library: %d updates posted, reach %v", len(updates), a.lib.move.reach)
+	}
+	other := t.TempDir()
+	a.edit(func(s *session) { s.Libraries = append(s.Libraries, other) })
+	a.libraryMoveLook()
+	waitUntil(t, tt, a, updates, func() bool { return a.lib.move.reach != nil })
+	if want := map[string]bool{filepath.Clean(other): true}; !maps.Equal(a.lib.move.reach, want) {
+		t.Fatalf("reach %v, want %v", a.lib.move.reach, want)
+	}
 }

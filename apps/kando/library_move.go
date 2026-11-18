@@ -89,13 +89,17 @@ var (
 	libraryMoveCopyFiles = media.FilmMove.Copy
 )
 
-// libraryMoveLook reads, off the UI thread, which known libraries' folders are there, so 移到资料库 lists one on a drive that is not plugged in without letting it be chosen. libraryHooks runs it once the window exists, when another library opens, when the app comes to the front, as after a drive was plugged in, and after each move.
+// libraryMoveLook reads, off the UI thread, which known libraries' folders are there, so 移到资料库 lists one on a drive that is not plugged in without letting it be chosen. libraryHooks runs it once the window exists, when another library opens, when the app comes to the front, as after a drive was plugged in, and after each move. The open library is not looked at, as 移到资料库 never lists it (libraryMoveItems), and with no other library there is nothing to look at and nothing is posted through update: at startup the report that adds the files opened with Kando (libraryPostOpened) is then the only one ready posts.
 func (a *app) libraryMoveLook() {
 	if a.update == nil {
 		return
 	}
-	dirs := a.knownLibraries()
+	open := filepath.Clean(a.snap().LibraryDir)
+	dirs := slices.DeleteFunc(a.knownLibraries(), func(dir string) bool { return filepath.Clean(dir) == open })
 	a.lib.move.looking++
+	if len(dirs) == 0 {
+		return
+	}
 	run := a.lib.move.looking
 	update := a.update
 	go func() {
@@ -468,7 +472,7 @@ func (a *app) libraryMoveBook(dir string) (*saved.Book, error) {
 		a.savedSync()
 		return &a.saved.book, a.saved.book.Unread()
 	}
-	book, err := saved.Load(dir)
+	book, err := a.savedLoad(dir)
 	return &book, err
 }
 

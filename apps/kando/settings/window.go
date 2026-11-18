@@ -8,6 +8,7 @@ import (
 	"kando/apps/kando/locales"
 	"kando/apps/kando/settings/form"
 	"kando/apps/kando/theme"
+	kcore "kando/packages/core"
 	"kando/packages/media"
 
 	"github.com/nsgo-dev/nsgo/base"
@@ -72,11 +73,18 @@ type App interface {
 	SetSignInBrowser(id string)
 	CheckSignIn()
 	OpenFullDiskAccess()
-	// PhoneSync is where Phone Sync stands, which the 手机同步 page shows. SetPhoneSync turns it on, which starts the server off the UI thread, or off, which stops it, and saves that; NewPhoneCode offers a new pairing code in place of the one shown; RevokePhone unpairs a phone, whose token is refused from then on.
+	// PlatformSubtitles is whether a link's film takes the subtitles its uploader put on the site as its original lines where they match the speech (core.SubtitlesPlatform), and DownloadQuality the picture its download asks for; the setters change them, and the page saves them.
+	PlatformSubtitles() bool
+	SetPlatformSubtitles(on bool)
+	DownloadQuality() kcore.Quality
+	SetDownloadQuality(q kcore.Quality)
+	// PhoneSync is where Phone Sync stands, which the 手机同步 page shows. SetPhoneSync turns it on, which starts the server off the UI thread, or off, which stops it, and saves that; NewPhoneCode offers a new pairing code in place of the one shown; RevokePhone unpairs a phone, whose token is refused from then on. SetPhoneReceive turns 接收手机发来的链接 on or off, and SetPhoneAskFirst sets 收到后 to 先问我 or 直接加入队列; both are saved.
 	PhoneSync() PhoneSync
 	SetPhoneSync(on bool)
 	NewPhoneCode()
 	RevokePhone(id string)
+	SetPhoneReceive(on bool)
+	SetPhoneAskFirst(ask bool)
 	// CheckForUpdates checks for a newer version of Kando at once and shows what it finds.
 	CheckForUpdates()
 	// JobNotifications is whether Kando posts a notification when a video's job is done or failed while it is in the background; SetJobNotifications changes it.

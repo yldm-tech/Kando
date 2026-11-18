@@ -106,8 +106,47 @@ type Job struct {
 	SpokenLanguage string
 	// SpeechLanguage is the language the user said is spoken in this job's video, as whisper's code (ja, en), which the speech recognition is told to hear each time the job transcribes it, in place of the one the settings name for every video; empty hears the settings' language. Unlike SpokenLanguage it is the user's choice, so it stays when a run fails or the film is processed again.
 	SpeechLanguage string
+	// Quality is how good a picture the download of a link asks the site for, as the user chose it; empty until the queue gives the job the one Settings › 通用 › 在线视频 names, as it first runs. Like SpeechLanguage it is the user's choice, so it stays when a run fails or the film is processed again. A video already downloaded is not downloaded again for another quality.
+	Quality Quality
+	// SubtitleSource is where the job takes the original lines of a link's film from, as the user chose it: the subtitles the uploader put on the site, checked against the speech (SubtitlesPlatform), or the speech recognition alone (SubtitlesLocal). Empty until the queue gives the job the one Settings › 通用 › 在线视频 names, as it first runs; a local video is always heard.
+	SubtitleSource SubtitleSource
+	// PlatformSubtitles is true once the film's original lines are the subtitles its site carries, which matched the speech the job heard (media.Run); LocalLines then counts the lines of those subtitles that lines the speech recognition heard replaced, where the speech did not match them. A job transcribing the video again finds them anew; one processing a done film again entirely (RedoAll) keeps the film's until it completes.
+	PlatformSubtitles bool
+	LocalLines        int
 	// FromFolder is true for a job made to process a video found in the library's folder that no job held. Until the job completes, that video is still the film the folder shows, with the subtitles found beside it, so a job that fails or is stopped is taken off the shelf, leaving the film as it was, rather than kept as a failed card. It is cleared once the job completes.
 	FromFolder bool
+	// Device is the name of the paired phone that sent the job's link (phone sync), as its card says 来自 <device>; empty for a job added on the desktop. It stays when the job is run again.
+	Device string
+}
+
+// Quality is how good a picture the download of a link asks for (Job.Quality).
+type Quality string
+
+const (
+	// QualityBest asks for the best picture and sound the site has.
+	QualityBest Quality = "best"
+	// Quality720 asks for the best picture no taller than 720 lines, or the best there is when the site has none that small.
+	Quality720 Quality = "720"
+)
+
+// Known reports whether q is one of the qualities Kando downloads; empty is not.
+func (q Quality) Known() bool {
+	return q == QualityBest || q == Quality720
+}
+
+// SubtitleSource is where a job takes the original lines of a link's film from (Job.SubtitleSource).
+type SubtitleSource string
+
+const (
+	// SubtitlesPlatform takes the subtitles the uploader put on the site, in the language the speech is in, where they match the speech: the lines they do not match are the ones the speech recognition heard, and a film whose subtitles do not match it at all is heard alone. Subtitles the site made itself (YouTube's automatic captions, bilibili's AI subtitles) are never taken.
+	SubtitlesPlatform SubtitleSource = "platform"
+	// SubtitlesLocal hears the speech with the speech recognition alone.
+	SubtitlesLocal SubtitleSource = "local"
+)
+
+// Known reports whether s is one of the sources Kando knows; empty is not.
+func (s SubtitleSource) Known() bool {
+	return s == SubtitlesPlatform || s == SubtitlesLocal
 }
 
 // Redo is what a job made to process a done film again does. RedoTranslation and RedoMissing read the subtitles the film's job exported beside its video and neither download nor transcribe it again; RedoAll runs every stage.

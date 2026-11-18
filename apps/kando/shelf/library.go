@@ -335,6 +335,14 @@ type storedJob struct {
 	SpeechLanguage string `json:"speechLanguage,omitempty"`
 	// FromFolder is whether the job processes a video found in the library's folder that no job held (core.Job.FromFolder).
 	FromFolder bool `json:"fromFolder,omitempty"`
+	// Quality is the picture the job's download asks for, and SubtitleSource where it takes the film's original lines from (core.Job.Quality, core.Job.SubtitleSource); both are empty in a library written before they were chosen, which the queue then gives the settings' ones.
+	Quality        core.Quality        `json:"quality,omitempty"`
+	SubtitleSource core.SubtitleSource `json:"subtitleSource,omitempty"`
+	// PlatformSubtitles is whether the film's original lines are its site's subtitles, and LocalLines how many of their lines the speech replaced (core.Job.PlatformSubtitles).
+	PlatformSubtitles bool `json:"platformSubtitles,omitempty"`
+	LocalLines        int  `json:"localLines,omitempty"`
+	// Device is the paired phone that sent the job's link (core.Job.Device).
+	Device string `json:"device,omitempty"`
 }
 
 func storeJob(job core.Job) storedJob {
@@ -343,8 +351,10 @@ func storeJob(job core.Job) storedJob {
 		Title: job.Title, Thumbnail: job.Thumbnail,
 		VideoPath: job.VideoPath, SubtitlePath: job.SubtitlePath, LibraryDir: job.LibraryDir,
 		CompletedAt: job.CompletedAt, FailKind: job.FailKind, Cookies: job.Cookies, Untranslated: job.Untranslated, TranslationError: job.TranslationErr,
-		Transcribed: job.Transcribed, Proofread: job.Proofread, SameLanguage: job.SameLanguage, Redo: job.Redo, RedoLanguage: job.RedoLanguage, SpokenLanguage: job.SpokenLanguage, SpeechLanguage: job.SpeechLanguage, FromFolder: job.FromFolder,
+		Transcribed: job.Transcribed, Proofread: job.Proofread, SameLanguage: job.SameLanguage, Redo: job.Redo, RedoLanguage: job.RedoLanguage, SpokenLanguage: job.SpokenLanguage, SpeechLanguage: job.SpeechLanguage, FromFolder: job.FromFolder, Device: job.Device,
 	}
+	stored.Quality, stored.SubtitleSource = job.Quality, job.SubtitleSource
+	stored.PlatformSubtitles, stored.LocalLines = job.PlatformSubtitles, job.LocalLines
 	switch {
 	case errors.Is(job.Err, context.Canceled):
 		stored.Error = storedCanceled
@@ -362,8 +372,10 @@ func (s storedJob) job() core.Job {
 		Title: s.Title, Thumbnail: s.Thumbnail,
 		VideoPath: s.VideoPath, SubtitlePath: s.SubtitlePath, LibraryDir: s.LibraryDir,
 		CompletedAt: s.CompletedAt, FailKind: s.FailKind, Cookies: s.Cookies, Untranslated: s.Untranslated, TranslationErr: s.TranslationError,
-		Transcribed: s.Transcribed, Proofread: s.Proofread, SameLanguage: s.SameLanguage, Redo: s.Redo, RedoLanguage: s.RedoLanguage, SpokenLanguage: s.SpokenLanguage, SpeechLanguage: s.SpeechLanguage, FromFolder: s.FromFolder,
+		Transcribed: s.Transcribed, Proofread: s.Proofread, SameLanguage: s.SameLanguage, Redo: s.Redo, RedoLanguage: s.RedoLanguage, SpokenLanguage: s.SpokenLanguage, SpeechLanguage: s.SpeechLanguage, FromFolder: s.FromFolder, Device: s.Device,
 	}
+	job.Quality, job.SubtitleSource = s.Quality, s.SubtitleSource
+	job.PlatformSubtitles, job.LocalLines = s.PlatformSubtitles, s.LocalLines
 	switch s.Error {
 	case "":
 	case storedCanceled:

@@ -315,7 +315,7 @@ func (t Tools) ytdlpDownload(ctx context.Context, source, temp string, named *bo
 		"--no-playlist",
 		// --no-playlist only picks the video of a link that names both a video and its list. A link to a list alone that core.ParseLink does not recognise as one, on any of the sites yt-dlp reads, would still download every video of the list into the library; with this yt-dlp stops after the first, exiting with ytdlpMaxDownloadsExit.
 		"--max-downloads", "1",
-		"-f", "bv*+ba/b",
+		"-f", formatFor(ctx),
 		"--merge-output-format", "mp4",
 		"-P", t.OutputDir,
 		// A relative temp path would be taken as inside the library.

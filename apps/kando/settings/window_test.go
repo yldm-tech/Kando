@@ -1,6 +1,7 @@
 package settings
 
 import (
+	"fmt"
 	"path/filepath"
 	"slices"
 	"strconv"
@@ -13,6 +14,7 @@ import (
 	"kando/apps/kando/locales"
 	"kando/apps/kando/locales/testlocale"
 	"kando/apps/kando/theme"
+	kcore "kando/packages/core"
 	"kando/packages/media"
 
 	"github.com/nsgo-dev/nsgo/core"
@@ -35,6 +37,8 @@ type fakeApp struct {
 	phone                   PhoneSync
 	background              Background
 	notify                  bool
+	heardAlone              bool
+	quality                 kcore.Quality
 	models                  map[string]string
 	owned                   map[string]bool
 	downloading             string
@@ -81,6 +85,7 @@ func newFakeApp() *fakeApp {
 		provider:      "everyapi",
 		base:          media.EveryAPIBaseURL,
 		language:      "简体中文",
+		quality:       kcore.QualityBest,
 		context:       true,
 		prompt:        media.DefaultSubtitlePrompt,
 		interfaceLang: locales.Default,
@@ -135,14 +140,26 @@ func (f *fakeApp) SetPhoneSync(on bool) {
 	f.call("phone sync " + strconv.FormatBool(on))
 	f.phone.On = on
 }
-func (f *fakeApp) NewPhoneCode()                         { f.call("new phone code") }
-func (f *fakeApp) RevokePhone(id string)                 { f.call("revoke " + id) }
+func (f *fakeApp) NewPhoneCode()         { f.call("new phone code") }
+func (f *fakeApp) RevokePhone(id string) { f.call("revoke " + id) }
+func (f *fakeApp) SetPhoneReceive(on bool) {
+	f.phone.Receive = on
+	f.call(fmt.Sprintf("receive %v", on))
+}
+func (f *fakeApp) SetPhoneAskFirst(ask bool) {
+	f.phone.AskFirst = ask
+	f.call(fmt.Sprintf("ask first %v", ask))
+}
 func (f *fakeApp) JobNotifications() bool                { return f.notify }
 func (f *fakeApp) SetJobNotifications(on bool)           { f.notify = on }
 func (f *fakeApp) Background() Background                { return f.background }
 func (f *fakeApp) SetLaunchAtLogin(on bool)              { f.background.LaunchAtLogin = on }
 func (f *fakeApp) SetKeepRunning(on bool)                { f.background.KeepRunning = on }
 func (f *fakeApp) SetTrayIcon(on bool)                   { f.background.TrayIcon = on }
+func (f *fakeApp) PlatformSubtitles() bool               { return !f.heardAlone }
+func (f *fakeApp) SetPlatformSubtitles(on bool)          { f.heardAlone = !on }
+func (f *fakeApp) DownloadQuality() kcore.Quality        { return f.quality }
+func (f *fakeApp) SetDownloadQuality(q kcore.Quality)    { f.quality = q }
 func (f *fakeApp) InstalledSpeechModel(id string) string { return f.models[id] }
 func (f *fakeApp) UseSpeechModel(path string)            { f.call("use " + path); f.tools.WhisperModel = path }
 func (f *fakeApp) PickSpeechModel()                      { f.call("pick model") }
@@ -418,6 +435,40 @@ func TestGeneralPage(t *testing.T) {
 	app.Press("id:settings-library-open")
 	if !slices.Contains(a.calls, "new") || !slices.Contains(a.calls, "pick") {
 		t.Fatalf("calls %q", a.calls)
+	}
+}
+
+// 在线视频 turns the site's subtitles off and on and chooses the picture downloads ask for, saving each change.
+func TestGeneralPageChoosesHowLinksDownload(t *testing.T) {
+	a := newFakeApp()
+	app := start(t, a)
+	msgs := testlocale.Messages()
+	for _, text := range []string{msgs.SettingsGeneralOnline(), msgs.SettingsGeneralPlatformSubtitles(), msgs.SettingsGeneralQualityBest()} {
+		if !app.Exists(whole(text)) {
+			t.Fatalf("missing %q in %q", text, app.Texts())
+		}
+	}
+	saves := func() int {
+		n := 0
+		for _, call := range a.calls {
+			if call == "save" {
+				n++
+			}
+		}
+		return n
+	}
+	app.Press("id:settings-platform-subtitles")
+	if !a.heardAlone || saves() != 1 {
+		t.Fatalf("heard alone %v, saves %d", a.heardAlone, saves())
+	}
+	app.Press("id:settings-platform-subtitles")
+	if a.heardAlone {
+		t.Fatal("the site's subtitles stayed off")
+	}
+	app.Press("id:settings-download-quality")
+	app.Press("role:option " + msgs.SettingsGeneralQuality720())
+	if a.quality != kcore.Quality720 || saves() != 3 {
+		t.Fatalf("quality %q, saves %d", a.quality, saves())
 	}
 }
 
@@ -897,6 +948,31 @@ func TestPhonePageSaysWhereTheCodeStands(t *testing.T) {
 	change(app, a, func() { a.phone = PhoneSync{On: true, Err: "address already in use"} })
 	if !app.Exists(whole(msgs.SettingsPhoneStartFailed("address already in use"))) {
 		t.Fatalf("texts %q after a failed start", app.Texts())
+	}
+}
+
+// 手机发来的链接 turns receiving on and off and chooses what comes of a link; what comes of it cannot be chosen while none is received.
+func TestPhonePageChoosesWhatComesOfALink(t *testing.T) {
+	a := newFakeApp()
+	a.section = SectionPhone
+	a.phone = PhoneSync{On: true, Running: true, Receive: true, Addrs: []string{"192.168.1.20:52817"}}
+	app := startOn(t, a, core.OSMacOS)
+	msgs := testlocale.Messages()
+	if !app.Exists(whole(msgs.SettingsPhoneLinks())) || !app.Exists(whole(msgs.SettingsPhoneReceiveQueue())) || !app.Enabled("id:settings-phone-receive-then") {
+		t.Fatalf("texts %q", app.Texts())
+	}
+	app.Press("id:settings-phone-receive-then")
+	app.Press("id:settings-phone-receive-then-1")
+	if !a.phone.AskFirst || !slices.Contains(a.calls, "ask first true") {
+		t.Fatalf("calls %q after choosing 先问我", a.calls)
+	}
+	app.Press("id:settings-phone-receive")
+	if a.phone.Receive || !slices.Contains(a.calls, "receive false") {
+		t.Fatalf("calls %q after turning receiving off", a.calls)
+	}
+	change(app, a, func() {})
+	if app.Enabled("id:settings-phone-receive-then") {
+		t.Fatal("what comes of a link can be chosen while none is received")
 	}
 }
 

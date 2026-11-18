@@ -1,4 +1,4 @@
-package saved
+package study
 
 import (
 	"slices"
@@ -20,13 +20,14 @@ func (b Book) Due(now time.Time) []int {
 	return out
 }
 
-// Grade schedules the line of video that starts at start after a review at now (Intervals): good when the learner knew it, which moves it up a box, else back to box 0. It reports whether there was such a line.
+// Grade schedules the line of video that starts at start after a review at now (Intervals): good when the learner knew it, which moves it up a box, else back to box 0. The schedule is stamped at now, on the book's device. It reports whether there was such a line.
 func (b *Book) Grade(video string, start time.Duration, good bool, now time.Time) bool {
 	i := b.Find(video, start)
 	if i < 0 {
 		return false
 	}
 	l := &b.Lines[i]
+	l.Stamps.Review = Stamp{At: now, Device: b.Device}
 	if !good {
 		l.Box = 0
 		l.Due = now

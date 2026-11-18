@@ -837,6 +837,9 @@ type infoState struct {
 	files                                                  string
 	// speech is whether the film can be told the language spoken in it: a done film with a job (speechLanguage).
 	speech bool
+	// platform is whether the film's original lines are its site's subtitles, and local how many of their lines the speech recognition replaced; heard is a done link's film whose lines it heard alone.
+	platform, heard bool
+	local           int
 }
 
 // infoTab shows where the film is: its folder, the files in it and where it came from, and for a done film the language spoken in it, which the user can correct.
@@ -860,7 +863,9 @@ func (s *screen) infoTab(cx *ns.Scope) ns.Node {
 			record = "~/Library/Application Support/Kando/library.json"
 		}
 		return infoState{title: title(item), stage: string(item.Stage), language: item.Language, spoken: item.Spoken, folder: folder, source: item.Source, record: record,
-			speech: item.JobID != "" && item.Stage == core.StageComplete}
+			speech:   item.JobID != "" && item.Stage == core.StageComplete,
+			platform: item.PlatformSubtitles, local: item.LocalLines,
+			heard: item.JobID != "" && item.Stage == core.StageComplete && !item.PlatformSubtitles && strings.HasPrefix(item.Source, "http")}
 	})
 	return ns.Dynamic(func(cx *ns.Scope) ns.Node {
 		st := state()
@@ -874,6 +879,11 @@ func (s *screen) infoTab(cx *ns.Scope) ns.Node {
 		}})}
 		if st.speech {
 			groups = append(groups, panelHeading(locales.FilmSpokenLanguage(cx)), panelGroup(s.speechLanguage(cx, st.spoken)))
+		}
+		if line := originalLines(cx, st); line != "" {
+			groups = append(groups, panelHeading(locales.FilmOriginalLines(cx)), panelGroup(ns.View{Style: ns.Style{Padding: ns.Symmetric(10, 12)}, Children: []ns.Node{
+				ns.Text{TestID: "film-info-original", Content: line, Style: ns.Style{FontSize: 12, LineHeight: 17, Color: onGlass, Opacity: ns.Alpha(0.9)}},
+			}}))
 		}
 		if st.folder != "" {
 			groups = append(groups, panelHeading(locales.FilmFolder(cx)), panelGroup(ns.View{Style: ns.Style{Padding: ns.Symmetric(10, 12), Gap: 8}, Children: []ns.Node{
@@ -917,6 +927,19 @@ func (s *screen) infoTab(cx *ns.Scope) ns.Node {
 			ns.View{Style: ns.Style{Padding: ns.Edges{Right: 14, Bottom: 16, Left: 14}, Gap: 12}, Children: groups},
 		}}
 	})
+}
+
+// originalLines says in the info tab where a link's film took its original lines from: its site's subtitles, with how many lines the speech recognition heard in their place, or the speech recognition alone; "" for a local video and a film not done.
+func originalLines(cx *ns.Scope, st infoState) string {
+	switch {
+	case st.platform && st.local > 0:
+		return locales.FilmOriginalPlatformMixed(cx, st.local)
+	case st.platform:
+		return locales.FilmOriginalPlatform(cx)
+	case st.heard:
+		return locales.FilmOriginalHeard(cx)
+	}
+	return ""
 }
 
 // monoStyle is a path's text in the info tab: Menlo, at size over lineHeight, in white at alpha.
