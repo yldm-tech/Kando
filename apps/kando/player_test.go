@@ -1965,7 +1965,7 @@ func playerOpenWithLinesAndAI(t *testing.T) (*app, *nsgotest.App, chan func(), *
 	return a, tt, updates, seen
 }
 
-// playerWantHeldOn checks that the film, held at the end of line i of lineCues, whose original is original, takes that line and not the one after it, though the playhead has reached it: the picture and the held-line card show it, ⇧⌘C copies it, B saves it (and B again takes it out), E explains it, and R, last, plays it again from its start.
+// playerWantHeldOn checks that the film, held at the end of line i of lineCues, whose original is original, takes that line and not the one after it, though the playhead has reached it: the picture and the held-line card show it, ⇧⌘C copies it, B saves it (and B again takes it out), I explains it, and R, last, plays it again from its start.
 func playerWantHeldOn(t *testing.T, a *app, tt *nsgotest.App, updates chan func(), seen *[]string, i int, original string) {
 	t.Helper()
 	if a.player.play.Playing() {
@@ -1993,10 +1993,10 @@ func playerWantHeldOn(t *testing.T, a *app, tt *nsgotest.App, updates chan func(
 		t.Fatalf("B again left %+v", lines)
 	}
 	*seen = nil
-	tt.Key("e")
+	tt.Key("i")
 	waitUntil(t, tt, a, updates, func() bool { return a.palette.answer != nil && !a.palette.answer.busy })
 	if sent := strings.Join(*seen, "\n"); !strings.Contains(sent, "要讲解的一句：["+cmdpalette.Clock(lineCues[i].Start)+"] "+original) {
-		t.Fatalf("E explained %q, want %q", sent, original)
+		t.Fatalf("I explained %q, want %q", sent, original)
 	}
 	tt.Key("escape")
 	if a.palette.open {

@@ -690,7 +690,7 @@ const (
 	paletteExplainAfter  = 1
 )
 
-// ExplainLine is Explain Line on line i of the open film's subtitles, from the subtitle list's right-click menu or E (paletteExplainPlaying): the palette opens with the AI service set explaining the line, its meaning, its key words and its grammar, from the line and the lines around it, with no question to type. The line goes even when it is past the furthest point played, as the subtitle list shows every line. The card starts with the line's original and its first chip plays the line. Without an AI service the card offers its settings, as for a question (paletteAsk).
+// ExplainLine is Explain Line on line i of the open film's subtitles, from the subtitle list's right-click menu or I (paletteExplainPlaying): the palette opens with the AI service set explaining the line, its meaning, its key words and its grammar, from the line and the lines around it, with no question to type. The line goes even when it is past the furthest point played, as the subtitle list shows every line. The card starts with the line's original and its first chip plays the line. Without an AI service the card offers its settings, as for a question (paletteAsk).
 func (a *app) ExplainLine(i int) {
 	item, ok := a.paletteOpenFilm()
 	cues := a.playerCues()
@@ -719,8 +719,12 @@ func (a *app) ExplainLine(i int) {
 	a.paletteSend(t, item, paletteExplainPrompt(paletteAnswerLanguage(item, a.prefs.language)), user, around, paletteAnswer{explain: true, explained: quoted, refs: []time.Duration{line.Start}})
 }
 
-// paletteExplainPlaying is E: Explain Line on the line playing, or between lines on the line just heard, or before the first on the line coming, as L picks the line it loops.
+// paletteExplainPlaying is I: Explain Line on the line selected for correcting, or with none the line playing, or between lines on the line just heard, or before the first on the line coming, as L picks the line it loops.
 func (a *app) paletteExplainPlaying() {
+	if i := a.correctSelected(); i >= 0 {
+		a.ExplainLine(i)
+		return
+	}
 	prev, cur, next := film.CueNear(a.playerCues(), a.playerLineAt())
 	for _, i := range []int{cur, prev, next} {
 		if i >= 0 {

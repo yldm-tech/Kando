@@ -29,6 +29,8 @@ type Device struct {
 	LastSeen time.Time `json:"last_seen"`
 	// TokenHash is the SHA-256 of the device's token, in hex.
 	TokenHash string `json:"token_sha256"`
+	// RelayKey is the key the device's objects in the storage relay are sealed with, made when it first joins the relay (psync.OpRelayJoin), none before. Devices does not give it out.
+	RelayKey []byte `json:"relay_key,omitempty"`
 }
 
 // seenEvery is how often a device's LastSeen is written to disk while it makes requests, so streaming a video does not write the file at every range.
@@ -129,12 +131,48 @@ func (d *devices) revoke(id string) error {
 	return nil
 }
 
-// all is the devices, the latest paired first.
+// all is the devices, the latest paired first, without their relay keys.
 func (d *devices) all() []Device {
 	d.mu.Lock()
 	defer d.mu.Unlock()
 	out := slices.Clone(d.list)
+	for i := range out {
+		out[i].RelayKey = nil
+	}
 	slices.Reverse(out)
+	return out
+}
+
+// relayKey is device id's relay key, made and saved the first time it is asked for.
+func (d *devices) relayKey(id string) ([]byte, error) {
+	d.mu.Lock()
+	defer d.mu.Unlock()
+	i := slices.IndexFunc(d.list, func(dev Device) bool { return dev.ID == id })
+	if i < 0 {
+		return nil, psync.Errorf(psync.CodeUnauthorized, "no device %s", id)
+	}
+	if len(d.list[i].RelayKey) == psync.RelayKeySize {
+		return slices.Clone(d.list[i].RelayKey), nil
+	}
+	key := psync.NewRelayKey()
+	d.list[i].RelayKey = key
+	if err := d.save(); err != nil {
+		d.list[i].RelayKey = nil
+		return nil, err
+	}
+	return slices.Clone(key), nil
+}
+
+// relayDevices are the devices that joined the relay, with their keys.
+func (d *devices) relayDevices() []psync.RelayDevice {
+	d.mu.Lock()
+	defer d.mu.Unlock()
+	var out []psync.RelayDevice
+	for _, dev := range d.list {
+		if len(dev.RelayKey) == psync.RelayKeySize {
+			out = append(out, psync.RelayDevice{ID: dev.ID, Name: dev.Name, Key: slices.Clone(dev.RelayKey)})
+		}
+	}
 	return out
 }
 

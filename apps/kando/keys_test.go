@@ -4,10 +4,12 @@ import (
 	"os"
 	"path/filepath"
 	"slices"
+	"strings"
 	"testing"
 	"time"
 
 	"kando/apps/kando/cheatsheet"
+	"kando/apps/kando/hotkey"
 	"kando/apps/kando/locales/testlocale"
 	"kando/apps/kando/settings"
 	"kando/packages/core"
@@ -181,7 +183,7 @@ func TestCheatsheetPlacesOtherAreasRows(t *testing.T) {
 		{Group: groupStudy, Label: "复习", Key: "n"},
 	}
 	var got []string
-	for _, g := range cheatsheetGroupsOf(a.cx, rows) {
+	for _, g := range cheatsheetGroupsOf(a.cx, hotkey.PresetSystem, rows) {
 		line := g.Title + ":"
 		for _, k := range g.Keys {
 			line += " " + k.Label
@@ -263,6 +265,44 @@ func TestMenuBarTakesCommandShortcuts(t *testing.T) {
 // TestShortcutsAreUnique checks that each row runs something or is a submenu without a key, that no two rows of the table have one label in one menu, and that rows share a key only when they take turns: each has a When, and in none of the window's states (a library page with films, a film open over it) do two of them hold at once, so the key runs one row at most, as the library's ⌘F and the player's do.
 func TestShortcutsAreUnique(t *testing.T) {
 	a, _, _ := libraryWith(t, "Talk")
+	// Every preset of Settings › 快捷键 gives a table whose keys are unique too, ⌘ written as Ctrl as it is on Windows and Linux.
+	// A preset shares a key only among the rows that share one in Kando's own table, which take turns: it never puts a player's key on another row's.
+	shared := func() map[string]bool {
+		labels := map[string][]string{}
+		for _, s := range a.shortcuts(a.cx) {
+			if s.Key != "" {
+				key := strings.ReplaceAll(s.Key, "mod+", "ctrl+")
+				labels[key] = append(labels[key], s.Label)
+			}
+		}
+		out := map[string]bool{}
+		for _, same := range labels {
+			if len(same) > 1 {
+				slices.Sort(same)
+				out[strings.Join(same, "|")] = true
+			}
+		}
+		return out
+	}
+	var own map[string]bool
+	for _, preset := range hotkey.Presets() {
+		a.prefs.shortcutPreset = preset
+		shortcutsUnique(t, a, preset)
+		if preset == hotkey.PresetSystem {
+			own = shared()
+			continue
+		}
+		for rows := range shared() {
+			if !own[rows] {
+				t.Fatalf("%s puts %q on one key", preset, rows)
+			}
+		}
+	}
+}
+
+// shortcutsUnique checks the table of a under preset: every row complete and named once, and a key shared only by rows that take turns.
+func shortcutsUnique(t *testing.T, a *app, preset string) {
+	t.Helper()
 	ids := map[string]bool{}
 	keyed := map[string][]shortcut{}
 	for _, s := range a.shortcuts(a.cx) {
@@ -274,7 +314,8 @@ func TestShortcutsAreUnique(t *testing.T) {
 		}
 		ids[menuRowID(s)] = true
 		if s.Key != "" {
-			keyed[s.Key] = append(keyed[s.Key], s)
+			key := strings.ReplaceAll(s.Key, "mod+", "ctrl+")
+			keyed[key] = append(keyed[key], s)
 		}
 	}
 	states := map[string]func(){
@@ -287,7 +328,7 @@ func TestShortcutsAreUnique(t *testing.T) {
 		}
 		for _, s := range same {
 			if s.When == nil {
-				t.Fatalf("%q shares its key with %q but always holds", s.Label, same[0].Label)
+				t.Fatalf("%s: %q shares its key with %q but always holds", preset, s.Label, same[0].Label)
 			}
 		}
 		for state, enter := range states {
@@ -299,7 +340,7 @@ func TestShortcutsAreUnique(t *testing.T) {
 				}
 			}
 			if len(holding) > 1 {
-				t.Fatalf("%q share a key and all hold on the %s page", holding, state)
+				t.Fatalf("%s: %q share a key and all hold on the %s page", preset, holding, state)
 			}
 		}
 	}

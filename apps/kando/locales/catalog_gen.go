@@ -493,6 +493,17 @@ var Parameters = map[string][]string{
 	"CorrectStepStart":                         {"line"},
 	"CorrectUndo":                              {"step"},
 	"CorrectUndone":                            {"step"},
+	"SettingsAIRequestsNote":                   {"size", "retries"},
+	"SettingsShortcutsPresetNote":              {"player"},
+	"SettingsSpeechThreadsAuto":                {"count"},
+	"CorrectCandidatesFailed":                  {"error_"},
+	"CorrectCandidatesHint":                    {"choose", "use", "cancel"},
+	"CorrectSpreadAsk":                         {"from", "to", "count"},
+	"CorrectSpreadAskEdited":                   {"from", "to", "count", "edited"},
+	"CorrectSpreadDone":                        {"count"},
+	"CorrectSpreadDoneTerm":                    {"count"},
+	"CorrectStepCandidate":                     {"line"},
+	"CorrectStepSpread":                        {"from", "to"},
 	"SubexportCountEdited":                     {"count"},
 	"SubexportCountLines":                      {"count"},
 	"SubexportCountMissing":                    {"count", "how"},
@@ -928,6 +939,17 @@ type Translation struct {
 	CorrectStepStart                         func(line int) string
 	CorrectUndo                              func(step string) string
 	CorrectUndone                            func(step string) string
+	SettingsAIRequestsNote                   func(size int, retries int) string
+	SettingsShortcutsPresetNote              func(player string) string
+	SettingsSpeechThreadsAuto                func(count int) string
+	CorrectCandidatesFailed                  func(error_ string) string
+	CorrectCandidatesHint                    func(choose string, use string, cancel string) string
+	CorrectSpreadAsk                         func(from string, to string, count int) string
+	CorrectSpreadAskEdited                   func(from string, to string, count int, edited int) string
+	CorrectSpreadDone                        func(count int) string
+	CorrectSpreadDoneTerm                    func(count int) string
+	CorrectStepCandidate                     func(line int) string
+	CorrectStepSpread                        func(from string, to string) string
 	SubexportCountEdited                     func(count int) string
 	SubexportCountLines                      func(count int) string
 	SubexportCountMissing                    func(count int, how string) string
@@ -1453,6 +1475,52 @@ const (
 	textCorrectSubmit
 	textCorrectTranslation
 	textCorrectUnreadable
+	textSettingsAIBatchSize
+	textSettingsAIBatchSizeHint
+	textSettingsAIRequests
+	textSettingsAIRequestsRestore
+	textSettingsAIRetries
+	textSettingsAIRetriesHint
+	textSettingsGeneralAppearance
+	textSettingsGeneralAppearanceDark
+	textSettingsGeneralAppearanceLight
+	textSettingsGeneralAppearanceSystem
+	textSettingsShortcutsPreset
+	textSettingsShortcutsPresetMac
+	textSettingsShortcutsPresetSystem
+	textSettingsSpeechCommand
+	textSettingsSpeechHints
+	textSettingsSpeechHintsNote
+	textSettingsSpeechHintsPlaceholder
+	textSettingsSpeechParams
+	textSettingsSpeechThreads
+	textSettingsSpeechThreadsHint
+	textSettingsTranslateContextLines
+	textSettingsTranslateContextLinesHint
+	textCorrectCandidateKept
+	textCorrectCandidates
+	textCorrectCandidatesBusy
+	textCorrectCandidatesCurrent
+	textCorrectCandidatesLabel
+	textCorrectCandidatesNoAI
+	textCorrectCandidatesNone
+	textCorrectCandidatesOption
+	textCorrectCandidatesSettings
+	textCorrectCandidatesTitle
+	textCorrectExplain
+	textCorrectKeyCandidates
+	textCorrectKeyPick
+	textCorrectKeyPickCancel
+	textCorrectKeyPickDown
+	textCorrectKeyPickUp
+	textCorrectKeySpreadAll
+	textCorrectKeySpreadOnly
+	textCorrectKeySpreadView
+	textCorrectSpreadAll
+	textCorrectSpreadOnly
+	textCorrectSpreadOnlyButton
+	textCorrectSpreadView
+	textCorrectUntranslated
 	textSubexportBilingual
 	textSubexportCancel
 	textSubexportContent
@@ -2698,6 +2766,52 @@ var keyOfText = [numTexts]string{
 	"correctSubmit",
 	"correctTranslation",
 	"correctUnreadable",
+	"settingsAIBatchSize",
+	"settingsAIBatchSizeHint",
+	"settingsAIRequests",
+	"settingsAIRequestsRestore",
+	"settingsAIRetries",
+	"settingsAIRetriesHint",
+	"settingsGeneralAppearance",
+	"settingsGeneralAppearanceDark",
+	"settingsGeneralAppearanceLight",
+	"settingsGeneralAppearanceSystem",
+	"settingsShortcutsPreset",
+	"settingsShortcutsPresetMac",
+	"settingsShortcutsPresetSystem",
+	"settingsSpeechCommand",
+	"settingsSpeechHints",
+	"settingsSpeechHintsNote",
+	"settingsSpeechHintsPlaceholder",
+	"settingsSpeechParams",
+	"settingsSpeechThreads",
+	"settingsSpeechThreadsHint",
+	"settingsTranslateContextLines",
+	"settingsTranslateContextLinesHint",
+	"correctCandidateKept",
+	"correctCandidates",
+	"correctCandidatesBusy",
+	"correctCandidatesCurrent",
+	"correctCandidatesLabel",
+	"correctCandidatesNoAI",
+	"correctCandidatesNone",
+	"correctCandidatesOption",
+	"correctCandidatesSettings",
+	"correctCandidatesTitle",
+	"correctExplain",
+	"correctKeyCandidates",
+	"correctKeyPick",
+	"correctKeyPickCancel",
+	"correctKeyPickDown",
+	"correctKeyPickUp",
+	"correctKeySpreadAll",
+	"correctKeySpreadOnly",
+	"correctKeySpreadView",
+	"correctSpreadAll",
+	"correctSpreadOnly",
+	"correctSpreadOnlyButton",
+	"correctSpreadView",
+	"correctUntranslated",
 	"subexportBilingual",
 	"subexportCancel",
 	"subexportContent",
@@ -3941,6 +4055,52 @@ var textsEn = i18n.NewTexts(""+
 	"Save"+
 	"Translation"+
 	"This film’s corrections couldn’t be read, so they can’t be changed"+
+	"Lines per Request"+
+	"More lines take fewer requests; fewer suit a small model."+
+	"Requests"+
+	"Restore Defaults"+
+	"Retries"+
+	"After a rate limit, a server error or no answer."+
+	"Appearance"+
+	"Dark"+
+	"Light"+
+	"Follow System"+
+	"Preset"+
+	"Mac Default"+
+	"System Default"+
+	"Command"+
+	"Proper Noun Hints"+
+	"One per line or separated by commas. whisper spells them as written."+
+	"Names, places, terms…"+
+	"Recognition"+
+	"Threads"+
+	"More is faster, but takes CPU from playback."+
+	"Context Lines"+
+	"More reads more smoothly, but each request is longer and costs more."+
+	"Using the translation you picked, saved as yours"+
+	"This Line Is Wrong"+
+	"This line is wrong · translating it again with more context…"+
+	"Current wording (unchanged)"+
+	"This line is wrong: candidates"+
+	"Other translations need an AI service. Choose a model in AI Service first."+
+	"The AI service found no better wording."+
+	"Candidate · retranslated with context"+
+	"Open Settings"+
+	"This line is wrong · pick a wording"+
+	"Explain"+
+	"This Line Is Wrong…"+
+	"Use the Highlighted Wording"+
+	"Discard the Candidates"+
+	"Highlight the Next Wording"+
+	"Highlight the Previous Wording"+
+	"Change It Everywhere in the Film"+
+	"Change Only This Line"+
+	"Show the Lines With It"+
+	"All"+
+	"Only changed here"+
+	"Only Here"+
+	"View"+
+	"(not translated)"+
 	"Both"+
 	"Cancel"+
 	"Lines"+
@@ -4714,15 +4874,15 @@ var textsEn = i18n.NewTexts(""+
 	"Speech recognition"+
 	"Downloads online videos"+
 	"Version"+
-	"translation service EveryAPI OpenAI OpenRouter Groq DeepSeek xAI Mistral Qwen Kimi Zhipu SiliconFlow Ollama LM Studio Base URL API Key model test connection"+
+	"translation service EveryAPI OpenAI OpenRouter Groq DeepSeek xAI Mistral Qwen Kimi Zhipu SiliconFlow Ollama LM Studio Base URL API Key model test connection batch lines per request retries"+
 	"Google sign in sign out object storage upload R2 S3 OSS COS Endpoint Region Bucket Access Key Secret path style"+
-	"library location Finder File Explorer file manager interface language version components yt-dlp ffmpeg whisper-cli detect again command line terminal kando install MCP Claude Code Cursor copy config update notifications notify browser sign-in signed in cookies members-only age-restricted Chrome Safari Firefox Edge Brave Chromium keychain Full Disk Access"+
+	"library location Finder File Explorer file manager interface language version components yt-dlp ffmpeg whisper-cli detect again command line terminal kando install MCP Claude Code Cursor copy config update notifications notify browser sign-in signed in cookies members-only age-restricted Chrome Safari Firefox Edge Brave Chromium keychain Full Disk Access appearance light dark mode follow system"+
 	"subtitles display bilingual original only translation only order translation original dim blank make room preview preset font size color bold"+
 	"iPhone Android phone mobile sync pair QR code Wi-Fi network device revoke"+
 	"privacy offline network internet cache clear"+
-	"keyboard keys commands"+
-	"whisper models download recognition transcription HuggingFace Hugging Face Vimpo hyperframes spoken language download source mirror hf-mirror.com model file ggml"+
-	"target language smart translation context prompt restore default"+
+	"keyboard keys commands preset IINA mpv"+
+	"whisper models download recognition transcription HuggingFace Hugging Face Vimpo hyperframes spoken language download source mirror hf-mirror.com model file ggml threads proper nouns hints prompt command"+
+	"target language smart translation context prompt restore default context lines"+
 	"Arabic"+
 	"Dutch"+
 	"English"+
@@ -5181,6 +5341,52 @@ var textsEn = i18n.NewTexts(""+
 		4,
 		11,
 		72,
+		17,
+		57,
+		8,
+		16,
+		7,
+		48,
+		10,
+		4,
+		5,
+		13,
+		6,
+		11,
+		14,
+		7,
+		17,
+		68,
+		23,
+		11,
+		7,
+		44,
+		13,
+		68,
+		48,
+		18,
+		63,
+		27,
+		30,
+		74,
+		39,
+		38,
+		13,
+		36,
+		7,
+		21,
+		27,
+		22,
+		26,
+		30,
+		32,
+		21,
+		22,
+		3,
+		17,
+		9,
+		4,
+		16,
 		4,
 		6,
 		5,
@@ -5954,15 +6160,15 @@ var textsEn = i18n.NewTexts(""+
 		18,
 		23,
 		7,
-		156,
+		188,
 		111,
-		356,
+		397,
 		141,
 		73,
 		44,
-		22,
-		161,
-		64,
+		38,
+		203,
+		78,
 		6,
 		5,
 		7,
@@ -6424,6 +6630,52 @@ var textsJa = i18n.NewTexts(""+
 	"保存"+
 	"訳文"+
 	"この作品の修正を読み込めないため、変更できません"+
+	"1 回あたりの行数"+
+	"多いほどリクエストが減ります。小さなモデルには少なめが向いています。"+
+	"リクエスト"+
+	"デフォルトに戻す"+
+	"再試行"+
+	"レート制限、サーバーエラー、応答なしのとき。"+
+	"外観"+
+	"ダーク"+
+	"ライト"+
+	"システムに合わせる"+
+	"プリセット"+
+	"Mac 標準"+
+	"システム標準"+
+	"実行されるコマンド"+
+	"固有名詞のヒント"+
+	"1 行に 1 つ、またはカンマ区切り。whisper はここに書いたとおりに書き起こします。"+
+	"人名、地名、用語…"+
+	"認識の設定"+
+	"スレッド数"+
+	"多いほど速くなりますが、再生と CPU を取り合います。"+
+	"文脈の行数"+
+	"多いほど自然につながりますが、リクエストが長くなり費用も増えます。"+
+	"候補を採用し、あなたの訳として保存しました"+
+	"この行が違う"+
+	"この行が違う · 前後の文脈を付けて訳し直しています…"+
+	"現在の訳（変更しない）"+
+	"この行が違う：候補"+
+	"候補を出すには AI サービスが必要です。先に「AI サービス」でモデルを選んでください。"+
+	"AI サービスからより良い訳は出ませんでした。"+
+	"候補 · 文脈付きで訳し直し"+
+	"設定を開く"+
+	"この行が違う · 訳を選ぶ"+
+	"解説"+
+	"この行が違う…"+
+	"選んだ訳を採用"+
+	"候補を閉じる"+
+	"次の訳を選ぶ"+
+	"前の訳を選ぶ"+
+	"作品全体で変更"+
+	"この行だけ変更"+
+	"該当する行を表示"+
+	"すべて"+
+	"この行だけ変更しました"+
+	"ここだけ"+
+	"表示"+
+	"（未翻訳）"+
 	"2 か国語"+
 	"キャンセル"+
 	"内容"+
@@ -7197,15 +7449,15 @@ var textsJa = i18n.NewTexts(""+
 	"音声認識"+
 	"オンライン動画のダウンロード"+
 	"バージョン"+
-	"翻訳 サービス EveryAPI OpenAI OpenRouter Groq DeepSeek xAI Mistral Qwen Kimi Zhipu SiliconFlow Ollama LM Studio Base URL API Key モデル 接続テスト"+
+	"翻訳 サービス EveryAPI OpenAI OpenRouter Groq DeepSeek xAI Mistral Qwen Kimi Zhipu SiliconFlow Ollama LM Studio Base URL API Key モデル 接続テスト 行数 リクエスト 再試行"+
 	"Google ログイン ログアウト オブジェクトストレージ アップロード R2 S3 OSS COS Endpoint Region Bucket Access Key Secret パス形式"+
-	"ライブラリ 場所 Finder エクスプローラー ファイルマネージャー 表示言語 バージョン コンポーネント yt-dlp ffmpeg whisper-cli 再検出 コマンドライン ターミナル kando インストール MCP Claude Code Cursor 設定をコピー アップデート 通知 ブラウザ ログイン Cookie メンバー限定 年齢確認 Chrome Safari Firefox Edge キーチェーン フルディスクアクセス"+
+	"ライブラリ 場所 Finder エクスプローラー ファイルマネージャー 表示言語 バージョン コンポーネント yt-dlp ffmpeg whisper-cli 再検出 コマンドライン ターミナル kando インストール MCP Claude Code Cursor 設定をコピー アップデート 通知 ブラウザ ログイン Cookie メンバー限定 年齢確認 Chrome Safari Firefox Edge キーチェーン フルディスクアクセス 外観 ライト ダーク システム"+
 	"字幕 表示方法 二言語 原文のみ 訳文のみ 順序 訳文 原文 薄く 空白 移動 プレビュー プリセット フォント サイズ 色 太字"+
 	"iPhone Android スマホ スマートフォン 同期 ペアリング QR コード Wi-Fi ネットワーク デバイス 取り消し"+
 	"プライバシー オフライン ネットワーク インターネット キャッシュ 消去"+
-	"キーボード キー コマンド"+
-	"whisper モデル ダウンロード 認識 文字起こし HuggingFace Hugging Face Vimpo hyperframes 認識する言語 話されている言語 ダウンロード元 ミラー hf-mirror.com モデルファイル ggml"+
-	"翻訳先の言語 スマート翻訳 文脈 プロンプト デフォルトに戻す"+
+	"キーボード キー コマンド プリセット IINA mpv"+
+	"whisper モデル ダウンロード 認識 文字起こし HuggingFace Hugging Face Vimpo hyperframes 認識する言語 話されている言語 ダウンロード元 ミラー hf-mirror.com モデルファイル ggml スレッド 固有名詞 ヒント コマンド"+
+	"翻訳先の言語 スマート翻訳 文脈 プロンプト デフォルトに戻す 文脈の行数"+
 	"アラビア語"+
 	"オランダ語"+
 	"英語"+
@@ -7664,6 +7916,52 @@ var textsJa = i18n.NewTexts(""+
 		6,
 		6,
 		72,
+		23,
+		102,
+		15,
+		24,
+		9,
+		66,
+		6,
+		9,
+		9,
+		27,
+		15,
+		10,
+		18,
+		27,
+		24,
+		112,
+		27,
+		15,
+		15,
+		74,
+		15,
+		99,
+		63,
+		18,
+		76,
+		33,
+		27,
+		121,
+		63,
+		37,
+		15,
+		34,
+		6,
+		21,
+		21,
+		18,
+		18,
+		18,
+		21,
+		21,
+		24,
+		9,
+		33,
+		12,
+		6,
+		15,
 		11,
 		15,
 		6,
@@ -8437,15 +8735,15 @@ var textsJa = i18n.NewTexts(""+
 		12,
 		42,
 		15,
-		160,
+		193,
 		156,
-		445,
+		485,
 		163,
 		133,
 		98,
-		35,
-		219,
-		85,
+		60,
+		268,
+		101,
 		15,
 		15,
 		6,
@@ -8907,6 +9205,52 @@ var textsKo = i18n.NewTexts(""+
 	"저장"+
 	"번역"+
 	"이 영상의 수정 내용을 읽을 수 없어 바꿀 수 없습니다"+
+	"요청당 줄 수"+
+	"많을수록 요청 수가 줄고, 작은 모델에는 적게 두는 편이 좋습니다."+
+	"요청"+
+	"기본값으로 복원"+
+	"재시도"+
+	"속도 제한, 서버 오류, 응답 없음일 때."+
+	"화면 모드"+
+	"다크"+
+	"라이트"+
+	"시스템 설정에 따름"+
+	"프리셋"+
+	"Mac 기본"+
+	"시스템 기본"+
+	"실행되는 명령"+
+	"고유명사 힌트"+
+	"한 줄에 하나씩 또는 쉼표로 구분하세요. whisper가 적힌 그대로 받아 적습니다."+
+	"인명, 지명, 용어…"+
+	"인식 설정"+
+	"스레드 수"+
+	"많을수록 빠르지만 재생과 CPU를 나눠 씁니다."+
+	"문맥 줄 수"+
+	"많을수록 자연스럽지만 요청이 길어지고 비용이 늘어납니다."+
+	"후보를 채택해 내 번역으로 저장했습니다"+
+	"이 줄이 틀렸어요"+
+	"이 줄이 틀렸어요 · 앞뒤 맥락을 넣어 다시 번역하는 중…"+
+	"현재 번역(그대로 두기)"+
+	"이 줄이 틀렸어요: 후보"+
+	"후보를 받으려면 AI 서비스가 필요합니다. 먼저 ‘AI 서비스’에서 모델을 고르세요."+
+	"AI 서비스가 더 나은 번역을 찾지 못했습니다."+
+	"후보 · 맥락을 넣어 다시 번역"+
+	"설정 열기"+
+	"이 줄이 틀렸어요 · 번역 고르기"+
+	"설명"+
+	"이 줄이 틀렸어요…"+
+	"선택한 번역 채택"+
+	"후보 닫기"+
+	"다음 번역 선택"+
+	"이전 번역 선택"+
+	"영상 전체에서 바꾸기"+
+	"이 줄만 바꾸기"+
+	"해당 줄 보기"+
+	"모두"+
+	"이 줄만 바꿨습니다"+
+	"여기만"+
+	"보기"+
+	"(번역 없음)"+
 	"2개 언어"+
 	"취소"+
 	"내용"+
@@ -9680,15 +10024,15 @@ var textsKo = i18n.NewTexts(""+
 	"음성 인식"+
 	"온라인 동영상 다운로드"+
 	"버전"+
-	"번역 서비스 EveryAPI OpenAI OpenRouter Groq DeepSeek xAI Mistral Qwen Kimi Zhipu SiliconFlow Ollama LM Studio Base URL API Key 모델 연결 테스트"+
+	"번역 서비스 EveryAPI OpenAI OpenRouter Groq DeepSeek xAI Mistral Qwen Kimi Zhipu SiliconFlow Ollama LM Studio Base URL API Key 모델 연결 테스트 줄 수 요청 재시도"+
 	"Google 로그인 로그아웃 오브젝트 스토리지 업로드 R2 S3 OSS COS Endpoint Region Bucket Access Key Secret 경로 스타일"+
-	"라이브러리 위치 Finder 파일 탐색기 파일 관리자 인터페이스 언어 버전 구성 요소 yt-dlp ffmpeg whisper-cli 다시 감지 명령줄 터미널 kando 설치 MCP Claude Code Cursor 설정 복사 업데이트 알림 브라우저 로그인 쿠키 멤버십 연령 확인 Chrome Safari Firefox Edge 키체인 전체 디스크 접근 권한"+
+	"라이브러리 위치 Finder 파일 탐색기 파일 관리자 인터페이스 언어 버전 구성 요소 yt-dlp ffmpeg whisper-cli 다시 감지 명령줄 터미널 kando 설치 MCP Claude Code Cursor 설정 복사 업데이트 알림 브라우저 로그인 쿠키 멤버십 연령 확인 Chrome Safari Firefox Edge 키체인 전체 디스크 접근 권한 화면 모드 라이트 다크 시스템"+
 	"자막 표시 방식 이중 언어 원문만 번역만 순서 번역 원문 흐리게 비워 두기 이동 미리 보기 프리셋 서체 크기 색상 굵게"+
 	"iPhone Android 휴대폰 스마트폰 동기화 페어링 QR 코드 Wi-Fi 네트워크 기기 해제"+
 	"개인정보 오프라인 네트워크 인터넷 캐시 지우기"+
-	"키보드 키 명령"+
-	"whisper 모델 다운로드 인식 전사 HuggingFace Hugging Face Vimpo hyperframes 인식 언어 다운로드 소스 미러 hf-mirror.com 모델 파일 ggml"+
-	"대상 언어 스마트 번역 문맥 프롬프트 기본값 복원"+
+	"키보드 키 명령 프리셋 IINA mpv"+
+	"whisper 모델 다운로드 인식 전사 HuggingFace Hugging Face Vimpo hyperframes 인식 언어 다운로드 소스 미러 hf-mirror.com 모델 파일 ggml 스레드 고유명사 힌트 명령"+
+	"대상 언어 스마트 번역 문맥 프롬프트 기본값 복원 문맥 줄 수"+
 	"아랍어"+
 	"네덜란드어"+
 	"영어"+
@@ -10147,6 +10491,52 @@ var textsKo = i18n.NewTexts(""+
 		6,
 		6,
 		72,
+		17,
+		89,
+		6,
+		22,
+		9,
+		51,
+		13,
+		6,
+		9,
+		26,
+		9,
+		10,
+		16,
+		19,
+		19,
+		103,
+		25,
+		13,
+		13,
+		60,
+		14,
+		81,
+		55,
+		23,
+		77,
+		31,
+		31,
+		111,
+		60,
+		40,
+		13,
+		43,
+		6,
+		26,
+		23,
+		13,
+		20,
+		20,
+		29,
+		20,
+		17,
+		6,
+		26,
+		9,
+		6,
+		15,
 		11,
 		6,
 		6,
@@ -10920,15 +11310,15 @@ var textsKo = i18n.NewTexts(""+
 		13,
 		32,
 		6,
-		155,
+		180,
 		137,
-		359,
+		400,
 		158,
 		100,
 		65,
-		20,
-		158,
-		67,
+		39,
+		195,
+		82,
 		9,
 		15,
 		6,
@@ -11390,6 +11780,52 @@ var textsZhHans = i18n.NewTexts(""+
 	"提交"+
 	"译文"+
 	"这部影片的修改记录读不出来，不能更改"+
+	"每批句数"+
+	"句数多，请求就少；小模型适合少一些。"+
+	"请求"+
+	"恢复默认"+
+	"失败重试"+
+	"遇到限流、服务器错误或没有回应时。"+
+	"外观"+
+	"深色"+
+	"浅色"+
+	"跟随系统"+
+	"预设"+
+	"Mac 默认"+
+	"系统默认"+
+	"对应的命令行"+
+	"专有名词提示"+
+	"每行一个，或用逗号隔开。whisper 会照这里的写法识别。"+
+	"人名、地名、术语……"+
+	"识别参数"+
+	"线程数"+
+	"越多越快，但会和播放抢 CPU。"+
+	"上下文句数"+
+	"越多越连贯，但每次请求更长、更贵。"+
+	"已采用候选，记为你的写法"+
+	"这句不对"+
+	"这句不对 · 正在用更强的设置重新翻译…"+
+	"当前写法（保持不变）"+
+	"这句不对：候选"+
+	"这句不对要用 AI 服务，先在「AI 服务」里选好一个模型。"+
+	"AI 服务没有给出更好的写法。"+
+	"候选 · 带上下文重新翻译"+
+	"打开设置"+
+	"这句不对 · 选一个写法"+
+	"解释"+
+	"这句不对…"+
+	"采用选中的写法"+
+	"放弃候选"+
+	"选下一个写法"+
+	"选上一个写法"+
+	"全片一起改"+
+	"仅改此处"+
+	"查看这些句子"+
+	"全部"+
+	"只改了这一处"+
+	"仅此处"+
+	"查看"+
+	"（未翻译）"+
 	"双语"+
 	"取消"+
 	"内容"+
@@ -12163,15 +12599,15 @@ var textsZhHans = i18n.NewTexts(""+
 	"语音识别"+
 	"下载在线视频"+
 	"版本"+
-	"翻译 服务 EveryAPI OpenAI OpenRouter Groq DeepSeek xAI Mistral 通义千问 Kimi 智谱 硅基流动 Ollama LM Studio Base URL API Key 模型 测试连接"+
+	"翻译 服务 EveryAPI OpenAI OpenRouter Groq DeepSeek xAI Mistral 通义千问 Kimi 智谱 硅基流动 Ollama LM Studio Base URL API Key 模型 测试连接 每批 句数 请求 重试"+
 	"Google 登录 退出 对象存储 上传 R2 S3 OSS COS Endpoint Region Bucket Access Key Secret 路径样式"+
-	"资料库 位置 访达 文件资源管理器 文件管理器 界面语言 版本 组件 yt-dlp ffmpeg whisper-cli 重新检测 命令行 终端 kando 安装 MCP Claude Code Cursor 拷贝配置 更新 通知 浏览器 登录 借用 Cookie 会员 年龄验证 Chrome Safari Firefox Edge 钥匙串 完全磁盘访问权限"+
+	"资料库 位置 访达 文件资源管理器 文件管理器 界面语言 版本 组件 yt-dlp ffmpeg whisper-cli 重新检测 命令行 终端 kando 安装 MCP Claude Code Cursor 拷贝配置 更新 通知 浏览器 登录 借用 Cookie 会员 年龄验证 Chrome Safari Firefox Edge 钥匙串 完全磁盘访问权限 外观 浅色 深色 跟随系统"+
 	"字幕 显示方式 双语 仅原文 仅译文 顺序 译文 原文 弱化 留空 让位 预览 预设 字体 字号 颜色 粗体"+
 	"iPhone Android 手机 移动 同步 配对 二维码 Wi-Fi 网络 设备 撤销"+
 	"隐私 离线 联网 网络 缓存 清除"+
-	"键盘 按键 命令"+
-	"whisper 模型 下载 识别 HuggingFace Hugging Face Vimpo hyperframes 识别语言 下载源 镜像 hf-mirror.com 模型文件 ggml"+
-	"目标语言 智能翻译 上下文 提示词 恢复默认"+
+	"键盘 按键 命令 预设 键位 IINA mpv"+
+	"whisper 模型 下载 识别 HuggingFace Hugging Face Vimpo hyperframes 识别语言 下载源 镜像 hf-mirror.com 模型文件 ggml 线程 专有名词 提示 命令行"+
+	"目标语言 智能翻译 上下文 提示词 恢复默认 上下文句数"+
 	"阿拉伯语"+
 	"荷兰语"+
 	"英语"+
@@ -12630,6 +13066,52 @@ var textsZhHans = i18n.NewTexts(""+
 		6,
 		6,
 		54,
+		12,
+		54,
+		6,
+		12,
+		12,
+		51,
+		6,
+		6,
+		6,
+		12,
+		6,
+		10,
+		12,
+		18,
+		18,
+		74,
+		30,
+		12,
+		9,
+		40,
+		15,
+		51,
+		36,
+		12,
+		55,
+		30,
+		21,
+		76,
+		39,
+		34,
+		12,
+		31,
+		6,
+		15,
+		21,
+		12,
+		18,
+		18,
+		15,
+		12,
+		18,
+		6,
+		18,
+		9,
+		6,
+		15,
 		6,
 		6,
 		6,
@@ -13403,15 +13885,15 @@ var textsZhHans = i18n.NewTexts(""+
 		12,
 		18,
 		6,
-		158,
+		186,
 		108,
-		320,
+		354,
 		130,
 		79,
 		41,
-		20,
-		133,
-		58,
+		43,
+		170,
+		74,
 		12,
 		9,
 		6,
@@ -13873,6 +14355,52 @@ var textsZhHant = i18n.NewTexts(""+
 	"提交"+
 	"譯文"+
 	"這部影片的修改紀錄讀不出來，不能更改"+
+	"每批句數"+
+	"句數多，請求就少；小模型適合少一些。"+
+	"請求"+
+	"恢復預設"+
+	"失敗重試"+
+	"遇到限流、伺服器錯誤或沒有回應時。"+
+	"外觀"+
+	"深色"+
+	"淺色"+
+	"跟隨系統"+
+	"預設組合"+
+	"Mac 預設"+
+	"系統預設"+
+	"對應的命令列"+
+	"專有名詞提示"+
+	"每行一個，或用逗號隔開。whisper 會照這裡的寫法辨識。"+
+	"人名、地名、術語……"+
+	"辨識參數"+
+	"執行緒數"+
+	"越多越快，但會和播放搶 CPU。"+
+	"上下文句數"+
+	"越多越連貫，但每次請求更長、更貴。"+
+	"已採用候選，記為你的寫法"+
+	"這句不對"+
+	"這句不對 · 正在用更強的設定重新翻譯…"+
+	"目前寫法（保持不變）"+
+	"這句不對：候選"+
+	"這句不對要用 AI 服務，先在「AI 服務」裡選好一個模型。"+
+	"AI 服務沒有給出更好的寫法。"+
+	"候選 · 帶上下文重新翻譯"+
+	"打開設定"+
+	"這句不對 · 選一個寫法"+
+	"解釋"+
+	"這句不對…"+
+	"採用選中的寫法"+
+	"放棄候選"+
+	"選下一個寫法"+
+	"選上一個寫法"+
+	"全片一起改"+
+	"僅改此處"+
+	"查看這些句子"+
+	"全部"+
+	"只改了這一處"+
+	"僅此處"+
+	"查看"+
+	"（未翻譯）"+
 	"雙語"+
 	"取消"+
 	"內容"+
@@ -14646,15 +15174,15 @@ var textsZhHant = i18n.NewTexts(""+
 	"語音辨識"+
 	"下載線上影片"+
 	"版本"+
-	"翻譯 服務 EveryAPI OpenAI OpenRouter Groq DeepSeek xAI Mistral 通義千問 Kimi 智譜 矽基流動 Ollama LM Studio Base URL API Key 模型 測試連線"+
+	"翻譯 服務 EveryAPI OpenAI OpenRouter Groq DeepSeek xAI Mistral 通義千問 Kimi 智譜 矽基流動 Ollama LM Studio Base URL API Key 模型 測試連線 每批 句數 請求 重試"+
 	"Google 登入 登出 物件儲存 上傳 R2 S3 OSS COS Endpoint Region Bucket Access Key Secret 路徑樣式"+
-	"資料庫 位置 Finder 檔案總管 檔案管理員 介面語言 版本 元件 yt-dlp ffmpeg whisper-cli 重新偵測 命令列 終端機 kando 安裝 MCP Claude Code Cursor 拷貝設定 更新 通知 瀏覽器 登入 借用 Cookie 會員 年齡驗證 Chrome Safari Firefox Edge 鑰匙圈 完整取用磁碟"+
+	"資料庫 位置 Finder 檔案總管 檔案管理員 介面語言 版本 元件 yt-dlp ffmpeg whisper-cli 重新偵測 命令列 終端機 kando 安裝 MCP Claude Code Cursor 拷貝設定 更新 通知 瀏覽器 登入 借用 Cookie 會員 年齡驗證 Chrome Safari Firefox Edge 鑰匙圈 完整取用磁碟 外觀 淺色 深色 跟隨系統"+
 	"字幕 顯示方式 雙語 僅原文 僅譯文 順序 譯文 原文 淡化 留空 讓位 預覽 預設 字體 字級 顏色 粗體"+
 	"iPhone Android 手機 行動 同步 配對 QR 碼 Wi-Fi 網路 裝置 撤銷"+
 	"隱私 離線 連網 網路 快取 清除"+
-	"鍵盤 按鍵 指令"+
-	"whisper 模型 下載 辨識 HuggingFace Hugging Face Vimpo hyperframes 辨識語言 下載來源 鏡像 hf-mirror.com 模型檔案 ggml"+
-	"目標語言 智慧翻譯 上下文 提示詞 恢復預設"+
+	"鍵盤 按鍵 指令 預設 鍵位 IINA mpv"+
+	"whisper 模型 下載 辨識 HuggingFace Hugging Face Vimpo hyperframes 辨識語言 下載來源 鏡像 hf-mirror.com 模型檔案 ggml 執行緒 專有名詞 提示 命令列"+
+	"目標語言 智慧翻譯 上下文 提示詞 恢復預設 上下文句數"+
 	"阿拉伯語"+
 	"荷蘭語"+
 	"英語"+
@@ -15113,6 +15641,52 @@ var textsZhHant = i18n.NewTexts(""+
 		6,
 		6,
 		54,
+		12,
+		54,
+		6,
+		12,
+		12,
+		51,
+		6,
+		6,
+		6,
+		12,
+		12,
+		10,
+		12,
+		18,
+		18,
+		74,
+		30,
+		12,
+		12,
+		40,
+		15,
+		51,
+		36,
+		12,
+		55,
+		30,
+		21,
+		76,
+		39,
+		34,
+		12,
+		31,
+		6,
+		15,
+		21,
+		12,
+		18,
+		18,
+		15,
+		12,
+		18,
+		6,
+		18,
+		9,
+		6,
+		15,
 		6,
 		6,
 		6,
@@ -15886,15 +16460,15 @@ var textsZhHant = i18n.NewTexts(""+
 		12,
 		18,
 		6,
-		158,
+		186,
 		108,
-		308,
+		342,
 		130,
 		76,
 		41,
-		20,
-		136,
-		58,
+		43,
+		176,
+		74,
 		12,
 		9,
 		6,
@@ -16385,6 +16959,39 @@ func Supply(lang string, t Translation) {
 	}
 	if t.CorrectUndone != nil {
 		s.CorrectUndone = t.CorrectUndone
+	}
+	if t.SettingsAIRequestsNote != nil {
+		s.SettingsAIRequestsNote = t.SettingsAIRequestsNote
+	}
+	if t.SettingsShortcutsPresetNote != nil {
+		s.SettingsShortcutsPresetNote = t.SettingsShortcutsPresetNote
+	}
+	if t.SettingsSpeechThreadsAuto != nil {
+		s.SettingsSpeechThreadsAuto = t.SettingsSpeechThreadsAuto
+	}
+	if t.CorrectCandidatesFailed != nil {
+		s.CorrectCandidatesFailed = t.CorrectCandidatesFailed
+	}
+	if t.CorrectCandidatesHint != nil {
+		s.CorrectCandidatesHint = t.CorrectCandidatesHint
+	}
+	if t.CorrectSpreadAsk != nil {
+		s.CorrectSpreadAsk = t.CorrectSpreadAsk
+	}
+	if t.CorrectSpreadAskEdited != nil {
+		s.CorrectSpreadAskEdited = t.CorrectSpreadAskEdited
+	}
+	if t.CorrectSpreadDone != nil {
+		s.CorrectSpreadDone = t.CorrectSpreadDone
+	}
+	if t.CorrectSpreadDoneTerm != nil {
+		s.CorrectSpreadDoneTerm = t.CorrectSpreadDoneTerm
+	}
+	if t.CorrectStepCandidate != nil {
+		s.CorrectStepCandidate = t.CorrectStepCandidate
+	}
+	if t.CorrectStepSpread != nil {
+		s.CorrectStepSpread = t.CorrectStepSpread
 	}
 	if t.SubexportCountEdited != nil {
 		s.SubexportCountEdited = t.SubexportCountEdited
@@ -19258,7 +19865,7 @@ func (msgs Messages) CorrectKeyRestore() string { return msgs.text(textCorrectKe
 // CorrectKeySelect says "Select the Current Line"
 // in the language the app shows under cx.
 //
-// Shortcut row of Return on the player: selects the subtitle line playing, to correct it.
+// Shortcut row of E on the player: selects the subtitle line playing, to correct it.
 func CorrectKeySelect(cx *core.Scope) string { return For(cx).CorrectKeySelect() }
 
 // CorrectKeySelect is the package's CorrectKeySelect in the language of msgs.
@@ -19722,6 +20329,841 @@ func CorrectUnreadable(cx *core.Scope) string { return For(cx).CorrectUnreadable
 
 // CorrectUnreadable is the package's CorrectUnreadable in the language of msgs.
 func (msgs Messages) CorrectUnreadable() string { return msgs.text(textCorrectUnreadable) }
+
+// SettingsAIBatchSize says "Lines per Request"
+// in the language the app shows under cx.
+//
+// Row title and accessible name of the field setting how many subtitle lines one translation request carries.
+func SettingsAIBatchSize(cx *core.Scope) string { return For(cx).SettingsAIBatchSize() }
+
+// SettingsAIBatchSize is the package's SettingsAIBatchSize in the language of msgs.
+func (msgs Messages) SettingsAIBatchSize() string { return msgs.text(textSettingsAIBatchSize) }
+
+// SettingsAIBatchSizeHint says "More lines take fewer requests; fewer suit a small model."
+// in the language the app shows under cx.
+//
+// Under Lines per Request.
+func SettingsAIBatchSizeHint(cx *core.Scope) string { return For(cx).SettingsAIBatchSizeHint() }
+
+// SettingsAIBatchSizeHint is the package's SettingsAIBatchSizeHint in the language of msgs.
+func (msgs Messages) SettingsAIBatchSizeHint() string { return msgs.text(textSettingsAIBatchSizeHint) }
+
+// SettingsAIRequests says "Requests"
+// in the language the app shows under cx.
+//
+// Section label on the AI Service page above how many lines a translation request carries and how many times it is retried.
+func SettingsAIRequests(cx *core.Scope) string { return For(cx).SettingsAIRequests() }
+
+// SettingsAIRequests is the package's SettingsAIRequests in the language of msgs.
+func (msgs Messages) SettingsAIRequests() string { return msgs.text(textSettingsAIRequests) }
+
+// SettingsAIRequestsNote says "By default each request carries {size} lines and is retried {retries, plural, one {once} other {# times}}."
+// in the language the app shows under cx.
+//
+// Footnote under the Requests card giving the defaults.
+func SettingsAIRequestsNote(cx *core.Scope, size int, retries int) string {
+	return For(cx).SettingsAIRequestsNote(size, retries)
+}
+
+// SettingsAIRequestsNote is the package's SettingsAIRequestsNote in the language of msgs.
+func (msgs Messages) SettingsAIRequestsNote(size int, retries int) string {
+	if i18n.IsPseudo(msgs.lang) {
+		return i18n.Pseudo(msgs.lang, Messages{lang: Source, mark: true}.SettingsAIRequestsNote(size, retries))
+	}
+	for lang := msgs.lang; ; lang = i18n.Parent(lang) {
+		if f := supplied[lang].SettingsAIRequestsNote; f != nil {
+			return f(size, retries)
+		}
+		switch lang {
+		case "", "en":
+			var b strings.Builder
+			b.WriteString("By default each request carries ")
+			b.WriteString(msgs.arg(i18n.FormatNumber("en", float64(size))))
+			b.WriteString(" lines and is retried ")
+			switch i18n.Cardinal("en", float64(retries)) {
+			case i18n.One:
+				b.WriteString("once")
+			default:
+				b.WriteString(msgs.arg(i18n.FormatNumber("en", float64(retries))))
+				b.WriteString(" times")
+			}
+			b.WriteString(".")
+			return b.String()
+		case "ja":
+			return "デフォルトは 1 回 " + i18n.FormatNumber("ja", float64(size)) + " 行、失敗時は最大 " + i18n.FormatNumber("ja", float64(retries)) + " 回再試行します。"
+		case "ko":
+			return "기본값은 요청당 " + i18n.FormatNumber("ko", float64(size)) + "줄, 실패 시 최대 " + i18n.FormatNumber("ko", float64(retries)) + "번 재시도입니다."
+		case "zh-Hans":
+			return "默认每批 " + i18n.FormatNumber("zh-Hans", float64(size)) + " 句，失败最多重试 " + i18n.FormatNumber("zh-Hans", float64(retries)) + " 次。"
+		case "zh-Hant":
+			return "預設每批 " + i18n.FormatNumber("zh-Hant", float64(size)) + " 句，失敗最多重試 " + i18n.FormatNumber("zh-Hant", float64(retries)) + " 次。"
+		}
+	}
+}
+
+// SettingsAIRequestsRestore says "Restore Defaults"
+// in the language the app shows under cx.
+//
+// Button beside the Requests label that brings Lines per Request and Retries back to their defaults.
+func SettingsAIRequestsRestore(cx *core.Scope) string { return For(cx).SettingsAIRequestsRestore() }
+
+// SettingsAIRequestsRestore is the package's SettingsAIRequestsRestore in the language of msgs.
+func (msgs Messages) SettingsAIRequestsRestore() string {
+	return msgs.text(textSettingsAIRequestsRestore)
+}
+
+// SettingsAIRetries says "Retries"
+// in the language the app shows under cx.
+//
+// Row title and accessible name of the field setting how many times a failed translation request is sent again.
+func SettingsAIRetries(cx *core.Scope) string { return For(cx).SettingsAIRetries() }
+
+// SettingsAIRetries is the package's SettingsAIRetries in the language of msgs.
+func (msgs Messages) SettingsAIRetries() string { return msgs.text(textSettingsAIRetries) }
+
+// SettingsAIRetriesHint says "After a rate limit, a server error or no answer."
+// in the language the app shows under cx.
+//
+// Under Retries: which failures are retried.
+func SettingsAIRetriesHint(cx *core.Scope) string { return For(cx).SettingsAIRetriesHint() }
+
+// SettingsAIRetriesHint is the package's SettingsAIRetriesHint in the language of msgs.
+func (msgs Messages) SettingsAIRetriesHint() string { return msgs.text(textSettingsAIRetriesHint) }
+
+// SettingsGeneralAppearance says "Appearance"
+// in the language the app shows under cx.
+//
+// Row title and accessible name of the drop-down choosing light, dark or the system's appearance.
+func SettingsGeneralAppearance(cx *core.Scope) string { return For(cx).SettingsGeneralAppearance() }
+
+// SettingsGeneralAppearance is the package's SettingsGeneralAppearance in the language of msgs.
+func (msgs Messages) SettingsGeneralAppearance() string {
+	return msgs.text(textSettingsGeneralAppearance)
+}
+
+// SettingsGeneralAppearanceDark says "Dark"
+// in the language the app shows under cx.
+//
+// Appearance option.
+func SettingsGeneralAppearanceDark(cx *core.Scope) string {
+	return For(cx).SettingsGeneralAppearanceDark()
+}
+
+// SettingsGeneralAppearanceDark is the package's SettingsGeneralAppearanceDark in the language of msgs.
+func (msgs Messages) SettingsGeneralAppearanceDark() string {
+	return msgs.text(textSettingsGeneralAppearanceDark)
+}
+
+// SettingsGeneralAppearanceLight says "Light"
+// in the language the app shows under cx.
+//
+// Appearance option.
+func SettingsGeneralAppearanceLight(cx *core.Scope) string {
+	return For(cx).SettingsGeneralAppearanceLight()
+}
+
+// SettingsGeneralAppearanceLight is the package's SettingsGeneralAppearanceLight in the language of msgs.
+func (msgs Messages) SettingsGeneralAppearanceLight() string {
+	return msgs.text(textSettingsGeneralAppearanceLight)
+}
+
+// SettingsGeneralAppearanceSystem says "Follow System"
+// in the language the app shows under cx.
+//
+// Appearance option that follows the system's light or dark mode; the default.
+func SettingsGeneralAppearanceSystem(cx *core.Scope) string {
+	return For(cx).SettingsGeneralAppearanceSystem()
+}
+
+// SettingsGeneralAppearanceSystem is the package's SettingsGeneralAppearanceSystem in the language of msgs.
+func (msgs Messages) SettingsGeneralAppearanceSystem() string {
+	return msgs.text(textSettingsGeneralAppearanceSystem)
+}
+
+// SettingsShortcutsPreset says "Preset"
+// in the language the app shows under cx.
+//
+// Row title and accessible name of the drop-down choosing whose keys the player follows: the system's, IINA's or mpv's.
+func SettingsShortcutsPreset(cx *core.Scope) string { return For(cx).SettingsShortcutsPreset() }
+
+// SettingsShortcutsPreset is the package's SettingsShortcutsPreset in the language of msgs.
+func (msgs Messages) SettingsShortcutsPreset() string { return msgs.text(textSettingsShortcutsPreset) }
+
+// SettingsShortcutsPresetMac says "Mac Default"
+// in the language the app shows under cx.
+//
+// Preset option on macOS for Kando's own keys.
+func SettingsShortcutsPresetMac(cx *core.Scope) string { return For(cx).SettingsShortcutsPresetMac() }
+
+// SettingsShortcutsPresetMac is the package's SettingsShortcutsPresetMac in the language of msgs.
+func (msgs Messages) SettingsShortcutsPresetMac() string {
+	return msgs.text(textSettingsShortcutsPresetMac)
+}
+
+// SettingsShortcutsPresetNote says "The player's keys follow {player} where it has the same command; the keys for studying lines stay as they are. Single-key shortcuts work only when no text field has the focus."
+// in the language the app shows under cx.
+//
+// Note under the shortcut search field while the IINA or mpv preset is chosen. player is the preset's name.
+func SettingsShortcutsPresetNote(cx *core.Scope, player string) string {
+	return For(cx).SettingsShortcutsPresetNote(player)
+}
+
+// SettingsShortcutsPresetNote is the package's SettingsShortcutsPresetNote in the language of msgs.
+func (msgs Messages) SettingsShortcutsPresetNote(player string) string {
+	if i18n.IsPseudo(msgs.lang) {
+		return i18n.Pseudo(msgs.lang, Messages{lang: Source, mark: true}.SettingsShortcutsPresetNote(player))
+	}
+	for lang := msgs.lang; ; lang = i18n.Parent(lang) {
+		if f := supplied[lang].SettingsShortcutsPresetNote; f != nil {
+			return f(player)
+		}
+		switch lang {
+		case "", "en":
+			return "The player's keys follow " + msgs.arg(player) + " where it has the same command; the keys for studying lines stay as they are. Single-key shortcuts work only when no text field has the focus."
+		case "ja":
+			return "プレーヤーのキーは、" + player + " に同じコマンドがあればそれに合わせます。文の学習用のキーは変わりません。単独キーのショートカットは、入力欄にフォーカスがないときだけ有効です。"
+		case "ko":
+			return "플레이어 키는 " + player + "에 같은 명령이 있으면 그 키를 따릅니다. 문장 학습용 키는 그대로입니다. 단일 키 단축키는 입력란에 포커스가 없을 때만 작동합니다."
+		case "zh-Hans":
+			return "播放器的键在 " + player + " 有同样命令时按 " + player + "；学句子用的键不变。单个按键只在没有输入框获得焦点时生效。"
+		case "zh-Hant":
+			return "播放器的鍵在 " + player + " 有同樣指令時按 " + player + "；學句子用的鍵不變。單個按鍵只在沒有輸入框獲得焦點時生效。"
+		}
+	}
+}
+
+// SettingsShortcutsPresetSystem says "System Default"
+// in the language the app shows under cx.
+//
+// Preset option on Windows and Linux for Kando's own keys.
+func SettingsShortcutsPresetSystem(cx *core.Scope) string {
+	return For(cx).SettingsShortcutsPresetSystem()
+}
+
+// SettingsShortcutsPresetSystem is the package's SettingsShortcutsPresetSystem in the language of msgs.
+func (msgs Messages) SettingsShortcutsPresetSystem() string {
+	return msgs.text(textSettingsShortcutsPresetSystem)
+}
+
+// SettingsSpeechCommand says "Command"
+// in the language the app shows under cx.
+//
+// Caption above the whisper-cli command a job runs with these settings.
+func SettingsSpeechCommand(cx *core.Scope) string { return For(cx).SettingsSpeechCommand() }
+
+// SettingsSpeechCommand is the package's SettingsSpeechCommand in the language of msgs.
+func (msgs Messages) SettingsSpeechCommand() string { return msgs.text(textSettingsSpeechCommand) }
+
+// SettingsSpeechHints says "Proper Noun Hints"
+// in the language the app shows under cx.
+//
+// Caption and accessible name of the field where names and terms the videos say are typed, which whisper then spells as written.
+func SettingsSpeechHints(cx *core.Scope) string { return For(cx).SettingsSpeechHints() }
+
+// SettingsSpeechHints is the package's SettingsSpeechHints in the language of msgs.
+func (msgs Messages) SettingsSpeechHints() string { return msgs.text(textSettingsSpeechHints) }
+
+// SettingsSpeechHintsNote says "One per line or separated by commas. whisper spells them as written."
+// in the language the app shows under cx.
+//
+// Under the Proper Noun Hints field.
+func SettingsSpeechHintsNote(cx *core.Scope) string { return For(cx).SettingsSpeechHintsNote() }
+
+// SettingsSpeechHintsNote is the package's SettingsSpeechHintsNote in the language of msgs.
+func (msgs Messages) SettingsSpeechHintsNote() string { return msgs.text(textSettingsSpeechHintsNote) }
+
+// SettingsSpeechHintsPlaceholder says "Names, places, terms…"
+// in the language the app shows under cx.
+//
+// Placeholder of the Proper Noun Hints field.
+func SettingsSpeechHintsPlaceholder(cx *core.Scope) string {
+	return For(cx).SettingsSpeechHintsPlaceholder()
+}
+
+// SettingsSpeechHintsPlaceholder is the package's SettingsSpeechHintsPlaceholder in the language of msgs.
+func (msgs Messages) SettingsSpeechHintsPlaceholder() string {
+	return msgs.text(textSettingsSpeechHintsPlaceholder)
+}
+
+// SettingsSpeechParams says "Recognition"
+// in the language the app shows under cx.
+//
+// Section label on the Speech Recognition page above the thread count, the hints and the command.
+func SettingsSpeechParams(cx *core.Scope) string { return For(cx).SettingsSpeechParams() }
+
+// SettingsSpeechParams is the package's SettingsSpeechParams in the language of msgs.
+func (msgs Messages) SettingsSpeechParams() string { return msgs.text(textSettingsSpeechParams) }
+
+// SettingsSpeechThreads says "Threads"
+// in the language the app shows under cx.
+//
+// Row title and accessible name of the drop-down choosing how many CPU threads whisper uses.
+func SettingsSpeechThreads(cx *core.Scope) string { return For(cx).SettingsSpeechThreads() }
+
+// SettingsSpeechThreads is the package's SettingsSpeechThreads in the language of msgs.
+func (msgs Messages) SettingsSpeechThreads() string { return msgs.text(textSettingsSpeechThreads) }
+
+// SettingsSpeechThreadsAuto says "Automatic ({count})"
+// in the language the app shows under cx.
+//
+// Threads drop-down option letting Kando choose; count is how many it uses on this computer.
+func SettingsSpeechThreadsAuto(cx *core.Scope, count int) string {
+	return For(cx).SettingsSpeechThreadsAuto(count)
+}
+
+// SettingsSpeechThreadsAuto is the package's SettingsSpeechThreadsAuto in the language of msgs.
+func (msgs Messages) SettingsSpeechThreadsAuto(count int) string {
+	if i18n.IsPseudo(msgs.lang) {
+		return i18n.Pseudo(msgs.lang, Messages{lang: Source, mark: true}.SettingsSpeechThreadsAuto(count))
+	}
+	for lang := msgs.lang; ; lang = i18n.Parent(lang) {
+		if f := supplied[lang].SettingsSpeechThreadsAuto; f != nil {
+			return f(count)
+		}
+		switch lang {
+		case "", "en":
+			return "Automatic (" + msgs.arg(i18n.FormatNumber("en", float64(count))) + ")"
+		case "ja":
+			return "自動（" + i18n.FormatNumber("ja", float64(count)) + "）"
+		case "ko":
+			return "자동 (" + i18n.FormatNumber("ko", float64(count)) + ")"
+		case "zh-Hans":
+			return "自动（" + i18n.FormatNumber("zh-Hans", float64(count)) + "）"
+		case "zh-Hant":
+			return "自動（" + i18n.FormatNumber("zh-Hant", float64(count)) + "）"
+		}
+	}
+}
+
+// SettingsSpeechThreadsHint says "More is faster, but takes CPU from playback."
+// in the language the app shows under cx.
+//
+// Under Threads.
+func SettingsSpeechThreadsHint(cx *core.Scope) string { return For(cx).SettingsSpeechThreadsHint() }
+
+// SettingsSpeechThreadsHint is the package's SettingsSpeechThreadsHint in the language of msgs.
+func (msgs Messages) SettingsSpeechThreadsHint() string {
+	return msgs.text(textSettingsSpeechThreadsHint)
+}
+
+// SettingsTranslateContextLines says "Context Lines"
+// in the language the app shows under cx.
+//
+// Row title and accessible name of the field setting how many earlier lines go with each translation batch while Smart translation is on.
+func SettingsTranslateContextLines(cx *core.Scope) string {
+	return For(cx).SettingsTranslateContextLines()
+}
+
+// SettingsTranslateContextLines is the package's SettingsTranslateContextLines in the language of msgs.
+func (msgs Messages) SettingsTranslateContextLines() string {
+	return msgs.text(textSettingsTranslateContextLines)
+}
+
+// SettingsTranslateContextLinesHint says "More reads more smoothly, but each request is longer and costs more."
+// in the language the app shows under cx.
+//
+// Under Context Lines.
+func SettingsTranslateContextLinesHint(cx *core.Scope) string {
+	return For(cx).SettingsTranslateContextLinesHint()
+}
+
+// SettingsTranslateContextLinesHint is the package's SettingsTranslateContextLinesHint in the language of msgs.
+func (msgs Messages) SettingsTranslateContextLinesHint() string {
+	return msgs.text(textSettingsTranslateContextLinesHint)
+}
+
+// CorrectCandidateKept says "Using the translation you picked, saved as yours"
+// in the language the app shows under cx.
+//
+// Message on the picture after the user picked one of the AI service's other translations of a subtitle line, which is kept as the user's correction.
+func CorrectCandidateKept(cx *core.Scope) string { return For(cx).CorrectCandidateKept() }
+
+// CorrectCandidateKept is the package's CorrectCandidateKept in the language of msgs.
+func (msgs Messages) CorrectCandidateKept() string { return msgs.text(textCorrectCandidateKept) }
+
+// CorrectCandidates says "This Line Is Wrong"
+// in the language the app shows under cx.
+//
+// Button of the bar of the selected subtitle line: asks the AI service for other translations of it to pick from.
+func CorrectCandidates(cx *core.Scope) string { return For(cx).CorrectCandidates() }
+
+// CorrectCandidates is the package's CorrectCandidates in the language of msgs.
+func (msgs Messages) CorrectCandidates() string { return msgs.text(textCorrectCandidates) }
+
+// CorrectCandidatesBusy says "This line is wrong · translating it again with more context…"
+// in the language the app shows under cx.
+//
+// Heading of the list of other translations of a subtitle line while the AI service translates it again from the lines around it.
+func CorrectCandidatesBusy(cx *core.Scope) string { return For(cx).CorrectCandidatesBusy() }
+
+// CorrectCandidatesBusy is the package's CorrectCandidatesBusy in the language of msgs.
+func (msgs Messages) CorrectCandidatesBusy() string { return msgs.text(textCorrectCandidatesBusy) }
+
+// CorrectCandidatesCurrent says "Current wording (unchanged)"
+// in the language the app shows under cx.
+//
+// Label over the first choice of the list of other translations of a subtitle line: the translation it has now, kept as it is.
+func CorrectCandidatesCurrent(cx *core.Scope) string { return For(cx).CorrectCandidatesCurrent() }
+
+// CorrectCandidatesCurrent is the package's CorrectCandidatesCurrent in the language of msgs.
+func (msgs Messages) CorrectCandidatesCurrent() string {
+	return msgs.text(textCorrectCandidatesCurrent)
+}
+
+// CorrectCandidatesFailed says "Couldn’t get other translations: {error}"
+// in the language the app shows under cx.
+//
+// Message in the list of other translations of a subtitle line when the AI service failed, with its error.
+func CorrectCandidatesFailed(cx *core.Scope, error_ string) string {
+	return For(cx).CorrectCandidatesFailed(error_)
+}
+
+// CorrectCandidatesFailed is the package's CorrectCandidatesFailed in the language of msgs.
+func (msgs Messages) CorrectCandidatesFailed(error_ string) string {
+	if i18n.IsPseudo(msgs.lang) {
+		return i18n.Pseudo(msgs.lang, Messages{lang: Source, mark: true}.CorrectCandidatesFailed(error_))
+	}
+	for lang := msgs.lang; ; lang = i18n.Parent(lang) {
+		if f := supplied[lang].CorrectCandidatesFailed; f != nil {
+			return f(error_)
+		}
+		switch lang {
+		case "", "en":
+			return "Couldn’t get other translations: " + msgs.arg(error_)
+		case "ja":
+			return "候補を取得できませんでした：" + error_
+		case "ko":
+			return "후보를 받지 못했습니다: " + error_
+		case "zh-Hans":
+			return "没有拿到候选：" + error_
+		case "zh-Hant":
+			return "沒有拿到候選：" + error_
+		}
+	}
+}
+
+// CorrectCandidatesHint says "{choose} choose · {use} use it (saved as your wording; the machine won’t rewrite it) · {cancel} discard"
+// in the language the app shows under cx.
+//
+// Line under the list of other translations of a subtitle line, naming its keys as the platform writes them.
+func CorrectCandidatesHint(cx *core.Scope, choose string, use string, cancel string) string {
+	return For(cx).CorrectCandidatesHint(choose, use, cancel)
+}
+
+// CorrectCandidatesHint is the package's CorrectCandidatesHint in the language of msgs.
+func (msgs Messages) CorrectCandidatesHint(choose string, use string, cancel string) string {
+	if i18n.IsPseudo(msgs.lang) {
+		return i18n.Pseudo(msgs.lang, Messages{lang: Source, mark: true}.CorrectCandidatesHint(choose, use, cancel))
+	}
+	for lang := msgs.lang; ; lang = i18n.Parent(lang) {
+		if f := supplied[lang].CorrectCandidatesHint; f != nil {
+			return f(choose, use, cancel)
+		}
+		switch lang {
+		case "", "en":
+			return msgs.arg(choose) + " choose · " + msgs.arg(use) + " use it (saved as your wording; the machine won’t rewrite it) · " + msgs.arg(cancel) + " discard"
+		case "ja":
+			return choose + " 選択 · " + use + " 採用（あなたの訳として保存し、機械は書き換えません）· " + cancel + " やめる"
+		case "ko":
+			return choose + " 선택 · " + use + " 채택(내 번역으로 저장되어 기계가 다시 쓰지 않음) · " + cancel + " 취소"
+		case "zh-Hans":
+			return choose + " 选择 · " + use + " 采用（记为你的写法，机器不再改写）· " + cancel + " 放弃"
+		case "zh-Hant":
+			return choose + " 選擇 · " + use + " 採用（記為你的寫法，機器不再改寫）· " + cancel + " 放棄"
+		}
+	}
+}
+
+// CorrectCandidatesLabel says "This line is wrong: candidates"
+// in the language the app shows under cx.
+//
+// Accessible name of the list of other translations of a subtitle line.
+func CorrectCandidatesLabel(cx *core.Scope) string { return For(cx).CorrectCandidatesLabel() }
+
+// CorrectCandidatesLabel is the package's CorrectCandidatesLabel in the language of msgs.
+func (msgs Messages) CorrectCandidatesLabel() string { return msgs.text(textCorrectCandidatesLabel) }
+
+// CorrectCandidatesNoAI says "Other translations need an AI service. Choose a model in AI Service first."
+// in the language the app shows under cx.
+//
+// Message in the list of other translations of a subtitle line when no AI service is set.
+func CorrectCandidatesNoAI(cx *core.Scope) string { return For(cx).CorrectCandidatesNoAI() }
+
+// CorrectCandidatesNoAI is the package's CorrectCandidatesNoAI in the language of msgs.
+func (msgs Messages) CorrectCandidatesNoAI() string { return msgs.text(textCorrectCandidatesNoAI) }
+
+// CorrectCandidatesNone says "The AI service found no better wording."
+// in the language the app shows under cx.
+//
+// Message in the list of other translations of a subtitle line when the AI service gave none other than the current one.
+func CorrectCandidatesNone(cx *core.Scope) string { return For(cx).CorrectCandidatesNone() }
+
+// CorrectCandidatesNone is the package's CorrectCandidatesNone in the language of msgs.
+func (msgs Messages) CorrectCandidatesNone() string { return msgs.text(textCorrectCandidatesNone) }
+
+// CorrectCandidatesOption says "Candidate · retranslated with context"
+// in the language the app shows under cx.
+//
+// Label over each of the AI service's other translations of a subtitle line, which it made from the lines around it.
+func CorrectCandidatesOption(cx *core.Scope) string { return For(cx).CorrectCandidatesOption() }
+
+// CorrectCandidatesOption is the package's CorrectCandidatesOption in the language of msgs.
+func (msgs Messages) CorrectCandidatesOption() string { return msgs.text(textCorrectCandidatesOption) }
+
+// CorrectCandidatesSettings says "Open Settings"
+// in the language the app shows under cx.
+//
+// Button in the list of other translations of a subtitle line, when no AI service could give any: opens the AI Service settings.
+func CorrectCandidatesSettings(cx *core.Scope) string { return For(cx).CorrectCandidatesSettings() }
+
+// CorrectCandidatesSettings is the package's CorrectCandidatesSettings in the language of msgs.
+func (msgs Messages) CorrectCandidatesSettings() string {
+	return msgs.text(textCorrectCandidatesSettings)
+}
+
+// CorrectCandidatesTitle says "This line is wrong · pick a wording"
+// in the language the app shows under cx.
+//
+// Heading of the list of other translations of a subtitle line, once they came.
+func CorrectCandidatesTitle(cx *core.Scope) string { return For(cx).CorrectCandidatesTitle() }
+
+// CorrectCandidatesTitle is the package's CorrectCandidatesTitle in the language of msgs.
+func (msgs Messages) CorrectCandidatesTitle() string { return msgs.text(textCorrectCandidatesTitle) }
+
+// CorrectExplain says "Explain"
+// in the language the app shows under cx.
+//
+// Button of the bar of the selected subtitle line: has the AI service explain it.
+func CorrectExplain(cx *core.Scope) string { return For(cx).CorrectExplain() }
+
+// CorrectExplain is the package's CorrectExplain in the language of msgs.
+func (msgs Messages) CorrectExplain() string { return msgs.text(textCorrectExplain) }
+
+// CorrectKeyCandidates says "This Line Is Wrong…"
+// in the language the app shows under cx.
+//
+// Subtitles menu item and shortcut row of Shift+E: asks the AI service for other translations of the selected subtitle line, or of the one playing, to pick from.
+func CorrectKeyCandidates(cx *core.Scope) string { return For(cx).CorrectKeyCandidates() }
+
+// CorrectKeyCandidates is the package's CorrectKeyCandidates in the language of msgs.
+func (msgs Messages) CorrectKeyCandidates() string { return msgs.text(textCorrectKeyCandidates) }
+
+// CorrectKeyPick says "Use the Highlighted Wording"
+// in the language the app shows under cx.
+//
+// Shortcut row of Return while the other translations of a subtitle line show: keeps the one highlighted as the user's.
+func CorrectKeyPick(cx *core.Scope) string { return For(cx).CorrectKeyPick() }
+
+// CorrectKeyPick is the package's CorrectKeyPick in the language of msgs.
+func (msgs Messages) CorrectKeyPick() string { return msgs.text(textCorrectKeyPick) }
+
+// CorrectKeyPickCancel says "Discard the Candidates"
+// in the language the app shows under cx.
+//
+// Shortcut row of Escape while the other translations of a subtitle line show: puts them away, the line unchanged.
+func CorrectKeyPickCancel(cx *core.Scope) string { return For(cx).CorrectKeyPickCancel() }
+
+// CorrectKeyPickCancel is the package's CorrectKeyPickCancel in the language of msgs.
+func (msgs Messages) CorrectKeyPickCancel() string { return msgs.text(textCorrectKeyPickCancel) }
+
+// CorrectKeyPickDown says "Highlight the Next Wording"
+// in the language the app shows under cx.
+//
+// Shortcut row of the Down arrow while the other translations of a subtitle line show: highlights the one under the one highlighted.
+func CorrectKeyPickDown(cx *core.Scope) string { return For(cx).CorrectKeyPickDown() }
+
+// CorrectKeyPickDown is the package's CorrectKeyPickDown in the language of msgs.
+func (msgs Messages) CorrectKeyPickDown() string { return msgs.text(textCorrectKeyPickDown) }
+
+// CorrectKeyPickUp says "Highlight the Previous Wording"
+// in the language the app shows under cx.
+//
+// Shortcut row of the Up arrow while the other translations of a subtitle line show: highlights the one over the one highlighted.
+func CorrectKeyPickUp(cx *core.Scope) string { return For(cx).CorrectKeyPickUp() }
+
+// CorrectKeyPickUp is the package's CorrectKeyPickUp in the language of msgs.
+func (msgs Messages) CorrectKeyPickUp() string { return msgs.text(textCorrectKeyPickUp) }
+
+// CorrectKeySpreadAll says "Change It Everywhere in the Film"
+// in the language the app shows under cx.
+//
+// Shortcut row of Command-Return while a bar asks whether to change the words an edit changed in the film's other lines too: changes them all.
+func CorrectKeySpreadAll(cx *core.Scope) string { return For(cx).CorrectKeySpreadAll() }
+
+// CorrectKeySpreadAll is the package's CorrectKeySpreadAll in the language of msgs.
+func (msgs Messages) CorrectKeySpreadAll() string { return msgs.text(textCorrectKeySpreadAll) }
+
+// CorrectKeySpreadOnly says "Change Only This Line"
+// in the language the app shows under cx.
+//
+// Shortcut row of Escape while a bar asks whether to change the words an edit changed in the film's other lines too: leaves them.
+func CorrectKeySpreadOnly(cx *core.Scope) string { return For(cx).CorrectKeySpreadOnly() }
+
+// CorrectKeySpreadOnly is the package's CorrectKeySpreadOnly in the language of msgs.
+func (msgs Messages) CorrectKeySpreadOnly() string { return msgs.text(textCorrectKeySpreadOnly) }
+
+// CorrectKeySpreadView says "Show the Lines With It"
+// in the language the app shows under cx.
+//
+// Shortcut row of Shift-Command-Return while a bar asks whether to change the words an edit changed in the film's other lines too: shows those lines in the side panel's subtitle list.
+func CorrectKeySpreadView(cx *core.Scope) string { return For(cx).CorrectKeySpreadView() }
+
+// CorrectKeySpreadView is the package's CorrectKeySpreadView in the language of msgs.
+func (msgs Messages) CorrectKeySpreadView() string { return msgs.text(textCorrectKeySpreadView) }
+
+// CorrectSpreadAll says "All"
+// in the language the app shows under cx.
+//
+// Button of the bar asking whether to change the words an edit changed in the film's other lines too: changes them all.
+func CorrectSpreadAll(cx *core.Scope) string { return For(cx).CorrectSpreadAll() }
+
+// CorrectSpreadAll is the package's CorrectSpreadAll in the language of msgs.
+func (msgs Messages) CorrectSpreadAll() string { return msgs.text(textCorrectSpreadAll) }
+
+// CorrectSpreadAsk says "“{from}” → “{to}”: {count} more in this film. Change them too?"
+// in the language the app shows under cx.
+//
+// Bar over the picture after an edit of a subtitle line changed words the film's other lines hold too: the words before and after, and how many other lines hold them.
+func CorrectSpreadAsk(cx *core.Scope, from string, to string, count int) string {
+	return For(cx).CorrectSpreadAsk(from, to, count)
+}
+
+// CorrectSpreadAsk is the package's CorrectSpreadAsk in the language of msgs.
+func (msgs Messages) CorrectSpreadAsk(from string, to string, count int) string {
+	if i18n.IsPseudo(msgs.lang) {
+		return i18n.Pseudo(msgs.lang, Messages{lang: Source, mark: true}.CorrectSpreadAsk(from, to, count))
+	}
+	for lang := msgs.lang; ; lang = i18n.Parent(lang) {
+		if f := supplied[lang].CorrectSpreadAsk; f != nil {
+			return f(from, to, count)
+		}
+		switch lang {
+		case "", "en":
+			return "“" + msgs.arg(from) + "” → “" + msgs.arg(to) + "”: " + msgs.arg(i18n.FormatNumber("en", float64(count))) + " more in this film. Change them too?"
+		case "ja":
+			return "「" + from + "」→「" + to + "」：作品内にあと " + i18n.FormatNumber("ja", float64(count)) + " か所あります。まとめて変更しますか？"
+		case "ko":
+			return "‘" + from + "’ → ‘" + to + "’: 영상에 " + i18n.FormatNumber("ko", float64(count)) + "곳 더 있습니다. 같이 바꿀까요?"
+		case "zh-Hans":
+			return "「" + from + "」→「" + to + "」：全片还有 " + i18n.FormatNumber("zh-Hans", float64(count)) + " 处，要一起改吗？"
+		case "zh-Hant":
+			return "「" + from + "」→「" + to + "」：全片還有 " + i18n.FormatNumber("zh-Hant", float64(count)) + " 處，要一起改嗎？"
+		}
+	}
+}
+
+// CorrectSpreadAskEdited says "“{from}” → “{to}”: {count} more in this film (including {edited} you edited). Change them too?"
+// in the language the app shows under cx.
+//
+// Bar over the picture after an edit of a subtitle line changed words the film's other lines hold too, some of which the user had corrected: the words before and after, how many other lines hold them and how many of those the user edited.
+func CorrectSpreadAskEdited(cx *core.Scope, from string, to string, count int, edited int) string {
+	return For(cx).CorrectSpreadAskEdited(from, to, count, edited)
+}
+
+// CorrectSpreadAskEdited is the package's CorrectSpreadAskEdited in the language of msgs.
+func (msgs Messages) CorrectSpreadAskEdited(from string, to string, count int, edited int) string {
+	if i18n.IsPseudo(msgs.lang) {
+		return i18n.Pseudo(msgs.lang, Messages{lang: Source, mark: true}.CorrectSpreadAskEdited(from, to, count, edited))
+	}
+	for lang := msgs.lang; ; lang = i18n.Parent(lang) {
+		if f := supplied[lang].CorrectSpreadAskEdited; f != nil {
+			return f(from, to, count, edited)
+		}
+		switch lang {
+		case "", "en":
+			return "“" + msgs.arg(from) + "” → “" + msgs.arg(to) + "”: " + msgs.arg(i18n.FormatNumber("en", float64(count))) + " more in this film (including " + msgs.arg(i18n.FormatNumber("en", float64(edited))) + " you edited). Change them too?"
+		case "ja":
+			return "「" + from + "」→「" + to + "」：作品内にあと " + i18n.FormatNumber("ja", float64(count)) + " か所あります（うち " + i18n.FormatNumber("ja", float64(edited)) + " か所はあなたが直した行）。まとめて変更しますか？"
+		case "ko":
+			return "‘" + from + "’ → ‘" + to + "’: 영상에 " + i18n.FormatNumber("ko", float64(count)) + "곳 더 있습니다(내가 고친 줄 " + i18n.FormatNumber("ko", float64(edited)) + "곳 포함). 같이 바꿀까요?"
+		case "zh-Hans":
+			return "「" + from + "」→「" + to + "」：全片还有 " + i18n.FormatNumber("zh-Hans", float64(count)) + " 处（含 " + i18n.FormatNumber("zh-Hans", float64(edited)) + " 处你改过的句子），要一起改吗？"
+		case "zh-Hant":
+			return "「" + from + "」→「" + to + "」：全片還有 " + i18n.FormatNumber("zh-Hant", float64(count)) + " 處（含 " + i18n.FormatNumber("zh-Hant", float64(edited)) + " 處你改過的句子），要一起改嗎？"
+		}
+	}
+}
+
+// CorrectSpreadDone says "Replaced {count, plural, one {# place} other {# places}}"
+// in the language the app shows under cx.
+//
+// Message on the picture after the words an edit changed were changed in the film's other lines too, how many.
+func CorrectSpreadDone(cx *core.Scope, count int) string { return For(cx).CorrectSpreadDone(count) }
+
+// CorrectSpreadDone is the package's CorrectSpreadDone in the language of msgs.
+func (msgs Messages) CorrectSpreadDone(count int) string {
+	if i18n.IsPseudo(msgs.lang) {
+		return i18n.Pseudo(msgs.lang, Messages{lang: Source, mark: true}.CorrectSpreadDone(count))
+	}
+	for lang := msgs.lang; ; lang = i18n.Parent(lang) {
+		if f := supplied[lang].CorrectSpreadDone; f != nil {
+			return f(count)
+		}
+		switch lang {
+		case "", "en":
+			var b strings.Builder
+			b.WriteString("Replaced ")
+			switch i18n.Cardinal("en", float64(count)) {
+			case i18n.One:
+				b.WriteString(msgs.arg(i18n.FormatNumber("en", float64(count))))
+				b.WriteString(" place")
+			default:
+				b.WriteString(msgs.arg(i18n.FormatNumber("en", float64(count))))
+				b.WriteString(" places")
+			}
+			return b.String()
+		case "ja":
+			return i18n.FormatNumber("ja", float64(count)) + " か所を置き換えました"
+		case "ko":
+			return i18n.FormatNumber("ko", float64(count)) + "곳을 바꿨습니다"
+		case "zh-Hans":
+			return "已替换 " + i18n.FormatNumber("zh-Hans", float64(count)) + " 处"
+		case "zh-Hant":
+			return "已替換 " + i18n.FormatNumber("zh-Hant", float64(count)) + " 處"
+		}
+	}
+}
+
+// CorrectSpreadDoneTerm says "Replaced {count, plural, one {# place} other {# places}} · updated and locked the glossary term"
+// in the language the app shows under cx.
+//
+// Message on the picture after the words an edit changed were changed in the film's other lines too, and in the glossary term that translated them, which is now locked.
+func CorrectSpreadDoneTerm(cx *core.Scope, count int) string {
+	return For(cx).CorrectSpreadDoneTerm(count)
+}
+
+// CorrectSpreadDoneTerm is the package's CorrectSpreadDoneTerm in the language of msgs.
+func (msgs Messages) CorrectSpreadDoneTerm(count int) string {
+	if i18n.IsPseudo(msgs.lang) {
+		return i18n.Pseudo(msgs.lang, Messages{lang: Source, mark: true}.CorrectSpreadDoneTerm(count))
+	}
+	for lang := msgs.lang; ; lang = i18n.Parent(lang) {
+		if f := supplied[lang].CorrectSpreadDoneTerm; f != nil {
+			return f(count)
+		}
+		switch lang {
+		case "", "en":
+			var b strings.Builder
+			b.WriteString("Replaced ")
+			switch i18n.Cardinal("en", float64(count)) {
+			case i18n.One:
+				b.WriteString(msgs.arg(i18n.FormatNumber("en", float64(count))))
+				b.WriteString(" place")
+			default:
+				b.WriteString(msgs.arg(i18n.FormatNumber("en", float64(count))))
+				b.WriteString(" places")
+			}
+			b.WriteString(" · updated and locked the glossary term")
+			return b.String()
+		case "ja":
+			return i18n.FormatNumber("ja", float64(count)) + " か所を置き換えました · 用語集を更新して固定しました"
+		case "ko":
+			return i18n.FormatNumber("ko", float64(count)) + "곳을 바꿨습니다 · 용어집을 고치고 고정했습니다"
+		case "zh-Hans":
+			return "已替换 " + i18n.FormatNumber("zh-Hans", float64(count)) + " 处 · 已更新术语表并锁定"
+		case "zh-Hant":
+			return "已替換 " + i18n.FormatNumber("zh-Hant", float64(count)) + " 處 · 已更新術語表並鎖定"
+		}
+	}
+}
+
+// CorrectSpreadOnly says "Only changed here"
+// in the language the app shows under cx.
+//
+// Message on the picture after the user chose to keep an edit's change to the edited subtitle line alone.
+func CorrectSpreadOnly(cx *core.Scope) string { return For(cx).CorrectSpreadOnly() }
+
+// CorrectSpreadOnly is the package's CorrectSpreadOnly in the language of msgs.
+func (msgs Messages) CorrectSpreadOnly() string { return msgs.text(textCorrectSpreadOnly) }
+
+// CorrectSpreadOnlyButton says "Only Here"
+// in the language the app shows under cx.
+//
+// Button of the bar asking whether to change the words an edit changed in the film's other lines too: leaves them.
+func CorrectSpreadOnlyButton(cx *core.Scope) string { return For(cx).CorrectSpreadOnlyButton() }
+
+// CorrectSpreadOnlyButton is the package's CorrectSpreadOnlyButton in the language of msgs.
+func (msgs Messages) CorrectSpreadOnlyButton() string { return msgs.text(textCorrectSpreadOnlyButton) }
+
+// CorrectSpreadView says "View"
+// in the language the app shows under cx.
+//
+// Button of the bar asking whether to change the words an edit changed in the film's other lines too: shows those lines in the side panel's subtitle list.
+func CorrectSpreadView(cx *core.Scope) string { return For(cx).CorrectSpreadView() }
+
+// CorrectSpreadView is the package's CorrectSpreadView in the language of msgs.
+func (msgs Messages) CorrectSpreadView() string { return msgs.text(textCorrectSpreadView) }
+
+// CorrectStepCandidate says "Use a Candidate for Line {line}"
+// in the language the app shows under cx.
+//
+// What a change of the film's lines was, for Undo and Redo to name it: one of the AI service's other translations kept for the line numbered line.
+func CorrectStepCandidate(cx *core.Scope, line int) string { return For(cx).CorrectStepCandidate(line) }
+
+// CorrectStepCandidate is the package's CorrectStepCandidate in the language of msgs.
+func (msgs Messages) CorrectStepCandidate(line int) string {
+	if i18n.IsPseudo(msgs.lang) {
+		return i18n.Pseudo(msgs.lang, Messages{lang: Source, mark: true}.CorrectStepCandidate(line))
+	}
+	for lang := msgs.lang; ; lang = i18n.Parent(lang) {
+		if f := supplied[lang].CorrectStepCandidate; f != nil {
+			return f(line)
+		}
+		switch lang {
+		case "", "en":
+			return "Use a Candidate for Line " + msgs.arg(i18n.FormatNumber("en", float64(line)))
+		case "ja":
+			return i18n.FormatNumber("ja", float64(line)) + " 行目の候補を採用"
+		case "ko":
+			return i18n.FormatNumber("ko", float64(line)) + "번째 줄 후보 채택"
+		case "zh-Hans":
+			return "采用候选译文（第 " + i18n.FormatNumber("zh-Hans", float64(line)) + " 句）"
+		case "zh-Hant":
+			return "採用候選譯文（第 " + i18n.FormatNumber("zh-Hant", float64(line)) + " 句）"
+		}
+	}
+}
+
+// CorrectStepSpread says "Replace “{from}” with “{to}” Everywhere"
+// in the language the app shows under cx.
+//
+// What a change of the film's lines was, for Undo and Redo to name it: words changed in every line of the film that held them.
+func CorrectStepSpread(cx *core.Scope, from string, to string) string {
+	return For(cx).CorrectStepSpread(from, to)
+}
+
+// CorrectStepSpread is the package's CorrectStepSpread in the language of msgs.
+func (msgs Messages) CorrectStepSpread(from string, to string) string {
+	if i18n.IsPseudo(msgs.lang) {
+		return i18n.Pseudo(msgs.lang, Messages{lang: Source, mark: true}.CorrectStepSpread(from, to))
+	}
+	for lang := msgs.lang; ; lang = i18n.Parent(lang) {
+		if f := supplied[lang].CorrectStepSpread; f != nil {
+			return f(from, to)
+		}
+		switch lang {
+		case "", "en":
+			return "Replace “" + msgs.arg(from) + "” with “" + msgs.arg(to) + "” Everywhere"
+		case "ja":
+			return "作品全体で「" + from + "」→「" + to + "」に置き換え"
+		case "ko":
+			return "영상 전체에서 ‘" + from + "’ → ‘" + to + "’ 바꾸기"
+		case "zh-Hans":
+			return "全片替换「" + from + "」→「" + to + "」"
+		case "zh-Hant":
+			return "全片替換「" + from + "」→「" + to + "」"
+		}
+	}
+}
+
+// CorrectUntranslated says "(not translated)"
+// in the language the app shows under cx.
+//
+// Stands in for the translation of a subtitle line that has none, in the list of other translations of it.
+func CorrectUntranslated(cx *core.Scope) string { return For(cx).CorrectUntranslated() }
+
+// CorrectUntranslated is the package's CorrectUntranslated in the language of msgs.
+func (msgs Messages) CorrectUntranslated() string { return msgs.text(textCorrectUntranslated) }
 
 // SubexportBilingual says "Both"
 // in the language the app shows under cx.
@@ -30202,7 +31644,7 @@ func (msgs Messages) PaletteExplainFailed(error_ string) string {
 // PaletteExplainLine says "Explain Line"
 // in the language the app shows under cx.
 //
-// Study menu item and shortcut row (E): the AI service explains the subtitle line playing, its meaning, key words and grammar, in the command palette.
+// Subtitles menu item and shortcut row (I): the AI service explains the subtitle line selected, or the one playing, its meaning, key words and grammar, in the command palette.
 func PaletteExplainLine(cx *core.Scope) string { return For(cx).PaletteExplainLine() }
 
 // PaletteExplainLine is the package's PaletteExplainLine in the language of msgs.
@@ -37487,7 +38929,7 @@ func SettingsGeneralVersion(cx *core.Scope) string { return For(cx).SettingsGene
 // SettingsGeneralVersion is the package's SettingsGeneralVersion in the language of msgs.
 func (msgs Messages) SettingsGeneralVersion() string { return msgs.text(textSettingsGeneralVersion) }
 
-// SettingsKeywordsAI says "translation service EveryAPI OpenAI OpenRouter Groq DeepSeek xAI Mistral Qwen Kimi Zhipu SiliconFlow Ollama LM Studio Base URL API Key model test connection"
+// SettingsKeywordsAI says "translation service EveryAPI OpenAI OpenRouter Groq DeepSeek xAI Mistral Qwen Kimi Zhipu SiliconFlow Ollama LM Studio Base URL API Key model test connection batch lines per request retries"
 // in the language the app shows under cx.
 //
 // Search keywords of the AI Service settings section, separated by spaces, besides its title: the services it offers and its fields. Not shown.
@@ -37505,7 +38947,7 @@ func SettingsKeywordsAccount(cx *core.Scope) string { return For(cx).SettingsKey
 // SettingsKeywordsAccount is the package's SettingsKeywordsAccount in the language of msgs.
 func (msgs Messages) SettingsKeywordsAccount() string { return msgs.text(textSettingsKeywordsAccount) }
 
-// SettingsKeywordsGeneral says "library location Finder File Explorer file manager interface language version components yt-dlp ffmpeg whisper-cli detect again command line terminal kando install MCP Claude Code Cursor copy config update notifications notify browser sign-in signed in cookies members-only age-restricted Chrome Safari Firefox Edge Brave Chromium keychain Full Disk Access"
+// SettingsKeywordsGeneral says "library location Finder File Explorer file manager interface language version components yt-dlp ffmpeg whisper-cli detect again command line terminal kando install MCP Claude Code Cursor copy config update notifications notify browser sign-in signed in cookies members-only age-restricted Chrome Safari Firefox Edge Brave Chromium keychain Full Disk Access appearance light dark mode follow system"
 // in the language the app shows under cx.
 //
 // Search keywords of the General settings section, separated by spaces, besides its title. Not shown; the sidebar's search finds the section by them. Use the words the section's page shows.
@@ -37541,7 +38983,7 @@ func SettingsKeywordsPrivacy(cx *core.Scope) string { return For(cx).SettingsKey
 // SettingsKeywordsPrivacy is the package's SettingsKeywordsPrivacy in the language of msgs.
 func (msgs Messages) SettingsKeywordsPrivacy() string { return msgs.text(textSettingsKeywordsPrivacy) }
 
-// SettingsKeywordsShortcuts says "keyboard keys commands"
+// SettingsKeywordsShortcuts says "keyboard keys commands preset IINA mpv"
 // in the language the app shows under cx.
 //
 // Search keywords of the Keyboard Shortcuts settings section, separated by spaces, besides its title. Not shown.
@@ -37552,7 +38994,7 @@ func (msgs Messages) SettingsKeywordsShortcuts() string {
 	return msgs.text(textSettingsKeywordsShortcuts)
 }
 
-// SettingsKeywordsSpeech says "whisper models download recognition transcription HuggingFace Hugging Face Vimpo hyperframes spoken language download source mirror hf-mirror.com model file ggml"
+// SettingsKeywordsSpeech says "whisper models download recognition transcription HuggingFace Hugging Face Vimpo hyperframes spoken language download source mirror hf-mirror.com model file ggml threads proper nouns hints prompt command"
 // in the language the app shows under cx.
 //
 // Search keywords of the Speech Recognition settings section, separated by spaces, besides its title. Not shown.
@@ -37561,7 +39003,7 @@ func SettingsKeywordsSpeech(cx *core.Scope) string { return For(cx).SettingsKeyw
 // SettingsKeywordsSpeech is the package's SettingsKeywordsSpeech in the language of msgs.
 func (msgs Messages) SettingsKeywordsSpeech() string { return msgs.text(textSettingsKeywordsSpeech) }
 
-// SettingsKeywordsTranslate says "target language smart translation context prompt restore default"
+// SettingsKeywordsTranslate says "target language smart translation context prompt restore default context lines"
 // in the language the app shows under cx.
 //
 // Search keywords of the Translation settings section, separated by spaces, besides its title. Not shown.
