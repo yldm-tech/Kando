@@ -1569,7 +1569,9 @@ github.com/nsgo-dev/nsgo/base/locales:
   commandNoMatches: "일치하는 명령 없음"
   commandLoading: "불러오는 중…"
   commandList: "명령"
-  # TODO(nsgo#140): supply calendarMonth, calendarMonthName and calendarWeekday ({d, date, ::yMMMM}, ::MMM, ::EEEEE) once nsgo i18n compiles a supplied date message: the Translation function it writes calls msgs.dated, which it does not declare (cmd/nsgo/i18n_gen.go:375 with :561); until then calendars write their months and weekdays in English https://github.com/nsgo-dev/nsgo/issues/140
+  calendarMonth: "{d, date, ::yMMMM}"
+  calendarMonthName: "{d, date, ::MMM}"
+  calendarWeekday: "{d, date, ::EEEEE}"
   breadcrumbsMore: "더 보기"
   flowLabel: "노드 {nodes}개, 에지 {edges}개"
 github.com/nsgo-dev/nsgo/base/textview/locales:

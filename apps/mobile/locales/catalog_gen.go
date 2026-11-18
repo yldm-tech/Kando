@@ -10,6 +10,7 @@ import (
 	"github.com/nsgo-dev/nsgo/i18n"
 	updaterlocales "github.com/nsgo-dev/nsgo/updater/locales"
 	"strings"
+	"time"
 )
 
 // Source is the language the messages are written in.
@@ -65,6 +66,18 @@ func init() {
 		DiffUnchangedLines: func(n int) string {
 			return "変更されていない " + i18n.FormatNumber("ja", float64(n)) + " 行"
 		},
+		CalendarMonth: func(hc string, d time.Time) string {
+			msgs := Messages{hc: hc}
+			return i18n.FormatDate(msgs.dated("ja"), d, i18n.DateOptions{Skeleton: "yMMMM"})
+		},
+		CalendarMonthName: func(hc string, d time.Time) string {
+			msgs := Messages{hc: hc}
+			return i18n.FormatDate(msgs.dated("ja"), d, i18n.DateOptions{Skeleton: "MMM"})
+		},
+		CalendarWeekday: func(hc string, d time.Time) string {
+			msgs := Messages{hc: hc}
+			return i18n.FormatDate(msgs.dated("ja"), d, i18n.DateOptions{Skeleton: "EEEEE"})
+		},
 		FlowLabel: func(nodes int, edges int) string {
 			return i18n.FormatNumber("ja", float64(nodes)) + " 個のノード、" + i18n.FormatNumber("ja", float64(edges)) + " 本のエッジ"
 		},
@@ -109,6 +122,18 @@ func init() {
 		DiffUnchangedLines: func(n int) string {
 			return "변경되지 않은 줄 " + i18n.FormatNumber("ko", float64(n)) + "개"
 		},
+		CalendarMonth: func(hc string, d time.Time) string {
+			msgs := Messages{hc: hc}
+			return i18n.FormatDate(msgs.dated("ko"), d, i18n.DateOptions{Skeleton: "yMMMM"})
+		},
+		CalendarMonthName: func(hc string, d time.Time) string {
+			msgs := Messages{hc: hc}
+			return i18n.FormatDate(msgs.dated("ko"), d, i18n.DateOptions{Skeleton: "MMM"})
+		},
+		CalendarWeekday: func(hc string, d time.Time) string {
+			msgs := Messages{hc: hc}
+			return i18n.FormatDate(msgs.dated("ko"), d, i18n.DateOptions{Skeleton: "EEEEE"})
+		},
 		FlowLabel: func(nodes int, edges int) string {
 			return "노드 " + i18n.FormatNumber("ko", float64(nodes)) + "개, 에지 " + i18n.FormatNumber("ko", float64(edges)) + "개"
 		},
@@ -152,6 +177,18 @@ func init() {
 		},
 		DiffUnchangedLines: func(n int) string {
 			return i18n.FormatNumber("zh-Hant", float64(n)) + " 行未修改"
+		},
+		CalendarMonth: func(hc string, d time.Time) string {
+			msgs := Messages{hc: hc}
+			return i18n.FormatDate(msgs.dated("zh-Hant"), d, i18n.DateOptions{Skeleton: "yMMMM"})
+		},
+		CalendarMonthName: func(hc string, d time.Time) string {
+			msgs := Messages{hc: hc}
+			return i18n.FormatDate(msgs.dated("zh-Hant"), d, i18n.DateOptions{Skeleton: "MMM"})
+		},
+		CalendarWeekday: func(hc string, d time.Time) string {
+			msgs := Messages{hc: hc}
+			return i18n.FormatDate(msgs.dated("zh-Hant"), d, i18n.DateOptions{Skeleton: "EEEEE"})
 		},
 		FlowLabel: func(nodes int, edges int) string {
 			return i18n.FormatNumber("zh-Hant", float64(nodes)) + " 個節點，" + i18n.FormatNumber("zh-Hant", float64(edges)) + " 條邊"
@@ -2265,3 +2302,11 @@ func WelcomeTitle(cx *core.Scope) string { return For(cx).WelcomeTitle() }
 
 // WelcomeTitle is the package's WelcomeTitle in the language of msgs.
 func (msgs Messages) WelcomeTitle() string { return msgs.text(textWelcomeTitle) }
+
+// dated is lang with the hour cycle the user set, which times take.
+func (msgs Messages) dated(lang string) string {
+	if msgs.hc == "" {
+		return lang
+	}
+	return lang + "-u-hc-" + msgs.hc
+}
