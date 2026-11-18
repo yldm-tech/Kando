@@ -48,6 +48,7 @@ const (
 	revokedPage
 	jobsPage
 	computerPage
+	exportPage
 )
 
 // The tabs, in the order the tab bar shows them. Jobs is a section of its own on a tablet only; on a phone it opens from the Library.
@@ -148,13 +149,16 @@ func App(cx *core.Scope, cfg session.Config) core.Node {
 					return learn.Page(cx, s, learn.Actions{Pair: openPair,
 						Review:     func() { n.Push(route{page: reviewPage}) },
 						Vocabulary: func() { n.Push(route{page: vocabularyPage}) },
-						Lines:      func() { n.Push(route{page: linesPage}) }})
+						Lines:      func() { n.Push(route{page: linesPage}) },
+						Export:     func() { n.Push(route{page: exportPage}) }})
 				case reviewPage:
 					return learn.ReviewPage(cx, s, back)
 				case vocabularyPage:
 					return learn.VocabularyPage(cx, s, back)
 				case linesPage:
 					return learn.LinesPage(cx, s, back)
+				case exportPage:
+					return learn.ExportPage(cx, s, back)
 				case stylePage:
 					return settings.StylePage(cx, s, back)
 				case goalPage:

@@ -187,7 +187,7 @@ func TestTheVocabularyRemovesAWordOnTheComputerToo(t *testing.T) {
 	p.app.WaitUntil(wait, func() bool { r, ok := d.State("lib", sync.KindWord, "w-later"); return ok && r.Removed != nil })
 }
 
-// The words and lines go out through the share sheet as two tables.
+// The export writes the words, and the saved lines, as Anki's notes until another format is picked, and shares the file; what it picks it keeps for the next export.
 func TestTheExportGoesThroughTheShareSheet(t *testing.T) {
 	d := studyDesktop(t)
 	dir := t.TempDir()
@@ -196,14 +196,35 @@ func TestTheExportGoesThroughTheShareSheet(t *testing.T) {
 	p.openTab(learnTab, msgs.LearnTitle())
 	p.app.WaitFor("id:learn-export", wait)
 	p.app.Press("id:learn-export")
+	p.app.WaitFor("id:export-page", wait)
+	p.app.WaitUntil(wait, func() bool { return p.texts("id:export-count") == msgs.ExportCount(2, 1) })
+	if !p.app.Find("id:export-format-anki").Props.Checked {
+		t.Fatal("the export does not start with Anki's notes")
+	}
+	p.app.Press("id:export-share")
 	p.app.WaitUntil(wait, func() bool { return len(p.app.Shares) == 1 })
 	files := p.app.Shares[0].Files
-	if len(files) != 2 {
-		t.Fatalf("shared %+v, want the vocabulary and the lines", files)
+	if len(files) != 1 || filepath.Base(files[0].Path) != study.VocabFile(study.VocabAnki) {
+		t.Fatalf("shared %+v, want Anki's notes", files)
 	}
 	data, err := os.ReadFile(files[0].Path)
-	if err != nil || !strings.Contains(string(data), "おはよう") || !strings.Contains(string(data), msgs.ExportMeaning()) {
-		t.Fatalf("the vocabulary's table reads %q, %v", data, err)
+	if err != nil || !strings.HasPrefix(string(data), "#separator:tab") || !strings.Contains(string(data), "おはよう") || !strings.Contains(string(data), "Fine, thanks.") {
+		t.Fatalf("the notes read %q, %v", data, err)
+	}
+
+	p.app.Press("id:export-format-csv")
+	p.app.Press("id:export-lines-switch")
+	p.app.WaitUntil(wait, func() bool { return p.texts("id:export-count") == msgs.ExportCount(2, 0) })
+	p.app.WaitUntil(wait, func() bool { return !p.app.Find("id:export-share").Props.Disabled })
+	p.app.Press("id:export-share")
+	p.app.WaitUntil(wait, func() bool { return len(p.app.Shares) == 2 })
+	data, err = os.ReadFile(p.app.Shares[1].Files[0].Path)
+	if err != nil || !strings.HasPrefix(string(data), "\ufeffWord,Reading,Meaning,Sentence,Translation,Film") || strings.Contains(string(data), "Fine, thanks.") {
+		t.Fatalf("the table reads %q, %v", data, err)
+	}
+	prefs, err := store.Open(dir).Prefs()
+	if err != nil || prefs.Export.Format != study.VocabCSV || !prefs.Export.NoLines {
+		t.Fatalf("kept %+v, %v; want the CSV without the lines", prefs.Export, err)
 	}
 }
 

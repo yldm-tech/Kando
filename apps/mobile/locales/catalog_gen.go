@@ -470,6 +470,7 @@ var Parameters = map[string][]string{
 	"ComputersUnpairTitle":   {"name"},
 	"ComputersUnpaired":      {"name"},
 	"ComputersUnreachable":   {"name"},
+	"ExportCount":            {"words", "lines"},
 	"FilmDeleteTitle":        {"title"},
 	"FilmDownloading":        {"percent"},
 	"FilmPaused":             {"percent"},
@@ -564,6 +565,7 @@ type Translation struct {
 	ComputersUnpairTitle   func(name string) string
 	ComputersUnpaired      func(name string) string
 	ComputersUnreachable   func(name string) string
+	ExportCount            func(words int, lines int) string
 	FilmDeleteTitle        func(title string) string
 	FilmDownloading        func(percent int) string
 	FilmPaused             func(percent int) string
@@ -670,13 +672,18 @@ const (
 	textComputersPairAgain
 	textComputersUnpair
 	textComputersUnpairMessage
-	textExportFilm
-	textExportLine
-	textExportMeaning
-	textExportNote
-	textExportReading
-	textExportTranslation
-	textExportWord
+	textExportAnki
+	textExportAnkiDetail
+	textExportCSV
+	textExportCSVDetail
+	textExportFormat
+	textExportInclude
+	textExportTSV
+	textExportTSVDetail
+	textExportTitle
+	textExportWithLines
+	textExportWithSentence
+	textExportWithTranslation
 	textFilmCancel
 	textFilmDelete
 	textFilmDeleteConfirm
@@ -956,13 +963,18 @@ var keyOfText = [numTexts]string{
 	"computersPairAgain",
 	"computersUnpair",
 	"computersUnpairMessage",
-	"exportFilm",
-	"exportLine",
-	"exportMeaning",
-	"exportNote",
-	"exportReading",
-	"exportTranslation",
-	"exportWord",
+	"exportAnki",
+	"exportAnkiDetail",
+	"exportCSV",
+	"exportCSVDetail",
+	"exportFormat",
+	"exportInclude",
+	"exportTSV",
+	"exportTSVDetail",
+	"exportTitle",
+	"exportWithLines",
+	"exportWithSentence",
+	"exportWithTranslation",
 	"filmCancel",
 	"filmDelete",
 	"filmDeleteConfirm",
@@ -1240,13 +1252,18 @@ var textsEn = i18n.NewTexts(""+
 	"Pair Again"+
 	"Unpair"+
 	"The films downloaded from it stay on this phone."+
-	"Film"+
-	"Line"+
-	"Meaning"+
-	"Note"+
-	"Reading"+
-	"Translation"+
-	"Word"+
+	"Anki"+
+	"Notes for Anki's File › Import: the word on the front, the rest on the back"+
+	"CSV Spreadsheet"+
+	"One word a row; opens in spreadsheet apps and Notion"+
+	"Format"+
+	"Include"+
+	"Plain Text (Tab-Separated)"+
+	"Imports into Quizlet and most flashcard apps"+
+	"Export Vocabulary"+
+	"Saved Lines, After the Words"+
+	"The Sentence Each Word Is From"+
+	"The Sentence's Translation"+
 	"Cancel Download"+
 	"Delete Download"+
 	"Delete"+
@@ -1522,12 +1539,17 @@ var textsEn = i18n.NewTexts(""+
 		6,
 		48,
 		4,
-		4,
+		77,
+		15,
+		52,
+		6,
 		7,
-		4,
-		7,
-		11,
-		4,
+		26,
+		44,
+		17,
+		28,
+		30,
+		26,
 		15,
 		15,
 		6,
@@ -1805,13 +1827,18 @@ var textsJa = i18n.NewTexts(""+
 	"もう一度ペアリング"+
 	"ペアリングを解除"+
 	"ダウンロード済みの動画はこのスマートフォンに残ります。"+
-	"動画"+
-	"原文"+
-	"意味"+
-	"メモ"+
-	"読み"+
-	"訳文"+
-	"単語"+
+	"Anki"+
+	"Anki の「ファイル › 読み込む」用：表に単語、裏にそれ以外"+
+	"CSV"+
+	"1 行に 1 単語。表計算アプリや Notion で開けます"+
+	"形式"+
+	"含める内容"+
+	"テキスト（タブ区切り）"+
+	"Quizlet や多くの単語カードアプリに読み込めます"+
+	"単語帳を書き出す"+
+	"保存したセリフも書き出す"+
+	"例文を含める"+
+	"例文の訳を含める"+
 	"ダウンロードをキャンセル"+
 	"ダウンロードを削除"+
 	"削除"+
@@ -2086,13 +2113,18 @@ var textsJa = i18n.NewTexts(""+
 		27,
 		24,
 		81,
+		4,
+		82,
+		3,
+		64,
 		6,
-		6,
-		6,
-		6,
-		6,
-		6,
-		6,
+		15,
+		33,
+		65,
+		24,
+		36,
+		18,
+		24,
 		36,
 		27,
 		6,
@@ -2370,13 +2402,18 @@ var textsKo = i18n.NewTexts(""+
 	"다시 페어링"+
 	"페어링 해제"+
 	"다운로드한 영상은 이 휴대폰에 남습니다."+
-	"영상"+
-	"원문"+
-	"뜻"+
-	"메모"+
-	"발음"+
-	"번역"+
-	"단어"+
+	"Anki"+
+	"Anki의 '파일 › 가져오기'용: 앞면에 단어, 나머지는 뒷면"+
+	"CSV"+
+	"한 줄에 단어 하나. 스프레드시트 앱과 Notion에서 열 수 있습니다"+
+	"형식"+
+	"포함"+
+	"텍스트(탭 구분)"+
+	"Quizlet과 대부분의 단어 카드 앱으로 가져올 수 있습니다"+
+	"단어장 내보내기"+
+	"저장한 대사도 내보내기"+
+	"예문 포함"+
+	"예문 번역 포함"+
 	"다운로드 취소"+
 	"다운로드 삭제"+
 	"삭제"+
@@ -2651,13 +2688,18 @@ var textsKo = i18n.NewTexts(""+
 		16,
 		16,
 		56,
-		6,
-		6,
+		4,
+		75,
 		3,
+		85,
 		6,
 		6,
-		6,
-		6,
+		21,
+		74,
+		22,
+		32,
+		13,
+		20,
 		19,
 		19,
 		6,
@@ -2935,13 +2977,18 @@ var textsZhHans = i18n.NewTexts(""+
 	"重新配对"+
 	"取消配对"+
 	"从它下载的影片仍会留在这部手机上。"+
-	"影片"+
-	"原句"+
-	"释义"+
-	"笔记"+
-	"读音"+
-	"译文"+
-	"生词"+
+	"Anki 卡片"+
+	"供 Anki「文件 › 导入」读取：正面是生词，其余在背面"+
+	"CSV 表格"+
+	"每行一个生词，可用表格软件和 Notion 打开"+
+	"格式"+
+	"包含"+
+	"纯文本（Tab 分隔）"+
+	"可导入 Quizlet 和大多数单词卡应用"+
+	"导出生词"+
+	"把收藏的句子也导出"+
+	"带上原句"+
+	"带上原句的译文"+
 	"取消下载"+
 	"删除下载"+
 	"删除"+
@@ -3216,13 +3263,18 @@ var textsZhHans = i18n.NewTexts(""+
 		12,
 		12,
 		51,
+		11,
+		73,
+		10,
+		56,
 		6,
 		6,
-		6,
-		6,
-		6,
-		6,
-		6,
+		25,
+		45,
+		12,
+		27,
+		12,
+		21,
 		12,
 		12,
 		6,
@@ -3500,13 +3552,18 @@ var textsZhHant = i18n.NewTexts(""+
 	"重新配對"+
 	"取消配對"+
 	"從它下載的影片仍會留在這支手機上。"+
-	"影片"+
-	"原句"+
-	"釋義"+
-	"筆記"+
-	"讀音"+
-	"譯文"+
-	"生詞"+
+	"Anki 卡片"+
+	"供 Anki「檔案 › 匯入」讀取：正面是生詞，其餘在背面"+
+	"CSV 表格"+
+	"每列一個生詞，可用試算表軟體和 Notion 開啟"+
+	"格式"+
+	"包含"+
+	"純文字（Tab 分隔）"+
+	"可匯入 Quizlet 和大多數單字卡 App"+
+	"匯出生詞"+
+	"把收藏的句子也匯出"+
+	"帶上原句"+
+	"帶上原句的譯文"+
 	"取消下載"+
 	"刪除下載"+
 	"刪除"+
@@ -3781,13 +3838,18 @@ var textsZhHant = i18n.NewTexts(""+
 		12,
 		12,
 		51,
+		11,
+		73,
+		10,
+		59,
 		6,
 		6,
-		6,
-		6,
-		6,
-		6,
-		6,
+		25,
+		43,
+		12,
+		27,
+		12,
+		21,
 		12,
 		12,
 		6,
@@ -4126,6 +4188,9 @@ func Supply(lang string, t Translation) {
 	}
 	if t.ComputersUnreachable != nil {
 		s.ComputersUnreachable = t.ComputersUnreachable
+	}
+	if t.ExportCount != nil {
+		s.ExportCount = t.ExportCount
 	}
 	if t.FilmDeleteTitle != nil {
 		s.FilmDeleteTitle = t.FilmDeleteTitle
@@ -4860,68 +4925,164 @@ func (msgs Messages) ComputersUnreachable(name string) string {
 	}
 }
 
-// ExportFilm says "Film"
+// ExportAnki says "Anki"
 // in the language the app shows under cx.
 //
-// Heading of the exported tables' column of the film a word or line is from.
-func ExportFilm(cx *core.Scope) string { return For(cx).ExportFilm() }
+// Export page: the format of notes Anki's File › Import reads.
+func ExportAnki(cx *core.Scope) string { return For(cx).ExportAnki() }
 
-// ExportFilm is the package's ExportFilm in the language of msgs.
-func (msgs Messages) ExportFilm() string { return msgs.text(textExportFilm) }
+// ExportAnki is the package's ExportAnki in the language of msgs.
+func (msgs Messages) ExportAnki() string { return msgs.text(textExportAnki) }
 
-// ExportLine says "Line"
+// ExportAnkiDetail says "Notes for Anki's File › Import: the word on the front, the rest on the back"
 // in the language the app shows under cx.
 //
-// Heading of the exported tables' column of the line: the line a word was looked up in, or the saved line.
-func ExportLine(cx *core.Scope) string { return For(cx).ExportLine() }
+// Export page: what the Anki format writes.
+func ExportAnkiDetail(cx *core.Scope) string { return For(cx).ExportAnkiDetail() }
 
-// ExportLine is the package's ExportLine in the language of msgs.
-func (msgs Messages) ExportLine() string { return msgs.text(textExportLine) }
+// ExportAnkiDetail is the package's ExportAnkiDetail in the language of msgs.
+func (msgs Messages) ExportAnkiDetail() string { return msgs.text(textExportAnkiDetail) }
 
-// ExportMeaning says "Meaning"
+// ExportCSV says "CSV Spreadsheet"
 // in the language the app shows under cx.
 //
-// Heading of the exported vocabulary's column of a word's meaning.
-func ExportMeaning(cx *core.Scope) string { return For(cx).ExportMeaning() }
+// Export page: a CSV table, which spreadsheets open.
+func ExportCSV(cx *core.Scope) string { return For(cx).ExportCSV() }
 
-// ExportMeaning is the package's ExportMeaning in the language of msgs.
-func (msgs Messages) ExportMeaning() string { return msgs.text(textExportMeaning) }
+// ExportCSV is the package's ExportCSV in the language of msgs.
+func (msgs Messages) ExportCSV() string { return msgs.text(textExportCSV) }
 
-// ExportNote says "Note"
+// ExportCSVDetail says "One word a row; opens in spreadsheet apps and Notion"
 // in the language the app shows under cx.
 //
-// Heading of the exported saved lines' column of the learner's note.
-func ExportNote(cx *core.Scope) string { return For(cx).ExportNote() }
+// Export page: what the CSV format writes.
+func ExportCSVDetail(cx *core.Scope) string { return For(cx).ExportCSVDetail() }
 
-// ExportNote is the package's ExportNote in the language of msgs.
-func (msgs Messages) ExportNote() string { return msgs.text(textExportNote) }
+// ExportCSVDetail is the package's ExportCSVDetail in the language of msgs.
+func (msgs Messages) ExportCSVDetail() string { return msgs.text(textExportCSVDetail) }
 
-// ExportReading says "Reading"
+// ExportCount says "{words, plural, one {# word} other {# words}} · {lines, plural, one {# saved line} other {# saved lines}} · from every computer"
 // in the language the app shows under cx.
 //
-// Heading of the exported vocabulary's column of how a word is said.
-func ExportReading(cx *core.Scope) string { return For(cx).ExportReading() }
+// Export page: what the export writes, counted.
+func ExportCount(cx *core.Scope, words int, lines int) string {
+	return For(cx).ExportCount(words, lines)
+}
 
-// ExportReading is the package's ExportReading in the language of msgs.
-func (msgs Messages) ExportReading() string { return msgs.text(textExportReading) }
+// ExportCount is the package's ExportCount in the language of msgs.
+func (msgs Messages) ExportCount(words int, lines int) string {
+	if i18n.IsPseudo(msgs.lang) {
+		return i18n.Pseudo(msgs.lang, Messages{lang: Source, mark: true}.ExportCount(words, lines))
+	}
+	for lang := msgs.lang; ; lang = i18n.Parent(lang) {
+		if f := supplied[lang].ExportCount; f != nil {
+			return f(words, lines)
+		}
+		switch lang {
+		case "", "en":
+			var b strings.Builder
+			switch i18n.Cardinal("en", float64(words)) {
+			case i18n.One:
+				b.WriteString(msgs.arg(i18n.FormatNumber("en", float64(words))))
+				b.WriteString(" word")
+			default:
+				b.WriteString(msgs.arg(i18n.FormatNumber("en", float64(words))))
+				b.WriteString(" words")
+			}
+			b.WriteString(" · ")
+			switch i18n.Cardinal("en", float64(lines)) {
+			case i18n.One:
+				b.WriteString(msgs.arg(i18n.FormatNumber("en", float64(lines))))
+				b.WriteString(" saved line")
+			default:
+				b.WriteString(msgs.arg(i18n.FormatNumber("en", float64(lines))))
+				b.WriteString(" saved lines")
+			}
+			b.WriteString(" · from every computer")
+			return b.String()
+		case "ja":
+			return "単語 " + i18n.FormatNumber("ja", float64(words)) + " 件 · 保存したセリフ " + i18n.FormatNumber("ja", float64(lines)) + " 件 · すべてのコンピュータから"
+		case "ko":
+			return "단어 " + i18n.FormatNumber("ko", float64(words)) + "개 · 저장한 대사 " + i18n.FormatNumber("ko", float64(lines)) + "개 · 모든 컴퓨터에서"
+		case "zh-Hans":
+			return i18n.FormatNumber("zh-Hans", float64(words)) + " 个生词 · " + i18n.FormatNumber("zh-Hans", float64(lines)) + " 句收藏 · 来自所有电脑"
+		case "zh-Hant":
+			return i18n.FormatNumber("zh-Hant", float64(words)) + " 個生詞 · " + i18n.FormatNumber("zh-Hant", float64(lines)) + " 句收藏 · 來自所有電腦"
+		}
+	}
+}
 
-// ExportTranslation says "Translation"
+// ExportFormat says "Format"
 // in the language the app shows under cx.
 //
-// Heading of the exported tables' column of a line's translation.
-func ExportTranslation(cx *core.Scope) string { return For(cx).ExportTranslation() }
+// Export page: heading of the formats.
+func ExportFormat(cx *core.Scope) string { return For(cx).ExportFormat() }
 
-// ExportTranslation is the package's ExportTranslation in the language of msgs.
-func (msgs Messages) ExportTranslation() string { return msgs.text(textExportTranslation) }
+// ExportFormat is the package's ExportFormat in the language of msgs.
+func (msgs Messages) ExportFormat() string { return msgs.text(textExportFormat) }
 
-// ExportWord says "Word"
+// ExportInclude says "Include"
 // in the language the app shows under cx.
 //
-// Heading of the exported vocabulary's column of the word.
-func ExportWord(cx *core.Scope) string { return For(cx).ExportWord() }
+// Export page: heading of the switches of what the export writes.
+func ExportInclude(cx *core.Scope) string { return For(cx).ExportInclude() }
 
-// ExportWord is the package's ExportWord in the language of msgs.
-func (msgs Messages) ExportWord() string { return msgs.text(textExportWord) }
+// ExportInclude is the package's ExportInclude in the language of msgs.
+func (msgs Messages) ExportInclude() string { return msgs.text(textExportInclude) }
+
+// ExportTSV says "Plain Text (Tab-Separated)"
+// in the language the app shows under cx.
+//
+// Export page: plain text with a tab between the fields.
+func ExportTSV(cx *core.Scope) string { return For(cx).ExportTSV() }
+
+// ExportTSV is the package's ExportTSV in the language of msgs.
+func (msgs Messages) ExportTSV() string { return msgs.text(textExportTSV) }
+
+// ExportTSVDetail says "Imports into Quizlet and most flashcard apps"
+// in the language the app shows under cx.
+//
+// Export page: what the plain text format is for.
+func ExportTSVDetail(cx *core.Scope) string { return For(cx).ExportTSVDetail() }
+
+// ExportTSVDetail is the package's ExportTSVDetail in the language of msgs.
+func (msgs Messages) ExportTSVDetail() string { return msgs.text(textExportTSVDetail) }
+
+// ExportTitle says "Export Vocabulary"
+// in the language the app shows under cx.
+//
+// Title of the page that exports the vocabulary, and the saved lines when asked, through the share sheet.
+func ExportTitle(cx *core.Scope) string { return For(cx).ExportTitle() }
+
+// ExportTitle is the package's ExportTitle in the language of msgs.
+func (msgs Messages) ExportTitle() string { return msgs.text(textExportTitle) }
+
+// ExportWithLines says "Saved Lines, After the Words"
+// in the language the app shows under cx.
+//
+// Export page: switch that adds the saved lines after the words.
+func ExportWithLines(cx *core.Scope) string { return For(cx).ExportWithLines() }
+
+// ExportWithLines is the package's ExportWithLines in the language of msgs.
+func (msgs Messages) ExportWithLines() string { return msgs.text(textExportWithLines) }
+
+// ExportWithSentence says "The Sentence Each Word Is From"
+// in the language the app shows under cx.
+//
+// Export page: switch that writes with each word the line it was looked up in.
+func ExportWithSentence(cx *core.Scope) string { return For(cx).ExportWithSentence() }
+
+// ExportWithSentence is the package's ExportWithSentence in the language of msgs.
+func (msgs Messages) ExportWithSentence() string { return msgs.text(textExportWithSentence) }
+
+// ExportWithTranslation says "The Sentence's Translation"
+// in the language the app shows under cx.
+//
+// Export page: switch that writes with each word the translation of the line it was looked up in.
+func ExportWithTranslation(cx *core.Scope) string { return For(cx).ExportWithTranslation() }
+
+// ExportWithTranslation is the package's ExportWithTranslation in the language of msgs.
+func (msgs Messages) ExportWithTranslation() string { return msgs.text(textExportWithTranslation) }
 
 // FilmCancel says "Cancel Download"
 // in the language the app shows under cx.
@@ -6917,7 +7078,7 @@ func (msgs Messages) LearnEmpty() string { return msgs.text(textLearnEmpty) }
 // LearnExport says "Export and Share"
 // in the language the app shows under cx.
 //
-// Row of Learn that exports the vocabulary and the saved lines as tables and opens the share sheet.
+// Row of Learn that opens the export of the vocabulary and the saved lines, and the button of that page that writes the file and opens the share sheet.
 func LearnExport(cx *core.Scope) string { return For(cx).LearnExport() }
 
 // LearnExport is the package's LearnExport in the language of msgs.

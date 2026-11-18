@@ -15,6 +15,7 @@ import (
 	"time"
 
 	"kando/packages/media"
+	"kando/packages/study"
 )
 
 // The export's files, in the folder the user picks: the notes, which Anki's File › Import reads, and the folder of the lines' sound beside them, whose files go into Anki's collection.media folder.
@@ -113,15 +114,9 @@ func WriteNotes(w io.Writer, rows []Row) error {
 			where = f + " · " + where
 		}
 		back = append(back, where)
-		fmt.Fprint(bw, field(r.Line.Original), "\t", field(strings.Join(back, "\n")), "\n")
+		fmt.Fprint(bw, study.AnkiField(r.Line.Original), "\t", study.AnkiField(strings.Join(back, "\n")), "\n")
 	}
 	return bw.Flush()
-}
-
-// field is s as one field of a note, in double quotes with each quote in it doubled, its line breaks written \n.
-func field(s string) string {
-	s = strings.ReplaceAll(strings.ReplaceAll(strings.TrimSpace(s), "\r\n", "\n"), "\r", "\n")
-	return `"` + strings.ReplaceAll(s, `"`, `""`) + `"`
 }
 
 // SoundName is the file the sound of l is written to: kando- and a hash of its video and its start, so the lines of every export share Anki's one media folder without two of them taking one name, and exporting again writes each line's sound over its own.

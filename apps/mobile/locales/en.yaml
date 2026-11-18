@@ -112,27 +112,48 @@ computersUnreachable:
   description: "In a computer's section and on a library's page: it does not answer."
   placeholders:
     name: { type: "String", example: "Studio" }
-exportFilm:
-  message: "Film"
-  description: "Heading of the exported tables' column of the film a word or line is from."
-exportLine:
-  message: "Line"
-  description: "Heading of the exported tables' column of the line: the line a word was looked up in, or the saved line."
-exportMeaning:
-  message: "Meaning"
-  description: "Heading of the exported vocabulary's column of a word's meaning."
-exportNote:
-  message: "Note"
-  description: "Heading of the exported saved lines' column of the learner's note."
-exportReading:
-  message: "Reading"
-  description: "Heading of the exported vocabulary's column of how a word is said."
-exportTranslation:
-  message: "Translation"
-  description: "Heading of the exported tables' column of a line's translation."
-exportWord:
-  message: "Word"
-  description: "Heading of the exported vocabulary's column of the word."
+exportAnki:
+  message: "Anki"
+  description: "Export page: the format of notes Anki's File › Import reads."
+exportAnkiDetail:
+  message: "Notes for Anki's File › Import: the word on the front, the rest on the back"
+  description: "Export page: what the Anki format writes."
+exportCSV:
+  message: "CSV Spreadsheet"
+  description: "Export page: a CSV table, which spreadsheets open."
+exportCSVDetail:
+  message: "One word a row; opens in spreadsheet apps and Notion"
+  description: "Export page: what the CSV format writes."
+exportCount:
+  message: "{words, plural, one {# word} other {# words}} · {lines, plural, one {# saved line} other {# saved lines}} · from every computer"
+  description: "Export page: what the export writes, counted."
+  placeholders:
+    words: { type: "int", example: 12 }
+    lines: { type: "int", example: 3 }
+exportFormat:
+  message: "Format"
+  description: "Export page: heading of the formats."
+exportInclude:
+  message: "Include"
+  description: "Export page: heading of the switches of what the export writes."
+exportTSV:
+  message: "Plain Text (Tab-Separated)"
+  description: "Export page: plain text with a tab between the fields."
+exportTSVDetail:
+  message: "Imports into Quizlet and most flashcard apps"
+  description: "Export page: what the plain text format is for."
+exportTitle:
+  message: "Export Vocabulary"
+  description: "Title of the page that exports the vocabulary, and the saved lines when asked, through the share sheet."
+exportWithLines:
+  message: "Saved Lines, After the Words"
+  description: "Export page: switch that adds the saved lines after the words."
+exportWithSentence:
+  message: "The Sentence Each Word Is From"
+  description: "Export page: switch that writes with each word the line it was looked up in."
+exportWithTranslation:
+  message: "The Sentence's Translation"
+  description: "Export page: switch that writes with each word the translation of the line it was looked up in."
 filmCancel:
   message: "Cancel Download"
   description: "Button on a film's page that stops its download and deletes what was downloaded."
@@ -587,7 +608,7 @@ learnEmpty:
   description: "Learn tab while nothing is saved."
 learnExport:
   message: "Export and Share"
-  description: "Row of Learn that exports the vocabulary and the saved lines as tables and opens the share sheet."
+  description: "Row of Learn that opens the export of the vocabulary and the saved lines, and the button of that page that writes the file and opens the share sheet."
 learnExportFailed:
   message: "Couldn't export the vocabulary"
   description: "Alert when the export could not be written."

@@ -181,41 +181,34 @@ func TestNextReminder(t *testing.T) {
 	}
 }
 
-func TestExportWritesATableOfEachKind(t *testing.T) {
-	dir := t.TempDir()
+// The export writes the words in the format and with what the options ask for, the saved lines after them only when asked for, as the computer's export writes a library's.
+func TestExportWritesTheWordsAsTheComputerDoes(t *testing.T) {
 	items := []Item{
 		{Kind: Word, Text: "river", Reading: "/ˈrɪvər/", Meaning: "河", Context: "A river, here.", ContextTranslation: "一条河。", Title: "Talk"},
 		{Kind: Line, Text: "Hello.\nAgain.", Meaning: "你好。", Note: "greeting", Title: "Talk"},
 	}
-	cols := Columns{Word: "Word", Reading: "Reading", Meaning: "Meaning", Line: "Line", Translation: "Translation", Film: "Film", Note: "Note"}
-	files, err := Export(dir, items, cols)
-	if err != nil || len(files) != 2 {
-		t.Fatalf("files %v, %v", files, err)
+	path, err := Export(filepath.Join(t.TempDir(), "export"), items, study.VocabOptions{Format: study.VocabCSV, Context: true, Lines: true})
+	if err != nil || filepath.Base(path) != study.VocabFile(study.VocabCSV) {
+		t.Fatalf("exported %q, %v", path, err)
 	}
-	read := func(name string) [][]string {
-		data, err := os.ReadFile(filepath.Join(dir, name))
-		if err != nil {
-			t.Fatal(err)
-		}
-		if !strings.HasPrefix(string(data), "\ufeff") {
-			t.Errorf("%s has no byte-order mark", name)
-		}
-		rows, err := csv.NewReader(strings.NewReader(strings.TrimPrefix(string(data), "\ufeff"))).ReadAll()
-		if err != nil {
-			t.Fatal(err)
-		}
-		return rows
+	data, err := os.ReadFile(path)
+	if err != nil || !strings.HasPrefix(string(data), "\ufeff") {
+		t.Fatalf("read %q, %v; want a byte-order mark", data, err)
 	}
-	words := read(WordsFile)
-	if len(words) != 2 || words[0][0] != "Word" || words[1][0] != "river" || words[1][3] != "A river, here." || words[1][5] != "Talk" {
-		t.Errorf("words %q", words)
+	rows, err := csv.NewReader(strings.NewReader(strings.TrimPrefix(string(data), "\ufeff"))).ReadAll()
+	if err != nil {
+		t.Fatal(err)
 	}
-	lines := read(LinesFile)
-	if len(lines) != 2 || lines[1][0] != "Hello.\nAgain." || lines[1][2] != "greeting" {
-		t.Errorf("lines %q", lines)
+	if len(rows) != 3 || strings.Join(rows[0], "|") != "Word|Reading|Meaning|Sentence|Film" || strings.Join(rows[1], "|") != "river|/ˈrɪvər/|河|A river, here.|Talk" || rows[2][0] != "Hello.\nAgain." || rows[2][2] != "你好。\ngreeting" {
+		t.Errorf("rows %q", rows)
 	}
-	files, err = Export(t.TempDir(), items[:1], cols)
-	if err != nil || len(files) != 1 || filepath.Base(files[0]) != WordsFile {
-		t.Errorf("a vocabulary alone wrote %v, %v", files, err)
+
+	path, err = Export(t.TempDir(), items, study.VocabOptions{Format: study.VocabAnki})
+	if err != nil {
+		t.Fatal(err)
+	}
+	data, err = os.ReadFile(path)
+	if want := "#separator:tab\n#html:false\n#notetype:Basic\n\"river\"\t\"/ˈrɪvər/\n河\nTalk\"\n"; err != nil || string(data) != want {
+		t.Errorf("Anki's notes without the lines read %q, %v; want %q", data, err, want)
 	}
 }

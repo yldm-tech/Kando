@@ -15,7 +15,9 @@ import (
 	"kando/apps/mobile/langs"
 	"kando/apps/mobile/learning"
 	"kando/apps/mobile/locales"
+	"kando/apps/mobile/store"
 	"kando/apps/mobile/study"
+	kstudy "kando/packages/study"
 	"kando/packages/sync"
 
 	"github.com/nsgo-dev/nsgo/core"
@@ -436,14 +438,34 @@ func (s *Session) learnForget(id string) {
 	s.scheduleReminder()
 }
 
-// ExportLearning writes the words and saved lines to a folder of the app's cache and answers the files, off the engine's goroutine.
-func (s *Session) ExportLearning(cols learning.Columns, done func(files []string, err error)) {
-	items := s.LearnItems()
+// ExportOptions are what the Learn tab's export writes, as its page last chose it: Anki's notes with the line each word is from, its translation and the saved lines, until the learner changes them.
+func (s *Session) ExportOptions() kstudy.VocabOptions {
+	e := s.prefs.Get().Export
+	format := e.Format
+	if format != kstudy.VocabCSV && format != kstudy.VocabTSV {
+		format = kstudy.VocabAnki
+	}
+	return kstudy.VocabOptions{Format: format, Context: !e.NoSentence, Translation: !e.NoTranslation, Lines: !e.NoLines}
+}
+
+// SetExportOptions keeps o as what the export writes.
+func (s *Session) SetExportOptions(o kstudy.VocabOptions) {
+	p := s.prefs.Get()
+	p.Export = store.Export{Format: o.Format, NoSentence: !o.Context, NoTranslation: !o.Translation, NoLines: !o.Lines}
+	if p.Export.Format == kstudy.VocabAnki {
+		p.Export.Format = ""
+	}
+	s.SetPrefs(p)
+}
+
+// ExportLearning writes the words, and the saved lines when ExportOptions ask for them, to a folder of the app's cache as ExportOptions say (learning.Export), and answers the file, off the engine's goroutine.
+func (s *Session) ExportLearning(done func(file string, err error)) {
+	items, o := s.LearnItems(), s.ExportOptions()
 	dir := filepath.Join(s.cx.CacheDir(), "export")
 	s.work.Go(func() {
 		_ = os.RemoveAll(dir)
-		files, err := learning.Export(dir, items, cols)
-		s.cx.Post(func() { done(files, err) })
+		file, err := learning.Export(dir, items, o)
+		s.cx.Post(func() { done(file, err) })
 	})
 }
 

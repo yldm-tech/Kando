@@ -17,8 +17,8 @@ import (
 
 // Actions are where the tab leads.
 type Actions struct {
-	// Review starts a review of the items due; Vocabulary and Lines open their lists; Pair opens pairing.
-	Review, Vocabulary, Lines, Pair func()
+	// Review starts a review of the items due; Vocabulary and Lines open their lists; Export opens the export; Pair opens pairing.
+	Review, Vocabulary, Lines, Export, Pair func()
 }
 
 // Page is the tab's root page.
@@ -45,7 +45,7 @@ func Page(cx *core.Scope, s *session.Session, act Actions) base.NavPage {
 			core.Show{When: empty, Then: func(cx *core.Scope) core.Node { return nothingSaved(cx, s, act.Pair) },
 				Else: func(cx *core.Scope) core.Node { return review(cx, due.Get, act.Review) }},
 			week(cx, s),
-			core.Show{When: func() bool { return !empty() }, Then: func(cx *core.Scope) core.Node { return lists(cx, s, items.Get, due.Get, act) }},
+			core.Show{When: func() bool { return !empty() }, Then: func(cx *core.Scope) core.Node { return lists(cx, items.Get, act) }},
 		}}}}
 	return look.TabRoot(cx, base.NavPage{TestID: "learn-page", Children: []core.Node{body}}, title, nil, nil)
 }
@@ -207,7 +207,7 @@ func dayName(cx *core.Scope, day time.Time) string {
 }
 
 // lists are the rows of the vocabulary, the saved lines and the export.
-func lists(cx *core.Scope, s *session.Session, items, due func() []learning.Item, act Actions) core.Node {
+func lists(cx *core.Scope, items func() []learning.Item, act Actions) core.Node {
 	count := func(k learning.Kind) func() int {
 		return func() int {
 			n := 0
@@ -220,23 +220,6 @@ func lists(cx *core.Scope, s *session.Session, items, due func() []learning.Item
 		}
 	}
 	words, lines := count(learning.Word), count(learning.Line)
-	anchor := &core.Ref{}
-	exporting := core.NewSignal(cx, false)
-	export := func() {
-		exporting.Set(true)
-		s.ExportLearning(Columns(cx), func(files []string, err error) {
-			if err != nil {
-				exporting.Set(false)
-				cx.ShowAlert(core.AlertConfig{Title: locales.LearnExportFailed(cx), Actions: []core.AlertAction{{Label: locales.CommonOK(cx), Role: core.AlertCancel}}}, nil)
-				return
-			}
-			shared := make([]core.SharedFile, len(files))
-			for i, f := range files {
-				shared[i] = core.SharedFile{Path: f}
-			}
-			cx.Share(core.ShareOptions{Files: shared, Anchor: anchor}, func(bool, error) { exporting.Set(false) })
-		})
-	}
 	return look.Group{TestID: "learn-lists", Children: []core.Node{
 		look.Row{TestID: "learn-vocabulary", Inset: 56, Chevron: true,
 			Leading: look.IconTile(cx, lucide.BookOpen, look.ToneAccent),
@@ -248,22 +231,9 @@ func lists(cx *core.Scope, s *session.Session, items, due func() []learning.Item
 			Title:   func() string { return locales.LearnSavedLines(cx) },
 			Value:   func() string { return locales.LearnLineCount(cx, lines()) },
 			OnPress: act.Lines},
-		core.View{Ref: anchor, Children: []core.Node{
-			look.Row{TestID: "learn-export", Index: func() int { return 2 }, Inset: 56, TitleTone: look.ToneAccent,
-				Leading:  look.IconTile(cx, lucide.Share, look.ToneAccent),
-				Title:    func() string { return locales.LearnExport(cx) },
-				Trailing: core.Show{When: exporting.Get, Then: func(*core.Scope) core.Node { return ui.Spinner{Size: 16} }},
-				OnPress: func() {
-					if !exporting.GetUntracked() {
-						export()
-					}
-				}},
-		}},
+		look.Row{TestID: "learn-export", Index: func() int { return 2 }, Inset: 56, Chevron: true,
+			Leading: look.IconTile(cx, lucide.Share, look.ToneAccent),
+			Title:   func() string { return locales.LearnExport(cx) },
+			OnPress: act.Export},
 	}}
-}
-
-// Columns are the headings of the export's tables, in the interface's language.
-func Columns(cx *core.Scope) learning.Columns {
-	return learning.Columns{Word: locales.ExportWord(cx), Reading: locales.ExportReading(cx), Meaning: locales.ExportMeaning(cx), Line: locales.ExportLine(cx),
-		Translation: locales.ExportTranslation(cx), Film: locales.ExportFilm(cx), Note: locales.ExportNote(cx)}
 }
