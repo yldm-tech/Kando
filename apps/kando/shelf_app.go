@@ -657,7 +657,21 @@ func (a *app) retargetRenamed() bool {
 			live = append(live, video.Path)
 		}
 	}
-	return a.retargetLibrary(media.RetargetRenamed(root, missing, live))
+	moved := media.RetargetRenamed(root, missing, live)
+	// A film that keeps no video is on disk as its subtitles alone, which follow its folder renamed in Finder by the folder's [id], and the path its sound was downloaded to, which its place and its subtitles' names are kept by, goes with them.
+	for _, job := range a.library.Jobs {
+		if !job.SubtitlesOnly || job.VideoPath == "" {
+			continue
+		}
+		if next, ok := media.RetargetRenamedFolder(root, job.SubtitlePath); ok {
+			if moved == nil {
+				moved = map[string]string{}
+			}
+			moved[job.SubtitlePath] = next
+			moved[job.VideoPath] = filepath.Join(filepath.Dir(next), filepath.Base(job.VideoPath))
+		}
+	}
+	return a.retargetLibrary(moved)
 }
 
 // retargetLibrary points jobs, and what is kept by video path, at files GatherVideos moved into per-video folders or RetargetRenamed paired.
@@ -764,6 +778,12 @@ func (a *app) relocateMissing() bool {
 		if next, ok := media.Relocate(root, job.SubtitlePath); ok {
 			a.library.Jobs[i].SubtitlePath = next
 			changed = true
+			// A film that keeps no video has no video to be found, so the path its sound was downloaded to goes with its subtitles.
+			if job.SubtitlesOnly && a.library.Jobs[i].VideoPath == job.VideoPath {
+				video := filepath.Join(filepath.Dir(next), filepath.Base(job.VideoPath))
+				moved[job.VideoPath] = video
+				a.library.Jobs[i].VideoPath = video
+			}
 		}
 	}
 	if len(moved) > 0 {

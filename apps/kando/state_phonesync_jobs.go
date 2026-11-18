@@ -121,7 +121,7 @@ func (j phoneJobs) CreateJob(ctx context.Context, caller psync.Caller, req psync
 		if strings.TrimSpace(a.prefs.language) == "" {
 			return psync.JobCreated{}, psync.Errorf(psync.CodeNotReady, "%s", m.QueueNoLanguage())
 		}
-		id, err := a.queueTake(link.URL)
+		id, err := a.queueTakeFrom(link.URL, caller.Name)
 		var dup *queueDuplicate
 		switch {
 		case errors.As(err, &dup):

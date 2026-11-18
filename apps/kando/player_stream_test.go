@@ -164,10 +164,16 @@ func TestSubtitlesOnlyFilmDownloadsItsVideo(t *testing.T) {
 	if a.player.playErr != film.ErrStreamNone || !hasText(tt, msgs.PlayerStreamNone()) || tt.Exists("id:film-stream-online") {
 		t.Fatalf("error %q, texts %q", a.player.playErr, tt.Texts())
 	}
+	// Where the film was left while it streamed is kept by the path its sound was downloaded to.
+	apply(tt, a, func() { a.setResumePositions(map[string]time.Duration{item.VideoPath: 5 * time.Second}) })
 	tt.Press("id:film-stream-download")
 	settle(t, a, tt, updates)
 	job, _ := a.library.Find("talk")
 	want := filepath.Join(filepath.Dir(item.VideoPath), "video.mp4")
+	// The video has the download's extension, and the film's place follows it there.
+	if a.ResumeAt(want) != 5*time.Second || a.ResumeAt(item.VideoPath) != 0 {
+		t.Fatalf("place %v at the video, %v at the sound", a.ResumeAt(want), a.ResumeAt(item.VideoPath))
+	}
 	// The open film plays its video once it is downloaded.
 	if a.player.playErr != "" || tt.Exists("id:film-stream") || playerVideoConfig(tt).Source != want {
 		t.Fatalf("error %q after the download", a.player.playErr)
@@ -193,7 +199,8 @@ func TestSubtitlesOnlyFilmVideoThatFails(t *testing.T) {
 	tt.Press("id:film-stream-download")
 	settle(t, a, tt, updates)
 	job, _ := a.library.Find("talk")
-	if job.Stage != core.StageComplete || !job.SubtitlesOnly || job.Redo != "" || job.VideoPath != item.VideoPath {
+	// It keeps no video as the user chose, so processing it again later does not keep one either.
+	if job.Stage != core.StageComplete || !job.SubtitlesOnly || job.Redo != "" || job.VideoPath != item.VideoPath || job.Quality != core.QualitySubtitles {
 		t.Fatalf("job %+v", job)
 	}
 	if want := testlocale.Messages().QueueVideoFailed("Talk", ""); !a.lib.notice.Open || !strings.HasPrefix(a.lib.notice.Text, want) {
@@ -215,5 +222,41 @@ func TestSubtitlesOnlyFilmKeepsToItsSubtitles(t *testing.T) {
 	a.refreshLibrary()
 	if _, ok := a.library.Find("talk"); ok {
 		t.Fatal("the film stayed without its subtitles")
+	}
+}
+
+// TestSubtitlesOnlyFilmFollowsItsRenamedFolder checks that a film that keeps no video follows its folder renamed in Finder, as a downloaded film does, with its place, rather than leaving the shelf because its subtitles are not where they were.
+func TestSubtitlesOnlyFilmFollowsItsRenamedFolder(t *testing.T) {
+	a, tt, _, item := streamFilm(t, &fakePipeline{}, true)
+	apply(tt, a, func() { a.setResumePositions(map[string]time.Duration{item.VideoPath: 5 * time.Second}) })
+	next := filepath.Join(a.snap().LibraryDir, "Talk renamed [jNQXAC9IVRw]")
+	if err := os.Rename(filepath.Dir(item.VideoPath), next); err != nil {
+		t.Fatal(err)
+	}
+	a.refreshLibrary()
+	job, ok := a.library.Find("talk")
+	if !ok {
+		t.Fatal("the film left the shelf when its folder was renamed")
+	}
+	video := filepath.Join(next, filepath.Base(item.VideoPath))
+	if job.SubtitlePath != filepath.Join(next, filepath.Base(item.SubtitlePath)) || job.VideoPath != video || !job.SubtitlesOnly {
+		t.Fatalf("job %+v", job)
+	}
+	if a.ResumeAt(video) != 5*time.Second {
+		t.Fatalf("place %v", a.ResumeAt(video))
+	}
+}
+
+// TestSubtitlesOnlyFilmFoundElsewhereInTheLibrary checks that the path the sound of a film that keeps no video was downloaded to goes with its subtitles when they are found under the same folder name elsewhere in the library (relocateMissing).
+func TestSubtitlesOnlyFilmFoundElsewhereInTheLibrary(t *testing.T) {
+	a, _, _, item := streamFilm(t, &fakePipeline{}, true)
+	root := a.snap().LibraryDir
+	away := filepath.Join(root, "Old", filepath.Base(filepath.Dir(item.VideoPath)))
+	a.library.Jobs[0].VideoPath = filepath.Join(away, filepath.Base(item.VideoPath))
+	a.library.Jobs[0].SubtitlePath = filepath.Join(away, filepath.Base(item.SubtitlePath))
+	a.refreshLibrary()
+	job, ok := a.library.Find("talk")
+	if !ok || job.SubtitlePath != item.SubtitlePath || job.VideoPath != item.VideoPath {
+		t.Fatalf("job %+v, found %v", job, ok)
 	}
 }

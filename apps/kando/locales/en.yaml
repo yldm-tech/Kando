@@ -4389,8 +4389,11 @@ settingsGeneralQualitySubtitles:
   message: "Subtitles Only"
   description: "Download quality: keep no video. Only the sound is downloaded to make the subtitles and is deleted after; the film streams from its site when watched."
 settingsGeneralQualitySubtitlesHint:
-  message: "Keeps no video: only the sound is downloaded to make the subtitles and is deleted once they're done. The film streams from its site when you watch it, with the subtitles over it."
-  description: "Note under the download quality when Subtitles Only is chosen."
+  message: "Keeps no video: only the sound is downloaded to make the subtitles and is deleted once they're done. YouTube films stream when you watch them, with the subtitles over them; films from other sites need their video downloaded first."
+  description: "Note under the download quality when Subtitles Only is chosen, on a computer that streams YouTube films (macOS for now)."
+settingsGeneralQualitySubtitlesHintNoStream:
+  message: "Keeps no video: only the sound is downloaded to make the subtitles and is deleted once they're done. Kando can't stream films on this computer yet, so to watch one, download its video from the player first."
+  description: "Note under the download quality when Subtitles Only is chosen, on a computer where Kando streams no film yet (Windows and Linux for now)."
 settingsGeneralRedetect:
   message: "Detect Again"
   description: "Button looking for ffmpeg, yt-dlp and whisper-cli again."

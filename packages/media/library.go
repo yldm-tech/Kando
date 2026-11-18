@@ -450,6 +450,40 @@ func RetargetRenamed(root string, missing, live []string) map[string]string {
 	return moved
 }
 
+// RetargetRenamedFolder is where a file that disappeared under root went when its folder was renamed in Finder, for a film that keeps no video (core.Job.SubtitlesOnly), which RetargetRenamed cannot pair as it pairs videos: the one other folder directly under root that keeps the old folder's [id] and holds a file of the same name. A folder without an [id], or an [id] that more than one folder holding that file keeps, pairs nothing.
+func RetargetRenamedFolder(root, missing string) (string, bool) {
+	if root == "" || missing == "" || !pathInside(root, missing) {
+		return "", false
+	}
+	if _, err := os.Stat(missing); err == nil {
+		return "", false
+	}
+	oldDir := filepath.Dir(missing)
+	id := folderID(filepath.Base(oldDir))
+	if id == "" || filepath.Clean(filepath.Dir(oldDir)) != filepath.Clean(root) {
+		return "", false
+	}
+	entries, err := os.ReadDir(root)
+	if err != nil {
+		return "", false
+	}
+	hit := ""
+	for _, entry := range entries {
+		if !entry.IsDir() || strings.HasPrefix(entry.Name(), ".") || entry.Name() == filepath.Base(oldDir) || folderID(entry.Name()) != id {
+			continue
+		}
+		next := filepath.Join(root, entry.Name(), filepath.Base(missing))
+		if _, err := os.Stat(next); err != nil {
+			continue
+		}
+		if hit != "" {
+			return "", false
+		}
+		hit = next
+	}
+	return hit, hit != ""
+}
+
 func folderID(name string) string {
 	start := strings.LastIndex(name, "[")
 	end := strings.LastIndex(name, "]")

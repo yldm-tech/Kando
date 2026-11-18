@@ -493,8 +493,13 @@ func TestGeneralPageChoosesHowLinksDownload(t *testing.T) {
 	if a.quality != kcore.QualitySubtitles || saves() != 6 {
 		t.Fatalf("quality %q, saves %d", a.quality, saves())
 	}
-	if !app.Exists(whole(msgs.SettingsGeneralQualitySubtitlesHint())) {
-		t.Fatalf("missing %q in %q", msgs.SettingsGeneralQualitySubtitlesHint(), app.Texts())
+	// The note says how the film is watched without its video: streamed where this computer streams films, else after downloading its video.
+	hint, other := msgs.SettingsGeneralQualitySubtitlesHint(), msgs.SettingsGeneralQualitySubtitlesHintNoStream()
+	if !media.StreamsHere() {
+		hint, other = other, hint
+	}
+	if !app.Exists(whole(hint)) || app.Exists(whole(other)) {
+		t.Fatalf("missing %q in %q", hint, app.Texts())
 	}
 }
 

@@ -72,7 +72,7 @@ func (a *app) onlineQuality() core.Quality {
 	return core.QualityBest
 }
 
-// onlineFor is job with the source of the original lines and the quality 在线视频 names, where job is a link's that has none of its own; a video on disk is neither downloaded nor has a site, and keeps none.
+// onlineFor is job with the source of the original lines and the quality 在线视频 names, though the best for a link a paired phone sent where that is 仅字幕, where job is a link's that has none of its own; a video on disk is neither downloaded nor has a site, and keeps none.
 func (a *app) onlineFor(job core.Job) core.Job {
 	if u, err := url.Parse(job.Source); err != nil || (u.Scheme != "http" && u.Scheme != "https") {
 		return job
@@ -82,6 +82,10 @@ func (a *app) onlineFor(job core.Job) core.Job {
 	}
 	if !job.Quality.Known() {
 		job.Quality = a.onlineQuality()
+		// A phone watches the films it is served by their video, and is not served one that keeps none (phonesync.JobOf), so a link a paired phone sent keeps its video at 仅字幕 too.
+		if job.Device != "" && !job.Quality.KeepsVideo() {
+			job.Quality = core.QualityBest
+		}
 	}
 	return job
 }

@@ -5,6 +5,7 @@ import (
 	"kando/apps/kando/locales"
 	"kando/apps/kando/settings/form"
 	kcore "kando/packages/core"
+	"kando/packages/media"
 
 	"github.com/nsgo-dev/nsgo/core"
 	"github.com/nsgo-dev/nsgo/ui"
@@ -48,11 +49,15 @@ func (o online) Render(cx *core.Scope) core.Node {
 	return core.Group([]core.Node{
 		form.Label(locales.SettingsGeneralOnline(cx), 14),
 		form.Card(platform, form.Separator(true), form.Row{Title: locales.SettingsGeneralQuality(cx), NoGroup: true, Trailing: []core.Node{quality}, SubtitleFunc: live.Func(a, func() string {
-			// 仅字幕 keeps no video, which the user is told before a download goes without it.
-			if a.DownloadQuality() == kcore.QualitySubtitles {
+			// 仅字幕 keeps no video, which the user is told before a download goes without it, and how the film is watched then: streamed where this computer streams it, or after downloading its video (media.Streams).
+			switch {
+			case a.DownloadQuality() != kcore.QualitySubtitles:
+				return ""
+			case media.StreamsHere():
 				return locales.SettingsGeneralQualitySubtitlesHint(cx)
+			default:
+				return locales.SettingsGeneralQualitySubtitlesHintNoStream(cx)
 			}
-			return ""
 		})}, form.Separator(true), chapters),
 	})
 }

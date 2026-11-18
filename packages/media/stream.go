@@ -23,11 +23,17 @@ const streamTimeout = time.Minute
 // Streams reports whether a film that keeps no video, from source, can be streamed on this computer (StreamURL).
 func Streams(source string) bool { return streamsOn(runtime.GOOS, source) }
 
-// streamsOn is Streams on goos: only a YouTube video, whose HLS stream carries the picture and the sound together, and only on macOS, whose player opens such a stream by its address.
+// StreamsHere reports whether this computer streams any film that keeps no video at all, which Settings › 通用 › 在线视频 says under 仅字幕 (Streams).
+func StreamsHere() bool { return streamsHere(runtime.GOOS) }
+
+// streamsHere is StreamsHere on goos: only macOS, whose player opens a stream by its address.
+func streamsHere(goos string) bool { return goos == "darwin" }
+
+// streamsOn is Streams on goos: only a YouTube video, whose HLS stream carries the picture and the sound together, and only where the system's player streams (streamsHere).
 func streamsOn(goos, source string) bool {
 	// TODO(nsgo#681): stream the other sites and platforms once core.Video takes request headers and a separate audio stream: bilibili's streams need its Referer, and most sites serve the picture and the sound apart (DASH) https://github.com/nsgo-dev/nsgo/issues/681
 	link, ok := core.ParseLink(source)
-	return goos == "darwin" && ok && link.Platform == core.PlatformYouTube
+	return streamsHere(goos) && ok && link.Platform == core.PlatformYouTube
 }
 
 // StreamURL is the address of the stream the system's player plays source from (streamFormat), borrowing the browser's login the tools borrow (Cookies). The address expires after some hours, so it is looked up each time the film is opened. Offline mode refuses it (ErrOffline).

@@ -192,6 +192,11 @@ func (a *app) queueEnqueue(sources []string) (added int, err error) {
 
 // queueTake queues the job for source and returns its ID: a new job, or, when the open library already has a failed or cancelled job for the same video, that job again on its card (retry), so the shelf keeps one card for it. A video already waiting, running or done is not queued again; the error is then a *queueDuplicate naming its job. A local video that is a film of the library's folder no job holds (films.List), as one dropped again from the library's own folder, is that film: with subtitles beside it, it is in the library already, and the *queueDuplicate names it, so its subtitles are neither paid for nor written again; without any, its job leaves it as it was if it fails or is stopped, as 生成字幕 does (queueFromFolder).
 func (a *app) queueTake(source string) (string, error) {
+	return a.queueTakeFrom(source, "")
+}
+
+// queueTakeFrom is queueTake for a link the paired phone named device sent, whose new job is that phone's from before it first runs (core.Job.Device), as the quality it downloads at depends on it (onlineFor).
+func (a *app) queueTakeFrom(source, device string) (string, error) {
 	// Offline mode adds no link, as it would be downloaded (state_privacy.go).
 	if err := a.privacyRefusesLink(source); err != nil {
 		return "", err
@@ -220,6 +225,7 @@ func (a *app) queueTake(source string) (string, error) {
 			a.queueFolderJob(&job, item)
 		}
 	}
+	job.Device = device
 	a.queueAdd(job)
 	return job.ID, nil
 }
@@ -575,6 +581,10 @@ func (a *app) queueRedoEnded(job core.Job) core.Job {
 			a.warn(m.QueueRedoFailed(jobName(job), reason), section)
 		}
 		a.libraryNoticeJob(job.ID, core.StageComplete)
+	}
+	// A film whose video was not downloaded still keeps none, as the user chose: the quality queueVideo asked the download for goes, so processing it again later does not keep a video either.
+	if job.Redo == core.RedoVideo && job.SubtitlesOnly {
+		job.Quality = core.QualitySubtitles
 	}
 	job.Stage = core.StageComplete
 	job.Err, job.FailKind, job.Progress = nil, "", core.Progress{}
@@ -987,6 +997,11 @@ func (a *app) show(job core.Job) {
 	// A job that has completed is a film of its own, no longer a video of the folder's to put back.
 	if job.Stage == core.StageComplete {
 		job.FromFolder = false
+	}
+	// A film that kept no video and has just downloaded it (core.RedoVideo) is watched from that video, whose extension is the download's rather than its sound's: its place, how far it was played, its subtitle delay and what else is kept by its video's path follow it, as they do a video moved on disk.
+	if was.SubtitlesOnly && !job.SubtitlesOnly && was.VideoPath != "" && job.VideoPath != "" && was.VideoPath != job.VideoPath {
+		from, to := was.VideoPath, job.VideoPath
+		a.moveVideos(func(path string) (string, bool) { return to, path == from })
 	}
 	a.library.Upsert(job)
 	if err := a.library.Save(); err != nil {

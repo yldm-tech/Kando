@@ -2224,6 +2224,7 @@ const (
 	textSettingsGeneralQualityBest
 	textSettingsGeneralQualitySubtitles
 	textSettingsGeneralQualitySubtitlesHint
+	textSettingsGeneralQualitySubtitlesHintNoStream
 	textSettingsGeneralRedetect
 	textSettingsGeneralRetry
 	textSettingsGeneralSignIn
@@ -3486,6 +3487,7 @@ var keyOfText = [numTexts]string{
 	"settingsGeneralQualityBest",
 	"settingsGeneralQualitySubtitles",
 	"settingsGeneralQualitySubtitlesHint",
+	"settingsGeneralQualitySubtitlesHintNoStream",
 	"settingsGeneralRedetect",
 	"settingsGeneralRetry",
 	"settingsGeneralSignIn",
@@ -4745,7 +4747,8 @@ var textsEn = i18n.NewTexts(""+
 	"720p"+
 	"Best"+
 	"Subtitles Only"+
-	"Keeps no video: only the sound is downloaded to make the subtitles and is deleted once they're done. The film streams from its site when you watch it, with the subtitles over it."+
+	"Keeps no video: only the sound is downloaded to make the subtitles and is deleted once they're done. YouTube films stream when you watch them, with the subtitles over them; films from other sites need their video downloaded first."+
+	"Keeps no video: only the sound is downloaded to make the subtitles and is deleted once they're done. Kando can't stream films on this computer yet, so to watch one, download its video from the player first."+
 	"Detect Again"+
 	"Retry"+
 	"Browser Sign-In"+
@@ -6002,7 +6005,8 @@ var textsEn = i18n.NewTexts(""+
 		4,
 		4,
 		14,
-		178,
+		230,
+		206,
 		12,
 		5,
 		15,
@@ -7262,7 +7266,8 @@ var textsJa = i18n.NewTexts(""+
 	"720p"+
 	"最高画質"+
 	"字幕のみ"+
-	"動画は保存しません。字幕を作るために音声だけをダウンロードし、終わったら削除します。見るときはオンラインで再生し、字幕を重ねて表示します。"+
+	"動画は保存しません。字幕を作るために音声だけをダウンロードし、終わったら削除します。YouTube の動画は見るときにオンラインで再生し、字幕を重ねて表示します。ほかのサイトの動画は先に動画をダウンロードしてから見られます。"+
+	"動画は保存しません。字幕を作るために音声だけをダウンロードし、終わったら削除します。このコンピュータではまだオンライン再生できないため、見るときはプレーヤーで先に動画をダウンロードしてください。"+
 	"再検出"+
 	"再試行"+
 	"ブラウザのログイン"+
@@ -8519,7 +8524,8 @@ var textsJa = i18n.NewTexts(""+
 		4,
 		12,
 		12,
-		207,
+		320,
+		291,
 		9,
 		9,
 		27,
@@ -9779,7 +9785,8 @@ var textsKo = i18n.NewTexts(""+
 	"720p"+
 	"최고 화질"+
 	"자막만"+
-	"동영상을 저장하지 않습니다. 자막을 만들 때 오디오만 내려받고 끝나면 삭제합니다. 볼 때는 온라인으로 재생하고 자막을 위에 겹쳐 보여 줍니다."+
+	"동영상을 저장하지 않습니다. 자막을 만들 때 오디오만 내려받고 끝나면 삭제합니다. YouTube 영상은 볼 때 온라인으로 재생하고 자막을 위에 겹쳐 보여 줍니다. 다른 사이트의 영상은 먼저 동영상을 내려받아야 볼 수 있습니다."+
+	"동영상을 저장하지 않습니다. 자막을 만들 때 오디오만 내려받고 끝나면 삭제합니다. 이 컴퓨터에서는 아직 온라인 재생이 되지 않으므로, 보려면 플레이어에서 먼저 동영상을 내려받으세요."+
 	"다시 감지"+
 	"다시 시도"+
 	"브라우저 로그인"+
@@ -11036,7 +11043,8 @@ var textsKo = i18n.NewTexts(""+
 		4,
 		13,
 		9,
-		195,
+		298,
+		253,
 		13,
 		13,
 		22,
@@ -12296,7 +12304,8 @@ var textsZhHans = i18n.NewTexts(""+
 	"720P"+
 	"最高画质"+
 	"仅字幕"+
-	"不保存视频：只下载音频做字幕，转完即删；观看时在线播放，字幕叠加在上面。"+
+	"不保存视频：只下载音频做字幕，转完即删。YouTube 的影片观看时在线播放，字幕叠加在上面；其他网站的影片要先下载视频才能看。"+
+	"不保存视频：只下载音频做字幕，转完即删。这台电脑上暂时还不能在线播放，要看时先在播放器里下载视频。"+
 	"重新检测"+
 	"重试"+
 	"浏览器登录"+
@@ -13553,7 +13562,8 @@ var textsZhHans = i18n.NewTexts(""+
 		4,
 		12,
 		9,
-		108,
+		176,
+		147,
 		12,
 		6,
 		15,
@@ -14813,7 +14823,8 @@ var textsZhHant = i18n.NewTexts(""+
 	"720P"+
 	"最高畫質"+
 	"僅字幕"+
-	"不保存影片：只下載音訊來做字幕，轉完即刪；觀看時線上播放，字幕疊加在上面。"+
+	"不保存影片：只下載音訊來做字幕，轉完即刪。YouTube 的影片觀看時線上播放，字幕疊加在上面；其他網站的影片要先下載影片才能看。"+
+	"不保存影片：只下載音訊來做字幕，轉完即刪。這台電腦上暫時還不能線上播放，要看時先在播放器裡下載影片。"+
 	"重新偵測"+
 	"重試"+
 	"瀏覽器登入"+
@@ -16070,7 +16081,8 @@ var textsZhHant = i18n.NewTexts(""+
 		4,
 		12,
 		9,
-		111,
+		179,
+		150,
 		12,
 		6,
 		15,
@@ -37424,10 +37436,10 @@ func (msgs Messages) SettingsGeneralQualitySubtitles() string {
 	return msgs.text(textSettingsGeneralQualitySubtitles)
 }
 
-// SettingsGeneralQualitySubtitlesHint says "Keeps no video: only the sound is downloaded to make the subtitles and is deleted once they're done. The film streams from its site when you watch it, with the subtitles over it."
+// SettingsGeneralQualitySubtitlesHint says "Keeps no video: only the sound is downloaded to make the subtitles and is deleted once they're done. YouTube films stream when you watch them, with the subtitles over them; films from other sites need their video downloaded first."
 // in the language the app shows under cx.
 //
-// Note under the download quality when Subtitles Only is chosen.
+// Note under the download quality when Subtitles Only is chosen, on a computer that streams YouTube films (macOS for now).
 func SettingsGeneralQualitySubtitlesHint(cx *core.Scope) string {
 	return For(cx).SettingsGeneralQualitySubtitlesHint()
 }
@@ -37435,6 +37447,19 @@ func SettingsGeneralQualitySubtitlesHint(cx *core.Scope) string {
 // SettingsGeneralQualitySubtitlesHint is the package's SettingsGeneralQualitySubtitlesHint in the language of msgs.
 func (msgs Messages) SettingsGeneralQualitySubtitlesHint() string {
 	return msgs.text(textSettingsGeneralQualitySubtitlesHint)
+}
+
+// SettingsGeneralQualitySubtitlesHintNoStream says "Keeps no video: only the sound is downloaded to make the subtitles and is deleted once they're done. Kando can't stream films on this computer yet, so to watch one, download its video from the player first."
+// in the language the app shows under cx.
+//
+// Note under the download quality when Subtitles Only is chosen, on a computer where Kando streams no film yet (Windows and Linux for now).
+func SettingsGeneralQualitySubtitlesHintNoStream(cx *core.Scope) string {
+	return For(cx).SettingsGeneralQualitySubtitlesHintNoStream()
+}
+
+// SettingsGeneralQualitySubtitlesHintNoStream is the package's SettingsGeneralQualitySubtitlesHintNoStream in the language of msgs.
+func (msgs Messages) SettingsGeneralQualitySubtitlesHintNoStream() string {
+	return msgs.text(textSettingsGeneralQualitySubtitlesHintNoStream)
 }
 
 // SettingsGeneralRedetect says "Detect Again"

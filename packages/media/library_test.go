@@ -352,6 +352,42 @@ func TestRetargetRenamedFolder(t *testing.T) {
 	}
 }
 
+// TestRetargetRenamedFolderWithoutAVideo checks that the subtitles of a film that keeps no video follow its folder renamed in Finder by the folder's [id], and that two folders with that [id] pair neither.
+func TestRetargetRenamedFolderWithoutAVideo(t *testing.T) {
+	root := t.TempDir()
+	old := filepath.Join(root, "Talk [abc]")
+	if err := os.Mkdir(old, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	srt := filepath.Join(old, "video.bilingual.srt")
+	if err := os.WriteFile(srt, []byte("s"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if _, ok := RetargetRenamedFolder(root, srt); ok {
+		t.Fatal("a file still there was paired")
+	}
+	next := filepath.Join(root, "Renamed [abc]")
+	if err := os.Rename(old, next); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Mkdir(filepath.Join(root, "Other [xyz]"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if got, ok := RetargetRenamedFolder(root, srt); !ok || got != filepath.Join(next, "video.bilingual.srt") {
+		t.Fatalf("got %q, %v", got, ok)
+	}
+	twin := filepath.Join(root, "Copy [abc]")
+	if err := os.Mkdir(twin, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(twin, "video.bilingual.srt"), []byte("s"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if got, ok := RetargetRenamedFolder(root, srt); ok {
+		t.Fatalf("two folders with the [id] paired %q", got)
+	}
+}
+
 func TestRetargetRenamedSingleFolderWithoutAnID(t *testing.T) {
 	root := t.TempDir()
 	old := filepath.Join(root, "talk")
