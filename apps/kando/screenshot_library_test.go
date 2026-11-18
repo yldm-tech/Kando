@@ -205,6 +205,25 @@ func TestScreenshotsLibrary(t *testing.T) {
 	f.shootSize(t, "library-full", 1304, 1400, func(t *testing.T, a *app, tt *nsgotest.App, _ chan func()) {
 		onboarding(a)
 	})
+	// 处理中 down to the one film being translated, in a window tall enough for the design's whole hero over it and the first row of posters: the card keeps its line and its first bilingual line while a job runs.
+	f.shootSize(t, "library-hero-whole", 1304, 900, func(t *testing.T, a *app, tt *nsgotest.App, _ chan func()) {
+		kept := false
+		a.library.Jobs = slices.DeleteFunc(a.library.Jobs, func(job core.Job) bool {
+			if job.Stage == core.StageComplete {
+				return false
+			}
+			if !kept && job.Stage != core.StageFailed && job.Stage != core.StageQueued {
+				kept = true
+				return false
+			}
+			return true
+		})
+		a.refreshLibrary()
+		refresh(tt, a)
+		if got := tt.Find("id:films-hero").Frame.Size.Height; got != 360 || !tt.Exists("id:queue-cancel") {
+			t.Fatalf("the hero over one card in a 900-point window is %v high: %q", got, tt.Texts())
+		}
+	})
 	f.shoot(t, "library-none", func(t *testing.T, a *app, tt *nsgotest.App, _ chan func()) {
 		a.edit(func(s *session) {
 			s.LibraryDir = ""
