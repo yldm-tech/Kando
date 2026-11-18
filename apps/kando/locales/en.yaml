@@ -4907,7 +4907,7 @@ settingsKeywordsSpeech:
   message: "whisper models download recognition transcription HuggingFace Hugging Face Vimpo hyperframes spoken language download source mirror hf-mirror.com model file ggml threads proper nouns hints prompt command"
   description: "Search keywords of the Speech Recognition settings section, separated by spaces, besides its title. Not shown."
 settingsKeywordsTranslate:
-  message: "target language smart translation context prompt restore default context lines"
+  message: "target language smart translation context prompt restore default context lines final proofread consistency"
   description: "Search keywords of the Translation settings section, separated by spaces, besides its title. Not shown."
 settingsLanguageArabic:
   message: "Arabic"
@@ -6682,3 +6682,109 @@ filmsHeroKickerContinueOn:
   description: "Small heading over the hero's title when the film is one to continue and a paired phone left it there."
   placeholders:
     device: { type: "String", example: "iPhone 15" }
+settingsReview:
+  message: "Final Proofread"
+  description: "Heading of the Translation settings' group about reading the whole translation through again once a film is translated."
+settingsReviewOn:
+  message: "Read the whole film again after translating"
+  description: "Switch in Settings › Translation: once a film is translated, the AI service reads its whole translation through again and suggests changes."
+settingsReviewOnHint:
+  message: "Makes names, forms of address and terms the same throughout and smooths the wording. It changes only the machine's translation, never a line you edited."
+  description: "Line under the final proofread switch in Settings › Translation."
+settingsReviewAuto:
+  message: "Apply Automatically"
+  description: "Row in Settings › Translation choosing which changes of the final proofread take effect without asking."
+settingsReviewAutoHint:
+  message: "The rest wait for you under Proofread in the subtitle list."
+  description: "Line under the row choosing which final proofread changes apply automatically; Proofread is the subtitle list's chip."
+settingsReviewAutoConsistency:
+  message: "Consistency Only"
+  description: "Option: only the final proofread's changes that make names and terms consistent apply automatically."
+settingsReviewAutoAll:
+  message: "All"
+  description: "Option: every change of the final proofread applies automatically."
+settingsReviewAutoNone:
+  message: "Ask for All"
+  description: "Option: no change of the final proofread applies automatically; each waits for the user."
+reviewChip:
+  message: "Proofread"
+  description: "Chip over the subtitle list that shows the changes of the film's final proofread in place of the lines; its count follows it."
+reviewOff:
+  message: "The final proofread is off (Settings › Translation)."
+  description: "Head of the subtitle list's Proofread view while the final proofread is turned off in the settings."
+reviewHeadWaiting:
+  message: "{changes, plural, one {# change} other {# changes}} · {waiting} waiting for you"
+  description: "Head of the subtitle list's Proofread view: how many changes the final proofread made or suggested, and how many wait for the user."
+  placeholders:
+    changes: { type: "int", example: "12" }
+    waiting: { type: "int", example: "3" }
+reviewHeadDone:
+  message: "{changes, plural, one {# change} other {# changes}} · all decided"
+  description: "Head of the subtitle list's Proofread view once no change waits for the user."
+  placeholders:
+    changes: { type: "int", example: "12" }
+reviewAcceptAll:
+  message: "Accept All"
+  description: "Button accepting every change of the final proofread that waits for the user."
+reviewRollBack:
+  message: "Roll Back"
+  description: "Button taking back the whole final proofread: the changes that applied by themselves are undone and those waiting are turned down; those the user accepted stay."
+reviewNote:
+  message: "The final proofread changes only the machine's translation; lines you edited stay as you wrote them. Which changes apply by themselves is chosen in Settings › Translation."
+  description: "Note under the changes of the final proofread in the subtitle list."
+reviewKindConsistency:
+  message: "Consistency"
+  description: "Kind of a final proofread change that makes a name, form of address or term match the rest of the film."
+reviewKindFluency:
+  message: "Fluency"
+  description: "Kind of a final proofread change that makes a line read naturally."
+reviewKindMeaning:
+  message: "Meaning"
+  description: "Kind of a final proofread change that corrects what a line says."
+reviewStatusMine:
+  message: "You edited this line, so this change no longer applies"
+  description: "Where a final proofread change stands when the user corrected the line's translation themselves."
+reviewStatusApplied:
+  message: "Applied automatically"
+  description: "Where a final proofread change stands: it took effect by itself."
+reviewStatusPending:
+  message: "Waiting for you"
+  description: "Where a final proofread change stands: it waits for the user to accept or turn it down."
+reviewStatusAccepted:
+  message: "Accepted"
+  description: "Where a final proofread change stands: the user accepted it."
+reviewStatusRejected:
+  message: "Undone"
+  description: "Where a final proofread change stands: the user turned it down or rolled it back."
+reviewAccept:
+  message: "Accept"
+  description: "Button accepting one change of the final proofread."
+reviewReject:
+  message: "Don't Use"
+  description: "Button turning down one change of the final proofread."
+reviewUndo:
+  message: "Undo This"
+  description: "Button rolling back one change of the final proofread that took effect."
+reviewPlayLine:
+  message: "Play from {time}"
+  description: "Accessible name of the time of a final proofread change, which plays the film from its line."
+  placeholders:
+    time: { type: "String", example: "1:04.2" }
+reviewRolledBack:
+  message: "Final proofread rolled back (what you accepted stays)"
+  description: "Shown on the picture after the user rolled back the final proofread."
+reviewNewer:
+  message: "A newer version of Kando saved this film's proofread, so it can't be changed here"
+  description: "Shown on the picture when the final proofread's file was written by a newer Kando and cannot be changed."
+reviewSaveFailed:
+  message: "Couldn't save the final proofread"
+  description: "Shown on the picture when accepting or undoing a final proofread change could not be written to disk."
+filmsQueueReviewingLines:
+  message: "Final proofread · {lines} of {total} lines"
+  description: "Line under the title of a job reading its whole translation through again once translated: how many translated lines are done of how many."
+  placeholders:
+    lines: { type: "int", example: "100" }
+    total: { type: "int", example: "480" }
+queueStatusReviewing:
+  message: "Proofreading the translation…"
+  description: "Status of a job reading its whole translation through again once translated (the final proofread)."
