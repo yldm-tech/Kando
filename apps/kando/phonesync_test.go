@@ -295,6 +295,7 @@ func TestPhoneSyncRefusesCodesThatDoNotPairAndRevokedPhones(t *testing.T) {
 	}
 	settingsOpenAt(a, tt, settings.SectionPhone)
 	tt.Press("settings-phone-revoke-" + res.DeviceID)
+	tt.Press("settings-phone-revoke-confirm-" + res.DeviceID)
 	if !tt.Exists("id:settings-phone-no-devices") {
 		t.Fatal("the page still lists the phone revoked")
 	}
@@ -392,7 +393,7 @@ func TestPhoneSyncQueuesALinkAPhoneSends(t *testing.T) {
 	a, tt, updates, dir, c := phonePaired(t)
 	m := testlocale.Messages()
 	h, err := phoneCall(t, a, tt, updates, c.Hello)
-	if err != nil || h.Receive != psync.ReceiveQueue || !slices.Contains(h.Ops, psync.OpJobCreate) || slices.Contains(h.Ops, psync.OpJobPause) || h.Desktop != a.phone.name {
+	if err != nil || h.Receive != psync.ReceiveQueue || !slices.Contains(h.Ops, psync.OpJobCreate) || !slices.Contains(h.Ops, psync.OpJobPause) || !slices.Contains(h.Ops, psync.OpJobResume) || h.Desktop != a.phone.name {
 		t.Fatalf("hello %+v, %v", h, err)
 	}
 	list, err := phoneCall(t, a, tt, updates, c.Jobs)
@@ -454,8 +455,9 @@ func TestPhoneSyncQueuesALinkAPhoneSends(t *testing.T) {
 	if err != nil || stopped.State != psync.JobCanceled {
 		t.Fatalf("canceled %+v, %v", stopped, err)
 	}
+	// A job cancelled is not one to pause.
 	_, err = phoneCall(t, a, tt, updates, func(ctx context.Context) (psync.Job, error) { return c.ActOnJob(ctx, psync.OpJobPause, id) })
-	phoneWantCode(t, err, http.StatusNotImplemented, psync.CodeUnsupported)
+	phoneWantCode(t, err, http.StatusConflict, psync.CodeConflict)
 	_, err = phoneCall(t, a, tt, updates, func(ctx context.Context) (psync.Job, error) { return c.ActOnJob(ctx, psync.OpJobCancel, "nope") })
 	phoneWantCode(t, err, http.StatusNotFound, psync.CodeNotFound)
 	// A video on the desktop's disk is not a phone's to send.

@@ -155,11 +155,11 @@ func (a *app) queueTellSystem() {
 	s.told, s.badge, s.progress = true, badge, progress
 }
 
-// queueOutstanding is how many jobs are still to do: the running one, and those waiting that pump will run, in the open library or another the app knows (queueCanRun). Jobs waiting in a library the app has forgotten start only once it is opened again. Those of a locked library are not counted (lockVisible).
+// queueOutstanding is how many jobs are still to do: the running one, and those waiting that pump will run (not those a phone holds, queueHeld), in the open library or another the app knows (queueCanRun). Jobs waiting in a library the app has forgotten start only once it is opened again. Those of a locked library are not counted (lockVisible).
 func (a *app) queueOutstanding() int {
 	n := 0
 	for _, job := range a.lockVisible(a.library.Jobs) {
-		if job.ID == a.queue.active || (job.Stage == core.StageQueued && a.queueCanRun(job)) {
+		if job.ID == a.queue.active || (job.Stage == core.StageQueued && !queueHeld(job) && a.queueCanRun(job)) {
 			n++
 		}
 	}

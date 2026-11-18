@@ -1,6 +1,8 @@
 package study
 
 import (
+	"slices"
+	"strings"
 	"time"
 )
 
@@ -114,4 +116,17 @@ func (b Book) Stats(now time.Time) Stats {
 	delete(devices, "")
 	s.Devices = len(devices)
 	return s
+}
+
+// StatsOf is the study of several books together as of now, as of the libraries the learner can open: a day's time is all of theirs, so a day counts in a streak once their minutes together make StudyDay, and the words and lines are all of theirs; device is this device, whose time is a day's Here. The books are left as they are.
+func StatsOf(now time.Time, device string, books ...Book) Stats {
+	all := Book{Device: device}
+	for _, b := range books {
+		all.Lines = append(all.Lines, b.Lines...)
+		all.Words = append(all.Words, b.Words...)
+		all.Watched = append(all.Watched, b.Watched...)
+	}
+	// Stats goes over the days watched in order for the longest run.
+	slices.SortStableFunc(all.Watched, func(a, b Watched) int { return strings.Compare(a.Day, b.Day) })
+	return all.Stats(now)
 }

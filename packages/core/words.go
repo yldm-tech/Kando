@@ -26,7 +26,7 @@ func WordTokens(line string) []WordToken {
 		out = append(out, WordToken{Text: text, Word: word})
 	}
 	for i := 0; i < len(runes); {
-		if !wordRune(runes[i]) {
+		if !tokenRune(runes[i]) {
 			add(string(runes[i]), false)
 			i++
 			continue
@@ -34,10 +34,10 @@ func WordTokens(line string) []WordToken {
 		j := i
 		for j < len(runes) {
 			switch {
-			case wordRune(runes[j]):
+			case tokenRune(runes[j]):
 				j++
 				continue
-			case joiner(runes[j]) && j+1 < len(runes) && wordRune(runes[j+1]) && j > i:
+			case joiner(runes[j]) && j+1 < len(runes) && tokenRune(runes[j+1]) && j > i:
 				j++
 				continue
 			}
@@ -50,8 +50,8 @@ func WordTokens(line string) []WordToken {
 	return out
 }
 
-// wordRune reports whether r is part of a word: a letter, a mark or a digit of a script written with spaces between words.
-func wordRune(r rune) bool {
+// tokenRune reports whether r is part of a word: a letter, a mark or a digit of a script written with spaces between words.
+func tokenRune(r rune) bool {
 	if !unicode.IsLetter(r) && !unicode.IsMark(r) && !unicode.IsDigit(r) {
 		return false
 	}

@@ -14,10 +14,13 @@ import (
 	"time"
 )
 
-// Caller is who sent a Call, as its transport tells: the paired device's ID and name.
+// Caller is who sent a Call, as its transport tells: the paired device's ID and name, whether the desktop's user made it read-only (ReadOnly), which the transport reads from the device's record at every call, and whether the call came through the storage relay (relay.go) rather than the local network.
 type Caller struct {
 	DeviceID string
 	Name     string
+	// ReadOnly is a device that may read but not change anything: Desk refuses its calls that change something (Mutates) with CodeReadOnly.
+	ReadOnly bool
+	Relay    bool
 }
 
 // Service is what a desktop does for protocol v2's calls, whichever transport carries them; Desk answers the jobs' list and the events itself, from its Journal. Its errors are *CallError for the protocol's codes, and any other error answers CodeFailed.
@@ -35,6 +38,11 @@ type StateService interface {
 	GetState(ctx context.Context, caller Caller, req StateGet) (StateChanges, error)
 	PutState(ctx context.Context, caller Caller, req StatePut) (StatePutResult, error)
 	ResolveConflict(ctx context.Context, caller Caller, req ConflictResolve) (StatePutResult, error)
+}
+
+// RelayJoiner hands a phone its key and first grant of the storage relay (OpRelayJoin).
+type RelayJoiner interface {
+	Join(ctx context.Context, caller Caller) (RelayJoin, error)
 }
 
 // CallError is an error with a protocol code, which a Service returns and a client reads from the Reply.
@@ -62,7 +70,9 @@ type Desk struct {
 	// State answers the learning state's calls, nil for a desktop that does not serve it, which answers them CodeUnsupported.
 	State StateService
 	// Study answers lookups and explanations (study.go), nil for a desktop that does not, which answers them CodeUnsupported.
-	Study   StudyService
+	Study StudyService
+	// Relay answers OpRelayJoin, nil while the desktop's storage relay is off, which answers it CodeUnsupported.
+	Relay   RelayJoiner
 	Journal *Journal
 	// Desktop is the desktop's name; Now the clock, nil for time.Now.
 	Desktop string
@@ -93,7 +103,11 @@ type remembered struct {
 
 // Answer answers call from caller. A call the device sent before answers the reply it got then, unless it only read (OpHello, OpJobs, OpJob, OpEvents, OpStateGet), which reads again. The same call arriving while the first is still being answered, as a relay delivers twice or a phone sends again after the network dropped, waits for the first one's reply and answers it.
 func (d *Desk) Answer(ctx context.Context, caller Caller, call Call) Reply {
-	mutates := call.Op == OpJobCreate || call.Op == OpJobCancel || call.Op == OpJobRetry || call.Op == OpJobPause || call.Op == OpJobResume || call.Op == OpUpdateYTDLP || call.Op == OpStatePut || call.Op == OpStateResolve
+	mutates := Mutates(call.Op)
+	if mutates && caller.ReadOnly {
+		// Refused before the desktop's work and not remembered, so the same call sent once the device may write again does its work.
+		return Reply{ID: call.ID, Op: call.Op, Error: &ErrorBody{Code: CodeReadOnly, Message: "this device is read-only; the desktop's user can let it make changes in Settings › Phone Sync"}}
+	}
 	if !mutates || call.ID == "" {
 		reply, _ := d.reply(ctx, caller, call)
 		return reply
@@ -121,6 +135,15 @@ func (d *Desk) Answer(ctx context.Context, caller Caller, call Call) Reply {
 	// A call that did not reach the desktop's work, as one cut short by its context, is not remembered, so sending it again tries again.
 	d.settle(key, reply, !errors.Is(err, context.Canceled) && !errors.Is(err, context.DeadlineExceeded))
 	return reply
+}
+
+// Mutates reports whether op changes something on the desktop: a read-only device's calls of it are refused (Caller.ReadOnly), and a call of it sent again answers the reply it got the first time.
+func Mutates(op string) bool {
+	switch op {
+	case OpJobCreate, OpJobCancel, OpJobRetry, OpJobPause, OpJobResume, OpUpdateYTDLP, OpStatePut, OpStateResolve:
+		return true
+	}
+	return false
 }
 
 // reply runs call and answers its Reply, with the error it ended with.
@@ -189,7 +212,7 @@ func (d *Desk) answer(ctx context.Context, caller Caller, call Call) (any, error
 		if err != nil {
 			return nil, err
 		}
-		h.Desktop, h.Versions, h.Epoch = d.Desktop, []string{V1, V2}, d.Journal.Epoch()
+		h.Desktop, h.Versions, h.Epoch, h.ReadOnly = d.Desktop, []string{V1, V2}, d.Journal.Epoch(), caller.ReadOnly
 		if h.Ops == nil {
 			h.Ops = []string{}
 		}
@@ -198,6 +221,9 @@ func (d *Desk) answer(ctx context.Context, caller Caller, call Call) (any, error
 		}
 		if h.State == nil {
 			h.State = []string{}
+		}
+		if d.Relay != nil && !slices.Contains(h.Ops, OpRelayJoin) {
+			h.Ops = append(slices.Clone(h.Ops), OpRelayJoin)
 		}
 		return h, nil
 	case OpJobCreate:
@@ -235,7 +261,19 @@ func (d *Desk) answer(ctx context.Context, caller Caller, call Call) (any, error
 		if err := args(call, &w); err != nil {
 			return nil, err
 		}
+		if caller.Relay {
+			// Over the relay a phone follows the changes in its state.json; a call waiting here would hold up the calls behind it.
+			w.WaitMS = 0
+		}
 		return d.Journal.Wait(ctx, w.Epoch, w.Since, time.Duration(w.WaitMS)*time.Millisecond), nil
+	case OpRelayJoin:
+		if d.Relay == nil {
+			return nil, Errorf(CodeUnsupported, "the storage relay is off")
+		}
+		if caller.Relay {
+			return nil, Errorf(CodeUnsupported, "a phone joins the relay on the local network only")
+		}
+		return d.Relay.Join(ctx, caller)
 	}
 	return nil, Errorf(CodeUnsupported, "no operation %q", call.Op)
 }

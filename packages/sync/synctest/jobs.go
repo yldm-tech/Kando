@@ -3,8 +3,11 @@ package synctest
 import (
 	"bytes"
 	"context"
+	"encoding/json"
 	"fmt"
+	"io"
 	"net/http"
+	"net/http/httptest"
 	"slices"
 
 	"kando/packages/sync"
@@ -17,6 +20,23 @@ type queue struct {
 	made    int
 	pending []string
 	updates int
+	// drops are how many links still to take and hang up on (DropCreates); older is a desktop speaking protocol v1 alone (SetOlder).
+	drops int
+	older bool
+}
+
+// SetOlder makes the desktop speak protocol v1 alone while older, as an older Kando: it has no v2 call path, which it answers 404 with Go's plain-text body.
+func (d *Desktop) SetOlder(older bool) {
+	d.mu.Lock()
+	defer d.mu.Unlock()
+	d.queue.older = older
+}
+
+// DropCreates has the desktop take the next n links phones send and hang up before it answers each, as a call that dropped or timed out after the desktop did its work; sent again under the same call ID, a link is answered as it was taken.
+func (d *Desktop) DropCreates(n int) {
+	d.mu.Lock()
+	defer d.mu.Unlock()
+	d.queue.drops = n
 }
 
 // SetReceive sets what the desktop does with a link a phone sends: sync.ReceiveQueue, the default, sync.ReceiveAsk or sync.ReceiveOff.
@@ -59,13 +79,36 @@ func (d *Desktop) YTDLPUpdates() int {
 	return d.queue.updates
 }
 
-// call answers a v2 call, naming the caller by the name it paired with.
+// call answers a v2 call, naming the caller by the name it paired with, unless the desktop is older (SetOlder) or the call is a link to drop (DropCreates).
 func (d *Desktop) call(w http.ResponseWriter, r *http.Request) {
 	token, _ := bytes.CutPrefix([]byte(r.Header.Get("Authorization")), []byte("Bearer "))
 	d.mu.Lock()
 	name := d.names[string(token)]
+	older := d.queue.older
 	d.mu.Unlock()
-	sync.HandleCall(w, r, d.desk, sync.Caller{DeviceID: "dev-" + string(token[:min(6, len(token))]), Name: name})
+	if older {
+		http.NotFound(w, r)
+		return
+	}
+	data, err := io.ReadAll(r.Body)
+	if err != nil {
+		return
+	}
+	r.Body = io.NopCloser(bytes.NewReader(data))
+	var call sync.Call
+	_ = json.Unmarshal(data, &call)
+	d.mu.Lock()
+	drop := call.Op == sync.OpJobCreate && d.queue.drops > 0
+	if drop {
+		d.queue.drops--
+	}
+	d.mu.Unlock()
+	caller := sync.Caller{DeviceID: "dev-" + string(token[:min(6, len(token))]), Name: name}
+	if drop {
+		sync.HandleCall(httptest.NewRecorder(), r, d.desk, caller)
+		panic(http.ErrAbortHandler)
+	}
+	sync.HandleCall(w, r, d.desk, caller)
 }
 
 // jobService is the stand-in's queue as v2's calls act on it.

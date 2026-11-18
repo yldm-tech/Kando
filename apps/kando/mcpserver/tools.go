@@ -58,6 +58,18 @@ type removeJobOutput struct {
 	Removed string `json:"removed" jsonschema:"The id of the job that was removed."`
 }
 
+type listSubscriptionsOutput struct {
+	Subscriptions []remote.Subscription `json:"subscriptions" jsonschema:"The open library's subscriptions, in the order the Kando window lists them."`
+}
+
+type subscribeInput struct {
+	Source string `json:"source" jsonschema:"A channel, a Bilibili uploader's space, a Bilibili collection or a playlist link, as https://www.youtube.com/@name, https://space.bilibili.com/123 or https://www.youtube.com/playlist?list=…"`
+}
+
+type subscriptionInput struct {
+	ID string `json:"id" jsonschema:"The subscription's id, as kando_list_subscriptions or kando_subscribe reports it."`
+}
+
 type searchSitesInput struct {
 	Query string `json:"query" jsonschema:"A website's name, its domain, or a link to a video on it."`
 	Limit int    `json:"limit,omitempty" jsonschema:"The most sites to return. Leave it out for 20."`
@@ -360,6 +372,45 @@ func addTools(server *mcp.Server, a *app) {
 			return nil, remote.Moved{}, err
 		}
 		return nil, moved, nil
+	})
+
+	mcp.AddTool(server, &mcp.Tool{
+		Name:        "kando_list_subscriptions",
+		Description: "List the open library's subscriptions to channels, Bilibili uploaders' spaces, collections and playlists, whose new videos Kando adds by itself while it runs: each one's id, name, link, kind, rules (mode auto queues at most add_per_check new videos a check and leaves the rest waiting, ask leaves them all waiting for the user; filter, keywords, cadence), whether it is paused, deleted on its site (gone) or renamed there, when it was last checked and why that failed, the new videos waiting for the user to add or skip in the Kando window, and how many it added.",
+		Annotations: readOnly("List Kando subscriptions"),
+	}, func(ctx context.Context, _ *mcp.CallToolRequest, _ noInput) (*mcp.CallToolResult, listSubscriptionsOutput, error) {
+		subs := []remote.Subscription{}
+		if err := a.call(ctx, remote.MethodSubscriptions, nil, &subs); err != nil {
+			return nil, listSubscriptionsOutput{}, err
+		}
+		if subs == nil {
+			subs = []remote.Subscription{}
+		}
+		return nil, listSubscriptionsOutput{Subscriptions: subs}, nil
+	})
+
+	mcp.AddTool(server, &mcp.Tool{
+		Name:        "kando_subscribe",
+		Description: "Subscribe the open library to a channel, a Bilibili uploader's space, a Bilibili collection or a playlist, as the Kando window's Add Subscription does. The videos the list holds now are left out; Kando checks it each time it opens and adds the new ones that come after by itself, at most add_per_check a check, the rest waiting for the user in the window. The user changes its rules in the window. A list the library follows already comes back with already set, unchanged. Reading the list can take a minute. Call it only when the user asked to subscribe or follow.",
+		Annotations: &mcp.ToolAnnotations{Title: "Subscribe in Kando", ReadOnlyHint: false, DestructiveHint: boolPtr(false), IdempotentHint: true, OpenWorldHint: boolPtr(true)},
+	}, func(ctx context.Context, _ *mcp.CallToolRequest, in subscribeInput) (*mcp.CallToolResult, remote.Subscribed, error) {
+		var got remote.Subscribed
+		if err := a.call(ctx, remote.MethodSubscribe, remote.SubscribeParams{Source: in.Source}, &got); err != nil {
+			return nil, remote.Subscribed{}, err
+		}
+		return nil, got, nil
+	})
+
+	mcp.AddTool(server, &mcp.Tool{
+		Name:        "kando_check_subscription",
+		Description: "Check one of the open library's subscriptions for new videos now, by its id, as the Kando window's Check Now does, instead of waiting for its next check. The new videos that fit its rules are queued, at most add_per_check of them for a subscription in mode auto, or left waiting for the user in the window; it returns how many were new, queued, held waiting and skipped by the rules, why some could not be queued, and the subscription afterwards. A paused subscription, or one whose list its site deleted, is refused. Reading the list can take a minute.",
+		Annotations: &mcp.ToolAnnotations{Title: "Check a Kando subscription", ReadOnlyHint: false, DestructiveHint: boolPtr(false), IdempotentHint: false, OpenWorldHint: boolPtr(true)},
+	}, func(ctx context.Context, _ *mcp.CallToolRequest, in subscriptionInput) (*mcp.CallToolResult, remote.SubscriptionChecked, error) {
+		var got remote.SubscriptionChecked
+		if err := a.call(ctx, remote.MethodSubscriptionCheck, remote.IDParams{ID: in.ID}, &got); err != nil {
+			return nil, remote.SubscriptionChecked{}, err
+		}
+		return nil, got, nil
 	})
 
 	mcp.AddTool(server, &mcp.Tool{

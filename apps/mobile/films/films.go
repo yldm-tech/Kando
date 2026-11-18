@@ -1,12 +1,11 @@
-// Package films is the Library tab: the films on the phone, then under each paired computer its libraries, which pull to refresh reads again; before any computer is paired, what pairing brings and the way to pair.
+// Package films is the Library tab: the films of every paired computer and those on the phone as one library (catalog.Merge), which pull to refresh reads again. A search finds titles and the lines kept on the phone, the films left partway on any device come first to go on with, and chips and the library switcher narrow the list to a source or a library. A computer that cannot be reached says so with the way to try again or pair again, and before any computer is paired the tab says what pairing brings and how.
 package films
 
 import (
-	"maps"
-	"slices"
+	"context"
 
+	"kando/apps/mobile/catalog"
 	"kando/apps/mobile/computers"
-	"kando/apps/mobile/downloads"
 	"kando/apps/mobile/locales"
 	"kando/apps/mobile/look"
 	"kando/apps/mobile/onboarding"
@@ -24,43 +23,137 @@ import (
 type Actions struct {
 	// Pair opens pairing.
 	Pair func()
-	// Film opens a film's page, of one on the phone.
-	Film func(store.Film)
-	// Library opens a computer's library.
-	Library func(desktop string, lib sync.Library)
+	// Film opens a film's page.
+	Film func(catalog.Entry)
+	// Play plays the film kept on the phone under key, from where it was left on the phone.
+	Play func(key string)
+	// Add opens the Add sheet, and Jobs the Jobs page, which a tablet shows as a section of its own instead.
+	Add, Jobs func()
+}
+
+// view is the tab's state: what the user searched for, and the source and the library the list is narrowed to, none for all.
+type view struct {
+	cx      *core.Scope
+	s       *session.Session
+	act     Actions
+	query   *core.Signal[string]
+	source  *core.Signal[string]
+	library *core.Signal[catalog.Scope]
+	entries *core.Memo[[]catalog.Entry]
+	lines   *core.Resource[map[string][]sync.Cue]
 }
 
 // Page is the tab's root page.
 func Page(cx *core.Scope, s *session.Session, act Actions) base.NavPage {
+	v := &view{cx: cx, s: s, act: act,
+		query:   core.NewSignal(cx, ""),
+		source:  core.NewSignal(cx, ""),
+		library: core.NewSignal(cx, catalog.Scope{}),
+		entries: core.NewMemoFunc(cx, s.Entries, nil),
+	}
+	// The lines kept on the phone are read for a search once there is one, and again as the films on the phone change. Both inputs are memos, so typing on or a saved position, which change neither, does not read them again: the resource loads afresh whenever its source reruns.
+	searching := core.NewMemo(cx, func() bool { return v.query.Get() != "" })
+	linesKey := core.NewMemo(cx, s.LinesKey)
+	v.lines = core.NewResource(cx, func() (string, bool) {
+		return linesKey.Get(), searching.Get()
+	}, func(ctx context.Context, key string, _ core.ResourceInfo) (map[string][]sync.Cue, error) {
+		return s.Lines(ctx, key), nil
+	})
+	// A library gone from the merged list, as its computer unpaired or no longer lists it, takes the switcher back to every library. A computer that did not answer lists nothing until it does, so its library stays chosen meanwhile, with the films of it on the phone.
+	cx.Effect(func() {
+		if lib := v.library.Get(); lib.Desktop != "" && !v.hasLibrary(lib) && !v.unanswered(lib.Desktop) {
+			v.library.Set(catalog.Scope{})
+		}
+	})
 	title := func() string { return locales.FilmsTitle(cx) }
-	// gen counts the pulls to refresh, which the computers' sections read their libraries again on; loading is which of them are still reading.
-	gen := core.NewSignal(cx, 0)
-	loading := core.NewSignalFunc(cx, map[string]bool{}, nil)
 	pulled := core.NewSignal(cx, false)
 	cx.Effect(func() {
-		if !pulled.Get() {
-			return
-		}
-		busy := loading.Get()
-		if !slices.ContainsFunc(s.Desktops(), func(d store.Desktop) bool { return busy[d.ID] }) {
+		if pulled.Get() && !s.Listing() {
 			pulled.Set(false)
 		}
 	})
 	ref := &core.Ref{}
 	body := core.Scroll{TestID: "films-scroll", Ref: ref, Style: core.Style{FlexGrow: 1, FlexShrink: 1},
-		OnRefresh:  func() { pulled.Set(true); gen.Update(func(n int) int { return n + 1 }) },
+		OnRefresh:  func() { pulled.Set(true); s.Refresh() },
 		Refreshing: pulled.Get,
+		Behavior:   core.ScrollBehavior{KeyboardDismissMode: core.KeyboardDismissOnDrag},
 		Children: []core.Node{core.View{StyleFunc: look.Column(cx), Children: []core.Node{
 			core.Show{When: func() bool { return len(s.Desktops()) == 0 }, Then: func(cx *core.Scope) core.Node { return unpaired(cx, act.Pair) }},
-			core.Show{When: func() bool { return len(s.Films()) > 0 }, Then: func(cx *core.Scope) core.Node { return downloads.Section(cx, s, act.Film) }},
+			core.Show{When: func() bool { return len(v.entries.Get()) > 0 }, Then: v.search},
 			core.Each(s.Desktops, func(d store.Desktop) string { return d.ID }, func(cx *core.Scope, d func() store.Desktop, _ func() int) core.Node {
-				return computers.Section(cx, s, d, gen.Get, computers.Actions{Pair: act.Pair, Library: act.Library}, func(busy bool) {
-					id := d().ID
-					loading.Update(func(m map[string]bool) map[string]bool { m = maps.Clone(m); m[id] = busy; return m })
-				})
+				return computers.Problem(cx, s, d, act.Pair)
 			}),
+			core.Show{When: func() bool { return v.query.Get() == "" && len(v.resumable()) > 0 }, Then: v.carousel},
+			v.list(cx),
 		}}}}
-	return look.TabRoot(cx, base.NavPage{TestID: "films-page", Children: []core.Node{body}}, title, nil, nil)
+	jobsLabel := func() string { return locales.JobsTitle(cx) }
+	addLabel := func() string { return locales.AddTitle(cx) }
+	trailing := []core.Node{ui.IconButton{TestID: "films-add", Icon: lucide.Plus, LabelFunc: addLabel, Size: 44, OnPress: act.Add}}
+	tablet := look.Tablet(cx)
+	if !tablet {
+		trailing = append([]core.Node{ui.IconButton{TestID: "films-jobs", Icon: lucide.ListChecks, LabelFunc: jobsLabel, Size: 44, OnPress: act.Jobs}}, trailing...)
+	}
+	// Jobs and Add matter once a computer is paired; before, the card that asks to pair is the page's one action.
+	paired := func() bool { return len(s.Desktops()) > 0 }
+	shown := []core.Node{core.Show{When: paired, Then: func(*core.Scope) core.Node {
+		return core.View{Style: core.Style{Direction: core.Row, AlignItems: core.AlignCenter}, Children: trailing}
+	}}}
+	return look.TabRoot(cx, base.NavPage{TestID: "films-page", Children: []core.Node{body}}, title, shown, func() []core.HeaderSymbol {
+		switch {
+		case !paired():
+			return nil
+		case tablet:
+			return []core.HeaderSymbol{{Name: "plus", Label: addLabel()}}
+		}
+		return []core.HeaderSymbol{{Name: "checklist", Label: jobsLabel()}, {Name: "plus", Label: addLabel()}}
+	})
+}
+
+// hasLibrary reports whether lib is among the libraries the merged list has.
+func (v *view) hasLibrary(lib catalog.Scope) bool {
+	for _, l := range catalog.Libraries(v.s.Computers(), v.entries.Get()) {
+		if l.Desktop == lib.Desktop && l.ID == lib.ID && l.Name == lib.Name {
+			return true
+		}
+	}
+	return false
+}
+
+// unanswered reports whether the paired computer id has not listed its films since its last read failed, or has not yet.
+func (v *view) unanswered(id string) bool {
+	if _, paired := v.s.Desktop(id); !paired {
+		return false
+	}
+	sh := v.s.Shelf(id)
+	return sh.Err != nil || !sh.Listed
+}
+
+// scoped is the merged list narrowed to the library the switcher shows.
+func (v *view) scoped() []catalog.Entry {
+	lib := v.library.Get()
+	if lib.Desktop == "" {
+		return v.entries.Get()
+	}
+	return catalog.Filter(v.entries.Get(), &lib, "")
+}
+
+// resumable are the films to go on with, of the library the switcher shows.
+func (v *view) resumable() []catalog.Entry { return catalog.Continue(v.scoped(), continueMax) }
+
+// search is the search field over the films' titles and the lines kept on the phone.
+func (v *view) search(cx *core.Scope) core.Node {
+	colors := ui.ColorsOf(cx)
+	return core.View{Children: []core.Node{
+		ui.Input{TestID: "films-search", Role: core.RoleSearchField, Value: v.query.Get, OnChange: v.query.Set,
+			PlaceholderFunc: func() string { return locales.FilmsSearch(cx) }, LabelFunc: func() string { return locales.FilmsSearch(cx) },
+			ReturnKeyType: core.ReturnKeySearch, AutoCapitalize: core.AutoCapitalizeNone, NoAutoCorrect: true,
+			Style: core.Style{Height: core.Pt(40), FontSize: 16, CornerRadius: 11, BorderWidth: 0, Padding: core.Edges{Left: 36, Right: 12}},
+			StyleFunc: func() core.Style {
+				return core.Style{Background: ui.Alpha(colors.Text(), 0.06), BorderColor: ui.Alpha(colors.Text(), 0)}
+			}},
+		core.View{Style: core.Style{Position: core.Absolute, Left: core.Pt(12), Top: core.Pt(0), Bottom: core.Pt(0), JustifyContent: core.JustifyCenter, PointerEvents: core.PointerEventsNone},
+			Children: []core.Node{ui.Icon(lucide.Search, 17, colors.Faint)}},
+	}}
 }
 
 // unpaired is the card the tab starts with while no computer is paired: what pairing brings, the way to pair, and where to get the desktop app.

@@ -5,7 +5,7 @@ import (
 	"strings"
 )
 
-// Lookups and explanations (yldm-tech/Kando#222). A phone looks up a word of a line, or has a line explained, through the desktop it is paired with: the desktop asks the AI service set in its own settings, so the service's key never leaves the desktop, and keeps the words looked up in its own cache, so a word asked once answers again at once, from any device, also while the AI service cannot be reached. Both are reads: they change nothing a device syncs, and a call sent again asks again. A word put in the vocabulary travels as a KindWord record of the learning state, not here.
+// Lookups and explanations (yldm-tech/Kando#222). A phone looks up a word of a line, or has a line explained, through the desktop it is paired with: the desktop asks the AI service set in its own settings, so the service's key never leaves the desktop, and keeps the words looked up in its own cache, so a word asked once answers again at once, from any device, also while the AI service cannot be reached. Both are reads (not Mutates): they change nothing a device syncs, a read-only device (Caller.ReadOnly) may call them, and a call sent again asks again; a desktop keeps no word a read-only device looked up in its cache, so such a device changes nothing on it. A word put in the vocabulary travels as a KindWord record of the learning state, not here.
 
 // The operations of lookups and explanations, which Hello lists among its Ops when the desktop answers them.
 const (

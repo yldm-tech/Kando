@@ -51,12 +51,15 @@ func TestPhoneSyncLooksUpAndExplainsThroughTheAIServiceSet(t *testing.T) {
 		t.Fatalf("looked up again: %+v, %v, the AI service asked %d times", e, err, len(*seen)-asked)
 	}
 
-	*seen = nil
+	srv, seen = fakeLLM(t, `{"meaning":"打招呼。","breakdown":"hello · 你好","translation":"","tone":"轻松","related":""}`)
+	onEngine(a, func() {
+		a.pipeline = media.Tools{Translator: media.ChatTranslator{BaseURL: srv.URL + "/v1", APIKey: "k", Model: "m1"}}
+	})
 	x, err := phoneCall(t, a, tt, updates, func(ctx context.Context) (psync.Explanation, error) {
 		return c.Explain(ctx, psync.LineExplain{Library: phoneLibraryID(dir), Film: "yt", Index: 1, Lines: []psync.Cue{
 			{StartMS: 0, Original: "Hi.", Translation: "嗨。"}, {StartMS: 1000, Original: "Hello there", Translation: "你好"}}})
 	})
-	if err != nil || x.Model != "m1" || x.Language != "简体中文" || !strings.Contains(x.Text, "hello") {
+	if err != nil || x.Model != "m1" || x.Language != "简体中文" || x.Text != "打招呼。\n\nhello · 你好\n\n轻松" {
 		t.Fatalf("explain %+v, %v", x, err)
 	}
 	sent = strings.Join(*seen, "\n")
@@ -99,5 +102,49 @@ func TestPhoneSyncLookUpSharesThePicturesCache(t *testing.T) {
 	e, err := phoneCall(t, a, tt, updates, func(ctx context.Context) (psync.WordEntry, error) { return c.LookUp(ctx, req) })
 	if err != nil || e.Meaning != "int. 你好" || e.Language != "简体中文" || len(*seen) != 0 {
 		t.Fatalf("lookup %+v, %v, the AI service asked %d times", e, err, len(*seen))
+	}
+}
+
+// A read-only phone looks words up and has lines explained, as these change nothing, but a word it looks up is not kept among the words looked up on this computer: a read-only phone changes nothing here.
+func TestPhoneSyncReadOnlyPhoneLooksUpWithoutKeepingTheWord(t *testing.T) {
+	a, tt, updates, dir, _ := phoneSyncApp(t)
+	phoneSyncOn(t, a, tt, updates)
+	c := phoneClient(t, a, "")
+	res, err := phonePair(t, a, tt, updates, c, a.phone.offer.Code)
+	if err != nil {
+		t.Fatal(err)
+	}
+	srv, seen := fakeLLM(t, `{"word":"hello","meaning":"int. 你好"}`)
+	var q lookup.Query
+	onEngine(a, func() {
+		a.pipeline = media.Tools{Translator: media.ChatTranslator{BaseURL: srv.URL + "/v1", APIKey: "k", Model: "m1"}}
+		a.prefs.language = "简体中文"
+		a.phoneSyncSetReadOnly(res.DeviceID, true)
+		i := slices.IndexFunc(a.library.Jobs, func(j core.Job) bool { return j.ID == "yt" })
+		q = vocabQuery(films.FromJob(a.library.Jobs[i], "", ""), a.prefs.language, "Hello", "Hello there")
+	})
+	h, err := phoneCall(t, a, tt, updates, c.Hello)
+	if err != nil || !h.ReadOnly {
+		t.Fatalf("hello %+v, %v", h, err)
+	}
+	req := psync.WordLookup{Library: phoneLibraryID(dir), Film: "yt", Word: "Hello", Line: "Hello there"}
+	e, err := phoneCall(t, a, tt, updates, func(ctx context.Context) (psync.WordEntry, error) { return c.LookUp(ctx, req) })
+	if err != nil || e.Meaning != "int. 你好" || len(*seen) == 0 {
+		t.Fatalf("lookup %+v, %v, the AI service asked %d times", e, err, len(*seen))
+	}
+	var kept bool
+	onEngine(a, func() { _, kept = a.vocabCache().Get(q) })
+	if kept {
+		t.Fatal("a read-only phone's lookup was kept among the words looked up on this computer")
+	}
+	srv, _ = fakeLLM(t, `{"meaning":"打招呼。"}`)
+	onEngine(a, func() {
+		a.pipeline = media.Tools{Translator: media.ChatTranslator{BaseURL: srv.URL + "/v1", APIKey: "k", Model: "m1"}}
+	})
+	x, err := phoneCall(t, a, tt, updates, func(ctx context.Context) (psync.Explanation, error) {
+		return c.Explain(ctx, psync.LineExplain{Library: phoneLibraryID(dir), Film: "yt", Lines: []psync.Cue{{Original: "Hello there", Translation: "你好"}}})
+	})
+	if err != nil || x.Text != "打招呼。" {
+		t.Fatalf("explain %+v, %v", x, err)
 	}
 }

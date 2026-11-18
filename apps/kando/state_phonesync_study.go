@@ -7,11 +7,11 @@ import (
 	"strings"
 	"time"
 
+	"kando/apps/kando/explain"
 	"kando/apps/kando/films"
 	"kando/apps/kando/lines"
 	"kando/apps/kando/locales"
 	"kando/apps/kando/lookup"
-	cmdpalette "kando/apps/kando/palette"
 	"kando/apps/kando/phonesync"
 	"kando/apps/kando/remote"
 	"kando/packages/media"
@@ -61,8 +61,8 @@ func (s phoneStudy) ask(item films.Film) (phoneStudyAsk, error) {
 	return phoneStudyAsk{t: t, language: paletteAnswerLanguage(item, a.prefs.language)}, nil
 }
 
-// LookUp answers what the word means in the line, from the words looked up on this computer, or else as the AI service set says, which it then keeps among them.
-func (s phoneStudy) LookUp(ctx context.Context, _ psync.Caller, req psync.WordLookup) (psync.WordEntry, error) {
+// LookUp answers what the word means in the line, from the words looked up on this computer, or else as the AI service set says, which it then keeps among them, unless the phone is read-only (psync.Caller.ReadOnly): a read-only phone reads the words looked up and asks the AI service, but changes nothing on this computer, the words looked up among it.
+func (s phoneStudy) LookUp(ctx context.Context, caller psync.Caller, req psync.WordLookup) (psync.WordEntry, error) {
 	a := s.a
 	f := s.film(ctx, req.Library, req.Film)
 	title := remoteFilmTitle(f)
@@ -95,16 +95,18 @@ func (s phoneStudy) LookUp(ctx context.Context, _ psync.Caller, req psync.WordLo
 		if err != nil {
 			return psync.WordEntry{}, err
 		}
-		_, _ = remote.OnUI(ctx, a.update, func() (struct{}, error) {
-			cache := a.vocabCache()
-			cache.Put(got.q, got.entry, a.saved.now())
-			return struct{}{}, cache.Save()
-		})
+		if !caller.ReadOnly {
+			_, _ = remote.OnUI(ctx, a.update, func() (struct{}, error) {
+				cache := a.vocabCache()
+				cache.Put(got.q, got.entry, a.saved.now())
+				return struct{}{}, cache.Save()
+			})
+		}
 	}
 	return psync.WordEntry{Word: cmp.Or(got.entry.Word, word), Reading: got.entry.Reading, Meaning: got.entry.Meaning, Language: got.q.Language}, nil
 }
 
-// Explain answers the AI service's explanation of the line, with the lines around it as its context, as Explain Line asks for it on this computer.
+// Explain answers the AI service's explanation of the line, as Explain Line asks for it on this computer (explain.Prompt): from the line and the lines before it, at most explainBefore of them, so it gives nothing away of what comes after; the lines after it a phone sends are left out. Its sections are the explanation's paragraphs, in the order the side panel shows them.
 func (s phoneStudy) Explain(ctx context.Context, _ psync.Caller, req psync.LineExplain) (psync.Explanation, error) {
 	a := s.a
 	f := s.film(ctx, req.Library, req.Film)
@@ -112,18 +114,29 @@ func (s phoneStudy) Explain(ctx context.Context, _ psync.Caller, req psync.LineE
 	if err != nil {
 		return psync.Explanation{}, err
 	}
-	around := make([]lines.Line, len(req.Lines))
-	for i, c := range req.Lines {
-		around[i] = lines.New(time.Duration(c.StartMS)*time.Millisecond, strings.TrimSpace(c.Translation), strings.TrimSpace(c.Original))
+	cue := func(c psync.Cue) lines.Line {
+		return lines.New(time.Duration(c.StartMS)*time.Millisecond, strings.TrimSpace(c.Translation), strings.TrimSpace(c.Original))
 	}
-	line := around[req.Index]
-	user := paletteContext(remoteFilmTitle(f), around) + "\n\n要讲解的一句：[" + cmdpalette.Clock(line.Start) + "] " + cmp.Or(line.Original, line.Translation)
-	ctx, cancel := context.WithTimeout(ctx, paletteAskTimeout)
+	var before []lines.Line
+	for _, c := range req.Lines[max(req.Index-explainBefore, 0):req.Index] {
+		before = append(before, cue(c))
+	}
+	line := cue(req.Lines[req.Index])
+	ctx, cancel := context.WithTimeout(ctx, explainTimeout)
 	defer cancel()
-	reply, err := ask.t.Chat(ctx, paletteExplainPrompt(ask.language), user)
+	reply, err := ask.t.Chat(ctx, explain.Prompt(ask.language, line.Translation != "" && line.Original != ""), explain.Request(remoteFilmTitle(f), before, line))
+	var sections explain.Sections
+	if err == nil {
+		sections, err = explain.Parse(reply)
+	}
 	if err != nil {
 		return psync.Explanation{}, err
 	}
-	text, _ := paletteParseReply(reply, around)
-	return psync.Explanation{Text: text, Language: ask.language, Model: strings.TrimSpace(ask.t.Model)}, nil
+	var paragraphs []string
+	for _, p := range []string{sections.Meaning, sections.Breakdown, sections.Translation, sections.Tone, sections.Related} {
+		if p != "" {
+			paragraphs = append(paragraphs, p)
+		}
+	}
+	return psync.Explanation{Text: strings.Join(paragraphs, "\n\n"), Language: ask.language, Model: strings.TrimSpace(ask.t.Model)}, nil
 }

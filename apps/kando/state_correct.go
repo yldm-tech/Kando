@@ -15,7 +15,7 @@ import (
 	nsdesktop "github.com/nsgo-dev/nsgo/desktop"
 )
 
-// Correcting the open film's lines: the user selects a line on the picture (Return), edits its translation and its original, moves its start and end by a tenth of a second, or marks it as no speech, and undoes and redoes those changes. The changes are kept in the film's corrections file (media.SaveCorrections), apart from the subtitle files the pipeline writes, so processing or translating the film again keeps them, and every reader of the lines lays them over the machine's.
+// Correcting the open film's lines: the user selects a line on the picture (E), edits its translation and its original, has the AI service translate it again and picks one of its translations (这句不对, ⇧E), changes words a fix changed in the film's other lines as well, moves its start and end by a tenth of a second, or marks it as no speech, and undoes and redoes those changes. The changes are kept in the film's corrections file (media.SaveCorrections), apart from the subtitle files the pipeline writes, so processing or translating the film again keeps them, and every reader of the lines lays them over the machine's.
 
 // correctUI is the state of correcting the open film's lines.
 type correctUI struct {
@@ -29,24 +29,34 @@ type correctUI struct {
 	original    string
 	// undo and redo are the changes made to the film's corrections, the last at the end: what each changed them from and to, and what it was, for the Edit menu to name.
 	undo, redo []correctStep
+	// pick is the other translations of the selected line while they show (这句不对, state_correct_candidates.go), pickGen counting the requests for them, so a reply to one made before is dropped.
+	pick    *correctPick
+	pickGen int
+	// spread is the fix the bar over the picture asks about spreading to the film's other lines, spreadTimer putting the bar away unanswered (state_correct_spread.go).
+	spread      *correctSpread
+	spreadTimer *film.Timer
 }
 
 func newCorrectUI() correctUI { return correctUI{} }
 
-// correctStep is one change of the open film's corrections: the corrections before and after it, and what it was (one of the correctKind values), of which line, by its number from 1, or of how many lines.
+// correctStep is one change of the open film's corrections: the corrections before and after it, and what it was (one of the correctKind values), of which line, by its number from 1, or of how many lines; a fix spread to the film's lines is named by its words, from and to, and keeps the glossary term it changed, before and after it, for Undo and Redo to put back.
 type correctStep struct {
-	before, after []core.Correction
-	kind          string
-	line          int
+	before, after         []core.Correction
+	kind                  string
+	line                  int
+	from, to              string
+	termBefore, termAfter *core.Term
 }
 
 // What a change of the corrections was, for the Edit menu's Undo and Redo to name it.
 const (
-	correctKindEdit     = "edit"
-	correctKindStart    = "start"
-	correctKindEnd      = "end"
-	correctKindNoSpeech = "no-speech"
-	correctKindRestore  = "restore"
+	correctKindEdit      = "edit"
+	correctKindStart     = "start"
+	correctKindEnd       = "end"
+	correctKindNoSpeech  = "no-speech"
+	correctKindRestore   = "restore"
+	correctKindCandidate = "candidate"
+	correctKindSpread    = "spread"
 )
 
 // correctNudgeShortest is how short a line's start and end moves may make it.
@@ -65,10 +75,12 @@ func (a *app) correctFollow() bool {
 	c := &a.correct
 	subs := a.player.subs
 	if c.film != "" && (a.openKey == "" || subs.key != a.openKey || subs.path != c.film) {
-		*c = correctUI{}
+		a.CloseCandidates()
+		*c = correctUI{pickGen: c.pickGen, spreadTimer: c.spreadTimer}
 		return true
 	}
 	if c.on && a.correctSelected() < 0 {
+		a.CloseCandidates()
 		c.on, c.editing = false, false
 		return true
 	}
@@ -110,9 +122,11 @@ func (a *app) correctCanSelect() bool {
 }
 
 // correctSelecting reports whether a line is selected and its fields do not show, while the keys of the selection work.
-func (a *app) correctSelecting() bool { return a.correctSelected() >= 0 && !a.correct.editing }
+func (a *app) correctSelecting() bool {
+	return a.correctSelected() >= 0 && !a.correct.editing && a.correct.pick == nil
+}
 
-// correctSelectPlaying is Return on the picture: it selects the line playing, or between lines the one just heard, or before the first the one coming, as L loops it.
+// correctSelectPlaying is E on the picture: it selects the line playing, or between lines the one just heard, or before the first the one coming, as L loops it.
 func (a *app) correctSelectPlaying() {
 	cues, _ := a.correctLines()
 	if len(cues) == 0 {
@@ -136,7 +150,8 @@ func (a *app) SelectLine(i int) {
 	if i < 0 || i >= len(cues) {
 		return
 	}
-	a.correct.on, a.correct.editing = true, false
+	a.CloseCandidates()
+	a.correct.on, a.correct.editing, a.correct.spread = true, false, nil
 	a.correct.sel, a.correct.film = from[i].Machine, a.player.subs.path
 	a.correctHoldAt(cues[i].Start)
 }
@@ -170,6 +185,7 @@ func (a *app) StepSelection(d int) {
 
 // EndSelection lets go of the selected line (film.Corrector).
 func (a *app) EndSelection() {
+	a.CloseCandidates()
 	a.correct.on, a.correct.editing = false, false
 }
 
@@ -187,7 +203,7 @@ func (a *app) EditLine() {
 // CancelEdit puts the fields away without changing the line, which stays selected (film.Corrector).
 func (a *app) CancelEdit() { a.correct.editing = false }
 
-// SubmitEdit keeps what the fields hold as the selected line's translation and original, and plays on from the line (film.Corrector). A text back to the machine's drops the correction of it, so a later translation again reaches it. An empty original is not kept, as a cue holding a translation alone reads back as an original (core.SplitCue); a line that is no speech is marked so (MarkNoSpeech).
+// SubmitEdit keeps what the fields hold as the selected line's translation and original, and plays on from the line (film.Corrector); when the edit changed words the film's other lines hold too, a bar asks whether to change them as well (correctOffer). A text back to the machine's drops the correction of it, so a later translation again reaches it. An empty original is not kept, as a cue holding a translation alone reads back as an original (core.SplitCue); a line that is no speech is marked so (MarkNoSpeech).
 func (a *app) SubmitEdit() {
 	i := a.correctSelected()
 	if i < 0 {
@@ -211,7 +227,9 @@ func (a *app) SubmitEdit() {
 		return
 	}
 	a.correct.on, a.correct.editing = false, false
-	a.flash(a.messages().CorrectSaved())
+	if !a.correctOffer(line.Machine, line.Translation, line.Original) {
+		a.flash(a.messages().CorrectSaved())
+	}
 	if play := a.player.play; play != nil && !play.Playing() {
 		play.toggle()
 	}
@@ -401,7 +419,10 @@ func (a *app) correctUndo() {
 	}
 	a.correct.undo = a.correct.undo[:len(a.correct.undo)-1]
 	a.correct.redo = append(a.correct.redo, step)
-	a.correct.editing = false
+	a.correct.editing, a.correct.spread = false, nil
+	if step.termBefore != nil {
+		a.glossaryPut(*step.termBefore)
+	}
 	a.flash(a.messages().CorrectUndone(a.correctStepName(a.messages(), step)))
 }
 
@@ -416,7 +437,10 @@ func (a *app) correctRedo() {
 	}
 	a.correct.redo = a.correct.redo[:len(a.correct.redo)-1]
 	a.correct.undo = append(a.correct.undo, step)
-	a.correct.editing = false
+	a.correct.editing, a.correct.spread = false, nil
+	if step.termAfter != nil {
+		a.glossaryPut(*step.termAfter)
+	}
 	a.flash(a.messages().CorrectRedone(a.correctStepName(a.messages(), step)))
 }
 
@@ -431,16 +455,22 @@ func (a *app) correctStepName(m locales.Messages, step correctStep) string {
 		return m.CorrectStepNoSpeech(step.line)
 	case correctKindRestore:
 		return m.CorrectStepRestore(step.line)
+	case correctKindCandidate:
+		return m.CorrectStepCandidate(step.line)
+	case correctKindSpread:
+		return m.CorrectStepSpread(step.from, step.to)
 	}
 	return m.CorrectStepEdit(step.line)
 }
 
-// correctKeys are the shortcuts of correcting the open film's lines. Return selects the line playing; while one is selected, Shift+← and Shift+→ select the one before or after, Return edits it, ⌃⌥← and ⌃⌥→ move its start and with Shift its end, ⌘⌫ marks it as no speech and Escape lets go of it, for which the player's Escape, which leaves the film, waits (playerKeys): these rows come after the player's, as the first row of a key names it on the cheat sheet, Settings › 快捷键 and the menu bar. Undo and Redo take back and make again the last change, in the Edit menu with what it was, where they stand in for the system's while there is one (shortcut.Role); the fields that edit a line keep ⌘Z for their text.
+// correctKeys are the shortcuts of correcting the open film's lines. E selects the line playing and ⇧E asks the AI service for other translations of it (这句不对), of which ↑ and ↓ highlight one, Return keeps it and Escape puts them away; while a line is selected, Shift+← and Shift+→ select the one before or after, Return edits it, ⌃⌥← and ⌃⌥→ move its start and with Shift its end, ⌘⌫ marks it as no speech and Escape lets go of it, for which the player's Escape, which leaves the film, waits (playerKeys): these rows come after the player's, and the rows of the other translations and of spreading a fix after the selection's, as the first row of a key names it on the cheat sheet, Settings › 快捷键 and the menu bar. Undo and Redo take back and make again the last change, in the Edit menu with what it was, where they stand in for the system's while there is one (shortcut.Role); the fields that edit a line keep ⌘Z for their text.
 func (a *app) correctKeys(cx *ns.Scope) []shortcut {
 	can := func() bool { return a.correctCanSelect() && !a.correct.editing && a.correctSelected() < 0 }
 	selecting := a.correctSelecting
+	picking := a.correctPicking
 	rows := []shortcut{
-		{Group: groupSubtitles, Label: locales.CorrectKeySelect(cx), Key: "enter", When: can, Run: a.correctSelectPlaying},
+		{Group: groupSubtitles, Label: locales.CorrectKeySelect(cx), Key: "e", When: can, Run: a.correctSelectPlaying},
+		{Group: groupSubtitles, Label: locales.CorrectKeyCandidates(cx), Key: "shift+e", When: a.correctCanPick, Run: a.StartCandidates},
 		{Group: groupSubtitles, Label: locales.CorrectKeyEdit(cx), Key: "enter", When: selecting, Run: a.EditLine},
 		{Group: groupSubtitles, Label: locales.CorrectKeyPrev(cx), Key: "shift+left", Repeat: true, When: selecting, Run: func() { a.StepSelection(-1) }},
 		{Group: groupSubtitles, Label: locales.CorrectKeyNext(cx), Key: "shift+right", Repeat: true, When: selecting, Run: func() { a.StepSelection(1) }},
@@ -451,6 +481,13 @@ func (a *app) correctKeys(cx *ns.Scope) []shortcut {
 		{Group: groupSubtitles, Label: locales.CorrectKeyNoSpeech(cx), Key: "mod+backspace", When: selecting, Run: a.MarkNoSpeech},
 		{Group: groupSubtitles, Label: locales.CorrectKeyDone(cx), Key: "escape", When: selecting, Run: a.EndSelection},
 		{Group: groupSubtitles, Label: locales.CorrectKeyRestore(cx), When: func() bool { return a.correctNoSpeechCount() > 0 }, Run: a.correctRestoreNoSpeech},
+		{Group: groupSubtitles, Label: locales.CorrectKeyPickUp(cx), Key: "up", Repeat: true, When: picking, Run: func() { a.correctMovePick(-1) }},
+		{Group: groupSubtitles, Label: locales.CorrectKeyPickDown(cx), Key: "down", Repeat: true, When: picking, Run: func() { a.correctMovePick(1) }},
+		{Group: groupSubtitles, Label: locales.CorrectKeyPick(cx), Key: "enter", When: picking, Run: a.correctPickHighlighted},
+		{Group: groupSubtitles, Label: locales.CorrectKeyPickCancel(cx), Key: "escape", When: picking, Run: a.CloseCandidates},
+		{Group: groupSubtitles, Label: locales.CorrectKeySpreadAll(cx), Key: "mod+enter", When: a.correctSpreading, Run: a.SpreadAll},
+		{Group: groupSubtitles, Label: locales.CorrectKeySpreadView(cx), Key: "mod+shift+enter", When: a.correctSpreading, Run: a.SpreadView},
+		{Group: groupSubtitles, Label: locales.CorrectKeySpreadOnly(cx), Key: "escape", When: a.correctSpreading, Run: a.SpreadOnly},
 	}
 	// Undo and Redo are rows only while there is a change to undo or redo, so the system's own items, which the text fields use, are the Edit menu's otherwise (shortcut.Role).
 	if a.correctCanUndo() {

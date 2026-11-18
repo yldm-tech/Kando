@@ -39,6 +39,9 @@ type Tools struct {
 	WhisperModel string
 	// SpeechLanguage is the language spoken in the videos, as whisper.cpp's -l names it (one of SpeechLanguages); empty lets whisper detect it. A job that names the language of its own video (core.Job.SpeechLanguage) is heard in that one instead (Run).
 	SpeechLanguage string
+	// WhisperThreads is how many threads whisper.cpp recognizes speech with (-t), 0 for as many as suit this computer (WhisperThreadsAuto). WhisperHints are words the videos say that whisper should spell as written, such as names and terms (--prompt), "" for none.
+	WhisperThreads int
+	WhisperHints   string
 	Translator     ChatTranslator
 	// Cookies is the browser whose login Download borrows, as yt-dlp's --cookies-from-browser names it (chrome, safari, firefox, edge, brave); empty borrows none.
 	Cookies string
@@ -450,7 +453,7 @@ func (t Tools) Transcribe(ctx context.Context, videoPath string) ([]core.Segment
 	if language == "" {
 		language = "auto"
 	}
-	if _, _, err := runFollowing(ctx, true, follow, t.Whisper, "-m", t.WhisperModel, "-t", strconv.Itoa(whisperThreadCount()), "-l", language, "-np", "-pp", "-oj", "-of", transcript, "-f", audio); err != nil {
+	if _, _, err := runFollowing(ctx, true, follow, t.Whisper, t.WhisperArgs(language, transcript, audio)...); err != nil {
 		return nil, err
 	}
 	data, err := os.ReadFile(transcript + ".json")
@@ -470,6 +473,36 @@ func (t Tools) Transcribe(ctx context.Context, videoPath string) ([]core.Segment
 func NoAudioStream(ffmpegError string) bool {
 	return strings.Contains(ffmpegError, "does not contain any stream")
 }
+
+// WhisperArgs are the arguments whisper-cli is run with to recognize the speech of audio, a 16 kHz mono WAV file, in language, whisper's code or "auto", writing its lines as JSON to out.json: the model, the threads (WhisperThreads), the language, the hints (WhisperHints) and the progress on stderr (-pp), which -np leaves alone. Settings › 语音识别 shows them as the command it runs.
+func (t Tools) WhisperArgs(language, out, audio string) []string {
+	threads := t.WhisperThreads
+	if threads <= 0 {
+		threads = WhisperThreadsAuto()
+	}
+	args := []string{"-m", t.WhisperModel, "-t", strconv.Itoa(threads), "-l", language}
+	if hints := WhisperPrompt(t.WhisperHints); hints != "" {
+		args = append(args, "--prompt", hints)
+	}
+	return append(args, "-np", "-pp", "-oj", "-of", out, "-f", audio)
+}
+
+// WhisperPrompt is the hints typed in Settings › 语音识别 as whisper.cpp's --prompt takes them: one line of words separated by commas, the blank lines and the spaces around each dropped, "" for none. whisper reads the prompt as text said before the audio, so the words it lists are spelled as they are.
+func WhisperPrompt(hints string) string {
+	var words []string
+	for _, line := range strings.FieldsFunc(hints, func(r rune) bool { return r == '\n' || r == ',' || r == '，' || r == '、' }) {
+		if word := strings.TrimSpace(line); word != "" {
+			words = append(words, word)
+		}
+	}
+	return strings.Join(words, ", ")
+}
+
+// WhisperThreadChoices are the thread counts Settings › 语音识别 offers besides 0, as many as suit this computer.
+var WhisperThreadChoices = []int{2, 4, 8}
+
+// WhisperThreadsAuto is how many threads whisper.cpp recognizes speech with when WhisperThreads is 0 (whisperThreadCount).
+func WhisperThreadsAuto() int { return whisperThreadCount() }
 
 // whisperThreadCount uses the available CPU without letting a large machine
 // create more decoder contention than whisper.cpp can use effectively. Four is
