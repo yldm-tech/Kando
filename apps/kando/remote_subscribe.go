@@ -8,6 +8,7 @@ import (
 
 	"kando/apps/kando/playlist"
 	"kando/apps/kando/remote"
+	"kando/apps/kando/sidebar"
 	"kando/apps/kando/subscribe"
 	kcore "kando/packages/core"
 	"kando/packages/media"
@@ -52,11 +53,14 @@ func remoteSubscription(sub subscribe.Sub) remote.Subscription {
 	return r
 }
 
-// remoteSubscribeLibrary is the open library, which the subscription methods work in; without one they are not ready.
+// remoteSubscribeLibrary is the open library, which the subscription methods work in; without one, or while it is locked, they are not ready. remoteHandle's lock gate looks only before a method starts, and these look again after yt-dlp has read a list for minutes, in which the user may have locked it.
 func (a *app) remoteSubscribeLibrary() (string, error) {
 	dir := a.snap().LibraryDir
-	if strings.TrimSpace(dir) == "" {
+	switch {
+	case strings.TrimSpace(dir) == "":
 		return "", remote.Errorf(remote.CodeNotReady, "%s", remoteMessages().PrecheckNoLibrary())
+	case a.lockShut():
+		return "", remote.Errorf(remote.CodeNotReady, "%s", remoteMessages().LockLibraryIsLocked(sidebar.Title(dir)))
 	}
 	return dir, nil
 }
@@ -116,6 +120,13 @@ func (a *app) remoteSubscribe(ctx context.Context, p remote.SubscribeParams) (re
 		return remote.Subscribed{}, remote.Errorf(remote.CodeFailed, "%s", playlistError(m, err))
 	}
 	return remote.OnUI(ctx, a.update, func() (remote.Subscribed, error) {
+		// The library may have been locked while yt-dlp read it, or another one opened and that one locked.
+		if _, err := a.remoteSubscribeLibrary(); err != nil {
+			return remote.Subscribed{}, err
+		}
+		if a.LibraryLocked(got.dir) {
+			return remote.Subscribed{}, remote.Errorf(remote.CodeNotReady, "%s", m.LockLibraryIsLocked(sidebar.Title(got.dir)))
+		}
 		// The window may have subscribed to it while yt-dlp read it.
 		if sub, ok := a.subs.store.Following(source, got.dir); ok {
 			return remote.Subscribed{Subscription: remoteSubscription(*sub), Already: true}, nil

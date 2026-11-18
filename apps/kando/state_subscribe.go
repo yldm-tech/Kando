@@ -472,7 +472,7 @@ func (a *app) subscribeAskSubmit() {
 	}()
 }
 
-// subscribeAskRead takes what the dialog's reading found: why the list could not be read, which the dialog says, or the list, which becomes a subscription of the library at dir whose page then shows, the videos the list holds now counting as seen.
+// subscribeAskRead takes what the dialog's reading found: why the list could not be read, which the dialog says, or the list, which becomes a subscription of the library at dir whose page then shows, the videos the list holds now counting as seen; if the library follows it already by then, that subscription's page shows instead.
 func (a *app) subscribeAskRead(run int, source, dir string, listing media.Listing, err error) {
 	ask := &a.subs.ask
 	if ask.run != run || !ask.open {
@@ -480,6 +480,13 @@ func (a *app) subscribeAskRead(run int, source, dir string, listing media.Listin
 	}
 	if err != nil {
 		ask.reading, ask.cancel, ask.err = false, nil, playlistError(a.messages(), err)
+		return
+	}
+	// The control socket may have subscribed to it while yt-dlp read it (remoteSubscribe).
+	if have, ok := a.subs.store.Following(source, dir); ok {
+		a.subscribeAskClose()
+		a.subscribeShow(have.ID)
+		a.subs.notes[have.ID] = subscribeNote{Note: subscribe.Note{Kind: subscribe.NoteAlready}}
 		return
 	}
 	sub := subscribe.New(source, dir, listing, time.Now())

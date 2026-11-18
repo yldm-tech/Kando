@@ -29,6 +29,8 @@ type listingPipeline struct {
 	hold    bool
 	calls   chan listCall
 	stopped chan error
+	// listed, when set, runs on the lister's goroutine before a list it has is returned, as what happens while yt-dlp reads.
+	listed func()
 }
 
 func newListingPipeline(lists map[string]media.Listing) *listingPipeline {
@@ -48,6 +50,9 @@ func (p *listingPipeline) ListVideos(ctx context.Context, source string, limit i
 	}
 	if limit > 0 && len(listing.Videos) > limit {
 		listing.Videos = listing.Videos[:limit]
+	}
+	if p.listed != nil {
+		p.listed()
 	}
 	return listing, nil
 }
