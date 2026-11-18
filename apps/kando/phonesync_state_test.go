@@ -193,6 +193,12 @@ func TestPhoneSyncSyncsTheLearningState(t *testing.T) {
 		t.Errorf("conflict %+v", conflict)
 	}
 
+	// A value of another type than the field's is refused, rather than kept as no note.
+	_, err = phoneAsk(t, p, func(ctx context.Context) (psync.StatePutResult, error) {
+		return c.ResolveConflict(ctx, lib, conflict.ID, psync.Value(5))
+	})
+	phoneWantCode(t, err, http.StatusBadRequest, psync.CodeInvalid)
+
 	// 两条都留: the phone keeps both, which the desktop's line takes.
 	if _, err := phoneAsk(t, p, func(ctx context.Context) (psync.StatePutResult, error) {
 		return c.ResolveConflict(ctx, lib, conflict.ID, psync.Value("phone again\nfrom the desk"))
@@ -242,5 +248,173 @@ func TestPhoneSyncNeverSyncsALockedLibrarysState(t *testing.T) {
 	}
 	if _, err := os.Stat(filepath.Join(dir, phonesync.LedgerFile)); !os.IsNotExist(err) {
 		t.Errorf("a ledger was kept for a locked library: %v", err)
+	}
+}
+
+// A library that is not the open one, whose saved lines are still only in saved-lines.json, has its study record saved as it is first read, so its lines keep their IDs from one call to the next instead of being removed and made again at each, and a phone's note on one is kept.
+func TestPhoneSyncKeepsTheLinesOfALibraryNotOpenWithOnlyOldSavedLines(t *testing.T) {
+	a, p, _, _, c, clock := phoneStateLibrary(t)
+	other := t.TempDir()
+	remoteWriteFile(t, filepath.Join(other, "Film", "film.mp4"), "video")
+	remoteWriteFile(t, filepath.Join(other, "Film", "film.bilingual.srt"), "1\n00:00:01,000 --> 00:00:02,000\n你好\nHi\n\n")
+	remoteWriteFile(t, filepath.Join(other, study.LegacyFileName), `{"lines":[{"video":"Film/film.mp4","start":1,"end":2,"original":"Hi","translation":"你好","savedAt":"2026-11-01T09:00:00Z"}]}`)
+	a.edit(func(s *session) { s.Libraries = append(s.Libraries, other) })
+	refresh(p.tt, a)
+	lib := phoneLibraryID(other)
+
+	first, err := phoneAsk(t, p, func(ctx context.Context) (psync.StateChanges, error) { return c.State(ctx, lib, "", 0) })
+	if err != nil {
+		t.Fatal(err)
+	}
+	var lines []psync.Record
+	for _, r := range first.Records {
+		if r.Kind == psync.KindLine {
+			lines = append(lines, r)
+		}
+	}
+	if len(lines) != 1 || lines[0].Removed != nil {
+		t.Fatalf("lines %+v, want the one saved line", lines)
+	}
+	if _, err := os.Stat(filepath.Join(other, study.FileName)); err != nil {
+		t.Errorf("the study record was not saved with the old lines: %v", err)
+	}
+	again, err := phoneAsk(t, p, func(ctx context.Context) (psync.StateChanges, error) {
+		return c.State(ctx, lib, first.Epoch, first.Rev)
+	})
+	if err != nil || again.Reset || len(again.Records) != 0 {
+		t.Fatalf("read again %+v, %v; want nothing changed", again, err)
+	}
+
+	id := lines[0].ID
+	base := lines[0].Fields[psync.FieldNote].Stamp
+	clock.Add(time.Minute)
+	if _, err := phoneAsk(t, p, func(ctx context.Context) (psync.StatePutResult, error) {
+		return c.PutState(ctx, lib, []psync.Record{{Kind: psync.KindLine, ID: id, Fields: map[string]psync.Field{psync.FieldNote: {Value: psync.Value("from the phone"), Stamp: psync.Stamp{At: clock.Now()}, Base: &base}}}})
+	}); err != nil {
+		t.Fatal(err)
+	}
+	disk, err := study.Load(other)
+	if i := disk.Index(id); err != nil || i < 0 || disk.Lines[i].Note != "from the phone" {
+		t.Errorf("the study record on disk %+v, %v; want the phone's note on line %s", disk.Lines, err, id)
+	}
+}
+
+// A line a phone saves that the study record cannot keep is not kept in the ledger either: once the record can be written again, the line is not taken as removed on the desktop, and the phone's second try keeps it.
+func TestPhoneSyncKeepsNothingOfAPutTheStudyRecordCouldNotKeep(t *testing.T) {
+	if os.Geteuid() == 0 {
+		t.Skip("root writes into a folder without write permission")
+	}
+	a, p, dir, _, c, clock := phoneStateLibrary(t)
+	lib := phoneLibraryID(dir)
+	got, err := phoneAsk(t, p, func(ctx context.Context) (psync.StateChanges, error) { return c.State(ctx, lib, "", 0) })
+	if err != nil {
+		t.Fatal(err)
+	}
+	interview := phoneFilmID(films.Film{VideoPath: filepath.Join(dir, "Interview", "interview.mp4")})
+	clock.Add(time.Minute)
+	now := clock.Now()
+	field := func(v any) psync.Field { return psync.Field{Value: psync.Value(v), Stamp: psync.Stamp{At: now}} }
+	line := []psync.Record{{Kind: psync.KindLine, ID: "phoneline", Film: interview, Fields: map[string]psync.Field{
+		psync.FieldStartMS: field(500), psync.FieldEndMS: field(1000), psync.FieldOriginal: field("Good morning"), psync.FieldTranslation: field("早上好"),
+		psync.FieldTitle: field("Interview"), psync.FieldSavedAt: field(now), psync.FieldNote: field(""), psync.FieldReview: field(psync.Review{Due: now}),
+	}}}
+	if err := os.Chmod(dir, 0o555); err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = os.Chmod(dir, 0o755) })
+	if _, err := phoneAsk(t, p, func(ctx context.Context) (psync.StatePutResult, error) { return c.PutState(ctx, lib, line) }); err == nil {
+		t.Fatal("a put the study record could not keep succeeded")
+	}
+	if a.saved.book.Index("phoneline") >= 0 {
+		t.Error("the open library's lines took a line its study record does not have")
+	}
+	if err := os.Chmod(dir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	since, err := phoneAsk(t, p, func(ctx context.Context) (psync.StateChanges, error) { return c.State(ctx, lib, got.Epoch, got.Rev) })
+	if err != nil {
+		t.Fatal(err)
+	}
+	if slices.ContainsFunc(since.Records, func(r psync.Record) bool { return r.ID == "phoneline" }) {
+		t.Fatalf("the line not kept is in the state: %+v", since.Records)
+	}
+	res, err := phoneAsk(t, p, func(ctx context.Context) (psync.StatePutResult, error) { return c.PutState(ctx, lib, line) })
+	if err != nil || len(res.Records) != 1 || res.Records[0].Removed != nil {
+		t.Fatalf("second try %+v, %v", res, err)
+	}
+	if disk, err := study.Load(dir); err != nil || disk.Index("phoneline") < 0 {
+		t.Errorf("the study record on disk lacks the phone's line: %v", err)
+	}
+}
+
+// A change made on the desktop is stamped when it is made, not when a phone next asks, so a phone's change made after it but sent later still wins.
+func TestPhoneSyncStampsTheDesktopsChangesWhenTheyAreMade(t *testing.T) {
+	a, p, dir, talk, c, clock := phoneStateLibrary(t)
+	lib := phoneLibraryID(dir)
+	// No phone has asked yet: the open library's state is read for its ledger as it changes.
+	waitUntil(t, p.tt, a, p.updates, func() bool {
+		l, ok := a.phone.ledgers[filepath.Clean(dir)]
+		return ok && l.listed && len(a.phone.priming) == 0
+	})
+	clock.Add(time.Minute)
+	moved := clock.Now()
+	a.player.positions[talk] = 30 * time.Second
+	refresh(p.tt, a)
+
+	// The phone, offline meanwhile, moved the position later, and sends it later still.
+	clock.Add(5 * time.Minute)
+	phoneMoved := clock.Now()
+	clock.Add(5 * time.Minute)
+	got, err := phoneAsk(t, p, func(ctx context.Context) (psync.StateChanges, error) { return c.State(ctx, lib, "", 0) })
+	if err != nil {
+		t.Fatal(err)
+	}
+	if f := phoneStateFind(t, got.Records, psync.KindPosition, "yt").Fields[psync.FieldPositionMS]; string(f.Value) != "30000" || !f.At.Equal(moved) {
+		t.Fatalf("position %s stamped %v, want 30000 stamped when it moved, %v", f.Value, f.At, moved)
+	}
+	if _, err := phoneAsk(t, p, func(ctx context.Context) (psync.StatePutResult, error) {
+		return c.PutState(ctx, lib, []psync.Record{{Kind: psync.KindPosition, ID: "yt", Film: "yt", Fields: map[string]psync.Field{psync.FieldPositionMS: {Value: json.RawMessage("45000.4"), Stamp: psync.Stamp{At: phoneMoved}}}}})
+	}); err != nil {
+		t.Fatal(err)
+	}
+	if a.player.positions[talk] != 45*time.Second {
+		t.Errorf("position %v, want the phone's later 0:45", a.player.positions[talk])
+	}
+}
+
+// A value of another type than its field's is refused, rather than kept as nothing over the desktop's.
+func TestPhoneSyncRefusesValuesOfAnotherType(t *testing.T) {
+	a, p, dir, talk, c, _ := phoneStateLibrary(t)
+	lib := phoneLibraryID(dir)
+	if _, err := phoneAsk(t, p, func(ctx context.Context) (psync.StateChanges, error) { return c.State(ctx, lib, "", 0) }); err != nil {
+		t.Fatal(err)
+	}
+	lineID := a.saved.book.Lines[0].ID
+	for _, bad := range []psync.Record{
+		{Kind: psync.KindLine, ID: lineID, Fields: map[string]psync.Field{psync.FieldNote: {Value: psync.Value(7)}}},
+		{Kind: psync.KindPosition, ID: "yt", Film: "yt", Fields: map[string]psync.Field{psync.FieldPositionMS: {Value: psync.Value("1:30")}}},
+	} {
+		_, err := phoneAsk(t, p, func(ctx context.Context) (psync.StatePutResult, error) {
+			return c.PutState(ctx, lib, []psync.Record{bad})
+		})
+		phoneWantCode(t, err, http.StatusBadRequest, psync.CodeInvalid)
+	}
+	if a.player.positions[talk] != 90*time.Second || a.saved.book.Lines[0].Note != "" {
+		t.Errorf("position %v, note %q; want them as they were", a.player.positions[talk], a.saved.book.Lines[0].Note)
+	}
+}
+
+// While a library's files are being moved into or out of its encrypted image, its learning state is neither read nor written.
+func TestPhoneSyncLeavesTheStateOfALibraryBeingMoved(t *testing.T) {
+	a, p, dir, _, c, _ := phoneStateLibrary(t)
+	waitUntil(t, p.tt, a, p.updates, func() bool { return len(a.phone.priming) == 0 })
+	_ = os.Remove(filepath.Join(dir, phonesync.LedgerFile))
+	a.phone.ledgers = nil
+	a.lock.vault.work = filepath.Clean(dir)
+	t.Cleanup(func() { a.lock.vault.work = "" })
+	_, err := phoneAsk(t, p, func(ctx context.Context) (psync.StateChanges, error) { return c.State(ctx, phoneLibraryID(dir), "", 0) })
+	phoneWantCode(t, err, http.StatusNotFound, psync.CodeNotFound)
+	if _, err := os.Stat(filepath.Join(dir, phonesync.LedgerFile)); !os.IsNotExist(err) {
+		t.Errorf("a ledger was written into a library being moved: %v", err)
 	}
 }

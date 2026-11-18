@@ -113,16 +113,21 @@ func (a *app) savedSync() {
 	}
 }
 
-// savedLoad reads the saved lines of the library at dir (saved.Load), to be changed on this computer by the saved lines' clock. The first time, this computer is given its id in the study record, which settings.json keeps from then on.
+// savedLoad reads the saved lines of the library at dir (saved.Load), to be changed on this computer by the saved lines' clock (savedOwn).
 func (a *app) savedLoad(dir string) (saved.Book, error) {
+	book, err := saved.Load(dir)
+	return a.savedOwn(book), err
+}
+
+// savedOwn is book, read from its folder (saved.Load), to be changed on this computer by the saved lines' clock. The first time, this computer is given its id in the study record, which settings.json keeps from then on. UI thread only.
+func (a *app) savedOwn(book saved.Book) saved.Book {
 	if a.saved.device == "" {
 		a.saved.device = study.NewID()
 		_ = a.saveSettingsChanged()
 	}
-	book, err := saved.Load(dir)
 	book.Device = a.saved.device
 	book.Now = func() time.Time { return a.saved.now() }
-	return book, err
+	return book
 }
 
 // savedBook is the saved lines of the library open now, none while they are not read yet (savedSync) or while the library is locked (lockShut), for the bindings.

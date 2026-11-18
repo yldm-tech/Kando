@@ -2,7 +2,9 @@ package phonesync
 
 import (
 	"encoding/json"
+	"math"
 	"path/filepath"
+	"strconv"
 	"time"
 
 	"kando/packages/core"
@@ -198,13 +200,18 @@ func SetCorrection(edits []core.Correction, c core.Correction) []core.Correction
 	return core.SetCorrection(edits, at, c)
 }
 
-// StateAccepts reports why records a device put cannot be kept, "" when they all can: a record of a kind the desktop does not sync, a correction whose ID names no line, or a record of a film the desktop does not serve (known), unless the ledger has it already (have), as a line whose film has left the library.
+// StateAccepts reports why records a device put cannot be kept, "" when they all can: a record of a kind the desktop does not sync, a field whose value is not of its type (FieldValid), a correction whose ID names no line, or a record of a film the desktop does not serve (known), unless the ledger has it already (have), as a line whose film has left the library.
 func StateAccepts(records []psync.Record, known func(film string) bool, have func(kind, id string) bool) string {
 	for _, r := range records {
 		switch r.Kind {
 		case psync.KindPosition, psync.KindLine, psync.KindCorrection:
 		default:
 			return "this desktop does not sync records of kind " + r.Kind
+		}
+		for name, f := range r.Fields {
+			if !FieldValid(r.Kind, name, f.Value) {
+				return "field " + name + " of " + r.Kind + " " + r.ID + " is not of its type"
+			}
 		}
 		if r.Kind == psync.KindCorrection {
 			film, _, _, ok := psync.ParseCorrectionID(r.ID)
@@ -230,11 +237,53 @@ func StateAccepts(records []psync.Record, known func(film string) bool, have fun
 	return ""
 }
 
-// msField is a field's value read as milliseconds, 0 for null or anything else; a shift may be less than 0.
+// FieldValid reports whether v is a value field name of a record of kind may hold, as state.go types it, so a value of another type is refused rather than kept as nothing over the desktop's. A field the desktop does not know, as one a later protocol adds, holds anything. Milliseconds are any number, a phone's Double among them, rounded when read (msField).
+func FieldValid(kind, name string, v json.RawMessage) bool {
+	var x any
+	if json.Unmarshal(v, &x) != nil {
+		return false
+	}
+	isNull := x == nil
+	_, isString := x.(string)
+	_, isNumber := x.(float64)
+	_, isBool := x.(bool)
+	switch kind {
+	case psync.KindPosition:
+		if name == psync.FieldPositionMS {
+			return isNull || isNumber
+		}
+	case psync.KindLine:
+		switch name {
+		case psync.FieldStartMS, psync.FieldEndMS:
+			return isNumber
+		case psync.FieldOriginal, psync.FieldTranslation, psync.FieldNote, psync.FieldTitle:
+			return isString
+		case psync.FieldSavedAt:
+			var at time.Time
+			return isString && json.Unmarshal(v, &at) == nil
+		case psync.FieldReview:
+			var r psync.Review
+			_, isObject := x.(map[string]any)
+			return isObject && json.Unmarshal(v, &r) == nil
+		}
+	case psync.KindCorrection:
+		switch name {
+		case psync.FieldOriginal, psync.FieldTranslation:
+			return isNull || isString
+		case psync.FieldStartShiftMS, psync.FieldEndShiftMS:
+			return isNull || isNumber
+		case psync.FieldNoSpeech:
+			return isNull || isBool
+		}
+	}
+	return true
+}
+
+// msField is a field's value read as milliseconds, rounded, 0 for null or anything else; a shift may be less than 0.
 func msField(f psync.Field) time.Duration {
-	var ms int64
+	var ms float64
 	readJSON(f.Value, &ms)
-	return time.Duration(ms) * time.Millisecond
+	return time.Duration(math.Round(ms)) * time.Millisecond
 }
 
 // readJSON reads v from data, leaving it as it is for null or what it cannot read.
@@ -243,4 +292,26 @@ func readJSON(data json.RawMessage, v any) {
 		return
 	}
 	_ = json.Unmarshal(data, v)
+}
+
+// LineSign is what a phone is told of l that the desktop changes, as text, for the desktop to sum up and see when it changed.
+func LineSign(l study.Line) []string {
+	s := l.Stamps
+	return []string{l.ID, l.Video, stampSign(s.Original), stampSign(s.Translation), stampSign(s.Note), stampSign(s.Review), stampSign(s.Video)}
+}
+
+// CorrectionSign is what a phone is told of c, as text, for the desktop to sum up and see when it changed.
+func CorrectionSign(c core.Correction) []string {
+	return []string{strconv.FormatInt(int64(c.Span.Start), 10), strconv.FormatInt(int64(c.Span.End), 10), textSign(c.Original), textSign(c.Translation), strconv.FormatInt(int64(c.StartShift), 10), strconv.FormatInt(int64(c.EndShift), 10), strconv.FormatBool(c.NoSpeech)}
+}
+
+// stampSign is when and where s was stamped, as text.
+func stampSign(s study.Stamp) string { return strconv.FormatInt(s.At.UnixNano(), 36) + s.Device }
+
+// textSign is s, or a mark of none for nil.
+func textSign(s *string) string {
+	if s == nil {
+		return "\x00nil"
+	}
+	return *s
 }

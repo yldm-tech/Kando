@@ -1,6 +1,7 @@
 package phonesync
 
 import (
+	"encoding/json"
 	"strings"
 	"testing"
 	"time"
@@ -95,5 +96,50 @@ func TestStateAcceptsOnlyRecordsItCanKeep(t *testing.T) {
 	}
 	if !strings.Contains(StateAccepts([]psync.Record{{Kind: psync.KindWord, ID: "w"}}, known, none), "word") {
 		t.Error("the refusal does not name the kind")
+	}
+}
+
+func TestFieldValidTakesOnlyValuesOfTheFieldsType(t *testing.T) {
+	for _, c := range []struct {
+		kind, field, value string
+		ok                 bool
+	}{
+		{psync.KindPosition, psync.FieldPositionMS, `12345`, true},
+		{psync.KindPosition, psync.FieldPositionMS, `12345.6`, true},
+		{psync.KindPosition, psync.FieldPositionMS, `null`, true},
+		{psync.KindPosition, psync.FieldPositionMS, `"12345"`, false},
+		{psync.KindLine, psync.FieldNote, `"a note"`, true},
+		{psync.KindLine, psync.FieldNote, `""`, true},
+		{psync.KindLine, psync.FieldNote, `7`, false},
+		{psync.KindLine, psync.FieldNote, `null`, false},
+		{psync.KindLine, psync.FieldStartMS, `"1000"`, false},
+		{psync.KindLine, psync.FieldSavedAt, `"2026-11-18T09:00:00Z"`, true},
+		{psync.KindLine, psync.FieldSavedAt, `"yesterday"`, false},
+		{psync.KindLine, psync.FieldReview, `{"box":2,"due":"2026-11-18T09:00:00Z"}`, true},
+		{psync.KindLine, psync.FieldReview, `{"box":"two"}`, false},
+		{psync.KindLine, psync.FieldReview, `2`, false},
+		{psync.KindCorrection, psync.FieldTranslation, `null`, true},
+		{psync.KindCorrection, psync.FieldTranslation, `false`, false},
+		{psync.KindCorrection, psync.FieldStartShiftMS, `-100`, true},
+		{psync.KindCorrection, psync.FieldNoSpeech, `true`, true},
+		{psync.KindCorrection, psync.FieldNoSpeech, `1`, false},
+		// A field this desktop does not know holds anything.
+		{psync.KindLine, "later", `[1]`, true},
+	} {
+		if got := FieldValid(c.kind, c.field, json.RawMessage(c.value)); got != c.ok {
+			t.Errorf("%s %s = %s: valid %v, want %v", c.kind, c.field, c.value, got, c.ok)
+		}
+	}
+	bad := []psync.Record{{Kind: psync.KindLine, ID: "l", Film: "f1", Fields: map[string]psync.Field{psync.FieldStartMS: {Value: psync.Value(0)}, psync.FieldNote: {Value: psync.Value(7)}}}}
+	if why := StateAccepts(bad, func(string) bool { return true }, func(string, string) bool { return false }); why == "" {
+		t.Error("accepted a note that is a number")
+	}
+}
+
+// A phone's milliseconds may come as a Double; they are rounded rather than read as 0.
+func TestPositionOfRoundsMilliseconds(t *testing.T) {
+	r := psync.Record{Kind: psync.KindPosition, ID: "f1", Film: "f1", Fields: map[string]psync.Field{psync.FieldPositionMS: {Value: json.RawMessage(`12345.6`)}}}
+	if got := PositionOf(r); got != 12346*time.Millisecond {
+		t.Errorf("position %v, want 12.346s", got)
 	}
 }

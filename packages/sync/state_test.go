@@ -43,8 +43,8 @@ func TestMergeRecordTakesTheLaterChangeOfEachField(t *testing.T) {
 	if !changed {
 		t.Fatal("merge reported no change")
 	}
-	if got := str(t, out.Fields[FieldNote]); got != "desk note" {
-		t.Errorf("note = %q, want the later desk note", got)
+	if got := str(t, out.Fields[FieldNote]); got != "phone note" {
+		t.Errorf("note = %q, want the phone's, made from the desk note", got)
 	}
 	if got := str(t, out.Fields[FieldTranslation]); got != "new" {
 		t.Errorf("translation = %q, want the phone's later one", got)
@@ -66,6 +66,30 @@ func TestMergeRecordTakesTheLaterChangeOfEachField(t *testing.T) {
 	again, changed, _ := MergeRecord(out, in)
 	if changed || !sameRecord(again, out) {
 		t.Errorf("merging again changed the record: %+v", again)
+	}
+}
+
+// A phone whose clock runs behind the desktop's edits the desktop's latest value: its edit came after that value, so it wins, stamped just after it, rather than being dropped without a conflict.
+func TestMergeRecordKeepsAnEditOfTheLatestValueFromAPhoneBehindTheDesk(t *testing.T) {
+	desk := at(60, "desk")
+	have := Record{Kind: KindLine, ID: "l1", Fields: map[string]Field{FieldNote: field("desk note", desk)}}
+	in := Record{Kind: KindLine, ID: "l1", Fields: map[string]Field{FieldNote: {Value: Value("phone note"), Stamp: at(55, "phone"), Base: &desk}}}
+	out, changed, clashes := MergeRecord(have, in)
+	if !changed || str(t, out.Fields[FieldNote]) != "phone note" || len(clashes) != 0 {
+		t.Fatalf("merged %+v, changed %v, clashes %+v; want the phone's note kept without a conflict", out.Fields[FieldNote], changed, clashes)
+	}
+	if got := out.Fields[FieldNote].Stamp; !got.After(desk) || got.Device != "phone" {
+		t.Errorf("stamp %+v, want the phone's, after the desk's %+v", got, desk)
+	}
+	if again, changed, _ := MergeRecord(out, in); changed || !sameRecord(again, out) {
+		t.Errorf("putting the same edit again changed the record: %+v", again)
+	}
+	// An edit of an older value is not moved: it still loses to the later desk change, as a conflict.
+	stale := at(30, "desk")
+	in.Fields[FieldNote] = Field{Value: Value("phone note"), Stamp: at(55, "phone"), Base: &stale}
+	out, _, clashes = MergeRecord(have, in)
+	if str(t, out.Fields[FieldNote]) != "desk note" || len(clashes) != 1 {
+		t.Errorf("stale edit gave %+v with clashes %+v, want the desk's note kept and one conflict", out.Fields[FieldNote], clashes)
 	}
 }
 

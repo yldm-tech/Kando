@@ -53,8 +53,9 @@ type phoneUI struct {
 	now    func() time.Time
 	// receiveOff is 接收手机发来的链接 turned off, and receiveAsk 收到后 set to 先问我, which settings.json keeps (state_phonesync_jobs.go).
 	receiveOff, receiveAsk bool
-	// ledgers are the libraries' learning state as phones were last told it, by library folder, each read the first time a phone asks (state_phonesync_state.go); stateSign sums up the open library's state as phones were last told it changed (phoneSyncPublishState).
+	// ledgers are the libraries' learning state as phones were last told it, by library folder, each read the first time a phone asks or the open library changes (state_phonesync_state.go), and priming the folders being read so (phoneStatePrime); stateSign sums up the open library's state as phones were last told it changed (phoneSyncPublishState).
 	ledgers   map[string]*phoneLedger
+	priming   map[string]bool
 	stateSign uint64
 }
 
@@ -177,6 +178,7 @@ func (a *app) phoneSyncStop() {
 			log.Printf("phonesync: stop: %v", err)
 		}
 	}
+	a.phoneStateKeepAll()
 	a.phone.running, a.phone.fingerprint, a.phone.shown = false, nil, false
 	a.phone.offer, a.phone.addrs, a.phone.devices, a.phone.revokeErr = phonesync.Offer{}, nil, nil, ""
 	a.phoneSyncQR()

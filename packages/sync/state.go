@@ -265,7 +265,7 @@ func empty(v json.RawMessage) bool {
 	return false
 }
 
-// MergeRecord is have, the desktop's copy of a record (Kind "" for none yet), with in, a device's change of it, taken in field by field, the later change of each winning, and whether that changed have. A tombstone on either side wins over every field. It returns, for each field where two changes made apart of a Conflictable field both had text and the one set aside was not the device's own earlier change, the field kept and the one set aside, for the caller to record as a Conflict.
+// MergeRecord is have, the desktop's copy of a record (Kind "" for none yet), with in, a device's change of it, taken in field by field, the later change of each winning, and whether that changed have. A change made from the value have holds (its Base is have's stamp) is later than it, and is stamped so when the device's clock says otherwise. A tombstone on either side wins over every field. It returns, for each field where two changes made apart of a Conflictable field both had text and the one set aside was not the device's own earlier change, the field kept and the one set aside, for the caller to record as a Conflict.
 func MergeRecord(have, in Record) (out Record, changed bool, clashes []Clash) {
 	if have.Kind == "" {
 		out = Record{Kind: in.Kind, ID: in.ID, Film: in.Film, Removed: cloneStamp(in.Removed)}
@@ -309,6 +309,10 @@ func MergeRecord(have, in Record) (out Record, changed bool, clashes []Clash) {
 				changed = true
 			}
 			continue
+		}
+		if f.Base != nil && f.Base.Equal(h.Stamp) && !f.Stamp.After(h.Stamp) {
+			// The device changed the value the desktop has, so its change came after it, whatever the device's clock says: one running behind the desktop's would otherwise lose the change without a conflict. It is made just after, as Ledger.Resolve makes a resolution.
+			f.Stamp.At = h.At.Add(time.Millisecond)
 		}
 		kept, lost := h, Field{Value: f.Value, Stamp: f.Stamp}
 		if f.Stamp.After(h.Stamp) {
