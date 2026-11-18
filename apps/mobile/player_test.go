@@ -187,3 +187,12 @@ func TestATabletShowsTheLinesBesideTheVideo(t *testing.T) {
 		t.Fatalf("lines %v, video %v", pane, stage)
 	}
 }
+
+// The position slider runs over the video's length once the video tells it, the same slider as before it knew.
+func TestThePositionSliderSpansTheVideo(t *testing.T) {
+	p, _ := openPlayer(t)
+	slider := p.app.Find("id:player-position-thumb")
+	if got := slider.Props.Value; got.Max != 10 || got.Min != 0 {
+		t.Fatalf("the slider spans %v to %v, want 0 to 10 seconds", got.Min, got.Max)
+	}
+}
