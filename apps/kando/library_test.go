@@ -2372,3 +2372,33 @@ func mustFilm(t *testing.T, a *app, id string) films.Film {
 	}
 	return item
 }
+
+// TestLibraryFollowsTheDay checks that the list's 今天 and 昨天 have a timer that brings them up to date at the next midnight, armed again when the app comes to the front so a night asleep does not leave it late, and that the next midnight is the start of tomorrow even where the clocks skip midnight.
+func TestLibraryFollowsTheDay(t *testing.T) {
+	santiago, err := time.LoadLocation("America/Santiago")
+	if err != nil {
+		t.Skip("no time zone database:", err)
+	}
+	for _, tc := range []struct{ now, want time.Time }{
+		{time.Date(2026, 11, 18, 23, 59, 59, 0, time.UTC), time.Date(2026, 11, 19, 0, 0, 0, 0, time.UTC)},
+		{time.Date(2026, 12, 31, 0, 0, 0, 0, time.UTC), time.Date(2027, 1, 1, 0, 0, 0, 0, time.UTC)},
+		// Chile's clocks go from 23:59:59 on 5 September 2026 to 01:00 on the 6th: tomorrow starts at 01:00.
+		{time.Date(2026, 9, 5, 12, 0, 0, 0, santiago), time.Date(2026, 9, 6, 1, 0, 0, 0, santiago)},
+	} {
+		if got := libraryNextDay(tc.now); !got.Equal(tc.want) {
+			t.Errorf("libraryNextDay(%v) = %v, want %v", tc.now, got, tc.want)
+		}
+	}
+
+	a, tt, _ := newTestApp(t, &fakePipeline{})
+	onEngine(a, a.libraryFollowDay)
+	first := a.lib.dayStop
+	if first == nil {
+		t.Fatal("no timer follows the day once the window exists")
+	}
+	onEngine(a, a.areasBecameActive)
+	if a.lib.dayStop == nil || first() {
+		t.Fatal("coming to the front did not arm the day's timer again in place of the one before")
+	}
+	tt.Settle()
+}
