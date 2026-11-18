@@ -295,7 +295,7 @@ func StatusOf(code string) int {
 		return http.StatusBadRequest
 	case CodeUnsupported:
 		return http.StatusNotImplemented
-	case CodeNotReady, CodeConflict:
+	case CodeNotReady, CodeConflict, CodeNoAI:
 		return http.StatusConflict
 	}
 	return http.StatusInternalServerError

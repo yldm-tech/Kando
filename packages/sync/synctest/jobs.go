@@ -74,7 +74,7 @@ type jobService struct{ d *Desktop }
 func (s jobService) Hello(context.Context, sync.Caller) (sync.Hello, error) {
 	s.d.mu.Lock()
 	defer s.d.mu.Unlock()
-	return sync.Hello{Ops: []string{sync.OpHello, sync.OpJobCreate, sync.OpJobs, sync.OpJob, sync.OpJobCancel, sync.OpJobRetry, sync.OpJobPause, sync.OpJobResume, sync.OpUpdateYTDLP, sync.OpEvents, sync.OpStateGet, sync.OpStatePut, sync.OpStateResolve},
+	return sync.Hello{Ops: []string{sync.OpHello, sync.OpJobCreate, sync.OpJobs, sync.OpJob, sync.OpJobCancel, sync.OpJobRetry, sync.OpJobPause, sync.OpJobResume, sync.OpUpdateYTDLP, sync.OpEvents, sync.OpStateGet, sync.OpStatePut, sync.OpStateResolve, sync.OpLookUp, sync.OpExplain},
 		Options: []string{}, State: []string{sync.KindPosition, sync.KindLine, sync.KindCorrection}, Receive: s.d.queue.receive}, nil
 }
 

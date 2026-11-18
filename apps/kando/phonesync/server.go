@@ -68,6 +68,8 @@ type Config struct {
 	Jobs psync.Service
 	// State is the libraries' learning state as protocol v2's calls read and write it; nil answers them unsupported.
 	State psync.StateService
+	// Study is the lookups and explanations protocol v2's calls ask for; nil answers them unsupported.
+	Study psync.StudyService
 	// Addrs are the addresses to listen on, looked at again every rescanEvery as the computer joins other networks; nil is LANAddrs. Tests give loopback.
 	Addrs func() []netip.Addr
 	// Changed is told, on any goroutine, that what the settings show changed: the code on offer, the devices, or the addresses listened on.
@@ -146,7 +148,7 @@ func Start(cfg Config) (*Server, error) {
 	if jobs == nil {
 		jobs = noJobs{}
 	}
-	s.desk = &psync.Desk{Service: jobs, State: cfg.State, Journal: psync.NewJournal(), Desktop: cfg.Name, Now: cfg.Now}
+	s.desk = &psync.Desk{Service: jobs, State: cfg.State, Study: cfg.Study, Journal: psync.NewJournal(), Desktop: cfg.Name, Now: cfg.Now}
 	s.http = &http.Server{
 		Handler:           s.routes(),
 		TLSConfig:         &tls.Config{Certificates: []tls.Certificate{cert}, MinVersion: tls.VersionTLS13},

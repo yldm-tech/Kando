@@ -24,6 +24,13 @@ func (d *Desktop) State(lib, kind, id string) (sync.Record, bool) {
 	return d.ledgerLocked(lib).Record(kind, id)
 }
 
+// Records are the records of kind of library lib's learning state as the desktop has them, tombstones among them.
+func (d *Desktop) Records(lib, kind string) []sync.Record {
+	d.mu.Lock()
+	defer d.mu.Unlock()
+	return d.ledgerLocked(lib).Records(kind)
+}
+
 // ledgerLocked is library lib's ledger, made the first time. d.mu is held.
 func (d *Desktop) ledgerLocked(lib string) *sync.Ledger {
 	if d.ledgers == nil {

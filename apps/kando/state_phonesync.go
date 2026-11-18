@@ -138,6 +138,7 @@ func (a *app) phoneSyncStart() {
 		Source:  phoneSource{a},
 		Jobs:    phoneJobs{a},
 		State:   phoneState{a},
+		Study:   phoneStudy{a},
 		Addrs:   a.phone.listen,
 		Changed: func() { update(a.phoneSyncPull) },
 		Now:     a.phone.now,
