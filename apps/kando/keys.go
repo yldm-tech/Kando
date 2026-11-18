@@ -80,7 +80,7 @@ func groupTitle(cx *core.Scope, group string) string {
 
 // shortcuts is the whole table, in the order the cheat sheet lists it, its labels in the language the app shows under cx. Each area keeps its rows next to its own code: the app's here, the sidebar's in state_sidebar.go, the library's in bind_films.go, the queue's in queue.go, the player's in bind_film.go, correcting its lines' in state_correct.go, the settings' in state_settings.go, the overlays' in state_overlay.go, the menu bar's in state_menu.go, the feedback dialog's in state_feedback.go, the first-run guide's in state_onboarding.go, 显示日志文件 in state_logs.go, 检查更新… in updates.go, the main window's in state_window.go, the browser's in state_browse.go and the lock's in state_lock.go.
 func (a *app) shortcuts(cx *core.Scope) []shortcut {
-	return slices.Concat(a.appKeys(cx), a.sidebarKeys(cx), a.libraryKeys(cx), a.queueKeys(cx), a.playerKeys(cx), a.correctKeys(cx), a.settingsKeys(cx), a.overlayKeys(cx), a.menuKeys(cx), a.feedbackKeys(cx), a.paletteKeys(cx), a.onboardingKeys(cx), a.sitesKeys(cx), a.logsKeys(cx), a.updatesKeys(cx), a.windowKeys(cx), a.browseKeys(cx), a.savedKeys(cx), a.lockKeys(cx), a.subscribeKeys(cx))
+	return slices.Concat(a.appKeys(cx), a.sidebarKeys(cx), a.libraryKeys(cx), a.queueKeys(cx), a.playerKeys(cx), a.correctKeys(cx), a.settingsKeys(cx), a.overlayKeys(cx), a.menuKeys(cx), a.feedbackKeys(cx), a.paletteKeys(cx), a.onboardingKeys(cx), a.sitesKeys(cx), a.logsKeys(cx), a.updatesKeys(cx), a.windowKeys(cx), a.browseKeys(cx), a.savedKeys(cx), a.lockKeys(cx), a.subscribeKeys(cx), a.subexportKeys(cx), a.vocabKeys(cx))
 }
 
 // appKeys are the shortcuts that work anywhere in the window.
@@ -110,7 +110,7 @@ func (a *app) wireKeys(cx *core.Scope) core.Node {
 				continue
 			}
 			bound[s.Key] = true
-			// TODO(nsgo#205): let a binding give way to the focused control that uses its key, as core.KeyAuto does for text inputs: a focused button's or menu row's Space and Enter, a slider's, tab bar's or radio group's arrows. MyGo's OnShortcut left those keys to such a control; here the player's Space and arrows act on the film instead, except while its speed or mode menu is open (playerKeys) https://github.com/nsgo-dev/nsgo/issues/205
+			// core.KeyAuto leaves a key to the focused control that uses it: a text input's typing, a button's or menu row's Space and Return, a slider's, tab bar's or radio group's arrows.
 			when := core.KeyAuto
 			if s.InText {
 				when = core.KeyAlways

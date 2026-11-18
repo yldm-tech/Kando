@@ -143,14 +143,19 @@ func (a *app) SetQuery(text string) {
 
 func (a *app) QueryFocus() *bool { return &a.side.queryFocus }
 
-// SubmitQuery is Return in the sidebar's search field: when the search leaves a single film in the library page's grid, among those of the source, the language and the watch state chosen (films.Shown), it plays it, as a click on its poster does.
-// TODO(nsgo#348): when the search leaves several films, Return should put the keyboard on the first poster; core.Ref.Focus moves the keyboard only to a text field on macOS (internal/platform/macos/macos.go, ItemFocus), so it does nothing here https://github.com/nsgo-dev/nsgo/issues/348
+// PosterFocus asks the library page's first poster for the keyboard focus once (films.App).
+func (a *app) PosterFocus() *bool { return &a.side.posterFocus }
+
+// SubmitQuery is Return in the sidebar's search field: when the search leaves a single film in the library page's grid, among those of the source, the language and the watch state chosen (films.Shown), it plays it, as a click on its poster does; when it leaves several and the page shows them as posters, it puts the keyboard on the first poster.
 func (a *app) SubmitQuery() {
 	query := strings.TrimSpace(a.side.query)
 	if query == "" {
 		return
 	}
 	found := films.Shown(a.films(), a, a.side.filter, a.SpokenFilter(), a.side.watch, query)
+	if len(found) > 1 && a.page == pageFilms && a.LibraryView() == films.ViewGrid {
+		a.side.posterFocus = true
+	}
 	if len(found) != 1 {
 		return
 	}
@@ -210,7 +215,7 @@ func (a *app) sidebarColumn() core.Node {
 	return sidebar.View{App: a, Subscriptions: subscribe.List{App: a}}
 }
 
-// contentBand is the height of the drag band over the content, under the title bar: none while the page there draws its own header bar (pageOwnsTitleBar), otherwise the title bar's own, titleBar being its height as desktop.TitleBar reports it. On macOS the traffic lights move down into the sidebar card's top row (trafficLights), which makes the title bar as tall as the room under them is above them, so the content keeps a band only as tall as that row, which still clears the traffic lights when an open film hides the sidebar. Elsewhere the window controls fill the title bar, and the band is the title bar.
+// contentBand is the height of the drag band over the content, under the title bar: none while the page there draws its own header bar (pageOwnsTitleBar), otherwise the title bar's own, titleBar being the height the content keeps clear of (chrome.Covered). On macOS the traffic lights move down into the sidebar card's top row (trafficLights), which makes the title bar as tall as the room under them is above them, so the content keeps a band only as tall as that row, which still clears the traffic lights when an open film hides the sidebar. On Windows and Linux the app's own bar (package chrome) takes the title bar's room above the content, so titleBar is 0 and there is no band.
 func (a *app) contentBand(titleBar core.Points) core.Points {
 	if a.pageOwnsTitleBar() {
 		return 0

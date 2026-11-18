@@ -134,9 +134,9 @@ func (a *app) pickSpeechModel() {
 		return
 	}
 	release := a.holdModal()
-	// TODO(nsgo#199): give core.PickFilesOptions a title, a button label and a name for the filter, so the panel says 选择模型文件 over whisper 模型 as the button does; it shows the system's own words https://github.com/nsgo-dev/nsgo/issues/199
+	m := a.messages()
 	a.cx.Run(func() {
-		a.cx.PickFiles(ns.PickFilesOptions{Types: []string{".bin"}}, func(files []ns.File, err error) {
+		a.cx.PickFiles(ns.PickFilesOptions{Types: []string{".bin"}, TypesName: m.SettingsSpeechModels(), Title: m.SettingsSpeechChooseFileTitle()}, func(files []ns.File, err error) {
 			release()
 			defer a.Changed()
 			if err != nil {

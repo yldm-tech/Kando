@@ -671,14 +671,14 @@ func TestRateLimitIsNotOutOfCredit(t *testing.T) {
 
 // A custom prompt that does not write {{language}} still names the target language, so a prompt that only asks for a tone does not leave the lines in the language they are in.
 func TestCustomPromptWithoutTheLanguageStillNamesIt(t *testing.T) {
-	prompt := subtitlePrompt("Use a casual tone.", "日本語", nil)
+	prompt := subtitlePrompt("Use a casual tone.", "日本語", nil, nil)
 	if !strings.HasPrefix(prompt, "Use a casual tone.") || !strings.Contains(prompt, "日本語") || !strings.HasSuffix(prompt, subtitleReplyRule) {
 		t.Fatalf("prompt = %q", prompt)
 	}
-	if prompt := subtitlePrompt("Translate into {{language}}, casually.", "日本語", nil); strings.Count(prompt, "日本語") != 1 {
+	if prompt := subtitlePrompt("Translate into {{language}}, casually.", "日本語", nil, nil); strings.Count(prompt, "日本語") != 1 {
 		t.Fatalf("a prompt naming the language named it again: %q", prompt)
 	}
-	if prompt := subtitlePrompt("", "日本語", nil); strings.Count(prompt, "日本語") != 1 {
+	if prompt := subtitlePrompt("", "日本語", nil, nil); strings.Count(prompt, "日本語") != 1 {
 		t.Fatalf("the default prompt: %q", prompt)
 	}
 }

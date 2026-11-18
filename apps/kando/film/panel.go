@@ -23,13 +23,15 @@ import (
 )
 
 // panelTabs are the side panel's tabs, by the FilmSide each one is; tabLabel names them.
-var panelTabs = []string{"", "clips", "info", "style"}
+var panelTabs = []string{"", "clips", "terms", "info", "style"}
 
 // tabLabel is what a tab of the side panel is called in the language the interface shows under cx.
 func tabLabel(cx *ns.Scope, id string) string {
 	switch id {
 	case "clips":
 		return locales.FilmTabClips(cx)
+	case "terms":
+		return locales.FilmTabTerms(cx)
 	case "info":
 		return locales.FilmTabInfo(cx)
 	case "style":
@@ -49,7 +51,7 @@ var (
 // panelMotionStyle moves the panel in from the right and fades it as it comes and goes.
 var panelMotionStyle = ns.Transition{Duration: panelMotion, Easing: ns.EaseInOut, Properties: ns.TransitionOpacity | ns.TransitionTransform}
 
-// panel is the glass side panel floating over the right of the picture: the subtitle list, the 片段 and the film's files under three tabs, or the subtitle style in their place. It slides in from the right as it comes and out as it goes, and is gone once it has.
+// panel is the glass side panel floating over the right of the picture: the subtitle list, the 片段, the glossary and the film's files under four tabs, or the subtitle style in their place. It slides in from the right as it comes and out as it goes, and is gone once it has.
 func (s *screen) panel() ns.Node {
 	a := s.a
 	return ns.Presence{When: s.room, Then: func(cx *ns.Scope) ns.Node {
@@ -69,6 +71,8 @@ func (s *screen) panel() ns.Node {
 					switch side() {
 					case "clips":
 						return s.clipsTab(cx)
+					case "terms":
+						return s.termsTab(cx)
 					case "info":
 						return s.infoTab(cx)
 					}
@@ -710,12 +714,10 @@ func cueMenu(cx *ns.Scope, cue core.Segment, explain func(), saved bool, save fu
 	)
 }
 
-// clipsTab is the film cut into 片段 of equal time; a click plays from one, and the playing one is lit.
+// clipsTab is the film cut into 片段, of equal time or at the chapters its site marks (ChaptersFor), under a row that says which and cuts it the other way (chaptersHeader); a click plays from one, and the playing one is lit.
 func (s *screen) clipsTab(cx *ns.Scope) ns.Node {
 	a := s.a
-	cues := filmCues(cx, a)
-	length := live.Memo(cx, a, a.PlayLength)
-	chapters := ns.NewMemoFunc(cx, func() []Chapter { return Chapters(cues(), length()) }, slices.Equal[[]Chapter]).Get
+	chapters := s.chapters(cx)
 	state := live.Memo(cx, a, func() subsState {
 		subs := a.Subs()
 		switch {
@@ -735,6 +737,7 @@ func (s *screen) clipsTab(cx *ns.Scope) ns.Node {
 		}
 		return ns.Show{When: func() bool { return len(chapters()) > 0 }, Then: func(cx *ns.Scope) ns.Node {
 			return ns.View{Style: ns.Style{FlexGrow: 1, FlexShrink: 1, MinHeight: ns.Pt(0), Gap: 8}, Children: []ns.Node{
+				s.chaptersHeader(cx),
 				ns.List{TestID: "film-clips", Style: ns.Style{FlexGrow: 1, MinHeight: ns.Pt(0)}, Gap: 8, EstimatedSize: 64,
 					Count: func() int { return len(chapters()) },
 					Key:   func(i int) any { return i },
@@ -840,6 +843,9 @@ type infoState struct {
 	// platform is whether the film's original lines are its site's subtitles, and local how many of their lines the speech recognition replaced; heard is a done link's film whose lines it heard alone.
 	platform, heard bool
 	local           int
+	// chapters is how many chapters its site marks, and cut whether it is cut at them (chapterInfo).
+	chapters int
+	cut      bool
 }
 
 // infoTab shows where the film is: its folder, the files in it and where it came from, and for a done film the language spoken in it, which the user can correct.
@@ -865,7 +871,8 @@ func (s *screen) infoTab(cx *ns.Scope) ns.Node {
 		return infoState{title: title(item), stage: string(item.Stage), language: item.Language, spoken: item.Spoken, folder: folder, source: item.Source, record: record,
 			speech:   item.JobID != "" && item.Stage == core.StageComplete,
 			platform: item.PlatformSubtitles, local: item.LocalLines,
-			heard: item.JobID != "" && item.Stage == core.StageComplete && !item.PlatformSubtitles && strings.HasPrefix(item.Source, "http")}
+			heard:    item.JobID != "" && item.Stage == core.StageComplete && !item.PlatformSubtitles && strings.HasPrefix(item.Source, "http"),
+			chapters: len(a.Info().Chapters), cut: CutsAtSite(a.Info(), a.ImportChapters())}
 	})
 	return ns.Dynamic(func(cx *ns.Scope) ns.Node {
 		st := state()
@@ -883,6 +890,11 @@ func (s *screen) infoTab(cx *ns.Scope) ns.Node {
 		if line := originalLines(cx, st); line != "" {
 			groups = append(groups, panelHeading(locales.FilmOriginalLines(cx)), panelGroup(ns.View{Style: ns.Style{Padding: ns.Symmetric(10, 12)}, Children: []ns.Node{
 				ns.Text{TestID: "film-info-original", Content: line, Style: ns.Style{FontSize: 12, LineHeight: 17, Color: onGlass, Opacity: ns.Alpha(0.9)}},
+			}}))
+		}
+		if line := chapterInfo(cx, st.chapters, st.cut, st.source); line != "" {
+			groups = append(groups, panelHeading(locales.FilmChapters(cx)), panelGroup(ns.View{Style: ns.Style{Padding: ns.Symmetric(10, 12)}, Children: []ns.Node{
+				ns.Text{TestID: "film-info-chapters", Content: line, Style: ns.Style{FontSize: 12, LineHeight: 17, Color: onGlass, Opacity: ns.Alpha(0.9)}},
 			}}))
 		}
 		if st.folder != "" {
@@ -947,19 +959,9 @@ func monoStyle(size, lineHeight ns.Points, alpha float32) ns.Style {
 	return ns.Style{FontFamily: "Menlo, " + ns.FontMonospace, FontSize: size, LineHeight: lineHeight, Color: onGlass, Opacity: ns.Alpha(alpha)}
 }
 
-// sourceLink is the film's source in the info tab, a link that opens it, as ui.Link draws one but in the theme's accent ink, which reads on the dark panel where the accent's own blue does not.
-// TODO(nsgo#366): ui.Link draws its text in Palette().Accent with no way to give it another color (ui/link.go:41-44); go back to ui.Link once it takes one https://github.com/nsgo-dev/nsgo/issues/366
+// sourceLink is the film's source in the info tab, a link that opens it, in the theme's accent ink, which reads on the dark panel where the accent's own blue does not. The panel is always dark (theme.Dark), so the ink read as it is built stays right.
 func sourceLink(cx *ns.Scope, href string) ns.Node {
-	ink := theme.Of(cx).AccentInk
-	return base.Link{Href: href, Label: href,
-		Style: ns.Style{Group: "link", AlignSelf: ns.AlignStart, CornerRadius: ui.RadiusSmall},
-		StyleFunc: func() ns.Style {
-			return ns.Style{FocusVisible: ui.FocusRing(cx, 2)}
-		},
-		Children: []ns.Node{ns.Text{Content: href, Style: ui.TypeBody,
-			StyleFunc: func() ns.Style {
-				return ns.Style{Color: ink(), GroupStyle: &ns.GroupStyle{Name: "link", Hover: &ns.Style{TextDecoration: ns.TextDecorationUnderline}}}
-			}}}}
+	return ui.Link{Text: href, Href: href, Style: ns.Style{Color: theme.Of(cx).AccentInk()}}
 }
 
 // copyInfoButton puts value on the clipboard.

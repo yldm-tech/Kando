@@ -280,7 +280,7 @@ func (e *statusError) Error() string {
 	return fmt.Sprintf("translation API returned %s: %s", e.status, e.detail)
 }
 
-func subtitlePrompt(custom, language string, earlier []string) string {
+func subtitlePrompt(custom, language string, earlier []string, terms []core.Term) string {
 	prompt := strings.TrimSpace(custom)
 	if prompt == "" {
 		prompt = DefaultSubtitlePrompt
@@ -290,6 +290,9 @@ func subtitlePrompt(custom, language string, earlier []string) string {
 	} else {
 		// A custom prompt that only asks for a style would otherwise leave the target language unnamed, and the model answers in the language of the lines; naming it here also follows a job's own target language, which a language written into the prompt would not.
 		prompt += "\n\nTranslate every subtitle line into " + language + "."
+	}
+	if glossary := glossaryPrompt(terms); glossary != "" {
+		prompt += "\n\n" + glossary
 	}
 	if len(earlier) > contextLines {
 		earlier = earlier[len(earlier)-contextLines:]
@@ -313,7 +316,7 @@ func (t ChatTranslator) translateTexts(ctx context.Context, endpoint Endpoint, t
 	body, err := json.Marshal(chatRequest{
 		Model: t.Model,
 		Messages: []chatMessage{
-			{Role: "system", Content: subtitlePrompt(t.Prompt, language, earlier)},
+			{Role: "system", Content: subtitlePrompt(t.Prompt, language, earlier, core.TermsIn(glossaryOf(ctx), texts))},
 			{Role: "user", Content: string(input)},
 		},
 	})

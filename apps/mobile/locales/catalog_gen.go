@@ -10,6 +10,7 @@ import (
 	"github.com/nsgo-dev/nsgo/i18n"
 	updaterlocales "github.com/nsgo-dev/nsgo/updater/locales"
 	"strings"
+	"time"
 )
 
 // Source is the language the messages are written in.
@@ -65,6 +66,18 @@ func init() {
 		DiffUnchangedLines: func(n int) string {
 			return "変更されていない " + i18n.FormatNumber("ja", float64(n)) + " 行"
 		},
+		CalendarMonth: func(hc string, d time.Time) string {
+			msgs := Messages{hc: hc}
+			return i18n.FormatDate(msgs.dated("ja"), d, i18n.DateOptions{Skeleton: "yMMMM"})
+		},
+		CalendarMonthName: func(hc string, d time.Time) string {
+			msgs := Messages{hc: hc}
+			return i18n.FormatDate(msgs.dated("ja"), d, i18n.DateOptions{Skeleton: "MMM"})
+		},
+		CalendarWeekday: func(hc string, d time.Time) string {
+			msgs := Messages{hc: hc}
+			return i18n.FormatDate(msgs.dated("ja"), d, i18n.DateOptions{Skeleton: "EEEEE"})
+		},
 		FlowLabel: func(nodes int, edges int) string {
 			return i18n.FormatNumber("ja", float64(nodes)) + " 個のノード、" + i18n.FormatNumber("ja", float64(edges)) + " 本のエッジ"
 		},
@@ -109,6 +122,18 @@ func init() {
 		DiffUnchangedLines: func(n int) string {
 			return "변경되지 않은 줄 " + i18n.FormatNumber("ko", float64(n)) + "개"
 		},
+		CalendarMonth: func(hc string, d time.Time) string {
+			msgs := Messages{hc: hc}
+			return i18n.FormatDate(msgs.dated("ko"), d, i18n.DateOptions{Skeleton: "yMMMM"})
+		},
+		CalendarMonthName: func(hc string, d time.Time) string {
+			msgs := Messages{hc: hc}
+			return i18n.FormatDate(msgs.dated("ko"), d, i18n.DateOptions{Skeleton: "MMM"})
+		},
+		CalendarWeekday: func(hc string, d time.Time) string {
+			msgs := Messages{hc: hc}
+			return i18n.FormatDate(msgs.dated("ko"), d, i18n.DateOptions{Skeleton: "EEEEE"})
+		},
 		FlowLabel: func(nodes int, edges int) string {
 			return "노드 " + i18n.FormatNumber("ko", float64(nodes)) + "개, 에지 " + i18n.FormatNumber("ko", float64(edges)) + "개"
 		},
@@ -152,6 +177,18 @@ func init() {
 		},
 		DiffUnchangedLines: func(n int) string {
 			return i18n.FormatNumber("zh-Hant", float64(n)) + " 行未修改"
+		},
+		CalendarMonth: func(hc string, d time.Time) string {
+			msgs := Messages{hc: hc}
+			return i18n.FormatDate(msgs.dated("zh-Hant"), d, i18n.DateOptions{Skeleton: "yMMMM"})
+		},
+		CalendarMonthName: func(hc string, d time.Time) string {
+			msgs := Messages{hc: hc}
+			return i18n.FormatDate(msgs.dated("zh-Hant"), d, i18n.DateOptions{Skeleton: "MMM"})
+		},
+		CalendarWeekday: func(hc string, d time.Time) string {
+			msgs := Messages{hc: hc}
+			return i18n.FormatDate(msgs.dated("zh-Hant"), d, i18n.DateOptions{Skeleton: "EEEEE"})
 		},
 		FlowLabel: func(nodes int, edges int) string {
 			return i18n.FormatNumber("zh-Hant", float64(nodes)) + " 個節點，" + i18n.FormatNumber("zh-Hant", float64(edges)) + " 條邊"
@@ -435,6 +472,8 @@ var Parameters = map[string][]string{
 	"FilmDownloading":      {"percent"},
 	"FilmPaused":           {"percent"},
 	"LibraryGone":          {"name"},
+	"OnboardingPaired":     {"name"},
+	"OnboardingStep":       {"step", "count"},
 	"PairErrUnreachable":   {"address"},
 }
 
@@ -455,6 +494,8 @@ type Translation struct {
 	FilmDownloading      func(percent int) string
 	FilmPaused           func(percent int) string
 	LibraryGone          func(name string) string
+	OnboardingPaired     func(name string) string
+	OnboardingStep       func(step int, count int) string
 	PairErrUnreachable   func(address string) string
 }
 
@@ -466,12 +507,9 @@ const (
 	textCommonCancel
 	textCommonRetry
 	textComputersNoLibraries
-	textComputersPair
 	textComputersPairAgain
-	textComputersTitle
 	textComputersUnpair
 	textComputersUnpairMessage
-	textDownloadsEmpty
 	textDownloadsTitle
 	textFilmCancel
 	textFilmDelete
@@ -485,7 +523,26 @@ const (
 	textFilmResume
 	textFilmStopped
 	textFilmUnpaired
+	textFilmsNoDesktop
+	textFilmsPair
+	textFilmsTitle
+	textFilmsUnpairedBody
+	textFilmsUnpairedTitle
+	textLearnEmpty
+	textLearnTitle
 	textLibraryEmpty
+	textOnboardingContinue
+	textOnboardingIntroBody
+	textOnboardingIntroTitle
+	textOnboardingLanguagesBody
+	textOnboardingLanguagesTitle
+	textOnboardingNoDesktop
+	textOnboardingPairBody
+	textOnboardingPairTitle
+	textOnboardingSkip
+	textOnboardingSkipPairing
+	textOnboardingStart
+	textOnboardingTarget
 	textPairAddress
 	textPairAddressExample
 	textPairCode
@@ -520,8 +577,17 @@ const (
 	textPlayerSpeed
 	textPlayerSubtitles
 	textSessionDownloading
-	textWelcomePair
-	textWelcomeTitle
+	textSettingsAbout
+	textSettingsComputers
+	textSettingsIntroduction
+	textSettingsNoComputer
+	textSettingsPair
+	textSettingsPairAnother
+	textSettingsSource
+	textSettingsSubtitles
+	textSettingsTarget
+	textSettingsTargetNote
+	textSettingsTitle
 	numTexts
 )
 
@@ -532,12 +598,9 @@ var keyOfText = [numTexts]string{
 	"commonCancel",
 	"commonRetry",
 	"computersNoLibraries",
-	"computersPair",
 	"computersPairAgain",
-	"computersTitle",
 	"computersUnpair",
 	"computersUnpairMessage",
-	"downloadsEmpty",
 	"downloadsTitle",
 	"filmCancel",
 	"filmDelete",
@@ -551,7 +614,26 @@ var keyOfText = [numTexts]string{
 	"filmResume",
 	"filmStopped",
 	"filmUnpaired",
+	"filmsNoDesktop",
+	"filmsPair",
+	"filmsTitle",
+	"filmsUnpairedBody",
+	"filmsUnpairedTitle",
+	"learnEmpty",
+	"learnTitle",
 	"libraryEmpty",
+	"onboardingContinue",
+	"onboardingIntroBody",
+	"onboardingIntroTitle",
+	"onboardingLanguagesBody",
+	"onboardingLanguagesTitle",
+	"onboardingNoDesktop",
+	"onboardingPairBody",
+	"onboardingPairTitle",
+	"onboardingSkip",
+	"onboardingSkipPairing",
+	"onboardingStart",
+	"onboardingTarget",
 	"pairAddress",
 	"pairAddressExample",
 	"pairCode",
@@ -586,8 +668,17 @@ var keyOfText = [numTexts]string{
 	"playerSpeed",
 	"playerSubtitles",
 	"sessionDownloading",
-	"welcomePair",
-	"welcomeTitle",
+	"settingsAbout",
+	"settingsComputers",
+	"settingsIntroduction",
+	"settingsNoComputer",
+	"settingsPair",
+	"settingsPairAnother",
+	"settingsSource",
+	"settingsSubtitles",
+	"settingsTarget",
+	"settingsTargetNote",
+	"settingsTitle",
 }
 
 // textsEn are the messages without arguments in en.
@@ -596,13 +687,10 @@ var textsEn = i18n.NewTexts(""+
 	"Cancel"+
 	"Try Again"+
 	"No libraries to show"+
-	"Pair Another Computer"+
 	"Pair Again"+
-	"Computers"+
 	"Unpair"+
 	"The films downloaded from it stay on this phone."+
-	"No Downloads"+
-	"Downloads"+
+	"On This Phone"+
 	"Cancel Download"+
 	"Delete Download"+
 	"Delete"+
@@ -615,7 +703,26 @@ var textsEn = i18n.NewTexts(""+
 	"Resume"+
 	"The download stopped. Resume it when the computer can be reached."+
 	"Pair with the computer again to download."+
+	"No Desktop App Yet?"+
+	"Connect a Computer"+
+	"Library"+
+	"Downloading, transcription and translation all happen in Kando on your computer. Once connected, its libraries show up here."+
+	"Not connected to a computer yet"+
+	"Words and lines you save will show here"+
+	"Learn"+
 	"No films ready yet"+
+	"Continue"+
+	"Paste a link and Kando on your computer downloads the video, recognizes the speech and translates it line by line. Your phone plays the films with both lines, and replays any line you didn't catch."+
+	"Watch the original, with subtitles in your language."+
+	"Languages you don't pick are still recognized."+
+	"Which languages do you watch?"+
+	"No desktop app yet? Download it from github.com/yldm-tech/Kando for macOS, Linux and Windows."+
+	"Kando on your computer does the downloading, recognition and translation; your phone is for watching and learning."+
+	"Connect your computer"+
+	"Skip"+
+	"Skip for Now"+
+	"Get Started"+
+	"Translate subtitles into"+
 	"Address"+
 	"192.168.1.20:47123"+
 	"Code"+
@@ -650,20 +757,26 @@ var textsEn = i18n.NewTexts(""+
 	"Speed"+
 	"Subtitles"+
 	"Downloading films"+
-	"Pair"+
-	"Pair with Kando on your computer",
+	"About"+
+	"Computers"+
+	"Show the Introduction Again"+
+	"Not connected"+
+	"Connect a Computer"+
+	"Connect Another Computer"+
+	"Source Code"+
+	"Subtitles"+
+	"Translate Into"+
+	"Subtitles are translated into this language. For now the choice is kept on this phone; Kando on your computer still translates into the language set there."+
+	"Settings",
 	[]uint16{
 		5,
 		6,
 		9,
 		20,
-		21,
 		10,
-		9,
 		6,
 		48,
-		12,
-		9,
+		13,
 		15,
 		15,
 		6,
@@ -676,7 +789,26 @@ var textsEn = i18n.NewTexts(""+
 		6,
 		65,
 		41,
+		19,
 		18,
+		7,
+		124,
+		31,
+		39,
+		5,
+		18,
+		8,
+		197,
+		52,
+		46,
+		29,
+		93,
+		114,
+		21,
+		4,
+		12,
+		11,
+		24,
 		7,
 		18,
 		4,
@@ -711,8 +843,17 @@ var textsEn = i18n.NewTexts(""+
 		5,
 		9,
 		17,
-		4,
-		32,
+		5,
+		9,
+		27,
+		13,
+		18,
+		24,
+		11,
+		9,
+		14,
+		155,
+		8,
 	})
 
 // textsJa are the messages without arguments in ja.
@@ -721,13 +862,10 @@ var textsJa = i18n.NewTexts(""+
 	"キャンセル"+
 	"再試行"+
 	"表示できるライブラリはありません"+
-	"別のコンピュータとペアリング"+
 	"もう一度ペアリング"+
-	"コンピュータ"+
 	"ペアリングを解除"+
 	"ダウンロード済みの動画はこのスマートフォンに残ります。"+
-	"ダウンロードした動画はありません"+
-	"ダウンロード済み"+
+	"このスマートフォン内"+
 	"ダウンロードをキャンセル"+
 	"ダウンロードを削除"+
 	"削除"+
@@ -740,7 +878,26 @@ var textsJa = i18n.NewTexts(""+
 	"ダウンロードを再開"+
 	"ダウンロードが中断しました。コンピュータに接続できるときに再開してください。"+
 	"ダウンロードするには、もう一度コンピュータとペアリングしてください。"+
+	"デスクトップ版をお持ちでないですか？"+
+	"コンピュータに接続"+
+	"ライブラリ"+
+	"ダウンロード、文字起こし、翻訳はすべてコンピュータの Kando が行います。接続すると、コンピュータのライブラリがここに表示されます。"+
+	"まだコンピュータに接続していません"+
+	"保存した単語やセリフがここに表示されます"+
+	"学習"+
 	"再生できる動画はまだありません"+
+	"続ける"+
+	"リンクを貼り付けると、コンピュータの Kando が動画をダウンロードし、音声を認識して 1 行ずつ翻訳します。スマートフォンでは原文と訳文を一緒に表示し、聞き取れなかったセリフはすぐに聞き直せます。"+
+	"原語のまま、あなたの言語の字幕で観よう。"+
+	"選ばなかった言語も自動で認識されます。"+
+	"よく観るのはどの言語ですか？"+
+	"デスクトップ版をお持ちでない場合は github.com/yldm-tech/Kando からダウンロードできます（macOS、Linux、Windows）。"+
+	"ダウンロード、認識、翻訳はコンピュータの Kando に任せて、スマートフォンは観ることと学ぶことに使います。"+
+	"コンピュータに接続"+
+	"スキップ"+
+	"今はスキップ"+
+	"はじめる"+
+	"字幕の翻訳先"+
 	"アドレス"+
 	"192.168.1.20:47123"+
 	"ペアリングコード"+
@@ -775,20 +932,26 @@ var textsJa = i18n.NewTexts(""+
 	"再生速度"+
 	"字幕"+
 	"動画をダウンロード中"+
-	"ペアリング"+
-	"コンピュータの Kando とペアリング",
+	"このアプリについて"+
+	"コンピュータ"+
+	"紹介をもう一度見る"+
+	"未接続"+
+	"コンピュータに接続"+
+	"別のコンピュータに接続"+
+	"ソースコード"+
+	"字幕"+
+	"翻訳先の言語"+
+	"字幕はこの言語に翻訳されます。今はこのスマートフォンに記録するだけで、コンピュータの Kando はそちらの設定どおりに翻訳します。"+
+	"設定",
 	[]uint16{
 		5,
 		15,
 		9,
 		48,
-		42,
 		27,
-		18,
 		24,
 		81,
-		48,
-		24,
+		30,
 		36,
 		27,
 		6,
@@ -801,7 +964,26 @@ var textsJa = i18n.NewTexts(""+
 		27,
 		114,
 		102,
+		54,
+		27,
+		15,
+		190,
+		51,
+		60,
+		6,
 		45,
+		9,
+		280,
+		60,
+		57,
+		42,
+		147,
+		151,
+		27,
+		12,
+		18,
+		12,
+		18,
 		12,
 		18,
 		24,
@@ -836,8 +1018,17 @@ var textsJa = i18n.NewTexts(""+
 		12,
 		6,
 		30,
-		15,
-		46,
+		27,
+		18,
+		27,
+		9,
+		27,
+		33,
+		18,
+		6,
+		18,
+		184,
+		6,
 	})
 
 // textsKo are the messages without arguments in ko.
@@ -846,13 +1037,10 @@ var textsKo = i18n.NewTexts(""+
 	"취소"+
 	"다시 시도"+
 	"표시할 라이브러리가 없습니다"+
-	"다른 컴퓨터와 페어링"+
 	"다시 페어링"+
-	"컴퓨터"+
 	"페어링 해제"+
 	"다운로드한 영상은 이 휴대폰에 남습니다."+
-	"다운로드한 영상이 없습니다"+
-	"다운로드됨"+
+	"이 휴대폰에 있음"+
 	"다운로드 취소"+
 	"다운로드 삭제"+
 	"삭제"+
@@ -865,7 +1053,26 @@ var textsKo = i18n.NewTexts(""+
 	"다운로드 재개"+
 	"다운로드가 중단되었습니다. 컴퓨터에 연결할 수 있을 때 다시 시작하세요."+
 	"다운로드하려면 컴퓨터와 다시 페어링하세요."+
+	"데스크톱 앱이 아직 없나요?"+
+	"컴퓨터 연결"+
+	"보관함"+
+	"다운로드, 받아쓰기, 번역은 모두 컴퓨터의 Kando에서 이루어집니다. 연결하면 컴퓨터의 보관함이 여기에 표시됩니다."+
+	"아직 컴퓨터에 연결하지 않았습니다"+
+	"저장한 단어와 대사가 여기에 표시됩니다"+
+	"학습"+
 	"아직 재생할 수 있는 영상이 없습니다"+
+	"계속"+
+	"링크를 붙여 넣으면 컴퓨터의 Kando가 동영상을 다운로드하고, 음성을 인식해 한 줄씩 번역합니다. 휴대폰에서는 원문과 번역을 함께 보여 주고, 놓친 대사는 바로 다시 들을 수 있습니다."+
+	"원어 그대로, 내 언어 자막과 함께 보세요."+
+	"선택하지 않은 언어도 자동으로 인식됩니다."+
+	"주로 어떤 언어로 보시나요?"+
+	"데스크톱 앱이 없다면 github.com/yldm-tech/Kando에서 내려받으세요. macOS, Linux, Windows용이 있습니다."+
+	"다운로드, 인식, 번역은 컴퓨터의 Kando가 맡고, 휴대폰은 보고 배우는 데만 씁니다."+
+	"컴퓨터 연결하기"+
+	"건너뛰기"+
+	"나중에 하기"+
+	"시작하기"+
+	"자막 번역 언어"+
 	"주소"+
 	"192.168.1.20:47123"+
 	"페어링 코드"+
@@ -900,20 +1107,26 @@ var textsKo = i18n.NewTexts(""+
 	"재생 속도"+
 	"자막"+
 	"영상 다운로드 중"+
-	"페어링"+
-	"컴퓨터의 Kando와 페어링",
+	"정보"+
+	"컴퓨터"+
+	"소개 다시 보기"+
+	"연결 안 됨"+
+	"컴퓨터 연결"+
+	"다른 컴퓨터 연결"+
+	"소스 코드"+
+	"자막"+
+	"번역할 언어"+
+	"자막을 이 언어로 번역합니다. 지금은 이 휴대폰에만 기록되며, 컴퓨터의 Kando는 그곳의 설정대로 번역합니다."+
+	"설정",
 	[]uint16{
 		5,
 		6,
 		13,
 		41,
-		29,
 		16,
-		9,
 		16,
 		56,
-		38,
-		15,
+		23,
 		19,
 		19,
 		6,
@@ -926,7 +1139,26 @@ var textsKo = i18n.NewTexts(""+
 		19,
 		100,
 		61,
+		37,
+		16,
+		9,
+		155,
+		48,
+		55,
+		6,
 		50,
+		6,
+		246,
+		56,
+		59,
+		37,
+		124,
+		109,
+		22,
+		12,
+		16,
+		12,
+		20,
 		6,
 		18,
 		16,
@@ -961,8 +1193,17 @@ var textsKo = i18n.NewTexts(""+
 		13,
 		6,
 		23,
+		6,
 		9,
-		31,
+		20,
+		14,
+		16,
+		23,
+		13,
+		6,
+		16,
+		146,
+		6,
 	})
 
 // textsZhHans are the messages without arguments in zh-Hans.
@@ -971,13 +1212,10 @@ var textsZhHans = i18n.NewTexts(""+
 	"取消"+
 	"重试"+
 	"没有可显示的资料库"+
-	"配对另一台电脑"+
 	"重新配对"+
-	"电脑"+
 	"取消配对"+
 	"从它下载的影片仍会留在这部手机上。"+
-	"没有下载的影片"+
-	"已下载"+
+	"在这台手机上"+
 	"取消下载"+
 	"删除下载"+
 	"删除"+
@@ -990,7 +1228,26 @@ var textsZhHans = i18n.NewTexts(""+
 	"继续下载"+
 	"下载中断了。能连上电脑时再继续。"+
 	"请重新与电脑配对后再下载。"+
+	"还没装电脑版？"+
+	"连接电脑"+
+	"片库"+
+	"下载、识别、翻译都在电脑上的看懂里完成。连上以后，电脑上的片库会出现在这里。"+
+	"还没连上电脑"+
+	"收藏的生词和句子会出现在这里"+
+	"学习"+
 	"还没有可以播放的影片"+
+	"继续"+
+	"粘贴一个链接，电脑上的看懂就会下载视频、识别原声、逐句翻译。手机上看片时原文和译文一起显示，听不懂的句子一键重听。"+
+	"看原片，字幕跟着你的语言走。"+
+	"没选的语言也能自动识别。"+
+	"你常看哪些语言？"+
+	"还没装电脑版？到 github.com/yldm-tech/Kando 下载，macOS、Linux、Windows 都有。"+
+	"下载、识别、翻译都交给电脑上的看懂，手机只用来看和学。"+
+	"连上你的电脑"+
+	"跳过"+
+	"先跳过"+
+	"开始使用"+
+	"字幕翻译成"+
 	"地址"+
 	"192.168.1.20:47123"+
 	"配对码"+
@@ -1025,20 +1282,26 @@ var textsZhHans = i18n.NewTexts(""+
 	"播放速度"+
 	"字幕"+
 	"正在下载影片"+
-	"配对"+
-	"与电脑上的看懂配对",
+	"关于"+
+	"电脑"+
+	"重新查看引导"+
+	"未连接电脑"+
+	"连接电脑"+
+	"连接另一台电脑"+
+	"源代码"+
+	"字幕"+
+	"翻译成"+
+	"字幕会翻译成这种语言。现在先记在这台手机上，电脑上的看懂仍按它自己的设置翻译。"+
+	"设置",
 	[]uint16{
 		6,
 		6,
 		6,
 		27,
-		21,
 		12,
-		6,
 		12,
 		51,
-		21,
-		9,
+		18,
 		12,
 		12,
 		6,
@@ -1051,7 +1314,26 @@ var textsZhHans = i18n.NewTexts(""+
 		12,
 		48,
 		39,
+		21,
+		12,
+		6,
+		114,
+		18,
+		42,
+		6,
 		30,
+		6,
+		171,
+		42,
+		36,
+		24,
+		94,
+		81,
+		18,
+		6,
+		9,
+		12,
+		15,
 		6,
 		18,
 		9,
@@ -1087,7 +1369,16 @@ var textsZhHans = i18n.NewTexts(""+
 		6,
 		18,
 		6,
-		27,
+		6,
+		18,
+		15,
+		12,
+		21,
+		9,
+		6,
+		9,
+		117,
+		6,
 	})
 
 // textsZhHant are the messages without arguments in zh-Hant.
@@ -1096,13 +1387,10 @@ var textsZhHant = i18n.NewTexts(""+
 	"取消"+
 	"重試"+
 	"沒有可顯示的資料庫"+
-	"配對另一台電腦"+
 	"重新配對"+
-	"電腦"+
 	"取消配對"+
 	"從它下載的影片仍會留在這支手機上。"+
-	"沒有下載的影片"+
-	"已下載"+
+	"在這台手機上"+
 	"取消下載"+
 	"刪除下載"+
 	"刪除"+
@@ -1115,7 +1403,26 @@ var textsZhHant = i18n.NewTexts(""+
 	"繼續下載"+
 	"下載中斷了。能連上電腦時再繼續。"+
 	"請重新與電腦配對後再下載。"+
+	"還沒裝電腦版？"+
+	"連接電腦"+
+	"片庫"+
+	"下載、辨識、翻譯都在電腦上的看懂裡完成。連上以後，電腦上的片庫會出現在這裡。"+
+	"還沒連上電腦"+
+	"收藏的生詞和句子會出現在這裡"+
+	"學習"+
 	"還沒有可以播放的影片"+
+	"繼續"+
+	"貼上一個連結，電腦上的看懂就會下載影片、辨識原聲、逐句翻譯。手機上看片時原文和譯文一起顯示，聽不懂的句子一鍵重聽。"+
+	"看原片，字幕跟著你的語言走。"+
+	"沒選的語言也能自動辨識。"+
+	"你常看哪些語言？"+
+	"還沒裝電腦版？到 github.com/yldm-tech/Kando 下載，macOS、Linux、Windows 都有。"+
+	"下載、辨識、翻譯都交給電腦上的看懂，手機只用來看和學。"+
+	"連上你的電腦"+
+	"略過"+
+	"先略過"+
+	"開始使用"+
+	"字幕翻譯成"+
 	"位址"+
 	"192.168.1.20:47123"+
 	"配對碼"+
@@ -1150,20 +1457,26 @@ var textsZhHant = i18n.NewTexts(""+
 	"播放速度"+
 	"字幕"+
 	"正在下載影片"+
-	"配對"+
-	"與電腦上的看懂配對",
+	"關於"+
+	"電腦"+
+	"重新查看引導"+
+	"未連接電腦"+
+	"連接電腦"+
+	"連接另一台電腦"+
+	"原始碼"+
+	"字幕"+
+	"翻譯成"+
+	"字幕會翻譯成這種語言。現在先記在這台手機上，電腦上的看懂仍按它自己的設定翻譯。"+
+	"設定",
 	[]uint16{
 		6,
 		6,
 		6,
 		27,
-		21,
 		12,
-		6,
 		12,
 		51,
-		21,
-		9,
+		18,
 		12,
 		12,
 		6,
@@ -1176,7 +1489,26 @@ var textsZhHant = i18n.NewTexts(""+
 		12,
 		48,
 		39,
+		21,
+		12,
+		6,
+		114,
+		18,
+		42,
+		6,
 		30,
+		6,
+		171,
+		42,
+		36,
+		24,
+		94,
+		81,
+		18,
+		6,
+		9,
+		12,
+		15,
 		6,
 		18,
 		9,
@@ -1212,7 +1544,16 @@ var textsZhHant = i18n.NewTexts(""+
 		6,
 		18,
 		6,
-		27,
+		6,
+		18,
+		15,
+		12,
+		21,
+		9,
+		6,
+		9,
+		117,
+		6,
 	})
 
 // texts returns the messages without arguments in lang, nil for a
@@ -1307,6 +1648,12 @@ func Supply(lang string, t Translation) {
 	}
 	if t.LibraryGone != nil {
 		s.LibraryGone = t.LibraryGone
+	}
+	if t.OnboardingPaired != nil {
+		s.OnboardingPaired = t.OnboardingPaired
+	}
+	if t.OnboardingStep != nil {
+		s.OnboardingStep = t.OnboardingStep
 	}
 	if t.PairErrUnreachable != nil {
 		s.PairErrUnreachable = t.PairErrUnreachable
@@ -1486,15 +1833,6 @@ func (msgs Messages) ComputersOptions(name string) string {
 	}
 }
 
-// ComputersPair says "Pair Another Computer"
-// in the language the app shows under cx.
-//
-// Spoken name of the + button in the Computers header.
-func ComputersPair(cx *core.Scope) string { return For(cx).ComputersPair() }
-
-// ComputersPair is the package's ComputersPair in the language of msgs.
-func (msgs Messages) ComputersPair() string { return msgs.text(textComputersPair) }
-
 // ComputersPairAgain says "Pair Again"
 // in the language the app shows under cx.
 //
@@ -1503,15 +1841,6 @@ func ComputersPairAgain(cx *core.Scope) string { return For(cx).ComputersPairAga
 
 // ComputersPairAgain is the package's ComputersPairAgain in the language of msgs.
 func (msgs Messages) ComputersPairAgain() string { return msgs.text(textComputersPairAgain) }
-
-// ComputersTitle says "Computers"
-// in the language the app shows under cx.
-//
-// Tab and title of the computers section.
-func ComputersTitle(cx *core.Scope) string { return For(cx).ComputersTitle() }
-
-// ComputersTitle is the package's ComputersTitle in the language of msgs.
-func (msgs Messages) ComputersTitle() string { return msgs.text(textComputersTitle) }
 
 // ComputersUnpair says "Unpair"
 // in the language the app shows under cx.
@@ -1625,19 +1954,10 @@ func (msgs Messages) ComputersUnreachable(name string) string {
 	}
 }
 
-// DownloadsEmpty says "No Downloads"
+// DownloadsTitle says "On This Phone"
 // in the language the app shows under cx.
 //
-// Downloads tab when no film is on the phone.
-func DownloadsEmpty(cx *core.Scope) string { return For(cx).DownloadsEmpty() }
-
-// DownloadsEmpty is the package's DownloadsEmpty in the language of msgs.
-func (msgs Messages) DownloadsEmpty() string { return msgs.text(textDownloadsEmpty) }
-
-// DownloadsTitle says "Downloads"
-// in the language the app shows under cx.
-//
-// Tab and title of the films downloaded to the phone.
+// Heading of the Library tab's section of the films downloaded to this phone.
 func DownloadsTitle(cx *core.Scope) string { return For(cx).DownloadsTitle() }
 
 // DownloadsTitle is the package's DownloadsTitle in the language of msgs.
@@ -1871,6 +2191,69 @@ func FilmUnpaired(cx *core.Scope) string { return For(cx).FilmUnpaired() }
 // FilmUnpaired is the package's FilmUnpaired in the language of msgs.
 func (msgs Messages) FilmUnpaired() string { return msgs.text(textFilmUnpaired) }
 
+// FilmsNoDesktop says "No Desktop App Yet?"
+// in the language the app shows under cx.
+//
+// Button on the Library's card that opens the page where the desktop app is downloaded.
+func FilmsNoDesktop(cx *core.Scope) string { return For(cx).FilmsNoDesktop() }
+
+// FilmsNoDesktop is the package's FilmsNoDesktop in the language of msgs.
+func (msgs Messages) FilmsNoDesktop() string { return msgs.text(textFilmsNoDesktop) }
+
+// FilmsPair says "Connect a Computer"
+// in the language the app shows under cx.
+//
+// Button on the Library's card that opens pairing with a computer.
+func FilmsPair(cx *core.Scope) string { return For(cx).FilmsPair() }
+
+// FilmsPair is the package's FilmsPair in the language of msgs.
+func (msgs Messages) FilmsPair() string { return msgs.text(textFilmsPair) }
+
+// FilmsTitle says "Library"
+// in the language the app shows under cx.
+//
+// Tab and title of the Library: the films on the phone and the computers' libraries.
+func FilmsTitle(cx *core.Scope) string { return For(cx).FilmsTitle() }
+
+// FilmsTitle is the package's FilmsTitle in the language of msgs.
+func (msgs Messages) FilmsTitle() string { return msgs.text(textFilmsTitle) }
+
+// FilmsUnpairedBody says "Downloading, transcription and translation all happen in Kando on your computer. Once connected, its libraries show up here."
+// in the language the app shows under cx.
+//
+// Body of the Library's card while no computer is paired.
+func FilmsUnpairedBody(cx *core.Scope) string { return For(cx).FilmsUnpairedBody() }
+
+// FilmsUnpairedBody is the package's FilmsUnpairedBody in the language of msgs.
+func (msgs Messages) FilmsUnpairedBody() string { return msgs.text(textFilmsUnpairedBody) }
+
+// FilmsUnpairedTitle says "Not connected to a computer yet"
+// in the language the app shows under cx.
+//
+// Title of the Library's card while no computer is paired.
+func FilmsUnpairedTitle(cx *core.Scope) string { return For(cx).FilmsUnpairedTitle() }
+
+// FilmsUnpairedTitle is the package's FilmsUnpairedTitle in the language of msgs.
+func (msgs Messages) FilmsUnpairedTitle() string { return msgs.text(textFilmsUnpairedTitle) }
+
+// LearnEmpty says "Words and lines you save will show here"
+// in the language the app shows under cx.
+//
+// Learn tab while nothing is saved.
+func LearnEmpty(cx *core.Scope) string { return For(cx).LearnEmpty() }
+
+// LearnEmpty is the package's LearnEmpty in the language of msgs.
+func (msgs Messages) LearnEmpty() string { return msgs.text(textLearnEmpty) }
+
+// LearnTitle says "Learn"
+// in the language the app shows under cx.
+//
+// Tab and title of Learn: the saved words and lines and their review.
+func LearnTitle(cx *core.Scope) string { return For(cx).LearnTitle() }
+
+// LearnTitle is the package's LearnTitle in the language of msgs.
+func (msgs Messages) LearnTitle() string { return msgs.text(textLearnTitle) }
+
 // LibraryEmpty says "No films ready yet"
 // in the language the app shows under cx.
 //
@@ -1909,6 +2292,178 @@ func (msgs Messages) LibraryGone(name string) string {
 		}
 	}
 }
+
+// OnboardingContinue says "Continue"
+// in the language the app shows under cx.
+//
+// Button that goes to the introduction's next step.
+func OnboardingContinue(cx *core.Scope) string { return For(cx).OnboardingContinue() }
+
+// OnboardingContinue is the package's OnboardingContinue in the language of msgs.
+func (msgs Messages) OnboardingContinue() string { return msgs.text(textOnboardingContinue) }
+
+// OnboardingIntroBody says "Paste a link and Kando on your computer downloads the video, recognizes the speech and translates it line by line. Your phone plays the films with both lines, and replays any line you didn't catch."
+// in the language the app shows under cx.
+//
+// Body of the introduction's first step.
+func OnboardingIntroBody(cx *core.Scope) string { return For(cx).OnboardingIntroBody() }
+
+// OnboardingIntroBody is the package's OnboardingIntroBody in the language of msgs.
+func (msgs Messages) OnboardingIntroBody() string { return msgs.text(textOnboardingIntroBody) }
+
+// OnboardingIntroTitle says "Watch the original, with subtitles in your language."
+// in the language the app shows under cx.
+//
+// Title of the introduction's first step.
+func OnboardingIntroTitle(cx *core.Scope) string { return For(cx).OnboardingIntroTitle() }
+
+// OnboardingIntroTitle is the package's OnboardingIntroTitle in the language of msgs.
+func (msgs Messages) OnboardingIntroTitle() string { return msgs.text(textOnboardingIntroTitle) }
+
+// OnboardingLanguagesBody says "Languages you don't pick are still recognized."
+// in the language the app shows under cx.
+//
+// Under the title of the introduction's languages step.
+func OnboardingLanguagesBody(cx *core.Scope) string { return For(cx).OnboardingLanguagesBody() }
+
+// OnboardingLanguagesBody is the package's OnboardingLanguagesBody in the language of msgs.
+func (msgs Messages) OnboardingLanguagesBody() string { return msgs.text(textOnboardingLanguagesBody) }
+
+// OnboardingLanguagesTitle says "Which languages do you watch?"
+// in the language the app shows under cx.
+//
+// Title of the introduction's step that asks for the languages the user watches.
+func OnboardingLanguagesTitle(cx *core.Scope) string { return For(cx).OnboardingLanguagesTitle() }
+
+// OnboardingLanguagesTitle is the package's OnboardingLanguagesTitle in the language of msgs.
+func (msgs Messages) OnboardingLanguagesTitle() string {
+	return msgs.text(textOnboardingLanguagesTitle)
+}
+
+// OnboardingNoDesktop says "No desktop app yet? Download it from github.com/yldm-tech/Kando for macOS, Linux and Windows."
+// in the language the app shows under cx.
+//
+// Link under the pairing form of the introduction, which opens the desktop app's page.
+func OnboardingNoDesktop(cx *core.Scope) string { return For(cx).OnboardingNoDesktop() }
+
+// OnboardingNoDesktop is the package's OnboardingNoDesktop in the language of msgs.
+func (msgs Messages) OnboardingNoDesktop() string { return msgs.text(textOnboardingNoDesktop) }
+
+// OnboardingPairBody says "Kando on your computer does the downloading, recognition and translation; your phone is for watching and learning."
+// in the language the app shows under cx.
+//
+// Body of the introduction's pairing step.
+func OnboardingPairBody(cx *core.Scope) string { return For(cx).OnboardingPairBody() }
+
+// OnboardingPairBody is the package's OnboardingPairBody in the language of msgs.
+func (msgs Messages) OnboardingPairBody() string { return msgs.text(textOnboardingPairBody) }
+
+// OnboardingPairTitle says "Connect your computer"
+// in the language the app shows under cx.
+//
+// Title of the introduction's pairing step.
+func OnboardingPairTitle(cx *core.Scope) string { return For(cx).OnboardingPairTitle() }
+
+// OnboardingPairTitle is the package's OnboardingPairTitle in the language of msgs.
+func (msgs Messages) OnboardingPairTitle() string { return msgs.text(textOnboardingPairTitle) }
+
+// OnboardingPaired says "Connected to {name}"
+// in the language the app shows under cx.
+//
+// On the introduction's last step once pairing worked, by the computer's name.
+func OnboardingPaired(cx *core.Scope, name string) string { return For(cx).OnboardingPaired(name) }
+
+// OnboardingPaired is the package's OnboardingPaired in the language of msgs.
+func (msgs Messages) OnboardingPaired(name string) string {
+	if i18n.IsPseudo(msgs.lang) {
+		return i18n.Pseudo(msgs.lang, Messages{lang: Source, mark: true}.OnboardingPaired(name))
+	}
+	for lang := msgs.lang; ; lang = i18n.Parent(lang) {
+		if f := supplied[lang].OnboardingPaired; f != nil {
+			return f(name)
+		}
+		switch lang {
+		case "", "en":
+			return "Connected to " + msgs.arg(name)
+		case "ja":
+			return name + " に接続しました"
+		case "ko":
+			return name + "에 연결됨"
+		case "zh-Hans":
+			return "已连上 " + name
+		case "zh-Hant":
+			return "已連上 " + name
+		}
+	}
+}
+
+// OnboardingSkip says "Skip"
+// in the language the app shows under cx.
+//
+// Button at the top of the introduction that leaves it.
+func OnboardingSkip(cx *core.Scope) string { return For(cx).OnboardingSkip() }
+
+// OnboardingSkip is the package's OnboardingSkip in the language of msgs.
+func (msgs Messages) OnboardingSkip() string { return msgs.text(textOnboardingSkip) }
+
+// OnboardingSkipPairing says "Skip for Now"
+// in the language the app shows under cx.
+//
+// Button on the introduction's last step that leaves it without pairing.
+func OnboardingSkipPairing(cx *core.Scope) string { return For(cx).OnboardingSkipPairing() }
+
+// OnboardingSkipPairing is the package's OnboardingSkipPairing in the language of msgs.
+func (msgs Messages) OnboardingSkipPairing() string { return msgs.text(textOnboardingSkipPairing) }
+
+// OnboardingStart says "Get Started"
+// in the language the app shows under cx.
+//
+// Button that leaves the introduction once a computer is paired.
+func OnboardingStart(cx *core.Scope) string { return For(cx).OnboardingStart() }
+
+// OnboardingStart is the package's OnboardingStart in the language of msgs.
+func (msgs Messages) OnboardingStart() string { return msgs.text(textOnboardingStart) }
+
+// OnboardingStep says "Step {step} of {count}"
+// in the language the app shows under cx.
+//
+// Spoken name of the introduction's step dots.
+func OnboardingStep(cx *core.Scope, step int, count int) string {
+	return For(cx).OnboardingStep(step, count)
+}
+
+// OnboardingStep is the package's OnboardingStep in the language of msgs.
+func (msgs Messages) OnboardingStep(step int, count int) string {
+	if i18n.IsPseudo(msgs.lang) {
+		return i18n.Pseudo(msgs.lang, Messages{lang: Source, mark: true}.OnboardingStep(step, count))
+	}
+	for lang := msgs.lang; ; lang = i18n.Parent(lang) {
+		if f := supplied[lang].OnboardingStep; f != nil {
+			return f(step, count)
+		}
+		switch lang {
+		case "", "en":
+			return "Step " + msgs.arg(i18n.FormatNumber("en", float64(step))) + " of " + msgs.arg(i18n.FormatNumber("en", float64(count)))
+		case "ja":
+			return "ステップ " + i18n.FormatNumber("ja", float64(step)) + "/" + i18n.FormatNumber("ja", float64(count))
+		case "ko":
+			return i18n.FormatNumber("ko", float64(count)) + "단계 중 " + i18n.FormatNumber("ko", float64(step)) + "단계"
+		case "zh-Hans":
+			return "第 " + i18n.FormatNumber("zh-Hans", float64(step)) + " 步，共 " + i18n.FormatNumber("zh-Hans", float64(count)) + " 步"
+		case "zh-Hant":
+			return "第 " + i18n.FormatNumber("zh-Hant", float64(step)) + " 步，共 " + i18n.FormatNumber("zh-Hant", float64(count)) + " 步"
+		}
+	}
+}
+
+// OnboardingTarget says "Translate subtitles into"
+// in the language the app shows under cx.
+//
+// Heading of the languages subtitles can be translated into, on the introduction's languages step.
+func OnboardingTarget(cx *core.Scope) string { return For(cx).OnboardingTarget() }
+
+// OnboardingTarget is the package's OnboardingTarget in the language of msgs.
+func (msgs Messages) OnboardingTarget() string { return msgs.text(textOnboardingTarget) }
 
 // PairAddress says "Address"
 // in the language the app shows under cx.
@@ -2248,20 +2803,109 @@ func SessionDownloading(cx *core.Scope) string { return For(cx).SessionDownloadi
 // SessionDownloading is the package's SessionDownloading in the language of msgs.
 func (msgs Messages) SessionDownloading() string { return msgs.text(textSessionDownloading) }
 
-// WelcomePair says "Pair"
+// SettingsAbout says "About"
 // in the language the app shows under cx.
 //
-// Button on the first screen, and on Computers with none paired: opens pairing.
-func WelcomePair(cx *core.Scope) string { return For(cx).WelcomePair() }
+// Heading of Settings' section about the app.
+func SettingsAbout(cx *core.Scope) string { return For(cx).SettingsAbout() }
 
-// WelcomePair is the package's WelcomePair in the language of msgs.
-func (msgs Messages) WelcomePair() string { return msgs.text(textWelcomePair) }
+// SettingsAbout is the package's SettingsAbout in the language of msgs.
+func (msgs Messages) SettingsAbout() string { return msgs.text(textSettingsAbout) }
 
-// WelcomeTitle says "Pair with Kando on your computer"
+// SettingsComputers says "Computers"
 // in the language the app shows under cx.
 //
-// Heading of the first screen, and of Computers with none paired.
-func WelcomeTitle(cx *core.Scope) string { return For(cx).WelcomeTitle() }
+// Heading of Settings' section of the paired computers.
+func SettingsComputers(cx *core.Scope) string { return For(cx).SettingsComputers() }
 
-// WelcomeTitle is the package's WelcomeTitle in the language of msgs.
-func (msgs Messages) WelcomeTitle() string { return msgs.text(textWelcomeTitle) }
+// SettingsComputers is the package's SettingsComputers in the language of msgs.
+func (msgs Messages) SettingsComputers() string { return msgs.text(textSettingsComputers) }
+
+// SettingsIntroduction says "Show the Introduction Again"
+// in the language the app shows under cx.
+//
+// Row in Settings that shows the introduction again.
+func SettingsIntroduction(cx *core.Scope) string { return For(cx).SettingsIntroduction() }
+
+// SettingsIntroduction is the package's SettingsIntroduction in the language of msgs.
+func (msgs Messages) SettingsIntroduction() string { return msgs.text(textSettingsIntroduction) }
+
+// SettingsNoComputer says "Not connected"
+// in the language the app shows under cx.
+//
+// At the foot of a tablet's sidebar while no computer is paired.
+func SettingsNoComputer(cx *core.Scope) string { return For(cx).SettingsNoComputer() }
+
+// SettingsNoComputer is the package's SettingsNoComputer in the language of msgs.
+func (msgs Messages) SettingsNoComputer() string { return msgs.text(textSettingsNoComputer) }
+
+// SettingsPair says "Connect a Computer"
+// in the language the app shows under cx.
+//
+// Row in Settings that opens pairing, while no computer is paired.
+func SettingsPair(cx *core.Scope) string { return For(cx).SettingsPair() }
+
+// SettingsPair is the package's SettingsPair in the language of msgs.
+func (msgs Messages) SettingsPair() string { return msgs.text(textSettingsPair) }
+
+// SettingsPairAnother says "Connect Another Computer"
+// in the language the app shows under cx.
+//
+// Row in Settings that opens pairing with one more computer.
+func SettingsPairAnother(cx *core.Scope) string { return For(cx).SettingsPairAnother() }
+
+// SettingsPairAnother is the package's SettingsPairAnother in the language of msgs.
+func (msgs Messages) SettingsPairAnother() string { return msgs.text(textSettingsPairAnother) }
+
+// SettingsSource says "Source Code"
+// in the language the app shows under cx.
+//
+// Row in Settings that opens Kando's source code on GitHub.
+func SettingsSource(cx *core.Scope) string { return For(cx).SettingsSource() }
+
+// SettingsSource is the package's SettingsSource in the language of msgs.
+func (msgs Messages) SettingsSource() string { return msgs.text(textSettingsSource) }
+
+// SettingsSubtitles says "Subtitles"
+// in the language the app shows under cx.
+//
+// Heading of Settings' section of the subtitles.
+func SettingsSubtitles(cx *core.Scope) string { return For(cx).SettingsSubtitles() }
+
+// SettingsSubtitles is the package's SettingsSubtitles in the language of msgs.
+func (msgs Messages) SettingsSubtitles() string { return msgs.text(textSettingsSubtitles) }
+
+// SettingsTarget says "Translate Into"
+// in the language the app shows under cx.
+//
+// Row in Settings, and the title of its page, that picks the language subtitles are translated into.
+func SettingsTarget(cx *core.Scope) string { return For(cx).SettingsTarget() }
+
+// SettingsTarget is the package's SettingsTarget in the language of msgs.
+func (msgs Messages) SettingsTarget() string { return msgs.text(textSettingsTarget) }
+
+// SettingsTargetNote says "Subtitles are translated into this language. For now the choice is kept on this phone; Kando on your computer still translates into the language set there."
+// in the language the app shows under cx.
+//
+// Under the languages subtitles can be translated into.
+func SettingsTargetNote(cx *core.Scope) string { return For(cx).SettingsTargetNote() }
+
+// SettingsTargetNote is the package's SettingsTargetNote in the language of msgs.
+func (msgs Messages) SettingsTargetNote() string { return msgs.text(textSettingsTargetNote) }
+
+// SettingsTitle says "Settings"
+// in the language the app shows under cx.
+//
+// Tab and title of Settings.
+func SettingsTitle(cx *core.Scope) string { return For(cx).SettingsTitle() }
+
+// SettingsTitle is the package's SettingsTitle in the language of msgs.
+func (msgs Messages) SettingsTitle() string { return msgs.text(textSettingsTitle) }
+
+// dated is lang with the hour cycle the user set, which times take.
+func (msgs Messages) dated(lang string) string {
+	if msgs.hc == "" {
+		return lang
+	}
+	return lang + "-u-hc-" + msgs.hc
+}

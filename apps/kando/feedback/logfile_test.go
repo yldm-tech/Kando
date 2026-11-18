@@ -78,3 +78,61 @@ func TestLogFileHidesTokens(t *testing.T) {
 		}
 	}
 }
+
+// TestLogFilesMoveToTheNewFolder moves the log and the two full ones kept beside it from the old folder, which goes once it is empty, and leaves what else is there.
+func TestLogFilesMoveToTheNewFolder(t *testing.T) {
+	root := t.TempDir()
+	from, to := filepath.Join(root, "Kando"), filepath.Join(root, "ai.yldm.kando")
+	if err := os.MkdirAll(from, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	for _, name := range []string{LogName, "kando.1.log", "kando.2.log"} {
+		if err := os.WriteFile(filepath.Join(from, name), []byte(name), 0o600); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if err := MoveLogFiles(from, to); err != nil {
+		t.Fatal(err)
+	}
+	for _, name := range []string{LogName, "kando.1.log", "kando.2.log"} {
+		if got := readLog(t, filepath.Join(to, name)); got != name {
+			t.Fatalf("%s holds %q", name, got)
+		}
+	}
+	if _, err := os.Stat(from); !errors.Is(err, os.ErrNotExist) {
+		t.Fatalf("the old folder stayed: %v", err)
+	}
+
+	// A folder that holds something else stays, with it.
+	if err := os.MkdirAll(from, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	other := filepath.Join(from, "notes.txt")
+	if err := os.WriteFile(other, nil, 0o600); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(from, LogName), []byte("older"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	// The new folder already has a log, so the old one is left as it is.
+	if err := MoveLogFiles(from, to); err != nil {
+		t.Fatal(err)
+	}
+	if got := readLog(t, filepath.Join(to, LogName)); got != LogName {
+		t.Fatalf("the new log was replaced with %q", got)
+	}
+	if got := readLog(t, filepath.Join(from, LogName)); got != "older" {
+		t.Fatalf("the old log holds %q", got)
+	}
+	if _, err := os.Stat(other); err != nil {
+		t.Fatal(err)
+	}
+
+	// Without an old folder, nothing happens.
+	if err := MoveLogFiles(filepath.Join(root, "none"), filepath.Join(root, "fresh")); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := os.Stat(filepath.Join(root, "fresh")); !errors.Is(err, os.ErrNotExist) {
+		t.Fatalf("a folder was made with nothing to move: %v", err)
+	}
+}

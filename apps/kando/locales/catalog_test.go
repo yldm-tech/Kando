@@ -62,10 +62,6 @@ func TestInterfaceIsTheCatalogs(t *testing.T) {
 // unusedAllowed are the messages no Go file of the app names that stay in the catalogs: appName, which NSGo reads by its key for the menu bar and the packages, and the words of what waits on NSGo, which the TODO(nsgo#N) at each place names.
 var unusedAllowed = []string{
 	"appName",
-	// nsgo#199: titles, buttons and filters of the file and folder panels (dialogs.go).
-	"libraryPickVideosTitle", "libraryPickVideosButton", "libraryVideoFilter", "libraryImportTitle", "libraryImportButton", "libraryPlaceTitle", "libraryPlaceButton",
-	// nsgo#118: the system menu items NSGo has no role for (menu.go).
-	"menuServices", "menuPasteAndMatchStyle", "menuDelete", "menuSpeech", "menuStartSpeaking", "menuStopSpeaking", "menuBringAllToFront",
 	// nsgo#32: the updater's state and switches under Version (settings/general.go).
 	"settingsGeneralUpdateAvailable", "settingsGeneralLastCheck", "settingsGeneralAutoCheck", "settingsGeneralAutoDownload", "settingsGeneralAutoDownloadHint",
 }

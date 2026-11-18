@@ -181,14 +181,15 @@ func TestPlaybackFollowsTheSystemsPlayer(t *testing.T) {
 	}
 }
 
-// TestPlayFromTheEndSeeksBeforeItPlays plays a film again once it has ended, with play and with a seek: the update that asks the system's player to jump still holds it paused, and only the next lets it play, as AVPlayer told to play at the end of its video reports the end again and stays there.
-func TestPlayFromTheEndSeeksBeforeItPlays(t *testing.T) {
+// TestPlayFromTheEndSeeksAsItPlays plays a film again once it has ended, with play and with a seek: the update that unpauses the system's player also has it jump, which a video that played to its end then plays from (core.Ref.Seek).
+func TestPlayFromTheEndSeeksAsItPlays(t *testing.T) {
 	for _, start := range []struct {
 		name string
 		do   func(a *app, tt *nsgotest.App)
+		at   time.Duration
 	}{
-		{"play", func(_ *app, tt *nsgotest.App) { tt.Key("space") }},
-		{"seek", func(a *app, _ *nsgotest.App) { a.seekPlayback(3 * time.Second) }},
+		{"play", func(_ *app, tt *nsgotest.App) { tt.Key("space") }, 0},
+		{"seek", func(a *app, tt *nsgotest.App) { a.seekPlayback(3 * time.Second); refresh(tt, a) }, 3 * time.Second},
 	} {
 		t.Run(start.name, func(t *testing.T) {
 			a, tt, _ := playerOpen(t)
@@ -199,15 +200,11 @@ func TestPlayFromTheEndSeeksBeforeItPlays(t *testing.T) {
 			if !p.finished {
 				t.Fatal("the film did not end")
 			}
-			var held []func()
-			p.later = func(fn func()) { held = append(held, fn) }
+			seeks := len(playerSeeks(tt))
 			start.do(a, tt)
-			if !p.Playing() || !a.playerVideo().Paused || len(held) != 1 {
-				t.Fatalf("as it seeks from the end: playing %v paused %v held %d", p.Playing(), a.playerVideo().Paused, len(held))
-			}
-			held[0]()
-			if a.playerVideo().Paused {
-				t.Fatal("the system's player stayed paused after the seek went out")
+			got := playerSeeks(tt)
+			if !p.Playing() || playerVideoConfig(tt).Paused || len(got) != seeks+1 || got[len(got)-1] != start.at {
+				t.Fatalf("played from the end: playing %v paused %v seeks %v", p.Playing(), playerVideoConfig(tt).Paused, got)
 			}
 		})
 	}
@@ -2690,5 +2687,29 @@ func TestSubtitlesInTheDefaultFaceKeepTheSystemsFont(t *testing.T) {
 				t.Errorf("%v: a line in %q, want the system's font", os, f)
 			}
 		}
+	}
+}
+
+// TestPlayerFollowsTheMainWindowsLifecycle checks that the player hears that the main window went out of sight, and that it shows again. Every window goes out of sight together here, so it would pass as well on the app-wide lifecycle playerAwakeLifecycle read before nsgo#197.
+// TODO(nsgo): nsgotest.App.SetEnvironment gives every window the same environment (nsgotest/nsgotest.go:909-927) and nothing reports one window's lifecycle alone; once something does, put the main window in the background while the settings window shows, the case the main window's own lifecycle is read for.
+func TestPlayerFollowsTheMainWindowsLifecycle(t *testing.T) {
+	a, tt, _ := newTestApp(t, &fakePipeline{})
+	a.playerAwakeLifecycle()
+	refresh(tt, a)
+	if a.player.windowAway {
+		t.Fatal("the player thinks the window is away while it shows")
+	}
+	env := testEnvironment()
+	env.Lifecycle = ns.LifecycleBackground
+	tt.SetEnvironment(env)
+	refresh(tt, a)
+	if !a.player.windowAway {
+		t.Fatal("the player did not hear that the main window went out of sight")
+	}
+	env.Lifecycle = ns.LifecycleActive
+	tt.SetEnvironment(env)
+	refresh(tt, a)
+	if a.player.windowAway {
+		t.Fatal("the player did not hear that the main window shows again")
 	}
 }

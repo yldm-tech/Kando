@@ -371,6 +371,21 @@ cheatsheetTitle:
 cheatsheetVolume:
   message: "Volume Up / Down"
   description: "Cheat sheet line for the ↑ and ↓ keys in the player."
+chromeClose:
+  message: "Close"
+  description: "Accessible name of the round close button at the right end of the window's header bar on Linux, which closes the window."
+chromeMaximize:
+  message: "Maximize"
+  description: "Accessible name of the round button in the window's header bar on Linux that maximizes the window, and the command palette's row that does so on Windows and Linux."
+chromeMinimize:
+  message: "Minimize"
+  description: "Accessible name of the round button in the window's header bar on Linux that minimizes the window."
+chromeRestore:
+  message: "Restore"
+  description: "Accessible name of the header bar's maximize button on Linux while the window is maximized, and the command palette's row that takes the window back to its size, as Windows names it."
+chromeSearch:
+  message: "Search commands and lines"
+  description: "Button in the window's title bar on Windows and Linux that opens the command palette, which finds commands, films and subtitle lines already watched. Its shortcut (Ctrl+K) shows after it."
 cloudSignedIn:
   message: "Signed in. You can close this page."
   description: "The browser page Google's sign-in returns to, once the app has the sign-in."
@@ -515,6 +530,115 @@ correctUndone:
 correctUnreadable:
   message: "This film’s corrections couldn’t be read, so they can’t be changed"
   description: "Message on the picture when the film's corrections file could not be read, which is then not written over."
+subexportBilingual:
+  message: "Both"
+  description: "Choice in the Export Subtitles dialog: export each line's translation and original together."
+subexportCancel:
+  message: "Cancel"
+  description: "Button closing the Export Subtitles dialog without exporting."
+subexportContent:
+  message: "Lines"
+  description: "Row of the Export Subtitles dialog choosing which lines to export: the originals, the translations or both."
+subexportCountEdited:
+  message: "includes {count, plural, one {# line} other {# lines}} you corrected"
+  description: "Part of the summary in the Export Subtitles dialog: how many of the exported lines the user corrected, which are exported as corrected."
+  placeholders:
+    count: { type: "int", example: "2" }
+subexportCountLines:
+  message: "{count, plural, one {# line} other {# lines}}"
+  description: "First part of the summary in the Export Subtitles dialog: how many lines the film has, leaving out those marked as no speech."
+  placeholders:
+    count: { type: "int", example: "18" }
+subexportCountMissing:
+  message: "{count} untranslated ({how})"
+  description: "Part of the summary in the Export Subtitles dialog: how many lines have no translation, and what the export does with them, one of the choices of the row Lines Without a Translation."
+  placeholders:
+    count: { type: "int", example: "1" }
+    how: { type: "String", example: "Leave Out" }
+subexportCountNoSpeech:
+  message: "leaves out {count, plural, one {# line} other {# lines}} marked as no speech"
+  description: "Last part of the summary in the Export Subtitles dialog: how many lines the user marked as no speech, which are not exported."
+  placeholders:
+    count: { type: "int", example: "1" }
+subexportCountTranslated:
+  message: "{translated}/{lines} translated"
+  description: "Part of the summary in the Export Subtitles dialog: how many of the lines have a translation, out of all of them."
+  placeholders:
+    translated: { type: "int", example: "17" }
+    lines: { type: "int", example: "18" }
+subexportDelay:
+  message: "Write the Subtitle Delay into the Times"
+  description: "Accessible name of the switch in the Export Subtitles dialog that moves every exported time by the film's subtitle delay."
+subexportDelayAt:
+  message: "Write the subtitle delay into the times ({delay})"
+  description: "Label of the switch in the Export Subtitles dialog that moves every exported time by the film's subtitle delay, shown with the delay."
+  placeholders:
+    delay: { type: "String", example: "+0.3 s" }
+subexportDescription:
+  message: "UTF-8. Lines you corrected are exported as you corrected them."
+  description: "Text under the title of the Export Subtitles dialog."
+subexportDone:
+  message: "Exported {file}"
+  description: "Message on the picture after the subtitles were exported, with the name of the file written."
+  placeholders:
+    file: { type: "String", example: "video.dual.srt" }
+subexportFailed:
+  message: "Couldn’t export the subtitles"
+  description: "Message on the picture when the exported subtitles could not be written."
+subexportFormat:
+  message: "Format"
+  description: "Row of the Export Subtitles dialog choosing the file format: SRT, WebVTT or ASS."
+subexportKandoFile:
+  message: "That name is kept for Kando’s own subtitles of the film, so the export was not saved there. Save it under another name."
+  description: "Message on the picture when the user chose to save the export under one of the names Kando keeps the film's subtitles under, which is then put back as it was (or removed, when no such file was there)."
+subexportKandoFileChanged:
+  message: "That name is kept for Kando’s own subtitles of the film, which changed while you chose where to save, so the export was removed from it. If the film’s subtitles are missing, process it again."
+  description: "Message on the picture when the user saved the export under one of the names Kando keeps the film's subtitles under while Kando was writing them, so the export is removed rather than an older copy put back."
+subexportKandoFileStuck:
+  message: "The export was saved over Kando’s own subtitles of the film and couldn’t be taken back out. Process the film again to make its subtitles anew."
+  description: "Message on the picture when the user saved the export under one of the names Kando keeps the film's subtitles under and Kando could not put that file back or remove it."
+subexportMenu:
+  message: "Export Subtitles…"
+  description: "Item of the File menu and the command palette opening the Export Subtitles dialog for the film open in the player."
+subexportMissing:
+  message: "Lines Without a Translation"
+  description: "Row of the Export Subtitles dialog choosing what an exported line without a translation becomes."
+subexportMissingOriginal:
+  message: "Use the Original"
+  description: "Choice of the row Lines Without a Translation: the original stands in for the missing translation."
+subexportMissingPlaceholder:
+  message: "Leave a Placeholder"
+  description: "Choice of the row Lines Without a Translation: a placeholder stands in for the missing translation."
+subexportMissingSkip:
+  message: "Leave Out"
+  description: "Choice of the row Lines Without a Translation: the missing translation is left out, so only the original shows in a bilingual export and the line is not exported in a translation export."
+subexportOrder:
+  message: "Order"
+  description: "Row of the Export Subtitles dialog choosing which line of a bilingual cue goes on top."
+subexportOriginal:
+  message: "Original"
+  description: "Choice in the Export Subtitles dialog: export the original lines only."
+subexportOriginalFirst:
+  message: "Original on Top"
+  description: "Choice of the row Order in the Export Subtitles dialog."
+subexportPlaceholder:
+  message: "[Not translated]"
+  description: "Text written into an exported subtitle file in place of a line's missing translation, when the user chose Leave a Placeholder."
+subexportSaveAs:
+  message: "Save As…"
+  description: "Button of the Export Subtitles dialog asking where to save the exported file."
+subexportTitle:
+  message: "Export Subtitles"
+  description: "Title of the Export Subtitles dialog, and its line in the shortcut cheat sheet."
+subexportToFolder:
+  message: "Export to the Film’s Folder"
+  description: "Main button of the Export Subtitles dialog: writes the exported file beside the film's video, at the path shown above it."
+subexportTranslation:
+  message: "Translation"
+  description: "Choice in the Export Subtitles dialog: export the translations only."
+subexportTranslationFirst:
+  message: "Translation on Top"
+  description: "Choice of the row Order in the Export Subtitles dialog."
 feedbackAttachEnv:
   message: "App and System Versions"
   description: "Check box attaching the app's and the system's versions."
@@ -673,6 +797,26 @@ filmBytes:
 filmCancel:
   message: "Cancel"
   description: "Player title bar button: cancels this film's running job."
+filmChapterSite:
+  message: "{site, select, youtube {the YouTube description} bilibili {bilibili's highlights} other {the site}}"
+  description: "Where a film's chapters came from, used inside the chapter notes of the Clips and Info tabs: the timestamps in a YouTube video's description, the highlights (视频看点) a bilibili uploader marked, or another site's own chapters."
+  placeholders:
+    site: { type: "String", example: "youtube" }
+filmChapters:
+  message: "Chapters"
+  description: "Heading in the Info tab over the chapters the film's site marks."
+filmChaptersInfo:
+  message: "{count, plural, one {# chapter} other {# chapters}} · from {site}"
+  description: "Info tab: how many chapters the film's site marks and where from; {site} is filmChapterSite."
+  placeholders:
+    count: { type: "int", example: "5" }
+    site: { type: "String", example: "the YouTube description" }
+filmChaptersInfoEven:
+  message: "{count, plural, one {# chapter} other {# chapters}} · from {site} (cut by time instead)"
+  description: "Info tab: the film's site marks chapters, but the user chose to cut it evenly by time; {site} is filmChapterSite."
+  placeholders:
+    count: { type: "int", example: "5" }
+    site: { type: "String", example: "the YouTube description" }
 filmClip:
   message: "Clip {number}, {start}–{end}: {title}"
   description: "Accessible name of a clip in the Clips tab: its number, the times it starts and ends, and the line it is named after."
@@ -688,6 +832,27 @@ filmClipSpan:
     number: { type: "int", example: "3" }
     start: { type: "String", example: "1:00" }
     end: { type: "String", example: "1:30" }
+filmClipsChapters:
+  message: "{count, plural, one {# chapter} other {# chapters}} from {site}."
+  description: "Note over the Clips tab while the film is cut at the chapters its site marks, whose titles are not translated; {site} is filmChapterSite."
+  placeholders:
+    count: { type: "int", example: "5" }
+    site: { type: "String", example: "the YouTube description" }
+filmClipsChaptersTranslated:
+  message: "{count, plural, one {# chapter} other {# chapters}} from {site}, titles translated."
+  description: "Note over the Clips tab while the film is cut at the chapters its site marks, whose titles were translated; {site} is filmChapterSite."
+  placeholders:
+    count: { type: "int", example: "5" }
+    site: { type: "String", example: "the YouTube description" }
+filmClipsEven:
+  message: "The subtitles cut evenly by time into 4 to 12 clips."
+  description: "Note over the Clips tab of a film whose site marks chapters, while it is cut evenly by time instead."
+filmClipsUseChapters:
+  message: "Use Chapters"
+  description: "Button over the Clips tab that cuts the film at the chapters its site marks again."
+filmClipsUseEven:
+  message: "Cut by Time"
+  description: "Button over the Clips tab that cuts the film evenly by time instead of at its site's chapters."
 filmColorOrange:
   message: "Orange"
   description: "A subtitle line's color."
@@ -1137,6 +1302,9 @@ filmTabInfo:
 filmTabStyle:
   message: "Style"
   description: "Side panel tab with the subtitle style."
+filmTabTerms:
+  message: "Terms"
+  description: "Side panel tab with the film's glossary: how names and terms are translated."
 filmTranscribeAgain:
   message: "Transcribe Again in {language}"
   description: "Button in a film's Info tab, under the Spoken Language drop-down, shown when the language chosen there is not the one heard in the film: processes the film again, transcribing its speech in that language."
@@ -1692,6 +1860,83 @@ filmsWatchShowAll:
 filmsWatched:
   message: "Watched"
   description: "Accessible name of the check mark over a poster: the film was played to its end."
+glossaryIntro:
+  message: "Terms apply at once. A locked term is translated exactly as written here, and no machine pass changes it."
+  description: "Note at the top of the Terms tab of the player's side panel."
+glossaryEmpty:
+  message: "This film has no terms yet."
+  description: "Terms tab: shown instead of the list when the film's glossary is empty."
+glossaryScopeFilm:
+  message: "This Film"
+  description: "Scope of a term (its pill in the Terms tab): it applies to this film only."
+glossaryScopeSeries:
+  message: "Series"
+  description: "Scope of a term (its pill in the Terms tab): it applies to every film of this film's series."
+glossaryScopeGlobal:
+  message: "All Films"
+  description: "Scope of a term (its pill in the Terms tab): it applies to every film."
+glossaryMetaLocked:
+  message: "{scope} · Locked"
+  description: "Line under a locked term in the Terms tab: where it applies, and that it is locked."
+  placeholders:
+    scope: { type: "String", example: "This Film" }
+glossaryScopeLabel:
+  message: "Applies to: {scope}. Press to change it to {next}."
+  description: "Accessible name and tooltip of a term's scope pill in the Terms tab."
+  placeholders:
+    scope: { type: "String", example: "This Film" }
+    next: { type: "String", example: "Series" }
+glossaryLock:
+  message: "Lock “{term}”"
+  description: "Accessible name of the button that locks a term in the Terms tab."
+  placeholders:
+    term: { type: "String", example: "河曲" }
+glossaryUnlock:
+  message: "Unlock “{term}”"
+  description: "Accessible name of the button that unlocks a locked term in the Terms tab."
+  placeholders:
+    term: { type: "String", example: "河曲" }
+glossaryRemove:
+  message: "Remove “{term}”"
+  description: "Accessible name of the button that removes a term from the glossary in the Terms tab."
+  placeholders:
+    term: { type: "String", example: "meander" }
+glossarySeriesLine:
+  message: "Series “{name}” · {count, plural, one {# film} other {# films}}"
+  description: "Terms tab: the series the film is part of and how many films of the library are in it."
+  placeholders:
+    name: { type: "String", example: "Geography" }
+    count: { type: "int", example: "3" }
+glossaryLeaveSeries:
+  message: "Not a Series"
+  description: "Terms tab: button that takes the film out of its series, after which it no longer uses the series' terms."
+glossaryAddGroup:
+  message: "Add a Term"
+  description: "Terms tab: heading over the fields a new term is typed in."
+glossarySource:
+  message: "Term"
+  description: "Terms tab: accessible name of the field for the words as the film's lines write them."
+glossarySourceHint:
+  message: "As the lines say it"
+  description: "Placeholder of the field for a new term's words, as the film's lines write them."
+glossaryTarget:
+  message: "Translation"
+  description: "Terms tab: accessible name of the field for how the term is to be translated."
+glossaryTargetHint:
+  message: "Translate it as"
+  description: "Placeholder of the field for a new term's translation."
+glossaryAdd:
+  message: "Add"
+  description: "Terms tab: button that adds the term typed in the fields beside it."
+glossaryUnreadable:
+  message: "The glossary file could not be read, so it was not changed."
+  description: "Message over the picture when glossary.json could not be read at startup, so a change of a series' or every film's term is not saved over it."
+glossarySaveFailed:
+  message: "Could not save the glossary."
+  description: "Message over the picture when a change of the glossary could not be written to disk."
+glossaryNewer:
+  message: "This film's terms were written by a newer Kando and cannot be changed here."
+  description: "Message over the picture when the film's terms file was written by a newer version of Kando."
 kitsDownloadDisconnected:
   message: "the connection dropped"
   description: "Why Kando's download of a program failed, after 'Download failed:': the connection to the server broke off."
@@ -2669,6 +2914,12 @@ paletteSettingsSection:
   description: "Command palette command that opens a section of Settings."
   placeholders:
     section: { type: "String", example: "AI Service" }
+paletteSubmenuItem:
+  message: "{menu} › {item}"
+  description: "Command palette command, where the app has no menu bar, for an item of a menu bar submenu such as Sort By › Name or Switch Library › a library's name."
+  placeholders:
+    menu: { type: "String", example: "Sort By" }
+    item: { type: "String", example: "Name" }
 paletteSubtitleMode:
   message: "Subtitles: {mode}"
   description: "Brief notice over the player after the palette switched the subtitles' display mode."
@@ -3971,6 +4222,12 @@ settingsGeneralCLITool:
 settingsGeneralCLIToolHint:
   message: "Add videos and check jobs and subtitles from a terminal with the kando command."
   description: "Line under Command-Line Tool before it is installed: what the kando command does."
+settingsGeneralChapters:
+  message: "Import chapters from the site"
+  description: "Switch in Settings › General › Online Videos: films are cut at the chapters their site marks, unless the user chose otherwise for a film."
+settingsGeneralChaptersHint:
+  message: "Timestamps in a YouTube description and the highlights a bilibili uploader marks become chapters, with their titles translated."
+  description: "Line under the switch that imports the site's chapters in Settings › General."
 settingsGeneralComponents:
   message: "Components"
   description: "Heading of the card listing the programs Kando runs."
@@ -4449,7 +4706,7 @@ settingsPrivacySaveFailed:
   placeholders:
     error: { type: "String", example: "permission denied" }
 settingsPrivacyStepAI:
-  message: "Translation, proofreading and explanations"
+  message: "Translation, proofreading, explanations and word lookups"
   description: "Row of the network table in Settings › Privacy: what the AI service does."
 settingsPrivacyStepAICloud:
   message: "{service}, which receives the subtitle text"
@@ -4607,6 +4864,9 @@ settingsSpeechCancel:
 settingsSpeechChooseFile:
   message: "Choose Model File…"
   description: "Button at the end of the whisper Models heading. It opens a file panel to use a whisper.cpp model file (.bin) already on this computer instead of downloading one."
+settingsSpeechChooseFileTitle:
+  message: "Choose Model File"
+  description: "Title of the file dialog that Choose Model File… opens to use a whisper.cpp model file already on this computer."
 settingsSpeechDownload:
   message: "Download"
   description: "Button downloading a whisper model."
@@ -5326,6 +5586,12 @@ subscribeCadence:
 subscribeCadenceNote:
   message: "Only while Kando is open, never in the background"
   description: "Note of the Check for New Videos row."
+subscribeSeries:
+  message: "Treat as a Series"
+  description: "Switch in a subscription's rules: its videos are a series, which share a glossary."
+subscribeSeriesNote:
+  message: "Its videos share a glossary, so names and terms are translated the same way in every one"
+  description: "Note under the Treat as a Series switch."
 subscribeCadenceOpen:
   message: "On Open"
   description: "Choice of the Check for New Videos row: each time Kando opens."
@@ -5463,6 +5729,207 @@ subscribeSaveFailed:
 updatesCheck:
   message: "Check for Updates…"
   description: "Item of the app menu (and the command palette) that checks for a newer version of Kando and shows the update window."
+vocabAddToVocabulary:
+  message: "Add to Vocabulary"
+  description: "Button of the card of a word looked up on the player's subtitles: puts the word in the library's vocabulary."
+vocabChartTitle:
+  message: "Last 7 days · minutes · all devices"
+  description: "Study stats dialog: title of the bar chart of the minutes films played on each of the last seven days, on all devices together."
+vocabDays:
+  message: "{count, plural, one {# day} other {# days}}"
+  description: "Study stats dialog: the days in a row studied, the big number of the streak card."
+  placeholders:
+    count: { type: "int", example: "5" }
+vocabDone:
+  message: "Done"
+  description: "Button that closes the study stats dialog."
+vocabExport:
+  message: "Export…"
+  description: "Button of the Export Vocabulary tab: asks for a folder and writes the vocabulary there."
+vocabExportEmpty:
+  message: "Nothing to export yet. Click a word on the subtitles while a film plays to look it up and add it."
+  description: "Export Vocabulary tab, in place of the preview, when the library has no word (nor saved line, when those are exported too)."
+vocabExportFailed:
+  message: "Couldn't export the vocabulary: {error}"
+  description: "Export Vocabulary tab, when the export failed, with the system's reason."
+  placeholders:
+    error: { type: "String", example: "permission denied" }
+vocabExportIntro:
+  message: "Export this library's vocabulary to keep reviewing it in Anki or a spreadsheet."
+  description: "Export Vocabulary tab: what the export is for, at its top."
+vocabExportMenuItem:
+  message: "Export Vocabulary…"
+  description: "Study menu item that opens the study stats dialog at its Export Vocabulary tab."
+vocabExported:
+  message: "Exported to {file}"
+  description: "Export Vocabulary tab, after the export: the file it wrote."
+  placeholders:
+    file: { type: "String", example: "~/Downloads/Kando Vocabulary.csv" }
+vocabFormat:
+  message: "Format"
+  description: "Export Vocabulary tab: label of the choice of file format."
+vocabFormatAnki:
+  message: "Anki"
+  description: "Export Vocabulary tab: the format of notes Anki's File › Import reads."
+vocabFormatCSV:
+  message: "CSV"
+  description: "Export Vocabulary tab: a CSV table, which spreadsheets open."
+vocabFormatTSV:
+  message: "Plain Text (Tab-Separated)"
+  description: "Export Vocabulary tab: plain text with a tab between the fields."
+vocabHours:
+  message: "{hours} h"
+  description: "Study stats dialog: a time of an hour or more, in hours to a tenth, as 1.7."
+  placeholders:
+    hours: { type: "String", example: "1.7" }
+vocabInVocabulary:
+  message: "In Vocabulary"
+  description: "Button of the card of a word looked up, once the word is in the vocabulary: pressing it takes the word out again."
+vocabLearning:
+  message: "Learning {count}"
+  description: "Study stats dialog, under the mastery bar: how many words and saved lines are being learned."
+  placeholders:
+    count: { type: "int", example: "3" }
+vocabLineCount:
+  message: "{count, plural, one {# line} other {# lines}}"
+  description: "Study stats dialog: how many lines are saved, the big number of the saved lines card."
+  placeholders:
+    count: { type: "int", example: "2" }
+vocabLines:
+  message: "Saved lines"
+  description: "Study stats dialog: title of the card of the saved lines."
+vocabLinesDue:
+  message: "{count} due today"
+  description: "Study stats dialog, saved lines card: how many saved lines are due for review today."
+  placeholders:
+    count: { type: "int", example: "4" }
+vocabLongest:
+  message: "Longest {count, plural, one {# day} other {# days}}"
+  description: "Study stats dialog, streak card: the longest run of days in a row studied."
+  placeholders:
+    count: { type: "int", example: "12" }
+vocabLookupBusy:
+  message: "Looking it up…"
+  description: "Card of a word looked up on the subtitles, while the AI service is asked what it means."
+vocabLookupCard:
+  message: "Look up: {word}"
+  description: "Accessible name of the card of a word looked up on the player's subtitles."
+  placeholders:
+    word: { type: "String", example: "trickle" }
+vocabLookupClose:
+  message: "Close"
+  description: "Close button of the card of a word looked up on the subtitles."
+vocabLookupFailed:
+  message: "No meaning came back: {error}"
+  description: "Card of a word looked up, when the AI service did not answer, with its reason."
+  placeholders:
+    error: { type: "String", example: "401 Unauthorized" }
+vocabLookupNoAI:
+  message: "Looking up a word asks the AI service. Set one up in AI Service."
+  description: "Card of a word looked up, when no AI service is set up; Kando bundles no dictionary."
+vocabLookupSettings:
+  message: "Open Settings"
+  description: "Button of the card of a word looked up, when no AI service can answer: opens the AI Service settings."
+vocabMastered:
+  message: "Mastered {count}"
+  description: "Study stats dialog, under the mastery bar: how many words and saved lines are mastered."
+  placeholders:
+    count: { type: "int", example: "2" }
+vocabMastery:
+  message: "Mastery"
+  description: "Study stats dialog: title of the bar of how well the words and saved lines are known."
+vocabMasteryNote:
+  message: "Words and saved lines together. One counts as mastered once you knew it five times in a row and its next review is over three weeks away."
+  description: "Study stats dialog, under the mastery bar: what is counted and what mastered means."
+vocabMinutes:
+  message: "{count} min"
+  description: "Study stats dialog: a time under an hour, in whole minutes."
+  placeholders:
+    count: { type: "int", example: "45" }
+vocabNew:
+  message: "New {count}"
+  description: "Study stats dialog, under the mastery bar: how many words and saved lines were never known in a review yet."
+  placeholders:
+    count: { type: "int", example: "1" }
+vocabOsdAdded:
+  message: "Added “{word}” to the vocabulary"
+  description: "Message over the picture after a word looked up went into the vocabulary."
+  placeholders:
+    word: { type: "String", example: "trickle" }
+vocabOsdRemoved:
+  message: "Removed “{word}” from the vocabulary"
+  description: "Message over the picture after a word looked up was taken out of the vocabulary."
+  placeholders:
+    word: { type: "String", example: "trickle" }
+vocabOtherDevices:
+  message: "Other devices"
+  description: "Study stats dialog, legend of the chart: the minutes films played on the learner's other devices, as phones, once they sync."
+vocabPreview:
+  message: "Preview (first 3)"
+  description: "Export Vocabulary tab: label over the first three records as the file will hold them."
+vocabStatsMenuItem:
+  message: "Study Stats"
+  description: "Study menu item that opens the study stats dialog."
+vocabStatsTitle:
+  message: "Study"
+  description: "Title of the study stats dialog, which has the stats and the vocabulary export as its tabs."
+vocabStreak:
+  message: "Streak"
+  description: "Study stats dialog: title of the card of the days in a row studied, a day counting once films played a minute on it."
+vocabSummary:
+  message: "{words, plural, one {# word} other {# words}} · {lines, plural, one {# saved line} other {# saved lines}} · {films, plural, one {from # film} other {from # films}}"
+  description: "Export Vocabulary tab, beside the Export button: what the export will hold."
+  placeholders:
+    words: { type: "int", example: "6" }
+    lines: { type: "int", example: "2" }
+    films: { type: "int", example: "4" }
+vocabTabExport:
+  message: "Export Vocabulary"
+  description: "Study stats dialog: tab that exports the vocabulary."
+vocabTabStats:
+  message: "Stats"
+  description: "Study stats dialog: tab of the stats."
+vocabThisComputer:
+  message: "This computer"
+  description: "Study stats dialog, legend of the chart: the minutes films played on this computer."
+vocabWeek:
+  message: "Last 7 days"
+  description: "Study stats dialog: title of the card of how long films played in the last seven days, today with them."
+vocabWeekLess:
+  message: "{time} less than the 7 days before"
+  description: "Study stats dialog, last 7 days card: how much less than in the seven days before."
+  placeholders:
+    time: { type: "String", example: "20 min" }
+vocabWeekMore:
+  message: "{time} more than the 7 days before"
+  description: "Study stats dialog, last 7 days card: how much more than in the seven days before."
+  placeholders:
+    time: { type: "String", example: "20 min" }
+vocabWeekSame:
+  message: "Same as the 7 days before"
+  description: "Study stats dialog, last 7 days card: as long as in the seven days before."
+vocabWithLines:
+  message: "Also export saved lines"
+  description: "Export Vocabulary tab: check box that adds the saved lines after the words."
+vocabWithSentence:
+  message: "Include the sentence"
+  description: "Export Vocabulary tab: check box that writes with each word the line it was looked up in."
+vocabWithTranslation:
+  message: "Include the sentence's translation"
+  description: "Export Vocabulary tab: check box that writes with each word the translation of the line it was looked up in."
+vocabWordCount:
+  message: "{count, plural, one {# word} other {# words}}"
+  description: "Study stats dialog: how many words the vocabulary has, the big number of the vocabulary card."
+  placeholders:
+    count: { type: "int", example: "6" }
+vocabWords:
+  message: "Vocabulary"
+  description: "Study stats dialog: title of the card of the vocabulary."
+vocabWordsDue:
+  message: "{count} due today"
+  description: "Study stats dialog, vocabulary card: how many words are due for review today."
+  placeholders:
+    count: { type: "int", example: "4" }
 windowMenuMain:
   message: "Main Window"
   description: "Item of the Window menu (macOS) that shows Kando's main window again after its close button put it away while Kando keeps running."

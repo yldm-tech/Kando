@@ -506,3 +506,19 @@ func TestSheetCornersLineUp(t *testing.T) {
 		}
 	}
 }
+
+// TestTextsSayTheirLanguage checks that a tile's own name and the art's example lines are tagged with the languages they are written in, so Han characters take that language's glyph forms.
+func TestTextsSayTheirLanguage(t *testing.T) {
+	a := newFakeApp()
+	app := start(t, a, core.OSMacOS)
+	if got := app.Find(`text:"日本語"`).TextStyle.Font.Language; got != "ja" {
+		t.Fatalf("日本語 on its tile is in %q", got)
+	}
+	code, original, translation := demo(a.learning, a.language)
+	if got := app.Find(`text:"` + original + `"`).TextStyle.Font.Language; got != code {
+		t.Fatalf("the example's line is in %q, want %q", got, code)
+	}
+	if got := app.Find(`text:"` + translation + `"`).TextStyle.Font.Language; got != "zh-Hans" {
+		t.Fatalf("the example's translation is in %q, want zh-Hans", got)
+	}
+}

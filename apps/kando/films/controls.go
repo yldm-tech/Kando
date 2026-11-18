@@ -31,9 +31,8 @@ func hasImage(source core.ImageSource) bool { return source.URI != "" || len(sou
 // overlay is a view over the whole of its parent.
 var overlay = core.Style{Position: core.Absolute, Top: core.Pt(0), Left: core.Pt(0), Right: core.Pt(0), Bottom: core.Pt(0)}
 
-// clip is a view over the whole of its parent, rounded by radius as the parent is, that cuts children off at its edges. It is a view of its own because on Apple's targets a view that clips its children clips its own outer shadow too, so a card with a shadow keeps the shadow and clips here, as ui.Dialog does.
+// clip is a view over the whole of its parent, rounded by radius as the parent is, that cuts children off at its edges. It is a view of its own, as core.Style's Overflow advises and ui.Dialog's Bare does, because some views that clip their children clip their own outer shadow too (Apple's images whose corners differ, Android's views), so a card with a shadow keeps the shadow and clips here.
 func clip(radius core.Points, children ...core.Node) core.Node {
-	// TODO(nsgo#210): clip on the card itself once Overflow Hidden behaves, and is documented, the same on every platform as to the view's own outer shadow https://github.com/nsgo-dev/nsgo/issues/210
 	return core.View{Style: overlay.Merge(core.Style{Overflow: core.Hidden, CornerRadius: radius}), Children: children}
 }
 

@@ -18,13 +18,13 @@ import (
 	"kando/packages/core"
 )
 
-// What Download asks yt-dlp to print on stdout, each line under a prefix of its own: the video's title, thumbnail and length as soon as it has been looked up, before the formats are chosen, so a download that fails at choosing them still names the video (kando-info), the formats it will download, two for a video and its sound to be merged (kando-formats), a line for each step of each format's download (kando-progress), and, last, the path of the merged file, unprefixed (--print after_move:filepath).
+// What Download asks yt-dlp to print on stdout, each line under a prefix of its own: the video's title, thumbnail, length and chapters as soon as it has been looked up, before the formats are chosen, so a download that fails at choosing them still names the video (kando-info), the formats it will download, two for a video and its sound to be merged (kando-formats), a line for each step of each format's download (kando-progress), and, last, the path of the merged file, unprefixed (--print after_move:filepath).
 const (
 	ytdlpInfoPrefix     = "kando-info "
 	ytdlpFormatsPrefix  = "kando-formats "
 	ytdlpProgressPrefix = "kando-progress "
 
-	ytdlpInfoTemplate     = "pre_process:" + ytdlpInfoPrefix + "%(.{id,title,thumbnail,duration})j"
+	ytdlpInfoTemplate     = "pre_process:" + ytdlpInfoPrefix + "%(.{id,title,thumbnail,duration,chapters})j"
 	ytdlpFormatsTemplate  = "before_dl:" + ytdlpFormatsPrefix + "%(requested_formats.:.format_id)j"
 	ytdlpProgressTemplate = "download:" + ytdlpProgressPrefix + "%(progress.status)s %(progress.downloaded_bytes)s %(progress.total_bytes)s %(progress.total_bytes_estimate)s %(progress.speed)s %(progress.eta)s %(progress.fragment_index)s %(progress.fragment_count)s %(info.format_id)s"
 )
@@ -33,6 +33,8 @@ const (
 type ytdlpReader struct {
 	progress func(core.Progress)
 	info     func(Info)
+	// chapters hears the chapters the site marks in the video, when it marks any.
+	chapters func([]core.Chapter)
 	// formats are the format IDs yt-dlp said it will download, in order; path is the last line that had no prefix.
 	formats []string
 	path    string
@@ -43,9 +45,10 @@ func (r *ytdlpReader) line(line string) {
 	switch {
 	case strings.HasPrefix(line, ytdlpInfoPrefix):
 		var raw struct {
-			Title     string   `json:"title"`
-			Thumbnail string   `json:"thumbnail"`
-			Duration  *float64 `json:"duration"`
+			Title     string         `json:"title"`
+			Thumbnail string         `json:"thumbnail"`
+			Duration  *float64       `json:"duration"`
+			Chapters  []ytdlpChapter `json:"chapters"`
 		}
 		if json.Unmarshal([]byte(strings.TrimPrefix(line, ytdlpInfoPrefix)), &raw) != nil {
 			return
@@ -56,6 +59,9 @@ func (r *ytdlpReader) line(line string) {
 		}
 		if r.info != nil {
 			r.info(info)
+		}
+		if list := chaptersOf(raw.Chapters); len(list) > 0 && r.chapters != nil {
+			r.chapters(list)
 		}
 	case strings.HasPrefix(line, ytdlpFormatsPrefix):
 		var ids []string

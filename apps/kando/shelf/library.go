@@ -343,6 +343,8 @@ type storedJob struct {
 	LocalLines        int  `json:"localLines,omitempty"`
 	// Device is the paired phone that sent the job's link (core.Job.Device).
 	Device string `json:"device,omitempty"`
+	// Series is the series the film is part of (core.Job.Series).
+	Series string `json:"series,omitempty"`
 }
 
 func storeJob(job core.Job) storedJob {
@@ -355,6 +357,7 @@ func storeJob(job core.Job) storedJob {
 	}
 	stored.Quality, stored.SubtitleSource = job.Quality, job.SubtitleSource
 	stored.PlatformSubtitles, stored.LocalLines = job.PlatformSubtitles, job.LocalLines
+	stored.Series = job.Series
 	switch {
 	case errors.Is(job.Err, context.Canceled):
 		stored.Error = storedCanceled
@@ -376,6 +379,7 @@ func (s storedJob) job() core.Job {
 	}
 	job.Quality, job.SubtitleSource = s.Quality, s.SubtitleSource
 	job.PlatformSubtitles, job.LocalLines = s.PlatformSubtitles, s.LocalLines
+	job.Series = s.Series
 	switch s.Error {
 	case "":
 	case storedCanceled:

@@ -75,7 +75,7 @@ func newDesktop(t *testing.T) *synctest.Desktop {
 	return d
 }
 
-// openTab shows tab i (downloadsTab, computersTab), named name, pressing the drawn bar's tab, which headless always shows. Where the system's bar shows in its place, on an iOS target, it reports the change as the platform would, which nsgotest allows headless only: there it skips the test, so a screenshot scene must not depend on it.
+// openTab shows tab i (filmsTab, learnTab, settingsTab), named name, pressing the drawn bar's tab, which headless always shows. Where the system's bar shows in its place, on an iOS target, it reports the change as the platform would, which nsgotest allows headless only: there it skips the test, so a screenshot scene must not depend on it.
 func (p *phone) openTab(i int, name string) {
 	p.t.Helper()
 	if p.app.Exists("id:tab-bar >> label:" + name) {
@@ -85,10 +85,28 @@ func (p *phone) openTab(i int, name string) {
 	p.app.Emit("id:tab-bar", "change", float64(i))
 }
 
-// pair pairs the phone with d through the pairing page opened from the welcome screen, comparing the fingerprint; paired, the phone shows the computers.
+// startPairing goes through a new phone's introduction to its pairing step.
+func (p *phone) startPairing() {
+	p.t.Helper()
+	p.app.WaitFor("id:onboarding-intro", wait)
+	p.app.Press("id:onboarding-continue")
+	p.app.WaitFor("id:onboarding-languages", wait)
+	p.app.Press("id:onboarding-continue")
+	p.app.WaitFor("id:onboarding-pairing", wait)
+}
+
+// finishPairing leaves the introduction once the phone paired with d, at the Library, which lists d.
+func (p *phone) finishPairing(d *synctest.Desktop) {
+	p.t.Helper()
+	p.app.WaitFor("id:onboarding-paired", wait)
+	p.app.Press("id:onboarding-start")
+	p.app.WaitFor("id:computers-desktop-"+store.DesktopID(d.Fingerprint), wait)
+}
+
+// pair pairs a new phone with d at the introduction's pairing step, comparing the fingerprint; paired, the phone shows the Library.
 func (p *phone) pair(d *synctest.Desktop) {
 	p.t.Helper()
-	p.app.Press("id:welcome-pair")
+	p.startPairing()
 	p.fillPairing(d.Addr.String(), "123456")
 	p.app.Press("id:pair-continue")
 	got := p.app.WaitFor("id:pair-fingerprint", wait).Text
@@ -96,7 +114,7 @@ func (p *phone) pair(d *synctest.Desktop) {
 		p.t.Fatalf("the pairing page shows fingerprint %q, the desktop's is %q", got, want)
 	}
 	p.app.Press("id:pair-confirm")
-	p.app.WaitFor("id:computers-desktop-"+store.DesktopID(d.Fingerprint), wait)
+	p.finishPairing(d)
 }
 
 // pairedWith keeps d in dir as paired, pairing over the protocol rather than through the pairing page, and returns the option that starts the phone with the token in its secure store.
@@ -155,8 +173,14 @@ func (p *phone) texts(selector string) string {
 // keepTalk puts the talk on the phone as downloaded from a desktop that is gone, as a film to play offline: its record, its lines and a video file.
 func keepTalk(t *testing.T, dir string) store.Film {
 	t.Helper()
+	return keepTalkFrom(t, dir, "gonedesk")
+}
+
+// keepTalkFrom puts the talk on the phone as downloaded from desktop.
+func keepTalkFrom(t *testing.T, dir, desktop string) store.Film {
+	t.Helper()
 	st := store.Open(dir)
-	f := store.Film{Desktop: "gonedesk", Library: "Japanese Class", Video: "video.mp4", Added: now(),
+	f := store.Film{Desktop: desktop, Library: "Japanese Class", Video: "video.mp4", Added: now(),
 		Film: sync.Film{ID: "f1", Title: "Morning Talk", DurationMS: 10_000, Spoken: "ja", Translation: "简体中文", VideoSize: int64(len(talkVideo))}}
 	if err := st.SaveFilm(f); err != nil {
 		t.Fatal(err)

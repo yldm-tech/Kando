@@ -47,7 +47,9 @@ type Row struct {
 	// Index is the row's place in its group: rows after the first draw the hairline over them.
 	Index func() int
 	// Inset is where the hairline starts, 16 when 0.
-	Inset   core.Points
+	Inset core.Points
+	// Checked makes the row a radio button of its group, checked while it reports true.
+	Checked func() bool
 	OnPress func()
 	TestID  string
 }
@@ -112,6 +114,9 @@ func (r Row) Render(cx *core.Scope) core.Node {
 	if r.OnPress != nil {
 		v.Role = core.RoleButton
 		v.OnPress = func(core.PressEvent) { r.OnPress() }
+	}
+	if r.Checked != nil {
+		v.Role, v.Checked = core.RoleRadio, r.Checked
 	}
 	return v
 }

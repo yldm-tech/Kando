@@ -532,6 +532,20 @@ func TestLibraryKeepsTheDeviceAJobCameFrom(t *testing.T) {
 	}
 }
 
+// The series the user said a film is part of stays with its job across a restart, so its translation keeps using the series' glossary.
+func TestLibraryKeepsTheSeriesOfAJob(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "library.json")
+	lib, _ := Load(path)
+	lib.Upsert(core.Job{ID: "a", Source: "https://www.youtube.com/watch?v=jNQXAC9IVRw", Stage: core.StageComplete, Series: "sub-1"})
+	if err := lib.Save(); err != nil {
+		t.Fatal(err)
+	}
+	loaded, _ := Load(path)
+	if a, _ := loaded.Find("a"); a.Series != "sub-1" {
+		t.Fatalf("job %+v", a)
+	}
+}
+
 // TestRenameKeepsTheTitleGivenInKando checks that a title the user gives a video is kept trimmed, read back from library.json, dropped by an empty one, and that Rename says whether anything changed.
 func TestRenameKeepsTheTitleGivenInKando(t *testing.T) {
 	path := filepath.Join(t.TempDir(), "library.json")

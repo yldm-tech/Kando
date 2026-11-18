@@ -60,10 +60,14 @@ type Pipeline interface {
 //
 // A link's job whose SubtitleSource is core.SubtitlesPlatform, on a pipeline that is a PlatformSubtitler, fetches the subtitles the uploader put on the site in the language the speech was heard in once the speech it heard is kept and proofread, and takes them as the film's original lines where they match the speech (matchPlatform): where they do not, and where they have none, the lines are the ones heard, proofread. job.PlatformSubtitles and job.LocalLines say so, and the transcript kept beside the video holds those lines, so a job run again reads them back; one stopped while it fetches them keeps the speech it heard and fetches them again. The uploader's lines are not proofread. A job's Quality is the picture its download asks for (Tools.Download).
 //
+// A link's download that finds chapters the site marks in the video, the timestamps of a YouTube video's description or a bilibili video's 视频看点 (core.Chapter), keeps them beside the video (ChaptersPath), and each job that translates the film translates their titles into the language of its subtitles, after its lines and apart from them: a failure leaves them as the site wrote them, and the job goes on.
+//
 // The translation keeps each batch it has done in a hidden file beside the video (withCheckpoint) until the job exports, so a job whose translation stopped partway, cancelled, quit or failed, does not pay for those batches again when it runs again with the same lines and language.
 func Run(ctx context.Context, p Pipeline, job core.Job, language string, report func(core.Job)) core.Job {
 	// heard is the language a RedoAll job's transcription heard, which becomes the film's SpokenLanguage only once the job is complete, so a redo that fails or is stopped leaves the film's as it was.
 	var heard string
+	// chapters are the chapters the site marks in the video, as the download found them, which are kept beside the video once it is downloaded.
+	var chapters []core.Chapter
 	enter := func(stage core.Stage) {
 		job.Stage = stage
 		job.Progress = core.Progress{}
@@ -94,6 +98,7 @@ func Run(ctx context.Context, p Pipeline, job core.Job, language string, report 
 			}
 			job.SpokenLanguage = language
 		},
+		Chapters: func(list []core.Chapter) { chapters = list },
 	})
 	// A film the user said is spoken in another language than the settings name is heard in its own (core.Job.SpeechLanguage).
 	if code := strings.TrimSpace(job.SpeechLanguage); code != "" {
@@ -161,6 +166,9 @@ func Run(ctx context.Context, p Pipeline, job core.Job, language string, report 
 			job.Transcribed, same = false, false
 		}
 		job.VideoPath = video
+		if len(chapters) > 0 {
+			keepChapters(video, chapters)
+		}
 
 		transcript = TranscriptOf(video)
 		if h, ok := p.(hearer); ok {
@@ -319,6 +327,12 @@ func Run(ctx context.Context, p Pipeline, job core.Job, language string, report 
 	}
 	if err != nil {
 		return fail("translate", err)
+	}
+	// The titles of the chapters the site marks are translated as the lines were, unless the translation failed as a whole; a job stopped while they are translated stops.
+	if notTranslated == "" {
+		if err := translateChapters(ctx, p, job.VideoPath, language, same); err != nil {
+			return fail("translate", err)
+		}
 	}
 
 	enter(core.StageExporting)

@@ -111,8 +111,7 @@ func switcherMenu(cx *core.Scope, a App) []nsdesktop.MenuItem {
 		} else if n, ok := a.LibraryCount(dir); ok {
 			label = locales.SidebarLibraryCount(cx, label, n)
 		}
-		// TODO(nsgo#118): make the libraries radio items, the open one chosen, as MyGo's Menu.Item(...).Radio drew them; NSGo's menu items are only checkable https://github.com/nsgo-dev/nsgo/issues/118
-		items = append(items, nsdesktop.MenuItem{Label: label, Checkable: true, Checked: current, OnSelect: live.Do(a, func() { a.Choose(dir) })})
+		items = append(items, nsdesktop.MenuItem{Label: label, Radio: true, Checked: current, OnSelect: live.Do(a, func() { a.Choose(dir) })})
 	}
 	if len(libraries) > 0 {
 		items = append(items, nsdesktop.MenuItem{Separator: true})
