@@ -2690,7 +2690,8 @@ func TestSubtitlesInTheDefaultFaceKeepTheSystemsFont(t *testing.T) {
 	}
 }
 
-// TestPlayerFollowsTheMainWindowsLifecycle checks that the player hears that the main window went out of sight from the main window's own lifecycle, and that it shows again.
+// TestPlayerFollowsTheMainWindowsLifecycle checks that the player hears that the main window went out of sight, and that it shows again. Every window goes out of sight together here, so it would pass as well on the app-wide lifecycle playerAwakeLifecycle read before nsgo#197.
+// TODO(nsgo): nsgotest.App.SetEnvironment gives every window the same environment (nsgotest/nsgotest.go:909-927) and nothing reports one window's lifecycle alone; once something does, put the main window in the background while the settings window shows, the case the main window's own lifecycle is read for.
 func TestPlayerFollowsTheMainWindowsLifecycle(t *testing.T) {
 	a, tt, _ := newTestApp(t, &fakePipeline{})
 	a.playerAwakeLifecycle()
