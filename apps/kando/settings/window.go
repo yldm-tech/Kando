@@ -8,6 +8,7 @@ import (
 	"kando/apps/kando/locales"
 	"kando/apps/kando/settings/form"
 	"kando/apps/kando/theme"
+	kcore "kando/packages/core"
 	"kando/packages/media"
 
 	"github.com/nsgo-dev/nsgo/base"
@@ -72,6 +73,11 @@ type App interface {
 	SetSignInBrowser(id string)
 	CheckSignIn()
 	OpenFullDiskAccess()
+	// PlatformSubtitles is whether a link's film takes the subtitles its uploader put on the site as its original lines where they match the speech (core.SubtitlesPlatform), and DownloadQuality the picture its download asks for; the setters change them, and the page saves them.
+	PlatformSubtitles() bool
+	SetPlatformSubtitles(on bool)
+	DownloadQuality() kcore.Quality
+	SetDownloadQuality(q kcore.Quality)
 	// PhoneSync is where Phone Sync stands, which the 手机同步 page shows. SetPhoneSync turns it on, which starts the server off the UI thread, or off, which stops it, and saves that; NewPhoneCode offers a new pairing code in place of the one shown; RevokePhone unpairs a phone, whose token is refused from then on.
 	PhoneSync() PhoneSync
 	SetPhoneSync(on bool)

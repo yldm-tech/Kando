@@ -780,6 +780,8 @@ func (a *app) queueRun(job core.Job) {
 	if job.Cookies == "" {
 		job.Cookies = a.signinFor(job.Source)
 	}
+	// A link the user chose no picture or original lines for takes those Settings › 通用 › 在线视频 names, from its first run, and keeps them (onlineFor).
+	job = a.onlineFor(job)
 	// Jobs written by older versions, or jobs interrupted before their language
 	// was saved, can come back from the shelf without a target language. Use the
 	// current translation setting before handing the job to the pipeline; an

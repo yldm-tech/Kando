@@ -33,9 +33,11 @@ type fakeTool struct {
 	Jar, Mode string
 	// Cookies, when set, is what the fake saves to the cookies file it is given with --cookies, as yt-dlp saves there the cookies it read from a browser.
 	Cookies string
-	// Act is what the fake does as the tool: "" nothing more; "download" downloads a split-format video as yt-dlp does (fakeDownload); "update" answers --version and -U as the standalone yt-dlp does (fakeUpdate); "extract-audio" writes an empty file where its last argument says, as ffmpeg writes the audio track; "transcribe" writes Transcript where -of says, with .json added, as whisper-cli -oj does.
+	// Act is what the fake does as the tool: "" nothing more; "download" downloads a split-format video as yt-dlp does (fakeDownload); "update" answers --version and -U as the standalone yt-dlp does (fakeUpdate); "extract-audio" writes an empty file where its last argument says, as ffmpeg writes the audio track; "subtitles" writes Files in the folder -P names; "transcribe" writes Transcript where -of says, with .json added, as whisper-cli -oj does.
 	Act        string
 	Transcript string
+	// Files are what Act "subtitles" writes in the folder -P names, by file name, as yt-dlp --skip-download --write-subs writes the subtitles it fetched.
+	Files map[string]string `json:",omitempty"`
 	// Stdout and Stderr are printed on the two streams, and then the contents of StdoutFile and StderrFile, as a real run of the tool printed them.
 	Stdout, Stderr         string
 	StdoutFile, StderrFile string
@@ -233,6 +235,17 @@ func (f fakeTool) act(args []string) error {
 			return errors.New("no output file")
 		}
 		return os.WriteFile(args[len(args)-1], nil, 0o644)
+	case "subtitles":
+		dir, ok := argAfterIn(args, "-P")
+		if !ok {
+			return errors.New("no -P")
+		}
+		for name, data := range f.Files {
+			if err := os.WriteFile(filepath.Join(dir, name), []byte(data), 0o644); err != nil {
+				return err
+			}
+		}
+		return nil
 	case "transcribe":
 		out, ok := argAfterIn(args, "-of")
 		if !ok {

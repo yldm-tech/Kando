@@ -126,6 +126,9 @@ type pendingHeard struct {
 	Language  string `json:"language"`
 	Spoken    string `json:"spoken,omitempty"`
 	Proofread bool   `json:"proofread,omitempty"`
+	// Platform is whether the speech kept aside is the site's subtitles checked against it, and Local how many of their lines the speech replaced (core.Job.PlatformSubtitles).
+	Platform bool `json:"platform,omitempty"`
+	Local    int  `json:"local,omitempty"`
 }
 
 // proofreadTranscriptPath is where a job translating a done film again (core.Redo.TranslatesOnly) keeps the film's transcript once it has proofread it, until it exports: a hidden file beside the video, so the film's own transcript, which its bilingual subtitles match line for line, stays as it is should the job fail or be stopped, and a job run again reads the proofread lines back rather than paying for them again.

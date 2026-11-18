@@ -58,6 +58,8 @@ type Pipeline interface {
 //
 // Before it translates, a job whose pipeline is a Proofreader has the transcript proofread, unless it was already (job.Proofread, or what a RedoAll or a translating redo kept aside): the words whisper misheard are corrected in the original lines, which every part of Kando shows and the translation is made from. A job making a film for the first time saves the proofread transcript over the one it heard and sets job.Proofread at once; a RedoAll writes it over the speech it keeps aside; a translating redo keeps it in a hidden file beside the video (proofreadTranscriptPath) until it exports, so a redo that fails leaves the film's transcript as it was and one run again does not pay for the proofreading twice. Proofreading that fails, or a translator that is not set up, leaves the lines as they were heard. A film heard in the language its subtitles are for (core.SameLanguage) is not translated: its subtitles are its own lines alone, no line counts as untranslated, and job.SameLanguage says so once it is complete.
 //
+// A link's job whose SubtitleSource is core.SubtitlesPlatform, on a pipeline that is a PlatformSubtitler, fetches the subtitles the uploader put on the site in the language the speech was heard in once it is transcribed, and takes them as the film's original lines where they match the speech (matchPlatform): the lines they do not match, and the speech where they have none, are the ones heard. job.PlatformSubtitles and job.LocalLines say so, and the transcript kept beside the video holds those lines, so a job run again reads them back. The uploader's lines are not proofread. A job's Quality is the picture its download asks for (Tools.Download).
+//
 // The translation keeps each batch it has done in a hidden file beside the video (withCheckpoint) until the job exports, so a job whose translation stopped partway, cancelled, quit or failed, does not pay for those batches again when it runs again with the same lines and language.
 func Run(ctx context.Context, p Pipeline, job core.Job, language string, report func(core.Job)) core.Job {
 	// heard is the language a RedoAll job's transcription heard, which becomes the film's SpokenLanguage only once the job is complete, so a redo that fails or is stopped leaves the film's as it was.
@@ -97,6 +99,8 @@ func Run(ctx context.Context, p Pipeline, job core.Job, language string, report 
 	if code := strings.TrimSpace(job.SpeechLanguage); code != "" {
 		ctx = withSpeechLanguage(ctx, code)
 	}
+	// A link downloads at the quality the user chose for it (core.Job.Quality).
+	ctx = withQuality(ctx, job.Quality)
 	if job.Redo == "" {
 		job.Untranslated = 0
 	}
@@ -120,6 +124,8 @@ func Run(ctx context.Context, p Pipeline, job core.Job, language string, report 
 	}
 
 	var original, earlier []core.Segment
+	// platform is whether original is the site's subtitles (core.Job.PlatformSubtitles), localLines how many of their lines the speech replaced, which a job making a film for the first time keeps in the job as soon as it saves its transcript, and a RedoAll only once it completes. The uploader's own lines are not proofread.
+	platform, localLines := job.PlatformSubtitles, job.LocalLines
 	// proofread is whether original has been proofread, which a job making a film for the first time keeps in job.Proofread as soon as it saves it, and a redo only once it completes, as the film's says what its transcript on disk is until then.
 	proofread := false
 	// model and language are how p hears the video (hearer), which a RedoAll writes beside the speech it keeps aside.
@@ -164,12 +170,15 @@ func Run(ctx context.Context, p Pipeline, job core.Job, language string, report 
 		case job.Redo == core.RedoAll:
 			transcript = pendingTranscriptPath(video)
 			// A redo that failed or was stopped after it transcribed kept the speech it heard aside; run again, it reads that back when this run would hear the speech the same way, with the same model in the same language, rather than transcribing the film again.
+			// What the film's own job found is not what the redo kept aside.
+			platform, localLines = false, 0
 			was, ok := readPendingHeard(video)
 			if ok && !job.Transcribed && same && was.Model == model && was.Language == hearLanguage {
 				job.Transcribed = true
 			}
 			if ok && job.Transcribed {
 				heard, proofread = was.Spoken, was.Proofread
+				platform, localLines = was.Platform, was.Local
 			}
 		case job.Redo == "" && !job.Transcribed && local && foreignTranscript(video):
 			// A "<video>.srt" Kando did not write, as subtitles the user brought with a video, stays as it is.
@@ -183,9 +192,9 @@ func Run(ctx context.Context, p Pipeline, job core.Job, language string, report 
 			}
 		}
 		if len(original) == 0 {
-			job.Transcribed, proofread = false, false
+			job.Transcribed, proofread, platform, localLines = false, false, false, 0
 			if job.Redo == "" {
-				job.Proofread = false
+				job.Proofread, job.PlatformSubtitles, job.LocalLines = false, false, 0
 			}
 			enter(core.StageTranscribing)
 			var err error
@@ -196,13 +205,30 @@ func Run(ctx context.Context, p Pipeline, job core.Job, language string, report 
 			if len(original) == 0 {
 				return fail("transcribe", ErrNoSpeech)
 			}
+			// The site's own subtitles, in the language the speech was heard in, are the film's lines where they match it (core.SubtitlesPlatform). A job stopped while it fetches them stops before it keeps the transcript, so the one run again does not lose them.
+			spokenNow := job.SpokenLanguage
+			if job.Redo == core.RedoAll {
+				spokenNow = heard
+			}
+			if spokenNow == "" {
+				spokenNow = hearLanguage
+			}
+			if lines, n, ok := platformLines(ctx, p, job, spokenNow, original); ok {
+				original, platform, localLines = lines, true, n
+			}
+			if err := ctx.Err(); err != nil {
+				return fail("transcribe", err)
+			}
 			// The transcript is kept before the translation starts, so a translation that fails does not cost the minutes of transcribing again. A transcript that cannot be saved only means a retry transcribes again; Export, which writes beside the video too, says why the folder cannot be written. A redo's says how it was heard, written once the speech it describes is.
 			if job.Redo == core.RedoAll {
 				_ = os.Remove(pendingHeardPath(video))
 			}
 			job.Transcribed = saveTranscript(transcript, original) == nil
 			if job.Redo == core.RedoAll && job.Transcribed {
-				savePendingHeard(video, pendingHeard{Model: model, Language: hearLanguage, Spoken: heard})
+				savePendingHeard(video, pendingHeard{Model: model, Language: hearLanguage, Spoken: heard, Platform: platform, Local: localLines})
+			}
+			if job.Redo == "" {
+				job.PlatformSubtitles, job.LocalLines = platform, localLines
 			}
 		}
 		// Until its subtitles are exported, a film being made for the first time shows its transcript, the original lines, so it can be watched while it is translated; Export puts the bilingual subtitles in its place. A redo keeps the film's own subtitles until then.
@@ -230,7 +256,7 @@ func Run(ctx context.Context, p Pipeline, job core.Job, language string, report 
 		err = tc.CheckTranslate()
 	}
 	// The transcript is proofread before it is translated, by the translator, so what whisper misheard is corrected in the original lines every part of Kando shows and in what is translated from them. Proofreading that fails, or a pipeline that cannot, leaves the lines as they were heard; a job stopped while it proofreads stops.
-	if pr, ok := p.(Proofreader); ok && !proofread && err == nil {
+	if pr, ok := p.(Proofreader); ok && !proofread && !platform && err == nil {
 		fixed, prErr := pr.Proofread(ctx, original, filmTitle(job))
 		if ctxErr := ctx.Err(); ctxErr != nil {
 			return fail("translate", ctxErr)
@@ -242,7 +268,7 @@ func Run(ctx context.Context, p Pipeline, job core.Job, language string, report 
 				job.Proofread = job.Transcribed && saveTranscript(transcript, original) == nil
 			case job.Redo == core.RedoAll:
 				if job.Transcribed && saveTranscript(transcript, original) == nil {
-					savePendingHeard(job.VideoPath, pendingHeard{Model: model, Language: hearLanguage, Spoken: heard, Proofread: true})
+					savePendingHeard(job.VideoPath, pendingHeard{Model: model, Language: hearLanguage, Spoken: heard, Proofread: true, Platform: platform, Local: localLines})
 				}
 			default:
 				_ = saveTranscript(proofreadTranscriptPath(job.VideoPath), original)
@@ -307,6 +333,7 @@ func Run(ctx context.Context, p Pipeline, job core.Job, language string, report 
 	}
 	_ = os.Remove(proofreadTranscriptPath(job.VideoPath))
 	job.Proofread, job.SameLanguage = proofread, same
+	job.PlatformSubtitles, job.LocalLines = platform, localLines
 	job.SubtitlePath = subtitles
 	job.CompletedAt = time.Now()
 	job.Language, job.Untranslated, job.TranslationErr = language, untranslated, notTranslated

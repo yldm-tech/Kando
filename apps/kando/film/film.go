@@ -248,6 +248,9 @@ type Item struct {
 	TranslationErr string
 	// SameLanguage is true for a film heard in the language its subtitles are for, which was not translated: its subtitles are its own lines alone, which every mode but 关闭 shows as 原文 does (ownMode).
 	SameLanguage bool
+	// PlatformSubtitles is true for a film whose original lines are its site's subtitles, checked against the speech, and LocalLines how many of their lines the speech recognition replaced.
+	PlatformSubtitles bool
+	LocalLines        int
 }
 
 // title is how the film is named in the title bar.

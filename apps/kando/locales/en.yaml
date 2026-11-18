@@ -767,6 +767,20 @@ filmOrderOriginalFirst:
 filmOrderTranslationFirst:
   message: "Translation on Top"
   description: "Bilingual order: the translation over the original."
+filmOriginalHeard:
+  message: "Recognized on this computer"
+  description: "Info tab: the film's original lines are what the speech recognition heard."
+filmOriginalLines:
+  message: "Original Lines"
+  description: "Heading in the Info tab over where the film's original lines came from: the site's subtitles or the speech recognition."
+filmOriginalPlatform:
+  message: "The site's subtitles, checked against the speech"
+  description: "Info tab: the film's original lines are the subtitles the uploader put on the site, and every one matched the speech."
+filmOriginalPlatformMixed:
+  message: "The site's subtitles; {count, plural, one {# line didn't match the speech and was recognized on this computer} other {# lines didn't match the speech and were recognized on this computer}}"
+  description: "Info tab: the film's original lines are the site's subtitles, except the lines that did not match the speech, which the speech recognition heard."
+  placeholders:
+    count: { type: "int", example: "3" }
 filmPause:
   message: "Pause"
   description: "Pause button."
@@ -3817,9 +3831,27 @@ settingsGeneralNotify:
 settingsGeneralNotifyHint:
   message: "While Kando is in the background, a notification says when a video's subtitles are ready or couldn't be made."
   description: "Line under the notification switch in Settings › General."
+settingsGeneralOnline:
+  message: "Online Videos"
+  description: "Heading in Settings › General over the card of how links are downloaded: whether their own subtitles are used, and the quality."
 settingsGeneralOpenLibrary:
   message: "Open Library…"
   description: "Button opening an existing library."
+settingsGeneralPlatformSubtitles:
+  message: "Prefer the site's own subtitles"
+  description: "Switch in Settings › General › Online Videos: a link's film takes the subtitles the uploader put on YouTube or bilibili as its original lines when they match the speech, instead of only the speech recognition."
+settingsGeneralPlatformSubtitlesHint:
+  message: "When the uploader's subtitles are in the language spoken, they become the original lines. They are checked against the speech first, and lines that don't match are recognized on this computer instead. Automatic captions are never used."
+  description: "Line under the switch that prefers the site's own subtitles in Settings › General."
+settingsGeneralQuality:
+  message: "Download quality"
+  description: "Row and pop-up in Settings › General › Online Videos: how good a picture a link's download asks the site for."
+settingsGeneralQuality720:
+  message: "720p"
+  description: "Download quality: the best picture no taller than 720 lines."
+settingsGeneralQualityBest:
+  message: "Best"
+  description: "Download quality: the best picture and sound the site has."
 settingsGeneralRedetect:
   message: "Detect Again"
   description: "Button looking for ffmpeg, yt-dlp and whisper-cli again."

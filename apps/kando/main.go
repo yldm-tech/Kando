@@ -61,6 +61,7 @@ type app struct {
 	logs     logsUI     // state_logs.go
 	browse   browseUI   // state_browse.go
 	playlist playlistUI // state_playlist.go
+	online   onlineUI   // state_online.go
 	saved    savedUI    // state_saved.go
 	signin   signinUI   // state_signin.go
 	phone    phoneUI    // state_phonesync.go

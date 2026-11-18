@@ -49,6 +49,19 @@ func TestScreenshotsPlayer(t *testing.T) {
 			t.Fatalf("no offer to transcribe again: %q", tt.Texts())
 		}
 	})
+	// The film's original lines are its site's subtitles, three of whose lines did not match the speech and were recognized on this computer: the info tab says so.
+	f.shoot(t, "player-info-platform-subtitles", func(t *testing.T, a *app, tt *nsgotest.App, updates chan func()) {
+		for i, job := range a.library.Jobs {
+			if job.ID == "j1" {
+				a.library.Jobs[i].PlatformSubtitles, a.library.Jobs[i].LocalLines = true, 3
+			}
+		}
+		open(t, a, tt, updates, "j1", 0)
+		tt.Press("id:film-tab-info")
+		if !tt.Exists("id:film-info-original") {
+			t.Fatalf("no original lines in the info tab: %q", tt.Texts())
+		}
+	})
 	f.shoot(t, "player-menu", held(func(t *testing.T, _ *app, tt *nsgotest.App) { tt.Press("id:film-mode") }))
 	f.shoot(t, "player-style", held(func(t *testing.T, _ *app, tt *nsgotest.App) {
 		tt.Press("id:film-mode")
