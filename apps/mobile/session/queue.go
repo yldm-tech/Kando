@@ -417,7 +417,7 @@ func (s *Session) applyEvents(id string, events []sync.Event) {
 	s.upsertJobs(id, changed)
 }
 
-// upsertJobs puts jobs in desktop's queue in place of those with their IDs, or where a list would show them, and tells Done of each that finished.
+// upsertJobs puts jobs in desktop's queue in place of those with their IDs, or where a list would show them, tells Done of each that finished, and then reads desktop's films again.
 func (s *Session) upsertJobs(desktop string, jobs []sync.Job) {
 	if len(jobs) == 0 {
 		return
@@ -435,6 +435,10 @@ func (s *Session) upsertJobs(desktop string, jobs []sync.Job) {
 		for _, job := range finished {
 			s.remote.events.Done(desktop, job)
 		}
+	}
+	// A job that finished may have added a film, or changed one, which the Library lists only from the computer's own listing.
+	if len(finished) > 0 {
+		s.RefreshDesktop(desktop)
 	}
 }
 

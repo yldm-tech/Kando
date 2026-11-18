@@ -354,3 +354,19 @@ func TestATabletShowsAFilmsOptionsInADialog(t *testing.T) {
 		t.Fatal("a tablet shows a film's options as an action sheet")
 	}
 }
+
+// A film a job on the computer added shows in the Library once the job is done, without pulling to refresh.
+func TestTheLibraryShowsTheFilmAJobAdded(t *testing.T) {
+	d := newDesktop(t)
+	dir := t.TempDir()
+	p := startPhone(t, dir, pairedWith(t, d, dir))
+	id := store.DesktopID(d.Fingerprint)
+	p.app.WaitFor(talkRow(id), wait)
+	moved(d, "job1", "https://youtu.be/night000001", sync.JobRunning, 0, 0.5)
+	p.app.WaitUntil(wait, func() bool { return len(d.Jobs()) == 1 })
+	d.AddFilm(synctest.Film{Library: "lib", Video: []byte("v"), Film: sync.Film{ID: "f3", Title: "Night Talk", Spoken: "ja", Updated: now()}})
+	done := moved(d, "job1", "https://youtu.be/night000001", sync.JobDone, 3, 0)
+	done.Film = "f3"
+	d.SetJob(done)
+	p.app.WaitFor(filmRow(id, "f3"), wait)
+}
