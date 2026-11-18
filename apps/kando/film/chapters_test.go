@@ -1,12 +1,15 @@
 package film
 
 import (
+	"math"
 	"slices"
 	"testing"
 	"time"
 
 	"kando/apps/kando/locales/testlocale"
 	"kando/packages/core"
+
+	ns "github.com/nsgo-dev/nsgo/core"
 )
 
 // riverChapters are the chapters a YouTube description marks in a three-minute film, the first two translated.
@@ -133,4 +136,46 @@ func (f *fakeApp) ImportChapters() bool { return !f.evenChapters }
 func (f *fakeApp) SetFilmChapterUse(use core.ChapterUse) {
 	f.chapterUses = append(f.chapterUses, use)
 	f.info.ChapterUse = use
+}
+
+// The scrubber's ticks between the 片段 of a film cut at its site's chapters sit at the chapters' starts in the video, wherever the subtitle delay puts the lines; cut by time, they move with the lines.
+func TestScrubberTicksAtTheSitesChapters(t *testing.T) {
+	a := newFakeApp()
+	a.subs.Cues = chapterCues
+	a.play = &fakePlay{head: 0, length: 180 * time.Second}
+	a.info = Info{Folder: "/films/talk", Chapters: riverChapters}
+	app := start(t, a)
+	// ticks is where each tick's middle is, as a fraction of the track.
+	ticks := func() []float64 {
+		w := float64(app.Find("id:film-scrub-marks").Frame.Size.Width)
+		var out []float64
+		var fill ns.Color
+		for _, op := range app.Find("id:film-scrub-marks").Ops {
+			switch {
+			case op.Color != 0:
+				fill = op.Color
+			case fill == scrubTick && op.Y == 7 && op.W > 0:
+				out = append(out, math.Round(float64(op.X+op.W/2)/w*1000)/1000)
+			}
+		}
+		return out
+	}
+	want := []float64{math.Round(24.0/180*1000) / 1000, math.Round(58.0/180*1000) / 1000}
+	if got := ticks(); !slices.Equal(got, want) {
+		t.Fatalf("ticks at %v, want %v", got, want)
+	}
+	change(app, a, func() { a.delay = 2 * time.Second })
+	if got := ticks(); !slices.Equal(got, want) {
+		t.Fatalf("2 seconds late the ticks are at %v, want %v", got, want)
+	}
+
+	change(app, a, func() { a.info.ChapterUse = core.ChaptersEven; a.delay = 0 })
+	even := ticks()
+	if len(even) == 0 || slices.Equal(even, want) {
+		t.Fatalf("cut by time the ticks are at %v", even)
+	}
+	change(app, a, func() { a.delay = 9 * time.Second })
+	if got := ticks(); len(got) != len(even) || math.Abs(got[0]-(even[0]+9.0/180)) > 0.002 {
+		t.Fatalf("cut by time, 9 seconds late, the ticks are at %v, from %v", got, even)
+	}
 }

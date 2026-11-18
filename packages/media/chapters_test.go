@@ -216,3 +216,56 @@ func TestRunStoppedWhileTranslatingTheChapters(t *testing.T) {
 		t.Fatalf("job %s: %v", job.Stage, job.Err)
 	}
 }
+
+// cutChoosingPipeline translates as chapterPipeline does, the user choosing meanwhile how the film whose video is at video is cut (SetChapterUse), as one pressing 改按时间切分 while a job translates its titles does.
+type cutChoosingPipeline struct {
+	*chapterPipeline
+	video string
+	use   core.ChapterUse
+}
+
+func (p *cutChoosingPipeline) Translate(ctx context.Context, segments []core.Segment, language string) ([]core.Segment, error) {
+	if err := SetChapterUse(p.video, p.use); err != nil {
+		return nil, err
+	}
+	return p.chapterPipeline.Translate(ctx, segments, language)
+}
+
+// The cut the user chooses while a job translates the chapters' titles stays when the translation is written; chapters a download replaced meanwhile are not overwritten with the old ones' translation.
+func TestTranslatingTheChaptersKeepsTheCutChosenMeanwhile(t *testing.T) {
+	video := filepath.Join(t.TempDir(), "video.mp4")
+	if err := SaveChapters(video, FilmChapters{Chapters: []core.Chapter{chapter(0, "Intro", ""), chapter(24, "Where Rivers Begin", "")}}); err != nil {
+		t.Fatal(err)
+	}
+	p := &cutChoosingPipeline{chapterPipeline: &chapterPipeline{}, video: video, use: core.ChaptersEven}
+	if err := translateChapters(context.Background(), p, video, "简体中文", false); err != nil {
+		t.Fatal(err)
+	}
+	want := FilmChapters{Chapters: []core.Chapter{chapter(0, "Intro", "简体中文:Intro"), chapter(24, "Where Rivers Begin", "简体中文:Where Rivers Begin")}, Language: "简体中文", Use: core.ChaptersEven}
+	if got, _ := ReadChapters(video); !reflect.DeepEqual(got, want) {
+		t.Fatalf("chapters %+v", got)
+	}
+
+	replaced := FilmChapters{Chapters: []core.Chapter{chapter(0, "Intro", ""), chapter(30, "Sources", "")}}
+	q := &replacingPipeline{chapterPipeline: &chapterPipeline{}, video: video, with: replaced}
+	if err := translateChapters(context.Background(), q, video, "日本語", false); err != nil {
+		t.Fatal(err)
+	}
+	if got, _ := ReadChapters(video); !reflect.DeepEqual(got, replaced) {
+		t.Fatalf("replaced chapters %+v", got)
+	}
+}
+
+// replacingPipeline translates as chapterPipeline does, the film's chapters being replaced with with meanwhile, as a download finding other chapters does.
+type replacingPipeline struct {
+	*chapterPipeline
+	video string
+	with  FilmChapters
+}
+
+func (p *replacingPipeline) Translate(ctx context.Context, segments []core.Segment, language string) ([]core.Segment, error) {
+	if err := SaveChapters(p.video, p.with); err != nil {
+		return nil, err
+	}
+	return p.chapterPipeline.Translate(ctx, segments, language)
+}
