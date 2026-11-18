@@ -73,7 +73,7 @@ func (s *screen) scrubber(cx *ns.Scope) ns.Node {
 				d.SetFillColor(scrubMissing).FillRect(x, 15, min(3, x1-x), 3)
 			}
 		}
-		for i, ch := range Chapters(list, seconds(hi)) {
+		for i, ch := range ChaptersFor(a.Info(), a.ImportChapters(), list, seconds(hi), delay) {
 			if x := shown(ch.Start); i > 0 && x > 0 && x < w {
 				d.SetFillColor(scrubTick).FillRect(x-1, 7, 2, 5)
 			}

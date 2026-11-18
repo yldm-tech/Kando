@@ -467,8 +467,13 @@ var Parameters = map[string][]string{
 	"FeedbackToolsDetail":                      {"tools", "speech", "translator"},
 	"FeedbackTruncated":                        {"count"},
 	"FilmBytes":                                {"count"},
+	"FilmChapterSite":                          {"site"},
+	"FilmChaptersInfo":                         {"count", "site"},
+	"FilmChaptersInfoEven":                     {"count", "site"},
 	"FilmClip":                                 {"number", "start", "end", "title"},
 	"FilmClipSpan":                             {"number", "start", "end"},
+	"FilmClipsChapters":                        {"count", "site"},
+	"FilmClipsChaptersTranslated":              {"count", "site"},
 	"FilmFaceBold":                             {"line"},
 	"FilmFaceColor":                            {"line", "color"},
 	"FilmFaceSize":                             {"line"},
@@ -859,8 +864,13 @@ type Translation struct {
 	FeedbackToolsDetail                      func(tools string, speech string, translator string) string
 	FeedbackTruncated                        func(count int) string
 	FilmBytes                                func(count int) string
+	FilmChapterSite                          func(site string) string
+	FilmChaptersInfo                         func(count int, site string) string
+	FilmChaptersInfoEven                     func(count int, site string) string
 	FilmClip                                 func(number int, start string, end string, title string) string
 	FilmClipSpan                             func(number int, start string, end string) string
+	FilmClipsChapters                        func(count int, site string) string
+	FilmClipsChaptersTranslated              func(count int, site string) string
 	FilmFaceBold                             func(line string) string
 	FilmFaceColor                            func(line string, color string) string
 	FilmFaceSize                             func(line string) string
@@ -1361,6 +1371,10 @@ const (
 	textFilmBackToCurrentLine
 	textFilmBackToLibrary
 	textFilmCancel
+	textFilmChapters
+	textFilmClipsEven
+	textFilmClipsUseChapters
+	textFilmClipsUseEven
 	textFilmColorOrange
 	textFilmColorWhite
 	textFilmColorYellow
@@ -2007,6 +2021,8 @@ const (
 	textSettingsGeneralCLIReinstall
 	textSettingsGeneralCLITool
 	textSettingsGeneralCLIToolHint
+	textSettingsGeneralChapters
+	textSettingsGeneralChaptersHint
 	textSettingsGeneralComponents
 	textSettingsGeneralCurrentLibrary
 	textSettingsGeneralDownload
@@ -2519,6 +2535,10 @@ var keyOfText = [numTexts]string{
 	"filmBackToCurrentLine",
 	"filmBackToLibrary",
 	"filmCancel",
+	"filmChapters",
+	"filmClipsEven",
+	"filmClipsUseChapters",
+	"filmClipsUseEven",
 	"filmColorOrange",
 	"filmColorWhite",
 	"filmColorYellow",
@@ -3165,6 +3185,8 @@ var keyOfText = [numTexts]string{
 	"settingsGeneralCLIReinstall",
 	"settingsGeneralCLITool",
 	"settingsGeneralCLIToolHint",
+	"settingsGeneralChapters",
+	"settingsGeneralChaptersHint",
 	"settingsGeneralComponents",
 	"settingsGeneralCurrentLibrary",
 	"settingsGeneralDownload",
@@ -3675,6 +3697,10 @@ var textsEn = i18n.NewTexts(""+
 	"Back to Current Line"+
 	"Back to Library"+
 	"Cancel"+
+	"Chapters"+
+	"The subtitles cut evenly by time into 4 to 12 clips."+
+	"Use Chapters"+
+	"Cut by Time"+
 	"Orange"+
 	"White"+
 	"Yellow"+
@@ -4321,6 +4347,8 @@ var textsEn = i18n.NewTexts(""+
 	"Reinstall"+
 	"Command-Line Tool"+
 	"Add videos and check jobs and subtitles from a terminal with the kando command."+
+	"Import chapters from the site"+
+	"Timestamps in a YouTube description and the highlights a bilibili uploader marks become chapters, with their titles translated."+
 	"Components"+
 	"Current library"+
 	"Download"+
@@ -4828,6 +4856,10 @@ var textsEn = i18n.NewTexts(""+
 		20,
 		15,
 		6,
+		8,
+		52,
+		12,
+		11,
 		6,
 		5,
 		6,
@@ -5474,6 +5506,8 @@ var textsEn = i18n.NewTexts(""+
 		9,
 		17,
 		79,
+		29,
+		127,
 		10,
 		15,
 		8,
@@ -5984,6 +6018,10 @@ var textsJa = i18n.NewTexts(""+
 	"再生中のセリフに戻る"+
 	"ライブラリに戻る"+
 	"キャンセル"+
+	"チャプター"+
+	"字幕を時間で均等に 4〜12 個に区切っています。"+
+	"チャプターを使う"+
+	"時間で区切る"+
 	"オレンジ"+
 	"白"+
 	"黄"+
@@ -6630,6 +6668,8 @@ var textsJa = i18n.NewTexts(""+
 	"再インストール"+
 	"コマンドラインツール"+
 	"ターミナルで kando コマンドを使って、動画の追加やジョブと字幕の確認ができます。"+
+	"サイトのチャプターを取り込む"+
+	"YouTube の概要欄のタイムスタンプや bilibili の「見どころ」をチャプターにし、タイトルも翻訳します"+
 	"コンポーネント"+
 	"現在のライブラリ"+
 	"ダウンロード"+
@@ -7137,6 +7177,10 @@ var textsJa = i18n.NewTexts(""+
 		30,
 		24,
 		15,
+		15,
+		65,
+		24,
+		18,
 		12,
 		3,
 		3,
@@ -7783,6 +7827,8 @@ var textsJa = i18n.NewTexts(""+
 		21,
 		30,
 		115,
+		42,
+		135,
 		21,
 		24,
 		18,
@@ -8293,6 +8339,10 @@ var textsKo = i18n.NewTexts(""+
 	"현재 대사로 돌아가기"+
 	"라이브러리로 돌아가기"+
 	"취소"+
+	"챕터"+
+	"자막을 시간에 따라 4~12개 구간으로 고르게 나눴습니다."+
+	"챕터 사용"+
+	"시간으로 나누기"+
 	"주황색"+
 	"흰색"+
 	"노란색"+
@@ -8939,6 +8989,8 @@ var textsKo = i18n.NewTexts(""+
 	"다시 설치"+
 	"명령줄 도구"+
 	"터미널에서 kando 명령으로 동영상을 추가하고 작업과 자막을 확인할 수 있습니다."+
+	"플랫폼 챕터 가져오기"+
+	"YouTube 설명란의 타임스탬프와 bilibili 하이라이트를 챕터로 만들고 제목도 번역합니다"+
 	"구성 요소"+
 	"현재 라이브러리"+
 	"다운로드"+
@@ -9446,6 +9498,10 @@ var textsKo = i18n.NewTexts(""+
 		29,
 		31,
 		6,
+		6,
+		74,
+		13,
+		22,
 		9,
 		6,
 		9,
@@ -10092,6 +10148,8 @@ var textsKo = i18n.NewTexts(""+
 		13,
 		16,
 		108,
+		29,
+		113,
 		13,
 		22,
 		12,
@@ -10602,6 +10660,10 @@ var textsZhHans = i18n.NewTexts(""+
 	"回到当前句"+
 	"返回资料库"+
 	"取消"+
+	"章节"+
+	"按时间把字幕平均切成 4–12 段。"+
+	"用平台章节"+
+	"改按时间切分"+
 	"橙色"+
 	"白色"+
 	"黄色"+
@@ -11248,6 +11310,8 @@ var textsZhHans = i18n.NewTexts(""+
 	"重新安装"+
 	"命令行工具"+
 	"在终端里用 kando 命令添加视频、查看任务和字幕。"+
+	"导入平台章节"+
+	"YouTube 描述里的时间戳、哔哩哔哩的「视频看点」变成章节，标题一起翻译"+
 	"组件"+
 	"当前资料库"+
 	"下载"+
@@ -11755,6 +11819,10 @@ var textsZhHans = i18n.NewTexts(""+
 		15,
 		15,
 		6,
+		6,
+		44,
+		15,
+		18,
 		6,
 		6,
 		6,
@@ -12401,6 +12469,8 @@ var textsZhHans = i18n.NewTexts(""+
 		12,
 		15,
 		67,
+		18,
+		98,
 		6,
 		15,
 		6,
@@ -12911,6 +12981,10 @@ var textsZhHant = i18n.NewTexts(""+
 	"回到目前這句"+
 	"返回資料庫"+
 	"取消"+
+	"章節"+
+	"按時間把字幕平均切成 4–12 段。"+
+	"用平台章節"+
+	"改按時間切分"+
 	"橙色"+
 	"白色"+
 	"黃色"+
@@ -13557,6 +13631,8 @@ var textsZhHant = i18n.NewTexts(""+
 	"重新安裝"+
 	"命令列工具"+
 	"在終端機中用 kando 指令加入影片、查看工作和字幕。"+
+	"匯入平台章節"+
+	"YouTube 說明裡的時間戳記、嗶哩嗶哩的「影片看點」變成章節，標題一起翻譯"+
 	"元件"+
 	"目前的資料庫"+
 	"下載"+
@@ -14064,6 +14140,10 @@ var textsZhHant = i18n.NewTexts(""+
 		18,
 		15,
 		6,
+		6,
+		44,
+		15,
+		18,
 		6,
 		6,
 		6,
@@ -14710,6 +14790,8 @@ var textsZhHant = i18n.NewTexts(""+
 		12,
 		15,
 		70,
+		18,
+		101,
 		6,
 		18,
 		6,
@@ -15250,11 +15332,26 @@ func Supply(lang string, t Translation) {
 	if t.FilmBytes != nil {
 		s.FilmBytes = t.FilmBytes
 	}
+	if t.FilmChapterSite != nil {
+		s.FilmChapterSite = t.FilmChapterSite
+	}
+	if t.FilmChaptersInfo != nil {
+		s.FilmChaptersInfo = t.FilmChaptersInfo
+	}
+	if t.FilmChaptersInfoEven != nil {
+		s.FilmChaptersInfoEven = t.FilmChaptersInfoEven
+	}
 	if t.FilmClip != nil {
 		s.FilmClip = t.FilmClip
 	}
 	if t.FilmClipSpan != nil {
 		s.FilmClipSpan = t.FilmClipSpan
+	}
+	if t.FilmClipsChapters != nil {
+		s.FilmClipsChapters = t.FilmClipsChapters
+	}
+	if t.FilmClipsChaptersTranslated != nil {
+		s.FilmClipsChaptersTranslated = t.FilmClipsChaptersTranslated
 	}
 	if t.FilmFaceBold != nil {
 		s.FilmFaceBold = t.FilmFaceBold
@@ -19040,6 +19137,177 @@ func FilmCancel(cx *core.Scope) string { return For(cx).FilmCancel() }
 // FilmCancel is the package's FilmCancel in the language of msgs.
 func (msgs Messages) FilmCancel() string { return msgs.text(textFilmCancel) }
 
+// FilmChapterSite says "{site, select, youtube {the YouTube description} bilibili {bilibili's highlights} other {the site}}"
+// in the language the app shows under cx.
+//
+// Where a film's chapters came from, used inside the chapter notes of the Clips and Info tabs: the timestamps in a YouTube video's description, the highlights (视频看点) a bilibili uploader marked, or another site's own chapters.
+func FilmChapterSite(cx *core.Scope, site string) string { return For(cx).FilmChapterSite(site) }
+
+// FilmChapterSite is the package's FilmChapterSite in the language of msgs.
+func (msgs Messages) FilmChapterSite(site string) string {
+	if i18n.IsPseudo(msgs.lang) {
+		return i18n.Pseudo(msgs.lang, Messages{lang: Source, mark: true}.FilmChapterSite(site))
+	}
+	for lang := msgs.lang; ; lang = i18n.Parent(lang) {
+		if f := supplied[lang].FilmChapterSite; f != nil {
+			return f(site)
+		}
+		switch lang {
+		case "", "en":
+			var b strings.Builder
+			switch site {
+			case "youtube":
+				b.WriteString("the YouTube description")
+			case "bilibili":
+				b.WriteString("bilibili's highlights")
+			default:
+				b.WriteString("the site")
+			}
+			return b.String()
+		case "ja":
+			var b strings.Builder
+			switch site {
+			case "youtube":
+				b.WriteString("YouTube の概要欄")
+			case "bilibili":
+				b.WriteString("bilibili の「見どころ」")
+			default:
+				b.WriteString("サイト")
+			}
+			return b.String()
+		case "ko":
+			var b strings.Builder
+			switch site {
+			case "youtube":
+				b.WriteString("YouTube 설명란")
+			case "bilibili":
+				b.WriteString("bilibili 하이라이트")
+			default:
+				b.WriteString("사이트")
+			}
+			return b.String()
+		case "zh-Hans":
+			var b strings.Builder
+			switch site {
+			case "youtube":
+				b.WriteString("YouTube 视频描述")
+			case "bilibili":
+				b.WriteString("哔哩哔哩「视频看点」")
+			default:
+				b.WriteString("网站")
+			}
+			return b.String()
+		case "zh-Hant":
+			var b strings.Builder
+			switch site {
+			case "youtube":
+				b.WriteString("YouTube 影片說明")
+			case "bilibili":
+				b.WriteString("嗶哩嗶哩「影片看點」")
+			default:
+				b.WriteString("網站")
+			}
+			return b.String()
+		}
+	}
+}
+
+// FilmChapters says "Chapters"
+// in the language the app shows under cx.
+//
+// Heading in the Info tab over the chapters the film's site marks.
+func FilmChapters(cx *core.Scope) string { return For(cx).FilmChapters() }
+
+// FilmChapters is the package's FilmChapters in the language of msgs.
+func (msgs Messages) FilmChapters() string { return msgs.text(textFilmChapters) }
+
+// FilmChaptersInfo says "{count, plural, one {# chapter} other {# chapters}} · from {site}"
+// in the language the app shows under cx.
+//
+// Info tab: how many chapters the film's site marks and where from; {site} is filmChapterSite.
+func FilmChaptersInfo(cx *core.Scope, count int, site string) string {
+	return For(cx).FilmChaptersInfo(count, site)
+}
+
+// FilmChaptersInfo is the package's FilmChaptersInfo in the language of msgs.
+func (msgs Messages) FilmChaptersInfo(count int, site string) string {
+	if i18n.IsPseudo(msgs.lang) {
+		return i18n.Pseudo(msgs.lang, Messages{lang: Source, mark: true}.FilmChaptersInfo(count, site))
+	}
+	for lang := msgs.lang; ; lang = i18n.Parent(lang) {
+		if f := supplied[lang].FilmChaptersInfo; f != nil {
+			return f(count, site)
+		}
+		switch lang {
+		case "", "en":
+			var b strings.Builder
+			switch i18n.Cardinal("en", float64(count)) {
+			case i18n.One:
+				b.WriteString(msgs.arg(i18n.FormatNumber("en", float64(count))))
+				b.WriteString(" chapter")
+			default:
+				b.WriteString(msgs.arg(i18n.FormatNumber("en", float64(count))))
+				b.WriteString(" chapters")
+			}
+			b.WriteString(" · from ")
+			b.WriteString(msgs.arg(site))
+			return b.String()
+		case "ja":
+			return i18n.FormatNumber("ja", float64(count)) + " 個 · " + site + "から"
+		case "ko":
+			return i18n.FormatNumber("ko", float64(count)) + "개 · " + site + "에서"
+		case "zh-Hans":
+			return i18n.FormatNumber("zh-Hans", float64(count)) + " 个 · 来自" + site
+		case "zh-Hant":
+			return i18n.FormatNumber("zh-Hant", float64(count)) + " 個 · 來自" + site
+		}
+	}
+}
+
+// FilmChaptersInfoEven says "{count, plural, one {# chapter} other {# chapters}} · from {site} (cut by time instead)"
+// in the language the app shows under cx.
+//
+// Info tab: the film's site marks chapters, but the user chose to cut it evenly by time; {site} is filmChapterSite.
+func FilmChaptersInfoEven(cx *core.Scope, count int, site string) string {
+	return For(cx).FilmChaptersInfoEven(count, site)
+}
+
+// FilmChaptersInfoEven is the package's FilmChaptersInfoEven in the language of msgs.
+func (msgs Messages) FilmChaptersInfoEven(count int, site string) string {
+	if i18n.IsPseudo(msgs.lang) {
+		return i18n.Pseudo(msgs.lang, Messages{lang: Source, mark: true}.FilmChaptersInfoEven(count, site))
+	}
+	for lang := msgs.lang; ; lang = i18n.Parent(lang) {
+		if f := supplied[lang].FilmChaptersInfoEven; f != nil {
+			return f(count, site)
+		}
+		switch lang {
+		case "", "en":
+			var b strings.Builder
+			switch i18n.Cardinal("en", float64(count)) {
+			case i18n.One:
+				b.WriteString(msgs.arg(i18n.FormatNumber("en", float64(count))))
+				b.WriteString(" chapter")
+			default:
+				b.WriteString(msgs.arg(i18n.FormatNumber("en", float64(count))))
+				b.WriteString(" chapters")
+			}
+			b.WriteString(" · from ")
+			b.WriteString(msgs.arg(site))
+			b.WriteString(" (cut by time instead)")
+			return b.String()
+		case "ja":
+			return i18n.FormatNumber("ja", float64(count)) + " 個 · " + site + "から（時間で区切っています）"
+		case "ko":
+			return i18n.FormatNumber("ko", float64(count)) + "개 · " + site + "에서 (시간으로 나눔)"
+		case "zh-Hans":
+			return i18n.FormatNumber("zh-Hans", float64(count)) + " 个 · 来自" + site + "（已改按时间切分）"
+		case "zh-Hant":
+			return i18n.FormatNumber("zh-Hant", float64(count)) + " 個 · 來自" + site + "（已改按時間切分）"
+		}
+	}
+}
+
 // FilmClip says "Clip {number}, {start}–{end}: {title}"
 // in the language the app shows under cx.
 //
@@ -19103,6 +19371,121 @@ func (msgs Messages) FilmClipSpan(number int, start string, end string) string {
 		}
 	}
 }
+
+// FilmClipsChapters says "{count, plural, one {# chapter} other {# chapters}} from {site}."
+// in the language the app shows under cx.
+//
+// Note over the Clips tab while the film is cut at the chapters its site marks, whose titles are not translated; {site} is filmChapterSite.
+func FilmClipsChapters(cx *core.Scope, count int, site string) string {
+	return For(cx).FilmClipsChapters(count, site)
+}
+
+// FilmClipsChapters is the package's FilmClipsChapters in the language of msgs.
+func (msgs Messages) FilmClipsChapters(count int, site string) string {
+	if i18n.IsPseudo(msgs.lang) {
+		return i18n.Pseudo(msgs.lang, Messages{lang: Source, mark: true}.FilmClipsChapters(count, site))
+	}
+	for lang := msgs.lang; ; lang = i18n.Parent(lang) {
+		if f := supplied[lang].FilmClipsChapters; f != nil {
+			return f(count, site)
+		}
+		switch lang {
+		case "", "en":
+			var b strings.Builder
+			switch i18n.Cardinal("en", float64(count)) {
+			case i18n.One:
+				b.WriteString(msgs.arg(i18n.FormatNumber("en", float64(count))))
+				b.WriteString(" chapter")
+			default:
+				b.WriteString(msgs.arg(i18n.FormatNumber("en", float64(count))))
+				b.WriteString(" chapters")
+			}
+			b.WriteString(" from ")
+			b.WriteString(msgs.arg(site))
+			b.WriteString(".")
+			return b.String()
+		case "ja":
+			return site + "のチャプター " + i18n.FormatNumber("ja", float64(count)) + " 個。"
+		case "ko":
+			return site + "에서 가져온 챕터 " + i18n.FormatNumber("ko", float64(count)) + "개."
+		case "zh-Hans":
+			return i18n.FormatNumber("zh-Hans", float64(count)) + " 个章节，来自" + site + "。"
+		case "zh-Hant":
+			return i18n.FormatNumber("zh-Hant", float64(count)) + " 個章節，來自" + site + "。"
+		}
+	}
+}
+
+// FilmClipsChaptersTranslated says "{count, plural, one {# chapter} other {# chapters}} from {site}, titles translated."
+// in the language the app shows under cx.
+//
+// Note over the Clips tab while the film is cut at the chapters its site marks, whose titles were translated; {site} is filmChapterSite.
+func FilmClipsChaptersTranslated(cx *core.Scope, count int, site string) string {
+	return For(cx).FilmClipsChaptersTranslated(count, site)
+}
+
+// FilmClipsChaptersTranslated is the package's FilmClipsChaptersTranslated in the language of msgs.
+func (msgs Messages) FilmClipsChaptersTranslated(count int, site string) string {
+	if i18n.IsPseudo(msgs.lang) {
+		return i18n.Pseudo(msgs.lang, Messages{lang: Source, mark: true}.FilmClipsChaptersTranslated(count, site))
+	}
+	for lang := msgs.lang; ; lang = i18n.Parent(lang) {
+		if f := supplied[lang].FilmClipsChaptersTranslated; f != nil {
+			return f(count, site)
+		}
+		switch lang {
+		case "", "en":
+			var b strings.Builder
+			switch i18n.Cardinal("en", float64(count)) {
+			case i18n.One:
+				b.WriteString(msgs.arg(i18n.FormatNumber("en", float64(count))))
+				b.WriteString(" chapter")
+			default:
+				b.WriteString(msgs.arg(i18n.FormatNumber("en", float64(count))))
+				b.WriteString(" chapters")
+			}
+			b.WriteString(" from ")
+			b.WriteString(msgs.arg(site))
+			b.WriteString(", titles translated.")
+			return b.String()
+		case "ja":
+			return site + "のチャプター " + i18n.FormatNumber("ja", float64(count)) + " 個。タイトルは翻訳済みです。"
+		case "ko":
+			return site + "에서 가져온 챕터 " + i18n.FormatNumber("ko", float64(count)) + "개, 제목 번역됨."
+		case "zh-Hans":
+			return i18n.FormatNumber("zh-Hans", float64(count)) + " 个章节，来自" + site + "，标题已翻译。"
+		case "zh-Hant":
+			return i18n.FormatNumber("zh-Hant", float64(count)) + " 個章節，來自" + site + "，標題已翻譯。"
+		}
+	}
+}
+
+// FilmClipsEven says "The subtitles cut evenly by time into 4 to 12 clips."
+// in the language the app shows under cx.
+//
+// Note over the Clips tab of a film whose site marks chapters, while it is cut evenly by time instead.
+func FilmClipsEven(cx *core.Scope) string { return For(cx).FilmClipsEven() }
+
+// FilmClipsEven is the package's FilmClipsEven in the language of msgs.
+func (msgs Messages) FilmClipsEven() string { return msgs.text(textFilmClipsEven) }
+
+// FilmClipsUseChapters says "Use Chapters"
+// in the language the app shows under cx.
+//
+// Button over the Clips tab that cuts the film at the chapters its site marks again.
+func FilmClipsUseChapters(cx *core.Scope) string { return For(cx).FilmClipsUseChapters() }
+
+// FilmClipsUseChapters is the package's FilmClipsUseChapters in the language of msgs.
+func (msgs Messages) FilmClipsUseChapters() string { return msgs.text(textFilmClipsUseChapters) }
+
+// FilmClipsUseEven says "Cut by Time"
+// in the language the app shows under cx.
+//
+// Button over the Clips tab that cuts the film evenly by time instead of at its site's chapters.
+func FilmClipsUseEven(cx *core.Scope) string { return For(cx).FilmClipsUseEven() }
+
+// FilmClipsUseEven is the package's FilmClipsUseEven in the language of msgs.
+func (msgs Messages) FilmClipsUseEven() string { return msgs.text(textFilmClipsUseEven) }
 
 // FilmColorOrange says "Orange"
 // in the language the app shows under cx.
@@ -34082,6 +34465,26 @@ func SettingsGeneralCLIToolHint(cx *core.Scope) string { return For(cx).Settings
 // SettingsGeneralCLIToolHint is the package's SettingsGeneralCLIToolHint in the language of msgs.
 func (msgs Messages) SettingsGeneralCLIToolHint() string {
 	return msgs.text(textSettingsGeneralCLIToolHint)
+}
+
+// SettingsGeneralChapters says "Import chapters from the site"
+// in the language the app shows under cx.
+//
+// Switch in Settings › General › Online Videos: films are cut at the chapters their site marks, unless the user chose otherwise for a film.
+func SettingsGeneralChapters(cx *core.Scope) string { return For(cx).SettingsGeneralChapters() }
+
+// SettingsGeneralChapters is the package's SettingsGeneralChapters in the language of msgs.
+func (msgs Messages) SettingsGeneralChapters() string { return msgs.text(textSettingsGeneralChapters) }
+
+// SettingsGeneralChaptersHint says "Timestamps in a YouTube description and the highlights a bilibili uploader marks become chapters, with their titles translated."
+// in the language the app shows under cx.
+//
+// Line under the switch that imports the site's chapters in Settings › General.
+func SettingsGeneralChaptersHint(cx *core.Scope) string { return For(cx).SettingsGeneralChaptersHint() }
+
+// SettingsGeneralChaptersHint is the package's SettingsGeneralChaptersHint in the language of msgs.
+func (msgs Messages) SettingsGeneralChaptersHint() string {
+	return msgs.text(textSettingsGeneralChaptersHint)
 }
 
 // SettingsGeneralComponents says "Components"

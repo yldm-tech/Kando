@@ -710,12 +710,10 @@ func cueMenu(cx *ns.Scope, cue core.Segment, explain func(), saved bool, save fu
 	)
 }
 
-// clipsTab is the film cut into 片段 of equal time; a click plays from one, and the playing one is lit.
+// clipsTab is the film cut into 片段, of equal time or at the chapters its site marks (ChaptersFor), under a row that says which and cuts it the other way (chaptersHeader); a click plays from one, and the playing one is lit.
 func (s *screen) clipsTab(cx *ns.Scope) ns.Node {
 	a := s.a
-	cues := filmCues(cx, a)
-	length := live.Memo(cx, a, a.PlayLength)
-	chapters := ns.NewMemoFunc(cx, func() []Chapter { return Chapters(cues(), length()) }, slices.Equal[[]Chapter]).Get
+	chapters := s.chapters(cx)
 	state := live.Memo(cx, a, func() subsState {
 		subs := a.Subs()
 		switch {
@@ -735,6 +733,7 @@ func (s *screen) clipsTab(cx *ns.Scope) ns.Node {
 		}
 		return ns.Show{When: func() bool { return len(chapters()) > 0 }, Then: func(cx *ns.Scope) ns.Node {
 			return ns.View{Style: ns.Style{FlexGrow: 1, FlexShrink: 1, MinHeight: ns.Pt(0), Gap: 8}, Children: []ns.Node{
+				s.chaptersHeader(cx),
 				ns.List{TestID: "film-clips", Style: ns.Style{FlexGrow: 1, MinHeight: ns.Pt(0)}, Gap: 8, EstimatedSize: 64,
 					Count: func() int { return len(chapters()) },
 					Key:   func(i int) any { return i },
@@ -840,6 +839,9 @@ type infoState struct {
 	// platform is whether the film's original lines are its site's subtitles, and local how many of their lines the speech recognition replaced; heard is a done link's film whose lines it heard alone.
 	platform, heard bool
 	local           int
+	// chapters is how many chapters its site marks, and cut whether it is cut at them (chapterInfo).
+	chapters int
+	cut      bool
 }
 
 // infoTab shows where the film is: its folder, the files in it and where it came from, and for a done film the language spoken in it, which the user can correct.
@@ -865,7 +867,8 @@ func (s *screen) infoTab(cx *ns.Scope) ns.Node {
 		return infoState{title: title(item), stage: string(item.Stage), language: item.Language, spoken: item.Spoken, folder: folder, source: item.Source, record: record,
 			speech:   item.JobID != "" && item.Stage == core.StageComplete,
 			platform: item.PlatformSubtitles, local: item.LocalLines,
-			heard: item.JobID != "" && item.Stage == core.StageComplete && !item.PlatformSubtitles && strings.HasPrefix(item.Source, "http")}
+			heard:    item.JobID != "" && item.Stage == core.StageComplete && !item.PlatformSubtitles && strings.HasPrefix(item.Source, "http"),
+			chapters: len(a.Info().Chapters), cut: CutsAtSite(a.Info(), a.ImportChapters())}
 	})
 	return ns.Dynamic(func(cx *ns.Scope) ns.Node {
 		st := state()
@@ -883,6 +886,11 @@ func (s *screen) infoTab(cx *ns.Scope) ns.Node {
 		if line := originalLines(cx, st); line != "" {
 			groups = append(groups, panelHeading(locales.FilmOriginalLines(cx)), panelGroup(ns.View{Style: ns.Style{Padding: ns.Symmetric(10, 12)}, Children: []ns.Node{
 				ns.Text{TestID: "film-info-original", Content: line, Style: ns.Style{FontSize: 12, LineHeight: 17, Color: onGlass, Opacity: ns.Alpha(0.9)}},
+			}}))
+		}
+		if line := chapterInfo(cx, st.chapters, st.cut, st.source); line != "" {
+			groups = append(groups, panelHeading(locales.FilmChapters(cx)), panelGroup(ns.View{Style: ns.Style{Padding: ns.Symmetric(10, 12)}, Children: []ns.Node{
+				ns.Text{TestID: "film-info-chapters", Content: line, Style: ns.Style{FontSize: 12, LineHeight: 17, Color: onGlass, Opacity: ns.Alpha(0.9)}},
 			}}))
 		}
 		if st.folder != "" {

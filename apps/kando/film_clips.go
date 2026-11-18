@@ -8,7 +8,7 @@ import (
 	"kando/packages/media"
 )
 
-// loadClipFrames fills the 片段 tab with real frames, one per chapter, read with ffmpeg off the engine's goroutine. It runs once the film's subtitles are read and once the system's player knows the video's length (playerLoad), which set the chapters, so the view builder stays pure.
+// loadClipFrames fills the 片段 tab with real frames, one per chapter, read with ffmpeg off the engine's goroutine. It runs once the film's subtitles are read, once the system's player knows the video's length (playerLoad), and once the chapters the site marks are read or the film is cut another way (readFilmInfo, SetFilmChapterUse), which set the chapters, so the view builder stays pure.
 func (a *app) loadClipFrames() {
 	path := a.player.playPath
 	if path == "" || a.update == nil || !a.player.subs.ready || len(a.player.subs.cues) == 0 {
@@ -18,7 +18,7 @@ func (a *app) loadClipFrames() {
 	if ffmpeg == "" {
 		return
 	}
-	chapters := film.Chapters(a.player.subs.cues, a.PlayLength())
+	chapters := film.ChaptersFor(a.player.film.info, a.ImportChapters(), a.player.subs.cues, a.PlayLength(), a.Delay())
 	if len(chapters) == 0 {
 		return
 	}

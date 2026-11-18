@@ -137,6 +137,9 @@ type App interface {
 	LibraryPath() string
 	// ClipPoster is a frame of the film at start, JPEG, for a 片段's tile, once it has been read.
 	ClipPoster(start time.Duration) ([]byte, bool)
+	// ImportChapters is the setting 导入平台章节: whether a film whose site marks chapters is cut at them unless the user chose otherwise for it (CutsAtSite). SetFilmChapterUse cuts the open film at its site's chapters or by time, which the film keeps.
+	ImportChapters() bool
+	SetFilmChapterUse(use core.ChapterUse)
 	// Info is the open film's folder and files, read off the engine's goroutine when it opened.
 	Info() Info
 	// FilmUpload is the upload of the open film; BeginFilmUpload starts it.
@@ -220,10 +223,12 @@ type Subs struct {
 	Cues  []core.Segment
 }
 
-// Info is what the 信息 tab lists of the open film.
+// Info is what the 信息 tab lists of the open film. Chapters are the chapters its site marks, which its job kept beside the video (media.ReadChapters), and ChapterUse whether the user chose to cut it at them or by time, "" to follow the setting; a film without chapters has none.
 type Info struct {
-	Folder string
-	Files  []File
+	Folder     string
+	Files      []File
+	Chapters   []core.Chapter
+	ChapterUse core.ChapterUse
 }
 
 // File is a file in a film's folder.

@@ -88,6 +88,10 @@ type fakeApp struct {
 	saved      map[int]bool
 	savedOnly  bool
 	calls      []string
+
+	// evenChapters is 导入平台章节 turned off, and chapterUses the cuts SetFilmChapterUse was asked for.
+	evenChapters bool
+	chapterUses  []core.ChapterUse
 }
 
 func newFakeApp() *fakeApp {

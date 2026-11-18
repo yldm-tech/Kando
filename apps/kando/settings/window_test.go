@@ -39,6 +39,7 @@ type fakeApp struct {
 	notify                  bool
 	heardAlone              bool
 	quality                 kcore.Quality
+	evenChapters            bool
 	models                  map[string]string
 	owned                   map[string]bool
 	downloading             string
@@ -160,6 +161,8 @@ func (f *fakeApp) PlatformSubtitles() bool               { return !f.heardAlone 
 func (f *fakeApp) SetPlatformSubtitles(on bool)          { f.heardAlone = !on }
 func (f *fakeApp) DownloadQuality() kcore.Quality        { return f.quality }
 func (f *fakeApp) SetDownloadQuality(q kcore.Quality)    { f.quality = q }
+func (f *fakeApp) ImportChapters() bool                  { return !f.evenChapters }
+func (f *fakeApp) SetImportChapters(on bool)             { f.evenChapters = !on }
 func (f *fakeApp) InstalledSpeechModel(id string) string { return f.models[id] }
 func (f *fakeApp) UseSpeechModel(path string)            { f.call("use " + path); f.tools.WhisperModel = path }
 func (f *fakeApp) PickSpeechModel()                      { f.call("pick model") }
@@ -438,7 +441,7 @@ func TestGeneralPage(t *testing.T) {
 	}
 }
 
-// 在线视频 turns the site's subtitles off and on and chooses the picture downloads ask for, saving each change.
+// 在线视频 turns the site's subtitles off and on, chooses the picture downloads ask for, and turns the site's chapters off and on, saving each change.
 func TestGeneralPageChoosesHowLinksDownload(t *testing.T) {
 	a := newFakeApp()
 	app := start(t, a)
@@ -469,6 +472,17 @@ func TestGeneralPageChoosesHowLinksDownload(t *testing.T) {
 	app.Press("role:option " + msgs.SettingsGeneralQuality720())
 	if a.quality != kcore.Quality720 || saves() != 3 {
 		t.Fatalf("quality %q, saves %d", a.quality, saves())
+	}
+	if !app.Exists(whole(msgs.SettingsGeneralChapters())) {
+		t.Fatalf("missing %q in %q", msgs.SettingsGeneralChapters(), app.Texts())
+	}
+	app.Press("id:settings-import-chapters")
+	if !a.evenChapters || saves() != 4 {
+		t.Fatalf("even chapters %v, saves %d", a.evenChapters, saves())
+	}
+	app.Press("id:settings-import-chapters")
+	if a.evenChapters || saves() != 5 {
+		t.Fatalf("chapters stayed off, saves %d", saves())
 	}
 }
 

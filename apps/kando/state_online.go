@@ -6,7 +6,7 @@ import (
 	"kando/packages/core"
 )
 
-// Settings › 通用 › 在线视频: whether a link's film takes the subtitles the uploader put on the site as its original lines where they match the speech (core.SubtitlesPlatform), and the picture its download asks for (core.Quality). The queue gives them to each link's job that has none of its own as it first runs (queueRun, onlineFor), and the job keeps them.
+// Settings › 通用 › 在线视频: whether a link's film takes the subtitles the uploader put on the site as its original lines where they match the speech (core.SubtitlesPlatform), and the picture its download asks for (core.Quality). The queue gives them to each link's job that has none of its own as it first runs (queueRun, onlineFor), and the job keeps them. 导入平台章节 is whether films whose site marks chapters are cut at them, which the player reads as it shows them, unless the user chose otherwise for a film.
 
 // onlineUI is what 在线视频 chose. The zero value is the defaults: the site's subtitles, at the best picture.
 type onlineUI struct {
@@ -14,12 +14,16 @@ type onlineUI struct {
 	heardAlone bool
 	// quality is the picture downloads ask for, "" for the best.
 	quality core.Quality
+	// evenChapters is true once the user turned off 导入平台章节: films whose site marks chapters are cut evenly by time unless the user chose their chapters for one (film.CutsAtSite).
+	evenChapters bool
 }
 
 // savedOnline is 在线视频's part of settings.json: the source of the original lines, "" for the site's subtitles, and the quality, "" for the best.
 type savedOnline struct {
 	SubtitleSource  core.SubtitleSource `json:"subtitleSource,omitempty"`
 	DownloadQuality core.Quality        `json:"downloadQuality,omitempty"`
+	// EvenChapters is 导入平台章节 turned off.
+	EvenChapters bool `json:"evenChapters,omitempty"`
 }
 
 // clean keeps only a source and a quality Kando knows, as another version may have saved one it does not.
@@ -43,10 +47,11 @@ func (a *app) onlineHooks() areaHooks {
 			if a.online.quality != core.QualityBest {
 				part.DownloadQuality = a.online.quality
 			}
+			part.EvenChapters = a.online.evenChapters
 			saved.savedOnline = part
 		},
 		restore: func(saved savedSettings) {
-			a.online = onlineUI{heardAlone: saved.SubtitleSource == core.SubtitlesLocal, quality: saved.DownloadQuality}
+			a.online = onlineUI{heardAlone: saved.SubtitleSource == core.SubtitlesLocal, quality: saved.DownloadQuality, evenChapters: saved.EvenChapters}
 		},
 	}
 }

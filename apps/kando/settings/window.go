@@ -78,6 +78,9 @@ type App interface {
 	SetPlatformSubtitles(on bool)
 	DownloadQuality() kcore.Quality
 	SetDownloadQuality(q kcore.Quality)
+	// ImportChapters is 导入平台章节, whether films whose site marks chapters are cut at them unless the user chose otherwise for one; SetImportChapters changes it, and the page saves it.
+	ImportChapters() bool
+	SetImportChapters(on bool)
 	// PhoneSync is where Phone Sync stands, which the 手机同步 page shows. SetPhoneSync turns it on, which starts the server off the UI thread, or off, which stops it, and saves that; NewPhoneCode offers a new pairing code in place of the one shown; RevokePhone unpairs a phone, whose token is refused from then on. SetPhoneReceive turns 接收手机发来的链接 on or off, and SetPhoneAskFirst sets 收到后 to 先问我 or 直接加入队列; both are saved.
 	PhoneSync() PhoneSync
 	SetPhoneSync(on bool)

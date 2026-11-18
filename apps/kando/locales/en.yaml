@@ -673,6 +673,26 @@ filmBytes:
 filmCancel:
   message: "Cancel"
   description: "Player title bar button: cancels this film's running job."
+filmChapterSite:
+  message: "{site, select, youtube {the YouTube description} bilibili {bilibili's highlights} other {the site}}"
+  description: "Where a film's chapters came from, used inside the chapter notes of the Clips and Info tabs: the timestamps in a YouTube video's description, the highlights (视频看点) a bilibili uploader marked, or another site's own chapters."
+  placeholders:
+    site: { type: "String", example: "youtube" }
+filmChapters:
+  message: "Chapters"
+  description: "Heading in the Info tab over the chapters the film's site marks."
+filmChaptersInfo:
+  message: "{count, plural, one {# chapter} other {# chapters}} · from {site}"
+  description: "Info tab: how many chapters the film's site marks and where from; {site} is filmChapterSite."
+  placeholders:
+    count: { type: "int", example: "5" }
+    site: { type: "String", example: "the YouTube description" }
+filmChaptersInfoEven:
+  message: "{count, plural, one {# chapter} other {# chapters}} · from {site} (cut by time instead)"
+  description: "Info tab: the film's site marks chapters, but the user chose to cut it evenly by time; {site} is filmChapterSite."
+  placeholders:
+    count: { type: "int", example: "5" }
+    site: { type: "String", example: "the YouTube description" }
 filmClip:
   message: "Clip {number}, {start}–{end}: {title}"
   description: "Accessible name of a clip in the Clips tab: its number, the times it starts and ends, and the line it is named after."
@@ -688,6 +708,27 @@ filmClipSpan:
     number: { type: "int", example: "3" }
     start: { type: "String", example: "1:00" }
     end: { type: "String", example: "1:30" }
+filmClipsChapters:
+  message: "{count, plural, one {# chapter} other {# chapters}} from {site}."
+  description: "Note over the Clips tab while the film is cut at the chapters its site marks, whose titles are not translated; {site} is filmChapterSite."
+  placeholders:
+    count: { type: "int", example: "5" }
+    site: { type: "String", example: "the YouTube description" }
+filmClipsChaptersTranslated:
+  message: "{count, plural, one {# chapter} other {# chapters}} from {site}, titles translated."
+  description: "Note over the Clips tab while the film is cut at the chapters its site marks, whose titles were translated; {site} is filmChapterSite."
+  placeholders:
+    count: { type: "int", example: "5" }
+    site: { type: "String", example: "the YouTube description" }
+filmClipsEven:
+  message: "The subtitles cut evenly by time into 4 to 12 clips."
+  description: "Note over the Clips tab of a film whose site marks chapters, while it is cut evenly by time instead."
+filmClipsUseChapters:
+  message: "Use Chapters"
+  description: "Button over the Clips tab that cuts the film at the chapters its site marks again."
+filmClipsUseEven:
+  message: "Cut by Time"
+  description: "Button over the Clips tab that cuts the film evenly by time instead of at its site's chapters."
 filmColorOrange:
   message: "Orange"
   description: "A subtitle line's color."
@@ -3971,6 +4012,12 @@ settingsGeneralCLITool:
 settingsGeneralCLIToolHint:
   message: "Add videos and check jobs and subtitles from a terminal with the kando command."
   description: "Line under Command-Line Tool before it is installed: what the kando command does."
+settingsGeneralChapters:
+  message: "Import chapters from the site"
+  description: "Switch in Settings › General › Online Videos: films are cut at the chapters their site marks, unless the user chose otherwise for a film."
+settingsGeneralChaptersHint:
+  message: "Timestamps in a YouTube description and the highlights a bilibili uploader marks become chapters, with their titles translated."
+  description: "Line under the switch that imports the site's chapters in Settings › General."
 settingsGeneralComponents:
   message: "Components"
   description: "Heading of the card listing the programs Kando runs."

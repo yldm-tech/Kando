@@ -316,6 +316,18 @@ func (a *app) ClipPoster(start time.Duration) ([]byte, bool) {
 	return data, ok
 }
 
+// SetFilmChapterUse cuts the open film, whose site marks chapters, at them or by time, and keeps that beside its video with its chapters (media.SetChapterUse), so it opens the same way again; its 片段 follow at once. A folder that cannot be written to keeps the choice until the film is closed.
+func (a *app) SetFilmChapterUse(use core.ChapterUse) {
+	info := &a.player.film.info
+	path := a.player.film.infoFor
+	if path == "" || len(info.Chapters) < 2 || !use.Known() || info.ChapterUse == use {
+		return
+	}
+	_ = media.SetChapterUse(path, use)
+	info.ChapterUse = use
+	a.loadClipFrames()
+}
+
 func (a *app) UploadNote() *bool { return &a.player.film.uploadNote }
 
 // ToggleFullScreen enters or leaves full screen. Without a window, as in tests that set none, it does nothing.
