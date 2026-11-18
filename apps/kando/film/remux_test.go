@@ -166,28 +166,34 @@ func TestRemuxRunsWriteFilesOfTheirOwn(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	stopped := make(chan error, 1)
 	go func() { stopped <- Remux(ctx, ffmpeg, video, dest, RemuxCopy) }()
-	// The first run has written its file and waits.
-	deadline := time.Now().Add(10 * time.Second)
-	for {
-		parts, _ := filepath.Glob(filepath.Join(cache, "*.part"))
-		if len(parts) == 1 {
-			break
+	// waitParts waits until n runs have written their files and wait.
+	waitParts := func(n int) {
+		t.Helper()
+		deadline := time.Now().Add(10 * time.Second)
+		for {
+			parts, _ := filepath.Glob(filepath.Join(cache, "*.part"))
+			if len(parts) == n {
+				return
+			}
+			if time.Now().After(deadline) {
+				t.Fatalf("%d runs wrote their files, want %d", len(parts), n)
+			}
+			time.Sleep(10 * time.Millisecond)
 		}
-		if time.Now().After(deadline) {
-			t.Fatal("the first run wrote nothing")
-		}
-		time.Sleep(10 * time.Millisecond)
 	}
-	if err := os.Remove(filepath.Join(dir, "slow")); err != nil {
-		t.Fatal(err)
-	}
+	waitParts(1)
 	second, cancelSecond := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancelSecond()
 	done := make(chan error, 1)
 	go func() { done <- Remux(second, ffmpeg, video, dest, RemuxCopy) }()
+	waitParts(2)
+	// The first run is stopped while both wait, and only then does the copy end, so the first cannot finish before it is stopped, as it could when slow went first.
 	cancel()
 	if err := <-stopped; err == nil {
 		t.Fatal("the stopped run made its copy")
+	}
+	if err := os.Remove(filepath.Join(dir, "slow")); err != nil {
+		t.Fatal(err)
 	}
 	if err := <-done; err != nil {
 		t.Fatalf("the second run: %v", err)
