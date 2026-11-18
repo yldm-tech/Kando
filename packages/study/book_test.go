@@ -100,16 +100,18 @@ func TestMoveVideosFollowsRenamedFolders(t *testing.T) {
 	b.Toggle(Line{Video: "Talk/video.mp4", Start: time.Second})
 	b.Toggle(Line{Video: "Other/video.mp4", Start: time.Second})
 	old, next := filepath.Join(dir, "Talk", "video.mp4"), filepath.Join(dir, "A Talk", "video.mp4")
+	// A folder outside the library, absolute on every system: a path rooted without a drive, as \elsewhere, is not absolute on Windows.
+	elsewhere := filepath.Join(t.TempDir(), "elsewhere", "video.mp4")
 	moved := b.MoveVideos(func(p string) (string, bool) {
 		if p == old {
 			return next, true
 		}
 		if strings.HasPrefix(p, filepath.Join(dir, "Other")) {
-			return filepath.Join(string(filepath.Separator), "elsewhere", "video.mp4"), true
+			return elsewhere, true
 		}
 		return "", false
 	})
-	if !moved || b.Lines[1].Video != "A Talk/video.mp4" || b.Lines[0].Video != filepath.Join(string(filepath.Separator), "elsewhere", "video.mp4") {
+	if !moved || b.Lines[1].Video != "A Talk/video.mp4" || b.Lines[0].Video != elsewhere {
 		t.Fatalf("moved %v, lines %+v", moved, b.Lines)
 	}
 }
