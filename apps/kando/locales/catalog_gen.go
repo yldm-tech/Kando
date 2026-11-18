@@ -859,9 +859,11 @@ var Parameters = map[string][]string{
 	"SubscribePendingCount":                    {"count"},
 	"SubscribeAddOneLabel":                     {"title"},
 	"SubscribeSkipOneLabel":                    {"title"},
+	"SubscribeWhenNewAuto":                     {"count"},
 	"SubscribeNoteSubscribed":                  {"name"},
 	"SubscribeNoteQueued":                      {"count"},
 	"SubscribeNoteHeld":                        {"count"},
+	"SubscribeNoteCapped":                      {"found", "added", "held"},
 	"SubscribeNoteSkipped":                     {"count"},
 	"SubscribeNoteNotQueued":                   {"reason"},
 	"SubscribeNoteAdded":                       {"count"},
@@ -887,6 +889,8 @@ var Parameters = map[string][]string{
 	"VocabNew":                                 {"count"},
 	"VocabOsdAdded":                            {"word"},
 	"VocabOsdRemoved":                          {"word"},
+	"VocabStatsLibraries":                      {"libraries"},
+	"VocabStatsLocked":                         {"count"},
 	"VocabSummary":                             {"words", "lines", "films"},
 	"VocabWeekLess":                            {"time_"},
 	"VocabWeekMore":                            {"time_"},
@@ -1298,9 +1302,11 @@ type Translation struct {
 	SubscribePendingCount                    func(count int) string
 	SubscribeAddOneLabel                     func(title string) string
 	SubscribeSkipOneLabel                    func(title string) string
+	SubscribeWhenNewAuto                     func(count int) string
 	SubscribeNoteSubscribed                  func(name string) string
 	SubscribeNoteQueued                      func(count int) string
 	SubscribeNoteHeld                        func(count int) string
+	SubscribeNoteCapped                      func(found int, added int, held int) string
 	SubscribeNoteSkipped                     func(count int) string
 	SubscribeNoteNotQueued                   func(reason string) string
 	SubscribeNoteAdded                       func(count int) string
@@ -1326,6 +1332,8 @@ type Translation struct {
 	VocabNew                                 func(count int) string
 	VocabOsdAdded                            func(word string) string
 	VocabOsdRemoved                          func(word string) string
+	VocabStatsLibraries                      func(libraries string) string
+	VocabStatsLocked                         func(count int) string
 	VocabSummary                             func(words int, lines int, films int) string
 	VocabWeekLess                            func(time_ string) string
 	VocabWeekMore                            func(time_ string) string
@@ -2527,7 +2535,6 @@ const (
 	textSubscribeMisfit
 	textSubscribeRules
 	textSubscribeWhenNew
-	textSubscribeWhenNewAuto
 	textSubscribeWhenNewAsk
 	textSubscribeModeAuto
 	textSubscribeModeAsk
@@ -2578,6 +2585,7 @@ const (
 	textVocabFormatCSV
 	textVocabFormatTSV
 	textVocabInVocabulary
+	textVocabLibrarySeparator
 	textVocabLines
 	textVocabLookupBusy
 	textVocabLookupClose
@@ -3796,7 +3804,6 @@ var keyOfText = [numTexts]string{
 	"subscribeMisfit",
 	"subscribeRules",
 	"subscribeWhenNew",
-	"subscribeWhenNewAuto",
 	"subscribeWhenNewAsk",
 	"subscribeModeAuto",
 	"subscribeModeAsk",
@@ -3847,6 +3854,7 @@ var keyOfText = [numTexts]string{
 	"vocabFormatCSV",
 	"vocabFormatTSV",
 	"vocabInVocabulary",
+	"vocabLibrarySeparator",
 	"vocabLines",
 	"vocabLookupBusy",
 	"vocabLookupClose",
@@ -5063,7 +5071,6 @@ var textsEn = i18n.NewTexts(""+
 	"doesn't fit the rules now"+
 	"Rules"+
 	"When There Are New Videos"+
-	"They join the queue and are downloaded and subtitled by the rules"+
 	"They're listed here first and start once you add them"+
 	"Add Automatically"+
 	"Ask Me First"+
@@ -5114,6 +5121,7 @@ var textsEn = i18n.NewTexts(""+
 	"CSV"+
 	"Plain Text (Tab-Separated)"+
 	"In Vocabulary"+
+	", "+
 	"Saved lines"+
 	"Looking it up…"+
 	"Close"+
@@ -6327,7 +6335,6 @@ var textsEn = i18n.NewTexts(""+
 		25,
 		5,
 		25,
-		65,
 		53,
 		17,
 		12,
@@ -6378,6 +6385,7 @@ var textsEn = i18n.NewTexts(""+
 		3,
 		26,
 		13,
+		2,
 		11,
 		16,
 		5,
@@ -7594,7 +7602,6 @@ var textsJa = i18n.NewTexts(""+
 	"現在のルールに合いません"+
 	"ルール"+
 	"新しい動画があるとき"+
-	"キューに追加され、ルールに従ってダウンロードと字幕作成が行われます"+
 	"まずここに表示され、追加すると始まります"+
 	"自動で追加"+
 	"先に確認"+
@@ -7645,6 +7652,7 @@ var textsJa = i18n.NewTexts(""+
 	"CSV"+
 	"テキスト（タブ区切り）"+
 	"単語帳にあります"+
+	"、"+
 	"保存したセリフ"+
 	"調べています…"+
 	"閉じる"+
@@ -8858,7 +8866,6 @@ var textsJa = i18n.NewTexts(""+
 		36,
 		9,
 		30,
-		99,
 		60,
 		15,
 		12,
@@ -8909,6 +8916,7 @@ var textsJa = i18n.NewTexts(""+
 		3,
 		33,
 		24,
+		3,
 		21,
 		21,
 		9,
@@ -10125,7 +10133,6 @@ var textsKo = i18n.NewTexts(""+
 	"현재 규칙에 맞지 않아요"+
 	"규칙"+
 	"새 동영상이 있을 때"+
-	"대기열에 추가되어 규칙에 따라 다운로드하고 자막을 만들어요"+
 	"먼저 여기에 표시되고, 추가하면 시작해요"+
 	"자동 추가"+
 	"먼저 묻기"+
@@ -10176,6 +10183,7 @@ var textsKo = i18n.NewTexts(""+
 	"CSV"+
 	"텍스트(탭 구분)"+
 	"단어장에 있음"+
+	", "+
 	"저장한 대사"+
 	"찾는 중…"+
 	"닫기"+
@@ -11389,7 +11397,6 @@ var textsKo = i18n.NewTexts(""+
 		33,
 		6,
 		27,
-		84,
 		56,
 		13,
 		13,
@@ -11440,6 +11447,7 @@ var textsKo = i18n.NewTexts(""+
 		3,
 		21,
 		19,
+		2,
 		16,
 		13,
 		6,
@@ -12656,7 +12664,6 @@ var textsZhHans = i18n.NewTexts(""+
 	"不符合当前规则"+
 	"规则"+
 	"有新视频时"+
-	"自动加入队列，按规则下载和生成字幕"+
 	"先列在这里，你点「加入」才开始"+
 	"自动加入"+
 	"先问我"+
@@ -12707,6 +12714,7 @@ var textsZhHans = i18n.NewTexts(""+
 	"CSV 表格"+
 	"纯文本（Tab 分隔）"+
 	"已在生词本"+
+	"、"+
 	"收藏的句子"+
 	"正在查…"+
 	"关闭"+
@@ -13920,7 +13928,6 @@ var textsZhHans = i18n.NewTexts(""+
 		21,
 		6,
 		15,
-		51,
 		45,
 		12,
 		9,
@@ -13971,6 +13978,7 @@ var textsZhHans = i18n.NewTexts(""+
 		10,
 		25,
 		15,
+		3,
 		15,
 		12,
 		6,
@@ -15187,7 +15195,6 @@ var textsZhHant = i18n.NewTexts(""+
 	"不符合目前規則"+
 	"規則"+
 	"有新影片時"+
-	"自動加入佇列，按規則下載和產生字幕"+
 	"先列在這裡，你點「加入」才開始"+
 	"自動加入"+
 	"先問我"+
@@ -15238,6 +15245,7 @@ var textsZhHant = i18n.NewTexts(""+
 	"CSV 表格"+
 	"純文字（Tab 分隔）"+
 	"已在生詞本"+
+	"、"+
 	"收藏的句子"+
 	"正在查…"+
 	"關閉"+
@@ -16451,7 +16459,6 @@ var textsZhHant = i18n.NewTexts(""+
 		21,
 		6,
 		15,
-		51,
 		45,
 		12,
 		9,
@@ -16502,6 +16509,7 @@ var textsZhHant = i18n.NewTexts(""+
 		10,
 		25,
 		15,
+		3,
 		15,
 		12,
 		6,
@@ -17780,6 +17788,9 @@ func Supply(lang string, t Translation) {
 	if t.SubscribeSkipOneLabel != nil {
 		s.SubscribeSkipOneLabel = t.SubscribeSkipOneLabel
 	}
+	if t.SubscribeWhenNewAuto != nil {
+		s.SubscribeWhenNewAuto = t.SubscribeWhenNewAuto
+	}
 	if t.SubscribeNoteSubscribed != nil {
 		s.SubscribeNoteSubscribed = t.SubscribeNoteSubscribed
 	}
@@ -17788,6 +17799,9 @@ func Supply(lang string, t Translation) {
 	}
 	if t.SubscribeNoteHeld != nil {
 		s.SubscribeNoteHeld = t.SubscribeNoteHeld
+	}
+	if t.SubscribeNoteCapped != nil {
+		s.SubscribeNoteCapped = t.SubscribeNoteCapped
 	}
 	if t.SubscribeNoteSkipped != nil {
 		s.SubscribeNoteSkipped = t.SubscribeNoteSkipped
@@ -17863,6 +17877,12 @@ func Supply(lang string, t Translation) {
 	}
 	if t.VocabOsdRemoved != nil {
 		s.VocabOsdRemoved = t.VocabOsdRemoved
+	}
+	if t.VocabStatsLibraries != nil {
+		s.VocabStatsLibraries = t.VocabStatsLibraries
+	}
+	if t.VocabStatsLocked != nil {
+		s.VocabStatsLocked = t.VocabStatsLocked
 	}
 	if t.VocabSummary != nil {
 		s.VocabSummary = t.VocabSummary
@@ -43407,14 +43427,37 @@ func SubscribeWhenNew(cx *core.Scope) string { return For(cx).SubscribeWhenNew()
 // SubscribeWhenNew is the package's SubscribeWhenNew in the language of msgs.
 func (msgs Messages) SubscribeWhenNew() string { return msgs.text(textSubscribeWhenNew) }
 
-// SubscribeWhenNewAuto says "They join the queue and are downloaded and subtitled by the rules"
+// SubscribeWhenNewAuto says "Up to {count} a check join the queue and are downloaded and subtitled by the rules; the rest wait here"
 // in the language the app shows under cx.
 //
-// Note of the When There Are New Videos row while Add Automatically is chosen.
-func SubscribeWhenNewAuto(cx *core.Scope) string { return For(cx).SubscribeWhenNewAuto() }
+// Note of the When There Are New Videos row while Add Automatically is chosen: a check queues at most count new videos, and lists the others on the page for the user to add or skip.
+func SubscribeWhenNewAuto(cx *core.Scope, count int) string {
+	return For(cx).SubscribeWhenNewAuto(count)
+}
 
 // SubscribeWhenNewAuto is the package's SubscribeWhenNewAuto in the language of msgs.
-func (msgs Messages) SubscribeWhenNewAuto() string { return msgs.text(textSubscribeWhenNewAuto) }
+func (msgs Messages) SubscribeWhenNewAuto(count int) string {
+	if i18n.IsPseudo(msgs.lang) {
+		return i18n.Pseudo(msgs.lang, Messages{lang: Source, mark: true}.SubscribeWhenNewAuto(count))
+	}
+	for lang := msgs.lang; ; lang = i18n.Parent(lang) {
+		if f := supplied[lang].SubscribeWhenNewAuto; f != nil {
+			return f(count)
+		}
+		switch lang {
+		case "", "en":
+			return "Up to " + msgs.arg(i18n.FormatNumber("en", float64(count))) + " a check join the queue and are downloaded and subtitled by the rules; the rest wait here"
+		case "ja":
+			return "1 回の確認につき " + i18n.FormatNumber("ja", float64(count)) + " 本までキューに追加され、ルールに従ってダウンロードと字幕作成が行われます。残りはここで確認できます"
+		case "ko":
+			return "확인할 때마다 최대 " + i18n.FormatNumber("ko", float64(count)) + "개가 대기열에 추가되어 규칙에 따라 다운로드하고 자막을 만들어요. 나머지는 여기서 기다려요"
+		case "zh-Hans":
+			return "每次检查最多 " + i18n.FormatNumber("zh-Hans", float64(count)) + " 个自动加入队列，按规则下载和生成字幕，其余的在这里等你确认"
+		case "zh-Hant":
+			return "每次檢查最多 " + i18n.FormatNumber("zh-Hant", float64(count)) + " 部自動加入佇列，按規則下載和產生字幕，其餘的在這裡等你確認"
+		}
+	}
+}
 
 // SubscribeWhenNewAsk says "They're listed here first and start once you add them"
 // in the language the app shows under cx.
@@ -43751,6 +43794,60 @@ func (msgs Messages) SubscribeNoteHeld(count int) string {
 			return "发现 " + i18n.FormatNumber("zh-Hans", float64(count)) + " 个新视频，等你确认。"
 		case "zh-Hant":
 			return "發現 " + i18n.FormatNumber("zh-Hant", float64(count)) + " 部新影片，等你確認。"
+		}
+	}
+}
+
+// SubscribeNoteCapped says "{found, plural, one {Found # new video} other {Found # new videos}} and added the first {added} to the queue. {held, plural, one {The other one is waiting for you below.} other {The other # are waiting for you below.}}"
+// in the language the app shows under cx.
+//
+// Message on a subscription's page after a check that adds new videos by itself found more than it adds at once: the first added are queued, the held others are listed below for the user to add or skip.
+func SubscribeNoteCapped(cx *core.Scope, found int, added int, held int) string {
+	return For(cx).SubscribeNoteCapped(found, added, held)
+}
+
+// SubscribeNoteCapped is the package's SubscribeNoteCapped in the language of msgs.
+func (msgs Messages) SubscribeNoteCapped(found int, added int, held int) string {
+	if i18n.IsPseudo(msgs.lang) {
+		return i18n.Pseudo(msgs.lang, Messages{lang: Source, mark: true}.SubscribeNoteCapped(found, added, held))
+	}
+	for lang := msgs.lang; ; lang = i18n.Parent(lang) {
+		if f := supplied[lang].SubscribeNoteCapped; f != nil {
+			return f(found, added, held)
+		}
+		switch lang {
+		case "", "en":
+			var b strings.Builder
+			switch i18n.Cardinal("en", float64(found)) {
+			case i18n.One:
+				b.WriteString("Found ")
+				b.WriteString(msgs.arg(i18n.FormatNumber("en", float64(found))))
+				b.WriteString(" new video")
+			default:
+				b.WriteString("Found ")
+				b.WriteString(msgs.arg(i18n.FormatNumber("en", float64(found))))
+				b.WriteString(" new videos")
+			}
+			b.WriteString(" and added the first ")
+			b.WriteString(msgs.arg(i18n.FormatNumber("en", float64(added))))
+			b.WriteString(" to the queue. ")
+			switch i18n.Cardinal("en", float64(held)) {
+			case i18n.One:
+				b.WriteString("The other one is waiting for you below.")
+			default:
+				b.WriteString("The other ")
+				b.WriteString(msgs.arg(i18n.FormatNumber("en", float64(held))))
+				b.WriteString(" are waiting for you below.")
+			}
+			return b.String()
+		case "ja":
+			return "新しい動画が " + i18n.FormatNumber("ja", float64(found)) + " 本見つかり、最初の " + i18n.FormatNumber("ja", float64(added)) + " 本をキューに追加しました。残りの " + i18n.FormatNumber("ja", float64(held)) + " 本は下で確認してください。"
+		case "ko":
+			return "새 동영상 " + i18n.FormatNumber("ko", float64(found)) + "개를 찾아 처음 " + i18n.FormatNumber("ko", float64(added)) + "개를 대기열에 추가했어요. 나머지 " + i18n.FormatNumber("ko", float64(held)) + "개는 아래에서 확인하세요."
+		case "zh-Hans":
+			return "发现 " + i18n.FormatNumber("zh-Hans", float64(found)) + " 个新视频，前 " + i18n.FormatNumber("zh-Hans", float64(added)) + " 个已加入队列，其余 " + i18n.FormatNumber("zh-Hans", float64(held)) + " 个在下面等你确认。"
+		case "zh-Hant":
+			return "發現 " + i18n.FormatNumber("zh-Hant", float64(found)) + " 部新影片，前 " + i18n.FormatNumber("zh-Hant", float64(added)) + " 部已加入佇列，其餘 " + i18n.FormatNumber("zh-Hant", float64(held)) + " 部在下面等你確認。"
 		}
 	}
 }
@@ -44481,6 +44578,15 @@ func (msgs Messages) VocabLearning(count int) string {
 	}
 }
 
+// VocabLibrarySeparator says ", "
+// in the language the app shows under cx.
+//
+// Study stats dialog: what goes between two library names in vocabStatsLibraries.
+func VocabLibrarySeparator(cx *core.Scope) string { return For(cx).VocabLibrarySeparator() }
+
+// VocabLibrarySeparator is the package's VocabLibrarySeparator in the language of msgs.
+func (msgs Messages) VocabLibrarySeparator() string { return msgs.text(textVocabLibrarySeparator) }
+
 // VocabLineCount says "{count, plural, one {# line} other {# lines}}"
 // in the language the app shows under cx.
 //
@@ -44882,6 +44988,77 @@ func VocabPreview(cx *core.Scope) string { return For(cx).VocabPreview() }
 
 // VocabPreview is the package's VocabPreview in the language of msgs.
 func (msgs Messages) VocabPreview() string { return msgs.text(textVocabPreview) }
+
+// VocabStatsLibraries says "Counted from {libraries}"
+// in the language the app shows under cx.
+//
+// Study stats dialog, top of the Stats tab: the libraries whose study is added up in the stats, by their names joined with vocabLibrarySeparator. Locked libraries are never counted.
+func VocabStatsLibraries(cx *core.Scope, libraries string) string {
+	return For(cx).VocabStatsLibraries(libraries)
+}
+
+// VocabStatsLibraries is the package's VocabStatsLibraries in the language of msgs.
+func (msgs Messages) VocabStatsLibraries(libraries string) string {
+	if i18n.IsPseudo(msgs.lang) {
+		return i18n.Pseudo(msgs.lang, Messages{lang: Source, mark: true}.VocabStatsLibraries(libraries))
+	}
+	for lang := msgs.lang; ; lang = i18n.Parent(lang) {
+		if f := supplied[lang].VocabStatsLibraries; f != nil {
+			return f(libraries)
+		}
+		switch lang {
+		case "", "en":
+			return "Counted from " + msgs.arg(libraries)
+		case "ja":
+			return "集計対象：" + libraries
+		case "ko":
+			return "집계 대상: " + libraries
+		case "zh-Hans":
+			return "统计范围：" + libraries
+		case "zh-Hant":
+			return "統計範圍：" + libraries
+		}
+	}
+}
+
+// VocabStatsLocked says "{count, plural, one {# locked library is not counted} other {# locked libraries are not counted}}"
+// in the language the app shows under cx.
+//
+// Study stats dialog, under vocabStatsLibraries: how many libraries are left out of the stats because they are locked with a password.
+func VocabStatsLocked(cx *core.Scope, count int) string { return For(cx).VocabStatsLocked(count) }
+
+// VocabStatsLocked is the package's VocabStatsLocked in the language of msgs.
+func (msgs Messages) VocabStatsLocked(count int) string {
+	if i18n.IsPseudo(msgs.lang) {
+		return i18n.Pseudo(msgs.lang, Messages{lang: Source, mark: true}.VocabStatsLocked(count))
+	}
+	for lang := msgs.lang; ; lang = i18n.Parent(lang) {
+		if f := supplied[lang].VocabStatsLocked; f != nil {
+			return f(count)
+		}
+		switch lang {
+		case "", "en":
+			var b strings.Builder
+			switch i18n.Cardinal("en", float64(count)) {
+			case i18n.One:
+				b.WriteString(msgs.arg(i18n.FormatNumber("en", float64(count))))
+				b.WriteString(" locked library is not counted")
+			default:
+				b.WriteString(msgs.arg(i18n.FormatNumber("en", float64(count))))
+				b.WriteString(" locked libraries are not counted")
+			}
+			return b.String()
+		case "ja":
+			return "ロック中のライブラリ " + i18n.FormatNumber("ja", float64(count)) + " 件は含まれません"
+		case "ko":
+			return "잠긴 라이브러리 " + i18n.FormatNumber("ko", float64(count)) + "개는 포함되지 않습니다"
+		case "zh-Hans":
+			return i18n.FormatNumber("zh-Hans", float64(count)) + " 个已锁定的资料库不计入"
+		case "zh-Hant":
+			return i18n.FormatNumber("zh-Hant", float64(count)) + " 個已鎖定的資料庫不計入"
+		}
+	}
+}
 
 // VocabStatsMenuItem says "Study Stats"
 // in the language the app shows under cx.

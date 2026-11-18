@@ -12,6 +12,7 @@ import (
 	"kando/apps/kando/locales"
 	"kando/apps/kando/locales/testlocale"
 	"kando/apps/kando/playlist"
+	"kando/apps/kando/remote"
 	"kando/apps/kando/shelf"
 	"kando/apps/kando/subscribe"
 	"kando/packages/media"
@@ -152,6 +153,45 @@ func TestSubscribeCheckQueuesNewVideos(t *testing.T) {
 		t.Fatalf("queued again: %q", playlistJobSources(a))
 	}
 	wantText(t, tt, msgs.SubscribeNoteNone())
+}
+
+// A subscription that adds by itself queues at most three of the new videos a check finds, the first in the list's order; the others wait on its page as if it asked first, and the page says so. Adding them from the page is not capped.
+func TestSubscribeCheckQueuesAtMostThree(t *testing.T) {
+	p := newListingPipeline(map[string]media.Listing{})
+	a, tt, updates := newTestApp(t, p)
+	msgs := testlocale.Messages()
+	sub := subscribeTo(t, tt, a, p, updates)
+	if sub.Mode != subscribe.ModeAuto {
+		t.Fatalf("a new subscription's mode is %q, want auto", sub.Mode)
+	}
+	wantText(t, tt, msgs.SubscribeWhenNewAuto(subscribe.AddPerCheck))
+	var fresh []media.ListedVideo
+	var links []string
+	for _, id := range []string{"aaaaaaaaaaa", "bbbbbbbbbbb", "ccccccccccc", "ddddddddddd", "eeeeeeeeeee"} {
+		v := media.ListedVideo{URL: "https://www.youtube.com/watch?v=" + id, Title: "Video " + id[:1], Duration: 8 * time.Minute}
+		fresh = append(fresh, v)
+		links = append(links, v.URL)
+	}
+	p.lists[testSubChannel] = media.Listing{Title: "Earth Science", Videos: append(slices.Clone(fresh), testSubOld)}
+	checkNow(t, tt, a, p, updates)
+	if got := playlistJobSources(a); !slices.Equal(got, links[:3]) {
+		t.Fatalf("jobs %q, want the first three", got)
+	}
+	var pending []string
+	for _, v := range sub.Pending {
+		pending = append(pending, v.URL)
+	}
+	if !slices.Equal(pending, links[3:]) || len(sub.Added) != 3 {
+		t.Fatalf("pending %q, added %+v", pending, sub.Added)
+	}
+	wantText(t, tt, msgs.SubscribeNoteCapped(5, 3, 2))
+	if got := tt.Find("id:subscription-waiting-" + sub.ID).Text; got != "2" {
+		t.Fatalf("sidebar count %q", got)
+	}
+	tt.Press("id:subscription-add-all")
+	if got := playlistJobSources(a); !slices.Equal(got, links) || len(sub.Pending) != 0 {
+		t.Fatalf("jobs %q, pending %+v", got, sub.Pending)
+	}
 }
 
 // A subscription that asks first lists its new videos on its page and in the sidebar's count, and queues only those added: one by one, or all at once; a video skipped is not queued and does not come back.
@@ -565,5 +605,174 @@ func TestSubscribeEnqueueAsksForTheTools(t *testing.T) {
 		if len(failed) != 1 || said != want || len(a.library.Jobs) != 0 {
 			t.Fatalf("open %q: failed %d, why %q, jobs %d", open, len(failed), said, len(a.library.Jobs))
 		}
+	}
+}
+
+// The control socket lists the open library's subscriptions, subscribes it to a list without leaving the page the window shows, and checks one now, queueing at most three of its new videos and holding the rest as the window's check does.
+func TestRemoteSubscriptions(t *testing.T) {
+	p := newListingPipeline(map[string]media.Listing{testSubChannel: {Title: "Earth Science", Videos: []media.ListedVideo{testSubOld}}})
+	a, _, updates := newTestApp(t, p)
+	remoteServe(t, a)
+	subs, err := remoteCall[[]remote.Subscription](t, updates, remote.MethodSubscriptions, nil)
+	if err != nil || subs == nil || len(subs) != 0 {
+		t.Fatalf("subscriptions %+v, %v", subs, err)
+	}
+	_, err = remoteCall[remote.Subscribed](t, updates, remote.MethodSubscribe, remote.SubscribeParams{Source: testSubOld.URL})
+	remoteWantCode(t, err, remote.CodeInvalid)
+
+	page := a.page
+	got, err := remoteCall[remote.Subscribed](t, updates, remote.MethodSubscribe, remote.SubscribeParams{Source: testSubChannel})
+	if err != nil {
+		t.Fatal(err)
+	}
+	sub := got.Subscription
+	if got.Already || sub.ID == "" || sub.Name != "Earth Science" || sub.Kind != "channel" || sub.Platform != "youtube" || sub.Mode != "auto" || sub.AddPerCheck != subscribe.AddPerCheck || len(sub.Waiting) != 0 || sub.Added != 0 {
+		t.Fatalf("subscribed %+v", got)
+	}
+	if nextCall(t, p) != (listCall{testSubChannel, playlist.ChannelLimit}) || len(a.subs.store.Subs) != 1 || a.page != page {
+		t.Fatalf("subscriptions %+v, page %q", a.subs.store.Subs, a.page)
+	}
+	again, err := remoteCall[remote.Subscribed](t, updates, remote.MethodSubscribe, remote.SubscribeParams{Source: "youtube.com/@EarthScience/"})
+	if err != nil || !again.Already || again.Subscription.ID != sub.ID || len(p.calls) != 0 {
+		t.Fatalf("subscribed again %+v, %v", again, err)
+	}
+
+	var fresh []media.ListedVideo
+	for _, id := range []string{"aaaaaaaaaaa", "bbbbbbbbbbb", "ccccccccccc", "ddddddddddd", "eeeeeeeeeee"} {
+		fresh = append(fresh, media.ListedVideo{URL: "https://www.youtube.com/watch?v=" + id, Title: "Video " + id[:1], Duration: 8 * time.Minute})
+	}
+	p.lists[testSubChannel] = media.Listing{Title: "Earth Science", Videos: append(append(slices.Clone(fresh), testSubShort), testSubOld)}
+	checked, err := remoteCall[remote.SubscriptionChecked](t, updates, remote.MethodSubscriptionCheck, remote.IDParams{ID: sub.ID})
+	if err != nil {
+		t.Fatal(err)
+	}
+	nextCall(t, p)
+	if checked.New != 6 || checked.Queued != 3 || checked.Held != 3 || checked.Skipped != 0 || len(checked.Subscription.Waiting) != 3 || checked.Subscription.Added != 3 {
+		t.Fatalf("checked %+v", checked)
+	}
+	if got := playlistJobSources(a); len(got) != 3 || got[0] != fresh[0].URL {
+		t.Fatalf("jobs %q", got)
+	}
+	if a.subs.notes[sub.ID].Over != 3 {
+		t.Fatalf("note %+v", a.subs.notes[sub.ID])
+	}
+	subs, err = remoteCall[[]remote.Subscription](t, updates, remote.MethodSubscriptions, nil)
+	if err != nil || len(subs) != 1 || subs[0].Added != 3 || len(subs[0].Waiting) != 3 || subs[0].Waiting[0].URL != fresh[3].URL || subs[0].Checked.IsZero() {
+		t.Fatalf("subscriptions %+v, %v", subs, err)
+	}
+
+	_, err = remoteCall[remote.SubscriptionChecked](t, updates, remote.MethodSubscriptionCheck, remote.IDParams{ID: "nope"})
+	remoteWantCode(t, err, remote.CodeNotFound)
+	// A list yt-dlp cannot read fails with why, which the subscription keeps.
+	delete(p.lists, testSubChannel)
+	_, err = remoteCall[remote.SubscriptionChecked](t, updates, remote.MethodSubscriptionCheck, remote.IDParams{ID: sub.ID})
+	remoteWantCode(t, err, remote.CodeFailed)
+	nextCall(t, p)
+	if s := a.subs.store.Subs[0]; s.Err == "" || s.Missing != 1 {
+		t.Fatalf("subscription after a failed check %+v", s)
+	}
+	a.subs.store.Subs[0].Paused = true
+	_, err = remoteCall[remote.SubscriptionChecked](t, updates, remote.MethodSubscriptionCheck, remote.IDParams{ID: sub.ID})
+	remoteWantCode(t, err, remote.CodeNotReady)
+	if len(p.calls) != 0 {
+		t.Fatal("a paused subscription was listed")
+	}
+}
+
+// A channel the control socket subscribes the library to while the dialog reads the same one is not subscribed to twice: once the dialog's read lands, the dialog closes on the subscription the socket made.
+func TestSubscribeDialogAfterTheSocket(t *testing.T) {
+	p := newListingPipeline(map[string]media.Listing{testSubChannel: {Title: "Earth Science", Videos: []media.ListedVideo{testSubOld}}})
+	a, tt, updates := newTestApp(t, p)
+	tt.Press("id:subscribe-add")
+	tt.Type("id:subscribe-link", testSubChannel)
+	tt.Press("id:subscribe-submit")
+	nextCall(t, p)
+	// What remoteSubscribe's last step does, landing before the dialog's read.
+	onEngine(a, func() {
+		sub := subscribe.New(testSubChannel, "/videos", media.Listing{Title: "Earth Science", Videos: []media.ListedVideo{testSubOld}}, time.Now())
+		a.subs.store.Subs = append(a.subs.store.Subs, sub)
+		a.Changed()
+	})
+	waitUntil(t, tt, a, updates, func() bool { return !a.subs.ask.reading })
+	if len(a.subs.store.Subs) != 1 {
+		t.Fatalf("subscribed twice: %+v", a.subs.store.Subs)
+	}
+	id := a.subs.store.Subs[0].ID
+	if tt.Exists("id:subscribe-ask") || a.modalOpen() || a.page != pageSubscription || a.subs.shown != id || a.subs.notes[id].Kind != subscribe.NoteAlready {
+		t.Fatalf("page %q shown %q note %+v modal %v", a.page, a.subs.shown, a.subs.notes[id], a.modalOpen())
+	}
+	wantText(t, tt, testlocale.Messages().SubscribeNoteAlready())
+}
+
+// A library locked while yt-dlp reads a list for the control socket is not changed and nothing of it is answered: subscribing and checking both say it is locked.
+func TestRemoteSubscriptionsLockedWhileListing(t *testing.T) {
+	p := newListingPipeline(map[string]media.Listing{testSubChannel: {Title: "Earth Science", Videos: []media.ListedVideo{testSubOld}}})
+	a, _, updates := newTestApp(t, p)
+	a.library.SetLock("/videos", shelf.Lock{Algorithm: "test", Iterations: 1, Salt: []byte("salt"), Key: []byte("key")})
+	a.lock.unlocked = filepath.Clean("/videos")
+	remoteServe(t, a)
+	lockWhileListing := func() { p.listed = func() { a.update(func() { a.lock.unlocked = "" }) } }
+
+	lockWhileListing()
+	_, err := remoteCall[remote.Subscribed](t, updates, remote.MethodSubscribe, remote.SubscribeParams{Source: testSubChannel})
+	remoteWantCode(t, err, remote.CodeNotReady)
+	nextCall(t, p)
+	if len(a.subs.store.Subs) != 0 {
+		t.Fatalf("a locked library was subscribed: %+v", a.subs.store.Subs)
+	}
+
+	a.lock.unlocked = filepath.Clean("/videos")
+	p.listed = nil
+	got, err := remoteCall[remote.Subscribed](t, updates, remote.MethodSubscribe, remote.SubscribeParams{Source: testSubChannel})
+	if err != nil {
+		t.Fatal(err)
+	}
+	nextCall(t, p)
+	p.lists[testSubChannel] = media.Listing{Title: "Earth Science", Videos: []media.ListedVideo{testSubLong, testSubOld}}
+	lockWhileListing()
+	_, err = remoteCall[remote.SubscriptionChecked](t, updates, remote.MethodSubscriptionCheck, remote.IDParams{ID: got.Subscription.ID})
+	remoteWantCode(t, err, remote.CodeNotReady)
+	nextCall(t, p)
+	if s := a.subs.store.Subs[0]; slices.Contains(s.Seen, testSubLong.URL) || len(s.Pending) != 0 || len(s.Added) != 0 || len(a.library.Jobs) != 0 {
+		t.Fatalf("a locked library's subscription was checked: %+v, jobs %+v", s, a.library.Jobs)
+	}
+}
+
+// A check over the cap whose videos cannot be queued, as no language is chosen, holds them all in the list's order, those it tried first and those past the cap after, and the control socket says why with the counts.
+func TestRemoteSubscriptionCheckNotQueuedOverTheCap(t *testing.T) {
+	p := newListingPipeline(map[string]media.Listing{testSubChannel: {Title: "Earth Science", Videos: []media.ListedVideo{testSubOld}}})
+	a, _, updates := newTestApp(t, p)
+	remoteServe(t, a)
+	got, err := remoteCall[remote.Subscribed](t, updates, remote.MethodSubscribe, remote.SubscribeParams{Source: testSubChannel})
+	if err != nil {
+		t.Fatal(err)
+	}
+	nextCall(t, p)
+	var fresh []media.ListedVideo
+	var links []string
+	for _, id := range []string{"aaaaaaaaaaa", "bbbbbbbbbbb", "ccccccccccc", "ddddddddddd", "eeeeeeeeeee"} {
+		v := media.ListedVideo{URL: "https://www.youtube.com/watch?v=" + id, Title: "Video " + id[:1], Duration: 8 * time.Minute}
+		fresh = append(fresh, v)
+		links = append(links, v.URL)
+	}
+	p.lists[testSubChannel] = media.Listing{Title: "Earth Science", Videos: append(slices.Clone(fresh), testSubOld)}
+	a.prefs.language = ""
+	checked, err := remoteCall[remote.SubscriptionChecked](t, updates, remote.MethodSubscriptionCheck, remote.IDParams{ID: got.Subscription.ID})
+	if err != nil {
+		t.Fatal(err)
+	}
+	nextCall(t, p)
+	if checked.New != 5 || checked.Queued != 0 || checked.Held != 5 || checked.Subscription.Added != 0 || checked.Note != remoteMessages().QueueNoLanguage() {
+		t.Fatalf("checked %+v", checked)
+	}
+	var waiting []string
+	for _, v := range checked.Subscription.Waiting {
+		waiting = append(waiting, v.URL)
+	}
+	if !slices.Equal(waiting, links) || len(a.library.Jobs) != 0 {
+		t.Fatalf("waiting %q, jobs %+v", waiting, a.library.Jobs)
+	}
+	if note := a.subs.notes[got.Subscription.ID]; note.Kind != subscribe.NoteNotQueued || note.Count != 5 || note.Over != 2 {
+		t.Fatalf("note %+v", note)
 	}
 }

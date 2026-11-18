@@ -142,6 +142,7 @@ To get the `kando` command:
 | `kando translate <film-id> [--wait]` | Translates the lines a finished film's translation left untranslated, as Translate Missing Lines does, without downloading or transcribing it again: every line of a film that was not translated at all. A film with no untranslated line, or still being processed, is refused. |
 | `kando remove <job-id>` | Takes a job off the library, as Remove does, stopping it first when it is running. Its files stay on disk. |
 | `kando move <film-id> --to <library>` | Moves a finished film to another library Kando knows, named as `kando status` lists it or by its folder, as Move to Library does, and prints its id there and that library's folder. A film still being processed is refused. |
+| `kando subscriptions [list \| add <link> \| check <id>]` | Lists the library's subscriptions to channels, Bilibili spaces and collections, and playlists, with how many new videos wait in the window; `add` subscribes to one, the videos it holds now left out, and `check` looks for new videos now, as Check Now does. A subscription that adds by itself queues at most 3 new videos a check; the rest wait on its page. |
 | `kando sites [query] [--limit N]` | Searches the websites Kando downloads from, by name, domain or a video link. |
 | `kando open [film-id] [--at T]` | Brings Kando to the front, showing a film, or the library without an id. `--at` plays the film from that time of its subtitles, such as a line `kando search` found. A film still being processed plays once its video is on disk, as its card's Watch does; one that cannot be watched yet shows the library instead, with a note. While a dialog is open in the window, it fails and changes nothing. |
 | `kando mcp` | Serves MCP on standard input and output (see below). |
@@ -170,6 +171,9 @@ Every command that talks to the app takes `--json`, which prints the app's answe
 | `kando_translate_film` | Translates the lines a finished film's translation left untranslated, every line of one that was not translated; returns its job. |
 | `kando_remove_job` | Takes a job off the library, stopping it first when it is running; its files stay on disk. |
 | `kando_move_film` | Moves a finished film to another library Kando knows (`to`, its name or its folder), with its files, its job, where it stopped, its subtitle delay and place, its title and its saved lines; returns its id there. |
+| `kando_list_subscriptions` | The open library's subscriptions, with their rules, state, last check and the new videos waiting for the user. |
+| `kando_subscribe` | Subscribes the open library to a channel, a Bilibili space or collection, or a playlist; the videos there now are left out. A list it follows already comes back with `already`. |
+| `kando_check_subscription` | Checks a subscription for new videos now; returns how many were new, `queued` (at most `add_per_check` for one that adds by itself), `held` waiting for the user and `skipped` by its rules. |
 | `kando_search_sites` | Searches the websites Kando downloads from, by name, domain or a video link (20 results unless `limit` is set). |
 | `kando_open` | Brings the Kando window to the front, showing a film or the library, from a line of the film when `at_ms` is set. `shown` and `reason` say what it shows: a film still being processed plays once its video is on disk, and one that cannot be watched yet shows the library (`in_queue`). While a dialog is open in the window, it fails with `not_ready`. |
 
