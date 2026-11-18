@@ -286,9 +286,8 @@ func TestAnOlderComputerRefusesTheLinksWaitingForIt(t *testing.T) {
 	id := store.DesktopID(d.Fingerprint)
 	status := "id:jobs-link-status-" + links[0].ID
 	p.app.WaitUntil(reconnect, func() bool { return p.app.Exists(status) && p.app.Find(status).Text == msgs.JobsOlder() })
-	if got := p.app.Find("id:jobs-summary-" + id).Text; got != msgs.JobsOlder() {
-		t.Fatalf("the computer's card says %q, want %q", got, msgs.JobsOlder())
-	}
+	summary := "id:jobs-summary-" + id
+	p.app.WaitUntil(wait, func() bool { return p.app.Exists(summary) && p.app.Find(summary).Text == msgs.JobsOlder() })
 	p.app.WaitUntil(wait, func() bool { kept, _ := store.Open(dir).Links(); return len(kept) == 1 && kept[0].Refusal != nil })
 
 	p.app.Press("id:jobs-add")
