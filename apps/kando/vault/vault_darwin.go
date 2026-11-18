@@ -57,8 +57,8 @@ func otherDevice(a, b string) bool {
 // maxSize is the most an image may grow to. A sparse image takes on disk only what its files take, so this is no reservation: it only has to be more than any library holds.
 const maxSize = "64t"
 
-// hdiutilWait bounds how long making, attaching, detaching or re-keying an image may take; copying files has no bound but its context.
-const hdiutilWait = 2 * time.Minute
+// hdiutilWait bounds how long making, attaching, detaching or re-keying an image may take; copying files has no bound but its context. It is generous: on a slow or busy disk, as GitHub's macOS runners have, making an image took over a minute.
+const hdiutilWait = 5 * time.Minute
 
 // Create moves the files of the library at dir into a new image encrypted with password, inside dir, and leaves the library locked, its folder holding only the image. The files are copied into the image first, which then takes its place (ImageName), and only then are the originals removed: cut short before that, the library is as it was. progress hears the bytes copied.
 func Create(ctx context.Context, dir, password string, progress Progress) (err error) {
@@ -71,18 +71,7 @@ func Create(ctx context.Context, dir, password string, progress Progress) (err e
 		return err
 	}
 	name := strings.TrimSuffix(filepath.Base(dir), filepath.Ext(dir))
-	// The volume starts with its marker and Spotlight's never-index file, from seed, rather than gaining them once attached: a volume Spotlight first saw without the file is held by it as it detaches, which took 6 to 14 seconds here and minutes on CI runners. Spotlight leaves a volume with the file alone, so no index of the films' names and subtitles is made either.
-	seed, err := os.MkdirTemp("", "kando-vault-seed-")
-	if err != nil {
-		return err
-	}
-	defer os.RemoveAll(seed)
-	for _, file := range []string{markerName, ".metadata_never_index"} {
-		if err := os.WriteFile(filepath.Join(seed, file), nil, 0o600); err != nil {
-			return fmt.Errorf("vault: mark the image: %w", err)
-		}
-	}
-	if _, err := hdiutil(ctx, password, "create", "-quiet", "-srcfolder", seed, "-format", "UDSP", "-size", maxSize, "-fs", "APFS", "-volname", name, "-encryption", "AES-256", "-stdinpass", strings.TrimSuffix(staging, ".sparseimage")); err != nil {
+	if _, err := hdiutil(ctx, password, "create", "-quiet", "-size", maxSize, "-type", "SPARSE", "-fs", "APFS", "-volname", name, "-encryption", "AES-256", "-stdinpass", strings.TrimSuffix(staging, ".sparseimage")); err != nil {
 		return fmt.Errorf("vault: make the image: %w", err)
 	}
 	defer func() {
@@ -95,8 +84,11 @@ func Create(ctx context.Context, dir, password string, progress Progress) (err e
 	if err := attach(ctx, staging, mount, password); err != nil {
 		return err
 	}
-	if !isFile(filepath.Join(mount, markerName)) {
-		return fmt.Errorf("vault: the new image lacks its marker")
+	// Spotlight leaves a volume with .metadata_never_index at its root alone, so no index of the films' names and subtitles is made in it. A new volume gets the file only once attached, as making the image from a folder holding it (-srcfolder) failed on the macOS of GitHub's runners; Spotlight then holds this first attach for some seconds as it detaches, the later ones not.
+	for _, file := range []string{markerName, ".metadata_never_index"} {
+		if err := os.WriteFile(filepath.Join(mount, file), nil, 0o600); err != nil {
+			return fmt.Errorf("vault: mark the image: %w", err)
+		}
 	}
 	entries, err := libraryEntries(dir)
 	if err != nil {

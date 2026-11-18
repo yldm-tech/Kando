@@ -15,10 +15,10 @@ import (
 	"github.com/nsgo-dev/nsgo/nsgotest"
 )
 
-// lockWaitLong applies background updates until done holds, for as long as encrypting a library may take: hdiutil makes, attaches and detaches images in seconds each.
+// lockWaitLong applies background updates until done holds, for as long as encrypting a library may take: hdiutil makes, attaches and detaches images in seconds each here, and in minutes on GitHub's macOS runners.
 func lockWaitLong(t *testing.T, tt *nsgotest.App, a *app, updates <-chan func(), what string, done func() bool) {
 	t.Helper()
-	timeout := time.After(2 * time.Minute)
+	timeout := time.After(10 * time.Minute)
 	for !done() {
 		select {
 		case fn := <-updates:
@@ -56,6 +56,10 @@ func lockFolder(t *testing.T, dir string) []string {
 func TestLockEncryptsTheLibraryOnDisk(t *testing.T) {
 	if !vault.Supported() {
 		t.Skip("only macOS encrypts a library's files")
+	}
+	// As the vault package's tests: real images take minutes on GitHub's runners, so this runs in CI's Vault job and by hand.
+	if os.Getenv("KANDO_VAULT_TESTS") == "" {
+		t.Skip("set KANDO_VAULT_TESTS=1 to make real encrypted images")
 	}
 	a, tt, updates, dir, _, shelfPath := lockLibrary(t)
 	lockEncrypts = vault.Supported

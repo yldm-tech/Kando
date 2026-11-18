@@ -75,6 +75,29 @@ jobs:
         shell: bash
         run: KANDO_SCREENSHOTS="$RUNNER_TEMP/screenshots" go test -count=1 -timeout 5m -run TestScreenshot ./apps/kando/ ./apps/kando/films/ ./apps/mobile/
 
+  # The tests that make real encrypted images with hdiutil (apps/kando/vault, and the app's TestLockEncryptsTheLibraryOnDisk), which run only where KANDO_VAULT_TESTS is set: on GitHub's macOS runners an image takes a minute or more to make, attach and detach, too long for the Test job's five minutes a package, so they run here alone with time to spare.
+  vault:
+    name: Vault (macOS)
+    runs-on: macos-latest
+    timeout-minutes: 40
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
+        with:
+          go-version-file: go.work
+          cache: false
+      - uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: |
+            ~/go/pkg/mod
+            ~/Library/Caches/go-build
+          key: go-${{ runner.os }}-${{ github.job }}-${{ hashFiles('go.work.sum', '**/go.sum') }}
+          restore-keys: go-${{ runner.os }}-${{ github.job }}-
+      - name: Test
+        env:
+          KANDO_VAULT_TESTS: "1"
+        run: go test -count=1 -timeout 35m -run 'TestALibraryLocksIntoItsImageAndOpensAgain|TestOpenTakesInWhatWasLeftBesideTheImage|TestLockEncryptsTheLibraryOnDisk' ./apps/kando/vault/ ./apps/kando/
+
   # The tests under the race detector. The app's root package takes about 15 minutes with it on a 10-core Mac, so it runs on pushes to main only; a pull request runs every other package with it, a few minutes.
   race:
     name: Race

@@ -14,6 +14,10 @@ import (
 // library makes a library folder holding a film in a folder of its own, with a hidden file beside it, and a loose video, and detaches its image when the test ends.
 func library(t *testing.T) string {
 	t.Helper()
+	// Making and attaching images takes seconds here and minutes on GitHub's macOS runners, more than the Test job's time for a package, so these run where KANDO_VAULT_TESTS is set: by hand, and in CI's Vault job.
+	if os.Getenv("KANDO_VAULT_TESTS") == "" {
+		t.Skip("set KANDO_VAULT_TESTS=1 to make real encrypted images")
+	}
 	dir := filepath.Join(t.TempDir(), "Talks.kando")
 	files := map[string]string{
 		"Film/film.mp4":               "picture",
