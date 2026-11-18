@@ -124,6 +124,7 @@ func (v View) Render(cx *core.Scope) core.Node {
 			s.correcting(),
 			s.lookupCard(),
 			s.streamCard(),
+			s.recapCard(),
 			s.osd(),
 			s.uploadCapsule(),
 			s.topBar(),

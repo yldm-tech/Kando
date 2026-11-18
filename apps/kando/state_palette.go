@@ -72,10 +72,8 @@ type paletteAnswer struct {
 	// horizon is how far the film had been watched when it was asked, and model the model that answered.
 	horizon time.Duration
 	model   string
-	// explain marks every card of Explain Line, on its way, failed or done, which the card heads and words as an explanation rather than an answer; explained is the original of the line it explained, which the card shows over the explanation, "" for an answer to a question.
-	explain   bool
-	explained string
-	film      string
+	// film is the film asked about, by key.
+	film string
 }
 
 func newPaletteUI() paletteUI { return paletteUI{} }
@@ -95,11 +93,11 @@ func (a *app) paletteHooks() areaHooks {
 	}
 }
 
-// paletteKeys are the palette's shortcuts: ⌘K opens it, and closes it again, anywhere in the window. It is the prototype's 学习 › 问这部影片…, which the menu bar puts before 窗口; over the library, without a film, it finds commands and lines, so its label names both. The cheat sheet lists it under 窗口, as the prototype's sheet does (cheatsheetLayout). E has the AI service explain the subtitle line playing in the palette (ExplainLine), while the open film has lines.
+// paletteKeys are the palette's shortcuts: ⌘K opens it, and closes it again, anywhere in the window. It is the prototype's 学习 › 问这部影片…, which the menu bar puts before 窗口; over the library, without a film, it finds commands and lines, so its label names both. The cheat sheet lists it under 窗口, as the prototype's sheet does (cheatsheetLayout). I has the AI service explain the subtitle line selected for correcting, or with none the line playing, in the side panel (explainPlaying), while the open film has lines; the prototype puts it in the Subtitles menu, after selecting the line (E) and 这句不对 (⇧E).
 func (a *app) paletteKeys(cx *core.Scope) []shortcut {
 	return []shortcut{
 		{Group: groupStudy, Label: locales.PaletteMenuItem(cx), Key: paletteKey, Run: a.togglePalette},
-		{Group: groupStudy, Label: locales.PaletteExplainLine(cx), Key: "e", When: func() bool { return len(a.playerCues()) > 0 }, Run: a.paletteExplainPlaying},
+		{Group: groupSubtitles, Label: locales.PaletteExplainLine(cx), Key: "i", When: func() bool { return len(a.playerCues()) > 0 }, Run: a.explainPlaying},
 	}
 }
 

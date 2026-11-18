@@ -9,6 +9,7 @@ import (
 	"path/filepath"
 	"runtime"
 	"slices"
+	"strconv"
 	"strings"
 	"testing"
 
@@ -748,5 +749,18 @@ func TestMoviesDirIsTheSystemsVideosFolder(t *testing.T) {
 	}
 	if got := DefaultLibraryDir(); filepath.Dir(got) != VideosDir {
 		t.Fatalf("DefaultLibraryDir = %q, want it in %q", got, VideosDir)
+	}
+}
+
+func TestWhisperArgsCarryThreadsAndHints(t *testing.T) {
+	tools := Tools{WhisperModel: "m.bin", WhisperThreads: 4, WhisperHints: " Kando,\nwhisper.cpp\n\n、 Monterey "}
+	got := strings.Join(tools.WhisperArgs("auto", "out", "audio.wav"), " ")
+	if want := "-m m.bin -t 4 -l auto --prompt Kando, whisper.cpp, Monterey -np -pp -oj -of out -f audio.wav"; got != want {
+		t.Fatalf("args = %q, want %q", got, want)
+	}
+	tools.WhisperThreads, tools.WhisperHints = 0, " \n "
+	got = strings.Join(tools.WhisperArgs("en", "out", "audio.wav"), " ")
+	if want := ("-m m.bin -t " + strconv.Itoa(whisperThreadCount()) + " -l en -np -pp -oj -of out -f audio.wav"); got != want {
+		t.Fatalf("args = %q, want %q", got, want)
 	}
 }

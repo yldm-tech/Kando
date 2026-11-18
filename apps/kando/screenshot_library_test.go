@@ -205,6 +205,33 @@ func TestScreenshotsLibrary(t *testing.T) {
 	f.shootSize(t, "library-full", 1304, 1400, func(t *testing.T, a *app, tt *nsgotest.App, _ chan func()) {
 		onboarding(a)
 	})
+	// 处理中 down to the one film being translated, in a window tall enough for the design's whole hero over it and the first row of posters: the card keeps its line and its first bilingual line while a job runs.
+	f.shootSize(t, "library-hero-whole", 1304, 900, func(t *testing.T, a *app, tt *nsgotest.App, _ chan func()) {
+		// Under `nsgo test -target macos` the window is a real one, and AppKit shrinks a window taller than the screen to the screen's visible part: on GitHub's macOS runners, whose screen is 1024×768, every scene is drawn 1024×645, where the whole hero has no room over 处理中 and the posters (heroFits) and the compact card is right. The scene is then skipped there rather than checked in a window it did not get; headless, as the Test job runs it, the window is always the size asked, and anything else fails.
+		// TODO(nsgo#697): nsgotest.Size gives a smaller window than asked on a target whose screen is smaller, without saying so; once the test window keeps the size asked (or reports it), drop the skip. https://github.com/nsgo-dev/nsgo/issues/697
+		if got := tt.Find("id:films-page").Frame.Size.Height; got != 900 {
+			if nsgotest.Target() != "" {
+				t.Skipf("the screen gave the window %v points of the 900 asked", got)
+			}
+			t.Fatalf("the page is %v high in a window 900 high", got)
+		}
+		kept := false
+		a.library.Jobs = slices.DeleteFunc(a.library.Jobs, func(job core.Job) bool {
+			if job.Stage == core.StageComplete {
+				return false
+			}
+			if !kept && job.Stage != core.StageFailed && job.Stage != core.StageQueued {
+				kept = true
+				return false
+			}
+			return true
+		})
+		a.refreshLibrary()
+		refresh(tt, a)
+		if got := tt.Find("id:films-hero").Frame.Size.Height; got != 360 || !tt.Exists("id:queue-cancel") {
+			t.Fatalf("the hero over one card in a 900-point window is %v high: %q", got, tt.Texts())
+		}
+	})
 	f.shoot(t, "library-none", func(t *testing.T, a *app, tt *nsgotest.App, _ chan func()) {
 		a.edit(func(s *session) {
 			s.LibraryDir = ""
