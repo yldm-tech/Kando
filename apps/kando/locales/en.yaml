@@ -6642,6 +6642,22 @@ settingsPhoneDidReadWrite:
   description: "Recent activity, by this computer: a read-only phone may change things again."
   placeholders:
     title: { type: "String", example: "Evan's iPhone" }
+settingsPhoneDidSubscribe:
+  message: "Subscribed to “{title}”"
+  description: "Recent activity: a phone subscribed this computer to a channel or playlist."
+  placeholders:
+    title: { type: "String", example: "Earth Science" }
+settingsPhoneDidSubscriptionAdd:
+  message: "Added {count, plural, one {# new video} other {# new videos}} of “{title}” to the queue"
+  description: "Recent activity: a phone sent the new videos waiting on a subscription to the queue."
+  placeholders:
+    title: { type: "String", example: "Earth Science" }
+    count: { type: "int", example: "2" }
+settingsPhoneDidUnsubscribe:
+  message: "Unsubscribed from “{title}”"
+  description: "Recent activity: a phone removed a subscription; the videos it added stay."
+  placeholders:
+    title: { type: "String", example: "Earth Science" }
 phoneSyncAgoNow:
   message: "Just now"
   description: "When something happened: less than a minute ago."

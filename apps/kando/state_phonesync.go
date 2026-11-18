@@ -144,18 +144,19 @@ func (a *app) phoneSyncStart() {
 	gen, update := a.phone.gen, a.update
 	name := phoneSyncName()
 	cfg := phonesync.Config{
-		Dir:      a.phoneSyncDir(),
-		Name:     name,
-		Port:     a.phone.port,
-		Source:   phoneSource{a},
-		Jobs:     phoneJobs{a},
-		State:    phoneState{a},
-		Settings: phoneSettings{a},
-		Study:    phoneStudy{a},
-		Relay:    a.phoneRelayBucket(),
-		Addrs:    a.phone.listen,
-		Changed:  func() { update(a.phoneSyncPull) },
-		Now:      a.phone.now,
+		Dir:           a.phoneSyncDir(),
+		Name:          name,
+		Port:          a.phone.port,
+		Source:        phoneSource{a},
+		Jobs:          phoneJobs{a},
+		State:         phoneState{a},
+		Settings:      phoneSettings{a},
+		Study:         phoneStudy{a},
+		Subscriptions: phoneSubscriptions{a},
+		Relay:         a.phoneRelayBucket(),
+		Addrs:         a.phone.listen,
+		Changed:       func() { update(a.phoneSyncPull) },
+		Now:           a.phone.now,
 	}
 	go func() {
 		srv, err := phonesync.Start(cfg)

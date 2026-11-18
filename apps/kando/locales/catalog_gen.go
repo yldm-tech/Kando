@@ -948,6 +948,9 @@ var Parameters = map[string][]string{
 	"SettingsPhoneDidRevoke":                   {"title"},
 	"SettingsPhoneDidReadOnly":                 {"title"},
 	"SettingsPhoneDidReadWrite":                {"title"},
+	"SettingsPhoneDidSubscribe":                {"title"},
+	"SettingsPhoneDidSubscriptionAdd":          {"title", "count"},
+	"SettingsPhoneDidUnsubscribe":              {"title"},
 	"PhoneSyncAgoMinutes":                      {"count"},
 	"PhoneSyncAgoHours":                        {"count"},
 	"PhoneSyncAgoDays":                         {"count"},
@@ -1450,6 +1453,9 @@ type Translation struct {
 	SettingsPhoneDidRevoke                   func(title string) string
 	SettingsPhoneDidReadOnly                 func(title string) string
 	SettingsPhoneDidReadWrite                func(title string) string
+	SettingsPhoneDidSubscribe                func(title string) string
+	SettingsPhoneDidSubscriptionAdd          func(title string, count int) string
+	SettingsPhoneDidUnsubscribe              func(title string) string
 	PhoneSyncAgoMinutes                      func(count int) string
 	PhoneSyncAgoHours                        func(count int) string
 	PhoneSyncAgoDays                         func(count int) string
@@ -19372,6 +19378,15 @@ func Supply(lang string, t Translation) {
 	}
 	if t.SettingsPhoneDidReadWrite != nil {
 		s.SettingsPhoneDidReadWrite = t.SettingsPhoneDidReadWrite
+	}
+	if t.SettingsPhoneDidSubscribe != nil {
+		s.SettingsPhoneDidSubscribe = t.SettingsPhoneDidSubscribe
+	}
+	if t.SettingsPhoneDidSubscriptionAdd != nil {
+		s.SettingsPhoneDidSubscriptionAdd = t.SettingsPhoneDidSubscriptionAdd
+	}
+	if t.SettingsPhoneDidUnsubscribe != nil {
+		s.SettingsPhoneDidUnsubscribe = t.SettingsPhoneDidUnsubscribe
 	}
 	if t.PhoneSyncAgoMinutes != nil {
 		s.PhoneSyncAgoMinutes = t.PhoneSyncAgoMinutes
@@ -49646,6 +49661,115 @@ func (msgs Messages) SettingsPhoneDidReadWrite(title string) string {
 			return "允许「" + title + "」再做更改"
 		case "zh-Hant":
 			return "允許「" + title + "」再做更改"
+		}
+	}
+}
+
+// SettingsPhoneDidSubscribe says "Subscribed to “{title}”"
+// in the language the app shows under cx.
+//
+// Recent activity: a phone subscribed this computer to a channel or playlist.
+func SettingsPhoneDidSubscribe(cx *core.Scope, title string) string {
+	return For(cx).SettingsPhoneDidSubscribe(title)
+}
+
+// SettingsPhoneDidSubscribe is the package's SettingsPhoneDidSubscribe in the language of msgs.
+func (msgs Messages) SettingsPhoneDidSubscribe(title string) string {
+	if i18n.IsPseudo(msgs.lang) {
+		return i18n.Pseudo(msgs.lang, Messages{lang: Source, mark: true}.SettingsPhoneDidSubscribe(title))
+	}
+	for lang := msgs.lang; ; lang = i18n.Parent(lang) {
+		if f := supplied[lang].SettingsPhoneDidSubscribe; f != nil {
+			return f(title)
+		}
+		switch lang {
+		case "", "en":
+			return "Subscribed to “" + msgs.arg(title) + "”"
+		case "ja":
+			return "「" + title + "」を購読"
+		case "ko":
+			return "‘" + title + "’ 구독"
+		case "zh-Hans":
+			return "订阅了「" + title + "」"
+		case "zh-Hant":
+			return "訂閱了「" + title + "」"
+		}
+	}
+}
+
+// SettingsPhoneDidSubscriptionAdd says "Added {count, plural, one {# new video} other {# new videos}} of “{title}” to the queue"
+// in the language the app shows under cx.
+//
+// Recent activity: a phone sent the new videos waiting on a subscription to the queue.
+func SettingsPhoneDidSubscriptionAdd(cx *core.Scope, title string, count int) string {
+	return For(cx).SettingsPhoneDidSubscriptionAdd(title, count)
+}
+
+// SettingsPhoneDidSubscriptionAdd is the package's SettingsPhoneDidSubscriptionAdd in the language of msgs.
+func (msgs Messages) SettingsPhoneDidSubscriptionAdd(title string, count int) string {
+	if i18n.IsPseudo(msgs.lang) {
+		return i18n.Pseudo(msgs.lang, Messages{lang: Source, mark: true}.SettingsPhoneDidSubscriptionAdd(title, count))
+	}
+	for lang := msgs.lang; ; lang = i18n.Parent(lang) {
+		if f := supplied[lang].SettingsPhoneDidSubscriptionAdd; f != nil {
+			return f(title, count)
+		}
+		switch lang {
+		case "", "en":
+			var b strings.Builder
+			b.WriteString("Added ")
+			switch i18n.Cardinal("en", float64(count)) {
+			case i18n.One:
+				b.WriteString(msgs.arg(i18n.FormatNumber("en", float64(count))))
+				b.WriteString(" new video")
+			default:
+				b.WriteString(msgs.arg(i18n.FormatNumber("en", float64(count))))
+				b.WriteString(" new videos")
+			}
+			b.WriteString(" of “")
+			b.WriteString(msgs.arg(title))
+			b.WriteString("” to the queue")
+			return b.String()
+		case "ja":
+			return "「" + title + "」の新しい動画 " + i18n.FormatNumber("ja", float64(count)) + " 本をキューに追加"
+		case "ko":
+			return "‘" + title + "’의 새 동영상 " + i18n.FormatNumber("ko", float64(count)) + "개를 대기열에 추가"
+		case "zh-Hans":
+			return "把「" + title + "」的 " + i18n.FormatNumber("zh-Hans", float64(count)) + " 个新视频加入了队列"
+		case "zh-Hant":
+			return "把「" + title + "」的 " + i18n.FormatNumber("zh-Hant", float64(count)) + " 個新影片加入了佇列"
+		}
+	}
+}
+
+// SettingsPhoneDidUnsubscribe says "Unsubscribed from “{title}”"
+// in the language the app shows under cx.
+//
+// Recent activity: a phone removed a subscription; the videos it added stay.
+func SettingsPhoneDidUnsubscribe(cx *core.Scope, title string) string {
+	return For(cx).SettingsPhoneDidUnsubscribe(title)
+}
+
+// SettingsPhoneDidUnsubscribe is the package's SettingsPhoneDidUnsubscribe in the language of msgs.
+func (msgs Messages) SettingsPhoneDidUnsubscribe(title string) string {
+	if i18n.IsPseudo(msgs.lang) {
+		return i18n.Pseudo(msgs.lang, Messages{lang: Source, mark: true}.SettingsPhoneDidUnsubscribe(title))
+	}
+	for lang := msgs.lang; ; lang = i18n.Parent(lang) {
+		if f := supplied[lang].SettingsPhoneDidUnsubscribe; f != nil {
+			return f(title)
+		}
+		switch lang {
+		case "", "en":
+			return "Unsubscribed from “" + msgs.arg(title) + "”"
+		case "ja":
+			return "「" + title + "」の購読を解除"
+		case "ko":
+			return "‘" + title + "’ 구독 취소"
+		case "zh-Hans":
+			return "取消订阅了「" + title + "」"
+		case "zh-Hant":
+			return "取消訂閱了「" + title + "」"
 		}
 	}
 }
