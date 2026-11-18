@@ -198,8 +198,7 @@ func (s *screen) subtitleLayer(cx *core.Scope, lines func() []styledLine, tip fu
 			Children: []core.Node{core.Text{ContentFunc: func() string { return locales.FilmSubtitleTip(cx) },
 				Style: core.Style{FontSize: 13, LineHeight: 18, TextAlign: core.TextAlignCenter}, StyleFunc: ui.Colored(colors.Text)}}}
 	}}
-	// The layer, and the tip in it with the lines, goes up from its place as far as the lines show from it: under the pointer while it drags them, else where they belong, to which they move as the controls and the side panel come and go, as MyGo's Draggable sprang them there. It moves by its frame rather than by a transform, as NSGo's hit tests go by frames: lines moved by a transform would take presses, the pointer's hover and drags where their frame lies, not where they show.
-	// TODO(nsgo#407): hit tests do not follow transforms (docs/roadmap.md, Hit tests through transforms), so the lines move by their layer's place, laid out again at each step of a drag, rather than by a TranslateY; once they do, a transform can move them again. https://github.com/nsgo-dev/nsgo/issues/407
+	// The layer, and the tip in it with the lines, goes up from its place as far as the lines show from it: under the pointer while it drags them, else where they belong, to which they move as the controls and the side panel come and go, as MyGo's Draggable sprang them there. It moves by its frame, laid out again at each step of a drag, rather than by a transform, so a drop springs the lines back from where they were dropped with the one transition on their place.
 	return core.View{TestID: "film-subtitles", PointerEvents: core.PointerEventsBoxNone,
 		Style:    core.Style{Position: core.Absolute, Left: core.Pt(0), AlignItems: core.AlignCenter},
 		OnLayout: func(b core.Bounds) { layerH.Set(b.Size.Height) },
