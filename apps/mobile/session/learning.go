@@ -149,12 +149,20 @@ func (s *Session) Watch(key string, d time.Duration) {
 	s.learn.watched.Set(w)
 	s.learnSave(func() error { return s.learn.disk.SaveWatched(w) })
 	f, ok := s.Film(key)
-	if !ok || f.LibraryID == "" || !s.learn.watchedKind[f.Desktop] {
+	if !ok || f.LibraryID == "" {
 		return
 	}
 	desktop, ok := s.Desktop(f.Desktop)
 	l, kept := s.studies.GetUntracked()[studyKey(f.Desktop, f.LibraryID)]
 	if !ok || !kept || desktop.DeviceID == "" {
+		return
+	}
+	// Before a sync reached the computer this run, as for a film watched with the computer out of reach, the library's state says whether it syncs the time watched: one that does serves its own time there. A sync that finds it does not after all, as for a read-only phone, takes the change back (learnAsked).
+	syncs, known := s.learn.watchedKind[f.Desktop]
+	if !known {
+		syncs = slices.ContainsFunc(l.Records, func(r sync.Record) bool { return r.Kind == sync.KindWatched })
+	}
+	if !syncs {
 		return
 	}
 	s.setStudy(f.Desktop, f.LibraryID, study.Change(l, learning.WatchedChange(l, desktop.DeviceID, now, d)))
@@ -326,6 +334,14 @@ func (s *Session) learnAsked(results []learnResult) {
 		}
 		reached = true
 		s.learn.watchedKind[r.desktop] = r.watched
+		if !r.watched {
+			// The time watched kept for a computer that does not take it, as Watch keeps before a sync reached it, goes rather than wait for good.
+			for k, l := range s.studies.GetUntracked() {
+				if desktop, id := splitStudyKey(k); desktop == r.desktop && slices.ContainsFunc(l.Pending, pendingWatched) {
+					s.setStudy(desktop, id, study.Unpend(l, sync.KindWatched))
+				}
+			}
+		}
 		if r.settings != nil {
 			s.learnTakeSettings(r.desktop, *r.settings, r.targetPut)
 			s.setDesktopSettings(r.desktop, DesktopSettings{Settings: *r.settings, ReadOnly: r.readOnly})
@@ -335,7 +351,7 @@ func (s *Session) learnAsked(results []learnResult) {
 		}
 		for k, l := range s.studies.GetUntracked() {
 			desktop, id := splitStudyKey(k)
-			if desktop == r.desktop && len(l.Pending) == 0 && !slices.ContainsFunc(r.libs, func(x sync.Library) bool { return x.ID == id }) {
+			if desktop == r.desktop && !holdsChanges(l) && !slices.ContainsFunc(r.libs, func(x sync.Library) bool { return x.ID == id }) {
 				s.dropStudy(desktop, id)
 			}
 		}
@@ -364,7 +380,7 @@ func (s *Session) learnAsked(results []learnResult) {
 // learnLibrarySynced is told a library's sync is done, with what it ended with: a library locked since it was listed, which tells the phone nothing of it, goes as one not listed does (learnAsked).
 func (s *Session) learnLibrarySynced(desktop, lib string, err error) {
 	if err != nil && ProblemOf(err) == Gone {
-		if l, ok := s.studies.GetUntracked()[studyKey(desktop, lib)]; ok && len(l.Pending) == 0 {
+		if l, ok := s.studies.GetUntracked()[studyKey(desktop, lib)]; ok && !holdsChanges(l) {
 			s.dropStudy(desktop, lib)
 		}
 	}
@@ -571,3 +587,11 @@ const (
 	ReviewCards     = "cards"
 	ReviewDictation = "dictation"
 )
+
+// pendingWatched reports whether r is a change of the phone's time watched (sync.KindWatched).
+func pendingWatched(r sync.Record) bool { return r.Kind == sync.KindWatched }
+
+// holdsChanges reports whether l has changes of the learner's the computer has not taken yet, which keep a library it no longer lists, as one locked: the phone's time watched is not among them, so a locked library's time does not stay in Learn's stats (Watched) for the minutes played in it before it was locked.
+func holdsChanges(l study.Library) bool {
+	return slices.ContainsFunc(l.Pending, func(r sync.Record) bool { return !pendingWatched(r) })
+}

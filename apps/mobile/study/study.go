@@ -307,6 +307,13 @@ func Note(l Library, id, film, note string, now time.Time) sync.Record {
 	return sync.Record{Kind: sync.KindLine, ID: id, Film: film, Fields: map[string]sync.Field{sync.FieldNote: f}}
 }
 
+// Unpend is l without its pending changes of kind, which the computer does not take.
+func Unpend(l Library, kind string) Library {
+	out := l
+	out.Pending = slices.DeleteFunc(slices.Clone(l.Pending), func(r sync.Record) bool { return r.Kind == kind })
+	return out
+}
+
 // IDs are the IDs of l's records of kind as the phone shows them, those the computer has first, then those only the phone made; removed ones among them (View tells them apart).
 func IDs(l Library, kind string) []string {
 	var ids []string

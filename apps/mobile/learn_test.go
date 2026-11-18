@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"os"
 	"path/filepath"
+	"slices"
 	"strings"
 	"testing"
 	"time"
@@ -605,6 +606,69 @@ func TestTheTimeWatchedIsEveryDevices(t *testing.T) {
 	}
 	p.app.WaitUntil(wait, func() bool {
 		r, ok := d.State("lib", sync.KindWatched, sync.WatchedID(desktops[0].DeviceID, day))
+		if !ok {
+			return false
+		}
+		var ms float64
+		return json.Unmarshal(r.Fields[sync.FieldWatchedMS].Value, &ms) == nil && ms >= 5000
+	})
+}
+
+// A film watched while the computer is out of reach, before any sync reached it this run, still gives its time to the computer: the library's state, which holds the computer's time, says the computer takes it, and the next sync puts it.
+func TestTheTimeWatchedOfflineReachesTheComputer(t *testing.T) {
+	d := studyDesktop(t)
+	day := study.Day(now())
+	d.SetState("lib", now().Add(-time.Hour), sync.Record{Kind: sync.KindWatched, ID: sync.WatchedID("studio-device", day), Fields: map[string]sync.Field{
+		sync.FieldWatchedMS: {Value: sync.Value(10 * 60_000), Stamp: sync.Stamp{At: now().Add(-time.Hour), Device: "studio-device"}}}})
+	dir, f := keptFrom(t, d)
+	secrets := pairedWith(t, d, dir)
+	t.Run("learn", func(t *testing.T) {
+		p := startPhone(t, dir, secrets)
+		p.waitLearned(f.Desktop)
+		p.app.WaitFor(talkRow(f.Desktop), wait)
+		p.app.Press(talkRow(f.Desktop))
+		p.app.WaitFor("id:film-play", wait)
+		p.app.Press("id:film-play")
+		p.app.WaitFor("id:player-video", wait)
+		p.app.WaitUntil(wait, func() bool {
+			films, _ := store.Open(dir).Films()
+			return len(films) == 1 && films[0].LibraryID == "lib"
+		})
+	})
+
+	d.SetOff(true)
+	p := startPhone(t, dir, secrets)
+	p.app.WaitFor(talkRow(f.Desktop), wait)
+	p.app.Press(talkRow(f.Desktop))
+	p.app.WaitFor("id:film-play", wait)
+	p.app.Press("id:film-play")
+	p.app.WaitFor("id:player-video", wait)
+	p.app.Play("id:player-video", core.VideoInfo{Duration: 10 * time.Second, Size: core.Size{Width: 1920, Height: 1080}})
+	for at := 500 * time.Millisecond; at <= 6*time.Second; at += 500 * time.Millisecond {
+		p.at(at)
+	}
+	p.app.Back()
+	p.app.WaitForGone("id:player-video", wait)
+	desktops, err := store.Open(dir).Desktops()
+	if err != nil || len(desktops) != 1 {
+		t.Fatalf("desktops %+v, %v", desktops, err)
+	}
+	mine := sync.WatchedID(desktops[0].DeviceID, day)
+	p.app.WaitUntil(wait, func() bool {
+		all, _ := store.Open(dir).Learnings()
+		for _, l := range all {
+			if slices.ContainsFunc(l.Pending, func(r sync.Record) bool { return r.Kind == sync.KindWatched && r.ID == mine }) {
+				return true
+			}
+		}
+		return false
+	})
+
+	d.SetOff(false)
+	p.openTab(learnTab, msgs.LearnTitle())
+	p.app.PullToRefresh("id:learn-scroll")
+	p.app.WaitUntil(reconnect, func() bool {
+		r, ok := d.State("lib", sync.KindWatched, mine)
 		if !ok {
 			return false
 		}

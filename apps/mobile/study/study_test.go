@@ -158,3 +158,12 @@ func TestBatchesKeepEachPutWithinTheLimit(t *testing.T) {
 		t.Fatal("the long record is not alone")
 	}
 }
+
+func TestUnpendTakesBackOnlyTheKindAsked(t *testing.T) {
+	l := Change(Library{}, Save("a", "f1", "Talk", hello, "", t0))
+	l = Change(l, sync.Record{Kind: sync.KindWatched, ID: sync.WatchedID("p1", "2026-11-18"), Fields: map[string]sync.Field{sync.FieldWatchedMS: {Value: sync.Value(1000), Stamp: sync.Stamp{At: t0}}}})
+	got := Unpend(l, sync.KindWatched)
+	if len(got.Pending) != 1 || got.Pending[0].Kind != sync.KindLine || len(l.Pending) != 2 {
+		t.Fatalf("pending %+v, the library it came from %+v", got.Pending, l.Pending)
+	}
+}
