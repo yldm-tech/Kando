@@ -94,6 +94,8 @@ type Config struct {
 	Device, Platform string
 	// Now is the clock pairings and downloads are dated by; time.Now when nil.
 	Now func() time.Time
+	// RelayEvery is how often the phone reads a computer's state.json through the storage relay while away from its network (relay.go), sync.RelayPoll when 0. Tests shorten it.
+	RelayEvery time.Duration
 }
 
 // Session is the app's state. Its methods belong to the engine's goroutine.

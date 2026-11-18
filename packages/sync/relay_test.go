@@ -678,3 +678,15 @@ func TestRelayToldItsHealthAfterEachTurn(t *testing.T) {
 		t.Fatalf("a turn that went through: %v", err)
 	}
 }
+
+// A reply's error reads as the local network's client reads the same reply.
+func TestRelayReplyErrorIsTheClientsError(t *testing.T) {
+	if err := (Reply{ID: "a", Op: OpJobs, Result: json.RawMessage(`{}`)}).Err(); err != nil {
+		t.Fatalf("a reply with a result: %v", err)
+	}
+	err := Reply{ID: "a", Op: OpJobCreate, Error: &ErrorBody{Code: CodeLinksOff, Message: "off"}}.Err()
+	var e *Error
+	if !errors.As(err, &e) || e.Status != http.StatusForbidden || e.Code != CodeLinksOff || e.Message != "off" {
+		t.Fatalf("error %v", err)
+	}
+}

@@ -25,6 +25,16 @@ addNoteOffline:
   description: "Add sheet: under the form while the computer cannot be reached."
   placeholders:
     name: { type: "String", example: "Studio" }
+addNoteOfflineRelay:
+  message: "{name} is offline. The link waits in your storage and starts once it's back."
+  description: "Add sheet: under the form while the computer is reached through the user's storage away from its network, but has not written there lately."
+  placeholders:
+    name: { type: "String", example: "Studio" }
+addNoteRelay:
+  message: "Away from its network, the link goes through your storage. {name} takes it within a minute or two."
+  description: "Add sheet: under the form while the computer is reached through the user's storage away from its network."
+  placeholders:
+    name: { type: "String", example: "Studio" }
 addPaste:
   message: "Paste"
   description: "Add sheet: button that puts the clipboard's link in the field."
@@ -446,6 +456,22 @@ jobsOffline:
 jobsOfflineSummary:
   message: "Offline. Links you send wait on this phone and go once it's back."
   description: "Jobs page, a computer's card while it cannot be reached."
+jobsOfflineRelay:
+  message: "Offline. Links you send wait in your storage and start once it's back."
+  description: "Jobs page, a computer's card while it is reached through the user's storage away from its network but has not written there lately."
+jobsInStorage:
+  message: "In your storage, waiting for {name}"
+  description: "Where a link stands once it was left in the user's storage for the computer to take, away from its network."
+  placeholders:
+    name: { type: "String", example: "Studio" }
+jobsRelayed:
+  message: "{summary} · through your storage"
+  description: "Jobs page, a computer's card while it is reached through the user's storage away from its network: what its queue does, then how it is reached."
+  placeholders:
+    summary: { type: "String", example: "Processing 2 videos" }
+jobsViaStorage:
+  message: "Via storage"
+  description: "Jobs page, a computer's card: it answers through the user's storage, away from its network."
 jobsOlder:
   message: "Kando on this computer is too old to take links. Update it."
   description: "Jobs page: the computer speaks an older protocol."

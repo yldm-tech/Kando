@@ -60,8 +60,9 @@ type Desktop struct {
 	refuse  func(sync.Record) bool
 	putHeld chan struct{}
 	puts    int
-	// study is the lookups and explanations (study.go).
+	// study is the lookups and explanations (study.go), relay the storage relay (relay.go).
 	study study
+	relay relay
 	desk  *sync.Desk
 	libs  []sync.Library
 	films []Film
