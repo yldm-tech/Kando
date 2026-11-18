@@ -256,9 +256,10 @@ func (a *app) testLLM() {
 	gen := a.prefs.llmTestGen
 	translator, ping := tools.Translator, a.prefs.pingLLM
 	credential := translator.Credential != nil
-	update := a.update
+	// Offline mode turned on meanwhile stops the test (privacyContext).
+	update, net := a.update, a.privacyContext()
 	go func() {
-		ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+		ctx, cancel := context.WithTimeout(net, 30*time.Second)
 		defer cancel()
 		err := ping(ctx, translator)
 		update(func() {
@@ -336,9 +337,10 @@ func (a *app) fetchLLMModels(force bool) bool {
 	a.prefs.llmModelsLoading = true
 	a.prefs.llmModels = nil
 	a.prefs.llmModelsErr = nil
-	translator, list, update := tools.Translator, a.prefs.listModels, a.update
+	// Offline mode turned on meanwhile stops the fetch (privacyContext).
+	translator, list, update, net := tools.Translator, a.prefs.listModels, a.update, a.privacyContext()
 	go func() {
-		ctx, cancel := context.WithTimeout(context.Background(), 20*time.Second)
+		ctx, cancel := context.WithTimeout(net, 20*time.Second)
 		defer cancel()
 		models, err := list(ctx, translator)
 		update(func() {

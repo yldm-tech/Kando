@@ -4,6 +4,7 @@ import (
 	"errors"
 	"path/filepath"
 	"slices"
+	"strings"
 	"testing"
 	"time"
 
@@ -40,6 +41,16 @@ func TestScreenshotsQueue(t *testing.T) {
 	})
 	f.shoot(t, "queue", func(t *testing.T, a *app, _ *nsgotest.App, updates chan func()) {
 		screenshotQueueDownloading(t, a, updates)
+	})
+	// The downloading job and the next were sent by a paired phone, whose name their cards give.
+	f.shoot(t, "queue-from-phone", func(t *testing.T, a *app, _ *nsgotest.App, updates chan func()) {
+		screenshotQueueDownloading(t, a, updates)
+		for _, job := range a.library.Jobs {
+			if job.Source == "https://www.youtube.com/watch?v=aqz-KE-bpKQ" || strings.Contains(job.Source, "bilibili.com") {
+				job.Device = "iPhone 17"
+				a.library.Upsert(job)
+			}
+		}
 	})
 	f.shoot(t, "queue-quit", func(t *testing.T, a *app, _ *nsgotest.App, updates chan func()) {
 		screenshotQueueDownloading(t, a, updates)

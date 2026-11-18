@@ -24,6 +24,10 @@ func (a *app) SignInGoogle() {
 	if a.cloud.googleBusy || !a.GoogleConfigured() {
 		return
 	}
+	if a.privacy.offline {
+		a.cloud.googleErr = locales.Messages.PrivacyNoSignIn
+		return
+	}
 	a.cloud.googleBusy = true
 	a.cloud.googleErr = nil
 	cfg := cloud.GoogleConfig{
@@ -36,14 +40,19 @@ func (a *app) SignInGoogle() {
 	if login == nil {
 		login = cloud.Login
 	}
+	// Offline mode turned on meanwhile stops the sign-in (privacyContext).
+	net := a.privacyContext()
 	go func() {
-		ctx, cancel := context.WithTimeout(context.Background(), 3*time.Minute)
+		ctx, cancel := context.WithTimeout(net, 3*time.Minute)
 		defer cancel()
 		acc, err := login(ctx, cfg)
 		a.update(func() {
 			a.cloud.googleBusy = false
 			if err != nil {
 				a.cloud.googleErr = locales.Messages.AccountGoogleFailed
+				if a.privacy.offline {
+					a.cloud.googleErr = locales.Messages.PrivacyNoSignIn
+				}
 				return
 			}
 			a.cloud.googleEmail = acc.Email
@@ -89,7 +98,10 @@ func (a *app) UploadView(item films.Film) film.Upload {
 	if reason := a.uploadBlocked(); reason != "" {
 		view.Detail = reason
 		view.Status = film.UploadBlocked
-		view.Fix = m.AccountFixSettings()
+		// The account's settings do not lift offline mode.
+		if !a.privacy.offline {
+			view.Fix = m.AccountFixSettings()
+		}
 		return view
 	}
 	view.Enabled = true
@@ -234,6 +246,9 @@ func (a *app) putFiles(ctx context.Context, cfg cloud.Store, files []cloud.File,
 // uploadBlocked is why an upload cannot start now, in the interface's language, "" when one can. A Google account is not needed: it only names the folder the film goes under (cloud.ObjectKey).
 func (a *app) uploadBlocked() string {
 	m := a.messages()
+	if a.privacy.offline {
+		return m.PrivacyNoUpload()
+	}
 	cfg := a.currentStore()
 	if storeReady(cfg) {
 		return ""

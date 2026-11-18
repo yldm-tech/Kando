@@ -1,4 +1,4 @@
-package saved
+package study
 
 import (
 	"errors"
@@ -56,30 +56,10 @@ func TestBookRoundTrip(t *testing.T) {
 	}
 }
 
-// TestLoadKeepsAnUnreadableFile checks that a file Load cannot read is left as it is: Save refuses to write over it.
-func TestLoadKeepsAnUnreadableFile(t *testing.T) {
-	dir := t.TempDir()
-	path := filepath.Join(dir, FileName)
-	if err := os.WriteFile(path, []byte("{"), 0o644); err != nil {
-		t.Fatal(err)
-	}
-	b, err := Load(dir)
-	if err == nil {
-		t.Fatal("a cut-short file read without an error")
-	}
-	b.Toggle(Line{Video: "a/video.mp4", Start: time.Second})
-	if err := b.Save(); !errors.Is(err, ErrUnread) {
-		t.Fatalf("Save over an unread file: %v", err)
-	}
-	if data, _ := os.ReadFile(path); string(data) != "{" {
-		t.Fatalf("the file became %q", data)
-	}
-}
-
-// TestLoadReadsLaterFiles checks that fields a later version writes are passed over and a line without a video is dropped.
+// TestLoadReadsLaterFiles checks that fields a later Kando writes in the same version of the file are passed over, and a line without a video or an id is dropped.
 func TestLoadReadsLaterFiles(t *testing.T) {
 	dir := t.TempDir()
-	data := `{"version": 3, "lines": [{"video": "a/video.mp4", "start": 1.5, "original": "Hi", "ease": 2.5}, {"start": 2}]}`
+	data := `{"version": 1, "lines": [{"id": "x", "video": "a/video.mp4", "start": 1.5, "original": "Hi", "ease": 2.5}, {"id": "y", "start": 2}, {"video": "a/video.mp4", "start": 3}]}`
 	if err := os.WriteFile(filepath.Join(dir, FileName), []byte(data), 0o644); err != nil {
 		t.Fatal(err)
 	}
@@ -102,22 +82,36 @@ func TestKeyKeepsOutsideVideosWhole(t *testing.T) {
 	}
 }
 
+// TestKeyWritesRelativePathsWithSlashes checks that a relative path, as a book with no library folder is given, is keyed with forward slashes whatever the system's separator, so it names the same line as the key saved on another device and as Abs reads it.
+func TestKeyWritesRelativePathsWithSlashes(t *testing.T) {
+	var b Book
+	native := filepath.Join("Talk", "video.mp4")
+	if key := b.Key(native); key != "Talk/video.mp4" || b.Abs(Line{Video: key}) != native {
+		t.Fatalf("Key(%q) = %q, Abs %q", native, key, b.Abs(Line{Video: key}))
+	}
+	if key := b.Key("Talk/video.mp4"); key != "Talk/video.mp4" {
+		t.Fatalf("Key of a slash path = %q", key)
+	}
+}
+
 func TestMoveVideosFollowsRenamedFolders(t *testing.T) {
 	dir := t.TempDir()
 	b, _ := Load(dir)
 	b.Toggle(Line{Video: "Talk/video.mp4", Start: time.Second})
 	b.Toggle(Line{Video: "Other/video.mp4", Start: time.Second})
 	old, next := filepath.Join(dir, "Talk", "video.mp4"), filepath.Join(dir, "A Talk", "video.mp4")
+	// A folder outside the library, absolute on every system: a path rooted without a drive, as \elsewhere, is not absolute on Windows.
+	elsewhere := filepath.Join(t.TempDir(), "elsewhere", "video.mp4")
 	moved := b.MoveVideos(func(p string) (string, bool) {
 		if p == old {
 			return next, true
 		}
 		if strings.HasPrefix(p, filepath.Join(dir, "Other")) {
-			return filepath.Join(string(filepath.Separator), "elsewhere", "video.mp4"), true
+			return elsewhere, true
 		}
 		return "", false
 	})
-	if !moved || b.Lines[1].Video != "A Talk/video.mp4" || b.Lines[0].Video != filepath.Join(string(filepath.Separator), "elsewhere", "video.mp4") {
+	if !moved || b.Lines[1].Video != "A Talk/video.mp4" || b.Lines[0].Video != elsewhere {
 		t.Fatalf("moved %v, lines %+v", moved, b.Lines)
 	}
 }

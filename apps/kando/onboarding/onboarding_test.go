@@ -478,3 +478,31 @@ func TestGuideFollowsTheLanguage(t *testing.T) {
 		t.Fatalf("the link field was built again: view %d holding %q", v.ID, v.Text)
 	}
 }
+
+// TestSheetCornersLineUp checks that the corners one sees are the sheet's on each platform: the clear box that casts the shadow is rounded as the design's dialogs on the platform are, up to ui.RadiusDialog, and the face, every view that clips it and the rim inside are all rounded one point tighter, so the face is not cut off inside a rounder shadow or the rim's arcs left outside it.
+func TestSheetCornersLineUp(t *testing.T) {
+	for _, c := range []struct {
+		os   core.OS
+		want core.Points
+	}{{core.OSMacOS, 16}, {core.OSWindows, 8}, {core.OSLinux, 12}} {
+		app := start(t, newFakeApp(), c.os)
+		box := app.Find("id:onboarding")
+		if got := box.Style.CornerRadius; got != c.want {
+			t.Errorf("%v: the sheet is rounded %v, want %v", c.os, got, c.want)
+		}
+		face := app.Find("id:onboarding-face")
+		// The face shows the tightest of its own corners and those of every view between it and the sheet's box that clips it.
+		shown := face.Style.CornerRadius
+		for v := face.Parent; v != nil && v != box; v = v.Parent {
+			if v.Style.Clip && v.Style.CornerRadius < shown {
+				shown = v.Style.CornerRadius
+			}
+		}
+		if !face.Style.Clip || shown != c.want-1 {
+			t.Errorf("%v: the face clips %v and shows corners of %v, want %v", c.os, face.Style.Clip, shown, c.want-1)
+		}
+		if got := app.Find("id:onboarding-rim").Style.CornerRadius; got != c.want-1 {
+			t.Errorf("%v: the rim is rounded %v, want %v", c.os, got, c.want-1)
+		}
+	}
+}

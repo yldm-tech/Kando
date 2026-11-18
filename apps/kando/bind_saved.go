@@ -35,17 +35,23 @@ func (a *app) OpenSavedSheet() {
 	a.saved.release = a.holdModal()
 }
 
-// CloseSaved closes the sheet, as Done, Escape and closing it do, and gives back the window's modal flag.
+// CloseSaved closes the sheet, as Done, Escape and closing it do, and gives back the window's modal flag. A note being written is dropped, as Cancel drops it.
 func (a *app) CloseSaved() {
 	a.saved.sheet = false
+	a.CancelNote()
 	if a.saved.release != nil {
 		a.saved.release()
 		a.saved.release = nil
 	}
 }
 
-// savedID names a saved line for the sheet: its video and its start.
-func savedID(l saved.Line) string { return fmt.Sprintf("%s@%d", l.Video, l.Start.Milliseconds()) }
+// savedID names a saved line for the sheet and the review: its id, or for a line that has none, as one a test puts in the book, its video and its start.
+func savedID(l saved.Line) string {
+	if l.ID != "" {
+		return l.ID
+	}
+	return fmt.Sprintf("%s@%d", l.Video, l.Start.Milliseconds())
+}
 
 // savedFind is the saved line the sheet names id, by its index in the book, or -1.
 func (a *app) savedFind(id string) int {
@@ -73,7 +79,7 @@ func (a *app) SavedEntries() []study.Entry {
 	book := a.savedBook()
 	out := make([]study.Entry, 0, len(book.Lines))
 	for _, l := range book.Lines {
-		e := study.Entry{ID: savedID(l), Film: l.Film, Original: l.Original, Translation: l.Translation, Start: l.Start, Gone: true}
+		e := study.Entry{ID: savedID(l), Film: l.Film, Original: l.Original, Translation: l.Translation, Note: l.Note, Start: l.Start, Gone: true}
 		if f, ok := a.savedFilm(l); ok {
 			e.Gone = false
 			if f.Name != "" {
@@ -113,6 +119,43 @@ func (a *app) RemoveSaved(id string) {
 	a.saved.book.Remove(l.Video, l.Start)
 	a.savedWrite()
 }
+
+// NoteEditing is the saved line whose note the sheet is writing, by its id, "" while none is.
+func (a *app) NoteEditing() string { return a.saved.note }
+
+// EditNote is a saved line's pencil: the field under it opens with its note, after the note open under another line is kept (SaveNote). The pencil of the line whose note is open keeps it as typed.
+func (a *app) EditNote(id string) {
+	if a.saved.note == id {
+		return
+	}
+	a.SaveNote()
+	i := a.savedFind(id)
+	if i < 0 {
+		return
+	}
+	a.saved.note, a.saved.draft = id, a.saved.book.Lines[i].Note
+}
+
+// NoteDraft is the note as typed so far in the open field.
+func (a *app) NoteDraft() string { return a.saved.draft }
+
+// SetNoteDraft follows the note field as the learner types.
+func (a *app) SetNoteDraft(text string) { a.saved.draft = text }
+
+// SaveNote is the note field's Save: the note as typed becomes the line's, an empty one taking its note away, and the field closes.
+func (a *app) SaveNote() {
+	id, draft := a.saved.note, a.saved.draft
+	a.CancelNote()
+	if id == "" {
+		return
+	}
+	if a.saved.book.SetNote(id, draft) {
+		a.savedWrite()
+	}
+}
+
+// CancelNote is the note field's Cancel: it closes without keeping what was typed.
+func (a *app) CancelNote() { a.saved.note, a.saved.draft = "", "" }
 
 // ExportState is how the export of the saved lines goes, as the sheet says it. An export the user stopped (StopExport) is Stopped, not failed with the context's error.
 func (a *app) ExportState() study.Export {

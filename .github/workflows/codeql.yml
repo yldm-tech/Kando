@@ -43,7 +43,7 @@ jobs:
           build-mode: ${{ matrix.build-mode }}
       # The repository root is a Go workspace, not a module, so ./... matches nothing: the modules are listed.
       - if: matrix.build-mode == 'manual'
-        run: go build ./apps/kando/... ./packages/core/... ./packages/media/... ./packages/sync/...
+        run: go build ./apps/kando/... ./packages/core/... ./packages/media/... ./packages/study/... ./packages/sync/...
       - uses: github/codeql-action/analyze@33d7b85da1a04171e211befe2c739303b9a4c066 # v4.39.3
         with:
           category: /language:${{ matrix.language }}

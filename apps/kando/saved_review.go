@@ -12,7 +12,7 @@ import (
 	"github.com/nsgo-dev/nsgo/core"
 )
 
-// The review of the saved lines due (study.Review): the lines it goes through, the sound of each, cut with ffmpeg off the engine's goroutine into a folder of its own that goes when the review ends, and the answers, which schedule each line in saved-lines.json (saved.Book.Grade).
+// The review of the saved lines due (study.Review): the lines it goes through, the sound of each, cut with ffmpeg off the engine's goroutine into a folder of its own that goes when the review ends, and the answers, which schedule each line in the library's study record (saved.Book.Grade).
 
 // savedReview is the review open now: the lines left, by savedID, the one shown first; whether its translation shows; how many were answered; and the sound of each line, its file once cut or "" for one that has none, which playing and plays start. dir is the folder the sounds are cut into, and ctx the cutting's, which cancel stops as the review ends.
 type savedReview struct {

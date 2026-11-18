@@ -17,6 +17,8 @@ import (
 // PhoneSync is where Phone Sync stands, as its page shows it: whether it is on, why it could not start, and while it runs, the pairing code on offer with where the phone finds the desktop, and the phones paired with it.
 type PhoneSync struct {
 	On bool
+	// Receive is 接收手机发来的链接, and AskFirst 收到后 set to 先问我: a link a phone sends waits in the link field for the user to start it, rather than being queued at once.
+	Receive, AskFirst bool
 	// Running is a server listening; Err is why the last start failed.
 	Running bool
 	Err     string
@@ -72,6 +74,8 @@ func (p phone) Render(cx *core.Scope) core.Node {
 			form.Card(pairing{a: a}),
 			form.Label(locales.SettingsPhoneDevices(cx), 14),
 			form.Card(devices{a: a}),
+			form.Label(locales.SettingsPhoneLinks(cx), 14),
+			form.Card(receiveLinks(cx, a)...),
 			core.Show{When: live.Func(a, func() bool { return a.PhoneSync().RevokeErr != "" }), Then: func(cx *core.Scope) core.Node {
 				return core.Text{ContentFunc: live.Func(a, func() string { return locales.SettingsPhoneRevokeFailed(cx, a.PhoneSync().RevokeErr) }), Selectable: core.SelectableOn,
 					Style: core.Style{FontSize: 11, Padding: core.Edges{Top: 4, Right: 12, Left: 12}}, StyleFunc: ui.Colored(colors.Danger)}
@@ -211,4 +215,18 @@ func deviceRow(cx *core.Scope, a App, id string) core.Node {
 		}),
 		Trailing: []core.Node{form.Button{Text: locales.SettingsPhoneRevoke(cx), Label: locales.SettingsPhoneRevokeLabel(cx, name), TestID: "settings-phone-revoke-" + id,
 			OnPress: live.Do(a, func() { a.RevokePhone(id) })}}}
+}
+
+// receiveLinks are the rows of 手机发来的链接: whether the desktop takes the links phones send, and what it does with one, which a link taken nowhere leaves disabled.
+func receiveLinks(cx *core.Scope, a App) []core.Node {
+	receive := form.SwitchRow{Title: locales.SettingsPhoneReceive(cx), Subtitle: locales.SettingsPhoneReceiveHint(cx), TestID: "settings-phone-receive",
+		On:       live.Func(a, func() bool { return a.PhoneSync().Receive }),
+		OnChange: live.On(a, a.SetPhoneReceive)}
+	then := ui.Select[bool]{Label: locales.SettingsPhoneReceiveThen(cx), TestID: "settings-phone-receive-then",
+		Options:  []ui.Option[bool]{{Value: false, Label: locales.SettingsPhoneReceiveQueue(cx)}, {Value: true, Label: locales.SettingsPhoneReceiveAsk(cx)}},
+		Value:    live.Func(a, func() bool { return a.PhoneSync().AskFirst }),
+		OnChange: live.On(a, a.SetPhoneAskFirst),
+		Disabled: live.Func(a, func() bool { return !a.PhoneSync().Receive }),
+		Style:    core.Style{Width: core.Pt(160)}}
+	return []core.Node{receive, form.Separator(true), form.Row{Title: locales.SettingsPhoneReceiveThen(cx), NoGroup: true, Trailing: []core.Node{then}}}
 }

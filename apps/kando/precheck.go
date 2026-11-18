@@ -9,6 +9,7 @@ import (
 	"kando/apps/kando/films/sitename"
 	"kando/apps/kando/locales"
 	"kando/apps/kando/settings"
+	"kando/apps/kando/settings/sectionid"
 	"kando/apps/kando/sidebar"
 	"kando/packages/core"
 	"kando/packages/media"
@@ -33,6 +34,9 @@ func (a *app) precheckIn(m locales.Messages, sources []string) (msg, section str
 		if !ok {
 			return m.PrecheckNotLink(), ""
 		}
+		if a.privacy.offline && link.Platform != core.PlatformLocal {
+			return m.PrivacyNoDownload(), sectionid.Privacy
+		}
 		if !link.OneVideo() {
 			return precheckWhole(m, link), ""
 		}
@@ -51,9 +55,18 @@ func (a *app) precheckReadyIn(m locales.Messages) (msg, section string) {
 	if a.lockShut() {
 		return m.LockLibraryIsLocked(sidebar.Title(a.snap().LibraryDir)), ""
 	}
+	// No AI service does not stop a job: its film's subtitles are the original lines until it is translated (core.Job.TranslationErr), as the message bar says once it is added (untranslatable).
+	if say := a.precheckTools(); say != nil {
+		return say(m)
+	}
+	return "", ""
+}
+
+// precheckTools is what precheckReadyIn finds missing among the tools and settings a job needs, whichever library it is for, nil when nothing is: found now, and said in the language of the Messages it is given, so a message kept to show later, as a subscription's page keeps why its videos were not queued, is said in the language shown then.
+func (a *app) precheckTools() func(m locales.Messages) (msg, section string) {
 	tools, ok := a.pipeline.(media.Tools)
 	if !ok {
-		return "", ""
+		return nil
 	}
 	// It asks for every tool media.Tools.Check asks for, so a job it lets through does not fail at its first step. That includes yt-dlp for a local video, which the pipeline reads where it is without downloading, because Check still asks for yt-dlp for every job.
 	var missing []string
@@ -66,16 +79,20 @@ func (a *app) precheckReadyIn(m locales.Messages) (msg, section string) {
 	if tools.Whisper == "" {
 		missing = append(missing, "whisper-cli")
 	}
+	downloading := len(a.kitsDownloading()) > 0
 	switch {
-	case len(missing) > 0 && len(a.kitsDownloading()) > 0:
-		return m.PrecheckToolsDownloading(strings.Join(missing, m.PrecheckToolSeparator())), settings.SectionGeneral
+	case len(missing) > 0 && downloading:
+		return func(m locales.Messages) (string, string) {
+			return m.PrecheckToolsDownloading(strings.Join(missing, m.PrecheckToolSeparator())), settings.SectionGeneral
+		}
 	case len(missing) > 0:
-		return m.PrecheckToolsMissing(strings.Join(missing, m.PrecheckToolSeparator())), settings.SectionGeneral
+		return func(m locales.Messages) (string, string) {
+			return m.PrecheckToolsMissing(strings.Join(missing, m.PrecheckToolSeparator())), settings.SectionGeneral
+		}
 	case tools.WhisperModel == "":
-		return m.PrecheckNoSpeechModel(), settings.SectionSpeech
+		return func(m locales.Messages) (string, string) { return m.PrecheckNoSpeechModel(), settings.SectionSpeech }
 	}
-	// No AI service does not stop a job: its film's subtitles are the original lines until it is translated (core.Job.TranslationErr), as the message bar says once it is added (untranslatable).
-	return "", ""
+	return nil
 }
 
 // precheckAboutApp reports whether msg, which precheck said, is what precheckReady says: a problem of the app rather than of the sources, which a message bar that shows it follows until it is fixed (precheckFollow).
@@ -163,6 +180,10 @@ func failureHint(m locales.Messages, item films.Film) (reason, section string) {
 		return m.PrecheckNoTranscript(), ""
 	case strings.Contains(detail, media.ErrSubtitlesChanged.Error()):
 		return m.PrecheckSubtitlesChanged(), ""
+	case strings.Contains(detail, media.ErrOffline.Error()) && strings.HasPrefix(detail, "download: "):
+		return m.PrivacyNoDownload(), sectionid.Privacy
+	case strings.Contains(detail, media.ErrOffline.Error()):
+		return m.PrivacyNoCloudAI(), settings.SectionAI
 	}
 	// media.Run names the stage that failed before its error.
 	stage, rest, ok := strings.Cut(detail, ": ")

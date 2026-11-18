@@ -43,6 +43,7 @@ func (p *fakePlay) Length() time.Duration { return p.length }
 // fakeApp is the open film the player reads, kept as plain fields as the app keeps them, with the calls the player made.
 type fakeApp struct {
 	live.Rev
+	fakeCorrector
 	item       Item
 	play       *fakePlay
 	path       string

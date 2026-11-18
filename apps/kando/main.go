@@ -40,32 +40,35 @@ type app struct {
 	// update runs fn on the engine's goroutine and lets the bindings follow what it changed; background jobs report through it, from any goroutine.
 	update func(fn func())
 
-	side     sidebarUI  // state_sidebar.go
-	lib      libraryUI  // state_library.go
-	queue    jobQueue   // queue.go
-	player   playerUI   // state_player.go
-	prefs    settingsUI // state_settings.go
-	cloud    cloudUI    // state_cloud.go
-	overlay  overlayUI  // state_overlay.go
-	menu     menuUI     // state_menu.go
-	feedback feedbackUI // state_feedback.go
-	palette  paletteUI  // state_palette.go
-	onb      onboardUI  // state_onboarding.go
-	sites    sitesUI    // state_sites.go
-	kits     kitsUI     // state_kits.go
-	remote   remoteUI   // state_remote.go
-	cliTool  cliToolUI  // state_cli.go
-	ext      extUI      // state_browserext.go
-	updates  updatesUI  // state_updates.go
-	window   windowUI   // state_window.go
-	logs     logsUI     // state_logs.go
-	browse   browseUI   // state_browse.go
-	playlist playlistUI // state_playlist.go
-	online   onlineUI   // state_online.go
-	saved    savedUI    // state_saved.go
-	signin   signinUI   // state_signin.go
-	phone    phoneUI    // state_phonesync.go
-	lock     lockUI     // state_lock.go
+	side     sidebarUI   // state_sidebar.go
+	lib      libraryUI   // state_library.go
+	queue    jobQueue    // queue.go
+	player   playerUI    // state_player.go
+	correct  correctUI   // state_correct.go
+	prefs    settingsUI  // state_settings.go
+	cloud    cloudUI     // state_cloud.go
+	overlay  overlayUI   // state_overlay.go
+	menu     menuUI      // state_menu.go
+	feedback feedbackUI  // state_feedback.go
+	palette  paletteUI   // state_palette.go
+	onb      onboardUI   // state_onboarding.go
+	sites    sitesUI     // state_sites.go
+	kits     kitsUI      // state_kits.go
+	remote   remoteUI    // state_remote.go
+	cliTool  cliToolUI   // state_cli.go
+	ext      extUI       // state_browserext.go
+	updates  updatesUI   // state_updates.go
+	window   windowUI    // state_window.go
+	logs     logsUI      // state_logs.go
+	browse   browseUI    // state_browse.go
+	playlist playlistUI  // state_playlist.go
+	online   onlineUI    // state_online.go
+	saved    savedUI     // state_saved.go
+	signin   signinUI    // state_signin.go
+	phone    phoneUI     // state_phonesync.go
+	lock     lockUI      // state_lock.go
+	privacy  privacyUI   // state_privacy.go
+	subs     subscribeUI // state_subscribe.go
 }
 
 // newApp makes the app's state. update is how background jobs report; nil reports through the revision (appUpdate), as main and the tests that start the app with nsgotest do, while a test that runs no app passes its own to apply the reports itself.
@@ -78,6 +81,7 @@ func newApp(pipeline media.Pipeline, update func(fn func())) *app {
 		lib:      newLibraryUI(),
 		queue:    newJobQueue(),
 		player:   newPlayerUI(),
+		correct:  newCorrectUI(),
 		prefs:    newSettingsUI(),
 		cloud:    newCloudUI(),
 		overlay:  newOverlayUI(),
@@ -99,6 +103,8 @@ func newApp(pipeline media.Pipeline, update func(fn func())) *app {
 		signin:   signinUI{},
 		phone:    newPhoneUI(),
 		lock:     newLockUI(),
+		privacy:  newPrivacyUI(),
+		subs:     newSubscribeUI(),
 	}
 	if a.update == nil {
 		a.update = a.appUpdate

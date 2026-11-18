@@ -93,7 +93,7 @@ type Row struct {
 	Sound string
 }
 
-// WriteNotes writes rows as a file Anki's text import (File › Import) reads into its stock Basic note type as it is: UTF-8, a tab between fields, a note per line, and the header lines Anki 2.1.55 and later read. Every field is in double quotes, any quote in it doubled, as Anki's reader takes them, so tabs, line breaks, quotes and a leading # stay in the field rather than split it, run it into the next notes or make it a comment. The header names no columns, so Anki puts the fields into the note type's fields in order, whatever Anki's language calls them: the first, Front, is the original; the second, Back, is the translation, the line's sound, [sound:file] for Anki to play, and the film and where in it the line starts, each on a line of its own. #notetype picks the note type named Basic where the collection has one; Anki keeps the one it adds with where it has none, as in a collection made in another language. The text is not HTML: Anki escapes it and turns its line breaks into line breaks of the card.
+// WriteNotes writes rows as a file Anki's text import (File › Import) reads into its stock Basic note type as it is: UTF-8, a tab between fields, a note per line, and the header lines Anki 2.1.55 and later read. Every field is in double quotes, any quote in it doubled, as Anki's reader takes them, so tabs, line breaks, quotes and a leading # stay in the field rather than split it, run it into the next notes or make it a comment. The header names no columns, so Anki puts the fields into the note type's fields in order, whatever Anki's language calls them: the first, Front, is the original; the second, Back, is the translation, the learner's note on the line, the line's sound, [sound:file] for Anki to play, and the film and where in it the line starts, each on a line of its own. #notetype picks the note type named Basic where the collection has one; Anki keeps the one it adds with where it has none, as in a collection made in another language. The text is not HTML: Anki escapes it and turns its line breaks into line breaks of the card.
 func WriteNotes(w io.Writer, rows []Row) error {
 	bw := bufio.NewWriter(w)
 	fmt.Fprint(bw, "#separator:tab\n#html:false\n#notetype:Basic\n")
@@ -101,6 +101,9 @@ func WriteNotes(w io.Writer, rows []Row) error {
 		var back []string
 		if t := strings.TrimSpace(r.Line.Translation); t != "" {
 			back = append(back, t)
+		}
+		if n := strings.TrimSpace(r.Line.Note); n != "" {
+			back = append(back, n)
 		}
 		if r.Sound != "" {
 			back = append(back, "[sound:"+r.Sound+"]")

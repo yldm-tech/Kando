@@ -14,7 +14,7 @@ concurrency:
 
 # The repository root is a Go workspace (go.work), not a module, so ./... matches nothing there: the jobs list the five modules. The landing page, apps/site, is a Vite+ project with a job of its own (Site), so that a pull request that breaks its build, such as one that renames a screenshot or a featured site's logo, fails here rather than in the Site workflow after it is merged.
 env:
-  PKGS: ./apps/kando/... ./apps/mobile/... ./packages/core/... ./packages/media/... ./packages/sync/...
+  PKGS: ./apps/kando/... ./apps/mobile/... ./packages/core/... ./packages/media/... ./packages/study/... ./packages/sync/...
 
 jobs:
   test:
@@ -189,7 +189,7 @@ jobs:
           fi
       - name: go mod tidy
         run: |
-          for module in apps/kando apps/mobile packages/core packages/media packages/sync; do
+          for module in apps/kando apps/mobile packages/core packages/media packages/study packages/sync; do
             (cd "$module" && go mod tidy)
           done
           git diff --exit-code -- '*go.mod' '*go.sum'
@@ -282,7 +282,7 @@ jobs:
       - run: go install golang.org/x/vuln/cmd/govulncheck@v1.9.0
       # govulncheck needs a module, so it runs in each one; the workspace still resolves the modules' replaced packages.
       - run: |
-          for module in apps/kando apps/mobile packages/core packages/media packages/sync; do
+          for module in apps/kando apps/mobile packages/core packages/media packages/study packages/sync; do
             echo "::group::$module"
             govulncheck -C "$module" ./...
             echo "::endgroup::"

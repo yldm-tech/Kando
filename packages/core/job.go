@@ -115,6 +115,8 @@ type Job struct {
 	LocalLines        int
 	// FromFolder is true for a job made to process a video found in the library's folder that no job held. Until the job completes, that video is still the film the folder shows, with the subtitles found beside it, so a job that fails or is stopped is taken off the shelf, leaving the film as it was, rather than kept as a failed card. It is cleared once the job completes.
 	FromFolder bool
+	// Device is the name of the paired phone that sent the job's link (phone sync), as its card says 来自 <device>; empty for a job added on the desktop. It stays when the job is run again.
+	Device string
 }
 
 // Quality is how good a picture the download of a link asks for (Job.Quality).

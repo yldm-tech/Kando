@@ -7,6 +7,7 @@ const (
 	AI        = "ai"
 	Translate = "translate"
 	Look      = "look"
+	Privacy   = "privacy"
 	Shortcuts = "shortcuts"
 	Account   = "account"
 	Phone     = "phone"

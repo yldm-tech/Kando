@@ -1,6 +1,7 @@
 package settings
 
 import (
+	"fmt"
 	"path/filepath"
 	"slices"
 	"strconv"
@@ -12,6 +13,7 @@ import (
 	"kando/apps/kando/live"
 	"kando/apps/kando/locales"
 	"kando/apps/kando/locales/testlocale"
+	"kando/apps/kando/theme"
 	kcore "kando/packages/core"
 	"kando/packages/media"
 
@@ -63,6 +65,8 @@ type fakeApp struct {
 	untranslated            string
 	yield                   bool
 	shortcutQuery           string
+	offline, aiLocal        bool
+	cacheClear              CacheClear
 	calls                   []string
 }
 
@@ -135,8 +139,16 @@ func (f *fakeApp) SetPhoneSync(on bool) {
 	f.call("phone sync " + strconv.FormatBool(on))
 	f.phone.On = on
 }
-func (f *fakeApp) NewPhoneCode()                         { f.call("new phone code") }
-func (f *fakeApp) RevokePhone(id string)                 { f.call("revoke " + id) }
+func (f *fakeApp) NewPhoneCode()         { f.call("new phone code") }
+func (f *fakeApp) RevokePhone(id string) { f.call("revoke " + id) }
+func (f *fakeApp) SetPhoneReceive(on bool) {
+	f.phone.Receive = on
+	f.call(fmt.Sprintf("receive %v", on))
+}
+func (f *fakeApp) SetPhoneAskFirst(ask bool) {
+	f.phone.AskFirst = ask
+	f.call(fmt.Sprintf("ask first %v", ask))
+}
 func (f *fakeApp) JobNotifications() bool                { return f.notify }
 func (f *fakeApp) SetJobNotifications(on bool)           { f.notify = on }
 func (f *fakeApp) PlatformSubtitles() bool               { return !f.heardAlone }
@@ -208,6 +220,11 @@ func (f *fakeApp) SetUntranslated(mode string)     { f.untranslated = mode }
 func (f *fakeApp) YieldSubs() bool                 { return f.yield }
 func (f *fakeApp) SetYieldSubs(on bool)            { f.yield = on }
 func (f *fakeApp) ShortcutQuery() *string          { return &f.shortcutQuery }
+func (f *fakeApp) Offline() bool                   { return f.offline }
+func (f *fakeApp) SetOffline(on bool)              { f.call("offline " + strconv.FormatBool(on)); f.offline = on }
+func (f *fakeApp) AILocal() bool                   { return f.aiLocal }
+func (f *fakeApp) ClearCache()                     { f.call("clear cache"); f.cacheClear = CacheClear{Busy: true} }
+func (f *fakeApp) CacheClear() CacheClear          { return f.cacheClear }
 func (f *fakeApp) Shortcuts(cx *core.Scope) []Shortcut {
 	return []Shortcut{{Group: "看懂", Label: "设置…", Key: "mod+,"}, {Group: "显示", Label: "全屏", Key: "f"}, {Group: "显示", Label: "返回资料库", Key: "escape"}}
 }
@@ -929,11 +946,67 @@ func TestPhonePageSaysWhereTheCodeStands(t *testing.T) {
 	}
 }
 
+// 手机发来的链接 turns receiving on and off and chooses what comes of a link; what comes of it cannot be chosen while none is received.
+func TestPhonePageChoosesWhatComesOfALink(t *testing.T) {
+	a := newFakeApp()
+	a.section = SectionPhone
+	a.phone = PhoneSync{On: true, Running: true, Receive: true, Addrs: []string{"192.168.1.20:52817"}}
+	app := startOn(t, a, core.OSMacOS)
+	msgs := testlocale.Messages()
+	if !app.Exists(whole(msgs.SettingsPhoneLinks())) || !app.Exists(whole(msgs.SettingsPhoneReceiveQueue())) || !app.Enabled("id:settings-phone-receive-then") {
+		t.Fatalf("texts %q", app.Texts())
+	}
+	app.Press("id:settings-phone-receive-then")
+	app.Press("id:settings-phone-receive-then-1")
+	if !a.phone.AskFirst || !slices.Contains(a.calls, "ask first true") {
+		t.Fatalf("calls %q after choosing 先问我", a.calls)
+	}
+	app.Press("id:settings-phone-receive")
+	if a.phone.Receive || !slices.Contains(a.calls, "receive false") {
+		t.Fatalf("calls %q after turning receiving off", a.calls)
+	}
+	change(app, a, func() {})
+	if app.Enabled("id:settings-phone-receive-then") {
+		t.Fatal("what comes of a link can be chosen while none is received")
+	}
+}
+
 func TestPhonePageSaysNothingOfAFirewallOnLinux(t *testing.T) {
 	a := newFakeApp()
 	a.section = SectionPhone
 	app := startOn(t, a, core.OSLinux)
 	if app.Exists(whole(testlocale.Messages().SettingsPhoneFirewall("Linux"))) {
 		t.Fatal("a firewall's note on Linux, where no prompt asks")
+	}
+}
+
+// TestWindowTextIsInThePlatformsFont checks that the settings window's text is in the design's font of the platform, and that it follows the interface's language as it changes (the window is built again then, see Window), for the CJK family that language's Han characters take; while the subtitle preview's 默认 lines stay in the system's font rather than taking the window's.
+func TestWindowTextIsInThePlatformsFont(t *testing.T) {
+	for _, os := range []core.OS{core.OSMacOS, core.OSWindows, core.OSLinux} {
+		a := newFakeApp()
+		a.section = SectionLook
+		a.cue = subtitle.Look{Preset: "outline", Shadow: true,
+			Translation: subtitle.Face{Family: subtitle.FontDefault, Size: 30, Color: "#FFFFFF", Bold: true},
+			Original:    subtitle.Face{Family: subtitle.FontDefault, Size: 22, Color: "#FFD60A"}}
+		var root *core.Scope
+		env := testlocale.Environment(core.Environment{OS: os, Idiom: core.IdiomDesktop, AppleKeyboard: os == core.OSMacOS})
+		app := nsgotest.Start(t, func(cx *core.Scope) core.Node {
+			root = cx
+			a.Attach(cx)
+			return Window{App: a, Version: "1.2.3"}
+		}, nsgotest.Size(880, 640), nsgotest.Environment(env))
+		title := app.Find("id:settings-title")
+		if got, want := title.TextStyle.Font.Family, theme.FontFor(os, testlocale.Current()); got != want {
+			t.Errorf("%v: the title in %q, want %q", os, got, want)
+		}
+		msgs := testlocale.Messages()
+		if got := app.Find(whole(msgs.SettingsLookPreviewTranslation())).TextStyle.Font.Family; got != "system-ui" {
+			t.Errorf("%v: the preview's 默认 line in %q, want the system's font", os, got)
+		}
+		root.SetLocale("ja")
+		app.Settle()
+		if got, want := app.Find("id:settings-title").TextStyle.Font.Family, theme.FontFor(os, "ja"); got != want {
+			t.Errorf("%v: in Japanese the title is in %q, want %q", os, got, want)
+		}
 	}
 }

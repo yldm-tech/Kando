@@ -1,4 +1,4 @@
-// Package synctest is a stand-in for Kando's phone sync server on loopback, speaking protocol v1 (package sync) from memory, for the phone's tests: it pairs with the code it offers, lists its libraries and films, and serves their subtitles, posters and videos by ranges with an ETag. A video can be made to stall partway (Stall), as a network that drops does, so a download's pause and resume can be tested.
+// Package synctest is a stand-in for Kando's phone sync server on loopback, speaking protocols v1 and v2 (package sync) from memory, for the phone's tests: it pairs with the code it offers, lists its libraries and films, and serves their subtitles, posters and videos by ranges with an ETag. A video can be made to stall partway (Stall), as a network that drops does, so a download's pause and resume can be tested. Over v2 it takes the links a phone sends into a queue of its own, which the test moves along (jobs.go).
 package synctest
 
 import (
@@ -42,12 +42,16 @@ type Desktop struct {
 	// Name is the desktop's name, as a pairing answers it.
 	Name string
 
-	srv     *httptest.Server
-	mu      gosync.Mutex
-	code    string
-	used    bool
-	tries   int
-	tokens  map[string]bool
+	srv    *httptest.Server
+	mu     gosync.Mutex
+	code   string
+	used   bool
+	tries  int
+	tokens map[string]bool
+	// names are the paired devices' names by token, which v2's calls name the caller by.
+	names   map[string]string
+	queue   queue
+	desk    *sync.Desk
 	libs    []sync.Library
 	films   []Film
 	stall   int64
@@ -59,7 +63,9 @@ type Desktop struct {
 // New starts a desktop named name on loopback, closed when the test ends. It offers no code until Offer.
 func New(t testing.TB, name string) *Desktop {
 	t.Helper()
-	d := &Desktop{Name: name, tokens: map[string]bool{}, modTime: time.Unix(1_700_000_000, 0)}
+	d := &Desktop{Name: name, tokens: map[string]bool{}, names: map[string]string{}, modTime: time.Unix(1_700_000_000, 0)}
+	d.queue.receive = sync.ReceiveQueue
+	d.desk = &sync.Desk{Service: jobService{d}, Journal: sync.NewJournal(), Desktop: name}
 	mux := http.NewServeMux()
 	mux.HandleFunc("POST "+sync.PathPair, d.pair)
 	mux.HandleFunc("GET "+sync.PathLibraries, d.authed(d.libraries))
@@ -67,6 +73,7 @@ func New(t testing.TB, name string) *Desktop {
 	mux.HandleFunc("GET "+sync.PathSubtitles, d.authed(d.subtitles))
 	mux.HandleFunc("GET "+sync.PathPoster, d.authed(d.poster))
 	mux.HandleFunc("GET "+sync.PathVideo, d.authed(d.video))
+	mux.HandleFunc("POST "+sync.PathCall, d.authed(d.call))
 	d.srv = httptest.NewUnstartedServer(mux)
 	// A phone reading the certificate alone (sync.FetchFingerprint) hangs up after the handshake, which the server would log as an error.
 	d.srv.Config.ErrorLog = log.New(io.Discard, "", 0)
@@ -203,6 +210,7 @@ func (d *Desktop) pair(w http.ResponseWriter, r *http.Request) {
 	_, _ = rand.Read(b)
 	token := hex.EncodeToString(b)
 	d.tokens[token] = true
+	d.names[token] = req.Device
 	writeJSON(w, sync.PairResponse{Token: token, DeviceID: "dev-" + token[:6], Desktop: d.Name})
 }
 

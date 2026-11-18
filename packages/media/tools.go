@@ -17,6 +17,7 @@ import (
 	"runtime"
 	"strconv"
 	"strings"
+	"sync/atomic"
 	"time"
 
 	"kando/packages/core"
@@ -47,6 +48,10 @@ type Tools struct {
 	SiteCookies func(ctx context.Context, source string) (cookies []Cookie, userAgent string, err error)
 	// CookieDir is where the cookies file of a download is written, in a folder of its own that goes once yt-dlp exits; empty uses the system's temp folder.
 	CookieDir string
+	// Offline is offline mode: Download refuses a link and ListVideos every source with ErrOffline, and the translator refuses a service that is not on this computer (ChatTranslator.Offline), each before anything is sent. A local video is still read where it is.
+	Offline bool
+	// OfflineSwitch, when set, is offline mode as it is now, shared by every copy of Tools: a job under way holds a copy made as it started, so offline mode turned on later still keeps that job from downloading or reaching a service off this computer in the steps it has not started yet. Tools are offline when Offline or the switch is on (offlineNow).
+	OfflineSwitch *atomic.Bool
 }
 
 // EveryAPI is the default translation provider; setting KANDO_LLM_BASE_URL switches to any other OpenAI-compatible provider.
@@ -235,6 +240,10 @@ func (t Tools) hearing(ctx context.Context) (model, language string) {
 
 // CheckTranslate reports what translating needs and is missing, the translator's model and its sign-in, which Check leaves out (TranslateChecker).
 func (t Tools) CheckTranslate() error {
+	// The sign-in asks EveryAPI's servers, so offline mode refuses before it, as it refuses the translation.
+	if err := t.withOffline().offline(); err != nil {
+		return err
+	}
 	var errs []error
 	if t.Translator.Model == "" {
 		errs = append(errs, errors.New("KANDO_LLM_MODEL is not set"))
@@ -261,6 +270,9 @@ func (t Tools) Download(ctx context.Context, source string) (string, error) {
 			return "", err
 		}
 		return path, nil
+	}
+	if t.offlineNow() {
+		return "", ErrOffline
 	}
 	temp, err := t.downloadTempFor(source)
 	if err != nil {
@@ -473,12 +485,12 @@ func whisperThreadCount() int {
 }
 
 func (t Tools) Translate(ctx context.Context, segments []core.Segment, language string) ([]core.Segment, error) {
-	return t.Translator.Translate(ctx, segments, language)
+	return t.withOffline().Translate(ctx, segments, language)
 }
 
 // Proofread corrects what whisper misheard through the translator (ChatTranslator.Proofread).
 func (t Tools) Proofread(ctx context.Context, segments []core.Segment, title string) ([]core.Segment, error) {
-	return t.Translator.Proofread(ctx, segments, title)
+	return t.withOffline().Proofread(ctx, segments, title)
 }
 
 func (t Tools) Export(ctx context.Context, videoPath string, original, translated []core.Segment) (string, error) {

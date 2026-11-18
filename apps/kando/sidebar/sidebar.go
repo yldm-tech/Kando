@@ -17,14 +17,16 @@ import (
 )
 
 const (
-	PageFilms     = ""
-	PageYouTube   = "youtube"
-	PageBrowse    = "browse" // the built-in browser (浏览), a row of the sources' list that is not a source
-	PageGeneral   = "general"
-	PageSpeech    = "speech"
-	PageAI        = "ai"
-	PageTranslate = "translate"
-	PageAccount   = "account"
+	PageFilms   = ""
+	PageYouTube = "youtube"
+	PageBrowse  = "browse" // the built-in browser (浏览), a row of the sources' list that is not a source
+	// PageSubscription is a subscription's page, which a row of the subscriptions' list (View.Subscriptions) shows.
+	PageSubscription = "subscription"
+	PageGeneral      = "general"
+	PageSpeech       = "speech"
+	PageAI           = "ai"
+	PageTranslate    = "translate"
+	PageAccount      = "account"
 
 	// Width is the sidebar's column: the card and the gutter of the window's material around it.
 	Width        ns.Points = 236
@@ -103,10 +105,9 @@ type Jobs struct {
 	Active, Failed int
 }
 
-// The card the sidebar is drawn on, floating over the window's material: the prototype's white at 42% with a white inner hairline, a dark outer one and a soft shadow, 8 points in from the window's edges.
+// The card the sidebar is drawn on, floating over the window's material: the prototype's white at 42% with a white inner hairline, a dark outer one and a soft shadow, 8 points in from the window's edges, its corners the platform's cards' (theme.RadiiOf).
 const (
 	cardMargin ns.Points = 8
-	cardRadius ns.Points = 14
 	// insetStart and insetEnd are how far the switcher, the sources and the status line stand in from the card's edges. In the prototype the card is 231 wide and runs 3 points under the content, so they end 8 points before that hidden edge, 5 before the one that shows.
 	insetStart ns.Points = 8
 	insetEnd   ns.Points = 5
@@ -124,6 +125,8 @@ var cardShadow = ns.RGBA(0x1E325A, 0.08)
 // View is the sidebar: a column Width wide holding the card with the library switcher, the search field, the sources, the spoken languages, the watch states and the status line. Its top row clears the traffic lights of a window with a hidden title bar and drags the window.
 type View struct {
 	App App
+	// Subscriptions is the list of the subscriptions (package subscribe), under the watch states.
+	Subscriptions ns.Node
 }
 
 // Render implements core.Node.
@@ -132,7 +135,7 @@ func (v View) Render(cx *ns.Scope) ns.Node {
 	colors, k := ui.ColorsOf(cx), theme.Of(cx)
 	// The hairlines are rings of half a point that take no room, as the prototype's box-shadows: the card's face just inside the edge, the shade just outside it.
 	card := ns.View{
-		Style: ns.Style{FlexGrow: 1, FlexShrink: 1, MinHeight: ns.Pt(0), AlignItems: ns.AlignStretch, CornerRadius: cardRadius},
+		Style: ns.Style{FlexGrow: 1, FlexShrink: 1, MinHeight: ns.Pt(0), AlignItems: ns.AlignStretch, CornerRadius: theme.RadiiOf(cx).Card},
 		StyleFunc: func() ns.Style {
 			return ns.Style{Background: k.Card().Faded(0.42),
 				Shadows: []ns.BoxShadow{{Spread: 0.5, Color: k.Card().Faded(0.85), Inset: true}, {Spread: 0.5, Color: k.Shade(0.06)}, {Offset: ns.Point{Y: 4}, Blur: 14, Color: cardShadow}}}
@@ -152,7 +155,7 @@ func (v View) Render(cx *ns.Scope) ns.Node {
 			switcher{a},
 			search{a},
 			// The languages follow the sources and the watch states the languages, each list as tall as its rows, and the room left stays under them.
-			ns.View{Style: ns.Style{FlexGrow: 1, FlexShrink: 1, MinHeight: ns.Pt(0)}, Children: []ns.Node{sources{a}, languages{a}, watched{a}}},
+			ns.View{Style: ns.Style{FlexGrow: 1, FlexShrink: 1, MinHeight: ns.Pt(0)}, Children: []ns.Node{sources{a}, languages{a}, watched{a}, v.subscriptions()}},
 			ns.Show{
 				When: live.Func(a, func() bool { return a.SaveErr() != "" }),
 				Then: func(cx *ns.Scope) ns.Node {
@@ -174,6 +177,14 @@ func (v View) Render(cx *ns.Scope) ns.Node {
 		},
 		Children: []ns.Node{card},
 	}
+}
+
+// subscriptions is the list of the subscriptions as far in from the card's edges as the other lists, nil when the view has none.
+func (v View) subscriptions() ns.Node {
+	if v.Subscriptions == nil {
+		return nil
+	}
+	return ns.View{Style: ns.Style{FlexShrink: 1, MinHeight: ns.Pt(0), Padding: ns.Edges{Right: insetEnd, Left: insetStart}}, Children: []ns.Node{v.Subscriptions}}
 }
 
 // Menu is the library menu of the settings page's 切换 button, for nsgo's desktop.PopupMenu: the known libraries, new and open, reveal, and forgetting the open one. Its items do what they say through a's actions and tell a it changed.

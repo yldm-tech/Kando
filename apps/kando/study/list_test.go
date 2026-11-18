@@ -21,11 +21,34 @@ func TestMain(m *testing.M) {
 
 type fakeApp struct {
 	live.Rev
-	entries []Entry
-	export  Export
-	due     int
-	calls   []string
+	entries     []Entry
+	export      Export
+	due         int
+	calls       []string
+	note, draft string
 }
+
+func (f *fakeApp) NoteEditing() string { return f.note }
+func (f *fakeApp) EditNote(id string) {
+	f.note = id
+	for _, e := range f.entries {
+		if e.ID == id {
+			f.draft = e.Note
+		}
+	}
+}
+func (f *fakeApp) NoteDraft() string        { return f.draft }
+func (f *fakeApp) SetNoteDraft(text string) { f.draft = text }
+func (f *fakeApp) SaveNote() {
+	f.entries = slices.Clone(f.entries)
+	for i, e := range f.entries {
+		if e.ID == f.note {
+			f.entries[i].Note = f.draft
+		}
+	}
+	f.CancelNote()
+}
+func (f *fakeApp) CancelNote() { f.note, f.draft = "", "" }
 
 func (f *fakeApp) ExportSaved()        { f.calls = append(f.calls, "export") }
 func (f *fakeApp) ExportState() Export { return f.export }
@@ -85,6 +108,41 @@ func TestSheetListsTheSavedLines(t *testing.T) {
 	app.Press("id:saved-done")
 	if a.calls[len(a.calls)-1] != "close" {
 		t.Fatalf("Done called %q", a.calls)
+	}
+}
+
+// TestSheetWritesNotes checks a line's note: the pencil opens a field under the line with the note it has, Save keeps what was typed and shows it under the line, Cancel closes the field and keeps the note as it was.
+func TestSheetWritesNotes(t *testing.T) {
+	a := &fakeApp{entries: []Entry{{ID: "a", Film: "Talk", Original: "As water flows downhill, it picks up sand.", Translation: "水往低处流，沿途裹挟起泥沙。"}}}
+	app := start(t, a, func(*core.Scope) core.Node { return Sheet{App: a} })
+	if app.Exists("id:saved-note-a") || app.Exists("id:saved-note-field-a") {
+		t.Fatal("a line without a note shows one")
+	}
+	app.Press("id:saved-note-edit-a")
+	app.Settle()
+	if !app.Exists("id:saved-note-field-a") {
+		t.Fatalf("no note field after the pencil: %q", app.Texts())
+	}
+	app.Type("id:saved-note-field-a", "picks up: 裹挟")
+	if a.draft != "picks up: 裹挟" {
+		t.Fatalf("draft %q", a.draft)
+	}
+	app.Press("id:saved-note-save")
+	app.Settle()
+	if a.entries[0].Note != "picks up: 裹挟" || app.Exists("id:saved-note-field-a") || !app.Exists("id:saved-note-a") || !app.Exists(whole("picks up: 裹挟")) {
+		t.Fatalf("after Save: note %q, texts %q", a.entries[0].Note, app.Texts())
+	}
+
+	app.Press("id:saved-note-edit-a")
+	app.Settle()
+	if app.Exists("id:saved-note-a") {
+		t.Fatal("the note shows under its own open field")
+	}
+	app.Type("id:saved-note-field-a", " and more")
+	app.Press("id:saved-note-cancel")
+	app.Settle()
+	if a.entries[0].Note != "picks up: 裹挟" || app.Exists("id:saved-note-field-a") || !app.Exists(whole("picks up: 裹挟")) {
+		t.Fatalf("after Cancel: note %q, texts %q", a.entries[0].Note, app.Texts())
 	}
 }
 

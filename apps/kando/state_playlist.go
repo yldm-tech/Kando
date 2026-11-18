@@ -169,6 +169,9 @@ func playlistError(m locales.Messages, err error) string {
 	if errors.Is(err, media.ErrListTimeout) {
 		return m.PlaylistTimedOut()
 	}
+	if errors.Is(err, media.ErrOffline) {
+		return m.PrivacyNoDownload()
+	}
 	return m.PlaylistFailed(toolMessage(err.Error()))
 }
 
