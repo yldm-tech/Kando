@@ -51,14 +51,18 @@ type phoneUI struct {
 	// listen gives the addresses the server listens on, nil for the computer's local network ones (phonesync.LANAddrs); tests give loopback, and a clock of their own as now, nil for time.Now.
 	listen func() []netip.Addr
 	now    func() time.Time
+	// receiveOff is 接收手机发来的链接 turned off, and receiveAsk 收到后 set to 先问我, which settings.json keeps (state_phonesync_jobs.go).
+	receiveOff, receiveAsk bool
 }
 
 func newPhoneUI() phoneUI { return phoneUI{} }
 
-// savedPhoneSync is Phone Sync's part of settings.json: the switch and the port.
+// savedPhoneSync is Phone Sync's part of settings.json: the switch, the port, and what the desktop does with a link a phone sends.
 type savedPhoneSync struct {
-	PhoneSync     bool `json:"phoneSync,omitempty"`
-	PhoneSyncPort int  `json:"phoneSyncPort,omitempty"`
+	PhoneSync       bool `json:"phoneSync,omitempty"`
+	PhoneSyncPort   int  `json:"phoneSyncPort,omitempty"`
+	PhoneReceiveOff bool `json:"phoneReceiveOff,omitempty"`
+	PhoneReceiveAsk bool `json:"phoneReceiveAsk,omitempty"`
 }
 
 // clean keeps a port a server can listen on, and forgets any other.
@@ -68,22 +72,26 @@ func (s *savedPhoneSync) clean() {
 	}
 }
 
-// phoneSyncHooks: the switch and the port are saved and taken back; a switch left on starts the server once the window is ready, and the server stops as the app quits. After each change the code on offer follows the page (phoneSyncFollow).
+// phoneSyncHooks: the switch, the port and what to do with a phone's links are saved and taken back; a switch left on starts the server once the window is ready, and the server stops as the app quits. After each change the code on offer follows the page (phoneSyncFollow), and the server is told the jobs phones follow (phoneSyncPublish).
 func (a *app) phoneSyncHooks() areaHooks {
 	return areaHooks{
 		save: func(saved *savedSettings) {
-			saved.savedPhoneSync = savedPhoneSync{PhoneSync: a.phone.on, PhoneSyncPort: a.phone.port}
+			saved.savedPhoneSync = savedPhoneSync{PhoneSync: a.phone.on, PhoneSyncPort: a.phone.port, PhoneReceiveOff: a.phone.receiveOff, PhoneReceiveAsk: a.phone.receiveAsk}
 		},
 		restore: func(saved savedSettings) {
 			a.phone.on, a.phone.port = saved.PhoneSync, saved.PhoneSyncPort
+			a.phone.receiveOff, a.phone.receiveAsk = saved.PhoneReceiveOff, saved.PhoneReceiveAsk
 		},
 		ready: func() {
 			if a.phone.on {
 				a.phoneSyncStart()
 			}
 		},
-		afterChange: a.phoneSyncFollow,
-		quitting:    a.phoneSyncStop,
+		afterChange: func() bool {
+			a.phoneSyncPublish()
+			return a.phoneSyncFollow()
+		},
+		quitting: a.phoneSyncStop,
 	}
 }
 
@@ -123,6 +131,7 @@ func (a *app) phoneSyncStart() {
 		Name:    name,
 		Port:    a.phone.port,
 		Source:  phoneSource{a},
+		Jobs:    phoneJobs{a},
 		Addrs:   a.phone.listen,
 		Changed: func() { update(a.phoneSyncPull) },
 		Now:     a.phone.now,
@@ -148,6 +157,7 @@ func (a *app) phoneSyncStart() {
 				a.Save()
 			}
 			a.phoneSyncPull()
+			a.phoneSyncPublish()
 		})
 	}()
 }
@@ -237,7 +247,7 @@ func (a *app) phoneSyncQR() {
 
 // phoneSyncStatus is what the 手机同步 page shows.
 func (a *app) phoneSyncStatus() settings.PhoneSync {
-	st := settings.PhoneSync{On: a.phone.on, Running: a.phone.running, Err: a.phone.err, RevokeErr: a.phone.revokeErr, QR: a.phone.qr, QRModules: a.phone.qrModules}
+	st := settings.PhoneSync{On: a.phone.on, Receive: !a.phone.receiveOff, AskFirst: a.phone.receiveAsk, Running: a.phone.running, Err: a.phone.err, RevokeErr: a.phone.revokeErr, QR: a.phone.qr, QRModules: a.phone.qrModules}
 	if !a.phone.running {
 		return st
 	}

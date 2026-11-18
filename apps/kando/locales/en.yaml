@@ -1254,6 +1254,11 @@ filmsQueueFailed:
   description: "Dimmed note beside the processing heading: how many jobs failed and wait for the user."
   placeholders:
     count: { type: "int", example: "2" }
+filmsQueueFrom:
+  message: "From {device}"
+  description: "Line under the title of a processing card whose link a paired phone sent: the name the phone gave itself."
+  placeholders:
+    device: { type: "String", example: "Evan's iPhone" }
 filmsQueueInto:
   message: "→ {language}"
   description: "Short tag beside the title of a waiting or running card: the language its subtitles are translated into."
@@ -2519,6 +2524,16 @@ paletteSwitchTo:
   description: "Command palette command, in the player, that switches the subtitles to another display mode."
   placeholders:
     mode: { type: "String", example: "Translation Only" }
+phoneSyncLinkAsk:
+  message: "{device} sent a link. It's in the link field above: click Start Processing to add it."
+  description: "Library message bar when a paired phone sent a link while Settings › Phone Sync › When One Arrives is Ask Me First: the link was put in the link field, and the user starts it with the Start Processing button."
+  placeholders:
+    device: { type: "String", example: "Evan's iPhone" }
+phoneSyncLinkQueued:
+  message: "Added the link {device} sent to the queue."
+  description: "Library message bar when a paired phone sent a link and it was queued at once."
+  placeholders:
+    device: { type: "String", example: "Evan's iPhone" }
 playerKeepAwake:
   message: "Playing a video"
   description: "Why Kando keeps the display awake while a film plays; the system lists it with what keeps the computer awake (on macOS, pmset -g assertions)."
@@ -4090,6 +4105,9 @@ settingsPhoneFirewall:
   description: "Note under the Phone Sync switch: the system's firewall asks once before phones can connect. {platform} is the system the app runs on: macOS, Windows or another (Linux); each case names that system's prompt and its button."
   placeholders:
     platform: { type: "String", example: "macOS" }
+settingsPhoneLinks:
+  message: "Links from Phones"
+  description: "Heading of the Phone Sync card that says what this computer does with the video links paired phones send it."
 settingsPhoneNewCode:
   message: "New Code"
   description: "Button above the pairing card: offers a new one-time pairing code in place of the one shown."
@@ -4105,6 +4123,21 @@ settingsPhonePair:
 settingsPhonePairHint:
   message: "In Kando on your phone, scan this code, or enter the address and code."
   description: "Line beside the pairing QR code saying how a phone pairs."
+settingsPhoneReceive:
+  message: "Receive Links from Phones"
+  description: "Switch in Settings › Phone Sync: whether this computer takes the video links paired phones send it."
+settingsPhoneReceiveAsk:
+  message: "Ask Me First"
+  description: "Option of When One Arrives in Settings › Phone Sync: a link a phone sends waits in the library's link field for the user to start it."
+settingsPhoneReceiveHint:
+  message: "Share a video's link to Kando on a paired phone to process it on this computer."
+  description: "Hint under the Receive Links from Phones switch."
+settingsPhoneReceiveQueue:
+  message: "Add to the Queue"
+  description: "Option of When One Arrives in Settings › Phone Sync: a link a phone sends is queued at once."
+settingsPhoneReceiveThen:
+  message: "When One Arrives"
+  description: "Label of the drop-down in Settings › Phone Sync that chooses what happens to a link a phone sends: Add to the Queue or Ask Me First."
 settingsPhoneQRLabel:
   message: "Pairing QR code"
   description: "Accessibility name of the pairing QR code image."

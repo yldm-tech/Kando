@@ -72,11 +72,13 @@ type App interface {
 	SetSignInBrowser(id string)
 	CheckSignIn()
 	OpenFullDiskAccess()
-	// PhoneSync is where Phone Sync stands, which the 手机同步 page shows. SetPhoneSync turns it on, which starts the server off the UI thread, or off, which stops it, and saves that; NewPhoneCode offers a new pairing code in place of the one shown; RevokePhone unpairs a phone, whose token is refused from then on.
+	// PhoneSync is where Phone Sync stands, which the 手机同步 page shows. SetPhoneSync turns it on, which starts the server off the UI thread, or off, which stops it, and saves that; NewPhoneCode offers a new pairing code in place of the one shown; RevokePhone unpairs a phone, whose token is refused from then on. SetPhoneReceive turns 接收手机发来的链接 on or off, and SetPhoneAskFirst sets 收到后 to 先问我 or 直接加入队列; both are saved.
 	PhoneSync() PhoneSync
 	SetPhoneSync(on bool)
 	NewPhoneCode()
 	RevokePhone(id string)
+	SetPhoneReceive(on bool)
+	SetPhoneAskFirst(ask bool)
 	// CheckForUpdates checks for a newer version of Kando at once and shows what it finds.
 	CheckForUpdates()
 	// JobNotifications is whether Kando posts a notification when a video's job is done or failed while it is in the background; SetJobNotifications changes it.

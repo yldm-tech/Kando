@@ -504,6 +504,7 @@ var Parameters = map[string][]string{
 	"FilmsQueueActive":                         {"count"},
 	"FilmsQueueDownloadingFrom":                {"site"},
 	"FilmsQueueFailed":                         {"count"},
+	"FilmsQueueFrom":                           {"device"},
 	"FilmsQueueInto":                           {"language"},
 	"FilmsQueueNoAnswer":                       {"seconds", "attempt", "attempts"},
 	"FilmsQueueQueued":                         {"count"},
@@ -614,6 +615,8 @@ var Parameters = map[string][]string{
 	"PaletteSettingsSection":                   {"section"},
 	"PaletteSubtitleMode":                      {"mode"},
 	"PaletteSwitchTo":                          {"mode"},
+	"PhoneSyncLinkAsk":                         {"device"},
+	"PhoneSyncLinkQueued":                      {"device"},
 	"PlayerOsdDelay":                           {"delay"},
 	"PlayerOsdSpeed":                           {"rate"},
 	"PlayerOsdSubtitleSize":                    {"size"},
@@ -841,6 +844,7 @@ type Translation struct {
 	FilmsQueueActive                         func(count int) string
 	FilmsQueueDownloadingFrom                func(site string) string
 	FilmsQueueFailed                         func(count int) string
+	FilmsQueueFrom                           func(device string) string
 	FilmsQueueInto                           func(language string) string
 	FilmsQueueNoAnswer                       func(seconds int, attempt int, attempts int) string
 	FilmsQueueQueued                         func(count int) string
@@ -951,6 +955,8 @@ type Translation struct {
 	PaletteSettingsSection                   func(section string) string
 	PaletteSubtitleMode                      func(mode string) string
 	PaletteSwitchTo                          func(mode string) string
+	PhoneSyncLinkAsk                         func(device string) string
+	PhoneSyncLinkQueued                      func(device string) string
 	PlayerOsdDelay                           func(delay string) string
 	PlayerOsdSpeed                           func(rate string) string
 	PlayerOsdSubtitleSize                    func(size int) string
@@ -1940,11 +1946,17 @@ const (
 	textSettingsPhoneCodeUsed
 	textSettingsPhoneDevices
 	textSettingsPhoneFingerprint
+	textSettingsPhoneLinks
 	textSettingsPhoneNewCode
 	textSettingsPhoneNoDevices
 	textSettingsPhoneNoNetwork
 	textSettingsPhonePair
 	textSettingsPhonePairHint
+	textSettingsPhoneReceive
+	textSettingsPhoneReceiveAsk
+	textSettingsPhoneReceiveHint
+	textSettingsPhoneReceiveQueue
+	textSettingsPhoneReceiveThen
 	textSettingsPhoneQRLabel
 	textSettingsPhoneRevoke
 	textSettingsPhoneSwitch
@@ -2925,11 +2937,17 @@ var keyOfText = [numTexts]string{
 	"settingsPhoneCodeUsed",
 	"settingsPhoneDevices",
 	"settingsPhoneFingerprint",
+	"settingsPhoneLinks",
 	"settingsPhoneNewCode",
 	"settingsPhoneNoDevices",
 	"settingsPhoneNoNetwork",
 	"settingsPhonePair",
 	"settingsPhonePairHint",
+	"settingsPhoneReceive",
+	"settingsPhoneReceiveAsk",
+	"settingsPhoneReceiveHint",
+	"settingsPhoneReceiveQueue",
+	"settingsPhoneReceiveThen",
 	"settingsPhoneQRLabel",
 	"settingsPhoneRevoke",
 	"settingsPhoneSwitch",
@@ -3908,11 +3926,17 @@ var textsEn = i18n.NewTexts(""+
 	"This code has been used."+
 	"Paired Phones"+
 	"Fingerprint"+
+	"Links from Phones"+
 	"New Code"+
 	"No phones paired yet"+
 	"This computer isn't on a local network."+
 	"Pair a Phone"+
 	"In Kando on your phone, scan this code, or enter the address and code."+
+	"Receive Links from Phones"+
+	"Ask Me First"+
+	"Share a video's link to Kando on a paired phone to process it on this computer."+
+	"Add to the Queue"+
+	"When One Arrives"+
 	"Pairing QR code"+
 	"Revoke"+
 	"Phone Sync"+
@@ -4888,11 +4912,17 @@ var textsEn = i18n.NewTexts(""+
 		24,
 		13,
 		11,
+		17,
 		8,
 		20,
 		39,
 		12,
 		70,
+		25,
+		12,
+		79,
+		16,
+		16,
 		15,
 		6,
 		10,
@@ -5871,11 +5901,17 @@ var textsJa = i18n.NewTexts(""+
 	"このコードは使用済みです。"+
 	"ペアリング済みのスマートフォン"+
 	"フィンガープリント"+
+	"スマートフォンから届くリンク"+
 	"新しいコード"+
 	"ペアリングしたスマートフォンはありません"+
 	"このコンピュータはローカルネットワークに接続されていません。"+
 	"スマートフォンをペアリング"+
 	"スマートフォンの Kando でこのコードを読み取るか、アドレスとコードを入力してください。"+
+	"スマートフォンからリンクを受け取る"+
+	"先に確認する"+
+	"ペアリングしたスマートフォンで動画のリンクを Kando に共有すると、このコンピュータで処理します。"+
+	"そのままキューに追加"+
+	"受け取ったら"+
 	"ペアリング用 QR コード"+
 	"取り消す"+
 	"スマートフォン同期"+
@@ -6851,11 +6887,17 @@ var textsJa = i18n.NewTexts(""+
 		39,
 		45,
 		27,
+		42,
 		18,
 		60,
 		90,
 		39,
 		124,
+		51,
+		18,
+		139,
+		30,
+		18,
 		31,
 		12,
 		27,
@@ -7834,11 +7876,17 @@ var textsKo = i18n.NewTexts(""+
 	"이 코드는 이미 사용되었습니다."+
 	"페어링된 휴대폰"+
 	"지문"+
+	"휴대폰에서 보낸 링크"+
 	"새 코드"+
 	"페어링된 휴대폰이 없습니다"+
 	"이 컴퓨터는 로컬 네트워크에 연결되어 있지 않습니다."+
 	"휴대폰 페어링"+
 	"휴대폰의 Kando에서 이 코드를 스캔하거나 주소와 코드를 입력하세요."+
+	"휴대폰에서 보낸 링크 받기"+
+	"먼저 묻기"+
+	"페어링된 휴대폰에서 동영상 링크를 Kando로 공유하면 이 컴퓨터에서 처리합니다."+
+	"바로 대기열에 추가"+
+	"받으면"+
 	"페어링 QR 코드"+
 	"해제"+
 	"휴대폰 동기화"+
@@ -8814,11 +8862,17 @@ var textsKo = i18n.NewTexts(""+
 		43,
 		22,
 		6,
+		29,
 		10,
 		38,
 		73,
 		19,
 		91,
+		36,
+		13,
+		107,
+		26,
+		9,
 		19,
 		6,
 		19,
@@ -9797,11 +9851,17 @@ var textsZhHans = i18n.NewTexts(""+
 	"此配对码已使用。"+
 	"已配对的手机"+
 	"指纹"+
+	"手机发来的链接"+
 	"新配对码"+
 	"尚未配对手机"+
 	"这台电脑未连接局域网。"+
 	"配对手机"+
 	"在手机上的看懂里扫描此二维码，或输入地址和配对码。"+
+	"接收手机发来的链接"+
+	"先问我"+
+	"在配对的手机上把视频链接分享给看懂，就会在这台电脑上处理。"+
+	"直接加入队列"+
+	"收到后"+
 	"配对二维码"+
 	"撤销"+
 	"手机同步"+
@@ -10777,11 +10837,17 @@ var textsZhHans = i18n.NewTexts(""+
 		24,
 		18,
 		6,
+		21,
 		12,
 		18,
 		33,
 		12,
 		75,
+		27,
+		9,
+		87,
+		18,
+		9,
 		15,
 		6,
 		12,
@@ -11760,11 +11826,17 @@ var textsZhHant = i18n.NewTexts(""+
 	"此配對碼已使用。"+
 	"已配對的手機"+
 	"指紋"+
+	"手機傳來的連結"+
 	"新配對碼"+
 	"尚未配對手機"+
 	"這台電腦未連上區域網路。"+
 	"配對手機"+
 	"在手機上的看懂中掃描此 QR 碼，或輸入位址和配對碼。"+
+	"接收手機傳來的連結"+
+	"先問我"+
+	"在配對的手機上把影片連結分享給看懂，就會在這台電腦上處理。"+
+	"直接加入佇列"+
+	"收到後"+
 	"配對 QR 碼"+
 	"撤銷"+
 	"手機同步"+
@@ -12740,11 +12812,17 @@ var textsZhHant = i18n.NewTexts(""+
 		24,
 		18,
 		6,
+		21,
 		12,
 		18,
 		36,
 		12,
 		73,
+		27,
+		9,
+		87,
+		18,
+		9,
 		13,
 		6,
 		12,
@@ -13175,6 +13253,9 @@ func Supply(lang string, t Translation) {
 	if t.FilmsQueueFailed != nil {
 		s.FilmsQueueFailed = t.FilmsQueueFailed
 	}
+	if t.FilmsQueueFrom != nil {
+		s.FilmsQueueFrom = t.FilmsQueueFrom
+	}
 	if t.FilmsQueueInto != nil {
 		s.FilmsQueueInto = t.FilmsQueueInto
 	}
@@ -13504,6 +13585,12 @@ func Supply(lang string, t Translation) {
 	}
 	if t.PaletteSwitchTo != nil {
 		s.PaletteSwitchTo = t.PaletteSwitchTo
+	}
+	if t.PhoneSyncLinkAsk != nil {
+		s.PhoneSyncLinkAsk = t.PhoneSyncLinkAsk
+	}
+	if t.PhoneSyncLinkQueued != nil {
+		s.PhoneSyncLinkQueued = t.PhoneSyncLinkQueued
 	}
 	if t.PlayerOsdDelay != nil {
 		s.PlayerOsdDelay = t.PlayerOsdDelay
@@ -19240,6 +19327,36 @@ func (msgs Messages) FilmsQueueFailed(count int) string {
 			return i18n.FormatNumber("zh-Hans", float64(count)) + " 个需要处理"
 		case "zh-Hant":
 			return i18n.FormatNumber("zh-Hant", float64(count)) + " 個需要處理"
+		}
+	}
+}
+
+// FilmsQueueFrom says "From {device}"
+// in the language the app shows under cx.
+//
+// Line under the title of a processing card whose link a paired phone sent: the name the phone gave itself.
+func FilmsQueueFrom(cx *core.Scope, device string) string { return For(cx).FilmsQueueFrom(device) }
+
+// FilmsQueueFrom is the package's FilmsQueueFrom in the language of msgs.
+func (msgs Messages) FilmsQueueFrom(device string) string {
+	if i18n.IsPseudo(msgs.lang) {
+		return i18n.Pseudo(msgs.lang, Messages{lang: Source, mark: true}.FilmsQueueFrom(device))
+	}
+	for lang := msgs.lang; ; lang = i18n.Parent(lang) {
+		if f := supplied[lang].FilmsQueueFrom; f != nil {
+			return f(device)
+		}
+		switch lang {
+		case "", "en":
+			return "From " + msgs.arg(device)
+		case "ja":
+			return device + " から"
+		case "ko":
+			return device + "에서 보냄"
+		case "zh-Hans":
+			return "来自 " + device
+		case "zh-Hant":
+			return "來自 " + device
 		}
 	}
 }
@@ -25203,6 +25320,68 @@ func (msgs Messages) PaletteSwitchTo(mode string) string {
 			return "切换为" + mode
 		case "zh-Hant":
 			return "切換為" + mode
+		}
+	}
+}
+
+// PhoneSyncLinkAsk says "{device} sent a link. It's in the link field above: click Start Processing to add it."
+// in the language the app shows under cx.
+//
+// Library message bar when a paired phone sent a link while Settings › Phone Sync › When One Arrives is Ask Me First: the link was put in the link field, and the user starts it with the Start Processing button.
+func PhoneSyncLinkAsk(cx *core.Scope, device string) string { return For(cx).PhoneSyncLinkAsk(device) }
+
+// PhoneSyncLinkAsk is the package's PhoneSyncLinkAsk in the language of msgs.
+func (msgs Messages) PhoneSyncLinkAsk(device string) string {
+	if i18n.IsPseudo(msgs.lang) {
+		return i18n.Pseudo(msgs.lang, Messages{lang: Source, mark: true}.PhoneSyncLinkAsk(device))
+	}
+	for lang := msgs.lang; ; lang = i18n.Parent(lang) {
+		if f := supplied[lang].PhoneSyncLinkAsk; f != nil {
+			return f(device)
+		}
+		switch lang {
+		case "", "en":
+			return msgs.arg(device) + " sent a link. It's in the link field above: click Start Processing to add it."
+		case "ja":
+			return device + " からリンクが届きました。上のリンク欄に入れてあります。「処理を開始」で追加できます。"
+		case "ko":
+			return device + "에서 링크를 보냈습니다. 위의 링크 칸에 넣어 두었으니 ‘처리 시작’을 누르면 대기열에 추가됩니다."
+		case "zh-Hans":
+			return device + " 发来一个链接，已放进上面的链接框。点“开始处理”即可加入队列。"
+		case "zh-Hant":
+			return device + " 傳來一個連結，已放進上面的連結框。點「開始處理」即可加入佇列。"
+		}
+	}
+}
+
+// PhoneSyncLinkQueued says "Added the link {device} sent to the queue."
+// in the language the app shows under cx.
+//
+// Library message bar when a paired phone sent a link and it was queued at once.
+func PhoneSyncLinkQueued(cx *core.Scope, device string) string {
+	return For(cx).PhoneSyncLinkQueued(device)
+}
+
+// PhoneSyncLinkQueued is the package's PhoneSyncLinkQueued in the language of msgs.
+func (msgs Messages) PhoneSyncLinkQueued(device string) string {
+	if i18n.IsPseudo(msgs.lang) {
+		return i18n.Pseudo(msgs.lang, Messages{lang: Source, mark: true}.PhoneSyncLinkQueued(device))
+	}
+	for lang := msgs.lang; ; lang = i18n.Parent(lang) {
+		if f := supplied[lang].PhoneSyncLinkQueued; f != nil {
+			return f(device)
+		}
+		switch lang {
+		case "", "en":
+			return "Added the link " + msgs.arg(device) + " sent to the queue."
+		case "ja":
+			return device + " から届いたリンクをキューに追加しました。"
+		case "ko":
+			return device + "에서 보낸 링크를 대기열에 추가했습니다."
+		case "zh-Hans":
+			return "已把 " + device + " 发来的链接加入队列。"
+		case "zh-Hant":
+			return "已把 " + device + " 傳來的連結加入佇列。"
 		}
 	}
 }
@@ -32337,6 +32516,15 @@ func (msgs Messages) SettingsPhoneFirewall(platform string) string {
 	}
 }
 
+// SettingsPhoneLinks says "Links from Phones"
+// in the language the app shows under cx.
+//
+// Heading of the Phone Sync card that says what this computer does with the video links paired phones send it.
+func SettingsPhoneLinks(cx *core.Scope) string { return For(cx).SettingsPhoneLinks() }
+
+// SettingsPhoneLinks is the package's SettingsPhoneLinks in the language of msgs.
+func (msgs Messages) SettingsPhoneLinks() string { return msgs.text(textSettingsPhoneLinks) }
+
 // SettingsPhoneNewCode says "New Code"
 // in the language the app shows under cx.
 //
@@ -32381,6 +32569,57 @@ func SettingsPhonePairHint(cx *core.Scope) string { return For(cx).SettingsPhone
 
 // SettingsPhonePairHint is the package's SettingsPhonePairHint in the language of msgs.
 func (msgs Messages) SettingsPhonePairHint() string { return msgs.text(textSettingsPhonePairHint) }
+
+// SettingsPhoneReceive says "Receive Links from Phones"
+// in the language the app shows under cx.
+//
+// Switch in Settings › Phone Sync: whether this computer takes the video links paired phones send it.
+func SettingsPhoneReceive(cx *core.Scope) string { return For(cx).SettingsPhoneReceive() }
+
+// SettingsPhoneReceive is the package's SettingsPhoneReceive in the language of msgs.
+func (msgs Messages) SettingsPhoneReceive() string { return msgs.text(textSettingsPhoneReceive) }
+
+// SettingsPhoneReceiveAsk says "Ask Me First"
+// in the language the app shows under cx.
+//
+// Option of When One Arrives in Settings › Phone Sync: a link a phone sends waits in the library's link field for the user to start it.
+func SettingsPhoneReceiveAsk(cx *core.Scope) string { return For(cx).SettingsPhoneReceiveAsk() }
+
+// SettingsPhoneReceiveAsk is the package's SettingsPhoneReceiveAsk in the language of msgs.
+func (msgs Messages) SettingsPhoneReceiveAsk() string { return msgs.text(textSettingsPhoneReceiveAsk) }
+
+// SettingsPhoneReceiveHint says "Share a video's link to Kando on a paired phone to process it on this computer."
+// in the language the app shows under cx.
+//
+// Hint under the Receive Links from Phones switch.
+func SettingsPhoneReceiveHint(cx *core.Scope) string { return For(cx).SettingsPhoneReceiveHint() }
+
+// SettingsPhoneReceiveHint is the package's SettingsPhoneReceiveHint in the language of msgs.
+func (msgs Messages) SettingsPhoneReceiveHint() string {
+	return msgs.text(textSettingsPhoneReceiveHint)
+}
+
+// SettingsPhoneReceiveQueue says "Add to the Queue"
+// in the language the app shows under cx.
+//
+// Option of When One Arrives in Settings › Phone Sync: a link a phone sends is queued at once.
+func SettingsPhoneReceiveQueue(cx *core.Scope) string { return For(cx).SettingsPhoneReceiveQueue() }
+
+// SettingsPhoneReceiveQueue is the package's SettingsPhoneReceiveQueue in the language of msgs.
+func (msgs Messages) SettingsPhoneReceiveQueue() string {
+	return msgs.text(textSettingsPhoneReceiveQueue)
+}
+
+// SettingsPhoneReceiveThen says "When One Arrives"
+// in the language the app shows under cx.
+//
+// Label of the drop-down in Settings › Phone Sync that chooses what happens to a link a phone sends: Add to the Queue or Ask Me First.
+func SettingsPhoneReceiveThen(cx *core.Scope) string { return For(cx).SettingsPhoneReceiveThen() }
+
+// SettingsPhoneReceiveThen is the package's SettingsPhoneReceiveThen in the language of msgs.
+func (msgs Messages) SettingsPhoneReceiveThen() string {
+	return msgs.text(textSettingsPhoneReceiveThen)
+}
 
 // SettingsPhoneQRLabel says "Pairing QR code"
 // in the language the app shows under cx.

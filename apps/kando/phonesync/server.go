@@ -1,4 +1,4 @@
-// Package phonesync is Kando's phone sync server (yldm-tech/Kando#178, protocol v1 in kando/packages/sync): while Phone Sync is on, it serves the app's libraries over HTTPS to the phones paired with it, on the computer's local network addresses only. Its certificate, made once, and the paired devices, by the SHA-256 of their tokens, are kept in Kando's config folder. It reads the libraries through a Source, which the app answers on its own goroutine; nothing here touches the app's state.
+// Package phonesync is Kando's phone sync server (yldm-tech/Kando#178, protocols v1 and v2 in kando/packages/sync): while Phone Sync is on, it serves the app's libraries over HTTPS to the phones paired with it, on the computer's local network addresses only, and answers protocol v2's calls, which send it links and follow and control its queue, through a psync.Desk whose Journal the app publishes its jobs in (PublishJobs). Its certificate, made once, and the paired devices, by the SHA-256 of their tokens, are kept in Kando's config folder. It reads the libraries through a Source, which the app answers on its own goroutine; nothing here touches the app's state.
 package phonesync
 
 import (
@@ -64,6 +64,8 @@ type Config struct {
 	// Port is the port to listen on, the one used last time so a paired phone finds the desktop where it was; when it is taken, or 0, the system picks one.
 	Port   int
 	Source Source
+	// Jobs is the app's queue as protocol v2's calls act on it; nil answers only hello, with no operation but the reads.
+	Jobs psync.Service
 	// Addrs are the addresses to listen on, looked at again every rescanEvery as the computer joins other networks; nil is LANAddrs. Tests give loopback.
 	Addrs func() []netip.Addr
 	// Changed is told, on any goroutine, that what the settings show changed: the code on offer, the devices, or the addresses listened on.
@@ -99,6 +101,8 @@ type Server struct {
 	limit     limiter
 	// listed is each library's playable films as last read, by its ID, which a request for a film's files looks it up in for filmsFresh after (filmsFor).
 	listed map[string]listing
+	// desk answers protocol v2's calls.
+	desk *psync.Desk
 }
 
 // listing is a library's playable films as read at a time.
@@ -136,6 +140,11 @@ func Start(cfg Config) (*Server, error) {
 		return nil, fmt.Errorf("read the paired phones: %w", err)
 	}
 	s := &Server{cfg: cfg, fingerprint: psync.Fingerprint(cert.Certificate[0]), devices: devs, stop: make(chan struct{}), port: cfg.Port, listeners: map[netip.Addr]net.Listener{}, listed: map[string]listing{}}
+	jobs := cfg.Jobs
+	if jobs == nil {
+		jobs = noJobs{}
+	}
+	s.desk = &psync.Desk{Service: jobs, Journal: psync.NewJournal(), Desktop: cfg.Name, Now: cfg.Now}
 	s.http = &http.Server{
 		Handler:           s.routes(),
 		TLSConfig:         &tls.Config{Certificates: []tls.Certificate{cert}, MinVersion: tls.VersionTLS13},
@@ -336,11 +345,12 @@ func (s *Server) Revoke(id string) error {
 	if err := s.devices.revoke(id); err != nil {
 		return err
 	}
+	s.desk.Forget(id)
 	s.cfg.Changed()
 	return nil
 }
 
-// routes are protocol v1's paths.
+// routes are protocol v1's paths and v2's call.
 func (s *Server) routes() http.Handler {
 	mux := http.NewServeMux()
 	mux.HandleFunc("POST "+psync.PathPair, s.pair)
@@ -349,6 +359,7 @@ func (s *Server) routes() http.Handler {
 	mux.HandleFunc("GET "+psync.PathSubtitles, s.authed(s.subtitles))
 	mux.HandleFunc("GET "+psync.PathPoster, s.authed(s.poster))
 	mux.HandleFunc("GET "+psync.PathVideo, s.authed(s.video))
+	mux.HandleFunc("POST "+psync.PathCall, s.authed(s.call))
 	mux.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
 		s.fail(w, r, http.StatusNotFound, psync.CodeNotFound, "no such path")
 	})
@@ -697,4 +708,33 @@ func playable(films []Film) []served {
 		out = append(out, served{Film: f, film: p})
 	}
 	return out
+}
+
+// call answers a protocol v2 call from dev, within sourceTimeout, which is longer than an events call waits (psync.MaxEventWait).
+func (s *Server) call(w http.ResponseWriter, r *http.Request, dev Device) {
+	ctx, cancel := sourceContext(r)
+	defer cancel()
+	psync.HandleCall(w, r.WithContext(ctx), s.desk, psync.Caller{DeviceID: dev.ID, Name: dev.Name})
+}
+
+// PublishJobs makes jobs what phones are told of the app's queue, in the order a list gives them, and wakes the phones waiting for its changes. It reports whether anything changed.
+func (s *Server) PublishJobs(jobs []psync.Job) bool { return s.desk.Journal.PublishJobs(jobs) }
+
+// noJobs is the queue of an app that gives the server none: it says hello, and lists no jobs.
+type noJobs struct{}
+
+func (noJobs) Hello(context.Context, psync.Caller) (psync.Hello, error) {
+	return psync.Hello{Ops: []string{psync.OpHello, psync.OpJobs, psync.OpJob, psync.OpEvents}, Receive: psync.ReceiveOff}, nil
+}
+
+func (noJobs) CreateJob(context.Context, psync.Caller, psync.JobCreate) (psync.JobCreated, error) {
+	return psync.JobCreated{}, psync.Errorf(psync.CodeLinksOff, "this desktop takes no links")
+}
+
+func (noJobs) ActOnJob(_ context.Context, _ psync.Caller, op, id string) (psync.Job, error) {
+	return psync.Job{}, psync.Errorf(psync.CodeNotFound, "no job %q", id)
+}
+
+func (noJobs) UpdateYTDLP(context.Context, psync.Caller) (psync.ToolUpdate, error) {
+	return psync.ToolUpdate{}, psync.Errorf(psync.CodeUnsupported, "this desktop updates nothing")
 }

@@ -935,6 +935,10 @@ func (a *app) show(job core.Job) {
 		return
 	}
 	was, _ := a.library.Find(job.ID)
+	// The phone a job came from stays on its card whatever reports it later, as the running pipeline's copy of a job a phone's link made before it was named (core.Job.Device).
+	if job.Device == "" {
+		job.Device = was.Device
+	}
 	// A job that has just completed again under its subtitle path, as one translating its film again does, has rewritten the file the open film shows.
 	rewritten := job.Stage == core.StageComplete && was.Stage != "" && was.Stage != core.StageComplete
 	// A redo that failed is notified as the failure it was, though the film goes back to the done grid.

@@ -94,6 +94,11 @@ func (q queueCard) Render(cx *ns.Scope) ns.Node {
 		return ns.Text{ContentFunc: func() string { return locales.FilmsQueueSavingTo(cx, item().Library) }, MaxLines: 1, EllipsizeMode: ns.EllipsizeTail,
 			Style: ns.Style{FontSize: 11}, StyleFunc: ui.Colored(colors.Muted)}
 	}}
+	// A job a paired phone sent says which phone (core.Job.Device).
+	from := ns.Show{When: func() bool { return item().Device != "" }, Then: func(*ns.Scope) ns.Node {
+		return ns.Text{TestID: "queue-from", ContentFunc: func() string { return locales.FilmsQueueFrom(cx, item().Device) }, MaxLines: 1, EllipsizeMode: ns.EllipsizeTail,
+			Style: ns.Style{FontSize: 11}, StyleFunc: ui.Colored(colors.Muted)}
+	}}
 	working := func(*ns.Scope) ns.Node {
 		meta := ns.Text{ContentFunc: func() string { return QueueMeta(locales.For(cx), item()) }, Style: ns.Style{FontSize: 11},
 			StyleFunc: func() ns.Style {
@@ -124,6 +129,7 @@ func (q queueCard) Render(cx *ns.Scope) ns.Node {
 			into,
 		}},
 		library,
+		from,
 		ns.Show{When: failed, Then: func(*ns.Scope) ns.Node { return failedDetail{a: a, item: item} }, Else: working},
 	}}
 	cancel := ns.Show{When: func() bool { return !failed() }, Then: func(cx *ns.Scope) ns.Node {

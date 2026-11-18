@@ -9,6 +9,7 @@ import (
 	"net/netip"
 	"os"
 	"path/filepath"
+	"slices"
 	"strings"
 	"sync"
 	"testing"
@@ -18,6 +19,7 @@ import (
 	"kando/apps/kando/phonesync"
 	"kando/apps/kando/settings"
 	"kando/apps/kando/shelf"
+	"kando/packages/core"
 	psync "kando/packages/sync"
 
 	"github.com/nsgo-dev/nsgo/nsgotest"
@@ -360,5 +362,163 @@ func TestPhoneSyncOffListensNowhere(t *testing.T) {
 	data, err = os.ReadFile(a.settingsPath)
 	if err != nil || strings.Contains(string(data), `"phoneSync"`) {
 		t.Fatalf("settings.json once off: %s, %v", data, err)
+	}
+}
+
+// phonePaired is phoneSyncApp with the server on and a phone paired, whose client it answers; the queue's pipeline blocks, so a job stays where the test leaves it.
+func phonePaired(t *testing.T) (*app, *nsgotest.App, chan func(), string, *psync.Client) {
+	t.Helper()
+	a, tt, updates, dir, _ := phoneSyncApp(t)
+	a.pipeline = &fakePipeline{block: true}
+	phoneSyncOn(t, a, tt, updates)
+	c := phoneClient(t, a, "")
+	if _, err := phonePair(t, a, tt, updates, c, a.phone.offer.Code); err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() {
+		a.queue.stopActive(context.Canceled)
+		waitUntil(t, tt, a, updates, func() bool { return !a.running() })
+	})
+	return a, tt, updates, dir, c
+}
+
+func phoneSend(t *testing.T, a *app, tt *nsgotest.App, updates <-chan func(), c *psync.Client, link string) (psync.JobCreated, error) {
+	t.Helper()
+	return phoneCall(t, a, tt, updates, func(ctx context.Context) (psync.JobCreated, error) { return c.CreateJob(ctx, link, psync.JobOptions{}) })
+}
+
+// A link a phone sends is queued at once, with the phone's name on its card, and the phone follows the job through the list and the events.
+func TestPhoneSyncQueuesALinkAPhoneSends(t *testing.T) {
+	a, tt, updates, dir, c := phonePaired(t)
+	m := testlocale.Messages()
+	h, err := phoneCall(t, a, tt, updates, c.Hello)
+	if err != nil || h.Receive != psync.ReceiveQueue || !slices.Contains(h.Ops, psync.OpJobCreate) || slices.Contains(h.Ops, psync.OpJobPause) || h.Desktop != a.phone.name {
+		t.Fatalf("hello %+v, %v", h, err)
+	}
+	list, err := phoneCall(t, a, tt, updates, c.Jobs)
+	if err != nil {
+		t.Fatal(err)
+	}
+	// The open library's waiting job, but not its done film the queue did not run.
+	if len(list.Jobs) != 1 || list.Jobs[0].ID != "clip" || list.Jobs[0].State != psync.JobWaiting || list.Jobs[0].Library != phoneLibraryID(dir) || list.Jobs[0].Link != "" {
+		t.Fatalf("jobs %+v", list.Jobs)
+	}
+
+	link := "https://www.youtube.com/watch?v=jNQXAC9IVRw"
+	created, err := phoneSend(t, a, tt, updates, c, link)
+	if err != nil || created.Job == nil || created.Pending || created.Existing || created.Job.Device != "Evan's iPhone" || created.Job.Link != link {
+		t.Fatalf("created %+v, %v", created, err)
+	}
+	id := created.Job.ID
+	if job, ok := a.library.Find(id); !ok || job.Device != "Evan's iPhone" {
+		t.Fatalf("job on the shelf %+v", job)
+	}
+	a.Select(pageFilms)
+	a.prefs.open = false
+	refresh(tt, a)
+	if !hasText(tt, m.FilmsQueueFrom("Evan's iPhone")) || !hasText(tt, m.PhoneSyncLinkQueued("Evan's iPhone")) {
+		t.Fatal("the card does not say where the job came from, or the message bar what came of the link")
+	}
+	// The job's card keeps the phone's name as the pipeline reports it, which it was started without.
+	waitUntil(t, tt, a, updates, func() bool {
+		job, _ := a.library.Find(id)
+		return job.Stage == core.StageDownloading || job.Stage == core.StageTranscribing
+	})
+	if job, _ := a.library.Find(id); job.Device != "Evan's iPhone" {
+		t.Fatalf("the running job forgot its phone: %+v", job)
+	}
+
+	ev, err := phoneCall(t, a, tt, updates, func(ctx context.Context) (psync.Events, error) {
+		return c.Events(ctx, list.Epoch, list.Rev, 5*time.Second)
+	})
+	if err != nil || ev.Reset || len(ev.Events) == 0 {
+		t.Fatalf("events %+v, %v", ev, err)
+	}
+	var seen *psync.Job
+	for _, e := range ev.Events {
+		if e.ID == id {
+			seen = e.Job
+		}
+	}
+	if seen == nil || seen.Device != "Evan's iPhone" {
+		t.Fatalf("events %+v name no job of the phone's", ev.Events)
+	}
+
+	// The same link again answers the job it made.
+	again, err := phoneSend(t, a, tt, updates, c, link)
+	if err != nil || !again.Existing || again.Job == nil || again.Job.ID != id {
+		t.Fatalf("sent again: %+v, %v", again, err)
+	}
+	// The phone stops it, and the card says it was cancelled.
+	stopped, err := phoneCall(t, a, tt, updates, func(ctx context.Context) (psync.Job, error) { return c.ActOnJob(ctx, psync.OpJobCancel, id) })
+	if err != nil || stopped.State != psync.JobCanceled {
+		t.Fatalf("canceled %+v, %v", stopped, err)
+	}
+	_, err = phoneCall(t, a, tt, updates, func(ctx context.Context) (psync.Job, error) { return c.ActOnJob(ctx, psync.OpJobPause, id) })
+	phoneWantCode(t, err, http.StatusNotImplemented, psync.CodeUnsupported)
+	_, err = phoneCall(t, a, tt, updates, func(ctx context.Context) (psync.Job, error) { return c.ActOnJob(ctx, psync.OpJobCancel, "nope") })
+	phoneWantCode(t, err, http.StatusNotFound, psync.CodeNotFound)
+	// A video on the desktop's disk is not a phone's to send.
+	_, err = phoneSend(t, a, tt, updates, c, "file:///Users/evan/talk.mp4")
+	phoneWantCode(t, err, http.StatusBadRequest, psync.CodeInvalid)
+}
+
+// With 收到后 set to 先问我 a link waits in the link field for the user, and with 接收手机发来的链接 off it is refused; both are kept in settings.json.
+func TestPhoneSyncAsksFirstOrRefusesLinks(t *testing.T) {
+	a, tt, updates, _, c := phonePaired(t)
+	m := testlocale.Messages()
+	if !tt.Exists("id:settings-phone-receive") || !hasText(tt, m.SettingsPhoneLinks()) {
+		t.Fatal("the page has no 手机发来的链接")
+	}
+	a.phoneSyncSetAsk(true)
+	refresh(tt, a)
+	jobs := len(a.library.Jobs)
+	link := "https://www.youtube.com/watch?v=jNQXAC9IVRw"
+	created, err := phoneSend(t, a, tt, updates, c, link)
+	if err != nil || !created.Pending || created.Job != nil {
+		t.Fatalf("created %+v, %v", created, err)
+	}
+	if len(a.library.Jobs) != jobs || a.queue.source != link || a.page != pageFilms {
+		t.Fatalf("asking first queued %d jobs, link field %q, page %q", len(a.library.Jobs)-jobs, a.queue.source, a.page)
+	}
+	if a.lib.notice.Text != m.PhoneSyncLinkAsk("Evan's iPhone") {
+		t.Fatalf("message bar %q", a.lib.notice.Text)
+	}
+
+	tt.Press("settings-phone-receive")
+	if !a.phone.receiveOff {
+		t.Fatal("the switch did not turn receiving off")
+	}
+	_, err = phoneSend(t, a, tt, updates, c, link)
+	phoneWantCode(t, err, http.StatusForbidden, psync.CodeLinksOff)
+	h, err := phoneCall(t, a, tt, updates, c.Hello)
+	if err != nil || h.Receive != psync.ReceiveOff {
+		t.Fatalf("hello %+v, %v", h, err)
+	}
+	data, err := os.ReadFile(a.settingsPath)
+	if err != nil || !strings.Contains(string(data), `"phoneReceiveOff": true`) || !strings.Contains(string(data), `"phoneReceiveAsk": true`) {
+		t.Fatalf("settings.json: %s, %v", data, err)
+	}
+}
+
+// Nothing is added to a locked library, and a locked library's jobs are neither listed nor acted on.
+func TestPhoneSyncNeverWritesALockedLibrary(t *testing.T) {
+	a, tt, updates, dir, c := phonePaired(t)
+	l, err := shelf.NewLock("pw")
+	if err != nil {
+		t.Fatal(err)
+	}
+	a.library.SetLock(dir, l)
+	refresh(tt, a)
+	_, err = phoneSend(t, a, tt, updates, c, "https://www.youtube.com/watch?v=jNQXAC9IVRw")
+	phoneWantCode(t, err, http.StatusConflict, psync.CodeNotReady)
+	list, err := phoneCall(t, a, tt, updates, c.Jobs)
+	if err != nil || len(list.Jobs) != 0 {
+		t.Fatalf("jobs %+v, %v of a locked library", list.Jobs, err)
+	}
+	_, err = phoneCall(t, a, tt, updates, func(ctx context.Context) (psync.Job, error) { return c.ActOnJob(ctx, psync.OpJobCancel, "clip") })
+	phoneWantCode(t, err, http.StatusNotFound, psync.CodeNotFound)
+	if job, _ := a.library.Find("clip"); job.Stage != core.StageQueued {
+		t.Fatalf("the locked library's job %+v", job)
 	}
 }

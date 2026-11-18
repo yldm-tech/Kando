@@ -1,6 +1,7 @@
 package settings
 
 import (
+	"fmt"
 	"path/filepath"
 	"slices"
 	"strconv"
@@ -131,8 +132,16 @@ func (f *fakeApp) SetPhoneSync(on bool) {
 	f.call("phone sync " + strconv.FormatBool(on))
 	f.phone.On = on
 }
-func (f *fakeApp) NewPhoneCode()                         { f.call("new phone code") }
-func (f *fakeApp) RevokePhone(id string)                 { f.call("revoke " + id) }
+func (f *fakeApp) NewPhoneCode()         { f.call("new phone code") }
+func (f *fakeApp) RevokePhone(id string) { f.call("revoke " + id) }
+func (f *fakeApp) SetPhoneReceive(on bool) {
+	f.phone.Receive = on
+	f.call(fmt.Sprintf("receive %v", on))
+}
+func (f *fakeApp) SetPhoneAskFirst(ask bool) {
+	f.phone.AskFirst = ask
+	f.call(fmt.Sprintf("ask first %v", ask))
+}
 func (f *fakeApp) JobNotifications() bool                { return f.notify }
 func (f *fakeApp) SetJobNotifications(on bool)           { f.notify = on }
 func (f *fakeApp) InstalledSpeechModel(id string) string { return f.models[id] }
@@ -884,6 +893,31 @@ func TestPhonePageSaysWhereTheCodeStands(t *testing.T) {
 	change(app, a, func() { a.phone = PhoneSync{On: true, Err: "address already in use"} })
 	if !app.Exists(whole(msgs.SettingsPhoneStartFailed("address already in use"))) {
 		t.Fatalf("texts %q after a failed start", app.Texts())
+	}
+}
+
+// 手机发来的链接 turns receiving on and off and chooses what comes of a link; what comes of it cannot be chosen while none is received.
+func TestPhonePageChoosesWhatComesOfALink(t *testing.T) {
+	a := newFakeApp()
+	a.section = SectionPhone
+	a.phone = PhoneSync{On: true, Running: true, Receive: true, Addrs: []string{"192.168.1.20:52817"}}
+	app := startOn(t, a, core.OSMacOS)
+	msgs := testlocale.Messages()
+	if !app.Exists(whole(msgs.SettingsPhoneLinks())) || !app.Exists(whole(msgs.SettingsPhoneReceiveQueue())) || !app.Enabled("id:settings-phone-receive-then") {
+		t.Fatalf("texts %q", app.Texts())
+	}
+	app.Press("id:settings-phone-receive-then")
+	app.Press("id:settings-phone-receive-then-1")
+	if !a.phone.AskFirst || !slices.Contains(a.calls, "ask first true") {
+		t.Fatalf("calls %q after choosing 先问我", a.calls)
+	}
+	app.Press("id:settings-phone-receive")
+	if a.phone.Receive || !slices.Contains(a.calls, "receive false") {
+		t.Fatalf("calls %q after turning receiving off", a.calls)
+	}
+	change(app, a, func() {})
+	if app.Enabled("id:settings-phone-receive-then") {
+		t.Fatal("what comes of a link can be chosen while none is received")
 	}
 }
 
