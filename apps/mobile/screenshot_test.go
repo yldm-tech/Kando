@@ -101,7 +101,6 @@ func TestScreenshotsBrowse(t *testing.T) {
 	shot := screenshots(t)
 	d := newDesktop(t)
 	p := startPhone(t, t.TempDir())
-	p.app.WaitFor("id:welcome", wait)
 	p.pair(d)
 	p.app.WaitFor("id:computers-library-lib", wait)
 	shot(p, "films")
