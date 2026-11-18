@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"errors"
 	"slices"
 
@@ -29,23 +30,40 @@ func (a *app) queueSetPaused(on bool) {
 	a.queueTellSystem()
 }
 
-// queuePausedJob takes back job id, which the queue's pause stopped, once its pipeline has returned with result: a job that completed meanwhile is done as any other, and else it goes back to the head of the queue as queued, keeping what its stages left on disk, unless it was removed meanwhile. It starts again at once when the queue was resumed in the meantime.
+// queuePausedJob takes back job id, which the queue's pause stopped, once its pipeline has returned with result: a job that completed meanwhile is done as any other; one cancelled meanwhile (Cancel, Withdraw) ends cancelled, as it would have without the pause; and else it goes back to the head of the queue as queued, with what its stages reached and left on disk (result, whose reports the pause dropped), unless it was removed meanwhile. It starts again at once when the queue was resumed in the meantime.
 func (a *app) queuePausedJob(id string, result core.Job) {
+	defer a.queueTellSystem()
 	if result.Stage == core.StageComplete {
 		a.show(result)
 		a.finished(id)
-		a.queueTellSystem()
 		return
+	}
+	cancelled := a.queue.active == id && a.queue.cancelled
+	was, ok := a.library.Find(id)
+	keep := ok && !a.queue.removed[id] && !was.Stage.Done()
+	job := was
+	if result.ID == id {
+		job = result
+	}
+	switch {
+	case cancelled:
+		if keep {
+			job.Stage = core.StageFailed
+			if !errors.Is(job.Err, context.Canceled) {
+				job.Err = context.Canceled
+			}
+			a.show(job)
+		}
+		a.finished(id)
+		return
+	case keep:
+		job.Stage, job.Progress, job.Err = core.StageQueued, core.Progress{}, nil
+		a.queue.order = slices.Insert(slices.DeleteFunc(a.queue.order, func(queued string) bool { return queued == id }), 0, id)
+		a.show(job)
 	}
 	if a.queue.active == id {
 		a.queue.active, a.queue.cancel, a.queue.done, a.queue.whisperModel = "", nil, nil, ""
 	}
-	if job, ok := a.library.Find(id); ok && !a.queue.removed[id] && !job.Stage.Done() {
-		job.Stage, job.Progress = core.StageQueued, core.Progress{}
-		a.queue.order = slices.Insert(slices.DeleteFunc(a.queue.order, func(queued string) bool { return queued == id }), 0, id)
-		a.show(job)
-	}
 	a.pump()
 	a.queueKeepAwake()
-	a.queueTellSystem()
 }

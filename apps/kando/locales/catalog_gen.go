@@ -3872,7 +3872,7 @@ var textsEn = i18n.NewTexts(""+
 	"Installed"+
 	"Interface language"+
 	"Keep running after the window closes"+
-	"The queue keeps processing."+
+	"The queue keeps processing, and the status icon brings the window back. With the icon hidden, closing the window quits."+
 	"English"+
 	"Open Kando at login"+
 	"Runs quietly in the menu bar without opening a window."+
@@ -4867,7 +4867,7 @@ var textsEn = i18n.NewTexts(""+
 		9,
 		18,
 		36,
-		27,
+		119,
 		7,
 		19,
 		54,
@@ -5865,7 +5865,7 @@ var textsJa = i18n.NewTexts(""+
 	"インストール済み"+
 	"表示言語"+
 	"ウインドウを閉じてもバックグラウンドで実行"+
-	"キューの処理を続けます。"+
+	"キューの処理を続け、ステータスアイコンからウインドウを戻せます。アイコンを隠しているときは、ウインドウを閉じると終了します。"+
 	"日本語"+
 	"ログイン時に Kando を開く"+
 	"ウインドウを開かず、メニューバーで静かに動きます。"+
@@ -6860,7 +6860,7 @@ var textsJa = i18n.NewTexts(""+
 		24,
 		12,
 		63,
-		36,
+		186,
 		9,
 		34,
 		75,
@@ -7858,7 +7858,7 @@ var textsKo = i18n.NewTexts(""+
 	"설치됨"+
 	"인터페이스 언어"+
 	"창을 닫아도 백그라운드에서 계속 실행"+
-	"대기열 처리를 계속합니다."+
+	"대기열 처리를 계속하고, 상태 아이콘으로 창을 다시 열 수 있습니다. 아이콘을 숨기면 창을 닫을 때 종료됩니다."+
 	"한국어"+
 	"로그인할 때 Kando 열기"+
 	"창을 열지 않고 메뉴 막대에서 조용히 실행됩니다."+
@@ -8853,7 +8853,7 @@ var textsKo = i18n.NewTexts(""+
 		9,
 		22,
 		52,
-		36,
+		150,
 		9,
 		29,
 		67,
@@ -9851,7 +9851,7 @@ var textsZhHans = i18n.NewTexts(""+
 	"已安装"+
 	"界面语言"+
 	"关掉窗口后继续在后台运行"+
-	"队列照常处理。"+
+	"队列照常处理，点状态图标可以找回窗口。图标隐藏时，关掉窗口会退出。"+
 	"简体中文"+
 	"登录电脑时打开看懂"+
 	"只在菜单栏里安静运行，不弹出窗口。"+
@@ -10846,7 +10846,7 @@ var textsZhHans = i18n.NewTexts(""+
 		9,
 		12,
 		36,
-		21,
+		99,
 		12,
 		27,
 		51,
@@ -11844,7 +11844,7 @@ var textsZhHant = i18n.NewTexts(""+
 	"已安裝"+
 	"介面語言"+
 	"關掉視窗後繼續在背景執行"+
-	"佇列照常處理。"+
+	"佇列照常處理，點狀態圖示可以找回視窗。圖示隱藏時，關掉視窗會結束。"+
 	"繁體中文"+
 	"登入電腦時打開看懂"+
 	"只在選單列裡安靜執行，不彈出視窗。"+
@@ -12839,7 +12839,7 @@ var textsZhHant = i18n.NewTexts(""+
 		9,
 		12,
 		36,
-		21,
+		99,
 		12,
 		27,
 		51,
@@ -31176,10 +31176,10 @@ func (msgs Messages) SettingsGeneralKeepRunning() string {
 	return msgs.text(textSettingsGeneralKeepRunning)
 }
 
-// SettingsGeneralKeepRunningHint says "The queue keeps processing."
+// SettingsGeneralKeepRunningHint says "The queue keeps processing, and the status icon brings the window back. With the icon hidden, closing the window quits."
 // in the language the app shows under cx.
 //
-// Hint under the switch that keeps Kando running after its window closes.
+// Hint under the switch that keeps Kando running after its window closes (Windows and Linux): the status icon is what brings the window back, so with that icon switched off, closing the window quits even with this switch on.
 func SettingsGeneralKeepRunningHint(cx *core.Scope) string {
 	return For(cx).SettingsGeneralKeepRunningHint()
 }

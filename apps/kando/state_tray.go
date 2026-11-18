@@ -79,12 +79,17 @@ func (a *app) trayHooks() areaHooks {
 		},
 		ready: func() {
 			a.trayUseSystem(a.traySystemDesktop(a.cx))
-			if nsdesktop.LaunchedAtLogin(a.cx) {
-				// TODO(nsgo): open the main window hidden from the start for a run the system opened at login, as nsgo.Run has no option for it; it shows for a moment before it is put away here
-				a.windowHide()
-			}
+			a.trayHideAtLogin()
 		},
 		afterChange: a.trayFollow,
+	}
+}
+
+// trayHideAtLogin puts the main window away at once in a run the system opened at login, so Kando runs in the menu bar.
+func (a *app) trayHideAtLogin() {
+	if nsdesktop.LaunchedAtLogin(a.cx) {
+		// TODO(nsgo): open the main window hidden from the start for a run the system opened at login, as nsgo.Run has no option for it; it shows for a moment before it is put away here
+		a.windowHide()
 	}
 }
 
@@ -114,9 +119,19 @@ func (a *app) traySystemDesktop(cx *ns.Scope) traySystem {
 func (a *app) trayUseSystem(s traySystem) {
 	a.tray.sys = s
 	a.trayShowIcon()
-	if s.readLogin != nil {
-		s.readLogin(live.On(a, func(on bool) { a.tray.login = on }))
+	a.trayReadLogin()
+}
+
+// trayReadLogin has the switch of launch at login show what the system says it does.
+func (a *app) trayReadLogin() {
+	if a.tray.sys.readLogin != nil {
+		a.tray.sys.readLogin(live.On(a, func(on bool) { a.tray.login = on }))
 	}
+}
+
+// trayKeepsRunning says closing the main window on Windows and Linux only puts it away (windowClosing): while 关掉窗口后继续在后台运行 is on and the status icon shows, which brings the window back. With the icon off, a window put away would leave Kando running with nothing to show it.
+func (a *app) trayKeepsRunning() bool {
+	return a.tray.keepRunning && a.tray.shown != nil
 }
 
 // trayShowIcon adds the status icon when the user wants it and it does not show yet, or takes it away when they no longer do.
@@ -209,6 +224,8 @@ func (a *app) SetLaunchAtLogin(on bool) {
 	}
 	a.tray.login = on
 	a.tray.sys.setLogin(on)
+	// The system may refuse, as macOS does for an app outside a bundle or one waiting for approval in Login Items, and NSGo only logs it, so the switch reads back what it did.
+	a.trayReadLogin()
 }
 
 func (a *app) SetKeepRunning(on bool) {

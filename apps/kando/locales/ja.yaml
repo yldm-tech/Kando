@@ -1049,7 +1049,7 @@ settingsGeneralForgetHint: "Kando の一覧から外すだけで、ファイル�
 settingsGeneralInstalled: "インストール済み"
 settingsGeneralInterfaceLanguage: "表示言語"
 settingsGeneralKeepRunning: "ウインドウを閉じてもバックグラウンドで実行"
-settingsGeneralKeepRunningHint: "キューの処理を続けます。"
+settingsGeneralKeepRunningHint: "キューの処理を続け、ステータスアイコンからウインドウを戻せます。アイコンを隠しているときは、ウインドウを閉じると終了します。"
 settingsGeneralLanguageName: "日本語"
 settingsGeneralLastCheck: "最終確認：{when}"
 settingsGeneralLaunchAtLogin: "ログイン時に Kando を開く"

@@ -3798,8 +3798,8 @@ settingsGeneralKeepRunning:
   message: "Keep running after the window closes"
   description: "Switch in Settings › General (Windows and Linux): closing the main window only hides it and Kando keeps processing; off, closing the window quits."
 settingsGeneralKeepRunningHint:
-  message: "The queue keeps processing."
-  description: "Hint under the switch that keeps Kando running after its window closes."
+  message: "The queue keeps processing, and the status icon brings the window back. With the icon hidden, closing the window quits."
+  description: "Hint under the switch that keeps Kando running after its window closes (Windows and Linux): the status icon is what brings the window back, so with that icon switched off, closing the window quits even with this switch on."
 settingsGeneralLanguageName:
   message: "English"
   description: "This catalog's language named in itself, as the Interface language pop-up lists it, so the choice stays readable whatever language Kando shows."

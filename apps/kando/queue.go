@@ -45,6 +45,8 @@ type jobQueue struct {
 	// cancel stops the running job; with errQuitting the job reports nothing more. done is closed once the running job's pipeline has returned.
 	cancel context.CancelCauseFunc
 	done   chan struct{}
+	// cancelled is set once the running job was asked to stop for good (stopActive with context.Canceled: Cancel, Withdraw, removing it), and cleared as the next one starts. A job the queue's pause stopped first then ends cancelled rather than going back to the queue (queuePausedJob), as the context keeps only the first cause it was stopped with.
+	cancelled bool
 	// stopped is set once the app quits (queueQuit): no job starts after it.
 	stopped bool
 	// paused is set while the user paused the whole queue (queue_pause.go): the job running then went back to the head of the queue, and no job starts until it is resumed. It lasts until Kando quits.
@@ -69,6 +71,7 @@ func newJobQueue() jobQueue { return jobQueue{sys: newQueueSystem()} }
 // stopActive asks the running job to stop. It ends, and the next one starts, when its pipeline returns.
 func (q *jobQueue) stopActive(cause error) {
 	if q.cancel != nil {
+		q.cancelled = q.cancelled || errors.Is(cause, context.Canceled)
 		q.cancel(cause)
 	}
 }
@@ -808,7 +811,7 @@ func (a *app) queueRun(job core.Job) {
 	}
 	ctx, cancel := context.WithCancelCause(context.Background())
 	done := make(chan struct{})
-	a.queue.active, a.queue.cancel, a.queue.done = job.ID, cancel, done
+	a.queue.active, a.queue.cancel, a.queue.done, a.queue.cancelled = job.ID, cancel, done, false
 	a.queueKeepAwake()
 	pipeline, update := a.queuePipeline(job), a.update
 	a.queue.whisperModel = ""

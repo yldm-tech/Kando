@@ -1049,7 +1049,7 @@ settingsGeneralForgetHint: "Kando 목록에서만 빼며, 파일은 그대로 �
 settingsGeneralInstalled: "설치됨"
 settingsGeneralInterfaceLanguage: "인터페이스 언어"
 settingsGeneralKeepRunning: "창을 닫아도 백그라운드에서 계속 실행"
-settingsGeneralKeepRunningHint: "대기열 처리를 계속합니다."
+settingsGeneralKeepRunningHint: "대기열 처리를 계속하고, 상태 아이콘으로 창을 다시 열 수 있습니다. 아이콘을 숨기면 창을 닫을 때 종료됩니다."
 settingsGeneralLanguageName: "한국어"
 settingsGeneralLastCheck: "마지막 확인: {when}"
 settingsGeneralLaunchAtLogin: "로그인할 때 Kando 열기"

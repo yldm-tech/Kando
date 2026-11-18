@@ -1,7 +1,11 @@
 package main
 
 import (
+	"context"
 	"encoding/json"
+	"errors"
+	"path/filepath"
+	"slices"
 	"strings"
 	"testing"
 
@@ -11,6 +15,7 @@ import (
 
 	ns "github.com/nsgo-dev/nsgo/core"
 	nsdesktop "github.com/nsgo-dev/nsgo/desktop"
+	"github.com/nsgo-dev/nsgo/nsgotest"
 )
 
 // fakeTrayIcon records what the app told the status icon.
@@ -40,13 +45,16 @@ func (f *fakeTrayIcon) item(t *testing.T, label string) ns.MenuItem {
 	return ns.MenuItem{}
 }
 
-// fakeTraySystem stands in for NSGo's tray and launch at login, as macOS has them: it keeps the icons the app adds, the last first, and what the app asked of launch at login.
+// fakeTraySystem stands in for NSGo's tray and launch at login, as macOS has them: it keeps the icons the app adds, the last first, and what the app asked of launch at login, which it does unless refuse is set, as macOS refuses an app outside a bundle.
 type fakeTraySystem struct {
-	icons []*fakeTrayIcon
-	login []bool
+	icons   []*fakeTrayIcon
+	login   []bool
+	loginOn bool
+	refuse  bool
 }
 
 func (f *fakeTraySystem) system(loginOn bool) traySystem {
+	f.loginOn = loginOn
 	return traySystem{
 		open: func(opts nsdesktop.TrayOptions) trayIcon {
 			icon := &fakeTrayIcon{opts: opts, title: opts.Title, tooltip: opts.Tooltip}
@@ -54,8 +62,13 @@ func (f *fakeTraySystem) system(loginOn bool) traySystem {
 			return icon
 		},
 		template:  true,
-		readLogin: func(done func(bool)) { done(loginOn) },
-		setLogin:  func(on bool) { f.login = append(f.login, on) },
+		readLogin: func(done func(bool)) { done(f.loginOn) },
+		setLogin: func(on bool) {
+			f.login = append(f.login, on)
+			if !f.refuse {
+				f.loginOn = on
+			}
+		},
 	}
 }
 
@@ -192,13 +205,14 @@ func TestTrayIconFollowsTheQueue(t *testing.T) {
 	refresh(tt, a)
 }
 
-// TestClosingTheWindowElsewhereKeepsKandoRunning checks that on Linux and Windows, while 关掉窗口后继续在后台运行 is on, as it is by default, the main window's close button only puts the window away, the job running on, and launching Kando again brings it back.
+// TestClosingTheWindowElsewhereKeepsKandoRunning checks that on Linux and Windows, while 关掉窗口后继续在后台运行 is on, as it is by default, and the status icon shows, the main window's close button only puts the window away, the job running on, and launching Kando again brings it back.
 func TestClosingTheWindowElsewhereKeepsKandoRunning(t *testing.T) {
 	setWindowHidesOnClose(t, false)
 	g := newGatePipeline()
 	a, tt, updates := newTestApp(t, g)
 	t.Cleanup(a.stop)
-	if !a.tray.keepRunning {
+	a.trayUseSystem((&fakeTraySystem{}).system(false))
+	if !a.tray.keepRunning || !a.trayKeepsRunning() {
 		t.Fatal("closing the window does not keep Kando running by default")
 	}
 	if err := a.Enqueue("https://example.com/a"); err != nil {
@@ -275,5 +289,117 @@ func TestBackgroundSettings(t *testing.T) {
 				t.Fatal("a fresh settings.json does not keep Kando running with its icon")
 			}
 		})
+	}
+}
+
+// stubbornPipeline is gatePipeline whose Download does not hear the job stop, as an export, a slow translate batch or a process tree torn down on Windows may not for a while, so a test can act while a stopped job's pipeline has not returned yet. Transcribe stops when the job was stopped, unless finish is set, when the job runs to the end.
+type stubbornPipeline struct {
+	*gatePipeline
+	finish bool
+}
+
+func (s *stubbornPipeline) Download(_ context.Context, source string) (string, error) {
+	s.started <- source
+	<-s.release
+	return "/videos/" + filepath.Base(source) + ".mp4", nil
+}
+
+func (s *stubbornPipeline) Transcribe(ctx context.Context, video string) ([]core.Segment, error) {
+	if err := ctx.Err(); err != nil && !s.finish {
+		return nil, err
+	}
+	return s.gatePipeline.Transcribe(ctx, video)
+}
+
+// TestPausedJobReturningLate checks what becomes of the job the pause stopped, by what happened before its pipeline returned: one the user cancelled meanwhile ends cancelled and does not start again on resume, one that completed is done, and one that got further than its last report goes back to the queue with what it reached, so its video is not downloaded again.
+func TestPausedJobReturningLate(t *testing.T) {
+	start := func(t *testing.T, finish bool) (*app, *nsgotest.App, chan func(), *stubbornPipeline, string) {
+		s := &stubbornPipeline{gatePipeline: newGatePipeline(), finish: finish}
+		a, tt, updates := newTestApp(t, s)
+		t.Cleanup(a.stop)
+		if err := a.Enqueue("https://example.com/a"); err != nil {
+			t.Fatal(err)
+		}
+		nextStarted(t, s.gatePipeline, updates)
+		a.queueSetPaused(true)
+		if !a.running() {
+			t.Fatal("the paused job ended before its pipeline returned")
+		}
+		return a, tt, updates, s, jobIDs(a)["https://example.com/a"]
+	}
+	t.Run("cancelled", func(t *testing.T) {
+		a, tt, updates, s, id := start(t, false)
+		a.Withdraw(id)
+		s.release <- struct{}{}
+		waitUntil(t, tt, a, updates, func() bool { return !a.running() })
+		if job := stageOf(t, a, id); job.Stage != core.StageFailed || !errors.Is(job.Err, context.Canceled) || slices.Contains(a.queue.order, id) {
+			t.Fatalf("cancelled during the pause: %+v, queue %v", job, a.queue.order)
+		}
+		a.queueSetPaused(false)
+		noneStarted(t, s.gatePipeline, updates)
+	})
+	t.Run("completed", func(t *testing.T) {
+		a, tt, updates, s, id := start(t, true)
+		s.release <- struct{}{}
+		waitUntil(t, tt, a, updates, func() bool { return !a.running() })
+		if job := stageOf(t, a, id); job.Stage != core.StageComplete || slices.Contains(a.queue.order, id) {
+			t.Fatalf("completed during the pause: %+v, queue %v", job, a.queue.order)
+		}
+	})
+	t.Run("further", func(t *testing.T) {
+		a, tt, updates, s, id := start(t, false)
+		s.release <- struct{}{}
+		waitUntil(t, tt, a, updates, func() bool { return !a.running() })
+		job := stageOf(t, a, id)
+		if job.Stage != core.StageQueued || job.Err != nil || job.VideoPath == "" || a.queue.order[0] != id {
+			t.Fatalf("downloaded during the pause: %+v, queue %v", job, a.queue.order)
+		}
+	})
+}
+
+// TestClosingTheWindowWithoutTheIconQuits checks that on Linux and Windows closing the main window quits, asking first as a job runs, while the status icon is off, though 关掉窗口后继续在后台运行 is on: nothing would bring a window put away back.
+func TestClosingTheWindowWithoutTheIconQuits(t *testing.T) {
+	setWindowHidesOnClose(t, false)
+	g := newGatePipeline()
+	a, tt, updates := newTestApp(t, g)
+	t.Cleanup(a.stop)
+	a.trayUseSystem((&fakeTraySystem{}).system(false))
+	a.SetTrayIcon(false)
+	if err := a.Enqueue("https://example.com/a"); err != nil {
+		t.Fatal(err)
+	}
+	nextStarted(t, g, updates)
+	e := &ns.WindowClosing{}
+	a.windowClosing(e)
+	refresh(tt, a)
+	if !a.tray.keepRunning || a.window.hidden || !a.queue.quitAsk {
+		t.Fatalf("close button with the icon off: hidden %v, asked to quit %v", a.window.hidden, a.queue.quitAsk)
+	}
+	a.queue.quitAsk = false
+	refresh(tt, a)
+}
+
+// TestLaunchAtLoginReadsBackTheSystem checks that the switch of 登录电脑时打开看懂 shows what the system did, not what was asked of it, when the system refuses.
+func TestLaunchAtLoginReadsBackTheSystem(t *testing.T) {
+	a, _, _ := newTestApp(t, &fakePipeline{})
+	sys := &fakeTraySystem{refuse: true}
+	a.trayUseSystem(sys.system(false))
+	a.SetLaunchAtLogin(true)
+	if len(sys.login) != 1 || !sys.login[0] || a.Background().LaunchAtLogin {
+		t.Fatalf("refused by the system: asked %v, switch on %v", sys.login, a.Background().LaunchAtLogin)
+	}
+}
+
+// TestLaunchedAtLoginHidesTheWindow checks that a run the system opened at login puts the main window away as it is ready, and any other run leaves it.
+func TestLaunchedAtLoginHidesTheWindow(t *testing.T) {
+	for _, login := range []bool{false, true} {
+		env := testEnvironment()
+		env.LaunchedAtLogin = login
+		a, tt, _ := newTestApp(t, &fakePipeline{}, nsgotest.Environment(env))
+		onEngine(a, a.trayHideAtLogin)
+		refresh(tt, a)
+		if a.window.hidden != login {
+			t.Fatalf("launched at login %v: window hidden %v", login, a.window.hidden)
+		}
 	}
 }

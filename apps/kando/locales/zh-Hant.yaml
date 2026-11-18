@@ -1049,7 +1049,7 @@ settingsGeneralForgetHint: "只從看懂的清單中移除，檔案留在原處�
 settingsGeneralInstalled: "已安裝"
 settingsGeneralInterfaceLanguage: "介面語言"
 settingsGeneralKeepRunning: "關掉視窗後繼續在背景執行"
-settingsGeneralKeepRunningHint: "佇列照常處理。"
+settingsGeneralKeepRunningHint: "佇列照常處理，點狀態圖示可以找回視窗。圖示隱藏時，關掉視窗會結束。"
 settingsGeneralLanguageName: "繁體中文"
 settingsGeneralLastCheck: "上次檢查：{when}"
 settingsGeneralLaunchAtLogin: "登入電腦時打開看懂"

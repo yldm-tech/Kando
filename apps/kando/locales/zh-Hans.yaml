@@ -1049,7 +1049,7 @@ settingsGeneralForgetHint: "只从看懂的列表里拿掉，文件留在原处�
 settingsGeneralInstalled: "已安装"
 settingsGeneralInterfaceLanguage: "界面语言"
 settingsGeneralKeepRunning: "关掉窗口后继续在后台运行"
-settingsGeneralKeepRunningHint: "队列照常处理。"
+settingsGeneralKeepRunningHint: "队列照常处理，点状态图标可以找回窗口。图标隐藏时，关掉窗口会退出。"
 settingsGeneralLanguageName: "简体中文"
 settingsGeneralLastCheck: "上次检查：{when}"
 settingsGeneralLaunchAtLogin: "登录电脑时打开看懂"
