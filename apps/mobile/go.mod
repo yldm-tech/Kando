@@ -5,7 +5,7 @@ go 1.27.4
 tool github.com/nsgo-dev/nsgo/cmd/nsgo
 
 require (
-	github.com/nsgo-dev/nsgo v0.1.1-0.20261116154601-80d94246b875
+	github.com/nsgo-dev/nsgo v0.1.1-0.20261118094851-ec272782be28
 	kando/packages/core v0.0.0
 	kando/packages/sync v0.0.0
 )
