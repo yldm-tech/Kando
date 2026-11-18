@@ -39,11 +39,22 @@ func TestCorrectionsRoundTrip(t *testing.T) {
 	if err != nil || len(got) != 2 || *got[0].Translation != text || got[0].StartShift != -100*time.Millisecond || got[0].Span != edits[0].Span || !got[1].NoSpeech {
 		t.Fatalf("read back %+v, %v", got, err)
 	}
+	// Saving none keeps a file holding none, whose time says when the corrections last changed; with no file before, it writes none.
 	if err := SaveCorrections(path, nil); err != nil {
 		t.Fatal(err)
 	}
-	if _, err := os.Stat(path); !errors.Is(err, os.ErrNotExist) {
-		t.Fatalf("saving none left the file: %v", err)
+	if got, err := LoadCorrections(path); err != nil || len(got) != 0 {
+		t.Fatalf("after saving none, read back %+v, %v", got, err)
+	}
+	if _, err := os.Stat(path); err != nil {
+		t.Fatalf("saving none removed the file: %v", err)
+	}
+	other := CorrectionsPath(filepath.Join(filepath.Dir(path), "other.mp4"))
+	if err := SaveCorrections(other, nil); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := os.Stat(other); !errors.Is(err, os.ErrNotExist) {
+		t.Fatalf("saving none for a film never corrected wrote a file: %v", err)
 	}
 }
 

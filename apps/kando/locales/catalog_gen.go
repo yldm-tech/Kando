@@ -1233,6 +1233,7 @@ const (
 	textCorrectMarkedNoSpeech
 	textCorrectNewer
 	textCorrectOriginal
+	textCorrectOriginalEmpty
 	textCorrectSaveFailed
 	textCorrectSaved
 	textCorrectStart
@@ -2243,6 +2244,7 @@ var keyOfText = [numTexts]string{
 	"correctMarkedNoSpeech",
 	"correctNewer",
 	"correctOriginal",
+	"correctOriginalEmpty",
 	"correctSaveFailed",
 	"correctSaved",
 	"correctStart",
@@ -3251,6 +3253,7 @@ var textsEn = i18n.NewTexts(""+
 	"Marked as no speech"+
 	"These corrections were made by a newer version of Kando and can’t be changed here"+
 	"Original"+
+	"The original can’t be empty. To leave the line out, mark it as no speech"+
 	"Couldn’t save the correction"+
 	"Saved your correction"+
 	"Start"+
@@ -4256,6 +4259,7 @@ var textsEn = i18n.NewTexts(""+
 		19,
 		83,
 		8,
+		74,
 		30,
 		21,
 		5,
@@ -5264,6 +5268,7 @@ var textsJa = i18n.NewTexts(""+
 	"音声なしにしました"+
 	"この修正は新しいバージョンの看懂で行われたため、ここでは変更できません"+
 	"原文"+
+	"原文は空にできません。この行を外すには音声なしにしてください"+
 	"修正を保存できませんでした"+
 	"修正を保存しました"+
 	"開始"+
@@ -6269,6 +6274,7 @@ var textsJa = i18n.NewTexts(""+
 		27,
 		105,
 		6,
+		90,
 		39,
 		27,
 		6,
@@ -7277,6 +7283,7 @@ var textsKo = i18n.NewTexts(""+
 	"음성 없음으로 표시했습니다"+
 	"이 수정은 최신 버전의 看懂에서 만들어져 여기서는 바꿀 수 없습니다"+
 	"원문"+
+	"원문은 비울 수 없습니다. 이 줄을 빼려면 음성 없음으로 표시하세요"+
 	"수정을 저장하지 못했습니다"+
 	"수정을 저장했습니다"+
 	"시작"+
@@ -8282,6 +8289,7 @@ var textsKo = i18n.NewTexts(""+
 		38,
 		93,
 		6,
+		91,
 		38,
 		28,
 		6,
@@ -9290,6 +9298,7 @@ var textsZhHans = i18n.NewTexts(""+
 	"已标为无语音"+
 	"这些修改来自更新版本的看懂，这里不能更改"+
 	"原文"+
+	"原文不能为空。要去掉这句，请标为无语音"+
 	"修改没能保存"+
 	"已保存你的修改"+
 	"起点"+
@@ -10295,6 +10304,7 @@ var textsZhHans = i18n.NewTexts(""+
 		18,
 		60,
 		6,
+		57,
 		18,
 		21,
 		6,
@@ -11303,6 +11313,7 @@ var textsZhHant = i18n.NewTexts(""+
 	"已標為無語音"+
 	"這些修改來自更新版本的看懂，這裡不能更改"+
 	"原文"+
+	"原文不能為空。要去掉這句，請標為無語音"+
 	"修改沒能儲存"+
 	"已儲存你的修改"+
 	"起點"+
@@ -12308,6 +12319,7 @@ var textsZhHant = i18n.NewTexts(""+
 		18,
 		60,
 		6,
+		57,
 		18,
 		21,
 		6,
@@ -15977,6 +15989,15 @@ func CorrectOriginal(cx *core.Scope) string { return For(cx).CorrectOriginal() }
 
 // CorrectOriginal is the package's CorrectOriginal in the language of msgs.
 func (msgs Messages) CorrectOriginal() string { return msgs.text(textCorrectOriginal) }
+
+// CorrectOriginalEmpty says "The original can’t be empty. To leave the line out, mark it as no speech"
+// in the language the app shows under cx.
+//
+// Message on the picture when the user submits a subtitle line with its original field empty, which is not kept.
+func CorrectOriginalEmpty(cx *core.Scope) string { return For(cx).CorrectOriginalEmpty() }
+
+// CorrectOriginalEmpty is the package's CorrectOriginalEmpty in the language of msgs.
+func (msgs Messages) CorrectOriginalEmpty() string { return msgs.text(textCorrectOriginalEmpty) }
 
 // CorrectRedo says "Redo “{step}”"
 // in the language the app shows under cx.

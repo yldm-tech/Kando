@@ -439,6 +439,9 @@ correctNewer:
 correctOriginal:
   message: "Original"
   description: "Label of the field that edits the original line of the selected subtitle line."
+correctOriginalEmpty:
+  message: "The original can’t be empty. To leave the line out, mark it as no speech"
+  description: "Message on the picture when the user submits a subtitle line with its original field empty, which is not kept."
 correctRedo:
   message: "Redo “{step}”"
   description: "Edit menu item and shortcut row: makes again the change of the film's lines that Undo took back, named."

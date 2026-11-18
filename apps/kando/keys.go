@@ -30,6 +30,8 @@ type shortcut struct {
 	Run    func()
 	// Items makes the row a submenu of the menu bar, with the items it gives as the menu is built, in place of Run; such a row has no key, and the menu bar is the only place it shows. Each item's OnSelect goes through menuSelect, as a row's Run does.
 	Items func() []nsdesktop.MenuItem
+	// Role makes the row stand in for the menu bar's own item of that role, in its place and with its key, while When holds; otherwise the system's item shows there, as for the text fields. Such a row shows nowhere else in the menu bar. nsdesktop.MenuRoleNone, the zero, is a row of its own.
+	Role nsdesktop.MenuRole
 }
 
 // hasCommand reports whether key is held with ⌘, Ctrl on Windows and Linux: a row the menu bar carries as its item's shortcut.

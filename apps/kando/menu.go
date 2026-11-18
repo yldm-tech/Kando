@@ -115,7 +115,23 @@ func (a *app) menuBar(cx *core.Scope) []nsdesktop.MenuItem {
 		}
 		return append(append(head, separator), more...)
 	}
+	// standIn are the items of the rows that stand in for a system item now, by its role (shortcut.Role); the rows with a role are taken out of their menus' other rows.
+	standIn := map[nsdesktop.MenuRole]nsdesktop.MenuItem{}
+	for group := range rows {
+		rows[group] = slices.DeleteFunc(slices.Clone(rows[group]), func(s shortcut) bool {
+			if s.Role == nsdesktop.MenuRoleNone {
+				return false
+			}
+			if s.When == nil || s.When() {
+				standIn[s.Role] = a.menuItem(s, false)
+			}
+			return true
+		})
+	}
 	role := func(label string, r nsdesktop.MenuRole) nsdesktop.MenuItem {
+		if it, ok := standIn[r]; ok {
+			return it
+		}
 		return nsdesktop.MenuItem{Label: label, Role: r}
 	}
 	// items are the group's rows, the ones with a key first and the menu's own commands without one after a separator. extra are items of the menu alone that go with the rows that have a key, before that separator.
@@ -153,18 +169,7 @@ func (a *app) menuBar(cx *core.Scope) []nsdesktop.MenuItem {
 			// 关闭窗口 keeps ⌘W, which the default menu bar has in its File menu.
 			sub = then(then(items(group), library...), role(locales.MenuCloseWindow(cx), nsdesktop.MenuClose))
 		case groupEdit:
-			// Undo and Redo are the system's, for the text fields, unless the open film has a change of its lines to take back or make again (correctKeys), whose rows stand in for them, named by what they undo or redo.
-			undo, redo := role(locales.MenuUndo(cx), nsdesktop.MenuUndo), role(locales.MenuRedo(cx), nsdesktop.MenuRedo)
-			rows[group] = slices.DeleteFunc(slices.Clone(rows[group]), func(s shortcut) bool {
-				switch {
-				case s.Key == correctUndoKey && s.When():
-					undo = a.menuItem(s, false)
-				case s.Key == correctRedoKey && s.When():
-					redo = a.menuItem(s, false)
-				}
-				return s.Key == correctUndoKey || s.Key == correctRedoKey
-			})
-			sub = []nsdesktop.MenuItem{undo, redo}
+			sub = []nsdesktop.MenuItem{role(locales.MenuUndo(cx), nsdesktop.MenuUndo), role(locales.MenuRedo(cx), nsdesktop.MenuRedo)}
 			// TODO(nsgo#118): add 粘贴并匹配样式, 删除 and the 语音 submenu's 开始朗读 and 停止朗读, as MyGo's RolePasteAndMatchStyle, RoleDelete, RoleStartSpeaking and RoleStopSpeaking gave the Edit menu; NSGo has no such roles https://github.com/nsgo-dev/nsgo/issues/118
 			sub = then(sub, role(locales.MenuCut(cx), nsdesktop.MenuCut), role(locales.MenuCopy(cx), nsdesktop.MenuCopy), role(locales.MenuPaste(cx), nsdesktop.MenuPaste), role(locales.MenuSelectAll(cx), nsdesktop.MenuSelectAll))
 			sub = then(sub, items(group)...)

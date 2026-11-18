@@ -82,7 +82,7 @@ func LoadCorrections(path string) ([]core.Correction, error) {
 	return out, nil
 }
 
-// SaveCorrections writes edits to the corrections file at path (CorrectionsPath), all of it or nothing (writeFileAtomic), and removes the file when there are none. A file a newer Kando wrote is left as it is (ErrCorrectionsNewer).
+// SaveCorrections writes edits to the corrections file at path (CorrectionsPath), all of it or nothing (writeFileAtomic). With none it writes a file holding none, when there is one, rather than removing it, so the file's time still says when the corrections last changed, which tells a phone that has the film to read its lines again (phonesync); a film never corrected gets no file. A file a newer Kando wrote is left as it is (ErrCorrectionsNewer).
 func SaveCorrections(path string, edits []core.Correction) error {
 	if data, err := os.ReadFile(path); err == nil {
 		var f correctionsFile
@@ -103,10 +103,9 @@ func SaveCorrections(path string, edits []core.Correction) error {
 		})
 	}
 	if len(f.Lines) == 0 {
-		if err := os.Remove(path); err != nil && !errors.Is(err, os.ErrNotExist) {
-			return err
+		if _, err := os.Lstat(path); errors.Is(err, os.ErrNotExist) {
+			return nil
 		}
-		return nil
 	}
 	data, err := json.MarshalIndent(f, "", "  ")
 	if err != nil {

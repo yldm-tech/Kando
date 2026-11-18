@@ -12,6 +12,7 @@ import (
 	"kando/packages/media"
 
 	ns "github.com/nsgo-dev/nsgo/core"
+	nsdesktop "github.com/nsgo-dev/nsgo/desktop"
 )
 
 // Correcting the open film's lines: the user selects a line on the picture (Return), edits its translation and its original, moves its start and end by a tenth of a second, or marks it as no speech, and undoes and redoes those changes. The changes are kept in the film's corrections file (media.SaveCorrections), apart from the subtitle files the pipeline writes, so processing or translating the film again keeps them, and every reader of the lines lays them over the machine's.
@@ -186,7 +187,7 @@ func (a *app) EditLine() {
 // CancelEdit puts the fields away without changing the line, which stays selected (film.Corrector).
 func (a *app) CancelEdit() { a.correct.editing = false }
 
-// SubmitEdit keeps what the fields hold as the selected line's translation and original, and plays on from the line (film.Corrector). A text back to the machine's drops the correction of it, so a later translation again reaches it.
+// SubmitEdit keeps what the fields hold as the selected line's translation and original, and plays on from the line (film.Corrector). A text back to the machine's drops the correction of it, so a later translation again reaches it. An empty original is not kept, as a cue holding a translation alone reads back as an original (core.SplitCue); a line that is no speech is marked so (MarkNoSpeech).
 func (a *app) SubmitEdit() {
 	i := a.correctSelected()
 	if i < 0 {
@@ -197,6 +198,10 @@ func (a *app) SubmitEdit() {
 	translation, original := trimLine(a.correct.translation), trimLine(a.correct.original)
 	if translation == line.Translation && original == line.Original {
 		a.correct.editing = false
+		return
+	}
+	if original == "" {
+		a.flash(a.messages().CorrectOriginalEmpty())
 		return
 	}
 	machineTranslation, machineOriginal := a.correctMachineText(line.Machine)
@@ -212,7 +217,7 @@ func (a *app) SubmitEdit() {
 	}
 }
 
-// NudgeLine moves the selected line's start, or with end its end, by d, keeping it at least correctNudgeShortest long and its start in the video, and says where it is now on the picture (film.Corrector).
+// NudgeLine moves the selected line's start, or with end its end, by d, keeping it at least correctNudgeShortest long and its start in the video, and says where it is now on the picture (film.Corrector). A press that would make the line shorter than that, or one already shorter, moves it no further than it may, and never the other way.
 func (a *app) NudgeLine(end bool, d time.Duration) {
 	i := a.correctSelected()
 	if i < 0 {
@@ -223,13 +228,16 @@ func (a *app) NudgeLine(end bool, d time.Duration) {
 	c := a.correctionOf(line)
 	step := correctStep{kind: correctKindStart, line: i + 1}
 	if end {
-		at := max(line.End+d, line.Start+correctNudgeShortest)
+		at := line.End + d
+		if d < 0 {
+			at = min(max(at, line.Start+correctNudgeShortest), line.End)
+		}
 		c.EndShift += at - line.End
 		step.kind = correctKindEnd
 	} else {
-		at := min(max(line.Start+d, 0), line.End-correctNudgeShortest)
-		if at < 0 {
-			at = line.Start
+		at := max(line.Start+d, 0)
+		if d > 0 {
+			at = max(min(at, line.End-correctNudgeShortest), line.Start)
 		}
 		c.StartShift += at - line.Start
 	}
@@ -339,10 +347,10 @@ func (a *app) correctSave(edits []core.Correction, step correctStep) bool {
 // correctUndoDepth is how many changes Undo can take back.
 const correctUndoDepth = 50
 
-// correctWrite writes edits to the open film's corrections file and shows its lines with them, or says on the picture why it could not, when the file could not be read, as it would then lose what it held, or written.
+// correctWrite writes edits to the open film's corrections file and shows its lines with them, and has the library hero read its first line again (loadQuote), or says on the picture why it could not, when the file could not be read, as it would then lose what it held, or written. It writes nothing while the subtitles are being read (correctLoaded).
 func (a *app) correctWrite(edits []core.Correction) bool {
 	subs := &a.player.subs
-	if subs.path == "" || subs.key != a.openKey {
+	if !a.correctLoaded() {
 		return false
 	}
 	if subs.editsErr {
@@ -361,16 +369,24 @@ func (a *app) correctWrite(edits []core.Correction) bool {
 	subs.edits = edits
 	a.playerCorrectSubs()
 	a.loadClipFrames()
+	delete(a.lib.quotes, subs.path)
+	a.libraryHeroQuote()
 	return true
 }
 
-// correctCanUndo and correctCanRedo report whether there is a change of the open film's corrections to undo or redo. While a text field of the film page has the keyboard focus, the line's edit fields or the subtitle search, they leave Undo and Redo to it, as its typing is what the user would take back.
+// correctLoaded reports whether the open film's subtitles and its corrections are read: while they are being read again (reloadOpenSubtitles), the corrections the read brings back would put back a change written meanwhile, and whether the file can be read is not yet known.
+func (a *app) correctLoaded() bool {
+	subs := a.player.subs
+	return subs.path != "" && subs.key == a.openKey && subs.ready && subs.err == ""
+}
+
+// correctCanUndo and correctCanRedo report whether there is a change of the open film's corrections to undo or redo, once its subtitles are read (correctLoaded). While a text field of the film page has the keyboard focus, the line's edit fields or the subtitle search, they leave Undo and Redo to it, as its typing is what the user would take back.
 func (a *app) correctCanUndo() bool { return a.correctUndoable() && len(a.correct.undo) > 0 }
 
 func (a *app) correctCanRedo() bool { return a.correctUndoable() && len(a.correct.redo) > 0 }
 
 func (a *app) correctUndoable() bool {
-	return a.openKey != "" && !a.correct.editing && !a.player.film.searchFocused
+	return a.openKey != "" && a.correctLoaded() && !a.correct.editing && !a.player.film.searchFocused
 }
 
 // correctUndo takes back the last change of the open film's corrections and says which on the picture.
@@ -418,7 +434,7 @@ func (a *app) correctStepName(m locales.Messages, step correctStep) string {
 	return m.CorrectStepEdit(step.line)
 }
 
-// correctKeys are the shortcuts of correcting the open film's lines. Return selects the line playing; while one is selected, Shift+← and Shift+→ select the one before or after, Return edits it, ⌃⌥← and ⌃⌥→ move its start and with Shift its end, ⌘⌫ marks it as no speech and Escape lets go of it, for which the player's Escape, which leaves the film, waits (playerKeys). Undo and Redo take back and make again the last change, in the Edit menu with what it was, where they stand in for the system's while there is one; the fields that edit a line keep ⌘Z for their text.
+// correctKeys are the shortcuts of correcting the open film's lines. Return selects the line playing; while one is selected, Shift+← and Shift+→ select the one before or after, Return edits it, ⌃⌥← and ⌃⌥→ move its start and with Shift its end, ⌘⌫ marks it as no speech and Escape lets go of it, for which the player's Escape, which leaves the film, waits (playerKeys): these rows come after the player's, as the first row of a key names it on the cheat sheet, Settings › 快捷键 and the menu bar. Undo and Redo take back and make again the last change, in the Edit menu with what it was, where they stand in for the system's while there is one (shortcut.Role); the fields that edit a line keep ⌘Z for their text.
 func (a *app) correctKeys(cx *ns.Scope) []shortcut {
 	can := func() bool { return a.correctCanSelect() && !a.correct.editing && a.correctSelected() < 0 }
 	selecting := a.correctSelecting
@@ -435,21 +451,15 @@ func (a *app) correctKeys(cx *ns.Scope) []shortcut {
 		{Group: groupSubtitles, Label: locales.CorrectKeyDone(cx), Key: "escape", When: selecting, Run: a.EndSelection},
 		{Group: groupSubtitles, Label: locales.CorrectKeyRestore(cx), When: func() bool { return a.correctNoSpeechCount() > 0 }, Run: a.correctRestoreNoSpeech},
 	}
-	// Undo and Redo are rows only while there is a change to undo or redo, so the system's own items, which the text fields use, are the Edit menu's otherwise (menuBar).
+	// Undo and Redo are rows only while there is a change to undo or redo, so the system's own items, which the text fields use, are the Edit menu's otherwise (shortcut.Role).
 	if a.correctCanUndo() {
-		rows = append(rows, shortcut{Group: groupEdit, Label: locales.CorrectUndo(cx, a.correctStepName(a.messages(), a.correct.undo[len(a.correct.undo)-1])), Key: correctUndoKey, When: a.correctCanUndo, Run: a.correctUndo})
+		rows = append(rows, shortcut{Group: groupEdit, Label: locales.CorrectUndo(cx, a.correctStepName(a.messages(), a.correct.undo[len(a.correct.undo)-1])), Key: "mod+z", Role: nsdesktop.MenuUndo, When: a.correctCanUndo, Run: a.correctUndo})
 	}
 	if a.correctCanRedo() {
-		rows = append(rows, shortcut{Group: groupEdit, Label: locales.CorrectRedo(cx, a.correctStepName(a.messages(), a.correct.redo[len(a.correct.redo)-1])), Key: correctRedoKey, When: a.correctCanRedo, Run: a.correctRedo})
+		rows = append(rows, shortcut{Group: groupEdit, Label: locales.CorrectRedo(cx, a.correctStepName(a.messages(), a.correct.redo[len(a.correct.redo)-1])), Key: "mod+shift+z", Role: nsdesktop.MenuRedo, When: a.correctCanRedo, Run: a.correctRedo})
 	}
 	return rows
 }
-
-// The keys of Undo and Redo, which the Edit menu gives the system's own items while the open film has no change to undo or redo (menuBar).
-const (
-	correctUndoKey = "mod+z"
-	correctRedoKey = "mod+shift+z"
-)
 
 // trimLine is a line as typed, without the spaces around it, its line breaks made spaces, as a cue holds its translation on one line and its original under it.
 func trimLine(s string) string {

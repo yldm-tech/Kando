@@ -56,6 +56,9 @@ func TestEditingALineKeepsItApartFromTheSubtitles(t *testing.T) {
 		t.Fatalf("lines %q", got)
 	}
 	wantText(t, tt, msgs.CorrectSaved())
+	if q := a.lib.quotes[a.player.subs.path]; q.translation != "哈喽。" {
+		t.Fatalf("the library hero quotes %+v", q)
+	}
 	if a.correctSelected() >= 0 || !a.player.play.Playing() {
 		t.Fatal("submitting kept the line selected or the film held")
 	}
@@ -72,8 +75,8 @@ func TestEditingALineKeepsItApartFromTheSubtitles(t *testing.T) {
 	if got := correctTexts(a); got[0] != "你好。\nHello." {
 		t.Fatalf("after Undo %q", got)
 	}
-	if _, err := os.Stat(sidecar); !os.IsNotExist(err) {
-		t.Fatalf("Undo of the only correction left its file: %v", err)
+	if edits, err := media.LoadCorrections(sidecar); err != nil || len(edits) != 0 {
+		t.Fatalf("Undo of the only correction left %+v, %v", edits, err)
 	}
 	wantText(t, tt, msgs.CorrectUndone(msgs.CorrectStepEdit(1)))
 	choose(tt, a, findMenuItem(t, a.menuBar(a.cx), msgs.MenuGroupEdit(), msgs.CorrectRedo(msgs.CorrectStepEdit(1))))
@@ -193,6 +196,107 @@ func TestCorrectionsMoveWithTheFilm(t *testing.T) {
 	}
 	if !found {
 		t.Fatal("the corrections are not among the film's files")
+	}
+}
+
+// TestAShortLineMovesOnlyTheWayPressed checks that on a line already shorter than correctNudgeShortest, as whisper writes for "Yes.", the keys that would shorten it leave it as it is rather than moving its start earlier or its end later, and the keys that lengthen it still work.
+func TestAShortLineMovesOnlyTheWayPressed(t *testing.T) {
+	a, tt, updates, item := playerFilm(t, 12, nil)
+	if err := media.SaveCorrections(media.CorrectionsPath(item.SubtitlePath), []core.Correction{{Span: core.Span{Start: time.Second, End: 2500 * time.Millisecond}, EndShift: -1300 * time.Millisecond}}); err != nil {
+		t.Fatal(err)
+	}
+	playerOpenFilm(t, a, tt, updates, item)
+	playerLoadFilm(tt, a, 12*time.Second)
+	playerPlayTo(tt, a, 1100*time.Millisecond)
+	tt.Key("enter")
+	if a.correctSelected() != 0 {
+		t.Fatalf("Return selected %d", a.correctSelected())
+	}
+	tt.Key("ctrl+alt+right")
+	tt.Key("ctrl+alt+shift+left")
+	if cue := a.playerCues()[0]; cue.Start != time.Second || cue.End != 1200*time.Millisecond || len(a.correct.undo) != 0 {
+		t.Fatalf("shortening a 200ms line moved it to %v–%v, steps %d", cue.Start, cue.End, len(a.correct.undo))
+	}
+	tt.Key("ctrl+alt+left")
+	tt.Key("ctrl+alt+shift+right")
+	if cue := a.playerCues()[0]; cue.Start != 900*time.Millisecond || cue.End != 1300*time.Millisecond {
+		t.Fatalf("lengthening it moved it to %v–%v", cue.Start, cue.End)
+	}
+}
+
+// TestEscapeInTheFieldsPutsThemAway checks, with the app's own keys bound, that Escape while the fields that edit a line show puts them away and keeps the line selected, a second lets go of the line, and only a third leaves the film.
+func TestEscapeInTheFieldsPutsThemAway(t *testing.T) {
+	a, tt, _ := correctOpen(t)
+	tt.Key("enter")
+	tt.Key("enter")
+	if !tt.Exists("id:film-correct-editor") {
+		t.Fatal("Return on the selected line did not edit it")
+	}
+	tt.Key("escape")
+	if tt.Exists("id:film-correct-editor") || a.correctSelected() != 0 || a.openKey != "talk" {
+		t.Fatalf("Escape in the fields: editor %v, selected %d, open %q", tt.Exists("id:film-correct-editor"), a.correctSelected(), a.openKey)
+	}
+	tt.Key("escape")
+	if a.correctSelected() >= 0 || a.openKey != "talk" {
+		t.Fatalf("Escape on the selection: selected %d, open %q", a.correctSelected(), a.openKey)
+	}
+	tt.Key("escape")
+	if a.openKey != "" {
+		t.Fatalf("Escape with nothing selected kept %q open", a.openKey)
+	}
+}
+
+// TestAnEmptyOriginalIsNotKept checks that submitting a line with its original field empty keeps nothing and says why, as a cue holding only its translation would read back as an original.
+func TestAnEmptyOriginalIsNotKept(t *testing.T) {
+	a, tt, sidecar := correctOpen(t)
+	tt.Key("enter")
+	tt.Key("enter")
+	tt.Clear("id:film-correct-original")
+	tt.Press("id:film-correct-submit")
+	wantText(t, tt, testlocale.Messages().CorrectOriginalEmpty())
+	if !tt.Exists("id:film-correct-editor") {
+		t.Fatal("the fields went away")
+	}
+	if _, err := os.Stat(sidecar); !os.IsNotExist(err) {
+		t.Fatalf("a correction was kept: %v", err)
+	}
+	if got := correctTexts(a); got[0] != "你好。\nHello." {
+		t.Fatalf("lines %q", got)
+	}
+}
+
+// TestUndoWaitsForTheSubtitlesRead checks that while the open film's subtitles are read again, as after a job writes them, Undo neither runs nor writes the corrections file, which the read would then put back as it was before, and that it works again once they are read.
+func TestUndoWaitsForTheSubtitlesRead(t *testing.T) {
+	a, tt, updates := playerOpen(t)
+	playerPlayTo(tt, a, 1500*time.Millisecond)
+	sidecar := media.CorrectionsPath(a.player.subs.path)
+	tt.Key("enter")
+	tt.Key("ctrl+alt+left")
+	if edits, _ := media.LoadCorrections(sidecar); len(edits) != 1 {
+		t.Fatalf("corrections %+v", edits)
+	}
+	later := time.Now().Add(time.Minute)
+	if err := os.Chtimes(a.player.subs.path, later, later); err != nil {
+		t.Fatal(err)
+	}
+	apply(tt, a, a.reloadOpenSubtitles)
+	if a.player.subs.ready {
+		t.Fatal("the subtitles were read at once")
+	}
+	if a.correctCanUndo() {
+		t.Fatal("Undo is offered while the subtitles are read")
+	}
+	a.correctUndo()
+	if edits, _ := media.LoadCorrections(sidecar); len(edits) != 1 {
+		t.Fatalf("Undo wrote the corrections while the subtitles were read: %+v", edits)
+	}
+	waitUntil(t, tt, a, updates, func() bool { return a.player.subs.ready })
+	if !a.correctCanUndo() {
+		t.Fatal("Undo is not offered once the subtitles are read")
+	}
+	apply(tt, a, a.correctUndo)
+	if edits, _ := media.LoadCorrections(sidecar); len(edits) != 0 {
+		t.Fatalf("Undo left %+v", edits)
 	}
 }
 
