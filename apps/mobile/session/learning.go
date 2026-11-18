@@ -36,6 +36,8 @@ type learn struct {
 	dismissed map[string]bool
 	// settings are the paired computers' settings as each last answered them this run (computer.go).
 	settings *core.Signal[map[string]DesktopSettings]
+	// watchedKind are the paired computers that sync the time watched (sync.KindWatched), as each said at the last sync this run.
+	watchedKind map[string]bool
 	// again is set when a sync was asked for while one ran, which runs once it is done, so a change made meanwhile is not left until the next.
 	again bool
 	// waiting is how many libraries' syncs the sync running waits for (syncStudy).
@@ -54,13 +56,14 @@ const reminderID = "learn.review"
 // newLearn is the session's study, read from disk off the engine's goroutine: the time watched, and every library's learning state, which a film opened meanwhile may have read already (loadStudy).
 func newLearn(s *Session) *learn {
 	l := &learn{disk: learning.Open(s.cfg.Dir),
-		ready:     core.NewSignal(s.cx, false),
-		watched:   core.NewSignalFunc(s.cx, learning.Watched{}, nil),
-		syncing:   core.NewSignal(s.cx, false),
-		problem:   core.NewSignal(s.cx, NoProblem),
-		revoked:   core.NewSignalFunc[[]string](s.cx, nil, nil),
-		dismissed: map[string]bool{},
-		settings:  core.NewSignalFunc[map[string]DesktopSettings](s.cx, nil, nil),
+		ready:       core.NewSignal(s.cx, false),
+		watched:     core.NewSignalFunc(s.cx, learning.Watched{}, nil),
+		syncing:     core.NewSignal(s.cx, false),
+		problem:     core.NewSignal(s.cx, NoProblem),
+		revoked:     core.NewSignalFunc[[]string](s.cx, nil, nil),
+		dismissed:   map[string]bool{},
+		settings:    core.NewSignalFunc[map[string]DesktopSettings](s.cx, nil, nil),
+		watchedKind: map[string]bool{},
 	}
 	s.work.Go(func() {
 		libs, _ := s.st.Learnings()
@@ -116,21 +119,45 @@ func (s *Session) LearnItems() []learning.Item {
 // Now is the session's clock.
 func (s *Session) Now() time.Time { return s.cfg.Now() }
 
-// Watched is how long films played on the phone each day.
-func (s *Session) Watched() learning.Watched { return s.learn.watched.Get() }
-
-// Watch adds d, time a film played on the phone, to today's.
-func (s *Session) Watch(d time.Duration) {
-	if d <= 0 {
-		return
-	}
+// Watched is how long films played each day on every device: the phone's own, as it keeps it, and every other device's in the libraries the phone keeps the learning state of (learning.Watched.AddOthers), the computers' among them, so a learner's streak and minutes are theirs, not a device's. A locked library is not among them, as the computer does not list it.
+func (s *Session) Watched() learning.Watched {
 	w := maps.Clone(s.learn.watched.Get())
 	if w == nil {
 		w = learning.Watched{}
 	}
-	w.Add(s.cfg.Now(), d)
+	mine := map[string]bool{}
+	for _, d := range s.Desktops() {
+		mine[d.DeviceID] = true
+	}
+	for _, l := range s.studies.Get() {
+		w.AddOthers(l, func(device string) bool { return mine[device] })
+	}
+	return w
+}
+
+// Watch adds d, time the film under key played on the phone, to today's: the phone's own, and its time in the learning state of the film's library, which the computer takes at the next sync and adds to its stats, when the computer syncs the time watched (sync.KindWatched) and the phone keeps that library's state.
+func (s *Session) Watch(key string, d time.Duration) {
+	if d <= 0 {
+		return
+	}
+	now := s.cfg.Now()
+	w := maps.Clone(s.learn.watched.Get())
+	if w == nil {
+		w = learning.Watched{}
+	}
+	w.Add(now, d)
 	s.learn.watched.Set(w)
 	s.learnSave(func() error { return s.learn.disk.SaveWatched(w) })
+	f, ok := s.Film(key)
+	if !ok || f.LibraryID == "" || !s.learn.watchedKind[f.Desktop] {
+		return
+	}
+	desktop, ok := s.Desktop(f.Desktop)
+	l, kept := s.studies.GetUntracked()[studyKey(f.Desktop, f.LibraryID)]
+	if !ok || !kept || desktop.DeviceID == "" {
+		return
+	}
+	s.setStudy(f.Desktop, f.LibraryID, study.Change(l, learning.WatchedChange(l, desktop.DeviceID, now, d)))
 }
 
 // Goal is the daily goal in minutes of films played.
@@ -199,8 +226,8 @@ type learnResult struct {
 	state    bool
 	libs     []sync.Library
 	settings *sync.Settings
-	// targetPut is set when the phone's language was put to the computer, and readOnly when the computer takes no change of the phone's.
-	targetPut, readOnly bool
+	// targetPut is set when the phone's language was put to the computer, readOnly when the computer takes no change of the phone's, and watched when it syncs the time watched.
+	targetPut, readOnly, watched bool
 }
 
 // SyncLearning brings the learning state up to date with every paired computer that serves it, each library the computer lists synced as a film's is (syncStudy): the phone's changes put first, then the computer's asked for; and the language translated into, the phone's put to a computer that has not taken it yet, else the computer's taken. A computer out of reach is left as it was. LearnSyncing is true until every library's sync is done.
@@ -267,6 +294,7 @@ func learnAsk(ctx context.Context, c *sync.Client, desktop string, putTarget boo
 		}
 	}
 	out.state = slices.Contains(h.State, sync.KindLine) || slices.Contains(h.State, sync.KindWord)
+	out.watched = slices.Contains(h.State, sync.KindWatched) && !h.ReadOnly
 	if !out.state {
 		return out
 	}
@@ -297,6 +325,7 @@ func (s *Session) learnAsked(results []learnResult) {
 			continue
 		}
 		reached = true
+		s.learn.watchedKind[r.desktop] = r.watched
 		if r.settings != nil {
 			s.learnTakeSettings(r.desktop, *r.settings, r.targetPut)
 			s.setDesktopSettings(r.desktop, DesktopSettings{Settings: *r.settings, ReadOnly: r.readOnly})
@@ -431,6 +460,7 @@ func (s *Session) learnForget(id string) {
 	s.DismissRevoked(id)
 	delete(s.learn.dismissed, id)
 	s.forgetDesktopSettings(id)
+	delete(s.learn.watchedKind, id)
 	if p := s.prefs.Get(); slices.Contains(p.TargetPending, id) {
 		p.TargetPending = slices.DeleteFunc(slices.Clone(p.TargetPending), func(x string) bool { return x == id })
 		s.SetPrefs(p)

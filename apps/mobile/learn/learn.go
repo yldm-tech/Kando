@@ -2,6 +2,7 @@
 package learn
 
 import (
+	"strconv"
 	"time"
 
 	"kando/apps/mobile/learning"
@@ -44,7 +45,7 @@ func Page(cx *core.Scope, s *session.Session, act Actions) base.NavPage {
 			goal(cx, s),
 			core.Show{When: empty, Then: func(cx *core.Scope) core.Node { return nothingSaved(cx, s, act.Pair) },
 				Else: func(cx *core.Scope) core.Node { return review(cx, s, due.Get, act.Review) }},
-			week(cx, s),
+			week(cx, s, items.Get),
 			core.Show{When: func() bool { return !empty() }, Then: func(cx *core.Scope) core.Node { return lists(cx, items.Get, act) }},
 		}}}}
 	return look.TabRoot(cx, base.NavPage{TestID: "learn-page", Children: []core.Node{body}}, title, nil, nil)
@@ -152,8 +153,8 @@ func nothingSaved(cx *core.Scope, s *session.Session, pair func()) core.Node {
 	)
 }
 
-// week is the last seven days' minutes watched as bars, today's in the accent.
-func week(cx *core.Scope, s *session.Session) core.Node {
+// week is the last seven days on every device: the streak, the minutes watched and the words put in the vocabulary, and the minutes of each day as bars, today's in the accent.
+func week(cx *core.Scope, s *session.Session, items func() []learning.Item) core.Node {
 	colors := ui.ColorsOf(cx)
 	const height = 56
 	days := func() [7]time.Duration { return s.Watched().Week(s.Now()) }
@@ -187,10 +188,31 @@ func week(cx *core.Scope, s *session.Session) core.Node {
 			core.Text{ContentFunc: func() string { return dayName(cx, learning.WeekDays(s.Now())[i]) }, MaxLines: 1, Style: look.Caption, StyleFunc: ui.Colored(colors.Muted)},
 		}})
 	}
+	newWords := func() int {
+		since := learning.WeekDays(s.Now())[0].Add(-12 * time.Hour)
+		n := 0
+		for _, it := range items() {
+			if it.Kind == learning.Word && !it.SavedAt.Before(since) {
+				n++
+			}
+		}
+		return n
+	}
+	kpi := func(id string, value, label func() string) core.Node {
+		return core.View{TestID: id, Style: core.Style{FlexGrow: 1, FlexBasis: core.Pt(0), Gap: 2}, Children: []core.Node{
+			ui.Tabular(core.Text{ContentFunc: value, MaxLines: 1, Style: look.Heading, StyleFunc: ui.Colored(colors.Text)}),
+			core.Text{ContentFunc: label, MaxLines: 1, Style: look.Caption, StyleFunc: ui.Colored(colors.Muted)},
+		}}
+	}
 	return card(cx, "learn-week", 12,
 		core.View{Style: core.Style{Direction: core.Row, AlignItems: core.AlignCenter, JustifyContent: core.JustifySpaceBetween}, Children: []core.Node{
 			core.Text{ContentFunc: func() string { return locales.LearnWeek(cx) }, Role: core.RoleHeader, Style: look.Title, StyleFunc: ui.Colored(colors.Text)},
-			ui.Tabular(core.Text{TestID: "learn-week-total", ContentFunc: func() string { return locales.LearnMinutes(cx, total()) }, Style: look.Subhead, StyleFunc: ui.Colored(colors.Muted)}),
+			core.Text{ContentFunc: func() string { return locales.LearnWeekAll(cx) }, Style: look.Caption, StyleFunc: ui.Colored(colors.Muted)},
+		}},
+		core.View{Style: core.Style{Direction: core.Row, Gap: 8}, Children: []core.Node{
+			kpi("learn-week-streak", func() string { return locales.LearnDays(cx, s.Watched().Streak(s.Now())) }, func() string { return locales.LearnStreakLabel(cx) }),
+			kpi("learn-week-total", func() string { return locales.LearnMinutes(cx, total()) }, func() string { return locales.LearnStudyTime(cx) }),
+			kpi("learn-week-words", func() string { return strconv.Itoa(newWords()) }, func() string { return locales.LearnNewWords(cx) }),
 		}},
 		core.View{Role: core.RoleImage, LabelFunc: func() string { return locales.LearnWeekBars(cx, total()) }, Style: core.Style{Direction: core.Row, Gap: 4}, Children: bars},
 	)

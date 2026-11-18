@@ -354,6 +354,11 @@ filmsUnpairedBody:
 filmsUnpairedTitle:
   message: "Not connected to a computer yet"
   description: "Title of the Library's card while no computer is paired."
+learnDays:
+  message: "{count, plural, one {# day} other {# days}}"
+  description: "Learn's week: the streak, in days."
+  placeholders:
+    count: { type: "int", example: 5 }
 learnDueIn:
   message: "{count, plural, one {Due in # day} other {Due in # days}}"
   description: "Under a word or a line: when it is next due for review."
@@ -682,6 +687,9 @@ learnMinutes:
 learnMon:
   message: "M"
   description: "Short name of Monday under its bar in the week's chart."
+learnNewWords:
+  message: "New Words"
+  description: "Learn's week: label under how many words were put in the vocabulary in the last seven days."
 learnNoComputer:
   message: "Connect a computer to study the words and lines you save while you watch there."
   description: "Learn while no computer is paired."
@@ -738,6 +746,12 @@ learnStreak:
   description: "Beside today's minutes: how many days in a row films played."
   placeholders:
     count: { type: "int", example: "5" }
+learnStreakLabel:
+  message: "Streak"
+  description: "Learn's week: label under the streak."
+learnStudyTime:
+  message: "Study Time"
+  description: "Learn's week: label under the minutes watched in the last seven days."
 learnSun:
   message: "S"
   description: "Short name of Sunday under its bar in the week's chart."
@@ -761,7 +775,10 @@ learnWed:
   description: "Short name of Wednesday under its bar in the week's chart."
 learnWeek:
   message: "This Week"
-  description: "Heading of the chart of the last seven days' minutes."
+  description: "Heading of the card of the last seven days on every device: the streak, the minutes and the new words, and the chart of each day's minutes."
+learnWeekAll:
+  message: "All Devices"
+  description: "Beside This Week on Learn: the week's figures add up every device's."
 learnWeekBars:
   message: "{count} minutes of films in the last 7 days"
   description: "Spoken name of the week's chart."

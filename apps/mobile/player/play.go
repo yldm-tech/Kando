@@ -294,7 +294,7 @@ func (p *play) ended() {
 func (p *play) save() {
 	p.saved = p.at.GetUntracked()
 	p.s.SavePosition(p.key, p.saved)
-	p.s.Watch(p.watched)
+	p.s.Watch(p.key, p.watched)
 	p.watched = 0
 }
 

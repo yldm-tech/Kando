@@ -485,6 +485,7 @@ var Parameters = map[string][]string{
 	"FilmsLibraryOn":         {"library", "computer"},
 	"FilmsNoResults":         {"query"},
 	"FilmsOptions":           {"title"},
+	"LearnDays":              {"count"},
 	"LearnDueIn":             {"count"},
 	"FilmsUsed":              {"size"},
 	"FilmsWatchedTo":         {"time_"},
@@ -581,6 +582,7 @@ type Translation struct {
 	FilmsLibraryOn         func(library string, computer string) string
 	FilmsNoResults         func(query string) string
 	FilmsOptions           func(title string) string
+	LearnDays              func(count int) string
 	LearnDueIn             func(count int) string
 	FilmsUsed              func(size string) string
 	FilmsWatchedTo         func(time_ string) string
@@ -785,6 +787,7 @@ const (
 	textLearnGoalMet
 	textLearnMastered
 	textLearnMon
+	textLearnNewWords
 	textLearnNoComputer
 	textLearnOffline
 	textLearnReminderTitle
@@ -797,6 +800,8 @@ const (
 	textLearnReviewStart
 	textLearnSat
 	textLearnSavedLines
+	textLearnStreakLabel
+	textLearnStudyTime
 	textLearnSun
 	textLearnThu
 	textLearnTitle
@@ -805,6 +810,7 @@ const (
 	textLearnVocabulary
 	textLearnWed
 	textLearnWeek
+	textLearnWeekAll
 	textLinesEmpty
 	textLinesRemoveMessage
 	textLinesRemoveTitle
@@ -1088,6 +1094,7 @@ var keyOfText = [numTexts]string{
 	"learnGoalMet",
 	"learnMastered",
 	"learnMon",
+	"learnNewWords",
 	"learnNoComputer",
 	"learnOffline",
 	"learnReminderTitle",
@@ -1100,6 +1107,8 @@ var keyOfText = [numTexts]string{
 	"learnReviewStart",
 	"learnSat",
 	"learnSavedLines",
+	"learnStreakLabel",
+	"learnStudyTime",
 	"learnSun",
 	"learnThu",
 	"learnTitle",
@@ -1108,6 +1117,7 @@ var keyOfText = [numTexts]string{
 	"learnVocabulary",
 	"learnWed",
 	"learnWeek",
+	"learnWeekAll",
 	"linesEmpty",
 	"linesRemoveMessage",
 	"linesRemoveTitle",
@@ -1389,6 +1399,7 @@ var textsEn = i18n.NewTexts(""+
 	"Today's goal is done"+
 	"Mastered"+
 	"M"+
+	"New Words"+
 	"Connect a computer to study the words and lines you save while you watch there."+
 	"Can't reach your computer. Showing what this device kept; your reviews are sent later."+
 	"Time to review"+
@@ -1401,6 +1412,8 @@ var textsEn = i18n.NewTexts(""+
 	"Start Review"+
 	"S"+
 	"Saved Lines"+
+	"Streak"+
+	"Study Time"+
 	"S"+
 	"T"+
 	"Learn"+
@@ -1409,6 +1422,7 @@ var textsEn = i18n.NewTexts(""+
 	"Vocabulary"+
 	"W"+
 	"This Week"+
+	"All Devices"+
 	"Lines you save while you watch show here"+
 	"It leaves your saved lines on every device."+
 	"Remove this line?"+
@@ -1687,6 +1701,7 @@ var textsEn = i18n.NewTexts(""+
 		20,
 		8,
 		1,
+		9,
 		79,
 		86,
 		14,
@@ -1699,6 +1714,8 @@ var textsEn = i18n.NewTexts(""+
 		12,
 		1,
 		11,
+		6,
+		10,
 		1,
 		1,
 		5,
@@ -1707,6 +1724,7 @@ var textsEn = i18n.NewTexts(""+
 		10,
 		1,
 		9,
+		11,
 		40,
 		43,
 		17,
@@ -1988,6 +2006,7 @@ var textsJa = i18n.NewTexts(""+
 	"今日の目標を達成しました"+
 	"習得済み"+
 	"月"+
+	"新しい単語"+
 	"コンピュータに接続すると、そこで視聴中に保存した単語や文をここで復習できます。"+
 	"コンピュータに接続できません。この端末に保存した内容を表示しています。復習の記録は後で送信します。"+
 	"復習の時間です"+
@@ -2000,6 +2019,8 @@ var textsJa = i18n.NewTexts(""+
 	"復習を始める"+
 	"土"+
 	"保存した文"+
+	"連続日数"+
+	"学習時間"+
 	"日"+
 	"木"+
 	"学習"+
@@ -2008,6 +2029,7 @@ var textsJa = i18n.NewTexts(""+
 	"単語帳"+
 	"水"+
 	"今週"+
+	"すべての端末"+
 	"視聴中に保存した文がここに表示されます"+
 	"すべての端末の保存した文から削除されます。"+
 	"この文を削除しますか？"+
@@ -2286,6 +2308,7 @@ var textsJa = i18n.NewTexts(""+
 		36,
 		12,
 		3,
+		15,
 		117,
 		147,
 		21,
@@ -2298,6 +2321,8 @@ var textsJa = i18n.NewTexts(""+
 		18,
 		3,
 		15,
+		12,
+		12,
 		3,
 		3,
 		6,
@@ -2306,6 +2331,7 @@ var textsJa = i18n.NewTexts(""+
 		9,
 		3,
 		6,
+		18,
 		57,
 		63,
 		33,
@@ -2587,6 +2613,7 @@ var textsKo = i18n.NewTexts(""+
 	"오늘 목표를 달성했어요"+
 	"익힘"+
 	"월"+
+	"새 단어"+
 	"컴퓨터를 연결하면 그곳에서 보면서 저장한 단어와 문장을 여기서 복습할 수 있어요."+
 	"컴퓨터에 연결할 수 없어 이 기기에 저장된 내용을 보여 줍니다. 복습 기록은 나중에 보냅니다."+
 	"복습할 시간이에요"+
@@ -2599,6 +2626,8 @@ var textsKo = i18n.NewTexts(""+
 	"복습 시작"+
 	"토"+
 	"저장한 문장"+
+	"연속 학습"+
+	"학습 시간"+
 	"일"+
 	"목"+
 	"학습"+
@@ -2607,6 +2636,7 @@ var textsKo = i18n.NewTexts(""+
 	"단어장"+
 	"수"+
 	"이번 주"+
+	"모든 기기"+
 	"보면서 저장한 문장이 여기에 표시돼요"+
 	"모든 기기의 저장한 문장에서 삭제됩니다."+
 	"이 문장을 삭제할까요?"+
@@ -2885,6 +2915,7 @@ var textsKo = i18n.NewTexts(""+
 		32,
 		6,
 		3,
+		10,
 		113,
 		126,
 		25,
@@ -2897,6 +2928,8 @@ var textsKo = i18n.NewTexts(""+
 		13,
 		3,
 		16,
+		13,
+		13,
 		3,
 		3,
 		6,
@@ -2905,6 +2938,7 @@ var textsKo = i18n.NewTexts(""+
 		9,
 		3,
 		10,
+		13,
 		52,
 		56,
 		30,
@@ -3186,6 +3220,7 @@ var textsZhHans = i18n.NewTexts(""+
 	"今天的目标完成了"+
 	"已掌握"+
 	"一"+
+	"新词"+
 	"连上电脑后，在电脑上看片时收藏的生词和句子就能在这里复习。"+
 	"连不上电脑，显示的是这台设备存下的内容；复习记录稍后再同步。"+
 	"该复习了"+
@@ -3198,6 +3233,8 @@ var textsZhHans = i18n.NewTexts(""+
 	"开始复习"+
 	"六"+
 	"收藏的句子"+
+	"连续学习"+
+	"学习时长"+
 	"日"+
 	"四"+
 	"学习"+
@@ -3206,6 +3243,7 @@ var textsZhHans = i18n.NewTexts(""+
 	"生词本"+
 	"三"+
 	"本周"+
+	"所有设备"+
 	"看片时收藏的句子会出现在这里"+
 	"它会从所有设备的收藏里移除。"+
 	"移除这句？"+
@@ -3484,6 +3522,7 @@ var textsZhHans = i18n.NewTexts(""+
 		24,
 		9,
 		3,
+		6,
 		87,
 		90,
 		12,
@@ -3496,6 +3535,8 @@ var textsZhHans = i18n.NewTexts(""+
 		12,
 		3,
 		15,
+		12,
+		12,
 		3,
 		3,
 		6,
@@ -3504,6 +3545,7 @@ var textsZhHans = i18n.NewTexts(""+
 		9,
 		3,
 		6,
+		12,
 		42,
 		42,
 		15,
@@ -3785,6 +3827,7 @@ var textsZhHant = i18n.NewTexts(""+
 	"今天的目標完成了"+
 	"已掌握"+
 	"一"+
+	"新詞"+
 	"連上電腦後，在電腦上看片時收藏的生詞和句子就能在這裡複習。"+
 	"連不上電腦，顯示的是這台裝置存下的內容；複習紀錄稍後再同步。"+
 	"該複習了"+
@@ -3797,6 +3840,8 @@ var textsZhHant = i18n.NewTexts(""+
 	"開始複習"+
 	"六"+
 	"收藏的句子"+
+	"連續學習"+
+	"學習時長"+
 	"日"+
 	"四"+
 	"學習"+
@@ -3805,6 +3850,7 @@ var textsZhHant = i18n.NewTexts(""+
 	"生詞本"+
 	"三"+
 	"本週"+
+	"所有裝置"+
 	"看片時收藏的句子會出現在這裡"+
 	"它會從所有裝置的收藏裡移除。"+
 	"移除這句？"+
@@ -4083,6 +4129,7 @@ var textsZhHant = i18n.NewTexts(""+
 		24,
 		9,
 		3,
+		6,
 		87,
 		90,
 		12,
@@ -4095,6 +4142,8 @@ var textsZhHant = i18n.NewTexts(""+
 		12,
 		3,
 		15,
+		12,
+		12,
 		3,
 		3,
 		6,
@@ -4103,6 +4152,7 @@ var textsZhHant = i18n.NewTexts(""+
 		9,
 		3,
 		6,
+		12,
 		42,
 		42,
 		15,
@@ -4379,6 +4429,9 @@ func Supply(lang string, t Translation) {
 	}
 	if t.FilmsOptions != nil {
 		s.FilmsOptions = t.FilmsOptions
+	}
+	if t.LearnDays != nil {
+		s.LearnDays = t.LearnDays
 	}
 	if t.LearnDueIn != nil {
 		s.LearnDueIn = t.LearnDueIn
@@ -6083,6 +6136,45 @@ func FilmsUnpairedTitle(cx *core.Scope) string { return For(cx).FilmsUnpairedTit
 // FilmsUnpairedTitle is the package's FilmsUnpairedTitle in the language of msgs.
 func (msgs Messages) FilmsUnpairedTitle() string { return msgs.text(textFilmsUnpairedTitle) }
 
+// LearnDays says "{count, plural, one {# day} other {# days}}"
+// in the language the app shows under cx.
+//
+// Learn's week: the streak, in days.
+func LearnDays(cx *core.Scope, count int) string { return For(cx).LearnDays(count) }
+
+// LearnDays is the package's LearnDays in the language of msgs.
+func (msgs Messages) LearnDays(count int) string {
+	if i18n.IsPseudo(msgs.lang) {
+		return i18n.Pseudo(msgs.lang, Messages{lang: Source, mark: true}.LearnDays(count))
+	}
+	for lang := msgs.lang; ; lang = i18n.Parent(lang) {
+		if f := supplied[lang].LearnDays; f != nil {
+			return f(count)
+		}
+		switch lang {
+		case "", "en":
+			var b strings.Builder
+			switch i18n.Cardinal("en", float64(count)) {
+			case i18n.One:
+				b.WriteString(msgs.arg(i18n.FormatNumber("en", float64(count))))
+				b.WriteString(" day")
+			default:
+				b.WriteString(msgs.arg(i18n.FormatNumber("en", float64(count))))
+				b.WriteString(" days")
+			}
+			return b.String()
+		case "ja":
+			return i18n.FormatNumber("ja", float64(count)) + " 日"
+		case "ko":
+			return i18n.FormatNumber("ko", float64(count)) + "일"
+		case "zh-Hans":
+			return i18n.FormatNumber("zh-Hans", float64(count)) + " 天"
+		case "zh-Hant":
+			return i18n.FormatNumber("zh-Hant", float64(count)) + " 天"
+		}
+	}
+}
+
 // LearnDueIn says "{count, plural, one {Due in # day} other {Due in # days}}"
 // in the language the app shows under cx.
 //
@@ -7571,6 +7663,15 @@ func LearnMon(cx *core.Scope) string { return For(cx).LearnMon() }
 // LearnMon is the package's LearnMon in the language of msgs.
 func (msgs Messages) LearnMon() string { return msgs.text(textLearnMon) }
 
+// LearnNewWords says "New Words"
+// in the language the app shows under cx.
+//
+// Learn's week: label under how many words were put in the vocabulary in the last seven days.
+func LearnNewWords(cx *core.Scope) string { return For(cx).LearnNewWords() }
+
+// LearnNewWords is the package's LearnNewWords in the language of msgs.
+func (msgs Messages) LearnNewWords() string { return msgs.text(textLearnNewWords) }
+
 // LearnNoComputer says "Connect a computer to study the words and lines you save while you watch there."
 // in the language the app shows under cx.
 //
@@ -7835,6 +7936,24 @@ func (msgs Messages) LearnStreak(count int) string {
 	}
 }
 
+// LearnStreakLabel says "Streak"
+// in the language the app shows under cx.
+//
+// Learn's week: label under the streak.
+func LearnStreakLabel(cx *core.Scope) string { return For(cx).LearnStreakLabel() }
+
+// LearnStreakLabel is the package's LearnStreakLabel in the language of msgs.
+func (msgs Messages) LearnStreakLabel() string { return msgs.text(textLearnStreakLabel) }
+
+// LearnStudyTime says "Study Time"
+// in the language the app shows under cx.
+//
+// Learn's week: label under the minutes watched in the last seven days.
+func LearnStudyTime(cx *core.Scope) string { return For(cx).LearnStudyTime() }
+
+// LearnStudyTime is the package's LearnStudyTime in the language of msgs.
+func (msgs Messages) LearnStudyTime() string { return msgs.text(textLearnStudyTime) }
+
 // LearnSun says "S"
 // in the language the app shows under cx.
 //
@@ -7901,11 +8020,20 @@ func (msgs Messages) LearnWed() string { return msgs.text(textLearnWed) }
 // LearnWeek says "This Week"
 // in the language the app shows under cx.
 //
-// Heading of the chart of the last seven days' minutes.
+// Heading of the card of the last seven days on every device: the streak, the minutes and the new words, and the chart of each day's minutes.
 func LearnWeek(cx *core.Scope) string { return For(cx).LearnWeek() }
 
 // LearnWeek is the package's LearnWeek in the language of msgs.
 func (msgs Messages) LearnWeek() string { return msgs.text(textLearnWeek) }
+
+// LearnWeekAll says "All Devices"
+// in the language the app shows under cx.
+//
+// Beside This Week on Learn: the week's figures add up every device's.
+func LearnWeekAll(cx *core.Scope) string { return For(cx).LearnWeekAll() }
+
+// LearnWeekAll is the package's LearnWeekAll in the language of msgs.
+func (msgs Messages) LearnWeekAll() string { return msgs.text(textLearnWeekAll) }
 
 // LearnWeekBars says "{count} minutes of films in the last 7 days"
 // in the language the app shows under cx.

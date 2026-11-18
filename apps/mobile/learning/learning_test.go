@@ -2,6 +2,7 @@ package learning
 
 import (
 	"encoding/csv"
+	"encoding/json"
 	"os"
 	"path/filepath"
 	"slices"
@@ -254,5 +255,25 @@ func TestClipOf(t *testing.T) {
 	}
 	if _, ok := ClipOf(line, "", 0, cues); ok {
 		t.Error("a line with no video has a clip")
+	}
+}
+
+// The time watched of a library's other devices adds to the phone's own, the phone's own records there left out; the phone's change adds to what the library has of its day.
+func TestWatchedAddsTheOtherDevices(t *testing.T) {
+	day := study.Day(t0)
+	rec := func(device string, ms int) sync.Record {
+		return sync.Record{Kind: sync.KindWatched, ID: sync.WatchedID(device, day), Fields: map[string]sync.Field{sync.FieldWatchedMS: field(ms, t0, device)}}
+	}
+	l := phonestudy.Library{Records: []sync.Record{rec("mac", 600_000), rec("phone", 120_000), rec("pad", 60_000)}}
+	w := Watched{}
+	w.Add(t0, 3*time.Minute)
+	w.AddOthers(l, func(device string) bool { return device == "phone" })
+	if got := w.Day(t0); got != 14*time.Minute {
+		t.Errorf("the day's time is %v, want the phone's 3 minutes with the mac's 10 and the pad's 1", got)
+	}
+	change := WatchedChange(l, "phone", t0, 30*time.Second)
+	var ms float64
+	if err := json.Unmarshal(change.Fields[sync.FieldWatchedMS].Value, &ms); err != nil || ms != 150_000 || change.ID != sync.WatchedID("phone", day) || change.Fields[sync.FieldWatchedMS].Device != "phone" {
+		t.Errorf("the change %+v reads %v, %v", change, ms, err)
 	}
 }

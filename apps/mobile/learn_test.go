@@ -566,3 +566,49 @@ func TestDictationShowsACardForAFilmNotOnThePhone(t *testing.T) {
 		t.Fatalf("a line not on the phone shows %q", p.texts("id:review-page"))
 	}
 }
+
+// Learn's minutes and streak are the learner's on every device: the computer's time watched of its libraries adds to the phone's, and the phone's own time in a film goes to the film's library on the computer at the next sync.
+func TestTheTimeWatchedIsEveryDevices(t *testing.T) {
+	d := studyDesktop(t)
+	day := study.Day(now())
+	d.SetState("lib", now().Add(-time.Hour), sync.Record{Kind: sync.KindWatched, ID: sync.WatchedID("studio-device", day), Fields: map[string]sync.Field{
+		sync.FieldWatchedMS: {Value: sync.Value(10 * 60_000), Stamp: sync.Stamp{At: now().Add(-time.Hour), Device: "studio-device"}}}})
+	dir, f := keptFrom(t, d)
+	p := startPhone(t, dir, pairedWith(t, d, dir))
+	p.waitLearned(f.Desktop)
+	p.openTab(learnTab, msgs.LearnTitle())
+	p.app.WaitUntil(wait, func() bool { return p.texts("id:learn-goal-minutes") == msgs.LearnMinutes(10) })
+	if got, want := p.texts("id:learn-week-total"), msgs.LearnMinutes(10)+"\n"+msgs.LearnStudyTime(); got != want {
+		t.Errorf("the week's study time says %q, want %q", got, want)
+	}
+	if got, want := p.texts("id:learn-week-words"), "2\n"+msgs.LearnNewWords(); got != want {
+		t.Errorf("the week's new words say %q, want %q", got, want)
+	}
+
+	p.openTab(filmsTab, msgs.FilmsTitle())
+	p.app.WaitFor(talkRow(f.Desktop), wait)
+	p.app.Press(talkRow(f.Desktop))
+	p.app.WaitFor("id:film-play", wait)
+	p.app.Press("id:film-play")
+	p.app.WaitFor("id:player-video", wait)
+	p.app.Play("id:player-video", core.VideoInfo{Duration: 10 * time.Second, Size: core.Size{Width: 1920, Height: 1080}})
+	for at := 500 * time.Millisecond; at <= 6*time.Second; at += 500 * time.Millisecond {
+		p.at(at)
+	}
+	p.app.Back()
+	p.app.WaitForGone("id:player-video", wait)
+	p.openTab(learnTab, msgs.LearnTitle())
+	p.app.PullToRefresh("id:learn-scroll")
+	desktops, err := store.Open(dir).Desktops()
+	if err != nil || len(desktops) != 1 {
+		t.Fatalf("desktops %+v, %v", desktops, err)
+	}
+	p.app.WaitUntil(wait, func() bool {
+		r, ok := d.State("lib", sync.KindWatched, sync.WatchedID(desktops[0].DeviceID, day))
+		if !ok {
+			return false
+		}
+		var ms float64
+		return json.Unmarshal(r.Fields[sync.FieldWatchedMS].Value, &ms) == nil && ms >= 5000
+	})
+}
