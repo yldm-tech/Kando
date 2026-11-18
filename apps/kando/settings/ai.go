@@ -94,7 +94,7 @@ func aiService(cx *core.Scope, a App) core.Node {
 		test,
 	)
 	card.Style.Margin = core.Edges{Top: 6}
-	return form.Page(card, form.Note(aiNote(cx, a), 0))
+	return form.Page(card, form.Note(aiNote(cx, a), 0), requests(cx, a))
 }
 
 // aiNote is the footnote under the card: what the service is for one on this computer, where the key comes from otherwise, and for a custom endpoint which ones work.

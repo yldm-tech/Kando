@@ -120,6 +120,12 @@ type App interface {
 	Enqueue(sources ...string) error
 	// Cancel stops job id if it is waiting or running. Its card stays, marked 已取消. Enqueue, Cancel and RunningJob are the contract of the job queue; queue.go in the main package says how much of it runs today. Job control is per job: a page cancels the job it shows, never "whatever runs".
 	Cancel(id string)
+	// ContinueHere lets a waiting job a paired phone paused (Film.PausedBy) wait for its turn again, as 在这台电脑上继续 on its card does.
+	ContinueHere(id string)
+	// Handoff is where a paired phone last left a film of the open library, offered to continue from here; CloseHandoff closes the offer until a phone leaves a film again. LeftOn is the paired phone that last left the video at path where it resumes, "" when it was this computer.
+	Handoff() Handoff
+	CloseHandoff()
+	LeftOn(path string) string
 	// RunningJob is the ID of the job being processed now, or "" when none is. A job waiting in the queue is not running; its Film.Stage is core.StageQueued.
 	RunningJob() string
 	// QueueFilms is the films of 处理中 in the shelf's order, newest first (Queue): the open library's that are waiting, running, failed or were cancelled, and those the queue runs or will run for another library, with Film.Library naming it.
@@ -210,15 +216,18 @@ func (v View) Render(cx *core.Scope) core.Node {
 		}
 		return newShelfModel(a, source(), i18n.Language(cx))
 	}), shelfModel.equal).Get
+	// viewport is the size of the page's scroll view, which decides whether the hero has room to be whole (heroFits).
+	viewport := core.NewSignal(cx, core.Size{})
 	// The page is one scroll view from the content column's top, as the prototype's is: the top bar lies over it, and what is under the bar scrolls beneath it and fades into it. The list scrolls itself instead, as Finder's does, its heading staying put, so while it shows the page is a column that gives the list the height left under what is above it.
 	scrolled := func(*core.Scope) core.Node {
-		return core.Scroll{Style: core.Style{FlexGrow: 1, MinHeight: core.Pt(0)}, Children: []core.Node{
+		return core.Scroll{Style: core.Style{FlexGrow: 1, MinHeight: core.Pt(0)}, OnLayout: func(b core.Bounds) { viewport.Set(b.Size) }, Children: []core.Node{
 			core.View{Style: core.Style{Width: core.Pct(100), Padding: core.Edges{Top: contentTop, Right: PagePadX, Bottom: pagePadBottom, Left: PagePadX}}, Children: []core.Node{
 				notice{a},
+				handoffBar{a},
 				core.Show{
 					When: live.Func(a, func() bool { return a.LibraryDir() == "" }),
 					Then: func(*core.Scope) core.Node { return noLibrary{a} },
-					Else: func(*core.Scope) core.Node { return shelf{a: a, source: source, model: model} },
+					Else: func(*core.Scope) core.Node { return shelf{a: a, source: source, model: model, viewport: viewport.Get} },
 				},
 			}},
 		}}
@@ -325,17 +334,34 @@ type shelf struct {
 	a      App
 	source func() string
 	model  func() shelfModel
+	// viewport is the size of the page's scroll view, zero until it is laid out.
+	viewport func() core.Size
 }
 
 // Render implements core.Node.
 func (s shelf) Render(cx *core.Scope) core.Node {
 	a, model := s.a, s.model
+	// Where the hero starts, how high 处理中 is with its margin, and where the posters start in the grid and how wide it is: what heroFits weighs against the page's height.
+	heroTop := core.NewSignal(cx, core.Points(0))
+	queueHeight := core.NewSignal(cx, core.Points(0))
+	cards := core.NewSignal(cx, core.Bounds{})
+	compact := func() bool {
+		page, grid := s.viewport(), cards.Get()
+		// Until the page and the grid are laid out, the hero steps down while 处理中 has cards, as a laptop's window needs.
+		if page.Height <= 0 || grid.Size.Width <= 0 {
+			return len(model().queue) > 0
+		}
+		return !heroFits(page.Height, max(heroTop.Get(), contentTop), queueHeight.Get(), grid)
+	}
 	return core.Group{
 		core.Show{When: func() bool { return model().heroShown }, Then: func(*core.Scope) core.Node {
-			return hero{a: a, item: func() Film { return model().hero }, compact: func() bool { return len(model().queue) > 0 }}
+			return hero{a: a, item: func() Film { return model().hero }, compact: compact, placed: func(b core.Bounds) { heroTop.Set(b.Origin.Y) }}
 		}},
-		core.Show{When: func() bool { return len(model().queue) > 0 }, Then: func(*core.Scope) core.Node {
-			return queueSection{a: a, source: s.source, queue: func() []Film { return model().queue }}
+		// 处理中 is measured with its top margin, and is nothing high while it is empty.
+		core.View{OnLayout: func(b core.Bounds) { queueHeight.Set(b.Size.Height) }, Children: []core.Node{
+			core.Show{When: func() bool { return len(model().queue) > 0 }, Then: func(*core.Scope) core.Node {
+				return queueSection{a: a, source: s.source, queue: func() []Film { return model().queue }}
+			}},
 		}},
 		core.Show{When: func() bool { return model().empty }, Then: func(*core.Scope) core.Node { return emptyLibrary{a} }},
 		core.Show{When: func() bool { return model().emptySource }, Then: func(*core.Scope) core.Node { return emptySource{} }},
@@ -346,7 +372,7 @@ func (s shelf) Render(cx *core.Scope) core.Node {
 			return emptyWatch{a: a, state: func() string { return model().emptyWatch }}
 		}},
 		core.Show{When: func() bool { return len(model().done) > 0 }, Then: func(*core.Scope) core.Node {
-			return grid{a: a, done: func() []Film { return model().done }}
+			return grid{a: a, done: func() []Film { return model().done }, placed: cards.Set}
 		}},
 		core.Show{When: func() bool { return model().noMatch != "" }, Then: func(*core.Scope) core.Node {
 			return noMatch{a: a, query: func() string { return model().noMatch }}
@@ -367,6 +393,7 @@ func (l listPage) Render(cx *core.Scope) core.Node {
 	above := core.Scroll{Style: core.Style{FlexShrink: 1, MinHeight: core.Pt(0), MaxHeight: core.Pct(50)}, Children: []core.Node{
 		core.View{Style: core.Style{Width: core.Pct(100)}, Children: []core.Node{
 			notice{a},
+			handoffBar{a},
 			core.Show{When: func() bool { return len(model().queue) > 0 }, Then: func(*core.Scope) core.Node {
 				return queueSection{a: a, source: l.source, queue: func() []Film { return model().queue }}
 			}},
@@ -390,4 +417,12 @@ func selectionKeys(cx *core.Scope, a App, done func() []Film) core.Node {
 		cx.OnKeyWith("escape", core.KeyOptions{When: core.KeyNotEditing}, live.Do(a, func() { a.Selection().Clear() }))
 		return core.Group{}
 	}}
+}
+
+// heroFits reports whether the whole hero (heroHeight), top down the content column, leaves room in a page height high for 处理中 under it, queue high with its margin, and the first row of posters under that, whose pictures are as high as the grid's columns make them: cards is the posters' frame in the grid, below its heading, and as wide as the grid.
+func heroFits(height, top, queue core.Points, cards core.Bounds) bool {
+	width := cards.Size.Width
+	columns := columnsIn(width, CardMinWidth, CardGapX)
+	column := (width - CardGapX*core.Points(columns-1)) / core.Points(columns)
+	return top+heroHeight+queue+gridTop+cards.Origin.Y+column*9/16 <= height
 }

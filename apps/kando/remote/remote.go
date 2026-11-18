@@ -42,6 +42,12 @@ const (
 	MethodMove = "films.move"
 	// MethodSites takes SitesParams and answers []Site, the websites Kando downloads from that the query finds.
 	MethodSites = "sites.search"
+	// MethodSubscriptions takes no params and answers []Subscription, the open library's subscriptions in the order the window's sidebar lists them.
+	MethodSubscriptions = "subscriptions.list"
+	// MethodSubscribe takes SubscribeParams, a channel, an uploader's space, a collection or a playlist link, subscribes the open library to it as the window's 添加订阅 does, the videos the list holds now counting as seen so only those that come after are new, and answers Subscribed. A link the open library follows already answers that subscription, as it is. It may take minutes, as yt-dlp reads the list (ListTimeout).
+	MethodSubscribe = "subscriptions.add"
+	// MethodSubscriptionCheck takes IDParams, a Subscription's ID, lists its videos now as the window's 立即检查 does, and answers SubscriptionChecked: the new ones that fit its rules are queued, at most the subscribe package's AddPerCheck of them for one that adds by itself, or wait for the user, as its rules say. A paused subscription, or one kept after its site deleted the list, is refused. It may take minutes, as yt-dlp reads the list (ListTimeout).
+	MethodSubscriptionCheck = "subscriptions.check"
 	// MethodShow takes ShowParams, a Film's ID or "" for the library and where to play the film from, brings the window to the front showing it, and answers ShowResult, what it shows. IDParams are ShowParams without a time.
 	MethodShow = "app.show"
 	// MethodBrowserState takes BrowserStateParams and answers BrowserState: what the open library has of the videos a page of the browser extension shows, and the words of its buttons, as the built-in browser's pages ask for them.
@@ -211,6 +217,57 @@ type ListVideo struct {
 type SitesParams struct {
 	Query string `json:"query"`
 	Limit int    `json:"limit,omitempty"`
+}
+
+// SubscribeParams is the link MethodSubscribe subscribes to.
+type SubscribeParams struct {
+	Source string `json:"source"`
+}
+
+// Subscription is a subscription of the open library to a channel, an uploader's space, a collection or a playlist, as the window's sidebar lists it and its page shows it.
+type Subscription struct {
+	// ID names it in MethodSubscriptionCheck.
+	ID string `json:"id"`
+	// Name is what the window calls it, Source the link it follows, and Kind what that is: "channel", "space" (a bilibili uploader's), "collection" (a bilibili one) or "playlist". Platform is the site, as "youtube" or "bilibili".
+	Name     string `json:"name"`
+	Source   string `json:"source"`
+	Kind     string `json:"kind"`
+	Platform string `json:"platform,omitempty"`
+	// Mode is what a check does with the new videos that fit its rules: "auto" queues them, at most AddPerCheck a check, the others waiting as "ask" has them all wait for the user in the window. Filter is which new videos fit: "all", "long" (5 minutes or longer) or "keywords" (titles holding one of Keywords). Cadence is how often the app checks it while it runs: "open" each time it opens, "hourly" or "daily". Series makes the films it adds a series, which share a glossary.
+	Mode     string `json:"mode"`
+	Filter   string `json:"filter"`
+	Keywords string `json:"keywords,omitempty"`
+	Cadence  string `json:"cadence"`
+	Series   bool   `json:"series,omitempty"`
+	// AddPerCheck is how many new videos a check of an "auto" one queues at most.
+	AddPerCheck int `json:"add_per_check"`
+	// Paused is set while its checks are paused; Gone once its site says the list was deleted; Stopped once the user chose to keep it without checking it. Renamed is the new name the site gave the list, until the user answers it in the window.
+	Paused  bool   `json:"paused,omitempty"`
+	Gone    bool   `json:"gone,omitempty"`
+	Stopped bool   `json:"stopped,omitempty"`
+	Renamed string `json:"renamed,omitempty"`
+	// Checked is when it was last checked, whether or not that worked, and Error why that check failed, in English (Language).
+	Checked time.Time `json:"checked,omitzero"`
+	Error   string    `json:"error,omitempty"`
+	// Waiting is the new videos waiting for the user to add or skip them in the window, oldest first; Added how many videos it has added to the queue.
+	Waiting []ListVideo `json:"waiting"`
+	Added   int         `json:"added"`
+}
+
+// Subscribed is what MethodSubscribe did: the subscription, and whether the open library followed the link already.
+type Subscribed struct {
+	Subscription Subscription `json:"subscription"`
+	Already      bool         `json:"already,omitempty"`
+}
+
+// SubscriptionChecked is what MethodSubscriptionCheck found: New new videos that fit the rules, of which Queued joined the queue and Held wait for the user, and Skipped that did not fit and were skipped. Note says, in English, why some could not be queued, as when a tool a job needs is missing. Subscription is the subscription as it is after the check.
+type SubscriptionChecked struct {
+	Subscription Subscription `json:"subscription"`
+	New          int          `json:"new"`
+	Queued       int          `json:"queued"`
+	Held         int          `json:"held"`
+	Skipped      int          `json:"skipped"`
+	Note         string       `json:"note,omitempty"`
 }
 
 // Status is what the app is and whether a job can start.
@@ -398,10 +455,10 @@ func SocketPath() string {
 	return filepath.Join(os.TempDir(), "Kando", "kando.sock")
 }
 
-// Timeout is how long a client waits for the app: to start when it was not running, and for each answer but MethodLists' (TimeoutOf).
+// Timeout is how long a client waits for the app: to start when it was not running, and for each answer but those that list videos or move a film (TimeoutOf).
 var Timeout = 30 * time.Second
 
-// ListTimeout is how long a client waits for MethodLists' answer, and the app gives it: longer than the app gives yt-dlp to list one link (media.ListTimeout), so the app's own answer, an error when yt-dlp took too long, comes first.
+// ListTimeout is how long a client waits for the answers of MethodLists, MethodSubscribe and MethodSubscriptionCheck, which list videos, and the app gives them: longer than the app gives yt-dlp to list one link (media.ListTimeout), so the app's own answer, an error when yt-dlp took too long, comes first.
 var ListTimeout = 4 * time.Minute
 
 // MoveTimeout is how long a client waits for MethodMove's answer, and the app gives it: as long as copying a long film to another drive may take. The move goes on in the window when it takes longer.
@@ -410,7 +467,7 @@ var MoveTimeout = 30 * time.Minute
 // TimeoutOf is how long a client waits for the app's answer to method, and the app takes to give it.
 func TimeoutOf(method string) time.Duration {
 	switch method {
-	case MethodLists:
+	case MethodLists, MethodSubscribe, MethodSubscriptionCheck:
 		return ListTimeout
 	case MethodMove:
 		return MoveTimeout

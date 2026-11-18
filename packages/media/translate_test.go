@@ -692,3 +692,59 @@ func TestPingNamesWhatIsMissing(t *testing.T) {
 		t.Fatalf("no base URL: %v", err)
 	}
 }
+
+func TestChatTranslatorSendsTheBatchSizeAsked(t *testing.T) {
+	srv, seen := fakeChat(t, upper)
+	segments := make([]core.Segment, 25)
+	for i := range segments {
+		segments[i] = core.Segment{Text: fmt.Sprintf("line %d", i)}
+	}
+	tr := ChatTranslator{BaseURL: srv.URL + "/v1", APIKey: "secret", Model: "m", BatchSize: 10}
+	got, err := tr.Translate(context.Background(), segments, "English")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(*seen) != 3 || len(got) != 25 || got[24].Text != "LINE 24" {
+		t.Fatalf("requests = %d, got %d lines", len(*seen), len(got))
+	}
+	for i, want := range []int{10, 10, 5} {
+		var lines []string
+		if err := json.Unmarshal([]byte((*seen)[i].Messages[1].Content), &lines); err != nil || len(lines) != want {
+			t.Fatalf("batch %d has %d lines, want %d (%v)", i+1, len(lines), want, err)
+		}
+	}
+}
+
+func TestChatTranslatorRetriesAsManyTimesAsAsked(t *testing.T) {
+	for _, attempts := range []int{1, 5} {
+		srv, calls := flakyChat(t, http.StatusTooManyRequests, http.StatusTooManyRequests, http.StatusTooManyRequests, http.StatusTooManyRequests, http.StatusTooManyRequests, http.StatusTooManyRequests)
+		tr := ChatTranslator{BaseURL: srv.URL, Model: "m", Attempts: attempts}
+		if _, err := tr.Translate(context.Background(), []core.Segment{{Text: "hello"}}, "English"); err == nil || *calls != attempts {
+			t.Fatalf("attempts %d: calls = %d, err = %v", attempts, *calls, err)
+		}
+	}
+}
+
+func TestChatTranslatorSendsTheContextLinesAsked(t *testing.T) {
+	srv, seen := fakeChat(t, upper)
+	segments := make([]core.Segment, 30)
+	for i := range segments {
+		segments[i] = core.Segment{Text: fmt.Sprintf("line %d", i)}
+	}
+	tr := ChatTranslator{BaseURL: srv.URL + "/v1", APIKey: "secret", Model: "m", BatchSize: 10, Context: true, ContextLines: 5}
+	if _, err := tr.Translate(context.Background(), segments, "English"); err != nil {
+		t.Fatal(err)
+	}
+	last := (*seen)[2].Messages[0].Content
+	if !strings.Contains(last, `"line 15","line 16","line 17","line 18","line 19"]`) || strings.Contains(last, `"line 14"`) {
+		t.Fatalf("the third batch's context is not the five lines before it:\n%s", last)
+	}
+	tr.Context = false
+	*seen = nil
+	if _, err := tr.Translate(context.Background(), segments, "English"); err != nil {
+		t.Fatal(err)
+	}
+	if strings.Contains((*seen)[2].Messages[0].Content, "Earlier lines") {
+		t.Fatal("context off still sends earlier lines")
+	}
+}

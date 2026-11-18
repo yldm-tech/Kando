@@ -518,16 +518,16 @@ func TestLibraryKeepsAJobFromTheFolder(t *testing.T) {
 	}
 }
 
-// The paired phone a job's link came from stays with the job across a restart, so its card still says where it came from.
+// The paired phone a job's link came from, and the one that paused it, stay with the job across a restart, so its card still says where it came from and that it waits for the user.
 func TestLibraryKeepsTheDeviceAJobCameFrom(t *testing.T) {
 	path := filepath.Join(t.TempDir(), "library.json")
 	lib, _ := Load(path)
-	lib.Upsert(core.Job{ID: "a", Source: "https://www.youtube.com/watch?v=jNQXAC9IVRw", Stage: core.StageQueued, Device: "Evan's iPhone"})
+	lib.Upsert(core.Job{ID: "a", Source: "https://www.youtube.com/watch?v=jNQXAC9IVRw", Stage: core.StageQueued, Device: "Evan's iPhone", PausedBy: "Evan's iPad"})
 	if err := lib.Save(); err != nil {
 		t.Fatal(err)
 	}
 	loaded, _ := Load(path)
-	if a, _ := loaded.Find("a"); a.Device != "Evan's iPhone" {
+	if a, _ := loaded.Find("a"); a.Device != "Evan's iPhone" || a.PausedBy != "Evan's iPad" {
 		t.Fatalf("job %+v", a)
 	}
 }

@@ -36,6 +36,32 @@ func (a *app) TranslateContext() *bool { return &a.prefs.translateContext }
 
 func (a *app) TranslatePrompt() *string { return &a.prefs.translatePrompt }
 
+func (a *app) TranslateContextLines() int {
+	if a.prefs.translateContextLines > 0 {
+		return a.prefs.translateContextLines
+	}
+	return media.DefaultContextLines
+}
+
+// SetTranslateContextLines sends n earlier lines with each batch from the next job on, kept to the range the page offers; the default is saved as nothing, so a better default reaches everyone who did not change it.
+func (a *app) SetTranslateContextLines(n int) {
+	n = min(max(n, settings.MinContextLines), media.MaxContextLines)
+	if n == media.DefaultContextLines {
+		n = 0
+	}
+	a.prefs.translateContextLines = n
+}
+
+func (a *app) Appearance() string { return a.prefs.appearance }
+
+func (a *app) SetAppearance(appearance string) { a.useAppearance(appearance) }
+
+func (a *app) LLMBatchSize() int { return a.llmBatchSize() }
+
+func (a *app) LLMRetries() int { return a.llmRetries() }
+
+func (a *app) SetLLMRequests(size, retries int) { a.useLLMRequests(size, retries) }
+
 // Save writes settings.json once a page of the settings window changed a setting, as the General, Translate, Subtitle Style and Account & Upload pages do, and says in the window's error line and the sidebar's status row when it could not, so a setting that did not stick is not taken for one that did.
 func (a *app) Save() error {
 	err := a.saveSettings()
@@ -117,6 +143,22 @@ func (a *app) SpeechLanguage() string {
 func (a *app) SetSpeechLanguage(code string) { a.useSpeechLanguage(code) }
 
 func (a *app) SpeechSource() string { return a.prefs.speechSource }
+
+func (a *app) SpeechThreads() int {
+	tools, _ := a.pipeline.(media.Tools)
+	return tools.WhisperThreads
+}
+
+func (a *app) SetSpeechThreads(n int) { a.useSpeechThreads(n) }
+
+func (a *app) SpeechHints() string {
+	tools, _ := a.pipeline.(media.Tools)
+	return tools.WhisperHints
+}
+
+func (a *app) SetSpeechHints(hints string) { a.useSpeechHints(hints) }
+
+func (a *app) SpeechCommand() []string { return a.speechCommand() }
 
 func (a *app) SetSpeechSource(source string) { a.useSpeechSource(source) }
 
@@ -219,6 +261,10 @@ func (a *app) SetSettingsSection(section string) {
 func (a *app) SettingsQuery() *string { return &a.prefs.query }
 
 func (a *app) ShortcutQuery() *string { return &a.prefs.shortcutQuery }
+
+func (a *app) ShortcutPreset() string { return a.prefs.shortcutPreset }
+
+func (a *app) SetShortcutPreset(preset string) { a.useShortcutPreset(preset) }
 
 // Shortcuts is the app's shortcut table as the 快捷键 page lists it, its words in the language the app shows under cx: the rows with a key.
 func (a *app) Shortcuts(cx *core.Scope) []settings.Shortcut {

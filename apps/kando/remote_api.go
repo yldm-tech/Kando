@@ -121,6 +121,8 @@ func (a *app) remoteHandle(method string, params json.RawMessage) (any, error) {
 			return nil, err
 		}
 		return remoteSites(p), nil
+	case remote.MethodSubscriptions, remote.MethodSubscribe, remote.MethodSubscriptionCheck:
+		return a.remoteSubscribeHandle(ctx, method, params)
 	case remote.MethodShow:
 		p, err := remote.Params[remote.ShowParams](params)
 		if err != nil {
