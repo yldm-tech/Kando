@@ -192,8 +192,7 @@ func Menu(cx *ns.Scope, a App) []nsdesktop.MenuItem {
 	currentDir := a.LibraryDir()
 	var items []nsdesktop.MenuItem
 	for _, dir := range a.KnownLibraries() {
-		// TODO(nsgo#118): make the libraries radio items, one of which is chosen, as the menus of MyGo's Menu.Item(...).Radio were; NSGo's menu items are only checkable https://github.com/nsgo-dev/nsgo/issues/118
-		items = append(items, nsdesktop.MenuItem{Label: Title(dir), Checkable: true, Checked: filepath.Clean(currentDir) == filepath.Clean(dir), OnSelect: live.Do(a, func() { a.Choose(dir) })})
+		items = append(items, nsdesktop.MenuItem{Label: Title(dir), Radio: true, Checked: filepath.Clean(currentDir) == filepath.Clean(dir), OnSelect: live.Do(a, func() { a.Choose(dir) })})
 	}
 	items = append(items,
 		nsdesktop.MenuItem{Label: locales.SidebarMenuNewLibrary(cx), OnSelect: live.Do(a, a.BeginNew)},

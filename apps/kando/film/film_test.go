@@ -576,6 +576,8 @@ func TestCueRowsFollowTheMode(t *testing.T) {
 	a.mode = SubOriginal
 	a.play = &fakePlay{head: 1500 * time.Millisecond, length: 10 * time.Second}
 	app := start(t, a)
+	// The panel slides in from the right on its first frames; the pointer reaches its rows once it has.
+	app.Advance(panelMotion + 100*time.Millisecond)
 	blurred := func(text string) bool {
 		e := app.Find(inList(text)).Style.Effects
 		return e != nil && len(e.Filters) > 0

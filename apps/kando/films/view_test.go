@@ -725,8 +725,13 @@ func TestSortMenuChecksTheOrderShown(t *testing.T) {
 	app := start(t, a)
 	msgs := testlocale.Messages()
 	app.Press("id:films-sort")
-	// The orders, the one shown checked, then the two directions, recently added's own (newest first) checked.
+	// The orders, the one shown checked, then the two directions, recently added's own (newest first) checked, all radio items.
 	menu := app.PopupMenu
+	for _, it := range menu {
+		if !it.Separator && !it.Radio {
+			t.Fatalf("the sort menu's %q is not a radio item", it.Label)
+		}
+	}
 	if len(menu) != len(Sorts)+3 || !menu[0].Checked || menu[1].Checked || !menu[len(Sorts)].Separator ||
 		menu[len(Sorts)+1].Label != msgs.FilmsSortAscending() || menu[len(Sorts)+1].Checked || !menu[len(Sorts)+2].Checked {
 		t.Fatalf("sort menu %+v", menu)
