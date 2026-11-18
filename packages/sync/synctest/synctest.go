@@ -62,6 +62,8 @@ type Desktop struct {
 	puts    int
 	// study is the lookups and explanations (study.go).
 	study study
+	// subs are the subscriptions (subscriptions.go).
+	subs  subscriptions
 	desk  *sync.Desk
 	libs  []sync.Library
 	films []Film
@@ -78,7 +80,7 @@ func New(t testing.TB, name string) *Desktop {
 	t.Helper()
 	d := &Desktop{Name: name, tokens: map[string]bool{}, names: map[string]string{}, modTime: time.Unix(1_700_000_000, 0), target: "zh-Hans"}
 	d.queue.receive = sync.ReceiveQueue
-	d.desk = &sync.Desk{Service: jobService{d}, State: stateService{d}, Settings: settingsService{d}, Study: studyService{d}, Journal: sync.NewJournal(), Desktop: name}
+	d.desk = &sync.Desk{Service: jobService{d}, State: stateService{d}, Settings: settingsService{d}, Study: studyService{d}, Subscriptions: subscriptionService{d}, Journal: sync.NewJournal(), Desktop: name}
 	mux := http.NewServeMux()
 	mux.HandleFunc("POST "+sync.PathPair, d.pair)
 	mux.HandleFunc("GET "+sync.PathLibraries, d.authed(d.libraries))

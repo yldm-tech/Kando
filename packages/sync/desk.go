@@ -73,6 +73,8 @@ type Desk struct {
 	Settings SettingsService
 	// Study answers lookups and explanations (study.go), nil for a desktop that does not, which answers them CodeUnsupported.
 	Study StudyService
+	// Subscriptions answers the subscriptions' calls (subscriptions.go), nil for a desktop that does not share them, which answers them CodeUnsupported.
+	Subscriptions SubscriptionService
 	// Relay answers OpRelayJoin, nil while the desktop's storage relay is off, which answers it CodeUnsupported.
 	Relay   RelayJoiner
 	Journal *Journal
@@ -142,7 +144,7 @@ func (d *Desk) Answer(ctx context.Context, caller Caller, call Call) Reply {
 // Mutates reports whether op changes something on the desktop: a read-only device's calls of it are refused (Caller.ReadOnly), and a call of it sent again answers the reply it got the first time.
 func Mutates(op string) bool {
 	switch op {
-	case OpJobCreate, OpJobCancel, OpJobRetry, OpJobPause, OpJobResume, OpUpdateYTDLP, OpStatePut, OpStateResolve, OpSettingsPut:
+	case OpJobCreate, OpJobCancel, OpJobRetry, OpJobPause, OpJobResume, OpUpdateYTDLP, OpStatePut, OpStateResolve, OpSettingsPut, OpSubscribe, OpSubscriptionSet, OpSubscriptionTake, OpUnsubscribe:
 		return true
 	}
 	return false
@@ -260,6 +262,8 @@ func (d *Desk) answer(ctx context.Context, caller Caller, call Call) (any, error
 		return d.answerSettings(ctx, caller, call)
 	case OpLookUp, OpExplain:
 		return d.answerStudy(ctx, caller, call)
+	case OpSubscriptions, OpSubscribe, OpSubscriptionSet, OpSubscriptionTake, OpUnsubscribe:
+		return d.answerSubscriptions(ctx, caller, call)
 	case OpEvents:
 		var w EventsWait
 		if err := args(call, &w); err != nil {
