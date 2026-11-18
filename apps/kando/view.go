@@ -106,8 +106,11 @@ func (a *app) mainColumn(cx *core.Scope) core.Node {
 		}),
 		// The browser column stays mounted while another page shows, hidden (browseColumn), so its web view keeps its page, history and video position as MyGo's did; it makes the web view only once a page is first asked for.
 		Children: []core.Node{a.browseColumn(cx), core.Show{
-			When: live.Func(a, func() bool { return a.page != pageBrowse }),
+			When: live.Func(a, func() bool { return a.page != pageBrowse && a.page != pageSubscription }),
 			Then: a.libraryColumn,
+		}, core.Show{
+			When: live.Func(a, func() bool { return a.page == pageSubscription }),
+			Then: a.subscribeColumn,
 		}},
 	}
 }
