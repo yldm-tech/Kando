@@ -185,7 +185,7 @@ func Run(ctx context.Context, p Pipeline, job core.Job, language string, report 
 		}
 		job.VideoPath = video
 		if len(chapters) > 0 {
-			keepChapters(video, chapters)
+			keepChapters(video, chapters, job.ChapterUse)
 		}
 
 		transcript = TranscriptOf(video)
