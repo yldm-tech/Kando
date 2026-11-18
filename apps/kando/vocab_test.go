@@ -1,9 +1,14 @@
 package main
 
 import (
+	"bytes"
+	"fmt"
 	"os"
 	"path/filepath"
+	"slices"
 	"strings"
+	"sync"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -12,6 +17,7 @@ import (
 	"kando/apps/kando/lookup"
 	"kando/apps/kando/saved"
 	"kando/apps/kando/settings"
+	"kando/apps/kando/shelf"
 	"kando/apps/kando/study"
 	"kando/packages/media"
 	recordstudy "kando/packages/study"
@@ -301,4 +307,360 @@ func TestLookupTellsWordsOfTwoLanguagesApart(t *testing.T) {
 		t.Fatalf("the vocabulary holds %+v, removed %+v", book.Words, book.RemovedWords)
 	}
 	wantText(t, tt, msgs.VocabInVocabulary())
+}
+
+// TestStatsCountTheUnlockedLibraries opens Study › Study Stats with three libraries Kando knows, each with a study record: the open one, another one and a locked one. The stats add up the open and the other one's minutes, streak, words and lines, and name them; the locked one is left out, said to be, and its study record is never read nor written.
+func TestStatsCountTheUnlockedLibraries(t *testing.T) {
+	parent := t.TempDir()
+	open, other, locked := filepath.Join(parent, "甲.kando"), filepath.Join(parent, "乙.kando"), filepath.Join(parent, "丙.kando")
+	now := time.Date(2026, 11, 18, 21, 0, 0, 0, time.Local)
+	write := func(dir string, days map[int]int, words ...string) {
+		t.Helper()
+		if err := os.MkdirAll(dir, 0o755); err != nil {
+			t.Fatal(err)
+		}
+		book, err := recordstudy.Load(dir)
+		if err != nil {
+			t.Fatal(err)
+		}
+		book.Device = "mac"
+		book.Now = func() time.Time { return now }
+		for d, m := range days {
+			book.Watch(time.Date(2026, 11, d, 12, 0, 0, 0, time.Local), time.Duration(m)*time.Minute)
+		}
+		for _, w := range words {
+			book.AddWord(saved.Word{Text: w, Meaning: w})
+		}
+		if err := book.Save(); err != nil {
+			t.Fatal(err)
+		}
+	}
+	write(open, map[int]int{18: 20}, "trickle")
+	write(other, map[int]int{17: 10, 16: 5}, "meander", "delta")
+	write(locked, map[int]int{15: 30, 14: 30}, "estuary", "silt", "levee")
+	lockedRecord, err := os.ReadFile(filepath.Join(locked, recordstudy.FileName))
+	if err != nil {
+		t.Fatal(err)
+	}
+	var read []string
+	prev := vocabLoadBook
+	vocabLoadBook = func(dir string) (saved.Book, error) {
+		read = append(read, dir)
+		return prev(dir)
+	}
+	t.Cleanup(func() { vocabLoadBook = prev })
+
+	a, tt, updates := newTestApp(t, &fakePipeline{})
+	a.settingsPath = filepath.Join(t.TempDir(), "settings.json")
+	a.saved.device = "mac"
+	a.saved.now = func() time.Time { return now }
+	lock, err := shelf.NewLock(lockPassword)
+	if err != nil {
+		t.Fatal(err)
+	}
+	a.library.SetLock(locked, lock)
+	a.edit(func(s *session) {
+		s.LibraryDir = open
+		s.Libraries = []string{open, other, locked}
+	})
+	refresh(tt, a)
+	msgs := testlocale.Messages()
+	choose(tt, a, findMenuItem(t, a.menuBar(a.cx), groupTitle(a.cx, groupStudy), msgs.VocabStatsMenuItem()))
+	waitUntil(t, tt, a, updates, func() bool { return len(a.vocab.stats.others) == 1 })
+
+	// 甲 and 乙 together: three days in a row, 35 minutes this week, three words, none from 丙.
+	for _, want := range []string{msgs.VocabStatsLibraries("甲" + msgs.VocabLibrarySeparator() + "乙"), msgs.VocabStatsLocked(1),
+		msgs.VocabDays(3), msgs.VocabLongest(3), msgs.VocabMinutes(35), msgs.VocabWordCount(3), msgs.VocabWordsDue(3), msgs.VocabNew(3)} {
+		wantText(t, tt, want)
+	}
+	if slices.Contains(read, locked) || slices.Contains(read, open) {
+		t.Fatalf("the stats read %q", read)
+	}
+	if after, err := os.ReadFile(filepath.Join(locked, recordstudy.FileName)); err != nil || !bytes.Equal(after, lockedRecord) {
+		t.Fatalf("the locked library's study record changed: %v", err)
+	}
+	tt.Press("id:stats-done")
+	if a.vocab.stats.others != nil {
+		t.Fatal("the other libraries' records stayed in memory after Done")
+	}
+}
+
+// TestStatsLeaveOutALockedOpenLibraryAndMissingOnes opens Study › Study Stats while the open library is locked and another library's folder is gone: neither is counted nor named, and the stats are those of the one library left.
+func TestStatsLeaveOutALockedOpenLibraryAndMissingOnes(t *testing.T) {
+	parent := t.TempDir()
+	open, other, gone := filepath.Join(parent, "甲.kando"), filepath.Join(parent, "乙.kando"), filepath.Join(parent, "丁.kando")
+	for _, dir := range []string{open, other} {
+		if err := os.MkdirAll(dir, 0o755); err != nil {
+			t.Fatal(err)
+		}
+		book, err := recordstudy.Load(dir)
+		if err != nil {
+			t.Fatal(err)
+		}
+		book.Device = "mac"
+		book.AddWord(saved.Word{Text: filepath.Base(dir), Meaning: "x"})
+		if err := book.Save(); err != nil {
+			t.Fatal(err)
+		}
+	}
+	a, tt, updates := newTestApp(t, &fakePipeline{})
+	a.settingsPath = filepath.Join(t.TempDir(), "settings.json")
+	lock, err := shelf.NewLock(lockPassword)
+	if err != nil {
+		t.Fatal(err)
+	}
+	a.library.SetLock(open, lock)
+	a.edit(func(s *session) {
+		s.LibraryDir = open
+		s.Libraries = []string{open, other, gone}
+	})
+	refresh(tt, a)
+	onEngine(a, func() { a.OpenStats(vocabTabStats) })
+	waitUntil(t, tt, a, updates, func() bool { return len(a.vocab.stats.others) == 1 })
+	if got := a.StatsLibraries(); !slices.Equal(got, []string{"乙"}) {
+		t.Fatalf("the stats name %q", got)
+	}
+	if s := a.StudyStats(); s.Words != 1 || a.StatsLocked() != 1 {
+		t.Fatalf("stats %+v, %d locked", s, a.StatsLocked())
+	}
+}
+
+// statsWriteBook writes a study record in the library folder dir with the words given.
+func statsWriteBook(t *testing.T, dir string, words ...string) {
+	t.Helper()
+	if err := os.MkdirAll(dir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	book, err := recordstudy.Load(dir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	book.Device = "mac"
+	for _, w := range words {
+		book.AddWord(saved.Word{Text: w, Meaning: w})
+	}
+	if err := book.Save(); err != nil {
+		t.Fatal(err)
+	}
+}
+
+// statsOtherDirs is the folders of the other libraries' study records the dialog keeps.
+func statsOtherDirs(a *app) []string {
+	var dirs []string
+	for _, book := range a.vocab.stats.others {
+		dirs = append(dirs, book.Dir())
+	}
+	return dirs
+}
+
+// statsApplyLate waits until a read let go after the test went on (done is closed once its last study record is read) has handed its result to the engine, and runs it there with whatever else is waiting. The app is quiet otherwise, so the first update that arrives after done is the read's.
+func statsApplyLate(t *testing.T, tt *nsgotest.App, a *app, updates <-chan func(), done <-chan struct{}) {
+	t.Helper()
+	timeout := time.After(5 * time.Second)
+	select {
+	case <-done:
+	case <-timeout:
+		t.Fatal("timed out waiting for the held read")
+	}
+	for len(updates) == 0 {
+		select {
+		case <-timeout:
+			t.Fatal("timed out waiting for the held read's update")
+		case <-time.After(time.Millisecond):
+		}
+	}
+	for len(updates) > 0 {
+		fn := <-updates
+		onEngine(a, func() {
+			fn()
+			a.Changed()
+		})
+	}
+	tt.Settle()
+}
+
+// TestStatsNameNoLibraryWhenNoneIsCounted opens Study › Study Stats while the only library is locked: nothing is counted, so the dialog names no library, rather than a caption with nothing after it, and says that one locked library is left out.
+func TestStatsNameNoLibraryWhenNoneIsCounted(t *testing.T) {
+	open := filepath.Join(t.TempDir(), "甲.kando")
+	statsWriteBook(t, open, "trickle")
+	a, tt, _ := newTestApp(t, &fakePipeline{})
+	a.settingsPath = filepath.Join(t.TempDir(), "settings.json")
+	lock, err := shelf.NewLock(lockPassword)
+	if err != nil {
+		t.Fatal(err)
+	}
+	a.library.SetLock(open, lock)
+	a.edit(func(s *session) {
+		s.LibraryDir = open
+		s.Libraries = []string{open}
+	})
+	refresh(tt, a)
+	msgs := testlocale.Messages()
+	choose(tt, a, findMenuItem(t, a.menuBar(a.cx), groupTitle(a.cx, groupStudy), msgs.VocabStatsMenuItem()))
+	if !a.vocab.stats.open {
+		t.Fatal("Study Stats did not open the dialog")
+	}
+	if got := a.StatsLibraries(); len(got) != 0 {
+		t.Fatalf("the stats name %q", got)
+	}
+	if tt.Exists("id:stats-libraries") {
+		t.Fatalf("the dialog names the libraries counted while none is: %q", tt.Texts())
+	}
+	wantNoText(t, tt, msgs.VocabStatsLibraries(""))
+	wantText(t, tt, msgs.VocabStatsLocked(1))
+}
+
+// TestStatsReadTheOthersAgainAsAnotherLibraryOpens opens Study › Study Stats in 甲 while the read of 丙's study record is held, then opens 乙 with the dialog open: the other libraries are read again, now 甲 and 丙, and the stats count 乙, 甲 and 丙. The first read, let go after that, is dropped, so the dialog keeps the second read's records and not 乙's own from the first.
+func TestStatsReadTheOthersAgainAsAnotherLibraryOpens(t *testing.T) {
+	parent := t.TempDir()
+	first, second, third := filepath.Join(parent, "甲.kando"), filepath.Join(parent, "乙.kando"), filepath.Join(parent, "丙.kando")
+	statsWriteBook(t, first, "trickle")
+	statsWriteBook(t, second, "meander", "delta")
+	statsWriteBook(t, third, "estuary", "silt", "levee")
+	held, letGo, heldDone := make(chan struct{}), make(chan struct{}), make(chan struct{})
+	var holding atomic.Bool
+	prev := vocabLoadBook
+	vocabLoadBook = func(dir string) (saved.Book, error) {
+		if dir == third && holding.CompareAndSwap(false, true) {
+			close(held)
+			<-letGo
+			defer close(heldDone)
+		}
+		return prev(dir)
+	}
+	t.Cleanup(func() { vocabLoadBook = prev })
+
+	a, tt, updates := newTestApp(t, &fakePipeline{})
+	a.settingsPath = filepath.Join(t.TempDir(), "settings.json")
+	a.edit(func(s *session) {
+		s.LibraryDir = first
+		s.Libraries = []string{first, second, third}
+	})
+	refresh(tt, a)
+	onEngine(a, func() { a.OpenStats(vocabTabStats) })
+	refresh(tt, a)
+	<-held
+
+	apply(tt, a, func() { a.switchLibrary(second) })
+	// The sidebar counts the films of the libraries not open once 乙 opens; its update is waited for too, so the next one after the held read is let go is that read's.
+	waitUntil(t, tt, a, updates, func() bool {
+		_, counted := a.side.libraryCounts[first]
+		return len(a.vocab.stats.others) == 2 && counted
+	})
+	want := []string{first, third}
+	if got := statsOtherDirs(a); !slices.Equal(got, want) {
+		t.Fatalf("the second read kept %q, want %q", got, want)
+	}
+
+	close(letGo)
+	statsApplyLate(t, tt, a, updates, heldDone)
+	if got := statsOtherDirs(a); !slices.Equal(got, want) {
+		t.Fatalf("after the first read came back the dialog keeps %q, want %q", got, want)
+	}
+	if got := a.StatsLibraries(); !slices.Equal(got, []string{"乙", "甲", "丙"}) {
+		t.Fatalf("the stats name %q", got)
+	}
+	if s := a.StudyStats(); s.Words != 6 {
+		t.Fatalf("the stats count %d words, want 6", s.Words)
+	}
+	msgs := testlocale.Messages()
+	sep := msgs.VocabLibrarySeparator()
+	wantText(t, tt, msgs.VocabStatsLibraries("乙"+sep+"甲"+sep+"丙"))
+}
+
+// TestStatsDropAReadTheDialogClosedOn closes the stats dialog while the other libraries are still being read: the read that comes back after is thrown away, so no other library's study record is kept with the dialog closed.
+func TestStatsDropAReadTheDialogClosedOn(t *testing.T) {
+	parent := t.TempDir()
+	open, other := filepath.Join(parent, "甲.kando"), filepath.Join(parent, "乙.kando")
+	statsWriteBook(t, open, "trickle")
+	statsWriteBook(t, other, "meander")
+	held, letGo, heldDone := make(chan struct{}), make(chan struct{}), make(chan struct{})
+	prev := vocabLoadBook
+	vocabLoadBook = func(dir string) (saved.Book, error) {
+		close(held)
+		<-letGo
+		defer close(heldDone)
+		return prev(dir)
+	}
+	t.Cleanup(func() { vocabLoadBook = prev })
+
+	a, tt, updates := newTestApp(t, &fakePipeline{})
+	a.settingsPath = filepath.Join(t.TempDir(), "settings.json")
+	a.edit(func(s *session) {
+		s.LibraryDir = open
+		s.Libraries = []string{open, other}
+	})
+	refresh(tt, a)
+	onEngine(a, func() { a.OpenStats(vocabTabStats) })
+	refresh(tt, a)
+	<-held
+	tt.Press("id:stats-done")
+	if a.vocab.stats.open {
+		t.Fatal("Done left the dialog open")
+	}
+
+	close(letGo)
+	statsApplyLate(t, tt, a, updates, heldDone)
+	if a.vocab.stats.others != nil {
+		t.Fatalf("the closed dialog keeps the study records of %q", statsOtherDirs(a))
+	}
+}
+
+// TestStatsLeaveOutLibrariesWhoseRecordCannotBeRead opens Study › Study Stats with two other libraries whose study record cannot be read, one not JSON and one a later Kando wrote, and a third that reads: the two are neither counted nor named, nothing of them is counted in part, and their files are left as they were.
+func TestStatsLeaveOutLibrariesWhoseRecordCannotBeRead(t *testing.T) {
+	parent := t.TempDir()
+	open, broken, newer, good := filepath.Join(parent, "甲.kando"), filepath.Join(parent, "乙.kando"), filepath.Join(parent, "丙.kando"), filepath.Join(parent, "丁.kando")
+	statsWriteBook(t, open, "trickle")
+	statsWriteBook(t, good, "meander", "delta")
+	records := map[string][]byte{
+		broken: []byte(`{"version": 2, "words": [`),
+		newer:  []byte(fmt.Sprintf(`{"version": %d, "words": [{"text": "estuary", "meaning": "estuary"}]}`, recordstudy.Version+1)),
+	}
+	for dir, data := range records {
+		if err := os.MkdirAll(dir, 0o755); err != nil {
+			t.Fatal(err)
+		}
+		if err := os.WriteFile(filepath.Join(dir, recordstudy.FileName), data, 0o644); err != nil {
+			t.Fatal(err)
+		}
+	}
+	var mu sync.Mutex
+	var read []string
+	prev := vocabLoadBook
+	vocabLoadBook = func(dir string) (saved.Book, error) {
+		mu.Lock()
+		read = append(read, dir)
+		mu.Unlock()
+		return prev(dir)
+	}
+	t.Cleanup(func() { vocabLoadBook = prev })
+
+	a, tt, updates := newTestApp(t, &fakePipeline{})
+	a.settingsPath = filepath.Join(t.TempDir(), "settings.json")
+	a.edit(func(s *session) {
+		s.LibraryDir = open
+		s.Libraries = []string{open, broken, newer, good}
+	})
+	refresh(tt, a)
+	onEngine(a, func() { a.OpenStats(vocabTabStats) })
+	waitUntil(t, tt, a, updates, func() bool { return len(a.vocab.stats.others) == 1 })
+
+	mu.Lock()
+	if !slices.Contains(read, broken) || !slices.Contains(read, newer) {
+		t.Fatalf("the stats read %q, not both unreadable records", read)
+	}
+	mu.Unlock()
+	if got := a.StatsLibraries(); !slices.Equal(got, []string{"甲", "丁"}) {
+		t.Fatalf("the stats name %q", got)
+	}
+	if s := a.StudyStats(); s.Words != 3 {
+		t.Fatalf("the stats count %d words, want 3", s.Words)
+	}
+	msgs := testlocale.Messages()
+	wantText(t, tt, msgs.VocabStatsLibraries("甲"+msgs.VocabLibrarySeparator()+"丁"))
+	for dir, data := range records {
+		if after, err := os.ReadFile(filepath.Join(dir, recordstudy.FileName)); err != nil || !bytes.Equal(after, data) {
+			t.Fatalf("the study record of %s changed: %v", filepath.Base(dir), err)
+		}
+	}
 }

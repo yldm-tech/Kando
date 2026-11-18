@@ -18,21 +18,21 @@ type fakeExplainer struct {
 	asks        []string
 }
 
-func (f *fakeExplainer) ask(s string)              { f.asks = append(f.asks, s) }
-func (f *fakeExplainer) Explanation() Explanation  { return f.explanation }
-func (f *fakeExplainer) CloseExplain()             { f.ask("close explain") }
-func (f *fakeExplainer) ExpandExplain()            { f.ask("expand") }
-func (f *fakeExplainer) ExplainSettings()          { f.ask("settings") }
-func (f *fakeExplainer) ExplainQuestion() *string  { return &f.question }
-func (f *fakeExplainer) AskExplain()               { f.ask("ask " + f.question); f.question = "" }
-func (f *fakeExplainer) SaveExplained()            { f.ask("save explained") }
-func (f *fakeExplainer) Recap() Recap              { return f.recap }
-func (f *fakeExplainer) CloseRecap()               { f.ask("close recap") }
-func (f *fakeExplainer) ContinueRecap()            { f.ask("continue") }
-func (f *fakeExplainer) StartOver()                { f.ask("start over") }
-func (f *fakeExplainer) RecapJump(i int)           { f.ask("jump " + string(rune('0'+i))) }
-func (f *fakeExplainer) lastAsk() string           { return f.asks[len(f.asks)-1] }
-func (f *fakeExplainer) asked(want ...string) bool { return slices.Equal(f.asks, want) }
+func (f *fakeExplainer) ask(s string)                 { f.asks = append(f.asks, s) }
+func (f *fakeExplainer) Explanation() Explanation     { return f.explanation }
+func (f *fakeExplainer) CloseExplain()                { f.ask("close explain") }
+func (f *fakeExplainer) ExpandExplain()               { f.ask("expand") }
+func (f *fakeExplainer) ExplainSettings()             { f.ask("settings") }
+func (f *fakeExplainer) ExplainQuestion() *string     { return &f.question }
+func (f *fakeExplainer) AskExplain()                  { f.ask("ask " + f.question); f.question = "" }
+func (f *fakeExplainer) SaveExplained()               { f.ask("save explained") }
+func (f *fakeExplainer) Recap() Recap                 { return f.recap }
+func (f *fakeExplainer) CloseRecap()                  { f.ask("close recap") }
+func (f *fakeExplainer) ContinueRecap()               { f.ask("continue") }
+func (f *fakeExplainer) StartOver()                   { f.ask("start over") }
+func (f *fakeExplainer) RecapJump(i int)              { f.ask("jump " + string(rune('0'+i))) }
+func (f *fakeExplainer) lastAsk() string              { return f.asks[len(f.asks)-1] }
+func (f *fakeExplainer) askedAll(want ...string) bool { return slices.Equal(f.asks, want) }
 
 // TestThePanelExplainsTheLine checks the side panel's explanation of a line (design Main 1062-1083): it shows in place of the tabs' content with the line, its sections under their headings and the footnote; 展开 and ‹ 字幕 go back to the app, the field asks at Return, the save button saves the line and says once it is saved, and the questions asked show with their answers.
 func TestThePanelExplainsTheLine(t *testing.T) {
@@ -61,7 +61,7 @@ func TestThePanelExplainsTheLine(t *testing.T) {
 	app.Submit("id:film-explain-ask")
 	app.Press("id:film-explain-save")
 	app.Press("id:film-explain-back")
-	if !a.asked("expand", "ask why called?", "save explained", "close explain") {
+	if !a.askedAll("expand", "ask why called?", "save explained", "close explain") {
 		t.Fatalf("the panel asked %q", a.asks)
 	}
 	change(app, a, func() {
@@ -132,7 +132,7 @@ func TestTheRecapCardShowsWhatWasWatched(t *testing.T) {
 	app.Press("id:film-recap-start")
 	app.Press("id:film-recap-close")
 	app.Key("escape")
-	if !a.asked("jump 1", "continue", "start over", "close recap", "close recap") {
+	if !a.askedAll("jump 1", "continue", "start over", "close recap", "close recap") {
 		t.Fatalf("the card asked %q", a.asks)
 	}
 }

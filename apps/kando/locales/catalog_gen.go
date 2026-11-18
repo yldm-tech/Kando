@@ -493,6 +493,14 @@ var Parameters = map[string][]string{
 	"CorrectStepStart":                         {"line"},
 	"CorrectUndo":                              {"step"},
 	"CorrectUndone":                            {"step"},
+	"CorrectCandidatesFailed":                  {"error_"},
+	"CorrectCandidatesHint":                    {"choose", "use", "cancel"},
+	"CorrectSpreadAsk":                         {"from", "to", "count"},
+	"CorrectSpreadAskEdited":                   {"from", "to", "count", "edited"},
+	"CorrectSpreadDone":                        {"count"},
+	"CorrectSpreadDoneTerm":                    {"count"},
+	"CorrectStepCandidate":                     {"line"},
+	"CorrectStepSpread":                        {"from", "to"},
 	"ExplainAskFailed":                         {"error_"},
 	"ExplainAskPlaceholder":                    {"key"},
 	"ExplainBusy":                              {"model"},
@@ -858,9 +866,11 @@ var Parameters = map[string][]string{
 	"SubscribePendingCount":                    {"count"},
 	"SubscribeAddOneLabel":                     {"title"},
 	"SubscribeSkipOneLabel":                    {"title"},
+	"SubscribeWhenNewAuto":                     {"count"},
 	"SubscribeNoteSubscribed":                  {"name"},
 	"SubscribeNoteQueued":                      {"count"},
 	"SubscribeNoteHeld":                        {"count"},
+	"SubscribeNoteCapped":                      {"found", "added", "held"},
 	"SubscribeNoteSkipped":                     {"count"},
 	"SubscribeNoteNotQueued":                   {"reason"},
 	"SubscribeNoteAdded":                       {"count"},
@@ -886,6 +896,8 @@ var Parameters = map[string][]string{
 	"VocabNew":                                 {"count"},
 	"VocabOsdAdded":                            {"word"},
 	"VocabOsdRemoved":                          {"word"},
+	"VocabStatsLibraries":                      {"libraries"},
+	"VocabStatsLocked":                         {"count"},
 	"VocabSummary":                             {"words", "lines", "films"},
 	"VocabWeekLess":                            {"time_"},
 	"VocabWeekMore":                            {"time_"},
@@ -931,6 +943,14 @@ type Translation struct {
 	CorrectStepStart                         func(line int) string
 	CorrectUndo                              func(step string) string
 	CorrectUndone                            func(step string) string
+	CorrectCandidatesFailed                  func(error_ string) string
+	CorrectCandidatesHint                    func(choose string, use string, cancel string) string
+	CorrectSpreadAsk                         func(from string, to string, count int) string
+	CorrectSpreadAskEdited                   func(from string, to string, count int, edited int) string
+	CorrectSpreadDone                        func(count int) string
+	CorrectSpreadDoneTerm                    func(count int) string
+	CorrectStepCandidate                     func(line int) string
+	CorrectStepSpread                        func(from string, to string) string
 	ExplainAskFailed                         func(error_ string) string
 	ExplainAskPlaceholder                    func(key string) string
 	ExplainBusy                              func(model string) string
@@ -1296,9 +1316,11 @@ type Translation struct {
 	SubscribePendingCount                    func(count int) string
 	SubscribeAddOneLabel                     func(title string) string
 	SubscribeSkipOneLabel                    func(title string) string
+	SubscribeWhenNewAuto                     func(count int) string
 	SubscribeNoteSubscribed                  func(name string) string
 	SubscribeNoteQueued                      func(count int) string
 	SubscribeNoteHeld                        func(count int) string
+	SubscribeNoteCapped                      func(found int, added int, held int) string
 	SubscribeNoteSkipped                     func(count int) string
 	SubscribeNoteNotQueued                   func(reason string) string
 	SubscribeNoteAdded                       func(count int) string
@@ -1324,6 +1346,8 @@ type Translation struct {
 	VocabNew                                 func(count int) string
 	VocabOsdAdded                            func(word string) string
 	VocabOsdRemoved                          func(word string) string
+	VocabStatsLibraries                      func(libraries string) string
+	VocabStatsLocked                         func(count int) string
 	VocabSummary                             func(words int, lines int, films int) string
 	VocabWeekLess                            func(time_ string) string
 	VocabWeekMore                            func(time_ string) string
@@ -1459,6 +1483,30 @@ const (
 	textCorrectSubmit
 	textCorrectTranslation
 	textCorrectUnreadable
+	textCorrectCandidateKept
+	textCorrectCandidates
+	textCorrectCandidatesBusy
+	textCorrectCandidatesCurrent
+	textCorrectCandidatesLabel
+	textCorrectCandidatesNoAI
+	textCorrectCandidatesNone
+	textCorrectCandidatesOption
+	textCorrectCandidatesSettings
+	textCorrectCandidatesTitle
+	textCorrectExplain
+	textCorrectKeyCandidates
+	textCorrectKeyPick
+	textCorrectKeyPickCancel
+	textCorrectKeyPickDown
+	textCorrectKeyPickUp
+	textCorrectKeySpreadAll
+	textCorrectKeySpreadOnly
+	textCorrectKeySpreadView
+	textCorrectSpreadAll
+	textCorrectSpreadOnly
+	textCorrectSpreadOnlyButton
+	textCorrectSpreadView
+	textCorrectUntranslated
 	textExplainAnswering
 	textExplainAskLabel
 	textExplainBack
@@ -2523,7 +2571,6 @@ const (
 	textSubscribeMisfit
 	textSubscribeRules
 	textSubscribeWhenNew
-	textSubscribeWhenNewAuto
 	textSubscribeWhenNewAsk
 	textSubscribeModeAuto
 	textSubscribeModeAsk
@@ -2574,6 +2621,7 @@ const (
 	textVocabFormatCSV
 	textVocabFormatTSV
 	textVocabInVocabulary
+	textVocabLibrarySeparator
 	textVocabLines
 	textVocabLookupBusy
 	textVocabLookupClose
@@ -2726,6 +2774,30 @@ var keyOfText = [numTexts]string{
 	"correctSubmit",
 	"correctTranslation",
 	"correctUnreadable",
+	"correctCandidateKept",
+	"correctCandidates",
+	"correctCandidatesBusy",
+	"correctCandidatesCurrent",
+	"correctCandidatesLabel",
+	"correctCandidatesNoAI",
+	"correctCandidatesNone",
+	"correctCandidatesOption",
+	"correctCandidatesSettings",
+	"correctCandidatesTitle",
+	"correctExplain",
+	"correctKeyCandidates",
+	"correctKeyPick",
+	"correctKeyPickCancel",
+	"correctKeyPickDown",
+	"correctKeyPickUp",
+	"correctKeySpreadAll",
+	"correctKeySpreadOnly",
+	"correctKeySpreadView",
+	"correctSpreadAll",
+	"correctSpreadOnly",
+	"correctSpreadOnlyButton",
+	"correctSpreadView",
+	"correctUntranslated",
 	"explainAnswering",
 	"explainAskLabel",
 	"explainBack",
@@ -3790,7 +3862,6 @@ var keyOfText = [numTexts]string{
 	"subscribeMisfit",
 	"subscribeRules",
 	"subscribeWhenNew",
-	"subscribeWhenNewAuto",
 	"subscribeWhenNewAsk",
 	"subscribeModeAuto",
 	"subscribeModeAsk",
@@ -3841,6 +3912,7 @@ var keyOfText = [numTexts]string{
 	"vocabFormatCSV",
 	"vocabFormatTSV",
 	"vocabInVocabulary",
+	"vocabLibrarySeparator",
 	"vocabLines",
 	"vocabLookupBusy",
 	"vocabLookupClose",
@@ -3991,6 +4063,30 @@ var textsEn = i18n.NewTexts(""+
 	"Save"+
 	"Translation"+
 	"This film’s corrections couldn’t be read, so they can’t be changed"+
+	"Using the translation you picked, saved as yours"+
+	"This Line Is Wrong"+
+	"This line is wrong · translating it again with more context…"+
+	"Current wording (unchanged)"+
+	"This line is wrong: candidates"+
+	"Other translations need an AI service. Choose a model in AI Service first."+
+	"The AI service found no better wording."+
+	"Candidate · retranslated with context"+
+	"Open Settings"+
+	"This line is wrong · pick a wording"+
+	"Explain"+
+	"This Line Is Wrong…"+
+	"Use the Highlighted Wording"+
+	"Discard the Candidates"+
+	"Highlight the Next Wording"+
+	"Highlight the Previous Wording"+
+	"Change It Everywhere in the Film"+
+	"Change Only This Line"+
+	"Show the Lines With It"+
+	"All"+
+	"Only changed here"+
+	"Only Here"+
+	"View"+
+	"(not translated)"+
 	"Answering…"+
 	"Ask About This Line"+
 	"Back to Subtitles"+
@@ -5055,7 +5151,6 @@ var textsEn = i18n.NewTexts(""+
 	"doesn't fit the rules now"+
 	"Rules"+
 	"When There Are New Videos"+
-	"They join the queue and are downloaded and subtitled by the rules"+
 	"They're listed here first and start once you add them"+
 	"Add Automatically"+
 	"Ask Me First"+
@@ -5106,6 +5201,7 @@ var textsEn = i18n.NewTexts(""+
 	"CSV"+
 	"Plain Text (Tab-Separated)"+
 	"In Vocabulary"+
+	", "+
 	"Saved lines"+
 	"Looking it up…"+
 	"Close"+
@@ -5253,6 +5349,30 @@ var textsEn = i18n.NewTexts(""+
 		4,
 		11,
 		72,
+		48,
+		18,
+		63,
+		27,
+		30,
+		74,
+		39,
+		38,
+		13,
+		36,
+		7,
+		21,
+		27,
+		22,
+		26,
+		30,
+		32,
+		21,
+		22,
+		3,
+		17,
+		9,
+		4,
+		16,
 		12,
 		19,
 		17,
@@ -6317,7 +6437,6 @@ var textsEn = i18n.NewTexts(""+
 		25,
 		5,
 		25,
-		65,
 		53,
 		17,
 		12,
@@ -6368,6 +6487,7 @@ var textsEn = i18n.NewTexts(""+
 		3,
 		26,
 		13,
+		2,
 		11,
 		16,
 		5,
@@ -6518,6 +6638,30 @@ var textsJa = i18n.NewTexts(""+
 	"保存"+
 	"訳文"+
 	"この作品の修正を読み込めないため、変更できません"+
+	"候補を採用し、あなたの訳として保存しました"+
+	"この行が違う"+
+	"この行が違う · 前後の文脈を付けて訳し直しています…"+
+	"現在の訳（変更しない）"+
+	"この行が違う：候補"+
+	"候補を出すには AI サービスが必要です。先に「AI サービス」でモデルを選んでください。"+
+	"AI サービスからより良い訳は出ませんでした。"+
+	"候補 · 文脈付きで訳し直し"+
+	"設定を開く"+
+	"この行が違う · 訳を選ぶ"+
+	"解説"+
+	"この行が違う…"+
+	"選んだ訳を採用"+
+	"候補を閉じる"+
+	"次の訳を選ぶ"+
+	"前の訳を選ぶ"+
+	"作品全体で変更"+
+	"この行だけ変更"+
+	"該当する行を表示"+
+	"すべて"+
+	"この行だけ変更しました"+
+	"ここだけ"+
+	"表示"+
+	"（未翻訳）"+
 	"回答しています…"+
 	"この行について質問"+
 	"字幕に戻る"+
@@ -7582,7 +7726,6 @@ var textsJa = i18n.NewTexts(""+
 	"現在のルールに合いません"+
 	"ルール"+
 	"新しい動画があるとき"+
-	"キューに追加され、ルールに従ってダウンロードと字幕作成が行われます"+
 	"まずここに表示され、追加すると始まります"+
 	"自動で追加"+
 	"先に確認"+
@@ -7633,6 +7776,7 @@ var textsJa = i18n.NewTexts(""+
 	"CSV"+
 	"テキスト（タブ区切り）"+
 	"単語帳にあります"+
+	"、"+
 	"保存したセリフ"+
 	"調べています…"+
 	"閉じる"+
@@ -7780,6 +7924,30 @@ var textsJa = i18n.NewTexts(""+
 		6,
 		6,
 		72,
+		63,
+		18,
+		76,
+		33,
+		27,
+		121,
+		63,
+		37,
+		15,
+		34,
+		6,
+		21,
+		21,
+		18,
+		18,
+		18,
+		21,
+		21,
+		24,
+		9,
+		33,
+		12,
+		6,
+		15,
 		24,
 		27,
 		15,
@@ -8844,7 +9012,6 @@ var textsJa = i18n.NewTexts(""+
 		36,
 		9,
 		30,
-		99,
 		60,
 		15,
 		12,
@@ -8895,6 +9062,7 @@ var textsJa = i18n.NewTexts(""+
 		3,
 		33,
 		24,
+		3,
 		21,
 		21,
 		9,
@@ -9045,6 +9213,30 @@ var textsKo = i18n.NewTexts(""+
 	"저장"+
 	"번역"+
 	"이 영상의 수정 내용을 읽을 수 없어 바꿀 수 없습니다"+
+	"후보를 채택해 내 번역으로 저장했습니다"+
+	"이 줄이 틀렸어요"+
+	"이 줄이 틀렸어요 · 앞뒤 맥락을 넣어 다시 번역하는 중…"+
+	"현재 번역(그대로 두기)"+
+	"이 줄이 틀렸어요: 후보"+
+	"후보를 받으려면 AI 서비스가 필요합니다. 먼저 ‘AI 서비스’에서 모델을 고르세요."+
+	"AI 서비스가 더 나은 번역을 찾지 못했습니다."+
+	"후보 · 맥락을 넣어 다시 번역"+
+	"설정 열기"+
+	"이 줄이 틀렸어요 · 번역 고르기"+
+	"설명"+
+	"이 줄이 틀렸어요…"+
+	"선택한 번역 채택"+
+	"후보 닫기"+
+	"다음 번역 선택"+
+	"이전 번역 선택"+
+	"영상 전체에서 바꾸기"+
+	"이 줄만 바꾸기"+
+	"해당 줄 보기"+
+	"모두"+
+	"이 줄만 바꿨습니다"+
+	"여기만"+
+	"보기"+
+	"(번역 없음)"+
 	"답변하는 중…"+
 	"이 대사에 대해 질문"+
 	"자막으로 돌아가기"+
@@ -10109,7 +10301,6 @@ var textsKo = i18n.NewTexts(""+
 	"현재 규칙에 맞지 않아요"+
 	"규칙"+
 	"새 동영상이 있을 때"+
-	"대기열에 추가되어 규칙에 따라 다운로드하고 자막을 만들어요"+
 	"먼저 여기에 표시되고, 추가하면 시작해요"+
 	"자동 추가"+
 	"먼저 묻기"+
@@ -10160,6 +10351,7 @@ var textsKo = i18n.NewTexts(""+
 	"CSV"+
 	"텍스트(탭 구분)"+
 	"단어장에 있음"+
+	", "+
 	"저장한 대사"+
 	"찾는 중…"+
 	"닫기"+
@@ -10307,6 +10499,30 @@ var textsKo = i18n.NewTexts(""+
 		6,
 		6,
 		72,
+		55,
+		23,
+		77,
+		31,
+		31,
+		111,
+		60,
+		40,
+		13,
+		43,
+		6,
+		26,
+		23,
+		13,
+		20,
+		20,
+		29,
+		20,
+		17,
+		6,
+		26,
+		9,
+		6,
+		15,
 		19,
 		27,
 		25,
@@ -11371,7 +11587,6 @@ var textsKo = i18n.NewTexts(""+
 		33,
 		6,
 		27,
-		84,
 		56,
 		13,
 		13,
@@ -11422,6 +11637,7 @@ var textsKo = i18n.NewTexts(""+
 		3,
 		21,
 		19,
+		2,
 		16,
 		13,
 		6,
@@ -11572,6 +11788,30 @@ var textsZhHans = i18n.NewTexts(""+
 	"提交"+
 	"译文"+
 	"这部影片的修改记录读不出来，不能更改"+
+	"已采用候选，记为你的写法"+
+	"这句不对"+
+	"这句不对 · 正在用更强的设置重新翻译…"+
+	"当前写法（保持不变）"+
+	"这句不对：候选"+
+	"这句不对要用 AI 服务，先在「AI 服务」里选好一个模型。"+
+	"AI 服务没有给出更好的写法。"+
+	"候选 · 带上下文重新翻译"+
+	"打开设置"+
+	"这句不对 · 选一个写法"+
+	"解释"+
+	"这句不对…"+
+	"采用选中的写法"+
+	"放弃候选"+
+	"选下一个写法"+
+	"选上一个写法"+
+	"全片一起改"+
+	"仅改此处"+
+	"查看这些句子"+
+	"全部"+
+	"只改了这一处"+
+	"仅此处"+
+	"查看"+
+	"（未翻译）"+
 	"正在回答…"+
 	"追问这句"+
 	"返回字幕"+
@@ -12636,7 +12876,6 @@ var textsZhHans = i18n.NewTexts(""+
 	"不符合当前规则"+
 	"规则"+
 	"有新视频时"+
-	"自动加入队列，按规则下载和生成字幕"+
 	"先列在这里，你点「加入」才开始"+
 	"自动加入"+
 	"先问我"+
@@ -12687,6 +12926,7 @@ var textsZhHans = i18n.NewTexts(""+
 	"CSV 表格"+
 	"纯文本（Tab 分隔）"+
 	"已在生词本"+
+	"、"+
 	"收藏的句子"+
 	"正在查…"+
 	"关闭"+
@@ -12834,6 +13074,30 @@ var textsZhHans = i18n.NewTexts(""+
 		6,
 		6,
 		54,
+		36,
+		12,
+		55,
+		30,
+		21,
+		76,
+		39,
+		34,
+		12,
+		31,
+		6,
+		15,
+		21,
+		12,
+		18,
+		18,
+		15,
+		12,
+		18,
+		6,
+		18,
+		9,
+		6,
+		15,
 		15,
 		12,
 		12,
@@ -13898,7 +14162,6 @@ var textsZhHans = i18n.NewTexts(""+
 		21,
 		6,
 		15,
-		51,
 		45,
 		12,
 		9,
@@ -13949,6 +14212,7 @@ var textsZhHans = i18n.NewTexts(""+
 		10,
 		25,
 		15,
+		3,
 		15,
 		12,
 		6,
@@ -14099,6 +14363,30 @@ var textsZhHant = i18n.NewTexts(""+
 	"提交"+
 	"譯文"+
 	"這部影片的修改紀錄讀不出來，不能更改"+
+	"已採用候選，記為你的寫法"+
+	"這句不對"+
+	"這句不對 · 正在用更強的設定重新翻譯…"+
+	"目前寫法（保持不變）"+
+	"這句不對：候選"+
+	"這句不對要用 AI 服務，先在「AI 服務」裡選好一個模型。"+
+	"AI 服務沒有給出更好的寫法。"+
+	"候選 · 帶上下文重新翻譯"+
+	"打開設定"+
+	"這句不對 · 選一個寫法"+
+	"解釋"+
+	"這句不對…"+
+	"採用選中的寫法"+
+	"放棄候選"+
+	"選下一個寫法"+
+	"選上一個寫法"+
+	"全片一起改"+
+	"僅改此處"+
+	"查看這些句子"+
+	"全部"+
+	"只改了這一處"+
+	"僅此處"+
+	"查看"+
+	"（未翻譯）"+
 	"正在回答…"+
 	"追問這句"+
 	"返回字幕"+
@@ -15163,7 +15451,6 @@ var textsZhHant = i18n.NewTexts(""+
 	"不符合目前規則"+
 	"規則"+
 	"有新影片時"+
-	"自動加入佇列，按規則下載和產生字幕"+
 	"先列在這裡，你點「加入」才開始"+
 	"自動加入"+
 	"先問我"+
@@ -15214,6 +15501,7 @@ var textsZhHant = i18n.NewTexts(""+
 	"CSV 表格"+
 	"純文字（Tab 分隔）"+
 	"已在生詞本"+
+	"、"+
 	"收藏的句子"+
 	"正在查…"+
 	"關閉"+
@@ -15361,6 +15649,30 @@ var textsZhHant = i18n.NewTexts(""+
 		6,
 		6,
 		54,
+		36,
+		12,
+		55,
+		30,
+		21,
+		76,
+		39,
+		34,
+		12,
+		31,
+		6,
+		15,
+		21,
+		12,
+		18,
+		18,
+		15,
+		12,
+		18,
+		6,
+		18,
+		9,
+		6,
+		15,
 		15,
 		12,
 		12,
@@ -16425,7 +16737,6 @@ var textsZhHant = i18n.NewTexts(""+
 		21,
 		6,
 		15,
-		51,
 		45,
 		12,
 		9,
@@ -16476,6 +16787,7 @@ var textsZhHant = i18n.NewTexts(""+
 		10,
 		25,
 		15,
+		3,
 		15,
 		12,
 		6,
@@ -16655,6 +16967,30 @@ func Supply(lang string, t Translation) {
 	}
 	if t.CorrectUndone != nil {
 		s.CorrectUndone = t.CorrectUndone
+	}
+	if t.CorrectCandidatesFailed != nil {
+		s.CorrectCandidatesFailed = t.CorrectCandidatesFailed
+	}
+	if t.CorrectCandidatesHint != nil {
+		s.CorrectCandidatesHint = t.CorrectCandidatesHint
+	}
+	if t.CorrectSpreadAsk != nil {
+		s.CorrectSpreadAsk = t.CorrectSpreadAsk
+	}
+	if t.CorrectSpreadAskEdited != nil {
+		s.CorrectSpreadAskEdited = t.CorrectSpreadAskEdited
+	}
+	if t.CorrectSpreadDone != nil {
+		s.CorrectSpreadDone = t.CorrectSpreadDone
+	}
+	if t.CorrectSpreadDoneTerm != nil {
+		s.CorrectSpreadDoneTerm = t.CorrectSpreadDoneTerm
+	}
+	if t.CorrectStepCandidate != nil {
+		s.CorrectStepCandidate = t.CorrectStepCandidate
+	}
+	if t.CorrectStepSpread != nil {
+		s.CorrectStepSpread = t.CorrectStepSpread
 	}
 	if t.ExplainAskFailed != nil {
 		s.ExplainAskFailed = t.ExplainAskFailed
@@ -17751,6 +18087,9 @@ func Supply(lang string, t Translation) {
 	if t.SubscribeSkipOneLabel != nil {
 		s.SubscribeSkipOneLabel = t.SubscribeSkipOneLabel
 	}
+	if t.SubscribeWhenNewAuto != nil {
+		s.SubscribeWhenNewAuto = t.SubscribeWhenNewAuto
+	}
 	if t.SubscribeNoteSubscribed != nil {
 		s.SubscribeNoteSubscribed = t.SubscribeNoteSubscribed
 	}
@@ -17759,6 +18098,9 @@ func Supply(lang string, t Translation) {
 	}
 	if t.SubscribeNoteHeld != nil {
 		s.SubscribeNoteHeld = t.SubscribeNoteHeld
+	}
+	if t.SubscribeNoteCapped != nil {
+		s.SubscribeNoteCapped = t.SubscribeNoteCapped
 	}
 	if t.SubscribeNoteSkipped != nil {
 		s.SubscribeNoteSkipped = t.SubscribeNoteSkipped
@@ -17834,6 +18176,12 @@ func Supply(lang string, t Translation) {
 	}
 	if t.VocabOsdRemoved != nil {
 		s.VocabOsdRemoved = t.VocabOsdRemoved
+	}
+	if t.VocabStatsLibraries != nil {
+		s.VocabStatsLibraries = t.VocabStatsLibraries
+	}
+	if t.VocabStatsLocked != nil {
+		s.VocabStatsLocked = t.VocabStatsLocked
 	}
 	if t.VocabSummary != nil {
 		s.VocabSummary = t.VocabSummary
@@ -19537,7 +19885,7 @@ func (msgs Messages) CorrectKeyRestore() string { return msgs.text(textCorrectKe
 // CorrectKeySelect says "Select the Current Line"
 // in the language the app shows under cx.
 //
-// Shortcut row of Return on the player: selects the subtitle line playing, to correct it.
+// Shortcut row of E on the player: selects the subtitle line playing, to correct it.
 func CorrectKeySelect(cx *core.Scope) string { return For(cx).CorrectKeySelect() }
 
 // CorrectKeySelect is the package's CorrectKeySelect in the language of msgs.
@@ -20001,6 +20349,499 @@ func CorrectUnreadable(cx *core.Scope) string { return For(cx).CorrectUnreadable
 
 // CorrectUnreadable is the package's CorrectUnreadable in the language of msgs.
 func (msgs Messages) CorrectUnreadable() string { return msgs.text(textCorrectUnreadable) }
+
+// CorrectCandidateKept says "Using the translation you picked, saved as yours"
+// in the language the app shows under cx.
+//
+// Message on the picture after the user picked one of the AI service's other translations of a subtitle line, which is kept as the user's correction.
+func CorrectCandidateKept(cx *core.Scope) string { return For(cx).CorrectCandidateKept() }
+
+// CorrectCandidateKept is the package's CorrectCandidateKept in the language of msgs.
+func (msgs Messages) CorrectCandidateKept() string { return msgs.text(textCorrectCandidateKept) }
+
+// CorrectCandidates says "This Line Is Wrong"
+// in the language the app shows under cx.
+//
+// Button of the bar of the selected subtitle line: asks the AI service for other translations of it to pick from.
+func CorrectCandidates(cx *core.Scope) string { return For(cx).CorrectCandidates() }
+
+// CorrectCandidates is the package's CorrectCandidates in the language of msgs.
+func (msgs Messages) CorrectCandidates() string { return msgs.text(textCorrectCandidates) }
+
+// CorrectCandidatesBusy says "This line is wrong · translating it again with more context…"
+// in the language the app shows under cx.
+//
+// Heading of the list of other translations of a subtitle line while the AI service translates it again from the lines around it.
+func CorrectCandidatesBusy(cx *core.Scope) string { return For(cx).CorrectCandidatesBusy() }
+
+// CorrectCandidatesBusy is the package's CorrectCandidatesBusy in the language of msgs.
+func (msgs Messages) CorrectCandidatesBusy() string { return msgs.text(textCorrectCandidatesBusy) }
+
+// CorrectCandidatesCurrent says "Current wording (unchanged)"
+// in the language the app shows under cx.
+//
+// Label over the first choice of the list of other translations of a subtitle line: the translation it has now, kept as it is.
+func CorrectCandidatesCurrent(cx *core.Scope) string { return For(cx).CorrectCandidatesCurrent() }
+
+// CorrectCandidatesCurrent is the package's CorrectCandidatesCurrent in the language of msgs.
+func (msgs Messages) CorrectCandidatesCurrent() string {
+	return msgs.text(textCorrectCandidatesCurrent)
+}
+
+// CorrectCandidatesFailed says "Couldn’t get other translations: {error}"
+// in the language the app shows under cx.
+//
+// Message in the list of other translations of a subtitle line when the AI service failed, with its error.
+func CorrectCandidatesFailed(cx *core.Scope, error_ string) string {
+	return For(cx).CorrectCandidatesFailed(error_)
+}
+
+// CorrectCandidatesFailed is the package's CorrectCandidatesFailed in the language of msgs.
+func (msgs Messages) CorrectCandidatesFailed(error_ string) string {
+	if i18n.IsPseudo(msgs.lang) {
+		return i18n.Pseudo(msgs.lang, Messages{lang: Source, mark: true}.CorrectCandidatesFailed(error_))
+	}
+	for lang := msgs.lang; ; lang = i18n.Parent(lang) {
+		if f := supplied[lang].CorrectCandidatesFailed; f != nil {
+			return f(error_)
+		}
+		switch lang {
+		case "", "en":
+			return "Couldn’t get other translations: " + msgs.arg(error_)
+		case "ja":
+			return "候補を取得できませんでした：" + error_
+		case "ko":
+			return "후보를 받지 못했습니다: " + error_
+		case "zh-Hans":
+			return "没有拿到候选：" + error_
+		case "zh-Hant":
+			return "沒有拿到候選：" + error_
+		}
+	}
+}
+
+// CorrectCandidatesHint says "{choose} choose · {use} use it (saved as your wording; the machine won’t rewrite it) · {cancel} discard"
+// in the language the app shows under cx.
+//
+// Line under the list of other translations of a subtitle line, naming its keys as the platform writes them.
+func CorrectCandidatesHint(cx *core.Scope, choose string, use string, cancel string) string {
+	return For(cx).CorrectCandidatesHint(choose, use, cancel)
+}
+
+// CorrectCandidatesHint is the package's CorrectCandidatesHint in the language of msgs.
+func (msgs Messages) CorrectCandidatesHint(choose string, use string, cancel string) string {
+	if i18n.IsPseudo(msgs.lang) {
+		return i18n.Pseudo(msgs.lang, Messages{lang: Source, mark: true}.CorrectCandidatesHint(choose, use, cancel))
+	}
+	for lang := msgs.lang; ; lang = i18n.Parent(lang) {
+		if f := supplied[lang].CorrectCandidatesHint; f != nil {
+			return f(choose, use, cancel)
+		}
+		switch lang {
+		case "", "en":
+			return msgs.arg(choose) + " choose · " + msgs.arg(use) + " use it (saved as your wording; the machine won’t rewrite it) · " + msgs.arg(cancel) + " discard"
+		case "ja":
+			return choose + " 選択 · " + use + " 採用（あなたの訳として保存し、機械は書き換えません）· " + cancel + " やめる"
+		case "ko":
+			return choose + " 선택 · " + use + " 채택(내 번역으로 저장되어 기계가 다시 쓰지 않음) · " + cancel + " 취소"
+		case "zh-Hans":
+			return choose + " 选择 · " + use + " 采用（记为你的写法，机器不再改写）· " + cancel + " 放弃"
+		case "zh-Hant":
+			return choose + " 選擇 · " + use + " 採用（記為你的寫法，機器不再改寫）· " + cancel + " 放棄"
+		}
+	}
+}
+
+// CorrectCandidatesLabel says "This line is wrong: candidates"
+// in the language the app shows under cx.
+//
+// Accessible name of the list of other translations of a subtitle line.
+func CorrectCandidatesLabel(cx *core.Scope) string { return For(cx).CorrectCandidatesLabel() }
+
+// CorrectCandidatesLabel is the package's CorrectCandidatesLabel in the language of msgs.
+func (msgs Messages) CorrectCandidatesLabel() string { return msgs.text(textCorrectCandidatesLabel) }
+
+// CorrectCandidatesNoAI says "Other translations need an AI service. Choose a model in AI Service first."
+// in the language the app shows under cx.
+//
+// Message in the list of other translations of a subtitle line when no AI service is set.
+func CorrectCandidatesNoAI(cx *core.Scope) string { return For(cx).CorrectCandidatesNoAI() }
+
+// CorrectCandidatesNoAI is the package's CorrectCandidatesNoAI in the language of msgs.
+func (msgs Messages) CorrectCandidatesNoAI() string { return msgs.text(textCorrectCandidatesNoAI) }
+
+// CorrectCandidatesNone says "The AI service found no better wording."
+// in the language the app shows under cx.
+//
+// Message in the list of other translations of a subtitle line when the AI service gave none other than the current one.
+func CorrectCandidatesNone(cx *core.Scope) string { return For(cx).CorrectCandidatesNone() }
+
+// CorrectCandidatesNone is the package's CorrectCandidatesNone in the language of msgs.
+func (msgs Messages) CorrectCandidatesNone() string { return msgs.text(textCorrectCandidatesNone) }
+
+// CorrectCandidatesOption says "Candidate · retranslated with context"
+// in the language the app shows under cx.
+//
+// Label over each of the AI service's other translations of a subtitle line, which it made from the lines around it.
+func CorrectCandidatesOption(cx *core.Scope) string { return For(cx).CorrectCandidatesOption() }
+
+// CorrectCandidatesOption is the package's CorrectCandidatesOption in the language of msgs.
+func (msgs Messages) CorrectCandidatesOption() string { return msgs.text(textCorrectCandidatesOption) }
+
+// CorrectCandidatesSettings says "Open Settings"
+// in the language the app shows under cx.
+//
+// Button in the list of other translations of a subtitle line, when no AI service could give any: opens the AI Service settings.
+func CorrectCandidatesSettings(cx *core.Scope) string { return For(cx).CorrectCandidatesSettings() }
+
+// CorrectCandidatesSettings is the package's CorrectCandidatesSettings in the language of msgs.
+func (msgs Messages) CorrectCandidatesSettings() string {
+	return msgs.text(textCorrectCandidatesSettings)
+}
+
+// CorrectCandidatesTitle says "This line is wrong · pick a wording"
+// in the language the app shows under cx.
+//
+// Heading of the list of other translations of a subtitle line, once they came.
+func CorrectCandidatesTitle(cx *core.Scope) string { return For(cx).CorrectCandidatesTitle() }
+
+// CorrectCandidatesTitle is the package's CorrectCandidatesTitle in the language of msgs.
+func (msgs Messages) CorrectCandidatesTitle() string { return msgs.text(textCorrectCandidatesTitle) }
+
+// CorrectExplain says "Explain"
+// in the language the app shows under cx.
+//
+// Button of the bar of the selected subtitle line: has the AI service explain it.
+func CorrectExplain(cx *core.Scope) string { return For(cx).CorrectExplain() }
+
+// CorrectExplain is the package's CorrectExplain in the language of msgs.
+func (msgs Messages) CorrectExplain() string { return msgs.text(textCorrectExplain) }
+
+// CorrectKeyCandidates says "This Line Is Wrong…"
+// in the language the app shows under cx.
+//
+// Subtitles menu item and shortcut row of Shift+E: asks the AI service for other translations of the selected subtitle line, or of the one playing, to pick from.
+func CorrectKeyCandidates(cx *core.Scope) string { return For(cx).CorrectKeyCandidates() }
+
+// CorrectKeyCandidates is the package's CorrectKeyCandidates in the language of msgs.
+func (msgs Messages) CorrectKeyCandidates() string { return msgs.text(textCorrectKeyCandidates) }
+
+// CorrectKeyPick says "Use the Highlighted Wording"
+// in the language the app shows under cx.
+//
+// Shortcut row of Return while the other translations of a subtitle line show: keeps the one highlighted as the user's.
+func CorrectKeyPick(cx *core.Scope) string { return For(cx).CorrectKeyPick() }
+
+// CorrectKeyPick is the package's CorrectKeyPick in the language of msgs.
+func (msgs Messages) CorrectKeyPick() string { return msgs.text(textCorrectKeyPick) }
+
+// CorrectKeyPickCancel says "Discard the Candidates"
+// in the language the app shows under cx.
+//
+// Shortcut row of Escape while the other translations of a subtitle line show: puts them away, the line unchanged.
+func CorrectKeyPickCancel(cx *core.Scope) string { return For(cx).CorrectKeyPickCancel() }
+
+// CorrectKeyPickCancel is the package's CorrectKeyPickCancel in the language of msgs.
+func (msgs Messages) CorrectKeyPickCancel() string { return msgs.text(textCorrectKeyPickCancel) }
+
+// CorrectKeyPickDown says "Highlight the Next Wording"
+// in the language the app shows under cx.
+//
+// Shortcut row of the Down arrow while the other translations of a subtitle line show: highlights the one under the one highlighted.
+func CorrectKeyPickDown(cx *core.Scope) string { return For(cx).CorrectKeyPickDown() }
+
+// CorrectKeyPickDown is the package's CorrectKeyPickDown in the language of msgs.
+func (msgs Messages) CorrectKeyPickDown() string { return msgs.text(textCorrectKeyPickDown) }
+
+// CorrectKeyPickUp says "Highlight the Previous Wording"
+// in the language the app shows under cx.
+//
+// Shortcut row of the Up arrow while the other translations of a subtitle line show: highlights the one over the one highlighted.
+func CorrectKeyPickUp(cx *core.Scope) string { return For(cx).CorrectKeyPickUp() }
+
+// CorrectKeyPickUp is the package's CorrectKeyPickUp in the language of msgs.
+func (msgs Messages) CorrectKeyPickUp() string { return msgs.text(textCorrectKeyPickUp) }
+
+// CorrectKeySpreadAll says "Change It Everywhere in the Film"
+// in the language the app shows under cx.
+//
+// Shortcut row of Command-Return while a bar asks whether to change the words an edit changed in the film's other lines too: changes them all.
+func CorrectKeySpreadAll(cx *core.Scope) string { return For(cx).CorrectKeySpreadAll() }
+
+// CorrectKeySpreadAll is the package's CorrectKeySpreadAll in the language of msgs.
+func (msgs Messages) CorrectKeySpreadAll() string { return msgs.text(textCorrectKeySpreadAll) }
+
+// CorrectKeySpreadOnly says "Change Only This Line"
+// in the language the app shows under cx.
+//
+// Shortcut row of Escape while a bar asks whether to change the words an edit changed in the film's other lines too: leaves them.
+func CorrectKeySpreadOnly(cx *core.Scope) string { return For(cx).CorrectKeySpreadOnly() }
+
+// CorrectKeySpreadOnly is the package's CorrectKeySpreadOnly in the language of msgs.
+func (msgs Messages) CorrectKeySpreadOnly() string { return msgs.text(textCorrectKeySpreadOnly) }
+
+// CorrectKeySpreadView says "Show the Lines With It"
+// in the language the app shows under cx.
+//
+// Shortcut row of Shift-Command-Return while a bar asks whether to change the words an edit changed in the film's other lines too: shows those lines in the side panel's subtitle list.
+func CorrectKeySpreadView(cx *core.Scope) string { return For(cx).CorrectKeySpreadView() }
+
+// CorrectKeySpreadView is the package's CorrectKeySpreadView in the language of msgs.
+func (msgs Messages) CorrectKeySpreadView() string { return msgs.text(textCorrectKeySpreadView) }
+
+// CorrectSpreadAll says "All"
+// in the language the app shows under cx.
+//
+// Button of the bar asking whether to change the words an edit changed in the film's other lines too: changes them all.
+func CorrectSpreadAll(cx *core.Scope) string { return For(cx).CorrectSpreadAll() }
+
+// CorrectSpreadAll is the package's CorrectSpreadAll in the language of msgs.
+func (msgs Messages) CorrectSpreadAll() string { return msgs.text(textCorrectSpreadAll) }
+
+// CorrectSpreadAsk says "“{from}” → “{to}”: {count} more in this film. Change them too?"
+// in the language the app shows under cx.
+//
+// Bar over the picture after an edit of a subtitle line changed words the film's other lines hold too: the words before and after, and how many other lines hold them.
+func CorrectSpreadAsk(cx *core.Scope, from string, to string, count int) string {
+	return For(cx).CorrectSpreadAsk(from, to, count)
+}
+
+// CorrectSpreadAsk is the package's CorrectSpreadAsk in the language of msgs.
+func (msgs Messages) CorrectSpreadAsk(from string, to string, count int) string {
+	if i18n.IsPseudo(msgs.lang) {
+		return i18n.Pseudo(msgs.lang, Messages{lang: Source, mark: true}.CorrectSpreadAsk(from, to, count))
+	}
+	for lang := msgs.lang; ; lang = i18n.Parent(lang) {
+		if f := supplied[lang].CorrectSpreadAsk; f != nil {
+			return f(from, to, count)
+		}
+		switch lang {
+		case "", "en":
+			return "“" + msgs.arg(from) + "” → “" + msgs.arg(to) + "”: " + msgs.arg(i18n.FormatNumber("en", float64(count))) + " more in this film. Change them too?"
+		case "ja":
+			return "「" + from + "」→「" + to + "」：作品内にあと " + i18n.FormatNumber("ja", float64(count)) + " か所あります。まとめて変更しますか？"
+		case "ko":
+			return "‘" + from + "’ → ‘" + to + "’: 영상에 " + i18n.FormatNumber("ko", float64(count)) + "곳 더 있습니다. 같이 바꿀까요?"
+		case "zh-Hans":
+			return "「" + from + "」→「" + to + "」：全片还有 " + i18n.FormatNumber("zh-Hans", float64(count)) + " 处，要一起改吗？"
+		case "zh-Hant":
+			return "「" + from + "」→「" + to + "」：全片還有 " + i18n.FormatNumber("zh-Hant", float64(count)) + " 處，要一起改嗎？"
+		}
+	}
+}
+
+// CorrectSpreadAskEdited says "“{from}” → “{to}”: {count} more in this film (including {edited} you edited). Change them too?"
+// in the language the app shows under cx.
+//
+// Bar over the picture after an edit of a subtitle line changed words the film's other lines hold too, some of which the user had corrected: the words before and after, how many other lines hold them and how many of those the user edited.
+func CorrectSpreadAskEdited(cx *core.Scope, from string, to string, count int, edited int) string {
+	return For(cx).CorrectSpreadAskEdited(from, to, count, edited)
+}
+
+// CorrectSpreadAskEdited is the package's CorrectSpreadAskEdited in the language of msgs.
+func (msgs Messages) CorrectSpreadAskEdited(from string, to string, count int, edited int) string {
+	if i18n.IsPseudo(msgs.lang) {
+		return i18n.Pseudo(msgs.lang, Messages{lang: Source, mark: true}.CorrectSpreadAskEdited(from, to, count, edited))
+	}
+	for lang := msgs.lang; ; lang = i18n.Parent(lang) {
+		if f := supplied[lang].CorrectSpreadAskEdited; f != nil {
+			return f(from, to, count, edited)
+		}
+		switch lang {
+		case "", "en":
+			return "“" + msgs.arg(from) + "” → “" + msgs.arg(to) + "”: " + msgs.arg(i18n.FormatNumber("en", float64(count))) + " more in this film (including " + msgs.arg(i18n.FormatNumber("en", float64(edited))) + " you edited). Change them too?"
+		case "ja":
+			return "「" + from + "」→「" + to + "」：作品内にあと " + i18n.FormatNumber("ja", float64(count)) + " か所あります（うち " + i18n.FormatNumber("ja", float64(edited)) + " か所はあなたが直した行）。まとめて変更しますか？"
+		case "ko":
+			return "‘" + from + "’ → ‘" + to + "’: 영상에 " + i18n.FormatNumber("ko", float64(count)) + "곳 더 있습니다(내가 고친 줄 " + i18n.FormatNumber("ko", float64(edited)) + "곳 포함). 같이 바꿀까요?"
+		case "zh-Hans":
+			return "「" + from + "」→「" + to + "」：全片还有 " + i18n.FormatNumber("zh-Hans", float64(count)) + " 处（含 " + i18n.FormatNumber("zh-Hans", float64(edited)) + " 处你改过的句子），要一起改吗？"
+		case "zh-Hant":
+			return "「" + from + "」→「" + to + "」：全片還有 " + i18n.FormatNumber("zh-Hant", float64(count)) + " 處（含 " + i18n.FormatNumber("zh-Hant", float64(edited)) + " 處你改過的句子），要一起改嗎？"
+		}
+	}
+}
+
+// CorrectSpreadDone says "Replaced {count, plural, one {# place} other {# places}}"
+// in the language the app shows under cx.
+//
+// Message on the picture after the words an edit changed were changed in the film's other lines too, how many.
+func CorrectSpreadDone(cx *core.Scope, count int) string { return For(cx).CorrectSpreadDone(count) }
+
+// CorrectSpreadDone is the package's CorrectSpreadDone in the language of msgs.
+func (msgs Messages) CorrectSpreadDone(count int) string {
+	if i18n.IsPseudo(msgs.lang) {
+		return i18n.Pseudo(msgs.lang, Messages{lang: Source, mark: true}.CorrectSpreadDone(count))
+	}
+	for lang := msgs.lang; ; lang = i18n.Parent(lang) {
+		if f := supplied[lang].CorrectSpreadDone; f != nil {
+			return f(count)
+		}
+		switch lang {
+		case "", "en":
+			var b strings.Builder
+			b.WriteString("Replaced ")
+			switch i18n.Cardinal("en", float64(count)) {
+			case i18n.One:
+				b.WriteString(msgs.arg(i18n.FormatNumber("en", float64(count))))
+				b.WriteString(" place")
+			default:
+				b.WriteString(msgs.arg(i18n.FormatNumber("en", float64(count))))
+				b.WriteString(" places")
+			}
+			return b.String()
+		case "ja":
+			return i18n.FormatNumber("ja", float64(count)) + " か所を置き換えました"
+		case "ko":
+			return i18n.FormatNumber("ko", float64(count)) + "곳을 바꿨습니다"
+		case "zh-Hans":
+			return "已替换 " + i18n.FormatNumber("zh-Hans", float64(count)) + " 处"
+		case "zh-Hant":
+			return "已替換 " + i18n.FormatNumber("zh-Hant", float64(count)) + " 處"
+		}
+	}
+}
+
+// CorrectSpreadDoneTerm says "Replaced {count, plural, one {# place} other {# places}} · updated and locked the glossary term"
+// in the language the app shows under cx.
+//
+// Message on the picture after the words an edit changed were changed in the film's other lines too, and in the glossary term that translated them, which is now locked.
+func CorrectSpreadDoneTerm(cx *core.Scope, count int) string {
+	return For(cx).CorrectSpreadDoneTerm(count)
+}
+
+// CorrectSpreadDoneTerm is the package's CorrectSpreadDoneTerm in the language of msgs.
+func (msgs Messages) CorrectSpreadDoneTerm(count int) string {
+	if i18n.IsPseudo(msgs.lang) {
+		return i18n.Pseudo(msgs.lang, Messages{lang: Source, mark: true}.CorrectSpreadDoneTerm(count))
+	}
+	for lang := msgs.lang; ; lang = i18n.Parent(lang) {
+		if f := supplied[lang].CorrectSpreadDoneTerm; f != nil {
+			return f(count)
+		}
+		switch lang {
+		case "", "en":
+			var b strings.Builder
+			b.WriteString("Replaced ")
+			switch i18n.Cardinal("en", float64(count)) {
+			case i18n.One:
+				b.WriteString(msgs.arg(i18n.FormatNumber("en", float64(count))))
+				b.WriteString(" place")
+			default:
+				b.WriteString(msgs.arg(i18n.FormatNumber("en", float64(count))))
+				b.WriteString(" places")
+			}
+			b.WriteString(" · updated and locked the glossary term")
+			return b.String()
+		case "ja":
+			return i18n.FormatNumber("ja", float64(count)) + " か所を置き換えました · 用語集を更新して固定しました"
+		case "ko":
+			return i18n.FormatNumber("ko", float64(count)) + "곳을 바꿨습니다 · 용어집을 고치고 고정했습니다"
+		case "zh-Hans":
+			return "已替换 " + i18n.FormatNumber("zh-Hans", float64(count)) + " 处 · 已更新术语表并锁定"
+		case "zh-Hant":
+			return "已替換 " + i18n.FormatNumber("zh-Hant", float64(count)) + " 處 · 已更新術語表並鎖定"
+		}
+	}
+}
+
+// CorrectSpreadOnly says "Only changed here"
+// in the language the app shows under cx.
+//
+// Message on the picture after the user chose to keep an edit's change to the edited subtitle line alone.
+func CorrectSpreadOnly(cx *core.Scope) string { return For(cx).CorrectSpreadOnly() }
+
+// CorrectSpreadOnly is the package's CorrectSpreadOnly in the language of msgs.
+func (msgs Messages) CorrectSpreadOnly() string { return msgs.text(textCorrectSpreadOnly) }
+
+// CorrectSpreadOnlyButton says "Only Here"
+// in the language the app shows under cx.
+//
+// Button of the bar asking whether to change the words an edit changed in the film's other lines too: leaves them.
+func CorrectSpreadOnlyButton(cx *core.Scope) string { return For(cx).CorrectSpreadOnlyButton() }
+
+// CorrectSpreadOnlyButton is the package's CorrectSpreadOnlyButton in the language of msgs.
+func (msgs Messages) CorrectSpreadOnlyButton() string { return msgs.text(textCorrectSpreadOnlyButton) }
+
+// CorrectSpreadView says "View"
+// in the language the app shows under cx.
+//
+// Button of the bar asking whether to change the words an edit changed in the film's other lines too: shows those lines in the side panel's subtitle list.
+func CorrectSpreadView(cx *core.Scope) string { return For(cx).CorrectSpreadView() }
+
+// CorrectSpreadView is the package's CorrectSpreadView in the language of msgs.
+func (msgs Messages) CorrectSpreadView() string { return msgs.text(textCorrectSpreadView) }
+
+// CorrectStepCandidate says "Use a Candidate for Line {line}"
+// in the language the app shows under cx.
+//
+// What a change of the film's lines was, for Undo and Redo to name it: one of the AI service's other translations kept for the line numbered line.
+func CorrectStepCandidate(cx *core.Scope, line int) string { return For(cx).CorrectStepCandidate(line) }
+
+// CorrectStepCandidate is the package's CorrectStepCandidate in the language of msgs.
+func (msgs Messages) CorrectStepCandidate(line int) string {
+	if i18n.IsPseudo(msgs.lang) {
+		return i18n.Pseudo(msgs.lang, Messages{lang: Source, mark: true}.CorrectStepCandidate(line))
+	}
+	for lang := msgs.lang; ; lang = i18n.Parent(lang) {
+		if f := supplied[lang].CorrectStepCandidate; f != nil {
+			return f(line)
+		}
+		switch lang {
+		case "", "en":
+			return "Use a Candidate for Line " + msgs.arg(i18n.FormatNumber("en", float64(line)))
+		case "ja":
+			return i18n.FormatNumber("ja", float64(line)) + " 行目の候補を採用"
+		case "ko":
+			return i18n.FormatNumber("ko", float64(line)) + "번째 줄 후보 채택"
+		case "zh-Hans":
+			return "采用候选译文（第 " + i18n.FormatNumber("zh-Hans", float64(line)) + " 句）"
+		case "zh-Hant":
+			return "採用候選譯文（第 " + i18n.FormatNumber("zh-Hant", float64(line)) + " 句）"
+		}
+	}
+}
+
+// CorrectStepSpread says "Replace “{from}” with “{to}” Everywhere"
+// in the language the app shows under cx.
+//
+// What a change of the film's lines was, for Undo and Redo to name it: words changed in every line of the film that held them.
+func CorrectStepSpread(cx *core.Scope, from string, to string) string {
+	return For(cx).CorrectStepSpread(from, to)
+}
+
+// CorrectStepSpread is the package's CorrectStepSpread in the language of msgs.
+func (msgs Messages) CorrectStepSpread(from string, to string) string {
+	if i18n.IsPseudo(msgs.lang) {
+		return i18n.Pseudo(msgs.lang, Messages{lang: Source, mark: true}.CorrectStepSpread(from, to))
+	}
+	for lang := msgs.lang; ; lang = i18n.Parent(lang) {
+		if f := supplied[lang].CorrectStepSpread; f != nil {
+			return f(from, to)
+		}
+		switch lang {
+		case "", "en":
+			return "Replace “" + msgs.arg(from) + "” with “" + msgs.arg(to) + "” Everywhere"
+		case "ja":
+			return "作品全体で「" + from + "」→「" + to + "」に置き換え"
+		case "ko":
+			return "영상 전체에서 ‘" + from + "’ → ‘" + to + "’ 바꾸기"
+		case "zh-Hans":
+			return "全片替换「" + from + "」→「" + to + "」"
+		case "zh-Hant":
+			return "全片替換「" + from + "」→「" + to + "」"
+		}
+	}
+}
+
+// CorrectUntranslated says "(not translated)"
+// in the language the app shows under cx.
+//
+// Stands in for the translation of a subtitle line that has none, in the list of other translations of it.
+func CorrectUntranslated(cx *core.Scope) string { return For(cx).CorrectUntranslated() }
+
+// CorrectUntranslated is the package's CorrectUntranslated in the language of msgs.
+func (msgs Messages) CorrectUntranslated() string { return msgs.text(textCorrectUntranslated) }
 
 // ExplainAnswering says "Answering…"
 // in the language the app shows under cx.
@@ -30967,7 +31808,7 @@ func (msgs Messages) PaletteAsking(model string) string {
 // PaletteExplainLine says "Explain Line"
 // in the language the app shows under cx.
 //
-// Study menu item and shortcut row (E): the AI service explains the subtitle line playing, its meaning, key words and grammar, in the player's side panel.
+// Subtitles menu item and shortcut row (I): the AI service explains the subtitle line selected for correcting, or with none the one playing, its meaning, key words and grammar, in the player's side panel.
 func PaletteExplainLine(cx *core.Scope) string { return For(cx).PaletteExplainLine() }
 
 // PaletteExplainLine is the package's PaletteExplainLine in the language of msgs.
@@ -43291,14 +44132,37 @@ func SubscribeWhenNew(cx *core.Scope) string { return For(cx).SubscribeWhenNew()
 // SubscribeWhenNew is the package's SubscribeWhenNew in the language of msgs.
 func (msgs Messages) SubscribeWhenNew() string { return msgs.text(textSubscribeWhenNew) }
 
-// SubscribeWhenNewAuto says "They join the queue and are downloaded and subtitled by the rules"
+// SubscribeWhenNewAuto says "Up to {count} a check join the queue and are downloaded and subtitled by the rules; the rest wait here"
 // in the language the app shows under cx.
 //
-// Note of the When There Are New Videos row while Add Automatically is chosen.
-func SubscribeWhenNewAuto(cx *core.Scope) string { return For(cx).SubscribeWhenNewAuto() }
+// Note of the When There Are New Videos row while Add Automatically is chosen: a check queues at most count new videos, and lists the others on the page for the user to add or skip.
+func SubscribeWhenNewAuto(cx *core.Scope, count int) string {
+	return For(cx).SubscribeWhenNewAuto(count)
+}
 
 // SubscribeWhenNewAuto is the package's SubscribeWhenNewAuto in the language of msgs.
-func (msgs Messages) SubscribeWhenNewAuto() string { return msgs.text(textSubscribeWhenNewAuto) }
+func (msgs Messages) SubscribeWhenNewAuto(count int) string {
+	if i18n.IsPseudo(msgs.lang) {
+		return i18n.Pseudo(msgs.lang, Messages{lang: Source, mark: true}.SubscribeWhenNewAuto(count))
+	}
+	for lang := msgs.lang; ; lang = i18n.Parent(lang) {
+		if f := supplied[lang].SubscribeWhenNewAuto; f != nil {
+			return f(count)
+		}
+		switch lang {
+		case "", "en":
+			return "Up to " + msgs.arg(i18n.FormatNumber("en", float64(count))) + " a check join the queue and are downloaded and subtitled by the rules; the rest wait here"
+		case "ja":
+			return "1 回の確認につき " + i18n.FormatNumber("ja", float64(count)) + " 本までキューに追加され、ルールに従ってダウンロードと字幕作成が行われます。残りはここで確認できます"
+		case "ko":
+			return "확인할 때마다 최대 " + i18n.FormatNumber("ko", float64(count)) + "개가 대기열에 추가되어 규칙에 따라 다운로드하고 자막을 만들어요. 나머지는 여기서 기다려요"
+		case "zh-Hans":
+			return "每次检查最多 " + i18n.FormatNumber("zh-Hans", float64(count)) + " 个自动加入队列，按规则下载和生成字幕，其余的在这里等你确认"
+		case "zh-Hant":
+			return "每次檢查最多 " + i18n.FormatNumber("zh-Hant", float64(count)) + " 部自動加入佇列，按規則下載和產生字幕，其餘的在這裡等你確認"
+		}
+	}
+}
 
 // SubscribeWhenNewAsk says "They're listed here first and start once you add them"
 // in the language the app shows under cx.
@@ -43635,6 +44499,60 @@ func (msgs Messages) SubscribeNoteHeld(count int) string {
 			return "发现 " + i18n.FormatNumber("zh-Hans", float64(count)) + " 个新视频，等你确认。"
 		case "zh-Hant":
 			return "發現 " + i18n.FormatNumber("zh-Hant", float64(count)) + " 部新影片，等你確認。"
+		}
+	}
+}
+
+// SubscribeNoteCapped says "{found, plural, one {Found # new video} other {Found # new videos}} and added the first {added} to the queue. {held, plural, one {The other one is waiting for you below.} other {The other # are waiting for you below.}}"
+// in the language the app shows under cx.
+//
+// Message on a subscription's page after a check that adds new videos by itself found more than it adds at once: the first added are queued, the held others are listed below for the user to add or skip.
+func SubscribeNoteCapped(cx *core.Scope, found int, added int, held int) string {
+	return For(cx).SubscribeNoteCapped(found, added, held)
+}
+
+// SubscribeNoteCapped is the package's SubscribeNoteCapped in the language of msgs.
+func (msgs Messages) SubscribeNoteCapped(found int, added int, held int) string {
+	if i18n.IsPseudo(msgs.lang) {
+		return i18n.Pseudo(msgs.lang, Messages{lang: Source, mark: true}.SubscribeNoteCapped(found, added, held))
+	}
+	for lang := msgs.lang; ; lang = i18n.Parent(lang) {
+		if f := supplied[lang].SubscribeNoteCapped; f != nil {
+			return f(found, added, held)
+		}
+		switch lang {
+		case "", "en":
+			var b strings.Builder
+			switch i18n.Cardinal("en", float64(found)) {
+			case i18n.One:
+				b.WriteString("Found ")
+				b.WriteString(msgs.arg(i18n.FormatNumber("en", float64(found))))
+				b.WriteString(" new video")
+			default:
+				b.WriteString("Found ")
+				b.WriteString(msgs.arg(i18n.FormatNumber("en", float64(found))))
+				b.WriteString(" new videos")
+			}
+			b.WriteString(" and added the first ")
+			b.WriteString(msgs.arg(i18n.FormatNumber("en", float64(added))))
+			b.WriteString(" to the queue. ")
+			switch i18n.Cardinal("en", float64(held)) {
+			case i18n.One:
+				b.WriteString("The other one is waiting for you below.")
+			default:
+				b.WriteString("The other ")
+				b.WriteString(msgs.arg(i18n.FormatNumber("en", float64(held))))
+				b.WriteString(" are waiting for you below.")
+			}
+			return b.String()
+		case "ja":
+			return "新しい動画が " + i18n.FormatNumber("ja", float64(found)) + " 本見つかり、最初の " + i18n.FormatNumber("ja", float64(added)) + " 本をキューに追加しました。残りの " + i18n.FormatNumber("ja", float64(held)) + " 本は下で確認してください。"
+		case "ko":
+			return "새 동영상 " + i18n.FormatNumber("ko", float64(found)) + "개를 찾아 처음 " + i18n.FormatNumber("ko", float64(added)) + "개를 대기열에 추가했어요. 나머지 " + i18n.FormatNumber("ko", float64(held)) + "개는 아래에서 확인하세요."
+		case "zh-Hans":
+			return "发现 " + i18n.FormatNumber("zh-Hans", float64(found)) + " 个新视频，前 " + i18n.FormatNumber("zh-Hans", float64(added)) + " 个已加入队列，其余 " + i18n.FormatNumber("zh-Hans", float64(held)) + " 个在下面等你确认。"
+		case "zh-Hant":
+			return "發現 " + i18n.FormatNumber("zh-Hant", float64(found)) + " 部新影片，前 " + i18n.FormatNumber("zh-Hant", float64(added)) + " 部已加入佇列，其餘 " + i18n.FormatNumber("zh-Hant", float64(held)) + " 部在下面等你確認。"
 		}
 	}
 }
@@ -44365,6 +45283,15 @@ func (msgs Messages) VocabLearning(count int) string {
 	}
 }
 
+// VocabLibrarySeparator says ", "
+// in the language the app shows under cx.
+//
+// Study stats dialog: what goes between two library names in vocabStatsLibraries.
+func VocabLibrarySeparator(cx *core.Scope) string { return For(cx).VocabLibrarySeparator() }
+
+// VocabLibrarySeparator is the package's VocabLibrarySeparator in the language of msgs.
+func (msgs Messages) VocabLibrarySeparator() string { return msgs.text(textVocabLibrarySeparator) }
+
 // VocabLineCount says "{count, plural, one {# line} other {# lines}}"
 // in the language the app shows under cx.
 //
@@ -44766,6 +45693,77 @@ func VocabPreview(cx *core.Scope) string { return For(cx).VocabPreview() }
 
 // VocabPreview is the package's VocabPreview in the language of msgs.
 func (msgs Messages) VocabPreview() string { return msgs.text(textVocabPreview) }
+
+// VocabStatsLibraries says "Counted from {libraries}"
+// in the language the app shows under cx.
+//
+// Study stats dialog, top of the Stats tab: the libraries whose study is added up in the stats, by their names joined with vocabLibrarySeparator. Locked libraries are never counted.
+func VocabStatsLibraries(cx *core.Scope, libraries string) string {
+	return For(cx).VocabStatsLibraries(libraries)
+}
+
+// VocabStatsLibraries is the package's VocabStatsLibraries in the language of msgs.
+func (msgs Messages) VocabStatsLibraries(libraries string) string {
+	if i18n.IsPseudo(msgs.lang) {
+		return i18n.Pseudo(msgs.lang, Messages{lang: Source, mark: true}.VocabStatsLibraries(libraries))
+	}
+	for lang := msgs.lang; ; lang = i18n.Parent(lang) {
+		if f := supplied[lang].VocabStatsLibraries; f != nil {
+			return f(libraries)
+		}
+		switch lang {
+		case "", "en":
+			return "Counted from " + msgs.arg(libraries)
+		case "ja":
+			return "集計対象：" + libraries
+		case "ko":
+			return "집계 대상: " + libraries
+		case "zh-Hans":
+			return "统计范围：" + libraries
+		case "zh-Hant":
+			return "統計範圍：" + libraries
+		}
+	}
+}
+
+// VocabStatsLocked says "{count, plural, one {# locked library is not counted} other {# locked libraries are not counted}}"
+// in the language the app shows under cx.
+//
+// Study stats dialog, under vocabStatsLibraries: how many libraries are left out of the stats because they are locked with a password.
+func VocabStatsLocked(cx *core.Scope, count int) string { return For(cx).VocabStatsLocked(count) }
+
+// VocabStatsLocked is the package's VocabStatsLocked in the language of msgs.
+func (msgs Messages) VocabStatsLocked(count int) string {
+	if i18n.IsPseudo(msgs.lang) {
+		return i18n.Pseudo(msgs.lang, Messages{lang: Source, mark: true}.VocabStatsLocked(count))
+	}
+	for lang := msgs.lang; ; lang = i18n.Parent(lang) {
+		if f := supplied[lang].VocabStatsLocked; f != nil {
+			return f(count)
+		}
+		switch lang {
+		case "", "en":
+			var b strings.Builder
+			switch i18n.Cardinal("en", float64(count)) {
+			case i18n.One:
+				b.WriteString(msgs.arg(i18n.FormatNumber("en", float64(count))))
+				b.WriteString(" locked library is not counted")
+			default:
+				b.WriteString(msgs.arg(i18n.FormatNumber("en", float64(count))))
+				b.WriteString(" locked libraries are not counted")
+			}
+			return b.String()
+		case "ja":
+			return "ロック中のライブラリ " + i18n.FormatNumber("ja", float64(count)) + " 件は含まれません"
+		case "ko":
+			return "잠긴 라이브러리 " + i18n.FormatNumber("ko", float64(count)) + "개는 포함되지 않습니다"
+		case "zh-Hans":
+			return i18n.FormatNumber("zh-Hans", float64(count)) + " 个已锁定的资料库不计入"
+		case "zh-Hant":
+			return i18n.FormatNumber("zh-Hant", float64(count)) + " 個已鎖定的資料庫不計入"
+		}
+	}
+}
 
 // VocabStatsMenuItem says "Study Stats"
 // in the language the app shows under cx.

@@ -63,7 +63,7 @@ func explainOpen(t *testing.T, tools media.Tools, at time.Duration) (*app, *nsgo
 	return a, tt, updates
 }
 
-// TestExplainLineShowsInThePanel checks that E, in a film with lines, has the side panel, shown though it was hidden, explain the line playing in place of its tabs' content: it sends that line, past the furthest point played as well, with the lines just before it and none after it, and shows the line, the explanation's sections under their headings, the glossary's terms the line holds and which model wrote it, here one on this computer; 展开 adds the tone and related expressions, and ‹ 字幕 goes back to the list.
+// TestExplainLineShowsInThePanel checks that I, in a film with lines, has the side panel, shown though it was hidden, explain the line playing in place of its tabs' content: it sends that line, past the furthest point played as well, with the lines just before it and none after it, and shows the line, the explanation's sections under their headings, the glossary's terms the line holds and which model wrote it, here one on this computer; 展开 adds the tone and related expressions, and ‹ 字幕 goes back to the list.
 func TestExplainLineShowsInThePanel(t *testing.T) {
 	tools, asks := explainLLM(t)
 	a, tt, updates := explainOpen(t, tools, 71*time.Second)
@@ -74,12 +74,12 @@ func TestExplainLineShowsInThePanel(t *testing.T) {
 	})
 	// The panel slides out before it goes.
 	tt.Advance(time.Second)
-	tt.Key("e")
+	tt.Key("i")
 	if !a.player.panel || a.player.filmSide != film.SideExplain || !a.explain.line.busy {
-		t.Fatalf("E: panel %v side %q line %+v", a.player.panel, a.player.filmSide, a.explain.line)
+		t.Fatalf("I: panel %v side %q line %+v", a.player.panel, a.player.filmSide, a.explain.line)
 	}
 	if !hasText(tt, msgs.ExplainBusy("m1")) || !tt.Exists("id:film-explain >> "+whole("These sweeping curves are called meanders.")) {
-		t.Fatalf("E: texts %q", tt.Texts())
+		t.Fatalf("I: texts %q", tt.Texts())
 	}
 	waitUntil(t, tt, a, updates, func() bool { return !a.explain.line.busy })
 	for _, want := range []string{msgs.ExplainMeaning(), "河曲是河流的大弯道。", msgs.ExplainBreakdown(), "sweeping · 大幅度的\ncurves · 弯道", msgs.ExplainTranslation(), msgs.ExplainTerms(), "meander → 河曲", msgs.ExplainNoteLocal("m1")} {

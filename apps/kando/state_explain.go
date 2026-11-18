@@ -103,7 +103,7 @@ func (a *app) explainClose() {
 	}
 }
 
-// ExplainLine is Explain Line on line i of the open film's lines, from the subtitle list's right-click menu, the held line's card, the looked-up word's card and E (explainPlaying): the film holds, and the side panel, shown if it was hidden, explains the line in place of its tabs' content, with what the AI service set in 「AI 服务」 says of it from the line and the lines before it (explain.Prompt), asked off the engine's goroutine, or said before for the same line. Without an AI service that can answer, as while offline mode is on and it is not on this computer, the panel says why and offers its settings.
+// ExplainLine is Explain Line on line i of the open film's lines, from the subtitle list's right-click menu, the held line's card, the looked-up word's card, the correct bar and I (explainPlaying): the film holds, and the side panel, shown if it was hidden, explains the line in place of its tabs' content, with what the AI service set in 「AI 服务」 says of it from the line and the lines before it (explain.Prompt), asked off the engine's goroutine, or said before for the same line. Without an AI service that can answer, as while offline mode is on and it is not on this computer, the panel says why and offers its settings.
 func (a *app) ExplainLine(i int) {
 	cues := a.playerCues()
 	item, ok := a.openFilm()
@@ -177,8 +177,12 @@ func (a *app) explainAsk(t media.ChatTranslator, system, user string, done func(
 	}()
 }
 
-// explainPlaying is E: Explain Line on the line playing, or between lines on the line just heard, or before the first on the line coming, as L picks the line it loops.
+// explainPlaying is I: Explain Line on the line selected for correcting (E), or with none the line playing, or between lines on the line just heard, or before the first on the line coming, as L picks the line it loops.
 func (a *app) explainPlaying() {
+	if i := a.correctSelected(); i >= 0 {
+		a.ExplainLine(i)
+		return
+	}
 	prev, cur, next := film.CueNear(a.playerCues(), a.playerLineAt())
 	for _, i := range []int{cur, prev, next} {
 		if i >= 0 {

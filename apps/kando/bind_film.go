@@ -451,8 +451,8 @@ func (a *app) playerSaveSettings() {
 func (a *app) playerKeys(cx *ns.Scope) []shortcut {
 	playing := func() bool { return a.openKey != "" && a.playerLoaded() }
 	open := func() bool { return a.openKey != "" }
-	// Space and the arrows are left to the speed or mode menu while one is open, for its rows, wherever the keyboard focus is.
-	menus := func() bool { return a.player.film.modeMenu || a.player.film.speedMenu }
+	// Space and the arrows are left to the speed or mode menu while one is open, for its rows, wherever the keyboard focus is, and to the other translations of a line while they show (correctKeys).
+	menus := func() bool { return a.player.film.modeMenu || a.player.film.speedMenu || a.correctPicking() }
 	transport := func() bool { return playing() && !menus() }
 	volume := func() bool { return open() && !menus() }
 	// L also works while the picture opens, so turning the loop off is not missed then.
@@ -487,8 +487,10 @@ func (a *app) playerKeys(cx *ns.Scope) []shortcut {
 		{Group: groupSubtitles, Label: locales.PlayerKeyCopyLine(cx), Key: "mod+shift+c", InText: true, When: open, Run: a.copyCurrentLine},
 		{Group: groupView, Label: locales.PlayerKeyToggleSidebar(cx), Key: "mod+shift+t", When: open, Run: a.TogglePanel},
 		{Group: groupView, Label: locales.FilmFullScreen(cx), Key: "f", When: open, Run: a.ToggleFullScreen},
-		// While a line is selected for correcting, Escape lets go of it first (correctKeys).
-		{Group: groupView, Label: locales.FilmBackToLibrary(cx), Key: "escape", When: func() bool { return open() && !a.correctSelecting() }, Run: a.escapeFilm},
+		// While a line is selected for correcting, its other translations show or a bar asks about spreading a fix, Escape puts those away first (correctKeys).
+		{Group: groupView, Label: locales.FilmBackToLibrary(cx), Key: "escape", When: func() bool {
+			return open() && !a.correctSelecting() && !a.correctPicking() && !a.correctSpreading()
+		}, Run: a.escapeFilm},
 	}
 	// The speed keys are only where the system's player plays at the speed picked, not on Linux (film.RateWorks), so neither the cheat sheet, Settings › 快捷键 nor the menu bar offers keys that do nothing there.
 	if !film.RateWorks(cx) {
