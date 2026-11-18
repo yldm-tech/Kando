@@ -61,7 +61,16 @@ func Sheet(cx *core.Scope, s *session.Session, open func() bool, close func(), s
 		if !ok || to == "" || !takes(s.Queue(to)) {
 			return
 		}
-		s.Send(to, l.URL, sync.JobOptions{Quality: quality.Get(), Subtitles: subtitles.Get()})
+		// Only the options the sheet shows for this computer go with the link: one picked for another computer, or before this one went offline, is not on screen and not sent.
+		q := s.Queue(to)
+		var opts sync.JobOptions
+		if q.Offers(sync.OptionQuality) {
+			opts.Quality = quality.Get()
+		}
+		if q.Offers(sync.OptionSubtitles) {
+			opts.Subtitles = subtitles.Get()
+		}
+		s.Send(to, l.URL, opts)
 		text.Set("")
 		close()
 		sent()
