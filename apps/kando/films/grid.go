@@ -27,12 +27,17 @@ func gridTracks(min core.Points) core.GridTracks {
 type grid struct {
 	a    App
 	done func() []Film
+	// placed hears where the posters are under the grid's heading and how wide they are, as they are laid out.
+	placed func(core.Bounds)
 }
+
+// gridTop is the room over the grid's heading.
+const gridTop core.Points = 26
 
 // Render implements core.Node.
 func (g grid) Render(cx *core.Scope) core.Node {
 	a := g.a
-	cards := core.View{TestID: "films-grid",
+	cards := core.View{TestID: "films-grid", OnLayout: g.placed,
 		Style: core.Style{Display: core.DisplayGrid, GridTemplateColumns: gridTracks(CardMinWidth), ColumnGap: CardGapX, RowGap: CardGapY, AlignItems: core.AlignStart},
 		Children: []core.Node{core.Each(g.done, func(item Film) string { return item.Key }, func(cx *core.Scope, item func() Film, index func() int) core.Node {
 			return doneCard{a: a, item: item, done: g.done, index: index}
@@ -44,7 +49,7 @@ func (g grid) Render(cx *core.Scope) core.Node {
 			*focus = false
 		}
 	})
-	return core.View{Style: core.Style{Margin: core.Edges{Top: 26}, Gap: 14}, Children: []core.Node{doneHeading{a: a, done: g.done}, cards}}
+	return core.View{Style: core.Style{Margin: core.Edges{Top: gridTop}, Gap: 14}, Children: []core.Node{doneHeading{a: a, done: g.done}, cards}}
 }
 
 // doneHeading is the line over the done films, as posters or as a list: how many they are, then Translate N Films while more than one has no translation, the sort button while there is more than one to order, and the switch between posters and the list.

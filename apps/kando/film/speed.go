@@ -32,8 +32,13 @@ func (s *screen) speedMenu(cx *core.Scope) core.Node {
 	a := s.a
 	rate := live.Func(a, func() string { return RateText(cx, a.Rate()) })
 	label := func() string { return locales.FilmSpeedLabel(cx, rate()) }
+	keys := live.Func(a, func() [2]string {
+		slower, faster := a.SpeedKeys(cx.Env().OS())
+		return [2]string{slower, faster}
+	})
 	tooltip := func() string {
-		return locales.FilmSpeed(cx) + " " + cx.KeyLabel("shift+,") + " / " + cx.KeyLabel("shift+.")
+		k := keys()
+		return locales.FilmSpeed(cx) + " " + cx.KeyLabel(k[0]) + " / " + cx.KeyLabel(k[1])
 	}
 	trigger := []core.Node{core.Text{ContentFunc: rate, MaxLines: 1, Style: core.Style{FontSize: 12, LineHeight: 16, FontVariant: core.FontTabularNums, Color: onGlass}}}
 	rows := func(cx *core.Scope) []core.Node {

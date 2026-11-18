@@ -23,8 +23,8 @@ func openPlayer(t *testing.T, opts ...nsgotest.Option) (*phone, store.Film) {
 	dir := t.TempDir()
 	f := keepTalk(t, dir)
 	p := startPhone(t, dir, opts...)
-	p.app.WaitFor("id:downloads-film-f1", wait)
-	p.app.Press("id:downloads-film-f1")
+	p.app.WaitFor(talkRow(f.Desktop), wait)
+	p.app.Press(talkRow(f.Desktop))
 	p.app.WaitFor("id:film-play", wait)
 	p.app.Press("id:film-play")
 	p.app.WaitFor("id:player-video", wait)
@@ -47,7 +47,13 @@ func TestThePlayerDrawsTheLinePlayingAsTheModePicks(t *testing.T) {
 	if p.app.Find("id:player-video").Video.Paused {
 		t.Fatal("the film is held as it opens")
 	}
+	// Upright the lines show in the card alone, until the settings put them on the picture too.
 	p.at(1500 * time.Millisecond)
+	if p.app.Exists("id:player-subtitles") {
+		t.Fatal("upright, the lines show on the picture by default")
+	}
+	p.app.Press("id:player-more")
+	p.app.Press("id:player-settings-on-picture")
 	if got := p.texts("id:player-subtitles"); got != "早上好。\nGood morning." {
 		t.Fatalf("bilingual: %q", got)
 	}

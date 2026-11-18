@@ -13,6 +13,9 @@ import (
 	"github.com/nsgo-dev/nsgo/ui"
 )
 
+// MinContextLines is the fewest earlier lines the 翻译 page lets go with a batch while context is on; turning context off sends none.
+const MinContextLines = 10
+
 // translate is the 翻译 page: the language subtitles are translated into, whether each batch takes the sentences before it, and the prompt. The prototype's page starts 6 points lower than one that opens with a section label.
 type translate struct{ s screen }
 
@@ -43,7 +46,16 @@ func (p translate) Render(cx *core.Scope) core.Node {
 			*a.TranslateContext() = on
 			a.Save()
 		})}
-	card := form.Card(form.Row{Title: locales.SettingsTranslateTarget(cx), NoGroup: true, Trailing: []core.Node{target}}, form.Separator(true), context)
+	lines := ui.NumberInput{TestID: "settings-translate-context-lines", Label: locales.SettingsTranslateContextLines(cx), Min: MinContextLines, Max: media.MaxContextLines, Step: 10,
+		Disabled: live.Func(a, func() bool { return !*a.TranslateContext() }),
+		Value:    live.Func(a, func() float64 { return float64(a.TranslateContextLines()) }),
+		OnChange: live.On(a, func(v float64) {
+			a.SetTranslateContextLines(int(v))
+			a.Save()
+		}),
+		Style: core.Style{Width: core.Pt(96)}}
+	card := form.Card(form.Row{Title: locales.SettingsTranslateTarget(cx), NoGroup: true, Trailing: []core.Node{target}}, form.Separator(true), context,
+		form.Separator(true), form.Row{Title: locales.SettingsTranslateContextLines(cx), Subtitle: locales.SettingsTranslateContextLinesHint(cx), Trailing: []core.Node{lines}})
 	card.Style.Margin = core.Edges{Top: 6}
 	usingDefault := live.Func(a, func() bool {
 		return strings.TrimSpace(*a.TranslatePrompt()) == strings.TrimSpace(media.DefaultSubtitlePrompt)

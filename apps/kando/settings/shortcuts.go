@@ -22,7 +22,12 @@ func (p shortcuts) Render(cx *core.Scope) core.Node {
 	field := ui.Input{TestID: "settings-shortcut-search", Label: locales.SettingsShortcutsSearch(cx), Placeholder: locales.SettingsShortcutsSearch(cx),
 		Value:    live.Func(a, func() string { return *a.ShortcutQuery() }),
 		OnChange: live.On(a, func(text string) { *a.ShortcutQuery() = text })}
-	note := core.Text{Content: locales.SettingsShortcutsNote(cx), Style: core.Style{FontSize: 11, LineHeight: 15, Padding: core.Symmetric(0, 4)}, StyleFunc: ui.Colored(ui.ColorsOf(cx).Muted)}
+	note := core.Text{ContentFunc: live.Func(a, func() string {
+		if preset := a.ShortcutPreset(); preset != hotkey.PresetSystem {
+			return locales.SettingsShortcutsPresetNote(cx, presetName(cx, preset))
+		}
+		return locales.SettingsShortcutsNote(cx)
+	}), Style: core.Style{FontSize: 11, LineHeight: 15, Padding: core.Symmetric(0, 4)}, StyleFunc: ui.Colored(ui.ColorsOf(cx).Muted)}
 	// found is the rows the search finds, so the list is built again only when they change, not after every change of the app's state, and not while the field keeps the focus.
 	found := core.NewMemoFunc(cx, live.Func(a, func() []Shortcut {
 		var rows []Shortcut
@@ -37,7 +42,33 @@ func (p shortcuts) Render(cx *core.Scope) core.Node {
 		rows := found.Get()
 		return core.Func(func(cx *core.Scope) core.Node { return shortcutGroups(cx, rows) })
 	})
-	return core.View{Style: core.Style{Gap: 8, AlignItems: core.AlignStretch, Margin: core.Edges{Top: 6}}, Children: []core.Node{field, note, list}}
+	return core.View{Style: core.Style{Gap: 8, AlignItems: core.AlignStretch, Margin: core.Edges{Top: 6}}, Children: []core.Node{presetCard(cx, a), field, note, list}}
+}
+
+// presetCard chooses the preset the player's keys follow: the platform's own, IINA's or mpv's.
+func presetCard(cx *core.Scope, a App) core.Node {
+	presets := hotkey.Presets()
+	options := make([]ui.Option[string], len(presets))
+	for i, preset := range presets {
+		options[i] = ui.Option[string]{Value: preset, Label: presetName(cx, preset)}
+	}
+	choose := ui.Select[string]{Options: options, Label: locales.SettingsShortcutsPreset(cx), TestID: "settings-shortcut-preset",
+		Value: live.Func(a, a.ShortcutPreset), OnChange: live.On(a, a.SetShortcutPreset), Style: core.Style{Width: core.Pt(160)}}
+	return form.Card(form.Row{Title: locales.SettingsShortcutsPreset(cx), NoGroup: true, Trailing: []core.Node{choose}})
+}
+
+// presetName names a preset of hotkey.Presets: the player's own name, or for Kando's own keys Mac 默认 on macOS and 系统默认 elsewhere.
+func presetName(cx *core.Scope, preset string) string {
+	switch preset {
+	case hotkey.PresetIINA:
+		return "IINA"
+	case hotkey.PresetMPV:
+		return "mpv"
+	}
+	if cx.Env().OS() == core.OSMacOS {
+		return locales.SettingsShortcutsPresetMac(cx)
+	}
+	return locales.SettingsShortcutsPresetSystem(cx)
 }
 
 // shortcutGroups lists rows under their groups' labels, in the order the groups first come, or says that the search found none.

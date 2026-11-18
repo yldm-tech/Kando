@@ -55,8 +55,8 @@ func desktopWith(t *testing.T, lines []sync.Cue, updated time.Time) *synctest.De
 func playKept(t *testing.T, d *synctest.Desktop, dir string) *phone {
 	t.Helper()
 	p := startPhone(t, dir, pairedWith(t, d, dir))
-	p.app.WaitFor("id:downloads-film-f1", wait)
-	p.app.Press("id:downloads-film-f1")
+	p.app.WaitFor(talkRow(store.DesktopID(d.Fingerprint)), wait)
+	p.app.Press(talkRow(store.DesktopID(d.Fingerprint)))
 	p.app.WaitFor("id:film-play", wait)
 	p.app.Press("id:film-play")
 	p.app.WaitFor("id:player-video", wait)
@@ -71,7 +71,9 @@ func TestAPlayedFilmFollowsItsDesktopsNewLines(t *testing.T) {
 	d := desktopWith(t, revisedCues, now().Add(time.Hour))
 	dir, f := keptFrom(t, d)
 	p := playKept(t, d, dir)
-	p.app.WaitUntil(wait, func() bool { return p.texts("id:player-subtitles") == "早安！\nGood morning!" })
+	p.app.WaitUntil(wait, func() bool {
+		return p.texts("id:player-card-original") == "Good morning!" && p.texts("id:player-card-translation") == "早安！"
+	})
 
 	st := store.Open(dir)
 	if cues, ok, err := st.Cues(f.Desktop, f.Film.ID); err != nil || !ok || cues[0].Original != "Good morning!" {

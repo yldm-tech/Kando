@@ -107,7 +107,14 @@ func (q queueCard) Render(cx *ns.Scope) ns.Node {
 				}
 				return ns.Style{Color: colors.Muted()}
 			}}
-		return ns.Group{meta, stepsBar{item: item}}
+		// A job a phone paused waits until it is let go on, here or on the phone (core.Job.PausedBy).
+		here := ns.Show{When: func() bool { return item().PausedBy != "" && item().Stage == core.StageQueued }, Then: func(*ns.Scope) ns.Node {
+			return ns.View{Style: ns.Style{Direction: ns.Row, Margin: ns.Edges{Top: 2}}, Children: []ns.Node{
+				textButton(locales.FilmsQueueContinueHere, ui.Button{Variant: ui.ButtonSecondary, Size: ui.SizeSmall, TestID: "queue-continue-here",
+					OnPress: live.Do(a, func() { a.ContinueHere(item().JobID) })}),
+			}}
+		}}
+		return ns.Group{meta, stepsBar{item: item}, here}
 	}
 	// A job that has its video can be watched before it is done (Watchable): its thumbnail opens the film, with the transcript's lines once there are some.
 	thumb := ns.Show{When: func() bool { return Watchable(item()) }, Then: func(cx *ns.Scope) ns.Node {
@@ -219,6 +226,9 @@ func queueMetaAt(m locales.Messages, item Film, now time.Time) string {
 	}
 	switch item.Stage {
 	case core.StageQueued:
+		if item.PausedBy != "" {
+			return m.FilmsQueuePausedOn(item.PausedBy)
+		}
 		if item.Paused {
 			return m.FilmsQueuePaused()
 		}

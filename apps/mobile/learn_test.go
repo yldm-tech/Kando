@@ -49,12 +49,17 @@ func studyDesktop(t *testing.T) *synctest.Desktop {
 	return d
 }
 
-// waitLearned waits until the phone has kept computer id's learning state, as it does once it read it.
+// waitLearned waits until the phone has kept the learning state of a library of computer id, as it does once it read it.
 func (p *phone) waitLearned(id string) {
 	p.t.Helper()
 	p.app.WaitUntil(wait, func() bool {
-		_, err := os.Stat(filepath.Join(p.dir, "learning", id+".json"))
-		return err == nil
+		all, _ := store.Open(p.dir).Learnings()
+		for k := range all {
+			if k.Desktop == id {
+				return true
+			}
+		}
+		return false
 	})
 }
 
@@ -372,7 +377,7 @@ func TestTheTargetLanguageGoesToEveryComputer(t *testing.T) {
 	p := startPhone(t, dir, pairedWithBoth(t, d, e, dir))
 	p.waitLearned(store.DesktopID(d.Fingerprint))
 	p.waitLearned("laptop")
-	wake := e.Sleep()
+	e.SetOff(true)
 	p.openTab(settingsTab, msgs.SettingsTitle())
 	p.app.Press("id:settings-target")
 	p.app.Press("id:settings-target-ja")
@@ -380,7 +385,7 @@ func TestTheTargetLanguageGoesToEveryComputer(t *testing.T) {
 	p.openTab(learnTab, msgs.LearnTitle())
 	p.learnRefresh()
 
-	wake()
+	e.SetOff(false)
 	p.learnRefresh()
 	p.app.WaitUntil(wait, func() bool { return e.Target() == "ja" })
 	p.learnRefresh()
@@ -457,7 +462,7 @@ func TestARefusedChangeLeavesTheOthers(t *testing.T) {
 	dir := t.TempDir()
 	p := startPhone(t, dir, pairedWith(t, d, dir))
 	p.waitLearned(store.DesktopID(d.Fingerprint))
-	d.Refuse(sync.KindLine, "l-fine")
+	d.RefuseState(func(r sync.Record) bool { return r.Kind == sync.KindLine && r.ID == "l-fine" })
 	p.openTab(learnTab, msgs.LearnTitle())
 	p.app.WaitFor("id:learn-review-start", wait)
 	p.app.Press("id:learn-review-start")

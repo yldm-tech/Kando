@@ -70,6 +70,7 @@ func (p speech) Render(cx *core.Scope) core.Node {
 		downloadSource(cx, a),
 		spokenLanguage(cx, a),
 		form.Note(static(locales.SettingsSpeechSpokenNote(cx)), 0),
+		speechParams(cx, a),
 		trashDialog{a: a},
 	)
 }

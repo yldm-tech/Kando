@@ -1,6 +1,7 @@
 package main
 
 import (
+	"strings"
 	"testing"
 	"time"
 
@@ -32,6 +33,7 @@ func screenshotSubscriptions(f *screenshotFixture) []subscribe.Sub {
 //   - subscribe-renamed: the page of the channel its site renamed, with the banner that asks which name to keep
 //   - subscribe-gone: the page of the collection deleted on bilibili, with the banner that offers to keep it without checks
 //   - subscribe-ask: the dialog a link is pasted in, a channel's link typed in it
+//   - subscribe-capped: the page of the channel, which adds by itself, after a check found five new videos: three joined the queue and two wait below
 func TestScreenshotsSubscribe(t *testing.T) {
 	f := newScreenshotFixture(t)
 	show := func(t *testing.T, a *app, tt *nsgotest.App, index int) {
@@ -61,6 +63,20 @@ func TestScreenshotsSubscribe(t *testing.T) {
 		show(t, a, tt, 2)
 		if !tt.Exists("id:subscription-stop") {
 			t.Fatalf("no banner: %q", tt.Texts())
+		}
+	})
+	f.shoot(t, "subscribe-capped", func(t *testing.T, a *app, tt *nsgotest.App, _ chan func()) {
+		show(t, a, tt, 0)
+		sub := &a.subs.store.Subs[0]
+		sub.Renamed = ""
+		var fresh []media.ListedVideo
+		for i, title := range []string{"Why Glaciers Move", "The Deepest Lake on Earth", "How Deltas Form", "Volcanoes Under the Ice", "Reading a River Map"} {
+			fresh = append(fresh, media.ListedVideo{URL: "https://www.youtube.com/watch?v=" + strings.Repeat(string(rune('a'+i)), 11), Title: title, Duration: time.Duration(9+i) * time.Minute})
+		}
+		a.subscribeChecked(a.subs.run, sub.ID, media.Listing{Title: "Earth Science", Videos: fresh}, nil)
+		refresh(tt, a)
+		if !tt.Exists("id:subscription-note") || !tt.Exists("id:subscription-waiting-count") {
+			t.Fatalf("no note or no videos waiting: %q", tt.Texts())
 		}
 	})
 	f.shoot(t, "subscribe-ask", func(t *testing.T, a *app, tt *nsgotest.App, _ chan func()) {

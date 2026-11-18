@@ -1,0 +1,160 @@
+package study
+
+import (
+	"encoding/json"
+	"fmt"
+	"slices"
+	"strings"
+	"testing"
+	"time"
+
+	"kando/packages/sync"
+)
+
+var t0 = time.Date(2026, 11, 18, 9, 0, 0, 0, time.UTC)
+
+var hello = Cue{Start: time.Second, End: 2 * time.Second, Original: "Hello.", Translation: "你好。"}
+
+func TestALineSavedShowsAtOnceAndGoesOnceTaken(t *testing.T) {
+	var l Library
+	rec := Save("a", "f1", "Talk", hello, "", t0)
+	l = Change(l, rec)
+	got := Lines(l, "f1")
+	if len(got) != 1 || got[0].ID != "a" || got[0].Original != "Hello." || got[0].Start != time.Second || !got[0].SavedAt.Equal(t0) {
+		t.Fatalf("lines %+v", got)
+	}
+	if _, ok := At(l, "f1", time.Second+20*time.Millisecond); !ok {
+		t.Fatal("At did not find the line by its start")
+	}
+	if len(Lines(l, "f2")) != 0 {
+		t.Fatal("another film's lines hold it")
+	}
+	// A note written before it was sent goes with it.
+	l = Change(l, Note(l, "a", "f1", "  greeting ", t0.Add(time.Second)))
+	if len(l.Pending) != 1 || Lines(l, "f1")[0].Note != "greeting" {
+		t.Fatalf("pending %+v", l.Pending)
+	}
+	sent := l.Pending
+	merged := clone(sent[0])
+	merged.Rev = 3
+	l = Took(l, sent, sync.StatePutResult{Epoch: "e", Rev: 3, Records: []sync.Record{merged}}, false)
+	if len(l.Pending) != 0 || len(l.Records) != 1 || l.Records[0].Rev != 3 || Lines(l, "f1")[0].Note != "greeting" {
+		t.Fatalf("after the put: %+v", l)
+	}
+	// The note changed again is made from the computer's.
+	n := Note(l, "a", "f1", "hi", t0.Add(time.Minute))
+	if b := n.Fields[sync.FieldNote].Base; b == nil || !b.At.Equal(t0.Add(time.Second)) {
+		t.Fatalf("base %+v", b)
+	}
+	l = Change(l, n)
+	l = Change(l, Remove("a", "f1", t0.Add(2*time.Minute)))
+	if len(Lines(l, "f1")) != 0 || len(l.Pending) != 1 || l.Pending[0].Removed == nil || l.Pending[0].Fields != nil {
+		t.Fatalf("removed: %+v", l.Pending)
+	}
+}
+
+func TestALineTakenBackBeforeItWasSentGoesWithoutAWord(t *testing.T) {
+	l := Change(Library{}, Save("a", "f1", "Talk", hello, "", t0))
+	l = Change(l, Remove("a", "f1", t0.Add(time.Second)))
+	if len(l.Pending) != 0 || len(Lines(l, "f1")) != 0 {
+		t.Fatalf("pending %+v", l.Pending)
+	}
+}
+
+func TestAChangeMadeWhileAPutRanStaysPending(t *testing.T) {
+	l := Change(Library{}, Save("a", "f1", "Talk", hello, "", t0))
+	sent := l.Pending
+	l = Change(l, Note(l, "a", "f1", "later", t0.Add(time.Second)))
+	l = Took(l, sent, sync.StatePutResult{Records: []sync.Record{sent[0]}}, false)
+	if len(l.Pending) != 1 || Lines(l, "f1")[0].Note != "later" {
+		t.Fatalf("pending %+v", l.Pending)
+	}
+	// A put refused for good drops what it sent.
+	l = Took(l, l.Pending, sync.StatePutResult{}, true)
+	if len(l.Pending) != 0 {
+		t.Fatalf("refused: %+v", l.Pending)
+	}
+}
+
+func TestApplyTakesInTheComputersChanges(t *testing.T) {
+	desk := Save("d", "f1", "Talk", Cue{Start: 3 * time.Second, Original: "Bye."}, "", t0)
+	l := Change(Library{}, Save("a", "f1", "Talk", hello, "", t0))
+	l = Apply(l, sync.StateChanges{Epoch: "e", Rev: 5, Reset: true, Records: []sync.Record{desk},
+		Conflicts: []sync.Conflict{{ID: "c1", Kind: sync.KindLine, Record: "d", Field: sync.FieldNote}}})
+	if l.Epoch != "e" || l.Rev != 5 || len(Lines(l, "f1")) != 2 || len(l.Conflicts) != 1 {
+		t.Fatalf("reset: %+v", l)
+	}
+	gone := sync.Record{Kind: sync.KindLine, ID: "d", Film: "f1", Removed: &sync.Stamp{At: t0}}
+	l = Apply(l, sync.StateChanges{Epoch: "e", Rev: 6, Records: []sync.Record{gone}, Conflicts: []sync.Conflict{{ID: "c1", Resolved: &sync.Stamp{At: t0}}}})
+	if got := Lines(l, "f1"); len(got) != 1 || got[0].ID != "a" || len(l.Conflicts) != 0 || l.Rev != 6 {
+		t.Fatalf("changes: %+v, %+v", got, l)
+	}
+}
+
+// A save handed to the computer and taken back before it answered goes to it as a tombstone, and the line stays taken back once the computer's copy of it comes back; one never handed goes without a word.
+func TestALineTakenBackOnceSentTellsTheComputer(t *testing.T) {
+	var l Library
+	l = Change(l, Save("a", "f1", "Talk", hello, "", t0))
+	sent := slices.Clone(l.Pending)
+	l = Sending(l, sent)
+	l = Change(l, Remove("a", "f1", t0.Add(time.Second)))
+	if len(l.Pending) != 1 || l.Pending[0].Removed == nil || len(Lines(l, "f1")) != 0 {
+		t.Fatalf("pending %+v", l.Pending)
+	}
+	desk := clone(sent[0])
+	desk.Rev = 1
+	l = Took(l, sent, sync.StatePutResult{Epoch: "e", Rev: 1, Records: []sync.Record{desk}}, false)
+	if len(l.Pending) != 1 || l.Pending[0].Removed == nil || len(Lines(l, "f1")) != 0 || len(l.Sent) != 1 {
+		t.Fatalf("after the put: %+v", l)
+	}
+	l = Took(l, slices.Clone(l.Pending), sync.StatePutResult{}, false)
+	if len(l.Pending) != 0 || len(l.Sent) != 0 {
+		t.Fatalf("after the tombstone's put: %+v", l)
+	}
+
+	var never Library
+	never = Change(never, Save("b", "f1", "Talk", hello, "", t0))
+	never = Change(never, Remove("b", "f1", t0.Add(time.Second)))
+	if len(never.Pending) != 0 {
+		t.Fatalf("a save never sent left %+v", never.Pending)
+	}
+}
+
+// A refused change is dropped alone: the others stay pending.
+func TestARefusedChangeIsDroppedAlone(t *testing.T) {
+	var l Library
+	l = Change(l, Save("a", "f1", "Talk", hello, "", t0))
+	l = Change(l, Save("b", "gone", "Gone", hello, "", t0))
+	l = Sending(l, l.Pending)
+	l = Took(l, []sync.Record{l.Pending[1]}, sync.StatePutResult{}, true)
+	if len(l.Pending) != 1 || l.Pending[0].ID != "a" || len(l.Sent) != 1 || l.Sent[0].ID != "a" {
+		t.Fatalf("after the refusal: %+v", l)
+	}
+}
+
+// Batches keep each put within the limit, in order, a record longer than it alone.
+func TestBatchesKeepEachPutWithinTheLimit(t *testing.T) {
+	var records []sync.Record
+	for i := range 10 {
+		records = append(records, Save(fmt.Sprint(i), "f1", "Talk", hello, strings.Repeat("n", 100), t0))
+	}
+	big := Save("big", "f1", "Talk", hello, strings.Repeat("n", 5000), t0)
+	records = append(records[:5], append([]sync.Record{big}, records[5:]...)...)
+	one, _ := json.Marshal(records[0])
+	limit := 3 * (len(one) + 1)
+	batches := Batches(records, limit)
+	var got []sync.Record
+	for _, b := range batches {
+		data, _ := json.Marshal(b)
+		if len(b) > 1 && len(data) > limit+1 {
+			t.Fatalf("a batch of %d takes %d bytes, over %d", len(b), len(data), limit)
+		}
+		got = append(got, b...)
+	}
+	if len(got) != len(records) || !slices.EqualFunc(got, records, func(a, b sync.Record) bool { return a.ID == b.ID }) {
+		t.Fatalf("batches %d records", len(got))
+	}
+	if !slices.ContainsFunc(batches, func(b []sync.Record) bool { return len(b) == 1 && b[0].ID == "big" }) {
+		t.Fatal("the long record is not alone")
+	}
+}

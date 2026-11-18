@@ -335,3 +335,93 @@ func TestHandleCallRefusesWhatIsNotACall(t *testing.T) {
 		}
 	}
 }
+
+// A device the desktop's user made read-only reads everything but changes nothing: every call that changes something, the jobs', the learning state's and the settings', is refused with CodeReadOnly before the desktop's work, and not remembered, so the same call sent once the device may write again does its work. Hello tells the device it is read-only.
+func TestAReadOnlyDeviceChangesNothing(t *testing.T) {
+	ctx := context.Background()
+	f := &fakeService{receive: ReceiveQueue}
+	state := &fakeState{}
+	desk := newDesk(f)
+	desk.State = state
+	settings := &fakeSettings{}
+	desk.Settings = settings
+	reader := Caller{DeviceID: "d1", Name: "Pixel", ReadOnly: true}
+	call := func(caller Caller, id, op string, args any) Reply {
+		data, _ := json.Marshal(args)
+		return desk.Answer(ctx, caller, Call{ID: id, V: CallVersion, Op: op, Args: data})
+	}
+	if r := call(reader, "h", OpHello, nil); r.Error != nil || !strings.Contains(string(r.Result), `"read_only":true`) {
+		t.Fatalf("hello of a read-only device: %s %+v", r.Result, r.Error)
+	}
+	if r := call(Caller{DeviceID: "d2"}, "h", OpHello, nil); strings.Contains(string(r.Result), "read_only") {
+		t.Fatalf("hello of a device that may write says read_only: %s", r.Result)
+	}
+	writes := map[string]any{
+		OpJobCreate:    JobCreate{Link: "https://youtu.be/abc"},
+		OpJobCancel:    JobRef{ID: "j1"},
+		OpJobRetry:     JobRef{ID: "j1"},
+		OpJobPause:     JobRef{ID: "j1"},
+		OpJobResume:    JobRef{ID: "j1"},
+		OpUpdateYTDLP:  nil,
+		OpStatePut:     StatePut{Library: "l", Records: []Record{{Kind: KindPosition, ID: "f", Fields: map[string]Field{FieldPositionMS: {Value: Value(5000)}}}}},
+		OpStateResolve: ConflictResolve{Library: "l", ID: "c", Value: Value("x")},
+		OpSettingsPut:  SettingsPut{Target: "ja"},
+	}
+	for op, args := range writes {
+		r := call(reader, "w-"+op, op, args)
+		if r.Error == nil || r.Error.Code != CodeReadOnly {
+			t.Fatalf("%s of a read-only device answered %s %+v", op, r.Result, r.Error)
+		}
+		if StatusOf(r.Error.Code) != http.StatusForbidden {
+			t.Fatalf("read_only answers status %d", StatusOf(r.Error.Code))
+		}
+	}
+	if f.made != 0 || len(f.callers) != 0 || state.puts != 0 || state.resolves != 0 || settings.puts != 0 {
+		t.Fatalf("a read-only device's calls reached the desktop: %d jobs, %d puts, %d resolves, %d settings", f.made, state.puts, state.resolves, settings.puts)
+	}
+	for _, op := range []string{OpJobs, OpStateGet, OpSettingsGet} {
+		if r := call(reader, "r-"+op, op, StateGet{Library: "l"}); r.Error != nil {
+			t.Fatalf("%s of a read-only device: %+v", op, r.Error)
+		}
+	}
+	// Once it may write again, the same call does its work: the refusal was not remembered.
+	writer := reader
+	writer.ReadOnly = false
+	if r := call(writer, "w-"+OpJobCreate, OpJobCreate, writes[OpJobCreate]); r.Error != nil || f.made != 1 {
+		t.Fatalf("the call sent again once the device may write: %+v, %d jobs", r.Error, f.made)
+	}
+	if r := call(writer, "w-"+OpStatePut, OpStatePut, writes[OpStatePut]); r.Error != nil || state.puts != 1 {
+		t.Fatalf("the put sent again once the device may write: %+v, %d puts", r.Error, state.puts)
+	}
+}
+
+// fakeSettings is a desktop's SettingsService that counts the changes it was asked for.
+type fakeSettings struct{ puts int }
+
+func (f *fakeSettings) Settings(context.Context, Caller) (Settings, error) {
+	return Settings{Target: "zh-Hans"}, nil
+}
+
+func (f *fakeSettings) PutSettings(_ context.Context, _ Caller, req SettingsPut) (Settings, error) {
+	f.puts++
+	return Settings{Target: req.Target}, nil
+}
+
+// fakeState is a desktop's StateService that counts what it was asked to change.
+type fakeState struct {
+	puts, resolves int
+}
+
+func (f *fakeState) GetState(context.Context, Caller, StateGet) (StateChanges, error) {
+	return StateChanges{Records: []Record{}, Conflicts: []Conflict{}}, nil
+}
+
+func (f *fakeState) PutState(context.Context, Caller, StatePut) (StatePutResult, error) {
+	f.puts++
+	return StatePutResult{Records: []Record{}, Conflicts: []Conflict{}}, nil
+}
+
+func (f *fakeState) ResolveConflict(context.Context, Caller, ConflictResolve) (StatePutResult, error) {
+	f.resolves++
+	return StatePutResult{Records: []Record{}, Conflicts: []Conflict{}}, nil
+}

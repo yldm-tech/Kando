@@ -2,7 +2,7 @@ package sync
 
 import "context"
 
-// The computer's settings a paired phone reads and changes (yldm-tech/Kando#224): the language the computer translates subtitles into, which the phone's Settings › Translate into shows and sets, so the phone and the computer name one language rather than each its own. Only what a phone may change travels: the AI service's key never leaves the computer. Like every v2 call they go over any transport, the storage relay too.
+// The computer's settings a paired phone reads and changes (yldm-tech/Kando#224): the language the computer translates subtitles into, which the phone's Settings › Translate into shows and sets, so the phone and the computer name one language rather than each its own. Only what a phone may change travels: the AI service's key never leaves the computer. Like every v2 call they go over any transport, the storage relay too. OpSettingsPut changes the computer (Mutates), so a read-only device (Caller.ReadOnly) is refused it; OpSettingsGet only reads.
 const (
 	// OpSettingsGet takes nothing and answers Settings.
 	OpSettingsGet = "settings.get"

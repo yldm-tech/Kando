@@ -1,3 +1,4 @@
+// Package learning is what the Learn tab makes of the learner's study, with nothing of the interface in it: the words and saved lines of the paired computers' libraries' learning state (kept and synced as package study keeps it, the records of protocol v2, kando/packages/sync, state.go) as the tab lists and reviews them, and their review schedule; how long films played on the phone each day; the export of the vocabulary and the saved lines; and when to remind the learner to review. The session reads and writes it off the engine's goroutine.
 package learning
 
 import (
@@ -5,8 +6,10 @@ import (
 	"encoding/json"
 	"math"
 	"slices"
+	"strings"
 	"time"
 
+	phonestudy "kando/apps/mobile/study"
 	"kando/packages/study"
 	"kando/packages/sync"
 )
@@ -24,7 +27,7 @@ const (
 // Item is a word or a saved line of a library, as the Learn tab lists and reviews it.
 type Item struct {
 	Kind Kind
-	// Desktop and Library are the mirror it is in; ID its record's and Film the film's it was saved or looked up in, "" for none.
+	// Desktop and Library are the computer and library whose learning state it is in; ID its record's and Film the film's it was saved or looked up in, "" for none.
 	Desktop, Library, ID, Film string
 	// Text is the word, or the line's original; Meaning the word's meaning, or the line's translation.
 	Text, Meaning string
@@ -47,7 +50,9 @@ type Item struct {
 }
 
 // Key names the item on the phone.
-func (it Item) Key() string { return Key(it.Desktop, it.Library) + "/" + it.kind() + "/" + it.ID }
+func (it Item) Key() string {
+	return strings.Join([]string{it.Desktop, it.Library, it.kind(), it.ID}, "/")
+}
 
 func (it Item) kind() string {
 	if it.Kind == Word {
@@ -62,14 +67,19 @@ func (it Item) IsDue(now time.Time) bool { return !it.Due.After(now) }
 // Mastered reports whether it is known well enough to count as mastered (study.MasteredBox).
 func (it Item) Mastered() bool { return it.Box >= study.MasteredBox }
 
-// Items are the mirror's words and saved lines, those removed left out, the latest saved first.
-func (m Mirror) Items() []Item {
+// Items are the words and saved lines of l, library lib of computer desktop's learning state as the phone shows it, the phone's changes not yet sent laid over the computer's, those removed left out, the latest saved first.
+func Items(desktop, lib string, l phonestudy.Library) []Item {
 	var out []Item
-	for _, r := range m.Records {
-		if r.Removed != nil || (r.Kind != sync.KindWord && r.Kind != sync.KindLine) {
-			continue
+	var records []sync.Record
+	for _, kind := range []string{sync.KindWord, sync.KindLine} {
+		for _, id := range phonestudy.IDs(l, kind) {
+			if r, ok := phonestudy.View(l, kind, id); ok {
+				records = append(records, r)
+			}
 		}
-		it := Item{Desktop: m.Desktop, Library: m.Library, ID: r.ID, Film: r.Film, Kind: Line}
+	}
+	for _, r := range records {
+		it := Item{Desktop: desktop, Library: lib, ID: r.ID, Film: r.Film, Kind: Line}
 		text := func(name string, to *string) { read(r.Fields[name].Value, to) }
 		if r.Kind == sync.KindWord {
 			it.Kind = Word
@@ -115,7 +125,7 @@ func Due(items []Item, now time.Time) []Item {
 	return out
 }
 
-// Grade is the change of it's schedule after a review at now on device, as the computer's own review makes it (study.Intervals): good, known, moves it up a box and makes it due the box's interval later; not known puts it back in box 0, due at once.
+// Grade is the change of it's schedule after a review at now on device, as the computer's own review makes it (study.Intervals): good, known, moves it up a box and makes it due the box's interval later; not known puts it back in box 0, due at once. The session makes it from the schedule the computer has (phonestudy.Based).
 func Grade(it Item, good bool, now time.Time, device string) sync.Record {
 	box, due := 0, now
 	if good {

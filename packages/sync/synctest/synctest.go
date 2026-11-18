@@ -10,6 +10,7 @@ import (
 	"encoding/json"
 	"io"
 	"log"
+	"net"
 	"net/http"
 	"net/http/httptest"
 	"net/netip"
@@ -55,14 +56,19 @@ type Desktop struct {
 	ledgers map[string]*sync.Ledger
 	// target is the language the desktop translates into (settings.go).
 	target string
-	// refused are the records, by kind and ID, whose puts the desktop refuses whole (state.go).
-	refused map[[2]string]bool
-	desk    *sync.Desk
-	libs    []sync.Library
-	films   []Film
-	stall   int64
-	held    chan struct{}
-	asleep  bool
+	// refuse, putHeld and puts are how the learning state's puts are answered and how many were (state.go).
+	refuse  func(sync.Record) bool
+	putHeld chan struct{}
+	puts    int
+	// study is the lookups and explanations (study.go).
+	study study
+	desk  *sync.Desk
+	libs  []sync.Library
+	films []Film
+	stall int64
+	held  chan struct{}
+	// off hangs up on every connection, as a computer asleep or with Phone Sync off (SetOff).
+	off     bool
 	ranges  []string
 	modTime time.Time
 }
@@ -72,7 +78,7 @@ func New(t testing.TB, name string) *Desktop {
 	t.Helper()
 	d := &Desktop{Name: name, tokens: map[string]bool{}, names: map[string]string{}, modTime: time.Unix(1_700_000_000, 0), target: "zh-Hans"}
 	d.queue.receive = sync.ReceiveQueue
-	d.desk = &sync.Desk{Service: jobService{d}, State: stateService{d}, Settings: settingsService{d}, Journal: sync.NewJournal(), Desktop: name}
+	d.desk = &sync.Desk{Service: jobService{d}, State: stateService{d}, Settings: settingsService{d}, Study: studyService{d}, Journal: sync.NewJournal(), Desktop: name}
 	mux := http.NewServeMux()
 	mux.HandleFunc("POST "+sync.PathPair, d.pair)
 	mux.HandleFunc("GET "+sync.PathLibraries, d.authed(d.libraries))
@@ -82,6 +88,7 @@ func New(t testing.TB, name string) *Desktop {
 	mux.HandleFunc("GET "+sync.PathVideo, d.authed(d.video))
 	mux.HandleFunc("POST "+sync.PathCall, d.authed(d.call))
 	d.srv = httptest.NewUnstartedServer(mux)
+	d.srv.Listener = offListener{d.srv.Listener, d}
 	// A phone reading the certificate alone (sync.FetchFingerprint) hangs up after the handshake, which the server would log as an error.
 	d.srv.Config.ErrorLog = log.New(io.Discard, "", 0)
 	d.srv.StartTLS()
@@ -172,18 +179,6 @@ func (d *Desktop) Hold() (release func()) {
 	}
 }
 
-// Sleep makes the desktop hang up on each paired device's request from now on, as a computer asleep or out of reach, until wake is called.
-func (d *Desktop) Sleep() (wake func()) {
-	d.mu.Lock()
-	defer d.mu.Unlock()
-	d.asleep = true
-	return func() {
-		d.mu.Lock()
-		defer d.mu.Unlock()
-		d.asleep = false
-	}
-}
-
 // Ranges are the video requests' Range headers, oldest first, each with its If-Range after a space when it had one.
 func (d *Desktop) Ranges() []string {
 	d.mu.Lock()
@@ -196,6 +191,38 @@ func (d *Desktop) Paired() int {
 	d.mu.Lock()
 	defer d.mu.Unlock()
 	return len(d.tokens)
+}
+
+// SetOff drops every request from now on while off, as a computer asleep or with Phone Sync off does, and answers them again once it is back on, at the same address and with the same tokens, which Close cannot.
+func (d *Desktop) SetOff(off bool) {
+	d.mu.Lock()
+	d.off = off
+	d.mu.Unlock()
+	if off {
+		d.srv.CloseClientConnections()
+	}
+}
+
+// offListener hangs up on the connections it accepts while its desktop is off, before the TLS handshake, so a phone's request fails as one to a computer that is not there does.
+type offListener struct {
+	net.Listener
+	d *Desktop
+}
+
+func (l offListener) Accept() (net.Conn, error) {
+	for {
+		c, err := l.Listener.Accept()
+		if err != nil {
+			return nil, err
+		}
+		l.d.mu.Lock()
+		off := l.d.off
+		l.d.mu.Unlock()
+		if !off {
+			return c, nil
+		}
+		c.Close()
+	}
 }
 
 // Close stops the desktop, as one turned off or with Phone Sync off: nothing listens at Addr after it.
@@ -245,11 +272,7 @@ func (d *Desktop) authed(next http.HandlerFunc) http.HandlerFunc {
 		token, ok := bytes.CutPrefix([]byte(r.Header.Get("Authorization")), []byte("Bearer "))
 		d.mu.Lock()
 		known := ok && d.tokens[string(token)]
-		asleep := d.asleep
 		d.mu.Unlock()
-		if asleep {
-			panic(http.ErrAbortHandler)
-		}
 		if !known {
 			fail(w, http.StatusUnauthorized, sync.CodeUnauthorized)
 			return

@@ -1,0 +1,148 @@
+package session
+
+import (
+	"context"
+	"maps"
+	"strconv"
+	"strings"
+	"time"
+
+	"kando/apps/mobile/catalog"
+	"kando/packages/sync"
+)
+
+// Shelf is what a paired computer last listed for the Library (catalog.Load): its listing once it answered, whether it is being read, and why its last read failed, which leaves no listing.
+type Shelf struct {
+	Listing catalog.Listing
+	// Listed is a computer that answered since the app started or paired with it.
+	Listed  bool
+	Loading bool
+	Err     error
+}
+
+// Waiting reports whether the shelf has nothing to show while it is read: the first time, or again after a failure.
+func (sh Shelf) Waiting() bool { return sh.Loading && (!sh.Listed || sh.Err != nil) }
+
+// Failed reports whether the last read failed and none runs.
+func (sh Shelf) Failed() bool { return sh.Err != nil && !sh.Loading }
+
+// listFor is how long a computer has to list its films: one asleep or out of reach says so after it rather than leaving the Library loading.
+const listFor = 30 * time.Second
+
+// listing is a read of a computer's shelf under way: its cancel, and the generation that tells it from a later read.
+type listing struct {
+	cancel context.CancelFunc
+	gen    uint64
+}
+
+// Shelf is computer id's shelf.
+func (s *Session) Shelf(id string) Shelf { return s.shelves.Get()[id] }
+
+// Listing reports whether any computer's shelf is being read.
+func (s *Session) Listing() bool {
+	for _, sh := range s.shelves.Get() {
+		if sh.Loading {
+			return true
+		}
+	}
+	return false
+}
+
+// Refresh reads every paired computer's shelf again.
+func (s *Session) Refresh() {
+	for _, d := range s.desktops.GetUntracked() {
+		s.RefreshDesktop(d.ID)
+	}
+}
+
+// RefreshDesktop reads computer id's shelf again, in place of a read under way, keeping what it last listed until the answer comes.
+func (s *Session) RefreshDesktop(id string) {
+	d, ok := s.Desktop(id)
+	c := s.Client(id)
+	if !ok || c == nil {
+		return
+	}
+	if l, running := s.listings[id]; running {
+		l.cancel()
+	}
+	s.listGen++
+	gen := s.listGen
+	ctx, cancel := context.WithTimeout(context.Background(), listFor)
+	s.listings[id] = listing{cancel: cancel, gen: gen}
+	s.setShelf(id, func(sh Shelf) Shelf { sh.Loading = true; return sh })
+	s.work.Go(func() {
+		defer cancel()
+		l, err := catalog.Load(ctx, c, d.DeviceID)
+		s.cx.Post(func() {
+			if cur, ok := s.listings[id]; !ok || cur.gen != gen {
+				return
+			}
+			delete(s.listings, id)
+			if err != nil {
+				s.setShelf(id, func(Shelf) Shelf { return Shelf{Err: err} })
+				return
+			}
+			s.setShelf(id, func(Shelf) Shelf { return Shelf{Listing: l, Listed: true} })
+		})
+	})
+}
+
+// forgetShelf stops reading computer id's shelf and drops it, as the computer is unpaired or paired again.
+func (s *Session) forgetShelf(id string) {
+	if l, running := s.listings[id]; running {
+		l.cancel()
+		delete(s.listings, id)
+	}
+	m := maps.Clone(s.shelves.GetUntracked())
+	delete(m, id)
+	s.shelves.Set(m)
+}
+
+func (s *Session) setShelf(id string, change func(Shelf) Shelf) {
+	m := maps.Clone(s.shelves.GetUntracked())
+	m[id] = change(m[id])
+	s.shelves.Set(m)
+}
+
+// Computers are the paired computers with what they last listed, in the order they were paired, for catalog.Merge.
+func (s *Session) Computers() []catalog.Computer {
+	shelves := s.shelves.Get()
+	var out []catalog.Computer
+	for _, d := range s.desktops.Get() {
+		out = append(out, catalog.Computer{ID: d.ID, Name: d.Name, Listing: shelves[d.ID].Listing})
+	}
+	return out
+}
+
+// Entries are the films of every paired computer and those on the phone, as one library (catalog.Merge).
+func (s *Session) Entries() []catalog.Entry { return catalog.Merge(s.Computers(), s.films.Get()) }
+
+// LinesKey names the lines kept on the phone as they stand: the films whose videos are whole, each as of its desktop's last change, which a search reads its lines again on.
+func (s *Session) LinesKey() string {
+	var b strings.Builder
+	for _, f := range s.films.Get() {
+		if f.Done() {
+			b.WriteString(f.Key())
+			b.WriteByte('@')
+			b.WriteString(strconv.FormatInt(f.Film.Updated.UnixNano(), 36))
+			b.WriteByte('\n')
+		}
+	}
+	return b.String()
+}
+
+// Lines reads the lines of the films LinesKey names, by film key, for a search: off the engine's goroutine, as a resource's fetcher. A film whose lines cannot be read has none.
+func (s *Session) Lines(ctx context.Context, key string) map[string][]sync.Cue {
+	out := map[string][]sync.Cue{}
+	for line := range strings.Lines(key) {
+		k, _, _ := strings.Cut(strings.TrimSuffix(line, "\n"), "@")
+		desktop, film, ok := strings.Cut(k, "/")
+		if !ok || ctx.Err() != nil {
+			continue
+		}
+		if cues, ok, _ := s.st.Cues(desktop, film); ok {
+			out[k] = cues
+		}
+	}
+	return out
+}

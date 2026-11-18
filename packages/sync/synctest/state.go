@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"slices"
+	gosync "sync"
 	"time"
 
 	"kando/packages/sync"
@@ -24,14 +25,44 @@ func (d *Desktop) State(lib, kind, id string) (sync.Record, bool) {
 	return d.ledgerLocked(lib).Record(kind, id)
 }
 
-// Refuse makes the desktop refuse each put that holds record kind id, the whole put, as Kando's refuses one with a record it cannot keep (sync.CodeInvalid).
-func (d *Desktop) Refuse(kind, id string) {
+// Records are the records of kind of library lib's learning state as the desktop has them, tombstones among them.
+func (d *Desktop) Records(lib, kind string) []sync.Record {
 	d.mu.Lock()
 	defer d.mu.Unlock()
-	if d.refused == nil {
-		d.refused = map[[2]string]bool{}
+	return d.ledgerLocked(lib).Records(kind)
+}
+
+// RefuseState has the desktop refuse a put of the learning state holding a record refuse reports, the whole put, as Kando's desktop refuses one with a line of a film it no longer serves (sync.CodeInvalid); nil takes them all again.
+func (d *Desktop) RefuseState(refuse func(sync.Record) bool) {
+	d.mu.Lock()
+	defer d.mu.Unlock()
+	d.refuse = refuse
+}
+
+// HoldPuts makes each put of the learning state begun from now on wait, before the desktop takes it, until release is called or the phone gives up on it, as a desktop slow to answer does.
+func (d *Desktop) HoldPuts() (release func()) {
+	held := make(chan struct{})
+	d.mu.Lock()
+	d.putHeld = held
+	d.mu.Unlock()
+	var once gosync.Once
+	return func() {
+		once.Do(func() {
+			d.mu.Lock()
+			if d.putHeld == held {
+				d.putHeld = nil
+			}
+			d.mu.Unlock()
+			close(held)
+		})
 	}
-	d.refused[[2]string{kind, id}] = true
+}
+
+// Puts is how many puts of the learning state the desktop answered, refused ones among them.
+func (d *Desktop) Puts() int {
+	d.mu.Lock()
+	defer d.mu.Unlock()
+	return d.puts
 }
 
 // ledgerLocked is library lib's ledger, made the first time. d.mu is held.
@@ -70,17 +101,26 @@ func (s stateService) GetState(_ context.Context, caller sync.Caller, req sync.S
 	return out, nil
 }
 
-func (s stateService) PutState(_ context.Context, _ sync.Caller, req sync.StatePut) (sync.StatePutResult, error) {
+func (s stateService) PutState(ctx context.Context, _ sync.Caller, req sync.StatePut) (sync.StatePutResult, error) {
+	s.d.mu.Lock()
+	held := s.d.putHeld
+	s.d.mu.Unlock()
+	if held != nil {
+		select {
+		case <-held:
+		case <-ctx.Done():
+			return sync.StatePutResult{}, ctx.Err()
+		}
+	}
 	s.d.mu.Lock()
 	defer s.d.mu.Unlock()
+	s.d.puts++
 	l, err := s.ledger(req.Library)
 	if err != nil {
 		return sync.StatePutResult{}, err
 	}
-	for _, r := range req.Records {
-		if s.d.refused[[2]string{r.Kind, r.ID}] {
-			return sync.StatePutResult{}, sync.Errorf(sync.CodeInvalid, "%s %s cannot be kept", r.Kind, r.ID)
-		}
+	if s.d.refuse != nil && slices.ContainsFunc(req.Records, s.d.refuse) {
+		return sync.StatePutResult{}, sync.Errorf(sync.CodeInvalid, "a record is of no film this library has")
 	}
 	_, conflicts := l.Put(req.Records, sync.NewCallID)
 	out := sync.StatePutResult{Epoch: l.Epoch(), Rev: l.Rev(), Records: []sync.Record{}, Conflicts: conflicts}

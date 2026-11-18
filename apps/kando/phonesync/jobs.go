@@ -46,6 +46,10 @@ func JobOf(job core.Job, facts JobFacts) psync.Job {
 			out.State = psync.JobCanceled
 		}
 	}
+	// A job a phone paused waits held until it is let go on (core.Job.PausedBy), and so does one paused while it ran, which stops where it is.
+	if job.PausedBy != "" && (out.State == psync.JobWaiting || out.State == psync.JobRunning) {
+		out.State = psync.JobPaused
+	}
 	names := []string{psync.StepDownload, psync.StepTranscribe, psync.StepTranslate}
 	skipped := []bool{
 		strings.HasPrefix(job.Source, "file:") || job.Redo.TranslatesOnly(),

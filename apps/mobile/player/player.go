@@ -1,15 +1,13 @@
-// Package player plays a film kept on the phone, in the dark whatever the system's appearance: the video with its bilingual subtitles drawn over it as the mode picks their lines (original, translation or both, Kando's shared subtitle model), the transport with the line before and after, looping a line and the speed, and the list of lines, which follows the one playing and plays from the one tapped. Where it was left is kept with the film.
+// Package player plays a film kept on the phone and studies it, in the dark whatever the system's appearance: the video, the card of the line playing, whose words a tap looks up and which a tap saves, replays, loops or has explained, the transport, and a panel of tabs: the film's lines, which follow the one playing and play from the one tapped, the notes on the lines saved, the film in equal parts, and what the film is. Looking a word up and explaining a line go through the film's computer, whose AI service answers (session.LookUp, Explain); the lines saved and their notes sync with it (session.ToggleSave, SetNote). Where it was left is kept with the film, and so is how far its lines are moved against the picture.
 //
-// The layout follows the window: on a phone held upright the video sits on top, the transport and the lines under it; turned sideways the video fills the screen and a tap shows the controls over it; on a tablet held sideways the lines take a column beside the video.
+// The layout follows the window: on a phone held upright the video sits on top, the card, the transport and the panel under it; turned sideways the video fills the screen with the lines over it, a tap shows the controls over it, and the list of lines can slide in at its side; on a tablet held sideways the panel takes a column beside the video.
 package player
 
 import (
-	"context"
 	"fmt"
 	"path/filepath"
 	"time"
 
-	"kando/apps/mobile/cues"
 	"kando/apps/mobile/locales"
 	"kando/apps/mobile/look"
 	"kando/apps/mobile/session"
@@ -25,13 +23,16 @@ import (
 // Speeds are the speeds the player offers.
 var Speeds = []float32{0.5, 0.75, 1, 1.25, 1.5}
 
-// Modes are the subtitle modes the player offers, in the order its menu lists them.
-var Modes = []string{kcore.SubBilingual, kcore.SubOriginal, kcore.SubTranslation}
+// Modes are the subtitle modes the player offers, in the order its menu lists them: both lines, the original alone, the translation alone, and neither, where the card blurs both until a tap shows them.
+var Modes = []string{kcore.SubBilingual, kcore.SubOriginal, kcore.SubTranslation, kcore.SubOff}
 
-// The settings the player keeps in the app's storage, for every film: the subtitle mode and the speed.
+// The settings the player keeps in the app's storage, for every film: the subtitle mode, the speed, shadowing, audio only and the lines on the picture while upright.
 const (
-	modeKey  = "player.mode"
-	speedKey = "player.speed"
+	modeKey      = "player.mode"
+	speedKey     = "player.speed"
+	followKey    = "player.follow"
+	audioOnlyKey = "player.audioOnly"
+	onPictureKey = "player.onPicture"
 )
 
 // saveEvery is how often, in the film's time, the position playing is kept.
@@ -41,11 +42,11 @@ const saveEvery = 5 * time.Second
 type layout uint8
 
 const (
-	// upright is a phone held upright, or a narrow window: video, transport, lines.
+	// upright is a phone held upright, or a narrow window: video, card, transport, panel.
 	upright layout = iota
 	// full is a phone on its side: the video fills the screen, the controls over it.
 	full
-	// side is a tablet on its side: the video and transport, the lines beside them.
+	// side is a tablet on its side: the video, card and transport, the panel beside them.
 	side
 )
 
@@ -66,6 +67,10 @@ func Page(cx *core.Scope, s *session.Session, key string, back func()) base.NavP
 	p := newPlay(cx, s, key)
 	shape := core.NewMemo(cx, func() layout { return layoutOf(cx.Env().Window()) })
 	controls := core.NewSignal(cx, true)
+	// panelOn shows the list of lines at the side of a phone on its side.
+	panelOn := core.NewSignal(cx, false)
+	settingsOpen := core.NewSignal(cx, false)
+	w := newWords(cx, p)
 
 	video := core.Video{TestID: "player-video", Ref: p.ref, Label: f.Film.Title,
 		Source:           filepath.Join(s.Store().FilmDir(f.Desktop, f.Film.ID), f.Video),
@@ -85,12 +90,14 @@ func Page(cx *core.Scope, s *session.Session, key string, back func()) base.NavP
 			}
 		},
 		OnProgress: p.progress,
-		OnEnd:      func() { p.playing.Set(false); p.save() },
+		OnEnd:      p.ended,
 		OnError:    func(error) { p.failed.Set(true) },
 		OnPress: func(core.PressEvent) {
 			if shape.Get() == full {
 				controls.Update(func(on bool) bool { return !on })
+				return
 			}
+			p.toggle()
 		},
 	}
 	failed := core.Show{When: p.failed.Get, Then: func(cx *core.Scope) core.Node {
@@ -99,6 +106,7 @@ func Page(cx *core.Scope, s *session.Session, key string, back func()) base.NavP
 		}}
 	}}
 	overlaid := func() bool { return shape.Get() != full || controls.Get() }
+	onPicture := func() bool { return shape.Get() == full || p.onPicture.Get() }
 	stage := core.View{TestID: "player-stage", Style: core.Style{Background: core.RGB(0x000000), Overflow: core.Hidden},
 		StyleFunc: func() core.Style {
 			if shape.Get() == full {
@@ -106,9 +114,11 @@ func Page(cx *core.Scope, s *session.Session, key string, back func()) base.NavP
 			}
 			return core.Style{Width: core.Pct(100), AspectRatio: max(p.aspect.Get(), 1)}
 		},
-		Children: []core.Node{video, subtitles(cx, p, shape.Get, overlaid), failed}}
+		Children: []core.Node{video, audioOnly(cx, p),
+			core.Show{When: onPicture, Then: func(cx *core.Scope) core.Node { return subtitles(cx, p, w, shape.Get, overlaid) }},
+			pills(cx, p, func() bool { return shape.Get() != full || controls.Get() }), failed}}
 
-	bar := topBar(cx, f.Film.Title, back)
+	bar := topBar(cx, p, f.Film.Title, back, func() { settingsOpen.Set(true) }, shape.Get, panelOn)
 	transport := transport(cx, p)
 	// On its side the phone shows the top bar and the transport over the video while the controls show.
 	over := func(top bool) func() core.Style {
@@ -130,6 +140,12 @@ func Page(cx *core.Scope, s *session.Session, key string, back func()) base.NavP
 			return st
 		}
 	}
+	cardPart := core.View{StyleFunc: func() core.Style {
+		if shape.Get() == full {
+			return core.Style{Display: core.DisplayNone}
+		}
+		return core.Style{Padding: core.Edges{Top: 10, Right: 12, Left: 12}}
+	}, Children: []core.Node{card(cx, p, w)}}
 	main := core.View{TestID: "player-main", StyleFunc: func() core.Style {
 		st := core.Style{FlexGrow: 1, FlexShrink: 1, MinWidth: core.Pt(0)}
 		if shape.Get() == upright {
@@ -139,17 +155,26 @@ func Page(cx *core.Scope, s *session.Session, key string, back func()) base.NavP
 	}, Children: []core.Node{
 		core.View{StyleFunc: over(true), Children: []core.Node{bar}},
 		stage,
+		cardPart,
 		core.View{StyleFunc: over(false), Children: []core.Node{transport}},
 	}}
+	tabs := panel(cx, p, w)
 	list := core.View{TestID: "player-lines-pane", StyleFunc: func() core.Style {
 		switch shape.Get() {
 		case full:
-			return core.Style{Display: core.DisplayNone}
+			if !panelOn.Get() {
+				return core.Style{Display: core.DisplayNone}
+			}
+			return core.Style{Position: core.Absolute, Top: core.Pt(0), Right: core.Pt(0), Bottom: core.Pt(0), Width: core.Pt(300), ZIndex: 3,
+				Background: core.RGBA(0x000000, 0.78), PaddingEnv: core.EnvEdges{Top: core.EnvSafeArea, Right: core.EnvSafeArea, Bottom: core.EnvSafeArea}}
 		case side:
-			return core.Style{Width: core.Pt(380), BorderWidth: 0, PaddingEnv: core.EnvEdges{Right: core.EnvSafeArea, Bottom: core.EnvSafeArea}}
+			return core.Style{Width: core.Pt(380), PaddingEnv: core.EnvEdges{Right: core.EnvSafeArea, Bottom: core.EnvSafeArea}}
 		}
 		return core.Style{FlexGrow: 1, FlexShrink: 1, PaddingEnv: core.EnvEdges{Bottom: core.EnvSafeArea}}
-	}, Children: []core.Node{lines(cx, p)}}
+	}, Children: []core.Node{
+		// On its side a phone's panel is the lines alone.
+		core.Show{When: func() bool { return shape.Get() == full }, Then: func(cx *core.Scope) core.Node { return lines(cx, p) }, Else: func(*core.Scope) core.Node { return tabs }},
+	}}
 
 	colors := ui.ColorsOf(cx)
 	root := core.View{TestID: "player", Style: core.Style{FlexGrow: 1, FlexShrink: 1},
@@ -166,7 +191,13 @@ func Page(cx *core.Scope, s *session.Session, key string, back func()) base.NavP
 			}
 			return st
 		},
-		Children: []core.Node{main, list}}
+		Children: []core.Node{main, list,
+			wordPopover(cx, p, w, func() bool { return shape.Get() == full }),
+			wordSheet(cx, p, w, func() bool { return shape.Get() != full }),
+			explainSheet(cx, p, w),
+			settingsSheet(cx, p, settingsOpen),
+			ui.Toasts{Toaster: p.toast, Placement: ui.ToastBottom, TestID: "player-toasts"},
+		}}
 	return base.NavPage{TestID: "player-page", HeaderHidden: true,
 		StatusBarFunc: func() core.StatusBarSetting {
 			hidden := core.ToggleOff
@@ -181,163 +212,76 @@ func Page(cx *core.Scope, s *session.Session, key string, back func()) base.NavP
 // fill fills the parent, over what is in it.
 var fill = core.Style{Position: core.Absolute, Left: core.Pt(0), Top: core.Pt(0), Right: core.Pt(0), Bottom: core.Pt(0)}
 
-// play is the player's state on the engine's goroutine.
-type play struct {
-	cx      *core.Scope
-	s       *session.Session
-	key     string
-	ref     *core.Ref
-	cues    *core.Resource[[]cues.Cue]
-	playing *core.Signal[bool]
-	at      *core.Signal[time.Duration]
-	length  *core.Signal[time.Duration]
-	aspect  *core.Signal[float32]
-	failed  *core.Signal[bool]
-	// loop is the line looped, -1 for none.
-	loop *core.Signal[int]
-	mode *core.Persisted[string]
-	// untranslated is true for a film the desktop did not translate (sync.Film.Translation is empty), as one heard in the language its subtitles are for: its lines are its own alone.
-	untranslated bool
-	rate         *core.Persisted[float32]
-	saved        time.Duration
-	// heard is where the video last said it was, and watched how long it played since the time watched was last kept (session.Watch).
-	heard, watched time.Duration
-	// current is the line showing, -1 for none.
-	current *core.Memo[int]
-}
-
-func newPlay(cx *core.Scope, s *session.Session, key string) *play {
-	f, _ := s.Film(key)
-	p := &play{cx: cx, s: s, key: key, ref: &core.Ref{},
-		playing:      core.NewSignal(cx, true),
-		at:           core.NewSignal(cx, time.Duration(f.PositionMS)*time.Millisecond),
-		length:       core.NewSignal(cx, time.Duration(f.Film.DurationMS)*time.Millisecond),
-		aspect:       core.NewSignal(cx, float32(16.0/9)),
-		failed:       core.NewSignal(cx, false),
-		loop:         core.NewSignal(cx, -1),
-		mode:         core.NewPersisted(cx, modeKey, kcore.SubBilingual, core.PersistOptions{}),
-		rate:         core.NewPersisted(cx, speedKey, float32(1), core.PersistOptions{}),
-		saved:        time.Duration(f.PositionMS) * time.Millisecond,
-		untranslated: f.Film.Translation == "",
-	}
-	p.cues = core.NewResource(cx, func() (string, bool) { return key, true }, func(_ context.Context, key string, _ core.ResourceInfo) ([]cues.Cue, error) {
-		list, _, err := s.Store().Cues(f.Desktop, f.Film.ID)
-		return cues.FromSync(list), err
-	})
-	p.current = core.NewMemo(cx, func() int { return cues.Index(p.list(), p.at.Get()) })
-	// The lines kept play at once; a desktop that has changed them since, as by translating the film again, gives its own, which take their place.
-	s.Follow(key, p.cues.Refetch)
-	// The screen stays on while the film plays.
-	var release func()
-	cx.Effect(func() {
-		if p.playing.Get() && release == nil {
-			release = cx.KeepAwake(locales.PlayerKeepAwake(cx), core.KeepAwakeOptions{Display: true})
-		} else if !p.playing.Get() && release != nil {
-			release()
-			release = nil
-		}
-	})
-	cx.Cleanup(p.save)
-	return p
-}
-
-// shownMode is the mode the picture shows the lines in: the one chosen, but for a film the desktop did not translate, whose lines show as Original shows them rather than dimmed as lines not translated yet.
-func (p *play) shownMode() string {
-	if mode := p.mode.Get(); !p.untranslated || (mode != kcore.SubTranslation && mode != kcore.SubBilingual) {
-		return mode
-	}
-	return kcore.SubOriginal
-}
-
-// list is the film's lines, none until they are read.
-func (p *play) list() []cues.Cue {
-	v, _ := p.cues.Get()
-	return v
-}
-
-// speed is the speed playing.
-func (p *play) speed() float32 { return p.rate.Get() }
-
-// seek plays from at.
-func (p *play) seek(at time.Duration) {
-	p.ref.Seek(at)
-	p.at.Set(at)
-}
-
-// progress hears the video's position as it plays: it moves the playhead, takes a looped line back to its start, and keeps the position now and then.
-func (p *play) progress(at, length time.Duration) {
-	if length > 0 {
-		p.length.Set(length)
-	}
-	p.at.Set(at)
-	// The time watched counts what played between two of the video's reports, at its speed, not a seek.
-	if d := at - p.heard; p.playing.GetUntracked() && d > 0 && d < time.Second {
-		p.watched += time.Duration(float64(d) / float64(max(p.rate.Get(), 0.25)))
-	}
-	p.heard = at
-	if i := p.loop.GetUntracked(); i >= 0 && i < len(p.list()) && cues.LoopBack(p.list(), i, at, p.length.GetUntracked()) {
-		start, _ := cues.Span(p.list(), i, p.length.GetUntracked())
-		p.seek(start)
-		return
-	}
-	if d := at - p.saved; d >= saveEvery || d <= -saveEvery {
-		p.save()
-	}
-}
-
-// save keeps the position playing with the film.
-func (p *play) save() {
-	p.saved = p.at.GetUntracked()
-	p.s.SavePosition(p.key, p.saved)
-	p.s.Watch(p.watched)
-	p.watched = 0
-}
-
-// toggle starts or holds the film.
-func (p *play) toggle() {
-	p.playing.Update(func(on bool) bool { return !on })
-	if !p.playing.GetUntracked() {
-		p.save()
-	}
-}
-
-// step plays from the start of line i, which the loop moves to while it is on.
-func (p *play) step(i int) {
-	if i < 0 || i >= len(p.list()) {
-		return
-	}
-	if p.loop.GetUntracked() >= 0 {
-		p.loop.Set(i)
-	}
-	p.seek(p.list()[i].Start)
-	p.playing.Set(true)
-}
-
-// toggleLoop loops the line playing, or the next one between two lines, or stops looping.
-func (p *play) toggleLoop() {
-	if p.loop.GetUntracked() >= 0 {
-		p.loop.Set(-1)
-		return
-	}
-	i := p.current.Get()
-	if i < 0 {
-		i = cues.Next(p.list(), p.at.GetUntracked())
-	}
-	if i >= 0 {
-		p.loop.Set(i)
-		if p.current.Get() != i {
-			p.seek(p.list()[i].Start)
-		}
-	}
-}
-
-// topBar is the film's title with the button back.
-func topBar(cx *core.Scope, title string, back func()) core.Node {
+// topBar is the button back, the film's title, and the button of the playback settings; on a phone on its side, the button that slides the list of lines in too.
+func topBar(cx *core.Scope, p *play, title string, back, settings func(), shape func() layout, panelOn *core.Signal[bool]) core.Node {
 	colors := ui.ColorsOf(cx)
 	return core.View{Style: core.Style{Direction: core.Row, AlignItems: core.AlignCenter, Gap: 4, Padding: core.Symmetric(4, 8), MinHeight: core.Pt(44)}, Children: []core.Node{
 		ui.IconButton{TestID: "player-back", Icon: lucide.ChevronLeft, LabelFunc: func() string { return locales.PlayerBack(cx) }, Variant: ui.IconButtonGhost, Size: 40, OnPress: back},
 		core.Text{Content: title, Role: core.RoleHeader, MaxLines: 1, Style: look.Title.Merge(core.Style{FlexGrow: 1, FlexShrink: 1, MinWidth: core.Pt(0)}), StyleFunc: ui.Colored(colors.Text)},
+		core.Show{When: func() bool { return shape() == full }, Then: func(cx *core.Scope) core.Node {
+			return ui.IconButton{TestID: "player-panel-toggle", Icon: lucide.PanelRight, LabelFunc: func() string { return locales.PlayerLines(cx) }, Variant: ui.IconButtonGhost, Size: 40,
+				Selected: panelOn.Get, OnPress: func() { panelOn.Update(func(on bool) bool { return !on }) }}
+		}},
+		ui.IconButton{TestID: "player-more", Icon: lucide.Ellipsis, LabelFunc: func() string { return locales.PlayerSettings(cx) }, Variant: ui.IconButtonGhost, Size: 40, OnPress: settings},
 	}}
+}
+
+// audioOnly covers the picture while audio only is on.
+func audioOnly(cx *core.Scope, p *play) core.Node {
+	return core.Show{When: p.audioOnly.Get, Then: func(cx *core.Scope) core.Node {
+		return core.View{TestID: "player-audio-only", PointerEvents: core.PointerEventsNone,
+			Style: fill.Merge(core.Style{Background: core.RGB(0x0B0B0D), AlignItems: core.AlignCenter, JustifyContent: core.JustifyCenter, Gap: 8}),
+			Children: []core.Node{
+				ui.IconOf(lucide.Headphones, 36, func() core.Color { return core.RGB(0xFFFFFF) }),
+				core.Text{ContentFunc: func() string { return locales.PlayerAudioOnly(cx) }, Style: look.Title.Merge(core.Style{Color: core.RGB(0xFFFFFF)})},
+			}}
+	}}
+}
+
+// pills are the states of the player over the picture's corner: the line looped, shadowing, a speed other than 1×, the sleep timer and the lines moved.
+func pills(cx *core.Scope, p *play, shown func() bool) core.Node {
+	pill := func(id string, when func() bool, text func() string, tone func() core.Color) core.Node {
+		return core.Show{When: when, Then: func(cx *core.Scope) core.Node {
+			return core.View{TestID: id, Style: core.Style{Padding: core.Symmetric(3, 9), CornerRadius: 11, Background: core.RGBA(0x000000, 0.6)}, Children: []core.Node{
+				core.Text{ContentFunc: text, MaxLines: 1, Style: look.Caption.Merge(core.Style{FontWeight: core.FontWeightSemibold}), StyleFunc: func() core.Style { return core.Style{Color: tone()} }},
+			}}
+		}}
+	}
+	white := func() core.Color { return core.RGB(0xFFFFFF) }
+	return core.View{TestID: "player-pills", PointerEvents: core.PointerEventsNone,
+		Style: core.Style{Position: core.Absolute, Top: core.Pt(10), Left: core.Pt(10), Right: core.Pt(10), Direction: core.Row, Wrap: core.Wrap, Gap: 6},
+		StyleFunc: func() core.Style {
+			if !shown() {
+				return core.Style{Display: core.DisplayNone}
+			}
+			return core.Style{}
+		},
+		Children: []core.Node{
+			pill("player-pill-loop", func() bool { return p.loop.Get() >= 0 }, func() string { return locales.PlayerLoopLine(cx) }, func() core.Color { return theme.SubtitleYellow }),
+			pill("player-pill-follow", p.follow.Get, func() string {
+				if p.held.Get() {
+					return locales.PlayerFollowHeld(cx)
+				}
+				return locales.PlayerFollow(cx)
+			}, func() core.Color { return theme.StatusWarn }),
+			pill("player-pill-speed", func() bool { return p.speed() != 1 }, func() string { return speedText(p.speed()) }, white),
+			pill("player-pill-sleep", func() bool { return p.sleep.Get() != sleepOff }, func() string { return sleepPill(cx, p) }, white),
+			pill("player-pill-delay", func() bool { return p.delay.Get() != 0 }, func() string { return locales.PlayerDelayPill(cx, delayText(p.delay.Get())) }, white),
+		}}
+}
+
+// sleepPill is what the sleep timer's pill says: how long until it holds the film, or that it holds it after the line or the film.
+func sleepPill(cx *core.Scope, p *play) string {
+	switch m := p.sleep.Get(); m {
+	case sleepLine:
+		return locales.PlayerSleepPillLine(cx)
+	case sleepFilm:
+		return locales.PlayerSleepPillFilm(cx)
+	default:
+		// Read as the film plays, so the time left counts down.
+		_ = p.at.Get()
+		return locales.PlayerSleepPillIn(cx, clock(max(p.sleepUntil.Sub(p.now()), 0)))
+	}
 }
 
 // clock writes a position as the transport shows it.
@@ -345,3 +289,12 @@ func clock(d time.Duration) string { return look.Duration(d) }
 
 // speedText writes a speed as 1×, 0.75×.
 func speedText(r float32) string { return fmt.Sprintf("%g×", r) }
+
+// delayText writes how far the lines are moved as +0.3, -1.2, 0.0.
+func delayText(d time.Duration) string {
+	s := fmt.Sprintf("%.1f", d.Seconds())
+	if d > 0 {
+		s = "+" + s
+	}
+	return s
+}

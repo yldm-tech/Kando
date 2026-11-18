@@ -53,20 +53,30 @@ type phoneUI struct {
 	now    func() time.Time
 	// receiveOff is 接收手机发来的链接 turned off, and receiveAsk 收到后 set to 先问我, which settings.json keeps (state_phonesync_jobs.go).
 	receiveOff, receiveAsk bool
+	// relay is the storage relay turned on, which settings.json keeps (state_phonesync_relay.go).
+	relay bool
 	// ledgers are the libraries' learning state as phones were last told it, by library folder, each read the first time a phone asks or the open library changes (state_phonesync_state.go), and priming the folders being read so (phoneStatePrime); stateSign sums up the open library's state as phones were last told it changed (phoneSyncPublishState).
 	ledgers   map[string]*phoneLedger
 	priming   map[string]bool
 	stateSign uint64
+	// activity is what the phones did since Kando opened, the latest first (phoneLog); handoffClosed names the place a phone left a film whose offer to continue here the user closed (phoneHandoffClose); readOnlyErr and resolveErr are why the last change of a phone's read-only switch, or the last conflict settled on the page, failed (state_phonesync_linked.go).
+	activity                []settings.PhoneActivity
+	handoffClosed           string
+	readOnlyErr, resolveErr string
+	// clockAt is when the timer phoneClockArm set runs the bindings again, as what the page or the handoff bar shows changes with time alone; zero for none, and clockStop stops it.
+	clockAt   time.Time
+	clockStop func() bool
 }
 
 func newPhoneUI() phoneUI { return phoneUI{} }
 
-// savedPhoneSync is Phone Sync's part of settings.json: the switch, the port, and what the desktop does with a link a phone sends.
+// savedPhoneSync is Phone Sync's part of settings.json: the switch, the port, what the desktop does with a link a phone sends, and whether the storage relay runs.
 type savedPhoneSync struct {
 	PhoneSync       bool `json:"phoneSync,omitempty"`
 	PhoneSyncPort   int  `json:"phoneSyncPort,omitempty"`
 	PhoneReceiveOff bool `json:"phoneReceiveOff,omitempty"`
 	PhoneReceiveAsk bool `json:"phoneReceiveAsk,omitempty"`
+	PhoneRelay      bool `json:"phoneRelay,omitempty"`
 }
 
 // clean keeps a port a server can listen on, and forgets any other.
@@ -80,11 +90,12 @@ func (s *savedPhoneSync) clean() {
 func (a *app) phoneSyncHooks() areaHooks {
 	return areaHooks{
 		save: func(saved *savedSettings) {
-			saved.savedPhoneSync = savedPhoneSync{PhoneSync: a.phone.on, PhoneSyncPort: a.phone.port, PhoneReceiveOff: a.phone.receiveOff, PhoneReceiveAsk: a.phone.receiveAsk}
+			saved.savedPhoneSync = savedPhoneSync{PhoneSync: a.phone.on, PhoneSyncPort: a.phone.port, PhoneReceiveOff: a.phone.receiveOff, PhoneReceiveAsk: a.phone.receiveAsk, PhoneRelay: a.phone.relay}
 		},
 		restore: func(saved savedSettings) {
 			a.phone.on, a.phone.port = saved.PhoneSync, saved.PhoneSyncPort
 			a.phone.receiveOff, a.phone.receiveAsk = saved.PhoneReceiveOff, saved.PhoneReceiveAsk
+			a.phone.relay = saved.PhoneRelay
 		},
 		ready: func() {
 			if a.phone.on {
@@ -94,6 +105,7 @@ func (a *app) phoneSyncHooks() areaHooks {
 		afterChange: func() bool {
 			a.phoneSyncPublish()
 			a.phoneSyncPublishState()
+			a.phoneClockArm()
 			return a.phoneSyncFollow()
 		},
 		quitting: a.phoneSyncStop,
@@ -139,6 +151,8 @@ func (a *app) phoneSyncStart() {
 		Jobs:     phoneJobs{a},
 		State:    phoneState{a},
 		Settings: phoneSettings{a},
+		Study:    phoneStudy{a},
+		Relay:    a.phoneRelayBucket(),
 		Addrs:    a.phone.listen,
 		Changed:  func() { update(a.phoneSyncPull) },
 		Now:      a.phone.now,
@@ -182,6 +196,7 @@ func (a *app) phoneSyncStop() {
 	a.phoneStateKeepAll()
 	a.phone.running, a.phone.fingerprint, a.phone.shown = false, nil, false
 	a.phone.offer, a.phone.addrs, a.phone.devices, a.phone.revokeErr = phonesync.Offer{}, nil, nil, ""
+	a.phone.readOnlyErr, a.phone.resolveErr = "", ""
 	a.phoneSyncQR()
 }
 
@@ -216,8 +231,11 @@ func (a *app) phoneSyncRevoke(id string) {
 		return
 	}
 	a.phone.revokeErr = ""
+	name, _ := a.phoneDeviceName(id)
 	if err := a.phone.server.Revoke(id); err != nil {
 		a.phone.revokeErr = err.Error()
+	} else {
+		a.phoneLog("", settings.ActivityRevoked, name, 0, 0)
 	}
 	a.phoneSyncPull()
 }
@@ -230,7 +248,19 @@ func (a *app) phoneSyncPull() {
 	}
 	a.phone.offer = srv.Offer()
 	a.phone.addrs = srv.Addrs()
-	a.phone.devices = srv.Devices()
+	devices := srv.Devices()
+	// A phone listed now that was not is one that just paired. The first pull after a start lists those paired before.
+	if a.phone.devices != nil {
+		for _, d := range devices {
+			if !slices.ContainsFunc(a.phone.devices, func(o phonesync.Device) bool { return o.ID == d.ID }) {
+				a.phoneLog(d.Name, settings.ActivityPaired, "", 0, 0)
+			}
+		}
+	}
+	if devices == nil {
+		devices = []phonesync.Device{}
+	}
+	a.phone.devices = devices
 	a.phoneSyncQR()
 }
 
@@ -266,9 +296,11 @@ func (a *app) phoneSyncStatus() settings.PhoneSync {
 	if o := a.phone.offer; o.State != phonesync.OfferNone {
 		st.Code, st.Used, st.Expired = o.Code, o.State == phonesync.OfferUsed, o.State == phonesync.OfferExpired
 	}
+	now := a.phoneStateNow()
 	for _, dev := range a.phone.devices {
-		st.Devices = append(st.Devices, settings.PhoneDevice{ID: dev.ID, Name: dev.Name, Platform: dev.Platform, Paired: dev.Paired, LastSeen: dev.LastSeen})
+		st.Devices = append(st.Devices, settings.PhoneDevice{ID: dev.ID, Name: dev.Name, Platform: dev.Platform, Paired: dev.Paired, LastSeen: dev.LastSeen, Online: dev.Online(now), ReadOnly: dev.ReadOnly})
 	}
+	a.phoneSyncLinked(&st)
 	return st
 }
 
@@ -323,28 +355,14 @@ func (s phoneSource) Libraries(ctx context.Context) ([]phonesync.Library, error)
 	})
 }
 
-// Films are lib's films that are done, as its done grid shows them, with their files: the jobs the shelf keeps for it and the videos in its folder (films.List). A library locked since it was listed, or whose folder cannot be read, is not found.
+// Films are lib's films that are done, as its done grid shows them, with their files (phoneSource.items). A library locked since it was listed, or whose folder cannot be read, is not found.
 func (s phoneSource) Films(ctx context.Context, lib phonesync.Library) ([]phonesync.Film, error) {
-	a := s.a
-	shelf, err := remote.OnUI(ctx, a.update, func() (phoneShelf, error) {
-		if a.libraryLocked(lib.Dir) {
-			return phoneShelf{}, phonesync.ErrNotFound
-		}
-		return phoneShelf{jobs: slices.Clone(a.library.Jobs), names: maps.Clone(a.library.Names), durations: maps.Clone(a.lib.durations), posterDir: a.lib.posterDir}, nil
-	})
+	items, shelf, err := s.items(ctx, lib)
 	if err != nil {
 		return nil, err
 	}
-	videos, err := media.ListVideos(lib.Dir)
-	if err != nil {
-		return nil, phonesync.ErrNotFound
-	}
-	noDetail := func(core.Job) string { return "" }
 	var out []phonesync.Film
-	for _, item := range films.List(lib.Dir, shelf.jobs, videos, shelf.names, jobName, noDetail) {
-		if films.InQueue(item) || item.VideoPath == "" {
-			continue
-		}
+	for _, item := range items {
 		f := phonesync.Film{ID: phoneFilmID(item), Title: remoteFilmTitle(item), Source: films.SourceOf(item), Spoken: films.Heard(item), Untranslated: item.Untranslated,
 			Duration: shelf.durations[item.VideoPath], Video: item.VideoPath, Subtitles: item.SubtitlePath, Transcript: media.TranscriptOf(item.VideoPath), Corrections: media.CorrectionsPath(item.VideoPath)}
 		// A film that was not translated, as one heard in the language its subtitles are for, names no translation.
@@ -357,6 +375,32 @@ func (s phoneSource) Films(ctx context.Context, lib phonesync.Library) ([]phones
 		out = append(out, f)
 	}
 	return out, nil
+}
+
+// items are lib's films that are done, as the app files them: the jobs the shelf keeps for it and the videos in its folder (films.List), with what the app holds of them. A library locked since it was listed, or whose folder cannot be read, is not found.
+func (s phoneSource) items(ctx context.Context, lib phonesync.Library) ([]films.Film, phoneShelf, error) {
+	a := s.a
+	shelf, err := remote.OnUI(ctx, a.update, func() (phoneShelf, error) {
+		if a.libraryLocked(lib.Dir) {
+			return phoneShelf{}, phonesync.ErrNotFound
+		}
+		return phoneShelf{jobs: slices.Clone(a.library.Jobs), names: maps.Clone(a.library.Names), durations: maps.Clone(a.lib.durations), posterDir: a.lib.posterDir}, nil
+	})
+	if err != nil {
+		return nil, phoneShelf{}, err
+	}
+	videos, err := media.ListVideos(lib.Dir)
+	if err != nil {
+		return nil, phoneShelf{}, phonesync.ErrNotFound
+	}
+	noDetail := func(core.Job) string { return "" }
+	var out []films.Film
+	for _, item := range films.List(lib.Dir, shelf.jobs, videos, shelf.names, jobName, noDetail) {
+		if !films.InQueue(item) && item.VideoPath != "" {
+			out = append(out, item)
+		}
+	}
+	return out, shelf, nil
 }
 
 // Cues are f's subtitles as the control socket reads them (remoteFilmCues): each line of the speech from the original .srt, with its translation from the bilingual one. A film without subtitles is not found.

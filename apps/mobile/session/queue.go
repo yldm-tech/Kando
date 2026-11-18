@@ -1,0 +1,616 @@
+package session
+
+import (
+	"context"
+	"errors"
+	"maps"
+	"net/http"
+	"slices"
+	gosync "sync"
+	"time"
+
+	"kando/apps/mobile/store"
+	"kando/packages/sync"
+
+	"github.com/nsgo-dev/nsgo/core"
+)
+
+// The computers' queues over protocol v2 (kando/packages/sync, v2.go): while the app runs, the session follows the queue of every paired computer, listing its jobs and waiting for their events, so the Jobs page shows each step as the computer moves it along; the links the user sends wait on the phone until their computer takes them, so a link sent while the computer is off goes once it answers again.
+
+// Reach is how a computer's queue stands as the phone follows it.
+type Reach uint8
+
+const (
+	// Reaching is a computer the phone has not heard from since it began following it.
+	Reaching Reach = iota
+	// Online is one that answers.
+	Online
+	// Offline is one the phone cannot reach: off, asleep, on another network, or with Phone Sync off. The jobs it listed last stay as they were, and the links sent meanwhile wait on the phone.
+	Offline
+	// Older is one that speaks protocol v1 alone, an older Kando, which takes no links and lists no jobs.
+	Older
+	// Revoked is one that no longer takes the phone's token.
+	Revoked
+)
+
+// Queue is a computer's queue as the phone follows it.
+type Queue struct {
+	Reach Reach
+	// Ops are the operations the computer answers, as it said when it last answered (sync.Hello).
+	Ops []string
+	// Jobs are its jobs as it last told them: the running one, the waiting ones in the order they will run, then the others, newest first.
+	Jobs []sync.Job
+	// Seen is when it last answered, zero before it has.
+	Seen time.Time
+}
+
+// Can reports whether the computer answers op.
+func (q Queue) Can(op string) bool { return slices.Contains(q.Ops, op) }
+
+// Outgoing is a link sent from this phone that its computer has not taken yet: waiting for the computer while Refusal is nil, else refused for Refusal's reason (its Code one of sync's, its Message in the computer's words), which is kept with the link.
+type Outgoing struct {
+	store.Link
+}
+
+// QueueEvents are what the app is told of the queues, on the engine's goroutine: a job that finished while the app followed it, a link a computer took, and an action on a job or a link that failed.
+type QueueEvents struct {
+	Done   func(desktop string, job sync.Job)
+	Sent   func(desktop string, created sync.JobCreated)
+	Failed func(desktop string, err error)
+}
+
+// remote is the session's part that follows the queues. Its fields belong to the engine's goroutine, but for linksMu's and ctx.
+type remote struct {
+	// ctx ends as the session does (end), which stops the followers and the calls still under way, so the session does not wait for a computer that does not answer.
+	ctx    context.Context
+	end    context.CancelFunc
+	queues *core.Signal[map[string]Queue]
+	links  *core.Signal[[]Outgoing]
+	// busy are the jobs an action is under way for, by Key(desktop, job), and the computers updating their downloader, by Key(desktop, ytdlpKey).
+	busy    *core.Signal[map[string]bool]
+	follows map[string]*follower
+	// sending are the links going out now, by ID, so a link is not sent twice at once.
+	sending map[string]bool
+	events  QueueEvents
+	// linksMu orders the saves of the links as prefsMu does the preferences'.
+	linksMu                 gosync.Mutex
+	linksSaving, linksSaved uint64
+}
+
+// follower is the goroutine following a computer's queue.
+type follower struct{ cancel context.CancelFunc }
+
+// ytdlpKey stands for the computer's downloader among the busy jobs.
+const ytdlpKey = "\x00ytdlp"
+
+// The waits between the tries of a computer the phone cannot reach, the first doubled each time up to the last, and the wait before asking again a computer that speaks v1 alone, which may be updated meanwhile.
+const (
+	reachFirst  = time.Second
+	reachLast   = 15 * time.Second
+	olderWait   = time.Minute
+	eventsSlack = 15 * time.Second
+	// actFor is how long an action on a job waits for its computer.
+	actFor = 20 * time.Second
+	// resendAfter is the wait before a link is sent again that did not reach a computer that answers otherwise, as when one call dropped or timed out while its events kept coming.
+	resendAfter = 5 * time.Second
+)
+
+func newRemote(cx *core.Scope) *remote {
+	ctx, end := context.WithCancel(context.Background())
+	return &remote{
+		ctx:     ctx,
+		end:     end,
+		queues:  core.NewSignalFunc(cx, map[string]Queue{}, nil),
+		links:   core.NewSignalFunc[[]Outgoing](cx, nil, nil),
+		busy:    core.NewSignalFunc(cx, map[string]bool{}, nil),
+		follows: map[string]*follower{},
+		sending: map[string]bool{},
+	}
+}
+
+// OnQueue has events told what happens to the queues.
+func (s *Session) OnQueue(events QueueEvents) { s.remote.events = events }
+
+// Queue is the queue of desktop id as the phone follows it.
+func (s *Session) Queue(id string) Queue { return s.remote.queues.Get()[id] }
+
+// Outgoing are the links sent from this phone that their computers have not taken yet, oldest first.
+func (s *Session) Outgoing() []Outgoing { return s.remote.links.Get() }
+
+// Busy reports whether an action on job id of desktop is under way.
+func (s *Session) Busy(desktop, id string) bool { return s.remote.busy.Get()[store.Key(desktop, id)] }
+
+// Updating reports whether desktop was asked to update its downloader and has not answered yet.
+func (s *Session) Updating(desktop string) bool { return s.Busy(desktop, ytdlpKey) }
+
+// Send sends link to desktop for it to process: kept on the phone until the computer takes or refuses it, and sent again under the same call ID while it cannot be reached.
+func (s *Session) Send(desktop, link string) {
+	l := store.Link{ID: sync.NewCallID(), Desktop: desktop, URL: link, Added: s.cfg.Now()}
+	s.setLinks(append(slices.Clone(s.remote.links.Get()), Outgoing{Link: l}))
+	s.sendLink(l)
+}
+
+// Resend sends a refused link again, as a new call, so the computer looks at it afresh.
+func (s *Session) Resend(id string) {
+	list := slices.Clone(s.remote.links.Get())
+	i := slices.IndexFunc(list, func(o Outgoing) bool { return o.ID == id })
+	if i < 0 || s.remote.sending[id] {
+		return
+	}
+	list[i] = Outgoing{Link: store.Link{ID: sync.NewCallID(), Desktop: list[i].Desktop, URL: list[i].URL, Added: list[i].Added}}
+	s.setLinks(list)
+	s.sendLink(list[i].Link)
+}
+
+// Forget drops a link not taken yet.
+func (s *Session) Forget(id string) {
+	s.setLinks(slices.DeleteFunc(slices.Clone(s.remote.links.Get()), func(o Outgoing) bool { return o.ID == id }))
+}
+
+// Act runs op, one of sync.OpJobCancel, OpJobRetry, OpJobPause and OpJobResume, on job id of desktop.
+func (s *Session) Act(desktop, op, id string) {
+	c := s.Client(desktop)
+	key := store.Key(desktop, id)
+	if c == nil || s.remote.busy.Get()[key] {
+		return
+	}
+	s.setBusy(key, true)
+	s.work.Go(func() {
+		ctx, cancel := context.WithTimeout(s.remote.ctx, actFor)
+		defer cancel()
+		job, err := c.ActOnJob(ctx, op, id)
+		s.cx.Post(func() {
+			s.setBusy(key, false)
+			if err != nil {
+				s.queueFailed(desktop, err)
+				return
+			}
+			s.upsertJobs(desktop, []sync.Job{job})
+		})
+	})
+}
+
+// UpdateYTDLP has desktop update its downloader; the downloads that failed for it run again once it is updated, as their events tell.
+func (s *Session) UpdateYTDLP(desktop string) {
+	c := s.Client(desktop)
+	key := store.Key(desktop, ytdlpKey)
+	if c == nil || s.remote.busy.Get()[key] {
+		return
+	}
+	s.setBusy(key, true)
+	s.work.Go(func() {
+		ctx, cancel := context.WithTimeout(s.remote.ctx, actFor)
+		defer cancel()
+		_, err := c.UpdateYTDLP(ctx)
+		s.cx.Post(func() {
+			s.setBusy(key, false)
+			if err != nil {
+				s.queueFailed(desktop, err)
+			}
+		})
+	})
+}
+
+// ErrFilmGone is the error Failed is told of when a done job's film is not on its computer: it was removed, or its library is locked.
+var ErrFilmGone = errors.New("the computer does not serve the job's film")
+
+// JobFilm finds the film job made on desktop, and its library, for its page: done gets them on the engine's goroutine once found. While it looks, the job is busy (Busy) and another look for it is dropped, so a second press does not open the page twice; one that fails tells Failed why, ErrFilmGone for a film the computer does not serve.
+func (s *Session) JobFilm(desktop string, job sync.Job, done func(lib sync.Library, f sync.Film)) {
+	key := store.Key(desktop, job.ID)
+	if job.Film == "" || s.remote.busy.GetUntracked()[key] {
+		return
+	}
+	c := s.Client(desktop)
+	if c == nil {
+		s.queueFailed(desktop, ErrFilmGone)
+		return
+	}
+	s.setBusy(key, true)
+	s.work.Go(func() {
+		ctx, cancel := context.WithTimeout(s.remote.ctx, actFor)
+		defer cancel()
+		lib, f, err := findFilm(ctx, c, job)
+		s.cx.Post(func() {
+			s.setBusy(key, false)
+			if err != nil {
+				s.queueFailed(desktop, err)
+				return
+			}
+			done(lib, f)
+		})
+	})
+}
+
+func findFilm(ctx context.Context, c *sync.Client, job sync.Job) (sync.Library, sync.Film, error) {
+	libs, err := c.Libraries(ctx)
+	if err != nil {
+		return sync.Library{}, sync.Film{}, err
+	}
+	i := slices.IndexFunc(libs, func(l sync.Library) bool { return l.ID == job.Library })
+	if i < 0 {
+		return sync.Library{}, sync.Film{}, ErrFilmGone
+	}
+	films, err := c.Films(ctx, libs[i].ID)
+	if ProblemOf(err) == Gone {
+		return sync.Library{}, sync.Film{}, ErrFilmGone
+	}
+	if err != nil {
+		return sync.Library{}, sync.Film{}, err
+	}
+	j := slices.IndexFunc(films, func(f sync.Film) bool { return f.ID == job.Film })
+	if j < 0 {
+		return sync.Library{}, sync.Film{}, ErrFilmGone
+	}
+	return libs[i], films[j], nil
+}
+
+// loadLinks takes the links kept on the phone, read as the store is, and sends them on as their computers answer.
+func (s *Session) loadLinks(links []store.Link) {
+	out := make([]Outgoing, len(links))
+	for i, l := range links {
+		out[i] = Outgoing{Link: l}
+	}
+	s.remote.links.Set(out)
+}
+
+// follow starts following the queue of desktop id, again from the start for one followed already, as when it was paired again.
+func (s *Session) follow(id string) {
+	s.unfollow(id)
+	c := s.Client(id)
+	if c == nil {
+		return
+	}
+	ctx, cancel := context.WithCancel(s.remote.ctx)
+	f := &follower{cancel: cancel}
+	s.remote.follows[id] = f
+	s.setQueue(id, func(q Queue) Queue { q.Reach = Reaching; return q })
+	s.work.Go(func() { s.followQueue(ctx, id, c, f) })
+}
+
+// unfollow stops following the queue of desktop id.
+func (s *Session) unfollow(id string) {
+	if f, ok := s.remote.follows[id]; ok {
+		f.cancel()
+		delete(s.remote.follows, id)
+	}
+}
+
+// forgetQueue drops what the phone knew of desktop id's queue and the links waiting for it, as it is unpaired.
+func (s *Session) forgetQueue(id string) {
+	s.unfollow(id)
+	q := maps.Clone(s.remote.queues.GetUntracked())
+	delete(q, id)
+	s.remote.queues.Set(q)
+	links := s.remote.links.GetUntracked()
+	if slices.ContainsFunc(links, func(o Outgoing) bool { return o.Desktop == id }) {
+		s.setLinks(slices.DeleteFunc(slices.Clone(links), func(o Outgoing) bool { return o.Desktop == id }))
+	}
+}
+
+// stopFollowing ends every follower and the calls under way, as the session ends.
+func (s *Session) stopFollowing() {
+	s.remote.end()
+}
+
+// followQueue follows desktop id's queue on a goroutine of its own until ctx ends: it says hello, lists the jobs and waits for their events, listing again when the computer says to or after it could not be reached, and posts what it learns while f is still the desktop's follower.
+func (s *Session) followQueue(ctx context.Context, id string, c *sync.Client, f *follower) {
+	post := func(fn func()) {
+		s.cx.Post(func() {
+			if s.remote.follows[id] == f {
+				fn()
+			}
+		})
+	}
+	pause := func(d time.Duration) bool {
+		select {
+		case <-ctx.Done():
+			return false
+		case <-time.After(d):
+			return true
+		}
+	}
+	unreachable := func(err error) {
+		reach := Offline
+		if ProblemOf(err) == Unpaired {
+			reach = Revoked
+		}
+		post(func() { s.setQueue(id, func(q Queue) Queue { q.Reach = reach; return q }) })
+	}
+	wait := reachFirst
+	backOff := func() bool {
+		ok := pause(wait)
+		wait = min(2*wait, reachLast)
+		return ok
+	}
+	for ctx.Err() == nil {
+		hello, err := c.Hello(ctx)
+		if ctx.Err() != nil {
+			return
+		}
+		if errors.Is(err, sync.ErrV1Only) || (err == nil && !slices.Contains(hello.Ops, sync.OpJobs)) {
+			post(func() {
+				s.setQueue(id, func(q Queue) Queue { return Queue{Reach: Older, Seen: s.cfg.Now()} })
+				s.refuseWaiting(id)
+			})
+			if !pause(olderWait) {
+				return
+			}
+			continue
+		}
+		if err != nil {
+			unreachable(err)
+			if !backOff() {
+				return
+			}
+			continue
+		}
+		list, err := c.Jobs(ctx)
+		if ctx.Err() != nil {
+			return
+		}
+		if err != nil {
+			unreachable(err)
+			if !backOff() {
+				return
+			}
+			continue
+		}
+		post(func() {
+			s.setQueue(id, func(Queue) Queue {
+				return Queue{Reach: Online, Ops: hello.Ops, Jobs: list.Jobs, Seen: s.cfg.Now()}
+			})
+			s.sendWaiting(id)
+		})
+		if !slices.Contains(hello.Ops, sync.OpEvents) {
+			// A computer that tells no events is listed again from time to time.
+			if !pause(reachLast) {
+				return
+			}
+			continue
+		}
+		epoch, rev := list.Epoch, list.Rev
+		for {
+			wctx, cancel := context.WithTimeout(ctx, sync.MaxEventWait+eventsSlack)
+			ev, err := c.Events(wctx, epoch, rev, sync.MaxEventWait)
+			cancel()
+			if ctx.Err() != nil {
+				return
+			}
+			if err != nil {
+				// Asked again from hello, which tells whether the computer is still there.
+				if !backOff() {
+					return
+				}
+				break
+			}
+			wait = reachFirst
+			if ev.Reset {
+				break
+			}
+			epoch, rev = ev.Epoch, ev.Rev
+			if len(ev.Events) > 0 {
+				events := ev.Events
+				post(func() { s.applyEvents(id, events) })
+			}
+		}
+	}
+}
+
+// applyEvents takes events of desktop id's queue into it.
+func (s *Session) applyEvents(id string, events []sync.Event) {
+	var changed []sync.Job
+	var gone []string
+	for _, e := range events {
+		switch {
+		case e.Kind == sync.EventJob && e.Job != nil:
+			changed = append(changed, *e.Job)
+		case e.Kind == sync.EventJobGone:
+			gone = append(gone, e.ID)
+		}
+	}
+	if len(gone) > 0 {
+		s.setQueue(id, func(q Queue) Queue {
+			q.Jobs = slices.DeleteFunc(slices.Clone(q.Jobs), func(j sync.Job) bool { return slices.Contains(gone, j.ID) })
+			return q
+		})
+	}
+	s.upsertJobs(id, changed)
+}
+
+// upsertJobs puts jobs in desktop's queue in place of those with their IDs, or where a list would show them, tells Done of each that finished, and then reads desktop's films again.
+func (s *Session) upsertJobs(desktop string, jobs []sync.Job) {
+	if len(jobs) == 0 {
+		return
+	}
+	var finished []sync.Job
+	s.setQueue(desktop, func(q Queue) Queue {
+		list := slices.Clone(q.Jobs)
+		for _, job := range jobs {
+			list, finished = upsertJob(list, job, finished)
+		}
+		q.Jobs = list
+		return q
+	})
+	if s.remote.events.Done != nil {
+		for _, job := range finished {
+			s.remote.events.Done(desktop, job)
+		}
+	}
+	// A job that finished may have added a film, or changed one, which the Library lists only from the computer's own listing.
+	if len(finished) > 0 {
+		s.RefreshDesktop(desktop)
+	}
+}
+
+// upsertJob puts job in list, adding it to finished when it finished since list told it. A job whose place in the order is unchanged keeps it; else it goes last among the running and waiting ones, or first among the others, which are newest first.
+func upsertJob(list []sync.Job, job sync.Job, finished []sync.Job) ([]sync.Job, []sync.Job) {
+	i := slices.IndexFunc(list, func(j sync.Job) bool { return j.ID == job.ID })
+	if i >= 0 {
+		before := list[i]
+		if before.State != sync.JobDone && job.State == sync.JobDone {
+			finished = append(finished, job)
+		}
+		if rank(before) == rank(job) {
+			list[i] = job
+			return list, finished
+		}
+		list = slices.Delete(list, i, i+1)
+	}
+	r := rank(job)
+	at := slices.IndexFunc(list, func(j sync.Job) bool { return rank(j) > r || (r == 2 && rank(j) == 2) })
+	if at < 0 {
+		at = len(list)
+	}
+	return slices.Insert(list, at, job), finished
+}
+
+// rank is where a job stands in a list: running first, then waiting and paused, then the others.
+func rank(j sync.Job) int {
+	switch j.State {
+	case sync.JobRunning:
+		return 0
+	case sync.JobWaiting, sync.JobPaused:
+		return 1
+	}
+	return 2
+}
+
+// sendWaiting sends the links waiting for desktop, as it answers again; a computer that answers without taking links refuses them on the phone.
+func (s *Session) sendWaiting(desktop string) {
+	if !s.remote.queues.GetUntracked()[desktop].Can(sync.OpJobCreate) {
+		s.refuseWaiting(desktop)
+		return
+	}
+	for _, o := range s.remote.links.GetUntracked() {
+		if o.Desktop == desktop && o.Refusal == nil {
+			s.sendLink(o.Link)
+		}
+	}
+}
+
+// refuseWaiting refuses the links waiting for desktop, a computer that takes no links, as one too old to would: they say why until the user sends them again or drops them, rather than waiting for a computer that will not take them.
+func (s *Session) refuseWaiting(desktop string) {
+	links := s.remote.links.GetUntracked()
+	if !slices.ContainsFunc(links, func(o Outgoing) bool { return o.Desktop == desktop && o.Refusal == nil }) {
+		return
+	}
+	s.setLinks(slices.Clone(links), func(o *Outgoing) {
+		if o.Desktop == desktop && o.Refusal == nil {
+			o.Refusal = &sync.ErrorBody{Code: sync.CodeUnsupported}
+		}
+	})
+}
+
+// sendLink sends l to its computer unless it is going already: taken, it leaves the phone; refused, it stays with why; while the computer cannot be reached, it waits, and is sent again after resendAfter if the computer answers otherwise meanwhile, since its follower sends the waiting links only as the computer comes back.
+func (s *Session) sendLink(l store.Link) {
+	c := s.Client(l.Desktop)
+	if c == nil || s.remote.sending[l.ID] {
+		return
+	}
+	s.remote.sending[l.ID] = true
+	s.work.Go(func() {
+		ctx, cancel := context.WithTimeout(s.remote.ctx, actFor)
+		defer cancel()
+		var created sync.JobCreated
+		err := c.CallID(ctx, l.ID, sync.OpJobCreate, sync.JobCreate{Link: l.URL}, &created)
+		s.cx.Post(func() {
+			delete(s.remote.sending, l.ID)
+			var e *sync.Error
+			switch {
+			case err == nil:
+				s.Forget(l.ID)
+				// A computer that took the link answers: one the follower last found out of reach is followed again at once rather than after its wait.
+				if s.remote.queues.GetUntracked()[l.Desktop].Reach != Online {
+					s.follow(l.Desktop)
+				}
+				if created.Job != nil {
+					s.upsertJobs(l.Desktop, []sync.Job{*created.Job})
+				}
+				if s.remote.events.Sent != nil {
+					s.remote.events.Sent(l.Desktop, created)
+				}
+			case errors.As(err, &e) && e.Status == http.StatusNotFound:
+				// A computer without protocol v2's call speaks v1 alone, which takes no links, whatever its answer says.
+				s.refuseWaiting(l.Desktop)
+			case errors.As(err, &e) && e.Code != "" && e.Code != sync.CodeUnauthorized:
+				body := e.ErrorBody
+				s.setLinks(slices.Clone(s.remote.links.GetUntracked()), func(o *Outgoing) {
+					if o.ID == l.ID {
+						o.Refusal = &body
+					}
+				})
+			case s.remote.ctx.Err() == nil:
+				s.resendLater(l)
+			}
+		})
+	})
+}
+
+// resendLater sends l again after resendAfter, if it still waits and its computer answers then; one that does not is sent its waiting links by its follower as it comes back.
+func (s *Session) resendLater(l store.Link) {
+	s.work.Go(func() {
+		select {
+		case <-s.remote.ctx.Done():
+			return
+		case <-time.After(resendAfter):
+		}
+		s.cx.Post(func() {
+			waiting := slices.ContainsFunc(s.remote.links.GetUntracked(), func(o Outgoing) bool { return o.ID == l.ID && o.Refusal == nil })
+			q := s.remote.queues.GetUntracked()[l.Desktop]
+			if waiting && q.Reach == Online && q.Can(sync.OpJobCreate) {
+				s.sendLink(l)
+			}
+		})
+	})
+}
+
+// queueFailed tells Failed of err, from an action on desktop's queue.
+func (s *Session) queueFailed(desktop string, err error) {
+	if s.remote.events.Failed != nil {
+		s.remote.events.Failed(desktop, err)
+	}
+}
+
+// setQueue changes desktop's queue by change.
+func (s *Session) setQueue(desktop string, change func(Queue) Queue) {
+	m := maps.Clone(s.remote.queues.GetUntracked())
+	m[desktop] = change(m[desktop])
+	s.remote.queues.Set(m)
+}
+
+// setBusy marks key busy or not.
+func (s *Session) setBusy(key string, on bool) {
+	m := maps.Clone(s.remote.busy.GetUntracked())
+	if on {
+		m[key] = true
+	} else {
+		delete(m, key)
+	}
+	s.remote.busy.Set(m)
+}
+
+// setLinks makes list, after edit of each, the links not taken yet, and keeps them on disk as the latest last.
+func (s *Session) setLinks(list []Outgoing, edit ...func(*Outgoing)) {
+	for i := range list {
+		for _, fn := range edit {
+			fn(&list[i])
+		}
+	}
+	s.remote.links.Set(list)
+	kept := make([]store.Link, len(list))
+	for i, o := range list {
+		kept[i] = o.Link
+	}
+	r := s.remote
+	r.linksMu.Lock()
+	r.linksSaving++
+	gen := r.linksSaving
+	r.linksMu.Unlock()
+	s.work.Go(func() {
+		r.linksMu.Lock()
+		defer r.linksMu.Unlock()
+		if gen > r.linksSaved && s.st.SaveLinks(kept) == nil {
+			r.linksSaved = gen
+		}
+	})
+}

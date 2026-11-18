@@ -140,3 +140,17 @@ func TestPrefsAreKept(t *testing.T) {
 		t.Fatalf("read back %+v, %v", got, err)
 	}
 }
+
+func TestLinksNotTakenYetAreKept(t *testing.T) {
+	dir := t.TempDir()
+	if got, err := Open(dir).Links(); err != nil || got != nil {
+		t.Fatalf("before any link: %v, %v", got, err)
+	}
+	want := []Link{{ID: "c1", Desktop: "d1", URL: "https://youtu.be/abc", Added: time.Unix(1_700_000_000, 0).UTC()}}
+	if err := Open(dir).SaveLinks(want); err != nil {
+		t.Fatal(err)
+	}
+	if got, err := Open(dir).Links(); err != nil || len(got) != 1 || got[0].ID != "c1" || got[0].URL != want[0].URL || !got[0].Added.Equal(want[0].Added) {
+		t.Fatalf("read back %+v, %v", got, err)
+	}
+}

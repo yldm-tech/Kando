@@ -18,6 +18,7 @@ import (
 	"kando/apps/mobile/langs"
 	"kando/apps/mobile/locales"
 	"kando/apps/mobile/store"
+	"kando/apps/mobile/study"
 	"kando/packages/sync"
 
 	"github.com/nsgo-dev/nsgo/core"
@@ -106,7 +107,11 @@ type Session struct {
 	transfers *core.Signal[map[string]Transfer]
 	used      *core.Signal[int64]
 	prefs     *core.Signal[store.Prefs]
-	jobs      map[string]*job
+	// shelves are what the paired computers last listed, by ID, and listings the reads of them under way, each told from a later one by listGen (Shelf).
+	shelves  *core.Signal[map[string]Shelf]
+	listings map[string]listing
+	listGen  uint64
+	jobs     map[string]*job
 	// following are the films Follow is bringing up to date, by key, so a film opened again meanwhile does not ask its desktop twice.
 	following map[string]*follow
 	clients   map[string]*sync.Client
@@ -127,9 +132,26 @@ type Session struct {
 	filmMu    gosync.Mutex
 	filmSaves map[string]*filmSave
 	closed    chan struct{}
+	// ctx ends with the session, so the learning state's syncs, lookups and explanations on their way do not hold the app up as it closes (study.go).
+	ctx    context.Context
+	cancel context.CancelFunc
 	// prefsMu orders the saves of the preferences as saveMu does the desktops': prefsSaving is the generation SetPrefs last gave out, prefsSaved the one last written.
 	prefsMu                 gosync.Mutex
 	prefsSaving, prefsSaved uint64
+	// studies are the libraries' learning state, by desktop and library (studyKey), the one store of it the player and the Learn tab both read and change: all read from disk as the session starts (newLearn), or one the first time a film of it opens before then (study.go); studyLoading the ones being read, studyRuns the syncs running, finding the films whose library is being asked for. studyMu orders their saves as prefsMu does the preferences', by library.
+	studies      *core.Signal[map[string]study.Library]
+	studyLoading map[string]bool
+	studyRuns    map[string]*studyRun
+	finding      map[string]bool
+	studyMu      gosync.Mutex
+	studySaving  map[string]uint64
+	studySaved   map[string]uint64
+	// lookups are the words looked up through the desktops, read with the store; lookupMu orders their saves.
+	lookups                   map[string]store.Lookup
+	lookupMu                  gosync.Mutex
+	lookupSaving, lookupSaved uint64
+	// remote follows the computers' queues (queue.go).
+	remote *remote
 	// learn is the learner's study (learning.go).
 	learn *learn
 }
@@ -172,27 +194,40 @@ func New(cx *core.Scope, cfg Config) *Session {
 	secrets.Accessible = core.SecretAfterFirstUnlockThisDeviceOnly
 	s := &Session{
 		cx: cx, st: store.Open(cfg.Dir), cfg: cfg, secrets: secrets,
-		loaded:    core.NewSignal(cx, false),
-		desktops:  core.NewSignalFunc[[]store.Desktop](cx, nil, nil),
-		films:     core.NewSignalFunc[[]store.Film](cx, nil, nil),
-		transfers: core.NewSignalFunc(cx, map[string]Transfer{}, nil),
-		used:      core.NewSignal(cx, int64(0)),
-		prefs:     core.NewSignalFunc(cx, store.Prefs{}, nil),
-		jobs:      map[string]*job{},
-		following: map[string]*follow{},
-		clients:   map[string]*sync.Client{},
-		posters:   map[string][]byte{},
-		filmSaves: map[string]*filmSave{},
-		closed:    make(chan struct{}),
+		loaded:       core.NewSignal(cx, false),
+		desktops:     core.NewSignalFunc[[]store.Desktop](cx, nil, nil),
+		films:        core.NewSignalFunc[[]store.Film](cx, nil, nil),
+		transfers:    core.NewSignalFunc(cx, map[string]Transfer{}, nil),
+		used:         core.NewSignal(cx, int64(0)),
+		prefs:        core.NewSignalFunc(cx, store.Prefs{}, nil),
+		shelves:      core.NewSignalFunc(cx, map[string]Shelf{}, nil),
+		listings:     map[string]listing{},
+		jobs:         map[string]*job{},
+		following:    map[string]*follow{},
+		clients:      map[string]*sync.Client{},
+		posters:      map[string][]byte{},
+		filmSaves:    map[string]*filmSave{},
+		closed:       make(chan struct{}),
+		remote:       newRemote(cx),
+		studies:      core.NewSignalFunc(cx, map[string]study.Library{}, nil),
+		studyLoading: map[string]bool{}, studyRuns: map[string]*studyRun{}, finding: map[string]bool{},
+		studySaving: map[string]uint64{}, studySaved: map[string]uint64{},
+		lookups: map[string]store.Lookup{},
 	}
+	s.ctx, s.cancel = context.WithCancel(context.Background())
 	s.learn = newLearn(s)
 	cx.Cleanup(func() {
 		close(s.closed)
+		s.cancel()
+		s.stopFollowing()
 		for _, j := range s.jobs {
 			j.cancel()
 		}
 		for _, fw := range s.following {
 			fw.cancel()
+		}
+		for _, l := range s.listings {
+			l.cancel()
 		}
 		for _, c := range s.clients {
 			c.Close()
@@ -214,6 +249,8 @@ func New(cx *core.Scope, cfg Config) *Session {
 		films, _ := s.st.Films()
 		used, _ := s.st.Used()
 		prefs, _ := s.st.Prefs()
+		lookups, _ := s.st.Lookups()
+		links, _ := s.st.Links()
 		// A phone that paired or downloaded before the introduction existed has been introduced already.
 		migrated := !prefs.Onboarded && (len(desktops) > 0 || len(films) > 0)
 		prefs.Onboarded = prefs.Onboarded || migrated
@@ -227,6 +264,9 @@ func New(cx *core.Scope, cfg Config) *Session {
 			s.desktops.Set(desktops)
 			s.films.Set(films)
 			s.used.Set(used)
+			// A word looked up before the store was read stays.
+			maps.Copy(lookups, s.lookups)
+			s.lookups = lookups
 			if migrated {
 				s.SetPrefs(prefs)
 			} else {
@@ -239,7 +279,12 @@ func New(cx *core.Scope, cfg Config) *Session {
 				t[key] = Transfer{State: Paused, Done: done, Total: f.Film.VideoSize}
 			}
 			s.transfers.Set(t)
+			s.loadLinks(links)
+			for _, d := range desktops {
+				s.follow(d.ID)
+			}
 			s.loaded.Set(true)
+			s.Refresh()
 		})
 	})
 	return s
@@ -316,6 +361,7 @@ func (s *Session) AddDesktop(d store.Desktop) {
 		c.Close()
 		delete(s.clients, d.ID)
 	}
+	s.forgetShelf(d.ID)
 	list := slices.Clone(s.desktops.Get())
 	if i := slices.IndexFunc(list, func(x store.Desktop) bool { return x.ID == d.ID }); i >= 0 {
 		list[i] = d
@@ -330,6 +376,8 @@ func (s *Session) AddDesktop(d store.Desktop) {
 		p.TargetPending = append(slices.Clone(p.TargetPending), d.ID)
 		s.SetPrefs(p)
 	}
+	s.RefreshDesktop(d.ID)
+	s.follow(d.ID)
 }
 
 // Unpair forgets desktop id and what the phone kept of its learning state, and stops its downloads; the films kept from it stay.
@@ -341,10 +389,12 @@ func (s *Session) Unpair(id string) {
 			s.setTransfer(key, func(t Transfer) Transfer { t.State = Paused; return t })
 		}
 	}
+	s.forgetQueue(id)
 	if c, ok := s.clients[id]; ok {
 		c.Close()
 		delete(s.clients, id)
 	}
+	s.forgetShelf(id)
 	s.setDesktops(slices.DeleteFunc(slices.Clone(s.desktops.Get()), func(d store.Desktop) bool { return d.ID == id }))
 	s.learnForget(id)
 }
@@ -510,13 +560,13 @@ func (s *Session) Delete(key string) {
 	s.remove(key)
 }
 
-// SavePosition keeps where the film under key was left playing.
+// SavePosition keeps where the film under key was left playing, and that it was left there now, even where it was left there before: a film played from the beginning again is newer on the phone than where a computer left it (catalog.Merge).
 func (s *Session) SavePosition(key string, at time.Duration) {
 	f, ok := s.Film(key)
-	if !ok || f.PositionMS == at.Milliseconds() {
+	if !ok {
 		return
 	}
-	f.PositionMS = at.Milliseconds()
+	f.PositionMS, f.PositionAt = at.Milliseconds(), s.cfg.Now()
 	s.replace(f)
 	s.saveFilm(f)
 }
@@ -669,6 +719,10 @@ func (s *Session) finished(key string, j *job, got store.Film, err error, stoppe
 	switch {
 	case err == nil:
 		s.setTransfer(key, nil)
+		if got.LibraryID == "" {
+			// The library's ID goes with the film, as its learning state goes by it, so lines can be saved from it away from the desktop; it is asked for once the film is done, so the download does not wait on it, and a desktop that does not answer leaves it to be asked for when the film opens (OpenStudy).
+			s.findLibrary(got)
+		}
 	case stopped:
 		s.setTransfer(key, func(t Transfer) Transfer { t.State = Paused; return t })
 	default:

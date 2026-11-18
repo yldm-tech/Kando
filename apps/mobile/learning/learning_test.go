@@ -4,10 +4,12 @@ import (
 	"encoding/csv"
 	"os"
 	"path/filepath"
+	"slices"
 	"strings"
 	"testing"
 	"time"
 
+	phonestudy "kando/apps/mobile/study"
 	"kando/packages/study"
 	"kando/packages/sync"
 )
@@ -35,26 +37,33 @@ func line(id, original, translation string, due time.Time) sync.Record {
 	}}
 }
 
+// items are the words and saved lines of l, a library of computer d.
+func items(l phonestudy.Library) []Item { return Items("d", "lib", l) }
+
+// grade is l with it graded at now, made from the schedule the computer has, as the session makes it.
+func grade(l phonestudy.Library, it Item, good bool, now time.Time) phonestudy.Library {
+	return phonestudy.Change(l, phonestudy.Based(l, Grade(it, good, now, "phone")))
+}
+
 func TestItemsAreTheWordsAndLinesNotRemoved(t *testing.T) {
-	m := Mirror{Desktop: "d", Library: "lib"}
 	gone := sync.Stamp{At: t0, Device: "desk"}
-	m.Take(sync.StateChanges{Epoch: "e", Rev: 3, Reset: true, Records: []sync.Record{
+	l := phonestudy.Apply(phonestudy.Library{}, sync.StateChanges{Epoch: "e", Rev: 3, Reset: true, Records: []sync.Record{
 		word("w1", "river", "河", 0, t0), line("l1", "Hello.", "你好。", t0.Add(48*time.Hour)),
 		{Kind: sync.KindWord, ID: "w2", Removed: &gone},
 		{Kind: sync.KindPosition, ID: "f1", Film: "f1", Fields: map[string]sync.Field{sync.FieldPositionMS: field(1, t0, "desk")}},
 	}})
-	items := m.Items()
-	if len(items) != 2 || items[0].ID != "l1" || items[1].ID != "w1" {
-		t.Fatalf("items %+v, want the line saved last first, then the word", items)
+	got := items(l)
+	if len(got) != 2 || got[0].ID != "l1" || got[1].ID != "w1" {
+		t.Fatalf("items %+v, want the line saved last first, then the word", got)
 	}
-	w := items[1]
-	if w.Kind != Word || w.Text != "river" || w.Meaning != "河" || w.Context != "A river here." || w.Start != 1500*time.Millisecond || w.Title != "Talk" || !w.SavedAt.Equal(t0) {
+	w := got[1]
+	if w.Kind != Word || w.Text != "river" || w.Meaning != "河" || w.Context != "A river here." || w.Start != 1500*time.Millisecond || w.Title != "Talk" || !w.SavedAt.Equal(t0) || w.Desktop != "d" || w.Library != "lib" {
 		t.Errorf("word %+v", w)
 	}
-	if l := items[0]; l.Kind != Line || l.Text != "Hello." || l.Meaning != "你好。" || l.End != 2*time.Second {
+	if l := got[0]; l.Kind != Line || l.Text != "Hello." || l.Meaning != "你好。" || l.End != 2*time.Second {
 		t.Errorf("line %+v", l)
 	}
-	due := Due(items, t0.Add(time.Hour))
+	due := Due(got, t0.Add(time.Hour))
 	if len(due) != 1 || due[0].ID != "w1" {
 		t.Errorf("due %+v, want the word alone", due)
 	}
@@ -62,68 +71,57 @@ func TestItemsAreTheWordsAndLinesNotRemoved(t *testing.T) {
 
 // A review on the phone shows at once, waits to be put, keeps the stamp of the schedule it changed from, and leaves Pending once the computer took it.
 func TestAReviewWaitsUntilTheComputerTakesIt(t *testing.T) {
-	m := Mirror{Desktop: "d", Library: "lib"}
-	m.Take(sync.StateChanges{Epoch: "e", Rev: 1, Reset: true, Records: []sync.Record{word("w1", "river", "河", 0, t0)}})
-	it := m.Items()[0]
+	l := phonestudy.Apply(phonestudy.Library{}, sync.StateChanges{Epoch: "e", Rev: 1, Reset: true, Records: []sync.Record{word("w1", "river", "河", 0, t0)}})
 	at := t0.Add(time.Hour)
-	m.Change(Grade(it, true, at, "phone"))
-	got := m.Items()[0]
+	l = grade(l, items(l)[0], true, at)
+	got := items(l)[0]
 	if got.Box != 1 || !got.Due.Equal(at.Add(study.Intervals[0])) {
 		t.Fatalf("after a good review %+v", got)
 	}
-	if len(m.Pending) != 1 || m.Pending[0].Fields[sync.FieldReview].Base == nil || !m.Pending[0].Fields[sync.FieldReview].Base.Equal(sync.Stamp{At: t0, Device: "desk"}) {
-		t.Fatalf("pending %+v", m.Pending)
+	desk := sync.Stamp{At: t0, Device: "desk"}
+	if len(l.Pending) != 1 || l.Pending[0].Fields[sync.FieldReview].Base == nil || !l.Pending[0].Fields[sync.FieldReview].Base.Equal(desk) {
+		t.Fatalf("pending %+v", l.Pending)
 	}
 	// Known again before the computer took the first: the base stays the computer's.
-	m.Change(Grade(m.Items()[0], true, at.Add(time.Minute), "phone"))
-	if len(m.Pending) != 1 || m.Items()[0].Box != 2 || !m.Pending[0].Fields[sync.FieldReview].Base.Equal(sync.Stamp{At: t0, Device: "desk"}) {
-		t.Fatalf("pending %+v, items %+v", m.Pending, m.Items())
+	l = grade(l, items(l)[0], true, at.Add(time.Minute))
+	if len(l.Pending) != 1 || items(l)[0].Box != 2 || !l.Pending[0].Fields[sync.FieldReview].Base.Equal(desk) {
+		t.Fatalf("pending %+v, items %+v", l.Pending, items(l))
 	}
 	// The computer's changes meanwhile do not hide the phone's own.
-	m.Take(sync.StateChanges{Epoch: "e", Rev: 2, Records: []sync.Record{word("w1", "river", "河流", 0, t0)}})
-	if got := m.Items()[0]; got.Box != 2 || got.Meaning != "河流" {
+	l = phonestudy.Apply(l, sync.StateChanges{Epoch: "e", Rev: 2, Records: []sync.Record{word("w1", "river", "河流", 0, t0)}})
+	if got := items(l)[0]; got.Box != 2 || got.Meaning != "河流" {
 		t.Fatalf("after the computer's change %+v", got)
 	}
-	sent := append([]sync.Record(nil), m.Pending...)
+	sent := slices.Clone(l.Pending)
 	merged := word("w1", "river", "河流", 2, at.Add(time.Minute).Add(study.Intervals[1]))
-	m.Settle(sent, sync.StatePutResult{Epoch: "e", Rev: 3, Records: []sync.Record{merged}})
-	if len(m.Pending) != 0 || m.Items()[0].Box != 2 {
-		t.Fatalf("settled: pending %+v, items %+v", m.Pending, m.Items())
+	l = phonestudy.Took(l, sent, sync.StatePutResult{Epoch: "e", Rev: 3, Records: []sync.Record{merged}}, false)
+	if len(l.Pending) != 0 || items(l)[0].Box != 2 {
+		t.Fatalf("settled: pending %+v, items %+v", l.Pending, items(l))
 	}
 	// Not known puts it back in box 0, due at once.
-	if r := Grade(m.Items()[0], false, at, "phone"); !strings.Contains(string(r.Fields[sync.FieldReview].Value), `"box":0`) {
+	if r := Grade(items(l)[0], false, at, "phone"); !strings.Contains(string(r.Fields[sync.FieldReview].Value), `"box":0`) {
 		t.Errorf("not known: %s", r.Fields[sync.FieldReview].Value)
 	}
 }
 
 // A change made while a put is on its way stays pending once the put is answered.
 func TestAChangeMadeDuringAPutStaysPending(t *testing.T) {
-	m := Mirror{Desktop: "d", Library: "lib"}
-	m.Take(sync.StateChanges{Epoch: "e", Rev: 1, Reset: true, Records: []sync.Record{word("w1", "river", "河", 0, t0)}})
-	m.Change(Grade(m.Items()[0], true, t0.Add(time.Hour), "phone"))
-	sent := append([]sync.Record(nil), m.Pending...)
-	m.Change(Removal(m.Items()[0], t0.Add(2*time.Hour), "phone"))
-	m.Settle(sent, sync.StatePutResult{Epoch: "e", Rev: 2, Records: []sync.Record{word("w1", "river", "河", 1, t0.Add(25*time.Hour))}})
-	if len(m.Pending) != 1 || m.Pending[0].Removed == nil {
-		t.Fatalf("pending %+v, want the removal", m.Pending)
+	l := phonestudy.Apply(phonestudy.Library{}, sync.StateChanges{Epoch: "e", Rev: 1, Reset: true, Records: []sync.Record{word("w1", "river", "河", 0, t0)}})
+	l = grade(l, items(l)[0], true, t0.Add(time.Hour))
+	sent := slices.Clone(l.Pending)
+	l = phonestudy.Sending(l, sent)
+	l = phonestudy.Change(l, Removal(items(l)[0], t0.Add(2*time.Hour), "phone"))
+	l = phonestudy.Took(l, sent, sync.StatePutResult{Epoch: "e", Rev: 2, Records: []sync.Record{word("w1", "river", "河", 1, t0.Add(25*time.Hour))}}, false)
+	if len(l.Pending) != 1 || l.Pending[0].Removed == nil {
+		t.Fatalf("pending %+v, want the removal", l.Pending)
 	}
-	if len(m.Items()) != 0 {
-		t.Fatalf("a word removed on the phone still shows: %+v", m.Items())
+	if len(items(l)) != 0 {
+		t.Fatalf("a word removed on the phone still shows: %+v", items(l))
 	}
 }
 
-func TestTheMirrorsAndTheTimeWatchedAreKept(t *testing.T) {
+func TestTheTimeWatchedIsKept(t *testing.T) {
 	d := Open(t.TempDir())
-	m := Mirror{Desktop: "d", Library: "lib", Name: "Class"}
-	m.Take(sync.StateChanges{Epoch: "e", Rev: 1, Reset: true, Records: []sync.Record{word("w1", "river", "河", 0, t0)}})
-	m.Change(Grade(m.Items()[0], true, t0, "phone"))
-	if err := d.SaveDesktop("d", []Mirror{m}); err != nil {
-		t.Fatal(err)
-	}
-	got, err := d.Mirrors()
-	if err != nil || len(got) != 1 || got[0].Name != "Class" || len(got[0].Pending) != 1 || got[0].Items()[0].Box != 1 {
-		t.Fatalf("mirrors %+v, %v", got, err)
-	}
 	w := Watched{}
 	w.Add(t0, 90*time.Second)
 	if err := d.SaveWatched(w); err != nil {
@@ -132,12 +130,6 @@ func TestTheMirrorsAndTheTimeWatchedAreKept(t *testing.T) {
 	back, err := d.Watched()
 	if err != nil || back.Day(t0) != 90*time.Second {
 		t.Fatalf("watched %+v, %v", back, err)
-	}
-	if err := d.DeleteDesktop("d"); err != nil {
-		t.Fatal(err)
-	}
-	if got, _ := d.Mirrors(); len(got) != 0 {
-		t.Fatalf("mirrors of a computer forgotten %+v", got)
 	}
 }
 

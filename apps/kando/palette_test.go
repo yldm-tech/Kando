@@ -809,49 +809,7 @@ func TestPaletteFindsFilmsByName(t *testing.T) {
 	}
 }
 
-// TestPaletteExplainsTheLinePlaying checks that E, in a film with lines, opens the palette with the AI service explaining the line playing, with no question typed: it sends that line, past the furthest point played as well, with the lines just before it, and not the film's other lines, and the card shows the line's original over the explanation, a chip that plays the line and which model explained it.
-func TestPaletteExplainsTheLinePlaying(t *testing.T) {
-	srv, seen := fakeLLM(t, `{"answer":"河曲是河流的大弯道。","refs":["1:10"]}`)
-	tools := media.Tools{Translator: media.ChatTranslator{BaseURL: srv.URL + "/v1", APIKey: "k", Model: "m1"}}
-	a, tt, updates := paletteLibrary(t, tools)
-	item, _ := a.paletteFilm("rivers")
-	a.OpenAt(item, 71*time.Second)
-	waitUntil(t, tt, a, updates, func() bool { return a.player.subs.ready })
-	refresh(tt, a)
-	tt.Key("e")
-	msgs := testlocale.Messages()
-	if !a.palette.open || a.palette.answer == nil || !a.palette.answer.busy {
-		t.Fatalf("E: palette open %v answer %+v", a.palette.open, a.palette.answer)
-	}
-	// The card is the line's explanation from the start, not an answer to a question.
-	if !hasText(tt, msgs.PaletteExplaining("m1")) || !hasText(tt, msgs.PaletteHeadingExplain()) || hasText(tt, msgs.PaletteHeadingAnswer()) {
-		t.Fatalf("E: texts %q", tt.Texts())
-	}
-	waitUntil(t, tt, a, updates, func() bool { return a.palette.answer != nil && !a.palette.answer.busy })
-	for _, want := range []string{"These sweeping curves are called meanders.\n\n河曲是河流的大弯道。", "▶ 1:10", msgs.PaletteExplainNote("m1"), msgs.PaletteHeadingExplain()} {
-		if !hasText(tt, want) {
-			t.Fatalf("missing %q in %q", want, tt.Texts())
-		}
-	}
-	if chips := a.palette.answer.refs; len(chips) != 1 || chips[0] != 70*time.Second+400*time.Millisecond {
-		t.Fatalf("chips %v", chips)
-	}
-	sent := strings.Join(*seen, "\n")
-	for _, want := range []string{"要讲解的一句：[1:10] These sweeping curves are called meanders.", "数千年间，河道被切割得越来越深。", "Every word in the subtitles can be looked up.", "语法"} {
-		if !strings.Contains(sent, want) {
-			t.Fatalf("sent %q, want %q in it", sent, want)
-		}
-	}
-	if strings.Contains(sent, "Every river begins") {
-		t.Fatalf("sent lines far from the one explained: %q", sent)
-	}
-	tt.Press("跳到 1:10")
-	if a.palette.open {
-		t.Fatal("the chip left the palette open")
-	}
-}
-
-// TestPaletteAnswersInTheFilmsLanguage checks that Explain Line and a question about a film translated into another language than the one the settings name now are answered in the film's, the language of its subtitles on screen, and that a film translated into none is answered in the settings' one.
+// TestPaletteAnswersInTheFilmsLanguage checks that a question about a film translated into another language than the one the settings name now is answered in the film's, the language of its subtitles on screen, and that a film translated into none is answered in the settings' one.
 func TestPaletteAnswersInTheFilmsLanguage(t *testing.T) {
 	srv, seen := fakeLLM(t, `{"answer":"說明。","refs":[]}`)
 	tools := media.Tools{Translator: media.ChatTranslator{BaseURL: srv.URL + "/v1", APIKey: "k", Model: "m1"}}
@@ -860,47 +818,21 @@ func TestPaletteAnswersInTheFilmsLanguage(t *testing.T) {
 	a.library.Jobs[0].Language = "繁體中文"
 	refresh(tt, a)
 	paletteOpenFilm(t, a, tt, updates, "rivers")
+	paletteOpen(t, a, tt, updates)
 	ask := func(run func(), want string) {
 		t.Helper()
 		*seen = nil
 		apply(tt, a, run)
-		// Explain Line opens the palette, which reads the subtitle files in the background (paletteRead), and a question asked before they are read finds no lines: the next ask waits for them as well as for the answer, which can come first.
+		// The palette reads the subtitle files in the background (paletteRead), and a question asked before they are read finds no lines: the ask waits for them as well as for the answer, which can come first.
 		waitUntil(t, tt, a, updates, func() bool { return a.palette.answer != nil && !a.palette.answer.busy && !a.palette.reading })
 		if sent := strings.Join(*seen, "\n"); !strings.Contains(sent, "用"+want) {
 			t.Fatalf("sent %q, want it answered in %s", sent, want)
 		}
 	}
-	ask(func() { a.ExplainLine(1) }, "繁體中文")
 	ask(func() { a.palette.query = "what is this film about"; a.paletteAsk() }, "繁體中文")
 	a.library.Jobs[0].TranslationErr = "the AI service refused the key"
 	refresh(tt, a)
-	ask(func() { a.ExplainLine(1) }, "简体中文")
-}
-
-// TestPaletteExplainWithoutAIOffersItsSettings checks that Explain Line, with no AI service set, gets the palette's prompt to set one rather than a question sent nowhere, in words about explaining a line rather than answering questions.
-func TestPaletteExplainWithoutAIOffersItsSettings(t *testing.T) {
-	msgs := testlocale.Messages()
-	a, tt, updates := paletteLibrary(t, media.Tools{Translator: media.ChatTranslator{BaseURL: "https://api.openai.com/v1"}})
-	paletteOpenFilm(t, a, tt, updates, "rivers")
-	a.ExplainLine(1)
-	refresh(tt, a)
-	if !a.palette.open || !hasText(tt, msgs.PaletteExplainNoAI()) || !hasText(tt, msgs.PaletteNoAIAction()) || !hasText(tt, msgs.PaletteHeadingExplain()) || hasText(tt, msgs.PaletteNoAI()) {
-		t.Fatalf("texts %q", tt.Texts())
-	}
-}
-
-// TestPaletteExplainFailureSaysSo checks that when the AI service fails to explain a line, the card says no explanation came back, not that a question went unanswered.
-func TestPaletteExplainFailureSaysSo(t *testing.T) {
-	msgs := testlocale.Messages()
-	srv, _ := fakeLLM(t, "{}")
-	tools := media.Tools{Translator: media.ChatTranslator{BaseURL: srv.URL + "/v1", APIKey: "wrong", Model: "m1"}}
-	a, tt, updates := paletteLibrary(t, tools)
-	paletteOpenFilm(t, a, tt, updates, "rivers")
-	apply(tt, a, func() { a.ExplainLine(1) })
-	waitUntil(t, tt, a, updates, func() bool { return a.palette.answer != nil && !a.palette.answer.busy })
-	if !a.palette.answer.failed || !strings.HasPrefix(a.palette.answer.say(a.cx), msgs.PaletteExplainFailed("")) || !hasText(tt, msgs.PaletteHeadingExplain()) {
-		t.Fatalf("answer %+v, texts %q", a.palette.answer, tt.Texts())
-	}
+	ask(func() { a.palette.query = "what is this film about"; a.paletteAsk() }, "简体中文")
 }
 
 // TestPaletteSaysWhatItTakesWhereItOpens checks that the palette's field is named, and its footer says what Return does, for where it opens: over the library it finds films, commands and lines and runs them; in the player it also asks the open film, which Return does while the ask row is highlighted. The footer names the key as the system's keyboards do: Return on a Mac, Enter on Windows and Linux.

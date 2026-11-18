@@ -14,6 +14,8 @@ import (
 //
 // Jobs. A phone sends a link with OpJobCreate. The desktop's setting for links from phones decides what comes of it: queued at once (ReceiveQueue), put before the user on the desktop to start or not (ReceiveAsk, answered as Pending), or refused (ReceiveOff, CodeLinksOff). Nothing is ever added to a locked library, nor is a job of one listed or acted on: to a phone it is not found. OpJobs lists the jobs a phone follows, the desktop's queue (waiting, running, failed or canceled) and those that ended since the desktop started, each with its steps' progress and, for one that failed, a typed Failure. OpJobCancel, OpJobRetry, OpJobPause and OpJobResume act on one; OpUpdateYTDLP updates the downloader the desktop uses, after which the downloads that failed because it was too old run again.
 //
+// Read-only devices. A paired device may change everything by default; the desktop's user can make one read-only, which the desktop checks at every call, on every transport: the device reads its libraries, jobs, events and learning state, and every operation that changes something (Mutates) answers CodeReadOnly. Hello tells the device it is read-only (Hello.ReadOnly), so it offers none of them.
+//
 // Events. The desktop numbers every change of what it tells phones with a revision, counting up from 1 since it started, in an epoch named afresh at each start. OpEvents waits, up to the wait it is given (at most MaxEventWait), for changes after a revision and answers the newest of each (a job's last state, not each step it went through), with the revision to wait after next. Waiting with another epoch than the desktop's, as before the phone has listed the jobs, or after a revision the desktop no longer remembers, answers Reset at once: the phone lists the jobs again (OpJobs answers the revision its list is at) and waits after that. Event kinds a phone does not know are skipped, so later kinds can be added, as the learning state's (EventState) were.
 
 // CallVersion is the version a Call speaks.
@@ -81,6 +83,8 @@ type Hello struct {
 	State []string `json:"state"`
 	// Receive is what it does with a link a phone sends: ReceiveQueue, ReceiveAsk or ReceiveOff.
 	Receive string `json:"receive"`
+	// ReadOnly is set when the desktop's user made the calling device read-only: it reads everything, and every operation that changes something answers CodeReadOnly, so the phone hides them.
+	ReadOnly bool `json:"read_only,omitempty"`
 	// Epoch names the desktop's run, which the revisions of its events count in.
 	Epoch string `json:"epoch"`
 }
@@ -278,6 +282,8 @@ const (
 	CodeNotReady = "not_ready"
 	// CodeConflict is an action a job's state does not allow, as retrying one still running (status 409).
 	CodeConflict = "conflict"
+	// CodeReadOnly is an operation that changes something, called by a device the desktop's user made read-only (Hello.ReadOnly, status 403).
+	CodeReadOnly = "read_only"
 )
 
 // StatusOf is the HTTP status of an answer with error code code.
@@ -285,7 +291,7 @@ func StatusOf(code string) int {
 	switch code {
 	case CodeUnauthorized:
 		return http.StatusUnauthorized
-	case CodeNoCode, CodeWrongCode, CodeCodeUsed, CodeCodeExpired, CodeLinksOff:
+	case CodeNoCode, CodeWrongCode, CodeCodeUsed, CodeCodeExpired, CodeLinksOff, CodeReadOnly:
 		return http.StatusForbidden
 	case CodeTooMany:
 		return http.StatusTooManyRequests
@@ -295,7 +301,7 @@ func StatusOf(code string) int {
 		return http.StatusBadRequest
 	case CodeUnsupported:
 		return http.StatusNotImplemented
-	case CodeNotReady, CodeConflict:
+	case CodeNotReady, CodeConflict, CodeNoAI:
 		return http.StatusConflict
 	}
 	return http.StatusInternalServerError

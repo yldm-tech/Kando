@@ -1,29 +1,31 @@
 package session
 
 import (
+	"cmp"
 	"context"
 	"errors"
 	"maps"
 	"os"
 	"path/filepath"
 	"slices"
+	"strings"
 	gosync "sync"
 	"time"
 
 	"kando/apps/mobile/langs"
 	"kando/apps/mobile/learning"
 	"kando/apps/mobile/locales"
+	"kando/apps/mobile/study"
 	"kando/packages/sync"
 
 	"github.com/nsgo-dev/nsgo/core"
 )
 
-// learn is the session's part of the learner's study (package learning): the paired computers' libraries' learning state as the phone keeps it, how long films played on the phone, whether the phone is bringing them up to date with the computers and why it last could not, and the computers that no longer take the phone.
+// learn is the session's part of the learner's study (package learning) besides the libraries' learning state, which study.go keeps and syncs (Session.studies): how long films played on the phone, whether the phone is bringing the learning state up to date with the computers and why it last could not, and the computers that no longer take the phone.
 type learn struct {
 	disk learning.Disk
-	// ready turns true once what the phone kept is read.
+	// ready turns true once what the phone kept is read: the time watched and every library's learning state.
 	ready   *core.Signal[bool]
-	mirrors *core.Signal[[]learning.Mirror]
 	watched *core.Signal[learning.Watched]
 	syncing *core.Signal[bool]
 	problem *core.Signal[Problem]
@@ -32,9 +34,11 @@ type learn struct {
 	dismissed map[string]bool
 	// again is set when a sync was asked for while one ran, which runs once it is done, so a change made meanwhile is not left until the next.
 	again bool
-	// saveMu orders the saves of each computer's mirrors and of the time watched, as prefsMu does the preferences': saving is the generation last given out, saved the one last written, by computer ("" for the time watched).
+	// waiting is how many libraries' syncs the sync running waits for (syncStudy).
+	waiting int
+	// saveMu orders the saves of the time watched, as prefsMu does the preferences': saving is the generation last given out, saved the one last written.
 	saveMu        gosync.Mutex
-	saving, saved map[string]uint64
+	saving, saved uint64
 }
 
 // learnSyncFor is how long a sync waits for a computer, which may be off or out of reach.
@@ -43,24 +47,29 @@ const learnSyncFor = 20 * time.Second
 // reminderID names the review reminder among the app's notifications.
 const reminderID = "learn.review"
 
-// newLearn is the session's study, read from disk off the engine's goroutine.
+// newLearn is the session's study, read from disk off the engine's goroutine: the time watched, and every library's learning state, which a film opened meanwhile may have read already (loadStudy).
 func newLearn(s *Session) *learn {
 	l := &learn{disk: learning.Open(s.cfg.Dir),
 		ready:     core.NewSignal(s.cx, false),
-		mirrors:   core.NewSignalFunc[[]learning.Mirror](s.cx, nil, nil),
 		watched:   core.NewSignalFunc(s.cx, learning.Watched{}, nil),
 		syncing:   core.NewSignal(s.cx, false),
 		problem:   core.NewSignal(s.cx, NoProblem),
 		revoked:   core.NewSignalFunc[[]string](s.cx, nil, nil),
 		dismissed: map[string]bool{},
-		saving:    map[string]uint64{},
-		saved:     map[string]uint64{},
 	}
 	s.work.Go(func() {
-		mirrors, _ := l.disk.Mirrors()
+		libs, _ := s.st.Learnings()
 		watched, _ := l.disk.Watched()
 		s.cx.Post(func() {
-			l.mirrors.Set(mirrors)
+			m := maps.Clone(s.studies.GetUntracked())
+			for k, lib := range libs {
+				if key := studyKey(k.Desktop, k.Library); !s.studyLoading[key] {
+					if _, ok := m[key]; !ok {
+						m[key] = lib
+					}
+				}
+			}
+			s.studies.Set(m)
 			l.watched.Set(watched)
 			l.ready.Set(true)
 		})
@@ -80,16 +89,22 @@ func newLearn(s *Session) *learn {
 	return l
 }
 
-// Mirrors are the libraries' learning state as the phone keeps it.
-func (s *Session) Mirrors() []learning.Mirror { return s.learn.mirrors.Get() }
+// splitStudyKey is the desktop and library studyKey names; a desktop's ID has no slash in it (store.DesktopID).
+func splitStudyKey(k string) (desktop, lib string) {
+	desktop, lib, _ = strings.Cut(k, "/")
+	return desktop, lib
+}
 
-// LearnItems are the words and saved lines of every library the phone keeps the learning state of, the latest saved first.
+// LearnItems are the words and saved lines of every library the phone keeps the learning state of, the phone's changes not yet sent among them, the latest saved first.
 func (s *Session) LearnItems() []learning.Item {
 	var out []learning.Item
-	for _, m := range s.learn.mirrors.Get() {
-		out = append(out, m.Items()...)
+	for k, l := range s.studies.Get() {
+		desktop, lib := splitStudyKey(k)
+		out = append(out, learning.Items(desktop, lib, l)...)
 	}
-	slices.SortStableFunc(out, func(a, b learning.Item) int { return b.SavedAt.Compare(a.SavedAt) })
+	slices.SortStableFunc(out, func(a, b learning.Item) int {
+		return cmp.Or(b.SavedAt.Compare(a.SavedAt), strings.Compare(a.Key(), b.Key()))
+	})
 	return out
 }
 
@@ -110,7 +125,7 @@ func (s *Session) Watch(d time.Duration) {
 	}
 	w.Add(s.cfg.Now(), d)
 	s.learn.watched.Set(w)
-	s.learnSave("", func() error { return s.learn.disk.SaveWatched(w) })
+	s.learnSave(func() error { return s.learn.disk.SaveWatched(w) })
 }
 
 // Goal is the daily goal in minutes of films played.
@@ -139,9 +154,9 @@ func (s *Session) DismissRevoked(id string) {
 // PendingChanges is how many of the phone's changes of computer id's learning state it has not taken yet.
 func (s *Session) PendingChanges(id string) int {
 	n := 0
-	for _, m := range s.learn.mirrors.Get() {
-		if m.Desktop == id {
-			n += len(m.Pending)
+	for k, l := range s.studies.Get() {
+		if desktop, _ := splitStudyKey(k); desktop == id {
+			n += len(l.Pending)
 		}
 	}
 	return n
@@ -158,49 +173,37 @@ func (s *Session) RemoveItem(it learning.Item) {
 	s.SyncLearning()
 }
 
-// learnChange makes the change change gives, stamped with the phone's ID on the item's computer, in the item's mirror, and keeps it.
+// learnChange makes the change change gives, stamped with the phone's ID on the item's computer and made from the values the computer has (study.Based), in the item's library's learning state, and keeps it.
 func (s *Session) learnChange(it learning.Item, change func(device string) sync.Record) {
 	d, ok := s.Desktop(it.Desktop)
 	if !ok {
 		return
 	}
-	list := slices.Clone(s.learn.mirrors.Get())
-	i := slices.IndexFunc(list, func(m learning.Mirror) bool { return m.Desktop == it.Desktop && m.Library == it.Library })
-	if i < 0 {
+	l, ok := s.studies.GetUntracked()[studyKey(it.Desktop, it.Library)]
+	if !ok {
 		return
 	}
-	m := cloneMirror(list[i])
-	m.Change(change(d.DeviceID))
-	list[i] = m
-	s.learn.mirrors.Set(list)
-	s.learnSaveDesktop(it.Desktop)
+	s.setStudy(it.Desktop, it.Library, study.Change(l, study.Based(l, change(d.DeviceID))))
 	s.scheduleReminder()
 }
 
-// learnLib is what a sync did with a library of a computer: the changes it put (sent), which the computer took or refused, and the answer, whether it refused any (refused), then the changes it asked for after them.
-type learnLib struct {
-	lib     sync.Library
-	sent    []sync.Record
-	put     sync.StatePutResult
-	putErr  error
-	refused bool
-	changes sync.StateChanges
-	getErr  error
-}
-
-// learnResult is what a sync did with a computer: the libraries it lists, or why it could not be asked, and the language it translates into when it shares its settings.
+// learnResult is what a sync found of a computer: the libraries it lists, or why it could not be asked, whether it serves the learning state, and the language it translates into when it shares its settings.
 type learnResult struct {
 	desktop  string
 	err      error
 	state    bool
-	libs     []learnLib
+	libs     []sync.Library
 	settings *sync.Settings
 	// targetPut is set when the phone's language was put to the computer.
 	targetPut bool
 }
 
-// SyncLearning brings the learning state up to date with every paired computer that serves it: the phone's changes put first, then the computer's asked for; and the language translated into, the phone's put to a computer that has not taken it yet, else the computer's taken. A computer out of reach is left as it was.
+// SyncLearning brings the learning state up to date with every paired computer that serves it, each library the computer lists synced as a film's is (syncStudy): the phone's changes put first, then the computer's asked for; and the language translated into, the phone's put to a computer that has not taken it yet, else the computer's taken. A computer out of reach is left as it was. LearnSyncing is true until every library's sync is done.
 func (s *Session) SyncLearning() {
+	if !s.learn.ready.GetUntracked() {
+		// The libraries kept are not read yet: the sync runs once they are (newLearn).
+		return
+	}
 	if s.learn.syncing.GetUntracked() {
 		s.learn.again = true
 		return
@@ -211,48 +214,34 @@ func (s *Session) SyncLearning() {
 		return
 	}
 	s.learn.syncing.Set(true)
-	mirrors := s.learn.mirrors.Get()
 	prefs := s.prefs.Get()
 	target := s.Target()
 	results := make([]learnResult, len(desktops))
 	var wg gosync.WaitGroup
 	for i, d := range desktops {
 		c := s.Client(d.ID)
-		mine := map[string]learning.Mirror{}
-		for _, m := range mirrors {
-			if m.Desktop == d.ID {
-				mine[m.Library] = cloneMirror(m)
-			}
-		}
 		putTarget := slices.Contains(prefs.TargetPending, d.ID)
 		wg.Add(1)
 		s.work.Go(func() {
 			defer wg.Done()
-			results[i] = learnSync(s.closed, c, d.ID, mine, putTarget, target)
+			results[i] = learnAsk(s.ctx, c, d.ID, putTarget, target)
 		})
 	}
 	s.work.Go(func() {
 		wg.Wait()
-		s.cx.Post(func() { s.learnSynced(results) })
+		s.cx.Post(func() { s.learnAsked(results) })
 	})
 }
 
-// learnSync does a sync with computer desktop through c, off the engine's goroutine, given up as closed closes, as the session ends: mirrors are the phone's of its libraries, by library ID.
-func learnSync(closed <-chan struct{}, c *sync.Client, desktop string, mirrors map[string]learning.Mirror, putTarget bool, target string) learnResult {
+// learnAsk asks computer desktop through c, off the engine's goroutine, what a sync needs of it: whether it serves the learning state and the libraries it lists, and its settings, once the phone's language is put to it when putTarget is set. A read-only phone (sync.Hello.ReadOnly) puts nothing.
+func learnAsk(ctx context.Context, c *sync.Client, desktop string, putTarget bool, target string) learnResult {
 	out := learnResult{desktop: desktop}
 	if c == nil {
 		out.err = &sync.Error{Status: 401}
 		return out
 	}
-	ctx, cancel := context.WithTimeout(context.Background(), learnSyncFor)
+	ctx, cancel := context.WithTimeout(ctx, learnSyncFor)
 	defer cancel()
-	go func() {
-		select {
-		case <-closed:
-			cancel()
-		case <-ctx.Done():
-		}
-	}()
 	h, err := c.Hello(ctx)
 	if errors.Is(err, sync.ErrV1Only) {
 		return out
@@ -261,7 +250,7 @@ func learnSync(closed <-chan struct{}, c *sync.Client, desktop string, mirrors m
 		out.err = err
 		return out
 	}
-	if slices.Contains(h.Ops, sync.OpSettingsPut) && putTarget {
+	if slices.Contains(h.Ops, sync.OpSettingsPut) && putTarget && !h.ReadOnly {
 		got, err := c.PutSettings(ctx, sync.SettingsPut{Target: target})
 		if err == nil {
 			out.settings, out.targetPut = &got, true
@@ -275,62 +264,17 @@ func learnSync(closed <-chan struct{}, c *sync.Client, desktop string, mirrors m
 	if !out.state {
 		return out
 	}
-	libs, err := c.Libraries(ctx)
-	if err != nil {
-		out.err = err
-		return out
-	}
-	for _, lib := range libs {
-		r := learnLib{lib: lib}
-		m := mirrors[lib.ID]
-		if len(m.Pending) > 0 {
-			r.sent = m.Pending
-			r.put, r.putErr = c.PutState(ctx, lib.ID, m.Pending)
-			r.refused = learnRefused(r.putErr)
-			if r.refused && len(m.Pending) > 1 {
-				// The computer refuses a put whole for one record it cannot keep: each change is put alone, so only the ones it refuses go.
-				r.sent, r.put = learnPutEach(ctx, c, lib.ID, m.Pending)
-				r.putErr = nil
-			}
-		}
-		r.changes, r.getErr = c.State(ctx, lib.ID, m.Epoch, m.Rev)
-		out.libs = append(out.libs, r)
-	}
+	out.libs, out.err = c.Libraries(ctx)
 	return out
 }
 
-// learnRefused reports whether err is the computer refusing changes it cannot keep, which it will refuse again.
-func learnRefused(err error) bool {
-	var refused *sync.Error
-	return errors.As(err, &refused) && refused.Code == sync.CodeInvalid
-}
-
-// learnPutEach puts records to library lib through c one at a time and answers the ones the computer took or refused, which are settled, and its answers to the ones it took. It stops at the first that fails otherwise, as the computer gone out of reach: that one and those after it stay to be put at the next sync.
-func learnPutEach(ctx context.Context, c *sync.Client, lib string, records []sync.Record) ([]sync.Record, sync.StatePutResult) {
-	var sent []sync.Record
-	var out sync.StatePutResult
-	for _, r := range records {
-		res, err := c.PutState(ctx, lib, []sync.Record{r})
-		if err != nil && !learnRefused(err) {
-			break
-		}
-		sent = append(sent, r)
-		if err == nil {
-			out.Epoch, out.Rev = res.Epoch, res.Rev
-			out.Records = append(out.Records, res.Records...)
-			out.Conflicts = append(out.Conflicts, res.Conflicts...)
-		}
-	}
-	return sent, out
-}
-
-// learnSynced takes the results of a sync in, on the engine's goroutine.
-func (s *Session) learnSynced(results []learnResult) {
-	s.learn.syncing.Set(false)
+// learnAsked takes what the computers answered in, on the engine's goroutine, and syncs each library they list. A library a computer no longer lists, as one locked or removed, goes with what the phone kept of it, unless the phone has changes of it the computer has not taken yet: those stay until it lists the library again, as once it is unlocked, so a review made meanwhile is not lost. One removed for good keeps them until the computer is unpaired.
+func (s *Session) learnAsked(results []learnResult) {
 	reached, problem := false, NoProblem
 	targetWas := s.prefs.Get().Target
-	list := slices.Clone(s.learn.mirrors.Get())
 	revoked := slices.Clone(s.learn.revoked.Get())
+	type lib struct{ desktop, id string }
+	var libs []lib
 	for _, r := range results {
 		if _, ok := s.Desktop(r.desktop); !ok {
 			// Unpaired while the sync ran.
@@ -353,63 +297,51 @@ func (s *Session) learnSynced(results []learnResult) {
 		if !r.state {
 			continue
 		}
-		var kept []learning.Mirror
-		for _, lib := range r.libs {
-			i := slices.IndexFunc(list, func(m learning.Mirror) bool { return m.Desktop == r.desktop && m.Library == lib.lib.ID })
-			m := learning.Mirror{Desktop: r.desktop, Library: lib.lib.ID}
-			if i >= 0 {
-				m = cloneMirror(list[i])
-			}
-			m.Name = lib.lib.Name
-			// Changes the computer refuses it will refuse again: they go, and the next sync reads the library's state afresh, so the records show as the computer has them.
-			reread := lib.refused
-			switch {
-			case lib.sent != nil && lib.putErr == nil:
-				m.Settle(lib.sent, lib.put)
-			case lib.sent != nil && lib.refused:
-				m.Settle(lib.sent, sync.StatePutResult{})
-			}
-			if lib.getErr == nil {
-				m.Take(lib.changes)
-			} else if ProblemOf(lib.getErr) == Gone && len(m.Pending) == 0 {
-				// A library locked since it was listed tells the phone nothing of it; one with changes the computer has not taken yet is kept for them, as below.
-				continue
-			}
-			if reread {
-				m.Epoch, m.Rev = "", 0
-			}
-			kept = append(kept, m)
-		}
-		// A library the computer no longer lists, as one locked or removed, goes with what the phone kept of it, unless the phone has changes of it the computer has not taken yet: those stay until it lists the library again, as once it is unlocked, so a review made meanwhile is not lost. One removed for good keeps them until the computer is unpaired.
-		for _, m := range list {
-			if m.Desktop == r.desktop && len(m.Pending) > 0 && !slices.ContainsFunc(kept, func(k learning.Mirror) bool { return k.Library == m.Library }) {
-				kept = append(kept, m)
+		for k, l := range s.studies.GetUntracked() {
+			desktop, id := splitStudyKey(k)
+			if desktop == r.desktop && len(l.Pending) == 0 && !slices.ContainsFunc(r.libs, func(x sync.Library) bool { return x.ID == id }) {
+				s.dropStudy(desktop, id)
 			}
 		}
-		list = slices.DeleteFunc(list, func(m learning.Mirror) bool { return m.Desktop == r.desktop })
-		list = append(list, kept...)
-		s.learnSaveDesktopList(r.desktop, kept)
+		for _, l := range r.libs {
+			libs = append(libs, lib{r.desktop, l.ID})
+		}
 	}
 	if reached {
 		problem = NoProblem
 	}
-	slices.SortStableFunc(list, func(a, b learning.Mirror) int {
-		if a.Key() < b.Key() {
-			return -1
-		}
-		if a.Key() > b.Key() {
-			return 1
-		}
-		return 0
-	})
-	s.learn.mirrors.Set(list)
 	s.learn.revoked.Set(revoked)
 	s.learn.problem.Set(problem)
-	s.scheduleReminder()
 	// A language taken from a computer goes to the others at once.
 	if p := s.prefs.Get(); p.Target != targetWas && len(p.TargetPending) > 0 {
 		s.learn.again = true
 	}
+	s.learn.waiting += len(libs)
+	for _, l := range libs {
+		s.syncLibrary(l.desktop, l.id, s.learnLibrarySynced)
+	}
+	if s.learn.waiting == 0 {
+		s.learnDone()
+	}
+}
+
+// learnLibrarySynced is told a library's sync is done, with what it ended with: a library locked since it was listed, which tells the phone nothing of it, goes as one not listed does (learnAsked).
+func (s *Session) learnLibrarySynced(desktop, lib string, err error) {
+	if err != nil && ProblemOf(err) == Gone {
+		if l, ok := s.studies.GetUntracked()[studyKey(desktop, lib)]; ok && len(l.Pending) == 0 {
+			s.dropStudy(desktop, lib)
+		}
+	}
+	s.learn.waiting--
+	if s.learn.waiting == 0 {
+		s.learnDone()
+	}
+}
+
+// learnDone ends a sync once every library's is done, and runs the one asked for meanwhile.
+func (s *Session) learnDone() {
+	s.learn.syncing.Set(false)
+	s.scheduleReminder()
 	if s.learn.again {
 		s.learn.again = false
 		s.SyncLearning()
@@ -484,14 +416,17 @@ func (s *Session) scheduleReminder() {
 
 // learnForget forgets what the phone kept of computer id's learning state, as it is unpaired.
 func (s *Session) learnForget(id string) {
-	s.learn.mirrors.Set(slices.DeleteFunc(slices.Clone(s.learn.mirrors.Get()), func(m learning.Mirror) bool { return m.Desktop == id }))
+	for k := range s.studies.GetUntracked() {
+		if desktop, lib := splitStudyKey(k); desktop == id {
+			s.dropStudy(desktop, lib)
+		}
+	}
 	s.DismissRevoked(id)
 	delete(s.learn.dismissed, id)
 	if p := s.prefs.Get(); slices.Contains(p.TargetPending, id) {
 		p.TargetPending = slices.DeleteFunc(slices.Clone(p.TargetPending), func(x string) bool { return x == id })
 		s.SetPrefs(p)
 	}
-	s.learnSave(id, func() error { return s.learn.disk.DeleteDesktop(id) })
 	s.scheduleReminder()
 }
 
@@ -506,47 +441,18 @@ func (s *Session) ExportLearning(cols learning.Columns, done func(files []string
 	})
 }
 
-// learnSaveDesktop keeps computer id's mirrors as they are now.
-func (s *Session) learnSaveDesktop(id string) {
-	var mine []learning.Mirror
-	for _, m := range s.learn.mirrors.Get() {
-		if m.Desktop == id {
-			mine = append(mine, m)
-		}
-	}
-	s.learnSaveDesktopList(id, mine)
-}
-
-func (s *Session) learnSaveDesktopList(id string, mirrors []learning.Mirror) {
-	mirrors = slices.Clone(mirrors)
-	s.learnSave(id, func() error { return s.learn.disk.SaveDesktop(id, mirrors) })
-}
-
-// learnSave runs write, a save of what key names, on a goroutine of its own, unless a later save of it was written already.
-func (s *Session) learnSave(key string, write func() error) {
+// learnSave runs write, a save of the time watched, on a goroutine of its own, unless a later save of it was written already.
+func (s *Session) learnSave(write func() error) {
 	l := s.learn
 	l.saveMu.Lock()
-	l.saving[key]++
-	gen := l.saving[key]
+	l.saving++
+	gen := l.saving
 	l.saveMu.Unlock()
 	s.work.Go(func() {
 		l.saveMu.Lock()
 		defer l.saveMu.Unlock()
-		if gen > l.saved[key] && write() == nil {
-			l.saved[key] = gen
+		if gen > l.saved && write() == nil {
+			l.saved = gen
 		}
 	})
-}
-
-// cloneMirror is m with records of its own, so a change of it leaves m as it was.
-func cloneMirror(m learning.Mirror) learning.Mirror {
-	m.Records = slices.Clone(m.Records)
-	m.Pending = slices.Clone(m.Pending)
-	for i, r := range m.Records {
-		m.Records[i].Fields = maps.Clone(r.Fields)
-	}
-	for i, r := range m.Pending {
-		m.Pending[i].Fields = maps.Clone(r.Fields)
-	}
-	return m
 }

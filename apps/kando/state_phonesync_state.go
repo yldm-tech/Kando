@@ -14,6 +14,7 @@ import (
 	"kando/apps/kando/phonesync"
 	"kando/apps/kando/remote"
 	"kando/apps/kando/saved"
+	"kando/apps/kando/settings"
 	"kando/packages/core"
 	"kando/packages/media"
 	"kando/packages/study"
@@ -72,7 +73,7 @@ func (s phoneState) GetState(ctx context.Context, caller psync.Caller, req psync
 }
 
 // PutState merges the phone's changes into the library's ledger, records the conflicts they make, keeps the records that changed where the desktop keeps them, and tells the other phones.
-func (s phoneState) PutState(ctx context.Context, _ psync.Caller, req psync.StatePut) (psync.StatePutResult, error) {
+func (s phoneState) PutState(ctx context.Context, caller psync.Caller, req psync.StatePut) (psync.StatePutResult, error) {
 	a := s.a
 	return phoneStateCall(ctx, a, req.Library, func(st *phoneStateLib) (psync.StatePutResult, error) {
 		known := func(film string) bool { _, ok := st.films[film]; return ok }
@@ -86,6 +87,7 @@ func (s phoneState) PutState(ctx context.Context, _ psync.Caller, req psync.Stat
 			return psync.StatePutResult{}, err
 		}
 		a.phoneStateSettle(st)
+		a.phoneLogPut(caller.Name, changed, st.films)
 		out := psync.StatePutResult{Epoch: st.ledger.Epoch(), Rev: st.ledger.Rev(), Records: []psync.Record{}, Conflicts: conflicts}
 		for _, r := range req.Records {
 			if rec, ok := st.ledger.Record(r.Kind, r.ID); ok {
@@ -120,6 +122,12 @@ func (s phoneState) ResolveConflict(ctx context.Context, caller psync.Caller, re
 			return psync.StatePutResult{}, err
 		}
 		a.phoneStateSettle(st)
+		// This computer settles a conflict as a phone does, on the page (phoneSyncResolve).
+		device := caller.Name
+		if caller.DeviceID == a.saved.device {
+			device = ""
+		}
+		a.phoneLog(device, settings.ActivityResolved, "", 1, 0)
 		return psync.StatePutResult{Epoch: st.ledger.Epoch(), Rev: st.ledger.Rev(), Records: []psync.Record{rec}, Conflicts: []psync.Conflict{c}}, nil
 	})
 }

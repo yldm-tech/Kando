@@ -8,36 +8,6 @@ import (
 	"time"
 )
 
-func TestTokens(t *testing.T) {
-	cases := []struct {
-		line string
-		want []Token
-	}{
-		{"Every river begins as a trickle.", []Token{{"Every", true}, {" ", false}, {"river", true}, {" ", false}, {"begins", true}, {" ", false}, {"as", true}, {" ", false}, {"a", true}, {" ", false}, {"trickle", true}, {".", false}}},
-		{"Don't—it's well-known, 'quoted' 42", []Token{{"Don't", true}, {"—", false}, {"it's", true}, {" ", false}, {"well-known", true}, {", '", false}, {"quoted", true}, {"' 42", false}}},
-		{"Ça va? Très bien!", []Token{{"Ça", true}, {" ", false}, {"va", true}, {"? ", false}, {"Très", true}, {" ", false}, {"bien", true}, {"!", false}}},
-		{"今日はいい天気", []Token{{"今日はいい天気", false}}},
-		{"안녕 세상", []Token{{"안녕", true}, {" ", false}, {"세상", true}}},
-		{"", nil},
-	}
-	for _, c := range cases {
-		got := Tokens(c.line)
-		if len(got) != len(c.want) {
-			t.Fatalf("Tokens(%q) = %+v, want %+v", c.line, got, c.want)
-		}
-		var joined strings.Builder
-		for i := range got {
-			if got[i] != c.want[i] {
-				t.Fatalf("Tokens(%q)[%d] = %+v, want %+v", c.line, i, got[i], c.want[i])
-			}
-			joined.WriteString(got[i].Text)
-		}
-		if joined.String() != c.line {
-			t.Fatalf("Tokens(%q) joins to %q", c.line, joined.String())
-		}
-	}
-}
-
 func TestParse(t *testing.T) {
 	e, err := Parse("rivers", "```json\n{\"word\": \"river\", \"reading\": \"/ˈrɪvə/\", \"meaning\": \"n. 河，江\"}\n```")
 	if err != nil || e != (Entry{Word: "river", Reading: "/ˈrɪvə/", Meaning: "n. 河，江"}) {

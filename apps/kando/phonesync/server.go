@@ -70,6 +70,10 @@ type Config struct {
 	State psync.StateService
 	// Settings is the settings a phone reads and changes over protocol v2; nil answers them unsupported.
 	Settings psync.SettingsService
+	// Study is the lookups and explanations protocol v2's calls ask for; nil answers them unsupported.
+	Study psync.StudyService
+	// Relay is the user's bucket the storage relay runs in (relay.go), nil while the relay is off.
+	Relay psync.RelayBucket
 	// Addrs are the addresses to listen on, looked at again every rescanEvery as the computer joins other networks; nil is LANAddrs. Tests give loopback.
 	Addrs func() []netip.Addr
 	// Changed is told, on any goroutine, that what the settings show changed: the code on offer, the devices, or the addresses listened on.
@@ -105,8 +109,9 @@ type Server struct {
 	limit     limiter
 	// listed is each library's playable films as last read, by its ID, which a request for a film's files looks it up in for filmsFresh after (filmsFor).
 	listed map[string]listing
-	// desk answers protocol v2's calls.
-	desk *psync.Desk
+	// desk answers protocol v2's calls; relay carries them through the user's bucket, nil while it is off.
+	desk  *psync.Desk
+	relay *psync.Relay
 }
 
 // listing is a library's playable films as read at a time.
@@ -148,13 +153,16 @@ func Start(cfg Config) (*Server, error) {
 	if jobs == nil {
 		jobs = noJobs{}
 	}
-	s.desk = &psync.Desk{Service: jobs, State: cfg.State, Settings: cfg.Settings, Journal: psync.NewJournal(), Desktop: cfg.Name, Now: cfg.Now}
+	s.desk = &psync.Desk{Service: jobs, State: cfg.State, Settings: cfg.Settings, Study: cfg.Study, Journal: psync.NewJournal(), Desktop: cfg.Name, Now: cfg.Now}
 	s.http = &http.Server{
 		Handler:           s.routes(),
 		TLSConfig:         &tls.Config{Certificates: []tls.Certificate{cert}, MinVersion: tls.VersionTLS13},
 		ReadHeaderTimeout: 10 * time.Second,
 		IdleTimeout:       2 * time.Minute,
 		ErrorLog:          log.New(logWriter(cfg.Logf), "", 0),
+	}
+	if cfg.Relay != nil {
+		s.startRelay(cfg.Relay)
 	}
 	if err := s.rescan(); err != nil {
 		s.Close()
@@ -350,6 +358,16 @@ func (s *Server) Revoke(id string) error {
 		return err
 	}
 	s.desk.Forget(id)
+	s.forgetRelay(id)
+	s.cfg.Changed()
+	return nil
+}
+
+// SetReadOnly makes device id read-only (on), so its next calls that change something are refused, or lets it change things again, and keeps that with the device.
+func (s *Server) SetReadOnly(id string, on bool) error {
+	if err := s.devices.setReadOnly(id, on); err != nil {
+		return err
+	}
 	s.cfg.Changed()
 	return nil
 }
@@ -714,11 +732,11 @@ func playable(films []Film) []served {
 	return out
 }
 
-// call answers a protocol v2 call from dev, within sourceTimeout, which is longer than an events call waits (psync.MaxEventWait).
+// call answers a protocol v2 call from dev, as the device is now (a read-only one changes nothing, psync.Caller.ReadOnly), within sourceTimeout, which is longer than an events call waits (psync.MaxEventWait).
 func (s *Server) call(w http.ResponseWriter, r *http.Request, dev Device) {
 	ctx, cancel := sourceContext(r)
 	defer cancel()
-	psync.HandleCall(w, r.WithContext(ctx), s.desk, psync.Caller{DeviceID: dev.ID, Name: dev.Name})
+	psync.HandleCall(w, r.WithContext(ctx), s.desk, psync.Caller{DeviceID: dev.ID, Name: dev.Name, ReadOnly: dev.ReadOnly})
 }
 
 // PublishJobs makes jobs what phones are told of the app's queue, in the order a list gives them, and wakes the phones waiting for its changes. It reports whether anything changed.
