@@ -48,6 +48,7 @@ type fakeApp struct {
 	removeOpen, removeFolder         bool
 	removing                         []Film
 	selection                        Selection
+	posterFocus                      bool
 	renameOpen                       bool
 	renameName, renameOriginal       string
 	calls                            []string
@@ -234,6 +235,7 @@ func (f *fakeApp) CloseRename()                                         { f.call
 func (f *fakeApp) RenameFilm()                                          { f.call("rename", f.renameName); f.renameOpen = false }
 func (f *fakeApp) MoveFilmMenu(*ns.Scope, ...Film) []nsdesktop.MenuItem { return nil }
 func (f *fakeApp) Selection() *Selection                                { return &f.selection }
+func (f *fakeApp) PosterFocus() *bool                                   { return &f.posterFocus }
 func (f *fakeApp) UndoMove()                                            { f.call("undo-move") }
 func (f *fakeApp) CancelMove()                                          { f.call("cancel-move") }
 func (f *fakeApp) Choose(dir string)                                    { f.call("choose", dir) }

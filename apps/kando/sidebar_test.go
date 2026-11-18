@@ -912,12 +912,16 @@ func TestSidebarOpensThePaletteWithoutAMenuBar(t *testing.T) {
 	}
 }
 
-// TestSidebarSearchReturnPlaysTheOnlyFilm checks that Return in the sidebar's search field plays the film when the search leaves one, and does nothing when it leaves several.
+// TestSidebarSearchReturnPlaysTheOnlyFilm checks that Return in the sidebar's search field plays the film when the search leaves one, and puts the keyboard on the first poster when it leaves several.
 func TestSidebarSearchReturnPlaysTheOnlyFilm(t *testing.T) {
 	a, tt, _ := paletteLibrary(t, &fakePipeline{})
 	tt.Type("id:sidebar-search", "e\n")
+	refresh(tt, a)
 	if a.openKey != "" {
 		t.Fatalf("Return with two films found opened %q", a.openKey)
+	}
+	if first := tt.Find("id:films-grid >> role:button >> nth=0"); !first.Focused || tt.Find("id:sidebar-search").Focused {
+		t.Fatalf("Return with two films found left the keyboard on the search field %v, not on the first poster %q", tt.Find("id:sidebar-search").Focused, first.Props.Label)
 	}
 	tt.Clear("id:sidebar-search")
 	tt.Type("id:sidebar-search", "riv\n")

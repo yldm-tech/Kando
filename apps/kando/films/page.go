@@ -134,6 +134,8 @@ type App interface {
 	Furthest(path string) time.Duration
 	// Selection is the done films selected on the page, which the app keeps so the menu bar acts on them too (Selection).
 	Selection() *Selection
+	// PosterFocus asks the first poster of the grid for the keyboard focus once, as Return in the sidebar's search field does when it leaves several films; the grid sets it back to false when its first poster has taken the focus, or when it shows no poster.
+	PosterFocus() *bool
 	// Notice is the message bar under the top bar.
 	Notice() *Notice
 	// QueueExpanded is whether 处理中 shows every card rather than the first QueueShown.

@@ -143,14 +143,19 @@ func (a *app) SetQuery(text string) {
 
 func (a *app) QueryFocus() *bool { return &a.side.queryFocus }
 
-// SubmitQuery is Return in the sidebar's search field: when the search leaves a single film in the library page's grid, among those of the source, the language and the watch state chosen (films.Shown), it plays it, as a click on its poster does.
-// TODO(nsgo#348): when the search leaves several films, Return should put the keyboard on the first poster; core.Ref.Focus moves the keyboard only to a text field on macOS (internal/platform/macos/macos.go, ItemFocus), so it does nothing here https://github.com/nsgo-dev/nsgo/issues/348
+// PosterFocus asks the library page's first poster for the keyboard focus once (films.App).
+func (a *app) PosterFocus() *bool { return &a.side.posterFocus }
+
+// SubmitQuery is Return in the sidebar's search field: when the search leaves a single film in the library page's grid, among those of the source, the language and the watch state chosen (films.Shown), it plays it, as a click on its poster does; when it leaves several and the page shows them as posters, it puts the keyboard on the first poster.
 func (a *app) SubmitQuery() {
 	query := strings.TrimSpace(a.side.query)
 	if query == "" {
 		return
 	}
 	found := films.Shown(a.films(), a, a.side.filter, a.SpokenFilter(), a.side.watch, query)
+	if len(found) > 1 && a.page == pageFilms && a.LibraryView() == films.ViewGrid {
+		a.side.posterFocus = true
+	}
 	if len(found) != 1 {
 		return
 	}

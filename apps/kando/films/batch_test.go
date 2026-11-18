@@ -173,3 +173,17 @@ func TestListSelectsSeveralRows(t *testing.T) {
 		t.Fatalf("a click on a selected row selected %v, want it alone", a.selection.Keys)
 	}
 }
+
+// TestFirstPosterTakesTheFocus checks PosterFocus: asked for, the grid's first poster takes the keyboard focus once and the request is spent.
+func TestFirstPosterTakesTheFocus(t *testing.T) {
+	a := newFakeApp()
+	app := start(t, a)
+	first := "id:film-" + a.Films()[0].Key
+	if app.Find(first).Focused {
+		t.Fatal("the first poster has the focus before it was asked for")
+	}
+	change(app, a, func() { a.posterFocus = true })
+	if !app.Find(first).Focused || a.posterFocus {
+		t.Fatalf("asked for, the first poster's focus is %v and the request %v", app.Find(first).Focused, a.posterFocus)
+	}
+}
