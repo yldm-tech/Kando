@@ -162,7 +162,7 @@ func (a *app) SubexportSaveAs() {
 	kept := subexportKeep(video, a.player.subs.path)
 	busy := a.subexportJobRunning()
 	release := a.holdModal()
-	// TODO(nsgo): give core.SaveOptions a folder to start in, so the panel opens in the film's folder rather than where the system chooses; and a way to refuse a path before the file is written, so a save over Kando's own subtitles need not be undone afterwards (subexportUndo)
+	// TODO(nsgo#682): give core.SaveOptions a folder to start in, so the panel opens in the film's folder rather than where the system chooses; and a way to refuse a path before the file is written, so a save over Kando's own subtitles need not be undone afterwards (subexportUndo) https://github.com/nsgo-dev/nsgo/issues/682
 	a.cx.Run(func() {
 		a.cx.SaveFile(ns.SaveOptions{Name: filepath.Base(path), Data: data}, func(saved bool, to string, err error) {
 			release()

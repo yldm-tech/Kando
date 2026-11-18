@@ -3,6 +3,7 @@ package main
 import (
 	"os"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"testing"
 	"time"
@@ -219,6 +220,10 @@ func TestSubexportUndo(t *testing.T) {
 	}
 	if os.Geteuid() == 0 {
 		t.Skip("root writes into a read-only folder")
+	}
+	// A folder's read-only bit does not stop files being written or removed in it on Windows, so the failure this case needs cannot be made there.
+	if runtime.GOOS == "windows" {
+		t.Skip("Windows has no read-only folders")
 	}
 	os.WriteFile(bilingual, []byte("export"), 0o644)
 	if err := os.Chmod(dir, 0o555); err != nil {
