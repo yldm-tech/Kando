@@ -43,7 +43,7 @@ func FixOf(before, after string) (Fix, bool) {
 // In reports whether text holds the fix's From where Apply would replace it.
 func (f Fix) In(text string) bool { return len(f.matches(text)) > 0 }
 
-// Apply is text with To in place of every From it holds. From must stand as whole words in a language written with spaces: fixing "Jon" leaves "Jonathan" alone. Case counts, as for a name.
+// Apply is text with To in place of every From it holds. From must stand as whole words in a language written with spaces: fixing "Jon" leaves "Jonathan" alone. Case counts, as for a name. A fix that takes the words out (To is "") takes a space beside them out too, the one before them or else the one after, so "Ask Jon." becomes "Ask." and "Jon, wait." becomes ", wait.".
 func (f Fix) Apply(text string) string {
 	at := f.matches(text)
 	if len(at) == 0 {
@@ -52,12 +52,37 @@ func (f Fix) Apply(text string) string {
 	var out strings.Builder
 	last := 0
 	for _, i := range at {
-		out.WriteString(text[last:i])
+		start, end := i, i+len(f.From)
+		if f.To == "" {
+			switch {
+			case start > last && text[start-1] == ' ':
+				start--
+			case end < len(text) && text[end] == ' ':
+				end++
+			}
+		}
+		out.WriteString(text[last:start])
 		out.WriteString(f.To)
-		last = i + len(f.From)
+		last = end
 	}
 	out.WriteString(text[last:])
 	return out.String()
+}
+
+// OnLine is the translation of l, or with original its original, with the fix applied (Apply) and its spaces tidied as a line holds them: none around it, one between words. It reports false when that text does not hold From, and when the fix would leave an original empty, as a cue holding a translation alone reads back as an original (SplitCue).
+func (f Fix) OnLine(l Line, original bool) (string, bool) {
+	text := l.Translation
+	if original {
+		text = l.Original
+	}
+	if !f.In(text) {
+		return "", false
+	}
+	out := strings.Join(strings.Fields(f.Apply(text)), " ")
+	if original && out == "" {
+		return "", false
+	}
+	return out, true
 }
 
 // matches are where in text From stands as Apply replaces it, by byte offset, without overlaps.

@@ -50,3 +50,39 @@ func TestFixAppliesToWholeWords(t *testing.T) {
 		t.Errorf("Chinese: %q", river.Apply("这些河曲很美，河曲"))
 	}
 }
+
+// TestAFixThatTakesWordsOutTidiesTheLine checks that a fix taking words out takes a space beside them out too, and that OnLine tidies the spaces left and refuses to leave an original empty, as a cue with a translation alone reads back as an original.
+func TestAFixThatTakesWordsOutTidiesTheLine(t *testing.T) {
+	out := Fix{From: "Jon", To: ""}
+	for _, c := range []struct{ text, want string }{
+		{"Ask Jon.", "Ask."},
+		{"Jon, wait.", ", wait."},
+		{"Ask Jon and me", "Ask and me"},
+		{"Jon Jon", ""},
+		{"Jon", ""},
+	} {
+		if got := out.Apply(c.text); got != c.want {
+			t.Errorf("Apply(%q) = %q, want %q", c.text, got, c.want)
+		}
+	}
+	for _, c := range []struct {
+		line     Line
+		original bool
+		want     string
+		ok       bool
+	}{
+		{Line{Original: "Ask Jon.", Translation: "问约翰。"}, true, "Ask.", true},
+		{Line{Original: "Jon", Translation: "约翰"}, true, "", false},
+		{Line{Original: "Jonathan left.", Translation: "乔纳森走了。"}, true, "", false},
+		{Line{Original: "Jon", Translation: "Jon"}, false, "", true},
+	} {
+		got, ok := out.OnLine(c.line, c.original)
+		if got != c.want || ok != c.ok {
+			t.Errorf("OnLine(%+v, %v) = %q, %v; want %q, %v", c.line, c.original, got, ok, c.want, c.ok)
+		}
+	}
+	john := Fix{From: "约翰", To: "琼恩"}
+	if got, ok := john.OnLine(Line{Original: "Jon is here.", Translation: "约翰来了。"}, false); got != "琼恩来了。" || !ok {
+		t.Errorf("OnLine of a translation = %q, %v", got, ok)
+	}
+}

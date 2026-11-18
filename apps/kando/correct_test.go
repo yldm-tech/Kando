@@ -1,10 +1,15 @@
 package main
 
 import (
+	"encoding/json"
+	"io"
+	"net/http"
+	"net/http/httptest"
 	"os"
 	"path/filepath"
 	"slices"
 	"strings"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -489,5 +494,164 @@ func TestAFixSpreadsAcrossTheFilm(t *testing.T) {
 	}
 	if got := correctTexts(a)[0]; got != "琼恩来了。\nJon is here." {
 		t.Fatalf("Escape changed %q", got)
+	}
+}
+
+// correctJon are the lines of a film whose originals name Jon and never John, his name alone being the original of its second line, and whose translations write him 约翰.
+const correctJon = "1\n00:00:01,000 --> 00:00:02,500\n约翰，等等。\nJon, wait.\n\n2\n00:00:04,000 --> 00:00:05,000\n约翰。\nJon\n\n3\n00:00:06,000 --> 00:00:07,000\n问约翰。\nAsk Jon.\n\n"
+
+// correctJonOpen is the film of correctJon open and loaded, held on its first line.
+func correctJonOpen(t *testing.T) (*app, *nsgotest.App, chan func()) {
+	t.Helper()
+	a, tt, updates, item := playerFilm(t, 12, nil)
+	if err := os.WriteFile(item.SubtitlePath, []byte(correctJon), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	playerOpenFilm(t, a, tt, updates, item)
+	playerLoadFilm(tt, a, 12*time.Second)
+	playerPlayTo(tt, a, 1500*time.Millisecond)
+	return a, tt, updates
+}
+
+// TestAFixTakingANameOutOfTheOriginalsLeavesNoneEmpty checks that an edit taking a name out of an original offers to take it out of the other originals that hold it, but not of one that is the name alone, which would be left empty and read back as a translation; that ⌘↩ takes it out with the space before it; and that Undo puts it back.
+func TestAFixTakingANameOutOfTheOriginalsLeavesNoneEmpty(t *testing.T) {
+	a, tt, _ := correctJonOpen(t)
+	useMenuBar(t, a, tt)
+	msgs := testlocale.Messages()
+	apply(tt, a, func() { a.SelectLine(0) })
+	tt.Key("enter")
+	tt.Clear("id:film-correct-original")
+	tt.Type("id:film-correct-original", ", wait.")
+	tt.Press("id:film-correct-submit")
+	if s := a.Spread(); !s.Open || s.From != "Jon" || s.To != "" || s.Lines != 1 {
+		t.Fatalf("spread %+v", s)
+	}
+	choose(tt, a, findMenuItem(t, a.menuBar(a.cx), msgs.MenuGroupSubtitles(), msgs.CorrectKeySpreadAll()))
+	want := []string{"约翰，等等。\n, wait.", "约翰。\nJon", "问约翰。\nAsk."}
+	if got := correctTexts(a); !slices.Equal(got, want) {
+		t.Fatalf("lines %q, want %q", got, want)
+	}
+	wantText(t, tt, msgs.CorrectSpreadDone(1))
+	choose(tt, a, findMenuItem(t, a.menuBar(a.cx), msgs.MenuGroupEdit(), msgs.CorrectUndo(msgs.CorrectStepSpread("Jon", ""))))
+	if got := correctTexts(a)[2]; got != "问约翰。\nAsk Jon." {
+		t.Fatalf("Undo left %q", got)
+	}
+}
+
+// TestAFixLeavesATermForOtherWordsAlone checks that a fix of a translation spread across the film does not change a glossary term that writes the same translation for words the film's lines do not hold: every film's term for John is left as it is when the film's Jon, also written 约翰, becomes 琼恩.
+func TestAFixLeavesATermForOtherWordsAlone(t *testing.T) {
+	a, tt, updates := correctJonOpen(t)
+	useMenuBar(t, a, tt)
+	msgs := testlocale.Messages()
+	waitUntil(t, tt, a, updates, func() bool { return a.gloss.filmRead })
+	apply(tt, a, func() {
+		a.gloss.store.Set("", core.Term{Source: "John", Target: "约翰", Scope: core.ScopeGlobal, Origin: core.OriginAuto})
+	})
+	correctEdit(t, a, tt, 0, "琼恩，等等。")
+	if s := a.Spread(); !s.Open || s.Lines != 2 {
+		t.Fatalf("spread %+v", s)
+	}
+	choose(tt, a, findMenuItem(t, a.menuBar(a.cx), msgs.MenuGroupSubtitles(), msgs.CorrectKeySpreadAll()))
+	want := []string{"琼恩，等等。\nJon, wait.", "琼恩。\nJon", "问琼恩。\nAsk Jon."}
+	if got := correctTexts(a); !slices.Equal(got, want) {
+		t.Fatalf("lines %q, want %q", got, want)
+	}
+	wantText(t, tt, msgs.CorrectSpreadDone(2))
+	if term, ok := a.glossaryTerm("John"); !ok || term.Target != "约翰" || term.Locked || term.Scope != core.ScopeGlobal {
+		t.Fatalf("term %+v, %v", term, ok)
+	}
+}
+
+// TestTheSpreadBarGoesAfterAWhile checks that the bar asking about spreading a fix goes by itself once correctSpreadFor passes unanswered, leaving the other lines as they are.
+func TestTheSpreadBarGoesAfterAWhile(t *testing.T) {
+	a, tt, _ := correctJonOpen(t)
+	correctEdit(t, a, tt, 0, "琼恩，等等。")
+	if !a.Spread().Open {
+		t.Fatal("no bar asked about the fix")
+	}
+	tt.Advance(correctSpreadFor - time.Second)
+	refresh(tt, a)
+	if !a.Spread().Open {
+		t.Fatal("the bar went too soon")
+	}
+	tt.Advance(2 * time.Second)
+	refresh(tt, a)
+	if a.Spread().Open || a.correct.spread != nil {
+		t.Fatal("the bar stayed")
+	}
+	if got := correctTexts(a)[1]; got != "约翰。\nJon" {
+		t.Fatalf("the bar going changed %q", got)
+	}
+}
+
+// TestClosingTheCandidatesStopsAskingForThem checks that Escape while the other translations of a line are on their way stops the request, and that its reply, coming after the list was opened again, does not show in the new one, which shows its own reply.
+func TestClosingTheCandidatesStopsAskingForThem(t *testing.T) {
+	var asked atomic.Int32
+	arrived, canceled, release := make(chan struct{}), make(chan struct{}), make(chan struct{})
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		// The body read, the server sees the client go (http.Request.Context).
+		io.Copy(io.Discard, r.Body)
+		if asked.Add(1) == 1 {
+			close(arrived)
+			select {
+			case <-r.Context().Done():
+				close(canceled)
+			case <-release:
+			}
+			return
+		}
+		select {
+		case <-release:
+		case <-r.Context().Done():
+			return
+		}
+		json.NewEncoder(w).Encode(map[string]any{"choices": []map[string]any{{"message": map[string]string{"role": "assistant", "content": `["约翰到了。"]`}}}})
+	}))
+	t.Cleanup(srv.Close)
+	t.Cleanup(func() {
+		select {
+		case <-release:
+		default:
+			close(release)
+		}
+	})
+	tools := media.Tools{Translator: media.ChatTranslator{BaseURL: srv.URL + "/v1", APIKey: "k", Model: "m1"}}
+	a, tt, updates, _ := correctNamesOpen(t, tools)
+	tt.Key("shift+e")
+	if c := a.Candidates(); !c.Open || !c.Busy {
+		t.Fatalf("⇧E: %+v", c)
+	}
+	select {
+	case <-arrived:
+	case <-time.After(5 * time.Second):
+		t.Fatal("no request for the candidates")
+	}
+	tt.Key("escape")
+	if a.Candidates().Open || a.correct.pick != nil {
+		t.Fatal("Escape left the list")
+	}
+	select {
+	case <-canceled:
+	case <-time.After(5 * time.Second):
+		t.Fatal("the request went on after the list closed")
+	}
+	tt.Key("shift+e")
+	// The first request's reply, its cancellation, reaches the engine while the second list is open.
+	for wait := time.After(300 * time.Millisecond); ; {
+		select {
+		case fn := <-updates:
+			apply(tt, a, fn)
+			continue
+		case <-wait:
+		}
+		break
+	}
+	if c := a.Candidates(); !c.Open || !c.Busy || c.Say != nil || c.NeedsAI {
+		t.Fatalf("the first reply reached the second list: %+v", c)
+	}
+	close(release)
+	waitUntil(t, tt, a, updates, func() bool { return !a.Candidates().Busy })
+	if c := a.Candidates(); !slices.Equal(c.Options, []string{"约翰到了。"}) || c.Say != nil {
+		t.Fatalf("candidates %+v", c)
 	}
 }

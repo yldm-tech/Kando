@@ -11,10 +11,11 @@ import (
 
 // Spreading a fix: once an edit of a line changed words the film's other lines hold too (core.FixOf), a bar over the picture asks whether to change them all (⌘↩), shows them in the subtitle list (⇧⌘↩), or leaves them (Escape). Changing them all is one change of the corrections, which Undo takes back whole; a fix of a translation that a glossary term wrote also changes that term and locks it, so the film translated again writes the fix too.
 
-// correctSpread is the fix the bar asks about: in the translations or, with original, in the originals; lines are the machine's lines that hold it, by span (core.Corrected.Machine), and edited how many of them the user had corrected in that text.
+// correctSpread is the fix the bar asks about: in the translations or, with original, in the originals; line is the machine's line the user edited, lines the machine's other lines the fix can change, by span (core.Corrected.Machine), and edited how many of them the user had corrected in that text.
 type correctSpread struct {
 	fix      core.Fix
 	original bool
+	line     core.Span
 	lines    []core.Span
 	edited   int
 }
@@ -38,9 +39,12 @@ func (a *app) correctOffer(line core.Span, translation, original string) bool {
 		if !ok {
 			continue
 		}
-		s := &correctSpread{fix: fix, original: field.original}
+		s := &correctSpread{fix: fix, original: field.original, line: line}
 		for j, l := range from {
-			if j == edited || !fix.In(correctField(l.Line, field.original)) {
+			if j == edited {
+				continue
+			}
+			if _, ok := fix.OnLine(l.Line, field.original); !ok {
 				continue
 			}
 			s.lines = append(s.lines, l.Machine)
@@ -70,14 +74,6 @@ func (a *app) correctAsk(s *correctSpread) {
 			a.correct.spread = nil
 		}
 	}))
-}
-
-// correctField is the translation of l, or with original its original.
-func correctField(l core.Line, original bool) string {
-	if original {
-		return l.Original
-	}
-	return l.Translation
 }
 
 // correctEditOf is the correction laid over l, nil for none.
@@ -114,16 +110,16 @@ func (a *app) SpreadAll() {
 		if !slices.Contains(s.lines, l.Machine) {
 			continue
 		}
-		text := correctField(l.Line, s.original)
-		if !s.fix.In(text) {
+		text, ok := s.fix.OnLine(l.Line, s.original)
+		if !ok {
 			continue
 		}
 		machineTranslation, machineOriginal := a.correctMachineText(l.Machine)
 		c := a.correctionOf(l)
 		if s.original {
-			c.Original = textOverride(s.fix.Apply(text), machineOriginal)
+			c.Original = textOverride(text, machineOriginal)
 		} else {
-			c.Translation = textOverride(s.fix.Apply(text), machineTranslation)
+			c.Translation = textOverride(text, machineTranslation)
 		}
 		// Corrections are changed in place and laid over the lines without one appended, so the indexes the lines hold (core.Corrected.Edit) stay right; those left empty go after.
 		if l.Edit >= 0 && l.Edit < len(edits) {
@@ -158,13 +154,20 @@ func (a *app) SpreadAll() {
 	}
 }
 
-// correctSpreadTerm is the open film's glossary term whose translation the fix changes, before and after it: a fix of a translation that a term wrote is the user's word on that term, which the change locks. It reports false for a fix of an original, one that takes the words out, or one no term wrote.
+// correctSpreadTerm is the open film's glossary term whose translation the fix changes, before and after it: a fix of a translation that a term wrote is the user's word on that term, which the change locks. A term wrote the words only if its source is in the original of the line edited or of one the fix changes, so a series or global term that translates other words the same way is left alone. It reports false for a fix of an original, one that takes the words out, or one no term wrote.
 func (a *app) correctSpreadTerm(s *correctSpread) (before, after core.Term, ok bool) {
 	if s.original || s.fix.To == "" || !a.TermsWritable() {
 		return core.Term{}, core.Term{}, false
 	}
+	_, from := a.correctLines()
+	var originals []string
+	for _, l := range from {
+		if l.Machine == s.line || slices.Contains(s.lines, l.Machine) {
+			originals = append(originals, l.Original)
+		}
+	}
 	for _, t := range a.FilmTerms() {
-		if t.Target == s.fix.From {
+		if t.Target == s.fix.From && slices.ContainsFunc(originals, func(o string) bool { return core.TermIn(o, t.Source) }) {
 			after = t
 			after.Target, after.Locked, after.Origin = s.fix.To, true, core.OriginUser
 			return t, after, true
