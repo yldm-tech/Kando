@@ -5,7 +5,9 @@ import (
 	"path/filepath"
 	"regexp"
 	"runtime"
+	"strconv"
 	"strings"
+	"time"
 )
 
 // Platform is where the video behind a link lives. Its values double as the source IDs the sidebar filters the library by.
@@ -71,6 +73,57 @@ func (l Link) WholeList() string {
 	}
 	return "https://www.youtube.com/playlist?list=" + url.QueryEscape(l.List)
 }
+
+// drmSites are the sites of knownSites whose videos are DRM-protected, which yt-dlp cannot download and Kando does not try to: the Add sheet says so before a job is made for one of their links.
+var drmSites = map[string]bool{
+	"netflix.com": true, "disneyplus.com": true, "primevideo.com": true, "hulu.com": true, "max.com": true, "iqiyi.com": true, "v.qq.com": true, "mgtv.com": true, "u-next.jp": true,
+}
+
+// DRM reports whether the link is to a site whose videos are DRM-protected (drmSites).
+func (l Link) DRM() bool { return drmSites[l.Site] }
+
+// StartAt is where in the video a link asks it to start, as a page's share link and a browser's address name it: YouTube's and bilibili's t= (84, 84s, 1m24s, 1h2m3s), YouTube's start= in seconds, and a #t= fragment; 0 when the link names none, or one that does not read as a time.
+func StartAt(raw string) time.Duration {
+	u, err := url.Parse(strings.TrimSpace(raw))
+	if err != nil {
+		return 0
+	}
+	query := u.Query()
+	for _, value := range []string{query.Get("t"), query.Get("start"), strings.TrimPrefix(u.Fragment, "t=")} {
+		if at := readStart(value); at > 0 {
+			return at
+		}
+	}
+	return 0
+}
+
+// readStart reads a time as StartAt's links write it: whole or fractional seconds, with an s after them or not, or hours, minutes and seconds as 1h2m3s; 0 for anything else.
+func readStart(value string) time.Duration {
+	value = strings.TrimSpace(value)
+	if value == "" {
+		return 0
+	}
+	if seconds, err := strconv.ParseFloat(strings.TrimSuffix(value, "s"), 64); err == nil {
+		if seconds <= 0 || seconds > maxStart.Seconds() {
+			return 0
+		}
+		return time.Duration(seconds * float64(time.Second)).Round(time.Second)
+	}
+	if !startUnits.MatchString(value) {
+		return 0
+	}
+	at, err := time.ParseDuration(value)
+	if err != nil || at <= 0 || at > maxStart {
+		return 0
+	}
+	return at.Round(time.Second)
+}
+
+// maxStart is the longest start a link may name, longer than any video a site serves, so a number that is no time is not read as one.
+const maxStart = 100 * time.Hour
+
+// startUnits is a time in hours, minutes and seconds, at least one of them, as YouTube writes t=1h2m3s.
+var startUnits = regexp.MustCompile(`^(\d+h)?(\d+m)?(\d+s)?$`)
 
 var (
 	youTubeID   = regexp.MustCompile(`^[\w-]{6,}$`)

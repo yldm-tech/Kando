@@ -113,16 +113,21 @@ func SetChapterUse(videoPath string, use core.ChapterUse) error {
 	return err
 }
 
-// keepChapters keeps the chapters a download found beside the video at videoPath. A film that already had chapters with the same titles at the same times keeps their translation and the use the user chose; one whose chapters changed keeps the use alone, and its titles are translated again. Fewer than two chapters keep nothing, and leave the film's as they were.
-func keepChapters(videoPath string, found []core.Chapter) {
+// keepChapters keeps the chapters a download found beside the video at videoPath. A film that already had chapters with the same titles at the same times keeps their translation and the use the user chose; one whose chapters changed keeps the use alone, and its titles are translated again. A film that had none, or whose use the user left to the setting, takes use, the job's (core.Job.ChapterUse), as the Add sheet chose it before the download. Fewer than two chapters keep nothing, and leave the film's as they were.
+func keepChapters(videoPath string, found []core.Chapter, use core.ChapterUse) {
 	found = core.CleanChapters(found)
 	if len(found) == 0 {
 		return
 	}
+	if !use.Known() {
+		use = ""
+	}
 	_ = changeChapters(videoPath, func(chapters *FilmChapters, ok bool) bool {
-		next := FilmChapters{Chapters: found}
-		if ok {
+		next := FilmChapters{Chapters: found, Use: use}
+		if ok && chapters.Use != "" {
 			next.Use = chapters.Use
+		}
+		if ok {
 			if sameChapters(chapters.Chapters, found) {
 				next.Chapters, next.Language = chapters.Chapters, chapters.Language
 			}

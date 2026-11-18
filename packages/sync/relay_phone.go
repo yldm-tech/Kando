@@ -190,3 +190,11 @@ func statusErr(status int) error {
 	}
 	return nil
 }
+
+// Err is the error reply answers, as Client.CallID answers the same reply on the local network: an *Error with the status its code stands for, nil for a reply with a result.
+func (r Reply) Err() error {
+	if r.Error == nil {
+		return nil
+	}
+	return &Error{Status: StatusOf(r.Error.Code), ErrorBody: *r.Error}
+}

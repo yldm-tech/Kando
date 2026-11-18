@@ -47,6 +47,7 @@ const (
 	goalPage
 	revokedPage
 	jobsPage
+	conflictsPage
 )
 
 // The tabs, in the order the tab bar shows them. Jobs is a section of its own on a tablet only; on a phone it opens from the Library.
@@ -155,13 +156,19 @@ func App(cx *core.Scope, cfg session.Config) core.Node {
 					return settings.GoalPage(cx, s, back)
 				case settingsPage:
 					return settings.Page(cx, s, settings.Actions{Pair: openPair,
-						Target:       func() { n.Push(route{page: targetPage}) },
-						Style:        func() { n.Push(route{page: stylePage}) },
-						Goal:         func() { n.Push(route{page: goalPage}) },
+						Target: func() { n.Push(route{page: targetPage}) },
+						Style:  func() { n.Push(route{page: stylePage}) },
+						Goal:   func() { n.Push(route{page: goalPage}) },
+						Conflicts: func() {
+							s.OpenConflicts()
+							n.Push(route{page: conflictsPage})
+						},
 						Introduction: func() { outer.Push(route{page: introductionPage}) },
 						Unpaired:     unpaired})
 				case targetPage:
 					return settings.TargetPage(cx, s, back)
+				case conflictsPage:
+					return settings.ConflictsPage(cx, s, back)
 				case filmPage:
 					return film.Page(cx, s, r.desktop, r.library.Name, r.film, play, back)
 				case jobsPage:

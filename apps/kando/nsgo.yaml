@@ -1,7 +1,7 @@
 # Kando's app for the nsgo tool (go tool nsgo, the version go.mod pins). Release bumps the version (.github/scripts/set-version.sh).
 name: Kando
 id: ai.yldm.kando
-version: 0.25.0
+version: 0.26.0
 icon:
   png: resources/icon.png
 i18n: { dir: locales, source: en }
@@ -22,6 +22,9 @@ file_types:
   - { name: AVI Video, extensions: [avi], id: public.avi, role: viewer, conforms: [public.movie] }
   - { name: Flash Video, extensions: [flv], id: com.adobe.flash.video, role: viewer, conforms: [public.movie] }
 # The NSIS installer adds Kando to these types' Open With, and the Linux desktop entry lists their MIME types.
+
+# Kando's own links: the bookmarklet of Settings › 通用 › 浏览器扩展 opens kando://add?url=… on a video's page (browserext.ReadLink). Only the macOS package registers them with the system.
+url_schemes: [kando]
 
 release: { github: yldm-tech/Kando }
 

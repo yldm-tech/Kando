@@ -56,7 +56,7 @@ type Pipeline interface {
 //
 // A job making a film for the first time (Redo empty) whose translation fails as a whole, other than by being stopped, or whose pipeline has no translator (TranslateChecker), still completes: Export writes the transcript and a bilingual file of the original lines alone, every line counts as untranslated, and job.TranslationErr says why. Translating its missing lines (RedoMissing) translates it later. A redo whose translation fails fails, leaving the film as it was.
 //
-// Before it translates, a job whose pipeline is a Proofreader has the transcript proofread, unless it was already (job.Proofread, or what a RedoAll or a translating redo kept aside): the words whisper misheard are corrected in the original lines, which every part of Kando shows and the translation is made from. A job making a film for the first time saves the proofread transcript over the one it heard and sets job.Proofread at once; a RedoAll writes it over the speech it keeps aside; a translating redo keeps it in a hidden file beside the video (proofreadTranscriptPath) until it exports, so a redo that fails leaves the film's transcript as it was and one run again does not pay for the proofreading twice. Proofreading that fails, or a translator that is not set up, leaves the lines as they were heard. A film heard in the language its subtitles are for (core.SameLanguage) is not translated: its subtitles are its own lines alone, no line counts as untranslated, and job.SameLanguage says so once it is complete.
+// Before it translates, a job whose pipeline is a Proofreader has the transcript proofread, unless it was already (job.Proofread, or what a RedoAll or a translating redo kept aside): the words whisper misheard are corrected in the original lines, which every part of Kando shows and the translation is made from. A job making a film for the first time saves the proofread transcript over the one it heard and sets job.Proofread at once; a RedoAll writes it over the speech it keeps aside; a translating redo keeps it in a hidden file beside the video (proofreadTranscriptPath) until it exports, so a redo that fails leaves the film's transcript as it was and one run again does not pay for the proofreading twice. Proofreading that fails, or a translator that is not set up, leaves the lines as they were heard. A film heard in the language its subtitles are for (core.SameLanguage) is not translated: its subtitles are its own lines alone, no line counts as untranslated, and job.SameLanguage says so once it is complete. Once translated, a job whose context asks for it (WithReview) and whose pipeline is a Reviewer has the translation proofread as a whole (the final proofread, core.Proof): the changes of the kinds the user lets apply by themselves are exported, and every change is kept beside the video (ProofsPath) for the user to review.
 //
 // A link's job whose SubtitleSource is core.SubtitlesPlatform, on a pipeline that is a PlatformSubtitler, fetches the subtitles the uploader put on the site in the language the speech was heard in once the speech it heard is kept and proofread, and takes them as the film's original lines where they match the speech (matchPlatform): where they do not, and where they have none, the lines are the ones heard, proofread. job.PlatformSubtitles and job.LocalLines say so, and the transcript kept beside the video holds those lines, so a job run again reads them back; one stopped while it fetches them keeps the speech it heard and fetches them again. The uploader's lines are not proofread. A job's Quality is the picture its download asks for (Tools.Download).
 //
@@ -185,7 +185,7 @@ func Run(ctx context.Context, p Pipeline, job core.Job, language string, report 
 		}
 		job.VideoPath = video
 		if len(chapters) > 0 {
-			keepChapters(video, chapters)
+			keepChapters(video, chapters, job.ChapterUse)
 		}
 
 		transcript = TranscriptOf(video)
@@ -353,6 +353,18 @@ func Run(ctx context.Context, p Pipeline, job core.Job, language string, report 
 		}
 	}
 
+	// The final proofread reads the translation through as a whole, when the job asks for it (WithReview): the changes that apply by themselves go into what is exported, and every change is kept beside the video once it is. A film not translated, or whose missing lines alone were translated, is not proofread again; a job stopped while it proofreads stops.
+	var proofs []core.Proof
+	reviewed := false
+	if _, asked := reviewOf(ctx); asked && reviews(p) && notTranslated == "" && !same && job.Redo != core.RedoMissing {
+		proofs, reviewed = review(ctx, p, original, translated, filmTitle(job), language)
+		if ctxErr := ctx.Err(); ctxErr != nil {
+			return fail("translate", ctxErr)
+		}
+		job.Progress = core.Progress{}
+		report(job)
+	}
+
 	enter(core.StageExporting)
 	// A redo exports the film's transcript (TranscriptOf) in place of the one it kept aside.
 	if job.Redo != "" || transcript == "" {
@@ -374,6 +386,13 @@ func Run(ctx context.Context, p Pipeline, job core.Job, language string, report 
 		}
 	}
 	_ = os.Remove(proofreadTranscriptPath(job.VideoPath))
+	// The subtitles exported are what the final proofread's changes were made to: those of an earlier pass no longer match them and go, and a pass that changed nothing keeps no file. Translating the missing lines alone keeps the earlier pass's, as the lines it changed are as they were.
+	if job.Redo != core.RedoMissing {
+		if !reviewed {
+			proofs = nil
+		}
+		_ = SaveProofs(ProofsPath(job.VideoPath), proofs)
+	}
 	// A film whose video this run downloaded or kept has one again, as after a video download that failed and left the film at a quality that keeps it.
 	switch {
 	case sound:
@@ -392,10 +411,10 @@ func Run(ctx context.Context, p Pipeline, job core.Job, language string, report 
 	return job
 }
 
-// downloadFailKind is why job's download failed, as err says (ClassifyDownload): a site that still wants a login while the browser's is borrowed has let that login run out.
+// downloadFailKind is why job's download failed, as err says (ClassifyDownload): a site that still wants a login while the browser's is borrowed has let that login run out. A job that borrows none (core.CookiesNone, as the Add sheet's 未登录 chose) only wants one.
 func downloadFailKind(job core.Job, err error) core.FailKind {
 	kind := ClassifyDownload(err.Error())
-	if job.Cookies != "" && (kind == core.FailLogin || kind == core.FailAge) {
+	if job.Browser() != "" && (kind == core.FailLogin || kind == core.FailAge) {
 		kind = core.FailLoginExpired
 	}
 	return kind

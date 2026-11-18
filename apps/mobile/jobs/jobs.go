@@ -115,8 +115,11 @@ func computerCard(cx *core.Scope, s *session.Session, desktop string) core.Node 
 						}
 						return core.Style{Background: colors.Faint()}
 					}},
-				core.Text{ContentFunc: func() string {
-					if online() {
+				core.Text{TestID: "jobs-reach-" + desktop, ContentFunc: func() string {
+					switch {
+					case online() && queue().Relayed:
+						return locales.JobsViaStorage(cx)
+					case online():
 						return locales.JobsOnline(cx)
 					}
 					return locales.JobsOffline(cx)
@@ -130,19 +133,30 @@ func computerCard(cx *core.Scope, s *session.Session, desktop string) core.Node 
 		}}
 }
 
-// summary is what a computer's queue is doing, as its card says it.
+// summary is what a computer's queue is doing, as its card says it, and that it is reached through the user's storage when it is.
 func summary(cx *core.Scope, s *session.Session, desktop string) string {
 	q := s.Queue(desktop)
 	switch q.Reach {
 	case session.Reaching:
 		return locales.JobsConnecting(cx)
 	case session.Offline:
+		if q.Relayed {
+			return locales.JobsOfflineRelay(cx)
+		}
 		return locales.JobsOfflineSummary(cx)
 	case session.Older:
 		return locales.JobsOlder(cx)
 	case session.Revoked:
 		return locales.ComputersUnpaired(cx, name(s, desktop))
 	}
+	if q.Relayed {
+		return locales.JobsRelayed(cx, queueSummary(cx, q))
+	}
+	return queueSummary(cx, q)
+}
+
+// queueSummary is what a computer's queue is doing: how many jobs run or wait, and how many failed.
+func queueSummary(cx *core.Scope, q session.Queue) string {
 	active, failed := 0, 0
 	for _, j := range q.Jobs {
 		switch j.State {
@@ -189,6 +203,9 @@ func linkCard(cx *core.Scope, s *session.Session, desktop string, o func() sessi
 				core.Text{TestID: "jobs-link-status-" + id, ContentFunc: func() string {
 					if r := o().Refusal; r != nil {
 						return refusal(cx, *r, name(s, desktop))
+					}
+					if o().Relayed {
+						return locales.JobsInStorage(cx, name(s, desktop))
 					}
 					return locales.JobsWaitingFor(cx, name(s, desktop))
 				}, Style: look.Caption, StyleFunc: func() core.Style {

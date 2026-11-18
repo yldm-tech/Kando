@@ -394,10 +394,11 @@ type BrowserText struct {
 	Done   string `json:"done"`
 }
 
-// BrowserAddParams are the video a page of the browser extension adds: its link, to one video of a site the browse package's buttons know, and its title as the page names it, "" when it does not.
+// BrowserAddParams are the video a page of the browser extension adds: its link, to one video of a site the browse package's buttons know, its title as the page names it, "" when it does not, and where the page's player was in it, in seconds, 0 when it was not playing it, so the film opens there once it is done.
 type BrowserAddParams struct {
-	URL   string `json:"url"`
-	Title string `json:"title,omitempty"`
+	URL   string  `json:"url"`
+	Title string  `json:"title,omitempty"`
+	At    float64 `json:"at,omitempty"`
 }
 
 // BrowserAdded is what MethodBrowserAdd did. Have is what the library has of the video afterwards, as BrowserState says it. Shown reports that the library had it already and the window came to the front showing it, as 下载视频 does on such a video. Failed reports that it could not be added; the window then came to the front on the library, whose message bar says why. Message is what happened in the window's words, for the extension's popup.

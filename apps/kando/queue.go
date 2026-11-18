@@ -64,6 +64,8 @@ type jobQueue struct {
 	awake     func()
 	// sys is what the queue tells the system outside the window: notifications, and the badge and progress bar on the app's icon (queue_desktop.go).
 	sys queueSystem
+	// stamp, while it is set, gives each job queueTakeFrom queues, new or a failed one queued again, what the user chose for its link before it runs: the Add sheet's choices, and where the browser that sent it was (state_addsheet.go). It is set only around one call that queues, and nil otherwise.
+	stamp func(job *core.Job)
 }
 
 func newJobQueue() jobQueue { return jobQueue{sys: newQueueSystem()} }
@@ -212,6 +214,9 @@ func (a *app) queueTakeFrom(source, device string, quality core.Quality, subtitl
 		old, _ := a.library.Find(dup.ID)
 		ready, rerr := a.queueRetryable(old)
 		if rerr == nil {
+			if a.queue.stamp != nil {
+				a.queue.stamp(&ready)
+			}
 			a.queueAdd(ready)
 			return ready.ID, nil
 		}
@@ -236,6 +241,9 @@ func (a *app) queueTakeFrom(source, device string, quality core.Quality, subtitl
 	}
 	if subtitles != "" {
 		job.SubtitleSource = subtitles
+	}
+	if a.queue.stamp != nil {
+		a.queue.stamp(&job)
 	}
 	a.queueAdd(job)
 	return job.ID, nil
@@ -849,6 +857,9 @@ func (a *app) queueRun(job core.Job) {
 	}
 	ctx, cancel := context.WithCancelCause(context.Background())
 	ctx = media.WithGlossary(ctx, terms)
+	if a.prefs.review {
+		ctx = media.WithReview(ctx, a.prefs.reviewAuto)
+	}
 	done := make(chan struct{})
 	a.queue.active, a.queue.cancel, a.queue.done, a.queue.cancelled = job.ID, cancel, done, false
 	a.queueKeepAwake()
@@ -914,7 +925,7 @@ func (a *app) queuePipeline(job core.Job) media.Pipeline {
 	if !ok {
 		return a.pipeline
 	}
-	tools.Cookies = job.Cookies
+	tools.Cookies = job.Browser()
 	if job.LibraryDir != "" {
 		tools.OutputDir = job.LibraryDir
 	}
@@ -1075,6 +1086,9 @@ func statusText(m locales.Messages, job core.Job) string {
 	case core.StageTranslating:
 		if job.Progress.Proofreading {
 			return m.QueueStatusProofreading()
+		}
+		if job.Progress.Reviewing {
+			return m.QueueStatusReviewing()
 		}
 		return m.QueueStatusTranslating()
 	case core.StageExporting:

@@ -1,11 +1,14 @@
 package main
 
 import (
+	"cmp"
 	"context"
 	"errors"
 	"fmt"
 	"path/filepath"
+	"slices"
 
+	"kando/apps/kando/film"
 	"kando/apps/kando/films"
 	"kando/apps/kando/live"
 	"kando/apps/kando/saved"
@@ -15,7 +18,7 @@ import (
 	"github.com/nsgo-dev/nsgo/core"
 )
 
-// The Saved Lines sheet's reads and clicks (study.App). The sheet reads them in its bindings and calls the actions from its handlers, which tell the revision (package live), so none of them calls Changed itself.
+// The Saved Lines sheet's reads and clicks (study.App), and the player's 笔记 tab's (film.Notebook). The sheet reads them in its bindings and calls the actions from its handlers, which tell the revision (package live), so none of them calls Changed itself.
 
 // savedOverlay is the Saved Lines sheet over the window while it is open (overlays). It is built as it opens, so its list starts at the top.
 func (a *app) savedOverlay(*core.Scope) core.Node {
@@ -109,7 +112,7 @@ func (a *app) OpenSaved(id string) {
 	a.OpenAt(item, max(l.Start+a.player.delays[item.VideoPath], 0))
 }
 
-// RemoveSaved takes saved line id out of the saved lines.
+// RemoveSaved takes saved line id out of the saved lines, with the sound kept of it.
 func (a *app) RemoveSaved(id string) {
 	i := a.savedFind(id)
 	if i < 0 {
@@ -118,6 +121,7 @@ func (a *app) RemoveSaved(id string) {
 	l := a.saved.book.Lines[i]
 	a.saved.book.Remove(l.Video, l.Start)
 	a.savedWrite()
+	a.savedDropSound(l.ID)
 }
 
 // NoteEditing is the saved line whose note the sheet is writing, by its id, "" while none is.
@@ -181,3 +185,52 @@ func (a *app) ExportSettings() {
 
 // RevealExport shows the notes' file the last export wrote in the file manager.
 func (a *app) RevealExport() { a.reveal(a.saved.export.result.File) }
+
+// Notes is the open film's saved lines and the words of the vocabulary looked up in it, as the player's 笔记 tab lists them: each by where its line starts, the earliest first (film.Notebook).
+func (a *app) Notes() []film.Note {
+	video := a.player.film.video
+	book := a.savedBook()
+	if video == "" || book.Dir() == "" {
+		return nil
+	}
+	key := book.Key(video)
+	var out []film.Note
+	for _, l := range book.Lines {
+		if l.Video == key {
+			out = append(out, film.Note{ID: savedID(l), Start: l.Start, Original: l.Original, Translation: l.Translation, Note: l.Note})
+		}
+	}
+	for _, w := range book.Words {
+		if w.Video == key {
+			out = append(out, film.Note{ID: w.ID, Word: true, Start: w.Start, Original: w.Context, Translation: w.ContextTranslation, Text: w.Text, Reading: w.Reading, Meaning: w.Meaning})
+		}
+	}
+	slices.SortStableFunc(out, func(x, y film.Note) int { return cmp.Compare(x.Start, y.Start) })
+	return out
+}
+
+// NotesWords is whether the 笔记 tab lists the words rather than the lines.
+func (a *app) NotesWords() *bool { return &a.saved.notesWords }
+
+// RemoveNote is the × of a line or a word of the 笔记 tab: it goes out of the study record with the sound kept of it, and the picture says so.
+func (a *app) RemoveNote(n film.Note) {
+	a.savedSync()
+	book := &a.saved.book
+	if n.Word {
+		i := book.WordByID(n.ID)
+		if i < 0 {
+			return
+		}
+		w := book.Words[i]
+		book.RemoveWord(w.Text, w.Spoken)
+		a.flash(a.messages().VocabOsdRemoved(w.Text))
+		a.savedWrite()
+		a.savedDropSound(w.ID)
+		return
+	}
+	if a.savedFind(n.ID) < 0 {
+		return
+	}
+	a.RemoveSaved(n.ID)
+	a.flash(a.messages().SavedOsdRemoved())
+}

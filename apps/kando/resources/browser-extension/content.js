@@ -293,7 +293,18 @@
     }
     return words;
   };
-  const add = (e) => { if (e && e.url) tell(ADD + JSON.stringify({ url: e.url, title: titleOf(e).slice(0, 300) })); };
+  // playedTo is where the largest video of the page is, in whole seconds, for 下载视频, which adds the page's own video, so its film opens where the user was; 0 for a thumbnail's +, and when the page plays nothing.
+  const playedTo = (e) => {
+    if (e.kind !== PILL) return 0;
+    let best = null, area = 0;
+    for (const v of document.querySelectorAll("video")) {
+      const r = v.getBoundingClientRect();
+      if (r.width * r.height > area) { best = v; area = r.width * r.height; }
+    }
+    const t = best ? best.currentTime : 0;
+    return Number.isFinite(t) && t >= 1 ? Math.floor(t) : 0;
+  };
+  const add = (e) => { if (e && e.url) tell(ADD + JSON.stringify({ url: e.url, title: titleOf(e).slice(0, 300), at: playedTo(e) })); };
 
   // paint gives every button its words and its glyph for what the library has of its video.
   const marks = new Set();
