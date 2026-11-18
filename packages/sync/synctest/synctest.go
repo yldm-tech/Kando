@@ -54,12 +54,15 @@ type Desktop struct {
 	// ledgers are the libraries' learning state, by library ID (state.go).
 	ledgers map[string]*sync.Ledger
 	// target is the language the desktop translates into (settings.go).
-	target  string
+	target string
+	// refused are the records, by kind and ID, whose puts the desktop refuses whole (state.go).
+	refused map[[2]string]bool
 	desk    *sync.Desk
 	libs    []sync.Library
 	films   []Film
 	stall   int64
 	held    chan struct{}
+	asleep  bool
 	ranges  []string
 	modTime time.Time
 }
@@ -104,6 +107,13 @@ func (d *Desktop) AddLibrary(id, name string) {
 	d.mu.Lock()
 	defer d.mu.Unlock()
 	d.libs = append(d.libs, sync.Library{ID: id, Name: name})
+}
+
+// RemoveLibrary takes library id off the list, as a library locked on the desktop is: its films and its learning state stay, and AddLibrary brings it back.
+func (d *Desktop) RemoveLibrary(id string) {
+	d.mu.Lock()
+	defer d.mu.Unlock()
+	d.libs = slices.DeleteFunc(d.libs, func(l sync.Library) bool { return l.ID == id })
 }
 
 // AddFilm adds f to its library.
@@ -159,6 +169,18 @@ func (d *Desktop) Hold() (release func()) {
 			d.mu.Unlock()
 			close(held)
 		})
+	}
+}
+
+// Sleep makes the desktop hang up on each paired device's request from now on, as a computer asleep or out of reach, until wake is called.
+func (d *Desktop) Sleep() (wake func()) {
+	d.mu.Lock()
+	defer d.mu.Unlock()
+	d.asleep = true
+	return func() {
+		d.mu.Lock()
+		defer d.mu.Unlock()
+		d.asleep = false
 	}
 }
 
@@ -223,7 +245,11 @@ func (d *Desktop) authed(next http.HandlerFunc) http.HandlerFunc {
 		token, ok := bytes.CutPrefix([]byte(r.Header.Get("Authorization")), []byte("Bearer "))
 		d.mu.Lock()
 		known := ok && d.tokens[string(token)]
+		asleep := d.asleep
 		d.mu.Unlock()
+		if asleep {
+			panic(http.ErrAbortHandler)
+		}
 		if !known {
 			fail(w, http.StatusUnauthorized, sync.CodeUnauthorized)
 			return

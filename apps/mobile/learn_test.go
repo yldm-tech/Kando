@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"encoding/json"
 	"os"
 	"path/filepath"
@@ -218,12 +219,18 @@ func TestTheDailyGoal(t *testing.T) {
 	if got, want := p.texts("id:learn-goal-text"), msgs.LearnGoalLeft(8); got != want {
 		t.Errorf("the goal says %q, want %q", got, want)
 	}
+	if got, want := p.app.Find("id:learn-goal-bar").Props.Label, msgs.LearnGoalOf(20); got != want {
+		t.Errorf("the goal's bar is named %q, want %q", got, want)
+	}
 	p.openTab(settingsTab, msgs.SettingsTitle())
 	p.app.Press("id:settings-goal")
 	p.app.Press("id:settings-goal-10")
 	p.openTab(learnTab, msgs.LearnTitle())
 	if got, want := p.texts("id:learn-goal-text"), msgs.LearnGoalMet(); got != want {
 		t.Errorf("with a goal of 10 minutes the goal says %q, want %q", got, want)
+	}
+	if got, want := p.app.Find("id:learn-goal-bar").Props.Label, msgs.LearnGoalOf(10); got != want {
+		t.Errorf("with a goal of 10 minutes the goal's bar is named %q, want %q", got, want)
 	}
 }
 
@@ -324,4 +331,146 @@ func TestTheIntroductionsLanguageGoesToTheComputer(t *testing.T) {
 	p.app.Press("id:pair-confirm")
 	p.finishPairing(d)
 	p.app.WaitUntil(wait, func() bool { return d.Target() == "ko" })
+}
+
+// pairedWithBoth keeps d and e in dir as paired, pairing over the protocol, e as "laptop": the test desktops share a certificate, so the ID from it would name both. It returns the option that starts the phone with both tokens in its secure store.
+func pairedWithBoth(t *testing.T, d, e *synctest.Desktop, dir string) nsgotest.Option {
+	t.Helper()
+	var list []store.Desktop
+	secrets := map[string]string{}
+	for i, x := range []*synctest.Desktop{d, e} {
+		c := sync.NewClient(x.Addr, x.Fingerprint, "")
+		resp, err := c.Pair(context.Background(), sync.PairRequest{Code: "123456", Device: "Test Phone", Platform: sync.PlatformIOS})
+		c.Close()
+		if err != nil {
+			t.Fatal(err)
+		}
+		id := store.DesktopID(x.Fingerprint)
+		if i == 1 {
+			id = "laptop"
+		}
+		list = append(list, store.Desktop{ID: id, Name: resp.Desktop, Addr: x.Addr, Fingerprint: x.Fingerprint, DeviceID: resp.DeviceID, Paired: now()})
+		secrets[store.TokenAccount(id)] = resp.Token
+	}
+	if err := store.Open(dir).SaveDesktops(list); err != nil {
+		t.Fatal(err)
+	}
+	return nsgotest.Secrets(secrets)
+}
+
+// learnRefresh pulls the Learn tab to sync and waits until the sync is done.
+func (p *phone) learnRefresh() {
+	p.t.Helper()
+	p.app.PullToRefresh("id:learn-scroll")
+	p.app.WaitUntil(wait, func() bool { return !p.app.Find("id:learn-scroll").Scroll.Refreshing })
+}
+
+// The language picked on the phone goes to each computer, one asleep as it is picked once it wakes, rather than the phone taking that computer's; one a computer changes then goes to the phone and to the others.
+func TestTheTargetLanguageGoesToEveryComputer(t *testing.T) {
+	d, e := newDesktop(t), newDesktop(t)
+	dir := t.TempDir()
+	p := startPhone(t, dir, pairedWithBoth(t, d, e, dir))
+	p.waitLearned(store.DesktopID(d.Fingerprint))
+	p.waitLearned("laptop")
+	wake := e.Sleep()
+	p.openTab(settingsTab, msgs.SettingsTitle())
+	p.app.Press("id:settings-target")
+	p.app.Press("id:settings-target-ja")
+	p.app.WaitUntil(wait, func() bool { return d.Target() == "ja" })
+	p.openTab(learnTab, msgs.LearnTitle())
+	p.learnRefresh()
+
+	wake()
+	p.learnRefresh()
+	p.app.WaitUntil(wait, func() bool { return e.Target() == "ja" })
+	p.learnRefresh()
+	if d.Target() != "ja" || e.Target() != "ja" {
+		t.Fatalf("the computers translate into %q and %q, want ja", d.Target(), e.Target())
+	}
+
+	e.SetTarget("ko")
+	p.learnRefresh()
+	p.app.WaitUntil(wait, func() bool { return d.Target() == "ko" })
+	p.openTab(settingsTab, msgs.SettingsTitle())
+	p.app.WaitUntil(wait, func() bool { return p.app.Find("id:settings-target-ko").Props.Checked })
+}
+
+// Paired again from the page that says a computer no longer takes the phone, the computer shows the page again when it removes the phone again.
+func TestAComputerPairedAgainShowsItsPageWhenItRevokesAgain(t *testing.T) {
+	d := studyDesktop(t)
+	dir := t.TempDir()
+	p := startPhone(t, dir, pairedWith(t, d, dir))
+	p.waitLearned(store.DesktopID(d.Fingerprint))
+	p.openTab(learnTab, msgs.LearnTitle())
+	p.app.WaitFor("id:learn-review-start", wait)
+	d.RevokeAll()
+	p.app.PullToRefresh("id:learn-scroll")
+	p.app.WaitFor("id:revoked-page", wait)
+
+	d.Offer("123456")
+	p.app.Press("id:revoked-pair")
+	p.fillPairing(d.Addr.String(), "123456")
+	p.app.Press("id:pair-continue")
+	p.app.WaitFor("id:pair-confirm", wait)
+	p.app.Press("id:pair-confirm")
+	p.app.WaitForGone("id:pair-confirm", wait)
+	p.app.WaitForGone("id:revoked-page", wait)
+	p.openTab(learnTab, msgs.LearnTitle())
+	p.learnRefresh()
+
+	d.RevokeAll()
+	p.app.PullToRefresh("id:learn-scroll")
+	p.app.WaitFor("id:revoked-page", wait)
+}
+
+// A review made while its library is locked on the computer, which then does not list it, stays on the phone, and the computer takes it once the library is unlocked.
+func TestAReviewOfALockedLibraryIsSentOnceItIsUnlocked(t *testing.T) {
+	d := studyDesktop(t)
+	dir := t.TempDir()
+	p := startPhone(t, dir, pairedWith(t, d, dir))
+	p.waitLearned(store.DesktopID(d.Fingerprint))
+	d.RemoveLibrary("lib")
+	p.openTab(learnTab, msgs.LearnTitle())
+	p.app.WaitFor("id:learn-review-start", wait)
+	p.app.Press("id:learn-review-start")
+	p.app.Press("id:review-show")
+	p.app.Press("id:review-known")
+	p.app.Press("id:review-show")
+	p.app.Press("id:review-known")
+	p.app.Press("id:review-finish")
+	p.app.WaitFor("id:learn-page", wait)
+	p.learnRefresh()
+	if !p.app.Exists("id:learn-vocabulary") {
+		t.Fatal("the library's words went from the phone, with the review the computer did not take")
+	}
+
+	d.AddLibrary("lib", "Japanese Class")
+	p.learnRefresh()
+	p.app.WaitUntil(wait, func() bool {
+		return reviewOf(t, d, sync.KindWord, "w-morning").Box == 1 && reviewOf(t, d, sync.KindLine, "l-fine").Box == 1
+	})
+}
+
+// A change the computer refuses goes, and the other changes put with it are kept.
+func TestARefusedChangeLeavesTheOthers(t *testing.T) {
+	d := studyDesktop(t)
+	dir := t.TempDir()
+	p := startPhone(t, dir, pairedWith(t, d, dir))
+	p.waitLearned(store.DesktopID(d.Fingerprint))
+	d.Refuse(sync.KindLine, "l-fine")
+	p.openTab(learnTab, msgs.LearnTitle())
+	p.app.WaitFor("id:learn-review-start", wait)
+	p.app.Press("id:learn-review-start")
+	p.app.Press("id:review-show")
+	p.app.Press("id:review-known")
+	p.app.Press("id:review-show")
+	p.app.Press("id:review-known")
+	p.app.Press("id:review-finish")
+	p.app.WaitUntil(wait, func() bool { return reviewOf(t, d, sync.KindWord, "w-morning").Box == 1 })
+	if got := reviewOf(t, d, sync.KindLine, "l-fine").Box; got != 0 {
+		t.Fatalf("the desktop took the line it refuses: box %d", got)
+	}
+	// The refused line goes from what the phone has to send: read afresh, it shows due again, as the computer has it.
+	p.learnRefresh()
+	p.app.WaitUntil(wait, func() bool { return p.texts("id:learn-review-title") == msgs.LearnReviewDue(1) })
 }

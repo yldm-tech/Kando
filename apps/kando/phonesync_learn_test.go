@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"net/http"
 	"os"
+	"path/filepath"
 	"slices"
 	"testing"
 	"time"
@@ -106,6 +107,19 @@ func TestPhoneSyncSharesTheLanguageTranslatedInto(t *testing.T) {
 		return c.PutSettings(ctx, psync.SettingsPut{Target: "xx"})
 	})
 	phoneWantCode(t, err, http.StatusBadRequest, psync.CodeInvalid)
+
+	// A change settings.json cannot keep is not made: the phone is answered the error, and the desktop keeps the language it had.
+	blocker := filepath.Join(t.TempDir(), "file")
+	if err := os.WriteFile(blocker, nil, 0o600); err != nil {
+		t.Fatal(err)
+	}
+	a.settingsPath = filepath.Join(blocker, "settings.json")
+	_, err = phoneAsk(t, p, func(ctx context.Context) (psync.Settings, error) {
+		return c.PutSettings(ctx, psync.SettingsPut{Target: "ko"})
+	})
+	if err == nil || a.prefs.language != "日本語" {
+		t.Fatalf("a put settings.json cannot keep answered %v; the desktop translates into %q", err, a.prefs.language)
+	}
 
 	// A language typed into an older version has no tag, and its own name.
 	a.prefs.language = "Klingon"

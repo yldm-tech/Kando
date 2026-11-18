@@ -9,12 +9,12 @@ import (
 // prefsFile keeps the phone's own preferences.
 const prefsFile = "prefs.json"
 
-// Prefs are what the user chose on this phone: whether they went through the introduction, the languages they watch (whisper's codes, as "en") and the language they want the subtitles translated into (a BCP 47 tag, as "zh-Hans"; "" before they chose one), which the paired computers translate into too (TargetPending from the user's choice until a computer took it); the daily goal in minutes of films played (0 for the default), whether to be reminded to review, and how the player draws subtitles.
+// Prefs are what the user chose on this phone: whether they went through the introduction, the languages they watch (whisper's codes, as "en") and the language they want the subtitles translated into (a BCP 47 tag, as "zh-Hans"; "" before they chose one), which the paired computers translate into too (TargetPending are the paired computers, by ID, still to take it: each one paired while it was set, all of them once the user chose it, and the others once one of them changed it); the daily goal in minutes of films played (0 for the default), whether to be reminded to review, and how the player draws subtitles.
 type Prefs struct {
 	Onboarded     bool     `json:"onboarded"`
 	Spoken        []string `json:"spoken,omitempty"`
 	Target        string   `json:"target,omitempty"`
-	TargetPending bool     `json:"target_pending,omitempty"`
+	TargetPending []string `json:"target_pending,omitempty"`
 	Goal          int      `json:"goal,omitempty"`
 	Remind        bool     `json:"remind,omitempty"`
 	Subtitles     SubStyle `json:"subtitles,omitzero"`

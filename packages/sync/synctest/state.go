@@ -24,6 +24,16 @@ func (d *Desktop) State(lib, kind, id string) (sync.Record, bool) {
 	return d.ledgerLocked(lib).Record(kind, id)
 }
 
+// Refuse makes the desktop refuse each put that holds record kind id, the whole put, as Kando's refuses one with a record it cannot keep (sync.CodeInvalid).
+func (d *Desktop) Refuse(kind, id string) {
+	d.mu.Lock()
+	defer d.mu.Unlock()
+	if d.refused == nil {
+		d.refused = map[[2]string]bool{}
+	}
+	d.refused[[2]string{kind, id}] = true
+}
+
 // ledgerLocked is library lib's ledger, made the first time. d.mu is held.
 func (d *Desktop) ledgerLocked(lib string) *sync.Ledger {
 	if d.ledgers == nil {
@@ -66,6 +76,11 @@ func (s stateService) PutState(_ context.Context, _ sync.Caller, req sync.StateP
 	l, err := s.ledger(req.Library)
 	if err != nil {
 		return sync.StatePutResult{}, err
+	}
+	for _, r := range req.Records {
+		if s.d.refused[[2]string{r.Kind, r.ID}] {
+			return sync.StatePutResult{}, sync.Errorf(sync.CodeInvalid, "%s %s cannot be kept", r.Kind, r.ID)
+		}
 	}
 	_, conflicts := l.Put(req.Records, sync.NewCallID)
 	out := sync.StatePutResult{Epoch: l.Epoch(), Rev: l.Rev(), Records: []sync.Record{}, Conflicts: conflicts}

@@ -177,12 +177,13 @@ func (s *Session) learnChange(it learning.Item, change func(device string) sync.
 	s.scheduleReminder()
 }
 
-// learnLib is what a sync did with a library of a computer: the changes it put (sent) and the answer, then the changes it asked for after them.
+// learnLib is what a sync did with a library of a computer: the changes it put (sent), which the computer took or refused, and the answer, whether it refused any (refused), then the changes it asked for after them.
 type learnLib struct {
 	lib     sync.Library
 	sent    []sync.Record
 	put     sync.StatePutResult
 	putErr  error
+	refused bool
 	changes sync.StateChanges
 	getErr  error
 }
@@ -223,10 +224,11 @@ func (s *Session) SyncLearning() {
 				mine[m.Library] = cloneMirror(m)
 			}
 		}
+		putTarget := slices.Contains(prefs.TargetPending, d.ID)
 		wg.Add(1)
 		s.work.Go(func() {
 			defer wg.Done()
-			results[i] = learnSync(s.closed, c, d.ID, mine, prefs.TargetPending, target)
+			results[i] = learnSync(s.closed, c, d.ID, mine, putTarget, target)
 		})
 	}
 	s.work.Go(func() {
@@ -284,6 +286,12 @@ func learnSync(closed <-chan struct{}, c *sync.Client, desktop string, mirrors m
 		if len(m.Pending) > 0 {
 			r.sent = m.Pending
 			r.put, r.putErr = c.PutState(ctx, lib.ID, m.Pending)
+			r.refused = learnRefused(r.putErr)
+			if r.refused && len(m.Pending) > 1 {
+				// The computer refuses a put whole for one record it cannot keep: each change is put alone, so only the ones it refuses go.
+				r.sent, r.put = learnPutEach(ctx, c, lib.ID, m.Pending)
+				r.putErr = nil
+			}
 		}
 		r.changes, r.getErr = c.State(ctx, lib.ID, m.Epoch, m.Rev)
 		out.libs = append(out.libs, r)
@@ -291,10 +299,36 @@ func learnSync(closed <-chan struct{}, c *sync.Client, desktop string, mirrors m
 	return out
 }
 
+// learnRefused reports whether err is the computer refusing changes it cannot keep, which it will refuse again.
+func learnRefused(err error) bool {
+	var refused *sync.Error
+	return errors.As(err, &refused) && refused.Code == sync.CodeInvalid
+}
+
+// learnPutEach puts records to library lib through c one at a time and answers the ones the computer took or refused, which are settled, and its answers to the ones it took. It stops at the first that fails otherwise, as the computer gone out of reach: that one and those after it stay to be put at the next sync.
+func learnPutEach(ctx context.Context, c *sync.Client, lib string, records []sync.Record) ([]sync.Record, sync.StatePutResult) {
+	var sent []sync.Record
+	var out sync.StatePutResult
+	for _, r := range records {
+		res, err := c.PutState(ctx, lib, []sync.Record{r})
+		if err != nil && !learnRefused(err) {
+			break
+		}
+		sent = append(sent, r)
+		if err == nil {
+			out.Epoch, out.Rev = res.Epoch, res.Rev
+			out.Records = append(out.Records, res.Records...)
+			out.Conflicts = append(out.Conflicts, res.Conflicts...)
+		}
+	}
+	return sent, out
+}
+
 // learnSynced takes the results of a sync in, on the engine's goroutine.
 func (s *Session) learnSynced(results []learnResult) {
 	s.learn.syncing.Set(false)
 	reached, problem := false, NoProblem
+	targetWas := s.prefs.Get().Target
 	list := slices.Clone(s.learn.mirrors.Get())
 	revoked := slices.Clone(s.learn.revoked.Get())
 	for _, r := range results {
@@ -314,7 +348,7 @@ func (s *Session) learnSynced(results []learnResult) {
 		}
 		reached = true
 		if r.settings != nil {
-			s.learnTakeSettings(*r.settings, r.targetPut)
+			s.learnTakeSettings(r.desktop, *r.settings, r.targetPut)
 		}
 		if !r.state {
 			continue
@@ -327,20 +361,18 @@ func (s *Session) learnSynced(results []learnResult) {
 				m = cloneMirror(list[i])
 			}
 			m.Name = lib.lib.Name
-			var refused *sync.Error
-			reread := false
+			// Changes the computer refuses it will refuse again: they go, and the next sync reads the library's state afresh, so the records show as the computer has them.
+			reread := lib.refused
 			switch {
 			case lib.sent != nil && lib.putErr == nil:
 				m.Settle(lib.sent, lib.put)
-			case lib.sent != nil && errors.As(lib.putErr, &refused) && refused.Code == sync.CodeInvalid:
-				// Changes the computer refuses it will refuse again: they go, and the next sync reads the library's state afresh, so the records show as the computer has them.
+			case lib.sent != nil && lib.refused:
 				m.Settle(lib.sent, sync.StatePutResult{})
-				reread = true
 			}
 			if lib.getErr == nil {
 				m.Take(lib.changes)
-			} else if ProblemOf(lib.getErr) == Gone {
-				// A library locked since it was listed tells the phone nothing of it.
+			} else if ProblemOf(lib.getErr) == Gone && len(m.Pending) == 0 {
+				// A library locked since it was listed tells the phone nothing of it; one with changes the computer has not taken yet is kept for them, as below.
 				continue
 			}
 			if reread {
@@ -348,7 +380,12 @@ func (s *Session) learnSynced(results []learnResult) {
 			}
 			kept = append(kept, m)
 		}
-		// A library the computer no longer lists, as one locked or removed, goes with what the phone kept of it.
+		// A library the computer no longer lists, as one locked or removed, goes with what the phone kept of it, unless the phone has changes of it the computer has not taken yet: those stay until it lists the library again, as once it is unlocked, so a review made meanwhile is not lost. One removed for good keeps them until the computer is unpaired.
+		for _, m := range list {
+			if m.Desktop == r.desktop && len(m.Pending) > 0 && !slices.ContainsFunc(kept, func(k learning.Mirror) bool { return k.Library == m.Library }) {
+				kept = append(kept, m)
+			}
+		}
 		list = slices.DeleteFunc(list, func(m learning.Mirror) bool { return m.Desktop == r.desktop })
 		list = append(list, kept...)
 		s.learnSaveDesktopList(r.desktop, kept)
@@ -369,33 +406,46 @@ func (s *Session) learnSynced(results []learnResult) {
 	s.learn.revoked.Set(revoked)
 	s.learn.problem.Set(problem)
 	s.scheduleReminder()
+	// A language taken from a computer goes to the others at once.
+	if p := s.prefs.Get(); p.Target != targetWas && len(p.TargetPending) > 0 {
+		s.learn.again = true
+	}
 	if s.learn.again {
 		s.learn.again = false
 		s.SyncLearning()
 	}
 }
 
-// learnTakeSettings takes a computer's settings in: the language it translates into becomes the phone's, unless the phone's own choice is still to be put, or the computer's is none the phone offers.
-func (s *Session) learnTakeSettings(got sync.Settings, put bool) {
+// learnTakeSettings takes computer desktop's settings in. Put, the computer took the phone's language when it is the one it answers, and is no longer to take it. Asked, the language it translates into becomes the phone's when it changed it, and the other paired computers are to take it, so the phone and the computers name one language: unless the computer is still to take the phone's own, or the computer's is none the phone offers.
+func (s *Session) learnTakeSettings(desktop string, got sync.Settings, put bool) {
 	p := s.prefs.Get()
+	pending := slices.Contains(p.TargetPending, desktop)
 	switch {
-	case put && got.Target == p.Target:
-		p.TargetPending = false
-	case p.TargetPending || got.Target == "" || langs.TargetName(got.Target) == "" || got.Target == p.Target:
+	case put && pending && got.Target == p.Target:
+		p.TargetPending = slices.DeleteFunc(slices.Clone(p.TargetPending), func(id string) bool { return id == desktop })
+	case put || pending || got.Target == "" || langs.TargetName(got.Target) == "" || got.Target == p.Target:
 		return
 	default:
-		p.Target = got.Target
+		p.Target, p.TargetPending = got.Target, nil
+		for _, d := range s.Desktops() {
+			if d.ID != desktop {
+				p.TargetPending = append(p.TargetPending, d.ID)
+			}
+		}
 	}
 	s.SetPrefs(p)
 }
 
-// SetTarget makes tag the language subtitles are translated into, on the phone and on the paired computers, which take it at once or at the next sync; a computer paired later takes it too.
+// SetTarget makes tag the language subtitles are translated into, on the phone and on the paired computers, which take it at once or at the next sync; a computer paired later takes it too (AddDesktop).
 func (s *Session) SetTarget(tag string) {
 	p := s.prefs.Get()
-	if p.Target == tag && !p.TargetPending {
+	if p.Target == tag {
 		return
 	}
-	p.Target, p.TargetPending = tag, true
+	p.Target, p.TargetPending = tag, nil
+	for _, d := range s.Desktops() {
+		p.TargetPending = append(p.TargetPending, d.ID)
+	}
 	s.SetPrefs(p)
 	s.SyncLearning()
 }
@@ -437,6 +487,10 @@ func (s *Session) learnForget(id string) {
 	s.learn.mirrors.Set(slices.DeleteFunc(slices.Clone(s.learn.mirrors.Get()), func(m learning.Mirror) bool { return m.Desktop == id }))
 	s.DismissRevoked(id)
 	delete(s.learn.dismissed, id)
+	if p := s.prefs.Get(); slices.Contains(p.TargetPending, id) {
+		p.TargetPending = slices.DeleteFunc(slices.Clone(p.TargetPending), func(x string) bool { return x == id })
+		s.SetPrefs(p)
+	}
 	s.learnSave(id, func() error { return s.learn.disk.DeleteDesktop(id) })
 	s.scheduleReminder()
 }

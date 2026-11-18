@@ -29,8 +29,11 @@ func (s phoneSettings) PutSettings(ctx context.Context, caller psync.Caller, req
 	}
 	return remote.OnUI(ctx, a.update, func() (psync.Settings, error) {
 		if value != "" && value != a.prefs.language {
+			was := a.prefs.language
 			a.prefs.language = value
 			if err := a.saveSettings(); err != nil {
+				// Not kept, the change is not made: the phone, which is answered the error, puts it again at its next sync, and this computer keeps translating into the language settings.json holds.
+				a.prefs.language = was
 				log.Printf("phonesync: keep the language %s chose: %v", caller.Name, err)
 				return psync.Settings{}, err
 			}

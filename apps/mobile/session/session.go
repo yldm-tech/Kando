@@ -323,6 +323,13 @@ func (s *Session) AddDesktop(d store.Desktop) {
 		list = append(list, d)
 	}
 	s.setDesktops(list)
+	// Paired again, a computer that revoked the phone before shows the page that says so if it does again.
+	delete(s.learn.dismissed, d.ID)
+	// The computer takes the language the phone translates into, once the phone has one.
+	if p := s.prefs.Get(); p.Target != "" && !slices.Contains(p.TargetPending, d.ID) {
+		p.TargetPending = append(slices.Clone(p.TargetPending), d.ID)
+		s.SetPrefs(p)
+	}
 }
 
 // Unpair forgets desktop id and what the phone kept of its learning state, and stops its downloads; the films kept from it stay.

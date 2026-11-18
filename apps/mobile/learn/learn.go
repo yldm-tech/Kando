@@ -82,7 +82,10 @@ func goal(cx *core.Scope, s *session.Session) core.Node {
 			}},
 			core.Text{TestID: "learn-streak", ContentFunc: func() string { return locales.LearnStreak(cx, s.Watched().Streak(s.Now())) }, MaxLines: 1, Style: look.Subhead.Merge(core.Style{FontWeight: core.FontWeightSemibold}), StyleFunc: ui.Colored(colors.Text)},
 		}},
-		ui.Progress{Label: locales.LearnGoalOf(cx, s.Goal()), Value: func() float32 { return min(float32(minutes())/float32(s.Goal()), 1) }},
+		// ui.Progress's label is a string, so the bar is built again as the goal or the language changes, for assistive technology to name the goal it shows.
+		core.Dynamic(func(cx *core.Scope) core.Node {
+			return ui.Progress{TestID: "learn-goal-bar", Label: locales.LearnGoalOf(cx, s.Goal()), Value: func() float32 { return min(float32(minutes())/float32(s.Goal()), 1) }}
+		}),
 		core.Text{TestID: "learn-goal-text", ContentFunc: func() string {
 			if met() {
 				return locales.LearnGoalMet(cx)
