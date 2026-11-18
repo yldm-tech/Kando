@@ -134,6 +134,10 @@ func TestAPhoneJoinsTheRelayAndIsAnsweredThroughIt(t *testing.T) {
 	if err := c.Call(ctx, psync.OpRelayJoin, nil, &again); err != nil || string(again.Key) != string(joined.Key) {
 		t.Fatalf("joining again changed the key: %v", err)
 	}
+	// Joining again hands out a new grant, as the phone may have spent the old one's slots.
+	if again.Grant.Slots[0].ID == joined.Grant.Slots[0].ID || !again.Grant.Minted.After(joined.Grant.Minted) {
+		t.Fatalf("joining again gave back the grant: %v, then %v", joined.Grant.Minted, again.Grant.Minted)
+	}
 	// The key is kept with the device, readable by the user alone, and not given out with the list of devices.
 	data, _ := os.ReadFile(filepath.Join(dir, DevicesFile))
 	if !strings.Contains(string(data), `"relay_key"`) {
@@ -200,4 +204,43 @@ func TestWithoutTheRelayAPhoneCannotJoin(t *testing.T) {
 	}
 	err := c.Call(ctx, psync.OpRelayJoin, nil, nil)
 	wantCode(t, err, http.StatusNotImplemented, psync.CodeUnsupported)
+}
+
+// stuckBucket is a store that does not answer listings: each waits until its context ends.
+type stuckBucket struct{ memBucket }
+
+func (b *stuckBucket) List(ctx context.Context, _ string) ([]psync.RelayObject, error) {
+	<-ctx.Done()
+	return nil, ctx.Err()
+}
+
+// TestClosingDoesNotWaitForAStuckStore unpairs a phone while the store does not answer, then turns the server off: the deletion of the phone's folders is given up, not waited out.
+func TestClosingDoesNotWaitForAStuckStore(t *testing.T) {
+	dir := t.TempDir()
+	srv, err := Start(Config{Dir: dir, Name: "Test Mac", Source: fakeSource{dir: t.TempDir()}, Jobs: &fakeJobs{}, Relay: &stuckBucket{}, Addrs: loopback, Logf: testLogf(t)})
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { srv.Close() })
+	c := client(t, srv, "")
+	res, err := pair(t, c, srv.NewOffer().Code)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := c.Call(context.Background(), psync.OpRelayJoin, nil, nil); err != nil {
+		t.Fatal(err)
+	}
+	if err := srv.Revoke(res.DeviceID); err != nil {
+		t.Fatal(err)
+	}
+	closed := make(chan struct{})
+	go func() {
+		srv.Close()
+		close(closed)
+	}()
+	select {
+	case <-closed:
+	case <-time.After(5 * time.Second):
+		t.Fatal("Close waited for the store")
+	}
 }

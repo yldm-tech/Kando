@@ -21,7 +21,7 @@ import (
 //	outbox/{device}/{slot}      the Reply to the call in that slot, read by the slot's GET link
 //	outbox/{device}/state.json  what the phone follows (RelayState), read by the grant's State link
 //
-// Slots. A grant holds RelaySlots slots, each a random name with a link that PUTs the slot's call and one that GETs its reply. A phone puts one message in a slot and never another: it uses the slots of the newest grant it has and forgets the older grant's that it has not used. The desktop makes a new grant once half its slots are used or it is RelayRegrant old.
+// Slots. A grant holds RelaySlots slots, each a random name with a link that PUTs the slot's call and one that GETs its reply. A phone puts one message in a slot and never another: it uses the slots of the newest grant it has and forgets the older grant's that it has not used, keeping the reply links of those it used until it has read their replies (RelayPhone.Waiting). The desktop makes a new grant once half its slots are used or it is RelayRegrant old, and every join gets a new one, so a phone that joins again never gets back slots it spent. A slot used twice all the same is answered once: the desktop deletes the second message unanswered, and the phone, which checks that the reply's ID is its call's, sends that call again in another slot.
 //
 // Delivery. At least once. The phone PUTs a message to a slot until the store takes it, then GETs the slot's reply until it is there (404 until then). The desktop lists the inboxes every RelayPoll while it runs, answers each message, writes its reply, and only then deletes the message; a message whose reply is already there (the desktop stopped between the two) is deleted without being answered again. A phone that hears no reply may send the same Call, with the same ID, in another slot: the Desk answers a call it has answered with the reply it gave (ReplyMemory), so the work is done once while the desktop runs; across a restart of the desktop, the operations themselves keep it so (a link already queued answers that job, Existing; cancel, retry and the learning state's merge are idempotent).
 //
@@ -54,8 +54,10 @@ const (
 	RelayStale = 3 * RelayHeartbeat
 	// RelayKeySize is the size of a phone's key, in bytes.
 	RelayKeySize = 32
-	// MaxRelayObject is the largest object of the relay either side reads.
+	// MaxRelayObject is the largest message (a sealed RelayMessage) the desktop reads: a phone does not send a larger one (ErrRelayCallTooLarge), and the desktop deletes a larger one unread.
 	MaxRelayObject = 1 << 20
+	// MaxRelayReply is the largest reply or state.json a phone reads, as large as the local network's client reads a reply: the desktop answers a call whose reply would be larger with CodeInvalid.
+	MaxRelayReply = 16 << 20
 )
 
 // OpRelayJoin takes nothing and answers RelayJoin: the phone's key and its first grant. A desktop lists it in Hello.Ops while its relay is on, and answers it on the local network only.
@@ -64,7 +66,8 @@ const OpRelayJoin = "relay.join"
 // RelayJoin is the answer to OpRelayJoin.
 type RelayJoin struct {
 	// Key is the key the phone's objects are sealed with (SealRelay), RelayKeySize bytes, base64 in JSON. A phone joining again gets the same key, until it is unpaired.
-	Key   []byte     `json:"key"`
+	Key []byte `json:"key"`
+	// Grant is a new grant, never one handed out before, so none of its slots is spent.
 	Grant RelayGrant `json:"grant"`
 }
 
@@ -197,7 +200,7 @@ func relaySlotID(name string) bool {
 
 // RelayBucket is the bucket as the relay uses it, keys being full object keys (with RelayPrefix). The desktop's is its store's (apps/kando/cloud); a phone has none.
 type RelayBucket interface {
-	// Get reads the object at key, at most MaxRelayObject bytes; one the bucket does not hold is ErrNoObject.
+	// Get reads the object at key, at most MaxRelayObject bytes, ErrRelayTooLarge for a longer one; one the bucket does not hold is ErrNoObject.
 	Get(ctx context.Context, key string) ([]byte, error)
 	Put(ctx context.Context, key string, body []byte) error
 	// Exists reports whether the bucket holds an object at key.
@@ -219,3 +222,6 @@ type RelayObject struct {
 
 // ErrNoObject is the error for an object the bucket does not hold.
 var ErrNoObject = errors.New("no such object")
+
+// ErrRelayTooLarge is RelayBucket.Get's error for an object larger than MaxRelayObject.
+var ErrRelayTooLarge = errors.New("the relay's object is too large")

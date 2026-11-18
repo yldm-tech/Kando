@@ -157,15 +157,15 @@ func Start(cfg Config) (*Server, error) {
 		IdleTimeout:       2 * time.Minute,
 		ErrorLog:          log.New(logWriter(cfg.Logf), "", 0),
 	}
+	if cfg.Relay != nil {
+		s.startRelay(cfg.Relay)
+	}
 	if err := s.rescan(); err != nil {
 		s.Close()
 		return nil, err
 	}
 	s.done.Add(1)
 	go s.watch()
-	if cfg.Relay != nil {
-		s.startRelay(cfg.Relay)
-	}
 	return s, nil
 }
 

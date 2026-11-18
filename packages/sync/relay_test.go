@@ -6,6 +6,7 @@ import (
 	"crypto/rand"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"io"
 	"net/http"
 	"net/http/httptest"
@@ -72,6 +73,9 @@ func (m *memRelay) Get(_ context.Context, key string) ([]byte, error) {
 	o, ok := m.objects[key]
 	if !ok {
 		return nil, ErrNoObject
+	}
+	if len(o.body) > MaxRelayObject && strings.Contains(key, "/inbox/") {
+		return nil, ErrRelayTooLarge
 	}
 	return o.body, nil
 }
@@ -481,5 +485,121 @@ func TestEventsOverTheRelayDoNotWait(t *testing.T) {
 	r := desk.Answer(context.Background(), Caller{DeviceID: "D1", Relay: true}, Call{V: CallVersion, Op: OpEvents, Args: args})
 	if r.Error != nil || time.Since(began) > time.Second {
 		t.Fatalf("events over the relay took %v: %+v", time.Since(began), r)
+	}
+}
+
+// TestRelayRepliesOutliveTheGrantTheyWereSentIn has the phone take a new grant while its last call waits for its reply, as when that call used the slot that made the desktop regrant: the reply is still read through the old slot's link.
+func TestRelayRepliesOutliveTheGrantTheyWereSentIn(t *testing.T) {
+	g := newRelayRig(t)
+	ctx := context.Background()
+	old := g.phone.Grant
+	var last string
+	for range RelaySlots / 2 {
+		last = g.send(t, NewCallID(), OpJobs, nil)
+	}
+	g.poll(t, RelaySlots/2)
+	g.clock = g.clock.Add(time.Second)
+	if err := g.relay.Publish(ctx); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := g.phone.State(ctx); err != nil {
+		t.Fatal(err)
+	}
+	if g.phone.Grant.Slots[0].ID == old.Slots[0].ID || slices.ContainsFunc(g.phone.Grant.Slots, func(s RelaySlot) bool { return s.ID == last }) {
+		t.Fatal("the phone did not take the new grant")
+	}
+	if reply := g.reply(t, last); reply.Error != nil {
+		t.Fatalf("reply %+v", reply)
+	}
+	if _, ok := g.phone.Waiting[last]; ok || len(g.phone.Waiting) != RelaySlots/2-1 {
+		t.Fatalf("still waiting on %d slots, %v", len(g.phone.Waiting), ok)
+	}
+}
+
+// TestRelayAnswersASlotUsedTwiceOnce has a phone put a second call in a slot it already used: the desktop answers only the first, and the phone does not take the first call's reply for the second's.
+func TestRelayAnswersASlotUsedTwiceOnce(t *testing.T) {
+	g := newRelayRig(t)
+	ctx := context.Background()
+	slot := g.send(t, "first", OpJobs, nil)
+	g.poll(t, 1)
+	g.phone.Spent = nil
+	if again := g.send(t, "second", OpJobCreate, JobCreate{Link: "https://youtu.be/a"}); again != slot {
+		t.Fatalf("the phone used %s, not %s", again, slot)
+	}
+	g.poll(t, 0)
+	if _, ok, err := g.phone.Reply(ctx, slot); ok || !errors.Is(err, ErrRelayReplyMismatch) {
+		t.Fatalf("reply of the second call: %v, %v", ok, err)
+	}
+	if g.svc.made != 0 {
+		t.Fatalf("%d jobs made", g.svc.made)
+	}
+	// A join hands out a new grant, none of whose slots the phone spent.
+	joined, err := g.relay.NewGrant(ctx, "D1")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if slices.ContainsFunc(joined.Slots, func(s RelaySlot) bool { return s.ID == slot }) || !joined.Minted.After(g.phone.Grant.Minted) {
+		t.Fatalf("join gave back slot %s, minted %v", slot, joined.Minted)
+	}
+	if again, _ := g.relay.Grant(ctx, "D1"); again.Slots[0].ID != joined.Slots[0].ID {
+		t.Fatal("the desktop does not follow the grant the join handed out")
+	}
+}
+
+func TestRelayKeepsToItsSizes(t *testing.T) {
+	g := newRelayRig(t)
+	ctx := context.Background()
+	// A call too large to be read is not sent, and spends no slot.
+	huge := Call{ID: "big", V: CallVersion, Op: OpStatePut, Args: json.RawMessage(`"` + strings.Repeat("x", MaxRelayObject) + `"`)}
+	if _, err := g.phone.Send(ctx, huge); !errors.Is(err, ErrRelayCallTooLarge) || len(g.phone.Spent) != 0 || g.phone.Seq != 0 {
+		t.Fatalf("sent a call too large: %v, %d spent", err, len(g.phone.Spent))
+	}
+	// One that came all the same is deleted, not read at every poll.
+	g.store.Put(ctx, g.relay.Prefix+RelayInbox("D1", g.phone.Grant.Slots[0].ID), bytes.Repeat([]byte("x"), MaxRelayObject+1))
+	if _, err := g.relay.Poll(ctx); err != nil {
+		t.Fatal(err)
+	}
+	if left := g.store.keys(g.relay.Prefix + "inbox/"); len(left) != 0 {
+		t.Fatalf("left in the inbox: %v", left)
+	}
+	// A reply larger than a message is read whole.
+	var jobs []Job
+	for i := range 4000 {
+		jobs = append(jobs, Job{ID: fmt.Sprintf("j%d", i), Link: "https://youtu.be/" + strings.Repeat("a", 400)})
+	}
+	g.desk.Journal.PublishJobs(jobs)
+	slot := g.send(t, "jobs", OpJobs, nil)
+	g.poll(t, 1)
+	body, _ := g.store.Get(ctx, g.relay.Prefix+RelayReply("D1", slot))
+	var list JobList
+	if reply := g.reply(t, slot); len(body) <= MaxRelayObject || json.Unmarshal(reply.Result, &list) != nil || len(list.Jobs) != len(jobs) {
+		t.Fatalf("a reply of %d bytes read as %d jobs", len(body), len(list.Jobs))
+	}
+}
+
+// TestRelayGrantsOneAtATime has joins and turns mint a phone's grant at once: the grant the desktop follows is the last one minted, the one the phone keeps.
+func TestRelayGrantsOneAtATime(t *testing.T) {
+	g := newRelayRig(t)
+	ctx := context.Background()
+	var mu gosync.Mutex
+	var newest RelayGrant
+	var wg gosync.WaitGroup
+	for range 8 {
+		wg.Go(func() {
+			grant, err := g.relay.NewGrant(ctx, "D1")
+			if err != nil {
+				t.Error(err)
+				return
+			}
+			mu.Lock()
+			defer mu.Unlock()
+			if grant.Minted.After(newest.Minted) {
+				newest = grant
+			}
+		})
+	}
+	wg.Wait()
+	if kept, _ := g.relay.Grant(ctx, "D1"); kept.Slots[0].ID != newest.Slots[0].ID {
+		t.Fatalf("the desktop follows a grant minted %v, the newest was minted %v", kept.Minted, newest.Minted)
 	}
 }

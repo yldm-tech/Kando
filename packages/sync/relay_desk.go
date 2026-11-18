@@ -33,8 +33,10 @@ type Relay struct {
 	// Every is how often Run polls, 0 for RelayPoll; MinWrite the least time between two of its turns, 0 for RelayMinWrite. Tests shorten them.
 	Every, MinWrite time.Duration
 
-	mu     gosync.Mutex
-	grants map[string]*relayGrant
+	// minting is held from looking at a phone's grant to storing a new one, so two turns (a join and Publish) never mint for the same phone at once.
+	minting gosync.Mutex
+	mu      gosync.Mutex
+	grants  map[string]*relayGrant
 	// written is what each phone's state.json last said, without when it was written, and when that was.
 	written map[string]writtenState
 	// wake has Run take its next turn at once.
@@ -67,14 +69,34 @@ func (r *Relay) logf(format string, args ...any) {
 
 // Grant is device's newest grant, made anew when it has none, it is RelayRegrant old, or half its slots are used.
 func (r *Relay) Grant(ctx context.Context, device string) (RelayGrant, error) {
+	return r.grant(ctx, device, false)
+}
+
+// NewGrant makes device a new grant, as a join hands out: the phone may have spent slots of the one before.
+func (r *Relay) NewGrant(ctx context.Context, device string) (RelayGrant, error) {
+	return r.grant(ctx, device, true)
+}
+
+func (r *Relay) grant(ctx context.Context, device string, fresh bool) (RelayGrant, error) {
+	r.minting.Lock()
+	defer r.minting.Unlock()
 	r.mu.Lock()
 	g := r.grants[device]
-	r.mu.Unlock()
-	now := r.now()
-	if g != nil && now.Sub(g.Minted) < RelayRegrant && len(g.used) < RelaySlots/2 {
-		return g.RelayGrant, nil
+	var current RelayGrant
+	reuse := false
+	if g != nil {
+		current, reuse = g.RelayGrant, !fresh && r.now().Sub(g.Minted) < RelayRegrant && len(g.used) < RelaySlots/2
 	}
-	fresh, err := r.mint(ctx, device, now)
+	r.mu.Unlock()
+	if reuse {
+		return current, nil
+	}
+	now := r.now()
+	if !now.After(current.Minted) {
+		// A phone keeps the grant minted last, so a new one is always minted after the one before, even within the clock's resolution.
+		now = current.Minted.Add(time.Nanosecond)
+	}
+	minted, err := r.mint(ctx, device, now)
 	if err != nil {
 		return RelayGrant{}, err
 	}
@@ -83,8 +105,8 @@ func (r *Relay) Grant(ctx context.Context, device string) (RelayGrant, error) {
 	if r.grants == nil {
 		r.grants = map[string]*relayGrant{}
 	}
-	r.grants[device] = &relayGrant{RelayGrant: fresh, used: map[string]bool{}}
-	return fresh, nil
+	r.grants[device] = &relayGrant{RelayGrant: minted, used: map[string]bool{}}
+	return minted, nil
 }
 
 // mint signs a new grant's links for device.
@@ -148,6 +170,12 @@ func (r *Relay) Poll(ctx context.Context) (int, error) {
 		if errors.Is(err, ErrNoObject) {
 			continue
 		}
+		if errors.Is(err, ErrRelayTooLarge) {
+			// A phone sends none this large (ErrRelayCallTooLarge); kept, it would be read at every poll for ever.
+			r.logf("relay: a message of %s larger than %d bytes", device, MaxRelayObject)
+			errs = append(errs, r.Bucket.Delete(ctx, o.Key))
+			continue
+		}
 		if err != nil {
 			errs = append(errs, err)
 			continue
@@ -197,6 +225,16 @@ func (r *Relay) answer(ctx context.Context, m inboxed) error {
 	sealed, err := SealRelay(m.dev.Key, name, plain)
 	if err != nil {
 		return err
+	}
+	if len(sealed) > MaxRelayReply {
+		// The phone would not read it, and would wait for it for ever: it hears why instead.
+		plain, err = json.Marshal(Reply{ID: call.ID, Op: call.Op, Error: &ErrorBody{Code: CodeInvalid, Message: "the reply is too long for the relay"}})
+		if err != nil {
+			return err
+		}
+		if sealed, err = SealRelay(m.dev.Key, name, plain); err != nil {
+			return err
+		}
 	}
 	if err := r.Bucket.Put(ctx, r.Prefix+name, sealed); err != nil {
 		return err
@@ -256,6 +294,9 @@ func (r *Relay) publish(ctx context.Context, dev RelayDevice) error {
 	sealed, err := SealRelay(dev.Key, name, plain)
 	if err != nil {
 		return err
+	}
+	if len(sealed) > MaxRelayReply {
+		return fmt.Errorf("the state of %s is %d bytes, more than a phone reads", dev.ID, len(sealed))
 	}
 	if err := r.Bucket.Put(ctx, r.Prefix+name, sealed); err != nil {
 		return err

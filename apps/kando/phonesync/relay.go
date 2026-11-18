@@ -3,6 +3,7 @@ package phonesync
 import (
 	"context"
 	"errors"
+	"fmt"
 	"time"
 
 	"kando/apps/kando/cloud"
@@ -17,7 +18,7 @@ const forgetTimeout = time.Minute
 // relayEvery and relayMinWrite are how often the relay polls the inboxes and the least time between two of its turns (psync.Relay's Every and MinWrite). Tests shorten them.
 var relayEvery, relayMinWrite = psync.RelayPoll, psync.RelayMinWrite
 
-// startRelay starts the relay in bucket, under the folder named by the certificate's fingerprint, until Close.
+// startRelay starts the relay in bucket, under the folder named by the certificate's fingerprint, until Close. Start calls it before the server listens, as the handlers read s.relay and s.desk.Relay.
 func (s *Server) startRelay(bucket psync.RelayBucket) {
 	ctx, cancel := context.WithCancel(context.Background())
 	s.relay = &psync.Relay{
@@ -54,15 +55,23 @@ func (s *Server) forgetRelay(device string) {
 	s.done.Add(1)
 	go func() {
 		defer s.done.Done()
+		// Close does not wait out a slow store: folders left behind are deleted by the relay's sweep, as a device it does not know.
 		ctx, cancel := context.WithTimeout(context.Background(), forgetTimeout)
 		defer cancel()
+		go func() {
+			select {
+			case <-s.stop:
+				cancel()
+			case <-ctx.Done():
+			}
+		}()
 		if err := s.relay.Forget(ctx, device); err != nil {
 			s.cfg.Logf("phonesync: relay: forget %s: %v", device, err)
 		}
 	}()
 }
 
-// relayJoiner answers psync.OpRelayJoin: the phone's key, made the first time it joins, and its newest grant.
+// relayJoiner answers psync.OpRelayJoin: the phone's key, made the first time it joins, and a new grant, as the phone may have spent slots of the one before.
 type relayJoiner struct{ s *Server }
 
 func (j relayJoiner) Join(ctx context.Context, caller psync.Caller) (psync.RelayJoin, error) {
@@ -70,7 +79,7 @@ func (j relayJoiner) Join(ctx context.Context, caller psync.Caller) (psync.Relay
 	if err != nil {
 		return psync.RelayJoin{}, err
 	}
-	grant, err := j.s.relay.Grant(ctx, caller.DeviceID)
+	grant, err := j.s.relay.NewGrant(ctx, caller.DeviceID)
 	if err != nil {
 		return psync.RelayJoin{}, err
 	}
@@ -86,8 +95,11 @@ type relayBucket struct{ b *cloud.Bucket }
 
 func (r relayBucket) Get(ctx context.Context, key string) ([]byte, error) {
 	data, err := r.b.Get(ctx, key, psync.MaxRelayObject)
-	if errors.Is(err, cloud.ErrNoObject) {
+	switch {
+	case errors.Is(err, cloud.ErrNoObject):
 		return nil, psync.ErrNoObject
+	case errors.Is(err, cloud.ErrObjectTooLarge):
+		return nil, fmt.Errorf("%w: %w", psync.ErrRelayTooLarge, err)
 	}
 	return data, err
 }
