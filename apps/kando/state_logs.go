@@ -33,6 +33,16 @@ var logsDir = func(cx *ns.Scope) (string, error) {
 	return dir, nil
 }
 
+// logsOldDir is the folder the log file went in up to Kando 0.23, when MyGo's PathLogs named it: ~/Library/Logs/Kando on macOS, and a logs folder in Kando's folder of the user's configuration elsewhere. logsOpen moves the log files from it into logsDir, so the log of the runs before an update is still the one Help › Show Log File shows and a report attaches. Tests point it at a folder of their own, or at none.
+var logsOldDir = func() (string, error) {
+	if runtime.GOOS == "darwin" {
+		home, err := os.UserHomeDir()
+		return filepath.Join(home, "Library", "Logs", "Kando"), err
+	}
+	dir, err := os.UserConfigDir()
+	return filepath.Join(dir, "Kando", "logs"), err
+}
+
 // logsReveal shows a file in Finder or the file manager, under cx, the app's scope. A reveal no app answered is logged, as the menu's row has nowhere else to say so. Tests replace it.
 var logsReveal = func(cx *ns.Scope, path string) {
 	desktop.Reveal(cx, path, func(err error) {
@@ -59,7 +69,7 @@ func (a *app) logsKeys(cx *ns.Scope) []shortcut {
 	}
 }
 
-// logsOpen opens the log file in logsDir and sends the standard logger's lines to it as well as to stderr. A folder that cannot be written leaves the log on stderr alone, and says why there.
+// logsOpen opens the log file in logsDir, after moving the log files of earlier versions there (logsOldDir), and sends the standard logger's lines to it as well as to stderr. A folder that cannot be written leaves the log on stderr alone, and says why there.
 func (a *app) logsOpen() {
 	if a.logs.file != nil {
 		return
@@ -69,6 +79,10 @@ func (a *app) logsOpen() {
 		log.Printf("logs: no folder for the log file: %v", err)
 		return
 	}
+	var moved error
+	if old, err := logsOldDir(); err == nil {
+		moved = feedback.MoveLogFiles(old, dir)
+	}
 	file, err := feedback.OpenLogFile(filepath.Join(dir, feedback.LogName), feedback.LogLimit, os.Stderr)
 	if err != nil {
 		log.Printf("logs: cannot open the log file: %v", err)
@@ -77,6 +91,9 @@ func (a *app) logsOpen() {
 	a.logs.file = file
 	log.SetOutput(file)
 	log.Printf("Kando %s started on %s/%s", appVersion, runtime.GOOS, runtime.GOARCH)
+	if moved != nil {
+		log.Printf("logs: cannot move the earlier log files here: %v", moved)
+	}
 }
 
 // logsQuitting notes in the log that the app is quitting, leaving the file open for what the other areas log as they stop.

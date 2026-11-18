@@ -126,3 +126,33 @@ func (w *LogFile) Close() {
 	w.release()
 	w.closed = true
 }
+
+// MoveLogFiles moves the log file and the full ones kept beside it (kando.1.log, kando.2.log) from the folder from to the folder to, making it, and removes from once it is empty. Nothing moves when to already holds a log file, which then is newer than any in from, or when from is to or "". A file that cannot be moved stays where it is, and the first such failure is returned once the others have been tried.
+func MoveLogFiles(from, to string) error {
+	if from == "" || filepath.Clean(from) == filepath.Clean(to) {
+		return nil
+	}
+	if _, err := os.Stat(filepath.Join(to, LogName)); err == nil {
+		return nil
+	}
+	w := LogFile{path: filepath.Join(from, LogName)}
+	names := []string{LogName}
+	for n := 1; n <= logKeep; n++ {
+		names = append(names, filepath.Base(w.older(n)))
+	}
+	var first error
+	for _, name := range names {
+		src := filepath.Join(from, name)
+		if _, err := os.Stat(src); err != nil {
+			continue
+		}
+		if err := os.MkdirAll(to, 0o755); err != nil {
+			return err
+		}
+		if err := os.Rename(src, filepath.Join(to, name)); err != nil && first == nil {
+			first = err
+		}
+	}
+	_ = os.Remove(from)
+	return first
+}

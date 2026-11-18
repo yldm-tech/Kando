@@ -54,6 +54,8 @@ func TestMain(m *testing.M) {
 	testlocale.Pin(locales.Default)
 	desktop.Headless()
 	showItemInFolder = func(_ *ns.Scope, _ string, done func(error)) { done(nil) }
+	// The tests never move the user's own log files from where earlier versions kept them (logsOldDir).
+	logsOldDir = func() (string, error) { return "", nil }
 	// The fake tools' folder goes once the tests have run, headless and on a platform alike.
 	nsgotest.MainFunc(func() int {
 		defer fakeToolsCleanup()
