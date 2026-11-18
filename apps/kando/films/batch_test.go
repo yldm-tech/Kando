@@ -19,34 +19,51 @@ func labelsOf(app *nsgotest.App) []string {
 	return out
 }
 
-// TestSelectPressReadsTheModifiers checks which keys held with a click select: ⌘ selects a film or leaves it out and ⇧ selects up to it on a Mac, where Ctrl is a plain click; elsewhere Ctrl is what ⌘ is on a Mac.
-// TODO(nsgo#349): ⌘-click and ⇧-click the posters and the list's rows with nsgotest's PressWith, rather than calling selectPress, once Kando's NSGo has it; it was added upstream after the version go.mod pins, and App.Report takes an event of the internal driver package, which no app can make https://github.com/nsgo-dev/nsgo/issues/349
+// TestSelectPressReadsTheModifiers ⌘-clicks and ⇧-clicks the posters and the list's rows: ⌘ selects a film or leaves it out and ⇧ selects up to it on a Mac, where Ctrl is a plain click that opens the film; elsewhere Ctrl is what ⌘ is on a Mac.
 func TestSelectPressReadsTheModifiers(t *testing.T) {
 	for _, mac := range []bool{true, false} {
-		env := testEnvironment()
-		if !mac {
-			env.OS, env.AppleKeyboard = ns.OSWindows, false
-		}
-		var scope *ns.Scope
-		nsgotest.Start(t, func(cx *ns.Scope) ns.Node { scope = cx; return ns.View{} }, nsgotest.Environment(env))
-		order := []string{"a", "b", "c", "d"}
-		command := ns.Modifiers{Platform: true}
-		if !mac {
-			command = ns.Modifiers{Control: true}
-		}
-		var sel Selection
-		sel.Only("a")
-		if !selectPress(scope, &sel, "c", order, command) || !slices.Equal(sel.Keys, []string{"a", "c"}) {
-			t.Fatalf("mac %v: the command click selected %v", mac, sel.Keys)
-		}
-		if !selectPress(scope, &sel, "d", order, ns.Modifiers{Shift: true}) || !slices.Equal(sel.Keys, []string{"a", "c", "d"}) {
-			t.Fatalf("mac %v: ⇧-click selected %v", mac, sel.Keys)
-		}
-		if mac && selectPress(scope, &sel, "b", order, ns.Modifiers{Control: true}) {
-			t.Fatal("Ctrl-click on a Mac selected")
-		}
-		if selectPress(scope, &sel, "b", order, ns.Modifiers{}) {
-			t.Fatalf("mac %v: a plain click selected", mac)
+		for _, view := range []string{ViewGrid, ViewList} {
+			env := testEnvironment()
+			if !mac {
+				env.OS, env.AppleKeyboard = ns.OSWindows, false
+			}
+			a := newFakeApp()
+			a.view = view
+			app := nsgotest.Start(t, func(cx *ns.Scope) ns.Node {
+				a.Attach(cx)
+				return ns.View{Style: ns.Style{FlexGrow: 1}, Children: []ns.Node{View{App: a}}}
+			}, nsgotest.Size(1068, 782), nsgotest.Environment(env))
+			rivers, algebra := "id:film-done", "id:film-algebra"
+			if view == ViewList {
+				rivers, algebra = "id:films-list >> "+whole("Rivers of Europe"), "id:films-list >> "+whole("Linear Algebra")
+			}
+			command := ns.Modifiers{Platform: true}
+			if !mac {
+				command = ns.Modifiers{Control: true}
+			}
+			app.PressWith(algebra, command)
+			if !slices.Equal(a.selection.Keys, []string{"algebra"}) {
+				t.Fatalf("mac %v, view %v: the command click selected %v", mac, view, a.selection.Keys)
+			}
+			app.PressWith(rivers, ns.Modifiers{Shift: true})
+			if a.selection.Len() != 2 || !a.selection.Has("done") {
+				t.Fatalf("mac %v, view %v: ⇧-click selected %v", mac, view, a.selection.Keys)
+			}
+			app.PressWith(algebra, command)
+			if !slices.Equal(a.selection.Keys, []string{"done"}) {
+				t.Fatalf("mac %v, view %v: a second command click left %v selected", mac, view, a.selection.Keys)
+			}
+			if mac {
+				// A plain click: a poster opens its film and lets go of the selection, a row selects itself alone.
+				a.calls = nil
+				app.PressWith(algebra, ns.Modifiers{Control: true})
+				if view == ViewGrid && (!slices.Equal(a.calls, []string{"open algebra"}) || a.selection.Len() != 0) {
+					t.Fatalf("Ctrl-click on a Mac's poster made %q and left %v selected", a.calls, a.selection.Keys)
+				}
+				if view == ViewList && !slices.Equal(a.selection.Keys, []string{"algebra"}) {
+					t.Fatalf("Ctrl-click on a Mac's row selected %v, want it alone", a.selection.Keys)
+				}
+			}
 		}
 	}
 }
