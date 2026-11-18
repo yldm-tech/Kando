@@ -403,3 +403,31 @@ func wantPrivate(t *testing.T, path string) {
 		t.Fatalf("%s is %v, want 0600", filepath.Base(path), info.Mode().Perm())
 	}
 }
+
+// TestACorrectionTellsThePhoneTheFilmChanged checks that a film's time, which a phone that has it compares to read its lines again, is that of its corrections file once the user corrects a line after it was processed.
+func TestACorrectionTellsThePhoneTheFilmChanged(t *testing.T) {
+	dir := t.TempDir()
+	f := Film{ID: "talk", Video: filepath.Join(dir, "video.mp4"), Subtitles: filepath.Join(dir, "video.bilingual.srt"), Corrections: filepath.Join(dir, ".video.edits.json")}
+	processed := time.Date(2026, 11, 1, 10, 0, 0, 0, time.UTC)
+	for _, p := range []string{f.Video, f.Subtitles} {
+		if err := os.WriteFile(p, []byte("x"), 0o644); err != nil {
+			t.Fatal(err)
+		}
+		if err := os.Chtimes(p, processed, processed); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if got := playable([]Film{f})[0].film.Updated; !got.Equal(processed) {
+		t.Fatalf("before any correction the film changed at %v, want %v", got, processed)
+	}
+	corrected := processed.Add(time.Hour)
+	if err := os.WriteFile(f.Corrections, []byte("{}"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Chtimes(f.Corrections, corrected, corrected); err != nil {
+		t.Fatal(err)
+	}
+	if got := playable([]Film{f})[0].film.Updated; !got.Equal(corrected) {
+		t.Fatalf("after a correction the film changed at %v, want %v", got, corrected)
+	}
+}

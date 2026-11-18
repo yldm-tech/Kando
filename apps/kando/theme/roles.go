@@ -23,6 +23,7 @@ const (
 	roleSuccessInk  = "kandoSuccessInk"
 	roleDangerInk   = "kandoDangerInk"
 	roleWarnInk     = "kandoWarnInk"
+	roleOnWarn      = "kandoOnWarn"
 	roleRetryInk    = "kandoRetryInk"
 	roleWarnFill    = "kandoWarnFill"
 	roleWarnRing    = "kandoWarnRing"
@@ -50,6 +51,7 @@ var lightRoles = map[string]core.Color{
 	roleSuccessInk:  core.RGB(0x1B6B30),
 	roleDangerInk:   core.RGB(0xC4291C),
 	roleWarnInk:     core.RGB(0xB25000),
+	roleOnWarn:      core.RGB(0xFFFFFF),
 	roleRetryInk:    core.RGB(0xA35200),
 	roleWarnFill:    core.RGB(0xFFF7E3),
 	roleWarnRing:    core.RGBA(0xB47800, 0.25),
@@ -77,6 +79,7 @@ var darkRoles = map[string]core.Color{
 	roleSuccessInk:  core.RGB(0x63D58A),
 	roleDangerInk:   core.RGB(0xFF6B5E),
 	roleWarnInk:     core.RGB(0xFFA94D),
+	roleOnWarn:      core.RGB(0x1F1F1F),
 	roleRetryInk:    core.RGB(0xFFA94D),
 	roleWarnFill:    core.RGB(0x3A2F14),
 	roleWarnRing:    core.RGBA(0xFFB340, 0.30),
@@ -124,6 +127,9 @@ func (c Colors) SuccessInk() core.Color { return c.role(roleSuccessInk) }
 func (c Colors) DangerInk() core.Color  { return c.role(roleDangerInk) }
 func (c Colors) WarnInk() core.Color    { return c.role(roleWarnInk) }
 func (c Colors) RetryInk() core.Color   { return c.role(roleRetryInk) }
+
+// OnWarn is text on WarnInk used as a fill, as a warning badge's mark: white on the light window's dark orange, dark on the dark window's light orange.
+func (c Colors) OnWarn() core.Color { return c.role(roleOnWarn) }
 
 // The library's message bar, amber for a warning and green for news that something worked: its fill, its hairline and its text.
 func (c Colors) WarnFill() core.Color { return c.role(roleWarnFill) }

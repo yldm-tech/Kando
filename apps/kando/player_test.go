@@ -2661,3 +2661,34 @@ func TestOldGlobalSubtitlePlaceIsDropped(t *testing.T) {
 		t.Fatalf("settings.json after a save: %s", data)
 	}
 }
+
+// TestSubtitlesInTheDefaultFaceKeepTheSystemsFont checks that lines in 默认, the default look's face, are drawn in the system's font on every platform, not in the design's interface font the window sets around them (Cantarell on Linux, Segoe UI Variable on Windows).
+func TestSubtitlesInTheDefaultFaceKeepTheSystemsFont(t *testing.T) {
+	a, tt, _ := playerOpen(t)
+	playerPlayTo(tt, a, 1500*time.Millisecond)
+	for _, os := range []ns.OS{ns.OSMacOS, ns.OSWindows, ns.OSLinux} {
+		env := testEnvironment()
+		env.OS, env.AppleKeyboard = os, os == ns.OSMacOS
+		tt.SetEnvironment(env)
+		refresh(tt, a)
+		var families []string
+		var walk func(v *nsgotest.View)
+		walk = func(v *nsgotest.View) {
+			if v.Text != "" {
+				families = append(families, v.TextStyle.Font.Family)
+			}
+			for _, c := range v.Children {
+				walk(c)
+			}
+		}
+		walk(tt.Find("id:film-subtitle-lines"))
+		if len(families) == 0 {
+			t.Fatalf("%v: no lines shown", os)
+		}
+		for _, f := range families {
+			if f != "system-ui" {
+				t.Errorf("%v: a line in %q, want the system's font", os, f)
+			}
+		}
+	}
+}

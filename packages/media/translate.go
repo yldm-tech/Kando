@@ -42,6 +42,8 @@ type ChatTranslator struct {
 	Credential func(ctx context.Context, renew bool) (Endpoint, error)
 	// Client defaults to an http.Client with a two-minute timeout.
 	Client *http.Client
+	// Offline refuses, with ErrOffline and before anything is sent, every request to a service that is not on this computer (Local), as offline mode asks.
+	Offline bool
 }
 
 // ErrNoModel and ErrNoBaseURL are what Ping and Chat return before they send anything, when the model or the endpoint is not set.
@@ -60,6 +62,9 @@ type Endpoint struct {
 func (t ChatTranslator) Ping(ctx context.Context) error {
 	if strings.TrimSpace(t.Model) == "" {
 		return ErrNoModel
+	}
+	if err := t.offline(); err != nil {
+		return err
 	}
 	endpoint := Endpoint{BaseURL: strings.TrimSpace(t.BaseURL), APIKey: t.APIKey}
 	if t.Credential != nil {
@@ -90,6 +95,9 @@ func (t ChatTranslator) Ping(ctx context.Context) error {
 func (t ChatTranslator) Translate(ctx context.Context, segments []core.Segment, language string) ([]core.Segment, error) {
 	if strings.TrimSpace(language) == "" {
 		return nil, fmt.Errorf("target language is empty")
+	}
+	if err := t.offline(); err != nil {
+		return nil, err
 	}
 	endpoint := Endpoint{BaseURL: t.BaseURL, APIKey: t.APIKey}
 	if t.Credential != nil {
@@ -203,6 +211,9 @@ func skippableBatch(err error) bool {
 func (t ChatTranslator) Chat(ctx context.Context, system, user string) (string, error) {
 	if strings.TrimSpace(t.Model) == "" {
 		return "", ErrNoModel
+	}
+	if err := t.offline(); err != nil {
+		return "", err
 	}
 	endpoint := Endpoint{BaseURL: strings.TrimSpace(t.BaseURL), APIKey: t.APIKey}
 	if t.Credential != nil {

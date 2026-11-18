@@ -7,6 +7,7 @@ import (
 	"kando/apps/mobile/cues"
 	"kando/apps/mobile/locales"
 	"kando/apps/mobile/look"
+	"kando/apps/mobile/theme"
 	kcore "kando/packages/core"
 
 	"github.com/nsgo-dev/nsgo/base"
@@ -18,7 +19,7 @@ import (
 // The faces of the lines over the video, as the desktop's default look has them: the translation bold in white over the original in yellow, each on a dark box, in sizes for the phone's screen by layout.
 var (
 	translationColor = core.RGB(0xFFFFFF)
-	originalColor    = core.RGB(0xFFD60A)
+	originalColor    = theme.SubtitleYellow
 	lineBox          = core.RGBA(0x000000, 0.62)
 )
 

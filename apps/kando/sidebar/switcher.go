@@ -72,7 +72,7 @@ func (s switcher) Render(cx *core.Scope) core.Node {
 		}
 		return locales.SidebarSwitcherLabel(cx, name())
 	}
-	// A plain row on the sidebar, as the source rows under it: no card of its own, as wide as their fills with their corners, its tile over their icons, shaded only under the pointer and while its menu is open, and ringed while the keyboard is on it, as they are.
+	// A card on the sidebar's, as the design draws it: the card's color at 60% with a hairline inside its edge, as wide as the source rows' fills with their corners, its tile over their icons, lighter under the pointer, shaded while its menu is open, and ringed while the keyboard is on it, as they are.
 	button := base.Button{
 		TestID:    "sidebar-switcher",
 		LabelFunc: label,
@@ -81,10 +81,11 @@ func (s switcher) Render(cx *core.Scope) core.Node {
 		Style: core.Style{Direction: core.Row, FlexGrow: 1, Height: core.Pt(40), AlignItems: core.AlignCenter, Gap: 9, Padding: core.Symmetric(0, rowPad), CornerRadius: rowRadius,
 			Cursor: core.CursorDefault, FocusVisible: ui.FocusRing(cx, -2)},
 		StyleFunc: func() core.Style {
+			rim := []core.BoxShadow{{Spread: 0.5, Color: k.Shade(0.06), Inset: true}}
 			if open.Get() {
-				return core.Style{Background: k.Shade(0.07)}
+				return core.Style{Background: k.Shade(0.07), Shadows: rim}
 			}
-			return core.Style{Hover: &core.Style{Background: k.Shade(0.05)}, Active: &core.Style{Background: k.Shade(0.07)}}
+			return core.Style{Background: k.Card().Faded(0.6), Shadows: rim, Hover: &core.Style{Background: k.Card().Faded(0.85)}, Active: &core.Style{Background: k.Shade(0.07)}}
 		},
 		Children: []core.Node{
 			tile,

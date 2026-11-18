@@ -16,6 +16,7 @@ const (
 	SectionAI        = sectionid.AI
 	SectionTranslate = sectionid.Translate
 	SectionLook      = sectionid.Look
+	SectionPrivacy   = sectionid.Privacy
 	SectionShortcuts = sectionid.Shortcuts
 	SectionAccount   = sectionid.Account
 	SectionPhone     = sectionid.Phone
@@ -34,6 +35,7 @@ var sections = []section{
 	{SectionAI, locales.SettingsSectionAI, locales.SettingsKeywordsAI, iconAI},
 	{SectionTranslate, locales.SettingsSectionTranslate, locales.SettingsKeywordsTranslate, iconTranslate},
 	{SectionLook, locales.SettingsSectionLook, locales.SettingsKeywordsLook, iconLook},
+	{SectionPrivacy, locales.SettingsSectionPrivacy, locales.SettingsKeywordsPrivacy, iconPrivacy},
 	{SectionShortcuts, locales.SettingsSectionShortcuts, locales.SettingsKeywordsShortcuts, iconShortcuts},
 	{SectionAccount, locales.SettingsSectionAccount, locales.SettingsKeywordsAccount, iconAccount},
 	{SectionPhone, locales.SettingsSectionPhone, locales.SettingsKeywordsPhone, iconPhone},

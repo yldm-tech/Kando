@@ -620,3 +620,27 @@ func TestWatchStatesFilterTheLibrary(t *testing.T) {
 		t.Fatal("watch states listed in a library with no done film")
 	}
 }
+
+// TestSwitcherAndStatusAreCards checks the design's two cards on the sidebar's: the library switcher on a face of the card's color at 60%, darker while its menu is open, and the status line at the foot on one at 55% with 11-point corners, each in both appearances.
+func TestSwitcherAndStatusAreCards(t *testing.T) {
+	a := newFakeApp()
+	var k theme.Colors
+	env := testlocale.Environment(core.Environment{OS: core.OSMacOS, Idiom: core.IdiomDesktop, AppleKeyboard: true})
+	app := nsgotest.Start(t, func(cx *core.Scope) core.Node {
+		a.Attach(cx)
+		theme.Apply(cx)
+		k = theme.Of(cx)
+		return core.View{Style: core.Style{Direction: core.Row, FlexGrow: 1}, Children: []core.Node{View{App: a}}}
+	}, nsgotest.Size(1100, 720), nsgotest.Environment(env))
+	for _, dark := range []bool{false, true} {
+		env.Dark = dark
+		app.SetEnvironment(env)
+		if got, want := app.Find("id:sidebar-switcher").Style.Background, k.Card().Faded(0.6); got != want {
+			t.Errorf("dark %v: switcher face %#x, want the card's at 60%% %#x", dark, uint32(got), uint32(want))
+		}
+		status := app.Find("id:sidebar-status-card")
+		if got, want := status.Style.Background, k.Card().Faded(0.55); got != want || status.Style.CornerRadius != 11 {
+			t.Errorf("dark %v: status card face %#x corners %v, want %#x and 11", dark, uint32(got), status.Style.CornerRadius, uint32(want))
+		}
+	}
+}

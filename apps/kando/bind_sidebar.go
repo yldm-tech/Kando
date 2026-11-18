@@ -8,6 +8,7 @@ import (
 
 	"kando/apps/kando/films"
 	"kando/apps/kando/sidebar"
+	"kando/apps/kando/subscribe"
 
 	"github.com/nsgo-dev/nsgo/core"
 	"github.com/nsgo-dev/nsgo/desktop"
@@ -132,10 +133,10 @@ func (a *app) WatchCounts() sidebar.WatchCounts {
 
 func (a *app) Query() *string { return &a.side.query }
 
-// SetQuery keeps what was typed into the sidebar's search field, and goes to the library page from the browser's, as the films it finds show only there.
+// SetQuery keeps what was typed into the sidebar's search field, and goes to the library page from the browser's or a subscription's, as the films it finds show only there.
 func (a *app) SetQuery(text string) {
 	a.side.query = text
-	if text != "" && a.page == pageBrowse {
+	if text != "" && (a.page == pageBrowse || a.page == pageSubscription) {
 		a.Select(pageFilms)
 	}
 }
@@ -205,7 +206,9 @@ func (a *app) sidebarLibraryChanged() {
 func (a *app) sidebarShown() bool { return !a.filmFillsWindow() }
 
 // sidebarColumn is the sidebar at the window's left. The top row of its card holds the traffic lights and drags the window, so it needs no drag band over it.
-func (a *app) sidebarColumn() core.Node { return sidebar.View{App: a} }
+func (a *app) sidebarColumn() core.Node {
+	return sidebar.View{App: a, Subscriptions: subscribe.List{App: a}}
+}
 
 // contentBand is the height of the drag band over the content, under the title bar: none while the page there draws its own header bar (pageOwnsTitleBar), otherwise the title bar's own, titleBar being its height as desktop.TitleBar reports it. On macOS the traffic lights move down into the sidebar card's top row (trafficLights), which makes the title bar as tall as the room under them is above them, so the content keeps a band only as tall as that row, which still clears the traffic lights when an open film hides the sidebar. Elsewhere the window controls fill the title bar, and the band is the title bar.
 func (a *app) contentBand(titleBar core.Points) core.Points {

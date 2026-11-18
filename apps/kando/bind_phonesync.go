@@ -11,3 +11,7 @@ func (a *app) SetPhoneSync(on bool) { a.phoneSyncSet(on) }
 func (a *app) NewPhoneCode() { a.phoneSyncNewCode() }
 
 func (a *app) RevokePhone(id string) { a.phoneSyncRevoke(id) }
+
+func (a *app) SetPhoneReceive(on bool) { a.phoneSyncSetReceive(on) }
+
+func (a *app) SetPhoneAskFirst(ask bool) { a.phoneSyncSetAsk(ask) }
