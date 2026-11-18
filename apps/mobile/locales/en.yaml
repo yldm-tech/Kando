@@ -1,3 +1,39 @@
+addComputer:
+  message: "Send To"
+  description: "Add sheet: label over the computers to send the link to, when several are paired."
+addLinkLabel:
+  message: "Link to a Video"
+  description: "Add sheet: label of the field for the video's link."
+addLinkPlaceholder:
+  message: "Paste a YouTube, Bilibili or other link"
+  description: "Add sheet: placeholder of the link field."
+addNoLinks:
+  message: "{name} doesn't take links."
+  description: "Add sheet: under the form when the chosen computer answers but does not take links from phones."
+  placeholders:
+    name: { type: "String", example: "Studio" }
+addNotALink:
+  message: "This isn't a link to a video on the web."
+  description: "Add sheet: what is in the field is not a web link."
+addNote:
+  message: "{name} downloads, transcribes and translates it."
+  description: "Add sheet: under the form, what the computer does with the link."
+  placeholders:
+    name: { type: "String", example: "Studio" }
+addNoteOffline:
+  message: "{name} is offline. The link waits on this phone and goes once it's back."
+  description: "Add sheet: under the form while the computer cannot be reached."
+  placeholders:
+    name: { type: "String", example: "Studio" }
+addPaste:
+  message: "Paste"
+  description: "Add sheet: button that puts the clipboard's link in the field."
+addSend:
+  message: "Send"
+  description: "Add sheet: button that sends the link to the computer."
+addTitle:
+  message: "Add Video"
+  description: "Title of the Add sheet, and the spoken name of the + button that opens it."
 appName:
   message: "Kando"
   description: "The app's name in this language, which the home screen and the system show."
@@ -12,14 +48,6 @@ computersCertificate:
   description: "In a computer's section: it answered with another certificate."
   placeholders:
     name: { type: "String", example: "Studio" }
-computersFilmCount:
-  message: "{count, plural, one {# film} other {# films}}"
-  description: "Beside a library's name: how many films it holds."
-  placeholders:
-    count: { type: "int", example: "12" }
-computersNoLibraries:
-  message: "No libraries to show"
-  description: "In a computer's section when it lists no libraries."
 computersOptions:
   message: "{name} Options"
   description: "Spoken name of the … button beside a computer's name, which offers to unpair it."
@@ -49,14 +77,6 @@ computersUnreachable:
   description: "In a computer's section and on a library's page: it does not answer."
   placeholders:
     name: { type: "String", example: "Studio" }
-downloadsTitle:
-  message: "On This Phone"
-  description: "Heading of the Library tab's section of the films downloaded to this phone."
-downloadsUsed:
-  message: "{size} used"
-  description: "Under the downloads: the space they take."
-  placeholders:
-    size: { type: "String", example: "1.2 GB" }
 filmCancel:
   message: "Cancel Download"
   description: "Button on a film's page that stops its download and deletes what was downloaded."
@@ -108,12 +128,113 @@ filmStopped:
 filmUnpaired:
   message: "Pair with the computer again to download."
   description: "Why a download stopped: the computer no longer takes this phone, or answers with another certificate."
+filmsAll:
+  message: "All Films"
+  description: "Heading of the Library's list of every film, from every computer and the phone."
+filmsAllLibraries:
+  message: "All Libraries"
+  description: "In the Library's switcher: the films of every library of every computer."
+filmsContinue:
+  message: "Continue Watching"
+  description: "Heading of the Library's row of films left partway, on this phone or another device."
+filmsCount:
+  message: "{count, plural, one {# film} other {# films}}"
+  description: "Beside the Library's list heading: how many films it shows."
+  placeholders:
+    count: { type: "int", example: "12" }
+filmsDetails:
+  message: "Details"
+  description: "In a film's options: opens the film's page."
+filmsDownloadSize:
+  message: "Download ({size})"
+  description: "In a film's options: downloads it to the phone, with the size of its video."
+  placeholders:
+    size: { type: "String", example: "320.5 MB" }
+filmsEmpty:
+  message: "No films ready yet"
+  description: "The Library's list when the computers have no film done processing."
+filmsHit:
+  message: "{time} · {line}"
+  description: "Under a film a search found by its lines: where the line is in the film, and the line."
+  placeholders:
+    time: { type: "String", example: "1:40" }
+    line: { type: "String", example: "The tide comes in twice a day." }
+filmsLeft:
+  message: "{time} left"
+  description: "Under a film to go on with, left on this phone: how long it still plays."
+  placeholders:
+    time: { type: "String", example: "8:20" }
+filmsLeftHere:
+  message: "Left off on {device}"
+  description: "Badge on the poster of a film to go on with, left on another device, by the device's name."
+  placeholders:
+    device: { type: "String", example: "MacBook Pro" }
+filmsLeftOn:
+  message: "Watched to {time} on {device}"
+  description: "Under a film to go on with, left on another device: where, and on which device."
+  placeholders:
+    device: { type: "String", example: "MacBook Pro" }
+    time: { type: "String", example: "1:40" }
+filmsLibraries:
+  message: "Show Library"
+  description: "Title of the Library's switcher, which picks the library the list shows."
+filmsLibrary:
+  message: "Library: {name}"
+  description: "Spoken name of the Library's switcher, with the library it shows."
+  placeholders:
+    name: { type: "String", example: "Japanese Class" }
+filmsLibraryOn:
+  message: "{library} on {computer}"
+  description: "In the Library's switcher: a library, by its name and its computer's."
+  placeholders:
+    library: { type: "String", example: "Japanese Class" }
+    computer: { type: "String", example: "Studio" }
 filmsNoDesktop:
   message: "No Desktop App Yet?"
   description: "Button on the Library's card that opens the page where the desktop app is downloaded."
+filmsNoResults:
+  message: "Nothing found for “{query}”"
+  description: "The Library's list when a search finds nothing."
+  placeholders:
+    query: { type: "String", example: "tide" }
+filmsNoSource:
+  message: "No films from this source yet"
+  description: "The Library's list when the chosen source has no film."
+filmsOptions:
+  message: "{title} Options"
+  description: "Spoken name of the … button beside a film in the Library."
+  placeholders:
+    title: { type: "String", example: "Morning Talk" }
 filmsPair:
   message: "Connect a Computer"
   description: "Button on the Library's card that opens pairing with a computer."
+filmsPlayFromStart:
+  message: "Play from the Beginning"
+  description: "In a film's options: plays it from its start rather than where it was left."
+filmsResults:
+  message: "Search Results"
+  description: "Heading of the Library's list while a search is typed."
+filmsSearch:
+  message: "Search films and lines"
+  description: "Placeholder and spoken name of the Library's search field, which finds titles and the lines of the films on the phone."
+filmsSource:
+  message: "Source"
+  description: "Spoken name of the Library's chips, which narrow the list to where the films come from."
+filmsSourceAll:
+  message: "All"
+  description: "Library chip: films from every source."
+filmsSourceBilibili:
+  message: "Bilibili"
+  description: "Library chip and a film's source: films from Bilibili."
+filmsSourceLocal:
+  message: "Local Files"
+  description: "Library chip and a film's source: films added from files on the computer."
+filmsSourceWeb:
+  message: "Other Sites"
+  description: "Library chip and a film's source: films from sites other than YouTube and Bilibili."
+filmsSourceYoutube:
+  message: "YouTube"
+  description: "Library chip and a film's source: films from YouTube."
 filmsTitle:
   message: "Library"
   description: "Tab and title of the Library: the films on the phone and the computers' libraries."
@@ -123,20 +244,286 @@ filmsUnpairedBody:
 filmsUnpairedTitle:
   message: "Not connected to a computer yet"
   description: "Title of the Library's card while no computer is paired."
+filmsUsed:
+  message: "Films on this phone use {size}"
+  description: "Under the Library's list: the space the films downloaded to the phone take."
+  placeholders:
+    size: { type: "String", example: "1.2 GB" }
+filmsWatchedTo:
+  message: "Watched to {time}"
+  description: "Under a film: where it was left."
+  placeholders:
+    time: { type: "String", example: "1:40" }
+jobsActionFailed:
+  message: "{name} couldn't do that. Try again."
+  description: "Toast: an action on a job (pause, cancel, retry, update) failed."
+  placeholders:
+    name: { type: "String", example: "Studio" }
+jobsActive:
+  message: "{count, plural, one {Processing # video} other {Processing # videos}}"
+  description: "Jobs page, a computer's card: how many jobs run or wait."
+  placeholders:
+    count: { type: "int", example: "2" }
+jobsActiveFailed:
+  message: "Processing {active}, {failed, plural, one {# needs you} other {# need you}}"
+  description: "Jobs page, a computer's card: how many jobs run or wait, and how many failed."
+  placeholders:
+    active: { type: "int", example: "2" }
+    failed: { type: "int", example: "1" }
+jobsCancel:
+  message: "Cancel Job"
+  description: "Spoken name of a job's × button, which cancels it on the computer."
+jobsCancelConfirm:
+  message: "Cancel Job"
+  description: "Action sheet button that confirms canceling a job."
+jobsCancelTitle:
+  message: "Cancel “{title}” on {name}?"
+  description: "Title of the action sheet that confirms canceling a job."
+  placeholders:
+    title: { type: "String", example: "Morning Talk" }
+    name: { type: "String", example: "Studio" }
+jobsCanceled:
+  message: "Canceled"
+  description: "Where a job stands: it was canceled."
+jobsCanceledTitle:
+  message: "Canceled on {name}"
+  description: "A canceled job's box, over the button that starts it again."
+  placeholders:
+    name: { type: "String", example: "Studio" }
+jobsConnecting:
+  message: "Connecting…"
+  description: "Jobs page, a computer's card: before it answered."
+jobsDone:
+  message: "Done"
+  description: "Where a job stands: done."
+jobsDoneBody:
+  message: "“{title}” is ready."
+  description: "Banner while the app is open: a job finished on the computer."
+  placeholders:
+    title: { type: "String", example: "Morning Talk" }
+jobsDoneTitle:
+  message: "{name} finished a video"
+  description: "Title of the banner when a job finishes on a computer."
+  placeholders:
+    name: { type: "String", example: "Studio" }
+jobsFailAge:
+  message: "This video is age-restricted"
+  description: "Why a job failed."
+jobsFailBadLink:
+  message: "This link isn't a video"
+  description: "Why a job failed."
+jobsFailCookies:
+  message: "The computer can't read the browser's sign-in"
+  description: "Why a job failed."
+jobsFailDRM:
+  message: "This video is copy-protected"
+  description: "Why a job failed."
+jobsFailHidden:
+  message: "The site shows this video only after you sign in"
+  description: "Why a job failed."
+jobsFailHost:
+  message: "The site can't be reached"
+  description: "Why a job failed."
+jobsFailLogin:
+  message: "The site asks you to sign in"
+  description: "Why a job failed."
+jobsFailLoginExpired:
+  message: "The sign-in on the computer has expired"
+  description: "Why a job failed."
+jobsFailMembers:
+  message: "This video is for members only"
+  description: "Why a job failed."
+jobsFailNetwork:
+  message: "The network dropped"
+  description: "Why a job failed."
+jobsFailNoSpeech:
+  message: "No speech was heard in this video"
+  description: "Why a job failed."
+jobsFailOther:
+  message: "Processing failed"
+  description: "Why a job failed, when the phone does not know the reason."
+jobsFailOutdated:
+  message: "The computer's downloader needs an update"
+  description: "Why a job failed."
+jobsFailPrivate:
+  message: "This video is private"
+  description: "Why a job failed."
+jobsFailRateLimited:
+  message: "The site is limiting downloads for now"
+  description: "Why a job failed."
+jobsFailRegion:
+  message: "This video isn't available where the computer is"
+  description: "Why a job failed."
+jobsFailSetup:
+  message: "Kando on the computer needs setting up"
+  description: "Why a job failed."
+jobsFailTranslation:
+  message: "The translation failed"
+  description: "Why a job failed."
+jobsFailUnsupported:
+  message: "Kando can't download from this site"
+  description: "Why a job failed."
+jobsFailed:
+  message: "Failed"
+  description: "Where a job or a step stands: it failed."
+jobsFailedCount:
+  message: "{count, plural, one {# job needs you} other {# jobs need you}}"
+  description: "Jobs page, a computer's card: how many jobs failed while none runs."
+  placeholders:
+    count: { type: "int", example: "1" }
+jobsFilmGone:
+  message: "This film is no longer on {name}, or its library is locked."
+  description: "Toast: a done job's Open found no film on the computer: it was removed, or its library is locked."
+  placeholders:
+    name: { type: "String", example: "Studio" }
+jobsFixedRetry:
+  message: "Fixed It, Try Again"
+  description: "Button of a job that failed for something fixed on the computer."
+jobsForget:
+  message: "Remove"
+  description: "Spoken name of the × of a link not taken yet, which drops it from the phone."
+jobsFrom:
+  message: "{status} · from {device}"
+  description: "Line under a job's title: where it stands, and the phone that sent it."
+  placeholders:
+    status: { type: "String", example: "Waiting" }
+    device: { type: "String", example: "iPhone" }
+jobsIdle:
+  message: "Nothing in the queue"
+  description: "Jobs page, a computer's card: no job runs or waits."
+jobsKeep:
+  message: "Keep Job"
+  description: "Action sheet button that keeps a job rather than cancel it."
+jobsLinksOff:
+  message: "{name} doesn't take links from phones. Turn on Receive Links from Phones in its Settings › Phone Sync."
+  description: "Why a link was refused: the computer's setting is off."
+  placeholders:
+    name: { type: "String", example: "Studio" }
+jobsNotAVideo:
+  message: "The computer couldn't read this link as a video."
+  description: "Why a link was refused: not a video link."
+jobsNotReady:
+  message: "{name} can't start it now: {message}"
+  description: "Why a link was refused: the computer cannot start a job now, in its own words."
+  placeholders:
+    name: { type: "String", example: "Studio" }
+    message: { type: "String", example: "Open a library first." }
+jobsOffline:
+  message: "Offline"
+  description: "Jobs page, a computer's card: it cannot be reached."
+jobsOfflineSummary:
+  message: "Offline. Links you send wait on this phone and go once it's back."
+  description: "Jobs page, a computer's card while it cannot be reached."
+jobsOlder:
+  message: "Kando on this computer is too old to take links. Update it."
+  description: "Jobs page: the computer speaks an older protocol."
+jobsOnline:
+  message: "Online"
+  description: "Jobs page, a computer's card: it answers."
+jobsOpen:
+  message: "Open"
+  description: "Button of a done job, and of the banner: opens the film's page."
+jobsPause:
+  message: "Pause"
+  description: "Spoken name of a job's pause button."
+jobsPaused:
+  message: "Paused"
+  description: "Where a job stands: paused."
+jobsPercent:
+  message: "{percent}%"
+  description: "A step's progress."
+  placeholders:
+    percent: { type: "int", example: "42" }
+jobsRefused:
+  message: "{name} didn't take it: {message}"
+  description: "Why a link was refused, in the computer's own words."
+  placeholders:
+    name: { type: "String", example: "Studio" }
+    message: { type: "String", example: "No job options" }
+jobsRemedyDesktop:
+  message: "Fix it in Kando on {name}, then try again."
+  description: "What to do about a failure fixed on the computer."
+  placeholders:
+    name: { type: "String", example: "Studio" }
+jobsRemedyRetry:
+  message: "This may pass by itself. Try again in a moment."
+  description: "What to do about a failure that may go away."
+jobsRemedySetup:
+  message: "In Kando on {name}: {message}. Then try again."
+  description: "What to do about a failure that needs a setting on the computer, in the computer's own words."
+  placeholders:
+    name: { type: "String", example: "Studio" }
+    message: { type: "String", example: "Choose a speech model" }
+jobsRemedyUpdate:
+  message: "Have {name} update its downloader; the download then starts again."
+  description: "What to do about a downloader too old for the site."
+  placeholders:
+    name: { type: "String", example: "Studio" }
+jobsResume:
+  message: "Resume"
+  description: "Spoken name of a paused job's resume button."
+jobsRunning:
+  message: "Processing"
+  description: "Where a job stands: running, before a step says how far."
+jobsSent:
+  message: "Sent to {name}"
+  description: "Toast: the computer queued the link."
+  placeholders:
+    name: { type: "String", example: "Studio" }
+jobsSentExisting:
+  message: "{name} has this video in its queue already"
+  description: "Toast: the computer had a job for the link already."
+  placeholders:
+    name: { type: "String", example: "Studio" }
+jobsSentPending:
+  message: "Sent. Start it in Kando on {name}."
+  description: "Toast: the computer asks its user before it starts links from phones."
+  placeholders:
+    name: { type: "String", example: "Studio" }
+jobsStepDone:
+  message: "Done"
+  description: "A step's state: done."
+jobsStepDownload:
+  message: "Download"
+  description: "Name of a job's first step."
+jobsStepPercent:
+  message: "{step} {percent}%"
+  description: "Where a running job stands: its step and how far it has gone."
+  placeholders:
+    step: { type: "String", example: "Download" }
+    percent: { type: "int", example: "42" }
+jobsStepSkipped:
+  message: "Skipped"
+  description: "A step's state: the job does not need it."
+jobsStepTranscribe:
+  message: "Transcribe"
+  description: "Name of a job's second step: speech recognition."
+jobsStepTranslate:
+  message: "Translate"
+  description: "Name of a job's third step."
+jobsTitle:
+  message: "Jobs"
+  description: "Title of the Jobs page, the computers' queues; the Library's button and the tablet's section that open it."
+jobsUnpaired:
+  message: "Pair a computer to send it links"
+  description: "Jobs page while no computer is paired."
+jobsUpdateRetry:
+  message: "Update and Try Again"
+  description: "Button of a job that failed for a downloader too old for the site."
+jobsWaiting:
+  message: "Waiting"
+  description: "Where a job or a step stands: waiting for its turn."
+jobsWaitingFor:
+  message: "Waiting for {name}"
+  description: "Where a link or a job stands while its computer cannot be reached."
+  placeholders:
+    name: { type: "String", example: "Studio" }
 learnEmpty:
   message: "Words and lines you save will show here"
   description: "Learn tab while nothing is saved."
 learnTitle:
   message: "Learn"
   description: "Tab and title of Learn: the saved words and lines and their review."
-libraryEmpty:
-  message: "No films ready yet"
-  description: "A library's page when it has no film done processing."
-libraryGone:
-  message: "This library is no longer on {name}, or it is locked."
-  description: "A library's page when the computer no longer serves it: it was removed or locked."
-  placeholders:
-    name: { type: "String", example: "Studio" }
 onboardingContinue:
   message: "Continue"
   description: "Button that goes to the introduction's next step."

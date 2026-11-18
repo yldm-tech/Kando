@@ -910,6 +910,37 @@ var Parameters = map[string][]string{
 	"VocabWeekMore":                            {"time_"},
 	"VocabWordCount":                           {"count"},
 	"VocabWordsDue":                            {"count"},
+	"PhoneSyncPaused":                          {"device", "title"},
+	"FilmsQueuePausedOn":                       {"device"},
+	"SettingsPhoneReadOnlyFailed":              {"error_"},
+	"SettingsPhoneDeviceOnline":                {"platform"},
+	"SettingsPhoneReadOnlyLabel":               {"name"},
+	"SettingsPhoneRevokeTitle":                 {"name"},
+	"SettingsPhoneSyncedCounts":                {"words", "lines", "films"},
+	"SettingsPhoneResolveFailed":               {"error_"},
+	"SettingsPhoneConflictWord":                {"word"},
+	"SettingsPhoneConflictFilm":                {"title"},
+	"SettingsPhoneConflictUseLabel":            {"device"},
+	"SettingsPhoneDidLink":                     {"title"},
+	"SettingsPhoneDidPause":                    {"title"},
+	"SettingsPhoneDidResume":                   {"title"},
+	"SettingsPhoneDidCancel":                   {"title"},
+	"SettingsPhoneDidRetry":                    {"title"},
+	"SettingsPhoneDidWatch":                    {"title", "time_"},
+	"SettingsPhoneDidLines":                    {"count"},
+	"SettingsPhoneDidWords":                    {"count"},
+	"SettingsPhoneDidEdits":                    {"title", "count"},
+	"SettingsPhoneDidResolve":                  {"count"},
+	"SettingsPhoneDidRevoke":                   {"title"},
+	"SettingsPhoneDidReadOnly":                 {"title"},
+	"SettingsPhoneDidReadWrite":                {"title"},
+	"PhoneSyncAgoMinutes":                      {"count"},
+	"PhoneSyncAgoHours":                        {"count"},
+	"PhoneSyncAgoDays":                         {"count"},
+	"FilmsHandoff":                             {"device", "title", "time_"},
+	"FilmsHandoffWhen":                         {"when"},
+	"FilmsHandoffResume":                       {"time_"},
+	"FilmsHeroKickerContinueOn":                {"device"},
 }
 
 // Translation is a language's messages another package supplies:
@@ -1367,6 +1398,37 @@ type Translation struct {
 	VocabWeekMore                            func(time_ string) string
 	VocabWordCount                           func(count int) string
 	VocabWordsDue                            func(count int) string
+	PhoneSyncPaused                          func(device string, title string) string
+	FilmsQueuePausedOn                       func(device string) string
+	SettingsPhoneReadOnlyFailed              func(error_ string) string
+	SettingsPhoneDeviceOnline                func(platform string) string
+	SettingsPhoneReadOnlyLabel               func(name string) string
+	SettingsPhoneRevokeTitle                 func(name string) string
+	SettingsPhoneSyncedCounts                func(words int, lines int, films int) string
+	SettingsPhoneResolveFailed               func(error_ string) string
+	SettingsPhoneConflictWord                func(word string) string
+	SettingsPhoneConflictFilm                func(title string) string
+	SettingsPhoneConflictUseLabel            func(device string) string
+	SettingsPhoneDidLink                     func(title string) string
+	SettingsPhoneDidPause                    func(title string) string
+	SettingsPhoneDidResume                   func(title string) string
+	SettingsPhoneDidCancel                   func(title string) string
+	SettingsPhoneDidRetry                    func(title string) string
+	SettingsPhoneDidWatch                    func(title string, time_ string) string
+	SettingsPhoneDidLines                    func(count int) string
+	SettingsPhoneDidWords                    func(count int) string
+	SettingsPhoneDidEdits                    func(title string, count int) string
+	SettingsPhoneDidResolve                  func(count int) string
+	SettingsPhoneDidRevoke                   func(title string) string
+	SettingsPhoneDidReadOnly                 func(title string) string
+	SettingsPhoneDidReadWrite                func(title string) string
+	PhoneSyncAgoMinutes                      func(count int) string
+	PhoneSyncAgoHours                        func(count int) string
+	PhoneSyncAgoDays                         func(count int) string
+	FilmsHandoff                             func(device string, title string, time_ string) string
+	FilmsHandoffWhen                         func(when string) string
+	FilmsHandoffResume                       func(time_ string) string
+	FilmsHeroKickerContinueOn                func(device string) string
 }
 
 var supplied = map[string]Translation{}
@@ -2698,6 +2760,31 @@ const (
 	textVocabWithTranslation
 	textVocabWords
 	textWindowMenuMain
+	textFilmsQueueContinueHere
+	textSettingsPhoneReadOnly
+	textSettingsPhoneRevokeKey
+	textSettingsPhoneRevokeJobs
+	textSettingsPhoneRevokeOffline
+	textSettingsPhoneRevokePairAgain
+	textSettingsPhoneRevokeConfirm
+	textSettingsPhoneRevokeCancel
+	textSettingsPhoneLearning
+	textSettingsPhoneSynced
+	textSettingsPhoneConflicts
+	textSettingsPhoneNoConflicts
+	textSettingsPhoneConflictsNote
+	textSettingsPhoneThisComputer
+	textSettingsPhoneConflictUse
+	textSettingsPhoneConflictBoth
+	textSettingsPhoneConflictOriginal
+	textSettingsPhoneConflictTranslation
+	textSettingsPhoneConflictMeaning
+	textSettingsPhoneConflictNote
+	textSettingsPhoneActivity
+	textSettingsPhoneNoActivity
+	textSettingsPhoneDidUpdateYTDLP
+	textSettingsPhoneDidPair
+	textPhoneSyncAgoNow
 	numTexts
 )
 
@@ -4029,6 +4116,31 @@ var keyOfText = [numTexts]string{
 	"vocabWithTranslation",
 	"vocabWords",
 	"windowMenuMain",
+	"filmsQueueContinueHere",
+	"settingsPhoneReadOnly",
+	"settingsPhoneRevokeKey",
+	"settingsPhoneRevokeJobs",
+	"settingsPhoneRevokeOffline",
+	"settingsPhoneRevokePairAgain",
+	"settingsPhoneRevokeConfirm",
+	"settingsPhoneRevokeCancel",
+	"settingsPhoneLearning",
+	"settingsPhoneSynced",
+	"settingsPhoneConflicts",
+	"settingsPhoneNoConflicts",
+	"settingsPhoneConflictsNote",
+	"settingsPhoneThisComputer",
+	"settingsPhoneConflictUse",
+	"settingsPhoneConflictBoth",
+	"settingsPhoneConflictOriginal",
+	"settingsPhoneConflictTranslation",
+	"settingsPhoneConflictMeaning",
+	"settingsPhoneConflictNote",
+	"settingsPhoneActivity",
+	"settingsPhoneNoActivity",
+	"settingsPhoneDidUpdateYTDLP",
+	"settingsPhoneDidPair",
+	"phoneSyncAgoNow",
 }
 
 // textsEn are the messages without arguments in en.
@@ -5357,7 +5469,32 @@ var textsEn = i18n.NewTexts(""+
 	"Include the sentence"+
 	"Include the sentence's translation"+
 	"Vocabulary"+
-	"Main Window",
+	"Main Window"+
+	"Continue on This Computer"+
+	"Read-only"+
+	"Its pairing key stops working at once: it can no longer reach this computer."+
+	"Links it already sent stay in the queue and are processed as usual."+
+	"Films and learning records saved on the phone stay there; they can't be deleted from here."+
+	"To use it again, pair it with a new code."+
+	"Revoke This Phone"+
+	"Cancel"+
+	"Learning Records"+
+	"Synced"+
+	"Sync Conflicts"+
+	"No conflicts. When two devices change the same thing, you choose here."+
+	"Words, saved lines and where you left off merge by themselves; only the same translation or note changed on two devices needs you to choose."+
+	"This Computer"+
+	"Use This"+
+	"Keep Both"+
+	"Original"+
+	"Translation"+
+	"Meaning"+
+	"Note"+
+	"Recent Activity from Phones"+
+	"Nothing yet since Kando opened."+
+	"Updated yt-dlp"+
+	"Paired"+
+	"Just now",
 	[]uint16{
 		5,
 		19,
@@ -6684,6 +6821,31 @@ var textsEn = i18n.NewTexts(""+
 		34,
 		10,
 		11,
+		25,
+		9,
+		76,
+		67,
+		90,
+		41,
+		17,
+		6,
+		16,
+		6,
+		14,
+		70,
+		140,
+		13,
+		8,
+		9,
+		8,
+		11,
+		7,
+		4,
+		27,
+		31,
+		14,
+		6,
+		8,
 	})
 
 // textsJa are the messages without arguments in ja.
@@ -8012,7 +8174,32 @@ var textsJa = i18n.NewTexts(""+
 	"例文を含める"+
 	"例文の訳を含める"+
 	"単語"+
-	"メインウインドウ",
+	"メインウインドウ"+
+	"このコンピュータで続ける"+
+	"読み取り専用"+
+	"ペアリングキーはすぐに無効になり、このコンピュータに接続できなくなります。"+
+	"送信済みのリンクはキューに残り、通常どおり処理されます。"+
+	"スマートフォンにオフライン保存した作品と学習記録は残り、ここからは削除できません。"+
+	"再び使うには、新しいコードでペアリングし直してください。"+
+	"このデバイスを取り消す"+
+	"キャンセル"+
+	"学習記録"+
+	"同期済み"+
+	"同期の競合"+
+	"競合はありません。2 台で同じ箇所を変更したときは、ここで選べます。"+
+	"単語・保存した文・視聴位置は自動で統合されます。2 台で同じ訳文やメモを変更したときだけ、選んでください。"+
+	"このコンピュータ"+
+	"これを使う"+
+	"両方残す"+
+	"原文"+
+	"訳文"+
+	"意味"+
+	"メモ"+
+	"スマートフォンからの最近の操作"+
+	"Kando を開いてから、まだ操作はありません。"+
+	"yt-dlp を更新"+
+	"ペアリングしました"+
+	"たった今",
 	[]uint16{
 		5,
 		30,
@@ -9339,6 +9526,31 @@ var textsJa = i18n.NewTexts(""+
 		24,
 		6,
 		24,
+		36,
+		18,
+		111,
+		84,
+		123,
+		84,
+		33,
+		15,
+		12,
+		12,
+		15,
+		98,
+		155,
+		24,
+		15,
+		12,
+		6,
+		6,
+		6,
+		6,
+		45,
+		60,
+		16,
+		27,
+		12,
 	})
 
 // textsKo are the messages without arguments in ko.
@@ -10667,7 +10879,32 @@ var textsKo = i18n.NewTexts(""+
 	"예문 포함"+
 	"예문 번역 포함"+
 	"단어"+
-	"메인 윈도우",
+	"메인 윈도우"+
+	"이 컴퓨터에서 계속"+
+	"읽기 전용"+
+	"페어링 키가 즉시 무효가 되어 더 이상 이 컴퓨터에 연결할 수 없습니다."+
+	"이미 보낸 링크는 대기열에 남아 평소처럼 처리됩니다."+
+	"휴대폰에 오프라인으로 저장한 영상과 학습 기록은 남으며, 여기서 지울 수 없습니다."+
+	"다시 쓰려면 새 코드로 다시 페어링해야 합니다."+
+	"이 기기 해제"+
+	"취소"+
+	"학습 기록"+
+	"동기화됨"+
+	"동기화 충돌"+
+	"충돌이 없습니다. 두 기기에서 같은 곳을 바꾸면 여기서 고를 수 있습니다."+
+	"단어, 저장한 문장, 본 위치는 자동으로 합쳐집니다. 두 기기에서 같은 번역이나 메모를 바꿨을 때만 고르면 됩니다."+
+	"이 컴퓨터"+
+	"이것 사용"+
+	"둘 다 유지"+
+	"원문"+
+	"번역"+
+	"뜻"+
+	"메모"+
+	"휴대폰의 최근 활동"+
+	"Kando를 연 뒤로 아직 활동이 없습니다."+
+	"yt-dlp 업데이트"+
+	"페어링함"+
+	"방금",
 	[]uint16{
 		5,
 		28,
@@ -11994,6 +12231,31 @@ var textsKo = i18n.NewTexts(""+
 		20,
 		6,
 		16,
+		26,
+		13,
+		96,
+		73,
+		114,
+		64,
+		17,
+		6,
+		13,
+		12,
+		16,
+		99,
+		154,
+		13,
+		13,
+		14,
+		6,
+		6,
+		3,
+		6,
+		26,
+		50,
+		19,
+		12,
+		6,
 	})
 
 // textsZhHans are the messages without arguments in zh-Hans.
@@ -13322,7 +13584,32 @@ var textsZhHans = i18n.NewTexts(""+
 	"带上原句"+
 	"带上原句的译文"+
 	"生词"+
-	"主窗口",
+	"主窗口"+
+	"在这台电脑上继续"+
+	"只读"+
+	"它的配对密钥马上失效，再也连不上这台电脑。"+
+	"它已经发来的链接留在队列里，照常处理。"+
+	"手机上已经离线保存的影片和学习记录留在手机上，没法从这里删除。"+
+	"以后要再用，得用新的配对码重新配对。"+
+	"撤销这台设备"+
+	"取消"+
+	"学习记录"+
+	"已同步"+
+	"同步冲突"+
+	"没有冲突。两边改了同一处时会在这里让你选。"+
+	"生词、收藏和看到哪儿会自动合并；只有两台设备改了同一句译文或同一条笔记，才需要你来选。"+
+	"这台电脑"+
+	"用这个"+
+	"两条都留"+
+	"原文"+
+	"译文"+
+	"释义"+
+	"笔记"+
+	"最近来自手机的操作"+
+	"看懂打开以来，手机还没有做过操作。"+
+	"更新了 yt-dlp"+
+	"完成配对"+
+	"刚刚",
 	[]uint16{
 		6,
 		15,
@@ -14649,6 +14936,31 @@ var textsZhHans = i18n.NewTexts(""+
 		21,
 		6,
 		9,
+		24,
+		6,
+		63,
+		57,
+		93,
+		54,
+		18,
+		6,
+		12,
+		9,
+		12,
+		63,
+		129,
+		12,
+		9,
+		12,
+		6,
+		6,
+		6,
+		6,
+		27,
+		51,
+		16,
+		12,
+		6,
 	})
 
 // textsZhHant are the messages without arguments in zh-Hant.
@@ -15977,7 +16289,32 @@ var textsZhHant = i18n.NewTexts(""+
 	"帶上原句"+
 	"帶上原句的譯文"+
 	"生詞"+
-	"主視窗",
+	"主視窗"+
+	"在這台電腦上繼續"+
+	"唯讀"+
+	"它的配對金鑰馬上失效，再也連不上這台電腦。"+
+	"它已經傳來的連結留在佇列裡，照常處理。"+
+	"手機上已經離線儲存的影片和學習紀錄留在手機上，沒法從這裡刪除。"+
+	"以後要再用，得用新的配對碼重新配對。"+
+	"撤銷這台裝置"+
+	"取消"+
+	"學習紀錄"+
+	"已同步"+
+	"同步衝突"+
+	"沒有衝突。兩邊改了同一處時會在這裡讓你選。"+
+	"生字、收藏和看到哪裡會自動合併；只有兩台裝置改了同一句譯文或同一條筆記，才需要你來選。"+
+	"這台電腦"+
+	"用這個"+
+	"兩條都留"+
+	"原文"+
+	"譯文"+
+	"釋義"+
+	"筆記"+
+	"最近來自手機的操作"+
+	"看懂開啟以來，手機還沒有做過操作。"+
+	"更新了 yt-dlp"+
+	"完成配對"+
+	"剛剛",
 	[]uint16{
 		6,
 		15,
@@ -17304,6 +17641,31 @@ var textsZhHant = i18n.NewTexts(""+
 		21,
 		6,
 		9,
+		24,
+		6,
+		63,
+		57,
+		93,
+		54,
+		18,
+		6,
+		12,
+		9,
+		12,
+		63,
+		129,
+		12,
+		9,
+		12,
+		6,
+		6,
+		6,
+		6,
+		27,
+		51,
+		16,
+		12,
+		6,
 	})
 
 // texts returns the messages without arguments in lang, nil for a
@@ -18712,6 +19074,99 @@ func Supply(lang string, t Translation) {
 	}
 	if t.VocabWordsDue != nil {
 		s.VocabWordsDue = t.VocabWordsDue
+	}
+	if t.PhoneSyncPaused != nil {
+		s.PhoneSyncPaused = t.PhoneSyncPaused
+	}
+	if t.FilmsQueuePausedOn != nil {
+		s.FilmsQueuePausedOn = t.FilmsQueuePausedOn
+	}
+	if t.SettingsPhoneReadOnlyFailed != nil {
+		s.SettingsPhoneReadOnlyFailed = t.SettingsPhoneReadOnlyFailed
+	}
+	if t.SettingsPhoneDeviceOnline != nil {
+		s.SettingsPhoneDeviceOnline = t.SettingsPhoneDeviceOnline
+	}
+	if t.SettingsPhoneReadOnlyLabel != nil {
+		s.SettingsPhoneReadOnlyLabel = t.SettingsPhoneReadOnlyLabel
+	}
+	if t.SettingsPhoneRevokeTitle != nil {
+		s.SettingsPhoneRevokeTitle = t.SettingsPhoneRevokeTitle
+	}
+	if t.SettingsPhoneSyncedCounts != nil {
+		s.SettingsPhoneSyncedCounts = t.SettingsPhoneSyncedCounts
+	}
+	if t.SettingsPhoneResolveFailed != nil {
+		s.SettingsPhoneResolveFailed = t.SettingsPhoneResolveFailed
+	}
+	if t.SettingsPhoneConflictWord != nil {
+		s.SettingsPhoneConflictWord = t.SettingsPhoneConflictWord
+	}
+	if t.SettingsPhoneConflictFilm != nil {
+		s.SettingsPhoneConflictFilm = t.SettingsPhoneConflictFilm
+	}
+	if t.SettingsPhoneConflictUseLabel != nil {
+		s.SettingsPhoneConflictUseLabel = t.SettingsPhoneConflictUseLabel
+	}
+	if t.SettingsPhoneDidLink != nil {
+		s.SettingsPhoneDidLink = t.SettingsPhoneDidLink
+	}
+	if t.SettingsPhoneDidPause != nil {
+		s.SettingsPhoneDidPause = t.SettingsPhoneDidPause
+	}
+	if t.SettingsPhoneDidResume != nil {
+		s.SettingsPhoneDidResume = t.SettingsPhoneDidResume
+	}
+	if t.SettingsPhoneDidCancel != nil {
+		s.SettingsPhoneDidCancel = t.SettingsPhoneDidCancel
+	}
+	if t.SettingsPhoneDidRetry != nil {
+		s.SettingsPhoneDidRetry = t.SettingsPhoneDidRetry
+	}
+	if t.SettingsPhoneDidWatch != nil {
+		s.SettingsPhoneDidWatch = t.SettingsPhoneDidWatch
+	}
+	if t.SettingsPhoneDidLines != nil {
+		s.SettingsPhoneDidLines = t.SettingsPhoneDidLines
+	}
+	if t.SettingsPhoneDidWords != nil {
+		s.SettingsPhoneDidWords = t.SettingsPhoneDidWords
+	}
+	if t.SettingsPhoneDidEdits != nil {
+		s.SettingsPhoneDidEdits = t.SettingsPhoneDidEdits
+	}
+	if t.SettingsPhoneDidResolve != nil {
+		s.SettingsPhoneDidResolve = t.SettingsPhoneDidResolve
+	}
+	if t.SettingsPhoneDidRevoke != nil {
+		s.SettingsPhoneDidRevoke = t.SettingsPhoneDidRevoke
+	}
+	if t.SettingsPhoneDidReadOnly != nil {
+		s.SettingsPhoneDidReadOnly = t.SettingsPhoneDidReadOnly
+	}
+	if t.SettingsPhoneDidReadWrite != nil {
+		s.SettingsPhoneDidReadWrite = t.SettingsPhoneDidReadWrite
+	}
+	if t.PhoneSyncAgoMinutes != nil {
+		s.PhoneSyncAgoMinutes = t.PhoneSyncAgoMinutes
+	}
+	if t.PhoneSyncAgoHours != nil {
+		s.PhoneSyncAgoHours = t.PhoneSyncAgoHours
+	}
+	if t.PhoneSyncAgoDays != nil {
+		s.PhoneSyncAgoDays = t.PhoneSyncAgoDays
+	}
+	if t.FilmsHandoff != nil {
+		s.FilmsHandoff = t.FilmsHandoff
+	}
+	if t.FilmsHandoffWhen != nil {
+		s.FilmsHandoffWhen = t.FilmsHandoffWhen
+	}
+	if t.FilmsHandoffResume != nil {
+		s.FilmsHandoffResume = t.FilmsHandoffResume
+	}
+	if t.FilmsHeroKickerContinueOn != nil {
+		s.FilmsHeroKickerContinueOn = t.FilmsHeroKickerContinueOn
 	}
 	supplied[lang] = s
 	Catalog.Add(lang)
@@ -47238,6 +47693,1401 @@ func WindowMenuMain(cx *core.Scope) string { return For(cx).WindowMenuMain() }
 
 // WindowMenuMain is the package's WindowMenuMain in the language of msgs.
 func (msgs Messages) WindowMenuMain() string { return msgs.text(textWindowMenuMain) }
+
+// PhoneSyncPaused says "{device} paused “{title}”."
+// in the language the app shows under cx.
+//
+// Library message bar when a paired phone paused a job where it was; the job waits until it is continued on the phone or on this computer.
+func PhoneSyncPaused(cx *core.Scope, device string, title string) string {
+	return For(cx).PhoneSyncPaused(device, title)
+}
+
+// PhoneSyncPaused is the package's PhoneSyncPaused in the language of msgs.
+func (msgs Messages) PhoneSyncPaused(device string, title string) string {
+	if i18n.IsPseudo(msgs.lang) {
+		return i18n.Pseudo(msgs.lang, Messages{lang: Source, mark: true}.PhoneSyncPaused(device, title))
+	}
+	for lang := msgs.lang; ; lang = i18n.Parent(lang) {
+		if f := supplied[lang].PhoneSyncPaused; f != nil {
+			return f(device, title)
+		}
+		switch lang {
+		case "", "en":
+			return msgs.arg(device) + " paused “" + msgs.arg(title) + "”."
+		case "ja":
+			return device + " が「" + title + "」を一時停止しました。"
+		case "ko":
+			return device + "에서 ‘" + title + "’을(를) 일시 정지했습니다."
+		case "zh-Hans":
+			return device + " 暂停了「" + title + "」。"
+		case "zh-Hant":
+			return device + " 暫停了「" + title + "」。"
+		}
+	}
+}
+
+// FilmsQueuePausedOn says "Paused on {device}"
+// in the language the app shows under cx.
+//
+// Line under a waiting job's title when a paired phone paused it; it does not start until it is continued.
+func FilmsQueuePausedOn(cx *core.Scope, device string) string {
+	return For(cx).FilmsQueuePausedOn(device)
+}
+
+// FilmsQueuePausedOn is the package's FilmsQueuePausedOn in the language of msgs.
+func (msgs Messages) FilmsQueuePausedOn(device string) string {
+	if i18n.IsPseudo(msgs.lang) {
+		return i18n.Pseudo(msgs.lang, Messages{lang: Source, mark: true}.FilmsQueuePausedOn(device))
+	}
+	for lang := msgs.lang; ; lang = i18n.Parent(lang) {
+		if f := supplied[lang].FilmsQueuePausedOn; f != nil {
+			return f(device)
+		}
+		switch lang {
+		case "", "en":
+			return "Paused on " + msgs.arg(device)
+		case "ja":
+			return device + " で一時停止中"
+		case "ko":
+			return device + "에서 일시 정지됨"
+		case "zh-Hans":
+			return "在 " + device + " 上暂停了"
+		case "zh-Hant":
+			return "在 " + device + " 上暫停了"
+		}
+	}
+}
+
+// FilmsQueueContinueHere says "Continue on This Computer"
+// in the language the app shows under cx.
+//
+// Button on a processing card that a paired phone paused: lets the job wait for its turn again on this computer.
+func FilmsQueueContinueHere(cx *core.Scope) string { return For(cx).FilmsQueueContinueHere() }
+
+// FilmsQueueContinueHere is the package's FilmsQueueContinueHere in the language of msgs.
+func (msgs Messages) FilmsQueueContinueHere() string { return msgs.text(textFilmsQueueContinueHere) }
+
+// SettingsPhoneReadOnlyFailed says "Couldn't change what the phone may do: {error}"
+// in the language the app shows under cx.
+//
+// Settings › Phone Sync, under the paired phones, when the read-only switch of a phone could not be saved.
+func SettingsPhoneReadOnlyFailed(cx *core.Scope, error_ string) string {
+	return For(cx).SettingsPhoneReadOnlyFailed(error_)
+}
+
+// SettingsPhoneReadOnlyFailed is the package's SettingsPhoneReadOnlyFailed in the language of msgs.
+func (msgs Messages) SettingsPhoneReadOnlyFailed(error_ string) string {
+	if i18n.IsPseudo(msgs.lang) {
+		return i18n.Pseudo(msgs.lang, Messages{lang: Source, mark: true}.SettingsPhoneReadOnlyFailed(error_))
+	}
+	for lang := msgs.lang; ; lang = i18n.Parent(lang) {
+		if f := supplied[lang].SettingsPhoneReadOnlyFailed; f != nil {
+			return f(error_)
+		}
+		switch lang {
+		case "", "en":
+			return "Couldn't change what the phone may do: " + msgs.arg(error_)
+		case "ja":
+			return "このスマートフォンの権限を変更できませんでした：" + error_
+		case "ko":
+			return "이 휴대폰의 권한을 바꿀 수 없습니다: " + error_
+		case "zh-Hans":
+			return "无法更改这台手机的权限：" + error_
+		case "zh-Hant":
+			return "無法更改這台手機的權限：" + error_
+		}
+	}
+}
+
+// SettingsPhoneDeviceOnline says "{platform, select, ios {iPhone} android {Android} other {Phone}} · Online"
+// in the language the app shows under cx.
+//
+// Under a paired phone's name while it connected within the last few minutes. {platform} is ios, android or empty.
+func SettingsPhoneDeviceOnline(cx *core.Scope, platform string) string {
+	return For(cx).SettingsPhoneDeviceOnline(platform)
+}
+
+// SettingsPhoneDeviceOnline is the package's SettingsPhoneDeviceOnline in the language of msgs.
+func (msgs Messages) SettingsPhoneDeviceOnline(platform string) string {
+	if i18n.IsPseudo(msgs.lang) {
+		return i18n.Pseudo(msgs.lang, Messages{lang: Source, mark: true}.SettingsPhoneDeviceOnline(platform))
+	}
+	for lang := msgs.lang; ; lang = i18n.Parent(lang) {
+		if f := supplied[lang].SettingsPhoneDeviceOnline; f != nil {
+			return f(platform)
+		}
+		switch lang {
+		case "", "en":
+			var b strings.Builder
+			switch platform {
+			case "ios":
+				b.WriteString("iPhone")
+			case "android":
+				b.WriteString("Android")
+			default:
+				b.WriteString("Phone")
+			}
+			b.WriteString(" · Online")
+			return b.String()
+		case "ja":
+			var b strings.Builder
+			switch platform {
+			case "ios":
+				b.WriteString("iPhone")
+			case "android":
+				b.WriteString("Android")
+			default:
+				b.WriteString("スマートフォン")
+			}
+			b.WriteString(" · オンライン")
+			return b.String()
+		case "ko":
+			var b strings.Builder
+			switch platform {
+			case "ios":
+				b.WriteString("iPhone")
+			case "android":
+				b.WriteString("Android")
+			default:
+				b.WriteString("휴대폰")
+			}
+			b.WriteString(" · 온라인")
+			return b.String()
+		case "zh-Hans":
+			var b strings.Builder
+			switch platform {
+			case "ios":
+				b.WriteString("iPhone")
+			case "android":
+				b.WriteString("Android")
+			default:
+				b.WriteString("手机")
+			}
+			b.WriteString(" · 在线")
+			return b.String()
+		case "zh-Hant":
+			var b strings.Builder
+			switch platform {
+			case "ios":
+				b.WriteString("iPhone")
+			case "android":
+				b.WriteString("Android")
+			default:
+				b.WriteString("手機")
+			}
+			b.WriteString(" · 線上")
+			return b.String()
+		}
+	}
+}
+
+// SettingsPhoneReadOnly says "Read-only"
+// in the language the app shows under cx.
+//
+// Label beside the switch on a paired phone's row: when on, the phone can watch and read but changes nothing on this computer (no links, job actions, or learning-state edits).
+func SettingsPhoneReadOnly(cx *core.Scope) string { return For(cx).SettingsPhoneReadOnly() }
+
+// SettingsPhoneReadOnly is the package's SettingsPhoneReadOnly in the language of msgs.
+func (msgs Messages) SettingsPhoneReadOnly() string { return msgs.text(textSettingsPhoneReadOnly) }
+
+// SettingsPhoneReadOnlyLabel says "{name} Read-Only"
+// in the language the app shows under cx.
+//
+// Accessibility name of a paired phone's read-only switch.
+func SettingsPhoneReadOnlyLabel(cx *core.Scope, name string) string {
+	return For(cx).SettingsPhoneReadOnlyLabel(name)
+}
+
+// SettingsPhoneReadOnlyLabel is the package's SettingsPhoneReadOnlyLabel in the language of msgs.
+func (msgs Messages) SettingsPhoneReadOnlyLabel(name string) string {
+	if i18n.IsPseudo(msgs.lang) {
+		return i18n.Pseudo(msgs.lang, Messages{lang: Source, mark: true}.SettingsPhoneReadOnlyLabel(name))
+	}
+	for lang := msgs.lang; ; lang = i18n.Parent(lang) {
+		if f := supplied[lang].SettingsPhoneReadOnlyLabel; f != nil {
+			return f(name)
+		}
+		switch lang {
+		case "", "en":
+			return msgs.arg(name) + " Read-Only"
+		case "ja":
+			return name + " を読み取り専用にする"
+		case "ko":
+			return name + " 읽기 전용"
+		case "zh-Hans":
+			return name + " 只读"
+		case "zh-Hant":
+			return name + " 唯讀"
+		}
+	}
+}
+
+// SettingsPhoneRevokeTitle says "Revoke {name}?"
+// in the language the app shows under cx.
+//
+// Heading of the confirmation under a paired phone's row before it is revoked, as when the phone was lost.
+func SettingsPhoneRevokeTitle(cx *core.Scope, name string) string {
+	return For(cx).SettingsPhoneRevokeTitle(name)
+}
+
+// SettingsPhoneRevokeTitle is the package's SettingsPhoneRevokeTitle in the language of msgs.
+func (msgs Messages) SettingsPhoneRevokeTitle(name string) string {
+	if i18n.IsPseudo(msgs.lang) {
+		return i18n.Pseudo(msgs.lang, Messages{lang: Source, mark: true}.SettingsPhoneRevokeTitle(name))
+	}
+	for lang := msgs.lang; ; lang = i18n.Parent(lang) {
+		if f := supplied[lang].SettingsPhoneRevokeTitle; f != nil {
+			return f(name)
+		}
+		switch lang {
+		case "", "en":
+			return "Revoke " + msgs.arg(name) + "?"
+		case "ja":
+			return "「" + name + "」を取り消しますか？"
+		case "ko":
+			return "‘" + name + "’을(를) 해제할까요?"
+		case "zh-Hans":
+			return "撤销「" + name + "」？"
+		case "zh-Hant":
+			return "撤銷「" + name + "」？"
+		}
+	}
+}
+
+// SettingsPhoneRevokeKey says "Its pairing key stops working at once: it can no longer reach this computer."
+// in the language the app shows under cx.
+//
+// Consequence of revoking a phone, in the confirmation's list.
+func SettingsPhoneRevokeKey(cx *core.Scope) string { return For(cx).SettingsPhoneRevokeKey() }
+
+// SettingsPhoneRevokeKey is the package's SettingsPhoneRevokeKey in the language of msgs.
+func (msgs Messages) SettingsPhoneRevokeKey() string { return msgs.text(textSettingsPhoneRevokeKey) }
+
+// SettingsPhoneRevokeJobs says "Links it already sent stay in the queue and are processed as usual."
+// in the language the app shows under cx.
+//
+// Consequence of revoking a phone, in the confirmation's list.
+func SettingsPhoneRevokeJobs(cx *core.Scope) string { return For(cx).SettingsPhoneRevokeJobs() }
+
+// SettingsPhoneRevokeJobs is the package's SettingsPhoneRevokeJobs in the language of msgs.
+func (msgs Messages) SettingsPhoneRevokeJobs() string { return msgs.text(textSettingsPhoneRevokeJobs) }
+
+// SettingsPhoneRevokeOffline says "Films and learning records saved on the phone stay there; they can't be deleted from here."
+// in the language the app shows under cx.
+//
+// Consequence of revoking a phone, in the confirmation's list.
+func SettingsPhoneRevokeOffline(cx *core.Scope) string { return For(cx).SettingsPhoneRevokeOffline() }
+
+// SettingsPhoneRevokeOffline is the package's SettingsPhoneRevokeOffline in the language of msgs.
+func (msgs Messages) SettingsPhoneRevokeOffline() string {
+	return msgs.text(textSettingsPhoneRevokeOffline)
+}
+
+// SettingsPhoneRevokePairAgain says "To use it again, pair it with a new code."
+// in the language the app shows under cx.
+//
+// Consequence of revoking a phone, in the confirmation's list.
+func SettingsPhoneRevokePairAgain(cx *core.Scope) string {
+	return For(cx).SettingsPhoneRevokePairAgain()
+}
+
+// SettingsPhoneRevokePairAgain is the package's SettingsPhoneRevokePairAgain in the language of msgs.
+func (msgs Messages) SettingsPhoneRevokePairAgain() string {
+	return msgs.text(textSettingsPhoneRevokePairAgain)
+}
+
+// SettingsPhoneRevokeConfirm says "Revoke This Phone"
+// in the language the app shows under cx.
+//
+// Destructive button of the confirmation that revokes a paired phone.
+func SettingsPhoneRevokeConfirm(cx *core.Scope) string { return For(cx).SettingsPhoneRevokeConfirm() }
+
+// SettingsPhoneRevokeConfirm is the package's SettingsPhoneRevokeConfirm in the language of msgs.
+func (msgs Messages) SettingsPhoneRevokeConfirm() string {
+	return msgs.text(textSettingsPhoneRevokeConfirm)
+}
+
+// SettingsPhoneRevokeCancel says "Cancel"
+// in the language the app shows under cx.
+//
+// Button that closes the confirmation of revoking a phone without revoking it.
+func SettingsPhoneRevokeCancel(cx *core.Scope) string { return For(cx).SettingsPhoneRevokeCancel() }
+
+// SettingsPhoneRevokeCancel is the package's SettingsPhoneRevokeCancel in the language of msgs.
+func (msgs Messages) SettingsPhoneRevokeCancel() string {
+	return msgs.text(textSettingsPhoneRevokeCancel)
+}
+
+// SettingsPhoneLearning says "Learning Records"
+// in the language the app shows under cx.
+//
+// Heading of the card saying how much of the open library's learning state (words, saved lines, where films were left) the phones have been told.
+func SettingsPhoneLearning(cx *core.Scope) string { return For(cx).SettingsPhoneLearning() }
+
+// SettingsPhoneLearning is the package's SettingsPhoneLearning in the language of msgs.
+func (msgs Messages) SettingsPhoneLearning() string { return msgs.text(textSettingsPhoneLearning) }
+
+// SettingsPhoneSynced says "Synced"
+// in the language the app shows under cx.
+//
+// Row title before the counts of the learning records synced with phones.
+func SettingsPhoneSynced(cx *core.Scope) string { return For(cx).SettingsPhoneSynced() }
+
+// SettingsPhoneSynced is the package's SettingsPhoneSynced in the language of msgs.
+func (msgs Messages) SettingsPhoneSynced() string { return msgs.text(textSettingsPhoneSynced) }
+
+// SettingsPhoneSyncedCounts says "{words, plural, one {# word} other {# words}} · {lines, plural, one {# saved line} other {# saved lines}} · {films, plural, one {progress in # film} other {progress in # films}}"
+// in the language the app shows under cx.
+//
+// Counts of the open library's learning records synced with phones.
+func SettingsPhoneSyncedCounts(cx *core.Scope, words int, lines int, films int) string {
+	return For(cx).SettingsPhoneSyncedCounts(words, lines, films)
+}
+
+// SettingsPhoneSyncedCounts is the package's SettingsPhoneSyncedCounts in the language of msgs.
+func (msgs Messages) SettingsPhoneSyncedCounts(words int, lines int, films int) string {
+	if i18n.IsPseudo(msgs.lang) {
+		return i18n.Pseudo(msgs.lang, Messages{lang: Source, mark: true}.SettingsPhoneSyncedCounts(words, lines, films))
+	}
+	for lang := msgs.lang; ; lang = i18n.Parent(lang) {
+		if f := supplied[lang].SettingsPhoneSyncedCounts; f != nil {
+			return f(words, lines, films)
+		}
+		switch lang {
+		case "", "en":
+			var b strings.Builder
+			switch i18n.Cardinal("en", float64(words)) {
+			case i18n.One:
+				b.WriteString(msgs.arg(i18n.FormatNumber("en", float64(words))))
+				b.WriteString(" word")
+			default:
+				b.WriteString(msgs.arg(i18n.FormatNumber("en", float64(words))))
+				b.WriteString(" words")
+			}
+			b.WriteString(" · ")
+			switch i18n.Cardinal("en", float64(lines)) {
+			case i18n.One:
+				b.WriteString(msgs.arg(i18n.FormatNumber("en", float64(lines))))
+				b.WriteString(" saved line")
+			default:
+				b.WriteString(msgs.arg(i18n.FormatNumber("en", float64(lines))))
+				b.WriteString(" saved lines")
+			}
+			b.WriteString(" · ")
+			switch i18n.Cardinal("en", float64(films)) {
+			case i18n.One:
+				b.WriteString("progress in ")
+				b.WriteString(msgs.arg(i18n.FormatNumber("en", float64(films))))
+				b.WriteString(" film")
+			default:
+				b.WriteString("progress in ")
+				b.WriteString(msgs.arg(i18n.FormatNumber("en", float64(films))))
+				b.WriteString(" films")
+			}
+			return b.String()
+		case "ja":
+			return "単語 " + i18n.FormatNumber("ja", float64(words)) + " 個 · 保存した文 " + i18n.FormatNumber("ja", float64(lines)) + " 件 · " + i18n.FormatNumber("ja", float64(films)) + " 本の視聴位置"
+		case "ko":
+			return "단어 " + i18n.FormatNumber("ko", float64(words)) + "개 · 저장한 문장 " + i18n.FormatNumber("ko", float64(lines)) + "개 · 영상 " + i18n.FormatNumber("ko", float64(films)) + "편의 진행"
+		case "zh-Hans":
+			return "生词 " + i18n.FormatNumber("zh-Hans", float64(words)) + " 个 · 收藏 " + i18n.FormatNumber("zh-Hans", float64(lines)) + " 句 · " + i18n.FormatNumber("zh-Hans", float64(films)) + " 部影片的进度"
+		case "zh-Hant":
+			return "生字 " + i18n.FormatNumber("zh-Hant", float64(words)) + " 個 · 收藏 " + i18n.FormatNumber("zh-Hant", float64(lines)) + " 句 · " + i18n.FormatNumber("zh-Hant", float64(films)) + " 部影片的進度"
+		}
+	}
+}
+
+// SettingsPhoneConflicts says "Sync Conflicts"
+// in the language the app shows under cx.
+//
+// Heading of the card listing the open library's sync conflicts: the same translation or note changed on two devices.
+func SettingsPhoneConflicts(cx *core.Scope) string { return For(cx).SettingsPhoneConflicts() }
+
+// SettingsPhoneConflicts is the package's SettingsPhoneConflicts in the language of msgs.
+func (msgs Messages) SettingsPhoneConflicts() string { return msgs.text(textSettingsPhoneConflicts) }
+
+// SettingsPhoneNoConflicts says "No conflicts. When two devices change the same thing, you choose here."
+// in the language the app shows under cx.
+//
+// The sync conflicts card when there is none.
+func SettingsPhoneNoConflicts(cx *core.Scope) string { return For(cx).SettingsPhoneNoConflicts() }
+
+// SettingsPhoneNoConflicts is the package's SettingsPhoneNoConflicts in the language of msgs.
+func (msgs Messages) SettingsPhoneNoConflicts() string {
+	return msgs.text(textSettingsPhoneNoConflicts)
+}
+
+// SettingsPhoneConflictsNote says "Words, saved lines and where you left off merge by themselves; only the same translation or note changed on two devices needs you to choose."
+// in the language the app shows under cx.
+//
+// Footnote under the sync conflicts card.
+func SettingsPhoneConflictsNote(cx *core.Scope) string { return For(cx).SettingsPhoneConflictsNote() }
+
+// SettingsPhoneConflictsNote is the package's SettingsPhoneConflictsNote in the language of msgs.
+func (msgs Messages) SettingsPhoneConflictsNote() string {
+	return msgs.text(textSettingsPhoneConflictsNote)
+}
+
+// SettingsPhoneResolveFailed says "Couldn't settle the conflict: {error}"
+// in the language the app shows under cx.
+//
+// Under the sync conflicts card when the version chosen could not be kept.
+func SettingsPhoneResolveFailed(cx *core.Scope, error_ string) string {
+	return For(cx).SettingsPhoneResolveFailed(error_)
+}
+
+// SettingsPhoneResolveFailed is the package's SettingsPhoneResolveFailed in the language of msgs.
+func (msgs Messages) SettingsPhoneResolveFailed(error_ string) string {
+	if i18n.IsPseudo(msgs.lang) {
+		return i18n.Pseudo(msgs.lang, Messages{lang: Source, mark: true}.SettingsPhoneResolveFailed(error_))
+	}
+	for lang := msgs.lang; ; lang = i18n.Parent(lang) {
+		if f := supplied[lang].SettingsPhoneResolveFailed; f != nil {
+			return f(error_)
+		}
+		switch lang {
+		case "", "en":
+			return "Couldn't settle the conflict: " + msgs.arg(error_)
+		case "ja":
+			return "競合を解決できませんでした：" + error_
+		case "ko":
+			return "충돌을 해결할 수 없습니다: " + error_
+		case "zh-Hans":
+			return "无法解决这个冲突：" + error_
+		case "zh-Hant":
+			return "無法解決這個衝突：" + error_
+		}
+	}
+}
+
+// SettingsPhoneConflictWord says "word “{word}”"
+// in the language the app shows under cx.
+//
+// Where a sync conflict is: a vocabulary word's meaning or note.
+func SettingsPhoneConflictWord(cx *core.Scope, word string) string {
+	return For(cx).SettingsPhoneConflictWord(word)
+}
+
+// SettingsPhoneConflictWord is the package's SettingsPhoneConflictWord in the language of msgs.
+func (msgs Messages) SettingsPhoneConflictWord(word string) string {
+	if i18n.IsPseudo(msgs.lang) {
+		return i18n.Pseudo(msgs.lang, Messages{lang: Source, mark: true}.SettingsPhoneConflictWord(word))
+	}
+	for lang := msgs.lang; ; lang = i18n.Parent(lang) {
+		if f := supplied[lang].SettingsPhoneConflictWord; f != nil {
+			return f(word)
+		}
+		switch lang {
+		case "", "en":
+			return "word “" + msgs.arg(word) + "”"
+		case "ja":
+			return "単語「" + word + "」"
+		case "ko":
+			return "단어 ‘" + word + "’"
+		case "zh-Hans":
+			return "生词「" + word + "」"
+		case "zh-Hant":
+			return "生字「" + word + "」"
+		}
+	}
+}
+
+// SettingsPhoneConflictFilm says "“{title}”"
+// in the language the app shows under cx.
+//
+// Where a sync conflict is: the film its line or correction is of, the film's title in the language's quotation marks.
+func SettingsPhoneConflictFilm(cx *core.Scope, title string) string {
+	return For(cx).SettingsPhoneConflictFilm(title)
+}
+
+// SettingsPhoneConflictFilm is the package's SettingsPhoneConflictFilm in the language of msgs.
+func (msgs Messages) SettingsPhoneConflictFilm(title string) string {
+	if i18n.IsPseudo(msgs.lang) {
+		return i18n.Pseudo(msgs.lang, Messages{lang: Source, mark: true}.SettingsPhoneConflictFilm(title))
+	}
+	for lang := msgs.lang; ; lang = i18n.Parent(lang) {
+		if f := supplied[lang].SettingsPhoneConflictFilm; f != nil {
+			return f(title)
+		}
+		switch lang {
+		case "", "en":
+			return "“" + msgs.arg(title) + "”"
+		case "ja":
+			return "「" + title + "」"
+		case "ko":
+			return "‘" + title + "’"
+		case "zh-Hans":
+			return "「" + title + "」"
+		case "zh-Hant":
+			return "「" + title + "」"
+		}
+	}
+}
+
+// SettingsPhoneThisComputer says "This Computer"
+// in the language the app shows under cx.
+//
+// Name of this computer where a sync conflict's version or an activity entry was made on the desktop.
+func SettingsPhoneThisComputer(cx *core.Scope) string { return For(cx).SettingsPhoneThisComputer() }
+
+// SettingsPhoneThisComputer is the package's SettingsPhoneThisComputer in the language of msgs.
+func (msgs Messages) SettingsPhoneThisComputer() string {
+	return msgs.text(textSettingsPhoneThisComputer)
+}
+
+// SettingsPhoneConflictUse says "Use This"
+// in the language the app shows under cx.
+//
+// Button under one version of a sync conflict that keeps it.
+func SettingsPhoneConflictUse(cx *core.Scope) string { return For(cx).SettingsPhoneConflictUse() }
+
+// SettingsPhoneConflictUse is the package's SettingsPhoneConflictUse in the language of msgs.
+func (msgs Messages) SettingsPhoneConflictUse() string {
+	return msgs.text(textSettingsPhoneConflictUse)
+}
+
+// SettingsPhoneConflictUseLabel says "Use the Version from {device}"
+// in the language the app shows under cx.
+//
+// Accessibility name of Use This under a sync conflict's version.
+func SettingsPhoneConflictUseLabel(cx *core.Scope, device string) string {
+	return For(cx).SettingsPhoneConflictUseLabel(device)
+}
+
+// SettingsPhoneConflictUseLabel is the package's SettingsPhoneConflictUseLabel in the language of msgs.
+func (msgs Messages) SettingsPhoneConflictUseLabel(device string) string {
+	if i18n.IsPseudo(msgs.lang) {
+		return i18n.Pseudo(msgs.lang, Messages{lang: Source, mark: true}.SettingsPhoneConflictUseLabel(device))
+	}
+	for lang := msgs.lang; ; lang = i18n.Parent(lang) {
+		if f := supplied[lang].SettingsPhoneConflictUseLabel; f != nil {
+			return f(device)
+		}
+		switch lang {
+		case "", "en":
+			return "Use the Version from " + msgs.arg(device)
+		case "ja":
+			return device + " の版を使う"
+		case "ko":
+			return device + "의 버전 사용"
+		case "zh-Hans":
+			return "用 " + device + " 的版本"
+		case "zh-Hant":
+			return "用 " + device + " 的版本"
+		}
+	}
+}
+
+// SettingsPhoneConflictBoth says "Keep Both"
+// in the language the app shows under cx.
+//
+// Button of a sync conflict between two notes that keeps both, one after the other.
+func SettingsPhoneConflictBoth(cx *core.Scope) string { return For(cx).SettingsPhoneConflictBoth() }
+
+// SettingsPhoneConflictBoth is the package's SettingsPhoneConflictBoth in the language of msgs.
+func (msgs Messages) SettingsPhoneConflictBoth() string {
+	return msgs.text(textSettingsPhoneConflictBoth)
+}
+
+// SettingsPhoneConflictOriginal says "Original"
+// in the language the app shows under cx.
+//
+// What a sync conflict is of: a line's original text.
+func SettingsPhoneConflictOriginal(cx *core.Scope) string {
+	return For(cx).SettingsPhoneConflictOriginal()
+}
+
+// SettingsPhoneConflictOriginal is the package's SettingsPhoneConflictOriginal in the language of msgs.
+func (msgs Messages) SettingsPhoneConflictOriginal() string {
+	return msgs.text(textSettingsPhoneConflictOriginal)
+}
+
+// SettingsPhoneConflictTranslation says "Translation"
+// in the language the app shows under cx.
+//
+// What a sync conflict is of: a line's translation.
+func SettingsPhoneConflictTranslation(cx *core.Scope) string {
+	return For(cx).SettingsPhoneConflictTranslation()
+}
+
+// SettingsPhoneConflictTranslation is the package's SettingsPhoneConflictTranslation in the language of msgs.
+func (msgs Messages) SettingsPhoneConflictTranslation() string {
+	return msgs.text(textSettingsPhoneConflictTranslation)
+}
+
+// SettingsPhoneConflictMeaning says "Meaning"
+// in the language the app shows under cx.
+//
+// What a sync conflict is of: a vocabulary word's meaning.
+func SettingsPhoneConflictMeaning(cx *core.Scope) string {
+	return For(cx).SettingsPhoneConflictMeaning()
+}
+
+// SettingsPhoneConflictMeaning is the package's SettingsPhoneConflictMeaning in the language of msgs.
+func (msgs Messages) SettingsPhoneConflictMeaning() string {
+	return msgs.text(textSettingsPhoneConflictMeaning)
+}
+
+// SettingsPhoneConflictNote says "Note"
+// in the language the app shows under cx.
+//
+// What a sync conflict is of: a note on a line or a word.
+func SettingsPhoneConflictNote(cx *core.Scope) string { return For(cx).SettingsPhoneConflictNote() }
+
+// SettingsPhoneConflictNote is the package's SettingsPhoneConflictNote in the language of msgs.
+func (msgs Messages) SettingsPhoneConflictNote() string {
+	return msgs.text(textSettingsPhoneConflictNote)
+}
+
+// SettingsPhoneActivity says "Recent Activity from Phones"
+// in the language the app shows under cx.
+//
+// Heading of the card listing what paired phones did lately, since Kando opened.
+func SettingsPhoneActivity(cx *core.Scope) string { return For(cx).SettingsPhoneActivity() }
+
+// SettingsPhoneActivity is the package's SettingsPhoneActivity in the language of msgs.
+func (msgs Messages) SettingsPhoneActivity() string { return msgs.text(textSettingsPhoneActivity) }
+
+// SettingsPhoneNoActivity says "Nothing yet since Kando opened."
+// in the language the app shows under cx.
+//
+// The recent activity card when no phone did anything since Kando opened.
+func SettingsPhoneNoActivity(cx *core.Scope) string { return For(cx).SettingsPhoneNoActivity() }
+
+// SettingsPhoneNoActivity is the package's SettingsPhoneNoActivity in the language of msgs.
+func (msgs Messages) SettingsPhoneNoActivity() string { return msgs.text(textSettingsPhoneNoActivity) }
+
+// SettingsPhoneDidLink says "Sent the link “{title}”"
+// in the language the app shows under cx.
+//
+// Recent activity: a phone sent a link.
+func SettingsPhoneDidLink(cx *core.Scope, title string) string {
+	return For(cx).SettingsPhoneDidLink(title)
+}
+
+// SettingsPhoneDidLink is the package's SettingsPhoneDidLink in the language of msgs.
+func (msgs Messages) SettingsPhoneDidLink(title string) string {
+	if i18n.IsPseudo(msgs.lang) {
+		return i18n.Pseudo(msgs.lang, Messages{lang: Source, mark: true}.SettingsPhoneDidLink(title))
+	}
+	for lang := msgs.lang; ; lang = i18n.Parent(lang) {
+		if f := supplied[lang].SettingsPhoneDidLink; f != nil {
+			return f(title)
+		}
+		switch lang {
+		case "", "en":
+			return "Sent the link “" + msgs.arg(title) + "”"
+		case "ja":
+			return "リンク「" + title + "」を送信"
+		case "ko":
+			return "링크 ‘" + title + "’ 보냄"
+		case "zh-Hans":
+			return "发来链接「" + title + "」"
+		case "zh-Hant":
+			return "傳來連結「" + title + "」"
+		}
+	}
+}
+
+// SettingsPhoneDidPause says "Paused “{title}”"
+// in the language the app shows under cx.
+//
+// Recent activity: a phone paused a job.
+func SettingsPhoneDidPause(cx *core.Scope, title string) string {
+	return For(cx).SettingsPhoneDidPause(title)
+}
+
+// SettingsPhoneDidPause is the package's SettingsPhoneDidPause in the language of msgs.
+func (msgs Messages) SettingsPhoneDidPause(title string) string {
+	if i18n.IsPseudo(msgs.lang) {
+		return i18n.Pseudo(msgs.lang, Messages{lang: Source, mark: true}.SettingsPhoneDidPause(title))
+	}
+	for lang := msgs.lang; ; lang = i18n.Parent(lang) {
+		if f := supplied[lang].SettingsPhoneDidPause; f != nil {
+			return f(title)
+		}
+		switch lang {
+		case "", "en":
+			return "Paused “" + msgs.arg(title) + "”"
+		case "ja":
+			return "「" + title + "」を一時停止"
+		case "ko":
+			return "‘" + title + "’ 일시 정지"
+		case "zh-Hans":
+			return "暂停了「" + title + "」"
+		case "zh-Hant":
+			return "暫停了「" + title + "」"
+		}
+	}
+}
+
+// SettingsPhoneDidResume says "Let “{title}” go on"
+// in the language the app shows under cx.
+//
+// Recent activity: a job paused was let go on.
+func SettingsPhoneDidResume(cx *core.Scope, title string) string {
+	return For(cx).SettingsPhoneDidResume(title)
+}
+
+// SettingsPhoneDidResume is the package's SettingsPhoneDidResume in the language of msgs.
+func (msgs Messages) SettingsPhoneDidResume(title string) string {
+	if i18n.IsPseudo(msgs.lang) {
+		return i18n.Pseudo(msgs.lang, Messages{lang: Source, mark: true}.SettingsPhoneDidResume(title))
+	}
+	for lang := msgs.lang; ; lang = i18n.Parent(lang) {
+		if f := supplied[lang].SettingsPhoneDidResume; f != nil {
+			return f(title)
+		}
+		switch lang {
+		case "", "en":
+			return "Let “" + msgs.arg(title) + "” go on"
+		case "ja":
+			return "「" + title + "」の処理を再開"
+		case "ko":
+			return "‘" + title + "’ 처리 계속"
+		case "zh-Hans":
+			return "让「" + title + "」继续处理"
+		case "zh-Hant":
+			return "讓「" + title + "」繼續處理"
+		}
+	}
+}
+
+// SettingsPhoneDidCancel says "Canceled “{title}”"
+// in the language the app shows under cx.
+//
+// Recent activity: a phone canceled a job.
+func SettingsPhoneDidCancel(cx *core.Scope, title string) string {
+	return For(cx).SettingsPhoneDidCancel(title)
+}
+
+// SettingsPhoneDidCancel is the package's SettingsPhoneDidCancel in the language of msgs.
+func (msgs Messages) SettingsPhoneDidCancel(title string) string {
+	if i18n.IsPseudo(msgs.lang) {
+		return i18n.Pseudo(msgs.lang, Messages{lang: Source, mark: true}.SettingsPhoneDidCancel(title))
+	}
+	for lang := msgs.lang; ; lang = i18n.Parent(lang) {
+		if f := supplied[lang].SettingsPhoneDidCancel; f != nil {
+			return f(title)
+		}
+		switch lang {
+		case "", "en":
+			return "Canceled “" + msgs.arg(title) + "”"
+		case "ja":
+			return "「" + title + "」をキャンセル"
+		case "ko":
+			return "‘" + title + "’ 취소"
+		case "zh-Hans":
+			return "取消了「" + title + "」"
+		case "zh-Hant":
+			return "取消了「" + title + "」"
+		}
+	}
+}
+
+// SettingsPhoneDidRetry says "Retried “{title}”"
+// in the language the app shows under cx.
+//
+// Recent activity: a phone retried a job.
+func SettingsPhoneDidRetry(cx *core.Scope, title string) string {
+	return For(cx).SettingsPhoneDidRetry(title)
+}
+
+// SettingsPhoneDidRetry is the package's SettingsPhoneDidRetry in the language of msgs.
+func (msgs Messages) SettingsPhoneDidRetry(title string) string {
+	if i18n.IsPseudo(msgs.lang) {
+		return i18n.Pseudo(msgs.lang, Messages{lang: Source, mark: true}.SettingsPhoneDidRetry(title))
+	}
+	for lang := msgs.lang; ; lang = i18n.Parent(lang) {
+		if f := supplied[lang].SettingsPhoneDidRetry; f != nil {
+			return f(title)
+		}
+		switch lang {
+		case "", "en":
+			return "Retried “" + msgs.arg(title) + "”"
+		case "ja":
+			return "「" + title + "」を再試行"
+		case "ko":
+			return "‘" + title + "’ 다시 시도"
+		case "zh-Hans":
+			return "重试了「" + title + "」"
+		case "zh-Hant":
+			return "重試了「" + title + "」"
+		}
+	}
+}
+
+// SettingsPhoneDidUpdateYTDLP says "Updated yt-dlp"
+// in the language the app shows under cx.
+//
+// Recent activity: a phone had the desktop update its downloader.
+func SettingsPhoneDidUpdateYTDLP(cx *core.Scope) string { return For(cx).SettingsPhoneDidUpdateYTDLP() }
+
+// SettingsPhoneDidUpdateYTDLP is the package's SettingsPhoneDidUpdateYTDLP in the language of msgs.
+func (msgs Messages) SettingsPhoneDidUpdateYTDLP() string {
+	return msgs.text(textSettingsPhoneDidUpdateYTDLP)
+}
+
+// SettingsPhoneDidWatch says "Watched “{title}” to {time}"
+// in the language the app shows under cx.
+//
+// Recent activity: a phone stopped a film at a point.
+func SettingsPhoneDidWatch(cx *core.Scope, title string, time_ string) string {
+	return For(cx).SettingsPhoneDidWatch(title, time_)
+}
+
+// SettingsPhoneDidWatch is the package's SettingsPhoneDidWatch in the language of msgs.
+func (msgs Messages) SettingsPhoneDidWatch(title string, time_ string) string {
+	if i18n.IsPseudo(msgs.lang) {
+		return i18n.Pseudo(msgs.lang, Messages{lang: Source, mark: true}.SettingsPhoneDidWatch(title, time_))
+	}
+	for lang := msgs.lang; ; lang = i18n.Parent(lang) {
+		if f := supplied[lang].SettingsPhoneDidWatch; f != nil {
+			return f(title, time_)
+		}
+		switch lang {
+		case "", "en":
+			return "Watched “" + msgs.arg(title) + "” to " + msgs.arg(time_)
+		case "ja":
+			return "「" + title + "」を " + time_ + " まで視聴"
+		case "ko":
+			return "‘" + title + "’을(를) " + time_ + "까지 시청"
+		case "zh-Hans":
+			return "看到「" + title + "」" + time_
+		case "zh-Hant":
+			return "看到「" + title + "」" + time_
+		}
+	}
+}
+
+// SettingsPhoneDidLines says "Changed {count, plural, one {# saved line} other {# saved lines}}"
+// in the language the app shows under cx.
+//
+// Recent activity: a phone saved, edited or removed saved lines.
+func SettingsPhoneDidLines(cx *core.Scope, count int) string {
+	return For(cx).SettingsPhoneDidLines(count)
+}
+
+// SettingsPhoneDidLines is the package's SettingsPhoneDidLines in the language of msgs.
+func (msgs Messages) SettingsPhoneDidLines(count int) string {
+	if i18n.IsPseudo(msgs.lang) {
+		return i18n.Pseudo(msgs.lang, Messages{lang: Source, mark: true}.SettingsPhoneDidLines(count))
+	}
+	for lang := msgs.lang; ; lang = i18n.Parent(lang) {
+		if f := supplied[lang].SettingsPhoneDidLines; f != nil {
+			return f(count)
+		}
+		switch lang {
+		case "", "en":
+			var b strings.Builder
+			b.WriteString("Changed ")
+			switch i18n.Cardinal("en", float64(count)) {
+			case i18n.One:
+				b.WriteString(msgs.arg(i18n.FormatNumber("en", float64(count))))
+				b.WriteString(" saved line")
+			default:
+				b.WriteString(msgs.arg(i18n.FormatNumber("en", float64(count))))
+				b.WriteString(" saved lines")
+			}
+			return b.String()
+		case "ja":
+			return "保存した文を " + i18n.FormatNumber("ja", float64(count)) + " 件変更"
+		case "ko":
+			return "저장한 문장 " + i18n.FormatNumber("ko", float64(count)) + "개 변경"
+		case "zh-Hans":
+			return "改了 " + i18n.FormatNumber("zh-Hans", float64(count)) + " 句收藏"
+		case "zh-Hant":
+			return "改了 " + i18n.FormatNumber("zh-Hant", float64(count)) + " 句收藏"
+		}
+	}
+}
+
+// SettingsPhoneDidWords says "Changed {count, plural, one {# word} other {# words}} in the vocabulary"
+// in the language the app shows under cx.
+//
+// Recent activity: a phone added, edited or removed vocabulary words.
+func SettingsPhoneDidWords(cx *core.Scope, count int) string {
+	return For(cx).SettingsPhoneDidWords(count)
+}
+
+// SettingsPhoneDidWords is the package's SettingsPhoneDidWords in the language of msgs.
+func (msgs Messages) SettingsPhoneDidWords(count int) string {
+	if i18n.IsPseudo(msgs.lang) {
+		return i18n.Pseudo(msgs.lang, Messages{lang: Source, mark: true}.SettingsPhoneDidWords(count))
+	}
+	for lang := msgs.lang; ; lang = i18n.Parent(lang) {
+		if f := supplied[lang].SettingsPhoneDidWords; f != nil {
+			return f(count)
+		}
+		switch lang {
+		case "", "en":
+			var b strings.Builder
+			b.WriteString("Changed ")
+			switch i18n.Cardinal("en", float64(count)) {
+			case i18n.One:
+				b.WriteString(msgs.arg(i18n.FormatNumber("en", float64(count))))
+				b.WriteString(" word")
+			default:
+				b.WriteString(msgs.arg(i18n.FormatNumber("en", float64(count))))
+				b.WriteString(" words")
+			}
+			b.WriteString(" in the vocabulary")
+			return b.String()
+		case "ja":
+			return "単語帳の単語を " + i18n.FormatNumber("ja", float64(count)) + " 個変更"
+		case "ko":
+			return "단어장의 단어 " + i18n.FormatNumber("ko", float64(count)) + "개 변경"
+		case "zh-Hans":
+			return "改了生词本里的 " + i18n.FormatNumber("zh-Hans", float64(count)) + " 个生词"
+		case "zh-Hant":
+			return "改了生字本裡的 " + i18n.FormatNumber("zh-Hant", float64(count)) + " 個生字"
+		}
+	}
+}
+
+// SettingsPhoneDidEdits says "Corrected {count, plural, one {# line} other {# lines}} of “{title}”"
+// in the language the app shows under cx.
+//
+// Recent activity: a phone corrected lines of a film's subtitles.
+func SettingsPhoneDidEdits(cx *core.Scope, title string, count int) string {
+	return For(cx).SettingsPhoneDidEdits(title, count)
+}
+
+// SettingsPhoneDidEdits is the package's SettingsPhoneDidEdits in the language of msgs.
+func (msgs Messages) SettingsPhoneDidEdits(title string, count int) string {
+	if i18n.IsPseudo(msgs.lang) {
+		return i18n.Pseudo(msgs.lang, Messages{lang: Source, mark: true}.SettingsPhoneDidEdits(title, count))
+	}
+	for lang := msgs.lang; ; lang = i18n.Parent(lang) {
+		if f := supplied[lang].SettingsPhoneDidEdits; f != nil {
+			return f(title, count)
+		}
+		switch lang {
+		case "", "en":
+			var b strings.Builder
+			b.WriteString("Corrected ")
+			switch i18n.Cardinal("en", float64(count)) {
+			case i18n.One:
+				b.WriteString(msgs.arg(i18n.FormatNumber("en", float64(count))))
+				b.WriteString(" line")
+			default:
+				b.WriteString(msgs.arg(i18n.FormatNumber("en", float64(count))))
+				b.WriteString(" lines")
+			}
+			b.WriteString(" of “")
+			b.WriteString(msgs.arg(title))
+			b.WriteString("”")
+			return b.String()
+		case "ja":
+			return "「" + title + "」の字幕を " + i18n.FormatNumber("ja", float64(count)) + " 行修正"
+		case "ko":
+			return "‘" + title + "’ 자막 " + i18n.FormatNumber("ko", float64(count)) + "줄 수정"
+		case "zh-Hans":
+			return "改了「" + title + "」的 " + i18n.FormatNumber("zh-Hans", float64(count)) + " 句字幕"
+		case "zh-Hant":
+			return "改了「" + title + "」的 " + i18n.FormatNumber("zh-Hant", float64(count)) + " 句字幕"
+		}
+	}
+}
+
+// SettingsPhoneDidResolve says "Settled {count, plural, one {# conflict} other {# conflicts}}"
+// in the language the app shows under cx.
+//
+// Recent activity: a sync conflict was settled.
+func SettingsPhoneDidResolve(cx *core.Scope, count int) string {
+	return For(cx).SettingsPhoneDidResolve(count)
+}
+
+// SettingsPhoneDidResolve is the package's SettingsPhoneDidResolve in the language of msgs.
+func (msgs Messages) SettingsPhoneDidResolve(count int) string {
+	if i18n.IsPseudo(msgs.lang) {
+		return i18n.Pseudo(msgs.lang, Messages{lang: Source, mark: true}.SettingsPhoneDidResolve(count))
+	}
+	for lang := msgs.lang; ; lang = i18n.Parent(lang) {
+		if f := supplied[lang].SettingsPhoneDidResolve; f != nil {
+			return f(count)
+		}
+		switch lang {
+		case "", "en":
+			var b strings.Builder
+			b.WriteString("Settled ")
+			switch i18n.Cardinal("en", float64(count)) {
+			case i18n.One:
+				b.WriteString(msgs.arg(i18n.FormatNumber("en", float64(count))))
+				b.WriteString(" conflict")
+			default:
+				b.WriteString(msgs.arg(i18n.FormatNumber("en", float64(count))))
+				b.WriteString(" conflicts")
+			}
+			return b.String()
+		case "ja":
+			return "競合を " + i18n.FormatNumber("ja", float64(count)) + " 件解決"
+		case "ko":
+			return "충돌 " + i18n.FormatNumber("ko", float64(count)) + "개 해결"
+		case "zh-Hans":
+			return "解决了 " + i18n.FormatNumber("zh-Hans", float64(count)) + " 个冲突"
+		case "zh-Hant":
+			return "解決了 " + i18n.FormatNumber("zh-Hant", float64(count)) + " 個衝突"
+		}
+	}
+}
+
+// SettingsPhoneDidPair says "Paired"
+// in the language the app shows under cx.
+//
+// Recent activity: a phone paired with this computer.
+func SettingsPhoneDidPair(cx *core.Scope) string { return For(cx).SettingsPhoneDidPair() }
+
+// SettingsPhoneDidPair is the package's SettingsPhoneDidPair in the language of msgs.
+func (msgs Messages) SettingsPhoneDidPair() string { return msgs.text(textSettingsPhoneDidPair) }
+
+// SettingsPhoneDidRevoke says "Revoked {title}"
+// in the language the app shows under cx.
+//
+// Recent activity, by this computer: a phone was revoked.
+func SettingsPhoneDidRevoke(cx *core.Scope, title string) string {
+	return For(cx).SettingsPhoneDidRevoke(title)
+}
+
+// SettingsPhoneDidRevoke is the package's SettingsPhoneDidRevoke in the language of msgs.
+func (msgs Messages) SettingsPhoneDidRevoke(title string) string {
+	if i18n.IsPseudo(msgs.lang) {
+		return i18n.Pseudo(msgs.lang, Messages{lang: Source, mark: true}.SettingsPhoneDidRevoke(title))
+	}
+	for lang := msgs.lang; ; lang = i18n.Parent(lang) {
+		if f := supplied[lang].SettingsPhoneDidRevoke; f != nil {
+			return f(title)
+		}
+		switch lang {
+		case "", "en":
+			return "Revoked " + msgs.arg(title)
+		case "ja":
+			return "「" + title + "」を取り消し"
+		case "ko":
+			return "‘" + title + "’ 해제"
+		case "zh-Hans":
+			return "撤销了「" + title + "」"
+		case "zh-Hant":
+			return "撤銷了「" + title + "」"
+		}
+	}
+}
+
+// SettingsPhoneDidReadOnly says "Made {title} read-only"
+// in the language the app shows under cx.
+//
+// Recent activity, by this computer: a phone was made read-only.
+func SettingsPhoneDidReadOnly(cx *core.Scope, title string) string {
+	return For(cx).SettingsPhoneDidReadOnly(title)
+}
+
+// SettingsPhoneDidReadOnly is the package's SettingsPhoneDidReadOnly in the language of msgs.
+func (msgs Messages) SettingsPhoneDidReadOnly(title string) string {
+	if i18n.IsPseudo(msgs.lang) {
+		return i18n.Pseudo(msgs.lang, Messages{lang: Source, mark: true}.SettingsPhoneDidReadOnly(title))
+	}
+	for lang := msgs.lang; ; lang = i18n.Parent(lang) {
+		if f := supplied[lang].SettingsPhoneDidReadOnly; f != nil {
+			return f(title)
+		}
+		switch lang {
+		case "", "en":
+			return "Made " + msgs.arg(title) + " read-only"
+		case "ja":
+			return "「" + title + "」を読み取り専用に設定"
+		case "ko":
+			return "‘" + title + "’을(를) 읽기 전용으로 설정"
+		case "zh-Hans":
+			return "把「" + title + "」设为只读"
+		case "zh-Hant":
+			return "把「" + title + "」設為唯讀"
+		}
+	}
+}
+
+// SettingsPhoneDidReadWrite says "Let {title} make changes again"
+// in the language the app shows under cx.
+//
+// Recent activity, by this computer: a read-only phone may change things again.
+func SettingsPhoneDidReadWrite(cx *core.Scope, title string) string {
+	return For(cx).SettingsPhoneDidReadWrite(title)
+}
+
+// SettingsPhoneDidReadWrite is the package's SettingsPhoneDidReadWrite in the language of msgs.
+func (msgs Messages) SettingsPhoneDidReadWrite(title string) string {
+	if i18n.IsPseudo(msgs.lang) {
+		return i18n.Pseudo(msgs.lang, Messages{lang: Source, mark: true}.SettingsPhoneDidReadWrite(title))
+	}
+	for lang := msgs.lang; ; lang = i18n.Parent(lang) {
+		if f := supplied[lang].SettingsPhoneDidReadWrite; f != nil {
+			return f(title)
+		}
+		switch lang {
+		case "", "en":
+			return "Let " + msgs.arg(title) + " make changes again"
+		case "ja":
+			return "「" + title + "」の変更を再び許可"
+		case "ko":
+			return "‘" + title + "’의 변경을 다시 허용"
+		case "zh-Hans":
+			return "允许「" + title + "」再做更改"
+		case "zh-Hant":
+			return "允許「" + title + "」再做更改"
+		}
+	}
+}
+
+// PhoneSyncAgoNow says "Just now"
+// in the language the app shows under cx.
+//
+// When something happened: less than a minute ago.
+func PhoneSyncAgoNow(cx *core.Scope) string { return For(cx).PhoneSyncAgoNow() }
+
+// PhoneSyncAgoNow is the package's PhoneSyncAgoNow in the language of msgs.
+func (msgs Messages) PhoneSyncAgoNow() string { return msgs.text(textPhoneSyncAgoNow) }
+
+// PhoneSyncAgoMinutes says "{count, plural, one {# minute ago} other {# minutes ago}}"
+// in the language the app shows under cx.
+//
+// When something happened, in minutes.
+func PhoneSyncAgoMinutes(cx *core.Scope, count int) string { return For(cx).PhoneSyncAgoMinutes(count) }
+
+// PhoneSyncAgoMinutes is the package's PhoneSyncAgoMinutes in the language of msgs.
+func (msgs Messages) PhoneSyncAgoMinutes(count int) string {
+	if i18n.IsPseudo(msgs.lang) {
+		return i18n.Pseudo(msgs.lang, Messages{lang: Source, mark: true}.PhoneSyncAgoMinutes(count))
+	}
+	for lang := msgs.lang; ; lang = i18n.Parent(lang) {
+		if f := supplied[lang].PhoneSyncAgoMinutes; f != nil {
+			return f(count)
+		}
+		switch lang {
+		case "", "en":
+			var b strings.Builder
+			switch i18n.Cardinal("en", float64(count)) {
+			case i18n.One:
+				b.WriteString(msgs.arg(i18n.FormatNumber("en", float64(count))))
+				b.WriteString(" minute ago")
+			default:
+				b.WriteString(msgs.arg(i18n.FormatNumber("en", float64(count))))
+				b.WriteString(" minutes ago")
+			}
+			return b.String()
+		case "ja":
+			return i18n.FormatNumber("ja", float64(count)) + " 分前"
+		case "ko":
+			return i18n.FormatNumber("ko", float64(count)) + "분 전"
+		case "zh-Hans":
+			return i18n.FormatNumber("zh-Hans", float64(count)) + " 分钟前"
+		case "zh-Hant":
+			return i18n.FormatNumber("zh-Hant", float64(count)) + " 分鐘前"
+		}
+	}
+}
+
+// PhoneSyncAgoHours says "{count, plural, one {# hour ago} other {# hours ago}}"
+// in the language the app shows under cx.
+//
+// When something happened, in hours.
+func PhoneSyncAgoHours(cx *core.Scope, count int) string { return For(cx).PhoneSyncAgoHours(count) }
+
+// PhoneSyncAgoHours is the package's PhoneSyncAgoHours in the language of msgs.
+func (msgs Messages) PhoneSyncAgoHours(count int) string {
+	if i18n.IsPseudo(msgs.lang) {
+		return i18n.Pseudo(msgs.lang, Messages{lang: Source, mark: true}.PhoneSyncAgoHours(count))
+	}
+	for lang := msgs.lang; ; lang = i18n.Parent(lang) {
+		if f := supplied[lang].PhoneSyncAgoHours; f != nil {
+			return f(count)
+		}
+		switch lang {
+		case "", "en":
+			var b strings.Builder
+			switch i18n.Cardinal("en", float64(count)) {
+			case i18n.One:
+				b.WriteString(msgs.arg(i18n.FormatNumber("en", float64(count))))
+				b.WriteString(" hour ago")
+			default:
+				b.WriteString(msgs.arg(i18n.FormatNumber("en", float64(count))))
+				b.WriteString(" hours ago")
+			}
+			return b.String()
+		case "ja":
+			return i18n.FormatNumber("ja", float64(count)) + " 時間前"
+		case "ko":
+			return i18n.FormatNumber("ko", float64(count)) + "시간 전"
+		case "zh-Hans":
+			return i18n.FormatNumber("zh-Hans", float64(count)) + " 小时前"
+		case "zh-Hant":
+			return i18n.FormatNumber("zh-Hant", float64(count)) + " 小時前"
+		}
+	}
+}
+
+// PhoneSyncAgoDays says "{count, plural, one {# day ago} other {# days ago}}"
+// in the language the app shows under cx.
+//
+// When something happened, in days.
+func PhoneSyncAgoDays(cx *core.Scope, count int) string { return For(cx).PhoneSyncAgoDays(count) }
+
+// PhoneSyncAgoDays is the package's PhoneSyncAgoDays in the language of msgs.
+func (msgs Messages) PhoneSyncAgoDays(count int) string {
+	if i18n.IsPseudo(msgs.lang) {
+		return i18n.Pseudo(msgs.lang, Messages{lang: Source, mark: true}.PhoneSyncAgoDays(count))
+	}
+	for lang := msgs.lang; ; lang = i18n.Parent(lang) {
+		if f := supplied[lang].PhoneSyncAgoDays; f != nil {
+			return f(count)
+		}
+		switch lang {
+		case "", "en":
+			var b strings.Builder
+			switch i18n.Cardinal("en", float64(count)) {
+			case i18n.One:
+				b.WriteString(msgs.arg(i18n.FormatNumber("en", float64(count))))
+				b.WriteString(" day ago")
+			default:
+				b.WriteString(msgs.arg(i18n.FormatNumber("en", float64(count))))
+				b.WriteString(" days ago")
+			}
+			return b.String()
+		case "ja":
+			return i18n.FormatNumber("ja", float64(count)) + " 日前"
+		case "ko":
+			return i18n.FormatNumber("ko", float64(count)) + "일 전"
+		case "zh-Hans":
+			return i18n.FormatNumber("zh-Hans", float64(count)) + " 天前"
+		case "zh-Hant":
+			return i18n.FormatNumber("zh-Hant", float64(count)) + " 天前"
+		}
+	}
+}
+
+// FilmsHandoff says "Left off “{title}” at {time} on {device}"
+// in the language the app shows under cx.
+//
+// Bar on the library page when a paired phone last left a film somewhere: offers to continue it on this computer.
+func FilmsHandoff(cx *core.Scope, device string, title string, time_ string) string {
+	return For(cx).FilmsHandoff(device, title, time_)
+}
+
+// FilmsHandoff is the package's FilmsHandoff in the language of msgs.
+func (msgs Messages) FilmsHandoff(device string, title string, time_ string) string {
+	if i18n.IsPseudo(msgs.lang) {
+		return i18n.Pseudo(msgs.lang, Messages{lang: Source, mark: true}.FilmsHandoff(device, title, time_))
+	}
+	for lang := msgs.lang; ; lang = i18n.Parent(lang) {
+		if f := supplied[lang].FilmsHandoff; f != nil {
+			return f(device, title, time_)
+		}
+		switch lang {
+		case "", "en":
+			return "Left off “" + msgs.arg(title) + "” at " + msgs.arg(time_) + " on " + msgs.arg(device)
+		case "ja":
+			return device + " で「" + title + "」を " + time_ + " まで視聴"
+		case "ko":
+			return device + "에서 ‘" + title + "’을(를) " + time_ + "까지 봄"
+		case "zh-Hans":
+			return "在 " + device + " 上看到「" + title + "」" + time_
+		case "zh-Hant":
+			return "在 " + device + " 上看到「" + title + "」" + time_
+		}
+	}
+}
+
+// FilmsHandoffWhen says "{when} · Where you leave off syncs between this computer and your phones"
+// in the language the app shows under cx.
+//
+// Second line of the handoff bar: when the phone left the film, and that the place syncs.
+func FilmsHandoffWhen(cx *core.Scope, when string) string { return For(cx).FilmsHandoffWhen(when) }
+
+// FilmsHandoffWhen is the package's FilmsHandoffWhen in the language of msgs.
+func (msgs Messages) FilmsHandoffWhen(when string) string {
+	if i18n.IsPseudo(msgs.lang) {
+		return i18n.Pseudo(msgs.lang, Messages{lang: Source, mark: true}.FilmsHandoffWhen(when))
+	}
+	for lang := msgs.lang; ; lang = i18n.Parent(lang) {
+		if f := supplied[lang].FilmsHandoffWhen; f != nil {
+			return f(when)
+		}
+		switch lang {
+		case "", "en":
+			return msgs.arg(when) + " · Where you leave off syncs between this computer and your phones"
+		case "ja":
+			return when + " · 視聴位置はこのコンピュータとスマートフォンの間で同期されます"
+		case "ko":
+			return when + " · 본 위치는 이 컴퓨터와 휴대폰 사이에 동기화됩니다"
+		case "zh-Hans":
+			return when + " · 看到哪儿会在电脑和手机之间同步"
+		case "zh-Hant":
+			return when + " · 看到哪裡會在電腦和手機之間同步"
+		}
+	}
+}
+
+// FilmsHandoffResume says "Continue from {time}"
+// in the language the app shows under cx.
+//
+// Button of the handoff bar: opens the film where the phone left it.
+func FilmsHandoffResume(cx *core.Scope, time_ string) string {
+	return For(cx).FilmsHandoffResume(time_)
+}
+
+// FilmsHandoffResume is the package's FilmsHandoffResume in the language of msgs.
+func (msgs Messages) FilmsHandoffResume(time_ string) string {
+	if i18n.IsPseudo(msgs.lang) {
+		return i18n.Pseudo(msgs.lang, Messages{lang: Source, mark: true}.FilmsHandoffResume(time_))
+	}
+	for lang := msgs.lang; ; lang = i18n.Parent(lang) {
+		if f := supplied[lang].FilmsHandoffResume; f != nil {
+			return f(time_)
+		}
+		switch lang {
+		case "", "en":
+			return "Continue from " + msgs.arg(time_)
+		case "ja":
+			return time_ + " から続きを見る"
+		case "ko":
+			return time_ + "부터 이어 보기"
+		case "zh-Hans":
+			return "从 " + time_ + " 接着看"
+		case "zh-Hant":
+			return "從 " + time_ + " 接著看"
+		}
+	}
+}
+
+// FilmsHeroKickerContinueOn says "Continue Watching · Left Off on {device}"
+// in the language the app shows under cx.
+//
+// Small heading over the hero's title when the film is one to continue and a paired phone left it there.
+func FilmsHeroKickerContinueOn(cx *core.Scope, device string) string {
+	return For(cx).FilmsHeroKickerContinueOn(device)
+}
+
+// FilmsHeroKickerContinueOn is the package's FilmsHeroKickerContinueOn in the language of msgs.
+func (msgs Messages) FilmsHeroKickerContinueOn(device string) string {
+	if i18n.IsPseudo(msgs.lang) {
+		return i18n.Pseudo(msgs.lang, Messages{lang: Source, mark: true}.FilmsHeroKickerContinueOn(device))
+	}
+	for lang := msgs.lang; ; lang = i18n.Parent(lang) {
+		if f := supplied[lang].FilmsHeroKickerContinueOn; f != nil {
+			return f(device)
+		}
+		switch lang {
+		case "", "en":
+			return "Continue Watching · Left Off on " + msgs.arg(device)
+		case "ja":
+			return "続きを見る · " + device + " でここまで視聴"
+		case "ko":
+			return "이어 보기 · " + device + "에서 여기까지 봄"
+		case "zh-Hans":
+			return "继续观看 · 在 " + device + " 上看到这里"
+		case "zh-Hant":
+			return "繼續觀看 · 在 " + device + " 上看到這裡"
+		}
+	}
+}
 
 // dated is lang with the hour cycle the user set, which times take.
 func (msgs Messages) dated(lang string) string {

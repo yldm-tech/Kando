@@ -347,6 +347,8 @@ type storedJob struct {
 	Device string `json:"device,omitempty"`
 	// Series is the series the film is part of (core.Job.Series).
 	Series string `json:"series,omitempty"`
+	// PausedBy is the paired phone that paused the job (core.Job.PausedBy).
+	PausedBy string `json:"pausedBy,omitempty"`
 }
 
 func storeJob(job core.Job) storedJob {
@@ -360,7 +362,7 @@ func storeJob(job core.Job) storedJob {
 	stored.Quality, stored.SubtitleSource = job.Quality, job.SubtitleSource
 	stored.PlatformSubtitles, stored.LocalLines = job.PlatformSubtitles, job.LocalLines
 	stored.SubtitlesOnly = job.SubtitlesOnly
-	stored.Series = job.Series
+	stored.Series, stored.PausedBy = job.Series, job.PausedBy
 	switch {
 	case errors.Is(job.Err, context.Canceled):
 		stored.Error = storedCanceled
@@ -383,7 +385,7 @@ func (s storedJob) job() core.Job {
 	job.Quality, job.SubtitleSource = s.Quality, s.SubtitleSource
 	job.PlatformSubtitles, job.LocalLines = s.PlatformSubtitles, s.LocalLines
 	job.SubtitlesOnly = s.SubtitlesOnly
-	job.Series = s.Series
+	job.Series, job.PausedBy = s.Series, s.PausedBy
 	switch s.Error {
 	case "":
 	case storedCanceled:

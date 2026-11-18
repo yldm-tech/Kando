@@ -44,6 +44,8 @@ func TestJobOfTellsEachStep(t *testing.T) {
 		{"failed to transcribe", core.Job{Stage: core.StageFailed, Source: link, Err: fmt.Errorf("transcribe: %w", media.ErrNoSpeech)}, psync.JobFailed, "download:done:1 transcribe:failed:0 translate:waiting:0 "},
 		{"a local video's check failed", core.Job{Stage: core.StageFailed, Source: "file:///films/talk.mp4", Err: errors.New("check: whisper-cli is not installed")}, psync.JobFailed, "download:skipped:0 transcribe:failed:0 translate:waiting:0 "},
 		{"canceled downloading", core.Job{Stage: core.StageFailed, Source: link, Err: context.Canceled}, psync.JobCanceled, "download:waiting:0 transcribe:waiting:0 translate:waiting:0 "},
+		{"paused by a phone", core.Job{Stage: core.StageQueued, Source: link, PausedBy: "Evan's iPhone", VideoPath: "/v.mp4", Transcribed: true}, psync.JobPaused, "download:waiting:0 transcribe:waiting:0 translate:waiting:0 "},
+		{"paused while transcribing, not stopped yet", core.Job{Stage: core.StageTranscribing, Source: link, PausedBy: "Evan's iPhone"}, psync.JobPaused, "download:done:1 transcribe:waiting:0 translate:waiting:0 "},
 	} {
 		got := JobOf(tc.job, facts)
 		if got.State != tc.state || steps(got) != tc.steps || got.Title != facts.Title || got.Library != "lib1" {
@@ -181,4 +183,109 @@ func TestWithoutJobsTheServerTakesNoLinks(t *testing.T) {
 	}
 	_, err := c.CreateJob(ctx, "https://youtu.be/abc", psync.JobOptions{})
 	wantCode(t, err, http.StatusForbidden, psync.CodeLinksOff)
+}
+
+// fakeState is the app's learning state as a test gives it: it counts the puts it takes.
+type fakeState struct{ puts int }
+
+func (f *fakeState) GetState(context.Context, psync.Caller, psync.StateGet) (psync.StateChanges, error) {
+	return psync.StateChanges{Records: []psync.Record{}, Conflicts: []psync.Conflict{}}, nil
+}
+
+func (f *fakeState) PutState(context.Context, psync.Caller, psync.StatePut) (psync.StatePutResult, error) {
+	f.puts++
+	return psync.StatePutResult{Records: []psync.Record{}, Conflicts: []psync.Conflict{}}, nil
+}
+
+func (f *fakeState) ResolveConflict(context.Context, psync.Caller, psync.ConflictResolve) (psync.StatePutResult, error) {
+	return psync.StatePutResult{}, psync.Errorf(psync.CodeNotFound, "no conflict")
+}
+
+// A paired phone may change everything until the user makes it read-only, which the server checks at each of its calls: from then on it reads the libraries, the jobs and the learning state, and every call that changes something, the jobs' and the learning state's, is refused, until it may write again. The switch is kept with the device across starts.
+func TestAReadOnlyPhoneIsRefusedEveryWrite(t *testing.T) {
+	jobs, state := &fakeJobs{}, &fakeState{}
+	dir := t.TempDir()
+	start := func() *Server {
+		srv, err := Start(Config{Dir: dir, Name: "Test Mac", Source: fakeSource{dir: t.TempDir()}, Jobs: jobs, State: state, Addrs: loopback, Logf: testLogf(t)})
+		if err != nil {
+			t.Fatal(err)
+		}
+		t.Cleanup(func() { srv.Close() })
+		jobs.srv = srv
+		return srv
+	}
+	srv := start()
+	ctx := context.Background()
+	c := client(t, srv, "")
+	res, err := pair(t, c, srv.NewOffer().Code)
+	if err != nil {
+		t.Fatal(err)
+	}
+	c = client(t, srv, res.Token)
+	if devs := srv.Devices(); len(devs) != 1 || devs[0].ReadOnly {
+		t.Fatalf("a phone just paired: %+v", devs)
+	}
+	if err := srv.SetReadOnly(res.DeviceID, true); err != nil {
+		t.Fatal(err)
+	}
+	if h, err := c.Hello(ctx); err != nil || !h.ReadOnly {
+		t.Fatalf("hello of a read-only phone %+v, %v", h, err)
+	}
+	_, err = c.CreateJob(ctx, "https://youtu.be/abc", psync.JobOptions{})
+	wantCode(t, err, http.StatusForbidden, psync.CodeReadOnly)
+	_, err = c.ActOnJob(ctx, psync.OpJobCancel, "j1")
+	wantCode(t, err, http.StatusForbidden, psync.CodeReadOnly)
+	_, err = c.UpdateYTDLP(ctx)
+	wantCode(t, err, http.StatusForbidden, psync.CodeReadOnly)
+	put := []psync.Record{{Kind: psync.KindPosition, ID: "talk", Film: "talk", Fields: map[string]psync.Field{psync.FieldPositionMS: {Value: psync.Value(5000)}}}}
+	_, err = c.PutState(ctx, "lib1", put)
+	wantCode(t, err, http.StatusForbidden, psync.CodeReadOnly)
+	_, err = c.ResolveConflict(ctx, "lib1", "c1", psync.Value("x"))
+	wantCode(t, err, http.StatusForbidden, psync.CodeReadOnly)
+	if state.puts != 0 {
+		t.Fatalf("a read-only phone's put reached the app")
+	}
+	// Reads go on.
+	if _, err := c.Jobs(ctx); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := c.State(ctx, "lib1", "", 0); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := c.Libraries(ctx); err != nil {
+		t.Fatal(err)
+	}
+	// The switch is kept: a server started again still refuses the phone's writes.
+	srv.Close()
+	srv = start()
+	if devs := srv.Devices(); len(devs) != 1 || !devs[0].ReadOnly {
+		t.Fatalf("after a restart: %+v", devs)
+	}
+	c = client(t, srv, res.Token)
+	_, err = c.PutState(ctx, "lib1", put)
+	wantCode(t, err, http.StatusForbidden, psync.CodeReadOnly)
+	if err := srv.SetReadOnly(res.DeviceID, false); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := c.PutState(ctx, "lib1", put); err != nil || state.puts != 1 {
+		t.Fatalf("a put once the phone may write again: %v, %d puts", err, state.puts)
+	}
+	if created, err := c.CreateJob(ctx, "https://youtu.be/abc", psync.JobOptions{}); err != nil || created.Job == nil {
+		t.Fatalf("a link once the phone may write again: %+v, %v", created, err)
+	}
+	if err := srv.SetReadOnly("nobody", true); err == nil {
+		t.Fatal("a device that is not paired was made read-only")
+	}
+}
+
+// A phone is online while it was seen within OnlineWithin.
+func TestADeviceIsOnlineWhileSeenLately(t *testing.T) {
+	now := time.Date(2026, 11, 17, 9, 0, 0, 0, time.UTC)
+	d := Device{LastSeen: now.Add(-OnlineWithin + time.Second)}
+	if !d.Online(now) {
+		t.Fatal("a phone seen just now is offline")
+	}
+	if d.Online(now.Add(time.Minute)) {
+		t.Fatal("a phone not seen for a while is online")
+	}
 }

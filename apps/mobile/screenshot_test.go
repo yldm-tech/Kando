@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"kando/apps/mobile/store"
+	"kando/packages/sync"
 	"kando/packages/sync/synctest"
 
 	"github.com/nsgo-dev/nsgo/core"
@@ -58,7 +59,7 @@ func TestScreenshotsSettings(t *testing.T) {
 	d := newDesktop(t)
 	dir := t.TempDir()
 	p := startPhone(t, dir, pairedWith(t, d, dir))
-	p.app.WaitFor("id:computers-library-lib", wait)
+	p.app.WaitFor(talkRow(store.DesktopID(d.Fingerprint)), wait)
 	p.openTab(settingsTab, msgs.SettingsTitle())
 	p.app.WaitFor("id:settings-computer-"+store.DesktopID(d.Fingerprint), wait)
 	shot(p, "settings")
@@ -72,7 +73,7 @@ func TestScreenshotsLearn(t *testing.T) {
 	dir := t.TempDir()
 	keepTalk(t, dir)
 	p := startPhone(t, dir)
-	p.app.WaitFor("id:downloads-film-f1", wait)
+	p.app.WaitFor(talkRow("gonedesk"), wait)
 	p.openTab(learnTab, msgs.LearnTitle())
 	p.app.WaitFor("id:learn-empty", wait)
 	shot(p, "learn")
@@ -84,16 +85,15 @@ func TestScreenshotsTabletShell(t *testing.T) {
 	dir := t.TempDir()
 	keepTalkFrom(t, dir, store.DesktopID(d.Fingerprint))
 	p := startPhone(t, dir, pairedWith(t, d, dir), nsgotest.Size(1180, 820), nsgotest.Environment(core.Environment{Locale: lang, Idiom: core.IdiomTablet}))
-	p.app.WaitFor("id:computers-library-lib", wait)
+	p.app.WaitFor(talkRow(store.DesktopID(d.Fingerprint)), wait)
 	// A target reports its own idiom, which an app on a computer's or a phone's is not a tablet's.
 	if !p.app.Exists("id:sidebar") {
 		t.Skip("the target is not a tablet")
 	}
-	p.app.WaitFor("id:computers-library-lib", wait)
 	shot(p, "tablet-library")
 	p.app.Resize(820, 1180)
 	p.app.WaitFor("id:tab-bar", wait)
-	p.app.WaitFor("id:computers-library-lib", wait)
+	p.app.WaitFor(talkRow(store.DesktopID(d.Fingerprint)), wait)
 	shot(p, "tablet-library-upright")
 }
 
@@ -102,13 +102,9 @@ func TestScreenshotsBrowse(t *testing.T) {
 	d := newDesktop(t)
 	p := startPhone(t, t.TempDir())
 	p.pair(d)
-	p.app.WaitFor("id:computers-library-lib", wait)
 	shot(p, "films")
-	p.app.Press("id:computers-library-lib")
-	p.app.WaitFor("id:library-film-f1", wait)
-	shot(p, "library")
 	// Forward only: HeaderBack reports what the platform would, which a phone skips.
-	p.app.Press("id:library-film-f1")
+	p.app.Press(talkRow(store.DesktopID(d.Fingerprint)))
 	p.app.WaitFor("id:film-download", wait)
 	d.Stall(420_000)
 	p.app.Press("id:film-download")
@@ -126,9 +122,9 @@ func TestScreenshotsDownloads(t *testing.T) {
 	dir := t.TempDir()
 	keepTalk(t, dir)
 	p := startPhone(t, dir)
-	p.app.WaitFor("id:downloads-film-f1", wait)
+	p.app.WaitFor(talkRow("gonedesk"), wait)
 	shot(p, "films-unpaired")
-	p.app.Press("id:downloads-film-f1")
+	p.app.Press(talkRow("gonedesk"))
 	p.app.WaitFor("id:film-play", wait)
 	shot(p, "film-downloaded")
 }
@@ -144,12 +140,30 @@ func TestScreenshotsComputersProblem(t *testing.T) {
 	shot(p, "computers-problem")
 }
 
+func TestScreenshotsLibrary(t *testing.T) {
+	shot := screenshots(t)
+	d := newDesktopWithMovies(t)
+	d.SetState("lib", now().Add(time.Hour), sync.Record{Kind: sync.KindPosition, ID: "f1", Film: "f1",
+		Fields: map[string]sync.Field{sync.FieldPositionMS: {Value: sync.Value(4000)}}})
+	dir := t.TempDir()
+	secrets := pairedWith(t, d, dir)
+	id := store.DesktopID(d.Fingerprint)
+	keepTalkFrom(t, dir, id)
+	p := startPhone(t, dir, secrets)
+	p.app.WaitFor("id:films-continue-"+id+"-f1", wait)
+	p.app.WaitFor(filmRow(id, "f2"), wait)
+	shot(p, "films-continue")
+	p.app.Type("id:films-search", "how")
+	p.app.WaitFor("id:films-hit-"+id+"-f1", wait)
+	shot(p, "films-search")
+}
+
 func TestScreenshotsLibraryLoading(t *testing.T) {
 	shot := screenshots(t)
 	d := newDesktop(t)
 	dir := t.TempDir()
 	secrets := pairedWith(t, d, dir)
-	// The phone reaches the desktop through a gate, held once the libraries are listed so the library's films stay loading.
+	// The phone reaches the desktop through a gate, held from the start so the computer's films stay loading.
 	g := newGate(t, d)
 	desktops, err := store.Open(dir).Desktops()
 	if err != nil || len(desktops) != 1 {
@@ -159,12 +173,10 @@ func TestScreenshotsLibraryLoading(t *testing.T) {
 	if err := store.Open(dir).SaveDesktops(desktops); err != nil {
 		t.Fatal(err)
 	}
-	p := startPhone(t, dir, secrets)
-	p.app.WaitFor("id:computers-library-lib", wait)
 	g.held.Store(true)
-	p.app.Press("id:computers-library-lib")
-	p.app.WaitFor("id:library-loading", wait)
-	shot(p, "library-loading")
+	p := startPhone(t, dir, secrets)
+	p.app.WaitFor("id:films-loading", wait)
+	shot(p, "films-loading")
 }
 
 // gate is a relay on loopback to a desktop that passes on what the phone sends until held, then holds it, so a request made after hangs as on a network that stalls. It closes as the test ends, which fails what it held.

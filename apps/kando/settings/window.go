@@ -2,6 +2,7 @@ package settings
 
 import (
 	"strings"
+	"time"
 
 	"kando/apps/kando/film/subtitle"
 	"kando/apps/kando/live"
@@ -88,6 +89,11 @@ type App interface {
 	RevokePhone(id string)
 	SetPhoneReceive(on bool)
 	SetPhoneAskFirst(ask bool)
+	// SetPhoneReadOnly makes a paired phone read-only (on), so it changes nothing on this computer from its next call on, or lets it change things again; it is kept with the device. ResolvePhoneConflict settles a sync conflict of the open library with the version keep names, as a change made on this computer now, which travels to the phones.
+	SetPhoneReadOnly(id string, on bool)
+	ResolvePhoneConflict(id string, keep PhoneKeep)
+	// PhoneNow is the time the page's relative times (刚刚, 5 分钟前) are told against. The app runs the bindings again as they come to say something else, so a binding that reads it follows time.
+	PhoneNow() time.Time
 	// CheckForUpdates checks for a newer version of Kando at once and shows what it finds.
 	CheckForUpdates()
 	// JobNotifications is whether Kando posts a notification when a video's job is done or failed while it is in the background; SetJobNotifications changes it.

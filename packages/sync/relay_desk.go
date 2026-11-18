@@ -17,6 +17,8 @@ import (
 type RelayDevice struct {
 	ID, Name string
 	Key      []byte
+	// ReadOnly is the desktop user's read-only switch for the device (Caller.ReadOnly), read again with the device list at every pass.
+	ReadOnly bool
 }
 
 // Relay is the desktop's side of the storage relay (relay.go): it answers the calls phones leave in their inboxes through Desk, and writes each phone's state.json. It is safe for concurrent use.
@@ -212,7 +214,7 @@ func (r *Relay) Poll(ctx context.Context) (int, error) {
 // answer answers m, writes its reply and deletes it.
 func (r *Relay) answer(ctx context.Context, m inboxed) error {
 	call := m.msg.Call
-	reply := r.Desk.Answer(ctx, Caller{DeviceID: m.dev.ID, Name: m.dev.Name, Relay: true}, call)
+	reply := r.Desk.Answer(ctx, Caller{DeviceID: m.dev.ID, Name: m.dev.Name, ReadOnly: m.dev.ReadOnly, Relay: true}, call)
 	if ctx.Err() != nil {
 		// A call cut short by the desktop's stopping is answered at the next poll.
 		return ctx.Err()
@@ -265,7 +267,7 @@ func (r *Relay) publish(ctx context.Context, dev RelayDevice) error {
 	if err != nil {
 		return err
 	}
-	caller := Caller{DeviceID: dev.ID, Name: dev.Name, Relay: true}
+	caller := Caller{DeviceID: dev.ID, Name: dev.Name, ReadOnly: dev.ReadOnly, Relay: true}
 	state := RelayState{V: RelayVersion, Desktop: r.Desk.Desktop, Jobs: r.Desk.Journal.List(), Learning: r.Desk.Journal.Learning(), Grant: grant}
 	hello := r.Desk.Answer(ctx, caller, Call{V: CallVersion, Op: OpHello})
 	if hello.Error != nil {

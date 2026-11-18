@@ -33,14 +33,19 @@ type PhoneSync struct {
 	QR        []byte
 	QRModules int
 	Devices   []PhoneDevice
-	// RevokeErr is why the last revocation failed.
-	RevokeErr string
+	// RevokeErr is why the last revocation failed, ReadOnlyErr why the last change of a phone's read-only switch could not be kept, and ResolveErr why the last conflict could not be settled.
+	RevokeErr, ReadOnlyErr, ResolveErr string
+	// Stats is how much of the open library's learning state the phones were told, Conflicts its sync conflicts left for the user to settle, the oldest first, and Activity what the phones did lately, the latest first (phone_learning.go).
+	Stats     PhoneStats
+	Conflicts []PhoneConflict
+	Activity  []PhoneActivity
 }
 
-// PhoneDevice is a paired phone: its ID, the name it gave itself, its platform (ios, android or ""), when it paired and when it was last seen.
+// PhoneDevice is a paired phone: its ID, the name it gave itself, its platform (ios, android or ""), when it paired and when it was last seen, whether it was seen lately enough to be online, and whether the user made it read-only, so it changes nothing on this computer.
 type PhoneDevice struct {
 	ID, Name, Platform string
 	Paired, LastSeen   time.Time
+	Online, ReadOnly   bool
 }
 
 // live reports whether the code on offer pairs.
@@ -49,7 +54,7 @@ func (p PhoneSync) live() bool { return p.Code != "" && !p.Used && !p.Expired }
 // qrPoints is how many points of the page each module of the QR code takes: half of the pixels the app draws it with (phonesync.QRScale), so it is sharp on a 2x screen.
 const qrPoints = 3
 
-// phone is the 手机同步 page: the switch, the pairing code while it is on, and the paired phones.
+// phone is the 手机同步 page: the switch, and while it is on the paired phones, the pairing code, what comes of the links phones send, and what they sync with this computer.
 type phone struct{ s screen }
 
 // Render implements core.Node.
@@ -69,18 +74,18 @@ func (p phone) Render(cx *core.Scope) core.Node {
 			Style: core.Style{FontSize: 11, Padding: core.Edges{Top: 4, Right: 12, Left: 12}}, StyleFunc: ui.Colored(colors.Danger)}
 	}}
 	running := core.Show{When: live.Func(a, func() bool { return a.PhoneSync().Running }), Then: func(cx *core.Scope) core.Node {
-		return core.Group([]core.Node{
-			form.Label(locales.SettingsPhonePair(cx), 14, form.Button{Text: locales.SettingsPhoneNewCode(cx), OnPress: live.Do(a, a.NewPhoneCode), TestID: "settings-phone-new-code"}),
-			form.Card(pairing{a: a}),
+		// The phones paired come first, each with what it may do and what revoking it does; pairing another follows, then what comes of the links they send and what they sync (phone_devices.go, phone_learning.go).
+		nodes := []core.Node{
 			form.Label(locales.SettingsPhoneDevices(cx), 14),
 			form.Card(devices{a: a}),
+			phoneError(cx, live.Func(a, func() string { return a.PhoneSync().RevokeErr }), locales.SettingsPhoneRevokeFailed),
+			phoneError(cx, live.Func(a, func() string { return a.PhoneSync().ReadOnlyErr }), locales.SettingsPhoneReadOnlyFailed),
+			form.Label(locales.SettingsPhonePair(cx), 14, form.Button{Text: locales.SettingsPhoneNewCode(cx), OnPress: live.Do(a, a.NewPhoneCode), TestID: "settings-phone-new-code"}),
+			form.Card(pairing{a: a}),
 			form.Label(locales.SettingsPhoneLinks(cx), 14),
 			form.Card(receiveLinks(cx, a)...),
-			core.Show{When: live.Func(a, func() bool { return a.PhoneSync().RevokeErr != "" }), Then: func(cx *core.Scope) core.Node {
-				return core.Text{ContentFunc: live.Func(a, func() string { return locales.SettingsPhoneRevokeFailed(cx, a.PhoneSync().RevokeErr) }), Selectable: core.SelectableOn,
-					Style: core.Style{FontSize: 11, Padding: core.Edges{Top: 4, Right: 12, Left: 12}}, StyleFunc: ui.Colored(colors.Danger)}
-			}},
-		})
+		}
+		return core.Group(append(nodes, learning(cx, a)...))
 	}}
 	children = append(children, failed, running)
 	return form.Page(children...)
@@ -167,54 +172,13 @@ func (p pairing) Render(cx *core.Scope) core.Node {
 		Children: []core.Node{code, texts}}
 }
 
-// devices is the card of the paired phones, each with when it was last seen and 撤销, or a line saying none is paired.
-type devices struct{ a App }
-
-// Render implements core.Node.
-func (d devices) Render(cx *core.Scope) core.Node {
-	a := d.a
-	// ids is the devices' IDs joined, so the rows are built again only when a phone pairs or is revoked; a row reads its device's times in its bindings.
-	ids := core.NewMemo(cx, live.Func(a, func() string {
-		var out []string
-		for _, dev := range a.PhoneSync().Devices {
-			out = append(out, dev.ID)
-		}
-		return strings.Join(out, ",")
-	}))
-	return core.Dynamic(func(cx *core.Scope) core.Node {
-		joined := ids.Get()
-		if joined == "" {
-			return form.Row{Title: locales.SettingsPhoneNoDevices(cx), NoGroup: true, TestID: "settings-phone-no-devices"}
-		}
-		var rows []core.Node
-		for i, id := range strings.Split(joined, ",") {
-			if i > 0 {
-				rows = append(rows, form.Separator(true))
-			}
-			rows = append(rows, deviceRow(cx, a, id))
-		}
-		return core.Group(rows)
-	})
-}
-
-// deviceRow is the row of paired phone id: its name over its platform and when it was last seen, and 撤销.
-func deviceRow(cx *core.Scope, a App, id string) core.Node {
-	device := func() PhoneDevice {
-		for _, dev := range a.PhoneSync().Devices {
-			if dev.ID == id {
-				return dev
-			}
-		}
-		return PhoneDevice{}
-	}
-	name := device().Name
-	return form.Row{Title: name, TestID: "settings-phone-device-" + id,
-		SubtitleFunc: live.Func(a, func() string {
-			dev := device()
-			return locales.SettingsPhoneDeviceSeen(cx, dev.Platform, dev.LastSeen)
-		}),
-		Trailing: []core.Node{form.Button{Text: locales.SettingsPhoneRevoke(cx), Label: locales.SettingsPhoneRevokeLabel(cx, name), TestID: "settings-phone-revoke-" + id,
-			OnPress: live.Do(a, func() { a.RevokePhone(id) })}}}
+// phoneError is a line in the danger color under a card, which shows while err reports why something failed, in the words say gives it.
+func phoneError(cx *core.Scope, err func() string, say func(cx *core.Scope, err string) string) core.Node {
+	colors := ui.ColorsOf(cx)
+	return core.Show{When: func() bool { return err() != "" }, Then: func(cx *core.Scope) core.Node {
+		return core.Text{ContentFunc: func() string { return say(cx, err()) }, Selectable: core.SelectableOn,
+			Style: core.Style{FontSize: 11, Padding: core.Edges{Top: 4, Right: 12, Left: 12}}, StyleFunc: ui.Colored(colors.Danger)}
+	}}
 }
 
 // receiveLinks are the rows of 手机发来的链接: whether the desktop takes the links phones send, and what it does with one, which a link taken nowhere leaves disabled.

@@ -192,7 +192,7 @@ func (a *app) trayStatus() tray.Status {
 		switch {
 		case job.ID == a.queue.active && !job.Stage.Done():
 			s.Running = &tray.Job{Title: jobName(job), Stage: job.Stage, Progress: job.Progress}
-		case job.ID != a.queue.active && job.Stage == core.StageQueued && a.queueCanRun(job):
+		case job.ID != a.queue.active && job.Stage == core.StageQueued && !queueHeld(job) && a.queueCanRun(job):
 			s.Waiting++
 		}
 	}

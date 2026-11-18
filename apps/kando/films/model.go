@@ -58,6 +58,8 @@ type Film struct {
 	Target string
 	// Device is the paired phone that sent the job's link, empty for a film added on the desktop (core.Job.Device).
 	Device string
+	// PausedBy is the paired phone that paused the waiting job where it was, empty for one that is not paused (core.Job.PausedBy).
+	PausedBy string
 }
 
 // List is the open library's films: the jobs that belong on its shelf, then the videos found in its folder that no job holds. Such a video shows the bilingual subtitles found beside it (media.Video.Subtitles), as a film copied from another library or one whose job records were lost has them. names is the title the user gave each video in Kando, by path (shelf.Library.Names), which a film shows in place of the name nameOf gives its job or its file's name.
@@ -117,7 +119,7 @@ func FromJob(job core.Job, name, detail string) Film {
 		Detail: detail, Stage: job.Stage, JobID: job.ID,
 		VideoPath: job.VideoPath, SubtitlePath: job.SubtitlePath, Language: job.Language, Spoken: job.SpokenLanguage, SpeechLanguage: job.SpeechLanguage,
 		Progress: job.Progress, Thumbnail: job.Thumbnail, Untranslated: job.Untranslated, TranslationErr: job.TranslationErr, SameLanguage: job.SameLanguage,
-		Stopped: errors.Is(job.Err, context.Canceled), Target: jobTarget(job), Device: job.Device,
+		Stopped: errors.Is(job.Err, context.Canceled), Target: jobTarget(job), Device: job.Device, PausedBy: job.PausedBy,
 		PlatformSubtitles: job.PlatformSubtitles, LocalLines: job.LocalLines,
 		SubtitlesOnly: job.SubtitlesOnly, VideoComing: job.Redo == core.RedoVideo && !job.Stage.Done(),
 	}

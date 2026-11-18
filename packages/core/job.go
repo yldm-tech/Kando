@@ -119,6 +119,8 @@ type Job struct {
 	FromFolder bool
 	// Device is the name of the paired phone that sent the job's link (phone sync), as its card says 来自 <device>; empty for a job added on the desktop. It stays when the job is run again.
 	Device string
+	// PausedBy is the name of the paired phone that paused the job where it was (phone sync), as its card says 在 <device> 上暂停了 and offers 在这台电脑上继续; empty for a job that is not paused. A paused job waits, its stage StageQueued, without being started, and keeps its place until it is let go on, which clears it, as running it again or cancelling it does.
+	PausedBy string
 	// Series is the ID of the series the user said the film is part of, whose glossary its translation uses with its own (Term, ScopeSeries); empty for a film of no series. It stays when the job is run again.
 	Series string
 }

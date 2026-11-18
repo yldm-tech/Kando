@@ -48,8 +48,9 @@ type Film struct {
 	// Video is the name of the video file in the film's folder once it is whole, "" until then; Poster the poster's, "" for none.
 	Video  string `json:"video"`
 	Poster string `json:"poster"`
-	// PositionMS is where it was left playing.
+	// PositionMS is where it was left playing, and PositionAt when, zero for a film left before the phone kept when (yldm-tech/Kando#221).
 	PositionMS int64     `json:"position_ms"`
+	PositionAt time.Time `json:"position_at,omitzero"`
 	Added      time.Time `json:"added"`
 }
 

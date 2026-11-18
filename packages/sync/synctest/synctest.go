@@ -10,6 +10,7 @@ import (
 	"encoding/json"
 	"io"
 	"log"
+	"net"
 	"net/http"
 	"net/http/httptest"
 	"net/netip"
@@ -58,6 +59,8 @@ type Desktop struct {
 	films   []Film
 	stall   int64
 	held    chan struct{}
+	// off hangs up on every connection, as a computer asleep or with Phone Sync off (SetOff).
+	off     bool
 	ranges  []string
 	modTime time.Time
 }
@@ -77,6 +80,7 @@ func New(t testing.TB, name string) *Desktop {
 	mux.HandleFunc("GET "+sync.PathVideo, d.authed(d.video))
 	mux.HandleFunc("POST "+sync.PathCall, d.authed(d.call))
 	d.srv = httptest.NewUnstartedServer(mux)
+	d.srv.Listener = offListener{d.srv.Listener, d}
 	// A phone reading the certificate alone (sync.FetchFingerprint) hangs up after the handshake, which the server would log as an error.
 	d.srv.Config.ErrorLog = log.New(io.Discard, "", 0)
 	d.srv.StartTLS()
@@ -172,6 +176,38 @@ func (d *Desktop) Paired() int {
 	d.mu.Lock()
 	defer d.mu.Unlock()
 	return len(d.tokens)
+}
+
+// SetOff drops every request from now on while off, as a computer asleep or with Phone Sync off does, and answers them again once it is back on, at the same address and with the same tokens, which Close cannot.
+func (d *Desktop) SetOff(off bool) {
+	d.mu.Lock()
+	d.off = off
+	d.mu.Unlock()
+	if off {
+		d.srv.CloseClientConnections()
+	}
+}
+
+// offListener hangs up on the connections it accepts while its desktop is off, before the TLS handshake, so a phone's request fails as one to a computer that is not there does.
+type offListener struct {
+	net.Listener
+	d *Desktop
+}
+
+func (l offListener) Accept() (net.Conn, error) {
+	for {
+		c, err := l.Listener.Accept()
+		if err != nil {
+			return nil, err
+		}
+		l.d.mu.Lock()
+		off := l.d.off
+		l.d.mu.Unlock()
+		if !off {
+			return c, nil
+		}
+		c.Close()
+	}
 }
 
 // Close stops the desktop, as one turned off or with Phone Sync off: nothing listens at Addr after it.

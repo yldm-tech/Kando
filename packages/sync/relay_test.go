@@ -603,3 +603,23 @@ func TestRelayGrantsOneAtATime(t *testing.T) {
 		t.Fatalf("the desktop follows a grant minted %v, the newest was minted %v", kept.Minted, newest.Minted)
 	}
 }
+
+// TestRelayKeepsAReadOnlyDeviceReadOnly checks that the desktop user's read-only switch holds over the relay as on the local network: a call that changes something is refused with CodeReadOnly before the desktop's work, and the switch is read again at the next poll.
+func TestRelayKeepsAReadOnlyDeviceReadOnly(t *testing.T) {
+	g := newRelayRig(t)
+	g.devs[0].ReadOnly = true
+	slot := g.send(t, "c1", OpJobCreate, JobCreate{Link: "https://youtu.be/a"})
+	g.poll(t, 1)
+	if reply := g.reply(t, slot); reply.Error == nil || reply.Error.Code != CodeReadOnly {
+		t.Fatalf("a read-only device's job.create over the relay: %+v", reply)
+	}
+	if len(g.svc.callers) != 0 {
+		t.Fatalf("the desktop did the work of a read-only device: %+v", g.svc.callers)
+	}
+	g.devs[0].ReadOnly = false
+	slot = g.send(t, "c2", OpJobCreate, JobCreate{Link: "https://youtu.be/a"})
+	g.poll(t, 1)
+	if reply := g.reply(t, slot); reply.Error != nil {
+		t.Fatalf("once the device may write again: %+v", reply)
+	}
+}

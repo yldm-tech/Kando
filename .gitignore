@@ -9,5 +9,3 @@
 **/.mygo/
 /.nsgo/
 **/.nsgo/
-# The phone app's Downloads tab, which a global ignore of downloads/ would leave out.
-!/apps/mobile/downloads/

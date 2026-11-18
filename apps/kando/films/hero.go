@@ -115,8 +115,13 @@ func (h hero) Render(cx *ns.Scope) ns.Node {
 		at, _ := ResumeFrom(a, item())
 		return at
 	})
-	// The kicker says whether the film is one to continue or one finished last.
+	// leftOn is the phone the film was left on where it resumes, "" for this computer.
+	leftOn := live.Memo(cx, a, func() string { return a.LeftOn(item().VideoPath) })
+	// The kicker says whether the film is one to continue, and the phone it was left on, or one finished last.
 	kicker := func() string {
+		if device := leftOn(); device != "" && resume() > 0 {
+			return locales.FilmsHeroKickerContinueOn(cx, device)
+		}
 		language := item().Language
 		// A film whose translation failed shows its original lines only, so it is not said to be bilingual.
 		if item().TranslationErr != "" {
