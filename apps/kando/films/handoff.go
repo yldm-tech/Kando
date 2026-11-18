@@ -33,7 +33,8 @@ func (h handoffBar) Render(cx *core.Scope) core.Node {
 			l := look()
 			return locales.FilmsHandoff(cx, l.Device, filmName(l.Film), Clock(l.At))
 		}, MaxLines: 2, EllipsizeMode: core.EllipsizeTail, Style: core.Style{FontSize: 13, LineHeight: 18, FontWeight: ui.Semibold}, StyleFunc: ui.Colored(colors.Text)}
-		when := core.Text{ContentFunc: func() string { return locales.FilmsHandoffWhen(cx, ago(cx, look().When)) }, MaxLines: 1,
+		// Read through live.Func, so it follows time as well as the offer: the app runs the bindings again once a minute while the bar shows (phoneClockArm).
+		when := core.Text{ContentFunc: live.Func(a, func() string { return locales.FilmsHandoffWhen(cx, ago(cx, look().When)) }), MaxLines: 1,
 			Style: core.Style{FontSize: 11, LineHeight: 15}, StyleFunc: ui.Colored(colors.Muted)}
 		text := core.View{Style: core.Style{FlexGrow: 1, FlexShrink: 1, MinWidth: core.Pt(0), Gap: 1}, Children: []core.Node{title, when}}
 		dot := core.View{Style: core.Style{Width: core.Pt(8), Height: core.Pt(8), CornerRadius: 4, FlexShrink: 0}, StyleFunc: ui.Filled(colors.Accent)}

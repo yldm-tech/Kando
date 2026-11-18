@@ -1682,6 +1682,7 @@ settingsPhoneNoConflicts: "没有冲突。两边改了同一处时会在这里�
 settingsPhoneConflictsNote: "生词、收藏和看到哪儿会自动合并；只有两台设备改了同一句译文或同一条笔记，才需要你来选。"
 settingsPhoneResolveFailed: "无法解决这个冲突：{error}"
 settingsPhoneConflictWord: "生词「{word}」"
+settingsPhoneConflictFilm: "「{title}」"
 settingsPhoneThisComputer: "这台电脑"
 settingsPhoneConflictUse: "用这个"
 settingsPhoneConflictUseLabel: "用 {device} 的版本"

@@ -61,6 +61,9 @@ type phoneUI struct {
 	activity                []settings.PhoneActivity
 	handoffClosed           string
 	readOnlyErr, resolveErr string
+	// clockAt is when the timer phoneClockArm set runs the bindings again, as what the page or the handoff bar shows changes with time alone; zero for none, and clockStop stops it.
+	clockAt   time.Time
+	clockStop func() bool
 }
 
 func newPhoneUI() phoneUI { return phoneUI{} }
@@ -98,6 +101,7 @@ func (a *app) phoneSyncHooks() areaHooks {
 		afterChange: func() bool {
 			a.phoneSyncPublish()
 			a.phoneSyncPublishState()
+			a.phoneClockArm()
 			return a.phoneSyncFollow()
 		},
 		quitting: a.phoneSyncStop,

@@ -893,6 +893,7 @@ var Parameters = map[string][]string{
 	"SettingsPhoneSyncedCounts":                {"words", "lines", "films"},
 	"SettingsPhoneResolveFailed":               {"error_"},
 	"SettingsPhoneConflictWord":                {"word"},
+	"SettingsPhoneConflictFilm":                {"title"},
 	"SettingsPhoneConflictUseLabel":            {"device"},
 	"SettingsPhoneDidLink":                     {"title"},
 	"SettingsPhoneDidPause":                    {"title"},
@@ -1354,6 +1355,7 @@ type Translation struct {
 	SettingsPhoneSyncedCounts                func(words int, lines int, films int) string
 	SettingsPhoneResolveFailed               func(error_ string) string
 	SettingsPhoneConflictWord                func(word string) string
+	SettingsPhoneConflictFilm                func(title string) string
 	SettingsPhoneConflictUseLabel            func(device string) string
 	SettingsPhoneDidLink                     func(title string) string
 	SettingsPhoneDidPause                    func(title string) string
@@ -17937,6 +17939,9 @@ func Supply(lang string, t Translation) {
 	}
 	if t.SettingsPhoneConflictWord != nil {
 		s.SettingsPhoneConflictWord = t.SettingsPhoneConflictWord
+	}
+	if t.SettingsPhoneConflictFilm != nil {
+		s.SettingsPhoneConflictFilm = t.SettingsPhoneConflictFilm
 	}
 	if t.SettingsPhoneConflictUseLabel != nil {
 		s.SettingsPhoneConflictUseLabel = t.SettingsPhoneConflictUseLabel
@@ -45313,6 +45318,38 @@ func (msgs Messages) SettingsPhoneConflictWord(word string) string {
 			return "生词「" + word + "」"
 		case "zh-Hant":
 			return "生字「" + word + "」"
+		}
+	}
+}
+
+// SettingsPhoneConflictFilm says "“{title}”"
+// in the language the app shows under cx.
+//
+// Where a sync conflict is: the film its line or correction is of, the film's title in the language's quotation marks.
+func SettingsPhoneConflictFilm(cx *core.Scope, title string) string {
+	return For(cx).SettingsPhoneConflictFilm(title)
+}
+
+// SettingsPhoneConflictFilm is the package's SettingsPhoneConflictFilm in the language of msgs.
+func (msgs Messages) SettingsPhoneConflictFilm(title string) string {
+	if i18n.IsPseudo(msgs.lang) {
+		return i18n.Pseudo(msgs.lang, Messages{lang: Source, mark: true}.SettingsPhoneConflictFilm(title))
+	}
+	for lang := msgs.lang; ; lang = i18n.Parent(lang) {
+		if f := supplied[lang].SettingsPhoneConflictFilm; f != nil {
+			return f(title)
+		}
+		switch lang {
+		case "", "en":
+			return "“" + msgs.arg(title) + "”"
+		case "ja":
+			return "「" + title + "」"
+		case "ko":
+			return "‘" + title + "’"
+		case "zh-Hans":
+			return "「" + title + "」"
+		case "zh-Hant":
+			return "「" + title + "」"
 		}
 	}
 }

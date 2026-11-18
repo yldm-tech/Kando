@@ -1684,6 +1684,7 @@ settingsPhoneNoConflicts: "競合はありません。2 台で同じ箇所を変
 settingsPhoneConflictsNote: "単語・保存した文・視聴位置は自動で統合されます。2 台で同じ訳文やメモを変更したときだけ、選んでください。"
 settingsPhoneResolveFailed: "競合を解決できませんでした：{error}"
 settingsPhoneConflictWord: "単語「{word}」"
+settingsPhoneConflictFilm: "「{title}」"
 settingsPhoneThisComputer: "このコンピュータ"
 settingsPhoneConflictUse: "これを使う"
 settingsPhoneConflictUseLabel: "{device} の版を使う"

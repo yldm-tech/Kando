@@ -1,6 +1,8 @@
 package main
 
 import (
+	"time"
+
 	"kando/apps/kando/films"
 	"kando/apps/kando/settings"
 )
@@ -22,6 +24,8 @@ func (a *app) SetPhoneAskFirst(ask bool) { a.phoneSyncSetAsk(ask) }
 func (a *app) SetPhoneReadOnly(id string, on bool) { a.phoneSyncSetReadOnly(id, on) }
 
 func (a *app) ResolvePhoneConflict(id string, keep settings.PhoneKeep) { a.phoneSyncResolve(id, keep) }
+
+func (a *app) PhoneNow() time.Time { return a.phoneStateNow() }
 
 // The library page's part of Phone Sync (films.App), from state_phonesync_linked.go: where a phone last left a film, offered to continue here, and the phone each film was left on.
 

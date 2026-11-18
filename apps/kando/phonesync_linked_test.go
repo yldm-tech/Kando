@@ -3,10 +3,12 @@ package main
 import (
 	"context"
 	"net/http"
+	"strconv"
 	"testing"
 	"time"
 
 	"kando/apps/kando/locales/testlocale"
+	"kando/apps/kando/phonesync"
 	"kando/apps/kando/settings"
 	"kando/packages/core"
 	psync "kando/packages/sync"
@@ -49,6 +51,10 @@ func TestPhoneSyncPausesAJobUntilItIsContinued(t *testing.T) {
 	waitUntil(t, tt, a, updates, func() bool { return a.RunningJob() == "" })
 	if job, _ := a.library.Find(id); job.Stage != core.StageQueued || job.PausedBy == "" {
 		t.Fatalf("the held job after the clip ended %+v", job)
+	}
+	// It is not work left to do: the Dock badge and the status icon do not count it.
+	if n, w := a.queueOutstanding(), a.trayStatus().Waiting; n != 0 || w != 0 {
+		t.Fatalf("a held job counted: %d outstanding, %d waiting", n, w)
 	}
 	// 在这台电脑上继续 lets it go on.
 	tt.Press("queue-continue-here")
@@ -208,5 +214,44 @@ func TestPhoneSyncSettlesAConflictOnThePage(t *testing.T) {
 	}
 	if a.phone.activity[0].Kind != settings.ActivityResolved || a.phone.activity[0].Device != "" {
 		t.Fatalf("activity %+v", a.phone.activity)
+	}
+}
+
+// The page's list of what the phones did keeps the latest phoneActivityKept, and still shows each new one once it is full: logging a new action makes a new list, so the one the page last drew is left as it was and is seen to differ.
+func TestPhoneSyncActivityShowsTheLatestOnceFull(t *testing.T) {
+	a, p, _, _, _, _ := phoneStateLibrary(t)
+	m := testlocale.Messages()
+	settingsOpenAt(a, p.tt, settings.SectionPhone)
+	for i := range phoneActivityKept + 5 {
+		apply(p.tt, a, func() { a.phoneLog("", settings.ActivityLink, "clip "+strconv.Itoa(i), 0, 0) })
+		if want := m.SettingsPhoneDidLink("clip " + strconv.Itoa(i)); !hasText(p.tt, want) {
+			t.Fatalf("after %d actions the page does not show %q: %q", i+1, want, p.tt.Texts())
+		}
+	}
+	if len(a.phone.activity) != phoneActivityKept || a.phone.activity[0].Title != "clip "+strconv.Itoa(phoneActivityKept+4) {
+		t.Fatalf("activity kept %d, latest %+v", len(a.phone.activity), a.phone.activity[0])
+	}
+}
+
+// While nothing else changes, Settings › 手机同步 follows time: a phone that stopped calling goes offline once phonesync.OnlineWithin has passed, and the relative times of what the phones did move on, without the test telling the app anything.
+func TestPhoneSyncPageFollowsTimeWhileIdle(t *testing.T) {
+	a, p, _, _, _, clock := phoneStateLibrary(t)
+	m := testlocale.Messages()
+	dev := a.phone.devices[0]
+	settingsOpenAt(a, p.tt, settings.SectionPhone)
+	apply(p.tt, a, func() { a.phoneLog("", settings.ActivityLink, "clip", 0, 0) })
+	online := m.SettingsPhoneDeviceOnline(dev.Platform)
+	if !hasText(p.tt, online) || !hasText(p.tt, m.PhoneSyncAgoNow()) {
+		t.Fatalf("the phone is not online or the action not just now: %q", p.tt.Texts())
+	}
+	clock.Add(2 * time.Minute)
+	p.tt.FastForward(2 * time.Minute)
+	if !hasText(p.tt, m.PhoneSyncAgoMinutes(2)) {
+		t.Fatalf("the action's time did not move on: %q", p.tt.Texts())
+	}
+	clock.Add(phonesync.OnlineWithin)
+	p.tt.FastForward(phonesync.OnlineWithin)
+	if hasText(p.tt, online) || !hasText(p.tt, m.SettingsPhoneDeviceSeen(dev.Platform, dev.LastSeen)) {
+		t.Fatalf("a phone gone quiet still shows online: %q", p.tt.Texts())
 	}
 }

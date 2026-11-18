@@ -105,8 +105,12 @@ func learning(cx *core.Scope, a App) []core.Node {
 	count := live.Func(a, func() int { return len(a.PhoneSync().Conflicts) })
 	badge := core.Show{When: func() bool { return count() > 0 }, Then: func(cx *core.Scope) core.Node {
 		return core.Text{ContentFunc: func() string { return strconv.Itoa(count()) }, TestID: "settings-phone-conflict-count",
-			Style:     core.Style{FontSize: 10, FontWeight: ui.Bold, LineHeight: 16, MinWidth: core.Pt(16), TextAlign: core.TextAlignCenter, CornerRadius: 8, Padding: core.Symmetric(0, 5), Color: core.RGB(0xFFFFFF)},
-			StyleFunc: ui.Filled(ui.ColorsOf(cx).Danger)}
+			Style: core.Style{FontSize: 10, FontWeight: ui.Bold, LineHeight: 16, MinWidth: core.Pt(16), TextAlign: core.TextAlignCenter, CornerRadius: 8, Padding: core.Symmetric(0, 5)},
+			// The palette has no ink for a danger fill; the one for an accent fill is the same white.
+			StyleFunc: func() core.Style {
+				colors := ui.ColorsOf(cx)
+				return core.Style{Background: colors.Danger(), Color: colors.OnAccent()}
+			}}
 	}}
 	return []core.Node{
 		stats,
@@ -159,7 +163,7 @@ func conflictRow(cx *core.Scope, a App, c PhoneConflict) core.Node {
 	k := theme.Of(cx)
 	where := []string{conflictField(cx, c.Field)}
 	if c.Film != "" {
-		where = append(where, "「"+c.Film+"」")
+		where = append(where, locales.SettingsPhoneConflictFilm(cx, c.Film))
 	}
 	switch {
 	case c.Word != "":
@@ -179,7 +183,7 @@ func conflictRow(cx *core.Scope, a App, c PhoneConflict) core.Node {
 		}
 		return core.View{Style: core.Style{FlexGrow: 1, FlexBasis: core.Pt(0), MinWidth: core.Pt(0), Gap: 6, Padding: core.Symmetric(9, 10), CornerRadius: 10}, StyleFunc: ui.Filled(k.Tile),
 			Children: []core.Node{
-				core.Text{Content: device + " · " + ago(cx, v.At), Style: core.Style{FontSize: 11, LineHeight: 15}, StyleFunc: ui.Colored(colors.Muted)},
+				core.Text{ContentFunc: live.Func(a, func() string { return device + " · " + ago(cx, v.At, a.PhoneNow()) }), Style: core.Style{FontSize: 11, LineHeight: 15}, StyleFunc: ui.Colored(colors.Muted)},
 				core.Text{Content: v.Text, Selectable: core.SelectableOn, Style: core.Style{FontSize: 13, LineHeight: 18}, StyleFunc: ui.Colored(colors.Text)},
 				core.View{Style: core.Style{Direction: core.Row}, Children: []core.Node{
 					form.Button{Text: locales.SettingsPhoneConflictUse(cx), Label: locales.SettingsPhoneConflictUseLabel(cx, device), TestID: testID,
@@ -239,7 +243,7 @@ func (v activity) Render(cx *core.Scope) core.Node {
 			}
 			rows = append(rows, core.View{Style: core.Style{Direction: core.Row, FlexShrink: 0, MinHeight: core.Pt(36), Padding: core.Symmetric(6, 14), Gap: 10, AlignItems: core.AlignCenter},
 				Children: []core.Node{
-					core.Text{Content: ago(cx, item.At), MaxLines: 1, Style: core.Style{FontSize: 11, Width: core.Pt(72), FlexShrink: 0}, StyleFunc: ui.Colored(colors.Muted)},
+					core.Text{ContentFunc: live.Func(a, func() string { return ago(cx, item.At, a.PhoneNow()) }), MaxLines: 1, Style: core.Style{FontSize: 11, Width: core.Pt(72), FlexShrink: 0}, StyleFunc: ui.Colored(colors.Muted)},
 					core.Text{Content: device, MaxLines: 1, EllipsizeMode: core.EllipsizeTail, Style: core.Style{FontSize: 12, FontWeight: ui.Semibold, MaxWidth: core.Pt(140), FlexShrink: 0}, StyleFunc: ui.Colored(colors.Text)},
 					core.Text{Content: activityText(cx, item), MaxLines: 2, EllipsizeMode: core.EllipsizeTail, Style: core.Style{FontSize: 12, FlexGrow: 1, FlexShrink: 1, MinWidth: core.Pt(0)}, StyleFunc: ui.Colored(colors.Text)},
 				}})
@@ -286,8 +290,8 @@ func activityText(cx *core.Scope, item PhoneActivity) string {
 }
 
 // ago is how long before now at was, in the interface's language: just now, minutes, hours, or days.
-func ago(cx *core.Scope, at time.Time) string {
-	d := time.Since(at)
+func ago(cx *core.Scope, at, now time.Time) string {
+	d := now.Sub(at)
 	switch {
 	case d < time.Minute:
 		return locales.PhoneSyncAgoNow(cx)

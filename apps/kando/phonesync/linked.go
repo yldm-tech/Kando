@@ -37,13 +37,13 @@ type Left struct {
 	Stamp psync.Stamp
 }
 
-// Handoff is where a phone last left one of the ledger's films, the latest of the positions set on a device other than desktop (the desktop's own ID), and false when the latest position of all was set on the desktop, or none was set on a phone: a film the desktop played since is the desktop's again. A position at a film's start, as one watched to its end, is no place to continue from.
+// Handoff is where a phone last left one of the ledger's films, the latest of the positions set on a device other than desktop (the desktop's own ID), and false when the latest position of all was set on the desktop, or none was set on a phone: a film the desktop played since is the desktop's again. A phone's position at a film's start, as one watched to its end, is no place to continue from, but the desktop's still counts as the latest: a film the desktop played to its end is the desktop's again too.
 func Handoff(l *psync.Ledger, desktop string) (Left, bool) {
 	var latest psync.Field
 	var film string
 	for _, r := range l.Records(psync.KindPosition) {
 		f, ok := r.Fields[psync.FieldPositionMS]
-		if !ok || PositionOf(r) <= 0 {
+		if !ok || (PositionOf(r) <= 0 && f.Device != desktop) {
 			continue
 		}
 		if film == "" || f.Stamp.After(latest.Stamp) {

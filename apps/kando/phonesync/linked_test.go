@@ -38,8 +38,17 @@ func TestHandoffIsWhereAPhoneLastLeftAFilm(t *testing.T) {
 	if got, ok := Handoff(l, "mac"); ok {
 		t.Fatalf("handed off %+v at a film's start", got)
 	}
+	// A phone leaves another film later; the desktop then plays a film to its end, which leaves no position: the desktop played last, so nothing is handed off.
+	l.Put([]psync.Record{position("tide", 140000, "phone", t0.Add(4*time.Minute))}, id)
+	if got, ok := Handoff(l, "mac"); !ok || got.Film != "tide" {
+		t.Fatalf("handoff %+v, %v after a phone left a film", got, ok)
+	}
+	l.Put([]psync.Record{{Kind: psync.KindPosition, ID: "talk", Film: "talk", Fields: map[string]psync.Field{psync.FieldPositionMS: {Value: psync.Null, Stamp: psync.Stamp{At: t0.Add(5 * time.Minute), Device: "mac"}}}}}, id)
+	if got, ok := Handoff(l, "mac"); ok {
+		t.Fatalf("handed off %+v after the desktop played a film to its end", got)
+	}
 	words, lines, positions := Counts(l)
-	if words != 0 || lines != 0 || positions != 3 {
+	if words != 0 || lines != 0 || positions != 2 {
 		t.Fatalf("counts %d %d %d", words, lines, positions)
 	}
 }

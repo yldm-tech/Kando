@@ -162,6 +162,7 @@ func (f *fakeApp) SetPhoneReadOnly(id string, on bool) {
 func (f *fakeApp) ResolvePhoneConflict(id string, keep PhoneKeep) {
 	f.call(fmt.Sprintf("resolve %s %d", id, keep))
 }
+func (f *fakeApp) PhoneNow() time.Time                   { return time.Now() }
 func (f *fakeApp) JobNotifications() bool                { return f.notify }
 func (f *fakeApp) SetJobNotifications(on bool)           { f.notify = on }
 func (f *fakeApp) Background() Background                { return f.background }

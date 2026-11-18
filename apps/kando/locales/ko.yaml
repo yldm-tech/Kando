@@ -1684,6 +1684,7 @@ settingsPhoneNoConflicts: "충돌이 없습니다. 두 기기에서 같은 곳�
 settingsPhoneConflictsNote: "단어, 저장한 문장, 본 위치는 자동으로 합쳐집니다. 두 기기에서 같은 번역이나 메모를 바꿨을 때만 고르면 됩니다."
 settingsPhoneResolveFailed: "충돌을 해결할 수 없습니다: {error}"
 settingsPhoneConflictWord: "단어 ‘{word}’"
+settingsPhoneConflictFilm: "‘{title}’"
 settingsPhoneThisComputer: "이 컴퓨터"
 settingsPhoneConflictUse: "이것 사용"
 settingsPhoneConflictUseLabel: "{device}의 버전 사용"

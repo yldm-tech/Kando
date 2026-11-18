@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"kando/apps/kando/films"
+	"kando/apps/kando/live"
 	"kando/apps/kando/phonesync"
 	"kando/apps/kando/settings"
 	psync "kando/packages/sync"
@@ -21,13 +22,54 @@ const phoneActivityKept = 30
 // handoffWithin is how long after a phone left a film the library offers to continue it here.
 const handoffWithin = 24 * time.Hour
 
-// phoneLog notes what a phone, or this computer for one (device ""), did now, for the page's list of what the phones did lately, the latest first. UI thread only.
+// phoneClockEvery is how often the relative times on Settings › 手机同步 and the handoff bar are told again while they show.
+const phoneClockEvery = time.Minute
+
+// phoneClockNext is the next time what Settings › 手机同步 or the handoff bar shows changes with time alone, after now, or zero for none: a phone seen lately going offline, and, while the page or the bar shows, their relative times moving on and the offer to continue running out. UI thread only.
+func (a *app) phoneClockNext(now time.Time) time.Time {
+	var next time.Time
+	soonest := func(t time.Time) {
+		if t.After(now) && (next.IsZero() || t.Before(next)) {
+			next = t
+		}
+	}
+	if !a.phone.running {
+		return next
+	}
+	for _, d := range a.phone.devices {
+		if d.Online(now) {
+			soonest(d.LastSeen.Add(phonesync.OnlineWithin))
+		}
+	}
+	if (a.prefs.open && a.SettingsSection() == settings.SectionPhone) || a.phoneHandoff().Film.Key != "" {
+		// On the minute rather than a minute from now, so the changes in between leave the timer as it is.
+		soonest(now.Truncate(phoneClockEvery).Add(phoneClockEvery))
+	}
+	return next
+}
+
+// phoneClockArm sets the timer that runs the bindings again at phoneClockNext, so a phone that stopped calling shows offline and the relative times move on while nothing else changes; the run's afterChange arms it again. A timer already set for that time is left running. UI thread only.
+func (a *app) phoneClockArm() {
+	now := a.phoneStateNow()
+	next := a.phoneClockNext(now)
+	if a.phone.clockStop != nil && next.Equal(a.phone.clockAt) {
+		return
+	}
+	if a.phone.clockStop != nil {
+		a.phone.clockStop()
+		a.phone.clockStop = nil
+	}
+	a.phone.clockAt = next
+	if next.IsZero() || a.cx == nil {
+		return
+	}
+	a.phone.clockStop = a.cx.AfterFunc(next.Sub(now), live.Do(a, func() { a.phone.clockStop, a.phone.clockAt = nil, time.Time{} }))
+}
+
+// phoneLog notes what a phone, or this computer for one (device ""), did now, for the page's list of what the phones did lately, the latest first. Each call makes a new list rather than shifting the old one in place, as the page compares the list it last drew with the one it reads (settings.activity), and an in-place shift would change the one it drew too. UI thread only.
 func (a *app) phoneLog(device, kind, title string, count int, at time.Duration) {
 	entry := settings.PhoneActivity{At: a.phoneStateNow(), Device: device, Kind: kind, Title: title, Count: count, Position: at}
-	a.phone.activity = slices.Insert(a.phone.activity, 0, entry)
-	if len(a.phone.activity) > phoneActivityKept {
-		a.phone.activity = a.phone.activity[:phoneActivityKept]
-	}
+	a.phone.activity = slices.Concat([]settings.PhoneActivity{entry}, a.phone.activity[:min(len(a.phone.activity), phoneActivityKept-1)])
 }
 
 // phoneLogPut notes what a phone's put changed: where it left each film, and how many lines, words and corrections of each film it changed. changed is the records as they are once merged, films the library's films by ID. UI thread only.

@@ -6020,6 +6020,11 @@ settingsPhoneConflictWord:
   description: "Where a sync conflict is: a vocabulary word's meaning or note."
   placeholders:
     word: { type: "String", example: "basis vector" }
+settingsPhoneConflictFilm:
+  message: "“{title}”"
+  description: "Where a sync conflict is: the film its line or correction is of, the film's title in the language's quotation marks."
+  placeholders:
+    title: { type: "String", example: "Rust Talk" }
 settingsPhoneThisComputer:
   message: "This Computer"
   description: "Name of this computer where a sync conflict's version or an activity entry was made on the desktop."
