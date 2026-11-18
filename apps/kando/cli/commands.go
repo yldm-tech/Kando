@@ -690,6 +690,56 @@ func runMove(e *env, args []string) error {
 	return err
 }
 
+// runSubscriptions lists the open library's subscriptions, or with add subscribes it to a list, or with check lists a subscription's videos now.
+func runSubscriptions(e *env, args []string) error {
+	positional, err := e.parse(e.flags(), args)
+	if err != nil {
+		return err
+	}
+	verb := "list"
+	if len(positional) > 0 {
+		verb, positional = positional[0], positional[1:]
+	}
+	switch verb {
+	case "list":
+		if len(positional) > 0 {
+			return usagef("list takes no arguments, got %d", len(positional))
+		}
+		var subs []remote.Subscription
+		if done, err := e.answer(remote.MethodSubscriptions, nil, &subs); done || err != nil {
+			return err
+		}
+		if len(subs) == 0 {
+			fmt.Fprintln(e.stderr, "No subscriptions.")
+			return nil
+		}
+		return writeSubscriptions(e.stdout, subs)
+	case "add":
+		if len(positional) != 1 {
+			return usagef("add takes one channel, collection or playlist link, got %d arguments", len(positional))
+		}
+		var got remote.Subscribed
+		if done, err := e.answer(remote.MethodSubscribe, remote.SubscribeParams{Source: positional[0]}, &got); done || err != nil {
+			return err
+		}
+		if got.Already {
+			fmt.Fprintln(e.stderr, "The library follows it already.")
+		}
+		_, err := fmt.Fprintf(e.stdout, "%s\t%s\n", printable(got.Subscription.ID), printable(got.Subscription.Name))
+		return err
+	case "check":
+		if len(positional) != 1 {
+			return usagef("check takes one subscription id, got %d arguments", len(positional))
+		}
+		var got remote.SubscriptionChecked
+		if done, err := e.answer(remote.MethodSubscriptionCheck, remote.IDParams{ID: positional[0]}, &got); done || err != nil {
+			return err
+		}
+		return writeChecked(e.stdout, got)
+	}
+	return usagef("unknown subcommand %q: use list, add or check", verb)
+}
+
 func runSites(e *env, args []string) error {
 	fs := e.flags()
 	limit := fs.Int("limit", 0, "at most this many sites, 0 for all")

@@ -438,7 +438,7 @@ correctKeyRestore:
   description: "Subtitles menu item: brings back every line of the open film the user marked as no speech."
 correctKeySelect:
   message: "Select the Current Line"
-  description: "Shortcut row of Return on the player: selects the subtitle line playing, to correct it."
+  description: "Shortcut row of E on the player: selects the subtitle line playing, to correct it."
 correctKeyStartEarlier:
   message: "Start 0.1 Second Earlier"
   description: "Shortcut row and button: moves the start of the selected subtitle line a tenth of a second earlier."
@@ -530,6 +530,126 @@ correctUndone:
 correctUnreadable:
   message: "This film’s corrections couldn’t be read, so they can’t be changed"
   description: "Message on the picture when the film's corrections file could not be read, which is then not written over."
+correctCandidateKept:
+  message: "Using the translation you picked, saved as yours"
+  description: "Message on the picture after the user picked one of the AI service's other translations of a subtitle line, which is kept as the user's correction."
+correctCandidates:
+  message: "This Line Is Wrong"
+  description: "Button of the bar of the selected subtitle line: asks the AI service for other translations of it to pick from."
+correctCandidatesBusy:
+  message: "This line is wrong · translating it again with more context…"
+  description: "Heading of the list of other translations of a subtitle line while the AI service translates it again from the lines around it."
+correctCandidatesCurrent:
+  message: "Current wording (unchanged)"
+  description: "Label over the first choice of the list of other translations of a subtitle line: the translation it has now, kept as it is."
+correctCandidatesFailed:
+  message: "Couldn’t get other translations: {error}"
+  description: "Message in the list of other translations of a subtitle line when the AI service failed, with its error."
+  placeholders:
+    error: { type: "String", example: "rate limited" }
+correctCandidatesHint:
+  message: "{choose} choose · {use} use it (saved as your wording; the machine won’t rewrite it) · {cancel} discard"
+  description: "Line under the list of other translations of a subtitle line, naming its keys as the platform writes them."
+  placeholders:
+    choose: { type: "String", example: "↑↓" }
+    use: { type: "String", example: "Return" }
+    cancel: { type: "String", example: "Esc" }
+correctCandidatesLabel:
+  message: "This line is wrong: candidates"
+  description: "Accessible name of the list of other translations of a subtitle line."
+correctCandidatesNoAI:
+  message: "Other translations need an AI service. Choose a model in AI Service first."
+  description: "Message in the list of other translations of a subtitle line when no AI service is set."
+correctCandidatesNone:
+  message: "The AI service found no better wording."
+  description: "Message in the list of other translations of a subtitle line when the AI service gave none other than the current one."
+correctCandidatesOption:
+  message: "Candidate · retranslated with context"
+  description: "Label over each of the AI service's other translations of a subtitle line, which it made from the lines around it."
+correctCandidatesSettings:
+  message: "Open Settings"
+  description: "Button in the list of other translations of a subtitle line, when no AI service could give any: opens the AI Service settings."
+correctCandidatesTitle:
+  message: "This line is wrong · pick a wording"
+  description: "Heading of the list of other translations of a subtitle line, once they came."
+correctExplain:
+  message: "Explain"
+  description: "Button of the bar of the selected subtitle line: has the AI service explain it."
+correctKeyCandidates:
+  message: "This Line Is Wrong…"
+  description: "Subtitles menu item and shortcut row of Shift+E: asks the AI service for other translations of the selected subtitle line, or of the one playing, to pick from."
+correctKeyPick:
+  message: "Use the Highlighted Wording"
+  description: "Shortcut row of Return while the other translations of a subtitle line show: keeps the one highlighted as the user's."
+correctKeyPickCancel:
+  message: "Discard the Candidates"
+  description: "Shortcut row of Escape while the other translations of a subtitle line show: puts them away, the line unchanged."
+correctKeyPickDown:
+  message: "Highlight the Next Wording"
+  description: "Shortcut row of the Down arrow while the other translations of a subtitle line show: highlights the one under the one highlighted."
+correctKeyPickUp:
+  message: "Highlight the Previous Wording"
+  description: "Shortcut row of the Up arrow while the other translations of a subtitle line show: highlights the one over the one highlighted."
+correctKeySpreadAll:
+  message: "Change It Everywhere in the Film"
+  description: "Shortcut row of Command-Return while a bar asks whether to change the words an edit changed in the film's other lines too: changes them all."
+correctKeySpreadOnly:
+  message: "Change Only This Line"
+  description: "Shortcut row of Escape while a bar asks whether to change the words an edit changed in the film's other lines too: leaves them."
+correctKeySpreadView:
+  message: "Show the Lines With It"
+  description: "Shortcut row of Shift-Command-Return while a bar asks whether to change the words an edit changed in the film's other lines too: shows those lines in the side panel's subtitle list."
+correctSpreadAll:
+  message: "All"
+  description: "Button of the bar asking whether to change the words an edit changed in the film's other lines too: changes them all."
+correctSpreadAsk:
+  message: "“{from}” → “{to}”: {count} more in this film. Change them too?"
+  description: "Bar over the picture after an edit of a subtitle line changed words the film's other lines hold too: the words before and after, and how many other lines hold them."
+  placeholders:
+    from: { type: "String", example: "Jon" }
+    to: { type: "String", example: "John" }
+    count: { type: "int", example: "4" }
+correctSpreadAskEdited:
+  message: "“{from}” → “{to}”: {count} more in this film (including {edited} you edited). Change them too?"
+  description: "Bar over the picture after an edit of a subtitle line changed words the film's other lines hold too, some of which the user had corrected: the words before and after, how many other lines hold them and how many of those the user edited."
+  placeholders:
+    from: { type: "String", example: "Jon" }
+    to: { type: "String", example: "John" }
+    count: { type: "int", example: "4" }
+    edited: { type: "int", example: "1" }
+correctSpreadDone:
+  message: "Replaced {count, plural, one {# place} other {# places}}"
+  description: "Message on the picture after the words an edit changed were changed in the film's other lines too, how many."
+  placeholders:
+    count: { type: "int", example: "4" }
+correctSpreadDoneTerm:
+  message: "Replaced {count, plural, one {# place} other {# places}} · updated and locked the glossary term"
+  description: "Message on the picture after the words an edit changed were changed in the film's other lines too, and in the glossary term that translated them, which is now locked."
+  placeholders:
+    count: { type: "int", example: "4" }
+correctSpreadOnly:
+  message: "Only changed here"
+  description: "Message on the picture after the user chose to keep an edit's change to the edited subtitle line alone."
+correctSpreadOnlyButton:
+  message: "Only Here"
+  description: "Button of the bar asking whether to change the words an edit changed in the film's other lines too: leaves them."
+correctSpreadView:
+  message: "View"
+  description: "Button of the bar asking whether to change the words an edit changed in the film's other lines too: shows those lines in the side panel's subtitle list."
+correctStepCandidate:
+  message: "Use a Candidate for Line {line}"
+  description: "What a change of the film's lines was, for Undo and Redo to name it: one of the AI service's other translations kept for the line numbered line."
+  placeholders:
+    line: { type: "int", example: "12" }
+correctStepSpread:
+  message: "Replace “{from}” with “{to}” Everywhere"
+  description: "What a change of the film's lines was, for Undo and Redo to name it: words changed in every line of the film that held them."
+  placeholders:
+    from: { type: "String", example: "Jon" }
+    to: { type: "String", example: "John" }
+correctUntranslated:
+  message: "(not translated)"
+  description: "Stands in for the translation of a subtitle line that has none, in the list of other translations of it."
 subexportBilingual:
   message: "Both"
   description: "Choice in the Export Subtitles dialog: export each line's translation and original together."
@@ -2830,7 +2950,7 @@ paletteExplainFailed:
     error: { type: "String", example: "context deadline exceeded" }
 paletteExplainLine:
   message: "Explain Line"
-  description: "Study menu item and shortcut row (E): the AI service explains the subtitle line playing, its meaning, key words and grammar, in the command palette."
+  description: "Subtitles menu item and shortcut row (I): the AI service explains the subtitle line selected, or the one playing, its meaning, key words and grammar, in the command palette."
 paletteExplainNoAI:
   message: "Explaining lines needs an AI service. Choose a model in “AI Service” first."
   description: "Explanation card when Explain Line was chosen with no AI service set."
@@ -5548,8 +5668,10 @@ subscribeWhenNew:
   message: "When There Are New Videos"
   description: "Row of a subscription's rules: what happens to new videos."
 subscribeWhenNewAuto:
-  message: "They join the queue and are downloaded and subtitled by the rules"
-  description: "Note of the When There Are New Videos row while Add Automatically is chosen."
+  message: "Up to {count} a check join the queue and are downloaded and subtitled by the rules; the rest wait here"
+  description: "Note of the When There Are New Videos row while Add Automatically is chosen: a check queues at most count new videos, and lists the others on the page for the user to add or skip."
+  placeholders:
+    count: { type: "int", example: "3" }
 subscribeWhenNewAsk:
   message: "They're listed here first and start once you add them"
   description: "Note of the When There Are New Videos row while Ask Me First is chosen."
@@ -5640,6 +5762,13 @@ subscribeNoteHeld:
   description: "Message on a subscription's page after a check listed its new videos for the user to add or skip."
   placeholders:
     count: { type: "int", example: "2" }
+subscribeNoteCapped:
+  message: "{found, plural, one {Found # new video} other {Found # new videos}} and added the first {added} to the queue. {held, plural, one {The other one is waiting for you below.} other {The other # are waiting for you below.}}"
+  description: "Message on a subscription's page after a check that adds new videos by itself found more than it adds at once: the first added are queued, the held others are listed below for the user to add or skip."
+  placeholders:
+    found: { type: "int", example: "5" }
+    added: { type: "int", example: "3" }
+    held: { type: "int", example: "2" }
 subscribeNoteNone:
   message: "No new videos."
   description: "Message on a subscription's page after a check found nothing new."
@@ -5790,6 +5919,9 @@ vocabLearning:
   description: "Study stats dialog, under the mastery bar: how many words and saved lines are being learned."
   placeholders:
     count: { type: "int", example: "3" }
+vocabLibrarySeparator:
+  message: ", "
+  description: "Study stats dialog: what goes between two library names in vocabStatsLibraries."
 vocabLineCount:
   message: "{count, plural, one {# line} other {# lines}}"
   description: "Study stats dialog: how many lines are saved, the big number of the saved lines card."
@@ -5867,6 +5999,16 @@ vocabOtherDevices:
 vocabPreview:
   message: "Preview (first 3)"
   description: "Export Vocabulary tab: label over the first three records as the file will hold them."
+vocabStatsLibraries:
+  message: "Counted from {libraries}"
+  description: "Study stats dialog, top of the Stats tab: the libraries whose study is added up in the stats, by their names joined with vocabLibrarySeparator. Locked libraries are never counted."
+  placeholders:
+    libraries: { type: "String", example: "Kando, Anime" }
+vocabStatsLocked:
+  message: "{count, plural, one {# locked library is not counted} other {# locked libraries are not counted}}"
+  description: "Study stats dialog, under vocabStatsLibraries: how many libraries are left out of the stats because they are locked with a password."
+  placeholders:
+    count: { type: "int", example: "1" }
 vocabStatsMenuItem:
   message: "Study Stats"
   description: "Study menu item that opens the study stats dialog."

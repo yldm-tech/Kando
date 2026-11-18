@@ -62,11 +62,16 @@ const (
 
 func newVocabUI() vocabUI { return vocabUI{stats: newVocabStats()} }
 
-// vocabHooks: the time the open film plays adds up while it plays and goes into the study record of its library a minute at a time, once it is held or closed, before another library opens and as the app quits; the word looked up closes once its film is not the one open.
+// vocabHooks: the time the open film plays adds up while it plays and goes into the study record of its library a minute at a time, once it is held or closed, before another library opens and as the app quits; the stats dialog, open as another library opens, reads the other libraries again; the word looked up closes once its film is not the one open.
 func (a *app) vocabHooks() areaHooks {
 	return areaHooks{
 		playing:        a.vocabPlaying,
 		leavingLibrary: func() { a.vocabFlushWatch() },
+		libraryChanged: func() {
+			if a.vocab.stats.open {
+				a.vocabReadOthers()
+			}
+		},
 		afterChange: func() bool {
 			held := a.vocabHeld()
 			return a.vocabFollowFilm() || held
