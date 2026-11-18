@@ -2,6 +2,7 @@ package player
 
 import (
 	"context"
+	"strconv"
 	"time"
 
 	"kando/apps/mobile/cues"
@@ -87,6 +88,19 @@ type play struct {
 	heard int
 	now   func() time.Time
 	toast *ui.Toaster
+	// said is the toast last shown of each kind (say), and toasts how many were.
+	said   map[string]string
+	toasts int
+}
+
+// say shows title in a toast in place of the last one of kind, as a line saved and then taken back says only the latter.
+// TODO(nsgo): ui.Toasts builds a toast's content once (ui/toast.go:272), so a toast shown with the ID of one still showing replaces it but keeps its old title; until it shows the new content, the old one is dismissed and the new one shown under an ID of its own
+func (p *play) say(kind, title string) {
+	if id, ok := p.said[kind]; ok {
+		p.toast.Dismiss(id)
+	}
+	p.toasts++
+	p.said[kind] = p.toast.Show(ui.ToastContent{ID: kind + "-" + strconv.Itoa(p.toasts), Title: title})
 }
 
 func newPlay(cx *core.Scope, s *session.Session, key string) *play {
@@ -112,6 +126,7 @@ func newPlay(cx *core.Scope, s *session.Session, key string) *play {
 		heard:        -1,
 		now:          time.Now,
 		toast:        ui.NewToaster(cx),
+		said:         map[string]string{},
 	}
 	p.cues = core.NewResource(cx, func() (string, bool) { return key, true }, func(_ context.Context, key string, _ core.ResourceInfo) ([]cues.Cue, error) {
 		list, _, err := s.Store().Cues(f.Desktop, f.Film.ID)
@@ -234,7 +249,7 @@ func (p *play) progress(at, length time.Duration) {
 	if m := p.sleep.GetUntracked(); m.minutes() > 0 && !p.now().Before(p.sleepUntil) && p.playing.GetUntracked() {
 		p.sleep.Set(sleepOff)
 		p.hold()
-		p.toast.Show(ui.ToastContent{ID: "sleep", Title: locales.PlayerSleepPaused(p.cx)})
+		p.say("sleep", locales.PlayerSleepPaused(p.cx))
 	}
 	if d := at - p.saved; d >= saveEvery || d <= -saveEvery {
 		p.save()
@@ -247,7 +262,7 @@ func (p *play) lineEnded() {
 	case p.sleep.GetUntracked() == sleepLine:
 		p.sleep.Set(sleepOff)
 		p.hold()
-		p.toast.Show(ui.ToastContent{ID: "sleep", Title: locales.PlayerSleepLineDone(p.cx)})
+		p.say("sleep", locales.PlayerSleepLineDone(p.cx))
 	case p.follow.Get():
 		p.hold()
 		p.held.Set(true)
@@ -370,14 +385,14 @@ func (p *play) toggleSave() {
 		return
 	}
 	if !p.s.Studyable(p.key) {
-		p.toast.Show(ui.ToastContent{ID: "save", Title: locales.PlayerCannotSave(p.cx)})
+		p.say("save", locales.PlayerCannotSave(p.cx))
 		return
 	}
 	if p.s.ToggleSave(p.key, p.studyCue(i)) {
-		p.toast.Show(ui.ToastContent{ID: "save", Title: locales.PlayerSavedToast(p.cx)})
+		p.say("save", locales.PlayerSavedToast(p.cx))
 		return
 	}
-	p.toast.Show(ui.ToastContent{ID: "save", Title: locales.PlayerUnsavedToast(p.cx)})
+	p.say("save", locales.PlayerUnsavedToast(p.cx))
 }
 
 // around is line i with the lines around it, as an explanation's context, and i's index among them.

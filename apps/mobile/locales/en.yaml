@@ -375,6 +375,9 @@ playerNextLine:
 playerNoLines:
   message: "This film has no subtitles."
   description: "In place of the line list for a film without subtitles."
+playerNoteCleared:
+  message: "Note removed"
+  description: "Toast once the note of a saved line is cleared by saving it empty."
 playerNoteEmpty:
   message: "Write something first"
   description: "Toast when an empty note is saved."

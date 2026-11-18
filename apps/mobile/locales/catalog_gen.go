@@ -622,6 +622,7 @@ const (
 	textPlayerModeTranslation
 	textPlayerNextLine
 	textPlayerNoLines
+	textPlayerNoteCleared
 	textPlayerNoteEmpty
 	textPlayerNotePlaceholder
 	textPlayerNoteSave
@@ -765,6 +766,7 @@ var keyOfText = [numTexts]string{
 	"playerModeTranslation",
 	"playerNextLine",
 	"playerNoLines",
+	"playerNoteCleared",
 	"playerNoteEmpty",
 	"playerNotePlaceholder",
 	"playerNoteSave",
@@ -906,6 +908,7 @@ var textsEn = i18n.NewTexts(""+
 	"Translation Only"+
 	"Next Line"+
 	"This film has no subtitles."+
+	"Note removed"+
 	"Write something first"+
 	"Like: “picks up” here isn't “lifts”"+
 	"Save"+
@@ -1044,6 +1047,7 @@ var textsEn = i18n.NewTexts(""+
 		16,
 		9,
 		27,
+		12,
 		21,
 		43,
 		4,
@@ -1185,6 +1189,7 @@ var textsJa = i18n.NewTexts(""+
 	"訳文のみ"+
 	"次のセリフ"+
 	"この動画には字幕がありません。"+
+	"メモを削除しました"+
 	"先に何か書いてください"+
 	"例：ここの picks up は「拾う」ではない"+
 	"保存"+
@@ -1323,6 +1328,7 @@ var textsJa = i18n.NewTexts(""+
 		12,
 		15,
 		45,
+		27,
 		33,
 		52,
 		6,
@@ -1464,6 +1470,7 @@ var textsKo = i18n.NewTexts(""+
 	"번역만"+
 	"다음 대사"+
 	"이 영상에는 자막이 없습니다."+
+	"메모를 삭제했습니다"+
 	"먼저 내용을 적어 주세요"+
 	"예: 여기서 picks up은 '줍다'가 아님"+
 	"저장"+
@@ -1602,6 +1609,7 @@ var textsKo = i18n.NewTexts(""+
 		9,
 		13,
 		40,
+		28,
 		33,
 		45,
 		6,
@@ -1743,6 +1751,7 @@ var textsZhHans = i18n.NewTexts(""+
 	"仅译文"+
 	"下一句"+
 	"这部影片没有字幕。"+
+	"笔记已删除"+
 	"先写点什么"+
 	"比如：这里的 picks up 不是“捡起”"+
 	"保存"+
@@ -1881,6 +1890,7 @@ var textsZhHans = i18n.NewTexts(""+
 		9,
 		9,
 		27,
+		15,
 		15,
 		46,
 		6,
@@ -2022,6 +2032,7 @@ var textsZhHant = i18n.NewTexts(""+
 	"僅譯文"+
 	"下一句"+
 	"這部影片沒有字幕。"+
+	"筆記已刪除"+
 	"先寫點什麼"+
 	"比如：這裡的 picks up 不是「撿起」"+
 	"儲存"+
@@ -2160,6 +2171,7 @@ var textsZhHant = i18n.NewTexts(""+
 		9,
 		9,
 		27,
+		15,
 		15,
 		46,
 		6,
@@ -3899,6 +3911,15 @@ func PlayerNoLines(cx *core.Scope) string { return For(cx).PlayerNoLines() }
 
 // PlayerNoLines is the package's PlayerNoLines in the language of msgs.
 func (msgs Messages) PlayerNoLines() string { return msgs.text(textPlayerNoLines) }
+
+// PlayerNoteCleared says "Note removed"
+// in the language the app shows under cx.
+//
+// Toast once the note of a saved line is cleared by saving it empty.
+func PlayerNoteCleared(cx *core.Scope) string { return For(cx).PlayerNoteCleared() }
+
+// PlayerNoteCleared is the package's PlayerNoteCleared in the language of msgs.
+func (msgs Messages) PlayerNoteCleared() string { return msgs.text(textPlayerNoteCleared) }
 
 // PlayerNoteEmpty says "Write something first"
 // in the language the app shows under cx.

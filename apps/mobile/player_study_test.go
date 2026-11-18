@@ -346,6 +346,7 @@ func TestALineTakenBackWhileItsSaveIsSentIsGoneOnTheComputer(t *testing.T) {
 	p.app.WaitUntil(wait, func() bool { return p.app.Exists("id:player-line-saved") })
 	p.app.Press("id:player-save")
 	p.app.WaitUntil(wait, func() bool { return !p.app.Exists("id:player-line-saved") })
+	p.app.WaitFor("id:player-toasts >> text:"+msgs.PlayerUnsavedToast(), wait)
 	release()
 	p.app.WaitUntil(wait, func() bool {
 		lines := d.Records("lib", sync.KindLine)
@@ -394,4 +395,43 @@ func TestManyLinesSavedAwayAllReachTheComputerButThoseItRefuses(t *testing.T) {
 	if d.Puts() < 3 {
 		t.Fatalf("the lines went in %d puts", d.Puts())
 	}
+}
+
+// A note being written stays with the line it was begun on while the film plays on to the next, and is saved to that line; saved empty, it clears the line's note.
+func TestANoteBeingWrittenStaysWithItsLineAndCanBeCleared(t *testing.T) {
+	d := newDesktop(t)
+	p, _ := studyPlayer(t, d)
+	p.app.Press("id:player-tab-notes")
+	p.app.Type("id:player-note", "a greeting")
+	p.at(3200 * time.Millisecond)
+	if got := p.app.Find("id:player-note").Text; got != "a greeting" {
+		t.Fatalf("as the next line plays the note reads %q", got)
+	}
+	if got := p.app.Find("id:player-note").Props.Label; got != msgs.PlayerNoteFor(1) {
+		t.Fatalf("as the next line plays the note is %q", got)
+	}
+	p.app.Press("id:player-note-save")
+	line := func() (sync.Record, bool) {
+		for _, r := range d.Records("lib", sync.KindLine) {
+			if r.Removed == nil {
+				return r, true
+			}
+		}
+		return sync.Record{}, false
+	}
+	p.app.WaitUntil(wait, func() bool { r, ok := line(); return ok && fieldText(r, sync.FieldNote) == "a greeting" })
+	if r, _ := line(); string(r.Fields[sync.FieldStartMS].Value) != "1000" {
+		t.Fatalf("the note went to the line at %s", r.Fields[sync.FieldStartMS].Value)
+	}
+	// Saved, the field shows the line the card shows again.
+	if got := p.app.Find("id:player-note").Props.Label; got != msgs.PlayerNoteFor(2) {
+		t.Fatalf("once saved the note is %q", got)
+	}
+
+	p.at(1500 * time.Millisecond)
+	p.app.WaitUntil(wait, func() bool { return p.app.Find("id:player-note").Text == "a greeting" })
+	p.app.Clear("id:player-note")
+	p.app.Press("id:player-note-save")
+	p.app.WaitFor("id:player-toasts >> text:"+msgs.PlayerNoteCleared(), wait)
+	p.app.WaitUntil(wait, func() bool { r, ok := line(); return ok && fieldText(r, sync.FieldNote) == "" })
 }

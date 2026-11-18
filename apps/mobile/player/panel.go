@@ -73,40 +73,68 @@ func panel(cx *core.Scope, p *play, w *words) core.Node {
 func notesPage(cx *core.Scope, p *play) core.Node {
 	colors := ui.ColorsOf(cx)
 	draft := core.NewSignal(cx, "")
-	// The field shows the note of the line the card shows, as saved, until the learner writes over it; a sync landing meanwhile leaves what they write.
+	// editing is the line the note being written is for, from the first key typed until it is saved, -1 while nothing is written: the film plays on meanwhile, and the note stays with the line it was begun on rather than being replaced by the next line's.
+	editing := core.NewSignal(cx, -1)
+	target := func() int {
+		if e := editing.Get(); e >= 0 {
+			return e
+		}
+		return p.shown.Get()
+	}
+	noteOf := func(i int) (study.Line, bool) {
+		if i < 0 {
+			return study.Line{}, false
+		}
+		return p.s.SavedAt(p.key, p.line(i).Start)
+	}
+	// While nothing is written, the field shows the note of the line the card shows, as saved; a sync landing meanwhile leaves what is written.
 	cx.Effect(func() {
 		i := p.shown.Get()
-		draft.Set(core.Untracked(cx, func() string {
-			if l, ok := p.s.SavedAt(p.key, p.line(i).Start); ok && i >= 0 {
-				return l.Note
-			}
-			return ""
-		}))
+		if editing.Get() >= 0 {
+			return
+		}
+		draft.Set(core.Untracked(cx, func() string { l, _ := noteOf(i); return l.Note }))
 	})
+	write := func(v string) {
+		draft.Set(v)
+		if editing.GetUntracked() < 0 && p.shown.GetUntracked() >= 0 {
+			editing.Set(p.shown.GetUntracked())
+		}
+	}
 	save := func() {
-		i := p.shown.GetUntracked()
+		i := editing.GetUntracked()
+		if i < 0 {
+			i = p.shown.GetUntracked()
+		}
 		if i < 0 {
 			return
 		}
-		if strings.TrimSpace(draft.GetUntracked()) == "" {
-			p.toast.Show(ui.ToastContent{ID: "note", Title: locales.PlayerNoteEmpty(cx)})
+		note := strings.TrimSpace(draft.GetUntracked())
+		line, saved := noteOf(i)
+		if note == "" && (!saved || line.Note == "") {
+			p.say("note", locales.PlayerNoteEmpty(cx))
 			return
 		}
 		if !p.s.Studyable(p.key) {
-			p.toast.Show(ui.ToastContent{ID: "note", Title: locales.PlayerCannotSave(cx)})
+			p.say("note", locales.PlayerCannotSave(cx))
 			return
 		}
-		p.s.SetNote(p.key, p.studyCue(i), draft.GetUntracked())
-		p.toast.Show(ui.ToastContent{ID: "note", Title: locales.PlayerNoteSaved(cx)})
+		p.s.SetNote(p.key, p.studyCue(i), note)
+		editing.Set(-1)
+		if note == "" {
+			p.say("note", locales.PlayerNoteCleared(cx))
+			return
+		}
+		p.say("note", locales.PlayerNoteSaved(cx))
 	}
 	saved := func() []study.Line { return p.s.Saved(p.key) }
 	return core.Scroll{TestID: "player-notes", Style: core.Style{FlexGrow: 1, FlexShrink: 1}, Children: []core.Node{
 		core.View{Style: core.Style{Padding: core.All(16), Gap: 14}, Children: []core.Node{
 			core.View{Style: core.Style{Gap: 8}, Children: []core.Node{
-				core.Text{ContentFunc: func() string { return locales.PlayerNoteFor(cx, p.shown.Get()+1) }, Style: look.Section, StyleFunc: ui.Colored(colors.Muted)},
+				core.Text{ContentFunc: func() string { return locales.PlayerNoteFor(cx, target()+1) }, Style: look.Section, StyleFunc: ui.Colored(colors.Muted)},
 				core.View{Style: core.Style{Direction: core.Row, Gap: 8, AlignItems: core.AlignCenter}, Children: []core.Node{
-					ui.Input{TestID: "player-note", LabelFunc: func() string { return locales.PlayerNoteFor(cx, p.shown.Get()+1) }, Value: draft.Get, OnChange: draft.Set, OnSubmit: func(string) { save() },
-						PlaceholderFunc: func() string { return locales.PlayerNotePlaceholder(cx) }, ReturnKeyType: core.ReturnKeyDone, Disabled: func() bool { return p.shown.Get() < 0 },
+					ui.Input{TestID: "player-note", LabelFunc: func() string { return locales.PlayerNoteFor(cx, target()+1) }, Value: draft.Get, OnChange: write, OnSubmit: func(string) { save() },
+						PlaceholderFunc: func() string { return locales.PlayerNotePlaceholder(cx) }, ReturnKeyType: core.ReturnKeyDone, Disabled: func() bool { return target() < 0 },
 						Style: core.Style{FlexGrow: 1, FlexShrink: 1, Height: core.Pt(44), FontSize: 16, CornerRadius: 12, Padding: core.Symmetric(0, 12)}},
 					look.Pill(cx, "player-note-save", func() string { return locales.PlayerNoteSave(cx) }, save),
 				}},
