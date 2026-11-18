@@ -4449,7 +4449,7 @@ settingsPrivacySaveFailed:
   placeholders:
     error: { type: "String", example: "permission denied" }
 settingsPrivacyStepAI:
-  message: "Translation, proofreading and explanations"
+  message: "Translation, proofreading, explanations and word lookups"
   description: "Row of the network table in Settings › Privacy: what the AI service does."
 settingsPrivacyStepAICloud:
   message: "{service}, which receives the subtitle text"
@@ -5463,6 +5463,207 @@ subscribeSaveFailed:
 updatesCheck:
   message: "Check for Updates…"
   description: "Item of the app menu (and the command palette) that checks for a newer version of Kando and shows the update window."
+vocabAddToVocabulary:
+  message: "Add to Vocabulary"
+  description: "Button of the card of a word looked up on the player's subtitles: puts the word in the library's vocabulary."
+vocabChartTitle:
+  message: "Last 7 days · minutes · all devices"
+  description: "Study stats dialog: title of the bar chart of the minutes films played on each of the last seven days, on all devices together."
+vocabDays:
+  message: "{count, plural, one {# day} other {# days}}"
+  description: "Study stats dialog: the days in a row studied, the big number of the streak card."
+  placeholders:
+    count: { type: "int", example: "5" }
+vocabDone:
+  message: "Done"
+  description: "Button that closes the study stats dialog."
+vocabExport:
+  message: "Export…"
+  description: "Button of the Export Vocabulary tab: asks for a folder and writes the vocabulary there."
+vocabExportEmpty:
+  message: "Nothing to export yet. Click a word on the subtitles while a film plays to look it up and add it."
+  description: "Export Vocabulary tab, in place of the preview, when the library has no word (nor saved line, when those are exported too)."
+vocabExportFailed:
+  message: "Couldn't export the vocabulary: {error}"
+  description: "Export Vocabulary tab, when the export failed, with the system's reason."
+  placeholders:
+    error: { type: "String", example: "permission denied" }
+vocabExportIntro:
+  message: "Export this library's vocabulary to keep reviewing it in Anki or a spreadsheet."
+  description: "Export Vocabulary tab: what the export is for, at its top."
+vocabExportMenuItem:
+  message: "Export Vocabulary…"
+  description: "Study menu item that opens the study stats dialog at its Export Vocabulary tab."
+vocabExported:
+  message: "Exported to {file}"
+  description: "Export Vocabulary tab, after the export: the file it wrote."
+  placeholders:
+    file: { type: "String", example: "~/Downloads/Kando Vocabulary.csv" }
+vocabFormat:
+  message: "Format"
+  description: "Export Vocabulary tab: label of the choice of file format."
+vocabFormatAnki:
+  message: "Anki"
+  description: "Export Vocabulary tab: the format of notes Anki's File › Import reads."
+vocabFormatCSV:
+  message: "CSV"
+  description: "Export Vocabulary tab: a CSV table, which spreadsheets open."
+vocabFormatTSV:
+  message: "Plain Text (Tab-Separated)"
+  description: "Export Vocabulary tab: plain text with a tab between the fields."
+vocabHours:
+  message: "{hours} h"
+  description: "Study stats dialog: a time of an hour or more, in hours to a tenth, as 1.7."
+  placeholders:
+    hours: { type: "String", example: "1.7" }
+vocabInVocabulary:
+  message: "In Vocabulary"
+  description: "Button of the card of a word looked up, once the word is in the vocabulary: pressing it takes the word out again."
+vocabLearning:
+  message: "Learning {count}"
+  description: "Study stats dialog, under the mastery bar: how many words and saved lines are being learned."
+  placeholders:
+    count: { type: "int", example: "3" }
+vocabLineCount:
+  message: "{count, plural, one {# line} other {# lines}}"
+  description: "Study stats dialog: how many lines are saved, the big number of the saved lines card."
+  placeholders:
+    count: { type: "int", example: "2" }
+vocabLines:
+  message: "Saved lines"
+  description: "Study stats dialog: title of the card of the saved lines."
+vocabLinesDue:
+  message: "{count} due today"
+  description: "Study stats dialog, saved lines card: how many saved lines are due for review today."
+  placeholders:
+    count: { type: "int", example: "4" }
+vocabLongest:
+  message: "Longest {count, plural, one {# day} other {# days}}"
+  description: "Study stats dialog, streak card: the longest run of days in a row studied."
+  placeholders:
+    count: { type: "int", example: "12" }
+vocabLookupBusy:
+  message: "Looking it up…"
+  description: "Card of a word looked up on the subtitles, while the AI service is asked what it means."
+vocabLookupCard:
+  message: "Look up: {word}"
+  description: "Accessible name of the card of a word looked up on the player's subtitles."
+  placeholders:
+    word: { type: "String", example: "trickle" }
+vocabLookupClose:
+  message: "Close"
+  description: "Close button of the card of a word looked up on the subtitles."
+vocabLookupFailed:
+  message: "No meaning came back: {error}"
+  description: "Card of a word looked up, when the AI service did not answer, with its reason."
+  placeholders:
+    error: { type: "String", example: "401 Unauthorized" }
+vocabLookupNoAI:
+  message: "Looking up a word asks the AI service. Set one up in AI Service."
+  description: "Card of a word looked up, when no AI service is set up; Kando bundles no dictionary."
+vocabLookupSettings:
+  message: "Open Settings"
+  description: "Button of the card of a word looked up, when no AI service can answer: opens the AI Service settings."
+vocabMastered:
+  message: "Mastered {count}"
+  description: "Study stats dialog, under the mastery bar: how many words and saved lines are mastered."
+  placeholders:
+    count: { type: "int", example: "2" }
+vocabMastery:
+  message: "Mastery"
+  description: "Study stats dialog: title of the bar of how well the words and saved lines are known."
+vocabMasteryNote:
+  message: "Words and saved lines together. One counts as mastered once you knew it five times in a row and its next review is over three weeks away."
+  description: "Study stats dialog, under the mastery bar: what is counted and what mastered means."
+vocabMinutes:
+  message: "{count} min"
+  description: "Study stats dialog: a time under an hour, in whole minutes."
+  placeholders:
+    count: { type: "int", example: "45" }
+vocabNew:
+  message: "New {count}"
+  description: "Study stats dialog, under the mastery bar: how many words and saved lines were never known in a review yet."
+  placeholders:
+    count: { type: "int", example: "1" }
+vocabOsdAdded:
+  message: "Added “{word}” to the vocabulary"
+  description: "Message over the picture after a word looked up went into the vocabulary."
+  placeholders:
+    word: { type: "String", example: "trickle" }
+vocabOsdRemoved:
+  message: "Removed “{word}” from the vocabulary"
+  description: "Message over the picture after a word looked up was taken out of the vocabulary."
+  placeholders:
+    word: { type: "String", example: "trickle" }
+vocabOtherDevices:
+  message: "Other devices"
+  description: "Study stats dialog, legend of the chart: the minutes films played on the learner's other devices, as phones, once they sync."
+vocabPreview:
+  message: "Preview (first 3)"
+  description: "Export Vocabulary tab: label over the first three records as the file will hold them."
+vocabStatsMenuItem:
+  message: "Study Stats"
+  description: "Study menu item that opens the study stats dialog."
+vocabStatsTitle:
+  message: "Study"
+  description: "Title of the study stats dialog, which has the stats and the vocabulary export as its tabs."
+vocabStreak:
+  message: "Streak"
+  description: "Study stats dialog: title of the card of the days in a row studied, a day counting once films played a minute on it."
+vocabSummary:
+  message: "{words, plural, one {# word} other {# words}} · {lines, plural, one {# saved line} other {# saved lines}} · {films, plural, one {from # film} other {from # films}}"
+  description: "Export Vocabulary tab, beside the Export button: what the export will hold."
+  placeholders:
+    words: { type: "int", example: "6" }
+    lines: { type: "int", example: "2" }
+    films: { type: "int", example: "4" }
+vocabTabExport:
+  message: "Export Vocabulary"
+  description: "Study stats dialog: tab that exports the vocabulary."
+vocabTabStats:
+  message: "Stats"
+  description: "Study stats dialog: tab of the stats."
+vocabThisComputer:
+  message: "This computer"
+  description: "Study stats dialog, legend of the chart: the minutes films played on this computer."
+vocabWeek:
+  message: "Last 7 days"
+  description: "Study stats dialog: title of the card of how long films played in the last seven days, today with them."
+vocabWeekLess:
+  message: "{time} less than the 7 days before"
+  description: "Study stats dialog, last 7 days card: how much less than in the seven days before."
+  placeholders:
+    time: { type: "String", example: "20 min" }
+vocabWeekMore:
+  message: "{time} more than the 7 days before"
+  description: "Study stats dialog, last 7 days card: how much more than in the seven days before."
+  placeholders:
+    time: { type: "String", example: "20 min" }
+vocabWeekSame:
+  message: "Same as the 7 days before"
+  description: "Study stats dialog, last 7 days card: as long as in the seven days before."
+vocabWithLines:
+  message: "Also export saved lines"
+  description: "Export Vocabulary tab: check box that adds the saved lines after the words."
+vocabWithSentence:
+  message: "Include the sentence"
+  description: "Export Vocabulary tab: check box that writes with each word the line it was looked up in."
+vocabWithTranslation:
+  message: "Include the sentence's translation"
+  description: "Export Vocabulary tab: check box that writes with each word the translation of the line it was looked up in."
+vocabWordCount:
+  message: "{count, plural, one {# word} other {# words}}"
+  description: "Study stats dialog: how many words the vocabulary has, the big number of the vocabulary card."
+  placeholders:
+    count: { type: "int", example: "6" }
+vocabWords:
+  message: "Vocabulary"
+  description: "Study stats dialog: title of the card of the vocabulary."
+vocabWordsDue:
+  message: "{count} due today"
+  description: "Study stats dialog, vocabulary card: how many words are due for review today."
+  placeholders:
+    count: { type: "int", example: "4" }
 windowMenuMain:
   message: "Main Window"
   description: "Item of the Window menu (macOS) that shows Kando's main window again after its close button put it away while Kando keeps running."

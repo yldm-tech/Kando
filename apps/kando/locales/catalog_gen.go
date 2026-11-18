@@ -809,6 +809,26 @@ var Parameters = map[string][]string{
 	"SubscribeLibraryMissing":                  {"name"},
 	"SubscribeLoadFailed":                      {"error_"},
 	"SubscribeSaveFailed":                      {"error_"},
+	"VocabDays":                                {"count"},
+	"VocabExportFailed":                        {"error_"},
+	"VocabExported":                            {"file"},
+	"VocabHours":                               {"hours"},
+	"VocabLearning":                            {"count"},
+	"VocabLineCount":                           {"count"},
+	"VocabLinesDue":                            {"count"},
+	"VocabLongest":                             {"count"},
+	"VocabLookupCard":                          {"word"},
+	"VocabLookupFailed":                        {"error_"},
+	"VocabMastered":                            {"count"},
+	"VocabMinutes":                             {"count"},
+	"VocabNew":                                 {"count"},
+	"VocabOsdAdded":                            {"word"},
+	"VocabOsdRemoved":                          {"word"},
+	"VocabSummary":                             {"words", "lines", "films"},
+	"VocabWeekLess":                            {"time_"},
+	"VocabWeekMore":                            {"time_"},
+	"VocabWordCount":                           {"count"},
+	"VocabWordsDue":                            {"count"},
 }
 
 // Translation is a language's messages another package supplies:
@@ -1201,6 +1221,26 @@ type Translation struct {
 	SubscribeLibraryMissing                  func(name string) string
 	SubscribeLoadFailed                      func(error_ string) string
 	SubscribeSaveFailed                      func(error_ string) string
+	VocabDays                                func(count int) string
+	VocabExportFailed                        func(error_ string) string
+	VocabExported                            func(file string) string
+	VocabHours                               func(hours string) string
+	VocabLearning                            func(count int) string
+	VocabLineCount                           func(count int) string
+	VocabLinesDue                            func(count int) string
+	VocabLongest                             func(count int) string
+	VocabLookupCard                          func(word string) string
+	VocabLookupFailed                        func(error_ string) string
+	VocabMastered                            func(count int) string
+	VocabMinutes                             func(count int) string
+	VocabNew                                 func(count int) string
+	VocabOsdAdded                            func(word string) string
+	VocabOsdRemoved                          func(word string) string
+	VocabSummary                             func(words int, lines int, films int) string
+	VocabWeekLess                            func(time_ string) string
+	VocabWeekMore                            func(time_ string) string
+	VocabWordCount                           func(count int) string
+	VocabWordsDue                            func(count int) string
 }
 
 var supplied = map[string]Translation{}
@@ -2358,6 +2398,39 @@ const (
 	textSubscribeAddCannotList
 	textSubscribeAddMenu
 	textUpdatesCheck
+	textVocabAddToVocabulary
+	textVocabChartTitle
+	textVocabDone
+	textVocabExport
+	textVocabExportEmpty
+	textVocabExportIntro
+	textVocabExportMenuItem
+	textVocabFormat
+	textVocabFormatAnki
+	textVocabFormatCSV
+	textVocabFormatTSV
+	textVocabInVocabulary
+	textVocabLines
+	textVocabLookupBusy
+	textVocabLookupClose
+	textVocabLookupNoAI
+	textVocabLookupSettings
+	textVocabMastery
+	textVocabMasteryNote
+	textVocabOtherDevices
+	textVocabPreview
+	textVocabStatsMenuItem
+	textVocabStatsTitle
+	textVocabStreak
+	textVocabTabExport
+	textVocabTabStats
+	textVocabThisComputer
+	textVocabWeek
+	textVocabWeekSame
+	textVocabWithLines
+	textVocabWithSentence
+	textVocabWithTranslation
+	textVocabWords
 	textWindowMenuMain
 	numTexts
 )
@@ -3516,6 +3589,39 @@ var keyOfText = [numTexts]string{
 	"subscribeAddCannotList",
 	"subscribeAddMenu",
 	"updatesCheck",
+	"vocabAddToVocabulary",
+	"vocabChartTitle",
+	"vocabDone",
+	"vocabExport",
+	"vocabExportEmpty",
+	"vocabExportIntro",
+	"vocabExportMenuItem",
+	"vocabFormat",
+	"vocabFormatAnki",
+	"vocabFormatCSV",
+	"vocabFormatTSV",
+	"vocabInVocabulary",
+	"vocabLines",
+	"vocabLookupBusy",
+	"vocabLookupClose",
+	"vocabLookupNoAI",
+	"vocabLookupSettings",
+	"vocabMastery",
+	"vocabMasteryNote",
+	"vocabOtherDevices",
+	"vocabPreview",
+	"vocabStatsMenuItem",
+	"vocabStatsTitle",
+	"vocabStreak",
+	"vocabTabExport",
+	"vocabTabStats",
+	"vocabThisComputer",
+	"vocabWeek",
+	"vocabWeekSame",
+	"vocabWithLines",
+	"vocabWithSentence",
+	"vocabWithTranslation",
+	"vocabWords",
 	"windowMenuMain",
 }
 
@@ -4445,7 +4551,7 @@ var textsEn = i18n.NewTexts(""+
 	"Data on this computer"+
 	"Offline mode"+
 	"Kando doesn't download videos from links, call a cloud AI service, upload, or download components and models. Speech recognition still runs on this computer, and so do translation and proofreading with Ollama or LM Studio."+
-	"Translation, proofreading and explanations"+
+	"Translation, proofreading, explanations and word lookups"+
 	"Browse"+
 	"Web pages you open in Kando"+
 	"Download from a link"+
@@ -4672,6 +4778,39 @@ var textsEn = i18n.NewTexts(""+
 	"Subscriptions need yt-dlp, which isn't installed yet."+
 	"Add Subscription…"+
 	"Check for Updates…"+
+	"Add to Vocabulary"+
+	"Last 7 days · minutes · all devices"+
+	"Done"+
+	"Export…"+
+	"Nothing to export yet. Click a word on the subtitles while a film plays to look it up and add it."+
+	"Export this library's vocabulary to keep reviewing it in Anki or a spreadsheet."+
+	"Export Vocabulary…"+
+	"Format"+
+	"Anki"+
+	"CSV"+
+	"Plain Text (Tab-Separated)"+
+	"In Vocabulary"+
+	"Saved lines"+
+	"Looking it up…"+
+	"Close"+
+	"Looking up a word asks the AI service. Set one up in AI Service."+
+	"Open Settings"+
+	"Mastery"+
+	"Words and saved lines together. One counts as mastered once you knew it five times in a row and its next review is over three weeks away."+
+	"Other devices"+
+	"Preview (first 3)"+
+	"Study Stats"+
+	"Study"+
+	"Streak"+
+	"Export Vocabulary"+
+	"Stats"+
+	"This computer"+
+	"Last 7 days"+
+	"Same as the 7 days before"+
+	"Also export saved lines"+
+	"Include the sentence"+
+	"Include the sentence's translation"+
+	"Vocabulary"+
 	"Main Window",
 	[]uint16{
 		5,
@@ -5598,7 +5737,7 @@ var textsEn = i18n.NewTexts(""+
 		21,
 		12,
 		222,
-		42,
+		56,
 		6,
 		27,
 		20,
@@ -5825,6 +5964,39 @@ var textsEn = i18n.NewTexts(""+
 		53,
 		19,
 		20,
+		17,
+		37,
+		4,
+		9,
+		97,
+		79,
+		20,
+		6,
+		4,
+		3,
+		26,
+		13,
+		11,
+		16,
+		5,
+		64,
+		13,
+		7,
+		137,
+		13,
+		17,
+		11,
+		5,
+		6,
+		17,
+		5,
+		13,
+		11,
+		25,
+		23,
+		20,
+		34,
+		10,
 		11,
 	})
 
@@ -6754,7 +6926,7 @@ var textsJa = i18n.NewTexts(""+
 	"このコンピュータのデータ"+
 	"オフラインモード"+
 	"オンにすると、リンクから動画をダウンロードせず、クラウドの AI サービスを呼ばず、アップロードせず、コンポーネントやモデルもダウンロードしません。音声認識はこのコンピュータで続けて行い、Ollama や LM Studio を使うときは翻訳と校正も続けます。"+
-	"翻訳・校正・解説"+
+	"翻訳・校正・解説・単語検索"+
 	"ブラウズ"+
 	"Kando で開いたウェブページ"+
 	"リンクからダウンロード"+
@@ -6981,6 +7153,39 @@ var textsJa = i18n.NewTexts(""+
 	"購読には yt-dlp が必要ですが、まだインストールされていません。"+
 	"購読を追加…"+
 	"アップデートを確認…"+
+	"単語帳に追加"+
+	"直近 7 日 · 分 · 全デバイス合計"+
+	"完了"+
+	"書き出す…"+
+	"まだ書き出せるものがありません。再生中に字幕の単語をクリックして調べると、単語帳に追加できます。"+
+	"このライブラリの単語を書き出して、Anki や表計算ソフトで復習を続けられます。"+
+	"単語を書き出す…"+
+	"形式"+
+	"Anki"+
+	"CSV"+
+	"テキスト（タブ区切り）"+
+	"単語帳にあります"+
+	"保存したセリフ"+
+	"調べています…"+
+	"閉じる"+
+	"単語を調べるには AI サービスを使います。「AI サービス」で設定してください。"+
+	"設定を開く"+
+	"習得状況"+
+	"単語と保存したセリフを合わせて数えます。5 回続けて正解し、次の復習が 3 週間以上先になったものを習得済みとします。"+
+	"ほかのデバイス"+
+	"プレビュー（先頭 3 件）"+
+	"学習の記録"+
+	"学習"+
+	"連続学習"+
+	"単語を書き出す"+
+	"記録"+
+	"このコンピュータ"+
+	"直近 7 日"+
+	"その前の 7 日と同じ"+
+	"保存したセリフも書き出す"+
+	"例文を含める"+
+	"例文の訳を含める"+
+	"単語"+
 	"メインウインドウ",
 	[]uint16{
 		5,
@@ -7907,7 +8112,7 @@ var textsJa = i18n.NewTexts(""+
 		36,
 		24,
 		346,
-		24,
+		39,
 		12,
 		36,
 		33,
@@ -8134,6 +8339,39 @@ var textsJa = i18n.NewTexts(""+
 		89,
 		18,
 		30,
+		18,
+		44,
+		6,
+		15,
+		144,
+		110,
+		24,
+		6,
+		4,
+		3,
+		33,
+		24,
+		21,
+		21,
+		9,
+		109,
+		15,
+		12,
+		167,
+		21,
+		33,
+		15,
+		6,
+		12,
+		21,
+		6,
+		24,
+		12,
+		27,
+		36,
+		18,
+		24,
+		6,
 		24,
 	})
 
@@ -9063,7 +9301,7 @@ var textsKo = i18n.NewTexts(""+
 	"이 컴퓨터의 데이터"+
 	"오프라인 모드"+
 	"켜면 링크의 동영상을 다운로드하지 않고, 클라우드 AI 서비스를 호출하지 않으며, 업로드하지 않고, 구성 요소와 모델도 다운로드하지 않습니다. 음성 인식은 이 컴퓨터에서 계속 진행되며 Ollama나 LM Studio를 쓸 때는 번역과 교정도 계속됩니다."+
-	"번역, 교정, 해설"+
+	"번역, 교정, 해설, 단어 찾기"+
 	"탐색"+
 	"Kando에서 연 웹 페이지"+
 	"링크에서 다운로드"+
@@ -9290,6 +9528,39 @@ var textsKo = i18n.NewTexts(""+
 	"구독하려면 yt-dlp가 필요한데 아직 설치되지 않았어요."+
 	"구독 추가…"+
 	"업데이트 확인…"+
+	"단어장에 추가"+
+	"최근 7일 · 분 · 모든 기기 합계"+
+	"완료"+
+	"내보내기…"+
+	"아직 내보낼 것이 없습니다. 재생 중에 자막의 단어를 클릭해 찾아보면 단어장에 추가할 수 있습니다."+
+	"이 라이브러리의 단어를 내보내 Anki나 스프레드시트에서 계속 복습할 수 있습니다."+
+	"단어 내보내기…"+
+	"형식"+
+	"Anki"+
+	"CSV"+
+	"텍스트(탭 구분)"+
+	"단어장에 있음"+
+	"저장한 대사"+
+	"찾는 중…"+
+	"닫기"+
+	"단어를 찾으려면 AI 서비스가 필요합니다. 「AI 서비스」에서 설정하세요."+
+	"설정 열기"+
+	"숙달 현황"+
+	"단어와 저장한 대사를 함께 셉니다. 5번 연속 맞히고 다음 복습이 3주 넘게 남으면 익힌 것으로 칩니다."+
+	"다른 기기"+
+	"미리 보기(처음 3개)"+
+	"학습 통계"+
+	"학습"+
+	"연속 학습"+
+	"단어 내보내기"+
+	"통계"+
+	"이 컴퓨터"+
+	"최근 7일"+
+	"그 전 7일과 같음"+
+	"저장한 대사도 내보내기"+
+	"예문 포함"+
+	"예문 번역 포함"+
+	"단어"+
 	"메인 윈도우",
 	[]uint16{
 		5,
@@ -10216,7 +10487,7 @@ var textsKo = i18n.NewTexts(""+
 		26,
 		19,
 		321,
-		22,
+		37,
 		6,
 		29,
 		25,
@@ -10443,6 +10714,39 @@ var textsKo = i18n.NewTexts(""+
 		72,
 		16,
 		22,
+		19,
+		42,
+		6,
+		15,
+		135,
+		110,
+		22,
+		6,
+		4,
+		3,
+		21,
+		19,
+		16,
+		13,
+		6,
+		97,
+		13,
+		13,
+		136,
+		13,
+		26,
+		13,
+		6,
+		13,
+		19,
+		6,
+		13,
+		11,
+		22,
+		32,
+		13,
+		20,
+		6,
 		16,
 	})
 
@@ -11372,7 +11676,7 @@ var textsZhHans = i18n.NewTexts(""+
 	"本机数据"+
 	"离线模式"+
 	"开启后不下载在线视频、不调用云端 AI 服务、不上传，也不下载组件和模型。语音识别照常在本机进行；用 Ollama 或 LM Studio 时，翻译和校对也照常进行。"+
-	"翻译、校对和讲解"+
+	"翻译、校对、讲解和查词"+
 	"浏览"+
 	"在看懂里打开的网页"+
 	"下载在线视频"+
@@ -11599,6 +11903,39 @@ var textsZhHans = i18n.NewTexts(""+
 	"订阅需要 yt-dlp，还没有装好。"+
 	"添加订阅…"+
 	"检查更新…"+
+	"加入生词本"+
+	"最近 7 天 · 分钟 · 各设备合计"+
+	"完成"+
+	"导出…"+
+	"还没有可以导出的。播放时点字幕里的词，查完就能加入生词本。"+
+	"把这个资料库的生词导出来，在 Anki 或表格里接着复习。"+
+	"导出生词…"+
+	"格式"+
+	"Anki 卡片"+
+	"CSV 表格"+
+	"纯文本（Tab 分隔）"+
+	"已在生词本"+
+	"收藏的句子"+
+	"正在查…"+
+	"关闭"+
+	"查词要用 AI 服务。先在「AI 服务」里设置一个。"+
+	"打开设置"+
+	"掌握情况"+
+	"生词和收藏的句子一起算。连续答对 5 次、下次复习在三周以后，就算掌握。"+
+	"其他设备"+
+	"预览（前 3 条）"+
+	"学习统计"+
+	"学习"+
+	"连续学习"+
+	"导出生词"+
+	"统计"+
+	"这台电脑"+
+	"近 7 天"+
+	"和之前 7 天一样"+
+	"把收藏的句子也导出"+
+	"带上原句"+
+	"带上原句的译文"+
+	"生词"+
 	"主窗口",
 	[]uint16{
 		6,
@@ -12525,7 +12862,7 @@ var textsZhHans = i18n.NewTexts(""+
 		12,
 		12,
 		203,
-		24,
+		33,
 		6,
 		27,
 		18,
@@ -12752,6 +13089,39 @@ var textsZhHans = i18n.NewTexts(""+
 		40,
 		15,
 		15,
+		15,
+		41,
+		6,
+		9,
+		87,
+		75,
+		15,
+		6,
+		11,
+		10,
+		25,
+		15,
+		15,
+		12,
+		6,
+		64,
+		12,
+		12,
+		102,
+		12,
+		21,
+		12,
+		6,
+		12,
+		12,
+		6,
+		12,
+		9,
+		21,
+		27,
+		12,
+		21,
+		6,
 		9,
 	})
 
@@ -13681,7 +14051,7 @@ var textsZhHant = i18n.NewTexts(""+
 	"本機資料"+
 	"離線模式"+
 	"開啟後不下載線上影片、不呼叫雲端 AI 服務、不上傳，也不下載元件和模型。語音辨識照常在本機進行；使用 Ollama 或 LM Studio 時，翻譯和校對也照常進行。"+
-	"翻譯、校對和講解"+
+	"翻譯、校對、講解和查詞"+
 	"瀏覽"+
 	"在看懂裡開啟的網頁"+
 	"下載線上影片"+
@@ -13908,6 +14278,39 @@ var textsZhHant = i18n.NewTexts(""+
 	"訂閱需要 yt-dlp，還沒有裝好。"+
 	"新增訂閱…"+
 	"檢查更新…"+
+	"加入生詞本"+
+	"最近 7 天 · 分鐘 · 各裝置合計"+
+	"完成"+
+	"匯出…"+
+	"還沒有可以匯出的。播放時點字幕裡的詞，查完就能加入生詞本。"+
+	"把這個資料庫的生詞匯出來，在 Anki 或表格裡接著複習。"+
+	"匯出生詞…"+
+	"格式"+
+	"Anki 卡片"+
+	"CSV 表格"+
+	"純文字（Tab 分隔）"+
+	"已在生詞本"+
+	"收藏的句子"+
+	"正在查…"+
+	"關閉"+
+	"查詞要用 AI 服務。先在「AI 服務」裡設定一個。"+
+	"打開設定"+
+	"掌握情況"+
+	"生詞和收藏的句子一起算。連續答對 5 次、下次複習在三週以後，就算掌握。"+
+	"其他裝置"+
+	"預覽（前 3 條）"+
+	"學習統計"+
+	"學習"+
+	"連續學習"+
+	"匯出生詞"+
+	"統計"+
+	"這台電腦"+
+	"近 7 天"+
+	"和之前 7 天一樣"+
+	"把收藏的句子也匯出"+
+	"帶上原句"+
+	"帶上原句的譯文"+
+	"生詞"+
 	"主視窗",
 	[]uint16{
 		6,
@@ -14834,7 +15237,7 @@ var textsZhHant = i18n.NewTexts(""+
 		12,
 		12,
 		206,
-		24,
+		33,
 		6,
 		27,
 		18,
@@ -15061,6 +15464,39 @@ var textsZhHant = i18n.NewTexts(""+
 		40,
 		15,
 		15,
+		15,
+		41,
+		6,
+		9,
+		87,
+		75,
+		15,
+		6,
+		11,
+		10,
+		25,
+		15,
+		15,
+		12,
+		6,
+		64,
+		12,
+		12,
+		102,
+		12,
+		21,
+		12,
+		6,
+		12,
+		12,
+		6,
+		12,
+		9,
+		21,
+		27,
+		12,
+		21,
+		6,
 		9,
 	})
 
@@ -16275,6 +16711,66 @@ func Supply(lang string, t Translation) {
 	}
 	if t.SubscribeSaveFailed != nil {
 		s.SubscribeSaveFailed = t.SubscribeSaveFailed
+	}
+	if t.VocabDays != nil {
+		s.VocabDays = t.VocabDays
+	}
+	if t.VocabExportFailed != nil {
+		s.VocabExportFailed = t.VocabExportFailed
+	}
+	if t.VocabExported != nil {
+		s.VocabExported = t.VocabExported
+	}
+	if t.VocabHours != nil {
+		s.VocabHours = t.VocabHours
+	}
+	if t.VocabLearning != nil {
+		s.VocabLearning = t.VocabLearning
+	}
+	if t.VocabLineCount != nil {
+		s.VocabLineCount = t.VocabLineCount
+	}
+	if t.VocabLinesDue != nil {
+		s.VocabLinesDue = t.VocabLinesDue
+	}
+	if t.VocabLongest != nil {
+		s.VocabLongest = t.VocabLongest
+	}
+	if t.VocabLookupCard != nil {
+		s.VocabLookupCard = t.VocabLookupCard
+	}
+	if t.VocabLookupFailed != nil {
+		s.VocabLookupFailed = t.VocabLookupFailed
+	}
+	if t.VocabMastered != nil {
+		s.VocabMastered = t.VocabMastered
+	}
+	if t.VocabMinutes != nil {
+		s.VocabMinutes = t.VocabMinutes
+	}
+	if t.VocabNew != nil {
+		s.VocabNew = t.VocabNew
+	}
+	if t.VocabOsdAdded != nil {
+		s.VocabOsdAdded = t.VocabOsdAdded
+	}
+	if t.VocabOsdRemoved != nil {
+		s.VocabOsdRemoved = t.VocabOsdRemoved
+	}
+	if t.VocabSummary != nil {
+		s.VocabSummary = t.VocabSummary
+	}
+	if t.VocabWeekLess != nil {
+		s.VocabWeekLess = t.VocabWeekLess
+	}
+	if t.VocabWeekMore != nil {
+		s.VocabWeekMore = t.VocabWeekMore
+	}
+	if t.VocabWordCount != nil {
+		s.VocabWordCount = t.VocabWordCount
+	}
+	if t.VocabWordsDue != nil {
+		s.VocabWordsDue = t.VocabWordsDue
 	}
 	supplied[lang] = s
 	Catalog.Add(lang)
@@ -36249,7 +36745,7 @@ func (msgs Messages) SettingsPrivacySaveFailed(error_ string) string {
 	}
 }
 
-// SettingsPrivacyStepAI says "Translation, proofreading and explanations"
+// SettingsPrivacyStepAI says "Translation, proofreading, explanations and word lookups"
 // in the language the app shows under cx.
 //
 // Row of the network table in Settings › Privacy: what the AI service does.
@@ -40886,6 +41382,975 @@ func UpdatesCheck(cx *core.Scope) string { return For(cx).UpdatesCheck() }
 
 // UpdatesCheck is the package's UpdatesCheck in the language of msgs.
 func (msgs Messages) UpdatesCheck() string { return msgs.text(textUpdatesCheck) }
+
+// VocabAddToVocabulary says "Add to Vocabulary"
+// in the language the app shows under cx.
+//
+// Button of the card of a word looked up on the player's subtitles: puts the word in the library's vocabulary.
+func VocabAddToVocabulary(cx *core.Scope) string { return For(cx).VocabAddToVocabulary() }
+
+// VocabAddToVocabulary is the package's VocabAddToVocabulary in the language of msgs.
+func (msgs Messages) VocabAddToVocabulary() string { return msgs.text(textVocabAddToVocabulary) }
+
+// VocabChartTitle says "Last 7 days · minutes · all devices"
+// in the language the app shows under cx.
+//
+// Study stats dialog: title of the bar chart of the minutes films played on each of the last seven days, on all devices together.
+func VocabChartTitle(cx *core.Scope) string { return For(cx).VocabChartTitle() }
+
+// VocabChartTitle is the package's VocabChartTitle in the language of msgs.
+func (msgs Messages) VocabChartTitle() string { return msgs.text(textVocabChartTitle) }
+
+// VocabDays says "{count, plural, one {# day} other {# days}}"
+// in the language the app shows under cx.
+//
+// Study stats dialog: the days in a row studied, the big number of the streak card.
+func VocabDays(cx *core.Scope, count int) string { return For(cx).VocabDays(count) }
+
+// VocabDays is the package's VocabDays in the language of msgs.
+func (msgs Messages) VocabDays(count int) string {
+	if i18n.IsPseudo(msgs.lang) {
+		return i18n.Pseudo(msgs.lang, Messages{lang: Source, mark: true}.VocabDays(count))
+	}
+	for lang := msgs.lang; ; lang = i18n.Parent(lang) {
+		if f := supplied[lang].VocabDays; f != nil {
+			return f(count)
+		}
+		switch lang {
+		case "", "en":
+			var b strings.Builder
+			switch i18n.Cardinal("en", float64(count)) {
+			case i18n.One:
+				b.WriteString(msgs.arg(i18n.FormatNumber("en", float64(count))))
+				b.WriteString(" day")
+			default:
+				b.WriteString(msgs.arg(i18n.FormatNumber("en", float64(count))))
+				b.WriteString(" days")
+			}
+			return b.String()
+		case "ja":
+			return i18n.FormatNumber("ja", float64(count)) + " 日"
+		case "ko":
+			return i18n.FormatNumber("ko", float64(count)) + "일"
+		case "zh-Hans":
+			return i18n.FormatNumber("zh-Hans", float64(count)) + " 天"
+		case "zh-Hant":
+			return i18n.FormatNumber("zh-Hant", float64(count)) + " 天"
+		}
+	}
+}
+
+// VocabDone says "Done"
+// in the language the app shows under cx.
+//
+// Button that closes the study stats dialog.
+func VocabDone(cx *core.Scope) string { return For(cx).VocabDone() }
+
+// VocabDone is the package's VocabDone in the language of msgs.
+func (msgs Messages) VocabDone() string { return msgs.text(textVocabDone) }
+
+// VocabExport says "Export…"
+// in the language the app shows under cx.
+//
+// Button of the Export Vocabulary tab: asks for a folder and writes the vocabulary there.
+func VocabExport(cx *core.Scope) string { return For(cx).VocabExport() }
+
+// VocabExport is the package's VocabExport in the language of msgs.
+func (msgs Messages) VocabExport() string { return msgs.text(textVocabExport) }
+
+// VocabExportEmpty says "Nothing to export yet. Click a word on the subtitles while a film plays to look it up and add it."
+// in the language the app shows under cx.
+//
+// Export Vocabulary tab, in place of the preview, when the library has no word (nor saved line, when those are exported too).
+func VocabExportEmpty(cx *core.Scope) string { return For(cx).VocabExportEmpty() }
+
+// VocabExportEmpty is the package's VocabExportEmpty in the language of msgs.
+func (msgs Messages) VocabExportEmpty() string { return msgs.text(textVocabExportEmpty) }
+
+// VocabExportFailed says "Couldn't export the vocabulary: {error}"
+// in the language the app shows under cx.
+//
+// Export Vocabulary tab, when the export failed, with the system's reason.
+func VocabExportFailed(cx *core.Scope, error_ string) string {
+	return For(cx).VocabExportFailed(error_)
+}
+
+// VocabExportFailed is the package's VocabExportFailed in the language of msgs.
+func (msgs Messages) VocabExportFailed(error_ string) string {
+	if i18n.IsPseudo(msgs.lang) {
+		return i18n.Pseudo(msgs.lang, Messages{lang: Source, mark: true}.VocabExportFailed(error_))
+	}
+	for lang := msgs.lang; ; lang = i18n.Parent(lang) {
+		if f := supplied[lang].VocabExportFailed; f != nil {
+			return f(error_)
+		}
+		switch lang {
+		case "", "en":
+			return "Couldn't export the vocabulary: " + msgs.arg(error_)
+		case "ja":
+			return "単語を書き出せませんでした：" + error_
+		case "ko":
+			return "단어를 내보낼 수 없습니다: " + error_
+		case "zh-Hans":
+			return "无法导出生词：" + error_
+		case "zh-Hant":
+			return "無法匯出生詞：" + error_
+		}
+	}
+}
+
+// VocabExportIntro says "Export this library's vocabulary to keep reviewing it in Anki or a spreadsheet."
+// in the language the app shows under cx.
+//
+// Export Vocabulary tab: what the export is for, at its top.
+func VocabExportIntro(cx *core.Scope) string { return For(cx).VocabExportIntro() }
+
+// VocabExportIntro is the package's VocabExportIntro in the language of msgs.
+func (msgs Messages) VocabExportIntro() string { return msgs.text(textVocabExportIntro) }
+
+// VocabExportMenuItem says "Export Vocabulary…"
+// in the language the app shows under cx.
+//
+// Study menu item that opens the study stats dialog at its Export Vocabulary tab.
+func VocabExportMenuItem(cx *core.Scope) string { return For(cx).VocabExportMenuItem() }
+
+// VocabExportMenuItem is the package's VocabExportMenuItem in the language of msgs.
+func (msgs Messages) VocabExportMenuItem() string { return msgs.text(textVocabExportMenuItem) }
+
+// VocabExported says "Exported to {file}"
+// in the language the app shows under cx.
+//
+// Export Vocabulary tab, after the export: the file it wrote.
+func VocabExported(cx *core.Scope, file string) string { return For(cx).VocabExported(file) }
+
+// VocabExported is the package's VocabExported in the language of msgs.
+func (msgs Messages) VocabExported(file string) string {
+	if i18n.IsPseudo(msgs.lang) {
+		return i18n.Pseudo(msgs.lang, Messages{lang: Source, mark: true}.VocabExported(file))
+	}
+	for lang := msgs.lang; ; lang = i18n.Parent(lang) {
+		if f := supplied[lang].VocabExported; f != nil {
+			return f(file)
+		}
+		switch lang {
+		case "", "en":
+			return "Exported to " + msgs.arg(file)
+		case "ja":
+			return file + " に書き出しました"
+		case "ko":
+			return file + "에 내보냈습니다"
+		case "zh-Hans":
+			return "已导出到 " + file
+		case "zh-Hant":
+			return "已匯出到 " + file
+		}
+	}
+}
+
+// VocabFormat says "Format"
+// in the language the app shows under cx.
+//
+// Export Vocabulary tab: label of the choice of file format.
+func VocabFormat(cx *core.Scope) string { return For(cx).VocabFormat() }
+
+// VocabFormat is the package's VocabFormat in the language of msgs.
+func (msgs Messages) VocabFormat() string { return msgs.text(textVocabFormat) }
+
+// VocabFormatAnki says "Anki"
+// in the language the app shows under cx.
+//
+// Export Vocabulary tab: the format of notes Anki's File › Import reads.
+func VocabFormatAnki(cx *core.Scope) string { return For(cx).VocabFormatAnki() }
+
+// VocabFormatAnki is the package's VocabFormatAnki in the language of msgs.
+func (msgs Messages) VocabFormatAnki() string { return msgs.text(textVocabFormatAnki) }
+
+// VocabFormatCSV says "CSV"
+// in the language the app shows under cx.
+//
+// Export Vocabulary tab: a CSV table, which spreadsheets open.
+func VocabFormatCSV(cx *core.Scope) string { return For(cx).VocabFormatCSV() }
+
+// VocabFormatCSV is the package's VocabFormatCSV in the language of msgs.
+func (msgs Messages) VocabFormatCSV() string { return msgs.text(textVocabFormatCSV) }
+
+// VocabFormatTSV says "Plain Text (Tab-Separated)"
+// in the language the app shows under cx.
+//
+// Export Vocabulary tab: plain text with a tab between the fields.
+func VocabFormatTSV(cx *core.Scope) string { return For(cx).VocabFormatTSV() }
+
+// VocabFormatTSV is the package's VocabFormatTSV in the language of msgs.
+func (msgs Messages) VocabFormatTSV() string { return msgs.text(textVocabFormatTSV) }
+
+// VocabHours says "{hours} h"
+// in the language the app shows under cx.
+//
+// Study stats dialog: a time of an hour or more, in hours to a tenth, as 1.7.
+func VocabHours(cx *core.Scope, hours string) string { return For(cx).VocabHours(hours) }
+
+// VocabHours is the package's VocabHours in the language of msgs.
+func (msgs Messages) VocabHours(hours string) string {
+	if i18n.IsPseudo(msgs.lang) {
+		return i18n.Pseudo(msgs.lang, Messages{lang: Source, mark: true}.VocabHours(hours))
+	}
+	for lang := msgs.lang; ; lang = i18n.Parent(lang) {
+		if f := supplied[lang].VocabHours; f != nil {
+			return f(hours)
+		}
+		switch lang {
+		case "", "en":
+			return msgs.arg(hours) + " h"
+		case "ja":
+			return hours + " 時間"
+		case "ko":
+			return hours + "시간"
+		case "zh-Hans":
+			return hours + " 小时"
+		case "zh-Hant":
+			return hours + " 小時"
+		}
+	}
+}
+
+// VocabInVocabulary says "In Vocabulary"
+// in the language the app shows under cx.
+//
+// Button of the card of a word looked up, once the word is in the vocabulary: pressing it takes the word out again.
+func VocabInVocabulary(cx *core.Scope) string { return For(cx).VocabInVocabulary() }
+
+// VocabInVocabulary is the package's VocabInVocabulary in the language of msgs.
+func (msgs Messages) VocabInVocabulary() string { return msgs.text(textVocabInVocabulary) }
+
+// VocabLearning says "Learning {count}"
+// in the language the app shows under cx.
+//
+// Study stats dialog, under the mastery bar: how many words and saved lines are being learned.
+func VocabLearning(cx *core.Scope, count int) string { return For(cx).VocabLearning(count) }
+
+// VocabLearning is the package's VocabLearning in the language of msgs.
+func (msgs Messages) VocabLearning(count int) string {
+	if i18n.IsPseudo(msgs.lang) {
+		return i18n.Pseudo(msgs.lang, Messages{lang: Source, mark: true}.VocabLearning(count))
+	}
+	for lang := msgs.lang; ; lang = i18n.Parent(lang) {
+		if f := supplied[lang].VocabLearning; f != nil {
+			return f(count)
+		}
+		switch lang {
+		case "", "en":
+			return "Learning " + msgs.arg(i18n.FormatNumber("en", float64(count)))
+		case "ja":
+			return "学習中 " + i18n.FormatNumber("ja", float64(count))
+		case "ko":
+			return "학습 중 " + i18n.FormatNumber("ko", float64(count))
+		case "zh-Hans":
+			return "在学 " + i18n.FormatNumber("zh-Hans", float64(count))
+		case "zh-Hant":
+			return "在學 " + i18n.FormatNumber("zh-Hant", float64(count))
+		}
+	}
+}
+
+// VocabLineCount says "{count, plural, one {# line} other {# lines}}"
+// in the language the app shows under cx.
+//
+// Study stats dialog: how many lines are saved, the big number of the saved lines card.
+func VocabLineCount(cx *core.Scope, count int) string { return For(cx).VocabLineCount(count) }
+
+// VocabLineCount is the package's VocabLineCount in the language of msgs.
+func (msgs Messages) VocabLineCount(count int) string {
+	if i18n.IsPseudo(msgs.lang) {
+		return i18n.Pseudo(msgs.lang, Messages{lang: Source, mark: true}.VocabLineCount(count))
+	}
+	for lang := msgs.lang; ; lang = i18n.Parent(lang) {
+		if f := supplied[lang].VocabLineCount; f != nil {
+			return f(count)
+		}
+		switch lang {
+		case "", "en":
+			var b strings.Builder
+			switch i18n.Cardinal("en", float64(count)) {
+			case i18n.One:
+				b.WriteString(msgs.arg(i18n.FormatNumber("en", float64(count))))
+				b.WriteString(" line")
+			default:
+				b.WriteString(msgs.arg(i18n.FormatNumber("en", float64(count))))
+				b.WriteString(" lines")
+			}
+			return b.String()
+		case "ja":
+			return i18n.FormatNumber("ja", float64(count)) + " 件"
+		case "ko":
+			return i18n.FormatNumber("ko", float64(count)) + "개"
+		case "zh-Hans":
+			return i18n.FormatNumber("zh-Hans", float64(count)) + " 句"
+		case "zh-Hant":
+			return i18n.FormatNumber("zh-Hant", float64(count)) + " 句"
+		}
+	}
+}
+
+// VocabLines says "Saved lines"
+// in the language the app shows under cx.
+//
+// Study stats dialog: title of the card of the saved lines.
+func VocabLines(cx *core.Scope) string { return For(cx).VocabLines() }
+
+// VocabLines is the package's VocabLines in the language of msgs.
+func (msgs Messages) VocabLines() string { return msgs.text(textVocabLines) }
+
+// VocabLinesDue says "{count} due today"
+// in the language the app shows under cx.
+//
+// Study stats dialog, saved lines card: how many saved lines are due for review today.
+func VocabLinesDue(cx *core.Scope, count int) string { return For(cx).VocabLinesDue(count) }
+
+// VocabLinesDue is the package's VocabLinesDue in the language of msgs.
+func (msgs Messages) VocabLinesDue(count int) string {
+	if i18n.IsPseudo(msgs.lang) {
+		return i18n.Pseudo(msgs.lang, Messages{lang: Source, mark: true}.VocabLinesDue(count))
+	}
+	for lang := msgs.lang; ; lang = i18n.Parent(lang) {
+		if f := supplied[lang].VocabLinesDue; f != nil {
+			return f(count)
+		}
+		switch lang {
+		case "", "en":
+			return msgs.arg(i18n.FormatNumber("en", float64(count))) + " due today"
+		case "ja":
+			return "今日の復習 " + i18n.FormatNumber("ja", float64(count)) + " 件"
+		case "ko":
+			return "오늘 복습할 대사 " + i18n.FormatNumber("ko", float64(count)) + "개"
+		case "zh-Hans":
+			return "今天要复习 " + i18n.FormatNumber("zh-Hans", float64(count)) + " 句"
+		case "zh-Hant":
+			return "今天要複習 " + i18n.FormatNumber("zh-Hant", float64(count)) + " 句"
+		}
+	}
+}
+
+// VocabLongest says "Longest {count, plural, one {# day} other {# days}}"
+// in the language the app shows under cx.
+//
+// Study stats dialog, streak card: the longest run of days in a row studied.
+func VocabLongest(cx *core.Scope, count int) string { return For(cx).VocabLongest(count) }
+
+// VocabLongest is the package's VocabLongest in the language of msgs.
+func (msgs Messages) VocabLongest(count int) string {
+	if i18n.IsPseudo(msgs.lang) {
+		return i18n.Pseudo(msgs.lang, Messages{lang: Source, mark: true}.VocabLongest(count))
+	}
+	for lang := msgs.lang; ; lang = i18n.Parent(lang) {
+		if f := supplied[lang].VocabLongest; f != nil {
+			return f(count)
+		}
+		switch lang {
+		case "", "en":
+			var b strings.Builder
+			b.WriteString("Longest ")
+			switch i18n.Cardinal("en", float64(count)) {
+			case i18n.One:
+				b.WriteString(msgs.arg(i18n.FormatNumber("en", float64(count))))
+				b.WriteString(" day")
+			default:
+				b.WriteString(msgs.arg(i18n.FormatNumber("en", float64(count))))
+				b.WriteString(" days")
+			}
+			return b.String()
+		case "ja":
+			return "最長 " + i18n.FormatNumber("ja", float64(count)) + " 日"
+		case "ko":
+			return "최장 " + i18n.FormatNumber("ko", float64(count)) + "일"
+		case "zh-Hans":
+			return "最长 " + i18n.FormatNumber("zh-Hans", float64(count)) + " 天"
+		case "zh-Hant":
+			return "最長 " + i18n.FormatNumber("zh-Hant", float64(count)) + " 天"
+		}
+	}
+}
+
+// VocabLookupBusy says "Looking it up…"
+// in the language the app shows under cx.
+//
+// Card of a word looked up on the subtitles, while the AI service is asked what it means.
+func VocabLookupBusy(cx *core.Scope) string { return For(cx).VocabLookupBusy() }
+
+// VocabLookupBusy is the package's VocabLookupBusy in the language of msgs.
+func (msgs Messages) VocabLookupBusy() string { return msgs.text(textVocabLookupBusy) }
+
+// VocabLookupCard says "Look up: {word}"
+// in the language the app shows under cx.
+//
+// Accessible name of the card of a word looked up on the player's subtitles.
+func VocabLookupCard(cx *core.Scope, word string) string { return For(cx).VocabLookupCard(word) }
+
+// VocabLookupCard is the package's VocabLookupCard in the language of msgs.
+func (msgs Messages) VocabLookupCard(word string) string {
+	if i18n.IsPseudo(msgs.lang) {
+		return i18n.Pseudo(msgs.lang, Messages{lang: Source, mark: true}.VocabLookupCard(word))
+	}
+	for lang := msgs.lang; ; lang = i18n.Parent(lang) {
+		if f := supplied[lang].VocabLookupCard; f != nil {
+			return f(word)
+		}
+		switch lang {
+		case "", "en":
+			return "Look up: " + msgs.arg(word)
+		case "ja":
+			return word + " の意味"
+		case "ko":
+			return "단어 찾기: " + word
+		case "zh-Hans":
+			return "查词：" + word
+		case "zh-Hant":
+			return "查詞：" + word
+		}
+	}
+}
+
+// VocabLookupClose says "Close"
+// in the language the app shows under cx.
+//
+// Close button of the card of a word looked up on the subtitles.
+func VocabLookupClose(cx *core.Scope) string { return For(cx).VocabLookupClose() }
+
+// VocabLookupClose is the package's VocabLookupClose in the language of msgs.
+func (msgs Messages) VocabLookupClose() string { return msgs.text(textVocabLookupClose) }
+
+// VocabLookupFailed says "No meaning came back: {error}"
+// in the language the app shows under cx.
+//
+// Card of a word looked up, when the AI service did not answer, with its reason.
+func VocabLookupFailed(cx *core.Scope, error_ string) string {
+	return For(cx).VocabLookupFailed(error_)
+}
+
+// VocabLookupFailed is the package's VocabLookupFailed in the language of msgs.
+func (msgs Messages) VocabLookupFailed(error_ string) string {
+	if i18n.IsPseudo(msgs.lang) {
+		return i18n.Pseudo(msgs.lang, Messages{lang: Source, mark: true}.VocabLookupFailed(error_))
+	}
+	for lang := msgs.lang; ; lang = i18n.Parent(lang) {
+		if f := supplied[lang].VocabLookupFailed; f != nil {
+			return f(error_)
+		}
+		switch lang {
+		case "", "en":
+			return "No meaning came back: " + msgs.arg(error_)
+		case "ja":
+			return "意味を取得できませんでした：" + error_
+		case "ko":
+			return "뜻을 가져오지 못했습니다: " + error_
+		case "zh-Hans":
+			return "没有查到：" + error_
+		case "zh-Hant":
+			return "沒有查到：" + error_
+		}
+	}
+}
+
+// VocabLookupNoAI says "Looking up a word asks the AI service. Set one up in AI Service."
+// in the language the app shows under cx.
+//
+// Card of a word looked up, when no AI service is set up; Kando bundles no dictionary.
+func VocabLookupNoAI(cx *core.Scope) string { return For(cx).VocabLookupNoAI() }
+
+// VocabLookupNoAI is the package's VocabLookupNoAI in the language of msgs.
+func (msgs Messages) VocabLookupNoAI() string { return msgs.text(textVocabLookupNoAI) }
+
+// VocabLookupSettings says "Open Settings"
+// in the language the app shows under cx.
+//
+// Button of the card of a word looked up, when no AI service can answer: opens the AI Service settings.
+func VocabLookupSettings(cx *core.Scope) string { return For(cx).VocabLookupSettings() }
+
+// VocabLookupSettings is the package's VocabLookupSettings in the language of msgs.
+func (msgs Messages) VocabLookupSettings() string { return msgs.text(textVocabLookupSettings) }
+
+// VocabMastered says "Mastered {count}"
+// in the language the app shows under cx.
+//
+// Study stats dialog, under the mastery bar: how many words and saved lines are mastered.
+func VocabMastered(cx *core.Scope, count int) string { return For(cx).VocabMastered(count) }
+
+// VocabMastered is the package's VocabMastered in the language of msgs.
+func (msgs Messages) VocabMastered(count int) string {
+	if i18n.IsPseudo(msgs.lang) {
+		return i18n.Pseudo(msgs.lang, Messages{lang: Source, mark: true}.VocabMastered(count))
+	}
+	for lang := msgs.lang; ; lang = i18n.Parent(lang) {
+		if f := supplied[lang].VocabMastered; f != nil {
+			return f(count)
+		}
+		switch lang {
+		case "", "en":
+			return "Mastered " + msgs.arg(i18n.FormatNumber("en", float64(count)))
+		case "ja":
+			return "習得済み " + i18n.FormatNumber("ja", float64(count))
+		case "ko":
+			return "익힘 " + i18n.FormatNumber("ko", float64(count))
+		case "zh-Hans":
+			return "已掌握 " + i18n.FormatNumber("zh-Hans", float64(count))
+		case "zh-Hant":
+			return "已掌握 " + i18n.FormatNumber("zh-Hant", float64(count))
+		}
+	}
+}
+
+// VocabMastery says "Mastery"
+// in the language the app shows under cx.
+//
+// Study stats dialog: title of the bar of how well the words and saved lines are known.
+func VocabMastery(cx *core.Scope) string { return For(cx).VocabMastery() }
+
+// VocabMastery is the package's VocabMastery in the language of msgs.
+func (msgs Messages) VocabMastery() string { return msgs.text(textVocabMastery) }
+
+// VocabMasteryNote says "Words and saved lines together. One counts as mastered once you knew it five times in a row and its next review is over three weeks away."
+// in the language the app shows under cx.
+//
+// Study stats dialog, under the mastery bar: what is counted and what mastered means.
+func VocabMasteryNote(cx *core.Scope) string { return For(cx).VocabMasteryNote() }
+
+// VocabMasteryNote is the package's VocabMasteryNote in the language of msgs.
+func (msgs Messages) VocabMasteryNote() string { return msgs.text(textVocabMasteryNote) }
+
+// VocabMinutes says "{count} min"
+// in the language the app shows under cx.
+//
+// Study stats dialog: a time under an hour, in whole minutes.
+func VocabMinutes(cx *core.Scope, count int) string { return For(cx).VocabMinutes(count) }
+
+// VocabMinutes is the package's VocabMinutes in the language of msgs.
+func (msgs Messages) VocabMinutes(count int) string {
+	if i18n.IsPseudo(msgs.lang) {
+		return i18n.Pseudo(msgs.lang, Messages{lang: Source, mark: true}.VocabMinutes(count))
+	}
+	for lang := msgs.lang; ; lang = i18n.Parent(lang) {
+		if f := supplied[lang].VocabMinutes; f != nil {
+			return f(count)
+		}
+		switch lang {
+		case "", "en":
+			return msgs.arg(i18n.FormatNumber("en", float64(count))) + " min"
+		case "ja":
+			return i18n.FormatNumber("ja", float64(count)) + " 分"
+		case "ko":
+			return i18n.FormatNumber("ko", float64(count)) + "분"
+		case "zh-Hans":
+			return i18n.FormatNumber("zh-Hans", float64(count)) + " 分钟"
+		case "zh-Hant":
+			return i18n.FormatNumber("zh-Hant", float64(count)) + " 分鐘"
+		}
+	}
+}
+
+// VocabNew says "New {count}"
+// in the language the app shows under cx.
+//
+// Study stats dialog, under the mastery bar: how many words and saved lines were never known in a review yet.
+func VocabNew(cx *core.Scope, count int) string { return For(cx).VocabNew(count) }
+
+// VocabNew is the package's VocabNew in the language of msgs.
+func (msgs Messages) VocabNew(count int) string {
+	if i18n.IsPseudo(msgs.lang) {
+		return i18n.Pseudo(msgs.lang, Messages{lang: Source, mark: true}.VocabNew(count))
+	}
+	for lang := msgs.lang; ; lang = i18n.Parent(lang) {
+		if f := supplied[lang].VocabNew; f != nil {
+			return f(count)
+		}
+		switch lang {
+		case "", "en":
+			return "New " + msgs.arg(i18n.FormatNumber("en", float64(count)))
+		case "ja":
+			return "新規 " + i18n.FormatNumber("ja", float64(count))
+		case "ko":
+			return "새것 " + i18n.FormatNumber("ko", float64(count))
+		case "zh-Hans":
+			return "新的 " + i18n.FormatNumber("zh-Hans", float64(count))
+		case "zh-Hant":
+			return "新的 " + i18n.FormatNumber("zh-Hant", float64(count))
+		}
+	}
+}
+
+// VocabOsdAdded says "Added “{word}” to the vocabulary"
+// in the language the app shows under cx.
+//
+// Message over the picture after a word looked up went into the vocabulary.
+func VocabOsdAdded(cx *core.Scope, word string) string { return For(cx).VocabOsdAdded(word) }
+
+// VocabOsdAdded is the package's VocabOsdAdded in the language of msgs.
+func (msgs Messages) VocabOsdAdded(word string) string {
+	if i18n.IsPseudo(msgs.lang) {
+		return i18n.Pseudo(msgs.lang, Messages{lang: Source, mark: true}.VocabOsdAdded(word))
+	}
+	for lang := msgs.lang; ; lang = i18n.Parent(lang) {
+		if f := supplied[lang].VocabOsdAdded; f != nil {
+			return f(word)
+		}
+		switch lang {
+		case "", "en":
+			return "Added “" + msgs.arg(word) + "” to the vocabulary"
+		case "ja":
+			return "「" + word + "」を単語帳に追加しました"
+		case "ko":
+			return "「" + word + "」을(를) 단어장에 추가했습니다"
+		case "zh-Hans":
+			return "已把「" + word + "」加入生词本"
+		case "zh-Hant":
+			return "已把「" + word + "」加入生詞本"
+		}
+	}
+}
+
+// VocabOsdRemoved says "Removed “{word}” from the vocabulary"
+// in the language the app shows under cx.
+//
+// Message over the picture after a word looked up was taken out of the vocabulary.
+func VocabOsdRemoved(cx *core.Scope, word string) string { return For(cx).VocabOsdRemoved(word) }
+
+// VocabOsdRemoved is the package's VocabOsdRemoved in the language of msgs.
+func (msgs Messages) VocabOsdRemoved(word string) string {
+	if i18n.IsPseudo(msgs.lang) {
+		return i18n.Pseudo(msgs.lang, Messages{lang: Source, mark: true}.VocabOsdRemoved(word))
+	}
+	for lang := msgs.lang; ; lang = i18n.Parent(lang) {
+		if f := supplied[lang].VocabOsdRemoved; f != nil {
+			return f(word)
+		}
+		switch lang {
+		case "", "en":
+			return "Removed “" + msgs.arg(word) + "” from the vocabulary"
+		case "ja":
+			return "「" + word + "」を単語帳から外しました"
+		case "ko":
+			return "「" + word + "」을(를) 단어장에서 뺐습니다"
+		case "zh-Hans":
+			return "已把「" + word + "」移出生词本"
+		case "zh-Hant":
+			return "已把「" + word + "」移出生詞本"
+		}
+	}
+}
+
+// VocabOtherDevices says "Other devices"
+// in the language the app shows under cx.
+//
+// Study stats dialog, legend of the chart: the minutes films played on the learner's other devices, as phones, once they sync.
+func VocabOtherDevices(cx *core.Scope) string { return For(cx).VocabOtherDevices() }
+
+// VocabOtherDevices is the package's VocabOtherDevices in the language of msgs.
+func (msgs Messages) VocabOtherDevices() string { return msgs.text(textVocabOtherDevices) }
+
+// VocabPreview says "Preview (first 3)"
+// in the language the app shows under cx.
+//
+// Export Vocabulary tab: label over the first three records as the file will hold them.
+func VocabPreview(cx *core.Scope) string { return For(cx).VocabPreview() }
+
+// VocabPreview is the package's VocabPreview in the language of msgs.
+func (msgs Messages) VocabPreview() string { return msgs.text(textVocabPreview) }
+
+// VocabStatsMenuItem says "Study Stats"
+// in the language the app shows under cx.
+//
+// Study menu item that opens the study stats dialog.
+func VocabStatsMenuItem(cx *core.Scope) string { return For(cx).VocabStatsMenuItem() }
+
+// VocabStatsMenuItem is the package's VocabStatsMenuItem in the language of msgs.
+func (msgs Messages) VocabStatsMenuItem() string { return msgs.text(textVocabStatsMenuItem) }
+
+// VocabStatsTitle says "Study"
+// in the language the app shows under cx.
+//
+// Title of the study stats dialog, which has the stats and the vocabulary export as its tabs.
+func VocabStatsTitle(cx *core.Scope) string { return For(cx).VocabStatsTitle() }
+
+// VocabStatsTitle is the package's VocabStatsTitle in the language of msgs.
+func (msgs Messages) VocabStatsTitle() string { return msgs.text(textVocabStatsTitle) }
+
+// VocabStreak says "Streak"
+// in the language the app shows under cx.
+//
+// Study stats dialog: title of the card of the days in a row studied, a day counting once films played a minute on it.
+func VocabStreak(cx *core.Scope) string { return For(cx).VocabStreak() }
+
+// VocabStreak is the package's VocabStreak in the language of msgs.
+func (msgs Messages) VocabStreak() string { return msgs.text(textVocabStreak) }
+
+// VocabSummary says "{words, plural, one {# word} other {# words}} · {lines, plural, one {# saved line} other {# saved lines}} · {films, plural, one {from # film} other {from # films}}"
+// in the language the app shows under cx.
+//
+// Export Vocabulary tab, beside the Export button: what the export will hold.
+func VocabSummary(cx *core.Scope, words int, lines int, films int) string {
+	return For(cx).VocabSummary(words, lines, films)
+}
+
+// VocabSummary is the package's VocabSummary in the language of msgs.
+func (msgs Messages) VocabSummary(words int, lines int, films int) string {
+	if i18n.IsPseudo(msgs.lang) {
+		return i18n.Pseudo(msgs.lang, Messages{lang: Source, mark: true}.VocabSummary(words, lines, films))
+	}
+	for lang := msgs.lang; ; lang = i18n.Parent(lang) {
+		if f := supplied[lang].VocabSummary; f != nil {
+			return f(words, lines, films)
+		}
+		switch lang {
+		case "", "en":
+			var b strings.Builder
+			switch i18n.Cardinal("en", float64(words)) {
+			case i18n.One:
+				b.WriteString(msgs.arg(i18n.FormatNumber("en", float64(words))))
+				b.WriteString(" word")
+			default:
+				b.WriteString(msgs.arg(i18n.FormatNumber("en", float64(words))))
+				b.WriteString(" words")
+			}
+			b.WriteString(" · ")
+			switch i18n.Cardinal("en", float64(lines)) {
+			case i18n.One:
+				b.WriteString(msgs.arg(i18n.FormatNumber("en", float64(lines))))
+				b.WriteString(" saved line")
+			default:
+				b.WriteString(msgs.arg(i18n.FormatNumber("en", float64(lines))))
+				b.WriteString(" saved lines")
+			}
+			b.WriteString(" · ")
+			switch i18n.Cardinal("en", float64(films)) {
+			case i18n.One:
+				b.WriteString("from ")
+				b.WriteString(msgs.arg(i18n.FormatNumber("en", float64(films))))
+				b.WriteString(" film")
+			default:
+				b.WriteString("from ")
+				b.WriteString(msgs.arg(i18n.FormatNumber("en", float64(films))))
+				b.WriteString(" films")
+			}
+			return b.String()
+		case "ja":
+			return "単語 " + i18n.FormatNumber("ja", float64(words)) + " 件 · 保存したセリフ " + i18n.FormatNumber("ja", float64(lines)) + " 件 · " + i18n.FormatNumber("ja", float64(films)) + " 本の作品から"
+		case "ko":
+			return "단어 " + i18n.FormatNumber("ko", float64(words)) + "개 · 저장한 대사 " + i18n.FormatNumber("ko", float64(lines)) + "개 · 작품 " + i18n.FormatNumber("ko", float64(films)) + "편에서"
+		case "zh-Hans":
+			return i18n.FormatNumber("zh-Hans", float64(words)) + " 个生词 · " + i18n.FormatNumber("zh-Hans", float64(lines)) + " 句收藏 · 来自 " + i18n.FormatNumber("zh-Hans", float64(films)) + " 部影片"
+		case "zh-Hant":
+			return i18n.FormatNumber("zh-Hant", float64(words)) + " 個生詞 · " + i18n.FormatNumber("zh-Hant", float64(lines)) + " 句收藏 · 來自 " + i18n.FormatNumber("zh-Hant", float64(films)) + " 部影片"
+		}
+	}
+}
+
+// VocabTabExport says "Export Vocabulary"
+// in the language the app shows under cx.
+//
+// Study stats dialog: tab that exports the vocabulary.
+func VocabTabExport(cx *core.Scope) string { return For(cx).VocabTabExport() }
+
+// VocabTabExport is the package's VocabTabExport in the language of msgs.
+func (msgs Messages) VocabTabExport() string { return msgs.text(textVocabTabExport) }
+
+// VocabTabStats says "Stats"
+// in the language the app shows under cx.
+//
+// Study stats dialog: tab of the stats.
+func VocabTabStats(cx *core.Scope) string { return For(cx).VocabTabStats() }
+
+// VocabTabStats is the package's VocabTabStats in the language of msgs.
+func (msgs Messages) VocabTabStats() string { return msgs.text(textVocabTabStats) }
+
+// VocabThisComputer says "This computer"
+// in the language the app shows under cx.
+//
+// Study stats dialog, legend of the chart: the minutes films played on this computer.
+func VocabThisComputer(cx *core.Scope) string { return For(cx).VocabThisComputer() }
+
+// VocabThisComputer is the package's VocabThisComputer in the language of msgs.
+func (msgs Messages) VocabThisComputer() string { return msgs.text(textVocabThisComputer) }
+
+// VocabWeek says "Last 7 days"
+// in the language the app shows under cx.
+//
+// Study stats dialog: title of the card of how long films played in the last seven days, today with them.
+func VocabWeek(cx *core.Scope) string { return For(cx).VocabWeek() }
+
+// VocabWeek is the package's VocabWeek in the language of msgs.
+func (msgs Messages) VocabWeek() string { return msgs.text(textVocabWeek) }
+
+// VocabWeekLess says "{time} less than the 7 days before"
+// in the language the app shows under cx.
+//
+// Study stats dialog, last 7 days card: how much less than in the seven days before.
+func VocabWeekLess(cx *core.Scope, time_ string) string { return For(cx).VocabWeekLess(time_) }
+
+// VocabWeekLess is the package's VocabWeekLess in the language of msgs.
+func (msgs Messages) VocabWeekLess(time_ string) string {
+	if i18n.IsPseudo(msgs.lang) {
+		return i18n.Pseudo(msgs.lang, Messages{lang: Source, mark: true}.VocabWeekLess(time_))
+	}
+	for lang := msgs.lang; ; lang = i18n.Parent(lang) {
+		if f := supplied[lang].VocabWeekLess; f != nil {
+			return f(time_)
+		}
+		switch lang {
+		case "", "en":
+			return msgs.arg(time_) + " less than the 7 days before"
+		case "ja":
+			return "その前の 7 日より " + time_ + " 少ない"
+		case "ko":
+			return "그 전 7일보다 " + time_ + " 적음"
+		case "zh-Hans":
+			return "比之前 7 天少 " + time_
+		case "zh-Hant":
+			return "比之前 7 天少 " + time_
+		}
+	}
+}
+
+// VocabWeekMore says "{time} more than the 7 days before"
+// in the language the app shows under cx.
+//
+// Study stats dialog, last 7 days card: how much more than in the seven days before.
+func VocabWeekMore(cx *core.Scope, time_ string) string { return For(cx).VocabWeekMore(time_) }
+
+// VocabWeekMore is the package's VocabWeekMore in the language of msgs.
+func (msgs Messages) VocabWeekMore(time_ string) string {
+	if i18n.IsPseudo(msgs.lang) {
+		return i18n.Pseudo(msgs.lang, Messages{lang: Source, mark: true}.VocabWeekMore(time_))
+	}
+	for lang := msgs.lang; ; lang = i18n.Parent(lang) {
+		if f := supplied[lang].VocabWeekMore; f != nil {
+			return f(time_)
+		}
+		switch lang {
+		case "", "en":
+			return msgs.arg(time_) + " more than the 7 days before"
+		case "ja":
+			return "その前の 7 日より " + time_ + " 多い"
+		case "ko":
+			return "그 전 7일보다 " + time_ + " 많음"
+		case "zh-Hans":
+			return "比之前 7 天多 " + time_
+		case "zh-Hant":
+			return "比之前 7 天多 " + time_
+		}
+	}
+}
+
+// VocabWeekSame says "Same as the 7 days before"
+// in the language the app shows under cx.
+//
+// Study stats dialog, last 7 days card: as long as in the seven days before.
+func VocabWeekSame(cx *core.Scope) string { return For(cx).VocabWeekSame() }
+
+// VocabWeekSame is the package's VocabWeekSame in the language of msgs.
+func (msgs Messages) VocabWeekSame() string { return msgs.text(textVocabWeekSame) }
+
+// VocabWithLines says "Also export saved lines"
+// in the language the app shows under cx.
+//
+// Export Vocabulary tab: check box that adds the saved lines after the words.
+func VocabWithLines(cx *core.Scope) string { return For(cx).VocabWithLines() }
+
+// VocabWithLines is the package's VocabWithLines in the language of msgs.
+func (msgs Messages) VocabWithLines() string { return msgs.text(textVocabWithLines) }
+
+// VocabWithSentence says "Include the sentence"
+// in the language the app shows under cx.
+//
+// Export Vocabulary tab: check box that writes with each word the line it was looked up in.
+func VocabWithSentence(cx *core.Scope) string { return For(cx).VocabWithSentence() }
+
+// VocabWithSentence is the package's VocabWithSentence in the language of msgs.
+func (msgs Messages) VocabWithSentence() string { return msgs.text(textVocabWithSentence) }
+
+// VocabWithTranslation says "Include the sentence's translation"
+// in the language the app shows under cx.
+//
+// Export Vocabulary tab: check box that writes with each word the translation of the line it was looked up in.
+func VocabWithTranslation(cx *core.Scope) string { return For(cx).VocabWithTranslation() }
+
+// VocabWithTranslation is the package's VocabWithTranslation in the language of msgs.
+func (msgs Messages) VocabWithTranslation() string { return msgs.text(textVocabWithTranslation) }
+
+// VocabWordCount says "{count, plural, one {# word} other {# words}}"
+// in the language the app shows under cx.
+//
+// Study stats dialog: how many words the vocabulary has, the big number of the vocabulary card.
+func VocabWordCount(cx *core.Scope, count int) string { return For(cx).VocabWordCount(count) }
+
+// VocabWordCount is the package's VocabWordCount in the language of msgs.
+func (msgs Messages) VocabWordCount(count int) string {
+	if i18n.IsPseudo(msgs.lang) {
+		return i18n.Pseudo(msgs.lang, Messages{lang: Source, mark: true}.VocabWordCount(count))
+	}
+	for lang := msgs.lang; ; lang = i18n.Parent(lang) {
+		if f := supplied[lang].VocabWordCount; f != nil {
+			return f(count)
+		}
+		switch lang {
+		case "", "en":
+			var b strings.Builder
+			switch i18n.Cardinal("en", float64(count)) {
+			case i18n.One:
+				b.WriteString(msgs.arg(i18n.FormatNumber("en", float64(count))))
+				b.WriteString(" word")
+			default:
+				b.WriteString(msgs.arg(i18n.FormatNumber("en", float64(count))))
+				b.WriteString(" words")
+			}
+			return b.String()
+		case "ja":
+			return i18n.FormatNumber("ja", float64(count)) + " 語"
+		case "ko":
+			return i18n.FormatNumber("ko", float64(count)) + "개"
+		case "zh-Hans":
+			return i18n.FormatNumber("zh-Hans", float64(count)) + " 个"
+		case "zh-Hant":
+			return i18n.FormatNumber("zh-Hant", float64(count)) + " 個"
+		}
+	}
+}
+
+// VocabWords says "Vocabulary"
+// in the language the app shows under cx.
+//
+// Study stats dialog: title of the card of the vocabulary.
+func VocabWords(cx *core.Scope) string { return For(cx).VocabWords() }
+
+// VocabWords is the package's VocabWords in the language of msgs.
+func (msgs Messages) VocabWords() string { return msgs.text(textVocabWords) }
+
+// VocabWordsDue says "{count} due today"
+// in the language the app shows under cx.
+//
+// Study stats dialog, vocabulary card: how many words are due for review today.
+func VocabWordsDue(cx *core.Scope, count int) string { return For(cx).VocabWordsDue(count) }
+
+// VocabWordsDue is the package's VocabWordsDue in the language of msgs.
+func (msgs Messages) VocabWordsDue(count int) string {
+	if i18n.IsPseudo(msgs.lang) {
+		return i18n.Pseudo(msgs.lang, Messages{lang: Source, mark: true}.VocabWordsDue(count))
+	}
+	for lang := msgs.lang; ; lang = i18n.Parent(lang) {
+		if f := supplied[lang].VocabWordsDue; f != nil {
+			return f(count)
+		}
+		switch lang {
+		case "", "en":
+			return msgs.arg(i18n.FormatNumber("en", float64(count))) + " due today"
+		case "ja":
+			return "今日の復習 " + i18n.FormatNumber("ja", float64(count)) + " 語"
+		case "ko":
+			return "오늘 복습할 단어 " + i18n.FormatNumber("ko", float64(count)) + "개"
+		case "zh-Hans":
+			return "今天要复习 " + i18n.FormatNumber("zh-Hans", float64(count)) + " 个"
+		case "zh-Hant":
+			return "今天要複習 " + i18n.FormatNumber("zh-Hant", float64(count)) + " 個"
+		}
+	}
+}
 
 // WindowMenuMain says "Main Window"
 // in the language the app shows under cx.

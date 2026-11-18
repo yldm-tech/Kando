@@ -1,4 +1,4 @@
-// Package study is the learner's study record, shared by Kando on the computer and on the phone: the subtitle lines the learner saved while watching, each with a note and its review schedule (Book), kept in one file in the library folder (FileName). It knows nothing of the interface.
+// Package study is the learner's study record, shared by Kando on the computer and on the phone: the subtitle lines the learner saved while watching, each with a note and its review schedule, the words looked up and put in the vocabulary (Word), and how long films played on each day and device (Watched), which the stats are made from (Stats), all in one Book kept in one file in the library folder (FileName). It knows nothing of the interface.
 //
 // Every line is a record built to be synced between devices: it has an id of its own, the device that saved it, and for each field that can change after it was saved, when and on which device it last changed (Stamps), so two devices' books merge field by field, the later change winning (Merge). A removed line leaves a Removed behind, so a device that still has it does not bring it back.
 //
@@ -23,8 +23,8 @@ import (
 // FileName is the file the study record is kept in, at the top of the library folder, beside the films' folders. The library lists only videos, so it is not taken for one.
 const FileName = "study.json"
 
-// Version is the version of FileName this package writes. A file of a later version is not read, nor written over (ErrUnread).
-const Version = 1
+// Version is the version of FileName this package writes. A file of a later version is not read, nor written over (ErrUnread). Version 2 added the vocabulary and the time watched, which a Kando that writes version 1 would pass over and then write the file without.
+const Version = 2
 
 // Stamp is when a field last changed and on which device. Of two changes the later wins; of two at the same time, the one of the device whose id sorts last, so every device picks the same one.
 type Stamp struct {
@@ -77,11 +77,14 @@ type Removed struct {
 	At    Stamp
 }
 
-// Book is the study record of one library: its saved lines, newest first, and the lines removed from it.
+// Book is the study record of one library: its saved lines, newest first, and the lines removed from it; its vocabulary, newest first, and the words removed from it; and how long films played on each day and device.
 type Book struct {
-	dir     string
-	Lines   []Line
-	Removed []Removed
+	dir          string
+	Lines        []Line
+	Removed      []Removed
+	Words        []Word
+	RemovedWords []Removed
+	Watched      []Watched
 	// Device is the id of the device the book's changes are made on, which they are stamped with; Now is the clock they are stamped by, time.Now when nil.
 	Device string
 	Now    func() time.Time
@@ -136,7 +139,7 @@ func (b *Book) Save() error {
 		return fmt.Errorf("%w: %v", ErrUnread, b.unread)
 	}
 	path := filepath.Join(b.dir, FileName)
-	if len(b.Lines) == 0 && len(b.Removed) == 0 && b.imported == "" {
+	if len(b.Lines) == 0 && len(b.Removed) == 0 && len(b.Words) == 0 && len(b.RemovedWords) == 0 && len(b.Watched) == 0 && b.imported == "" {
 		if _, err := os.Stat(path); errors.Is(err, os.ErrNotExist) {
 			return nil
 		}
@@ -380,11 +383,45 @@ func NewID() string {
 
 // storedBook is FileName. Times in a line are in seconds.
 type storedBook struct {
-	Version  int          `json:"version"`
-	Imported string       `json:"imported,omitempty"`
-	Taken    []storedTook `json:"taken,omitempty"`
-	Lines    []storedLine `json:"lines"`
-	Removed  []storedGone `json:"removed,omitempty"`
+	Version      int             `json:"version"`
+	Imported     string          `json:"imported,omitempty"`
+	Taken        []storedTook    `json:"taken,omitempty"`
+	Lines        []storedLine    `json:"lines"`
+	Removed      []storedGone    `json:"removed,omitempty"`
+	Words        []storedWord    `json:"words,omitempty"`
+	RemovedWords []storedGone    `json:"removedWords,omitempty"`
+	Watched      []storedWatched `json:"watched,omitempty"`
+}
+
+// storedWord is a Word; its start is in seconds.
+type storedWord struct {
+	ID                 string           `json:"id"`
+	Device             string           `json:"device,omitempty"`
+	Text               string           `json:"text"`
+	Reading            string           `json:"reading,omitempty"`
+	Meaning            string           `json:"meaning,omitempty"`
+	Language           string           `json:"language,omitempty"`
+	Context            string           `json:"context,omitempty"`
+	ContextTranslation string           `json:"contextTranslation,omitempty"`
+	Video              string           `json:"video,omitempty"`
+	Start              float64          `json:"start,omitempty"`
+	Film               string           `json:"film,omitempty"`
+	SavedAt            time.Time        `json:"savedAt,omitzero"`
+	Box                int              `json:"box"`
+	Due                time.Time        `json:"due,omitzero"`
+	Stamps             storedWordStamps `json:"stamps"`
+}
+
+type storedWordStamps struct {
+	Meaning storedStamp `json:"meaning,omitzero"`
+	Review  storedStamp `json:"review,omitzero"`
+}
+
+// storedWatched is a Watched, its time in seconds.
+type storedWatched struct {
+	Day     string  `json:"day"`
+	Device  string  `json:"device,omitempty"`
+	Seconds float64 `json:"seconds"`
 }
 
 type storedStamp struct {
@@ -450,6 +487,20 @@ func (b Book) encode() storedBook {
 	for _, r := range b.Removed {
 		out.Removed = append(out.Removed, storedGone{ID: r.ID, Video: r.Video, Start: r.Start.Seconds(), At: toStored(r.At)})
 	}
+	for _, w := range b.Words {
+		out.Words = append(out.Words, storedWord{
+			ID: w.ID, Device: w.Device, Text: w.Text, Reading: w.Reading, Meaning: w.Meaning, Language: w.Language,
+			Context: w.Context, ContextTranslation: w.ContextTranslation, Video: w.Video, Start: w.Start.Seconds(), Film: w.Film,
+			SavedAt: w.SavedAt, Box: w.Box, Due: w.Due,
+			Stamps: storedWordStamps{Meaning: toStored(w.Stamps.Meaning), Review: toStored(w.Stamps.Review)},
+		})
+	}
+	for _, r := range b.RemovedWords {
+		out.RemovedWords = append(out.RemovedWords, storedGone{ID: r.ID, Video: r.Video, At: toStored(r.At)})
+	}
+	for _, w := range b.Watched {
+		out.Watched = append(out.Watched, storedWatched{Day: w.Day, Device: w.Device, Seconds: w.Time.Seconds()})
+	}
 	for _, k := range slices.Sorted(maps.Keys(b.taken)) {
 		t := b.taken[k]
 		out.Taken = append(out.Taken, storedTook{Video: t.Video, Start: t.Start.Seconds(), SavedAt: t.SavedAt})
@@ -490,6 +541,27 @@ func (b *Book) decode(data []byte) error {
 			continue
 		}
 		b.Removed = append(b.Removed, Removed{ID: s.ID, Video: s.Video, Start: fromSeconds(s.Start), At: fromStored(s.At)})
+	}
+	for _, s := range stored.Words {
+		if s.ID == "" || strings.TrimSpace(s.Text) == "" {
+			continue
+		}
+		b.Words = append(b.Words, Word{
+			ID: s.ID, Device: s.Device, Text: s.Text, Reading: s.Reading, Meaning: s.Meaning, Language: s.Language,
+			Context: s.Context, ContextTranslation: s.ContextTranslation, Video: s.Video, Start: fromSeconds(s.Start), Film: s.Film,
+			SavedAt: s.SavedAt, Box: max(s.Box, 0), Due: s.Due,
+			Stamps: WordStamps{Meaning: fromStored(s.Stamps.Meaning), Review: fromStored(s.Stamps.Review)},
+		})
+	}
+	for _, s := range stored.RemovedWords {
+		if s.ID != "" {
+			b.RemovedWords = append(b.RemovedWords, Removed{ID: s.ID, Video: s.Video, At: fromStored(s.At)})
+		}
+	}
+	for _, s := range stored.Watched {
+		if s.Day != "" && s.Seconds > 0 {
+			b.MergeWatched([]Watched{{Day: s.Day, Device: s.Device, Time: fromSeconds(s.Seconds)}})
+		}
 	}
 	return nil
 }

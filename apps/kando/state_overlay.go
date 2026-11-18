@@ -36,6 +36,7 @@ func (a *app) overlays(cx *core.Scope) core.Node {
 		a.settingsOverlay(cx),
 		a.savedOverlay(cx),
 		a.savedReviewOverlay(cx),
+		a.vocabOverlay(cx),
 	}
 }
 
