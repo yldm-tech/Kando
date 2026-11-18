@@ -53,8 +53,12 @@ type phoneUI struct {
 	now    func() time.Time
 	// receiveOff is 接收手机发来的链接 turned off, and receiveAsk 收到后 set to 先问我, which settings.json keeps (state_phonesync_jobs.go).
 	receiveOff, receiveAsk bool
-	// relay is the storage relay turned on, which settings.json keeps (state_phonesync_relay.go).
-	relay bool
+	// relay is the storage relay turned on, which settings.json keeps (state_phonesync_relay.go). relaySig names the store the running server's relay was started in, "" for none (phoneRelaySig), and relayArmed is a restart waiting for the store's settings to settle; relayOK is a turn of the relay that went through since it started, relayErr why its last one failed.
+	relay      bool
+	relaySig   string
+	relayArmed bool
+	relayOK    bool
+	relayErr   error
 	// ledgers are the libraries' learning state as phones were last told it, by library folder, each read the first time a phone asks or the open library changes (state_phonesync_state.go), and priming the folders being read so (phoneStatePrime); stateSign sums up the open library's state as phones were last told it changed (phoneSyncPublishState).
 	ledgers   map[string]*phoneLedger
 	priming   map[string]bool
@@ -106,7 +110,8 @@ func (a *app) phoneSyncHooks() areaHooks {
 			a.phoneSyncPublish()
 			a.phoneSyncPublishState()
 			a.phoneClockArm()
-			return a.phoneSyncFollow()
+			stopped := a.phoneRelayFollow()
+			return a.phoneSyncFollow() || stopped
 		},
 		quitting: a.phoneSyncStop,
 	}
@@ -143,19 +148,21 @@ func (a *app) phoneSyncStart() {
 	a.phone.starting, a.phone.err = true, ""
 	gen, update := a.phone.gen, a.update
 	name := phoneSyncName()
+	a.phone.relaySig, a.phone.relayOK, a.phone.relayErr = a.phoneRelaySig(), false, nil
 	cfg := phonesync.Config{
-		Dir:      a.phoneSyncDir(),
-		Name:     name,
-		Port:     a.phone.port,
-		Source:   phoneSource{a},
-		Jobs:     phoneJobs{a},
-		State:    phoneState{a},
-		Settings: phoneSettings{a},
-		Study:    phoneStudy{a},
-		Relay:    a.phoneRelayBucket(),
-		Addrs:    a.phone.listen,
-		Changed:  func() { update(a.phoneSyncPull) },
-		Now:      a.phone.now,
+		Dir:         a.phoneSyncDir(),
+		Name:        name,
+		Port:        a.phone.port,
+		Source:      phoneSource{a},
+		Jobs:        phoneJobs{a},
+		State:       phoneState{a},
+		Settings:    phoneSettings{a},
+		Study:       phoneStudy{a},
+		Relay:       a.phoneRelayBucket(),
+		RelayHealth: a.phoneRelayHealth(gen),
+		Addrs:       a.phone.listen,
+		Changed:     func() { update(a.phoneSyncPull) },
+		Now:         a.phone.now,
 	}
 	go func() {
 		srv, err := phonesync.Start(cfg)
@@ -197,6 +204,7 @@ func (a *app) phoneSyncStop() {
 	a.phone.running, a.phone.fingerprint, a.phone.shown = false, nil, false
 	a.phone.offer, a.phone.addrs, a.phone.devices, a.phone.revokeErr = phonesync.Offer{}, nil, nil, ""
 	a.phone.readOnlyErr, a.phone.resolveErr = "", ""
+	a.phone.relaySig, a.phone.relayOK, a.phone.relayErr = "", false, nil
 	a.phoneSyncQR()
 }
 
@@ -285,7 +293,7 @@ func (a *app) phoneSyncQR() {
 
 // phoneSyncStatus is what the 手机同步 page shows.
 func (a *app) phoneSyncStatus() settings.PhoneSync {
-	st := settings.PhoneSync{On: a.phone.on, Receive: !a.phone.receiveOff, AskFirst: a.phone.receiveAsk, Running: a.phone.running, Err: a.phone.err, RevokeErr: a.phone.revokeErr, QR: a.phone.qr, QRModules: a.phone.qrModules}
+	st := settings.PhoneSync{On: a.phone.on, Receive: !a.phone.receiveOff, AskFirst: a.phone.receiveAsk, Running: a.phone.running, Err: a.phone.err, RevokeErr: a.phone.revokeErr, QR: a.phone.qr, QRModules: a.phone.qrModules, Relay: a.phoneRelayStatus()}
 	if !a.phone.running {
 		return st
 	}

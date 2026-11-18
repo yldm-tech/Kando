@@ -177,6 +177,10 @@ func (f *fakeApp) SetPhoneReadOnly(id string, on bool) {
 		}
 	}
 }
+func (f *fakeApp) SetPhoneRelay(on bool) {
+	f.phone.Relay.On = on
+	f.call(fmt.Sprintf("relay %v", on))
+}
 func (f *fakeApp) ResolvePhoneConflict(id string, keep PhoneKeep) {
 	f.call(fmt.Sprintf("resolve %s %d", id, keep))
 }
