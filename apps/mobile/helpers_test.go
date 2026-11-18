@@ -97,13 +97,19 @@ func (p *phone) startPairing() {
 	p.app.WaitFor("id:onboarding-pairing", wait)
 }
 
-// finishPairing leaves the introduction once the phone paired with d, at the Library, which lists d.
+// finishPairing leaves the introduction once the phone paired with d, at the Library, which lists its talk.
 func (p *phone) finishPairing(d *synctest.Desktop) {
 	p.t.Helper()
 	p.app.WaitFor("id:onboarding-paired", wait)
 	p.app.Press("id:onboarding-start")
-	p.app.WaitFor("id:computers-desktop-"+store.DesktopID(d.Fingerprint), wait)
+	p.app.WaitFor(talkRow(store.DesktopID(d.Fingerprint)), wait)
 }
+
+// talkRow selects the talk's row in the Library, as listed by desktop or kept from it.
+func talkRow(desktop string) string { return filmRow(desktop, "f1") }
+
+// filmRow selects film's row in the Library, as listed by desktop or kept from it.
+func filmRow(desktop, film string) string { return "id:films-film-" + desktop + "-" + film }
 
 // pair pairs a new phone with d at the introduction's pairing step, comparing the fingerprint; paired, the phone shows the Library.
 func (p *phone) pair(d *synctest.Desktop) {

@@ -248,7 +248,7 @@ func TestOpensWindow(t *testing.T) {
 		{"-v"},
 		{"--bogus"},
 		{"status"},
-		{"help", "-h", "--help", "version", "--version", "list", "show", "subtitles", "jobs", "add", "cancel", "retry", "remove", "move", "sites", "open", "mcp"},
+		{"help", "-h", "--help", "version", "--version", "list", "show", "subtitles", "jobs", "add", "cancel", "retry", "remove", "move", "subscriptions", "sites", "open", "mcp"},
 	} {
 		for _, name := range args {
 			if OpensWindow([]string{name}) {
@@ -1494,5 +1494,61 @@ func TestFilmLanguages(t *testing.T) {
 	}
 	if strings.Contains(stdout, "\nlanguage ") {
 		t.Errorf("show names a language for a film that was not translated: %q", stdout)
+	}
+}
+
+// kando subscriptions lists the library's subscriptions, adds one with add and checks one with check, each asking the app once; a wrong subcommand or argument count is a usage error that asks it nothing.
+func TestSubscriptions(t *testing.T) {
+	sub := remote.Subscription{ID: "s1", Name: "Earth Science", Source: "https://www.youtube.com/@earthscience", Kind: "channel", Mode: "auto", Filter: "all", Cadence: "open", AddPerCheck: 3, Waiting: []remote.ListVideo{{URL: "https://youtu.be/d"}, {URL: "https://youtu.be/e"}}, Added: 3}
+	paused := remote.Subscription{ID: "s2", Name: "Talks", Kind: "playlist", Mode: "ask", Paused: true, Waiting: []remote.ListVideo{}}
+	f := startFake(t, func(method string, params json.RawMessage) (any, error) {
+		switch method {
+		case remote.MethodSubscriptions:
+			return []remote.Subscription{sub, paused}, nil
+		case remote.MethodSubscribe:
+			return remote.Subscribed{Subscription: sub, Already: true}, nil
+		case remote.MethodSubscriptionCheck:
+			return remote.SubscriptionChecked{Subscription: sub, New: 5, Queued: 3, Held: 2, Skipped: 1}, nil
+		}
+		return nil, remote.Errorf(remote.CodeUnknownMethod, "%s", method)
+	})
+	for _, args := range [][]string{{"subscriptions"}, {"subscriptions", "list"}} {
+		code, stdout, stderr := run(args...)
+		lines := strings.Split(strings.TrimSpace(stdout), "\n")
+		if code != 0 || stderr != "" || len(lines) != 3 || !strings.HasPrefix(lines[0], "ID") || !strings.Contains(lines[1], "Earth Science") || !strings.Contains(lines[1], "channel") || !strings.Contains(lines[2], "paused") {
+			t.Errorf("%q = %d, %q, %q", args, code, stdout, stderr)
+		}
+	}
+	code, stdout, stderr := run("subscriptions", "add", "https://www.youtube.com/@earthscience")
+	if code != 0 || stdout != "s1\tEarth Science\n" || !strings.Contains(stderr, "already") {
+		t.Errorf("add = %d, %q, %q", code, stdout, stderr)
+	}
+	var added remote.SubscribeParams
+	f.lastParams(t, remote.MethodSubscribe, &added)
+	if added.Source != "https://www.youtube.com/@earthscience" {
+		t.Errorf("add sent %+v", added)
+	}
+	code, stdout, stderr = run("subscriptions", "check", "s1")
+	if code != 0 || stderr != "" || stdout != "Found 5 new videos: 3 queued, 2 waiting in Kando. Skipped 1 that don't fit the rules.\n" {
+		t.Errorf("check = %d, %q, %q", code, stdout, stderr)
+	}
+	var checked remote.IDParams
+	f.lastParams(t, remote.MethodSubscriptionCheck, &checked)
+	if checked.ID != "s1" {
+		t.Errorf("check sent %+v", checked)
+	}
+	code, stdout, _ = run("subscriptions", "check", "s1", "--json")
+	if code != 0 {
+		t.Errorf("check --json = %d", code)
+	}
+	assertSameJSON(t, []string{"subscriptions", "check", "--json"}, stdout, remote.SubscriptionChecked{Subscription: sub, New: 5, Queued: 3, Held: 2, Skipped: 1})
+	asked := len(f.asked())
+	for _, args := range [][]string{{"subscriptions", "remove", "s1"}, {"subscriptions", "add"}, {"subscriptions", "check"}, {"subscriptions", "check", "s1", "s2"}, {"subscriptions", "list", "x"}} {
+		if code, _, stderr := run(args...); code != 2 || !strings.Contains(stderr, "Usage: kando subscriptions") {
+			t.Errorf("%q = %d, %q", args, code, stderr)
+		}
+	}
+	if len(f.asked()) != asked {
+		t.Errorf("usage errors asked the app %+v", f.asked()[asked:])
 	}
 }

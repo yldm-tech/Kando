@@ -4,11 +4,11 @@ import (
 	"slices"
 
 	"kando/apps/mobile/add"
+	"kando/apps/mobile/catalog"
 	"kando/apps/mobile/film"
 	"kando/apps/mobile/films"
 	"kando/apps/mobile/jobs"
 	"kando/apps/mobile/learn"
-	"kando/apps/mobile/library"
 	"kando/apps/mobile/locales"
 	"kando/apps/mobile/look"
 	"kando/apps/mobile/onboarding"
@@ -38,7 +38,6 @@ const (
 	targetPage
 	pairPage
 	introductionPage
-	libraryPage
 	filmPage
 	playerPage
 	jobsPage
@@ -53,7 +52,7 @@ const (
 	tabs
 )
 
-// route is a page of a stack and what it shows: the computer and library a library's or a film's page is of, the film, and the key of the film the player plays.
+// route is a page of a stack and what it shows: the computer and library a film's page is of, the film, and the key of the film the player plays.
 type route struct {
 	page    page
 	desktop string
@@ -100,12 +99,16 @@ func App(cx *core.Scope, cfg session.Config) core.Node {
 		navs[filmsTab].PopToRoot()
 		outer.Pop(1)
 	}
-	// Unpaired, a computer's libraries go from the Library's stack with the pages opened from them: with no client left they would keep showing what they last loaded and could not load again. A kept film's page, opened from the downloads, stays.
+	// Unpaired, a computer's films not on the phone go from the Library's stack, and from a tablet's Jobs, with the pages opened from them: with no client left they could not be downloaded. A film's page of one on the phone stays.
 	unpaired := func(id string) {
-		n := navs[filmsTab]
-		routes := n.Routes()
-		if i := slices.IndexFunc(routes, func(r route) bool { return r.page == libraryPage && r.desktop == id }); i >= 0 {
-			n.Pop(len(routes) - i)
+		for _, n := range []*base.Nav[route]{navs[filmsTab], navs[jobsTab]} {
+			routes := n.Routes()
+			if i := slices.IndexFunc(routes, func(r route) bool {
+				_, kept := s.Film(store.Key(r.desktop, r.film.ID))
+				return r.page == filmPage && r.desktop == id && !kept
+			}); i >= 0 {
+				n.Pop(len(routes) - i)
+			}
 		}
 	}
 	play := func(key string) { outer.Push(route{page: playerPage, key: key}) }
@@ -127,8 +130,6 @@ func App(cx *core.Scope, cfg session.Config) core.Node {
 						Unpaired:     unpaired})
 				case targetPage:
 					return settings.TargetPage(cx, s, back)
-				case libraryPage:
-					return library.Page(cx, s, r.desktop, r.library, func(f sync.Film) { openFilm(r.desktop, r.library, f) }, back)
 				case filmPage:
 					return film.Page(cx, s, r.desktop, r.library.Name, r.film, play, back)
 				case jobsPage:
@@ -138,11 +139,8 @@ func App(cx *core.Scope, cfg session.Config) core.Node {
 					}
 					return jobs.Page(cx, s, act)
 				}
-				return films.Page(cx, s, films.Actions{Pair: openPair, Add: openAdd, Jobs: openJobs,
-					Film: func(f store.Film) { openFilm(f.Desktop, sync.Library{Name: f.Library}, f.Film) },
-					Library: func(desktop string, lib sync.Library) {
-						n.Push(route{page: libraryPage, desktop: desktop, library: lib})
-					}})
+				return films.Page(cx, s, films.Actions{Pair: openPair, Play: play, Add: openAdd, Jobs: openJobs,
+					Film: func(e catalog.Entry) { openFilm(e.Desktop, e.Library, e.Film) }})
 			})
 		}
 	}

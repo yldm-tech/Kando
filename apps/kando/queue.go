@@ -311,6 +311,7 @@ func (a *app) Cancel(id string) {
 	a.queue.order = slices.DeleteFunc(a.queue.order, func(queued string) bool { return queued == id })
 	job.Stage = core.StageFailed
 	job.Err = context.Canceled
+	job.PausedBy = ""
 	a.show(job)
 }
 
@@ -716,6 +717,7 @@ func (a *app) queueAdd(job core.Job) {
 	job.Stage = core.StageQueued
 	job.Err = nil
 	job.FailKind = ""
+	job.PausedBy = ""
 	// A job processing or translating a done film again keeps the film's completion until it completes again (core.Job.Redo).
 	if job.Redo == "" {
 		job.CompletedAt = time.Time{}
@@ -747,7 +749,7 @@ func (a *app) pump() {
 		if !ok || job.Stage != core.StageQueued {
 			continue
 		}
-		if !found && a.queueCanRun(job) {
+		if !found && !queueHeld(job) && a.queueCanRun(job) {
 			next, found = job, true
 			continue
 		}
@@ -813,6 +815,7 @@ func (a *app) queueRun(job core.Job) {
 	if tools, ok := a.pipeline.(media.Tools); ok {
 		tools.Translator.Prompt = a.prefs.translatePrompt
 		tools.Translator.Context = a.prefs.translateContext
+		tools.Translator.ContextLines = a.prefs.translateContextLines
 		a.pipeline = tools
 	}
 	// A job processing a done film again entirely, or translating every line of it again, translates into the language it was asked for, which becomes its Language once it is done.
@@ -968,6 +971,10 @@ func (a *app) show(job core.Job) {
 	// The series is the user's, as the glossary's 术语 tab changes it while the job runs (core.Job.Series): the pipeline's copy of a job the library holds does not change it.
 	if was.ID != "" {
 		job.Series = was.Series
+	}
+	// A phone's pause is the shelf's too (queueHold): a report of the running pipeline, which made its copy before, does not let the job go on; the queue's own steps say whether it is held.
+	if was.PausedBy != "" && job.Stage != core.StageQueued && !job.Stage.Done() {
+		job.PausedBy = was.PausedBy
 	}
 	// A job that has just completed again under its subtitle path, as one translating its film again does, has rewritten the file the open film shows.
 	rewritten := job.Stage == core.StageComplete && was.Stage != "" && was.Stage != core.StageComplete

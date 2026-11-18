@@ -438,7 +438,7 @@ correctKeyRestore:
   description: "Subtitles menu item: brings back every line of the open film the user marked as no speech."
 correctKeySelect:
   message: "Select the Current Line"
-  description: "Shortcut row of Return on the player: selects the subtitle line playing, to correct it."
+  description: "Shortcut row of E on the player: selects the subtitle line playing, to correct it."
 correctKeyStartEarlier:
   message: "Start 0.1 Second Earlier"
   description: "Shortcut row and button: moves the start of the selected subtitle line a tenth of a second earlier."
@@ -530,6 +530,330 @@ correctUndone:
 correctUnreadable:
   message: "This film’s corrections couldn’t be read, so they can’t be changed"
   description: "Message on the picture when the film's corrections file could not be read, which is then not written over."
+settingsAIBatchSize:
+  message: "Lines per Request"
+  description: "Row title and accessible name of the field setting how many subtitle lines one translation request carries."
+settingsAIBatchSizeHint:
+  message: "More lines take fewer requests; fewer suit a small model."
+  description: "Under Lines per Request."
+settingsAIRequests:
+  message: "Requests"
+  description: "Section label on the AI Service page above how many lines a translation request carries and how many times it is retried."
+settingsAIRequestsNote:
+  message: "By default each request carries {size} lines and is retried {retries, plural, one {once} other {# times}}."
+  description: "Footnote under the Requests card giving the defaults."
+  placeholders:
+    size: { type: "int", example: "40" }
+    retries: { type: "int", example: "2" }
+settingsAIRequestsRestore:
+  message: "Restore Defaults"
+  description: "Button beside the Requests label that brings Lines per Request and Retries back to their defaults."
+settingsAIRetries:
+  message: "Retries"
+  description: "Row title and accessible name of the field setting how many times a failed translation request is sent again."
+settingsAIRetriesHint:
+  message: "After a rate limit, a server error or no answer."
+  description: "Under Retries: which failures are retried."
+settingsGeneralAppearance:
+  message: "Appearance"
+  description: "Row title and accessible name of the drop-down choosing light, dark or the system's appearance."
+settingsGeneralAppearanceDark:
+  message: "Dark"
+  description: "Appearance option."
+settingsGeneralAppearanceLight:
+  message: "Light"
+  description: "Appearance option."
+settingsGeneralAppearanceSystem:
+  message: "Follow System"
+  description: "Appearance option that follows the system's light or dark mode; the default."
+settingsShortcutsPreset:
+  message: "Preset"
+  description: "Row title and accessible name of the drop-down choosing whose keys the player follows: the system's, IINA's or mpv's."
+settingsShortcutsPresetMac:
+  message: "Mac Default"
+  description: "Preset option on macOS for Kando's own keys."
+settingsShortcutsPresetNote:
+  message: "The player's keys follow {player} where it has the same command; the keys for studying lines stay as they are. Single-key shortcuts work only when no text field has the focus."
+  description: "Note under the shortcut search field while the IINA or mpv preset is chosen. player is the preset's name."
+  placeholders:
+    player: { type: "String", example: "mpv" }
+settingsShortcutsPresetSystem:
+  message: "System Default"
+  description: "Preset option on Windows and Linux for Kando's own keys."
+settingsSpeechCommand:
+  message: "Command"
+  description: "Caption above the whisper-cli command a job runs with these settings."
+settingsSpeechHints:
+  message: "Proper Noun Hints"
+  description: "Caption and accessible name of the field where names and terms the videos say are typed, which whisper then spells as written."
+settingsSpeechHintsNote:
+  message: "One per line or separated by commas. whisper spells them as written."
+  description: "Under the Proper Noun Hints field."
+settingsSpeechHintsPlaceholder:
+  message: "Names, places, terms…"
+  description: "Placeholder of the Proper Noun Hints field."
+settingsSpeechParams:
+  message: "Recognition"
+  description: "Section label on the Speech Recognition page above the thread count, the hints and the command."
+settingsSpeechThreads:
+  message: "Threads"
+  description: "Row title and accessible name of the drop-down choosing how many CPU threads whisper uses."
+settingsSpeechThreadsAuto:
+  message: "Automatic ({count})"
+  description: "Threads drop-down option letting Kando choose; count is how many it uses on this computer."
+  placeholders:
+    count: { type: "int", example: "8" }
+settingsSpeechThreadsHint:
+  message: "More is faster, but takes CPU from playback."
+  description: "Under Threads."
+settingsTranslateContextLines:
+  message: "Context Lines"
+  description: "Row title and accessible name of the field setting how many earlier lines go with each translation batch while Smart translation is on."
+settingsTranslateContextLinesHint:
+  message: "More reads more smoothly, but each request is longer and costs more."
+  description: "Under Context Lines."
+correctCandidateKept:
+  message: "Using the translation you picked, saved as yours"
+  description: "Message on the picture after the user picked one of the AI service's other translations of a subtitle line, which is kept as the user's correction."
+correctCandidates:
+  message: "This Line Is Wrong"
+  description: "Button of the bar of the selected subtitle line: asks the AI service for other translations of it to pick from."
+correctCandidatesBusy:
+  message: "This line is wrong · translating it again with more context…"
+  description: "Heading of the list of other translations of a subtitle line while the AI service translates it again from the lines around it."
+correctCandidatesCurrent:
+  message: "Current wording (unchanged)"
+  description: "Label over the first choice of the list of other translations of a subtitle line: the translation it has now, kept as it is."
+correctCandidatesFailed:
+  message: "Couldn’t get other translations: {error}"
+  description: "Message in the list of other translations of a subtitle line when the AI service failed, with its error."
+  placeholders:
+    error: { type: "String", example: "rate limited" }
+correctCandidatesHint:
+  message: "{choose} choose · {use} use it (saved as your wording; the machine won’t rewrite it) · {cancel} discard"
+  description: "Line under the list of other translations of a subtitle line, naming its keys as the platform writes them."
+  placeholders:
+    choose: { type: "String", example: "↑↓" }
+    use: { type: "String", example: "Return" }
+    cancel: { type: "String", example: "Esc" }
+correctCandidatesLabel:
+  message: "This line is wrong: candidates"
+  description: "Accessible name of the list of other translations of a subtitle line."
+correctCandidatesNoAI:
+  message: "Other translations need an AI service. Choose a model in AI Service first."
+  description: "Message in the list of other translations of a subtitle line when no AI service is set."
+correctCandidatesNone:
+  message: "The AI service found no better wording."
+  description: "Message in the list of other translations of a subtitle line when the AI service gave none other than the current one."
+correctCandidatesOption:
+  message: "Candidate · retranslated with context"
+  description: "Label over each of the AI service's other translations of a subtitle line, which it made from the lines around it."
+correctCandidatesSettings:
+  message: "Open Settings"
+  description: "Button in the list of other translations of a subtitle line, when no AI service could give any: opens the AI Service settings."
+correctCandidatesTitle:
+  message: "This line is wrong · pick a wording"
+  description: "Heading of the list of other translations of a subtitle line, once they came."
+correctExplain:
+  message: "Explain"
+  description: "Button of the bar of the selected subtitle line: has the AI service explain it."
+correctKeyCandidates:
+  message: "This Line Is Wrong…"
+  description: "Subtitles menu item and shortcut row of Shift+E: asks the AI service for other translations of the selected subtitle line, or of the one playing, to pick from."
+correctKeyPick:
+  message: "Use the Highlighted Wording"
+  description: "Shortcut row of Return while the other translations of a subtitle line show: keeps the one highlighted as the user's."
+correctKeyPickCancel:
+  message: "Discard the Candidates"
+  description: "Shortcut row of Escape while the other translations of a subtitle line show: puts them away, the line unchanged."
+correctKeyPickDown:
+  message: "Highlight the Next Wording"
+  description: "Shortcut row of the Down arrow while the other translations of a subtitle line show: highlights the one under the one highlighted."
+correctKeyPickUp:
+  message: "Highlight the Previous Wording"
+  description: "Shortcut row of the Up arrow while the other translations of a subtitle line show: highlights the one over the one highlighted."
+correctKeySpreadAll:
+  message: "Change It Everywhere in the Film"
+  description: "Shortcut row of Command-Return while a bar asks whether to change the words an edit changed in the film's other lines too: changes them all."
+correctKeySpreadOnly:
+  message: "Change Only This Line"
+  description: "Shortcut row of Escape while a bar asks whether to change the words an edit changed in the film's other lines too: leaves them."
+correctKeySpreadView:
+  message: "Show the Lines With It"
+  description: "Shortcut row of Shift-Command-Return while a bar asks whether to change the words an edit changed in the film's other lines too: shows those lines in the side panel's subtitle list."
+correctSpreadAll:
+  message: "All"
+  description: "Button of the bar asking whether to change the words an edit changed in the film's other lines too: changes them all."
+correctSpreadAsk:
+  message: "“{from}” → “{to}”: {count} more in this film. Change them too?"
+  description: "Bar over the picture after an edit of a subtitle line changed words the film's other lines hold too: the words before and after, and how many other lines hold them."
+  placeholders:
+    from: { type: "String", example: "Jon" }
+    to: { type: "String", example: "John" }
+    count: { type: "int", example: "4" }
+correctSpreadAskEdited:
+  message: "“{from}” → “{to}”: {count} more in this film (including {edited} you edited). Change them too?"
+  description: "Bar over the picture after an edit of a subtitle line changed words the film's other lines hold too, some of which the user had corrected: the words before and after, how many other lines hold them and how many of those the user edited."
+  placeholders:
+    from: { type: "String", example: "Jon" }
+    to: { type: "String", example: "John" }
+    count: { type: "int", example: "4" }
+    edited: { type: "int", example: "1" }
+correctSpreadDone:
+  message: "Replaced {count, plural, one {# place} other {# places}}"
+  description: "Message on the picture after the words an edit changed were changed in the film's other lines too, how many."
+  placeholders:
+    count: { type: "int", example: "4" }
+correctSpreadDoneTerm:
+  message: "Replaced {count, plural, one {# place} other {# places}} · updated and locked the glossary term"
+  description: "Message on the picture after the words an edit changed were changed in the film's other lines too, and in the glossary term that translated them, which is now locked."
+  placeholders:
+    count: { type: "int", example: "4" }
+correctSpreadOnly:
+  message: "Only changed here"
+  description: "Message on the picture after the user chose to keep an edit's change to the edited subtitle line alone."
+correctSpreadOnlyButton:
+  message: "Only Here"
+  description: "Button of the bar asking whether to change the words an edit changed in the film's other lines too: leaves them."
+correctSpreadView:
+  message: "View"
+  description: "Button of the bar asking whether to change the words an edit changed in the film's other lines too: shows those lines in the side panel's subtitle list."
+correctStepCandidate:
+  message: "Use a Candidate for Line {line}"
+  description: "What a change of the film's lines was, for Undo and Redo to name it: one of the AI service's other translations kept for the line numbered line."
+  placeholders:
+    line: { type: "int", example: "12" }
+correctStepSpread:
+  message: "Replace “{from}” with “{to}” Everywhere"
+  description: "What a change of the film's lines was, for Undo and Redo to name it: words changed in every line of the film that held them."
+  placeholders:
+    from: { type: "String", example: "Jon" }
+    to: { type: "String", example: "John" }
+correctUntranslated:
+  message: "(not translated)"
+  description: "Stands in for the translation of a subtitle line that has none, in the list of other translations of it."
+explainAnswering:
+  message: "Answering…"
+  description: "In place of the answer to a follow-up question about the line explained in the player's side panel, while the AI service answers it."
+explainAskFailed:
+  message: "No answer came back: {error}"
+  description: "In place of the answer to a follow-up question about the line explained, when the AI service failed to answer; error is the service's reason, as it gave it."
+  placeholders:
+    error: { type: "String", example: "401 Unauthorized" }
+explainAskLabel:
+  message: "Ask About This Line"
+  description: "Accessible name of the field under a line's explanation in the player's side panel, where a follow-up question about the line is typed."
+explainAskPlaceholder:
+  message: "Ask about this line… ({key} to send)"
+  description: "Placeholder of the follow-up question field under a line's explanation; key is the key that sends it as the system writes it (Return on a Mac, Enter elsewhere)."
+  placeholders:
+    key: { type: "String", example: "↩" }
+explainBack:
+  message: "Back to Subtitles"
+  description: "Accessible name of the button at the top of a line's explanation in the player's side panel that goes back to the subtitle list; the button shows ‹ and the Subtitles tab's name."
+explainBreakdown:
+  message: "Breakdown"
+  description: "Heading of the section of a line's explanation that takes its key words and phrases one by one."
+explainBusy:
+  message: "Asking {model} to explain the line…"
+  description: "In place of a line's explanation in the player's side panel while the AI model explains it."
+  placeholders:
+    model: { type: "String", example: "gpt-4o-mini" }
+explainCard:
+  message: "Line Explanation"
+  description: "Accessible name of the explanation of a subtitle line that the player's side panel shows in place of its tabs."
+explainFailed:
+  message: "No explanation came back: {error}"
+  description: "In place of a line's explanation when the AI service failed to explain it; error is the service's reason, as it gave it."
+  placeholders:
+    error: { type: "String", example: "401 Unauthorized" }
+explainMeaning:
+  message: "Meaning"
+  description: "Heading of the section of a line's explanation that says what the whole line means."
+explainMore:
+  message: "More: Tone and Related Expressions"
+  description: "Button under a line's explanation that shows its last two sections, the line's tone and related expressions."
+explainNoAI:
+  message: "Explaining lines needs an AI service. Choose a model in “AI Service” first."
+  description: "In place of a line's explanation, or of the answer to a follow-up question, when no AI service is set."
+explainNote:
+  message: "Written by {model} · from this line and the ones before it only"
+  description: "Footnote under a line's explanation when a cloud AI service wrote it: which model, and that it was given only this line and the lines before it, nothing that comes later."
+  placeholders:
+    model: { type: "String", example: "gpt-4o-mini" }
+explainNoteLocal:
+  message: "Written on this computer by {model} · from this line and the ones before it only"
+  description: "Footnote under a line's explanation when a model running on this computer (Ollama, LM Studio) wrote it, so nothing left the computer: which model, and that it was given only this line and the lines before it."
+  placeholders:
+    model: { type: "String", example: "qwen2.5:7b" }
+explainOsdInNotes:
+  message: "This line is already in your notes"
+  description: "Message on the picture when Save Line to Notes is pressed for a line saved already."
+explainOsdNoted:
+  message: "Saved to notes · it will come up in review"
+  description: "Message on the picture once a line explained went into the saved lines, which the daily review asks, with the explanation as its note."
+explainRelated:
+  message: "Related Expressions"
+  description: "Heading of the section of a line's explanation that lists expressions related to it."
+explainSave:
+  message: "Save Line to Notes"
+  description: "Button under a line's explanation that saves the line, with the explanation as its note, so it comes up in the daily review."
+explainSaved:
+  message: "In Notes · it will come up in review"
+  description: "The Save Line to Notes button once the line is saved."
+explainSettings:
+  message: "Open AI Service Settings"
+  description: "Button in place of a line's explanation that opens the AI Service section of Settings, when no AI service could explain it."
+explainTerms:
+  message: "Terms"
+  description: "Heading of the section of a line's explanation that lists the terms of the film's glossary the line holds."
+explainTone:
+  message: "Tone"
+  description: "Heading of the section of a line's explanation that says its tone or the situation it is said in."
+explainTranslation:
+  message: "About the Translation"
+  description: "Heading of the section of a line's explanation about its translation: why it is translated so, whether the tone fits."
+recapBusy:
+  message: "Summing up what you watched…"
+  description: "On the Recap card of a film opened where it stopped last time, while the AI service sums up the part already watched."
+recapCard:
+  message: "Recap"
+  description: "Accessible name of the card over the picture when a film opens where it stopped last time: what happened in the part watched, and where to play from."
+recapClose:
+  message: "Close Recap"
+  description: "Accessible name and tooltip of the × that closes the Recap card."
+recapContinue:
+  message: "Continue from {at}"
+  description: "Button of the Recap card that plays the film on from where it stopped last time."
+  placeholders:
+    at: { type: "String", example: "1:40" }
+recapExcerptNote:
+  message: "Lines you watched, not summed up: no AI service can answer"
+  description: "Footnote of the Recap card when no AI service could sum up the part watched (none set, or offline mode with a cloud service), so the card shows three lines of it as they are."
+recapFailedNote:
+  message: "Lines you watched: the AI service could not sum them up"
+  description: "Footnote of the Recap card when the AI service failed to sum up the part watched, so the card shows three lines of it as they are."
+recapHeading:
+  message: "Previously"
+  description: "Small heading over the moments of the part watched on the Recap card."
+recapLastAt:
+  message: "You stopped at {at}"
+  description: "Title of the Recap card: where the film stopped last time."
+  placeholders:
+    at: { type: "String", example: "1:40" }
+recapNote:
+  message: "Only what you watched · summed up by {model}"
+  description: "Footnote of the Recap card when a cloud AI service summed up the part watched: only that part was sent, and which model wrote the summary."
+  placeholders:
+    model: { type: "String", example: "gpt-4o-mini" }
+recapNoteLocal:
+  message: "Only what you watched · summed up on this computer by {model}"
+  description: "Footnote of the Recap card when a model running on this computer (Ollama, LM Studio) summed up the part watched, so nothing left the computer."
+  placeholders:
+    model: { type: "String", example: "qwen2.5:7b" }
+recapStartOver:
+  message: "Start Over"
+  description: "Button of the Recap card that plays the film from its start."
 subexportBilingual:
   message: "Both"
   description: "Choice in the Export Subtitles dialog: export each line's translation and original together."
@@ -888,7 +1212,7 @@ filmDismiss:
   description: "Close button of the upload notice over the picture."
 filmExplainLine:
   message: "Explain Line"
-  description: "First item of a subtitle line's right-click menu in the side panel: the AI service explains the line's meaning, key words and grammar in the command palette."
+  description: "First item of a subtitle line's right-click menu in the side panel: the AI service explains the line's meaning, key words and grammar in the side panel, in place of the subtitle list."
 filmFaceBold:
   message: "Bold {line}"
   description: "Accessible name of a line's bold toggle."
@@ -2823,27 +3147,9 @@ paletteAsking:
   description: "Answer card while the question is on its way to the AI model."
   placeholders:
     model: { type: "String", example: "gpt-4o-mini" }
-paletteExplainFailed:
-  message: "No explanation came back: {error}"
-  description: "Explanation card when the AI service returned no explanation of the line; error is the service's error message."
-  placeholders:
-    error: { type: "String", example: "context deadline exceeded" }
 paletteExplainLine:
   message: "Explain Line"
-  description: "Study menu item and shortcut row (E): the AI service explains the subtitle line playing, its meaning, key words and grammar, in the command palette."
-paletteExplainNoAI:
-  message: "Explaining lines needs an AI service. Choose a model in “AI Service” first."
-  description: "Explanation card when Explain Line was chosen with no AI service set."
-paletteExplainNote:
-  message: "Explained by {model}"
-  description: "Footnote under the explanation of a subtitle line (Explain Line): which model explained it."
-  placeholders:
-    model: { type: "String", example: "gpt-4o-mini" }
-paletteExplaining:
-  message: "Asking {model} to explain the line…"
-  description: "Explanation card while the line is on its way to the AI model (Explain Line)."
-  placeholders:
-    model: { type: "String", example: "gpt-4o-mini" }
+  description: "Subtitles menu item and shortcut row (I): the AI service explains the subtitle line selected for correcting, or with none the one playing, its meaning, key words and grammar, in the player's side panel."
 paletteFieldLabel:
   message: "Films, commands or watched lines"
   description: "Accessible name of the command palette's field over the library, where it finds films, commands and lines but takes no question."
@@ -2866,9 +3172,6 @@ paletteHeadingAnswer:
 paletteHeadingCommands:
   message: "Commands"
   description: "Heading of the commands the command palette found."
-paletteHeadingExplain:
-  message: "Explanation"
-  description: "Heading of the card with the explanation of a subtitle line (Explain Line), in place of paletteHeadingAnswer."
 paletteHeadingFilms:
   message: "Films"
   description: "Heading of the films of the library whose names hold what was typed in the command palette; choosing one plays it."
@@ -4416,13 +4719,13 @@ settingsGeneralVersion:
   message: "Version"
   description: "Row title: Kando's version."
 settingsKeywordsAI:
-  message: "translation service EveryAPI OpenAI OpenRouter Groq DeepSeek xAI Mistral Qwen Kimi Zhipu SiliconFlow Ollama LM Studio Base URL API Key model test connection"
+  message: "translation service EveryAPI OpenAI OpenRouter Groq DeepSeek xAI Mistral Qwen Kimi Zhipu SiliconFlow Ollama LM Studio Base URL API Key model test connection batch lines per request retries"
   description: "Search keywords of the AI Service settings section, separated by spaces, besides its title: the services it offers and its fields. Not shown."
 settingsKeywordsAccount:
   message: "Google sign in sign out object storage upload R2 S3 OSS COS Endpoint Region Bucket Access Key Secret path style"
   description: "Search keywords of the Account & Upload settings section, separated by spaces, besides its title. Not shown."
 settingsKeywordsGeneral:
-  message: "library location Finder File Explorer file manager interface language version components yt-dlp ffmpeg whisper-cli detect again command line terminal kando install MCP Claude Code Cursor copy config update notifications notify browser sign-in signed in cookies members-only age-restricted Chrome Safari Firefox Edge Brave Chromium keychain Full Disk Access"
+  message: "library location Finder File Explorer file manager interface language version components yt-dlp ffmpeg whisper-cli detect again command line terminal kando install MCP Claude Code Cursor copy config update notifications notify browser sign-in signed in cookies members-only age-restricted Chrome Safari Firefox Edge Brave Chromium keychain Full Disk Access appearance light dark mode follow system"
   description: "Search keywords of the General settings section, separated by spaces, besides its title. Not shown; the sidebar's search finds the section by them. Use the words the section's page shows."
 settingsKeywordsLook:
   message: "subtitles display bilingual original only translation only order translation original dim blank make room preview preset font size color bold"
@@ -4434,13 +4737,13 @@ settingsKeywordsPrivacy:
   message: "privacy offline network internet cache clear"
   description: "Words the settings search finds the Privacy section by, besides its title."
 settingsKeywordsShortcuts:
-  message: "keyboard keys commands"
+  message: "keyboard keys commands preset IINA mpv"
   description: "Search keywords of the Keyboard Shortcuts settings section, separated by spaces, besides its title. Not shown."
 settingsKeywordsSpeech:
-  message: "whisper models download recognition transcription HuggingFace Hugging Face Vimpo hyperframes spoken language download source mirror hf-mirror.com model file ggml"
+  message: "whisper models download recognition transcription HuggingFace Hugging Face Vimpo hyperframes spoken language download source mirror hf-mirror.com model file ggml threads proper nouns hints prompt command"
   description: "Search keywords of the Speech Recognition settings section, separated by spaces, besides its title. Not shown."
 settingsKeywordsTranslate:
-  message: "target language smart translation context prompt restore default"
+  message: "target language smart translation context prompt restore default context lines"
   description: "Search keywords of the Translation settings section, separated by spaces, besides its title. Not shown."
 settingsLanguageArabic:
   message: "Arabic"
@@ -4706,7 +5009,7 @@ settingsPrivacySaveFailed:
   placeholders:
     error: { type: "String", example: "permission denied" }
 settingsPrivacyStepAI:
-  message: "Translation, proofreading, explanations and word lookups"
+  message: "Translation, proofreading, explanations, recaps and word lookups"
   description: "Row of the network table in Settings › Privacy: what the AI service does."
 settingsPrivacyStepAICloud:
   message: "{service}, which receives the subtitle text"
@@ -5548,8 +5851,10 @@ subscribeWhenNew:
   message: "When There Are New Videos"
   description: "Row of a subscription's rules: what happens to new videos."
 subscribeWhenNewAuto:
-  message: "They join the queue and are downloaded and subtitled by the rules"
-  description: "Note of the When There Are New Videos row while Add Automatically is chosen."
+  message: "Up to {count} a check join the queue and are downloaded and subtitled by the rules; the rest wait here"
+  description: "Note of the When There Are New Videos row while Add Automatically is chosen: a check queues at most count new videos, and lists the others on the page for the user to add or skip."
+  placeholders:
+    count: { type: "int", example: "3" }
 subscribeWhenNewAsk:
   message: "They're listed here first and start once you add them"
   description: "Note of the When There Are New Videos row while Ask Me First is chosen."
@@ -5640,6 +5945,13 @@ subscribeNoteHeld:
   description: "Message on a subscription's page after a check listed its new videos for the user to add or skip."
   placeholders:
     count: { type: "int", example: "2" }
+subscribeNoteCapped:
+  message: "{found, plural, one {Found # new video} other {Found # new videos}} and added the first {added} to the queue. {held, plural, one {The other one is waiting for you below.} other {The other # are waiting for you below.}}"
+  description: "Message on a subscription's page after a check that adds new videos by itself found more than it adds at once: the first added are queued, the held others are listed below for the user to add or skip."
+  placeholders:
+    found: { type: "int", example: "5" }
+    added: { type: "int", example: "3" }
+    held: { type: "int", example: "2" }
 subscribeNoteNone:
   message: "No new videos."
   description: "Message on a subscription's page after a check found nothing new."
@@ -5790,6 +6102,9 @@ vocabLearning:
   description: "Study stats dialog, under the mastery bar: how many words and saved lines are being learned."
   placeholders:
     count: { type: "int", example: "3" }
+vocabLibrarySeparator:
+  message: ", "
+  description: "Study stats dialog: what goes between two library names in vocabStatsLibraries."
 vocabLineCount:
   message: "{count, plural, one {# line} other {# lines}}"
   description: "Study stats dialog: how many lines are saved, the big number of the saved lines card."
@@ -5867,6 +6182,16 @@ vocabOtherDevices:
 vocabPreview:
   message: "Preview (first 3)"
   description: "Export Vocabulary tab: label over the first three records as the file will hold them."
+vocabStatsLibraries:
+  message: "Counted from {libraries}"
+  description: "Study stats dialog, top of the Stats tab: the libraries whose study is added up in the stats, by their names joined with vocabLibrarySeparator. Locked libraries are never counted."
+  placeholders:
+    libraries: { type: "String", example: "Kando, Anime" }
+vocabStatsLocked:
+  message: "{count, plural, one {# locked library is not counted} other {# locked libraries are not counted}}"
+  description: "Study stats dialog, under vocabStatsLibraries: how many libraries are left out of the stats because they are locked with a password."
+  placeholders:
+    count: { type: "int", example: "1" }
 vocabStatsMenuItem:
   message: "Study Stats"
   description: "Study menu item that opens the study stats dialog."
@@ -5933,3 +6258,240 @@ vocabWordsDue:
 windowMenuMain:
   message: "Main Window"
   description: "Item of the Window menu (macOS) that shows Kando's main window again after its close button put it away while Kando keeps running."
+phoneSyncPaused:
+  message: "{device} paused “{title}”."
+  description: "Library message bar when a paired phone paused a job where it was; the job waits until it is continued on the phone or on this computer."
+  placeholders:
+    device: { type: "String", example: "Evan's iPhone" }
+    title: { type: "String", example: "Ocean Currents Explained" }
+filmsQueuePausedOn:
+  message: "Paused on {device}"
+  description: "Line under a waiting job's title when a paired phone paused it; it does not start until it is continued."
+  placeholders:
+    device: { type: "String", example: "Evan's iPhone" }
+filmsQueueContinueHere:
+  message: "Continue on This Computer"
+  description: "Button on a processing card that a paired phone paused: lets the job wait for its turn again on this computer."
+settingsPhoneReadOnlyFailed:
+  message: "Couldn't change what the phone may do: {error}"
+  description: "Settings › Phone Sync, under the paired phones, when the read-only switch of a phone could not be saved."
+  placeholders:
+    error: { type: "String", example: "permission denied" }
+settingsPhoneDeviceOnline:
+  message: "{platform, select, ios {iPhone} android {Android} other {Phone}} · Online"
+  description: "Under a paired phone's name while it connected within the last few minutes. {platform} is ios, android or empty."
+  placeholders:
+    platform: { type: "String", example: "ios" }
+settingsPhoneReadOnly:
+  message: "Read-only"
+  description: "Label beside the switch on a paired phone's row: when on, the phone can watch and read but changes nothing on this computer (no links, job actions, or learning-state edits)."
+settingsPhoneReadOnlyLabel:
+  message: "{name} Read-Only"
+  description: "Accessibility name of a paired phone's read-only switch."
+  placeholders:
+    name: { type: "String", example: "Evan's iPhone" }
+settingsPhoneRevokeTitle:
+  message: "Revoke {name}?"
+  description: "Heading of the confirmation under a paired phone's row before it is revoked, as when the phone was lost."
+  placeholders:
+    name: { type: "String", example: "Evan's iPhone" }
+settingsPhoneRevokeKey:
+  message: "Its pairing key stops working at once: it can no longer reach this computer."
+  description: "Consequence of revoking a phone, in the confirmation's list."
+settingsPhoneRevokeJobs:
+  message: "Links it already sent stay in the queue and are processed as usual."
+  description: "Consequence of revoking a phone, in the confirmation's list."
+settingsPhoneRevokeOffline:
+  message: "Films and learning records saved on the phone stay there; they can't be deleted from here."
+  description: "Consequence of revoking a phone, in the confirmation's list."
+settingsPhoneRevokePairAgain:
+  message: "To use it again, pair it with a new code."
+  description: "Consequence of revoking a phone, in the confirmation's list."
+settingsPhoneRevokeConfirm:
+  message: "Revoke This Phone"
+  description: "Destructive button of the confirmation that revokes a paired phone."
+settingsPhoneRevokeCancel:
+  message: "Cancel"
+  description: "Button that closes the confirmation of revoking a phone without revoking it."
+settingsPhoneLearning:
+  message: "Learning Records"
+  description: "Heading of the card saying how much of the open library's learning state (words, saved lines, where films were left) the phones have been told."
+settingsPhoneSynced:
+  message: "Synced"
+  description: "Row title before the counts of the learning records synced with phones."
+settingsPhoneSyncedCounts:
+  message: "{words, plural, one {# word} other {# words}} · {lines, plural, one {# saved line} other {# saved lines}} · {films, plural, one {progress in # film} other {progress in # films}}"
+  description: "Counts of the open library's learning records synced with phones."
+  placeholders:
+    words: { type: "int", example: "6" }
+    lines: { type: "int", example: "2" }
+    films: { type: "int", example: "3" }
+settingsPhoneConflicts:
+  message: "Sync Conflicts"
+  description: "Heading of the card listing the open library's sync conflicts: the same translation or note changed on two devices."
+settingsPhoneNoConflicts:
+  message: "No conflicts. When two devices change the same thing, you choose here."
+  description: "The sync conflicts card when there is none."
+settingsPhoneConflictsNote:
+  message: "Words, saved lines and where you left off merge by themselves; only the same translation or note changed on two devices needs you to choose."
+  description: "Footnote under the sync conflicts card."
+settingsPhoneResolveFailed:
+  message: "Couldn't settle the conflict: {error}"
+  description: "Under the sync conflicts card when the version chosen could not be kept."
+  placeholders:
+    error: { type: "String", example: "the library is locked" }
+settingsPhoneConflictWord:
+  message: "word “{word}”"
+  description: "Where a sync conflict is: a vocabulary word's meaning or note."
+  placeholders:
+    word: { type: "String", example: "basis vector" }
+settingsPhoneConflictFilm:
+  message: "“{title}”"
+  description: "Where a sync conflict is: the film its line or correction is of, the film's title in the language's quotation marks."
+  placeholders:
+    title: { type: "String", example: "Rust Talk" }
+settingsPhoneThisComputer:
+  message: "This Computer"
+  description: "Name of this computer where a sync conflict's version or an activity entry was made on the desktop."
+settingsPhoneConflictUse:
+  message: "Use This"
+  description: "Button under one version of a sync conflict that keeps it."
+settingsPhoneConflictUseLabel:
+  message: "Use the Version from {device}"
+  description: "Accessibility name of Use This under a sync conflict's version."
+  placeholders:
+    device: { type: "String", example: "Evan's iPhone" }
+settingsPhoneConflictBoth:
+  message: "Keep Both"
+  description: "Button of a sync conflict between two notes that keeps both, one after the other."
+settingsPhoneConflictOriginal:
+  message: "Original"
+  description: "What a sync conflict is of: a line's original text."
+settingsPhoneConflictTranslation:
+  message: "Translation"
+  description: "What a sync conflict is of: a line's translation."
+settingsPhoneConflictMeaning:
+  message: "Meaning"
+  description: "What a sync conflict is of: a vocabulary word's meaning."
+settingsPhoneConflictNote:
+  message: "Note"
+  description: "What a sync conflict is of: a note on a line or a word."
+settingsPhoneActivity:
+  message: "Recent Activity from Phones"
+  description: "Heading of the card listing what paired phones did lately, since Kando opened."
+settingsPhoneNoActivity:
+  message: "Nothing yet since Kando opened."
+  description: "The recent activity card when no phone did anything since Kando opened."
+settingsPhoneDidLink:
+  message: "Sent the link “{title}”"
+  description: "Recent activity: a phone sent a link."
+  placeholders:
+    title: { type: "String", example: "https://youtu.be/abc" }
+settingsPhoneDidPause:
+  message: "Paused “{title}”"
+  description: "Recent activity: a phone paused a job."
+  placeholders:
+    title: { type: "String", example: "Ocean Currents Explained" }
+settingsPhoneDidResume:
+  message: "Let “{title}” go on"
+  description: "Recent activity: a job paused was let go on."
+  placeholders:
+    title: { type: "String", example: "Ocean Currents Explained" }
+settingsPhoneDidCancel:
+  message: "Canceled “{title}”"
+  description: "Recent activity: a phone canceled a job."
+  placeholders:
+    title: { type: "String", example: "Ocean Currents Explained" }
+settingsPhoneDidRetry:
+  message: "Retried “{title}”"
+  description: "Recent activity: a phone retried a job."
+  placeholders:
+    title: { type: "String", example: "Ocean Currents Explained" }
+settingsPhoneDidUpdateYTDLP:
+  message: "Updated yt-dlp"
+  description: "Recent activity: a phone had the desktop update its downloader."
+settingsPhoneDidWatch:
+  message: "Watched “{title}” to {time}"
+  description: "Recent activity: a phone stopped a film at a point."
+  placeholders:
+    title: { type: "String", example: "The Tide Pools of Monterey" }
+    time: { type: "String", example: "2:05" }
+settingsPhoneDidLines:
+  message: "Changed {count, plural, one {# saved line} other {# saved lines}}"
+  description: "Recent activity: a phone saved, edited or removed saved lines."
+  placeholders:
+    count: { type: "int", example: "2" }
+settingsPhoneDidWords:
+  message: "Changed {count, plural, one {# word} other {# words}} in the vocabulary"
+  description: "Recent activity: a phone added, edited or removed vocabulary words."
+  placeholders:
+    count: { type: "int", example: "2" }
+settingsPhoneDidEdits:
+  message: "Corrected {count, plural, one {# line} other {# lines}} of “{title}”"
+  description: "Recent activity: a phone corrected lines of a film's subtitles."
+  placeholders:
+    title: { type: "String", example: "Rust Talk" }
+    count: { type: "int", example: "1" }
+settingsPhoneDidResolve:
+  message: "Settled {count, plural, one {# conflict} other {# conflicts}}"
+  description: "Recent activity: a sync conflict was settled."
+  placeholders:
+    count: { type: "int", example: "1" }
+settingsPhoneDidPair:
+  message: "Paired"
+  description: "Recent activity: a phone paired with this computer."
+settingsPhoneDidRevoke:
+  message: "Revoked {title}"
+  description: "Recent activity, by this computer: a phone was revoked."
+  placeholders:
+    title: { type: "String", example: "Evan's iPhone" }
+settingsPhoneDidReadOnly:
+  message: "Made {title} read-only"
+  description: "Recent activity, by this computer: a phone was made read-only."
+  placeholders:
+    title: { type: "String", example: "Evan's iPhone" }
+settingsPhoneDidReadWrite:
+  message: "Let {title} make changes again"
+  description: "Recent activity, by this computer: a read-only phone may change things again."
+  placeholders:
+    title: { type: "String", example: "Evan's iPhone" }
+phoneSyncAgoNow:
+  message: "Just now"
+  description: "When something happened: less than a minute ago."
+phoneSyncAgoMinutes:
+  message: "{count, plural, one {# minute ago} other {# minutes ago}}"
+  description: "When something happened, in minutes."
+  placeholders:
+    count: { type: "int", example: "10" }
+phoneSyncAgoHours:
+  message: "{count, plural, one {# hour ago} other {# hours ago}}"
+  description: "When something happened, in hours."
+  placeholders:
+    count: { type: "int", example: "3" }
+phoneSyncAgoDays:
+  message: "{count, plural, one {# day ago} other {# days ago}}"
+  description: "When something happened, in days."
+  placeholders:
+    count: { type: "int", example: "2" }
+filmsHandoff:
+  message: "Left off “{title}” at {time} on {device}"
+  description: "Bar on the library page when a paired phone last left a film somewhere: offers to continue it on this computer."
+  placeholders:
+    device: { type: "String", example: "iPhone 15" }
+    title: { type: "String", example: "The Tide Pools of Monterey" }
+    time: { type: "String", example: "2:05" }
+filmsHandoffWhen:
+  message: "{when} · Where you leave off syncs between this computer and your phones"
+  description: "Second line of the handoff bar: when the phone left the film, and that the place syncs."
+  placeholders:
+    when: { type: "String", example: "10 minutes ago" }
+filmsHandoffResume:
+  message: "Continue from {time}"
+  description: "Button of the handoff bar: opens the film where the phone left it."
+  placeholders:
+    time: { type: "String", example: "2:05" }
+filmsHeroKickerContinueOn:
+  message: "Continue Watching · Left Off on {device}"
+  description: "Small heading over the hero's title when the film is one to continue and a paired phone left it there."
+  placeholders:
+    device: { type: "String", example: "iPhone 15" }

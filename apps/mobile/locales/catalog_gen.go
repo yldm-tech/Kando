@@ -465,15 +465,25 @@ var Parameters = map[string][]string{
 	"AddNote":              {"name"},
 	"AddNoteOffline":       {"name"},
 	"ComputersCertificate": {"name"},
-	"ComputersFilmCount":   {"count"},
 	"ComputersOptions":     {"name"},
 	"ComputersUnpairTitle": {"name"},
 	"ComputersUnpaired":    {"name"},
 	"ComputersUnreachable": {"name"},
-	"DownloadsUsed":        {"size"},
 	"FilmDeleteTitle":      {"title"},
 	"FilmDownloading":      {"percent"},
 	"FilmPaused":           {"percent"},
+	"FilmsCount":           {"count"},
+	"FilmsDownloadSize":    {"size"},
+	"FilmsHit":             {"time_", "line"},
+	"FilmsLeft":            {"time_"},
+	"FilmsLeftHere":        {"device"},
+	"FilmsLeftOn":          {"device", "time_"},
+	"FilmsLibrary":         {"name"},
+	"FilmsLibraryOn":       {"library", "computer"},
+	"FilmsNoResults":       {"query"},
+	"FilmsOptions":         {"title"},
+	"FilmsUsed":            {"size"},
+	"FilmsWatchedTo":       {"time_"},
 	"JobsActionFailed":     {"name"},
 	"JobsActive":           {"count"},
 	"JobsActiveFailed":     {"active", "failed"},
@@ -496,7 +506,6 @@ var Parameters = map[string][]string{
 	"JobsSentPending":      {"name"},
 	"JobsStepPercent":      {"step", "percent"},
 	"JobsWaitingFor":       {"name"},
-	"LibraryGone":          {"name"},
 	"OnboardingPaired":     {"name"},
 	"OnboardingStep":       {"step", "count"},
 	"PairErrUnreachable":   {"address"},
@@ -512,15 +521,25 @@ type Translation struct {
 	AddNote              func(name string) string
 	AddNoteOffline       func(name string) string
 	ComputersCertificate func(name string) string
-	ComputersFilmCount   func(count int) string
 	ComputersOptions     func(name string) string
 	ComputersUnpairTitle func(name string) string
 	ComputersUnpaired    func(name string) string
 	ComputersUnreachable func(name string) string
-	DownloadsUsed        func(size string) string
 	FilmDeleteTitle      func(title string) string
 	FilmDownloading      func(percent int) string
 	FilmPaused           func(percent int) string
+	FilmsCount           func(count int) string
+	FilmsDownloadSize    func(size string) string
+	FilmsHit             func(time_ string, line string) string
+	FilmsLeft            func(time_ string) string
+	FilmsLeftHere        func(device string) string
+	FilmsLeftOn          func(device string, time_ string) string
+	FilmsLibrary         func(name string) string
+	FilmsLibraryOn       func(library string, computer string) string
+	FilmsNoResults       func(query string) string
+	FilmsOptions         func(title string) string
+	FilmsUsed            func(size string) string
+	FilmsWatchedTo       func(time_ string) string
 	JobsActionFailed     func(name string) string
 	JobsActive           func(count int) string
 	JobsActiveFailed     func(active int, failed int) string
@@ -543,7 +562,6 @@ type Translation struct {
 	JobsSentPending      func(name string) string
 	JobsStepPercent      func(step string, percent int) string
 	JobsWaitingFor       func(name string) string
-	LibraryGone          func(name string) string
 	OnboardingPaired     func(name string) string
 	OnboardingStep       func(step int, count int) string
 	PairErrUnreachable   func(address string) string
@@ -563,11 +581,9 @@ const (
 	textAppName
 	textCommonCancel
 	textCommonRetry
-	textComputersNoLibraries
 	textComputersPairAgain
 	textComputersUnpair
 	textComputersUnpairMessage
-	textDownloadsTitle
 	textFilmCancel
 	textFilmDelete
 	textFilmDeleteConfirm
@@ -580,8 +596,24 @@ const (
 	textFilmResume
 	textFilmStopped
 	textFilmUnpaired
+	textFilmsAll
+	textFilmsAllLibraries
+	textFilmsContinue
+	textFilmsDetails
+	textFilmsEmpty
+	textFilmsLibraries
 	textFilmsNoDesktop
+	textFilmsNoSource
 	textFilmsPair
+	textFilmsPlayFromStart
+	textFilmsResults
+	textFilmsSearch
+	textFilmsSource
+	textFilmsSourceAll
+	textFilmsSourceBilibili
+	textFilmsSourceLocal
+	textFilmsSourceWeb
+	textFilmsSourceYoutube
 	textFilmsTitle
 	textFilmsUnpairedBody
 	textFilmsUnpairedTitle
@@ -636,7 +668,6 @@ const (
 	textJobsWaiting
 	textLearnEmpty
 	textLearnTitle
-	textLibraryEmpty
 	textOnboardingContinue
 	textOnboardingIntroBody
 	textOnboardingIntroTitle
@@ -710,11 +741,9 @@ var keyOfText = [numTexts]string{
 	"appName",
 	"commonCancel",
 	"commonRetry",
-	"computersNoLibraries",
 	"computersPairAgain",
 	"computersUnpair",
 	"computersUnpairMessage",
-	"downloadsTitle",
 	"filmCancel",
 	"filmDelete",
 	"filmDeleteConfirm",
@@ -727,8 +756,24 @@ var keyOfText = [numTexts]string{
 	"filmResume",
 	"filmStopped",
 	"filmUnpaired",
+	"filmsAll",
+	"filmsAllLibraries",
+	"filmsContinue",
+	"filmsDetails",
+	"filmsEmpty",
+	"filmsLibraries",
 	"filmsNoDesktop",
+	"filmsNoSource",
 	"filmsPair",
+	"filmsPlayFromStart",
+	"filmsResults",
+	"filmsSearch",
+	"filmsSource",
+	"filmsSourceAll",
+	"filmsSourceBilibili",
+	"filmsSourceLocal",
+	"filmsSourceWeb",
+	"filmsSourceYoutube",
 	"filmsTitle",
 	"filmsUnpairedBody",
 	"filmsUnpairedTitle",
@@ -783,7 +828,6 @@ var keyOfText = [numTexts]string{
 	"jobsWaiting",
 	"learnEmpty",
 	"learnTitle",
-	"libraryEmpty",
 	"onboardingContinue",
 	"onboardingIntroBody",
 	"onboardingIntroTitle",
@@ -855,11 +899,9 @@ var textsEn = i18n.NewTexts(""+
 	"Kando"+
 	"Cancel"+
 	"Try Again"+
-	"No libraries to show"+
 	"Pair Again"+
 	"Unpair"+
 	"The films downloaded from it stay on this phone."+
-	"On This Phone"+
 	"Cancel Download"+
 	"Delete Download"+
 	"Delete"+
@@ -872,8 +914,24 @@ var textsEn = i18n.NewTexts(""+
 	"Resume"+
 	"The download stopped. Resume it when the computer can be reached."+
 	"Pair with the computer again to download."+
+	"All Films"+
+	"All Libraries"+
+	"Continue Watching"+
+	"Details"+
+	"No films ready yet"+
+	"Show Library"+
 	"No Desktop App Yet?"+
+	"No films from this source yet"+
 	"Connect a Computer"+
+	"Play from the Beginning"+
+	"Search Results"+
+	"Search films and lines"+
+	"Source"+
+	"All"+
+	"Bilibili"+
+	"Local Files"+
+	"Other Sites"+
+	"YouTube"+
 	"Library"+
 	"Downloading, transcription and translation all happen in Kando on your computer. Once connected, its libraries show up here."+
 	"Not connected to a computer yet"+
@@ -928,7 +986,6 @@ var textsEn = i18n.NewTexts(""+
 	"Waiting"+
 	"Words and lines you save will show here"+
 	"Learn"+
-	"No films ready yet"+
 	"Continue"+
 	"Paste a link and Kando on your computer downloads the video, recognizes the speech and translates it line by line. Your phone plays the films with both lines, and replays any line you didn't catch."+
 	"Watch the original, with subtitles in your language."+
@@ -997,11 +1054,9 @@ var textsEn = i18n.NewTexts(""+
 		5,
 		6,
 		9,
-		20,
 		10,
 		6,
 		48,
-		13,
 		15,
 		15,
 		6,
@@ -1014,8 +1069,24 @@ var textsEn = i18n.NewTexts(""+
 		6,
 		65,
 		41,
-		19,
+		9,
+		13,
+		17,
+		7,
 		18,
+		12,
+		19,
+		29,
+		18,
+		23,
+		14,
+		22,
+		6,
+		3,
+		8,
+		11,
+		11,
+		7,
 		7,
 		124,
 		31,
@@ -1070,7 +1141,6 @@ var textsEn = i18n.NewTexts(""+
 		7,
 		39,
 		5,
-		18,
 		8,
 		197,
 		52,
@@ -1142,11 +1212,9 @@ var textsJa = i18n.NewTexts(""+
 	"Kando"+
 	"キャンセル"+
 	"再試行"+
-	"表示できるライブラリはありません"+
 	"もう一度ペアリング"+
 	"ペアリングを解除"+
 	"ダウンロード済みの動画はこのスマートフォンに残ります。"+
-	"このスマートフォン内"+
 	"ダウンロードをキャンセル"+
 	"ダウンロードを削除"+
 	"削除"+
@@ -1159,8 +1227,24 @@ var textsJa = i18n.NewTexts(""+
 	"ダウンロードを再開"+
 	"ダウンロードが中断しました。コンピュータに接続できるときに再開してください。"+
 	"ダウンロードするには、もう一度コンピュータとペアリングしてください。"+
+	"すべての動画"+
+	"すべてのライブラリ"+
+	"続きを見る"+
+	"詳細"+
+	"再生できる動画はまだありません"+
+	"ライブラリを表示"+
 	"デスクトップ版をお持ちでないですか？"+
+	"このソースの動画はまだありません"+
 	"コンピュータに接続"+
+	"最初から再生"+
+	"検索結果"+
+	"動画とセリフを検索"+
+	"ソース"+
+	"すべて"+
+	"bilibili"+
+	"ローカルファイル"+
+	"その他のサイト"+
+	"YouTube"+
 	"ライブラリ"+
 	"ダウンロード、文字起こし、翻訳はすべてコンピュータの Kando が行います。接続すると、コンピュータのライブラリがここに表示されます。"+
 	"まだコンピュータに接続していません"+
@@ -1215,7 +1299,6 @@ var textsJa = i18n.NewTexts(""+
 	"待機中"+
 	"保存した単語やセリフがここに表示されます"+
 	"学習"+
-	"再生できる動画はまだありません"+
 	"続ける"+
 	"リンクを貼り付けると、コンピュータの Kando が動画をダウンロードし、音声を認識して 1 行ずつ翻訳します。スマートフォンでは原文と訳文を一緒に表示し、聞き取れなかったセリフはすぐに聞き直せます。"+
 	"原語のまま、あなたの言語の字幕で観よう。"+
@@ -1284,11 +1367,9 @@ var textsJa = i18n.NewTexts(""+
 		5,
 		15,
 		9,
-		48,
 		27,
 		24,
 		81,
-		30,
 		36,
 		27,
 		6,
@@ -1301,8 +1382,24 @@ var textsJa = i18n.NewTexts(""+
 		27,
 		114,
 		102,
-		54,
+		18,
 		27,
+		15,
+		6,
+		45,
+		24,
+		54,
+		48,
+		27,
+		18,
+		12,
+		27,
+		9,
+		9,
+		8,
+		24,
+		21,
+		7,
 		15,
 		190,
 		51,
@@ -1357,7 +1454,6 @@ var textsJa = i18n.NewTexts(""+
 		9,
 		60,
 		6,
-		45,
 		9,
 		280,
 		60,
@@ -1429,11 +1525,9 @@ var textsKo = i18n.NewTexts(""+
 	"Kando"+
 	"취소"+
 	"다시 시도"+
-	"표시할 라이브러리가 없습니다"+
 	"다시 페어링"+
 	"페어링 해제"+
 	"다운로드한 영상은 이 휴대폰에 남습니다."+
-	"이 휴대폰에 있음"+
 	"다운로드 취소"+
 	"다운로드 삭제"+
 	"삭제"+
@@ -1446,8 +1540,24 @@ var textsKo = i18n.NewTexts(""+
 	"다운로드 재개"+
 	"다운로드가 중단되었습니다. 컴퓨터에 연결할 수 있을 때 다시 시작하세요."+
 	"다운로드하려면 컴퓨터와 다시 페어링하세요."+
+	"모든 영상"+
+	"모든 라이브러리"+
+	"이어 보기"+
+	"세부 정보"+
+	"아직 재생할 수 있는 영상이 없습니다"+
+	"라이브러리 보기"+
 	"데스크톱 앱이 아직 없나요?"+
+	"이 출처의 영상이 아직 없습니다"+
 	"컴퓨터 연결"+
+	"처음부터 재생"+
+	"검색 결과"+
+	"영상과 대사 검색"+
+	"출처"+
+	"전체"+
+	"빌리빌리"+
+	"로컬 파일"+
+	"기타 사이트"+
+	"YouTube"+
 	"보관함"+
 	"다운로드, 받아쓰기, 번역은 모두 컴퓨터의 Kando에서 이루어집니다. 연결하면 컴퓨터의 보관함이 여기에 표시됩니다."+
 	"아직 컴퓨터에 연결하지 않았습니다"+
@@ -1502,7 +1612,6 @@ var textsKo = i18n.NewTexts(""+
 	"대기 중"+
 	"저장한 단어와 대사가 여기에 표시됩니다"+
 	"학습"+
-	"아직 재생할 수 있는 영상이 없습니다"+
 	"계속"+
 	"링크를 붙여 넣으면 컴퓨터의 Kando가 동영상을 다운로드하고, 음성을 인식해 한 줄씩 번역합니다. 휴대폰에서는 원문과 번역을 함께 보여 주고, 놓친 대사는 바로 다시 들을 수 있습니다."+
 	"원어 그대로, 내 언어 자막과 함께 보세요."+
@@ -1571,11 +1680,9 @@ var textsKo = i18n.NewTexts(""+
 		5,
 		6,
 		13,
-		41,
 		16,
 		16,
 		56,
-		23,
 		19,
 		19,
 		6,
@@ -1588,8 +1695,24 @@ var textsKo = i18n.NewTexts(""+
 		19,
 		100,
 		61,
+		13,
+		22,
+		13,
+		13,
+		50,
+		22,
 		37,
+		43,
 		16,
+		19,
+		13,
+		23,
+		6,
+		6,
+		12,
+		13,
+		16,
+		7,
 		9,
 		155,
 		48,
@@ -1644,7 +1767,6 @@ var textsKo = i18n.NewTexts(""+
 		10,
 		55,
 		6,
-		50,
 		6,
 		246,
 		56,
@@ -1716,11 +1838,9 @@ var textsZhHans = i18n.NewTexts(""+
 	"看懂"+
 	"取消"+
 	"重试"+
-	"没有可显示的资料库"+
 	"重新配对"+
 	"取消配对"+
 	"从它下载的影片仍会留在这部手机上。"+
-	"在这台手机上"+
 	"取消下载"+
 	"删除下载"+
 	"删除"+
@@ -1733,8 +1853,24 @@ var textsZhHans = i18n.NewTexts(""+
 	"继续下载"+
 	"下载中断了。能连上电脑时再继续。"+
 	"请重新与电脑配对后再下载。"+
+	"全部影片"+
+	"全部资料库"+
+	"继续看"+
+	"详情"+
+	"还没有可以播放的影片"+
+	"显示资料库"+
 	"还没装电脑版？"+
+	"这个来源下还没有影片"+
 	"连接电脑"+
+	"从头看"+
+	"搜索结果"+
+	"搜索影片和台词"+
+	"来源"+
+	"全部"+
+	"哔哩哔哩"+
+	"本地文件"+
+	"其他网站"+
+	"YouTube"+
 	"片库"+
 	"下载、识别、翻译都在电脑上的看懂里完成。连上以后，电脑上的片库会出现在这里。"+
 	"还没连上电脑"+
@@ -1789,7 +1925,6 @@ var textsZhHans = i18n.NewTexts(""+
 	"排队中"+
 	"收藏的生词和句子会出现在这里"+
 	"学习"+
-	"还没有可以播放的影片"+
 	"继续"+
 	"粘贴一个链接，电脑上的看懂就会下载视频、识别原声、逐句翻译。手机上看片时原文和译文一起显示，听不懂的句子一键重听。"+
 	"看原片，字幕跟着你的语言走。"+
@@ -1858,11 +1993,9 @@ var textsZhHans = i18n.NewTexts(""+
 		6,
 		6,
 		6,
-		27,
 		12,
 		12,
 		51,
-		18,
 		12,
 		12,
 		6,
@@ -1875,8 +2008,24 @@ var textsZhHans = i18n.NewTexts(""+
 		12,
 		48,
 		39,
-		21,
 		12,
+		15,
+		9,
+		6,
+		30,
+		15,
+		21,
+		30,
+		12,
+		9,
+		12,
+		21,
+		6,
+		6,
+		12,
+		12,
+		12,
+		7,
 		6,
 		114,
 		18,
@@ -1931,7 +2080,6 @@ var textsZhHans = i18n.NewTexts(""+
 		9,
 		42,
 		6,
-		30,
 		6,
 		171,
 		42,
@@ -2003,11 +2151,9 @@ var textsZhHant = i18n.NewTexts(""+
 	"看懂"+
 	"取消"+
 	"重試"+
-	"沒有可顯示的資料庫"+
 	"重新配對"+
 	"取消配對"+
 	"從它下載的影片仍會留在這支手機上。"+
-	"在這台手機上"+
 	"取消下載"+
 	"刪除下載"+
 	"刪除"+
@@ -2020,8 +2166,24 @@ var textsZhHant = i18n.NewTexts(""+
 	"繼續下載"+
 	"下載中斷了。能連上電腦時再繼續。"+
 	"請重新與電腦配對後再下載。"+
+	"全部影片"+
+	"全部資料庫"+
+	"繼續看"+
+	"詳細資訊"+
+	"還沒有可以播放的影片"+
+	"顯示資料庫"+
 	"還沒裝電腦版？"+
+	"這個來源下還沒有影片"+
 	"連接電腦"+
+	"從頭看"+
+	"搜尋結果"+
+	"搜尋影片和台詞"+
+	"來源"+
+	"全部"+
+	"嗶哩嗶哩"+
+	"本機檔案"+
+	"其他網站"+
+	"YouTube"+
 	"片庫"+
 	"下載、辨識、翻譯都在電腦上的看懂裡完成。連上以後，電腦上的片庫會出現在這裡。"+
 	"還沒連上電腦"+
@@ -2076,7 +2238,6 @@ var textsZhHant = i18n.NewTexts(""+
 	"排隊中"+
 	"收藏的生詞和句子會出現在這裡"+
 	"學習"+
-	"還沒有可以播放的影片"+
 	"繼續"+
 	"貼上一個連結，電腦上的看懂就會下載影片、辨識原聲、逐句翻譯。手機上看片時原文和譯文一起顯示，聽不懂的句子一鍵重聽。"+
 	"看原片，字幕跟著你的語言走。"+
@@ -2145,11 +2306,9 @@ var textsZhHant = i18n.NewTexts(""+
 		6,
 		6,
 		6,
-		27,
 		12,
 		12,
 		51,
-		18,
 		12,
 		12,
 		6,
@@ -2162,8 +2321,24 @@ var textsZhHant = i18n.NewTexts(""+
 		12,
 		48,
 		39,
-		21,
 		12,
+		15,
+		9,
+		12,
+		30,
+		15,
+		21,
+		30,
+		12,
+		9,
+		12,
+		21,
+		6,
+		6,
+		12,
+		12,
+		12,
+		7,
 		6,
 		114,
 		18,
@@ -2218,7 +2393,6 @@ var textsZhHant = i18n.NewTexts(""+
 		9,
 		42,
 		6,
-		30,
 		6,
 		171,
 		42,
@@ -2350,9 +2524,6 @@ func Supply(lang string, t Translation) {
 	if t.ComputersCertificate != nil {
 		s.ComputersCertificate = t.ComputersCertificate
 	}
-	if t.ComputersFilmCount != nil {
-		s.ComputersFilmCount = t.ComputersFilmCount
-	}
 	if t.ComputersOptions != nil {
 		s.ComputersOptions = t.ComputersOptions
 	}
@@ -2365,9 +2536,6 @@ func Supply(lang string, t Translation) {
 	if t.ComputersUnreachable != nil {
 		s.ComputersUnreachable = t.ComputersUnreachable
 	}
-	if t.DownloadsUsed != nil {
-		s.DownloadsUsed = t.DownloadsUsed
-	}
 	if t.FilmDeleteTitle != nil {
 		s.FilmDeleteTitle = t.FilmDeleteTitle
 	}
@@ -2376,6 +2544,42 @@ func Supply(lang string, t Translation) {
 	}
 	if t.FilmPaused != nil {
 		s.FilmPaused = t.FilmPaused
+	}
+	if t.FilmsCount != nil {
+		s.FilmsCount = t.FilmsCount
+	}
+	if t.FilmsDownloadSize != nil {
+		s.FilmsDownloadSize = t.FilmsDownloadSize
+	}
+	if t.FilmsHit != nil {
+		s.FilmsHit = t.FilmsHit
+	}
+	if t.FilmsLeft != nil {
+		s.FilmsLeft = t.FilmsLeft
+	}
+	if t.FilmsLeftHere != nil {
+		s.FilmsLeftHere = t.FilmsLeftHere
+	}
+	if t.FilmsLeftOn != nil {
+		s.FilmsLeftOn = t.FilmsLeftOn
+	}
+	if t.FilmsLibrary != nil {
+		s.FilmsLibrary = t.FilmsLibrary
+	}
+	if t.FilmsLibraryOn != nil {
+		s.FilmsLibraryOn = t.FilmsLibraryOn
+	}
+	if t.FilmsNoResults != nil {
+		s.FilmsNoResults = t.FilmsNoResults
+	}
+	if t.FilmsOptions != nil {
+		s.FilmsOptions = t.FilmsOptions
+	}
+	if t.FilmsUsed != nil {
+		s.FilmsUsed = t.FilmsUsed
+	}
+	if t.FilmsWatchedTo != nil {
+		s.FilmsWatchedTo = t.FilmsWatchedTo
 	}
 	if t.JobsActionFailed != nil {
 		s.JobsActionFailed = t.JobsActionFailed
@@ -2442,9 +2646,6 @@ func Supply(lang string, t Translation) {
 	}
 	if t.JobsWaitingFor != nil {
 		s.JobsWaitingFor = t.JobsWaitingFor
-	}
-	if t.LibraryGone != nil {
-		s.LibraryGone = t.LibraryGone
 	}
 	if t.OnboardingPaired != nil {
 		s.OnboardingPaired = t.OnboardingPaired
@@ -2680,79 +2881,6 @@ func (msgs Messages) ComputersCertificate(name string) string {
 	}
 }
 
-// ComputersFilmCount says "{count, plural, one {# film} other {# films}}"
-// in the language the app shows under cx.
-//
-// Beside a library's name: how many films it holds.
-func ComputersFilmCount(cx *core.Scope, count int) string { return For(cx).ComputersFilmCount(count) }
-
-// ComputersFilmCount is the package's ComputersFilmCount in the language of msgs.
-func (msgs Messages) ComputersFilmCount(count int) string {
-	if i18n.IsPseudo(msgs.lang) {
-		return i18n.Pseudo(msgs.lang, Messages{lang: Source, mark: true}.ComputersFilmCount(count))
-	}
-	for lang := msgs.lang; ; lang = i18n.Parent(lang) {
-		if f := supplied[lang].ComputersFilmCount; f != nil {
-			return f(count)
-		}
-		switch lang {
-		case "", "en":
-			var b strings.Builder
-			switch i18n.Cardinal("en", float64(count)) {
-			case i18n.One:
-				b.WriteString(msgs.arg(i18n.FormatNumber("en", float64(count))))
-				b.WriteString(" film")
-			default:
-				b.WriteString(msgs.arg(i18n.FormatNumber("en", float64(count))))
-				b.WriteString(" films")
-			}
-			return b.String()
-		case "ja":
-			var b strings.Builder
-			switch i18n.Cardinal("ja", float64(count)) {
-			default:
-				b.WriteString(i18n.FormatNumber("ja", float64(count)))
-				b.WriteString(" 本の動画")
-			}
-			return b.String()
-		case "ko":
-			var b strings.Builder
-			switch i18n.Cardinal("ko", float64(count)) {
-			default:
-				b.WriteString("영상 ")
-				b.WriteString(i18n.FormatNumber("ko", float64(count)))
-				b.WriteString("개")
-			}
-			return b.String()
-		case "zh-Hans":
-			var b strings.Builder
-			switch i18n.Cardinal("zh-Hans", float64(count)) {
-			default:
-				b.WriteString(i18n.FormatNumber("zh-Hans", float64(count)))
-				b.WriteString(" 部影片")
-			}
-			return b.String()
-		case "zh-Hant":
-			var b strings.Builder
-			switch i18n.Cardinal("zh-Hant", float64(count)) {
-			default:
-				b.WriteString(i18n.FormatNumber("zh-Hant", float64(count)))
-				b.WriteString(" 部影片")
-			}
-			return b.String()
-		}
-	}
-}
-
-// ComputersNoLibraries says "No libraries to show"
-// in the language the app shows under cx.
-//
-// In a computer's section when it lists no libraries.
-func ComputersNoLibraries(cx *core.Scope) string { return For(cx).ComputersNoLibraries() }
-
-// ComputersNoLibraries is the package's ComputersNoLibraries in the language of msgs.
-func (msgs Messages) ComputersNoLibraries() string { return msgs.text(textComputersNoLibraries) }
-
 // ComputersOptions says "{name} Options"
 // in the language the app shows under cx.
 //
@@ -2900,45 +3028,6 @@ func (msgs Messages) ComputersUnreachable(name string) string {
 			return "连不上 " + name
 		case "zh-Hant":
 			return "連不上 " + name
-		}
-	}
-}
-
-// DownloadsTitle says "On This Phone"
-// in the language the app shows under cx.
-//
-// Heading of the Library tab's section of the films downloaded to this phone.
-func DownloadsTitle(cx *core.Scope) string { return For(cx).DownloadsTitle() }
-
-// DownloadsTitle is the package's DownloadsTitle in the language of msgs.
-func (msgs Messages) DownloadsTitle() string { return msgs.text(textDownloadsTitle) }
-
-// DownloadsUsed says "{size} used"
-// in the language the app shows under cx.
-//
-// Under the downloads: the space they take.
-func DownloadsUsed(cx *core.Scope, size string) string { return For(cx).DownloadsUsed(size) }
-
-// DownloadsUsed is the package's DownloadsUsed in the language of msgs.
-func (msgs Messages) DownloadsUsed(size string) string {
-	if i18n.IsPseudo(msgs.lang) {
-		return i18n.Pseudo(msgs.lang, Messages{lang: Source, mark: true}.DownloadsUsed(size))
-	}
-	for lang := msgs.lang; ; lang = i18n.Parent(lang) {
-		if f := supplied[lang].DownloadsUsed; f != nil {
-			return f(size)
-		}
-		switch lang {
-		case "", "en":
-			return msgs.arg(size) + " used"
-		case "ja":
-			return size + " 使用中"
-		case "ko":
-			return size + " 사용 중"
-		case "zh-Hans":
-			return "占用 " + size
-		case "zh-Hant":
-			return "佔用 " + size
 		}
 	}
 }
@@ -3141,6 +3230,338 @@ func FilmUnpaired(cx *core.Scope) string { return For(cx).FilmUnpaired() }
 // FilmUnpaired is the package's FilmUnpaired in the language of msgs.
 func (msgs Messages) FilmUnpaired() string { return msgs.text(textFilmUnpaired) }
 
+// FilmsAll says "All Films"
+// in the language the app shows under cx.
+//
+// Heading of the Library's list of every film, from every computer and the phone.
+func FilmsAll(cx *core.Scope) string { return For(cx).FilmsAll() }
+
+// FilmsAll is the package's FilmsAll in the language of msgs.
+func (msgs Messages) FilmsAll() string { return msgs.text(textFilmsAll) }
+
+// FilmsAllLibraries says "All Libraries"
+// in the language the app shows under cx.
+//
+// In the Library's switcher: the films of every library of every computer.
+func FilmsAllLibraries(cx *core.Scope) string { return For(cx).FilmsAllLibraries() }
+
+// FilmsAllLibraries is the package's FilmsAllLibraries in the language of msgs.
+func (msgs Messages) FilmsAllLibraries() string { return msgs.text(textFilmsAllLibraries) }
+
+// FilmsContinue says "Continue Watching"
+// in the language the app shows under cx.
+//
+// Heading of the Library's row of films left partway, on this phone or another device.
+func FilmsContinue(cx *core.Scope) string { return For(cx).FilmsContinue() }
+
+// FilmsContinue is the package's FilmsContinue in the language of msgs.
+func (msgs Messages) FilmsContinue() string { return msgs.text(textFilmsContinue) }
+
+// FilmsCount says "{count, plural, one {# film} other {# films}}"
+// in the language the app shows under cx.
+//
+// Beside the Library's list heading: how many films it shows.
+func FilmsCount(cx *core.Scope, count int) string { return For(cx).FilmsCount(count) }
+
+// FilmsCount is the package's FilmsCount in the language of msgs.
+func (msgs Messages) FilmsCount(count int) string {
+	if i18n.IsPseudo(msgs.lang) {
+		return i18n.Pseudo(msgs.lang, Messages{lang: Source, mark: true}.FilmsCount(count))
+	}
+	for lang := msgs.lang; ; lang = i18n.Parent(lang) {
+		if f := supplied[lang].FilmsCount; f != nil {
+			return f(count)
+		}
+		switch lang {
+		case "", "en":
+			var b strings.Builder
+			switch i18n.Cardinal("en", float64(count)) {
+			case i18n.One:
+				b.WriteString(msgs.arg(i18n.FormatNumber("en", float64(count))))
+				b.WriteString(" film")
+			default:
+				b.WriteString(msgs.arg(i18n.FormatNumber("en", float64(count))))
+				b.WriteString(" films")
+			}
+			return b.String()
+		case "ja":
+			var b strings.Builder
+			switch i18n.Cardinal("ja", float64(count)) {
+			default:
+				b.WriteString(i18n.FormatNumber("ja", float64(count)))
+				b.WriteString(" 本")
+			}
+			return b.String()
+		case "ko":
+			var b strings.Builder
+			switch i18n.Cardinal("ko", float64(count)) {
+			default:
+				b.WriteString("영상 ")
+				b.WriteString(i18n.FormatNumber("ko", float64(count)))
+				b.WriteString("개")
+			}
+			return b.String()
+		case "zh-Hans":
+			var b strings.Builder
+			switch i18n.Cardinal("zh-Hans", float64(count)) {
+			default:
+				b.WriteString(i18n.FormatNumber("zh-Hans", float64(count)))
+				b.WriteString(" 部")
+			}
+			return b.String()
+		case "zh-Hant":
+			var b strings.Builder
+			switch i18n.Cardinal("zh-Hant", float64(count)) {
+			default:
+				b.WriteString(i18n.FormatNumber("zh-Hant", float64(count)))
+				b.WriteString(" 部")
+			}
+			return b.String()
+		}
+	}
+}
+
+// FilmsDetails says "Details"
+// in the language the app shows under cx.
+//
+// In a film's options: opens the film's page.
+func FilmsDetails(cx *core.Scope) string { return For(cx).FilmsDetails() }
+
+// FilmsDetails is the package's FilmsDetails in the language of msgs.
+func (msgs Messages) FilmsDetails() string { return msgs.text(textFilmsDetails) }
+
+// FilmsDownloadSize says "Download ({size})"
+// in the language the app shows under cx.
+//
+// In a film's options: downloads it to the phone, with the size of its video.
+func FilmsDownloadSize(cx *core.Scope, size string) string { return For(cx).FilmsDownloadSize(size) }
+
+// FilmsDownloadSize is the package's FilmsDownloadSize in the language of msgs.
+func (msgs Messages) FilmsDownloadSize(size string) string {
+	if i18n.IsPseudo(msgs.lang) {
+		return i18n.Pseudo(msgs.lang, Messages{lang: Source, mark: true}.FilmsDownloadSize(size))
+	}
+	for lang := msgs.lang; ; lang = i18n.Parent(lang) {
+		if f := supplied[lang].FilmsDownloadSize; f != nil {
+			return f(size)
+		}
+		switch lang {
+		case "", "en":
+			return "Download (" + msgs.arg(size) + ")"
+		case "ja":
+			return "ダウンロード（" + size + "）"
+		case "ko":
+			return "다운로드(" + size + ")"
+		case "zh-Hans":
+			return "下载（" + size + "）"
+		case "zh-Hant":
+			return "下載（" + size + "）"
+		}
+	}
+}
+
+// FilmsEmpty says "No films ready yet"
+// in the language the app shows under cx.
+//
+// The Library's list when the computers have no film done processing.
+func FilmsEmpty(cx *core.Scope) string { return For(cx).FilmsEmpty() }
+
+// FilmsEmpty is the package's FilmsEmpty in the language of msgs.
+func (msgs Messages) FilmsEmpty() string { return msgs.text(textFilmsEmpty) }
+
+// FilmsHit says "{time} · {line}"
+// in the language the app shows under cx.
+//
+// Under a film a search found by its lines: where the line is in the film, and the line.
+func FilmsHit(cx *core.Scope, time_ string, line string) string { return For(cx).FilmsHit(time_, line) }
+
+// FilmsHit is the package's FilmsHit in the language of msgs.
+func (msgs Messages) FilmsHit(time_ string, line string) string {
+	if i18n.IsPseudo(msgs.lang) {
+		return i18n.Pseudo(msgs.lang, Messages{lang: Source, mark: true}.FilmsHit(time_, line))
+	}
+	for lang := msgs.lang; ; lang = i18n.Parent(lang) {
+		if f := supplied[lang].FilmsHit; f != nil {
+			return f(time_, line)
+		}
+		switch lang {
+		case "", "en":
+			return msgs.arg(time_) + " · " + msgs.arg(line)
+		case "ja":
+			return time_ + " · " + line
+		case "ko":
+			return time_ + " · " + line
+		case "zh-Hans":
+			return time_ + " · " + line
+		case "zh-Hant":
+			return time_ + " · " + line
+		}
+	}
+}
+
+// FilmsLeft says "{time} left"
+// in the language the app shows under cx.
+//
+// Under a film to go on with, left on this phone: how long it still plays.
+func FilmsLeft(cx *core.Scope, time_ string) string { return For(cx).FilmsLeft(time_) }
+
+// FilmsLeft is the package's FilmsLeft in the language of msgs.
+func (msgs Messages) FilmsLeft(time_ string) string {
+	if i18n.IsPseudo(msgs.lang) {
+		return i18n.Pseudo(msgs.lang, Messages{lang: Source, mark: true}.FilmsLeft(time_))
+	}
+	for lang := msgs.lang; ; lang = i18n.Parent(lang) {
+		if f := supplied[lang].FilmsLeft; f != nil {
+			return f(time_)
+		}
+		switch lang {
+		case "", "en":
+			return msgs.arg(time_) + " left"
+		case "ja":
+			return "残り " + time_
+		case "ko":
+			return time_ + " 남음"
+		case "zh-Hans":
+			return "还剩 " + time_
+		case "zh-Hant":
+			return "還剩 " + time_
+		}
+	}
+}
+
+// FilmsLeftHere says "Left off on {device}"
+// in the language the app shows under cx.
+//
+// Badge on the poster of a film to go on with, left on another device, by the device's name.
+func FilmsLeftHere(cx *core.Scope, device string) string { return For(cx).FilmsLeftHere(device) }
+
+// FilmsLeftHere is the package's FilmsLeftHere in the language of msgs.
+func (msgs Messages) FilmsLeftHere(device string) string {
+	if i18n.IsPseudo(msgs.lang) {
+		return i18n.Pseudo(msgs.lang, Messages{lang: Source, mark: true}.FilmsLeftHere(device))
+	}
+	for lang := msgs.lang; ; lang = i18n.Parent(lang) {
+		if f := supplied[lang].FilmsLeftHere; f != nil {
+			return f(device)
+		}
+		switch lang {
+		case "", "en":
+			return "Left off on " + msgs.arg(device)
+		case "ja":
+			return device + " で視聴中"
+		case "ko":
+			return device + "에서 보던 곳"
+		case "zh-Hans":
+			return device + " 上看到这里"
+		case "zh-Hant":
+			return device + " 上看到這裡"
+		}
+	}
+}
+
+// FilmsLeftOn says "Watched to {time} on {device}"
+// in the language the app shows under cx.
+//
+// Under a film to go on with, left on another device: where, and on which device.
+func FilmsLeftOn(cx *core.Scope, device string, time_ string) string {
+	return For(cx).FilmsLeftOn(device, time_)
+}
+
+// FilmsLeftOn is the package's FilmsLeftOn in the language of msgs.
+func (msgs Messages) FilmsLeftOn(device string, time_ string) string {
+	if i18n.IsPseudo(msgs.lang) {
+		return i18n.Pseudo(msgs.lang, Messages{lang: Source, mark: true}.FilmsLeftOn(device, time_))
+	}
+	for lang := msgs.lang; ; lang = i18n.Parent(lang) {
+		if f := supplied[lang].FilmsLeftOn; f != nil {
+			return f(device, time_)
+		}
+		switch lang {
+		case "", "en":
+			return "Watched to " + msgs.arg(time_) + " on " + msgs.arg(device)
+		case "ja":
+			return device + " で " + time_ + " まで視聴"
+		case "ko":
+			return device + "에서 " + time_ + "까지 시청"
+		case "zh-Hans":
+			return "在 " + device + " 上看到 " + time_
+		case "zh-Hant":
+			return "在 " + device + " 上看到 " + time_
+		}
+	}
+}
+
+// FilmsLibraries says "Show Library"
+// in the language the app shows under cx.
+//
+// Title of the Library's switcher, which picks the library the list shows.
+func FilmsLibraries(cx *core.Scope) string { return For(cx).FilmsLibraries() }
+
+// FilmsLibraries is the package's FilmsLibraries in the language of msgs.
+func (msgs Messages) FilmsLibraries() string { return msgs.text(textFilmsLibraries) }
+
+// FilmsLibrary says "Library: {name}"
+// in the language the app shows under cx.
+//
+// Spoken name of the Library's switcher, with the library it shows.
+func FilmsLibrary(cx *core.Scope, name string) string { return For(cx).FilmsLibrary(name) }
+
+// FilmsLibrary is the package's FilmsLibrary in the language of msgs.
+func (msgs Messages) FilmsLibrary(name string) string {
+	if i18n.IsPseudo(msgs.lang) {
+		return i18n.Pseudo(msgs.lang, Messages{lang: Source, mark: true}.FilmsLibrary(name))
+	}
+	for lang := msgs.lang; ; lang = i18n.Parent(lang) {
+		if f := supplied[lang].FilmsLibrary; f != nil {
+			return f(name)
+		}
+		switch lang {
+		case "", "en":
+			return "Library: " + msgs.arg(name)
+		case "ja":
+			return "ライブラリ：" + name
+		case "ko":
+			return "라이브러리: " + name
+		case "zh-Hans":
+			return "资料库：" + name
+		case "zh-Hant":
+			return "資料庫：" + name
+		}
+	}
+}
+
+// FilmsLibraryOn says "{library} on {computer}"
+// in the language the app shows under cx.
+//
+// In the Library's switcher: a library, by its name and its computer's.
+func FilmsLibraryOn(cx *core.Scope, library string, computer string) string {
+	return For(cx).FilmsLibraryOn(library, computer)
+}
+
+// FilmsLibraryOn is the package's FilmsLibraryOn in the language of msgs.
+func (msgs Messages) FilmsLibraryOn(library string, computer string) string {
+	if i18n.IsPseudo(msgs.lang) {
+		return i18n.Pseudo(msgs.lang, Messages{lang: Source, mark: true}.FilmsLibraryOn(library, computer))
+	}
+	for lang := msgs.lang; ; lang = i18n.Parent(lang) {
+		if f := supplied[lang].FilmsLibraryOn; f != nil {
+			return f(library, computer)
+		}
+		switch lang {
+		case "", "en":
+			return msgs.arg(library) + " on " + msgs.arg(computer)
+		case "ja":
+			return library + "（" + computer + "）"
+		case "ko":
+			return library + "(" + computer + ")"
+		case "zh-Hans":
+			return library + " · " + computer
+		case "zh-Hant":
+			return library + " · " + computer
+		}
+	}
+}
+
 // FilmsNoDesktop says "No Desktop App Yet?"
 // in the language the app shows under cx.
 //
@@ -3150,6 +3571,75 @@ func FilmsNoDesktop(cx *core.Scope) string { return For(cx).FilmsNoDesktop() }
 // FilmsNoDesktop is the package's FilmsNoDesktop in the language of msgs.
 func (msgs Messages) FilmsNoDesktop() string { return msgs.text(textFilmsNoDesktop) }
 
+// FilmsNoResults says "Nothing found for “{query}”"
+// in the language the app shows under cx.
+//
+// The Library's list when a search finds nothing.
+func FilmsNoResults(cx *core.Scope, query string) string { return For(cx).FilmsNoResults(query) }
+
+// FilmsNoResults is the package's FilmsNoResults in the language of msgs.
+func (msgs Messages) FilmsNoResults(query string) string {
+	if i18n.IsPseudo(msgs.lang) {
+		return i18n.Pseudo(msgs.lang, Messages{lang: Source, mark: true}.FilmsNoResults(query))
+	}
+	for lang := msgs.lang; ; lang = i18n.Parent(lang) {
+		if f := supplied[lang].FilmsNoResults; f != nil {
+			return f(query)
+		}
+		switch lang {
+		case "", "en":
+			return "Nothing found for “" + msgs.arg(query) + "”"
+		case "ja":
+			return "「" + query + "」は見つかりませんでした"
+		case "ko":
+			return "‘" + query + "’에 대한 결과 없음"
+		case "zh-Hans":
+			return "没有找到「" + query + "」"
+		case "zh-Hant":
+			return "找不到「" + query + "」"
+		}
+	}
+}
+
+// FilmsNoSource says "No films from this source yet"
+// in the language the app shows under cx.
+//
+// The Library's list when the chosen source has no film.
+func FilmsNoSource(cx *core.Scope) string { return For(cx).FilmsNoSource() }
+
+// FilmsNoSource is the package's FilmsNoSource in the language of msgs.
+func (msgs Messages) FilmsNoSource() string { return msgs.text(textFilmsNoSource) }
+
+// FilmsOptions says "{title} Options"
+// in the language the app shows under cx.
+//
+// Spoken name of the … button beside a film in the Library.
+func FilmsOptions(cx *core.Scope, title string) string { return For(cx).FilmsOptions(title) }
+
+// FilmsOptions is the package's FilmsOptions in the language of msgs.
+func (msgs Messages) FilmsOptions(title string) string {
+	if i18n.IsPseudo(msgs.lang) {
+		return i18n.Pseudo(msgs.lang, Messages{lang: Source, mark: true}.FilmsOptions(title))
+	}
+	for lang := msgs.lang; ; lang = i18n.Parent(lang) {
+		if f := supplied[lang].FilmsOptions; f != nil {
+			return f(title)
+		}
+		switch lang {
+		case "", "en":
+			return msgs.arg(title) + " Options"
+		case "ja":
+			return "「" + title + "」のオプション"
+		case "ko":
+			return "‘" + title + "’ 옵션"
+		case "zh-Hans":
+			return "“" + title + "”的操作"
+		case "zh-Hant":
+			return "「" + title + "」的操作"
+		}
+	}
+}
+
 // FilmsPair says "Connect a Computer"
 // in the language the app shows under cx.
 //
@@ -3158,6 +3648,87 @@ func FilmsPair(cx *core.Scope) string { return For(cx).FilmsPair() }
 
 // FilmsPair is the package's FilmsPair in the language of msgs.
 func (msgs Messages) FilmsPair() string { return msgs.text(textFilmsPair) }
+
+// FilmsPlayFromStart says "Play from the Beginning"
+// in the language the app shows under cx.
+//
+// In a film's options: plays it from its start rather than where it was left.
+func FilmsPlayFromStart(cx *core.Scope) string { return For(cx).FilmsPlayFromStart() }
+
+// FilmsPlayFromStart is the package's FilmsPlayFromStart in the language of msgs.
+func (msgs Messages) FilmsPlayFromStart() string { return msgs.text(textFilmsPlayFromStart) }
+
+// FilmsResults says "Search Results"
+// in the language the app shows under cx.
+//
+// Heading of the Library's list while a search is typed.
+func FilmsResults(cx *core.Scope) string { return For(cx).FilmsResults() }
+
+// FilmsResults is the package's FilmsResults in the language of msgs.
+func (msgs Messages) FilmsResults() string { return msgs.text(textFilmsResults) }
+
+// FilmsSearch says "Search films and lines"
+// in the language the app shows under cx.
+//
+// Placeholder and spoken name of the Library's search field, which finds titles and the lines of the films on the phone.
+func FilmsSearch(cx *core.Scope) string { return For(cx).FilmsSearch() }
+
+// FilmsSearch is the package's FilmsSearch in the language of msgs.
+func (msgs Messages) FilmsSearch() string { return msgs.text(textFilmsSearch) }
+
+// FilmsSource says "Source"
+// in the language the app shows under cx.
+//
+// Spoken name of the Library's chips, which narrow the list to where the films come from.
+func FilmsSource(cx *core.Scope) string { return For(cx).FilmsSource() }
+
+// FilmsSource is the package's FilmsSource in the language of msgs.
+func (msgs Messages) FilmsSource() string { return msgs.text(textFilmsSource) }
+
+// FilmsSourceAll says "All"
+// in the language the app shows under cx.
+//
+// Library chip: films from every source.
+func FilmsSourceAll(cx *core.Scope) string { return For(cx).FilmsSourceAll() }
+
+// FilmsSourceAll is the package's FilmsSourceAll in the language of msgs.
+func (msgs Messages) FilmsSourceAll() string { return msgs.text(textFilmsSourceAll) }
+
+// FilmsSourceBilibili says "Bilibili"
+// in the language the app shows under cx.
+//
+// Library chip and a film's source: films from Bilibili.
+func FilmsSourceBilibili(cx *core.Scope) string { return For(cx).FilmsSourceBilibili() }
+
+// FilmsSourceBilibili is the package's FilmsSourceBilibili in the language of msgs.
+func (msgs Messages) FilmsSourceBilibili() string { return msgs.text(textFilmsSourceBilibili) }
+
+// FilmsSourceLocal says "Local Files"
+// in the language the app shows under cx.
+//
+// Library chip and a film's source: films added from files on the computer.
+func FilmsSourceLocal(cx *core.Scope) string { return For(cx).FilmsSourceLocal() }
+
+// FilmsSourceLocal is the package's FilmsSourceLocal in the language of msgs.
+func (msgs Messages) FilmsSourceLocal() string { return msgs.text(textFilmsSourceLocal) }
+
+// FilmsSourceWeb says "Other Sites"
+// in the language the app shows under cx.
+//
+// Library chip and a film's source: films from sites other than YouTube and Bilibili.
+func FilmsSourceWeb(cx *core.Scope) string { return For(cx).FilmsSourceWeb() }
+
+// FilmsSourceWeb is the package's FilmsSourceWeb in the language of msgs.
+func (msgs Messages) FilmsSourceWeb() string { return msgs.text(textFilmsSourceWeb) }
+
+// FilmsSourceYoutube says "YouTube"
+// in the language the app shows under cx.
+//
+// Library chip and a film's source: films from YouTube.
+func FilmsSourceYoutube(cx *core.Scope) string { return For(cx).FilmsSourceYoutube() }
+
+// FilmsSourceYoutube is the package's FilmsSourceYoutube in the language of msgs.
+func (msgs Messages) FilmsSourceYoutube() string { return msgs.text(textFilmsSourceYoutube) }
 
 // FilmsTitle says "Library"
 // in the language the app shows under cx.
@@ -3185,6 +3756,66 @@ func FilmsUnpairedTitle(cx *core.Scope) string { return For(cx).FilmsUnpairedTit
 
 // FilmsUnpairedTitle is the package's FilmsUnpairedTitle in the language of msgs.
 func (msgs Messages) FilmsUnpairedTitle() string { return msgs.text(textFilmsUnpairedTitle) }
+
+// FilmsUsed says "Films on this phone use {size}"
+// in the language the app shows under cx.
+//
+// Under the Library's list: the space the films downloaded to the phone take.
+func FilmsUsed(cx *core.Scope, size string) string { return For(cx).FilmsUsed(size) }
+
+// FilmsUsed is the package's FilmsUsed in the language of msgs.
+func (msgs Messages) FilmsUsed(size string) string {
+	if i18n.IsPseudo(msgs.lang) {
+		return i18n.Pseudo(msgs.lang, Messages{lang: Source, mark: true}.FilmsUsed(size))
+	}
+	for lang := msgs.lang; ; lang = i18n.Parent(lang) {
+		if f := supplied[lang].FilmsUsed; f != nil {
+			return f(size)
+		}
+		switch lang {
+		case "", "en":
+			return "Films on this phone use " + msgs.arg(size)
+		case "ja":
+			return "このスマートフォン内の動画：" + size
+		case "ko":
+			return "이 휴대폰의 영상이 " + size + " 사용 중"
+		case "zh-Hans":
+			return "这台手机上的影片占用 " + size
+		case "zh-Hant":
+			return "這台手機上的影片佔用 " + size
+		}
+	}
+}
+
+// FilmsWatchedTo says "Watched to {time}"
+// in the language the app shows under cx.
+//
+// Under a film: where it was left.
+func FilmsWatchedTo(cx *core.Scope, time_ string) string { return For(cx).FilmsWatchedTo(time_) }
+
+// FilmsWatchedTo is the package's FilmsWatchedTo in the language of msgs.
+func (msgs Messages) FilmsWatchedTo(time_ string) string {
+	if i18n.IsPseudo(msgs.lang) {
+		return i18n.Pseudo(msgs.lang, Messages{lang: Source, mark: true}.FilmsWatchedTo(time_))
+	}
+	for lang := msgs.lang; ; lang = i18n.Parent(lang) {
+		if f := supplied[lang].FilmsWatchedTo; f != nil {
+			return f(time_)
+		}
+		switch lang {
+		case "", "en":
+			return "Watched to " + msgs.arg(time_)
+		case "ja":
+			return time_ + " まで視聴"
+		case "ko":
+			return time_ + "까지 시청"
+		case "zh-Hans":
+			return "看到 " + time_
+		case "zh-Hant":
+			return "看到 " + time_
+		}
+	}
+}
 
 // JobsActionFailed says "{name} couldn't do that. Try again."
 // in the language the app shows under cx.
@@ -4350,45 +4981,6 @@ func LearnTitle(cx *core.Scope) string { return For(cx).LearnTitle() }
 
 // LearnTitle is the package's LearnTitle in the language of msgs.
 func (msgs Messages) LearnTitle() string { return msgs.text(textLearnTitle) }
-
-// LibraryEmpty says "No films ready yet"
-// in the language the app shows under cx.
-//
-// A library's page when it has no film done processing.
-func LibraryEmpty(cx *core.Scope) string { return For(cx).LibraryEmpty() }
-
-// LibraryEmpty is the package's LibraryEmpty in the language of msgs.
-func (msgs Messages) LibraryEmpty() string { return msgs.text(textLibraryEmpty) }
-
-// LibraryGone says "This library is no longer on {name}, or it is locked."
-// in the language the app shows under cx.
-//
-// A library's page when the computer no longer serves it: it was removed or locked.
-func LibraryGone(cx *core.Scope, name string) string { return For(cx).LibraryGone(name) }
-
-// LibraryGone is the package's LibraryGone in the language of msgs.
-func (msgs Messages) LibraryGone(name string) string {
-	if i18n.IsPseudo(msgs.lang) {
-		return i18n.Pseudo(msgs.lang, Messages{lang: Source, mark: true}.LibraryGone(name))
-	}
-	for lang := msgs.lang; ; lang = i18n.Parent(lang) {
-		if f := supplied[lang].LibraryGone; f != nil {
-			return f(name)
-		}
-		switch lang {
-		case "", "en":
-			return "This library is no longer on " + msgs.arg(name) + ", or it is locked."
-		case "ja":
-			return "このライブラリは " + name + " にもうないか、ロックされています。"
-		case "ko":
-			return "이 라이브러리는 " + name + "에 더 이상 없거나 잠겨 있습니다."
-		case "zh-Hans":
-			return name + " 上已经没有这个资料库，或者它已上锁。"
-		case "zh-Hant":
-			return name + " 上已經沒有這個資料庫，或者它已上鎖。"
-		}
-	}
-}
 
 // OnboardingContinue says "Continue"
 // in the language the app shows under cx.

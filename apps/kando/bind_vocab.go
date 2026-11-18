@@ -1,12 +1,15 @@
 package main
 
 import (
+	"os"
+	"path/filepath"
 	"slices"
 
 	"kando/apps/kando/films"
 	"kando/apps/kando/live"
 	"kando/apps/kando/saved"
 	"kando/apps/kando/study"
+	recordstudy "kando/packages/study"
 
 	"github.com/nsgo-dev/nsgo/core"
 )
@@ -19,14 +22,19 @@ const (
 	vocabTabExport = study.TabExport
 )
 
-// vocabStats is the study stats dialog: open, at tab, with release giving back the window's modal flag it holds while it is (holdModal); the export's options, and the file the last export wrote or why it failed.
+// vocabStats is the study stats dialog: open, at tab, with release giving back the window's modal flag it holds while it is (holdModal); the study records of the other libraries it counts (vocabReadOthers); the export's options, and the file the last export wrote or why it failed.
 type vocabStats struct {
 	open     bool
 	release  func()
 	tab      string
+	others   []saved.Book
+	reading  int
 	options  saved.VocabOptions
 	exported study.VocabExported
 }
+
+// vocabLoadBook reads a library's study record for the stats, off the engine's goroutine; the tests watch through it which libraries are read.
+var vocabLoadBook = saved.Load
 
 func newVocabStats() vocabStats {
 	return vocabStats{tab: vocabTabStats, options: saved.VocabOptions{Format: saved.VocabAnki, Context: true, Translation: true}}
@@ -51,19 +59,100 @@ func (a *app) OpenStats(tab string) {
 	}
 	a.vocab.stats.open = true
 	a.vocab.stats.release = a.holdModal()
+	a.vocabReadOthers()
+}
+
+// vocabStatsCounts reports whether the stats count the library at dir: it is one Kando knows and it is not locked. A locked library's study record is never read, so its films stay closed (state_lock.go).
+func (a *app) vocabStatsCounts(dir string) bool {
+	return dir != "" && !a.LibraryLocked(dir)
+}
+
+// vocabReadOthers reads, off the engine's goroutine, the study records of the libraries the stats count besides the open one, whose own the saved lines keep (savedBook), and keeps them for the dialog unless it was opened again meanwhile. A library whose folder is not there now, as on a drive taken out, or whose study record cannot be read, is left out. Nothing is written to them.
+func (a *app) vocabReadOthers() {
+	s := &a.vocab.stats
+	s.others = nil
+	s.reading++
+	run := s.reading
+	open := filepath.Clean(a.snap().LibraryDir)
+	var dirs []string
+	for _, dir := range a.knownLibraries() {
+		if dir = filepath.Clean(dir); dir != open && a.vocabStatsCounts(dir) {
+			dirs = append(dirs, dir)
+		}
+	}
+	if len(dirs) == 0 || a.update == nil {
+		return
+	}
+	update := a.update
+	go func() {
+		var books []saved.Book
+		for _, dir := range dirs {
+			if info, err := os.Stat(dir); err != nil || !info.IsDir() {
+				continue
+			}
+			book, err := vocabLoadBook(dir)
+			if err != nil {
+				continue
+			}
+			books = append(books, book)
+		}
+		update(func() {
+			if run == a.vocab.stats.reading && a.vocab.stats.open {
+				a.vocab.stats.others = books
+			}
+		})
+	}()
+}
+
+// vocabCounted is the study records the stats count now: the open library's, unless it is locked, then the others read for the dialog that are still unlocked and are not the open one.
+func (a *app) vocabCounted() []saved.Book {
+	open := filepath.Clean(a.snap().LibraryDir)
+	var books []saved.Book
+	if book := a.savedBook(); book.Dir() != "" {
+		books = append(books, book)
+	}
+	for _, book := range a.vocab.stats.others {
+		if dir := filepath.Clean(book.Dir()); dir != open && a.vocabStatsCounts(dir) {
+			books = append(books, book)
+		}
+	}
+	return books
 }
 
 // CloseStats closes the dialog, as Done, Escape and closing it do, and gives back the window's modal flag.
 func (a *app) CloseStats() {
 	a.vocab.stats.open = false
+	a.vocab.stats.others = nil
+	a.vocab.stats.reading++
 	if a.vocab.stats.release != nil {
 		a.vocab.stats.release()
 		a.vocab.stats.release = nil
 	}
 }
 
-// StudyStats is what the open library's study record says of the learner's study now.
-func (a *app) StudyStats() saved.Stats { return a.savedBook().Stats(a.saved.now()) }
+// StudyStats is what the study records of the libraries the stats count say of the learner's study now, all of them together (StatsLibraries).
+func (a *app) StudyStats() saved.Stats {
+	return recordstudy.StatsOf(a.saved.now(), a.saved.device, a.vocabCounted()...)
+}
+
+// StatsLibraries is the names of the libraries the stats count, the open one first; StatsLocked is how many libraries Kando knows that they leave out as they are locked.
+func (a *app) StatsLibraries() []string {
+	var names []string
+	for _, book := range a.vocabCounted() {
+		names = append(names, films.LibraryName(book.Dir()))
+	}
+	return names
+}
+
+func (a *app) StatsLocked() int {
+	n := 0
+	for _, dir := range a.knownLibraries() {
+		if dir != "" && a.LibraryLocked(dir) {
+			n++
+		}
+	}
+	return n
+}
 
 // StatsTab is the tab the dialog shows; SetStatsTab shows another.
 func (a *app) StatsTab() string { return a.vocab.stats.tab }

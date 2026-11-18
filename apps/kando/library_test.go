@@ -2426,3 +2426,23 @@ func TestPanelsSayWhatTheyAreFor(t *testing.T) {
 		t.Fatalf("the folder panels ask %+v", dirs)
 	}
 }
+
+// TestHeroIsWholeInATallWindow: in the window as Kando opens it, 1100 by 720, the hero over 处理中 is the compact card so the first posters show under the queue; a window tall enough for the whole card over both shows the design's card, its line and its first bilingual line, though 处理中 has a card.
+func TestHeroIsWholeInATallWindow(t *testing.T) {
+	a, tt, _ := libraryWith(t, "Talk")
+	a.library.Jobs = append(a.library.Jobs, core.Job{ID: "next", Source: "https://example.com/next", Stage: core.StageQueued, LibraryDir: a.LibraryDir()})
+	a.refreshLibrary()
+	refresh(tt, a)
+	if !tt.Exists("id:queue-cancel") {
+		t.Fatalf("no card in 处理中: %q", tt.Texts())
+	}
+	quote := whole("“你好。”")
+	if got := tt.Find("id:films-hero").Frame.Size.Height; got >= 300 || tt.Exists(quote) {
+		t.Fatalf("the hero over 处理中 in a 720-point window is %v high: %q", got, tt.Texts())
+	}
+	tt.Resize(1100, 1000)
+	refresh(tt, a)
+	if got := tt.Find("id:films-hero").Frame.Size.Height; got != 360 || !tt.Exists(quote) || !tt.Exists(whole("Hello.")) {
+		t.Fatalf("the hero over 处理中 in a 1000-point window is %v high: %q", got, tt.Texts())
+	}
+}

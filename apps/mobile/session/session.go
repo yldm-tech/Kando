@@ -106,7 +106,11 @@ type Session struct {
 	transfers *core.Signal[map[string]Transfer]
 	used      *core.Signal[int64]
 	prefs     *core.Signal[store.Prefs]
-	jobs      map[string]*job
+	// shelves are what the paired computers last listed, by ID, and listings the reads of them under way, each told from a later one by listGen (Shelf).
+	shelves  *core.Signal[map[string]Shelf]
+	listings map[string]listing
+	listGen  uint64
+	jobs     map[string]*job
 	// following are the films Follow is bringing up to date, by key, so a film opened again meanwhile does not ask its desktop twice.
 	following map[string]*follow
 	clients   map[string]*sync.Client
@@ -178,6 +182,8 @@ func New(cx *core.Scope, cfg Config) *Session {
 		transfers: core.NewSignalFunc(cx, map[string]Transfer{}, nil),
 		used:      core.NewSignal(cx, int64(0)),
 		prefs:     core.NewSignalFunc(cx, store.Prefs{}, nil),
+		shelves:   core.NewSignalFunc(cx, map[string]Shelf{}, nil),
+		listings:  map[string]listing{},
 		jobs:      map[string]*job{},
 		following: map[string]*follow{},
 		clients:   map[string]*sync.Client{},
@@ -194,6 +200,9 @@ func New(cx *core.Scope, cfg Config) *Session {
 		}
 		for _, fw := range s.following {
 			fw.cancel()
+		}
+		for _, l := range s.listings {
+			l.cancel()
 		}
 		for _, c := range s.clients {
 			c.Close()
@@ -246,6 +255,7 @@ func New(cx *core.Scope, cfg Config) *Session {
 				s.follow(d.ID)
 			}
 			s.loaded.Set(true)
+			s.Refresh()
 		})
 	})
 	return s
@@ -322,6 +332,7 @@ func (s *Session) AddDesktop(d store.Desktop) {
 		c.Close()
 		delete(s.clients, d.ID)
 	}
+	s.forgetShelf(d.ID)
 	list := slices.Clone(s.desktops.Get())
 	if i := slices.IndexFunc(list, func(x store.Desktop) bool { return x.ID == d.ID }); i >= 0 {
 		list[i] = d
@@ -329,6 +340,7 @@ func (s *Session) AddDesktop(d store.Desktop) {
 		list = append(list, d)
 	}
 	s.setDesktops(list)
+	s.RefreshDesktop(d.ID)
 	s.follow(d.ID)
 }
 
@@ -346,6 +358,7 @@ func (s *Session) Unpair(id string) {
 		c.Close()
 		delete(s.clients, id)
 	}
+	s.forgetShelf(id)
 	s.setDesktops(slices.DeleteFunc(slices.Clone(s.desktops.Get()), func(d store.Desktop) bool { return d.ID == id }))
 }
 
@@ -510,13 +523,13 @@ func (s *Session) Delete(key string) {
 	s.remove(key)
 }
 
-// SavePosition keeps where the film under key was left playing.
+// SavePosition keeps where the film under key was left playing, and that it was left there now, even where it was left there before: a film played from the beginning again is newer on the phone than where a computer left it (catalog.Merge).
 func (s *Session) SavePosition(key string, at time.Duration) {
 	f, ok := s.Film(key)
-	if !ok || f.PositionMS == at.Milliseconds() {
+	if !ok {
 		return
 	}
-	f.PositionMS = at.Milliseconds()
+	f.PositionMS, f.PositionAt = at.Milliseconds(), s.cfg.Now()
 	s.replace(f)
 	s.saveFilm(f)
 }

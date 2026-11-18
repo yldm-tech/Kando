@@ -29,7 +29,22 @@ type Device struct {
 	LastSeen time.Time `json:"last_seen"`
 	// TokenHash is the SHA-256 of the device's token, in hex.
 	TokenHash string `json:"token_sha256"`
+	// ReadOnly is set when the user made the device read-only: the server refuses its calls that change something (psync.Caller.ReadOnly). A device pairs with full access.
+	ReadOnly bool `json:"read_only,omitempty"`
+	// RelayKey is the key the device's objects in the storage relay are sealed with, made when it first joins the relay (psync.OpRelayJoin), none before. Devices does not give it out.
+	RelayKey []byte `json:"relay_key,omitempty"`
 }
+
+// OnlineWithin is how lately a device was seen for Settings › Phone Sync to say it is online. A device's LastSeen moves at most once every seenEvery, and a phone in the foreground calls at least once in psync.MaxEventWait, so a phone in use is never shown offline.
+const OnlineWithin = 5 * time.Minute
+
+// Online reports whether d was seen within OnlineWithin of now.
+func (d Device) Online(now time.Time) bool {
+	return !d.LastSeen.IsZero() && now.Sub(d.LastSeen) < OnlineWithin
+}
+
+// ErrNoDevice is SetReadOnly's error for a device that is not paired.
+var ErrNoDevice = errors.New("no such device")
 
 // seenEvery is how often a device's LastSeen is written to disk while it makes requests, so streaming a video does not write the file at every range.
 const seenEvery = time.Minute
@@ -129,12 +144,67 @@ func (d *devices) revoke(id string) error {
 	return nil
 }
 
-// all is the devices, the latest paired first.
+// setReadOnly makes device id read-only (on) or lets it change things again, and keeps that.
+func (d *devices) setReadOnly(id string, on bool) error {
+	d.mu.Lock()
+	defer d.mu.Unlock()
+	i := slices.IndexFunc(d.list, func(dev Device) bool { return dev.ID == id })
+	if i < 0 {
+		return ErrNoDevice
+	}
+	if d.list[i].ReadOnly == on {
+		return nil
+	}
+	d.list[i].ReadOnly = on
+	if err := d.save(); err != nil {
+		d.list[i].ReadOnly = !on
+		return err
+	}
+	return nil
+}
+
+// all is the devices, the latest paired first, without their relay keys.
 func (d *devices) all() []Device {
 	d.mu.Lock()
 	defer d.mu.Unlock()
 	out := slices.Clone(d.list)
+	for i := range out {
+		out[i].RelayKey = nil
+	}
 	slices.Reverse(out)
+	return out
+}
+
+// relayKey is device id's relay key, made and saved the first time it is asked for.
+func (d *devices) relayKey(id string) ([]byte, error) {
+	d.mu.Lock()
+	defer d.mu.Unlock()
+	i := slices.IndexFunc(d.list, func(dev Device) bool { return dev.ID == id })
+	if i < 0 {
+		return nil, psync.Errorf(psync.CodeUnauthorized, "no device %s", id)
+	}
+	if len(d.list[i].RelayKey) == psync.RelayKeySize {
+		return slices.Clone(d.list[i].RelayKey), nil
+	}
+	key := psync.NewRelayKey()
+	d.list[i].RelayKey = key
+	if err := d.save(); err != nil {
+		d.list[i].RelayKey = nil
+		return nil, err
+	}
+	return slices.Clone(key), nil
+}
+
+// relayDevices are the devices that joined the relay, with their keys.
+func (d *devices) relayDevices() []psync.RelayDevice {
+	d.mu.Lock()
+	defer d.mu.Unlock()
+	var out []psync.RelayDevice
+	for _, dev := range d.list {
+		if len(dev.RelayKey) == psync.RelayKeySize {
+			out = append(out, psync.RelayDevice{ID: dev.ID, Name: dev.Name, Key: slices.Clone(dev.RelayKey), ReadOnly: dev.ReadOnly})
+		}
+	}
 	return out
 }
 

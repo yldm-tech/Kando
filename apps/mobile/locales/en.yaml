@@ -48,14 +48,6 @@ computersCertificate:
   description: "In a computer's section: it answered with another certificate."
   placeholders:
     name: { type: "String", example: "Studio" }
-computersFilmCount:
-  message: "{count, plural, one {# film} other {# films}}"
-  description: "Beside a library's name: how many films it holds."
-  placeholders:
-    count: { type: "int", example: "12" }
-computersNoLibraries:
-  message: "No libraries to show"
-  description: "In a computer's section when it lists no libraries."
 computersOptions:
   message: "{name} Options"
   description: "Spoken name of the … button beside a computer's name, which offers to unpair it."
@@ -85,14 +77,6 @@ computersUnreachable:
   description: "In a computer's section and on a library's page: it does not answer."
   placeholders:
     name: { type: "String", example: "Studio" }
-downloadsTitle:
-  message: "On This Phone"
-  description: "Heading of the Library tab's section of the films downloaded to this phone."
-downloadsUsed:
-  message: "{size} used"
-  description: "Under the downloads: the space they take."
-  placeholders:
-    size: { type: "String", example: "1.2 GB" }
 filmCancel:
   message: "Cancel Download"
   description: "Button on a film's page that stops its download and deletes what was downloaded."
@@ -144,12 +128,113 @@ filmStopped:
 filmUnpaired:
   message: "Pair with the computer again to download."
   description: "Why a download stopped: the computer no longer takes this phone, or answers with another certificate."
+filmsAll:
+  message: "All Films"
+  description: "Heading of the Library's list of every film, from every computer and the phone."
+filmsAllLibraries:
+  message: "All Libraries"
+  description: "In the Library's switcher: the films of every library of every computer."
+filmsContinue:
+  message: "Continue Watching"
+  description: "Heading of the Library's row of films left partway, on this phone or another device."
+filmsCount:
+  message: "{count, plural, one {# film} other {# films}}"
+  description: "Beside the Library's list heading: how many films it shows."
+  placeholders:
+    count: { type: "int", example: "12" }
+filmsDetails:
+  message: "Details"
+  description: "In a film's options: opens the film's page."
+filmsDownloadSize:
+  message: "Download ({size})"
+  description: "In a film's options: downloads it to the phone, with the size of its video."
+  placeholders:
+    size: { type: "String", example: "320.5 MB" }
+filmsEmpty:
+  message: "No films ready yet"
+  description: "The Library's list when the computers have no film done processing."
+filmsHit:
+  message: "{time} · {line}"
+  description: "Under a film a search found by its lines: where the line is in the film, and the line."
+  placeholders:
+    time: { type: "String", example: "1:40" }
+    line: { type: "String", example: "The tide comes in twice a day." }
+filmsLeft:
+  message: "{time} left"
+  description: "Under a film to go on with, left on this phone: how long it still plays."
+  placeholders:
+    time: { type: "String", example: "8:20" }
+filmsLeftHere:
+  message: "Left off on {device}"
+  description: "Badge on the poster of a film to go on with, left on another device, by the device's name."
+  placeholders:
+    device: { type: "String", example: "MacBook Pro" }
+filmsLeftOn:
+  message: "Watched to {time} on {device}"
+  description: "Under a film to go on with, left on another device: where, and on which device."
+  placeholders:
+    device: { type: "String", example: "MacBook Pro" }
+    time: { type: "String", example: "1:40" }
+filmsLibraries:
+  message: "Show Library"
+  description: "Title of the Library's switcher, which picks the library the list shows."
+filmsLibrary:
+  message: "Library: {name}"
+  description: "Spoken name of the Library's switcher, with the library it shows."
+  placeholders:
+    name: { type: "String", example: "Japanese Class" }
+filmsLibraryOn:
+  message: "{library} on {computer}"
+  description: "In the Library's switcher: a library, by its name and its computer's."
+  placeholders:
+    library: { type: "String", example: "Japanese Class" }
+    computer: { type: "String", example: "Studio" }
 filmsNoDesktop:
   message: "No Desktop App Yet?"
   description: "Button on the Library's card that opens the page where the desktop app is downloaded."
+filmsNoResults:
+  message: "Nothing found for “{query}”"
+  description: "The Library's list when a search finds nothing."
+  placeholders:
+    query: { type: "String", example: "tide" }
+filmsNoSource:
+  message: "No films from this source yet"
+  description: "The Library's list when the chosen source has no film."
+filmsOptions:
+  message: "{title} Options"
+  description: "Spoken name of the … button beside a film in the Library."
+  placeholders:
+    title: { type: "String", example: "Morning Talk" }
 filmsPair:
   message: "Connect a Computer"
   description: "Button on the Library's card that opens pairing with a computer."
+filmsPlayFromStart:
+  message: "Play from the Beginning"
+  description: "In a film's options: plays it from its start rather than where it was left."
+filmsResults:
+  message: "Search Results"
+  description: "Heading of the Library's list while a search is typed."
+filmsSearch:
+  message: "Search films and lines"
+  description: "Placeholder and spoken name of the Library's search field, which finds titles and the lines of the films on the phone."
+filmsSource:
+  message: "Source"
+  description: "Spoken name of the Library's chips, which narrow the list to where the films come from."
+filmsSourceAll:
+  message: "All"
+  description: "Library chip: films from every source."
+filmsSourceBilibili:
+  message: "Bilibili"
+  description: "Library chip and a film's source: films from Bilibili."
+filmsSourceLocal:
+  message: "Local Files"
+  description: "Library chip and a film's source: films added from files on the computer."
+filmsSourceWeb:
+  message: "Other Sites"
+  description: "Library chip and a film's source: films from sites other than YouTube and Bilibili."
+filmsSourceYoutube:
+  message: "YouTube"
+  description: "Library chip and a film's source: films from YouTube."
 filmsTitle:
   message: "Library"
   description: "Tab and title of the Library: the films on the phone and the computers' libraries."
@@ -159,6 +244,16 @@ filmsUnpairedBody:
 filmsUnpairedTitle:
   message: "Not connected to a computer yet"
   description: "Title of the Library's card while no computer is paired."
+filmsUsed:
+  message: "Films on this phone use {size}"
+  description: "Under the Library's list: the space the films downloaded to the phone take."
+  placeholders:
+    size: { type: "String", example: "1.2 GB" }
+filmsWatchedTo:
+  message: "Watched to {time}"
+  description: "Under a film: where it was left."
+  placeholders:
+    time: { type: "String", example: "1:40" }
 jobsActionFailed:
   message: "{name} couldn't do that. Try again."
   description: "Toast: an action on a job (pause, cancel, retry, update) failed."
@@ -429,14 +524,6 @@ learnEmpty:
 learnTitle:
   message: "Learn"
   description: "Tab and title of Learn: the saved words and lines and their review."
-libraryEmpty:
-  message: "No films ready yet"
-  description: "A library's page when it has no film done processing."
-libraryGone:
-  message: "This library is no longer on {name}, or it is locked."
-  description: "A library's page when the computer no longer serves it: it was removed or locked."
-  placeholders:
-    name: { type: "String", example: "Studio" }
 onboardingContinue:
   message: "Continue"
   description: "Button that goes to the introduction's next step."

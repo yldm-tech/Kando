@@ -16,13 +16,11 @@ func TestTheTabsKeepTheirPagesAndGoBackWhenPressedAgain(t *testing.T) {
 	d := newDesktop(t)
 	dir := t.TempDir()
 	p := startPhone(t, dir, pairedWith(t, d, dir))
-	p.app.WaitFor("id:computers-library-lib", wait)
+	p.app.WaitFor(talkRow(store.DesktopID(d.Fingerprint)), wait)
 	if p.app.Exists("id:onboarding") {
 		t.Fatal("a phone paired already shows the introduction")
 	}
-	p.app.Press("id:computers-library-lib")
-	p.app.WaitFor("id:library-film-f1", wait)
-	p.app.Press("id:library-film-f1")
+	p.app.Press(talkRow(store.DesktopID(d.Fingerprint)))
 	p.app.WaitFor("id:film-download", wait)
 	p.app.Press("id:film-download")
 	p.app.WaitFor("id:film-play", wait)
@@ -39,10 +37,7 @@ func TestTheTabsKeepTheirPagesAndGoBackWhenPressedAgain(t *testing.T) {
 
 	p.openTab(filmsTab, msgs.FilmsTitle())
 	p.app.WaitForGone("id:film-page", wait)
-	p.app.WaitFor("id:downloads-film-f1", wait)
-	if p.app.Exists("id:library-page") {
-		t.Fatal("pressing the tab shown again left the library's page on its stack")
-	}
+	p.app.WaitFor(talkRow(store.DesktopID(d.Fingerprint)), wait)
 }
 
 // With films on the phone and nothing paired, the Library lists them under the card that asks to pair; pairing from there shows the computer's libraries in its place, and Settings offers to pair another.
@@ -51,15 +46,15 @@ func TestPairingFromTheLibraryAndSettings(t *testing.T) {
 	dir := t.TempDir()
 	keepTalk(t, dir)
 	p := startPhone(t, dir)
-	p.app.WaitFor("id:downloads-film-f1", wait)
+	p.app.WaitFor(talkRow("gonedesk"), wait)
 	p.app.Press("id:films-pair")
 	p.fillPairing(d.Addr.String(), "123456")
 	p.app.Press("id:pair-continue")
 	p.app.WaitFor("id:pair-compare", wait)
 	p.app.Press("id:pair-confirm")
-	p.app.WaitFor("id:computers-desktop-"+store.DesktopID(d.Fingerprint), wait)
+	p.app.WaitFor(talkRow(store.DesktopID(d.Fingerprint)), wait)
 	p.app.WaitForGone("id:films-unpaired", wait)
-	if !p.app.Exists("id:downloads-film-f1") {
+	if !p.app.Exists(talkRow("gonedesk")) {
 		t.Fatal("pairing hid the films on the phone")
 	}
 	p.openTab(settingsTab, msgs.SettingsTitle())
@@ -77,7 +72,7 @@ func TestUnpairingInSettingsKeepsTheDownloads(t *testing.T) {
 	secrets := pairedWith(t, d, dir)
 	keepTalkFrom(t, dir, store.DesktopID(d.Fingerprint))
 	p := startPhone(t, dir, secrets)
-	p.app.WaitFor("id:downloads-film-f1", wait)
+	p.app.WaitFor(talkRow(store.DesktopID(d.Fingerprint)), wait)
 	p.openTab(settingsTab, msgs.SettingsTitle())
 	id := store.DesktopID(d.Fingerprint)
 	p.app.Press("id:settings-computer-options-" + id)
@@ -91,7 +86,7 @@ func TestUnpairingInSettingsKeepsTheDownloads(t *testing.T) {
 	}
 	p.openTab(filmsTab, msgs.FilmsTitle())
 	p.app.WaitFor("id:films-unpaired", wait)
-	p.app.WaitFor("id:downloads-film-f1", wait)
+	p.app.WaitFor(talkRow(id), wait)
 }
 
 // A new phone starts with the introduction; skipped, it shows the Library asking to pair and is not shown again.
@@ -113,23 +108,23 @@ func TestTheIntroductionCanBeSkipped(t *testing.T) {
 	}
 }
 
-// Unpaired in Settings while the Library shows one of its libraries, a computer takes that page off the Library's stack: with no client left it would keep its films and could not load again.
-func TestUnpairingInSettingsClosesTheComputersLibrary(t *testing.T) {
+// Unpaired in Settings while the Library shows one of its films not on the phone, a computer takes that page off the Library's stack, and its films off the list: with no client left they could not be downloaded.
+func TestUnpairingInSettingsClosesTheComputersFilms(t *testing.T) {
 	d := newDesktop(t)
 	dir := t.TempDir()
 	p := startPhone(t, dir, pairedWith(t, d, dir))
-	p.app.WaitFor("id:computers-library-lib", wait)
-	p.app.Press("id:computers-library-lib")
-	p.app.WaitFor("id:library-film-f1", wait)
-	p.openTab(settingsTab, msgs.SettingsTitle())
 	id := store.DesktopID(d.Fingerprint)
+	p.app.WaitFor(talkRow(id), wait)
+	p.app.Press(talkRow(id))
+	p.app.WaitFor("id:film-download", wait)
+	p.openTab(settingsTab, msgs.SettingsTitle())
 	p.app.Press("id:settings-computer-options-" + id)
 	p.app.Answer(1)
 	p.app.WaitForGone("id:settings-computer-"+id, wait)
 	p.openTab(filmsTab, msgs.FilmsTitle())
 	p.app.WaitFor("id:films-unpaired", wait)
-	if p.app.Exists("id:library-page") {
-		t.Fatal("the library of a computer unpaired stayed on the Library's stack")
+	if p.app.Exists("id:film-page") || p.app.Exists(talkRow(id)) {
+		t.Fatal("a film of a computer unpaired stayed on the Library's stack or in its list")
 	}
 }
 
@@ -150,7 +145,7 @@ func TestTheIntroductionKeepsTheLanguagesHoweverItIsLeft(t *testing.T) {
 	dir := t.TempDir()
 	keepTalk(t, dir)
 	p = startPhone(t, dir)
-	p.app.WaitFor("id:downloads-film-f1", wait)
+	p.app.WaitFor(talkRow("gonedesk"), wait)
 	p.openTab(settingsTab, msgs.SettingsTitle())
 	p.app.Press("id:settings-introduction")
 	p.app.WaitFor("id:onboarding-intro", wait)
@@ -181,7 +176,7 @@ func TestTheIntroductionNamesTheComputerPairedAgain(t *testing.T) {
 		t.Fatal(err)
 	}
 	p := startPhone(t, dir, secrets)
-	p.app.WaitFor("id:computers-desktop-laptop", wait)
+	p.app.WaitFor("id:computers-problem-laptop", wait)
 	p.openTab(settingsTab, msgs.SettingsTitle())
 	studio.Offer("123456")
 	p.app.Press("id:settings-introduction")
@@ -242,7 +237,7 @@ func TestSettingsShowsTheIntroductionAgain(t *testing.T) {
 	dir := t.TempDir()
 	keepTalk(t, dir)
 	p := startPhone(t, dir)
-	p.app.WaitFor("id:downloads-film-f1", wait)
+	p.app.WaitFor(talkRow("gonedesk"), wait)
 	p.openTab(settingsTab, msgs.SettingsTitle())
 	p.app.Press("id:settings-introduction")
 	p.app.WaitFor("id:onboarding-intro", wait)
@@ -257,8 +252,8 @@ func TestTheIOSHeaders(t *testing.T) {
 	dir := t.TempDir()
 	keepTalk(t, dir)
 	p := startPhone(t, dir, pairedWith(t, d, dir), nsgotest.Environment(core.Environment{Locale: lang, OS: core.OSIOS}))
-	p.app.WaitFor("id:downloads-film-f1", wait)
-	p.app.Press("id:downloads-film-f1")
+	p.app.WaitFor(talkRow("gonedesk"), wait)
+	p.app.Press(talkRow("gonedesk"))
 	p.app.WaitFor("id:film-delete", wait)
 	p.app.HeaderBack("id:film-page")
 	p.app.WaitForGone("id:film-page", wait)
@@ -276,8 +271,8 @@ func TestTheActionBarSitsOnTheTabBar(t *testing.T) {
 	dir := t.TempDir()
 	keepTalk(t, dir)
 	p := startPhone(t, dir, nsgotest.Environment(core.Environment{Locale: lang, SafeArea: core.Edges{Bottom: bottom}}))
-	p.app.WaitFor("id:downloads-film-f1", wait)
-	p.app.Press("id:downloads-film-f1")
+	p.app.WaitFor(talkRow("gonedesk"), wait)
+	p.app.Press(talkRow("gonedesk"))
 	play := p.app.WaitFor("id:film-play", wait).Bounds()
 	bar := p.app.Find("id:tab-bar").Bounds()
 	if gap := bar.Origin.Y - (play.Origin.Y + play.Size.Height); gap < 0 || gap >= bottom {
@@ -293,7 +288,7 @@ func TestATabletShowsASidebarOnItsSideAndATabBarUpright(t *testing.T) {
 	d := newDesktop(t)
 	dir := t.TempDir()
 	p := startPhone(t, dir, pairedWith(t, d, dir), nsgotest.Size(1180, 820), nsgotest.Environment(core.Environment{Locale: lang, Idiom: core.IdiomTablet}))
-	p.app.WaitFor("id:computers-library-lib", wait)
+	p.app.WaitFor(talkRow(store.DesktopID(d.Fingerprint)), wait)
 	if !p.app.Exists("id:sidebar") || p.app.Exists("id:tab-bar") {
 		t.Fatal("a tablet on its side shows no sidebar, or a tab bar")
 	}
@@ -318,7 +313,7 @@ func TestATabletShowsASidebarOnItsSideAndATabBarUpright(t *testing.T) {
 		t.Fatal("turning the tablet lost the page Settings opened")
 	}
 	p.openTab(filmsTab, msgs.FilmsTitle())
-	p.app.WaitFor("id:computers-library-lib", wait)
+	p.app.WaitFor(talkRow(store.DesktopID(d.Fingerprint)), wait)
 	p.app.Resize(1180, 820)
 	p.app.WaitFor("id:sidebar", wait)
 	p.app.Press("id:sidebar-computers")
@@ -330,4 +325,26 @@ func TestATabletShowsASidebarOnItsSideAndATabBarUpright(t *testing.T) {
 		t.Fatal("a tablet asks to unpair in an action sheet, not a dialog")
 	}
 	p.app.Answer(0)
+}
+
+// Unpaired in Settings while the Library shows the page of one of its films kept on the phone, a computer leaves that page open: the film still plays from the phone.
+func TestUnpairingInSettingsKeepsThePageOfAFilmOnThePhone(t *testing.T) {
+	d := newDesktop(t)
+	dir := t.TempDir()
+	secrets := pairedWith(t, d, dir)
+	id := store.DesktopID(d.Fingerprint)
+	keepTalkFrom(t, dir, id)
+	p := startPhone(t, dir, secrets)
+	p.app.WaitFor(talkRow(id), wait)
+	p.app.Press(talkRow(id))
+	p.app.WaitFor("id:film-play", wait)
+	p.openTab(settingsTab, msgs.SettingsTitle())
+	p.app.Press("id:settings-computer-options-" + id)
+	p.app.Answer(1)
+	p.app.WaitForGone("id:settings-computer-"+id, wait)
+	p.openTab(filmsTab, msgs.FilmsTitle())
+	p.app.WaitFor("id:film-play", wait)
+	p.app.HeaderBack("id:film-page")
+	p.app.WaitFor("id:films-unpaired", wait)
+	p.app.Find(talkRow(id))
 }

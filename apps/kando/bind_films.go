@@ -352,6 +352,9 @@ func (a *app) libraryRetranslate(item films.Film, redo core.Redo, language strin
 
 func (a *app) Remove(id string) { a.remove(id) }
 
+// ContinueHere lets job id, which a paired phone paused, wait for its turn again (queueLetGo).
+func (a *app) ContinueHere(id string) { a.queueLetGo(id) }
+
 // Retry runs a failed or finished job again on the same card. When it cannot be queued, the message bar says why: a job already running or waiting says nothing, as its card says so; otherwise the settings name no target language (queueRetryable), and the bar links to where it is set. The film page draws no message bar, so there the settings open too, as libraryRetranslate does.
 func (a *app) Retry(id string) {
 	job, ok := a.library.Find(id)
@@ -508,7 +511,7 @@ func (a *app) queueAhead() map[string]int {
 		n = 1
 	}
 	for _, id := range a.queue.order {
-		if job, ok := a.library.Find(id); ok && job.Stage == core.StageQueued && id != a.queue.active {
+		if job, ok := a.library.Find(id); ok && job.Stage == core.StageQueued && !queueHeld(job) && id != a.queue.active {
 			ahead[id] = n
 			n++
 		}
