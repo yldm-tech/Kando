@@ -26,8 +26,14 @@ type settingsUI struct {
 	language          string
 	translatePrompt   string
 	translateContext  bool
-	modelsDir         string
-	extraModelDirs    []string
+	// translateContextLines is how many earlier lines go with a batch while translateContext is on, 0 for media.DefaultContextLines.
+	translateContextLines int
+	// shortcutPreset is the preset of Settings › 快捷键 the player's keys follow, one of hotkey.Presets.
+	shortcutPreset string
+	// appearance is the one the windows show: settings.AppearanceLight or AppearanceDark, or "" to follow the system's.
+	appearance     string
+	modelsDir      string
+	extraModelDirs []string
 	// speechModels maps a whisper catalog model's ID to its file on disk, for the models findSpeechModels found.
 	speechModels    map[string]string
 	downloading     string
@@ -88,8 +94,10 @@ func newSettingsUI() settingsUI {
 
 // savedInterface is the settings window's own part of settings.json: the interface language, kept separate from savedTranslate, whose language is the target language of generated subtitles, and where the window was, which MyGo's StateKey used to keep in a file of its own.
 type savedInterface struct {
-	InterfaceLanguage string      `json:"interfaceLanguage,omitempty"`
-	SettingsWindow    *savedFrame `json:"settingsWindow,omitempty"`
+	InterfaceLanguage string `json:"interfaceLanguage,omitempty"`
+	// Appearance is the one the windows show, light or dark, "" to follow the system's (Settings › 通用 › 外观).
+	Appearance     string      `json:"appearance,omitempty"`
+	SettingsWindow *savedFrame `json:"settingsWindow,omitempty"`
 }
 
 func (s *savedInterface) clean() {
@@ -97,10 +105,13 @@ func (s *savedInterface) clean() {
 		s.InterfaceLanguage = locales.Default
 	}
 	s.SettingsWindow = s.SettingsWindow.cleaned()
+	if s.Appearance != settings.AppearanceLight && s.Appearance != settings.AppearanceDark {
+		s.Appearance = ""
+	}
 }
 
 func (a *app) saveInterface(saved *savedSettings) {
-	saved.savedInterface = savedInterface{InterfaceLanguage: a.prefs.interfaceLanguage, SettingsWindow: savedFrameOf(a.prefs.frame)}
+	saved.savedInterface = savedInterface{InterfaceLanguage: a.prefs.interfaceLanguage, Appearance: a.prefs.appearance, SettingsWindow: savedFrameOf(a.prefs.frame)}
 }
 
 func (a *app) restoreInterface(saved savedSettings) {
@@ -108,6 +119,35 @@ func (a *app) restoreInterface(saved savedSettings) {
 		a.prefs.interfaceLanguage = saved.InterfaceLanguage
 	}
 	a.prefs.frame = saved.SettingsWindow.windowFrame()
+	a.prefs.appearance = saved.Appearance
+}
+
+// settingsAppearance is the appearance the app shows, as nsgo.Appearance and core.Scope.SetAppearance take it: the one chosen in Settings › 通用, or the system's (theme.Appearance).
+func (a *app) settingsAppearance() core.Appearance {
+	switch a.prefs.appearance {
+	case settings.AppearanceLight:
+		return core.AppearanceLight
+	case settings.AppearanceDark:
+		return core.AppearanceDark
+	}
+	return theme.Appearance
+}
+
+// useAppearance shows the windows in appearance, settings.AppearanceLight or AppearanceDark, or as the system does for any other, at once, and saves it.
+func (a *app) useAppearance(appearance string) {
+	if appearance != settings.AppearanceLight && appearance != settings.AppearanceDark {
+		appearance = ""
+	}
+	if a.prefs.appearance == appearance {
+		return
+	}
+	a.prefs.appearance = appearance
+	if a.cx != nil {
+		a.cx.SetAppearance(a.settingsAppearance())
+	}
+	if err := a.saveSettings(); err != nil {
+		a.saveErr = a.messages().SettingsSaveFailed(err.Error())
+	}
 }
 
 // savedTranslate is the translation's part of settings.json.
@@ -115,11 +155,16 @@ type savedTranslate struct {
 	Language         string `json:"language,omitempty"`
 	TranslatePrompt  string `json:"translatePrompt,omitempty"`
 	TranslateContext *bool  `json:"translateContext,omitempty"`
+	// TranslateContextLines is how many earlier lines go with a batch, 0 for media.DefaultContextLines.
+	TranslateContextLines int `json:"translateContextLines,omitempty"`
 }
 
 func (s *savedTranslate) clean() {
 	s.Language = strings.TrimSpace(s.Language)
 	s.TranslatePrompt = strings.TrimSpace(s.TranslatePrompt)
+	if s.TranslateContextLines != 0 {
+		s.TranslateContextLines = min(max(s.TranslateContextLines, settings.MinContextLines), media.MaxContextLines)
+	}
 }
 
 // saveTranslate keeps the translation prompt only when it is the user's own: the default is saved as nothing, which restoreTranslate reads as the default of the version running, so a better default reaches everyone who did not change it.
@@ -134,6 +179,9 @@ func (a *app) saveTranslate(saved *savedSettings) {
 		TranslatePrompt:  prompt,
 		TranslateContext: &contextOn,
 	}
+	if lines := a.prefs.translateContextLines; lines != media.DefaultContextLines {
+		saved.TranslateContextLines = lines
+	}
 }
 
 func (a *app) restoreTranslate(saved savedSettings) {
@@ -146,6 +194,7 @@ func (a *app) restoreTranslate(saved savedSettings) {
 	if saved.TranslateContext != nil {
 		a.prefs.translateContext = *saved.TranslateContext
 	}
+	a.prefs.translateContextLines = saved.TranslateContextLines
 }
 
 // settingsHooks: the settings window saves the speech model, the AI service and the translation, shows the interface in its saved language and asks the tools for their versions once the main window exists, looks for the whisper models on disk again when the tools change, and after every change opens for a settings page chosen in the main sidebar, gives back the trash confirmation's modal flag once it closed and fetches the AI service's models when its settings changed.
@@ -156,15 +205,18 @@ func (a *app) settingsHooks() areaHooks {
 			a.saveSpeech(saved)
 			a.saveLLM(saved)
 			a.saveTranslate(saved)
+			saved.ShortcutPreset = a.prefs.shortcutPreset
 		},
 		restore: func(saved savedSettings) {
 			a.restoreInterface(saved)
 			a.restoreSpeech(saved)
 			a.restoreLLM(saved)
 			a.restoreTranslate(saved)
+			a.prefs.shortcutPreset = saved.ShortcutPreset
 		},
 		ready: func() {
 			a.SetInterfaceLanguage(a.prefs.interfaceLanguage)
+			a.cx.SetAppearance(a.settingsAppearance())
 			a.loadToolVersions()
 		},
 		toolsChanged: func(redetected bool) {

@@ -815,6 +815,7 @@ func (a *app) queueRun(job core.Job) {
 	if tools, ok := a.pipeline.(media.Tools); ok {
 		tools.Translator.Prompt = a.prefs.translatePrompt
 		tools.Translator.Context = a.prefs.translateContext
+		tools.Translator.ContextLines = a.prefs.translateContextLines
 		a.pipeline = tools
 	}
 	// A job processing a done film again entirely, or translating every line of it again, translates into the language it was asked for, which becomes its Language once it is done.

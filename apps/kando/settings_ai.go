@@ -25,6 +25,9 @@ type savedLLM struct {
 	LLMModel    string                     `json:"llmModel,omitempty"`
 	LLMAPIKey   string                     `json:"llmAPIKey,omitempty"`
 	LLMServices map[string]savedLLMService `json:"llmServices,omitempty"`
+	// LLMBatchSize is how many lines a translation request carries, 0 for media.DefaultBatchSize; LLMRetries how many times a failed request is sent again, nil for media.DefaultRetries (Settings › AI 服务 › 请求).
+	LLMBatchSize int  `json:"llmBatchSize,omitempty"`
+	LLMRetries   *int `json:"llmRetries,omitempty"`
 }
 
 // savedLLMService is a service used before: its endpoint, which only 自定义 takes back, as the others have their preset's, the model chosen on it and its key, which goes back only to the host it was used with.
@@ -50,6 +53,13 @@ func (s *savedLLM) clean() {
 	if len(s.LLMServices) == 0 {
 		s.LLMServices = nil
 	}
+	if s.LLMBatchSize != 0 {
+		s.LLMBatchSize = min(max(s.LLMBatchSize, media.MinBatchSize), media.MaxBatchSize)
+	}
+	if s.LLMRetries != nil {
+		retries := min(max(*s.LLMRetries, 0), media.MaxRetries)
+		s.LLMRetries = &retries
+	}
 }
 
 func (a *app) saveLLM(saved *savedSettings) {
@@ -60,6 +70,15 @@ func (a *app) saveLLM(saved *savedSettings) {
 		saved.LLMAPIKey = tools.Translator.APIKey
 	}
 	saved.LLMServices = maps.Clone(a.prefs.llmServices)
+	if tools, ok := a.pipeline.(media.Tools); ok {
+		if size := tools.Translator.BatchSize; size != 0 && size != media.DefaultBatchSize {
+			saved.LLMBatchSize = size
+		}
+		if attempts := tools.Translator.Attempts; attempts != 0 && attempts != media.DefaultRetries+1 {
+			retries := attempts - 1
+			saved.LLMRetries = &retries
+		}
+	}
 }
 
 // restoreLLM uses the AI service saved last time for what the environment does not name. The provider is read from the endpoint, not from the saved llmProvider.
@@ -75,6 +94,10 @@ func (a *app) restoreLLM(saved savedSettings) {
 		tools.Translator.Model = saved.LLMModel
 	}
 	a.prefs.llmServices = maps.Clone(saved.LLMServices)
+	tools.Translator.BatchSize = saved.LLMBatchSize
+	if saved.LLMRetries != nil {
+		tools.Translator.Attempts = *saved.LLMRetries + 1
+	}
 	// A key goes only to the endpoint it belongs to: KANDO_LLM_API_KEY to whichever endpoint is in use, EVERYAPI_API_KEY to EveryAPI only, the saved key to the host it was saved with. ToolsFromEnv may have put EVERYAPI_API_KEY in for its EveryAPI default, which the saved endpoint can replace.
 	if os.Getenv("KANDO_LLM_API_KEY") == "" {
 		everyAPIKey := os.Getenv("EVERYAPI_API_KEY")
@@ -375,5 +398,40 @@ func (a *app) adoptLLMModel() {
 	a.applyLLM()
 	if tools, ok := a.pipeline.(media.Tools); ok && (!preset.NeedsKey() || tools.Translator.APIKey != "") && !everyAPICLIMissing(tools.Translator) {
 		a.testLLM()
+	}
+}
+
+// llmBatchSize is how many lines a translation request carries (media.ChatTranslator.BatchSize).
+func (a *app) llmBatchSize() int {
+	tools, _ := a.pipeline.(media.Tools)
+	if tools.Translator.BatchSize > 0 {
+		return tools.Translator.BatchSize
+	}
+	return media.DefaultBatchSize
+}
+
+// llmRetries is how many times a failed translation request is sent again (media.ChatTranslator.Attempts).
+func (a *app) llmRetries() int {
+	tools, _ := a.pipeline.(media.Tools)
+	if tools.Translator.Attempts > 0 {
+		return tools.Translator.Attempts - 1
+	}
+	return media.DefaultRetries
+}
+
+// useLLMRequests makes translation requests carry size lines and be sent again up to retries times from the next job on, each kept to the range Settings › AI 服务 offers, and saves them.
+func (a *app) useLLMRequests(size, retries int) {
+	tools, ok := a.pipeline.(media.Tools)
+	if !ok {
+		return
+	}
+	tools.Translator.BatchSize = min(max(size, media.MinBatchSize), media.MaxBatchSize)
+	tools.Translator.Attempts = min(max(retries, 0), media.MaxRetries) + 1
+	if tools.Translator.BatchSize == a.llmBatchSize() && tools.Translator.Attempts == a.llmRetries()+1 {
+		return
+	}
+	a.pipeline = tools
+	if err := a.saveSettings(); err != nil {
+		a.saveErr = a.messages().SettingsSaveFailed(err.Error())
 	}
 }

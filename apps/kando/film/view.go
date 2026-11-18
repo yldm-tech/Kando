@@ -123,6 +123,7 @@ func (v View) Render(cx *core.Scope) core.Node {
 			s.subtitles(),
 			s.correcting(),
 			s.lookupCard(),
+			s.recapCard(),
 			s.osd(),
 			s.uploadCapsule(),
 			s.topBar(),

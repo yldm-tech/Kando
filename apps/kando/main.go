@@ -10,7 +10,6 @@ import (
 	"kando/apps/kando/desktop"
 	"kando/apps/kando/live"
 	"kando/apps/kando/shelf"
-	"kando/apps/kando/theme"
 	"kando/packages/media"
 
 	"github.com/nsgo-dev/nsgo"
@@ -73,6 +72,8 @@ type app struct {
 	subs     subscribeUI // state_subscribe.go
 	vocab    vocabUI     // state_vocab.go
 	export   subexportUI // state_subexport.go
+	explain  explainUI   // state_explain.go
+	recap    recapUI     // state_recap.go
 }
 
 // newApp makes the app's state. update is how background jobs report; nil reports through the revision (appUpdate), as main and the tests that start the app with nsgotest do, while a test that runs no app passes its own to apply the reports itself.
@@ -113,6 +114,8 @@ func newApp(pipeline media.Pipeline, update func(fn func())) *app {
 		subs:     newSubscribeUI(),
 		vocab:    newVocabUI(),
 		export:   newSubexportUI(),
+		explain:  newExplainUI(),
+		recap:    newRecapUI(),
 	}
 	if a.update == nil {
 		a.update = a.appUpdate
@@ -150,7 +153,7 @@ func main() {
 	opts := []nsgo.Option{
 		nsgo.WindowSize(1100, 720),
 		nsgo.WindowConstraints(core.WindowConstraints{MinWidth: 900, MinHeight: 560}),
-		nsgo.Appearance(theme.Appearance),
+		nsgo.Appearance(a.settingsAppearance()),
 		nsgo.WindowMaterial(sidebarMaterial()),
 	}
 	if socket := os.Getenv("KANDO_SOCKET"); socket != "" {

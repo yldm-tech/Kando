@@ -53,6 +53,8 @@ type phoneUI struct {
 	now    func() time.Time
 	// receiveOff is 接收手机发来的链接 turned off, and receiveAsk 收到后 set to 先问我, which settings.json keeps (state_phonesync_jobs.go).
 	receiveOff, receiveAsk bool
+	// relay is the storage relay turned on, which settings.json keeps (state_phonesync_relay.go).
+	relay bool
 	// ledgers are the libraries' learning state as phones were last told it, by library folder, each read the first time a phone asks or the open library changes (state_phonesync_state.go), and priming the folders being read so (phoneStatePrime); stateSign sums up the open library's state as phones were last told it changed (phoneSyncPublishState).
 	ledgers   map[string]*phoneLedger
 	priming   map[string]bool
@@ -68,12 +70,13 @@ type phoneUI struct {
 
 func newPhoneUI() phoneUI { return phoneUI{} }
 
-// savedPhoneSync is Phone Sync's part of settings.json: the switch, the port, and what the desktop does with a link a phone sends.
+// savedPhoneSync is Phone Sync's part of settings.json: the switch, the port, what the desktop does with a link a phone sends, and whether the storage relay runs.
 type savedPhoneSync struct {
 	PhoneSync       bool `json:"phoneSync,omitempty"`
 	PhoneSyncPort   int  `json:"phoneSyncPort,omitempty"`
 	PhoneReceiveOff bool `json:"phoneReceiveOff,omitempty"`
 	PhoneReceiveAsk bool `json:"phoneReceiveAsk,omitempty"`
+	PhoneRelay      bool `json:"phoneRelay,omitempty"`
 }
 
 // clean keeps a port a server can listen on, and forgets any other.
@@ -87,11 +90,12 @@ func (s *savedPhoneSync) clean() {
 func (a *app) phoneSyncHooks() areaHooks {
 	return areaHooks{
 		save: func(saved *savedSettings) {
-			saved.savedPhoneSync = savedPhoneSync{PhoneSync: a.phone.on, PhoneSyncPort: a.phone.port, PhoneReceiveOff: a.phone.receiveOff, PhoneReceiveAsk: a.phone.receiveAsk}
+			saved.savedPhoneSync = savedPhoneSync{PhoneSync: a.phone.on, PhoneSyncPort: a.phone.port, PhoneReceiveOff: a.phone.receiveOff, PhoneReceiveAsk: a.phone.receiveAsk, PhoneRelay: a.phone.relay}
 		},
 		restore: func(saved savedSettings) {
 			a.phone.on, a.phone.port = saved.PhoneSync, saved.PhoneSyncPort
 			a.phone.receiveOff, a.phone.receiveAsk = saved.PhoneReceiveOff, saved.PhoneReceiveAsk
+			a.phone.relay = saved.PhoneRelay
 		},
 		ready: func() {
 			if a.phone.on {
@@ -146,6 +150,7 @@ func (a *app) phoneSyncStart() {
 		Source:  phoneSource{a},
 		Jobs:    phoneJobs{a},
 		State:   phoneState{a},
+		Relay:   a.phoneRelayBucket(),
 		Addrs:   a.phone.listen,
 		Changed: func() { update(a.phoneSyncPull) },
 		Now:     a.phone.now,

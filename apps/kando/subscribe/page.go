@@ -187,6 +187,8 @@ func noteOf(cx *ns.Scope, n Note) string {
 		switch {
 		case n.Count > 0 && n.Held:
 			text = locales.SubscribeNoteHeld(cx, n.Count)
+		case n.Over > 0:
+			text = locales.SubscribeNoteCapped(cx, n.Count, n.Count-n.Over, n.Over)
 		case n.Count > 0:
 			text = locales.SubscribeNoteQueued(cx, n.Count)
 		}
@@ -334,7 +336,7 @@ func (p page) rules(cx *ns.Scope) ns.Node {
 		if rules().Mode == ModeAsk {
 			return locales.SubscribeWhenNewAsk(cx)
 		}
-		return locales.SubscribeWhenNewAuto(cx)
+		return locales.SubscribeWhenNewAuto(cx, AddPerCheck)
 	}
 	return ns.View{Style: ns.Style{Gap: 6, AlignItems: ns.AlignStretch}, Children: []ns.Node{
 		form.Label(locales.SubscribeRules(cx), 6),

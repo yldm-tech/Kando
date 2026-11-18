@@ -133,6 +133,12 @@ type App interface {
 	// SpeechSource is where the whisper models download from, one of media.SpeechSources: "" for Hugging Face; SetSpeechSource changes and saves it.
 	SpeechSource() string
 	SetSpeechSource(source string)
+	// SpeechThreads is how many threads whisper recognizes speech with, 0 for as many as suit the computer, one of media.WhisperThreadChoices otherwise; SpeechHints the words it should spell as written, as typed; each setter changes and saves it. SpeechCommand is the whisper-cli command a job runs with them, the program and its arguments.
+	SpeechThreads() int
+	SetSpeechThreads(n int)
+	SpeechHints() string
+	SetSpeechHints(hints string)
+	SpeechCommand() []string
 
 	CurrentPreset() (Preset, bool)
 	Presets() []Preset
@@ -160,10 +166,21 @@ type App interface {
 	// EveryAPI is what the AI page says about the everyapi command-line program, whose sign-in EveryAPI uses without an API Key; GetEveryAPI opens EveryAPI's website, where the program is downloaded, and Redetect looks for it again.
 	EveryAPI() EveryAPI
 	GetEveryAPI()
+	// LLMBatchSize is how many lines a translation request carries, LLMRetries how many times a failed one is sent again; SetLLMRequests changes both, kept to media's ranges, and saves them.
+	LLMBatchSize() int
+	LLMRetries() int
+	SetLLMRequests(size, retries int)
 
 	Language() *string
 	TranslateContext() *bool
 	TranslatePrompt() *string
+	// TranslateContextLines is how many earlier lines go with a batch while TranslateContext is on; SetTranslateContextLines changes it, kept between MinContextLines and media.MaxContextLines, and Save keeps it.
+	TranslateContextLines() int
+	SetTranslateContextLines(n int)
+
+	// Appearance is the one the windows show, AppearanceLight or AppearanceDark, or "" to follow the system's; SetAppearance shows and saves it.
+	Appearance() string
+	SetAppearance(appearance string)
 
 	// InterfaceLanguage is the app UI language tag, one of locales.Interface.
 	// It is separate from Language, which is the language subtitles are translated into.
@@ -192,6 +209,9 @@ type App interface {
 	Shortcuts(cx *core.Scope) []Shortcut
 	// ShortcutQuery is the text of the 快捷键 page's search field.
 	ShortcutQuery() *string
+	// ShortcutPreset is the preset the player's keys follow, one of hotkey.Presets; SetShortcutPreset moves them at once and saves it.
+	ShortcutPreset() string
+	SetShortcutPreset(preset string)
 }
 
 // screen is what every page reads: the app, and the version 通用 shows.

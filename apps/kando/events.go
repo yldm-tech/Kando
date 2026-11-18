@@ -86,6 +86,8 @@ func (a *app) areas() []areaHooks {
 		a.subscribeHooks(),
 		a.vocabHooks(),
 		a.subexportHooks(),
+		a.explainHooks(),
+		a.recapHooks(),
 		// The encrypted libraries' images come last: the quit detaches them once the queue and the player have stopped using their files.
 		a.lockVaultHooks(),
 	}
