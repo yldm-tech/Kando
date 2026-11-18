@@ -5799,6 +5799,9 @@ vocabLearning:
   description: "Study stats dialog, under the mastery bar: how many words and saved lines are being learned."
   placeholders:
     count: { type: "int", example: "3" }
+vocabLibrarySeparator:
+  message: ", "
+  description: "Study stats dialog: what goes between two library names in vocabStatsLibraries."
 vocabLineCount:
   message: "{count, plural, one {# line} other {# lines}}"
   description: "Study stats dialog: how many lines are saved, the big number of the saved lines card."
@@ -5876,6 +5879,16 @@ vocabOtherDevices:
 vocabPreview:
   message: "Preview (first 3)"
   description: "Export Vocabulary tab: label over the first three records as the file will hold them."
+vocabStatsLibraries:
+  message: "Counted from {libraries}"
+  description: "Study stats dialog, top of the Stats tab: the libraries whose study is added up in the stats, by their names joined with vocabLibrarySeparator. Locked libraries are never counted."
+  placeholders:
+    libraries: { type: "String", example: "Kando, Anime" }
+vocabStatsLocked:
+  message: "{count, plural, one {# locked library is not counted} other {# locked libraries are not counted}}"
+  description: "Study stats dialog, under vocabStatsLibraries: how many libraries are left out of the stats because they are locked with a password."
+  placeholders:
+    count: { type: "int", example: "1" }
 vocabStatsMenuItem:
   message: "Study Stats"
   description: "Study menu item that opens the study stats dialog."

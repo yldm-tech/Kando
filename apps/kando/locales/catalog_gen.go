@@ -881,6 +881,8 @@ var Parameters = map[string][]string{
 	"VocabNew":                                 {"count"},
 	"VocabOsdAdded":                            {"word"},
 	"VocabOsdRemoved":                          {"word"},
+	"VocabStatsLibraries":                      {"libraries"},
+	"VocabStatsLocked":                         {"count"},
 	"VocabSummary":                             {"words", "lines", "films"},
 	"VocabWeekLess":                            {"time_"},
 	"VocabWeekMore":                            {"time_"},
@@ -1314,6 +1316,8 @@ type Translation struct {
 	VocabNew                                 func(count int) string
 	VocabOsdAdded                            func(word string) string
 	VocabOsdRemoved                          func(word string) string
+	VocabStatsLibraries                      func(libraries string) string
+	VocabStatsLocked                         func(count int) string
 	VocabSummary                             func(words int, lines int, films int) string
 	VocabWeekLess                            func(time_ string) string
 	VocabWeekMore                            func(time_ string) string
@@ -2541,6 +2545,7 @@ const (
 	textVocabFormatCSV
 	textVocabFormatTSV
 	textVocabInVocabulary
+	textVocabLibrarySeparator
 	textVocabLines
 	textVocabLookupBusy
 	textVocabLookupClose
@@ -3785,6 +3790,7 @@ var keyOfText = [numTexts]string{
 	"vocabFormatCSV",
 	"vocabFormatTSV",
 	"vocabInVocabulary",
+	"vocabLibrarySeparator",
 	"vocabLines",
 	"vocabLookupBusy",
 	"vocabLookupClose",
@@ -5027,6 +5033,7 @@ var textsEn = i18n.NewTexts(""+
 	"CSV"+
 	"Plain Text (Tab-Separated)"+
 	"In Vocabulary"+
+	", "+
 	"Saved lines"+
 	"Looking it up…"+
 	"Close"+
@@ -6266,6 +6273,7 @@ var textsEn = i18n.NewTexts(""+
 		3,
 		26,
 		13,
+		2,
 		11,
 		16,
 		5,
@@ -7508,6 +7516,7 @@ var textsJa = i18n.NewTexts(""+
 	"CSV"+
 	"テキスト（タブ区切り）"+
 	"単語帳にあります"+
+	"、"+
 	"保存したセリフ"+
 	"調べています…"+
 	"閉じる"+
@@ -8747,6 +8756,7 @@ var textsJa = i18n.NewTexts(""+
 		3,
 		33,
 		24,
+		3,
 		21,
 		21,
 		9,
@@ -9989,6 +9999,7 @@ var textsKo = i18n.NewTexts(""+
 	"CSV"+
 	"텍스트(탭 구분)"+
 	"단어장에 있음"+
+	", "+
 	"저장한 대사"+
 	"찾는 중…"+
 	"닫기"+
@@ -11228,6 +11239,7 @@ var textsKo = i18n.NewTexts(""+
 		3,
 		21,
 		19,
+		2,
 		16,
 		13,
 		6,
@@ -12470,6 +12482,7 @@ var textsZhHans = i18n.NewTexts(""+
 	"CSV 表格"+
 	"纯文本（Tab 分隔）"+
 	"已在生词本"+
+	"、"+
 	"收藏的句子"+
 	"正在查…"+
 	"关闭"+
@@ -13709,6 +13722,7 @@ var textsZhHans = i18n.NewTexts(""+
 		10,
 		25,
 		15,
+		3,
 		15,
 		12,
 		6,
@@ -14951,6 +14965,7 @@ var textsZhHant = i18n.NewTexts(""+
 	"CSV 表格"+
 	"純文字（Tab 分隔）"+
 	"已在生詞本"+
+	"、"+
 	"收藏的句子"+
 	"正在查…"+
 	"關閉"+
@@ -16190,6 +16205,7 @@ var textsZhHant = i18n.NewTexts(""+
 		10,
 		25,
 		15,
+		3,
 		15,
 		12,
 		6,
@@ -17533,6 +17549,12 @@ func Supply(lang string, t Translation) {
 	}
 	if t.VocabOsdRemoved != nil {
 		s.VocabOsdRemoved = t.VocabOsdRemoved
+	}
+	if t.VocabStatsLibraries != nil {
+		s.VocabStatsLibraries = t.VocabStatsLibraries
+	}
+	if t.VocabStatsLocked != nil {
+		s.VocabStatsLocked = t.VocabStatsLocked
 	}
 	if t.VocabSummary != nil {
 		s.VocabSummary = t.VocabSummary
@@ -43735,6 +43757,15 @@ func (msgs Messages) VocabLearning(count int) string {
 	}
 }
 
+// VocabLibrarySeparator says ", "
+// in the language the app shows under cx.
+//
+// Study stats dialog: what goes between two library names in vocabStatsLibraries.
+func VocabLibrarySeparator(cx *core.Scope) string { return For(cx).VocabLibrarySeparator() }
+
+// VocabLibrarySeparator is the package's VocabLibrarySeparator in the language of msgs.
+func (msgs Messages) VocabLibrarySeparator() string { return msgs.text(textVocabLibrarySeparator) }
+
 // VocabLineCount says "{count, plural, one {# line} other {# lines}}"
 // in the language the app shows under cx.
 //
@@ -44136,6 +44167,77 @@ func VocabPreview(cx *core.Scope) string { return For(cx).VocabPreview() }
 
 // VocabPreview is the package's VocabPreview in the language of msgs.
 func (msgs Messages) VocabPreview() string { return msgs.text(textVocabPreview) }
+
+// VocabStatsLibraries says "Counted from {libraries}"
+// in the language the app shows under cx.
+//
+// Study stats dialog, top of the Stats tab: the libraries whose study is added up in the stats, by their names joined with vocabLibrarySeparator. Locked libraries are never counted.
+func VocabStatsLibraries(cx *core.Scope, libraries string) string {
+	return For(cx).VocabStatsLibraries(libraries)
+}
+
+// VocabStatsLibraries is the package's VocabStatsLibraries in the language of msgs.
+func (msgs Messages) VocabStatsLibraries(libraries string) string {
+	if i18n.IsPseudo(msgs.lang) {
+		return i18n.Pseudo(msgs.lang, Messages{lang: Source, mark: true}.VocabStatsLibraries(libraries))
+	}
+	for lang := msgs.lang; ; lang = i18n.Parent(lang) {
+		if f := supplied[lang].VocabStatsLibraries; f != nil {
+			return f(libraries)
+		}
+		switch lang {
+		case "", "en":
+			return "Counted from " + msgs.arg(libraries)
+		case "ja":
+			return "集計対象：" + libraries
+		case "ko":
+			return "집계 대상: " + libraries
+		case "zh-Hans":
+			return "统计范围：" + libraries
+		case "zh-Hant":
+			return "統計範圍：" + libraries
+		}
+	}
+}
+
+// VocabStatsLocked says "{count, plural, one {# locked library is not counted} other {# locked libraries are not counted}}"
+// in the language the app shows under cx.
+//
+// Study stats dialog, under vocabStatsLibraries: how many libraries are left out of the stats because they are locked with a password.
+func VocabStatsLocked(cx *core.Scope, count int) string { return For(cx).VocabStatsLocked(count) }
+
+// VocabStatsLocked is the package's VocabStatsLocked in the language of msgs.
+func (msgs Messages) VocabStatsLocked(count int) string {
+	if i18n.IsPseudo(msgs.lang) {
+		return i18n.Pseudo(msgs.lang, Messages{lang: Source, mark: true}.VocabStatsLocked(count))
+	}
+	for lang := msgs.lang; ; lang = i18n.Parent(lang) {
+		if f := supplied[lang].VocabStatsLocked; f != nil {
+			return f(count)
+		}
+		switch lang {
+		case "", "en":
+			var b strings.Builder
+			switch i18n.Cardinal("en", float64(count)) {
+			case i18n.One:
+				b.WriteString(msgs.arg(i18n.FormatNumber("en", float64(count))))
+				b.WriteString(" locked library is not counted")
+			default:
+				b.WriteString(msgs.arg(i18n.FormatNumber("en", float64(count))))
+				b.WriteString(" locked libraries are not counted")
+			}
+			return b.String()
+		case "ja":
+			return "ロック中のライブラリ " + i18n.FormatNumber("ja", float64(count)) + " 件は含まれません"
+		case "ko":
+			return "잠긴 라이브러리 " + i18n.FormatNumber("ko", float64(count)) + "개는 포함되지 않습니다"
+		case "zh-Hans":
+			return i18n.FormatNumber("zh-Hans", float64(count)) + " 个已锁定的资料库不计入"
+		case "zh-Hant":
+			return i18n.FormatNumber("zh-Hant", float64(count)) + " 個已鎖定的資料庫不計入"
+		}
+	}
+}
 
 // VocabStatsMenuItem says "Study Stats"
 // in the language the app shows under cx.

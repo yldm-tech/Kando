@@ -14,7 +14,7 @@ import (
 	"github.com/nsgo-dev/nsgo/nsgotest"
 )
 
-// TestScreenshotsVocab renders the prototype's film, How Rivers Shape Landscapes (j1), held on its first line with "trickle" clicked on the picture and its card over it, looked up before so the AI service is not asked (vocab-lookup); and the study stats dialog over the library, a week of watching on this computer and a phone, three words and two saved lines in the study record, at its two tabs (vocab-stats, vocab-export).
+// TestScreenshotsVocab renders the prototype's film, How Rivers Shape Landscapes (j1), held on its first line with "trickle" clicked on the picture and its card over it, looked up before so the AI service is not asked (vocab-lookup); and the study stats dialog over the library, a week of watching on this computer and a phone, three words and two saved lines in the study record, at its two tabs (vocab-stats, vocab-export), which counts the fixture's other libraries too, whose study records are empty.
 func TestScreenshotsVocab(t *testing.T) {
 	f := newScreenshotFixture(t)
 	now := time.Date(2026, 11, 18, 21, 0, 0, 0, time.Local)
@@ -36,12 +36,20 @@ func TestScreenshotsVocab(t *testing.T) {
 		screenshotStudyRecord(t, f, a, now)
 		refresh(tt, a)
 		onEngine(a, func() { a.OpenStats(vocabTabStats) })
+		screenshotStatsRead(t, a, tt, updates)
 	})
 	f.shoot(t, "vocab-export", func(t *testing.T, a *app, tt *nsgotest.App, updates chan func()) {
 		screenshotStudyRecord(t, f, a, now)
 		refresh(tt, a)
 		onEngine(a, func() { a.OpenStats(vocabTabExport) })
+		screenshotStatsRead(t, a, tt, updates)
 	})
+}
+
+// screenshotStatsRead waits for the study stats dialog to have read the study records of the fixture's other libraries, which it counts with the open one's and names.
+func screenshotStatsRead(t *testing.T, a *app, tt *nsgotest.App, updates chan func()) {
+	t.Helper()
+	waitUntil(t, tt, a, updates, func() bool { return len(a.vocab.stats.others) == len(protoLibraries)-1 })
 }
 
 // screenshotStudyRecord fills the library's study record, which the scenes share, as of now: eleven days of watching on this computer, three on a phone, three words, one mastered and one being learned, and two saved lines.
