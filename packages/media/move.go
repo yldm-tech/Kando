@@ -40,11 +40,11 @@ func freeName(dir, name string) string {
 	}
 }
 
-// Companions are the files beside the video at video that are its, those that exist: the subtitles Kando reads and writes by its name (<video>.srt, <video>.kando.srt and <video>.bilingual.srt) and the hidden files a job keeps beside it while it works, the translation done so far (translationCheckpointPath) and the speech a redo keeps aside (pendingTranscriptPath, pendingHeardPath) and the transcript a translating redo proofread (proofreadTranscriptPath).
+// Companions are the files beside the video at video that are its, those that exist: the subtitles Kando reads and writes by its name (<video>.srt, <video>.kando.srt and <video>.bilingual.srt) and the hidden files a job keeps beside it while it works, the translation done so far (translationCheckpointPath) and the speech a redo keeps aside (pendingTranscriptPath, pendingHeardPath) and the transcript a translating redo proofread (proofreadTranscriptPath), and the user's corrections of its lines (CorrectionsPath).
 func Companions(video string) []string {
 	base := strings.TrimSuffix(video, filepath.Ext(video))
 	var out []string
-	for _, path := range []string{transcriptPath(video), asideTranscriptPath(video), base + ".bilingual.srt", translationCheckpointPath(video), pendingTranscriptPath(video), pendingHeardPath(video), proofreadTranscriptPath(video)} {
+	for _, path := range []string{transcriptPath(video), asideTranscriptPath(video), base + ".bilingual.srt", translationCheckpointPath(video), pendingTranscriptPath(video), pendingHeardPath(video), proofreadTranscriptPath(video), CorrectionsPath(video)} {
 		if info, err := os.Lstat(path); err == nil && info.Mode().IsRegular() {
 			out = append(out, path)
 		}

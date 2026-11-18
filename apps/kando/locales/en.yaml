@@ -377,6 +377,144 @@ cloudSignedIn:
 cloudSignedInTitle:
   message: "Kando"
   description: "Title of the browser page Google's sign-in returns to, the app's name."
+correctBar:
+  message: "Correct Line"
+  description: "Accessible name of the bar over the picture that holds the buttons for correcting the selected subtitle line."
+correctCancel:
+  message: "Cancel"
+  description: "Button under the fields that edit a subtitle line: puts them away without changing the line."
+correctDone:
+  message: "Done"
+  description: "Button of the bar of the selected subtitle line: lets go of the line."
+correctEdit:
+  message: "Edit"
+  description: "Button of the bar of the selected subtitle line: shows the fields that edit its translation and its original."
+correctEnd:
+  message: "End"
+  description: "Label before the two buttons of the bar of the selected subtitle line that move its end a tenth of a second earlier or later."
+correctEndAt:
+  message: "End {time}"
+  description: "Message on the picture after the end of the selected subtitle line was moved: where it ends now, as 0:12.4."
+  placeholders:
+    time: { type: "String", example: "0:12.4" }
+correctKeyDone:
+  message: "Finish Correcting the Line"
+  description: "Shortcut row of Escape while a subtitle line is selected for correcting: lets go of it, before Escape would leave the film."
+correctKeyEdit:
+  message: "Edit the Selected Line"
+  description: "Shortcut row of Return while a subtitle line is selected: shows the fields that edit its translation and its original; also the accessible name of those fields' group."
+correctKeyEndEarlier:
+  message: "End 0.1 Second Earlier"
+  description: "Shortcut row and button: moves the end of the selected subtitle line a tenth of a second earlier."
+correctKeyEndLater:
+  message: "End 0.1 Second Later"
+  description: "Shortcut row and button: moves the end of the selected subtitle line a tenth of a second later."
+correctKeyNext:
+  message: "Select the Next Line"
+  description: "Shortcut row and button while a subtitle line is selected for correcting: selects the line after it."
+correctKeyNoSpeech:
+  message: "Mark as No Speech"
+  description: "Shortcut row and button: leaves the selected subtitle line out of the film, as one the speech recognition heard in music or noise."
+correctKeyPrev:
+  message: "Select the Previous Line"
+  description: "Shortcut row and button while a subtitle line is selected for correcting: selects the line before it."
+correctKeyRestore:
+  message: "Restore Lines Marked as No Speech"
+  description: "Subtitles menu item: brings back every line of the open film the user marked as no speech."
+correctKeySelect:
+  message: "Select the Current Line"
+  description: "Shortcut row of Return on the player: selects the subtitle line playing, to correct it."
+correctKeyStartEarlier:
+  message: "Start 0.1 Second Earlier"
+  description: "Shortcut row and button: moves the start of the selected subtitle line a tenth of a second earlier."
+correctKeyStartLater:
+  message: "Start 0.1 Second Later"
+  description: "Shortcut row and button: moves the start of the selected subtitle line a tenth of a second later."
+correctMarkedNoSpeech:
+  message: "Marked as no speech"
+  description: "Message on the picture after a subtitle line was marked as no speech."
+correctNewer:
+  message: "These corrections were made by a newer version of Kando and can’t be changed here"
+  description: "Message on the picture when the film's corrections file was written by a newer Kando, which this version does not write over."
+correctOriginal:
+  message: "Original"
+  description: "Label of the field that edits the original line of the selected subtitle line."
+correctOriginalEmpty:
+  message: "The original can’t be empty. To leave the line out, mark it as no speech"
+  description: "Message on the picture when the user submits a subtitle line with its original field empty, which is not kept."
+correctRedo:
+  message: "Redo “{step}”"
+  description: "Edit menu item and shortcut row: makes again the change of the film's lines that Undo took back, named."
+  placeholders:
+    step: { type: "String", example: "Edit Line 12" }
+correctRedone:
+  message: "Redone: {step}"
+  description: "Message on the picture after Redo made a change of the film's lines again."
+  placeholders:
+    step: { type: "String", example: "Edit Line 12" }
+correctRestored:
+  message: "Restored {count, plural, one {# line} other {# lines}}"
+  description: "Message on the picture after the lines marked as no speech were brought back."
+  placeholders:
+    count: { type: "int", example: "3" }
+correctSaveFailed:
+  message: "Couldn’t save the correction"
+  description: "Message on the picture when the film's corrections file could not be written."
+correctSaved:
+  message: "Saved your correction"
+  description: "Message on the picture after an edit of a subtitle line was kept."
+correctStart:
+  message: "Start"
+  description: "Label before the two buttons of the bar of the selected subtitle line that move its start a tenth of a second earlier or later."
+correctStartAt:
+  message: "Start {time}"
+  description: "Message on the picture after the start of the selected subtitle line was moved: where it starts now, as 0:10.4."
+  placeholders:
+    time: { type: "String", example: "0:10.4" }
+correctStepEdit:
+  message: "Edit Line {line}"
+  description: "What a change of the film's lines was, for Undo and Redo to name it: an edit of the line numbered line, counting from 1."
+  placeholders:
+    line: { type: "int", example: "12" }
+correctStepEnd:
+  message: "Move the End of Line {line}"
+  description: "What a change of the film's lines was, for Undo and Redo to name it: the end of the line numbered line moved."
+  placeholders:
+    line: { type: "int", example: "12" }
+correctStepNoSpeech:
+  message: "Mark Line {line} as No Speech"
+  description: "What a change of the film's lines was, for Undo and Redo to name it: the line numbered line marked as no speech."
+  placeholders:
+    line: { type: "int", example: "12" }
+correctStepRestore:
+  message: "Restore {line, plural, one {# Line} other {# Lines}} Marked as No Speech"
+  description: "What a change of the film's lines was, for Undo and Redo to name it: the lines marked as no speech brought back, how many."
+  placeholders:
+    line: { type: "int", example: "3" }
+correctStepStart:
+  message: "Move the Start of Line {line}"
+  description: "What a change of the film's lines was, for Undo and Redo to name it: the start of the line numbered line moved."
+  placeholders:
+    line: { type: "int", example: "12" }
+correctSubmit:
+  message: "Save"
+  description: "Button under the fields that edit a subtitle line: keeps what they hold and plays on."
+correctTranslation:
+  message: "Translation"
+  description: "Label of the field that edits the translation of the selected subtitle line."
+correctUndo:
+  message: "Undo “{step}”"
+  description: "Edit menu item and shortcut row: takes back the last change of the film's lines, named."
+  placeholders:
+    step: { type: "String", example: "Edit Line 12" }
+correctUndone:
+  message: "Undone: {step}"
+  description: "Message on the picture after Undo took back a change of the film's lines."
+  placeholders:
+    step: { type: "String", example: "Edit Line 12" }
+correctUnreadable:
+  message: "This film’s corrections couldn’t be read, so they can’t be changed"
+  description: "Message on the picture when the film's corrections file could not be read, which is then not written over."
 feedbackAttachEnv:
   message: "App and System Versions"
   description: "Check box attaching the app's and the system's versions."
@@ -2833,6 +2971,30 @@ precheckTranslateRejected:
 precheckTranslateTimeout:
   message: "The AI service didn't respond, even after automatic retries. Retry later."
   description: "Card of a job whose translation failed because the AI service never answered."
+privacyNoBrowse:
+  message: "Offline mode is on, so web pages are not opened. Turn it off in Privacy to browse."
+  description: "A message bar of the in-app browser when a page is asked for while offline mode is on."
+privacyNoCloudAI:
+  message: "Offline mode is on, so the cloud AI service is not used. Switch to Ollama or LM Studio in AI Service, or turn offline mode off."
+  description: "Why nothing was translated, proofread or explained while offline mode is on and the AI service is in the cloud; also the sidebar's status line then."
+privacyNoDownload:
+  message: "Offline mode is on, so videos are not downloaded from links. Choose a local video, or turn offline mode off in Privacy."
+  description: "Why a link was not added while offline mode is on."
+privacyNoNetworkDownload:
+  message: "Offline mode is on, so nothing is downloaded."
+  description: "Why a program or a speech model was not downloaded while offline mode is on."
+privacyNoSignIn:
+  message: "Offline mode is on, so you cannot sign in."
+  description: "Why Google sign-in did not start while offline mode is on."
+privacyNoUpdate:
+  message: "Offline mode is on, so Kando does not check for updates."
+  description: "A message bar when Check for Updates is chosen while offline mode is on."
+privacyNoUpload:
+  message: "Offline mode is on, so nothing is uploaded."
+  description: "The player's upload capsule while offline mode is on."
+privacyNoYtdlpUpdate:
+  message: "Offline mode is on, so yt-dlp is not updated."
+  description: "A message bar when a failed card's Update yt-dlp is pressed while offline mode is on."
 queueAlreadyInLibrary:
   message: "This video is already in the library."
   description: "Message bar, and the reason kando add and the MCP server give, when the video added has already been processed in the open library. The bar offers to open it."
@@ -3306,6 +3468,9 @@ readinessMissingTools:
   description: "The sidebar's status line when programs a job needs are not installed, with their names joined by precheckToolSeparator."
   placeholders:
     tools: { type: "String", example: "yt-dlp、ffmpeg" }
+readinessOffline:
+  message: "Offline mode · only what runs on this computer"
+  description: "The sidebar's status line when a job can start and offline mode is on."
 readinessReady:
   message: "Ready to process"
   description: "The sidebar's status line when a job can start."
@@ -3932,6 +4097,9 @@ settingsKeywordsLook:
 settingsKeywordsPhone:
   message: "iPhone Android phone mobile sync pair QR code Wi-Fi network device revoke"
   description: "Words besides its title the settings search finds the Phone Sync section by, separated by spaces."
+settingsKeywordsPrivacy:
+  message: "privacy offline network internet cache clear"
+  description: "Words the settings search finds the Privacy section by, besides its title."
 settingsKeywordsShortcuts:
   message: "keyboard keys commands"
   description: "Search keywords of the Keyboard Shortcuts settings section, separated by spaces, besides its title. Not shown."
@@ -4165,6 +4333,124 @@ settingsPhoneSwitch:
 settingsPhoneSwitchHint:
   message: "Watch this computer's films in Kando on an iPhone or Android phone on the same network."
   description: "Hint under the Phone Sync switch."
+settingsPrivacyCache:
+  message: "Rebuildable cache"
+  description: "Row title in Settings › Privacy: the caches Clear Cache removes."
+settingsPrivacyCacheHint:
+  message: "Site thumbnails, cover frames and copies made for playback. They are made again when needed; subtitles and videos are not touched."
+  description: "Under Rebuildable cache in Settings › Privacy."
+settingsPrivacyClearCache:
+  message: "Clear Cache"
+  description: "Button in Settings › Privacy that removes the rebuildable cache."
+settingsPrivacyCleared:
+  message: "Cleared {size}. Subtitles and videos were kept."
+  description: "Under Rebuildable cache after Clear Cache, with how much it freed."
+  placeholders:
+    size: { type: "String", example: "312.4 MB" }
+settingsPrivacyClearedNothing:
+  message: "There was no cache to clear."
+  description: "Under Rebuildable cache after Clear Cache found nothing."
+settingsPrivacyClearFailed:
+  message: "Some files could not be removed: {error}"
+  description: "Under Rebuildable cache after Clear Cache left files, with the system's reason in English."
+  placeholders:
+    error: { type: "String", example: "permission denied" }
+settingsPrivacyClearing:
+  message: "Clearing…"
+  description: "The Clear Cache button while the files are being removed."
+settingsPrivacyData:
+  message: "Data on this computer"
+  description: "Section label in Settings › Privacy above the cache row."
+settingsPrivacyOffline:
+  message: "Offline mode"
+  description: "Switch in Settings › Privacy that stops every network use."
+settingsPrivacyOfflineHint:
+  message: "Kando doesn't download videos from links, call a cloud AI service, upload, or download components and models. Speech recognition still runs on this computer, and so do translation and proofreading with Ollama or LM Studio."
+  description: "Under the Offline mode switch."
+settingsPrivacySaveFailed:
+  message: "Couldn't save offline mode: {error}"
+  description: "Error when the offline switch could not be saved to settings.json, with the system's reason in English."
+  placeholders:
+    error: { type: "String", example: "permission denied" }
+settingsPrivacyStepAI:
+  message: "Translation, proofreading and explanations"
+  description: "Row of the network table in Settings › Privacy: what the AI service does."
+settingsPrivacyStepAICloud:
+  message: "{service}, which receives the subtitle text"
+  description: "Under the AI row when the AI service is not on this computer, with its name."
+  placeholders:
+    service: { type: "String", example: "EveryAPI" }
+settingsPrivacyStepAILocal:
+  message: "{service}, running on this computer"
+  description: "Under the AI row when the AI service runs on this computer, with its name."
+  placeholders:
+    service: { type: "String", example: "Ollama" }
+settingsPrivacyStepBrowse:
+  message: "Browse"
+  description: "Row of the network table in Settings › Privacy: the in-app browser."
+settingsPrivacyStepBrowseDetail:
+  message: "Web pages you open in Kando"
+  description: "Under the Browse row of the network table."
+settingsPrivacyStepDownload:
+  message: "Download from a link"
+  description: "Row of the network table in Settings › Privacy: yt-dlp downloading a video."
+settingsPrivacyStepDownloadDetail:
+  message: "yt-dlp, only when you add a link"
+  description: "Under the download row of the network table."
+settingsPrivacyStepPhone:
+  message: "Phone Sync"
+  description: "Row of the network table in Settings › Privacy: serving films to paired phones."
+settingsPrivacyStepPhoneDetail:
+  message: "Your local network only, with phones you paired"
+  description: "Under the Phone Sync row of the network table: offline mode does not stop it."
+settingsPrivacySteps:
+  message: "What uses the network"
+  description: "Section label in Settings › Privacy above the table of steps."
+settingsPrivacyStepSpeech:
+  message: "Speech recognition"
+  description: "Row of the network table in Settings › Privacy."
+settingsPrivacyStepSpeechDetail:
+  message: "whisper.cpp, with the model on this computer"
+  description: "Under the speech recognition row of the network table."
+settingsPrivacyStepTools:
+  message: "Components and speech models"
+  description: "Row of the network table in Settings › Privacy: downloading yt-dlp, ffmpeg, whisper-cli and models."
+settingsPrivacyStepToolsDetail:
+  message: "Only when you press Download"
+  description: "Under the components row of the network table."
+settingsPrivacyStepUpdates:
+  message: "Update checks"
+  description: "Row of the network table in Settings › Privacy."
+settingsPrivacyStepUpdatesDetail:
+  message: "Once a day, and when you choose Check for Updates"
+  description: "Under the update row of the network table."
+settingsPrivacyStepUpdatesOffline:
+  message: "Offline mode stops the check you start; the daily check still runs"
+  description: "Under the update row while offline mode is on: the updater's own daily check cannot be stopped yet."
+settingsPrivacyStepUpload:
+  message: "Upload"
+  description: "Row of the network table in Settings › Privacy."
+settingsPrivacyStepUploadDetail:
+  message: "Object storage, only when you press Upload"
+  description: "Under the upload row of the network table."
+settingsPrivacyTagCloud:
+  message: "Cloud · sends subtitle text"
+  description: "Tag of the AI row when the service is in the cloud and offline mode is off."
+settingsPrivacyTagLAN:
+  message: "Local network"
+  description: "Tag of the Phone Sync row."
+settingsPrivacyTagLocal:
+  message: "This computer only"
+  description: "Tag of a row that never uses the network."
+settingsPrivacyTagManual:
+  message: "When you ask"
+  description: "Tag of a row that uses the network only when the user starts it."
+settingsPrivacyTagNetwork:
+  message: "Network"
+  description: "Tag of a row that uses the network."
+settingsPrivacyTagOff:
+  message: "Off while offline"
+  description: "Tag of a row offline mode stops."
 settingsSaveFailed:
   message: "Couldn't save the settings: {error}"
   description: "Error in the settings window and the sidebar's status row when a setting changed on the General, Translate, Subtitle Style or Account & Upload page could not be saved to settings.json."
@@ -4197,6 +4483,9 @@ settingsSectionLook:
 settingsSectionPhone:
   message: "Phone Sync"
   description: "Settings section and sidebar item: serving this computer's films to Kando on phones over the local network."
+settingsSectionPrivacy:
+  message: "Privacy"
+  description: "Settings section and sidebar item: offline mode, what uses the network, and the cache."
 settingsSectionShortcuts:
   message: "Keyboard Shortcuts"
   description: "Settings section and sidebar item: the table of keyboard shortcuts."
@@ -4692,6 +4981,365 @@ sourceXigua:
 sourceYouku:
   message: "Youku"
   description: "Name of the Chinese video site Youku (youku.com)."
+subscribeSection:
+  message: "Subscriptions"
+  description: "Title of the sidebar's list of subscriptions: channels, uploaders' spaces, collections and playlists whose new videos Kando adds."
+subscribeAddButton:
+  message: "Add Subscription"
+  description: "Name of the + button at the end of the sidebar's 订阅 title, and title of the dialog it opens, where a link to a channel, collection or playlist is pasted."
+subscribeAddTooltip:
+  message: "Paste a link to a channel, collection or playlist"
+  description: "Tooltip of the sidebar's + button that adds a subscription."
+subscribeEmpty:
+  message: "Paste a link to a channel, collection or playlist to subscribe."
+  description: "Note under the sidebar's 订阅 title while there is no subscription."
+subscribeChecking:
+  message: "Checking…"
+  description: "Shown at the end of a subscription's sidebar row, and on its page's check button, while Kando lists its videos."
+subscribeWarnRenamed:
+  message: "Renamed on the site"
+  description: "Tooltip of the orange ! on a subscription's sidebar row: the channel or list now has another name on its site."
+subscribeWarnGone:
+  message: "Deleted on the site"
+  description: "Tooltip of the orange ! on a subscription's sidebar row: the channel or list no longer exists on its site."
+subscribeRowNew:
+  message: "{name}, {count, plural, one {# new video} other {# new videos}}"
+  description: "Accessible name of a subscription's sidebar row that has new videos waiting to be added."
+  placeholders:
+    name: { type: "String", example: "Earth Science" }
+    count: { type: "int", example: "2" }
+subscribeKindChannel:
+  message: "Channel"
+  description: "What a subscription follows: a YouTube (or other site's) channel."
+subscribeKindSpace:
+  message: "Uploader"
+  description: "What a subscription follows: a bilibili uploader's space (UP 主)."
+subscribeKindPlaylist:
+  message: "Playlist"
+  description: "What a subscription follows: a playlist."
+subscribeKindCollection:
+  message: "Collection"
+  description: "What a subscription follows: a bilibili collection (合集)."
+subscribeKicker:
+  message: "{site} · {kind}"
+  description: "Small line above a subscription page's title: the site and what is followed, such as YouTube · Channel."
+  placeholders:
+    site: { type: "String", example: "YouTube" }
+    kind: { type: "String", example: "Channel" }
+subscribePausedTag:
+  message: "Paused"
+  description: "Tag after a paused subscription's kicker."
+subscribeStatusPaused:
+  message: "Paused, not checked for new videos"
+  description: "Status line of a paused subscription's page."
+subscribeStatusGone:
+  message: "Deleted on the site, no longer checked"
+  description: "Status line of the page of a subscription whose list was deleted on its site."
+subscribeStatusNever:
+  message: "Not checked yet"
+  description: "Status line part of a subscription that was never checked."
+subscribeStatusChecked:
+  message: "Checked {when}"
+  description: "Status line part: when the subscription was last checked, such as 'Checked 5 minutes ago'."
+  placeholders:
+    when: { type: "String", example: "5 minutes ago" }
+subscribeAgoNow:
+  message: "just now"
+  description: "When a subscription was last checked: less than a minute ago."
+subscribeAgoMinutes:
+  message: "{count, plural, one {# minute ago} other {# minutes ago}}"
+  description: "When a subscription was last checked, in minutes."
+  placeholders:
+    count: { type: "int", example: "5" }
+subscribeAgoHours:
+  message: "{count, plural, one {# hour ago} other {# hours ago}}"
+  description: "When a subscription was last checked, in hours."
+  placeholders:
+    count: { type: "int", example: "3" }
+subscribeAgoDays:
+  message: "{count, plural, one {# day ago} other {# days ago}}"
+  description: "When a subscription was last checked, in days."
+  placeholders:
+    count: { type: "int", example: "2" }
+subscribeCadenceOpenNote:
+  message: "checked each time Kando opens"
+  description: "Status line part: how often the subscription is checked."
+subscribeCadenceHourlyNote:
+  message: "checked every hour"
+  description: "Status line part: how often the subscription is checked."
+subscribeCadenceDailyNote:
+  message: "checked once a day"
+  description: "Status line part: how often the subscription is checked."
+subscribeAddedCount:
+  message: "{count, plural, one {# added} other {# added}}"
+  description: "Status line part: how many videos the subscription added to the library."
+  placeholders:
+    count: { type: "int", example: "4" }
+subscribeStatusLine:
+  message: "{checked} · {cadence} · {added}"
+  description: "Status line of a subscription's page: when it was last checked, how often it is, and how many videos it added."
+  placeholders:
+    checked: { type: "String", example: "Checked 5 minutes ago" }
+    cadence: { type: "String", example: "checked every hour" }
+    added: { type: "String", example: "4 added" }
+subscribeStatusFailed:
+  message: "The last check failed: {error}"
+  description: "Line under a subscription page's status when its last check failed for a reason other than the list being deleted. The error is yt-dlp's, in English."
+  placeholders:
+    error: { type: "String", example: "Unable to download webpage" }
+subscribeCheckNow:
+  message: "Check Now"
+  description: "Button of a subscription's page that lists its videos now."
+subscribePause:
+  message: "Pause"
+  description: "Button of a subscription's page that stops checking it until it is resumed."
+subscribeResume:
+  message: "Resume"
+  description: "Button of a paused subscription's page that checks it again."
+subscribeUnsubscribe:
+  message: "Unsubscribe"
+  description: "Button of a subscription's page, and of its banner, that removes the subscription; the videos it added stay."
+subscribeRenamedTitle:
+  message: "“{name}” has a new name"
+  description: "Title of the banner on a subscription's page when its site renamed the channel or list."
+  placeholders:
+    name: { type: "String", example: "Earth Science" }
+subscribeRenamedBody:
+  message: "It's now called “{renamed}”. The link is the same, so it is checked as before, and the videos added stay as they are."
+  description: "Text of the banner on a subscription's page when its site renamed the channel or list."
+  placeholders:
+    renamed: { type: "String", example: "Earth Science Lab" }
+subscribeUseNewName:
+  message: "Keep Subscribed with the New Name"
+  description: "Button of the rename banner: the subscription takes the site's new name."
+subscribeKeepOldName:
+  message: "Keep Subscribed with the Old Name"
+  description: "Button of the rename banner: the subscription keeps the name it had."
+subscribeGoneTitle:
+  message: "“{name}” was deleted on the site"
+  description: "Title of the banner on a subscription's page when its channel or list no longer exists on its site."
+  placeholders:
+    name: { type: "String", example: "日语听力每日一练" }
+subscribeGoneBody:
+  message: "No new videos can be found any more. {count, plural, one {The # video added and its subtitles stay} other {The # videos added and their subtitles stay}} on this computer, even if you unsubscribe."
+  description: "Text of the banner on a subscription's page when its list was deleted on its site."
+  placeholders:
+    count: { type: "int", example: "6" }
+subscribeStopChecking:
+  message: "Keep in the Sidebar, Stop Checking"
+  description: "Button of the banner of a subscription whose list was deleted: keep it, never check it again."
+subscribePendingTitle:
+  message: "New Videos"
+  description: "Heading of the list of new videos waiting on a subscription's page."
+subscribePendingCount:
+  message: "{count, plural, one {# waiting for you} other {# waiting for you}}"
+  description: "After the New Videos heading: how many wait to be added or skipped."
+  placeholders:
+    count: { type: "int", example: "2" }
+subscribeAddAll:
+  message: "Add All"
+  description: "Button that adds every waiting new video of a subscription to the queue."
+subscribeSkipAll:
+  message: "Skip All"
+  description: "Button that skips every waiting new video of a subscription."
+subscribeAddOne:
+  message: "Add"
+  description: "Button of a waiting new video that adds it to the queue."
+subscribeSkipOne:
+  message: "Skip"
+  description: "Button of a waiting new video that skips it."
+subscribeAddOneLabel:
+  message: "Add “{title}”"
+  description: "Accessible name of a waiting video's Add button."
+  placeholders:
+    title: { type: "String", example: "Linear transformations" }
+subscribeSkipOneLabel:
+  message: "Skip “{title}”"
+  description: "Accessible name of a waiting video's Skip button."
+  placeholders:
+    title: { type: "String", example: "Linear transformations" }
+subscribeMisfit:
+  message: "doesn't fit the rules now"
+  description: "After a waiting video's length: it does not pass the subscription's filter as it is set now."
+subscribeRules:
+  message: "Rules"
+  description: "Heading of a subscription's rules."
+subscribeWhenNew:
+  message: "When There Are New Videos"
+  description: "Row of a subscription's rules: what happens to new videos."
+subscribeWhenNewAuto:
+  message: "They join the queue and are downloaded and subtitled by the rules"
+  description: "Note of the When There Are New Videos row while Add Automatically is chosen."
+subscribeWhenNewAsk:
+  message: "They're listed here first and start once you add them"
+  description: "Note of the When There Are New Videos row while Ask Me First is chosen."
+subscribeModeAuto:
+  message: "Add Automatically"
+  description: "Choice of the When There Are New Videos row."
+subscribeModeAsk:
+  message: "Ask Me First"
+  description: "Choice of the When There Are New Videos row."
+subscribeOnly:
+  message: "Only"
+  description: "Row of a subscription's rules: which new videos it takes."
+subscribeOnlyNote:
+  message: "Videos that don't fit are skipped and not downloaded"
+  description: "Note of the Only row."
+subscribeFilterAll:
+  message: "All"
+  description: "Choice of the Only row: every new video."
+subscribeFilterLong:
+  message: "Over 5 Minutes"
+  description: "Choice of the Only row: videos longer than five minutes."
+subscribeFilterKeywords:
+  message: "Title Keywords"
+  description: "Choice of the Only row: videos whose titles hold one of the keywords typed below."
+subscribeKeywords:
+  message: "Keywords"
+  description: "Label of the field of a subscription's title keywords."
+subscribeKeywordsHint:
+  message: "Only titles with one of these words, separated by commas"
+  description: "Placeholder of the field of a subscription's title keywords."
+subscribeCadence:
+  message: "Check for New Videos"
+  description: "Row of a subscription's rules: how often it is checked."
+subscribeCadenceNote:
+  message: "Only while Kando is open, never in the background"
+  description: "Note of the Check for New Videos row."
+subscribeCadenceOpen:
+  message: "On Open"
+  description: "Choice of the Check for New Videos row: each time Kando opens."
+subscribeCadenceHourly:
+  message: "Hourly"
+  description: "Choice of the Check for New Videos row."
+subscribeCadenceDaily:
+  message: "Daily"
+  description: "Choice of the Check for New Videos row."
+subscribeAddedTitle:
+  message: "Added"
+  description: "Heading of the list of videos a subscription added."
+subscribeAddedNone:
+  message: "No videos added yet."
+  description: "Shown under Added while the subscription added none."
+subscribeStageQueued:
+  message: "Waiting"
+  description: "State of a video a subscription added: waiting in the queue."
+subscribeStageRunning:
+  message: "Processing"
+  description: "State of a video a subscription added: being downloaded, transcribed or translated."
+subscribeStageDone:
+  message: "Done"
+  description: "State of a video a subscription added: its subtitles are ready."
+subscribeStageFailed:
+  message: "Failed"
+  description: "State of a video a subscription added: its job failed or was stopped."
+subscribeStageGone:
+  message: "Removed"
+  description: "State of a video a subscription added that is no longer in the library."
+subscribeNoteSubscribed:
+  message: "Subscribed to “{name}”. The videos already there are left out; new ones follow the rules below."
+  description: "Message on a new subscription's page."
+  placeholders:
+    name: { type: "String", example: "Earth Science" }
+subscribeNoteAlready:
+  message: "You're already subscribed to this."
+  description: "Message on a subscription's page when its link was pasted again to subscribe."
+subscribeNoteQueued:
+  message: "{count, plural, one {Found # new video and added it to the queue.} other {Found # new videos and added them to the queue.}}"
+  description: "Message on a subscription's page after a check queued its new videos."
+  placeholders:
+    count: { type: "int", example: "2" }
+subscribeNoteHeld:
+  message: "{count, plural, one {Found # new video. It's waiting for you below.} other {Found # new videos. They're waiting for you below.}}"
+  description: "Message on a subscription's page after a check listed its new videos for the user to add or skip."
+  placeholders:
+    count: { type: "int", example: "2" }
+subscribeNoteNone:
+  message: "No new videos."
+  description: "Message on a subscription's page after a check found nothing new."
+subscribeNoteSkipped:
+  message: "{count, plural, one {Skipped # that doesn't fit the rules.} other {Skipped # that don't fit the rules.}}"
+  description: "Second sentence of a check's message: new videos the filter skipped."
+  placeholders:
+    count: { type: "int", example: "1" }
+subscribeNoteNotQueued:
+  message: "They couldn't join the queue: {reason} They're listed below."
+  description: "Message on a subscription's page when new videos it should have queued could not be: the reason is another message, such as a tool that is missing."
+  placeholders:
+    reason: { type: "String", example: "Install yt-dlp first." }
+subscribeNoteAdded:
+  message: "{count, plural, one {Added # video to the queue.} other {Added # videos to the queue.}}"
+  description: "Message on a subscription's page after waiting videos were added."
+  placeholders:
+    count: { type: "int", example: "2" }
+subscribeNoteRenamed:
+  message: "Now called “{name}”, still subscribed."
+  description: "Message on a subscription's page after it took its site's new name."
+  placeholders:
+    name: { type: "String", example: "Earth Science Lab" }
+subscribeNoteKeptName:
+  message: "Kept the old name, still subscribed."
+  description: "Message on a subscription's page after it kept its name although its site renamed it."
+subscribeNoteStopped:
+  message: "Kept “{name}”. It's no longer checked."
+  description: "Message on a subscription's page after it was kept, without checks, once its list was deleted."
+  placeholders:
+    name: { type: "String", example: "日语听力每日一练" }
+subscribeNoteFailed:
+  message: "Couldn't check: {error}"
+  description: "Message on a subscription's page after a check failed. The error is yt-dlp's, in English, or why it took too long."
+  placeholders:
+    error: { type: "String", example: "Unable to download webpage" }
+subscribeNoteGone:
+  message: "The site says this list no longer exists."
+  description: "Message on a subscription's page after a check found that its list was deleted."
+subscribeUnsubscribed:
+  message: "Unsubscribed from “{name}”. The videos added and their subtitles stay."
+  description: "Message in the library's message bar after a subscription was removed."
+  placeholders:
+    name: { type: "String", example: "Earth Science" }
+subscribeAddDescription:
+  message: "Paste a link to a YouTube channel or playlist, or a bilibili uploader's space or collection. The videos already there are left out; new ones are added by the rules you set."
+  description: "Text of the Add Subscription dialog."
+subscribeAddLink:
+  message: "Link"
+  description: "Accessible name of the Add Subscription dialog's link field."
+subscribeAddPlaceholder:
+  message: "youtube.com/@channel or space.bilibili.com/…"
+  description: "Placeholder of the Add Subscription dialog's link field."
+subscribeAddSubmit:
+  message: "Subscribe"
+  description: "Button of the Add Subscription dialog that reads the list and subscribes to it."
+subscribeAddCancel:
+  message: "Cancel"
+  description: "Button of the Add Subscription dialog."
+subscribeAddReading:
+  message: "Reading the list…"
+  description: "Shown in the Add Subscription dialog while yt-dlp lists the videos of the link."
+subscribeAddNotList:
+  message: "This isn't a link to a channel, collection or playlist."
+  description: "Error of the Add Subscription dialog for a link that is one video or not a link."
+subscribeAddCannotList:
+  message: "Subscriptions need yt-dlp, which isn't installed yet."
+  description: "Error of the Add Subscription dialog when Kando has no yt-dlp to list videos with."
+subscribeAddMenu:
+  message: "Add Subscription…"
+  description: "Item of the File menu (and the command palette) that opens the Add Subscription dialog."
+subscribeLibraryMissing:
+  message: "Its library “{name}” is no longer in the list of libraries."
+  description: "Why a subscription's new videos could not be queued: the library it adds them to was taken off the list."
+  placeholders:
+    name: { type: "String", example: "My Films" }
+subscribeLoadFailed:
+  message: "Couldn't read the subscriptions, so changes to them aren't saved: {error}"
+  description: "Shown under the sidebar's lists when subscriptions.json could not be read at startup; Kando then leaves the file as it is."
+  placeholders:
+    error: { type: "String", example: "unexpected end of JSON input" }
+subscribeSaveFailed:
+  message: "Couldn't save the subscriptions: {error}"
+  description: "Shown under the sidebar's lists when subscriptions.json could not be written."
+  placeholders:
+    error: { type: "String", example: "permission denied" }
 updatesCheck:
   message: "Check for Updates…"
   description: "Item of the app menu (and the command palette) that checks for a newer version of Kando and shows the update window."

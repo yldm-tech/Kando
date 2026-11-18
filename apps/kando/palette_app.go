@@ -578,6 +578,9 @@ func (a *app) paletteTranslator(noAI func(*core.Scope) string) (t media.ChatTran
 	if everyAPICLIMissing(t) {
 		return t, everyAPIMissing
 	}
+	if t.Offline && !t.Local() {
+		return t, locales.PrivacyNoCloudAI
+	}
 	if t.Credential != nil && a.side.ready.signInDone && a.side.ready.signInErr != nil {
 		return t, everyAPISignInFailed(a.side.ready.signInErr)
 	}

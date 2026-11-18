@@ -118,7 +118,7 @@ func (u updateRows) Render(cx *core.Scope) core.Node {
 	// TODO(nsgo#32): say under 版本 the newer version the last check found or when that check was, and add the switches 自动检查更新 and 自动下载并安装更新 (with its hint) where Kando can update itself, as MyGo's updater plugin reported and set them; NSGo's updater has no such state or settings https://github.com/nsgo-dev/nsgo/issues/32
 	return form.Row{Title: locales.SettingsGeneralVersion(cx), Trailing: []core.Node{
 		form.Value(static(u.s.version), 13),
-		form.Button{Text: locales.UpdatesCheck(cx), OnPress: live.Do(a, a.CheckForUpdates), TestID: "settings-check-updates"},
+		form.Button{Text: locales.UpdatesCheck(cx), Disabled: live.Func(a, a.Offline), OnPress: live.Do(a, a.CheckForUpdates), TestID: "settings-check-updates"},
 	}}
 }
 

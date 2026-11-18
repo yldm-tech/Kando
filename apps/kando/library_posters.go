@@ -52,7 +52,10 @@ func (a *app) ensurePoster(item films.Film) {
 	tools, _ := a.pipeline.(media.Tools)
 	cover := coverSources{ffmpeg: tools.FFmpeg, video: video, dest: dest}
 	if dir := posterFolder(a.lib.posterDir, video); item.Thumbnail != "" && dir != "" {
-		cover.site, cover.siteCache = item.Thumbnail, siteThumbnailPath(dir, item.Thumbnail)
+		// Offline mode fetches no site's picture: only one fetched before is used.
+		if cache := siteThumbnailPath(dir, item.Thumbnail); !a.privacy.offline || fileExists(cache) {
+			cover.site, cover.siteCache = item.Thumbnail, cache
+		}
 	}
 	if cover.ffmpeg == "" && cover.site == "" && !fileExists(dest) {
 		a.markPosterMiss(video)
@@ -264,8 +267,12 @@ func (a *app) ensureThumbnail(item films.Film) {
 	if a.lib.thumbBusy == nil {
 		a.lib.thumbBusy = map[string]bool{}
 	}
-	a.lib.thumbBusy[address] = true
 	dest := siteThumbnailPath(a.thumbnailFolder(item), address)
+	// Offline mode fetches no site's picture; one not fetched yet is tried again once it is off.
+	if a.privacy.offline && !fileExists(dest) {
+		return
+	}
+	a.lib.thumbBusy[address] = true
 	update := a.update
 	go func() {
 		var err error

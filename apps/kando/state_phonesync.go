@@ -338,7 +338,7 @@ func (s phoneSource) Films(ctx context.Context, lib phonesync.Library) ([]phones
 			continue
 		}
 		f := phonesync.Film{ID: phoneFilmID(item), Title: remoteFilmTitle(item), Source: films.SourceOf(item), Spoken: films.Heard(item), Untranslated: item.Untranslated,
-			Duration: shelf.durations[item.VideoPath], Video: item.VideoPath, Subtitles: item.SubtitlePath, Transcript: media.TranscriptOf(item.VideoPath)}
+			Duration: shelf.durations[item.VideoPath], Video: item.VideoPath, Subtitles: item.SubtitlePath, Transcript: media.TranscriptOf(item.VideoPath), Corrections: media.CorrectionsPath(item.VideoPath)}
 		// A film that was not translated, as one heard in the language its subtitles are for, names no translation.
 		if item.TranslationErr == "" && !item.SameLanguage {
 			f.Translation = item.Language

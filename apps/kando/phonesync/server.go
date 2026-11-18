@@ -38,8 +38,8 @@ type Film struct {
 	Duration time.Duration
 	// Video is its video file, Poster its poster's file, "" for none yet.
 	Video, Poster string
-	// Subtitles is its bilingual subtitles' file and Transcript its original lines' (media.TranscriptOf), either "" or missing for a film without; their times say when it last changed besides its video's (psync.Film.Updated).
-	Subtitles, Transcript string
+	// Subtitles is its bilingual subtitles' file, Transcript its original lines' (media.TranscriptOf) and Corrections the user's corrections of its lines (media.CorrectionsPath), each "" or missing for a film without; their times say when it last changed besides its video's (psync.Film.Updated), so a phone that has the film reads its lines again once the user corrects one.
+	Subtitles, Transcript, Corrections string
 }
 
 // ErrNotFound is a Source's error for a library or film it does not serve, or a film without what was asked for.
@@ -684,7 +684,7 @@ type served struct {
 	film psync.Film
 }
 
-// playable is the films of films whose video is on disk, with what their files tell: the video's size, and the latest time the video or a subtitle file changed.
+// playable is the films of films whose video is on disk, with what their files tell: the video's size, and the latest time the video, a subtitle file or the corrections file changed.
 func playable(films []Film) []served {
 	var out []served
 	for _, f := range films {
@@ -693,7 +693,7 @@ func playable(films []Film) []served {
 			continue
 		}
 		updated := info.ModTime()
-		for _, sub := range []string{f.Subtitles, f.Transcript} {
+		for _, sub := range []string{f.Subtitles, f.Transcript, f.Corrections} {
 			if si, err := os.Stat(sub); sub != "" && err == nil && si.ModTime().After(updated) {
 				updated = si.ModTime()
 			}

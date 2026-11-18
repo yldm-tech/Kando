@@ -13,6 +13,7 @@ import (
 	"kando/apps/kando/live"
 	"kando/apps/kando/locales"
 	"kando/apps/kando/locales/testlocale"
+	"kando/apps/kando/theme"
 	"kando/packages/media"
 
 	"github.com/nsgo-dev/nsgo/core"
@@ -61,6 +62,8 @@ type fakeApp struct {
 	untranslated            string
 	yield                   bool
 	shortcutQuery           string
+	offline, aiLocal        bool
+	cacheClear              CacheClear
 	calls                   []string
 }
 
@@ -209,6 +212,11 @@ func (f *fakeApp) SetUntranslated(mode string)     { f.untranslated = mode }
 func (f *fakeApp) YieldSubs() bool                 { return f.yield }
 func (f *fakeApp) SetYieldSubs(on bool)            { f.yield = on }
 func (f *fakeApp) ShortcutQuery() *string          { return &f.shortcutQuery }
+func (f *fakeApp) Offline() bool                   { return f.offline }
+func (f *fakeApp) SetOffline(on bool)              { f.call("offline " + strconv.FormatBool(on)); f.offline = on }
+func (f *fakeApp) AILocal() bool                   { return f.aiLocal }
+func (f *fakeApp) ClearCache()                     { f.call("clear cache"); f.cacheClear = CacheClear{Busy: true} }
+func (f *fakeApp) CacheClear() CacheClear          { return f.cacheClear }
 func (f *fakeApp) Shortcuts(cx *core.Scope) []Shortcut {
 	return []Shortcut{{Group: "看懂", Label: "设置…", Key: "mod+,"}, {Group: "显示", Label: "全屏", Key: "f"}, {Group: "显示", Label: "返回资料库", Key: "escape"}}
 }
@@ -927,5 +935,36 @@ func TestPhonePageSaysNothingOfAFirewallOnLinux(t *testing.T) {
 	app := startOn(t, a, core.OSLinux)
 	if app.Exists(whole(testlocale.Messages().SettingsPhoneFirewall("Linux"))) {
 		t.Fatal("a firewall's note on Linux, where no prompt asks")
+	}
+}
+
+// TestWindowTextIsInThePlatformsFont checks that the settings window's text is in the design's font of the platform, and that it follows the interface's language as it changes (the window is built again then, see Window), for the CJK family that language's Han characters take; while the subtitle preview's 默认 lines stay in the system's font rather than taking the window's.
+func TestWindowTextIsInThePlatformsFont(t *testing.T) {
+	for _, os := range []core.OS{core.OSMacOS, core.OSWindows, core.OSLinux} {
+		a := newFakeApp()
+		a.section = SectionLook
+		a.cue = subtitle.Look{Preset: "outline", Shadow: true,
+			Translation: subtitle.Face{Family: subtitle.FontDefault, Size: 30, Color: "#FFFFFF", Bold: true},
+			Original:    subtitle.Face{Family: subtitle.FontDefault, Size: 22, Color: "#FFD60A"}}
+		var root *core.Scope
+		env := testlocale.Environment(core.Environment{OS: os, Idiom: core.IdiomDesktop, AppleKeyboard: os == core.OSMacOS})
+		app := nsgotest.Start(t, func(cx *core.Scope) core.Node {
+			root = cx
+			a.Attach(cx)
+			return Window{App: a, Version: "1.2.3"}
+		}, nsgotest.Size(880, 640), nsgotest.Environment(env))
+		title := app.Find("id:settings-title")
+		if got, want := title.TextStyle.Font.Family, theme.FontFor(os, testlocale.Current()); got != want {
+			t.Errorf("%v: the title in %q, want %q", os, got, want)
+		}
+		msgs := testlocale.Messages()
+		if got := app.Find(whole(msgs.SettingsLookPreviewTranslation())).TextStyle.Font.Family; got != "system-ui" {
+			t.Errorf("%v: the preview's 默认 line in %q, want the system's font", os, got)
+		}
+		root.SetLocale("ja")
+		app.Settle()
+		if got, want := app.Find("id:settings-title").TextStyle.Font.Family, theme.FontFor(os, "ja"); got != want {
+			t.Errorf("%v: in Japanese the title is in %q, want %q", os, got, want)
+		}
 	}
 }

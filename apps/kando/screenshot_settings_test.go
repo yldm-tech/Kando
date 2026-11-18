@@ -24,7 +24,7 @@ import (
 func TestScreenshotsSettings(t *testing.T) {
 	f := newScreenshotFixture(t)
 	shown, models, turbo := settingsShotFolders(t, f)
-	for _, section := range []string{settings.SectionGeneral, settings.SectionSpeech, settings.SectionAI, settings.SectionTranslate, settings.SectionLook, settings.SectionShortcuts, settings.SectionAccount, settings.SectionPhone} {
+	for _, section := range []string{settings.SectionGeneral, settings.SectionSpeech, settings.SectionAI, settings.SectionTranslate, settings.SectionLook, settings.SectionPrivacy, settings.SectionShortcuts, settings.SectionAccount, settings.SectionPhone} {
 		shootSettings(t, f, section, "settings-"+section, shown, models, turbo, func(a *app) { shotCLITool(f, a, true) })
 	}
 	// The 命令行与 MCP card at the end of 通用: before the kando command is installed, with 安装; and once a terminal finds it, after 拷贝配置.
@@ -47,6 +47,8 @@ func TestScreenshotsSettings(t *testing.T) {
 		shotCLITool(f, a, true)
 		shotSignIn(a, "chrome", media.LoginNoAccess)
 	})
+	// 隐私 with offline mode on: every step over the internet off, speech recognition on this computer.
+	shootSettings(t, f, settings.SectionPrivacy, "settings-privacy-offline", shown, models, turbo, func(a *app) { shotCLITool(f, a, true); a.SetOffline(true) })
 	// 手机同步 on, while the page offers a code: its QR code with the address, the code and the fingerprint, and one phone paired.
 	shootSettings(t, f, settings.SectionPhone, "settings-phone-paired", shown, models, turbo, shotPhoneSync)
 	// EveryAPI without a key on a computer without the everyapi program: the row under API Key offers 获取 EveryAPI and 重新检测.

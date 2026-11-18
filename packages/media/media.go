@@ -131,7 +131,7 @@ func Run(ctx context.Context, p Pipeline, job core.Job, language string, report 
 		video := job.VideoPath
 		// same is false once the video is not the file an earlier run heard, as one downloaded again.
 		same := true
-		if local || !downloaded(video) {
+		if local || !Downloaded(video) {
 			if !local {
 				enter(core.StageDownloading)
 			}
@@ -336,8 +336,8 @@ func filmTitle(job core.Job) string {
 	return strings.TrimSuffix(filepath.Base(job.VideoPath), filepath.Ext(job.VideoPath))
 }
 
-// downloaded reports whether a link's job already downloaded its video to path in an earlier run: the file is there, holds something, and no partial download lies beside it, which would mean it never merged and Download has to fetch it again.
-func downloaded(path string) bool {
+// Downloaded reports whether a link's job already downloaded its video to path in an earlier run: the file is there, holds something, and no partial download lies beside it, which would mean it never merged and Download has to fetch it again.
+func Downloaded(path string) bool {
 	if path == "" {
 		return false
 	}
