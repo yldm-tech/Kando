@@ -362,7 +362,7 @@ func TestSubscriptionsAreKept(t *testing.T) {
 	b := newApp(&fakePipeline{}, func(fn func()) { fn() })
 	b.settingsPath = a.settingsPath
 	b.subscribeLoad()
-	if len(b.subs.store.Subs) != 1 || b.subs.store.Subs[0].Name != "Earth Science" || b.subs.store.Subs[0].Library != "/films.kando" {
+	if len(b.subs.store.Subs) != 1 || b.subs.store.Subs[0].Name != "Earth Science" || b.subs.store.Subs[0].Library != filepath.Clean("/films.kando") {
 		t.Fatalf("read back %+v", b.subs.store.Subs)
 	}
 	path := filepath.Join(dir, "subscriptions.json")
@@ -397,7 +397,8 @@ func TestSubscribeChecksOnceItsLibraryIsUnlocked(t *testing.T) {
 	if a.subs.checking != "" || len(p.calls) != 0 {
 		t.Fatal("a locked library's subscription was checked")
 	}
-	a.lock.unlocked = "/videos"
+	// The unlock dialog keeps the unlocked library cleaned, a native path on every OS.
+	a.lock.unlocked = filepath.Clean("/videos")
 	refresh(tt, a)
 	if got := nextCall(t, p); got.source != testSubChannel {
 		t.Fatalf("listed %+v", got)
