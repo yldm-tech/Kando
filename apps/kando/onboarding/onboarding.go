@@ -181,7 +181,7 @@ func (v View) Render(cx *core.Scope) core.Node {
 }
 
 // sheetRadius is the sheet's corner radius: the platform's dialogs' in the design (theme.RadiiOf), 8 on Windows and 12 on Linux, but no more than ui.RadiusDialog, because a bare ui.Dialog clips what it holds at ui.RadiusDialog - 1 whatever its own CornerRadius, so macOS's 20 would round only the clear box and its shadow while the face stayed at 15.
-// TODO(nsgo): let a bare ui.Dialog's clip follow its Style's CornerRadius (ui/dialog.go sets RadiusDialog - 1), so the sheet can take macOS's 20 from theme.RadiiOf.
+// TODO(nsgo#669): let a bare ui.Dialog's clip follow its Style's CornerRadius (ui/dialog.go sets RadiusDialog - 1), so the sheet can take macOS's 20 from theme.RadiiOf https://github.com/nsgo-dev/nsgo/issues/669
 func sheetRadius(cx *core.Scope) core.Points { return min(theme.RadiiOf(cx).Dialog, ui.RadiusDialog) }
 
 // sheet is what the dialog holds, built as it opens: the art and the step side by side, on the sheet's face with its hairline rim.
