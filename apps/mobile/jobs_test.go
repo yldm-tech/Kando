@@ -143,7 +143,7 @@ func TestARefusedLinkSaysWhyAndAnAskedOneIsPutBeforeTheUser(t *testing.T) {
 	p.app.Type("id:add-link", "https://youtu.be/dQw4w9WgXcQ")
 	p.app.Press("id:add-send")
 	p.app.WaitUntil(wait, func() bool { return len(d.Pending()) == 1 })
-	p.app.WaitUntil(wait, func() bool { return strings.Contains(p.texts("id:toasts"), msgs.JobsSentPending("Studio")) })
+	p.app.WaitUntil(wait, func() bool { return p.app.Exists("id:toasts") && strings.Contains(p.texts("id:toasts"), msgs.JobsSentPending("Studio")) })
 	if len(d.Jobs()) != 0 {
 		t.Fatalf("a computer that asks first made jobs %+v", d.Jobs())
 	}
@@ -349,7 +349,7 @@ func TestOpeningADoneJobWaitsForItsFilmAndSaysWhenItIsGone(t *testing.T) {
 
 	p.app.WaitFor("id:jobs-open-job2", wait)
 	p.app.Press("id:jobs-open-job2")
-	p.app.WaitUntil(wait, func() bool { return strings.Contains(p.texts("id:toasts"), msgs.JobsFilmGone("Studio")) })
+	p.app.WaitUntil(wait, func() bool { return p.app.Exists("id:toasts") && strings.Contains(p.texts("id:toasts"), msgs.JobsFilmGone("Studio")) })
 	if p.app.Exists("id:film-page") {
 		t.Fatal("a job whose film is gone opened a page")
 	}
