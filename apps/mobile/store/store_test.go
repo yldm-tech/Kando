@@ -6,6 +6,7 @@ import (
 	"os"
 	"path/filepath"
 	"runtime"
+	"strings"
 	"testing"
 	"time"
 
@@ -69,5 +70,57 @@ func TestFilmsAreListedNewestFirstAndCounted(t *testing.T) {
 	}
 	if films, _ := st.Films(); len(films) != 1 || films[0].Key() != "d/a" {
 		t.Fatalf("after deleting: %+v", films)
+	}
+}
+
+// A film's record saved from several goroutines at once, as the player keeping its position and Follow keeping the desktop's record do, is each time saved whole: every save succeeds, the record reads back as one of them, and no temporary file is left in the film's folder.
+func TestAFilmSavedFromSeveralGoroutinesAtOnceIsKeptWhole(t *testing.T) {
+	st := Open(t.TempDir())
+	const saves = 32
+	errs := make(chan error, saves)
+	for i := range saves {
+		go func() {
+			errs <- st.SaveFilm(Film{Desktop: "d", Film: sync.Film{ID: "a", Title: strings.Repeat("x", 4096)}, PositionMS: int64(i)})
+		}()
+	}
+	for range saves {
+		if err := <-errs; err != nil {
+			t.Errorf("a save failed: %v", err)
+		}
+	}
+	films, err := st.Films()
+	if err != nil || len(films) != 1 || films[0].PositionMS < 0 || films[0].PositionMS >= saves {
+		t.Fatalf("read back %+v, %v", films, err)
+	}
+	entries, err := os.ReadDir(st.FilmDir("d", "a"))
+	if err != nil || len(entries) != 1 || entries[0].Name() != filmFile {
+		t.Fatalf("the film's folder holds %v, %v", entries, err)
+	}
+}
+
+// A record that is being read while it is saved is replaced once the reader is done with it. Windows refuses to replace a file another handle holds open, as Go's os.ReadFile does without letting it be deleted, so on Windows the save waits for the reader rather than failing and losing the record, as it once lost a played position (TestAFilmFollowedLateKeepsThePositionPlayedMeanwhile); elsewhere it replaces the file at once.
+func TestARecordBeingReadIsReplacedOnceTheReaderIsDone(t *testing.T) {
+	st := Open(t.TempDir())
+	f := Film{Desktop: "d", Film: sync.Film{ID: "a"}, PositionMS: 1000}
+	if err := st.SaveFilm(f); err != nil {
+		t.Fatal(err)
+	}
+	reader, err := os.Open(filepath.Join(st.FilmDir("d", "a"), filmFile))
+	if err != nil {
+		t.Fatal(err)
+	}
+	done := make(chan struct{})
+	go func() {
+		defer close(done)
+		time.Sleep(100 * time.Millisecond)
+		reader.Close()
+	}()
+	f.PositionMS = 7000
+	if err := st.SaveFilm(f); err != nil {
+		t.Fatalf("the save failed while the record was read: %v", err)
+	}
+	<-done
+	if films, err := st.Films(); err != nil || len(films) != 1 || films[0].PositionMS != 7000 {
+		t.Fatalf("read back %+v, %v", films, err)
 	}
 }
