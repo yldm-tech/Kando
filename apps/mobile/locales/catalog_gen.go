@@ -461,91 +461,95 @@ func For(cx *core.Scope) Messages {
 // its method, for the TSX declarations of the messages
 // (tsx.RegisterMessages).
 var Parameters = map[string][]string{
-	"AddNoLinks":             {"name"},
-	"AddNote":                {"name"},
-	"AddNoteOffline":         {"name"},
-	"ComputersCertificate":   {"name"},
-	"ComputersOptions":       {"name"},
-	"ComputersUnpairTitle":   {"name"},
-	"ComputersUnpaired":      {"name"},
-	"ComputersUnreachable":   {"name"},
-	"FilmDeleteTitle":        {"title"},
-	"FilmDownloading":        {"percent"},
-	"FilmPaused":             {"percent"},
-	"FilmsCount":             {"count"},
-	"FilmsDownloadSize":      {"size"},
-	"FilmsHit":               {"time_", "line"},
-	"FilmsLeft":              {"time_"},
-	"FilmsLeftHere":          {"device"},
-	"FilmsLeftOn":            {"device", "time_"},
-	"FilmsLibrary":           {"name"},
-	"FilmsLibraryOn":         {"library", "computer"},
-	"FilmsNoResults":         {"query"},
-	"FilmsOptions":           {"title"},
-	"LearnDueIn":             {"count"},
-	"FilmsUsed":              {"size"},
-	"FilmsWatchedTo":         {"time_"},
-	"JobsActionFailed":       {"name"},
-	"JobsActive":             {"count"},
-	"JobsActiveFailed":       {"active", "failed"},
-	"JobsCancelTitle":        {"title", "name"},
-	"JobsCanceledTitle":      {"name"},
-	"JobsDoneBody":           {"title"},
-	"JobsDoneTitle":          {"name"},
-	"JobsFailedCount":        {"count"},
-	"JobsFilmGone":           {"name"},
-	"JobsFrom":               {"status", "device"},
-	"JobsLinksOff":           {"name"},
-	"JobsNotReady":           {"name", "message"},
-	"JobsPercent":            {"percent"},
-	"JobsRefused":            {"name", "message"},
-	"JobsRemedyDesktop":      {"name"},
-	"JobsRemedySetup":        {"name", "message"},
-	"JobsRemedyUpdate":       {"name"},
-	"JobsSent":               {"name"},
-	"JobsSentExisting":       {"name"},
-	"JobsSentPending":        {"name"},
-	"JobsStepPercent":        {"step", "percent"},
-	"JobsWaitingFor":         {"name"},
-	"LearnGoalLeft":          {"count"},
-	"LearnGoalOf":            {"count"},
-	"LearnItemOptions":       {"text"},
-	"LearnLineCount":         {"count"},
-	"LearnMinutes":           {"count"},
-	"LearnReminderBody":      {"count"},
-	"LearnReviewDue":         {"count"},
-	"LearnReviewDueDetail":   {"count"},
-	"LearnStreak":            {"count"},
-	"LearnWeekBars":          {"count"},
-	"LearnWordCount":         {"count"},
-	"OnboardingPaired":       {"name"},
-	"OnboardingStep":         {"step", "count"},
-	"PairErrUnreachable":     {"address"},
-	"PlayerAsking":           {"computer"},
-	"PlayerCardPlace":        {"index", "count", "time_"},
-	"PlayerDelayPill":        {"seconds"},
-	"PlayerDelayReset":       {"seconds"},
-	"PlayerDelaySeconds":     {"seconds"},
-	"PlayerExplainBy":        {"model", "computer"},
-	"PlayerInfoLengthValue":  {"time_", "count"},
-	"PlayerNoteFor":          {"index"},
-	"PlayerPart":             {"index", "from", "to"},
-	"PlayerSleepMinutes":     {"minutes"},
-	"PlayerSleepPillIn":      {"time_"},
-	"PlayerStudyFailed":      {"computer"},
-	"PlayerStudyNoAI":        {"computer"},
-	"PlayerStudyUnreachable": {"computer"},
-	"ReviewDoneAgain":        {"count"},
-	"ReviewDoneCount":        {"count"},
-	"ReviewFrom":             {"title"},
-	"ReviewProgress":         {"at", "total"},
-	"RevokedBody":            {"name"},
-	"RevokedPending":         {"count"},
-	"RevokedTitle":           {"name"},
-	"PlayerTabNotesCount":    {"count"},
-	"SettingsGoalValue":      {"count"},
-	"SettingsRemindDetail":   {"hour"},
-	"VocabRemoveTitle":       {"word"},
+	"AddAsComputer":             {"name"},
+	"AddNoLinks":                {"name"},
+	"AddNote":                   {"name"},
+	"AddNoteOffline":            {"name"},
+	"AddSubtitlesRecognizeNote": {"name"},
+	"ComputersCertificate":      {"name"},
+	"ComputersOptions":          {"name"},
+	"ComputersUnpairTitle":      {"name"},
+	"ComputersUnpaired":         {"name"},
+	"ComputersUnreachable":      {"name"},
+	"FilmDeleteTitle":           {"title"},
+	"FilmDownloading":           {"percent"},
+	"FilmPaused":                {"percent"},
+	"FilmsCount":                {"count"},
+	"FilmsDownloadSize":         {"size"},
+	"FilmsHit":                  {"time_", "line"},
+	"FilmsLeft":                 {"time_"},
+	"FilmsLeftHere":             {"device"},
+	"FilmsLeftOn":               {"device", "time_"},
+	"FilmsLibrary":              {"name"},
+	"FilmsLibraryOn":            {"library", "computer"},
+	"FilmsNoResults":            {"query"},
+	"FilmsOptions":              {"title"},
+	"JobsBadgeLabel":            {"count"},
+	"JobsReadOnly":              {"name"},
+	"LearnDueIn":                {"count"},
+	"FilmsUsed":                 {"size"},
+	"FilmsWatchedTo":            {"time_"},
+	"JobsActionFailed":          {"name"},
+	"JobsActive":                {"count"},
+	"JobsActiveFailed":          {"active", "failed"},
+	"JobsCancelTitle":           {"title", "name"},
+	"JobsCanceledTitle":         {"name"},
+	"JobsDoneBody":              {"title"},
+	"JobsDoneTitle":             {"name"},
+	"JobsFailedCount":           {"count"},
+	"JobsFilmGone":              {"name"},
+	"JobsFrom":                  {"status", "device"},
+	"JobsLinksOff":              {"name"},
+	"JobsNotReady":              {"name", "message"},
+	"JobsPercent":               {"percent"},
+	"JobsRefused":               {"name", "message"},
+	"JobsRemedyDesktop":         {"name"},
+	"JobsRemedySetup":           {"name", "message"},
+	"JobsRemedyUpdate":          {"name"},
+	"JobsSent":                  {"name"},
+	"JobsSentExisting":          {"name"},
+	"JobsSentPending":           {"name"},
+	"JobsStepPercent":           {"step", "percent"},
+	"JobsWaitingFor":            {"name"},
+	"LearnGoalLeft":             {"count"},
+	"LearnGoalOf":               {"count"},
+	"LearnItemOptions":          {"text"},
+	"LearnLineCount":            {"count"},
+	"LearnMinutes":              {"count"},
+	"LearnReminderBody":         {"count"},
+	"LearnReviewDue":            {"count"},
+	"LearnReviewDueDetail":      {"count"},
+	"LearnStreak":               {"count"},
+	"LearnWeekBars":             {"count"},
+	"LearnWordCount":            {"count"},
+	"OnboardingPaired":          {"name"},
+	"OnboardingStep":            {"step", "count"},
+	"PairErrUnreachable":        {"address"},
+	"PlayerAsking":              {"computer"},
+	"PlayerCardPlace":           {"index", "count", "time_"},
+	"PlayerDelayPill":           {"seconds"},
+	"PlayerDelayReset":          {"seconds"},
+	"PlayerDelaySeconds":        {"seconds"},
+	"PlayerExplainBy":           {"model", "computer"},
+	"PlayerInfoLengthValue":     {"time_", "count"},
+	"PlayerNoteFor":             {"index"},
+	"PlayerPart":                {"index", "from", "to"},
+	"PlayerSleepMinutes":        {"minutes"},
+	"PlayerSleepPillIn":         {"time_"},
+	"PlayerStudyFailed":         {"computer"},
+	"PlayerStudyNoAI":           {"computer"},
+	"PlayerStudyUnreachable":    {"computer"},
+	"ReviewDoneAgain":           {"count"},
+	"ReviewDoneCount":           {"count"},
+	"ReviewFrom":                {"title"},
+	"ReviewProgress":            {"at", "total"},
+	"RevokedBody":               {"name"},
+	"RevokedPending":            {"count"},
+	"RevokedTitle":              {"name"},
+	"PlayerTabNotesCount":       {"count"},
+	"SettingsGoalValue":         {"count"},
+	"SettingsRemindDetail":      {"hour"},
+	"VocabRemoveTitle":          {"word"},
 }
 
 // Translation is a language's messages another package supplies:
@@ -553,92 +557,96 @@ var Parameters = map[string][]string{
 // of the others; a key or a field left out leaves the message to the
 // catalog.
 type Translation struct {
-	Texts                  map[string]string
-	AddNoLinks             func(name string) string
-	AddNote                func(name string) string
-	AddNoteOffline         func(name string) string
-	ComputersCertificate   func(name string) string
-	ComputersOptions       func(name string) string
-	ComputersUnpairTitle   func(name string) string
-	ComputersUnpaired      func(name string) string
-	ComputersUnreachable   func(name string) string
-	FilmDeleteTitle        func(title string) string
-	FilmDownloading        func(percent int) string
-	FilmPaused             func(percent int) string
-	FilmsCount             func(count int) string
-	FilmsDownloadSize      func(size string) string
-	FilmsHit               func(time_ string, line string) string
-	FilmsLeft              func(time_ string) string
-	FilmsLeftHere          func(device string) string
-	FilmsLeftOn            func(device string, time_ string) string
-	FilmsLibrary           func(name string) string
-	FilmsLibraryOn         func(library string, computer string) string
-	FilmsNoResults         func(query string) string
-	FilmsOptions           func(title string) string
-	LearnDueIn             func(count int) string
-	FilmsUsed              func(size string) string
-	FilmsWatchedTo         func(time_ string) string
-	JobsActionFailed       func(name string) string
-	JobsActive             func(count int) string
-	JobsActiveFailed       func(active int, failed int) string
-	JobsCancelTitle        func(title string, name string) string
-	JobsCanceledTitle      func(name string) string
-	JobsDoneBody           func(title string) string
-	JobsDoneTitle          func(name string) string
-	JobsFailedCount        func(count int) string
-	JobsFilmGone           func(name string) string
-	JobsFrom               func(status string, device string) string
-	JobsLinksOff           func(name string) string
-	JobsNotReady           func(name string, message string) string
-	JobsPercent            func(percent int) string
-	JobsRefused            func(name string, message string) string
-	JobsRemedyDesktop      func(name string) string
-	JobsRemedySetup        func(name string, message string) string
-	JobsRemedyUpdate       func(name string) string
-	JobsSent               func(name string) string
-	JobsSentExisting       func(name string) string
-	JobsSentPending        func(name string) string
-	JobsStepPercent        func(step string, percent int) string
-	JobsWaitingFor         func(name string) string
-	LearnGoalLeft          func(count int) string
-	LearnGoalOf            func(count int) string
-	LearnItemOptions       func(text string) string
-	LearnLineCount         func(count int) string
-	LearnMinutes           func(count int) string
-	LearnReminderBody      func(count int) string
-	LearnReviewDue         func(count int) string
-	LearnReviewDueDetail   func(count int) string
-	LearnStreak            func(count int) string
-	LearnWeekBars          func(count int) string
-	LearnWordCount         func(count int) string
-	OnboardingPaired       func(name string) string
-	OnboardingStep         func(step int, count int) string
-	PairErrUnreachable     func(address string) string
-	PlayerAsking           func(computer string) string
-	PlayerCardPlace        func(index int, count int, time_ string) string
-	PlayerDelayPill        func(seconds string) string
-	PlayerDelayReset       func(seconds string) string
-	PlayerDelaySeconds     func(seconds string) string
-	PlayerExplainBy        func(model string, computer string) string
-	PlayerInfoLengthValue  func(time_ string, count int) string
-	PlayerNoteFor          func(index int) string
-	PlayerPart             func(index int, from string, to string) string
-	PlayerSleepMinutes     func(minutes int) string
-	PlayerSleepPillIn      func(time_ string) string
-	PlayerStudyFailed      func(computer string) string
-	PlayerStudyNoAI        func(computer string) string
-	PlayerStudyUnreachable func(computer string) string
-	ReviewDoneAgain        func(count int) string
-	ReviewDoneCount        func(count int) string
-	ReviewFrom             func(title string) string
-	ReviewProgress         func(at int, total int) string
-	RevokedBody            func(name string) string
-	RevokedPending         func(count int) string
-	RevokedTitle           func(name string) string
-	PlayerTabNotesCount    func(count int) string
-	SettingsGoalValue      func(count int) string
-	SettingsRemindDetail   func(hour int) string
-	VocabRemoveTitle       func(word string) string
+	Texts                     map[string]string
+	AddAsComputer             func(name string) string
+	AddNoLinks                func(name string) string
+	AddNote                   func(name string) string
+	AddNoteOffline            func(name string) string
+	AddSubtitlesRecognizeNote func(name string) string
+	ComputersCertificate      func(name string) string
+	ComputersOptions          func(name string) string
+	ComputersUnpairTitle      func(name string) string
+	ComputersUnpaired         func(name string) string
+	ComputersUnreachable      func(name string) string
+	FilmDeleteTitle           func(title string) string
+	FilmDownloading           func(percent int) string
+	FilmPaused                func(percent int) string
+	FilmsCount                func(count int) string
+	FilmsDownloadSize         func(size string) string
+	FilmsHit                  func(time_ string, line string) string
+	FilmsLeft                 func(time_ string) string
+	FilmsLeftHere             func(device string) string
+	FilmsLeftOn               func(device string, time_ string) string
+	FilmsLibrary              func(name string) string
+	FilmsLibraryOn            func(library string, computer string) string
+	FilmsNoResults            func(query string) string
+	FilmsOptions              func(title string) string
+	JobsBadgeLabel            func(count int) string
+	JobsReadOnly              func(name string) string
+	LearnDueIn                func(count int) string
+	FilmsUsed                 func(size string) string
+	FilmsWatchedTo            func(time_ string) string
+	JobsActionFailed          func(name string) string
+	JobsActive                func(count int) string
+	JobsActiveFailed          func(active int, failed int) string
+	JobsCancelTitle           func(title string, name string) string
+	JobsCanceledTitle         func(name string) string
+	JobsDoneBody              func(title string) string
+	JobsDoneTitle             func(name string) string
+	JobsFailedCount           func(count int) string
+	JobsFilmGone              func(name string) string
+	JobsFrom                  func(status string, device string) string
+	JobsLinksOff              func(name string) string
+	JobsNotReady              func(name string, message string) string
+	JobsPercent               func(percent int) string
+	JobsRefused               func(name string, message string) string
+	JobsRemedyDesktop         func(name string) string
+	JobsRemedySetup           func(name string, message string) string
+	JobsRemedyUpdate          func(name string) string
+	JobsSent                  func(name string) string
+	JobsSentExisting          func(name string) string
+	JobsSentPending           func(name string) string
+	JobsStepPercent           func(step string, percent int) string
+	JobsWaitingFor            func(name string) string
+	LearnGoalLeft             func(count int) string
+	LearnGoalOf               func(count int) string
+	LearnItemOptions          func(text string) string
+	LearnLineCount            func(count int) string
+	LearnMinutes              func(count int) string
+	LearnReminderBody         func(count int) string
+	LearnReviewDue            func(count int) string
+	LearnReviewDueDetail      func(count int) string
+	LearnStreak               func(count int) string
+	LearnWeekBars             func(count int) string
+	LearnWordCount            func(count int) string
+	OnboardingPaired          func(name string) string
+	OnboardingStep            func(step int, count int) string
+	PairErrUnreachable        func(address string) string
+	PlayerAsking              func(computer string) string
+	PlayerCardPlace           func(index int, count int, time_ string) string
+	PlayerDelayPill           func(seconds string) string
+	PlayerDelayReset          func(seconds string) string
+	PlayerDelaySeconds        func(seconds string) string
+	PlayerExplainBy           func(model string, computer string) string
+	PlayerInfoLengthValue     func(time_ string, count int) string
+	PlayerNoteFor             func(index int) string
+	PlayerPart                func(index int, from string, to string) string
+	PlayerSleepMinutes        func(minutes int) string
+	PlayerSleepPillIn         func(time_ string) string
+	PlayerStudyFailed         func(computer string) string
+	PlayerStudyNoAI           func(computer string) string
+	PlayerStudyUnreachable    func(computer string) string
+	ReviewDoneAgain           func(count int) string
+	ReviewDoneCount           func(count int) string
+	ReviewFrom                func(title string) string
+	ReviewProgress            func(at int, total int) string
+	RevokedBody               func(name string) string
+	RevokedPending            func(count int) string
+	RevokedTitle              func(name string) string
+	PlayerTabNotesCount       func(count int) string
+	SettingsGoalValue         func(count int) string
+	SettingsRemindDetail      func(hour int) string
+	VocabRemoveTitle          func(word string) string
 }
 
 var supplied = map[string]Translation{}
@@ -650,7 +658,14 @@ const (
 	textAddLinkPlaceholder
 	textAddNotALink
 	textAddPaste
+	textAddQuality
+	textAddQuality720
+	textAddQualityBest
 	textAddSend
+	textAddSubtitles
+	textAddSubtitlesPlatform
+	textAddSubtitlesPlatformNote
+	textAddSubtitlesRecognize
 	textAddTitle
 	textAppName
 	textCommonCancel
@@ -699,6 +714,7 @@ const (
 	textFilmsTitle
 	textFilmsUnpairedBody
 	textFilmsUnpairedTitle
+	textJobsEmpty
 	textLearnDueNow
 	textJobsCancel
 	textJobsCancelConfirm
@@ -927,7 +943,14 @@ var keyOfText = [numTexts]string{
 	"addLinkPlaceholder",
 	"addNotALink",
 	"addPaste",
+	"addQuality",
+	"addQuality720",
+	"addQualityBest",
 	"addSend",
+	"addSubtitles",
+	"addSubtitlesPlatform",
+	"addSubtitlesPlatformNote",
+	"addSubtitlesRecognize",
 	"addTitle",
 	"appName",
 	"commonCancel",
@@ -976,6 +999,7 @@ var keyOfText = [numTexts]string{
 	"filmsTitle",
 	"filmsUnpairedBody",
 	"filmsUnpairedTitle",
+	"jobsEmpty",
 	"learnDueNow",
 	"jobsCancel",
 	"jobsCancelConfirm",
@@ -1202,7 +1226,14 @@ var textsEn = i18n.NewTexts(""+
 	"Paste a YouTube, Bilibili or other link"+
 	"This isn't a link to a video on the web."+
 	"Paste"+
+	"Quality"+
+	"720p"+
+	"Best"+
 	"Send"+
+	"Original Subtitles"+
+	"The Uploader's Subtitles"+
+	"Most accurate when someone wrote them. The lines that match the speech are translated as they are."+
+	"Recognized on the Computer"+
 	"Add Video"+
 	"Kando"+
 	"Cancel"+
@@ -1251,6 +1282,7 @@ var textsEn = i18n.NewTexts(""+
 	"Library"+
 	"Downloading, transcription and translation all happen in Kando on your computer. Once connected, its libraries show up here."+
 	"Not connected to a computer yet"+
+	"No jobs. Tap + to send a video's link."+
 	"Due for review"+
 	"Cancel Job"+
 	"Cancel Job"+
@@ -1474,7 +1506,14 @@ var textsEn = i18n.NewTexts(""+
 		39,
 		40,
 		5,
+		7,
 		4,
+		4,
+		4,
+		18,
+		24,
+		98,
+		26,
 		9,
 		5,
 		6,
@@ -1523,6 +1562,7 @@ var textsEn = i18n.NewTexts(""+
 		7,
 		124,
 		31,
+		38,
 		14,
 		10,
 		10,
@@ -1749,7 +1789,14 @@ var textsJa = i18n.NewTexts(""+
 	"YouTube や bilibili などのリンクを貼り付け"+
 	"Web 上の動画のリンクではありません。"+
 	"貼り付け"+
+	"画質"+
+	"720p"+
+	"最高画質"+
 	"送信"+
+	"元の字幕"+
+	"投稿者の字幕"+
+	"人が付けた字幕があれば最も正確です。音声と合う行はそのまま翻訳します。"+
+	"パソコンで認識"+
 	"動画を追加"+
 	"Kando"+
 	"キャンセル"+
@@ -1798,6 +1845,7 @@ var textsJa = i18n.NewTexts(""+
 	"ライブラリ"+
 	"ダウンロード、文字起こし、翻訳はすべてコンピュータの Kando が行います。接続すると、コンピュータのライブラリがここに表示されます。"+
 	"まだコンピュータに接続していません"+
+	"ジョブはありません。+ をタップして動画のリンクを送信します。"+
 	"復習の時期"+
 	"ジョブをキャンセル"+
 	"キャンセルする"+
@@ -2022,6 +2070,13 @@ var textsJa = i18n.NewTexts(""+
 		52,
 		12,
 		6,
+		4,
+		12,
+		6,
+		12,
+		18,
+		105,
+		21,
 		15,
 		5,
 		15,
@@ -2070,6 +2125,7 @@ var textsJa = i18n.NewTexts(""+
 		15,
 		190,
 		51,
+		89,
 		15,
 		27,
 		21,
@@ -2296,7 +2352,14 @@ var textsKo = i18n.NewTexts(""+
 	"YouTube, bilibili 등의 링크 붙여넣기"+
 	"웹 동영상 링크가 아닙니다."+
 	"붙여넣기"+
+	"화질"+
+	"720p"+
+	"최고 화질"+
 	"보내기"+
+	"원문 자막"+
+	"업로더 자막"+
+	"사람이 만든 자막이 있으면 가장 정확합니다. 음성과 맞는 줄은 그대로 번역합니다."+
+	"컴퓨터에서 인식"+
 	"동영상 추가"+
 	"Kando"+
 	"취소"+
@@ -2345,6 +2408,7 @@ var textsKo = i18n.NewTexts(""+
 	"보관함"+
 	"다운로드, 받아쓰기, 번역은 모두 컴퓨터의 Kando에서 이루어집니다. 연결하면 컴퓨터의 보관함이 여기에 표시됩니다."+
 	"아직 컴퓨터에 연결하지 않았습니다"+
+	"작업이 없습니다. +를 눌러 동영상 링크를 보내세요."+
 	"복습할 차례"+
 	"작업 취소"+
 	"작업 취소"+
@@ -2568,7 +2632,14 @@ var textsKo = i18n.NewTexts(""+
 		44,
 		37,
 		12,
+		6,
+		4,
+		13,
 		9,
+		13,
+		16,
+		111,
+		22,
 		16,
 		5,
 		6,
@@ -2617,6 +2688,7 @@ var textsKo = i18n.NewTexts(""+
 		9,
 		155,
 		48,
+		69,
 		16,
 		13,
 		13,
@@ -2843,7 +2915,14 @@ var textsZhHans = i18n.NewTexts(""+
 	"粘贴 YouTube、哔哩哔哩等链接"+
 	"这不是网上视频的链接。"+
 	"粘贴"+
+	"画质"+
+	"720p"+
+	"最高画质"+
 	"发送"+
+	"原文字幕"+
+	"用上传者的字幕"+
+	"有人工字幕时最准，和原声对得上的句子直接拿来翻译。"+
+	"电脑识别"+
 	"添加视频"+
 	"看懂"+
 	"取消"+
@@ -2892,6 +2971,7 @@ var textsZhHans = i18n.NewTexts(""+
 	"片库"+
 	"下载、识别、翻译都在电脑上的看懂里完成。连上以后，电脑上的片库会出现在这里。"+
 	"还没连上电脑"+
+	"没有任务。点 + 把视频链接发给电脑。"+
 	"待复习"+
 	"取消任务"+
 	"取消任务"+
@@ -3116,6 +3196,13 @@ var textsZhHans = i18n.NewTexts(""+
 		33,
 		6,
 		6,
+		4,
+		12,
+		6,
+		12,
+		21,
+		75,
+		12,
 		12,
 		6,
 		6,
@@ -3164,6 +3251,7 @@ var textsZhHans = i18n.NewTexts(""+
 		6,
 		114,
 		18,
+		51,
 		9,
 		12,
 		12,
@@ -3390,7 +3478,14 @@ var textsZhHant = i18n.NewTexts(""+
 	"貼上 YouTube、嗶哩嗶哩等連結"+
 	"這不是網路影片的連結。"+
 	"貼上"+
+	"畫質"+
+	"720p"+
+	"最高畫質"+
 	"傳送"+
+	"原文字幕"+
+	"用上傳者的字幕"+
+	"有人工字幕時最準，和原聲對得上的句子直接拿來翻譯。"+
+	"電腦辨識"+
 	"新增影片"+
 	"看懂"+
 	"取消"+
@@ -3439,6 +3534,7 @@ var textsZhHant = i18n.NewTexts(""+
 	"片庫"+
 	"下載、辨識、翻譯都在電腦上的看懂裡完成。連上以後，電腦上的片庫會出現在這裡。"+
 	"還沒連上電腦"+
+	"沒有任務。點 + 把影片連結傳給電腦。"+
 	"待複習"+
 	"取消任務"+
 	"取消任務"+
@@ -3663,6 +3759,13 @@ var textsZhHant = i18n.NewTexts(""+
 		33,
 		6,
 		6,
+		4,
+		12,
+		6,
+		12,
+		21,
+		75,
+		12,
 		12,
 		6,
 		6,
@@ -3711,6 +3814,7 @@ var textsZhHant = i18n.NewTexts(""+
 		6,
 		114,
 		18,
+		51,
 		9,
 		12,
 		12,
@@ -3990,6 +4094,9 @@ func Supply(lang string, t Translation) {
 		}
 	}
 	s := supplied[lang]
+	if t.AddAsComputer != nil {
+		s.AddAsComputer = t.AddAsComputer
+	}
 	if t.AddNoLinks != nil {
 		s.AddNoLinks = t.AddNoLinks
 	}
@@ -3998,6 +4105,9 @@ func Supply(lang string, t Translation) {
 	}
 	if t.AddNoteOffline != nil {
 		s.AddNoteOffline = t.AddNoteOffline
+	}
+	if t.AddSubtitlesRecognizeNote != nil {
+		s.AddSubtitlesRecognizeNote = t.AddSubtitlesRecognizeNote
 	}
 	if t.ComputersCertificate != nil {
 		s.ComputersCertificate = t.ComputersCertificate
@@ -4052,6 +4162,12 @@ func Supply(lang string, t Translation) {
 	}
 	if t.FilmsOptions != nil {
 		s.FilmsOptions = t.FilmsOptions
+	}
+	if t.JobsBadgeLabel != nil {
+		s.JobsBadgeLabel = t.JobsBadgeLabel
+	}
+	if t.JobsReadOnly != nil {
+		s.JobsReadOnly = t.JobsReadOnly
 	}
 	if t.LearnDueIn != nil {
 		s.LearnDueIn = t.LearnDueIn
@@ -4258,6 +4374,36 @@ func (msgs Messages) arg(s string) string {
 	return s
 }
 
+// AddAsComputer says "As on {name}"
+// in the language the app shows under cx.
+//
+// Add sheet: the choice that leaves the quality, or where the original subtitles come from, to the computer's own setting.
+func AddAsComputer(cx *core.Scope, name string) string { return For(cx).AddAsComputer(name) }
+
+// AddAsComputer is the package's AddAsComputer in the language of msgs.
+func (msgs Messages) AddAsComputer(name string) string {
+	if i18n.IsPseudo(msgs.lang) {
+		return i18n.Pseudo(msgs.lang, Messages{lang: Source, mark: true}.AddAsComputer(name))
+	}
+	for lang := msgs.lang; ; lang = i18n.Parent(lang) {
+		if f := supplied[lang].AddAsComputer; f != nil {
+			return f(name)
+		}
+		switch lang {
+		case "", "en":
+			return "As on " + msgs.arg(name)
+		case "ja":
+			return name + " の設定どおり"
+		case "ko":
+			return name + " 설정대로"
+		case "zh-Hans":
+			return "按 " + name + " 的设置"
+		case "zh-Hant":
+			return "依 " + name + " 的設定"
+		}
+	}
+}
+
 // AddComputer says "Send To"
 // in the language the app shows under cx.
 //
@@ -4393,6 +4539,33 @@ func AddPaste(cx *core.Scope) string { return For(cx).AddPaste() }
 // AddPaste is the package's AddPaste in the language of msgs.
 func (msgs Messages) AddPaste() string { return msgs.text(textAddPaste) }
 
+// AddQuality says "Quality"
+// in the language the app shows under cx.
+//
+// Add sheet: label over the choices of the picture the computer downloads.
+func AddQuality(cx *core.Scope) string { return For(cx).AddQuality() }
+
+// AddQuality is the package's AddQuality in the language of msgs.
+func (msgs Messages) AddQuality() string { return msgs.text(textAddQuality) }
+
+// AddQuality720 says "720p"
+// in the language the app shows under cx.
+//
+// Add sheet: the computer downloads the best picture no taller than 720 lines.
+func AddQuality720(cx *core.Scope) string { return For(cx).AddQuality720() }
+
+// AddQuality720 is the package's AddQuality720 in the language of msgs.
+func (msgs Messages) AddQuality720() string { return msgs.text(textAddQuality720) }
+
+// AddQualityBest says "Best"
+// in the language the app shows under cx.
+//
+// Add sheet: the computer downloads the best picture the site has.
+func AddQualityBest(cx *core.Scope) string { return For(cx).AddQualityBest() }
+
+// AddQualityBest is the package's AddQualityBest in the language of msgs.
+func (msgs Messages) AddQualityBest() string { return msgs.text(textAddQualityBest) }
+
 // AddSend says "Send"
 // in the language the app shows under cx.
 //
@@ -4401,6 +4574,76 @@ func AddSend(cx *core.Scope) string { return For(cx).AddSend() }
 
 // AddSend is the package's AddSend in the language of msgs.
 func (msgs Messages) AddSend() string { return msgs.text(textAddSend) }
+
+// AddSubtitles says "Original Subtitles"
+// in the language the app shows under cx.
+//
+// Add sheet: label over the choices of where the video's original lines come from.
+func AddSubtitles(cx *core.Scope) string { return For(cx).AddSubtitles() }
+
+// AddSubtitles is the package's AddSubtitles in the language of msgs.
+func (msgs Messages) AddSubtitles() string { return msgs.text(textAddSubtitles) }
+
+// AddSubtitlesPlatform says "The Uploader's Subtitles"
+// in the language the app shows under cx.
+//
+// Add sheet: the original lines are the subtitles the uploader put on the site, where they match the speech.
+func AddSubtitlesPlatform(cx *core.Scope) string { return For(cx).AddSubtitlesPlatform() }
+
+// AddSubtitlesPlatform is the package's AddSubtitlesPlatform in the language of msgs.
+func (msgs Messages) AddSubtitlesPlatform() string { return msgs.text(textAddSubtitlesPlatform) }
+
+// AddSubtitlesPlatformNote says "Most accurate when someone wrote them. The lines that match the speech are translated as they are."
+// in the language the app shows under cx.
+//
+// Add sheet: under The Uploader's Subtitles.
+func AddSubtitlesPlatformNote(cx *core.Scope) string { return For(cx).AddSubtitlesPlatformNote() }
+
+// AddSubtitlesPlatformNote is the package's AddSubtitlesPlatformNote in the language of msgs.
+func (msgs Messages) AddSubtitlesPlatformNote() string {
+	return msgs.text(textAddSubtitlesPlatformNote)
+}
+
+// AddSubtitlesRecognize says "Recognized on the Computer"
+// in the language the app shows under cx.
+//
+// Add sheet: the original lines are what the computer's speech recognition hears.
+func AddSubtitlesRecognize(cx *core.Scope) string { return For(cx).AddSubtitlesRecognize() }
+
+// AddSubtitlesRecognize is the package's AddSubtitlesRecognize in the language of msgs.
+func (msgs Messages) AddSubtitlesRecognize() string { return msgs.text(textAddSubtitlesRecognize) }
+
+// AddSubtitlesRecognizeNote says "Whisper on {name} transcribes the speech."
+// in the language the app shows under cx.
+//
+// Add sheet: under Recognized on the Computer.
+func AddSubtitlesRecognizeNote(cx *core.Scope, name string) string {
+	return For(cx).AddSubtitlesRecognizeNote(name)
+}
+
+// AddSubtitlesRecognizeNote is the package's AddSubtitlesRecognizeNote in the language of msgs.
+func (msgs Messages) AddSubtitlesRecognizeNote(name string) string {
+	if i18n.IsPseudo(msgs.lang) {
+		return i18n.Pseudo(msgs.lang, Messages{lang: Source, mark: true}.AddSubtitlesRecognizeNote(name))
+	}
+	for lang := msgs.lang; ; lang = i18n.Parent(lang) {
+		if f := supplied[lang].AddSubtitlesRecognizeNote; f != nil {
+			return f(name)
+		}
+		switch lang {
+		case "", "en":
+			return "Whisper on " + msgs.arg(name) + " transcribes the speech."
+		case "ja":
+			return name + " の whisper が音声を書き起こします。"
+		case "ko":
+			return name + "의 whisper가 음성을 받아씁니다."
+		case "zh-Hans":
+			return name + " 上的 whisper 听写原声。"
+		case "zh-Hant":
+			return name + " 上的 whisper 聽寫原聲。"
+		}
+	}
+}
 
 // AddTitle says "Add Video"
 // in the language the app shows under cx.
@@ -5417,6 +5660,75 @@ func FilmsUnpairedTitle(cx *core.Scope) string { return For(cx).FilmsUnpairedTit
 
 // FilmsUnpairedTitle is the package's FilmsUnpairedTitle in the language of msgs.
 func (msgs Messages) FilmsUnpairedTitle() string { return msgs.text(textFilmsUnpairedTitle) }
+
+// JobsBadgeLabel says "Jobs, {count} unfinished"
+// in the language the app shows under cx.
+//
+// Spoken name of the Jobs button and section while jobs run, wait or failed, or links wait to be sent.
+func JobsBadgeLabel(cx *core.Scope, count int) string { return For(cx).JobsBadgeLabel(count) }
+
+// JobsBadgeLabel is the package's JobsBadgeLabel in the language of msgs.
+func (msgs Messages) JobsBadgeLabel(count int) string {
+	if i18n.IsPseudo(msgs.lang) {
+		return i18n.Pseudo(msgs.lang, Messages{lang: Source, mark: true}.JobsBadgeLabel(count))
+	}
+	for lang := msgs.lang; ; lang = i18n.Parent(lang) {
+		if f := supplied[lang].JobsBadgeLabel; f != nil {
+			return f(count)
+		}
+		switch lang {
+		case "", "en":
+			return "Jobs, " + msgs.arg(i18n.FormatNumber("en", float64(count))) + " unfinished"
+		case "ja":
+			return "ジョブ、未完了 " + i18n.FormatNumber("ja", float64(count)) + " 件"
+		case "ko":
+			return "작업, 완료되지 않음 " + i18n.FormatNumber("ko", float64(count)) + "개"
+		case "zh-Hans":
+			return "任务，" + i18n.FormatNumber("zh-Hans", float64(count)) + " 个未完成"
+		case "zh-Hant":
+			return "任務，" + i18n.FormatNumber("zh-Hant", float64(count)) + " 個未完成"
+		}
+	}
+}
+
+// JobsEmpty says "No jobs. Tap + to send a video's link."
+// in the language the app shows under cx.
+//
+// Jobs page, under a computer's card when it has no jobs and no links wait for it.
+func JobsEmpty(cx *core.Scope) string { return For(cx).JobsEmpty() }
+
+// JobsEmpty is the package's JobsEmpty in the language of msgs.
+func (msgs Messages) JobsEmpty() string { return msgs.text(textJobsEmpty) }
+
+// JobsReadOnly says "{name} made this phone read-only: it shows the jobs but can't send links or change them. Turn off Read-only for this phone in the computer's Settings › Phone Sync."
+// in the language the app shows under cx.
+//
+// Jobs page and Add sheet: the computer's user made this phone read-only; also why a link was refused.
+func JobsReadOnly(cx *core.Scope, name string) string { return For(cx).JobsReadOnly(name) }
+
+// JobsReadOnly is the package's JobsReadOnly in the language of msgs.
+func (msgs Messages) JobsReadOnly(name string) string {
+	if i18n.IsPseudo(msgs.lang) {
+		return i18n.Pseudo(msgs.lang, Messages{lang: Source, mark: true}.JobsReadOnly(name))
+	}
+	for lang := msgs.lang; ; lang = i18n.Parent(lang) {
+		if f := supplied[lang].JobsReadOnly; f != nil {
+			return f(name)
+		}
+		switch lang {
+		case "", "en":
+			return msgs.arg(name) + " made this phone read-only: it shows the jobs but can't send links or change them. Turn off Read-only for this phone in the computer's Settings › Phone Sync."
+		case "ja":
+			return name + " はこのスマートフォンを読み取り専用にしています。ジョブは見られますが、リンクの送信や変更はできません。パソコンの「設定 › スマートフォン同期」でこの端末の「読み取り専用」をオフにしてください。"
+		case "ko":
+			return name + "에서 이 휴대폰을 읽기 전용으로 설정했습니다. 작업은 볼 수 있지만 링크를 보내거나 바꿀 수 없습니다. 컴퓨터의 ‘설정 › 휴대폰 동기화’에서 이 휴대폰의 ‘읽기 전용’을 끄세요."
+		case "zh-Hans":
+			return name + " 把这台手机设成了只读：能看任务，不能发链接或改任务。到电脑的「设置 › 手机同步」里关掉这台手机的「只读」。"
+		case "zh-Hant":
+			return name + " 把這支手機設成了唯讀：能看任務，不能傳連結或更改任務。到電腦的「設定 › 手機同步」裡關掉這支手機的「唯讀」。"
+		}
+	}
+}
 
 // LearnDueIn says "{count, plural, one {Due in # day} other {Due in # days}}"
 // in the language the app shows under cx.

@@ -1,3 +1,8 @@
+addAsComputer:
+  message: "As on {name}"
+  description: "Add sheet: the choice that leaves the quality, or where the original subtitles come from, to the computer's own setting."
+  placeholders:
+    name: { type: "String", example: "Studio" }
 addComputer:
   message: "Send To"
   description: "Add sheet: label over the computers to send the link to, when several are paired."
@@ -28,9 +33,35 @@ addNoteOffline:
 addPaste:
   message: "Paste"
   description: "Add sheet: button that puts the clipboard's link in the field."
+addQuality:
+  message: "Quality"
+  description: "Add sheet: label over the choices of the picture the computer downloads."
+addQuality720:
+  message: "720p"
+  description: "Add sheet: the computer downloads the best picture no taller than 720 lines."
+addQualityBest:
+  message: "Best"
+  description: "Add sheet: the computer downloads the best picture the site has."
 addSend:
   message: "Send"
   description: "Add sheet: button that sends the link to the computer."
+addSubtitles:
+  message: "Original Subtitles"
+  description: "Add sheet: label over the choices of where the video's original lines come from."
+addSubtitlesPlatform:
+  message: "The Uploader's Subtitles"
+  description: "Add sheet: the original lines are the subtitles the uploader put on the site, where they match the speech."
+addSubtitlesPlatformNote:
+  message: "Most accurate when someone wrote them. The lines that match the speech are translated as they are."
+  description: "Add sheet: under The Uploader's Subtitles."
+addSubtitlesRecognize:
+  message: "Recognized on the Computer"
+  description: "Add sheet: the original lines are what the computer's speech recognition hears."
+addSubtitlesRecognizeNote:
+  message: "Whisper on {name} transcribes the speech."
+  description: "Add sheet: under Recognized on the Computer."
+  placeholders:
+    name: { type: "String", example: "Studio" }
 addTitle:
   message: "Add Video"
   description: "Title of the Add sheet, and the spoken name of the + button that opens it."
@@ -268,6 +299,19 @@ filmsUnpairedBody:
 filmsUnpairedTitle:
   message: "Not connected to a computer yet"
   description: "Title of the Library's card while no computer is paired."
+jobsBadgeLabel:
+  message: "Jobs, {count} unfinished"
+  description: "Spoken name of the Jobs button and section while jobs run, wait or failed, or links wait to be sent."
+  placeholders:
+    count: { type: "int", example: "2" }
+jobsEmpty:
+  message: "No jobs. Tap + to send a video's link."
+  description: "Jobs page, under a computer's card when it has no jobs and no links wait for it."
+jobsReadOnly:
+  message: "{name} made this phone read-only: it shows the jobs but can't send links or change them. Turn off Read-only for this phone in the computer's Settings › Phone Sync."
+  description: "Jobs page and Add sheet: the computer's user made this phone read-only; also why a link was refused."
+  placeholders:
+    name: { type: "String", example: "Studio" }
 learnDueIn:
   message: "{count, plural, one {Due in # day} other {Due in # days}}"
   description: "Under a word or a line: when it is next due for review."

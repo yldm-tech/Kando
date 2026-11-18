@@ -187,9 +187,11 @@ func App(cx *core.Scope, cfg session.Config) core.Node {
 	}
 	sh := func(cx *core.Scope) core.Node {
 		all := [tabs]shell.Tab{
-			filmsTab:    {Text: func() string { return locales.FilmsTitle(cx) }, Icon: lucide.SquarePlay, SystemIcon: "play.rectangle.on.rectangle", TestID: "tab-films", Content: tabStack(navs[filmsTab])},
-			learnTab:    {Text: func() string { return locales.LearnTitle(cx) }, Icon: lucide.GraduationCap, SystemIcon: "rectangle.stack", TestID: "tab-learn", Content: tabStack(navs[learnTab])},
-			jobsTab:     {Text: func() string { return locales.JobsTitle(cx) }, Icon: lucide.ListChecks, SystemIcon: "checklist", TestID: "tab-jobs", Content: tabStack(navs[jobsTab])},
+			filmsTab: {Text: func() string { return locales.FilmsTitle(cx) }, Icon: lucide.SquarePlay, SystemIcon: "play.rectangle.on.rectangle", TestID: "tab-films", Content: tabStack(navs[filmsTab])},
+			learnTab: {Text: func() string { return locales.LearnTitle(cx) }, Icon: lucide.GraduationCap, SystemIcon: "rectangle.stack", TestID: "tab-learn", Content: tabStack(navs[learnTab])},
+			jobsTab: {Text: func() string { return locales.JobsTitle(cx) }, Icon: lucide.ListChecks, SystemIcon: "checklist", TestID: "tab-jobs", Content: tabStack(navs[jobsTab]),
+				Badge:     func() int { active, failed := s.Unfinished(); return active + failed },
+				BadgeWarn: func() bool { _, failed := s.Unfinished(); return failed > 0 }},
 			settingsTab: {Text: func() string { return locales.SettingsTitle(cx) }, Icon: lucide.Settings, SystemIcon: "gearshape", TestID: "tab-settings", Content: tabStack(navs[settingsTab])},
 		}
 		list := make([]shell.Tab, len(shown))

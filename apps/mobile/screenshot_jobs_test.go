@@ -9,6 +9,7 @@ import (
 func TestScreenshotsJobs(t *testing.T) {
 	shot := screenshots(t)
 	d := newDesktop(t)
+	d.SetOptions(sync.OptionQuality, sync.OptionSubtitles)
 	moved(d, "job1", "https://youtu.be/dQw4w9WgXcQ", sync.JobRunning, 1, 0.64)
 	waiting := moved(d, "job2", "https://www.bilibili.com/video/BV1GJ411x7h7", sync.JobWaiting, -1, 0)
 	waiting.Title, waiting.Device = "How Rivers Shape Landscapes", ""
@@ -27,5 +28,7 @@ func TestScreenshotsJobs(t *testing.T) {
 	p.app.WaitFor("id:add-link", wait)
 	p.app.Type("id:add-link", "https://youtu.be/dQw4w9WgXcQ")
 	p.app.WaitFor("id:add-site", wait)
+	p.app.WaitFor("id:add-quality-best", wait)
+	p.app.Press("id:add-quality-best")
 	shot(p, "jobs-add")
 }
