@@ -323,28 +323,14 @@ func (s phoneSource) Libraries(ctx context.Context) ([]phonesync.Library, error)
 	})
 }
 
-// Films are lib's films that are done, as its done grid shows them, with their files: the jobs the shelf keeps for it and the videos in its folder (films.List). A library locked since it was listed, or whose folder cannot be read, is not found.
+// Films are lib's films that are done, as its done grid shows them, with their files (phoneSource.items). A library locked since it was listed, or whose folder cannot be read, is not found.
 func (s phoneSource) Films(ctx context.Context, lib phonesync.Library) ([]phonesync.Film, error) {
-	a := s.a
-	shelf, err := remote.OnUI(ctx, a.update, func() (phoneShelf, error) {
-		if a.libraryLocked(lib.Dir) {
-			return phoneShelf{}, phonesync.ErrNotFound
-		}
-		return phoneShelf{jobs: slices.Clone(a.library.Jobs), names: maps.Clone(a.library.Names), durations: maps.Clone(a.lib.durations), posterDir: a.lib.posterDir}, nil
-	})
+	items, shelf, err := s.items(ctx, lib)
 	if err != nil {
 		return nil, err
 	}
-	videos, err := media.ListVideos(lib.Dir)
-	if err != nil {
-		return nil, phonesync.ErrNotFound
-	}
-	noDetail := func(core.Job) string { return "" }
 	var out []phonesync.Film
-	for _, item := range films.List(lib.Dir, shelf.jobs, videos, shelf.names, jobName, noDetail) {
-		if films.InQueue(item) || item.VideoPath == "" {
-			continue
-		}
+	for _, item := range items {
 		f := phonesync.Film{ID: phoneFilmID(item), Title: remoteFilmTitle(item), Source: films.SourceOf(item), Spoken: films.Heard(item), Untranslated: item.Untranslated,
 			Duration: shelf.durations[item.VideoPath], Video: item.VideoPath, Subtitles: item.SubtitlePath, Transcript: media.TranscriptOf(item.VideoPath), Corrections: media.CorrectionsPath(item.VideoPath)}
 		// A film that was not translated, as one heard in the language its subtitles are for, names no translation.
@@ -357,6 +343,32 @@ func (s phoneSource) Films(ctx context.Context, lib phonesync.Library) ([]phones
 		out = append(out, f)
 	}
 	return out, nil
+}
+
+// items are lib's films that are done, as the app files them: the jobs the shelf keeps for it and the videos in its folder (films.List), with what the app holds of them. A library locked since it was listed, or whose folder cannot be read, is not found.
+func (s phoneSource) items(ctx context.Context, lib phonesync.Library) ([]films.Film, phoneShelf, error) {
+	a := s.a
+	shelf, err := remote.OnUI(ctx, a.update, func() (phoneShelf, error) {
+		if a.libraryLocked(lib.Dir) {
+			return phoneShelf{}, phonesync.ErrNotFound
+		}
+		return phoneShelf{jobs: slices.Clone(a.library.Jobs), names: maps.Clone(a.library.Names), durations: maps.Clone(a.lib.durations), posterDir: a.lib.posterDir}, nil
+	})
+	if err != nil {
+		return nil, phoneShelf{}, err
+	}
+	videos, err := media.ListVideos(lib.Dir)
+	if err != nil {
+		return nil, phoneShelf{}, phonesync.ErrNotFound
+	}
+	noDetail := func(core.Job) string { return "" }
+	var out []films.Film
+	for _, item := range films.List(lib.Dir, shelf.jobs, videos, shelf.names, jobName, noDetail) {
+		if !films.InQueue(item) && item.VideoPath != "" {
+			out = append(out, item)
+		}
+	}
+	return out, shelf, nil
 }
 
 // Cues are f's subtitles as the control socket reads them (remoteFilmCues): each line of the speech from the original .srt, with its translation from the bilingual one. A film without subtitles is not found.

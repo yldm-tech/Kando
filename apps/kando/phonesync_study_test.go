@@ -6,7 +6,11 @@ import (
 	"slices"
 	"strings"
 	"testing"
+	"time"
 
+	"kando/apps/kando/films"
+	"kando/apps/kando/lookup"
+	"kando/packages/core"
 	"kando/packages/media"
 	psync "kando/packages/sync"
 )
@@ -60,5 +64,40 @@ func TestPhoneSyncLooksUpAndExplainsThroughTheAIServiceSet(t *testing.T) {
 		if !strings.Contains(sent, want) {
 			t.Fatalf("sent %q, want %q in it", sent, want)
 		}
+	}
+}
+
+// A word looked up on the picture answers the phone's lookup of it from the same cache, for a film whose speech language the user named over the one heard and whose subtitles are in its own language: the phone's query is the picture's (vocabQuery), and the AI service is not asked.
+func TestPhoneSyncLookUpSharesThePicturesCache(t *testing.T) {
+	a, tt, updates, dir, _ := phoneSyncApp(t)
+	onEngine(a, func() {
+		for i := range a.library.Jobs {
+			if a.library.Jobs[i].ID == "yt" {
+				a.library.Jobs[i].SpokenLanguage, a.library.Jobs[i].SpeechLanguage, a.library.Jobs[i].SameLanguage = "en", "ja", true
+			}
+		}
+	})
+	phoneSyncOn(t, a, tt, updates)
+	c := phoneClient(t, a, "")
+	if _, err := phonePair(t, a, tt, updates, c, a.phone.offer.Code); err != nil {
+		t.Fatal(err)
+	}
+	srv, seen := fakeLLM(t, `{"word":"hello","meaning":"from the AI"}`)
+	var q lookup.Query
+	onEngine(a, func() {
+		a.pipeline = media.Tools{Translator: media.ChatTranslator{BaseURL: srv.URL + "/v1", APIKey: "k", Model: "m1"}}
+		a.prefs.language = "English"
+		i := slices.IndexFunc(a.library.Jobs, func(j core.Job) bool { return j.ID == "yt" })
+		item := films.FromJob(a.library.Jobs[i], "", "")
+		q = vocabQuery(item, a.prefs.language, "Hello", "Hello there")
+		a.vocabCache().Put(q, lookup.Entry{Word: "hello", Meaning: "int. 你好"}, time.Now())
+	})
+	if q.Spoken != "ja" || q.Language != "简体中文" {
+		t.Fatalf("the picture's query %+v", q)
+	}
+	req := psync.WordLookup{Library: phoneLibraryID(dir), Film: "yt", Word: "Hello", Line: "Hello there"}
+	e, err := phoneCall(t, a, tt, updates, func(ctx context.Context) (psync.WordEntry, error) { return c.LookUp(ctx, req) })
+	if err != nil || e.Meaning != "int. 你好" || e.Language != "简体中文" || len(*seen) != 0 {
+		t.Fatalf("lookup %+v, %v, the AI service asked %d times", e, err, len(*seen))
 	}
 }
