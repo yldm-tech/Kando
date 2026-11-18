@@ -103,10 +103,9 @@ type Jobs struct {
 	Active, Failed int
 }
 
-// The card the sidebar is drawn on, floating over the window's material: the prototype's white at 42% with a white inner hairline, a dark outer one and a soft shadow, 8 points in from the window's edges.
+// The card the sidebar is drawn on, floating over the window's material: the prototype's white at 42% with a white inner hairline, a dark outer one and a soft shadow, 8 points in from the window's edges, its corners the platform's cards' (theme.RadiiOf).
 const (
 	cardMargin ns.Points = 8
-	cardRadius ns.Points = 14
 	// insetStart and insetEnd are how far the switcher, the sources and the status line stand in from the card's edges. In the prototype the card is 231 wide and runs 3 points under the content, so they end 8 points before that hidden edge, 5 before the one that shows.
 	insetStart ns.Points = 8
 	insetEnd   ns.Points = 5
@@ -132,7 +131,7 @@ func (v View) Render(cx *ns.Scope) ns.Node {
 	colors, k := ui.ColorsOf(cx), theme.Of(cx)
 	// The hairlines are rings of half a point that take no room, as the prototype's box-shadows: the card's face just inside the edge, the shade just outside it.
 	card := ns.View{
-		Style: ns.Style{FlexGrow: 1, FlexShrink: 1, MinHeight: ns.Pt(0), AlignItems: ns.AlignStretch, CornerRadius: cardRadius},
+		Style: ns.Style{FlexGrow: 1, FlexShrink: 1, MinHeight: ns.Pt(0), AlignItems: ns.AlignStretch, CornerRadius: theme.RadiiOf(cx).Card},
 		StyleFunc: func() ns.Style {
 			return ns.Style{Background: k.Card().Faded(0.42),
 				Shadows: []ns.BoxShadow{{Spread: 0.5, Color: k.Card().Faded(0.85), Inset: true}, {Spread: 0.5, Color: k.Shade(0.06)}, {Offset: ns.Point{Y: 4}, Blur: 14, Color: cardShadow}}}

@@ -217,8 +217,11 @@ func (s screen) layout(cx *core.Scope, account core.Node) core.Node {
 		header{a: a, section: section.Get},
 		core.Scroll{TestID: "settings-page", Style: core.Style{FlexGrow: 1, FlexShrink: 1, MinHeight: core.Pt(0)}, Children: []core.Node{content}},
 	}}
-	return core.View{TestID: "settings-window", Style: core.Style{Direction: core.Row, FlexGrow: 1, FlexShrink: 1, AlignItems: core.AlignStretch}, StyleFunc: ui.Filled(theme.Of(cx).Window),
-		Children: []core.Node{rail{a: a}, pane}}
+	// Its text is in the platform's font of the design (theme.FontOf), as the main window's is.
+	k := theme.Of(cx)
+	return core.View{TestID: "settings-window", Style: core.Style{Direction: core.Row, FlexGrow: 1, FlexShrink: 1, AlignItems: core.AlignStretch},
+		StyleFunc: func() core.Style { return core.Style{Background: k.Window(), FontFamily: theme.FontOf(cx)} },
+		Children:  []core.Node{rail{a: a}, pane}}
 }
 
 // header is the page's title bar: 50 points high with a line under it, the title 15-point bold where the page's content starts. It moves the window, as the title bar it stands in for does.

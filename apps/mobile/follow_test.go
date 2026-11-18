@@ -51,7 +51,7 @@ func desktopWith(t *testing.T, lines []sync.Cue, updated time.Time) *synctest.De
 	return d
 }
 
-// playKept opens the talk kept in dir in the player and plays it to its first line.
+// playKept opens the talk kept in dir in the player and plays it to its first line, once the player has read the lines kept with it: they are read off the engine's goroutine, and until then no line plays and the subtitles are not shown at all.
 func playKept(t *testing.T, d *synctest.Desktop, dir string) *phone {
 	t.Helper()
 	p := startPhone(t, dir, pairedWith(t, d, dir))
@@ -60,6 +60,7 @@ func playKept(t *testing.T, d *synctest.Desktop, dir string) *phone {
 	p.app.WaitFor("id:film-play", wait)
 	p.app.Press("id:film-play")
 	p.app.WaitFor("id:player-video", wait)
+	p.app.WaitUntil(wait, func() bool { return p.app.Exists("id:player-line") })
 	p.app.Play("id:player-video", core.VideoInfo{Duration: 10 * sec, Size: core.Size{Width: 1920, Height: 1080}})
 	p.at(1500 * time.Millisecond)
 	return p

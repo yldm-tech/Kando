@@ -60,8 +60,8 @@ func TestFontFamilyHasAFontOnEverySystem(t *testing.T) {
 		t.Errorf("宋体 falls back to a sans-serif font: %q", got)
 	}
 	for _, family := range []string{"默认", "", "Comic Sans"} {
-		if got := FontFamily(family); got != "" {
-			t.Errorf("%q draws in %q, want the system's font", family, got)
+		if got := FontFamily(family); got != "system-ui" {
+			t.Errorf("%q draws in %q, want the system's font, named so it is not the window's", family, got)
 		}
 	}
 }
