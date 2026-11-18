@@ -25,12 +25,12 @@ func TestAddWordKeepsOneOfEachWord(t *testing.T) {
 	if b.AddWord(Word{Text: "trickle"}) || len(b.Words) != 1 {
 		t.Fatalf("the same word in another case was added again: %+v", b.Words)
 	}
-	if b.WordIndex("TRICKLE") != 0 || b.WordIndex("river") != -1 || b.WordIndex("") != -1 {
+	if b.WordIndex("TRICKLE", "") != 0 || b.WordIndex("river", "") != -1 || b.WordIndex("", "") != -1 {
 		t.Fatal("WordIndex")
 	}
 	id := w.ID
 	clock = 2
-	if !b.RemoveWord("trickle") || len(b.Words) != 0 || b.RemoveWord("trickle") {
+	if !b.RemoveWord("trickle", "") || len(b.Words) != 0 || b.RemoveWord("trickle", "") {
 		t.Fatalf("remove: %+v", b.Words)
 	}
 	if len(b.RemovedWords) != 1 || b.RemovedWords[0].ID != id || b.RemovedWords[0].At != (Stamp{At: at(2), Device: "mac"}) {
@@ -48,17 +48,17 @@ func TestGradeWordFollowsTheSchedule(t *testing.T) {
 	clock := 0
 	b := bookOn("mac", &clock)
 	b.AddWord(Word{Text: "trickle"})
-	if !b.GradeWord("trickle", true, at(10)) {
+	if !b.GradeWord("trickle", "", true, at(10)) {
 		t.Fatal("no word")
 	}
 	if w := b.Words[0]; w.Box != 1 || !w.Due.Equal(at(10).Add(Intervals[0])) || w.Stamps.Review != (Stamp{At: at(10), Device: "mac"}) {
 		t.Fatalf("after good: %+v", w)
 	}
-	b.GradeWord("trickle", false, at(20))
+	b.GradeWord("trickle", "", false, at(20))
 	if w := b.Words[0]; w.Box != 0 || !w.Due.Equal(at(20)) {
 		t.Fatalf("after again: %+v", w)
 	}
-	if b.GradeWord("river", true, at(30)) {
+	if b.GradeWord("river", "", true, at(30)) {
 		t.Fatal("graded a word the book does not have")
 	}
 }
@@ -73,9 +73,9 @@ func TestMergeWordsTakesEachFieldsLatest(t *testing.T) {
 		t.Fatalf("phone took %+v", phone.Words)
 	}
 	clock = 5
-	phone.GradeWord("trickle", true, at(5))
+	phone.GradeWord("trickle", "", true, at(5))
 	clock = 6
-	mac.SetWordMeaning("trickle", "/ˈtrɪk(ə)l/", "涓涓细流")
+	mac.SetWordMeaning("trickle", "", "/ˈtrɪk(ə)l/", "涓涓细流")
 	mac.MergeWords(phone.Words, phone.RemovedWords)
 	phone.MergeWords(mac.Words, mac.RemovedWords)
 	for name, b := range map[string]Book{"mac": mac, "phone": phone} {
@@ -94,7 +94,7 @@ func TestMergeWordsTakesEachFieldsLatest(t *testing.T) {
 	mac.MergeWords(phone.Words, phone.RemovedWords)
 	phone.MergeWords(mac.Words, mac.RemovedWords)
 	for name, b := range map[string]Book{"mac": mac, "phone": phone} {
-		i := b.WordIndex("river")
+		i := b.WordIndex("river", "")
 		if len(b.Words) != 2 || i < 0 || b.Words[i].ID != "a-phone" || b.Words[i].Meaning != "河" {
 			t.Fatalf("%s has %+v", name, b.Words)
 		}
@@ -105,11 +105,11 @@ func TestMergeWordsTakesEachFieldsLatest(t *testing.T) {
 
 	stale := slices.Clone(phone.Words)
 	clock = 8
-	mac.RemoveWord("trickle")
-	if !phone.MergeWords(mac.Words, mac.RemovedWords) || phone.WordIndex("trickle") >= 0 {
+	mac.RemoveWord("trickle", "")
+	if !phone.MergeWords(mac.Words, mac.RemovedWords) || phone.WordIndex("trickle", "") >= 0 {
 		t.Fatalf("the phone kept %+v", phone.Words)
 	}
-	if mac.MergeWords(stale, nil) || mac.WordIndex("trickle") >= 0 {
+	if mac.MergeWords(stale, nil) || mac.WordIndex("trickle", "") >= 0 {
 		t.Fatalf("a removed word came back: %+v", mac.Words)
 	}
 }
@@ -121,11 +121,11 @@ func TestWordsRoundTrip(t *testing.T) {
 	b, _ := Load(dir)
 	b.Device = "mac"
 	b.Now = func() time.Time { return at(clock) }
-	b.AddWord(Word{Text: "trickle", Reading: "/ˈtrɪk(ə)l/", Meaning: "细流", Language: "简体中文", Context: "Every river begins as a trickle.", ContextTranslation: "每条河都始于一股细流。", Video: b.Key(filepath.Join(dir, "Rivers", "video.mp4")), Start: 2300 * time.Millisecond, Film: "Rivers"})
+	b.AddWord(Word{Text: "trickle", Spoken: "en", Reading: "/ˈtrɪk(ə)l/", Meaning: "细流", Language: "简体中文", Context: "Every river begins as a trickle.", ContextTranslation: "每条河都始于一股细流。", Video: b.Key(filepath.Join(dir, "Rivers", "video.mp4")), Start: 2300 * time.Millisecond, Film: "Rivers"})
 	b.AddWord(Word{Text: "gone"})
 	clock = 1
-	b.RemoveWord("gone")
-	b.GradeWord("trickle", true, at(2))
+	b.RemoveWord("gone", "")
+	b.GradeWord("trickle", "en", true, at(2))
 	b.Watch(at(3), 90*time.Second)
 	if err := b.Save(); err != nil {
 		t.Fatal(err)
@@ -138,7 +138,7 @@ func TestWordsRoundTrip(t *testing.T) {
 		t.Fatalf("read back %+v, %+v, %+v", got.Words, got.RemovedWords, got.Watched)
 	}
 	w, want := got.Words[0], b.Words[0]
-	if w.ID != want.ID || w.Text != "trickle" || w.Reading != want.Reading || w.Meaning != "细流" || w.Language != "简体中文" || w.Context != want.Context || w.ContextTranslation != want.ContextTranslation ||
+	if w.ID != want.ID || w.Text != "trickle" || w.Spoken != "en" || w.Reading != want.Reading || w.Meaning != "细流" || w.Language != "简体中文" || w.Context != want.Context || w.ContextTranslation != want.ContextTranslation ||
 		w.Video != "Rivers/video.mp4" || w.Start != 2300*time.Millisecond || w.Film != "Rivers" || w.Box != 1 || !w.Due.Equal(want.Due) || !w.SavedAt.Equal(at(0)) ||
 		w.Device != "mac" || !w.Stamps.Review.At.Equal(at(2)) || !w.Stamps.Meaning.At.Equal(at(0)) {
 		t.Fatalf("word read back as %+v, want %+v", w, want)
@@ -148,5 +148,38 @@ func TestWordsRoundTrip(t *testing.T) {
 	}
 	if got.Watched[0] != (Watched{Day: Day(at(3)), Device: "mac", Time: 90 * time.Second}) {
 		t.Fatalf("watched read back as %+v", got.Watched)
+	}
+}
+
+// TestWordsOfTwoLanguagesAreTwoWords checks that one spelling in the vocabulary of two languages spoken is two words: each is found, graded and removed on its own, the other staying, and two devices that each added one keep both when they merge.
+func TestWordsOfTwoLanguagesAreTwoWords(t *testing.T) {
+	clock := 0
+	b := bookOn("mac", &clock)
+	if !b.AddWord(Word{Text: "die", Spoken: "de", Meaning: "定冠词"}) || !b.AddWord(Word{Text: "Die", Spoken: "en", Meaning: "死"}) || len(b.Words) != 2 {
+		t.Fatalf("the same spelling of two languages was not added twice: %+v", b.Words)
+	}
+	if b.AddWord(Word{Text: "DIE", Spoken: "EN"}) {
+		t.Fatal("the same word of the same language was added again")
+	}
+	de, en := b.WordIndex("die", "de"), b.WordIndex("die", "en")
+	if de < 0 || en < 0 || de == en || b.Words[de].Meaning != "定冠词" || b.Words[en].Meaning != "死" || b.WordIndex("die", "fr") >= 0 {
+		t.Fatalf("WordIndex de %d, en %d in %+v", de, en, b.Words)
+	}
+	if !b.GradeWord("die", "en", true, at(1)) || b.Words[b.WordIndex("die", "de")].Box != 0 {
+		t.Fatal("grading the English word graded the German one")
+	}
+	if !b.RemoveWord("die", "en") || len(b.Words) != 1 || b.Words[0].Spoken != "de" {
+		t.Fatalf("removing the English word left %+v", b.Words)
+	}
+
+	mac, phone := bookOn("mac", &clock), bookOn("phone", &clock)
+	mac.AddWord(Word{ID: "a-mac", Text: "son", Spoken: "fr", Meaning: "他的"})
+	phone.AddWord(Word{ID: "b-phone", Text: "son", Spoken: "es", Meaning: "是"})
+	mac.MergeWords(phone.Words, phone.RemovedWords)
+	phone.MergeWords(mac.Words, mac.RemovedWords)
+	for name, b := range map[string]Book{"mac": mac, "phone": phone} {
+		if len(b.Words) != 2 || len(b.RemovedWords) != 0 || b.WordIndex("son", "fr") < 0 || b.WordIndex("son", "es") < 0 {
+			t.Fatalf("%s has %+v, removed %+v", name, b.Words, b.RemovedWords)
+		}
 	}
 }

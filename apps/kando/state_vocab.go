@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"kando/apps/kando/film"
+	"kando/apps/kando/films"
 	"kando/apps/kando/locales"
 	"kando/apps/kando/lookup"
 	"kando/apps/kando/saved"
@@ -29,13 +30,14 @@ type vocabUI struct {
 	stats  vocabStats
 }
 
-// vocabLookup is the word looked up on the picture (film.Lookup): the word as clicked, the line it was clicked in, cue, its index in the open film's lines, and the film's video and title, so the word goes into the vocabulary with them; busy while the AI service is asked, then its entry, or why there is none (say), with needsAI set when the AI service's settings are what helps.
+// vocabLookup is the word looked up on the picture (film.Lookup): the word as clicked, the line it was clicked in, cue, its index in the open film's lines, and the film's video, title and the language it is spoken in, so the word goes into the vocabulary with them; busy while the AI service is asked, then its entry, or why there is none (say), with needsAI set when the AI service's settings are what helps.
 type vocabLookup struct {
 	open              bool
 	word              string
 	cue               int
 	line, translation string
 	video, film       string
+	spoken            string
 	start             time.Duration
 	busy, failed      bool
 	needsAI           bool
@@ -121,7 +123,7 @@ func (a *app) vocabHeld() bool {
 	return a.vocabFlushWatch() && a.vocab.stats.open
 }
 
-// vocabFlushWatch puts the time played since it was last told into the open library's study record, on today's date, and reports whether there was any.
+// vocabFlushWatch puts the time played since it was last told into the open library's study record, on today's date, and reports whether there was any. A study record that could not be read is not written (study.ErrUnread), so the time is not kept, and the picture was told so once, when it was read (savedSync). The learner did nothing to cause this write, so a record that cannot be written says nothing on the picture either: the time stays in the book in memory and goes into the file with its next write.
 func (a *app) vocabFlushWatch() bool {
 	d := a.vocab.watch.pending
 	if d <= 0 {
@@ -129,11 +131,11 @@ func (a *app) vocabFlushWatch() bool {
 	}
 	a.vocab.watch.pending = 0
 	a.savedSync()
-	if a.lockShut() || a.saved.book.Dir() == "" {
+	if a.lockShut() || a.saved.book.Dir() == "" || a.saved.book.Unread() != nil {
 		return false
 	}
 	a.saved.book.Watch(a.saved.now(), d)
-	a.savedWrite()
+	_ = a.saved.book.Save()
 	return true
 }
 
@@ -170,7 +172,7 @@ func (a *app) Lookup() film.Lookup {
 		out.Word = cmp.Or(l.entry.Word, l.word)
 		out.Reading, out.Meaning = l.entry.Reading, l.entry.Meaning
 		book := a.savedBook()
-		out.Saved = book.WordIndex(out.Word) >= 0
+		out.Saved = book.WordIndex(out.Word, l.spoken) >= 0
 	}
 	return out
 }
@@ -188,10 +190,10 @@ func (a *app) LookUpWord(i int, word string) {
 	a.vocabStopLookup()
 	translation, original := film.SplitCue(cues[i].Text)
 	item, _ := a.openFilm()
-	language := paletteAnswerLanguage(item, a.prefs.language)
+	q := vocabQuery(item, a.prefs.language, word, original)
 	a.vocab.lookup = vocabLookup{open: true, word: word, cue: i, line: original, translation: translation, video: a.player.film.video,
-		film: cmp.Or(item.Name, item.Title), start: cues[i].Start, language: language}
-	if e, ok := a.vocabCache().Get(word, language); ok {
+		film: cmp.Or(item.Name, item.Title), spoken: q.Spoken, start: cues[i].Start, language: q.Language}
+	if e, ok := a.vocabCache().Get(q); ok {
 		a.vocab.lookup.entry = e
 		return
 	}
@@ -206,7 +208,7 @@ func (a *app) LookUpWord(i int, word string) {
 	ctx, cancel := context.WithTimeout(context.Background(), lookupTimeout)
 	a.vocab.cancel = cancel
 	update, now := a.update, a.saved.now
-	system, user := lookup.Prompt(language), lookup.Request(word, original, a.vocab.lookup.film)
+	system, user := lookup.Prompt(q.Language), lookup.Request(word, original, a.vocab.lookup.film)
 	go func() {
 		defer cancel()
 		reply, err := t.Chat(ctx, system, user)
@@ -229,10 +231,15 @@ func (a *app) LookUpWord(i int, word string) {
 			}
 			l.entry = entry
 			cache := a.vocabCache()
-			cache.Put(word, language, entry, now())
+			cache.Put(q, entry, now())
 			_ = cache.Save()
 		})
 	}()
+}
+
+// vocabQuery is what word, clicked in line of the film item, is looked up with: the language the film is spoken in, as the user named it or else as the speech recognition heard it, and the language its meaning is written in (paletteAnswerLanguage, fallback the settings' target language).
+func vocabQuery(item films.Film, fallback, word, line string) lookup.Query {
+	return lookup.Query{Word: word, Spoken: cmp.Or(item.SpeechLanguage, item.Spoken), Language: paletteAnswerLanguage(item, fallback), Line: line}
 }
 
 // vocabStopLookup stops the lookup asking the AI service, whose answer is then dropped.
@@ -259,12 +266,12 @@ func (a *app) ToggleLookupWord() {
 	a.savedSync()
 	book := &a.saved.book
 	text := cmp.Or(l.entry.Word, l.word)
-	if book.RemoveWord(text) {
+	if book.RemoveWord(text, l.spoken) {
 		a.flash(a.messages().VocabOsdRemoved(text))
 		a.savedWrite()
 		return
 	}
-	book.AddWord(saved.Word{Text: text, Reading: l.entry.Reading, Meaning: l.entry.Meaning, Language: l.language,
+	book.AddWord(saved.Word{Text: text, Spoken: l.spoken, Reading: l.entry.Reading, Meaning: l.entry.Meaning, Language: l.language,
 		Context: l.line, ContextTranslation: l.translation, Video: book.Key(l.video), Start: l.start, Film: l.film, SavedAt: a.saved.now()})
 	a.flash(a.messages().VocabOsdAdded(text))
 	a.savedWrite()

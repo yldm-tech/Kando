@@ -131,6 +131,8 @@ func (b Book) Dir() string { return b.dir }
 func (b Book) Migrated() bool { return b.migrated }
 
 // Save writes the book atomically. A book without a folder is kept in memory only, as tests use it. A book with nothing in it and no file leaves no file behind.
+//
+// The file may have changed since Load read it, as when another computer that opens the same library folder, shared or synced, saved to it: Save first merges what the file holds now into the book (Merge, MergeWords, MergeWatched), so the other's changes are kept rather than written over. A file that cannot be read now, or that a later version wrote since, is left as it is (ErrUnread), and the book is not written from then on.
 func (b *Book) Save() error {
 	if b.dir == "" {
 		return nil
@@ -139,6 +141,9 @@ func (b *Book) Save() error {
 		return fmt.Errorf("%w: %v", ErrUnread, b.unread)
 	}
 	path := filepath.Join(b.dir, FileName)
+	if err := b.mergeFile(path); err != nil {
+		return err
+	}
 	if len(b.Lines) == 0 && len(b.Removed) == 0 && len(b.Words) == 0 && len(b.RemovedWords) == 0 && len(b.Watched) == 0 && b.imported == "" {
 		if _, err := os.Stat(path); errors.Is(err, os.ErrNotExist) {
 			return nil
@@ -158,6 +163,25 @@ func (b *Book) Save() error {
 	}
 	b.migrated = false
 	return nil
+}
+
+// mergeFile merges the lines, the words and the time watched that the file at path holds now into the book, as another device's (Save). A file that is not there holds nothing; one that cannot be read or decoded marks the book unread.
+func (b *Book) mergeFile(path string) error {
+	data, err := os.ReadFile(path)
+	if errors.Is(err, os.ErrNotExist) {
+		return nil
+	}
+	if err == nil {
+		var disk Book
+		if err = disk.decode(data); err == nil {
+			b.Merge(disk.Lines, disk.Removed)
+			b.MergeWords(disk.Words, disk.RemovedWords)
+			b.MergeWatched(disk.Watched)
+			return nil
+		}
+		b.unread = err
+	}
+	return fmt.Errorf("%w: %v", ErrUnread, err)
 }
 
 // stamp is a change made now on the book's device.
@@ -398,6 +422,7 @@ type storedWord struct {
 	ID                 string           `json:"id"`
 	Device             string           `json:"device,omitempty"`
 	Text               string           `json:"text"`
+	Spoken             string           `json:"spoken,omitempty"`
 	Reading            string           `json:"reading,omitempty"`
 	Meaning            string           `json:"meaning,omitempty"`
 	Language           string           `json:"language,omitempty"`
@@ -489,7 +514,7 @@ func (b Book) encode() storedBook {
 	}
 	for _, w := range b.Words {
 		out.Words = append(out.Words, storedWord{
-			ID: w.ID, Device: w.Device, Text: w.Text, Reading: w.Reading, Meaning: w.Meaning, Language: w.Language,
+			ID: w.ID, Device: w.Device, Text: w.Text, Spoken: w.Spoken, Reading: w.Reading, Meaning: w.Meaning, Language: w.Language,
 			Context: w.Context, ContextTranslation: w.ContextTranslation, Video: w.Video, Start: w.Start.Seconds(), Film: w.Film,
 			SavedAt: w.SavedAt, Box: w.Box, Due: w.Due,
 			Stamps: storedWordStamps{Meaning: toStored(w.Stamps.Meaning), Review: toStored(w.Stamps.Review)},
@@ -547,7 +572,7 @@ func (b *Book) decode(data []byte) error {
 			continue
 		}
 		b.Words = append(b.Words, Word{
-			ID: s.ID, Device: s.Device, Text: s.Text, Reading: s.Reading, Meaning: s.Meaning, Language: s.Language,
+			ID: s.ID, Device: s.Device, Text: s.Text, Spoken: s.Spoken, Reading: s.Reading, Meaning: s.Meaning, Language: s.Language,
 			Context: s.Context, ContextTranslation: s.ContextTranslation, Video: s.Video, Start: fromSeconds(s.Start), Film: s.Film,
 			SavedAt: s.SavedAt, Box: max(s.Box, 0), Due: s.Due,
 			Stamps: WordStamps{Meaning: fromStored(s.Stamps.Meaning), Review: fromStored(s.Stamps.Review)},

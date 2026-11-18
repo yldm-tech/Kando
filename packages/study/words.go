@@ -10,8 +10,8 @@ import (
 type Word struct {
 	// ID names the word on every device; Device is the device that added it.
 	ID, Device string
-	// Text is the word as the vocabulary lists it, its dictionary form; WordKey of it names it in the book, so a word is there once whatever its case.
-	Text string
+	// Text is the word as the vocabulary lists it, its dictionary form, and Spoken the language of the film it was looked up in, as whisper's code (en, de), "" when it was not known; the two name it in the book (WordIndex), so a word is there once whatever its case, and "die" of a German film is not "die" of an English one.
+	Text, Spoken string
 	// Reading is how it is said, as a phonetic transcription or a reading in kana, "" for none; Meaning is what it means, written in Language, the language the subtitles are translated into.
 	Reading, Meaning, Language string
 	// Context is the line it was looked up in, and ContextTranslation that line's translation, "" for none.
@@ -40,13 +40,16 @@ const MasteredBox = 5
 // WordKey is how the book names the word text: trimmed and in lower case, so "River" and "river" are one word.
 func WordKey(text string) string { return strings.ToLower(strings.TrimSpace(text)) }
 
-// WordIndex is the index of the word text in the vocabulary, or -1.
-func (b Book) WordIndex(text string) int {
-	key := WordKey(text)
+// spokenKey is how the book compares the languages words are spoken in: trimmed and in lower case.
+func spokenKey(spoken string) string { return strings.ToLower(strings.TrimSpace(spoken)) }
+
+// WordIndex is the index of the word text of the language spoken in the vocabulary, or -1.
+func (b Book) WordIndex(text, spoken string) int {
+	key, lang := WordKey(text), spokenKey(spoken)
 	if key == "" {
 		return -1
 	}
-	return slices.IndexFunc(b.Words, func(w Word) bool { return WordKey(w.Text) == key })
+	return slices.IndexFunc(b.Words, func(w Word) bool { return WordKey(w.Text) == key && spokenKey(w.Spoken) == lang })
 }
 
 // wordByID is the index of the word id, or -1.
@@ -57,10 +60,10 @@ func (b Book) wordByID(id string) int {
 	return slices.IndexFunc(b.Words, func(w Word) bool { return w.ID == id })
 }
 
-// AddWord puts w in the vocabulary, first and due at once, and reports whether it did: a word the vocabulary has already, in any case, stays as it is. It gets an id when it has none, the book's device, and its fields are stamped now, when it was added unless SavedAt says.
+// AddWord puts w in the vocabulary, first and due at once, and reports whether it did: a word the vocabulary has already, in any case, of the same language spoken, stays as it is. It gets an id when it has none, the book's device, and its fields are stamped now, when it was added unless SavedAt says.
 func (b *Book) AddWord(w Word) bool {
-	w.Text = strings.TrimSpace(w.Text)
-	if w.Text == "" || b.WordIndex(w.Text) >= 0 {
+	w.Text, w.Spoken = strings.TrimSpace(w.Text), strings.TrimSpace(w.Spoken)
+	if w.Text == "" || b.WordIndex(w.Text, w.Spoken) >= 0 {
 		return false
 	}
 	at := b.stamp()
@@ -80,9 +83,9 @@ func (b *Book) AddWord(w Word) bool {
 	return true
 }
 
-// RemoveWord takes the word text out of the vocabulary, leaving a Removed behind that names it by its id and its key (Removed.Video), and reports whether there was one.
-func (b *Book) RemoveWord(text string) bool {
-	i := b.WordIndex(text)
+// RemoveWord takes the word text of the language spoken out of the vocabulary, leaving a Removed behind that names it by its id and its key (Removed.Video), and reports whether there was one.
+func (b *Book) RemoveWord(text, spoken string) bool {
+	i := b.WordIndex(text, spoken)
 	if i < 0 {
 		return false
 	}
@@ -92,9 +95,9 @@ func (b *Book) RemoveWord(text string) bool {
 	return true
 }
 
-// SetWordMeaning writes reading and meaning as those of the word text, as a lookup made again does, and reports whether that changed the word.
-func (b *Book) SetWordMeaning(text, reading, meaning string) bool {
-	i := b.WordIndex(text)
+// SetWordMeaning writes reading and meaning as those of the word text of the language spoken, as a lookup made again does, and reports whether that changed the word.
+func (b *Book) SetWordMeaning(text, spoken, reading, meaning string) bool {
+	i := b.WordIndex(text, spoken)
 	reading, meaning = strings.TrimSpace(reading), strings.TrimSpace(meaning)
 	if i < 0 || (b.Words[i].Reading == reading && b.Words[i].Meaning == meaning) {
 		return false
@@ -104,9 +107,9 @@ func (b *Book) SetWordMeaning(text, reading, meaning string) bool {
 	return true
 }
 
-// GradeWord schedules the word text after a review at now, as Grade does a line: good moves it up a box, else back to box 0, due at once. It reports whether there was such a word.
-func (b *Book) GradeWord(text string, good bool, now time.Time) bool {
-	i := b.WordIndex(text)
+// GradeWord schedules the word text of the language spoken after a review at now, as Grade does a line: good moves it up a box, else back to box 0, due at once. It reports whether there was such a word.
+func (b *Book) GradeWord(text, spoken string, good bool, now time.Time) bool {
+	i := b.WordIndex(text, spoken)
 	if i < 0 {
 		return false
 	}
@@ -125,7 +128,7 @@ func schedule(box int, good bool, now time.Time) (int, time.Time) {
 	return box, now.Add(Intervals[box-1])
 }
 
-// MergeWords takes into the vocabulary another device's words and the words it removed, as Merge does lines, and reports whether the vocabulary changed. A word removed on either device is removed on both; of a word both have, each field is the one changed later; a word both devices added on their own becomes one, the one with the smaller id, and the other is removed. It is the same whichever book merges into which, and merging again changes nothing.
+// MergeWords takes into the vocabulary another device's words and the words it removed, as Merge does lines, and reports whether the vocabulary changed. A word removed on either device is removed on both; of a word both have, each field is the one changed later; a word both devices added on their own, of the same language spoken, becomes one, the one with the smaller id, and the other is removed. It is the same whichever book merges into which, and merging again changes nothing.
 func (b *Book) MergeWords(words []Word, removed []Removed) bool {
 	changed := false
 	for _, r := range removed {
@@ -137,7 +140,7 @@ func (b *Book) MergeWords(words []Word, removed []Removed) bool {
 		}
 		i := b.wordByID(in.ID)
 		if i < 0 {
-			i = b.WordIndex(in.Text)
+			i = b.WordIndex(in.Text, in.Spoken)
 		}
 		if i < 0 {
 			b.insertWord(in)

@@ -7,6 +7,7 @@ import (
 	"testing"
 	"time"
 
+	"kando/apps/kando/film"
 	"kando/apps/kando/locales/testlocale"
 	"kando/apps/kando/lookup"
 	"kando/apps/kando/saved"
@@ -27,6 +28,16 @@ func vocabTalk(t *testing.T, tools media.Tools) (*app, *nsgotest.App, chan func(
 	playerLoadFilm(tt, a, 12*time.Second)
 	playerPlayTo(tt, a, 1500*time.Millisecond)
 	return a, tt, updates
+}
+
+// vocabTalkQuery is what word, clicked in line i of the open film, is looked up with.
+func vocabTalkQuery(a *app, word string, i int) (q lookup.Query) {
+	onEngine(a, func() {
+		item, _ := a.openFilm()
+		_, line := film.SplitCue(a.playerCues()[i].Text)
+		q = vocabQuery(item, a.prefs.language, word, line)
+	})
+	return q
 }
 
 // TestLookUpAWordOnThePicture clicks a word of the original line on the picture while the film plays: the film holds and the card over it says the AI service is asked, then shows the word as a dictionary lists it, its reading and what it means, with the line; the AI service was asked about the word in its line, in the film's language. Add to Vocabulary puts the word in the library's study record with the line, its translation and where it is, and the picture says so; Escape closes the card and leaves the film open. Looking the word up again asks the AI service nothing, and In Vocabulary takes it out again.
@@ -102,7 +113,7 @@ func TestLookupsAreKeptOnThisComputer(t *testing.T) {
 	if len(*seen) == 0 {
 		t.Fatal("the AI service was not asked")
 	}
-	e, ok := lookup.Load(filepath.Join(filepath.Dir(a.settingsPath), lookup.FileName)).Get("bye", "简体中文")
+	e, ok := lookup.Load(filepath.Join(filepath.Dir(a.settingsPath), lookup.FileName)).Get(vocabTalkQuery(a, "Bye", 1))
 	if !ok || e.Meaning != "再见" || e.Word != "bye" {
 		t.Fatalf("the cache on disk holds %+v, %v", e, ok)
 	}
@@ -127,7 +138,7 @@ func TestLookupOfflineAsksForALocalAIService(t *testing.T) {
 		t.Fatal("Open Settings left the card open")
 	}
 
-	a.vocabCache().Put("Bye", "简体中文", lookup.Entry{Word: "bye", Meaning: "再见"}, time.Now())
+	a.vocabCache().Put(vocabTalkQuery(a, "Bye", 1), lookup.Entry{Word: "bye", Meaning: "再见"}, time.Now())
 	apply(tt, a, func() { a.LookUpWord(1, "Bye") })
 	if a.vocab.lookup.failed || a.vocab.lookup.entry.Meaning != "再见" {
 		t.Fatalf("a word looked up before, offline: %+v", a.vocab.lookup)
@@ -238,4 +249,56 @@ func TestStatsDialogShowsTheStudy(t *testing.T) {
 	if a.vocab.stats.tab != study.TabExport {
 		t.Fatal("the dialog forgot its tab")
 	}
+}
+
+// TestWatchTimeLeavesAnUnreadableStudyRecordAlone plays the film over a study record a later Kando wrote, which this one cannot read: the time played is not written into it, the file stays as it was, and the picture does not say the saved lines could not be saved, as the learner saved nothing.
+func TestWatchTimeLeavesAnUnreadableStudyRecordAlone(t *testing.T) {
+	a, tt, _ := playerOpen(t)
+	path := filepath.Join(a.snap().LibraryDir, recordstudy.FileName)
+	later := []byte(`{"version": 99, "lines": []}`)
+	if err := os.WriteFile(path, later, 0o644); err != nil {
+		t.Fatal(err)
+	}
+	clock := time.Date(2026, 11, 18, 9, 0, 0, 0, time.Local)
+	a.saved.now = func() time.Time { return clock }
+	tt.Key("space")
+	at := 1500 * time.Millisecond
+	for range 35 {
+		clock = clock.Add(2 * time.Second)
+		at += 100 * time.Millisecond
+		playerPlayTo(tt, a, at)
+	}
+	tt.Key("space")
+	failed := testlocale.Messages().SavedWriteFailed()
+	if a.player.film.osd == failed {
+		t.Fatalf("the picture says %q", failed)
+	}
+	if data, _ := os.ReadFile(path); string(data) != string(later) {
+		t.Fatalf("the study record was written over: %s", data)
+	}
+}
+
+// TestLookupTellsWordsOfTwoLanguagesApart looks up "Hello" in the film while the vocabulary holds a "hello" of a film spoken in another language: the card offers Add to Vocabulary, and pressing it adds the word of this film beside the other rather than taking the other out.
+func TestLookupTellsWordsOfTwoLanguagesApart(t *testing.T) {
+	a, tt, _ := vocabTalk(t, media.Tools{Translator: media.ChatTranslator{BaseURL: "https://api.openai.com/v1"}})
+	msgs := testlocale.Messages()
+	q := vocabTalkQuery(a, "Hello", 0)
+	other := "xx"
+	if q.Spoken == other {
+		t.Fatalf("the film is spoken in %q", other)
+	}
+	onEngine(a, func() {
+		a.savedSync()
+		a.saved.book.AddWord(saved.Word{Text: "hello", Spoken: other, Meaning: "another language's hello"})
+		a.savedWrite()
+		a.vocabCache().Put(q, lookup.Entry{Word: "hello", Meaning: "你好"}, time.Now())
+	})
+	apply(tt, a, func() { a.LookUpWord(0, "Hello") })
+	wantText(t, tt, msgs.VocabAddToVocabulary())
+	tt.Press("id:film-lookup-save")
+	book, _ := saved.Load(a.snap().LibraryDir)
+	if len(book.Words) != 2 || book.WordIndex("hello", other) < 0 || book.WordIndex("hello", q.Spoken) < 0 || len(book.RemovedWords) != 0 {
+		t.Fatalf("the vocabulary holds %+v, removed %+v", book.Words, book.RemovedWords)
+	}
+	wantText(t, tt, msgs.VocabInVocabulary())
 }

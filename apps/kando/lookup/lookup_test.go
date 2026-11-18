@@ -74,21 +74,34 @@ func TestPromptAndRequest(t *testing.T) {
 	}
 }
 
-// TestCacheKeepsLookupsOnDisk checks that a word looked up is found again by any case of it, in the same language only, after the cache is read back from its file; that a broken file reads as an empty cache; and that the oldest go once there are too many.
+// TestCacheKeepsLookupsOnDisk checks that a word looked up is found again by any case of it, after the cache is read back from its file, only for the same language spoken, the same language of the meaning and the same line; that a broken file, or one of another version, reads as an empty cache; and that the oldest go once there are too many.
 func TestCacheKeepsLookupsOnDisk(t *testing.T) {
 	path := filepath.Join(t.TempDir(), "sub", FileName)
 	c := Load(path)
 	at := time.Date(2026, 11, 18, 9, 0, 0, 0, time.UTC)
-	c.Put("Rivers", "简体中文", Entry{Word: "river", Meaning: "河"}, at)
+	q := Query{Word: "Die", Spoken: "en", Language: "简体中文", Line: "Never say die."}
+	c.Put(q, Entry{Word: "die", Meaning: "死"}, at)
 	if err := c.Save(); err != nil {
 		t.Fatal(err)
 	}
 	got := Load(path)
-	if e, ok := got.Get("rivers", "简体中文"); !ok || e.Word != "river" || e.Meaning != "河" {
+	if e, ok := got.Get(Query{Word: "die", Spoken: "EN", Language: "简体中文", Line: "Never say die."}); !ok || e.Word != "die" || e.Meaning != "死" {
 		t.Fatalf("read back %+v, %v", e, ok)
 	}
-	if _, ok := got.Get("rivers", "日本語"); ok {
-		t.Fatal("found in another language")
+	for name, other := range map[string]Query{
+		"another language spoken":    {Word: "die", Spoken: "de", Language: "简体中文", Line: "Never say die."},
+		"another meaning's language": {Word: "die", Spoken: "en", Language: "日本語", Line: "Never say die."},
+		"another line":               {Word: "die", Spoken: "en", Language: "简体中文", Line: "The die is cast."},
+	} {
+		if _, ok := got.Get(other); ok {
+			t.Fatalf("found for %s", name)
+		}
+	}
+	if err := os.WriteFile(path, []byte(`{"version":1,"entries":{"die\u0000简体中文":{"entry":{"word":"die","meaning":"死"}}}}`), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if Load(path).Len() != 0 {
+		t.Fatal("a file of another version read as words")
 	}
 	if err := os.WriteFile(path, []byte("{broken"), 0o644); err != nil {
 		t.Fatal(err)
@@ -97,13 +110,13 @@ func TestCacheKeepsLookupsOnDisk(t *testing.T) {
 		t.Fatal("a broken file read as words")
 	}
 	var mem Cache
-	if _, ok := mem.Get("x", ""); ok || mem.Save() != nil {
+	if _, ok := mem.Get(Query{Word: "x"}); ok || mem.Save() != nil {
 		t.Fatal("the zero cache")
 	}
 	for i := range MaxEntries + 1 {
-		mem.Put(strings.Repeat("w", i+1), "", Entry{Meaning: "m"}, at.Add(time.Duration(i)*time.Second))
+		mem.Put(Query{Word: strings.Repeat("w", i+1)}, Entry{Meaning: "m"}, at.Add(time.Duration(i)*time.Second))
 	}
-	if _, ok := mem.Get("w", ""); ok || mem.Len() != MaxEntries {
+	if _, ok := mem.Get(Query{Word: "w"}); ok || mem.Len() != MaxEntries {
 		t.Fatalf("the oldest stayed: %d entries", mem.Len())
 	}
 }

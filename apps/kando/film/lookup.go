@@ -87,7 +87,10 @@ func lookupButton(cx *core.Scope, label func() string, id string, press func(), 
 		OnPress: func(core.PressEvent) { press() },
 		Style: core.Style{Height: core.Pt(28), Padding: core.Symmetric(0, 12), FlexShrink: 0, AlignItems: core.AlignCenter, JustifyContent: core.JustifyCenter, CornerRadius: 10,
 			Background: core.RGBA(0xFFFFFF, 0.1),
-			Hover:      &core.Style{Background: core.RGBA(0xFFFFFF, 0.18)}, Active: &core.Style{Background: core.RGBA(0xFFFFFF, 0.24)}, Selected: &core.Style{Background: core.RGBA(0x0A84FF, 0.55)}, FocusVisible: ui.FocusRing(cx, -2)},
+			Hover:      &core.Style{Background: core.RGBA(0xFFFFFF, 0.18)}, Active: &core.Style{Background: core.RGBA(0xFFFFFF, 0.24)}, FocusVisible: ui.FocusRing(cx, -2)},
+		StyleFunc: func() core.Style {
+			return core.Style{Selected: &core.Style{Background: ui.ColorsOf(cx).AccentFill().Faded(0.55)}}
+		},
 		Children: []core.Node{core.Text{ContentFunc: label, PointerEvents: core.PointerEventsNone, Style: core.Style{FontSize: 12, LineHeight: 16, Color: onGlass}}}}
 	if on != nil {
 		b.Selected = on

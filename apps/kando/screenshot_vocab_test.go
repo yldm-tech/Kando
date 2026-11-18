@@ -6,6 +6,7 @@ import (
 	"testing"
 	"time"
 
+	"kando/apps/kando/film"
 	"kando/apps/kando/lookup"
 	"kando/apps/kando/saved"
 	recordstudy "kando/packages/study"
@@ -22,7 +23,8 @@ func TestScreenshotsVocab(t *testing.T) {
 		screenshotLoad(tt, a)
 		onEngine(a, func() {
 			item, _ := a.openFilm()
-			a.vocabCache().Put("trickle", paletteAnswerLanguage(item, a.prefs.language), lookup.Entry{Word: "trickle", Reading: "/ˈtrɪk(ə)l/", Meaning: "n. 细流，涓涓细水；这里指河流在山上刚形成时的一股小水流。"}, now)
+			_, line := film.SplitCue(a.playerCues()[0].Text)
+			a.vocabCache().Put(vocabQuery(item, a.prefs.language, "trickle", line), lookup.Entry{Word: "trickle", Reading: "/ˈtrɪk(ə)l/", Meaning: "n. 细流，涓涓细水；这里指河流在山上刚形成时的一股小水流。"}, now)
 			a.LookUpWord(0, "trickle")
 		})
 		refresh(tt, a)
