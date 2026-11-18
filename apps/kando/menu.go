@@ -115,7 +115,23 @@ func (a *app) menuBar(cx *core.Scope) []nsdesktop.MenuItem {
 		}
 		return append(append(head, separator), more...)
 	}
+	// standIn are the items of the rows that stand in for a system item now, by its role (shortcut.Role); the rows with a role are taken out of their menus' other rows.
+	standIn := map[nsdesktop.MenuRole]nsdesktop.MenuItem{}
+	for group := range rows {
+		rows[group] = slices.DeleteFunc(slices.Clone(rows[group]), func(s shortcut) bool {
+			if s.Role == nsdesktop.MenuRoleNone {
+				return false
+			}
+			if s.When == nil || s.When() {
+				standIn[s.Role] = a.menuItem(s, false)
+			}
+			return true
+		})
+	}
 	role := func(label string, r nsdesktop.MenuRole) nsdesktop.MenuItem {
+		if it, ok := standIn[r]; ok {
+			return it
+		}
 		return nsdesktop.MenuItem{Label: label, Role: r}
 	}
 	// items are the group's rows, the ones with a key first and the menu's own commands without one after a separator. extra are items of the menu alone that go with the rows that have a key, before that separator.

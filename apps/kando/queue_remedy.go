@@ -363,6 +363,10 @@ func (a *app) queueUpdateYTDLP() {
 	if !ok || tools.YTDLP == "" || a.queue.ytdlp.updating || a.update == nil {
 		return
 	}
+	if a.privacy.offline {
+		a.warn(a.messages().PrivacyNoYtdlpUpdate(), settings.SectionPrivacy)
+		return
+	}
 	a.queue.ytdlp.updating = true
 	path, update := tools.YTDLP, a.update
 	go func() {

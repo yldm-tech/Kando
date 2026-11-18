@@ -9,6 +9,7 @@ import (
 	"kando/apps/kando/films/sitename"
 	"kando/apps/kando/locales"
 	"kando/apps/kando/settings"
+	"kando/apps/kando/settings/sectionid"
 	"kando/apps/kando/sidebar"
 	"kando/packages/core"
 	"kando/packages/media"
@@ -32,6 +33,9 @@ func (a *app) precheckIn(m locales.Messages, sources []string) (msg, section str
 		link, ok := core.ParseLink(source)
 		if !ok {
 			return m.PrecheckNotLink(), ""
+		}
+		if a.privacy.offline && link.Platform != core.PlatformLocal {
+			return m.PrivacyNoDownload(), sectionid.Privacy
 		}
 		if !link.OneVideo() {
 			return precheckWhole(m, link), ""
@@ -176,6 +180,10 @@ func failureHint(m locales.Messages, item films.Film) (reason, section string) {
 		return m.PrecheckNoTranscript(), ""
 	case strings.Contains(detail, media.ErrSubtitlesChanged.Error()):
 		return m.PrecheckSubtitlesChanged(), ""
+	case strings.Contains(detail, media.ErrOffline.Error()) && strings.HasPrefix(detail, "download: "):
+		return m.PrivacyNoDownload(), sectionid.Privacy
+	case strings.Contains(detail, media.ErrOffline.Error()):
+		return m.PrivacyNoCloudAI(), settings.SectionAI
 	}
 	// media.Run names the stage that failed before its error.
 	stage, rest, ok := strings.Cut(detail, ": ")

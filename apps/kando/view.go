@@ -60,11 +60,13 @@ func (a *app) view(cx *core.Scope) core.Node {
 	}
 	return core.View{
 		Style: core.Style{Direction: core.Row, FlexGrow: 1, FlexShrink: 1, AlignItems: core.AlignStretch},
+		// The window's text is in the platform's font of the design (theme.FontOf), which every text under it inherits, in the interface's language as it changes.
 		StyleFunc: func() core.Style {
-			if nsdesktop.ShowsMaterial(cx) {
-				return core.Style{}
+			s := core.Style{FontFamily: theme.FontOf(cx)}
+			if !nsdesktop.ShowsMaterial(cx) {
+				s.Background = colors.Background()
 			}
-			return core.Style{Background: colors.Background()}
+			return s
 		},
 		Children: []core.Node{
 			core.Show{When: showSidebar, Then: func(*core.Scope) core.Node { return a.sidebarColumn() }},

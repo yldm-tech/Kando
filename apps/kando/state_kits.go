@@ -60,6 +60,10 @@ func (a *app) kitsInstall(program string) {
 	if !ok || media.OwnToolsDir == "" || a.kits.running[program] != nil {
 		return
 	}
+	if a.privacy.offline {
+		a.kits.errs[program] = media.ErrOffline
+		return
+	}
 	ctx, cancel := context.WithCancel(context.Background())
 	job := &kitDownload{total: kit.Size, cancel: cancel}
 	a.kits.running[program] = job

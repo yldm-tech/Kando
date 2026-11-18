@@ -8,8 +8,11 @@ import (
 
 	"kando/apps/kando/locales/testlocale"
 	"kando/apps/kando/sidebar"
+	"kando/apps/kando/theme"
 	"kando/packages/core"
 	"kando/packages/media"
+
+	ns "github.com/nsgo-dev/nsgo/core"
 )
 
 func TestQueueOrderRunsOldestFirst(t *testing.T) {
@@ -101,6 +104,20 @@ func TestLinkChipNamesThePlatform(t *testing.T) {
 		label, _, ok := linkChip(testlocale.Messages(), raw)
 		if label != want || ok != (want != "") {
 			t.Errorf("linkChip(%q) = %q %v, want %q", raw, label, ok, want)
+		}
+	}
+}
+
+// TestLinkChipIsInTheSourcesColor checks that the tag is in the design's mark of the link's source: YouTube's red, 哔哩哔哩's blue and indigo for another site, and gray for links pasted together, which are no one source.
+func TestLinkChipIsInTheSourcesColor(t *testing.T) {
+	for raw, want := range map[string]ns.Color{
+		"https://www.youtube.com/watch?v=TRWgBxVAb1M":     theme.SourceYouTube,
+		"https://www.bilibili.com/video/BV1GJ411x7h7":     theme.SourceBilibili,
+		"https://vimeo.com/76979871":                      theme.SourceOther,
+		"https://youtu.be/TRWgBxVAb1M https://youtu.be/x": ns.RGB(0x6A6A70),
+	} {
+		if _, got, _ := linkChip(testlocale.Messages(), raw); got != want {
+			t.Errorf("linkChip(%q) in %v, want %v", raw, got, want)
 		}
 	}
 }

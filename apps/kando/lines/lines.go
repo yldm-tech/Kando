@@ -2,7 +2,6 @@
 package lines
 
 import (
-	"os"
 	"strings"
 	"time"
 
@@ -25,13 +24,9 @@ func New(start time.Duration, translation, original string) Line {
 	return Line{Start: start, Translation: translation, Original: original, folded: strings.ToLower(translation + "\n" + original)}
 }
 
-// Read is the lines of the bilingual .srt at path, each split into its translation and its original (Split).
+// Read is the lines of the bilingual .srt at path, with the user's corrections of the film laid over them (media.ReadSubtitles), each split into its translation and its original (Split).
 func Read(path string) ([]Line, error) {
-	data, err := os.ReadFile(path)
-	if err != nil {
-		return nil, err
-	}
-	segments, err := media.ParseSRT(data)
+	segments, err := media.ReadSubtitles(path)
 	if err != nil {
 		return nil, err
 	}

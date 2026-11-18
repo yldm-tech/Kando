@@ -30,6 +30,8 @@ type shortcut struct {
 	Run    func()
 	// Items makes the row a submenu of the menu bar, with the items it gives as the menu is built, in place of Run; such a row has no key, and the menu bar is the only place it shows. Each item's OnSelect goes through menuSelect, as a row's Run does.
 	Items func() []nsdesktop.MenuItem
+	// Role makes the row stand in for the menu bar's own item of that role, in its place and with its key, while When holds; otherwise the system's item shows there, as for the text fields. Such a row shows nowhere else in the menu bar. nsdesktop.MenuRoleNone, the zero, is a row of its own.
+	Role nsdesktop.MenuRole
 }
 
 // hasCommand reports whether key is held with ⌘, Ctrl on Windows and Linux: a row the menu bar carries as its item's shortcut.
@@ -76,9 +78,9 @@ func groupTitle(cx *core.Scope, group string) string {
 	return group
 }
 
-// shortcuts is the whole table, in the order the cheat sheet lists it, its labels in the language the app shows under cx. Each area keeps its rows next to its own code: the app's here, the sidebar's in state_sidebar.go, the library's in bind_films.go, the queue's in queue.go, the player's in bind_film.go, the settings' in state_settings.go, the overlays' in state_overlay.go, the menu bar's in state_menu.go, the feedback dialog's in state_feedback.go, the first-run guide's in state_onboarding.go, 显示日志文件 in state_logs.go, 检查更新… in updates.go, the main window's in state_window.go, the browser's in state_browse.go and the lock's in state_lock.go.
+// shortcuts is the whole table, in the order the cheat sheet lists it, its labels in the language the app shows under cx. Each area keeps its rows next to its own code: the app's here, the sidebar's in state_sidebar.go, the library's in bind_films.go, the queue's in queue.go, the player's in bind_film.go, correcting its lines' in state_correct.go, the settings' in state_settings.go, the overlays' in state_overlay.go, the menu bar's in state_menu.go, the feedback dialog's in state_feedback.go, the first-run guide's in state_onboarding.go, 显示日志文件 in state_logs.go, 检查更新… in updates.go, the main window's in state_window.go, the browser's in state_browse.go and the lock's in state_lock.go.
 func (a *app) shortcuts(cx *core.Scope) []shortcut {
-	return slices.Concat(a.appKeys(cx), a.sidebarKeys(cx), a.libraryKeys(cx), a.queueKeys(cx), a.playerKeys(cx), a.settingsKeys(cx), a.overlayKeys(cx), a.menuKeys(cx), a.feedbackKeys(cx), a.paletteKeys(cx), a.onboardingKeys(cx), a.sitesKeys(cx), a.logsKeys(cx), a.updatesKeys(cx), a.windowKeys(cx), a.browseKeys(cx), a.savedKeys(cx), a.lockKeys(cx), a.subscribeKeys(cx))
+	return slices.Concat(a.appKeys(cx), a.sidebarKeys(cx), a.libraryKeys(cx), a.queueKeys(cx), a.playerKeys(cx), a.correctKeys(cx), a.settingsKeys(cx), a.overlayKeys(cx), a.menuKeys(cx), a.feedbackKeys(cx), a.paletteKeys(cx), a.onboardingKeys(cx), a.sitesKeys(cx), a.logsKeys(cx), a.updatesKeys(cx), a.windowKeys(cx), a.browseKeys(cx), a.savedKeys(cx), a.lockKeys(cx), a.subscribeKeys(cx))
 }
 
 // appKeys are the shortcuts that work anywhere in the window.

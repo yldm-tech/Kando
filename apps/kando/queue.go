@@ -183,6 +183,10 @@ func (a *app) queueEnqueue(sources []string) (added int, err error) {
 
 // queueTake queues the job for source and returns its ID: a new job, or, when the open library already has a failed or cancelled job for the same video, that job again on its card (retry), so the shelf keeps one card for it. A video already waiting, running or done is not queued again; the error is then a *queueDuplicate naming its job. A local video that is a film of the library's folder no job holds (films.List), as one dropped again from the library's own folder, is that film: with subtitles beside it, it is in the library already, and the *queueDuplicate names it, so its subtitles are neither paid for nor written again; without any, its job leaves it as it was if it fails or is stopped, as 生成字幕 does (queueFromFolder).
 func (a *app) queueTake(source string) (string, error) {
+	// Offline mode adds no link, as it would be downloaded (state_privacy.go).
+	if err := a.privacyRefusesLink(source); err != nil {
+		return "", err
+	}
 	job, err := a.newJob(source)
 	var dup *queueDuplicate
 	if errors.As(err, &dup) && dup.Stage == core.StageFailed {
@@ -749,6 +753,10 @@ func (a *app) pump() {
 
 // queueCanRun reports whether the queue can start job now that it is its turn: its library is the open one or another the app knows. A job waiting in a library the app has forgotten does not start until that library is opened again, so no new work begins in a folder the user took off the list. A job already running when its library is forgotten goes on into it: forgetting leaves the folder on disk, and a running job is never stopped for a library change. A job saved before jobs named their library runs in whichever library is open.
 func (a *app) queueCanRun(job core.Job) bool {
+	// A download waits while offline mode is on, and goes on once it is off (state_privacy.go).
+	if a.privacyHolds(job) {
+		return false
+	}
 	if job.LibraryDir == "" {
 		return strings.TrimSpace(a.snap().LibraryDir) != "" && !a.lockFilesAway(a.snap().LibraryDir)
 	}

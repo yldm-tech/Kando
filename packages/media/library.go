@@ -178,7 +178,7 @@ func bilingualBeside(dir, video string, files map[string]bool) string {
 	return filepath.Join(dir, name)
 }
 
-// GatherVideos moves a loose video and its subtitles, the transcript Kando keeps beside subtitles of the user's (asideTranscriptPath) among them, into "<name>/video.<ext>", and renames a video already inside a folder to video.<ext>. The returned map is the old path to the new path. A folder that already contains video.<ext> is left alone, including its other subtitle names, and so is one that holds what a download leaves while it runs (downloadLeftover): its single finished track is not a video to rename.
+// GatherVideos moves a loose video and its subtitles, the transcript Kando keeps beside subtitles of the user's (asideTranscriptPath) and the user's corrections of its lines (CorrectionsPath) among them, into "<name>/video.<ext>", and renames a video already inside a folder to video.<ext>. The returned map is the old path to the new path. A folder that already contains video.<ext> is left alone, including its other subtitle names, and so is one that holds what a download leaves while it runs (downloadLeftover): its single finished track is not a video to rename.
 func GatherVideos(dir string) (map[string]string, error) {
 	entries, err := os.ReadDir(dir)
 	if os.IsNotExist(err) {
@@ -215,6 +215,7 @@ func GatherVideos(dir string) (map[string]string, error) {
 			{base + ".srt", "video.srt"},
 			{base + ".kando.srt", "video.kando.srt"},
 			{base + ".bilingual.srt", "video.bilingual.srt"},
+			{"." + base + ".edits.json", ".video.edits.json"},
 		}
 		for _, pair := range renames {
 			src := filepath.Join(dir, pair[0])
@@ -509,6 +510,7 @@ func normalizeItem(folder string) (map[string]string, error) {
 		{base + ".srt", "video.srt"},
 		{base + ".kando.srt", "video.kando.srt"},
 		{base + ".bilingual.srt", "video.bilingual.srt"},
+		{"." + base + ".edits.json", ".video.edits.json"},
 	} {
 		src := filepath.Join(folder, pair[0])
 		if _, err := os.Stat(src); err != nil {
