@@ -3,6 +3,7 @@ package study
 import (
 	"fmt"
 	"strconv"
+	"strings"
 	"time"
 
 	"kando/apps/kando/desktop"
@@ -18,8 +19,10 @@ import (
 // StatsApp is what the study stats dialog reads of the study record and the clicks it reports, through live.Func and live.Do as App's.
 type StatsApp interface {
 	live.State
-	// StudyStats is what the open library's study record says of the learner's study now.
+	// StudyStats is what the study records of the unlocked libraries say of the learner's study now, all of them together; StatsLibraries is those libraries' names, and StatsLocked how many libraries it leaves out as they are locked.
 	StudyStats() saved.Stats
+	StatsLibraries() []string
+	StatsLocked() int
 	// StatsTab is the tab shown, TabStats or TabExport; SetStatsTab shows another.
 	StatsTab() string
 	SetStatsTab(tab string)
@@ -60,7 +63,7 @@ const (
 	chartHeight core.Points = 90
 )
 
-// StatsDialog is the study stats dialog, the 学习 menu's Study Stats and Export Vocabulary…, at two tabs. Stats: the days in a row studied and the longest run, the time films played in the last seven days against the seven before, the words and the saved lines and how many of each are due, a bar a day of the last seven days' minutes, on this computer and on the other devices, and how well the words and lines are known. Export Vocabulary: the format, Anki's notes, CSV or tab-separated text, what goes with each word, a preview of the first records, what the export holds and Export…, which asks for a folder. Done, Escape and closing it run CloseStats.
+// StatsDialog is the study stats dialog, the 学习 menu's Study Stats and Export Vocabulary…, at two tabs. Stats, of the unlocked libraries together, which it names: the days in a row studied and the longest run, the time films played in the last seven days against the seven before, the words and the saved lines and how many of each are due, a bar a day of the last seven days' minutes, on this computer and on the other devices, and how well the words and lines are known. Export Vocabulary: the format, Anki's notes, CSV or tab-separated text, what goes with each word, a preview of the first records, what the export holds and Export…, which asks for a folder. Done, Escape and closing it run CloseStats.
 type StatsDialog struct {
 	App StatsApp
 }
@@ -166,9 +169,25 @@ func statsTab(cx *core.Scope, a StatsApp) core.Node {
 	}
 	return core.Scroll{Style: core.Style{FlexGrow: 1, MinHeight: core.Pt(0)}, Children: []core.Node{
 		core.View{Style: core.Style{Gap: 18, Padding: core.Edges{Bottom: 4}}, Children: []core.Node{
+			libraries(cx, a),
 			cards,
 			core.View{Style: core.Style{Gap: 8}, Children: []core.Node{section(func() string { return locales.VocabChartTitle(cx) }), chart(cx, stats)}},
 			core.View{Style: core.Style{Gap: 8}, Children: []core.Node{section(func() string { return locales.VocabMastery(cx) }), mastery(cx, stats)}},
+		}},
+	}}
+}
+
+// libraries says which libraries the stats count, and how many locked ones they leave out when there are any.
+func libraries(cx *core.Scope, a StatsApp) core.Node {
+	colors := ui.ColorsOf(cx)
+	names := live.Func(a, a.StatsLibraries)
+	locked := live.Func(a, a.StatsLocked)
+	return core.View{Style: core.Style{Gap: 2}, Children: []core.Node{
+		core.Text{TestID: "stats-libraries", ContentFunc: func() string {
+			return locales.VocabStatsLibraries(cx, strings.Join(names(), locales.VocabLibrarySeparator(cx)))
+		}, Style: ui.TypeCaption, StyleFunc: ui.Colored(colors.Muted)},
+		core.Show{When: func() bool { return locked() > 0 }, Then: func(cx *core.Scope) core.Node {
+			return core.Text{TestID: "stats-locked", ContentFunc: func() string { return locales.VocabStatsLocked(cx, locked()) }, Style: ui.TypeCaption, StyleFunc: ui.Colored(colors.Muted)}
 		}},
 	}}
 }

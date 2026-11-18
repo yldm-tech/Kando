@@ -1,8 +1,10 @@
 package main
 
 import (
+	"bytes"
 	"os"
 	"path/filepath"
+	"slices"
 	"strings"
 	"testing"
 	"time"
@@ -12,6 +14,7 @@ import (
 	"kando/apps/kando/lookup"
 	"kando/apps/kando/saved"
 	"kando/apps/kando/settings"
+	"kando/apps/kando/shelf"
 	"kando/apps/kando/study"
 	"kando/packages/media"
 	recordstudy "kando/packages/study"
@@ -301,4 +304,120 @@ func TestLookupTellsWordsOfTwoLanguagesApart(t *testing.T) {
 		t.Fatalf("the vocabulary holds %+v, removed %+v", book.Words, book.RemovedWords)
 	}
 	wantText(t, tt, msgs.VocabInVocabulary())
+}
+
+// TestStatsCountTheUnlockedLibraries opens Study › Study Stats with three libraries Kando knows, each with a study record: the open one, another one and a locked one. The stats add up the open and the other one's minutes, streak, words and lines, and name them; the locked one is left out, said to be, and its study record is never read nor written.
+func TestStatsCountTheUnlockedLibraries(t *testing.T) {
+	parent := t.TempDir()
+	open, other, locked := filepath.Join(parent, "甲.kando"), filepath.Join(parent, "乙.kando"), filepath.Join(parent, "丙.kando")
+	now := time.Date(2026, 11, 18, 21, 0, 0, 0, time.Local)
+	write := func(dir string, days map[int]int, words ...string) {
+		t.Helper()
+		if err := os.MkdirAll(dir, 0o755); err != nil {
+			t.Fatal(err)
+		}
+		book, err := recordstudy.Load(dir)
+		if err != nil {
+			t.Fatal(err)
+		}
+		book.Device = "mac"
+		book.Now = func() time.Time { return now }
+		for d, m := range days {
+			book.Watch(time.Date(2026, 11, d, 12, 0, 0, 0, time.Local), time.Duration(m)*time.Minute)
+		}
+		for _, w := range words {
+			book.AddWord(saved.Word{Text: w, Meaning: w})
+		}
+		if err := book.Save(); err != nil {
+			t.Fatal(err)
+		}
+	}
+	write(open, map[int]int{18: 20}, "trickle")
+	write(other, map[int]int{17: 10, 16: 5}, "meander", "delta")
+	write(locked, map[int]int{15: 30, 14: 30}, "estuary", "silt", "levee")
+	lockedRecord, err := os.ReadFile(filepath.Join(locked, recordstudy.FileName))
+	if err != nil {
+		t.Fatal(err)
+	}
+	var read []string
+	prev := vocabLoadBook
+	vocabLoadBook = func(dir string) (saved.Book, error) {
+		read = append(read, dir)
+		return prev(dir)
+	}
+	t.Cleanup(func() { vocabLoadBook = prev })
+
+	a, tt, updates := newTestApp(t, &fakePipeline{})
+	a.settingsPath = filepath.Join(t.TempDir(), "settings.json")
+	a.saved.device = "mac"
+	a.saved.now = func() time.Time { return now }
+	lock, err := shelf.NewLock(lockPassword)
+	if err != nil {
+		t.Fatal(err)
+	}
+	a.library.SetLock(locked, lock)
+	a.edit(func(s *session) {
+		s.LibraryDir = open
+		s.Libraries = []string{open, other, locked}
+	})
+	refresh(tt, a)
+	msgs := testlocale.Messages()
+	choose(tt, a, findMenuItem(t, a.menuBar(a.cx), groupTitle(a.cx, groupStudy), msgs.VocabStatsMenuItem()))
+	waitUntil(t, tt, a, updates, func() bool { return len(a.vocab.stats.others) == 1 })
+
+	// 甲 and 乙 together: three days in a row, 35 minutes this week, three words, none from 丙.
+	for _, want := range []string{msgs.VocabStatsLibraries("甲" + msgs.VocabLibrarySeparator() + "乙"), msgs.VocabStatsLocked(1),
+		msgs.VocabDays(3), msgs.VocabLongest(3), msgs.VocabMinutes(35), msgs.VocabWordCount(3), msgs.VocabWordsDue(3), msgs.VocabNew(3)} {
+		wantText(t, tt, want)
+	}
+	if slices.Contains(read, locked) || slices.Contains(read, open) {
+		t.Fatalf("the stats read %q", read)
+	}
+	if after, err := os.ReadFile(filepath.Join(locked, recordstudy.FileName)); err != nil || !bytes.Equal(after, lockedRecord) {
+		t.Fatalf("the locked library's study record changed: %v", err)
+	}
+	tt.Press("id:stats-done")
+	if a.vocab.stats.others != nil {
+		t.Fatal("the other libraries' records stayed in memory after Done")
+	}
+}
+
+// TestStatsLeaveOutALockedOpenLibraryAndMissingOnes opens Study › Study Stats while the open library is locked and another library's folder is gone: neither is counted nor named, and the stats are those of the one library left.
+func TestStatsLeaveOutALockedOpenLibraryAndMissingOnes(t *testing.T) {
+	parent := t.TempDir()
+	open, other, gone := filepath.Join(parent, "甲.kando"), filepath.Join(parent, "乙.kando"), filepath.Join(parent, "丁.kando")
+	for _, dir := range []string{open, other} {
+		if err := os.MkdirAll(dir, 0o755); err != nil {
+			t.Fatal(err)
+		}
+		book, err := recordstudy.Load(dir)
+		if err != nil {
+			t.Fatal(err)
+		}
+		book.Device = "mac"
+		book.AddWord(saved.Word{Text: filepath.Base(dir), Meaning: "x"})
+		if err := book.Save(); err != nil {
+			t.Fatal(err)
+		}
+	}
+	a, tt, updates := newTestApp(t, &fakePipeline{})
+	a.settingsPath = filepath.Join(t.TempDir(), "settings.json")
+	lock, err := shelf.NewLock(lockPassword)
+	if err != nil {
+		t.Fatal(err)
+	}
+	a.library.SetLock(open, lock)
+	a.edit(func(s *session) {
+		s.LibraryDir = open
+		s.Libraries = []string{open, other, gone}
+	})
+	refresh(tt, a)
+	onEngine(a, func() { a.OpenStats(vocabTabStats) })
+	waitUntil(t, tt, a, updates, func() bool { return len(a.vocab.stats.others) == 1 })
+	if got := a.StatsLibraries(); !slices.Equal(got, []string{"乙"}) {
+		t.Fatalf("the stats name %q", got)
+	}
+	if s := a.StudyStats(); s.Words != 1 || a.StatsLocked() != 1 {
+		t.Fatalf("stats %+v, %d locked", s, a.StatsLocked())
+	}
 }
