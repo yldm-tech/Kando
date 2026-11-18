@@ -92,13 +92,14 @@ func TestExportCount(t *testing.T) {
 	for _, tc := range []struct {
 		e       Export
 		missing int
+		cues    int
 	}{
-		{Export{Content: SubOriginal}, 0},
-		{Export{Content: SubTranslation}, 1},
-		{Export{Content: SubBilingual}, 1},
+		{Export{Content: SubOriginal}, 0, 2},
+		{Export{Content: SubTranslation}, 1, 1},
+		{Export{Content: SubBilingual}, 1, 2},
 	} {
 		got := tc.e.Count(exportLines())
-		want := ExportCount{Lines: 2, Translated: 1, Missing: tc.missing, Edited: 1, NoSpeech: 1}
+		want := ExportCount{Lines: 2, Cues: tc.cues, Translated: 1, Missing: tc.missing, Edited: 1, NoSpeech: 1}
 		if got != want {
 			t.Fatalf("%s: count = %+v, want %+v", tc.e.Content, got, want)
 		}
@@ -148,5 +149,28 @@ func TestExportExt(t *testing.T) {
 		if got := (Export{Format: format}).Ext(); got != ext {
 			t.Fatalf("Ext(%q) = %q, want %q", format, got, ext)
 		}
+	}
+}
+
+// TestExportCountAgreesWithCues: the count leaves out the lines the delay moves to end before the video starts, as Cues does, and says how many cues are written, none for an export of the translations of an untranslated film that leaves out a missing one.
+func TestExportCountAgreesWithCues(t *testing.T) {
+	lines := []Corrected{corrected(0, 400, "gone", ""), corrected(300, 1000, "cut", ""), corrected(2000, 3000, "kept", "")}
+	for _, e := range []Export{
+		{Content: SubOriginal, Delay: -500 * time.Millisecond},
+		{Content: SubOriginal, Delay: 1200 * time.Millisecond},
+		{Content: SubTranslation, Missing: MissingSkip},
+		{Content: SubTranslation, Missing: MissingPlaceholder, Placeholder: "?", Delay: -2500 * time.Millisecond},
+		{Content: SubBilingual, Delay: -10 * time.Second},
+	} {
+		c, cues := e.Count(lines), e.Cues(lines)
+		if c.Cues != len(cues) {
+			t.Fatalf("%+v: count says %d cues, Cues makes %d", e, c.Cues, len(cues))
+		}
+		if e.Content != SubTranslation && c.Lines != len(cues) {
+			t.Fatalf("%+v: count says %d lines, Cues makes %d", e, c.Lines, len(cues))
+		}
+	}
+	if c := (Export{Content: SubTranslation, Missing: MissingSkip}).Count(lines); c.Cues != 0 || c.Lines != 3 || c.Missing != 3 {
+		t.Fatalf("untranslated, missing skipped: count = %+v, want 3 lines, all missing, no cues", c)
 	}
 }

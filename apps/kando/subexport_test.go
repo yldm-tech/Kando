@@ -150,3 +150,99 @@ func TestExportSubtitlesSaveAs(t *testing.T) {
 	}
 	wantText(t, tt, msgs.SubexportDone("mine.srt"))
 }
+
+// TestExportSubtitlesSaveAsNewKandoName: a save under a name Kando keeps the film's subtitles under that is not there yet, its transcript or the one it keeps beside subtitles of the user's, is removed, so the export does not become the film's own subtitles.
+func TestExportSubtitlesSaveAsNewKandoName(t *testing.T) {
+	a, tt := subexportOpen(t)
+	msgs := testlocale.Messages()
+	dir := filepath.Dir(a.player.subs.path)
+	tt.Key("mod+e")
+	for _, name := range []string{"talk.srt", "talk.kando.srt"} {
+		target := filepath.Join(dir, name)
+		tt.SaveFile = func(ns.SaveRequest) string { return target }
+		tt.Press("id:export-save-as")
+		if _, err := os.Stat(target); !os.IsNotExist(err) {
+			t.Fatalf("%s: the export was kept: %v", name, err)
+		}
+		wantText(t, tt, msgs.SubexportKandoFile())
+		if !tt.Exists("id:export-dialog") {
+			t.Fatalf("%s: the dialog closed after a save it undid", name)
+		}
+	}
+}
+
+// TestExportSubtitlesSaveAsWhileKandoWrites: when another of the film's files changed while the panel was open, Kando was writing its subtitles, so a save over its bilingual subtitles is removed rather than an older copy of them put back.
+func TestExportSubtitlesSaveAsWhileKandoWrites(t *testing.T) {
+	a, tt := subexportOpen(t)
+	msgs := testlocale.Messages()
+	own := a.player.subs.path
+	transcript := filepath.Join(filepath.Dir(own), "talk.srt")
+	tt.SaveFile = func(ns.SaveRequest) string {
+		if err := os.WriteFile(transcript, []byte("1\n00:00:01,000 --> 00:00:02,000\nNew.\n"), 0o644); err != nil {
+			t.Error(err)
+		}
+		return own
+	}
+	tt.Key("mod+e")
+	tt.Press("id:export-save-as")
+	if _, err := os.Stat(own); !os.IsNotExist(err) {
+		t.Fatalf("the export or an older copy was left over the film's subtitles: %v", err)
+	}
+	wantText(t, tt, msgs.SubexportKandoFileChanged())
+}
+
+// TestSubexportUndo: a save under one of the film's names is put back as it was when nothing else changed, removed while its job runs, and reports why when the file can be neither put back nor removed.
+func TestSubexportUndo(t *testing.T) {
+	dir := t.TempDir()
+	video := filepath.Join(dir, "v.mp4")
+	bilingual := filepath.Join(dir, "v.bilingual.srt")
+	if err := os.WriteFile(bilingual, []byte("old"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	kept := subexportKeep(video, bilingual)
+	if ours, _, _ := subexportUndo(kept, video, filepath.Join(dir, "v.dual.srt"), false); ours {
+		t.Fatal("a save under the export's own name was undone")
+	}
+	os.WriteFile(bilingual, []byte("export"), 0o644)
+	if ours, changed, err := subexportUndo(kept, video, bilingual, false); !ours || changed || err != nil {
+		t.Fatalf("put back = %v, %v, %v", ours, changed, err)
+	}
+	if data, _ := os.ReadFile(bilingual); string(data) != "old" {
+		t.Fatalf("put back %q", data)
+	}
+	os.WriteFile(bilingual, []byte("export"), 0o644)
+	if ours, changed, err := subexportUndo(kept, video, bilingual, true); !ours || !changed || err != nil {
+		t.Fatalf("while busy = %v, %v, %v", ours, changed, err)
+	}
+	if _, err := os.Stat(bilingual); !os.IsNotExist(err) {
+		t.Fatalf("while busy, the file was left: %v", err)
+	}
+	if os.Geteuid() == 0 {
+		t.Skip("root writes into a read-only folder")
+	}
+	os.WriteFile(bilingual, []byte("export"), 0o644)
+	if err := os.Chmod(dir, 0o555); err != nil {
+		t.Fatal(err)
+	}
+	defer os.Chmod(dir, 0o755)
+	if ours, _, err := subexportUndo(kept, video, bilingual, false); !ours || err == nil {
+		t.Fatalf("in a read-only folder = %v, %v, want an error", ours, err)
+	}
+}
+
+// TestExportSubtitlesNothingToWrite: an export that would write no cue, the translations of lines none of which is translated with a missing one left out, cannot be saved.
+func TestExportSubtitlesNothingToWrite(t *testing.T) {
+	a, tt := subexportOpen(t)
+	a.player.film.delay = -3 * time.Second
+	a.SetSubexportChoice(subexport.Choice{Format: core.FormatSRT, Content: core.SubTranslation, Order: core.SubTranslationFirst, Missing: core.MissingSkip, Delay: true})
+	refresh(tt, a)
+	tt.Key("mod+e")
+	if tt.Enabled("id:export-to-folder") || tt.Enabled("id:export-save-as") {
+		t.Fatal("an export with no cue can be written")
+	}
+	a.SetSubexportChoice(subexport.Choice{Format: core.FormatSRT, Content: core.SubOriginal, Order: core.SubTranslationFirst, Missing: core.MissingSkip, Delay: true})
+	refresh(tt, a)
+	if !tt.Enabled("id:export-to-folder") || !tt.Enabled("id:export-save-as") {
+		t.Fatal("an export of the originals cannot be written")
+	}
+}

@@ -1,9 +1,10 @@
 package main
 
 import (
+	"bytes"
+	"errors"
 	"os"
 	"path/filepath"
-	"slices"
 	"strings"
 	"time"
 
@@ -150,16 +151,18 @@ func (a *app) SubexportToFolder() {
 	a.flash(a.messages().SubexportDone(filepath.Base(path)))
 }
 
-// SubexportSaveAs asks where to save the export, under the name it takes in the film's folder, and closes the dialog once it is saved. The system's dialog writes the file itself, so a save over one of the subtitle files Kando keeps for the film, which would then lay the corrections over lines already holding them, is put back as it was.
+// SubexportSaveAs asks where to save the export, under the name it takes in the film's folder, and closes the dialog once it is saved. The system's dialog writes the file itself, so a save under one of the names Kando keeps the film's subtitles under, which would then lay the corrections over lines already holding them, is undone (subexportUndo).
 func (a *app) SubexportSaveAs() {
 	path := a.SubexportPath()
 	if path == "" || a.cx == nil {
 		return
 	}
 	data := a.subexportAs().Write(a.subexportLines())
-	kept := subexportKandoFiles(a.subexportVideo(), a.player.subs.path)
+	video := a.subexportVideo()
+	kept := subexportKeep(video, a.player.subs.path)
+	busy := a.subexportJobRunning()
 	release := a.holdModal()
-	// TODO(nsgo): give core.SaveOptions a folder to start in, so the panel opens in the film's folder rather than where the system chooses; and a way to refuse a path before the file is written, so a save over Kando's own subtitles need not be put back afterwards (subexportPutBack)
+	// TODO(nsgo): give core.SaveOptions a folder to start in, so the panel opens in the film's folder rather than where the system chooses; and a way to refuse a path before the file is written, so a save over Kando's own subtitles need not be undone afterwards (subexportUndo)
 	a.cx.Run(func() {
 		a.cx.SaveFile(ns.SaveOptions{Name: filepath.Base(path), Data: data}, func(saved bool, to string, err error) {
 			release()
@@ -168,42 +171,105 @@ func (a *app) SubexportSaveAs() {
 			case err != nil:
 				a.flash(a.messages().SubexportFailed())
 			case !saved:
-			case subexportPutBack(kept, to):
-				a.flash(a.messages().SubexportKandoFile())
 			default:
-				a.CloseSubexport()
-				a.flash(a.messages().SubexportDone(filepath.Base(to)))
+				ours, changed, err := subexportUndo(kept, video, to, busy || a.subexportJobRunning())
+				switch {
+				case !ours:
+					a.CloseSubexport()
+					a.flash(a.messages().SubexportDone(filepath.Base(to)))
+				case err != nil:
+					a.flash(a.messages().SubexportKandoFileStuck())
+				case changed:
+					a.flash(a.messages().SubexportKandoFileChanged())
+				default:
+					a.flash(a.messages().SubexportKandoFile())
+				}
 			}
 		})
 	})
 }
 
-// subexportKandoFiles are the subtitle files Kando keeps for the film whose video is video and whose subtitles the player reads from subtitles, with what they hold now: its transcript, the one it keeps beside subtitles of the user's, and its bilingual subtitles (media.Companions), those that exist.
-func subexportKandoFiles(video, subtitles string) map[string][]byte {
-	paths := []string{subtitles}
-	if video != "" {
-		paths = append(paths, slices.DeleteFunc(media.Companions(video), func(p string) bool { return !strings.EqualFold(filepath.Ext(p), ".srt") })...)
+// subexportJobRunning reports whether the open film's job is running now, writing its subtitles as it goes.
+func (a *app) subexportJobRunning() bool {
+	item, ok := a.openFilm()
+	return ok && item.JobID != "" && item.JobID == a.queue.active
+}
+
+// subexportKept is what the subtitle files of a film held as the save panel opened, by subexportKey: names, the subtitle files Kando keeps for the film and the one the player reads, each with what it held, nil for one that did not exist; companions, every file of the film's that existed then (media.Companions), with what it held, which tell whether Kando wrote any of them while the panel was open.
+type subexportKept struct {
+	names      map[string][]byte
+	companions map[string][]byte
+}
+
+// subexportKeep is what the subtitle files of the film whose video is video and whose subtitles the player reads from subtitles hold now: its transcript, the one it keeps beside subtitles of the user's and its bilingual subtitles (<video>.srt, <video>.kando.srt, <video>.bilingual.srt), whether they exist or not, as a save under a name that is not there yet would make them the film's, and subtitles.
+func subexportKeep(video, subtitles string) subexportKept {
+	kept := subexportKept{names: map[string][]byte{}, companions: map[string][]byte{}}
+	var paths []string
+	if subtitles != "" {
+		paths = append(paths, subtitles)
 	}
-	kept := map[string][]byte{}
+	if video != "" {
+		base := strings.TrimSuffix(video, filepath.Ext(video))
+		paths = append(paths, base+".srt", base+".kando.srt", base+".bilingual.srt")
+		for _, p := range media.Companions(video) {
+			if data, err := os.ReadFile(p); err == nil {
+				kept.companions[subexportKey(p)] = data
+			}
+		}
+	}
 	for _, p := range paths {
-		if p == "" {
-			continue
+		data, err := os.ReadFile(p)
+		if err != nil {
+			data = nil
+		} else if data == nil {
+			data = []byte{}
 		}
-		if data, err := os.ReadFile(p); err == nil {
-			kept[subexportKey(p)] = data
-		}
+		kept.names[subexportKey(p)] = data
 	}
 	return kept
 }
 
-// subexportPutBack puts back the file at path as kept holds it, when it is one of them, and reports whether it was.
-func subexportPutBack(kept map[string][]byte, path string) bool {
-	data, ok := kept[subexportKey(path)]
-	if !ok {
+// subexportUndo undoes a save of the export at path when path is one of kept's names, and reports whether it was. It puts the file back as kept holds it, or removes it when it did not exist then; but when Kando may have written the film's subtitles while the panel was open (busy, the film's job running as it opened or now, or another of its files changed since), what kept holds may be older than what the save wrote over, so it removes the file instead, reporting changed, rather than bring back subtitles that no longer match the rest. err is why the file could not be put back or removed; it then still holds the export.
+func subexportUndo(kept subexportKept, video, path string, busy bool) (ours, changed bool, err error) {
+	key := subexportKey(path)
+	data, ours := kept.names[key]
+	if !ours {
+		return false, false, nil
+	}
+	changed = busy || subexportCompanionsChanged(kept, video, key)
+	if data == nil || changed {
+		if err := os.Remove(path); err != nil && !errors.Is(err, os.ErrNotExist) {
+			return true, changed, err
+		}
+		return true, changed, nil
+	}
+	return true, false, subexport.Write(path, data)
+}
+
+// subexportCompanionsChanged reports whether a file of the film whose video is video, other than the one at skip, is not now as kept holds it: one written, added or removed since.
+func subexportCompanionsChanged(kept subexportKept, video, skip string) bool {
+	if video == "" {
 		return false
 	}
-	subexport.Write(path, data)
-	return true
+	now := map[string]bool{}
+	for _, p := range media.Companions(video) {
+		key := subexportKey(p)
+		if key == skip {
+			continue
+		}
+		now[key] = true
+		data, err := os.ReadFile(p)
+		was, ok := kept.companions[key]
+		if err != nil || !ok || !bytes.Equal(data, was) {
+			return true
+		}
+	}
+	for key := range kept.companions {
+		if key != skip && !now[key] {
+			return true
+		}
+	}
+	return false
 }
 
 // subexportKey is path with its folder's symbolic links resolved, so a file is found among subexportKandoFiles under the path the save dialog gives for it, as /private/var for /var on macOS.

@@ -74,7 +74,7 @@ func (d Dialog) Render(cx *ns.Scope) ns.Node {
 		path := ns.Text{TestID: "export-path", ContentFunc: func() string { return Display(live.Func(a, a.SubexportPath)()) }, Selectable: ns.SelectableOn,
 			Style: ui.TypeCaption.Merge(ns.Style{FontFamily: ui.Mono}), StyleFunc: ui.Colored(colors.Muted)}
 		none := func() bool {
-			return live.Func(a, a.SubexportPath)() == "" || live.Func(a, a.SubexportCount)().Lines == 0
+			return live.Func(a, a.SubexportPath)() == "" || live.Func(a, a.SubexportCount)().Cues == 0
 		}
 		return ui.Dialog{
 			TestID:                 "export-dialog",

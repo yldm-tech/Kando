@@ -574,8 +574,14 @@ subexportFormat:
   message: "Format"
   description: "Row of the Export Subtitles dialog choosing the file format: SRT, WebVTT or ASS."
 subexportKandoFile:
-  message: "That file holds Kando’s own subtitles of the film, so it was left as it was. Save the export under another name."
-  description: "Message on the picture when the user chose to save the export over one of the subtitle files Kando keeps for the film, which is then put back."
+  message: "That name is kept for Kando’s own subtitles of the film, so the export was not saved there. Save it under another name."
+  description: "Message on the picture when the user chose to save the export under one of the names Kando keeps the film's subtitles under, which is then put back as it was (or removed, when no such file was there)."
+subexportKandoFileChanged:
+  message: "That name is kept for Kando’s own subtitles of the film, which changed while you chose where to save, so the export was removed from it. If the film’s subtitles are missing, process it again."
+  description: "Message on the picture when the user saved the export under one of the names Kando keeps the film's subtitles under while Kando was writing them, so the export is removed rather than an older copy put back."
+subexportKandoFileStuck:
+  message: "The export was saved over Kando’s own subtitles of the film and couldn’t be taken back out. Process the film again to make its subtitles anew."
+  description: "Message on the picture when the user saved the export under one of the names Kando keeps the film's subtitles under and Kando could not put that file back or remove it."
 subexportMenu:
   message: "Export Subtitles…"
   description: "Item of the File menu and the command palette opening the Export Subtitles dialog for the film open in the player."

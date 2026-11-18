@@ -103,17 +103,20 @@ func (e Export) lines(translation, original string) []CueLine {
 	return out
 }
 
-// ExportCount is what an export of a film's lines holds, for the dialog to say before it is written: Lines, the lines it holds, those marked as no speech left out; Translated, how many of them have a translation, and Missing, how many do not, where the translations are exported (0 for an export of the originals); Edited, how many of them the user corrected; NoSpeech, how many lines it leaves out as no speech.
+// ExportCount is what an export of a film's lines holds, for the dialog to say before it is written: Lines, the lines it holds, those marked as no speech left out and those the delay moves to end before the video starts (Cues); Cues, how many cues it writes, which is 0 when nothing would be written, as an export of the translations of a film with none that leaves out a missing one; Translated, how many of them have a translation, and Missing, how many do not, where the translations are exported (0 for an export of the originals); Edited, how many of them the user corrected; NoSpeech, how many lines it leaves out as no speech.
 type ExportCount struct {
-	Lines, Translated, Missing, Edited, NoSpeech int
+	Lines, Cues, Translated, Missing, Edited, NoSpeech int
 }
 
 // Count is what e exports of lines (Cues).
 func (e Export) Count(lines []Corrected) ExportCount {
-	var c ExportCount
+	c := ExportCount{Cues: len(e.Cues(lines))}
 	for _, l := range lines {
 		if l.NoSpeech {
 			c.NoSpeech++
+			continue
+		}
+		if l.End+e.Delay <= max(l.Start+e.Delay, 0) {
 			continue
 		}
 		c.Lines++

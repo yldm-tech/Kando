@@ -1348,6 +1348,8 @@ const (
 	textSubexportFailed
 	textSubexportFormat
 	textSubexportKandoFile
+	textSubexportKandoFileChanged
+	textSubexportKandoFileStuck
 	textSubexportMenu
 	textSubexportMissing
 	textSubexportMissingOriginal
@@ -2528,6 +2530,8 @@ var keyOfText = [numTexts]string{
 	"subexportFailed",
 	"subexportFormat",
 	"subexportKandoFile",
+	"subexportKandoFileChanged",
+	"subexportKandoFileStuck",
 	"subexportMenu",
 	"subexportMissing",
 	"subexportMissingOriginal",
@@ -3705,7 +3709,9 @@ var textsEn = i18n.NewTexts(""+
 	"UTF-8. Lines you corrected are exported as you corrected them."+
 	"Couldn’t export the subtitles"+
 	"Format"+
-	"That file holds Kando’s own subtitles of the film, so it was left as it was. Save the export under another name."+
+	"That name is kept for Kando’s own subtitles of the film, so the export was not saved there. Save it under another name."+
+	"That name is kept for Kando’s own subtitles of the film, which changed while you chose where to save, so the export was removed from it. If the film’s subtitles are missing, process it again."+
+	"The export was saved over Kando’s own subtitles of the film and couldn’t be taken back out. Process the film again to make its subtitles anew."+
 	"Export Subtitles…"+
 	"Lines Without a Translation"+
 	"Use the Original"+
@@ -4880,7 +4886,9 @@ var textsEn = i18n.NewTexts(""+
 		62,
 		31,
 		6,
-		114,
+		121,
+		195,
+		146,
 		19,
 		27,
 		16,
@@ -6058,7 +6066,9 @@ var textsJa = i18n.NewTexts(""+
 	"UTF-8 で書き出します。修正したセリフは修正後の内容で書き出されます。"+
 	"字幕を書き出せませんでした"+
 	"形式"+
-	"このファイルは Kando がこの作品用に保存している字幕なので、元のままにしました。別の名前で保存してください。"+
+	"この名前は Kando がこの作品の字幕を保存するためのものなので、書き出しはそこに保存しませんでした。別の名前で保存してください。"+
+	"この名前は Kando がこの作品の字幕を保存するためのもので、保存先を選んでいる間に字幕が変わったため、書き出した内容を削除しました。作品の字幕がなくなっていたら、もう一度処理してください。"+
+	"書き出しが Kando の保存しているこの作品の字幕を上書きし、元に戻せませんでした。もう一度処理して字幕を作り直してください。"+
 	"字幕を書き出す…"+
 	"翻訳のないセリフ"+
 	"原文で補う"+
@@ -7233,7 +7243,9 @@ var textsJa = i18n.NewTexts(""+
 		99,
 		39,
 		6,
-		157,
+		184,
+		274,
+		178,
 		24,
 		24,
 		15,
@@ -8411,7 +8423,9 @@ var textsKo = i18n.NewTexts(""+
 	"UTF-8로 저장합니다. 수정한 줄은 수정한 대로 내보냅니다."+
 	"자막을 내보내지 못했습니다"+
 	"형식"+
-	"이 파일은 Kando가 이 영상에 쓰는 자막이라 그대로 두었습니다. 다른 이름으로 저장하세요."+
+	"이 이름은 Kando가 이 영상의 자막을 저장하는 데 쓰므로 내보낸 파일을 거기에 저장하지 않았습니다. 다른 이름으로 저장하세요."+
+	"이 이름은 Kando가 이 영상의 자막을 저장하는 데 쓰는데, 저장 위치를 고르는 동안 자막이 바뀌어 내보낸 내용을 지웠습니다. 영상의 자막이 없어졌다면 다시 처리하세요."+
+	"내보낸 내용이 Kando가 저장한 이 영상의 자막을 덮어써서 되돌리지 못했습니다. 영상을 다시 처리해 자막을 새로 만드세요."+
 	"자막 내보내기…"+
 	"번역이 없는 줄"+
 	"원문으로 채우기"+
@@ -9586,7 +9600,9 @@ var textsKo = i18n.NewTexts(""+
 		76,
 		38,
 		6,
-		120,
+		170,
+		225,
+		163,
 		22,
 		20,
 		22,
@@ -10764,7 +10780,9 @@ var textsZhHans = i18n.NewTexts(""+
 	"UTF-8 编码；你改过的句子会写进导出文件。"+
 	"字幕没能导出"+
 	"格式"+
-	"这个文件是看懂自己保存的这部影片的字幕，已保持原样。请换个文件名另存。"+
+	"这个文件名留给看懂保存这部影片自己的字幕，导出没有存到那里。请换个文件名另存。"+
+	"这个文件名留给看懂保存这部影片自己的字幕，而它们在你选择保存位置时有了变化，所以已把导出的内容移除。如果影片的字幕不见了，请重新处理。"+
+	"导出的内容覆盖了看懂保存的这部影片的字幕，且没能撤回。请重新处理这部影片以重新生成字幕。"+
 	"导出字幕…"+
 	"没有译文的句子"+
 	"用原文补缺"+
@@ -11939,7 +11957,9 @@ var textsZhHans = i18n.NewTexts(""+
 		57,
 		18,
 		6,
-		105,
+		117,
+		201,
+		132,
 		15,
 		21,
 		15,
@@ -13117,7 +13137,9 @@ var textsZhHant = i18n.NewTexts(""+
 	"UTF-8 編碼；你改過的句子會寫進匯出檔案。"+
 	"字幕沒能匯出"+
 	"格式"+
-	"這個檔案是看懂自己保存的這部影片的字幕，已保持原樣。請換個檔名另存。"+
+	"這個檔名留給看懂保存這部影片自己的字幕，匯出沒有存到那裡。請換個檔名另存。"+
+	"這個檔名留給看懂保存這部影片自己的字幕，而它們在你選擇儲存位置時有了變化，所以已把匯出的內容移除。如果影片的字幕不見了，請重新處理。"+
+	"匯出的內容覆蓋了看懂保存的這部影片的字幕，且沒能撤回。請重新處理這部影片以重新產生字幕。"+
 	"匯出字幕…"+
 	"沒有譯文的句子"+
 	"用原文補缺"+
@@ -14292,7 +14314,9 @@ var textsZhHant = i18n.NewTexts(""+
 		57,
 		18,
 		6,
-		102,
+		111,
+		198,
+		132,
 		15,
 		21,
 		15,
@@ -18994,14 +19018,34 @@ func SubexportFormat(cx *core.Scope) string { return For(cx).SubexportFormat() }
 // SubexportFormat is the package's SubexportFormat in the language of msgs.
 func (msgs Messages) SubexportFormat() string { return msgs.text(textSubexportFormat) }
 
-// SubexportKandoFile says "That file holds Kando’s own subtitles of the film, so it was left as it was. Save the export under another name."
+// SubexportKandoFile says "That name is kept for Kando’s own subtitles of the film, so the export was not saved there. Save it under another name."
 // in the language the app shows under cx.
 //
-// Message on the picture when the user chose to save the export over one of the subtitle files Kando keeps for the film, which is then put back.
+// Message on the picture when the user chose to save the export under one of the names Kando keeps the film's subtitles under, which is then put back as it was (or removed, when no such file was there).
 func SubexportKandoFile(cx *core.Scope) string { return For(cx).SubexportKandoFile() }
 
 // SubexportKandoFile is the package's SubexportKandoFile in the language of msgs.
 func (msgs Messages) SubexportKandoFile() string { return msgs.text(textSubexportKandoFile) }
+
+// SubexportKandoFileChanged says "That name is kept for Kando’s own subtitles of the film, which changed while you chose where to save, so the export was removed from it. If the film’s subtitles are missing, process it again."
+// in the language the app shows under cx.
+//
+// Message on the picture when the user saved the export under one of the names Kando keeps the film's subtitles under while Kando was writing them, so the export is removed rather than an older copy put back.
+func SubexportKandoFileChanged(cx *core.Scope) string { return For(cx).SubexportKandoFileChanged() }
+
+// SubexportKandoFileChanged is the package's SubexportKandoFileChanged in the language of msgs.
+func (msgs Messages) SubexportKandoFileChanged() string {
+	return msgs.text(textSubexportKandoFileChanged)
+}
+
+// SubexportKandoFileStuck says "The export was saved over Kando’s own subtitles of the film and couldn’t be taken back out. Process the film again to make its subtitles anew."
+// in the language the app shows under cx.
+//
+// Message on the picture when the user saved the export under one of the names Kando keeps the film's subtitles under and Kando could not put that file back or remove it.
+func SubexportKandoFileStuck(cx *core.Scope) string { return For(cx).SubexportKandoFileStuck() }
+
+// SubexportKandoFileStuck is the package's SubexportKandoFileStuck in the language of msgs.
+func (msgs Messages) SubexportKandoFileStuck() string { return msgs.text(textSubexportKandoFileStuck) }
 
 // SubexportMenu says "Export Subtitles…"
 // in the language the app shows under cx.
