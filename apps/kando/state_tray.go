@@ -88,7 +88,7 @@ func (a *app) trayHooks() areaHooks {
 // trayHideAtLogin puts the main window away at once in a run the system opened at login, so Kando runs in the menu bar.
 func (a *app) trayHideAtLogin() {
 	if nsdesktop.LaunchedAtLogin(a.cx) {
-		// TODO(nsgo): open the main window hidden from the start for a run the system opened at login, as nsgo.Run has no option for it; it shows for a moment before it is put away here
+		// TODO(nsgo#670): open the main window hidden from the start for a run the system opened at login, as nsgo.Run has no option for it; it shows for a moment before it is put away here https://github.com/nsgo-dev/nsgo/issues/670
 		a.windowHide()
 	}
 }
