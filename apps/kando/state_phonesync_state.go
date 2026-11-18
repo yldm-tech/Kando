@@ -20,7 +20,7 @@ import (
 	psync "kando/packages/sync"
 )
 
-// Phone Sync's learning state (packages/sync, state.go): a paired phone reads and writes a library's resume positions, saved lines with their notes and review schedule, and the corrections of its films' lines, as records merged field by field. The desktop keeps them where it kept them before: the positions with the shelf (a.player.positions), the lines in the library's study record (a.saved.book for the open library), the corrections in each film's corrections file. Each library's ledger (phonesync.LedgerFile, in the library folder) is what phones were last told: at each call phoneState reads the library's files off the engine's goroutine, then on it takes the desktop's state into the ledger (Observe), which stamps what changed on the desktop, merges what a phone puts (Put) and keeps the result where the desktop keeps it. A put that cannot all be kept is not kept in the ledger either, so the phone puts it again. A locked library's state, or one whose files are being moved into or out of its encrypted image, is neither read nor written: to a phone it is not found. phoneSyncPublishState takes the open library's changes into its ledger as they are made, so they are stamped when they were made, and tells the phones waiting for events.
+// Phone Sync's learning state (packages/sync, state.go): a paired phone reads and writes a library's resume positions, saved lines with their notes and review schedule, its vocabulary with the words' schedule, and the corrections of its films' lines, as records merged field by field. The desktop keeps them where it kept them before: the positions with the shelf (a.player.positions), the lines and the words in the library's study record (a.saved.book for the open library), the corrections in each film's corrections file. Each library's ledger (phonesync.LedgerFile, in the library folder) is what phones were last told: at each call phoneState reads the library's files off the engine's goroutine, then on it takes the desktop's state into the ledger (Observe), which stamps what changed on the desktop, merges what a phone puts (Put) and keeps the result where the desktop keeps it. A put that cannot all be kept is not kept in the ledger either, so the phone puts it again. A locked library's state, or one whose files are being moved into or out of its encrypted image, is neither read nor written: to a phone it is not found. phoneSyncPublishState takes the open library's changes into its ledger as they are made, so they are stamped when they were made, and tells the phones waiting for events.
 
 // phoneState is the libraries' learning state as protocol v2's calls read and write it (psync.StateService).
 type phoneState struct{ a *app }
@@ -230,11 +230,13 @@ func (a *app) phoneStateObserve(st *phoneStateLib) {
 		}
 	}
 	if st.lines {
-		current = append(current, phonesync.LineRecords(st.book, func(video string) string { return st.keys[video] })...)
+		film := func(video string) string { return st.keys[video] }
+		current = append(current, phonesync.LineRecords(st.book, film)...)
+		current = append(current, phonesync.WordRecords(st.book, film)...)
 	}
 	covered := func(r psync.Record) bool {
 		switch r.Kind {
-		case psync.KindLine:
+		case psync.KindLine, psync.KindWord:
 			return st.lines
 		case psync.KindPosition:
 			_, ok := st.films[r.Film]
@@ -288,13 +290,15 @@ func (a *app) phoneStateKeepLedger(dir string) error {
 
 // phoneStateKeep keeps records, as the ledger has them once merged, where the desktop keeps them: the lines in the study record, the positions with the shelf, the corrections in their films' files, the open film's through the player so it shows them. UI thread only.
 func (a *app) phoneStateKeep(st *phoneStateLib, records []psync.Record) error {
-	var lines []psync.Record
+	var lines, words []psync.Record
 	moved := false
 	corrections := map[string][]psync.Record{}
 	for _, r := range records {
 		switch r.Kind {
 		case psync.KindLine:
 			lines = append(lines, r)
+		case psync.KindWord:
+			words = append(words, r)
 		case psync.KindPosition:
 			f, ok := st.films[r.Film]
 			if !ok {
@@ -309,18 +313,23 @@ func (a *app) phoneStateKeep(st *phoneStateLib, records []psync.Record) error {
 	if moved {
 		a.playerPositionsChanged()
 	}
-	if len(lines) > 0 {
-		in, removed := phonesync.LinesOf(st.book, lines, func(film string) (string, bool) {
+	if len(lines) > 0 || len(words) > 0 {
+		video := func(film string) (string, bool) {
 			f, ok := st.films[film]
 			if !ok {
 				return "", false
 			}
 			return st.book.Key(f.Video), true
-		})
-		// The lines are merged into a copy, so a book that cannot be saved is left as it was: the app's, for the open library, keeps nothing the study record on disk lacks.
+		}
+		in, removed := phonesync.LinesOf(st.book, lines, video)
+		inWords, removedWords := phonesync.WordsOf(st.book, words, video)
+		// The lines and words are merged into a copy, so a book that cannot be saved is left as it was: the app's, for the open library, keeps nothing the study record on disk lacks.
 		next := st.book
 		next.Lines, next.Removed = slices.Clone(st.book.Lines), slices.Clone(st.book.Removed)
-		if next.Merge(in, removed) {
+		next.Words, next.RemovedWords = slices.Clone(st.book.Words), slices.Clone(st.book.RemovedWords)
+		merged := len(lines) > 0 && next.Merge(in, removed)
+		merged = len(words) > 0 && next.MergeWords(inWords, removedWords) || merged
+		if merged {
 			if err := next.Save(); err != nil {
 				if st.open {
 					a.flash(a.messages().SavedWriteFailed())
@@ -523,9 +532,12 @@ func (a *app) phoneStateSign() uint64 {
 		add("p", path, strconv.FormatInt(int64(at), 10))
 	}
 	book := a.savedBook()
-	add("b", book.Dir(), strconv.Itoa(len(book.Lines)), strconv.Itoa(len(book.Removed)))
+	add("b", book.Dir(), strconv.Itoa(len(book.Lines)), strconv.Itoa(len(book.Removed)), strconv.Itoa(len(book.Words)), strconv.Itoa(len(book.RemovedWords)))
 	for _, l := range book.Lines {
 		add(append([]string{"l"}, phonesync.LineSign(l)...)...)
+	}
+	for _, w := range book.Words {
+		add(append([]string{"w"}, phonesync.WordSign(w)...)...)
 	}
 	if a.correctLoaded() {
 		add("c", a.player.subs.path, strconv.Itoa(len(a.player.subs.edits)))

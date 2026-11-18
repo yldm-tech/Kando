@@ -60,8 +60,10 @@ const (
 type Desk struct {
 	Service Service
 	// State answers the learning state's calls, nil for a desktop that does not serve it, which answers them CodeUnsupported.
-	State   StateService
-	Journal *Journal
+	State StateService
+	// Settings answers the settings' calls (settings.go), nil for a desktop that does not share them, which answers them CodeUnsupported.
+	Settings SettingsService
+	Journal  *Journal
 	// Desktop is the desktop's name; Now the clock, nil for time.Now.
 	Desktop string
 	Now     func() time.Time
@@ -226,6 +228,8 @@ func (d *Desk) answer(ctx context.Context, caller Caller, call Call) (any, error
 		return d.Service.UpdateYTDLP(ctx, caller)
 	case OpStateGet, OpStatePut, OpStateResolve:
 		return d.answerState(ctx, caller, call)
+	case OpSettingsGet, OpSettingsPut:
+		return d.answerSettings(ctx, caller, call)
 	case OpEvents:
 		var w EventsWait
 		if err := args(call, &w); err != nil {

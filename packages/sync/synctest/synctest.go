@@ -53,6 +53,8 @@ type Desktop struct {
 	queue queue
 	// ledgers are the libraries' learning state, by library ID (state.go).
 	ledgers map[string]*sync.Ledger
+	// target is the language the desktop translates into (settings.go).
+	target  string
 	desk    *sync.Desk
 	libs    []sync.Library
 	films   []Film
@@ -65,9 +67,9 @@ type Desktop struct {
 // New starts a desktop named name on loopback, closed when the test ends. It offers no code until Offer.
 func New(t testing.TB, name string) *Desktop {
 	t.Helper()
-	d := &Desktop{Name: name, tokens: map[string]bool{}, names: map[string]string{}, modTime: time.Unix(1_700_000_000, 0)}
+	d := &Desktop{Name: name, tokens: map[string]bool{}, names: map[string]string{}, modTime: time.Unix(1_700_000_000, 0), target: "zh-Hans"}
 	d.queue.receive = sync.ReceiveQueue
-	d.desk = &sync.Desk{Service: jobService{d}, State: stateService{d}, Journal: sync.NewJournal(), Desktop: name}
+	d.desk = &sync.Desk{Service: jobService{d}, State: stateService{d}, Settings: settingsService{d}, Journal: sync.NewJournal(), Desktop: name}
 	mux := http.NewServeMux()
 	mux.HandleFunc("POST "+sync.PathPair, d.pair)
 	mux.HandleFunc("GET "+sync.PathLibraries, d.authed(d.libraries))

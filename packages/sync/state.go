@@ -8,7 +8,7 @@ import (
 	"time"
 )
 
-// The learning state (yldm-tech/Kando#217) is what a learner makes of a library's films on any of their devices: where each film was left (KindPosition), the lines saved with their notes and review schedule (KindLine), the corrections of the machine's lines (KindCorrection) and, once the desktop keeps one, the vocabulary (KindWord). It travels as records over the same calls as the jobs (OpStateGet, OpStatePut, OpStateResolve), so the storage relay (yldm-tech/Kando#219) carries it as it carries them.
+// The learning state (yldm-tech/Kando#217) is what a learner makes of a library's films on any of their devices: where each film was left (KindPosition), the lines saved with their notes and review schedule (KindLine), the corrections of the machine's lines (KindCorrection) and the vocabulary (KindWord). It travels as records over the same calls as the jobs (OpStateGet, OpStatePut, OpStateResolve), so the storage relay (yldm-tech/Kando#219) carries it as it carries them.
 //
 // Records. A record is a kind, an ID unique among the library's records of its kind, the film it belongs to and its fields. Each field carries its value as JSON and a Stamp, when and on which device it last changed, so two devices' records merge field by field, the later change winning (MergeRecord). A line or a word removed leaves its record behind with Removed set, a tombstone, which wins over any change of the record: the record is gone on every device for good, and saving the line again makes a record of another ID. A position or a correction is never removed; its fields are set to null instead, which is how a correction taken back or a film watched to its end reads, so a later change can set them again.
 //
@@ -69,10 +69,18 @@ const (
 	FieldNoSpeech = "no_speech"
 )
 
-// The fields of a KindWord record, besides FieldNote and FieldReview, for the vocabulary once the desktop keeps one (yldm-tech/Kando#214).
+// The fields of a KindWord record: a word of the vocabulary (yldm-tech/Kando#214), whose ID is the word's own (study.Word.ID) and Film the film of the line it was looked up in, besides FieldReview, its schedule, FieldTitle, that film's title, FieldStartMS, the line's start, and FieldSavedAt, when it was added. The word, the language it is spoken in, the line and the line's translation do not change after it is added; its reading, meaning and the meaning's language change together.
 const (
-	FieldWord    = "word"
-	FieldMeaning = "meaning"
+	// FieldWord is the word as the vocabulary lists it, its dictionary form, and FieldSpoken the language of the film it was looked up in, as whisper's code ("en"), "" for one not known: strings.
+	FieldWord   = "word"
+	FieldSpoken = "spoken"
+	// FieldReading is how it is said, FieldMeaning what it means and FieldLanguage the language the meaning is written in: strings.
+	FieldReading  = "reading"
+	FieldMeaning  = "meaning"
+	FieldLanguage = "language"
+	// FieldContext is the line it was looked up in and FieldContextTranslation that line's translation: strings.
+	FieldContext            = "context"
+	FieldContextTranslation = "context_translation"
 )
 
 // Review is a line's or a word's review schedule (FieldReview): its box, from 0, and when it is due.

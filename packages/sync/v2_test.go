@@ -119,6 +119,10 @@ func TestHelloNegotiatesV2(t *testing.T) {
 	if reply := desk.Answer(ctx, Caller{}, Call{V: CallVersion, Op: "films.delete"}); reply.Error == nil || reply.Error.Code != CodeUnsupported {
 		t.Fatalf("an unknown operation answered %+v", reply)
 	}
+	// A desktop that does not share its settings says so.
+	if reply := desk.Answer(ctx, Caller{}, Call{V: CallVersion, Op: OpSettingsGet}); reply.Error == nil || reply.Error.Code != CodeUnsupported {
+		t.Fatalf("settings of a desktop without them answered %+v", reply)
+	}
 }
 
 func TestHelloOfAV1DesktopSaysSo(t *testing.T) {
