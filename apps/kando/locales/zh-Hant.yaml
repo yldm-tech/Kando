@@ -1889,6 +1889,11 @@ reviewNewer: "這部影片的終校由較新版本的看懂儲存，這裡改不
 reviewSaveFailed: "終校的改動沒能儲存"
 filmsQueueReviewingLines: "終校中 · {lines}/{total} 句"
 queueStatusReviewing: "正在終校譯文…"
+glossaryGuessTitle: "這幾部像是同一個系列"
+glossaryGuessHint: "確認後，可以把術語設為「系列」，改一處人名或術語，這幾集一起生效。只按檔名判斷，所以先問你。"
+glossaryGuessYes: "是同一系列"
+glossaryGuessNo: "不是"
+glossarySeriesConfirmed: "已確認為系列：{films} 集"
 github.com/nsgo-dev/nsgo/base/locales:
   sortBy: "依{column}排序"
   diffUnchangedLines: "{n} 行未修改"

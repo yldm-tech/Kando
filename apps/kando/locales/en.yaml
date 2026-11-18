@@ -6788,3 +6788,20 @@ filmsQueueReviewingLines:
 queueStatusReviewing:
   message: "Proofreading the translation…"
   description: "Status of a job reading its whole translation through again once translated (the final proofread)."
+glossaryGuessTitle:
+  message: "These look like one series"
+  description: "Title of the card in the Terms tab asking whether films whose names look like episodes of one show are a series."
+glossaryGuessHint:
+  message: "Once confirmed, a term can be set to Series, and changing a name or term once changes it in every episode. This was guessed from the file names alone, so you're asked first."
+  description: "Explanation on the card asking whether films are one series; Series is the term scope."
+glossaryGuessYes:
+  message: "Same Series"
+  description: "Button confirming that the films the card names are one series."
+glossaryGuessNo:
+  message: "Not a Series"
+  description: "Button saying the films the card names are not a series; it is not asked again."
+glossarySeriesConfirmed:
+  message: "Made a series of {films, plural, one {# film} other {# films}}"
+  description: "Shown on the picture after the user confirmed that films are one series."
+  placeholders:
+    films: { type: "int", example: "4" }

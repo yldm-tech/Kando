@@ -1887,3 +1887,8 @@ reviewNewer: "这部影片的终校由更新版本的看懂保存，这里改不
 reviewSaveFailed: "终校的改动没能保存"
 filmsQueueReviewingLines: "终校中 · {lines}/{total} 句"
 queueStatusReviewing: "正在终校译文…"
+glossaryGuessTitle: "这几部像是同一个系列"
+glossaryGuessHint: "确认后，可以把术语设为「系列」，改一处人名或术语，这几集一起生效。只按文件名判断，所以先问你。"
+glossaryGuessYes: "是同一系列"
+glossaryGuessNo: "不是"
+glossarySeriesConfirmed: "已确认为系列：{films} 集"

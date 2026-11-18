@@ -1889,6 +1889,11 @@ reviewNewer: "この作品の校正は新しいバージョンの Kando で保�
 reviewSaveFailed: "最終校正を保存できませんでした"
 filmsQueueReviewingLines: "最終校正中 · {lines}/{total} 行"
 queueStatusReviewing: "翻訳を最終校正中…"
+glossaryGuessTitle: "これらは同じシリーズのようです"
+glossaryGuessHint: "確認すると用語を「シリーズ」に設定でき、人名や用語を一度直すと全話に反映されます。ファイル名だけで判断したので、先に確認しています。"
+glossaryGuessYes: "同じシリーズ"
+glossaryGuessNo: "違う"
+glossarySeriesConfirmed: "{films} 本をシリーズにしました"
 github.com/nsgo-dev/nsgo/base/locales:
   sortBy: "{column}で並べ替え"
   diffUnchangedLines: "変更されていない {n} 行"

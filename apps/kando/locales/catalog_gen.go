@@ -959,6 +959,7 @@ var Parameters = map[string][]string{
 	"ReviewHeadDone":                           {"changes"},
 	"ReviewPlayLine":                           {"time_"},
 	"FilmsQueueReviewingLines":                 {"lines", "total"},
+	"GlossarySeriesConfirmed":                  {"films"},
 }
 
 // Translation is a language's messages another package supplies:
@@ -1465,6 +1466,7 @@ type Translation struct {
 	ReviewHeadDone                           func(changes int) string
 	ReviewPlayLine                           func(time_ string) string
 	FilmsQueueReviewingLines                 func(lines int, total int) string
+	GlossarySeriesConfirmed                  func(films int) string
 }
 
 var supplied = map[string]Translation{}
@@ -2862,6 +2864,10 @@ const (
 	textReviewNewer
 	textReviewSaveFailed
 	textQueueStatusReviewing
+	textGlossaryGuessTitle
+	textGlossaryGuessHint
+	textGlossaryGuessYes
+	textGlossaryGuessNo
 	numTexts
 )
 
@@ -4259,6 +4265,10 @@ var keyOfText = [numTexts]string{
 	"reviewNewer",
 	"reviewSaveFailed",
 	"queueStatusReviewing",
+	"glossaryGuessTitle",
+	"glossaryGuessHint",
+	"glossaryGuessYes",
+	"glossaryGuessNo",
 }
 
 // textsEn are the messages without arguments in en.
@@ -5653,7 +5663,11 @@ var textsEn = i18n.NewTexts(""+
 	"Final proofread rolled back (what you accepted stays)"+
 	"A newer version of Kando saved this film's proofread, so it can't be changed here"+
 	"Couldn't save the final proofread"+
-	"Proofreading the translation…",
+	"Proofreading the translation…"+
+	"These look like one series"+
+	"Once confirmed, a term can be set to Series, and changing a name or term once changes it in every episode. This was guessed from the file names alone, so you're asked first."+
+	"Same Series"+
+	"Not a Series",
 	[]uint16{
 		5,
 		19,
@@ -7046,6 +7060,10 @@ var textsEn = i18n.NewTexts(""+
 		81,
 		33,
 		31,
+		26,
+		173,
+		11,
+		12,
 	})
 
 // textsJa are the messages without arguments in ja.
@@ -8440,7 +8458,11 @@ var textsJa = i18n.NewTexts(""+
 	"最終校正を元に戻しました（承認した変更は残ります）"+
 	"この作品の校正は新しいバージョンの Kando で保存されたため、ここでは変更できません"+
 	"最終校正を保存できませんでした"+
-	"翻訳を最終校正中…",
+	"翻訳を最終校正中…"+
+	"これらは同じシリーズのようです"+
+	"確認すると用語を「シリーズ」に設定でき、人名や用語を一度直すと全話に反映されます。ファイル名だけで判断したので、先に確認しています。"+
+	"同じシリーズ"+
+	"違う",
 	[]uint16{
 		5,
 		30,
@@ -9833,6 +9855,10 @@ var textsJa = i18n.NewTexts(""+
 		118,
 		45,
 		27,
+		45,
+		198,
+		18,
+		6,
 	})
 
 // textsKo are the messages without arguments in ko.
@@ -11227,7 +11253,11 @@ var textsKo = i18n.NewTexts(""+
 	"최종 교정을 되돌렸습니다 (수락한 변경은 유지)"+
 	"이 영상의 교정은 최신 버전의 Kando가 저장해 여기서 바꿀 수 없습니다"+
 	"최종 교정을 저장하지 못했습니다"+
-	"번역 최종 교정 중…",
+	"번역 최종 교정 중…"+
+	"같은 시리즈로 보입니다"+
+	"확인하면 용어를 '시리즈'로 지정해 인명이나 용어를 한 번 고치면 모든 화에 적용됩니다. 파일 이름만 보고 추측했으므로 먼저 묻습니다."+
+	"같은 시리즈"+
+	"아님",
 	[]uint16{
 		5,
 		28,
@@ -12620,6 +12650,10 @@ var textsKo = i18n.NewTexts(""+
 		93,
 		45,
 		27,
+		32,
+		183,
+		16,
+		6,
 	})
 
 // textsZhHans are the messages without arguments in zh-Hans.
@@ -14014,7 +14048,11 @@ var textsZhHans = i18n.NewTexts(""+
 	"已回滚终校（你接受过的保留）"+
 	"这部影片的终校由更新版本的看懂保存，这里改不了"+
 	"终校的改动没能保存"+
-	"正在终校译文…",
+	"正在终校译文…"+
+	"这几部像是同一个系列"+
+	"确认后，可以把术语设为「系列」，改一处人名或术语，这几集一起生效。只按文件名判断，所以先问你。"+
+	"是同一系列"+
+	"不是",
 	[]uint16{
 		6,
 		15,
@@ -15407,6 +15445,10 @@ var textsZhHans = i18n.NewTexts(""+
 		69,
 		27,
 		21,
+		30,
+		141,
+		15,
+		6,
 	})
 
 // textsZhHant are the messages without arguments in zh-Hant.
@@ -16801,7 +16843,11 @@ var textsZhHant = i18n.NewTexts(""+
 	"已回滾終校（你接受過的保留）"+
 	"這部影片的終校由較新版本的看懂儲存，這裡改不了"+
 	"終校的改動沒能儲存"+
-	"正在終校譯文…",
+	"正在終校譯文…"+
+	"這幾部像是同一個系列"+
+	"確認後，可以把術語設為「系列」，改一處人名或術語，這幾集一起生效。只按檔名判斷，所以先問你。"+
+	"是同一系列"+
+	"不是",
 	[]uint16{
 		6,
 		15,
@@ -18194,6 +18240,10 @@ var textsZhHant = i18n.NewTexts(""+
 		69,
 		27,
 		21,
+		30,
+		138,
+		15,
+		6,
 	})
 
 // texts returns the messages without arguments in lang, nil for a
@@ -19749,6 +19799,9 @@ func Supply(lang string, t Translation) {
 	}
 	if t.FilmsQueueReviewingLines != nil {
 		s.FilmsQueueReviewingLines = t.FilmsQueueReviewingLines
+	}
+	if t.GlossarySeriesConfirmed != nil {
+		s.GlossarySeriesConfirmed = t.GlossarySeriesConfirmed
 	}
 	supplied[lang] = s
 	Catalog.Add(lang)
@@ -50659,6 +50712,84 @@ func QueueStatusReviewing(cx *core.Scope) string { return For(cx).QueueStatusRev
 
 // QueueStatusReviewing is the package's QueueStatusReviewing in the language of msgs.
 func (msgs Messages) QueueStatusReviewing() string { return msgs.text(textQueueStatusReviewing) }
+
+// GlossaryGuessTitle says "These look like one series"
+// in the language the app shows under cx.
+//
+// Title of the card in the Terms tab asking whether films whose names look like episodes of one show are a series.
+func GlossaryGuessTitle(cx *core.Scope) string { return For(cx).GlossaryGuessTitle() }
+
+// GlossaryGuessTitle is the package's GlossaryGuessTitle in the language of msgs.
+func (msgs Messages) GlossaryGuessTitle() string { return msgs.text(textGlossaryGuessTitle) }
+
+// GlossaryGuessHint says "Once confirmed, a term can be set to Series, and changing a name or term once changes it in every episode. This was guessed from the file names alone, so you're asked first."
+// in the language the app shows under cx.
+//
+// Explanation on the card asking whether films are one series; Series is the term scope.
+func GlossaryGuessHint(cx *core.Scope) string { return For(cx).GlossaryGuessHint() }
+
+// GlossaryGuessHint is the package's GlossaryGuessHint in the language of msgs.
+func (msgs Messages) GlossaryGuessHint() string { return msgs.text(textGlossaryGuessHint) }
+
+// GlossaryGuessYes says "Same Series"
+// in the language the app shows under cx.
+//
+// Button confirming that the films the card names are one series.
+func GlossaryGuessYes(cx *core.Scope) string { return For(cx).GlossaryGuessYes() }
+
+// GlossaryGuessYes is the package's GlossaryGuessYes in the language of msgs.
+func (msgs Messages) GlossaryGuessYes() string { return msgs.text(textGlossaryGuessYes) }
+
+// GlossaryGuessNo says "Not a Series"
+// in the language the app shows under cx.
+//
+// Button saying the films the card names are not a series; it is not asked again.
+func GlossaryGuessNo(cx *core.Scope) string { return For(cx).GlossaryGuessNo() }
+
+// GlossaryGuessNo is the package's GlossaryGuessNo in the language of msgs.
+func (msgs Messages) GlossaryGuessNo() string { return msgs.text(textGlossaryGuessNo) }
+
+// GlossarySeriesConfirmed says "Made a series of {films, plural, one {# film} other {# films}}"
+// in the language the app shows under cx.
+//
+// Shown on the picture after the user confirmed that films are one series.
+func GlossarySeriesConfirmed(cx *core.Scope, films int) string {
+	return For(cx).GlossarySeriesConfirmed(films)
+}
+
+// GlossarySeriesConfirmed is the package's GlossarySeriesConfirmed in the language of msgs.
+func (msgs Messages) GlossarySeriesConfirmed(films int) string {
+	if i18n.IsPseudo(msgs.lang) {
+		return i18n.Pseudo(msgs.lang, Messages{lang: Source, mark: true}.GlossarySeriesConfirmed(films))
+	}
+	for lang := msgs.lang; ; lang = i18n.Parent(lang) {
+		if f := supplied[lang].GlossarySeriesConfirmed; f != nil {
+			return f(films)
+		}
+		switch lang {
+		case "", "en":
+			var b strings.Builder
+			b.WriteString("Made a series of ")
+			switch i18n.Cardinal("en", float64(films)) {
+			case i18n.One:
+				b.WriteString(msgs.arg(i18n.FormatNumber("en", float64(films))))
+				b.WriteString(" film")
+			default:
+				b.WriteString(msgs.arg(i18n.FormatNumber("en", float64(films))))
+				b.WriteString(" films")
+			}
+			return b.String()
+		case "ja":
+			return i18n.FormatNumber("ja", float64(films)) + " 本をシリーズにしました"
+		case "ko":
+			return i18n.FormatNumber("ko", float64(films)) + "편을 시리즈로 묶었습니다"
+		case "zh-Hans":
+			return "已确认为系列：" + i18n.FormatNumber("zh-Hans", float64(films)) + " 集"
+		case "zh-Hant":
+			return "已確認為系列：" + i18n.FormatNumber("zh-Hant", float64(films)) + " 集"
+		}
+	}
+}
 
 // dated is lang with the hour cycle the user set, which times take.
 func (msgs Messages) dated(lang string) string {

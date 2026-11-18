@@ -128,19 +128,20 @@ func (a *app) playlistNew() (all, fresh []string) {
 	return all, fresh
 }
 
-// playlistAdd queues the videos read that the library does not have yet, in their order, and closes the dialog; the message bar of the page that opened it says what became of them.
+// playlistAdd queues the videos read that the library does not have yet, in their order, and closes the dialog; the message bar of the page that opened it says what became of them. A playlist's films, those queued and those the library had, join a series named after it.
 func (a *app) playlistAdd() {
 	_, fresh := a.playlistNew()
-	from := a.playlist.from
+	from, lists := a.playlist.from, a.playlist.lists
 	a.playlistClose()
-	if len(fresh) == 0 {
-		return
-	}
-	if from == playlistFromBrowse {
+	switch {
+	case len(fresh) == 0:
+	case from == playlistFromBrowse:
 		a.browseEnqueueAll(fresh)
-		return
+	default:
+		a.libraryEnqueue(fresh...)
 	}
-	a.libraryEnqueue(fresh...)
+	// The films of a playlist are a series, as its site groups them (glossaryPlaylistSeries).
+	a.glossaryPlaylistSeries(lists)
 }
 
 // playlistLook is what the dialog shows of what was read, in the interface's language.

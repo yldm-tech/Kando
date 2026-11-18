@@ -1889,6 +1889,11 @@ reviewNewer: "이 영상의 교정은 최신 버전의 Kando가 저장해 여기
 reviewSaveFailed: "최종 교정을 저장하지 못했습니다"
 filmsQueueReviewingLines: "최종 교정 중 · {lines}/{total}줄"
 queueStatusReviewing: "번역 최종 교정 중…"
+glossaryGuessTitle: "같은 시리즈로 보입니다"
+glossaryGuessHint: "확인하면 용어를 '시리즈'로 지정해 인명이나 용어를 한 번 고치면 모든 화에 적용됩니다. 파일 이름만 보고 추측했으므로 먼저 묻습니다."
+glossaryGuessYes: "같은 시리즈"
+glossaryGuessNo: "아님"
+glossarySeriesConfirmed: "{films}편을 시리즈로 묶었습니다"
 github.com/nsgo-dev/nsgo/base/locales:
   sortBy: "{column} 기준 정렬"
   diffUnchangedLines: "변경되지 않은 줄 {n}개"
