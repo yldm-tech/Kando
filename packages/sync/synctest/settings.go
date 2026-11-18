@@ -7,8 +7,8 @@ import (
 	"kando/packages/sync"
 )
 
-// targets are the languages the stand-in translates into, by their tags.
-var targets = []string{"zh-Hans", "zh-Hant", "en", "ja", "ko"}
+// targets are the languages the stand-in translates into, by their tags: the desktop's.
+var targets = []string{"zh-Hans", "zh-Hant", "en", "ja", "ko", "es", "fr", "de", "pt", "it", "ru", "nl", "pl", "uk", "tr", "ar", "hi", "id", "vi", "th"}
 
 // Target is the language the desktop translates into, a BCP 47 tag; it starts as zh-Hans.
 func (d *Desktop) Target() string {
