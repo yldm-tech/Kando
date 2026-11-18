@@ -6,15 +6,25 @@ import (
 	"io/fs"
 	"os"
 	"path/filepath"
+	"strings"
 )
 
-// Clear removes every file under each of dirs, except the paths keep names, as a copy the player is playing, and the folders left empty, and returns how many bytes it removed. A folder that is not there is skipped. It goes on past a file it cannot remove and returns the first such error with the bytes it did remove.
+// Clear removes every file under each of dirs, except the paths keep names, as a copy the player is playing, and the files whose paths begin with one of them, as the part of that copy ffmpeg is still writing, and the folders left empty, and returns how many bytes it removed. A folder that is not there is skipped. It goes on past a file it cannot remove and returns the first such error with the bytes it did remove.
 func Clear(dirs []string, keep ...string) (freed int64, err error) {
-	kept := map[string]bool{}
+	var kept []string
 	for _, path := range keep {
 		if path != "" {
-			kept[filepath.Clean(path)] = true
+			kept = append(kept, filepath.Clean(path))
 		}
+	}
+	keeps := func(path string) bool {
+		path = filepath.Clean(path)
+		for _, k := range kept {
+			if strings.HasPrefix(path, k) {
+				return true
+			}
+		}
+		return false
 	}
 	var first error
 	fail := func(e error) {
@@ -40,7 +50,7 @@ func Clear(dirs []string, keep ...string) (freed int64, err error) {
 				}
 				return nil
 			}
-			if kept[filepath.Clean(path)] {
+			if keeps(path) {
 				return nil
 			}
 			info, err := d.Info()

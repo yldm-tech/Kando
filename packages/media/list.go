@@ -44,7 +44,7 @@ func (t Tools) ListVideos(ctx context.Context, source string, limit int) (Listin
 	if t.YTDLP == "" {
 		return Listing{}, errors.New("yt-dlp is not installed")
 	}
-	if t.Offline {
+	if t.offlineNow() {
 		return Listing{}, ErrOffline
 	}
 	timed, cancel := context.WithTimeout(ctx, ListTimeout)

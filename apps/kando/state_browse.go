@@ -168,9 +168,7 @@ func (a *app) browseShowFilm(id string) {
 
 // browseLoad opens rawURL, an http or https address, in the web view, which the first address makes.
 func (a *app) browseLoad(rawURL string) {
-	// Offline mode opens no page (state_privacy.go); the page's own links are refused by its access (BrowseOffline).
-	if a.privacy.offline {
-		a.browseWarn(a.messages().PrivacyNoBrowse(), sectionid.Privacy)
+	if a.browseOffline() {
 		return
 	}
 	a.browseCutShort()
@@ -245,6 +243,12 @@ func (a *app) browseColumnGone() {
 
 // browseNavigated follows the page's address and history as the web view reports them: as a page starts loading, finishes and navigates. The address field follows the page unless the user is typing in it. A page of the page's own making (data:, blob:, about: other than the start's blank page), where the web view lets it go (browse/page.go), keeps the last web address, which 下载视频 then adds. A load that starts takes away the message that a page did not load.
 func (a *app) browseNavigated(nav core.WebNavigation) {
+	// A page the web view went to by itself while offline mode is on, as one a swipe through the history or a script opened, is left for the start at once (browseOffline).
+	if a.privacy.offline && browse.Allowed(nav.URL) && a.browse.source != "" {
+		a.browse.canBack, a.browse.canForward = nav.CanGoBack, nav.CanGoForward
+		a.browseHome()
+		return
+	}
 	if nav.URL == browseBlank || browse.Allowed(nav.URL) {
 		a.browse.url = nav.URL
 	}
@@ -509,8 +513,17 @@ func (a *app) browseCleared(err error) {
 	}
 }
 
+// browseOffline reports whether offline mode keeps the web view from loading a page, and says so in the message bar with the section that turns it off (state_privacy.go). Every way to a page asks it: an address, 后退, 前进 and 重新载入; a page the web view goes to by itself goes back to the start (browseNavigated).
+func (a *app) browseOffline() bool {
+	if !a.privacy.offline {
+		return false
+	}
+	a.browseWarn(a.messages().PrivacyNoBrowse(), sectionid.Privacy)
+	return true
+}
+
 func (a *app) browseBack() {
-	if a.browse.source != "" && a.browse.canBack {
+	if a.browse.source != "" && a.browse.canBack && !a.browseOffline() {
 		a.browseCutShort()
 		a.browse.view.GoBack()
 		a.browse.loading = true
@@ -518,7 +531,7 @@ func (a *app) browseBack() {
 }
 
 func (a *app) browseForward() {
-	if a.browse.source != "" && a.browse.canForward {
+	if a.browse.source != "" && a.browse.canForward && !a.browseOffline() {
 		a.browseCutShort()
 		a.browse.view.GoForward()
 		a.browse.loading = true
@@ -526,7 +539,7 @@ func (a *app) browseForward() {
 }
 
 func (a *app) browseReload() {
-	if a.browseShowing() {
+	if a.browseShowing() && !a.browseOffline() {
 		a.browseCutShort()
 		a.browse.view.Reload()
 		a.browse.loading = true

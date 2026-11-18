@@ -163,3 +163,31 @@ func writeOfflineVideo(t *testing.T) string {
 	}
 	return path
 }
+
+// TestOfflineSwitchReachesCopiesOfTheTools turns offline mode on through the switch after the tools were copied, as a job under way holds them: the copy refuses from then on.
+func TestOfflineSwitchReachesCopiesOfTheTools(t *testing.T) {
+	var offline atomic.Bool
+	tools := Tools{YTDLP: "/nonexistent/yt-dlp", OutputDir: t.TempDir(), OfflineSwitch: &offline,
+		Translator: ChatTranslator{BaseURL: EveryAPIBaseURL, Model: "m", APIKey: "k"}}
+	held := tools
+	if err := held.CheckTranslate(); err != nil {
+		t.Fatalf("CheckTranslate before offline mode = %v", err)
+	}
+	offline.Store(true)
+	ctx := context.Background()
+	if _, err := held.Download(ctx, "https://www.youtube.com/watch?v=abc"); !errors.Is(err, ErrOffline) {
+		t.Errorf("Download = %v, want ErrOffline", err)
+	}
+	if _, err := held.ListVideos(ctx, "https://www.youtube.com/playlist?list=x", 0); !errors.Is(err, ErrOffline) {
+		t.Errorf("ListVideos = %v, want ErrOffline", err)
+	}
+	if err := held.CheckTranslate(); !errors.Is(err, ErrOffline) {
+		t.Errorf("CheckTranslate = %v, want ErrOffline", err)
+	}
+	if _, err := held.Translate(ctx, []core.Segment{{Text: "x"}}, "es"); !errors.Is(err, ErrOffline) {
+		t.Errorf("Translate = %v, want ErrOffline", err)
+	}
+	if _, err := held.Proofread(ctx, []core.Segment{{Text: "x"}}, "t"); !errors.Is(err, ErrOffline) {
+		t.Errorf("Proofread = %v, want ErrOffline", err)
+	}
+}

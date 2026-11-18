@@ -40,14 +40,19 @@ func (a *app) SignInGoogle() {
 	if login == nil {
 		login = cloud.Login
 	}
+	// Offline mode turned on meanwhile stops the sign-in (privacyContext).
+	net := a.privacyContext()
 	go func() {
-		ctx, cancel := context.WithTimeout(context.Background(), 3*time.Minute)
+		ctx, cancel := context.WithTimeout(net, 3*time.Minute)
 		defer cancel()
 		acc, err := login(ctx, cfg)
 		a.update(func() {
 			a.cloud.googleBusy = false
 			if err != nil {
 				a.cloud.googleErr = locales.Messages.AccountGoogleFailed
+				if a.privacy.offline {
+					a.cloud.googleErr = locales.Messages.PrivacyNoSignIn
+				}
 				return
 			}
 			a.cloud.googleEmail = acc.Email

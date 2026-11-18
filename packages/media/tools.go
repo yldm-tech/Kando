@@ -17,6 +17,7 @@ import (
 	"runtime"
 	"strconv"
 	"strings"
+	"sync/atomic"
 	"time"
 
 	"kando/packages/core"
@@ -49,6 +50,8 @@ type Tools struct {
 	CookieDir string
 	// Offline is offline mode: Download refuses a link and ListVideos every source with ErrOffline, and the translator refuses a service that is not on this computer (ChatTranslator.Offline), each before anything is sent. A local video is still read where it is.
 	Offline bool
+	// OfflineSwitch, when set, is offline mode as it is now, shared by every copy of Tools: a job under way holds a copy made as it started, so offline mode turned on later still keeps that job from downloading or reaching a service off this computer in the steps it has not started yet. Tools are offline when Offline or the switch is on (offlineNow).
+	OfflineSwitch *atomic.Bool
 }
 
 // EveryAPI is the default translation provider; setting KANDO_LLM_BASE_URL switches to any other OpenAI-compatible provider.
@@ -268,7 +271,7 @@ func (t Tools) Download(ctx context.Context, source string) (string, error) {
 		}
 		return path, nil
 	}
-	if t.Offline {
+	if t.offlineNow() {
 		return "", ErrOffline
 	}
 	temp, err := t.downloadTempFor(source)

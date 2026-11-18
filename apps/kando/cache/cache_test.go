@@ -47,3 +47,19 @@ func TestClearRemovesFilesButKeepsWhatIsInUse(t *testing.T) {
 		t.Fatalf("second clear freed %d, %v", freed, err)
 	}
 }
+
+// TestClearKeepsTheCopyBeingMade keeps the part ffmpeg writes beside the copy it is making, named after it, while the copy itself is not there yet.
+func TestClearKeepsTheCopyBeingMade(t *testing.T) {
+	playback := t.TempDir()
+	dest := filepath.Join(playback, "abc-1.mp4")
+	part := dest + "-123.part"
+	write(t, part, 10)
+	write(t, filepath.Join(playback, "abd-1.mp4"), 20)
+	freed, err := Clear([]string{playback}, dest)
+	if err != nil || freed != 20 {
+		t.Fatalf("freed %d, %v", freed, err)
+	}
+	if _, err := os.Stat(part); err != nil {
+		t.Fatalf("the part being written is gone: %v", err)
+	}
+}

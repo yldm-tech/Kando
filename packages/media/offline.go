@@ -37,9 +37,14 @@ func (t ChatTranslator) offline() error {
 	return nil
 }
 
+// offlineNow reports whether offline mode is on for t now: Offline, or the switch the app shares with the copies of t (OfflineSwitch).
+func (t Tools) offlineNow() bool {
+	return t.Offline || (t.OfflineSwitch != nil && t.OfflineSwitch.Load())
+}
+
 // withOffline is t's translator, which also refuses to reach a service off this computer while t is offline.
 func (t Tools) withOffline() ChatTranslator {
 	translator := t.Translator
-	translator.Offline = translator.Offline || t.Offline
+	translator.Offline = translator.Offline || t.offlineNow()
 	return translator
 }
