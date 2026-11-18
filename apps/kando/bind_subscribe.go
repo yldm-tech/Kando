@@ -4,6 +4,7 @@ import (
 	"slices"
 
 	"kando/apps/kando/films"
+	"kando/apps/kando/locales"
 	"kando/apps/kando/subscribe"
 	kcore "kando/packages/core"
 )
@@ -50,7 +51,16 @@ func (a *app) SubscriptionHead() subscribe.Head {
 	}
 	link := sub.Link()
 	return subscribe.Head{ID: sub.ID, Name: sub.Name, Platform: link.Platform, Kind: subscribe.KindOf(link), Paused: sub.Paused, Checking: sub.ID == a.subs.checking,
-		Gone: sub.Gone, Stopped: sub.Stopped, Renamed: sub.Renamed, Err: sub.Err, Checked: sub.Checked, Cadence: sub.Cadence, Added: len(sub.Added), Note: a.subs.notes[sub.ID]}
+		Gone: sub.Gone, Stopped: sub.Stopped, Renamed: sub.Renamed, TimedOut: sub.TimedOut, Err: sub.Err, Checked: sub.Checked, Cadence: sub.Cadence, Added: len(sub.Added), Note: a.subscribeNoteOf(sub.ID)}
+}
+
+// subscribeNoteOf is the note of the subscription with id as its page shows it: why something did not work is worded now, in the interface's language, which the page follows as it changes.
+func (a *app) subscribeNoteOf(id string) subscribe.Note {
+	n := a.subs.notes[id]
+	if n.why != nil {
+		n.Text = n.why(a.messages())
+	}
+	return n.Note
 }
 
 // SubscriptionWaiting is the new videos waiting, each with whether it fits the rules as they are now.
@@ -135,7 +145,7 @@ func (a *app) CheckSubscription() {
 		return
 	}
 	if a.subscribeLister() == nil {
-		a.subs.notes[sub.ID] = subscribe.Note{Kind: subscribe.NoteFailed, Text: a.messages().SubscribeAddCannotList()}
+		a.subs.notes[sub.ID] = subscribeNote{Note: subscribe.Note{Kind: subscribe.NoteFailed}, why: func(m locales.Messages) string { return m.SubscribeAddCannotList() }}
 		return
 	}
 	due := []string{sub.ID}
@@ -192,7 +202,7 @@ func (a *app) KeepSubscriptionName(useNew bool) {
 	if useNew {
 		note = subscribe.Note{Kind: subscribe.NoteRenamed, Text: sub.Name}
 	}
-	a.subs.notes[sub.ID] = note
+	a.subs.notes[sub.ID] = subscribeNote{Note: note}
 	a.subscribeSave()
 }
 
@@ -203,7 +213,7 @@ func (a *app) StopSubscription() {
 	}
 	sub.Stopped = true
 	a.subs.due = slices.DeleteFunc(a.subs.due, func(x string) bool { return x == sub.ID })
-	a.subs.notes[sub.ID] = subscribe.Note{Kind: subscribe.NoteStopped, Text: sub.Name}
+	a.subs.notes[sub.ID] = subscribeNote{Note: subscribe.Note{Kind: subscribe.NoteStopped, Text: sub.Name}}
 	a.subscribeSave()
 }
 
@@ -217,10 +227,10 @@ func (a *app) AddWaiting(links []string) {
 	if len(videos) == 0 {
 		return
 	}
-	failed, reason := a.subscribeEnqueue(sub, videos)
-	note := subscribe.Note{Kind: subscribe.NoteAdded, Count: len(videos) - len(failed)}
+	failed, why := a.subscribeEnqueue(sub, videos)
+	note := subscribeNote{Note: subscribe.Note{Kind: subscribe.NoteAdded, Count: len(videos) - len(failed)}}
 	if len(failed) > 0 {
-		note = subscribe.Note{Kind: subscribe.NoteNotQueued, Text: reason}
+		note = subscribeNote{Note: subscribe.Note{Kind: subscribe.NoteNotQueued}, why: why}
 	}
 	a.subs.notes[sub.ID] = note
 	a.subscribeSave()

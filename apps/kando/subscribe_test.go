@@ -9,8 +9,10 @@ import (
 	"testing"
 	"time"
 
+	"kando/apps/kando/locales"
 	"kando/apps/kando/locales/testlocale"
 	"kando/apps/kando/playlist"
+	"kando/apps/kando/shelf"
 	"kando/apps/kando/subscribe"
 	"kando/packages/media"
 
@@ -44,6 +46,24 @@ func subscribeTo(t *testing.T, tt *nsgotest.App, a *app, p *listingPipeline, upd
 		t.Fatalf("subscriptions %+v, dialog error %q", a.subs.store.Subs, a.subs.ask.err)
 	}
 	return &a.subs.store.Subs[0]
+}
+
+// subscribeLaunch looks for due checks as the app does once its window is up (subscribeHooks' ready), the subscriptions made so far counting as made before it opened.
+func subscribeLaunch(a *app) {
+	a.subs.opened = time.Now()
+	a.subscribeDue()
+}
+
+// nextCall is the next list the pipeline was asked for, failing the test when none is within a few seconds.
+func nextCall(t *testing.T, p *listingPipeline) listCall {
+	t.Helper()
+	select {
+	case got := <-p.calls:
+		return got
+	case <-time.After(5 * time.Second):
+		t.Fatal("nothing was listed")
+	}
+	return listCall{}
 }
 
 // checkNow presses 立即检查 on the page shown and waits for the check to report.
@@ -190,13 +210,17 @@ func TestSubscribeRename(t *testing.T) {
 	wantText(t, tt, msgs.SubscribeNoteRenamed("Earth Science Lab"))
 }
 
-// A channel deleted on its site shows a banner; kept in the sidebar, it is checked no more, and the page cannot check it.
+// A channel its site says twice in a row is not there shows a banner; once is a failed check like any other. Kept in the sidebar, it is checked no more, and the page cannot check it.
 func TestSubscribeGone(t *testing.T) {
 	p := newListingPipeline(map[string]media.Listing{})
 	a, tt, updates := newTestApp(t, p)
 	msgs := testlocale.Messages()
 	sub := subscribeTo(t, tt, a, p, updates)
 	delete(p.lists, testSubChannel)
+	checkNow(t, tt, a, p, updates)
+	if sub.Gone || tt.Exists("id:subscription-warn-"+sub.ID) || !tt.Exists("id:subscription-error") {
+		t.Fatalf("gone after one answer: %+v", sub)
+	}
 	checkNow(t, tt, a, p, updates)
 	if !sub.Gone || !tt.Exists("id:subscription-warn-"+sub.ID) {
 		t.Fatalf("not gone: %+v", sub)
@@ -207,7 +231,7 @@ func TestSubscribeGone(t *testing.T) {
 	if !sub.Stopped || tt.Exists("id:subscription-banner") || !tt.Find("id:subscription-check").Props.Disabled {
 		t.Fatalf("after stopping: %+v", sub)
 	}
-	a.subscribeDue(true)
+	subscribeLaunch(a)
 	if a.subs.checking != "" || len(p.calls) != 0 {
 		t.Fatal("a stopped subscription was checked")
 	}
@@ -263,14 +287,14 @@ func TestSubscribeChecksWhenDue(t *testing.T) {
 	})
 	a, tt, updates := newTestApp(t, p)
 	now := time.Now()
-	open := subscribe.New(testSubChannel, "/videos", media.Listing{Title: "Earth Science"}, now)
+	open := subscribe.New(testSubChannel, "/videos", media.Listing{Title: "Earth Science"}, now.Add(-time.Minute))
 	hourly := subscribe.New(testPlaylist, "/videos", media.Listing{Title: "French in Action"}, now.Add(-2*time.Hour))
 	hourly.Cadence = subscribe.CadenceHourly
 	paused := subscribe.New("https://www.youtube.com/@paused", "/videos", media.Listing{Title: "Paused"}, now)
 	paused.Paused = true
 	a.subs.store.Subs = []subscribe.Sub{open, hourly, paused}
 	refresh(tt, a)
-	a.subscribeDue(true)
+	subscribeLaunch(a)
 	if got := <-p.calls; got.source != testSubChannel || a.subs.checking != open.ID || !slices.Equal(a.subs.due, []string{hourly.ID}) {
 		t.Fatalf("first %+v, checking %q, due %q", got, a.subs.checking, a.subs.due)
 	}
@@ -282,11 +306,17 @@ func TestSubscribeChecksWhenDue(t *testing.T) {
 	if got := playlistJobSources(a); !slices.Equal(got, []string{testSubOld.URL, testListing.Videos[0].URL, testListing.Videos[1].URL, testListing.Videos[2].URL}) {
 		t.Fatalf("jobs %q", got)
 	}
-	// Later, only a subscription whose hour has come is due.
-	a.subscribeDue(false)
+	// Later, only a subscription whose hour has come is due, as the app finds when it comes to the front.
+	a.subscribeHooks().becameActive()
 	if a.subs.checking != "" || len(p.calls) != 0 {
 		t.Fatal("checked again before its time")
 	}
+	a.subs.store.Subs[1].Checked = now.Add(-2 * time.Hour)
+	a.subscribeHooks().becameActive()
+	if got := nextCall(t, p); got.source != testPlaylist || a.subs.checking != hourly.ID {
+		t.Fatalf("coming to the front checked %+v, checking %q", got, a.subs.checking)
+	}
+	waitUntil(t, tt, a, updates, func() bool { return a.subs.checking == "" })
 }
 
 // A subscription of a library that is not open queues its videos in its own library, and the sidebar lists only the open library's.
@@ -294,13 +324,13 @@ func TestSubscribeQueuesInItsOwnLibrary(t *testing.T) {
 	p := newListingPipeline(map[string]media.Listing{testSubChannel: {Title: "Earth Science", Videos: []media.ListedVideo{testSubLong}}})
 	a, tt, updates := newTestApp(t, p)
 	a.edit(func(s *session) { s.Libraries = []string{"/videos", "/other.kando"} })
-	other := subscribe.New(testSubChannel, "/other.kando", media.Listing{Title: "Earth Science"}, time.Now())
+	other := subscribe.New(testSubChannel, "/other.kando", media.Listing{Title: "Earth Science"}, time.Now().Add(-time.Minute))
 	a.subs.store.Subs = []subscribe.Sub{other}
 	refresh(tt, a)
 	if tt.Exists("id:subscription-" + other.ID) {
 		t.Fatal("the sidebar lists another library's subscription")
 	}
-	a.subscribeDue(true)
+	subscribeLaunch(a)
 	<-p.calls
 	waitUntil(t, tt, a, updates, func() bool { return a.subs.checking == "" })
 	if len(a.library.Jobs) != 1 || a.library.Jobs[0].LibraryDir != "/other.kando" || a.library.Jobs[0].Source != testSubLong.URL {
@@ -348,5 +378,191 @@ func TestSubscriptionsAreKept(t *testing.T) {
 	c.subscribeSave()
 	if data, _ := os.ReadFile(path); string(data) != "{" {
 		t.Fatalf("the damaged file was written over: %q", data)
+	}
+}
+
+// A subscription that checks each time the app opens, whose library is locked at launch, is passed over, and checked once its library is unlocked, not at the next launch; checked, it is not due again until then.
+func TestSubscribeChecksOnceItsLibraryIsUnlocked(t *testing.T) {
+	p := newListingPipeline(map[string]media.Listing{testSubChannel: {Title: "Earth Science", Videos: []media.ListedVideo{testSubLong}}})
+	a, tt, updates := newTestApp(t, p)
+	a.library.SetLock("/videos", shelf.Lock{Algorithm: "test", Iterations: 1, Salt: []byte("salt"), Key: []byte("key")})
+	a.subs.store.Subs = []subscribe.Sub{subscribe.New(testSubChannel, "/videos", media.Listing{Title: "Earth Science"}, time.Now().Add(-time.Minute))}
+	refresh(tt, a)
+	if !a.lockShut() {
+		t.Fatal("the library is not locked")
+	}
+	subscribeLaunch(a)
+	a.subscribeDue()
+	refresh(tt, a)
+	if a.subs.checking != "" || len(p.calls) != 0 {
+		t.Fatal("a locked library's subscription was checked")
+	}
+	a.lock.unlocked = "/videos"
+	refresh(tt, a)
+	if got := nextCall(t, p); got.source != testSubChannel {
+		t.Fatalf("listed %+v", got)
+	}
+	waitUntil(t, tt, a, updates, func() bool { return a.subs.checking == "" })
+	if got := playlistJobSources(a); !slices.Equal(got, []string{testSubLong.URL}) {
+		t.Fatalf("jobs %q", got)
+	}
+	a.subscribeDue()
+	if a.subs.checking != "" || len(p.calls) != 0 {
+		t.Fatal("checked again in the same launch")
+	}
+}
+
+// A subscription of a library taken off the list is not checked, so yt-dlp does not run for a library the user cannot see; once the library is added back, it is checked again.
+func TestSubscribeLeavesAForgottenLibraryAlone(t *testing.T) {
+	p := newListingPipeline(map[string]media.Listing{testSubChannel: {Title: "Earth Science", Videos: []media.ListedVideo{testSubLong}}})
+	a, tt, updates := newTestApp(t, p)
+	a.edit(func(s *session) { s.Libraries = []string{"/videos", "/other.kando"} })
+	a.subs.store.Subs = []subscribe.Sub{subscribe.New(testSubChannel, "/other.kando", media.Listing{Title: "Earth Science"}, time.Now().Add(-time.Minute))}
+	a.forgetLibrary("/other.kando")
+	refresh(tt, a)
+	subscribeLaunch(a)
+	if a.subs.checking != "" || len(p.calls) != 0 {
+		t.Fatal("a forgotten library's subscription was checked")
+	}
+	a.edit(func(s *session) { s.Libraries = []string{"/videos", "/other.kando"} })
+	a.subscribeDue()
+	if got := nextCall(t, p); got.source != testSubChannel {
+		t.Fatalf("listed %+v", got)
+	}
+	waitUntil(t, tt, a, updates, func() bool { return a.subs.checking == "" })
+	if len(a.library.Jobs) != 1 || a.library.Jobs[0].LibraryDir != "/other.kando" {
+		t.Fatalf("jobs %+v", a.library.Jobs)
+	}
+}
+
+// Pausing a subscription while it is checked stops yt-dlp, and the page cannot check it until it is resumed.
+func TestSubscribePauseStopsTheCheck(t *testing.T) {
+	p := newListingPipeline(map[string]media.Listing{})
+	a, tt, updates := newTestApp(t, p)
+	sub := subscribeTo(t, tt, a, p, updates)
+	p.hold = true
+	tt.Press("id:subscription-check")
+	nextCall(t, p)
+	if a.subs.checking != sub.ID {
+		t.Fatalf("checking %q", a.subs.checking)
+	}
+	tt.Press("id:subscription-pause")
+	if err := <-p.stopped; !errors.Is(err, context.Canceled) {
+		t.Fatalf("the check stopped with %v", err)
+	}
+	if !sub.Paused || a.subs.checking != "" || !tt.Find("id:subscription-check").Props.Disabled {
+		t.Fatalf("after pausing: %+v, checking %q", sub, a.subs.checking)
+	}
+	p.hold = false
+	tt.Press("id:subscription-pause")
+	if sub.Paused || tt.Find("id:subscription-check").Props.Disabled {
+		t.Fatalf("after resuming: %+v", sub)
+	}
+}
+
+// 立即检查 puts the subscription shown before the others waiting their turn; unsubscribing from the one being checked stops it, and the next one starts.
+func TestSubscribeCheckNowGoesFirst(t *testing.T) {
+	p := newListingPipeline(map[string]media.Listing{})
+	a, tt, updates := newTestApp(t, p)
+	shown := subscribeTo(t, tt, a, p, updates).ID
+	first := subscribe.New(testPlaylist, "/videos", media.Listing{Title: "French in Action"}, time.Now())
+	second := subscribe.New("https://www.youtube.com/@second", "/videos", media.Listing{Title: "Second"}, time.Now())
+	a.subs.store.Subs = append(a.subs.store.Subs, first, second)
+	p.hold = true
+	a.subs.due = []string{first.ID, second.ID}
+	a.subscribeNext()
+	if got := nextCall(t, p); got.source != testPlaylist {
+		t.Fatalf("listed %+v", got)
+	}
+	refresh(tt, a)
+	tt.Press("id:subscription-check")
+	if a.subs.checking != first.ID || !slices.Equal(a.subs.due, []string{shown, second.ID}) {
+		t.Fatalf("checking %q, due %q", a.subs.checking, a.subs.due)
+	}
+	a.subscribeShow(first.ID)
+	refresh(tt, a)
+	tt.Press("id:subscription-unsubscribe")
+	if err := <-p.stopped; !errors.Is(err, context.Canceled) {
+		t.Fatalf("the check stopped with %v", err)
+	}
+	if got := nextCall(t, p); got.source != testSubChannel || a.subs.checking != shown || len(a.subs.store.Subs) != 2 {
+		t.Fatalf("listed %+v, checking %q, subscriptions %d", got, a.subs.checking, len(a.subs.store.Subs))
+	}
+	a.subscribeStopCheck()
+	<-p.stopped
+}
+
+// The rules are changed on the page: keywords typed in their field pick the new videos a check takes, and the cadence chosen is kept.
+func TestSubscribeRulesOnThePage(t *testing.T) {
+	p := newListingPipeline(map[string]media.Listing{})
+	a, tt, updates := newTestApp(t, p)
+	msgs := testlocale.Messages()
+	sub := subscribeTo(t, tt, a, p, updates)
+	tt.Press(whole(msgs.SubscribeFilterKeywords()))
+	tt.Type("id:subscription-keywords", "rivers，潮汐")
+	tt.Press(whole(msgs.SubscribeCadenceDaily()))
+	if sub.Filter != subscribe.FilterKeywords || sub.Keywords != "rivers，潮汐" || sub.Cadence != subscribe.CadenceDaily {
+		t.Fatalf("rules %+v", sub.Rules)
+	}
+	p.lists[testSubChannel] = media.Listing{Title: "Earth Science", Videos: []media.ListedVideo{testSubShort, testSubLong, testSubOld}}
+	checkNow(t, tt, a, p, updates)
+	if got := playlistJobSources(a); !slices.Equal(got, []string{testSubLong.URL}) {
+		t.Fatalf("jobs %q", got)
+	}
+}
+
+// timeoutPipeline is a listingPipeline whose yt-dlp takes too long once slow is set.
+type timeoutPipeline struct {
+	*listingPipeline
+	slow bool
+}
+
+func (p *timeoutPipeline) ListVideos(ctx context.Context, source string, limit int) (media.Listing, error) {
+	if !p.slow {
+		return p.listingPipeline.ListVideos(ctx, source, limit)
+	}
+	p.calls <- listCall{source, limit}
+	return media.Listing{}, media.ErrListTimeout
+}
+
+// Why a check failed is kept as data, not in the words of the language shown then, so the page says it in the language it shows after a switch.
+func TestSubscribeFailureFollowsTheLanguage(t *testing.T) {
+	p := newListingPipeline(map[string]media.Listing{})
+	slow := &timeoutPipeline{listingPipeline: p}
+	a, tt, updates := newTestApp(t, slow)
+	sub := subscribeTo(t, tt, a, p, updates)
+	slow.slow = true
+	checkNow(t, tt, a, p, updates)
+	if !sub.TimedOut || sub.Err != "" {
+		t.Fatalf("kept %+v", sub)
+	}
+	m := testlocale.Messages()
+	wantText(t, tt, m.SubscribeStatusFailed(m.PlaylistTimedOut()))
+	wantText(t, tt, m.SubscribeNoteFailed(m.PlaylistTimedOut()))
+	onEngine(a, func() { a.SetInterfaceLanguage("en") })
+	refresh(tt, a)
+	en := locales.In("en")
+	wantText(t, tt, en.SubscribeStatusFailed(en.PlaylistTimedOut()))
+	wantText(t, tt, en.SubscribeNoteFailed(en.PlaylistTimedOut()))
+}
+
+// New videos of a subscription are held, with why, when a tool a job needs is missing, whichever library is open: a locked one, or none, which is not a reason of the subscription's own library.
+func TestSubscribeEnqueueAsksForTheTools(t *testing.T) {
+	a := newApp(media.Tools{YTDLP: "yt-dlp", FFmpeg: "ffmpeg"}, func(fn func()) { fn() })
+	a.prefs.language = "简体中文"
+	a.library.SetLock("/videos", shelf.Lock{Algorithm: "test", Iterations: 1, Salt: []byte("salt"), Key: []byte("key")})
+	m := testlocale.Messages()
+	want := m.PrecheckToolsMissing("whisper-cli")
+	for _, open := range []string{"/videos", ""} {
+		a.edit(func(s *session) { s.Libraries, s.LibraryDir = []string{"/videos", "/other.kando"}, open })
+		sub := subscribe.New(testSubChannel, "/other.kando", media.Listing{Title: "Earth Science"}, time.Now())
+		failed, why := a.subscribeEnqueue(&sub, []subscribe.Video{{URL: testSubLong.URL}})
+		said := ""
+		if why != nil {
+			said = why(m)
+		}
+		if len(failed) != 1 || said != want || len(a.library.Jobs) != 0 {
+			t.Fatalf("open %q: failed %d, why %q, jobs %d", open, len(failed), said, len(a.library.Jobs))
+		}
 	}
 }

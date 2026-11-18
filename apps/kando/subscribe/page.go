@@ -155,11 +155,19 @@ func (p page) lines(cx *ns.Scope, head func() Head) ns.Node {
 				return ns.Style{Color: k.OKText(), Background: k.OKFill()}
 			}}
 	}}
-	failed := ns.Show{When: func() bool { h := head(); return h.Err != "" && !h.Gone }, Then: func(*ns.Scope) ns.Node {
-		return ns.Text{TestID: "subscription-error", Selectable: ns.SelectableOn, ContentFunc: func() string { return locales.SubscribeStatusFailed(cx, head().Err) },
+	failed := ns.Show{When: func() bool { h := head(); return (h.Err != "" || h.TimedOut) && !h.Gone }, Then: func(*ns.Scope) ns.Node {
+		return ns.Text{TestID: "subscription-error", Selectable: ns.SelectableOn, ContentFunc: func() string { return locales.SubscribeStatusFailed(cx, failure(cx, head())) },
 			Style: ns.Style{FontSize: 12, LineHeight: 17, Padding: ns.Symmetric(0, 2)}, StyleFunc: ui.Colored(colors.Danger)}
 	}}
 	return ns.View{Style: ns.Style{Gap: 6, AlignItems: ns.AlignStretch}, Children: []ns.Node{note, failed}}
+}
+
+// failure says why the last check failed: yt-dlp took too long, or what it said.
+func failure(cx *ns.Scope, h Head) string {
+	if h.TimedOut {
+		return locales.PlaylistTimedOut(cx)
+	}
+	return h.Err
 }
 
 // noteWarns reports whether a note says that something did not go as asked.

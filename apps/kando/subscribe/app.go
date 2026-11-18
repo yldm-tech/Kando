@@ -100,9 +100,10 @@ type Head struct {
 	Kind     Kind
 	Paused   bool
 	Checking bool
-	// Gone and Stopped are Sub's; Renamed the site's new name until the user answers; Err why the last check failed.
+	// Gone and Stopped are Sub's; Renamed the site's new name until the user answers; TimedOut and Err why the last check failed, as Sub keeps them.
 	Gone, Stopped bool
 	Renamed       string
+	TimedOut      bool
 	Err           string
 	Checked       time.Time
 	Cadence       Cadence
@@ -132,7 +133,7 @@ const (
 	NoteFailed NoteKind = "failed"
 )
 
-// Note is the message about the last thing done to a subscription. It keeps what happened rather than the words, so the page says it in the language it shows.
+// Note is the message about the last thing done to a subscription. It keeps what happened rather than the words, so the page says it in the language it shows. Text is a name, for the kinds that name the subscription, or, for NoteNotQueued and NoteFailed, why, which the app words when the page reads it (SubscriptionHead), in the language the page shows then.
 type Note struct {
 	Kind           NoteKind
 	Count, Skipped int

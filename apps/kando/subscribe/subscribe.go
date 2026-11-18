@@ -120,12 +120,14 @@ type Sub struct {
 	Paused bool `json:"paused,omitempty"`
 	// Renamed is the new name the site gives it, until the user keeps one of the two (KeepName).
 	Renamed string `json:"renamed,omitempty"`
-	// Gone is set once a check found that the list no longer exists on the site (IsGone); Stopped once the user chose to keep it in the sidebar without checking it any more. A check that lists it again clears Gone.
+	// Missing is how many checks in a row the site said the list is not there (IsGone); Gone is set once GoneAfter did, so one passing 404 does not stop the subscription. Stopped is set once the user chose to keep it in the sidebar without checking it any more. A check that lists it again clears Missing and Gone.
+	Missing int  `json:"missing,omitempty"`
 	Gone    bool `json:"gone,omitempty"`
 	Stopped bool `json:"stopped,omitempty"`
-	// Checked is when it was last checked, whether or not that worked; Err is why the last check failed, "" when it worked.
-	Checked time.Time `json:"checked,omitzero"`
-	Err     string    `json:"error,omitempty"`
+	// Checked is when it was last checked, whether or not that worked. Why the last check failed is kept as data, not as words, so the page says it in the language it shows: TimedOut when yt-dlp took too long, otherwise Err, what yt-dlp said, "" when it worked.
+	Checked  time.Time `json:"checked,omitzero"`
+	TimedOut bool      `json:"timedOut,omitempty"`
+	Err      string    `json:"error,omitempty"`
 	// Seen is the links of every video a check has listed, so each is new only once. Pending is the new videos waiting to be added or skipped, oldest first, and Added those added to the queue, oldest first.
 	Seen    []string `json:"seen,omitempty"`
 	Pending []Video  `json:"pending,omitempty"`
@@ -176,19 +178,24 @@ func (s Sub) Channel() bool { return s.Link().Kind == core.LinkChannel }
 // Checks reports whether the subscription is checked at all: not paused, and not kept after the site deleted it (Stopped).
 func (s Sub) Checks() bool { return !s.Paused && !s.Stopped }
 
-// Due reports whether the subscription is to be checked now: it checks (Checks) and the site still has it, and for CadenceOpen the app has just opened (launch), for the others an hour or a day has passed since it was last checked, at launch as at any other time. A clock set back, which makes the last check later than now, makes it due too.
-func (s Sub) Due(now time.Time, launch bool) bool {
-	if !s.Checks() || s.Gone {
+// GoneAfter is how many checks in a row must find the list not there before the subscription is marked Gone.
+const GoneAfter = 2
+
+// Due reports whether the subscription is to be checked now, opened being when the app started: it checks (Checks), and for CadenceOpen it was not checked since the app started, so one passed over at launch, as while its library was locked, is still due later; for the others an hour or a day has passed since it was last checked. One the site deleted (Gone) is still checked once a day, so a list that comes back is followed again. A clock set back, which makes the last check later than now, makes it due too.
+func (s Sub) Due(now, opened time.Time) bool {
+	if !s.Checks() {
 		return false
 	}
 	since := now.Sub(s.Checked)
-	switch s.Cadence {
-	case CadenceHourly:
-		return since >= time.Hour || since < 0
-	case CadenceDaily:
-		return since >= 24*time.Hour || since < 0
+	switch {
+	case since < 0:
+		return true
+	case s.Gone || s.Cadence == CadenceDaily:
+		return since >= 24*time.Hour
+	case s.Cadence == CadenceHourly:
+		return since >= time.Hour
 	}
-	return launch
+	return s.Checked.Before(opened)
 }
 
 // Found is what Take found: the new videos that fit the rules, in the list's order, and how many new ones did not and were skipped.
@@ -199,7 +206,7 @@ type Found struct {
 
 // Take folds a check's listing into the subscription at now: every video not seen yet is new once, kept in Fresh when it fits the rules and skipped otherwise; a name the site gives the list that is not the one it gave before is kept in Renamed, and the site going back to the old one forgets it. A check that lists the videos also shows that the list is still there, so Gone and Err are cleared. What to do with Fresh is the caller's: Queue them, or Hold them for the user.
 func (s *Sub) Take(listing media.Listing, now time.Time) Found {
-	s.Checked, s.Err, s.Gone = now, "", false
+	s.Checked, s.Err, s.TimedOut, s.Missing, s.Gone = now, "", false, 0, false
 	switch title := strings.TrimSpace(listing.Title); {
 	case title == "":
 	case s.Title == "":
@@ -234,11 +241,20 @@ func (s *Sub) see(link string) bool {
 	return true
 }
 
-// Fail records that the check at now failed with err: a list the site says is not there (IsGone) is marked Gone; any other failure, as the network being down, is kept in Err, which the page shows, and the next check tries again.
+// Fail records that the check at now failed with err. A list the site says is not there (IsGone) is marked Gone once it said so GoneAfter times in a row; until then it is a failure like any other. yt-dlp taking too long sets TimedOut; any other failure, as the network being down, is kept in Err, what yt-dlp said. The page says why, and the next check tries again.
 func (s *Sub) Fail(err error, now time.Time) {
-	s.Checked = now
+	s.Checked, s.Err, s.TimedOut = now, "", false
 	if IsGone(err) {
-		s.Gone, s.Err = true, ""
+		s.Missing++
+		if s.Missing >= GoneAfter {
+			s.Gone = true
+			return
+		}
+	} else {
+		s.Missing = 0
+	}
+	if errors.Is(err, media.ErrListTimeout) {
+		s.TimedOut = true
 		return
 	}
 	s.Err = err.Error()

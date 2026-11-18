@@ -26,20 +26,31 @@ const pageSubscription = sidebar.PageSubscription
 // subscribeTick is how often the app looks for subscriptions whose hour or day has come while it runs (subscribeArm). A check is due at most this long after its time.
 const subscribeTick = 10 * time.Minute
 
-// subscribeUI is the subscriptions' state (package subscribe). store is what subscriptions.json beside settings.json holds; storeErr says why it could not be read, which keeps it from being written over, and saveErr is the sidebar's message (app.saveErr) this area set last. shown is the subscription whose page shows while the page is pageSubscription. One yt-dlp lists at a time: checking is the subscription being checked, cancel stops it and run tells its report from that of a check stopped before it; due is those waiting their turn, in order. notes is the message each page shows about the last thing done to its subscription, which is not saved. ask is the dialog a link is pasted in, and tickStop stops the timer that looks for due checks.
+// subscribeUI is the subscriptions' state (package subscribe). store is what subscriptions.json beside settings.json holds; storeErr says why it could not be read, which keeps it from being written over, and saveErr is the sidebar's message (app.saveErr) this area set last. shown is the subscription whose page shows while the page is pageSubscription. opened is when the window came up, which the subscriptions that check each time the app opens compare their last check with (subscribe.Sub.Due). One yt-dlp lists at a time: checking is the subscription being checked, cancel stops it and run tells its report from that of a check stopped before it; due is those waiting their turn, in order, and passed is set when one due was passed over because its library is locked, so unlocking it lines it up again (subscribeAfterChange). notes is the message each page shows about the last thing done to its subscription, which is not saved. ask is the dialog a link is pasted in, and tickStop stops the timer that looks for due checks.
 type subscribeUI struct {
 	store    subscribe.Store
 	storeErr error
 	saveErr  string
 	shown    string
+	opened   time.Time
 	checking string
 	cancel   context.CancelFunc
 	run      int
 	due      []string
-	notes    map[string]subscribe.Note
+	passed   bool
+	notes    map[string]subscribeNote
 	ask      subscribeAsk
 	tickStop func() bool
 }
+
+// subscribeNote is the message a subscription's page shows about the last thing done to it, and, for a note that says why something did not work, why, worded only when the page reads it (SubscriptionHead), so it is said in the language the page shows then.
+type subscribeNote struct {
+	subscribe.Note
+	why subscribeReason
+}
+
+// subscribeReason says why something did not work in the language of m. It keeps the data it needs, not words.
+type subscribeReason func(m locales.Messages) string
 
 // subscribeAsk is the dialog a link to subscribe to is pasted in: whether it is open, release, which gives back the window's modal flag it holds (holdModal), and the link typed; while the list is read, reading is set, cancel stops it and run tells its report from that of a dialog closed before it; err says why the link could not be subscribed to.
 type subscribeAsk struct {
@@ -52,18 +63,19 @@ type subscribeAsk struct {
 	err     string
 }
 
-func newSubscribeUI() subscribeUI { return subscribeUI{notes: map[string]subscribe.Note{}} }
+func newSubscribeUI() subscribeUI { return subscribeUI{notes: map[string]subscribeNote{}} }
 
-// subscribeHooks reads the subscriptions at startup and checks the ones due once the window is up, those that check each time the app opens among them, then looks for due ones every subscribeTick and whenever the app comes to the front, as a timer counts no time the computer sleeps. The page goes back to the library once its subscription is no longer the open library's, and the subscriptions follow a library whose folder was renamed. Quitting stops a check or a reading that runs, so yt-dlp is not left running.
+// subscribeHooks reads the subscriptions at startup and checks the ones due once the window is up, those that check each time the app opens among them, then looks for due ones every subscribeTick and whenever the app comes to the front, as a timer counts no time the computer sleeps, and once a library whose due ones were passed over is unlocked. The page goes back to the library once its subscription is no longer the open library's, and the subscriptions follow a library whose folder was renamed. Quitting stops a check or a reading that runs, so yt-dlp is not left running.
 func (a *app) subscribeHooks() areaHooks {
 	return areaHooks{
 		restore: func(savedSettings) { a.subscribeLoad() },
 		ready: func() {
-			a.subscribeDue(true)
+			a.subs.opened = time.Now()
+			a.subscribeDue()
 			a.subscribeArm()
 		},
-		becameActive: func() { a.subscribeDue(false) },
-		afterChange:  a.subscribeFollowPage,
+		becameActive: a.subscribeDue,
+		afterChange:  a.subscribeAfterChange,
 		videosMoved:  a.subscribeLibraryMoved,
 		quitting: func() {
 			a.subscribeStopCheck()
@@ -142,6 +154,17 @@ func (a *app) subscribeShow(id string) {
 	a.subs.shown = id
 }
 
+// subscribeAfterChange keeps the page on a subscription of the open library (subscribeFollowPage) and, once a check was passed over because its library was locked and none runs, looks for due checks again, as the library may have been unlocked since. It reports whether either changed what a binding reads.
+func (a *app) subscribeAfterChange() bool {
+	changed := a.subscribeFollowPage()
+	if a.subs.passed && a.subs.checking == "" {
+		a.subs.passed = false
+		a.subscribeDue()
+		changed = a.subs.checking != "" || changed
+	}
+	return changed
+}
+
 // subscribeFollowPage goes back to the library page when the page shows a subscription that is gone or is not the open library's, as after another library opened (afterChange in subscribeHooks).
 func (a *app) subscribeFollowPage() bool {
 	if a.page != pageSubscription {
@@ -187,16 +210,16 @@ func (a *app) subscribeArm() {
 		return
 	}
 	a.subs.tickStop = a.cx.AfterFunc(subscribeTick, live.Do(a, func() {
-		a.subscribeDue(false)
+		a.subscribeDue()
 		a.subscribeArm()
 	}))
 }
 
-// subscribeDue lines up the checks of the subscriptions due now (subscribe.Sub.Due), launch being the app's start, and starts the first.
-func (a *app) subscribeDue(launch bool) {
+// subscribeDue lines up the checks of the subscriptions due now (subscribe.Sub.Due), and starts the first.
+func (a *app) subscribeDue() {
 	now := time.Now()
 	for _, sub := range a.subs.store.Subs {
-		if sub.Due(now, launch) && sub.ID != a.subs.checking && !slices.Contains(a.subs.due, sub.ID) {
+		if sub.Due(now, a.subs.opened) && sub.ID != a.subs.checking && !slices.Contains(a.subs.due, sub.ID) {
 			a.subs.due = append(a.subs.due, sub.ID)
 		}
 	}
@@ -219,7 +242,7 @@ func (a *app) subscribeLister() media.Lister {
 	return lister
 }
 
-// subscribeNext starts the next check lined up when none runs. A subscription that no longer checks, or whose library is locked, is passed over; without yt-dlp none can run, and the line is emptied.
+// subscribeNext starts the next check lined up when none runs. A subscription that no longer checks, or whose library was forgotten or is locked, is passed over: it is lined up again by a later look for due checks, the next one after its library is unlocked (subscribeAfterChange), or after the library was added back. Without yt-dlp none can run, and the line is emptied.
 func (a *app) subscribeNext() {
 	if a.subs.checking != "" {
 		return
@@ -228,7 +251,11 @@ func (a *app) subscribeNext() {
 		id := a.subs.due[0]
 		a.subs.due = a.subs.due[1:]
 		sub, ok := a.subscribeFind(id)
-		if !ok || !sub.Checks() || a.LibraryLocked(sub.Library) {
+		if !ok || !sub.Checks() || !a.subscribeKnown(sub.Library) {
+			continue
+		}
+		if a.LibraryLocked(sub.Library) {
+			a.subs.passed = true
 			continue
 		}
 		lister := a.subscribeLister()
@@ -272,54 +299,64 @@ func (a *app) subscribeChecked(run int, id string, listing media.Listing, err er
 	if err != nil {
 		sub.Fail(err, now)
 		if sub.Gone {
-			a.subs.notes[id] = subscribe.Note{Kind: subscribe.NoteGone}
+			a.subs.notes[id] = subscribeNote{Note: subscribe.Note{Kind: subscribe.NoteGone}}
 		} else {
-			sub.Err = a.subscribeError(err)
-			a.subs.notes[id] = subscribe.Note{Kind: subscribe.NoteFailed, Text: sub.Err}
+			if sub.Err != "" {
+				sub.Err = toolMessage(sub.Err)
+			}
+			a.subs.notes[id] = subscribeNote{Note: subscribe.Note{Kind: subscribe.NoteFailed}, why: subscribeFailure(*sub)}
 		}
 		a.subscribeSave()
 		return
 	}
 	found := sub.Take(listing, now)
-	note := subscribe.Note{Kind: subscribe.NoteChecked, Count: len(found.Fresh), Skipped: found.Skipped}
+	note := subscribeNote{Note: subscribe.Note{Kind: subscribe.NoteChecked, Count: len(found.Fresh), Skipped: found.Skipped}}
 	switch {
 	case len(found.Fresh) == 0:
 	case sub.Mode == subscribe.ModeAsk:
 		sub.Hold(found.Fresh)
 		note.Held = true
 	default:
-		if failed, reason := a.subscribeEnqueue(sub, found.Fresh); len(failed) > 0 {
+		if failed, why := a.subscribeEnqueue(sub, found.Fresh); len(failed) > 0 {
 			sub.Hold(failed)
-			note = subscribe.Note{Kind: subscribe.NoteNotQueued, Text: reason}
+			note = subscribeNote{Note: subscribe.Note{Kind: subscribe.NoteNotQueued}, why: why}
 		}
 	}
 	a.subs.notes[id] = note
 	a.subscribeSave()
 }
 
-// subscribeError says why a list could not be read: yt-dlp took too long, or the first line of what it said.
-func (a *app) subscribeError(err error) string {
-	if errors.Is(err, media.ErrListTimeout) {
-		return a.messages().PlaylistTimedOut()
+// subscribeFailure says why the last check of sub failed, as its page says it: yt-dlp took too long, or what it said.
+func subscribeFailure(sub subscribe.Sub) subscribeReason {
+	timedOut, text := sub.TimedOut, sub.Err
+	return func(m locales.Messages) string {
+		if timedOut {
+			return m.PlaylistTimedOut()
+		}
+		return text
 	}
-	return toolMessage(err.Error())
 }
 
-// subscribeEnqueue queues videos, in order, in the library sub adds to, and records those queued on sub; a video the library has a job for already counts as queued. It returns the videos it could not queue and why, in the interface's language: the library is no longer known or is locked, a tool or a setting a job needs is missing (precheckReady), or the queue refused one.
-func (a *app) subscribeEnqueue(sub *subscribe.Sub, videos []subscribe.Video) (failed []subscribe.Video, reason string) {
-	m := a.messages()
+// subscribeKnown reports whether the library at dir is one the app knows, open or listed in the library menu; one that was forgotten is not.
+func (a *app) subscribeKnown(dir string) bool {
+	return slices.ContainsFunc(a.knownLibraries(), func(known string) bool { return filepath.Clean(known) == filepath.Clean(dir) })
+}
+
+// subscribeEnqueue queues videos, in order, in the library sub adds to, and records those queued on sub; a video the library has a job for already counts as queued. It returns the videos it could not queue and why: the library is no longer known or is locked, no language to translate into is chosen, a tool or a setting a job needs is missing (precheckTools), or the queue refused one.
+func (a *app) subscribeEnqueue(sub *subscribe.Sub, videos []subscribe.Video) (failed []subscribe.Video, why subscribeReason) {
 	name := sidebar.Title(sub.Library)
-	known := slices.ContainsFunc(a.knownLibraries(), func(dir string) bool { return filepath.Clean(dir) == filepath.Clean(sub.Library) })
 	open := a.subscribeOfOpen(*sub)
 	switch {
-	case !known:
-		return videos, m.SubscribeLibraryMissing(name)
+	case !a.subscribeKnown(sub.Library):
+		return videos, func(m locales.Messages) string { return m.SubscribeLibraryMissing(name) }
 	case a.LibraryLocked(sub.Library):
-		return videos, m.LockLibraryIsLocked(name)
+		return videos, func(m locales.Messages) string { return m.LockLibraryIsLocked(name) }
+	case strings.TrimSpace(a.prefs.language) == "":
+		return videos, func(m locales.Messages) string { return m.QueueNoLanguage() }
 	}
-	// What precheckReady says of a locked open library is not about another library this one adds to.
-	if msg, _ := a.precheckReady(); msg != "" && (open || !a.lockShut()) {
-		return videos, msg
+	// The library's own checks are the ones above, for the library sub adds to, which need not be the open one; what is left is the same for every library.
+	if say := a.precheckTools(); say != nil {
+		return videos, func(m locales.Messages) string { msg, _ := say(m); return msg }
 	}
 	var queued []subscribe.Video
 	for _, v := range videos {
@@ -335,12 +372,14 @@ func (a *app) subscribeEnqueue(sub *subscribe.Sub, videos []subscribe.Video) (fa
 			continue
 		}
 		failed = append(failed, v)
-		if reason == "" {
-			reason = err.Error()
+		if why == nil {
+			// What is left is core.NewJob's, about the link, which the app shows in English everywhere.
+			text := err.Error()
+			why = func(locales.Messages) string { return text }
 		}
 	}
 	sub.Queued(queued)
-	return failed, reason
+	return failed, why
 }
 
 // subscribeQueueIn queues the video at source in the library at dir, which is not the open one, as newJob and queueTake do in the open library: a video that library has a job for already, but for one that failed, is not queued again.
@@ -400,7 +439,7 @@ func (a *app) subscribeAskSubmit() {
 	if sub, ok := a.subs.store.Following(source, dir); ok {
 		a.subscribeAskClose()
 		a.subscribeShow(sub.ID)
-		a.subs.notes[sub.ID] = subscribe.Note{Kind: subscribe.NoteAlready}
+		a.subs.notes[sub.ID] = subscribeNote{Note: subscribe.Note{Kind: subscribe.NoteAlready}}
 		return
 	}
 	lister := a.subscribeLister()
@@ -433,5 +472,5 @@ func (a *app) subscribeAskRead(run int, source, dir string, listing media.Listin
 	a.subscribeSave()
 	a.subscribeAskClose()
 	a.subscribeShow(sub.ID)
-	a.subs.notes[sub.ID] = subscribe.Note{Kind: subscribe.NoteSubscribed, Text: sub.Name}
+	a.subs.notes[sub.ID] = subscribeNote{Note: subscribe.Note{Kind: subscribe.NoteSubscribed, Text: sub.Name}}
 }

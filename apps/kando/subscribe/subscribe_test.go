@@ -104,44 +104,66 @@ func TestTakeNoticesARename(t *testing.T) {
 	}
 }
 
-// A list yt-dlp says does not exist is gone and checked no more on its own; any other failure is kept to show and tried again; a check that lists it again brings it back.
+// A list yt-dlp says does not exist twice in a row is gone, and then checked once a day rather than on its cadence; once is a failure like any other, kept to show and tried again. Any other failure in between starts the count again, and a check that lists it again brings it back. yt-dlp taking too long is kept as TimedOut rather than as words.
 func TestFailTellsGoneFromUnreachable(t *testing.T) {
 	s := New("https://www.youtube.com/playlist?list=PLx", "/videos", listing, t0)
-	s.Fail(errors.New("yt-dlp: exit status 1: ERROR: [youtube:tab] PLx: The playlist does not exist."), t0)
-	if !s.Gone || s.Err != "" || s.Due(t0.Add(48*time.Hour), true) {
+	s.Cadence = CadenceHourly
+	missing := errors.New("yt-dlp: exit status 1: ERROR: [youtube:tab] PLx: The playlist does not exist.")
+	unreachable := errors.New("yt-dlp: exit status 1: ERROR: Unable to download webpage: <urlopen error [Errno 8] nodename nor servname provided>")
+	s.Fail(missing, t0)
+	if s.Gone || s.Err == "" || s.Missing != 1 || !s.Due(t0.Add(time.Hour), t0) {
+		t.Fatalf("gone after one answer: %+v", s)
+	}
+	s.Fail(unreachable, t0)
+	s.Fail(missing, t0)
+	if s.Gone || s.Missing != 1 {
+		t.Fatalf("an answer in between did not start the count again: %+v", s)
+	}
+	s.Fail(missing, t0)
+	if !s.Gone || s.Err != "" || s.Due(t0.Add(23*time.Hour), t0) || !s.Due(t0.Add(24*time.Hour), t0) {
 		t.Fatalf("gone: %+v", s)
 	}
 	s.Take(listing, t0)
-	if s.Gone {
-		t.Fatal("listed again, still gone")
+	if s.Gone || s.Missing != 0 {
+		t.Fatalf("listed again, still gone: %+v", s)
 	}
-	s.Fail(errors.New("yt-dlp: exit status 1: ERROR: Unable to download webpage: <urlopen error [Errno 8] nodename nor servname provided>"), t0)
-	if s.Gone || s.Err == "" {
+	s.Fail(unreachable, t0)
+	if s.Gone || s.Err == "" || s.TimedOut {
 		t.Fatalf("unreachable: %+v", s)
+	}
+	s.Fail(media.ErrListTimeout, t0)
+	if s.Err != "" || !s.TimedOut {
+		t.Fatalf("timed out: %+v", s)
+	}
+	s.Take(listing, t0)
+	if s.TimedOut || s.Err != "" {
+		t.Fatalf("a check that worked kept the failure: %+v", s)
 	}
 }
 
-// Each cadence is due when its time came: on open only at launch, hourly and daily once their time passed since the last check, and none while paused or stopped.
+// Each cadence is due when its time came: on open until it was checked since the app opened, however long after the launch that is, hourly and daily once their time passed since the last check, and none while paused or stopped.
 func TestDue(t *testing.T) {
 	s := New("https://www.youtube.com/@earthscience", "/videos", listing, t0)
-	check := func(cadence Cadence, after time.Duration, launch, want bool) {
+	check := func(cadence Cadence, after, opened time.Duration, want bool) {
 		t.Helper()
 		s.Cadence = cadence
-		if got := s.Due(t0.Add(after), launch); got != want {
-			t.Errorf("%s after %v, launch %v: due %v, want %v", cadence, after, launch, got, want)
+		if got := s.Due(t0.Add(after), t0.Add(opened)); got != want {
+			t.Errorf("%s after %v, opened %v: due %v, want %v", cadence, after, opened, got, want)
 		}
 	}
-	check(CadenceOpen, time.Minute, true, true)
-	check(CadenceOpen, 72*time.Hour, false, false)
-	check(CadenceHourly, 59*time.Minute, true, false)
-	check(CadenceHourly, time.Hour, false, true)
-	check(CadenceDaily, 23*time.Hour, true, false)
-	check(CadenceDaily, 24*time.Hour, false, true)
-	check(CadenceDaily, -time.Hour, false, true)
+	check(CadenceOpen, time.Minute, time.Second, true)
+	check(CadenceOpen, 72*time.Hour, time.Hour, true)
+	check(CadenceOpen, 72*time.Hour, -time.Hour, false)
+	check(CadenceOpen, -time.Hour, -2*time.Hour, true)
+	check(CadenceHourly, 59*time.Minute, time.Second, false)
+	check(CadenceHourly, time.Hour, -time.Hour, true)
+	check(CadenceDaily, 23*time.Hour, time.Second, false)
+	check(CadenceDaily, 24*time.Hour, -time.Hour, true)
+	check(CadenceDaily, -time.Hour, -2*time.Hour, true)
 	s.Paused = true
-	check(CadenceOpen, time.Minute, true, false)
+	check(CadenceOpen, time.Minute, time.Second, false)
 	s.Paused, s.Stopped = false, true
-	check(CadenceHourly, 48*time.Hour, true, false)
+	check(CadenceHourly, 48*time.Hour, time.Second, false)
 }
 
 // Waiting videos are held each once, leave when queued or skipped, and a queued one is added each once.
