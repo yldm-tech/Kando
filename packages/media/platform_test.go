@@ -6,6 +6,7 @@ import (
 	"os"
 	"path/filepath"
 	"reflect"
+	"slices"
 	"strings"
 	"testing"
 	"time"
@@ -77,16 +78,58 @@ func TestMatchPlatformRefusesSubtitlesThatDoNotMatch(t *testing.T) {
 	}
 }
 
-// platformPipeline is a pipeline whose video is in a folder of the test and whose site carries subtitles, counting the fetches and proofreadings and keeping what was exported.
+// A line heard that spans a subtitle line that matched and one that did not replaces both, so its speech is neither lost nor said twice, and a line the speech recognition did not hear at all stays as the uploader wrote it.
+func TestMatchPlatformSpanningLines(t *testing.T) {
+	cases := []struct {
+		name             string
+		subtitles, heard []core.Segment
+		want             []string
+		local            int
+	}{
+		{"runs on past a matched line",
+			[]core.Segment{seg(0, 2, "hello everyone"), seg(2, 4, "totally different words"), seg(4, 6, "see you next week")},
+			[]core.Segment{seg(0, 3.5, "hello everyone the weather is nice"), seg(4, 6, "see you next week")},
+			[]string{"hello everyone the weather is nice", "see you next week"}, 2},
+		{"starts under a matched line",
+			[]core.Segment{seg(0, 2, "hello everyone"), seg(2, 4, "totally different words"), seg(4, 6, "see you next week")},
+			[]core.Segment{seg(0, 1.2, "hello"), seg(1.2, 4, "everyone the weather is nice"), seg(4, 6, "see you next week")},
+			[]string{"hello", "everyone the weather is nice", "see you next week"}, 2},
+		{"spans two matched lines",
+			[]core.Segment{seg(0, 2, "Hello, everyone."), seg(2, 4, "Welcome to the show!")},
+			[]core.Segment{seg(0, 4, "hello everyone welcome to the show")},
+			[]string{"Hello, everyone.", "Welcome to the show!"}, 0},
+		{"a line not heard",
+			[]core.Segment{seg(0, 2, "hello everyone"), seg(2, 4, "welcome to the show"), seg(10, 12, "a whisper too quiet to hear")},
+			[]core.Segment{seg(0, 2, "hello everyone"), seg(2, 4, "welcome to the show")},
+			[]string{"hello everyone", "welcome to the show", "a whisper too quiet to hear"}, 0},
+	}
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			lines, local, ok := matchPlatform(c.subtitles, c.heard)
+			if !ok || local != c.local || !reflect.DeepEqual(texts(lines), c.want) {
+				t.Fatalf("lines %q, local %d, ok %v; want %q, local %d", texts(lines), local, ok, c.want, c.local)
+			}
+			for i := 1; i < len(lines); i++ {
+				if lines[i].Start < lines[i-1].End {
+					t.Fatalf("lines %+v overlap", lines)
+				}
+			}
+		})
+	}
+}
+
+// platformPipeline is a pipeline whose video is in a folder of the test and whose site carries subtitles, counting the transcriptions, fetches and proofreadings and keeping what was exported. Its proofreading writes "um so" as "um, so", and onFetch, when set, runs as it fetches.
 type platformPipeline struct {
-	t         *testing.T
-	video     string
-	heard     []core.Segment
-	subtitles []core.Segment
-	fetchErr  error
-	fetched   []string
-	proofread int
-	exported  []core.Segment
+	t           *testing.T
+	video       string
+	heard       []core.Segment
+	subtitles   []core.Segment
+	fetchErr    error
+	onFetch     func()
+	transcribed int
+	fetched     []string
+	proofread   int
+	exported    []core.Segment
 }
 
 func (p *platformPipeline) Check() error { return nil }
@@ -99,18 +142,26 @@ func (p *platformPipeline) Download(context.Context, string) (string, error) {
 }
 
 func (p *platformPipeline) Transcribe(ctx context.Context, _ string) ([]core.Segment, error) {
+	p.transcribed++
 	reportSpoken(ctx, "en")
 	return p.heard, nil
 }
 
 func (p *platformPipeline) PlatformSubtitles(_ context.Context, source, language string) ([]core.Segment, error) {
 	p.fetched = append(p.fetched, language)
+	if p.onFetch != nil {
+		p.onFetch()
+	}
 	return p.subtitles, p.fetchErr
 }
 
 func (p *platformPipeline) Proofread(_ context.Context, segments []core.Segment, _ string) ([]core.Segment, error) {
 	p.proofread++
-	return segments, nil
+	fixed := slices.Clone(segments)
+	for i := range fixed {
+		fixed[i].Text = strings.ReplaceAll(fixed[i].Text, "um so", "um, so")
+	}
+	return fixed, nil
 }
 
 func (p *platformPipeline) Translate(_ context.Context, segments []core.Segment, _ string) ([]core.Segment, error) {
@@ -129,7 +180,7 @@ func newPlatformPipeline(t *testing.T) *platformPipeline {
 	}
 }
 
-// A link's job that takes its site's subtitles makes the film of the uploader's lines where they match the speech, with the speech in place of the one that does not, does not proofread them, and keeps them as the transcript, so a job run again reads them back without fetching them again.
+// A link's job that takes its site's subtitles makes the film of the uploader's lines where they match the speech, with the speech, proofread, in place of the one that does not, and keeps them as the transcript, so a job run again reads them back without fetching them or proofreading again.
 func TestRunTakesTheSitesSubtitles(t *testing.T) {
 	p := newPlatformPipeline(t)
 	job, _ := core.NewJob("https://www.youtube.com/watch?v=jNQXAC9IVRw")
@@ -138,20 +189,20 @@ func TestRunTakesTheSitesSubtitles(t *testing.T) {
 	if done.Stage != core.StageComplete || !done.PlatformSubtitles || done.LocalLines != 1 {
 		t.Fatalf("job %+v", done)
 	}
-	if want := []string{"Hello, everyone.", "Welcome to the show!", "um so"}; !reflect.DeepEqual(texts(p.exported), want) {
+	if want := []string{"Hello, everyone.", "Welcome to the show!", "um, so"}; !reflect.DeepEqual(texts(p.exported), want) {
 		t.Fatalf("exported %q", texts(p.exported))
 	}
-	if !reflect.DeepEqual(p.fetched, []string{"en"}) || p.proofread != 0 {
+	if !reflect.DeepEqual(p.fetched, []string{"en"}) || p.proofread != 1 {
 		t.Fatalf("fetched %q, proofread %d times", p.fetched, p.proofread)
 	}
 	if got := mustLoad(t, TranscriptOf(p.video)); got[0].Text != "Hello, everyone." {
 		t.Fatalf("transcript %+v", got)
 	}
 
-	// Translated again, the film's lines are still the uploader's and are not proofread.
+	// Translated again, the film's lines are still the uploader's and are not proofread again.
 	done.Redo, done.Stage = core.RedoTranslation, core.StageQueued
 	again := Run(context.Background(), p, done, "日本語", func(core.Job) {})
-	if again.Stage != core.StageComplete || !again.PlatformSubtitles || again.LocalLines != 1 || p.proofread != 0 || len(p.fetched) != 1 {
+	if again.Stage != core.StageComplete || !again.PlatformSubtitles || again.LocalLines != 1 || p.proofread != 1 || len(p.fetched) != 1 {
 		t.Fatalf("again %+v, proofread %d, fetched %q", again, p.proofread, p.fetched)
 	}
 }
@@ -178,10 +229,36 @@ func TestRunHearsTheFilmWithoutTheSitesSubtitles(t *testing.T) {
 			if done.Stage != core.StageComplete || done.PlatformSubtitles || done.LocalLines != 0 || p.proofread != 1 {
 				t.Fatalf("job %+v, proofread %d", done, p.proofread)
 			}
-			if !reflect.DeepEqual(texts(p.exported), texts(p.heard)) {
+			if want := []string{"hello everyone", "welcome to the shoe", "um, so"}; !reflect.DeepEqual(texts(p.exported), want) {
 				t.Fatalf("exported %q", texts(p.exported))
 			}
 		})
+	}
+}
+
+// A job stopped while it fetches the subtitles keeps the speech it heard, so the one run again fetches them without transcribing the film again.
+func TestRunStoppedFetchingKeepsTheSpeech(t *testing.T) {
+	p := newPlatformPipeline(t)
+	job, _ := core.NewJob("https://www.youtube.com/watch?v=jNQXAC9IVRw")
+	job.SubtitleSource = core.SubtitlesPlatform
+	ctx, cancel := context.WithCancel(context.Background())
+	p.onFetch = cancel
+	stopped := Run(ctx, p, job, "简体中文", func(core.Job) {})
+	if stopped.Stage != core.StageFailed || !errors.Is(stopped.Err, context.Canceled) || !stopped.Transcribed || stopped.PlatformSubtitles {
+		t.Fatalf("stopped %+v", stopped)
+	}
+	if got := texts(mustLoad(t, TranscriptOf(p.video))); !reflect.DeepEqual(got, []string{"hello everyone", "welcome to the shoe", "um, so"}) {
+		t.Fatalf("transcript kept %q", got)
+	}
+
+	p.onFetch = nil
+	stopped.Stage, stopped.Err = core.StageQueued, nil
+	done := Run(context.Background(), p, stopped, "简体中文", func(core.Job) {})
+	if done.Stage != core.StageComplete || !done.PlatformSubtitles || done.LocalLines != 1 || p.transcribed != 1 || p.proofread != 1 || len(p.fetched) != 2 {
+		t.Fatalf("done %+v, transcribed %d, proofread %d, fetched %q", done, p.transcribed, p.proofread, p.fetched)
+	}
+	if want := []string{"Hello, everyone.", "Welcome to the show!", "um, so"}; !reflect.DeepEqual(texts(p.exported), want) {
+		t.Fatalf("exported %q", texts(p.exported))
 	}
 }
 

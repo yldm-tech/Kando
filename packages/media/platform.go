@@ -24,7 +24,7 @@ type PlatformSubtitler interface {
 // platformFetchTimeout is how long fetching a link's subtitles may take: they are a few kilobytes, and a site that does not answer only means the film is heard alone.
 const platformFetchTimeout = 2 * time.Minute
 
-// platformLines are the original lines of job's film when it takes its site's subtitles (core.SubtitlesPlatform) and they match heard, the speech the job transcribed in language (matchPlatform): the subtitles, with the lines heard in place of those the speech did not match, and how many those are. ok is false for a job that does not take them, a local video, a pipeline that cannot fetch them, a site that has none in language or whose fetch failed, and subtitles that do not match the speech; the film is then heard alone.
+// platformLines are the original lines of job's film when it takes its site's subtitles (core.SubtitlesPlatform) and they match heard, the speech the job transcribed in language (matchPlatform): the subtitles, with the lines heard where they do not match it, and how many subtitle lines those replaced. ok is false for a job that does not take them, a local video, a pipeline that cannot fetch them, a site that has none in language or whose fetch failed, and subtitles that do not match the speech; the film is then heard alone.
 func platformLines(ctx context.Context, p Pipeline, job core.Job, language string, heard []core.Segment) (lines []core.Segment, local int, ok bool) {
 	fetcher, can := p.(PlatformSubtitler)
 	if !can || job.SubtitleSource != core.SubtitlesPlatform || strings.TrimSpace(language) == "" {
@@ -46,11 +46,15 @@ const platformSlack = 500 * time.Millisecond
 // platformMatch is how much of a subtitle line's text the speech heard around it has to hold for the line to match: half of its pairs of letters (textPairs).
 const platformMatch = 0.5
 
-// matchPlatform checks subtitles, the lines a site carries for a film, against heard, the lines the speech recognition heard in it, and returns the film's original lines: each subtitle line whose words were heard around its time, the lines heard in place of the others, and the lines heard where the subtitles have none, in the order of their times. local counts the subtitle lines the speech did not match. A line that holds nothing to hear, as [Music] or ♪, is kept and not checked. ok is false when fewer than half of the lines checked match, as subtitles in another language than the speech, or timed for another cut of the video: the film is then heard alone.
+// platformSaid is how much of a line heard the subtitle lines kept around it have to hold for the line to be what they say and be left out: most of its pairs of letters (textPairs), so a line heard that runs on into speech they do not have is kept, while one misheard a little is not.
+const platformSaid = 0.75
+
+// matchPlatform checks subtitles, the lines a site carries for a film, against heard, the lines the speech recognition heard in it, and returns the film's original lines, in the order of their times. ok is false when fewer than half of the subtitle lines checked match, those whose words were heard around their time, as subtitles in another language than the speech, or timed for another cut of the video: the film is then heard alone. A subtitle line that holds nothing to hear, as [Music] or ♪, matches without being checked.
 //
-// Each line heard belongs to the subtitle line it overlaps most, once at least half of it lies under subtitle lines: it is dropped for a line that matched, which says it, and kept for one that did not, at its own times. A line heard mostly where the subtitles have none is kept too.
+// Every stretch of the film comes from one side, so no speech is lost and none is said twice. A line heard is left out when the subtitle lines kept around it hold its words (platformSaid); any other is kept, at its own times, and replaces every subtitle line it overlaps, as a line heard often spans two of them, so the lines heard under those are kept too. A line heard where the subtitles have none is kept the same way. A subtitle line that does not match and that no line heard replaces, as one the speech recognition did not hear at all, stays as the uploader wrote it. local counts the subtitle lines with words that lines heard replaced.
 func matchPlatform(subtitles, heard []core.Segment) (lines []core.Segment, local int, ok bool) {
 	matched := make([]bool, len(subtitles))
+	words := make([]bool, len(subtitles))
 	checked, hits := 0, 0
 	for i, s := range subtitles {
 		pairs := textPairs(withoutSounds(s.Text))
@@ -58,10 +62,11 @@ func matchPlatform(subtitles, heard []core.Segment) (lines []core.Segment, local
 			matched[i] = true
 			continue
 		}
+		words[i] = true
 		checked++
 		var around strings.Builder
 		for _, h := range heard {
-			if h.End > s.Start-platformSlack && h.Start < s.End+platformSlack {
+			if near(h, s) {
 				around.WriteString(h.Text)
 				around.WriteByte(' ')
 			}
@@ -74,27 +79,81 @@ func matchPlatform(subtitles, heard []core.Segment) (lines []core.Segment, local
 	if checked == 0 || hits*2 < checked {
 		return nil, 0, false
 	}
-	for i, s := range subtitles {
-		if matched[i] {
-			lines = append(lines, s)
-		}
-	}
-	for _, h := range heard {
-		best, bestOverlap, covered := -1, time.Duration(0), time.Duration(0)
+
+	// around[j] are the subtitle lines near heard line j, whose words it may be, under[j] those it overlaps, and nearBy[i] the lines heard near subtitle line i, which have to be looked at again once it is replaced.
+	around := make([][]int, len(heard))
+	under := make([][]int, len(heard))
+	nearBy := make([][]int, len(subtitles))
+	for j, h := range heard {
 		for i, s := range subtitles {
-			o := overlap(h, s)
-			covered += o
-			if o > bestOverlap {
-				best, bestOverlap = i, o
+			if near(h, s) {
+				around[j] = append(around[j], i)
+				nearBy[i] = append(nearBy[i], j)
+			}
+			if overlap(h, s) > 0 {
+				under[j] = append(under[j], i)
 			}
 		}
-		under := best >= 0 && covered*2 >= h.End-h.Start
-		if !under || !matched[best] {
+	}
+	replaced := make([]bool, len(subtitles))
+	kept := make([]bool, len(heard))
+	// said is whether heard line j is what the subtitle lines still kept around it say. A line with no words says nothing to keep unless it is where the subtitles have none.
+	said := func(j int) bool {
+		pairs := textPairs(heard[j].Text)
+		if len(pairs) == 0 {
+			return len(under[j]) > 0
+		}
+		var text strings.Builder
+		for _, i := range around[j] {
+			if matched[i] && !replaced[i] {
+				text.WriteString(subtitles[i].Text)
+				text.WriteByte(' ')
+			}
+		}
+		return containment(pairs, textPairs(text.String())) >= platformSaid
+	}
+	// Replacing a subtitle line that matched can leave a line heard near it no longer said, so those are looked at again until nothing changes; every line heard is kept at most once, which bounds the work.
+	queue := make([]int, len(heard))
+	for j := range heard {
+		queue[j] = j
+	}
+	for len(queue) > 0 {
+		j := queue[0]
+		queue = queue[1:]
+		if kept[j] || said(j) {
+			continue
+		}
+		kept[j] = true
+		for _, i := range under[j] {
+			if replaced[i] {
+				continue
+			}
+			replaced[i] = true
+			if matched[i] {
+				queue = append(queue, nearBy[i]...)
+			}
+		}
+	}
+	for i, s := range subtitles {
+		switch {
+		case !replaced[i]:
+			lines = append(lines, s)
+		case words[i]:
+			local++
+		}
+	}
+	for j, h := range heard {
+		if kept[j] {
 			lines = append(lines, h)
 		}
 	}
 	slices.SortStableFunc(lines, func(a, b core.Segment) int { return cmp.Compare(a.Start, b.Start) })
-	return lines, checked - hits, true
+	return lines, local, true
+}
+
+// near is whether heard is on around subtitle's time, within platformSlack of it.
+func near(heard, subtitle core.Segment) bool {
+	return heard.End > subtitle.Start-platformSlack && heard.Start < subtitle.End+platformSlack
 }
 
 // overlap is how long segments a and b are both on.

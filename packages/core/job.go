@@ -110,7 +110,7 @@ type Job struct {
 	Quality Quality
 	// SubtitleSource is where the job takes the original lines of a link's film from, as the user chose it: the subtitles the uploader put on the site, checked against the speech (SubtitlesPlatform), or the speech recognition alone (SubtitlesLocal). Empty until the queue gives the job the one Settings › 通用 › 在线视频 names, as it first runs; a local video is always heard.
 	SubtitleSource SubtitleSource
-	// PlatformSubtitles is true once the film's original lines are the subtitles its site carries, which matched the speech the job heard (media.Run); LocalLines then counts the lines of those subtitles the speech did not match, which the lines the speech recognition heard there replaced. A job transcribing the video again finds them anew; one processing a done film again entirely (RedoAll) keeps the film's until it completes.
+	// PlatformSubtitles is true once the film's original lines are the subtitles its site carries, which matched the speech the job heard (media.Run); LocalLines then counts the lines of those subtitles that lines the speech recognition heard replaced, where the speech did not match them. A job transcribing the video again finds them anew; one processing a done film again entirely (RedoAll) keeps the film's until it completes.
 	PlatformSubtitles bool
 	LocalLines        int
 	// FromFolder is true for a job made to process a video found in the library's folder that no job held. Until the job completes, that video is still the film the folder shows, with the subtitles found beside it, so a job that fails or is stopped is taken off the shelf, leaving the film as it was, rather than kept as a failed card. It is cleared once the job completes.
