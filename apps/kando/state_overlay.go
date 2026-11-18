@@ -36,6 +36,7 @@ func (a *app) overlays(cx *core.Scope) core.Node {
 		a.settingsOverlay(cx),
 		a.savedOverlay(cx),
 		a.savedReviewOverlay(cx),
+		a.subexportOverlay(cx),
 	}
 }
 
@@ -91,6 +92,7 @@ func cheatsheetLayout(cx *core.Scope) []cheatsheetGroup {
 			{"", []string{"alt+0"}},
 			{locales.CheatsheetSidebar(cx), []string{"mod+shift+t"}},
 			{locales.CheatsheetSearchLines(cx), []string{"mod+f"}},
+			{locales.SubexportTitle(cx), []string{"mod+e"}},
 		}},
 		{groupWindow, []cheatsheetLine{
 			{locales.CheatsheetPalette(cx), []string{"mod+k"}},

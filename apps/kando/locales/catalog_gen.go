@@ -457,6 +457,13 @@ var Parameters = map[string][]string{
 	"CorrectStepStart":                         {"line"},
 	"CorrectUndo":                              {"step"},
 	"CorrectUndone":                            {"step"},
+	"SubexportCountEdited":                     {"count"},
+	"SubexportCountLines":                      {"count"},
+	"SubexportCountMissing":                    {"count", "how"},
+	"SubexportCountNoSpeech":                   {"count"},
+	"SubexportCountTranslated":                 {"translated", "lines"},
+	"SubexportDelayAt":                         {"delay"},
+	"SubexportDone":                            {"file"},
 	"FeedbackBrowserFailed":                    {"repo"},
 	"FeedbackEnvDetail":                        {"version", "system"},
 	"FeedbackPreviewLabel":                     {"label"},
@@ -849,6 +856,13 @@ type Translation struct {
 	CorrectStepStart                         func(line int) string
 	CorrectUndo                              func(step string) string
 	CorrectUndone                            func(step string) string
+	SubexportCountEdited                     func(count int) string
+	SubexportCountLines                      func(count int) string
+	SubexportCountMissing                    func(count int, how string) string
+	SubexportCountNoSpeech                   func(count int) string
+	SubexportCountTranslated                 func(translated int, lines int) string
+	SubexportDelayAt                         func(delay string) string
+	SubexportDone                            func(file string) string
 	FeedbackBrowserFailed                    func(repo string) string
 	FeedbackEnvDetail                        func(version string, system string) string
 	FeedbackPreviewLabel                     func(label string) string
@@ -1326,6 +1340,28 @@ const (
 	textCorrectSubmit
 	textCorrectTranslation
 	textCorrectUnreadable
+	textSubexportBilingual
+	textSubexportCancel
+	textSubexportContent
+	textSubexportDelay
+	textSubexportDescription
+	textSubexportFailed
+	textSubexportFormat
+	textSubexportKandoFile
+	textSubexportMenu
+	textSubexportMissing
+	textSubexportMissingOriginal
+	textSubexportMissingPlaceholder
+	textSubexportMissingSkip
+	textSubexportOrder
+	textSubexportOriginal
+	textSubexportOriginalFirst
+	textSubexportPlaceholder
+	textSubexportSaveAs
+	textSubexportTitle
+	textSubexportToFolder
+	textSubexportTranslation
+	textSubexportTranslationFirst
 	textFeedbackAttachEnv
 	textFeedbackAttachFilm
 	textFeedbackAttachSubs
@@ -2484,6 +2520,28 @@ var keyOfText = [numTexts]string{
 	"correctSubmit",
 	"correctTranslation",
 	"correctUnreadable",
+	"subexportBilingual",
+	"subexportCancel",
+	"subexportContent",
+	"subexportDelay",
+	"subexportDescription",
+	"subexportFailed",
+	"subexportFormat",
+	"subexportKandoFile",
+	"subexportMenu",
+	"subexportMissing",
+	"subexportMissingOriginal",
+	"subexportMissingPlaceholder",
+	"subexportMissingSkip",
+	"subexportOrder",
+	"subexportOriginal",
+	"subexportOriginalFirst",
+	"subexportPlaceholder",
+	"subexportSaveAs",
+	"subexportTitle",
+	"subexportToFolder",
+	"subexportTranslation",
+	"subexportTranslationFirst",
 	"feedbackAttachEnv",
 	"feedbackAttachFilm",
 	"feedbackAttachSubs",
@@ -3640,6 +3698,28 @@ var textsEn = i18n.NewTexts(""+
 	"Save"+
 	"Translation"+
 	"This film’s corrections couldn’t be read, so they can’t be changed"+
+	"Both"+
+	"Cancel"+
+	"Lines"+
+	"Write the Subtitle Delay into the Times"+
+	"UTF-8. Lines you corrected are exported as you corrected them."+
+	"Couldn’t export the subtitles"+
+	"Format"+
+	"That file holds Kando’s own subtitles of the film, so it was left as it was. Save the export under another name."+
+	"Export Subtitles…"+
+	"Lines Without a Translation"+
+	"Use the Original"+
+	"Leave a Placeholder"+
+	"Leave Out"+
+	"Order"+
+	"Original"+
+	"Original on Top"+
+	"[Not translated]"+
+	"Save As…"+
+	"Export Subtitles"+
+	"Export to the Film’s Folder"+
+	"Translation"+
+	"Translation on Top"+
 	"App and System Versions"+
 	"Current Film's Processing Status"+
 	"Subtitle Original and Translation"+
@@ -4793,6 +4873,28 @@ var textsEn = i18n.NewTexts(""+
 		4,
 		11,
 		72,
+		4,
+		6,
+		5,
+		39,
+		62,
+		31,
+		6,
+		114,
+		19,
+		27,
+		16,
+		19,
+		9,
+		5,
+		8,
+		15,
+		16,
+		10,
+		16,
+		29,
+		11,
+		18,
 		23,
 		32,
 		33,
@@ -5949,6 +6051,28 @@ var textsJa = i18n.NewTexts(""+
 	"保存"+
 	"訳文"+
 	"この作品の修正を読み込めないため、変更できません"+
+	"2 か国語"+
+	"キャンセル"+
+	"内容"+
+	"字幕の遅延をタイムコードに書き込む"+
+	"UTF-8 で書き出します。修正したセリフは修正後の内容で書き出されます。"+
+	"字幕を書き出せませんでした"+
+	"形式"+
+	"このファイルは Kando がこの作品用に保存している字幕なので、元のままにしました。別の名前で保存してください。"+
+	"字幕を書き出す…"+
+	"翻訳のないセリフ"+
+	"原文で補う"+
+	"プレースホルダを入れる"+
+	"省く"+
+	"並び順"+
+	"原文"+
+	"原文を上に"+
+	"［未翻訳］"+
+	"別名で保存…"+
+	"字幕を書き出す"+
+	"作品のフォルダに書き出す"+
+	"翻訳"+
+	"翻訳を上に"+
 	"アプリとシステムのバージョン"+
 	"現在の動画の処理状況"+
 	"該当する字幕の原文と訳文"+
@@ -7102,6 +7226,28 @@ var textsJa = i18n.NewTexts(""+
 		6,
 		6,
 		72,
+		11,
+		15,
+		6,
+		51,
+		99,
+		39,
+		6,
+		157,
+		24,
+		24,
+		15,
+		33,
+		6,
+		9,
+		6,
+		15,
+		15,
+		18,
+		21,
+		36,
+		6,
+		15,
 		42,
 		30,
 		36,
@@ -8258,6 +8404,28 @@ var textsKo = i18n.NewTexts(""+
 	"저장"+
 	"번역"+
 	"이 영상의 수정 내용을 읽을 수 없어 바꿀 수 없습니다"+
+	"2개 언어"+
+	"취소"+
+	"내용"+
+	"자막 지연을 타임코드에 반영"+
+	"UTF-8로 저장합니다. 수정한 줄은 수정한 대로 내보냅니다."+
+	"자막을 내보내지 못했습니다"+
+	"형식"+
+	"이 파일은 Kando가 이 영상에 쓰는 자막이라 그대로 두었습니다. 다른 이름으로 저장하세요."+
+	"자막 내보내기…"+
+	"번역이 없는 줄"+
+	"원문으로 채우기"+
+	"자리 표시 남기기"+
+	"건너뛰기"+
+	"순서"+
+	"원문"+
+	"원문을 위에"+
+	"[번역 없음]"+
+	"다른 이름으로 저장…"+
+	"자막 내보내기"+
+	"영상 폴더로 내보내기"+
+	"번역"+
+	"번역을 위에"+
 	"앱 및 시스템 버전"+
 	"현재 영상의 처리 상태"+
 	"관련 자막 원문 및 번역"+
@@ -9411,6 +9579,28 @@ var textsKo = i18n.NewTexts(""+
 		6,
 		6,
 		72,
+		11,
+		6,
+		6,
+		39,
+		76,
+		38,
+		6,
+		120,
+		22,
+		20,
+		22,
+		23,
+		12,
+		6,
+		6,
+		16,
+		15,
+		29,
+		19,
+		29,
+		6,
+		16,
 		24,
 		30,
 		31,
@@ -10567,6 +10757,28 @@ var textsZhHans = i18n.NewTexts(""+
 	"提交"+
 	"译文"+
 	"这部影片的修改记录读不出来，不能更改"+
+	"双语"+
+	"取消"+
+	"内容"+
+	"把字幕延迟写进时间轴"+
+	"UTF-8 编码；你改过的句子会写进导出文件。"+
+	"字幕没能导出"+
+	"格式"+
+	"这个文件是看懂自己保存的这部影片的字幕，已保持原样。请换个文件名另存。"+
+	"导出字幕…"+
+	"没有译文的句子"+
+	"用原文补缺"+
+	"留占位"+
+	"跳过"+
+	"双语顺序"+
+	"原文"+
+	"原文在上"+
+	"［未翻译］"+
+	"另存为…"+
+	"导出字幕"+
+	"导出到影片文件夹"+
+	"译文"+
+	"译文在上"+
 	"应用与系统版本"+
 	"当前影片的处理状态"+
 	"相关字幕原文与译文"+
@@ -11720,6 +11932,28 @@ var textsZhHans = i18n.NewTexts(""+
 		6,
 		6,
 		54,
+		6,
+		6,
+		6,
+		30,
+		57,
+		18,
+		6,
+		105,
+		15,
+		21,
+		15,
+		9,
+		6,
+		12,
+		6,
+		12,
+		15,
+		12,
+		12,
+		24,
+		6,
+		12,
 		21,
 		27,
 		27,
@@ -12876,6 +13110,28 @@ var textsZhHant = i18n.NewTexts(""+
 	"提交"+
 	"譯文"+
 	"這部影片的修改紀錄讀不出來，不能更改"+
+	"雙語"+
+	"取消"+
+	"內容"+
+	"把字幕延遲寫進時間軸"+
+	"UTF-8 編碼；你改過的句子會寫進匯出檔案。"+
+	"字幕沒能匯出"+
+	"格式"+
+	"這個檔案是看懂自己保存的這部影片的字幕，已保持原樣。請換個檔名另存。"+
+	"匯出字幕…"+
+	"沒有譯文的句子"+
+	"用原文補缺"+
+	"留佔位"+
+	"略過"+
+	"雙語順序"+
+	"原文"+
+	"原文在上"+
+	"［未翻譯］"+
+	"另存新檔…"+
+	"匯出字幕"+
+	"匯出到影片資料夾"+
+	"譯文"+
+	"譯文在上"+
 	"應用程式與系統版本"+
 	"目前影片的處理狀態"+
 	"相關字幕原文與譯文"+
@@ -14029,6 +14285,28 @@ var textsZhHant = i18n.NewTexts(""+
 		6,
 		6,
 		54,
+		6,
+		6,
+		6,
+		30,
+		57,
+		18,
+		6,
+		102,
+		15,
+		21,
+		15,
+		9,
+		6,
+		12,
+		6,
+		12,
+		15,
+		15,
+		12,
+		24,
+		6,
+		12,
 		27,
 		27,
 		27,
@@ -15219,6 +15497,27 @@ func Supply(lang string, t Translation) {
 	}
 	if t.CorrectUndone != nil {
 		s.CorrectUndone = t.CorrectUndone
+	}
+	if t.SubexportCountEdited != nil {
+		s.SubexportCountEdited = t.SubexportCountEdited
+	}
+	if t.SubexportCountLines != nil {
+		s.SubexportCountLines = t.SubexportCountLines
+	}
+	if t.SubexportCountMissing != nil {
+		s.SubexportCountMissing = t.SubexportCountMissing
+	}
+	if t.SubexportCountNoSpeech != nil {
+		s.SubexportCountNoSpeech = t.SubexportCountNoSpeech
+	}
+	if t.SubexportCountTranslated != nil {
+		s.SubexportCountTranslated = t.SubexportCountTranslated
+	}
+	if t.SubexportDelayAt != nil {
+		s.SubexportDelayAt = t.SubexportDelayAt
+	}
+	if t.SubexportDone != nil {
+		s.SubexportDone = t.SubexportDone
 	}
 	if t.FeedbackBrowserFailed != nil {
 		s.FeedbackBrowserFailed = t.FeedbackBrowserFailed
@@ -18382,6 +18681,459 @@ func CorrectUnreadable(cx *core.Scope) string { return For(cx).CorrectUnreadable
 
 // CorrectUnreadable is the package's CorrectUnreadable in the language of msgs.
 func (msgs Messages) CorrectUnreadable() string { return msgs.text(textCorrectUnreadable) }
+
+// SubexportBilingual says "Both"
+// in the language the app shows under cx.
+//
+// Choice in the Export Subtitles dialog: export each line's translation and original together.
+func SubexportBilingual(cx *core.Scope) string { return For(cx).SubexportBilingual() }
+
+// SubexportBilingual is the package's SubexportBilingual in the language of msgs.
+func (msgs Messages) SubexportBilingual() string { return msgs.text(textSubexportBilingual) }
+
+// SubexportCancel says "Cancel"
+// in the language the app shows under cx.
+//
+// Button closing the Export Subtitles dialog without exporting.
+func SubexportCancel(cx *core.Scope) string { return For(cx).SubexportCancel() }
+
+// SubexportCancel is the package's SubexportCancel in the language of msgs.
+func (msgs Messages) SubexportCancel() string { return msgs.text(textSubexportCancel) }
+
+// SubexportContent says "Lines"
+// in the language the app shows under cx.
+//
+// Row of the Export Subtitles dialog choosing which lines to export: the originals, the translations or both.
+func SubexportContent(cx *core.Scope) string { return For(cx).SubexportContent() }
+
+// SubexportContent is the package's SubexportContent in the language of msgs.
+func (msgs Messages) SubexportContent() string { return msgs.text(textSubexportContent) }
+
+// SubexportCountEdited says "includes {count, plural, one {# line} other {# lines}} you corrected"
+// in the language the app shows under cx.
+//
+// Part of the summary in the Export Subtitles dialog: how many of the exported lines the user corrected, which are exported as corrected.
+func SubexportCountEdited(cx *core.Scope, count int) string {
+	return For(cx).SubexportCountEdited(count)
+}
+
+// SubexportCountEdited is the package's SubexportCountEdited in the language of msgs.
+func (msgs Messages) SubexportCountEdited(count int) string {
+	if i18n.IsPseudo(msgs.lang) {
+		return i18n.Pseudo(msgs.lang, Messages{lang: Source, mark: true}.SubexportCountEdited(count))
+	}
+	for lang := msgs.lang; ; lang = i18n.Parent(lang) {
+		if f := supplied[lang].SubexportCountEdited; f != nil {
+			return f(count)
+		}
+		switch lang {
+		case "", "en":
+			var b strings.Builder
+			b.WriteString("includes ")
+			switch i18n.Cardinal("en", float64(count)) {
+			case i18n.One:
+				b.WriteString(msgs.arg(i18n.FormatNumber("en", float64(count))))
+				b.WriteString(" line")
+			default:
+				b.WriteString(msgs.arg(i18n.FormatNumber("en", float64(count))))
+				b.WriteString(" lines")
+			}
+			b.WriteString(" you corrected")
+			return b.String()
+		case "ja":
+			return "修正した " + i18n.FormatNumber("ja", float64(count)) + " 件を含む"
+		case "ko":
+			return "수정한 " + i18n.FormatNumber("ko", float64(count)) + "줄 포함"
+		case "zh-Hans":
+			return "含你改过的 " + i18n.FormatNumber("zh-Hans", float64(count)) + " 句"
+		case "zh-Hant":
+			return "含你改過的 " + i18n.FormatNumber("zh-Hant", float64(count)) + " 句"
+		}
+	}
+}
+
+// SubexportCountLines says "{count, plural, one {# line} other {# lines}}"
+// in the language the app shows under cx.
+//
+// First part of the summary in the Export Subtitles dialog: how many lines the film has, leaving out those marked as no speech.
+func SubexportCountLines(cx *core.Scope, count int) string { return For(cx).SubexportCountLines(count) }
+
+// SubexportCountLines is the package's SubexportCountLines in the language of msgs.
+func (msgs Messages) SubexportCountLines(count int) string {
+	if i18n.IsPseudo(msgs.lang) {
+		return i18n.Pseudo(msgs.lang, Messages{lang: Source, mark: true}.SubexportCountLines(count))
+	}
+	for lang := msgs.lang; ; lang = i18n.Parent(lang) {
+		if f := supplied[lang].SubexportCountLines; f != nil {
+			return f(count)
+		}
+		switch lang {
+		case "", "en":
+			var b strings.Builder
+			switch i18n.Cardinal("en", float64(count)) {
+			case i18n.One:
+				b.WriteString(msgs.arg(i18n.FormatNumber("en", float64(count))))
+				b.WriteString(" line")
+			default:
+				b.WriteString(msgs.arg(i18n.FormatNumber("en", float64(count))))
+				b.WriteString(" lines")
+			}
+			return b.String()
+		case "ja":
+			return "原文 " + i18n.FormatNumber("ja", float64(count)) + " 件"
+		case "ko":
+			return "원문 " + i18n.FormatNumber("ko", float64(count)) + "줄"
+		case "zh-Hans":
+			return "原文 " + i18n.FormatNumber("zh-Hans", float64(count)) + " 句"
+		case "zh-Hant":
+			return "原文 " + i18n.FormatNumber("zh-Hant", float64(count)) + " 句"
+		}
+	}
+}
+
+// SubexportCountMissing says "{count} untranslated ({how})"
+// in the language the app shows under cx.
+//
+// Part of the summary in the Export Subtitles dialog: how many lines have no translation, and what the export does with them, one of the choices of the row Lines Without a Translation.
+func SubexportCountMissing(cx *core.Scope, count int, how string) string {
+	return For(cx).SubexportCountMissing(count, how)
+}
+
+// SubexportCountMissing is the package's SubexportCountMissing in the language of msgs.
+func (msgs Messages) SubexportCountMissing(count int, how string) string {
+	if i18n.IsPseudo(msgs.lang) {
+		return i18n.Pseudo(msgs.lang, Messages{lang: Source, mark: true}.SubexportCountMissing(count, how))
+	}
+	for lang := msgs.lang; ; lang = i18n.Parent(lang) {
+		if f := supplied[lang].SubexportCountMissing; f != nil {
+			return f(count, how)
+		}
+		switch lang {
+		case "", "en":
+			return msgs.arg(i18n.FormatNumber("en", float64(count))) + " untranslated (" + msgs.arg(how) + ")"
+		case "ja":
+			return "未翻訳 " + i18n.FormatNumber("ja", float64(count)) + " 件（" + how + "）"
+		case "ko":
+			return "번역 없음 " + i18n.FormatNumber("ko", float64(count)) + "줄(" + how + ")"
+		case "zh-Hans":
+			return "缺 " + i18n.FormatNumber("zh-Hans", float64(count)) + " 句（" + how + "）"
+		case "zh-Hant":
+			return "缺 " + i18n.FormatNumber("zh-Hant", float64(count)) + " 句（" + how + "）"
+		}
+	}
+}
+
+// SubexportCountNoSpeech says "leaves out {count, plural, one {# line} other {# lines}} marked as no speech"
+// in the language the app shows under cx.
+//
+// Last part of the summary in the Export Subtitles dialog: how many lines the user marked as no speech, which are not exported.
+func SubexportCountNoSpeech(cx *core.Scope, count int) string {
+	return For(cx).SubexportCountNoSpeech(count)
+}
+
+// SubexportCountNoSpeech is the package's SubexportCountNoSpeech in the language of msgs.
+func (msgs Messages) SubexportCountNoSpeech(count int) string {
+	if i18n.IsPseudo(msgs.lang) {
+		return i18n.Pseudo(msgs.lang, Messages{lang: Source, mark: true}.SubexportCountNoSpeech(count))
+	}
+	for lang := msgs.lang; ; lang = i18n.Parent(lang) {
+		if f := supplied[lang].SubexportCountNoSpeech; f != nil {
+			return f(count)
+		}
+		switch lang {
+		case "", "en":
+			var b strings.Builder
+			b.WriteString("leaves out ")
+			switch i18n.Cardinal("en", float64(count)) {
+			case i18n.One:
+				b.WriteString(msgs.arg(i18n.FormatNumber("en", float64(count))))
+				b.WriteString(" line")
+			default:
+				b.WriteString(msgs.arg(i18n.FormatNumber("en", float64(count))))
+				b.WriteString(" lines")
+			}
+			b.WriteString(" marked as no speech")
+			return b.String()
+		case "ja":
+			return "音声なしにした " + i18n.FormatNumber("ja", float64(count)) + " 件を除く"
+		case "ko":
+			return "음성 없음으로 표시한 " + i18n.FormatNumber("ko", float64(count)) + "줄 제외"
+		case "zh-Hans":
+			return "不含标为无语音的 " + i18n.FormatNumber("zh-Hans", float64(count)) + " 句"
+		case "zh-Hant":
+			return "不含標為無語音的 " + i18n.FormatNumber("zh-Hant", float64(count)) + " 句"
+		}
+	}
+}
+
+// SubexportCountTranslated says "{translated}/{lines} translated"
+// in the language the app shows under cx.
+//
+// Part of the summary in the Export Subtitles dialog: how many of the lines have a translation, out of all of them.
+func SubexportCountTranslated(cx *core.Scope, translated int, lines int) string {
+	return For(cx).SubexportCountTranslated(translated, lines)
+}
+
+// SubexportCountTranslated is the package's SubexportCountTranslated in the language of msgs.
+func (msgs Messages) SubexportCountTranslated(translated int, lines int) string {
+	if i18n.IsPseudo(msgs.lang) {
+		return i18n.Pseudo(msgs.lang, Messages{lang: Source, mark: true}.SubexportCountTranslated(translated, lines))
+	}
+	for lang := msgs.lang; ; lang = i18n.Parent(lang) {
+		if f := supplied[lang].SubexportCountTranslated; f != nil {
+			return f(translated, lines)
+		}
+		switch lang {
+		case "", "en":
+			return msgs.arg(i18n.FormatNumber("en", float64(translated))) + "/" + msgs.arg(i18n.FormatNumber("en", float64(lines))) + " translated"
+		case "ja":
+			return "翻訳 " + i18n.FormatNumber("ja", float64(translated)) + "/" + i18n.FormatNumber("ja", float64(lines))
+		case "ko":
+			return "번역 " + i18n.FormatNumber("ko", float64(translated)) + "/" + i18n.FormatNumber("ko", float64(lines))
+		case "zh-Hans":
+			return "译文 " + i18n.FormatNumber("zh-Hans", float64(translated)) + "/" + i18n.FormatNumber("zh-Hans", float64(lines))
+		case "zh-Hant":
+			return "譯文 " + i18n.FormatNumber("zh-Hant", float64(translated)) + "/" + i18n.FormatNumber("zh-Hant", float64(lines))
+		}
+	}
+}
+
+// SubexportDelay says "Write the Subtitle Delay into the Times"
+// in the language the app shows under cx.
+//
+// Accessible name of the switch in the Export Subtitles dialog that moves every exported time by the film's subtitle delay.
+func SubexportDelay(cx *core.Scope) string { return For(cx).SubexportDelay() }
+
+// SubexportDelay is the package's SubexportDelay in the language of msgs.
+func (msgs Messages) SubexportDelay() string { return msgs.text(textSubexportDelay) }
+
+// SubexportDelayAt says "Write the subtitle delay into the times ({delay})"
+// in the language the app shows under cx.
+//
+// Label of the switch in the Export Subtitles dialog that moves every exported time by the film's subtitle delay, shown with the delay.
+func SubexportDelayAt(cx *core.Scope, delay string) string { return For(cx).SubexportDelayAt(delay) }
+
+// SubexportDelayAt is the package's SubexportDelayAt in the language of msgs.
+func (msgs Messages) SubexportDelayAt(delay string) string {
+	if i18n.IsPseudo(msgs.lang) {
+		return i18n.Pseudo(msgs.lang, Messages{lang: Source, mark: true}.SubexportDelayAt(delay))
+	}
+	for lang := msgs.lang; ; lang = i18n.Parent(lang) {
+		if f := supplied[lang].SubexportDelayAt; f != nil {
+			return f(delay)
+		}
+		switch lang {
+		case "", "en":
+			return "Write the subtitle delay into the times (" + msgs.arg(delay) + ")"
+		case "ja":
+			return "字幕の遅延をタイムコードに書き込む（" + delay + "）"
+		case "ko":
+			return "자막 지연을 타임코드에 반영(" + delay + ")"
+		case "zh-Hans":
+			return "把字幕延迟写进时间轴（" + delay + "）"
+		case "zh-Hant":
+			return "把字幕延遲寫進時間軸（" + delay + "）"
+		}
+	}
+}
+
+// SubexportDescription says "UTF-8. Lines you corrected are exported as you corrected them."
+// in the language the app shows under cx.
+//
+// Text under the title of the Export Subtitles dialog.
+func SubexportDescription(cx *core.Scope) string { return For(cx).SubexportDescription() }
+
+// SubexportDescription is the package's SubexportDescription in the language of msgs.
+func (msgs Messages) SubexportDescription() string { return msgs.text(textSubexportDescription) }
+
+// SubexportDone says "Exported {file}"
+// in the language the app shows under cx.
+//
+// Message on the picture after the subtitles were exported, with the name of the file written.
+func SubexportDone(cx *core.Scope, file string) string { return For(cx).SubexportDone(file) }
+
+// SubexportDone is the package's SubexportDone in the language of msgs.
+func (msgs Messages) SubexportDone(file string) string {
+	if i18n.IsPseudo(msgs.lang) {
+		return i18n.Pseudo(msgs.lang, Messages{lang: Source, mark: true}.SubexportDone(file))
+	}
+	for lang := msgs.lang; ; lang = i18n.Parent(lang) {
+		if f := supplied[lang].SubexportDone; f != nil {
+			return f(file)
+		}
+		switch lang {
+		case "", "en":
+			return "Exported " + msgs.arg(file)
+		case "ja":
+			return file + " を書き出しました"
+		case "ko":
+			return file + " 내보냄"
+		case "zh-Hans":
+			return "已导出 " + file
+		case "zh-Hant":
+			return "已匯出 " + file
+		}
+	}
+}
+
+// SubexportFailed says "Couldn’t export the subtitles"
+// in the language the app shows under cx.
+//
+// Message on the picture when the exported subtitles could not be written.
+func SubexportFailed(cx *core.Scope) string { return For(cx).SubexportFailed() }
+
+// SubexportFailed is the package's SubexportFailed in the language of msgs.
+func (msgs Messages) SubexportFailed() string { return msgs.text(textSubexportFailed) }
+
+// SubexportFormat says "Format"
+// in the language the app shows under cx.
+//
+// Row of the Export Subtitles dialog choosing the file format: SRT, WebVTT or ASS.
+func SubexportFormat(cx *core.Scope) string { return For(cx).SubexportFormat() }
+
+// SubexportFormat is the package's SubexportFormat in the language of msgs.
+func (msgs Messages) SubexportFormat() string { return msgs.text(textSubexportFormat) }
+
+// SubexportKandoFile says "That file holds Kando’s own subtitles of the film, so it was left as it was. Save the export under another name."
+// in the language the app shows under cx.
+//
+// Message on the picture when the user chose to save the export over one of the subtitle files Kando keeps for the film, which is then put back.
+func SubexportKandoFile(cx *core.Scope) string { return For(cx).SubexportKandoFile() }
+
+// SubexportKandoFile is the package's SubexportKandoFile in the language of msgs.
+func (msgs Messages) SubexportKandoFile() string { return msgs.text(textSubexportKandoFile) }
+
+// SubexportMenu says "Export Subtitles…"
+// in the language the app shows under cx.
+//
+// Item of the File menu and the command palette opening the Export Subtitles dialog for the film open in the player.
+func SubexportMenu(cx *core.Scope) string { return For(cx).SubexportMenu() }
+
+// SubexportMenu is the package's SubexportMenu in the language of msgs.
+func (msgs Messages) SubexportMenu() string { return msgs.text(textSubexportMenu) }
+
+// SubexportMissing says "Lines Without a Translation"
+// in the language the app shows under cx.
+//
+// Row of the Export Subtitles dialog choosing what an exported line without a translation becomes.
+func SubexportMissing(cx *core.Scope) string { return For(cx).SubexportMissing() }
+
+// SubexportMissing is the package's SubexportMissing in the language of msgs.
+func (msgs Messages) SubexportMissing() string { return msgs.text(textSubexportMissing) }
+
+// SubexportMissingOriginal says "Use the Original"
+// in the language the app shows under cx.
+//
+// Choice of the row Lines Without a Translation: the original stands in for the missing translation.
+func SubexportMissingOriginal(cx *core.Scope) string { return For(cx).SubexportMissingOriginal() }
+
+// SubexportMissingOriginal is the package's SubexportMissingOriginal in the language of msgs.
+func (msgs Messages) SubexportMissingOriginal() string {
+	return msgs.text(textSubexportMissingOriginal)
+}
+
+// SubexportMissingPlaceholder says "Leave a Placeholder"
+// in the language the app shows under cx.
+//
+// Choice of the row Lines Without a Translation: a placeholder stands in for the missing translation.
+func SubexportMissingPlaceholder(cx *core.Scope) string { return For(cx).SubexportMissingPlaceholder() }
+
+// SubexportMissingPlaceholder is the package's SubexportMissingPlaceholder in the language of msgs.
+func (msgs Messages) SubexportMissingPlaceholder() string {
+	return msgs.text(textSubexportMissingPlaceholder)
+}
+
+// SubexportMissingSkip says "Leave Out"
+// in the language the app shows under cx.
+//
+// Choice of the row Lines Without a Translation: the missing translation is left out, so only the original shows in a bilingual export and the line is not exported in a translation export.
+func SubexportMissingSkip(cx *core.Scope) string { return For(cx).SubexportMissingSkip() }
+
+// SubexportMissingSkip is the package's SubexportMissingSkip in the language of msgs.
+func (msgs Messages) SubexportMissingSkip() string { return msgs.text(textSubexportMissingSkip) }
+
+// SubexportOrder says "Order"
+// in the language the app shows under cx.
+//
+// Row of the Export Subtitles dialog choosing which line of a bilingual cue goes on top.
+func SubexportOrder(cx *core.Scope) string { return For(cx).SubexportOrder() }
+
+// SubexportOrder is the package's SubexportOrder in the language of msgs.
+func (msgs Messages) SubexportOrder() string { return msgs.text(textSubexportOrder) }
+
+// SubexportOriginal says "Original"
+// in the language the app shows under cx.
+//
+// Choice in the Export Subtitles dialog: export the original lines only.
+func SubexportOriginal(cx *core.Scope) string { return For(cx).SubexportOriginal() }
+
+// SubexportOriginal is the package's SubexportOriginal in the language of msgs.
+func (msgs Messages) SubexportOriginal() string { return msgs.text(textSubexportOriginal) }
+
+// SubexportOriginalFirst says "Original on Top"
+// in the language the app shows under cx.
+//
+// Choice of the row Order in the Export Subtitles dialog.
+func SubexportOriginalFirst(cx *core.Scope) string { return For(cx).SubexportOriginalFirst() }
+
+// SubexportOriginalFirst is the package's SubexportOriginalFirst in the language of msgs.
+func (msgs Messages) SubexportOriginalFirst() string { return msgs.text(textSubexportOriginalFirst) }
+
+// SubexportPlaceholder says "[Not translated]"
+// in the language the app shows under cx.
+//
+// Text written into an exported subtitle file in place of a line's missing translation, when the user chose Leave a Placeholder.
+func SubexportPlaceholder(cx *core.Scope) string { return For(cx).SubexportPlaceholder() }
+
+// SubexportPlaceholder is the package's SubexportPlaceholder in the language of msgs.
+func (msgs Messages) SubexportPlaceholder() string { return msgs.text(textSubexportPlaceholder) }
+
+// SubexportSaveAs says "Save As…"
+// in the language the app shows under cx.
+//
+// Button of the Export Subtitles dialog asking where to save the exported file.
+func SubexportSaveAs(cx *core.Scope) string { return For(cx).SubexportSaveAs() }
+
+// SubexportSaveAs is the package's SubexportSaveAs in the language of msgs.
+func (msgs Messages) SubexportSaveAs() string { return msgs.text(textSubexportSaveAs) }
+
+// SubexportTitle says "Export Subtitles"
+// in the language the app shows under cx.
+//
+// Title of the Export Subtitles dialog, and its line in the shortcut cheat sheet.
+func SubexportTitle(cx *core.Scope) string { return For(cx).SubexportTitle() }
+
+// SubexportTitle is the package's SubexportTitle in the language of msgs.
+func (msgs Messages) SubexportTitle() string { return msgs.text(textSubexportTitle) }
+
+// SubexportToFolder says "Export to the Film’s Folder"
+// in the language the app shows under cx.
+//
+// Main button of the Export Subtitles dialog: writes the exported file beside the film's video, at the path shown above it.
+func SubexportToFolder(cx *core.Scope) string { return For(cx).SubexportToFolder() }
+
+// SubexportToFolder is the package's SubexportToFolder in the language of msgs.
+func (msgs Messages) SubexportToFolder() string { return msgs.text(textSubexportToFolder) }
+
+// SubexportTranslation says "Translation"
+// in the language the app shows under cx.
+//
+// Choice in the Export Subtitles dialog: export the translations only.
+func SubexportTranslation(cx *core.Scope) string { return For(cx).SubexportTranslation() }
+
+// SubexportTranslation is the package's SubexportTranslation in the language of msgs.
+func (msgs Messages) SubexportTranslation() string { return msgs.text(textSubexportTranslation) }
+
+// SubexportTranslationFirst says "Translation on Top"
+// in the language the app shows under cx.
+//
+// Choice of the row Order in the Export Subtitles dialog.
+func SubexportTranslationFirst(cx *core.Scope) string { return For(cx).SubexportTranslationFirst() }
+
+// SubexportTranslationFirst is the package's SubexportTranslationFirst in the language of msgs.
+func (msgs Messages) SubexportTranslationFirst() string {
+	return msgs.text(textSubexportTranslationFirst)
+}
 
 // FeedbackAttachEnv says "App and System Versions"
 // in the language the app shows under cx.
