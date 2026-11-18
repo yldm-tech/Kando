@@ -35,7 +35,7 @@ func (r art) Render(cx *core.Scope) core.Node {
 	// The example follows the languages chosen and the target language, read again only when they change.
 	example := live.Memo(cx, a, func() demoLine {
 		code, original, translation := demo(a.OnboardingLearning(), *a.Language())
-		return demoLine{code: code, original: original, translation: translation, target: *a.Language()}
+		return demoLine{code: code, original: original, translation: translation, target: *a.Language(), targetTag: targetTag(*a.Language())}
 	})
 	caption := core.View{Style: core.Style{Position: core.Absolute, Left: core.Pt(24), Right: core.Pt(24), Top: core.Pt(52), Gap: 6, Color: white},
 		Children: []core.Node{
@@ -51,11 +51,13 @@ func (r art) Render(cx *core.Scope) core.Node {
 				return pill(cx, a, r.step(), e.code, e.target)
 			}}},
 	}
-	// TODO(nsgo#207): give core.Text the language it is written in, as MyGo's Text.Lang did, so the example line in Japanese, Korean or Chinese is drawn with that language's glyph forms rather than the interface language's https://github.com/nsgo-dev/nsgo/issues/207
+	// Each line is in its own language, so Japanese, Korean or Chinese is drawn with that language's glyph forms rather than the interface language's.
 	original := core.Text{ContentFunc: func() string { return example().original },
-		Style: core.Style{FontSize: 13, LineHeight: 18, Opacity: core.Alpha(0.9), TextAlign: core.TextAlignCenter}}
+		Style:     core.Style{FontSize: 13, LineHeight: 18, Opacity: core.Alpha(0.9), TextAlign: core.TextAlignCenter},
+		StyleFunc: func() core.Style { return core.Style{Language: example().code} }}
 	translation := core.Text{ContentFunc: func() string { return example().translation },
-		Style: core.Style{FontSize: 18, FontWeight: core.FontWeightBold, LineHeight: 25, TextAlign: core.TextAlignCenter}}
+		Style:     core.Style{FontSize: 18, FontWeight: core.FontWeightBold, LineHeight: 25, TextAlign: core.TextAlignCenter},
+		StyleFunc: func() core.Style { return core.Style{Language: example().targetTag} }}
 	foot := core.View{Style: core.Style{Position: core.Absolute, Left: core.Pt(20), Right: core.Pt(20), Bottom: core.Pt(26), Gap: 10, AlignItems: core.AlignCenter, Color: white},
 		Children: []core.Node{pill, original, translation}}
 	return core.View{
@@ -70,9 +72,9 @@ func (r art) Render(cx *core.Scope) core.Node {
 	}
 }
 
-// demoLine is the art panel's example as demo gives it, with the target language it is translated into.
+// demoLine is the art panel's example as demo gives it, with the target language it is translated into and that language's BCP 47 tag.
 type demoLine struct {
-	code, original, translation, target string
+	code, original, translation, target, targetTag string
 }
 
 // caption is the line over the art for step, naming the machine whisper runs on as the platform calls it: 这台 Mac on macOS, 这台电脑 elsewhere.
