@@ -54,14 +54,11 @@ func TestMain(m *testing.M) {
 	testlocale.Pin(locales.Default)
 	desktop.Headless()
 	showItemInFolder = func(_ *ns.Scope, _ string, done func(error)) { done(nil) }
-	if nsgotest.Target() != "" {
-		// TODO(nsgo#143): remove the fake tools' folder once the tests have run on a platform too, as headless runs do here; nsgotest.Main gives the main thread to the platform and exits without returning, so nothing runs after the tests there https://github.com/nsgo-dev/nsgo/issues/143
-		nsgotest.Main(m)
-		return
-	}
-	code := m.Run()
-	fakeToolsCleanup()
-	os.Exit(code)
+	// The fake tools' folder goes once the tests have run, headless and on a platform alike.
+	nsgotest.MainFunc(func() int {
+		defer fakeToolsCleanup()
+		return m.Run()
+	})
 }
 
 // testOS is the system the tests' app runs on, a Mac unless usePlatform says another for a test.
@@ -148,11 +145,9 @@ func (a *app) testView(cx *ns.Scope) ns.Node {
 	return a.view(cx)
 }
 
-// TODO(nsgo#391): drop the second, empty post once Settle on a target waits for the engine's pending commit https://github.com/nsgo-dev/nsgo/issues/391
-// refresh tells the revision that the test changed the app's state and settles, as MyGo's Tester.Frame drew the state the test had set. Under `nsgo test -target` the engine commits what Changed set off only after the post that ran it returned, and Settle stops waiting once nothing came for a tenth of a second, so a commit slower than that, as the first-run guide's on a busy machine, reached the test after its check and the window seemed not to show the state the test set. The engine runs a post after it has committed and sent everything the posts before it changed, so a second, empty one returns once that commit's batch is on its way to the test, and Settle applies it however long it took.
+// refresh tells the revision that the test changed the app's state and settles, as MyGo's Tester.Frame drew the state the test had set. Under `nsgo test -target` the engine commits what Changed set off only after the post that ran it returned; Settle waits for that commit however long it takes.
 func refresh(tt *nsgotest.App, a *app) {
 	onEngine(a, a.Changed)
-	onEngine(a, func() {})
 	tt.Settle()
 }
 
