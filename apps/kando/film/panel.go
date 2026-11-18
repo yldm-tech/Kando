@@ -23,7 +23,7 @@ import (
 )
 
 // panelTabs are the side panel's tabs, by the FilmSide each one is; tabLabel names them.
-var panelTabs = []string{"", "clips", "terms", "info", "style"}
+var panelTabs = []string{"", "clips", "terms", SideNotes, "info", "style"}
 
 // tabLabel is what a tab of the side panel is called in the language the interface shows under cx.
 func tabLabel(cx *ns.Scope, id string) string {
@@ -32,6 +32,8 @@ func tabLabel(cx *ns.Scope, id string) string {
 		return locales.FilmTabClips(cx)
 	case "terms":
 		return locales.FilmTabTerms(cx)
+	case SideNotes:
+		return locales.FilmTabNotes(cx)
 	case "info":
 		return locales.FilmTabInfo(cx)
 	case "style":
@@ -51,7 +53,7 @@ var (
 // panelMotionStyle moves the panel in from the right and fades it as it comes and goes.
 var panelMotionStyle = ns.Transition{Duration: panelMotion, Easing: ns.EaseInOut, Properties: ns.TransitionOpacity | ns.TransitionTransform}
 
-// panel is the glass side panel floating over the right of the picture: the subtitle list, the 片段, the glossary and the film's files under four tabs, or the subtitle style in their place. It slides in from the right as it comes and out as it goes, and is gone once it has.
+// panel is the glass side panel floating over the right of the picture: the subtitle list, the 片段, the glossary, the saved lines and words with the review, and the film's files under five tabs, or the subtitle style in their place. It slides in from the right as it comes and out as it goes, and is gone once it has.
 func (s *screen) panel() ns.Node {
 	a := s.a
 	return ns.Presence{When: s.room, Then: func(cx *ns.Scope) ns.Node {
@@ -73,6 +75,8 @@ func (s *screen) panel() ns.Node {
 						return s.clipsTab(cx)
 					case "terms":
 						return s.termsTab(cx)
+					case SideNotes:
+						return s.notesTab(cx)
 					case "info":
 						return s.infoTab(cx)
 					case SideExplain:
@@ -166,6 +170,8 @@ func (s *screen) subsTab(cx *ns.Scope) ns.Node {
 	query := live.Memo(cx, a, func() string { return strings.ToLower(strings.TrimSpace(*a.Search())) })
 	saved := ns.NewMemoFunc(cx, live.Func(a, a.SavedLines), slices.Equal[[]int]).Get
 	savedOnly := live.Memo(cx, a, func() bool { return *a.SavedOnly() })
+	// proofs is whether the list shows the final proofread's changes in place of the lines, which it does only while there are some.
+	proofs := live.Memo(cx, a, func() bool { return *a.ProofView() && len(a.Proofs()) > 0 })
 	shown := ns.NewMemoFunc(cx, func() []int {
 		rows := cueMatches(cues(), query())
 		if savedOnly() {
@@ -174,16 +180,20 @@ func (s *screen) subsTab(cx *ns.Scope) ns.Node {
 		}
 		return rows
 	}, slices.Equal[[]int]).Get
-	// The chips count the lines and the saved ones, and pick which the list shows; while a search is typed the chip picked counts the lines that hold it of them. The saved chip shows once a line of the film is saved.
+	// The chips count the lines, the saved ones and the final proofread's changes, and pick which the list shows; while a search is typed the chip of lines picked counts the lines that hold it of them. The saved chip shows once a line of the film is saved, the 终校 chip once the film has changes.
 	chip := ns.Show{When: func() bool { return state() == subsReady }, Then: func(cx *ns.Scope) ns.Node {
 		searching := func() bool { return query() != "" }
-		pick := func(on bool) func(ns.PressEvent) {
-			return live.On(a, func(ns.PressEvent) { *a.SavedOnly() = on })
+		pick := func(saved, proofs bool) func(ns.PressEvent) {
+			return live.On(a, func(ns.PressEvent) { *a.SavedOnly(), *a.ProofView() = saved, proofs })
 		}
-		return ns.View{Style: ns.Style{Direction: ns.Row, Gap: 6, AlignSelf: ns.AlignStart}, Children: []ns.Node{
-			subsChip(cx, "film-subs-count", func() string { return locales.FilmAll(cx) }, func() int { return len(cues()) }, shown, searching, func() bool { return !savedOnly() }, pick(false), nil),
+		count := live.Func(a, func() int { return len(a.Proofs()) })
+		return ns.View{Style: ns.Style{Direction: ns.Row, Gap: 6, AlignSelf: ns.AlignStart, Wrap: ns.Wrap}, Children: []ns.Node{
+			subsChip(cx, "film-subs-count", func() string { return locales.FilmAll(cx) }, func() int { return len(cues()) }, shown, searching, func() bool { return !savedOnly() && !proofs() }, pick(false, false), nil),
 			ns.Show{When: func() bool { return len(saved()) > 0 || savedOnly() }, Then: func(cx *ns.Scope) ns.Node {
-				return subsChip(cx, "film-subs-saved", func() string { return locales.SavedMark(cx) }, func() int { return len(saved()) }, shown, searching, savedOnly, pick(true), iconStar)
+				return subsChip(cx, "film-subs-saved", func() string { return locales.SavedMark(cx) }, func() int { return len(saved()) }, shown, searching, func() bool { return savedOnly() && !proofs() }, pick(true, false), iconStar)
+			}},
+			ns.Show{When: func() bool { return count() > 0 }, Then: func(cx *ns.Scope) ns.Node {
+				return subsChip(cx, "film-subs-proofs", func() string { return locales.ReviewChip(cx) }, count, shown, func() bool { return false }, proofs, pick(false, true), nil)
 			}},
 		}}
 	}}
@@ -197,6 +207,9 @@ func (s *screen) subsTab(cx *ns.Scope) ns.Node {
 			return panelNote(func() string { return locales.FilmNoSubtitlesYet(cx) }, nil)
 		case subsEmpty:
 			return panelNote(func() string { return locales.FilmSubtitlesEmpty(cx) }, nil)
+		}
+		if proofs() {
+			return s.proofView(cx)
 		}
 		return s.cueList(cx, cues, shown, func() bool { return savedOnly() && query() == "" })
 	})

@@ -1,3 +1,8 @@
+addAsComputer:
+  message: "As on {name}"
+  description: "Add sheet: the choice that leaves the quality, or where the original subtitles come from, to the computer's own setting."
+  placeholders:
+    name: { type: "String", example: "Studio" }
 addComputer:
   message: "Send To"
   description: "Add sheet: label over the computers to send the link to, when several are paired."
@@ -25,12 +30,48 @@ addNoteOffline:
   description: "Add sheet: under the form while the computer cannot be reached."
   placeholders:
     name: { type: "String", example: "Studio" }
+addNoteOfflineRelay:
+  message: "{name} is offline. The link waits in your storage and starts once it's back."
+  description: "Add sheet: under the form while the computer is reached through the user's storage away from its network, but has not written there lately."
+  placeholders:
+    name: { type: "String", example: "Studio" }
+addNoteRelay:
+  message: "Away from its network, the link goes through your storage. {name} takes it within a minute or two."
+  description: "Add sheet: under the form while the computer is reached through the user's storage away from its network."
+  placeholders:
+    name: { type: "String", example: "Studio" }
 addPaste:
   message: "Paste"
   description: "Add sheet: button that puts the clipboard's link in the field."
+addQuality:
+  message: "Quality"
+  description: "Add sheet: label over the choices of the picture the computer downloads."
+addQuality720:
+  message: "720p"
+  description: "Add sheet: the computer downloads the best picture no taller than 720 lines."
+addQualityBest:
+  message: "Best"
+  description: "Add sheet: the computer downloads the best picture the site has."
 addSend:
   message: "Send"
   description: "Add sheet: button that sends the link to the computer."
+addSubtitles:
+  message: "Original Subtitles"
+  description: "Add sheet: label over the choices of where the video's original lines come from."
+addSubtitlesPlatform:
+  message: "The Uploader's Subtitles"
+  description: "Add sheet: the original lines are the subtitles the uploader put on the site, where they match the speech."
+addSubtitlesPlatformNote:
+  message: "Most accurate when someone wrote them. The lines that match the speech are translated as they are."
+  description: "Add sheet: under The Uploader's Subtitles."
+addSubtitlesRecognize:
+  message: "Recognized on the Computer"
+  description: "Add sheet: the original lines are what the computer's speech recognition hears."
+addSubtitlesRecognizeNote:
+  message: "Whisper on {name} transcribes the speech."
+  description: "Add sheet: under Recognized on the Computer."
+  placeholders:
+    name: { type: "String", example: "Studio" }
 addTitle:
   message: "Add Video"
   description: "Title of the Add sheet, and the spoken name of the + button that opens it."
@@ -268,6 +309,19 @@ filmsUnpairedBody:
 filmsUnpairedTitle:
   message: "Not connected to a computer yet"
   description: "Title of the Library's card while no computer is paired."
+jobsBadgeLabel:
+  message: "Jobs, {count} unfinished"
+  description: "Spoken name of the Jobs button and section while jobs run, wait or failed, or links wait to be sent."
+  placeholders:
+    count: { type: "int", example: "2" }
+jobsEmpty:
+  message: "No jobs. Tap + to send a video's link."
+  description: "Jobs page, under a computer's card when it has no jobs and no links wait for it."
+jobsReadOnly:
+  message: "{name} made this phone read-only: it shows the jobs but can't send links or change them. Turn off Read-only for this phone in the computer's Settings › Phone Sync."
+  description: "Jobs page and Add sheet: the computer's user made this phone read-only; also why a link was refused."
+  placeholders:
+    name: { type: "String", example: "Studio" }
 learnDueIn:
   message: "{count, plural, one {Due in # day} other {Due in # days}}"
   description: "Under a word or a line: when it is next due for review."
@@ -446,6 +500,22 @@ jobsOffline:
 jobsOfflineSummary:
   message: "Offline. Links you send wait on this phone and go once it's back."
   description: "Jobs page, a computer's card while it cannot be reached."
+jobsOfflineRelay:
+  message: "Offline. Links you send wait in your storage and start once it's back."
+  description: "Jobs page, a computer's card while it is reached through the user's storage away from its network but has not written there lately."
+jobsInStorage:
+  message: "In your storage, waiting for {name}"
+  description: "Where a link stands once it was left in the user's storage for the computer to take, away from its network."
+  placeholders:
+    name: { type: "String", example: "Studio" }
+jobsRelayed:
+  message: "{summary} · through your storage"
+  description: "Jobs page, a computer's card while it is reached through the user's storage away from its network: what its queue does, then how it is reached."
+  placeholders:
+    summary: { type: "String", example: "Processing 2 videos" }
+jobsViaStorage:
+  message: "Via storage"
+  description: "Jobs page, a computer's card: it answers through the user's storage, away from its network."
 jobsOlder:
   message: "Kando on this computer is too old to take links. Update it."
   description: "Jobs page: the computer speaks an older protocol."
@@ -1247,6 +1317,96 @@ settingsAbout:
 settingsComputers:
   message: "Computers"
   description: "Heading of Settings' section of the paired computers."
+settingsConflictBoth:
+  message: "Keep Both"
+  description: "Under a sync conflict of two notes or two meanings: keeps both, one after the other."
+settingsConflictDate:
+  message: "{when, date, ::MMMd}, {when, time, short}"
+  description: "When a version of a sync conflict was made, before yesterday."
+  placeholders:
+    when: { type: "DateTime" }
+settingsConflictMeaning:
+  message: "Meaning"
+  description: "Badge of a sync conflict over a word's meaning."
+settingsConflictNote:
+  message: "Note"
+  description: "Badge of a sync conflict over a note."
+settingsConflictOriginal:
+  message: "Line"
+  description: "Badge of a sync conflict over a line's original text, as corrected."
+settingsConflictOtherDevice:
+  message: "Another Device"
+  description: "Where a version of a sync conflict was made, when the computer does not name the device."
+settingsConflictReadOnly:
+  message: "{computer} lets this device only view what it has, so the conflict stays."
+  description: "Under the sync conflicts when the computer refused to resolve one: the user made this device read-only there."
+  placeholders:
+    computer: { type: "String", example: "MacBook Pro" }
+settingsConflictThisPhone:
+  message: "This Phone"
+  description: "Where a version of a sync conflict was made: on this phone."
+settingsConflictThisTablet:
+  message: "This Tablet"
+  description: "Where a version of a sync conflict was made: on this tablet."
+settingsConflictToday:
+  message: "Today {when, time, short}"
+  description: "When a version of a sync conflict was made, today."
+  placeholders:
+    when: { type: "DateTime" }
+settingsConflictTranslation:
+  message: "Translation"
+  description: "Badge of a sync conflict over a line's translation."
+settingsConflictUnpaired:
+  message: "{computer} no longer takes this device, so the conflict stays."
+  description: "Under the sync conflicts when the computer refused to resolve one: it unpaired this device."
+  placeholders:
+    computer: { type: "String", example: "MacBook Pro" }
+settingsConflictUnreachable:
+  message: "Couldn't reach {computer}. Try again when it's on and on the same network."
+  description: "Under the sync conflicts when resolving one failed: the computer could not be reached."
+  placeholders:
+    computer: { type: "String", example: "MacBook Pro" }
+settingsConflictUse:
+  message: "Use This"
+  description: "Beside a version of a sync conflict: keeps it on every device."
+settingsConflictUseLabel:
+  message: "Use the version from {device}"
+  description: "Spoken label of Use This beside a version of a sync conflict, with the device it was made on."
+  placeholders:
+    device: { type: "String", example: "MacBook Pro" }
+settingsConflictWord:
+  message: "Word “{word}”"
+  description: "Where a sync conflict is: the word of the vocabulary it is of."
+  placeholders:
+    word: { type: "String", example: "basis vector" }
+settingsConflictYesterday:
+  message: "Yesterday {when, time, short}"
+  description: "When a version of a sync conflict was made, yesterday."
+  placeholders:
+    when: { type: "DateTime" }
+settingsConflicts:
+  message: "Sync Conflicts"
+  description: "Row in Settings, and the title of its page, listing what two devices changed apart, to pick the version to keep."
+settingsConflictsCount:
+  message: "{count, plural, one {# to resolve} other {# to resolve}}"
+  description: "Beside Sync Conflicts in Settings: how many are open."
+  placeholders:
+    count: { type: "int", example: "2" }
+settingsConflictsDetail:
+  message: "Two devices changed the same thing. Keep one."
+  description: "Under Sync Conflicts in Settings while some are open."
+settingsConflictsDone:
+  message: "No Conflicts Left"
+  description: "The Sync Conflicts page when none is open."
+settingsConflictsDoneDetail:
+  message: "Everything matches on all devices."
+  description: "Under No Conflicts Left."
+settingsConflictsNone:
+  message: "None"
+  description: "Beside Sync Conflicts in Settings when none is open."
+settingsConflictsNote:
+  message: "When two devices change the same translated line or the same note, choose which to keep here. Words, saved lines and progress merge on their own."
+  description: "At the top of the Sync Conflicts page."
 settingsGoal:
   message: "Daily Goal"
   description: "Row in Settings, and the title of its page, that picks the daily goal of minutes of films."
@@ -1284,6 +1444,9 @@ settingsSubtitleStyle:
 settingsSubtitles:
   message: "Subtitles"
   description: "Heading of Settings' section of the subtitles."
+settingsSync:
+  message: "Sync"
+  description: "Heading of Settings' section of what syncs between this device and the computers."
 settingsTarget:
   message: "Translate Into"
   description: "Row in Settings, and the title of its page, that picks the language subtitles are translated into."

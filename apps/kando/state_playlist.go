@@ -24,6 +24,8 @@ type playlistUI struct {
 	run     int
 	lists   []playlist.List
 	err     error
+	// subscribe is the dialog's switch that subscribes to the one list read as its videos are added (playlist.Confirm), off until the user turns it on.
+	subscribe bool
 }
 
 // The pages that open the dialog, whose message bar says what became of the videos it adds.
@@ -128,19 +130,23 @@ func (a *app) playlistNew() (all, fresh []string) {
 	return all, fresh
 }
 
-// playlistAdd queues the videos read that the library does not have yet, in their order, and closes the dialog; the message bar of the page that opened it says what became of them.
+// playlistAdd queues the videos read that the library does not have yet, in their order, and closes the dialog; the message bar of the page that opened it says what became of them. With the dialog's switch on, the open library subscribes to the one list read first (subscribeFollow), the videos it holds now counting as seen, so only those that come out later are added by the subscription. A playlist's films, those queued and those the library had, join a series named after it.
 func (a *app) playlistAdd() {
 	_, fresh := a.playlistNew()
-	from := a.playlist.from
+	from, lists := a.playlist.from, a.playlist.lists
+	if a.playlist.subscribe && len(lists) == 1 {
+		a.subscribeFollow(lists[0].Source, lists[0].Listing)
+	}
 	a.playlistClose()
-	if len(fresh) == 0 {
-		return
-	}
-	if from == playlistFromBrowse {
+	switch {
+	case len(fresh) == 0:
+	case from == playlistFromBrowse:
 		a.browseEnqueueAll(fresh)
-		return
+	default:
+		a.libraryEnqueue(fresh...)
 	}
-	a.libraryEnqueue(fresh...)
+	// The films of a playlist are a series, as its site groups them (glossaryPlaylistSeries).
+	a.glossaryPlaylistSeries(lists)
 }
 
 // playlistLook is what the dialog shows of what was read, in the interface's language.
@@ -178,9 +184,11 @@ func playlistError(m locales.Messages, err error) string {
 // playlistOverlay is the dialog over the window while it is open (state_overlay.go).
 func (a *app) playlistOverlay(*core.Scope) core.Node {
 	return playlist.Confirm{
-		Open:     live.Func(a, func() bool { return a.playlist.open }),
-		Look:     live.Func(a, a.playlistLook),
-		OnAdd:    live.Do(a, a.playlistAdd),
-		OnCancel: live.Do(a, a.playlistClose),
+		Open:        live.Func(a, func() bool { return a.playlist.open }),
+		Look:        live.Func(a, a.playlistLook),
+		Subscribe:   live.Func(a, func() bool { return a.playlist.subscribe }),
+		OnSubscribe: live.On(a, func(on bool) { a.playlist.subscribe = on }),
+		OnAdd:       live.Do(a, a.playlistAdd),
+		OnCancel:    live.Do(a, a.playlistClose),
 	}
 }

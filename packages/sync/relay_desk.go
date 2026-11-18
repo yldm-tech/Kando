@@ -34,6 +34,8 @@ type Relay struct {
 	Logf func(format string, args ...any)
 	// Every is how often Run polls, 0 for RelayPoll; MinWrite the least time between two of its turns, 0 for RelayMinWrite. Tests shorten them.
 	Every, MinWrite time.Duration
+	// Health, when set, is told after each of Run's turns what failed of its poll and its writes, nil for a turn that went through, so the desktop can say whether the store answers. It is called on Run's goroutine.
+	Health func(err error)
 
 	// minting is held from looking at a phone's grant to storing a new one, so two turns (a join and Publish) never mint for the same phone at once.
 	minting gosync.Mutex
@@ -384,11 +386,16 @@ func (r *Relay) Run(ctx context.Context) {
 	var swept time.Time
 	for ctx.Err() == nil {
 		began := time.Now()
-		if _, err := r.Poll(ctx); err != nil && ctx.Err() == nil {
-			r.logf("relay: inbox: %v", err)
+		_, pollErr := r.Poll(ctx)
+		if pollErr != nil && ctx.Err() == nil {
+			r.logf("relay: inbox: %v", pollErr)
 		}
-		if err := r.Publish(ctx); err != nil && ctx.Err() == nil {
-			r.logf("relay: state: %v", err)
+		pubErr := r.Publish(ctx)
+		if pubErr != nil && ctx.Err() == nil {
+			r.logf("relay: state: %v", pubErr)
+		}
+		if r.Health != nil && ctx.Err() == nil {
+			r.Health(errors.Join(pollErr, pubErr))
 		}
 		if r.now().Sub(swept) >= RelaySweepEvery {
 			if err := r.Sweep(ctx); err != nil && ctx.Err() == nil {

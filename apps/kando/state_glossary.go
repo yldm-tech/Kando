@@ -1,6 +1,8 @@
 package main
 
 import (
+	"crypto/sha256"
+	"encoding/hex"
 	"errors"
 	"path/filepath"
 	"slices"
@@ -8,6 +10,7 @@ import (
 
 	"kando/apps/kando/films"
 	"kando/apps/kando/glossary"
+	"kando/apps/kando/playlist"
 	"kando/apps/kando/subscribe"
 	"kando/packages/core"
 	"kando/packages/media"
@@ -25,6 +28,8 @@ type glossaryUI struct {
 	filmGen  int
 	source   string
 	target   string
+	// episodes is the show each film's name says it is an episode of, by name (glossaryEpisodeOf).
+	episodes map[string]glossaryEpisode
 }
 
 func newGlossaryUI() glossaryUI { return glossaryUI{} }
@@ -176,6 +181,15 @@ func (a *app) LeaveSeries() {
 	job, ok := a.glossaryJob()
 	if !ok || job.Series == "" {
 		return
+	}
+	// A series the app guessed from the films' names is not offered again for this film's show once the film leaves it.
+	if strings.HasPrefix(job.Series, "name-") {
+		if e := a.glossaryEpisodeOf(job); e.ok {
+			store := a.gloss.store.Clone()
+			if store.SetNotSeries(glossary.NotSeriesKey(a.snap().LibraryDir, e.key)) && a.glossaryWrite(store) {
+				a.gloss.store = store
+			}
+		}
 	}
 	job.Series = ""
 	a.library.Upsert(job)
@@ -338,6 +352,149 @@ func (a *app) glossarySeries(sub subscribe.Sub, links []string, join bool) {
 	}
 	if join && a.gloss.store.Name(id, sub.Name) {
 		a.glossarySave()
+	}
+	if changed {
+		if err := a.library.Save(); err != nil {
+			a.saveErr = a.shelfSaveErr(err, a.messages().LibraryShelfSaveFailed)
+		}
+	}
+}
+
+// Series guessed from names: films of a library whose names say they are episodes of one show (core.EpisodeOf), none of them in a series yet, are offered as one in the open film's 术语 tab, which asks, as a name can mislead (film.Glossary's SeriesGuess). Confirmed, they join a series named after the show; turned down, the show is kept as not a series (glossary.Store.NotSeries) and not offered again.
+
+// glossaryEpisode is what core.EpisodeOf read from a name, which glossaryUI.episodes keeps by name so the guess reads each name once.
+type glossaryEpisode struct {
+	show, key string
+	ok        bool
+}
+
+// glossaryEpisodeOf is the show the film of job is an episode of, as its name says (core.EpisodeOf): its site's title, or its video's file name.
+func (a *app) glossaryEpisodeOf(job core.Job) glossaryEpisode {
+	name := strings.TrimSpace(job.Title)
+	if name == "" && job.VideoPath != "" {
+		name = strings.TrimSuffix(filepath.Base(job.VideoPath), filepath.Ext(job.VideoPath))
+	}
+	if name == "" {
+		return glossaryEpisode{}
+	}
+	if e, ok := a.gloss.episodes[name]; ok {
+		return e
+	}
+	var e glossaryEpisode
+	e.show, e.key, e.ok = core.EpisodeOf(name)
+	if a.gloss.episodes == nil {
+		a.gloss.episodes = map[string]glossaryEpisode{}
+	}
+	a.gloss.episodes[name] = e
+	return e
+}
+
+// glossaryGuess is the show the open film looks like an episode of and the jobs of its library that look like episodes of it too, the open film's first, none of them in a series; none when the open film is in one, its name marks no episode, no other film shares the show, or the user said the show is not a series.
+func (a *app) glossaryGuess() (glossaryEpisode, []core.Job) {
+	job, ok := a.glossaryJob()
+	if !ok || job.Series != "" {
+		return glossaryEpisode{}, nil
+	}
+	root := a.snap().LibraryDir
+	e := a.glossaryEpisodeOf(job)
+	if !e.ok || a.gloss.store.IsNotSeries(glossary.NotSeriesKey(root, e.key)) {
+		return glossaryEpisode{}, nil
+	}
+	jobs := []core.Job{job}
+	for _, other := range a.library.Jobs {
+		if other.ID == job.ID || other.Series != "" || other.Stage == core.StageFailed || !films.InLibrary(root, other) {
+			continue
+		}
+		if o := a.glossaryEpisodeOf(other); o.ok && o.key == e.key {
+			jobs = append(jobs, other)
+		}
+	}
+	if len(jobs) < 2 {
+		return glossaryEpisode{}, nil
+	}
+	return e, jobs
+}
+
+// SeriesGuess is the films the open film looks like it is a series with, their names in the library's order, the open film's first, and the show they look like episodes of; none when there is nothing to ask (glossaryGuess).
+func (a *app) SeriesGuess() (show string, names []string) {
+	e, jobs := a.glossaryGuess()
+	for _, job := range jobs {
+		name := strings.TrimSpace(job.Title)
+		if name == "" {
+			name = strings.TrimSuffix(filepath.Base(job.VideoPath), filepath.Ext(job.VideoPath))
+		}
+		names = append(names, name)
+	}
+	return e.show, names
+}
+
+// ConfirmSeries puts the films SeriesGuess offers in a series named after their show, which their translations share terms through from then on, and says so on the picture.
+func (a *app) ConfirmSeries() {
+	e, jobs := a.glossaryGuess()
+	if len(jobs) == 0 {
+		return
+	}
+	sum := sha256.Sum256([]byte(glossary.NotSeriesKey(a.snap().LibraryDir, e.key)))
+	id := "name-" + hex.EncodeToString(sum[:6])
+	store := a.gloss.store.Clone()
+	if store.Name(id, e.show) && !a.glossaryWrite(store) {
+		return
+	}
+	a.gloss.store = store
+	for _, job := range jobs {
+		job.Series = id
+		a.library.Upsert(job)
+	}
+	if err := a.library.Save(); err != nil {
+		a.saveErr = a.shelfSaveErr(err, a.messages().LibraryShelfSaveFailed)
+	}
+	a.flash(a.messages().GlossarySeriesConfirmed(len(jobs)))
+}
+
+// DismissSeries keeps that the show SeriesGuess offers is not a series, so it is not offered again.
+func (a *app) DismissSeries() {
+	e, jobs := a.glossaryGuess()
+	if len(jobs) == 0 {
+		return
+	}
+	store := a.gloss.store.Clone()
+	if store.SetNotSeries(glossary.NotSeriesKey(a.snap().LibraryDir, e.key)) && a.glossaryWrite(store) {
+		a.gloss.store = store
+	}
+}
+
+// glossaryPlaylistSeries puts the films of the open library whose links are videos of one of lists, a playlist with a title and more than one video, in a series named after the playlist, as its site groups them; films in a series already stay in theirs. Channels are not series.
+func (a *app) glossaryPlaylistSeries(lists []playlist.List) {
+	root := a.snap().LibraryDir
+	changed := false
+	store := a.gloss.store.Clone()
+	named := false
+	for _, list := range lists {
+		if list.Channel || strings.TrimSpace(list.Title) == "" || len(list.Videos) < 2 {
+			continue
+		}
+		sum := sha256.Sum256([]byte(queueSourceKey(list.Source)))
+		id := "list-" + hex.EncodeToString(sum[:6])
+		keys := map[string]bool{}
+		for _, v := range list.Videos {
+			keys[queueSourceKey(v.URL)] = true
+		}
+		joined := 0
+		for _, job := range a.library.Jobs {
+			if job.Series != "" || !films.InLibrary(root, job) || !keys[queueSourceKey(job.Source)] {
+				continue
+			}
+			job.Series = id
+			a.library.Upsert(job)
+			changed = true
+			joined++
+		}
+		if joined > 0 && store.Name(id, list.Title) {
+			named = true
+		}
+	}
+	if named && a.glossaryWrite(store) {
+		a.gloss.store = store
 	}
 	if changed {
 		if err := a.library.Save(); err != nil {
