@@ -70,6 +70,77 @@ func TestPhoneSyncLooksUpAndExplainsThroughTheAIServiceSet(t *testing.T) {
 	}
 }
 
+// A paired phone's explanation comes with its sections, which it heads as the side panel does; a follow-up question goes to the AI service with the line, the lines before it, what was explained and the questions asked before, never a line after it; and the part of a film watched sums up from the lines the phone sends, each item at one of them.
+func TestPhoneSyncExplainsInSectionsAnswersFollowUpsAndSumsUp(t *testing.T) {
+	a, tt, updates, dir, _ := phoneSyncApp(t)
+	phoneSyncOn(t, a, tt, updates)
+	c := phoneClient(t, a, "")
+	if _, err := phonePair(t, a, tt, updates, c, a.phone.offer.Code); err != nil {
+		t.Fatal(err)
+	}
+	h, err := phoneCall(t, a, tt, updates, c.Hello)
+	if err != nil || !slices.Contains(h.Ops, psync.OpExplainAsk) || !slices.Contains(h.Ops, psync.OpRecap) {
+		t.Fatalf("hello %+v, %v", h, err)
+	}
+	lib := phoneLibraryID(dir)
+	line := psync.LineExplain{Library: lib, Film: "yt", Index: 1, Lines: []psync.Cue{
+		{StartMS: 0, Original: "Hi.", Translation: "嗨。"}, {StartMS: 1000, Original: "Hello there", Translation: "你好"}, {StartMS: 2000, Original: "The ending.", Translation: "结局。"}}}
+
+	srv, _ := fakeLLM(t, `{"meaning":"打招呼。","breakdown":"hello · 你好","translation":"","tone":"轻松","related":""}`)
+	onEngine(a, func() {
+		a.pipeline = media.Tools{Translator: media.ChatTranslator{BaseURL: srv.URL + "/v1", APIKey: "k", Model: "m1"}}
+		a.prefs.language = "简体中文"
+	})
+	x, err := phoneCall(t, a, tt, updates, func(ctx context.Context) (psync.Explanation, error) { return c.Explain(ctx, line) })
+	want := []psync.ExplainSection{{Kind: psync.ExplainMeaning, Text: "打招呼。"}, {Kind: psync.ExplainBreakdown, Text: "hello · 你好"}, {Kind: psync.ExplainTone, Text: "轻松"}}
+	// The fake AI service listens on this computer, so the model is told the phone as running here.
+	if err != nil || !slices.Equal(x.Sections, want) || !x.Local {
+		t.Fatalf("explain %+v, %v", x, err)
+	}
+
+	srv, seen := fakeLLM(t, "因为是早上。")
+	onEngine(a, func() {
+		a.pipeline = media.Tools{Translator: media.ChatTranslator{BaseURL: srv.URL + "/v1", APIKey: "k", Model: "m2"}}
+	})
+	ans, err := phoneCall(t, a, tt, updates, func(ctx context.Context) (psync.ExplainAnswer, error) {
+		return c.Ask(ctx, psync.ExplainAsk{LineExplain: line, Explained: x.Sections, Asked: []psync.ExplainQA{{Question: "谁说的？", Answer: "主角。"}}, Question: "为什么这么说？"})
+	})
+	if err != nil || ans.Text != "因为是早上。" || ans.Model != "m2" || ans.Language != "简体中文" {
+		t.Fatalf("ask %+v, %v", ans, err)
+	}
+	sent := strings.Join(*seen, "\n")
+	for _, want := range []string{"[0:00] 嗨。 / Hi.", "要讲解的一句：[0:01] Hello there", "之前的讲解：\n打招呼。\nhello · 你好", "问：谁说的？\n答：主角。", "追问：为什么这么说？"} {
+		if !strings.Contains(sent, want) {
+			t.Fatalf("sent %q, want %q in it", sent, want)
+		}
+	}
+	if strings.Contains(sent, "The ending.") {
+		t.Fatalf("a line after the one asked about was sent: %q", sent)
+	}
+
+	srv, seen = fakeLLM(t, `{"items":[{"at":"0:00","text":"有人打招呼"},{"at":"0:09","text":"不存在的一行"},{"at":"0:01","text":"又一句问候"}]}`)
+	onEngine(a, func() {
+		a.pipeline = media.Tools{Translator: media.ChatTranslator{BaseURL: srv.URL + "/v1", APIKey: "k", Model: "m1"}}
+	})
+	r, err := phoneCall(t, a, tt, updates, func(ctx context.Context) (psync.Recap, error) {
+		return c.Recap(ctx, psync.FilmRecap{Library: lib, Film: "yt", Lines: line.Lines[:2]})
+	})
+	wantItems := []psync.RecapItem{{StartMS: 0, Text: "有人打招呼"}, {StartMS: 1000, Text: "又一句问候"}}
+	if err != nil || !slices.Equal(r.Items, wantItems) || r.Model != "m1" || r.Language != "简体中文" {
+		t.Fatalf("recap %+v, %v", r, err)
+	}
+	sent = strings.Join(*seen, "\n")
+	if !strings.Contains(sent, "影片：Rust Talk") || !strings.Contains(sent, "[0:01] 你好 / Hello there") || strings.Contains(sent, "The ending.") {
+		t.Fatalf("the recap sent %q", sent)
+	}
+
+	onEngine(a, func() { a.pipeline = media.Tools{} })
+	_, err = phoneCall(t, a, tt, updates, func(ctx context.Context) (psync.Recap, error) {
+		return c.Recap(ctx, psync.FilmRecap{Library: lib, Film: "yt", Lines: line.Lines[:2]})
+	})
+	phoneWantCode(t, err, http.StatusConflict, psync.CodeNoAI)
+}
+
 // A word looked up on the picture answers the phone's lookup of it from the same cache, for a film whose speech language the user named over the one heard and whose subtitles are in its own language: the phone's query is the picture's (vocabQuery), and the AI service is not asked.
 func TestPhoneSyncLookUpSharesThePicturesCache(t *testing.T) {
 	a, tt, updates, dir, _ := phoneSyncApp(t)
