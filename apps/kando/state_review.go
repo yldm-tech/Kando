@@ -37,13 +37,13 @@ func (a *app) reviewFollow() bool {
 		path = subs.path
 	}
 	r := &a.review
+	dropped := false
 	if path != r.path {
-		held := len(r.proofs) > 0 || r.view
+		dropped = len(r.proofs) > 0 || r.view
 		*r = reviewUI{path: path, gen: r.gen + 1}
-		return held
 	}
 	if path == "" || !subs.ready || subs.err != "" || r.read && subs.mod.Equal(r.mod) {
-		return false
+		return dropped
 	}
 	r.mod, r.read = subs.mod, true
 	r.gen++
@@ -57,7 +57,7 @@ func (a *app) reviewFollow() bool {
 			a.review.proofs, a.review.ok = proofs, err == nil
 		})
 	}()
-	return false
+	return dropped
 }
 
 // Proofs is the open film's changes, each marked Mine when the user corrected its line's translation, which the change then no longer touches.
