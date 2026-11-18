@@ -350,18 +350,18 @@ func (d *Desk) Forget(device string) {
 	delete(d.replies, device)
 }
 
-// maxCall is the most bytes a Call may take.
-const maxCall = 64 << 10
+// MaxCall is the most bytes a Call may take; a device sends what is more in several calls.
+const MaxCall = 64 << 10
 
 // HandleCall answers a Call POSTed to PathCall on the local network from caller, a device the transport has let in: the Reply, with status 200 for a result and StatusOf its code for an error.
 func HandleCall(w http.ResponseWriter, r *http.Request, d *Desk, caller Caller) {
 	var call Call
-	data, err := io.ReadAll(io.LimitReader(r.Body, maxCall+1))
+	data, err := io.ReadAll(io.LimitReader(r.Body, MaxCall+1))
 	var reply Reply
 	switch {
 	case err != nil:
 		reply = Reply{Error: &ErrorBody{Code: CodeInvalid, Message: "the call could not be read"}}
-	case len(data) > maxCall:
+	case len(data) > MaxCall:
 		reply = Reply{Error: &ErrorBody{Code: CodeInvalid, Message: "the call is too long"}}
 	case json.Unmarshal(data, &call) != nil:
 		reply = Reply{Error: &ErrorBody{Code: CodeInvalid, Message: "the request is not a call"}}

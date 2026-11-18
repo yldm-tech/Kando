@@ -53,6 +53,10 @@ type Desktop struct {
 	queue queue
 	// ledgers are the libraries' learning state, by library ID (state.go).
 	ledgers map[string]*sync.Ledger
+	// refuse, putHeld and puts are how the learning state's puts are answered and how many were (state.go).
+	refuse  func(sync.Record) bool
+	putHeld chan struct{}
+	puts    int
 	// study is the lookups and explanations (study.go).
 	study   study
 	desk    *sync.Desk

@@ -10,13 +10,53 @@ import (
 	"kando/packages/sync"
 )
 
-// Library is a library's learning state on the phone: the records as the computer last answered them, at revision Rev of epoch Epoch, its open conflicts, and Pending, the phone's changes not yet taken by the computer, newest last.
+// Library is a library's learning state on the phone: the records as the computer last answered them, at revision Rev of epoch Epoch, its open conflicts, Pending, the phone's changes not yet taken by the computer, newest last, and Sent, those of them handed to the computer at least once, which it may have taken though it did not answer.
 type Library struct {
 	Epoch     string          `json:"epoch"`
 	Rev       int64           `json:"rev"`
 	Records   []sync.Record   `json:"records"`
 	Conflicts []sync.Conflict `json:"conflicts"`
 	Pending   []sync.Record   `json:"pending"`
+	Sent      []Ref           `json:"sent,omitempty"`
+}
+
+// Ref names a record by its kind and ID.
+type Ref struct {
+	Kind string `json:"kind"`
+	ID   string `json:"id"`
+}
+
+// Sending is l once sent, pending changes, are handed to the computer: from then on it may have them, so taking one back has to tell it (Change).
+func Sending(l Library, sent []sync.Record) Library {
+	out := l
+	out.Sent = slices.Clone(l.Sent)
+	for _, r := range sent {
+		if ref := (Ref{r.Kind, r.ID}); !slices.Contains(out.Sent, ref) {
+			out.Sent = append(out.Sent, ref)
+		}
+	}
+	return out
+}
+
+// Batches are records cut, in order, into puts the computer takes: each at most limit bytes of records, but for a record longer than that, which goes alone.
+func Batches(records []sync.Record, limit int) [][]sync.Record {
+	var out [][]sync.Record
+	var cur []sync.Record
+	size := 0
+	for _, r := range records {
+		data, _ := json.Marshal(r)
+		n := len(data) + 1
+		if len(cur) > 0 && size+n > limit {
+			out = append(out, cur)
+			cur, size = nil, 0
+		}
+		cur = append(cur, r)
+		size += n
+	}
+	if len(cur) > 0 {
+		out = append(out, cur)
+	}
+	return out
 }
 
 // Line is a saved line of a film, as the player shows it.
@@ -82,13 +122,14 @@ func Apply(l Library, ch sync.StateChanges) Library {
 	return out
 }
 
-// Took is l once the computer took sent, the pending changes the phone put, answering res: its records as merged in place of l's, its conflicts among l's, and the changes sent no longer pending, but for those changed again meanwhile, which go with the next put. A put the computer refused for good, as one of a film it no longer serves (rejected), drops sent as well, as it would refuse them again.
+// Took is l once the computer took sent, the pending changes the phone put, answering res: its records as merged in place of l's, its conflicts among l's, and the changes sent no longer pending, but for those changed again meanwhile, which go with the next put. A put the computer refused for good, as one of a film it no longer serves (rejected), drops sent as well, as it would refuse them again; the session puts a refused batch again a record at a time, so only the records refused are dropped.
 func Took(l Library, sent []sync.Record, res sync.StatePutResult, rejected bool) Library {
 	out := l
 	out.Pending = slices.DeleteFunc(slices.Clone(l.Pending), func(p sync.Record) bool {
 		i := find(sent, p.Kind, p.ID)
 		return i >= 0 && same(sent[i], p)
 	})
+	out.Sent = slices.DeleteFunc(slices.Clone(l.Sent), func(ref Ref) bool { return find(out.Pending, ref.Kind, ref.ID) < 0 })
 	if rejected {
 		return out
 	}
@@ -122,7 +163,7 @@ func upsert(records []sync.Record, r sync.Record) []sync.Record {
 	return append(records, clone(r))
 }
 
-// Change is l with change pending: merged into the change of the same record not yet sent, its fields over that one's, its tombstone over everything; a tombstone of a record the computer never had takes back the change that made it.
+// Change is l with change pending: merged into the change of the same record not yet taken, its fields over that one's, its tombstone over everything; a tombstone of a record the computer never had, nor was ever handed (Sending), takes back the change that made it.
 func Change(l Library, change sync.Record) Library {
 	out := l
 	out.Pending = slices.Clone(l.Pending)
@@ -132,8 +173,8 @@ func Change(l Library, change sync.Record) Library {
 		return out
 	}
 	p := clone(out.Pending[i])
-	if change.Removed != nil && find(l.Records, change.Kind, change.ID) < 0 {
-		// A record the computer was never told of goes without a word.
+	if change.Removed != nil && find(l.Records, change.Kind, change.ID) < 0 && !slices.Contains(l.Sent, Ref{change.Kind, change.ID}) {
+		// A record the computer was never told of goes without a word; one it was handed may be there though it did not answer, so the tombstone goes to it.
 		out.Pending = slices.Delete(out.Pending, i, i+1)
 		return out
 	}

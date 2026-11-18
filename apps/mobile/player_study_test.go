@@ -2,12 +2,14 @@ package main
 
 import (
 	"encoding/json"
+	"fmt"
 	"slices"
 	"strings"
 	"testing"
 	"time"
 
 	"kando/apps/mobile/store"
+	"kando/apps/mobile/study"
 	"kando/packages/sync"
 	"kando/packages/sync/synctest"
 
@@ -27,7 +29,12 @@ func studyPlayer(t *testing.T, d *synctest.Desktop) (*phone, store.Film) {
 // openStudy opens the talk in the player as studyPlayer does, once its library is known, without reporting the video's playing, which only headless tests can: on a target its card shows the first line.
 func openStudy(t *testing.T, d *synctest.Desktop) (*phone, store.Film) {
 	t.Helper()
-	dir := t.TempDir()
+	return openStudyIn(t, d, t.TempDir())
+}
+
+// openStudyIn is openStudy with the phone's data in dir, which may hold what the phone kept before.
+func openStudyIn(t *testing.T, d *synctest.Desktop, dir string) (*phone, store.Film) {
+	t.Helper()
 	f := keepTalkFrom(t, dir, store.DesktopID(d.Fingerprint))
 	p := startPhone(t, dir, pairedWith(t, d, dir))
 	p.app.WaitFor("id:downloads-film-f1", wait)
@@ -327,5 +334,64 @@ func TestOnATabletThePanelSitsBeside(t *testing.T) {
 	pane := p.app.Find("id:player-lines-pane").Frame
 	if pane.Size.Width != 380 || !p.app.Exists("id:player-tabs") || !p.app.Exists("id:player-card") {
 		t.Fatalf("the pane is %+v", pane)
+	}
+}
+
+// A line taken back while its save is still on its way to the computer is taken back there too, once the computer has it, and stays taken back on the phone.
+func TestALineTakenBackWhileItsSaveIsSentIsGoneOnTheComputer(t *testing.T) {
+	d := newDesktop(t)
+	p, _ := studyPlayer(t, d)
+	release := d.HoldPuts()
+	p.app.Press("id:player-save")
+	p.app.WaitUntil(wait, func() bool { return p.app.Exists("id:player-line-saved") })
+	p.app.Press("id:player-save")
+	p.app.WaitUntil(wait, func() bool { return !p.app.Exists("id:player-line-saved") })
+	release()
+	p.app.WaitUntil(wait, func() bool {
+		lines := d.Records("lib", sync.KindLine)
+		return len(lines) == 1 && lines[0].Removed != nil
+	})
+	p.app.WaitUntil(wait, func() bool {
+		l, _ := store.Open(p.dir).Learning(store.DesktopID(d.Fingerprint), "lib")
+		return len(l.Pending) == 0 && len(l.Records) == 1
+	})
+	if p.app.Exists("id:player-line-saved") {
+		t.Fatal("the line taken back shows saved again")
+	}
+}
+
+// Lines saved away from the computer, more than one call carries, all reach it once it can be reached, but for the one of a film it no longer has, which it refuses and the phone drops alone.
+func TestManyLinesSavedAwayAllReachTheComputerButThoseItRefuses(t *testing.T) {
+	d := newDesktop(t)
+	d.RefuseState(func(r sync.Record) bool { return r.Film == "gone" })
+	dir := t.TempDir()
+	desktop := store.DesktopID(d.Fingerprint)
+	var l study.Library
+	long := strings.Repeat("a long line of the film, ", 40)
+	const saved = 100
+	for i := range saved {
+		c := study.Cue{Start: time.Duration(i) * sec, End: time.Duration(i)*sec + 500*time.Millisecond, Original: long, Translation: long}
+		l = study.Change(l, study.Save(fmt.Sprintf("away%03d", i), "f1", "Morning Talk", c, "", now()))
+		if i == saved/2 {
+			l = study.Change(l, study.Save("gone1", "gone", "Gone", c, "", now()))
+		}
+	}
+	if data, _ := json.Marshal(l.Pending); len(data) <= sync.MaxCall {
+		t.Fatalf("the lines saved away take %d bytes, which one call carries", len(data))
+	}
+	if err := store.Open(dir).SaveLearning(desktop, "lib", l); err != nil {
+		t.Fatal(err)
+	}
+	p, _ := openStudyIn(t, d, dir)
+	p.app.WaitUntil(wait, func() bool {
+		l, _ := store.Open(dir).Learning(desktop, "lib")
+		return len(l.Pending) == 0 && len(l.Records) == saved
+	})
+	lines := d.Records("lib", sync.KindLine)
+	if len(lines) != saved || slices.ContainsFunc(lines, func(r sync.Record) bool { return r.Film == "gone" }) {
+		t.Fatalf("the computer has %d lines", len(lines))
+	}
+	if d.Puts() < 3 {
+		t.Fatalf("the lines went in %d puts", d.Puts())
 	}
 }

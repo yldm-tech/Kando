@@ -204,7 +204,17 @@ func (s *Session) SetNote(key string, c study.Cue, note string) {
 	s.changeStudy(f, study.Save(sync.NewCallID(), f.Film.ID, f.Film.Title, c, note, s.cfg.Now()))
 }
 
-// syncStudy sends library lib of desktop's pending changes and takes in the desktop's since the revision the phone has, on a goroutine of its own, one sync of a library at a time. A desktop out of reach leaves the changes pending for the next sync; one that refuses them for good, as changes of a film it no longer serves, has them dropped.
+// putBudget is how many bytes of records a put of the learning state carries at most, below sync.MaxCall by room for the call around them.
+const putBudget = sync.MaxCall - 4<<10
+
+// studyPut is a put of the learning state as the desktop answered it: the records sent, what it answered, and whether it refused them for good.
+type studyPut struct {
+	sent     []sync.Record
+	res      sync.StatePutResult
+	rejected bool
+}
+
+// syncStudy sends library lib of desktop's pending changes and takes in the desktop's since the revision the phone has, on a goroutine of its own, one sync of a library at a time. The changes go in puts the desktop takes (study.Batches); a put it refuses for good, as one with a change of a film it no longer serves, is put again a change at a time, so only the changes it refuses are dropped. A desktop out of reach leaves the changes not taken pending for the next sync.
 func (s *Session) syncStudy(desktop, lib string) {
 	k := studyKey(desktop, lib)
 	if run, ok := s.studyRuns[k]; ok {
@@ -219,29 +229,28 @@ func (s *Session) syncStudy(desktop, lib string) {
 	s.studyRuns[k] = run
 	l := s.studies.GetUntracked()[k]
 	sent := slices.Clone(l.Pending)
+	if len(sent) > 0 {
+		// From here the desktop may have them, though it does not answer.
+		l = study.Sending(l, sent)
+		s.setStudy(desktop, lib, l)
+	}
 	s.work.Go(func() {
 		ctx, cancel := context.WithTimeout(s.ctx, studyTimeout)
 		defer cancel()
-		var res sync.StatePutResult
-		var putErr, getErr error
-		rejected := false
-		if len(sent) > 0 {
-			res, putErr = c.PutState(ctx, lib, sent)
-			var e *sync.Error
-			rejected = errors.As(putErr, &e) && e.Code == sync.CodeInvalid
-		}
+		puts, reached := putStudy(ctx, c, lib, sent)
 		var ch sync.StateChanges
-		if putErr == nil || rejected {
+		var getErr error
+		if reached {
 			ch, getErr = c.State(ctx, lib, l.Epoch, l.Rev)
 		}
 		s.cx.Post(func() {
 			delete(s.studyRuns, k)
 			cur := s.studies.GetUntracked()[k]
 			changed := false
-			if len(sent) > 0 && (putErr == nil || rejected) {
-				cur, changed = study.Took(cur, sent, res, rejected), true
+			for _, p := range puts {
+				cur, changed = study.Took(cur, p.sent, p.res, p.rejected), true
 			}
-			if (putErr == nil || rejected) && getErr == nil {
+			if reached && getErr == nil {
 				cur, changed = study.Apply(cur, ch), true
 			}
 			if changed {
@@ -252,6 +261,47 @@ func (s *Session) syncStudy(desktop, lib string) {
 			}
 		})
 	})
+}
+
+// putStudy puts records into library lib through c in batches the desktop takes, a batch it refuses (sync.CodeInvalid) again a record at a time, and reports the puts it answered, and whether it answered them all; it stops at the first it does not.
+func putStudy(ctx context.Context, c *sync.Client, lib string, records []sync.Record) ([]studyPut, bool) {
+	var out []studyPut
+	put := func(batch []sync.Record) (refused, ok bool) {
+		res, err := c.PutState(ctx, lib, batch)
+		var e *sync.Error
+		switch {
+		case err == nil:
+			out = append(out, studyPut{sent: batch, res: res})
+			return false, true
+		case errors.As(err, &e) && e.Code == sync.CodeInvalid:
+			return true, true
+		}
+		return false, false
+	}
+	for _, batch := range study.Batches(records, putBudget) {
+		refused, ok := put(batch)
+		if !ok {
+			return out, false
+		}
+		if !refused {
+			continue
+		}
+		if len(batch) == 1 {
+			out = append(out, studyPut{sent: batch, rejected: true})
+			continue
+		}
+		for _, r := range batch {
+			one := []sync.Record{r}
+			refused, ok := put(one)
+			if !ok {
+				return out, false
+			}
+			if refused {
+				out = append(out, studyPut{sent: one, rejected: true})
+			}
+		}
+	}
+	return out, true
 }
 
 // StudyProblem is why a lookup or an explanation failed, as the player tells it.
