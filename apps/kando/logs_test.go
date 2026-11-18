@@ -22,7 +22,7 @@ func logsAt(t *testing.T, a *app) string {
 	t.Helper()
 	dir := filepath.Join(t.TempDir(), "Library", "Logs", "Kando")
 	was, out, flags := logsDir, log.Writer(), log.Flags()
-	logsDir = func() (string, error) { return dir, nil }
+	logsDir = func(*ns.Scope) (string, error) { return dir, nil }
 	t.Cleanup(func() {
 		a.logsClose()
 		logsDir = was
@@ -79,7 +79,7 @@ func TestNoLogFileWhereTheFolderCannotBeMade(t *testing.T) {
 		t.Fatal(err)
 	}
 	was := logsDir
-	logsDir = func() (string, error) { return filepath.Join(blocker, "Logs"), nil }
+	logsDir = func(*ns.Scope) (string, error) { return filepath.Join(blocker, "Logs"), nil }
 	t.Cleanup(func() { logsDir = was })
 	a.logsOpen()
 	if a.logs.file != nil {
@@ -237,5 +237,14 @@ func TestFailedJobLogHasNoSecrets(t *testing.T) {
 		if strings.Contains(got, secret) {
 			t.Fatalf("log keeps %q:\n%s", secret, got)
 		}
+	}
+}
+
+// TestLogsGoWhereThePlatformKeepsThem checks that the log file's folder is the one NSGo names for the app's logs.
+func TestLogsGoWhereThePlatformKeepsThem(t *testing.T) {
+	a, _, _ := newTestApp(t, &fakePipeline{})
+	dir, err := logsDir(a.cx)
+	if err != nil || dir == "" || dir != a.cx.LogsDir() {
+		t.Fatalf("logs go in %q (%v), want %q", dir, err, a.cx.LogsDir())
 	}
 }

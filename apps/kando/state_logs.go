@@ -1,6 +1,7 @@
 package main
 
 import (
+	"errors"
 	"log"
 	"os"
 	"path/filepath"
@@ -23,15 +24,13 @@ type logsUI struct {
 
 func newLogsUI() logsUI { return logsUI{} }
 
-// logsDir is the folder the log file goes in: the system's place for the app's logs, ~/Library/Logs/Kando on macOS, and a logs folder in Kando's folder of the user's configuration elsewhere, as MyGo's PathLogs put it, so the log stays where it was. feedback.OpenLogFile makes the folder. Tests point it at a folder of their own.
-var logsDir = func() (string, error) {
-	// TODO(nsgo#209): ask NSGo for the platform's folder for the app's logs (a Scope.LogsDir) instead of working it out here https://github.com/nsgo-dev/nsgo/issues/209
-	if runtime.GOOS == "darwin" {
-		home, err := os.UserHomeDir()
-		return filepath.Join(home, "Library", "Logs", "Kando"), err
+// logsDir is the folder the log file goes in: the system's place for the app's logs, which NSGo names under cx, the app's scope (core.Scope.LogsDir): ~/Library/Logs/ai.yldm.kando on macOS, the Logs folder of Kando's local app data on Windows and Kando's folder of the user's state on Linux. feedback.OpenLogFile makes the folder. Tests point it at a folder of their own.
+var logsDir = func(cx *ns.Scope) (string, error) {
+	dir := cx.LogsDir()
+	if dir == "" {
+		return "", errors.New("the platform has no folder for logs")
 	}
-	dir, err := os.UserConfigDir()
-	return filepath.Join(dir, "Kando", "logs"), err
+	return dir, nil
 }
 
 // logsReveal shows a file in Finder or the file manager, under cx, the app's scope. A reveal no app answered is logged, as the menu's row has nowhere else to say so. Tests replace it.
@@ -65,7 +64,7 @@ func (a *app) logsOpen() {
 	if a.logs.file != nil {
 		return
 	}
-	dir, err := logsDir()
+	dir, err := logsDir(a.cx)
 	if err != nil {
 		log.Printf("logs: no folder for the log file: %v", err)
 		return
