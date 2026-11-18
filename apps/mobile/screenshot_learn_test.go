@@ -9,6 +9,9 @@ import (
 
 	"kando/apps/mobile/store"
 	"kando/packages/study"
+
+	"github.com/nsgo-dev/nsgo/core"
+	"github.com/nsgo-dev/nsgo/nsgotest"
 )
 
 // watchedFor keeps, in the phone's data folder dir, minutes of films played on each of the last days, the earliest first, today last.
@@ -111,4 +114,55 @@ func TestScreenshotsRevoked(t *testing.T) {
 	p := startPhone(t, dir, secrets)
 	p.app.WaitFor("id:revoked-page", wait)
 	shot(p, "revoked")
+}
+
+func TestScreenshotsExport(t *testing.T) {
+	shot := screenshots(t)
+	d := studyDesktop(t)
+	dir := t.TempDir()
+	p := startPhone(t, dir, pairedWith(t, d, dir))
+	p.waitLearned(store.DesktopID(d.Fingerprint))
+	p.app.WaitFor("id:tab-bar", wait)
+	p.openTab(learnTab, msgs.LearnTitle())
+	p.app.WaitFor("id:learn-export", wait)
+	p.app.Press("id:learn-export")
+	p.app.WaitUntil(wait, func() bool { return p.texts("id:export-count") == msgs.ExportCount(2, 1) })
+	shot(p, "export")
+}
+
+func TestScreenshotsDictation(t *testing.T) {
+	shot := screenshots(t)
+	d := studyDesktop(t)
+	dir, f := keptFrom(t, d)
+	p := startPhone(t, dir, pairedWith(t, d, dir), nsgotest.Environment(core.Environment{Locale: lang, Audio: true}))
+	p.app.AudioDurations = map[string]time.Duration{filepath.Join(store.Open(dir).FilmDir(f.Desktop, f.Film.ID), f.Video): 10 * time.Second}
+	p.waitLearned(f.Desktop)
+	p.app.WaitFor("id:tab-bar", wait)
+	p.openTab(learnTab, msgs.LearnTitle())
+	p.app.WaitFor("id:learn-review-start", wait)
+	p.app.Press("id:learn-review-dictation")
+	p.app.Press("id:learn-review-start")
+	p.app.WaitFor("id:dictation-card", wait)
+	shot(p, "dictation")
+	p.app.Type("id:dictation-input", "おはよう")
+	p.app.Press("id:review-show")
+	p.app.WaitFor("id:dictation-result", wait)
+	shot(p, "dictation-checked")
+}
+
+func TestScreenshotsComputer(t *testing.T) {
+	shot := screenshots(t)
+	d := newDesktop(t)
+	d.SetService("OpenAI", "gpt-4.1-mini")
+	dir := t.TempDir()
+	p := startPhone(t, dir, pairedWith(t, d, dir))
+	id := store.DesktopID(d.Fingerprint)
+	p.waitLearned(id)
+	p.app.WaitFor("id:tab-bar", wait)
+	p.openTab(settingsTab, msgs.SettingsTitle())
+	p.app.Press("id:settings-computer-" + id)
+	p.app.WaitUntil(wait, func() bool {
+		return p.texts("id:computer-service") == msgs.ComputerService()+"\nOpenAI · gpt-4.1-mini"
+	})
+	shot(p, "computer")
 }
