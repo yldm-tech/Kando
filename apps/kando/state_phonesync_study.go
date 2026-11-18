@@ -127,4 +127,3 @@ func (s phoneStudy) Explain(ctx context.Context, _ psync.Caller, req psync.LineE
 	text, _ := paletteParseReply(reply, around)
 	return psync.Explanation{Text: text, Language: ask.language, Model: strings.TrimSpace(ask.t.Model)}, nil
 }
-
