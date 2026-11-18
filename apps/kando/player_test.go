@@ -2692,3 +2692,26 @@ func TestSubtitlesInTheDefaultFaceKeepTheSystemsFont(t *testing.T) {
 		}
 	}
 }
+
+// TestPlayerFollowsTheMainWindowsLifecycle checks that the player hears that the main window went out of sight from the main window's own lifecycle, and that it shows again.
+func TestPlayerFollowsTheMainWindowsLifecycle(t *testing.T) {
+	a, tt, _ := newTestApp(t, &fakePipeline{})
+	a.playerAwakeLifecycle()
+	refresh(tt, a)
+	if a.player.windowAway {
+		t.Fatal("the player thinks the window is away while it shows")
+	}
+	env := testEnvironment()
+	env.Lifecycle = ns.LifecycleBackground
+	tt.SetEnvironment(env)
+	refresh(tt, a)
+	if !a.player.windowAway {
+		t.Fatal("the player did not hear that the main window went out of sight")
+	}
+	env.Lifecycle = ns.LifecycleActive
+	tt.SetEnvironment(env)
+	refresh(tt, a)
+	if a.player.windowAway {
+		t.Fatal("the player did not hear that the main window shows again")
+	}
+}
