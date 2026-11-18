@@ -172,7 +172,8 @@ func (v View) Render(cx *core.Scope) core.Node {
 		// TODO(nsgo#145): give base.Dialog (and ui.Dialog) a LabelFunc twin, so the sheet's accessible name follows the interface language as it changes; it is read once as the sheet opens, and a Dynamic would build the sheet again and take the link field's focus with it https://github.com/nsgo-dev/nsgo/issues/145
 		Label: locales.OnboardingWelcome(cx),
 		// TODO(nsgo#347): give ui.Dialog a StyleFunc twin, so a bare dialog's own face and rim can follow the appearance; its Style is merged as it is, so the dialog's face and rim are left clear here and the sheet inside draws them (sheet) https://github.com/nsgo-dev/nsgo/issues/347
-		Style: core.Style{Width: core.Pt(sheetWidth), Height: core.Pt(sheetHeight), CornerRadius: 16, Background: transparent,
+		// Its corners are the platform's dialogs' in the design (theme.RadiiOf): 20 on macOS, 8 on Windows, 12 on Linux.
+		Style: core.Style{Width: core.Pt(sheetWidth), Height: core.Pt(sheetHeight), CornerRadius: theme.RadiiOf(cx).Dialog, Background: transparent,
 			BorderWidth: 0.5, BorderColor: transparent,
 			Shadows: []core.BoxShadow{{Offset: core.Point{Y: 24}, Blur: 70, Color: core.RGBA(0x000000, 0.35)}}},
 		Children: []core.Node{sheet{a}},
@@ -195,7 +196,7 @@ func (s sheet) Render(cx *core.Scope) core.Node {
 	})
 	k := theme.Of(cx)
 	// The rim is a ring inside the edge, over the art too, as the dialog's border was.
-	rim := core.View{PointerEvents: core.PointerEventsNone, Style: core.Style{Position: core.Absolute, Top: core.Pt(0), Right: core.Pt(0), Bottom: core.Pt(0), Left: core.Pt(0), CornerRadius: ui.RadiusDialog - 1},
+	rim := core.View{PointerEvents: core.PointerEventsNone, Style: core.Style{Position: core.Absolute, Top: core.Pt(0), Right: core.Pt(0), Bottom: core.Pt(0), Left: core.Pt(0), CornerRadius: theme.RadiiOf(cx).Dialog - 1},
 		StyleFunc: func() core.Style {
 			return core.Style{Shadows: []core.BoxShadow{{Spread: 0.5, Color: k.Shade(0.22), Inset: true}}}
 		}}

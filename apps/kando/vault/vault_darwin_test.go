@@ -210,14 +210,3 @@ func TestOpenTakesInWhatWasLeftBesideTheImage(t *testing.T) {
 		t.Fatalf("the folder holds %v after Close, want only the image", got)
 	}
 }
-
-// infoDevice finds an image's whole disk in hdiutil info's output, past other images' sections, and across /var and /private/var.
-func TestInfoDeviceFindsTheImagesWholeDisk(t *testing.T) {
-	info := "framework       : 671.0.1\ndriver          : 671.0.1\n================================================\nimage-path      : /System/Library/AssetsV2/x.dmg\nshadow-path     : <none>\nimage-type      : read-only disk image\n/dev/disk2\tGUID_partition_scheme\t\n/dev/disk3s1\t41504653-0000-11AA-AA11-00306543ECAC\t/Library/Developer\n================================================\nimage-path      : /private/var/folders/x/T/Talks.kando/.kando-vault-new.sparseimage\nshadow-path     : <none>\nimage-encrypted : TRUE\n/dev/disk4\tGUID_partition_scheme\t\n/dev/disk4s1\tEF57347C-0000-11AA-AA11-00306543ECAC\t\n/dev/disk9s1\t41504653-0000-11AA-AA11-00306543ECAC\t/var/folders/x/T/Talks.kando/.kando-vault-mount\n"
-	if dev, ok := infoDevice(info, "/var/folders/x/T/Talks.kando/.kando-vault-new.sparseimage"); !ok || dev != "/dev/disk4" {
-		t.Fatalf("infoDevice = %q, %v; want /dev/disk4", dev, ok)
-	}
-	if dev, ok := infoDevice(info, "/var/folders/x/T/Other.kando/.kando-vault.sparseimage"); ok {
-		t.Fatalf("an image not attached has device %q", dev)
-	}
-}

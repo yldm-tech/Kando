@@ -26,3 +26,20 @@ func Apply(cx *core.Scope) { cx.SetTheme(Kando()) }
 
 // Dark shows cx and everything it builds in the dark palette, whatever the system's appearance: the player calls it at its root.
 func Dark(cx *core.Scope) { cx.SetSubtreeAppearance(core.AppearanceDark) }
+
+// The design's fixed colors, the desktop app's too (kando/apps/kando/theme tokens.go): the same in both appearances, because each is drawn on a picture, on the dark player or as a mark whose meaning is its color. A change here goes there too.
+var (
+	// The source marks: YouTube's, Bilibili's, another web page's and a file's on the computer.
+	SourceYouTube  = core.RGB(0xE62117)
+	SourceBilibili = core.RGB(0x00A1D6)
+	SourceOther    = core.RGB(0x5E5CE6)
+	SourceLocal    = core.RGB(0x8E8E93)
+	// SubtitleYellow is the original line's color under the translation.
+	SubtitleYellow = core.RGB(0xFFD60A)
+	// AI is the accent of what an AI service does.
+	AI = core.RGB(0x5E5CE6)
+	// The status dots: ready or done, something missing or waiting, failed.
+	StatusOK     = core.RGB(0x30D158)
+	StatusWarn   = core.RGB(0xFF9F0A)
+	StatusFailed = core.RGB(0xFF453A)
+)

@@ -313,3 +313,24 @@ func TestWindowMenuBringsTheWindowBack(t *testing.T) {
 		t.Fatalf("片库 showed page %q open %q", a.page, a.openKey)
 	}
 }
+
+// The main window's text is in the design's font of the platform it runs on, in the interface's language, which a dialog drawn over the window takes too: the system's on macOS, Segoe UI Variable on Windows and Cantarell on Linux.
+func TestWindowTextIsInThePlatformsFont(t *testing.T) {
+	if nsgotest.Target() != "" {
+		t.Skip("a target runs on its own system, which the environment does not change")
+	}
+	for _, os := range []ns.OS{ns.OSMacOS, ns.OSWindows, ns.OSLinux} {
+		env := testEnvironment()
+		env.OS, env.AppleKeyboard = os, os == ns.OSMacOS
+		a, tt, _ := newTestApp(t, &fakePipeline{}, nsgotest.Environment(env))
+		want := theme.FontFor(os, testlocale.Current())
+		if got := tt.Find("id:sidebar-status").TextStyle.Font.Family; got != want {
+			t.Errorf("%v: the sidebar's text in %q, want %q", os, got, want)
+		}
+		a.BeginNew()
+		refresh(tt, a)
+		if got := tt.Find("id:newlib-create >> text").TextStyle.Font.Family; got != want {
+			t.Errorf("%v: the new-library dialog's text in %q, want %q", os, got, want)
+		}
+	}
+}

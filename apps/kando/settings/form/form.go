@@ -11,7 +11,7 @@ import (
 )
 
 // OK is a status dot of a tool found or a connection that works, the same green in both appearances. The other colors are the theme's: ui.ColorsOf's text and muted text, and theme.Of's card, hairline, inks and idle dot, which follow the window's appearance.
-var OK = core.RGB(0x30D158)
+var OK = theme.StatusOK
 
 // Page is the column a category's page is built in: the content's width, its blocks 6 points apart.
 func Page(children ...core.Node) core.Node {

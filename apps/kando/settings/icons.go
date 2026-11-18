@@ -4,7 +4,7 @@ package settings
 //
 // ISC License. Copyright (c) 2026 Lucide Icons and Contributors. Permission to use, copy, modify, and/or distribute this software for any purpose with or without fee is hereby granted, provided that the above copyright notice and this permission notice appear in all copies. THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 //
-// The category tiles (iconGeneral to iconAccount) are the prototype's settings sidebar tiles: its colors, and its glyphs on a 22-point grid. iconPhone, which the prototype has no tile for, is drawn the same way.
+// The category tiles (iconGeneral to iconAccount) are the prototype's settings sidebar tiles: its colors, and its glyphs on a 22-point grid. iconPhone is the design's 手机 tile, in its indigo.
 
 import "github.com/nsgo-dev/nsgo/core"
 
@@ -31,5 +31,5 @@ var (
 	iconLook      = tile("#30B0C7", "1.5", `<rect x="2.5" y="4" width="17" height="14" rx="3.5"/><path d="M6 13h4M12 13h4M6 9.5h10"/>`)
 	iconShortcuts = tile("#636366", "1.5", `<rect x="2" y="5.5" width="18" height="11" rx="2.5"/><path d="M5.5 9h1M9 9h1M12.5 9h1M16 9h.5M7 13h8"/>`)
 	iconAccount   = tile("#34C759", "1.5", `<circle cx="11" cy="11" r="8.5"/><circle cx="11" cy="9" r="3"/><path d="M5.5 17.3c1.3-2 3.2-3 5.5-3s4.2 1 5.5 3"/>`)
-	iconPhone     = tile("#FF9F0A", "1.5", `<rect x="6" y="2" width="10" height="18" rx="2.5"/><path d="M9.5 16.5h3"/>`)
+	iconPhone     = tile("#5E5CE6", "1.5", `<rect x="6" y="2" width="10" height="18" rx="2.5"/><path d="M9.5 16.5h3"/>`)
 )

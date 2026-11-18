@@ -210,9 +210,9 @@ func linkChip(m locales.Messages, raw string) (label string, color ns.Color, ok 
 	}
 	switch link.Platform {
 	case core.PlatformYouTube:
-		color = ns.RGB(0xE62117)
+		color = theme.SourceYouTube
 	case core.PlatformBilibili:
-		color = ns.RGB(0x00A1D6)
+		color = theme.SourceBilibili
 	default:
 		color = ns.RGB(0x6A6A70)
 	}

@@ -149,17 +149,12 @@ func (a *app) lockVaultQuit() {
 		dirs = addLibrary(dirs, dir)
 	}
 	for _, dir := range dirs {
-		// The gentle try has its time, and the forced one a time of its own, so a gentle try that used all of its time still leaves the image detached.
-		ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
-		err := vault.Close(ctx, dir, false)
-		cancel()
-		if err == nil {
-			continue
-		}
-		log.Printf("lock: closing the encrypted library %s as Kando quits: %v; closing it anyway", filepath.Base(dir), err)
-		ctx, cancel = context.WithTimeout(context.Background(), 30*time.Second)
-		if err := vault.Close(ctx, dir, true); err != nil {
-			log.Printf("lock: could not close the encrypted library %s: %v", filepath.Base(dir), err)
+		ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+		if err := vault.Close(ctx, dir, false); err != nil {
+			log.Printf("lock: closing the encrypted library %s as Kando quits: %v; closing it anyway", filepath.Base(dir), err)
+			if err := vault.Close(ctx, dir, true); err != nil {
+				log.Printf("lock: could not close the encrypted library %s: %v", filepath.Base(dir), err)
+			}
 		}
 		cancel()
 	}
