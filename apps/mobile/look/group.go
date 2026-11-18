@@ -33,3 +33,9 @@ func IconTile(cx *core.Scope, icon func() *core.SVG, tone Tone) core.Node {
 		StyleFunc: ui.Filled(fill),
 		Children:  []core.Node{ui.IconOf(icon, 17, tint)}}
 }
+
+// SectionTitle heads a group of rows: a section of a page, named for the screen reader's headings too.
+func SectionTitle(cx *core.Scope, text func() string) core.Node {
+	colors := ui.ColorsOf(cx)
+	return core.Text{ContentFunc: text, Role: core.RoleHeader, MaxLines: 1, Style: Heading.Merge(core.Style{Padding: core.Edges{Left: 4}}), StyleFunc: ui.Colored(colors.Text)}
+}

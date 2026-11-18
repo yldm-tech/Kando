@@ -1,18 +1,20 @@
 package main
 
 import (
-	"kando/apps/mobile/computers"
-	"kando/apps/mobile/downloads"
 	"kando/apps/mobile/film"
+	"kando/apps/mobile/films"
+	"kando/apps/mobile/learn"
 	"kando/apps/mobile/library"
 	"kando/apps/mobile/locales"
 	"kando/apps/mobile/look"
+	"kando/apps/mobile/onboarding"
 	"kando/apps/mobile/pair"
 	"kando/apps/mobile/player"
 	"kando/apps/mobile/session"
+	"kando/apps/mobile/settings"
+	"kando/apps/mobile/shell"
 	"kando/apps/mobile/store"
 	"kando/apps/mobile/theme"
-	"kando/apps/mobile/welcome"
 	"kando/packages/sync"
 
 	"github.com/nsgo-dev/nsgo/base"
@@ -26,9 +28,12 @@ type page uint8
 
 const (
 	rootPage page = iota
-	downloadsPage
-	computersPage
+	filmsPage
+	learnPage
+	settingsPage
+	targetPage
 	pairPage
+	introductionPage
 	libraryPage
 	filmPage
 	playerPage
@@ -36,8 +41,10 @@ const (
 
 // The tabs, in the order the tab bar shows them.
 const (
-	downloadsTab = iota
-	computersTab
+	filmsTab = iota
+	learnTab
+	settingsTab
+	tabs
 )
 
 // route is a page of a stack and what it shows: the computer and library a library's or a film's page is of, the film, and the key of the film the player plays.
@@ -49,90 +56,83 @@ type route struct {
 	key     string
 }
 
-// App is the app with the session cfg configures: the tabs of the downloads and the computers, each a stack of the pages it opens, under a stack of what covers them, pairing and the player; the welcome screen in the tabs' place before anything is paired or downloaded.
+// App is the app with the session cfg configures: the tabs of the Library, Learn and Settings, each a stack of the pages it opens, under a stack of what covers them, pairing, the introduction and the player; the introduction in the tabs' place until the user has been through it.
 func App(cx *core.Scope, cfg session.Config) core.Node {
 	theme.Apply(cx)
 	colors := ui.ColorsOf(cx)
 	s := session.New(cx, cfg)
 	outer := base.NewNav(cx, route{page: rootPage})
-	navs := [2]*base.Nav[route]{base.NewNav(cx, route{page: downloadsPage}), base.NewNav(cx, route{page: computersPage})}
-	// chosen is the tab the user chose, -1 before they chose one.
-	chosen := core.NewSignal(cx, -1)
+	navs := [tabs]*base.Nav[route]{base.NewNav(cx, route{page: filmsPage}), base.NewNav(cx, route{page: learnPage}), base.NewNav(cx, route{page: settingsPage})}
+	selected := core.NewSignal(cx, filmsTab)
 	openPair := func() { outer.Push(route{page: pairPage}) }
-	// Paired, the phone shows the computer it paired with. Both stacks go back to their first page: the tabs may have been torn down to the welcome screen since they were last shown, and a page left on them may be of a film no longer kept.
+	// Paired, the phone shows the Library, where the computer's libraries are, from its first page.
 	paired := func() {
-		chosen.Set(computersTab)
-		for _, n := range navs {
-			n.PopToRoot()
-		}
+		selected.Set(filmsTab)
+		navs[filmsTab].PopToRoot()
 		outer.Pop(1)
 	}
 	play := func(key string) { outer.Push(route{page: playerPage, key: key}) }
 	tabStack := func(n *base.Nav[route]) func(cx *core.Scope) core.Node {
 		return func(cx *core.Scope) core.Node {
-			look.InTab(cx)
+			look.InTab(cx, shell.OverTabBar(cx))
 			return n.Stack(core.Style{FlexGrow: 1}, func(cx *core.Scope, r route, _ func() int) base.NavPage {
 				back := func() { n.Pop(1) }
 				openFilm := func(desktop string, lib sync.Library, f sync.Film) {
 					n.Push(route{page: filmPage, desktop: desktop, library: lib, film: f})
 				}
 				switch r.page {
-				case computersPage:
-					return computers.Page(cx, s, computers.Actions{Pair: openPair, Library: func(desktop string, lib sync.Library) {
-						n.Push(route{page: libraryPage, desktop: desktop, library: lib})
-					}})
+				case learnPage:
+					return learn.Page(cx)
+				case settingsPage:
+					return settings.Page(cx, s, settings.Actions{Pair: openPair,
+						Target:       func() { n.Push(route{page: targetPage}) },
+						Introduction: func() { outer.Push(route{page: introductionPage}) }})
+				case targetPage:
+					return settings.TargetPage(cx, s, back)
 				case libraryPage:
 					return library.Page(cx, s, r.desktop, r.library, func(f sync.Film) { openFilm(r.desktop, r.library, f) }, back)
 				case filmPage:
 					return film.Page(cx, s, r.desktop, r.library.Name, r.film, play, back)
 				}
-				return downloads.Page(cx, s, func(f store.Film) { openFilm(f.Desktop, sync.Library{Name: f.Library}, f.Film) })
+				return films.Page(cx, s, films.Actions{Pair: openPair,
+					Film: func(f store.Film) { openFilm(f.Desktop, sync.Library{Name: f.Library}, f.Film) },
+					Library: func(desktop string, lib sync.Library) {
+						n.Push(route{page: libraryPage, desktop: desktop, library: lib})
+					}})
 			})
 		}
 	}
-	shell := func(cx *core.Scope) core.Node {
-		// The tab the phone opens on, chosen once as the tabs are built so a film downloaded later does not take the user away from where they are: the downloads when there are any, else the computers.
-		first := computersTab
-		if len(core.Untracked(cx, s.Films)) > 0 {
-			first = downloadsTab
+	change := func(i int) {
+		// The tab shown, pressed again, goes back to its first page.
+		if i == selected.Get() {
+			navs[i].PopToRoot()
+			return
 		}
-		selected := func() int {
-			if c := chosen.Get(); c >= 0 {
-				return c
-			}
-			return first
-		}
-		change := func(i int) {
-			// The tab shown, pressed again, goes back to its first page.
-			if i == selected() {
-				navs[i].PopToRoot()
-				return
-			}
-			chosen.Set(i)
-		}
-		// TODO(nsgo#484): Android's system tab bar takes drawable names only, with no way to bundle the app's own (core/tabbar.go:20-26, TabBar.java:154-170); drawn bar until it can show vector icons https://github.com/nsgo-dev/nsgo/issues/484
-		ios := func(name string) string {
-			if cx.Env().OS() == core.OSIOS {
-				return name
-			}
-			return ""
-		}
-		// TODO(nsgo#145): ui.ShellTab.Text and TabShell.Label are strings only (ui/tabshell.go:10-36), so the tab titles keep the language they were built in; pass TextFunc/LabelFunc once ShellTab has them (mobile.TabBar already takes ItemsFunc) https://github.com/nsgo-dev/nsgo/issues/145
-		return ui.TabShell{Label: locales.AppName(cx), Selected: selected, OnChange: change, Tabs: []ui.ShellTab{
-			{Text: locales.DownloadsTitle(cx), Icon: lucide.CircleArrowDown, SystemIcon: ios("arrow.down.circle"), TestID: "tab-downloads", Content: tabStack(navs[downloadsTab])},
-			{Text: locales.ComputersTitle(cx), Icon: lucide.Monitor, SystemIcon: ios("desktopcomputer"), TestID: "tab-computers", Content: tabStack(navs[computersTab])},
-		}}
+		selected.Set(i)
+	}
+	sh := func(cx *core.Scope) core.Node {
+		return shell.Shell{Selected: selected.Get, OnChange: change,
+			Footer: settings.Computers(cx, s, func() { change(settingsTab) }),
+			Tabs: []shell.Tab{
+				{Text: func() string { return locales.FilmsTitle(cx) }, Icon: lucide.SquarePlay, SystemIcon: "play.rectangle.on.rectangle", TestID: "tab-films", Content: tabStack(navs[filmsTab])},
+				{Text: func() string { return locales.LearnTitle(cx) }, Icon: lucide.GraduationCap, SystemIcon: "rectangle.stack", TestID: "tab-learn", Content: tabStack(navs[learnTab])},
+				{Text: func() string { return locales.SettingsTitle(cx) }, Icon: lucide.Settings, SystemIcon: "gearshape", TestID: "tab-settings", Content: tabStack(navs[settingsTab])},
+			}}
 	}
 	// Before the store is read the page stays blank: reading it is quick.
 	root := core.Show{When: s.Loaded, Then: func(cx *core.Scope) core.Node {
-		return core.Show{When: func() bool { return len(s.Desktops()) > 0 || len(s.Films()) > 0 },
-			Then: shell,
-			Else: func(cx *core.Scope) core.Node { return welcome.Page(cx, openPair) }}
+		return core.Show{When: func() bool { return s.Prefs().Onboarded },
+			Then: sh,
+			Else: func(cx *core.Scope) core.Node { return onboarding.Page(cx, s, func() {}) }}
 	}}
 	return outer.Stack(core.Style{FlexGrow: 1}, func(cx *core.Scope, r route, _ func() int) base.NavPage {
 		switch r.page {
 		case pairPage:
 			return pair.Page(cx, s, paired, func() { outer.Pop(1) })
+		case introductionPage:
+			return base.NavPage{TestID: "introduction", HeaderHidden: true, StyleFunc: ui.Filled(colors.Background), Children: []core.Node{
+				onboarding.Page(cx, s, func() { outer.Pop(1) }),
+			}}
 		case playerPage:
 			return player.Page(cx, s, r.key, func() { outer.Pop(1) })
 		}

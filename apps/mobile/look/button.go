@@ -93,3 +93,13 @@ func (b Button) Render(cx *core.Scope) core.Node {
 			core.Text{ContentFunc: b.Text, MaxLines: 1, Style: core.Style{FontSize: 17, LineHeight: 22, FontWeight: core.FontWeightSemibold, FlexShrink: 1}},
 		}}
 }
+
+// Pill is a small capsule button, for a way out at a screen's top, as Skip.
+func Pill(cx *core.Scope, testID string, text func() string, press func()) core.Node {
+	colors := ui.ColorsOf(cx)
+	return base.Button{TestID: testID, LabelFunc: text, OnPress: func(core.PressEvent) { press() },
+		Style: core.Style{MinHeight: core.Pt(32), Padding: core.Symmetric(0, 14), CornerRadius: 16, AlignItems: core.AlignCenter, JustifyContent: core.JustifyCenter,
+			Active: &core.Style{Opacity: core.Alpha(0.7)}},
+		StyleFunc: func() core.Style { return core.Style{Background: ui.Alpha(colors.Text(), 0.07), Color: colors.Text()} },
+		Children:  []core.Node{core.Text{ContentFunc: text, MaxLines: 1, Style: Subhead.Merge(core.Style{FontWeight: core.FontWeightSemibold})}}}
+}

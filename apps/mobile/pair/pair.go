@@ -60,6 +60,20 @@ func ParseTarget(address, code string) (Target, bool) {
 
 // Page is the pairing page; done runs once the phone is paired, back leaves it.
 func Page(cx *core.Scope, s *session.Session, done, back func()) base.NavPage {
+	f := New(cx, s, done, func() core.Points { return ui.NavInset(cx) })
+	return ui.NavPage(cx, base.NavPage{TitleFunc: func() string { return locales.PairTitle(cx) }, TestID: "pair-page", Children: []core.Node{
+		core.View{Style: core.Style{FlexGrow: 1, FlexShrink: 1}, Children: []core.Node{f.Body, look.ActionBar(cx, f.Actions)}},
+	}}, ui.NavHeader{OnBack: back, Scroll: f.Scroll})
+}
+
+// Flow is pairing as a page lays it out: Body, the form or the fingerprint to compare, which fills the room it is given, and Actions, the button that goes on, for the page's foot; Scroll is the form's, for a header that follows it.
+type Flow struct {
+	Body, Actions core.Node
+	Scroll        *core.Ref
+}
+
+// New is the pairing flow under cx, which a pairing under way ends with; done runs once the phone is paired, and top is the room the fingerprint keeps clear of above it, which does not scroll.
+func New(cx *core.Scope, s *session.Session, done func(), top func() core.Points) Flow {
 	colors := ui.ColorsOf(cx)
 	address := core.NewSignal(cx, "")
 	code := core.NewSignal(cx, "")
@@ -148,7 +162,7 @@ func Page(cx *core.Scope, s *session.Session, done, back func()) base.NavPage {
 	}}
 	compare := core.View{TestID: "pair-compare", Style: core.Style{FlexGrow: 1, JustifyContent: core.JustifyCenter, AlignItems: core.AlignCenter, Gap: 20},
 		// The comparison does not scroll, so it keeps clear of iOS's header itself.
-		StyleFunc: func() core.Style { return core.Style{Padding: core.Edges{Top: ui.NavInset(cx), Right: 24, Left: 24}} },
+		StyleFunc: func() core.Style { return core.Style{Padding: core.Edges{Top: top(), Right: 24, Left: 24}} },
 		Children: []core.Node{
 			ui.Icon(lucide.ShieldCheck, 40, colors.Accent),
 			core.Text{ContentFunc: func() string { return locales.PairCompareTitle(cx) }, Role: core.RoleHeader, Style: look.Heading.Merge(core.Style{TextAlign: core.TextAlignCenter}), StyleFunc: ui.Colored(colors.Text)},
@@ -170,12 +184,8 @@ func Page(cx *core.Scope, s *session.Session, done, back func()) base.NavPage {
 			return look.Button{Kind: look.Primary, Text: func() string { return locales.PairContinue(cx) }, TestID: "pair-continue", Busy: busy,
 				BusyLabel: func() string { return locales.PairConnecting(cx) }, Disabled: func() bool { return !ready() }, OnPress: check}
 		}}
-	return ui.NavPage(cx, base.NavPage{TitleFunc: func() string { return locales.PairTitle(cx) }, TestID: "pair-page", Children: []core.Node{
-		core.View{Style: core.Style{FlexGrow: 1, FlexShrink: 1}, Children: []core.Node{
-			core.Show{When: comparingNow, Then: func(*core.Scope) core.Node { return compare }, Else: func(*core.Scope) core.Node { return form }},
-			look.ActionBar(cx, actions),
-		}},
-	}}, ui.NavHeader{OnBack: back, Scroll: scroll})
+	body := core.Show{When: comparingNow, Then: func(*core.Scope) core.Node { return compare }, Else: func(*core.Scope) core.Node { return form }}
+	return Flow{Body: body, Actions: actions, Scroll: scroll}
 }
 
 // field is a labeled control of the form.

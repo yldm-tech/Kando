@@ -1,6 +1,8 @@
 package main
 
 import (
+	"slices"
+	"strings"
 	"testing"
 
 	"kando/apps/mobile/store"
@@ -9,90 +11,159 @@ import (
 	"github.com/nsgo-dev/nsgo/nsgotest"
 )
 
-// With only a computer paired the phone opens on the computers; each tab keeps the pages it opened while the other shows, a film downloaded meanwhile does not take the user to the downloads, and the tab shown, pressed again, goes back to its first page.
+// A phone paired before the introduction existed opens on the Library; each tab keeps the pages it opened while another shows, a film downloaded meanwhile does not take the user away, and the tab shown, pressed again, goes back to its first page.
 func TestTheTabsKeepTheirPagesAndGoBackWhenPressedAgain(t *testing.T) {
 	d := newDesktop(t)
 	dir := t.TempDir()
 	p := startPhone(t, dir, pairedWith(t, d, dir))
 	p.app.WaitFor("id:computers-library-lib", wait)
+	if p.app.Exists("id:onboarding") {
+		t.Fatal("a phone paired already shows the introduction")
+	}
 	p.app.Press("id:computers-library-lib")
 	p.app.WaitFor("id:library-film-f1", wait)
 	p.app.Press("id:library-film-f1")
 	p.app.WaitFor("id:film-download", wait)
 	p.app.Press("id:film-download")
 	p.app.WaitFor("id:film-play", wait)
-	if !p.app.Exists("id:film-page") || p.app.Exists("id:downloads-page") {
-		t.Fatal("a film downloaded while the computers show took the user away from them")
+	if !p.app.Exists("id:film-page") {
+		t.Fatal("a film downloaded took the user away from its page")
 	}
 
-	p.openTab(downloadsTab, msgs.DownloadsTitle())
-	p.app.WaitFor("id:downloads-film-f1", wait)
-	p.openTab(computersTab, msgs.ComputersTitle())
+	p.openTab(settingsTab, msgs.SettingsTitle())
+	p.app.WaitFor("id:settings-computer-"+store.DesktopID(d.Fingerprint), wait)
+	p.openTab(learnTab, msgs.LearnTitle())
+	p.app.WaitFor("id:learn-empty", wait)
+	p.openTab(filmsTab, msgs.FilmsTitle())
 	p.app.WaitFor("id:film-page", wait)
 
-	p.openTab(computersTab, msgs.ComputersTitle())
+	p.openTab(filmsTab, msgs.FilmsTitle())
 	p.app.WaitForGone("id:film-page", wait)
-	p.app.WaitFor("id:computers-library-lib", wait)
+	p.app.WaitFor("id:downloads-film-f1", wait)
 	if p.app.Exists("id:library-page") {
 		t.Fatal("pressing the tab shown again left the library's page on its stack")
 	}
 }
 
-// With films on the phone and nothing paired, the phone opens on the downloads; the computers say there is none, pairing from there shows the computer paired, and the header's button pairs another.
-func TestPairingFromTheComputersTab(t *testing.T) {
+// With films on the phone and nothing paired, the Library lists them under the card that asks to pair; pairing from there shows the computer's libraries in its place, and Settings offers to pair another.
+func TestPairingFromTheLibraryAndSettings(t *testing.T) {
 	d := newDesktop(t)
 	dir := t.TempDir()
 	keepTalk(t, dir)
 	p := startPhone(t, dir)
 	p.app.WaitFor("id:downloads-film-f1", wait)
-	p.openTab(computersTab, msgs.ComputersTitle())
-	p.app.WaitFor("id:computers-empty", wait)
-	p.app.Press("id:computers-empty-pair")
+	p.app.Press("id:films-pair")
 	p.fillPairing(d.Addr.String(), "123456")
 	p.app.Press("id:pair-continue")
 	p.app.WaitFor("id:pair-compare", wait)
 	p.app.Press("id:pair-confirm")
 	p.app.WaitFor("id:computers-desktop-"+store.DesktopID(d.Fingerprint), wait)
-	p.app.Press("id:computers-pair")
+	p.app.WaitForGone("id:films-unpaired", wait)
+	if !p.app.Exists("id:downloads-film-f1") {
+		t.Fatal("pairing hid the films on the phone")
+	}
+	p.openTab(settingsTab, msgs.SettingsTitle())
+	if got := p.texts("id:settings-pair"); got != msgs.SettingsPairAnother() {
+		t.Fatalf("the row that pairs says %q with a computer paired, want %q", got, msgs.SettingsPairAnother())
+	}
+	p.app.Press("id:settings-pair")
 	p.app.WaitFor("id:pair-page", wait)
 }
 
-// Pairing again after the tabs gave way to the welcome screen starts each tab on its first page: a film's page left on the downloads' stack is of a film no longer kept.
-func TestPairingAgainStartsTheTabsAfresh(t *testing.T) {
+// Unpaired in Settings, a computer leaves its downloads on the phone: the Library lists them again under the card that asks to pair.
+func TestUnpairingInSettingsKeepsTheDownloads(t *testing.T) {
 	d := newDesktop(t)
-	p := startPhone(t, "")
-	p.openTalk(d)
-	d.Stall(300_000)
-	p.app.Press("id:film-download")
-	p.app.WaitFor("text:"+msgs.FilmDownloading(30), wait)
-	p.app.Press("id:film-pause")
-	p.app.WaitFor("text:"+msgs.FilmPaused(30), wait)
-
-	// Unpaired, the computer leaves its paused download on the phone, which keeps the tabs.
-	p.openTab(computersTab, msgs.ComputersTitle())
-	id := store.DesktopID(d.Fingerprint)
-	p.app.WaitFor("id:computers-options-"+id, wait)
-	p.app.Press("id:computers-options-" + id)
-	p.app.Answer(1)
-	p.app.WaitFor("id:computers-empty", wait)
-	p.openTab(downloadsTab, msgs.DownloadsTitle())
+	dir := t.TempDir()
+	secrets := pairedWith(t, d, dir)
+	keepTalkFrom(t, dir, store.DesktopID(d.Fingerprint))
+	p := startPhone(t, dir, secrets)
 	p.app.WaitFor("id:downloads-film-f1", wait)
-	p.app.Press("id:downloads-film-f1")
-	p.app.WaitFor("id:film-cancel", wait)
-	p.app.Press("id:film-cancel")
-	p.app.WaitFor("id:welcome", wait)
+	p.openTab(settingsTab, msgs.SettingsTitle())
+	id := store.DesktopID(d.Fingerprint)
+	p.app.Press("id:settings-computer-options-" + id)
+	if alerts := p.app.Alerts(); len(alerts) == 0 || !alerts[len(alerts)-1].Sheet {
+		t.Fatal("a phone asks to unpair in something other than an action sheet")
+	}
+	p.app.Answer(1)
+	p.app.WaitForGone("id:settings-computer-"+id, wait)
+	if got := p.texts("id:settings-pair"); got != msgs.SettingsPair() {
+		t.Fatalf("the row that pairs says %q with nothing paired, want %q", got, msgs.SettingsPair())
+	}
+	p.openTab(filmsTab, msgs.FilmsTitle())
+	p.app.WaitFor("id:films-unpaired", wait)
+	p.app.WaitFor("id:downloads-film-f1", wait)
+}
 
-	d.Stall(0)
-	d.Offer("123456")
-	p.pair(d)
-	p.openTab(downloadsTab, msgs.DownloadsTitle())
-	p.app.WaitFor("id:downloads-empty", wait)
-	if p.app.Exists("id:film-page") {
-		t.Fatal("the downloads tab shows the page of a film no longer kept")
+// A new phone starts with the introduction; skipped, it shows the Library asking to pair and is not shown again.
+func TestTheIntroductionCanBeSkipped(t *testing.T) {
+	p := startPhone(t, "")
+	p.app.WaitFor("id:onboarding-intro", wait)
+	p.app.Press("id:onboarding-skip")
+	p.app.WaitFor("id:films-unpaired", wait)
+	p.app.WaitUntil(wait, func() bool { prefs, _ := store.Open(p.dir).Prefs(); return prefs.Onboarded })
+	p = startPhone(t, p.dir)
+	p.app.WaitFor("id:films-unpaired", wait)
+	if p.app.Exists("id:onboarding") {
+		t.Fatal("the introduction showed again after it was skipped")
 	}
 }
 
-// On iOS a tab's root page puts its button in the system header, and a downloaded film's page its delete button.
+// The introduction keeps the languages the user watches and the one they want subtitles in, which Settings shows and changes; left at its pairing step it goes to the Library unpaired.
+func TestTheIntroductionKeepsTheLanguages(t *testing.T) {
+	p := startPhone(t, "")
+	p.app.WaitFor("id:onboarding-intro", wait)
+	p.app.Press("id:onboarding-continue")
+	p.app.WaitFor("id:onboarding-languages", wait)
+	// The phone's own language is the target to start with.
+	if !p.app.Find("id:onboarding-target-en").Props.Checked {
+		t.Fatal("the phone's language is not the target the introduction starts with")
+	}
+	p.app.Press("id:onboarding-spoken-ja")
+	p.app.Press("id:onboarding-spoken-fr")
+	p.app.Press("id:onboarding-spoken-fr")
+	p.app.Press("id:onboarding-spoken-en")
+	p.app.Press("id:onboarding-target-ko")
+	p.app.Press("id:onboarding-continue")
+	p.app.WaitFor("id:onboarding-pairing", wait)
+	p.app.Press("id:onboarding-later")
+	p.app.WaitFor("id:films-unpaired", wait)
+	var prefs store.Prefs
+	p.app.WaitUntil(wait, func() bool { prefs, _ = store.Open(p.dir).Prefs(); return prefs.Onboarded })
+	if !slices.Equal(prefs.Spoken, []string{"ja", "en"}) || prefs.Target != "ko" {
+		t.Fatalf("kept %+v", prefs)
+	}
+
+	p.openTab(settingsTab, msgs.SettingsTitle())
+	if got := p.texts("id:settings-target"); !strings.Contains(got, "한국어") {
+		t.Fatalf("Settings shows the target as %q", got)
+	}
+	p.app.Press("id:settings-target")
+	p.app.WaitFor("id:settings-target-page", wait)
+	if !p.app.Find("id:settings-target-ko").Props.Checked || p.app.Find("id:settings-target-zh-Hans").Props.Checked {
+		t.Fatal("the target page does not check the target alone")
+	}
+	p.app.Press("id:settings-target-zh-Hans")
+	p.app.WaitUntil(wait, func() bool { prefs, _ = store.Open(p.dir).Prefs(); return prefs.Target == "zh-Hans" })
+	if !slices.Equal(prefs.Spoken, []string{"ja", "en"}) || !prefs.Onboarded {
+		t.Fatalf("changing the target lost the other choices: %+v", prefs)
+	}
+}
+
+// Settings shows the introduction again, over the tabs, which it leaves as they were.
+func TestSettingsShowsTheIntroductionAgain(t *testing.T) {
+	dir := t.TempDir()
+	keepTalk(t, dir)
+	p := startPhone(t, dir)
+	p.app.WaitFor("id:downloads-film-f1", wait)
+	p.openTab(settingsTab, msgs.SettingsTitle())
+	p.app.Press("id:settings-introduction")
+	p.app.WaitFor("id:onboarding-intro", wait)
+	p.app.Press("id:onboarding-skip")
+	p.app.WaitForGone("id:onboarding", wait)
+	p.app.WaitFor("id:settings-page", wait)
+}
+
+// On iOS a downloaded film's page puts its delete button in the system header, and Settings opens pairing.
 func TestTheIOSHeaders(t *testing.T) {
 	d := newDesktop(t)
 	dir := t.TempDir()
@@ -103,9 +174,8 @@ func TestTheIOSHeaders(t *testing.T) {
 	p.app.WaitFor("id:film-delete", wait)
 	p.app.HeaderBack("id:film-page")
 	p.app.WaitForGone("id:film-page", wait)
-	p.openTab(computersTab, msgs.ComputersTitle())
-	p.app.WaitFor("id:computers-library-lib", wait)
-	p.app.Press("id:computers-pair")
+	p.openTab(settingsTab, msgs.SettingsTitle())
+	p.app.Press("id:settings-pair")
 	p.app.WaitFor("id:pair-page", wait)
 }
 
@@ -125,4 +195,51 @@ func TestTheActionBarSitsOnTheTabBar(t *testing.T) {
 	if gap := bar.Origin.Y - (play.Origin.Y + play.Size.Height); gap < 0 || gap >= bottom {
 		t.Fatalf("the action bar's button ends %v above the tab bar, want less than the %v of the safe area the bar keeps clear of", gap, core.Points(bottom))
 	}
+}
+
+// A tablet on its side shows the sections in a sidebar, and upright in a tab bar, keeping the pages each section opened as it turns; it asks to unpair in a dialog rather than an action sheet.
+func TestATabletShowsASidebarOnItsSideAndATabBarUpright(t *testing.T) {
+	if nsgotest.Target() != "" {
+		t.Skip("the idiom is the platform's on a target")
+	}
+	d := newDesktop(t)
+	dir := t.TempDir()
+	p := startPhone(t, dir, pairedWith(t, d, dir), nsgotest.Size(1180, 820), nsgotest.Environment(core.Environment{Locale: lang, Idiom: core.IdiomTablet}))
+	p.app.WaitFor("id:computers-library-lib", wait)
+	if !p.app.Exists("id:sidebar") || p.app.Exists("id:tab-bar") {
+		t.Fatal("a tablet on its side shows no sidebar, or a tab bar")
+	}
+	if got := p.texts("id:sidebar-computers"); got != "Studio" {
+		t.Fatalf("the sidebar's foot shows %q, want the computer paired", got)
+	}
+	p.app.Press("id:sidebar-tab-settings")
+	p.app.WaitFor("id:settings-page", wait)
+	p.app.Press("id:settings-target")
+	p.app.WaitFor("id:settings-target-page", wait)
+	sidebar, page := p.app.Find("id:sidebar").Frame, p.app.Find("id:settings-target-page").Bounds()
+	if page.Origin.X < sidebar.Size.Width {
+		t.Fatalf("the page at %v lies under the sidebar %v", page, sidebar)
+	}
+
+	p.app.Resize(820, 1180)
+	p.app.WaitFor("id:tab-bar", wait)
+	if p.app.Exists("id:sidebar") {
+		t.Fatal("an upright tablet still shows the sidebar")
+	}
+	if !p.app.Exists("id:settings-target-page") {
+		t.Fatal("turning the tablet lost the page Settings opened")
+	}
+	p.openTab(filmsTab, msgs.FilmsTitle())
+	p.app.WaitFor("id:computers-library-lib", wait)
+	p.app.Resize(1180, 820)
+	p.app.WaitFor("id:sidebar", wait)
+	p.app.Press("id:sidebar-computers")
+	p.app.WaitFor("id:settings-target-page", wait)
+	p.app.Press("id:sidebar-tab-settings")
+	p.app.WaitFor("id:settings-page", wait)
+	p.app.Press("id:settings-computer-options-" + store.DesktopID(d.Fingerprint))
+	if alerts := p.app.Alerts(); len(alerts) == 0 || alerts[len(alerts)-1].Sheet {
+		t.Fatal("a tablet asks to unpair in an action sheet, not a dialog")
+	}
+	p.app.Answer(0)
 }
