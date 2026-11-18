@@ -461,95 +461,100 @@ func For(cx *core.Scope) Messages {
 // its method, for the TSX declarations of the messages
 // (tsx.RegisterMessages).
 var Parameters = map[string][]string{
-	"AddNoLinks":             {"name"},
-	"AddNote":                {"name"},
-	"AddNoteOffline":         {"name"},
-	"AddNoteOfflineRelay":    {"name"},
-	"AddNoteRelay":           {"name"},
-	"ComputersCertificate":   {"name"},
-	"ComputersOptions":       {"name"},
-	"ComputersUnpairTitle":   {"name"},
-	"ComputersUnpaired":      {"name"},
-	"ComputersUnreachable":   {"name"},
-	"FilmDeleteTitle":        {"title"},
-	"FilmDownloading":        {"percent"},
-	"FilmPaused":             {"percent"},
-	"FilmsCount":             {"count"},
-	"FilmsDownloadSize":      {"size"},
-	"FilmsHit":               {"time_", "line"},
-	"FilmsLeft":              {"time_"},
-	"FilmsLeftHere":          {"device"},
-	"FilmsLeftOn":            {"device", "time_"},
-	"FilmsLibrary":           {"name"},
-	"FilmsLibraryOn":         {"library", "computer"},
-	"FilmsNoResults":         {"query"},
-	"FilmsOptions":           {"title"},
-	"LearnDueIn":             {"count"},
-	"FilmsUsed":              {"size"},
-	"FilmsWatchedTo":         {"time_"},
-	"JobsActionFailed":       {"name"},
-	"JobsActive":             {"count"},
-	"JobsActiveFailed":       {"active", "failed"},
-	"JobsCancelTitle":        {"title", "name"},
-	"JobsCanceledTitle":      {"name"},
-	"JobsDoneBody":           {"title"},
-	"JobsDoneTitle":          {"name"},
-	"JobsFailedCount":        {"count"},
-	"JobsFilmGone":           {"name"},
-	"JobsFrom":               {"status", "device"},
-	"JobsLinksOff":           {"name"},
-	"JobsNotReady":           {"name", "message"},
-	"JobsInStorage":          {"name"},
-	"JobsRelayed":            {"summary"},
-	"JobsPercent":            {"percent"},
-	"JobsRefused":            {"name", "message"},
-	"JobsRemedyDesktop":      {"name"},
-	"JobsRemedySetup":        {"name", "message"},
-	"JobsRemedyUpdate":       {"name"},
-	"JobsSent":               {"name"},
-	"JobsSentExisting":       {"name"},
-	"JobsSentPending":        {"name"},
-	"JobsStepPercent":        {"step", "percent"},
-	"JobsWaitingFor":         {"name"},
-	"LearnGoalLeft":          {"count"},
-	"LearnGoalOf":            {"count"},
-	"LearnItemOptions":       {"text"},
-	"LearnLineCount":         {"count"},
-	"LearnMinutes":           {"count"},
-	"LearnReminderBody":      {"count"},
-	"LearnReviewDue":         {"count"},
-	"LearnReviewDueDetail":   {"count"},
-	"LearnStreak":            {"count"},
-	"LearnWeekBars":          {"count"},
-	"LearnWordCount":         {"count"},
-	"OnboardingPaired":       {"name"},
-	"OnboardingStep":         {"step", "count"},
-	"PairErrUnreachable":     {"address"},
-	"PlayerAsking":           {"computer"},
-	"PlayerCardPlace":        {"index", "count", "time_"},
-	"PlayerDelayPill":        {"seconds"},
-	"PlayerDelayReset":       {"seconds"},
-	"PlayerDelaySeconds":     {"seconds"},
-	"PlayerExplainBy":        {"model", "computer"},
-	"PlayerInfoLengthValue":  {"time_", "count"},
-	"PlayerNoteFor":          {"index"},
-	"PlayerPart":             {"index", "from", "to"},
-	"PlayerSleepMinutes":     {"minutes"},
-	"PlayerSleepPillIn":      {"time_"},
-	"PlayerStudyFailed":      {"computer"},
-	"PlayerStudyNoAI":        {"computer"},
-	"PlayerStudyUnreachable": {"computer"},
-	"ReviewDoneAgain":        {"count"},
-	"ReviewDoneCount":        {"count"},
-	"ReviewFrom":             {"title"},
-	"ReviewProgress":         {"at", "total"},
-	"RevokedBody":            {"name"},
-	"RevokedPending":         {"count"},
-	"RevokedTitle":           {"name"},
-	"PlayerTabNotesCount":    {"count"},
-	"SettingsGoalValue":      {"count"},
-	"SettingsRemindDetail":   {"hour"},
-	"VocabRemoveTitle":       {"word"},
+	"AddNoLinks":                  {"name"},
+	"AddNote":                     {"name"},
+	"AddNoteOffline":              {"name"},
+	"ComputersCertificate":        {"name"},
+	"ComputersOptions":            {"name"},
+	"ComputersUnpairTitle":        {"name"},
+	"ComputersUnpaired":           {"name"},
+	"ComputersUnreachable":        {"name"},
+	"FilmDeleteTitle":             {"title"},
+	"FilmDownloading":             {"percent"},
+	"FilmPaused":                  {"percent"},
+	"FilmsCount":                  {"count"},
+	"FilmsDownloadSize":           {"size"},
+	"FilmsHit":                    {"time_", "line"},
+	"FilmsLeft":                   {"time_"},
+	"FilmsLeftHere":               {"device"},
+	"FilmsLeftOn":                 {"device", "time_"},
+	"FilmsLibrary":                {"name"},
+	"FilmsLibraryOn":              {"library", "computer"},
+	"FilmsNoResults":              {"query"},
+	"FilmsOptions":                {"title"},
+	"LearnDueIn":                  {"count"},
+	"FilmsUsed":                   {"size"},
+	"FilmsWatchedTo":              {"time_"},
+	"JobsActionFailed":            {"name"},
+	"JobsActive":                  {"count"},
+	"JobsActiveFailed":            {"active", "failed"},
+	"JobsCancelTitle":             {"title", "name"},
+	"JobsCanceledTitle":           {"name"},
+	"JobsDoneBody":                {"title"},
+	"JobsDoneTitle":               {"name"},
+	"JobsFailedCount":             {"count"},
+	"JobsFilmGone":                {"name"},
+	"JobsFrom":                    {"status", "device"},
+	"JobsLinksOff":                {"name"},
+	"JobsNotReady":                {"name", "message"},
+	"JobsPercent":                 {"percent"},
+	"JobsRefused":                 {"name", "message"},
+	"JobsRemedyDesktop":           {"name"},
+	"JobsRemedySetup":             {"name", "message"},
+	"JobsRemedyUpdate":            {"name"},
+	"JobsSent":                    {"name"},
+	"JobsSentExisting":            {"name"},
+	"JobsSentPending":             {"name"},
+	"JobsStepPercent":             {"step", "percent"},
+	"JobsWaitingFor":              {"name"},
+	"LearnGoalLeft":               {"count"},
+	"LearnGoalOf":                 {"count"},
+	"LearnItemOptions":            {"text"},
+	"LearnLineCount":              {"count"},
+	"LearnMinutes":                {"count"},
+	"LearnReminderBody":           {"count"},
+	"LearnReviewDue":              {"count"},
+	"LearnReviewDueDetail":        {"count"},
+	"LearnStreak":                 {"count"},
+	"LearnWeekBars":               {"count"},
+	"LearnWordCount":              {"count"},
+	"OnboardingPaired":            {"name"},
+	"OnboardingStep":              {"step", "count"},
+	"PairErrUnreachable":          {"address"},
+	"PlayerAsking":                {"computer"},
+	"PlayerCardPlace":             {"index", "count", "time_"},
+	"PlayerDelayPill":             {"seconds"},
+	"PlayerDelayReset":            {"seconds"},
+	"PlayerDelaySeconds":          {"seconds"},
+	"PlayerExplainBy":             {"model", "computer"},
+	"PlayerInfoLengthValue":       {"time_", "count"},
+	"PlayerNoteFor":               {"index"},
+	"PlayerPart":                  {"index", "from", "to"},
+	"PlayerSleepMinutes":          {"minutes"},
+	"PlayerSleepPillIn":           {"time_"},
+	"PlayerStudyFailed":           {"computer"},
+	"PlayerStudyNoAI":             {"computer"},
+	"PlayerStudyUnreachable":      {"computer"},
+	"ReviewDoneAgain":             {"count"},
+	"ReviewDoneCount":             {"count"},
+	"ReviewFrom":                  {"title"},
+	"ReviewProgress":              {"at", "total"},
+	"RevokedBody":                 {"name"},
+	"RevokedPending":              {"count"},
+	"RevokedTitle":                {"name"},
+	"PlayerTabNotesCount":         {"count"},
+	"SettingsConflictDate":        {"when"},
+	"SettingsConflictReadOnly":    {"computer"},
+	"SettingsConflictToday":       {"when"},
+	"SettingsConflictUnpaired":    {"computer"},
+	"SettingsConflictUnreachable": {"computer"},
+	"SettingsConflictUseLabel":    {"device"},
+	"SettingsConflictWord":        {"word"},
+	"SettingsConflictYesterday":   {"when"},
+	"SettingsConflictsCount":      {"count"},
+	"SettingsGoalValue":           {"count"},
+	"SettingsRemindDetail":        {"hour"},
+	"VocabRemoveTitle":            {"word"},
 }
 
 // Translation is a language's messages another package supplies:
@@ -557,96 +562,101 @@ var Parameters = map[string][]string{
 // of the others; a key or a field left out leaves the message to the
 // catalog.
 type Translation struct {
-	Texts                  map[string]string
-	AddNoLinks             func(name string) string
-	AddNote                func(name string) string
-	AddNoteOffline         func(name string) string
-	AddNoteOfflineRelay    func(name string) string
-	AddNoteRelay           func(name string) string
-	ComputersCertificate   func(name string) string
-	ComputersOptions       func(name string) string
-	ComputersUnpairTitle   func(name string) string
-	ComputersUnpaired      func(name string) string
-	ComputersUnreachable   func(name string) string
-	FilmDeleteTitle        func(title string) string
-	FilmDownloading        func(percent int) string
-	FilmPaused             func(percent int) string
-	FilmsCount             func(count int) string
-	FilmsDownloadSize      func(size string) string
-	FilmsHit               func(time_ string, line string) string
-	FilmsLeft              func(time_ string) string
-	FilmsLeftHere          func(device string) string
-	FilmsLeftOn            func(device string, time_ string) string
-	FilmsLibrary           func(name string) string
-	FilmsLibraryOn         func(library string, computer string) string
-	FilmsNoResults         func(query string) string
-	FilmsOptions           func(title string) string
-	LearnDueIn             func(count int) string
-	FilmsUsed              func(size string) string
-	FilmsWatchedTo         func(time_ string) string
-	JobsActionFailed       func(name string) string
-	JobsActive             func(count int) string
-	JobsActiveFailed       func(active int, failed int) string
-	JobsCancelTitle        func(title string, name string) string
-	JobsCanceledTitle      func(name string) string
-	JobsDoneBody           func(title string) string
-	JobsDoneTitle          func(name string) string
-	JobsFailedCount        func(count int) string
-	JobsFilmGone           func(name string) string
-	JobsFrom               func(status string, device string) string
-	JobsLinksOff           func(name string) string
-	JobsNotReady           func(name string, message string) string
-	JobsInStorage          func(name string) string
-	JobsRelayed            func(summary string) string
-	JobsPercent            func(percent int) string
-	JobsRefused            func(name string, message string) string
-	JobsRemedyDesktop      func(name string) string
-	JobsRemedySetup        func(name string, message string) string
-	JobsRemedyUpdate       func(name string) string
-	JobsSent               func(name string) string
-	JobsSentExisting       func(name string) string
-	JobsSentPending        func(name string) string
-	JobsStepPercent        func(step string, percent int) string
-	JobsWaitingFor         func(name string) string
-	LearnGoalLeft          func(count int) string
-	LearnGoalOf            func(count int) string
-	LearnItemOptions       func(text string) string
-	LearnLineCount         func(count int) string
-	LearnMinutes           func(count int) string
-	LearnReminderBody      func(count int) string
-	LearnReviewDue         func(count int) string
-	LearnReviewDueDetail   func(count int) string
-	LearnStreak            func(count int) string
-	LearnWeekBars          func(count int) string
-	LearnWordCount         func(count int) string
-	OnboardingPaired       func(name string) string
-	OnboardingStep         func(step int, count int) string
-	PairErrUnreachable     func(address string) string
-	PlayerAsking           func(computer string) string
-	PlayerCardPlace        func(index int, count int, time_ string) string
-	PlayerDelayPill        func(seconds string) string
-	PlayerDelayReset       func(seconds string) string
-	PlayerDelaySeconds     func(seconds string) string
-	PlayerExplainBy        func(model string, computer string) string
-	PlayerInfoLengthValue  func(time_ string, count int) string
-	PlayerNoteFor          func(index int) string
-	PlayerPart             func(index int, from string, to string) string
-	PlayerSleepMinutes     func(minutes int) string
-	PlayerSleepPillIn      func(time_ string) string
-	PlayerStudyFailed      func(computer string) string
-	PlayerStudyNoAI        func(computer string) string
-	PlayerStudyUnreachable func(computer string) string
-	ReviewDoneAgain        func(count int) string
-	ReviewDoneCount        func(count int) string
-	ReviewFrom             func(title string) string
-	ReviewProgress         func(at int, total int) string
-	RevokedBody            func(name string) string
-	RevokedPending         func(count int) string
-	RevokedTitle           func(name string) string
-	PlayerTabNotesCount    func(count int) string
-	SettingsGoalValue      func(count int) string
-	SettingsRemindDetail   func(hour int) string
-	VocabRemoveTitle       func(word string) string
+	Texts                       map[string]string
+	AddNoLinks                  func(name string) string
+	AddNote                     func(name string) string
+	AddNoteOffline              func(name string) string
+	ComputersCertificate        func(name string) string
+	ComputersOptions            func(name string) string
+	ComputersUnpairTitle        func(name string) string
+	ComputersUnpaired           func(name string) string
+	ComputersUnreachable        func(name string) string
+	FilmDeleteTitle             func(title string) string
+	FilmDownloading             func(percent int) string
+	FilmPaused                  func(percent int) string
+	FilmsCount                  func(count int) string
+	FilmsDownloadSize           func(size string) string
+	FilmsHit                    func(time_ string, line string) string
+	FilmsLeft                   func(time_ string) string
+	FilmsLeftHere               func(device string) string
+	FilmsLeftOn                 func(device string, time_ string) string
+	FilmsLibrary                func(name string) string
+	FilmsLibraryOn              func(library string, computer string) string
+	FilmsNoResults              func(query string) string
+	FilmsOptions                func(title string) string
+	LearnDueIn                  func(count int) string
+	FilmsUsed                   func(size string) string
+	FilmsWatchedTo              func(time_ string) string
+	JobsActionFailed            func(name string) string
+	JobsActive                  func(count int) string
+	JobsActiveFailed            func(active int, failed int) string
+	JobsCancelTitle             func(title string, name string) string
+	JobsCanceledTitle           func(name string) string
+	JobsDoneBody                func(title string) string
+	JobsDoneTitle               func(name string) string
+	JobsFailedCount             func(count int) string
+	JobsFilmGone                func(name string) string
+	JobsFrom                    func(status string, device string) string
+	JobsLinksOff                func(name string) string
+	JobsNotReady                func(name string, message string) string
+	JobsPercent                 func(percent int) string
+	JobsRefused                 func(name string, message string) string
+	JobsRemedyDesktop           func(name string) string
+	JobsRemedySetup             func(name string, message string) string
+	JobsRemedyUpdate            func(name string) string
+	JobsSent                    func(name string) string
+	JobsSentExisting            func(name string) string
+	JobsSentPending             func(name string) string
+	JobsStepPercent             func(step string, percent int) string
+	JobsWaitingFor              func(name string) string
+	LearnGoalLeft               func(count int) string
+	LearnGoalOf                 func(count int) string
+	LearnItemOptions            func(text string) string
+	LearnLineCount              func(count int) string
+	LearnMinutes                func(count int) string
+	LearnReminderBody           func(count int) string
+	LearnReviewDue              func(count int) string
+	LearnReviewDueDetail        func(count int) string
+	LearnStreak                 func(count int) string
+	LearnWeekBars               func(count int) string
+	LearnWordCount              func(count int) string
+	OnboardingPaired            func(name string) string
+	OnboardingStep              func(step int, count int) string
+	PairErrUnreachable          func(address string) string
+	PlayerAsking                func(computer string) string
+	PlayerCardPlace             func(index int, count int, time_ string) string
+	PlayerDelayPill             func(seconds string) string
+	PlayerDelayReset            func(seconds string) string
+	PlayerDelaySeconds          func(seconds string) string
+	PlayerExplainBy             func(model string, computer string) string
+	PlayerInfoLengthValue       func(time_ string, count int) string
+	PlayerNoteFor               func(index int) string
+	PlayerPart                  func(index int, from string, to string) string
+	PlayerSleepMinutes          func(minutes int) string
+	PlayerSleepPillIn           func(time_ string) string
+	PlayerStudyFailed           func(computer string) string
+	PlayerStudyNoAI             func(computer string) string
+	PlayerStudyUnreachable      func(computer string) string
+	ReviewDoneAgain             func(count int) string
+	ReviewDoneCount             func(count int) string
+	ReviewFrom                  func(title string) string
+	ReviewProgress              func(at int, total int) string
+	RevokedBody                 func(name string) string
+	RevokedPending              func(count int) string
+	RevokedTitle                func(name string) string
+	PlayerTabNotesCount         func(count int) string
+	SettingsConflictDate        func(hc string, when time.Time) string
+	SettingsConflictReadOnly    func(computer string) string
+	SettingsConflictToday       func(hc string, when time.Time) string
+	SettingsConflictUnpaired    func(computer string) string
+	SettingsConflictUnreachable func(computer string) string
+	SettingsConflictUseLabel    func(device string) string
+	SettingsConflictWord        func(word string) string
+	SettingsConflictYesterday   func(hc string, when time.Time) string
+	SettingsConflictsCount      func(count int) string
+	SettingsGoalValue           func(count int) string
+	SettingsRemindDetail        func(hour int) string
+	VocabRemoveTitle            func(word string) string
 }
 
 var supplied = map[string]Translation{}
@@ -740,8 +750,6 @@ const (
 	textJobsNotAVideo
 	textJobsOffline
 	textJobsOfflineSummary
-	textJobsOfflineRelay
-	textJobsViaStorage
 	textJobsOlder
 	textJobsOnline
 	textJobsOpen
@@ -895,6 +903,21 @@ const (
 	textSessionDownloading
 	textSettingsAbout
 	textSettingsComputers
+	textSettingsConflictBoth
+	textSettingsConflictMeaning
+	textSettingsConflictNote
+	textSettingsConflictOriginal
+	textSettingsConflictOtherDevice
+	textSettingsConflictThisPhone
+	textSettingsConflictThisTablet
+	textSettingsConflictTranslation
+	textSettingsConflictUse
+	textSettingsConflicts
+	textSettingsConflictsDetail
+	textSettingsConflictsDone
+	textSettingsConflictsDoneDetail
+	textSettingsConflictsNone
+	textSettingsConflictsNote
 	textSettingsGoal
 	textSettingsIntroduction
 	textSettingsNoComputer
@@ -904,6 +927,7 @@ const (
 	textSettingsSource
 	textSettingsSubtitleStyle
 	textSettingsSubtitles
+	textSettingsSync
 	textSettingsTarget
 	textSettingsTargetNote
 	textSettingsThisDevice
@@ -1019,8 +1043,6 @@ var keyOfText = [numTexts]string{
 	"jobsNotAVideo",
 	"jobsOffline",
 	"jobsOfflineSummary",
-	"jobsOfflineRelay",
-	"jobsViaStorage",
 	"jobsOlder",
 	"jobsOnline",
 	"jobsOpen",
@@ -1174,6 +1196,21 @@ var keyOfText = [numTexts]string{
 	"sessionDownloading",
 	"settingsAbout",
 	"settingsComputers",
+	"settingsConflictBoth",
+	"settingsConflictMeaning",
+	"settingsConflictNote",
+	"settingsConflictOriginal",
+	"settingsConflictOtherDevice",
+	"settingsConflictThisPhone",
+	"settingsConflictThisTablet",
+	"settingsConflictTranslation",
+	"settingsConflictUse",
+	"settingsConflicts",
+	"settingsConflictsDetail",
+	"settingsConflictsDone",
+	"settingsConflictsDoneDetail",
+	"settingsConflictsNone",
+	"settingsConflictsNote",
 	"settingsGoal",
 	"settingsIntroduction",
 	"settingsNoComputer",
@@ -1183,6 +1220,7 @@ var keyOfText = [numTexts]string{
 	"settingsSource",
 	"settingsSubtitleStyle",
 	"settingsSubtitles",
+	"settingsSync",
 	"settingsTarget",
 	"settingsTargetNote",
 	"settingsThisDevice",
@@ -1296,8 +1334,6 @@ var textsEn = i18n.NewTexts(""+
 	"The computer couldn't read this link as a video."+
 	"Offline"+
 	"Offline. Links you send wait on this phone and go once it's back."+
-	"Offline. Links you send wait in your storage and start once it's back."+
-	"Via storage"+
 	"Kando on this computer is too old to take links. Update it."+
 	"Online"+
 	"Open"+
@@ -1451,6 +1487,21 @@ var textsEn = i18n.NewTexts(""+
 	"Downloading films"+
 	"About"+
 	"Computers"+
+	"Keep Both"+
+	"Meaning"+
+	"Note"+
+	"Line"+
+	"Another Device"+
+	"This Phone"+
+	"This Tablet"+
+	"Translation"+
+	"Use This"+
+	"Sync Conflicts"+
+	"Two devices changed the same thing. Keep one."+
+	"No Conflicts Left"+
+	"Everything matches on all devices."+
+	"None"+
+	"When two devices change the same translated line or the same note, choose which to keep here. Words, saved lines and progress merge on their own."+
 	"Daily Goal"+
 	"Show the Introduction Again"+
 	"Not connected"+
@@ -1460,6 +1511,7 @@ var textsEn = i18n.NewTexts(""+
 	"Source Code"+
 	"Subtitle Style"+
 	"Subtitles"+
+	"Sync"+
 	"Translate Into"+
 	"Subtitles are translated into this language, by this device and by the computers it's connected to, which take your choice."+
 	"This Device"+
@@ -1570,8 +1622,6 @@ var textsEn = i18n.NewTexts(""+
 		48,
 		7,
 		65,
-		70,
-		11,
 		59,
 		6,
 		4,
@@ -1725,6 +1775,21 @@ var textsEn = i18n.NewTexts(""+
 		17,
 		5,
 		9,
+		9,
+		7,
+		4,
+		4,
+		14,
+		10,
+		11,
+		11,
+		8,
+		14,
+		45,
+		17,
+		34,
+		4,
+		145,
 		10,
 		27,
 		13,
@@ -1734,6 +1799,7 @@ var textsEn = i18n.NewTexts(""+
 		11,
 		14,
 		9,
+		4,
 		14,
 		123,
 		11,
@@ -1847,8 +1913,6 @@ var textsJa = i18n.NewTexts(""+
 	"パソコンはこのリンクを動画として読み取れませんでした。"+
 	"オフライン"+
 	"オフラインです。送ったリンクはこのスマートフォンで待機し、オンラインになると送信されます。"+
-	"オフラインです。送ったリンクはストレージで待機し、オンラインになると開始されます。"+
-	"ストレージ経由"+
 	"このパソコンの Kando は古いため、リンクを受け取れません。アップデートしてください。"+
 	"オンライン"+
 	"開く"+
@@ -2002,6 +2066,21 @@ var textsJa = i18n.NewTexts(""+
 	"動画をダウンロード中"+
 	"このアプリについて"+
 	"コンピュータ"+
+	"両方残す"+
+	"意味"+
+	"メモ"+
+	"原文"+
+	"ほかの端末"+
+	"このスマートフォン"+
+	"このタブレット"+
+	"訳文"+
+	"これを使う"+
+	"同期の競合"+
+	"2 台の端末が同じ箇所を変更しました。どちらかを残してください。"+
+	"競合はありません"+
+	"すべての端末で内容が一致しています。"+
+	"なし"+
+	"2 台の端末が同じ訳文や同じメモを変更したときは、ここで残す方を選びます。単語、保存した文、進み具合は自動でまとめられます。"+
 	"1 日の目標"+
 	"紹介をもう一度見る"+
 	"未接続"+
@@ -2011,6 +2090,7 @@ var textsJa = i18n.NewTexts(""+
 	"ソースコード"+
 	"字幕のスタイル"+
 	"字幕"+
+	"同期"+
 	"翻訳先の言語"+
 	"字幕はこの言語に翻訳されます。変更すると、接続しているコンピュータもこの言語で翻訳します。"+
 	"この端末"+
@@ -2121,8 +2201,6 @@ var textsJa = i18n.NewTexts(""+
 		81,
 		15,
 		135,
-		123,
-		21,
 		121,
 		15,
 		6,
@@ -2276,6 +2354,21 @@ var textsJa = i18n.NewTexts(""+
 		30,
 		27,
 		18,
+		12,
+		6,
+		6,
+		6,
+		15,
+		27,
+		21,
+		6,
+		15,
+		15,
+		92,
+		24,
+		54,
+		6,
+		182,
 		14,
 		27,
 		9,
@@ -2284,6 +2377,7 @@ var textsJa = i18n.NewTexts(""+
 		24,
 		18,
 		21,
+		6,
 		6,
 		18,
 		135,
@@ -2398,8 +2492,6 @@ var textsKo = i18n.NewTexts(""+
 	"컴퓨터가 이 링크를 동영상으로 인식하지 못했습니다."+
 	"오프라인"+
 	"오프라인입니다. 보낸 링크는 이 휴대폰에서 기다렸다가 다시 연결되면 보내집니다."+
-	"오프라인입니다. 보낸 링크는 스토리지에서 기다렸다가 다시 연결되면 시작됩니다."+
-	"스토리지 경유"+
 	"이 컴퓨터의 Kando가 오래되어 링크를 받을 수 없습니다. 업데이트하세요."+
 	"온라인"+
 	"열기"+
@@ -2553,6 +2645,21 @@ var textsKo = i18n.NewTexts(""+
 	"영상 다운로드 중"+
 	"정보"+
 	"컴퓨터"+
+	"둘 다 남기기"+
+	"뜻"+
+	"메모"+
+	"원문"+
+	"다른 기기"+
+	"이 휴대폰"+
+	"이 태블릿"+
+	"번역"+
+	"이것 사용"+
+	"동기화 충돌"+
+	"두 기기가 같은 곳을 바꿨습니다. 하나를 남기세요."+
+	"남은 충돌 없음"+
+	"모든 기기의 내용이 같습니다."+
+	"없음"+
+	"두 기기가 같은 번역이나 같은 메모를 바꾸면 여기서 남길 쪽을 고르세요. 단어, 저장한 문장, 진행 상황은 자동으로 합쳐집니다."+
 	"하루 목표"+
 	"소개 다시 보기"+
 	"연결 안 됨"+
@@ -2562,6 +2669,7 @@ var textsKo = i18n.NewTexts(""+
 	"소스 코드"+
 	"자막 스타일"+
 	"자막"+
+	"동기화"+
 	"번역할 언어"+
 	"자막은 이 언어로 번역돼요. 바꾸면 연결된 컴퓨터도 이 언어로 번역해요."+
 	"이 기기"+
@@ -2672,8 +2780,6 @@ var textsKo = i18n.NewTexts(""+
 		72,
 		12,
 		112,
-		111,
-		19,
 		96,
 		9,
 		6,
@@ -2827,6 +2933,21 @@ var textsKo = i18n.NewTexts(""+
 		23,
 		6,
 		9,
+		17,
+		3,
+		6,
+		6,
+		13,
+		13,
+		13,
+		6,
+		13,
+		16,
+		68,
+		20,
+		40,
+		6,
+		171,
 		13,
 		20,
 		14,
@@ -2836,6 +2957,7 @@ var textsKo = i18n.NewTexts(""+
 		13,
 		16,
 		6,
+		9,
 		16,
 		98,
 		10,
@@ -2949,8 +3071,6 @@ var textsZhHans = i18n.NewTexts(""+
 	"电脑认不出这是视频链接。"+
 	"离线"+
 	"电脑离线。新链接先排在这台手机上，电脑上线后自动处理。"+
-	"电脑离线。新链接先存在你的存储里，电脑上线后自动开始。"+
-	"经存储"+
 	"这台电脑上的看懂版本太旧，不能接收链接。请更新它。"+
 	"在线"+
 	"打开"+
@@ -3104,6 +3224,21 @@ var textsZhHans = i18n.NewTexts(""+
 	"正在下载影片"+
 	"关于"+
 	"电脑"+
+	"两条都留"+
+	"释义"+
+	"笔记"+
+	"原文"+
+	"其他设备"+
+	"这台手机"+
+	"这台平板"+
+	"译文"+
+	"用这个"+
+	"同步冲突"+
+	"两台设备改了同一处，留下一个。"+
+	"没有冲突了"+
+	"所有设备上的内容都一致。"+
+	"无"+
+	"两台设备改了同一句译文或同一条笔记时，在这里选择保留哪一个。单词、收藏的句子和进度会自动合并。"+
 	"每日目标"+
 	"重新查看引导"+
 	"未连接电脑"+
@@ -3113,6 +3248,7 @@ var textsZhHans = i18n.NewTexts(""+
 	"源代码"+
 	"字幕样式"+
 	"字幕"+
+	"同步"+
 	"翻译成"+
 	"字幕会翻译成这种语言。改了以后，连着的电脑也会按它翻译。"+
 	"这台设备"+
@@ -3223,8 +3359,6 @@ var textsZhHans = i18n.NewTexts(""+
 		36,
 		6,
 		81,
-		81,
-		9,
 		75,
 		6,
 		6,
@@ -3379,6 +3513,21 @@ var textsZhHans = i18n.NewTexts(""+
 		6,
 		6,
 		12,
+		6,
+		6,
+		6,
+		12,
+		12,
+		12,
+		6,
+		9,
+		12,
+		45,
+		15,
+		36,
+		3,
+		141,
+		12,
 		18,
 		15,
 		12,
@@ -3386,6 +3535,7 @@ var textsZhHans = i18n.NewTexts(""+
 		12,
 		9,
 		12,
+		6,
 		6,
 		9,
 		84,
@@ -3500,8 +3650,6 @@ var textsZhHant = i18n.NewTexts(""+
 	"電腦認不出這是影片連結。"+
 	"離線"+
 	"電腦離線。新連結先排在這支手機上，電腦上線後自動處理。"+
-	"電腦離線。新連結先存在你的儲存空間裡，電腦上線後自動開始。"+
-	"經儲存空間"+
 	"這台電腦上的看懂版本太舊，無法接收連結。請更新它。"+
 	"線上"+
 	"打開"+
@@ -3655,6 +3803,21 @@ var textsZhHant = i18n.NewTexts(""+
 	"正在下載影片"+
 	"關於"+
 	"電腦"+
+	"兩條都留"+
+	"釋義"+
+	"筆記"+
+	"原文"+
+	"其他裝置"+
+	"這台手機"+
+	"這台平板"+
+	"譯文"+
+	"用這個"+
+	"同步衝突"+
+	"兩台裝置改了同一處，留下一個。"+
+	"沒有衝突了"+
+	"所有裝置上的內容都一致。"+
+	"無"+
+	"兩台裝置改了同一句譯文或同一則筆記時，在這裡選擇保留哪一個。單字、收藏的句子和進度會自動合併。"+
 	"每日目標"+
 	"重新查看引導"+
 	"未連接電腦"+
@@ -3664,6 +3827,7 @@ var textsZhHant = i18n.NewTexts(""+
 	"原始碼"+
 	"字幕樣式"+
 	"字幕"+
+	"同步"+
 	"翻譯成"+
 	"字幕會翻譯成這種語言。改了以後，連著的電腦也會按它翻譯。"+
 	"這台裝置"+
@@ -3774,8 +3938,6 @@ var textsZhHant = i18n.NewTexts(""+
 		36,
 		6,
 		81,
-		87,
-		15,
 		75,
 		6,
 		6,
@@ -3930,6 +4092,21 @@ var textsZhHant = i18n.NewTexts(""+
 		6,
 		6,
 		12,
+		6,
+		6,
+		6,
+		12,
+		12,
+		12,
+		6,
+		9,
+		12,
+		45,
+		15,
+		36,
+		3,
+		141,
+		12,
 		18,
 		15,
 		12,
@@ -3937,6 +4114,7 @@ var textsZhHant = i18n.NewTexts(""+
 		12,
 		9,
 		12,
+		6,
 		6,
 		9,
 		84,
@@ -4030,12 +4208,6 @@ func Supply(lang string, t Translation) {
 	}
 	if t.AddNoteOffline != nil {
 		s.AddNoteOffline = t.AddNoteOffline
-	}
-	if t.AddNoteOfflineRelay != nil {
-		s.AddNoteOfflineRelay = t.AddNoteOfflineRelay
-	}
-	if t.AddNoteRelay != nil {
-		s.AddNoteRelay = t.AddNoteRelay
 	}
 	if t.ComputersCertificate != nil {
 		s.ComputersCertificate = t.ComputersCertificate
@@ -4135,12 +4307,6 @@ func Supply(lang string, t Translation) {
 	}
 	if t.JobsNotReady != nil {
 		s.JobsNotReady = t.JobsNotReady
-	}
-	if t.JobsInStorage != nil {
-		s.JobsInStorage = t.JobsInStorage
-	}
-	if t.JobsRelayed != nil {
-		s.JobsRelayed = t.JobsRelayed
 	}
 	if t.JobsPercent != nil {
 		s.JobsPercent = t.JobsPercent
@@ -4279,6 +4445,33 @@ func Supply(lang string, t Translation) {
 	}
 	if t.PlayerTabNotesCount != nil {
 		s.PlayerTabNotesCount = t.PlayerTabNotesCount
+	}
+	if t.SettingsConflictDate != nil {
+		s.SettingsConflictDate = t.SettingsConflictDate
+	}
+	if t.SettingsConflictReadOnly != nil {
+		s.SettingsConflictReadOnly = t.SettingsConflictReadOnly
+	}
+	if t.SettingsConflictToday != nil {
+		s.SettingsConflictToday = t.SettingsConflictToday
+	}
+	if t.SettingsConflictUnpaired != nil {
+		s.SettingsConflictUnpaired = t.SettingsConflictUnpaired
+	}
+	if t.SettingsConflictUnreachable != nil {
+		s.SettingsConflictUnreachable = t.SettingsConflictUnreachable
+	}
+	if t.SettingsConflictUseLabel != nil {
+		s.SettingsConflictUseLabel = t.SettingsConflictUseLabel
+	}
+	if t.SettingsConflictWord != nil {
+		s.SettingsConflictWord = t.SettingsConflictWord
+	}
+	if t.SettingsConflictYesterday != nil {
+		s.SettingsConflictYesterday = t.SettingsConflictYesterday
+	}
+	if t.SettingsConflictsCount != nil {
+		s.SettingsConflictsCount = t.SettingsConflictsCount
 	}
 	if t.SettingsGoalValue != nil {
 		s.SettingsGoalValue = t.SettingsGoalValue
@@ -4424,68 +4617,6 @@ func (msgs Messages) AddNoteOffline(name string) string {
 			return name + " 离线。链接先存在这台手机上，电脑上线后自动发过去。"
 		case "zh-Hant":
 			return name + " 離線。連結先存在這支手機上，電腦上線後自動傳過去。"
-		}
-	}
-}
-
-// AddNoteOfflineRelay says "{name} is offline. The link waits in your storage and starts once it's back."
-// in the language the app shows under cx.
-//
-// Add sheet: under the form while the computer is reached through the user's storage away from its network, but has not written there lately.
-func AddNoteOfflineRelay(cx *core.Scope, name string) string {
-	return For(cx).AddNoteOfflineRelay(name)
-}
-
-// AddNoteOfflineRelay is the package's AddNoteOfflineRelay in the language of msgs.
-func (msgs Messages) AddNoteOfflineRelay(name string) string {
-	if i18n.IsPseudo(msgs.lang) {
-		return i18n.Pseudo(msgs.lang, Messages{lang: Source, mark: true}.AddNoteOfflineRelay(name))
-	}
-	for lang := msgs.lang; ; lang = i18n.Parent(lang) {
-		if f := supplied[lang].AddNoteOfflineRelay; f != nil {
-			return f(name)
-		}
-		switch lang {
-		case "", "en":
-			return msgs.arg(name) + " is offline. The link waits in your storage and starts once it's back."
-		case "ja":
-			return name + " はオフラインです。リンクはストレージで待機し、オンラインになると開始されます。"
-		case "ko":
-			return name + "이(가) 오프라인입니다. 링크는 스토리지에서 기다렸다가 다시 연결되면 시작됩니다."
-		case "zh-Hans":
-			return name + " 离线。链接先存在你的存储里，电脑上线后自动开始。"
-		case "zh-Hant":
-			return name + " 離線。連結先存在你的儲存空間裡，電腦上線後自動開始。"
-		}
-	}
-}
-
-// AddNoteRelay says "Away from its network, the link goes through your storage. {name} takes it within a minute or two."
-// in the language the app shows under cx.
-//
-// Add sheet: under the form while the computer is reached through the user's storage away from its network.
-func AddNoteRelay(cx *core.Scope, name string) string { return For(cx).AddNoteRelay(name) }
-
-// AddNoteRelay is the package's AddNoteRelay in the language of msgs.
-func (msgs Messages) AddNoteRelay(name string) string {
-	if i18n.IsPseudo(msgs.lang) {
-		return i18n.Pseudo(msgs.lang, Messages{lang: Source, mark: true}.AddNoteRelay(name))
-	}
-	for lang := msgs.lang; ; lang = i18n.Parent(lang) {
-		if f := supplied[lang].AddNoteRelay; f != nil {
-			return f(name)
-		}
-		switch lang {
-		case "", "en":
-			return "Away from its network, the link goes through your storage. " + msgs.arg(name) + " takes it within a minute or two."
-		case "ja":
-			return "同じネットワークにいないので、リンクはストレージ経由で " + name + " に届きます。1〜2 分ほどで処理が始まります。"
-		case "ko":
-			return "같은 네트워크에 없어 링크가 스토리지를 거쳐 " + name + "에 전달됩니다. 1~2분 안에 처리가 시작됩니다."
-		case "zh-Hans":
-			return "不在同一网络，链接经你的存储送到 " + name + "，几十秒到几分钟后开始处理。"
-		case "zh-Hant":
-			return "不在同一網路，連結經你的儲存空間送到 " + name + "，幾十秒到幾分鐘後開始處理。"
 		}
 	}
 }
@@ -6321,84 +6452,6 @@ func JobsOfflineSummary(cx *core.Scope) string { return For(cx).JobsOfflineSumma
 
 // JobsOfflineSummary is the package's JobsOfflineSummary in the language of msgs.
 func (msgs Messages) JobsOfflineSummary() string { return msgs.text(textJobsOfflineSummary) }
-
-// JobsOfflineRelay says "Offline. Links you send wait in your storage and start once it's back."
-// in the language the app shows under cx.
-//
-// Jobs page, a computer's card while it is reached through the user's storage away from its network but has not written there lately.
-func JobsOfflineRelay(cx *core.Scope) string { return For(cx).JobsOfflineRelay() }
-
-// JobsOfflineRelay is the package's JobsOfflineRelay in the language of msgs.
-func (msgs Messages) JobsOfflineRelay() string { return msgs.text(textJobsOfflineRelay) }
-
-// JobsInStorage says "In your storage, waiting for {name}"
-// in the language the app shows under cx.
-//
-// Where a link stands once it was left in the user's storage for the computer to take, away from its network.
-func JobsInStorage(cx *core.Scope, name string) string { return For(cx).JobsInStorage(name) }
-
-// JobsInStorage is the package's JobsInStorage in the language of msgs.
-func (msgs Messages) JobsInStorage(name string) string {
-	if i18n.IsPseudo(msgs.lang) {
-		return i18n.Pseudo(msgs.lang, Messages{lang: Source, mark: true}.JobsInStorage(name))
-	}
-	for lang := msgs.lang; ; lang = i18n.Parent(lang) {
-		if f := supplied[lang].JobsInStorage; f != nil {
-			return f(name)
-		}
-		switch lang {
-		case "", "en":
-			return "In your storage, waiting for " + msgs.arg(name)
-		case "ja":
-			return "ストレージに保存済み。" + name + " を待っています"
-		case "ko":
-			return "스토리지에 저장됨, " + name + " 대기 중"
-		case "zh-Hans":
-			return "已存进你的存储，等 " + name + " 处理"
-		case "zh-Hant":
-			return "已存進你的儲存空間，等 " + name + " 處理"
-		}
-	}
-}
-
-// JobsRelayed says "{summary} · through your storage"
-// in the language the app shows under cx.
-//
-// Jobs page, a computer's card while it is reached through the user's storage away from its network: what its queue does, then how it is reached.
-func JobsRelayed(cx *core.Scope, summary string) string { return For(cx).JobsRelayed(summary) }
-
-// JobsRelayed is the package's JobsRelayed in the language of msgs.
-func (msgs Messages) JobsRelayed(summary string) string {
-	if i18n.IsPseudo(msgs.lang) {
-		return i18n.Pseudo(msgs.lang, Messages{lang: Source, mark: true}.JobsRelayed(summary))
-	}
-	for lang := msgs.lang; ; lang = i18n.Parent(lang) {
-		if f := supplied[lang].JobsRelayed; f != nil {
-			return f(summary)
-		}
-		switch lang {
-		case "", "en":
-			return msgs.arg(summary) + " · through your storage"
-		case "ja":
-			return summary + " · ストレージ経由"
-		case "ko":
-			return summary + " · 스토리지 경유"
-		case "zh-Hans":
-			return summary + " · 经你的存储"
-		case "zh-Hant":
-			return summary + " · 經你的儲存空間"
-		}
-	}
-}
-
-// JobsViaStorage says "Via storage"
-// in the language the app shows under cx.
-//
-// Jobs page, a computer's card: it answers through the user's storage, away from its network.
-func JobsViaStorage(cx *core.Scope) string { return For(cx).JobsViaStorage() }
-
-// JobsViaStorage is the package's JobsViaStorage in the language of msgs.
-func (msgs Messages) JobsViaStorage() string { return msgs.text(textJobsViaStorage) }
 
 // JobsOlder says "Kando on this computer is too old to take links. Update it."
 // in the language the app shows under cx.
@@ -9377,6 +9430,450 @@ func SettingsComputers(cx *core.Scope) string { return For(cx).SettingsComputers
 // SettingsComputers is the package's SettingsComputers in the language of msgs.
 func (msgs Messages) SettingsComputers() string { return msgs.text(textSettingsComputers) }
 
+// SettingsConflictBoth says "Keep Both"
+// in the language the app shows under cx.
+//
+// Under a sync conflict of two notes or two meanings: keeps both, one after the other.
+func SettingsConflictBoth(cx *core.Scope) string { return For(cx).SettingsConflictBoth() }
+
+// SettingsConflictBoth is the package's SettingsConflictBoth in the language of msgs.
+func (msgs Messages) SettingsConflictBoth() string { return msgs.text(textSettingsConflictBoth) }
+
+// SettingsConflictDate says "{when, date, ::MMMd}, {when, time, short}"
+// in the language the app shows under cx.
+//
+// When a version of a sync conflict was made, before yesterday.
+func SettingsConflictDate(cx *core.Scope, when time.Time) string {
+	return For(cx).SettingsConflictDate(when)
+}
+
+// SettingsConflictDate is the package's SettingsConflictDate in the language of msgs.
+func (msgs Messages) SettingsConflictDate(when time.Time) string {
+	if i18n.IsPseudo(msgs.lang) {
+		return i18n.Pseudo(msgs.lang, Messages{lang: Source, mark: true}.SettingsConflictDate(when))
+	}
+	for lang := msgs.lang; ; lang = i18n.Parent(lang) {
+		if f := supplied[lang].SettingsConflictDate; f != nil {
+			return f(msgs.hc, when)
+		}
+		switch lang {
+		case "", "en":
+			return msgs.arg(i18n.FormatDate(msgs.dated("en"), when, i18n.DateOptions{Skeleton: "MMMd"})) + ", " + msgs.arg(i18n.FormatDate(msgs.dated("en"), when, i18n.DateOptions{Time: i18n.ShortStyle}))
+		case "ja":
+			return i18n.FormatDate(msgs.dated("ja"), when, i18n.DateOptions{Skeleton: "MMMd"}) + " " + i18n.FormatDate(msgs.dated("ja"), when, i18n.DateOptions{Time: i18n.ShortStyle})
+		case "ko":
+			return i18n.FormatDate(msgs.dated("ko"), when, i18n.DateOptions{Skeleton: "MMMd"}) + " " + i18n.FormatDate(msgs.dated("ko"), when, i18n.DateOptions{Time: i18n.ShortStyle})
+		case "zh-Hans":
+			return i18n.FormatDate(msgs.dated("zh-Hans"), when, i18n.DateOptions{Skeleton: "MMMd"}) + " " + i18n.FormatDate(msgs.dated("zh-Hans"), when, i18n.DateOptions{Time: i18n.ShortStyle})
+		case "zh-Hant":
+			return i18n.FormatDate(msgs.dated("zh-Hant"), when, i18n.DateOptions{Skeleton: "MMMd"}) + " " + i18n.FormatDate(msgs.dated("zh-Hant"), when, i18n.DateOptions{Time: i18n.ShortStyle})
+		}
+	}
+}
+
+// SettingsConflictMeaning says "Meaning"
+// in the language the app shows under cx.
+//
+// Badge of a sync conflict over a word's meaning.
+func SettingsConflictMeaning(cx *core.Scope) string { return For(cx).SettingsConflictMeaning() }
+
+// SettingsConflictMeaning is the package's SettingsConflictMeaning in the language of msgs.
+func (msgs Messages) SettingsConflictMeaning() string { return msgs.text(textSettingsConflictMeaning) }
+
+// SettingsConflictNote says "Note"
+// in the language the app shows under cx.
+//
+// Badge of a sync conflict over a note.
+func SettingsConflictNote(cx *core.Scope) string { return For(cx).SettingsConflictNote() }
+
+// SettingsConflictNote is the package's SettingsConflictNote in the language of msgs.
+func (msgs Messages) SettingsConflictNote() string { return msgs.text(textSettingsConflictNote) }
+
+// SettingsConflictOriginal says "Line"
+// in the language the app shows under cx.
+//
+// Badge of a sync conflict over a line's original text, as corrected.
+func SettingsConflictOriginal(cx *core.Scope) string { return For(cx).SettingsConflictOriginal() }
+
+// SettingsConflictOriginal is the package's SettingsConflictOriginal in the language of msgs.
+func (msgs Messages) SettingsConflictOriginal() string {
+	return msgs.text(textSettingsConflictOriginal)
+}
+
+// SettingsConflictOtherDevice says "Another Device"
+// in the language the app shows under cx.
+//
+// Where a version of a sync conflict was made, when the computer does not name the device.
+func SettingsConflictOtherDevice(cx *core.Scope) string { return For(cx).SettingsConflictOtherDevice() }
+
+// SettingsConflictOtherDevice is the package's SettingsConflictOtherDevice in the language of msgs.
+func (msgs Messages) SettingsConflictOtherDevice() string {
+	return msgs.text(textSettingsConflictOtherDevice)
+}
+
+// SettingsConflictReadOnly says "{computer} lets this device only view what it has, so the conflict stays."
+// in the language the app shows under cx.
+//
+// Under the sync conflicts when the computer refused to resolve one: the user made this device read-only there.
+func SettingsConflictReadOnly(cx *core.Scope, computer string) string {
+	return For(cx).SettingsConflictReadOnly(computer)
+}
+
+// SettingsConflictReadOnly is the package's SettingsConflictReadOnly in the language of msgs.
+func (msgs Messages) SettingsConflictReadOnly(computer string) string {
+	if i18n.IsPseudo(msgs.lang) {
+		return i18n.Pseudo(msgs.lang, Messages{lang: Source, mark: true}.SettingsConflictReadOnly(computer))
+	}
+	for lang := msgs.lang; ; lang = i18n.Parent(lang) {
+		if f := supplied[lang].SettingsConflictReadOnly; f != nil {
+			return f(computer)
+		}
+		switch lang {
+		case "", "en":
+			return msgs.arg(computer) + " lets this device only view what it has, so the conflict stays."
+		case "ja":
+			return computer + " はこの端末に閲覧だけを許可しているため、競合はそのままです。"
+		case "ko":
+			return computer + "에서 이 기기는 보기만 할 수 있어 충돌이 그대로 남습니다."
+		case "zh-Hans":
+			return computer + " 只允许这台设备查看，冲突保持不变。"
+		case "zh-Hant":
+			return computer + " 只允許這台裝置檢視，衝突保持不變。"
+		}
+	}
+}
+
+// SettingsConflictThisPhone says "This Phone"
+// in the language the app shows under cx.
+//
+// Where a version of a sync conflict was made: on this phone.
+func SettingsConflictThisPhone(cx *core.Scope) string { return For(cx).SettingsConflictThisPhone() }
+
+// SettingsConflictThisPhone is the package's SettingsConflictThisPhone in the language of msgs.
+func (msgs Messages) SettingsConflictThisPhone() string {
+	return msgs.text(textSettingsConflictThisPhone)
+}
+
+// SettingsConflictThisTablet says "This Tablet"
+// in the language the app shows under cx.
+//
+// Where a version of a sync conflict was made: on this tablet.
+func SettingsConflictThisTablet(cx *core.Scope) string { return For(cx).SettingsConflictThisTablet() }
+
+// SettingsConflictThisTablet is the package's SettingsConflictThisTablet in the language of msgs.
+func (msgs Messages) SettingsConflictThisTablet() string {
+	return msgs.text(textSettingsConflictThisTablet)
+}
+
+// SettingsConflictToday says "Today {when, time, short}"
+// in the language the app shows under cx.
+//
+// When a version of a sync conflict was made, today.
+func SettingsConflictToday(cx *core.Scope, when time.Time) string {
+	return For(cx).SettingsConflictToday(when)
+}
+
+// SettingsConflictToday is the package's SettingsConflictToday in the language of msgs.
+func (msgs Messages) SettingsConflictToday(when time.Time) string {
+	if i18n.IsPseudo(msgs.lang) {
+		return i18n.Pseudo(msgs.lang, Messages{lang: Source, mark: true}.SettingsConflictToday(when))
+	}
+	for lang := msgs.lang; ; lang = i18n.Parent(lang) {
+		if f := supplied[lang].SettingsConflictToday; f != nil {
+			return f(msgs.hc, when)
+		}
+		switch lang {
+		case "", "en":
+			return "Today " + msgs.arg(i18n.FormatDate(msgs.dated("en"), when, i18n.DateOptions{Time: i18n.ShortStyle}))
+		case "ja":
+			return "今日 " + i18n.FormatDate(msgs.dated("ja"), when, i18n.DateOptions{Time: i18n.ShortStyle})
+		case "ko":
+			return "오늘 " + i18n.FormatDate(msgs.dated("ko"), when, i18n.DateOptions{Time: i18n.ShortStyle})
+		case "zh-Hans":
+			return "今天 " + i18n.FormatDate(msgs.dated("zh-Hans"), when, i18n.DateOptions{Time: i18n.ShortStyle})
+		case "zh-Hant":
+			return "今天 " + i18n.FormatDate(msgs.dated("zh-Hant"), when, i18n.DateOptions{Time: i18n.ShortStyle})
+		}
+	}
+}
+
+// SettingsConflictTranslation says "Translation"
+// in the language the app shows under cx.
+//
+// Badge of a sync conflict over a line's translation.
+func SettingsConflictTranslation(cx *core.Scope) string { return For(cx).SettingsConflictTranslation() }
+
+// SettingsConflictTranslation is the package's SettingsConflictTranslation in the language of msgs.
+func (msgs Messages) SettingsConflictTranslation() string {
+	return msgs.text(textSettingsConflictTranslation)
+}
+
+// SettingsConflictUnpaired says "{computer} no longer takes this device, so the conflict stays."
+// in the language the app shows under cx.
+//
+// Under the sync conflicts when the computer refused to resolve one: it unpaired this device.
+func SettingsConflictUnpaired(cx *core.Scope, computer string) string {
+	return For(cx).SettingsConflictUnpaired(computer)
+}
+
+// SettingsConflictUnpaired is the package's SettingsConflictUnpaired in the language of msgs.
+func (msgs Messages) SettingsConflictUnpaired(computer string) string {
+	if i18n.IsPseudo(msgs.lang) {
+		return i18n.Pseudo(msgs.lang, Messages{lang: Source, mark: true}.SettingsConflictUnpaired(computer))
+	}
+	for lang := msgs.lang; ; lang = i18n.Parent(lang) {
+		if f := supplied[lang].SettingsConflictUnpaired; f != nil {
+			return f(computer)
+		}
+		switch lang {
+		case "", "en":
+			return msgs.arg(computer) + " no longer takes this device, so the conflict stays."
+		case "ja":
+			return computer + " はこの端末を受け付けなくなったため、競合はそのままです。"
+		case "ko":
+			return computer + "이(가) 더 이상 이 기기를 받지 않아 충돌이 그대로 남습니다."
+		case "zh-Hans":
+			return computer + " 已不再接受这台设备，冲突保持不变。"
+		case "zh-Hant":
+			return computer + " 已不再接受這台裝置，衝突保持不變。"
+		}
+	}
+}
+
+// SettingsConflictUnreachable says "Couldn't reach {computer}. Try again when it's on and on the same network."
+// in the language the app shows under cx.
+//
+// Under the sync conflicts when resolving one failed: the computer could not be reached.
+func SettingsConflictUnreachable(cx *core.Scope, computer string) string {
+	return For(cx).SettingsConflictUnreachable(computer)
+}
+
+// SettingsConflictUnreachable is the package's SettingsConflictUnreachable in the language of msgs.
+func (msgs Messages) SettingsConflictUnreachable(computer string) string {
+	if i18n.IsPseudo(msgs.lang) {
+		return i18n.Pseudo(msgs.lang, Messages{lang: Source, mark: true}.SettingsConflictUnreachable(computer))
+	}
+	for lang := msgs.lang; ; lang = i18n.Parent(lang) {
+		if f := supplied[lang].SettingsConflictUnreachable; f != nil {
+			return f(computer)
+		}
+		switch lang {
+		case "", "en":
+			return "Couldn't reach " + msgs.arg(computer) + ". Try again when it's on and on the same network."
+		case "ja":
+			return computer + " に接続できません。電源が入り、同じネットワークにつながってからもう一度お試しください。"
+		case "ko":
+			return computer + "에 연결할 수 없습니다. 켜져 있고 같은 네트워크에 있을 때 다시 시도하세요."
+		case "zh-Hans":
+			return "无法连接 " + computer + "。请在它开机并连上同一网络后再试。"
+		case "zh-Hant":
+			return "無法連線 " + computer + "。請在它開機並連上同一網路後再試。"
+		}
+	}
+}
+
+// SettingsConflictUse says "Use This"
+// in the language the app shows under cx.
+//
+// Beside a version of a sync conflict: keeps it on every device.
+func SettingsConflictUse(cx *core.Scope) string { return For(cx).SettingsConflictUse() }
+
+// SettingsConflictUse is the package's SettingsConflictUse in the language of msgs.
+func (msgs Messages) SettingsConflictUse() string { return msgs.text(textSettingsConflictUse) }
+
+// SettingsConflictUseLabel says "Use the version from {device}"
+// in the language the app shows under cx.
+//
+// Spoken label of Use This beside a version of a sync conflict, with the device it was made on.
+func SettingsConflictUseLabel(cx *core.Scope, device string) string {
+	return For(cx).SettingsConflictUseLabel(device)
+}
+
+// SettingsConflictUseLabel is the package's SettingsConflictUseLabel in the language of msgs.
+func (msgs Messages) SettingsConflictUseLabel(device string) string {
+	if i18n.IsPseudo(msgs.lang) {
+		return i18n.Pseudo(msgs.lang, Messages{lang: Source, mark: true}.SettingsConflictUseLabel(device))
+	}
+	for lang := msgs.lang; ; lang = i18n.Parent(lang) {
+		if f := supplied[lang].SettingsConflictUseLabel; f != nil {
+			return f(device)
+		}
+		switch lang {
+		case "", "en":
+			return "Use the version from " + msgs.arg(device)
+		case "ja":
+			return device + " の版を使う"
+		case "ko":
+			return device + "의 버전 사용"
+		case "zh-Hans":
+			return "使用 " + device + " 上的版本"
+		case "zh-Hant":
+			return "使用 " + device + " 上的版本"
+		}
+	}
+}
+
+// SettingsConflictWord says "Word “{word}”"
+// in the language the app shows under cx.
+//
+// Where a sync conflict is: the word of the vocabulary it is of.
+func SettingsConflictWord(cx *core.Scope, word string) string {
+	return For(cx).SettingsConflictWord(word)
+}
+
+// SettingsConflictWord is the package's SettingsConflictWord in the language of msgs.
+func (msgs Messages) SettingsConflictWord(word string) string {
+	if i18n.IsPseudo(msgs.lang) {
+		return i18n.Pseudo(msgs.lang, Messages{lang: Source, mark: true}.SettingsConflictWord(word))
+	}
+	for lang := msgs.lang; ; lang = i18n.Parent(lang) {
+		if f := supplied[lang].SettingsConflictWord; f != nil {
+			return f(word)
+		}
+		switch lang {
+		case "", "en":
+			return "Word “" + msgs.arg(word) + "”"
+		case "ja":
+			return "単語「" + word + "」"
+		case "ko":
+			return "단어 “" + word + "”"
+		case "zh-Hans":
+			return "单词“" + word + "”"
+		case "zh-Hant":
+			return "單字「" + word + "」"
+		}
+	}
+}
+
+// SettingsConflictYesterday says "Yesterday {when, time, short}"
+// in the language the app shows under cx.
+//
+// When a version of a sync conflict was made, yesterday.
+func SettingsConflictYesterday(cx *core.Scope, when time.Time) string {
+	return For(cx).SettingsConflictYesterday(when)
+}
+
+// SettingsConflictYesterday is the package's SettingsConflictYesterday in the language of msgs.
+func (msgs Messages) SettingsConflictYesterday(when time.Time) string {
+	if i18n.IsPseudo(msgs.lang) {
+		return i18n.Pseudo(msgs.lang, Messages{lang: Source, mark: true}.SettingsConflictYesterday(when))
+	}
+	for lang := msgs.lang; ; lang = i18n.Parent(lang) {
+		if f := supplied[lang].SettingsConflictYesterday; f != nil {
+			return f(msgs.hc, when)
+		}
+		switch lang {
+		case "", "en":
+			return "Yesterday " + msgs.arg(i18n.FormatDate(msgs.dated("en"), when, i18n.DateOptions{Time: i18n.ShortStyle}))
+		case "ja":
+			return "昨日 " + i18n.FormatDate(msgs.dated("ja"), when, i18n.DateOptions{Time: i18n.ShortStyle})
+		case "ko":
+			return "어제 " + i18n.FormatDate(msgs.dated("ko"), when, i18n.DateOptions{Time: i18n.ShortStyle})
+		case "zh-Hans":
+			return "昨天 " + i18n.FormatDate(msgs.dated("zh-Hans"), when, i18n.DateOptions{Time: i18n.ShortStyle})
+		case "zh-Hant":
+			return "昨天 " + i18n.FormatDate(msgs.dated("zh-Hant"), when, i18n.DateOptions{Time: i18n.ShortStyle})
+		}
+	}
+}
+
+// SettingsConflicts says "Sync Conflicts"
+// in the language the app shows under cx.
+//
+// Row in Settings, and the title of its page, listing what two devices changed apart, to pick the version to keep.
+func SettingsConflicts(cx *core.Scope) string { return For(cx).SettingsConflicts() }
+
+// SettingsConflicts is the package's SettingsConflicts in the language of msgs.
+func (msgs Messages) SettingsConflicts() string { return msgs.text(textSettingsConflicts) }
+
+// SettingsConflictsCount says "{count, plural, one {# to resolve} other {# to resolve}}"
+// in the language the app shows under cx.
+//
+// Beside Sync Conflicts in Settings: how many are open.
+func SettingsConflictsCount(cx *core.Scope, count int) string {
+	return For(cx).SettingsConflictsCount(count)
+}
+
+// SettingsConflictsCount is the package's SettingsConflictsCount in the language of msgs.
+func (msgs Messages) SettingsConflictsCount(count int) string {
+	if i18n.IsPseudo(msgs.lang) {
+		return i18n.Pseudo(msgs.lang, Messages{lang: Source, mark: true}.SettingsConflictsCount(count))
+	}
+	for lang := msgs.lang; ; lang = i18n.Parent(lang) {
+		if f := supplied[lang].SettingsConflictsCount; f != nil {
+			return f(count)
+		}
+		switch lang {
+		case "", "en":
+			var b strings.Builder
+			switch i18n.Cardinal("en", float64(count)) {
+			case i18n.One:
+				b.WriteString(msgs.arg(i18n.FormatNumber("en", float64(count))))
+				b.WriteString(" to resolve")
+			default:
+				b.WriteString(msgs.arg(i18n.FormatNumber("en", float64(count))))
+				b.WriteString(" to resolve")
+			}
+			return b.String()
+		case "ja":
+			return i18n.FormatNumber("ja", float64(count)) + " 件未解決"
+		case "ko":
+			return i18n.FormatNumber("ko", float64(count)) + "개 해결 필요"
+		case "zh-Hans":
+			return i18n.FormatNumber("zh-Hans", float64(count)) + " 个待处理"
+		case "zh-Hant":
+			return i18n.FormatNumber("zh-Hant", float64(count)) + " 個待處理"
+		}
+	}
+}
+
+// SettingsConflictsDetail says "Two devices changed the same thing. Keep one."
+// in the language the app shows under cx.
+//
+// Under Sync Conflicts in Settings while some are open.
+func SettingsConflictsDetail(cx *core.Scope) string { return For(cx).SettingsConflictsDetail() }
+
+// SettingsConflictsDetail is the package's SettingsConflictsDetail in the language of msgs.
+func (msgs Messages) SettingsConflictsDetail() string { return msgs.text(textSettingsConflictsDetail) }
+
+// SettingsConflictsDone says "No Conflicts Left"
+// in the language the app shows under cx.
+//
+// The Sync Conflicts page when none is open.
+func SettingsConflictsDone(cx *core.Scope) string { return For(cx).SettingsConflictsDone() }
+
+// SettingsConflictsDone is the package's SettingsConflictsDone in the language of msgs.
+func (msgs Messages) SettingsConflictsDone() string { return msgs.text(textSettingsConflictsDone) }
+
+// SettingsConflictsDoneDetail says "Everything matches on all devices."
+// in the language the app shows under cx.
+//
+// Under No Conflicts Left.
+func SettingsConflictsDoneDetail(cx *core.Scope) string { return For(cx).SettingsConflictsDoneDetail() }
+
+// SettingsConflictsDoneDetail is the package's SettingsConflictsDoneDetail in the language of msgs.
+func (msgs Messages) SettingsConflictsDoneDetail() string {
+	return msgs.text(textSettingsConflictsDoneDetail)
+}
+
+// SettingsConflictsNone says "None"
+// in the language the app shows under cx.
+//
+// Beside Sync Conflicts in Settings when none is open.
+func SettingsConflictsNone(cx *core.Scope) string { return For(cx).SettingsConflictsNone() }
+
+// SettingsConflictsNone is the package's SettingsConflictsNone in the language of msgs.
+func (msgs Messages) SettingsConflictsNone() string { return msgs.text(textSettingsConflictsNone) }
+
+// SettingsConflictsNote says "When two devices change the same translated line or the same note, choose which to keep here. Words, saved lines and progress merge on their own."
+// in the language the app shows under cx.
+//
+// At the top of the Sync Conflicts page.
+func SettingsConflictsNote(cx *core.Scope) string { return For(cx).SettingsConflictsNote() }
+
+// SettingsConflictsNote is the package's SettingsConflictsNote in the language of msgs.
+func (msgs Messages) SettingsConflictsNote() string { return msgs.text(textSettingsConflictsNote) }
+
 // SettingsGoal says "Daily Goal"
 // in the language the app shows under cx.
 //
@@ -9517,6 +10014,15 @@ func SettingsSubtitles(cx *core.Scope) string { return For(cx).SettingsSubtitles
 
 // SettingsSubtitles is the package's SettingsSubtitles in the language of msgs.
 func (msgs Messages) SettingsSubtitles() string { return msgs.text(textSettingsSubtitles) }
+
+// SettingsSync says "Sync"
+// in the language the app shows under cx.
+//
+// Heading of Settings' section of what syncs between this device and the computers.
+func SettingsSync(cx *core.Scope) string { return For(cx).SettingsSync() }
+
+// SettingsSync is the package's SettingsSync in the language of msgs.
+func (msgs Messages) SettingsSync() string { return msgs.text(textSettingsSync) }
 
 // SettingsTarget says "Translate Into"
 // in the language the app shows under cx.
