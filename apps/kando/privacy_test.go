@@ -398,9 +398,9 @@ func TestOfflineKeepsTheBrowserOnItsStart(t *testing.T) {
 		t.Fatalf("source %q, notice %+v", a.browse.source, a.browse.notice)
 	}
 	// A swipe back reaches the page before: the browser leaves it for the start at once.
-	scripts := len(browseScripts(tt))
+	loads := len(browseCommands(tt, nsgotest.WebLoad))
 	browseReport(tt, ns.WebNavigation{URL: "https://example.com/a", CanGoBack: true, CanGoForward: true})
-	if a.browseShowing() || len(browseScripts(tt)) == scripts {
+	if a.browseShowing() || len(browseCommands(tt, nsgotest.WebLoad)) == loads {
 		t.Fatalf("a page the web view went to offline stays: url %q", a.browse.url)
 	}
 	a.SetOffline(false)
