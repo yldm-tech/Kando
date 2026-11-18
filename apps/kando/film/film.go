@@ -20,6 +20,7 @@ type App interface {
 	Corrector
 	Glossary
 	Reviewer
+	Progresser
 	Streamer
 	Explainer
 	Recapper

@@ -47,6 +47,7 @@ type fakeApp struct {
 	fakeCorrector
 	fakeGlossary
 	fakeReviewer
+	fakeProgresser
 	fakeStreamer
 	fakeExplainer
 	item       Item

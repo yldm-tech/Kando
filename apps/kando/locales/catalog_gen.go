@@ -960,6 +960,12 @@ var Parameters = map[string][]string{
 	"ReviewPlayLine":                           {"time_"},
 	"FilmsQueueReviewingLines":                 {"lines", "total"},
 	"GlossarySeriesConfirmed":                  {"films"},
+	"FilmBadgeRunning":                         {"percent"},
+	"FilmBadgeAttention":                       {"percent", "lines"},
+	"FilmBadgeSubtitles":                       {"percent"},
+	"FilmBadgePercent":                         {"percent"},
+	"FilmBadgeUntranslated":                    {"lines"},
+	"FilmBadgeUntranslatedNote":                {"lines"},
 }
 
 // Translation is a language's messages another package supplies:
@@ -1467,6 +1473,12 @@ type Translation struct {
 	ReviewPlayLine                           func(time_ string) string
 	FilmsQueueReviewingLines                 func(lines int, total int) string
 	GlossarySeriesConfirmed                  func(films int) string
+	FilmBadgeRunning                         func(percent int) string
+	FilmBadgeAttention                       func(percent int, lines int) string
+	FilmBadgeSubtitles                       func(percent int) string
+	FilmBadgePercent                         func(percent int) string
+	FilmBadgeUntranslated                    func(lines int) string
+	FilmBadgeUntranslatedNote                func(lines int) string
 }
 
 var supplied = map[string]Translation{}
@@ -2868,6 +2880,11 @@ const (
 	textGlossaryGuessHint
 	textGlossaryGuessYes
 	textGlossaryGuessNo
+	textFilmLayerSpeech
+	textFilmLayerTranslation
+	textFilmLayerReview
+	textFilmBadgeTranslateMissing
+	textFilmBadgeSettings
 	numTexts
 )
 
@@ -4269,6 +4286,11 @@ var keyOfText = [numTexts]string{
 	"glossaryGuessHint",
 	"glossaryGuessYes",
 	"glossaryGuessNo",
+	"filmLayerSpeech",
+	"filmLayerTranslation",
+	"filmLayerReview",
+	"filmBadgeTranslateMissing",
+	"filmBadgeSettings",
 }
 
 // textsEn are the messages without arguments in en.
@@ -5667,7 +5689,12 @@ var textsEn = i18n.NewTexts(""+
 	"These look like one series"+
 	"Once confirmed, a term can be set to Series, and changing a name or term once changes it in every episode. This was guessed from the file names alone, so you're asked first."+
 	"Same Series"+
-	"Not a Series",
+	"Not a Series"+
+	"Original · Speech recognition"+
+	"Translation"+
+	"Final proofread · Whole film"+
+	"Translate"+
+	"Settings…",
 	[]uint16{
 		5,
 		19,
@@ -7064,6 +7091,11 @@ var textsEn = i18n.NewTexts(""+
 		173,
 		11,
 		12,
+		30,
+		11,
+		29,
+		9,
+		11,
 	})
 
 // textsJa are the messages without arguments in ja.
@@ -8462,7 +8494,12 @@ var textsJa = i18n.NewTexts(""+
 	"これらは同じシリーズのようです"+
 	"確認すると用語を「シリーズ」に設定でき、人名や用語を一度直すと全話に反映されます。ファイル名だけで判断したので、先に確認しています。"+
 	"同じシリーズ"+
-	"違う",
+	"違う"+
+	"原文 · 音声認識"+
+	"訳文 · 翻訳"+
+	"最終校正 · 全体"+
+	"翻訳する"+
+	"設定…",
 	[]uint16{
 		5,
 		30,
@@ -9859,6 +9896,11 @@ var textsJa = i18n.NewTexts(""+
 		198,
 		18,
 		6,
+		22,
+		16,
+		22,
+		12,
+		9,
 	})
 
 // textsKo are the messages without arguments in ko.
@@ -11257,7 +11299,12 @@ var textsKo = i18n.NewTexts(""+
 	"같은 시리즈로 보입니다"+
 	"확인하면 용어를 '시리즈'로 지정해 인명이나 용어를 한 번 고치면 모든 화에 적용됩니다. 파일 이름만 보고 추측했으므로 먼저 묻습니다."+
 	"같은 시리즈"+
-	"아님",
+	"아님"+
+	"원문 · 음성 인식"+
+	"번역문 · 번역"+
+	"최종 교정 · 전체"+
+	"번역"+
+	"설정…",
 	[]uint16{
 		5,
 		28,
@@ -12654,6 +12701,11 @@ var textsKo = i18n.NewTexts(""+
 		183,
 		16,
 		6,
+		23,
+		19,
+		23,
+		6,
+		9,
 	})
 
 // textsZhHans are the messages without arguments in zh-Hans.
@@ -14052,7 +14104,12 @@ var textsZhHans = i18n.NewTexts(""+
 	"这几部像是同一个系列"+
 	"确认后，可以把术语设为「系列」，改一处人名或术语，这几集一起生效。只按文件名判断，所以先问你。"+
 	"是同一系列"+
-	"不是",
+	"不是"+
+	"原文 · 语音识别"+
+	"译文 · 翻译"+
+	"终校 · 通读全片"+
+	"补译"+
+	"设置…",
 	[]uint16{
 		6,
 		15,
@@ -15449,6 +15506,11 @@ var textsZhHans = i18n.NewTexts(""+
 		141,
 		15,
 		6,
+		22,
+		16,
+		22,
+		6,
+		9,
 	})
 
 // textsZhHant are the messages without arguments in zh-Hant.
@@ -16847,7 +16909,12 @@ var textsZhHant = i18n.NewTexts(""+
 	"這幾部像是同一個系列"+
 	"確認後，可以把術語設為「系列」，改一處人名或術語，這幾集一起生效。只按檔名判斷，所以先問你。"+
 	"是同一系列"+
-	"不是",
+	"不是"+
+	"原文 · 語音辨識"+
+	"譯文 · 翻譯"+
+	"終校 · 通讀全片"+
+	"補譯"+
+	"設定…",
 	[]uint16{
 		6,
 		15,
@@ -18244,6 +18311,11 @@ var textsZhHant = i18n.NewTexts(""+
 		138,
 		15,
 		6,
+		22,
+		16,
+		22,
+		6,
+		9,
 	})
 
 // texts returns the messages without arguments in lang, nil for a
@@ -19802,6 +19874,24 @@ func Supply(lang string, t Translation) {
 	}
 	if t.GlossarySeriesConfirmed != nil {
 		s.GlossarySeriesConfirmed = t.GlossarySeriesConfirmed
+	}
+	if t.FilmBadgeRunning != nil {
+		s.FilmBadgeRunning = t.FilmBadgeRunning
+	}
+	if t.FilmBadgeAttention != nil {
+		s.FilmBadgeAttention = t.FilmBadgeAttention
+	}
+	if t.FilmBadgeSubtitles != nil {
+		s.FilmBadgeSubtitles = t.FilmBadgeSubtitles
+	}
+	if t.FilmBadgePercent != nil {
+		s.FilmBadgePercent = t.FilmBadgePercent
+	}
+	if t.FilmBadgeUntranslated != nil {
+		s.FilmBadgeUntranslated = t.FilmBadgeUntranslated
+	}
+	if t.FilmBadgeUntranslatedNote != nil {
+		s.FilmBadgeUntranslatedNote = t.FilmBadgeUntranslatedNote
 	}
 	supplied[lang] = s
 	Catalog.Add(lang)
@@ -50790,6 +50880,274 @@ func (msgs Messages) GlossarySeriesConfirmed(films int) string {
 		}
 	}
 }
+
+// FilmLayerSpeech says "Original · Speech recognition"
+// in the language the app shows under cx.
+//
+// Layer of a film's subtitles in the player's progress badge: the original lines heard by speech recognition.
+func FilmLayerSpeech(cx *core.Scope) string { return For(cx).FilmLayerSpeech() }
+
+// FilmLayerSpeech is the package's FilmLayerSpeech in the language of msgs.
+func (msgs Messages) FilmLayerSpeech() string { return msgs.text(textFilmLayerSpeech) }
+
+// FilmLayerTranslation says "Translation"
+// in the language the app shows under cx.
+//
+// Layer of a film's subtitles in the player's progress badge: the lines translated.
+func FilmLayerTranslation(cx *core.Scope) string { return For(cx).FilmLayerTranslation() }
+
+// FilmLayerTranslation is the package's FilmLayerTranslation in the language of msgs.
+func (msgs Messages) FilmLayerTranslation() string { return msgs.text(textFilmLayerTranslation) }
+
+// FilmLayerReview says "Final proofread · Whole film"
+// in the language the app shows under cx.
+//
+// Layer of a film's subtitles in the player's progress badge: the final proofread reading the whole translation through.
+func FilmLayerReview(cx *core.Scope) string { return For(cx).FilmLayerReview() }
+
+// FilmLayerReview is the package's FilmLayerReview in the language of msgs.
+func (msgs Messages) FilmLayerReview() string { return msgs.text(textFilmLayerReview) }
+
+// FilmBadgeRunning says "Subtitles {percent}% · translating"
+// in the language the app shows under cx.
+//
+// Accessible name and tooltip of the player's progress badge while the film's subtitles are being made.
+func FilmBadgeRunning(cx *core.Scope, percent int) string { return For(cx).FilmBadgeRunning(percent) }
+
+// FilmBadgeRunning is the package's FilmBadgeRunning in the language of msgs.
+func (msgs Messages) FilmBadgeRunning(percent int) string {
+	if i18n.IsPseudo(msgs.lang) {
+		return i18n.Pseudo(msgs.lang, Messages{lang: Source, mark: true}.FilmBadgeRunning(percent))
+	}
+	for lang := msgs.lang; ; lang = i18n.Parent(lang) {
+		if f := supplied[lang].FilmBadgeRunning; f != nil {
+			return f(percent)
+		}
+		switch lang {
+		case "", "en":
+			return "Subtitles " + msgs.arg(i18n.FormatNumber("en", float64(percent))) + "% · translating"
+		case "ja":
+			return "字幕 " + i18n.FormatNumber("ja", float64(percent)) + "% · 翻訳中"
+		case "ko":
+			return "자막 " + i18n.FormatNumber("ko", float64(percent)) + "% · 번역 중"
+		case "zh-Hans":
+			return "字幕 " + i18n.FormatNumber("zh-Hans", float64(percent)) + "% · 翻译中"
+		case "zh-Hant":
+			return "字幕 " + i18n.FormatNumber("zh-Hant", float64(percent)) + "% · 翻譯中"
+		}
+	}
+}
+
+// FilmBadgeAttention says "Subtitles {percent}% · {lines, plural, one {# line needs} other {# lines need}} attention"
+// in the language the app shows under cx.
+//
+// Accessible name and tooltip of the player's progress badge while a done film has lines left untranslated.
+func FilmBadgeAttention(cx *core.Scope, percent int, lines int) string {
+	return For(cx).FilmBadgeAttention(percent, lines)
+}
+
+// FilmBadgeAttention is the package's FilmBadgeAttention in the language of msgs.
+func (msgs Messages) FilmBadgeAttention(percent int, lines int) string {
+	if i18n.IsPseudo(msgs.lang) {
+		return i18n.Pseudo(msgs.lang, Messages{lang: Source, mark: true}.FilmBadgeAttention(percent, lines))
+	}
+	for lang := msgs.lang; ; lang = i18n.Parent(lang) {
+		if f := supplied[lang].FilmBadgeAttention; f != nil {
+			return f(percent, lines)
+		}
+		switch lang {
+		case "", "en":
+			var b strings.Builder
+			b.WriteString("Subtitles ")
+			b.WriteString(msgs.arg(i18n.FormatNumber("en", float64(percent))))
+			b.WriteString("% · ")
+			switch i18n.Cardinal("en", float64(lines)) {
+			case i18n.One:
+				b.WriteString(msgs.arg(i18n.FormatNumber("en", float64(lines))))
+				b.WriteString(" line needs")
+			default:
+				b.WriteString(msgs.arg(i18n.FormatNumber("en", float64(lines))))
+				b.WriteString(" lines need")
+			}
+			b.WriteString(" attention")
+			return b.String()
+		case "ja":
+			return "字幕 " + i18n.FormatNumber("ja", float64(percent)) + "% · " + i18n.FormatNumber("ja", float64(lines)) + " 行に対応が必要"
+		case "ko":
+			return "자막 " + i18n.FormatNumber("ko", float64(percent)) + "% · " + i18n.FormatNumber("ko", float64(lines)) + "줄 처리 필요"
+		case "zh-Hans":
+			return "字幕 " + i18n.FormatNumber("zh-Hans", float64(percent)) + "% · " + i18n.FormatNumber("zh-Hans", float64(lines)) + " 句需要处理"
+		case "zh-Hant":
+			return "字幕 " + i18n.FormatNumber("zh-Hant", float64(percent)) + "% · " + i18n.FormatNumber("zh-Hant", float64(lines)) + " 句需要處理"
+		}
+	}
+}
+
+// FilmBadgeSubtitles says "Subtitles {percent}%"
+// in the language the app shows under cx.
+//
+// Head of the panel the player's progress badge opens: how much of the film is translated.
+func FilmBadgeSubtitles(cx *core.Scope, percent int) string {
+	return For(cx).FilmBadgeSubtitles(percent)
+}
+
+// FilmBadgeSubtitles is the package's FilmBadgeSubtitles in the language of msgs.
+func (msgs Messages) FilmBadgeSubtitles(percent int) string {
+	if i18n.IsPseudo(msgs.lang) {
+		return i18n.Pseudo(msgs.lang, Messages{lang: Source, mark: true}.FilmBadgeSubtitles(percent))
+	}
+	for lang := msgs.lang; ; lang = i18n.Parent(lang) {
+		if f := supplied[lang].FilmBadgeSubtitles; f != nil {
+			return f(percent)
+		}
+		switch lang {
+		case "", "en":
+			return "Subtitles " + msgs.arg(i18n.FormatNumber("en", float64(percent))) + "%"
+		case "ja":
+			return "字幕 " + i18n.FormatNumber("ja", float64(percent)) + "%"
+		case "ko":
+			return "자막 " + i18n.FormatNumber("ko", float64(percent)) + "%"
+		case "zh-Hans":
+			return "字幕 " + i18n.FormatNumber("zh-Hans", float64(percent)) + "%"
+		case "zh-Hant":
+			return "字幕 " + i18n.FormatNumber("zh-Hant", float64(percent)) + "%"
+		}
+	}
+}
+
+// FilmBadgePercent says "{percent}%"
+// in the language the app shows under cx.
+//
+// How much of a layer of the film's subtitles is made, in the progress badge's panel.
+func FilmBadgePercent(cx *core.Scope, percent int) string { return For(cx).FilmBadgePercent(percent) }
+
+// FilmBadgePercent is the package's FilmBadgePercent in the language of msgs.
+func (msgs Messages) FilmBadgePercent(percent int) string {
+	if i18n.IsPseudo(msgs.lang) {
+		return i18n.Pseudo(msgs.lang, Messages{lang: Source, mark: true}.FilmBadgePercent(percent))
+	}
+	for lang := msgs.lang; ; lang = i18n.Parent(lang) {
+		if f := supplied[lang].FilmBadgePercent; f != nil {
+			return f(percent)
+		}
+		switch lang {
+		case "", "en":
+			return msgs.arg(i18n.FormatNumber("en", float64(percent))) + "%"
+		case "ja":
+			return i18n.FormatNumber("ja", float64(percent)) + "%"
+		case "ko":
+			return i18n.FormatNumber("ko", float64(percent)) + "%"
+		case "zh-Hans":
+			return i18n.FormatNumber("zh-Hans", float64(percent)) + "%"
+		case "zh-Hant":
+			return i18n.FormatNumber("zh-Hant", float64(percent)) + "%"
+		}
+	}
+}
+
+// FilmBadgeUntranslated says "{lines, plural, one {# line} other {# lines}} not translated"
+// in the language the app shows under cx.
+//
+// Summary in the progress badge's panel for a done film with lines left untranslated.
+func FilmBadgeUntranslated(cx *core.Scope, lines int) string {
+	return For(cx).FilmBadgeUntranslated(lines)
+}
+
+// FilmBadgeUntranslated is the package's FilmBadgeUntranslated in the language of msgs.
+func (msgs Messages) FilmBadgeUntranslated(lines int) string {
+	if i18n.IsPseudo(msgs.lang) {
+		return i18n.Pseudo(msgs.lang, Messages{lang: Source, mark: true}.FilmBadgeUntranslated(lines))
+	}
+	for lang := msgs.lang; ; lang = i18n.Parent(lang) {
+		if f := supplied[lang].FilmBadgeUntranslated; f != nil {
+			return f(lines)
+		}
+		switch lang {
+		case "", "en":
+			var b strings.Builder
+			switch i18n.Cardinal("en", float64(lines)) {
+			case i18n.One:
+				b.WriteString(msgs.arg(i18n.FormatNumber("en", float64(lines))))
+				b.WriteString(" line")
+			default:
+				b.WriteString(msgs.arg(i18n.FormatNumber("en", float64(lines))))
+				b.WriteString(" lines")
+			}
+			b.WriteString(" not translated")
+			return b.String()
+		case "ja":
+			return i18n.FormatNumber("ja", float64(lines)) + " 行が未翻訳"
+		case "ko":
+			return i18n.FormatNumber("ko", float64(lines)) + "줄 미번역"
+		case "zh-Hans":
+			return i18n.FormatNumber("zh-Hans", float64(lines)) + " 句没有翻译"
+		case "zh-Hant":
+			return i18n.FormatNumber("zh-Hant", float64(lines)) + " 句沒有翻譯"
+		}
+	}
+}
+
+// FilmBadgeUntranslatedNote says "{lines, plural, one {# line wasn't} other {# lines weren't}} translated. Only these are translated again, not the whole film."
+// in the language the app shows under cx.
+//
+// Note in the progress badge's panel over the button that translates the lines left untranslated.
+func FilmBadgeUntranslatedNote(cx *core.Scope, lines int) string {
+	return For(cx).FilmBadgeUntranslatedNote(lines)
+}
+
+// FilmBadgeUntranslatedNote is the package's FilmBadgeUntranslatedNote in the language of msgs.
+func (msgs Messages) FilmBadgeUntranslatedNote(lines int) string {
+	if i18n.IsPseudo(msgs.lang) {
+		return i18n.Pseudo(msgs.lang, Messages{lang: Source, mark: true}.FilmBadgeUntranslatedNote(lines))
+	}
+	for lang := msgs.lang; ; lang = i18n.Parent(lang) {
+		if f := supplied[lang].FilmBadgeUntranslatedNote; f != nil {
+			return f(lines)
+		}
+		switch lang {
+		case "", "en":
+			var b strings.Builder
+			switch i18n.Cardinal("en", float64(lines)) {
+			case i18n.One:
+				b.WriteString(msgs.arg(i18n.FormatNumber("en", float64(lines))))
+				b.WriteString(" line wasn't")
+			default:
+				b.WriteString(msgs.arg(i18n.FormatNumber("en", float64(lines))))
+				b.WriteString(" lines weren't")
+			}
+			b.WriteString(" translated. Only these are translated again, not the whole film.")
+			return b.String()
+		case "ja":
+			return i18n.FormatNumber("ja", float64(lines)) + " 行を翻訳できませんでした。この行だけを翻訳し直し、作品全体はやり直しません"
+		case "ko":
+			return i18n.FormatNumber("ko", float64(lines)) + "줄을 번역하지 못했습니다. 이 줄만 다시 번역하고 영상 전체는 다시 하지 않습니다"
+		case "zh-Hans":
+			return i18n.FormatNumber("zh-Hans", float64(lines)) + " 句没能翻译。只补这几句，不重做整部影片"
+		case "zh-Hant":
+			return i18n.FormatNumber("zh-Hant", float64(lines)) + " 句沒能翻譯。只補這幾句，不重做整部影片"
+		}
+	}
+}
+
+// FilmBadgeTranslateMissing says "Translate"
+// in the language the app shows under cx.
+//
+// Button in the progress badge's panel translating only the lines left untranslated.
+func FilmBadgeTranslateMissing(cx *core.Scope) string { return For(cx).FilmBadgeTranslateMissing() }
+
+// FilmBadgeTranslateMissing is the package's FilmBadgeTranslateMissing in the language of msgs.
+func (msgs Messages) FilmBadgeTranslateMissing() string {
+	return msgs.text(textFilmBadgeTranslateMissing)
+}
+
+// FilmBadgeSettings says "Settings…"
+// in the language the app shows under cx.
+//
+// Row of the progress badge's panel opening Settings › Translation.
+func FilmBadgeSettings(cx *core.Scope) string { return For(cx).FilmBadgeSettings() }
+
+// FilmBadgeSettings is the package's FilmBadgeSettings in the language of msgs.
+func (msgs Messages) FilmBadgeSettings() string { return msgs.text(textFilmBadgeSettings) }
 
 // dated is lang with the hour cycle the user set, which times take.
 func (msgs Messages) dated(lang string) string {

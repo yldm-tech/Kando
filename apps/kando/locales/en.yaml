@@ -6805,3 +6805,49 @@ glossarySeriesConfirmed:
   description: "Shown on the picture after the user confirmed that films are one series."
   placeholders:
     films: { type: "int", example: "4" }
+filmLayerSpeech:
+  message: "Original · Speech recognition"
+  description: "Layer of a film's subtitles in the player's progress badge: the original lines heard by speech recognition."
+filmLayerTranslation:
+  message: "Translation"
+  description: "Layer of a film's subtitles in the player's progress badge: the lines translated."
+filmLayerReview:
+  message: "Final proofread · Whole film"
+  description: "Layer of a film's subtitles in the player's progress badge: the final proofread reading the whole translation through."
+filmBadgeRunning:
+  message: "Subtitles {percent}% · translating"
+  description: "Accessible name and tooltip of the player's progress badge while the film's subtitles are being made."
+  placeholders:
+    percent: { type: "int", example: "40" }
+filmBadgeAttention:
+  message: "Subtitles {percent}% · {lines, plural, one {# line needs} other {# lines need}} attention"
+  description: "Accessible name and tooltip of the player's progress badge while a done film has lines left untranslated."
+  placeholders:
+    percent: { type: "int", example: "96" }
+    lines: { type: "int", example: "3" }
+filmBadgeSubtitles:
+  message: "Subtitles {percent}%"
+  description: "Head of the panel the player's progress badge opens: how much of the film is translated."
+  placeholders:
+    percent: { type: "int", example: "40" }
+filmBadgePercent:
+  message: "{percent}%"
+  description: "How much of a layer of the film's subtitles is made, in the progress badge's panel."
+  placeholders:
+    percent: { type: "int", example: "40" }
+filmBadgeUntranslated:
+  message: "{lines, plural, one {# line} other {# lines}} not translated"
+  description: "Summary in the progress badge's panel for a done film with lines left untranslated."
+  placeholders:
+    lines: { type: "int", example: "3" }
+filmBadgeUntranslatedNote:
+  message: "{lines, plural, one {# line wasn't} other {# lines weren't}} translated. Only these are translated again, not the whole film."
+  description: "Note in the progress badge's panel over the button that translates the lines left untranslated."
+  placeholders:
+    lines: { type: "int", example: "3" }
+filmBadgeTranslateMissing:
+  message: "Translate"
+  description: "Button in the progress badge's panel translating only the lines left untranslated."
+filmBadgeSettings:
+  message: "Settings…"
+  description: "Row of the progress badge's panel opening Settings › Translation."

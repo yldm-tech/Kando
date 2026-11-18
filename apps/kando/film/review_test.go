@@ -104,3 +104,54 @@ func TestProofViewWhileBusyAndOff(t *testing.T) {
 		}
 	}
 }
+
+// fakeProgresser is the fake app's progress badge: how far the film's subtitles are, as a test sets it.
+type fakeProgresser struct{ layers Layers }
+
+func (f *fakeProgresser) SubtitleLayers() Layers { return f.layers }
+
+// The progress badge shows while the film's subtitles are being made, a ring of how much is translated; it opens a panel with each layer. A done film with lines left untranslated shows it with !, and its panel's button translates them; Settings… opens Settings › 翻译. Otherwise there is none.
+func TestProgressBadgeShowsTheLayers(t *testing.T) {
+	a := newFakeApp()
+	app := start(t, a)
+	msgs := testlocale.Messages()
+	if app.Exists("id:film-badge") {
+		t.Fatal("a done film shows the badge")
+	}
+	change(app, a, func() {
+		a.layers = Layers{Show: true, Running: true, Percent: 40, Rows: []Layer{{Kind: LayerSpeech, Engine: "small", Done: 1}, {Kind: LayerTranslation, Engine: "gpt", Done: 0.4}, {Kind: LayerReview, Done: 0}}}
+		a.jobStatus = "翻译中 · 40/100 句"
+	})
+	if got := app.Find("id:film-badge").Props.Label; got != msgs.FilmBadgeRunning(40) {
+		t.Fatalf("the badge is named %q", got)
+	}
+	app.Press("id:film-badge")
+	for _, want := range []string{msgs.FilmBadgeSubtitles(40), "翻译中 · 40/100 句", msgs.FilmLayerSpeech(), msgs.FilmLayerTranslation(), msgs.FilmLayerReview(), "small", "gpt", msgs.FilmBadgePercent(40)} {
+		if !app.Exists(whole(want)) {
+			t.Fatalf("%q is not shown: %q", want, app.Texts())
+		}
+	}
+	app.Press("id:film-badge-settings")
+	if len(a.calls) == 0 || a.calls[len(a.calls)-1] != "settings translate" {
+		t.Fatalf("calls %q", a.calls)
+	}
+
+	change(app, a, func() {
+		a.layers = Layers{Show: true, Percent: 96, Untranslated: 3, Rows: []Layer{{Kind: LayerSpeech, Done: 1}, {Kind: LayerTranslation, Done: 0.96}}}
+	})
+	if got := app.Find("id:film-badge").Props.Label; got != msgs.FilmBadgeAttention(96, 3) {
+		t.Fatalf("the badge is named %q", got)
+	}
+	app.Press("id:film-badge")
+	if !app.Exists(whole(msgs.FilmBadgeUntranslated(3))) {
+		t.Fatalf("the summary: %q", app.Texts())
+	}
+	app.Press("id:film-badge-translate")
+	if a.calls[len(a.calls)-1] != "translate missing" {
+		t.Fatalf("calls %q", a.calls)
+	}
+	change(app, a, func() { a.layers = Layers{} })
+	if app.Exists("id:film-badge") {
+		t.Fatal("the badge stayed once the subtitles were done")
+	}
+}
