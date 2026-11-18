@@ -1,0 +1,376 @@
+package sync
+
+import (
+	"bytes"
+	"cmp"
+	"context"
+	"encoding/json"
+	"errors"
+	"fmt"
+	"slices"
+	"strings"
+	gosync "sync"
+	"time"
+)
+
+// RelayDevice is a phone that joined the relay: its device ID, its name as Caller names it, and its key.
+type RelayDevice struct {
+	ID, Name string
+	Key      []byte
+}
+
+// Relay is the desktop's side of the storage relay (relay.go): it answers the calls phones leave in their inboxes through Desk, and writes each phone's state.json. It is safe for concurrent use.
+type Relay struct {
+	Bucket RelayBucket
+	// Prefix is RelayPrefix of the desktop.
+	Prefix string
+	Desk   *Desk
+	// Devices are the phones that joined: paired, with a key. A message of any other device is deleted unread.
+	Devices func() []RelayDevice
+	// Now is the clock, nil for time.Now; Logf logs what failed, nil for nothing.
+	Now  func() time.Time
+	Logf func(format string, args ...any)
+	// Every is how often Run polls, 0 for RelayPoll; MinWrite the least time between two of its turns, 0 for RelayMinWrite. Tests shorten them.
+	Every, MinWrite time.Duration
+
+	mu     gosync.Mutex
+	grants map[string]*relayGrant
+	// written is what each phone's state.json last said, without when it was written, and when that was.
+	written map[string]writtenState
+	// wake has Run take its next turn at once.
+	wake chan struct{}
+}
+
+// relayGrant is a grant the desktop gave a phone, with the slots of it the phone has used.
+type relayGrant struct {
+	RelayGrant
+	used map[string]bool
+}
+
+type writtenState struct {
+	body []byte
+	at   time.Time
+}
+
+func (r *Relay) now() time.Time {
+	if r.Now != nil {
+		return r.Now()
+	}
+	return time.Now()
+}
+
+func (r *Relay) logf(format string, args ...any) {
+	if r.Logf != nil {
+		r.Logf(format, args...)
+	}
+}
+
+// Grant is device's newest grant, made anew when it has none, it is RelayRegrant old, or half its slots are used.
+func (r *Relay) Grant(ctx context.Context, device string) (RelayGrant, error) {
+	r.mu.Lock()
+	g := r.grants[device]
+	r.mu.Unlock()
+	now := r.now()
+	if g != nil && now.Sub(g.Minted) < RelayRegrant && len(g.used) < RelaySlots/2 {
+		return g.RelayGrant, nil
+	}
+	fresh, err := r.mint(ctx, device, now)
+	if err != nil {
+		return RelayGrant{}, err
+	}
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	if r.grants == nil {
+		r.grants = map[string]*relayGrant{}
+	}
+	r.grants[device] = &relayGrant{RelayGrant: fresh, used: map[string]bool{}}
+	return fresh, nil
+}
+
+// mint signs a new grant's links for device.
+func (r *Relay) mint(ctx context.Context, device string, now time.Time) (RelayGrant, error) {
+	g := RelayGrant{Minted: now, Expires: now.Add(RelayURLLifetime)}
+	var err error
+	if g.State, err = r.Bucket.PresignGet(ctx, r.Prefix+RelayStateName(device), RelayURLLifetime); err != nil {
+		return RelayGrant{}, err
+	}
+	for range RelaySlots {
+		s := RelaySlot{ID: newSlotID()}
+		if s.Put, err = r.Bucket.PresignPut(ctx, r.Prefix+RelayInbox(device, s.ID), RelayURLLifetime); err != nil {
+			return RelayGrant{}, err
+		}
+		if s.Reply, err = r.Bucket.PresignGet(ctx, r.Prefix+RelayReply(device, s.ID), RelayURLLifetime); err != nil {
+			return RelayGrant{}, err
+		}
+		g.Slots = append(g.Slots, s)
+	}
+	return g, nil
+}
+
+// inboxed is a message found in an inbox, opened.
+type inboxed struct {
+	dev  RelayDevice
+	slot string
+	key  string
+	msg  RelayMessage
+}
+
+// Poll answers the messages in the inboxes: in each phone's, in the order of their numbers, writing each one's reply before deleting it. A message of a device that did not join, one that does not open with its key or does not read as a message is deleted unanswered. It answers how many it answered; a message it could not answer or delete for the store's error stays for the next poll.
+func (r *Relay) Poll(ctx context.Context) (int, error) {
+	objects, err := r.Bucket.List(ctx, r.Prefix+"inbox/")
+	if err != nil {
+		return 0, err
+	}
+	devices := map[string]RelayDevice{}
+	for _, d := range r.Devices() {
+		devices[d.ID] = d
+	}
+	var found []inboxed
+	var errs []error
+	for _, o := range objects {
+		device, slot, ok := strings.Cut(strings.TrimPrefix(o.Key, r.Prefix+"inbox/"), "/")
+		dev, known := devices[device]
+		if !ok || !known || !relaySlotID(slot) {
+			errs = append(errs, r.Bucket.Delete(ctx, o.Key))
+			continue
+		}
+		r.markUsed(device, slot)
+		answered, err := r.Bucket.Exists(ctx, r.Prefix+RelayReply(device, slot))
+		if err != nil {
+			errs = append(errs, err)
+			continue
+		}
+		if answered {
+			errs = append(errs, r.Bucket.Delete(ctx, o.Key))
+			continue
+		}
+		sealed, err := r.Bucket.Get(ctx, o.Key)
+		if errors.Is(err, ErrNoObject) {
+			continue
+		}
+		if err != nil {
+			errs = append(errs, err)
+			continue
+		}
+		var msg RelayMessage
+		plain, err := OpenRelay(dev.Key, RelayInbox(device, slot), sealed)
+		if err == nil {
+			err = json.Unmarshal(plain, &msg)
+		}
+		if err != nil {
+			r.logf("relay: a message of %s that does not read: %v", device, err)
+			errs = append(errs, r.Bucket.Delete(ctx, o.Key))
+			continue
+		}
+		found = append(found, inboxed{dev: dev, slot: slot, key: o.Key, msg: msg})
+	}
+	slices.SortStableFunc(found, func(a, b inboxed) int {
+		if c := strings.Compare(a.dev.ID, b.dev.ID); c != 0 {
+			return c
+		}
+		return cmp.Compare(a.msg.Seq, b.msg.Seq)
+	})
+	n := 0
+	for _, m := range found {
+		if err := r.answer(ctx, m); err != nil {
+			errs = append(errs, err)
+			continue
+		}
+		n++
+	}
+	return n, errors.Join(errs...)
+}
+
+// answer answers m, writes its reply and deletes it.
+func (r *Relay) answer(ctx context.Context, m inboxed) error {
+	call := m.msg.Call
+	reply := r.Desk.Answer(ctx, Caller{DeviceID: m.dev.ID, Name: m.dev.Name, Relay: true}, call)
+	if ctx.Err() != nil {
+		// A call cut short by the desktop's stopping is answered at the next poll.
+		return ctx.Err()
+	}
+	plain, err := json.Marshal(reply)
+	if err != nil {
+		return err
+	}
+	name := RelayReply(m.dev.ID, m.slot)
+	sealed, err := SealRelay(m.dev.Key, name, plain)
+	if err != nil {
+		return err
+	}
+	if err := r.Bucket.Put(ctx, r.Prefix+name, sealed); err != nil {
+		return err
+	}
+	return r.Bucket.Delete(ctx, m.key)
+}
+
+// markUsed notes that device used slot of its grant.
+func (r *Relay) markUsed(device, slot string) {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	if g := r.grants[device]; g != nil && slices.ContainsFunc(g.Slots, func(s RelaySlot) bool { return s.ID == slot }) {
+		g.used[slot] = true
+	}
+}
+
+// Publish writes the state.json of each phone that joined whose state changed, whose grant is new, or whose state.json is RelayHeartbeat old.
+func (r *Relay) Publish(ctx context.Context) error {
+	var errs []error
+	for _, dev := range r.Devices() {
+		errs = append(errs, r.publish(ctx, dev))
+	}
+	return errors.Join(errs...)
+}
+
+func (r *Relay) publish(ctx context.Context, dev RelayDevice) error {
+	grant, err := r.Grant(ctx, dev.ID)
+	if err != nil {
+		return err
+	}
+	caller := Caller{DeviceID: dev.ID, Name: dev.Name, Relay: true}
+	state := RelayState{V: RelayVersion, Desktop: r.Desk.Desktop, Jobs: r.Desk.Journal.List(), Learning: r.Desk.Journal.Learning(), Grant: grant}
+	hello := r.Desk.Answer(ctx, caller, Call{V: CallVersion, Op: OpHello})
+	if hello.Error != nil {
+		return fmt.Errorf("hello: %s", hello.Error.Message)
+	}
+	if err := json.Unmarshal(hello.Result, &state.Hello); err != nil {
+		return err
+	}
+	body, err := json.Marshal(state)
+	if err != nil {
+		return err
+	}
+	now := r.now()
+	r.mu.Lock()
+	last := r.written[dev.ID]
+	r.mu.Unlock()
+	if bytes.Equal(body, last.body) && now.Sub(last.at) < RelayHeartbeat {
+		return nil
+	}
+	state.Written = now
+	plain, err := json.Marshal(state)
+	if err != nil {
+		return err
+	}
+	name := RelayStateName(dev.ID)
+	sealed, err := SealRelay(dev.Key, name, plain)
+	if err != nil {
+		return err
+	}
+	if err := r.Bucket.Put(ctx, r.Prefix+name, sealed); err != nil {
+		return err
+	}
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	if r.written == nil {
+		r.written = map[string]writtenState{}
+	}
+	r.written[dev.ID] = writtenState{body: body, at: now}
+	return nil
+}
+
+// Forget deletes device's inbox and outbox and its grant, as when it is unpaired: its links reach nothing from then on.
+func (r *Relay) Forget(ctx context.Context, device string) error {
+	r.mu.Lock()
+	delete(r.grants, device)
+	delete(r.written, device)
+	r.mu.Unlock()
+	var errs []error
+	for _, folder := range []string{"inbox/", "outbox/"} {
+		objects, err := r.Bucket.List(ctx, r.Prefix+folder+device+"/")
+		if err != nil {
+			errs = append(errs, err)
+			continue
+		}
+		for _, o := range objects {
+			errs = append(errs, r.Bucket.Delete(ctx, o.Key))
+		}
+	}
+	return errors.Join(errs...)
+}
+
+// RelaySweepEvery is how often Run sweeps the outboxes.
+const RelaySweepEvery = time.Hour
+
+// Sweep deletes the replies older than ReplyMemory, which a phone has read or given up on, and the inbox and outbox of any device that has not joined, as one unpaired while the relay was off.
+func (r *Relay) Sweep(ctx context.Context) error {
+	known := map[string]bool{}
+	for _, d := range r.Devices() {
+		known[d.ID] = true
+	}
+	now := r.now()
+	var errs []error
+	for _, folder := range []string{"inbox/", "outbox/"} {
+		objects, err := r.Bucket.List(ctx, r.Prefix+folder)
+		if err != nil {
+			errs = append(errs, err)
+			continue
+		}
+		for _, o := range objects {
+			device, name, _ := strings.Cut(strings.TrimPrefix(o.Key, r.Prefix+folder), "/")
+			oldReply := folder == "outbox/" && relaySlotID(name) && now.Sub(o.Modified) >= ReplyMemory
+			if !known[device] || oldReply {
+				errs = append(errs, r.Bucket.Delete(ctx, o.Key))
+			}
+		}
+	}
+	return errors.Join(errs...)
+}
+
+// Wake has Run take its next turn now rather than at the next poll, as when a phone joined and waits for its state.json.
+func (r *Relay) Wake() {
+	select {
+	case r.wakeChan() <- struct{}{}:
+	default:
+	}
+}
+
+func (r *Relay) wakeChan() chan struct{} {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	if r.wake == nil {
+		r.wake = make(chan struct{}, 1)
+	}
+	return r.wake
+}
+
+// Run polls the inboxes every RelayPoll, and writes the phones' state.json as the jobs or the learning state change (at most every RelayMinWrite) and every RelayHeartbeat, until ctx ends. What fails is logged and tried again at the next turn.
+func (r *Relay) Run(ctx context.Context) {
+	every, minWrite := cmp.Or(r.Every, RelayPoll), cmp.Or(r.MinWrite, RelayMinWrite)
+	wake := r.wakeChan()
+	var swept time.Time
+	for ctx.Err() == nil {
+		began := time.Now()
+		if _, err := r.Poll(ctx); err != nil && ctx.Err() == nil {
+			r.logf("relay: inbox: %v", err)
+		}
+		if err := r.Publish(ctx); err != nil && ctx.Err() == nil {
+			r.logf("relay: state: %v", err)
+		}
+		if r.now().Sub(swept) >= RelaySweepEvery {
+			if err := r.Sweep(ctx); err != nil && ctx.Err() == nil {
+				r.logf("relay: sweep: %v", err)
+			}
+			swept = r.now()
+		}
+		// The turn ends at the next change of the jobs or the learning state, a Wake, or the next poll, whichever comes first, but no sooner than minWrite after it began.
+		list := r.Desk.Journal.List()
+		waiting, stop := context.WithCancel(ctx)
+		go func() {
+			select {
+			case <-wake:
+				stop()
+			case <-waiting.Done():
+			}
+		}()
+		r.Desk.Journal.Wait(waiting, list.Epoch, list.Rev, every)
+		stop()
+		// began is by the wall clock, as the timers are, whatever clock Now is.
+		if rest := minWrite - time.Since(began); rest > 0 {
+			select {
+			case <-ctx.Done():
+			case <-time.After(rest):
+			}
+		}
+	}
+}

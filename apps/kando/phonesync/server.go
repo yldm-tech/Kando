@@ -68,6 +68,8 @@ type Config struct {
 	Jobs psync.Service
 	// State is the libraries' learning state as protocol v2's calls read and write it; nil answers them unsupported.
 	State psync.StateService
+	// Relay is the user's bucket the storage relay runs in (relay.go), nil while the relay is off.
+	Relay psync.RelayBucket
 	// Addrs are the addresses to listen on, looked at again every rescanEvery as the computer joins other networks; nil is LANAddrs. Tests give loopback.
 	Addrs func() []netip.Addr
 	// Changed is told, on any goroutine, that what the settings show changed: the code on offer, the devices, or the addresses listened on.
@@ -103,8 +105,9 @@ type Server struct {
 	limit     limiter
 	// listed is each library's playable films as last read, by its ID, which a request for a film's files looks it up in for filmsFresh after (filmsFor).
 	listed map[string]listing
-	// desk answers protocol v2's calls.
-	desk *psync.Desk
+	// desk answers protocol v2's calls; relay carries them through the user's bucket, nil while it is off.
+	desk  *psync.Desk
+	relay *psync.Relay
 }
 
 // listing is a library's playable films as read at a time.
@@ -160,6 +163,9 @@ func Start(cfg Config) (*Server, error) {
 	}
 	s.done.Add(1)
 	go s.watch()
+	if cfg.Relay != nil {
+		s.startRelay(cfg.Relay)
+	}
 	return s, nil
 }
 
@@ -348,6 +354,7 @@ func (s *Server) Revoke(id string) error {
 		return err
 	}
 	s.desk.Forget(id)
+	s.forgetRelay(id)
 	s.cfg.Changed()
 	return nil
 }
