@@ -158,10 +158,10 @@ func sameWords(a, b string) bool {
 	return true
 }
 
-// maxFixRun is the most words, or Chinese and Japanese characters, one correction may put in place of as many others in a row: a misheard word is a character or two, or a name; a longer run is a rewording.
+// maxFixRun is the most words, or Chinese, Japanese, Thai, Lao, Khmer and Myanmar characters, one correction may put in place of as many others in a row: a misheard word is a character or two, or a name; a longer run is a rewording.
 const maxFixRun = 2
 
-// ApplyFixes is line with the corrections fixed suggests for it put in place, and nothing else: fixed is compared with line word by word, each Chinese character or Japanese kana counting as a word, and only a run of at most maxFixRun words put in place of as many words of line is taken, in place, keeping line's punctuation and spacing. Words fixed adds or leaves out are not, so a proofreader cannot reword a line, only correct what was misheard in it. An empty fixed, a proofreader's "no correction", returns line with its punctuation normalized (NormalizePunctuation).
+// ApplyFixes is line with the corrections fixed suggests for it put in place, and nothing else: fixed is compared with line word by word (fixWords), each Chinese, Japanese, Thai, Lao, Khmer or Myanmar character counting as a word, and only a run of at most maxFixRun words put in place of as many words of line is taken, in place, keeping line's punctuation and spacing. Words fixed adds or leaves out are not, so a proofreader cannot reword a line, only correct what was misheard in it. An empty fixed, a proofreader's "no correction", returns line with its punctuation normalized (NormalizePunctuation).
 func ApplyFixes(line, fixed string) string {
 	fixed = strings.TrimSpace(strings.ReplaceAll(fixed, "\n", " "))
 	if fixed == "" || fixed == line {
@@ -322,22 +322,32 @@ type fixWord struct {
 	start, end int
 }
 
-// fixWords are the words of line: each Chinese or Japanese character on its own, and each run of other letters and digits, with the apostrophes inside a word (team's). Spaces and punctuation are not words.
+// fixWords are the words of line: each Chinese or Japanese character on its own, each Thai, Lao, Khmer or Myanmar character on its own with the vowel and tone marks written on it, and each run of other letters and digits, with their marks and the apostrophes inside a word (team's). Spaces and punctuation are not words.
 func fixWords(line string) []fixWord {
 	var words []fixWord
 	start := -1
+	// cluster is whether the word open is a clustered character (clustered), which takes only the marks after it.
+	cluster := false
 	end := func(at int) {
 		if start >= 0 {
 			words = append(words, fixWord{text: line[start:at], start: start, end: at})
-			start = -1
+			start, cluster = -1, false
 		}
 	}
 	for at, r := range line {
+		mark := unicode.In(r, unicode.Mn, unicode.Mc)
 		switch {
+		case cluster && mark:
 		case ideographic(r):
 			end(at)
 			words = append(words, fixWord{text: string(r), start: at, end: at + len(string(r))})
-		case unicode.IsLetter(r) || unicode.IsDigit(r) || unicode.Is(unicode.Mn, r) || ((r == '\'' || r == '’') && start >= 0):
+		case clustered(r) && !mark:
+			end(at)
+			start, cluster = at, true
+		case unicode.IsLetter(r) || unicode.IsDigit(r) || mark || ((r == '\'' || r == '’') && start >= 0 && !cluster):
+			if cluster {
+				end(at)
+			}
 			if start < 0 {
 				start = at
 			}
@@ -352,6 +362,11 @@ func fixWords(line string) []fixWord {
 // ideographic reports whether r is written without spaces between words, so each character is a word to ApplyFixes: Chinese characters and Japanese kana.
 func ideographic(r rune) bool {
 	return unicode.In(r, unicode.Han, unicode.Hiragana, unicode.Katakana)
+}
+
+// clustered reports whether r is of a script written without spaces between words whose characters carry marks, Thai, Lao, Khmer and Myanmar, so each character with its marks is a word to ApplyFixes: taken as a run of letters, a whole phrase would be one word, and maxFixRun would let a proofreader reword it. Its punctuation stays as whisper writes it (wideNeighbour).
+func clustered(r rune) bool {
+	return unicode.In(r, unicode.Thai, unicode.Lao, unicode.Khmer, unicode.Myanmar)
 }
 
 // fullWidth is the punctuation Chinese and Japanese write full width, by the ASCII mark a speech recognizer writes for it.

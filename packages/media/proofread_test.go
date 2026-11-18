@@ -26,6 +26,10 @@ func TestApplyFixesTakesOnlyWordsInPlace(t *testing.T) {
 		{"an English word", "the teams own tests back that up", "the team's own tests back that up", "the team's own tests back that up"},
 		{"English rewording", "it doesn't make up problems", "it does not invent problems", "it doesn't make up problems"},
 		{"a line break in the reply", "今天讲神经网罗", "今天讲神经\n网络", "今天讲神经网络"},
+		{"a Thai tone mark", "ฉันชอบกินขาวผัด", "ฉันชอบกินข้าวผัด", "ฉันชอบกินข้าวผัด"},
+		{"Thai rewording", "ฉันชอบกินข้าวผัด", "ผมอยากทานก๋วยเตี๋ยว", "ฉันชอบกินข้าวผัด"},
+		{"a Thai phrase with an English word", "เรียน python วันนี้", "เรียน Python วันนี้", "เรียน Python วันนี้"},
+		{"a Hindi vowel sign", "मेरा नम राम है", "मेरा नाम राम है", "मेरा नाम राम है"},
 	} {
 		if got := ApplyFixes(tc.line, tc.fixed); got != tc.want {
 			t.Errorf("%s: ApplyFixes(%q, %q) = %q, want %q", tc.name, tc.line, tc.fixed, got, tc.want)
