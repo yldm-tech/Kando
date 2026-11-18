@@ -4,6 +4,7 @@ import (
 	"os"
 	"path/filepath"
 	"reflect"
+	"runtime"
 	"testing"
 
 	"kando/packages/core"
@@ -21,7 +22,8 @@ func TestStoreRoundTrip(t *testing.T) {
 	if err := s.Save(); err != nil {
 		t.Fatal(err)
 	}
-	if info, err := os.Stat(path); err != nil || info.Mode().Perm() != 0o600 {
+	// Windows keeps no Unix permission bits: Go reports a file there as 0666, or 0444 when read-only.
+	if info, err := os.Stat(path); err != nil || (runtime.GOOS != "windows" && info.Mode().Perm() != 0o600) {
 		t.Fatalf("file %v %v", info, err)
 	}
 	loaded, err := Load(path)
