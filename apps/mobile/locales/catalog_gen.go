@@ -464,6 +464,8 @@ var Parameters = map[string][]string{
 	"AddNoLinks":                  {"name"},
 	"AddNote":                     {"name"},
 	"AddNoteOffline":              {"name"},
+	"AddNoteOfflineRelay":         {"name"},
+	"AddNoteRelay":                {"name"},
 	"ComputersCertificate":        {"name"},
 	"ComputersOptions":            {"name"},
 	"ComputersUnpairTitle":        {"name"},
@@ -497,6 +499,8 @@ var Parameters = map[string][]string{
 	"JobsFrom":                    {"status", "device"},
 	"JobsLinksOff":                {"name"},
 	"JobsNotReady":                {"name", "message"},
+	"JobsInStorage":               {"name"},
+	"JobsRelayed":                 {"summary"},
 	"JobsPercent":                 {"percent"},
 	"JobsRefused":                 {"name", "message"},
 	"JobsRemedyDesktop":           {"name"},
@@ -566,6 +570,8 @@ type Translation struct {
 	AddNoLinks                  func(name string) string
 	AddNote                     func(name string) string
 	AddNoteOffline              func(name string) string
+	AddNoteOfflineRelay         func(name string) string
+	AddNoteRelay                func(name string) string
 	ComputersCertificate        func(name string) string
 	ComputersOptions            func(name string) string
 	ComputersUnpairTitle        func(name string) string
@@ -599,6 +605,8 @@ type Translation struct {
 	JobsFrom                    func(status string, device string) string
 	JobsLinksOff                func(name string) string
 	JobsNotReady                func(name string, message string) string
+	JobsInStorage               func(name string) string
+	JobsRelayed                 func(summary string) string
 	JobsPercent                 func(percent int) string
 	JobsRefused                 func(name string, message string) string
 	JobsRemedyDesktop           func(name string) string
@@ -750,6 +758,8 @@ const (
 	textJobsNotAVideo
 	textJobsOffline
 	textJobsOfflineSummary
+	textJobsOfflineRelay
+	textJobsViaStorage
 	textJobsOlder
 	textJobsOnline
 	textJobsOpen
@@ -1043,6 +1053,8 @@ var keyOfText = [numTexts]string{
 	"jobsNotAVideo",
 	"jobsOffline",
 	"jobsOfflineSummary",
+	"jobsOfflineRelay",
+	"jobsViaStorage",
 	"jobsOlder",
 	"jobsOnline",
 	"jobsOpen",
@@ -1334,6 +1346,8 @@ var textsEn = i18n.NewTexts(""+
 	"The computer couldn't read this link as a video."+
 	"Offline"+
 	"Offline. Links you send wait on this phone and go once it's back."+
+	"Offline. Links you send wait in your storage and start once it's back."+
+	"Via storage"+
 	"Kando on this computer is too old to take links. Update it."+
 	"Online"+
 	"Open"+
@@ -1622,6 +1636,8 @@ var textsEn = i18n.NewTexts(""+
 		48,
 		7,
 		65,
+		70,
+		11,
 		59,
 		6,
 		4,
@@ -1913,6 +1929,8 @@ var textsJa = i18n.NewTexts(""+
 	"パソコンはこのリンクを動画として読み取れませんでした。"+
 	"オフライン"+
 	"オフラインです。送ったリンクはこのスマートフォンで待機し、オンラインになると送信されます。"+
+	"オフラインです。送ったリンクはストレージで待機し、オンラインになると開始されます。"+
+	"ストレージ経由"+
 	"このパソコンの Kando は古いため、リンクを受け取れません。アップデートしてください。"+
 	"オンライン"+
 	"開く"+
@@ -2201,6 +2219,8 @@ var textsJa = i18n.NewTexts(""+
 		81,
 		15,
 		135,
+		123,
+		21,
 		121,
 		15,
 		6,
@@ -2492,6 +2512,8 @@ var textsKo = i18n.NewTexts(""+
 	"컴퓨터가 이 링크를 동영상으로 인식하지 못했습니다."+
 	"오프라인"+
 	"오프라인입니다. 보낸 링크는 이 휴대폰에서 기다렸다가 다시 연결되면 보내집니다."+
+	"오프라인입니다. 보낸 링크는 스토리지에서 기다렸다가 다시 연결되면 시작됩니다."+
+	"스토리지 경유"+
 	"이 컴퓨터의 Kando가 오래되어 링크를 받을 수 없습니다. 업데이트하세요."+
 	"온라인"+
 	"열기"+
@@ -2780,6 +2802,8 @@ var textsKo = i18n.NewTexts(""+
 		72,
 		12,
 		112,
+		111,
+		19,
 		96,
 		9,
 		6,
@@ -3071,6 +3095,8 @@ var textsZhHans = i18n.NewTexts(""+
 	"电脑认不出这是视频链接。"+
 	"离线"+
 	"电脑离线。新链接先排在这台手机上，电脑上线后自动处理。"+
+	"电脑离线。新链接先存在你的存储里，电脑上线后自动开始。"+
+	"经存储"+
 	"这台电脑上的看懂版本太旧，不能接收链接。请更新它。"+
 	"在线"+
 	"打开"+
@@ -3359,6 +3385,8 @@ var textsZhHans = i18n.NewTexts(""+
 		36,
 		6,
 		81,
+		81,
+		9,
 		75,
 		6,
 		6,
@@ -3650,6 +3678,8 @@ var textsZhHant = i18n.NewTexts(""+
 	"電腦認不出這是影片連結。"+
 	"離線"+
 	"電腦離線。新連結先排在這支手機上，電腦上線後自動處理。"+
+	"電腦離線。新連結先存在你的儲存空間裡，電腦上線後自動開始。"+
+	"經儲存空間"+
 	"這台電腦上的看懂版本太舊，無法接收連結。請更新它。"+
 	"線上"+
 	"打開"+
@@ -3938,6 +3968,8 @@ var textsZhHant = i18n.NewTexts(""+
 		36,
 		6,
 		81,
+		87,
+		15,
 		75,
 		6,
 		6,
@@ -4209,6 +4241,12 @@ func Supply(lang string, t Translation) {
 	if t.AddNoteOffline != nil {
 		s.AddNoteOffline = t.AddNoteOffline
 	}
+	if t.AddNoteOfflineRelay != nil {
+		s.AddNoteOfflineRelay = t.AddNoteOfflineRelay
+	}
+	if t.AddNoteRelay != nil {
+		s.AddNoteRelay = t.AddNoteRelay
+	}
 	if t.ComputersCertificate != nil {
 		s.ComputersCertificate = t.ComputersCertificate
 	}
@@ -4307,6 +4345,12 @@ func Supply(lang string, t Translation) {
 	}
 	if t.JobsNotReady != nil {
 		s.JobsNotReady = t.JobsNotReady
+	}
+	if t.JobsInStorage != nil {
+		s.JobsInStorage = t.JobsInStorage
+	}
+	if t.JobsRelayed != nil {
+		s.JobsRelayed = t.JobsRelayed
 	}
 	if t.JobsPercent != nil {
 		s.JobsPercent = t.JobsPercent
@@ -4617,6 +4661,68 @@ func (msgs Messages) AddNoteOffline(name string) string {
 			return name + " 离线。链接先存在这台手机上，电脑上线后自动发过去。"
 		case "zh-Hant":
 			return name + " 離線。連結先存在這支手機上，電腦上線後自動傳過去。"
+		}
+	}
+}
+
+// AddNoteOfflineRelay says "{name} is offline. The link waits in your storage and starts once it's back."
+// in the language the app shows under cx.
+//
+// Add sheet: under the form while the computer is reached through the user's storage away from its network, but has not written there lately.
+func AddNoteOfflineRelay(cx *core.Scope, name string) string {
+	return For(cx).AddNoteOfflineRelay(name)
+}
+
+// AddNoteOfflineRelay is the package's AddNoteOfflineRelay in the language of msgs.
+func (msgs Messages) AddNoteOfflineRelay(name string) string {
+	if i18n.IsPseudo(msgs.lang) {
+		return i18n.Pseudo(msgs.lang, Messages{lang: Source, mark: true}.AddNoteOfflineRelay(name))
+	}
+	for lang := msgs.lang; ; lang = i18n.Parent(lang) {
+		if f := supplied[lang].AddNoteOfflineRelay; f != nil {
+			return f(name)
+		}
+		switch lang {
+		case "", "en":
+			return msgs.arg(name) + " is offline. The link waits in your storage and starts once it's back."
+		case "ja":
+			return name + " はオフラインです。リンクはストレージで待機し、オンラインになると開始されます。"
+		case "ko":
+			return name + "이(가) 오프라인입니다. 링크는 스토리지에서 기다렸다가 다시 연결되면 시작됩니다."
+		case "zh-Hans":
+			return name + " 离线。链接先存在你的存储里，电脑上线后自动开始。"
+		case "zh-Hant":
+			return name + " 離線。連結先存在你的儲存空間裡，電腦上線後自動開始。"
+		}
+	}
+}
+
+// AddNoteRelay says "Away from its network, the link goes through your storage. {name} takes it within a minute or two."
+// in the language the app shows under cx.
+//
+// Add sheet: under the form while the computer is reached through the user's storage away from its network.
+func AddNoteRelay(cx *core.Scope, name string) string { return For(cx).AddNoteRelay(name) }
+
+// AddNoteRelay is the package's AddNoteRelay in the language of msgs.
+func (msgs Messages) AddNoteRelay(name string) string {
+	if i18n.IsPseudo(msgs.lang) {
+		return i18n.Pseudo(msgs.lang, Messages{lang: Source, mark: true}.AddNoteRelay(name))
+	}
+	for lang := msgs.lang; ; lang = i18n.Parent(lang) {
+		if f := supplied[lang].AddNoteRelay; f != nil {
+			return f(name)
+		}
+		switch lang {
+		case "", "en":
+			return "Away from its network, the link goes through your storage. " + msgs.arg(name) + " takes it within a minute or two."
+		case "ja":
+			return "同じネットワークにいないので、リンクはストレージ経由で " + name + " に届きます。1〜2 分ほどで処理が始まります。"
+		case "ko":
+			return "같은 네트워크에 없어 링크가 스토리지를 거쳐 " + name + "에 전달됩니다. 1~2분 안에 처리가 시작됩니다."
+		case "zh-Hans":
+			return "不在同一网络，链接经你的存储送到 " + name + "，几十秒到几分钟后开始处理。"
+		case "zh-Hant":
+			return "不在同一網路，連結經你的儲存空間送到 " + name + "，幾十秒到幾分鐘後開始處理。"
 		}
 	}
 }
@@ -6452,6 +6558,84 @@ func JobsOfflineSummary(cx *core.Scope) string { return For(cx).JobsOfflineSumma
 
 // JobsOfflineSummary is the package's JobsOfflineSummary in the language of msgs.
 func (msgs Messages) JobsOfflineSummary() string { return msgs.text(textJobsOfflineSummary) }
+
+// JobsOfflineRelay says "Offline. Links you send wait in your storage and start once it's back."
+// in the language the app shows under cx.
+//
+// Jobs page, a computer's card while it is reached through the user's storage away from its network but has not written there lately.
+func JobsOfflineRelay(cx *core.Scope) string { return For(cx).JobsOfflineRelay() }
+
+// JobsOfflineRelay is the package's JobsOfflineRelay in the language of msgs.
+func (msgs Messages) JobsOfflineRelay() string { return msgs.text(textJobsOfflineRelay) }
+
+// JobsInStorage says "In your storage, waiting for {name}"
+// in the language the app shows under cx.
+//
+// Where a link stands once it was left in the user's storage for the computer to take, away from its network.
+func JobsInStorage(cx *core.Scope, name string) string { return For(cx).JobsInStorage(name) }
+
+// JobsInStorage is the package's JobsInStorage in the language of msgs.
+func (msgs Messages) JobsInStorage(name string) string {
+	if i18n.IsPseudo(msgs.lang) {
+		return i18n.Pseudo(msgs.lang, Messages{lang: Source, mark: true}.JobsInStorage(name))
+	}
+	for lang := msgs.lang; ; lang = i18n.Parent(lang) {
+		if f := supplied[lang].JobsInStorage; f != nil {
+			return f(name)
+		}
+		switch lang {
+		case "", "en":
+			return "In your storage, waiting for " + msgs.arg(name)
+		case "ja":
+			return "ストレージに保存済み。" + name + " を待っています"
+		case "ko":
+			return "스토리지에 저장됨, " + name + " 대기 중"
+		case "zh-Hans":
+			return "已存进你的存储，等 " + name + " 处理"
+		case "zh-Hant":
+			return "已存進你的儲存空間，等 " + name + " 處理"
+		}
+	}
+}
+
+// JobsRelayed says "{summary} · through your storage"
+// in the language the app shows under cx.
+//
+// Jobs page, a computer's card while it is reached through the user's storage away from its network: what its queue does, then how it is reached.
+func JobsRelayed(cx *core.Scope, summary string) string { return For(cx).JobsRelayed(summary) }
+
+// JobsRelayed is the package's JobsRelayed in the language of msgs.
+func (msgs Messages) JobsRelayed(summary string) string {
+	if i18n.IsPseudo(msgs.lang) {
+		return i18n.Pseudo(msgs.lang, Messages{lang: Source, mark: true}.JobsRelayed(summary))
+	}
+	for lang := msgs.lang; ; lang = i18n.Parent(lang) {
+		if f := supplied[lang].JobsRelayed; f != nil {
+			return f(summary)
+		}
+		switch lang {
+		case "", "en":
+			return msgs.arg(summary) + " · through your storage"
+		case "ja":
+			return summary + " · ストレージ経由"
+		case "ko":
+			return summary + " · 스토리지 경유"
+		case "zh-Hans":
+			return summary + " · 经你的存储"
+		case "zh-Hant":
+			return summary + " · 經你的儲存空間"
+		}
+	}
+}
+
+// JobsViaStorage says "Via storage"
+// in the language the app shows under cx.
+//
+// Jobs page, a computer's card: it answers through the user's storage, away from its network.
+func JobsViaStorage(cx *core.Scope) string { return For(cx).JobsViaStorage() }
+
+// JobsViaStorage is the package's JobsViaStorage in the language of msgs.
+func (msgs Messages) JobsViaStorage() string { return msgs.text(textJobsViaStorage) }
 
 // JobsOlder says "Kando on this computer is too old to take links. Update it."
 // in the language the app shows under cx.
