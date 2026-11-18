@@ -445,6 +445,18 @@ var Parameters = map[string][]string{
 	"BrowseSignInFailed":                       {"error_"},
 	"BrowseSignInOn":                           {"browser"},
 	"BrowseSignInRefreshed":                    {"browser"},
+	"CorrectEndAt":                             {"time_"},
+	"CorrectRedo":                              {"step"},
+	"CorrectRedone":                            {"step"},
+	"CorrectRestored":                          {"count"},
+	"CorrectStartAt":                           {"time_"},
+	"CorrectStepEdit":                          {"line"},
+	"CorrectStepEnd":                           {"line"},
+	"CorrectStepNoSpeech":                      {"line"},
+	"CorrectStepRestore":                       {"line"},
+	"CorrectStepStart":                         {"line"},
+	"CorrectUndo":                              {"step"},
+	"CorrectUndone":                            {"step"},
 	"FeedbackBrowserFailed":                    {"repo"},
 	"FeedbackEnvDetail":                        {"version", "system"},
 	"FeedbackPreviewLabel":                     {"label"},
@@ -787,6 +799,18 @@ type Translation struct {
 	BrowseSignInFailed                       func(error_ string) string
 	BrowseSignInOn                           func(browser string) string
 	BrowseSignInRefreshed                    func(browser string) string
+	CorrectEndAt                             func(time_ string) string
+	CorrectRedo                              func(step string) string
+	CorrectRedone                            func(step string) string
+	CorrectRestored                          func(count int) string
+	CorrectStartAt                           func(time_ string) string
+	CorrectStepEdit                          func(line int) string
+	CorrectStepEnd                           func(line int) string
+	CorrectStepNoSpeech                      func(line int) string
+	CorrectStepRestore                       func(line int) string
+	CorrectStepStart                         func(line int) string
+	CorrectUndo                              func(step string) string
+	CorrectUndone                            func(step string) string
 	FeedbackBrowserFailed                    func(repo string) string
 	FeedbackEnvDetail                        func(version string, system string) string
 	FeedbackPreviewLabel                     func(label string) string
@@ -1200,6 +1224,32 @@ const (
 	textCheatsheetVolume
 	textCloudSignedIn
 	textCloudSignedInTitle
+	textCorrectBar
+	textCorrectCancel
+	textCorrectDone
+	textCorrectEdit
+	textCorrectEnd
+	textCorrectKeyDone
+	textCorrectKeyEdit
+	textCorrectKeyEndEarlier
+	textCorrectKeyEndLater
+	textCorrectKeyNext
+	textCorrectKeyNoSpeech
+	textCorrectKeyPrev
+	textCorrectKeyRestore
+	textCorrectKeySelect
+	textCorrectKeyStartEarlier
+	textCorrectKeyStartLater
+	textCorrectMarkedNoSpeech
+	textCorrectNewer
+	textCorrectOriginal
+	textCorrectOriginalEmpty
+	textCorrectSaveFailed
+	textCorrectSaved
+	textCorrectStart
+	textCorrectSubmit
+	textCorrectTranslation
+	textCorrectUnreadable
 	textFeedbackAttachEnv
 	textFeedbackAttachFilm
 	textFeedbackAttachSubs
@@ -2227,6 +2277,32 @@ var keyOfText = [numTexts]string{
 	"cheatsheetVolume",
 	"cloudSignedIn",
 	"cloudSignedInTitle",
+	"correctBar",
+	"correctCancel",
+	"correctDone",
+	"correctEdit",
+	"correctEnd",
+	"correctKeyDone",
+	"correctKeyEdit",
+	"correctKeyEndEarlier",
+	"correctKeyEndLater",
+	"correctKeyNext",
+	"correctKeyNoSpeech",
+	"correctKeyPrev",
+	"correctKeyRestore",
+	"correctKeySelect",
+	"correctKeyStartEarlier",
+	"correctKeyStartLater",
+	"correctMarkedNoSpeech",
+	"correctNewer",
+	"correctOriginal",
+	"correctOriginalEmpty",
+	"correctSaveFailed",
+	"correctSaved",
+	"correctStart",
+	"correctSubmit",
+	"correctTranslation",
+	"correctUnreadable",
 	"feedbackAttachEnv",
 	"feedbackAttachFilm",
 	"feedbackAttachSubs",
@@ -3252,6 +3328,32 @@ var textsEn = i18n.NewTexts(""+
 	"Volume Up / Down"+
 	"Signed in. You can close this page."+
 	"Kando"+
+	"Correct Line"+
+	"Cancel"+
+	"Done"+
+	"Edit"+
+	"End"+
+	"Finish Correcting the Line"+
+	"Edit the Selected Line"+
+	"End 0.1 Second Earlier"+
+	"End 0.1 Second Later"+
+	"Select the Next Line"+
+	"Mark as No Speech"+
+	"Select the Previous Line"+
+	"Restore Lines Marked as No Speech"+
+	"Select the Current Line"+
+	"Start 0.1 Second Earlier"+
+	"Start 0.1 Second Later"+
+	"Marked as no speech"+
+	"These corrections were made by a newer version of Kando and can’t be changed here"+
+	"Original"+
+	"The original can’t be empty. To leave the line out, mark it as no speech"+
+	"Couldn’t save the correction"+
+	"Saved your correction"+
+	"Start"+
+	"Save"+
+	"Translation"+
+	"This film’s corrections couldn’t be read, so they can’t be changed"+
 	"App and System Versions"+
 	"Current Film's Processing Status"+
 	"Subtitle Original and Translation"+
@@ -4274,6 +4376,32 @@ var textsEn = i18n.NewTexts(""+
 		16,
 		35,
 		5,
+		12,
+		6,
+		4,
+		4,
+		3,
+		26,
+		22,
+		22,
+		20,
+		20,
+		17,
+		24,
+		33,
+		23,
+		24,
+		22,
+		19,
+		83,
+		8,
+		74,
+		30,
+		21,
+		5,
+		4,
+		11,
+		72,
 		23,
 		32,
 		33,
@@ -5299,6 +5427,32 @@ var textsJa = i18n.NewTexts(""+
 	"音量を上げる / 下げる"+
 	"ログインしました。このページは閉じてかまいません。"+
 	"Kando"+
+	"セリフの修正"+
+	"キャンセル"+
+	"完了"+
+	"編集"+
+	"終了"+
+	"セリフの選択を終了"+
+	"選択したセリフを編集"+
+	"終了を 0.1 秒早く"+
+	"終了を 0.1 秒遅く"+
+	"次のセリフを選択"+
+	"音声なしにする"+
+	"前のセリフを選択"+
+	"音声なしにしたセリフを戻す"+
+	"現在のセリフを選択"+
+	"開始を 0.1 秒早く"+
+	"開始を 0.1 秒遅く"+
+	"音声なしにしました"+
+	"この修正は新しいバージョンの看懂で行われたため、ここでは変更できません"+
+	"原文"+
+	"原文は空にできません。この行を外すには音声なしにしてください"+
+	"修正を保存できませんでした"+
+	"修正を保存しました"+
+	"開始"+
+	"保存"+
+	"訳文"+
+	"この作品の修正を読み込めないため、変更できません"+
 	"アプリとシステムのバージョン"+
 	"現在の動画の処理状況"+
 	"該当する字幕の原文と訳文"+
@@ -6321,6 +6475,32 @@ var textsJa = i18n.NewTexts(""+
 		30,
 		75,
 		5,
+		18,
+		15,
+		6,
+		6,
+		6,
+		27,
+		30,
+		23,
+		23,
+		24,
+		21,
+		24,
+		39,
+		27,
+		23,
+		23,
+		27,
+		105,
+		6,
+		90,
+		39,
+		27,
+		6,
+		6,
+		6,
+		72,
 		42,
 		30,
 		36,
@@ -7346,6 +7526,32 @@ var textsKo = i18n.NewTexts(""+
 	"음량 높이기 / 낮추기"+
 	"로그인했습니다. 이 페이지를 닫아도 됩니다."+
 	"Kando"+
+	"대사 수정"+
+	"취소"+
+	"완료"+
+	"편집"+
+	"끝"+
+	"대사 선택 끝내기"+
+	"선택한 대사 편집"+
+	"끝을 0.1초 앞당기기"+
+	"끝을 0.1초 늦추기"+
+	"다음 대사 선택"+
+	"음성 없음으로 표시"+
+	"이전 대사 선택"+
+	"음성 없음으로 표시한 대사 되돌리기"+
+	"현재 대사 선택"+
+	"시작을 0.1초 앞당기기"+
+	"시작을 0.1초 늦추기"+
+	"음성 없음으로 표시했습니다"+
+	"이 수정은 최신 버전의 看懂에서 만들어져 여기서는 바꿀 수 없습니다"+
+	"원문"+
+	"원문은 비울 수 없습니다. 이 줄을 빼려면 음성 없음으로 표시하세요"+
+	"수정을 저장하지 못했습니다"+
+	"수정을 저장했습니다"+
+	"시작"+
+	"저장"+
+	"번역"+
+	"이 영상의 수정 내용을 읽을 수 없어 바꿀 수 없습니다"+
 	"앱 및 시스템 버전"+
 	"현재 영상의 처리 상태"+
 	"관련 자막 원문 및 번역"+
@@ -8368,6 +8574,32 @@ var textsKo = i18n.NewTexts(""+
 		28,
 		60,
 		5,
+		13,
+		6,
+		6,
+		6,
+		3,
+		23,
+		23,
+		26,
+		23,
+		20,
+		26,
+		20,
+		49,
+		20,
+		29,
+		26,
+		38,
+		93,
+		6,
+		91,
+		38,
+		28,
+		6,
+		6,
+		6,
+		72,
 		24,
 		30,
 		31,
@@ -9393,6 +9625,32 @@ var textsZhHans = i18n.NewTexts(""+
 	"音量加大 / 减小"+
 	"登录完成，可以关闭这个页面。"+
 	"看懂"+
+	"选句"+
+	"取消"+
+	"完成"+
+	"编辑"+
+	"终点"+
+	"完成选句"+
+	"编辑选中句"+
+	"终点提前 0.1 秒"+
+	"终点推后 0.1 秒"+
+	"选下一句"+
+	"标为无语音"+
+	"选上一句"+
+	"恢复标为无语音的句子"+
+	"选中当前句"+
+	"起点提前 0.1 秒"+
+	"起点推后 0.1 秒"+
+	"已标为无语音"+
+	"这些修改来自更新版本的看懂，这里不能更改"+
+	"原文"+
+	"原文不能为空。要去掉这句，请标为无语音"+
+	"修改没能保存"+
+	"已保存你的修改"+
+	"起点"+
+	"提交"+
+	"译文"+
+	"这部影片的修改记录读不出来，不能更改"+
 	"应用与系统版本"+
 	"当前影片的处理状态"+
 	"相关字幕原文与译文"+
@@ -10415,6 +10673,32 @@ var textsZhHans = i18n.NewTexts(""+
 		21,
 		42,
 		6,
+		6,
+		6,
+		6,
+		6,
+		6,
+		12,
+		15,
+		20,
+		20,
+		12,
+		15,
+		12,
+		30,
+		15,
+		20,
+		20,
+		18,
+		60,
+		6,
+		57,
+		18,
+		21,
+		6,
+		6,
+		6,
+		54,
 		21,
 		27,
 		27,
@@ -11440,6 +11724,32 @@ var textsZhHant = i18n.NewTexts(""+
 	"音量加大 / 減小"+
 	"登入完成，可以關閉這個頁面。"+
 	"看懂"+
+	"選句"+
+	"取消"+
+	"完成"+
+	"編輯"+
+	"終點"+
+	"完成選句"+
+	"編輯選取句"+
+	"終點提前 0.1 秒"+
+	"終點延後 0.1 秒"+
+	"選下一句"+
+	"標為無語音"+
+	"選上一句"+
+	"恢復標為無語音的句子"+
+	"選取目前這句"+
+	"起點提前 0.1 秒"+
+	"起點延後 0.1 秒"+
+	"已標為無語音"+
+	"這些修改來自更新版本的看懂，這裡不能更改"+
+	"原文"+
+	"原文不能為空。要去掉這句，請標為無語音"+
+	"修改沒能儲存"+
+	"已儲存你的修改"+
+	"起點"+
+	"提交"+
+	"譯文"+
+	"這部影片的修改紀錄讀不出來，不能更改"+
 	"應用程式與系統版本"+
 	"目前影片的處理狀態"+
 	"相關字幕原文與譯文"+
@@ -12462,6 +12772,32 @@ var textsZhHant = i18n.NewTexts(""+
 		21,
 		42,
 		6,
+		6,
+		6,
+		6,
+		6,
+		6,
+		12,
+		15,
+		20,
+		20,
+		12,
+		15,
+		12,
+		30,
+		18,
+		20,
+		20,
+		18,
+		60,
+		6,
+		57,
+		18,
+		21,
+		6,
+		6,
+		6,
+		54,
 		27,
 		27,
 		27,
@@ -13511,6 +13847,42 @@ func Supply(lang string, t Translation) {
 	}
 	if t.BrowseSignInRefreshed != nil {
 		s.BrowseSignInRefreshed = t.BrowseSignInRefreshed
+	}
+	if t.CorrectEndAt != nil {
+		s.CorrectEndAt = t.CorrectEndAt
+	}
+	if t.CorrectRedo != nil {
+		s.CorrectRedo = t.CorrectRedo
+	}
+	if t.CorrectRedone != nil {
+		s.CorrectRedone = t.CorrectRedone
+	}
+	if t.CorrectRestored != nil {
+		s.CorrectRestored = t.CorrectRestored
+	}
+	if t.CorrectStartAt != nil {
+		s.CorrectStartAt = t.CorrectStartAt
+	}
+	if t.CorrectStepEdit != nil {
+		s.CorrectStepEdit = t.CorrectStepEdit
+	}
+	if t.CorrectStepEnd != nil {
+		s.CorrectStepEnd = t.CorrectStepEnd
+	}
+	if t.CorrectStepNoSpeech != nil {
+		s.CorrectStepNoSpeech = t.CorrectStepNoSpeech
+	}
+	if t.CorrectStepRestore != nil {
+		s.CorrectStepRestore = t.CorrectStepRestore
+	}
+	if t.CorrectStepStart != nil {
+		s.CorrectStepStart = t.CorrectStepStart
+	}
+	if t.CorrectUndo != nil {
+		s.CorrectUndo = t.CorrectUndo
+	}
+	if t.CorrectUndone != nil {
+		s.CorrectUndone = t.CorrectUndone
 	}
 	if t.FeedbackBrowserFailed != nil {
 		s.FeedbackBrowserFailed = t.FeedbackBrowserFailed
@@ -15945,6 +16317,621 @@ func CloudSignedInTitle(cx *core.Scope) string { return For(cx).CloudSignedInTit
 
 // CloudSignedInTitle is the package's CloudSignedInTitle in the language of msgs.
 func (msgs Messages) CloudSignedInTitle() string { return msgs.text(textCloudSignedInTitle) }
+
+// CorrectBar says "Correct Line"
+// in the language the app shows under cx.
+//
+// Accessible name of the bar over the picture that holds the buttons for correcting the selected subtitle line.
+func CorrectBar(cx *core.Scope) string { return For(cx).CorrectBar() }
+
+// CorrectBar is the package's CorrectBar in the language of msgs.
+func (msgs Messages) CorrectBar() string { return msgs.text(textCorrectBar) }
+
+// CorrectCancel says "Cancel"
+// in the language the app shows under cx.
+//
+// Button under the fields that edit a subtitle line: puts them away without changing the line.
+func CorrectCancel(cx *core.Scope) string { return For(cx).CorrectCancel() }
+
+// CorrectCancel is the package's CorrectCancel in the language of msgs.
+func (msgs Messages) CorrectCancel() string { return msgs.text(textCorrectCancel) }
+
+// CorrectDone says "Done"
+// in the language the app shows under cx.
+//
+// Button of the bar of the selected subtitle line: lets go of the line.
+func CorrectDone(cx *core.Scope) string { return For(cx).CorrectDone() }
+
+// CorrectDone is the package's CorrectDone in the language of msgs.
+func (msgs Messages) CorrectDone() string { return msgs.text(textCorrectDone) }
+
+// CorrectEdit says "Edit"
+// in the language the app shows under cx.
+//
+// Button of the bar of the selected subtitle line: shows the fields that edit its translation and its original.
+func CorrectEdit(cx *core.Scope) string { return For(cx).CorrectEdit() }
+
+// CorrectEdit is the package's CorrectEdit in the language of msgs.
+func (msgs Messages) CorrectEdit() string { return msgs.text(textCorrectEdit) }
+
+// CorrectEnd says "End"
+// in the language the app shows under cx.
+//
+// Label before the two buttons of the bar of the selected subtitle line that move its end a tenth of a second earlier or later.
+func CorrectEnd(cx *core.Scope) string { return For(cx).CorrectEnd() }
+
+// CorrectEnd is the package's CorrectEnd in the language of msgs.
+func (msgs Messages) CorrectEnd() string { return msgs.text(textCorrectEnd) }
+
+// CorrectEndAt says "End {time}"
+// in the language the app shows under cx.
+//
+// Message on the picture after the end of the selected subtitle line was moved: where it ends now, as 0:12.4.
+func CorrectEndAt(cx *core.Scope, time_ string) string { return For(cx).CorrectEndAt(time_) }
+
+// CorrectEndAt is the package's CorrectEndAt in the language of msgs.
+func (msgs Messages) CorrectEndAt(time_ string) string {
+	if i18n.IsPseudo(msgs.lang) {
+		return i18n.Pseudo(msgs.lang, Messages{lang: Source, mark: true}.CorrectEndAt(time_))
+	}
+	for lang := msgs.lang; ; lang = i18n.Parent(lang) {
+		if f := supplied[lang].CorrectEndAt; f != nil {
+			return f(time_)
+		}
+		switch lang {
+		case "", "en":
+			return "End " + msgs.arg(time_)
+		case "ja":
+			return "終了 " + time_
+		case "ko":
+			return "끝 " + time_
+		case "zh-Hans":
+			return "终点 " + time_
+		case "zh-Hant":
+			return "終點 " + time_
+		}
+	}
+}
+
+// CorrectKeyDone says "Finish Correcting the Line"
+// in the language the app shows under cx.
+//
+// Shortcut row of Escape while a subtitle line is selected for correcting: lets go of it, before Escape would leave the film.
+func CorrectKeyDone(cx *core.Scope) string { return For(cx).CorrectKeyDone() }
+
+// CorrectKeyDone is the package's CorrectKeyDone in the language of msgs.
+func (msgs Messages) CorrectKeyDone() string { return msgs.text(textCorrectKeyDone) }
+
+// CorrectKeyEdit says "Edit the Selected Line"
+// in the language the app shows under cx.
+//
+// Shortcut row of Return while a subtitle line is selected: shows the fields that edit its translation and its original; also the accessible name of those fields' group.
+func CorrectKeyEdit(cx *core.Scope) string { return For(cx).CorrectKeyEdit() }
+
+// CorrectKeyEdit is the package's CorrectKeyEdit in the language of msgs.
+func (msgs Messages) CorrectKeyEdit() string { return msgs.text(textCorrectKeyEdit) }
+
+// CorrectKeyEndEarlier says "End 0.1 Second Earlier"
+// in the language the app shows under cx.
+//
+// Shortcut row and button: moves the end of the selected subtitle line a tenth of a second earlier.
+func CorrectKeyEndEarlier(cx *core.Scope) string { return For(cx).CorrectKeyEndEarlier() }
+
+// CorrectKeyEndEarlier is the package's CorrectKeyEndEarlier in the language of msgs.
+func (msgs Messages) CorrectKeyEndEarlier() string { return msgs.text(textCorrectKeyEndEarlier) }
+
+// CorrectKeyEndLater says "End 0.1 Second Later"
+// in the language the app shows under cx.
+//
+// Shortcut row and button: moves the end of the selected subtitle line a tenth of a second later.
+func CorrectKeyEndLater(cx *core.Scope) string { return For(cx).CorrectKeyEndLater() }
+
+// CorrectKeyEndLater is the package's CorrectKeyEndLater in the language of msgs.
+func (msgs Messages) CorrectKeyEndLater() string { return msgs.text(textCorrectKeyEndLater) }
+
+// CorrectKeyNext says "Select the Next Line"
+// in the language the app shows under cx.
+//
+// Shortcut row and button while a subtitle line is selected for correcting: selects the line after it.
+func CorrectKeyNext(cx *core.Scope) string { return For(cx).CorrectKeyNext() }
+
+// CorrectKeyNext is the package's CorrectKeyNext in the language of msgs.
+func (msgs Messages) CorrectKeyNext() string { return msgs.text(textCorrectKeyNext) }
+
+// CorrectKeyNoSpeech says "Mark as No Speech"
+// in the language the app shows under cx.
+//
+// Shortcut row and button: leaves the selected subtitle line out of the film, as one the speech recognition heard in music or noise.
+func CorrectKeyNoSpeech(cx *core.Scope) string { return For(cx).CorrectKeyNoSpeech() }
+
+// CorrectKeyNoSpeech is the package's CorrectKeyNoSpeech in the language of msgs.
+func (msgs Messages) CorrectKeyNoSpeech() string { return msgs.text(textCorrectKeyNoSpeech) }
+
+// CorrectKeyPrev says "Select the Previous Line"
+// in the language the app shows under cx.
+//
+// Shortcut row and button while a subtitle line is selected for correcting: selects the line before it.
+func CorrectKeyPrev(cx *core.Scope) string { return For(cx).CorrectKeyPrev() }
+
+// CorrectKeyPrev is the package's CorrectKeyPrev in the language of msgs.
+func (msgs Messages) CorrectKeyPrev() string { return msgs.text(textCorrectKeyPrev) }
+
+// CorrectKeyRestore says "Restore Lines Marked as No Speech"
+// in the language the app shows under cx.
+//
+// Subtitles menu item: brings back every line of the open film the user marked as no speech.
+func CorrectKeyRestore(cx *core.Scope) string { return For(cx).CorrectKeyRestore() }
+
+// CorrectKeyRestore is the package's CorrectKeyRestore in the language of msgs.
+func (msgs Messages) CorrectKeyRestore() string { return msgs.text(textCorrectKeyRestore) }
+
+// CorrectKeySelect says "Select the Current Line"
+// in the language the app shows under cx.
+//
+// Shortcut row of Return on the player: selects the subtitle line playing, to correct it.
+func CorrectKeySelect(cx *core.Scope) string { return For(cx).CorrectKeySelect() }
+
+// CorrectKeySelect is the package's CorrectKeySelect in the language of msgs.
+func (msgs Messages) CorrectKeySelect() string { return msgs.text(textCorrectKeySelect) }
+
+// CorrectKeyStartEarlier says "Start 0.1 Second Earlier"
+// in the language the app shows under cx.
+//
+// Shortcut row and button: moves the start of the selected subtitle line a tenth of a second earlier.
+func CorrectKeyStartEarlier(cx *core.Scope) string { return For(cx).CorrectKeyStartEarlier() }
+
+// CorrectKeyStartEarlier is the package's CorrectKeyStartEarlier in the language of msgs.
+func (msgs Messages) CorrectKeyStartEarlier() string { return msgs.text(textCorrectKeyStartEarlier) }
+
+// CorrectKeyStartLater says "Start 0.1 Second Later"
+// in the language the app shows under cx.
+//
+// Shortcut row and button: moves the start of the selected subtitle line a tenth of a second later.
+func CorrectKeyStartLater(cx *core.Scope) string { return For(cx).CorrectKeyStartLater() }
+
+// CorrectKeyStartLater is the package's CorrectKeyStartLater in the language of msgs.
+func (msgs Messages) CorrectKeyStartLater() string { return msgs.text(textCorrectKeyStartLater) }
+
+// CorrectMarkedNoSpeech says "Marked as no speech"
+// in the language the app shows under cx.
+//
+// Message on the picture after a subtitle line was marked as no speech.
+func CorrectMarkedNoSpeech(cx *core.Scope) string { return For(cx).CorrectMarkedNoSpeech() }
+
+// CorrectMarkedNoSpeech is the package's CorrectMarkedNoSpeech in the language of msgs.
+func (msgs Messages) CorrectMarkedNoSpeech() string { return msgs.text(textCorrectMarkedNoSpeech) }
+
+// CorrectNewer says "These corrections were made by a newer version of Kando and can’t be changed here"
+// in the language the app shows under cx.
+//
+// Message on the picture when the film's corrections file was written by a newer Kando, which this version does not write over.
+func CorrectNewer(cx *core.Scope) string { return For(cx).CorrectNewer() }
+
+// CorrectNewer is the package's CorrectNewer in the language of msgs.
+func (msgs Messages) CorrectNewer() string { return msgs.text(textCorrectNewer) }
+
+// CorrectOriginal says "Original"
+// in the language the app shows under cx.
+//
+// Label of the field that edits the original line of the selected subtitle line.
+func CorrectOriginal(cx *core.Scope) string { return For(cx).CorrectOriginal() }
+
+// CorrectOriginal is the package's CorrectOriginal in the language of msgs.
+func (msgs Messages) CorrectOriginal() string { return msgs.text(textCorrectOriginal) }
+
+// CorrectOriginalEmpty says "The original can’t be empty. To leave the line out, mark it as no speech"
+// in the language the app shows under cx.
+//
+// Message on the picture when the user submits a subtitle line with its original field empty, which is not kept.
+func CorrectOriginalEmpty(cx *core.Scope) string { return For(cx).CorrectOriginalEmpty() }
+
+// CorrectOriginalEmpty is the package's CorrectOriginalEmpty in the language of msgs.
+func (msgs Messages) CorrectOriginalEmpty() string { return msgs.text(textCorrectOriginalEmpty) }
+
+// CorrectRedo says "Redo “{step}”"
+// in the language the app shows under cx.
+//
+// Edit menu item and shortcut row: makes again the change of the film's lines that Undo took back, named.
+func CorrectRedo(cx *core.Scope, step string) string { return For(cx).CorrectRedo(step) }
+
+// CorrectRedo is the package's CorrectRedo in the language of msgs.
+func (msgs Messages) CorrectRedo(step string) string {
+	if i18n.IsPseudo(msgs.lang) {
+		return i18n.Pseudo(msgs.lang, Messages{lang: Source, mark: true}.CorrectRedo(step))
+	}
+	for lang := msgs.lang; ; lang = i18n.Parent(lang) {
+		if f := supplied[lang].CorrectRedo; f != nil {
+			return f(step)
+		}
+		switch lang {
+		case "", "en":
+			return "Redo “" + msgs.arg(step) + "”"
+		case "ja":
+			return "「" + step + "」をやり直す"
+		case "ko":
+			return "‘" + step + "’ 다시 실행"
+		case "zh-Hans":
+			return "重做「" + step + "」"
+		case "zh-Hant":
+			return "重做「" + step + "」"
+		}
+	}
+}
+
+// CorrectRedone says "Redone: {step}"
+// in the language the app shows under cx.
+//
+// Message on the picture after Redo made a change of the film's lines again.
+func CorrectRedone(cx *core.Scope, step string) string { return For(cx).CorrectRedone(step) }
+
+// CorrectRedone is the package's CorrectRedone in the language of msgs.
+func (msgs Messages) CorrectRedone(step string) string {
+	if i18n.IsPseudo(msgs.lang) {
+		return i18n.Pseudo(msgs.lang, Messages{lang: Source, mark: true}.CorrectRedone(step))
+	}
+	for lang := msgs.lang; ; lang = i18n.Parent(lang) {
+		if f := supplied[lang].CorrectRedone; f != nil {
+			return f(step)
+		}
+		switch lang {
+		case "", "en":
+			return "Redone: " + msgs.arg(step)
+		case "ja":
+			return "やり直しました：" + step
+		case "ko":
+			return "다시 실행함: " + step
+		case "zh-Hans":
+			return "已重做：" + step
+		case "zh-Hant":
+			return "已重做：" + step
+		}
+	}
+}
+
+// CorrectRestored says "Restored {count, plural, one {# line} other {# lines}}"
+// in the language the app shows under cx.
+//
+// Message on the picture after the lines marked as no speech were brought back.
+func CorrectRestored(cx *core.Scope, count int) string { return For(cx).CorrectRestored(count) }
+
+// CorrectRestored is the package's CorrectRestored in the language of msgs.
+func (msgs Messages) CorrectRestored(count int) string {
+	if i18n.IsPseudo(msgs.lang) {
+		return i18n.Pseudo(msgs.lang, Messages{lang: Source, mark: true}.CorrectRestored(count))
+	}
+	for lang := msgs.lang; ; lang = i18n.Parent(lang) {
+		if f := supplied[lang].CorrectRestored; f != nil {
+			return f(count)
+		}
+		switch lang {
+		case "", "en":
+			var b strings.Builder
+			b.WriteString("Restored ")
+			switch i18n.Cardinal("en", float64(count)) {
+			case i18n.One:
+				b.WriteString(msgs.arg(i18n.FormatNumber("en", float64(count))))
+				b.WriteString(" line")
+			default:
+				b.WriteString(msgs.arg(i18n.FormatNumber("en", float64(count))))
+				b.WriteString(" lines")
+			}
+			return b.String()
+		case "ja":
+			return i18n.FormatNumber("ja", float64(count)) + " 件のセリフを戻しました"
+		case "ko":
+			return "대사 " + i18n.FormatNumber("ko", float64(count)) + "개를 되돌렸습니다"
+		case "zh-Hans":
+			return "已恢复 " + i18n.FormatNumber("zh-Hans", float64(count)) + " 句"
+		case "zh-Hant":
+			return "已恢復 " + i18n.FormatNumber("zh-Hant", float64(count)) + " 句"
+		}
+	}
+}
+
+// CorrectSaveFailed says "Couldn’t save the correction"
+// in the language the app shows under cx.
+//
+// Message on the picture when the film's corrections file could not be written.
+func CorrectSaveFailed(cx *core.Scope) string { return For(cx).CorrectSaveFailed() }
+
+// CorrectSaveFailed is the package's CorrectSaveFailed in the language of msgs.
+func (msgs Messages) CorrectSaveFailed() string { return msgs.text(textCorrectSaveFailed) }
+
+// CorrectSaved says "Saved your correction"
+// in the language the app shows under cx.
+//
+// Message on the picture after an edit of a subtitle line was kept.
+func CorrectSaved(cx *core.Scope) string { return For(cx).CorrectSaved() }
+
+// CorrectSaved is the package's CorrectSaved in the language of msgs.
+func (msgs Messages) CorrectSaved() string { return msgs.text(textCorrectSaved) }
+
+// CorrectStart says "Start"
+// in the language the app shows under cx.
+//
+// Label before the two buttons of the bar of the selected subtitle line that move its start a tenth of a second earlier or later.
+func CorrectStart(cx *core.Scope) string { return For(cx).CorrectStart() }
+
+// CorrectStart is the package's CorrectStart in the language of msgs.
+func (msgs Messages) CorrectStart() string { return msgs.text(textCorrectStart) }
+
+// CorrectStartAt says "Start {time}"
+// in the language the app shows under cx.
+//
+// Message on the picture after the start of the selected subtitle line was moved: where it starts now, as 0:10.4.
+func CorrectStartAt(cx *core.Scope, time_ string) string { return For(cx).CorrectStartAt(time_) }
+
+// CorrectStartAt is the package's CorrectStartAt in the language of msgs.
+func (msgs Messages) CorrectStartAt(time_ string) string {
+	if i18n.IsPseudo(msgs.lang) {
+		return i18n.Pseudo(msgs.lang, Messages{lang: Source, mark: true}.CorrectStartAt(time_))
+	}
+	for lang := msgs.lang; ; lang = i18n.Parent(lang) {
+		if f := supplied[lang].CorrectStartAt; f != nil {
+			return f(time_)
+		}
+		switch lang {
+		case "", "en":
+			return "Start " + msgs.arg(time_)
+		case "ja":
+			return "開始 " + time_
+		case "ko":
+			return "시작 " + time_
+		case "zh-Hans":
+			return "起点 " + time_
+		case "zh-Hant":
+			return "起點 " + time_
+		}
+	}
+}
+
+// CorrectStepEdit says "Edit Line {line}"
+// in the language the app shows under cx.
+//
+// What a change of the film's lines was, for Undo and Redo to name it: an edit of the line numbered line, counting from 1.
+func CorrectStepEdit(cx *core.Scope, line int) string { return For(cx).CorrectStepEdit(line) }
+
+// CorrectStepEdit is the package's CorrectStepEdit in the language of msgs.
+func (msgs Messages) CorrectStepEdit(line int) string {
+	if i18n.IsPseudo(msgs.lang) {
+		return i18n.Pseudo(msgs.lang, Messages{lang: Source, mark: true}.CorrectStepEdit(line))
+	}
+	for lang := msgs.lang; ; lang = i18n.Parent(lang) {
+		if f := supplied[lang].CorrectStepEdit; f != nil {
+			return f(line)
+		}
+		switch lang {
+		case "", "en":
+			return "Edit Line " + msgs.arg(i18n.FormatNumber("en", float64(line)))
+		case "ja":
+			return "セリフ " + i18n.FormatNumber("ja", float64(line)) + " の編集"
+		case "ko":
+			return i18n.FormatNumber("ko", float64(line)) + "번 대사 편집"
+		case "zh-Hans":
+			return "编辑第 " + i18n.FormatNumber("zh-Hans", float64(line)) + " 句"
+		case "zh-Hant":
+			return "編輯第 " + i18n.FormatNumber("zh-Hant", float64(line)) + " 句"
+		}
+	}
+}
+
+// CorrectStepEnd says "Move the End of Line {line}"
+// in the language the app shows under cx.
+//
+// What a change of the film's lines was, for Undo and Redo to name it: the end of the line numbered line moved.
+func CorrectStepEnd(cx *core.Scope, line int) string { return For(cx).CorrectStepEnd(line) }
+
+// CorrectStepEnd is the package's CorrectStepEnd in the language of msgs.
+func (msgs Messages) CorrectStepEnd(line int) string {
+	if i18n.IsPseudo(msgs.lang) {
+		return i18n.Pseudo(msgs.lang, Messages{lang: Source, mark: true}.CorrectStepEnd(line))
+	}
+	for lang := msgs.lang; ; lang = i18n.Parent(lang) {
+		if f := supplied[lang].CorrectStepEnd; f != nil {
+			return f(line)
+		}
+		switch lang {
+		case "", "en":
+			return "Move the End of Line " + msgs.arg(i18n.FormatNumber("en", float64(line)))
+		case "ja":
+			return "セリフ " + i18n.FormatNumber("ja", float64(line)) + " の終了を調整"
+		case "ko":
+			return i18n.FormatNumber("ko", float64(line)) + "번 대사 끝 조정"
+		case "zh-Hans":
+			return "调整第 " + i18n.FormatNumber("zh-Hans", float64(line)) + " 句终点"
+		case "zh-Hant":
+			return "調整第 " + i18n.FormatNumber("zh-Hant", float64(line)) + " 句終點"
+		}
+	}
+}
+
+// CorrectStepNoSpeech says "Mark Line {line} as No Speech"
+// in the language the app shows under cx.
+//
+// What a change of the film's lines was, for Undo and Redo to name it: the line numbered line marked as no speech.
+func CorrectStepNoSpeech(cx *core.Scope, line int) string { return For(cx).CorrectStepNoSpeech(line) }
+
+// CorrectStepNoSpeech is the package's CorrectStepNoSpeech in the language of msgs.
+func (msgs Messages) CorrectStepNoSpeech(line int) string {
+	if i18n.IsPseudo(msgs.lang) {
+		return i18n.Pseudo(msgs.lang, Messages{lang: Source, mark: true}.CorrectStepNoSpeech(line))
+	}
+	for lang := msgs.lang; ; lang = i18n.Parent(lang) {
+		if f := supplied[lang].CorrectStepNoSpeech; f != nil {
+			return f(line)
+		}
+		switch lang {
+		case "", "en":
+			return "Mark Line " + msgs.arg(i18n.FormatNumber("en", float64(line))) + " as No Speech"
+		case "ja":
+			return "セリフ " + i18n.FormatNumber("ja", float64(line)) + " を音声なしに"
+		case "ko":
+			return i18n.FormatNumber("ko", float64(line)) + "번 대사를 음성 없음으로 표시"
+		case "zh-Hans":
+			return "第 " + i18n.FormatNumber("zh-Hans", float64(line)) + " 句标为无语音"
+		case "zh-Hant":
+			return "第 " + i18n.FormatNumber("zh-Hant", float64(line)) + " 句標為無語音"
+		}
+	}
+}
+
+// CorrectStepRestore says "Restore {line, plural, one {# Line} other {# Lines}} Marked as No Speech"
+// in the language the app shows under cx.
+//
+// What a change of the film's lines was, for Undo and Redo to name it: the lines marked as no speech brought back, how many.
+func CorrectStepRestore(cx *core.Scope, line int) string { return For(cx).CorrectStepRestore(line) }
+
+// CorrectStepRestore is the package's CorrectStepRestore in the language of msgs.
+func (msgs Messages) CorrectStepRestore(line int) string {
+	if i18n.IsPseudo(msgs.lang) {
+		return i18n.Pseudo(msgs.lang, Messages{lang: Source, mark: true}.CorrectStepRestore(line))
+	}
+	for lang := msgs.lang; ; lang = i18n.Parent(lang) {
+		if f := supplied[lang].CorrectStepRestore; f != nil {
+			return f(line)
+		}
+		switch lang {
+		case "", "en":
+			var b strings.Builder
+			b.WriteString("Restore ")
+			switch i18n.Cardinal("en", float64(line)) {
+			case i18n.One:
+				b.WriteString(msgs.arg(i18n.FormatNumber("en", float64(line))))
+				b.WriteString(" Line")
+			default:
+				b.WriteString(msgs.arg(i18n.FormatNumber("en", float64(line))))
+				b.WriteString(" Lines")
+			}
+			b.WriteString(" Marked as No Speech")
+			return b.String()
+		case "ja":
+			return "音声なしの " + i18n.FormatNumber("ja", float64(line)) + " 件を戻す"
+		case "ko":
+			return "음성 없음 " + i18n.FormatNumber("ko", float64(line)) + "개 되돌리기"
+		case "zh-Hans":
+			return "恢复 " + i18n.FormatNumber("zh-Hans", float64(line)) + " 句无语音"
+		case "zh-Hant":
+			return "恢復 " + i18n.FormatNumber("zh-Hant", float64(line)) + " 句無語音"
+		}
+	}
+}
+
+// CorrectStepStart says "Move the Start of Line {line}"
+// in the language the app shows under cx.
+//
+// What a change of the film's lines was, for Undo and Redo to name it: the start of the line numbered line moved.
+func CorrectStepStart(cx *core.Scope, line int) string { return For(cx).CorrectStepStart(line) }
+
+// CorrectStepStart is the package's CorrectStepStart in the language of msgs.
+func (msgs Messages) CorrectStepStart(line int) string {
+	if i18n.IsPseudo(msgs.lang) {
+		return i18n.Pseudo(msgs.lang, Messages{lang: Source, mark: true}.CorrectStepStart(line))
+	}
+	for lang := msgs.lang; ; lang = i18n.Parent(lang) {
+		if f := supplied[lang].CorrectStepStart; f != nil {
+			return f(line)
+		}
+		switch lang {
+		case "", "en":
+			return "Move the Start of Line " + msgs.arg(i18n.FormatNumber("en", float64(line)))
+		case "ja":
+			return "セリフ " + i18n.FormatNumber("ja", float64(line)) + " の開始を調整"
+		case "ko":
+			return i18n.FormatNumber("ko", float64(line)) + "번 대사 시작 조정"
+		case "zh-Hans":
+			return "调整第 " + i18n.FormatNumber("zh-Hans", float64(line)) + " 句起点"
+		case "zh-Hant":
+			return "調整第 " + i18n.FormatNumber("zh-Hant", float64(line)) + " 句起點"
+		}
+	}
+}
+
+// CorrectSubmit says "Save"
+// in the language the app shows under cx.
+//
+// Button under the fields that edit a subtitle line: keeps what they hold and plays on.
+func CorrectSubmit(cx *core.Scope) string { return For(cx).CorrectSubmit() }
+
+// CorrectSubmit is the package's CorrectSubmit in the language of msgs.
+func (msgs Messages) CorrectSubmit() string { return msgs.text(textCorrectSubmit) }
+
+// CorrectTranslation says "Translation"
+// in the language the app shows under cx.
+//
+// Label of the field that edits the translation of the selected subtitle line.
+func CorrectTranslation(cx *core.Scope) string { return For(cx).CorrectTranslation() }
+
+// CorrectTranslation is the package's CorrectTranslation in the language of msgs.
+func (msgs Messages) CorrectTranslation() string { return msgs.text(textCorrectTranslation) }
+
+// CorrectUndo says "Undo “{step}”"
+// in the language the app shows under cx.
+//
+// Edit menu item and shortcut row: takes back the last change of the film's lines, named.
+func CorrectUndo(cx *core.Scope, step string) string { return For(cx).CorrectUndo(step) }
+
+// CorrectUndo is the package's CorrectUndo in the language of msgs.
+func (msgs Messages) CorrectUndo(step string) string {
+	if i18n.IsPseudo(msgs.lang) {
+		return i18n.Pseudo(msgs.lang, Messages{lang: Source, mark: true}.CorrectUndo(step))
+	}
+	for lang := msgs.lang; ; lang = i18n.Parent(lang) {
+		if f := supplied[lang].CorrectUndo; f != nil {
+			return f(step)
+		}
+		switch lang {
+		case "", "en":
+			return "Undo “" + msgs.arg(step) + "”"
+		case "ja":
+			return "「" + step + "」を取り消す"
+		case "ko":
+			return "‘" + step + "’ 실행 취소"
+		case "zh-Hans":
+			return "撤销「" + step + "」"
+		case "zh-Hant":
+			return "復原「" + step + "」"
+		}
+	}
+}
+
+// CorrectUndone says "Undone: {step}"
+// in the language the app shows under cx.
+//
+// Message on the picture after Undo took back a change of the film's lines.
+func CorrectUndone(cx *core.Scope, step string) string { return For(cx).CorrectUndone(step) }
+
+// CorrectUndone is the package's CorrectUndone in the language of msgs.
+func (msgs Messages) CorrectUndone(step string) string {
+	if i18n.IsPseudo(msgs.lang) {
+		return i18n.Pseudo(msgs.lang, Messages{lang: Source, mark: true}.CorrectUndone(step))
+	}
+	for lang := msgs.lang; ; lang = i18n.Parent(lang) {
+		if f := supplied[lang].CorrectUndone; f != nil {
+			return f(step)
+		}
+		switch lang {
+		case "", "en":
+			return "Undone: " + msgs.arg(step)
+		case "ja":
+			return "取り消しました：" + step
+		case "ko":
+			return "실행 취소함: " + step
+		case "zh-Hans":
+			return "已撤销：" + step
+		case "zh-Hant":
+			return "已復原：" + step
+		}
+	}
+}
+
+// CorrectUnreadable says "This film’s corrections couldn’t be read, so they can’t be changed"
+// in the language the app shows under cx.
+//
+// Message on the picture when the film's corrections file could not be read, which is then not written over.
+func CorrectUnreadable(cx *core.Scope) string { return For(cx).CorrectUnreadable() }
+
+// CorrectUnreadable is the package's CorrectUnreadable in the language of msgs.
+func (msgs Messages) CorrectUnreadable() string { return msgs.text(textCorrectUnreadable) }
 
 // FeedbackAttachEnv says "App and System Versions"
 // in the language the app shows under cx.

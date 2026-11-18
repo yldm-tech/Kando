@@ -377,6 +377,144 @@ cloudSignedIn:
 cloudSignedInTitle:
   message: "Kando"
   description: "Title of the browser page Google's sign-in returns to, the app's name."
+correctBar:
+  message: "Correct Line"
+  description: "Accessible name of the bar over the picture that holds the buttons for correcting the selected subtitle line."
+correctCancel:
+  message: "Cancel"
+  description: "Button under the fields that edit a subtitle line: puts them away without changing the line."
+correctDone:
+  message: "Done"
+  description: "Button of the bar of the selected subtitle line: lets go of the line."
+correctEdit:
+  message: "Edit"
+  description: "Button of the bar of the selected subtitle line: shows the fields that edit its translation and its original."
+correctEnd:
+  message: "End"
+  description: "Label before the two buttons of the bar of the selected subtitle line that move its end a tenth of a second earlier or later."
+correctEndAt:
+  message: "End {time}"
+  description: "Message on the picture after the end of the selected subtitle line was moved: where it ends now, as 0:12.4."
+  placeholders:
+    time: { type: "String", example: "0:12.4" }
+correctKeyDone:
+  message: "Finish Correcting the Line"
+  description: "Shortcut row of Escape while a subtitle line is selected for correcting: lets go of it, before Escape would leave the film."
+correctKeyEdit:
+  message: "Edit the Selected Line"
+  description: "Shortcut row of Return while a subtitle line is selected: shows the fields that edit its translation and its original; also the accessible name of those fields' group."
+correctKeyEndEarlier:
+  message: "End 0.1 Second Earlier"
+  description: "Shortcut row and button: moves the end of the selected subtitle line a tenth of a second earlier."
+correctKeyEndLater:
+  message: "End 0.1 Second Later"
+  description: "Shortcut row and button: moves the end of the selected subtitle line a tenth of a second later."
+correctKeyNext:
+  message: "Select the Next Line"
+  description: "Shortcut row and button while a subtitle line is selected for correcting: selects the line after it."
+correctKeyNoSpeech:
+  message: "Mark as No Speech"
+  description: "Shortcut row and button: leaves the selected subtitle line out of the film, as one the speech recognition heard in music or noise."
+correctKeyPrev:
+  message: "Select the Previous Line"
+  description: "Shortcut row and button while a subtitle line is selected for correcting: selects the line before it."
+correctKeyRestore:
+  message: "Restore Lines Marked as No Speech"
+  description: "Subtitles menu item: brings back every line of the open film the user marked as no speech."
+correctKeySelect:
+  message: "Select the Current Line"
+  description: "Shortcut row of Return on the player: selects the subtitle line playing, to correct it."
+correctKeyStartEarlier:
+  message: "Start 0.1 Second Earlier"
+  description: "Shortcut row and button: moves the start of the selected subtitle line a tenth of a second earlier."
+correctKeyStartLater:
+  message: "Start 0.1 Second Later"
+  description: "Shortcut row and button: moves the start of the selected subtitle line a tenth of a second later."
+correctMarkedNoSpeech:
+  message: "Marked as no speech"
+  description: "Message on the picture after a subtitle line was marked as no speech."
+correctNewer:
+  message: "These corrections were made by a newer version of Kando and can’t be changed here"
+  description: "Message on the picture when the film's corrections file was written by a newer Kando, which this version does not write over."
+correctOriginal:
+  message: "Original"
+  description: "Label of the field that edits the original line of the selected subtitle line."
+correctOriginalEmpty:
+  message: "The original can’t be empty. To leave the line out, mark it as no speech"
+  description: "Message on the picture when the user submits a subtitle line with its original field empty, which is not kept."
+correctRedo:
+  message: "Redo “{step}”"
+  description: "Edit menu item and shortcut row: makes again the change of the film's lines that Undo took back, named."
+  placeholders:
+    step: { type: "String", example: "Edit Line 12" }
+correctRedone:
+  message: "Redone: {step}"
+  description: "Message on the picture after Redo made a change of the film's lines again."
+  placeholders:
+    step: { type: "String", example: "Edit Line 12" }
+correctRestored:
+  message: "Restored {count, plural, one {# line} other {# lines}}"
+  description: "Message on the picture after the lines marked as no speech were brought back."
+  placeholders:
+    count: { type: "int", example: "3" }
+correctSaveFailed:
+  message: "Couldn’t save the correction"
+  description: "Message on the picture when the film's corrections file could not be written."
+correctSaved:
+  message: "Saved your correction"
+  description: "Message on the picture after an edit of a subtitle line was kept."
+correctStart:
+  message: "Start"
+  description: "Label before the two buttons of the bar of the selected subtitle line that move its start a tenth of a second earlier or later."
+correctStartAt:
+  message: "Start {time}"
+  description: "Message on the picture after the start of the selected subtitle line was moved: where it starts now, as 0:10.4."
+  placeholders:
+    time: { type: "String", example: "0:10.4" }
+correctStepEdit:
+  message: "Edit Line {line}"
+  description: "What a change of the film's lines was, for Undo and Redo to name it: an edit of the line numbered line, counting from 1."
+  placeholders:
+    line: { type: "int", example: "12" }
+correctStepEnd:
+  message: "Move the End of Line {line}"
+  description: "What a change of the film's lines was, for Undo and Redo to name it: the end of the line numbered line moved."
+  placeholders:
+    line: { type: "int", example: "12" }
+correctStepNoSpeech:
+  message: "Mark Line {line} as No Speech"
+  description: "What a change of the film's lines was, for Undo and Redo to name it: the line numbered line marked as no speech."
+  placeholders:
+    line: { type: "int", example: "12" }
+correctStepRestore:
+  message: "Restore {line, plural, one {# Line} other {# Lines}} Marked as No Speech"
+  description: "What a change of the film's lines was, for Undo and Redo to name it: the lines marked as no speech brought back, how many."
+  placeholders:
+    line: { type: "int", example: "3" }
+correctStepStart:
+  message: "Move the Start of Line {line}"
+  description: "What a change of the film's lines was, for Undo and Redo to name it: the start of the line numbered line moved."
+  placeholders:
+    line: { type: "int", example: "12" }
+correctSubmit:
+  message: "Save"
+  description: "Button under the fields that edit a subtitle line: keeps what they hold and plays on."
+correctTranslation:
+  message: "Translation"
+  description: "Label of the field that edits the translation of the selected subtitle line."
+correctUndo:
+  message: "Undo “{step}”"
+  description: "Edit menu item and shortcut row: takes back the last change of the film's lines, named."
+  placeholders:
+    step: { type: "String", example: "Edit Line 12" }
+correctUndone:
+  message: "Undone: {step}"
+  description: "Message on the picture after Undo took back a change of the film's lines."
+  placeholders:
+    step: { type: "String", example: "Edit Line 12" }
+correctUnreadable:
+  message: "This film’s corrections couldn’t be read, so they can’t be changed"
+  description: "Message on the picture when the film's corrections file could not be read, which is then not written over."
 feedbackAttachEnv:
   message: "App and System Versions"
   description: "Check box attaching the app's and the system's versions."

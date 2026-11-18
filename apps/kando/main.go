@@ -44,6 +44,7 @@ type app struct {
 	lib      libraryUI  // state_library.go
 	queue    jobQueue   // queue.go
 	player   playerUI   // state_player.go
+	correct  correctUI  // state_correct.go
 	prefs    settingsUI // state_settings.go
 	cloud    cloudUI    // state_cloud.go
 	overlay  overlayUI  // state_overlay.go
@@ -78,6 +79,7 @@ func newApp(pipeline media.Pipeline, update func(fn func())) *app {
 		lib:      newLibraryUI(),
 		queue:    newJobQueue(),
 		player:   newPlayerUI(),
+		correct:  newCorrectUI(),
 		prefs:    newSettingsUI(),
 		cloud:    newCloudUI(),
 		overlay:  newOverlayUI(),

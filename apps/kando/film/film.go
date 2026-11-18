@@ -17,6 +17,7 @@ import (
 // App is the open film the player page reads and the clicks it reports. The page reads it inside its bindings through live.Func and calls its actions through live.Do and live.On, so what they change shows at once (package live).
 type App interface {
 	live.State
+	Corrector
 	OpenKey() string
 	SetOpenKey(string)
 	StopPlayback()
