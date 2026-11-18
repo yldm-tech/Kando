@@ -41,8 +41,6 @@ type queueSystem struct {
 	told     bool
 	badge    int
 	progress queueBar
-	// shown are the IDs of the notifications posted since the app last came to the front, which clear removes: NSGo removes one at a time.
-	shown []string
 }
 
 func newQueueSystem() queueSystem { return queueSystem{notify: true} }
@@ -52,13 +50,8 @@ func (a *app) queueSystemDesktop(cx *ns.Scope) queueDesktop {
 	return queueDesktop{
 		active: func() bool { return ns.Untracked(cx, cx.Env().Lifecycle) == ns.LifecycleActive },
 		notify: func(id, title, body string) { a.queueShowNotification(cx, id, title, body) },
-		clear: func() {
-			// TODO(nsgo#200): remove every notification of the app's, those of earlier runs too, as MyGo's ClearNotifications did; NSGo closes one ID at a time (core.Scope.CloseNotification), so only the ones this run posted go https://github.com/nsgo-dev/nsgo/issues/200
-			for _, id := range a.queue.sys.shown {
-				cx.CloseNotification(id)
-			}
-			a.queue.sys.shown = nil
-		},
+		// clear removes every notification of the app's, those earlier runs left too.
+		clear: cx.CloseNotifications,
 		badge: cx.SetBadge,
 		progress: func(queueBar) {
 			// TODO(nsgo#116): show the running job's progress on the Dock icon, the taskbar button and the launcher entry, indeterminate while its stage has not said how far it is, as MyGo's Window.SetProgressBar did https://github.com/nsgo-dev/nsgo/issues/116
@@ -68,7 +61,6 @@ func (a *app) queueSystemDesktop(cx *ns.Scope) queueDesktop {
 
 // queueShowNotification posts the notification, asking the user to allow them the first time, as macOS does before the first one shows. One the user did not allow is not shown and is not an error; nothing in the window waits for it, so another failure is only logged.
 func (a *app) queueShowNotification(cx *ns.Scope, id, title, body string) {
-	a.queue.sys.shown = append(a.queue.sys.shown, id)
 	cx.RequestNotificationPermission(func(p ns.NotificationPermission) {
 		if p != ns.NotificationsGranted {
 			return
