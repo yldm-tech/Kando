@@ -124,7 +124,7 @@ func languagesStep(cx *core.Scope, s *session.Session) core.Node {
 	}
 	for _, l := range langs.Targets {
 		into = append(into, look.Chip{TestID: "onboarding-target-" + l.Code, Radio: true, Text: func() string { return l.Name },
-			On: func() bool { return s.Target() == l.Code }, OnPress: func() { keep(func(p *store.Prefs) { p.Target = l.Code }) }})
+			On: func() bool { return s.Target() == l.Code }, OnPress: func() { s.SetTarget(l.Code) }})
 	}
 	return core.Scroll{TestID: "onboarding-languages", Style: core.Style{FlexGrow: 1, FlexShrink: 1}, Children: []core.Node{
 		core.View{Style: core.Style{Gap: 28, Padding: core.Edges{Top: 16, Bottom: 16}}, Children: []core.Node{

@@ -69,6 +69,10 @@ type Desk struct {
 	Service Service
 	// State answers the learning state's calls, nil for a desktop that does not serve it, which answers them CodeUnsupported.
 	State StateService
+	// Settings answers the settings' calls (settings.go), nil for a desktop that does not share them, which answers them CodeUnsupported.
+	Settings SettingsService
+	// Study answers lookups and explanations (study.go), nil for a desktop that does not, which answers them CodeUnsupported.
+	Study StudyService
 	// Relay answers OpRelayJoin, nil while the desktop's storage relay is off, which answers it CodeUnsupported.
 	Relay   RelayJoiner
 	Journal *Journal
@@ -138,7 +142,7 @@ func (d *Desk) Answer(ctx context.Context, caller Caller, call Call) Reply {
 // Mutates reports whether op changes something on the desktop: a read-only device's calls of it are refused (Caller.ReadOnly), and a call of it sent again answers the reply it got the first time.
 func Mutates(op string) bool {
 	switch op {
-	case OpJobCreate, OpJobCancel, OpJobRetry, OpJobPause, OpJobResume, OpUpdateYTDLP, OpStatePut, OpStateResolve:
+	case OpJobCreate, OpJobCancel, OpJobRetry, OpJobPause, OpJobResume, OpUpdateYTDLP, OpStatePut, OpStateResolve, OpSettingsPut:
 		return true
 	}
 	return false
@@ -252,6 +256,10 @@ func (d *Desk) answer(ctx context.Context, caller Caller, call Call) (any, error
 		return d.Service.UpdateYTDLP(ctx, caller)
 	case OpStateGet, OpStatePut, OpStateResolve:
 		return d.answerState(ctx, caller, call)
+	case OpSettingsGet, OpSettingsPut:
+		return d.answerSettings(ctx, caller, call)
+	case OpLookUp, OpExplain:
+		return d.answerStudy(ctx, caller, call)
 	case OpEvents:
 		var w EventsWait
 		if err := args(call, &w); err != nil {
@@ -384,18 +392,18 @@ func (d *Desk) Forget(device string) {
 	delete(d.replies, device)
 }
 
-// maxCall is the most bytes a Call may take.
-const maxCall = 64 << 10
+// MaxCall is the most bytes a Call may take; a device sends what is more in several calls.
+const MaxCall = 64 << 10
 
 // HandleCall answers a Call POSTed to PathCall on the local network from caller, a device the transport has let in: the Reply, with status 200 for a result and StatusOf its code for an error.
 func HandleCall(w http.ResponseWriter, r *http.Request, d *Desk, caller Caller) {
 	var call Call
-	data, err := io.ReadAll(io.LimitReader(r.Body, maxCall+1))
+	data, err := io.ReadAll(io.LimitReader(r.Body, MaxCall+1))
 	var reply Reply
 	switch {
 	case err != nil:
 		reply = Reply{Error: &ErrorBody{Code: CodeInvalid, Message: "the call could not be read"}}
-	case len(data) > maxCall:
+	case len(data) > MaxCall:
 		reply = Reply{Error: &ErrorBody{Code: CodeInvalid, Message: "the call is too long"}}
 	case json.Unmarshal(data, &call) != nil:
 		reply = Reply{Error: &ErrorBody{Code: CodeInvalid, Message: "the request is not a call"}}

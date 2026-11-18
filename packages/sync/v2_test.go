@@ -119,6 +119,10 @@ func TestHelloNegotiatesV2(t *testing.T) {
 	if reply := desk.Answer(ctx, Caller{}, Call{V: CallVersion, Op: "films.delete"}); reply.Error == nil || reply.Error.Code != CodeUnsupported {
 		t.Fatalf("an unknown operation answered %+v", reply)
 	}
+	// A desktop that does not share its settings says so.
+	if reply := desk.Answer(ctx, Caller{}, Call{V: CallVersion, Op: OpSettingsGet}); reply.Error == nil || reply.Error.Code != CodeUnsupported {
+		t.Fatalf("settings of a desktop without them answered %+v", reply)
+	}
 }
 
 func TestHelloOfAV1DesktopSaysSo(t *testing.T) {
@@ -332,13 +336,15 @@ func TestHandleCallRefusesWhatIsNotACall(t *testing.T) {
 	}
 }
 
-// A device the desktop's user made read-only reads everything but changes nothing: every call that changes something, the jobs' and the learning state's, is refused with CodeReadOnly before the desktop's work, and not remembered, so the same call sent once the device may write again does its work. Hello tells the device it is read-only.
+// A device the desktop's user made read-only reads everything but changes nothing: every call that changes something, the jobs', the learning state's and the settings', is refused with CodeReadOnly before the desktop's work, and not remembered, so the same call sent once the device may write again does its work. Hello tells the device it is read-only.
 func TestAReadOnlyDeviceChangesNothing(t *testing.T) {
 	ctx := context.Background()
 	f := &fakeService{receive: ReceiveQueue}
 	state := &fakeState{}
 	desk := newDesk(f)
 	desk.State = state
+	settings := &fakeSettings{}
+	desk.Settings = settings
 	reader := Caller{DeviceID: "d1", Name: "Pixel", ReadOnly: true}
 	call := func(caller Caller, id, op string, args any) Reply {
 		data, _ := json.Marshal(args)
@@ -359,6 +365,7 @@ func TestAReadOnlyDeviceChangesNothing(t *testing.T) {
 		OpUpdateYTDLP:  nil,
 		OpStatePut:     StatePut{Library: "l", Records: []Record{{Kind: KindPosition, ID: "f", Fields: map[string]Field{FieldPositionMS: {Value: Value(5000)}}}}},
 		OpStateResolve: ConflictResolve{Library: "l", ID: "c", Value: Value("x")},
+		OpSettingsPut:  SettingsPut{Target: "ja"},
 	}
 	for op, args := range writes {
 		r := call(reader, "w-"+op, op, args)
@@ -369,10 +376,10 @@ func TestAReadOnlyDeviceChangesNothing(t *testing.T) {
 			t.Fatalf("read_only answers status %d", StatusOf(r.Error.Code))
 		}
 	}
-	if f.made != 0 || len(f.callers) != 0 || state.puts != 0 || state.resolves != 0 {
-		t.Fatalf("a read-only device's calls reached the desktop: %d jobs, %d puts, %d resolves", f.made, state.puts, state.resolves)
+	if f.made != 0 || len(f.callers) != 0 || state.puts != 0 || state.resolves != 0 || settings.puts != 0 {
+		t.Fatalf("a read-only device's calls reached the desktop: %d jobs, %d puts, %d resolves, %d settings", f.made, state.puts, state.resolves, settings.puts)
 	}
-	for _, op := range []string{OpJobs, OpStateGet} {
+	for _, op := range []string{OpJobs, OpStateGet, OpSettingsGet} {
 		if r := call(reader, "r-"+op, op, StateGet{Library: "l"}); r.Error != nil {
 			t.Fatalf("%s of a read-only device: %+v", op, r.Error)
 		}
@@ -386,6 +393,18 @@ func TestAReadOnlyDeviceChangesNothing(t *testing.T) {
 	if r := call(writer, "w-"+OpStatePut, OpStatePut, writes[OpStatePut]); r.Error != nil || state.puts != 1 {
 		t.Fatalf("the put sent again once the device may write: %+v, %d puts", r.Error, state.puts)
 	}
+}
+
+// fakeSettings is a desktop's SettingsService that counts the changes it was asked for.
+type fakeSettings struct{ puts int }
+
+func (f *fakeSettings) Settings(context.Context, Caller) (Settings, error) {
+	return Settings{Target: "zh-Hans"}, nil
+}
+
+func (f *fakeSettings) PutSettings(_ context.Context, _ Caller, req SettingsPut) (Settings, error) {
+	f.puts++
+	return Settings{Target: req.Target}, nil
 }
 
 // fakeState is a desktop's StateService that counts what it was asked to change.

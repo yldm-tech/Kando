@@ -7,6 +7,7 @@ import (
 	"kando/apps/mobile/cues"
 	"kando/apps/mobile/locales"
 	"kando/apps/mobile/look"
+	"kando/apps/mobile/substyle"
 	"kando/apps/mobile/theme"
 	kcore "kando/packages/core"
 
@@ -16,7 +17,7 @@ import (
 	"github.com/nsgo-dev/nsgo/ui"
 )
 
-// The faces of the lines over the video, as the desktop's default look has them: the translation bold in white over the original in yellow, each on a dark box, in sizes for the phone's screen by layout.
+// The faces of the lines over the video, as the desktop's default look has them: the translation bold in white over the original in yellow, each on a dark box, in sizes for the phone's screen by layout; Settings › Subtitle Style changes the original's color, their size and where they show (package substyle).
 var (
 	translationColor = core.RGB(0xFFFFFF)
 	originalColor    = theme.SubtitleYellow
@@ -34,8 +35,8 @@ func lineSizes(l layout) (translation, original core.Points) {
 	return 17, 14
 }
 
-// subtitles draws the line playing over the video, as the mode picks its texts, up out of the transport's way while it shows over the video.
-func subtitles(cx *core.Scope, p *play, shape func() layout, controlsOver func() bool) core.Node {
+// subtitles draws the line playing over the video, as the mode picks its texts, up out of the transport's way while it shows over the video; a tap on a word of its original looks the word up.
+func subtitles(cx *core.Scope, p *play, w *words, shape func() layout, controlsOver func() bool) core.Node {
 	shown := core.NewMemoFunc(cx, func() []kcore.CueLine {
 		i, list := p.current.Get(), p.list()
 		if i < 0 || i >= len(list) {
@@ -44,24 +45,29 @@ func subtitles(cx *core.Scope, p *play, shape func() layout, controlsOver func()
 		return kcore.PictureLines(p.shownMode(), kcore.SubTranslationFirst, kcore.UntranslatedDim, list[i].Translation, list[i].Original)
 	}, slices.Equal[[]kcore.CueLine])
 	body := core.Dynamic(func(cx *core.Scope) core.Node {
+		style := p.s.Prefs().Subtitles
 		tr, orig := lineSizes(shape())
+		tr, orig = substyle.Sizes(style, tr, orig)
 		var children []core.Node
+		i := p.current.GetUntracked()
 		for _, l := range shown.Get() {
 			size, color, weight := tr, translationColor, core.FontWeightBold
 			if l.Original {
-				size, color, weight = orig, originalColor, core.FontWeightMedium
+				size, color, weight = orig, substyle.Color(style.Color), core.FontWeightMedium
 			}
 			holder := core.Style{MaxWidth: core.Pct(100), CornerRadius: 6, Padding: core.Symmetric(2, 10), Background: lineBox}
 			if l.Dim {
 				holder.Opacity = core.Alpha(0.6)
 			}
-			children = append(children, core.View{Style: holder, Children: []core.Node{
-				core.Text{Content: l.Text, Style: core.Style{FontSize: size, LineHeightMultiple: 1.25, FontWeight: weight, Color: color, TextAlign: core.TextAlignCenter}},
-			}})
+			text := core.Text{Content: l.Text, Style: core.Style{FontSize: size, LineHeightMultiple: 1.25, FontWeight: weight, Color: color, TextAlign: core.TextAlignCenter}}
+			if l.Original && !l.Dim {
+				text = w.tappable(text, i, l.Text)
+			}
+			children = append(children, core.View{Style: holder, Children: []core.Node{text}})
 		}
 		return core.Group(children)
 	})
-	return core.View{TestID: "player-subtitles", PointerEvents: core.PointerEventsNone, LiveRegion: core.LiveRegionPolite,
+	return core.View{TestID: "player-subtitles", PointerEvents: core.PointerEventsBoxNone, LiveRegion: core.LiveRegionPolite,
 		Style: core.Style{Position: core.Absolute, Left: core.Pt(0), Right: core.Pt(0), AlignItems: core.AlignCenter, Gap: 4, Padding: core.Symmetric(0, 16)},
 		StyleFunc: func() core.Style {
 			bottom := core.Points(10)
@@ -70,6 +76,17 @@ func subtitles(cx *core.Scope, p *play, shape func() layout, controlsOver func()
 				if controlsOver() {
 					bottom = 120
 				}
+			}
+			if p.s.Prefs().Subtitles.Top {
+				// At the top they keep clear of the top bar the same way they keep clear of the transport at the foot.
+				top := core.Points(10)
+				if shape() == full {
+					top = 28
+					if controlsOver() {
+						top = 72
+					}
+				}
+				return core.Style{Top: core.Pt(top), PaddingEnv: core.EnvEdges{Left: core.EnvSafeArea, Right: core.EnvSafeArea}}
 			}
 			return core.Style{Bottom: core.Pt(bottom), PaddingEnv: core.EnvEdges{Left: core.EnvSafeArea, Right: core.EnvSafeArea}}
 		},
@@ -137,9 +154,9 @@ func transport(cx *core.Scope, p *play) core.Node {
 		}},
 		core.View{Style: core.Style{Direction: core.Row, AlignItems: core.AlignCenter, JustifyContent: core.JustifySpaceBetween}, Children: []core.Node{
 			speed,
-			icon("player-prev", func() string { return locales.PlayerPrevLine(cx) }, lucide.SkipBack, func() { p.step(cues.Prev(p.list(), p.at.GetUntracked())) }),
+			icon("player-prev", func() string { return locales.PlayerPrevLine(cx) }, lucide.SkipBack, p.prev),
 			playButton,
-			icon("player-next", func() string { return locales.PlayerNextLine(cx) }, lucide.SkipForward, func() { p.step(cues.Next(p.list(), p.at.GetUntracked())) }),
+			icon("player-next", func() string { return locales.PlayerNextLine(cx) }, lucide.SkipForward, p.next),
 			loop,
 			mode,
 		}},
@@ -153,6 +170,8 @@ func modeName(cx *core.Scope, mode string) string {
 		return locales.PlayerModeOriginal(cx)
 	case kcore.SubTranslation:
 		return locales.PlayerModeTranslation(cx)
+	case kcore.SubOff:
+		return locales.PlayerModeHidden(cx)
 	}
 	return locales.PlayerModeBilingual(cx)
 }
@@ -190,6 +209,7 @@ func lines(cx *core.Scope, p *play) core.Node {
 			}, slices.Equal[[]kcore.CueLine])
 			playing := func() bool { return p.current.Get() == row.Index() }
 			looped := func() bool { return p.loop.Get() == row.Index() }
+			saved := func() bool { return p.isSaved(row.Index()) }
 			body := core.Dynamic(func(cx *core.Scope) core.Node {
 				var children []core.Node
 				for _, l := range texts.Get() {
@@ -222,6 +242,9 @@ func lines(cx *core.Scope, p *play) core.Node {
 					}},
 					ui.Tabular(core.Text{ContentFunc: func() string { return clock(cue().Start) }, Style: look.Caption.Merge(core.Style{Width: core.Pt(44)}), StyleFunc: ui.Colored(colors.Muted)}),
 					core.View{Style: core.Style{FlexGrow: 1, FlexShrink: 1, MinWidth: core.Pt(0), Gap: 2}, Children: []core.Node{body}},
+					core.Show{When: saved, Then: func(cx *core.Scope) core.Node {
+						return core.View{TestID: "player-line-saved", Children: []core.Node{ui.IconOf(lucide.Star, 14, func() core.Color { return originalColor })}}
+					}},
 				}}
 		}}
 	return core.View{Role: core.RoleGroup, LabelFunc: func() string { return locales.PlayerLines(cx) }, Style: core.Style{FlexGrow: 1, FlexShrink: 1}, Children: []core.Node{empty, list}}

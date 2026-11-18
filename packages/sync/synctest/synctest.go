@@ -54,11 +54,19 @@ type Desktop struct {
 	queue queue
 	// ledgers are the libraries' learning state, by library ID (state.go).
 	ledgers map[string]*sync.Ledger
-	desk    *sync.Desk
-	libs    []sync.Library
-	films   []Film
-	stall   int64
-	held    chan struct{}
+	// target is the language the desktop translates into (settings.go).
+	target string
+	// refuse, putHeld and puts are how the learning state's puts are answered and how many were (state.go).
+	refuse  func(sync.Record) bool
+	putHeld chan struct{}
+	puts    int
+	// study is the lookups and explanations (study.go).
+	study study
+	desk  *sync.Desk
+	libs  []sync.Library
+	films []Film
+	stall int64
+	held  chan struct{}
 	// off hangs up on every connection, as a computer asleep or with Phone Sync off (SetOff).
 	off     bool
 	ranges  []string
@@ -68,9 +76,9 @@ type Desktop struct {
 // New starts a desktop named name on loopback, closed when the test ends. It offers no code until Offer.
 func New(t testing.TB, name string) *Desktop {
 	t.Helper()
-	d := &Desktop{Name: name, tokens: map[string]bool{}, names: map[string]string{}, modTime: time.Unix(1_700_000_000, 0)}
+	d := &Desktop{Name: name, tokens: map[string]bool{}, names: map[string]string{}, modTime: time.Unix(1_700_000_000, 0), target: "zh-Hans"}
 	d.queue.receive = sync.ReceiveQueue
-	d.desk = &sync.Desk{Service: jobService{d}, State: stateService{d}, Journal: sync.NewJournal(), Desktop: name}
+	d.desk = &sync.Desk{Service: jobService{d}, State: stateService{d}, Settings: settingsService{d}, Study: studyService{d}, Journal: sync.NewJournal(), Desktop: name}
 	mux := http.NewServeMux()
 	mux.HandleFunc("POST "+sync.PathPair, d.pair)
 	mux.HandleFunc("GET "+sync.PathLibraries, d.authed(d.libraries))
@@ -106,6 +114,13 @@ func (d *Desktop) AddLibrary(id, name string) {
 	d.mu.Lock()
 	defer d.mu.Unlock()
 	d.libs = append(d.libs, sync.Library{ID: id, Name: name})
+}
+
+// RemoveLibrary takes library id off the list, as a library locked on the desktop is: its films and its learning state stay, and AddLibrary brings it back.
+func (d *Desktop) RemoveLibrary(id string) {
+	d.mu.Lock()
+	defer d.mu.Unlock()
+	d.libs = slices.DeleteFunc(d.libs, func(l sync.Library) bool { return l.ID == id })
 }
 
 // AddFilm adds f to its library.

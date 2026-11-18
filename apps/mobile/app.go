@@ -40,6 +40,12 @@ const (
 	introductionPage
 	filmPage
 	playerPage
+	reviewPage
+	vocabularyPage
+	linesPage
+	stylePage
+	goalPage
+	revokedPage
 	jobsPage
 )
 
@@ -61,7 +67,7 @@ type route struct {
 	key     string
 }
 
-// App is the app with the session cfg configures: the tabs of the Library, Learn and Settings, each a stack of the pages it opens, under a stack of what covers them, pairing, the introduction and the player; the introduction in the tabs' place until the user has been through it.
+// App is the app with the session cfg configures: the tabs of the Library, Learn and Settings, each a stack of the pages it opens, under a stack of what covers them, pairing, the introduction, the player and the page that says a computer no longer takes the phone; the introduction in the tabs' place until the user has been through it.
 func App(cx *core.Scope, cfg session.Config) core.Node {
 	theme.Apply(cx)
 	colors := ui.ColorsOf(cx)
@@ -112,6 +118,17 @@ func App(cx *core.Scope, cfg session.Config) core.Node {
 		}
 	}
 	play := func(key string) { outer.Push(route{page: playerPage, key: key}) }
+	// A computer that no longer takes the phone shows the page that says so over everything, one computer at a time; revoked is the one it shows.
+	revoked := ""
+	cx.Effect(func() {
+		ids := s.Revoked()
+		if len(ids) == 0 || revoked != "" {
+			return
+		}
+		revoked = ids[0]
+		id := revoked
+		cx.Post(func() { outer.Push(route{page: revokedPage, desktop: id}) })
+	})
 	tabStack := func(n *base.Nav[route]) func(cx *core.Scope) core.Node {
 		return func(cx *core.Scope) core.Node {
 			look.InTab(cx, shell.OverTabBar(cx))
@@ -122,10 +139,25 @@ func App(cx *core.Scope, cfg session.Config) core.Node {
 				}
 				switch r.page {
 				case learnPage:
-					return learn.Page(cx)
+					return learn.Page(cx, s, learn.Actions{Pair: openPair,
+						Review:     func() { n.Push(route{page: reviewPage}) },
+						Vocabulary: func() { n.Push(route{page: vocabularyPage}) },
+						Lines:      func() { n.Push(route{page: linesPage}) }})
+				case reviewPage:
+					return learn.ReviewPage(cx, s, back)
+				case vocabularyPage:
+					return learn.VocabularyPage(cx, s, back)
+				case linesPage:
+					return learn.LinesPage(cx, s, back)
+				case stylePage:
+					return settings.StylePage(cx, s, back)
+				case goalPage:
+					return settings.GoalPage(cx, s, back)
 				case settingsPage:
 					return settings.Page(cx, s, settings.Actions{Pair: openPair,
 						Target:       func() { n.Push(route{page: targetPage}) },
+						Style:        func() { n.Push(route{page: stylePage}) },
+						Goal:         func() { n.Push(route{page: goalPage}) },
 						Introduction: func() { outer.Push(route{page: introductionPage}) },
 						Unpaired:     unpaired})
 				case targetPage:
@@ -184,6 +216,11 @@ func App(cx *core.Scope, cfg session.Config) core.Node {
 			}}
 		case playerPage:
 			return player.Page(cx, s, r.key, func() { outer.Pop(1) })
+		case revokedPage:
+			return settings.RevokedPage(cx, s, r.desktop, openPair, unpaired, func() {
+				revoked = ""
+				outer.Pop(1)
+			})
 		}
 		return base.NavPage{TestID: "root", HeaderHidden: true, StyleFunc: ui.Filled(colors.Background), Children: []core.Node{root,
 			add.Sheet(cx, s, adding.Get, func() { adding.Set(false) }, openJobs),

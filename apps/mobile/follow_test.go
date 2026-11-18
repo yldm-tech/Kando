@@ -71,7 +71,9 @@ func TestAPlayedFilmFollowsItsDesktopsNewLines(t *testing.T) {
 	d := desktopWith(t, revisedCues, now().Add(time.Hour))
 	dir, f := keptFrom(t, d)
 	p := playKept(t, d, dir)
-	p.app.WaitUntil(wait, func() bool { return p.texts("id:player-subtitles") == "早安！\nGood morning!" })
+	p.app.WaitUntil(wait, func() bool {
+		return p.texts("id:player-card-original") == "Good morning!" && p.texts("id:player-card-translation") == "早安！"
+	})
 
 	st := store.Open(dir)
 	if cues, ok, err := st.Cues(f.Desktop, f.Film.ID); err != nil || !ok || cues[0].Original != "Good morning!" {

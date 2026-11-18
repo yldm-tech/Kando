@@ -40,6 +40,9 @@ appName:
 commonCancel:
   message: "Cancel"
   description: "Button that closes a dialog or a step without doing anything."
+commonOK:
+  message: "OK"
+  description: "Button that closes an alert."
 commonRetry:
   message: "Try Again"
   description: "Row or button that asks the computer again after it could not be reached."
@@ -77,6 +80,27 @@ computersUnreachable:
   description: "In a computer's section and on a library's page: it does not answer."
   placeholders:
     name: { type: "String", example: "Studio" }
+exportFilm:
+  message: "Film"
+  description: "Heading of the exported tables' column of the film a word or line is from."
+exportLine:
+  message: "Line"
+  description: "Heading of the exported tables' column of the line: the line a word was looked up in, or the saved line."
+exportMeaning:
+  message: "Meaning"
+  description: "Heading of the exported vocabulary's column of a word's meaning."
+exportNote:
+  message: "Note"
+  description: "Heading of the exported saved lines' column of the learner's note."
+exportReading:
+  message: "Reading"
+  description: "Heading of the exported vocabulary's column of how a word is said."
+exportTranslation:
+  message: "Translation"
+  description: "Heading of the exported tables' column of a line's translation."
+exportWord:
+  message: "Word"
+  description: "Heading of the exported vocabulary's column of the word."
 filmCancel:
   message: "Cancel Download"
   description: "Button on a film's page that stops its download and deletes what was downloaded."
@@ -244,6 +268,14 @@ filmsUnpairedBody:
 filmsUnpairedTitle:
   message: "Not connected to a computer yet"
   description: "Title of the Library's card while no computer is paired."
+learnDueIn:
+  message: "{count, plural, one {Due in # day} other {Due in # days}}"
+  description: "Under a word or a line: when it is next due for review."
+  placeholders:
+    count: { type: "int", example: "3" }
+learnDueNow:
+  message: "Due for review"
+  description: "Under a word or a line that is due for review now."
 filmsUsed:
   message: "Films on this phone use {size}"
   description: "Under the Library's list: the space the films downloaded to the phone take."
@@ -521,9 +553,139 @@ jobsWaitingFor:
 learnEmpty:
   message: "Words and lines you save will show here"
   description: "Learn tab while nothing is saved."
+learnExport:
+  message: "Export and Share"
+  description: "Row of Learn that exports the vocabulary and the saved lines as tables and opens the share sheet."
+learnExportFailed:
+  message: "Couldn't export the vocabulary"
+  description: "Alert when the export could not be written."
+learnFri:
+  message: "F"
+  description: "Short name of Friday under its bar in the week's chart."
+learnGoalLeft:
+  message: "{count, plural, one {# more minute to reach today's goal} other {# more minutes to reach today's goal}}"
+  description: "Under the day's goal: how many minutes of films are left to reach it."
+  placeholders:
+    count: { type: "int", example: "8" }
+learnGoalMet:
+  message: "Today's goal is done"
+  description: "Under the day's goal once it is reached."
+learnGoalOf:
+  message: "Goal of {count} minutes"
+  description: "Spoken name of the day's goal's progress bar."
+  placeholders:
+    count: { type: "int", example: "20" }
+learnItemOptions:
+  message: "Options for {text}"
+  description: "Spoken name of the … button beside a word or a line, which offers to remove it."
+  placeholders:
+    text: { type: "String", example: "river" }
+learnLineCount:
+  message: "{count, plural, one {# line} other {# lines}}"
+  description: "Beside Saved Lines: how many there are."
+  placeholders:
+    count: { type: "int", example: "8" }
+learnMastered:
+  message: "Mastered"
+  description: "Under a word or a line known well enough."
+learnMinutes:
+  message: "{count} min"
+  description: "Minutes of films played, today's or this week's."
+  placeholders:
+    count: { type: "int", example: "12" }
+learnMon:
+  message: "M"
+  description: "Short name of Monday under its bar in the week's chart."
+learnNoComputer:
+  message: "Connect a computer to study the words and lines you save while you watch there."
+  description: "Learn while no computer is paired."
+learnOffline:
+  message: "Can't reach your computer. Showing what this device kept; your reviews are sent later."
+  description: "At the top of Learn when no paired computer answered."
+learnReminderBody:
+  message: "{count, plural, one {# word or line is waiting for review.} other {# words and lines are waiting for review.}}"
+  description: "Body of the evening's review reminder."
+  placeholders:
+    count: { type: "int", example: "6" }
+learnReminderTitle:
+  message: "Time to review"
+  description: "Title of the evening's review reminder."
+learnRemove:
+  message: "Remove"
+  description: "Destructive button of the alert that removes a word or a line."
+learnReviewDue:
+  message: "{count, plural, one {Review # item} other {Review # items}}"
+  description: "Title of Learn's review card: how many words and lines are due."
+  placeholders:
+    count: { type: "int", example: "6" }
+learnReviewDueDetail:
+  message: "With the lines they came from, about {count} min"
+  description: "Under the review card's title: how long the review takes."
+  placeholders:
+    count: { type: "int", example: "3" }
+learnReviewNone:
+  message: "Nothing to review today"
+  description: "Title of Learn's review card while nothing is due."
+learnReviewNoneDetail:
+  message: "What you saved comes back here when it's due."
+  description: "Under the review card's title while nothing is due."
+learnReviewStart:
+  message: "Start Review"
+  description: "Button of the review card that starts the review."
+learnSat:
+  message: "S"
+  description: "Short name of Saturday under its bar in the week's chart."
+learnSavedLines:
+  message: "Saved Lines"
+  description: "Row of Learn, and the title of its page, listing the lines saved."
+learnStreak:
+  message: "{count, plural, =0 {No streak yet} one {# day in a row} other {# days in a row}}"
+  description: "Beside today's minutes: how many days in a row films played."
+  placeholders:
+    count: { type: "int", example: "5" }
+learnSun:
+  message: "S"
+  description: "Short name of Sunday under its bar in the week's chart."
+learnThu:
+  message: "T"
+  description: "Short name of Thursday under its bar in the week's chart."
 learnTitle:
   message: "Learn"
   description: "Tab and title of Learn: the saved words and lines and their review."
+learnToday:
+  message: "Today"
+  description: "Over the minutes of films played today."
+learnTue:
+  message: "T"
+  description: "Short name of Tuesday under its bar in the week's chart."
+learnVocabulary:
+  message: "Vocabulary"
+  description: "Row of Learn, and the title of its page, listing the words saved."
+learnWed:
+  message: "W"
+  description: "Short name of Wednesday under its bar in the week's chart."
+learnWeek:
+  message: "This Week"
+  description: "Heading of the chart of the last seven days' minutes."
+learnWeekBars:
+  message: "{count} minutes of films in the last 7 days"
+  description: "Spoken name of the week's chart."
+  placeholders:
+    count: { type: "int", example: "84" }
+learnWordCount:
+  message: "{count, plural, one {# word} other {# words}}"
+  description: "Beside Vocabulary: how many words it has."
+  placeholders:
+    count: { type: "int", example: "24" }
+linesEmpty:
+  message: "Lines you save while you watch show here"
+  description: "Saved Lines while none is saved."
+linesRemoveMessage:
+  message: "It leaves your saved lines on every device."
+  description: "Message of the alert that removes a saved line."
+linesRemoveTitle:
+  message: "Remove this line?"
+  description: "Title of the alert that removes a saved line."
 onboardingContinue:
   message: "Continue"
   description: "Button that goes to the introduction's next step."
@@ -627,12 +789,114 @@ pairHint:
 pairTitle:
   message: "Pair with a Computer"
   description: "Title of the pairing page."
+playerAsking:
+  message: "Asking {computer}…"
+  description: "In the word card and the explanation sheet while the computer's AI service is asked."
+  placeholders:
+    computer: { type: "String", example: "Studio" }
+playerAudioOnly:
+  message: "Audio Only"
+  description: "Playback setting, and the words over the covered picture: the picture is hidden and only the sound plays."
+playerAudioOnlyNote:
+  message: "Hides the picture, to listen as you would to a podcast."
+  description: "Under the Audio Only switch in the playback settings."
 playerBack:
   message: "Back"
   description: "Spoken name of the player's button that leaves it."
+playerCannotSave:
+  message: "Open this film once while its computer is reachable to save its lines."
+  description: "Toast when a line is saved from a film whose library the phone does not know yet, as one downloaded by an older version and opened away from the computer."
 playerCantPlay:
   message: "This video can't play on this phone."
   description: "Over the player when the system's player cannot open the video, as one in a format the phone does not play."
+playerCardPlace:
+  message: "Line {index} of {count} · {time}"
+  description: "At the top of the player's card: which line of the film it shows, and when it starts."
+  placeholders:
+    index: { type: "int", example: "3" }
+    count: { type: "int", example: "18" }
+    time: { type: "String", example: "0:42" }
+playerClose:
+  message: "Close"
+  description: "Spoken name of the × that closes the word card or the explanation."
+playerDelay:
+  message: "Subtitle Timing"
+  description: "Heading in the playback settings of the control that moves the film's lines against its sound."
+playerDelayEarlier:
+  message: "Earlier"
+  description: "Spoken name of the − button that shows the lines earlier."
+playerDelayLater:
+  message: "Later"
+  description: "Spoken name of the + button that shows the lines later."
+playerDelayNote:
+  message: "Lines ahead of the voice? Move them later; behind it, earlier. For this film only."
+  description: "Under the subtitle timing control in the playback settings."
+playerDelayPill:
+  message: "Subtitles {seconds} s"
+  description: "Pill over the picture while the film's lines are moved against its sound, as Subtitles +0.3 s."
+  placeholders:
+    seconds: { type: "String", example: "+0.3" }
+playerDelayReset:
+  message: "{seconds} seconds, tap to reset"
+  description: "Spoken name of the value between − and +, which a tap sets back to 0."
+  placeholders:
+    seconds: { type: "String", example: "+0.3" }
+playerDelaySeconds:
+  message: "{seconds} s"
+  description: "The value between − and +: how far the lines are moved, as +0.3 s."
+  placeholders:
+    seconds: { type: "String", example: "+0.3" }
+playerExplain:
+  message: "Explain"
+  description: "Action under the player's card: has the computer's AI service explain the line."
+playerExplainBy:
+  message: "{model} on {computer}"
+  description: "Under the explanation's title: which model, on which computer, wrote it."
+  placeholders:
+    model: { type: "String", example: "gpt-4o-mini" }
+    computer: { type: "String", example: "Studio" }
+playerExplainTitle:
+  message: "Explain This Line"
+  description: "Title of the sheet that explains a line."
+playerFollow:
+  message: "Shadowing"
+  description: "Playback setting, and the pill over the picture while it is on: the film holds after each line for the learner to say it."
+playerFollowHeld:
+  message: "Say it, then play"
+  description: "Pill over the picture while shadowing has held the film after a line."
+playerFollowNote:
+  message: "Holds after each line so you can say it, then plays on when you play it."
+  description: "Under the Shadowing switch in the playback settings."
+playerHiddenLine:
+  message: "Hidden line. Tap to show it."
+  description: "Spoken name of a line of the player's card that the subtitle mode blurs."
+playerHintReveal:
+  message: "Tap the blurred line to show it"
+  description: "Hint at the top of the player's card while the subtitle mode blurs a line."
+playerHintWords:
+  message: "Tap a word to look it up"
+  description: "Hint at the top of the player's card."
+playerInfoComputer:
+  message: "Computer"
+  description: "Row of the player's Info tab: the computer the film is from."
+playerInfoLanguages:
+  message: "Languages"
+  description: "Row of the player's Info tab: the language spoken and the one the subtitles are translated into."
+playerInfoLength:
+  message: "Length"
+  description: "Row of the player's Info tab: how long the film plays and how many lines it has."
+playerInfoLengthValue:
+  message: "{time} · {count, plural, one {# line} other {# lines}}"
+  description: "Value of the Length row: how long the film plays and how many lines it has."
+  placeholders:
+    time: { type: "String", example: "3:00" }
+    count: { type: "int", example: "18" }
+playerInfoLibrary:
+  message: "Library"
+  description: "Row of the player's Info tab: the library on the computer the film is in."
+playerInfoTitle:
+  message: "Title"
+  description: "Row of the player's Info tab: the film's title."
 playerKeepAwake:
   message: "Playing a film"
   description: "Why the app keeps the screen on while a film plays, where the system lists it."
@@ -645,6 +909,9 @@ playerLoopLine:
 playerModeBilingual:
   message: "Bilingual"
   description: "Subtitle mode: the translation and the original."
+playerModeHidden:
+  message: "Hidden"
+  description: "Subtitle mode: neither line shows; the card blurs both until a tap shows them."
 playerModeOriginal:
   message: "Original Only"
   description: "Subtitle mode: the original line alone."
@@ -657,6 +924,48 @@ playerNextLine:
 playerNoLines:
   message: "This film has no subtitles."
   description: "In place of the line list for a film without subtitles."
+playerNoteCleared:
+  message: "Note removed"
+  description: "Toast once the note of a saved line is cleared by saving it empty."
+playerNoteEmpty:
+  message: "Write something first"
+  description: "Toast when an empty note is saved."
+playerNoteFor:
+  message: "Note on line {index}"
+  description: "Heading and spoken name of the note field in the player's Notes tab."
+  placeholders:
+    index: { type: "int", example: "3" }
+playerNotePlaceholder:
+  message: "Like: “picks up” here isn't “lifts”"
+  description: "Placeholder of the note field in the player's Notes tab."
+playerNoteSave:
+  message: "Save"
+  description: "Button beside the note field in the player's Notes tab."
+playerNoteSaved:
+  message: "Note saved"
+  description: "Toast once a note is saved."
+playerNotesEmpty:
+  message: "Save a line from the card, or write a note above."
+  description: "In the player's Notes tab when no line of the film is saved."
+playerOnPicture:
+  message: "Subtitles on the Picture"
+  description: "Playback setting: the lines show over the picture while the phone is upright too."
+playerOnPictureNote:
+  message: "Upright, the lines show in the card under the picture."
+  description: "Under the Subtitles on the Picture switch."
+playerPanel:
+  message: "Player Content"
+  description: "Spoken name of the tabs under the player's card."
+playerPart:
+  message: "Part {index} · {from}–{to}"
+  description: "A part of the film in the player's Parts tab, with when it starts and ends."
+  placeholders:
+    index: { type: "int", example: "1" }
+    from: { type: "String", example: "0:00" }
+    to: { type: "String", example: "0:45" }
+playerPartsHint:
+  message: "The film in equal parts. Tap one to play from it."
+  description: "At the top of the player's Parts tab."
 playerPause:
   message: "Pause"
   description: "Spoken name of the player's button while the film plays."
@@ -669,12 +978,165 @@ playerPosition:
 playerPrevLine:
   message: "Previous Line"
   description: "Spoken name of the player's button that plays from the line before."
+playerReplay:
+  message: "Replay"
+  description: "Action under the player's card: plays the line again from its start."
+playerReplayLine:
+  message: "Replay Line"
+  description: "Button of the word card: plays the line the word was tapped in again."
+playerSave:
+  message: "Save"
+  description: "Action under the player's card: saves the line to study."
+playerSaved:
+  message: "Saved"
+  description: "The Save action once the line is saved; a tap takes it back."
+playerSavedToast:
+  message: "Line saved"
+  description: "Toast once a line is saved."
+playerSettings:
+  message: "Playback Settings"
+  description: "Title of the player's settings sheet, and spoken name of the … button that opens it."
+playerSleep:
+  message: "Sleep Timer"
+  description: "Heading of the sleep timer's choices in the playback settings."
+playerSleepFilm:
+  message: "End of Film"
+  description: "Sleep timer choice: holds the film at its end."
+playerSleepLine:
+  message: "End of Line"
+  description: "Sleep timer choice: holds the film once the line playing ends."
+playerSleepLineDone:
+  message: "Sleep timer: paused after the line"
+  description: "Toast once the sleep timer held the film at the end of a line."
+playerSleepMinutes:
+  message: "{minutes} min"
+  description: "Sleep timer choice: holds the film after so many minutes."
+  placeholders:
+    minutes: { type: "int", example: "15" }
+playerSleepOff:
+  message: "Off"
+  description: "Sleep timer choice: no timer."
+playerSleepPaused:
+  message: "Sleep timer: paused"
+  description: "Toast once the sleep timer held the film after its minutes."
+playerSleepPillFilm:
+  message: "Stops after this film"
+  description: "Pill over the picture while the sleep timer is set to the end of the film."
+playerSleepPillIn:
+  message: "Stops in {time}"
+  description: "Pill over the picture while a timed sleep timer runs."
+  placeholders:
+    time: { type: "String", example: "12:00" }
+playerSleepPillLine:
+  message: "Stops after this line"
+  description: "Pill over the picture while the sleep timer is set to the end of the line."
 playerSpeed:
   message: "Speed"
   description: "Spoken name of the player's menu of playback speeds."
+playerStudyFailed:
+  message: "The AI service on {computer} didn't answer. Try again."
+  description: "In the word card or the explanation when the computer's AI service failed."
+  placeholders:
+    computer: { type: "String", example: "Studio" }
+playerStudyNoAI:
+  message: "Set up an AI service in Kando's settings on {computer} to look words up and explain lines."
+  description: "In the word card or the explanation when the computer has no AI service."
+  placeholders:
+    computer: { type: "String", example: "Studio" }
+playerStudyUnpaired:
+  message: "This film's computer is no longer paired with this phone."
+  description: "In the word card or the explanation when the film's computer is not paired any more."
+playerStudyUnreachable:
+  message: "Can't reach {computer}. Words are looked up on it, so be on the same network."
+  description: "In the word card or the explanation when the computer cannot be reached."
+  placeholders:
+    computer: { type: "String", example: "Studio" }
 playerSubtitles:
   message: "Subtitles"
   description: "Spoken name of the player's menu of subtitle modes."
+reviewAgain:
+  message: "Again"
+  description: "Review button: the learner did not know it; it comes back."
+reviewDone:
+  message: "Done"
+  description: "Button that leaves the review once it is done."
+reviewDoneAgain:
+  message: "{count, plural, =0 {You knew them all.} one {You missed one once.} other {You missed # times.}}"
+  description: "At the review's end: how many times the learner did not know one."
+  placeholders:
+    count: { type: "int", example: "2" }
+reviewDoneCount:
+  message: "{count, plural, one {You reviewed # item.} other {You reviewed # items.}}"
+  description: "At the review's end: how many items it went through."
+  placeholders:
+    count: { type: "int", example: "6" }
+reviewDoneTitle:
+  message: "Review done"
+  description: "Title at the review's end."
+reviewFrom:
+  message: "From {title}"
+  description: "On a review card: the film it was saved from."
+  placeholders:
+    title: { type: "String", example: "Morning Talk" }
+reviewKnown:
+  message: "Got It"
+  description: "Review button: the learner knew it."
+reviewProgress:
+  message: "{at} of {total}"
+  description: "Over the review card: which card of how many."
+  placeholders:
+    at: { type: "int", example: "3" }
+    total: { type: "int", example: "6" }
+reviewShow:
+  message: "Show Answer"
+  description: "Review button that shows the meaning."
+reviewTitle:
+  message: "Review"
+  description: "Title of the review page."
+revokedBody:
+  message: "Kando on {name} removed this device, so it can't read the libraries there or send them links any more."
+  description: "On the page shown once a computer no longer takes this device."
+  placeholders:
+    name: { type: "String", example: "Studio" }
+revokedFilmsStay:
+  message: "The films saved on this device stay, and still play offline."
+  description: "On the page shown once a computer no longer takes this device."
+revokedLater:
+  message: "Not Now"
+  description: "Button that leaves the page shown once a computer no longer takes this device."
+revokedPending:
+  message: "{count, plural, one {# change made on this device wasn't sent and stays here.} other {# changes made on this device weren't sent and stay here.}}"
+  description: "On the page shown once a computer no longer takes this device: the reviews and removals it did not take."
+  placeholders:
+    count: { type: "int", example: "3" }
+revokedTitle:
+  message: "{name} removed this device"
+  description: "Title of the page shown once a computer no longer takes this device."
+  placeholders:
+    name: { type: "String", example: "Studio" }
+playerTabInfo:
+  message: "Info"
+  description: "Tab of the player's panel: what the film is."
+playerTabLines:
+  message: "Lines"
+  description: "Tab of the player's panel: the film's lines."
+playerTabNotes:
+  message: "Notes"
+  description: "Tab of the player's panel: the lines saved and their notes, while none is saved."
+playerTabNotesCount:
+  message: "Notes {count}"
+  description: "Tab of the player's panel with how many of the film's lines are saved."
+  placeholders:
+    count: { type: "int", example: "3" }
+playerTabParts:
+  message: "Parts"
+  description: "Tab of the player's panel: the film in equal parts."
+playerUnsavedToast:
+  message: "Line removed from saved"
+  description: "Toast once a saved line is taken back."
+playerWordInLine:
+  message: "In this line"
+  description: "Heading over the line a word was tapped in, in the word card."
 sessionDownloading:
   message: "Downloading films"
   description: "Why the app keeps the screen on while films download, where the system lists it."
@@ -684,6 +1146,14 @@ settingsAbout:
 settingsComputers:
   message: "Computers"
   description: "Heading of Settings' section of the paired computers."
+settingsGoal:
+  message: "Daily Goal"
+  description: "Row in Settings, and the title of its page, that picks the daily goal of minutes of films."
+settingsGoalValue:
+  message: "{count} min a day"
+  description: "A daily goal: minutes of films a day."
+  placeholders:
+    count: { type: "int", example: "20" }
 settingsIntroduction:
   message: "Show the Introduction Again"
   description: "Row in Settings that shows the introduction again."
@@ -696,9 +1166,20 @@ settingsPair:
 settingsPairAnother:
   message: "Connect Another Computer"
   description: "Row in Settings that opens pairing with one more computer."
+settingsRemind:
+  message: "Review Reminder"
+  description: "Switch in Settings that reminds the learner to review every evening."
+settingsRemindDetail:
+  message: "At {hour}:00, only when something is due"
+  description: "Under the review reminder's switch: when it shows."
+  placeholders:
+    hour: { type: "int", example: "21" }
 settingsSource:
   message: "Source Code"
   description: "Row in Settings that opens Kando's source code on GitHub."
+settingsSubtitleStyle:
+  message: "Subtitle Style"
+  description: "Row in Settings, and the title of its page, that sets how the player draws subtitles."
 settingsSubtitles:
   message: "Subtitles"
   description: "Heading of Settings' section of the subtitles."
@@ -706,8 +1187,70 @@ settingsTarget:
   message: "Translate Into"
   description: "Row in Settings, and the title of its page, that picks the language subtitles are translated into."
 settingsTargetNote:
-  message: "Subtitles are translated into this language. For now the choice is kept on this phone; Kando on your computer still translates into the language set there."
+  message: "Subtitles are translated into this language, by this device and by the computers it's connected to, which take your choice."
   description: "Under the languages subtitles can be translated into."
+settingsThisDevice:
+  message: "This Device"
+  description: "Heading of Settings' section of what is set on this phone or tablet alone."
 settingsTitle:
   message: "Settings"
   description: "Tab and title of Settings."
+styleBottom:
+  message: "Bottom of the Picture"
+  description: "Subtitle position: at the foot of the picture."
+styleColor:
+  message: "Original Line Color"
+  description: "Heading of the subtitle colors."
+styleCyan:
+  message: "Cyan"
+  description: "A subtitle color."
+styleHuge:
+  message: "Extra Large"
+  description: "A subtitle size."
+styleLarge:
+  message: "Large"
+  description: "A subtitle size."
+styleMedium:
+  message: "Medium"
+  description: "A subtitle size."
+stylePink:
+  message: "Pink"
+  description: "A subtitle color."
+stylePosition:
+  message: "Position"
+  description: "Heading of where subtitles show on the picture."
+stylePreview:
+  message: "Preview of the subtitles"
+  description: "Spoken name of the subtitle style's preview."
+stylePreviewOriginal:
+  message: "この川は百万年かけて谷を削りました。"
+  description: "The preview's original line: a line of a film in another language than the interface's."
+stylePreviewTranslation:
+  message: "The river carved this valley over a million years."
+  description: "The preview's translated line, in the interface's language."
+styleSize:
+  message: "Size"
+  description: "Heading of the subtitle sizes."
+styleSmall:
+  message: "Small"
+  description: "A subtitle size."
+styleTop:
+  message: "Top of the Picture"
+  description: "Subtitle position: at the top of the picture."
+styleWhite:
+  message: "White"
+  description: "A subtitle color."
+styleYellow:
+  message: "Yellow"
+  description: "A subtitle color."
+vocabEmpty:
+  message: "Words you look up and save while you watch show here"
+  description: "Vocabulary while it has no word."
+vocabRemoveMessage:
+  message: "It leaves the vocabulary on every device."
+  description: "Message of the alert that removes a word."
+vocabRemoveTitle:
+  message: "Remove “{word}”?"
+  description: "Title of the alert that removes a word."
+  placeholders:
+    word: { type: "String", example: "river" }

@@ -1,4 +1,4 @@
-// Package store is what the phone keeps on its disk, in the app's data folder: the desktops it is paired with, and the films it has downloaded from them, each in a folder of its own with its subtitles, its poster, its video and where it was left playing. Nothing here touches the interface; the session reads and writes it off the engine's goroutine.
+// Package store is what the phone keeps on its disk, in the app's data folder: the desktops it is paired with, and the films it has downloaded from them, each in a folder of its own with its subtitles, its poster, its video and where it was left playing; the libraries' learning state (learning.go); and the words it looked up. Nothing here touches the interface; the session reads and writes it off the engine's goroutine.
 package store
 
 import (
@@ -40,9 +40,11 @@ func DesktopID(fingerprint []byte) string {
 
 // Film is a film the phone downloads or has downloaded: the desktop and library it is from, what the desktop says of it, and how far its files are.
 type Film struct {
-	Desktop string    `json:"desktop"`
-	Library string    `json:"library"`
-	Film    sync.Film `json:"film"`
+	Desktop string `json:"desktop"`
+	Library string `json:"library"`
+	// LibraryID is the ID of the library on the desktop, which its learning state goes by, "" until the phone has asked for it (films downloaded before the phone kept it).
+	LibraryID string    `json:"library_id,omitempty"`
+	Film      sync.Film `json:"film"`
 	// ETag names the video as the part being downloaded was asked for, so a resumed download goes on from it only if the file has not changed on the desktop.
 	ETag string `json:"etag"`
 	// Video is the name of the video file in the film's folder once it is whole, "" until then; Poster the poster's, "" for none.
@@ -51,7 +53,9 @@ type Film struct {
 	// PositionMS is where it was left playing, and PositionAt when, zero for a film left before the phone kept when (yldm-tech/Kando#221).
 	PositionMS int64     `json:"position_ms"`
 	PositionAt time.Time `json:"position_at,omitzero"`
-	Added      time.Time `json:"added"`
+	// DelayMS moves the film's subtitles against its picture, later for more than 0, as the player's settings set it for this film alone.
+	DelayMS int64     `json:"delay_ms,omitempty"`
+	Added   time.Time `json:"added"`
 }
 
 // Key names a film on the phone: its desktop's ID and its own.
