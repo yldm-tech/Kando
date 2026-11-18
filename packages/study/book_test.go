@@ -207,3 +207,77 @@ func TestTakeAndAddVideoMoveLinesBetweenLibraries(t *testing.T) {
 		t.Fatalf("a book read whole is unread: %v", src.Unread())
 	}
 }
+
+// TestSaveKeepsWhatAnotherDeviceSavedSince checks that a book saved after another device saved to the same file, as two computers that open one library folder, keeps that device's lines, words, removals and time watched rather than writing over them, and that its own changes win where they are later.
+func TestSaveKeepsWhatAnotherDeviceSavedSince(t *testing.T) {
+	dir := t.TempDir()
+	clock := 0
+	first, _ := Load(dir)
+	first.Device, first.Now = "mac", func() time.Time { return at(clock) }
+	first.Toggle(Line{Video: "a.mp4", Start: time.Second, Original: "kept"})
+	first.Toggle(Line{Video: "a.mp4", Start: 2 * time.Second, Original: "removed there"})
+	if err := first.Save(); err != nil {
+		t.Fatal(err)
+	}
+	mac, _ := Load(dir)
+	mac.Device, mac.Now = "mac", first.Now
+	other, _ := Load(dir)
+	other.Device, other.Now = "studio", first.Now
+
+	clock = 1
+	other.Toggle(Line{Video: "b.mp4", Start: time.Second, Original: "saved there"})
+	other.Remove("a.mp4", 2*time.Second)
+	other.AddWord(Word{Text: "river", Spoken: "en"})
+	other.Watch(at(1), 5*time.Minute)
+	if err := other.Save(); err != nil {
+		t.Fatal(err)
+	}
+	clock = 2
+	mac.SetNote(mac.Lines[mac.Find("a.mp4", time.Second)].ID, "mine")
+	mac.Watch(at(2), time.Minute)
+	if err := mac.Save(); err != nil {
+		t.Fatal(err)
+	}
+
+	got, err := Load(dir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(got.Lines) != 2 || got.Find("b.mp4", time.Second) < 0 || got.Find("a.mp4", 2*time.Second) >= 0 {
+		t.Fatalf("lines %+v", got.Lines)
+	}
+	if got.Lines[got.Find("a.mp4", time.Second)].Note != "mine" {
+		t.Fatalf("the note written here was lost: %+v", got.Lines)
+	}
+	if got.WordIndex("river", "en") < 0 {
+		t.Fatalf("the word added there was lost: %+v", got.Words)
+	}
+	if len(got.Watched) != 2 {
+		t.Fatalf("watched %+v", got.Watched)
+	}
+	// The book in memory took the other device's changes too.
+	if len(mac.Lines) != 2 || mac.WordIndex("river", "en") < 0 {
+		t.Fatalf("the book in memory has %+v, %+v", mac.Lines, mac.Words)
+	}
+}
+
+// TestSaveLeavesAFileALaterKandoWroteSince checks that a book whose file a later Kando wrote since it was read does not write over it, and stays unwritten after.
+func TestSaveLeavesAFileALaterKandoWroteSince(t *testing.T) {
+	dir := t.TempDir()
+	b, _ := Load(dir)
+	b.Toggle(Line{Video: "a.mp4", Start: time.Second, SavedAt: t0})
+	path := filepath.Join(dir, FileName)
+	later := []byte(`{"version": 99, "lines": []}`)
+	if err := os.WriteFile(path, later, 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := b.Save(); !errors.Is(err, ErrUnread) {
+		t.Fatalf("Save = %v, want ErrUnread", err)
+	}
+	if err := b.Save(); !errors.Is(err, ErrUnread) || b.Unread() == nil {
+		t.Fatalf("Save again = %v, unread %v", err, b.Unread())
+	}
+	if data, _ := os.ReadFile(path); string(data) != string(later) {
+		t.Fatalf("the later file was written over: %s", data)
+	}
+}

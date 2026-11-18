@@ -1,4 +1,4 @@
-// Package downloads is the Downloads tab: the films on the phone, which play offline, each with where its download stands, and the space they take.
+// Package downloads is the section of the Library tab that lists the films on the phone, which play offline, each with where its download stands, and the space they take.
 package downloads
 
 import (
@@ -7,37 +7,23 @@ import (
 	"kando/apps/mobile/session"
 	"kando/apps/mobile/store"
 
-	"github.com/nsgo-dev/nsgo/base"
 	"github.com/nsgo-dev/nsgo/core"
-	"github.com/nsgo-dev/nsgo/icons/lucide"
 	"github.com/nsgo-dev/nsgo/ui"
 )
 
-// Page is the tab's root page; open opens a film's page.
-func Page(cx *core.Scope, s *session.Session, open func(store.Film)) base.NavPage {
+// Section is the films on the phone under their heading, with the space they take; open opens a film's page. The Library tab shows it while there are any.
+func Section(cx *core.Scope, s *session.Session, open func(store.Film)) core.Node {
 	colors := ui.ColorsOf(cx)
-	title := func() string { return locales.DownloadsTitle(cx) }
-	ref := &core.Ref{}
-	body := core.Show{When: func() bool { return len(s.Films()) > 0 },
-		Else: func(cx *core.Scope) core.Node {
-			return look.Empty{TestID: "downloads-empty", Icon: lucide.ArrowDownToLine, Title: func() string { return locales.DownloadsEmpty(cx) }}
-		},
-		Then: func(cx *core.Scope) core.Node {
-			return core.Scroll{TestID: "downloads-scroll", Ref: ref, Style: core.Style{FlexGrow: 1, FlexShrink: 1}, Children: []core.Node{
-				core.View{StyleFunc: look.Column(cx), Children: []core.Node{
-					core.View{Children: []core.Node{
-						look.Group{TestID: "downloads-list", Children: []core.Node{
-							core.Each(s.Films, func(f store.Film) string { return f.Key() }, func(cx *core.Scope, f func() store.Film, i func() int) core.Node {
-								return row(cx, s, f, i, open)
-							}),
-						}},
-						core.Text{TestID: "downloads-used", ContentFunc: func() string { return locales.DownloadsUsed(cx, look.Size(s.Used())) },
-							Style: look.Caption.Merge(core.Style{Padding: core.Edges{Top: 8, Right: 16, Left: 16}}), StyleFunc: ui.Colored(colors.Muted)},
-					}},
-				}},
-			}}
-		}}
-	return look.TabRoot(cx, base.NavPage{TestID: "downloads-page", Children: []core.Node{body}}, title, nil, nil)
+	return core.View{TestID: "downloads", Style: core.Style{Gap: 8}, Children: []core.Node{
+		look.SectionTitle(cx, func() string { return locales.DownloadsTitle(cx) }),
+		look.Group{TestID: "downloads-list", Children: []core.Node{
+			core.Each(s.Films, func(f store.Film) string { return f.Key() }, func(cx *core.Scope, f func() store.Film, i func() int) core.Node {
+				return row(cx, s, f, i, open)
+			}),
+		}},
+		core.Text{TestID: "downloads-used", ContentFunc: func() string { return locales.DownloadsUsed(cx, look.Size(s.Used())) },
+			Style: look.Caption.Merge(core.Style{Padding: core.Edges{Right: 16, Left: 16}}), StyleFunc: ui.Colored(colors.Muted)},
+	}}
 }
 
 // row is a film on the phone: its poster, title and where its download stands, or once whole its facts, with the bar of a download under way or paused.

@@ -210,7 +210,7 @@ func (a *app) sidebarColumn() core.Node {
 	return sidebar.View{App: a, Subscriptions: subscribe.List{App: a}}
 }
 
-// contentBand is the height of the drag band over the content, under the title bar: none while the page there draws its own header bar (pageOwnsTitleBar), otherwise the title bar's own, titleBar being its height as desktop.TitleBar reports it. On macOS the traffic lights move down into the sidebar card's top row (trafficLights), which makes the title bar as tall as the room under them is above them, so the content keeps a band only as tall as that row, which still clears the traffic lights when an open film hides the sidebar. Elsewhere the window controls fill the title bar, and the band is the title bar.
+// contentBand is the height of the drag band over the content, under the title bar: none while the page there draws its own header bar (pageOwnsTitleBar), otherwise the title bar's own, titleBar being the height the content keeps clear of (chrome.Covered). On macOS the traffic lights move down into the sidebar card's top row (trafficLights), which makes the title bar as tall as the room under them is above them, so the content keeps a band only as tall as that row, which still clears the traffic lights when an open film hides the sidebar. On Windows and Linux the app's own bar (package chrome) takes the title bar's room above the content, so titleBar is 0 and there is no band.
 func (a *app) contentBand(titleBar core.Points) core.Points {
 	if a.pageOwnsTitleBar() {
 		return 0

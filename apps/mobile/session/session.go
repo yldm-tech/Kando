@@ -15,6 +15,7 @@ import (
 	"time"
 
 	"kando/apps/mobile/download"
+	"kando/apps/mobile/langs"
 	"kando/apps/mobile/locales"
 	"kando/apps/mobile/store"
 	"kando/packages/sync"
@@ -104,6 +105,7 @@ type Session struct {
 	films     *core.Signal[[]store.Film]
 	transfers *core.Signal[map[string]Transfer]
 	used      *core.Signal[int64]
+	prefs     *core.Signal[store.Prefs]
 	jobs      map[string]*job
 	// following are the films Follow is bringing up to date, by key, so a film opened again meanwhile does not ask its desktop twice.
 	following map[string]*follow
@@ -125,6 +127,9 @@ type Session struct {
 	filmMu    gosync.Mutex
 	filmSaves map[string]*filmSave
 	closed    chan struct{}
+	// prefsMu orders the saves of the preferences as saveMu does the desktops': prefsSaving is the generation SetPrefs last gave out, prefsSaved the one last written.
+	prefsMu                 gosync.Mutex
+	prefsSaving, prefsSaved uint64
 }
 
 // filmSave is what is still to be written of a film's record: next, once pending; or its folder deleted, once removed.
@@ -170,6 +175,7 @@ func New(cx *core.Scope, cfg Config) *Session {
 		films:     core.NewSignalFunc[[]store.Film](cx, nil, nil),
 		transfers: core.NewSignalFunc(cx, map[string]Transfer{}, nil),
 		used:      core.NewSignal(cx, int64(0)),
+		prefs:     core.NewSignalFunc(cx, store.Prefs{}, nil),
 		jobs:      map[string]*job{},
 		following: map[string]*follow{},
 		clients:   map[string]*sync.Client{},
@@ -204,6 +210,10 @@ func New(cx *core.Scope, cfg Config) *Session {
 		s.saveMu.Unlock()
 		films, _ := s.st.Films()
 		used, _ := s.st.Used()
+		prefs, _ := s.st.Prefs()
+		// A phone that paired or downloaded before the introduction existed has been introduced already.
+		migrated := !prefs.Onboarded && (len(desktops) > 0 || len(films) > 0)
+		prefs.Onboarded = prefs.Onboarded || migrated
 		parts := map[string]int64{}
 		for _, f := range films {
 			if !f.Done() {
@@ -214,6 +224,11 @@ func New(cx *core.Scope, cfg Config) *Session {
 			s.desktops.Set(desktops)
 			s.films.Set(films)
 			s.used.Set(used)
+			if migrated {
+				s.SetPrefs(prefs)
+			} else {
+				s.prefs.Set(prefs)
+			}
 			t := map[string]Transfer{}
 			for key, done := range parts {
 				// A download the app was closed during waits to be resumed.
@@ -229,6 +244,33 @@ func New(cx *core.Scope, cfg Config) *Session {
 
 // Loaded reports whether the store has been read.
 func (s *Session) Loaded() bool { return s.loaded.Get() }
+
+// Prefs are the user's choices on this phone.
+func (s *Session) Prefs() store.Prefs { return s.prefs.Get() }
+
+// SetPrefs keeps p as the user's choices.
+func (s *Session) SetPrefs(p store.Prefs) {
+	s.prefs.Set(p)
+	s.prefsMu.Lock()
+	s.prefsSaving++
+	gen := s.prefsSaving
+	s.prefsMu.Unlock()
+	s.work.Go(func() {
+		s.prefsMu.Lock()
+		defer s.prefsMu.Unlock()
+		if gen > s.prefsSaved && s.st.SavePrefs(p) == nil {
+			s.prefsSaved = gen
+		}
+	})
+}
+
+// Target is the language the user wants subtitles translated into: their choice, else the phone's own language where the computer translates into it (langs.DefaultTarget).
+func (s *Session) Target() string {
+	if t := s.prefs.Get().Target; t != "" {
+		return t
+	}
+	return langs.DefaultTarget(s.cx.Env().Locale())
+}
 
 // Platform is the platform pairing names (sync.PlatformIOS, sync.PlatformAndroid).
 func (s *Session) Platform() string { return s.cfg.Platform }
