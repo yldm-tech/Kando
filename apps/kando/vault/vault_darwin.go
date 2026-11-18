@@ -97,7 +97,7 @@ func Create(ctx context.Context, dir, password string, progress Progress) (err e
 	if err := copyAll(ctx, dir, mount, entries, progress); err != nil {
 		return err
 	}
-	if err := detachCopied(ctx, mount); err != nil {
+	if err := detachCopied(ctx, mount, staging); err != nil {
 		return err
 	}
 	if err := os.Remove(mount); err != nil {
@@ -192,7 +192,7 @@ func Remove(ctx context.Context, dir, password string, progress Progress) (err e
 	if err := copyAll(ctx, mount, dir, entries, progress); err != nil {
 		return err
 	}
-	if err := detachCopied(ctx, mount); err != nil {
+	if err := detachCopied(ctx, mount, image); err != nil {
 		return err
 	}
 	if err := os.Remove(mount); err != nil {
@@ -214,7 +214,7 @@ func absorb(ctx context.Context, dir, image, password string, strays []string) (
 		if err != nil {
 			_ = detach(context.WithoutCancel(ctx), mount, true)
 		} else {
-			err = detachCopied(context.WithoutCancel(ctx), mount)
+			err = detachCopied(context.WithoutCancel(ctx), mount, image)
 		}
 		_ = os.Remove(mount)
 	}()
@@ -383,7 +383,7 @@ func attach(ctx context.Context, image, mount, password string) error {
 
 // detach detaches the image attached at mount. Without force, a detach that fails is tried again every busyRetry for up to busyWait: Spotlight and fseventsd keep a volume just attached busy for some seconds, a minute on GitHub's macOS runners, though nothing of Kando's is open in it, and hdiutil says so with exit status 16 or 1 and words in the system's language, so the failures are not told apart.
 func detach(ctx context.Context, mount string, force bool) error {
-	args := []string{"detach", "-quiet", mount}
+	args := []string{"detach", mount}
 	if force {
 		args = append(args, "-force")
 	}
@@ -407,14 +407,58 @@ const (
 	busyRetry = 2 * time.Second
 )
 
-// detachCopied detaches an image attached at mountName once Create, absorb or Remove has copied the files they move and they are on disk: one still busy after detach's tries, as only the system's indexing keeps it, is detached by force.
-func detachCopied(ctx context.Context, mount string) error {
-	if err := detach(ctx, mount, false); err != nil {
-		if ferr := detach(ctx, mount, true); ferr != nil {
-			return errors.Join(err, ferr)
-		}
+// detachCopied detaches image, attached at mountName, once Create, absorb or Remove has copied the files they move and they are on disk: one still busy after detach's tries, as only the system's indexing keeps it, is detached by force, and failing that its disk is ejected by its device (deviceOf), which does not go through the mount point's path.
+func detachCopied(ctx context.Context, mount, image string) error {
+	err := detach(ctx, mount, false)
+	if err == nil {
+		return nil
+	}
+	ferr := detach(ctx, mount, true)
+	if ferr == nil {
+		return nil
+	}
+	dev, ok := deviceOf(ctx, image)
+	if !ok {
+		return errors.Join(err, ferr)
+	}
+	if _, eerr := hdiutil(ctx, "", "detach", "-force", dev); eerr != nil {
+		return errors.Join(err, ferr, eerr)
 	}
 	return nil
+}
+
+// deviceOf is the whole disk, as /dev/disk5, that the image at image is attached as, read from hdiutil info, whose sections name each image's path and then its disks, the whole disk first.
+func deviceOf(ctx context.Context, image string) (string, bool) {
+	out, err := hdiutil(ctx, "", "info")
+	if err != nil {
+		return "", false
+	}
+	return infoDevice(string(out), image)
+}
+
+// infoDevice finds image's whole disk in info, hdiutil info's output.
+func infoDevice(info, image string) (string, bool) {
+	inImage := false
+	for _, line := range strings.Split(info, "\n") {
+		if key, value, ok := strings.Cut(line, ":"); ok && strings.TrimSpace(key) == "image-path" {
+			inImage = sameFile(strings.TrimSpace(value), image)
+			continue
+		}
+		if strings.HasPrefix(line, "=====") {
+			inImage = false
+			continue
+		}
+		if fields := strings.Fields(line); inImage && len(fields) > 0 && strings.HasPrefix(fields[0], "/dev/disk") && !strings.Contains(strings.TrimPrefix(fields[0], "/dev/disk"), "s") {
+			return fields[0], true
+		}
+	}
+	return "", false
+}
+
+// sameFile reports whether a and b name the same path, as hdiutil writes /var under /private.
+func sameFile(a, b string) bool {
+	clean := func(p string) string { return strings.TrimPrefix(filepath.Clean(p), "/private") }
+	return clean(a) == clean(b)
 }
 
 // hdiutil runs hdiutil with args, giving it stdin, the password or passwords, on its standard input; its error carries what hdiutil wrote, which names no password.
