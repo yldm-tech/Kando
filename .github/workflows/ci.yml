@@ -244,7 +244,7 @@ jobs:
             GOARCH=$arch go vet $PKGS
           done
 
-  # The phone app (apps/mobile) vetted for iOS and Android, behind their build tags, which the Test and Build jobs never compile. Vetting for iOS compiles its cgo against the iOS SDK, so it runs on macOS, whose image has Xcode; Android's arm64 needs no SDK. Packaging it is phase 4 of #178.
+  # The phone app (apps/mobile) vetted for iOS and Android, behind their build tags, which the Test and Build jobs never compile. Vetting for iOS compiles its cgo against the iOS SDK, so it runs on macOS, whose image has Xcode; Android's arm64 needs no SDK. package-phone.yml packages it for the stores, by hand.
   mobile:
     name: Check (iOS, Android)
     runs-on: macos-latest

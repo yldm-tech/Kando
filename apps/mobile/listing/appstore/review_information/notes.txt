@@ -1,0 +1,10 @@
+Kando is the phone and tablet companion of Kando for macOS, Windows and Linux, which is free and open source (https://github.com/yldm-tech/Kando). The app has no account and no server of its own: it shows the libraries of the computers it is paired with and copies their films over the local network.
+
+To try it with a computer:
+1. Install Kando on a Mac, a Windows or a Linux computer on the same Wi-Fi network as the device, and add a video file of your own to its library; Kando recognizes its speech, and translates it once an AI service is set up in its Settings.
+2. On the computer, open Kando's Settings › Phone Sync and turn it on. It shows an address and a code.
+3. On the device, tap Connect a Computer, allow access to the local network when iOS asks, and enter the address and the code.
+
+The computer's films then show in the Library tab: play one, replay a line, save words and lines, and review them in the Learn tab. Without a paired computer the app shows how to connect one; Skip for Now on the first screen opens it without pairing.
+
+The app asks for local network access to reach the paired computer, and for notifications only when the user turns on the daily review reminder in Settings. It collects no data.

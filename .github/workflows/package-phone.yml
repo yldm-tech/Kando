@@ -1,0 +1,65 @@
+name: Package (phone)
+
+# Builds the phone app (apps/mobile) for the stores with nsgo build (go tool nsgo, the version apps/mobile/go.mod pins) and keeps the packages as the run's artifact kando-phone: the iOS app's IPA and the Android App Bundle, with a checksums-phone.txt of their SHA-256. It checks that the phone app packages for the stores before any account, certificate or upload key exists (#227), so it runs by hand only (Actions › Package (phone) › Run workflow) and publishes nothing. Neither file can be uploaded yet: the IPA is unsigned, as App Store Connect takes one signed with the team's App Store provisioning profile (nsgo.yaml's sign.profile), and the App Bundle is signed with the project's debug key, as Play Console takes one signed with the upload key (sign.keystore, with NSGO_KEYSTORE_PASSWORD and NSGO_KEY_PASSWORD).
+on:
+  workflow_dispatch:
+
+jobs:
+  build:
+    name: Package (iOS, Android)
+    # The IPA needs Xcode's iOS SDK and actool, which compiles the icon; Android's arm64 needs no NDK.
+    runs-on: macos-latest
+    timeout-minutes: 30
+    # nsgo build runs NSGo's code and the tools it calls, so the job holds a read-only token and keeps no git credentials, as the Package workflow's do.
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
+        with:
+          go-version-file: go.work
+          cache: false
+      # The Go cache of CI's iOS and Android check (the mobile job in ci.yml), which builds the same packages for the same targets.
+      - uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: |
+            ~/go/pkg/mod
+            ~/.cache/go-build
+          key: go-${{ runner.os }}-mobile-${{ hashFiles('go.work.sum', '**/go.sum') }}
+          restore-keys: go-${{ runner.os }}-mobile-
+      # Each target is built into a folder of its own. The App Bundle is Google Play's package, which the store channel makes in place of an APK. The IPA is the App Store's whatever the channel, so its build takes none: on the store channel the app would also ask the App Store for a newer version, which it does not do today.
+      - name: Build
+        run: |
+          go tool nsgo build -target ios -output "$RUNNER_TEMP/ios" apps/mobile
+          go tool nsgo build -target android_arm64 -channel store -output "$RUNNER_TEMP/android" apps/mobile
+      # One IPA and one App Bundle, the IPA carrying the app's ID, its icon and the local network usage description iOS asks with.
+      - name: Collect the packages
+        run: |
+          shopt -s nullglob
+          ipas=("$RUNNER_TEMP"/ios/releases/*-ios.ipa)
+          aabs=("$RUNNER_TEMP"/android/releases/*-android-arm64.aab)
+          if [ "${#ipas[@]}" -ne 1 ] || [ "${#aabs[@]}" -ne 1 ]; then
+            echo "::error::nsgo build made ${#ipas[@]} IPAs and ${#aabs[@]} App Bundles, not one each"
+            exit 1
+          fi
+          unzip -q "${ipas[0]}" -d "$RUNNER_TEMP/ipa"
+          plist=$(echo "$RUNNER_TEMP"/ipa/Payload/*.app/Info.plist)
+          test "$(plutil -extract CFBundleIdentifier raw "$plist")" = ai.yldm.kando.mobile
+          plutil -extract NSLocalNetworkUsageDescription raw "$plist" >/dev/null
+          plutil -extract CFBundleIcons xml1 -o /dev/null "$plist"
+          out=$RUNNER_TEMP/out
+          mkdir "$out"
+          cp -- "${ipas[0]}" "${aabs[0]}" "$out/"
+          cd "$out"
+          shasum -a 256 -- * > "$RUNNER_TEMP/checksums-phone.txt"
+          mv "$RUNNER_TEMP/checksums-phone.txt" .
+          cat checksums-phone.txt
+      - name: Keep the packages
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: kando-phone
+          path: ${{ runner.temp }}/out/
+          retention-days: 7
+          if-no-files-found: error

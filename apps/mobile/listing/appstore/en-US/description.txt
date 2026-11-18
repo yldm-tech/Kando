@@ -1,0 +1,24 @@
+Kando helps you learn a language from films in that language. Kando on your computer recognizes the speech in your videos and translates it line by line; this app brings those films to your phone and tablet, with the original line and its translation on screen together.
+
+WATCH
+• Bilingual subtitles: both lines, the original only, the translation only, or a hidden line you tap to reveal.
+• Replay the line you didn't catch, loop it, or step to the previous or next line.
+• Shadowing holds after each line so you can say it before the film plays on.
+• Change the speed, set a sleep timer, listen with the picture off, and move the subtitles earlier or later.
+• Pick up where you left off, on your phone or on your computer.
+
+LEARN
+• Tap a word to look it up, or have a line explained, through the AI service you set up in Kando on your computer.
+• Save words and lines while you watch, and write notes on them.
+• Review what you saved when it's due. A daily goal, your streak and an optional evening reminder keep you going.
+
+TAKE THEM WITH YOU
+• Keep films on your phone and watch them without a connection. They copy from your computer over your local network.
+• See what your computer is working on, and when a film is ready.
+
+PRIVATE BY DESIGN
+No account and no tracking. The app talks only to the computers you pair it with, over your local network, encrypted and pinned to the computer you paired.
+
+Kando needs Kando on a computer running macOS, Windows or Linux, which is free and open source: github.com/yldm-tech/Kando
+
+Kando speaks English, Simplified Chinese, Traditional Chinese, Japanese and Korean.
