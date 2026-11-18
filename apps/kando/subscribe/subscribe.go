@@ -206,6 +206,17 @@ type Found struct {
 	Skipped int
 }
 
+// AddPerCheck is how many new videos a check of a subscription that adds them by itself (ModeAuto) queues at most, so a channel that uploads a season at once, or a first check after a long time, does not fill the queue; the others wait for the user as ModeAsk's do (Cap).
+const AddPerCheck = 3
+
+// Cap splits the new videos a check of a ModeAuto subscription found, in the list's order, into the first AddPerCheck, which it queues, and the rest, which it holds for the user.
+func Cap(fresh []Video) (queue, hold []Video) {
+	if len(fresh) <= AddPerCheck {
+		return fresh, nil
+	}
+	return fresh[:AddPerCheck:AddPerCheck], fresh[AddPerCheck:]
+}
+
 // Take folds a check's listing into the subscription at now: every video not seen yet is new once, kept in Fresh when it fits the rules and skipped otherwise; a name the site gives the list that is not the one it gave before is kept in Renamed, and the site going back to the old one forgets it. A check that lists the videos also shows that the list is still there, so Gone and Err are cleared. What to do with Fresh is the caller's: Queue them, or Hold them for the user.
 func (s *Sub) Take(listing media.Listing, now time.Time) Found {
 	s.Checked, s.Err, s.TimedOut, s.Missing, s.Gone = now, "", false, 0, false

@@ -300,6 +300,19 @@ func (e *statusError) Error() string {
 }
 
 func subtitlePrompt(custom, language string, earlier []string, terms []core.Term) string {
+	prompt := stylePrompt(custom, language)
+	if glossary := glossaryPrompt(terms); glossary != "" {
+		prompt += "\n\n" + glossary
+	}
+	if len(earlier) > 0 {
+		encoded, _ := json.Marshal(earlier)
+		prompt += "\n\nEarlier lines from the same video, for context only. Do not translate them again:\n" + string(encoded)
+	}
+	return prompt + "\n\n" + subtitleReplyRule
+}
+
+// stylePrompt is the style instruction custom, or DefaultSubtitlePrompt for none, naming language as the one to translate into.
+func stylePrompt(custom, language string) string {
 	prompt := strings.TrimSpace(custom)
 	if prompt == "" {
 		prompt = DefaultSubtitlePrompt
@@ -310,14 +323,7 @@ func subtitlePrompt(custom, language string, earlier []string, terms []core.Term
 		// A custom prompt that only asks for a style would otherwise leave the target language unnamed, and the model answers in the language of the lines; naming it here also follows a job's own target language, which a language written into the prompt would not.
 		prompt += "\n\nTranslate every subtitle line into " + language + "."
 	}
-	if glossary := glossaryPrompt(terms); glossary != "" {
-		prompt += "\n\n" + glossary
-	}
-	if len(earlier) > 0 {
-		encoded, _ := json.Marshal(earlier)
-		prompt += "\n\nEarlier lines from the same video, for context only. Do not translate them again:\n" + string(encoded)
-	}
-	return prompt + "\n\n" + subtitleReplyRule
+	return prompt
 }
 
 // maxBatchSends is how many times one batch is sent while its reply is not the batch's lines: not a JSON array of them, or too few or too many.

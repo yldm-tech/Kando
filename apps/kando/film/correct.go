@@ -30,6 +30,34 @@ type Corrector interface {
 	NudgeLine(end bool, d time.Duration)
 	// MarkNoSpeech leaves the selected cue out of the film, as one heard in music or noise.
 	MarkNoSpeech()
+	// Candidates is the AI service's other translations of the selected cue while they show (这句不对): StartCandidates asks for them, PickCandidate keeps one, 0 being the cue as it is, CloseCandidates puts them away and CandidateSettings opens the AI service's settings when none could come.
+	Candidates() Candidates
+	StartCandidates()
+	PickCandidate(i int)
+	CloseCandidates()
+	CandidateSettings()
+	// Spread is the fix an edit made that the film's other cues hold too, while a bar asks about it: SpreadAll changes it in all of them, SpreadView shows them in the subtitle list and SpreadOnly leaves them.
+	Spread() Spread
+	SpreadAll()
+	SpreadView()
+	SpreadOnly()
+}
+
+// Candidates is the other translations of the selected cue as they show: Open while they do, Busy while the AI service is asked; Original and Current are the cue's original and its translation now, Options the AI service's translations, best first, and At the one highlighted, 0 for Current. Say, when set, says why there are none, and NeedsAI that the AI service's settings are the fix.
+type Candidates struct {
+	Open, Busy        bool
+	Original, Current string
+	Options           []string
+	At                int
+	Say               func(cx *core.Scope) string
+	NeedsAI           bool
+}
+
+// Spread is the fix an edit made, From to To, while a bar asks whether to make it in the film's other cues: Lines of them hold it, Edited of those the user had corrected.
+type Spread struct {
+	Open          bool
+	From, To      string
+	Lines, Edited int
 }
 
 // nudgeStep is how far a press of a start or end button of the selection bar moves the line.
@@ -46,6 +74,8 @@ func (s *screen) correcting() core.Node {
 	a, cx := s.a, s.cx
 	selected := live.Memo(cx, a, func() bool { return a.Selected() >= 0 })
 	editing := live.Memo(cx, a, a.Editing)
+	picking := live.Memo(cx, a, func() bool { return a.Candidates().Open })
+	spreading := live.Memo(cx, a, func() bool { return a.Spread().Open })
 	// place lays a part out across the room the side panel leaves, at the top or the bottom of the picture.
 	place := func(st core.Style, child core.Node) core.Node {
 		return core.View{PointerEvents: core.PointerEventsBoxNone,
@@ -55,16 +85,24 @@ func (s *screen) correcting() core.Node {
 			},
 			Children: []core.Node{child}}
 	}
-	// The bar sits under the title bar, clear of the selected line on the picture; the fields, which hold that line, sit over it, above the transport.
-	return core.Show{When: selected, Then: func(cx *core.Scope) core.Node {
-		return core.View{PointerEvents: core.PointerEventsBoxNone, Style: fillStyle, Children: []core.Node{
-			core.Show{When: func() bool { return !editing() }, Then: func(cx *core.Scope) core.Node {
-				return place(core.Style{Top: core.Pt(72)}, s.selectionBar(cx))
-			}},
-			core.Show{When: editing, Then: func(cx *core.Scope) core.Node {
-				return place(core.Style{Bottom: core.Pt(96)}, s.lineEditor(cx))
-			}},
-		}}
+	// The bar sits under the title bar, clear of the selected line on the picture; the fields and the other translations, which hold that line, sit over it, above the transport. The bar that asks about spreading a fix takes the selection bar's place, as the edit let go of the line.
+	return core.View{PointerEvents: core.PointerEventsBoxNone, Style: fillStyle, Children: []core.Node{
+		core.Show{When: selected, Then: func(cx *core.Scope) core.Node {
+			return core.View{PointerEvents: core.PointerEventsBoxNone, Style: fillStyle, Children: []core.Node{
+				core.Show{When: func() bool { return !editing() && !picking() }, Then: func(cx *core.Scope) core.Node {
+					return place(core.Style{Top: core.Pt(72)}, s.selectionBar(cx))
+				}},
+				core.Show{When: editing, Then: func(cx *core.Scope) core.Node {
+					return place(core.Style{Bottom: core.Pt(96)}, s.lineEditor(cx))
+				}},
+				core.Show{When: picking, Then: func(cx *core.Scope) core.Node {
+					return place(core.Style{Bottom: core.Pt(96)}, s.candidateList(cx))
+				}},
+			}}
+		}},
+		core.Show{When: func() bool { return spreading() && !selected() }, Then: func(cx *core.Scope) core.Node {
+			return place(core.Style{Top: core.Pt(72)}, s.spreadBar(cx))
+		}},
 	}}
 }
 
@@ -90,6 +128,12 @@ func (s *screen) selectionBar(cx *core.Scope) core.Node {
 			barGlyph(cx, "›", func() string { return locales.CorrectKeyNext(cx) }, "shift+right", "film-correct-next", live.Do(a, func() { a.StepSelection(1) })),
 			sep,
 			barButton(cx, func() string { return locales.CorrectEdit(cx) }, "enter", "film-correct-edit", live.Do(a, a.EditLine)),
+			barButton(cx, func() string { return locales.CorrectCandidates(cx) }, "shift+e", "film-correct-candidates", live.Do(a, a.StartCandidates)),
+			barButton(cx, func() string { return locales.CorrectExplain(cx) }, "i", "film-correct-explain", live.Do(a, func() {
+				if i := a.Selected(); i >= 0 {
+					a.ExplainLine(i)
+				}
+			})),
 			sep,
 			label(func() string { return locales.CorrectStart(cx) }),
 			barGlyph(cx, "−", func() string { return locales.CorrectKeyStartEarlier(cx) }, "ctrl+alt+left", "film-correct-start-earlier", live.Do(a, func() { a.NudgeLine(false, -nudgeStep) })),
@@ -140,9 +184,13 @@ func (s *screen) lineEditor(cx *core.Scope) core.Node {
 		}}
 }
 
-// barButton is a button of the selection bar that says what it does, its tooltip naming the key that does the same.
+// barButton is a button of the selection bar that says what it does, its tooltip naming the key that does the same, when one does.
 func barButton(cx *core.Scope, label func() string, key, id string, press func()) core.Node {
-	return base.Button{TestID: id, LabelFunc: label, Tooltip: tip(cx, withKey(cx, label, key)),
+	tooltip := label
+	if key != "" {
+		tooltip = withKey(cx, label, key)
+	}
+	return base.Button{TestID: id, LabelFunc: label, Tooltip: tip(cx, tooltip),
 		Desktop: core.DesktopViewProps{WindowDrag: core.WindowDragOff},
 		OnPress: func(core.PressEvent) { press() },
 		Style: core.Style{Height: core.Pt(28), Padding: core.Symmetric(0, 10), FlexShrink: 0, AlignItems: core.AlignCenter, JustifyContent: core.JustifyCenter, CornerRadius: 10,

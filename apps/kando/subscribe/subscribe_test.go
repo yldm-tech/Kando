@@ -186,6 +186,32 @@ func TestPendingAndAdded(t *testing.T) {
 	}
 }
 
+// A check that adds by itself queues at most three new videos, the first in the list's order, and holds the rest; three or fewer are all queued.
+func TestCapQueuesThreeAndHoldsTheRest(t *testing.T) {
+	if AddPerCheck != 3 {
+		t.Fatalf("AddPerCheck = %d, want 3", AddPerCheck)
+	}
+	var fresh []Video
+	for _, link := range []string{"a", "b", "c", "d", "e"} {
+		fresh = append(fresh, Video{URL: link})
+	}
+	queue, hold := Cap(fresh)
+	if !reflect.DeepEqual(urls(queue), []string{"a", "b", "c"}) || !reflect.DeepEqual(urls(hold), []string{"d", "e"}) {
+		t.Fatalf("queue %+v, hold %+v", queue, hold)
+	}
+	// Appending to what is queued does not write over what is held.
+	_ = append(queue, Video{URL: "x"})
+	if hold[0].URL != "d" {
+		t.Fatalf("hold %+v", hold)
+	}
+	for _, n := range []int{0, 1, 3} {
+		queue, hold := Cap(fresh[:n])
+		if len(queue) != n || hold != nil {
+			t.Fatalf("Cap of %d: queue %+v, hold %+v", n, queue, hold)
+		}
+	}
+}
+
 // The store reads back what it saved, readable by the user alone, puts rules it does not know back to the defaults, and leaves out entries without an ID or a link; a missing file has none.
 func TestStoreRoundTrip(t *testing.T) {
 	path := filepath.Join(t.TempDir(), "Kando", "subscriptions.json")

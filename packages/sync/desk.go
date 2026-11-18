@@ -14,10 +14,11 @@ import (
 	"time"
 )
 
-// Caller is who sent a Call, as its transport tells: the paired device's ID and name.
+// Caller is who sent a Call, as its transport tells: the paired device's ID and name, and whether the call came through the storage relay (relay.go) rather than the local network.
 type Caller struct {
 	DeviceID string
 	Name     string
+	Relay    bool
 }
 
 // Service is what a desktop does for protocol v2's calls, whichever transport carries them; Desk answers the jobs' list and the events itself, from its Journal. Its errors are *CallError for the protocol's codes, and any other error answers CodeFailed.
@@ -35,6 +36,11 @@ type StateService interface {
 	GetState(ctx context.Context, caller Caller, req StateGet) (StateChanges, error)
 	PutState(ctx context.Context, caller Caller, req StatePut) (StatePutResult, error)
 	ResolveConflict(ctx context.Context, caller Caller, req ConflictResolve) (StatePutResult, error)
+}
+
+// RelayJoiner hands a phone its key and first grant of the storage relay (OpRelayJoin).
+type RelayJoiner interface {
+	Join(ctx context.Context, caller Caller) (RelayJoin, error)
 }
 
 // CallError is an error with a protocol code, which a Service returns and a client reads from the Reply.
@@ -60,7 +66,9 @@ const (
 type Desk struct {
 	Service Service
 	// State answers the learning state's calls, nil for a desktop that does not serve it, which answers them CodeUnsupported.
-	State   StateService
+	State StateService
+	// Relay answers OpRelayJoin, nil while the desktop's storage relay is off, which answers it CodeUnsupported.
+	Relay   RelayJoiner
 	Journal *Journal
 	// Desktop is the desktop's name; Now the clock, nil for time.Now.
 	Desktop string
@@ -197,6 +205,9 @@ func (d *Desk) answer(ctx context.Context, caller Caller, call Call) (any, error
 		if h.State == nil {
 			h.State = []string{}
 		}
+		if d.Relay != nil && !slices.Contains(h.Ops, OpRelayJoin) {
+			h.Ops = append(slices.Clone(h.Ops), OpRelayJoin)
+		}
 		return h, nil
 	case OpJobCreate:
 		var req JobCreate
@@ -231,7 +242,19 @@ func (d *Desk) answer(ctx context.Context, caller Caller, call Call) (any, error
 		if err := args(call, &w); err != nil {
 			return nil, err
 		}
+		if caller.Relay {
+			// Over the relay a phone follows the changes in its state.json; a call waiting here would hold up the calls behind it.
+			w.WaitMS = 0
+		}
 		return d.Journal.Wait(ctx, w.Epoch, w.Since, time.Duration(w.WaitMS)*time.Millisecond), nil
+	case OpRelayJoin:
+		if d.Relay == nil {
+			return nil, Errorf(CodeUnsupported, "the storage relay is off")
+		}
+		if caller.Relay {
+			return nil, Errorf(CodeUnsupported, "a phone joins the relay on the local network only")
+		}
+		return d.Relay.Join(ctx, caller)
 	}
 	return nil, Errorf(CodeUnsupported, "no operation %q", call.Op)
 }
