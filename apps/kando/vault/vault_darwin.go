@@ -97,7 +97,7 @@ func Create(ctx context.Context, dir, password string, progress Progress) (err e
 	if err := copyAll(ctx, dir, mount, entries, progress); err != nil {
 		return err
 	}
-	if err := detach(ctx, mount, false); err != nil {
+	if err := detachCopied(ctx, mount); err != nil {
 		return err
 	}
 	if err := os.Remove(mount); err != nil {
@@ -192,7 +192,7 @@ func Remove(ctx context.Context, dir, password string, progress Progress) (err e
 	if err := copyAll(ctx, mount, dir, entries, progress); err != nil {
 		return err
 	}
-	if err := detach(ctx, mount, false); err != nil {
+	if err := detachCopied(ctx, mount); err != nil {
 		return err
 	}
 	if err := os.Remove(mount); err != nil {
@@ -211,8 +211,10 @@ func absorb(ctx context.Context, dir, image, password string, strays []string) (
 		return err
 	}
 	defer func() {
-		if derr := detach(context.WithoutCancel(ctx), mount, err != nil); err == nil {
-			err = derr
+		if err != nil {
+			_ = detach(context.WithoutCancel(ctx), mount, true)
+		} else {
+			err = detachCopied(context.WithoutCancel(ctx), mount)
 		}
 		_ = os.Remove(mount)
 	}()
@@ -379,13 +381,40 @@ func attach(ctx context.Context, image, mount, password string) error {
 	return nil
 }
 
+// detach detaches the image attached at mount. Without force, a detach that fails is tried again every busyRetry for up to busyWait: Spotlight and fseventsd keep a volume just attached busy for some seconds, a minute on GitHub's macOS runners, though nothing of Kando's is open in it, and hdiutil says so with exit status 16 or 1 and words in the system's language, so the failures are not told apart.
 func detach(ctx context.Context, mount string, force bool) error {
 	args := []string{"detach", "-quiet", mount}
 	if force {
 		args = append(args, "-force")
 	}
-	_, err := hdiutil(ctx, "", args...)
-	return err
+	deadline := time.Now().Add(busyWait)
+	for {
+		_, err := hdiutil(ctx, "", args...)
+		if err == nil || force || time.Now().After(deadline) {
+			return err
+		}
+		select {
+		case <-ctx.Done():
+			return err
+		case <-time.After(busyRetry):
+		}
+	}
+}
+
+// busyWait and busyRetry are how long detach goes on trying an image the system says is busy, and how often.
+const (
+	busyWait  = 30 * time.Second
+	busyRetry = 2 * time.Second
+)
+
+// detachCopied detaches an image attached at mountName once Create, absorb or Remove has copied the files they move and they are on disk: one still busy after detach's tries, as only the system's indexing keeps it, is detached by force.
+func detachCopied(ctx context.Context, mount string) error {
+	if err := detach(ctx, mount, false); err != nil {
+		if ferr := detach(ctx, mount, true); ferr != nil {
+			return errors.Join(err, ferr)
+		}
+	}
+	return nil
 }
 
 // hdiutil runs hdiutil with args, giving it stdin, the password or passwords, on its standard input; its error carries what hdiutil wrote, which names no password.
