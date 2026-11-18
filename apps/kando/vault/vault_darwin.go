@@ -71,7 +71,18 @@ func Create(ctx context.Context, dir, password string, progress Progress) (err e
 		return err
 	}
 	name := strings.TrimSuffix(filepath.Base(dir), filepath.Ext(dir))
-	if _, err := hdiutil(ctx, password, "create", "-quiet", "-size", maxSize, "-type", "SPARSE", "-fs", "APFS", "-volname", name, "-encryption", "AES-256", "-stdinpass", strings.TrimSuffix(staging, ".sparseimage")); err != nil {
+	// The volume starts with its marker and Spotlight's never-index file, from seed, rather than gaining them once attached: a volume Spotlight first saw without the file is held by it as it detaches, which took 6 to 14 seconds here and minutes on CI runners. Spotlight leaves a volume with the file alone, so no index of the films' names and subtitles is made either.
+	seed, err := os.MkdirTemp("", "kando-vault-seed-")
+	if err != nil {
+		return err
+	}
+	defer os.RemoveAll(seed)
+	for _, file := range []string{markerName, ".metadata_never_index"} {
+		if err := os.WriteFile(filepath.Join(seed, file), nil, 0o600); err != nil {
+			return fmt.Errorf("vault: mark the image: %w", err)
+		}
+	}
+	if _, err := hdiutil(ctx, password, "create", "-quiet", "-srcfolder", seed, "-format", "UDSP", "-size", maxSize, "-fs", "APFS", "-volname", name, "-encryption", "AES-256", "-stdinpass", strings.TrimSuffix(staging, ".sparseimage")); err != nil {
 		return fmt.Errorf("vault: make the image: %w", err)
 	}
 	defer func() {
@@ -84,12 +95,8 @@ func Create(ctx context.Context, dir, password string, progress Progress) (err e
 	if err := attach(ctx, staging, mount, password); err != nil {
 		return err
 	}
-	if err := os.WriteFile(filepath.Join(mount, markerName), nil, 0o600); err != nil {
-		return fmt.Errorf("vault: mark the image: %w", err)
-	}
-	// Spotlight leaves a volume with this file at its root alone: an index of the films' names and subtitles is not wanted, and indexing would keep the volume busy as the library locks.
-	if err := os.WriteFile(filepath.Join(mount, ".metadata_never_index"), nil, 0o600); err != nil {
-		return fmt.Errorf("vault: mark the image: %w", err)
+	if !isFile(filepath.Join(mount, markerName)) {
+		return fmt.Errorf("vault: the new image lacks its marker")
 	}
 	entries, err := libraryEntries(dir)
 	if err != nil {

@@ -64,6 +64,7 @@ func read(t *testing.T, path string) string {
 	return string(b)
 }
 
+// A library goes into its image and comes out again, as it gets a password, is locked and unlocked, gets another password and has it removed. One test, as making an image takes seconds, more on CI runners.
 func TestALibraryLocksIntoItsImageAndOpensAgain(t *testing.T) {
 	ctx := context.Background()
 	dir := library(t)
@@ -124,6 +125,52 @@ func TestALibraryLocksIntoItsImageAndOpensAgain(t *testing.T) {
 	if got := read(t, filepath.Join(dir, "new.mp4")); got != "new" {
 		t.Fatalf("new.mp4 holds %q after opening again", got)
 	}
+	if err := Close(ctx, dir, false); err != nil {
+		t.Fatal(err)
+	}
+
+	// Another password: the old one opens it no more.
+	if err := ChangePassword(ctx, dir, "right horse", "new horse"); err != nil {
+		t.Fatal(err)
+	}
+	if err := Open(ctx, dir, "right horse"); !errors.Is(err, ErrNotOpened) {
+		t.Fatalf("Open with the old password: %v, want ErrNotOpened", err)
+	}
+
+	// An image a Create, Open or Remove cut short left attached at the mount folder, as quitting Kando while one ran would, is detached by Close, so its files are not left readable.
+	mount := filepath.Join(dir, mountName)
+	if err := attach(ctx, filepath.Join(dir, ImageName), mount, "new horse"); err != nil {
+		t.Fatal(err)
+	}
+	if err := Close(ctx, dir, false); err != nil {
+		t.Fatal(err)
+	}
+	if otherDevice(mount, dir) {
+		t.Fatal("the image is still attached at the mount folder after Close")
+	}
+
+	// No password: the files go back into the folder, once it is locked.
+	if err := Open(ctx, dir, "new horse"); err != nil {
+		t.Fatal(err)
+	}
+	if err := Remove(ctx, dir, "new horse", nil); !errors.Is(err, ErrOpen) {
+		t.Fatalf("Remove while open: %v, want ErrOpen", err)
+	}
+	if err := Close(ctx, dir, false); err != nil {
+		t.Fatal(err)
+	}
+	if err := Remove(ctx, dir, "new horse", nil); err != nil {
+		t.Fatal(err)
+	}
+	if Has(dir) || Mounted(dir) {
+		t.Fatal("the library is still encrypted after Remove")
+	}
+	if got := names(t, dir); !slices.Equal(got, []string{"Film", "loose.mp4", "new.mp4"}) {
+		t.Fatalf("the folder holds %v after Remove", got)
+	}
+	if got := read(t, filepath.Join(dir, "Film", ".film.translation.json")); got != "{}" {
+		t.Fatalf("the hidden file holds %q after Remove", got)
+	}
 }
 
 func TestOpenTakesInWhatWasLeftBesideTheImage(t *testing.T) {
@@ -157,66 +204,5 @@ func TestOpenTakesInWhatWasLeftBesideTheImage(t *testing.T) {
 	}
 	if got := names(t, dir); !slices.Equal(got, []string{ImageName}) {
 		t.Fatalf("the folder holds %v after Close, want only the image", got)
-	}
-}
-
-func TestChangeAndRemoveThePassword(t *testing.T) {
-	ctx := context.Background()
-	dir := library(t)
-	if err := Create(ctx, dir, "old", nil); err != nil {
-		t.Fatal(err)
-	}
-	if err := ChangePassword(ctx, dir, "old", "new"); err != nil {
-		t.Fatal(err)
-	}
-	if err := Open(ctx, dir, "old"); !errors.Is(err, ErrNotOpened) {
-		t.Fatalf("Open with the old password: %v, want ErrNotOpened", err)
-	}
-	if err := Open(ctx, dir, "new"); err != nil {
-		t.Fatal(err)
-	}
-	if err := Remove(ctx, dir, "new", nil); !errors.Is(err, ErrOpen) {
-		t.Fatalf("Remove while open: %v, want ErrOpen", err)
-	}
-	if err := Close(ctx, dir, false); err != nil {
-		t.Fatal(err)
-	}
-	if err := Remove(ctx, dir, "new", nil); err != nil {
-		t.Fatal(err)
-	}
-	if Has(dir) || Mounted(dir) {
-		t.Fatal("the library is still encrypted after Remove")
-	}
-	if got := names(t, dir); !slices.Equal(got, []string{"Film", "loose.mp4"}) {
-		t.Fatalf("the folder holds %v after Remove", got)
-	}
-	if got := read(t, filepath.Join(dir, "Film", ".film.translation.json")); got != "{}" {
-		t.Fatalf("the hidden file holds %q after Remove", got)
-	}
-}
-
-// Close detaches an image a Create, Open or Remove cut short left attached at the mount folder, as quitting Kando while one ran would, so its files are not left readable.
-func TestCloseDetachesAnImageLeftAttachedMidway(t *testing.T) {
-	ctx := context.Background()
-	dir := library(t)
-	if err := Create(ctx, dir, "pw", nil); err != nil {
-		t.Fatal(err)
-	}
-	mount := filepath.Join(dir, mountName)
-	if err := attach(ctx, filepath.Join(dir, ImageName), mount, "pw"); err != nil {
-		t.Fatal(err)
-	}
-	if err := Close(ctx, dir, false); err != nil {
-		t.Fatal(err)
-	}
-	if otherDevice(mount, dir) {
-		t.Fatal("the image is still attached at the mount folder after Close")
-	}
-	// The next Open clears the empty mount folder and opens the library as ever.
-	if err := Open(ctx, dir, "pw"); err != nil {
-		t.Fatal(err)
-	}
-	if got := names(t, dir); !slices.Equal(got, []string{"Film", "loose.mp4"}) {
-		t.Fatalf("the library holds %v after opening", got)
 	}
 }

@@ -52,7 +52,7 @@ func lockFolder(t *testing.T, dir string) []string {
 	return out
 }
 
-// On macOS a library's password encrypts its files: setting it moves them into an encrypted image and keeps the library open; locking it leaves only the image in its folder, so the film cannot be opened from Finder, while the shelf keeps the film and the queue holds the library's jobs; its password opens it again, a wrong one does not; and removing the password puts the files back.
+// On macOS a library's password encrypts its files: setting it moves them into an encrypted image and keeps the library open; locking it leaves only the image in its folder, so the film cannot be opened from Finder, while the shelf keeps the film and the queue holds the library's jobs; its password opens it again, a wrong one does not; quitting detaches the image; and removing the password puts the files back. One test, as each image Kando makes takes seconds, more on CI runners.
 func TestLockEncryptsTheLibraryOnDisk(t *testing.T) {
 	if !vault.Supported() {
 		t.Skip("only macOS encrypts a library's files")
@@ -123,6 +123,16 @@ func TestLockEncryptsTheLibraryOnDisk(t *testing.T) {
 		t.Fatalf("the film reads %d bytes, %v, once unlocked", len(got), err)
 	}
 
+	// Quitting detaches the image of the open library, so its files are not left readable after Kando is gone.
+	a.lockVaultQuit()
+	if vault.Mounted(dir) {
+		t.Fatal("the library's image is still attached after quitting")
+	}
+	if got := lockFolder(t, dir); !slices.Equal(got, []string{vault.ImageName}) {
+		t.Fatalf("the folder holds %v after quitting, want only the image", got)
+	}
+
+	// Removing the password moves the files back out of the locked image.
 	tt.Press("id:sidebar-switcher")
 	tt.ChoosePopup(m.LockMenuRemove())
 	tt.Type("id:lock-current", lockPassword)
@@ -136,31 +146,5 @@ func TestLockEncryptsTheLibraryOnDisk(t *testing.T) {
 	}
 	if got, err := os.ReadFile(video); err != nil || !bytes.Equal(got, picture) {
 		t.Fatalf("the film reads %d bytes, %v, once decrypted", len(got), err)
-	}
-}
-
-// Quitting detaches the image of the open encrypted library, so its files are not left readable after Kando is gone.
-func TestQuittingLocksTheEncryptedLibrary(t *testing.T) {
-	if !vault.Supported() {
-		t.Skip("only macOS encrypts a library's files")
-	}
-	a, tt, updates, dir, _, _ := lockLibrary(t)
-	lockEncrypts = vault.Supported
-	t.Cleanup(a.lockVaultQuit)
-	tt.Press("id:sidebar-switcher")
-	tt.ChoosePopup(testlocale.Messages().LockMenuSet())
-	tt.Type("id:lock-new", lockPassword)
-	tt.Type("id:lock-confirm", lockPassword)
-	tt.Press("id:lock-submit")
-	lockWaitLong(t, tt, a, updates, "the library is encrypted", func() bool { return a.lock.dialog.waiting == 0 })
-	if !vault.Mounted(dir) {
-		t.Fatalf("the library is not open after its password was set: %+v", a.lock.dialog.lockTry)
-	}
-	a.lockVaultQuit()
-	if vault.Mounted(dir) {
-		t.Fatal("the library's image is still attached after quitting")
-	}
-	if got := lockFolder(t, dir); !slices.Equal(got, []string{vault.ImageName}) {
-		t.Fatalf("the folder holds %v after quitting, want only the image", got)
 	}
 }
