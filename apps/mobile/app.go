@@ -3,8 +3,10 @@ package main
 import (
 	"slices"
 
+	"kando/apps/mobile/add"
 	"kando/apps/mobile/film"
 	"kando/apps/mobile/films"
+	"kando/apps/mobile/jobs"
 	"kando/apps/mobile/learn"
 	"kando/apps/mobile/library"
 	"kando/apps/mobile/locales"
@@ -39,12 +41,14 @@ const (
 	libraryPage
 	filmPage
 	playerPage
+	jobsPage
 )
 
-// The tabs, in the order the tab bar shows them.
+// The tabs, in the order the tab bar shows them. Jobs is a section of its own on a tablet only; on a phone it opens from the Library.
 const (
 	filmsTab = iota
 	learnTab
+	jobsTab
 	settingsTab
 	tabs
 )
@@ -64,8 +68,31 @@ func App(cx *core.Scope, cfg session.Config) core.Node {
 	colors := ui.ColorsOf(cx)
 	s := session.New(cx, cfg)
 	outer := base.NewNav(cx, route{page: rootPage})
-	navs := [tabs]*base.Nav[route]{base.NewNav(cx, route{page: filmsPage}), base.NewNav(cx, route{page: learnPage}), base.NewNav(cx, route{page: settingsPage})}
+	navs := [tabs]*base.Nav[route]{base.NewNav(cx, route{page: filmsPage}), base.NewNav(cx, route{page: learnPage}), base.NewNav(cx, route{page: jobsPage}), base.NewNav(cx, route{page: settingsPage})}
 	selected := core.NewSignal(cx, filmsTab)
+	// shown are the tabs the shell shows, in order: the shell knows a tab by its place among them.
+	shown := []int{filmsTab, learnTab, settingsTab}
+	if look.Tablet(cx) {
+		shown = []int{filmsTab, learnTab, jobsTab, settingsTab}
+	}
+	adding := core.NewSignal(cx, false)
+	openAdd := func() { adding.Set(true) }
+	// openJobs shows the Jobs page: a tablet's section, or a page of the Library's stack on a phone, which goes to the Library.
+	openJobs := func() {
+		if look.Tablet(cx) {
+			selected.Set(jobsTab)
+			return
+		}
+		selected.Set(filmsTab)
+		if routes := navs[filmsTab].Routes(); routes[len(routes)-1].page != jobsPage {
+			navs[filmsTab].Push(route{page: jobsPage})
+		}
+	}
+	toaster := ui.NewToaster(cx)
+	queueToasts(cx, s, toaster, func(desktop string, lib sync.Library, f sync.Film) {
+		selected.Set(filmsTab)
+		navs[filmsTab].Push(route{page: filmPage, desktop: desktop, library: lib, film: f})
+	})
 	openPair := func() { outer.Push(route{page: pairPage}) }
 	// Paired, the phone shows the Library, where the computer's libraries are, from its first page.
 	paired := func() {
@@ -85,7 +112,7 @@ func App(cx *core.Scope, cfg session.Config) core.Node {
 	tabStack := func(n *base.Nav[route]) func(cx *core.Scope) core.Node {
 		return func(cx *core.Scope) core.Node {
 			look.InTab(cx, shell.OverTabBar(cx))
-			return n.Stack(core.Style{FlexGrow: 1}, func(cx *core.Scope, r route, _ func() int) base.NavPage {
+			return n.Stack(core.Style{FlexGrow: 1}, func(cx *core.Scope, r route, depth func() int) base.NavPage {
 				back := func() { n.Pop(1) }
 				openFilm := func(desktop string, lib sync.Library, f sync.Film) {
 					n.Push(route{page: filmPage, desktop: desktop, library: lib, film: f})
@@ -104,8 +131,14 @@ func App(cx *core.Scope, cfg session.Config) core.Node {
 					return library.Page(cx, s, r.desktop, r.library, func(f sync.Film) { openFilm(r.desktop, r.library, f) }, back)
 				case filmPage:
 					return film.Page(cx, s, r.desktop, r.library.Name, r.film, play, back)
+				case jobsPage:
+					act := jobs.Actions{Add: openAdd, Pair: openPair, Film: openFilm, Back: back}
+					if depth() == 0 {
+						act.Back = nil
+					}
+					return jobs.Page(cx, s, act)
 				}
-				return films.Page(cx, s, films.Actions{Pair: openPair,
+				return films.Page(cx, s, films.Actions{Pair: openPair, Add: openAdd, Jobs: openJobs,
 					Film: func(f store.Film) { openFilm(f.Desktop, sync.Library{Name: f.Library}, f.Film) },
 					Library: func(desktop string, lib sync.Library) {
 						n.Push(route{page: libraryPage, desktop: desktop, library: lib})
@@ -114,6 +147,7 @@ func App(cx *core.Scope, cfg session.Config) core.Node {
 		}
 	}
 	change := func(i int) {
+		i = shown[i]
 		// The tab shown, pressed again, goes back to its first page.
 		if i == selected.Get() {
 			navs[i].PopToRoot()
@@ -122,13 +156,19 @@ func App(cx *core.Scope, cfg session.Config) core.Node {
 		selected.Set(i)
 	}
 	sh := func(cx *core.Scope) core.Node {
-		return shell.Shell{Selected: selected.Get, OnChange: change,
-			Footer: settings.Computers(cx, s, func() { change(settingsTab) }),
-			Tabs: []shell.Tab{
-				{Text: func() string { return locales.FilmsTitle(cx) }, Icon: lucide.SquarePlay, SystemIcon: "play.rectangle.on.rectangle", TestID: "tab-films", Content: tabStack(navs[filmsTab])},
-				{Text: func() string { return locales.LearnTitle(cx) }, Icon: lucide.GraduationCap, SystemIcon: "rectangle.stack", TestID: "tab-learn", Content: tabStack(navs[learnTab])},
-				{Text: func() string { return locales.SettingsTitle(cx) }, Icon: lucide.Settings, SystemIcon: "gearshape", TestID: "tab-settings", Content: tabStack(navs[settingsTab])},
-			}}
+		all := [tabs]shell.Tab{
+			filmsTab:    {Text: func() string { return locales.FilmsTitle(cx) }, Icon: lucide.SquarePlay, SystemIcon: "play.rectangle.on.rectangle", TestID: "tab-films", Content: tabStack(navs[filmsTab])},
+			learnTab:    {Text: func() string { return locales.LearnTitle(cx) }, Icon: lucide.GraduationCap, SystemIcon: "rectangle.stack", TestID: "tab-learn", Content: tabStack(navs[learnTab])},
+			jobsTab:     {Text: func() string { return locales.JobsTitle(cx) }, Icon: lucide.ListChecks, SystemIcon: "checklist", TestID: "tab-jobs", Content: tabStack(navs[jobsTab])},
+			settingsTab: {Text: func() string { return locales.SettingsTitle(cx) }, Icon: lucide.Settings, SystemIcon: "gearshape", TestID: "tab-settings", Content: tabStack(navs[settingsTab])},
+		}
+		list := make([]shell.Tab, len(shown))
+		for i, t := range shown {
+			list[i] = all[t]
+		}
+		return shell.Shell{Selected: func() int { return slices.Index(shown, selected.Get()) }, OnChange: change,
+			Footer: settings.Computers(cx, s, func() { change(slices.Index(shown, settingsTab)) }),
+			Tabs:   list}
 	}
 	// Before the store is read the page stays blank: reading it is quick.
 	root := core.Show{When: s.Loaded, Then: func(cx *core.Scope) core.Node {
@@ -147,6 +187,9 @@ func App(cx *core.Scope, cfg session.Config) core.Node {
 		case playerPage:
 			return player.Page(cx, s, r.key, func() { outer.Pop(1) })
 		}
-		return base.NavPage{TestID: "root", HeaderHidden: true, StyleFunc: ui.Filled(colors.Background), Children: []core.Node{root}}
+		return base.NavPage{TestID: "root", HeaderHidden: true, StyleFunc: ui.Filled(colors.Background), Children: []core.Node{root,
+			add.Sheet(cx, s, adding.Get, func() { adding.Set(false) }, openJobs),
+			ui.Toasts{Toaster: toaster, TestID: "toasts"},
+		}}
 	})
 }

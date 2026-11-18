@@ -5,6 +5,7 @@ import (
 	"context"
 	"os"
 	"path/filepath"
+	"slices"
 	"strings"
 	"testing"
 	"time"
@@ -82,7 +83,8 @@ func (p *phone) openTab(i int, name string) {
 		p.app.Press("id:tab-bar >> label:" + name)
 		return
 	}
-	p.app.Emit("id:tab-bar", "change", float64(i))
+	// A phone's bar shows no Jobs, so a tab's place on it is not its number.
+	p.app.Emit("id:tab-bar", "change", float64(slices.Index([]int{filmsTab, learnTab, settingsTab}, i)))
 }
 
 // startPairing goes through a new phone's introduction to its pairing step.

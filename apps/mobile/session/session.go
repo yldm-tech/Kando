@@ -130,6 +130,8 @@ type Session struct {
 	// prefsMu orders the saves of the preferences as saveMu does the desktops': prefsSaving is the generation SetPrefs last gave out, prefsSaved the one last written.
 	prefsMu                 gosync.Mutex
 	prefsSaving, prefsSaved uint64
+	// remote follows the computers' queues (queue.go).
+	remote *remote
 }
 
 // filmSave is what is still to be written of a film's record: next, once pending; or its folder deleted, once removed.
@@ -182,9 +184,11 @@ func New(cx *core.Scope, cfg Config) *Session {
 		posters:   map[string][]byte{},
 		filmSaves: map[string]*filmSave{},
 		closed:    make(chan struct{}),
+		remote:    newRemote(cx),
 	}
 	cx.Cleanup(func() {
 		close(s.closed)
+		s.stopFollowing()
 		for _, j := range s.jobs {
 			j.cancel()
 		}
@@ -211,6 +215,7 @@ func New(cx *core.Scope, cfg Config) *Session {
 		films, _ := s.st.Films()
 		used, _ := s.st.Used()
 		prefs, _ := s.st.Prefs()
+		links, _ := s.st.Links()
 		// A phone that paired or downloaded before the introduction existed has been introduced already.
 		migrated := !prefs.Onboarded && (len(desktops) > 0 || len(films) > 0)
 		prefs.Onboarded = prefs.Onboarded || migrated
@@ -236,6 +241,10 @@ func New(cx *core.Scope, cfg Config) *Session {
 				t[key] = Transfer{State: Paused, Done: done, Total: f.Film.VideoSize}
 			}
 			s.transfers.Set(t)
+			s.loadLinks(links)
+			for _, d := range desktops {
+				s.follow(d.ID)
+			}
 			s.loaded.Set(true)
 		})
 	})
@@ -320,6 +329,7 @@ func (s *Session) AddDesktop(d store.Desktop) {
 		list = append(list, d)
 	}
 	s.setDesktops(list)
+	s.follow(d.ID)
 }
 
 // Unpair forgets desktop id and stops its downloads; the films kept from it stay.
@@ -331,6 +341,7 @@ func (s *Session) Unpair(id string) {
 			s.setTransfer(key, func(t Transfer) Transfer { t.State = Paused; return t })
 		}
 	}
+	s.forgetQueue(id)
 	if c, ok := s.clients[id]; ok {
 		c.Close()
 		delete(s.clients, id)
