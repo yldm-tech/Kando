@@ -756,7 +756,7 @@ export function kandoManifest() { return { /* identical to kando-plugin.json fie
   4. 用户在确认 sheet 上点「安装」后，在引擎 goroutine 上关掉同 id 包的句柄，再 `plugins.Swap`（5.1 节的顺序）。
   5. 残留的 `.staging-`、`.old-` 目录超过 24 小时才清理。清理由每次 `Stage` 开始时顺带做，不另设入口。rename 会保留目录原来的修改时间，很久以前装的包刚被挪开时看起来也已经过了 24 小时，所以挪开的目录命名为 `.old-<挪开时的秒数>-<随机串>`，`.old-` 目录的年龄从名字里的时间算起，免得另一个 Kando 的 `Stage` 删掉 `Swap` 回滚还要用的旧包。
 - 每次启动 Scan 时，用同一个校验器再校验一遍。清单、字段和目录形状每次都查；内容哈希（和词典嵌套 zip 的检查）按包里每个文件的（文件名、大小、修改时间）缓存在插件目录的 `.hashes.json`（`plugins/hashcache.go`，写临时文件再 rename），都没变就沿用上次的哈希，不再把可能解开有 1 GiB 的词典读一遍，`kando plugin list` 也一样。修改时间离这次 Scan 不到 3 秒的文件不缓存（文件系统的时间粒度可能只到秒），下次再读；缓存的格式号变了、读不了或超过 4 MiB 就全部重算，校验规则一旦改到文件内容（哈希、上限、嵌套 zip 的检查）就要升 `hashCacheFormat`。同用户的程序可以改了文件再把大小和时间改回去，让旧哈希继续有效；它本来就能改 state.json，所以这不扩大 6.7 的风险。`Stage` 和 `kando plugin validate` 仍完整校验。
-- 第一版不做在线更新：更新就是安装一个新文件，走同样的确认流程，授权按 6.2 节的子集规则处理。将来做社区索引时，只从签名索引里列出的条目自动更新；能力扩大的版本必须由用户确认；离线模式下不检查。
+- 第一版不做在线更新：更新就是安装一个新文件，走同样的确认流程，授权按 6.2 节的子集规则处理。P5 的社区索引（第 15 节）也不自动更新：签名索引里列出的版本比已装的新时，「浏览插件」显示「更新」，点了照样下载、走同样的确认流程和子集规则；离线模式下不检查。
 - 插件文件永远不写进 `.app` 包，只放在 `<UserConfigDir>/Kando/plugins/`。
 
 ### 6.6 隔离、熔断与审计
@@ -1001,7 +1001,7 @@ P1.1 的确认框只有数据包要显示的部分：名称（标题）、说明
 
 - 候选译文和机器翻译来源（`media.StageError` 加 `Tools.Engine`）；
 - 播放器侧栏的「扩展」标签和 `tsx.View`；
-- 社区索引（R2，数据包限速后即时上架，代码包审核后上架，安装仍然不授予任何能力）；
+- 社区索引（R2，数据包限速后即时上架，代码包审核后上架，安装仍然不授予任何能力；客户端和打包工具已做，见第 15 节）；
 - TTS。
 
 ## 11. 新依赖
@@ -1062,7 +1062,7 @@ P0–P2 不新增任何 module。P3a 起 `github.com/dlclark/regexp2/v2 v2.11.0`
 2. **开发者模式的细节**：是否允许用户本机 dev root 侧载（默认建议允许，开着时一直显示徽标）；dev 包能否覆盖、何时过期；是否做 trust.json 的回退检测（6.4 节的可选加固）。
 3. **（已定，P3a 按此实现）P3.0 spike 的放行门槛**：owner 接受约 +20 MiB 的体积和 regexp2、pprof 两个依赖；默认 token 预算随 `llm.chat` 到 P3b 再定。原文：测量已做完（第 15 节），建议是有条件放行，要 owner 拍板的是：能否接受安装包里的可执行文件大 19–21 MiB（约 +37%，削不掉，原因见第 15 节）；能否接受最坏卡一个 500ms 片段、多占约 0.5 GB，再由看门狗停掉插件；P3 要在 `apps/kando/go.mod` 加 `github.com/dlclark/regexp2/v2`（变成直接依赖，用来设 `DefaultMatchTimeout`）和 `github.com/google/pprof`（indirect），这与 12.2 第 7 条「不新增任何 Go module」字面上冲突，版本都是 NSGo 已经选定的；默认每日 token 预算（建议每个插件 50k）。
 4. ~~**是否做站点包（P4）**~~：owner 决定做，P4.0、P4.1 已完成（第 15 节）。
-5. **社区索引**（P5）：做不做，代码包审核由谁负责。
+5. **社区索引**（P5）：客户端、签名格式和 `kando plugin index` 已做（第 15 节）；仍待决定的是索引密钥由谁保管（现在 `script.IndexKey` 暂用官方根公钥的值）、上架和限速的流程、代码包审核由谁负责。
 6. **是否把看懂自己的 LLM key 迁进 `core.Secrets`**：与插件无关的加固，作为独立 PR，Linux 上需要保留明文退路。
 7. **外部原生工具或 MCP 子进程插件**：本设计否决了。如果以后识别（faster-whisper）、下载器确有需求，需要单独立项，前提是先给 `media.Command` 补上进程组或 Job Object、WaitDelay 和整棵进程树的 kill。顺带一提，这三项的缺失本身就是一个与插件无关的现有风险：任务取消时，yt-dlp 启动的 ffmpeg 孙进程不会被一起杀掉，`runFollowing` 可能卡在 `cmd.Wait`。这一点是读代码推断的，没有复现，建议单独开 issue。
 
@@ -1121,6 +1121,7 @@ P0–P2 不新增任何 module。P3a 起 `github.com/dlclark/regexp2/v2 v2.11.0`
 | P4.0 | `core.ValidateVideoSite`、`ValidateVideoSites`、`VideoMatcher` | `feat/plugins-sites` | 已完成 |
 | P4.1 | site kind、`pluginSites`（工具栏的「下载视频」和网页按钮）、逐域名同意、站点包任务不借用登录 | `feat/plugins-sites` | 已完成 |
 | P5 底座（E14） | `*media.StageError`（失败带步骤和来源，library.json 加 `errorStage`、`errorSource`）、`media.Tools.Engine`/`EngineName`、`Tools.Candidates`，失败卡片说出是哪个翻译来源失败的 | `refactor/media-stage-error` | 已完成，出入见下 |
+| P5 社区索引 | `plugins/index`（签名索引的格式、校验、缓存和 ETag、下载）、设置 › 插件 的「浏览插件」、`kando plugin index` | `feat/plugins-community-index` | 客户端和工具已完成，出入见下 |
 | P5 其余 | 按需单独立项（DeepL 类插件本身要等 P3b 的 `credentialFetch`） | — | 未开始 |
 
 P1.2 的测量结果（Ubuntu 编译机，x86_64，Go 1.27.4，kagome-dict/ipa v1.2.6；每次读 `/proc/self/status` 前先 `runtime.GC()` 和 `debug.FreeOSMemory()`，各在一个新进程里量，量完的测试没有提交）：
@@ -1276,6 +1277,34 @@ P1.2 的测量结果（Ubuntu 编译机，x86_64，Go 1.27.4，kagome-dict/ipa v
   - 一个插件格式的导出在插件没在运行时按 SRT 显示，但改别的选项时不会把记住的插件格式改成 SRT，插件回来后还是它。收藏导出到插件时按「取消」显示「已停止」，插件之后的回答丢掉。
   - 纯函数放进了非界面包：`script.FetchRevocations`、`RevocationsChecked`、`SetRevocationsChecked`、`plugins.Manifest.SecretKeys`；「添加的功能」的文字是 `settings.PluginAdds`，和 `settings.PluginDetail` 放在一起（要用 catalog，`plugins` 不导入 `locales`）。
   - 测试：`plugins` 的清单和凭据规则（`contrib_test.go`）、`plugins/script` 的 Probe 和 host 超时、`annotate`/`lookup` 的回答解析，app 层 `plugins_contrib_test.go`：四个贡献点各一个端到端测试；`llm.chat` 的回答不含地址和 key、用量计入预算和 audit.log、超预算拒绝、超时不熔断；`sound.read` 用假 ffmpeg 切、没有 ffmpeg 拒绝；`credentialFetch` 没存密钥拒绝、只在授权的 host/method/path 注入、响应头只留 Content-Type、不跟随重定向、插件的 `Secrets` 读不到密钥、插件不能自己设凭据的头或 Cookie、离线拒绝；详情页的密钥字段和「只会发送到」一行；没有安全存储时停用并说明；吊销列表 404 照常、吊销后关闭并显示「已被撤回」、过期只暂停联网的非官方插件。截图场景 `plugins-script-lookup`、`plugins-script-subtitle-format`、`plugins-script-exporter`、`plugins-script-credential`、`plugins-script-marks` 只在 Linux 上跑了无头断言，没有出图。
+
+- P5 社区索引（客户端和工具）：服务端（R2 的桶、上架和限速、代码包审核）不在仓库里，本 PR 没有建任何仓库，也没有上传任何东西。和正文（10 节 P5、6.5）的出入和细节如下：
+  - 格式（`plugins/index`，非界面包）：索引文件是 `{"format": "kando-plugins-index", "version": 1, "signer", "signature", "body"}`，`body` 是索引 JSON 的 base64，里面是 `format`、`version`、`generated`（生成时间）和 `entries`。签名是 Ed25519 对 `kando-plugins-index-v1`、一个 0 字节和 body 的 SHA-256 签的，做法和 tsx/pkg 给包、证书、吊销列表签名一样，但上下文不同，所以同一把键签的别的东西不会被当成索引。tsx/pkg 的签名封装（`keys.go` 的 `signed`、`signBody`、`framed`）和上下文常量都没有导出，只能复用它的键编码：`pkg.DecodePublicKey`、`DecodeSecretKey`、`EncodeSecretKey`、`KeyID`、`GenerateKey`；格式和版本在签名外也写一份，好让旧版在验签前就认出新格式（`ErrVersion`）。验签之后用 `DisallowUnknownFields` 严格解码，再逐条校验。
+  - 条目：`id`、`kind`、`name`、`summary`（清单的 description）、`version`、`publisher`、`license`、`homepage`、`size`、`sha256`、`url`、`languages`、`minKando`、`source`。校验复用清单的规则（`plugins/check.go` 把 `checkID`、名称和说明的清洗与长度、保留名、版本、许可证、语言标签导出成 `plugins.CheckID` 等）：kind 必须是这个版本能装的；`publisher` 必须等于 id 的第一段；`size` 在 1 字节和这种 kind 的 zip 上限（`plugins.ZipMax`）之间；`sha256` 是 64 位小写 hex；`url` 和 `homepage` 只认 https（回环地址的 http 也不行，`plugins.CheckHTTPS`）；`languages` 最多 16 个、不重复；`minKando` 只有脚本插件能写，是 `MAJOR.MINOR.PATCH`；`source` 只有脚本插件写，而且只能是 `official` 或 `verified`，数据包不写。整份索引最多 4 MiB、5000 条，同一个 id 只能出现一次，任何一条不对就整份不用。
+  - 公钥：`script.IndexKey`，写在 `script.OfficialRoot` 旁边，是另一个常量。键的格式和官方根一样（32 字节 Ed25519 公钥的标准 base64），所以暂时写成 `= OfficialRoot`，owner 生成索引专用的键之后换掉；常量为空时「浏览插件」显示「这个版本的看懂没有插件目录」，不发任何请求（`index.ErrNotConfigured`）。
+  - 地址：`index.DefaultURL` 是 `https://plugins.kando.yldm.ai/index.json`。应用更新走 GitHub Releases 的 appcast（`nsgo.yaml` 的 `release`），仓库里没有现成的 R2 主机可以共用；`kando.yldm.ai` 是官网（GitHub Pages），所以用它的子域名，由 R2 桶的自定义域名提供，包文件放在同一个桶的 `packs/` 下。
+  - 缓存和刷新：索引原样存在插件文件夹的 `.community/index.json`，旁边的 `index-meta.json` 记着地址、ETag 和上次询问的时间。只在用户打开「浏览插件」时读缓存；缓存距上次询问满 24 小时（`index.RefreshEvery`）、或者没有缓存、或者地址变了，才自动问一次，「刷新」随时可以问。请求带 `If-None-Match`，304 时沿用缓存；新索引的 `generated` 早于缓存的拒收（`ErrRollback`），防止被攻破的主机把撤下的条目换回来；验签、格式、条目不对时保留缓存，状态行写原因。离线模式下不发任何请求，显示缓存和它的日期，「刷新」和「安装」都灰掉。启动时不问：插件页不打开就不会有这个请求，所以没有加 `areaHooks`。所有请求只认 https，重定向只跟同一主机的 https，最多 5 次（`ErrRedirect`）。
+  - 安装：先下载到临时文件夹，最多读到条目的 `size` 多一个字节，大小和 SHA-256 都要等于条目的（`ErrTooLarge`、`ErrChecksum`），然后走和「从文件安装…」同一条路径：`plugins.Stage`（里面是 `Validate`）、脚本插件的 `script.Verify`、`pluginsAskStaged` 打开安装确认。另外查两件事：读出的包的 id、kind、version 必须等于条目写的；脚本插件验签得出的来源必须等于条目的 `source`（都是 `ErrNotListed`）。下载和这些检查的失败也显示在确认框的失败视图里。确认框的来源一行写「来自看懂的插件目录 · 未签名」（数据包本身仍没有签名，只有索引签了名），脚本插件在证书来源下面多一行「从看懂的插件目录下载」。授权规则一点没变：task 包和脚本插件装好是关的，脚本插件不授予任何权限，更新时按 `plugins.InstallEntry` 的子集规则。
+  - 更新：已装的版本比索引里的旧时（`index.Newer`：按点分段比，数字段按数值比，带 `-` 后缀的比不带的旧，`+` 之后不比），那一行显示已装的版本和「更新」，点了走同一条安装路径，确认框写明替换的版本。不自动更新。需要更新版本看懂的脚本插件（`minKando`）显示「需要看懂 x.y.z」，不能装。
+  - 界面：设置 › 插件 顶部的按钮行多了「浏览插件…」（展开后变成「收起插件目录」），展开后在已安装列表上面显示「插件目录」：「刷新」、状态行、搜索框（按 id、发布者和各种语言的名称、说明找）、种类下拉框，最多列 50 条，更多时下面写一句。代码是 `settings/plugins_index.go`、`state_plugins_index.go`、`bind_plugins_index.go`；共享文件只动了 `state_plugins.go`（`pluginsUI.index`、`pluginsPending.listed`、`newPluginsUI`）、`bind_plugins.go`（`PluginInstall` 的 `Listed` 和错误映射各一行）、`settings/plugins.go`（`PluginsApp` 嵌入 `PluginIndexApp`、按钮、区块、确认框的来源）。
+  - 没有做：设置 › 隐私 的「每一步会不会联网」里没有加这一项（只在用户打开插件目录时联网）；吊销列表不随索引发布（P3c）；`kando plugin index` 不读吊销列表，被吊销的包要先从文件夹里拿掉。
+  - 测试：`plugins/index` 的单元测试（签名被改、没签名、换了键都拒收，格式和每个字段，大小上限，httptest 的 TLS 服务器上的缓存、ETag、304、回滚、重定向和下载的大小与哈希）；`cli` 的 `TestPluginIndex*`；根目录的 `TestPluginIndex*`（打开前不发请求、搜索和种类过滤、安装要经过确认、task 包装好是关的、更新、哈希不符和条目不符拒装、离线只看缓存、每日刷新和 304、伪造的索引、没有公钥、脚本插件装好是关的且来源不符拒装）。截图场景 `plugins-index`（`TestScreenshotsPluginIndex`）在 Linux 上只跑了无头断言（`TestPluginIndexScene`），没出图。
+
+**发布社区索引**（`kando plugin index`，`cli/plugin_index.go`）：
+
+```sh
+# Once, on the offline machine: the index key. Its public key replaces script.IndexKey; the secret never leaves the machine that signs.
+go tool nsgo keygen
+# Put every pack file to list in one folder: .zip, .kandopack or .kandoplugin, a file per pack, nothing else (dot files are skipped).
+# Each is checked as Kando installs it (plugins.Stage, and a script plugin's signature against Kando's official root), and the index is signed with the key in the environment.
+KANDO_PLUGINS_INDEX_KEY=<index secret> kando plugin index ./packs --base https://plugins.kando.yldm.ai/packs --out index.json
+```
+
+- 私钥只从环境变量 `KANDO_PLUGINS_INDEX_KEY` 读（`go tool nsgo keygen` 打印的 secret），不接受 flag 或文件参数，和 nsgo 的 `NSGO_ROOT_KEY`、`NSGO_RELEASE_KEY` 一样。
+- 文件夹里任何一个包没通过检查、有别的文件、或者同一个 id 出现在两个文件里，命令就失败并指出是哪个文件，不写索引，免得发布者以为列上了的包被悄悄漏掉。脚本插件必须由官方根签的证书覆盖（来源是 official 或 verified），开发者密钥签的插件拒收。
+- 每个包的 URL 是 `--base` 加上文件名（按 URL 转义），所以上传时保持文件名不变。先把 `./packs` 里的文件按原名上传到 R2 桶的 `packs/`，再上传 `index.json` 到桶的根，免得索引指向还没上传的文件。已经发布的包文件不要原地替换：新版本用新文件名（例如带上版本号），因为还缓存着旧索引的 Kando 会按旧的 SHA-256 校验它。`index.json` 的缓存时间设短一些（例如 5 分钟），包文件可以长期缓存。
+- 上架规则按 10 节 P5：数据包过了限速就能上架，脚本插件要先审核（含 network 规则是否最窄），上架之后安装仍然不授予任何能力。从索引里撤下一个包只是不再列出，已经装了的不受影响；真正要停掉一个脚本插件要靠吊销列表（6.4）。
+- 每次重新生成的索引 `generated` 都更新，Kando 拒收比缓存旧的索引，所以不要把旧的 `index.json` 重新上传回去。
 
 ### P3.0 spike 的测量结果
 
