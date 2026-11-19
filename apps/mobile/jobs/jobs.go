@@ -69,7 +69,7 @@ func section(cx *core.Scope, s *session.Session, desktop string, act Actions) co
 		return out
 	}
 	colors := ui.ColorsOf(cx)
-	online := func() bool { return queue().Reach == session.Online }
+	online := func() bool { return reached(queue()) }
 	return core.View{TestID: "jobs-desktop-" + desktop, Style: core.Style{Gap: 12}, Children: []core.Node{
 		computerCard(cx, s, desktop),
 		// A computer that made the phone read-only keeps showing its jobs, without the buttons that would change them, and says why.
@@ -98,7 +98,7 @@ func name(s *session.Session, desktop string) string {
 func computerCard(cx *core.Scope, s *session.Session, desktop string) core.Node {
 	colors := ui.ColorsOf(cx)
 	queue := func() session.Queue { return s.Queue(desktop) }
-	online := func() bool { return queue().Reach == session.Online }
+	online := func() bool { return reached(queue()) }
 	return core.View{TestID: "jobs-computer-" + desktop, Style: core.Style{Direction: core.Row, AlignItems: core.AlignCenter, Gap: 12, Padding: core.Symmetric(12, 14), CornerRadius: ui.RadiusCard, BorderCurve: core.BorderCurveContinuous},
 		StyleFunc: func() core.Style { return core.Style{Background: ui.Alpha(colors.Text(), 0.045)} },
 		Children: []core.Node{
@@ -131,6 +131,11 @@ func computerCard(cx *core.Scope, s *session.Session, desktop string) core.Node 
 				}},
 			}},
 		}}
+}
+
+// reached reports whether the phone reaches the computer of q: online, and not through a storage that refuses it, which the card's summary says instead (summary), as the follower may not have found the computer out of reach yet.
+func reached(q session.Queue) bool {
+	return q.Reach == session.Online && !(q.Relayed && q.Storage != sync.RelayNoFailure)
 }
 
 // summary is what a computer's queue is doing, as its card says it, and that it is reached through the user's storage when it is, or why that storage failed the phone.
