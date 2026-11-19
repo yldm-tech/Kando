@@ -166,6 +166,7 @@ func (a *app) phoneSyncStart() {
 		Subscriptions: phoneSubscriptions{a},
 		Glossary:      phoneGlossary{a},
 		FilmOps:       phoneFilmOps{a},
+		Marks:         phoneMarks{a},
 		Relay:         a.phoneRelayBucket(),
 		RelayHealth:   a.phoneRelayHealth(gen),
 		Films:         a.phoneFilmsConfig(gen, a.currentStore()),

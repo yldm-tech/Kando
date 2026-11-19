@@ -95,72 +95,20 @@ func (a *app) pluginsMarksFollow() bool {
 	for i, c := range cues {
 		_, lines[i] = film.SplitCue(c.Text)
 	}
-	src := annotate.Sources{Spoken: key.spoken, Readings: key.readings, Analyze: key.analyze}
-	if key.readings {
-		src.Dicts, _ = a.pluginsDictsFor("zh", "")
-	}
-	if key.known {
-		src.Known = map[string]bool{}
-		for _, w := range a.savedBook().Words {
-			if annotate.SpokenIn(w.Spoken, key.spoken) {
-				src.Known[wordlist.Key(w.Text)] = true
-			}
-		}
-	}
-	src.Stop = stop.Load
+	job := a.pluginsMarkJobFor(key)
+	job.src.Stop = stop.Load
 	// The originals the marks shown hold for the same film marked the same way are not marked again.
-	var had map[string][]subtitle.Mark
 	if p.marks.key.sameMarking(key) {
-		had = p.marks.byOriginal
-	}
-	var fresh []string
-	for _, line := range lines {
-		if _, ok := had[line]; !ok {
-			fresh = append(fresh, line)
-		}
-	}
-	var cached *pluginsList
-	if listed {
-		src.ListLanguage = pack.Wordlist.Language
-		if p.list != nil && p.list.id == pack.ID && p.list.hash == pack.Hash {
-			cached = p.list
-		}
+		job.had = p.marks.byOriginal
 	}
 	update := a.update
 	go func() {
-		list := cached
-		if listed && list == nil {
-			l, err := wordlist.Open(pack)
-			list = &pluginsList{id: pack.ID, hash: pack.Hash, l: l, err: err}
-		}
-		if list != nil {
-			src.List = list.l
-		}
-		got := annotate.Lines(fresh, src)
-		if stop.Load() && (list == nil || list == cached) {
+		marks, byOriginal, list := job.run(lines)
+		if stop.Load() && (list == nil || list == job.cached) {
 			return
 		}
-		byOriginal := make(map[string][]subtitle.Mark, len(lines))
-		for i, line := range got {
-			var marks []subtitle.Mark
-			for _, m := range line {
-				marks = append(marks, subtitle.Mark(m))
-			}
-			byOriginal[fresh[i]] = marks
-		}
-		marks := make([][]subtitle.Mark, len(lines))
-		for i, line := range lines {
-			m, ok := byOriginal[line]
-			if !ok {
-				m = had[line]
-				byOriginal[line] = m
-			}
-			marks[i] = m
-		}
 		update(func() {
-			if list != nil && list != cached {
-				p.list = list
-			}
+			a.pluginsKeepList(list, job.cached)
 			if p.stop != stop || stop.Load() {
 				return
 			}
@@ -169,6 +117,85 @@ func (a *app) pluginsMarksFollow() bool {
 		})
 	}()
 	return forgot
+}
+
+// pluginsMarkJob is what computing the marks of a key takes, read on the engine's goroutine (pluginsMarkJobFor): the sources but the word list, the word list chosen when there is one (pack, listed), the list read of it already (cached), which run reads otherwise, and had, the marks of originals computed before for the same film marked the same way (pluginsMarks.byOriginal), which run takes rather than marking those originals again.
+type pluginsMarkJob struct {
+	src    annotate.Sources
+	pack   plugins.Pack
+	listed bool
+	cached *pluginsList
+	had    map[string][]subtitle.Mark
+}
+
+// pluginsMarkJobFor is what computing the marks of key takes, on the engine's goroutine: the Chinese dictionaries open for the readings, the words of the vocabulary spoken in the film's language for the dashed lines, and the word list chosen.
+func (a *app) pluginsMarkJobFor(key pluginsMarkKey) pluginsMarkJob {
+	p := &a.plugins
+	j := pluginsMarkJob{src: annotate.Sources{Spoken: key.spoken, Readings: key.readings, Analyze: key.analyze}}
+	if key.readings {
+		j.src.Dicts, _ = a.pluginsDictsFor("zh", "")
+	}
+	if key.known {
+		j.src.Known = map[string]bool{}
+		for _, w := range a.savedBook().Words {
+			if annotate.SpokenIn(w.Spoken, key.spoken) {
+				j.src.Known[wordlist.Key(w.Text)] = true
+			}
+		}
+	}
+	j.pack, j.listed = a.pluginsMarkList()
+	if j.listed {
+		j.src.ListLanguage = j.pack.Wordlist.Language
+		if p.list != nil && p.list.id == j.pack.ID && p.list.hash == j.pack.Hash {
+			j.cached = p.list
+		}
+	}
+	return j
+}
+
+// run computes the marks of lines, the originals of a film's lines, off the engine's goroutine (annotate.Lines), marking only the originals j.had does not hold: it answers each line's marks, index for index, those marks by original, and the word list read for them, nil when none is chosen: the one read already, or the one it read, which the engine's goroutine keeps (pluginsKeepList).
+func (j pluginsMarkJob) run(lines []string) ([][]subtitle.Mark, map[string][]subtitle.Mark, *pluginsList) {
+	list := j.cached
+	if j.listed && list == nil {
+		l, err := wordlist.Open(j.pack)
+		list = &pluginsList{id: j.pack.ID, hash: j.pack.Hash, l: l, err: err}
+	}
+	src := j.src
+	if list != nil {
+		src.List = list.l
+	}
+	var fresh []string
+	for _, line := range lines {
+		if _, ok := j.had[line]; !ok {
+			fresh = append(fresh, line)
+		}
+	}
+	got := annotate.Lines(fresh, src)
+	byOriginal := make(map[string][]subtitle.Mark, len(lines))
+	for i, line := range got {
+		var marks []subtitle.Mark
+		for _, m := range line {
+			marks = append(marks, subtitle.Mark(m))
+		}
+		byOriginal[fresh[i]] = marks
+	}
+	marks := make([][]subtitle.Mark, len(lines))
+	for i, line := range lines {
+		m, ok := byOriginal[line]
+		if !ok {
+			m = j.had[line]
+			byOriginal[line] = m
+		}
+		marks[i] = m
+	}
+	return marks, byOriginal, list
+}
+
+// pluginsKeepList keeps list, the word list a computation of marks read (pluginsMarkJob.run), when it is not cached, the one it was given.
+func (a *app) pluginsKeepList(list, cached *pluginsList) {
+	if list != nil && list != cached {
+		a.plugins.list = list
+	}
 }
 
 // pluginsMarkStop stops the marks being computed, if any, at the next line (annotate.Sources.Stop); their result, if it comes, is dropped.
@@ -182,15 +209,28 @@ func (a *app) pluginsMarkStop() {
 
 // pluginsMarkKey is the open film's key (pluginsMarkKey), and false when there is nothing to mark: no film open with lines, or no mark turned on.
 func (a *app) pluginsMarkKey() (pluginsMarkKey, bool) {
-	p := &a.plugins
-	pack, listed := a.pluginsMarkList()
 	cues := a.playerCues()
-	prefs := p.prefs
-	if len(cues) == 0 || a.player.film.video == "" || (!prefs.readings && !listed && !prefs.known) {
+	if len(cues) == 0 || a.player.film.video == "" || !a.pluginsMarksOn() {
 		return pluginsMarkKey{}, false
 	}
 	job, _ := a.library.Find(a.openKey)
-	key := pluginsMarkKey{video: a.player.film.video, subs: a.pluginsSubsHash(cues), spoken: cmp.Or(job.SpeechLanguage, job.SpokenLanguage), readings: prefs.readings, known: prefs.known}
+	return a.pluginsMarkKeyFor(a.player.film.video, a.pluginsSubsHash(cues), cmp.Or(job.SpeechLanguage, job.SpokenLanguage), true)
+}
+
+// pluginsMarksOn reports whether a mark is turned on: the readings, a word list installed and turned on chosen, or the words in the vocabulary.
+func (a *app) pluginsMarksOn() bool {
+	_, listed := a.pluginsMarkList()
+	return a.plugins.prefs.readings || listed || a.plugins.prefs.known
+}
+
+// pluginsMarkKeyFor is the key (pluginsMarkKey) of the marks of the lines of video, whose hash is subs, heard in spoken, as they are marked now, and false when no mark is turned on. vocab says whether the words of the vocabulary are underlined, as they are in a film of the open library, whose vocabulary is the one the app holds (savedBook).
+func (a *app) pluginsMarkKeyFor(video, subs, spoken string, vocab bool) (pluginsMarkKey, bool) {
+	if !a.pluginsMarksOn() {
+		return pluginsMarkKey{}, false
+	}
+	prefs := a.plugins.prefs
+	pack, listed := a.pluginsMarkList()
+	key := pluginsMarkKey{video: video, subs: subs, spoken: spoken, readings: prefs.readings, known: prefs.known && vocab}
 	if listed {
 		key.list = pack.ID + "\x00" + pack.Hash
 	}

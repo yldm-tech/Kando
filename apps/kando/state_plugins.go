@@ -52,6 +52,8 @@ type pluginsUI struct {
 	stop      *atomic.Bool
 	subs      pluginsSubs
 	list      *pluginsList
+	// phone is the marks computed for the phones' films (state_plugins_phonemarks.go).
+	phone pluginsPhoneMarks
 	// dictHintShown is set once the lookup card showed the hint to install an offline dictionary (pluginsDictHint), which shows once.
 	dictHintShown bool
 	// sites are the site packs turned on with the domains the user allowed, which the browser's 下载视频 knows (state_plugins_sites.go).

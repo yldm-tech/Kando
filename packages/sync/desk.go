@@ -79,6 +79,8 @@ type Desk struct {
 	Glossary GlossaryService
 	// Films answers the calls on a film of a library (films.go), nil for a desktop that does not, which answers them CodeUnsupported.
 	Films FilmService
+	// Marks answers OpFilmMarks (marks.go), nil for a desktop that does not mark its films' words, which answers it CodeUnsupported.
+	Marks MarkService
 	// Relay answers OpRelayJoin, nil while the desktop's storage relay is off, which answers it CodeUnsupported.
 	Relay   RelayJoiner
 	Journal *Journal
@@ -272,6 +274,8 @@ func (d *Desk) answer(ctx context.Context, caller Caller, call Call) (any, error
 		return d.answerGlossary(ctx, caller, call)
 	case OpFilmRetranslate, OpFilmExport, OpFilmDelete, OpFilmVideo:
 		return d.answerFilms(ctx, caller, call)
+	case OpFilmMarks:
+		return d.answerMarks(ctx, caller, call)
 	case OpEvents:
 		var w EventsWait
 		if err := args(call, &w); err != nil {

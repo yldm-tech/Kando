@@ -87,6 +87,8 @@ type Config struct {
 	Glossary psync.GlossaryService
 	// FilmOps is what protocol v2's calls do to a film: translate it again, export its subtitles, delete it and download its video; nil answers them unsupported.
 	FilmOps psync.FilmService
+	// Marks is the word marks of the films' lines protocol v2's calls ask for; nil answers them unsupported.
+	Marks psync.MarkService
 	// Relay is the user's bucket the storage relay runs in (relay.go), nil while the relay is off. RelayHealth, when set, is told on a goroutine of the relay's after each of its turns what failed of it, nil for a turn that went through (psync.Relay.Health).
 	Relay       Bucket
 	RelayHealth func(err error)
@@ -173,7 +175,7 @@ func Start(cfg Config) (*Server, error) {
 	if jobs == nil {
 		jobs = noJobs{}
 	}
-	s.desk = &psync.Desk{Service: jobs, State: cfg.State, Settings: cfg.Settings, Study: cfg.Study, Subscriptions: cfg.Subscriptions, Glossary: cfg.Glossary, Films: cfg.FilmOps, Journal: psync.NewJournal(), Desktop: cfg.Name, Now: cfg.Now}
+	s.desk = &psync.Desk{Service: jobs, State: cfg.State, Settings: cfg.Settings, Study: cfg.Study, Subscriptions: cfg.Subscriptions, Glossary: cfg.Glossary, Films: cfg.FilmOps, Marks: cfg.Marks, Journal: psync.NewJournal(), Desktop: cfg.Name, Now: cfg.Now}
 	s.http = &http.Server{
 		Handler:           s.routes(),
 		TLSConfig:         &tls.Config{Certificates: []tls.Certificate{cert}, MinVersion: tls.VersionTLS13},

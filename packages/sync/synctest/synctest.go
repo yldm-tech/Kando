@@ -70,7 +70,9 @@ type Desktop struct {
 	// gloss are the films' glossaries (glossary.go).
 	gloss glossaries
 	// ops are what phones asked of its films (films.go).
-	ops   filmOps
+	ops filmOps
+	// marks are its films' word marks (marks.go).
+	marks marks
 	desk  *sync.Desk
 	libs  []sync.Library
 	films []Film
@@ -87,7 +89,7 @@ func New(t testing.TB, name string) *Desktop {
 	t.Helper()
 	d := &Desktop{Name: name, tokens: map[string]bool{}, names: map[string]string{}, modTime: time.Unix(1_700_000_000, 0), target: "zh-Hans", context: true}
 	d.queue.receive = sync.ReceiveQueue
-	d.desk = &sync.Desk{Service: jobService{d}, State: stateService{d}, Settings: settingsService{d}, Study: studyService{d}, Subscriptions: subscriptionService{d}, Glossary: glossaryService{d}, Films: filmService{d}, Journal: sync.NewJournal(), Desktop: name}
+	d.desk = &sync.Desk{Service: jobService{d}, State: stateService{d}, Settings: settingsService{d}, Study: studyService{d}, Subscriptions: subscriptionService{d}, Glossary: glossaryService{d}, Films: filmService{d}, Marks: markService{d}, Journal: sync.NewJournal(), Desktop: name}
 	mux := http.NewServeMux()
 	mux.HandleFunc("POST "+sync.PathPair, d.pair)
 	mux.HandleFunc("GET "+sync.PathLibraries, d.authed(d.libraries))
