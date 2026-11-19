@@ -45,7 +45,9 @@
 - 数据来源：日语的读音来自 P1.2 的 `segment.Annotated`（IPA 词典的片假名读音换成平假名），只在启用了日语词典包、或选了日语词表时才读那份大词典，否则日语没有读音，词表和已学词也只按表层形查；不读大词典时，凡是 `segment.Annotated` 会按日语切的行（说话语言是 `ja`，或者说话语言不是 `zh` 而行里有假名，比如英语片里夹一句日语）都改用 `segment.Words` 和小词典切，免得一部非日语影片因为一行假名就读进那份约 92 MiB 的词典；假名注音去掉前后相同的假名时，长音符 `ー`（含半角 `ｰ`）和半角片假名也算假名（`ラーメン屋` 读 `らーめんや` 只在 `屋` 上标 `や`），半角浊音符号 `ﾞ` `ﾟ` 不合并，遇到时读音盖住的范围宽一些；中文的读音（拼音）取自已启用的中文词典包（`a.pluginsDictsFor("zh", "")` 的顺序，第一个有读音的），同一个词一次计算里只查一次；等级来自选中的 wordlist 包，日语先按原形再按表层形查，只给语言和词表 `language` 相同的行上色；已学词来自生词本（`savedBook().Words` 里说话语言和这部影片相同的词（`annotate.SpokenIn`），按 `wordlist.Key` 小写比较），没有用 study 的 `WordIndex`，因为要一次判断整部影片的所有词。没有词频。
 - 何时计算：插件块自己的 `playing` 和 `afterChange` 钩子（都是 `pluginsMarksFollow`；`afterChange` 管暂停时的改动，比如改了一行字幕、往生词本里加了词）每次只算一个可比较的键 `pluginsMarkKey`：视频、字幕哈希（`pluginsSubsHash`：只哈希每行的起止时间和原文（`film.SplitCue`），不含译文，所以翻译一批批写进来、或只改了译文时不重算；播放器换字幕时总是换一个新切片、从不原地改，所以只在切片变了时才重新哈希）、说话语言、三个开关、选中词表的 id 和内容哈希、已打开的中文词典的 id 和哈希、是否读大词典，以及生词本的内容指纹（`pluginsVocabHash`：和影片说话语言相同的词按 `wordlist.Key` 各取 `maphash.String` 哈希（本次运行的种子，不分配内存）后求和，再带上词数，与顺序无关；生词本是原地改的（`study.Book` 的 `slices.Insert`/`Delete`），改它的地方很多（生词本、收藏的句子、两种同步），没有用改动计数器，因为每处都得记得加一，漏一处下划线就不更新，所以每次报进度都扫一遍，只在下划线开着时才算；加词、删词、换词都会重算）。键和已有标注的键、正在算的键都不同时，才在后台 goroutine 里 `annotate.Lines`，算好经 `a.update` 存成不可变的切片；同一时刻只有最新的一份在算：开始新的一份、或键又回到已有标注的键时，前一份的停止标记（`pluginsUI.stop`，`annotate.Sources.Stop`）被置上，它在下一行之前停下，结果即使送回来也丢掉，免得它算完后盖掉当前的标注。它忘掉已读的词表（不再是选中的那份）时也报告有变化，因为插件页的问题区读它。开关在设置里改动时也调一次它；三个开关都关掉或影片没有字幕时丢掉标注。字幕文件被改写后播放器重读（`reloadOpenSubtitles`，字幕还没读完时 `subs.ready` 是 false）期间，它既不丢标注也不丢正在算的那一份，读回来的原文没变就直接沿用。缓存只留当前影片这一份（`pluginsUI.marks`），换回之前看过的影片会重算。不放在 `shelfChanged` 里算，因为每次任务报进度都会触发它；也不去 film 块的打开函数里插调用。绑定里只读缓存，从不调用插件，也不在里面算哈希：`CueMarks` 核对缓存的视频和行数与当前相同，再核对这一行的原文和算标注时的原文（`pluginsMarks.originals`）相同，所以字幕换了切片、新标注还在算的时候，原文没变的行照旧显示旧的标注，读音不会消失再出现、行高不会跳；原文改过的行在新标注到之前不显示标注，旧标注不会画在新文字上。
 - 开关在 设置 › 字幕外观 最后的「逐词标注」卡片（见 7.4）。
-- 手机端暂时没有标注：手机同步协议没有这些字段，要加得改协议和手机界面，另做。
+- 手机端（P1.6）：手机不跑插件、不读那份日语大词典，标注由桌面算好经手机同步发过去。协议 v2 新增调用 `films.marks`（`psync.OpFilmMarks`，`packages/sync/marks.go`），参数是 `FilmRef`，回 `FilmMarks{Pending, Lines}`：只列有标注的行，每行是 `LineMarks{Line, Hash, Marks}`，`Line` 是这一行在 `PathSubtitles` 回的字幕里的序号，`Hash` 是算标注时这一行原文的 `psync.LineHash`（FNV-1a 64 位，36 进制），`Marks` 是 `psync.Mark`（字段和 `subtitle.Mark` 完全相同，桌面直接类型转换，tone 用同名常量 `psync.ToneAccent` 等）。手机用 `FilmMarks.Of(originals)` 按序号对齐自己的原文，哈希不同的行（手机上改过原文的行、或手机存的字幕比桌面旧）不画标注。它是 v2 里新增的调用：桌面在 `Hello.Ops` 里列出它，旧桌面回 `unsupported`（v1 桌面回 404），手机照旧不画标注；旧手机不会调它；它只读（不算 `Mutates`），只读设备也能调。所以不升协议版本，`TestFilmMarksIsAnAddition`、`TestDeskAnswersFilmMarks` 和 `synctest` 的 `TestFilmMarksOverV2` 锁住两个方向。
+  - 桌面（`state_phonesync_marks.go` 的 `phoneMarks`，计算在插件块的 `state_plugins_phonemarks.go`）：找到手机要的影片（`phoneFilmFind`，任何没上锁的资料库），读手机读到的那份字幕（`phoneSource.Cues`），在引擎 goroutine 上用 `pluginsMarkKeyFor` 算键（和当前影片同一套：视频、说话语言、三个开关、词表和中文词典的内容、是否读大词典、生词本指纹；字幕哈希换成只哈希各行原文的 `pluginsOriginalsHash`，因为手机的行不带播放器的时间），开关全关时回空列表，手机据此丢掉存着的标注。当前影片的标注（`pluginsUI.marks`）原文和键（除字幕哈希）都相同时直接用；否则查 `pluginsUI.phone.kept`（最近 8 部影片，最新的在后），都没有就在后台 goroutine 里算（和当前影片共用 `pluginsMarkJobFor`、`pluginsMarkJob.run`，同一个键同时只算一份，后来的调用等同一份结果），算完存进 `kept`。局域网上的调用最多等 10 秒，经存储中转的调用不等（等着会挡住后面的调用），没算完回 `Pending`，手机过后再问。生词本只有当前资料库的（`savedBook`），所以虚线只画在当前资料库的影片上，别的资料库的影片只有读音和等级线。
+  - 手机：手机没有自己的三个开关，跟桌面 设置 › 字幕外观 › 逐词标注 走；只在 设置 › 字幕样式 加了一个「逐词标注」总开关（`store.SubStyle.NoMarks`，默认开），关掉时字幕层和卡片都不画标注。打开影片时（`session.OpenMarks`）先读影片目录里的 `marks.json`，再在局域网上问桌面（桌面说过不支持 `films.marks` 的不问；`Pending` 时最多再问两次），回答写回 `marks.json`，所以离线播放照样有标注；视频下载完时也问一次。画法照桌面（`apps/mobile/player/marks.go` 的 `markSpans`）：读音是 `core.Span.Attachment`（上面是半字号的读音，`VerticalAlignTextBottom`），等级是该 tone 的粗实线，已学词是虚线，粗细和位置都按字号的比例（9%、14%）；颜色取主题角色（`Accent`、`Warn`、`Up`、`Muted`），不写字面量。画面上的字幕和竖屏的卡片都画；卡片上没有标注的词照旧是那条淡黄色的「可点」细线。截图场景 `TestScreenshotsPlayerMarks`（`player-marks`，日语原文带读音、两条等级线和一条虚线）。
 
 **E3 术语表包（P1）**
 - 接入位置：`apps/kando/state_glossary.go` 的 `glossaryStart` 末尾的 `return job, core.MergeTerms(own, series, global)`，改成 `plugins.AddTerms(core.MergeTerms(own, series, global), a.pluginTerms(job))`。`plugins.AddTerms` 把包的条目接在用户的术语表后面，按 `core.SameTerm` 的规则用 map 去重（去掉首尾空白，每个字母换成它的简单大小写折叠 `unicode.SimpleFold` 里最小的那个，和 `strings.EqualFold` 一致，`ſ` 和 `s` 算同一个词），先到的留下，不复制进 glossary.json 那份切片；不直接把包的条目塞进 `core.MergeTerms`，因为它对每一条都线性扫描已有的结果，一个 5000 条的包每次要比较约 1250 万次。按包声明的 from/to 和任务语言过滤：目标语言取任务的 `RedoLanguage`（在改译成别的语言时）或 `Language`，两者都没有时取设置里的翻译语言（`queueRun` 在找完术语表之后才给这样的任务补上语言），经 `core.TargetTag` 换成标签，认不出的目标语言一条也不加；包的 `to` 和它是同一个标签，或其中一方没有文字和地区子标签、语言相同（`zh` 的包对 `zh-Hans`、`zh-Hant` 都适用，`zh-Hans` 的包不适用于 `zh-Hant`）；听到的语言（`SpokenLanguage`，没有就用用户指定的 `SpeechLanguage`）已知时，还要和包的 `from` 是同一种语言，未知时不按来源语言过滤（只有字幕里出现原文的条目才会随批次发出，`core.TermsIn`）。包的条目是 `ScopeGlobal`、不锁定，来源是新加的 `core.OriginPack`（`packages/core/glossary.go`），只在内存里，从不写进术语文件。
@@ -805,7 +807,7 @@ P1.1 的确认框只有数据包要显示的部分：名称（标题）、说明
 - 插件提供的文字来自清单的 `Text` map，只在 `LabelFunc`、`ContentFunc`、`core.Dynamic` 这类绑定里用 `Text.In(i18n.Language(cx))` 解析（NSGo 的语言是字符串，见 `i18n/i18n.go:104`），这样切换语言时会跟着变，满足 `locales/follow_test.go`。找不到当前语言就沿 `i18n.Parent` 回退，最后用 en。
 - 复数只支持 `i18n.Cardinal` 的 one/other，第一版不做。
 - 插件文字一律当纯文本显示，并限制长度。
-- 手机端：不显示插件，只同步插件的产出（glossary 已经体现在字幕里；标注和读音原打算作为普通数据同步，P1.4 还没有做，见 E2）。查词结果经 `vocabResolve` 由桌面算好，回给手机。不加新的 `Platform` 值，不改协议版本。
+- 手机端：不显示插件，只同步插件的产出（glossary 已经体现在字幕里；标注和读音由桌面算好，经协议 v2 新增的 `films.marks` 发给手机，见 E2）。查词结果经 `vocabResolve` 由桌面算好，回给手机。不加新的 `Platform` 值，不改协议版本（`films.marks` 是同一版本下新增的调用）。
 
 ## 8. 代码布局
 
@@ -1092,6 +1094,7 @@ P0–P2 不新增任何 module。P3a 起 `github.com/dlclark/regexp2/v2 v2.11.0`
 | P1.4 | wordlist kind、`plugins/wordlist`、`plugins/annotate`、逐词标注（注音和等级色、已学词下划线）、设置 › 字幕外观 的开关 | `feat/plugins-wordlist` | 已完成 |
 | P1 收尾 | 等级改成彩色粗下划线、已学词改成虚线；卸载遇到更新版本的 state.json 时先拒绝，删掉后没存上 state.json 算卸载好；Scan 的哈希缓存；手机查词卡显示来源（协议加 `WordSource`）；查词卡的离线词典提示和「词典没有这个词，问了 AI」；插件页词典分组的截图 | `feat/plugins-polish` | 已完成 |
 | P1.5 | 官方词典包 | — | 不做（12.2 第 2 条） |
+| P1.6 | 手机端逐词标注：协议 v2 新增 `films.marks`，桌面按需为没打开的影片算标注并缓存，手机的字幕层和卡片画读音、等级线和虚线，存进 `marks.json` 离线可用，设置 › 字幕样式 的总开关 | `feat/plugins-phone-marks` | 已完成，出入见下 |
 | P2（2.0–2.5） | `media.ChatWith`；`aiAsk`；task kind 和每日预算；translate-style kind；`saved/targets.go` 和 export-template kind；把术语表、生词本导出成包 | `feat/plugins-tasks` | 已完成 |
 | P3.0 | spike：体积、引擎阻塞、in-flight 开销、ReDoS 和大分配、缓解手段、签名命令 | `feat/plugins-script-spike`（只提交本文档） | 已测完，结果见下 |
 | P3a | 脚本插件的运行时和安装路径：`plugins/script`（Trust、Verify、预读沙箱、Limits、Sandbox、看门狗、熔断、in-flight 自愈）、script kind 的清单和校验、state.json 的授权、每个插件自己的 host 和 handler、命令贡献、安装确认和详情页的授权、声明式设置、审计日志、开发者模式、`kando plugin validate` 认脚本插件 | `feat/plugins-script` | 已完成，出入见下 |
@@ -1170,7 +1173,7 @@ P1.2 的测量结果（Ubuntu 编译机，x86_64，Go 1.27.4，kagome-dict/ipa v
   - 日语读音只在启用了日语词典包、或选了日语词表时才有（读大词典的门槛，见 E1）；中文拼音只来自中文词典包。词表只给语言和它的 `language` 相同的行画线，说话语言不知道、文字又看不出语言的行（比如没标语言的英文片）不画线。
   - `lineSpans` 除了词和读音的边界，也在画线标注的两端切开（只在最上面那一份；描边副本不画线，不切）：标注来自 `segment.Annotated`，词来自 `segment.Words`，两者不一定切在同一处（比如只有汉字的日语行，`segment.Words` 按中文切）。
   - 描边模式下，读音让行的排版变了，所以描边副本和撑开大小的那一份也带同样的读音 view；没有读音时副本照旧画 Content，不切 spans。
-  - 手机端没有标注（协议没有字段）。
+  - 手机端没有标注（协议没有字段）；P1.6 补上了，见 E2。
   - 词表读不了（`wordlist.ErrEmpty` 或读文件失败）时列在插件页的问题区，同一内容不再重试。
   - 截图场景 `TestScreenshotsPlugins` 加了 `plugins-marks`（日语原文带假名注音和等级色）。Linux 上的 nsgotest 不出图，这一张只在 macOS 的截图任务里画得出来，本次只在 Linux 上断言了标注本身，没有看过实际画面；读音 view 的竖直对齐（`VerticalAlignTextBottom`）和描边副本的模糊滤镜是否作用到 attachment 上，要在 macOS 截图里核对。
 - P1 收尾（已完成）：等级的标注、卸载、Scan 的速度、手机查词卡的来源、查词卡的两句词典提示（7.4、7.5）和插件页词典分组的截图。和正文的出入如下，E1、E2、6.5、7.1、7.2、7.4、7.5、第 9 节已同步改过：
@@ -1178,9 +1181,16 @@ P1.2 的测量结果（Ubuntu 编译机，x86_64，Go 1.27.4，kagome-dict/ipa v
   - 卸载遇到更新版本的 state.json 时在删除之前就拒绝；目录删掉后 state.json 没存上的，插件页说「已完成，但……」，不说失败。安装后没存上也改用这一句（新的 `pluginsErrStateUnsaved`），原来说的是「无法读写这个插件包」，和实际不符（7.1、7.2）。
   - `Scan` 的哈希缓存放在插件目录的 `.hashes.json`，按 `<kind>/<id>` 存每个文件的名称、大小、修改时间（纳秒）和哈希；`Validate` 本身不变，`Scan` 走内部的 `validate(dir, cache)`（6.5）。
   - 手机查词卡的来源：协议的 `WordEntry` 加了可选的 `Source`，不升版本；名称和 attribution 用桌面的界面语言，因为桌面不知道手机的界面语言；手机缓存的旧查词结果没有来源，照旧不显示（E1）。手机截图场景 `player-word` 带了「由 AI 服务解释」一行。
-  - 没做的 P1 缺口：手机端没有逐词标注（要加协议字段和手机的字幕层，不小）；真实的 JMdict、Jitendex、CC-CEDICT 全量文件和 64 个条目的上限没有测（要真实数据和 owner 定上限）；读音 view 的对齐和描边、彩色下划线的实际画面要在 macOS 截图任务里看；`ui.Select` 没有分组（`TODO(nsgo)`，等上游）。
+  - 没做的 P1 缺口：手机端没有逐词标注（P1.6 已补上，见 E2）；真实的 JMdict、Jitendex、CC-CEDICT 全量文件和 64 个条目的上限没有测（要真实数据和 owner 定上限）；读音 view 的对齐和描边、彩色下划线的实际画面要在 macOS 截图任务里看；`ui.Select` 没有分组（`TODO(nsgo)`，等上游）。
   - 离线词典的提示只看装没装这种语言的词典包，不看开没开：装了却关掉是用户自己的选择，提示「去装一个」不对。插件目录还没读完时不提示，免得把已装的词典当成没装。提示作为卡片底部单独的一行加一个「打开插件设置」按钮，按了先关卡片再打开设置 › 插件（`LookupDictionaries`）。
   - 评审后的修正：「词典没有这个词」不再算上查词出错的词典；手机查词卡的「由 … 上的 AI 服务解释」改用回答时桌面发来的名字（`WordSource.Desktop`，可选字段，不升协议版本）；`State.Save` 写之前重读磁盘上的格式；拒绝卸载时的提示和 state.json 的说明不再重复；`StateUnsaved` 挪进 `plugins` 包。
+- P1.6（已完成）：手机端逐词标注。和正文的出入如下，E2、7.6 已同步改过：
+  - 协议加的是一个新调用 `films.marks`，不是在 `PathSubtitles` 的回答里加字段：v1 的字幕路径不经 `Desk`，手机也会经存储中转读字幕（`RelayFilms`），在那里加字段要改中转写的文件；新调用列在 `Hello.Ops` 里，协商规则现成（`v2.go`）。手机只在局域网上问，标注可能要算一会儿，经中转的调用不该等。
+  - 每行带原文的哈希，不是整份字幕一个哈希：手机上改过原文的行（`session.Corrections`）只丢那一行，其余照画；标注只取决于这一行的原文（和开关），所以按行核对就够了，序号对不上时哈希也对不上。
+  - 桌面缓存的是最近 8 部影片的标注（`pluginsPhoneKept`），按键找；键里的字幕哈希只含原文。手机端的标注没有自己的三个开关，只有一个总开关。
+  - 生词本只有当前资料库的，所以别的资料库的影片在手机上没有虚线（E2）。
+  - 卡片（竖屏时显示原文的地方）也画标注，不只是画面上的字幕；没有标注的词照旧画那条淡黄色的「可点」细线。
+  - 截图场景只画卡片：手机目标上报不了视频的进度，画面上的字幕在截图里是空的。横屏画面上的标注由 `TestMarksOnThePicture` 断言。
 - P4.0（已完成）：`core.ValidateVideoSite` 和 `ValidateVideoSites`（`packages/core/videosites_validate.go`）。和正文的出入如下，E8、8.1 已同步改过：
   - 比正文写的更严：字符集之外，反斜杠后面只允许 `\w`、`\W`、`\d`、`\D` 和转义的标点（`\1` 这类反向引用、Go 当 Unicode 类而 JS 当字母读的 `\p`，以及 `\b`、`\s` 都拒收）；大括号只能是紧跟在被重复的东西后面的 `{n}`、`{n,}`、`{n,m}`（每个数最多三位）；不允许以 `]` 开头的字符类（Go 把 `[]a]` 读成含 `]` 和 `a` 的类，JS 读成空类加 `a`）。
   - 「不允许嵌套量词」按 Go 解析出的语法树判断：被 `*`、`+` 或上限大于 1 的计数重复的部分里，不能再有任何量词（包括 `?`），也不能有多选分支（`(a|aa)*` 和 `(a+)+` 一样会让回溯引擎指数级回溯）；只是字符的多选（`(a|b)+`）会被 Go 合并成字符类，允许。另外每个规则最多两个无上限的量词（`*`、`+`、`{n,}`），三个相邻、能匹配同样字符的无上限量词会让回溯引擎对 2048 字节的链接做十亿级的尝试。
