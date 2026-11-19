@@ -34,9 +34,8 @@ type settingsUI struct {
 	reviewAuto kcore.ProofAuto
 	// suggestTerms is whether a job asks the AI service for the terms of the film it translated, for its glossary (media.WithTermSuggestions).
 	suggestTerms bool
-	// translateSource is the translation source chosen in Settings › 翻译, a script plugin's translator, zero for the AI service (state_plugins_translate.go); sourceGoneSaid is set once the message bar said it is gone, so it says so once a run.
+	// translateSource is the translation source chosen in Settings › 翻译, a script plugin's translator, zero for the AI service (state_plugins_translate.go).
 	translateSource savedTranslateSource
-	sourceGoneSaid  bool
 	// shortcutPreset is the preset of Settings › 快捷键 the player's keys follow, one of hotkey.Presets.
 	shortcutPreset string
 	// appearance is the one the windows show: settings.AppearanceLight or AppearanceDark, or "" to follow the system's.
@@ -237,7 +236,7 @@ func (a *app) restoreTranslate(saved savedSettings) {
 	}
 }
 
-// settingsHooks: the settings window saves the speech model, the AI service and the translation, shows the interface in its saved language and appearance once the main window exists, looks for the whisper models on disk again when the tools change, and after every change opens for a settings page chosen in the main sidebar, gives back the trash confirmation's modal flag once it closed, fetches the AI service's models when its settings changed and says once a run that the translation source chosen is gone (pluginsTranslateFollow).
+// settingsHooks: the settings window saves the speech model, the AI service and the translation, shows the interface in its saved language and appearance once the main window exists, looks for the whisper models on disk again when the tools change, and after every change opens for a settings page chosen in the main sidebar, gives back the trash confirmation's modal flag once it closed and fetches the AI service's models when its settings changed.
 func (a *app) settingsHooks() areaHooks {
 	return areaHooks{
 		save: func(saved *savedSettings) {
@@ -268,8 +267,7 @@ func (a *app) settingsHooks() areaHooks {
 			page := a.followSettingsPage()
 			modals := a.speechModals()
 			models := a.loadLLMModels()
-			source := a.pluginsTranslateFollow()
-			return page || modals || models || source
+			return page || modals || models
 		},
 	}
 }

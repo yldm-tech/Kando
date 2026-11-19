@@ -2298,6 +2298,7 @@ precheckSourceRateLimit: "翻譯來源「{source}」要求放慢請求。過幾�
 precheckSourceUnavailable: "翻譯來源「{source}」現在連不上。稍後再重試。"
 precheckSourceNotRunning: "翻譯來源「{source}」沒有在執行。去「外掛」中開啟它的外掛後再重試。"
 precheckSourceBadReply: "翻譯來源「{source}」傳回的句子和送給它的對不上。"
+precheckSourceOffline: "翻譯來源「{source}」不在這台電腦上，而離線模式開著。在「隱私」中關掉離線模式，或換個來源。"
 pluginsTaskCommand: "外掛任務：{name}"
 pluginsTaskNoAI: "外掛任務需要 AI 服務。請先在「AI 服務」裡選擇模型。"
 pluginsTaskBusy: "正在詢問 {model}…"

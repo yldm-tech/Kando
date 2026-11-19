@@ -1068,6 +1068,7 @@ var Parameters = map[string][]string{
 	"PrecheckSourceUnavailable":                {"source"},
 	"PrecheckSourceNotRunning":                 {"source"},
 	"PrecheckSourceBadReply":                   {"source"},
+	"PrecheckSourceOffline":                    {"source"},
 	"PluginsTaskCommand":                       {"name"},
 	"PluginsTaskBusy":                          {"model"},
 	"PluginsTaskFailed":                        {"error_"},
@@ -1767,6 +1768,7 @@ type Translation struct {
 	PrecheckSourceUnavailable                func(source string) string
 	PrecheckSourceNotRunning                 func(source string) string
 	PrecheckSourceBadReply                   func(source string) string
+	PrecheckSourceOffline                    func(source string) string
 	PluginsTaskCommand                       func(name string) string
 	PluginsTaskBusy                          func(model string) string
 	PluginsTaskFailed                        func(error_ string) string
@@ -24950,6 +24952,9 @@ func Supply(lang string, t Translation) {
 	}
 	if t.PrecheckSourceBadReply != nil {
 		s.PrecheckSourceBadReply = t.PrecheckSourceBadReply
+	}
+	if t.PrecheckSourceOffline != nil {
+		s.PrecheckSourceOffline = t.PrecheckSourceOffline
 	}
 	if t.PluginsTaskCommand != nil {
 		s.PluginsTaskCommand = t.PluginsTaskCommand
@@ -63110,6 +63115,38 @@ func (msgs Messages) PrecheckSourceBadReply(source string) string {
 			return "翻译来源「" + source + "」返回的句子和发给它的对不上。"
 		case "zh-Hant":
 			return "翻譯來源「" + source + "」傳回的句子和送給它的對不上。"
+		}
+	}
+}
+
+// PrecheckSourceOffline says "Translation source {source} isn't on this computer, and offline mode is on. Turn offline mode off in “Privacy”, or choose another source."
+// in the language the app shows under cx.
+//
+// Card of a job and the sidebar's status line: offline mode refused the plugin translation source chosen, which reaches a service on the internet.
+func PrecheckSourceOffline(cx *core.Scope, source string) string {
+	return For(cx).PrecheckSourceOffline(source)
+}
+
+// PrecheckSourceOffline is the package's PrecheckSourceOffline in the language of msgs.
+func (msgs Messages) PrecheckSourceOffline(source string) string {
+	if i18n.IsPseudo(msgs.lang) {
+		return i18n.Pseudo(msgs.lang, Messages{lang: Source, mark: true}.PrecheckSourceOffline(source))
+	}
+	for lang := msgs.lang; ; lang = i18n.Parent(lang) {
+		if f := supplied[lang].PrecheckSourceOffline; f != nil {
+			return f(source)
+		}
+		switch lang {
+		case "", "en":
+			return "Translation source " + msgs.arg(source) + " isn't on this computer, and offline mode is on. Turn offline mode off in “Privacy”, or choose another source."
+		case "ja":
+			return "翻訳ソース「" + source + "」はこのコンピュータ上になく、オフラインモードがオンです。「プライバシー」でオフラインモードをオフにするか、別のソースを選択してください。"
+		case "ko":
+			return "번역 소스 \"" + source + "\"는 이 컴퓨터에 있지 않은데 오프라인 모드가 켜져 있습니다. ‘개인정보 보호’에서 오프라인 모드를 끄거나 다른 소스를 선택하십시오."
+		case "zh-Hans":
+			return "翻译来源「" + source + "」不在这台电脑上，而离线模式开着。在「隐私」里关掉离线模式，或换个来源。"
+		case "zh-Hant":
+			return "翻譯來源「" + source + "」不在這台電腦上，而離線模式開著。在「隱私」中關掉離線模式，或換個來源。"
 		}
 	}
 }

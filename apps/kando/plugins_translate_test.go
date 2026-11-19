@@ -4,6 +4,7 @@ import (
 	"context"
 	"crypto/tls"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"net"
 	"net/http"
@@ -20,16 +21,19 @@ import (
 	"kando/apps/kando/plugins"
 	"kando/apps/kando/plugins/script"
 	"kando/apps/kando/settings"
+	"kando/apps/kando/settings/sectionid"
+	"kando/apps/kando/sidebar"
 	"kando/packages/core"
 	"kando/packages/media"
 
 	"github.com/nsgo-dev/nsgo/nsgotest"
 )
 
-// pluginMTFields are the fields of the test plugin acme.mt: a translator of any language, and one from English into Japanese alone.
+// pluginMTFields are the fields of the test plugin acme.mt: a translator of any language, one from English into Japanese alone, and one of any language on this computer.
 const pluginMTFields = `"contributes": {"translators": [
     {"id": "caps", "title": {"en": "Shouty MT", "zh-Hans": "大写翻译"}, "languages": "any"},
-    {"id": "ja", "title": {"en": "Into Japanese", "zh-Hans": "译成日语"}, "languages": {"from": ["en"], "to": ["ja"]}}
+    {"id": "ja", "title": {"en": "Into Japanese", "zh-Hans": "译成日语"}, "languages": {"from": ["en"], "to": ["ja"]}},
+    {"id": "here", "title": {"en": "On this computer", "zh-Hans": "本机翻译"}, "languages": "any", "local": true}
   ]}`
 
 // pluginMTCode is acme.mt's code: translate answers each line in capitals and keeps what it was given, quota as a line rejects with the code quota, short answers a line fewer; candidates offers the line in capitals, its current translation and a blank, twice over.
@@ -103,7 +107,7 @@ func TestPluginTranslatorTranslatesTheFilms(t *testing.T) {
 	}
 	var sources []settings.TranslateSource
 	onEngine(a, func() { sources = a.TranslateSources("zh-Hans") })
-	if fmt.Sprint(sources) != "[{plugin:acme.mt:caps 大写翻译} {plugin:acme.mt:ja 译成日语}]" {
+	if fmt.Sprint(sources) != "[{plugin:acme.mt:caps 大写翻译} {plugin:acme.mt:ja 译成日语} {plugin:acme.mt:here 本机翻译}]" {
 		t.Fatalf("sources %v", sources)
 	}
 	tt = settingsOpenAt(a, tt, settings.SectionTranslate)
@@ -373,7 +377,7 @@ func TestOfficialDeepL(t *testing.T) {
 		t.Fatalf("DeepL heard\n%s\nwant\n%s", strings.Join(requests, "\n"), strings.Join(want, "\n"))
 	}
 	noKeyIn("requests' bodies", bodies)
-	for _, tc := range []struct{ to, from, want string }{{"zh-Hant", "ja", "ZH-HANT JA"}, {"en", "zh", "EN-US ZH"}, {"pt", "", "PT-BR "}, {"en-GB", "en", "EN-GB EN"}, {"de", "", "DE "}} {
+	for _, tc := range []struct{ to, from, want string }{{"zh-Hant", "ja", "ZH-HANT JA"}, {"en", "zh", "EN-US ZH"}, {"pt", "", "PT-BR "}, {"en-GB", "en", "EN-GB EN"}, {"de", "", "DE "}, {"de", "nb", "DE NB"}, {"de", "no", "DE NB"}} {
 		v, err := scriptsCall(t, a, tt, updates, "kando.deepl", "translate", []any{"a"}, tc.from, tc.to, map[string]any{"translator": "deepl"})
 		requests, _ := heard()
 		if err != nil || len(requests) != 1 || !strings.HasSuffix(requests[0], " "+tc.want+" 1") {
@@ -405,5 +409,130 @@ func TestOfficialDeepL(t *testing.T) {
 	_, err = translateWith(t, a, tt, updates, tools, "English", "你好")
 	if got := cardOf(err); got != m.PrecheckSourceQuota("DeepL") {
 		t.Fatalf("an exhausted limit: %q (%v)", got, err)
+	}
+	// Where the system has no secure store the plugin, which has a credential, cannot run: DeepL stays the source, the films fail as not running rather than go to the AI service, and the sidebar says so, with 插件 to fix it.
+	onEngine(a, func() {
+		a.pipeline = readyTools(t)
+		a.side.ready.checked = true
+		a.plugins.script.noSecrets = true
+		a.pluginsScriptsSync()
+	})
+	scriptsSettle(t, a, tt, updates, func() bool { return a.plugins.script.loaded["kando.deepl"] == nil })
+	if a.TranslateSourceGone() != "" || !a.pluginsTranslating() || a.pluginsTranslateBroken() != "DeepL" {
+		t.Fatalf("unable to run: gone %q, translating %v, broken %q", a.TranslateSourceGone(), a.pluginsTranslating(), a.pluginsTranslateBroken())
+	}
+	if r := a.side.ready.status; r.Section != settings.SectionPlugins || r.Message == nil {
+		t.Fatalf("the sidebar: %+v", r)
+	}
+	_, err = translateWith(t, a, tt, updates, jobTools(t, a), "English", "你好")
+	if got := cardOf(err); got != m.PrecheckSourceNotRunning("DeepL") {
+		t.Fatalf("unable to run: %q (%v)", got, err)
+	}
+}
+
+// readyTools are tools with every program and a speech model, and no AI service, so the sidebar's status line comes to what translates.
+func readyTools(t *testing.T) media.Tools {
+	t.Helper()
+	model := filepath.Join(t.TempDir(), "ggml-base.bin")
+	if err := os.WriteFile(model, []byte("model"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	return media.Tools{YTDLP: "/bin/true", FFmpeg: "/bin/true", Whisper: "/bin/true", WhisperModel: model}
+}
+
+// TestPluginTranslatorAtLaunch checks a job made at launch, before the plugins folder is read, with a plugin's translator chosen, as settings.json restores it: the job translates with the plugin once it loads, never with the AI service, and the films are not untranslatable meanwhile; a job stopped while it waits sends nothing to the plugin.
+func TestPluginTranslatorAtLaunch(t *testing.T) {
+	key := newPluginsKey(t)
+	a, tt, updates := newTestApp(t, &fakePipeline{}, nsgotest.PendingAlerts(), nsgotest.Secrets(map[string]string{}))
+	onEngine(a, func() {
+		a.pipeline = media.Tools{}
+		a.restoreTranslate(savedSettings{savedTranslate: savedTranslate{TranslateSource: &savedTranslateSource{Plugin: "acme.mt", Translator: "caps", Title: "大写翻译"}}})
+	})
+	if a.untranslatable() || a.TranslateSourceGone() != "" {
+		t.Fatalf("before the folder is read: untranslatable %v, gone %q", a.untranslatable(), a.TranslateSourceGone())
+	}
+	tools := jobTools(t, a)
+	if tools.Engine == nil || tools.EngineName != "大写翻译" {
+		t.Fatalf("the job's tools before the folder is read: %T %q", tools.Engine, tools.EngineName)
+	}
+	stopped, stop := context.WithCancel(context.Background())
+	stop()
+	if _, err := tools.Translate(stopped, []core.Segment{{Text: "never"}}, "简体中文"); !errors.Is(err, context.Canceled) {
+		t.Fatalf("a job stopped while it waits: %v", err)
+	}
+	var got []core.Segment
+	var err error
+	done := make(chan struct{})
+	go func() {
+		got, err = tools.Translate(context.Background(), []core.Segment{{Text: "hello"}, {Text: "world"}}, "简体中文")
+		close(done)
+	}()
+	root := filepath.Join(t.TempDir(), "plugins")
+	pluginsScriptInstalled(t, root, pluginScriptFolder(t, key, "acme.mt", "1.0.0", pluginMTFields, pluginMTCode))
+	onEngine(a, func() {
+		a.plugins.root = root
+		a.plugins.script.official = key.public
+		a.plugins.script.watch = script.Watch{Beat: 100 * time.Millisecond, Stall: time.Minute, Stalls: 3, Deadline: time.Minute}
+		a.pluginsScan()
+	})
+	scriptsSettle(t, a, tt, updates, func() bool { return a.plugins.scanned && a.plugins.script.verified != nil && !a.plugins.inboxBusy })
+	scriptsGrant(t, a, tt, updates, "acme.mt")
+	scriptsSettle(t, a, tt, updates, func() bool {
+		select {
+		case <-done:
+			return true
+		default:
+			return false
+		}
+	})
+	if err != nil || len(got) != 2 || got[0].Text != "HELLO" || got[1].Text != "WORLD" {
+		t.Fatalf("translated at launch: %+v %v", got, err)
+	}
+	if seen, _ := scriptsCall(t, a, tt, updates, "acme.mt", "seen"); fmt.Sprint(seen) != "[2  zh-Hans caps]" {
+		t.Fatalf("the plugin was given %v", seen)
+	}
+}
+
+// TestPluginTranslatorFollowsReadinessAndOffline checks that choosing a plugin's translator brings the sidebar's status line and the offer to translate up to date, that the final proofread's row shows only with an AI service set up, and that offline mode asks the translator chosen whether it runs on this computer, not the AI service: a cloud source refused with a local AI service, a local source kept with a cloud one.
+func TestPluginTranslatorFollowsReadinessAndOffline(t *testing.T) {
+	a, tt, _ := translatorApp(t)
+	m := testlocale.Messages()
+	tools := readyTools(t)
+	onEngine(a, func() {
+		a.pipeline = tools
+		a.side.ready.checked = true
+		a.checkReadiness(false)
+	})
+	if r := a.side.ready.status; r.Section != settings.SectionAI {
+		t.Fatalf("no AI service: %+v", r)
+	}
+	apply(tt, a, func() { a.SetTranslateSource("plugin:acme.mt:caps") })
+	if r := a.side.ready.status; r.State != sidebar.Ready || !a.lib.translateOffered {
+		t.Fatalf("a plugin's source chosen: %+v, offered %v", r, a.lib.translateOffered)
+	}
+	onEngine(a, func() { a.prefs.review = true })
+	if a.layersReviews() {
+		t.Fatal("a final proofread row without an AI service")
+	}
+	tools.Translator = media.ChatTranslator{BaseURL: "http://127.0.0.1:11434/v1", Model: "qwen"}
+	onEngine(a, func() { a.pipeline = tools })
+	if !a.layersReviews() {
+		t.Fatal("no final proofread row with an AI service")
+	}
+	apply(tt, a, func() { a.privacy.offline = true })
+	if r := a.readiness(); r.State != sidebar.Missing || r.Section != sectionid.Privacy || !a.privacyNeedsNetwork(core.StageTranslating) {
+		t.Fatalf("offline, a cloud source and a local AI service: %+v", r)
+	}
+	if msg := a.readiness().Message; msg == nil || msg(a.cx) != m.PrecheckSourceOffline("大写翻译") {
+		t.Fatal("the status line does not name the source")
+	}
+	tools.Translator.BaseURL = "https://api.example.com/v1"
+	onEngine(a, func() { a.pipeline = tools })
+	apply(tt, a, func() { a.SetTranslateSource("plugin:acme.mt:here") })
+	if r := a.readiness(); r.State != sidebar.Ready || a.privacyNeedsNetwork(core.StageTranslating) {
+		t.Fatalf("offline, a local source and a cloud AI service: %+v", r)
+	}
+	if engine, ok := jobTools(t, a).Engine.(interface{ Local() bool }); !ok || !engine.Local() {
+		t.Fatal("the local source's engine is not local")
 	}
 }

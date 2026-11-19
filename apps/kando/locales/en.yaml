@@ -8269,6 +8269,11 @@ precheckSourceBadReply:
   description: "Card of a job whose plugin translation source answered with a different number of lines, or something that is not lines."
   placeholders:
     source: { type: "String", example: "DeepL" }
+precheckSourceOffline:
+  message: "Translation source {source} isn't on this computer, and offline mode is on. Turn offline mode off in “Privacy”, or choose another source."
+  description: "Card of a job and the sidebar's status line: offline mode refused the plugin translation source chosen, which reaches a service on the internet."
+  placeholders:
+    source: { type: "String", example: "DeepL" }
 pluginsTaskCommand:
   message: "Plugin Task: {name}"
   description: "Command palette and the Study menu: runs a task plugin the user installed and turned on; name is the plugin's own name."

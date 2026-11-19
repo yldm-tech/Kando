@@ -71,6 +71,8 @@ type pluginsUI struct {
 	exportTarget string
 	// index is the community plugin index 浏览插件 shows (state_plugins_index.go).
 	index pluginsIndex
+	// translate is what became of the translation source chosen, as the app last followed it (state_plugins_translate.go).
+	translate pluginsTranslate
 }
 
 // pluginsGone is the AI service of a pack that is not offered now, though the endpoint in use is still its own: id is its preset id (pack.<id>) and base its endpoint. The service settings.json saved, when it was a pack's, starts as one, as the packs are read only once the window is ready.
@@ -172,6 +174,7 @@ func (a *app) pluginsHooks() areaHooks {
 			changed = a.pluginsIndexFollow() || changed
 			a.pluginsFilmOpened()
 			a.pluginsGrantsFollow()
+			changed = a.pluginsTranslateFollow() || changed
 			// A task's run goes once its film is not the one open (pluginsTaskFollow).
 			return a.pluginsTaskFollow() || changed
 		},

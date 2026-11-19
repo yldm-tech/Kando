@@ -21,9 +21,9 @@ func hint(err error) (string, string) {
 	return Hint(en, en.QueueStatusFailed(err.Error()), Of(job))
 }
 
-// A failure a translation source of its own gave is named with what the source said, before any reason the AI service's words would give: a refused key, a missing program, offline mode.
+// A failure a translation source of its own gave is named with what the source said, before any reason the AI service's words would give: a refused key, a missing program. Offline mode has words of its own (TestSourceHintOffline).
 func TestHintNamesTheSourceFirst(t *testing.T) {
-	for _, said := range []string{"translation API returned 401 Unauthorized: invalid key", "deepl is not installed", media.ErrOffline.Error()} {
+	for _, said := range []string{"translation API returned 401 Unauthorized: invalid key", "deepl is not installed"} {
 		reason, section := hint(&media.StageError{Stage: media.StageTranslate, Source: "DeepL", Err: errors.New(said)})
 		if want := en.PrecheckFailedSource("DeepL", said); reason != want || section != "" {
 			t.Errorf("%q: %q %q, want %q", said, reason, section, want)
@@ -129,6 +129,22 @@ func TestSourceHintOfACode(t *testing.T) {
 		failed := &media.StageError{Stage: media.StageTranslate, Source: "DeepL", Err: plugins.NewTranslateError("teapot", "I'm a teapot")}
 		if reason, section := Hint(m, m.QueueStatusFailed(failed.Error()), failed); reason != m.PrecheckFailedSource("DeepL", "I'm a teapot") || section != "" {
 			t.Errorf("%s: an unknown code: %q %q", lang, reason, section)
+		}
+	}
+}
+
+// A translation source offline mode refused, as it is not on this computer, is told so in every interface language, with 隐私 to turn offline mode off, rather than as the AI service's or with the error's own words.
+func TestSourceHintOffline(t *testing.T) {
+	tools := media.Tools{Engine: checkless{}, EngineName: "DeepL", Offline: true}
+	_, err := tools.Translate(t.Context(), []core.Segment{{Text: "hi"}}, "en")
+	if !errors.Is(err, media.ErrOffline) {
+		t.Fatalf("not refused offline: %v", err)
+	}
+	failed := &media.StageError{Stage: media.StageTranslate, Source: "DeepL", Err: err}
+	for _, lang := range locales.Interface {
+		m := locales.In(lang)
+		if reason, section := Hint(m, m.QueueStatusFailed(failed.Error()), failed); reason != m.PrecheckSourceOffline("DeepL") || section != sectionid.Privacy {
+			t.Errorf("%s: %q %q", lang, reason, section)
 		}
 	}
 }

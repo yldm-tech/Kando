@@ -120,6 +120,18 @@ func (t Translator) Takes(from, to string) bool {
 	return (from == "" || among(from, t.Languages.From)) && to != "" && among(to, t.Languages.To)
 }
 
+// spokenTags are whisper's codes (media.SpeechLanguageOf) that are not the language tag translators know their language by: Norwegian is no to whisper and nb (Bokmål) to them, Javanese jw and jv.
+var spokenTags = map[string]string{"no": "nb", "jw": "jv"}
+
+// SpokenTag is the language tag of whisper's code, what a translator's from names: code itself, in lower case, but for the codes whisper writes otherwise (spokenTags); "" for "".
+func SpokenTag(code string) string {
+	code = strings.ToLower(strings.TrimSpace(code))
+	if tag, ok := spokenTags[code]; ok {
+		return tag
+	}
+	return code
+}
+
 // Candidater reports whether the script plugin m offers other translations of a line, which it does by exporting candidates (CandidatesExport), with its translators: exports are the functions its code exports.
 func (m Manifest) Candidater(exports []string) bool {
 	return m.Contributes != nil && len(m.Contributes.Translators) > 0 && slices.Contains(exports, CandidatesExport)

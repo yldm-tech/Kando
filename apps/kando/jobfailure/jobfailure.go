@@ -107,8 +107,12 @@ func Hint(m locales.Messages, detail string, failed *media.StageError) (reason, 
 	return m.PrecheckFailedProcess(shorten(ToolMessage(detail), 72)), ""
 }
 
-// SourceHint says in the user's words, in the language of m, what the failure of the translation source named source (media.Tools.Engine, media.StageError.Source) means, detail being what it said (media.StageError.Detail), and the settings section that fixes it ("" when none does). A plugin's translator that failed with a code Kando knows (plugins.TranslateCode) is told in words of its own: its key and its plugin's switch are in 插件, the target language in 翻译. Any other failure is told with what the source said, as its words are not the AI service's.
+// SourceHint says in the user's words, in the language of m, what the failure of the translation source named source (media.Tools.Engine, media.StageError.Source) means, detail being what it said (media.StageError.Detail), and the settings section that fixes it ("" when none does). A plugin's translator that failed with a code Kando knows (plugins.TranslateCode) is told in words of its own: its key and its plugin's switch are in 插件, the target language in 翻译; one offline mode refused, as it is not on this computer, in 隐私. Any other failure is told with what the source said, as its words are not the AI service's.
 func SourceHint(m locales.Messages, source, detail string) (reason, section string) {
+	if strings.Contains(detail, media.ErrOffline.Error()) {
+		// Offline mode refused a source that is not on this computer before anything was sent (media.Tools' engineOffline).
+		return m.PrecheckSourceOffline(source), sectionid.Privacy
+	}
 	code, _ := plugins.TranslateCode(strings.TrimSpace(detail))
 	switch code {
 	case plugins.TranslateQuota:

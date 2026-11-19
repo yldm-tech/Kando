@@ -2298,6 +2298,7 @@ precheckSourceRateLimit: "翻訳ソース「{source}」からリクエストを�
 precheckSourceUnavailable: "翻訳ソース「{source}」に今は接続できません。しばらくしてから再試行してください。"
 precheckSourceNotRunning: "翻訳ソース「{source}」が実行されていません。「プラグイン」でプラグインをオンにしてから再試行してください。"
 precheckSourceBadReply: "翻訳ソース「{source}」が返した行が、送った行と一致しません。"
+precheckSourceOffline: "翻訳ソース「{source}」はこのコンピュータ上になく、オフラインモードがオンです。「プライバシー」でオフラインモードをオフにするか、別のソースを選択してください。"
 pluginsTaskCommand: "プラグインのタスク：{name}"
 pluginsTaskNoAI: "プラグインのタスクには AI サービスが必要です。先に「AI サービス」でモデルを選んでください。"
 pluginsTaskBusy: "{model} に問い合わせ中…"

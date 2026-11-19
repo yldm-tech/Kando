@@ -2296,6 +2296,7 @@ precheckSourceRateLimit: "翻译来源「{source}」要求放慢请求。过几�
 precheckSourceUnavailable: "翻译来源「{source}」现在连不上。稍后再重试。"
 precheckSourceNotRunning: "翻译来源「{source}」没有在运行。去「插件」里打开它的插件后再重试。"
 precheckSourceBadReply: "翻译来源「{source}」返回的句子和发给它的对不上。"
+precheckSourceOffline: "翻译来源「{source}」不在这台电脑上，而离线模式开着。在「隐私」里关掉离线模式，或换个来源。"
 pluginsTaskCommand: "插件任务：{name}"
 pluginsTaskNoAI: "插件任务需要 AI 服务。请先在「AI 服务」里选择模型。"
 pluginsTaskBusy: "正在询问 {model}…"

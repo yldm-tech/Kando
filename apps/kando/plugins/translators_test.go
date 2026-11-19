@@ -146,3 +146,16 @@ func TestTranslateError(t *testing.T) {
 		t.Errorf("not cut: %d", len([]rune(long.Detail)))
 	}
 }
+
+// TestSpokenTag checks that whisper's codes become the tags translators name their languages by, so a translator from Norwegian Bokmål (nb) takes a film whisper heard as no.
+func TestSpokenTag(t *testing.T) {
+	for code, want := range map[string]string{"no": "nb", "jw": "jv", "JA": "ja", " en ": "en", "": ""} {
+		if got := SpokenTag(code); got != want {
+			t.Errorf("%q: %q, want %q", code, got, want)
+		}
+	}
+	deepl := Translator{Languages: TranslatorLanguages{From: []string{"de", "nb"}, To: []string{"de", "nb"}}}
+	if deepl.Takes("no", "de") || !deepl.Takes(SpokenTag("no"), "de") {
+		t.Error("Norwegian as whisper writes it is taken only as nb")
+	}
+}

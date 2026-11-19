@@ -7,6 +7,8 @@ import (
 	"kando/apps/kando/film"
 	"kando/packages/core"
 	"kando/packages/media"
+
+	ns "github.com/nsgo-dev/nsgo/core"
 )
 
 // The player's progress badge (film.Progresser): how far the open film's subtitles have come, layer by layer, while its job waits or runs, and the lines a done film's translation left untranslated.
@@ -63,7 +65,7 @@ func (a *app) SubtitleLayers() film.Layers {
 		{Kind: film.LayerSpeech, Engine: speechEngine, Done: speech},
 		{Kind: film.LayerTranslation, Engine: translateEngine, Done: translation},
 	}
-	if a.prefs.review {
+	if a.layersReviews() {
 		// The final proofread is the AI service's, whatever translates the lines.
 		rows = append(rows, film.Layer{Kind: film.LayerReview, Engine: strings.TrimSpace(a.prefs.llmModel), Done: review})
 	}
@@ -75,8 +77,20 @@ func (a *app) layersEngines() (speech, translate string) {
 	if tools, ok := a.pipeline.(media.Tools); ok && tools.WhisperModel != "" {
 		speech = strings.TrimSuffix(strings.TrimPrefix(filepath.Base(tools.WhisperModel), "ggml-"), ".bin")
 	}
-	if t, ok := a.pluginsTranslatorChosen(); ok {
-		return speech, t.of.Title.In(a.messages().Language())
+	if a.pluginsTranslating() {
+		return speech, a.pluginsTranslateName()
 	}
 	return speech, strings.TrimSpace(a.prefs.llmModel)
+}
+
+// layersReviews reports whether a job makes the final proofread, as the badge shows its row: Settings › 翻译 has it on, and the AI service is set up when a script plugin's translator translates, as a job leaves the proofread out without one (media.Tools' chats).
+func (a *app) layersReviews() bool {
+	if !a.prefs.review {
+		return false
+	}
+	if !a.pluginsTranslating() {
+		return true
+	}
+	_, why := a.paletteTranslator(func(*ns.Scope) string { return "" })
+	return why == nil
 }

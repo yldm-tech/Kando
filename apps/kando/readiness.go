@@ -81,6 +81,11 @@ func (a *app) checkReadiness(signIn bool) {
 		a.side.ready.status = r
 		return
 	}
+	// A script plugin's translator chosen whose plugin cannot run fails every translation, which its details in Settings › 插件 say why.
+	if name := a.pluginsTranslateBroken(); name != "" {
+		a.side.ready.status = sidebar.Readiness{State: sidebar.Missing, Message: func(cx *ns.Scope) string { return locales.PrecheckSourceNotRunning(cx, name) }, Section: settings.SectionPlugins}
+		return
+	}
 	credential := tools.Translator.Credential
 	// Asking the everyapi CLI asks EveryAPI's servers, which offline mode does not (privacyReadiness says why the service will not translate).
 	if credential == nil || a.privacy.offline {

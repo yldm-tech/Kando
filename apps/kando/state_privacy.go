@@ -14,6 +14,8 @@ import (
 	"kando/apps/kando/sidebar"
 	"kando/packages/core"
 	"kando/packages/media"
+
+	ns "github.com/nsgo-dev/nsgo/core"
 )
 
 // privacyUI is Settings › 隐私: offline mode, which stops every step that would use the network, and 清除缓存.
@@ -131,7 +133,7 @@ func (a *app) privacyNeedsNetwork(stage core.Stage) bool {
 	case core.StageDownloading:
 		return true
 	case core.StageTranslating:
-		return !a.privacyLocalAI()
+		return !a.privacyLocalTranslation()
 	}
 	return false
 }
@@ -140,6 +142,14 @@ func (a *app) privacyNeedsNetwork(stage core.Stage) bool {
 func (a *app) privacyLocalAI() bool {
 	tools, ok := a.pipeline.(media.Tools)
 	return ok && tools.Translator.Local()
+}
+
+// privacyLocalTranslation reports whether what translates the films runs on this computer: the script plugin's translator chosen in Settings › 翻译 as it says (pluginsTranslateLocal), else the AI service in use (privacyLocalAI).
+func (a *app) privacyLocalTranslation() bool {
+	if a.pluginsTranslating() {
+		return a.pluginsTranslateLocal()
+	}
+	return a.privacyLocalAI()
 }
 
 // privacyHolds reports whether offline mode holds job in the queue: a job that would download its video first, which waits until offline mode is off rather than failing. A local video, a video already downloaded and a done film translated again need no download.
@@ -186,12 +196,16 @@ func errOffline(msg string) error           { return offlineError{msg: msg} }
 func (e offlineError) Error() string        { return e.msg }
 func (e offlineError) Is(target error) bool { return target == media.ErrOffline }
 
-// privacyReadiness is the sidebar's status line while offline mode is on, in place of ready: it says Kando uses only what runs on this computer, or, when the AI service is in the cloud, that it will not translate until another service is chosen or offline mode is off.
+// privacyReadiness is the sidebar's status line while offline mode is on, in place of ready: it says Kando uses only what runs on this computer, or, when what translates is not on this computer, that it will not translate until offline mode is off or another is chosen: the script plugin's translator chosen in Settings › 翻译, else the AI service in use.
 func (a *app) privacyReadiness(status sidebar.Readiness) sidebar.Readiness {
 	if !a.privacy.offline || status.State != sidebar.Ready {
 		return status
 	}
-	if _, ok := a.pipeline.(media.Tools); ok && !a.privacyLocalAI() {
+	if _, ok := a.pipeline.(media.Tools); ok && a.pluginsTranslating() && !a.pluginsTranslateLocal() {
+		name := a.pluginsTranslateName()
+		return sidebar.Readiness{State: sidebar.Missing, Message: func(cx *ns.Scope) string { return locales.PrecheckSourceOffline(cx, name) }, Section: sectionid.Privacy}
+	}
+	if _, ok := a.pipeline.(media.Tools); ok && !a.pluginsTranslating() && !a.privacyLocalAI() {
 		return sidebar.Readiness{State: sidebar.Missing, Message: locales.PrivacyNoCloudAI, Section: settings.SectionAI}
 	}
 	return sidebar.Readiness{State: sidebar.Ready, Message: locales.ReadinessOffline, Section: sectionid.Privacy}
