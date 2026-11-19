@@ -61,11 +61,13 @@ type pluginsContribution[T any] struct {
 type pluginsLookup struct {
 	a      *app
 	id     string
+	source string
 	export string
 	q      lookup.Query
 }
 
-func (p pluginsLookup) ID() string { return p.id }
+// ID names the source as the lookup's card and a phone's say where an entry came from (pluginsLookupNames): plugin:<plugin id>:<source id>.
+func (p pluginsLookup) ID() string { return pluginsContribID(p.id, p.source) }
 
 // LookUp asks the plugin {word, base, reading, line, spoken, language}: the word as clicked, its dictionary form and reading when known, the line it was clicked in, the language the film is spoken in and the one the meaning is to be in. Its answer is an entry or null (lookup.FromPlugin).
 func (p pluginsLookup) LookUp(word, base, reading string) (lookup.Entry, bool, error) {
@@ -100,9 +102,29 @@ func (a *app) pluginsLookups(q lookup.Query) []lookup.Dictionary {
 		if lang != "" && len(c.of.Languages) > 0 && !slices.ContainsFunc(c.of.Languages, func(l string) bool { return kcore.BaseLanguage(l) == lang }) {
 			continue
 		}
-		out = append(out, pluginsLookup{a: a, id: c.id, export: c.of.Export, q: q})
+		out = append(out, pluginsLookup{a: a, id: c.id, source: c.of.ID, export: c.of.Export, q: q})
 	}
 	return out
+}
+
+// pluginsLookupNames are the names of the plugin and of its lookup source that id names (pluginsLookup.ID), and whether it names one of a plugin installed; the names of a source that went since it answered are its plugin's id and its own.
+func (a *app) pluginsLookupNames(id string) (plugin, source plugins.Text, ok bool) {
+	rest, ok := strings.CutPrefix(id, pluginsContribPrefix)
+	if !ok {
+		return nil, nil, false
+	}
+	pluginID, sourceID, _ := strings.Cut(rest, ":")
+	plugin, source = plugins.Text{"en": pluginID}, plugins.Text{"en": sourceID}
+	if i := slices.IndexFunc(a.plugins.packs, func(p plugins.Pack) bool { return p.ID == pluginID }); i >= 0 {
+		p := a.plugins.packs[i]
+		plugin = p.Name
+		if p.Contributes != nil {
+			if j := slices.IndexFunc(p.Contributes.Lookups, func(l plugins.Lookup) bool { return l.ID == sourceID }); j >= 0 {
+				source = p.Contributes.Lookups[j].Label
+			}
+		}
+	}
+	return plugin, source, true
 }
 
 // The ids of what the plugins contribute to the subtitle export and the saved lines' export: plugin:<plugin id>:<contribution id>, which a pack's id, with no colon, never is.

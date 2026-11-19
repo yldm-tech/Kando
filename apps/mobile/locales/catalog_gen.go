@@ -603,6 +603,7 @@ var Parameters = map[string][]string{
 	"RevokedTitle":                   {"name"},
 	"PlayerTabNotesCount":            {"count"},
 	"PlayerWordSourceAI":             {"computer"},
+	"PlayerWordSourcePlugin":         {"plugin", "lookup"},
 	"PlayerWordSourceDict":           {"name"},
 	"PlayerWordSourceDictCredit":     {"name", "credit"},
 	"SettingsConflictDate":           {"when"},
@@ -779,6 +780,7 @@ type Translation struct {
 	RevokedTitle                   func(name string) string
 	PlayerTabNotesCount            func(count int) string
 	PlayerWordSourceAI             func(computer string) string
+	PlayerWordSourcePlugin         func(plugin string, lookup string) string
 	PlayerWordSourceDict           func(name string) string
 	PlayerWordSourceDictCredit     func(name string, credit string) string
 	SettingsConflictDate           func(hc string, when time.Time) string
@@ -6621,6 +6623,9 @@ func Supply(lang string, t Translation) {
 	}
 	if t.PlayerWordSourceAI != nil {
 		s.PlayerWordSourceAI = t.PlayerWordSourceAI
+	}
+	if t.PlayerWordSourcePlugin != nil {
+		s.PlayerWordSourcePlugin = t.PlayerWordSourcePlugin
 	}
 	if t.PlayerWordSourceDict != nil {
 		s.PlayerWordSourceDict = t.PlayerWordSourceDict
@@ -14573,6 +14578,38 @@ func PlayerWordSourceAIUnnamed(cx *core.Scope) string { return For(cx).PlayerWor
 // PlayerWordSourceAIUnnamed is the package's PlayerWordSourceAIUnnamed in the language of msgs.
 func (msgs Messages) PlayerWordSourceAIUnnamed() string {
 	return msgs.text(textPlayerWordSourceAIUnnamed)
+}
+
+// PlayerWordSourcePlugin says "From {lookup} of the plugin {plugin}"
+// in the language the app shows under cx.
+//
+// Word card, under the meaning: a lookup source a script plugin on the computer adds gave the meaning; {lookup} is the source's name, {plugin} the plugin's, as the computer gives them.
+func PlayerWordSourcePlugin(cx *core.Scope, plugin string, lookup string) string {
+	return For(cx).PlayerWordSourcePlugin(plugin, lookup)
+}
+
+// PlayerWordSourcePlugin is the package's PlayerWordSourcePlugin in the language of msgs.
+func (msgs Messages) PlayerWordSourcePlugin(plugin string, lookup string) string {
+	if i18n.IsPseudo(msgs.lang) {
+		return i18n.Pseudo(msgs.lang, Messages{lang: Source, mark: true}.PlayerWordSourcePlugin(plugin, lookup))
+	}
+	for lang := msgs.lang; ; lang = i18n.Parent(lang) {
+		if f := supplied[lang].PlayerWordSourcePlugin; f != nil {
+			return f(plugin, lookup)
+		}
+		switch lang {
+		case "", "en":
+			return "From " + msgs.arg(lookup) + " of the plugin " + msgs.arg(plugin)
+		case "ja":
+			return "プラグイン「" + plugin + "」の「" + lookup + "」より"
+		case "ko":
+			return "플러그인 「" + plugin + "」의 「" + lookup + "」에서"
+		case "zh-Hans":
+			return "来自插件「" + plugin + "」的「" + lookup + "」"
+		case "zh-Hant":
+			return "來自外掛「" + plugin + "」的「" + lookup + "」"
+		}
+	}
 }
 
 // PlayerWordSourceDict says "From the dictionary {name}"

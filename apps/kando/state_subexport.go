@@ -155,8 +155,13 @@ func (a *app) subexportData(done func(data []byte, err error)) {
 // errPluginsBadSubtitles is a subtitle format of a plugin that returned something other than a file's text.
 var errPluginsBadSubtitles = errors.New("the plugin's subtitle format returned no text")
 
-// SetSubexportChoice keeps c as the choice and saves it.
+// SetSubexportChoice keeps c as the choice and saves it. A plugin's format chosen before, whose plugin is not running now, which the dialog shows as SubRip (SubexportChoice), stays remembered while c keeps that SubRip, so it comes back with the plugin.
 func (a *app) SetSubexportChoice(c subexport.Choice) {
+	if was := a.export.choice.Format; strings.HasPrefix(was, subexport.PluginPrefix) && c.Format == core.FormatSRT && a.SubexportChoice().Format == core.FormatSRT {
+		if _, running := a.pluginsSubtitleFormat(was); !running {
+			c.Format = was
+		}
+	}
 	a.export.choice = c.Clean()
 	a.Save()
 }

@@ -62,7 +62,7 @@ func pluginsWaiting[T any](a *app, l *pluginsScript, c *ns.HostCall, key string,
 		return
 	}
 	s.waiting[key] = true
-	resume := a.pluginsRunner().Pause()
+	resume := a.pluginsRunner().PauseFor(l.plugin)
 	aiAsk(a, pluginsCallTimeout, work, func() bool { return true }, func(v T, err error) {
 		delete(s.waiting, key)
 		resume()
@@ -157,8 +157,11 @@ func (a *app) pluginsSoundRead(l *pluginsScript, c *ns.HostCall) {
 		}
 		defer os.RemoveAll(dir)
 		path, err := saved.SoundFor(ctx, ffmpeg, book, line, delay, dir)
-		if err != nil || path == "" {
-			return clip{}, cmpErr(err, errPluginsNoSound)
+		if err != nil {
+			return clip{}, err
+		}
+		if path == "" {
+			return clip{}, errPluginsNoSound
 		}
 		info, err := os.Stat(path)
 		if err != nil {
@@ -191,14 +194,6 @@ var (
 	errPluginsNoSound  = errors.New("the line has no sound")
 	errPluginsTooLarge = errors.New("the sound is too large")
 )
-
-// cmpErr is err, else other.
-func cmpErr(err, other error) error {
-	if err != nil {
-		return err
-	}
-	return other
-}
 
 // pluginsFetchReply is what a credential's request answered: its status, its Content-Type and its body.
 type pluginsFetchReply struct {

@@ -1,6 +1,7 @@
 package script
 
 import (
+	"errors"
 	"testing"
 	"time"
 
@@ -71,5 +72,66 @@ export async function ask() { return await host.call("kando.llm.chat", { user: "
 	}
 	if pl.Closed() {
 		t.Fatal("closed")
+	}
+}
+
+// TestScriptPauseForTheCallsPlugin checks that a wait on behalf of a plugin pauses the call running only when it is that plugin's: a host call another plugin made from a timer, after its own call ended, pauses nothing.
+func TestScriptPauseForTheCallsPlugin(t *testing.T) {
+	s := newSigner(t, AppIDPrefix+"acme.*")
+	roots := s.roots()
+	trust := trustOf(t, roots)
+	e := newEngine(t)
+	code := `export function wait() { return new Promise(() => {}) }`
+	a := e.load(t, trust, roots, s.pack(t, fixture{id: "acme.a", code: code}), plugins.Grant{})
+	b := e.load(t, trust, roots, s.pack(t, fixture{id: "acme.b", code: code}), plugins.Grant{})
+	r := &Runner{Post: e.post, Watch: DefaultWatch}
+	e.call(r, a, "wait")
+	paused := func() int {
+		var n int
+		e.do(func() {
+			c := r.running
+			c.mu.Lock()
+			n = c.paused
+			c.mu.Unlock()
+		})
+		return n
+	}
+	var resume func()
+	e.do(func() { resume = r.PauseFor(b) })
+	if paused() != 0 {
+		t.Fatal("another plugin's wait paused the call")
+	}
+	resume()
+	e.do(func() { resume = r.PauseFor(a) })
+	if paused() != 1 {
+		t.Fatal("the plugin's own wait did not pause its call")
+	}
+	resume()
+	e.do(func() { r.Close(a) })
+}
+
+// TestScriptPausedTimeIsCapped checks that a call the app waited on in all past Watch.Paused is stopped as slow, however its waits came.
+func TestScriptPausedTimeIsCapped(t *testing.T) {
+	s := newSigner(t, AppIDPrefix+"acme.*")
+	roots := s.roots()
+	e := newEngine(t)
+	pl := e.load(t, trustOf(t, roots), roots, s.pack(t, fixture{id: "acme.loop", code: `export function wait() { return new Promise(() => {}) }`}), plugins.Grant{})
+	stopped := make(chan string, 1)
+	w := DefaultWatch
+	w.Paused = 300 * time.Millisecond
+	r := &Runner{Post: e.post, Watch: w, Stopped: func(id, hash, reason string) { stopped <- reason }}
+	done := e.call(r, pl, "wait")
+	// Waits of 100 ms one after the other, as a loop of host calls makes them.
+	for range 5 {
+		var resume func()
+		e.do(func() { resume = r.PauseFor(pl) })
+		time.Sleep(100 * time.Millisecond)
+		e.do(resume)
+	}
+	if got := wait(t, done, slow(5*time.Second)); !errors.Is(got.err, ErrStopped) {
+		t.Fatalf("the call: %v", got.err)
+	}
+	if reason := <-stopped; reason != plugins.ReasonSlow {
+		t.Errorf("stopped for %s", reason)
 	}
 }

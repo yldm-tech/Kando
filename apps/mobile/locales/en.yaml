@@ -1757,6 +1757,12 @@ playerWordSourceAI:
 playerWordSourceAIUnnamed:
   message: "Explained by your computer's AI service"
   description: "Word card, under the meaning: a computer's AI service gave the meaning, from a computer that did not say its name with the answer."
+playerWordSourcePlugin:
+  message: "From {lookup} of the plugin {plugin}"
+  description: "Word card, under the meaning: a lookup source a script plugin on the computer adds gave the meaning; {lookup} is the source's name, {plugin} the plugin's, as the computer gives them."
+  placeholders:
+    plugin: { type: "String", example: "Rivers" }
+    lookup: { type: "String", example: "River Words" }
 playerWordSourceDict:
   message: "From the dictionary {name}"
   description: "Word card, under the meaning: a dictionary pack installed on the computer gave the meaning; {name} is its name, as the computer gives it."

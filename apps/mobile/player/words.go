@@ -261,7 +261,7 @@ func problemText(cx *core.Scope, p *play, problem session.StudyProblem) string {
 	return locales.PlayerStudyUnreachable(cx, name)
 }
 
-// sourceText is where the meaning of a word looked up came from, as the computer's own card says it: a dictionary installed on the computer, with the credit its license asks for, or the AI service of the computer that answered, by the name it gave with the answer, which the phone kept with the word, rather than the computer of the film open now, which need not be the one that answered; "" for a computer that does not say, or a source this phone does not know.
+// sourceText is where the meaning of a word looked up came from, as the computer's own card says it: a dictionary installed on the computer, with the credit its license asks for, a lookup source of a plugin on the computer, by its name and its plugin's, or the AI service of the computer that answered, by the name it gave with the answer, which the phone kept with the word, rather than the computer of the film open now, which need not be the one that answered; "" for a computer that does not say, or a source this phone does not know.
 func sourceText(cx *core.Scope, src sync.WordSource) string {
 	switch src.Kind {
 	case sync.SourceDictionary:
@@ -272,6 +272,11 @@ func sourceText(cx *core.Scope, src sync.WordSource) string {
 			return locales.PlayerWordSourceDictCredit(cx, src.Name, src.Credit)
 		}
 		return locales.PlayerWordSourceDict(cx, src.Name)
+	case sync.SourcePlugin:
+		if src.Name == "" || src.Plugin == "" {
+			return ""
+		}
+		return locales.PlayerWordSourcePlugin(cx, src.Plugin, src.Name)
 	case sync.SourceAI:
 		if src.Desktop == "" {
 			return locales.PlayerWordSourceAIUnnamed(cx)

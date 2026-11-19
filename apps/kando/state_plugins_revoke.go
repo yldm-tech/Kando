@@ -1,30 +1,17 @@
 package main
 
 import (
-	"context"
-	"errors"
-	"io"
 	"net/http"
-	"os"
-	"path/filepath"
-	"strconv"
-	"strings"
 	"time"
 
 	"kando/apps/kando/plugins"
 	"kando/apps/kando/plugins/script"
-
-	"github.com/nsgo-dev/nsgo/tsx/pkg"
 )
 
 // The revocation lists of the plugins' roots (docs/plugin-system.md 6.4): once a day while Kando is online and a script plugin is installed, the list published beside the release's appcasts (script.RevocationsURL) is fetched and given to the trust, which keeps the newest of each root's lists in plugins/trust/trust.json; the plugins are then verified again, so one it revokes is closed and shows 已被撤回. No list published yet (404) is no list, and the plugins go on as they were. A list that has passed its NotAfter pauses only the plugins that are not Kando's own and reach the network or send a credential (pluginsStale), as a plugin of this computer alone can do no harm a newer list would stop; Kando does not refuse every plugin then (pkg.Trust.RequireFreshRevocations), so a user long offline keeps the others.
 
-// pluginsRevocationsEvery is how often the list is fetched; pluginsRevocationsMax the most bytes read of it; pluginsRevocationsCheck the file in the plugins folder that says when it was last fetched, so a restart does not fetch it again the same day.
-const (
-	pluginsRevocationsEvery = 24 * time.Hour
-	pluginsRevocationsMax   = 1 << 20
-	pluginsRevocationsCheck = ".revocations-checked"
-)
+// pluginsRevocationsEvery is how often the list is fetched.
+const pluginsRevocationsEvery = 24 * time.Hour
 
 // pluginsRevocationsURL is where the list is fetched from: script.RevocationsURL, or the tests' server.
 func (a *app) pluginsRevocationsURL() string {
@@ -49,12 +36,12 @@ func (a *app) pluginsCheckRevocations() {
 	s.revoking = true
 	trust, client, target, update := s.trust, a.pluginsRevocationsClient(), a.pluginsRevocationsURL(), a.update
 	go func() {
-		last := pluginsRevocationsLast(root)
+		last := script.RevocationsChecked(root)
 		taken, err := false, error(nil)
 		if now.Sub(last) >= pluginsRevocationsEvery {
-			taken, err = pluginsFetchRevocations(client, target, trust)
+			taken, err = script.FetchRevocations(client, target, trust)
 			if err == nil {
-				pluginsRevocationsDone(root, now)
+				script.SetRevocationsChecked(root, now)
 				last = now
 			}
 		}
@@ -79,63 +66,6 @@ func (a *app) pluginsRevocationsClient() *http.Client {
 		return c
 	}
 	return &http.Client{Timeout: 30 * time.Second}
-}
-
-// pluginsFetchRevocations fetches the list at target and gives it to trust, and reports whether trust took it: a list it holds already, or an older one, is not taken (pkg.ErrStale), and a 404 is no list published, which is no error.
-func pluginsFetchRevocations(client *http.Client, target string, trust *pkg.Trust) (bool, error) {
-	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
-	defer cancel()
-	req, err := http.NewRequestWithContext(ctx, http.MethodGet, target, nil)
-	if err != nil {
-		return false, err
-	}
-	resp, err := client.Do(req)
-	if err != nil {
-		return false, err
-	}
-	defer resp.Body.Close()
-	if resp.StatusCode == http.StatusNotFound {
-		return false, nil
-	}
-	if resp.StatusCode != http.StatusOK {
-		return false, errors.New("the revocation list answered " + resp.Status)
-	}
-	data, err := io.ReadAll(io.LimitReader(resp.Body, pluginsRevocationsMax+1))
-	if err != nil {
-		return false, err
-	}
-	if len(data) > pluginsRevocationsMax {
-		return false, errors.New("the revocation list is too large")
-	}
-	list, err := pkg.ParseRevocations(data)
-	if err != nil {
-		return false, err
-	}
-	if err := trust.UpdateRevocations(list); err != nil {
-		if errors.Is(err, pkg.ErrStale) {
-			return false, nil
-		}
-		return false, err
-	}
-	return true, nil
-}
-
-// pluginsRevocationsLast is when the list was last fetched, as the plugins folder root records it; the zero time when it never was.
-func pluginsRevocationsLast(root string) time.Time {
-	data, err := os.ReadFile(filepath.Join(root, pluginsRevocationsCheck))
-	if err != nil {
-		return time.Time{}
-	}
-	sec, err := strconv.ParseInt(strings.TrimSpace(string(data)), 10, 64)
-	if err != nil {
-		return time.Time{}
-	}
-	return time.Unix(sec, 0)
-}
-
-// pluginsRevocationsDone records in the plugins folder root that the list was fetched at.
-func pluginsRevocationsDone(root string, at time.Time) {
-	_ = os.WriteFile(filepath.Join(root, pluginsRevocationsCheck), []byte(strconv.FormatInt(at.Unix(), 10)+"\n"), 0o644)
 }
 
 // pluginsStale reports whether the script plugin p is paused because the revocation list of the root it chains to has passed its NotAfter (pkg.Package.ExpiredRevocations) while it is not Kando's own and reaches the network or sends a credential.

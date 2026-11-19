@@ -950,6 +950,7 @@ var Parameters = map[string][]string{
 	"VocabLookupCard":                          {"word"},
 	"VocabLookupFailed":                        {"error_"},
 	"VocabLookupSourceAINotInDict":             {"dictionary"},
+	"VocabLookupSourcePlugin":                  {"plugin", "lookup"},
 	"VocabLookupSourceDict":                    {"name"},
 	"VocabLookupSourceDictCredit":              {"name", "credit"},
 	"VocabLookupTerm":                          {"term"},
@@ -1622,6 +1623,7 @@ type Translation struct {
 	VocabLookupCard                          func(word string) string
 	VocabLookupFailed                        func(error_ string) string
 	VocabLookupSourceAINotInDict             func(dictionary string) string
+	VocabLookupSourcePlugin                  func(plugin string, lookup string) string
 	VocabLookupSourceDict                    func(name string) string
 	VocabLookupSourceDictCredit              func(name string, credit string) string
 	VocabLookupTerm                          func(term string) string
@@ -24098,6 +24100,9 @@ func Supply(lang string, t Translation) {
 	}
 	if t.VocabLookupSourceAINotInDict != nil {
 		s.VocabLookupSourceAINotInDict = t.VocabLookupSourceAINotInDict
+	}
+	if t.VocabLookupSourcePlugin != nil {
+		s.VocabLookupSourcePlugin = t.VocabLookupSourcePlugin
 	}
 	if t.VocabLookupSourceDict != nil {
 		s.VocabLookupSourceDict = t.VocabLookupSourceDict
@@ -55936,6 +55941,38 @@ func VocabLookupSourceAINotInDicts(cx *core.Scope) string {
 // VocabLookupSourceAINotInDicts is the package's VocabLookupSourceAINotInDicts in the language of msgs.
 func (msgs Messages) VocabLookupSourceAINotInDicts() string {
 	return msgs.text(textVocabLookupSourceAINotInDicts)
+}
+
+// VocabLookupSourcePlugin says "From {lookup} of the plugin {plugin}"
+// in the language the app shows under cx.
+//
+// Card of a word looked up, under the meaning: the meaning came from a lookup source a script plugin adds; {lookup} is the source's name, {plugin} the plugin's.
+func VocabLookupSourcePlugin(cx *core.Scope, plugin string, lookup string) string {
+	return For(cx).VocabLookupSourcePlugin(plugin, lookup)
+}
+
+// VocabLookupSourcePlugin is the package's VocabLookupSourcePlugin in the language of msgs.
+func (msgs Messages) VocabLookupSourcePlugin(plugin string, lookup string) string {
+	if i18n.IsPseudo(msgs.lang) {
+		return i18n.Pseudo(msgs.lang, Messages{lang: Source, mark: true}.VocabLookupSourcePlugin(plugin, lookup))
+	}
+	for lang := msgs.lang; ; lang = i18n.Parent(lang) {
+		if f := supplied[lang].VocabLookupSourcePlugin; f != nil {
+			return f(plugin, lookup)
+		}
+		switch lang {
+		case "", "en":
+			return "From " + msgs.arg(lookup) + " of the plugin " + msgs.arg(plugin)
+		case "ja":
+			return "プラグイン「" + plugin + "」の「" + lookup + "」より"
+		case "ko":
+			return "플러그인 「" + plugin + "」의 「" + lookup + "」에서"
+		case "zh-Hans":
+			return "来自插件「" + plugin + "」的「" + lookup + "」"
+		case "zh-Hant":
+			return "來自外掛「" + plugin + "」的「" + lookup + "」"
+		}
+	}
 }
 
 // VocabLookupSourceDict says "From the dictionary {name}"

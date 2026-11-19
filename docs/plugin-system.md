@@ -285,7 +285,7 @@ kind 是封闭枚举：`dictionary`、`wordlist`、`glossary`、`ai-service`、`
 
 ### 4.2 脚本插件示例
 
-`capabilities` 用 `pkg.Capabilities` 的 JSON 形状，只允许出现 `host` 和 `network` 两个键，`network` 只允许 `http` 规则。每条规则都必须写 `methods`，并写 `paths` 或 `pathPrefixes`，`host` 是一个确定的主机名（不带 `*`），最多 16 条；`network.hosts`（放行任意请求）一律拒收。下面的例子是完整形态，P3b 起全部认得（第 15 节）。贡献块 `lookups`、`subtitleFormats`、`exporters`、`annotators` 各最多 8 项，每项有 `id`、`export`（插件导出的函数名）、`label`；`subtitleFormats` 另有 `extension`（1–8 个小写字母或数字，不带点），`exporters` 另有 `takes`（`lines`、`words` 之一或两个），`lookups` 和 `annotators` 可以有 `languages`。`credentials` 最多 4 项，`header` 不能是 Host、Cookie、Content-Type 等由请求本身或看懂设置的头，`format` 恰好含一个 `{secret}`，`hosts` 是 1–8 个可注册域名下的主机名（不是 IP、不带 `*`、不是公共后缀），`methods` 只能是 GET、POST、PUT、PATCH、DELETE，`pathPrefixes` 1–8 个、以 `/` 开头、不含 `..`；声明了 `credentials` 就必须申请 `kando.net.credentialFetch`，反之亦然。
+`capabilities` 用 `pkg.Capabilities` 的 JSON 形状，只允许出现 `host` 和 `network` 两个键，`network` 只允许 `http` 规则。每条规则都必须写 `methods`，并写 `paths` 或 `pathPrefixes`，`host` 是一个确定的主机名（不带 `*`），最多 16 条；`network.hosts`（放行任意请求）一律拒收。下面的例子是完整形态，P3b 起全部认得（第 15 节）。贡献块 `lookups`、`subtitleFormats`、`exporters`、`annotators` 各最多 8 项，每项有 `id`、`export`（插件导出的函数名）、`label`；`subtitleFormats` 另有 `extension`（不带点，只能是 `plugins.SubtitleExtensions` 里的字幕和文本扩展名：srt、vtt、ass、ssa、sub、lrc、txt、tsv、csv、json、md、ttml、xml、sbv、smi，文件写在视频旁边，不能是 bat、exe、js 这类可执行的扩展名），`exporters` 另有 `takes`（`lines`、`words` 之一或两个），`lookups` 和 `annotators` 可以有 `languages`。`credentials` 最多 4 项，`header` 不能是 Host、Cookie、Content-Type 等由请求本身或看懂设置的头，`format` 恰好含一个 `{secret}`，`hosts` 是 1–8 个可注册域名下的主机名（不是 IP、不带 `*`、不是公共后缀），`methods` 只能是 GET、POST、PUT、PATCH、DELETE，`pathPrefixes` 1–8 个、以 `/` 开头、不含 `..`；声明了 `credentials` 就必须申请 `kando.net.credentialFetch`，反之亦然。
 
 ```json
 {
@@ -1259,18 +1259,22 @@ P1.2 的测量结果（Ubuntu 编译机，x86_64，Go 1.27.4，kagome-dict/ipa v
 
 - P3b（已完成）：其余贡献点、三个宿主能力、凭据和吊销列表的每日拉取。和正文的出入如下，2.2、4.2、5.3、6.2–6.4 已同步改过：
   - 代码位置：非界面包 `plugins` 加了 `contrib.go`（四种贡献块、`Credential`、`GrantedCredential`、`Services` 表、`PluginHeader`）和 `contribvalues.go`（`CueValues`、`Exported`、`Number`）；`lookup/plugin.go` 的 `FromPlugin` 读查词来源的回答，`plugins/annotate/plugin.go` 的 `FromPlugin`、`Merge` 读标注器的回答；app 一侧是 `state_plugins_calls.go`（三个 handler）、`state_plugins_contrib.go`（贡献点的调用）、`state_plugins_revoke.go`（吊销列表），共享文件只在各自块的接点加调用：`vocabResolve` 一行、`ExportSaved` 一个分支、`ExportTargets` 一行、`subexport` 的格式列表和写文件、`pluginsMarksFollow` 在算完看懂自己的标注后接标注器。
-  - 查词来源实现成 `lookup.Dictionary`，接在 `Ask.Dicts` 里数据包词典的后面，所以顺序是「数据包词典 → 插件来源 → AI → 别的语言的词典」；查词卡按插件名说来源（`vocabSourceText` 认的是包 id，插件也在 `a.plugins.packs` 里），插件没查到而 AI 答了时，卡片说「<插件名> 没有这个词」。来源的 `languages` 和词典一样，词的语言不知道时都问。`LookUp` 不带 ctx，所以每次最多等 15 s，到时间就问下一个来源，那次调用照常跑完。手机查词走同一条 `vocabResolve`，所以插件来源也回答手机。
+  - 查词来源实现成 `lookup.Dictionary`，接在 `Ask.Dicts` 里数据包词典的后面，所以顺序是「数据包词典 → 插件来源 → AI → 别的语言的词典」；来源的 id 是 `plugin:<插件 id>:<来源 id>`，查词卡说「来自插件「<插件名>」的「<来源名>」」（`vocabLookupSourcePlugin`），不称它为词典；插件没查到而 AI 答了时，只有数据包词典会被说成「没有这个词」。手机的 `WordSource` 加了可选的 `SourcePlugin` 种类和 `Plugin` 字段（不升协议版本，旧手机对不认识的种类不显示来源），手机卡片说同一句（`playerWordSourcePlugin`）。来源的 `languages` 和词典一样，词的语言不知道时都问。`LookUp` 不带 ctx，所以每次最多等 15 s，到时间就问下一个来源，那次调用照常跑完。手机查词走同一条 `vocabResolve`，所以插件来源也回答手机。
   - 导出格式的 id 是 `plugin:<插件 id>:<格式 id>`，存进 settings.json 的 `subtitleExportFormat`；`subexport.Choice.Clean` 原样保留这种值，插件不在运行时 `SubexportChoice` 按 SRT 给出。两个按钮（导出到影片文件夹、另存为）都可以用插件格式，文件名是 `<视频名>.<内容>.<extension>`；等插件回答期间不能再开第二次导出。
   - 学习导出目标在收藏句子的下拉框里和模板包排在一起，id 同样是 `plugin:<插件 id>:<目标 id>`；选了它时「导出」不弹文件夹选择，直接把句子和生词（按 `takes`）交给插件，状态行说「<名称>：已发送 N 条，跳过 M 条」或失败。交给插件的句子和生词不要求插件申请 `kando.saved.read`：这是用户自己按的导出，和导出到文件一样。
   - 标注器在看懂自己的标注算完之后、发布之前，在引擎 goroutine 上逐个插件、每批不超过 50 行地调，`stop` 一置位就在下一批前停；标注的键（`pluginsMarkKey.annotators`）包括插件 id、内容哈希和标注器 id，插件载入或停用后会重算。标注器的 `languages` 要求影片的说话语言已知且相同；不写 `languages` 的标注所有影片。插件标注器开着即生效，没有放进「逐词标注」卡片的开关（插件开关就是它的开关）。手机的标注（#318 的 `pluginsMarksFor`）也经过同一个 `pluginsAnnotate`，所以插件标注器也给配对的手机画；为了不让手机先拿到缺了插件标注的结果，开着脚本插件时 `pluginsMarksReady` 要等它们验完签、载入完。
-  - 读到「贡献点收到字幕文字」（查词来源、标注器）也算读字幕：`plugins.Risky` 改成看清单和授权，`ReadsLines` 或 `lines.current`、`lines.seen`、`llm.chat` 之一，再加上联网或 `credentialFetch`，就标高风险。
+  - 贡献点收到字幕或收藏的文字（查词来源、导出格式、学习导出目标、标注器）也算读字幕：`plugins.Risky` 改成看清单和授权，`ReadsLines` 或 `lines.current`、`lines.seen`、`llm.chat` 之一，再加上联网或 `credentialFetch`，就标高风险。
   - `kando.llm.chat` 和 `credentialFetch` 离线时从 `Effective` 里拿掉（插件会按新授权重新载入），在线时 `llm.chat` 再过 `paletteTranslator` 的门控。预算复用 task 包的 `usage.json` 和 `State.Budget`；脚本插件改预算走 `State.GrantEntry`，不会让一份没开过的内容被打开；更新时（`InstallEntry`）预算跟着授权保留。
   - 熔断不计 `ErrHostTimeout`：JS 里超时的 `host.call` 带 `ETIMEDOUT` 码，没接住时 `rejection` 把它转成带码的 `core.Error`，`Runner.count` 本来就不计带码的失败，所以不用改 runner，只加了测试（`TestScriptHostTimeoutIsNotAFailure`）。这对所有 host call 的超时都成立，不只 `llm.chat`。
-  - 宿主侧的等待（`llm.chat`、`sound.read`、`credentialFetch`）期间暂停这次调用的看门狗（`Runner.Pause`），否则 1 分钟的调用期限会在 120 s 的 LLM 请求里先到。
+  - 宿主侧的等待（`llm.chat`、`sound.read`、`credentialFetch`、`openURL` 的确认框）期间暂停这次调用的看门狗，否则 1 分钟的调用期限会在 120 s 的 LLM 请求里先到；只在正在跑的调用就是这个插件的调用时才暂停（`Runner.PauseFor`），插件在自己的调用结束后从定时器里发的 host call 不会暂停别的插件的调用。每次调用被宿主等待的时间合计最多 5 分钟（`Watch.Paused`），超过就按 `slow` 停掉插件：一个循环等 host call 的调用不能永远占着全局串行的 runner。用户把 `openURL` 的确认框开着超过这个时间也算在内。
   - `checkSigned` 比较签名能力时不看凭据：凭据是看懂代发的，不是包的能力；`kandoManifest()` 的比对（`signedKeys`）加了 `credentials`，`Probe` 检查所有贡献点的导出函数（`Manifest.ExportsNeeded`）。
   - 插件函数的返回值（`Plugin.Call` 的结果）不经 JSON 往返，tsx 把 JS 的整数给成 `int64`；host call 的参数经 `core.hostValue` 的 JSON 往返，是 `float64`。读返回值的地方（`Exported`、标注的偏移）用 `plugins.Number` 两种都认。
   - 吊销列表：`RevocationsURL` 是 Go 常量（`nsgo.yaml` 没有放自定义键的地方，只在 `updates` 旁加了注释）；测试把根换成测试密钥时（`pluginsScripts.official`）不去拉正式地址，只拉测试给的地址。列表还没有发布，发布流程留在 P3c。
   - `kando.glossary.suggest`、`kando.candidates.offer` 没有做，原因见 5.3。
+  - 导出格式的标签页：`ui.Tabs` 的选项是切片，不能绑定（NSGo `ui/tabs.go:30`），选项变了只能重建、丢掉焦点；没有插件格式时看懂自己的三个格式不进 `core.Dynamic`，有插件格式时才按格式集合重建，代码里留了 `TODO(nsgo)`（和 nsgo#848 的 `ui.Select` 是同类但不同控件，还没有上游 issue）。
+  - 详情页里插件和看懂写好的文字（权限、添加的功能、密钥发往哪里）在一个按界面语言重建的区域里，切换语言后跟着变，平时不重建，输入到一半的密钥不丢。
+  - 一个插件格式的导出在插件没在运行时按 SRT 显示，但改别的选项时不会把记住的插件格式改成 SRT，插件回来后还是它。收藏导出到插件时按「取消」显示「已停止」，插件之后的回答丢掉。
+  - 纯函数放进了非界面包：`script.FetchRevocations`、`RevocationsChecked`、`SetRevocationsChecked`、`plugins.Manifest.SecretKeys`；「添加的功能」的文字是 `settings.PluginAdds`，和 `settings.PluginDetail` 放在一起（要用 catalog，`plugins` 不导入 `locales`）。
   - 测试：`plugins` 的清单和凭据规则（`contrib_test.go`）、`plugins/script` 的 Probe 和 host 超时、`annotate`/`lookup` 的回答解析，app 层 `plugins_contrib_test.go`：四个贡献点各一个端到端测试；`llm.chat` 的回答不含地址和 key、用量计入预算和 audit.log、超预算拒绝、超时不熔断；`sound.read` 用假 ffmpeg 切、没有 ffmpeg 拒绝；`credentialFetch` 没存密钥拒绝、只在授权的 host/method/path 注入、响应头只留 Content-Type、不跟随重定向、插件的 `Secrets` 读不到密钥、插件不能自己设凭据的头或 Cookie、离线拒绝；详情页的密钥字段和「只会发送到」一行；没有安全存储时停用并说明；吊销列表 404 照常、吊销后关闭并显示「已被撤回」、过期只暂停联网的非官方插件。截图场景 `plugins-script-lookup`、`plugins-script-subtitle-format`、`plugins-script-exporter`、`plugins-script-credential`、`plugins-script-marks` 只在 Linux 上跑了无头断言，没有出图。
 
 ### P3.0 spike 的测量结果

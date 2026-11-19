@@ -65,6 +65,29 @@ type PluginScriptsApp interface {
 	ShowPluginAudit()
 }
 
+// PluginAdds is what the script plugin m adds besides its commands, a line each, in the words of msgs: its lookup sources, subtitle formats, export targets and annotators, each by its label.
+func PluginAdds(msgs locales.Messages, m plugins.Manifest) []string {
+	c := m.Contributes
+	if c == nil {
+		return nil
+	}
+	lang := msgs.Language()
+	var out []string
+	for _, x := range c.Lookups {
+		out = append(out, msgs.SettingsPluginsAddsLookup(x.Label.In(lang)))
+	}
+	for _, x := range c.SubtitleFormats {
+		out = append(out, msgs.SettingsPluginsAddsSubtitleFormat(x.Label.In(lang)))
+	}
+	for _, x := range c.Exporters {
+		out = append(out, msgs.SettingsPluginsAddsExporter(x.Label.In(lang)))
+	}
+	for _, x := range c.Annotators {
+		out = append(out, msgs.SettingsPluginsAddsAnnotator(x.Label.In(lang)))
+	}
+	return out
+}
+
 // pluginSourceBadge is the badge after the name of a pack from source: 官方 or 开发者 for a script plugin, 本地 for a data pack.
 func pluginSourceBadge(cx *core.Scope, p plugins.Pack) string {
 	switch {
@@ -89,7 +112,25 @@ func pluginScriptRow(a PluginsApp, id string) (PluginScript, bool) {
 }
 
 // pluginScriptDetail is what the details of the script plugin in r add: why it does not run, that an update asks for more, the permissions it asks for, each with a switch that grants it, needed ones first, the risky combination on a line of its own, the commands whose keys were taken, its settings, and 查看审计记录.
+//
+// Its words, the app's (the permissions, what it adds, where its keys go) and the page's own, are put in place as the region is built, which is built again when the interface's language changes, and only then, so a key half typed keeps its field otherwise.
 func pluginScriptDetail(cx *core.Scope, a PluginsApp, r PluginRow) []core.Node {
+	region := core.Dynamic(func(cx *core.Scope) core.Node {
+		_ = i18n.Language(cx)
+		now := core.Untracked(cx, func() PluginRow {
+			now := r
+			if s, ok := pluginScriptRow(a, r.Pack.ID); ok {
+				now.Script = &s
+			}
+			return now
+		})
+		return core.Group(pluginScriptDetailIn(cx, a, now))
+	})
+	return []core.Node{region}
+}
+
+// pluginScriptDetailIn is pluginScriptDetail's region, in the words of the language it is built in.
+func pluginScriptDetailIn(cx *core.Scope, a PluginsApp, r PluginRow) []core.Node {
 	colors := ui.ColorsOf(cx)
 	id := r.Pack.ID
 	note := func(text func() string, color func() core.Color, testID string) core.Node {

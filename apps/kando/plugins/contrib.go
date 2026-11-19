@@ -7,6 +7,7 @@ import (
 	"regexp"
 	"slices"
 	"strings"
+	"unicode"
 	"unicode/utf8"
 
 	"golang.org/x/net/publicsuffix"
@@ -30,7 +31,10 @@ type Lookup struct {
 	Label     Text     `json:"label"`
 }
 
-// SubtitleFormat is a format the subtitle export offers that a script plugin writes (E11): its export, called as exportSubtitles(formatID, cues), returns the file's text, which Kando writes with Extension (letters and digits, no dot).
+// SubtitleExtensions are the extensions a subtitle format of a script plugin may write its file with, beside the film's video: subtitle and text formats, never one a system runs or opens as a program (bat, exe, js, ps1 and the like).
+var SubtitleExtensions = []string{"srt", "vtt", "ass", "ssa", "sub", "lrc", "txt", "tsv", "csv", "json", "md", "ttml", "xml", "sbv", "smi"}
+
+// SubtitleFormat is a format the subtitle export offers that a script plugin writes (E11): its export, called as exportSubtitles(formatID, cues), returns the file's text, which Kando writes with Extension, one of SubtitleExtensions, without its dot.
 type SubtitleFormat struct {
 	ID        string `json:"id"`
 	Export    string `json:"export"`
@@ -127,14 +131,27 @@ func (c GrantedCredential) Value(secret string) string {
 	return strings.Replace(c.Format, SecretMark, secret, 1)
 }
 
+// SecretKeys are the keys of what Kando keeps for the script plugin m in its host partition: its secret settings' and its credentials' (SecretKey).
+func (m Manifest) SecretKeys() []string {
+	var keys []string
+	for _, st := range m.Settings {
+		if st.Type == SettingSecret {
+			keys = append(keys, st.Key)
+		}
+	}
+	for _, c := range m.Credentials {
+		keys = append(keys, SecretKey(c.ID))
+	}
+	return keys
+}
+
 // SecretKey is the key Kando keeps the secret of the credential id under, in the plugin's host partition, apart from its secret settings' keys.
 func SecretKey(id string) string { return "credential." + id }
 
 var (
-	extensionPattern = regexp.MustCompile(`^[a-z0-9]{1,8}$`)
-	headerPattern    = regexp.MustCompile(`^[A-Za-z0-9][A-Za-z0-9-]{0,63}$`)
-	hostPattern      = regexp.MustCompile(`^[a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?(\.[a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?)+$`)
-	prefixPattern    = regexp.MustCompile(`^/[A-Za-z0-9._~/-]{0,127}$`)
+	headerPattern = regexp.MustCompile(`^[A-Za-z0-9][A-Za-z0-9-]{0,63}$`)
+	hostPattern   = regexp.MustCompile(`^[a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?(\.[a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?)+$`)
+	prefixPattern = regexp.MustCompile(`^/[A-Za-z0-9._~/-]{0,127}$`)
 )
 
 // credMethods are the methods a credential may name; credHeaders the headers it may not set, which the request's own framing or Kando's own say.
@@ -177,7 +194,7 @@ func checkContributes(c *Contributes) error {
 	reset()
 	for _, f := range c.SubtitleFormats {
 		ids, exports, labels = append(ids, f.ID), append(exports, f.Export), append(labels, f.Label)
-		if !extensionPattern.MatchString(f.Extension) {
+		if !slices.Contains(SubtitleExtensions, f.Extension) {
 			return fmt.Errorf("%w: subtitle format extension %q", ErrBadField, f.Extension)
 		}
 	}
@@ -294,9 +311,10 @@ func (m Manifest) ExportsNeeded() []string {
 	return out
 }
 
-// ReadsLines reports whether the plugin m is given the words of a film's lines or of its lookups without asking a permission for them, which its contributions are: a lookup source hears each word looked up and its line, an annotator the lines it marks.
+// ReadsLines reports whether the plugin m is given the words of a film's lines or of the saved lines without asking a permission for them, which its contributions are: a lookup source hears each word looked up and its line, a subtitle format the cues it writes, an export target the saved lines and words, an annotator the lines it marks.
 func (m Manifest) ReadsLines() bool {
-	return m.Contributes != nil && (len(m.Contributes.Lookups) > 0 || len(m.Contributes.Annotators) > 0)
+	c := m.Contributes
+	return c != nil && (len(c.Lookups) > 0 || len(c.SubtitleFormats) > 0 || len(c.Exporters) > 0 || len(c.Annotators) > 0)
 }
 
 // KnownService is a well-known service: its name, in lower case, as a credential's id or title would say it, and the hosts of its API.
@@ -324,11 +342,11 @@ var Services = []KnownService{
 	{"readwise", []string{"readwise.io"}},
 }
 
-// Mismatched is the well-known service the credential c names, in its id or English title, whose hosts c's hosts are not all among: "" when it names none, or sends its secret only where that service is.
+// Mismatched is the well-known service the credential c names, by a whole word of its id or English title, whose hosts c's hosts are not all among: "" when it names none, or sends its secret only where that service is. "banking" names no Anki.
 func (c Credential) Mismatched() string {
-	words := strings.ToLower(c.ID + " " + c.Title["en"])
+	words := strings.FieldsFunc(strings.ToLower(c.ID+" "+c.Title["en"]), func(r rune) bool { return !unicode.IsLetter(r) && !unicode.IsDigit(r) })
 	for _, s := range Services {
-		if !strings.Contains(words, s.Name) {
+		if !slices.Contains(words, s.Name) {
 			continue
 		}
 		for _, h := range c.Hosts {

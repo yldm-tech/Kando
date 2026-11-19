@@ -229,3 +229,15 @@ func TestWordSourceIsAnAddition(t *testing.T) {
 		t.Fatalf("a source without the desktop's name reads %+v, %v", unnamed, err)
 	}
 }
+
+// TestWordSourceOfAPlugin checks that a plugin's lookup source goes to a phone with its name and its plugin's, as an optional kind an older phone says nothing of.
+func TestWordSourceOfAPlugin(t *testing.T) {
+	data, err := json.Marshal(WordEntry{Word: "river", Meaning: "河", Source: WordSource{Kind: SourcePlugin, Name: "River Words", Plugin: "Rivers", Desktop: "Studio"}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	var e WordEntry
+	if err := json.Unmarshal(data, &e); err != nil || e.Source != (WordSource{Kind: SourcePlugin, Name: "River Words", Plugin: "Rivers", Desktop: "Studio"}) {
+		t.Fatalf("read back %+v, %v", e, err)
+	}
+}

@@ -581,7 +581,7 @@ func (a *app) pluginsForgetPartitions(p plugins.Pack, signer string) {
 		return
 	}
 	script.ClearStorage(a.cx, p.ID, signer)
-	keys := pluginsSecretKeys(p)
+	keys := p.SecretKeys()
 	delete(a.plugins.script.secrets, p.ID)
 	if len(keys) == 0 {
 		return
@@ -592,20 +592,6 @@ func (a *app) pluginsForgetPartitions(p plugins.Pack, signer string) {
 			secrets.Delete(k)
 		}
 	}()
-}
-
-// pluginsSecretKeys are the keys of what Kando keeps for the plugin p in its host partition: its secret settings' and its credentials' (plugins.SecretKey).
-func pluginsSecretKeys(p plugins.Pack) []string {
-	var keys []string
-	for _, st := range p.Settings {
-		if st.Type == plugins.SettingSecret {
-			keys = append(keys, st.Key)
-		}
-	}
-	for _, c := range p.Credentials {
-		keys = append(keys, plugins.SecretKey(c.ID))
-	}
-	return keys
 }
 
 // pluginsHostSecrets is the secure store's partition where Kando keeps the secrets of the plugin id signed by signer (script.HostPartition), which its own code cannot reach.
@@ -626,7 +612,7 @@ func (a *app) pluginsLoadValues(p plugins.Pack) {
 	if root == "" || a.cx == nil {
 		return
 	}
-	secretKeys := pluginsSecretKeys(p)
+	secretKeys := p.SecretKeys()
 	id := p.ID
 	secrets, update := a.pluginsHostSecrets(id, p.Signer), a.update
 	go func() {
@@ -715,7 +701,7 @@ func (a *app) pluginsSetSecret(id, key, value string) {
 		return
 	}
 	p := a.plugins.packs[i]
-	if !slices.Contains(pluginsSecretKeys(p), key) {
+	if !slices.Contains(p.SecretKeys(), key) {
 		return
 	}
 	secrets, update := a.pluginsHostSecrets(id, p.Signer), a.update

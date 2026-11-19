@@ -38,12 +38,13 @@ type Watch struct {
 	Stalls      int
 	// Heap is how many bytes the Go heap may grow past what it was before the plugin loaded while a call of it runs.
 	Heap uint64
-	// Deadline is the longest a call may take, its awaits included.
+	// Deadline is the longest a call may take, its awaits included, but for the time the app waits on its behalf (Pause, PauseFor); Paused is the longest the app may wait on its behalf in all during one call, so a call that awaits host calls in a loop does not hold every other plugin's calls for ever.
 	Deadline time.Duration
+	Paused   time.Duration
 }
 
-// DefaultWatch is the watchdog's: a heartbeat every 100 ms, three in a row that waited over 250 ms, 512 MiB of heap and a minute per call.
-var DefaultWatch = Watch{Beat: 100 * time.Millisecond, Stall: 250 * time.Millisecond, Stalls: 3, Heap: 512 << 20, Deadline: time.Minute}
+// DefaultWatch is the watchdog's: a heartbeat every 100 ms, three in a row that waited over 250 ms, 512 MiB of heap, a minute per call and five minutes of the app's waiting on its behalf.
+var DefaultWatch = Watch{Beat: 100 * time.Millisecond, Stall: 250 * time.Millisecond, Stalls: 3, Heap: 512 << 20, Deadline: time.Minute, Paused: 5 * time.Minute}
 
 // The circuit breaker: a plugin of which breakerFails of the last breakerCalls calls failed is stopped.
 //
@@ -188,7 +189,19 @@ func LiveHeapBytes() uint64 {
 
 // Pause pauses the watchdog of the call running while the app waits on its behalf, as for the user's answer, or does work of its own on the engine's goroutine, as loading a plugin: the call's deadline does not run, and the heartbeats posted meanwhile do not count against it. resume ends the pause; it may be called once. With no call running it does nothing. Call it on the engine's goroutine.
 func (r *Runner) Pause() (resume func()) {
-	c := r.running
+	return r.pause(r.running)
+}
+
+// PauseFor is Pause for a wait on behalf of the plugin p alone, as for a host call it made: it pauses the call running only when it is p's. A host call a plugin made outside its own call, as from a timer after the call ended, pauses no other plugin's call. Call it on the engine's goroutine.
+func (r *Runner) PauseFor(p *Plugin) (resume func()) {
+	if c := r.running; c != nil && c.p == p {
+		return r.pause(c)
+	}
+	return func() {}
+}
+
+// pause pauses the watchdog of the call c, nil for none.
+func (r *Runner) pause(c *call) (resume func()) {
 	if c == nil {
 		return func() {}
 	}
@@ -291,6 +304,11 @@ func (r *Runner) watch(c *call, start time.Time) {
 				stalls, counted = 0, waiting
 			}
 			c.mu.Unlock()
+			if w.Paused > 0 && ran > w.Paused {
+				// The app waited on the call's behalf too long in all, as for a call that awaits host calls in a loop.
+				trip(plugins.ReasonSlow)
+				return
+			}
 			if paused {
 				continue
 			}

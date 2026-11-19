@@ -193,6 +193,8 @@ func exportStatus(cx *core.Scope, export func() Export) core.Node {
 	text := func() string {
 		e := export()
 		switch {
+		case e.Stopped:
+			return locales.SavedExportStopped(cx)
 		case e.Busy && e.Plugin != "":
 			return locales.SavedExportingPlugin(cx, e.Plugin)
 		case e.Plugin != "" && e.Finished && e.Err != "":

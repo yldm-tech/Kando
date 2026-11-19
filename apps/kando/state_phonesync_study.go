@@ -116,6 +116,10 @@ func (a *app) phoneWordSources(ask lookup.Ask) map[string]psync.WordSource {
 	out := map[string]psync.WordSource{}
 	for _, d := range slices.Concat(ask.Dicts, ask.Others) {
 		id := d.ID()
+		if plugin, lookup, ok := a.pluginsLookupNames(id); ok {
+			out[id] = psync.WordSource{Kind: psync.SourcePlugin, Name: lookup.In(lang), Plugin: plugin.In(lang)}
+			continue
+		}
 		src := psync.WordSource{Kind: psync.SourceDictionary, Name: id}
 		if i := slices.IndexFunc(a.plugins.packs, func(p plugins.Pack) bool { return p.ID == id }); i >= 0 {
 			p := a.plugins.packs[i]

@@ -4,6 +4,7 @@ import (
 	"context"
 	"crypto/tls"
 	"encoding/base64"
+	"errors"
 	"fmt"
 	"net"
 	"net/http"
@@ -16,6 +17,7 @@ import (
 	"time"
 
 	"kando/apps/kando/films"
+	"kando/apps/kando/locales"
 	"kando/apps/kando/locales/testlocale"
 	"kando/apps/kando/lookup"
 	"kando/apps/kando/plugins"
@@ -24,6 +26,7 @@ import (
 	"kando/apps/kando/subexport"
 	"kando/packages/media"
 	"kando/packages/study"
+	psync "kando/packages/sync"
 
 	"github.com/nsgo-dev/nsgo/nsgotest"
 	"github.com/nsgo-dev/nsgo/tsx/pkg"
@@ -34,7 +37,7 @@ const pluginContribFields = `"capabilities": {"host": ["kando.llm.chat", "kando.
   "contributes": {
     "lookups": [{"id": "wiki", "export": "lookUp", "label": {"en": "Wiki", "zh-Hans": "维基"}}],
     "subtitleFormats": [{"id": "lrc", "export": "exportSubtitles", "extension": "lrc", "label": {"en": "LRC lyrics", "zh-Hans": "LRC 歌词"}}],
-    "exporters": [{"id": "notes", "export": "exportNotes", "takes": ["lines", "words"], "label": {"en": "Wiki cards", "zh-Hans": "维基卡片"}}],
+    "exporters": [{"id": "notes", "export": "exportNotes", "takes": ["lines", "words"], "label": {"en": "Wiki cards", "zh-Hans": "维基卡片"}}, {"id": "slow", "export": "exportSlow", "takes": ["lines"], "label": {"en": "Never done", "zh-Hans": "永远在发"}}],
     "annotators": [{"id": "first", "export": "annotate", "label": {"en": "First two", "zh-Hans": "前两个字"}}]
   },
   "credentials": [{"id": "deepl", "title": {"en": "DeepL API key", "zh-Hans": "DeepL API 密钥"}, "header": "Authorization", "format": "DeepL-Auth-Key {secret}", "hosts": ["api.deepl.com"], "methods": ["POST"], "pathPrefixes": ["/v2/translate"]}]`
@@ -53,6 +56,11 @@ export async function exportSubtitles(id, cues) {
 }
 export async function exportNotes(items, settings) {
   return { sent: items.filter((i) => i.kind === "line").length, skipped: items.filter((i) => i.kind === "word").length }
+}
+export function exportSlow() { return new Promise(() => {}) }
+export async function loopFetch() {
+  for (let i = 0; i < 1000; i++) await attempt("kando.net.credentialFetch", { credential: "deepl", method: "POST", url: "https://api.deepl.com/v2/translate/slow", header: {}, body: "" })
+  return "never stopped"
 }
 export async function annotate(lang, lines) {
   return lines.map((l) => (l.length >= 2 ? [{ start: 0, end: 2, ruby: "wk" }, { start: 0, end: 99, tone: "warn" }] : []))
@@ -94,12 +102,20 @@ func TestPluginContribLookup(t *testing.T) {
 		return a.vocab.lookup
 	}
 	l := look("Hello")
-	if l.failed || l.source != "acme.wiki" || !strings.HasPrefix(l.entry.Meaning, "from the wiki: Hello.") || l.entry.Reading != "wi-ki" {
+	if l.failed || l.source != "plugin:acme.wiki:wiki" || !strings.HasPrefix(l.entry.Meaning, "from the wiki: Hello.") || l.entry.Reading != "wi-ki" {
 		t.Fatalf("the lookup %+v", l)
 	}
 	refresh(tt, a)
-	if got := tt.Find("id:film-lookup-source").Text; got != testlocale.Messages().VocabLookupSourceDict("Anki 发送器") {
-		t.Errorf("the card's source %q does not name the plugin", got)
+	if got := tt.Find("id:film-lookup-source").Text; got != testlocale.Messages().VocabLookupSourcePlugin("Anki 发送器", "维基") {
+		t.Errorf("the card's source %q does not name the plugin and its source", got)
+	}
+	// A phone's lookup says the same (psync.SourcePlugin).
+	var sources map[string]psync.WordSource
+	onEngine(a, func() {
+		sources = a.phoneWordSources(a.vocabResolve(lookup.Query{Word: "Hello", Line: "Hello.", Language: "简体中文"}, "talk").ask)
+	})
+	if got := sources["plugin:acme.wiki:wiki"]; got != (psync.WordSource{Kind: psync.SourcePlugin, Name: "维基", Plugin: "Anki 发送器"}) {
+		t.Errorf("a phone's source %+v", got)
 	}
 	if l := look("nothing"); l.source != "" || l.entry.Meaning != "无" {
 		t.Errorf("a word the plugin does not have: %+v", l)
@@ -112,7 +128,7 @@ func TestPluginContribLookup(t *testing.T) {
 		ask = a.vocabResolve(lookup.Query{Word: "Bye", Line: "Bye.", Language: "简体中文"}, "talk")
 	})
 	for _, d := range ask.ask.Dicts {
-		if d.ID() == "acme.wiki" {
+		if strings.Contains(d.ID(), "acme.wiki") {
 			t.Error("a plugin turned off is asked")
 		}
 	}
@@ -142,6 +158,15 @@ func TestPluginContribSubtitleFormat(t *testing.T) {
 	scriptsSettle(t, a, tt, updates, func() bool { return a.plugins.script.loaded["acme.wiki"] == nil })
 	if c := a.SubexportChoice(); c.Format != "srt" || !strings.HasSuffix(a.SubexportPath(), ".srt") {
 		t.Errorf("without the plugin %+v, %q", c, a.SubexportPath())
+	}
+	// Changing another choice meanwhile keeps the plugin's format remembered for when it is back.
+	onEngine(a, func() {
+		c := a.SubexportChoice()
+		c.Content = "original"
+		a.SetSubexportChoice(c)
+	})
+	if got := a.export.choice; got.Format != "plugin:acme.wiki:lrc" || got.Content != "original" {
+		t.Errorf("remembered %+v", got)
 	}
 	if (subexport.Choice{Format: "plugin:acme.wiki:lrc"}).Clean().Format != "plugin:acme.wiki:lrc" {
 		t.Error("Clean drops a plugin's format")
@@ -175,6 +200,22 @@ func TestPluginContribExporter(t *testing.T) {
 		t.Fatalf("the export %+v", e)
 	}
 	wantText(t, tt, testlocale.Messages().SavedExportedPlugin(2, 1, "Anki 发送器"))
+
+	// An export to a plugin that never answers, stopped, says it stopped, not that it sent nothing.
+	onEngine(a, func() {
+		a.SetExportTarget(pluginsContribID("acme.wiki", "slow"))
+		a.ExportSaved()
+	})
+	scriptsSettle(t, a, tt, updates, func() bool { return a.ExportState().Busy })
+	onEngine(a, a.StopExport)
+	refresh(tt, a)
+	if e := a.ExportState(); !e.Stopped || e.Busy {
+		t.Fatalf("stopped: %+v", e)
+	}
+	wantText(t, tt, testlocale.Messages().SavedExportStopped())
+	if hasText(tt, testlocale.Messages().SavedExportedPlugin(0, 0, "Anki 发送器")) {
+		t.Error("a stopped export says it sent nothing")
+	}
 }
 
 // TestPluginContribAnnotator checks an annotator of a script plugin: the open film's lines are marked by it, its offsets read as JavaScript counts them, its mark out of the line dropped, and its marks show as Kando's own do.
@@ -294,6 +335,9 @@ func credentialServer(t *testing.T) (*http.Client, func() []string) {
 		mu.Lock()
 		heard = append(heard, r.Method+" "+r.Host+r.URL.Path+" "+r.Header.Get("Authorization")+" "+r.Header.Get("Cookie"))
 		mu.Unlock()
+		if r.URL.Path == "/v2/translate/slow" {
+			time.Sleep(300 * time.Millisecond)
+		}
 		if r.URL.Path == "/v2/translate/away" {
 			http.Redirect(w, r, "https://api.deepl.com/v2/translate/leak", http.StatusFound)
 			return
@@ -450,7 +494,7 @@ func TestPluginRevocationsFetched(t *testing.T) {
 		t.Fatal("no list stopped the plugin")
 	}
 	// The next fetch is due a day later; the file of the plugins folder says when it was.
-	if pluginsRevocationsLast(root).IsZero() {
+	if script.RevocationsChecked(root).IsZero() {
 		t.Fatal("the fetch was not recorded")
 	}
 	priv, _, _ := script.DevKey(key.secret)
@@ -463,7 +507,7 @@ func TestPluginRevocationsFetched(t *testing.T) {
 	mu.Lock()
 	list = data
 	mu.Unlock()
-	os.Remove(filepath.Join(root, pluginsRevocationsCheck))
+	os.Remove(filepath.Join(root, ".revocations-checked"))
 	onEngine(a, func() {
 		a.plugins.script.revokedAt = time.Time{}
 		a.pluginsCheckRevocations()
@@ -513,4 +557,55 @@ func TestPluginContribAnnotatorForPhones(t *testing.T) {
 	if len(found.lines) != 2 || len(found.lines[0]) != 1 || found.lines[0][0].Ruby != "wk" || len(found.lines[1]) != 0 {
 		t.Fatalf("the phone's marks %+v", found)
 	}
+}
+
+// TestPluginWaitingIsCapped checks that a call that awaits host calls in a loop, each a request Kando sends on its behalf to a slow service, is stopped once the app waited for it longer than the watchdog allows in all (script.Watch.Paused), so it does not hold the other plugins' calls for ever.
+func TestPluginWaitingIsCapped(t *testing.T) {
+	client, _ := credentialServer(t)
+	a, tt, updates, _, _ := contribApp(t, media.Tools{})
+	a.plugins.script.client = client
+	onEngine(a, func() { a.SetPluginSecret("acme.wiki", plugins.SecretKey("deepl"), "k") })
+	scriptsSettle(t, a, tt, updates, func() bool { return a.PluginSecretKept("acme.wiki", plugins.SecretKey("deepl")) })
+	onEngine(a, func() { a.pluginsRunner().Watch.Paused = time.Second })
+	var got struct {
+		err  error
+		done bool
+	}
+	onEngine(a, func() {
+		a.pluginsRunner().Call(a.plugins.script.loaded["acme.wiki"].plugin, "loopFetch", nil, func(_ any, err error) { got.err, got.done = err, true })
+	})
+	deadline := time.Now().Add(10 * time.Second)
+	for !got.done {
+		if time.Now().After(deadline) {
+			t.Fatal("the looping call was not stopped")
+		}
+		select {
+		case fn := <-updates:
+			onEngine(a, func() { fn(); a.Changed() })
+		default:
+			time.Sleep(5 * time.Millisecond)
+		}
+		tt.Settle()
+	}
+	if !errors.Is(got.err, script.ErrStopped) {
+		t.Fatalf("the call ended with %v", got.err)
+	}
+	if h, ok := plugins.HealthOf(a.plugins.script.health, "acme.wiki", a.pluginsScriptPacks()[0].Hash); !ok || h.Reason != plugins.ReasonSlow {
+		t.Errorf("health %+v", a.plugins.script.health)
+	}
+}
+
+// TestPluginDetailsFollowTheLanguage checks that the words of a script plugin's details, what it adds and where its key goes among them, follow a switch of the interface's language.
+func TestPluginDetailsFollowTheLanguage(t *testing.T) {
+	a, tt, _, _, _ := contribApp(t, media.Tools{})
+	tt = settingsOpenAt(a, tt, settings.SectionPlugins)
+	tt.Press("id:settings-plugins-details-acme.wiki")
+	wantText(t, tt, "· "+testlocale.Messages().SettingsPluginsAddsLookup("维基"))
+	apply(tt, a, func() { a.SetInterfaceLanguage("en") })
+	if !tt.Exists("id:settings-plugins-credential-acme.wiki-deepl") {
+		tt.Press("id:settings-plugins-details-acme.wiki")
+	}
+	en := locales.In("en")
+	wantText(t, tt, "· "+en.SettingsPluginsAddsLookup("Wiki"))
+	wantText(t, tt, en.SettingsPluginsCredentialHosts("api.deepl.com"))
 }

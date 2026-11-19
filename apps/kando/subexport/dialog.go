@@ -34,7 +34,8 @@ func (d Dialog) Render(cx *ns.Scope) ns.Node {
 				Value:    func() string { return get(choice()) },
 				OnChange: func(v string) { set(func(c *Choice) { put(c, v) }) }}
 		}
-		// The plugins' formats come after Kando's own; the tabs are built again only when they change.
+		// The plugins' formats come after Kando's own. Without any, Kando's own tabs are built once, as the other rows' are; with some, the tabs are built again only when they change.
+		// TODO(nsgo): ui.Tabs takes its Options as a slice, not a binding (ui/tabs.go:30), so tabs whose options change are built again and lose their focus; bind them once it can, as for ui.Select (nsgo#848)
 		formats := ns.NewMemo(cx, live.Func(a, func() string {
 			var out []string
 			for _, f := range a.SubexportFormats() {
@@ -42,20 +43,26 @@ func (d Dialog) Render(cx *ns.Scope) ns.Node {
 			}
 			return strings.Join(out, "\x01")
 		}))
-		format := ns.Dynamic(func(cx *ns.Scope) ns.Node {
-			options := []ui.Option[string]{
+		own := func() []ui.Option[string] {
+			return []ui.Option[string]{
 				{Value: core.FormatSRT, Label: "SRT", TestID: "export-format-srt"},
 				{Value: core.FormatVTT, Label: "WebVTT", TestID: "export-format-vtt"},
 				{Value: core.FormatASS, Label: "ASS", TestID: "export-format-ass"},
 			}
-			if joined := formats.Get(); joined != "" {
-				for _, item := range strings.Split(joined, "\x01") {
+		}
+		formatTabs := func(options ...ui.Option[string]) ns.Node {
+			return tabs("export-format", locales.SubexportFormat(cx), func(c Choice) string { return c.Format }, func(c *Choice, v string) { c.Format = v }, options...)
+		}
+		format := ns.Show{When: func() bool { return formats.Get() == "" }, Then: func(*ns.Scope) ns.Node { return formatTabs(own()...) }, Else: func(*ns.Scope) ns.Node {
+			return ns.Dynamic(func(*ns.Scope) ns.Node {
+				options := own()
+				for _, item := range strings.Split(formats.Get(), "\x01") {
 					value, label, _ := strings.Cut(item, "\x00")
 					options = append(options, ui.Option[string]{Value: value, Label: label, TestID: "export-format-" + strings.ReplaceAll(strings.TrimPrefix(value, PluginPrefix), ":", "-")})
 				}
-			}
-			return tabs("export-format", locales.SubexportFormat(cx), func(c Choice) string { return c.Format }, func(c *Choice, v string) { c.Format = v }, options...)
-		})
+				return formatTabs(options...)
+			})
+		}}
 		content := tabs("export-content", locales.SubexportContent(cx), func(c Choice) string { return c.Content }, func(c *Choice, v string) { c.Content = v },
 			ui.Option[string]{Value: core.SubOriginal, Label: locales.SubexportOriginal(cx), TestID: "export-content-original"},
 			ui.Option[string]{Value: core.SubTranslation, Label: locales.SubexportTranslation(cx), TestID: "export-content-translation"},

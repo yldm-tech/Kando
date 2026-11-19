@@ -215,7 +215,7 @@ func (a *app) pluginsOpenURLCall(l *pluginsScript, c *ns.HostCall) {
 	}
 	s.asking = true
 	// The user may take as long as they like to answer: the call waiting for it is not held to its deadline nor blamed for the window's pauses meanwhile.
-	resume := a.pluginsRunner().Pause()
+	resume := a.pluginsRunner().PauseFor(l.plugin)
 	m := a.messages()
 	open := m.PluginsOpenURLOpen()
 	name := l.pack.Name.In(i18n.Language(a.cx))

@@ -138,7 +138,7 @@ func TestAWordTappedIsLookedUpThroughTheComputer(t *testing.T) {
 	}
 }
 
-// The word card says where the meaning came from, as the computer says it: a dictionary installed there, with the credit its license asks for, or the AI service of the computer that answered, by the name it sent with the answer, or without a name when it sent none; an older computer that does not say leaves it out.
+// The word card says where the meaning came from, as the computer says it: a dictionary installed there, with the credit its license asks for, a plugin's lookup source there, or the AI service of the computer that answered, by the name it sent with the answer, or without a name when it sent none; an older computer that does not say leaves it out.
 func TestTheWordCardSaysWhereTheMeaningCameFrom(t *testing.T) {
 	d := newDesktop(t)
 	d.SetEntry("Good", sync.WordEntry{Word: "good", Meaning: "adj. 好", Language: "简体中文", Source: sync.WordSource{Kind: sync.SourceDictionary, Name: "CC-CEDICT", Credit: "CC-CEDICT © MDBG"}})
@@ -170,6 +170,14 @@ func TestTheWordCardSaysWhereTheMeaningCameFrom(t *testing.T) {
 	}
 	if got, ok := source("morning"); ok {
 		t.Fatalf("an older computer's meaning says %q", got)
+	}
+
+	// A plugin's lookup source on the computer, by its name and its plugin's, not as a dictionary.
+	plugin := newDesktop(t)
+	plugin.SetEntry("Good", sync.WordEntry{Word: "good", Meaning: "adj. 好", Language: "简体中文", Source: sync.WordSource{Kind: sync.SourcePlugin, Name: "河流词典", Plugin: "河流"}})
+	p, _ = studyPlayer(t, plugin)
+	if got, _ := source("Good"); got != msgs.PlayerWordSourcePlugin("河流", "河流词典") {
+		t.Fatalf("a plugin's meaning says %q", got)
 	}
 }
 

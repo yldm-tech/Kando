@@ -70,7 +70,7 @@ func shootPluginContributions(t *testing.T, f *screenshotFixture, key pluginsKey
 		onEngine(a, func() { a.LookUpWord(0, "trickle") })
 		scriptsSettle(t, a, tt, updates, func() bool { return !a.vocab.lookup.busy })
 		refresh(tt, a)
-		if !tt.Exists("id:film-lookup-source") || a.vocab.lookup.source != "acme.rivers" {
+		if !tt.Exists("id:film-lookup-source") || a.vocab.lookup.source != "plugin:acme.rivers:words" {
 			t.Fatalf("no plugin's answer: %+v; texts %q", a.vocab.lookup, tt.Texts())
 		}
 	})

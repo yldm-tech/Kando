@@ -3,6 +3,8 @@ package plugins
 import (
 	"strings"
 	"testing"
+
+	"github.com/nsgo-dev/nsgo/tsx/pkg"
 )
 
 // contribManifest is scriptManifest with a contribution of every kind and a credential.
@@ -44,6 +46,8 @@ func TestValidateContributions(t *testing.T) {
 		{"a lookup's language", `"languages": ["ja"]`, `"languages": ["JA"]`},
 		{"a lookup's label", `"label": {"en": "Wiki"}`, `"label": {"ja": "Wiki"}`},
 		{"an extension with a dot", `"extension": "lrc"`, `"extension": ".lrc"`},
+		{"a program's extension", `"extension": "lrc"`, `"extension": "bat"`},
+		{"a script's extension", `"extension": "lrc"`, `"extension": "ps1"`},
 		{"an exporter that takes nothing", `"takes": ["lines", "words"]`, `"takes": []`},
 		{"an exporter that takes films", `"takes": ["lines", "words"]`, `"takes": ["films"]`},
 		{"lines twice", `"takes": ["lines", "words"]`, `"takes": ["lines", "lines"]`},
@@ -154,5 +158,22 @@ func TestCredentialMismatched(t *testing.T) {
 	}
 	if (Credential{ID: "key", Title: Text{"en": "My service"}, Hosts: []string{"x.example.com"}}).Mismatched() != "" {
 		t.Error("a service of no name flagged")
+	}
+	if (Credential{ID: "banking", Title: Text{"en": "Online banking token"}, Hosts: []string{"bank.example.com"}}).Mismatched() != "" {
+		t.Error("banking read as Anki")
+	}
+	if (Credential{ID: "anki-web", Title: Text{"en": "AnkiWeb"}, Hosts: []string{"x.example.com"}}).Mismatched() != "anki" {
+		t.Error("anki-web not read as Anki")
+	}
+}
+
+// TestRiskyContributions checks that a plugin given the saved lines by an export target, or the cues by a subtitle format, and reaching the network is flagged, as one given them by a permission is.
+func TestRiskyContributions(t *testing.T) {
+	network := Grant{Network: []pkg.HTTPRule{{Host: "x.example.com", Methods: []string{"POST"}, Paths: []string{"/"}}}}
+	exporter := Manifest{Contributes: &Contributes{Exporters: []Exporter{{ID: "x"}}}}
+	format := Manifest{Contributes: &Contributes{SubtitleFormats: []SubtitleFormat{{ID: "x"}}}}
+	commands := Manifest{Contributes: &Contributes{Commands: []Command{{ID: "x"}}}}
+	if !Risky(exporter, network) || !Risky(format, network) || Risky(commands, network) || Risky(exporter, Grant{}) {
+		t.Error("risky")
 	}
 }

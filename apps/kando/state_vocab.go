@@ -286,7 +286,8 @@ func (a *app) LookUpWord(i int, word string) {
 		if got.source == "" {
 			// The dictionaries asked before the AI service that did not have the word (lookup.Ask.Answer), not those whose lookup failed; the card says so.
 			for _, d := range ask.ask.Dicts {
-				if !slices.Contains(got.broken, d.ID()) {
+				// Only the dictionary packs are named as not having the word; a plugin's lookup source is no dictionary.
+				if _, _, plugin := a.pluginsLookupNames(d.ID()); !plugin && !slices.Contains(got.broken, d.ID()) {
 					l.missed = append(l.missed, d.ID())
 				}
 			}
@@ -341,7 +342,7 @@ func (k vocabAsk) answer(ctx context.Context) (lookup.Entry, string, error) {
 	return k.ask.Answer(ctx)
 }
 
-// vocabSourceText says where an entry came from, as the lookup card shows it under the meaning: the dictionary pack of the id dict, by its name, with the credit its license asks for, or the AI service, saying so when the dictionaries missed, asked first, did not have the word (docs/plugin-system.md 7.5): by its name when one was asked, as "your dictionaries" when several were; in the language shown under the card's scope.
+// vocabSourceText says where an entry came from, as the lookup card shows it under the meaning: the dictionary pack of the id dict, by its name, with the credit its license asks for, a lookup source of a script plugin, by its name and its plugin's, or the AI service, saying so when the dictionaries missed, asked first, did not have the word (docs/plugin-system.md 7.5): by its name when one was asked, as "your dictionaries" when several were; in the language shown under the card's scope.
 func (a *app) vocabSourceText(dict string, missed []string) func(*core.Scope) string {
 	if dict == "" {
 		switch len(missed) {
@@ -357,6 +358,12 @@ func (a *app) vocabSourceText(dict string, missed []string) func(*core.Scope) st
 			}
 		}
 		return locales.VocabLookupSourceAINotInDicts
+	}
+	if plugin, source, ok := a.pluginsLookupNames(dict); ok {
+		return func(cx *core.Scope) string {
+			lang := i18n.Language(cx)
+			return locales.VocabLookupSourcePlugin(cx, plugin.In(lang), source.In(lang))
+		}
 	}
 	var name, credit plugins.Text
 	if i := slices.IndexFunc(a.plugins.packs, func(p plugins.Pack) bool { return p.ID == dict }); i >= 0 {
