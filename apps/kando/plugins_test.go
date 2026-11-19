@@ -1113,7 +1113,7 @@ func TestPluginDictionariesAnswerInTheirOrder(t *testing.T) {
 	}
 }
 
-// TestPluginDictionaryAnswersAPhone checks a paired phone's lookup through the desktop (phoneStudy.LookUp) with dictionaries: offline and without an AI service, a Japanese word as it inflects (行った) is found by its dictionary form (行く) in a Yomitan dictionary, though its definitions are in English while the film is translated into Chinese; with an AI service set the AI service answers instead, as only a dictionary in the language the lookup answers in comes before it; a dictionary in that language answers before the AI service, which is not asked; and a read-only phone keeps nothing among the words looked up.
+// TestPluginDictionaryAnswersAPhone checks a paired phone's lookup through the desktop (phoneStudy.LookUp) with dictionaries: offline and without an AI service, a Japanese word as it inflects (行った) is found by its dictionary form (行く) in a Yomitan dictionary, though its definitions are in English while the film is translated into Chinese; with an AI service set the AI service answers instead, as only a dictionary in the language the lookup answers in comes before it; a dictionary in that language answers before the AI service, which is not asked; and a read-only phone keeps nothing among the words looked up. Each answer says where it came from (psync.WordSource): the dictionary's name and credit, or the AI service.
 func TestPluginDictionaryAnswersAPhone(t *testing.T) {
 	a, tt, updates := newTestApp(t, &fakePipeline{})
 	onEngine(a, func() { a.prefs.language = "简体中文" })
@@ -1144,12 +1144,15 @@ func TestPluginDictionaryAnswersAPhone(t *testing.T) {
 	if err != nil || e.Word != "行く" || e.Reading != "いく" || e.Meaning != "to go; to move" || e.Language != "简体中文" {
 		t.Fatalf("offline: %+v, %v", e, err)
 	}
+	if e.Source != (psync.WordSource{Kind: psync.SourceDictionary, Name: "JMdict (English)"}) {
+		t.Fatalf("offline, the source: %+v", e.Source)
+	}
 
 	srv, seen := fakeLLM(t, `{"word":"行く","reading":"いく","meaning":"去"}`)
 	onEngine(a, func() {
 		a.pipeline = media.Tools{Translator: media.ChatTranslator{BaseURL: srv.URL + "/v1", APIKey: "k", Model: "m1"}}
 	})
-	if e, err := look(psync.Caller{ReadOnly: true}, "行った", "公園に行った"); err != nil || e.Meaning != "去" || len(*seen) == 0 {
+	if e, err := look(psync.Caller{ReadOnly: true}, "行った", "公園に行った"); err != nil || e.Meaning != "去" || len(*seen) == 0 || e.Source != (psync.WordSource{Kind: psync.SourceAI}) {
 		t.Fatalf("with an AI service: %+v, %v, asked %d times", e, err, len(*seen))
 	}
 	if a.vocabCache().Len() != 0 {
@@ -1158,7 +1161,7 @@ func TestPluginDictionaryAnswersAPhone(t *testing.T) {
 	asked := len(*seen)
 
 	pluginsDictInstalled(t, a, tt, updates, pluginDictionary("example.ja-zh", "Japanese words", "ja", "zh-Hans"), map[string][]byte{"words.tsv": []byte("公園\tこうえん\t公园\n")})
-	if e, err := look(psync.Caller{}, "公園", "公園に行った"); err != nil || e.Meaning != "公园" || len(*seen) != asked {
+	if e, err := look(psync.Caller{}, "公園", "公園に行った"); err != nil || e.Meaning != "公园" || len(*seen) != asked || e.Source != (psync.WordSource{Kind: psync.SourceDictionary, Name: "Japanese words", Credit: "Japanese words © Example"}) {
 		t.Fatalf("a dictionary into Chinese: %+v, %v, the AI service asked again", e, err)
 	}
 	if a.vocabCache().Len() != 0 {

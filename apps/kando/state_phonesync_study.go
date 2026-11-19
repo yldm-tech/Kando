@@ -13,6 +13,7 @@ import (
 	"kando/apps/kando/locales"
 	"kando/apps/kando/lookup"
 	"kando/apps/kando/phonesync"
+	"kando/apps/kando/plugins"
 	"kando/apps/kando/recap"
 	"kando/apps/kando/remote"
 	"kando/packages/media"
@@ -62,23 +63,24 @@ func (s phoneStudy) ask(item films.Film) (phoneStudyAsk, error) {
 	return phoneStudyAsk{t: t, language: paletteAnswerLanguage(item, a.prefs.language)}, nil
 }
 
-// LookUp answers what the word means in the line as the picture's lookup does (vocabResolve): from the words looked up on this computer, else from the dictionary packs turned on, offline and without an AI service, else as the AI service set says, whose answer it then keeps among the words looked up, unless the phone is read-only (psync.Caller.ReadOnly): a read-only phone reads the words looked up, the dictionaries and asks the AI service, but changes nothing on this computer, the words looked up among it. Only when no dictionary has the word and no AI service can answer is it psync.CodeNoAI.
+// LookUp answers what the word means in the line as the picture's lookup does (vocabResolve): from the words looked up on this computer, else from the dictionary packs turned on, offline and without an AI service, else as the AI service set says, whose answer it then keeps among the words looked up, unless the phone is read-only (psync.Caller.ReadOnly): a read-only phone reads the words looked up, the dictionaries and asks the AI service, but changes nothing on this computer, the words looked up among it. Only when no dictionary has the word and no AI service can answer is it psync.CodeNoAI. The entry says where it came from (psync.WordSource), as the picture's card does: the dictionary, with its name and credit, or the AI service, a word looked up before among it.
 func (s phoneStudy) LookUp(ctx context.Context, caller psync.Caller, req psync.WordLookup) (psync.WordEntry, error) {
 	a := s.a
 	f := s.film(ctx, req.Library, req.Film)
 	word, line := strings.TrimSpace(req.Word), strings.TrimSpace(req.Line)
-	ask, err := remote.OnUI(ctx, a.update, func() (vocabAsk, error) {
+	resolved, err := remote.OnUI(ctx, a.update, func() (phoneLookup, error) {
 		// The same query as the picture's lookup of the word (vocabQuery), so a word looked up on either answers again at once on both.
-		return a.vocabResolve(vocabQuery(f, a.prefs.language, word, line), remoteFilmTitle(f)), nil
+		ask := a.vocabResolve(vocabQuery(f, a.prefs.language, word, line), remoteFilmTitle(f))
+		return phoneLookup{ask: ask, sources: a.phoneWordSources(ask.ask)}, nil
 	})
 	if err != nil {
 		return psync.WordEntry{}, err
 	}
-	entry := ask.entry
+	ask := resolved.ask
+	entry, source := ask.entry, ""
 	if !ask.cached {
 		ctx, cancel := context.WithTimeout(ctx, lookupTimeout)
 		defer cancel()
-		var source string
 		entry, source, err = ask.answer(ctx)
 		if errors.Is(err, lookup.ErrNoAnswer) {
 			return psync.WordEntry{}, psync.Errorf(psync.CodeNoAI, "%s", phoneStudyNoAI)
@@ -94,7 +96,36 @@ func (s phoneStudy) LookUp(ctx context.Context, caller psync.Caller, req psync.W
 			})
 		}
 	}
-	return psync.WordEntry{Word: cmp.Or(entry.Word, word), Reading: entry.Reading, Meaning: entry.Meaning, Language: ask.ask.Query.Language}, nil
+	from := psync.WordSource{Kind: psync.SourceAI}
+	if source != "" {
+		from = resolved.sources[source]
+	}
+	return psync.WordEntry{Word: cmp.Or(entry.Word, word), Reading: entry.Reading, Meaning: entry.Meaning, Language: ask.ask.Query.Language, Source: from}, nil
+}
+
+// phoneLookup is a phone's lookup as the engine's goroutine resolved it (vocabResolve), with the source of an answer from each dictionary it may ask (phoneWordSources).
+type phoneLookup struct {
+	ask     vocabAsk
+	sources map[string]psync.WordSource
+}
+
+// phoneWordSources is where an answer from each dictionary ask may ask came from, by the dictionary's id, as the picture's card names it (vocabSourceText): the pack's name and the credit its license asks for, in the interface's language, which the phone shows under the meaning. It reads the packs, so it runs on the engine's goroutine, before the dictionaries are asked off it.
+func (a *app) phoneWordSources(ask lookup.Ask) map[string]psync.WordSource {
+	lang := a.messages().Language()
+	out := map[string]psync.WordSource{}
+	for _, d := range slices.Concat(ask.Dicts, ask.Others) {
+		id := d.ID()
+		src := psync.WordSource{Kind: psync.SourceDictionary, Name: id}
+		if i := slices.IndexFunc(a.plugins.packs, func(p plugins.Pack) bool { return p.ID == id }); i >= 0 {
+			p := a.plugins.packs[i]
+			src.Name = cmp.Or(p.Name.In(lang), id)
+			if p.Dictionary != nil {
+				src.Credit = p.Dictionary.Attribution.In(lang)
+			}
+		}
+		out[id] = src
+	}
+	return out
 }
 
 // Explain answers the AI service's explanation of the line, as Explain Line asks for it on this computer (explain.Prompt): from the line and the lines before it, at most explainBefore of them, so it gives nothing away of what comes after; the lines after it a phone sends are left out. Its sections are those the side panel shows, in its order, each with its kind, and its text their paragraphs, for a phone that shows no headings.

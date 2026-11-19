@@ -1749,6 +1749,22 @@ playerUnsavedToast:
 playerWordInLine:
   message: "In this line"
   description: "Heading over the line a word was tapped in, in the word card."
+playerWordSourceAI:
+  message: "Explained by the AI service on {computer}"
+  description: "Word card, under the meaning: the computer's AI service gave the meaning, now or when the word was looked up there before."
+  placeholders:
+    computer: { type: "String", example: "Studio" }
+playerWordSourceDict:
+  message: "From the dictionary {name}"
+  description: "Word card, under the meaning: a dictionary pack installed on the computer gave the meaning; {name} is its name, as the computer gives it."
+  placeholders:
+    name: { type: "String", example: "JMdict (English)" }
+playerWordSourceDictCredit:
+  message: "From the dictionary {name} · {credit}"
+  description: "Word card, under the meaning: a dictionary pack installed on the computer gave the meaning; {name} is its name and {credit} the credit its license asks for, as the pack wrote it."
+  placeholders:
+    name: { type: "String", example: "JMdict (English)" }
+    credit: { type: "String", example: "JMdict © EDRDG" }
 sessionDownloading:
   message: "Downloading films"
   description: "Why the app keeps the screen on while films download, where the system lists it."

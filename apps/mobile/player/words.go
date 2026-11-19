@@ -271,13 +271,38 @@ func problemText(cx *core.Scope, p *play, problem session.StudyProblem) string {
 	return locales.PlayerStudyUnreachable(cx, name)
 }
 
-// wordBody is the card of the word looked up: the word as a dictionary lists it, its reading and its meaning, or that the computer is asked, or why it could not answer; the line it was tapped in, with its translation.
+// sourceText is where the meaning of a word looked up came from, as the computer's own card says it: a dictionary installed on the computer, with the credit its license asks for, or the computer's AI service; "" for a computer that does not say, or a source this phone does not know.
+func sourceText(cx *core.Scope, p *play, src sync.WordSource) string {
+	switch src.Kind {
+	case sync.SourceDictionary:
+		if src.Name == "" {
+			return ""
+		}
+		if src.Credit != "" {
+			return locales.PlayerWordSourceDictCredit(cx, src.Name, src.Credit)
+		}
+		return locales.PlayerWordSourceDict(cx, src.Name)
+	case sync.SourceAI:
+		return locales.PlayerWordSourceAI(cx, computer(p))
+	}
+	return ""
+}
+
+// wordBody is the card of the word looked up: the word as a dictionary lists it, its reading and its meaning with where it came from (sourceText), or that the computer is asked, or why it could not answer; the line it was tapped in, with its translation.
 func wordBody(cx *core.Scope, p *play, w *words, compact bool) []core.Node {
 	colors := ui.ColorsOf(cx)
 	l := func() lookup { return w.lookup.Get() }
 	wordSize := core.Points(30)
 	if compact {
 		wordSize = 22
+	}
+	// source is where the meaning shown came from, "" while none shows.
+	source := func() string {
+		x := l()
+		if x.busy || x.failed || x.entry.Meaning == "" {
+			return ""
+		}
+		return sourceText(cx, p, x.entry.Source)
 	}
 	return []core.Node{
 		core.View{Style: core.Style{Direction: core.Row, AlignItems: core.AlignCenter, Gap: 10}, Children: []core.Node{
@@ -303,6 +328,9 @@ func wordBody(cx *core.Scope, p *play, w *words, compact bool) []core.Node {
 		core.Show{When: func() bool { return !l().busy && !l().failed && l().entry.Meaning != "" }, Then: func(cx *core.Scope) core.Node {
 			return core.View{Style: core.Style{Padding: core.All(12), CornerRadius: 12, BorderCurve: core.BorderCurveContinuous}, StyleFunc: func() core.Style { return core.Style{Background: ui.Alpha(colors.Text(), 0.06)} },
 				Children: []core.Node{core.Text{TestID: "player-word-meaning", ContentFunc: func() string { return l().entry.Meaning }, LiveRegion: core.LiveRegionPolite, Style: look.Body, StyleFunc: ui.Colored(colors.Text)}}}
+		}},
+		core.Show{When: func() bool { return source() != "" }, Then: func(cx *core.Scope) core.Node {
+			return core.Text{TestID: "player-word-source", ContentFunc: source, Style: look.Caption, StyleFunc: ui.Colored(colors.Muted)}
 		}},
 		core.Show{When: func() bool { return !compact }, Then: func(cx *core.Scope) core.Node {
 			return core.View{Style: core.Style{Gap: 4}, Children: []core.Node{
