@@ -50,3 +50,10 @@ func (a *app) StoredPlace(item films.Film) string {
 	}
 	return strings.TrimSpace(a.storedName(a.messages(), item.Stored))
 }
+
+// MoveOpenVideoBack moves the open film's video back to the library, as its menu's 将视频移回资料库 does (MoveVideoBack); nothing for a video that was not moved.
+func (a *app) MoveOpenVideoBack() {
+	if item, ok := a.storedFilm(a.player.playPath); ok {
+		a.MoveVideoBack(item)
+	}
+}

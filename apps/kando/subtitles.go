@@ -20,10 +20,10 @@ const (
 	playerErrUnplayable     = "video-unplayable"
 	playerErrPlugins        = film.ErrMissingPlugins
 	// A video moved to a storage location (playerStored): the location is no longer in the settings, could not be reached, no longer has the video, or the system's player cannot play it from there.
-	playerErrStoredGone        = "stored-gone"
-	playerErrStoredUnreachable = "stored-unreachable"
-	playerErrStoredMissing     = "stored-missing"
-	playerErrStoredUnplayable  = "stored-unplayable"
+	playerErrStoredGone        = film.ErrStoredGone
+	playerErrStoredUnreachable = film.ErrStoredUnreachable
+	playerErrStoredMissing     = film.ErrStoredMissing
+	playerErrStoredUnplayable  = film.ErrStoredUnplayable
 )
 
 // playerErrTextIn is what the page says for one of the errors above in the language of m, as the page says it (ErrText) and the feedback issue says it in the language it is written in; any other text shows as it is.

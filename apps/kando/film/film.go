@@ -58,6 +58,8 @@ type App interface {
 	Play() Player
 	PlayPath() string
 	PlayErr() string
+	// MoveOpenVideoBack moves the open film's video from the storage location it was moved to back to the library, as the film's menu does; nothing for a video that was not moved.
+	MoveOpenVideoBack()
 	// ErrText is what the page says for an error ID of PlayErr or Subs.Err, in the language the interface shows under cx.
 	ErrText(cx *ns.Scope, id string) string
 	// PosterFile is the file of the film's poster for the video at path, which shows while its picture opens, or "" without one.

@@ -16,6 +16,7 @@ import (
 	"kando/apps/kando/film"
 	"kando/apps/kando/films"
 	"kando/apps/kando/locales/testlocale"
+	"kando/apps/kando/settings"
 	"kando/apps/kando/shelf"
 	"kando/apps/kando/sidebar"
 	"kando/apps/kando/storage"
@@ -369,6 +370,13 @@ func TestStoredFilmWhoseLocationIsGoneOrUnreachable(t *testing.T) {
 		t.Fatalf("the lines read are %+v", a.player.subs.cues)
 	}
 	wantText(t, tt, m.PlayerStoredUnreachable())
+	// The page offers the settings, where the location is, not a file manager on a video that is not on this computer.
+	refresh(tt, a)
+	if tt.Exists("id:film-stage-reveal") || !tt.Exists("id:film-stage-stored-settings") {
+		t.Fatalf("an unreachable location offers %q", tt.Texts())
+	}
+	tt.Press("id:film-stage-stored-settings")
+	wantSettings(t, a, settings.SectionAccount)
 	a.closeFilm()
 
 	// Gone from the settings.
