@@ -8,6 +8,7 @@ import (
 	"path"
 	"strings"
 	"sync"
+	"sync/atomic"
 )
 
 // Kind is the protocol a Remote is reached by.
@@ -181,15 +182,15 @@ func checkRange(p string, offset, length int64) error {
 	return nil
 }
 
-// countingReader counts the bytes read through it.
+// countingReader counts the bytes read through it. The count is atomic: net/http may still read a request's body on its own goroutine, to discard what is left of it, after the response came back to the caller that then reads the count.
 type countingReader struct {
 	r io.Reader
-	n int64
+	n atomic.Int64
 }
 
 func (c *countingReader) Read(b []byte) (int, error) {
 	n, err := c.r.Read(b)
-	c.n += int64(n)
+	c.n.Add(int64(n))
 	return n, err
 }
 

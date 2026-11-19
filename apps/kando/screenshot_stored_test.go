@@ -66,7 +66,8 @@ func TestScreenshotsStoredVideos(t *testing.T) {
 		a.SetLibrarySort(films.Order{By: films.SortDuration})
 		stored(t, a)
 		refresh(tt, a)
-		if n := len(tt.Query("id:films-list >> id:film-stored")); n != 3 {
+		// Mounted rather than in view: every film lasts 3:00, so which rows the sort puts last, at the window's foot, differs from machine to machine.
+		if n := len(tt.QueryMounted("id:films-list >> id:film-stored")); n != 3 {
 			t.Fatalf("%d marks in the list, want 3", n)
 		}
 	})

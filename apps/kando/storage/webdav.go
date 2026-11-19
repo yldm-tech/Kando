@@ -183,8 +183,8 @@ func (w *webdavStore) Write(ctx context.Context, p string, r io.Reader, size int
 	temp := path.Join(parent(p), tempPrefix+rand.Text())
 	body := &onceSeeker{countingReader: countingReader{r: io.LimitReader(r, size)}}
 	err = c.WriteStreamWithLength(temp, body, size, 0o644)
-	if err == nil && body.n < size {
-		err = shortBody(p, body.n, size)
+	if n := body.n.Load(); err == nil && n < size {
+		err = shortBody(p, n, size)
 	}
 	if err == nil {
 		err = c.Rename(temp, p, true)
@@ -204,7 +204,7 @@ type onceSeeker struct {
 }
 
 func (o *onceSeeker) Seek(offset int64, whence int) (int64, error) {
-	if offset == 0 && (whence == io.SeekStart || whence == io.SeekCurrent) && o.n == 0 {
+	if offset == 0 && (whence == io.SeekStart || whence == io.SeekCurrent) && o.n.Load() == 0 {
 		return 0, nil
 	}
 	return 0, errors.New("storage: the body cannot be read again")
