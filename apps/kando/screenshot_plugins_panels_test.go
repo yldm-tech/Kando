@@ -34,7 +34,7 @@ export function Words() {
 if (host.params.panel === "words") mount(Words)
 `
 
-// shootPluginPanels renders the player's 扩展 tab with acme.study's panel showing (plugins-script-panel), every tab's label whole in the language of the run (KANDO_SCREENSHOTS_LANG).
+// shootPluginPanels renders the player's 扩展 tab with acme.study's panel showing (plugins-script-panel), the seven tabs on one row of the bar, every label whole, in the language of the run (KANDO_SCREENSHOTS_LANG).
 func shootPluginPanels(t *testing.T, f *screenshotFixture, key pluginsKey) {
 	f.shoot(t, "plugins-script-panel", func(t *testing.T, a *app, tt *nsgotest.App, updates chan func()) {
 		screenshotOpen(t, a, tt, updates, "j1", protoCues[2].Start)
@@ -54,29 +54,43 @@ func shootPluginPanels(t *testing.T, f *screenshotFixture, key pluginsKey) {
 		if !tt.Exists("id:film-extensions") || tt.Find("id:study-line").Text == "" {
 			t.Fatalf("no plugin's panel; texts %q", tt.Texts())
 		}
-		for _, id := range []string{"subs", "clips", "terms", "notes", "info", "extensions", "style"} {
-			if why := screenshotTabCut(tt, id); why != "" {
-				t.Errorf("the side panel's tabs cut a label in %s: %s", testlocale.Current(), why)
-			}
+		if why := screenshotTabsOverflow(tt); why != "" {
+			t.Errorf("the side panel's tabs do not fit in %s: %s", testlocale.Current(), why)
 		}
 	})
 }
 
-// screenshotTabCut is why the side panel's tab id cuts its label, "" when its label lies whole within it with the tab's padding on either side.
-func screenshotTabCut(tt *nsgotest.App, id string) string {
-	tab := tt.Find("id:film-tab-" + id)
-	if tab == nil {
-		return "no tab " + id
+// screenshotTabsOverflow is why the side panel's seven tabs do not fit on one row of its bar, "" when they do: every tab whole within the bar, which needs no scrolling, and every label whole within its tab with its padding; 扩展 is an icon, named for the screen reader.
+func screenshotTabsOverflow(tt *nsgotest.App) string {
+	bar, track := tt.Find("id:film-tabs-scroll"), tt.Find("id:film-tabs")
+	if bar == nil || track == nil {
+		return "no tab bar"
 	}
-	for _, c := range tab.Children {
-		if c.Text == "" {
+	if track.Frame.Size.Width > bar.Frame.Size.Width+0.5 {
+		return fmt.Sprintf("the track is %v wide in a bar of %v", track.Frame.Size.Width, bar.Frame.Size.Width)
+	}
+	for _, id := range []string{"subs", "clips", "terms", "notes", "info", "extensions", "style"} {
+		tab := tt.Find("id:film-tab-" + id)
+		if tab == nil {
+			return "no tab " + id
+		}
+		if f := tab.Frame; f.Origin.X < 0 || f.Origin.X+f.Size.Width > track.Frame.Size.Width+0.5 {
+			return fmt.Sprintf("tab %s at %+v past the bar of %v", id, f, track.Frame.Size.Width)
+		}
+		if id == "extensions" {
+			if tab.Props.Label != testlocale.Messages().FilmTabExtensions() {
+				return fmt.Sprintf("扩展 is named %q", tab.Props.Label)
+			}
 			continue
 		}
-		f, w := c.Frame, tab.Frame.Size.Width
-		if f.Size.Width <= 0 || f.Origin.X < 0 || f.Origin.X+f.Size.Width > w+0.5 || w < f.Size.Width+16-0.5 {
-			return fmt.Sprintf("%s: %q at %+v in a tab %v wide", id, c.Text, f, w)
+		for _, c := range tab.Children {
+			if c.Text == "" {
+				continue
+			}
+			if f, w := c.Frame, tab.Frame.Size.Width; f.Size.Width <= 0 || f.Origin.X < 0 || f.Origin.X+f.Size.Width > w+0.5 || w < f.Size.Width+6-0.5 {
+				return fmt.Sprintf("%s: %q at %+v in a tab %v wide", id, c.Text, f, w)
+			}
 		}
-		return ""
 	}
-	return "no label in " + id
+	return ""
 }

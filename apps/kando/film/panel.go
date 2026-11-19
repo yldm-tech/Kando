@@ -19,6 +19,7 @@ import (
 	"github.com/nsgo-dev/nsgo/base"
 	ns "github.com/nsgo-dev/nsgo/core"
 	nsdesktop "github.com/nsgo-dev/nsgo/desktop"
+	"github.com/nsgo-dev/nsgo/icons/lucide"
 	"github.com/nsgo-dev/nsgo/ui"
 )
 
@@ -134,7 +135,7 @@ func (s *screen) panel() ns.Node {
 	}}
 }
 
-// panelTabBar is the prototype's tab bar across the panel (template 718-724): a track of white at 10%, its tabs sharing its width, each at least as wide as its label, scrolling sideways when they need more, the chosen one lit with white at 22% and its label semibold.
+// panelTabBar is the prototype's tab bar across the panel (template 718-724): a track of white at 10%, its tabs sharing its width, each at least as wide as its label, the chosen one lit with white at 22% and its label semibold. 扩展 is an icon, named for the screen reader and in its tooltip, so the seven tabs fit on one row in the languages Kando speaks; were the labels to need more room than the panel has, the track scrolls sideways and keeps the chosen tab in view.
 func (s *screen) panelTabBar(cx *ns.Scope) ns.Node {
 	a := s.a
 	side := s.side(cx)
@@ -144,48 +145,85 @@ func (s *screen) panelTabBar(cx *ns.Scope) ns.Node {
 		}
 		return side()
 	})
+	// Where each tab lies on the track, and how wide the bar is, as their layouts report them, so the chosen tab is scrolled into view.
+	bounds := map[string]ns.Bounds{}
+	var bar ns.Points
+	scroll := &ns.Ref{}
+	reveal := func(tab string) {
+		b, ok := bounds[tab]
+		if !ok || bar <= 0 {
+			return
+		}
+		scroll.ScrollTo(ns.Point{X: max(0, b.Origin.X+b.Size.Width+3-bar)}, true)
+	}
 	all := s.panelTabs(cx)
 	tabs := make([]ns.Node, 0, len(all))
 	for _, t := range all {
 		tab := t.id
 		on := func() bool { return chosen() == tab }
-		node := base.Tab{
-			TestID: "film-tab-" + cmp.Or(tab, "subs"), Selected: on,
-			OnPress: live.On(a, func(ns.PressEvent) {
-				if tab == "style" {
-					a.SetStyleView(true)
-					return
-				}
-				a.SetStyleView(false)
-				a.SetFilmSide(tab)
-			}),
-			Style: ns.Style{FlexGrow: 1, FlexShrink: 0, Height: ns.Pt(26), Padding: ns.Symmetric(0, 8), CornerRadius: 9, JustifyContent: ns.JustifyCenter, AlignItems: ns.AlignCenter,
-				Hover: &ns.Style{Background: panelLine}, FocusVisible: ui.FocusRing(cx, -2)},
-			StyleFunc: func() ns.Style {
-				if on() {
-					return ns.Style{Background: ns.RGBA(0xFFFFFF, 0.22)}
-				}
-				return ns.Style{}
-			},
-			Children: []ns.Node{ns.Text{ContentFunc: func() string { return tabLabel(cx, tab) }, MaxLines: 1,
-				Style: ns.Style{FontSize: 12, LineHeight: 16, Color: onGlass},
+		node := func(label string, children ...ns.Node) ns.Node {
+			var tooltip ns.Node
+			// The tabs grow to share the bar, so the padding is only the least room beside a label, kept small for the longest languages.
+			padding := ns.Points(3)
+			if label != "" {
+				tooltip = tip(cx, func() string { return tabLabel(cx, tab) })
+				padding = 5
+			}
+			return base.Tab{
+				TestID: "film-tab-" + cmp.Or(tab, "subs"), Selected: on, Label: label, Tooltip: tooltip,
+				OnPress: live.On(a, func(ns.PressEvent) {
+					if tab == "style" {
+						a.SetStyleView(true)
+						return
+					}
+					a.SetStyleView(false)
+					a.SetFilmSide(tab)
+				}),
+				OnLayout: func(b ns.Bounds) {
+					bounds[tab] = b
+					if ns.Untracked(cx, chosen) == tab {
+						reveal(tab)
+					}
+				},
+				Style: ns.Style{FlexGrow: 1, FlexShrink: 0, Height: ns.Pt(26), Padding: ns.Symmetric(0, padding), CornerRadius: 9, JustifyContent: ns.JustifyCenter, AlignItems: ns.AlignCenter,
+					Hover: &ns.Style{Background: panelLine}, FocusVisible: ui.FocusRing(cx, -2)},
 				StyleFunc: func() ns.Style {
 					if on() {
-						return ns.Style{FontWeight: ns.FontWeightSemibold}
+						return ns.Style{Background: ns.RGBA(0xFFFFFF, 0.22)}
 					}
-					return ns.Style{FontWeight: ns.FontWeightNormal}
-				}}},
+					return ns.Style{}
+				},
+				Children: children,
+			}
 		}
-		if t.id == SideExtensions {
-			// Built while it shows, so a tab not there takes no focus nor a share of the bar's width.
-			tabs = append(tabs, ns.Show{When: t.shown, Then: func(*ns.Scope) ns.Node { return node }})
+		if tab == SideExtensions {
+			// Built while it shows, so a tab not there takes no focus nor a share of the bar's width; built again as the language changes, as a tab's accessible name is read once.
+			tabs = append(tabs, ns.Show{When: t.shown, Then: func(*ns.Scope) ns.Node {
+				return ns.Dynamic(func(*ns.Scope) ns.Node {
+					return node(tabLabel(cx, tab), ns.Icon{SVG: lucide.Puzzle(), Style: ns.Style{Width: ns.Pt(14), Height: ns.Pt(14), Color: onGlass}})
+				})
+			}})
 			continue
 		}
-		tabs = append(tabs, node)
+		tabs = append(tabs, node("", ns.Text{ContentFunc: func() string { return tabLabel(cx, tab) }, MaxLines: 1,
+			Style: ns.Style{FontSize: 12, LineHeight: 16, Color: onGlass},
+			StyleFunc: func() ns.Style {
+				if on() {
+					return ns.Style{FontWeight: ns.FontWeightSemibold}
+				}
+				return ns.Style{FontWeight: ns.FontWeightNormal}
+			}}))
 	}
+	cx.Effect(func() {
+		tab := chosen()
+		ns.Untracked(cx, func() struct{} { reveal(tab); return struct{}{} })
+	})
 	// TODO(nsgo#145): give base.Tabs' Label a LabelFunc twin, so the tab list's accessible name follows the interface language as it changes; it is read once here https://github.com/nsgo-dev/nsgo/issues/145
-	// The track is at least as wide as the bar and grows with its tabs, each as wide as its label: where the labels need more room than the panel has, as in English or Japanese, it scrolls sideways rather than cut them short.
-	return ns.Scroll{TestID: "film-tabs-scroll", Horizontal: true, HideIndicator: true, Style: ns.Style{Height: ns.Pt(32), FlexGrow: 0, FlexShrink: 0, CornerRadius: 12},
+	return ns.Scroll{TestID: "film-tabs-scroll", Ref: scroll, Horizontal: true, HideIndicator: true, Style: ns.Style{Height: ns.Pt(32), FlexGrow: 0, FlexShrink: 0, CornerRadius: 12},
+		OnLayout: func(b ns.Bounds) {
+			bar = b.Size.Width
+			reveal(ns.Untracked(cx, chosen))
+		},
 		Children: []ns.Node{base.Tabs{TestID: "film-tabs", Label: locales.FilmSidebar(cx),
 			Style:    ns.Style{Direction: ns.Row, Height: ns.Pt(32), MinWidth: ns.Pt(panelWidth - 28), Padding: ns.All(3), CornerRadius: 12, Background: ns.RGBA(0xFFFFFF, 0.1)},
 			Children: tabs}}}

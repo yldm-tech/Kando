@@ -41,7 +41,7 @@ func TestThePanelShowsTheExtensions(t *testing.T) {
 	}
 	deck := Extension{ID: "plugin:acme.deck:deck", Title: "Deck", Plugin: "Acme Deck", Icon: "notebook-pen", Run: 1}
 	change(app, a, func() { a.extensions = []Extension{deck} })
-	if !app.Exists("id:film-tab-extensions") || !app.Exists("id:film-tabs >> "+whole(msgs.FilmTabExtensions())) {
+	if !app.Exists("id:film-tab-extensions") || app.Find("id:film-tab-extensions").Props.Label != msgs.FilmTabExtensions() {
 		t.Fatalf("no 扩展 tab; texts %q", app.Texts())
 	}
 	app.Press("id:film-tab-extensions")
@@ -102,12 +102,25 @@ func TestEveryPanelIconIsDrawn(t *testing.T) {
 	}
 }
 
-// tabLabelCut is why a tab of the side panel cuts its label, "" when none does: each label lies whole within its tab, which is no narrower than it with the tab's padding, as the tabs keep their labels' widths and scroll sideways when they need more room than the panel has.
-func tabLabelCut(app *nsgotest.App, ids ...string) string {
+// tabOverflow is why the side panel's tabs do not fit, "" when they do: each label lies whole within its tab, which is no narrower than it with the tab's padding, and every tab lies whole within the bar, which needs no scrolling; extension names the tab drawn as an icon, which has no label to measure.
+func tabOverflow(app *nsgotest.App, ids ...string) string {
+	bar, track := app.Find("id:film-tabs-scroll"), app.Find("id:film-tabs")
+	if bar == nil || track == nil {
+		return "no tab bar"
+	}
+	if track.Frame.Size.Width > bar.Frame.Size.Width+0.5 {
+		return fmt.Sprintf("the track is %v wide in a bar of %v", track.Frame.Size.Width, bar.Frame.Size.Width)
+	}
 	for _, id := range ids {
 		tab := app.Find("id:film-tab-" + id)
 		if tab == nil {
 			return "no tab " + id
+		}
+		if f := tab.Frame; f.Origin.X < 0 || f.Origin.X+f.Size.Width > track.Frame.Size.Width+0.5 {
+			return fmt.Sprintf("tab %s at %+v past the bar of %v", id, f, track.Frame.Size.Width)
+		}
+		if id == SideExtensions {
+			continue
 		}
 		var text *nsgotest.View
 		var find func(v *nsgotest.View)
@@ -124,14 +137,14 @@ func tabLabelCut(app *nsgotest.App, ids ...string) string {
 			return "no label in " + id
 		}
 		f, w := text.Frame, tab.Frame.Size.Width
-		if f.Size.Width <= 0 || f.Origin.X < 0 || f.Origin.X+f.Size.Width > w+0.5 || w < f.Size.Width+16-0.5 {
+		if f.Size.Width <= 0 || f.Origin.X < 0 || f.Origin.X+f.Size.Width > w+0.5 || w < f.Size.Width+6-0.5 {
 			return fmt.Sprintf("%s: label %q at %+v in a tab %v wide", id, text.Text, f, w)
 		}
 	}
 	return ""
 }
 
-// TestTabLabelsFit checks that no tab of the side panel cuts its label, in Chinese, English and Japanese, with 扩展 among them, and that the bar still spans the panel.
+// TestTabLabelsFit checks that the side panel's seven tabs, 扩展 among them as an icon named for the screen reader, fit on one row of the bar in Chinese, English and Japanese, each label whole, without the bar having to scroll.
 func TestTabLabelsFit(t *testing.T) {
 	for _, lang := range []string{"zh-Hans", "en", "ja"} {
 		t.Run(lang, func(t *testing.T) {
@@ -139,11 +152,14 @@ func TestTabLabelsFit(t *testing.T) {
 			a := newFakeApp()
 			a.extensions = []Extension{{ID: "plugin:acme.deck:deck", Title: "Deck", Plugin: "Acme", Run: 1}}
 			app := start(t, a)
-			if why := tabLabelCut(app, "subs", "clips", "terms", SideNotes, "info", SideExtensions, "style"); why != "" {
+			if why := tabOverflow(app, "subs", "clips", "terms", SideNotes, "info", SideExtensions, "style"); why != "" {
 				t.Errorf("%s\n%s", why, app.Dump())
 			}
 			if w := app.Find("id:film-tabs").Frame.Size.Width; w < panelWidth-28-0.5 {
 				t.Errorf("the bar is %v wide in a panel of %v", w, panelWidth)
+			}
+			if ext := app.Find("id:film-tab-extensions"); ext.Props.Label != testlocale.Messages().FilmTabExtensions() {
+				t.Errorf("扩展's accessible name is %q", ext.Props.Label)
 			}
 		})
 	}
