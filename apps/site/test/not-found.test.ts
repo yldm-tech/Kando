@@ -20,7 +20,7 @@ it("404.html marks no current page and says it in every language", () => {
 
 it("marks its own link as the current page twice on every page, in the header and the footer", () => {
   for (const l of builtLangs()) {
-    for (const kind of ["home", "sites"] as const) {
+    for (const kind of ["home", "sites", "privacy"] as const) {
       const html = readOut(pageFile(l, kind));
       const current = tags(html, "a").filter((t) => attr(t, "data-lang") === l.code && attr(t, "aria-current") === "page");
       expect(current.length, `${l.code} ${kind}`).toBe(2);

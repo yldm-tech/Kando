@@ -15,7 +15,7 @@ function head(file: string): { title: string; description: string } {
   return { title, description: meta ? attr(meta, "content") : "" };
 }
 
-const pages = builtLangs().flatMap((l) => (["home", "sites"] as const).map((kind) => ({ l, kind, file: pageFile(l, kind) })));
+const pages = builtLangs().flatMap((l) => (["home", "sites", "privacy"] as const).map((kind) => ({ l, kind, file: pageFile(l, kind) })));
 
 describe("titles and descriptions", () => {
   for (const { l, kind, file } of pages) {

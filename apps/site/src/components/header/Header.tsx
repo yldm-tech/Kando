@@ -2,6 +2,7 @@
 import { SlidingPill } from "../common/SlidingPill";
 import { useEffect, useRef, useState } from "react";
 import { useWords, type ContentKey } from "../../i18n/content";
+import type { PageKind } from "../../i18n/head";
 import { pagePath, repoURL } from "../../lib/site";
 import { Brand } from "../common/Brand";
 import { GitHubMark } from "../common/marks";
@@ -15,8 +16,8 @@ const sections: readonly [string, ContentKey][] = [
   ["faq", "navFaq"],
 ];
 
-// Header is the page's header; on a page that is not a language's home page (sites, 404) the section links lead to the home page's sections, or are left out where the page has no language (404).
-export function Header({ page }: { page: "home" | "sites" | "404" }) {
+// Header is the page's header; on a page that is not a language's home page (sites, privacy, 404) the section links lead to the home page's sections, or are left out where the page has no language (404).
+export function Header({ page }: { page: PageKind }) {
   const { t, lang } = useWords();
   const top = useRef<HTMLElement>(null);
   const [scrolled, setScrolled] = useState(false);

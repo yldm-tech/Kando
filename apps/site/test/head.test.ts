@@ -6,7 +6,7 @@ import { ogSize } from "../buildtime/media";
 import { pageURL, siteURL, sourceLang } from "../src/lib/site";
 import { attr, builtLangs, dist, pageFile, readJSON, readOut, section, siteDir, tags } from "./helpers";
 
-describe.each(["home", "sites"] as const)("%s pages", (kind) => {
+describe.each(["home", "sites", "privacy"] as const)("%s pages", (kind) => {
   for (const l of builtLangs()) {
     it(l.code, () => {
       const html = readOut(pageFile(l, kind));
@@ -47,7 +47,7 @@ describe.each(["home", "sites"] as const)("%s pages", (kind) => {
         expect(metas.get(key), key).toBeTruthy();
       }
       expect(metas.get("og:url")).toBe(pageURL(l.code, kind));
-      // The link preview image is the language's own, on the sites page too, linked with a hash of its content; the file is there in the size the tags give.
+      // The link preview image is the language's own, on every page of it, linked with a hash of its content; the file is there in the size the tags give.
       const image = metas.get("og:image") ?? "";
       expect(image).toMatch(new RegExp(`^${siteURL}/og/${l.code}\\.png\\?v=[0-9a-f]{10}$`));
       expect(metas.get("twitter:image")).toBe(image);
@@ -73,7 +73,7 @@ describe.each(["home", "sites"] as const)("%s pages", (kind) => {
         const link = tags(menu, "a").find((t) => attr(t, "data-lang") === o.code);
         expect(link, `switcher link to ${o.code}`).toBeDefined();
         if (link) {
-          expect(attr(link, "href")).toBe(kind === "sites" ? pageURL(o.code, kind).slice(siteURL.length) : pageURL(o.code).slice(siteURL.length));
+          expect(attr(link, "href")).toBe(pageURL(o.code, kind).slice(siteURL.length));
           expect(attr(link, "hreflang")).toBe(o.tag);
           expect(attr(link, "lang")).toBe(o.tag);
         }

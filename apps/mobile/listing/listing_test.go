@@ -28,7 +28,7 @@ type limit struct {
 
 // The App Store Connect and Play Console limits, in characters.
 var (
-	appStoreFields = []limit{{"name.txt", 30}, {"subtitle.txt", 30}, {"promotional_text.txt", 170}, {"description.txt", 4000}, {"keywords.txt", 100}, {"support_url.txt", 0}, {"marketing_url.txt", 0}}
+	appStoreFields = []limit{{"name.txt", 30}, {"subtitle.txt", 30}, {"promotional_text.txt", 170}, {"description.txt", 4000}, {"keywords.txt", 100}, {"support_url.txt", 0}, {"marketing_url.txt", 0}, {"privacy_url.txt", 0}}
 	playFields     = []limit{{"title.txt", 30}, {"short_description.txt", 80}, {"full_description.txt", 4000}}
 )
 

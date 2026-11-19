@@ -2,7 +2,7 @@
 import { readdirSync, readFileSync } from "node:fs";
 import { join, relative } from "node:path";
 import { inject } from "vite-plus/test";
-import { languages, pagePath, type Language } from "../src/lib/site";
+import { languages, pagePath, type Language, type PageName } from "../src/lib/site";
 
 // repoRoot is the repository root as seen from the site's folder, where the tests run.
 export const repoRoot = join(process.cwd(), "../..");
@@ -22,7 +22,7 @@ export function readJSON<T = Record<string, string>>(path: string): T {
 }
 
 // pageFile is the file a language's page of a kind is written to.
-export function pageFile(l: Language, kind: "home" | "sites" = "home"): string {
+export function pageFile(l: Language, kind: PageName = "home"): string {
   return pagePath(l.code, kind).slice(1) + "index.html";
 }
 

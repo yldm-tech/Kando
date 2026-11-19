@@ -1,4 +1,4 @@
-// TestStructuredData: every page but 404.html carries one JSON-LD data block that the build's schemas accept: the app with the version of nsgo.yaml, its publisher and the site in the page's language; a home page's FAQPage asks and answers what its FAQ section shows, and a sites page's BreadcrumbList leads back to its home page. The block is data, not script, so the page's policy names no hash for it.
+// TestStructuredData: every page but 404.html carries one JSON-LD data block that the build's schemas accept: the app with the version of nsgo.yaml, its publisher and the site in the page's language; a home page's FAQPage asks and answers what its FAQ section shows, and a sites page's or a privacy policy's BreadcrumbList leads back to its home page. The block is data, not script, so the page's policy names no hash for it.
 import { existsSync } from "node:fs";
 import { join } from "node:path";
 import { describe, expect, it } from "vite-plus/test";
@@ -22,7 +22,7 @@ function node<T extends Graph["@graph"][number]["@type"]>(g: Graph, type: T): Ex
   return found[0] as Extract<Graph["@graph"][number], { "@type": T }>;
 }
 
-describe.each(["home", "sites"] as const)("%s pages", (kind) => {
+describe.each(["home", "sites", "privacy"] as const)("%s pages", (kind) => {
   for (const l of builtLangs()) {
     it(l.code, () => {
       const html = readOut(pageFile(l, kind));
@@ -63,8 +63,8 @@ describe.each(["home", "sites"] as const)("%s pages", (kind) => {
         expect(g["@graph"].some((n) => n["@type"] === "BreadcrumbList")).toBe(false);
       } else {
         const crumbs = node(g, "BreadcrumbList").itemListElement;
-        expect(crumbs.map((c) => c.item)).toEqual([pageURL(l.code), pageURL(l.code, "sites")]);
-        expect(crumbs.map((c) => c.name)).toEqual([strings["brandName"], strings["sitesPageTitle"]]);
+        expect(crumbs.map((c) => c.item)).toEqual([pageURL(l.code), pageURL(l.code, kind)]);
+        expect(crumbs.map((c) => c.name)).toEqual([strings["brandName"], strings[kind + "PageTitle"]]);
         expect(g["@graph"].some((n) => n["@type"] === "FAQPage")).toBe(false);
       }
 

@@ -10,6 +10,10 @@ What the phone app (apps/mobile) sends anywhere, and the answers it gives to the
 - The only internet address the app opens is the desktop app's page on GitHub (onboarding.DownloadURL), in the system's browser. The Browse tab, which opens video sites in a web view, is left out of store builds (the store tag, browse.Available).
 - No account, no analytics, no crash reporting, no advertising and no third-party SDK: the app imports only NSGo and Kando's own packages.
 
+## Privacy policy
+
+The public privacy policy is the site's privacy page, https://kando.yldm.ai/privacy/ in English and /zh-CN/privacy/, /zh-TW/privacy/, /ja/privacy/ and /ko/privacy/ in the other languages (apps/site, the privacy… strings of its content files). Each App Store listing gives its language's page in privacy_url.txt; Google Play takes the policy's address in Play Console's App content › Privacy policy, which fastlane's supply does not upload, so enter https://kando.yldm.ai/privacy/ there. Change the page whenever this file's answers change.
+
 ## App Store: App Privacy
 
 Data Not Collected. Apple counts data as collected when it is sent off the device where the developer or a third party can reach it; the app sends data only to the user's own paired computers. appstore/app_privacy_details.json holds this answer in the format fastlane's upload_app_privacy_details_to_app_store reads.

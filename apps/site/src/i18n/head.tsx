@@ -1,10 +1,10 @@
 // The head of a page: its title and description, canonical address, the same page in the other languages, the link preview tags, and the scripts every page runs.
 import site from "virtual:kando/site";
-import { languages, pageURL, siteURL, sourceLang, type LangCode } from "../lib/site";
+import { languages, pageURL, siteURL, sourceLang, type LangCode, type PageName } from "../lib/site";
 import { jsonForScript } from "../lib/json";
 
-// PageKind is the kind of page: a language's home page, its catalog of websites, or 404.html, which serves every missing address.
-export type PageKind = "home" | "sites" | "404";
+// PageKind is the kind of page: a language's home page, its catalog of websites, its privacy policy, or 404.html, which serves every missing address.
+export type PageKind = PageName | "404";
 
 // PageHead is what the root document needs to know of the page it renders.
 export interface PageHead {
@@ -34,7 +34,7 @@ export function HeadTags({ page }: { page: PageHead }) {
   }
   const group = page.kind;
   const url = pageURL(page.code, group);
-  // The link preview image is the language's own (media/og/<code>.png), on its home page and its sites page alike.
+  // The link preview image is the language's own (media/og/<code>.png), on all its pages alike.
   const og = site.og[page.code];
   if (!og) {
     throw new Error(`no link preview image for ${page.code}`);

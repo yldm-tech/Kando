@@ -13,6 +13,8 @@ export async function loadPage(code: LangCode, kind: PageKind): Promise<PageData
       return { head: { kind, code, title: t("metaTitle"), description: t("metaDescription"), imageAlt: t("metaImageAlt") }, content };
     case "sites":
       return { head: { kind, code, title: t("sitesMetaTitle"), description: t("sitesMetaDescription"), imageAlt: t("metaImageAlt") }, content };
+    case "privacy":
+      return { head: { kind, code, title: t("privacyMetaTitle"), description: t("privacyMetaDescription"), imageAlt: t("metaImageAlt") }, content };
     case "404":
       return { head: { kind, code, title: t("notFoundTitle") + " · Kando", description: "", imageAlt: "" }, content };
   }

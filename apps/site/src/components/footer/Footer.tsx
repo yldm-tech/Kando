@@ -1,10 +1,11 @@
-// The footer, one row: the brand and the license, the languages, and the project's links.
+// The footer, one row: the brand and the license, the languages, and the project's links with the privacy policy.
 import { useWords } from "../../i18n/content";
+import type { PageKind } from "../../i18n/head";
 import { issuesURL, licenseURL, pagePath, releasesURL, repoURL } from "../../lib/site";
 import { Brand } from "../common/Brand";
 import { LangLinks } from "../header/LangLinks";
 
-export function Footer({ page }: { page: "home" | "sites" | "404" }) {
+export function Footer({ page }: { page: PageKind }) {
   const { t, lang } = useWords();
   return (
     <footer className="foot">
@@ -24,6 +25,9 @@ export function Footer({ page }: { page: "home" | "sites" | "404" }) {
           <a href={repoURL}>{t("footerGitHub")}</a>
           <a href={releasesURL}>{t("footerReleases")}</a>
           <a href={issuesURL}>{t("footerIssues")}</a>
+          <a href={pagePath(lang.code, "privacy")} aria-current={page === "privacy" ? "page" : undefined}>
+            {t("footerPrivacy")}
+          </a>
         </nav>
       </div>
     </footer>

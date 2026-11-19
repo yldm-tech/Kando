@@ -12,6 +12,8 @@ export const releasesURL = repoURL + "/releases";
 export const latestURL = releasesURL + "/latest";
 export const licenseURL = repoURL + "/blob/main/LICENSE.md";
 export const issuesURL = repoURL + "/issues";
+// privacyContact is where the privacy policy sends questions and requests about privacy: the address YLDM answers them at.
+export const privacyContact = "mailto:support@yldm.ai";
 export const everyAPIURL = "https://everyapi.ai";
 // readmeBuildURL is the README's Build from source section, where get_download sends a visitor whose system has no build.
 export const readmeBuildURL = repoURL + "#build-from-source";
@@ -74,14 +76,17 @@ export function language(code: LangCode): Language {
   return l;
 }
 
-// pagePath is the path of a language's page: the root for English, a folder named after the language for the others; page "sites" is the catalog page below it.
-export function pagePath(code: LangCode, page: "home" | "sites" = "home"): string {
+// PageName is a page every language has: its home page, its catalog of websites and its privacy policy.
+export type PageName = "home" | "sites" | "privacy";
+
+// pagePath is the path of a language's page: the root for English, a folder named after the language for the others; page "sites" is the catalog page below it and "privacy" the privacy policy.
+export function pagePath(code: LangCode, page: PageName = "home"): string {
   const base = code === sourceLang ? "/" : "/" + code + "/";
-  return page === "sites" ? base + "sites/" : base;
+  return page === "home" ? base : base + page + "/";
 }
 
 // pageURL is a page's absolute address.
-export function pageURL(code: LangCode, page: "home" | "sites" = "home"): string {
+export function pageURL(code: LangCode, page: PageName = "home"): string {
   return siteURL + pagePath(code, page);
 }
 

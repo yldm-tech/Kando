@@ -51,12 +51,13 @@ function homePath(code: LangCode): string {
   return code === sourceLang ? "/" : `/${code}/`;
 }
 
-// prerenderPages are the pages TanStack Start renders to static HTML: the home page and sites page of each language with a content file in contentDir, and 404.html.
+// prerenderPages are the pages TanStack Start renders to static HTML: the home page, sites page and privacy policy of each language with a content file in contentDir, and 404.html.
 export function prerenderPages(contentDir: string): { path: string; prerender?: { outputPath: string } }[] {
   const codes = builtCodes(contentDir);
   return [
     ...codes.map((code) => ({ path: homePath(code) })),
     ...codes.map((code) => ({ path: homePath(code) + "sites/" })),
+    ...codes.map((code) => ({ path: homePath(code) + "privacy/" })),
     { path: "/404", prerender: { outputPath: "/404.html" } },
   ];
 }
