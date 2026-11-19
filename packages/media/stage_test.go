@@ -106,17 +106,17 @@ func TestStageErrorReadsAndUnwraps(t *testing.T) {
 // A failed job's text saved before the step was kept apart reads back as the step it names and the rest, as the app read it before; any other text reads as it is.
 func TestReadStageErrorReadsWhatWasSaved(t *testing.T) {
 	for text, want := range map[string]Stage{
-		"check: ffmpeg is not installed":                                       StageCheck,
+		"check: ffmpeg is not installed":                                           StageCheck,
 		"download: yt-dlp: exit status 1: ERROR: [youtube] abc: Video unavailable": StageDownload,
 		"transcribe: whisper-cli: signal: killed: whisper_init: out of memory":     StageTranscribe,
 		"translate: translation API returned 401 Unauthorized: invalid key":        StageTranslate,
 		"export: open /v/a.srt: permission denied":                                 StageExport,
-		"translate: ":                                                              StageTranslate,
-		"yt-dlp: exit status 1":                                                    "",
-		"proofread: nothing":                                                       "",
-		"download:no space":                                                        "",
-		"Download: capital":                                                        "",
-		"":                                                                         "",
+		"translate: ":           StageTranslate,
+		"yt-dlp: exit status 1": "",
+		"proofread: nothing":    "",
+		"download:no space":     "",
+		"Download: capital":     "",
+		"":                      "",
 	} {
 		err := ReadStageError(text)
 		if err.Error() != text {
