@@ -93,7 +93,7 @@ func (b browserExt) Render(cx *core.Scope) core.Node {
 		})}
 	rows := []core.Node{browsers, form.Separator(true), folder}
 	// The bookmarklet opens a link of Kando's own scheme, which only the macOS package registers with the system (nsgo.yaml's url_schemes), so it is offered there alone.
-	// TODO(nsgo): register the app's url_schemes with Windows (HKCU\Software\Classes) and the Linux desktop entry (x-scheme-handler), and hand the running app the links a second launch is started with to desktop.OnOpenLinks, then offer the bookmarklet there too
+	// TODO(nsgo#262): register the app's url_schemes with Windows (HKCU\Software\Classes) and the Linux desktop entry (x-scheme-handler), and hand the running app the links a second launch is started with to desktop.OnOpenLinks, then offer the bookmarklet there too https://github.com/nsgo-dev/nsgo/issues/262
 	if desktop.Platform(cx) == "macOS" {
 		rows = append(rows, form.Separator(true), bookmarklet(cx))
 	}

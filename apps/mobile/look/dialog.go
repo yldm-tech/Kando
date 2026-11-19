@@ -9,7 +9,7 @@ import (
 )
 
 // Dialog is a form over the app, as the Add sheet: a sheet from the bottom on a phone, and on a tablet a card in the middle of the screen, as the design's Pad artboards draw it, clear of the software keyboard. Footer is its actions.
-// TODO(nsgo): ui.Dialog is a bottom sheet wherever the screen is touched (ui/dialog.go:73), a tablet's too, with no way to ask for its centred dialog; the tablet's is drawn here on base.Dialog until ui.Dialog takes a presentation.
+// TODO(nsgo#742): ui.Dialog is a bottom sheet wherever the screen is touched (ui/dialog.go:73), a tablet's too, with no way to ask for its centred dialog; the tablet's is drawn here on base.Dialog until ui.Dialog takes a presentation. https://github.com/nsgo-dev/nsgo/issues/742
 type Dialog struct {
 	Open      func() bool
 	OnClose   func()

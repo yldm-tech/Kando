@@ -118,7 +118,7 @@ func Page(cx *core.Scope, s *session.Session, act Actions) base.NavPage {
 	trailing := []core.Node{ui.IconButton{TestID: "films-add", Icon: lucide.Plus, LabelFunc: addLabel, Size: 44, OnPress: act.Add}}
 	tablet := look.Tablet(cx)
 	if !tablet {
-		// TODO(nsgo): core.HeaderSymbol is a name and a label only (core/platformprops.go:57), so iOS's native header shows no count on the Jobs button; its label says the count, and the drawn header elsewhere shows the badge. Pass the count once a header symbol takes a badge (UIBarButtonItem.badge).
+		// TODO(nsgo#741): core.HeaderSymbol is a name and a label only (core/platformprops.go:57), so iOS's native header shows no count on the Jobs button; its label says the count, and the drawn header elsewhere shows the badge. Pass the count once a header symbol takes a badge (UIBarButtonItem.badge). https://github.com/nsgo-dev/nsgo/issues/741
 		jobs := core.View{Children: []core.Node{
 			ui.IconButton{TestID: "films-jobs", Icon: lucide.ListChecks, LabelFunc: jobsLabel, Size: 44, OnPress: act.Jobs},
 			look.Count{TestID: "films-jobs-badge", Count: unfinished, Warn: func() bool { _, failed := s.Unfinished(); return failed > 0 },

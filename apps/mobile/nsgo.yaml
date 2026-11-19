@@ -22,7 +22,7 @@ android:
   target_sdk: 35
 
 # The widgets of iPhones and iPads (package widgets, yldm-tech/Kando#225): the streak with what is due for review, on the Home Screen and as a ring on the Lock Screen, and the film to go on with. Android has none of NSGo's yet (nsgo#657).
-# TODO(nsgo): a kind's name and description, which the system's gallery of widgets shows, are one string each (cmd/nsgo/widgets.go:108-118, Kinds.swift's Text(verbatim:)), so they are in English whatever the phone's language; say them in the catalog's languages once nsgo.yaml can take them from the app's locales
+# TODO(nsgo#744): a kind's name and description, which the system's gallery of widgets shows, are one string each (cmd/nsgo/widgets.go:108-118, Kinds.swift's Text(verbatim:)), so they are in English whatever the phone's language; say them in the catalog's languages once nsgo.yaml can take them from the app's locales https://github.com/nsgo-dev/nsgo/issues/744
 widgets:
   - kind: study
     name: Kando Streak

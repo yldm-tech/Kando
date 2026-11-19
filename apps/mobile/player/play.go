@@ -98,7 +98,7 @@ type play struct {
 }
 
 // say shows title in a toast in place of the last one of kind, as a line saved and then taken back says only the latter.
-// TODO(nsgo): ui.Toasts builds a toast's content once (ui/toast.go:272), so a toast shown with the ID of one still showing replaces it but keeps its old title; until it shows the new content, the old one is dismissed and the new one shown under an ID of its own
+// TODO(nsgo#749): ui.Toasts builds a toast's content once (ui/toast.go:272), so a toast shown with the ID of one still showing replaces it but keeps its old title; until it shows the new content, the old one is dismissed and the new one shown under an ID of its own https://github.com/nsgo-dev/nsgo/issues/749
 func (p *play) say(kind, title string) {
 	if id, ok := p.said[kind]; ok {
 		p.toast.Dismiss(id)
