@@ -11,27 +11,79 @@ import (
 	nsdesktop "github.com/nsgo-dev/nsgo/desktop"
 )
 
-// StoredMenu is the items of a done film's menu that move its video to a storage location or back (films.App): 移动视频到 ▸ with each location the settings have (storedTargets), or, for a film whose video is on one, 将视频移回资料库, disabled while that location is no longer in the settings. Both are disabled while another video is being moved. None for a film whose video cannot move (storedCan), or when there is no location to move it to.
-func (a *app) StoredMenu(cx *ns.Scope, item films.Film) []nsdesktop.MenuItem {
-	if s, ok := a.storedOf(item.VideoPath); ok {
-		_, there := a.storedTargetOf(s.Location)
-		return []nsdesktop.MenuItem{{Label: locales.StoredMoveBack(cx), Disabled: !there || a.stored.run != nil, OnSelect: live.Do(a, func() { a.MoveVideoBack(item) })}}
+// StoredMenu is the items of the menu of a done film, or of the films selected, that move their videos to a storage location or back (films.App), as storedItems makes them.
+func (a *app) StoredMenu(cx *ns.Scope, items ...films.Film) []nsdesktop.MenuItem {
+	return a.storedItems(cx, items, func(fn func()) func() { return live.Do(a, fn) })
+}
+
+// storedItems are the items that move the videos of items, a film or several selected, to a storage location or back: 移动视频到 ▸ with each location the settings have (storedTargets), while one of those whose videos are in the library's folder can move (storedCan), and 将视频移回资料库 while one's video is on a location, disabled while none of their locations is still in the settings. Both are disabled while another video is being moved. wrap makes an item's OnSelect from what it does: live.Do for the films' menus, menuSelect for the menu bar's.
+func (a *app) storedItems(cx *ns.Scope, items []films.Film, wrap func(func()) func()) []nsdesktop.MenuItem {
+	var out []nsdesktop.MenuItem
+	if places := a.storedPlaces(cx, items, wrap); len(places) > 0 {
+		out = append(out, nsdesktop.MenuItem{Label: locales.StoredMoveTo(cx), Items: places})
 	}
+	if back := a.storedOn(items); len(back) > 0 {
+		out = append(out, nsdesktop.MenuItem{Label: locales.StoredMoveBack(cx), Disabled: !a.storedBackReady(back), OnSelect: wrap(func() { a.MoveVideosBack(back) })})
+	}
+	return out
+}
+
+// storedPlaces are the items of 移动视频到 ▸ for items: each location a video can be moved to, the object store disabled while offline mode is on; none while no film of items whose video is in the library's folder can move, or there is no location.
+func (a *app) storedPlaces(cx *ns.Scope, items []films.Film, wrap func(func()) func()) []nsdesktop.MenuItem {
 	targets := a.storedTargets()
 	if len(targets) == 0 {
 		return nil
 	}
 	m := locales.For(cx)
-	if a.storedCan(m, item) != nil {
+	var movable []films.Film
+	can := false
+	for _, item := range items {
+		if _, stored := a.storedOf(item.VideoPath); stored {
+			continue
+		}
+		movable = append(movable, item)
+		can = can || a.storedCan(m, item) == nil
+	}
+	if !can {
 		return nil
 	}
 	var places []nsdesktop.MenuItem
 	for _, t := range targets {
 		// An object store is reached over the internet, which offline mode keeps closed.
 		offline := t.Store != nil && a.privacy.offline
-		places = append(places, nsdesktop.MenuItem{Label: a.storedName(m, t.ID), Disabled: a.stored.run != nil || offline, OnSelect: live.Do(a, func() { a.MoveVideoTo(item, t.ID) })})
+		places = append(places, nsdesktop.MenuItem{Label: a.storedName(m, t.ID), Disabled: a.stored.run != nil || offline, OnSelect: wrap(func() { a.MoveVideosTo(movable, t.ID) })})
 	}
-	return []nsdesktop.MenuItem{{Label: locales.StoredMoveTo(cx), Items: places}}
+	return places
+}
+
+// storedBackReady reports whether the videos of items, on storage locations, can be moved back now: no other video is being moved, and the location of one of them is still in the settings.
+func (a *app) storedBackReady(items []films.Film) bool {
+	if a.stored.run != nil {
+		return false
+	}
+	for _, item := range items {
+		if s, ok := a.storedOf(item.VideoPath); ok {
+			if _, there := a.storedTargetOf(s.Location); there {
+				return true
+			}
+		}
+	}
+	return false
+}
+
+// storedKeys are the File menu's rows that move the videos of the films it acts on (libraryTargets: the film open, or those selected on the library page) to a storage location or back, as their menus do (storedItems): 移动视频到 ▸, a submenu of the locations, and 将视频移回资料库, neither with a key.
+func (a *app) storedKeys(cx *ns.Scope) []shortcut {
+	plain := func(fn func()) func() { return fn }
+	return []shortcut{
+		{Group: groupFile, Label: locales.StoredMoveTo(cx),
+			When: func() bool { return len(a.storedPlaces(cx, a.libraryTargets(), plain)) > 0 },
+			Items: func() []nsdesktop.MenuItem {
+				return a.storedPlaces(cx, a.libraryTargets(), func(fn func()) func() { return a.menuSelect(false, fn) })
+			}},
+		{Group: groupFile, Label: locales.StoredMoveBack(cx),
+			When: func() bool { return a.storedBackReady(a.storedOn(a.libraryTargets())) },
+			Run:  func() { a.MoveVideosBack(a.libraryTargets()) }},
+	}
 }
 
 // StoredOpenMenu is StoredMenu for the open film, for the film page's ⋯ (film.App).
@@ -61,11 +113,4 @@ func (a *app) StoredMark(m locales.Messages, item films.Film) (place string, clo
 		return "", cloud, true
 	}
 	return strings.TrimSpace(a.storedName(m, item.Stored)), cloud, false
-}
-
-// MoveOpenVideoBack moves the open film's video back to the library, as its menu's 将视频移回资料库 does (MoveVideoBack); nothing for a video that was not moved.
-func (a *app) MoveOpenVideoBack() {
-	if item, ok := a.storedFilm(a.player.playPath); ok {
-		a.MoveVideoBack(item)
-	}
 }

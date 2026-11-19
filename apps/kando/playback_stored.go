@@ -44,7 +44,7 @@ func (a *app) playerStored(path string, at time.Duration, jump bool) bool {
 				log.Printf("player: could not open the storage location of %s: %v", filepath.Base(path), err)
 				a.player.playErr = playerErrStoredUnreachable
 			default:
-				p.source = url
+				p.source, p.storedURL = url, url
 				return
 			}
 			a.playerNowPlayingClear()

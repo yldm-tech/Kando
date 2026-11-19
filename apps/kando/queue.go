@@ -465,6 +465,11 @@ func (a *app) chooseLocal(path string) bool {
 // startFilm processes item, a video found in the library's folder that no job holds, on a card of its own that leaves the film as it was if the job fails or is stopped (queueFromFolder), as 生成字幕 and 重新处理 do from the library and the player. An open film stays open on the job, its picture still playing. When the job cannot be queued the message bar says why; the film page, which draws no message bar, opens the settings that fix it, as Retry does, or else closes the film so the library shows why. A film without subtitles that will have no translator says so too, as adding a video does (untranslatable): its subtitles will be the original lines.
 func (a *app) startFilm(item films.Film) {
 	m := a.messages()
+	// A video moved to a storage location is not on disk to be transcribed; the film stays open (state_stored.go).
+	if err := a.storedNeedsFile(m, item.VideoPath, films.Name(item), locales.Messages.StoredReprocess); err != nil {
+		a.warn(err.Error(), "")
+		return
+	}
 	id, msg, section := a.queueFromFolderChecked(item)
 	if msg != "" {
 		a.warn(msg, section)
@@ -489,6 +494,9 @@ func (a *app) startFilm(item films.Film) {
 
 // queueFromFolderChecked processes item, a video found in the library's folder that no job holds, on a card of its own (queueFromFolder), once precheck lets it through, as startFilm and processing several films again (ReprocessFilms) do, and returns the job's ID, or why it could not, with the settings section that fixes it.
 func (a *app) queueFromFolderChecked(item films.Film) (id, msg, section string) {
+	if err := a.storedNeedsFile(a.messages(), item.VideoPath, films.Name(item), locales.Messages.StoredReprocess); err != nil {
+		return "", err.Error(), ""
+	}
 	msg, section = a.precheck([]string{core.FileURL(item.VideoPath)})
 	if msg != "" {
 		return "", msg, section

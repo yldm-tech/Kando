@@ -6,10 +6,12 @@ import (
 	"math"
 	"os"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"time"
 
 	"kando/apps/kando/film"
+	"kando/apps/kando/locales"
 	"kando/apps/kando/nowplaying"
 	"kando/packages/media"
 
@@ -22,10 +24,13 @@ type filmPlay struct {
 	path   string
 	source string
 	stream bool
-	// stored is set for a video moved to a storage location, which source plays through the proxy, "" while it is looked up (playerStored).
-	stored bool
-	// remux is the step the copy in source was made by, 0 for the video itself.
-	remux film.RemuxStep
+	// stored is set for a video moved to a storage location, which source plays through the proxy, "" while it is looked up (playerStored); storedURL is the proxy's address of it, which the copy the system's player can open is made from (playerRemux).
+	stored    bool
+	storedURL string
+	// remux is the step the copy in source was made by, 0 for the video itself. While it is made, remuxAt is how far into the video ffmpeg got, of remuxLength, the video's length, 0 when that is not known.
+	remux       film.RemuxStep
+	remuxAt     time.Duration
+	remuxLength time.Duration
 	// loaded is set once the system's player has opened the source and knows its length, duration.
 	loaded   bool
 	duration time.Duration
@@ -217,15 +222,14 @@ func (a *app) playerFailed(err error) {
 		a.playerStreamFailed(p)
 		return
 	}
-	// ffmpeg's copy is made of a file on disk, which a video on a storage location is not.
+	// A video on a storage location is copied as one on disk is, ffmpeg reading it through the proxy.
+	unplayable := playerErrUnplayable
 	if p.stored {
 		log.Printf("player: the system's player cannot play %s from its storage location: %v", filepath.Base(p.path), err)
-		a.player.playErr = playerErrStoredUnplayable
-		p.source = ""
-		a.playerNowPlayingClear()
-		return
+		unplayable = playerErrStoredUnplayable
+	} else {
+		log.Printf("player: the system's player cannot play %s: %v", filepath.Base(p.source), err)
 	}
-	log.Printf("player: the system's player cannot play %s: %v", filepath.Base(p.source), err)
 	if film.MissingPlugins(err) {
 		a.player.playErr = playerErrPlugins
 		p.source = ""
@@ -237,16 +241,20 @@ func (a *app) playerFailed(err error) {
 		next = film.RemuxEncode
 	}
 	if p.remux == film.RemuxEncode || !a.playerRemux(p, next) {
-		a.player.playErr = playerErrUnplayable
+		a.player.playErr = unplayable
 		p.source = ""
 		a.playerNowPlayingClear()
 	}
 }
 
-// playerRemux makes the copy of p's video by step off the engine's goroutine and plays it once made, keeping where p opens at. It reports false when there is no ffmpeg to make it with. A copy of the streams as they are that fails is made again encoded anew, and when that fails too the page says the video cannot be played.
+// playerRemux makes the copy of p's video by step off the engine's goroutine and plays it once made, keeping where p opens at, the page saying how far it got (playerRemuxText). A video on a storage location is read from the proxy's address (filmPlay.storedURL), by ranges, into the same cache as a file's copy. It reports false when there is no ffmpeg to make it with. A copy of the streams as they are that fails is made again encoded anew, and when that fails too the page says the video cannot be played.
 func (a *app) playerRemux(p *filmPlay, step film.RemuxStep) bool {
 	ffmpeg := a.ffmpegPath()
-	if ffmpeg == "" || a.update == nil {
+	src := p.path
+	if p.stored {
+		src = p.storedURL
+	}
+	if ffmpeg == "" || a.update == nil || src == "" {
 		return false
 	}
 	dir := a.player.remuxDir
@@ -257,18 +265,40 @@ func (a *app) playerRemux(p *filmPlay, step film.RemuxStep) bool {
 		}
 		dir = filepath.Join(cache, "Kando", "playback")
 	}
-	dest, err := film.RemuxPath(dir, p.path, step)
+	dest, err := a.playerRemuxPath(dir, p, step)
 	if err != nil {
 		return false
 	}
 	// TODO(nsgo#107): play every video ffmpeg decodes in the app's own player, as MyGo's VideoPlayer drew the frames ffmpeg decoded, rather than a copy the system's player can open https://github.com/nsgo-dev/nsgo/issues/107
 	p.source, p.remux, p.loaded = "", step, false
+	p.remuxAt, p.remuxLength = 0, a.lib.durations[p.path]
 	a.playerStopRemux()
 	ctx, stop := context.WithCancel(context.Background())
 	a.player.remuxStop = stop
-	update, src := a.update, p.path
+	update, length := a.update, p.remuxLength
+	unplayable := playerErrUnplayable
+	if p.stored {
+		unplayable = playerErrStoredUnplayable
+	}
+	// Each whole percent ffmpeg gets further goes to the engine's goroutine.
+	shown := -1
+	progress := func(at time.Duration) {
+		if length <= 0 {
+			return
+		}
+		percent := int(at * 100 / length)
+		if percent == shown {
+			return
+		}
+		shown = percent
+		update(func() {
+			if a.player.play == p && p.remux == step {
+				p.remuxAt = at
+			}
+		})
+	}
 	go func() {
-		err := film.Remux(ctx, ffmpeg, src, dest, step)
+		err := film.Remux(ctx, ffmpeg, src, dest, step, progress)
 		update(func() {
 			// A seek meanwhile keeps the film; another film, or none, has stopped the copy.
 			if a.player.play != p || p.remux != step {
@@ -281,7 +311,7 @@ func (a *app) playerRemux(p *filmPlay, step film.RemuxStep) bool {
 				if step == film.RemuxCopy && a.playerRemux(p, film.RemuxEncode) {
 					return
 				}
-				a.player.playErr = playerErrUnplayable
+				a.player.playErr = unplayable
 				a.playerNowPlayingClear()
 				return
 			}
@@ -289,6 +319,28 @@ func (a *app) playerRemux(p *filmPlay, step film.RemuxStep) bool {
 		})
 	}()
 	return true
+}
+
+// playerRemuxPath is where the copy of p's video made by step goes in dir: named after its file, its size and time of change (film.RemuxPath), or, for a video on a storage location, which is no file here, after the location, where the video is there, its size and when it moved.
+func (a *app) playerRemuxPath(dir string, p *filmPlay, step film.RemuxStep) (string, error) {
+	if s, ok := a.storedOf(p.path); ok && p.stored {
+		id := strings.Join([]string{s.Location, s.Path, strconv.FormatInt(s.Size, 10), strconv.FormatInt(s.Moved.UnixNano(), 10)}, "\x00")
+		return film.RemuxPathOf(dir, id, step), nil
+	}
+	return film.RemuxPath(dir, p.path, step)
+}
+
+// playerRemuxText is what the stage says, in m's words, while the copy of the open video the system's player can open is made: how far it got, and for a video on a storage location from where. It is "" while none is made, or the video's length, which says how far, is not known, when the stage says the video opens.
+func (a *app) playerRemuxText(m locales.Messages) string {
+	p := a.player.play
+	if p == nil || p.remux == 0 || p.source != "" || p.remuxLength <= 0 || a.player.playErr != "" {
+		return ""
+	}
+	percent := min(int(p.remuxAt*100/p.remuxLength), 99)
+	if s, ok := a.storedOf(p.path); ok && p.stored {
+		return m.PlayerRemuxingFrom(a.storedName(m, s.Location), percent)
+	}
+	return m.PlayerRemuxing(percent)
 }
 
 // playerStopRemux stops the copy being made for the open video, if one is.

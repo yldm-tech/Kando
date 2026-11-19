@@ -44,8 +44,6 @@ func (p *fakePlay) Length() time.Duration { return p.length }
 
 // fakeApp is the open film the player reads, kept as plain fields as the app keeps them, with the calls the player made.
 type fakeApp struct {
-	// movedBack counts MoveOpenVideoBack.
-	movedBack int
 	live.Rev
 	fakeCorrector
 	fakeGlossary
@@ -155,7 +153,7 @@ func (f *fakeApp) SetFilmSpeechLanguage(code string) {
 	f.item.SpeechLanguage = code
 }
 func (f *fakeApp) PlayPath() string                      { return f.path }
-func (f *fakeApp) MoveOpenVideoBack()                    { f.movedBack++ }
+func (f *fakeApp) OpeningText(*ns.Scope) string          { return "" }
 func (f *fakeApp) PlayErr() string                       { return f.err }
 func (f *fakeApp) ErrText(_ *ns.Scope, id string) string { return "error " + id }
 func (f *fakeApp) PosterFile(string) string              { return "" }

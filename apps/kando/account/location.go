@@ -37,10 +37,11 @@ const (
 	AlertKeyChanged
 )
 
-// Alert is the question open over the page: about the location Name, and for the host-key questions, the server, the fingerprint of the key it offered and, for AlertKeyChanged, of the key trusted before.
+// Alert is the question open over the page: about the location Name; for AlertRemove, how many films' videos were moved to it (Films), which do not play while it is gone; and for the host-key questions, the server, the fingerprint of the key it offered and, for AlertKeyChanged, of the key trusted before.
 type Alert struct {
 	Kind        AlertKind
 	Name        string
+	Films       int
 	Host        string
 	Fingerprint string
 	Trusted     string

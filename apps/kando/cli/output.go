@@ -152,12 +152,40 @@ func stageText(stage string, progress float64, canceled bool) string {
 	return stage
 }
 
+// writeFilms writes films as a table, with a VIDEO column naming the storage location of each video moved to one (locationText) when any was.
 func writeFilms(w io.Writer, films []remote.Film) error {
-	rows := [][]string{{"ID", "SOURCE", "STAGE", "TITLE"}}
+	moved := slices.ContainsFunc(films, func(f remote.Film) bool { return f.VideoLocation != nil })
+	head := []string{"ID", "SOURCE", "STAGE", "TITLE"}
+	if moved {
+		head = []string{"ID", "SOURCE", "STAGE", "VIDEO", "TITLE"}
+	}
+	rows := [][]string{head}
 	for _, f := range films {
-		rows = append(rows, []string{f.ID, orDash(f.Source), stageText(f.Stage, f.Progress, false), f.Title})
+		row := []string{f.ID, orDash(f.Source), stageText(f.Stage, f.Progress, false), f.Title}
+		if moved {
+			row = []string{f.ID, orDash(f.Source), stageText(f.Stage, f.Progress, false), orDash(locationText(f.VideoLocation)), f.Title}
+		}
+		rows = append(rows, row)
 	}
 	return table(w, rows)
+}
+
+// locationText is the storage location a video was moved to as the command line names it, its name and kind, "Home NAS (webdav)", and that it is no longer in Settings when it is not; "" for a video in the library's folder.
+func locationText(l *remote.VideoLocation) string {
+	if l == nil {
+		return ""
+	}
+	name, about := l.Name, l.Kind
+	if name == "" {
+		name = "storage location"
+	}
+	if l.Missing {
+		about = strings.TrimPrefix(about+", no longer in Settings", ", ")
+	}
+	if about == "" {
+		return name
+	}
+	return name + " (" + about + ")"
 }
 
 func writeFilm(w io.Writer, f remote.Film) error {
@@ -177,6 +205,8 @@ func writeFilm(w io.Writer, f remote.Film) error {
 		{"spoken language", f.SpokenLanguage},
 		{"speech language", f.SpeechLanguage},
 		{"video", f.VideoPath},
+		{"video on", locationText(f.VideoLocation)},
+		{"video there", videoThere(f.VideoLocation)},
 		{"subtitles", f.Subtitles},
 		{"original subtitles", f.OriginalSubtitles},
 		{"resume at", clockIf(f.ResumeMS)},
@@ -302,4 +332,12 @@ func writeChecked(w io.Writer, c remote.SubscriptionChecked) error {
 	}
 	_, err := fmt.Fprintln(w, printable(line))
 	return err
+}
+
+// videoThere is the path of a moved video on its storage location, "" for a video in the library's folder.
+func videoThere(l *remote.VideoLocation) string {
+	if l == nil {
+		return ""
+	}
+	return l.Path
 }

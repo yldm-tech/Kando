@@ -4,8 +4,10 @@ import (
 	"context"
 	"errors"
 	"log"
+	"maps"
 	"os"
 	"path/filepath"
+	"slices"
 	"strings"
 	"sync"
 	"time"
@@ -13,13 +15,14 @@ import (
 	"kando/apps/kando/account"
 	"kando/apps/kando/films"
 	"kando/apps/kando/locales"
+	"kando/apps/kando/remote"
 	"kando/apps/kando/shelf"
 	"kando/apps/kando/sidebar"
 	"kando/apps/kando/storage"
 	"kando/packages/core"
 )
 
-// 移动视频到 moves a done film's video out of the library's folder to a storage location, a NAS location of 设置 › 账号与上传 › 存储位置 or the object store set up there, and 将视频移回资料库 brings it back. Only the video moves: its subtitles, transcript, corrections, terms and the other files beside it (media.Companions) stay in the library's folder, named after the video's path there, which the film is still known by, so its lines are read, studied, searched, exported and translated as before. library.json keeps where the video went (shelf.Library.Stored). The player plays it through a proxy on the loopback address (storage.Proxy), Phone Sync serves it from the location, and what needs the file on disk, as processing the film again, refuses with why. A move copies the video, checks the copy's size, and only then removes where it was, so a move that fails or is stopped leaves it where it was. One move runs at a time, in the message bar with its progress and 取消.
+// 移动视频到 moves a done film's video out of the library's folder to a storage location, a NAS location of 设置 › 账号与上传 › 存储位置 or the object store set up there, and 将视频移回资料库 brings it back. Only the video moves: its subtitles, transcript, corrections, terms and the other files beside it (media.Companions) stay in the library's folder, named after the video's path there, which the film is still known by, so its lines are read, studied, searched, exported and translated as before. library.json keeps where the video went (shelf.Library.Stored). The player plays it through a proxy on the loopback address (storage.Proxy), Phone Sync serves it from the location, and what needs the file on disk, as processing the film again, refuses with why. A move copies the video, checks the copy's size, and only then removes where it was, so a move that fails or is stopped leaves it where it was. One move runs at a time, in the message bar with its progress and 取消; the videos of several films selected move one after another (state_stored_batch.go).
 
 // storedUI is the state of the moves of videos to storage locations: the providers opened (pool) and the move going on (run, nil while none is).
 type storedUI struct {
@@ -29,12 +32,13 @@ type storedUI struct {
 
 func newStoredUI() storedUI { return storedUI{pool: storage.NewPool(nil)} }
 
-// storedRun is a video being moved: the film's video path, its name and the location's, whether it goes back to the library (back), how far it got in percent, and cancel, which stops it.
+// storedRun is a video being moved: the film's video path, its name and the location's, whether it goes back to the library (back), how far it got in percent, cancel, which stops it, and batch, the move of several films' videos it is one of, nil for a film's alone.
 type storedRun struct {
 	video, name, place string
 	back               bool
 	percent            int
 	cancel             context.CancelFunc
+	batch              *storedBatch
 }
 
 // storedStorePrefix starts the ID of an object store as a location: "store:" and its kind (cloud.KindR2 and the others).
@@ -82,6 +86,22 @@ func (a *app) storedName(m locales.Messages, id string) string {
 	return m.StoredLocationGone()
 }
 
+// storedPaths is the paths of the videos moved to a storage location, by which library.json keeps them, in order.
+func (a *app) storedPaths() []string {
+	return slices.Sorted(maps.Keys(a.library.Stored))
+}
+
+// storedCount is how many videos were moved to the location of ID id, those of every library, as library.json keeps them all.
+func (a *app) storedCount(id string) int {
+	n := 0
+	for _, s := range a.library.Stored {
+		if s.Location == id {
+			n++
+		}
+	}
+	return n
+}
+
 // storedOf is where the video at path was moved to, false for a video in the library's folder.
 func (a *app) storedOf(path string) (shelf.Stored, bool) {
 	if path == "" {
@@ -122,19 +142,26 @@ func (a *app) storedLengths() {
 	}
 }
 
-// storedCancel stops the move going on, as the message bar's 取消 does (CancelMove): its copy stops, and the video stays where it was.
+// storedCancel stops the move going on, as the message bar's 取消 does (CancelMove): its copy stops, and the video stays where it was; of several films, the ones after it are not begun.
 func (a *app) storedCancel() {
-	if r := a.stored.run; r != nil && r.cancel != nil {
+	r := a.stored.run
+	if r == nil {
+		return
+	}
+	if r.batch != nil {
+		r.batch.stopped = true
+	}
+	if r.cancel != nil {
 		r.cancel()
 	}
 }
 
-// storedCan reports whether item's video can be moved to a storage location now, or why not in m's words: it is a done film of a job (a video no job processed is listed by its file alone, which would leave the shelf with it), keeps a video, is in the open library's folder, not one with a password, whose videos stay inside it, and is not being processed.
+// storedCan reports whether item's video can be moved to a storage location now, or why not in m's words: it is a done film, a job's or a video found in the folder, that keeps a video, is in the open library's folder, not one with a password, whose videos stay inside it, and is not being processed. A video no job processed stays on the shelf once moved by library.json's record of it (films.MovedVideos).
 func (a *app) storedCan(m locales.Messages, item films.Film) error {
 	name := films.Name(item)
 	root := a.snap().LibraryDir
 	switch {
-	case item.JobID == "" || item.Stage != core.StageComplete || item.SubtitlesOnly || item.VideoPath == "":
+	case item.VideoPath == "" || item.SubtitlesOnly || (item.JobID != "" && item.Stage != core.StageComplete):
 		return errors.New(m.StoredNotDone(name))
 	case !films.InDir(root, item.VideoPath):
 		return errors.New(m.StoredOutside(name))
@@ -148,40 +175,42 @@ func (a *app) storedCan(m locales.Messages, item films.Film) error {
 
 // MoveVideoTo moves item's video to the location of ID id, as 移动视频到 ▸ does: off the engine's goroutine, the message bar saying how far it got with 取消. Once the copy is whole and of the video's size, library.json notes where it went, and the video is removed from the library's folder; a film open then closes. Why it cannot, or how it ended, the message bar says.
 func (a *app) MoveVideoTo(item films.Film, id string) {
-	m := a.messages()
 	if _, stored := a.storedOf(item.VideoPath); stored {
 		return
 	}
 	if a.stored.run != nil {
-		a.warn(m.StoredBusy(), "")
+		a.warn(a.messages().StoredBusy(), "")
 		return
 	}
-	if err := a.storedCan(m, item); err != nil {
+	if err := a.storedBeginTo(item, id, nil); err != nil {
 		a.warn(err.Error(), "")
-		return
+	}
+}
+
+// storedBeginTo starts moving item's video to the location of ID id, alone or as one of batch, and returns why it cannot, in the interface's language, before anything moved. It is the move to a location of MoveVideoTo and MoveVideosTo.
+func (a *app) storedBeginTo(item films.Film, id string, batch *storedBatch) error {
+	m := a.messages()
+	if err := a.storedCan(m, item); err != nil {
+		return err
 	}
 	t, ok := a.storedTargetOf(id)
 	switch {
 	case !ok:
-		a.warn(m.StoredLocationGone(), "")
-		return
+		return errors.New(m.StoredLocationGone())
 	case t.Store != nil && a.privacy.offline:
-		a.warn(m.PrivacyNoUpload(), "")
-		return
+		return errors.New(m.PrivacyNoUpload())
 	}
 	info, err := os.Stat(item.VideoPath)
 	if err != nil || info.IsDir() {
-		a.warn(m.LibraryFileMissing(), "")
-		return
+		return errors.New(m.LibraryFileMissing())
 	}
 	root := a.snap().LibraryDir
 	rel, err := filepath.Rel(root, item.VideoPath)
 	dest := storage.FilmPath(sidebar.Title(root), rel)
 	if err != nil || dest == "" {
-		a.warn(m.StoredOutside(films.Name(item)), "")
-		return
+		return errors.New(m.StoredOutside(films.Name(item)))
 	}
-	run := a.storedStart(item, id, false)
+	run := a.storedStart(item, id, false, batch)
 	pool, update, video := a.stored.pool, a.update, item.VideoPath
 	progress := a.storedProgress(update, run)
 	ctx, cancel := context.WithCancel(context.Background())
@@ -197,11 +226,12 @@ func (a *app) MoveVideoTo(item films.Film, id string) {
 		}()
 		update(func() { a.storedUploaded(run, t, dest, size, err) })
 	}()
+	return nil
 }
 
-// storedStart puts run, the move of item's video to or back from the location of ID id, as the move going on, and says so in the message bar.
-func (a *app) storedStart(item films.Film, id string, back bool) *storedRun {
-	run := &storedRun{video: item.VideoPath, name: films.Name(item), place: id, back: back}
+// storedStart puts run, the move of item's video to or back from the location of ID id, alone or as one of batch, as the move going on, and says so in the message bar.
+func (a *app) storedStart(item films.Film, id string, back bool, batch *storedBatch) *storedRun {
+	run := &storedRun{video: item.VideoPath, name: films.Name(item), place: id, back: back, batch: batch}
 	a.stored.run = run
 	a.storedShow()
 	return run
@@ -234,21 +264,29 @@ func (a *app) storedProgress(update func(func()), run *storedRun) storage.Progre
 	}
 }
 
-// storedShow says in the message bar how far the move going on got, with 取消, unless the user closed the bar while it goes on.
+// storedShow says in the message bar how far the move going on got, with 取消, unless the user closed the bar while it goes on: the film's name, or which of how many films of several it is.
 func (a *app) storedShow() {
 	r := a.stored.run
 	if r == nil {
 		return
 	}
 	m := a.messages()
-	text := m.StoredMovingTo(r.name, a.storedName(m, r.place), r.percent)
-	if r.back {
+	var text string
+	switch b := r.batch; {
+	case b != nil && r.back:
+		text = m.StoredMovingBackMany(b.at, b.total, r.percent)
+	case b != nil:
+		text = m.StoredMovingToMany(b.at, b.total, a.storedName(m, r.place), r.percent)
+	case r.back:
 		text = m.StoredMovingBack(r.name, r.percent)
+	default:
+		text = m.StoredMovingTo(r.name, a.storedName(m, r.place), r.percent)
 	}
 	if n := &a.lib.notice; n.Open && n.Stop {
 		n.Text = text
 		return
 	}
+	// A bar the user closed while the copy goes on stays closed until it ends; the copy of the next film of several shows it again.
 	if r.percent == 0 {
 		a.libraryShow(films.Notice{Kind: "success", Text: text, Stop: true, Open: true})
 	}
@@ -279,17 +317,17 @@ func (a *app) storedUploaded(run *storedRun, t storage.Target, dest string, size
 	place := a.storedName(m, run.place)
 	switch {
 	case errors.Is(err, context.Canceled):
-		a.tell(m.StoredStopped(run.name))
+		a.storedEnded(run, storedStopped, m.StoredStopped(run.name))
 		return
 	case err != nil:
 		log.Printf("storage: could not move %s to a location: %v", filepath.Base(run.video), err)
-		a.warn(m.StoredMoveFailed(run.name, place, storedErrText(m, t, err)), "")
+		a.storedEnded(run, storedFailed, m.StoredMoveFailed(run.name, place, storedErrText(m, t, err)))
 		return
 	}
 	item, found := a.storedFilm(run.video)
 	if !found || a.libraryMoveBusy(item) {
 		a.storedRemoveCopy(t, dest)
-		a.warn(m.StoredProcessing(run.name), "")
+		a.storedEnded(run, storedRefused, m.StoredProcessing(run.name))
 		return
 	}
 	if a.library.Stored == nil {
@@ -299,7 +337,7 @@ func (a *app) storedUploaded(run *storedRun, t storage.Target, dest string, size
 	if err := a.library.Save(); err != nil {
 		delete(a.library.Stored, run.video)
 		a.storedRemoveCopy(t, dest)
-		a.warn(a.shelfSaveErr(err, m.LibraryShelfSaveFailed), "")
+		a.storedEnded(run, storedFailed, a.shelfSaveErr(err, m.LibraryShelfSaveFailed))
 		return
 	}
 	if a.openKey == item.Key {
@@ -312,18 +350,25 @@ func (a *app) storedUploaded(run *storedRun, t storage.Target, dest string, size
 			a.saveErr = a.shelfSaveErr(err, m.LibraryShelfSaveFailed)
 		}
 		a.storedRemoveCopy(t, dest)
-		a.warn(m.StoredRemoveFailed(run.name, place), "")
+		a.storedEnded(run, storedFailed, m.StoredRemoveFailed(run.name, place))
 		return
 	}
-	a.refreshLibrary()
-	a.tell(m.StoredMoved(run.name, place))
+	a.storedRefresh(run)
+	a.storedEnded(run, storedDone, m.StoredMoved(run.name, place))
 }
 
-// storedFilm is the film of the job whose video is video, among the open library's jobs.
+// storedRefresh reads the library's folder again once run moved its video: at once for a film's alone, and once at the end for several (storedBatchEnded), as reading it files a video left alone in a folder as the folder's video (media.GatherVideos), renaming it, which would leave the films after it in the run under paths they no longer have.
+func (a *app) storedRefresh(run *storedRun) {
+	if run.batch == nil {
+		a.refreshLibrary()
+	}
+}
+
+// storedFilm is the open library's film whose video is video: a job's, or a video found in the folder or moved from it that no job holds.
 func (a *app) storedFilm(video string) (films.Film, bool) {
-	for _, job := range a.library.Jobs {
-		if job.VideoPath == video {
-			return a.JobFilm(job.ID)
+	for _, item := range a.films() {
+		if item.VideoPath != "" && item.VideoPath == video {
+			return item, true
 		}
 	}
 	return films.Film{}, false
@@ -347,29 +392,36 @@ func (a *app) storedRemoveCopy(t storage.Target, path string) {
 
 // MoveVideoBack moves item's video from the storage location it was moved to back to where it was in the library's folder, as 将视频移回资料库 does: copied down off the engine's goroutine, the message bar saying how far it got with 取消, into a hidden file renamed into place once whole and of the size the location tells (storage.Get). Then library.json forgets where it was, and its copy there is removed; the message bar says when that copy could not be.
 func (a *app) MoveVideoBack(item films.Film) {
+	if _, ok := a.storedOf(item.VideoPath); !ok {
+		return
+	}
+	if a.stored.run != nil {
+		a.warn(a.messages().StoredBusy(), "")
+		return
+	}
+	if err := a.storedBeginBack(item, nil); err != nil {
+		a.warn(err.Error(), "")
+	}
+}
+
+// storedBeginBack starts moving item's video back from its storage location, alone or as one of batch, and returns why it cannot, in the interface's language, before anything moved. It is the move back of MoveVideoBack and MoveVideosBack.
+func (a *app) storedBeginBack(item films.Film, batch *storedBatch) error {
 	m := a.messages()
 	s, ok := a.storedOf(item.VideoPath)
 	if !ok {
-		return
+		return nil
 	}
-	switch {
-	case a.stored.run != nil:
-		a.warn(m.StoredBusy(), "")
-		return
-	case a.libraryMoveBusy(item):
-		a.warn(m.StoredProcessing(films.Name(item)), "")
-		return
+	if a.libraryMoveBusy(item) {
+		return errors.New(m.StoredProcessing(films.Name(item)))
 	}
 	t, found := a.storedTargetOf(s.Location)
 	switch {
 	case !found:
-		a.warn(m.StoredLocationGone(), "")
-		return
+		return errors.New(m.StoredLocationGone())
 	case t.Store != nil && a.privacy.offline:
-		a.warn(m.PrivacyNoUpload(), "")
-		return
+		return errors.New(m.PrivacyNoUpload())
 	}
-	run := a.storedStart(item, s.Location, true)
+	run := a.storedStart(item, s.Location, true, batch)
 	pool, update, video := a.stored.pool, a.update, item.VideoPath
 	progress := a.storedProgress(update, run)
 	ctx, cancel := context.WithCancel(context.Background())
@@ -385,6 +437,7 @@ func (a *app) MoveVideoBack(item films.Film) {
 		}()
 		update(func() { a.storedDownloaded(run, t, s, err) })
 	}()
+	return nil
 }
 
 // storedDownloaded ends run, the move of a video back from t, where s says it was, whose copy down ended with err. A whole copy makes library.json forget where it was, and its copy on t is then removed off the engine's goroutine.
@@ -397,11 +450,11 @@ func (a *app) storedDownloaded(run *storedRun, t storage.Target, s shelf.Stored,
 	place := a.storedName(m, run.place)
 	switch {
 	case errors.Is(err, context.Canceled):
-		a.tell(m.StoredStopped(run.name))
+		a.storedEnded(run, storedStopped, m.StoredStopped(run.name))
 		return
 	case err != nil:
 		log.Printf("storage: could not move %s back from its location: %v", filepath.Base(run.video), err)
-		a.warn(m.StoredMoveBackFailed(run.name, place, storedErrText(m, t, err)), "")
+		a.storedEnded(run, storedFailed, m.StoredMoveBackFailed(run.name, place, storedErrText(m, t, err)))
 		return
 	}
 	if a.openKey != "" {
@@ -412,12 +465,12 @@ func (a *app) storedDownloaded(run *storedRun, t storage.Target, s shelf.Stored,
 	delete(a.library.Stored, run.video)
 	if err := a.library.Save(); err != nil {
 		// The video is in the library's folder again, which the player and everything else take first; its copy on t stays, as the next start reads library.json as it was.
-		a.warn(a.shelfSaveErr(err, m.LibraryShelfSaveFailed), "")
-		a.refreshLibrary()
+		a.storedRefresh(run)
+		a.storedEnded(run, storedFailed, a.shelfSaveErr(err, m.LibraryShelfSaveFailed))
 		return
 	}
-	a.refreshLibrary()
-	a.tell(m.StoredMovedBack(run.name))
+	a.storedRefresh(run)
+	a.storedEnded(run, storedDone, m.StoredMovedBack(run.name))
 	pool, update, name := a.stored.pool, a.update, run.name
 	go func() {
 		ctx, cancel := context.WithTimeout(context.Background(), storage.PoolOpenTimeout)
@@ -430,7 +483,12 @@ func (a *app) storedDownloaded(run *storedRun, t storage.Target, s shelf.Stored,
 			return
 		}
 		log.Printf("storage: could not remove a video's copy from its location after moving it back: %v", err)
-		update(func() { a.warn(m.StoredMovedBackLeft(name, place), "") })
+		// While more videos move, the bar says how they go; the copy left is in the log.
+		update(func() {
+			if a.stored.run == nil {
+				a.warn(m.StoredMovedBackLeft(name, place), "")
+			}
+		})
 	}()
 }
 
@@ -485,5 +543,34 @@ func (a *app) storedPlayable() map[string]storage.Target {
 			out[s.Location] = t
 		}
 	}
+	return out
+}
+
+// storedRemote is the storage location the video at path was moved to, as the control socket, the command line and MCP tell it (remote.Film.VideoLocation), in English: its name, its kind, the video's path there and whether it is no longer in the settings, when the name and kind are those it had when removed, if Kando kept them (locationsUI.removed). nil for a video in the library's folder.
+func (a *app) storedRemote(path string) *remote.VideoLocation {
+	s, ok := a.storedOf(path)
+	if !ok {
+		return nil
+	}
+	out := &remote.VideoLocation{Path: s.Path}
+	t, there := a.storedTargetOf(s.Location)
+	switch {
+	case there && t.Store != nil:
+		out.Kind = t.Store.Kind
+	case there:
+		out.Kind = string(t.Remote.Kind)
+	default:
+		out.Missing = true
+		if kind, isStore := strings.CutPrefix(s.Location, storedStorePrefix); isStore {
+			out.Kind = kind
+		}
+		for _, l := range a.locations.removed {
+			if l.ID == s.Location {
+				out.Name, out.Kind = l.Name, string(l.Remote.Kind)
+			}
+		}
+		return out
+	}
+	out.Name = strings.TrimSpace(a.storedName(remoteMessages(), s.Location))
 	return out
 }

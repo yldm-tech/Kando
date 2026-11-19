@@ -246,7 +246,7 @@ func (f *fakeApp) CloseRename()                                         { f.call
 func (f *fakeApp) RenameFilm()                                          { f.call("rename", f.renameName); f.renameOpen = false }
 func (f *fakeApp) MoveFilmMenu(*ns.Scope, ...Film) []nsdesktop.MenuItem { return nil }
 
-func (f *fakeApp) StoredMenu(*ns.Scope, Film) []nsdesktop.MenuItem { return nil }
+func (f *fakeApp) StoredMenu(*ns.Scope, ...Film) []nsdesktop.MenuItem { return nil }
 
 func (f *fakeApp) StoredMark(locales.Messages, Film) (string, bool, bool) { return "", false, false }
 

@@ -988,12 +988,13 @@ func remoteFilmTitle(item films.Film) string {
 	return item.Title
 }
 
-// remoteFilmOf is item, a film of remoteFilmList, as the socket answers it, without what only its files tell (remoteFilmFiles): remoteFilmOfIn in English, with where the player stopped and how far the video was watched. UI thread only.
+// remoteFilmOf is item, a film of remoteFilmList, as the socket answers it, without what only its files tell (remoteFilmFiles): remoteFilmOfIn in English, with where the player stopped, how far the video was watched and the storage location its video was moved to. UI thread only.
 func (a *app) remoteFilmOf(item films.Film) remote.Film {
 	f := remoteFilmOfIn(remoteMessages(), item)
 	if item.VideoPath != "" {
 		f.ResumeMS = a.ResumeAt(item.VideoPath).Milliseconds()
 		f.WatchedMS = a.paletteHorizon(item).Milliseconds()
+		f.VideoLocation = a.storedRemote(item.VideoPath)
 	}
 	return f
 }

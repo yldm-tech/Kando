@@ -12,10 +12,13 @@ import (
 	"time"
 )
 
-// The stand-in for ffmpeg is this test binary under the name ffmpeg (standInFFmpeg), so it runs on Windows too, which starts no shell script. Started under that name, it writes "copy" to the file its last argument names, as ffmpeg writes its output there, and then, while a file named slow is beside it, waits five seconds, as a long copy does, until it is stopped.
+// The stand-in for ffmpeg is this test binary under the name ffmpeg (standInFFmpeg), so it runs on Windows too, which starts no shell script. Started under that name, it reports with -progress pipe:1 that it got 1.5 s and then 3 s into the video, as ffmpeg's out_time_us lines among others, writes "copy" to the file its last argument names, as ffmpeg writes its output there, and then, while a file named slow is beside it, waits five seconds, as a long copy does, until it is stopped.
 func init() {
 	if strings.TrimSuffix(filepath.Base(os.Args[0]), ".exe") != "ffmpeg" {
 		return
+	}
+	if i := slices.Index(os.Args, "-progress"); i >= 0 && i+1 < len(os.Args) && os.Args[i+1] == "pipe:1" {
+		os.Stdout.WriteString("frame=1\nout_time_us=1500000\nprogress=continue\nout_time_us=N/A\nout_time_us=3000000\nprogress=end\n")
 	}
 	if err := os.WriteFile(os.Args[len(os.Args)-1], []byte("copy"), 0o644); err != nil {
 		os.Exit(1)
@@ -123,7 +126,7 @@ func TestRemuxKeepsOneFilmsCopies(t *testing.T) {
 	}
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
-	if err := Remux(ctx, ffmpeg, video, dest, RemuxCopy); err != nil {
+	if err := Remux(ctx, ffmpeg, video, dest, RemuxCopy, nil); err != nil {
 		t.Fatal(err)
 	}
 	if data, err := os.ReadFile(dest); err != nil || string(data) != "copy" {
@@ -135,13 +138,13 @@ func TestRemuxKeepsOneFilmsCopies(t *testing.T) {
 	if err := os.WriteFile(dest, []byte("made"), 0o644); err != nil {
 		t.Fatal(err)
 	}
-	if err := Remux(ctx, ffmpeg, video, dest, RemuxCopy); err != nil {
+	if err := Remux(ctx, ffmpeg, video, dest, RemuxCopy, nil); err != nil {
 		t.Fatal(err)
 	}
 	if data, _ := os.ReadFile(dest); string(data) != "made" {
 		t.Fatalf("a copy already made was made again: %q", data)
 	}
-	if err := Remux(ctx, "", video, dest+".x", RemuxCopy); err == nil {
+	if err := Remux(ctx, "", video, dest+".x", RemuxCopy, nil); err == nil {
 		t.Fatal("a copy without ffmpeg")
 	}
 }
@@ -165,7 +168,7 @@ func TestRemuxRunsWriteFilesOfTheirOwn(t *testing.T) {
 	}
 	ctx, cancel := context.WithCancel(context.Background())
 	stopped := make(chan error, 1)
-	go func() { stopped <- Remux(ctx, ffmpeg, video, dest, RemuxCopy) }()
+	go func() { stopped <- Remux(ctx, ffmpeg, video, dest, RemuxCopy, nil) }()
 	// waitParts waits until n runs have written their files and wait.
 	waitParts := func(n int) {
 		t.Helper()
@@ -185,7 +188,7 @@ func TestRemuxRunsWriteFilesOfTheirOwn(t *testing.T) {
 	second, cancelSecond := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancelSecond()
 	done := make(chan error, 1)
-	go func() { done <- Remux(second, ffmpeg, video, dest, RemuxCopy) }()
+	go func() { done <- Remux(second, ffmpeg, video, dest, RemuxCopy, nil) }()
 	waitParts(2)
 	// The first run is stopped while both wait, and only then does the copy end, so the first cannot finish before it is stopped, as it could when slow went first.
 	cancel()
@@ -221,5 +224,28 @@ func TestMissingPlugins(t *testing.T) {
 		if MissingPlugins(err) {
 			t.Errorf("MissingPlugins(%v) = true", err)
 		}
+	}
+}
+
+// TestRemuxReportsProgress checks that Remux tells how far into the video ffmpeg got, from its -progress lines, leaving out what is not a time.
+func TestRemuxReportsProgress(t *testing.T) {
+	dir := t.TempDir()
+	ffmpeg := standInFFmpeg(t, dir)
+	video := filepath.Join(dir, "a.mkv")
+	if err := os.WriteFile(video, []byte("v"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	dest := RemuxPathOf(filepath.Join(dir, "cache"), "http://127.0.0.1/a.mkv\x00nas", RemuxCopy)
+	var got []time.Duration
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancel()
+	if err := Remux(ctx, ffmpeg, video, dest, RemuxCopy, func(at time.Duration) { got = append(got, at) }); err != nil {
+		t.Fatal(err)
+	}
+	if want := []time.Duration{1500 * time.Millisecond, 3 * time.Second}; !slices.Equal(got, want) {
+		t.Fatalf("progress %v, want %v", got, want)
+	}
+	if data, err := os.ReadFile(dest); err != nil || string(data) != "copy" {
+		t.Fatalf("the copy holds %q, %v", data, err)
 	}
 }

@@ -8,7 +8,6 @@ import (
 	"sync/atomic"
 
 	"kando/apps/kando/cache"
-	"kando/apps/kando/film"
 	"kando/apps/kando/locales"
 	"kando/apps/kando/settings"
 	"kando/apps/kando/settings/sectionid"
@@ -218,7 +217,7 @@ func (a *app) privacyClearCache() {
 	var playing []string
 	if p := a.player.play; p != nil && p.remux != 0 {
 		playing = append(playing, p.source)
-		if dest, err := film.RemuxPath(playback, p.path, p.remux); err == nil {
+		if dest, err := a.playerRemuxPath(playback, p, p.remux); err == nil {
 			playing = append(playing, dest)
 		}
 	}

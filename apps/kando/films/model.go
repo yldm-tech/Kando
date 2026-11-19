@@ -97,6 +97,39 @@ func List(root string, jobs []core.Job, videos []media.Video, names map[string]s
 	return out
 }
 
+// MovedVideos is videos, the videos found in the library's folder at root, followed by one for each of moved, the paths of videos moved out of that folder to a storage location (shelf.Library.Stored), that no job holds and the folder no longer has: listed by the path it had, which the film is still known by, with the bilingual subtitles left beside it when they are there. A video no job processed is on the shelf by its file alone (List), so without this its film would leave the shelf as its video leaves the folder. It reads the disk, for the subtitles, so the library's refresh calls it rather than a binding.
+func MovedVideos(root string, jobs []core.Job, videos []media.Video, moved []string) []media.Video {
+	held := map[string]bool{}
+	for _, job := range jobs {
+		if job.VideoPath != "" {
+			held[filepath.Clean(job.VideoPath)] = true
+		}
+	}
+	for _, v := range videos {
+		held[filepath.Clean(v.Path)] = true
+	}
+	var extra []media.Video
+	for _, path := range moved {
+		if path == "" || held[filepath.Clean(path)] || !InDir(root, path) {
+			continue
+		}
+		held[filepath.Clean(path)] = true
+		v := media.Video{Path: path, Name: filepath.Base(path)}
+		if sub := strings.TrimSuffix(path, filepath.Ext(path)) + ".bilingual.srt"; fileThere(sub) {
+			v.Subtitles = sub
+		}
+		extra = append(extra, v)
+	}
+	slices.SortFunc(extra, func(x, y media.Video) int { return strings.Compare(x.Path, y.Path) })
+	return append(slices.Clip(videos), extra...)
+}
+
+// fileThere reports whether path is a file on disk.
+func fileThere(path string) bool {
+	info, err := os.Stat(path)
+	return err == nil && !info.IsDir()
+}
+
 // Queue is the films of 处理中 in the shelf's order, newest first: the open library's jobs that are waiting, running, failed or were cancelled (InQueue), and the jobs elsewhere reports the queue runs, or will run, for another library, each with Library naming that library.
 func Queue(root string, jobs []core.Job, elsewhere func(core.Job) bool, nameOf func(core.Job) string, detailOf func(core.Job) string) []Film {
 	var out []Film

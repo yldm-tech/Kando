@@ -201,6 +201,7 @@ func (s *screen) stage() core.Node {
 		}
 		return stageNoteState{}
 	})
+	opening := live.Func(a, func() string { return a.OpeningText(cx) })
 	return core.View{
 		TestID: "film-stage", Role: core.RoleGroup, LabelFunc: func() string { return locales.FilmPicture(cx) },
 		Style: core.Style{Position: core.Absolute, Left: core.Pt(0), Top: core.Pt(0), Bottom: core.Pt(0)},
@@ -237,6 +238,9 @@ func (s *screen) stage() core.Node {
 							case n.err != "":
 								return a.ErrText(cx, n.err)
 							case n.opening:
+								if text := opening(); text != "" {
+									return text
+								}
 								return locales.FilmOpeningVideo(cx)
 							}
 							return n.detail
@@ -280,19 +284,16 @@ func (s *screen) pluginsRemedy(note func() stageNoteState) core.Node {
 	}}
 }
 
-// unplayableRemedy is the button under the note of a video that would not play: Show in Finder, or the system's file manager, on the video, which the user can open in another player or replace. Processing the film again would not help, as it plays the same file. A video moved to a storage location is not on this computer: the page offers the settings, where the location is, when the location is gone, cannot be reached or lost the video, and moving the video back, where it can be remuxed, when the system's player cannot play it from there.
+// unplayableRemedy is the button under the note of a video that would not play: Show in Finder, or the system's file manager, on the video, which the user can open in another player or replace. Processing the film again would not help, as it plays the same file. A video moved to a storage location is not on this computer: the page offers the settings, where the location is, when the location is gone, cannot be reached or lost the video, and nothing when not even the copy made of it from there plays, as moving it back, still in the film's menu, would play the same file.
 func (s *screen) unplayableRemedy(note func() stageNoteState) core.Node {
 	a := s.a
-	return core.Show{When: func() bool { return note().err != "" && a.PlayPath() != "" }, Then: func(cx *core.Scope) core.Node {
+	return core.Show{When: func() bool { return note().err != "" && note().err != ErrStoredUnplayable && a.PlayPath() != "" }, Then: func(cx *core.Scope) core.Node {
 		// TODO(nsgo#145): give ui.Button a TextFunc twin so its text follows the interface language without building the button again, then drop this Dynamic https://github.com/nsgo-dev/nsgo/issues/145
 		return core.Dynamic(func(cx *core.Scope) core.Node {
 			switch note().err {
 			case ErrStoredGone, ErrStoredUnreachable, ErrStoredMissing:
 				return ui.Button{TestID: "film-stage-stored-settings", Text: locales.FilmsOpenSettings(cx), Variant: ui.ButtonSecondary, Size: ui.SizeSmall,
 					OnPress: live.Do(a, func() { a.OpenSettings(sectionid.Account) })}
-			case ErrStoredUnplayable:
-				return ui.Button{TestID: "film-stage-stored-back", Text: locales.StoredMoveBack(cx), Variant: ui.ButtonSecondary, Size: ui.SizeSmall,
-					OnPress: live.Do(a, a.MoveOpenVideoBack)}
 			}
 			return ui.Button{TestID: "film-stage-reveal", Text: locales.FilmShowInFinder(cx, desktop.Platform(cx)), Variant: ui.ButtonSecondary, Size: ui.SizeSmall,
 				OnPress: live.Do(a, func() { a.Reveal(a.PlayPath()) })}

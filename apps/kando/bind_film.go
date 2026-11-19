@@ -159,6 +159,8 @@ func (a *app) PlayErr() string { return a.player.playErr }
 
 func (a *app) ErrText(cx *ns.Scope, id string) string { return playerErrTextIn(locales.For(cx), id) }
 
+func (a *app) OpeningText(cx *ns.Scope) string { return a.playerRemuxText(locales.For(cx)) }
+
 // PosterFile is the file of the poster the library keeps for the video at path, which the player shows while the picture opens; the image is read off the engine's goroutine when it is shown, and a video without one shows the black stage.
 func (a *app) PosterFile(path string) string { return posterDest(a.lib.posterDir, path) }
 

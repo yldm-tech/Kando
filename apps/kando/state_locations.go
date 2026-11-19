@@ -17,9 +17,10 @@ import (
 	"kando/apps/kando/storage"
 )
 
-// locationsUI is the state of 设置 › 账号与上传 › 存储位置: the folders on a NAS or a server films can be kept in (list, saved in settings.json), the dialog that adds or edits one (editing, editID "" for a new one, draft as typed, problem why Save refused it), how the last Test of each went (tests, by ID, the draft's under ""), and the question open over the page (alert). gen numbers the Tests, so the answer of one started before another, or before the dialog closed, is dropped. editRelease and alertRelease give back the modal flag the dialog and the alert hold (holdModal). open connects, storage.OpenRemote unless a test sets another.
+// locationsUI is the state of 设置 › 账号与上传 › 存储位置: the folders on a NAS or a server films can be kept in (list, saved in settings.json); those removed while videos were moved to them (removed, without their secrets, also saved), so one added back at the same address gets its ID back and those videos play again (locationRelink); the dialog that adds or edits one (editing, editID "" for a new one, draft as typed, problem why Save refused it), how the last Test of each went (tests, by ID, the draft's under ""), and the question open over the page (alert). gen numbers the Tests, so the answer of one started before another, or before the dialog closed, is dropped. editRelease and alertRelease give back the modal flag the dialog and the alert hold (holdModal). open connects, storage.OpenRemote unless a test sets another.
 type locationsUI struct {
 	list         []account.Location
+	removed      []account.Location
 	editing      bool
 	editID       string
 	draft        account.Draft
@@ -57,6 +58,8 @@ const locationTestTimeout = 30 * time.Second
 // savedLocations is the storage locations' part of settings.json. Passwords, private keys and passphrases are kept as the object stores' keys are (savedCloud): in settings.json, which saveSettings writes with mode 0600, and left out of the log and of feedback (locationSecrets).
 type savedLocations struct {
 	StorageLocations []savedLocation `json:"storageLocations,omitempty"`
+	// RemovedStorageLocations are the locations removed while videos were on them, without their passwords and keys (locationsUI.removed).
+	RemovedStorageLocations []savedLocation `json:"removedStorageLocations,omitempty"`
 }
 
 // savedLocation is one storage location in settings.json.
@@ -77,11 +80,21 @@ type savedLocation struct {
 	HostKey    string `json:"hostKey,omitempty"`
 }
 
-// clean drops a location without an ID, a name or a kind Kando knows, and the second of two with the same ID, and trims what is not a secret. Passwords and passphrases are kept as typed.
+// clean drops a location without an ID, a name or a kind Kando knows, and the second of two with the same ID, and trims what is not a secret. Passwords and passphrases are kept as typed. A removed location keeps none of its secrets, and none with the ID of one in the settings.
 func (s *savedLocations) clean() {
 	seen := map[string]bool{}
-	kept := s.StorageLocations[:0]
-	for _, l := range s.StorageLocations {
+	s.StorageLocations = cleanLocations(s.StorageLocations, seen)
+	s.RemovedStorageLocations = cleanLocations(s.RemovedStorageLocations, seen)
+	for i := range s.RemovedStorageLocations {
+		l := &s.RemovedStorageLocations[i]
+		l.Password, l.Domain, l.PrivateKey, l.Passphrase, l.HostKey = "", "", "", "", ""
+	}
+}
+
+// cleanLocations is cleaned's list of locations, those with an ID in seen left out and the IDs kept added to it, nil for none.
+func cleanLocations(locations []savedLocation, seen map[string]bool) []savedLocation {
+	kept := locations[:0]
+	for _, l := range locations {
 		l.ID, l.Name, l.Kind = strings.TrimSpace(l.ID), strings.TrimSpace(l.Name), strings.TrimSpace(l.Kind)
 		l.Host, l.Share, l.URL, l.Root = strings.TrimSpace(l.Host), strings.TrimSpace(l.Share), strings.TrimSpace(l.URL), strings.TrimSpace(l.Root)
 		l.User, l.Domain, l.PrivateKey, l.HostKey = strings.TrimSpace(l.User), strings.TrimSpace(l.Domain), strings.TrimSpace(l.PrivateKey), strings.TrimSpace(l.HostKey)
@@ -94,35 +107,56 @@ func (s *savedLocations) clean() {
 		seen[l.ID] = true
 		kept = append(kept, l)
 	}
-	s.StorageLocations = kept
-	if len(s.StorageLocations) == 0 {
-		s.StorageLocations = nil
+	if len(kept) == 0 {
+		return nil
 	}
+	return kept
 }
 
+// saveLocations writes the locations, and those removed that videos are still on (storedCount), to settings.json.
 func (a *app) saveLocations(saved *savedSettings) {
+	out := savedLocations{StorageLocations: savedLocationsOf(a.locations.list)}
+	var removed []account.Location
+	for _, l := range a.locations.removed {
+		if a.storedCount(l.ID) > 0 {
+			removed = append(removed, l)
+		}
+	}
+	out.RemovedStorageLocations = savedLocationsOf(removed)
+	saved.savedLocations = out
+}
+
+// savedLocationsOf is locations as settings.json keeps them.
+func savedLocationsOf(locations []account.Location) []savedLocation {
 	var out []savedLocation
-	for _, l := range a.locations.list {
+	for _, l := range locations {
 		r := l.Remote
 		out = append(out, savedLocation{ID: l.ID, Name: l.Name, Kind: string(r.Kind), Host: r.Host, Port: r.Port, Share: r.Share, URL: r.URL, Root: r.Root,
 			User: r.User, Password: r.Password, Domain: r.Domain, PrivateKey: r.PrivateKey, Passphrase: r.Passphrase, HostKey: r.HostKey})
 	}
-	saved.savedLocations = savedLocations{StorageLocations: out}
+	return out
 }
 
 func (a *app) restoreLocations(saved savedSettings) {
-	a.locations.list = nil
-	for _, l := range saved.StorageLocations {
-		a.locations.list = append(a.locations.list, account.Location{ID: l.ID, Name: l.Name, Remote: storage.Remote{
+	a.locations.list = locationsOfSaved(saved.StorageLocations)
+	a.locations.removed = locationsOfSaved(saved.RemovedStorageLocations)
+}
+
+// locationsOfSaved is the locations settings.json keeps, as the app holds them.
+func locationsOfSaved(saved []savedLocation) []account.Location {
+	var out []account.Location
+	for _, l := range saved {
+		out = append(out, account.Location{ID: l.ID, Name: l.Name, Remote: storage.Remote{
 			Kind: storage.Kind(l.Kind), Host: l.Host, Port: l.Port, Share: l.Share, URL: l.URL, Root: l.Root,
 			User: l.User, Password: l.Password, Domain: l.Domain, PrivateKey: l.PrivateKey, Passphrase: l.Passphrase, HostKey: l.HostKey}})
 	}
+	return out
 }
 
 // locationSecrets are what of the storage locations must not leave the machine, such as in the log or a feedback issue: each one's server, address, share, user and domain, and its password, private key and passphrase. The name, the kind, the folder, the port and the server's public key are left out. Keep it next to savedLocation: a value added there belongs here too (locations_test.go checks).
 func (l locationsUI) locationSecrets() []string {
 	var out []string
-	for _, loc := range l.list {
+	for _, loc := range slices.Concat(l.list, l.removed) {
 		r := loc.Remote
 		out = append(out, r.Host, r.URL, r.Share, r.User, r.Domain, r.Password, r.PrivateKey, r.Passphrase)
 	}
@@ -200,15 +234,16 @@ func (a *app) saveLocationDraft() {
 		return
 	}
 	loc := account.Location{ID: l.editID, Name: strings.TrimSpace(d.Name), Remote: d.Remote()}
-	before := slices.Clone(l.list)
+	before, removed := slices.Clone(l.list), slices.Clone(l.removed)
 	if i := a.locationIndex(loc.ID); loc.ID != "" && i >= 0 {
 		l.list[i] = loc
 	} else {
 		loc.ID = rand.Text()
+		a.locationRelink(&loc)
 		l.list = append(l.list, loc)
 	}
 	if err := a.saveSettings(); err != nil {
-		l.list = before
+		l.list, l.removed = before, removed
 		l.problem = locales.Messages.AccountLocationSaveFailed
 		return
 	}
@@ -217,17 +252,43 @@ func (a *app) saveLocationDraft() {
 	a.closeLocationDialog()
 }
 
-// removeLocation forgets the location id with its secrets and saves settings.json.
+// removeLocation forgets the location id with its secrets and saves settings.json. Nothing on the location is removed. When videos were moved to it, where it is is kept without its secrets (locationsUI.removed), so adding it back at the same address finds them again (locationRelink).
 func (a *app) removeLocation(id string) {
 	i := a.locationIndex(id)
 	if i < 0 {
 		return
 	}
+	gone := a.locations.list[i]
 	a.locations.list = slices.Delete(a.locations.list, i, i+1)
 	delete(a.locations.tests, id)
+	if a.storedCount(id) > 0 {
+		r := gone.Remote
+		gone.Remote = storage.Remote{Kind: r.Kind, Host: r.Host, Port: r.Port, Share: r.Share, URL: r.URL, Root: r.Root, User: r.User}
+		a.locations.removed = append(a.locations.removed, gone)
+	}
 	if err := a.saveSettings(); err != nil {
 		a.saveErr = a.messages().AccountLocationSaveFailed()
 	}
+}
+
+// locationRelink gives loc, a location just added, the ID of a location removed while videos were on it (locationsUI.removed) at the same address: the same kind of server, host and port, share, address and folder. Those videos' records name that ID, so they play from loc again and can be moved back.
+func (a *app) locationRelink(loc *account.Location) {
+	l := &a.locations
+	for i, old := range l.removed {
+		if !sameAddress(old.Remote, loc.Remote) || a.locationIndex(old.ID) >= 0 {
+			continue
+		}
+		loc.ID = old.ID
+		l.removed = slices.Delete(l.removed, i, i+1)
+		return
+	}
+}
+
+// sameAddress reports whether a and b reach the same folder: the same kind of server, host (ignoring case) and port, share, address and folder, whatever the user and the secrets.
+func sameAddress(a, b storage.Remote) bool {
+	trim := func(s string) string { return strings.Trim(strings.TrimSpace(s), "/") }
+	return a.Kind == b.Kind && strings.EqualFold(strings.TrimSpace(a.Host), strings.TrimSpace(b.Host)) && a.Port == b.Port &&
+		trim(a.Share) == trim(b.Share) && trim(a.URL) == trim(b.URL) && trim(a.Root) == trim(b.Root)
 }
 
 // locationRemote is how to reach target: the location of that ID, or with "" the dialog's draft, and why it cannot be tried, nil when it can. ok is false for a location that is gone, or a draft whose dialog closed.
@@ -356,6 +417,7 @@ func (a *app) locationAlertView() account.Alert {
 		if i := a.locationIndex(q.target); i >= 0 {
 			out.Name = a.locations.list[i].Name
 		}
+		out.Films = a.storedCount(q.target)
 	case account.AlertTrust, account.AlertKeyChanged:
 		out.Host, out.Fingerprint, out.Trusted = q.hk.Host, q.hk.Fingerprint, storage.Fingerprint(q.hk.Trusted)
 	}

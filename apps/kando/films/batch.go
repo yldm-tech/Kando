@@ -26,7 +26,7 @@ func menuOf(cx *core.Scope, a App, item Film, done []Film, list bool) []nsdeskto
 	return filmMenu(cx, a, item)
 }
 
-// SelectionMenu is what can be done with several done films at once, items, from a right click or ⋯ on one of them while they are selected, and the File menu's rows (libraryKeys): how many it acts on, dimmed, then 标记为已看完 and 标记为未看 (selectionWatchMenu), 重新处理, 重新翻译为 ▸ for those a job made, 移到资料库 ▸ while Kando knows another library, and 从资料库移除. What only makes sense for one film, playing, renaming and showing it in Finder, is left out. It is built as the menu opens, so it says what is true then.
+// SelectionMenu is what can be done with several done films at once, items, from a right click or ⋯ on one of them while they are selected, and the File menu's rows (libraryKeys): how many it acts on, dimmed, then 标记为已看完 and 标记为未看 (selectionWatchMenu), 重新处理, 重新翻译为 ▸ for those a job made, 移到资料库 ▸ while Kando knows another library, 移动视频到 ▸ and 将视频移回资料库 while their videos can move to a storage location or back (App.StoredMenu), and 从资料库移除. What only makes sense for one film, playing, renaming and showing it in Finder, is left out. It is built as the menu opens, so it says what is true then.
 func SelectionMenu(cx *core.Scope, a App, items []Film) []nsdesktop.MenuItem {
 	do := func(fn func(...Film)) func() { return live.Do(a, func() { fn(items...) }) }
 	out := []nsdesktop.MenuItem{{Label: locales.FilmsSelectedCount(cx, len(items)), Disabled: true}, {Separator: true}}
@@ -38,6 +38,7 @@ func SelectionMenu(cx *core.Scope, a App, items []Film) []nsdesktop.MenuItem {
 	if move := a.MoveFilmMenu(cx, items...); len(move) > 0 {
 		out = append(out, nsdesktop.MenuItem{Label: locales.FilmsMoveToLibrary(cx), Items: move})
 	}
+	out = append(out, a.StoredMenu(cx, items...)...)
 	return append(out, nsdesktop.MenuItem{Separator: true}, nsdesktop.MenuItem{Label: locales.FilmsRemoveFromLibrary(cx), OnSelect: do(a.AskRemove)})
 }
 

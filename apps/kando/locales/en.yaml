@@ -7977,8 +7977,8 @@ playerStoredMissing:
   message: "This film's video is no longer on its storage location. Its lines can still be studied."
   description: "Shown in place of the picture when the storage location the film's video was moved to can be reached but no longer has the video file."
 playerStoredUnplayable:
-  message: "This video can't be played from its storage location. Move it back to the library to play it."
-  description: "Shown in place of the picture when the system's player cannot play a video moved to a storage location; Kando can only convert a video for the player once it is back in the library folder."
+  message: "This video can't be played from its storage location, even converted for the player. Its lines can still be studied."
+  description: "Shown in place of the picture when neither the system's player nor the copy Kando converts for it from the storage location (a NAS folder or object storage) can play a video moved there."
 storedMoveTo:
   message: "Move Video To"
   description: "Film menu item, a submenu listing the storage locations (NAS folders and the object storage set up in Settings > Account & Upload) the film's video can be moved to, out of the library folder. Its subtitles stay in the library."
@@ -7997,8 +7997,8 @@ storedBusy:
   message: "Another video is being moved. Try again once it's done."
   description: "Message bar when a film's video is to be moved to or from a storage location while another one is still being copied."
 storedNotDone:
-  message: "Only the video of a film Kando has processed can be moved to a storage location, and “{name}” isn't one."
-  description: "Message bar when a film's video cannot be moved to a storage location because it is not a finished film with a video of its own (still processing, kept as subtitles only, or a video found in the folder that Kando never processed)."
+  message: "Only a finished film's own video can be moved to a storage location, and “{name}” has none yet."
+  description: "Message bar when a film's video cannot be moved to a storage location because it is not a finished film with a video of its own (still processing, or kept as subtitles only)."
   placeholders:
     name: { type: "String", example: "Learn Rust" }
 storedOutside:
@@ -8092,3 +8092,71 @@ storedLibraryMove:
   placeholders:
     name: { type: "String", example: "Learn Rust" }
     place: { type: "String", example: "Home NAS" }
+storedMovingToMany:
+  message: "Moving video {at} of {total} to {place}… {percent}%"
+  description: "Message bar while the videos of several selected films are moved to a storage location, one after another: which one is being copied, of how many, and how much of it is copied."
+  placeholders:
+    at: { type: "int", example: "3" }
+    total: { type: "int", example: "12" }
+    place: { type: "String", example: "Home NAS" }
+    percent: { type: "int", example: "42" }
+storedMovingBackMany:
+  message: "Moving video {at} of {total} back to the library… {percent}%"
+  description: "Message bar while the videos of several selected films are copied back from their storage locations into the library folder, one after another: which one, of how many, and how much of it is copied."
+  placeholders:
+    at: { type: "int", example: "3" }
+    total: { type: "int", example: "12" }
+    percent: { type: "int", example: "42" }
+storedMovedMany:
+  message: "Moved {count, plural, one {# video} other {# videos}} to {place}. Their subtitles stay in the library."
+  description: "Message bar after the videos of several selected films were moved to a storage location; their subtitles and other files stay in the library folder."
+  placeholders:
+    count: { type: "int", example: "12" }
+    place: { type: "String", example: "Home NAS" }
+storedMovedSome:
+  message: "Moved {done} of {total, plural, one {# video} other {# videos}} to {place}; the others are still in the library. {reason}"
+  description: "Message bar after the videos of several films were to be moved to a storage location and some were not: how many were, then why the first that was not failed, a sentence of its own."
+  placeholders:
+    done: { type: "int", example: "10" }
+    total: { type: "int", example: "12" }
+    place: { type: "String", example: "Home NAS" }
+    reason: { type: "String", example: "“Learn Rust” is being processed. Move its video once that's done." }
+storedStoppedMany:
+  message: "Stopped moving videos to {place}. {done, plural, one {# video had moved} other {# videos had moved}}; the rest are still in the library."
+  description: "Message bar after moving the videos of several films to a storage location was cancelled."
+  placeholders:
+    done: { type: "int", example: "3" }
+    place: { type: "String", example: "Home NAS" }
+storedMovedBackMany:
+  message: "Moved {count, plural, one {# video} other {# videos}} back to the library."
+  description: "Message bar after the videos of several selected films were copied back from their storage locations into the library folder."
+  placeholders:
+    count: { type: "int", example: "12" }
+storedMovedBackSome:
+  message: "Moved {done} of {total, plural, one {# video} other {# videos}} back to the library; the others are still on their storage locations. {reason}"
+  description: "Message bar after the videos of several films were to be moved back from storage locations and some were not: how many were, then why the first that was not failed, a sentence of its own."
+  placeholders:
+    done: { type: "int", example: "10" }
+    total: { type: "int", example: "12" }
+    reason: { type: "String", example: "That storage location is no longer in Settings." }
+storedStoppedBackMany:
+  message: "Stopped moving videos back to the library. {done, plural, one {# video had moved back} other {# videos had moved back}}; the rest are still on their storage locations."
+  description: "Message bar after moving the videos of several films back from storage locations was cancelled."
+  placeholders:
+    done: { type: "int", example: "3" }
+accountLocationRemoveStored:
+  message: "{count, plural, one {The video of # film is} other {The videos of # films are}} on this location. They won't play until it is added back at the same address; to keep them playable, choose Move Video Back to the Library for them first. Its password and keys are forgotten too; nothing on the server is deleted."
+  description: "Message of the alert confirming that a storage location is removed while videos of films were moved to it. Move Video Back to the Library is the film menu item (storedMoveBack); keep its wording."
+  placeholders:
+    count: { type: "int", example: "3" }
+playerRemuxing:
+  message: "Preparing the video for the player… {percent}%"
+  description: "Shown in the middle of the picture while Kando converts a video the system's player cannot open into one it can, with how much is done."
+  placeholders:
+    percent: { type: "int", example: "42" }
+playerRemuxingFrom:
+  message: "Preparing the video from {place} for the player… {percent}%"
+  description: "Shown in the middle of the picture while Kando converts a video kept on a storage location (a NAS folder or object storage), which the system's player cannot open, into one it can, reading it from there, with how much is done."
+  placeholders:
+    place: { type: "String", example: "Home NAS" }
+    percent: { type: "int", example: "42" }

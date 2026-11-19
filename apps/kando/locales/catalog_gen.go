@@ -1075,6 +1075,17 @@ var Parameters = map[string][]string{
 	"StoredReprocess":                          {"name", "place"},
 	"StoredUpload":                             {"place"},
 	"StoredLibraryMove":                        {"name", "place"},
+	"StoredMovingToMany":                       {"at", "total", "place", "percent"},
+	"StoredMovingBackMany":                     {"at", "total", "percent"},
+	"StoredMovedMany":                          {"count", "place"},
+	"StoredMovedSome":                          {"done", "total", "place", "reason"},
+	"StoredStoppedMany":                        {"done", "place"},
+	"StoredMovedBackMany":                      {"count"},
+	"StoredMovedBackSome":                      {"done", "total", "reason"},
+	"StoredStoppedBackMany":                    {"done"},
+	"AccountLocationRemoveStored":              {"count"},
+	"PlayerRemuxing":                           {"percent"},
+	"PlayerRemuxingFrom":                       {"place", "percent"},
 }
 
 // Translation is a language's messages another package supplies:
@@ -1697,6 +1708,17 @@ type Translation struct {
 	StoredReprocess                          func(name string, place string) string
 	StoredUpload                             func(place string) string
 	StoredLibraryMove                        func(name string, place string) string
+	StoredMovingToMany                       func(at int, total int, place string, percent int) string
+	StoredMovingBackMany                     func(at int, total int, percent int) string
+	StoredMovedMany                          func(count int, place string) string
+	StoredMovedSome                          func(done int, total int, place string, reason string) string
+	StoredStoppedMany                        func(done int, place string) string
+	StoredMovedBackMany                      func(count int) string
+	StoredMovedBackSome                      func(done int, total int, reason string) string
+	StoredStoppedBackMany                    func(done int) string
+	AccountLocationRemoveStored              func(count int) string
+	PlayerRemuxing                           func(percent int) string
+	PlayerRemuxingFrom                       func(place string, percent int) string
 }
 
 var supplied = map[string]Translation{}
@@ -6565,7 +6587,7 @@ var textsEn = i18n.NewTexts(""+
 	"This film's video is on a storage location that is no longer in Settings. Its lines can still be studied."+
 	"Couldn't reach the storage location this film's video is on. Its lines can still be studied."+
 	"This film's video is no longer on its storage location. Its lines can still be studied."+
-	"This video can't be played from its storage location. Move it back to the library to play it."+
+	"This video can't be played from its storage location, even converted for the player. Its lines can still be studied."+
 	"Move Video To"+
 	"Move Video Back to the Library"+
 	"That storage location is no longer in Settings."+
@@ -8186,7 +8208,7 @@ var textsEn = i18n.NewTexts(""+
 		105,
 		92,
 		87,
-		93,
+		116,
 		13,
 		30,
 		47,
@@ -9810,7 +9832,7 @@ var textsJa = i18n.NewTexts(""+
 	"この作品の動画がある保存場所は、もう設定にありません。字幕で学習することはできます。"+
 	"この作品の動画がある保存場所に接続できません。字幕で学習することはできます。"+
 	"この作品の動画が保存場所にもうありません。字幕で学習することはできます。"+
-	"この動画は保存場所から再生できません。ライブラリに戻してから再生してください。"+
+	"この動画は保存場所から再生できず、変換しても再生できません。字幕で学習することはできます。"+
 	"動画の移動先"+
 	"動画をライブラリに戻す"+
 	"その保存場所はもう設定にありません。"+
@@ -11431,7 +11453,7 @@ var textsJa = i18n.NewTexts(""+
 		126,
 		114,
 		108,
-		117,
+		135,
 		18,
 		33,
 		54,
@@ -13055,7 +13077,7 @@ var textsKo = i18n.NewTexts(""+
 	"이 영화의 동영상이 있는 저장 위치가 더 이상 설정에 없습니다. 자막으로 학습할 수는 있습니다."+
 	"이 영화의 동영상이 있는 저장 위치에 연결할 수 없습니다. 자막으로 학습할 수는 있습니다."+
 	"이 영화의 동영상이 저장 위치에 더 이상 없습니다. 자막으로 학습할 수는 있습니다."+
-	"이 동영상은 저장 위치에서 재생할 수 없습니다. 라이브러리로 되돌린 뒤 재생하세요."+
+	"이 동영상은 저장 위치에서 재생할 수 없고 변환해도 재생되지 않습니다. 자막으로 학습할 수는 있습니다."+
 	"동영상 이동 위치"+
 	"동영상을 라이브러리로 되돌리기"+
 	"그 저장 위치는 더 이상 설정에 없습니다."+
@@ -14676,7 +14698,7 @@ var textsKo = i18n.NewTexts(""+
 		129,
 		122,
 		112,
-		114,
+		141,
 		23,
 		44,
 		55,
@@ -16300,7 +16322,7 @@ var textsZhHans = i18n.NewTexts(""+
 	"这部影片的视频所在的存储位置已不在设置中。仍可以按字幕学习。"+
 	"连不上这部影片的视频所在的存储位置。仍可以按字幕学习。"+
 	"这部影片的视频已不在它的存储位置上。仍可以按字幕学习。"+
-	"无法从存储位置播放这个视频。把它移回资料库后再播放。"+
+	"无法从存储位置播放这个视频，转换后也不行。仍可以按字幕学习。"+
 	"移动视频到"+
 	"将视频移回资料库"+
 	"这个存储位置已不在设置中。"+
@@ -17921,7 +17943,7 @@ var textsZhHans = i18n.NewTexts(""+
 		90,
 		81,
 		81,
-		78,
+		90,
 		15,
 		24,
 		39,
@@ -19545,7 +19567,7 @@ var textsZhHant = i18n.NewTexts(""+
 	"這部影片的影片檔所在的儲存位置已不在設定中。仍可以按字幕學習。"+
 	"連不上這部影片的影片檔所在的儲存位置。仍可以按字幕學習。"+
 	"這部影片的影片檔已不在它的儲存位置上。仍可以按字幕學習。"+
-	"無法從儲存位置播放這個影片。把它移回資料庫後再播放。"+
+	"無法從儲存位置播放這個影片，轉換後也不行。仍可以按字幕學習。"+
 	"移動影片檔到"+
 	"將影片檔移回資料庫"+
 	"這個儲存位置已不在設定中。"+
@@ -21166,7 +21188,7 @@ var textsZhHant = i18n.NewTexts(""+
 		93,
 		84,
 		84,
-		78,
+		90,
 		18,
 		27,
 		39,
@@ -23077,6 +23099,39 @@ func Supply(lang string, t Translation) {
 	}
 	if t.StoredLibraryMove != nil {
 		s.StoredLibraryMove = t.StoredLibraryMove
+	}
+	if t.StoredMovingToMany != nil {
+		s.StoredMovingToMany = t.StoredMovingToMany
+	}
+	if t.StoredMovingBackMany != nil {
+		s.StoredMovingBackMany = t.StoredMovingBackMany
+	}
+	if t.StoredMovedMany != nil {
+		s.StoredMovedMany = t.StoredMovedMany
+	}
+	if t.StoredMovedSome != nil {
+		s.StoredMovedSome = t.StoredMovedSome
+	}
+	if t.StoredStoppedMany != nil {
+		s.StoredStoppedMany = t.StoredStoppedMany
+	}
+	if t.StoredMovedBackMany != nil {
+		s.StoredMovedBackMany = t.StoredMovedBackMany
+	}
+	if t.StoredMovedBackSome != nil {
+		s.StoredMovedBackSome = t.StoredMovedBackSome
+	}
+	if t.StoredStoppedBackMany != nil {
+		s.StoredStoppedBackMany = t.StoredStoppedBackMany
+	}
+	if t.AccountLocationRemoveStored != nil {
+		s.AccountLocationRemoveStored = t.AccountLocationRemoveStored
+	}
+	if t.PlayerRemuxing != nil {
+		s.PlayerRemuxing = t.PlayerRemuxing
+	}
+	if t.PlayerRemuxingFrom != nil {
+		s.PlayerRemuxingFrom = t.PlayerRemuxingFrom
 	}
 	supplied[lang] = s
 	Catalog.Add(lang)
@@ -59637,10 +59692,10 @@ func PlayerStoredMissing(cx *core.Scope) string { return For(cx).PlayerStoredMis
 // PlayerStoredMissing is the package's PlayerStoredMissing in the language of msgs.
 func (msgs Messages) PlayerStoredMissing() string { return msgs.text(textPlayerStoredMissing) }
 
-// PlayerStoredUnplayable says "This video can't be played from its storage location. Move it back to the library to play it."
+// PlayerStoredUnplayable says "This video can't be played from its storage location, even converted for the player. Its lines can still be studied."
 // in the language the app shows under cx.
 //
-// Shown in place of the picture when the system's player cannot play a video moved to a storage location; Kando can only convert a video for the player once it is back in the library folder.
+// Shown in place of the picture when neither the system's player nor the copy Kando converts for it from the storage location (a NAS folder or object storage) can play a video moved there.
 func PlayerStoredUnplayable(cx *core.Scope) string { return For(cx).PlayerStoredUnplayable() }
 
 // PlayerStoredUnplayable is the package's PlayerStoredUnplayable in the language of msgs.
@@ -59712,10 +59767,10 @@ func StoredBusy(cx *core.Scope) string { return For(cx).StoredBusy() }
 // StoredBusy is the package's StoredBusy in the language of msgs.
 func (msgs Messages) StoredBusy() string { return msgs.text(textStoredBusy) }
 
-// StoredNotDone says "Only the video of a film Kando has processed can be moved to a storage location, and “{name}” isn't one."
+// StoredNotDone says "Only a finished film's own video can be moved to a storage location, and “{name}” has none yet."
 // in the language the app shows under cx.
 //
-// Message bar when a film's video cannot be moved to a storage location because it is not a finished film with a video of its own (still processing, kept as subtitles only, or a video found in the folder that Kando never processed).
+// Message bar when a film's video cannot be moved to a storage location because it is not a finished film with a video of its own (still processing, or kept as subtitles only).
 func StoredNotDone(cx *core.Scope, name string) string { return For(cx).StoredNotDone(name) }
 
 // StoredNotDone is the package's StoredNotDone in the language of msgs.
@@ -59729,15 +59784,15 @@ func (msgs Messages) StoredNotDone(name string) string {
 		}
 		switch lang {
 		case "", "en":
-			return "Only the video of a film Kando has processed can be moved to a storage location, and “" + msgs.arg(name) + "” isn't one."
+			return "Only a finished film's own video can be moved to a storage location, and “" + msgs.arg(name) + "” has none yet."
 		case "ja":
-			return "保存場所に移せるのは Kando が処理した作品の動画だけで、「" + name + "」は該当しません。"
+			return "保存場所に移せるのは処理が終わった作品自身の動画だけで、「" + name + "」にはまだありません。"
 		case "ko":
-			return "저장 위치로 옮길 수 있는 것은 Kando가 처리한 영화의 동영상뿐이며, ‘" + name + "’은(는) 해당하지 않습니다."
+			return "저장 위치로 옮길 수 있는 것은 처리가 끝난 영화의 자체 동영상뿐이며, ‘" + name + "’에는 아직 없습니다."
 		case "zh-Hans":
-			return "只有 Kando 处理过的影片的视频才能移到存储位置，「" + name + "」不是。"
+			return "只有处理完成、带着自己视频的影片才能把视频移到存储位置，「" + name + "」还没有。"
 		case "zh-Hant":
-			return "只有 Kando 處理過的影片的影片檔才能移到儲存位置，「" + name + "」不是。"
+			return "只有處理完成、帶著自己影片檔的影片才能把影片檔移到儲存位置，「" + name + "」還沒有。"
 		}
 	}
 }
@@ -60203,6 +60258,444 @@ func (msgs Messages) StoredLibraryMove(name string, place string) string {
 			return "「" + name + "」的视频在「" + place + "」上。把它移回资料库后，才能把影片移到其他资料库。"
 		case "zh-Hant":
 			return "「" + name + "」的影片檔在「" + place + "」上。把它移回資料庫後，才能把影片移到其他資料庫。"
+		}
+	}
+}
+
+// StoredMovingToMany says "Moving video {at} of {total} to {place}… {percent}%"
+// in the language the app shows under cx.
+//
+// Message bar while the videos of several selected films are moved to a storage location, one after another: which one is being copied, of how many, and how much of it is copied.
+func StoredMovingToMany(cx *core.Scope, at int, total int, place string, percent int) string {
+	return For(cx).StoredMovingToMany(at, total, place, percent)
+}
+
+// StoredMovingToMany is the package's StoredMovingToMany in the language of msgs.
+func (msgs Messages) StoredMovingToMany(at int, total int, place string, percent int) string {
+	if i18n.IsPseudo(msgs.lang) {
+		return i18n.Pseudo(msgs.lang, Messages{lang: Source, mark: true}.StoredMovingToMany(at, total, place, percent))
+	}
+	for lang := msgs.lang; ; lang = i18n.Parent(lang) {
+		if f := supplied[lang].StoredMovingToMany; f != nil {
+			return f(at, total, place, percent)
+		}
+		switch lang {
+		case "", "en":
+			return "Moving video " + msgs.arg(i18n.FormatNumber("en", float64(at))) + " of " + msgs.arg(i18n.FormatNumber("en", float64(total))) + " to " + msgs.arg(place) + "… " + msgs.arg(i18n.FormatNumber("en", float64(percent))) + "%"
+		case "ja":
+			return "「" + place + "」に動画を移動中（" + i18n.FormatNumber("ja", float64(at)) + " / " + i18n.FormatNumber("ja", float64(total)) + " 本目）… " + i18n.FormatNumber("ja", float64(percent)) + "%"
+		case "ko":
+			return "동영상을 ‘" + place + "’(으)로 옮기는 중(" + i18n.FormatNumber("ko", float64(at)) + " / " + i18n.FormatNumber("ko", float64(total)) + "번째)… " + i18n.FormatNumber("ko", float64(percent)) + "%"
+		case "zh-Hans":
+			return "正在把第 " + i18n.FormatNumber("zh-Hans", float64(at)) + " / " + i18n.FormatNumber("zh-Hans", float64(total)) + " 个视频移到「" + place + "」… " + i18n.FormatNumber("zh-Hans", float64(percent)) + "%"
+		case "zh-Hant":
+			return "正在把第 " + i18n.FormatNumber("zh-Hant", float64(at)) + " / " + i18n.FormatNumber("zh-Hant", float64(total)) + " 個影片檔移到「" + place + "」… " + i18n.FormatNumber("zh-Hant", float64(percent)) + "%"
+		}
+	}
+}
+
+// StoredMovingBackMany says "Moving video {at} of {total} back to the library… {percent}%"
+// in the language the app shows under cx.
+//
+// Message bar while the videos of several selected films are copied back from their storage locations into the library folder, one after another: which one, of how many, and how much of it is copied.
+func StoredMovingBackMany(cx *core.Scope, at int, total int, percent int) string {
+	return For(cx).StoredMovingBackMany(at, total, percent)
+}
+
+// StoredMovingBackMany is the package's StoredMovingBackMany in the language of msgs.
+func (msgs Messages) StoredMovingBackMany(at int, total int, percent int) string {
+	if i18n.IsPseudo(msgs.lang) {
+		return i18n.Pseudo(msgs.lang, Messages{lang: Source, mark: true}.StoredMovingBackMany(at, total, percent))
+	}
+	for lang := msgs.lang; ; lang = i18n.Parent(lang) {
+		if f := supplied[lang].StoredMovingBackMany; f != nil {
+			return f(at, total, percent)
+		}
+		switch lang {
+		case "", "en":
+			return "Moving video " + msgs.arg(i18n.FormatNumber("en", float64(at))) + " of " + msgs.arg(i18n.FormatNumber("en", float64(total))) + " back to the library… " + msgs.arg(i18n.FormatNumber("en", float64(percent))) + "%"
+		case "ja":
+			return "動画をライブラリに戻しています（" + i18n.FormatNumber("ja", float64(at)) + " / " + i18n.FormatNumber("ja", float64(total)) + " 本目）… " + i18n.FormatNumber("ja", float64(percent)) + "%"
+		case "ko":
+			return "동영상을 라이브러리로 되돌리는 중(" + i18n.FormatNumber("ko", float64(at)) + " / " + i18n.FormatNumber("ko", float64(total)) + "번째)… " + i18n.FormatNumber("ko", float64(percent)) + "%"
+		case "zh-Hans":
+			return "正在把第 " + i18n.FormatNumber("zh-Hans", float64(at)) + " / " + i18n.FormatNumber("zh-Hans", float64(total)) + " 个视频移回资料库… " + i18n.FormatNumber("zh-Hans", float64(percent)) + "%"
+		case "zh-Hant":
+			return "正在把第 " + i18n.FormatNumber("zh-Hant", float64(at)) + " / " + i18n.FormatNumber("zh-Hant", float64(total)) + " 個影片檔移回資料庫… " + i18n.FormatNumber("zh-Hant", float64(percent)) + "%"
+		}
+	}
+}
+
+// StoredMovedMany says "Moved {count, plural, one {# video} other {# videos}} to {place}. Their subtitles stay in the library."
+// in the language the app shows under cx.
+//
+// Message bar after the videos of several selected films were moved to a storage location; their subtitles and other files stay in the library folder.
+func StoredMovedMany(cx *core.Scope, count int, place string) string {
+	return For(cx).StoredMovedMany(count, place)
+}
+
+// StoredMovedMany is the package's StoredMovedMany in the language of msgs.
+func (msgs Messages) StoredMovedMany(count int, place string) string {
+	if i18n.IsPseudo(msgs.lang) {
+		return i18n.Pseudo(msgs.lang, Messages{lang: Source, mark: true}.StoredMovedMany(count, place))
+	}
+	for lang := msgs.lang; ; lang = i18n.Parent(lang) {
+		if f := supplied[lang].StoredMovedMany; f != nil {
+			return f(count, place)
+		}
+		switch lang {
+		case "", "en":
+			var b strings.Builder
+			b.WriteString("Moved ")
+			switch i18n.Cardinal("en", float64(count)) {
+			case i18n.One:
+				b.WriteString(msgs.arg(i18n.FormatNumber("en", float64(count))))
+				b.WriteString(" video")
+			default:
+				b.WriteString(msgs.arg(i18n.FormatNumber("en", float64(count))))
+				b.WriteString(" videos")
+			}
+			b.WriteString(" to ")
+			b.WriteString(msgs.arg(place))
+			b.WriteString(". Their subtitles stay in the library.")
+			return b.String()
+		case "ja":
+			return i18n.FormatNumber("ja", float64(count)) + " 本の動画を「" + place + "」に移動しました。字幕はライブラリに残ります。"
+		case "ko":
+			return "동영상 " + i18n.FormatNumber("ko", float64(count)) + "개를 ‘" + place + "’(으)로 옮겼습니다. 자막은 라이브러리에 남습니다."
+		case "zh-Hans":
+			return "已把 " + i18n.FormatNumber("zh-Hans", float64(count)) + " 个视频移到「" + place + "」。字幕仍留在资料库中。"
+		case "zh-Hant":
+			return "已把 " + i18n.FormatNumber("zh-Hant", float64(count)) + " 個影片檔移到「" + place + "」。字幕仍留在資料庫中。"
+		}
+	}
+}
+
+// StoredMovedSome says "Moved {done} of {total, plural, one {# video} other {# videos}} to {place}; the others are still in the library. {reason}"
+// in the language the app shows under cx.
+//
+// Message bar after the videos of several films were to be moved to a storage location and some were not: how many were, then why the first that was not failed, a sentence of its own.
+func StoredMovedSome(cx *core.Scope, done int, total int, place string, reason string) string {
+	return For(cx).StoredMovedSome(done, total, place, reason)
+}
+
+// StoredMovedSome is the package's StoredMovedSome in the language of msgs.
+func (msgs Messages) StoredMovedSome(done int, total int, place string, reason string) string {
+	if i18n.IsPseudo(msgs.lang) {
+		return i18n.Pseudo(msgs.lang, Messages{lang: Source, mark: true}.StoredMovedSome(done, total, place, reason))
+	}
+	for lang := msgs.lang; ; lang = i18n.Parent(lang) {
+		if f := supplied[lang].StoredMovedSome; f != nil {
+			return f(done, total, place, reason)
+		}
+		switch lang {
+		case "", "en":
+			var b strings.Builder
+			b.WriteString("Moved ")
+			b.WriteString(msgs.arg(i18n.FormatNumber("en", float64(done))))
+			b.WriteString(" of ")
+			switch i18n.Cardinal("en", float64(total)) {
+			case i18n.One:
+				b.WriteString(msgs.arg(i18n.FormatNumber("en", float64(total))))
+				b.WriteString(" video")
+			default:
+				b.WriteString(msgs.arg(i18n.FormatNumber("en", float64(total))))
+				b.WriteString(" videos")
+			}
+			b.WriteString(" to ")
+			b.WriteString(msgs.arg(place))
+			b.WriteString("; the others are still in the library. ")
+			b.WriteString(msgs.arg(reason))
+			return b.String()
+		case "ja":
+			return i18n.FormatNumber("ja", float64(total)) + " 本のうち " + i18n.FormatNumber("ja", float64(done)) + " 本の動画を「" + place + "」に移動しました。残りはライブラリにあります。" + reason
+		case "ko":
+			return "동영상 " + i18n.FormatNumber("ko", float64(total)) + "개 중 " + i18n.FormatNumber("ko", float64(done)) + "개를 ‘" + place + "’(으)로 옮겼고 나머지는 라이브러리에 그대로 있습니다. " + reason
+		case "zh-Hans":
+			return i18n.FormatNumber("zh-Hans", float64(total)) + " 个视频中已有 " + i18n.FormatNumber("zh-Hans", float64(done)) + " 个移到「" + place + "」，其余的仍在资料库中。" + reason
+		case "zh-Hant":
+			return i18n.FormatNumber("zh-Hant", float64(total)) + " 個影片檔中已有 " + i18n.FormatNumber("zh-Hant", float64(done)) + " 個移到「" + place + "」，其餘的仍在資料庫中。" + reason
+		}
+	}
+}
+
+// StoredStoppedMany says "Stopped moving videos to {place}. {done, plural, one {# video had moved} other {# videos had moved}}; the rest are still in the library."
+// in the language the app shows under cx.
+//
+// Message bar after moving the videos of several films to a storage location was cancelled.
+func StoredStoppedMany(cx *core.Scope, done int, place string) string {
+	return For(cx).StoredStoppedMany(done, place)
+}
+
+// StoredStoppedMany is the package's StoredStoppedMany in the language of msgs.
+func (msgs Messages) StoredStoppedMany(done int, place string) string {
+	if i18n.IsPseudo(msgs.lang) {
+		return i18n.Pseudo(msgs.lang, Messages{lang: Source, mark: true}.StoredStoppedMany(done, place))
+	}
+	for lang := msgs.lang; ; lang = i18n.Parent(lang) {
+		if f := supplied[lang].StoredStoppedMany; f != nil {
+			return f(done, place)
+		}
+		switch lang {
+		case "", "en":
+			var b strings.Builder
+			b.WriteString("Stopped moving videos to ")
+			b.WriteString(msgs.arg(place))
+			b.WriteString(". ")
+			switch i18n.Cardinal("en", float64(done)) {
+			case i18n.One:
+				b.WriteString(msgs.arg(i18n.FormatNumber("en", float64(done))))
+				b.WriteString(" video had moved")
+			default:
+				b.WriteString(msgs.arg(i18n.FormatNumber("en", float64(done))))
+				b.WriteString(" videos had moved")
+			}
+			b.WriteString("; the rest are still in the library.")
+			return b.String()
+		case "ja":
+			return "「" + place + "」への動画の移動を止めました。" + i18n.FormatNumber("ja", float64(done)) + " 本は移動済みで、残りはライブラリにあります。"
+		case "ko":
+			return "‘" + place + "’(으)로 동영상 옮기기를 멈췄습니다. " + i18n.FormatNumber("ko", float64(done)) + "개는 이미 옮겼고 나머지는 라이브러리에 그대로 있습니다."
+		case "zh-Hans":
+			return "已停止把视频移到「" + place + "」。已经移过去 " + i18n.FormatNumber("zh-Hans", float64(done)) + " 个，其余的仍在资料库中。"
+		case "zh-Hant":
+			return "已停止把影片檔移到「" + place + "」。已經移過去 " + i18n.FormatNumber("zh-Hant", float64(done)) + " 個，其餘的仍在資料庫中。"
+		}
+	}
+}
+
+// StoredMovedBackMany says "Moved {count, plural, one {# video} other {# videos}} back to the library."
+// in the language the app shows under cx.
+//
+// Message bar after the videos of several selected films were copied back from their storage locations into the library folder.
+func StoredMovedBackMany(cx *core.Scope, count int) string { return For(cx).StoredMovedBackMany(count) }
+
+// StoredMovedBackMany is the package's StoredMovedBackMany in the language of msgs.
+func (msgs Messages) StoredMovedBackMany(count int) string {
+	if i18n.IsPseudo(msgs.lang) {
+		return i18n.Pseudo(msgs.lang, Messages{lang: Source, mark: true}.StoredMovedBackMany(count))
+	}
+	for lang := msgs.lang; ; lang = i18n.Parent(lang) {
+		if f := supplied[lang].StoredMovedBackMany; f != nil {
+			return f(count)
+		}
+		switch lang {
+		case "", "en":
+			var b strings.Builder
+			b.WriteString("Moved ")
+			switch i18n.Cardinal("en", float64(count)) {
+			case i18n.One:
+				b.WriteString(msgs.arg(i18n.FormatNumber("en", float64(count))))
+				b.WriteString(" video")
+			default:
+				b.WriteString(msgs.arg(i18n.FormatNumber("en", float64(count))))
+				b.WriteString(" videos")
+			}
+			b.WriteString(" back to the library.")
+			return b.String()
+		case "ja":
+			return i18n.FormatNumber("ja", float64(count)) + " 本の動画をライブラリに戻しました。"
+		case "ko":
+			return "동영상 " + i18n.FormatNumber("ko", float64(count)) + "개를 라이브러리로 되돌렸습니다."
+		case "zh-Hans":
+			return "已把 " + i18n.FormatNumber("zh-Hans", float64(count)) + " 个视频移回资料库。"
+		case "zh-Hant":
+			return "已把 " + i18n.FormatNumber("zh-Hant", float64(count)) + " 個影片檔移回資料庫。"
+		}
+	}
+}
+
+// StoredMovedBackSome says "Moved {done} of {total, plural, one {# video} other {# videos}} back to the library; the others are still on their storage locations. {reason}"
+// in the language the app shows under cx.
+//
+// Message bar after the videos of several films were to be moved back from storage locations and some were not: how many were, then why the first that was not failed, a sentence of its own.
+func StoredMovedBackSome(cx *core.Scope, done int, total int, reason string) string {
+	return For(cx).StoredMovedBackSome(done, total, reason)
+}
+
+// StoredMovedBackSome is the package's StoredMovedBackSome in the language of msgs.
+func (msgs Messages) StoredMovedBackSome(done int, total int, reason string) string {
+	if i18n.IsPseudo(msgs.lang) {
+		return i18n.Pseudo(msgs.lang, Messages{lang: Source, mark: true}.StoredMovedBackSome(done, total, reason))
+	}
+	for lang := msgs.lang; ; lang = i18n.Parent(lang) {
+		if f := supplied[lang].StoredMovedBackSome; f != nil {
+			return f(done, total, reason)
+		}
+		switch lang {
+		case "", "en":
+			var b strings.Builder
+			b.WriteString("Moved ")
+			b.WriteString(msgs.arg(i18n.FormatNumber("en", float64(done))))
+			b.WriteString(" of ")
+			switch i18n.Cardinal("en", float64(total)) {
+			case i18n.One:
+				b.WriteString(msgs.arg(i18n.FormatNumber("en", float64(total))))
+				b.WriteString(" video")
+			default:
+				b.WriteString(msgs.arg(i18n.FormatNumber("en", float64(total))))
+				b.WriteString(" videos")
+			}
+			b.WriteString(" back to the library; the others are still on their storage locations. ")
+			b.WriteString(msgs.arg(reason))
+			return b.String()
+		case "ja":
+			return i18n.FormatNumber("ja", float64(total)) + " 本のうち " + i18n.FormatNumber("ja", float64(done)) + " 本の動画をライブラリに戻しました。残りは保存場所にあります。" + reason
+		case "ko":
+			return "동영상 " + i18n.FormatNumber("ko", float64(total)) + "개 중 " + i18n.FormatNumber("ko", float64(done)) + "개를 라이브러리로 되돌렸고 나머지는 저장 위치에 그대로 있습니다. " + reason
+		case "zh-Hans":
+			return i18n.FormatNumber("zh-Hans", float64(total)) + " 个视频中已有 " + i18n.FormatNumber("zh-Hans", float64(done)) + " 个移回资料库，其余的仍在存储位置上。" + reason
+		case "zh-Hant":
+			return i18n.FormatNumber("zh-Hant", float64(total)) + " 個影片檔中已有 " + i18n.FormatNumber("zh-Hant", float64(done)) + " 個移回資料庫，其餘的仍在儲存位置上。" + reason
+		}
+	}
+}
+
+// StoredStoppedBackMany says "Stopped moving videos back to the library. {done, plural, one {# video had moved back} other {# videos had moved back}}; the rest are still on their storage locations."
+// in the language the app shows under cx.
+//
+// Message bar after moving the videos of several films back from storage locations was cancelled.
+func StoredStoppedBackMany(cx *core.Scope, done int) string {
+	return For(cx).StoredStoppedBackMany(done)
+}
+
+// StoredStoppedBackMany is the package's StoredStoppedBackMany in the language of msgs.
+func (msgs Messages) StoredStoppedBackMany(done int) string {
+	if i18n.IsPseudo(msgs.lang) {
+		return i18n.Pseudo(msgs.lang, Messages{lang: Source, mark: true}.StoredStoppedBackMany(done))
+	}
+	for lang := msgs.lang; ; lang = i18n.Parent(lang) {
+		if f := supplied[lang].StoredStoppedBackMany; f != nil {
+			return f(done)
+		}
+		switch lang {
+		case "", "en":
+			var b strings.Builder
+			b.WriteString("Stopped moving videos back to the library. ")
+			switch i18n.Cardinal("en", float64(done)) {
+			case i18n.One:
+				b.WriteString(msgs.arg(i18n.FormatNumber("en", float64(done))))
+				b.WriteString(" video had moved back")
+			default:
+				b.WriteString(msgs.arg(i18n.FormatNumber("en", float64(done))))
+				b.WriteString(" videos had moved back")
+			}
+			b.WriteString("; the rest are still on their storage locations.")
+			return b.String()
+		case "ja":
+			return "動画をライブラリに戻すのを止めました。" + i18n.FormatNumber("ja", float64(done)) + " 本は戻し済みで、残りは保存場所にあります。"
+		case "ko":
+			return "동영상을 라이브러리로 되돌리기를 멈췄습니다. " + i18n.FormatNumber("ko", float64(done)) + "개는 이미 되돌렸고 나머지는 저장 위치에 그대로 있습니다."
+		case "zh-Hans":
+			return "已停止把视频移回资料库。已经移回 " + i18n.FormatNumber("zh-Hans", float64(done)) + " 个，其余的仍在存储位置上。"
+		case "zh-Hant":
+			return "已停止把影片檔移回資料庫。已經移回 " + i18n.FormatNumber("zh-Hant", float64(done)) + " 個，其餘的仍在儲存位置上。"
+		}
+	}
+}
+
+// AccountLocationRemoveStored says "{count, plural, one {The video of # film is} other {The videos of # films are}} on this location. They won't play until it is added back at the same address; to keep them playable, choose Move Video Back to the Library for them first. Its password and keys are forgotten too; nothing on the server is deleted."
+// in the language the app shows under cx.
+//
+// Message of the alert confirming that a storage location is removed while videos of films were moved to it. Move Video Back to the Library is the film menu item (storedMoveBack); keep its wording.
+func AccountLocationRemoveStored(cx *core.Scope, count int) string {
+	return For(cx).AccountLocationRemoveStored(count)
+}
+
+// AccountLocationRemoveStored is the package's AccountLocationRemoveStored in the language of msgs.
+func (msgs Messages) AccountLocationRemoveStored(count int) string {
+	if i18n.IsPseudo(msgs.lang) {
+		return i18n.Pseudo(msgs.lang, Messages{lang: Source, mark: true}.AccountLocationRemoveStored(count))
+	}
+	for lang := msgs.lang; ; lang = i18n.Parent(lang) {
+		if f := supplied[lang].AccountLocationRemoveStored; f != nil {
+			return f(count)
+		}
+		switch lang {
+		case "", "en":
+			var b strings.Builder
+			switch i18n.Cardinal("en", float64(count)) {
+			case i18n.One:
+				b.WriteString("The video of ")
+				b.WriteString(msgs.arg(i18n.FormatNumber("en", float64(count))))
+				b.WriteString(" film is")
+			default:
+				b.WriteString("The videos of ")
+				b.WriteString(msgs.arg(i18n.FormatNumber("en", float64(count))))
+				b.WriteString(" films are")
+			}
+			b.WriteString(" on this location. They won't play until it is added back at the same address; to keep them playable, choose Move Video Back to the Library for them first. Its password and keys are forgotten too; nothing on the server is deleted.")
+			return b.String()
+		case "ja":
+			return i18n.FormatNumber("ja", float64(count)) + " 本の作品の動画がこの保存場所にあります。同じアドレスで追加し直すまで、これらの動画は再生できません。再生できるようにしておくには、先にそれらの作品で「動画をライブラリに戻す」を選んでください。パスワードと鍵も消去されます。サーバ上のファイルは削除されません。"
+		case "ko":
+			return "영화 " + i18n.FormatNumber("ko", float64(count)) + "편의 동영상이 이 저장 위치에 있습니다. 같은 주소로 다시 추가할 때까지 이 동영상들은 재생할 수 없습니다. 계속 재생하려면 먼저 해당 영화에서 ‘동영상을 라이브러리로 되돌리기’를 선택하세요. 암호와 키도 함께 지워지며, 서버의 파일은 삭제되지 않습니다."
+		case "zh-Hans":
+			return "有 " + i18n.FormatNumber("zh-Hans", float64(count)) + " 部影片的视频在这个存储位置上。在用同样的地址重新添加它之前，这些视频都无法播放；要让它们继续能播放，请先对这些影片选择「将视频移回资料库」。它的密码和密钥也会一并删除，服务器上的文件不会被删除。"
+		case "zh-Hant":
+			return "有 " + i18n.FormatNumber("zh-Hant", float64(count)) + " 部影片的影片檔在這個儲存位置上。在以相同的位址重新加入它之前，這些影片檔都無法播放；要讓它們繼續能播放，請先對這些影片選擇「將影片檔移回資料庫」。它的密碼和金鑰也會一併刪除，伺服器上的檔案不會被刪除。"
+		}
+	}
+}
+
+// PlayerRemuxing says "Preparing the video for the player… {percent}%"
+// in the language the app shows under cx.
+//
+// Shown in the middle of the picture while Kando converts a video the system's player cannot open into one it can, with how much is done.
+func PlayerRemuxing(cx *core.Scope, percent int) string { return For(cx).PlayerRemuxing(percent) }
+
+// PlayerRemuxing is the package's PlayerRemuxing in the language of msgs.
+func (msgs Messages) PlayerRemuxing(percent int) string {
+	if i18n.IsPseudo(msgs.lang) {
+		return i18n.Pseudo(msgs.lang, Messages{lang: Source, mark: true}.PlayerRemuxing(percent))
+	}
+	for lang := msgs.lang; ; lang = i18n.Parent(lang) {
+		if f := supplied[lang].PlayerRemuxing; f != nil {
+			return f(percent)
+		}
+		switch lang {
+		case "", "en":
+			return "Preparing the video for the player… " + msgs.arg(i18n.FormatNumber("en", float64(percent))) + "%"
+		case "ja":
+			return "プレーヤー用に動画を準備しています… " + i18n.FormatNumber("ja", float64(percent)) + "%"
+		case "ko":
+			return "플레이어용 동영상을 준비하는 중… " + i18n.FormatNumber("ko", float64(percent)) + "%"
+		case "zh-Hans":
+			return "正在为播放器准备视频… " + i18n.FormatNumber("zh-Hans", float64(percent)) + "%"
+		case "zh-Hant":
+			return "正在為播放器準備影片… " + i18n.FormatNumber("zh-Hant", float64(percent)) + "%"
+		}
+	}
+}
+
+// PlayerRemuxingFrom says "Preparing the video from {place} for the player… {percent}%"
+// in the language the app shows under cx.
+//
+// Shown in the middle of the picture while Kando converts a video kept on a storage location (a NAS folder or object storage), which the system's player cannot open, into one it can, reading it from there, with how much is done.
+func PlayerRemuxingFrom(cx *core.Scope, place string, percent int) string {
+	return For(cx).PlayerRemuxingFrom(place, percent)
+}
+
+// PlayerRemuxingFrom is the package's PlayerRemuxingFrom in the language of msgs.
+func (msgs Messages) PlayerRemuxingFrom(place string, percent int) string {
+	if i18n.IsPseudo(msgs.lang) {
+		return i18n.Pseudo(msgs.lang, Messages{lang: Source, mark: true}.PlayerRemuxingFrom(place, percent))
+	}
+	for lang := msgs.lang; ; lang = i18n.Parent(lang) {
+		if f := supplied[lang].PlayerRemuxingFrom; f != nil {
+			return f(place, percent)
+		}
+		switch lang {
+		case "", "en":
+			return "Preparing the video from " + msgs.arg(place) + " for the player… " + msgs.arg(i18n.FormatNumber("en", float64(percent))) + "%"
+		case "ja":
+			return "「" + place + "」からプレーヤー用に動画を準備しています… " + i18n.FormatNumber("ja", float64(percent)) + "%"
+		case "ko":
+			return "‘" + place + "’에서 플레이어용 동영상을 준비하는 중… " + i18n.FormatNumber("ko", float64(percent)) + "%"
+		case "zh-Hans":
+			return "正在从「" + place + "」为播放器准备视频… " + i18n.FormatNumber("zh-Hans", float64(percent)) + "%"
+		case "zh-Hant":
+			return "正在從「" + place + "」為播放器準備影片… " + i18n.FormatNumber("zh-Hant", float64(percent)) + "%"
 		}
 	}
 }

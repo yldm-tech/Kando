@@ -618,6 +618,8 @@ func (a *app) refreshLibrary() {
 		a.saveErr = err.Error()
 		return
 	}
+	// A video no job processed whose file was moved to a storage location stays on the shelf by the path it had (state_stored.go).
+	videos = films.MovedVideos(dir, a.library.Jobs, videos, a.storedPaths())
 	a.edit(func(s *session) { s.Videos = videos })
 	a.areasShelfChanged()
 }
@@ -646,7 +648,10 @@ func (a *app) retargetRenamed() bool {
 	}
 	// A video no job processed keeps the title given in Kando by its path alone, so its folder renamed in Finder is paired the same way a job's is.
 	for _, path := range slices.Sorted(maps.Keys(a.library.Names)) {
-		add(path)
+		// A video no job processed that was moved to a storage location is not missing, and no video that turns up takes its title.
+		if _, stored := a.storedOf(path); !stored {
+			add(path)
+		}
 	}
 	// A video the shelf listed before that is still there is not where a renamed one went, so only the videos that turned up since are paired.
 	for _, video := range a.snap().Videos {
@@ -728,7 +733,8 @@ func (a *app) dropMissing() bool {
 		owned[job.VideoPath] = true
 	}
 	for path := range a.library.Names {
-		if owned[path] || !films.InDir(root, path) {
+		// A video moved to a storage location keeps its title by the path it had (state_stored.go).
+		if _, stored := a.storedOf(path); owned[path] || stored || !films.InDir(root, path) {
 			continue
 		}
 		if _, err := os.Stat(path); err != nil {

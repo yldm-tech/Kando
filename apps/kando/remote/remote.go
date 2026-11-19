@@ -304,6 +304,14 @@ type Library struct {
 	Locked  bool `json:"locked,omitempty"`
 }
 
+// VideoLocation is the storage location a film's video was moved to: its name as Settings › Account & Upload names it, its kind, smb, webdav or sftp for a NAS location or the object store's (r2, s3 and the others), the video's path there, relative to the location's folder, and Missing when the location is no longer in Settings, so the video does not play until it is added back.
+type VideoLocation struct {
+	Name    string `json:"name"`
+	Kind    string `json:"kind"`
+	Path    string `json:"path"`
+	Missing bool   `json:"missing,omitempty"`
+}
+
 // Film is a video of the open library, as the window lists it.
 type Film struct {
 	// ID names the film in MethodFilm, MethodSubtitles, MethodShow and MethodTranslate. It stays the same while the film's video stays where it is. A video no job has processed is named by its path; once a job processes it, the film is named by the job's ID, and its path still names it.
@@ -328,6 +336,8 @@ type Film struct {
 	SpokenLanguage string `json:"spoken_language,omitempty"`
 	SpeechLanguage string `json:"speech_language,omitempty"`
 	VideoPath      string `json:"video_path,omitempty"`
+	// VideoLocation is where the video is when it was moved out of the library's folder to a storage location, nil for a video in the folder; VideoPath is then the path it had there, which the film is still known by and its subtitles are named after.
+	VideoLocation *VideoLocation `json:"video_location,omitempty"`
 	// Subtitles is the bilingual .srt, "" until the film is done; OriginalSubtitles the .srt of the speech alone.
 	Subtitles         string `json:"subtitles,omitempty"`
 	OriginalSubtitles string `json:"original_subtitles,omitempty"`

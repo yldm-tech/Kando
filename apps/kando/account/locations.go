@@ -319,7 +319,13 @@ func (d locationAlert) Render(cx *core.Scope) core.Node {
 			case AlertRemove:
 				dialog.TestID = "location-remove-confirm"
 				dialog.TitleFunc = func() string { return locales.AccountLocationRemoveTitle(cx, alert.Get().Name) }
-				dialog.DescriptionFunc = func() string { return locales.AccountLocationRemoveMessage(cx) }
+				dialog.DescriptionFunc = func() string {
+					// Moved videos stay on the location, and play again once it is added back; moving them back first keeps them playing.
+					if n := alert.Get().Films; n > 0 {
+						return locales.AccountLocationRemoveStored(cx, n)
+					}
+					return locales.AccountLocationRemoveMessage(cx)
+				}
 				dialog.Actions = []ui.AlertAction{cancel, {Text: locales.AccountLocationRemoveButton(cx), Color: colors.Danger, Role: core.AlertDestructive, OnPress: yes, TestID: "location-alert-remove"}}
 			case AlertTrust:
 				dialog.TestID = "location-trust"
