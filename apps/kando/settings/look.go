@@ -13,8 +13,11 @@ import (
 	"github.com/nsgo-dev/nsgo/ui"
 )
 
-// look is the 字幕外观 page: a preview of the subtitles in the player's look, how the player shows them, and the look itself: its preset, its font, and each line's size, color and weight, with the controls the player's style view uses where they fit a card (package subtitle). The preview is drawn in the player's dark theme. Every change is the player's at once, and saved.
-type look struct{ s screen }
+// look is the 字幕外观 page: a preview of the subtitles in the player's look, how the player shows them, and the look itself: its preset, its font, and each line's size, color and weight, with the controls the player's style view uses where they fit a card (package subtitle); then marks, the 逐词标注 card the window is given (Marks), when it is. The preview is drawn in the player's dark theme. Every change is the player's at once, and saved.
+type look struct {
+	s     screen
+	marks core.Node
+}
 
 // Render implements core.Node.
 func (p look) Render(cx *core.Scope) core.Node {
@@ -69,7 +72,16 @@ func (p look) Render(cx *core.Scope) core.Node {
 		),
 		faceCard(cx, subtitle.TranslationLine, look, edit),
 		faceCard(cx, subtitle.OriginalLine, look, edit),
+		p.marksCard(),
 	)
+}
+
+// marksCard is the 逐词标注 card, or nothing when the window was given none.
+func (p look) marksCard() core.Node {
+	if p.marks == nil {
+		return core.Group(nil)
+	}
+	return p.marks
 }
 
 // faceCard sets one line's size, color and weight, under the line's name.

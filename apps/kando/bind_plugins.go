@@ -8,6 +8,7 @@ import (
 	"kando/apps/kando/locales"
 	"kando/apps/kando/plugins"
 	"kando/apps/kando/plugins/dict"
+	"kando/apps/kando/plugins/wordlist"
 	"kando/apps/kando/settings"
 )
 
@@ -54,7 +55,7 @@ func (a *app) PluginRows() []settings.PluginRow {
 func (a *app) PluginIssues() []settings.PluginIssue {
 	m := a.messages()
 	out := make([]settings.PluginIssue, 0, len(a.plugins.issues))
-	for _, issue := range append(slices.Clone(a.plugins.issues), a.pluginsDictIssues()...) {
+	for _, issue := range slices.Concat(a.plugins.issues, a.pluginsDictIssues(), a.pluginsListIssues()) {
 		out = append(out, settings.PluginIssue{Folder: filepath.Base(issue.Dir), Reason: pluginsErrorText(m, issue.Err)})
 	}
 	return out
@@ -153,6 +154,7 @@ func pluginsErrorText(m locales.Messages, err error) string {
 		{plugins.ErrBadState, m.SettingsPluginsStateBad},
 		{errPluginsFolderNotShown, m.LibraryRevealNotOpened},
 		{dict.ErrEmpty, m.PluginsErrDictEmpty},
+		{wordlist.ErrEmpty, m.PluginsErrWordlistEmpty},
 	} {
 		if errors.Is(err, e.err) {
 			return e.text()

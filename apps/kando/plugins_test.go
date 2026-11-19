@@ -4,19 +4,23 @@ import (
 	"archive/zip"
 	"bytes"
 	"context"
+	"encoding/json"
 	"errors"
 	"io/fs"
 	"os"
 	"path/filepath"
 	"slices"
 	"strings"
+	"sync/atomic"
 	"testing"
 	"time"
 
+	"kando/apps/kando/film/subtitle"
 	"kando/apps/kando/locales"
 	"kando/apps/kando/locales/testlocale"
 	"kando/apps/kando/plugins"
 	"kando/apps/kando/plugins/dict"
+	"kando/apps/kando/saved"
 	"kando/apps/kando/settings"
 	"kando/packages/core"
 	"kando/packages/core/segment"
@@ -1123,4 +1127,188 @@ func TestPluginDictionaryAnswersAPhone(t *testing.T) {
 	if a.vocabCache().Len() != 0 {
 		t.Fatal("a dictionary's answer was kept among the words looked up")
 	}
+}
+
+// pluginWordlist is a word list pack of words of lang, with the levels b1 (accent) and c1 (warn), in words.tsv.
+func pluginWordlist(id, lang string) string {
+	return `{"schema": 1, "id": "` + id + `", "kind": "wordlist", "version": "1.0.0", "license": "CC-BY-4.0", "name": {"en": "Levels", "zh-Hans": "等级"},
+  "wordlist": {"language": "` + lang + `", "file": "words.tsv", "tiers": [{"id": "b1", "label": {"en": "B1"}, "tone": "accent"}, {"id": "c1", "label": {"en": "C1"}, "tone": "warn"}]}}`
+}
+
+// TestPluginWordlistMarksTheLines checks the marks of a film's lines from a word list pack: 字幕外观 offers the list turned on, and once it is chosen the lines are marked in the background, a word of the list in its level's tone, which the picture reads (CueMarks), and the choice is saved. The marks are computed once for the film's key: neither a report of the shelf (shelfChanged), which every job's progress makes, nor the player's progress computes them again. Turned off, the marks go.
+func TestPluginWordlistMarksTheLines(t *testing.T) {
+	a, tt, updates, item := playerFilm(t, 12, nil)
+	a.library.Jobs[0].SpokenLanguage = "en"
+	pluginsDictInstalled(t, a, tt, updates, pluginWordlist("example.cefr", "en"), map[string][]byte{"words.tsv": []byte("hello\tb1\nbye\tc1\n")})
+	playerOpenFilm(t, a, tt, updates, item)
+	playerLoadFilm(tt, a, 12*time.Second)
+
+	apply(tt, a, func() { a.SetMarkWordlist("example.cefr") })
+	waitUntil(t, tt, a, updates, func() bool { return a.plugins.marks.lines != nil })
+	lines := a.plugins.marks.lines
+	want := [][]subtitle.Mark{{{Start: 0, End: 5, Tone: subtitle.ToneAccent}}, {{Start: 0, End: 3, Tone: subtitle.ToneWarn}}}
+	if len(lines) != 2 || !slices.Equal(lines[0], want[0]) || !slices.Equal(lines[1], want[1]) {
+		t.Fatalf("the marks: %+v", lines)
+	}
+	if got := a.CueMarks(0); !slices.Equal(got, want[0]) || a.MarkWordlist() != "example.cefr" {
+		t.Fatalf("the picture reads %+v, chosen %q", got, a.MarkWordlist())
+	}
+	var saved savedSettings
+	if data, err := os.ReadFile(a.settingsPath); err != nil || json.Unmarshal(data, &saved) != nil || saved.PluginWordlist != "example.cefr" {
+		t.Fatalf("settings.json: %s, %v", data, err)
+	}
+
+	onEngine(a, a.areasShelfChanged)
+	playerPlayTo(tt, a, 1500*time.Millisecond)
+	playerPlayTo(tt, a, 4500*time.Millisecond)
+	if a.plugins.marking != (pluginsMarkKey{}) || &a.plugins.marks.lines[0] != &lines[0] {
+		t.Fatal("the marks were computed again for the same film")
+	}
+
+	apply(tt, a, func() { a.SetMarkWordlist("") })
+	if a.plugins.marks.lines != nil || a.CueMarks(0) != nil || a.plugins.marking != (pluginsMarkKey{}) {
+		t.Fatalf("the marks stayed once turned off: %+v", a.plugins.marks.lines)
+	}
+
+	tt = settingsOpenAt(a, tt, settings.SectionLook)
+	tt.Press("id:settings-look-tiers")
+	if !hasText(tt, "等级") {
+		t.Fatalf("the drop-down does not offer the word list; texts %q", tt.Texts())
+	}
+}
+
+// TestPluginMarksFollowTheVocabulary checks the underline under the words of the vocabulary: a word added is underlined at the next report, and a word swapped for another, which leaves the vocabulary as long as it was, moves the underline to the new word.
+func TestPluginMarksFollowTheVocabulary(t *testing.T) {
+	a, tt, updates, item := playerFilm(t, 12, nil)
+	a.library.Jobs[0].SpokenLanguage = "en"
+	playerOpenFilm(t, a, tt, updates, item)
+	playerLoadFilm(tt, a, 12*time.Second)
+	apply(tt, a, func() {
+		a.saved.book.AddWord(saved.Word{Text: "hello", Spoken: "en"})
+		a.SetMarkKnown(true)
+	})
+	if len(a.savedBook().Words) != 1 {
+		t.Fatalf("the vocabulary: %+v", a.savedBook().Words)
+	}
+	hello := [][]subtitle.Mark{{{Start: 0, End: 5, Underline: true}}, nil}
+	marked := func(want [][]subtitle.Mark) func() bool {
+		return func() bool {
+			l := a.plugins.marks.lines
+			return len(l) == 2 && slices.Equal(l[0], want[0]) && slices.Equal(l[1], want[1])
+		}
+	}
+	waitUntil(t, tt, a, updates, marked(hello))
+
+	apply(tt, a, func() {
+		a.saved.book.RemoveWord("hello", "en")
+		a.saved.book.AddWord(saved.Word{Text: "bye", Spoken: "en"})
+	})
+	playerPlayTo(tt, a, 1500*time.Millisecond)
+	waitUntil(t, tt, a, updates, marked([][]subtitle.Mark{nil, {{Start: 0, End: 3, Underline: true}}}))
+}
+
+// TestPluginMarksDropAStaleComputation checks that once the key is back to that of the marks shown, marks still being computed for another key are stopped and dropped, so they cannot replace the marks shown when they come; and that a computation started for another key stops the one before it, so only the latest goes on.
+func TestPluginMarksDropAStaleComputation(t *testing.T) {
+	a, tt, updates, item := playerFilm(t, 12, nil)
+	a.library.Jobs[0].SpokenLanguage = "en"
+	pluginsDictInstalled(t, a, tt, updates, pluginWordlist("example.cefr", "en"), map[string][]byte{"words.tsv": []byte("hello\tb1\nbye\tc1\n")})
+	playerOpenFilm(t, a, tt, updates, item)
+	playerLoadFilm(tt, a, 12*time.Second)
+	apply(tt, a, func() { a.SetMarkWordlist("example.cefr") })
+	waitUntil(t, tt, a, updates, func() bool { return a.plugins.marks.lines != nil })
+
+	stale := &atomic.Bool{}
+	onEngine(a, func() {
+		a.plugins.marking, a.plugins.stop = pluginsMarkKey{video: "another"}, stale
+		a.pluginsMarksFollow()
+	})
+	if a.plugins.marking != (pluginsMarkKey{}) || a.plugins.stop != nil || !stale.Load() {
+		t.Fatalf("the computation for another key is still awaited or was not stopped: %+v, stopped %v", a.plugins.marking, stale.Load())
+	}
+
+	stale = &atomic.Bool{}
+	onEngine(a, func() {
+		a.plugins.marking, a.plugins.stop = pluginsMarkKey{video: "another"}, stale
+		a.plugins.prefs.known = true
+		a.pluginsMarksFollow()
+	})
+	if !stale.Load() || a.plugins.stop == nil || a.plugins.stop == stale {
+		t.Fatalf("a computation for a new key did not stop the one before it: stopped %v", stale.Load())
+	}
+	waitUntil(t, tt, a, updates, func() bool { return a.plugins.marks.key.known })
+}
+
+// TestPluginMarksForgetTheListAsAChange checks that the marks' hook reports a change when it forgets the word list read, which the plugins page reads for its problems, as when the list chosen is turned off.
+func TestPluginMarksForgetTheListAsAChange(t *testing.T) {
+	a, tt, updates, item := playerFilm(t, 12, nil)
+	a.library.Jobs[0].SpokenLanguage = "en"
+	pluginsDictInstalled(t, a, tt, updates, pluginWordlist("example.cefr", "en"), map[string][]byte{"words.tsv": []byte("hello\tb1\n")})
+	playerOpenFilm(t, a, tt, updates, item)
+	playerLoadFilm(tt, a, 12*time.Second)
+	apply(tt, a, func() { a.SetMarkWordlist("example.cefr") })
+	waitUntil(t, tt, a, updates, func() bool { return a.plugins.list != nil && a.plugins.marks.lines != nil })
+
+	var changed bool
+	onEngine(a, func() {
+		a.plugins.prefs.list = ""
+		a.plugins.prefs.known = true
+		a.plugins.marks.lines = nil
+		changed = a.pluginsMarksFollow()
+	})
+	if a.plugins.list != nil || !changed {
+		t.Fatalf("the list read was not forgotten as a change: list %v, changed %v", a.plugins.list != nil, changed)
+	}
+	waitUntil(t, tt, a, updates, func() bool { return a.plugins.marks.key.known })
+}
+
+// TestPluginMarksSaveFailureIsShown checks that a change of the word marks that cannot be saved says so, as the other settings do.
+func TestPluginMarksSaveFailureIsShown(t *testing.T) {
+	a, tt, _, _ := playerFilm(t, 12, nil)
+	if err := os.MkdirAll(a.settingsPath+".tmp", 0o755); err != nil {
+		t.Fatal(err)
+	}
+	apply(tt, a, func() { a.SetMarkReadings(true) })
+	if prefix := testlocale.Messages().SettingsSaveFailed(""); !strings.HasPrefix(a.saveErr, prefix) {
+		t.Fatalf("save error %q", a.saveErr)
+	}
+}
+
+// TestPluginMarksSurviveNewLines checks that the marks follow only what they depend on: a translation landing, which rewrites the subtitle file and makes the player read it again into a new slice, keeps the marks shown while the file is read and after, without computing them again; a line whose original changed marks the film again, and while the new marks are computed that line shows none, its old marks not being drawn on the new text, and the other lines keep theirs.
+func TestPluginMarksSurviveNewLines(t *testing.T) {
+	a, tt, updates, item := playerFilm(t, 12, nil)
+	a.library.Jobs[0].SpokenLanguage = "en"
+	pluginsDictInstalled(t, a, tt, updates, pluginWordlist("example.cefr", "en"), map[string][]byte{"words.tsv": []byte("hello\tb1\nbye\tc1\n")})
+	playerOpenFilm(t, a, tt, updates, item)
+	playerLoadFilm(tt, a, 12*time.Second)
+	apply(tt, a, func() { a.SetMarkWordlist("example.cefr") })
+	waitUntil(t, tt, a, updates, func() bool { return a.plugins.marks.lines != nil })
+	lines := a.plugins.marks.lines
+	bye := []subtitle.Mark{{Start: 0, End: 3, Tone: subtitle.ToneWarn}}
+
+	translated := strings.Replace(talkSubtitles, "\nBye.\n", "\n再见。\nBye.\n", 1)
+	if err := os.WriteFile(a.player.subs.path, []byte(translated), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	apply(tt, a, a.reloadOpenSubtitles)
+	onEngine(a, func() { a.pluginsMarksFollow() })
+	if a.player.subs.ready || &a.plugins.marks.lines[0] != &lines[0] || a.plugins.marking != (pluginsMarkKey{}) {
+		t.Fatalf("the marks went while the subtitles were read again: ready %v, marking %+v", a.player.subs.ready, a.plugins.marking)
+	}
+	waitUntil(t, tt, a, updates, func() bool { return a.player.subs.ready })
+	onEngine(a, func() { a.pluginsMarksFollow() })
+	if &a.plugins.marks.lines[0] != &lines[0] || a.plugins.marking != (pluginsMarkKey{}) || !slices.Equal(a.CueMarks(1), bye) {
+		t.Fatalf("a translation marked the film again, or the picture lost its marks: marking %+v, cue 1 %+v", a.plugins.marking, a.CueMarks(1))
+	}
+
+	onEngine(a, func() {
+		machine := slices.Clone(a.player.subs.machine)
+		machine[0].Text = "你好。\nBye."
+		a.player.subs.machine = machine
+		a.playerCorrectSubs()
+		a.pluginsMarksFollow()
+	})
+	if a.plugins.marking == (pluginsMarkKey{}) || a.CueMarks(0) != nil || !slices.Equal(a.CueMarks(1), bye) {
+		t.Fatalf("a changed original was not marked again, its old marks stayed on the new text, or an unchanged line lost its marks meanwhile: marking %+v, cue 0 %+v, cue 1 %+v", a.plugins.marking, a.CueMarks(0), a.CueMarks(1))
+	}
+	waitUntil(t, tt, a, updates, func() bool { return slices.Equal(a.CueMarks(0), bye) })
 }

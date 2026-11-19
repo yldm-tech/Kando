@@ -7,6 +7,7 @@ import (
 	"strings"
 	"time"
 
+	"kando/apps/kando/film/subtitle"
 	"kando/apps/kando/live"
 	"kando/packages/core"
 
@@ -183,6 +184,8 @@ type App interface {
 	// Lookup is the word looked up on the picture, the zero Lookup while none is. LookUpWord looks up word, clicked in the original of cue i on the picture; CloseLookup closes its card; ToggleLookupWord puts the word in the vocabulary, or takes it out; ExplainLookupLine has the AI service explain the line it was clicked in; LookupSettings opens the AI service's settings, for a lookup no AI service could answer.
 	Lookup() Lookup
 	LookUpWord(i int, word string)
+	// CueMarks are the marks drawn on the words of cue i's original on the picture: their readings, the colors of their tiers in the word list chosen and an underline under those in the vocabulary (subtitle.Mark); nil while there are none, or none computed yet. The app computes them in the background; this only reads them.
+	CueMarks(i int) []subtitle.Mark
 	CloseLookup()
 	ToggleLookupWord()
 	ExplainLookupLine()

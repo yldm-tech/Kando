@@ -242,12 +242,13 @@ type screen struct {
 // The rail's look, as the prototype's settings sidebar: 220 points wide with its line along the end, a translucent gray over the window's, and the search field's gray, from the theme (theme.Of).
 const railWidth core.Points = 220
 
-// Window is the settings window's content: the categories with a search field on the left, the chosen one's page on the right under its title. Account is the 账号与上传 page, the account package's; Plugins the 插件 page (Plugins), which reads an App of its own (PluginsApp). It fills the window it is in, the settings window of its own or the dialog over the main window where the platform opens none.
+// Window is the settings window's content: the categories with a search field on the left, the chosen one's page on the right under its title. Account is the 账号与上传 page, the account package's; Plugins the 插件 page (Plugins), which reads an App of its own (PluginsApp); Marks the 逐词标注 card at the end of 字幕外观 (Marks), which reads one too (MarksApp). It fills the window it is in, the settings window of its own or the dialog over the main window where the platform opens none.
 type Window struct {
 	App     App
 	Version string
 	Account core.Node
 	Plugins core.Node
+	Marks   core.Node
 	// Close is the window's own close button at the end of the page's title, for a settings window the system draws no controls in (Linux's); nil elsewhere and over the main window.
 	Close core.Node
 }
@@ -258,18 +259,18 @@ func (w Window) Render(cx *core.Scope) core.Node {
 	// The words the window's pieces take as plain strings, the accessibility labels and the buttons' among them, are read as it is built, so it is built again when the interface's language changes, which happens from the language drop-down, whose focus goes then anyway.
 	return core.Dynamic(func(cx *core.Scope) core.Node {
 		_ = i18n.Language(cx)
-		return core.Func(func(cx *core.Scope) core.Node { return s.layout(cx, w.Account, w.Plugins, w.Close) })
+		return core.Func(func(cx *core.Scope) core.Node { return s.layout(cx, w.Account, w.Plugins, w.Marks, w.Close) })
 	})
 }
 
 // layout is the window in the language the app shows now.
-func (s screen) layout(cx *core.Scope, account, plugins, closeButton core.Node) core.Node {
+func (s screen) layout(cx *core.Scope, account, plugins, marks, closeButton core.Node) core.Node {
 	a := s.a
 	section := core.NewMemo(cx, live.Func(a, a.SettingsSection))
 	// The page is built again when the category changes; within it, what changes with the app's state follows it in bindings, so a field being typed in keeps the focus.
 	page := core.Dynamic(func(cx *core.Scope) core.Node {
 		id := section.Get()
-		return core.Func(func(cx *core.Scope) core.Node { return s.page(cx, id, account, plugins) })
+		return core.Func(func(cx *core.Scope) core.Node { return s.page(cx, id, account, plugins, marks) })
 	})
 	saveErr := core.Show{When: live.Func(a, func() bool { return a.SaveErr() != "" }), Then: func(cx *core.Scope) core.Node {
 		colors := ui.ColorsOf(cx)
@@ -419,8 +420,8 @@ func (s search) Render(cx *core.Scope) core.Node {
 	return core.View{Style: core.Style{FlexShrink: 0, Margin: core.Edges{Bottom: 8}}, Children: []core.Node{input, glass, clearButton, escape}}
 }
 
-// page builds the category id: the account package's page for 账号与上传 and the 插件 page, which the window is given, and its own pages for the others.
-func (s screen) page(cx *core.Scope, id string, account, plugins core.Node) core.Node {
+// page builds the category id: the account package's page for 账号与上传 and the 插件 page, which the window is given, and its own pages for the others, 字幕外观 with the 逐词标注 card it is given at its end.
+func (s screen) page(cx *core.Scope, id string, account, plugins, marks core.Node) core.Node {
 	switch id {
 	case SectionSpeech:
 		return speech{s}
@@ -429,7 +430,7 @@ func (s screen) page(cx *core.Scope, id string, account, plugins core.Node) core
 	case SectionTranslate:
 		return translate{s}
 	case SectionLook:
-		return look{s}
+		return look{s: s, marks: marks}
 	case SectionPrivacy:
 		return privacy{s}
 	case SectionShortcuts:

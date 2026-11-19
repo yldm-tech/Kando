@@ -5,6 +5,7 @@ import (
 	"math"
 	"slices"
 	"time"
+	"unicode/utf8"
 
 	"kando/apps/kando/film/subtitle"
 	"kando/apps/kando/live"
@@ -206,7 +207,21 @@ func (s *screen) subtitleLayer(cx *core.Scope, lines func() []styledLine, tip fu
 		cut.Get()
 		return lookup.Tokens(text, loaded)
 	}
-	// A click on a word of the original looks it up, holding the film (LookUpWord); a click elsewhere on the lines is the picture's, as above.
+	// The tones of the marks of a word list's tiers are the theme's roles.
+	tone := func(t string) (core.Color, bool) {
+		switch t {
+		case subtitle.ToneAccent:
+			return colors.Accent(), true
+		case subtitle.ToneWarn:
+			return colors.Warn(), true
+		case subtitle.ToneSuccess:
+			return colors.Up(), true
+		case subtitle.ToneMuted:
+			return colors.Muted(), true
+		}
+		return 0, false
+	}
+	// A click on a word of the original looks it up, holding the film (LookUpWord); a click elsewhere on the lines is the picture's, as above. The original's words are drawn with the marks the app computed for them (CueMarks): readings over them, the colors of their tiers, an underline under those in the vocabulary.
 	body := core.Dynamic(func(cx *core.Scope) core.Node {
 		l := look()
 		children := []core.Node{}
@@ -215,7 +230,8 @@ func (s *screen) subtitleLayer(cx *core.Scope, lines func() []styledLine, tip fu
 			var words *lineWords
 			if line.original {
 				cue := line.cue
-				words = &lineWords{look: live.On(a, func(word string) { a.LookUpWord(cue, word) }), press: press, tokens: tokens}
+				marks := core.NewMemoFunc(cx, live.Func(a, func() []subtitle.Mark { return a.CueMarks(cue) }), slices.Equal[[]subtitle.Mark]).Get
+				words = &lineWords{look: live.On(a, func(word string) { a.LookUpWord(cue, word) }), press: press, tokens: tokens, marks: marks, tone: tone}
 			}
 			children = append(children, subtitleLine(func() string { return text }, line, l.Box, l.Shadow, words))
 		}
@@ -270,14 +286,16 @@ func (s *screen) subtitleLayer(cx *core.Scope, lines func() []styledLine, tip fu
 	}
 }
 
-// lineWords is what a click on a line's words does: look looks up the word clicked, and press is the click on the rest of the line; tokens cuts a line into its words, in a binding, as lookup.Tokens does.
+// lineWords is what a click on a line's words does: look looks up the word clicked, and press is the click on the rest of the line; tokens cuts a line into its words, in a binding, as lookup.Tokens does. marks are the line's marks (CueMarks), read in a binding, and tone the color of a mark's tone, false for none.
 type lineWords struct {
 	look   func(word string)
 	press  func(core.PressEvent)
 	tokens func(text string) []lookup.Token
+	marks  func() []subtitle.Mark
+	tone   func(tone string) (core.Color, bool)
 }
 
-// subtitleLine draws one line of a cue, on its own box with Box, outlined with Shadow. A view's shadow is a box's and would not follow the glyphs, so the outline is the line drawn again in black under it (outlineCopies), after the prototype's text-shadow (0 0 3px, 0 1px 2px and 0 0 1px). With words, the line drawn on top takes the clicks: a click on one of its words looks it up.
+// subtitleLine draws one line of a cue, on its own box with Box, outlined with Shadow. A view's shadow is a box's and would not follow the glyphs, so the outline is the line drawn again in black under it (outlineCopies), after the prototype's text-shadow (0 0 3px, 0 1px 2px and 0 0 1px). With words, the line drawn on top takes the clicks: a click on one of its words looks it up. Readings over its words (lineWords.marks) are drawn in every copy, so the copies under it lay out as it does.
 func subtitleLine(text func() string, line styledLine, box, outline bool, words *lineWords) core.Node {
 	padX, padY := core.Points(0), core.Points(0)
 	holder := core.Style{MaxWidth: core.Pct(100), CornerRadius: 6}
@@ -294,39 +312,186 @@ func subtitleLine(text func() string, line styledLine, box, outline bool, words 
 		return core.View{Style: holder, Children: []core.Node{withWords(lineText(text, line, core.Style{Color: color}), text, words)}}
 	}
 	// Positioned views paint over those in the flow, so the line sizes the box from the flow unseen and is drawn again over its outline.
-	children := []core.Node{lineText(text, line, core.Style{Color: core.RGBA(0x000000, 0)})}
+	children := []core.Node{withReadings(lineText(text, line, core.Style{Color: core.RGBA(0x000000, 0)}), text, words)}
 	for _, o := range outlineCopies {
 		st := core.Style{Position: core.Absolute, Left: core.Pt(padX + o.dx), Right: core.Pt(padX - o.dx), Top: core.Pt(padY + o.dy), Color: core.RGBA(0x000000, o.alpha)}
 		if o.blur > 0 {
 			st.Filters = []core.Filter{core.Blur(o.blur)}
 		}
-		children = append(children, lineText(text, line, st))
+		children = append(children, withReadings(lineText(text, line, st), text, words))
 	}
 	children = append(children, withWords(lineText(text, line, core.Style{Position: core.Absolute, Left: core.Pt(padX), Right: core.Pt(padX), Top: core.Pt(padY), Color: color}), text, words))
 	return core.View{Style: holder, Children: children}
 }
 
-// withWords has the text t of a line take the clicks on it with words: its words are spans a click looks up, which the pointer shows as such, and a click between them is words.press. Without words t is as it was.
+// withWords has the text t of a line take the clicks on it with words: its words are spans a click looks up, which the pointer shows as such, and a click between them is words.press; its marks are drawn on them (lineSpans). Without words t is as it was.
 func withWords(t core.Text, text func() string, words *lineWords) core.Text {
 	if words == nil {
 		return t
 	}
 	t.PointerEvents = core.PointerEventsAuto
 	t.OnPress = words.press
+	style, hidden := t.Style, t.Role == core.RoleNone
 	t.SpansFunc = func() []core.Span {
-		var spans []core.Span
-		for _, tok := range words.tokens(text()) {
-			sp := core.Span{Content: tok.Text}
-			if tok.Word {
-				word := tok.Text
-				sp.OnPress = func(core.PressEvent) { words.look(word) }
-				sp.Style = core.Style{Cursor: core.CursorPointer}
-			}
-			spans = append(spans, sp)
+		var marks []subtitle.Mark
+		if words.marks != nil {
+			marks = words.marks()
 		}
-		return spans
+		return lineSpans(text(), words.tokens(text()), marks, spanInk{style: style, hidden: hidden, look: words.look, tone: words.tone})
 	}
 	return t
+}
+
+// withReadings gives t, a copy of a line under the one on top, the readings of words' marks, so it lays out as the line on top does; it takes no clicks and draws no tone. Without words, or while no mark has a reading, t is drawn from its content, as it was.
+func withReadings(t core.Text, text func() string, words *lineWords) core.Text {
+	if words == nil || words.marks == nil {
+		return t
+	}
+	style := t.Style
+	hidden := t.Role == core.RoleNone
+	t.SpansFunc = func() []core.Span {
+		marks := words.marks()
+		if !slices.ContainsFunc(marks, func(m subtitle.Mark) bool { return m.Ruby != "" }) {
+			return nil
+		}
+		return lineSpans(text(), nil, marks, spanInk{style: style, hidden: hidden})
+	}
+	return t
+}
+
+// spanInk is how lineSpans draws a line's runs: style is the line's text style, which a reading's view repeats, as an attachment does not take its text's, and hidden is set for a copy assistive technology does not read (core.RoleNone); with look, the line on top, a click on a word looks it up and tone colors the runs of a mark's tone, which the copies under it leave to their own color.
+type spanInk struct {
+	style  core.Style
+	hidden bool
+	look   func(word string)
+	tone   func(tone string) (core.Color, bool)
+}
+
+// rubyScale is the size of a reading over a word, a share of the word's.
+const rubyScale = 0.5
+
+// lineSpans is text cut into spans: at each of tokens, its words and what lies between them, which ink.look looks up on a click, and at each mark with a reading, which is a view of its reading over its characters (rubySpan). The other marks color their runs in their tone and underline them, cut at the marks' own ends on the line on top. A mark outside text, off a character's start, or overlapping a reading before it is left out; tokens of another text are too, as while a line changes.
+func lineSpans(text string, tokens []lookup.Token, marks []subtitle.Mark, ink spanInk) []core.Span {
+	inText := func(m subtitle.Mark) bool {
+		return m.Start >= 0 && m.Start < m.End && m.End <= len(text) && utf8.RuneStart(text[m.Start]) && (m.End == len(text) || utf8.RuneStart(text[m.End]))
+	}
+	cuts := []int{0, len(text)}
+	type run struct {
+		start, end int
+		word       string
+	}
+	var words []run
+	at := 0
+	for _, t := range tokens {
+		if t.Word {
+			words = append(words, run{at, at + len(t.Text), t.Text})
+		}
+		at += len(t.Text)
+		cuts = append(cuts, at)
+	}
+	if at != len(text) {
+		words, cuts = nil, []int{0, len(text)}
+	}
+	var rubies, tones []subtitle.Mark
+	for _, m := range marks {
+		switch {
+		case !inText(m):
+		case m.Ruby != "":
+			if len(rubies) == 0 || rubies[len(rubies)-1].End <= m.Start {
+				rubies = append(rubies, m)
+				cuts = append(cuts, m.Start, m.End)
+			}
+		case m.Tone != "" || m.Underline:
+			// A tone's run is cut at its own ends, as the tokens need not end where the marks do (segment.Words and segment.Annotated may cut a line differently); a copy under the line draws no tone, so it is not cut.
+			tones = append(tones, m)
+			if ink.look != nil {
+				cuts = append(cuts, m.Start, m.End)
+			}
+		}
+	}
+	slices.Sort(cuts)
+	cuts = slices.Compact(cuts)
+	var spans []core.Span
+	next := 0
+	for k := 0; k+1 < len(cuts); {
+		start, end, ruby := cuts[k], cuts[k+1], ""
+		if next < len(rubies) && rubies[next].Start == start {
+			end, ruby = rubies[next].End, rubies[next].Ruby
+			next++
+		}
+		for k+1 < len(cuts) && cuts[k] < end {
+			k++
+		}
+		word := ""
+		if i := slices.IndexFunc(words, func(w run) bool { return w.start <= start && start < w.end }); i >= 0 && ink.look != nil {
+			word = words[i].word
+		}
+		var rs runStyle
+		for _, m := range tones {
+			if m.Start <= start && start < m.End {
+				if c, ok := ink.toneOf(m.Tone); ok && rs.color == nil {
+					rs.color = &c
+				}
+				rs.underline = rs.underline || m.Underline
+			}
+		}
+		if ink.look == nil {
+			rs = runStyle{}
+		}
+		spans = append(spans, ink.span(text[start:end], ruby, word, rs))
+	}
+	return spans
+}
+
+// runStyle is how a run of a line is drawn besides its line's style: in the color of a mark's tone, when one has it, and underlined.
+type runStyle struct {
+	color     *core.Color
+	underline bool
+}
+
+// toneOf is the color of tone, false for none or without ink.tone.
+func (ink spanInk) toneOf(tone string) (core.Color, bool) {
+	if ink.tone == nil || tone == "" {
+		return 0, false
+	}
+	return ink.tone(tone)
+}
+
+// span is the run content of a line: under its reading ruby when there is one (rubyView), looking word up on a click when it is one of the words, drawn in rs.
+func (ink spanInk) span(content, ruby, word string, rs runStyle) core.Span {
+	var st core.Style
+	if rs.color != nil {
+		st.Color = *rs.color
+	}
+	if rs.underline {
+		st.TextDecoration = core.TextDecorationUnderline
+	}
+	var press func(core.PressEvent)
+	if word != "" {
+		press = func(core.PressEvent) { ink.look(word) }
+		st.Cursor = core.CursorPointer
+	}
+	if ruby == "" {
+		return core.Span{Content: content, Style: st, OnPress: press}
+	}
+	return core.Span{Content: content, Style: core.Style{VerticalAlign: core.VerticalAlignTextBottom}, Attachment: ink.rubyView(content, ruby, st, press)}
+}
+
+// rubyView is the view of a run of a line, content, with its reading ruby over it, in the line's text style with extra over it (its tone and underline). Without press it takes no pointer, as in the copies under the line; assistive technology reads the run, not its reading, and nothing of a hidden copy.
+func (ink spanInk) rubyView(content, ruby string, extra core.Style, press func(core.PressEvent)) core.Node {
+	base := core.Style{FontSize: ink.style.FontSize, FontFamily: ink.style.FontFamily, FontWeight: ink.style.FontWeight, Color: ink.style.Color}.Merge(extra)
+	small := core.Style{FontSize: ink.style.FontSize * rubyScale, FontFamily: ink.style.FontFamily, Color: base.Color}
+	v := core.View{Style: core.Style{AlignItems: core.AlignCenter, Cursor: extra.Cursor}, OnPress: press, Children: []core.Node{
+		core.Text{Content: ruby, MaxLines: 1, Style: small, Role: core.RoleNone},
+		core.Text{Content: content, MaxLines: 1, Style: base},
+	}}
+	if ink.hidden {
+		v.Children[1] = core.Text{Content: content, MaxLines: 1, Style: base, Role: core.RoleNone}
+	}
+	if press == nil {
+		v.PointerEvents = core.PointerEventsNone
+	}
+	return v
 }
 
 // outlineCopies are the black copies under an outlined line: a soft glow, the shadow below it, and eight hard copies a point around it, which make a stroke along the glyphs that holds over a bright picture.

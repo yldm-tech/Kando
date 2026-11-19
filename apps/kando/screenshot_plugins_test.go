@@ -2,15 +2,18 @@ package main
 
 import (
 	"path/filepath"
+	"slices"
 	"testing"
 
+	"kando/apps/kando/film"
+	"kando/apps/kando/film/subtitle"
 	"kando/apps/kando/plugins"
 	"kando/apps/kando/settings"
 
 	"github.com/nsgo-dev/nsgo/nsgotest"
 )
 
-// TestScreenshotsPlugins renders Settings › 插件 with a glossary pack and an AI service pack installed, the install confirmation of a pack over the main window, as a pack from 从文件安装… or the command line's inbox shows it, and the card of a word on the picture that a dictionary pack answered, which names the dictionary and its credit (plugins-lookup). The packs are in plugins folders of the fixture's home.
+// TestScreenshotsPlugins renders Settings › 插件 with a glossary pack and an AI service pack installed, the install confirmation of a pack over the main window, as a pack from 从文件安装… or the command line's inbox shows it, the card of a word on the picture that a dictionary pack answered, which names the dictionary and its credit (plugins-lookup), and a Japanese line with readings over its words and the colors of their levels in a word list (plugins-marks). The packs are in plugins folders of the fixture's home.
 func TestScreenshotsPlugins(t *testing.T) {
 	f := newScreenshotFixture(t)
 	root := filepath.Join(f.home, "Library", "Application Support", "Kando", "plugins")
@@ -47,6 +50,34 @@ func TestScreenshotsPlugins(t *testing.T) {
 		refresh(tt, a)
 		if !tt.Exists("id:film-lookup-source") || a.vocab.lookup.source != "example.rivers" {
 			t.Fatalf("no dictionary's answer: %+v; texts %q", a.vocab.lookup, tt.Texts())
+		}
+	})
+	// A film heard in Japanese, its first line marked by a Japanese word list chosen in 字幕外观's 逐词标注 with readings on: furigana over the words in Han characters, from the larger Japanese dictionary the list lets the app read, and the words of the list in the tones of their levels.
+	f.shoot(t, "plugins-marks", func(t *testing.T, a *app, tt *nsgotest.App, updates chan func()) {
+		for i, job := range a.library.Jobs {
+			if job.ID == "j1" {
+				a.library.Jobs[i].SpokenLanguage = "ja"
+			}
+		}
+		screenshotOpen(t, a, tt, updates, "j1", protoCues[0].Start)
+		screenshotLoad(tt, a)
+		onEngine(a, func() {
+			subs := &a.player.subs
+			subs.machine = slices.Clone(subs.machine)
+			translation, _ := film.SplitCue(subs.machine[0].Text)
+			subs.machine[0].Text = translation + "\n" + "どの川も、山の上の小さな流れから始まります。"
+			a.playerCorrectSubs()
+		})
+		a.plugins.root = filepath.Join(f.home, "wordlists")
+		pluginsDictInstalled(t, a, tt, updates, pluginWordlist("example.jlpt", "ja"), map[string][]byte{"words.tsv": []byte("川\tb1\n山\tb1\n流れ\tc1\n始まる\tc1\n")})
+		onEngine(a, func() {
+			a.SetMarkReadings(true)
+			a.SetMarkWordlist("example.jlpt")
+		})
+		waitUntil(t, tt, a, updates, func() bool { return a.plugins.marks.lines != nil })
+		refresh(tt, a)
+		if marks := a.CueMarks(0); !slices.ContainsFunc(marks, func(m subtitle.Mark) bool { return m.Ruby == "かわ" }) || !slices.ContainsFunc(marks, func(m subtitle.Mark) bool { return m.Tone == subtitle.ToneWarn }) {
+			t.Fatalf("the first line's marks: %+v", marks)
 		}
 	})
 }

@@ -11,6 +11,7 @@ import (
 	"testing"
 	"time"
 
+	"kando/apps/kando/film/subtitle"
 	"kando/apps/kando/live"
 	"kando/apps/kando/locales"
 	"kando/apps/kando/locales/testlocale"
@@ -82,6 +83,7 @@ type fakeApp struct {
 	focused    bool
 	osd        string
 	lookup     Lookup
+	marks      map[int][]subtitle.Mark
 	info       Info
 	upload     Upload
 	uploadNote bool
@@ -251,6 +253,7 @@ func (f *fakeApp) NotesWords() *bool                       { return &f.notesWord
 func (f *fakeApp) DueCount() int                           { return f.due }
 func (f *fakeApp) StartReview()                            { f.call("review") }
 func (f *fakeApp) LookUpWord(i int, word string)           { f.call(fmt.Sprintf("look up %d %s", i, word)) }
+func (f *fakeApp) CueMarks(i int) []subtitle.Mark          { return f.marks[i] }
 func (f *fakeApp) CloseLookup()                            { f.call("close lookup") }
 func (f *fakeApp) ToggleLookupWord()                       { f.call("toggle word") }
 func (f *fakeApp) ExplainLookupLine()                      { f.call("explain lookup") }
