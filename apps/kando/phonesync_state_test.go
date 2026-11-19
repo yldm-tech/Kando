@@ -67,6 +67,11 @@ func phoneStateLibrary(t *testing.T) (a *app, p phoneTT, dir, talk string, c *ps
 		t.Fatal(err)
 	}
 	refresh(tt, a)
+	// Until the open library's ledger was read since Phone Sync started (phoneStatePrime, whose read goes through the test's updates), the desktop's changes above are not taken in as they are made (phoneSyncPublishState) but at the next call, stamped with the clock's time then: once a test moved the clock, the same time as the change the phone puts in that call, and a tie goes to the device whose ID sorts last, mostly the desktop's (lower-case hex against the phone's upper-case ID), so the phone's change was lost. The read is let through here, so the desktop's state goes into the ledger at the clock's time now.
+	waitUntil(t, tt, a, updates, func() bool {
+		_, read := a.phoneOpenLedger()
+		return read && !a.phone.priming[filepath.Clean(dir)]
+	})
 	return a, p, dir, talk, c, clock
 }
 
