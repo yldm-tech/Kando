@@ -1450,10 +1450,10 @@ func TestPluginMarksSurviveNewLines(t *testing.T) {
 	}
 	apply(tt, a, a.reloadOpenSubtitles)
 	onEngine(a, func() { a.pluginsMarksFollow() })
-	if a.player.subs.ready || &a.plugins.marks.lines[0] != &lines[0] || a.plugins.marking != (pluginsMarkKey{}) {
-		t.Fatalf("the marks went while the subtitles were read again: ready %v, marking %+v", a.player.subs.ready, a.plugins.marking)
+	if !a.player.subs.reading || &a.plugins.marks.lines[0] != &lines[0] || a.plugins.marking != (pluginsMarkKey{}) {
+		t.Fatalf("the marks went while the subtitles were read again: reading %v, marking %+v", a.player.subs.reading, a.plugins.marking)
 	}
-	waitUntil(t, tt, a, updates, func() bool { return a.player.subs.ready })
+	waitUntil(t, tt, a, updates, func() bool { return !a.player.subs.reading })
 	onEngine(a, func() { a.pluginsMarksFollow() })
 	if &a.plugins.marks.lines[0] != &lines[0] || a.plugins.marking != (pluginsMarkKey{}) || !slices.Equal(a.CueMarks(1), bye) {
 		t.Fatalf("a translation marked the film again, or the picture lost its marks: marking %+v, cue 1 %+v", a.plugins.marking, a.CueMarks(1))
@@ -1778,7 +1778,7 @@ func TestPluginMarksKeepTheLinesAsAFilmGrows(t *testing.T) {
 		t.Fatal(err)
 	}
 	apply(tt, a, a.reloadOpenSubtitles)
-	waitUntil(t, tt, a, updates, func() bool { return a.player.subs.ready && len(a.playerCues()) == 3 })
+	waitUntil(t, tt, a, updates, func() bool { return !a.player.subs.reading && len(a.playerCues()) == 3 })
 	onEngine(a, func() {
 		a.pluginsMarksFollow()
 		if a.plugins.marking == (pluginsMarkKey{}) || !slices.Equal(a.CueMarks(0), hello) || !slices.Equal(a.CueMarks(1), bye) || a.CueMarks(2) != nil {

@@ -395,8 +395,13 @@ func (a *app) correctWrite(edits []core.Correction) bool {
 	return true
 }
 
-// correctLoaded reports whether the open film's subtitles and its corrections are read: while they are being read again (reloadOpenSubtitles), the corrections the read brings back would put back a change written meanwhile, and whether the file can be read is not yet known.
+// correctLoaded reports whether the open film's subtitles and its corrections are read and not being read again (subtitleView.reading): while they are, the corrections the read brings back would put back a change written meanwhile, so nothing writes them.
 func (a *app) correctLoaded() bool {
+	return a.correctShown() && !a.player.subs.reading
+}
+
+// correctShown reports whether the open film's subtitles and its corrections are read and show, though they may be being read again, as after a job wrote them out, whose lines go on showing until the read lands: what only reads them, as the export, goes on meanwhile.
+func (a *app) correctShown() bool {
 	subs := a.player.subs
 	return subs.path != "" && subs.key == a.openKey && subs.ready && subs.err == ""
 }

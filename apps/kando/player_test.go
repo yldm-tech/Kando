@@ -136,7 +136,7 @@ func TestOpenFilmReadsItsLinesThroughItsDocument(t *testing.T) {
 		t.Fatal(err)
 	}
 	apply(tt, a, a.reloadOpenSubtitles)
-	waitUntil(t, tt, a, updates, func() bool { return a.player.subs.ready })
+	waitUntil(t, tt, a, updates, func() bool { return !a.player.subs.reading })
 	wantText(t, tt, "See you.")
 	if logs := track.Logs(item.VideoPath); logs != nil {
 		t.Fatalf("reading the film wrote %v", logs)
@@ -2755,7 +2755,7 @@ func TestALineOnScreenIsNotRewrittenWhileItIsRead(t *testing.T) {
 			t.Fatal(err)
 		}
 		apply(tt, a, a.reloadOpenSubtitles)
-		waitUntil(t, tt, a, updates, func() bool { return a.player.subs.ready })
+		waitUntil(t, tt, a, updates, func() bool { return !a.player.subs.reading })
 	}
 	shown := func(i int) string { return a.player.subs.cues[i].Text }
 	playerPlayTo(tt, a, 1500*time.Millisecond)

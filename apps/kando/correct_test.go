@@ -288,7 +288,7 @@ func TestUndoWaitsForTheSubtitlesRead(t *testing.T) {
 		t.Fatal(err)
 	}
 	apply(tt, a, a.reloadOpenSubtitles)
-	if a.player.subs.ready {
+	if !a.player.subs.reading {
 		t.Fatal("the subtitles were read at once")
 	}
 	if a.correctCanUndo() {
@@ -298,13 +298,52 @@ func TestUndoWaitsForTheSubtitlesRead(t *testing.T) {
 	if edits, _ := media.LoadCorrections(sidecar); len(edits) != 1 {
 		t.Fatalf("Undo wrote the corrections while the subtitles were read: %+v", edits)
 	}
-	waitUntil(t, tt, a, updates, func() bool { return a.player.subs.ready })
+	waitUntil(t, tt, a, updates, func() bool { return !a.player.subs.reading })
 	if !a.correctCanUndo() {
 		t.Fatal("Undo is not offered once the subtitles are read")
 	}
 	apply(tt, a, a.correctUndo)
 	if edits, _ := media.LoadCorrections(sidecar); len(edits) != 0 {
 		t.Fatalf("Undo left %+v", edits)
+	}
+}
+
+// TestACorrectionBeingTypedSurvivesAWriteOut checks that while a line's correction is being typed, the film's subtitles written out again, as a job making the film writes them every few seconds, keep the lines showing, the line selected and what was typed, through the read and after it, and the correction is then kept.
+func TestACorrectionBeingTypedSurvivesAWriteOut(t *testing.T) {
+	a, tt, updates := playerOpen(t)
+	playerPlayTo(tt, a, 1500*time.Millisecond)
+	sidecar := media.CorrectionsPath(a.player.subs.path)
+	tt.Key("e")
+	tt.Key("enter")
+	tt.Clear("id:film-correct-translation")
+	tt.Type("id:film-correct-translation", "哈喽。")
+	written := strings.Replace(talkSubtitles, "\nBye.\n", "\n再见。\nBye.\n", 1)
+	if err := os.WriteFile(a.player.subs.path, []byte(written), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	later := time.Now().Add(time.Minute)
+	if err := os.Chtimes(a.player.subs.path, later, later); err != nil {
+		t.Fatal(err)
+	}
+	check := func(when string) {
+		t.Helper()
+		if !a.player.subs.ready || len(a.playerCues()) != 2 || a.correctSelected() != 0 || !tt.Exists("id:film-correct-editor") || tt.Find("id:film-correct-translation").Text != "哈喽。" {
+			t.Fatalf("%s: ready %v, %d lines, selected %d, editor %v", when, a.player.subs.ready, len(a.playerCues()), a.correctSelected(), tt.Exists("id:film-correct-editor"))
+		}
+	}
+	apply(tt, a, a.reloadOpenSubtitles)
+	if !a.player.subs.reading {
+		t.Fatal("the subtitles were read at once")
+	}
+	check("while the subtitles are read again")
+	waitUntil(t, tt, a, updates, func() bool { return !a.player.subs.reading })
+	check("once they are read")
+	if got := correctTexts(a); got[1] != "再见。\nBye." {
+		t.Fatalf("lines %q, want the new translation", got)
+	}
+	tt.Press("id:film-correct-submit")
+	if edits, err := media.LoadCorrections(sidecar); err != nil || len(edits) != 1 || edits[0].Translation == nil || *edits[0].Translation != "哈喽。" {
+		t.Fatalf("corrections %+v, %v", edits, err)
 	}
 }
 

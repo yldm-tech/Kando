@@ -62,18 +62,21 @@ type subtitleView struct {
 	drafts        []bool
 	// showDrafts is whether the lines are marked drafts as the film shows them, told after each change (playerDraftsFollow), so Subs, read for every line on screen, does not look the open film up each time.
 	showDrafts bool
-	edits         []core.Correction
-	editsErr      bool
-	cues          []core.Segment
-	from          []core.Corrected
-	err           string
-	ready         bool
-	mod           time.Time
-	size          int64
-	seen          bool
+	edits      []core.Correction
+	editsErr   bool
+	cues       []core.Segment
+	from       []core.Corrected
+	err        string
+	ready      bool
+	mod        time.Time
+	size       int64
+	seen       bool
 	// held is the line on screen when the machine rewrote it, shown as it was until the playhead leaves it (subtitlesLetGo), so a line is not changed while it is read; machine holds its new text all along, which export and the corrections work from. immediate has the next read of the file show what it holds at once, as after the user's own decision on a change of the final proofread.
 	held      *heldCue
 	immediate bool
+	// reading is a read of the same film's lines again under way (reloadOpenSubtitles), as after a job writes them out: the lines read before go on showing, with the line selected and a correction being typed, until it lands and they are swapped in place. Nothing writes the corrections meanwhile (correctLoaded), as the read would bring back what they held before. readGen tells the read that lands from one begun before it.
+	reading bool
+	readGen int
 }
 
 // loadSubtitles reads the lines of the film whose video is at video off the engine's goroutine: its subtitle document, with path, the subtitle file it shows, taken in where it changed (media.ReadTrack), and the user's corrections of the film (media.LoadCorrections), and the frames of the 片段 its lines cut the film into once read (loadClipFrames). An empty path means this film has no subtitle yet; a file that is gone or cannot be read says so, as the film's lines come from that file until its subtitles are made into the document itself.
@@ -81,22 +84,33 @@ func (a *app) loadSubtitles(key, video, path string) {
 	if a.player.subs.key == key && a.player.subs.path == path {
 		return
 	}
-	// A read of the open film's subtitles again knows what showed before it, so the line on screen is kept as it was.
-	was, immediate := subtitlesShown(a.player.subs.machine, a.player.subs.held), a.player.subs.immediate
-	if a.player.subs.key != key {
-		was = nil
-	}
 	a.player.subs = subtitleView{key: key, video: video, path: path}
 	if path == "" {
 		a.player.subs.ready = true
 		return
 	}
-	update := a.update
-	if update == nil {
+	if a.update == nil {
 		a.player.subs.err = playerErrSubsUnreadable
 		a.player.subs.ready = true
 		return
 	}
+	a.subtitlesRead()
+}
+
+// subtitlesRead reads the open subtitle file's lines off the engine's goroutine, and shows them once read. A read again of lines already shown (subtitleView.reading) keeps the line on screen as it was (subtitlesHold).
+func (a *app) subtitlesRead() {
+	subs := &a.player.subs
+	key, video, path, update := subs.key, subs.video, subs.path, a.update
+	// A read of the open film's subtitles again knows what showed before it, so the line on screen is kept as it was.
+	var was []core.Segment
+	if subs.ready && subs.err == "" {
+		was = subtitlesShown(subs.machine, subs.held)
+	}
+	immediate := subs.immediate
+	subs.immediate = false
+	subs.reading = subs.ready
+	subs.readGen++
+	gen := subs.readGen
 	// Which lines are drafts is told by the language the film is translated into, which its final proofread is made for.
 	language := ""
 	if item, ok := a.openFilm(); ok && item.Key == key {
@@ -121,21 +135,23 @@ func (a *app) loadSubtitles(key, video, path string) {
 			drafts = media.DraftSpans(doc, language)
 		}
 		update(func() {
-			if a.player.subs.key != key || a.player.subs.path != path {
+			subs := &a.player.subs
+			if subs.key != key || subs.path != path || subs.readGen != gen {
 				return
 			}
+			subs.held = nil
 			if !immediate {
-				a.player.subs.held = subtitlesHold(was, cues, a.playerLineAt())
+				subs.held = subtitlesHold(was, cues, a.playerLineAt())
 			}
-			a.player.subs.machine, a.player.subs.machineDrafts = cues, drafts
-			a.player.subs.edits, a.player.subs.editsErr = edits, editsErr != nil
+			subs.machine, subs.machineDrafts = cues, drafts
+			subs.edits, subs.editsErr = edits, editsErr != nil
 			a.playerCorrectSubs()
-			a.player.subs.err = msg
-			a.player.subs.ready = true
+			subs.err = msg
+			subs.ready, subs.reading = true, false
 			if statErr == nil {
-				a.player.subs.mod = info.ModTime()
-				a.player.subs.size = info.Size()
-				a.player.subs.seen = true
+				subs.mod = info.ModTime()
+				subs.size = info.Size()
+				subs.seen = true
 			}
 			a.loadClipFrames()
 		})
@@ -205,7 +221,7 @@ func subtitlesTranscript(video string) string {
 	return media.TranscriptOf(video)
 }
 
-// reloadOpenSubtitles reads the open subtitle again when the file on disk was rewritten or removed.
+// reloadOpenSubtitles reads the open subtitle again when the file on disk was rewritten or removed, the lines read before showing until it lands (subtitleView.reading).
 func (a *app) reloadOpenSubtitles() {
 	if a.player.subs.key == "" || a.player.subs.path == "" {
 		return
@@ -218,9 +234,11 @@ func (a *app) reloadOpenSubtitles() {
 	} else if a.player.subs.seen && a.player.subs.size == info.Size() && a.player.subs.mod.Equal(info.ModTime()) {
 		return
 	}
-	key, video, path := a.player.subs.key, a.player.subs.video, a.player.subs.path
-	a.player.subs.path = ""
-	a.loadSubtitles(key, video, path)
+	// One read again at a time: a change made while it runs is seen once it lands, as it reads what the file holds then. A read asked for whatever the file looks like (seen cleared, as after the user's decision on a change of the final proofread) begins anew, the read under way dropped.
+	if a.player.subs.reading && a.player.subs.seen {
+		return
+	}
+	a.subtitlesRead()
 }
 
 // playerCorrectSubs lays the user's corrections of the open film over the lines the machine wrote, as the picture, the subtitle list and the keys take them (subtitleView.cues), the line held on screen as it showed (subtitleView.held) unless the user corrected it.

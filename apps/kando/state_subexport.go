@@ -62,9 +62,9 @@ func (a *app) subexportKeys(cx *ns.Scope) []shortcut {
 // subexportOverlay is the export dialog over the window while it is open (overlays).
 func (a *app) subexportOverlay(*ns.Scope) ns.Node { return subexport.Dialog{A: a} }
 
-// subexportCan reports whether the open film's subtitles can be exported: they are read, with the user's corrections, and hold a line.
+// subexportCan reports whether the open film's subtitles can be exported: they are read, with the user's corrections, and hold a line. A read of them again does not stop it, as the lines read before show until it lands.
 func (a *app) subexportCan() bool {
-	return a.openKey != "" && a.correctLoaded() && !a.player.subs.editsErr && len(a.player.subs.machine) > 0
+	return a.openKey != "" && a.correctShown() && !a.player.subs.editsErr && len(a.player.subs.machine) > 0
 }
 
 // subexportLines are the open film's lines with the user's corrections laid over them, those marked as no speech among them, in the order they start; none while they cannot be exported (subexportCan).

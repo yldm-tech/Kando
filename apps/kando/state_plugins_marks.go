@@ -64,7 +64,7 @@ type pluginsMarkPrefs struct {
 // pluginsMarksFollow is the plugins' playing and afterChange hook: when the open film's key (pluginsMarkKey) is not that of its marks, nor of the marks being computed, it computes them off the UI thread. Each call costs a comparison only. While the open film's subtitles are read again (reloadOpenSubtitles, a translation batch rewriting the file) it keeps the marks and the computation awaited, so lines that come back with the same times and originals show the same marks without computing them again. It reports whether it changed what a binding reads: marks the picture showed dropped, as when the marks were turned off, or the word list read forgotten, whose problem the plugins page shows (pluginsListIssues).
 func (a *app) pluginsMarksFollow() bool {
 	p := &a.plugins
-	if subs := a.player.subs; a.openKey != "" && subs.key == a.openKey && !subs.ready {
+	if subs := a.player.subs; a.openKey != "" && subs.key == a.openKey && (!subs.ready || subs.reading) {
 		return false
 	}
 	pack, listed := a.pluginsMarkList()
