@@ -347,6 +347,8 @@ func (a *app) SetMarkKnown(on bool) { a.pluginsSetMarks(func(p *pluginsMarkPrefs
 // pluginsSetMarks changes how the lines are marked, saves the settings, saying so when they cannot be saved, and marks the open film's lines again.
 func (a *app) pluginsSetMarks(change func(p *pluginsMarkPrefs)) {
 	change(&a.plugins.prefs)
+	// The phones' marks being computed are for how the lines were marked before.
+	a.pluginsPhoneMarksStop()
 	if err := a.saveSettingsChanged(); err != nil {
 		a.saveErr = a.messages().SettingsSaveFailed(err.Error())
 	}

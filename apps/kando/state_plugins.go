@@ -151,6 +151,7 @@ func (a *app) pluginsHooks() areaHooks {
 			}
 		},
 		quitStarting: func() {
+			a.pluginsPhoneMarksStop()
 			a.pluginsCloseDicts()
 			a.pluginsCloseScripts()
 		},

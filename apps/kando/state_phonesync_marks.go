@@ -39,7 +39,7 @@ func (p phoneMarks) FilmMarks(ctx context.Context, caller psync.Caller, ref psyn
 	type found struct {
 		marks pluginsMarks
 		wait  *pluginsMarkWait
-		on    bool
+		state pluginsMarkState
 	}
 	got, err := remote.OnUI(ctx, a.update, func() (found, error) {
 		if a.libraryLocked(f.lib.Dir) {
@@ -47,11 +47,15 @@ func (p phoneMarks) FilmMarks(ctx context.Context, caller psync.Caller, ref psyn
 		}
 		// The vocabulary the app holds is the open library's, so the words of a film of another library are not underlined.
 		vocab := f.lib.Dir == a.snap().LibraryDir
-		m, w, on := a.pluginsMarksFor(f.item.VideoPath, a.phoneMarksSpoken(f.item), vocab, originals)
-		return found{marks: m, wait: w, on: on}, nil
+		m, w, state := a.pluginsMarksFor(f.item.VideoPath, a.phoneMarksSpoken(f.item), vocab, originals)
+		return found{marks: m, wait: w, state: state}, nil
 	})
-	if err != nil || !got.on {
+	switch {
+	case err != nil || got.state == pluginsMarksOff:
 		return psync.FilmMarks{}, err
+	case got.state == pluginsMarksNotReady:
+		// Marks computed before the plugins are read would lack the word list or the readings, and the phone would keep them in place of its own.
+		return psync.FilmMarks{Pending: true}, nil
 	}
 	if w := got.wait; w != nil {
 		wait := phoneMarksWait
@@ -62,6 +66,10 @@ func (p phoneMarks) FilmMarks(ctx context.Context, caller psync.Caller, ref psyn
 		defer t.Stop()
 		select {
 		case <-w.done:
+			// A run stopped by a newer ask of the film, or a change of how it is marked, has no marks to answer.
+			if w.stopped {
+				return psync.FilmMarks{Pending: true}, nil
+			}
 			got.marks = w.marks
 		case <-t.C:
 			return psync.FilmMarks{Pending: true}, nil
@@ -72,12 +80,10 @@ func (p phoneMarks) FilmMarks(ctx context.Context, caller psync.Caller, ref psyn
 	return phoneMarksOf(got.marks), nil
 }
 
-// phoneMarksSpoken is the language spoken in item, as the open film's marks take it from its job (pluginsMarkKey); a film without a job, one found in the library's folder, as the films list it (films.Heard).
+// phoneMarksSpoken is the language spoken in item, as the player's key takes it when item is open (pluginsMarkKey): from the job its key names, "" for a film found in the library's folder, whose key is its video's path, so the phone's marks are the player's.
 func (a *app) phoneMarksSpoken(item films.Film) string {
-	if job, ok := a.library.Find(item.JobID); ok && item.JobID != "" {
-		return cmp.Or(job.SpeechLanguage, job.SpokenLanguage)
-	}
-	return films.Heard(item)
+	job, _ := a.library.Find(item.Key)
+	return cmp.Or(job.SpeechLanguage, job.SpokenLanguage)
 }
 
 // phoneMarksOf is m as the protocol carries it: the lines with marks, each with the hash of the original they were computed for.

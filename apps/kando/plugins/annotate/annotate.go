@@ -2,6 +2,8 @@
 package annotate
 
 import (
+	"hash/fnv"
+	"strconv"
 	"strings"
 	"unicode"
 	"unicode/utf8"
@@ -191,4 +193,13 @@ func hiragana(s string) string {
 // SpokenIn reports whether a word of the vocabulary spoken in word is of a film spoken in film, as Known is taken from the vocabulary: the two languages alike, case and spaces aside.
 func SpokenIn(word, film string) bool {
 	return strings.EqualFold(strings.TrimSpace(word), strings.TrimSpace(film))
+}
+
+// LinesHash is the hash of lines, the originals of a film's lines in their order, which their marks depend on, as a key of marks computed for them.
+func LinesHash(lines []string) string {
+	h := fnv.New64a()
+	for _, l := range lines {
+		h.Write([]byte(l + "\x00"))
+	}
+	return strconv.FormatUint(h.Sum64(), 36)
 }

@@ -130,3 +130,87 @@ func TestPluginMarksForAPhoneOfAGrowingFilm(t *testing.T) {
 		t.Fatalf("the phone is sent %+v", got)
 	}
 }
+
+// TestPluginMarksForAPhoneWaitForThePlugins checks a phone asking right after the app starts, before the plugins folder is read or while a dictionary turned on is still opening: the desktop answers pending, rather than marks without the word list or the readings that the phone would keep in place of its own, and computes nothing it would keep; once they are read, the marks.
+func TestPluginMarksForAPhoneWaitForThePlugins(t *testing.T) {
+	a, tt, updates, _, c := phonePaired(t)
+	for i := range a.library.Jobs {
+		if a.library.Jobs[i].ID == "yt" {
+			a.library.Jobs[i].SpokenLanguage = "en"
+		}
+	}
+	pluginsDictInstalled(t, a, tt, updates, pluginWordlist("example.cefr", "en"), map[string][]byte{"words.tsv": []byte("hello\tb1\ngeneral\tc1\n")})
+	pluginsDictInstalled(t, a, tt, updates, pluginDictionary("example.cedict", "CEDICT", "zh", "en"), map[string][]byte{"words.tsv": []byte("你好\tnǐ hǎo\thello\n")})
+	apply(tt, a, func() { a.SetMarkWordlist("example.cefr") })
+	marks := func(ctx context.Context) (psync.FilmMarks, error) { return c.FilmMarks(ctx, "yt") }
+
+	onEngine(a, func() { a.plugins.scanned = false })
+	if got, err := phoneCall(t, a, tt, updates, marks); err != nil || !got.Pending || len(got.Lines) != 0 {
+		t.Fatalf("before the plugins are read the marks are %+v, %v", got, err)
+	}
+	onEngine(a, func() { a.plugins.scanned = true })
+
+	// The readings turned on while the dictionary is still opening.
+	apply(tt, a, func() { a.SetMarkReadings(true) })
+	var opened *pluginsDict
+	onEngine(a, func() {
+		opened = a.plugins.dicts["example.cedict"]
+		a.plugins.dicts["example.cedict"] = &pluginsDict{hash: opened.hash}
+	})
+	if opened == nil || opened.d == nil {
+		t.Fatal("the dictionary is not open")
+	}
+	if got, err := phoneCall(t, a, tt, updates, marks); err != nil || !got.Pending {
+		t.Fatalf("with a dictionary opening the marks are %+v, %v", got, err)
+	}
+	if len(a.plugins.phone.kept) != 0 || len(a.plugins.phone.running) != 0 {
+		t.Fatalf("marks were computed before the plugins were read: kept %d, running %d", len(a.plugins.phone.kept), len(a.plugins.phone.running))
+	}
+	onEngine(a, func() { a.plugins.dicts["example.cedict"] = opened })
+	if got, err := phoneCall(t, a, tt, updates, marks); err != nil || got.Pending || len(got.Lines) != 2 {
+		t.Fatalf("once the plugins are read the marks are %+v, %v", got, err)
+	}
+}
+
+// TestPluginMarksForAPhoneKeepTheNewest checks two asks of one film for different lines, the second before the first is computed: the first run is stopped, those waiting for it are let go without marks, and the marks kept are the second's, whenever the first ends; a change of how the lines are marked stops a run too.
+func TestPluginMarksForAPhoneKeepTheNewest(t *testing.T) {
+	a, tt, updates, _, _ := phonePaired(t)
+	pluginsDictInstalled(t, a, tt, updates, pluginWordlist("example.cefr", "en"), map[string][]byte{"words.tsv": []byte("hello\tb1\ngeneral\tc1\n")})
+	apply(tt, a, func() { a.SetMarkWordlist("example.cefr") })
+	start := func(originals ...string) *pluginsMarkWait {
+		var w *pluginsMarkWait
+		onEngine(a, func() { _, w, _ = a.pluginsMarksFor("/films/growing.mp4", "en", false, originals) })
+		if w == nil {
+			t.Fatal("no run started")
+		}
+		return w
+	}
+	older := start("Hello there")
+	newer := start("Hello there", "General Kenobi")
+	if !older.stopped || !older.stop.Load() || newer.stopped || len(a.plugins.phone.running) != 1 {
+		t.Fatalf("the older run goes on: older stopped %v, newer stopped %v, running %d", older.stopped, newer.stopped, len(a.plugins.phone.running))
+	}
+	select {
+	case <-older.done:
+	default:
+		t.Fatal("those waiting for the older run wait on")
+	}
+	waitUntil(t, tt, a, updates, func() bool { return len(a.plugins.phone.running) == 0 })
+	// Whatever the older run's report, which may come after, the newer marks stay.
+	for range 3 {
+		select {
+		case fn := <-updates:
+			onEngine(a, fn)
+		default:
+		}
+	}
+	if kept := a.plugins.phone.kept; len(kept) != 1 || len(kept[0].originals) != 2 || newer.stopped {
+		t.Fatalf("kept %+v", kept)
+	}
+
+	run := start("Hello there", "General Kenobi", "Bye")
+	apply(tt, a, func() { a.SetMarkKnown(true) })
+	if !run.stopped || len(a.plugins.phone.running) != 0 {
+		t.Fatal("a change of how the lines are marked left the run going")
+	}
+}
