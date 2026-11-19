@@ -11,10 +11,16 @@ import (
 	"testing"
 )
 
-// providers are a Local over a new folder and an ObjectStore over a fake bucket, rooted below its top so the root's prefix is part of every key.
+// providers are a Local over a new folder, an ObjectStore over a fake bucket, rooted below its top so the root's prefix is part of every key, a WebDAV and an SFTP provider over servers in the test, and, when KANDO_TEST_SMB names a share, an SMB provider over a new folder of it.
 func providers(t *testing.T) map[string]Provider {
 	store, _ := fakeStore(t, "kando/films")
-	return map[string]Provider{"local": NewLocal(t.TempDir()), "objects": store}
+	dav, _ := webdavProvider(t)
+	sf, _ := sftpProvider(t)
+	out := map[string]Provider{"local": NewLocal(t.TempDir()), "objects": store, "webdav": dav, "sftp": sf}
+	if smb := smbProvider(t); smb != nil {
+		out["smb"] = smb
+	}
+	return out
 }
 
 func write(t *testing.T, p Provider, name, body string) {

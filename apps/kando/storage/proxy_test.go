@@ -60,12 +60,12 @@ func TestProxyServesWholeFilesAndRanges(t *testing.T) {
 			if resp.StatusCode != http.StatusOK || body != "0123456789" || resp.Header.Get("Content-Type") != "video/mp4" || resp.Header.Get("Accept-Ranges") != "bytes" {
 				t.Fatalf("whole: %d %q %v", resp.StatusCode, body, resp.Header)
 			}
-			// If-Range takes the store's ETag when there is one, else the file's time.
+			// If-Range takes the store's ETag when there is one (an object store's or a WebDAV server's), else the file's time.
 			validator := resp.Header.Get("ETag")
 			if validator == "" {
 				validator = resp.Header.Get("Last-Modified")
 			}
-			if validator == "" || (kind == "objects") != strings.HasPrefix(validator, `"`) {
+			if validator == "" || (kind == "objects" || kind == "webdav") != strings.HasPrefix(validator, `"`) {
 				t.Fatalf("validator %q", validator)
 			}
 
