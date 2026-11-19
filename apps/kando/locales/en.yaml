@@ -7578,6 +7578,197 @@ settingsPluginsWordlistDetail:
   placeholders:
     language: { type: "String", example: "ja" }
     count: { type: "int", example: "5" }
+settingsPluginsKindScript:
+  message: "Script Plugins"
+  description: "Plugins page: heading of the group of script plugins, signed code that runs sandboxed."
+settingsPluginsSourceOfficial:
+  message: "Official"
+  description: "Plugins page: badge after a script plugin's name saying Kando's official key signed it."
+settingsPluginsSourceDeveloper:
+  message: "Developer"
+  description: "Plugins page: badge after a script plugin's name saying this computer's developer key signed it."
+settingsPluginsUpdated:
+  message: "This update asks for more than before. Look over its permissions again."
+  description: "Plugin details: note when an update of a script plugin asks for permissions the version before did not."
+settingsPluginsPermissions:
+  message: "Permissions"
+  description: "Plugin details: heading of what a script plugin may do, each with a switch that grants it."
+settingsPluginsRisky:
+  message: "It can read your subtitles and reach the network: what the subtitles say could lead it to send what it reads. Grant both only if you trust it."
+  description: "Install confirmation and plugin details: warning when a script plugin asks to read subtitle lines and to reach the network."
+settingsPluginsSettings:
+  message: "Settings"
+  description: "Plugin details: heading of the settings a script plugin declares."
+settingsPluginsAudit:
+  message: "Show Audit Log"
+  description: "Plugin details: button that shows the plugins' audit log in the file manager."
+settingsPluginsOptional:
+  message: "Optional"
+  description: "Plugin details: badge after a permission the plugin can do without."
+settingsPluginsSecretSaved:
+  message: "Saved"
+  description: "Plugin details: badge of a secret setting kept in the system's secure store."
+settingsPluginsSecretClear:
+  message: "Clear"
+  description: "Plugin details: button that removes a secret setting from the system's secure store."
+settingsPluginsSecretSave:
+  message: "Save"
+  description: "Plugin details: button that keeps a secret setting in the system's secure store."
+settingsPluginsInstallSourceOfficial:
+  message: "Published by Kando · signature verified"
+  description: "Install confirmation: where a script plugin signed by Kando's official key comes from."
+settingsPluginsInstallSourceDeveloper:
+  message: "Signed with this computer's developer key"
+  description: "Install confirmation: where a script plugin packed in developer mode comes from."
+settingsPluginsDeveloperWarning:
+  message: "Developer plugins run only in developer mode and were not reviewed by Kando."
+  description: "Install confirmation: warning for a script plugin signed with the developer key."
+settingsPluginsWants:
+  message: "It asks to"
+  description: "Install confirmation: heading of the permissions a script plugin needs."
+settingsPluginsWantsOptional:
+  message: "It can also use, if you allow"
+  description: "Install confirmation: heading of the permissions a script plugin can do without."
+settingsPluginsScriptStaysOff:
+  message: "It stays off once installed: in its details, grant what it may do, then turn it on."
+  description: "Install confirmation: a script plugin does nothing until the user grants it and turns it on."
+settingsPluginsDeveloper:
+  message: "Developer"
+  description: "Plugins page: heading of the developer mode card."
+settingsPluginsDeveloperMode:
+  message: "Developer Mode"
+  description: "Plugins page: switch that trusts plugins signed with this computer's developer key."
+settingsPluginsDeveloperModeHint:
+  message: "Trusts plugins you pack on this computer"
+  description: "Plugins page: under the developer mode switch."
+settingsPluginsDevKey:
+  message: "Developer Key"
+  description: "Plugins page: row of the developer key in developer mode."
+settingsPluginsDevKeyReady:
+  message: "Kept in the system's secure store"
+  description: "Plugins page: under the developer key once there is one."
+settingsPluginsDevKeyNone:
+  message: "Make one to pack plugin folders"
+  description: "Plugins page: under the developer key while there is none."
+settingsPluginsDevKeyMake:
+  message: "Make Developer Key"
+  description: "Plugins page: button that makes the developer key."
+settingsPluginsDevPack:
+  message: "Pack and Install Folder…"
+  description: "Plugins page: button that signs a plugin folder with the developer key and installs it after its confirmation."
+settingsPluginsDevPickTitle:
+  message: "Choose a plugin folder with kando-plugin.json and plugin.tsx"
+  description: "Folder panel: title when picking a developer's plugin folder to pack."
+settingsPluginsPermNetwork:
+  message: "Reach the network: {rules}"
+  description: "Install confirmation and plugin details: a script plugin's network permission; {rules} lists the requests it may make, such as POST http://127.0.0.1:8765 /."
+  placeholders:
+    rules: { type: "String", example: "POST http://127.0.0.1:8765 /" }
+settingsPluginsPermFilmCurrent:
+  message: "Read the film playing: its title, languages and position"
+  description: "Permission of a script plugin."
+settingsPluginsPermLineCurrent:
+  message: "Read the line playing"
+  description: "Permission of a script plugin."
+settingsPluginsPermLinesSeen:
+  message: "Read the lines of the film playing, up to where you watched"
+  description: "Permission of a script plugin: never the lines not watched yet."
+settingsPluginsPermSavedRead:
+  message: "Read your saved lines"
+  description: "Permission of a script plugin."
+settingsPluginsPermWordsRead:
+  message: "Read your vocabulary"
+  description: "Permission of a script plugin."
+settingsPluginsPermToast:
+  message: "Show short messages in the window"
+  description: "Permission of a script plugin."
+settingsPluginsPermOpenURL:
+  message: "Open web pages in your browser, after you agree to each"
+  description: "Permission of a script plugin: https pages only, confirmed each time."
+settingsPluginsPermSettingsGet:
+  message: "Read its own settings"
+  description: "Permission of a script plugin that needs no grant."
+settingsPluginsConflicts:
+  message: "Kando already uses the keys of {commands}; they work from the menu bar and the command palette."
+  description: "Plugin details: commands whose shortcut keys Kando's own shortcuts take."
+  placeholders:
+    commands: { type: "String", example: "Send to Anki" }
+settingsPluginsStoppedInit:
+  message: "Turned off: it failed as it started"
+  description: "Plugins page: why Kando turned a script plugin off."
+settingsPluginsStoppedFailed:
+  message: "Turned off: it failed too often"
+  description: "Plugins page: why Kando turned a script plugin off."
+settingsPluginsStoppedSlow:
+  message: "Turned off: it kept Kando from responding"
+  description: "Plugins page: why Kando turned a script plugin off."
+settingsPluginsStoppedMemory:
+  message: "Turned off: it used too much memory"
+  description: "Plugins page: why Kando turned a script plugin off."
+settingsPluginsStoppedHung:
+  message: "Turned off: Kando stopped responding the last time it ran"
+  description: "Plugins page: why Kando turned a script plugin off after a call was still running when Kando stopped."
+pluginsErrUnknownPerm:
+  message: "It asks for a permission this version of Kando doesn't have."
+  description: "Why a script plugin cannot be installed."
+pluginsErrBadCapabilities:
+  message: "It asks for access Kando doesn't give plugins."
+  description: "Why a script plugin cannot be installed: capabilities beyond its permissions and narrow network rules."
+pluginsErrTampered:
+  message: "It was changed after it was signed."
+  description: "Why a script plugin cannot be installed or run: its parts disagree with its signed code."
+pluginsErrUntrusted:
+  message: "It isn't signed by a key Kando trusts."
+  description: "Why a script plugin cannot be installed or run."
+pluginsErrRevoked:
+  message: "It was withdrawn."
+  description: "Why a script plugin cannot be installed or run: its key or package was revoked."
+pluginsErrRollback:
+  message: "It's older than a version installed before."
+  description: "Why a script plugin cannot be installed."
+pluginsErrNeedsNewer:
+  message: "It needs a newer version of Kando."
+  description: "Why a script plugin cannot be installed."
+pluginsErrScope:
+  message: "Its ID belongs to another publisher than the one who signed it."
+  description: "Why a script plugin cannot be installed."
+pluginsErrNoManifest:
+  message: "Its code doesn't say what it is, or fails as it starts."
+  description: "Why a script plugin cannot be installed or run: kandoManifest is missing or throws."
+pluginsErrNoEntry:
+  message: "The folder has no plugin.tsx."
+  description: "Why a developer's plugin folder cannot be packed."
+pluginsErrTooManyScripts:
+  message: "At most 12 script plugins can be on at once."
+  description: "Why a script plugin's switch did not turn on."
+pluginsErrDevID:
+  message: "A developer plugin can't replace a plugin installed from elsewhere."
+  description: "Why a developer plugin cannot be installed: its id is taken by a plugin that is not a developer one."
+pluginsErrNoDevKey:
+  message: "Make a developer key first."
+  description: "Why a plugin folder cannot be packed."
+pluginsOpenURLTitle:
+  message: "Open {host}?"
+  description: "System alert before a page a script plugin asked for opens; {host} is the page's host."
+  placeholders:
+    host: { type: "String", example: "ankiweb.net" }
+pluginsOpenURLMessage:
+  message: "The plugin {plugin} wants to open {url} in your browser."
+  description: "System alert before a page a script plugin asked for opens."
+  placeholders:
+    plugin: { type: "String", example: "AnkiConnect" }
+    url: { type: "String", example: "https://ankiweb.net/" }
+pluginsOpenURLOpen:
+  message: "Open"
+  description: "System alert: button that opens the page a script plugin asked for."
+pluginsCommandFailed:
+  message: "{command} didn't finish."
+  description: "Toast under a plugin's name when one of its commands failed."
+  placeholders:
+    command: { type: "String", example: "Send to Anki" }
+pluginsToastClose:
+  message: "Close"
+  description: "Accessibility name of the button that closes a plugin's toast."
 settingsPhoneConflictUse:
   message: "Use This"
   description: "Button under one version of a sync conflict that keeps it."

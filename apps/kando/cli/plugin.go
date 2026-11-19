@@ -6,6 +6,7 @@ import (
 	"os"
 
 	"kando/apps/kando/plugins"
+	"kando/apps/kando/plugins/script"
 )
 
 // pluginsRoot is the plugins folder `kando plugin list` reads, plugins.DefaultRoot; tests point it at a folder of their own.
@@ -20,6 +21,9 @@ type pluginInfo struct {
 	Hash    string `json:"hash"`
 	Enabled *bool  `json:"enabled,omitempty"`
 	Dir     string `json:"dir,omitempty"`
+	// Source and Signer are a script plugin's, once validate verified its signature: official or developer, and the ID of the release key that signed it.
+	Source string `json:"source,omitempty"`
+	Signer string `json:"signer,omitempty"`
 }
 
 func newPluginInfo(p plugins.Pack) pluginInfo {
@@ -75,10 +79,29 @@ func pluginValidate(e *env, src string) error {
 		return fmt.Errorf("%s: %w", src, err)
 	}
 	info := newPluginInfo(p)
+	rows := [][]string{{"id", info.ID}, {"kind", info.Kind}, {"version", info.Version}, {"name", info.Name}, {"hash", info.Hash}}
+	if p.Kind == plugins.KindScript {
+		v, err := pluginVerify(p)
+		if err != nil {
+			return fmt.Errorf("%s: %w", src, err)
+		}
+		info.Source, info.Signer = string(v.Source), v.Signer
+		rows = append(rows, []string{"source", info.Source}, []string{"signer", info.Signer})
+	}
 	if e.json {
 		return pluginJSON(e, info)
 	}
-	return table(e.stdout, [][]string{{"id", info.ID}, {"kind", info.Kind}, {"version", info.Version}, {"name", info.Name}, {"hash", info.Hash}})
+	return table(e.stdout, rows)
+}
+
+// pluginVerify verifies the signature of the script plugin p as the app does (script.Verify), against Kando's official root and the revocation lists and builds the plugins folder's trust keeps, without writing to it. The developer key is in the system's secure store, which the command line does not open, so a developer plugin is refused here as signed by a key not trusted; and its code's word on what it is (kandoManifest) is checked by the app alone, which runs it in a sandbox.
+func pluginVerify(p plugins.Pack) (script.Verified, error) {
+	roots := script.DefaultRoots(nil)
+	trust, err := script.OpenTrust(pluginsRoot(), roots)
+	if err != nil {
+		return script.Verified{}, err
+	}
+	return script.Verify(trust, roots, p)
 }
 
 // pluginInstall checks the pack file src as validate does and drops it into the inbox of the plugins folder for the app to confirm. A folder is refused: the inbox holds files, and a folder is installed by dropping it on Settings › Plugins.
@@ -123,6 +146,11 @@ func pluginList(e *env) error {
 	for _, p := range packs {
 		info := newPluginInfo(p)
 		enabled := state.Enabled(p.ID)
+		if p.Kind == plugins.KindScript {
+			// The command line does not verify who signed an installed script plugin: it reads as on when its entry turned it on for its content.
+			entry, ok := state.Entry(p.ID)
+			enabled = ok && entry.Enabled && entry.Hash == p.Hash
+		}
 		info.Enabled, info.Dir = &enabled, p.Dir
 		infos = append(infos, info)
 	}

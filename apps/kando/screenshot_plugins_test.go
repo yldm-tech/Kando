@@ -4,17 +4,19 @@ import (
 	"path/filepath"
 	"slices"
 	"testing"
+	"time"
 
 	"kando/apps/kando/film"
 	"kando/apps/kando/film/subtitle"
 	"kando/apps/kando/plugins"
+	"kando/apps/kando/plugins/script"
 	"kando/apps/kando/saved"
 	"kando/apps/kando/settings"
 
 	"github.com/nsgo-dev/nsgo/nsgotest"
 )
 
-// TestScreenshotsPlugins renders Settings › 插件 with a glossary pack and an AI service pack installed, and with two dictionary packs, which move up and down, the details of one open (settings-plugins-dictionaries), the install confirmation of a pack over the main window, as a pack from 从文件安装… or the command line's inbox shows it, and of a site pack with a checkbox for each of its sites (plugins-install-site), the card of a word on the picture that a dictionary pack answered, which names the dictionary and its credit (plugins-lookup), and a Japanese line with readings over its words, a line in the color of their level under the words of a word list and a dashed one under a word in the vocabulary (plugins-marks). The packs are in plugins folders of the fixture's home.
+// TestScreenshotsPlugins renders Settings › 插件 with a glossary pack and an AI service pack installed, the install confirmation of a script plugin (plugins-script-install) and a script plugin's details with what it was granted (plugins-script-details), and with two dictionary packs, which move up and down, the details of one open (settings-plugins-dictionaries), the install confirmation of a pack over the main window, as a pack from 从文件安装… or the command line's inbox shows it, and of a site pack with a checkbox for each of its sites (plugins-install-site), the card of a word on the picture that a dictionary pack answered, which names the dictionary and its credit (plugins-lookup), and a Japanese line with readings over its words, a line in the color of their level under the words of a word list and a dashed one under a word in the vocabulary (plugins-marks). The packs are in plugins folders of the fixture's home.
 func TestScreenshotsPlugins(t *testing.T) {
 	f := newScreenshotFixture(t)
 	root := filepath.Join(f.home, "Library", "Application Support", "Kando", "plugins")
@@ -81,6 +83,38 @@ func TestScreenshotsPlugins(t *testing.T) {
 		refresh(tt, a)
 		if !tt.Exists("id:film-lookup-source") || a.vocab.lookup.source != "example.rivers" {
 			t.Fatalf("no dictionary's answer: %+v; texts %q", a.vocab.lookup, tt.Texts())
+		}
+	})
+	// A script plugin as the install confirmation shows it, signed by a key standing in for Kando's official one: where it comes from, what it asks for, needed and optional, the lines read together with the network flagged, and that it stays off once installed.
+	key := newPluginsKey(t)
+	f.shoot(t, "plugins-script-install", func(t *testing.T, a *app, tt *nsgotest.App, updates chan func()) {
+		a.plugins.root = filepath.Join(f.home, "scripts")
+		a.plugins.script.official = key.public
+		onEngine(a, func() {
+			staged, pack, err := plugins.Stage(a.plugins.root, pluginScriptFolder(t, key, "acme.anki", "1.2.0", pluginAnkiFields, pluginAnkiCode))
+			v, err := pluginsVerifyStaged(a.pluginsStagedVerifier(), pack, err)
+			a.pluginsAskStaged(pack, staged, v, err)
+		})
+		refresh(tt, a)
+		if !tt.Exists("id:plugins-install-confirm") || !tt.Exists("id:plugins-install-risky") {
+			t.Fatalf("no confirmation of the script plugin: %v; texts %q", a.plugins.pending.err, tt.Texts())
+		}
+	})
+	// The same plugin installed, its details open on 插件: its permissions with the saved lines and the network granted, its commands' key conflict and its settings.
+	f.shoot(t, "plugins-script-details", func(t *testing.T, a *app, tt *nsgotest.App, updates chan func()) {
+		root := filepath.Join(f.home, "installed")
+		pluginsScriptInstalled(t, root, pluginScriptFolder(t, key, "acme.anki", "1.2.0", pluginAnkiFields, pluginAnkiCode))
+		a.plugins.root = root
+		a.plugins.script.official = key.public
+		a.plugins.script.watch = script.Watch{Beat: 100 * time.Millisecond, Stall: time.Minute, Stalls: 3, Deadline: time.Minute}
+		a.prefs.overMain = true
+		onEngine(a, a.pluginsScan)
+		scriptsSettle(t, a, tt, updates, func() bool { return a.plugins.script.verified != nil && !a.plugins.inboxBusy })
+		scriptsGrant(t, a, tt, updates, "acme.anki", string(plugins.PermSavedRead), pluginsNetwork)
+		tt = settingsOpenAt(a, tt, settings.SectionPlugins)
+		tt.Press("id:settings-plugins-details-acme.anki")
+		if !tt.Exists("id:settings-plugins-grant-acme.anki-network") {
+			t.Fatalf("no details; texts %q", tt.Texts())
 		}
 	})
 	// A film heard in Japanese, its first line marked by a Japanese word list chosen in 字幕外观's 逐词标注 with readings and 标出已学词 on: furigana over the words in Han characters, from the larger Japanese dictionary the list lets the app read, a thick line in the tone of their level under the words of the list, and a dashed one under 小さな, a word in the vocabulary.

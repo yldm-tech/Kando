@@ -14,6 +14,7 @@ import (
 	"kando/apps/kando/locales"
 	"kando/apps/kando/plugins"
 	"kando/apps/kando/plugins/dict"
+	"kando/apps/kando/plugins/script"
 	"kando/apps/kando/settings"
 	"kando/packages/core"
 	"kando/packages/media"
@@ -24,7 +25,7 @@ import (
 
 // Plugins: the data packs the user installs from Settings › 插件 (docs/plugin-system.md). The packs are in the plugins folder beside settings.json (pluginsRoot), each in <kind>/<id>, and which are turned on in its state.json (plugins.State), never in settings.json. The app reads the folder off the UI thread once its window is ready (pluginsScan) and again after each install, removal or switch. A pack is installed only after the user confirmed what it is (the install confirmation), whether it came from 从文件安装…, a drop on the page, or the command line's inbox (`kando plugin install`), which the app looks at as it starts and each time it comes to the front. What the packs add: a glossary pack's terms join the global glossary of the films they match (pluginTerms), after the user's own; an ai-service pack's service joins the AI services the app offers (pluginPresets, through llmPresets); a dictionary pack answers lookups, offline, before the AI service (state_plugins_dict.go, vocabResolve); a word list pack draws a line in the color of their level under the words of a film's lines, with readings over them from the dictionaries (state_plugins_marks.go); a site pack's sites, those the user allowed, are known to the built-in browser's 下载视频 (state_plugins_sites.go).
 
-// pluginsUI is the plugins' state. packs and issues are what the last read of the plugins folder found, state and stateErr what state.json held (plugins.LoadState); scanGen counts the reads, so only the last one's answer is kept. order is every pack id the app has seen, in the order it came (savedPlugins), which orders the list and decides which glossary pack's term wins. busy is set while an install, a removal, a switch or a copy into the staging folder runs, and err is why the last one failed; inboxBusy while the inbox is looked at, which keeps none of those from running. pending is the install confirmation, nil while it is closed. gone is the AI service of a pack that went while it was in use (pluginsGoneService). dicts are the dictionary packs opened for lookups, by id (pluginsSyncDicts), and opening the index names (dict.IndexName) of the contents being opened; engine's goroutine only. prefs is how the open film's lines are marked (savedPlugins), marks their marks, marking the key of the marks being computed, zero while none are, and stop what stops that computation (pluginsMarkStop), subs the lines whose hash was taken last and list the word list chosen as last read (state_plugins_marks.go).
+// pluginsUI is the plugins' state. packs and issues are what the last read of the plugins folder found, state and stateErr what state.json held (plugins.LoadState); scanGen counts the reads, so only the last one's answer is kept. order is every pack id the app has seen, in the order it came (savedPlugins), which orders the list and decides which glossary pack's term wins. busy is set while an install, a removal, a switch or a copy into the staging folder runs, and err is why the last one failed; inboxBusy while the inbox is looked at, which keeps none of those from running. pending is the install confirmation, nil while it is closed. gone is the AI service of a pack that went while it was in use (pluginsGoneService). dicts are the dictionary packs opened for lookups, by id (pluginsSyncDicts), and opening the index names (dict.IndexName) of the contents being opened; engine's goroutine only. prefs is how the open film's lines are marked (savedPlugins), marks their marks, marking the key of the marks being computed, zero while none are, and stop what stops that computation (pluginsMarkStop), subs the lines whose hash was taken last and list the word list chosen as last read (state_plugins_marks.go). script is the script plugins' (state_plugins_script.go).
 type pluginsUI struct {
 	// root is the plugins folder when set, as the tests set it; pluginsRoot otherwise finds it beside settings.json.
 	root      string
@@ -53,13 +54,14 @@ type pluginsUI struct {
 	// dictHintShown is set once the lookup card showed the hint to install an offline dictionary (pluginsDictHint), which shows once.
 	dictHintShown bool
 	// sites are the site packs turned on with the domains the user allowed, which the browser's 下载视频 knows (state_plugins_sites.go).
-	sites []pluginsSite
+	sites  []pluginsSite
+	script pluginsScripts
 }
 
 // pluginsGone is the AI service of a pack that is not offered now, though the endpoint in use is still its own: id is its preset id (pack.<id>) and base its endpoint. The service settings.json saved, when it was a pack's, starts as one, as the packs are read only once the window is ready.
 type pluginsGone struct{ id, base string }
 
-// pluginsPending is the install confirmation: the pack staged in staged (plugins.Stage), or why the file could not be staged (err). release gives back the modal flag it holds (holdModal). sites are the domains of a site pack the user ticked, which it is installed allowing (state_plugins_sites.go).
+// pluginsPending is the install confirmation: the pack staged in staged (plugins.Stage), a script plugin verified and its code's word on what it is checked (pluginsStagedCheck), or why the file could not be staged (err). release gives back the modal flag it holds (holdModal). sites are the domains of a site pack the user ticked, which it is installed allowing (state_plugins_sites.go).
 type pluginsPending struct {
 	pack    plugins.Pack
 	staged  string
@@ -70,13 +72,14 @@ type pluginsPending struct {
 
 func newPluginsUI() pluginsUI { return pluginsUI{} }
 
-// savedPlugins is the plugins' part of settings.json: preferences alone, never what is installed or turned on, which the plugins folder and its state.json keep. PluginOrder is every pack id seen, in the order it came; an id whose pack is not in the plugins folder now is kept, and the page lists it as missing until the user forgets it. PluginReadings, PluginWordlist and PluginKnownWords are how 字幕外观's 逐词标注 marks the words of the originals (pluginsMarkPrefs): readings, the id of the word list whose levels draw a line under them, kept while that pack is missing, and a dashed line under the words in the vocabulary. PluginDictHintShown is set once the lookup card showed the hint to install an offline dictionary, which shows once (pluginsDictHint).
+// savedPlugins is the plugins' part of settings.json: preferences alone, never what is installed or turned on, which the plugins folder and its state.json keep. PluginOrder is every pack id seen, in the order it came; an id whose pack is not in the plugins folder now is kept, and the page lists it as missing until the user forgets it. PluginReadings, PluginWordlist and PluginKnownWords are how 字幕外观's 逐词标注 marks the words of the originals (pluginsMarkPrefs): readings, the id of the word list whose levels draw a line under them, kept while that pack is missing, and a dashed line under the words in the vocabulary. PluginDictHintShown is set once the lookup card showed the hint to install an offline dictionary, which shows once (pluginsDictHint). PluginDeveloper is developer mode, which trusts the developer key of this computer, kept in the system's secure store, never here.
 type savedPlugins struct {
 	PluginOrder         []string `json:"pluginOrder,omitempty"`
 	PluginReadings      bool     `json:"pluginReadings,omitempty"`
 	PluginWordlist      string   `json:"pluginWordlist,omitempty"`
 	PluginKnownWords    bool     `json:"pluginKnownWords,omitempty"`
 	PluginDictHintShown bool     `json:"pluginDictHintShown,omitempty"`
+	PluginDeveloper     bool     `json:"pluginDeveloper,omitempty"`
 }
 
 // pluginOrderMax is the most ids PluginOrder keeps.
@@ -99,13 +102,14 @@ func (s *savedPlugins) clean() {
 	s.PluginWordlist = strings.TrimSpace(s.PluginWordlist)
 }
 
-// pluginsHooks: the order of the packs and how the lines are marked are kept in settings.json, and the AI service of a pack that went is saved as its pack's; the plugins folder is read once the window is ready, and the inbox looked at again each time the app comes to the front; the open film's lines are marked as it plays and as the app's state changes; the dictionaries close as the app quits.
+// pluginsHooks: the order of the packs, how the lines are marked and developer mode are kept in settings.json, and the AI service of a pack that went is saved as its pack's; the plugins folder is read once the window is ready, and the inbox looked at again each time the app comes to the front; the open film's lines are marked as it plays and as the app's state changes; the dictionaries and the script plugins close as the app quits. The script plugins hear film.opened after the change that opened a film, job.completed as the shelf changes and llm.changed after the AI service changed; and those running whose grant changed with the app's state, as when Kando went offline, are loaded again.
 func (a *app) pluginsHooks() areaHooks {
 	return areaHooks{
 		restore: func(saved savedSettings) {
 			a.plugins.order = slices.Clone(saved.PluginOrder)
 			a.plugins.prefs = pluginsMarkPrefs{readings: saved.PluginReadings, list: saved.PluginWordlist, known: saved.PluginKnownWords}
 			a.plugins.dictHintShown = saved.PluginDictHintShown
+			a.plugins.script.developer = saved.PluginDeveloper
 			if strings.HasPrefix(saved.LLMProvider, llmPackPrefix) {
 				a.plugins.gone = pluginsGone{id: saved.LLMProvider, base: saved.LLMBaseURL}
 			}
@@ -120,6 +124,7 @@ func (a *app) pluginsHooks() areaHooks {
 			}
 			saved.PluginReadings, saved.PluginWordlist, saved.PluginKnownWords = a.plugins.prefs.readings, a.plugins.prefs.list, a.plugins.prefs.known
 			saved.PluginDictHintShown = a.plugins.dictHintShown
+			saved.PluginDeveloper = a.plugins.script.developer
 		},
 		ready: a.pluginsScan,
 		becameActive: func() {
@@ -127,15 +132,25 @@ func (a *app) pluginsHooks() areaHooks {
 				a.pluginsCheckInbox()
 			}
 		},
-		quitStarting: a.pluginsCloseDicts,
+		quitStarting: func() {
+			a.pluginsCloseDicts()
+			a.pluginsCloseScripts()
+		},
+		shelfChanged: a.pluginsJobsCompleted,
 		// The open film's lines are marked again only when its key changed (pluginsMarksFollow), never on shelfChanged, which every report of a job's progress runs. afterChange catches what changes while the film is paused, as a line corrected or a word added to the vocabulary; playing what changes while it plays without a change of the app's state.
-		playing:     a.pluginsMarksFollow,
-		afterChange: a.pluginsMarksFollow,
+		playing: a.pluginsMarksFollow,
+		afterChange: func() bool {
+			changed := a.pluginsMarksFollow()
+			a.pluginsFilmOpened()
+			a.pluginsGrantsFollow()
+			return changed
+		},
 		// A service the user chose since, other than 自定义, which the gone pack's service shows as, is theirs: the gone pack's is forgotten.
 		llmChanged: func() {
 			if p := a.prefs.llmProvider; p != "custom" && p != a.plugins.gone.id {
 				a.plugins.gone = pluginsGone{}
 			}
+			a.pluginsSend("llm.changed", func(*pluginsScript) map[string]any { return map[string]any{} })
 		},
 	}
 }
@@ -187,6 +202,7 @@ func (a *app) pluginsScanned(packs []plugins.Pack, issues []plugins.Issue, state
 	a.pluginsFollowLLM()
 	a.pluginsSyncDicts()
 	a.pluginsSyncSites()
+	a.pluginsScriptsScanned()
 	a.pluginsCheckInbox()
 }
 
@@ -304,7 +320,7 @@ func (a *app) pluginsCheckInbox() {
 		return
 	}
 	a.plugins.inboxBusy = true
-	update := a.update
+	update, verify := a.update, a.pluginsStagedVerifier()
 	go func() {
 		files, err := plugins.Inbox(root)
 		if err != nil || len(files) == 0 {
@@ -313,6 +329,7 @@ func (a *app) pluginsCheckInbox() {
 		}
 		file := files[0]
 		staged, pack, err := plugins.Stage(root, file)
+		v, err := pluginsVerifyStaged(verify, pack, err)
 		update(func() {
 			a.plugins.inboxBusy = false
 			if a.plugins.busy || a.plugins.pending != nil {
@@ -323,26 +340,56 @@ func (a *app) pluginsCheckInbox() {
 			}
 			// The file leaves the inbox here, once it is asked about, so a look that yielded leaves it for the next; removing a file is quick enough for the engine's goroutine, and the inbox is empty as the confirmation opens.
 			os.Remove(file)
-			a.pluginsAsk(&pluginsPending{pack: pack, staged: staged, err: err})
+			a.pluginsAskStaged(pack, staged, v, err)
 		})
 	}()
 }
 
 // pluginsStage stages the pack at src, a zip or a folder, off the UI thread, and opens the install confirmation for it, or says why it cannot be installed.
-func (a *app) pluginsStage(src string) {
+func (a *app) pluginsStage(src string) { a.pluginsStageThen(src, nil) }
+
+// pluginsStageThen is pluginsStage, running after, when set, once src was copied, as to remove the folder a developer plugin was packed into. A script plugin's package is verified off the UI thread too, and its code's word on what it is checked as the confirmation opens (pluginsAskStaged).
+func (a *app) pluginsStageThen(src string, after func()) {
 	root := a.pluginsRoot()
 	if root == "" || a.plugins.busy || a.plugins.pending != nil {
+		if after != nil {
+			go after()
+		}
 		return
 	}
 	a.plugins.busy, a.plugins.err = true, nil
-	update := a.update
+	update, verify := a.update, a.pluginsStagedVerifier()
 	go func() {
 		staged, pack, err := plugins.Stage(root, src)
+		if after != nil {
+			after()
+		}
+		v, err := pluginsVerifyStaged(verify, pack, err)
 		update(func() {
 			a.plugins.busy = false
-			a.pluginsAsk(&pluginsPending{pack: pack, staged: staged, err: err})
+			a.pluginsAskStaged(pack, staged, v, err)
 		})
 	}()
+}
+
+// pluginsVerifyStaged verifies the pack staged, unless staging failed with err, off the UI thread.
+func pluginsVerifyStaged(verify func(plugins.Pack) (script.Verified, error), pack plugins.Pack, err error) (script.Verified, error) {
+	if err != nil {
+		return script.Verified{}, err
+	}
+	return verify(pack)
+}
+
+// pluginsAskStaged opens the install confirmation of the pack staged in staged, after a script plugin passed the checks of the engine's goroutine (pluginsStagedCheck), or says why it cannot be installed, throwing the staged copy away.
+func (a *app) pluginsAskStaged(pack plugins.Pack, staged string, v script.Verified, err error) {
+	if err == nil {
+		err = a.pluginsStagedCheck(&pack, v)
+	}
+	if err != nil && staged != "" {
+		go os.RemoveAll(staged)
+		staged = ""
+	}
+	a.pluginsAsk(&pluginsPending{pack: pack, staged: staged, err: err})
 }
 
 // pluginsAsk opens the install confirmation of p, holding the window's modal flag until it closes (pluginsClose). A site pack's domains start ticked only where the user allowed them for the pack of its id installed now (pluginsTickedBefore).
@@ -383,11 +430,32 @@ func (a *app) pluginsInstall() {
 		a.pluginsKeepLLM()
 	}
 	pack, staged := p.pack, p.staged
-	// The dictionary of the pack it replaces is closed first; the read of the folder after opens it again.
+	// The dictionary or the script of the pack it replaces is closed first; the read of the folder after opens it again.
 	a.pluginsCloseDict(pack.ID)
-	state := a.pluginsNextState(func(s *plugins.State) {
-		s.Set(plugins.PluginState{ID: pack.ID, Hash: pack.Hash, Enabled: true, Sites: pluginsInstallSites(p)})
-	})
+	a.pluginsCloseScript(pack.ID)
+	entry := plugins.PluginState{ID: pack.ID, Hash: pack.Hash, Enabled: true, Sites: pluginsInstallSites(p)}
+	var old *plugins.Pack
+	if i := slices.IndexFunc(a.plugins.packs, func(o plugins.Pack) bool { return o.ID == pack.ID }); i >= 0 {
+		old = &a.plugins.packs[i]
+	}
+	if pack.Kind == plugins.KindScript {
+		e, had := a.plugins.state.Entry(pack.ID)
+		entry = plugins.InstallEntry(pack, old, e, had)
+		// Another key signed it: what the one before kept is not this one's (docs/plugin-system.md 6.2). The signer is the one state.json recorded, as the pack replaced may not verify now.
+		if old != nil {
+			signer := old.Signer
+			if had && e.Signer != "" {
+				signer = e.Signer
+			}
+			if signer != "" && signer != pack.Signer {
+				a.pluginsForgetPartitions(*old, signer)
+			}
+		}
+		a.plugins.script.health = plugins.SetHealth(a.plugins.script.health, plugins.Health{ID: pack.ID})
+		a.pluginsSaveHealth()
+		a.pluginsAudit(plugins.AuditInstall, pack.ID, pack.Version+" "+string(pack.Source)+" "+pack.Signer)
+	}
+	state := a.pluginsNextState(func(s *plugins.State) { s.Set(entry) })
 	a.plugins.busy, a.plugins.err, a.plugins.saving = true, nil, true
 	update := a.update
 	go func() {
@@ -424,6 +492,10 @@ func (a *app) pluginsInstall() {
 func (a *app) pluginsSetEnabled(id string, on bool) {
 	i := slices.IndexFunc(a.plugins.packs, func(p plugins.Pack) bool { return p.ID == id })
 	if a.pluginsRoot() == "" || i < 0 || a.plugins.busy {
+		return
+	}
+	if a.plugins.packs[i].Kind == plugins.KindScript {
+		a.pluginsScriptSetEnabled(a.plugins.packs[i], on)
 		return
 	}
 	hash := a.plugins.packs[i].Hash
@@ -475,6 +547,21 @@ func (a *app) pluginsUninstall(id string) {
 	}
 	a.pluginsKeepLLM()
 	a.pluginsCloseDict(id)
+	if i := slices.IndexFunc(a.plugins.packs, func(p plugins.Pack) bool { return p.ID == id }); i >= 0 && a.plugins.packs[i].Kind == plugins.KindScript {
+		pack := a.plugins.packs[i]
+		a.pluginsCloseScript(id)
+		// The signer state.json recorded, as the plugin may not verify now; its own when it never had an entry.
+		signer := pack.Signer
+		if e, ok := a.plugins.state.Entry(id); ok && e.Signer != "" {
+			signer = e.Signer
+		}
+		a.pluginsForgetPartitions(pack, signer)
+		delete(a.plugins.script.values, id)
+		a.plugins.script.health = plugins.SetHealth(a.plugins.script.health, plugins.Health{ID: id})
+		a.pluginsSaveHealth()
+		pluginsWriteValues(id, func() { plugins.RemoveValues(root, id) })
+		a.pluginsAudit(plugins.AuditUninstall, id, "")
+	}
 	state := a.pluginsNextState(func(s *plugins.State) {
 		s.Plugins = slices.DeleteFunc(s.Plugins, func(e plugins.PluginState) bool { return e.ID == id })
 	})
@@ -559,7 +646,7 @@ func (a *app) pluginsPickFile() {
 	m := a.messages()
 	// The answer belongs to the app, not to the button that asked, which may be gone by then (core.Scope.Run).
 	a.cx.Run(func() {
-		a.cx.PickFiles(ns.PickFilesOptions{Types: []string{".zip", ".kandopack"}, TypesName: m.SettingsPluginsFileTypes(), Title: m.SettingsPluginsPickTitle(), Button: m.SettingsPluginsPickButton()}, func(files []ns.File, err error) {
+		a.cx.PickFiles(ns.PickFilesOptions{Types: []string{".zip", ".kandopack", ".kandoplugin"}, TypesName: m.SettingsPluginsFileTypes(), Title: m.SettingsPluginsPickTitle(), Button: m.SettingsPluginsPickButton()}, func(files []ns.File, err error) {
 			release()
 			defer a.Changed()
 			if err != nil {
@@ -573,7 +660,10 @@ func (a *app) pluginsPickFile() {
 	})
 }
 
-// pluginsOverlay is the install confirmation over the main window (overlays), while the 插件 page in a settings window of its own does not draw it (settings.PluginsApp.PluginInstallHere): a pack from the command line's inbox, or one picked while the settings show over the main window.
-func (a *app) pluginsOverlay(*ns.Scope) ns.Node {
-	return settings.PluginInstallDialog{App: a, Open: live.Func(a, func() bool { return a.plugins.pending != nil && !a.PluginInstallHere() })}
+// pluginsOverlay is the script plugins' toasts and the install confirmation over the main window (overlays), the confirmation while the 插件 page in a settings window of its own does not draw it (settings.PluginsApp.PluginInstallHere): a pack from the command line's inbox, or one picked while the settings show over the main window.
+func (a *app) pluginsOverlay(cx *ns.Scope) ns.Node {
+	return ns.Group{
+		settings.PluginInstallDialog{App: a, Open: live.Func(a, func() bool { return a.plugins.pending != nil && !a.PluginInstallHere() })},
+		a.pluginsToasts(cx),
+	}
 }

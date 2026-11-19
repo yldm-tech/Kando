@@ -21,7 +21,11 @@ func (a *app) PluginRows() []settings.PluginRow {
 	seen := map[string]bool{}
 	add := func(pack plugins.Pack) {
 		seen[pack.ID] = true
-		rows = append(rows, settings.PluginRow{Pack: pack, Enabled: a.plugins.state.Enabled(pack.ID), Detail: settings.PluginDetail(m, pack)})
+		row := settings.PluginRow{Pack: pack, Enabled: a.plugins.state.EnabledPack(pack), Detail: settings.PluginDetail(m, pack)}
+		if pack.Kind == plugins.KindScript {
+			row.Script = a.pluginsScriptView(m, pack, false)
+		}
+		rows = append(rows, row)
 	}
 	for _, id := range a.plugins.order {
 		i := slices.IndexFunc(a.plugins.packs, func(p plugins.Pack) bool { return p.ID == id })
@@ -112,6 +116,9 @@ func (a *app) PluginInstall() settings.PluginInstall {
 		return settings.PluginInstall{Open: true, Err: pluginsErrorText(m, p.err)}
 	}
 	in := settings.PluginInstall{Open: true, Pack: p.pack, Detail: settings.PluginDetail(m, p.pack)}
+	if p.pack.Kind == plugins.KindScript {
+		in.Script = a.pluginsScriptView(m, p.pack, true)
+	}
 	if i := slices.IndexFunc(a.plugins.packs, func(o plugins.Pack) bool { return o.ID == p.pack.ID }); i >= 0 {
 		in.Replaces = a.plugins.packs[i].Version
 	}
@@ -157,6 +164,9 @@ func pluginsErrorText(m locales.Messages, err error) string {
 
 // pluginsKnownErrorText is the message of m for err when it is one of the errors the app knows, false for an error of the system.
 func pluginsKnownErrorText(m locales.Messages, err error) (string, bool) {
+	if text, ok := pluginsScriptErrorText(m, err); ok {
+		return text, true
+	}
 	for _, e := range []struct {
 		err  error
 		text func() string

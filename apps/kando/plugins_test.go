@@ -295,7 +295,7 @@ func TestPluginsInboxAsksFirst(t *testing.T) {
 // TestPluginsInstallSaysWhyNot checks that a file that is not a pack this version installs is refused in a dialog that says why, in the interface's words.
 func TestPluginsInstallSaysWhyNot(t *testing.T) {
 	a, tt, updates, root := pluginsApp(t)
-	a.InstallPlugins([]string{pluginFolder(t, `{"schema": 2, "id": "example.script", "kind": "script"}`)})
+	a.InstallPlugins([]string{pluginFolder(t, `{"schema": 3, "id": "example.script", "kind": "script"}`)})
 	waitUntil(t, tt, a, updates, func() bool { return a.plugins.pending != nil })
 	if !tt.Exists("id:plugins-install-failed") || !hasText(tt, testlocale.Messages().PluginsErrSchema()) {
 		t.Fatalf("the refusal; texts %q", tt.Texts())

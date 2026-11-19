@@ -1013,6 +1013,11 @@ var Parameters = map[string][]string{
 	"SettingsPluginsVersion":                   {"version"},
 	"SettingsPluginsVersionAuthor":             {"version", "author"},
 	"SettingsPluginsWordlistDetail":            {"language", "count"},
+	"SettingsPluginsPermNetwork":               {"rules"},
+	"SettingsPluginsConflicts":                 {"commands"},
+	"PluginsOpenURLTitle":                      {"host"},
+	"PluginsOpenURLMessage":                    {"plugin", "url"},
+	"PluginsCommandFailed":                     {"command"},
 	"SettingsPhoneConflictUseLabel":            {"device"},
 	"SettingsPhoneDidLink":                     {"title"},
 	"SettingsPhoneDidPause":                    {"title"},
@@ -1648,6 +1653,11 @@ type Translation struct {
 	SettingsPluginsVersion                   func(version string) string
 	SettingsPluginsVersionAuthor             func(version string, author string) string
 	SettingsPluginsWordlistDetail            func(language string, count int) string
+	SettingsPluginsPermNetwork               func(rules string) string
+	SettingsPluginsConflicts                 func(commands string) string
+	PluginsOpenURLTitle                      func(host string) string
+	PluginsOpenURLMessage                    func(plugin string, url string) string
+	PluginsCommandFailed                     func(command string) string
 	SettingsPhoneConflictUseLabel            func(device string) string
 	SettingsPhoneDidLink                     func(title string) string
 	SettingsPhoneDidPause                    func(title string) string
@@ -3288,6 +3298,61 @@ const (
 	textSettingsPluginsUninstall
 	textSettingsPluginsUninstallConfirm
 	textSettingsPluginsUninstallMessage
+	textSettingsPluginsKindScript
+	textSettingsPluginsSourceOfficial
+	textSettingsPluginsSourceDeveloper
+	textSettingsPluginsUpdated
+	textSettingsPluginsPermissions
+	textSettingsPluginsRisky
+	textSettingsPluginsSettings
+	textSettingsPluginsAudit
+	textSettingsPluginsOptional
+	textSettingsPluginsSecretSaved
+	textSettingsPluginsSecretClear
+	textSettingsPluginsSecretSave
+	textSettingsPluginsInstallSourceOfficial
+	textSettingsPluginsInstallSourceDeveloper
+	textSettingsPluginsDeveloperWarning
+	textSettingsPluginsWants
+	textSettingsPluginsWantsOptional
+	textSettingsPluginsScriptStaysOff
+	textSettingsPluginsDeveloper
+	textSettingsPluginsDeveloperMode
+	textSettingsPluginsDeveloperModeHint
+	textSettingsPluginsDevKey
+	textSettingsPluginsDevKeyReady
+	textSettingsPluginsDevKeyNone
+	textSettingsPluginsDevKeyMake
+	textSettingsPluginsDevPack
+	textSettingsPluginsDevPickTitle
+	textSettingsPluginsPermFilmCurrent
+	textSettingsPluginsPermLineCurrent
+	textSettingsPluginsPermLinesSeen
+	textSettingsPluginsPermSavedRead
+	textSettingsPluginsPermWordsRead
+	textSettingsPluginsPermToast
+	textSettingsPluginsPermOpenURL
+	textSettingsPluginsPermSettingsGet
+	textSettingsPluginsStoppedInit
+	textSettingsPluginsStoppedFailed
+	textSettingsPluginsStoppedSlow
+	textSettingsPluginsStoppedMemory
+	textSettingsPluginsStoppedHung
+	textPluginsErrUnknownPerm
+	textPluginsErrBadCapabilities
+	textPluginsErrTampered
+	textPluginsErrUntrusted
+	textPluginsErrRevoked
+	textPluginsErrRollback
+	textPluginsErrNeedsNewer
+	textPluginsErrScope
+	textPluginsErrNoManifest
+	textPluginsErrNoEntry
+	textPluginsErrTooManyScripts
+	textPluginsErrDevID
+	textPluginsErrNoDevKey
+	textPluginsOpenURLOpen
+	textPluginsToastClose
 	textSettingsPhoneConflictUse
 	textSettingsPhoneConflictBoth
 	textSettingsPhoneConflictOriginal
@@ -4920,6 +4985,61 @@ var keyOfText = [numTexts]string{
 	"settingsPluginsUninstall",
 	"settingsPluginsUninstallConfirm",
 	"settingsPluginsUninstallMessage",
+	"settingsPluginsKindScript",
+	"settingsPluginsSourceOfficial",
+	"settingsPluginsSourceDeveloper",
+	"settingsPluginsUpdated",
+	"settingsPluginsPermissions",
+	"settingsPluginsRisky",
+	"settingsPluginsSettings",
+	"settingsPluginsAudit",
+	"settingsPluginsOptional",
+	"settingsPluginsSecretSaved",
+	"settingsPluginsSecretClear",
+	"settingsPluginsSecretSave",
+	"settingsPluginsInstallSourceOfficial",
+	"settingsPluginsInstallSourceDeveloper",
+	"settingsPluginsDeveloperWarning",
+	"settingsPluginsWants",
+	"settingsPluginsWantsOptional",
+	"settingsPluginsScriptStaysOff",
+	"settingsPluginsDeveloper",
+	"settingsPluginsDeveloperMode",
+	"settingsPluginsDeveloperModeHint",
+	"settingsPluginsDevKey",
+	"settingsPluginsDevKeyReady",
+	"settingsPluginsDevKeyNone",
+	"settingsPluginsDevKeyMake",
+	"settingsPluginsDevPack",
+	"settingsPluginsDevPickTitle",
+	"settingsPluginsPermFilmCurrent",
+	"settingsPluginsPermLineCurrent",
+	"settingsPluginsPermLinesSeen",
+	"settingsPluginsPermSavedRead",
+	"settingsPluginsPermWordsRead",
+	"settingsPluginsPermToast",
+	"settingsPluginsPermOpenURL",
+	"settingsPluginsPermSettingsGet",
+	"settingsPluginsStoppedInit",
+	"settingsPluginsStoppedFailed",
+	"settingsPluginsStoppedSlow",
+	"settingsPluginsStoppedMemory",
+	"settingsPluginsStoppedHung",
+	"pluginsErrUnknownPerm",
+	"pluginsErrBadCapabilities",
+	"pluginsErrTampered",
+	"pluginsErrUntrusted",
+	"pluginsErrRevoked",
+	"pluginsErrRollback",
+	"pluginsErrNeedsNewer",
+	"pluginsErrScope",
+	"pluginsErrNoManifest",
+	"pluginsErrNoEntry",
+	"pluginsErrTooManyScripts",
+	"pluginsErrDevID",
+	"pluginsErrNoDevKey",
+	"pluginsOpenURLOpen",
+	"pluginsToastClose",
 	"settingsPhoneConflictUse",
 	"settingsPhoneConflictBoth",
 	"settingsPhoneConflictOriginal",
@@ -6550,6 +6670,61 @@ var textsEn = i18n.NewTexts(""+
 	"Uninstall…"+
 	"Uninstall"+
 	"Its files are deleted. An API key you saved for a service it added stays in Kando."+
+	"Script Plugins"+
+	"Official"+
+	"Developer"+
+	"This update asks for more than before. Look over its permissions again."+
+	"Permissions"+
+	"It can read your subtitles and reach the network: what the subtitles say could lead it to send what it reads. Grant both only if you trust it."+
+	"Settings"+
+	"Show Audit Log"+
+	"Optional"+
+	"Saved"+
+	"Clear"+
+	"Save"+
+	"Published by Kando · signature verified"+
+	"Signed with this computer's developer key"+
+	"Developer plugins run only in developer mode and were not reviewed by Kando."+
+	"It asks to"+
+	"It can also use, if you allow"+
+	"It stays off once installed: in its details, grant what it may do, then turn it on."+
+	"Developer"+
+	"Developer Mode"+
+	"Trusts plugins you pack on this computer"+
+	"Developer Key"+
+	"Kept in the system's secure store"+
+	"Make one to pack plugin folders"+
+	"Make Developer Key"+
+	"Pack and Install Folder…"+
+	"Choose a plugin folder with kando-plugin.json and plugin.tsx"+
+	"Read the film playing: its title, languages and position"+
+	"Read the line playing"+
+	"Read the lines of the film playing, up to where you watched"+
+	"Read your saved lines"+
+	"Read your vocabulary"+
+	"Show short messages in the window"+
+	"Open web pages in your browser, after you agree to each"+
+	"Read its own settings"+
+	"Turned off: it failed as it started"+
+	"Turned off: it failed too often"+
+	"Turned off: it kept Kando from responding"+
+	"Turned off: it used too much memory"+
+	"Turned off: Kando stopped responding the last time it ran"+
+	"It asks for a permission this version of Kando doesn't have."+
+	"It asks for access Kando doesn't give plugins."+
+	"It was changed after it was signed."+
+	"It isn't signed by a key Kando trusts."+
+	"It was withdrawn."+
+	"It's older than a version installed before."+
+	"It needs a newer version of Kando."+
+	"Its ID belongs to another publisher than the one who signed it."+
+	"Its code doesn't say what it is, or fails as it starts."+
+	"The folder has no plugin.tsx."+
+	"At most 12 script plugins can be on at once."+
+	"A developer plugin can't replace a plugin installed from elsewhere."+
+	"Make a developer key first."+
+	"Open"+
+	"Close"+
 	"Use This"+
 	"Keep Both"+
 	"Original"+
@@ -8177,6 +8352,61 @@ var textsEn = i18n.NewTexts(""+
 		12,
 		9,
 		82,
+		14,
+		8,
+		9,
+		71,
+		11,
+		142,
+		8,
+		14,
+		8,
+		5,
+		5,
+		4,
+		40,
+		41,
+		76,
+		10,
+		29,
+		83,
+		9,
+		14,
+		40,
+		13,
+		33,
+		31,
+		18,
+		26,
+		60,
+		56,
+		21,
+		59,
+		21,
+		20,
+		33,
+		55,
+		21,
+		35,
+		31,
+		41,
+		35,
+		57,
+		60,
+		46,
+		35,
+		38,
+		17,
+		43,
+		34,
+		63,
+		55,
+		29,
+		44,
+		67,
+		27,
+		4,
+		5,
 		8,
 		9,
 		8,
@@ -9807,6 +10037,61 @@ var textsJa = i18n.NewTexts(""+
 	"アンインストール…"+
 	"アンインストール"+
 	"ファイルは削除されます。追加されたサービス用に保存した API キーは Kando に残ります。"+
+	"スクリプトプラグイン"+
+	"公式"+
+	"開発者"+
+	"このアップデートは以前より多くの権限を求めています。権限をもう一度確認してください。"+
+	"権限"+
+	"字幕を読み取ることもネットワークに接続することもできます。字幕の内容に誘導されて、読み取ったものを送信するおそれがあります。信頼できる場合だけ両方を許可してください。"+
+	"設定"+
+	"監査ログを表示"+
+	"任意"+
+	"保存済み"+
+	"消去"+
+	"保存"+
+	"Kando が公開 · 署名を確認済み"+
+	"このコンピュータの開発者キーで署名"+
+	"開発者プラグインは開発者モードでのみ動作し、Kando の審査を受けていません。"+
+	"求める権限"+
+	"許可すれば使う権限"+
+	"インストール後はオフのままです。詳細で権限を許可してからオンにすると動作します。"+
+	"開発者"+
+	"開発者モード"+
+	"このコンピュータでパッケージしたプラグインを信頼します"+
+	"開発者キー"+
+	"システムの安全な保管場所に保存されています"+
+	"作成するとプラグインフォルダをパッケージできます"+
+	"開発者キーを作成"+
+	"フォルダをパッケージしてインストール…"+
+	"kando-plugin.json と plugin.tsx を含むプラグインフォルダを選択"+
+	"再生中の作品を読み取る：タイトル、言語、再生位置"+
+	"再生中のセリフを読み取る"+
+	"再生中の作品のセリフを見たところまで読み取る"+
+	"保存したセリフを読み取る"+
+	"単語帳を読み取る"+
+	"ウインドウに短いメッセージを表示する"+
+	"ブラウザで Web ページを開く（毎回あなたの許可が必要）"+
+	"自分の設定を読み取る"+
+	"オフにしました：起動時にエラー"+
+	"オフにしました：エラーが多すぎます"+
+	"オフにしました：Kando が応答しなくなりました"+
+	"オフにしました：メモリを使いすぎました"+
+	"オフにしました：前回の実行中に Kando が応答しなくなりました"+
+	"この Kando にはない権限を求めています。"+
+	"Kando がプラグインに与えないアクセスを求めています。"+
+	"署名後に変更されています。"+
+	"Kando が信頼するキーで署名されていません。"+
+	"取り下げられました。"+
+	"以前にインストールしたバージョンより古いです。"+
+	"より新しい Kando が必要です。"+
+	"ID が署名者とは別の発行者のものです。"+
+	"コードが自身の内容を示していないか、起動時にエラーになります。"+
+	"フォルダに plugin.tsx がありません。"+
+	"同時にオンにできるスクリプトプラグインは 12 個までです。"+
+	"開発者プラグインは他から入れたプラグインを置き換えられません。"+
+	"先に開発者キーを作成してください。"+
+	"開く"+
+	"閉じる"+
 	"これを使う"+
 	"両方残す"+
 	"原文"+
@@ -11434,6 +11719,61 @@ var textsJa = i18n.NewTexts(""+
 		27,
 		24,
 		120,
+		30,
+		6,
+		9,
+		126,
+		6,
+		249,
+		6,
+		21,
+		6,
+		12,
+		6,
+		6,
+		40,
+		51,
+		108,
+		15,
+		27,
+		120,
+		9,
+		18,
+		81,
+		15,
+		63,
+		72,
+		24,
+		57,
+		78,
+		72,
+		36,
+		66,
+		36,
+		24,
+		54,
+		77,
+		30,
+		45,
+		51,
+		63,
+		57,
+		85,
+		55,
+		75,
+		39,
+		60,
+		30,
+		69,
+		40,
+		54,
+		93,
+		48,
+		82,
+		93,
+		51,
+		6,
+		9,
 		15,
 		12,
 		6,
@@ -13064,6 +13404,61 @@ var textsKo = i18n.NewTexts(""+
 	"제거…"+
 	"제거"+
 	"파일이 삭제됩니다. 추가된 서비스에 저장한 API 키는 Kando에 남습니다."+
+	"스크립트 플러그인"+
+	"공식"+
+	"개발자"+
+	"이번 업데이트는 이전보다 많은 권한을 요청합니다. 권한을 다시 확인하세요."+
+	"권한"+
+	"자막을 읽을 수도 있고 네트워크에 연결할 수도 있습니다. 자막 내용에 유도되어 읽은 내용을 보낼 수 있습니다. 신뢰할 때만 둘 다 허용하세요."+
+	"설정"+
+	"감사 기록 보기"+
+	"선택"+
+	"저장됨"+
+	"지우기"+
+	"저장"+
+	"Kando 배포 · 서명 확인됨"+
+	"이 컴퓨터의 개발자 키로 서명됨"+
+	"개발자 플러그인은 개발자 모드에서만 실행되며 Kando의 검토를 거치지 않았습니다."+
+	"요청 권한"+
+	"허용하면 추가로 사용"+
+	"설치 후에는 꺼진 상태입니다. 세부 정보에서 권한을 허용하고 켜야 실행됩니다."+
+	"개발자"+
+	"개발자 모드"+
+	"이 컴퓨터에서 패키징한 플러그인을 신뢰합니다"+
+	"개발자 키"+
+	"시스템 보안 저장소에 보관됨"+
+	"만들면 플러그인 폴더를 패키징할 수 있습니다"+
+	"개발자 키 만들기"+
+	"폴더 패키징 후 설치…"+
+	"kando-plugin.json과 plugin.tsx가 있는 플러그인 폴더 선택"+
+	"재생 중인 작품 읽기: 제목, 언어, 재생 위치"+
+	"재생 중인 대사 읽기"+
+	"재생 중인 작품의 대사를 본 곳까지 읽기"+
+	"저장한 대사 읽기"+
+	"단어장 읽기"+
+	"창에 짧은 메시지 표시"+
+	"브라우저에서 웹 페이지 열기(매번 동의 필요)"+
+	"자신의 설정 읽기"+
+	"꺼짐: 시작할 때 오류"+
+	"꺼짐: 오류가 너무 많음"+
+	"꺼짐: Kando가 응답하지 않게 함"+
+	"꺼짐: 메모리를 너무 많이 사용함"+
+	"꺼짐: 지난번 실행 중 Kando가 응답을 멈춤"+
+	"이 버전의 Kando에 없는 권한을 요청합니다."+
+	"Kando가 플러그인에 주지 않는 접근을 요청합니다."+
+	"서명 후 변경되었습니다."+
+	"Kando가 신뢰하는 키로 서명되지 않았습니다."+
+	"철회되었습니다."+
+	"이전에 설치한 버전보다 오래되었습니다."+
+	"더 새로운 버전의 Kando가 필요합니다."+
+	"ID가 서명자가 아닌 다른 게시자의 것입니다."+
+	"코드가 자신을 설명하지 않거나 시작할 때 오류가 납니다."+
+	"폴더에 plugin.tsx가 없습니다."+
+	"스크립트 플러그인은 동시에 최대 12개까지 켤 수 있습니다."+
+	"개발자 플러그인은 다른 곳에서 설치한 플러그인을 대체할 수 없습니다."+
+	"먼저 개발자 키를 만드세요."+
+	"열기"+
+	"닫기"+
 	"이것 사용"+
 	"둘 다 유지"+
 	"원문"+
@@ -14691,6 +15086,61 @@ var textsKo = i18n.NewTexts(""+
 		9,
 		6,
 		93,
+		25,
+		6,
+		9,
+		103,
+		6,
+		191,
+		6,
+		20,
+		6,
+		9,
+		9,
+		6,
+		32,
+		43,
+		110,
+		13,
+		29,
+		107,
+		9,
+		16,
+		64,
+		13,
+		39,
+		62,
+		23,
+		30,
+		68,
+		58,
+		27,
+		54,
+		23,
+		16,
+		30,
+		61,
+		23,
+		28,
+		31,
+		40,
+		44,
+		54,
+		56,
+		65,
+		33,
+		58,
+		22,
+		55,
+		49,
+		59,
+		77,
+		37,
+		79,
+		96,
+		37,
+		6,
+		6,
 		13,
 		14,
 		6,
@@ -16321,6 +16771,61 @@ var textsZhHans = i18n.NewTexts(""+
 	"卸载…"+
 	"卸载"+
 	"它的文件会被删除。你为它添加的服务保存的 API Key 会留在看懂里。"+
+	"脚本插件"+
+	"官方"+
+	"开发者"+
+	"这次更新申请了比之前更多的权限，请重新查看授权。"+
+	"权限"+
+	"它既能读取你的字幕，又能联网：字幕内容可能诱导它把读到的东西发出去。只有在信任它时才同时授予这两项。"+
+	"设置"+
+	"查看审计记录"+
+	"可选"+
+	"已保存"+
+	"清除"+
+	"保存"+
+	"由看懂发布 · 已验证签名"+
+	"用这台电脑的开发者密钥签名"+
+	"开发者插件只在开发者模式下运行，没有经过看懂审核。"+
+	"它想要"+
+	"你允许时它还会用到"+
+	"安装后保持停用：在详情里授予权限、再打开开关，它才会运行。"+
+	"开发者"+
+	"开发者模式"+
+	"信任你在这台电脑上打包的插件"+
+	"开发者密钥"+
+	"保存在系统的安全存储里"+
+	"生成后即可打包插件文件夹"+
+	"生成开发者密钥"+
+	"打包并安装文件夹…"+
+	"选择含 kando-plugin.json 和 plugin.tsx 的插件文件夹"+
+	"读取正在播放的影片：标题、语言和播放位置"+
+	"读取正在播放的这一句字幕"+
+	"读取正在播放的影片到你看过的地方为止的字幕"+
+	"读取你收藏的句子"+
+	"读取你的生词本"+
+	"在窗口里显示简短提示"+
+	"在浏览器中打开网页，每次都要你同意"+
+	"读取它自己的设置"+
+	"已停用：启动时出错"+
+	"已停用：多次出错"+
+	"已停用：让看懂无法响应"+
+	"已停用：占用内存过多"+
+	"已停用：上次运行时让看懂停止响应"+
+	"它申请了这个版本的看懂没有的权限。"+
+	"它申请了看懂不给插件的访问能力。"+
+	"它在签名之后被改动过。"+
+	"它不是由看懂信任的密钥签名的。"+
+	"它已被撤回。"+
+	"它比之前装过的版本更旧。"+
+	"它需要更新版本的看懂。"+
+	"它的 ID 属于另一个发布者，不是签名者的。"+
+	"它的代码没有说明自己是什么，或者启动时出错。"+
+	"这个文件夹里没有 plugin.tsx。"+
+	"最多只能同时启用 12 个脚本插件。"+
+	"开发者插件不能替换从别处安装的插件。"+
+	"请先生成开发者密钥。"+
+	"打开"+
+	"关闭"+
 	"用这个"+
 	"两条都留"+
 	"原文"+
@@ -17948,6 +18453,61 @@ var textsZhHans = i18n.NewTexts(""+
 		9,
 		6,
 		90,
+		12,
+		6,
+		9,
+		72,
+		6,
+		150,
+		6,
+		18,
+		6,
+		9,
+		6,
+		6,
+		34,
+		39,
+		75,
+		9,
+		27,
+		87,
+		9,
+		15,
+		42,
+		15,
+		33,
+		36,
+		21,
+		27,
+		61,
+		60,
+		36,
+		63,
+		24,
+		21,
+		30,
+		51,
+		24,
+		27,
+		24,
+		33,
+		30,
+		48,
+		51,
+		48,
+		33,
+		45,
+		18,
+		36,
+		33,
+		58,
+		66,
+		38,
+		46,
+		54,
+		30,
+		6,
+		6,
 		9,
 		12,
 		6,
@@ -19578,6 +20138,61 @@ var textsZhHant = i18n.NewTexts(""+
 	"解除安裝…"+
 	"解除安裝"+
 	"它的檔案會被刪除。你為它新增的服務儲存的 API Key 會留在看懂裡。"+
+	"腳本外掛"+
+	"官方"+
+	"開發者"+
+	"這次更新申請了比之前更多的權限，請重新查看授權。"+
+	"權限"+
+	"它既能讀取你的字幕，又能連網：字幕內容可能誘導它把讀到的東西傳出去。只有在信任它時才同時授予這兩項。"+
+	"設定"+
+	"查看稽核記錄"+
+	"可選"+
+	"已儲存"+
+	"清除"+
+	"儲存"+
+	"由看懂發布 · 已驗證簽章"+
+	"以這台電腦的開發者金鑰簽章"+
+	"開發者外掛只在開發者模式下執行，沒有經過看懂審核。"+
+	"它想要"+
+	"你允許時它還會用到"+
+	"安裝後保持停用：在詳細資料裡授予權限、再打開開關，它才會執行。"+
+	"開發者"+
+	"開發者模式"+
+	"信任你在這台電腦上打包的外掛"+
+	"開發者金鑰"+
+	"儲存在系統的安全儲存區裡"+
+	"產生後即可打包外掛資料夾"+
+	"產生開發者金鑰"+
+	"打包並安裝資料夾…"+
+	"選擇含 kando-plugin.json 和 plugin.tsx 的外掛資料夾"+
+	"讀取正在播放的影片：標題、語言和播放位置"+
+	"讀取正在播放的這一句字幕"+
+	"讀取正在播放的影片到你看過的地方為止的字幕"+
+	"讀取你收藏的句子"+
+	"讀取你的生詞本"+
+	"在視窗裡顯示簡短提示"+
+	"在瀏覽器中開啟網頁，每次都要你同意"+
+	"讀取它自己的設定"+
+	"已停用：啟動時出錯"+
+	"已停用：多次出錯"+
+	"已停用：讓看懂無法回應"+
+	"已停用：佔用記憶體過多"+
+	"已停用：上次執行時讓看懂停止回應"+
+	"它申請了這個版本的看懂沒有的權限。"+
+	"它申請了看懂不給外掛的存取能力。"+
+	"它在簽章之後被改動過。"+
+	"它不是由看懂信任的金鑰簽章的。"+
+	"它已被撤回。"+
+	"它比之前裝過的版本更舊。"+
+	"它需要更新版本的看懂。"+
+	"它的 ID 屬於另一個發布者，不是簽章者的。"+
+	"它的程式碼沒有說明自己是什麼，或者啟動時出錯。"+
+	"這個資料夾裡沒有 plugin.tsx。"+
+	"最多只能同時啟用 12 個腳本外掛。"+
+	"開發者外掛不能取代從別處安裝的外掛。"+
+	"請先產生開發者金鑰。"+
+	"開啟"+
+	"關閉"+
 	"用這個"+
 	"兩條都留"+
 	"原文"+
@@ -21205,6 +21820,61 @@ var textsZhHant = i18n.NewTexts(""+
 		15,
 		12,
 		90,
+		12,
+		6,
+		9,
+		72,
+		6,
+		150,
+		6,
+		18,
+		6,
+		9,
+		6,
+		6,
+		34,
+		39,
+		75,
+		9,
+		27,
+		93,
+		9,
+		15,
+		42,
+		15,
+		36,
+		36,
+		21,
+		27,
+		61,
+		60,
+		36,
+		63,
+		24,
+		21,
+		30,
+		51,
+		24,
+		27,
+		24,
+		33,
+		33,
+		48,
+		51,
+		48,
+		33,
+		45,
+		18,
+		36,
+		33,
+		58,
+		69,
+		38,
+		46,
+		54,
+		30,
+		6,
+		6,
 		9,
 		12,
 		6,
@@ -22989,6 +23659,21 @@ func Supply(lang string, t Translation) {
 	}
 	if t.SettingsPluginsWordlistDetail != nil {
 		s.SettingsPluginsWordlistDetail = t.SettingsPluginsWordlistDetail
+	}
+	if t.SettingsPluginsPermNetwork != nil {
+		s.SettingsPluginsPermNetwork = t.SettingsPluginsPermNetwork
+	}
+	if t.SettingsPluginsConflicts != nil {
+		s.SettingsPluginsConflicts = t.SettingsPluginsConflicts
+	}
+	if t.PluginsOpenURLTitle != nil {
+		s.PluginsOpenURLTitle = t.PluginsOpenURLTitle
+	}
+	if t.PluginsOpenURLMessage != nil {
+		s.PluginsOpenURLMessage = t.PluginsOpenURLMessage
+	}
+	if t.PluginsCommandFailed != nil {
+		s.PluginsCommandFailed = t.PluginsCommandFailed
 	}
 	if t.SettingsPhoneConflictUseLabel != nil {
 		s.SettingsPhoneConflictUseLabel = t.SettingsPhoneConflictUseLabel
@@ -57695,6 +58380,763 @@ func (msgs Messages) SettingsPluginsWordlistDetail(language string, count int) s
 		}
 	}
 }
+
+// SettingsPluginsKindScript says "Script Plugins"
+// in the language the app shows under cx.
+//
+// Plugins page: heading of the group of script plugins, signed code that runs sandboxed.
+func SettingsPluginsKindScript(cx *core.Scope) string { return For(cx).SettingsPluginsKindScript() }
+
+// SettingsPluginsKindScript is the package's SettingsPluginsKindScript in the language of msgs.
+func (msgs Messages) SettingsPluginsKindScript() string {
+	return msgs.text(textSettingsPluginsKindScript)
+}
+
+// SettingsPluginsSourceOfficial says "Official"
+// in the language the app shows under cx.
+//
+// Plugins page: badge after a script plugin's name saying Kando's official key signed it.
+func SettingsPluginsSourceOfficial(cx *core.Scope) string {
+	return For(cx).SettingsPluginsSourceOfficial()
+}
+
+// SettingsPluginsSourceOfficial is the package's SettingsPluginsSourceOfficial in the language of msgs.
+func (msgs Messages) SettingsPluginsSourceOfficial() string {
+	return msgs.text(textSettingsPluginsSourceOfficial)
+}
+
+// SettingsPluginsSourceDeveloper says "Developer"
+// in the language the app shows under cx.
+//
+// Plugins page: badge after a script plugin's name saying this computer's developer key signed it.
+func SettingsPluginsSourceDeveloper(cx *core.Scope) string {
+	return For(cx).SettingsPluginsSourceDeveloper()
+}
+
+// SettingsPluginsSourceDeveloper is the package's SettingsPluginsSourceDeveloper in the language of msgs.
+func (msgs Messages) SettingsPluginsSourceDeveloper() string {
+	return msgs.text(textSettingsPluginsSourceDeveloper)
+}
+
+// SettingsPluginsUpdated says "This update asks for more than before. Look over its permissions again."
+// in the language the app shows under cx.
+//
+// Plugin details: note when an update of a script plugin asks for permissions the version before did not.
+func SettingsPluginsUpdated(cx *core.Scope) string { return For(cx).SettingsPluginsUpdated() }
+
+// SettingsPluginsUpdated is the package's SettingsPluginsUpdated in the language of msgs.
+func (msgs Messages) SettingsPluginsUpdated() string { return msgs.text(textSettingsPluginsUpdated) }
+
+// SettingsPluginsPermissions says "Permissions"
+// in the language the app shows under cx.
+//
+// Plugin details: heading of what a script plugin may do, each with a switch that grants it.
+func SettingsPluginsPermissions(cx *core.Scope) string { return For(cx).SettingsPluginsPermissions() }
+
+// SettingsPluginsPermissions is the package's SettingsPluginsPermissions in the language of msgs.
+func (msgs Messages) SettingsPluginsPermissions() string {
+	return msgs.text(textSettingsPluginsPermissions)
+}
+
+// SettingsPluginsRisky says "It can read your subtitles and reach the network: what the subtitles say could lead it to send what it reads. Grant both only if you trust it."
+// in the language the app shows under cx.
+//
+// Install confirmation and plugin details: warning when a script plugin asks to read subtitle lines and to reach the network.
+func SettingsPluginsRisky(cx *core.Scope) string { return For(cx).SettingsPluginsRisky() }
+
+// SettingsPluginsRisky is the package's SettingsPluginsRisky in the language of msgs.
+func (msgs Messages) SettingsPluginsRisky() string { return msgs.text(textSettingsPluginsRisky) }
+
+// SettingsPluginsSettings says "Settings"
+// in the language the app shows under cx.
+//
+// Plugin details: heading of the settings a script plugin declares.
+func SettingsPluginsSettings(cx *core.Scope) string { return For(cx).SettingsPluginsSettings() }
+
+// SettingsPluginsSettings is the package's SettingsPluginsSettings in the language of msgs.
+func (msgs Messages) SettingsPluginsSettings() string { return msgs.text(textSettingsPluginsSettings) }
+
+// SettingsPluginsAudit says "Show Audit Log"
+// in the language the app shows under cx.
+//
+// Plugin details: button that shows the plugins' audit log in the file manager.
+func SettingsPluginsAudit(cx *core.Scope) string { return For(cx).SettingsPluginsAudit() }
+
+// SettingsPluginsAudit is the package's SettingsPluginsAudit in the language of msgs.
+func (msgs Messages) SettingsPluginsAudit() string { return msgs.text(textSettingsPluginsAudit) }
+
+// SettingsPluginsOptional says "Optional"
+// in the language the app shows under cx.
+//
+// Plugin details: badge after a permission the plugin can do without.
+func SettingsPluginsOptional(cx *core.Scope) string { return For(cx).SettingsPluginsOptional() }
+
+// SettingsPluginsOptional is the package's SettingsPluginsOptional in the language of msgs.
+func (msgs Messages) SettingsPluginsOptional() string { return msgs.text(textSettingsPluginsOptional) }
+
+// SettingsPluginsSecretSaved says "Saved"
+// in the language the app shows under cx.
+//
+// Plugin details: badge of a secret setting kept in the system's secure store.
+func SettingsPluginsSecretSaved(cx *core.Scope) string { return For(cx).SettingsPluginsSecretSaved() }
+
+// SettingsPluginsSecretSaved is the package's SettingsPluginsSecretSaved in the language of msgs.
+func (msgs Messages) SettingsPluginsSecretSaved() string {
+	return msgs.text(textSettingsPluginsSecretSaved)
+}
+
+// SettingsPluginsSecretClear says "Clear"
+// in the language the app shows under cx.
+//
+// Plugin details: button that removes a secret setting from the system's secure store.
+func SettingsPluginsSecretClear(cx *core.Scope) string { return For(cx).SettingsPluginsSecretClear() }
+
+// SettingsPluginsSecretClear is the package's SettingsPluginsSecretClear in the language of msgs.
+func (msgs Messages) SettingsPluginsSecretClear() string {
+	return msgs.text(textSettingsPluginsSecretClear)
+}
+
+// SettingsPluginsSecretSave says "Save"
+// in the language the app shows under cx.
+//
+// Plugin details: button that keeps a secret setting in the system's secure store.
+func SettingsPluginsSecretSave(cx *core.Scope) string { return For(cx).SettingsPluginsSecretSave() }
+
+// SettingsPluginsSecretSave is the package's SettingsPluginsSecretSave in the language of msgs.
+func (msgs Messages) SettingsPluginsSecretSave() string {
+	return msgs.text(textSettingsPluginsSecretSave)
+}
+
+// SettingsPluginsInstallSourceOfficial says "Published by Kando · signature verified"
+// in the language the app shows under cx.
+//
+// Install confirmation: where a script plugin signed by Kando's official key comes from.
+func SettingsPluginsInstallSourceOfficial(cx *core.Scope) string {
+	return For(cx).SettingsPluginsInstallSourceOfficial()
+}
+
+// SettingsPluginsInstallSourceOfficial is the package's SettingsPluginsInstallSourceOfficial in the language of msgs.
+func (msgs Messages) SettingsPluginsInstallSourceOfficial() string {
+	return msgs.text(textSettingsPluginsInstallSourceOfficial)
+}
+
+// SettingsPluginsInstallSourceDeveloper says "Signed with this computer's developer key"
+// in the language the app shows under cx.
+//
+// Install confirmation: where a script plugin packed in developer mode comes from.
+func SettingsPluginsInstallSourceDeveloper(cx *core.Scope) string {
+	return For(cx).SettingsPluginsInstallSourceDeveloper()
+}
+
+// SettingsPluginsInstallSourceDeveloper is the package's SettingsPluginsInstallSourceDeveloper in the language of msgs.
+func (msgs Messages) SettingsPluginsInstallSourceDeveloper() string {
+	return msgs.text(textSettingsPluginsInstallSourceDeveloper)
+}
+
+// SettingsPluginsDeveloperWarning says "Developer plugins run only in developer mode and were not reviewed by Kando."
+// in the language the app shows under cx.
+//
+// Install confirmation: warning for a script plugin signed with the developer key.
+func SettingsPluginsDeveloperWarning(cx *core.Scope) string {
+	return For(cx).SettingsPluginsDeveloperWarning()
+}
+
+// SettingsPluginsDeveloperWarning is the package's SettingsPluginsDeveloperWarning in the language of msgs.
+func (msgs Messages) SettingsPluginsDeveloperWarning() string {
+	return msgs.text(textSettingsPluginsDeveloperWarning)
+}
+
+// SettingsPluginsWants says "It asks to"
+// in the language the app shows under cx.
+//
+// Install confirmation: heading of the permissions a script plugin needs.
+func SettingsPluginsWants(cx *core.Scope) string { return For(cx).SettingsPluginsWants() }
+
+// SettingsPluginsWants is the package's SettingsPluginsWants in the language of msgs.
+func (msgs Messages) SettingsPluginsWants() string { return msgs.text(textSettingsPluginsWants) }
+
+// SettingsPluginsWantsOptional says "It can also use, if you allow"
+// in the language the app shows under cx.
+//
+// Install confirmation: heading of the permissions a script plugin can do without.
+func SettingsPluginsWantsOptional(cx *core.Scope) string {
+	return For(cx).SettingsPluginsWantsOptional()
+}
+
+// SettingsPluginsWantsOptional is the package's SettingsPluginsWantsOptional in the language of msgs.
+func (msgs Messages) SettingsPluginsWantsOptional() string {
+	return msgs.text(textSettingsPluginsWantsOptional)
+}
+
+// SettingsPluginsScriptStaysOff says "It stays off once installed: in its details, grant what it may do, then turn it on."
+// in the language the app shows under cx.
+//
+// Install confirmation: a script plugin does nothing until the user grants it and turns it on.
+func SettingsPluginsScriptStaysOff(cx *core.Scope) string {
+	return For(cx).SettingsPluginsScriptStaysOff()
+}
+
+// SettingsPluginsScriptStaysOff is the package's SettingsPluginsScriptStaysOff in the language of msgs.
+func (msgs Messages) SettingsPluginsScriptStaysOff() string {
+	return msgs.text(textSettingsPluginsScriptStaysOff)
+}
+
+// SettingsPluginsDeveloper says "Developer"
+// in the language the app shows under cx.
+//
+// Plugins page: heading of the developer mode card.
+func SettingsPluginsDeveloper(cx *core.Scope) string { return For(cx).SettingsPluginsDeveloper() }
+
+// SettingsPluginsDeveloper is the package's SettingsPluginsDeveloper in the language of msgs.
+func (msgs Messages) SettingsPluginsDeveloper() string {
+	return msgs.text(textSettingsPluginsDeveloper)
+}
+
+// SettingsPluginsDeveloperMode says "Developer Mode"
+// in the language the app shows under cx.
+//
+// Plugins page: switch that trusts plugins signed with this computer's developer key.
+func SettingsPluginsDeveloperMode(cx *core.Scope) string {
+	return For(cx).SettingsPluginsDeveloperMode()
+}
+
+// SettingsPluginsDeveloperMode is the package's SettingsPluginsDeveloperMode in the language of msgs.
+func (msgs Messages) SettingsPluginsDeveloperMode() string {
+	return msgs.text(textSettingsPluginsDeveloperMode)
+}
+
+// SettingsPluginsDeveloperModeHint says "Trusts plugins you pack on this computer"
+// in the language the app shows under cx.
+//
+// Plugins page: under the developer mode switch.
+func SettingsPluginsDeveloperModeHint(cx *core.Scope) string {
+	return For(cx).SettingsPluginsDeveloperModeHint()
+}
+
+// SettingsPluginsDeveloperModeHint is the package's SettingsPluginsDeveloperModeHint in the language of msgs.
+func (msgs Messages) SettingsPluginsDeveloperModeHint() string {
+	return msgs.text(textSettingsPluginsDeveloperModeHint)
+}
+
+// SettingsPluginsDevKey says "Developer Key"
+// in the language the app shows under cx.
+//
+// Plugins page: row of the developer key in developer mode.
+func SettingsPluginsDevKey(cx *core.Scope) string { return For(cx).SettingsPluginsDevKey() }
+
+// SettingsPluginsDevKey is the package's SettingsPluginsDevKey in the language of msgs.
+func (msgs Messages) SettingsPluginsDevKey() string { return msgs.text(textSettingsPluginsDevKey) }
+
+// SettingsPluginsDevKeyReady says "Kept in the system's secure store"
+// in the language the app shows under cx.
+//
+// Plugins page: under the developer key once there is one.
+func SettingsPluginsDevKeyReady(cx *core.Scope) string { return For(cx).SettingsPluginsDevKeyReady() }
+
+// SettingsPluginsDevKeyReady is the package's SettingsPluginsDevKeyReady in the language of msgs.
+func (msgs Messages) SettingsPluginsDevKeyReady() string {
+	return msgs.text(textSettingsPluginsDevKeyReady)
+}
+
+// SettingsPluginsDevKeyNone says "Make one to pack plugin folders"
+// in the language the app shows under cx.
+//
+// Plugins page: under the developer key while there is none.
+func SettingsPluginsDevKeyNone(cx *core.Scope) string { return For(cx).SettingsPluginsDevKeyNone() }
+
+// SettingsPluginsDevKeyNone is the package's SettingsPluginsDevKeyNone in the language of msgs.
+func (msgs Messages) SettingsPluginsDevKeyNone() string {
+	return msgs.text(textSettingsPluginsDevKeyNone)
+}
+
+// SettingsPluginsDevKeyMake says "Make Developer Key"
+// in the language the app shows under cx.
+//
+// Plugins page: button that makes the developer key.
+func SettingsPluginsDevKeyMake(cx *core.Scope) string { return For(cx).SettingsPluginsDevKeyMake() }
+
+// SettingsPluginsDevKeyMake is the package's SettingsPluginsDevKeyMake in the language of msgs.
+func (msgs Messages) SettingsPluginsDevKeyMake() string {
+	return msgs.text(textSettingsPluginsDevKeyMake)
+}
+
+// SettingsPluginsDevPack says "Pack and Install Folder…"
+// in the language the app shows under cx.
+//
+// Plugins page: button that signs a plugin folder with the developer key and installs it after its confirmation.
+func SettingsPluginsDevPack(cx *core.Scope) string { return For(cx).SettingsPluginsDevPack() }
+
+// SettingsPluginsDevPack is the package's SettingsPluginsDevPack in the language of msgs.
+func (msgs Messages) SettingsPluginsDevPack() string { return msgs.text(textSettingsPluginsDevPack) }
+
+// SettingsPluginsDevPickTitle says "Choose a plugin folder with kando-plugin.json and plugin.tsx"
+// in the language the app shows under cx.
+//
+// Folder panel: title when picking a developer's plugin folder to pack.
+func SettingsPluginsDevPickTitle(cx *core.Scope) string { return For(cx).SettingsPluginsDevPickTitle() }
+
+// SettingsPluginsDevPickTitle is the package's SettingsPluginsDevPickTitle in the language of msgs.
+func (msgs Messages) SettingsPluginsDevPickTitle() string {
+	return msgs.text(textSettingsPluginsDevPickTitle)
+}
+
+// SettingsPluginsPermNetwork says "Reach the network: {rules}"
+// in the language the app shows under cx.
+//
+// Install confirmation and plugin details: a script plugin's network permission; {rules} lists the requests it may make, such as POST http://127.0.0.1:8765 /.
+func SettingsPluginsPermNetwork(cx *core.Scope, rules string) string {
+	return For(cx).SettingsPluginsPermNetwork(rules)
+}
+
+// SettingsPluginsPermNetwork is the package's SettingsPluginsPermNetwork in the language of msgs.
+func (msgs Messages) SettingsPluginsPermNetwork(rules string) string {
+	if i18n.IsPseudo(msgs.lang) {
+		return i18n.Pseudo(msgs.lang, Messages{lang: Source, mark: true}.SettingsPluginsPermNetwork(rules))
+	}
+	for lang := msgs.lang; ; lang = i18n.Parent(lang) {
+		if f := supplied[lang].SettingsPluginsPermNetwork; f != nil {
+			return f(rules)
+		}
+		switch lang {
+		case "", "en":
+			return "Reach the network: " + msgs.arg(rules)
+		case "ja":
+			return "ネットワークに接続：" + rules
+		case "ko":
+			return "네트워크 연결: " + rules
+		case "zh-Hans":
+			return "联网：" + rules
+		case "zh-Hant":
+			return "連網：" + rules
+		}
+	}
+}
+
+// SettingsPluginsPermFilmCurrent says "Read the film playing: its title, languages and position"
+// in the language the app shows under cx.
+//
+// Permission of a script plugin.
+func SettingsPluginsPermFilmCurrent(cx *core.Scope) string {
+	return For(cx).SettingsPluginsPermFilmCurrent()
+}
+
+// SettingsPluginsPermFilmCurrent is the package's SettingsPluginsPermFilmCurrent in the language of msgs.
+func (msgs Messages) SettingsPluginsPermFilmCurrent() string {
+	return msgs.text(textSettingsPluginsPermFilmCurrent)
+}
+
+// SettingsPluginsPermLineCurrent says "Read the line playing"
+// in the language the app shows under cx.
+//
+// Permission of a script plugin.
+func SettingsPluginsPermLineCurrent(cx *core.Scope) string {
+	return For(cx).SettingsPluginsPermLineCurrent()
+}
+
+// SettingsPluginsPermLineCurrent is the package's SettingsPluginsPermLineCurrent in the language of msgs.
+func (msgs Messages) SettingsPluginsPermLineCurrent() string {
+	return msgs.text(textSettingsPluginsPermLineCurrent)
+}
+
+// SettingsPluginsPermLinesSeen says "Read the lines of the film playing, up to where you watched"
+// in the language the app shows under cx.
+//
+// Permission of a script plugin: never the lines not watched yet.
+func SettingsPluginsPermLinesSeen(cx *core.Scope) string {
+	return For(cx).SettingsPluginsPermLinesSeen()
+}
+
+// SettingsPluginsPermLinesSeen is the package's SettingsPluginsPermLinesSeen in the language of msgs.
+func (msgs Messages) SettingsPluginsPermLinesSeen() string {
+	return msgs.text(textSettingsPluginsPermLinesSeen)
+}
+
+// SettingsPluginsPermSavedRead says "Read your saved lines"
+// in the language the app shows under cx.
+//
+// Permission of a script plugin.
+func SettingsPluginsPermSavedRead(cx *core.Scope) string {
+	return For(cx).SettingsPluginsPermSavedRead()
+}
+
+// SettingsPluginsPermSavedRead is the package's SettingsPluginsPermSavedRead in the language of msgs.
+func (msgs Messages) SettingsPluginsPermSavedRead() string {
+	return msgs.text(textSettingsPluginsPermSavedRead)
+}
+
+// SettingsPluginsPermWordsRead says "Read your vocabulary"
+// in the language the app shows under cx.
+//
+// Permission of a script plugin.
+func SettingsPluginsPermWordsRead(cx *core.Scope) string {
+	return For(cx).SettingsPluginsPermWordsRead()
+}
+
+// SettingsPluginsPermWordsRead is the package's SettingsPluginsPermWordsRead in the language of msgs.
+func (msgs Messages) SettingsPluginsPermWordsRead() string {
+	return msgs.text(textSettingsPluginsPermWordsRead)
+}
+
+// SettingsPluginsPermToast says "Show short messages in the window"
+// in the language the app shows under cx.
+//
+// Permission of a script plugin.
+func SettingsPluginsPermToast(cx *core.Scope) string { return For(cx).SettingsPluginsPermToast() }
+
+// SettingsPluginsPermToast is the package's SettingsPluginsPermToast in the language of msgs.
+func (msgs Messages) SettingsPluginsPermToast() string {
+	return msgs.text(textSettingsPluginsPermToast)
+}
+
+// SettingsPluginsPermOpenURL says "Open web pages in your browser, after you agree to each"
+// in the language the app shows under cx.
+//
+// Permission of a script plugin: https pages only, confirmed each time.
+func SettingsPluginsPermOpenURL(cx *core.Scope) string { return For(cx).SettingsPluginsPermOpenURL() }
+
+// SettingsPluginsPermOpenURL is the package's SettingsPluginsPermOpenURL in the language of msgs.
+func (msgs Messages) SettingsPluginsPermOpenURL() string {
+	return msgs.text(textSettingsPluginsPermOpenURL)
+}
+
+// SettingsPluginsPermSettingsGet says "Read its own settings"
+// in the language the app shows under cx.
+//
+// Permission of a script plugin that needs no grant.
+func SettingsPluginsPermSettingsGet(cx *core.Scope) string {
+	return For(cx).SettingsPluginsPermSettingsGet()
+}
+
+// SettingsPluginsPermSettingsGet is the package's SettingsPluginsPermSettingsGet in the language of msgs.
+func (msgs Messages) SettingsPluginsPermSettingsGet() string {
+	return msgs.text(textSettingsPluginsPermSettingsGet)
+}
+
+// SettingsPluginsConflicts says "Kando already uses the keys of {commands}; they work from the menu bar and the command palette."
+// in the language the app shows under cx.
+//
+// Plugin details: commands whose shortcut keys Kando's own shortcuts take.
+func SettingsPluginsConflicts(cx *core.Scope, commands string) string {
+	return For(cx).SettingsPluginsConflicts(commands)
+}
+
+// SettingsPluginsConflicts is the package's SettingsPluginsConflicts in the language of msgs.
+func (msgs Messages) SettingsPluginsConflicts(commands string) string {
+	if i18n.IsPseudo(msgs.lang) {
+		return i18n.Pseudo(msgs.lang, Messages{lang: Source, mark: true}.SettingsPluginsConflicts(commands))
+	}
+	for lang := msgs.lang; ; lang = i18n.Parent(lang) {
+		if f := supplied[lang].SettingsPluginsConflicts; f != nil {
+			return f(commands)
+		}
+		switch lang {
+		case "", "en":
+			return "Kando already uses the keys of " + msgs.arg(commands) + "; they work from the menu bar and the command palette."
+		case "ja":
+			return commands + " のショートカットは Kando がすでに使っています。メニューバーとコマンドパレットから使えます。"
+		case "ko":
+			return commands + "의 단축키는 Kando가 이미 사용 중입니다. 메뉴 막대와 명령 팔레트에서 사용할 수 있습니다."
+		case "zh-Hans":
+			return "看懂已占用这些命令的快捷键：" + commands + "；可以在菜单栏和命令面板里使用它们。"
+		case "zh-Hant":
+			return "看懂已占用這些命令的快速鍵：" + commands + "；可以在選單列和命令面板裡使用它們。"
+		}
+	}
+}
+
+// SettingsPluginsStoppedInit says "Turned off: it failed as it started"
+// in the language the app shows under cx.
+//
+// Plugins page: why Kando turned a script plugin off.
+func SettingsPluginsStoppedInit(cx *core.Scope) string { return For(cx).SettingsPluginsStoppedInit() }
+
+// SettingsPluginsStoppedInit is the package's SettingsPluginsStoppedInit in the language of msgs.
+func (msgs Messages) SettingsPluginsStoppedInit() string {
+	return msgs.text(textSettingsPluginsStoppedInit)
+}
+
+// SettingsPluginsStoppedFailed says "Turned off: it failed too often"
+// in the language the app shows under cx.
+//
+// Plugins page: why Kando turned a script plugin off.
+func SettingsPluginsStoppedFailed(cx *core.Scope) string {
+	return For(cx).SettingsPluginsStoppedFailed()
+}
+
+// SettingsPluginsStoppedFailed is the package's SettingsPluginsStoppedFailed in the language of msgs.
+func (msgs Messages) SettingsPluginsStoppedFailed() string {
+	return msgs.text(textSettingsPluginsStoppedFailed)
+}
+
+// SettingsPluginsStoppedSlow says "Turned off: it kept Kando from responding"
+// in the language the app shows under cx.
+//
+// Plugins page: why Kando turned a script plugin off.
+func SettingsPluginsStoppedSlow(cx *core.Scope) string { return For(cx).SettingsPluginsStoppedSlow() }
+
+// SettingsPluginsStoppedSlow is the package's SettingsPluginsStoppedSlow in the language of msgs.
+func (msgs Messages) SettingsPluginsStoppedSlow() string {
+	return msgs.text(textSettingsPluginsStoppedSlow)
+}
+
+// SettingsPluginsStoppedMemory says "Turned off: it used too much memory"
+// in the language the app shows under cx.
+//
+// Plugins page: why Kando turned a script plugin off.
+func SettingsPluginsStoppedMemory(cx *core.Scope) string {
+	return For(cx).SettingsPluginsStoppedMemory()
+}
+
+// SettingsPluginsStoppedMemory is the package's SettingsPluginsStoppedMemory in the language of msgs.
+func (msgs Messages) SettingsPluginsStoppedMemory() string {
+	return msgs.text(textSettingsPluginsStoppedMemory)
+}
+
+// SettingsPluginsStoppedHung says "Turned off: Kando stopped responding the last time it ran"
+// in the language the app shows under cx.
+//
+// Plugins page: why Kando turned a script plugin off after a call was still running when Kando stopped.
+func SettingsPluginsStoppedHung(cx *core.Scope) string { return For(cx).SettingsPluginsStoppedHung() }
+
+// SettingsPluginsStoppedHung is the package's SettingsPluginsStoppedHung in the language of msgs.
+func (msgs Messages) SettingsPluginsStoppedHung() string {
+	return msgs.text(textSettingsPluginsStoppedHung)
+}
+
+// PluginsErrUnknownPerm says "It asks for a permission this version of Kando doesn't have."
+// in the language the app shows under cx.
+//
+// Why a script plugin cannot be installed.
+func PluginsErrUnknownPerm(cx *core.Scope) string { return For(cx).PluginsErrUnknownPerm() }
+
+// PluginsErrUnknownPerm is the package's PluginsErrUnknownPerm in the language of msgs.
+func (msgs Messages) PluginsErrUnknownPerm() string { return msgs.text(textPluginsErrUnknownPerm) }
+
+// PluginsErrBadCapabilities says "It asks for access Kando doesn't give plugins."
+// in the language the app shows under cx.
+//
+// Why a script plugin cannot be installed: capabilities beyond its permissions and narrow network rules.
+func PluginsErrBadCapabilities(cx *core.Scope) string { return For(cx).PluginsErrBadCapabilities() }
+
+// PluginsErrBadCapabilities is the package's PluginsErrBadCapabilities in the language of msgs.
+func (msgs Messages) PluginsErrBadCapabilities() string {
+	return msgs.text(textPluginsErrBadCapabilities)
+}
+
+// PluginsErrTampered says "It was changed after it was signed."
+// in the language the app shows under cx.
+//
+// Why a script plugin cannot be installed or run: its parts disagree with its signed code.
+func PluginsErrTampered(cx *core.Scope) string { return For(cx).PluginsErrTampered() }
+
+// PluginsErrTampered is the package's PluginsErrTampered in the language of msgs.
+func (msgs Messages) PluginsErrTampered() string { return msgs.text(textPluginsErrTampered) }
+
+// PluginsErrUntrusted says "It isn't signed by a key Kando trusts."
+// in the language the app shows under cx.
+//
+// Why a script plugin cannot be installed or run.
+func PluginsErrUntrusted(cx *core.Scope) string { return For(cx).PluginsErrUntrusted() }
+
+// PluginsErrUntrusted is the package's PluginsErrUntrusted in the language of msgs.
+func (msgs Messages) PluginsErrUntrusted() string { return msgs.text(textPluginsErrUntrusted) }
+
+// PluginsErrRevoked says "It was withdrawn."
+// in the language the app shows under cx.
+//
+// Why a script plugin cannot be installed or run: its key or package was revoked.
+func PluginsErrRevoked(cx *core.Scope) string { return For(cx).PluginsErrRevoked() }
+
+// PluginsErrRevoked is the package's PluginsErrRevoked in the language of msgs.
+func (msgs Messages) PluginsErrRevoked() string { return msgs.text(textPluginsErrRevoked) }
+
+// PluginsErrRollback says "It's older than a version installed before."
+// in the language the app shows under cx.
+//
+// Why a script plugin cannot be installed.
+func PluginsErrRollback(cx *core.Scope) string { return For(cx).PluginsErrRollback() }
+
+// PluginsErrRollback is the package's PluginsErrRollback in the language of msgs.
+func (msgs Messages) PluginsErrRollback() string { return msgs.text(textPluginsErrRollback) }
+
+// PluginsErrNeedsNewer says "It needs a newer version of Kando."
+// in the language the app shows under cx.
+//
+// Why a script plugin cannot be installed.
+func PluginsErrNeedsNewer(cx *core.Scope) string { return For(cx).PluginsErrNeedsNewer() }
+
+// PluginsErrNeedsNewer is the package's PluginsErrNeedsNewer in the language of msgs.
+func (msgs Messages) PluginsErrNeedsNewer() string { return msgs.text(textPluginsErrNeedsNewer) }
+
+// PluginsErrScope says "Its ID belongs to another publisher than the one who signed it."
+// in the language the app shows under cx.
+//
+// Why a script plugin cannot be installed.
+func PluginsErrScope(cx *core.Scope) string { return For(cx).PluginsErrScope() }
+
+// PluginsErrScope is the package's PluginsErrScope in the language of msgs.
+func (msgs Messages) PluginsErrScope() string { return msgs.text(textPluginsErrScope) }
+
+// PluginsErrNoManifest says "Its code doesn't say what it is, or fails as it starts."
+// in the language the app shows under cx.
+//
+// Why a script plugin cannot be installed or run: kandoManifest is missing or throws.
+func PluginsErrNoManifest(cx *core.Scope) string { return For(cx).PluginsErrNoManifest() }
+
+// PluginsErrNoManifest is the package's PluginsErrNoManifest in the language of msgs.
+func (msgs Messages) PluginsErrNoManifest() string { return msgs.text(textPluginsErrNoManifest) }
+
+// PluginsErrNoEntry says "The folder has no plugin.tsx."
+// in the language the app shows under cx.
+//
+// Why a developer's plugin folder cannot be packed.
+func PluginsErrNoEntry(cx *core.Scope) string { return For(cx).PluginsErrNoEntry() }
+
+// PluginsErrNoEntry is the package's PluginsErrNoEntry in the language of msgs.
+func (msgs Messages) PluginsErrNoEntry() string { return msgs.text(textPluginsErrNoEntry) }
+
+// PluginsErrTooManyScripts says "At most 12 script plugins can be on at once."
+// in the language the app shows under cx.
+//
+// Why a script plugin's switch did not turn on.
+func PluginsErrTooManyScripts(cx *core.Scope) string { return For(cx).PluginsErrTooManyScripts() }
+
+// PluginsErrTooManyScripts is the package's PluginsErrTooManyScripts in the language of msgs.
+func (msgs Messages) PluginsErrTooManyScripts() string {
+	return msgs.text(textPluginsErrTooManyScripts)
+}
+
+// PluginsErrDevID says "A developer plugin can't replace a plugin installed from elsewhere."
+// in the language the app shows under cx.
+//
+// Why a developer plugin cannot be installed: its id is taken by a plugin that is not a developer one.
+func PluginsErrDevID(cx *core.Scope) string { return For(cx).PluginsErrDevID() }
+
+// PluginsErrDevID is the package's PluginsErrDevID in the language of msgs.
+func (msgs Messages) PluginsErrDevID() string { return msgs.text(textPluginsErrDevID) }
+
+// PluginsErrNoDevKey says "Make a developer key first."
+// in the language the app shows under cx.
+//
+// Why a plugin folder cannot be packed.
+func PluginsErrNoDevKey(cx *core.Scope) string { return For(cx).PluginsErrNoDevKey() }
+
+// PluginsErrNoDevKey is the package's PluginsErrNoDevKey in the language of msgs.
+func (msgs Messages) PluginsErrNoDevKey() string { return msgs.text(textPluginsErrNoDevKey) }
+
+// PluginsOpenURLTitle says "Open {host}?"
+// in the language the app shows under cx.
+//
+// System alert before a page a script plugin asked for opens; {host} is the page's host.
+func PluginsOpenURLTitle(cx *core.Scope, host string) string {
+	return For(cx).PluginsOpenURLTitle(host)
+}
+
+// PluginsOpenURLTitle is the package's PluginsOpenURLTitle in the language of msgs.
+func (msgs Messages) PluginsOpenURLTitle(host string) string {
+	if i18n.IsPseudo(msgs.lang) {
+		return i18n.Pseudo(msgs.lang, Messages{lang: Source, mark: true}.PluginsOpenURLTitle(host))
+	}
+	for lang := msgs.lang; ; lang = i18n.Parent(lang) {
+		if f := supplied[lang].PluginsOpenURLTitle; f != nil {
+			return f(host)
+		}
+		switch lang {
+		case "", "en":
+			return "Open " + msgs.arg(host) + "?"
+		case "ja":
+			return host + " を開きますか？"
+		case "ko":
+			return host + "을(를) 열까요?"
+		case "zh-Hans":
+			return "打开 " + host + "？"
+		case "zh-Hant":
+			return "開啟 " + host + "？"
+		}
+	}
+}
+
+// PluginsOpenURLMessage says "The plugin {plugin} wants to open {url} in your browser."
+// in the language the app shows under cx.
+//
+// System alert before a page a script plugin asked for opens.
+func PluginsOpenURLMessage(cx *core.Scope, plugin string, url string) string {
+	return For(cx).PluginsOpenURLMessage(plugin, url)
+}
+
+// PluginsOpenURLMessage is the package's PluginsOpenURLMessage in the language of msgs.
+func (msgs Messages) PluginsOpenURLMessage(plugin string, url string) string {
+	if i18n.IsPseudo(msgs.lang) {
+		return i18n.Pseudo(msgs.lang, Messages{lang: Source, mark: true}.PluginsOpenURLMessage(plugin, url))
+	}
+	for lang := msgs.lang; ; lang = i18n.Parent(lang) {
+		if f := supplied[lang].PluginsOpenURLMessage; f != nil {
+			return f(plugin, url)
+		}
+		switch lang {
+		case "", "en":
+			return "The plugin " + msgs.arg(plugin) + " wants to open " + msgs.arg(url) + " in your browser."
+		case "ja":
+			return "プラグイン「" + plugin + "」がブラウザで " + url + " を開こうとしています。"
+		case "ko":
+			return "플러그인 \"" + plugin + "\"이(가) 브라우저에서 " + url + "을(를) 열려고 합니다."
+		case "zh-Hans":
+			return "插件「" + plugin + "」想在浏览器中打开 " + url + "。"
+		case "zh-Hant":
+			return "外掛「" + plugin + "」想在瀏覽器中開啟 " + url + "。"
+		}
+	}
+}
+
+// PluginsOpenURLOpen says "Open"
+// in the language the app shows under cx.
+//
+// System alert: button that opens the page a script plugin asked for.
+func PluginsOpenURLOpen(cx *core.Scope) string { return For(cx).PluginsOpenURLOpen() }
+
+// PluginsOpenURLOpen is the package's PluginsOpenURLOpen in the language of msgs.
+func (msgs Messages) PluginsOpenURLOpen() string { return msgs.text(textPluginsOpenURLOpen) }
+
+// PluginsCommandFailed says "{command} didn't finish."
+// in the language the app shows under cx.
+//
+// Toast under a plugin's name when one of its commands failed.
+func PluginsCommandFailed(cx *core.Scope, command string) string {
+	return For(cx).PluginsCommandFailed(command)
+}
+
+// PluginsCommandFailed is the package's PluginsCommandFailed in the language of msgs.
+func (msgs Messages) PluginsCommandFailed(command string) string {
+	if i18n.IsPseudo(msgs.lang) {
+		return i18n.Pseudo(msgs.lang, Messages{lang: Source, mark: true}.PluginsCommandFailed(command))
+	}
+	for lang := msgs.lang; ; lang = i18n.Parent(lang) {
+		if f := supplied[lang].PluginsCommandFailed; f != nil {
+			return f(command)
+		}
+		switch lang {
+		case "", "en":
+			return msgs.arg(command) + " didn't finish."
+		case "ja":
+			return "「" + command + "」を完了できませんでした。"
+		case "ko":
+			return "\"" + command + "\"을(를) 마치지 못했습니다."
+		case "zh-Hans":
+			return "「" + command + "」没有完成。"
+		case "zh-Hant":
+			return "「" + command + "」沒有完成。"
+		}
+	}
+}
+
+// PluginsToastClose says "Close"
+// in the language the app shows under cx.
+//
+// Accessibility name of the button that closes a plugin's toast.
+func PluginsToastClose(cx *core.Scope) string { return For(cx).PluginsToastClose() }
+
+// PluginsToastClose is the package's PluginsToastClose in the language of msgs.
+func (msgs Messages) PluginsToastClose() string { return msgs.text(textPluginsToastClose) }
 
 // SettingsPhoneConflictUse says "Use This"
 // in the language the app shows under cx.

@@ -18,13 +18,15 @@ import (
 	"github.com/nsgo-dev/nsgo/ui"
 )
 
-// PluginRow is a pack as the 插件 page lists it: one installed (Pack, with whether it is turned on), or one the settings remember that is not in the plugins folder any more (Missing), of which only Pack.ID and Pack.Kind are known. Detail is what it adds, worded by the app in the interface's language, as how many terms a glossary has and between which languages, or the host an AI service talks to. Up and Down say whether a dictionary can move up or down among the dictionaries, the order lookups ask them in.
+// PluginRow is a pack as the 插件 page lists it (Script says more of a script plugin): one installed (Pack, with whether it is turned on), or one the settings remember that is not in the plugins folder any more (Missing), of which only Pack.ID and Pack.Kind are known. Detail is what it adds, worded by the app in the interface's language, as how many terms a glossary has and between which languages, or the host an AI service talks to. Up and Down say whether a dictionary can move up or down among the dictionaries, the order lookups ask them in.
 type PluginRow struct {
 	Pack     plugins.Pack
 	Enabled  bool
 	Missing  bool
 	Detail   string
 	Up, Down bool
+	// Script is a script plugin's, nil for a data pack.
+	Script *PluginScript
 }
 
 // PluginIssue is a folder of the plugins folder that is not a valid pack: its name, and why, in the interface's language.
@@ -39,11 +41,14 @@ type PluginInstall struct {
 	Detail   string
 	Replaces string
 	Err      string
+	// Script is what a script plugin asks for and where it comes from, nil for a data pack.
+	Script *PluginScript
 }
 
 // PluginsApp is what the 插件 page reads and the edits it reports. The page reads the getters in its bindings and calls the actions from its handlers, which tell the revision (package live), so none of the actions calls Changed itself. Installing, removing and reading the plugins folder run off the UI thread and report back.
 type PluginsApp interface {
 	live.State
+	PluginScriptsApp
 
 	// PluginRows are the packs, installed ones and those the settings remember that are missing, in the order the settings keep them; PluginIssues the folders that are not valid packs. PluginsNote says what is wrong with the plugins' state file (state.json), "" when nothing is; PluginsErr why the last install, removal or switch failed. PluginsBusy is set while one runs.
 	PluginRows() []PluginRow
@@ -75,7 +80,7 @@ type PluginsApp interface {
 }
 
 // pluginKinds are the kinds of packs the page groups the list by, in its order.
-var pluginKinds = []plugins.Kind{plugins.KindGlossary, plugins.KindAIService, plugins.KindDictionary, plugins.KindWordlist, plugins.KindSite}
+var pluginKinds = []plugins.Kind{plugins.KindScript, plugins.KindGlossary, plugins.KindAIService, plugins.KindDictionary, plugins.KindWordlist, plugins.KindSite}
 
 // pluginKindTitle is the heading of the group of kind, in the language the app shows under cx.
 func pluginKindTitle(cx *core.Scope, kind plugins.Kind) string {
@@ -88,6 +93,8 @@ func pluginKindTitle(cx *core.Scope, kind plugins.Kind) string {
 		return locales.SettingsPluginsKindDictionary(cx)
 	case plugins.KindSite:
 		return locales.SettingsPluginsKindSite(cx)
+	case plugins.KindScript:
+		return locales.SettingsPluginsKindScript(cx)
 	}
 	return locales.SettingsPluginsKindWordlist(cx)
 }
@@ -124,6 +131,7 @@ func (p Plugins) Render(cx *core.Scope) core.Node {
 		pluginList{a: a},
 		pluginIssues{a: a},
 		failed,
+		pluginDeveloper{a: a},
 		core.Show{When: live.Func(a, a.PluginInstallHere), Then: func(*core.Scope) core.Node { return PluginInstallDialog{App: a, Open: func() bool { return true }} }},
 	)
 	return core.View{TestID: "settings-plugins",
@@ -154,7 +162,8 @@ func (l pluginList) Render(cx *core.Scope) core.Node {
 	keys := core.NewMemo(cx, live.Func(a, func() string {
 		var out []string
 		for _, r := range a.PluginRows() {
-			out = append(out, string(r.Pack.Kind)+"/"+r.Pack.ID+"/"+r.Pack.Hash)
+			// A script plugin's source comes once its signature is verified, after the row may have been built: its badge is built again then.
+			out = append(out, string(r.Pack.Kind)+"/"+r.Pack.ID+"/"+r.Pack.Hash+"/"+string(r.Pack.Source))
 		}
 		// Sorted, so a move, which changes only the order, builds nothing again.
 		slices.Sort(out)
@@ -217,13 +226,23 @@ func pluginRow(cx *core.Scope, a PluginsApp, item func() PluginRow, open, asking
 	if r.Missing {
 		subtitle = locales.SettingsPluginsMissing(cx)
 	}
+	// A script plugin Kando turned off or refused says why in place of its version.
+	subtitleFunc := func() string { return subtitle }
+	if r.Script != nil {
+		subtitleFunc = live.Func(a, func() string {
+			if s, ok := pluginScriptRow(a, id); ok && s.Problem != "" {
+				return s.Problem
+			}
+			return subtitle
+		})
+	}
 	title := core.View{Style: core.Style{Direction: core.Row, Gap: 6, AlignItems: core.AlignCenter}, Children: []core.Node{
 		core.Text{Content: name, MaxLines: 1, EllipsizeMode: core.EllipsizeTail, Style: core.Style{FontSize: 13, LineHeight: 18, FlexShrink: 1}, StyleFunc: ui.Colored(colors.Text)},
-		form.Badge(locales.SettingsPluginsSourceLocal(cx)),
+		form.Badge(pluginSourceBadge(cx, r.Pack)),
 	}}
 	titles := core.View{Style: core.Style{FlexGrow: 1, FlexShrink: 1, MinWidth: core.Pt(0)}, Children: []core.Node{
 		title,
-		core.Text{Content: subtitle, MaxLines: 1, EllipsizeMode: core.EllipsizeTail, Style: core.Style{FontSize: 11, LineHeight: 16}, StyleFunc: ui.Colored(colors.Muted)},
+		core.Text{ContentFunc: subtitleFunc, MaxLines: 1, EllipsizeMode: core.EllipsizeTail, Style: core.Style{FontSize: 11, LineHeight: 16}, StyleFunc: ui.Colored(colors.Muted)},
 	}}
 	var trailing []core.Node
 	if r.Missing {
@@ -247,7 +266,8 @@ func pluginRow(cx *core.Scope, a PluginsApp, item func() PluginRow, open, asking
 		})
 		trailing = append(trailing,
 			ui.Switch{Label: locales.SettingsPluginsEnableLabel(cx, name), Size: ui.SizeSmall, TestID: "settings-plugins-switch-" + id, Checked: enabled,
-				Disabled: live.Func(a, a.PluginsBusy),
+				// A script plugin whose signature was not verified for its content cannot be turned on.
+				Disabled: live.Func(a, func() bool { return a.PluginsBusy() || item().Script != nil && !item().Script.Verified }),
 				OnChange: live.On(a, func(on bool) { a.SetPluginEnabled(id, on) })},
 			ui.IconButton{Icon: lucide.ChevronDown, LabelFunc: func() string { return locales.SettingsPluginsDetailsLabel(cx, name) }, Size: 22, TestID: "settings-plugins-details-" + id,
 				OnPress: func() {
@@ -301,6 +321,9 @@ func pluginDetail(cx *core.Scope, a PluginsApp, r PluginRow, name string, asking
 		lines = append(lines, pluginSites(cx, a, r.Pack.Site.Domains(), "settings-plugins-site-"+id+"-",
 			func(domain string) bool { return a.PluginSiteAllowed(id, domain) },
 			func(domain string, on bool) { a.SetPluginSiteAllowed(id, domain, on) }))
+	}
+	if r.Script != nil {
+		lines = append(lines, pluginScriptDetail(cx, a, r)...)
 	}
 	uninstall := form.Button{Text: locales.SettingsPluginsUninstall(cx), Label: locales.SettingsPluginsUninstallLabel(cx, name), TestID: "settings-plugins-uninstall-" + id,
 		Disabled: live.Func(a, a.PluginsBusy),
@@ -434,7 +457,11 @@ func pluginInstallDialog(cx *core.Scope, a PluginsApp, in PluginInstall, cancel 
 	if in.Detail != "" {
 		children = append(children, core.Text{Content: in.Detail, Style: core.Style{FontSize: 13, LineHeight: 18}, StyleFunc: ui.Colored(colors.Text)})
 	}
-	children = append(children, facts(locales.SettingsPluginsInstallSource(cx)))
+	if in.Script != nil {
+		children = append(children, pluginScriptInstall(cx, *in.Script)...)
+	} else {
+		children = append(children, facts(locales.SettingsPluginsInstallSource(cx)))
+	}
 	version := locales.SettingsPluginsVersion(cx, p.Version)
 	if p.Author != "" {
 		version = locales.SettingsPluginsVersionAuthor(cx, p.Version, p.Author)

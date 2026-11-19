@@ -9,6 +9,7 @@ import (
 	"testing"
 
 	"kando/apps/kando/plugins"
+	"kando/apps/kando/plugins/script"
 )
 
 const pluginManifest = `{
@@ -77,9 +78,9 @@ func TestPluginValidate(t *testing.T) {
 	if code != 1 || stdout != "" || !strings.Contains(stderr, "kando plugin:") || !strings.Contains(stderr, "reserved") {
 		t.Errorf("validate a reserved id = %d, %q, %q", code, stdout, stderr)
 	}
-	code, stdout, _ = run("plugin", "validate", "--json", pluginFolder(t, `{"schema": 1, "id": "example.x", "kind": "script"}`))
+	code, stdout, _ = run("plugin", "validate", "--json", pluginFolder(t, `{"schema": 1, "id": "example.x", "kind": "task"}`))
 	if code != 1 || !strings.Contains(stdout, `"error"`) || !strings.Contains(stdout, "cannot install this kind") {
-		t.Errorf("validate --json a script = %d, %q", code, stdout)
+		t.Errorf("validate --json a task pack = %d, %q", code, stdout)
 	}
 	if code, _, stderr := run("plugin", "validate", filepath.Join(t.TempDir(), "missing.zip")); code != 1 || !strings.Contains(stderr, "missing.zip") {
 		t.Errorf("validate a missing file = %d, %q", code, stderr)
@@ -186,5 +187,31 @@ func TestPluginInstall(t *testing.T) {
 	}
 	if inbox, _ := plugins.Inbox(root); len(inbox) != 2 {
 		t.Errorf("inbox after a refused install %q", inbox)
+	}
+}
+
+// TestPluginValidateScript checks that validate verifies a script plugin's signature as the app does, against Kando's official root: one signed with a developer key, which the command line does not read from the system's secure store, is refused as signed by a key not trusted, after the checks every pack passes.
+func TestPluginValidateScript(t *testing.T) {
+	shortSocket(t)
+	pluginsRoot = func() string { return filepath.Join(t.TempDir(), "plugins") }
+	t.Cleanup(func() { pluginsRoot = plugins.DefaultRoot })
+	secret, _, err := script.NewDevKey()
+	if err != nil {
+		t.Fatal(err)
+	}
+	key, _, err := script.DevKey(secret)
+	if err != nil {
+		t.Fatal(err)
+	}
+	src, dst := t.TempDir(), t.TempDir()
+	fields := `"capabilities": {"host": ["kando.toast"]}`
+	os.WriteFile(filepath.Join(src, plugins.ManifestName), []byte(`{"schema": 2, "id": "acme.hello", "kind": "script", "version": "0.1.0", "license": "MIT", "name": {"en": "Hello"}, `+fields+`}`), 0o644)
+	os.WriteFile(filepath.Join(src, script.Entry), []byte("export function kandoManifest() { return {"+fields+"} }\n"), 0o644)
+	if err := script.PackFolder(src, dst, key); err != nil {
+		t.Fatal(err)
+	}
+	code, stdout, stderr := run("plugin", "validate", dst)
+	if code != 1 || stdout != "" || !strings.Contains(stderr, "not signed by a key Kando trusts") {
+		t.Errorf("validate a developer plugin = %d, %q, %q", code, stdout, stderr)
 	}
 }
