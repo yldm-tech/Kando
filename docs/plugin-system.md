@@ -14,7 +14,7 @@
 
 ### 非目标
 
-- 插件不能替换流水线阶段（下载、识别、校对、翻译、导出落盘），也不能在 `media.Run` 中间挂通用钩子。原因是 `Run` 的续跑和重做依赖文件语义（转写稿、`pendingHeard`、checkpoint、proofs），而 `apps/kando` 里有大量 `a.pipeline.(media.Tools)` 断言（非测试文件约 73 处）。`packages/media` 只做三处加法：P2.0 的 `ChatWith`（见 5.3），第 5 期可选的 `media.Tools.Engine` 字段，以及给失败标上步骤的 `media.StageError`（都见 2.3 的 E14）。三处都不改 Pipeline、Run 的语义（`StageError` 的文字和以前的错误文字一样），也不碰任何断言。
+- 插件不能替换流水线阶段（下载、识别、校对、翻译、导出落盘），也不能在 `media.Run` 中间挂通用钩子。原因是 `Run` 的续跑和重做依赖文件语义（转写稿、`pendingHeard`、checkpoint、proofs），而 `apps/kando` 里有大量 `a.pipeline.(media.Tools)` 断言（非测试文件约 73 处）。`packages/media` 只做三处加法：P2.0 的 `ChatWith`（见 5.3），第 5 期可选的 `media.Tools.Engine` 字段，以及给失败标上步骤的 `media.StageError`（都见 2.3 的 E14），另外第 5 期的翻译来源导出了一个读 ctx 的 `SpeechLanguageOf`。这几处都不改 Pipeline、Run 的语义（`StageError` 的文字和以前的错误文字一样），也不碰任何断言。
 - 不支持 Go `plugin`、原生 dylib、第三方原生 sidecar 和 MCP 子进程插件，原因见 3.4 节。要不要开放 MCP 子进程，以后单独立项、由 owner 决定，不写进本路线图。
 - 插件不能自己画整窗覆盖层，不能在影片画面或字幕层上自绘，也不能注册顶层 CLI 命令或 socket 方法。
 - 手机端不运行插件代码。
@@ -117,9 +117,13 @@
 
 ### 2.3 后期扩展点（P5，各自单独立项）
 
-**E14 候选译文和机器翻译来源（DeepL 等）**
+**E14 候选译文和机器翻译来源（DeepL 等）**（已实现，`feat/plugins-translators`，见第 15 节）
+- 贡献块 `translators`（最多 8 项）：每项 `{id, title, languages, local}`，`languages` 是 `"any"` 或 `{from: [...], to: [...]}`（语言标签，规范形式），`local` 默认 false，说自己在本机运行（离线模式也能用），申请了网络或凭据的插件不能写 true。没有 `export` 字段：有翻译来源的插件必须导出 `translate(lines, from, to, context)`，回和 `lines` 等长、同序的字符串数组；可以导出 `candidates(line, from, to, context)`，回字符串数组（改错的候选）。`from` 是影片听出来的语言（whisper 的代码，`media.SpeechLanguageOf`，不知道时为 ""），`to` 是目标语言的标签（`core.TargetTag`，看懂不认识的自定义目标语言原样给出，只交给 `"any"` 的来源）。`context` 是 `{translator}`，候选另有 `current`（这句现在的译文）、`before`、`after`（前后几句的原文）。看懂每次最多给 50 行（`plugins.TranslateBatch`），回答的行数不对、不是字符串算 `bad-reply`；回答里的换行换成空格，每行最多 2000 字。和其他贡献块一样受 `kandoManifest()` 比对（在 `contributes` 里），列在详情页的「添加的功能」里（「翻译来源：<标题>」），算读字幕（`ReadsLines`）。
+- 设置 › 翻译 的第一张卡片顶上多一行「翻译来源」（`settings.Sources`，有插件提供翻译来源、或选中的来源不在了时才出现）：「AI 服务」（默认）或已启用插件的各个翻译来源。选了插件的来源时，任务的 `media.Tools.Engine` 是一个 Go 适配器（`state_plugins_translate.go` 的 `pluginsTranslator`），经 runner 调插件，受插件自己的看门狗、预算和熔断约束，插件等宿主（`credentialFetch`、`llm.chat`）时照旧 `PauseFor`；`EngineName` 是来源的标题（界面语言）。选择存在 settings.json 翻译那一部分的 `translateSource`（`{plugin, translator, title}`）。插件被关闭、卸载或不再提供这个来源时，任务改用 AI 服务，设置页那一行写「翻译来源「X」已不可用……改用 AI 服务翻译」，消息栏每次运行说一次；插件重新打开后又用回它。插件已打开但还在验签或载入时，翻译最多等 30 s，再不在运行就按 `not-running` 失败。
+- 插件的失败带码：插件以 `{code, message}` reject（必须是 async 导出），看懂认得 `quota`、`auth`、`no-credential`、`language`、`rate-limit`、`unavailable`，自己再给 `not-running`、`bad-reply`（`plugins.TranslateError`，文字是「<code>: <插件说的话>」，library.json 存的就是它，读回来照样认得）。失败卡片（`jobfailure.SourceHint`）对这几种码各有一句以来源名开头的话，`auth`、`no-credential`、`not-running` 带「打开设置」到插件页，`language` 到翻译页；其他码和没有码的失败照旧「翻译来源「X」失败：…」。
+- 官方 DeepL 插件 `kando.deepl` 的源码在仓库根目录的 `plugins/official/kando.deepl/`（`kando-plugin.json` 和 `plugin.tsx`，`kandoManifest()` 直接 import 这份清单），由 `script.PackFolder` 打包签名。
 - 底座已做（`refactor/media-stage-error`，见第 15 节）：`media.Tools` 有可选字段 `Engine media.SegmentTranslator` 和 `EngineName`。设了 `Engine`，`Tools.Translate` 就委托过去，`Tools.CheckTranslate` 只查它（它实现 `TranslateChecker` 时问它自己，不再要求 AI 服务的模型和登录）；没设就走 `ChatTranslator`，和以前完全一样。离线模式下，`Engine` 不说自己在本机（`Local() bool`，`ChatTranslator` 也有这个方法）就在发送前返回 `media.ErrOffline`（算 `Engine` 的失败，卡片会说出来源名）。校对、终校和术语建议仍走 `Translator`，`Engine` 只管翻译；设了 `Engine` 而 `Translator` 没配好（没有模型、地址、key 或登录，或离线模式下不在本机，`Tools.chats`，不联网判断）时，`Make` 不做这三步，而不是在它们上面失败。`EngineName` 留空是调用方的错，失败时用 engine 的 Go 类型名（例如 `*plugins.translator`）代替，不会被当成 AI 服务的失败。没有改动任何一处 `media.Tools` 字面量或断言。
-- 改错的候选：`Tools.Candidates(ctx, req)` 在 `Engine` 也有 `Candidates(ctx, media.CandidateRequest) ([]string, error)` 方法时问它（接口 `candidater` 不导出，插件那边的类型实现同名方法即可），结果和 `ChatTranslator.Candidates` 一样过滤（去掉当前译文、空白和重复，最多 `CandidatesMax` 条）；没有这个方法就交给 `ChatTranslator`。改错流程（`state_correct_candidates.go`）目前仍直接调 `ChatTranslator.Candidates`，第一个设了 `Engine` 的贡献点（P3b 的 translator）接入时，把它改成调 `Tools.Candidates`。
+- 改错的候选：`Tools.Candidates(ctx, req)` 在 `Engine` 也有 `Candidates(ctx, media.CandidateRequest) ([]string, error)` 方法时问它（接口 `candidater` 不导出，插件那边的类型实现同名方法即可），结果和 `ChatTranslator.Candidates` 一样过滤（去掉当前译文、空白和重复，最多 `CandidatesMax` 条）；没有这个方法就交给 `ChatTranslator`。改错流程（`state_correct_candidates.go`）调 `Tools.Candidates`：选中的插件来源在运行、并导出了 `candidates` 时问它（这时不需要 AI 服务），否则问 AI 服务；来源的失败用和卡片一样的话说出来，不给「打开 AI 服务设置」。`kando.candidates.offer` 不再需要，由 `candidates` 导出代替。
 - 插件带凭据访问网络必须走 `kando.net.credentialFetch`，key 不进 JS（见第 6 节）。
 - 插件导致的失败要能识别出来：`media.Make` 的每个失败都是 `*media.StageError{Stage, Source, Err}`，`Stage` 是 `check`、`download`、`transcribe`、`translate`、`export` 之一（`media.StageCheck` 等常量；校对和终校的失败算 `translate`），`Error()` 仍是「步骤名: 原错误」，`Unwrap` 让 `errors.Is`/`errors.As` 照常工作。只有完全是 `Engine` 自己的失败才带着名字进 `Source`（`media.EngineOf`）：检查时把看懂自己缺的工具和来源的抱怨 `errors.Join` 在一起的，不算来源的失败。`StageError` 的 `Err` 为 nil 时 `Error()` 只是步骤名，`Detail()` 给不带步骤名的错误文字。app 里原来按 `": "` 切错误文字的地方都改成 `errors.As`，并从 package main 挪进了非界面包 `apps/kando/jobfailure`：`jobfailure.Stage`（原 `failedStage`）、`jobfailure.Hint`（原 `failureHint`，参数改成状态行和 `*media.StageError`，不再依赖 `films.Film`）、`jobfailure.TranslationHint`（原 `translationHint`）、`jobfailure.Of`、`jobfailure.ToolMessage`（原 `toolMessage`，订阅和播放列表也用它）；`phonesync/jobs.go` 的 `failedStep` 也改成 `errors.As`。`films.Film.Failure` 带着它给卡片用。`Source` 不为空的失败卡片先于其他已知原因写「翻译来源「X」失败：…」（`precheckFailedSource`），只看来源自己的错误，不给「打开设置」，因为来源的设置不在 AI 服务那一节。
 - library.json：`error` 照旧存完整文字（以步骤名开头，旧版 Kando 照旧能切出步骤），另加 `errorStage`、`errorSource` 两个可选键，只有 `job.Err` 本身就是 `*media.StageError` 时才写。读的时候有 `errorStage` 就按它还原；没有（旧文件）就用 `media.ReadStageError` 从文字里认出这五个步骤名，和以前的读法一致。完成但没翻译的影片：`core.Job.TranslationSource` 记下让它没翻成的来源（`Make` 用 `EngineOf` 从检查或翻译的失败里取），library.json 加可选键 `translationSource`，旧文件和旧版读到都当作 AI 服务的；`films.Film.TranslationSource` 带给 `jobfailure.TranslationHint`，卡片同样写「翻译来源「X」失败：…」。
@@ -285,7 +289,7 @@ kind 是封闭枚举：`dictionary`、`wordlist`、`glossary`、`ai-service`、`
 
 ### 4.2 脚本插件示例
 
-`capabilities` 用 `pkg.Capabilities` 的 JSON 形状，只允许出现 `host` 和 `network` 两个键，`network` 只允许 `http` 规则。每条规则都必须写 `methods`，并写 `paths` 或 `pathPrefixes`，`host` 是一个确定的主机名（不带 `*`），最多 16 条；`network.hosts`（放行任意请求）一律拒收。下面的例子是完整形态，P3b 起全部认得（第 15 节）。贡献块 `lookups`、`subtitleFormats`、`exporters`、`annotators` 各最多 8 项，每项有 `id`、`export`（插件导出的函数名）、`label`；`subtitleFormats` 另有 `extension`（不带点，只能是 `plugins.SubtitleExtensions` 里的字幕和文本扩展名：srt、vtt、ass、ssa、sub、lrc、txt、tsv、csv、json、md、ttml、xml、sbv、smi，文件写在视频旁边，不能是 bat、exe、js 这类可执行的扩展名），`exporters` 另有 `takes`（`lines`、`words` 之一或两个），`lookups` 和 `annotators` 可以有 `languages`。`credentials` 最多 4 项，`header` 不能是 Host、Cookie、Content-Type 等由请求本身或看懂设置的头，`format` 恰好含一个 `{secret}`，`hosts` 是 1–8 个可注册域名下的主机名（不是 IP、不带 `*`、不是公共后缀），`methods` 只能是 GET、POST、PUT、PATCH、DELETE，`pathPrefixes` 1–8 个、以 `/` 开头、不含 `..`；声明了 `credentials` 就必须申请 `kando.net.credentialFetch`，反之亦然。
+`capabilities` 用 `pkg.Capabilities` 的 JSON 形状，只允许出现 `host` 和 `network` 两个键，`network` 只允许 `http` 规则。每条规则都必须写 `methods`，并写 `paths` 或 `pathPrefixes`，`host` 是一个确定的主机名（不带 `*`），最多 16 条；`network.hosts`（放行任意请求）一律拒收。下面的例子是完整形态，P3b 起全部认得（第 15 节）。贡献块 `lookups`、`subtitleFormats`、`exporters`、`annotators` 各最多 8 项，每项有 `id`、`export`（插件导出的函数名）、`label`；`subtitleFormats` 另有 `extension`（不带点，只能是 `plugins.SubtitleExtensions` 里的字幕和文本扩展名：srt、vtt、ass、ssa、sub、lrc、txt、tsv、csv、json、md、ttml、xml、sbv、smi，文件写在视频旁边，不能是 bat、exe、js 这类可执行的扩展名），`exporters` 另有 `takes`（`lines`、`words` 之一或两个），`lookups` 和 `annotators` 可以有 `languages`。`translators` 最多 8 项，每项 `{id, title, languages, local}`，没有 `export`（固定调 `translate`，可选 `candidates`），见 E14。`credentials` 最多 4 项，`header` 不能是 Host、Cookie、Content-Type 等由请求本身或看懂设置的头，`format` 恰好含一个 `{secret}`，`hosts` 是 1–8 个可注册域名下的主机名（不是 IP、不带 `*`、不是公共后缀），`methods` 只能是 GET、POST、PUT、PATCH、DELETE，`pathPrefixes` 1–8 个、以 `/` 开头、不含 `..`；声明了 `credentials` 就必须申请 `kando.net.credentialFetch`，反之亦然。
 
 ```json
 {
@@ -619,7 +623,7 @@ const (
 
 `kando.settings.get` 不需要权限，只返回这个插件在 `settings` 里声明的那些值。
 
-`kando.glossary.suggest` 和 `kando.candidates.offer` 没有实现（第 15 节 P3b）：看懂里没有「提议一个术语或一句译文、由用户取舍」的地方，`core.Proof` 是终审对字幕行的改动，不管术语表；改错的候选是用户按 ⇧E 时现问 AI，没有插件能在那时得知、也没有存放外来候选的地方。申请它们的插件照旧以 `ErrUnknownPerm` 拒收。
+`kando.glossary.suggest` 和 `kando.candidates.offer` 没有实现（第 15 节 P3b）：看懂里没有「提议一个术语、由用户取舍」的地方，`core.Proof` 是终审对字幕行的改动，不管术语表。改错的候选由翻译来源的 `candidates` 导出提供（E14），不需要这个权限。申请它们的插件照旧以 `ErrUnknownPerm` 拒收。
 
 P3b 实现的几个 handler 的形状（都在后台跑，等待期间暂停这次调用的看门狗，失败只回错误码）：
 
@@ -632,6 +636,7 @@ P3b 实现的几个 handler 的形状（都在后台跑，等待期间暂停这�
 - `lookUp(q)`：`q = {word, base, reading, line, spoken, language}`，回 `{word, reading, meaning}` 或 `null`；没有 `meaning` 算没查到。等 15 s，超时问下一个来源。
 - `exportSubtitles(formatID, cues)`：`cues` 是 `Export.Cues` 的结果，每条 `{startMs, endMs, lines: [{text, original, dim}]}`，用户选的内容、顺序、缺译处理和延迟都已套用；回字符串（最多 8 MiB），宿主写文件。
 - `exportNotes(items, settings)`：`items` 是收藏句子和生词，形状和 `kando.saved.read`、`kando.words.read` 一样，多一个 `kind`（`line` 或 `word`），各最多 500 条；`settings` 是插件自己的设置值；回 `{sent, skipped}`。
+- `translate(lines, from, to, context)` 和 `candidates(line, from, to, context)`：见 E14。
 - `annotate(lang, lines)`：每批最多 50 行原文，回和 `lines` 等长的数组，每项是这一行的标注 `[{start, end, ruby}]` 或 `[{start, end, tone, underline}]`，偏移按 JavaScript 的 UTF-16 码元算（宿主换成字节偏移），越界、切开字符、空的标注丢掉，每行最多 64 个，读音最长 32 字；和看懂自己的标注同类重叠的丢掉（`annotate.Merge`）。
 
 插件侧调用（TSX）：
@@ -1125,7 +1130,8 @@ P0–P2 不新增任何 module。P3a 起 `github.com/dlclark/regexp2/v2 v2.11.0`
 | P5 底座（E14） | `*media.StageError`（失败带步骤和来源，library.json 加 `errorStage`、`errorSource`）、`media.Tools.Engine`/`EngineName`、`Tools.Candidates`，失败卡片说出是哪个翻译来源失败的 | `refactor/media-stage-error` | 已完成，出入见下 |
 | P5 社区索引 | `plugins/index`（签名索引的格式、校验、缓存和 ETag、下载）、设置 › 插件 的「浏览插件」、`kando plugin index` | `feat/plugins-community-index` | 客户端和工具已完成，出入见下 |
 | P5 目录发布 | `cmd/kando-plugin`（kando-plugins 仓库 CI 用的 validate、preview、index，不依赖 cgo）、`plugins/publish` 和 `plugins/script/signature`、`kando://plugin/install?id=` 链接、目录的更新提示、官网 `/plugin` 页 | `feat/plugins-directory-site` | 已完成，出入见下 |
-| P5 其余 | 按需单独立项（DeepL 类插件本身要等 P3b 的 `credentialFetch`） | — | 未开始 |
+| P5 翻译来源（E14） | 贡献块 `translators`、`translate`/`candidates` 导出、设置 › 翻译 的「翻译来源」、`media.Tools.Engine` 的插件适配器、⇧E 改走 `Tools.Candidates`、带码的来源失败、官方 DeepL 插件 `kando.deepl` | `feat/plugins-translators` | 已完成，出入见下 |
+| P5 其余 | 按需单独立项 | — | 未开始 |
 
 P1.2 的测量结果（Ubuntu 编译机，x86_64，Go 1.27.4，kagome-dict/ipa v1.2.6；每次读 `/proc/self/status` 前先 `runtime.GC()` 和 `debug.FreeOSMemory()`，各在一个新进程里量，量完的测试没有提交）：
 
@@ -1481,3 +1487,15 @@ NSGO_ROOT_KEY=<root secret> go tool nsgo revoke -sequence 3 -days 30 -keys <key 
   - 不在 `media.StageError` 里、却以步骤名开头的内存中的错误（只有测试会这样造）现在不再被当成那一步的失败。测试里原来用 `errors.New("download: …")` 造失败的地方改成 `media.ReadStageError("download: …")`，也就是「从 library.json 读回来的旧失败」，`fmt.Errorf("transcribe: %w", …)` 改成 `&media.StageError{…}`。
   - 界面只在 `Source`（或 `TranslationSource`）不为空时有变化，现有截图场景都没有这种失败，所以没加场景；改动的地方由 `TestAFailedCardNamesTheTranslationSource`、`TestAFilmNotTranslatedNamesTheTranslationSource` 和 `jobfailure` 的测试锁住。
   - 评审之后的修改：设了 `Engine` 而 AI 服务没配好时跳过校对、终校和术语建议（选了跳过，而不是在 `CheckTranslate` 里要求 AI 服务，因为只用机器翻译的人不该被迫配 AI 服务）；`Source` 只给来源自己的失败；离线拒绝也带来源名；`EngineName` 为空时用类型名；`Err` 为 nil 不 panic；`core.Job.TranslationSource`；卡片相关的纯函数挪进 `jobfailure`。包名没用 `failure`，因为 `films` 里已有同名函数。
+- P5 翻译来源（E14，`feat/plugins-translators`）：E14、4.2、5.3 已同步改过。和正文、和 owner 的要求的出入如下：
+  - `packages/media` 多导出了一个函数 `SpeechLanguageOf(ctx)`（原来不导出的 `speechLanguageOf`），给插件来源 `from`；除此之外没有改 media。`Make` 起草时的 ctx 里有用户给的或听出来的语言，借用站点字幕（`copied`）时没有，那时 `from` 为空，由来源自己判断。
+  - DeepL 的 Free 和 Pro 主机不按密钥是否以 `:fx` 结尾来选：密钥不进 JS，插件看不到它。改成先在 `api-free.deepl.com` 上 POST `/v2/usage`，403 再试 `api.deepl.com`，记住接受这把密钥的主机，字幕只发往这一台；顺便在额度用完时直接按 `quota` 失败。DeepL 的 Free 密钥都以 `:fx` 结尾，所以 Free 密钥的请求从不到 Pro 主机；Pro 密钥第一次多一个 `/v2/usage` 的 403。换了密钥后，第一次翻译会在记住的旧主机上得到一个 403（DeepL 在处理正文前就拒绝），再重新找主机。
+  - 翻译来源没有 `export` 字段，导出名固定（`translate`、`candidates`），同一个插件的多个来源靠 `context.translator` 区分。`local: true` 只给不申请网络和凭据的插件。
+  - 适配器不实现 `TranslateChecker`：要知道有没有存密钥得去系统的安全存储里读，`CheckTranslate` 没有 ctx、在任务的 goroutine 上同步调用，所以没填密钥要到翻译时才以 `no-credential` 失败（卡片说「还没有密钥，去插件里填写」）。
+  - 插件来源翻译一个 cell 时进度只在 cell 之间动：`media` 的进度上报（`reportProgress`）不导出，`Engine` 报不了批次进度。没有为此再改 media。
+  - ⇧E 只在按下时插件已载入、并导出了 `candidates` 时问插件，否则问 AI 服务（和没选插件时一样，没有 AI 服务就说没有）。DeepL 插件的候选是同一句在 `formality` 为 `prefer_more` 和 `prefer_less` 下的两种译法，前后几句原文作为 DeepL 的 `context` 一并发送，由看懂去掉和现在的译文相同的、重复的。
+  - 来源不在了不清掉存着的选择：插件重新打开后又用回它；在那之前任务用 AI 服务，设置页说明，消息栏每次运行说一次（`prefs.sourceGoneSaid`）。设置页的下拉框列出已启用（不一定已载入）的插件来源，免得启动验签期间选项闪烁。
+  - 失败卡片：P5 底座定的是来源失败一律不给「打开设置」；带码的失败现在给：`auth`、`no-credential`、`not-running` 到插件页，`language` 到翻译页，因为那就是能修好它的地方。没有码的失败照旧不给。
+  - 播放器进度徽章的「翻译」一行写来源的标题，「终校」一行仍写 AI 服务的模型。
+  - 官方插件的源码放在仓库根目录 `plugins/official/<id>/`（和 P3c 的 `kando.ankiconnect` 同一个约定），`kandoManifest()` 用 esbuild 的 JSON import 直接返回清单里的 `capabilities`、`contributes`、`credentials`，不再手抄一份。发布（用官方发布密钥签名、上架）留给 P3c 的发布流程，这次只有测试用临时根打包。
+  - 测试：`plugins/translators_test.go`（清单规则、`Takes`、回答解析、错误码），`plugins/script` 的 `TestScriptProbeTranslators`，`jobfailure` 的 `TestSourceHintOfACode`（五种界面语言里每个码都有一句不同的、带来源名的话），根目录 `plugins_translate_test.go`：来源的提供、保存、任务用它翻译（120 行分 50/50/20 三批、顺序不变）、`quota`/`bad-reply`/`language`、来源不在了改用 AI 服务并说明、⇧E 问插件；`TestOfficialDeepL` 用临时根打包仓库里的 DeepL 插件，接 httptest 的假 DeepL（`credentialFetch` 的 client 换成拨到测试服务器的，和 P3b 一样）：没有密钥、Free 和 Pro 主机、语言代码（ZH-HANS、ZH-HANT、EN-US、EN-GB、PT-BR）、空行不发、行数不变、456 和额度用完是 `quota`、两台都 403 是 `auth`，并检查密钥只出现在 Authorization 头里，不在插件组的请求体和插件的回答里，插件代码不碰 `Secrets`、`Storage`。截图场景 `plugins-translate-source`（设置 › 翻译 选了插件来源）和 `plugins-translate-failed`（DeepL 不接受密钥的失败卡片）只在 Linux 上跑了无头断言，没有出图。
