@@ -23,12 +23,13 @@ func (s TermScope) Known() bool {
 	return s == ScopeFilm || s == ScopeSeries || s == ScopeGlobal
 }
 
-// TermOrigin is where a term came from: the user, or a machine pass that suggested it, which may change it again unless it is locked.
+// TermOrigin is where a term came from: the user, a machine pass that suggested it, which may change it again unless it is locked, or a glossary plugin pack (OriginPack), whose terms are never stored in a glossary file: the user changes such a term only by giving the same words a term of their own, which comes first, or turns the pack off.
 type TermOrigin string
 
 const (
 	OriginUser TermOrigin = "user"
 	OriginAuto TermOrigin = "auto"
+	OriginPack TermOrigin = "pack"
 )
 
 // Term is one entry of a glossary: Source as the film's lines write it and Target as the translation is to write it. A Locked term is the user's to change alone: the translation must use it as it is, and no machine pass changes or removes it.

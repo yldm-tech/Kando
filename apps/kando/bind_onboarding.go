@@ -89,7 +89,7 @@ func (a *app) OnboardingAI(cx *ns.Scope) onboarding.AI {
 		return onboarding.AI{Text: locales.OnboardingAIConfigured(cx), Ready: true}
 	}
 	model := strings.TrimSpace(tools.Translator.Model)
-	preset, _ := settings.PresetByID(locales.For(cx), a.prefs.llmProvider)
+	preset, _ := settings.PresetByID(a.llmPresets(locales.For(cx)), a.prefs.llmProvider)
 	switch {
 	case strings.TrimSpace(tools.Translator.BaseURL) == "":
 		return onboarding.AI{Text: locales.OnboardingAINeedsBaseURL(cx), Missing: true}

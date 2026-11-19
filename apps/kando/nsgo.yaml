@@ -1,7 +1,7 @@
 # Kando's app for the nsgo tool (go tool nsgo, the version go.mod pins). Release bumps the version (.github/scripts/set-version.sh).
 name: Kando
 id: ai.yldm.kando
-version: 0.28.0
+version: 0.29.1
 icon:
   png: resources/icon.png
 i18n: { dir: locales, source: en }

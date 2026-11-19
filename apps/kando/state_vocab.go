@@ -13,11 +13,14 @@ import (
 	"kando/apps/kando/films"
 	"kando/apps/kando/locales"
 	"kando/apps/kando/lookup"
+	"kando/apps/kando/plugins"
 	"kando/apps/kando/saved"
 	"kando/apps/kando/settings"
 	kcore "kando/packages/core"
+	"kando/packages/media"
 
 	"github.com/nsgo-dev/nsgo/core"
+	"github.com/nsgo-dev/nsgo/i18n"
 )
 
 // vocabUI is the vocabulary's: the word looked up on the picture (lookup), the words looked up on this computer (cache), the time films play, which goes into the study record now and then (watch), and the dialog of the study's stats and the vocabulary's export (bind_vocab.go). The words themselves are in the open library's study record, the saved lines' book (state_saved.go).
@@ -32,7 +35,7 @@ type vocabUI struct {
 	stats  vocabStats
 }
 
-// vocabLookup is the word looked up on the picture (film.Lookup): the word as clicked, the line it was clicked in, cue, its index in the open film's lines, and the film's video, title and the language it is spoken in, so the word goes into the vocabulary with them; busy while the AI service is asked, then its entry, or why there is none (say), with needsAI set when the AI service's settings are what helps.
+// vocabLookup is the word looked up on the picture (film.Lookup): the word as clicked, the line it was clicked in, cue, its index in the open film's lines, and the film's video, title and the language it is spoken in, so the word goes into the vocabulary with them; busy while a dictionary or the AI service is asked, then its entry and the id of the dictionary pack it came from (source, "" for the AI service), or why there is none (say), with needsAI set when the AI service's settings are what helps.
 type vocabLookup struct {
 	open              bool
 	word              string
@@ -45,6 +48,7 @@ type vocabLookup struct {
 	needsAI           bool
 	language          string
 	entry             lookup.Entry
+	source            string
 	say               func(*core.Scope) string
 }
 
@@ -178,6 +182,7 @@ func (a *app) Lookup() film.Lookup {
 	if !l.busy && !l.failed {
 		out.Word = cmp.Or(l.entry.Word, l.word)
 		out.Reading, out.Meaning = l.entry.Reading, l.entry.Meaning
+		out.Source = a.vocabSourceText(l.source)
 		book := a.savedBook()
 		out.Saved = book.WordIndex(out.Word, l.spoken) >= 0
 	}
@@ -211,7 +216,7 @@ func vocabTerm(terms []kcore.Term, words ...string) string {
 	return ""
 }
 
-// LookUpWord is a click on word in line i of the open film's lines, on the picture: the film holds, and the card over it shows what word means there, from the words looked up before on this computer, or else as the AI service set in 「AI 服务」 says, which it is asked off the engine's goroutine. Without an AI service that can answer, as while offline mode is on and it is not on this computer, the card says why and offers its settings.
+// LookUpWord is a click on word in line i of the open film's lines, on the picture: the film holds, and the card over it shows what word means there (vocabResolve): from the words looked up before on this computer, or else from the dictionary packs turned on, or else as the AI service set in 「AI 服务」 says; the dictionaries and the AI service are asked off the engine's goroutine. When none answers and no AI service can, as while offline mode is on and it is not on this computer, the card says why and offers its settings.
 func (a *app) LookUpWord(i int, word string) {
 	cues := a.playerCues()
 	word = strings.TrimSpace(word)
@@ -225,15 +230,16 @@ func (a *app) LookUpWord(i int, word string) {
 	translation, original := film.SplitCue(cues[i].Text)
 	item, _ := a.openFilm()
 	q := vocabQuery(item, a.prefs.language, word, original)
+	title := cmp.Or(item.Name, item.Title)
 	a.vocab.lookup = vocabLookup{open: true, word: word, cue: i, line: original, translation: translation, video: a.player.film.video,
-		film: cmp.Or(item.Name, item.Title), spoken: q.Spoken, start: cues[i].Start, end: cues[i].End, language: q.Language}
-	if e, ok := a.vocabCache().Get(q); ok {
-		a.vocab.lookup.entry = e
+		film: title, spoken: q.Spoken, start: cues[i].Start, end: cues[i].End, language: q.Language}
+	ask := a.vocabResolve(q, title)
+	if ask.cached {
+		a.vocab.lookup.entry = ask.entry
 		return
 	}
-	t, why := a.paletteTranslator(locales.VocabLookupNoAI)
-	if why != nil {
-		a.vocab.lookup.failed, a.vocab.lookup.needsAI, a.vocab.lookup.say = true, true, why
+	if !ask.answers() {
+		a.vocab.lookup.failed, a.vocab.lookup.needsAI, a.vocab.lookup.say = true, true, ask.why
 		return
 	}
 	a.vocab.lookup.busy = true
@@ -242,14 +248,9 @@ func (a *app) LookUpWord(i int, word string) {
 	ctx, cancel := context.WithTimeout(context.Background(), lookupTimeout)
 	a.vocab.cancel = cancel
 	update, now := a.update, a.saved.now
-	system, user := lookup.Prompt(q.Language), lookup.Request(word, original, a.vocab.lookup.film)
 	go func() {
 		defer cancel()
-		reply, err := t.Chat(ctx, system, user)
-		var entry lookup.Entry
-		if err == nil {
-			entry, err = lookup.Parse(word, reply)
-		}
+		entry, source, err := ask.answer(ctx)
 		update(func() {
 			l := &a.vocab.lookup
 			if gen != a.vocab.gen || !l.open {
@@ -257,18 +258,89 @@ func (a *app) LookUpWord(i int, word string) {
 			}
 			a.vocab.cancel = nil
 			l.busy = false
-			if err != nil {
+			switch {
+			case errors.Is(err, lookup.ErrNoAnswer):
+				l.failed, l.needsAI, l.say = true, true, ask.why
+				return
+			case err != nil:
 				l.failed, l.needsAI = true, !errors.Is(err, lookup.ErrNoMeaning)
 				msg := err.Error()
 				l.say = func(cx *core.Scope) string { return locales.VocabLookupFailed(cx, msg) }
 				return
 			}
-			l.entry = entry
-			cache := a.vocabCache()
-			cache.Put(q, entry, now())
-			_ = cache.Save()
+			l.entry, l.source = entry, source
+			if source == "" {
+				cache := a.vocabCache()
+				cache.Put(q, entry, now())
+				_ = cache.Save()
+			}
 		})
 	}()
+}
+
+// vocabAsk is a lookup as vocabResolve found it on the engine's goroutine: the entry the cache keeps for it (cached), or what answers it off that goroutine (ask, lookup.Ask.Answer), and, when no AI service can answer, why (the dictionaries may still answer).
+type vocabAsk struct {
+	cached bool
+	entry  lookup.Entry
+	ask    lookup.Ask
+	why    func(*core.Scope) string
+}
+
+// vocabResolve is how the word looked up as q, in a line of the film titled film, is answered, for the picture (LookUpWord) and paired phones (phoneStudy.LookUp) alike: from the words looked up before on this computer, else from the dictionary packs turned on, in the order Settings › 插件 keeps them, else by the AI service. It reads the cache, the dictionaries open and the AI service set, so it runs on the engine's goroutine; lookup.Ask.Answer asks them off it.
+func (a *app) vocabResolve(q lookup.Query, film string) vocabAsk {
+	ask := vocabAsk{ask: lookup.Ask{Query: q, Film: film}}
+	if e, ok := a.vocabCache().Get(q); ok {
+		ask.cached, ask.entry = true, e
+		return ask
+	}
+	ask.ask.Dicts, ask.ask.Others = a.pluginsDictsFor(lookup.WordLanguage(q), kcore.TargetTag(q.Language))
+	update := a.update
+	ask.ask.Failed = func(d lookup.Dictionary, err error) { update(func() { a.pluginsDictFailed(d, err) }) }
+	// With dictionaries for the word, no AI service means only that the words they lack find nothing.
+	noAI := locales.VocabLookupNoAI
+	if len(ask.ask.Dicts) > 0 || len(ask.ask.Others) > 0 {
+		noAI = locales.VocabLookupNotInDicts
+	}
+	var t media.ChatTranslator
+	t, ask.why = a.paletteTranslator(noAI)
+	if ask.why == nil {
+		ask.ask.AI = t
+	}
+	return ask
+}
+
+// answers reports whether anything can answer the lookup: the cache, a dictionary, or the AI service.
+func (k vocabAsk) answers() bool { return k.cached || k.ask.Answers() }
+
+// answer is the entry of the word looked up and the id of the dictionary pack it came from, "" when the AI service gave it, now or when it was looked up before (the cache keeps the AI service's answers alone); lookup.ErrNoAnswer when nothing answered and no AI service can (why says why). It runs off the engine's goroutine.
+func (k vocabAsk) answer(ctx context.Context) (lookup.Entry, string, error) {
+	if k.cached {
+		return k.entry, "", nil
+	}
+	return k.ask.Answer(ctx)
+}
+
+// vocabSourceText says where an entry came from, as the lookup card shows it under the meaning: the dictionary pack of the id dict, by its name, with the credit its license asks for, or the AI service; in the language shown under the card's scope.
+func (a *app) vocabSourceText(dict string) func(*core.Scope) string {
+	if dict == "" {
+		return locales.VocabLookupSourceAI
+	}
+	var name, credit plugins.Text
+	if i := slices.IndexFunc(a.plugins.packs, func(p plugins.Pack) bool { return p.ID == dict }); i >= 0 {
+		p := a.plugins.packs[i]
+		name = p.Name
+		if p.Dictionary != nil {
+			credit = p.Dictionary.Attribution
+		}
+	}
+	return func(cx *core.Scope) string {
+		lang := i18n.Language(cx)
+		n := cmp.Or(name.In(lang), dict)
+		if c := credit.In(lang); c != "" {
+			return locales.VocabLookupSourceDictCredit(cx, n, c)
+		}
+		return locales.VocabLookupSourceDict(cx, n)
+	}
 }
 
 // vocabQuery is what word, clicked in line of the film item, is looked up with: the language the film is spoken in, as the user named it or else as the speech recognition heard it, and the language its meaning is written in (paletteAnswerLanguage, fallback the settings' target language).

@@ -16,6 +16,7 @@ import (
 	"kando/apps/kando/film"
 	"kando/apps/kando/lines"
 	"kando/apps/kando/locales/testlocale"
+	"kando/apps/kando/plugins"
 	"kando/apps/kando/remote"
 	"kando/packages/core"
 	"kando/packages/media"
@@ -559,6 +560,30 @@ func TestAFixLeavesATermForOtherWordsAlone(t *testing.T) {
 	wantText(t, tt, msgs.CorrectSpreadDone(2))
 	if term, ok := a.glossaryTerm("John"); !ok || term.Target != "约翰" || term.Locked || term.Scope != core.ScopeGlobal {
 		t.Fatalf("term %+v, %v", term, ok)
+	}
+}
+
+// TestAFixOfAPackTermIsTheFilms checks that a fix spread across the film over the translation a glossary pack's term wrote gives the film a term of its own, as adding one on the 术语 tab does (AddTerm), not every film's, which the pack's term is (pluginTerms): glossary.json is left alone.
+func TestAFixOfAPackTermIsTheFilms(t *testing.T) {
+	a, tt, updates := correctJonOpen(t)
+	useMenuBar(t, a, tt)
+	msgs := testlocale.Messages()
+	waitUntil(t, tt, a, updates, func() bool { return a.gloss.filmRead })
+	apply(tt, a, func() {
+		a.plugins.packs = []plugins.Pack{{Manifest: plugins.Manifest{ID: "example.names", Kind: plugins.KindGlossary, Glossary: &plugins.Glossary{From: "en", To: "zh-Hans", Terms: []plugins.Term{{Source: "Jon", Target: "约翰"}}}}}}
+		a.plugins.order = []string{"example.names"}
+	})
+	if term, ok := a.glossaryTerm("Jon"); ok {
+		t.Fatalf("the pack's term was the film's: %+v", term)
+	}
+	correctEdit(t, a, tt, 0, "琼恩，等等。")
+	choose(tt, a, findMenuItem(t, a.menuBar(a.cx), msgs.MenuGroupSubtitles(), msgs.CorrectKeySpreadAll()))
+	wantText(t, tt, msgs.CorrectSpreadDoneTerm(2))
+	if term, ok := a.glossaryTerm("Jon"); !ok || term.Target != "琼恩" || !term.Locked || term.Origin != core.OriginUser || term.Scope != core.ScopeFilm {
+		t.Fatalf("the user's term %+v, %v", term, ok)
+	}
+	if _, global := a.gloss.store.Terms(""); len(global) != 0 {
+		t.Fatalf("the fix went into every film's terms: %+v", global)
 	}
 }
 

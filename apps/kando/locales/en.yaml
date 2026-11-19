@@ -2650,6 +2650,11 @@ glossaryMetaLocked:
   description: "Line under a locked term in the Terms tab: where it applies, and that it is locked."
   placeholders:
     scope: { type: "String", example: "This Film" }
+glossaryMetaPack:
+  message: "{scope} · From a plugin; turn it off in Settings › Plugins"
+  description: "Line under a term of a glossary plugin pack in the Terms tab: where it applies, and that it comes from a plugin, which is turned off on the Plugins page of the settings; such a term cannot be changed or removed in the tab."
+  placeholders:
+    scope: { type: "String", example: "All Films" }
 glossaryScopeLabel:
   message: "Applies to: {scope}. Press to change it to {next}."
   description: "Accessible name and tooltip of a term's scope pill in the Terms tab."
@@ -3943,6 +3948,65 @@ playlistVideos:
   description: "Line of the playlist dialog: how many videos the playlist or channel holds, each counted once."
   placeholders:
     count: { type: "int", example: "54" }
+pluginsErrBadArchive:
+  message: "The file isn't a zip archive, or it's damaged."
+  description: "Why a plugin pack cannot be installed or loaded: not a zip."
+pluginsErrBadField:
+  message: "Something in its kando-plugin.json isn't valid."
+  description: "Why a plugin pack cannot be installed or loaded: another field of its manifest."
+pluginsErrBadID:
+  message: "Its ID isn't valid."
+  description: "Why a plugin pack cannot be installed or loaded: its id."
+pluginsErrBadManifest:
+  message: "Its kando-plugin.json is missing, isn't valid, or has something this version of Kando doesn't know."
+  description: "Why a plugin pack cannot be installed or loaded: its manifest."
+pluginsErrBadName:
+  message: "A name or description in it is missing, has no English, or is too long."
+  description: "Why a plugin pack cannot be installed or loaded: its names."
+pluginsErrBadShape:
+  message: "Its files don't match what its kando-plugin.json lists."
+  description: "Why a plugin pack cannot be installed or loaded: its files."
+pluginsErrDictEmpty:
+  message: "The dictionary has no entry Kando can read."
+  description: "Why a dictionary pack turned on cannot be used: none of its files has an entry in the format its manifest names."
+pluginsErrIDTaken:
+  message: "A plugin of another kind with the same ID is installed. Uninstall it first."
+  description: "Why a plugin pack cannot be installed or loaded: its id is taken by a pack of another kind."
+pluginsErrInsecureURL:
+  message: "An address in it isn't https."
+  description: "Why a plugin pack cannot be installed or loaded: an address that is not https."
+pluginsErrMismatch:
+  message: "Its folder isn't named after its ID and kind."
+  description: "Why a plugin pack in the plugins folder cannot be loaded: a folder moved or renamed by hand."
+pluginsErrNotInstalled:
+  message: "This plugin isn't installed any more."
+  description: "Why a plugin pack cannot be uninstalled: it is gone already."
+pluginsErrReservedID:
+  message: "Its ID is reserved for Kando's own plugins."
+  description: "Why a plugin pack cannot be installed or loaded: an id under kando."
+pluginsErrReservedName:
+  message: "Its name is reserved: it reads like Kando or a built-in AI service."
+  description: "Why a plugin pack cannot be installed or loaded: a name that imitates Kando or a built-in service."
+pluginsErrSchema:
+  message: "It's made for another version of Kando."
+  description: "Why a plugin pack cannot be installed or loaded: its format version."
+pluginsErrSystem:
+  message: "Kando couldn't read or write the pack: {error}"
+  description: "Why a plugin pack cannot be installed, removed or turned on: an error of the system, in English."
+  placeholders:
+    error: { type: "String", example: "permission denied" }
+pluginsErrTooLarge:
+  message: "The pack is too large."
+  description: "Why a plugin pack cannot be installed or loaded: over its limits."
+pluginsErrUnknownKind:
+  message: "Kando doesn't know this kind of plugin."
+  description: "Why a plugin pack cannot be installed or loaded: its kind is unknown."
+pluginsErrUnsafePath:
+  message: "It holds a link or a path outside the pack."
+  description: "Why a plugin pack cannot be installed or loaded: a link or a path outside it."
+pluginsErrUnsupportedKind:
+  message: "This version of Kando doesn't support this kind of plugin yet."
+  description: "Why a plugin pack cannot be installed or loaded: a kind of a later version."
 precheckChannel:
   message: "This is a link to a {site} channel, not to one video. List its videos first, then add them."
   description: "Message bar when the link added is a channel's on a named site: a job downloads one video, and yt-dlp would download the whole channel."
@@ -4860,6 +4924,19 @@ settingsAIKeyEveryAPILogin:
 settingsAIKeyOptional:
   message: "Optional"
   description: "Placeholder of the empty API Key field when the service works without one: EveryAPI, which uses the everyapi sign-in, and services on this computer such as Ollama."
+settingsAIKeyPageMessage:
+  message: "The plugin pack {name} gives this address for getting an API key. Open it only if you trust it."
+  description: "Alert before opening the API key page of a service a plugin pack added: whose address it is."
+  placeholders:
+    name: { type: "String", example: "Company gateway" }
+settingsAIKeyPageOpen:
+  message: "Open"
+  description: "Alert before opening a plugin's API key page: button that opens it."
+settingsAIKeyPageTitle:
+  message: "Open {host}?"
+  description: "Alert before opening the API key page of a service a plugin pack added; {host} is the page's host."
+  placeholders:
+    host: { type: "String", example: "llm.example.com" }
 settingsAIKeyStoredLocally:
   message: "The API Key is kept only in the settings file on this computer."
   description: "The AI Service page's footnote for a cloud service, and its first sentence for an OpenAI Compatible endpoint."
@@ -4914,6 +4991,12 @@ settingsAINoteWithBlurb:
   description: "The AI Service page's footnote for a service on this computer, as Ollama: its description as a sentence."
   placeholders:
     blurb: { type: "String", example: "Ollama on this Mac" }
+settingsAIPluginService:
+  message: "Plugin · {name} · {host}"
+  description: "A service a plugin pack adds, in the AI service pop-up: the group, the pack's name, then the host it talks to."
+  placeholders:
+    name: { type: "String", example: "Company gateway" }
+    host: { type: "String", example: "llm.example.com" }
 settingsAIRedetect:
   message: "Detect Again"
   description: "Button on the everyapi command line row looking for the program again and asking it again whether someone is signed in."
@@ -5369,6 +5452,9 @@ settingsKeywordsLook:
 settingsKeywordsPhone:
   message: "iPhone Android phone mobile sync pair QR code Wi-Fi network device revoke"
   description: "Words besides its title the settings search finds the Phone Sync section by, separated by spaces."
+settingsKeywordsPlugins:
+  message: "plugin pack extension install uninstall glossary terms AI service dictionary word list"
+  description: "Words besides its title the settings search finds the Plugins section by, separated by spaces."
 settingsKeywordsPrivacy:
   message: "privacy offline network internet cache clear"
   description: "Words the settings search finds the Privacy section by, besides its title."
@@ -5761,6 +5847,9 @@ settingsSectionLook:
 settingsSectionPhone:
   message: "Phone Sync"
   description: "Settings section and sidebar item: serving this computer's films to Kando on phones over the local network."
+settingsSectionPlugins:
+  message: "Plugins"
+  description: "Settings section and sidebar item: the plugin packs installed in Kando, such as glossaries and AI services."
 settingsSectionPrivacy:
   message: "Privacy"
   description: "Settings section and sidebar item: offline mode, what uses the network, and the cache."
@@ -6802,11 +6891,28 @@ vocabLookupFailed:
   placeholders:
     error: { type: "String", example: "401 Unauthorized" }
 vocabLookupNoAI:
-  message: "Looking up a word asks the AI service. Set one up in AI Service."
-  description: "Card of a word looked up, when no AI service is set up; Kando bundles no dictionary."
+  message: "Looking up a word asks your dictionaries, then the AI service. Set one up in AI Service, or install a dictionary in Plugins."
+  description: "Card of a word looked up, when no dictionary is installed for the word's language and no AI service is set up."
+vocabLookupNotInDicts:
+  message: "None of your dictionaries has this word. To look up the words they lack, set up an AI service in AI Service."
+  description: "Card of a word looked up, when dictionaries are installed for the word's language but none has the word, and no AI service is set up."
 vocabLookupSettings:
   message: "Open Settings"
   description: "Button of the card of a word looked up, when no AI service can answer: opens the AI Service settings."
+vocabLookupSourceAI:
+  message: "Explained by your AI service"
+  description: "Card of a word looked up, under the meaning: the meaning came from the AI service, now or when the word was looked up before."
+vocabLookupSourceDict:
+  message: "From the dictionary {name}"
+  description: "Card of a word looked up, under the meaning: the meaning came from a dictionary pack the user installed; {name} is its name."
+  placeholders:
+    name: { type: "String", example: "JMdict (English)" }
+vocabLookupSourceDictCredit:
+  message: "From the dictionary {name} · {credit}"
+  description: "Card of a word looked up, under the meaning: the meaning came from a dictionary pack the user installed; {name} is its name and {credit} the credit its license asks for, as the pack wrote it."
+  placeholders:
+    name: { type: "String", example: "JMdict (English)" }
+    credit: { type: "String", example: "JMdict © EDRDG" }
 vocabLookupTerm:
   message: "Film glossary: {term}"
   description: "Card of a word looked up, when the film's glossary has a term for the word: the term and its translation, as source → target."
@@ -7221,6 +7327,180 @@ settingsPhoneConflictFilm:
 settingsPhoneThisComputer:
   message: "This Computer"
   description: "Name of this computer where a sync conflict's version or an activity entry was made on the desktop."
+settingsPluginsCancel:
+  message: "Cancel"
+  description: "Button that closes a plugin confirmation without doing anything."
+settingsPluginsDetailsLabel:
+  message: "Details of {name}"
+  description: "Accessibility name of the button that shows a pack's details under its row; {name} is the pack's name."
+  placeholders:
+    name: { type: "String", example: "Anime terms" }
+settingsPluginsDictionaryDetail:
+  message: "Looks up {from} words, defined in {to}"
+  description: "Plugins page and install confirmation: what a dictionary pack adds; {from} and {to} are language tags."
+  placeholders:
+    from: { type: "String", example: "ja" }
+    to: { type: "String", example: "en" }
+settingsPluginsEnableLabel:
+  message: "Use {name}"
+  description: "Accessibility name of the switch that turns a plugin pack on or off; {name} is the pack's name."
+  placeholders:
+    name: { type: "String", example: "Anime terms" }
+settingsPluginsFileTypes:
+  message: "Plugin Packs"
+  description: "File panel: the name of the file types it shows, plugin pack files."
+settingsPluginsForget:
+  message: "Remove"
+  description: "Plugins page: button on a missing pack's row that removes it from the list."
+settingsPluginsForgetLabel:
+  message: "Remove {name} from the list"
+  description: "Accessibility name of a missing pack's Remove button; {name} is the pack's id."
+  placeholders:
+    name: { type: "String", example: "example.terms" }
+settingsPluginsGlossaryDetail:
+  message: "{count, plural, one {# term} other {# terms}} for translations from {from} into {to}"
+  description: "Plugins page and install confirmation: what a glossary pack adds; {from} and {to} are language tags such as ja and zh-Hans."
+  placeholders:
+    count: { type: "int", example: "120" }
+    from: { type: "String", example: "ja" }
+    to: { type: "String", example: "zh-Hans" }
+settingsPluginsIdentity:
+  message: "ID {id} · {hash}"
+  description: "Plugins page and install confirmation: the pack's id and the start of the hash of its files."
+  placeholders:
+    id: { type: "String", example: "example.terms" }
+    hash: { type: "String", example: "9f2c4e1a7b3d" }
+settingsPluginsInstall:
+  message: "Install from File…"
+  description: "Plugins page: button that opens a file panel to pick a plugin pack file to install."
+settingsPluginsInstallConfirm:
+  message: "Install"
+  description: "Install confirmation: button that installs the pack."
+settingsPluginsInstallFailed:
+  message: "Can't Install This Pack"
+  description: "Title of the dialog saying a file cannot be installed as a plugin pack; the reason follows."
+settingsPluginsInstallReplaces:
+  message: "Replaces version {version}, which is installed"
+  description: "Install confirmation: the installed version of the same pack it replaces."
+  placeholders:
+    version: { type: "String", example: "1.0.0" }
+settingsPluginsInstallSource:
+  message: "From a file on this computer · not signed"
+  description: "Install confirmation: where the pack comes from; data packs are not signed."
+settingsPluginsInstallTitle:
+  message: "Install {name}?"
+  description: "Install confirmation: title; {name} is the pack's name."
+  placeholders:
+    name: { type: "String", example: "Anime terms" }
+settingsPluginsInstalled:
+  message: "Installed"
+  description: "Plugins page: heading of the list of installed plugin packs."
+settingsPluginsIssues:
+  message: "Couldn't Load"
+  description: "Plugins page: heading of the folders in the plugins folder that are not valid packs."
+settingsPluginsKindAIService:
+  message: "AI Services"
+  description: "Plugins page: heading of the group of AI service packs, which add services to Settings › AI."
+settingsPluginsKindDictionary:
+  message: "Dictionaries"
+  description: "Plugins page: heading of the group of dictionary packs."
+settingsPluginsKindGlossary:
+  message: "Glossaries"
+  description: "Plugins page: heading of the group of glossary packs, which add terms to translations."
+settingsPluginsKindWordlist:
+  message: "Word Lists"
+  description: "Plugins page: heading of the group of word list packs, such as JLPT levels."
+settingsPluginsLicense:
+  message: "License: {license}"
+  description: "Plugins page and install confirmation: the license the pack is under, as the pack names it."
+  placeholders:
+    license: { type: "String", example: "CC-BY-4.0" }
+settingsPluginsMissing:
+  message: "Its folder is gone"
+  description: "Plugins page: under a remembered pack's id when its folder is no longer in the plugins folder."
+settingsPluginsMissingGroup:
+  message: "Not in the Plugins Folder"
+  description: "Plugins page: heading of the packs Kando remembers that are no longer in the plugins folder."
+settingsPluginsMoveDownLabel:
+  message: "Move {name} down"
+  description: "Accessibility name of the button that moves a dictionary pack one place down among the dictionaries, the order lookups ask them in; {name} is the pack's name."
+  placeholders:
+    name: { type: "String", example: "JMdict (English)" }
+settingsPluginsMoveUpLabel:
+  message: "Move {name} up"
+  description: "Accessibility name of the button that moves a dictionary pack one place up among the dictionaries, the order lookups ask them in; {name} is the pack's name."
+  placeholders:
+    name: { type: "String", example: "JMdict (English)" }
+settingsPluginsNone:
+  message: "No plugins installed"
+  description: "Plugins page: the list's only row while no plugin pack is installed."
+settingsPluginsNoneHint:
+  message: "Install a pack from a file, or drop it here."
+  description: "Plugins page: under the empty list's row, how to add a plugin pack."
+settingsPluginsOK:
+  message: "OK"
+  description: "Button that closes the dialog saying a pack cannot be installed."
+settingsPluginsPickButton:
+  message: "Choose"
+  description: "File panel: button that picks the plugin pack file."
+settingsPluginsPickTitle:
+  message: "Install a Plugin Pack"
+  description: "File panel: title when picking a plugin pack to install."
+settingsPluginsServiceDetail:
+  message: "Sends your API key and the lines it translates to {host}"
+  description: "Plugins page and install confirmation: what an AI service pack does once chosen in Settings › AI; {host} is the host of its address."
+  placeholders:
+    host: { type: "String", example: "llm.example.com" }
+settingsPluginsShowFolder:
+  message: "{platform, select, macOS {Show in Finder} Windows {Show in File Explorer} other {Show in File Manager}}"
+  description: "Plugins page: button that shows the plugins folder in the system's file manager. {platform} is the system the app runs on: macOS, Windows or another (Linux)."
+  placeholders:
+    platform: { type: "String", example: "macOS" }
+settingsPluginsSourceLocal:
+  message: "Local"
+  description: "Plugins page: badge after a pack's name saying it was installed from a file on this computer and is not signed."
+settingsPluginsStateBad:
+  message: "Kando couldn't read which plugins are on, so they are all off for now. Turning one on or off saves it again."
+  description: "Plugins page: note when the plugins' state file is damaged."
+settingsPluginsStateNewer:
+  message: "A newer version of Kando saved which plugins are on, so they are all off here and this version won't change that."
+  description: "Plugins page: note when the plugins' state file was written by a newer Kando."
+settingsPluginsUninstall:
+  message: "Uninstall…"
+  description: "Plugins page: button in a pack's details that asks to uninstall it."
+settingsPluginsUninstallConfirm:
+  message: "Uninstall"
+  description: "Plugins page: button that uninstalls the pack, in its confirmation."
+settingsPluginsUninstallLabel:
+  message: "Uninstall {name}"
+  description: "Accessibility name of a pack's Uninstall button; {name} is the pack's name."
+  placeholders:
+    name: { type: "String", example: "Anime terms" }
+settingsPluginsUninstallMessage:
+  message: "Its files are deleted. An API key you saved for a service it added stays in Kando."
+  description: "Plugins page: what uninstalling a pack does, in its confirmation."
+settingsPluginsUninstallTitle:
+  message: "Uninstall {name}?"
+  description: "Plugins page: heading of the confirmation under a pack's details before it is uninstalled."
+  placeholders:
+    name: { type: "String", example: "Anime terms" }
+settingsPluginsVersion:
+  message: "Version {version}"
+  description: "Plugins page: under a pack's name, its version."
+  placeholders:
+    version: { type: "String", example: "1.2.0" }
+settingsPluginsVersionAuthor:
+  message: "Version {version} · {author}"
+  description: "Plugins page: under a pack's name, its version and who made it, as the pack says."
+  placeholders:
+    version: { type: "String", example: "1.2.0" }
+    author: { type: "String", example: "Example" }
+settingsPluginsWordlistDetail:
+  message: "{language} words in {count, plural, one {# level} other {# levels}}"
+  description: "Plugins page and install confirmation: what a word list pack adds; {language} is a language tag."
+  placeholders:
+    language: { type: "String", example: "ja" }
+    count: { type: "int", example: "5" }
 settingsPhoneConflictUse:
   message: "Use This"
   description: "Button under one version of a sync conflict that keeps it."

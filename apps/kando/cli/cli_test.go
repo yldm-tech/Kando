@@ -249,7 +249,7 @@ func TestOpensWindow(t *testing.T) {
 		{"-v"},
 		{"--bogus"},
 		{"status"},
-		{"help", "-h", "--help", "version", "--version", "list", "show", "subtitles", "jobs", "add", "cancel", "retry", "remove", "move", "subscriptions", "sites", "open", "mcp"},
+		{"help", "-h", "--help", "version", "--version", "list", "show", "subtitles", "jobs", "add", "cancel", "retry", "remove", "move", "subscriptions", "sites", "open", "plugin", "mcp"},
 	} {
 		for _, name := range args {
 			if OpensWindow([]string{name}) {

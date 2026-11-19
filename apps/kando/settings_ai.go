@@ -37,6 +37,9 @@ type savedLLMService struct {
 	APIKey  string `json:"apiKey,omitempty"`
 }
 
+// llmPackPrefix starts the preset id of an AI service an ai-service plugin pack contributes ("pack.<id>"). clean keeps services under such ids even when the pack is not installed right now (its disk is not mounted, it is turned off), so the user's key is still there when the pack comes back.
+const llmPackPrefix = "pack."
+
 func (s *savedLLM) clean() {
 	s.LLMBaseURL = strings.TrimSpace(s.LLMBaseURL)
 	s.LLMModel = strings.TrimSpace(s.LLMModel)
@@ -44,7 +47,8 @@ func (s *savedLLM) clean() {
 	s.LLMProvider = strings.TrimSpace(s.LLMProvider)
 	for id, service := range s.LLMServices {
 		service = savedLLMService{BaseURL: strings.TrimSpace(service.BaseURL), Model: strings.TrimSpace(service.Model), APIKey: strings.TrimSpace(service.APIKey)}
-		if _, known := settings.PresetByID(locales.In(locales.Source), id); !known || service.BaseURL == "" {
+		_, known := settings.PresetByID(settings.Presets(locales.In(locales.Source)), id)
+		if (!known && !strings.HasPrefix(id, llmPackPrefix)) || service.BaseURL == "" {
 			delete(s.LLMServices, id)
 			continue
 		}
@@ -113,6 +117,11 @@ func (a *app) restoreLLM(saved savedSettings) {
 	a.syncLLM(tools.UseEveryAPICLI())
 }
 
+// llmPresets are the AI services the app offers, their names and blurbs in the language of m: Kando's own, then those of the ai-service plugin packs turned on (pluginPresets). It is what settings.PresetByID and settings.ProviderID resolve a service id or an endpoint against, so every caller sees the same list.
+func (a *app) llmPresets(m locales.Messages) []settings.Preset {
+	return append(settings.Presets(m), a.pluginPresets(m)...)
+}
+
 // syncLLM shows the tools' AI service in the settings, its key as the key of its endpoint (llmKeyOwner).
 func (a *app) syncLLM(tools media.Tools) {
 	a.pipeline = tools
@@ -120,7 +129,7 @@ func (a *app) syncLLM(tools media.Tools) {
 	a.prefs.llmModel = tools.Translator.Model
 	a.prefs.llmKey = tools.Translator.APIKey
 	a.prefs.llmKeyOwner = llmKeyOwner{key: tools.Translator.APIKey, base: tools.Translator.BaseURL}
-	a.prefs.llmProvider = settings.ProviderID(tools.Translator.BaseURL)
+	a.prefs.llmProvider = settings.ProviderID(a.llmPresets(a.messages()), tools.Translator.BaseURL)
 }
 
 // llmKeyOwner is the key in the API Key field and the endpoint it belongs to: the one it came from settings.json, the environment or a service used before with, or the one that listed its models or passed the connection test with it. A key typed since belongs to no endpoint yet, so it goes with the Base URL as that is typed, in whichever order the two are filled in.
@@ -138,7 +147,7 @@ func (a *app) selectLLM(id string) {
 	if a.prefs.llmProvider == id {
 		return
 	}
-	preset, ok := settings.PresetByID(a.messages(), id)
+	preset, ok := settings.PresetByID(a.llmPresets(a.messages()), id)
 	if !ok {
 		return
 	}
@@ -161,7 +170,7 @@ func (a *app) selectLLM(id string) {
 	a.applyLLM()
 }
 
-// llmRemember keeps the AI service in use, its endpoint, model and key, under its preset id for when it is chosen again (selectLLM); settings.json keeps them too (savedLLM.LLMServices).
+// llmRemember keeps the AI service in use, its endpoint, model and key, under its id for when it is chosen again (selectLLM); settings.json keeps them too (savedLLM.LLMServices). The id is the service chosen while it is still offered at the endpoint in use (llmProviderFor), so a plugin pack's service whose endpoint is also a built-in one's, or 自定义 at a pack's endpoint, is kept as itself; a pack's service whose pack is not offered now is kept under the pack's id (pluginsGoneService), never as 自定义's, whose endpoint and key it would take the place of.
 func (a *app) llmRemember() {
 	tools, ok := a.pipeline.(media.Tools)
 	base := strings.TrimSpace(tools.Translator.BaseURL)
@@ -171,7 +180,20 @@ func (a *app) llmRemember() {
 	if a.prefs.llmServices == nil {
 		a.prefs.llmServices = map[string]savedLLMService{}
 	}
-	a.prefs.llmServices[settings.ProviderID(base)] = savedLLMService{BaseURL: base, Model: strings.TrimSpace(tools.Translator.Model), APIKey: tools.Translator.APIKey}
+	id := a.pluginsGoneService(base)
+	if id == "" {
+		id = a.llmProviderFor(a.prefs.llmProvider, base)
+	}
+	a.prefs.llmServices[id] = savedLLMService{BaseURL: base, Model: strings.TrimSpace(tools.Translator.Model), APIKey: tools.Translator.APIKey}
+}
+
+// llmProviderFor is the preset the endpoint base is shown as when keep was the one chosen: keep while it is still offered with that endpoint, and 自定义, which has no endpoint of its own, as it stays 自定义 until the user picks another; otherwise the first preset whose endpoint base is (settings.ProviderID).
+func (a *app) llmProviderFor(keep, base string) string {
+	presets := a.llmPresets(a.messages())
+	if preset, ok := settings.PresetByID(presets, keep); ok && (keep == "custom" || preset.BaseURL != "" && settings.SameEndpoint(preset.BaseURL, base)) {
+		return keep
+	}
+	return settings.ProviderID(presets, base)
 }
 
 func (a *app) applyLLM() {
@@ -210,9 +232,14 @@ func (a *app) applyLLM() {
 	}
 }
 
-// openLLMKeyPage opens the page of the service in use where an API Key is made, as 获取 API Key on the AI 服务 page and in the first-run guide does, and says in the library's message bar when the system could not (menuOpenLink).
+// openLLMKeyPage opens the page of the service in use where an API Key is made, as 获取 API Key on the AI 服务 page and in the first-run guide does, and says in the library's message bar when the system could not (menuOpenLink). The page of a service a plugin pack added opens once the user agreed to go to its host (pluginsOpenKeyPage).
 func (a *app) openLLMKeyPage() {
-	if preset, ok := settings.PresetByID(a.messages(), a.prefs.llmProvider); ok && preset.KeyURL != "" {
+	preset, ok := settings.PresetByID(a.llmPresets(a.messages()), a.prefs.llmProvider)
+	switch {
+	case !ok || preset.KeyURL == "":
+	case preset.Plugin != "":
+		a.pluginsOpenKeyPage(preset)
+	default:
 		a.menuOpenLink(preset.KeyURL)
 	}
 }
@@ -389,7 +416,7 @@ func (a *app) adoptLLMModel() {
 	if len(a.prefs.llmModels) == 0 {
 		return
 	}
-	preset, _ := settings.PresetByID(a.messages(), a.prefs.llmProvider)
+	preset, _ := settings.PresetByID(a.llmPresets(a.messages()), a.prefs.llmProvider)
 	model := strings.TrimSpace(a.prefs.llmModel)
 	if model != "" && (model != preset.Model || slices.Contains(a.prefs.llmModels, model)) {
 		return

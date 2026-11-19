@@ -62,6 +62,7 @@ func (a *app) areas() []areaHooks {
 		a.browseHooks(),
 		a.queueHooks(),
 		a.settingsHooks(),
+		a.pluginsHooks(),
 		a.cloudHooks(),
 		a.locationsHooks(),
 		a.storedHooks(),

@@ -639,6 +639,7 @@ var Parameters = map[string][]string{
 	"FilmsTranslateAll":                        {"count"},
 	"FilmsUntranslated":                        {"count"},
 	"GlossaryMetaLocked":                       {"scope"},
+	"GlossaryMetaPack":                         {"scope"},
 	"GlossaryScopeLabel":                       {"scope", "next"},
 	"GlossaryLock":                             {"term"},
 	"GlossaryUnlock":                           {"term"},
@@ -747,6 +748,7 @@ var Parameters = map[string][]string{
 	"PlaylistSeveral":                          {"count"},
 	"PlaylistSubscribe":                        {"kind"},
 	"PlaylistVideos":                           {"count"},
+	"PluginsErrSystem":                         {"error_"},
 	"PrecheckChannel":                          {"site"},
 	"PrecheckFailedDownload":                   {"detail"},
 	"PrecheckFailedExport":                     {"detail"},
@@ -827,10 +829,13 @@ var Parameters = map[string][]string{
 	"SavedWhereGone":                           {"film", "time_"},
 	"SettingsAIEveryAPIFailed":                 {"error_"},
 	"SettingsAIEveryAPIOpenFailed":             {"error_"},
+	"SettingsAIKeyPageMessage":                 {"name"},
+	"SettingsAIKeyPageTitle":                   {"host"},
 	"SettingsAILocalService":                   {"name"},
 	"SettingsAIModelsFailed":                   {"error_"},
 	"SettingsAINote":                           {"key", "compatible"},
 	"SettingsAINoteWithBlurb":                  {"blurb"},
+	"SettingsAIPluginService":                  {"name", "host"},
 	"SettingsAISaveFailed":                     {"error_"},
 	"SettingsFileDamagedUnsaved":               {"error_"},
 	"SettingsFileUnreadable":                   {"error_"},
@@ -941,6 +946,8 @@ var Parameters = map[string][]string{
 	"VocabLongest":                             {"count"},
 	"VocabLookupCard":                          {"word"},
 	"VocabLookupFailed":                        {"error_"},
+	"VocabLookupSourceDict":                    {"name"},
+	"VocabLookupSourceDictCredit":              {"name", "credit"},
 	"VocabLookupTerm":                          {"term"},
 	"VocabMastered":                            {"count"},
 	"VocabMinutes":                             {"count"},
@@ -984,6 +991,24 @@ var Parameters = map[string][]string{
 	"SettingsPhoneResolveFailed":               {"error_"},
 	"SettingsPhoneConflictWord":                {"word"},
 	"SettingsPhoneConflictFilm":                {"title"},
+	"SettingsPluginsDetailsLabel":              {"name"},
+	"SettingsPluginsDictionaryDetail":          {"from", "to"},
+	"SettingsPluginsEnableLabel":               {"name"},
+	"SettingsPluginsForgetLabel":               {"name"},
+	"SettingsPluginsGlossaryDetail":            {"count", "from", "to"},
+	"SettingsPluginsIdentity":                  {"id", "hash"},
+	"SettingsPluginsInstallReplaces":           {"version"},
+	"SettingsPluginsInstallTitle":              {"name"},
+	"SettingsPluginsLicense":                   {"license"},
+	"SettingsPluginsMoveDownLabel":             {"name"},
+	"SettingsPluginsMoveUpLabel":               {"name"},
+	"SettingsPluginsServiceDetail":             {"host"},
+	"SettingsPluginsShowFolder":                {"platform"},
+	"SettingsPluginsUninstallLabel":            {"name"},
+	"SettingsPluginsUninstallTitle":            {"name"},
+	"SettingsPluginsVersion":                   {"version"},
+	"SettingsPluginsVersionAuthor":             {"version", "author"},
+	"SettingsPluginsWordlistDetail":            {"language", "count"},
 	"SettingsPhoneConflictUseLabel":            {"device"},
 	"SettingsPhoneDidLink":                     {"title"},
 	"SettingsPhoneDidPause":                    {"title"},
@@ -1234,6 +1259,7 @@ type Translation struct {
 	FilmsTranslateAll                        func(count int) string
 	FilmsUntranslated                        func(count int) string
 	GlossaryMetaLocked                       func(scope string) string
+	GlossaryMetaPack                         func(scope string) string
 	GlossaryScopeLabel                       func(scope string, next string) string
 	GlossaryLock                             func(term string) string
 	GlossaryUnlock                           func(term string) string
@@ -1342,6 +1368,7 @@ type Translation struct {
 	PlaylistSeveral                          func(count int) string
 	PlaylistSubscribe                        func(kind string) string
 	PlaylistVideos                           func(count int) string
+	PluginsErrSystem                         func(error_ string) string
 	PrecheckChannel                          func(site string) string
 	PrecheckFailedDownload                   func(detail string) string
 	PrecheckFailedExport                     func(detail string) string
@@ -1422,10 +1449,13 @@ type Translation struct {
 	SavedWhereGone                           func(film string, time_ string) string
 	SettingsAIEveryAPIFailed                 func(error_ string) string
 	SettingsAIEveryAPIOpenFailed             func(error_ string) string
+	SettingsAIKeyPageMessage                 func(name string) string
+	SettingsAIKeyPageTitle                   func(host string) string
 	SettingsAILocalService                   func(name string) string
 	SettingsAIModelsFailed                   func(error_ string) string
 	SettingsAINote                           func(key string, compatible string) string
 	SettingsAINoteWithBlurb                  func(blurb string) string
+	SettingsAIPluginService                  func(name string, host string) string
 	SettingsAISaveFailed                     func(error_ string) string
 	SettingsFileDamagedUnsaved               func(error_ string) string
 	SettingsFileUnreadable                   func(error_ string) string
@@ -1536,6 +1566,8 @@ type Translation struct {
 	VocabLongest                             func(count int) string
 	VocabLookupCard                          func(word string) string
 	VocabLookupFailed                        func(error_ string) string
+	VocabLookupSourceDict                    func(name string) string
+	VocabLookupSourceDictCredit              func(name string, credit string) string
 	VocabLookupTerm                          func(term string) string
 	VocabMastered                            func(count int) string
 	VocabMinutes                             func(count int) string
@@ -1579,6 +1611,24 @@ type Translation struct {
 	SettingsPhoneResolveFailed               func(error_ string) string
 	SettingsPhoneConflictWord                func(word string) string
 	SettingsPhoneConflictFilm                func(title string) string
+	SettingsPluginsDetailsLabel              func(name string) string
+	SettingsPluginsDictionaryDetail          func(from string, to string) string
+	SettingsPluginsEnableLabel               func(name string) string
+	SettingsPluginsForgetLabel               func(name string) string
+	SettingsPluginsGlossaryDetail            func(count int, from string, to string) string
+	SettingsPluginsIdentity                  func(id string, hash string) string
+	SettingsPluginsInstallReplaces           func(version string) string
+	SettingsPluginsInstallTitle              func(name string) string
+	SettingsPluginsLicense                   func(license string) string
+	SettingsPluginsMoveDownLabel             func(name string) string
+	SettingsPluginsMoveUpLabel               func(name string) string
+	SettingsPluginsServiceDetail             func(host string) string
+	SettingsPluginsShowFolder                func(platform string) string
+	SettingsPluginsUninstallLabel            func(name string) string
+	SettingsPluginsUninstallTitle            func(name string) string
+	SettingsPluginsVersion                   func(version string) string
+	SettingsPluginsVersionAuthor             func(version string, author string) string
+	SettingsPluginsWordlistDetail            func(language string, count int) string
 	SettingsPhoneConflictUseLabel            func(device string) string
 	SettingsPhoneDidLink                     func(title string) string
 	SettingsPhoneDidPause                    func(title string) string
@@ -2461,6 +2511,24 @@ const (
 	textPlaylistTimedOut
 	textPlaylistUntitled
 	textPlaylistUntitledChannel
+	textPluginsErrBadArchive
+	textPluginsErrBadField
+	textPluginsErrBadID
+	textPluginsErrBadManifest
+	textPluginsErrBadName
+	textPluginsErrBadShape
+	textPluginsErrDictEmpty
+	textPluginsErrIDTaken
+	textPluginsErrInsecureURL
+	textPluginsErrMismatch
+	textPluginsErrNotInstalled
+	textPluginsErrReservedID
+	textPluginsErrReservedName
+	textPluginsErrSchema
+	textPluginsErrTooLarge
+	textPluginsErrUnknownKind
+	textPluginsErrUnsafePath
+	textPluginsErrUnsupportedKind
 	textPrecheckChannelUnnamed
 	textPrecheckEmpty
 	textPrecheckEveryAPIFailed
@@ -2626,6 +2694,7 @@ const (
 	textSettingsAIGetKey
 	textSettingsAIKeyEveryAPILogin
 	textSettingsAIKeyOptional
+	textSettingsAIKeyPageOpen
 	textSettingsAIKeyStoredLocally
 	textSettingsAILoadingModels
 	textSettingsAIModel
@@ -2752,6 +2821,7 @@ const (
 	textSettingsKeywordsGeneral
 	textSettingsKeywordsLook
 	textSettingsKeywordsPhone
+	textSettingsKeywordsPlugins
 	textSettingsKeywordsPrivacy
 	textSettingsKeywordsShortcuts
 	textSettingsKeywordsSpeech
@@ -2859,6 +2929,7 @@ const (
 	textSettingsSectionGeneral
 	textSettingsSectionLook
 	textSettingsSectionPhone
+	textSettingsSectionPlugins
 	textSettingsSectionPrivacy
 	textSettingsSectionShortcuts
 	textSettingsSectionSpeech
@@ -3078,7 +3149,9 @@ const (
 	textVocabLookupBusy
 	textVocabLookupClose
 	textVocabLookupNoAI
+	textVocabLookupNotInDicts
 	textVocabLookupSettings
+	textVocabLookupSourceAI
 	textVocabMastery
 	textVocabMasteryNote
 	textVocabOtherDevices
@@ -3140,6 +3213,32 @@ const (
 	textSettingsPhoneNoConflicts
 	textSettingsPhoneConflictsNote
 	textSettingsPhoneThisComputer
+	textSettingsPluginsCancel
+	textSettingsPluginsFileTypes
+	textSettingsPluginsForget
+	textSettingsPluginsInstall
+	textSettingsPluginsInstallConfirm
+	textSettingsPluginsInstallFailed
+	textSettingsPluginsInstallSource
+	textSettingsPluginsInstalled
+	textSettingsPluginsIssues
+	textSettingsPluginsKindAIService
+	textSettingsPluginsKindDictionary
+	textSettingsPluginsKindGlossary
+	textSettingsPluginsKindWordlist
+	textSettingsPluginsMissing
+	textSettingsPluginsMissingGroup
+	textSettingsPluginsNone
+	textSettingsPluginsNoneHint
+	textSettingsPluginsOK
+	textSettingsPluginsPickButton
+	textSettingsPluginsPickTitle
+	textSettingsPluginsSourceLocal
+	textSettingsPluginsStateBad
+	textSettingsPluginsStateNewer
+	textSettingsPluginsUninstall
+	textSettingsPluginsUninstallConfirm
+	textSettingsPluginsUninstallMessage
 	textSettingsPhoneConflictUse
 	textSettingsPhoneConflictBoth
 	textSettingsPhoneConflictOriginal
@@ -4025,6 +4124,24 @@ var keyOfText = [numTexts]string{
 	"playlistTimedOut",
 	"playlistUntitled",
 	"playlistUntitledChannel",
+	"pluginsErrBadArchive",
+	"pluginsErrBadField",
+	"pluginsErrBadID",
+	"pluginsErrBadManifest",
+	"pluginsErrBadName",
+	"pluginsErrBadShape",
+	"pluginsErrDictEmpty",
+	"pluginsErrIDTaken",
+	"pluginsErrInsecureURL",
+	"pluginsErrMismatch",
+	"pluginsErrNotInstalled",
+	"pluginsErrReservedID",
+	"pluginsErrReservedName",
+	"pluginsErrSchema",
+	"pluginsErrTooLarge",
+	"pluginsErrUnknownKind",
+	"pluginsErrUnsafePath",
+	"pluginsErrUnsupportedKind",
 	"precheckChannelUnnamed",
 	"precheckEmpty",
 	"precheckEveryAPIFailed",
@@ -4190,6 +4307,7 @@ var keyOfText = [numTexts]string{
 	"settingsAIGetKey",
 	"settingsAIKeyEveryAPILogin",
 	"settingsAIKeyOptional",
+	"settingsAIKeyPageOpen",
 	"settingsAIKeyStoredLocally",
 	"settingsAILoadingModels",
 	"settingsAIModel",
@@ -4316,6 +4434,7 @@ var keyOfText = [numTexts]string{
 	"settingsKeywordsGeneral",
 	"settingsKeywordsLook",
 	"settingsKeywordsPhone",
+	"settingsKeywordsPlugins",
 	"settingsKeywordsPrivacy",
 	"settingsKeywordsShortcuts",
 	"settingsKeywordsSpeech",
@@ -4423,6 +4542,7 @@ var keyOfText = [numTexts]string{
 	"settingsSectionGeneral",
 	"settingsSectionLook",
 	"settingsSectionPhone",
+	"settingsSectionPlugins",
 	"settingsSectionPrivacy",
 	"settingsSectionShortcuts",
 	"settingsSectionSpeech",
@@ -4642,7 +4762,9 @@ var keyOfText = [numTexts]string{
 	"vocabLookupBusy",
 	"vocabLookupClose",
 	"vocabLookupNoAI",
+	"vocabLookupNotInDicts",
 	"vocabLookupSettings",
+	"vocabLookupSourceAI",
 	"vocabMastery",
 	"vocabMasteryNote",
 	"vocabOtherDevices",
@@ -4704,6 +4826,32 @@ var keyOfText = [numTexts]string{
 	"settingsPhoneNoConflicts",
 	"settingsPhoneConflictsNote",
 	"settingsPhoneThisComputer",
+	"settingsPluginsCancel",
+	"settingsPluginsFileTypes",
+	"settingsPluginsForget",
+	"settingsPluginsInstall",
+	"settingsPluginsInstallConfirm",
+	"settingsPluginsInstallFailed",
+	"settingsPluginsInstallSource",
+	"settingsPluginsInstalled",
+	"settingsPluginsIssues",
+	"settingsPluginsKindAIService",
+	"settingsPluginsKindDictionary",
+	"settingsPluginsKindGlossary",
+	"settingsPluginsKindWordlist",
+	"settingsPluginsMissing",
+	"settingsPluginsMissingGroup",
+	"settingsPluginsNone",
+	"settingsPluginsNoneHint",
+	"settingsPluginsOK",
+	"settingsPluginsPickButton",
+	"settingsPluginsPickTitle",
+	"settingsPluginsSourceLocal",
+	"settingsPluginsStateBad",
+	"settingsPluginsStateNewer",
+	"settingsPluginsUninstall",
+	"settingsPluginsUninstallConfirm",
+	"settingsPluginsUninstallMessage",
 	"settingsPhoneConflictUse",
 	"settingsPhoneConflictBoth",
 	"settingsPhoneConflictOriginal",
@@ -5587,6 +5735,24 @@ var textsEn = i18n.NewTexts(""+
 	"Reading the videos took too long. Try again later."+
 	"Playlist"+
 	"Channel"+
+	"The file isn't a zip archive, or it's damaged."+
+	"Something in its kando-plugin.json isn't valid."+
+	"Its ID isn't valid."+
+	"Its kando-plugin.json is missing, isn't valid, or has something this version of Kando doesn't know."+
+	"A name or description in it is missing, has no English, or is too long."+
+	"Its files don't match what its kando-plugin.json lists."+
+	"The dictionary has no entry Kando can read."+
+	"A plugin of another kind with the same ID is installed. Uninstall it first."+
+	"An address in it isn't https."+
+	"Its folder isn't named after its ID and kind."+
+	"This plugin isn't installed any more."+
+	"Its ID is reserved for Kando's own plugins."+
+	"Its name is reserved: it reads like Kando or a built-in AI service."+
+	"It's made for another version of Kando."+
+	"The pack is too large."+
+	"Kando doesn't know this kind of plugin."+
+	"It holds a link or a path outside the pack."+
+	"This version of Kando doesn't support this kind of plugin yet."+
 	"This is a link to a channel, not to one video. List its videos first, then add them."+
 	"Paste a video link first, or choose a local file."+
 	"Couldn't get the sign-in from the everyapi command-line program; see “AI Service”"+
@@ -5752,6 +5918,7 @@ var textsEn = i18n.NewTexts(""+
 	"Get API Key"+
 	"Without an API Key, Kando uses the sign-in of the everyapi command-line program on this computer."+
 	"Optional"+
+	"Open"+
 	"The API Key is kept only in the settings file on this computer."+
 	"Getting the model list…"+
 	"Model"+
@@ -5878,6 +6045,7 @@ var textsEn = i18n.NewTexts(""+
 	"library location Finder File Explorer file manager interface language version components yt-dlp ffmpeg whisper-cli detect again command line terminal kando install MCP Claude Code Cursor copy config update notifications notify browser sign-in signed in cookies members-only age-restricted Chrome Safari Firefox Edge Brave Chromium keychain Full Disk Access appearance light dark mode follow system bookmarklet bookmark start at once"+
 	"subtitles display bilingual original only translation only order translation original dim blank make room preview preset font size color bold"+
 	"iPhone Android phone mobile sync pair QR code Wi-Fi network device revoke"+
+	"plugin pack extension install uninstall glossary terms AI service dictionary word list"+
 	"privacy offline network internet cache clear"+
 	"keyboard keys commands preset IINA mpv"+
 	"whisper models download recognition transcription HuggingFace Hugging Face Vimpo hyperframes spoken language download source mirror hf-mirror.com model file ggml threads proper nouns hints prompt command"+
@@ -5985,6 +6153,7 @@ var textsEn = i18n.NewTexts(""+
 	"General"+
 	"Subtitle Style"+
 	"Phone Sync"+
+	"Plugins"+
 	"Privacy"+
 	"Keyboard Shortcuts"+
 	"Speech Recognition"+
@@ -6203,8 +6372,10 @@ var textsEn = i18n.NewTexts(""+
 	"Saved lines"+
 	"Looking it up…"+
 	"Close"+
-	"Looking up a word asks the AI service. Set one up in AI Service."+
+	"Looking up a word asks your dictionaries, then the AI service. Set one up in AI Service, or install a dictionary in Plugins."+
+	"None of your dictionaries has this word. To look up the words they lack, set up an AI service in AI Service."+
 	"Open Settings"+
+	"Explained by your AI service"+
 	"Mastery"+
 	"Words and saved lines together. One counts as mastered once you knew it five times in a row and its next review is over three weeks away."+
 	"Other devices"+
@@ -6266,6 +6437,32 @@ var textsEn = i18n.NewTexts(""+
 	"No conflicts. When two devices change the same thing, you choose here."+
 	"Words, saved lines and where you left off merge by themselves; only the same translation or note changed on two devices needs you to choose."+
 	"This Computer"+
+	"Cancel"+
+	"Plugin Packs"+
+	"Remove"+
+	"Install from File…"+
+	"Install"+
+	"Can't Install This Pack"+
+	"From a file on this computer · not signed"+
+	"Installed"+
+	"Couldn't Load"+
+	"AI Services"+
+	"Dictionaries"+
+	"Glossaries"+
+	"Word Lists"+
+	"Its folder is gone"+
+	"Not in the Plugins Folder"+
+	"No plugins installed"+
+	"Install a pack from a file, or drop it here."+
+	"OK"+
+	"Choose"+
+	"Install a Plugin Pack"+
+	"Local"+
+	"Kando couldn't read which plugins are on, so they are all off for now. Turning one on or off saves it again."+
+	"A newer version of Kando saved which plugins are on, so they are all off here and this version won't change that."+
+	"Uninstall…"+
+	"Uninstall"+
+	"Its files are deleted. An API key you saved for a service it added stays in Kando."+
 	"Use This"+
 	"Keep Both"+
 	"Original"+
@@ -7146,6 +7343,24 @@ var textsEn = i18n.NewTexts(""+
 		50,
 		8,
 		7,
+		46,
+		47,
+		19,
+		99,
+		71,
+		55,
+		43,
+		75,
+		29,
+		45,
+		37,
+		43,
+		67,
+		39,
+		22,
+		39,
+		43,
+		62,
 		84,
 		49,
 		85,
@@ -7311,6 +7526,7 @@ var textsEn = i18n.NewTexts(""+
 		11,
 		97,
 		8,
+		4,
 		63,
 		25,
 		5,
@@ -7437,6 +7653,7 @@ var textsEn = i18n.NewTexts(""+
 		432,
 		141,
 		73,
+		86,
 		44,
 		38,
 		203,
@@ -7544,6 +7761,7 @@ var textsEn = i18n.NewTexts(""+
 		7,
 		14,
 		10,
+		7,
 		7,
 		18,
 		18,
@@ -7762,8 +7980,10 @@ var textsEn = i18n.NewTexts(""+
 		11,
 		16,
 		5,
-		64,
+		124,
+		108,
 		13,
+		28,
 		7,
 		137,
 		13,
@@ -7825,6 +8045,32 @@ var textsEn = i18n.NewTexts(""+
 		70,
 		140,
 		13,
+		6,
+		12,
+		6,
+		20,
+		7,
+		23,
+		42,
+		9,
+		13,
+		11,
+		12,
+		10,
+		10,
+		18,
+		25,
+		20,
+		44,
+		2,
+		6,
+		21,
+		5,
+		108,
+		113,
+		12,
+		9,
+		82,
 		8,
 		9,
 		8,
@@ -8708,6 +8954,24 @@ var textsJa = i18n.NewTexts(""+
 	"動画の読み込みに時間がかかりすぎました。しばらくしてからもう一度お試しください。"+
 	"再生リスト"+
 	"チャンネル"+
+	"zip アーカイブではないか、壊れています。"+
+	"kando-plugin.json の内容に正しくないものがあります。"+
+	"ID が正しくありません。"+
+	"kando-plugin.json がないか、正しくないか、このバージョンの Kando が知らない内容を含んでいます。"+
+	"名前や説明がないか、英語がないか、長すぎます。"+
+	"ファイルが kando-plugin.json の記載と一致しません。"+
+	"この辞書には読み取れる項目がありません。"+
+	"同じ ID で種類の違うプラグインがインストールされています。先にアンインストールしてください。"+
+	"https ではないアドレスが含まれています。"+
+	"フォルダー名が ID や種類と一致しません。"+
+	"このプラグインはもうインストールされていません。"+
+	"ID が Kando 公式のプラグイン専用です。"+
+	"名前が予約されています。Kando や内蔵の AI サービスと紛らわしい名前です。"+
+	"別のバージョンの Kando 用に作られています。"+
+	"パックが大きすぎます。"+
+	"この種類のプラグインは Kando にはわかりません。"+
+	"リンクやパックの外を指すパスが含まれています。"+
+	"このバージョンの Kando はこの種類のプラグインにまだ対応していません。"+
 	"チャンネルのリンクで、1 本の動画ではありません。先に動画を一覧にしてから追加してください。"+
 	"まず動画のリンクを貼り付けるか、ローカルファイルを選択してください。"+
 	"everyapi コマンドラインツールからログインを取得できません。「AI サービス」を確認してください"+
@@ -8873,6 +9137,7 @@ var textsJa = i18n.NewTexts(""+
 	"API Key を取得"+
 	"API Key を入力しない場合は、このコンピュータの everyapi コマンドラインツールのログインを使います。"+
 	"省略可"+
+	"開く"+
 	"API Key はこのコンピュータの設定ファイルにだけ保存されます。"+
 	"モデルの一覧を取得中…"+
 	"モデル"+
@@ -8999,6 +9264,7 @@ var textsJa = i18n.NewTexts(""+
 	"ライブラリ 場所 Finder エクスプローラー ファイルマネージャー 表示言語 バージョン コンポーネント yt-dlp ffmpeg whisper-cli 再検出 コマンドライン ターミナル kando インストール MCP Claude Code Cursor 設定をコピー アップデート 通知 ブラウザ ログイン Cookie メンバー限定 年齢確認 Chrome Safari Firefox Edge キーチェーン フルディスクアクセス 外観 ライト ダーク システム ブックマークレット ブックマーク すぐに開始"+
 	"字幕 表示方法 二言語 原文のみ 訳文のみ 順序 訳文 原文 薄く 空白 移動 プレビュー プリセット フォント サイズ 色 太字"+
 	"iPhone Android スマホ スマートフォン 同期 ペアリング QR コード Wi-Fi ネットワーク デバイス 取り消し"+
+	"プラグイン パック 拡張 インストール アンインストール 用語集 用語 AI サービス 辞書 単語リスト"+
 	"プライバシー オフライン ネットワーク インターネット キャッシュ 消去"+
 	"キーボード キー コマンド プリセット IINA mpv"+
 	"whisper モデル ダウンロード 認識 文字起こし HuggingFace Hugging Face Vimpo hyperframes 認識する言語 話されている言語 ダウンロード元 ミラー hf-mirror.com モデルファイル ggml スレッド 固有名詞 ヒント コマンド"+
@@ -9106,6 +9372,7 @@ var textsJa = i18n.NewTexts(""+
 	"一般"+
 	"字幕のスタイル"+
 	"スマートフォン同期"+
+	"プラグイン"+
 	"プライバシー"+
 	"キーボードショートカット"+
 	"音声認識"+
@@ -9324,8 +9591,10 @@ var textsJa = i18n.NewTexts(""+
 	"保存したセリフ"+
 	"調べています…"+
 	"閉じる"+
-	"単語を調べるには AI サービスを使います。「AI サービス」で設定してください。"+
+	"単語はインストールした辞書で調べ、なければ AI サービスに聞きます。「AI サービス」で設定するか、「プラグイン」で辞書をインストールしてください。"+
+	"インストールした辞書にこの単語はありません。辞書にない単語も調べるには、「AI サービス」で設定してください。"+
 	"設定を開く"+
+	"AI サービスによる説明"+
 	"習得状況"+
 	"単語と保存したセリフを合わせて数えます。5 回続けて正解し、次の復習が 3 週間以上先になったものを習得済みとします。"+
 	"ほかのデバイス"+
@@ -9387,6 +9656,32 @@ var textsJa = i18n.NewTexts(""+
 	"競合はありません。2 台で同じ箇所を変更したときは、ここで選べます。"+
 	"単語・保存した文・視聴位置は自動で統合されます。2 台で同じ訳文やメモを変更したときだけ、選んでください。"+
 	"このコンピュータ"+
+	"キャンセル"+
+	"プラグインパック"+
+	"削除"+
+	"ファイルからインストール…"+
+	"インストール"+
+	"このパックはインストールできません"+
+	"このコンピューター上のファイル · 署名なし"+
+	"インストール済み"+
+	"読み込めませんでした"+
+	"AI サービス"+
+	"辞書"+
+	"用語集"+
+	"単語リスト"+
+	"フォルダーが見つかりません"+
+	"プラグインフォルダーにありません"+
+	"プラグインはインストールされていません"+
+	"ファイルからパックをインストールするか、ここにドロップしてください。"+
+	"OK"+
+	"選択"+
+	"プラグインパックをインストール"+
+	"ローカル"+
+	"どのプラグインがオンか読み取れなかったため、すべてオフにしています。いずれかをオンまたはオフにすると保存し直します。"+
+	"新しいバージョンの Kando がプラグインのオン・オフを保存したため、ここではすべてオフになり、このバージョンでは変更しません。"+
+	"アンインストール…"+
+	"アンインストール"+
+	"ファイルは削除されます。追加されたサービス用に保存した API キーは Kando に残ります。"+
 	"これを使う"+
 	"両方残す"+
 	"原文"+
@@ -10267,6 +10562,24 @@ var textsJa = i18n.NewTexts(""+
 		120,
 		15,
 		15,
+		58,
+		69,
+		33,
+		130,
+		69,
+		67,
+		60,
+		136,
+		57,
+		58,
+		72,
+		52,
+		103,
+		61,
+		33,
+		67,
+		69,
+		100,
 		134,
 		102,
 		132,
@@ -10432,6 +10745,7 @@ var textsJa = i18n.NewTexts(""+
 		17,
 		138,
 		9,
+		6,
 		86,
 		33,
 		9,
@@ -10558,6 +10872,7 @@ var textsJa = i18n.NewTexts(""+
 		548,
 		163,
 		133,
+		132,
 		98,
 		60,
 		268,
@@ -10665,6 +10980,7 @@ var textsJa = i18n.NewTexts(""+
 		6,
 		21,
 		27,
+		15,
 		18,
 		36,
 		12,
@@ -10883,8 +11199,10 @@ var textsJa = i18n.NewTexts(""+
 		21,
 		21,
 		9,
-		109,
+		211,
+		159,
 		15,
+		30,
 		12,
 		167,
 		21,
@@ -10946,6 +11264,32 @@ var textsJa = i18n.NewTexts(""+
 		98,
 		155,
 		24,
+		15,
+		24,
+		6,
+		39,
+		18,
+		51,
+		61,
+		24,
+		30,
+		15,
+		6,
+		9,
+		15,
+		39,
+		48,
+		57,
+		102,
+		2,
+		6,
+		45,
+		12,
+		174,
+		181,
+		27,
+		24,
+		120,
 		15,
 		12,
 		6,
@@ -11829,6 +12173,24 @@ var textsKo = i18n.NewTexts(""+
 	"동영상을 읽는 데 너무 오래 걸렸습니다. 나중에 다시 시도하세요."+
 	"재생목록"+
 	"채널"+
+	"zip 압축 파일이 아니거나 손상되었습니다."+
+	"kando-plugin.json에 올바르지 않은 내용이 있습니다."+
+	"ID가 올바르지 않습니다."+
+	"kando-plugin.json이 없거나 올바르지 않거나, 이 버전의 Kando가 모르는 내용이 있습니다."+
+	"이름이나 설명이 없거나, 영어가 없거나, 너무 깁니다."+
+	"파일이 kando-plugin.json에 적힌 것과 맞지 않습니다."+
+	"이 사전에는 읽을 수 있는 항목이 없습니다."+
+	"ID가 같고 종류가 다른 플러그인이 설치되어 있습니다. 먼저 제거하세요."+
+	"https가 아닌 주소가 있습니다."+
+	"폴더 이름이 ID나 종류와 맞지 않습니다."+
+	"이 플러그인은 더 이상 설치되어 있지 않습니다."+
+	"ID가 Kando 공식 플러그인 전용입니다."+
+	"이름이 예약되어 있습니다. Kando나 기본 AI 서비스처럼 보입니다."+
+	"다른 버전의 Kando용으로 만들어졌습니다."+
+	"팩이 너무 큽니다."+
+	"Kando가 모르는 종류의 플러그인입니다."+
+	"링크나 팩 밖을 가리키는 경로가 있습니다."+
+	"이 버전의 Kando는 아직 이 종류의 플러그인을 지원하지 않습니다."+
 	"채널 링크이며 동영상 하나가 아닙니다. 먼저 동영상 목록을 불러온 뒤 추가하세요."+
 	"먼저 동영상 링크를 붙여 넣거나 로컬 파일을 선택하십시오."+
 	"everyapi 명령줄 도구에서 로그인 정보를 가져올 수 없습니다. ‘AI 서비스’를 확인하십시오"+
@@ -11994,6 +12356,7 @@ var textsKo = i18n.NewTexts(""+
 	"API Key 받기"+
 	"API Key를 입력하지 않으면 이 컴퓨터에 있는 everyapi 명령줄 도구의 로그인을 사용합니다."+
 	"선택 사항"+
+	"열기"+
 	"API Key는 이 컴퓨터의 설정 파일에만 저장됩니다."+
 	"모델 목록을 가져오는 중…"+
 	"모델"+
@@ -12120,6 +12483,7 @@ var textsKo = i18n.NewTexts(""+
 	"라이브러리 위치 Finder 파일 탐색기 파일 관리자 인터페이스 언어 버전 구성 요소 yt-dlp ffmpeg whisper-cli 다시 감지 명령줄 터미널 kando 설치 MCP Claude Code Cursor 설정 복사 업데이트 알림 브라우저 로그인 쿠키 멤버십 연령 확인 Chrome Safari Firefox Edge 키체인 전체 디스크 접근 권한 화면 모드 라이트 다크 시스템 북마클릿 북마크 바로 시작"+
 	"자막 표시 방식 이중 언어 원문만 번역만 순서 번역 원문 흐리게 비워 두기 이동 미리 보기 프리셋 서체 크기 색상 굵게"+
 	"iPhone Android 휴대폰 스마트폰 동기화 페어링 QR 코드 Wi-Fi 네트워크 기기 해제"+
+	"플러그인 팩 확장 설치 제거 용어집 용어 AI 서비스 사전 단어 목록"+
 	"개인정보 오프라인 네트워크 인터넷 캐시 지우기"+
 	"키보드 키 명령 프리셋 IINA mpv"+
 	"whisper 모델 다운로드 인식 전사 HuggingFace Hugging Face Vimpo hyperframes 인식 언어 다운로드 소스 미러 hf-mirror.com 모델 파일 ggml 스레드 고유명사 힌트 명령"+
@@ -12227,6 +12591,7 @@ var textsKo = i18n.NewTexts(""+
 	"일반"+
 	"자막 스타일"+
 	"휴대폰 동기화"+
+	"플러그인"+
 	"개인정보 보호"+
 	"단축키"+
 	"음성 인식"+
@@ -12445,8 +12810,10 @@ var textsKo = i18n.NewTexts(""+
 	"저장한 대사"+
 	"찾는 중…"+
 	"닫기"+
-	"단어를 찾으려면 AI 서비스가 필요합니다. 「AI 서비스」에서 설정하세요."+
+	"단어는 설치한 사전에서 먼저 찾고, 없으면 AI 서비스에 묻습니다. 「AI 서비스」에서 설정하거나 「플러그인」에서 사전을 설치하세요."+
+	"설치한 사전에 이 단어가 없습니다. 사전에 없는 단어도 찾으려면 「AI 서비스」에서 설정하세요."+
 	"설정 열기"+
+	"AI 서비스의 설명"+
 	"숙달 현황"+
 	"단어와 저장한 대사를 함께 셉니다. 5번 연속 맞히고 다음 복습이 3주 넘게 남으면 익힌 것으로 칩니다."+
 	"다른 기기"+
@@ -12508,6 +12875,32 @@ var textsKo = i18n.NewTexts(""+
 	"충돌이 없습니다. 두 기기에서 같은 곳을 바꾸면 여기서 고를 수 있습니다."+
 	"단어, 저장한 문장, 본 위치는 자동으로 합쳐집니다. 두 기기에서 같은 번역이나 메모를 바꿨을 때만 고르면 됩니다."+
 	"이 컴퓨터"+
+	"취소"+
+	"플러그인 팩"+
+	"제거"+
+	"파일에서 설치…"+
+	"설치"+
+	"이 팩을 설치할 수 없습니다"+
+	"이 컴퓨터의 파일 · 서명 없음"+
+	"설치됨"+
+	"불러올 수 없음"+
+	"AI 서비스"+
+	"사전"+
+	"용어집"+
+	"단어 목록"+
+	"폴더가 없습니다"+
+	"플러그인 폴더에 없음"+
+	"설치된 플러그인이 없습니다"+
+	"파일에서 팩을 설치하거나 여기에 끌어다 놓으세요."+
+	"확인"+
+	"선택"+
+	"플러그인 팩 설치"+
+	"로컬"+
+	"어떤 플러그인이 켜져 있는지 읽을 수 없어 모두 꺼 두었습니다. 하나를 켜거나 끄면 다시 저장됩니다."+
+	"최신 버전의 Kando가 플러그인 상태를 저장해서 여기서는 모두 꺼져 있으며, 이 버전에서는 바꾸지 않습니다."+
+	"제거…"+
+	"제거"+
+	"파일이 삭제됩니다. 추가된 서비스에 저장한 API 키는 Kando에 남습니다."+
 	"이것 사용"+
 	"둘 다 유지"+
 	"원문"+
@@ -13388,6 +13781,24 @@ var textsKo = i18n.NewTexts(""+
 		88,
 		12,
 		6,
+		56,
+		64,
+		32,
+		111,
+		72,
+		65,
+		58,
+		96,
+		39,
+		53,
+		64,
+		48,
+		85,
+		54,
+		24,
+		51,
+		57,
+		86,
 		111,
 		80,
 		120,
@@ -13553,6 +13964,7 @@ var textsKo = i18n.NewTexts(""+
 		14,
 		116,
 		13,
+		6,
 		64,
 		36,
 		6,
@@ -13679,6 +14091,7 @@ var textsKo = i18n.NewTexts(""+
 		437,
 		158,
 		100,
+		88,
 		65,
 		39,
 		195,
@@ -13786,6 +14199,7 @@ var textsKo = i18n.NewTexts(""+
 		6,
 		16,
 		19,
+		12,
 		19,
 		9,
 		13,
@@ -14004,8 +14418,10 @@ var textsKo = i18n.NewTexts(""+
 		16,
 		13,
 		6,
-		97,
+		180,
+		129,
 		13,
+		22,
 		13,
 		136,
 		13,
@@ -14067,6 +14483,32 @@ var textsKo = i18n.NewTexts(""+
 		99,
 		154,
 		13,
+		6,
+		16,
+		6,
+		22,
+		6,
+		37,
+		40,
+		9,
+		20,
+		12,
+		6,
+		9,
+		13,
+		22,
+		29,
+		38,
+		69,
+		6,
+		6,
+		23,
+		6,
+		136,
+		143,
+		9,
+		6,
+		93,
 		13,
 		14,
 		6,
@@ -14950,6 +15392,24 @@ var textsZhHans = i18n.NewTexts(""+
 	"读取视频用时太久，请稍后再试。"+
 	"播放列表"+
 	"频道"+
+	"这个文件不是 zip 压缩包，或者已经损坏。"+
+	"它的 kando-plugin.json 里有内容不合规则。"+
+	"它的 ID 不合规则。"+
+	"它的 kando-plugin.json 缺失、格式不对，或者含有这个版本的看懂不认识的内容。"+
+	"它的名称或说明缺失、没有英文，或者太长。"+
+	"它的文件和 kando-plugin.json 列出的不一致。"+
+	"这个词典里没有能读取的词条。"+
+	"已经装了一个 ID 相同、种类不同的插件。先卸载它。"+
+	"它的地址不是 https。"+
+	"它的文件夹名和它的 ID、种类对不上。"+
+	"这个插件已经不在了。"+
+	"它的 ID 是看懂官方插件专用的。"+
+	"它的名称被保留：看起来像看懂或内置的 AI 服务。"+
+	"它是为别的版本的看懂做的。"+
+	"这个插件包太大了。"+
+	"看懂不认识这类插件。"+
+	"它含有链接或指向包外的路径。"+
+	"这个版本的看懂还不支持这类插件。"+
 	"这是频道链接，不是单个视频。请先列出它的视频再加入。"+
 	"先粘贴一个视频链接，或选择本地文件。"+
 	"无法从 everyapi 命令行工具取得登录，详见「AI 服务」"+
@@ -15115,6 +15575,7 @@ var textsZhHans = i18n.NewTexts(""+
 	"获取 API Key"+
 	"不填 API Key 时，使用本机 everyapi 命令行工具的登录。"+
 	"可不填"+
+	"打开"+
 	"API Key 只保存在本机设置文件里。"+
 	"正在获取模型列表…"+
 	"模型"+
@@ -15241,6 +15702,7 @@ var textsZhHans = i18n.NewTexts(""+
 	"资料库 位置 访达 文件资源管理器 文件管理器 界面语言 版本 组件 yt-dlp ffmpeg whisper-cli 重新检测 命令行 终端 kando 安装 MCP Claude Code Cursor 拷贝配置 更新 通知 浏览器 登录 借用 Cookie 会员 年龄验证 Chrome Safari Firefox Edge 钥匙串 完全磁盘访问权限 外观 浅色 深色 跟随系统 书签小工具 书签 立即开始"+
 	"字幕 显示方式 双语 仅原文 仅译文 顺序 译文 原文 弱化 留空 让位 预览 预设 字体 字号 颜色 粗体"+
 	"iPhone Android 手机 移动 同步 配对 二维码 Wi-Fi 网络 设备 撤销"+
+	"插件 插件包 扩展 安装 卸载 术语表 术语 AI 服务 词典 词表"+
 	"隐私 离线 联网 网络 缓存 清除"+
 	"键盘 按键 命令 预设 键位 IINA mpv"+
 	"whisper 模型 下载 识别 HuggingFace Hugging Face Vimpo hyperframes 识别语言 下载源 镜像 hf-mirror.com 模型文件 ggml 线程 专有名词 提示 命令行"+
@@ -15348,6 +15810,7 @@ var textsZhHans = i18n.NewTexts(""+
 	"通用"+
 	"字幕外观"+
 	"手机同步"+
+	"插件"+
 	"隐私"+
 	"快捷键"+
 	"语音识别"+
@@ -15566,8 +16029,10 @@ var textsZhHans = i18n.NewTexts(""+
 	"收藏的句子"+
 	"正在查…"+
 	"关闭"+
-	"查词要用 AI 服务。先在「AI 服务」里设置一个。"+
+	"查词会先查已安装的词典，再问 AI 服务。先在「AI 服务」里设置一个，或在「插件」里安装词典。"+
+	"已安装的词典里没有这个词。要查词典里没有的词，先在「AI 服务」里设置一个。"+
 	"打开设置"+
+	"由 AI 服务解释"+
 	"掌握情况"+
 	"生词和收藏的句子一起算。连续答对 5 次、下次复习在三周以后，就算掌握。"+
 	"其他设备"+
@@ -15629,6 +16094,32 @@ var textsZhHans = i18n.NewTexts(""+
 	"没有冲突。两边改了同一处时会在这里让你选。"+
 	"生词、收藏和看到哪儿会自动合并；只有两台设备改了同一句译文或同一条笔记，才需要你来选。"+
 	"这台电脑"+
+	"取消"+
+	"插件包"+
+	"移除"+
+	"从文件安装…"+
+	"安装"+
+	"无法安装这个插件包"+
+	"来自这台电脑上的文件 · 未签名"+
+	"已安装"+
+	"无法载入"+
+	"AI 服务"+
+	"词典"+
+	"术语表"+
+	"词表"+
+	"它的文件夹已经不在了"+
+	"不在插件文件夹里"+
+	"还没有安装插件"+
+	"从文件安装插件包，或把它拖到这里。"+
+	"好"+
+	"选择"+
+	"安装插件包"+
+	"本地"+
+	"看懂读不出哪些插件是启用的，所以暂时全部停用。打开或关闭任意一个插件会重新保存。"+
+	"新版看懂保存了插件的启用状态，所以这里全部停用，这个版本也不会改动它。"+
+	"卸载…"+
+	"卸载"+
+	"它的文件会被删除。你为它添加的服务保存的 API Key 会留在看懂里。"+
 	"用这个"+
 	"两条都留"+
 	"原文"+
@@ -16509,6 +17000,24 @@ var textsZhHans = i18n.NewTexts(""+
 		45,
 		12,
 		6,
+		56,
+		52,
+		25,
+		103,
+		60,
+		55,
+		42,
+		70,
+		27,
+		51,
+		30,
+		43,
+		67,
+		39,
+		27,
+		30,
+		42,
+		48,
 		78,
 		54,
 		70,
@@ -16674,6 +17183,7 @@ var textsZhHans = i18n.NewTexts(""+
 		14,
 		70,
 		9,
+		6,
 		44,
 		27,
 		6,
@@ -16800,6 +17310,7 @@ var textsZhHans = i18n.NewTexts(""+
 		390,
 		130,
 		79,
+		78,
 		41,
 		43,
 		170,
@@ -16907,6 +17418,7 @@ var textsZhHans = i18n.NewTexts(""+
 		6,
 		12,
 		12,
+		6,
 		6,
 		9,
 		12,
@@ -17125,8 +17637,10 @@ var textsZhHans = i18n.NewTexts(""+
 		15,
 		12,
 		6,
-		64,
+		130,
+		108,
 		12,
+		19,
 		12,
 		102,
 		12,
@@ -17188,6 +17702,32 @@ var textsZhHans = i18n.NewTexts(""+
 		63,
 		129,
 		12,
+		6,
+		9,
+		6,
+		18,
+		6,
+		27,
+		43,
+		9,
+		12,
+		9,
+		6,
+		9,
+		6,
+		30,
+		24,
+		21,
+		51,
+		3,
+		6,
+		15,
+		6,
+		120,
+		105,
+		9,
+		6,
+		90,
 		9,
 		12,
 		6,
@@ -18071,6 +18611,24 @@ var textsZhHant = i18n.NewTexts(""+
 	"讀取影片花太久時間，請稍後再試。"+
 	"播放清單"+
 	"頻道"+
+	"這個檔案不是 zip 壓縮檔，或已經損毀。"+
+	"它的 kando-plugin.json 裡有內容不符合規則。"+
+	"它的 ID 不符合規則。"+
+	"它的 kando-plugin.json 遺失、格式不對，或含有這個版本的看懂不認得的內容。"+
+	"它的名稱或說明遺失、沒有英文，或太長。"+
+	"它的檔案和 kando-plugin.json 列出的不一致。"+
+	"這個詞典裡沒有能讀取的詞條。"+
+	"已經裝了一個 ID 相同、種類不同的外掛。先解除安裝它。"+
+	"它的位址不是 https。"+
+	"它的資料夾名稱和它的 ID、種類對不上。"+
+	"這個外掛已經不在了。"+
+	"它的 ID 是看懂官方外掛專用的。"+
+	"它的名稱被保留：看起來像看懂或內建的 AI 服務。"+
+	"它是為其他版本的看懂製作的。"+
+	"這個外掛包太大了。"+
+	"看懂不認得這類外掛。"+
+	"它含有連結或指向包外的路徑。"+
+	"這個版本的看懂還不支援這類外掛。"+
 	"這是頻道連結，不是單一影片。請先列出它的影片再加入。"+
 	"先貼上一個影片連結，或選擇本機檔案。"+
 	"無法從 everyapi 命令列工具取得登入，詳見「AI 服務」"+
@@ -18236,6 +18794,7 @@ var textsZhHant = i18n.NewTexts(""+
 	"取得 API Key"+
 	"不填 API Key 時，使用本機 everyapi 命令列工具的登入。"+
 	"可不填"+
+	"開啟"+
 	"API Key 只儲存在本機的設定檔中。"+
 	"正在取得模型清單…"+
 	"模型"+
@@ -18362,6 +18921,7 @@ var textsZhHant = i18n.NewTexts(""+
 	"資料庫 位置 Finder 檔案總管 檔案管理員 介面語言 版本 元件 yt-dlp ffmpeg whisper-cli 重新偵測 命令列 終端機 kando 安裝 MCP Claude Code Cursor 拷貝設定 更新 通知 瀏覽器 登入 借用 Cookie 會員 年齡驗證 Chrome Safari Firefox Edge 鑰匙圈 完整取用磁碟 外觀 淺色 深色 跟隨系統 書籤小工具 書籤 立即開始"+
 	"字幕 顯示方式 雙語 僅原文 僅譯文 順序 譯文 原文 淡化 留空 讓位 預覽 預設 字體 字級 顏色 粗體"+
 	"iPhone Android 手機 行動 同步 配對 QR 碼 Wi-Fi 網路 裝置 撤銷"+
+	"外掛 外掛包 擴充 安裝 解除安裝 術語表 術語 AI 服務 詞典 詞表"+
 	"隱私 離線 連網 網路 快取 清除"+
 	"鍵盤 按鍵 指令 預設 鍵位 IINA mpv"+
 	"whisper 模型 下載 辨識 HuggingFace Hugging Face Vimpo hyperframes 辨識語言 下載來源 鏡像 hf-mirror.com 模型檔案 ggml 執行緒 專有名詞 提示 命令列"+
@@ -18469,6 +19029,7 @@ var textsZhHant = i18n.NewTexts(""+
 	"一般"+
 	"字幕外觀"+
 	"手機同步"+
+	"外掛"+
 	"隱私"+
 	"快速鍵"+
 	"語音辨識"+
@@ -18687,8 +19248,10 @@ var textsZhHant = i18n.NewTexts(""+
 	"收藏的句子"+
 	"正在查…"+
 	"關閉"+
-	"查詞要用 AI 服務。先在「AI 服務」裡設定一個。"+
+	"查詞會先查已安裝的詞典，再問 AI 服務。先在「AI 服務」裡設定一個，或在「外掛」裡安裝詞典。"+
+	"已安裝的詞典裡沒有這個詞。要查詞典裡沒有的詞，先在「AI 服務」裡設定一個。"+
 	"打開設定"+
+	"由 AI 服務解釋"+
 	"掌握情況"+
 	"生詞和收藏的句子一起算。連續答對 5 次、下次複習在三週以後，就算掌握。"+
 	"其他裝置"+
@@ -18750,6 +19313,32 @@ var textsZhHant = i18n.NewTexts(""+
 	"沒有衝突。兩邊改了同一處時會在這裡讓你選。"+
 	"生字、收藏和看到哪裡會自動合併；只有兩台裝置改了同一句譯文或同一條筆記，才需要你來選。"+
 	"這台電腦"+
+	"取消"+
+	"外掛包"+
+	"移除"+
+	"從檔案安裝…"+
+	"安裝"+
+	"無法安裝這個外掛包"+
+	"來自這台電腦上的檔案 · 未簽署"+
+	"已安裝"+
+	"無法載入"+
+	"AI 服務"+
+	"詞典"+
+	"術語表"+
+	"詞表"+
+	"它的資料夾已經不在了"+
+	"不在外掛資料夾裡"+
+	"尚未安裝外掛"+
+	"從檔案安裝外掛包，或把它拖到這裡。"+
+	"好"+
+	"選擇"+
+	"安裝外掛包"+
+	"本機"+
+	"看懂讀不出哪些外掛是啟用的，所以暫時全部停用。開啟或關閉任一外掛會重新儲存。"+
+	"新版看懂儲存了外掛的啟用狀態，所以這裡全部停用，這個版本也不會變更它。"+
+	"解除安裝…"+
+	"解除安裝"+
+	"它的檔案會被刪除。你為它新增的服務儲存的 API Key 會留在看懂裡。"+
 	"用這個"+
 	"兩條都留"+
 	"原文"+
@@ -19630,6 +20219,24 @@ var textsZhHant = i18n.NewTexts(""+
 		48,
 		12,
 		6,
+		53,
+		55,
+		28,
+		100,
+		57,
+		55,
+		42,
+		76,
+		27,
+		54,
+		30,
+		43,
+		67,
+		42,
+		27,
+		30,
+		42,
+		48,
 		78,
 		54,
 		70,
@@ -19795,6 +20402,7 @@ var textsZhHant = i18n.NewTexts(""+
 		14,
 		70,
 		9,
+		6,
 		44,
 		27,
 		6,
@@ -19921,6 +20529,7 @@ var textsZhHant = i18n.NewTexts(""+
 		378,
 		130,
 		76,
+		84,
 		41,
 		43,
 		176,
@@ -20028,6 +20637,7 @@ var textsZhHant = i18n.NewTexts(""+
 		6,
 		12,
 		12,
+		6,
 		6,
 		9,
 		12,
@@ -20246,8 +20856,10 @@ var textsZhHant = i18n.NewTexts(""+
 		15,
 		12,
 		6,
-		64,
+		130,
+		108,
 		12,
+		19,
 		12,
 		102,
 		12,
@@ -20309,6 +20921,32 @@ var textsZhHant = i18n.NewTexts(""+
 		63,
 		129,
 		12,
+		6,
+		9,
+		6,
+		18,
+		6,
+		27,
+		43,
+		9,
+		12,
+		9,
+		6,
+		9,
+		6,
+		30,
+		24,
+		18,
+		51,
+		3,
+		6,
+		15,
+		6,
+		114,
+		105,
+		15,
+		12,
+		90,
 		9,
 		12,
 		6,
@@ -20972,6 +21610,9 @@ func Supply(lang string, t Translation) {
 	if t.GlossaryMetaLocked != nil {
 		s.GlossaryMetaLocked = t.GlossaryMetaLocked
 	}
+	if t.GlossaryMetaPack != nil {
+		s.GlossaryMetaPack = t.GlossaryMetaPack
+	}
 	if t.GlossaryScopeLabel != nil {
 		s.GlossaryScopeLabel = t.GlossaryScopeLabel
 	}
@@ -21296,6 +21937,9 @@ func Supply(lang string, t Translation) {
 	if t.PlaylistVideos != nil {
 		s.PlaylistVideos = t.PlaylistVideos
 	}
+	if t.PluginsErrSystem != nil {
+		s.PluginsErrSystem = t.PluginsErrSystem
+	}
 	if t.PrecheckChannel != nil {
 		s.PrecheckChannel = t.PrecheckChannel
 	}
@@ -21536,6 +22180,12 @@ func Supply(lang string, t Translation) {
 	if t.SettingsAIEveryAPIOpenFailed != nil {
 		s.SettingsAIEveryAPIOpenFailed = t.SettingsAIEveryAPIOpenFailed
 	}
+	if t.SettingsAIKeyPageMessage != nil {
+		s.SettingsAIKeyPageMessage = t.SettingsAIKeyPageMessage
+	}
+	if t.SettingsAIKeyPageTitle != nil {
+		s.SettingsAIKeyPageTitle = t.SettingsAIKeyPageTitle
+	}
 	if t.SettingsAILocalService != nil {
 		s.SettingsAILocalService = t.SettingsAILocalService
 	}
@@ -21547,6 +22197,9 @@ func Supply(lang string, t Translation) {
 	}
 	if t.SettingsAINoteWithBlurb != nil {
 		s.SettingsAINoteWithBlurb = t.SettingsAINoteWithBlurb
+	}
+	if t.SettingsAIPluginService != nil {
+		s.SettingsAIPluginService = t.SettingsAIPluginService
 	}
 	if t.SettingsAISaveFailed != nil {
 		s.SettingsAISaveFailed = t.SettingsAISaveFailed
@@ -21878,6 +22531,12 @@ func Supply(lang string, t Translation) {
 	if t.VocabLookupFailed != nil {
 		s.VocabLookupFailed = t.VocabLookupFailed
 	}
+	if t.VocabLookupSourceDict != nil {
+		s.VocabLookupSourceDict = t.VocabLookupSourceDict
+	}
+	if t.VocabLookupSourceDictCredit != nil {
+		s.VocabLookupSourceDictCredit = t.VocabLookupSourceDictCredit
+	}
 	if t.VocabLookupTerm != nil {
 		s.VocabLookupTerm = t.VocabLookupTerm
 	}
@@ -22006,6 +22665,60 @@ func Supply(lang string, t Translation) {
 	}
 	if t.SettingsPhoneConflictFilm != nil {
 		s.SettingsPhoneConflictFilm = t.SettingsPhoneConflictFilm
+	}
+	if t.SettingsPluginsDetailsLabel != nil {
+		s.SettingsPluginsDetailsLabel = t.SettingsPluginsDetailsLabel
+	}
+	if t.SettingsPluginsDictionaryDetail != nil {
+		s.SettingsPluginsDictionaryDetail = t.SettingsPluginsDictionaryDetail
+	}
+	if t.SettingsPluginsEnableLabel != nil {
+		s.SettingsPluginsEnableLabel = t.SettingsPluginsEnableLabel
+	}
+	if t.SettingsPluginsForgetLabel != nil {
+		s.SettingsPluginsForgetLabel = t.SettingsPluginsForgetLabel
+	}
+	if t.SettingsPluginsGlossaryDetail != nil {
+		s.SettingsPluginsGlossaryDetail = t.SettingsPluginsGlossaryDetail
+	}
+	if t.SettingsPluginsIdentity != nil {
+		s.SettingsPluginsIdentity = t.SettingsPluginsIdentity
+	}
+	if t.SettingsPluginsInstallReplaces != nil {
+		s.SettingsPluginsInstallReplaces = t.SettingsPluginsInstallReplaces
+	}
+	if t.SettingsPluginsInstallTitle != nil {
+		s.SettingsPluginsInstallTitle = t.SettingsPluginsInstallTitle
+	}
+	if t.SettingsPluginsLicense != nil {
+		s.SettingsPluginsLicense = t.SettingsPluginsLicense
+	}
+	if t.SettingsPluginsMoveDownLabel != nil {
+		s.SettingsPluginsMoveDownLabel = t.SettingsPluginsMoveDownLabel
+	}
+	if t.SettingsPluginsMoveUpLabel != nil {
+		s.SettingsPluginsMoveUpLabel = t.SettingsPluginsMoveUpLabel
+	}
+	if t.SettingsPluginsServiceDetail != nil {
+		s.SettingsPluginsServiceDetail = t.SettingsPluginsServiceDetail
+	}
+	if t.SettingsPluginsShowFolder != nil {
+		s.SettingsPluginsShowFolder = t.SettingsPluginsShowFolder
+	}
+	if t.SettingsPluginsUninstallLabel != nil {
+		s.SettingsPluginsUninstallLabel = t.SettingsPluginsUninstallLabel
+	}
+	if t.SettingsPluginsUninstallTitle != nil {
+		s.SettingsPluginsUninstallTitle = t.SettingsPluginsUninstallTitle
+	}
+	if t.SettingsPluginsVersion != nil {
+		s.SettingsPluginsVersion = t.SettingsPluginsVersion
+	}
+	if t.SettingsPluginsVersionAuthor != nil {
+		s.SettingsPluginsVersionAuthor = t.SettingsPluginsVersionAuthor
+	}
+	if t.SettingsPluginsWordlistDetail != nil {
+		s.SettingsPluginsWordlistDetail = t.SettingsPluginsWordlistDetail
 	}
 	if t.SettingsPhoneConflictUseLabel != nil {
 		s.SettingsPhoneConflictUseLabel = t.SettingsPhoneConflictUseLabel
@@ -33709,6 +34422,36 @@ func (msgs Messages) GlossaryMetaLocked(scope string) string {
 	}
 }
 
+// GlossaryMetaPack says "{scope} · From a plugin; turn it off in Settings › Plugins"
+// in the language the app shows under cx.
+//
+// Line under a term of a glossary plugin pack in the Terms tab: where it applies, and that it comes from a plugin, which is turned off on the Plugins page of the settings; such a term cannot be changed or removed in the tab.
+func GlossaryMetaPack(cx *core.Scope, scope string) string { return For(cx).GlossaryMetaPack(scope) }
+
+// GlossaryMetaPack is the package's GlossaryMetaPack in the language of msgs.
+func (msgs Messages) GlossaryMetaPack(scope string) string {
+	if i18n.IsPseudo(msgs.lang) {
+		return i18n.Pseudo(msgs.lang, Messages{lang: Source, mark: true}.GlossaryMetaPack(scope))
+	}
+	for lang := msgs.lang; ; lang = i18n.Parent(lang) {
+		if f := supplied[lang].GlossaryMetaPack; f != nil {
+			return f(scope)
+		}
+		switch lang {
+		case "", "en":
+			return msgs.arg(scope) + " · From a plugin; turn it off in Settings › Plugins"
+		case "ja":
+			return scope + " · プラグインの用語。設定 › プラグイン でオフにできます"
+		case "ko":
+			return scope + " · 플러그인 용어, 설정 › 플러그인에서 끌 수 있습니다"
+		case "zh-Hans":
+			return scope + " · 来自插件，可在 设置 › 插件 关闭"
+		case "zh-Hant":
+			return scope + " · 來自外掛，可在 設定 › 外掛 關閉"
+		}
+	}
+}
+
 // GlossaryScopeLabel says "Applies to: {scope}. Press to change it to {next}."
 // in the language the app shows under cx.
 //
@@ -39718,6 +40461,200 @@ func (msgs Messages) PlaylistVideos(count int) string {
 	}
 }
 
+// PluginsErrBadArchive says "The file isn't a zip archive, or it's damaged."
+// in the language the app shows under cx.
+//
+// Why a plugin pack cannot be installed or loaded: not a zip.
+func PluginsErrBadArchive(cx *core.Scope) string { return For(cx).PluginsErrBadArchive() }
+
+// PluginsErrBadArchive is the package's PluginsErrBadArchive in the language of msgs.
+func (msgs Messages) PluginsErrBadArchive() string { return msgs.text(textPluginsErrBadArchive) }
+
+// PluginsErrBadField says "Something in its kando-plugin.json isn't valid."
+// in the language the app shows under cx.
+//
+// Why a plugin pack cannot be installed or loaded: another field of its manifest.
+func PluginsErrBadField(cx *core.Scope) string { return For(cx).PluginsErrBadField() }
+
+// PluginsErrBadField is the package's PluginsErrBadField in the language of msgs.
+func (msgs Messages) PluginsErrBadField() string { return msgs.text(textPluginsErrBadField) }
+
+// PluginsErrBadID says "Its ID isn't valid."
+// in the language the app shows under cx.
+//
+// Why a plugin pack cannot be installed or loaded: its id.
+func PluginsErrBadID(cx *core.Scope) string { return For(cx).PluginsErrBadID() }
+
+// PluginsErrBadID is the package's PluginsErrBadID in the language of msgs.
+func (msgs Messages) PluginsErrBadID() string { return msgs.text(textPluginsErrBadID) }
+
+// PluginsErrBadManifest says "Its kando-plugin.json is missing, isn't valid, or has something this version of Kando doesn't know."
+// in the language the app shows under cx.
+//
+// Why a plugin pack cannot be installed or loaded: its manifest.
+func PluginsErrBadManifest(cx *core.Scope) string { return For(cx).PluginsErrBadManifest() }
+
+// PluginsErrBadManifest is the package's PluginsErrBadManifest in the language of msgs.
+func (msgs Messages) PluginsErrBadManifest() string { return msgs.text(textPluginsErrBadManifest) }
+
+// PluginsErrBadName says "A name or description in it is missing, has no English, or is too long."
+// in the language the app shows under cx.
+//
+// Why a plugin pack cannot be installed or loaded: its names.
+func PluginsErrBadName(cx *core.Scope) string { return For(cx).PluginsErrBadName() }
+
+// PluginsErrBadName is the package's PluginsErrBadName in the language of msgs.
+func (msgs Messages) PluginsErrBadName() string { return msgs.text(textPluginsErrBadName) }
+
+// PluginsErrBadShape says "Its files don't match what its kando-plugin.json lists."
+// in the language the app shows under cx.
+//
+// Why a plugin pack cannot be installed or loaded: its files.
+func PluginsErrBadShape(cx *core.Scope) string { return For(cx).PluginsErrBadShape() }
+
+// PluginsErrBadShape is the package's PluginsErrBadShape in the language of msgs.
+func (msgs Messages) PluginsErrBadShape() string { return msgs.text(textPluginsErrBadShape) }
+
+// PluginsErrDictEmpty says "The dictionary has no entry Kando can read."
+// in the language the app shows under cx.
+//
+// Why a dictionary pack turned on cannot be used: none of its files has an entry in the format its manifest names.
+func PluginsErrDictEmpty(cx *core.Scope) string { return For(cx).PluginsErrDictEmpty() }
+
+// PluginsErrDictEmpty is the package's PluginsErrDictEmpty in the language of msgs.
+func (msgs Messages) PluginsErrDictEmpty() string { return msgs.text(textPluginsErrDictEmpty) }
+
+// PluginsErrIDTaken says "A plugin of another kind with the same ID is installed. Uninstall it first."
+// in the language the app shows under cx.
+//
+// Why a plugin pack cannot be installed or loaded: its id is taken by a pack of another kind.
+func PluginsErrIDTaken(cx *core.Scope) string { return For(cx).PluginsErrIDTaken() }
+
+// PluginsErrIDTaken is the package's PluginsErrIDTaken in the language of msgs.
+func (msgs Messages) PluginsErrIDTaken() string { return msgs.text(textPluginsErrIDTaken) }
+
+// PluginsErrInsecureURL says "An address in it isn't https."
+// in the language the app shows under cx.
+//
+// Why a plugin pack cannot be installed or loaded: an address that is not https.
+func PluginsErrInsecureURL(cx *core.Scope) string { return For(cx).PluginsErrInsecureURL() }
+
+// PluginsErrInsecureURL is the package's PluginsErrInsecureURL in the language of msgs.
+func (msgs Messages) PluginsErrInsecureURL() string { return msgs.text(textPluginsErrInsecureURL) }
+
+// PluginsErrMismatch says "Its folder isn't named after its ID and kind."
+// in the language the app shows under cx.
+//
+// Why a plugin pack in the plugins folder cannot be loaded: a folder moved or renamed by hand.
+func PluginsErrMismatch(cx *core.Scope) string { return For(cx).PluginsErrMismatch() }
+
+// PluginsErrMismatch is the package's PluginsErrMismatch in the language of msgs.
+func (msgs Messages) PluginsErrMismatch() string { return msgs.text(textPluginsErrMismatch) }
+
+// PluginsErrNotInstalled says "This plugin isn't installed any more."
+// in the language the app shows under cx.
+//
+// Why a plugin pack cannot be uninstalled: it is gone already.
+func PluginsErrNotInstalled(cx *core.Scope) string { return For(cx).PluginsErrNotInstalled() }
+
+// PluginsErrNotInstalled is the package's PluginsErrNotInstalled in the language of msgs.
+func (msgs Messages) PluginsErrNotInstalled() string { return msgs.text(textPluginsErrNotInstalled) }
+
+// PluginsErrReservedID says "Its ID is reserved for Kando's own plugins."
+// in the language the app shows under cx.
+//
+// Why a plugin pack cannot be installed or loaded: an id under kando.
+func PluginsErrReservedID(cx *core.Scope) string { return For(cx).PluginsErrReservedID() }
+
+// PluginsErrReservedID is the package's PluginsErrReservedID in the language of msgs.
+func (msgs Messages) PluginsErrReservedID() string { return msgs.text(textPluginsErrReservedID) }
+
+// PluginsErrReservedName says "Its name is reserved: it reads like Kando or a built-in AI service."
+// in the language the app shows under cx.
+//
+// Why a plugin pack cannot be installed or loaded: a name that imitates Kando or a built-in service.
+func PluginsErrReservedName(cx *core.Scope) string { return For(cx).PluginsErrReservedName() }
+
+// PluginsErrReservedName is the package's PluginsErrReservedName in the language of msgs.
+func (msgs Messages) PluginsErrReservedName() string { return msgs.text(textPluginsErrReservedName) }
+
+// PluginsErrSchema says "It's made for another version of Kando."
+// in the language the app shows under cx.
+//
+// Why a plugin pack cannot be installed or loaded: its format version.
+func PluginsErrSchema(cx *core.Scope) string { return For(cx).PluginsErrSchema() }
+
+// PluginsErrSchema is the package's PluginsErrSchema in the language of msgs.
+func (msgs Messages) PluginsErrSchema() string { return msgs.text(textPluginsErrSchema) }
+
+// PluginsErrSystem says "Kando couldn't read or write the pack: {error}"
+// in the language the app shows under cx.
+//
+// Why a plugin pack cannot be installed, removed or turned on: an error of the system, in English.
+func PluginsErrSystem(cx *core.Scope, error_ string) string { return For(cx).PluginsErrSystem(error_) }
+
+// PluginsErrSystem is the package's PluginsErrSystem in the language of msgs.
+func (msgs Messages) PluginsErrSystem(error_ string) string {
+	if i18n.IsPseudo(msgs.lang) {
+		return i18n.Pseudo(msgs.lang, Messages{lang: Source, mark: true}.PluginsErrSystem(error_))
+	}
+	for lang := msgs.lang; ; lang = i18n.Parent(lang) {
+		if f := supplied[lang].PluginsErrSystem; f != nil {
+			return f(error_)
+		}
+		switch lang {
+		case "", "en":
+			return "Kando couldn't read or write the pack: " + msgs.arg(error_)
+		case "ja":
+			return "パックを読み書きできませんでした：" + error_
+		case "ko":
+			return "팩을 읽거나 쓸 수 없습니다: " + error_
+		case "zh-Hans":
+			return "看懂无法读写这个插件包：" + error_
+		case "zh-Hant":
+			return "看懂無法讀寫這個外掛包：" + error_
+		}
+	}
+}
+
+// PluginsErrTooLarge says "The pack is too large."
+// in the language the app shows under cx.
+//
+// Why a plugin pack cannot be installed or loaded: over its limits.
+func PluginsErrTooLarge(cx *core.Scope) string { return For(cx).PluginsErrTooLarge() }
+
+// PluginsErrTooLarge is the package's PluginsErrTooLarge in the language of msgs.
+func (msgs Messages) PluginsErrTooLarge() string { return msgs.text(textPluginsErrTooLarge) }
+
+// PluginsErrUnknownKind says "Kando doesn't know this kind of plugin."
+// in the language the app shows under cx.
+//
+// Why a plugin pack cannot be installed or loaded: its kind is unknown.
+func PluginsErrUnknownKind(cx *core.Scope) string { return For(cx).PluginsErrUnknownKind() }
+
+// PluginsErrUnknownKind is the package's PluginsErrUnknownKind in the language of msgs.
+func (msgs Messages) PluginsErrUnknownKind() string { return msgs.text(textPluginsErrUnknownKind) }
+
+// PluginsErrUnsafePath says "It holds a link or a path outside the pack."
+// in the language the app shows under cx.
+//
+// Why a plugin pack cannot be installed or loaded: a link or a path outside it.
+func PluginsErrUnsafePath(cx *core.Scope) string { return For(cx).PluginsErrUnsafePath() }
+
+// PluginsErrUnsafePath is the package's PluginsErrUnsafePath in the language of msgs.
+func (msgs Messages) PluginsErrUnsafePath() string { return msgs.text(textPluginsErrUnsafePath) }
+
+// PluginsErrUnsupportedKind says "This version of Kando doesn't support this kind of plugin yet."
+// in the language the app shows under cx.
+//
+// Why a plugin pack cannot be installed or loaded: a kind of a later version.
+func PluginsErrUnsupportedKind(cx *core.Scope) string { return For(cx).PluginsErrUnsupportedKind() }
+
+// PluginsErrUnsupportedKind is the package's PluginsErrUnsupportedKind in the language of msgs.
+func (msgs Messages) PluginsErrUnsupportedKind() string {
+	return msgs.text(textPluginsErrUnsupportedKind)
+}
+
 // PrecheckChannel says "This is a link to a {site} channel, not to one video. List its videos first, then add them."
 // in the language the app shows under cx.
 //
@@ -44012,6 +44949,79 @@ func SettingsAIKeyOptional(cx *core.Scope) string { return For(cx).SettingsAIKey
 // SettingsAIKeyOptional is the package's SettingsAIKeyOptional in the language of msgs.
 func (msgs Messages) SettingsAIKeyOptional() string { return msgs.text(textSettingsAIKeyOptional) }
 
+// SettingsAIKeyPageMessage says "The plugin pack {name} gives this address for getting an API key. Open it only if you trust it."
+// in the language the app shows under cx.
+//
+// Alert before opening the API key page of a service a plugin pack added: whose address it is.
+func SettingsAIKeyPageMessage(cx *core.Scope, name string) string {
+	return For(cx).SettingsAIKeyPageMessage(name)
+}
+
+// SettingsAIKeyPageMessage is the package's SettingsAIKeyPageMessage in the language of msgs.
+func (msgs Messages) SettingsAIKeyPageMessage(name string) string {
+	if i18n.IsPseudo(msgs.lang) {
+		return i18n.Pseudo(msgs.lang, Messages{lang: Source, mark: true}.SettingsAIKeyPageMessage(name))
+	}
+	for lang := msgs.lang; ; lang = i18n.Parent(lang) {
+		if f := supplied[lang].SettingsAIKeyPageMessage; f != nil {
+			return f(name)
+		}
+		switch lang {
+		case "", "en":
+			return "The plugin pack " + msgs.arg(name) + " gives this address for getting an API key. Open it only if you trust it."
+		case "ja":
+			return "プラグインパック「" + name + "」が API キーの取得先として示したアドレスです。信頼できる場合にだけ開いてください。"
+		case "ko":
+			return "플러그인 팩 ‘" + name + "’이(가) API 키 발급 주소로 알려 준 곳입니다. 신뢰할 수 있을 때만 여세요."
+		case "zh-Hans":
+			return "插件包“" + name + "”给出了这个获取 API Key 的地址。信任它再打开。"
+		case "zh-Hant":
+			return "外掛包「" + name + "」提供了這個取得 API Key 的位址。信任它再開啟。"
+		}
+	}
+}
+
+// SettingsAIKeyPageOpen says "Open"
+// in the language the app shows under cx.
+//
+// Alert before opening a plugin's API key page: button that opens it.
+func SettingsAIKeyPageOpen(cx *core.Scope) string { return For(cx).SettingsAIKeyPageOpen() }
+
+// SettingsAIKeyPageOpen is the package's SettingsAIKeyPageOpen in the language of msgs.
+func (msgs Messages) SettingsAIKeyPageOpen() string { return msgs.text(textSettingsAIKeyPageOpen) }
+
+// SettingsAIKeyPageTitle says "Open {host}?"
+// in the language the app shows under cx.
+//
+// Alert before opening the API key page of a service a plugin pack added; {host} is the page's host.
+func SettingsAIKeyPageTitle(cx *core.Scope, host string) string {
+	return For(cx).SettingsAIKeyPageTitle(host)
+}
+
+// SettingsAIKeyPageTitle is the package's SettingsAIKeyPageTitle in the language of msgs.
+func (msgs Messages) SettingsAIKeyPageTitle(host string) string {
+	if i18n.IsPseudo(msgs.lang) {
+		return i18n.Pseudo(msgs.lang, Messages{lang: Source, mark: true}.SettingsAIKeyPageTitle(host))
+	}
+	for lang := msgs.lang; ; lang = i18n.Parent(lang) {
+		if f := supplied[lang].SettingsAIKeyPageTitle; f != nil {
+			return f(host)
+		}
+		switch lang {
+		case "", "en":
+			return "Open " + msgs.arg(host) + "?"
+		case "ja":
+			return host + " を開きますか？"
+		case "ko":
+			return host + "을(를) 열까요?"
+		case "zh-Hans":
+			return "打开 " + host + "？"
+		case "zh-Hant":
+			return "開啟 " + host + "？"
+		}
+	}
+}
+
 // SettingsAIKeyStoredLocally says "The API Key is kept only in the settings file on this computer."
 // in the language the app shows under cx.
 //
@@ -44245,6 +45255,38 @@ func (msgs Messages) SettingsAINoteWithBlurb(blurb string) string {
 			return blurb + "。"
 		case "zh-Hant":
 			return blurb + "。"
+		}
+	}
+}
+
+// SettingsAIPluginService says "Plugin · {name} · {host}"
+// in the language the app shows under cx.
+//
+// A service a plugin pack adds, in the AI service pop-up: the group, the pack's name, then the host it talks to.
+func SettingsAIPluginService(cx *core.Scope, name string, host string) string {
+	return For(cx).SettingsAIPluginService(name, host)
+}
+
+// SettingsAIPluginService is the package's SettingsAIPluginService in the language of msgs.
+func (msgs Messages) SettingsAIPluginService(name string, host string) string {
+	if i18n.IsPseudo(msgs.lang) {
+		return i18n.Pseudo(msgs.lang, Messages{lang: Source, mark: true}.SettingsAIPluginService(name, host))
+	}
+	for lang := msgs.lang; ; lang = i18n.Parent(lang) {
+		if f := supplied[lang].SettingsAIPluginService; f != nil {
+			return f(name, host)
+		}
+		switch lang {
+		case "", "en":
+			return "Plugin · " + msgs.arg(name) + " · " + msgs.arg(host)
+		case "ja":
+			return "プラグイン · " + name + " · " + host
+		case "ko":
+			return "플러그인 · " + name + " · " + host
+		case "zh-Hans":
+			return "插件 · " + name + " · " + host
+		case "zh-Hant":
+			return "外掛 · " + name + " · " + host
 		}
 	}
 }
@@ -46290,6 +47332,15 @@ func SettingsKeywordsPhone(cx *core.Scope) string { return For(cx).SettingsKeywo
 // SettingsKeywordsPhone is the package's SettingsKeywordsPhone in the language of msgs.
 func (msgs Messages) SettingsKeywordsPhone() string { return msgs.text(textSettingsKeywordsPhone) }
 
+// SettingsKeywordsPlugins says "plugin pack extension install uninstall glossary terms AI service dictionary word list"
+// in the language the app shows under cx.
+//
+// Words besides its title the settings search finds the Plugins section by, separated by spaces.
+func SettingsKeywordsPlugins(cx *core.Scope) string { return For(cx).SettingsKeywordsPlugins() }
+
+// SettingsKeywordsPlugins is the package's SettingsKeywordsPlugins in the language of msgs.
+func (msgs Messages) SettingsKeywordsPlugins() string { return msgs.text(textSettingsKeywordsPlugins) }
+
 // SettingsKeywordsPrivacy says "privacy offline network internet cache clear"
 // in the language the app shows under cx.
 //
@@ -47959,6 +49010,15 @@ func SettingsSectionPhone(cx *core.Scope) string { return For(cx).SettingsSectio
 
 // SettingsSectionPhone is the package's SettingsSectionPhone in the language of msgs.
 func (msgs Messages) SettingsSectionPhone() string { return msgs.text(textSettingsSectionPhone) }
+
+// SettingsSectionPlugins says "Plugins"
+// in the language the app shows under cx.
+//
+// Settings section and sidebar item: the plugin packs installed in Kando, such as glossaries and AI services.
+func SettingsSectionPlugins(cx *core.Scope) string { return For(cx).SettingsSectionPlugins() }
+
+// SettingsSectionPlugins is the package's SettingsSectionPlugins in the language of msgs.
+func (msgs Messages) SettingsSectionPlugins() string { return msgs.text(textSettingsSectionPlugins) }
 
 // SettingsSectionPrivacy says "Privacy"
 // in the language the app shows under cx.
@@ -52825,14 +53885,23 @@ func (msgs Messages) VocabLookupFailed(error_ string) string {
 	}
 }
 
-// VocabLookupNoAI says "Looking up a word asks the AI service. Set one up in AI Service."
+// VocabLookupNoAI says "Looking up a word asks your dictionaries, then the AI service. Set one up in AI Service, or install a dictionary in Plugins."
 // in the language the app shows under cx.
 //
-// Card of a word looked up, when no AI service is set up; Kando bundles no dictionary.
+// Card of a word looked up, when no dictionary is installed for the word's language and no AI service is set up.
 func VocabLookupNoAI(cx *core.Scope) string { return For(cx).VocabLookupNoAI() }
 
 // VocabLookupNoAI is the package's VocabLookupNoAI in the language of msgs.
 func (msgs Messages) VocabLookupNoAI() string { return msgs.text(textVocabLookupNoAI) }
+
+// VocabLookupNotInDicts says "None of your dictionaries has this word. To look up the words they lack, set up an AI service in AI Service."
+// in the language the app shows under cx.
+//
+// Card of a word looked up, when dictionaries are installed for the word's language but none has the word, and no AI service is set up.
+func VocabLookupNotInDicts(cx *core.Scope) string { return For(cx).VocabLookupNotInDicts() }
+
+// VocabLookupNotInDicts is the package's VocabLookupNotInDicts in the language of msgs.
+func (msgs Messages) VocabLookupNotInDicts() string { return msgs.text(textVocabLookupNotInDicts) }
 
 // VocabLookupSettings says "Open Settings"
 // in the language the app shows under cx.
@@ -52842,6 +53911,79 @@ func VocabLookupSettings(cx *core.Scope) string { return For(cx).VocabLookupSett
 
 // VocabLookupSettings is the package's VocabLookupSettings in the language of msgs.
 func (msgs Messages) VocabLookupSettings() string { return msgs.text(textVocabLookupSettings) }
+
+// VocabLookupSourceAI says "Explained by your AI service"
+// in the language the app shows under cx.
+//
+// Card of a word looked up, under the meaning: the meaning came from the AI service, now or when the word was looked up before.
+func VocabLookupSourceAI(cx *core.Scope) string { return For(cx).VocabLookupSourceAI() }
+
+// VocabLookupSourceAI is the package's VocabLookupSourceAI in the language of msgs.
+func (msgs Messages) VocabLookupSourceAI() string { return msgs.text(textVocabLookupSourceAI) }
+
+// VocabLookupSourceDict says "From the dictionary {name}"
+// in the language the app shows under cx.
+//
+// Card of a word looked up, under the meaning: the meaning came from a dictionary pack the user installed; {name} is its name.
+func VocabLookupSourceDict(cx *core.Scope, name string) string {
+	return For(cx).VocabLookupSourceDict(name)
+}
+
+// VocabLookupSourceDict is the package's VocabLookupSourceDict in the language of msgs.
+func (msgs Messages) VocabLookupSourceDict(name string) string {
+	if i18n.IsPseudo(msgs.lang) {
+		return i18n.Pseudo(msgs.lang, Messages{lang: Source, mark: true}.VocabLookupSourceDict(name))
+	}
+	for lang := msgs.lang; ; lang = i18n.Parent(lang) {
+		if f := supplied[lang].VocabLookupSourceDict; f != nil {
+			return f(name)
+		}
+		switch lang {
+		case "", "en":
+			return "From the dictionary " + msgs.arg(name)
+		case "ja":
+			return "辞書「" + name + "」より"
+		case "ko":
+			return "사전 「" + name + "」에서"
+		case "zh-Hans":
+			return "来自词典「" + name + "」"
+		case "zh-Hant":
+			return "來自詞典「" + name + "」"
+		}
+	}
+}
+
+// VocabLookupSourceDictCredit says "From the dictionary {name} · {credit}"
+// in the language the app shows under cx.
+//
+// Card of a word looked up, under the meaning: the meaning came from a dictionary pack the user installed; {name} is its name and {credit} the credit its license asks for, as the pack wrote it.
+func VocabLookupSourceDictCredit(cx *core.Scope, name string, credit string) string {
+	return For(cx).VocabLookupSourceDictCredit(name, credit)
+}
+
+// VocabLookupSourceDictCredit is the package's VocabLookupSourceDictCredit in the language of msgs.
+func (msgs Messages) VocabLookupSourceDictCredit(name string, credit string) string {
+	if i18n.IsPseudo(msgs.lang) {
+		return i18n.Pseudo(msgs.lang, Messages{lang: Source, mark: true}.VocabLookupSourceDictCredit(name, credit))
+	}
+	for lang := msgs.lang; ; lang = i18n.Parent(lang) {
+		if f := supplied[lang].VocabLookupSourceDictCredit; f != nil {
+			return f(name, credit)
+		}
+		switch lang {
+		case "", "en":
+			return "From the dictionary " + msgs.arg(name) + " · " + msgs.arg(credit)
+		case "ja":
+			return "辞書「" + name + "」より · " + credit
+		case "ko":
+			return "사전 「" + name + "」에서 · " + credit
+		case "zh-Hans":
+			return "来自词典「" + name + "」 · " + credit
+		case "zh-Hant":
+			return "來自詞典「" + name + "」 · " + credit
+		}
+	}
+}
 
 // VocabLookupTerm says "Film glossary: {term}"
 // in the language the app shows under cx.
@@ -54999,6 +56141,933 @@ func SettingsPhoneThisComputer(cx *core.Scope) string { return For(cx).SettingsP
 // SettingsPhoneThisComputer is the package's SettingsPhoneThisComputer in the language of msgs.
 func (msgs Messages) SettingsPhoneThisComputer() string {
 	return msgs.text(textSettingsPhoneThisComputer)
+}
+
+// SettingsPluginsCancel says "Cancel"
+// in the language the app shows under cx.
+//
+// Button that closes a plugin confirmation without doing anything.
+func SettingsPluginsCancel(cx *core.Scope) string { return For(cx).SettingsPluginsCancel() }
+
+// SettingsPluginsCancel is the package's SettingsPluginsCancel in the language of msgs.
+func (msgs Messages) SettingsPluginsCancel() string { return msgs.text(textSettingsPluginsCancel) }
+
+// SettingsPluginsDetailsLabel says "Details of {name}"
+// in the language the app shows under cx.
+//
+// Accessibility name of the button that shows a pack's details under its row; {name} is the pack's name.
+func SettingsPluginsDetailsLabel(cx *core.Scope, name string) string {
+	return For(cx).SettingsPluginsDetailsLabel(name)
+}
+
+// SettingsPluginsDetailsLabel is the package's SettingsPluginsDetailsLabel in the language of msgs.
+func (msgs Messages) SettingsPluginsDetailsLabel(name string) string {
+	if i18n.IsPseudo(msgs.lang) {
+		return i18n.Pseudo(msgs.lang, Messages{lang: Source, mark: true}.SettingsPluginsDetailsLabel(name))
+	}
+	for lang := msgs.lang; ; lang = i18n.Parent(lang) {
+		if f := supplied[lang].SettingsPluginsDetailsLabel; f != nil {
+			return f(name)
+		}
+		switch lang {
+		case "", "en":
+			return "Details of " + msgs.arg(name)
+		case "ja":
+			return name + " の詳細"
+		case "ko":
+			return name + " 세부 정보"
+		case "zh-Hans":
+			return name + " 的详情"
+		case "zh-Hant":
+			return name + " 的詳細資訊"
+		}
+	}
+}
+
+// SettingsPluginsDictionaryDetail says "Looks up {from} words, defined in {to}"
+// in the language the app shows under cx.
+//
+// Plugins page and install confirmation: what a dictionary pack adds; {from} and {to} are language tags.
+func SettingsPluginsDictionaryDetail(cx *core.Scope, from string, to string) string {
+	return For(cx).SettingsPluginsDictionaryDetail(from, to)
+}
+
+// SettingsPluginsDictionaryDetail is the package's SettingsPluginsDictionaryDetail in the language of msgs.
+func (msgs Messages) SettingsPluginsDictionaryDetail(from string, to string) string {
+	if i18n.IsPseudo(msgs.lang) {
+		return i18n.Pseudo(msgs.lang, Messages{lang: Source, mark: true}.SettingsPluginsDictionaryDetail(from, to))
+	}
+	for lang := msgs.lang; ; lang = i18n.Parent(lang) {
+		if f := supplied[lang].SettingsPluginsDictionaryDetail; f != nil {
+			return f(from, to)
+		}
+		switch lang {
+		case "", "en":
+			return "Looks up " + msgs.arg(from) + " words, defined in " + msgs.arg(to)
+		case "ja":
+			return from + " の単語を " + to + " で引けます"
+		case "ko":
+			return from + " 단어를 " + to + "(으)로 찾습니다"
+		case "zh-Hans":
+			return "查 " + from + " 词，释义为 " + to
+		case "zh-Hant":
+			return "查 " + from + " 詞，釋義為 " + to
+		}
+	}
+}
+
+// SettingsPluginsEnableLabel says "Use {name}"
+// in the language the app shows under cx.
+//
+// Accessibility name of the switch that turns a plugin pack on or off; {name} is the pack's name.
+func SettingsPluginsEnableLabel(cx *core.Scope, name string) string {
+	return For(cx).SettingsPluginsEnableLabel(name)
+}
+
+// SettingsPluginsEnableLabel is the package's SettingsPluginsEnableLabel in the language of msgs.
+func (msgs Messages) SettingsPluginsEnableLabel(name string) string {
+	if i18n.IsPseudo(msgs.lang) {
+		return i18n.Pseudo(msgs.lang, Messages{lang: Source, mark: true}.SettingsPluginsEnableLabel(name))
+	}
+	for lang := msgs.lang; ; lang = i18n.Parent(lang) {
+		if f := supplied[lang].SettingsPluginsEnableLabel; f != nil {
+			return f(name)
+		}
+		switch lang {
+		case "", "en":
+			return "Use " + msgs.arg(name)
+		case "ja":
+			return name + " を使用"
+		case "ko":
+			return name + " 사용"
+		case "zh-Hans":
+			return "启用 " + name
+		case "zh-Hant":
+			return "啟用 " + name
+		}
+	}
+}
+
+// SettingsPluginsFileTypes says "Plugin Packs"
+// in the language the app shows under cx.
+//
+// File panel: the name of the file types it shows, plugin pack files.
+func SettingsPluginsFileTypes(cx *core.Scope) string { return For(cx).SettingsPluginsFileTypes() }
+
+// SettingsPluginsFileTypes is the package's SettingsPluginsFileTypes in the language of msgs.
+func (msgs Messages) SettingsPluginsFileTypes() string {
+	return msgs.text(textSettingsPluginsFileTypes)
+}
+
+// SettingsPluginsForget says "Remove"
+// in the language the app shows under cx.
+//
+// Plugins page: button on a missing pack's row that removes it from the list.
+func SettingsPluginsForget(cx *core.Scope) string { return For(cx).SettingsPluginsForget() }
+
+// SettingsPluginsForget is the package's SettingsPluginsForget in the language of msgs.
+func (msgs Messages) SettingsPluginsForget() string { return msgs.text(textSettingsPluginsForget) }
+
+// SettingsPluginsForgetLabel says "Remove {name} from the list"
+// in the language the app shows under cx.
+//
+// Accessibility name of a missing pack's Remove button; {name} is the pack's id.
+func SettingsPluginsForgetLabel(cx *core.Scope, name string) string {
+	return For(cx).SettingsPluginsForgetLabel(name)
+}
+
+// SettingsPluginsForgetLabel is the package's SettingsPluginsForgetLabel in the language of msgs.
+func (msgs Messages) SettingsPluginsForgetLabel(name string) string {
+	if i18n.IsPseudo(msgs.lang) {
+		return i18n.Pseudo(msgs.lang, Messages{lang: Source, mark: true}.SettingsPluginsForgetLabel(name))
+	}
+	for lang := msgs.lang; ; lang = i18n.Parent(lang) {
+		if f := supplied[lang].SettingsPluginsForgetLabel; f != nil {
+			return f(name)
+		}
+		switch lang {
+		case "", "en":
+			return "Remove " + msgs.arg(name) + " from the list"
+		case "ja":
+			return name + " をリストから削除"
+		case "ko":
+			return "목록에서 " + name + " 제거"
+		case "zh-Hans":
+			return "从列表中移除 " + name
+		case "zh-Hant":
+			return "從列表中移除 " + name
+		}
+	}
+}
+
+// SettingsPluginsGlossaryDetail says "{count, plural, one {# term} other {# terms}} for translations from {from} into {to}"
+// in the language the app shows under cx.
+//
+// Plugins page and install confirmation: what a glossary pack adds; {from} and {to} are language tags such as ja and zh-Hans.
+func SettingsPluginsGlossaryDetail(cx *core.Scope, count int, from string, to string) string {
+	return For(cx).SettingsPluginsGlossaryDetail(count, from, to)
+}
+
+// SettingsPluginsGlossaryDetail is the package's SettingsPluginsGlossaryDetail in the language of msgs.
+func (msgs Messages) SettingsPluginsGlossaryDetail(count int, from string, to string) string {
+	if i18n.IsPseudo(msgs.lang) {
+		return i18n.Pseudo(msgs.lang, Messages{lang: Source, mark: true}.SettingsPluginsGlossaryDetail(count, from, to))
+	}
+	for lang := msgs.lang; ; lang = i18n.Parent(lang) {
+		if f := supplied[lang].SettingsPluginsGlossaryDetail; f != nil {
+			return f(count, from, to)
+		}
+		switch lang {
+		case "", "en":
+			var b strings.Builder
+			switch i18n.Cardinal("en", float64(count)) {
+			case i18n.One:
+				b.WriteString(msgs.arg(i18n.FormatNumber("en", float64(count))))
+				b.WriteString(" term")
+			default:
+				b.WriteString(msgs.arg(i18n.FormatNumber("en", float64(count))))
+				b.WriteString(" terms")
+			}
+			b.WriteString(" for translations from ")
+			b.WriteString(msgs.arg(from))
+			b.WriteString(" into ")
+			b.WriteString(msgs.arg(to))
+			return b.String()
+		case "ja":
+			return from + " から " + to + " への翻訳に使う用語 " + i18n.FormatNumber("ja", float64(count)) + " 件"
+		case "ko":
+			return from + "에서 " + to + "(으)로 번역할 때 쓰는 용어 " + i18n.FormatNumber("ko", float64(count)) + "개"
+		case "zh-Hans":
+			return i18n.FormatNumber("zh-Hans", float64(count)) + " 条术语，用于从 " + from + " 译成 " + to
+		case "zh-Hant":
+			return i18n.FormatNumber("zh-Hant", float64(count)) + " 條術語，用於從 " + from + " 譯成 " + to
+		}
+	}
+}
+
+// SettingsPluginsIdentity says "ID {id} · {hash}"
+// in the language the app shows under cx.
+//
+// Plugins page and install confirmation: the pack's id and the start of the hash of its files.
+func SettingsPluginsIdentity(cx *core.Scope, id string, hash string) string {
+	return For(cx).SettingsPluginsIdentity(id, hash)
+}
+
+// SettingsPluginsIdentity is the package's SettingsPluginsIdentity in the language of msgs.
+func (msgs Messages) SettingsPluginsIdentity(id string, hash string) string {
+	if i18n.IsPseudo(msgs.lang) {
+		return i18n.Pseudo(msgs.lang, Messages{lang: Source, mark: true}.SettingsPluginsIdentity(id, hash))
+	}
+	for lang := msgs.lang; ; lang = i18n.Parent(lang) {
+		if f := supplied[lang].SettingsPluginsIdentity; f != nil {
+			return f(id, hash)
+		}
+		switch lang {
+		case "", "en":
+			return "ID " + msgs.arg(id) + " · " + msgs.arg(hash)
+		case "ja":
+			return "ID " + id + " · " + hash
+		case "ko":
+			return "ID " + id + " · " + hash
+		case "zh-Hans":
+			return "ID " + id + " · " + hash
+		case "zh-Hant":
+			return "ID " + id + " · " + hash
+		}
+	}
+}
+
+// SettingsPluginsInstall says "Install from File…"
+// in the language the app shows under cx.
+//
+// Plugins page: button that opens a file panel to pick a plugin pack file to install.
+func SettingsPluginsInstall(cx *core.Scope) string { return For(cx).SettingsPluginsInstall() }
+
+// SettingsPluginsInstall is the package's SettingsPluginsInstall in the language of msgs.
+func (msgs Messages) SettingsPluginsInstall() string { return msgs.text(textSettingsPluginsInstall) }
+
+// SettingsPluginsInstallConfirm says "Install"
+// in the language the app shows under cx.
+//
+// Install confirmation: button that installs the pack.
+func SettingsPluginsInstallConfirm(cx *core.Scope) string {
+	return For(cx).SettingsPluginsInstallConfirm()
+}
+
+// SettingsPluginsInstallConfirm is the package's SettingsPluginsInstallConfirm in the language of msgs.
+func (msgs Messages) SettingsPluginsInstallConfirm() string {
+	return msgs.text(textSettingsPluginsInstallConfirm)
+}
+
+// SettingsPluginsInstallFailed says "Can't Install This Pack"
+// in the language the app shows under cx.
+//
+// Title of the dialog saying a file cannot be installed as a plugin pack; the reason follows.
+func SettingsPluginsInstallFailed(cx *core.Scope) string {
+	return For(cx).SettingsPluginsInstallFailed()
+}
+
+// SettingsPluginsInstallFailed is the package's SettingsPluginsInstallFailed in the language of msgs.
+func (msgs Messages) SettingsPluginsInstallFailed() string {
+	return msgs.text(textSettingsPluginsInstallFailed)
+}
+
+// SettingsPluginsInstallReplaces says "Replaces version {version}, which is installed"
+// in the language the app shows under cx.
+//
+// Install confirmation: the installed version of the same pack it replaces.
+func SettingsPluginsInstallReplaces(cx *core.Scope, version string) string {
+	return For(cx).SettingsPluginsInstallReplaces(version)
+}
+
+// SettingsPluginsInstallReplaces is the package's SettingsPluginsInstallReplaces in the language of msgs.
+func (msgs Messages) SettingsPluginsInstallReplaces(version string) string {
+	if i18n.IsPseudo(msgs.lang) {
+		return i18n.Pseudo(msgs.lang, Messages{lang: Source, mark: true}.SettingsPluginsInstallReplaces(version))
+	}
+	for lang := msgs.lang; ; lang = i18n.Parent(lang) {
+		if f := supplied[lang].SettingsPluginsInstallReplaces; f != nil {
+			return f(version)
+		}
+		switch lang {
+		case "", "en":
+			return "Replaces version " + msgs.arg(version) + ", which is installed"
+		case "ja":
+			return "インストール済みのバージョン " + version + " を置き換えます"
+		case "ko":
+			return "설치된 버전 " + version + "을(를) 대체합니다"
+		case "zh-Hans":
+			return "将替换已安装的版本 " + version
+		case "zh-Hant":
+			return "將取代已安裝的版本 " + version
+		}
+	}
+}
+
+// SettingsPluginsInstallSource says "From a file on this computer · not signed"
+// in the language the app shows under cx.
+//
+// Install confirmation: where the pack comes from; data packs are not signed.
+func SettingsPluginsInstallSource(cx *core.Scope) string {
+	return For(cx).SettingsPluginsInstallSource()
+}
+
+// SettingsPluginsInstallSource is the package's SettingsPluginsInstallSource in the language of msgs.
+func (msgs Messages) SettingsPluginsInstallSource() string {
+	return msgs.text(textSettingsPluginsInstallSource)
+}
+
+// SettingsPluginsInstallTitle says "Install {name}?"
+// in the language the app shows under cx.
+//
+// Install confirmation: title; {name} is the pack's name.
+func SettingsPluginsInstallTitle(cx *core.Scope, name string) string {
+	return For(cx).SettingsPluginsInstallTitle(name)
+}
+
+// SettingsPluginsInstallTitle is the package's SettingsPluginsInstallTitle in the language of msgs.
+func (msgs Messages) SettingsPluginsInstallTitle(name string) string {
+	if i18n.IsPseudo(msgs.lang) {
+		return i18n.Pseudo(msgs.lang, Messages{lang: Source, mark: true}.SettingsPluginsInstallTitle(name))
+	}
+	for lang := msgs.lang; ; lang = i18n.Parent(lang) {
+		if f := supplied[lang].SettingsPluginsInstallTitle; f != nil {
+			return f(name)
+		}
+		switch lang {
+		case "", "en":
+			return "Install " + msgs.arg(name) + "?"
+		case "ja":
+			return "「" + name + "」をインストールしますか？"
+		case "ko":
+			return "‘" + name + "’을(를) 설치할까요?"
+		case "zh-Hans":
+			return "安装“" + name + "”？"
+		case "zh-Hant":
+			return "安裝「" + name + "」？"
+		}
+	}
+}
+
+// SettingsPluginsInstalled says "Installed"
+// in the language the app shows under cx.
+//
+// Plugins page: heading of the list of installed plugin packs.
+func SettingsPluginsInstalled(cx *core.Scope) string { return For(cx).SettingsPluginsInstalled() }
+
+// SettingsPluginsInstalled is the package's SettingsPluginsInstalled in the language of msgs.
+func (msgs Messages) SettingsPluginsInstalled() string {
+	return msgs.text(textSettingsPluginsInstalled)
+}
+
+// SettingsPluginsIssues says "Couldn't Load"
+// in the language the app shows under cx.
+//
+// Plugins page: heading of the folders in the plugins folder that are not valid packs.
+func SettingsPluginsIssues(cx *core.Scope) string { return For(cx).SettingsPluginsIssues() }
+
+// SettingsPluginsIssues is the package's SettingsPluginsIssues in the language of msgs.
+func (msgs Messages) SettingsPluginsIssues() string { return msgs.text(textSettingsPluginsIssues) }
+
+// SettingsPluginsKindAIService says "AI Services"
+// in the language the app shows under cx.
+//
+// Plugins page: heading of the group of AI service packs, which add services to Settings › AI.
+func SettingsPluginsKindAIService(cx *core.Scope) string {
+	return For(cx).SettingsPluginsKindAIService()
+}
+
+// SettingsPluginsKindAIService is the package's SettingsPluginsKindAIService in the language of msgs.
+func (msgs Messages) SettingsPluginsKindAIService() string {
+	return msgs.text(textSettingsPluginsKindAIService)
+}
+
+// SettingsPluginsKindDictionary says "Dictionaries"
+// in the language the app shows under cx.
+//
+// Plugins page: heading of the group of dictionary packs.
+func SettingsPluginsKindDictionary(cx *core.Scope) string {
+	return For(cx).SettingsPluginsKindDictionary()
+}
+
+// SettingsPluginsKindDictionary is the package's SettingsPluginsKindDictionary in the language of msgs.
+func (msgs Messages) SettingsPluginsKindDictionary() string {
+	return msgs.text(textSettingsPluginsKindDictionary)
+}
+
+// SettingsPluginsKindGlossary says "Glossaries"
+// in the language the app shows under cx.
+//
+// Plugins page: heading of the group of glossary packs, which add terms to translations.
+func SettingsPluginsKindGlossary(cx *core.Scope) string { return For(cx).SettingsPluginsKindGlossary() }
+
+// SettingsPluginsKindGlossary is the package's SettingsPluginsKindGlossary in the language of msgs.
+func (msgs Messages) SettingsPluginsKindGlossary() string {
+	return msgs.text(textSettingsPluginsKindGlossary)
+}
+
+// SettingsPluginsKindWordlist says "Word Lists"
+// in the language the app shows under cx.
+//
+// Plugins page: heading of the group of word list packs, such as JLPT levels.
+func SettingsPluginsKindWordlist(cx *core.Scope) string { return For(cx).SettingsPluginsKindWordlist() }
+
+// SettingsPluginsKindWordlist is the package's SettingsPluginsKindWordlist in the language of msgs.
+func (msgs Messages) SettingsPluginsKindWordlist() string {
+	return msgs.text(textSettingsPluginsKindWordlist)
+}
+
+// SettingsPluginsLicense says "License: {license}"
+// in the language the app shows under cx.
+//
+// Plugins page and install confirmation: the license the pack is under, as the pack names it.
+func SettingsPluginsLicense(cx *core.Scope, license string) string {
+	return For(cx).SettingsPluginsLicense(license)
+}
+
+// SettingsPluginsLicense is the package's SettingsPluginsLicense in the language of msgs.
+func (msgs Messages) SettingsPluginsLicense(license string) string {
+	if i18n.IsPseudo(msgs.lang) {
+		return i18n.Pseudo(msgs.lang, Messages{lang: Source, mark: true}.SettingsPluginsLicense(license))
+	}
+	for lang := msgs.lang; ; lang = i18n.Parent(lang) {
+		if f := supplied[lang].SettingsPluginsLicense; f != nil {
+			return f(license)
+		}
+		switch lang {
+		case "", "en":
+			return "License: " + msgs.arg(license)
+		case "ja":
+			return "ライセンス：" + license
+		case "ko":
+			return "라이선스: " + license
+		case "zh-Hans":
+			return "许可：" + license
+		case "zh-Hant":
+			return "授權：" + license
+		}
+	}
+}
+
+// SettingsPluginsMissing says "Its folder is gone"
+// in the language the app shows under cx.
+//
+// Plugins page: under a remembered pack's id when its folder is no longer in the plugins folder.
+func SettingsPluginsMissing(cx *core.Scope) string { return For(cx).SettingsPluginsMissing() }
+
+// SettingsPluginsMissing is the package's SettingsPluginsMissing in the language of msgs.
+func (msgs Messages) SettingsPluginsMissing() string { return msgs.text(textSettingsPluginsMissing) }
+
+// SettingsPluginsMissingGroup says "Not in the Plugins Folder"
+// in the language the app shows under cx.
+//
+// Plugins page: heading of the packs Kando remembers that are no longer in the plugins folder.
+func SettingsPluginsMissingGroup(cx *core.Scope) string { return For(cx).SettingsPluginsMissingGroup() }
+
+// SettingsPluginsMissingGroup is the package's SettingsPluginsMissingGroup in the language of msgs.
+func (msgs Messages) SettingsPluginsMissingGroup() string {
+	return msgs.text(textSettingsPluginsMissingGroup)
+}
+
+// SettingsPluginsMoveDownLabel says "Move {name} down"
+// in the language the app shows under cx.
+//
+// Accessibility name of the button that moves a dictionary pack one place down among the dictionaries, the order lookups ask them in; {name} is the pack's name.
+func SettingsPluginsMoveDownLabel(cx *core.Scope, name string) string {
+	return For(cx).SettingsPluginsMoveDownLabel(name)
+}
+
+// SettingsPluginsMoveDownLabel is the package's SettingsPluginsMoveDownLabel in the language of msgs.
+func (msgs Messages) SettingsPluginsMoveDownLabel(name string) string {
+	if i18n.IsPseudo(msgs.lang) {
+		return i18n.Pseudo(msgs.lang, Messages{lang: Source, mark: true}.SettingsPluginsMoveDownLabel(name))
+	}
+	for lang := msgs.lang; ; lang = i18n.Parent(lang) {
+		if f := supplied[lang].SettingsPluginsMoveDownLabel; f != nil {
+			return f(name)
+		}
+		switch lang {
+		case "", "en":
+			return "Move " + msgs.arg(name) + " down"
+		case "ja":
+			return name + " を下へ移動"
+		case "ko":
+			return name + " 아래로 이동"
+		case "zh-Hans":
+			return "下移 " + name
+		case "zh-Hant":
+			return "下移 " + name
+		}
+	}
+}
+
+// SettingsPluginsMoveUpLabel says "Move {name} up"
+// in the language the app shows under cx.
+//
+// Accessibility name of the button that moves a dictionary pack one place up among the dictionaries, the order lookups ask them in; {name} is the pack's name.
+func SettingsPluginsMoveUpLabel(cx *core.Scope, name string) string {
+	return For(cx).SettingsPluginsMoveUpLabel(name)
+}
+
+// SettingsPluginsMoveUpLabel is the package's SettingsPluginsMoveUpLabel in the language of msgs.
+func (msgs Messages) SettingsPluginsMoveUpLabel(name string) string {
+	if i18n.IsPseudo(msgs.lang) {
+		return i18n.Pseudo(msgs.lang, Messages{lang: Source, mark: true}.SettingsPluginsMoveUpLabel(name))
+	}
+	for lang := msgs.lang; ; lang = i18n.Parent(lang) {
+		if f := supplied[lang].SettingsPluginsMoveUpLabel; f != nil {
+			return f(name)
+		}
+		switch lang {
+		case "", "en":
+			return "Move " + msgs.arg(name) + " up"
+		case "ja":
+			return name + " を上へ移動"
+		case "ko":
+			return name + " 위로 이동"
+		case "zh-Hans":
+			return "上移 " + name
+		case "zh-Hant":
+			return "上移 " + name
+		}
+	}
+}
+
+// SettingsPluginsNone says "No plugins installed"
+// in the language the app shows under cx.
+//
+// Plugins page: the list's only row while no plugin pack is installed.
+func SettingsPluginsNone(cx *core.Scope) string { return For(cx).SettingsPluginsNone() }
+
+// SettingsPluginsNone is the package's SettingsPluginsNone in the language of msgs.
+func (msgs Messages) SettingsPluginsNone() string { return msgs.text(textSettingsPluginsNone) }
+
+// SettingsPluginsNoneHint says "Install a pack from a file, or drop it here."
+// in the language the app shows under cx.
+//
+// Plugins page: under the empty list's row, how to add a plugin pack.
+func SettingsPluginsNoneHint(cx *core.Scope) string { return For(cx).SettingsPluginsNoneHint() }
+
+// SettingsPluginsNoneHint is the package's SettingsPluginsNoneHint in the language of msgs.
+func (msgs Messages) SettingsPluginsNoneHint() string { return msgs.text(textSettingsPluginsNoneHint) }
+
+// SettingsPluginsOK says "OK"
+// in the language the app shows under cx.
+//
+// Button that closes the dialog saying a pack cannot be installed.
+func SettingsPluginsOK(cx *core.Scope) string { return For(cx).SettingsPluginsOK() }
+
+// SettingsPluginsOK is the package's SettingsPluginsOK in the language of msgs.
+func (msgs Messages) SettingsPluginsOK() string { return msgs.text(textSettingsPluginsOK) }
+
+// SettingsPluginsPickButton says "Choose"
+// in the language the app shows under cx.
+//
+// File panel: button that picks the plugin pack file.
+func SettingsPluginsPickButton(cx *core.Scope) string { return For(cx).SettingsPluginsPickButton() }
+
+// SettingsPluginsPickButton is the package's SettingsPluginsPickButton in the language of msgs.
+func (msgs Messages) SettingsPluginsPickButton() string {
+	return msgs.text(textSettingsPluginsPickButton)
+}
+
+// SettingsPluginsPickTitle says "Install a Plugin Pack"
+// in the language the app shows under cx.
+//
+// File panel: title when picking a plugin pack to install.
+func SettingsPluginsPickTitle(cx *core.Scope) string { return For(cx).SettingsPluginsPickTitle() }
+
+// SettingsPluginsPickTitle is the package's SettingsPluginsPickTitle in the language of msgs.
+func (msgs Messages) SettingsPluginsPickTitle() string {
+	return msgs.text(textSettingsPluginsPickTitle)
+}
+
+// SettingsPluginsServiceDetail says "Sends your API key and the lines it translates to {host}"
+// in the language the app shows under cx.
+//
+// Plugins page and install confirmation: what an AI service pack does once chosen in Settings › AI; {host} is the host of its address.
+func SettingsPluginsServiceDetail(cx *core.Scope, host string) string {
+	return For(cx).SettingsPluginsServiceDetail(host)
+}
+
+// SettingsPluginsServiceDetail is the package's SettingsPluginsServiceDetail in the language of msgs.
+func (msgs Messages) SettingsPluginsServiceDetail(host string) string {
+	if i18n.IsPseudo(msgs.lang) {
+		return i18n.Pseudo(msgs.lang, Messages{lang: Source, mark: true}.SettingsPluginsServiceDetail(host))
+	}
+	for lang := msgs.lang; ; lang = i18n.Parent(lang) {
+		if f := supplied[lang].SettingsPluginsServiceDetail; f != nil {
+			return f(host)
+		}
+		switch lang {
+		case "", "en":
+			return "Sends your API key and the lines it translates to " + msgs.arg(host)
+		case "ja":
+			return "API キーと翻訳する字幕を " + host + " に送信します"
+		case "ko":
+			return "API 키와 번역할 자막을 " + host + "(으)로 보냅니다"
+		case "zh-Hans":
+			return "会把你的 API Key 和要翻译的字幕发送到 " + host
+		case "zh-Hant":
+			return "會把你的 API Key 和要翻譯的字幕傳送到 " + host
+		}
+	}
+}
+
+// SettingsPluginsShowFolder says "{platform, select, macOS {Show in Finder} Windows {Show in File Explorer} other {Show in File Manager}}"
+// in the language the app shows under cx.
+//
+// Plugins page: button that shows the plugins folder in the system's file manager. {platform} is the system the app runs on: macOS, Windows or another (Linux).
+func SettingsPluginsShowFolder(cx *core.Scope, platform string) string {
+	return For(cx).SettingsPluginsShowFolder(platform)
+}
+
+// SettingsPluginsShowFolder is the package's SettingsPluginsShowFolder in the language of msgs.
+func (msgs Messages) SettingsPluginsShowFolder(platform string) string {
+	if i18n.IsPseudo(msgs.lang) {
+		return i18n.Pseudo(msgs.lang, Messages{lang: Source, mark: true}.SettingsPluginsShowFolder(platform))
+	}
+	for lang := msgs.lang; ; lang = i18n.Parent(lang) {
+		if f := supplied[lang].SettingsPluginsShowFolder; f != nil {
+			return f(platform)
+		}
+		switch lang {
+		case "", "en":
+			var b strings.Builder
+			switch platform {
+			case "macOS":
+				b.WriteString("Show in Finder")
+			case "Windows":
+				b.WriteString("Show in File Explorer")
+			default:
+				b.WriteString("Show in File Manager")
+			}
+			return b.String()
+		case "ja":
+			var b strings.Builder
+			switch platform {
+			case "macOS":
+				b.WriteString("Finder で表示")
+			case "Windows":
+				b.WriteString("エクスプローラーで表示")
+			default:
+				b.WriteString("ファイルマネージャーで表示")
+			}
+			return b.String()
+		case "ko":
+			var b strings.Builder
+			switch platform {
+			case "macOS":
+				b.WriteString("Finder에서 보기")
+			case "Windows":
+				b.WriteString("파일 탐색기에서 보기")
+			default:
+				b.WriteString("파일 관리자에서 보기")
+			}
+			return b.String()
+		case "zh-Hans":
+			var b strings.Builder
+			switch platform {
+			case "macOS":
+				b.WriteString("在访达中显示")
+			case "Windows":
+				b.WriteString("在文件资源管理器中显示")
+			default:
+				b.WriteString("在文件管理器中显示")
+			}
+			return b.String()
+		case "zh-Hant":
+			var b strings.Builder
+			switch platform {
+			case "macOS":
+				b.WriteString("在 Finder 中顯示")
+			case "Windows":
+				b.WriteString("在檔案總管中顯示")
+			default:
+				b.WriteString("在檔案管理員中顯示")
+			}
+			return b.String()
+		}
+	}
+}
+
+// SettingsPluginsSourceLocal says "Local"
+// in the language the app shows under cx.
+//
+// Plugins page: badge after a pack's name saying it was installed from a file on this computer and is not signed.
+func SettingsPluginsSourceLocal(cx *core.Scope) string { return For(cx).SettingsPluginsSourceLocal() }
+
+// SettingsPluginsSourceLocal is the package's SettingsPluginsSourceLocal in the language of msgs.
+func (msgs Messages) SettingsPluginsSourceLocal() string {
+	return msgs.text(textSettingsPluginsSourceLocal)
+}
+
+// SettingsPluginsStateBad says "Kando couldn't read which plugins are on, so they are all off for now. Turning one on or off saves it again."
+// in the language the app shows under cx.
+//
+// Plugins page: note when the plugins' state file is damaged.
+func SettingsPluginsStateBad(cx *core.Scope) string { return For(cx).SettingsPluginsStateBad() }
+
+// SettingsPluginsStateBad is the package's SettingsPluginsStateBad in the language of msgs.
+func (msgs Messages) SettingsPluginsStateBad() string { return msgs.text(textSettingsPluginsStateBad) }
+
+// SettingsPluginsStateNewer says "A newer version of Kando saved which plugins are on, so they are all off here and this version won't change that."
+// in the language the app shows under cx.
+//
+// Plugins page: note when the plugins' state file was written by a newer Kando.
+func SettingsPluginsStateNewer(cx *core.Scope) string { return For(cx).SettingsPluginsStateNewer() }
+
+// SettingsPluginsStateNewer is the package's SettingsPluginsStateNewer in the language of msgs.
+func (msgs Messages) SettingsPluginsStateNewer() string {
+	return msgs.text(textSettingsPluginsStateNewer)
+}
+
+// SettingsPluginsUninstall says "Uninstall…"
+// in the language the app shows under cx.
+//
+// Plugins page: button in a pack's details that asks to uninstall it.
+func SettingsPluginsUninstall(cx *core.Scope) string { return For(cx).SettingsPluginsUninstall() }
+
+// SettingsPluginsUninstall is the package's SettingsPluginsUninstall in the language of msgs.
+func (msgs Messages) SettingsPluginsUninstall() string {
+	return msgs.text(textSettingsPluginsUninstall)
+}
+
+// SettingsPluginsUninstallConfirm says "Uninstall"
+// in the language the app shows under cx.
+//
+// Plugins page: button that uninstalls the pack, in its confirmation.
+func SettingsPluginsUninstallConfirm(cx *core.Scope) string {
+	return For(cx).SettingsPluginsUninstallConfirm()
+}
+
+// SettingsPluginsUninstallConfirm is the package's SettingsPluginsUninstallConfirm in the language of msgs.
+func (msgs Messages) SettingsPluginsUninstallConfirm() string {
+	return msgs.text(textSettingsPluginsUninstallConfirm)
+}
+
+// SettingsPluginsUninstallLabel says "Uninstall {name}"
+// in the language the app shows under cx.
+//
+// Accessibility name of a pack's Uninstall button; {name} is the pack's name.
+func SettingsPluginsUninstallLabel(cx *core.Scope, name string) string {
+	return For(cx).SettingsPluginsUninstallLabel(name)
+}
+
+// SettingsPluginsUninstallLabel is the package's SettingsPluginsUninstallLabel in the language of msgs.
+func (msgs Messages) SettingsPluginsUninstallLabel(name string) string {
+	if i18n.IsPseudo(msgs.lang) {
+		return i18n.Pseudo(msgs.lang, Messages{lang: Source, mark: true}.SettingsPluginsUninstallLabel(name))
+	}
+	for lang := msgs.lang; ; lang = i18n.Parent(lang) {
+		if f := supplied[lang].SettingsPluginsUninstallLabel; f != nil {
+			return f(name)
+		}
+		switch lang {
+		case "", "en":
+			return "Uninstall " + msgs.arg(name)
+		case "ja":
+			return name + " をアンインストール"
+		case "ko":
+			return name + " 제거"
+		case "zh-Hans":
+			return "卸载 " + name
+		case "zh-Hant":
+			return "解除安裝 " + name
+		}
+	}
+}
+
+// SettingsPluginsUninstallMessage says "Its files are deleted. An API key you saved for a service it added stays in Kando."
+// in the language the app shows under cx.
+//
+// Plugins page: what uninstalling a pack does, in its confirmation.
+func SettingsPluginsUninstallMessage(cx *core.Scope) string {
+	return For(cx).SettingsPluginsUninstallMessage()
+}
+
+// SettingsPluginsUninstallMessage is the package's SettingsPluginsUninstallMessage in the language of msgs.
+func (msgs Messages) SettingsPluginsUninstallMessage() string {
+	return msgs.text(textSettingsPluginsUninstallMessage)
+}
+
+// SettingsPluginsUninstallTitle says "Uninstall {name}?"
+// in the language the app shows under cx.
+//
+// Plugins page: heading of the confirmation under a pack's details before it is uninstalled.
+func SettingsPluginsUninstallTitle(cx *core.Scope, name string) string {
+	return For(cx).SettingsPluginsUninstallTitle(name)
+}
+
+// SettingsPluginsUninstallTitle is the package's SettingsPluginsUninstallTitle in the language of msgs.
+func (msgs Messages) SettingsPluginsUninstallTitle(name string) string {
+	if i18n.IsPseudo(msgs.lang) {
+		return i18n.Pseudo(msgs.lang, Messages{lang: Source, mark: true}.SettingsPluginsUninstallTitle(name))
+	}
+	for lang := msgs.lang; ; lang = i18n.Parent(lang) {
+		if f := supplied[lang].SettingsPluginsUninstallTitle; f != nil {
+			return f(name)
+		}
+		switch lang {
+		case "", "en":
+			return "Uninstall " + msgs.arg(name) + "?"
+		case "ja":
+			return "「" + name + "」をアンインストールしますか？"
+		case "ko":
+			return "‘" + name + "’을(를) 제거할까요?"
+		case "zh-Hans":
+			return "卸载“" + name + "”？"
+		case "zh-Hant":
+			return "解除安裝「" + name + "」？"
+		}
+	}
+}
+
+// SettingsPluginsVersion says "Version {version}"
+// in the language the app shows under cx.
+//
+// Plugins page: under a pack's name, its version.
+func SettingsPluginsVersion(cx *core.Scope, version string) string {
+	return For(cx).SettingsPluginsVersion(version)
+}
+
+// SettingsPluginsVersion is the package's SettingsPluginsVersion in the language of msgs.
+func (msgs Messages) SettingsPluginsVersion(version string) string {
+	if i18n.IsPseudo(msgs.lang) {
+		return i18n.Pseudo(msgs.lang, Messages{lang: Source, mark: true}.SettingsPluginsVersion(version))
+	}
+	for lang := msgs.lang; ; lang = i18n.Parent(lang) {
+		if f := supplied[lang].SettingsPluginsVersion; f != nil {
+			return f(version)
+		}
+		switch lang {
+		case "", "en":
+			return "Version " + msgs.arg(version)
+		case "ja":
+			return "バージョン " + version
+		case "ko":
+			return "버전 " + version
+		case "zh-Hans":
+			return "版本 " + version
+		case "zh-Hant":
+			return "版本 " + version
+		}
+	}
+}
+
+// SettingsPluginsVersionAuthor says "Version {version} · {author}"
+// in the language the app shows under cx.
+//
+// Plugins page: under a pack's name, its version and who made it, as the pack says.
+func SettingsPluginsVersionAuthor(cx *core.Scope, version string, author string) string {
+	return For(cx).SettingsPluginsVersionAuthor(version, author)
+}
+
+// SettingsPluginsVersionAuthor is the package's SettingsPluginsVersionAuthor in the language of msgs.
+func (msgs Messages) SettingsPluginsVersionAuthor(version string, author string) string {
+	if i18n.IsPseudo(msgs.lang) {
+		return i18n.Pseudo(msgs.lang, Messages{lang: Source, mark: true}.SettingsPluginsVersionAuthor(version, author))
+	}
+	for lang := msgs.lang; ; lang = i18n.Parent(lang) {
+		if f := supplied[lang].SettingsPluginsVersionAuthor; f != nil {
+			return f(version, author)
+		}
+		switch lang {
+		case "", "en":
+			return "Version " + msgs.arg(version) + " · " + msgs.arg(author)
+		case "ja":
+			return "バージョン " + version + " · " + author
+		case "ko":
+			return "버전 " + version + " · " + author
+		case "zh-Hans":
+			return "版本 " + version + " · " + author
+		case "zh-Hant":
+			return "版本 " + version + " · " + author
+		}
+	}
+}
+
+// SettingsPluginsWordlistDetail says "{language} words in {count, plural, one {# level} other {# levels}}"
+// in the language the app shows under cx.
+//
+// Plugins page and install confirmation: what a word list pack adds; {language} is a language tag.
+func SettingsPluginsWordlistDetail(cx *core.Scope, language string, count int) string {
+	return For(cx).SettingsPluginsWordlistDetail(language, count)
+}
+
+// SettingsPluginsWordlistDetail is the package's SettingsPluginsWordlistDetail in the language of msgs.
+func (msgs Messages) SettingsPluginsWordlistDetail(language string, count int) string {
+	if i18n.IsPseudo(msgs.lang) {
+		return i18n.Pseudo(msgs.lang, Messages{lang: Source, mark: true}.SettingsPluginsWordlistDetail(language, count))
+	}
+	for lang := msgs.lang; ; lang = i18n.Parent(lang) {
+		if f := supplied[lang].SettingsPluginsWordlistDetail; f != nil {
+			return f(language, count)
+		}
+		switch lang {
+		case "", "en":
+			var b strings.Builder
+			b.WriteString(msgs.arg(language))
+			b.WriteString(" words in ")
+			switch i18n.Cardinal("en", float64(count)) {
+			case i18n.One:
+				b.WriteString(msgs.arg(i18n.FormatNumber("en", float64(count))))
+				b.WriteString(" level")
+			default:
+				b.WriteString(msgs.arg(i18n.FormatNumber("en", float64(count))))
+				b.WriteString(" levels")
+			}
+			return b.String()
+		case "ja":
+			return language + " の単語、" + i18n.FormatNumber("ja", float64(count)) + " 段階"
+		case "ko":
+			return language + " 단어, " + i18n.FormatNumber("ko", float64(count)) + "단계"
+		case "zh-Hans":
+			return language + " 词汇，分 " + i18n.FormatNumber("zh-Hans", float64(count)) + " 级"
+		case "zh-Hant":
+			return language + " 詞彙，分 " + i18n.FormatNumber("zh-Hant", float64(count)) + " 級"
+		}
+	}
 }
 
 // SettingsPhoneConflictUse says "Use This"

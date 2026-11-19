@@ -3,6 +3,7 @@ package main
 import (
 	"cmp"
 	"context"
+	"errors"
 	"slices"
 	"strings"
 
@@ -18,7 +19,7 @@ import (
 	psync "kando/packages/sync"
 )
 
-// phoneStudy is the lookups, explanations, follow-up questions and recaps a paired phone asks for over protocol v2 (psync.StudyService): the AI service set in 「AI 服务」 answers them as it answers the word looked up on the picture (LookUpWord), Explain Line, its question field and the 前情提要 card, in the language the film's subtitles are translated into, so the service's key stays on this computer; a word goes into the same cache as the picture's, so a word looked up on either answers again at once on both.
+// phoneStudy is the lookups, explanations, follow-up questions and recaps a paired phone asks for over protocol v2 (psync.StudyService): the AI service set in 「AI 服务」 answers them as it answers the word looked up on the picture (LookUpWord), Explain Line, its question field and the 前情提要 card, a lookup the dictionary packs turned on first, in the language the film's subtitles are translated into, so the service's key stays on this computer; a word goes into the same cache as the picture's, so a word looked up on either answers again at once on both.
 type phoneStudy struct{ a *app }
 
 // phoneStudyNoAI is what a phone is told, in English for its logs, when no AI service can answer: it tells its user in its own words (psync.CodeNoAI).
@@ -61,49 +62,39 @@ func (s phoneStudy) ask(item films.Film) (phoneStudyAsk, error) {
 	return phoneStudyAsk{t: t, language: paletteAnswerLanguage(item, a.prefs.language)}, nil
 }
 
-// LookUp answers what the word means in the line, from the words looked up on this computer, or else as the AI service set says, which it then keeps among them, unless the phone is read-only (psync.Caller.ReadOnly): a read-only phone reads the words looked up and asks the AI service, but changes nothing on this computer, the words looked up among it.
+// LookUp answers what the word means in the line as the picture's lookup does (vocabResolve): from the words looked up on this computer, else from the dictionary packs turned on, offline and without an AI service, else as the AI service set says, whose answer it then keeps among the words looked up, unless the phone is read-only (psync.Caller.ReadOnly): a read-only phone reads the words looked up, the dictionaries and asks the AI service, but changes nothing on this computer, the words looked up among it. Only when no dictionary has the word and no AI service can answer is it psync.CodeNoAI.
 func (s phoneStudy) LookUp(ctx context.Context, caller psync.Caller, req psync.WordLookup) (psync.WordEntry, error) {
 	a := s.a
 	f := s.film(ctx, req.Library, req.Film)
-	title := remoteFilmTitle(f)
 	word, line := strings.TrimSpace(req.Word), strings.TrimSpace(req.Line)
-	type found struct {
-		q      lookup.Query
-		entry  lookup.Entry
-		cached bool
-		ask    phoneStudyAsk
-	}
-	got, err := remote.OnUI(ctx, a.update, func() (found, error) {
+	ask, err := remote.OnUI(ctx, a.update, func() (vocabAsk, error) {
 		// The same query as the picture's lookup of the word (vocabQuery), so a word looked up on either answers again at once on both.
-		q := vocabQuery(f, a.prefs.language, word, line)
-		if e, ok := a.vocabCache().Get(q); ok {
-			return found{q: q, entry: e, cached: true}, nil
-		}
-		ask, err := s.ask(f)
-		return found{q: q, ask: ask}, err
+		return a.vocabResolve(vocabQuery(f, a.prefs.language, word, line), remoteFilmTitle(f)), nil
 	})
 	if err != nil {
 		return psync.WordEntry{}, err
 	}
-	if !got.cached {
+	entry := ask.entry
+	if !ask.cached {
 		ctx, cancel := context.WithTimeout(ctx, lookupTimeout)
 		defer cancel()
-		reply, err := got.ask.t.Chat(ctx, lookup.Prompt(got.q.Language), lookup.Request(word, line, title))
-		if err == nil {
-			got.entry, err = lookup.Parse(word, reply)
+		var source string
+		entry, source, err = ask.answer(ctx)
+		if errors.Is(err, lookup.ErrNoAnswer) {
+			return psync.WordEntry{}, psync.Errorf(psync.CodeNoAI, "%s", phoneStudyNoAI)
 		}
 		if err != nil {
 			return psync.WordEntry{}, err
 		}
-		if !caller.ReadOnly {
+		if source == "" && !caller.ReadOnly {
 			_, _ = remote.OnUI(ctx, a.update, func() (struct{}, error) {
 				cache := a.vocabCache()
-				cache.Put(got.q, got.entry, a.saved.now())
+				cache.Put(ask.ask.Query, entry, a.saved.now())
 				return struct{}{}, cache.Save()
 			})
 		}
 	}
-	return psync.WordEntry{Word: cmp.Or(got.entry.Word, word), Reading: got.entry.Reading, Meaning: got.entry.Meaning, Language: got.q.Language}, nil
+	return psync.WordEntry{Word: cmp.Or(entry.Word, word), Reading: entry.Reading, Meaning: entry.Meaning, Language: ask.ask.Query.Language}, nil
 }
 
 // Explain answers the AI service's explanation of the line, as Explain Line asks for it on this computer (explain.Prompt): from the line and the lines before it, at most explainBefore of them, so it gives nothing away of what comes after; the lines after it a phone sends are left out. Its sections are those the side panel shows, in its order, each with its kind, and its text their paragraphs, for a phone that shows no headings.

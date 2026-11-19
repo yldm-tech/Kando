@@ -10,3 +10,6 @@ const Default = "zh-Hans"
 
 // Supported reports whether tag is one of Interface.
 func Supported(tag string) bool { return slices.Contains(Interface, tag) }
+
+// Language is the tag of the catalog msgs say their messages in, one of Interface, for text that comes with the messages from elsewhere, as a plugin pack's names by language (plugins.Text.In).
+func (msgs Messages) Language() string { return msgs.lang }

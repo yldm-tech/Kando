@@ -245,7 +245,7 @@ func (f *fakeApp) SetSpeechLanguage(code string)         { f.spoken = code }
 func (f *fakeApp) SpeechSource() string                  { return f.source }
 func (f *fakeApp) SetSpeechSource(source string)         { f.source = source }
 func (f *fakeApp) CurrentPreset() (Preset, bool) {
-	if preset, ok := PresetByID(testlocale.Messages(), f.provider); ok {
+	if preset, ok := PresetByID(Presets(testlocale.Messages()), f.provider); ok {
 		return preset, true
 	}
 	return Preset{ID: f.provider, Name: f.provider}, true
