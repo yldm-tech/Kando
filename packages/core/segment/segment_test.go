@@ -175,3 +175,58 @@ func TestChineseDictionaries(t *testing.T) {
 		}
 	}
 }
+
+// TestWordsAreCutAsBeforeAnnotated checks that Words cuts these lines exactly as it did before Annotated came (the tokens below are what it returned then), as the phone and the desktop's picture cut with it.
+func TestWordsAreCutAsBeforeAnnotated(t *testing.T) {
+	w := func(s string) core.WordToken { return core.WordToken{Text: s, Word: true} }
+	o := func(s string) core.WordToken { return core.WordToken{Text: s} }
+	for line, want := range map[string][]core.WordToken{
+		"公園に行った。":                 {w("公園"), w("に"), w("行った"), o("。")},
+		"私は日本語を勉強しています":           {w("私"), w("は"), w("日本語"), w("を"), w("勉強"), w("し"), w("て"), w("います")},
+		"食べられないよ":                 {w("食べ"), w("られない"), w("よ")},
+		"東京タワーへ行きましょう！":           {w("東京"), w("タワー"), w("へ"), w("行きましょう"), o("！")},
+		"我们今天去北京大学":               {w("我们"), w("今天"), w("去"), w("北京大学")},
+		"這是一個測試":                  {w("這是"), w("一個"), w("測試")},
+		"Hello, world! It's 3pm.": {w("Hello"), o(", "), w("world"), o("! "), w("It's"), o(" "), w("3pm"), o(".")},
+		"コーヒーを飲みたい":               {w("コーヒー"), w("を"), w("飲みたい")},
+		"日本語":                     {w("日本語")},
+		"混合 English と日本語 text":    {w("混合"), o(" "), w("English"), o(" "), w("と"), w("日本語"), o(" "), w("text")},
+		"々ー":                      {w("々"), w("ー")},
+		"ありがとう、ございます。":            {w("ありがとう"), o("、"), w("ございます"), o("。")},
+		"彼女は静かな部屋で本を読んでいた":        {w("彼女"), w("は"), w("静か"), w("な"), w("部屋"), w("で"), w("本"), w("を"), w("読ん"), w("で"), w("いた")},
+		"行かなかったんですか？":             {w("行かなかった"), w("ん"), w("です"), w("か"), o("？")},
+		"你好，世界！我爱学习中文。":           {w("你好"), o("，"), w("世界"), o("！"), w("我"), w("爱"), w("学习"), w("中文"), o("。")},
+		"ＡＢＣのテスト２回目":              {w("ＡＢＣ"), w("の"), w("テスト"), o("２"), w("回"), w("目")},
+	} {
+		if got := cut(t, line); !slices.Equal(got, want) {
+			t.Errorf("Words(%q) = %+v, want %+v", line, got, want)
+		}
+	}
+}
+
+// TestAnnotatedGivesBaseFormsAndReadings checks that Annotated cuts a Japanese line as Words does, each word with the dictionary form of its first token and its reading, 行った being 行く read イッタ; that "ja" cuts a line of kanji alone as Japanese, which Words takes for Chinese; and that Chinese and other words come without either.
+func TestAnnotatedGivesBaseFormsAndReadings(t *testing.T) {
+	line := "公園に行った。"
+	got := Annotated("ja", line)
+	want := []Morph{{Text: "公園", Word: true, Base: "公園", Reading: "コウエン"}, {Text: "に", Word: true, Base: "に", Reading: "ニ"}, {Text: "行った", Word: true, Base: "行く", Reading: "イッタ"}, {Text: "。"}}
+	if !slices.Equal(got, want) {
+		t.Fatalf("Annotated(%q) = %+v, want %+v", line, got, want)
+	}
+	var texts []core.WordToken
+	for _, m := range Annotated("", "食べられないよ") {
+		texts = append(texts, core.WordToken{Text: m.Text, Word: m.Word})
+	}
+	if w := cut(t, "食べられないよ"); !slices.Equal(texts, w) {
+		t.Fatalf("Annotated cuts %+v, Words %+v", texts, w)
+	}
+	if got := Annotated("ja", "日本語"); len(got) != 1 || got[0].Base != "日本語" || got[0].Reading != "ニホンゴ" {
+		t.Fatalf("a line of kanji in a Japanese film: %+v", got)
+	}
+	got = Annotated("zh", "我们去北京, ok")
+	if len(got) == 0 || got[0].Text != "我们" || !got[0].Word || got[0].Base != "" || got[0].Reading != "" {
+		t.Fatalf("Chinese: %+v", got)
+	}
+	if got := Annotated("en", "Hi there"); !slices.Equal(got, []Morph{{Text: "Hi", Word: true}, {Text: " "}, {Text: "there", Word: true}}) {
+		t.Fatalf("English: %+v", got)
+	}
+}

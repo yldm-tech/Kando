@@ -30,8 +30,8 @@
 - 桌面和手机的查词现在是两条独立的路：桌面走 `apps/kando/state_vocab.go:215` 的 `func (a *app) LookUpWord(i int, word string)`，它是界面动作，会改 `a.vocab.lookup` 并暂停播放；手机走 `state_phonesync_study.go:65-105` 的 `phoneStudy.LookUp`，自己的流程是 `vocabCache().Get(q)` → `s.ask(f)` → `got.ask.t.Chat(...)`，不经过 `LookUpWord`，没配 AI 时在 `s.ask(f)` 就失败。
 - 所以先抽出一个共用的 `func (a *app) vocabResolve(ctx, q) (lookup.Entry, vocabSource, bool)`，顺序是缓存 → 已启用的词典（按 `savedPlugins` 里的顺序）→ AI。`LookUpWord` 和 `phoneStudy.LookUp` 都改成调它，并且词典要放在 `s.ask(f)` 之前，离线的手机也能查到词。手机只读（`psync.Caller.ReadOnly`）时的规则不变：词典结果不写进缓存。
 - 日语查词要用原形，但现有分词给不了原形和读音：`packages/core/segment/segment.go:174-176` 有意用 `ipa.DictShrink()` 加载了去掉 features 的 IPA 词典，只保留词界和词性，以节省内存，手机也受益于此；`:191` 把助动词并进前一个词（`行った` 是一个词，没有单一的 kagome 原形）；中文的 gse（`:203-210`）只返回字符串，没有读音。因此原形和读音要单独做（P1.2）：
-  - 新增 `segment.Annotated(lang, line) []Morph{Text, Word, Base, Reading}`，内部用另一个按需加载的完整 features 词典 `ipa.Dict()`，只在桌面上、并且启用了日语的词典包或词表包时才加载（12.2 第 5 条的测量门槛达标的前提下）。`Words` 保持用 `DictShrink`，`core.WordToken` 不改，手机的分词不受影响。合并后的词（`行った`）取它首个 token 的原形（`行く`）。
-  - P1.2 先在 Ubuntu 编译机（`ubuild`）上量出 `ipa.Dict()` 相对 `DictShrink()` 的常驻内存增量（RSS）和首次加载时间。门槛是增量不超过 200 MiB、加载不超过 3 s（12.2 第 5 条）。不达标就退到另一条路：Annotated 不出 Base 和 Reading，查词先查表层形，查不到再查拆开后首个 token 的表层形，读音只取自词典包的条目。测量数字和最终选择记在第 15 节。
+  - 新增 `segment.Annotated(lang, line) []Morph{Text, Word, Base, Reading}`，内部用另一个按需加载的完整 features 词典 `ipa.Dict()`，只在桌面上、并且启用了日语的词典包或词表包时才加载（12.2 第 5 条的测量门槛已达标，数字见第 15 节）。`Words` 保持用 `DictShrink`，`core.WordToken` 不改，手机的分词不受影响。合并后的词（`行った`）取它首个 token 的原形（`行く`），读音是各 token 读音（片假名）连起来（`イッタ`），有一个 token 没有读音就整个留空。Annotated 会等词典读完，所以只在后台 goroutine 里调。`lang` 是 `ja` 时即使整行没有假名也按日语切（`Words` 会把只有汉字的行当中文），是 `zh` 时按中文切，其余按文字判断，和 `Words` 一样。
+  - P1.2 先在 Ubuntu 编译机（`ubuild`）上量出 `ipa.Dict()` 相对 `DictShrink()` 的常驻内存增量（RSS）和首次加载时间。门槛是增量不超过 200 MiB、加载不超过 3 s（12.2 第 5 条）。不达标就退到另一条路：Annotated 不出 Base 和 Reading，查词先查表层形，查不到再查拆开后首个 token 的表层形，读音只取自词典包的条目。测量数字和最终选择记在第 15 节：增量约 92 MiB、加载约 0.6 s，达标，用完整词典，没有走退路。
   - 中文的读音（拼音）只来自 CC-CEDICT 这类词典包，gse 不提供读音。
 - 验收：装了对应的词典包后，断网、没配 AI 时，在桌面和手机上点日语或中文的词，都能看到释义。
 
@@ -990,7 +990,7 @@ P1.1 的确认框只有数据包要显示的部分：名称（标题）、说明
 10. **i18n**：插件文案不经过 `catalog_test` 检查，缺语言时回退到 en，翻译质量取决于作者。
 11. **手机版本滞后**：插件产出的数据同步到手机时，ledger 必须向后兼容。
 12. **P2.1 的重构**会碰 5 个以上文件，要先给 owner 看计划。P0.1 按 E4 列出的调用处直接做，行为不变，由测试锁住。
-13. **P1.2 的内存**：完整 features 词典可能明显增加常驻内存，所以先测量，达标（12.2 第 5 条）才只在桌面按需加载，否则走只用词典包的退路。
+13. **P1.2 的内存**：完整 features 词典会增加常驻内存，所以先测量，达标（12.2 第 5 条）才只在桌面按需加载，否则走只用词典包的退路。实测增量约 92 MiB、加载约 0.6 s（第 15 节），已按达标处理。
 
 ### 12.2 已定
 
@@ -1057,7 +1057,7 @@ P1.1 的确认框只有数据包要显示的部分：名称（标题）、说明
 |---|---|---|---|
 | P0（0.1–0.3） | 0.1 `PresetByID`/`ProviderID` 接收预设列表；0.2 `savedLLM.clean` 保留 `pack.` 服务；0.3 `apps/kando/plugins` 骨架（Parse、Validate、Stage、Swap、Remove、Scan、最小 state.json）和 `kando plugin validate`、`list` | `feat/plugins-foundation` | 已完成 |
 | P1.1 | 设置 › 插件页、安装确认、拖到插件页上安装、CLI inbox，glossary 和 ai-service 两种 kind，savedPlugins、pluginsHooks | `feat/plugins-data-packs` | 已完成 |
-| P1.2 + P1.3 | `segment.Annotated`（含测量和路线选择），dictionary kind、`plugins/dict`、`vocabResolve`、查词卡来源、词典排序 | `feat/plugins-dictionary` | 未开始 |
+| P1.2 + P1.3 | `segment.Annotated`（含测量和路线选择），dictionary kind、`plugins/dict`、`vocabResolve`、查词卡来源、词典排序 | `feat/plugins-dictionary` | P1.2 已完成，P1.3 进行中 |
 | P1.4 | wordlist kind、`plugins/wordlist`、逐词标注（注音和等级色）、设置 › 外观 的开关 | `feat/plugins-wordlist` | 未开始 |
 | P1.5 | 官方词典包 | — | 不做（12.2 第 2 条） |
 | P2 | 学习任务、导出模板、翻译风格 | — | 未开始 |
@@ -1065,7 +1065,16 @@ P1.1 的确认框只有数据包要显示的部分：名称（标题）、说明
 | P4 | 站点包 | — | 未开始（等 12.3 第 4 条） |
 | P5 | 按需单独立项 | — | 未开始 |
 
-P1.2 的测量结果（Ubuntu 编译机，`ipa.Dict()` 相对 `DictShrink()`）：待测。
+P1.2 的测量结果（Ubuntu 编译机，x86_64，Go 1.27.4，kagome-dict/ipa v1.2.6；每次读 `/proc/self/status` 前先 `runtime.GC()` 和 `debug.FreeOSMemory()`，各在一个新进程里量，量完的测试没有提交）：
+
+| 情形 | 加载时间 | RSS（VmRSS） | 峰值（VmHWM） |
+|---|---|---|---|
+| 空进程 | — | 8.3 MiB | 8.3 MiB |
+| 只读 `DictShrink()`（`Words` 现在的做法） | 0.45 s | 50.1 MiB | 86.4 MiB |
+| 读过 `DictShrink()` 后再读 `ipa.Dict()` | 0.60 s | 141.7 MiB（+91.6 MiB） | 195.4 MiB（+109 MiB） |
+| 只读 `ipa.Dict()` | 0.59 s | 113.0 MiB | 147.7 MiB |
+
+`ipa.Dict()` 在 `DictShrink()` 之后读时是另读一份（`DictShrink` 只在完整词典先读的情况下复用它），所以增量按第三行算：常驻约 92 MiB、峰值约 109 MiB，加载约 0.6 s，都在 12.2 第 5 条的门槛（200 MiB、3 s）以内。选择：用完整 features 词典，只在桌面、只在查词用到已启用的日语词典包时（P1.4 起还有日语词表包）由 `segment.Annotated` 第一次调用时读入；手机不调 Annotated，分词照旧只用 `DictShrink`。
 
 与正文的偏差：实现过程中某个接点挪了位置或做了简化，就同时改正文对应的一节和这一段，写明改了什么、为什么。
 
@@ -1100,3 +1109,7 @@ P1.2 的测量结果（Ubuntu 编译机，`ipa.Dict()` 相对 `DictShrink()`）�
   - state.json 损坏后第一次保存前，给每个没有条目的包补上停用条目（`pluginsNextState`），损坏前关掉的包不会被重新打开（5.1）。
   - 反馈 issue 的翻译服务一行只认内置预设，不会写出插件包名（E4）。
   - 截图场景 `TestScreenshotsPlugins` 有插件页（两个包）和主窗口上的安装确认两张；详情页、查词卡来源和带注音的字幕留给 P1.3、P1.4。
+- P1.2（已完成）：`segment.Annotated` 和 `segment.Morph`。和正文的出入如下，E1 已同步改过：
+  - `Words` 原来的切分循环（`cutRuns`）改成在新的 `cutMorphs` 上包一层，日语的合并规则抽成 `japaneseMorphs`，`Words` 和 `Annotated` 共用；`segment_test.go` 的 `TestWordsAreCutAsBeforeAnnotated` 用改动前的代码跑出的切分结果锁住 `Words` 的输出逐字不变。
+  - 合并词的读音是各 token 读音连起来（片假名，`イッタ`），不是原形的读音；原形的读音要从词典包取。
+  - `Annotated` 会等词典读完（`Words` 不等），只能在后台调；`lang` 为 `ja` 时只有汉字的行也按日语切。
