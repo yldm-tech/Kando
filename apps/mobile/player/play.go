@@ -2,6 +2,7 @@ package player
 
 import (
 	"context"
+	"slices"
 	"strconv"
 	"time"
 
@@ -51,11 +52,13 @@ const (
 
 // play is the player's state on the engine's goroutine.
 type play struct {
-	cx      *core.Scope
-	s       *session.Session
-	key     string
-	ref     *core.Ref
-	cues    *core.Resource[[]cues.Cue]
+	cx   *core.Scope
+	s    *session.Session
+	key  string
+	ref  *core.Ref
+	cues *core.Resource[[]cues.Cue]
+	// lines are the film's lines as the player shows them: the cues kept, with the fixes of their translations laid over them (session.Corrections).
+	lines   *core.Memo[[]cues.Cue]
 	playing *core.Signal[bool]
 	at      *core.Signal[time.Duration]
 	length  *core.Signal[time.Duration]
@@ -139,6 +142,10 @@ func newPlay(cx *core.Scope, s *session.Session, key string) *play {
 		list, _, err := s.Store().Cues(f.Desktop, f.Film.ID)
 		return cues.FromSync(list), err
 	})
+	p.lines = core.NewMemoFunc(cx, func() []cues.Cue {
+		list, _ := p.cues.Get()
+		return corrected(list, s.Corrections(key))
+	}, slices.Equal[[]cues.Cue])
 	p.current = core.NewMemo(cx, func() int { return cues.Index(p.list(), p.subAt()) })
 	p.shown = core.NewMemo(cx, func() int {
 		if i := p.current.Get(); i >= 0 {
@@ -159,6 +166,15 @@ func newPlay(cx *core.Scope, s *session.Session, key string) *play {
 	s.Follow(key, p.cues.Refetch)
 	// The lines saved from the film and their notes, as the phone keeps them, then as the desktop has them once it answers.
 	s.OpenStudy(key)
+	// The film's glossary, once the phone knows the film's library, which the first opening asks the desktop for.
+	askedGlossary := false
+	cx.Effect(func() {
+		if askedGlossary || !s.Studyable(key) {
+			return
+		}
+		askedGlossary = true
+		core.Untracked(cx, func() bool { s.OpenGlossary(key); return true })
+	})
 	// The screen stays on while the film plays.
 	var release func()
 	cx.Effect(func() {
@@ -206,11 +222,8 @@ func (p *play) hides(original bool) bool {
 	return false
 }
 
-// list is the film's lines, none until they are read.
-func (p *play) list() []cues.Cue {
-	v, _ := p.cues.Get()
-	return v
-}
+// list is the film's lines as the player shows them, the learner's fixes laid over them, none until they are read.
+func (p *play) list() []cues.Cue { return p.lines.Get() }
 
 // line is line i of the film, the zero Cue for none.
 func (p *play) line(i int) cues.Cue {

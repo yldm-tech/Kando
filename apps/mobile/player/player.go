@@ -72,6 +72,7 @@ func view(cx *core.Scope, l *Layer, key string) core.Node {
 	panelOn := core.NewSignal(cx, false)
 	settingsOpen := core.NewSignal(cx, false)
 	w := newWords(cx, p)
+	fx := newFixer(cx, p)
 	p.status = func() core.StatusBarSetting {
 		hidden := core.ToggleOff
 		if shape.Get() == full && !controls.Get() {
@@ -93,6 +94,7 @@ func view(cx *core.Scope, l *Layer, key string) core.Node {
 		core.Untracked(cx, func() bool {
 			w.closeLookup()
 			w.closeExplain()
+			fx.close()
 			settingsOpen.Set(false)
 			panelOn.Set(false)
 			p.save()
@@ -244,7 +246,8 @@ func view(cx *core.Scope, l *Layer, key string) core.Node {
 		Children: []core.Node{main, list,
 			wordPopover(cx, p, w, func() bool { return shape.Get() == full }),
 			wordSheet(cx, p, w, func() bool { return shape.Get() != full }),
-			explainSheet(cx, p, w),
+			explainSheet(cx, p, w, fx),
+			fixSheet(cx, p, fx),
 			recapSheet(cx, p, r),
 			settingsSheet(cx, p, settingsOpen),
 			core.Show{When: shown, Then: func(cx *core.Scope) core.Node {

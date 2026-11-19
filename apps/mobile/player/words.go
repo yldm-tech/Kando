@@ -329,8 +329,8 @@ func wordPopover(cx *core.Scope, p *play, w *words, when func() bool) core.Node 
 	}}
 }
 
-// explainSheet is the line explained, in a sheet over the player: the line with its translation, then what the computer's AI service said of it in sections, each under its heading, with More for its tone and related expressions, which model said it and where it ran, or that it is asked, or why it could not answer; the follow-up questions asked and the field that asks one, and Save Line to Notes.
-func explainSheet(cx *core.Scope, p *play, w *words) core.Node {
+// explainSheet is the line explained, in a sheet over the player: the line with its translation, then what the computer's AI service said of it in sections, each under its heading, with More for its tone and related expressions, which model said it and where it ran, or that it is asked, or why it could not answer; the follow-up questions asked and the field that asks one, Save Line to Notes, and the button that fixes the line's translation (fixSheet).
+func explainSheet(cx *core.Scope, p *play, w *words, fx *fixer) core.Node {
 	colors := ui.ColorsOf(cx)
 	e := func() explanation { return w.explain.Get() }
 	ai := func() core.Color { return theme.AI }
@@ -457,6 +457,13 @@ func explainSheet(cx *core.Scope, p *play, w *words) core.Node {
 							look.Pill(cx, "player-explain-send", func() string { return locales.PlayerExplainAsk(cx) }, send),
 						}},
 						look.Button{TestID: "player-explain-save", Kind: look.Tinted, Icon: lucide.Star, Text: saveText, OnPress: w.saveExplained},
+					}}
+				}},
+				core.Show{When: func() bool { return fx.canFix(e().line) }, Then: func(cx *core.Scope) core.Node {
+					return look.Button{TestID: "player-explain-fix", Kind: look.Plain, Icon: lucide.PenLine, Text: func() string { return locales.PlayerFixOpen(cx) }, OnPress: func() {
+						i := w.explain.GetUntracked().line
+						w.closeExplain()
+						fx.start(i)
 					}}
 				}},
 			}},

@@ -200,3 +200,38 @@ func TestAWordAddedIsAWordRecordDueAtOnceAndGoesWhenTakenBack(t *testing.T) {
 		t.Fatalf("taken back before it was sent: %+v", l.Pending)
 	}
 }
+
+// A line's translation fixed on the phone is a correction of the machine's line it shows as, or of the correction the computer has of it when one moved it there; the phone reads its fixes back by where their lines show.
+func TestCorrectAndCorrections(t *testing.T) {
+	now := time.Date(2026, 11, 19, 9, 0, 0, 0, time.UTC)
+	desk := sync.Stamp{At: now.Add(-time.Hour), Device: "mac"}
+	moved := sync.CorrectionID("f1", 4000, 6000)
+	l := Library{Records: []sync.Record{{Kind: sync.KindCorrection, ID: moved, Film: "f1", Fields: map[string]sync.Field{
+		sync.FieldStartShiftMS: {Value: sync.Value(500), Stamp: desk}, sync.FieldEndShiftMS: {Value: sync.Value(0), Stamp: desk},
+		sync.FieldTranslation: {Value: sync.Value("旧的"), Stamp: desk}, sync.FieldOriginal: {Value: sync.Null, Stamp: desk},
+	}}}}
+
+	fresh := Correct(l, "f1", Cue{Start: time.Second, End: 2 * time.Second, Original: "Hi.", Translation: "嗨。"}, " 你好。 ", now)
+	if fresh.ID != sync.CorrectionID("f1", 1000, 2000) || sync.Text(fresh.Fields[sync.FieldTranslation].Value) != "你好。" || fresh.Fields[sync.FieldTranslation].Base != nil {
+		t.Fatalf("a fresh correction %+v", fresh)
+	}
+	again := Correct(l, "f1", Cue{Start: 4500 * time.Millisecond, End: 6 * time.Second}, "新的", now)
+	if again.ID != moved || again.Fields[sync.FieldTranslation].Base == nil || !again.Fields[sync.FieldTranslation].Base.Equal(desk) {
+		t.Fatalf("a correction of a moved line %+v", again)
+	}
+	l = Change(Change(l, fresh), again)
+	got := Corrections(l, "f1")
+	if len(got) != 2 {
+		t.Fatalf("corrections %+v", got)
+	}
+	c, ok := CorrectionAt(l, "f1", 4500*time.Millisecond, 6*time.Second)
+	if !ok || c.Translation == nil || *c.Translation != "新的" || c.Original != nil {
+		t.Fatalf("the moved line's correction %+v, %v", c, ok)
+	}
+	if c, ok := CorrectionAt(l, "f1", time.Second, 2*time.Second); !ok || *c.Translation != "你好。" {
+		t.Fatalf("the fresh correction %+v, %v", c, ok)
+	}
+	if len(Corrections(l, "f2")) != 0 {
+		t.Fatal("another film has corrections")
+	}
+}

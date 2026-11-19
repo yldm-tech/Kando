@@ -1,6 +1,7 @@
 package player
 
 import (
+	"slices"
 	"strings"
 	"time"
 
@@ -8,8 +9,10 @@ import (
 	"kando/apps/mobile/locales"
 	"kando/apps/mobile/look"
 	"kando/apps/mobile/study"
+	"kando/packages/sync"
 
 	"github.com/nsgo-dev/nsgo/core"
+	"github.com/nsgo-dev/nsgo/icons/lucide"
 	"github.com/nsgo-dev/nsgo/ui"
 )
 
@@ -230,7 +233,7 @@ func partsPage(cx *core.Scope, p *play) core.Node {
 	}}
 }
 
-// infoPage is what the film is: its computer and library, its languages and its length with the number of its lines.
+// infoPage is what the film is: its computer and library, its languages and its length with the number of its lines, and its glossary (glossaryList).
 func infoPage(cx *core.Scope, p *play) core.Node {
 	colors := ui.ColorsOf(cx)
 	film := func() (title, library, languages string) {
@@ -256,6 +259,36 @@ func infoPage(cx *core.Scope, p *play) core.Node {
 			row("player-info-length", func() string { return locales.PlayerInfoLength(cx) }, func() string {
 				return locales.PlayerInfoLengthValue(cx, clock(p.length.Get()), len(p.list()))
 			}),
+			glossaryList(cx, p),
 		}},
+	}}
+}
+
+// glossaryList is the film's glossary as its computer translates it (prototype template 1003-1004): the terms as the lines say them and as they are translated, a lock on those the translation must write as they are, which the phone shows and the computer changes, or that the film has none yet. Nothing shows until the computer answered, nor for one that does not share it.
+func glossaryList(cx *core.Scope, p *play) core.Node {
+	colors := ui.ColorsOf(cx)
+	terms := core.NewMemoFunc(cx, func() []sync.Term { g, _ := p.s.Glossary(p.key); return g.Terms }, slices.Equal[[]sync.Term]).Get
+	return core.Show{When: func() bool { _, ok := p.s.Glossary(p.key); return ok }, Then: func(cx *core.Scope) core.Node {
+		rows := core.Each(terms, func(t sync.Term) string { return strings.ToLower(t.Source) }, func(cx *core.Scope, t func() sync.Term, _ func() int) core.Node {
+			return core.View{TestID: "player-term", Style: core.Style{Direction: core.Row, AlignItems: core.AlignCenter, Gap: 12, Padding: core.Symmetric(10, 0), Borders: core.Edges{Bottom: 0.5}},
+				StyleFunc: func() core.Style { return core.Style{BorderColors: core.EdgeColors{Bottom: colors.Line()}} },
+				Children: []core.Node{
+					core.Text{TestID: "player-term-source", ContentFunc: func() string { return t().Source }, Style: look.Subhead.Merge(core.Style{FlexGrow: 1, FlexShrink: 1, FlexBasis: core.Pt(0)}), StyleFunc: ui.Colored(colors.Text)},
+					core.Text{TestID: "player-term-target", ContentFunc: func() string { return t().Target }, Style: look.Subhead.Merge(core.Style{FlexGrow: 1, FlexShrink: 1, FlexBasis: core.Pt(0)}), StyleFunc: ui.Colored(colors.Muted)},
+					core.Show{When: func() bool { return t().Locked }, Then: func(cx *core.Scope) core.Node {
+						return core.View{TestID: "player-term-locked", Role: core.RoleImage, LabelFunc: func() string { return locales.PlayerTermLocked(cx) }, Children: []core.Node{ui.IconOf(lucide.Lock, 13, colors.Muted)}}
+					}},
+				}}
+		})
+		return core.View{TestID: "player-terms", Role: core.RoleGroup, LabelFunc: func() string { return locales.PlayerTerms(cx) }, Style: core.Style{Padding: core.Edges{Top: 20}}, Children: []core.Node{
+			core.View{Style: core.Style{Direction: core.Row, AlignItems: core.AlignBaseline, Gap: 8, Padding: core.Edges{Bottom: 4}}, Children: []core.Node{
+				core.Text{ContentFunc: func() string { return locales.PlayerTerms(cx) }, Role: core.RoleHeader, Style: look.Section.Merge(core.Style{FlexGrow: 1}), StyleFunc: ui.Colored(colors.Muted)},
+				core.Text{ContentFunc: func() string { return locales.PlayerTermsOnComputer(cx) }, Style: look.Caption, StyleFunc: ui.Colored(colors.Faint)},
+			}},
+			rows,
+			core.Show{When: func() bool { return len(terms()) == 0 }, Then: func(cx *core.Scope) core.Node {
+				return core.Text{TestID: "player-terms-empty", ContentFunc: func() string { return locales.PlayerTermsEmpty(cx) }, Style: look.Subhead.Merge(core.Style{Padding: core.Symmetric(10, 0)}), StyleFunc: ui.Colored(colors.Muted)}
+			}},
+		}}
 	}}
 }
