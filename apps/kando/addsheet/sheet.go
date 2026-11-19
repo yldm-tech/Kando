@@ -1,9 +1,10 @@
-// Package addsheet is the Add sheet: the card a link to one online video opens before its job is made, as the prototype's 添加在线视频 does. It names the video and its site, says where the film continues from when the link came from a browser that was playing it, warns of a site whose videos are DRM-protected or one Kando does not know, and lets the user choose, for this link alone, whether to add the whole playlist it is in, where the original lines come from, the picture the download asks for, the browser whose sign-in it borrows and whether the film is cut at its site's chapters. The library's link field opens it, and so do the browser extension and the bookmarklet unless Settings › 通用 › 浏览器扩展 says to start at once. The app keeps its state and makes the job (state_addsheet.go).
+// Package addsheet is the Add sheet: the card a link to one online video opens before its job is made, as the prototype's 添加在线视频 does. It names the video and its site, says where the film continues from when the link came from a browser that was playing it, warns of a site whose videos are DRM-protected or one Kando does not know, says what it read of the video's page since it opened (Meta: who put it on the site, its length, how many videos its playlist holds, whether it has the uploader's subtitles), and lets the user choose, for this link alone, whether to add the whole playlist it is in and treat it as a series, where the original lines come from (the uploader's subtitles, the speech recognition, or the speech recognition with the site's own captions kept as a reference layer), the picture the download asks for, the browser whose sign-in it borrows and whether the film is cut at its site's chapters. The library's link field opens it, and so do the browser extension and the bookmarklet unless Settings › 通用 › 浏览器扩展 says to start at once. The app keeps its state and makes the job (state_addsheet.go).
 package addsheet
 
 import (
 	"fmt"
 	"reflect"
+	"strings"
 	"time"
 
 	"kando/apps/kando/locales"
@@ -47,9 +48,11 @@ type Look struct {
 	DRM     bool
 	// InList reports a video of a playlist whose whole list can be added instead (core.Link.WholeList).
 	InList bool
-	// SiteSubtitles reports a site whose uploaders' subtitles a film can take as its original lines, and Chapters one whose videos mark chapters: YouTube and bilibili.
+	// SiteSubtitles reports a site whose uploaders' subtitles a film can take as its original lines, or whose own captions it can keep as a reference layer, and Chapters one whose videos mark chapters: YouTube and bilibili.
 	SiteSubtitles bool
 	Chapters      bool
+	// Bilibili reports a bilibili video, whose site calls its own captions AI subtitles and serves 480p at best to a viewer not signed in.
+	Bilibili bool
 	// Browsers are those whose sign-in the download can borrow, besides none.
 	Browsers []Browser
 	// Streams reports whether this computer streams a film that keeps no video (media.StreamsHere), which the line under 仅字幕 says.
@@ -67,10 +70,22 @@ func (l Look) Name(m locales.Messages) string {
 	return m.AddSheetUntitled(l.Host)
 }
 
+// Meta is what the sheet learns of the video by reading its page once it is open (media.Previewer): Reading while it reads it, then, once Known, its title, who put it on the site, how long it plays and which subtitles its site has. Episodes is how many videos the playlist it is in holds (Look.InList), 0 until they are counted.
+type Meta struct {
+	Reading         bool
+	Known           bool
+	Title, Uploader string
+	Length          time.Duration
+	Episodes        int
+	// Subtitles reports that the uploader put subtitles on it, AutoCaptions that the site made captions of its own.
+	Subtitles, AutoCaptions bool
+}
+
 // Choice is what the user chose on the sheet for this link.
 type Choice struct {
-	// Whole adds the playlist the video is in rather than the video (Look.InList).
+	// Whole adds the playlist the video is in rather than the video (Look.InList), and Series has its films share a glossary as one series.
 	Whole   bool
+	Series  bool
 	Quality kcore.Quality
 	Source  kcore.SubtitleSource
 	// Browser is the ID of the browser whose sign-in the download borrows, "" for none.
@@ -79,10 +94,11 @@ type Choice struct {
 	Chapters bool
 }
 
-// Sheet is the dialog over the window while Open returns true. Look is what it shows of the link; Choice and OnChoice are the user's choices, kept by the app. The primary button and Return run OnAdd, but for a DRM-protected site, whose only button closes the sheet; Cancel, Escape and closing it run OnCancel.
+// Sheet is the dialog over the window while Open returns true. Look is what it shows of the link, and Meta what it learned of the video since it opened, nil for nothing; Choice and OnChoice are the user's choices, kept by the app. The primary button and Return run OnAdd, but for a DRM-protected site, whose only button closes the sheet; Cancel, Escape and closing it run OnCancel.
 type Sheet struct {
 	Open     func() bool
 	Look     func() Look
+	Meta     func() Meta
 	Choice   func() Choice
 	OnChoice func(Choice)
 	OnAdd    func()
@@ -97,6 +113,9 @@ func (s Sheet) Render(cx *core.Scope) core.Node {
 		if s.OnCancel != nil {
 			s.OnCancel()
 		}
+	}
+	if s.Meta == nil {
+		s.Meta = func() Meta { return Meta{} }
 	}
 	return core.Show{When: s.Open, Then: func(cx *core.Scope) core.Node {
 		// The look stays while the sheet is open; it is built again for the next link, and as the interface's language changes.
@@ -146,7 +165,7 @@ func addButton(cx *core.Scope, s Sheet) core.Node {
 // body is the sheet's content for l: the video, a note on its site, then the choices, those that do not apply to its site left out.
 func body(cx *core.Scope, s Sheet, l Look) core.Node {
 	m := locales.For(cx)
-	children := []core.Node{header(cx, l)}
+	children := []core.Node{header(cx, l, s.Meta)}
 	if l.ResumeAt > 0 && !l.DRM {
 		text := m.AddSheetResumeLink(clock(l.ResumeAt))
 		if l.From == FromBrowser {
@@ -171,7 +190,12 @@ func body(cx *core.Scope, s Sheet, l Look) core.Node {
 			ui.Radio{Text: m.AddSheetOnlyThis(), TestID: "addsheet-only-this", Checked: func() bool { return !s.Choice().Whole }, OnChange: func(bool) { pick(func(c *Choice) { c.Whole = false }) }},
 			ui.Radio{Text: m.AddSheetWholeList(), TestID: "addsheet-whole-list", Checked: func() bool { return s.Choice().Whole }, OnChange: func(bool) { pick(func(c *Choice) { c.Whole = true }) }},
 		}}
-		children = append(children, form.Card(episodes))
+		// 作为剧集处理 goes with the whole playlist, whose films then share a glossary, as the playlist dialog that lists them says again.
+		series := core.Show{When: func() bool { return s.Choice().Whole }, Then: func(cx *core.Scope) core.Node {
+			return core.View{Children: []core.Node{form.Separator(true), form.SwitchRow{Title: m.AddSheetSeries(), Subtitle: m.AddSheetSeriesHint(), TestID: "addsheet-series",
+				On: func() bool { return s.Choice().Series }, OnChange: func(on bool) { pick(func(c *Choice) { c.Series = on }) }}}}
+		}}
+		children = append(children, form.Card(episodes, series))
 	}
 	var rows []core.Node
 	add := func(row core.Node) {
@@ -181,17 +205,27 @@ func body(cx *core.Scope, s Sheet, l Look) core.Node {
 		rows = append(rows, row)
 	}
 	if l.SiteSubtitles {
+		// What the sheet read of the video says which of the site's subtitles it has; until then, and when it could not be read, each may be chosen, as a site without them leaves the film heard alone.
+		lacks := func(has func(Meta) bool) func() bool {
+			return func() bool { meta := s.Meta(); return meta.Known && !has(meta) }
+		}
+		auto, autoHint := m.AddSheetSourceAuto(), m.AddSheetSourceAutoHint()
+		if l.Bilibili {
+			auto = m.AddSheetSourceAutoBilibili()
+		}
+		source := func() kcore.SubtitleSource { return s.Choice().Source }
 		add(ui.RadioGroup{Label: m.AddSheetSource(), TestID: "addsheet-source", Style: core.Style{Padding: core.Symmetric(10, 14)}, Children: []core.Node{
 			ui.Radio{Text: m.AddSheetSourcePlatform(), Hint: m.AddSheetSourcePlatformHint(), TestID: "addsheet-source-platform",
-				Checked: func() bool { return s.Choice().Source != kcore.SubtitlesLocal }, OnChange: func(bool) { pick(func(c *Choice) { c.Source = kcore.SubtitlesPlatform }) }},
+				Checked:  func() bool { return source() != kcore.SubtitlesLocal && source() != kcore.SubtitlesAuto },
+				Disabled: lacks(func(meta Meta) bool { return meta.Subtitles }),
+				OnChange: func(bool) { pick(func(c *Choice) { c.Source = kcore.SubtitlesPlatform }) }},
+			ui.Radio{Text: auto, Hint: autoHint, TestID: "addsheet-source-auto",
+				Checked:  func() bool { return source() == kcore.SubtitlesAuto },
+				Disabled: lacks(func(meta Meta) bool { return meta.AutoCaptions }),
+				OnChange: func(bool) { pick(func(c *Choice) { c.Source = kcore.SubtitlesAuto }) }},
 			ui.Radio{Text: m.AddSheetSourceLocal(), TestID: "addsheet-source-local",
-				Checked: func() bool { return s.Choice().Source == kcore.SubtitlesLocal }, OnChange: func(bool) { pick(func(c *Choice) { c.Source = kcore.SubtitlesLocal }) }},
+				Checked: func() bool { return source() == kcore.SubtitlesLocal }, OnChange: func(bool) { pick(func(c *Choice) { c.Source = kcore.SubtitlesLocal }) }},
 		}})
-	}
-	qualities := []ui.Option[kcore.Quality]{
-		{Value: kcore.QualityBest, Label: m.SettingsGeneralQualityBest()},
-		{Value: kcore.Quality720, Label: m.SettingsGeneralQuality720()},
-		{Value: kcore.QualitySubtitles, Label: m.SettingsGeneralQualitySubtitles()},
 	}
 	add(form.Row{Title: m.AddSheetQuality(), NoGroup: true, TestID: "addsheet-quality-row",
 		SubtitleFunc: func() string {
@@ -204,9 +238,7 @@ func body(cx *core.Scope, s Sheet, l Look) core.Node {
 			}
 			return locales.SettingsGeneralQualitySubtitlesHintNoStream(cx)
 		},
-		Trailing: []core.Node{ui.Select[kcore.Quality]{Options: qualities, Label: m.AddSheetQuality(), TestID: "addsheet-quality",
-			Value: func() kcore.Quality { return s.Choice().Quality }, OnChange: func(q kcore.Quality) { pick(func(c *Choice) { c.Quality = q }) },
-			Style: core.Style{Width: core.Pt(150)}}}})
+		Trailing: []core.Node{qualitySelect(cx, s, l, pick)}})
 	browsers := []ui.Option[string]{{Value: "", Label: m.AddSheetSignInNone()}}
 	for _, b := range l.Browsers {
 		browsers = append(browsers, ui.Option[string]{Value: b.ID, Label: m.AddSheetSignInBrowser(b.Name)})
@@ -223,13 +255,32 @@ func body(cx *core.Scope, s Sheet, l Look) core.Node {
 	return column(children...)
 }
 
+// qualitySelect is the picture the download asks for. On bilibili without a sign-in the best is 480p, which the site serves at best to a viewer not signed in, so the choice says so; it is built again as the sign-in changes.
+func qualitySelect(cx *core.Scope, s Sheet, l Look, pick func(func(*Choice))) core.Node {
+	signedOut := core.NewMemo(cx, func() bool { return l.Bilibili && s.Choice().Browser == "" })
+	return core.Dynamic(func(cx *core.Scope) core.Node {
+		best := locales.SettingsGeneralQualityBest(cx)
+		if signedOut.Get() {
+			best = locales.AddSheetQualityBest480(cx)
+		}
+		options := []ui.Option[kcore.Quality]{
+			{Value: kcore.QualityBest, Label: best},
+			{Value: kcore.Quality720, Label: locales.SettingsGeneralQuality720(cx)},
+			{Value: kcore.QualitySubtitles, Label: locales.SettingsGeneralQualitySubtitles(cx)},
+		}
+		return ui.Select[kcore.Quality]{Options: options, Label: locales.AddSheetQuality(cx), TestID: "addsheet-quality",
+			Value: func() kcore.Quality { return s.Choice().Quality }, OnChange: func(q kcore.Quality) { pick(func(c *Choice) { c.Quality = q }) },
+			Style: core.Style{Width: core.Pt(150)}}
+	})
+}
+
 // column stacks the sheet's blocks.
 func column(children ...core.Node) core.Node {
 	return core.View{Style: core.Style{Gap: 10, AlignItems: core.AlignStretch}, Children: children}
 }
 
-// header is the video: its site and what the link is, then its name and the link.
-func header(cx *core.Scope, l Look) core.Node {
+// header is the video: its site and what the link is, then its name, what the sheet read of it and the link.
+func header(cx *core.Scope, l Look, meta func() Meta) core.Node {
 	m := locales.For(cx)
 	colors := ui.ColorsOf(cx)
 	site := l.Site
@@ -249,7 +300,16 @@ func header(cx *core.Scope, l Look) core.Node {
 			tag,
 			core.Text{Content: kind, MaxLines: 1, Style: ui.TypeCaption, StyleFunc: ui.Colored(colors.Muted)},
 		}},
-		core.Text{Content: l.Name(m), TestID: "addsheet-title", Role: core.RoleHeader, MaxLines: 2, Style: core.Style{FontSize: 15, LineHeight: 20, FontWeight: ui.Bold}, StyleFunc: ui.Colored(colors.Text)},
+		core.Text{ContentFunc: func() string {
+			// A pasted link has no title until the sheet reads the video's page.
+			if t := meta().Title; l.Title == "" && t != "" {
+				return t
+			}
+			return l.Name(m)
+		}, TestID: "addsheet-title", Role: core.RoleHeader, MaxLines: 2, Style: core.Style{FontSize: 15, LineHeight: 20, FontWeight: ui.Bold}, StyleFunc: ui.Colored(colors.Text)},
+		core.Show{When: func() bool { return metaLine(cx, l, meta()) != "" }, Then: func(cx *core.Scope) core.Node {
+			return core.Text{ContentFunc: func() string { return metaLine(cx, l, meta()) }, TestID: "addsheet-meta", MaxLines: 2, Style: ui.TypeCaption, StyleFunc: ui.Colored(colors.Muted)}
+		}},
 		core.Text{Content: l.Link, MaxLines: 1, Selectable: core.SelectableOn, Style: ui.TypeCaption, StyleFunc: ui.Colored(colors.Muted)},
 	}}
 }
@@ -268,6 +328,34 @@ func note(cx *core.Scope, id, head, text string, danger bool) core.Node {
 	lines = append(lines, core.Text{Content: text, Style: core.Style{FontSize: 12, LineHeight: 17}, StyleFunc: ui.Colored(colors.Text)})
 	return core.View{TestID: id, Style: core.Style{Gap: 2, CornerRadius: 10, Padding: core.Symmetric(8, 12)},
 		StyleFunc: func() core.Style { return core.Style{Background: tint().Faded(0.12)} }, Children: lines}
+}
+
+// metaLine is what the sheet read of the video, a fact after another: who put it on the site, how long it plays, how many videos its playlist holds and whether the uploader put subtitles on it, those of a site whose subtitles a film can take; that it is being read while it is; "" when nothing is known of it.
+func metaLine(cx *core.Scope, l Look, meta Meta) string {
+	if !meta.Known {
+		if meta.Reading {
+			return locales.AddSheetReading(cx)
+		}
+		return ""
+	}
+	var facts []string
+	if meta.Uploader != "" {
+		facts = append(facts, meta.Uploader)
+	}
+	if meta.Length > 0 {
+		facts = append(facts, clock(meta.Length))
+	}
+	if meta.Episodes > 0 {
+		facts = append(facts, locales.AddSheetEpisodesCount(cx, meta.Episodes))
+	}
+	if l.SiteSubtitles {
+		if meta.Subtitles {
+			facts = append(facts, locales.AddSheetHasSubtitles(cx))
+		} else {
+			facts = append(facts, locales.AddSheetNoSubtitles(cx))
+		}
+	}
+	return strings.Join(facts, " · ")
 }
 
 // clock is a time in a video as the player says it: 3:05, or 1:02:03 past an hour.

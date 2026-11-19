@@ -50,9 +50,13 @@ func WordTokens(line string) []WordToken {
 	return out
 }
 
-// tokenRune reports whether r is part of a word: a letter, a mark or a digit of a script written with spaces between words.
+// tokenRune reports whether r is part of a word: a letter, a mark or a digit of a script written with spaces between words. The marks written among Japanese kana and Han characters that are of no script of their own, the long vowel mark (ー, ｰ) and the closing mark (〆), are of those scripts here.
 func tokenRune(r rune) bool {
 	if !unicode.IsLetter(r) && !unicode.IsMark(r) && !unicode.IsDigit(r) {
+		return false
+	}
+	switch r {
+	case 'ー', 'ｰ', '〆':
 		return false
 	}
 	return !unicode.In(r, unicode.Han, unicode.Hiragana, unicode.Katakana, unicode.Thai, unicode.Lao, unicode.Khmer, unicode.Myanmar)

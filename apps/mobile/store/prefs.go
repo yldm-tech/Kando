@@ -20,8 +20,8 @@ type Prefs struct {
 	Subtitles     SubStyle `json:"subtitles,omitzero"`
 	Export        Export   `json:"export,omitzero"`
 	// Review is how the Learn tab reviews: "dictation", or "" for cards.
-	Review string `json:"review,omitempty"`
-	Visited       []Visit  `json:"visited,omitempty"`
+	Review  string  `json:"review,omitempty"`
+	Visited []Visit `json:"visited,omitempty"`
 }
 
 // Export is what the Learn tab's export writes, as its page last chose it: the format, one of study's Vocab formats ("" for Anki), and what it leaves out of what it writes by default: the line each word was looked up in, that line's translation, and the saved lines after the words.

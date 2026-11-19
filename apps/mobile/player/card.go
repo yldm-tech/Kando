@@ -4,7 +4,6 @@ import (
 	"kando/apps/mobile/locales"
 	"kando/apps/mobile/look"
 	"kando/apps/mobile/theme"
-	kcore "kando/packages/core"
 
 	"github.com/nsgo-dev/nsgo/base"
 	"github.com/nsgo-dev/nsgo/core"
@@ -42,7 +41,7 @@ func card(cx *core.Scope, p *play, w *words) core.Node {
 				return []core.Span{{Content: text}}
 			}
 			var spans []core.Span
-			for _, tok := range kcore.WordTokens(text) {
+			for _, tok := range p.tokens(text) {
 				sp := core.Span{Content: tok.Text}
 				if tok.Word {
 					word, line := tok.Text, i()

@@ -115,6 +115,9 @@ func (a *app) savedSync() {
 	if a.saved.book.Migrated() {
 		a.savedWrite()
 	}
+	if err == nil {
+		a.savedSweepSounds()
+	}
 }
 
 // savedLoad reads the saved lines of the library at dir (saved.Load), to be changed on this computer by the saved lines' clock (savedOwn).

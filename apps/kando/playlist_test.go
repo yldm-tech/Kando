@@ -257,3 +257,34 @@ func TestRemoteListsAPlaylist(t *testing.T) {
 		t.Errorf("a video %+v", l)
 	}
 }
+
+// A channel's dialog asks how many of its most recent videos to add now, the latest 3 at first: Add queues those of them the library does not have, in the channel's order; the latest 10 queues every one it holds, and none leaves only subscribing, which waits for the switch.
+func TestPlaylistChannelAddsItsLatest(t *testing.T) {
+	var videos []media.ListedVideo
+	for _, id := range []string{"aaaaaaaaaaa", "bbbbbbbbbbb", "ccccccccccc", "ddddddddddd", "eeeeeeeeeee"} {
+		videos = append(videos, media.ListedVideo{URL: "https://www.youtube.com/watch?v=" + id})
+	}
+	p := newListingPipeline(map[string]media.Listing{testChannel: {Title: "Veritasium", Videos: videos}})
+	a, tt, updates := newTestApp(t, p)
+	msgs := testlocale.Messages()
+	a.library.Jobs = []core.Job{{ID: "have", Source: "https://youtu.be/bbbbbbbbbbb", Stage: core.StageComplete, VideoPath: "/videos/Episode 2/video.mp4", LibraryDir: "/videos"}}
+	refresh(tt, a)
+	startJob(t, tt, testChannel)
+	<-p.calls
+	waitUntil(t, tt, a, updates, func() bool { return !a.playlist.loading })
+	if !tt.Exists("id:playlist-recent") || a.playlist.recent != playlist.RecentDefault || tt.Exists("id:playlist-series") {
+		t.Fatalf("recent %d, texts %q", a.playlist.recent, tt.Texts())
+	}
+	wantText(t, tt, msgs.PlaylistAdd(2))
+	apply(tt, a, func() { a.playlist.recent = 10 })
+	wantText(t, tt, msgs.PlaylistAdd(4))
+	apply(tt, a, func() { a.playlist.recent = 0 })
+	if !hasText(tt, msgs.PlaylistSubscribeOnly()) || !tt.Find("id:playlist-add").Props.Disabled {
+		t.Fatalf("none: %q", tt.Texts())
+	}
+	apply(tt, a, func() { a.playlist.recent = 3 })
+	tt.Press("id:playlist-add")
+	if got := playlistJobSources(a); !slices.Equal(got, []string{"https://youtu.be/bbbbbbbbbbb", "https://www.youtube.com/watch?v=aaaaaaaaaaa", "https://www.youtube.com/watch?v=ccccccccccc"}) {
+		t.Fatalf("jobs %q", got)
+	}
+}

@@ -202,7 +202,7 @@ func vocabTerm(terms []kcore.Term, words ...string) string {
 		}
 	}
 	for _, t := range terms {
-		for _, part := range lookup.Tokens(t.Source) {
+		for _, part := range lookup.Tokens(t.Source, nil) {
 			if part.Word && slices.Contains(keys, strings.ToLower(part.Text)) {
 				return pair(t)
 			}

@@ -1,4 +1,4 @@
-// Package lookup is the word lookup of the player's lines: it cuts a line into the words a click looks up (Tokens), writes what the AI service set in 「AI 服务」 is asked about a word and reads its answer (Prompt, Request, Parse), and keeps the answers on this computer (Cache), so a word looked up once shows again at once, also offline. Kando bundles no dictionary: the meaning is the AI service's. It knows nothing of the interface.
+// Package lookup is the word lookup of the player's lines: it cuts a line into the words a click looks up (Tokens), writes what the AI service set in 「AI 服务」 is asked about a word and reads its answer (Prompt, Request, Parse), and keeps the answers on this computer (Cache), so a word looked up once shows again at once, also offline. Kando bundles no dictionary of meanings: the meaning is the AI service's. It knows nothing of the interface.
 package lookup
 
 import (
@@ -7,13 +7,14 @@ import (
 	"strings"
 
 	"kando/packages/core"
+	"kando/packages/core/segment"
 )
 
 // Token is a run of a line: a word a click looks up, or what lies between words (core.WordToken).
 type Token = core.WordToken
 
-// Tokens cuts line into its words and what lies between them (core.WordTokens).
-func Tokens(line string) []Token { return core.WordTokens(line) }
+// Tokens cuts line into its words and what lies between them, its Japanese and Chinese by dictionary (segment.Words): while that dictionary is still being read in the background they are no words yet, and loaded, when not nil, is called on another goroutine once it is read.
+func Tokens(line string, loaded func()) []Token { return segment.Words(line, loaded) }
 
 // Entry is what the AI service said of a word: the word as a dictionary lists it, its reading and its meaning, in the language it was asked to answer in.
 type Entry struct {

@@ -190,6 +190,14 @@ addSheetDrmWhy:
 addSheetEpisodes:
   message: "What to add"
   description: "Add sheet: accessible name of the choice between the video alone and its whole playlist."
+addSheetEpisodesCount:
+  message: "{count, plural, one {# video in the playlist} other {# videos in the playlist}}"
+  description: "Add sheet: fact under the title, how many videos the playlist the link's video is in holds."
+  placeholders:
+    count: { type: "int", example: "24" }
+addSheetHasSubtitles:
+  message: "Has the uploader's subtitles"
+  description: "Add sheet: fact under the title, the uploader put subtitles on the video."
 addSheetKindInList:
   message: "Video in a playlist"
   description: "Add sheet: small line beside the site's name for a link to a video of a playlist."
@@ -202,6 +210,9 @@ addSheetLabel:
 addSheetListVideos:
   message: "List Videos"
   description: "Add sheet: primary button while the whole playlist is chosen; it lists the playlist's videos before they are added."
+addSheetNoSubtitles:
+  message: "No uploader's subtitles"
+  description: "Add sheet: fact under the title, the uploader put no subtitles on the video."
 addSheetOK:
   message: "OK"
   description: "Add sheet: the only button for a DRM-protected video, which closes it."
@@ -211,6 +222,12 @@ addSheetOnlyThis:
 addSheetQuality:
   message: "Download"
   description: "Add sheet: row title and pop-up name of the picture the download asks for."
+addSheetQualityBest480:
+  message: "Best (480p)"
+  description: "Add sheet: the best quality option for a bilibili video downloaded without a sign-in, which bilibili serves at 480p at best."
+addSheetReading:
+  message: "Reading the video's details…"
+  description: "Add sheet: line under the title while the video's page is read for its length and subtitles."
 addSheetResumeBrowser:
   message: "You were at {time} in the browser; once processed, the film continues from there."
   description: "Add sheet: note for a link the browser extension or the bookmarklet sent from a page that was playing the video."
@@ -221,6 +238,12 @@ addSheetResumeLink:
   description: "Add sheet: note for a pasted link that names where the video starts (t=)."
   placeholders:
     time: { type: "String", example: "1:24" }
+addSheetSeries:
+  message: "Treat as a series"
+  description: "Add sheet: switch under the whole playlist choice that has its films share a glossary as one series."
+addSheetSeriesHint:
+  message: "The episodes share a glossary: fix a name or term in one and the rest follow"
+  description: "Add sheet: line under the Treat as a series switch."
 addSheetSignIn:
   message: "Sign-in"
   description: "Add sheet: row title and pop-up name of the browser whose sign-in the download borrows."
@@ -238,6 +261,15 @@ addSheetSignInNone:
 addSheetSource:
   message: "Original lines from"
   description: "Add sheet: accessible name of the choice of where the film's original lines come from."
+addSheetSourceAuto:
+  message: "Site's automatic captions"
+  description: "Add sheet: radio that hears the film on this computer and keeps the captions the site made itself (YouTube's automatic captions) as a reference layer."
+addSheetSourceAutoBilibili:
+  message: "Bilibili AI subtitles"
+  description: "Add sheet: the automatic captions radio for a bilibili video, whose site calls them AI subtitles."
+addSheetSourceAutoHint:
+  message: "Machine-made, shown only as a reference layer; the original lines are still recognized on this computer"
+  description: "Add sheet: line under the automatic captions radio."
 addSheetSourceLocal:
   message: "Recognize on this computer"
   description: "Add sheet: radio that hears the speech with the speech recognition alone."
@@ -1618,6 +1650,12 @@ filmPresetOutline:
 filmPresetSample:
   message: "Aa"
   description: "Short sample text drawn on each preset card as the preset draws subtitles; keep it to two or three characters."
+filmReference:
+  message: "Site's captions (reference)"
+  description: "Subtitle menu row that shows or hides the film's reference layer, the captions its site made itself, above its lines."
+filmReferenceNote:
+  message: "Machine-made, shown above the lines"
+  description: "Line under the reference layer row of the subtitle menu."
 filmRemove:
   message: "Remove"
   description: "Player title bar button: removes this failed film from the library."
@@ -3621,6 +3659,26 @@ playlistHave:
 playlistReading:
   message: "Finding Videos…"
   description: "Title of the playlist dialog, and the name of its spinner, while Kando reads which videos a playlist or a channel holds."
+playlistRecent:
+  message: "Add now"
+  description: "Row of the playlist dialog for a channel: how many of its most recent videos are added now."
+playlistRecentHint:
+  message: "Videos already on the channel"
+  description: "Line under the Add now row of the playlist dialog."
+playlistRecentLatest:
+  message: "Latest {count}"
+  description: "Option of the Add now row: add the channel's count most recent videos."
+  placeholders:
+    count: { type: "int", example: "3" }
+playlistRecentNone:
+  message: "None"
+  description: "Option of the Add now row: add none of the channel's videos now."
+playlistSeries:
+  message: "Treat as a series"
+  description: "Switch of the playlist dialog that has the playlist's films share a glossary as one series."
+playlistSeriesHint:
+  message: "The episodes share a glossary: fix a name or term in one and the rest follow"
+  description: "Line under the Treat as a series switch of the playlist dialog."
 playlistSeveral:
   message: "{count, plural, one {# Playlist or Channel} other {# Playlists and Channels}}"
   description: "Title of the playlist dialog when several playlist or channel links were added at once."

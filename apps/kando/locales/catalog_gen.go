@@ -473,6 +473,7 @@ var Parameters = map[string][]string{
 	"AccountUploaded":                          {"key"},
 	"AccountUploadingPercent":                  {"percent"},
 	"AddSheetDrm":                              {"site"},
+	"AddSheetEpisodesCount":                    {"count"},
 	"AddSheetResumeBrowser":                    {"time_"},
 	"AddSheetResumeLink":                       {"time_"},
 	"AddSheetSignInBrowser":                    {"browser"},
@@ -728,6 +729,7 @@ var Parameters = map[string][]string{
 	"PlaylistChannelLimit":                     {"limit"},
 	"PlaylistFailed":                           {"error_"},
 	"PlaylistHave":                             {"count"},
+	"PlaylistRecentLatest":                     {"count"},
 	"PlaylistSeveral":                          {"count"},
 	"PlaylistSubscribe":                        {"kind"},
 	"PlaylistVideos":                           {"count"},
@@ -1004,6 +1006,7 @@ type Translation struct {
 	AccountUploaded                          func(key string) string
 	AccountUploadingPercent                  func(percent int) string
 	AddSheetDrm                              func(site string) string
+	AddSheetEpisodesCount                    func(count int) string
 	AddSheetResumeBrowser                    func(time_ string) string
 	AddSheetResumeLink                       func(time_ string) string
 	AddSheetSignInBrowser                    func(browser string) string
@@ -1259,6 +1262,7 @@ type Translation struct {
 	PlaylistChannelLimit                     func(limit int) string
 	PlaylistFailed                           func(error_ string) string
 	PlaylistHave                             func(count int) string
+	PlaylistRecentLatest                     func(count int) string
 	PlaylistSeveral                          func(count int) string
 	PlaylistSubscribe                        func(kind string) string
 	PlaylistVideos                           func(count int) string
@@ -1565,17 +1569,26 @@ const (
 	textAddSheetConfirmInKando
 	textAddSheetDrmWhy
 	textAddSheetEpisodes
+	textAddSheetHasSubtitles
 	textAddSheetKindInList
 	textAddSheetKindVideo
 	textAddSheetLabel
 	textAddSheetListVideos
+	textAddSheetNoSubtitles
 	textAddSheetOK
 	textAddSheetOnlyThis
 	textAddSheetQuality
+	textAddSheetQualityBest480
+	textAddSheetReading
+	textAddSheetSeries
+	textAddSheetSeriesHint
 	textAddSheetSignIn
 	textAddSheetSignInHint
 	textAddSheetSignInNone
 	textAddSheetSource
+	textAddSheetSourceAuto
+	textAddSheetSourceAutoBilibili
+	textAddSheetSourceAutoHint
 	textAddSheetSourceLocal
 	textAddSheetSourcePlatform
 	textAddSheetSourcePlatformHint
@@ -1888,6 +1901,8 @@ const (
 	textFilmPresetLarge
 	textFilmPresetOutline
 	textFilmPresetSample
+	textFilmReference
+	textFilmReferenceNote
 	textFilmRemove
 	textFilmReprocess
 	textFilmRetry
@@ -2258,6 +2273,11 @@ const (
 	textPlaylistCancel
 	textPlaylistEmpty
 	textPlaylistReading
+	textPlaylistRecent
+	textPlaylistRecentHint
+	textPlaylistRecentNone
+	textPlaylistSeries
+	textPlaylistSeriesHint
 	textPlaylistSubscribeHint
 	textPlaylistSubscribeOnly
 	textPlaylistTimedOut
@@ -3022,17 +3042,26 @@ var keyOfText = [numTexts]string{
 	"addSheetConfirmInKando",
 	"addSheetDrmWhy",
 	"addSheetEpisodes",
+	"addSheetHasSubtitles",
 	"addSheetKindInList",
 	"addSheetKindVideo",
 	"addSheetLabel",
 	"addSheetListVideos",
+	"addSheetNoSubtitles",
 	"addSheetOK",
 	"addSheetOnlyThis",
 	"addSheetQuality",
+	"addSheetQualityBest480",
+	"addSheetReading",
+	"addSheetSeries",
+	"addSheetSeriesHint",
 	"addSheetSignIn",
 	"addSheetSignInHint",
 	"addSheetSignInNone",
 	"addSheetSource",
+	"addSheetSourceAuto",
+	"addSheetSourceAutoBilibili",
+	"addSheetSourceAutoHint",
 	"addSheetSourceLocal",
 	"addSheetSourcePlatform",
 	"addSheetSourcePlatformHint",
@@ -3345,6 +3374,8 @@ var keyOfText = [numTexts]string{
 	"filmPresetLarge",
 	"filmPresetOutline",
 	"filmPresetSample",
+	"filmReference",
+	"filmReferenceNote",
 	"filmRemove",
 	"filmReprocess",
 	"filmRetry",
@@ -3715,6 +3746,11 @@ var keyOfText = [numTexts]string{
 	"playlistCancel",
 	"playlistEmpty",
 	"playlistReading",
+	"playlistRecent",
+	"playlistRecentHint",
+	"playlistRecentNone",
+	"playlistSeries",
+	"playlistSeriesHint",
 	"playlistSubscribeHint",
 	"playlistSubscribeOnly",
 	"playlistTimedOut",
@@ -4477,17 +4513,26 @@ var textsEn = i18n.NewTexts(""+
 	"Opened in Kando: confirm there to add it."+
 	"They are encrypted, and Kando does not get around that, so this one cannot be downloaded. If you have the video on disk, drop it into the window."+
 	"What to add"+
+	"Has the uploader's subtitles"+
 	"Video in a playlist"+
 	"Single video"+
 	"Add online video"+
 	"List Videos"+
+	"No uploader's subtitles"+
 	"OK"+
 	"Only this video"+
 	"Download"+
+	"Best (480p)"+
+	"Reading the video's details…"+
+	"Treat as a series"+
+	"The episodes share a glossary: fix a name or term in one and the rest follow"+
 	"Sign-in"+
 	"Members-only and higher-quality videos need a sign-in; passwords are never saved"+
 	"Not signed in"+
 	"Original lines from"+
+	"Site's automatic captions"+
+	"Bilibili AI subtitles"+
+	"Machine-made, shown only as a reference layer; the original lines are still recognized on this computer"+
 	"Recognize on this computer"+
 	"The uploader's subtitles"+
 	"Checked against the speech; lines that do not match are recognized on this computer"+
@@ -4800,6 +4845,8 @@ var textsEn = i18n.NewTexts(""+
 	"Large"+
 	"Outline"+
 	"Aa"+
+	"Site's captions (reference)"+
+	"Machine-made, shown above the lines"+
 	"Remove"+
 	"Process Entire Film Again"+
 	"Retry"+
@@ -5170,6 +5217,11 @@ var textsEn = i18n.NewTexts(""+
 	"Cancel"+
 	"No videos found."+
 	"Finding Videos…"+
+	"Add now"+
+	"Videos already on the channel"+
+	"None"+
+	"Treat as a series"+
+	"The episodes share a glossary: fix a name or term in one and the rest follow"+
 	"New videos are added as they come out; change the rules under Subscriptions in the sidebar"+
 	"Subscribe"+
 	"Reading the videos took too long. Try again later."+
@@ -5929,17 +5981,26 @@ var textsEn = i18n.NewTexts(""+
 		41,
 		145,
 		11,
+		28,
 		19,
 		12,
 		16,
 		11,
+		23,
 		2,
 		15,
 		8,
+		11,
+		30,
+		17,
+		76,
 		7,
 		80,
 		13,
 		19,
+		25,
+		21,
+		103,
 		26,
 		24,
 		83,
@@ -6252,6 +6313,8 @@ var textsEn = i18n.NewTexts(""+
 		5,
 		7,
 		2,
+		27,
+		35,
 		6,
 		25,
 		5,
@@ -6622,6 +6685,11 @@ var textsEn = i18n.NewTexts(""+
 		6,
 		16,
 		17,
+		7,
+		29,
+		4,
+		17,
+		76,
 		90,
 		9,
 		50,
@@ -7384,17 +7452,26 @@ var textsJa = i18n.NewTexts(""+
 	"Kando で開きました。確認すると追加されます。"+
 	"動画は暗号化されており、Kando はそれを回避しないためダウンロードできません。手元に動画ファイルがあれば、ウインドウにドロップしてください。"+
 	"追加する範囲"+
+	"投稿者の字幕あり"+
 	"再生リスト内の動画"+
 	"単体の動画"+
 	"オンライン動画を追加"+
 	"動画を一覧表示"+
+	"投稿者の字幕なし"+
 	"OK"+
 	"この動画だけ"+
 	"ダウンロード画質"+
+	"最高画質（480p）"+
+	"動画の情報を読み込んでいます…"+
+	"シリーズとして扱う"+
+	"各話で用語集を共有します。1 話で名前や用語を直すと、ほかの話にも反映されます"+
 	"ログイン"+
 	"メンバー限定や高画質の動画にはログインが必要です。パスワードは保存しません"+
 	"ログインしない"+
 	"原文の取得元"+
+	"サイトの自動字幕"+
+	"bilibili の AI 字幕"+
+	"機械生成のため参考レイヤーとしてのみ表示し、原文はこのコンピュータで認識します"+
 	"このコンピュータで認識"+
 	"投稿者の字幕"+
 	"音声と照合し、合わない行はこのコンピュータで認識します"+
@@ -7707,6 +7784,8 @@ var textsJa = i18n.NewTexts(""+
 	"大きな文字"+
 	"縁取り"+
 	"字幕"+
+	"サイトの自動字幕（参考）"+
+	"機械生成。字幕の上に表示"+
 	"取り除く"+
 	"動画全体を再処理"+
 	"再試行"+
@@ -8077,6 +8156,11 @@ var textsJa = i18n.NewTexts(""+
 	"キャンセル"+
 	"動画が見つかりませんでした。"+
 	"動画を探しています…"+
+	"今すぐ追加"+
+	"チャンネルにすでにある動画"+
+	"追加しない"+
+	"シリーズとして扱う"+
+	"各話で用語集を共有します。1 話で名前や用語を直すと、ほかの話にも反映されます"+
 	"今後の新しい動画は自動で追加されます。ルールはサイドバーの「購読」で変更できます"+
 	"購読"+
 	"動画の読み込みに時間がかかりすぎました。しばらくしてからもう一度お試しください。"+
@@ -8836,17 +8920,26 @@ var textsJa = i18n.NewTexts(""+
 		63,
 		204,
 		18,
+		24,
 		27,
 		15,
 		30,
 		21,
+		24,
 		2,
 		18,
 		24,
+		22,
+		45,
+		27,
+		113,
 		12,
 		111,
 		21,
 		18,
+		24,
+		22,
+		117,
 		33,
 		18,
 		81,
@@ -9159,6 +9252,8 @@ var textsJa = i18n.NewTexts(""+
 		15,
 		9,
 		6,
+		36,
+		36,
 		12,
 		24,
 		9,
@@ -9529,6 +9624,11 @@ var textsJa = i18n.NewTexts(""+
 		15,
 		42,
 		30,
+		15,
+		39,
+		15,
+		27,
+		113,
 		120,
 		6,
 		120,
@@ -10291,17 +10391,26 @@ var textsKo = i18n.NewTexts(""+
 	"Kando에서 열었습니다. 확인하면 추가됩니다."+
 	"동영상이 암호화되어 있고 Kando는 이를 우회하지 않으므로 다운로드할 수 없습니다. 동영상 파일이 있다면 창에 끌어다 놓으세요."+
 	"추가할 범위"+
+	"업로더 자막 있음"+
 	"재생목록의 동영상"+
 	"단일 동영상"+
 	"온라인 동영상 추가"+
 	"동영상 목록 보기"+
+	"업로더 자막 없음"+
 	"확인"+
 	"이 동영상만"+
 	"다운로드 화질"+
+	"최고 화질 (480p)"+
+	"동영상 정보를 읽는 중…"+
+	"시리즈로 처리"+
+	"에피소드끼리 용어집을 공유합니다. 한 편에서 이름이나 용어를 고치면 나머지도 따라 바뀝니다"+
 	"로그인"+
 	"멤버십 동영상과 고화질에는 로그인이 필요하며, 비밀번호는 저장하지 않습니다"+
 	"로그인 안 함"+
 	"원문 출처"+
+	"사이트 자동 자막"+
+	"bilibili AI 자막"+
+	"기계가 만든 자막이라 참고 레이어로만 표시하고, 원문은 이 컴퓨터에서 인식합니다"+
 	"이 컴퓨터에서 인식"+
 	"업로더의 자막"+
 	"음성과 대조하고, 맞지 않는 줄은 이 컴퓨터에서 인식합니다"+
@@ -10614,6 +10723,8 @@ var textsKo = i18n.NewTexts(""+
 	"큰 글자"+
 	"윤곽선"+
 	"자막"+
+	"사이트 자동 자막 (참고)"+
+	"기계 생성, 자막 위에 표시"+
 	"제거"+
 	"영상 전체 다시 처리"+
 	"다시 시도"+
@@ -10984,6 +11095,11 @@ var textsKo = i18n.NewTexts(""+
 	"취소"+
 	"동영상을 찾지 못했습니다."+
 	"동영상을 찾는 중…"+
+	"지금 추가"+
+	"채널에 이미 있는 동영상"+
+	"추가 안 함"+
+	"시리즈로 처리"+
+	"에피소드끼리 용어집을 공유합니다. 한 편에서 이름이나 용어를 고치면 나머지도 따라 바뀝니다"+
 	"앞으로 새 동영상이 자동으로 추가되며, 규칙은 사이드바의 ‘구독’에서 바꿀 수 있습니다"+
 	"구독"+
 	"동영상을 읽는 데 너무 오래 걸렸습니다. 나중에 다시 시도하세요."+
@@ -11743,17 +11859,26 @@ var textsKo = i18n.NewTexts(""+
 		58,
 		172,
 		16,
+		23,
 		25,
 		16,
 		26,
 		23,
+		23,
 		6,
 		16,
 		19,
+		20,
+		33,
+		19,
+		128,
 		9,
 		107,
 		17,
 		13,
+		23,
+		18,
+		112,
 		26,
 		19,
 		80,
@@ -12066,6 +12191,8 @@ var textsKo = i18n.NewTexts(""+
 		10,
 		9,
 		6,
+		32,
+		35,
 		6,
 		27,
 		13,
@@ -12436,6 +12563,11 @@ var textsKo = i18n.NewTexts(""+
 		6,
 		36,
 		26,
+		13,
+		33,
+		14,
+		19,
+		128,
 		122,
 		6,
 		88,
@@ -13198,17 +13330,26 @@ var textsZhHans = i18n.NewTexts(""+
 	"已在看懂中打开，确认后添加。"+
 	"视频已加密，看懂不会绕过加密，所以无法下载。如果你有这个视频的本地文件，把它拖进窗口即可。"+
 	"添加范围"+
+	"有上传者的字幕"+
 	"播放列表中的视频"+
 	"单个视频"+
 	"添加在线视频"+
 	"列出视频"+
+	"没有上传者的字幕"+
 	"好"+
 	"只添加这个视频"+
 	"下载画质"+
+	"最高画质（480p）"+
+	"正在读取视频信息…"+
+	"作为剧集处理"+
+	"各集共用术语表：在一集里改好人名或术语，其余各集跟着改"+
 	"登录"+
 	"会员视频和更高画质需要登录；不会保存密码"+
 	"不登录"+
 	"原文来自"+
+	"平台自动字幕"+
+	"B 站 AI 字幕"+
+	"机器生成，只作为参考层显示；原文仍在这台电脑上识别"+
 	"在这台电脑上识别"+
 	"上传者的字幕"+
 	"先和语音核对，对不上的句子在这台电脑上识别"+
@@ -13521,6 +13662,8 @@ var textsZhHans = i18n.NewTexts(""+
 	"大字"+
 	"描边"+
 	"字幕"+
+	"平台自动字幕（参考）"+
+	"机器生成，显示在字幕上方"+
 	"移除"+
 	"重新处理整部影片"+
 	"重试"+
@@ -13891,6 +14034,11 @@ var textsZhHans = i18n.NewTexts(""+
 	"取消"+
 	"没有找到视频。"+
 	"正在查找视频…"+
+	"现在添加"+
+	"频道里已有的视频"+
+	"不添加"+
+	"作为剧集处理"+
+	"各集共用术语表：在一集里改好人名或术语，其余各集跟着改"+
 	"以后的新视频会自动加入队列，可在侧栏「订阅」里修改规则"+
 	"订阅"+
 	"读取视频用时太久，请稍后再试。"+
@@ -14650,17 +14798,26 @@ var textsZhHans = i18n.NewTexts(""+
 		42,
 		135,
 		12,
+		21,
 		24,
 		12,
 		18,
 		12,
+		24,
 		3,
 		21,
 		12,
+		22,
+		27,
+		18,
+		81,
 		6,
 		60,
 		9,
 		12,
+		18,
+		15,
+		75,
 		24,
 		18,
 		63,
@@ -14973,6 +15130,8 @@ var textsZhHans = i18n.NewTexts(""+
 		6,
 		6,
 		6,
+		30,
+		36,
 		6,
 		24,
 		6,
@@ -15343,6 +15502,11 @@ var textsZhHans = i18n.NewTexts(""+
 		6,
 		21,
 		21,
+		12,
+		24,
+		9,
+		18,
+		81,
 		81,
 		6,
 		45,
@@ -16105,17 +16269,26 @@ var textsZhHant = i18n.NewTexts(""+
 	"已在看懂中開啟，確認後加入。"+
 	"影片已加密，看懂不會繞過加密，所以無法下載。如果你有這部影片的本機檔案，把它拖進視窗即可。"+
 	"加入範圍"+
+	"有上傳者的字幕"+
 	"播放清單中的影片"+
 	"單一影片"+
 	"加入線上影片"+
 	"列出影片"+
+	"沒有上傳者的字幕"+
 	"好"+
 	"只加入這部影片"+
 	"下載畫質"+
+	"最高畫質（480p）"+
+	"正在讀取影片資訊…"+
+	"作為劇集處理"+
+	"各集共用術語表：在一集裡改好人名或術語，其餘各集跟著改"+
 	"登入"+
 	"會員影片和更高畫質需要登入；不會儲存密碼"+
 	"不登入"+
 	"原文來自"+
+	"平台自動字幕"+
+	"B 站 AI 字幕"+
+	"機器產生，只作為參考層顯示；原文仍在這台電腦上辨識"+
 	"在這台電腦上辨識"+
 	"上傳者的字幕"+
 	"先和語音核對，對不上的句子在這台電腦上辨識"+
@@ -16428,6 +16601,8 @@ var textsZhHant = i18n.NewTexts(""+
 	"大字"+
 	"描邊"+
 	"字幕"+
+	"平台自動字幕（參考）"+
+	"機器產生，顯示在字幕上方"+
 	"移除"+
 	"重新處理整部影片"+
 	"重試"+
@@ -16798,6 +16973,11 @@ var textsZhHant = i18n.NewTexts(""+
 	"取消"+
 	"找不到影片。"+
 	"正在尋找影片…"+
+	"現在加入"+
+	"頻道裡已有的影片"+
+	"不加入"+
+	"作為劇集處理"+
+	"各集共用術語表：在一集裡改好人名或術語，其餘各集跟著改"+
 	"之後的新影片會自動加入佇列，可在側欄「訂閱」裡修改規則"+
 	"訂閱"+
 	"讀取影片花太久時間，請稍後再試。"+
@@ -17557,17 +17737,26 @@ var textsZhHant = i18n.NewTexts(""+
 		42,
 		135,
 		12,
+		21,
 		24,
 		12,
 		18,
 		12,
+		24,
 		3,
 		21,
 		12,
+		22,
+		27,
+		18,
+		81,
 		6,
 		60,
 		9,
 		12,
+		18,
+		15,
+		75,
 		24,
 		18,
 		63,
@@ -17880,6 +18069,8 @@ var textsZhHant = i18n.NewTexts(""+
 		6,
 		6,
 		6,
+		30,
+		36,
 		6,
 		24,
 		6,
@@ -18250,6 +18441,11 @@ var textsZhHant = i18n.NewTexts(""+
 		6,
 		18,
 		21,
+		12,
+		24,
+		9,
+		18,
+		81,
 		81,
 		6,
 		48,
@@ -19062,6 +19258,9 @@ func Supply(lang string, t Translation) {
 	if t.AddSheetDrm != nil {
 		s.AddSheetDrm = t.AddSheetDrm
 	}
+	if t.AddSheetEpisodesCount != nil {
+		s.AddSheetEpisodesCount = t.AddSheetEpisodesCount
+	}
 	if t.AddSheetResumeBrowser != nil {
 		s.AddSheetResumeBrowser = t.AddSheetResumeBrowser
 	}
@@ -19826,6 +20025,9 @@ func Supply(lang string, t Translation) {
 	}
 	if t.PlaylistHave != nil {
 		s.PlaylistHave = t.PlaylistHave
+	}
+	if t.PlaylistRecentLatest != nil {
+		s.PlaylistRecentLatest = t.PlaylistRecentLatest
 	}
 	if t.PlaylistSeveral != nil {
 		s.PlaylistSeveral = t.PlaylistSeveral
@@ -21384,6 +21586,56 @@ func AddSheetEpisodes(cx *core.Scope) string { return For(cx).AddSheetEpisodes()
 // AddSheetEpisodes is the package's AddSheetEpisodes in the language of msgs.
 func (msgs Messages) AddSheetEpisodes() string { return msgs.text(textAddSheetEpisodes) }
 
+// AddSheetEpisodesCount says "{count, plural, one {# video in the playlist} other {# videos in the playlist}}"
+// in the language the app shows under cx.
+//
+// Add sheet: fact under the title, how many videos the playlist the link's video is in holds.
+func AddSheetEpisodesCount(cx *core.Scope, count int) string {
+	return For(cx).AddSheetEpisodesCount(count)
+}
+
+// AddSheetEpisodesCount is the package's AddSheetEpisodesCount in the language of msgs.
+func (msgs Messages) AddSheetEpisodesCount(count int) string {
+	if i18n.IsPseudo(msgs.lang) {
+		return i18n.Pseudo(msgs.lang, Messages{lang: Source, mark: true}.AddSheetEpisodesCount(count))
+	}
+	for lang := msgs.lang; ; lang = i18n.Parent(lang) {
+		if f := supplied[lang].AddSheetEpisodesCount; f != nil {
+			return f(count)
+		}
+		switch lang {
+		case "", "en":
+			var b strings.Builder
+			switch i18n.Cardinal("en", float64(count)) {
+			case i18n.One:
+				b.WriteString(msgs.arg(i18n.FormatNumber("en", float64(count))))
+				b.WriteString(" video in the playlist")
+			default:
+				b.WriteString(msgs.arg(i18n.FormatNumber("en", float64(count))))
+				b.WriteString(" videos in the playlist")
+			}
+			return b.String()
+		case "ja":
+			return "再生リストに " + i18n.FormatNumber("ja", float64(count)) + " 本"
+		case "ko":
+			return "재생목록에 동영상 " + i18n.FormatNumber("ko", float64(count)) + "개"
+		case "zh-Hans":
+			return "播放列表共 " + i18n.FormatNumber("zh-Hans", float64(count)) + " 个视频"
+		case "zh-Hant":
+			return "播放清單共 " + i18n.FormatNumber("zh-Hant", float64(count)) + " 個影片"
+		}
+	}
+}
+
+// AddSheetHasSubtitles says "Has the uploader's subtitles"
+// in the language the app shows under cx.
+//
+// Add sheet: fact under the title, the uploader put subtitles on the video.
+func AddSheetHasSubtitles(cx *core.Scope) string { return For(cx).AddSheetHasSubtitles() }
+
+// AddSheetHasSubtitles is the package's AddSheetHasSubtitles in the language of msgs.
+func (msgs Messages) AddSheetHasSubtitles() string { return msgs.text(textAddSheetHasSubtitles) }
+
 // AddSheetKindInList says "Video in a playlist"
 // in the language the app shows under cx.
 //
@@ -21420,6 +21672,15 @@ func AddSheetListVideos(cx *core.Scope) string { return For(cx).AddSheetListVide
 // AddSheetListVideos is the package's AddSheetListVideos in the language of msgs.
 func (msgs Messages) AddSheetListVideos() string { return msgs.text(textAddSheetListVideos) }
 
+// AddSheetNoSubtitles says "No uploader's subtitles"
+// in the language the app shows under cx.
+//
+// Add sheet: fact under the title, the uploader put no subtitles on the video.
+func AddSheetNoSubtitles(cx *core.Scope) string { return For(cx).AddSheetNoSubtitles() }
+
+// AddSheetNoSubtitles is the package's AddSheetNoSubtitles in the language of msgs.
+func (msgs Messages) AddSheetNoSubtitles() string { return msgs.text(textAddSheetNoSubtitles) }
+
 // AddSheetOK says "OK"
 // in the language the app shows under cx.
 //
@@ -21446,6 +21707,24 @@ func AddSheetQuality(cx *core.Scope) string { return For(cx).AddSheetQuality() }
 
 // AddSheetQuality is the package's AddSheetQuality in the language of msgs.
 func (msgs Messages) AddSheetQuality() string { return msgs.text(textAddSheetQuality) }
+
+// AddSheetQualityBest480 says "Best (480p)"
+// in the language the app shows under cx.
+//
+// Add sheet: the best quality option for a bilibili video downloaded without a sign-in, which bilibili serves at 480p at best.
+func AddSheetQualityBest480(cx *core.Scope) string { return For(cx).AddSheetQualityBest480() }
+
+// AddSheetQualityBest480 is the package's AddSheetQualityBest480 in the language of msgs.
+func (msgs Messages) AddSheetQualityBest480() string { return msgs.text(textAddSheetQualityBest480) }
+
+// AddSheetReading says "Reading the video's details…"
+// in the language the app shows under cx.
+//
+// Add sheet: line under the title while the video's page is read for its length and subtitles.
+func AddSheetReading(cx *core.Scope) string { return For(cx).AddSheetReading() }
+
+// AddSheetReading is the package's AddSheetReading in the language of msgs.
+func (msgs Messages) AddSheetReading() string { return msgs.text(textAddSheetReading) }
 
 // AddSheetResumeBrowser says "You were at {time} in the browser; once processed, the film continues from there."
 // in the language the app shows under cx.
@@ -21510,6 +21789,24 @@ func (msgs Messages) AddSheetResumeLink(time_ string) string {
 		}
 	}
 }
+
+// AddSheetSeries says "Treat as a series"
+// in the language the app shows under cx.
+//
+// Add sheet: switch under the whole playlist choice that has its films share a glossary as one series.
+func AddSheetSeries(cx *core.Scope) string { return For(cx).AddSheetSeries() }
+
+// AddSheetSeries is the package's AddSheetSeries in the language of msgs.
+func (msgs Messages) AddSheetSeries() string { return msgs.text(textAddSheetSeries) }
+
+// AddSheetSeriesHint says "The episodes share a glossary: fix a name or term in one and the rest follow"
+// in the language the app shows under cx.
+//
+// Add sheet: line under the Treat as a series switch.
+func AddSheetSeriesHint(cx *core.Scope) string { return For(cx).AddSheetSeriesHint() }
+
+// AddSheetSeriesHint is the package's AddSheetSeriesHint in the language of msgs.
+func (msgs Messages) AddSheetSeriesHint() string { return msgs.text(textAddSheetSeriesHint) }
 
 // AddSheetSignIn says "Sign-in"
 // in the language the app shows under cx.
@@ -21578,6 +21875,35 @@ func AddSheetSource(cx *core.Scope) string { return For(cx).AddSheetSource() }
 
 // AddSheetSource is the package's AddSheetSource in the language of msgs.
 func (msgs Messages) AddSheetSource() string { return msgs.text(textAddSheetSource) }
+
+// AddSheetSourceAuto says "Site's automatic captions"
+// in the language the app shows under cx.
+//
+// Add sheet: radio that hears the film on this computer and keeps the captions the site made itself (YouTube's automatic captions) as a reference layer.
+func AddSheetSourceAuto(cx *core.Scope) string { return For(cx).AddSheetSourceAuto() }
+
+// AddSheetSourceAuto is the package's AddSheetSourceAuto in the language of msgs.
+func (msgs Messages) AddSheetSourceAuto() string { return msgs.text(textAddSheetSourceAuto) }
+
+// AddSheetSourceAutoBilibili says "Bilibili AI subtitles"
+// in the language the app shows under cx.
+//
+// Add sheet: the automatic captions radio for a bilibili video, whose site calls them AI subtitles.
+func AddSheetSourceAutoBilibili(cx *core.Scope) string { return For(cx).AddSheetSourceAutoBilibili() }
+
+// AddSheetSourceAutoBilibili is the package's AddSheetSourceAutoBilibili in the language of msgs.
+func (msgs Messages) AddSheetSourceAutoBilibili() string {
+	return msgs.text(textAddSheetSourceAutoBilibili)
+}
+
+// AddSheetSourceAutoHint says "Machine-made, shown only as a reference layer; the original lines are still recognized on this computer"
+// in the language the app shows under cx.
+//
+// Add sheet: line under the automatic captions radio.
+func AddSheetSourceAutoHint(cx *core.Scope) string { return For(cx).AddSheetSourceAutoHint() }
+
+// AddSheetSourceAutoHint is the package's AddSheetSourceAutoHint in the language of msgs.
+func (msgs Messages) AddSheetSourceAutoHint() string { return msgs.text(textAddSheetSourceAutoHint) }
 
 // AddSheetSourceLocal says "Recognize on this computer"
 // in the language the app shows under cx.
@@ -27301,6 +27627,24 @@ func FilmPresetSample(cx *core.Scope) string { return For(cx).FilmPresetSample()
 
 // FilmPresetSample is the package's FilmPresetSample in the language of msgs.
 func (msgs Messages) FilmPresetSample() string { return msgs.text(textFilmPresetSample) }
+
+// FilmReference says "Site's captions (reference)"
+// in the language the app shows under cx.
+//
+// Subtitle menu row that shows or hides the film's reference layer, the captions its site made itself, above its lines.
+func FilmReference(cx *core.Scope) string { return For(cx).FilmReference() }
+
+// FilmReference is the package's FilmReference in the language of msgs.
+func (msgs Messages) FilmReference() string { return msgs.text(textFilmReference) }
+
+// FilmReferenceNote says "Machine-made, shown above the lines"
+// in the language the app shows under cx.
+//
+// Line under the reference layer row of the subtitle menu.
+func FilmReferenceNote(cx *core.Scope) string { return For(cx).FilmReferenceNote() }
+
+// FilmReferenceNote is the package's FilmReferenceNote in the language of msgs.
+func (msgs Messages) FilmReferenceNote() string { return msgs.text(textFilmReferenceNote) }
 
 // FilmRemove says "Remove"
 // in the language the app shows under cx.
@@ -36702,6 +37046,83 @@ func PlaylistReading(cx *core.Scope) string { return For(cx).PlaylistReading() }
 
 // PlaylistReading is the package's PlaylistReading in the language of msgs.
 func (msgs Messages) PlaylistReading() string { return msgs.text(textPlaylistReading) }
+
+// PlaylistRecent says "Add now"
+// in the language the app shows under cx.
+//
+// Row of the playlist dialog for a channel: how many of its most recent videos are added now.
+func PlaylistRecent(cx *core.Scope) string { return For(cx).PlaylistRecent() }
+
+// PlaylistRecent is the package's PlaylistRecent in the language of msgs.
+func (msgs Messages) PlaylistRecent() string { return msgs.text(textPlaylistRecent) }
+
+// PlaylistRecentHint says "Videos already on the channel"
+// in the language the app shows under cx.
+//
+// Line under the Add now row of the playlist dialog.
+func PlaylistRecentHint(cx *core.Scope) string { return For(cx).PlaylistRecentHint() }
+
+// PlaylistRecentHint is the package's PlaylistRecentHint in the language of msgs.
+func (msgs Messages) PlaylistRecentHint() string { return msgs.text(textPlaylistRecentHint) }
+
+// PlaylistRecentLatest says "Latest {count}"
+// in the language the app shows under cx.
+//
+// Option of the Add now row: add the channel's count most recent videos.
+func PlaylistRecentLatest(cx *core.Scope, count int) string {
+	return For(cx).PlaylistRecentLatest(count)
+}
+
+// PlaylistRecentLatest is the package's PlaylistRecentLatest in the language of msgs.
+func (msgs Messages) PlaylistRecentLatest(count int) string {
+	if i18n.IsPseudo(msgs.lang) {
+		return i18n.Pseudo(msgs.lang, Messages{lang: Source, mark: true}.PlaylistRecentLatest(count))
+	}
+	for lang := msgs.lang; ; lang = i18n.Parent(lang) {
+		if f := supplied[lang].PlaylistRecentLatest; f != nil {
+			return f(count)
+		}
+		switch lang {
+		case "", "en":
+			return "Latest " + msgs.arg(i18n.FormatNumber("en", float64(count)))
+		case "ja":
+			return "最新 " + i18n.FormatNumber("ja", float64(count)) + " 本"
+		case "ko":
+			return "최신 " + i18n.FormatNumber("ko", float64(count)) + "개"
+		case "zh-Hans":
+			return "最新 " + i18n.FormatNumber("zh-Hans", float64(count)) + " 个"
+		case "zh-Hant":
+			return "最新 " + i18n.FormatNumber("zh-Hant", float64(count)) + " 個"
+		}
+	}
+}
+
+// PlaylistRecentNone says "None"
+// in the language the app shows under cx.
+//
+// Option of the Add now row: add none of the channel's videos now.
+func PlaylistRecentNone(cx *core.Scope) string { return For(cx).PlaylistRecentNone() }
+
+// PlaylistRecentNone is the package's PlaylistRecentNone in the language of msgs.
+func (msgs Messages) PlaylistRecentNone() string { return msgs.text(textPlaylistRecentNone) }
+
+// PlaylistSeries says "Treat as a series"
+// in the language the app shows under cx.
+//
+// Switch of the playlist dialog that has the playlist's films share a glossary as one series.
+func PlaylistSeries(cx *core.Scope) string { return For(cx).PlaylistSeries() }
+
+// PlaylistSeries is the package's PlaylistSeries in the language of msgs.
+func (msgs Messages) PlaylistSeries() string { return msgs.text(textPlaylistSeries) }
+
+// PlaylistSeriesHint says "The episodes share a glossary: fix a name or term in one and the rest follow"
+// in the language the app shows under cx.
+//
+// Line under the Treat as a series switch of the playlist dialog.
+func PlaylistSeriesHint(cx *core.Scope) string { return For(cx).PlaylistSeriesHint() }
+
+// PlaylistSeriesHint is the package's PlaylistSeriesHint in the language of msgs.
+func (msgs Messages) PlaylistSeriesHint() string { return msgs.text(textPlaylistSeriesHint) }
 
 // PlaylistSeveral says "{count, plural, one {# Playlist or Channel} other {# Playlists and Channels}}"
 // in the language the app shows under cx.

@@ -1538,6 +1538,8 @@ func TestDownloadingKandosYTDLPRunsTheOutdatedDownloadsAgain(t *testing.T) {
 	saved := media.OwnToolsDir
 	media.OwnToolsDir = own
 	t.Cleanup(func() { media.OwnToolsDir = saved })
+	// An update of Kando's own yt-dlp runs on a goroutine of its own and writes its version beside it (recordingYTDLP); one still running as the test ends, as the update when the tools changed can be on a loaded runner, would write into own while it is removed, so the test waits it out first. Registered after own, this runs before own is removed.
+	t.Cleanup(func() { queueUntilState(t, updates, func() bool { return !a.queue.ytdlp.updating }) })
 	args := filepath.Join(t.TempDir(), "args")
 	downloaded := recordingYTDLP(t, args, "2026.11.03")
 	a.kits.install = func(ctx context.Context, kit media.Kit, dir string, progress func(written, total int64)) (string, error) {

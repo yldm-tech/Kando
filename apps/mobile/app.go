@@ -187,8 +187,8 @@ func App(cx *core.Scope, cfg session.Config) core.Node {
 							n.Push(route{page: conflictsPage})
 						},
 						Introduction: func() { outer.Push(route{page: introductionPage}) },
-						Shortcuts: func() { n.Push(route{page: shortcutsPage}) },
-						Widgets:   func() { n.Push(route{page: widgetsPage}) },
+						Shortcuts:    func() { n.Push(route{page: shortcutsPage}) },
+						Widgets:      func() { n.Push(route{page: widgetsPage}) },
 						Computer: func(id string) {
 							n.Push(route{page: computerPage, desktop: id})
 							s.SyncLearning()

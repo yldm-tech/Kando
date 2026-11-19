@@ -316,7 +316,7 @@ func AddWord(id, film, title, spoken, word string, e sync.WordEntry, c Cue, now 
 		sync.FieldWord: field(text), sync.FieldSpoken: field(spoken),
 		sync.FieldReading: field(strings.TrimSpace(e.Reading)), sync.FieldMeaning: field(strings.TrimSpace(e.Meaning)), sync.FieldLanguage: field(e.Language),
 		sync.FieldContext: field(c.Original), sync.FieldContextTranslation: field(c.Translation),
-		sync.FieldTitle: field(title), sync.FieldStartMS: field(c.Start.Milliseconds()),
+		sync.FieldTitle: field(title), sync.FieldStartMS: field(c.Start.Milliseconds()), sync.FieldEndMS: field(c.End.Milliseconds()),
 		sync.FieldSavedAt: field(now), sync.FieldReview: field(sync.Review{Due: now}),
 	}}
 }

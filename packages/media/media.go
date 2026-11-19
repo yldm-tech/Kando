@@ -60,6 +60,8 @@ type Pipeline interface {
 //
 // A link's job whose SubtitleSource is core.SubtitlesPlatform, on a pipeline that is a PlatformSubtitler, fetches the subtitles the uploader put on the site in the language the speech was heard in once the speech it heard is kept and proofread, and takes them as the film's original lines where they match the speech (matchPlatform): where they do not, and where they have none, the lines are the ones heard, proofread. job.PlatformSubtitles and job.LocalLines say so, and the transcript kept beside the video holds those lines, so a job run again reads them back; one stopped while it fetches them keeps the speech it heard and fetches them again. The uploader's lines are not proofread. A job's Quality is the picture its download asks for (Tools.Download).
 //
+// A link's job whose SubtitleSource is core.SubtitlesAuto, on a pipeline that is an AutoCaptioner, hears the film alone and fetches the captions the site made itself in the language heard, YouTube's automatic captions or bilibili's AI subtitles, which it keeps beside the video as the film's reference layer (ReferencePath); a site without them leaves the film without one.
+//
 // A link's download that finds chapters the site marks in the video, the timestamps of a YouTube video's description or a bilibili video's 视频看点 (core.Chapter), keeps them beside the video (ChaptersPath), and each job that translates the film translates their titles into the language of its subtitles, after its lines and apart from them: a failure leaves them as the site wrote them, and the job goes on.
 //
 // The translation keeps each batch it has done in a hidden file beside the video (withCheckpoint) until the job exports, so a job whose translation stopped partway, cancelled, quit or failed, does not pay for those batches again when it runs again with the same lines and language.
@@ -312,6 +314,10 @@ func Run(ctx context.Context, p Pipeline, job core.Job, language string, report 
 			case job.Redo == core.RedoAll && saved:
 				savePendingHeard(job.VideoPath, pendingHeard{Model: model, Language: hearLanguage, Spoken: heard, Proofread: proofread, Platform: true, Local: n})
 			}
+		}
+		// The captions the site made itself, in the language heard, are kept beside the video as the film's reference layer (core.SubtitlesAuto); its lines stay those heard. A job stopped while it fetches them stops, and one run again fetches them again.
+		if err := keepReference(ctx, p, job, spokenNow); err != nil {
+			return fail("translate", err)
 		}
 	}
 	// A film heard in the language its subtitles are for is not translated: its subtitles are its own lines (core.SameLanguage). A RedoAll decides by what it heard; any other job by what the film was heard in when it was transcribed.

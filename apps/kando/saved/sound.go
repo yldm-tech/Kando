@@ -66,6 +66,56 @@ func MoveSound(from Book, id string, to Book, next string) error {
 	return os.Remove(src)
 }
 
+// DropGoneSounds takes away the sounds kept of the lines and words of before that after, the same library's study record later, has no more, as a merge with another device's removals takes them out (study.Book.Merge, MergeWords): the sound of a line or word follows its record, not its film's video, so the review and the export still have it after the video is gone.
+func DropGoneSounds(before, after Book) {
+	for _, l := range before.Lines {
+		if after.Index(l.ID) < 0 {
+			removeSound(StoredSound(after, l.ID))
+		}
+	}
+	for _, w := range before.Words {
+		if after.WordByID(w.ID) < 0 {
+			removeSound(StoredSound(after, w.ID))
+		}
+	}
+}
+
+// SweepSounds takes away the sounds kept in b's library (SoundDir) that no line or word of b has any more, and what cuts stopped halfway left beside them, as when a film's lines were taken out while Kando was not running or by a version that left their sounds behind. A sound of an id cutting reports is being cut now stays, with its half. It does nothing for a book whose study record could not be read, as it does not know its lines then, and it returns how many files it took away.
+func SweepSounds(b Book, cutting func(id string) bool) int {
+	if b.Dir() == "" || b.Unread() != nil {
+		return 0
+	}
+	entries, err := os.ReadDir(filepath.Join(b.Dir(), SoundDir))
+	if err != nil {
+		return 0
+	}
+	n := 0
+	for _, e := range entries {
+		name := e.Name()
+		if e.IsDir() || !strings.HasSuffix(name, ".m4a") {
+			continue
+		}
+		id, half := strings.CutSuffix(strings.TrimSuffix(name, ".m4a"), ".cutting")
+		if cutting != nil && cutting(id) {
+			continue
+		}
+		if !half && (b.Index(id) >= 0 || b.WordByID(id) >= 0) {
+			continue
+		}
+		if os.Remove(filepath.Join(b.Dir(), SoundDir, name)) == nil {
+			n++
+		}
+	}
+	return n
+}
+
+// removeSound takes away the sound kept at path, "" for none.
+func removeSound(path string) {
+	if path != "" {
+		_ = os.Remove(path)
+	}
+}
+
 // copySound copies the sound kept at from to to.
 func copySound(from, to string) error {
 	in, err := os.Open(from)

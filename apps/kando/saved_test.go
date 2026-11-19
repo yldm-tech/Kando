@@ -353,6 +353,41 @@ func TestSavedLineKeepsItsSound(t *testing.T) {
 	}
 }
 
+// TestKeptSoundsFollowTheLinesNotTheFilm saves a line, whose sound is kept, and deletes its film: the line stays in the study record and its sound with it, which the review plays without the video. A sound no line or word has, as one an older Kando left behind, goes when the library is read again, and the line's stays.
+func TestKeptSoundsFollowTheLinesNotTheFilm(t *testing.T) {
+	tools := media.Tools{FFmpeg: fakeTool(t, filepath.Join(t.TempDir(), "bin"), "ffmpeg")}
+	a, tt, updates, item := playerFilm(t, 12, tools)
+	playerOpenFilm(t, a, tt, updates, item)
+	playerLoadFilm(tt, a, 12*time.Second)
+	playerPlayTo(tt, a, 1500*time.Millisecond)
+	tt.Key("b")
+	waitUntil(t, tt, a, updates, func() bool { return len(a.saved.keeping) == 0 })
+	kept := saved.StoredSound(a.saved.book, a.saved.book.Lines[0].ID)
+	orphan := saved.StoredSound(a.saved.book, "0ddba11")
+	if err := os.WriteFile(orphan, []byte("left behind\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	fakeTrash(t)
+	apply(tt, a, func() { a.TrashFilm(item) })
+	if _, err := os.Stat(item.VideoPath); !os.IsNotExist(err) || len(a.saved.book.Lines) != 1 || !saved.HasSound(kept) {
+		t.Fatalf("the film deleted: video %v, %d lines saved, sound kept %v", err, len(a.saved.book.Lines), saved.HasSound(kept))
+	}
+	tt.Key("n")
+	if card := a.ReviewCard(); card.Clip != kept || !card.Playing {
+		t.Fatalf("the review of the line of a deleted film: %+v", card)
+	}
+	tt.Key("escape")
+
+	// The library is read again, as when Kando starts.
+	apply(tt, a, func() {
+		a.saved.book = saved.Book{}
+		a.savedSync()
+	})
+	if saved.HasSound(orphan) || !saved.HasSound(kept) {
+		t.Fatalf("read again: the sound no line has is there %v, the line's %v", saved.HasSound(orphan), saved.HasSound(kept))
+	}
+}
+
 // TestSavedLineTakenOutWhileItsSoundIsCut saves a line and takes it out again at once, while its sound is still being cut: once the cut ends no sound of it is left in the library.
 func TestSavedLineTakenOutWhileItsSoundIsCut(t *testing.T) {
 	tools := media.Tools{FFmpeg: fakeTool(t, filepath.Join(t.TempDir(), "bin"), "ffmpeg")}

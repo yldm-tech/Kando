@@ -64,10 +64,11 @@ func NudgeLift(lift float32, dir int, room SubRoom) float32 {
 	return next
 }
 
-// subtitles draws the playing cue over the picture, centered above the transport, its lines as the mode picks them, or both for the cue the app peeks at (Peek), whatever the mode. While the controls show and the look yields to them, the lines move up out of their way; with the side panel open they keep to the room it leaves. The pointer drags the lines up and down, off a film's own burned-in subtitles, to a place the film keeps (SubLift), and a double click puts dragged lines back; on lines in their place it enters or leaves full screen, as on the picture, and a click starts or holds the film. The once-only tip that says so (SubTip) shows over them, and alone where they go between two lines. The lines are built again only when the playing cue or how it is drawn changes, as the clock moves on (tick).
+// subtitles draws the playing cue over the picture, centered above the transport, its lines as the mode picks them, or both for the cue the app peeks at (Peek), whatever the mode, and above them the line of the film's reference layer playing, while it shows (Referencer). While the controls show and the look yields to them, the lines move up out of their way; with the side panel open they keep to the room it leaves. The pointer drags the lines up and down, off a film's own burned-in subtitles, to a place the film keeps (SubLift), and a double click puts dragged lines back; on lines in their place it enters or leaves full screen, as on the picture, and a click starts or holds the film. The once-only tip that says so (SubTip) shows over them, and alone where they go between two lines. The lines are built again only when the playing cue or how it is drawn changes, as the clock moves on (tick).
 func (s *screen) subtitles() core.Node {
 	a, cx := s.a, s.cx
 	cues := filmCues(cx, a)
+	reference := core.NewMemoFunc(cx, live.Func(a, a.Reference), sameCues).Get
 	lines := core.NewMemoFunc(cx, func() []styledLine {
 		a.Track()
 		if a.Play() == nil {
@@ -75,15 +76,23 @@ func (s *screen) subtitles() core.Node {
 		}
 		list := cues()
 		i := s.playingCue(list)
+		var out []styledLine
 		switch {
 		case i < 0:
-			return nil
 		case i == a.Peek():
-			return ofCue(styledLines(bothLines{a}, list[i].Text), i)
+			out = ofCue(styledLines(bothLines{a}, list[i].Text), i)
 		case a.SubMode() == SubOff:
 			return nil
+		default:
+			out = ofCue(pictureLines(s.lineSettings(), list[i].Text), i)
 		}
-		return ofCue(pictureLines(s.lineSettings(), list[i].Text), i)
+		// The reference layer's line, while it shows, goes above the film's own, or alone where they have none.
+		if a.ShowReference() {
+			if line, ok := referenceLine(a.Cue(), reference(), s.playhead()-a.Delay()); ok {
+				out = append([]styledLine{line}, out...)
+			}
+		}
+		return out
 	}, slices.Equal[[]styledLine]).Get
 	tip := live.Memo(cx, a, a.SubTip)
 	return core.Show{When: func() bool { return len(lines()) > 0 || tip() }, Then: func(cx *core.Scope) core.Node { return s.subtitleLayer(cx, lines, tip) }}
@@ -185,6 +194,13 @@ func (s *screen) subtitleLayer(cx *core.Scope, lines func() []styledLine, tip fu
 		}
 		a.ToggleFullScreen()
 	})
+	// The words of a Japanese or Chinese line are cut by a dictionary read in the background the first time a line needs it (lookup.Tokens); until then the line has no words to click. cut counts the dictionaries read since, so the lines' words are cut again once one is.
+	cut := core.NewSignal(cx, 0)
+	loaded := func() { cx.Post(func() { cut.Set(cut.GetUntracked() + 1) }) }
+	tokens := func(text string) []lookup.Token {
+		cut.Get()
+		return lookup.Tokens(text, loaded)
+	}
 	// A click on a word of the original looks it up, holding the film (LookUpWord); a click elsewhere on the lines is the picture's, as above.
 	body := core.Dynamic(func(cx *core.Scope) core.Node {
 		l := look()
@@ -194,7 +210,7 @@ func (s *screen) subtitleLayer(cx *core.Scope, lines func() []styledLine, tip fu
 			var words *lineWords
 			if line.original {
 				cue := line.cue
-				words = &lineWords{look: live.On(a, func(word string) { a.LookUpWord(cue, word) }), press: press}
+				words = &lineWords{look: live.On(a, func(word string) { a.LookUpWord(cue, word) }), press: press, tokens: tokens}
 			}
 			children = append(children, subtitleLine(func() string { return text }, line, l.Box, l.Shadow, words))
 		}
@@ -249,10 +265,11 @@ func (s *screen) subtitleLayer(cx *core.Scope, lines func() []styledLine, tip fu
 	}
 }
 
-// lineWords is what a click on a line's words does: look looks up the word clicked, and press is the click on the rest of the line.
+// lineWords is what a click on a line's words does: look looks up the word clicked, and press is the click on the rest of the line; tokens cuts a line into its words, in a binding, as lookup.Tokens does.
 type lineWords struct {
-	look  func(word string)
-	press func(core.PressEvent)
+	look   func(word string)
+	press  func(core.PressEvent)
+	tokens func(text string) []lookup.Token
 }
 
 // subtitleLine draws one line of a cue, on its own box with Box, outlined with Shadow. A view's shadow is a box's and would not follow the glyphs, so the outline is the line drawn again in black under it (outlineCopies), after the prototype's text-shadow (0 0 3px, 0 1px 2px and 0 0 1px). With words, the line drawn on top takes the clicks: a click on one of its words looks it up.
@@ -293,7 +310,7 @@ func withWords(t core.Text, text func() string, words *lineWords) core.Text {
 	t.OnPress = words.press
 	t.SpansFunc = func() []core.Span {
 		var spans []core.Span
-		for _, tok := range lookup.Tokens(text()) {
+		for _, tok := range words.tokens(text()) {
 			sp := core.Span{Content: tok.Text}
 			if tok.Word {
 				word := tok.Text

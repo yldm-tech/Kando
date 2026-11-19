@@ -7,6 +7,7 @@ import (
 	"kando/apps/kando/films"
 	"kando/apps/kando/live"
 	"kando/apps/kando/nowplaying"
+	kcore "kando/packages/core"
 
 	"github.com/nsgo-dev/nsgo/core"
 )
@@ -71,6 +72,8 @@ type playerUI struct {
 	lastMode string
 	// panel shows the side panel over the picture. It stays as it is from film to film.
 	panel bool
+	// referenceHidden hides the reference layer of the films that have one (film.Referencer), as the subtitle menu chose; it stays as it is from film to film while the app runs.
+	referenceHidden bool
 	// volume is how loud films play, from 0 to 1, and muted silences them without losing it. Both stay as they are from film to film.
 	volume float64
 	muted  bool
@@ -129,9 +132,10 @@ type filmUI struct {
 	// searchFocused is set while the subtitle search field holds the keyboard focus (SearchFocused).
 	searchFocused bool
 	uploadNote    bool
-	// info is the film's folder as readFilmInfo read it for the video at infoFor.
-	info    film.Info
-	infoFor string
+	// info is the film's folder as readFilmInfo read it for the video at infoFor, and reference the captions its site made itself, which its job kept beside it (media.ReadReference).
+	info      film.Info
+	infoFor   string
+	reference []kcore.Segment
 	// clipFrames are the JPEG frames of the 片段 tab by the start of each (film_clips.go), and clipBusy those being read.
 	clipFrames map[time.Duration][]byte
 	clipBusy   map[time.Duration]bool

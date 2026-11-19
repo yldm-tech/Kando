@@ -286,7 +286,7 @@ func (a *app) playerStopRemux() {
 	}
 }
 
-// readFilmInfo lists the folder of the video at path off the engine's goroutine, for the player's 信息 tab, and reads the chapters its site marks, which its job kept beside it (media.ReadChapters), for the 片段 tab. A film without a video has nothing to list.
+// readFilmInfo lists the folder of the video at path off the engine's goroutine, for the player's 信息 tab, and reads the chapters its site marks, which its job kept beside it (media.ReadChapters), for the 片段 tab, and the captions its site made itself (media.ReadReference), the picture's reference layer. A film without a video has nothing to list.
 func (a *app) readFilmInfo(path string) {
 	if path == "" || a.update == nil {
 		return
@@ -308,11 +308,13 @@ func (a *app) readFilmInfo(path string) {
 			files = append(files, film.File{Name: entry.Name(), Size: info.Size()})
 		}
 		chapters, _ := media.ReadChapters(path)
+		reference := media.ReadReference(path)
 		update(func() {
 			if a.player.film.infoFor != path {
 				return
 			}
 			a.player.film.info = film.Info{Folder: dir, Files: files, Chapters: chapters.Chapters, ChapterUse: chapters.Use}
+			a.player.film.reference = reference
 			if len(chapters.Chapters) > 0 {
 				a.loadClipFrames()
 			}

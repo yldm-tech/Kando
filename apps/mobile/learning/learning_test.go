@@ -233,7 +233,7 @@ func TestDictateMarksTheWordsHeard(t *testing.T) {
 	}
 }
 
-// A line's clip is its own span, a word's the line it was looked up in, which the film's subtitles end, both moved by the film's delay and padded; a word with no line, or a film not on the phone, has none.
+// A line's clip is its own span, a word's the line it was looked up in, which ends where the word's record says or else where the film's subtitles end it, both moved by the film's delay and padded; a word with no line, or a film not on the phone, has none.
 func TestClipOf(t *testing.T) {
 	cues := []sync.Cue{{StartMS: 1000, EndMS: 2000, Original: "Good morning."}, {StartMS: 3000, EndMS: 4500, Original: "How are you?"}}
 	line := Item{Kind: Line, Text: "Fine.", Meaning: "很好。", Start: 5 * time.Second, End: 6500 * time.Millisecond}
@@ -246,7 +246,12 @@ func TestClipOf(t *testing.T) {
 	if !ok || c.From != 2750*time.Millisecond || c.To != 4750*time.Millisecond || c.Line != "How are you?" || c.Translation != "你好吗？" {
 		t.Errorf("the word's clip %+v, %v", c, ok)
 	}
-	word.Start = 9 * time.Second
+	// A word added with its line's end, as a phone keeps it, plays to that end whatever the subtitles say now.
+	word.End = 4 * time.Second
+	if c, ok = ClipOf(word, "/v.mp4", 0, cues); !ok || c.To != 4250*time.Millisecond {
+		t.Errorf("the word's clip with its line's end %+v, %v", c, ok)
+	}
+	word.Start, word.End = 9*time.Second, 0
 	if c, ok = ClipOf(word, "/v.mp4", 0, cues); !ok || c.To != 13250*time.Millisecond {
 		t.Errorf("a line not among the subtitles plays %+v, %v; want four seconds", c, ok)
 	}
