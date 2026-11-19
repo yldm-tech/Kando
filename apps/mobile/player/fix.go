@@ -97,7 +97,7 @@ func (f *fixer) suggest(i int, draft, source string) (string, string) {
 	return source, fix.To
 }
 
-// ready reports whether the sheet can save: a translation is typed, other than the line's, and with the term on, the term's words and translation, the words found in the original line.
+// ready reports whether the sheet can save: a translation is typed, other than the line's, and with the term on and offered, the term's words and translation, the words found in the original line.
 func (f *fixer) ready() bool {
 	x := f.state.Get()
 	line := f.p.line(x.line)
@@ -105,7 +105,8 @@ func (f *fixer) ready() bool {
 	if draft == "" || draft == line.Translation {
 		return false
 	}
-	if !x.term {
+	// The term's fields count only while they show: a computer that stops taking terms meanwhile (read-only, or no glossary) leaves the fix alone to save, as save does.
+	if !x.term || !f.p.s.CanAddTerm(f.p.key) {
 		return true
 	}
 	return strings.TrimSpace(x.target) != "" && kcore.TermIn(line.Original, x.source)
