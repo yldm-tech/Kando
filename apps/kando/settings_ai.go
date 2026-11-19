@@ -37,6 +37,9 @@ type savedLLMService struct {
 	APIKey  string `json:"apiKey,omitempty"`
 }
 
+// llmPackPrefix starts the preset id of an AI service an ai-service plugin pack contributes ("pack.<id>"). clean keeps services under such ids even when the pack is not installed right now (its disk is not mounted, it is turned off), so the user's key is still there when the pack comes back.
+const llmPackPrefix = "pack."
+
 func (s *savedLLM) clean() {
 	s.LLMBaseURL = strings.TrimSpace(s.LLMBaseURL)
 	s.LLMModel = strings.TrimSpace(s.LLMModel)
@@ -44,7 +47,8 @@ func (s *savedLLM) clean() {
 	s.LLMProvider = strings.TrimSpace(s.LLMProvider)
 	for id, service := range s.LLMServices {
 		service = savedLLMService{BaseURL: strings.TrimSpace(service.BaseURL), Model: strings.TrimSpace(service.Model), APIKey: strings.TrimSpace(service.APIKey)}
-		if _, known := settings.PresetByID(settings.Presets(locales.In(locales.Source)), id); !known || service.BaseURL == "" {
+		_, known := settings.PresetByID(settings.Presets(locales.In(locales.Source)), id)
+		if (!known && !strings.HasPrefix(id, llmPackPrefix)) || service.BaseURL == "" {
 			delete(s.LLMServices, id)
 			continue
 		}

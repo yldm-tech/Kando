@@ -277,6 +277,19 @@ func TestSavedLLMServicesAreCleaned(t *testing.T) {
 	}
 }
 
+// TestSavedLLMServicesKeepPluginServices checks that a service an ai-service pack contributed keeps its key through clean while the pack is missing, as Kando has no preset of that id then.
+func TestSavedLLMServicesKeepPluginServices(t *testing.T) {
+	s := savedLLM{LLMServices: map[string]savedLLMService{
+		"pack.example.gw": {BaseURL: " https://gw.example.com/v1 ", Model: "gw-model", APIKey: "sk-gw"},
+		"pack.empty":      {APIKey: "sk-empty"},
+	}}
+	s.clean()
+	want := map[string]savedLLMService{"pack.example.gw": {BaseURL: "https://gw.example.com/v1", Model: "gw-model", APIKey: "sk-gw"}}
+	if !maps.Equal(s.LLMServices, want) {
+		t.Fatalf("cleaned to %#v, want %#v", s.LLMServices, want)
+	}
+}
+
 // TestEditingTheBaseURLDropsASavedEveryAPIKey checks the same for an EveryAPI key that came from settings.json rather than the environment.
 func TestEditingTheBaseURLDropsASavedEveryAPIKey(t *testing.T) {
 	llmEnv(t, "", "", "")
