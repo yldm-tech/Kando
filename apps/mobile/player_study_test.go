@@ -698,6 +698,7 @@ func TestManyLinesSavedAwayAllReachTheComputerButThoseItRefuses(t *testing.T) {
 
 // A note being written stays with the line it was begun on while the film plays on to the next, and is saved to that line; saved empty, it clears the line's note.
 func TestANoteBeingWrittenStaysWithItsLineAndCanBeCleared(t *testing.T) {
+	movingClock(t)
 	d := newDesktop(t)
 	p, _ := studyPlayer(t, d)
 	p.app.Press("id:player-tab-notes")

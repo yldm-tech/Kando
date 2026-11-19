@@ -7,6 +7,7 @@ import (
 	"path/filepath"
 	"slices"
 	"strings"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -37,6 +38,16 @@ const relayEvery = 50 * time.Millisecond
 // now is the clock the tests' sessions date pairings and downloads by.
 func now() time.Time { return time.Date(2026, 11, 17, 9, 0, 0, 0, time.UTC) }
 
+// sessionNow is the clock of the sessions startPhone starts: now, unless a test moves it on (movingClock).
+var sessionNow = now
+
+// movingClock gives the sessions the test starts a clock that reads now a millisecond later at each reading, as a real clock moves on between two changes, for a test that makes two changes of one field: at one time, they are a tie the computer settles by device (sync.Stamp.After), so the second was kept or not by how the puts fell.
+func movingClock(t *testing.T) {
+	var ticks atomic.Int64
+	sessionNow = func() time.Time { return now().Add(time.Duration(ticks.Add(1)) * time.Millisecond) }
+	t.Cleanup(func() { sessionNow = now })
+}
+
 // phone is the app under test with its data folder.
 type phone struct {
 	t   *testing.T
@@ -52,7 +63,7 @@ func startPhone(t *testing.T, dir string, opts ...nsgotest.Option) *phone {
 	}
 	opts = append([]nsgotest.Option{nsgotest.Environment(core.Environment{Locale: lang})}, opts...)
 	app := nsgotest.Start(t, func(cx *core.Scope) core.Node {
-		return App(cx, session.Config{Dir: dir, Device: "Test Phone", Platform: sync.PlatformIOS, Now: now, RelayEvery: relayEvery})
+		return App(cx, session.Config{Dir: dir, Device: "Test Phone", Platform: sync.PlatformIOS, Now: sessionNow, RelayEvery: relayEvery})
 	}, opts...)
 	return &phone{t: t, app: app, dir: dir}
 }

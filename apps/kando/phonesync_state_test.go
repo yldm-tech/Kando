@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"net/http"
@@ -233,10 +234,12 @@ func TestPhoneSyncSyncsTheLearningState(t *testing.T) {
 	phoneWantCode(t, err, http.StatusBadRequest, psync.CodeInvalid)
 }
 
-// A locked library's learning state is neither read nor written, and no ledger is left for it.
+// A locked library's learning state is neither read nor written, and its ledger is left as it was before the lock: the read phoneStateLibrary lets through keeps one when it took in a change, which it may or may not have, by how the calls fell.
 func TestPhoneSyncNeverSyncsALockedLibrarysState(t *testing.T) {
 	a, p, dir, talk, c, _ := phoneStateLibrary(t)
 	lib := phoneLibraryID(dir)
+	ledger := filepath.Join(dir, phonesync.LedgerFile)
+	before, beforeErr := os.ReadFile(ledger)
 	l, err := shelf.NewLock("pw")
 	if err != nil {
 		t.Fatal(err)
@@ -252,8 +255,9 @@ func TestPhoneSyncNeverSyncsALockedLibrarysState(t *testing.T) {
 	if a.player.positions[talk] != 90*time.Second {
 		t.Errorf("a locked library's position moved to %v", a.player.positions[talk])
 	}
-	if _, err := os.Stat(filepath.Join(dir, phonesync.LedgerFile)); !os.IsNotExist(err) {
-		t.Errorf("a ledger was kept for a locked library: %v", err)
+	after, afterErr := os.ReadFile(ledger)
+	if os.IsNotExist(beforeErr) != os.IsNotExist(afterErr) || !bytes.Equal(before, after) {
+		t.Errorf("a locked library's ledger was kept: %d bytes (%v) before the lock, %d (%v) after", len(before), beforeErr, len(after), afterErr)
 	}
 }
 
