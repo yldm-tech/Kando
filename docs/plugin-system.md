@@ -1062,7 +1062,7 @@ P0–P2 不新增任何 module。P3a 起 `github.com/dlclark/regexp2/v2 v2.11.0`
 2. **开发者模式的细节**：是否允许用户本机 dev root 侧载（默认建议允许，开着时一直显示徽标）；dev 包能否覆盖、何时过期；是否做 trust.json 的回退检测（6.4 节的可选加固）。
 3. **（已定，P3a 按此实现）P3.0 spike 的放行门槛**：owner 接受约 +20 MiB 的体积和 regexp2、pprof 两个依赖；默认 token 预算随 `llm.chat` 到 P3b 再定。原文：测量已做完（第 15 节），建议是有条件放行，要 owner 拍板的是：能否接受安装包里的可执行文件大 19–21 MiB（约 +37%，削不掉，原因见第 15 节）；能否接受最坏卡一个 500ms 片段、多占约 0.5 GB，再由看门狗停掉插件；P3 要在 `apps/kando/go.mod` 加 `github.com/dlclark/regexp2/v2`（变成直接依赖，用来设 `DefaultMatchTimeout`）和 `github.com/google/pprof`（indirect），这与 12.2 第 7 条「不新增任何 Go module」字面上冲突，版本都是 NSGo 已经选定的；默认每日 token 预算（建议每个插件 50k）。
 4. ~~**是否做站点包（P4）**~~：owner 决定做，P4.0、P4.1 已完成（第 15 节）。
-5. **社区索引**（P5）：客户端、签名格式和 `kando plugin index` 已做（第 15 节）；索引有自己的密钥（`script.IndexKey`，私钥由 owner 保管）；仍待决定的是上架和限速的流程、代码包审核由谁负责。
+5. **社区索引**（P5）：客户端、签名格式和 `kando plugin index` 已做（第 15 节）；索引有自己的密钥（`script.IndexKey`，私钥由 owner 保管）。owner 已定托管方式：社区插件放在公开仓库 `yldm-tech/kando-plugins`，它的 CI 检查 PR、合并后签名并发布（第 15 节「发布社区索引」），官网的 `/plugin` 页列出目录。仍待决定的是限速的具体做法、代码包审核由谁负责。
 6. **是否把看懂自己的 LLM key 迁进 `core.Secrets`**：与插件无关的加固，作为独立 PR，Linux 上需要保留明文退路。
 7. **外部原生工具或 MCP 子进程插件**：本设计否决了。如果以后识别（faster-whisper）、下载器确有需求，需要单独立项，前提是先给 `media.Command` 补上进程组或 Job Object、WaitDelay 和整棵进程树的 kill。顺带一提，这三项的缺失本身就是一个与插件无关的现有风险：任务取消时，yt-dlp 启动的 ffmpeg 孙进程不会被一起杀掉，`runFollowing` 可能卡在 `cmd.Wait`。这一点是读代码推断的，没有复现，建议单独开 issue。
 
@@ -1122,6 +1122,7 @@ P0–P2 不新增任何 module。P3a 起 `github.com/dlclark/regexp2/v2 v2.11.0`
 | P4.1 | site kind、`pluginSites`（工具栏的「下载视频」和网页按钮）、逐域名同意、站点包任务不借用登录 | `feat/plugins-sites` | 已完成 |
 | P5 底座（E14） | `*media.StageError`（失败带步骤和来源，library.json 加 `errorStage`、`errorSource`）、`media.Tools.Engine`/`EngineName`、`Tools.Candidates`，失败卡片说出是哪个翻译来源失败的 | `refactor/media-stage-error` | 已完成，出入见下 |
 | P5 社区索引 | `plugins/index`（签名索引的格式、校验、缓存和 ETag、下载）、设置 › 插件 的「浏览插件」、`kando plugin index` | `feat/plugins-community-index` | 客户端和工具已完成，出入见下 |
+| P5 目录发布 | `cmd/kando-plugin`（kando-plugins 仓库 CI 用的 validate、preview、index，不依赖 cgo）、`plugins/publish` 和 `plugins/script/signature`、`kando://plugin/install?id=` 链接、目录的更新提示、官网 `/plugin` 页 | `feat/plugins-directory-site` | 已完成，出入见下 |
 | P5 其余 | 按需单独立项（DeepL 类插件本身要等 P3b 的 `credentialFetch`） | — | 未开始 |
 
 P1.2 的测量结果（Ubuntu 编译机，x86_64，Go 1.27.4，kagome-dict/ipa v1.2.6；每次读 `/proc/self/status` 前先 `runtime.GC()` 和 `debug.FreeOSMemory()`，各在一个新进程里量，量完的测试没有提交）：
@@ -1282,7 +1283,7 @@ P1.2 的测量结果（Ubuntu 编译机，x86_64，Go 1.27.4，kagome-dict/ipa v
   - 格式（`plugins/index`，非界面包）：索引文件是 `{"format": "kando-plugins-index", "version": 1, "signer", "signature", "body"}`，`body` 是索引 JSON 的 base64，里面是 `format`、`version`、`generated`（生成时间）和 `entries`。签名是 Ed25519 对 `kando-plugins-index-v1`、一个 0 字节和 body 的 SHA-256 签的，做法和 tsx/pkg 给包、证书、吊销列表签名一样，但上下文不同，所以同一把键签的别的东西不会被当成索引。tsx/pkg 的签名封装（`keys.go` 的 `signed`、`signBody`、`framed`）和上下文常量都没有导出，只能复用它的键编码：`pkg.DecodePublicKey`、`DecodeSecretKey`、`EncodeSecretKey`、`KeyID`、`GenerateKey`；这个缺口已提交为 [nsgo-dev/nsgo#868](https://github.com/nsgo-dev/nsgo/issues/868)，`plugins/index` 里自己那份 framing 处写了 `TODO(nsgo#868)`，上游导出后换回 tsx/pkg 的封装。格式和版本在签名外也写一份，好让旧版在验签前就认出新格式（`ErrVersion`）。验签之后用 `DisallowUnknownFields` 严格解码，再逐条校验。
   - 条目：`id`、`kind`、`name`、`summary`（清单的 description）、`version`、`publisher`、`license`、`homepage`、`size`、`sha256`、`url`、`languages`、`minKando`、`source`。校验复用清单的规则（`plugins/check.go` 把 `checkID`、名称和说明的清洗与长度、保留名、版本、许可证、语言标签导出成 `plugins.CheckID` 等）：kind 必须是这个版本能装的；`publisher` 必须等于 id 的第一段；`size` 在 1 字节和这种 kind 的 zip 上限（`plugins.ZipMax`）之间；`sha256` 是 64 位小写 hex；`url` 只认 https（回环地址的 http 也不行，`plugins.CheckHTTPS`），`homepage` 和清单的规则一样（`plugins.CheckHomepage`）；`languages` 最多 16 个、不重复；`minKando` 只有脚本插件能写，是 `MAJOR.MINOR.PATCH`；`source` 只有脚本插件写，而且只能是 `official` 或 `verified`，数据包不写。整份索引最多 4 MiB、5000 条。`kando plugin index` 签名时（`Index.Check`、`Sign`）对条目是严格的：任何一条不对、同一个 id 出现两次，就不签。看懂读索引时（`Parse`）只对文件、签名和索引自己的键严格；条目逐条解码，这个版本读不了的（不认识的键、类型不对）、装不了的（不认识的 kind、文件超过这种 kind 的上限）、不合规则的和重复的 id 都跳过并计数（`Index.Dropped`），其余照常列出，「插件目录」在状态行下面写一句「列表里有 N 个插件需要更新版本的看懂，没有显示」。这样给新版看懂加了新 kind 或新字段的索引，旧版照样能用，不会因为一条就整份失效。
   - 公钥：`script.IndexKey`（`Grk9XL+lf71LM+opo08YYlOWxk0aRWvIw0205NgA9rg=`），写在 `script.OfficialRoot` 旁边，是一把单独的键，和官方根分开：根密钥一直离线，只给发布密钥签证书、签吊销列表，从不签索引。索引密钥的私钥由 owner 保管，签索引时只经环境变量 `KANDO_PLUGINS_INDEX_KEY` 交给 `kando plugin index`。`script` 包的 `TestScriptIndexKeyIsItsOwn` 断言它不等于 `OfficialRoot`。常量为空时「浏览插件」显示「这个版本的看懂没有插件目录」，不发任何请求（`index.ErrNotConfigured`）。
-  - 地址：`index.DefaultURL` 是 `https://kando.yldm.ai/plugin/index.json`，包文件在 `https://kando.yldm.ai/plugin/packs/<文件名>`。owner 定的：不用 R2 和子域名，目录放在现有的官网上（`apps/site`，由 `.github/workflows/site.yml` 构建，GitHub Pages 加 Cloudflare）；索引和包同在一个主机，所以「重定向只跟同一主机」的规则照样成立。签好名的 `index.json` 由 owner 在本机生成后提交到 `apps/site/public/plugin/`，CI 里没有任何私钥。应用更新走的是 GitHub Releases 的 appcast（`nsgo.yaml` 的 `release`），和这里无关。
+  - 地址：`index.DefaultURL` 是 `https://kando.yldm.ai/plugin/index.json`，包文件在 `https://kando.yldm.ai/plugin/packs/<文件名>`。owner 定的：不用 R2 和子域名，地址在现有官网的域名下；索引和包同在一个主机，所以「重定向只跟同一主机」的规则照样成立。索引和包文件由 `yldm-tech/kando-plugins` 的 CI 签名并发布到那个仓库自己的 GitHub Pages，`kando.yldm.ai/plugin/index.json` 和 `/plugin/packs/*` 由 Cloudflare Worker 从那里转发；`/plugin` 页面本身在本仓库的官网（`apps/site`）。流程见下面「发布社区索引」（本 PR 原先写的是 owner 在本机签名后提交到 `apps/site`，P5 目录发布改成了现在的做法，本机签名留作退路）。应用更新走的是 GitHub Releases 的 appcast（`nsgo.yaml` 的 `release`），和这里无关。
   - 缓存和刷新：索引原样存在插件文件夹的 `.community/index.json`，旁边的 `index-meta.json` 记着地址、ETag 和上次询问的时间。缓存只属于它来自的那个地址：地址变了，`Cached` 返回 `ErrOtherAddress`，不显示、也不拿来比新旧。只在用户打开「浏览插件」时读缓存；缓存读不出来（文件没了、换了公钥、别的地址的）、距上次询问满 24 小时（`index.RefreshEvery`）、或者没有缓存，就马上问一次，「刷新」随时可以问；缓存在却读不出来时，原因显示在状态行，直到新的索引到来。请求带 `If-None-Match`，304 时沿用缓存；新索引的 `generated` 早于缓存的拒收（`ErrRollback`），防止被攻破的主机把撤下的条目换回来；验签、格式、条目不对时保留缓存，状态行写原因。离线模式下不发任何请求，显示缓存和它的日期（离线这一句排在之前联网时的错误前面），「刷新」和「安装」都灰掉；正在进行的询问和下载在切到离线时取消（`afterChange` 里的 `pluginsIndexFollow`），收起「插件目录」也会取消，取消之后才回来的结果一律丢掉（每次询问和下载各带一个代数），所以不会在离线时弹出安装确认。启动时不问：插件页不打开就不会有这个请求，所以没有加 `areaHooks`。所有请求只认 https，重定向只跟同一主机的 https，最多 5 次（`ErrRedirect`）。
   - 安装：下载不占插件页的 busy：下载期间其他包照样能开关、卸载、从文件安装，那一行显示「正在下载…」和「取消」；同一时刻只下载一个。下载完了，等没有别的安装和确认框时，才在 busy 下 Stage 和验签、打开确认框。先下载到临时文件夹，最多读到条目的 `size` 多一个字节，大小和 SHA-256 都要等于条目的（`ErrTooLarge`、`ErrChecksum`），然后走和「从文件安装…」同一条路径：`plugins.Stage`（里面是 `Validate`）、脚本插件的 `script.Verify`、`pluginsAskStaged` 打开安装确认。另外查两件事：读出的包的 id、kind、version 必须等于条目写的；脚本插件验签得出的来源必须等于条目的 `source`（都是 `ErrNotListed`）。下载和这些检查的失败也显示在确认框的失败视图里。确认框的来源一行写「来自看懂的插件目录 · 未签名」（数据包本身仍没有签名，只有索引签了名），脚本插件在证书来源下面多一行「从看懂的插件目录下载」。授权规则一点没变：task 包和脚本插件装好是关的，脚本插件不授予任何权限，更新时按 `plugins.InstallEntry` 的子集规则。
   - 更新：已装的版本比索引里的旧时（`index.Newer`：按点分段比，数字段按数值比，带 `-` 后缀的比不带的旧，`+` 之后不比），那一行显示已装的版本和「更新」，点了走同一条安装路径，确认框写明替换的版本。不自动更新。需要更新版本看懂的脚本插件（`minKando`）显示「需要看懂 x.y.z」，不能装。
@@ -1291,20 +1292,45 @@ P1.2 的测量结果（Ubuntu 编译机，x86_64，Go 1.27.4，kagome-dict/ipa v
   - 没有做：吊销列表不随索引发布（P3c）；`kando plugin index` 不读吊销列表，被吊销的包要先从文件夹里拿掉。
   - 测试：`plugins/index` 的单元测试（签名被改、没签名、换了键都拒收，格式和每个字段，大小上限，httptest 的 TLS 服务器上的缓存、ETag、304、回滚、重定向和下载的大小与哈希）；`cli` 的 `TestPluginIndex*`；根目录的 `TestPluginIndex*`（打开前不发请求、搜索和种类过滤、安装要经过确认、task 包装好是关的、更新、哈希不符和条目不符拒装、离线只看缓存、每日刷新和 304、伪造的索引、没有公钥、脚本插件装好是关的且来源不符拒装、读不出来的缓存马上重新问并说明原因、切到离线时取消询问和下载且不弹确认框、下载期间别的包照样能开关和取消下载）；`TestIndexDropsWhatItCannotRead` 和 `TestIndexCacheIsPerAddress`。截图场景 `plugins-index`（`TestScreenshotsPluginIndex`）在 Linux 上只跑了无头断言（`TestPluginIndexScene`），没出图。
 
-**发布社区索引**（`kando plugin index`，`cli/plugin_index.go`）：
+- P5 目录发布：把上一条的客户端和工具接到社区插件仓库 `yldm-tech/kando-plugins`（那个仓库和它的 CI、Worker 由另一个 PR 建）。和上一条、正文（10 节 P5）的出入和细节如下：
+  - CI 工具 `apps/kando/cmd/kando-plugin`：`validate [--json] <包…>`、`preview [--markdown] <包…>`、`index <文件夹> --base <url> [--out <文件>] [--json]`。模块路径是 `kando/apps/kando`，别的仓库不能 `go install`，所以 kando-plugins 的 CI 检出本仓库后在根目录 `go run ./apps/kando/cmd/kando-plugin …`（`go.work` 在根目录）。退出码：0 全部通过，1 有包没通过或命令失败（validate 和 preview 先检查完所有包再失败），2 用法错误。`validate --json` 输出 `{"ok", "packs": [{"path", "ok", "id", "kind", "version", "name", "hash", "source", "signer", "size", "sha256", "code", "error"}]}`，`code` 是稳定的错误类别（`reserved-id`、`untrusted`、`tampered`、`bad-manifest`、`not-found` 等，见 `errorCodes`），给 bot 判断用。`preview` 给 PR 评论写 Markdown：每个包的 id、kind、各语言的名称和说明、版本、大小和 SHA-256、许可证、作者、主页、语言、需要的看懂版本、签名来源、校验结果、添加的功能；脚本插件另列权限（必需和可选）、网络规则（`plugins.RulesText`）、凭据和发往的主机，并用一段 `[!WARNING]` 提醒它运行代码，`plugins.Risky` 成立时再说明它读别人写的文字又能往外发。包里的所有文字和路径都写在代码片段里（反引号数量按内容里最长的一串加一，表格里转义竖线，去掉控制字符，每段最多 300 字），所以名称和说明里的 @提及、#引用、链接、图片和 HTML 都不起作用。`index` 和 `kando plugin index` 一样：私钥只从 `KANDO_PLUGINS_INDEX_KEY` 读，不是 `script.IndexKey` 的键直接拒绝。validate 和 preview 用一个临时的 trust，只信任官方根，不读吊销列表；index 也不读（和上一条一样）。
+  - 同一份代码：检查和建索引搬进了非界面包 `plugins/publish`（`Check`：文件先复制一份、边复制边算 SHA-256，再对副本 `plugins.Stage`，脚本插件 `signature.Verify`；`IndexKey`；`Index`、`IndexFiles`），`kando plugin validate`、`kando plugin index` 和 CI 工具都调它，不会各写一套。`kando plugin validate` 因此也先复制再检查，行为不变。
+  - 不依赖 cgo 和界面：`plugins/script` 经 `tsx` 引入了 NSGo 的 `base`、`desktop`、`mobile` 和 `tsx/bundler`。验签只要 `tsx/pkg`，所以把它（`OfficialRoot`、`IndexKey`、`AppIDPrefix`、`Roots`、`DefaultRoots`、`TrustDir`、`OpenTrust`、`Verified`、`Verify`、`Publisher` 和五个错误）原样搬进了 `plugins/script/signature`，`script` 以同名常量、类型别名、变量和转发函数重新导出，app 和测试的调用处一行没改；`cli` 和 `publish` 直接用 `signature`。`CGO_ENABLED=0 go build ./apps/kando/cmd/kando-plugin` 能编，`go list -deps` 里没有 cgo 包，也没有 `tsx`、`base`、`ui`、`desktop`、`mobile` 和任何 platform 包；还剩 `nsgo/core`（纯 Go），是 `plugins.Text.In` 用的 `nsgo/i18n` 带进来的：`i18n` 的 `Language`、`Regional` 等函数收 `*core.Scope`（`i18n/i18n.go:13`、`i18n/format.go:10` 导入 `core`），只用 `i18n.Parent` 的包也得编进整个 core。没有绕开，在报告里交给主会话决定是否提 NSGo issue。
+  - 链接 `kando://plugin/install?id=<id>`（`index.InstallLink`、`ReadInstallLink`，id 只按 `plugins.CheckID` 的语法查）：打开 设置 › 插件，「插件目录」展开并搜索这个 id；索引读完（没有缓存或到期时照常先问一次）、包目录读完、没有别的下载时（`pluginsIndexWanted`，在 `pluginsIndexFollow` 里跑），列着的包能装或能更新就开始下载，之后走和「安装」同一条路径（下载校验大小和 SHA-256、Stage、Validate、脚本插件验签、安装确认）；已装或需要更新版本看懂的只显示那一行；离线时只显示、不下载。缓存的索引里没有这个 id 时先再问一次（网站上看到的可能是更新的索引），还没有就在状态行下面用红字写「插件目录里没有 {id}」；id 不合语法写「这个链接没有指明插件」。这两句收起目录或下一个链接时消失。任何网页都能打开这种链接，所以它只指明一个包：不在签名索引里的东西不下载，没有确认就不安装。
+  - 链接的分发：NSGo 把在任何 handler 注册之前到达的链接（例如启动看懂的那个链接）只交给第一个注册的 handler（`core.Scope.OnOpenLinks`，`core/window.go:818`），各块各自注册的话冷启动时的链接会丢给别的块。所以 `areaHooks` 加了 `openLinks`，`areasReady` 只注册一个 handler（`areasOpenLinks`）分给每块；书签小工具的 `kando://add` 从 `browserExtHooks` 的 ready 挪到了这个钩子。Windows 和 Linux 还没有注册 URL scheme（nsgo#262），链接目前只在 macOS 上能打开。
+  - 更新提示：启动时（插件块的 ready）在后台读一次插件文件夹里缓存的索引（`pluginsIndexPeek`，只读盘、不联网，读不出来就不管，留给「浏览插件」去说），不算「浏览插件」的那次读取，所以打开目录时仍按每日规则决定要不要问。之后每次读到或问到新索引都重算：已装的包在索引里有更新、而且能在这个版本上运行的（`pluginsIndexUpdatable`），数量显示在设置侧栏「插件」旁边（强调色的小圆角数字，读屏读「N 个更新」），插件页顶部显示「有可用更新（N）」和「查看更新」；点了打开目录，只列有更新的包（搜索和种类过滤清空），上面写「只显示有更新的插件」和「显示全部」。目录正以更新过滤打开时顶部那行不显示。除了原有的「打开目录时、每天最多一次」之外没有任何后台请求，离线照旧。共享文件只动了 `events.go`（`openLinks` 字段和分发）、`state_browserext.go`（挪钩子）、`state_plugins.go`（ready 多读一次缓存、`openLinks`）、`settings/window.go`（`App.PluginIndexUpdates` 和侧栏的数字）、`settings/plugins.go`（顶部那行）。
+  - 官网 `/plugin`（`apps/site`，五种语言各一页，预渲染的是加载中的外壳）：水合之后从同源的 `/plugin/index.json` 取索引，在浏览器里不验签（看懂安装前自己验，代码注释里写明），只把各字段当不可信的文字显示：逐字段查类型、形状和长度，不合规则的条目和重复的 id 跳过，主页只认 https，从不用 `dangerouslySetInnerHTML`。有搜索、种类过滤、计数，每张卡片有名称、种类、说明、发布者、版本、大小、许可证、语言、脚本插件的签名来源、主页和「在看懂中打开」（`kando://plugin/install?id=`）；加载中、出错（可重试）、离线（联网后自动重试）、空列表各有状态；「如何贡献」一节链接 `yldm-tech/kando-plugins` 和它的 `CONTRIBUTING.md`。页脚加了链接，sitemap、hreflang、结构化数据和 `llms.txt` 都包含这一页。
+  - 测试：`cmd/kando-plugin`（validate 的文本和 JSON、错误码、不信任的根；preview 的各项和代码片段转义；index 的密钥、`--base` 和签出的索引能被 `index.Parse` 读）；`plugins/index` 的 `TestInstallLink`；根目录 `TestPluginIndexLink`（链接打开设置并走到安装确认、确认前不安装、没列着的先再问一次再说明、索引后来才有的包、坏链接、离线不下载）和 `TestPluginIndexUpdates`（启动读缓存不联网、侧栏数字和顶部那行、只看更新和显示全部、更新后消失）；截图场景 `plugins-updates`（`TestScreenshotsPluginUpdates`）在 Linux 上只跑了无头断言（`TestPluginUpdatesScene`），没出图。官网的 `test/plugins.test.ts`（解析、校验、主页、名称回退、搜索、过滤）和 `test/plugin-page.test.ts`（构建出的页面）。
+
+**发布社区索引**（社区插件仓库 `yldm-tech/kando-plugins`）：
+
+1. 作者在 kando-plugins 开 PR，加入或更新包文件（数据包的 zip，或官方根认证过的脚本插件）。
+2. 那边的 CI 检出本仓库，在本仓库根目录跑：
 
 ```sh
-# The index key is its own, not the plugin root: its public key is script.IndexKey, its secret is kept by the owner and given only in KANDO_PLUGINS_INDEX_KEY.
-# Put every pack file to list in one folder: .zip, .kandopack or .kandoplugin, a file per pack, nothing else (dot files are skipped).
-# Each is checked as Kando installs it (plugins.Stage, and a script plugin's signature against Kando's official root), and the index is signed with the key in the environment.
-KANDO_PLUGINS_INDEX_KEY=<index secret> kando plugin index ./packs --base https://kando.yldm.ai/plugin/packs/ --out apps/site/public/plugin/index.json
+# Checks every pack as Kando installs it (plugins.Stage, a script plugin's signature against Kando's official root); --json for the bot, exit code 1 when one fails.
+go run ./apps/kando/cmd/kando-plugin validate --json <pack files…>
+# Markdown for the pull request's comment: what each pack is, adds and asks for; every text of a pack inside code spans.
+go run ./apps/kando/cmd/kando-plugin preview --markdown <pack files…>
 ```
 
-- 私钥只从环境变量 `KANDO_PLUGINS_INDEX_KEY` 读（`go tool nsgo keygen` 打印的 secret），不接受 flag 或文件参数，和 nsgo 的 `NSGO_ROOT_KEY`、`NSGO_RELEASE_KEY` 一样。
+3. 维护者看过评论（脚本插件要审核，含 network 规则是否最窄）后合并。
+4. 合并到 main 后，CI 在受保护的 environment 里拿到 `KANDO_PLUGINS_INDEX_KEY`，签名并部署：
+
+```sh
+# The key's secret only in the environment; any key other than script.IndexKey is refused.
+KANDO_PLUGINS_INDEX_KEY=<index secret> go run ./apps/kando/cmd/kando-plugin index ./packs --base https://kando.yldm.ai/plugin/packs/ --out out/index.json
+```
+
+然后把 `index.json` 和 `./packs` 里的文件（按原名）发布到 kando-plugins 自己的 GitHub Pages。
+5. Cloudflare Worker 把 `https://kando.yldm.ai/plugin/index.json` 和 `/plugin/packs/*` 转发到那里；`/plugin` 页面是本仓库的官网，取的是同一个 `/plugin/index.json`。
+
+- 私钥只从环境变量 `KANDO_PLUGINS_INDEX_KEY` 读（`go tool nsgo keygen` 打印的 secret），不接受 flag 或文件参数，和 nsgo 的 `NSGO_ROOT_KEY`、`NSGO_RELEASE_KEY` 一样；只给 main 上的部署 job，PR 的 CI 拿不到。
 - 文件夹里任何一个包没通过检查、有别的文件、或者同一个 id 出现在两个文件里，命令就失败并指出是哪个文件，不写索引，免得发布者以为列上了的包被悄悄漏掉。脚本插件必须由官方根签的证书覆盖（来源是 official 或 verified），开发者密钥签的插件拒收。
-- 签名只在 owner 自己的机器上做：生成索引后，把 `./packs` 里的文件按原名放进 `apps/site/public/plugin/packs/`，和 `apps/site/public/plugin/index.json` 在同一个提交里提交；`site.yml` 部署官网时一起发布，CI 不碰私钥。每个包的 URL 是 `--base` 加上文件名（按 URL 转义），所以文件名必须保持不变。已经发布的包文件不要原地替换：新版本用新文件名（例如带上版本号），因为还缓存着旧索引的 Kando 会按旧的 SHA-256 校验它；旧版本的文件留到不再有人缓存旧索引为止。Cloudflare 上 `plugin/index.json` 的缓存时间设短一些（例如 5 分钟），包文件可以长期缓存。
-- 上架规则按 10 节 P5：数据包过了限速就能上架，脚本插件要先审核（含 network 规则是否最窄），上架之后安装仍然不授予任何能力。从索引里撤下一个包只是不再列出，已经装了的不受影响；真正要停掉一个脚本插件要靠吊销列表（6.4）。
-- 每次重新生成的索引 `generated` 都更新，Kando 拒收比缓存旧的索引，所以不要把旧的 `index.json` 重新提交回去（例如回滚官网的提交时）。
+- 每个包的 URL 是 `--base` 加上文件名（按 URL 转义），所以文件名必须保持不变。已经发布的包文件不要原地替换：新版本用新文件名（例如带上版本号），因为还缓存着旧索引的看懂会按旧的 SHA-256 校验它；旧版本的文件留到不再有人缓存旧索引为止。Cloudflare 上 `plugin/index.json` 的缓存时间设短一些（例如 5 分钟），包文件可以长期缓存。
+- 上架规则按 10 节 P5：数据包过了限速就能上架，脚本插件要先审核，上架之后安装仍然不授予任何能力。从索引里撤下一个包只是不再列出，已经装了的不受影响；真正要停掉一个脚本插件要靠吊销列表（6.4）。
+- 每次重新生成的索引 `generated` 都更新，看懂拒收比缓存旧的索引，所以不要重新部署旧的 `index.json`（例如回滚 kando-plugins 的提交时，要重新签一份）。
+- 退路（CI 或 Worker 不可用时，owner 在自己的机器上）：用同一个命令在本机签（`kando plugin index ./packs --base https://kando.yldm.ai/plugin/packs/ --out index.json`，或上面的 `go run`），把 `index.json` 和包文件手工发布到 kando-plugins 的 GitHub Pages（例如推到它的 Pages 分支）。私钥仍只经环境变量，用完不留在 shell 历史里。
 
 ### P3.0 spike 的测量结果
 
