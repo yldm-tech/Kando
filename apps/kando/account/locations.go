@@ -164,9 +164,10 @@ func (d locationDialog) Render(cx *core.Scope) core.Node {
 				}
 			},
 			Style: core.Style{Width: core.Pt(560)},
-			Children: []core.Node{
-				card("location-fields", fields),
-				core.View{Style: core.Style{Direction: core.Row, AlignItems: core.AlignCenter, Gap: 10}, Children: []core.Node{
+			// The fields scroll when the window is too short for all of them, as an SFTP location's are on a small window, so the test row and the footer stay in the dialog.
+			Children: []core.Node{core.View{Style: core.Style{FlexGrow: 1, FlexShrink: 1, MinHeight: core.Pt(0), Gap: 12, AlignItems: core.AlignStretch}, Children: []core.Node{
+				core.Scroll{Style: core.Style{FlexShrink: 1, MinHeight: core.Pt(0)}, Children: []core.Node{card("location-fields", fields)}},
+				core.View{Style: core.Style{Direction: core.Row, AlignItems: core.AlignCenter, Gap: 10, FlexShrink: 0}, Children: []core.Node{
 					test,
 					core.View{Style: core.Style{FlexGrow: 1, FlexShrink: 1, MinWidth: core.Pt(0)}, Children: []core.Node{
 						core.Show{When: func() bool { return problem() != "" }, Then: func(*core.Scope) core.Node {
@@ -177,7 +178,7 @@ func (d locationDialog) Render(cx *core.Scope) core.Node {
 						}},
 					}},
 				}},
-			},
+			}}},
 			Footer: []core.Node{footer},
 		}
 	}}
