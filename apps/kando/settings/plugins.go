@@ -149,6 +149,7 @@ func (p Plugins) Render(cx *core.Scope) core.Node {
 	dragOver := core.NewSignal(cx, false)
 	k := theme.Of(cx)
 	page := form.Page(
+		pluginIndexUpdates{a: a},
 		pluginIndex{a: a},
 		form.Label(locales.SettingsPluginsInstalled(cx), 6, core.View{Style: core.Style{Direction: core.Row, Gap: 8}, Children: []core.Node{reveal, pluginIndexButton(cx, a), install}}),
 		note,

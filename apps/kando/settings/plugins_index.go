@@ -12,6 +12,7 @@ import (
 
 	"github.com/nsgo-dev/nsgo/core"
 	"github.com/nsgo-dev/nsgo/i18n"
+	"github.com/nsgo-dev/nsgo/icons/lucide"
 	"github.com/nsgo-dev/nsgo/ui"
 )
 
@@ -63,6 +64,31 @@ type PluginIndexApp interface {
 	// InstallFromPluginIndex downloads the pack id and opens its install confirmation; CancelPluginIndexDownload stops that before the confirmation opens.
 	InstallFromPluginIndex(id string)
 	CancelPluginIndexDownload()
+	// PluginIndexUpdates is how many installed packs the index lists newer, from the list last read, which Kando reads from disk as it starts and asks the network for only as 浏览插件 opens. ShowPluginIndexUpdates shows 浏览插件 listing only them, PluginIndexUpdatesOnly reports whether it does, and ShowAllPluginIndex lists every pack again.
+	PluginIndexUpdates() int
+	ShowPluginIndexUpdates()
+	PluginIndexUpdatesOnly() bool
+	ShowAllPluginIndex()
+	// PluginIndexLinkNote says why a link of Kando's site that asked to install a pack did not: it named no pack, or one the index does not list; "" otherwise.
+	PluginIndexLinkNote() string
+}
+
+// pluginIndexUpdates is the line at the top of the 插件 page while the index lists installed packs newer: 有可用更新 with their count, and the button that shows 浏览插件 listing only them; hidden while it does.
+type pluginIndexUpdates struct{ a PluginsApp }
+
+// Render implements core.Node.
+func (u pluginIndexUpdates) Render(cx *core.Scope) core.Node {
+	a := u.a
+	return core.Show{When: live.Func(a, func() bool { return a.PluginIndexUpdates() > 0 && !(a.PluginIndexOpen() && a.PluginIndexUpdatesOnly()) }), Then: func(cx *core.Scope) core.Node {
+		colors := ui.ColorsOf(cx)
+		text := core.Text{TestID: "settings-plugins-updates", ContentFunc: live.Func(a, func() string { return locales.SettingsPluginsIndexUpdatesAvailable(cx, a.PluginIndexUpdates()) }),
+			Style: core.Style{FontSize: 13, LineHeight: 18, FontWeight: ui.Medium, FlexGrow: 1, FlexShrink: 1}, StyleFunc: ui.Colored(colors.Text)}
+		show := form.Button{Text: locales.SettingsPluginsIndexUpdatesShow(cx), TestID: "settings-plugins-updates-show", OnPress: live.Do(a, a.ShowPluginIndexUpdates)}
+		return core.View{Style: core.Style{Margin: core.Edges{Bottom: 6}}, Children: []core.Node{form.Card(core.View{
+			Style:    core.Style{Direction: core.Row, AlignItems: core.AlignCenter, Gap: 10, MinHeight: core.Pt(44), Padding: core.Symmetric(6, 14)},
+			Children: []core.Node{ui.Icon(lucide.CircleArrowUp, 16, colors.Accent), text, show},
+		})}}
+	}}
 }
 
 // pluginIndexButton is the 插件 page's 浏览插件…, which shows 浏览插件 at the top of the page; off while it shows, as its header has the button that hides it.
@@ -114,6 +140,16 @@ func (p pluginIndex) Render(cx *core.Scope) core.Node {
 				return locales.SettingsPluginsIndexMore(cx, len(a.PluginIndexRows()), a.PluginIndexMatches())
 			}), Style: core.Style{FontSize: 11, LineHeight: 15, Padding: core.Edges{Top: 6, Right: 12, Left: 12}}, StyleFunc: ui.Colored(colors.Muted)}
 		}}
+		linkNote := core.Show{When: live.Func(a, func() bool { return a.PluginIndexLinkNote() != "" }), Then: func(cx *core.Scope) core.Node {
+			return core.Text{TestID: "settings-plugins-index-link", ContentFunc: live.Func(a, a.PluginIndexLinkNote), Selectable: core.SelectableOn,
+				Style: core.Style{FontSize: 11, LineHeight: 15, Padding: core.Symmetric(0, 12)}, StyleFunc: ui.Colored(colors.Danger)}
+		}}
+		updatesOnly := core.Show{When: live.Func(a, a.PluginIndexUpdatesOnly), Then: func(cx *core.Scope) core.Node {
+			return core.View{Style: core.Style{Direction: core.Row, Gap: 8, AlignItems: core.AlignCenter, Padding: core.Symmetric(0, 12)}, Children: []core.Node{
+				core.Text{TestID: "settings-plugins-index-updates-only", Content: locales.SettingsPluginsIndexUpdatesOnly(cx), Style: core.Style{FontSize: 12, LineHeight: 16, FlexGrow: 1, FlexShrink: 1}, StyleFunc: ui.Colored(colors.Text)},
+				form.Button{Text: locales.SettingsPluginsIndexShowAll(cx), TestID: "settings-plugins-index-show-all", OnPress: live.Do(a, a.ShowAllPluginIndex)},
+			}}
+		}}
 		dropped := core.Show{When: live.Func(a, func() bool { return a.PluginIndexDropped() > 0 }), Then: func(cx *core.Scope) core.Node {
 			return core.Text{TestID: "settings-plugins-index-dropped", ContentFunc: live.Func(a, func() string { return locales.SettingsPluginsIndexDropped(cx, a.PluginIndexDropped()) }),
 				Style: core.Style{FontSize: 11, LineHeight: 15, Padding: core.Symmetric(0, 12)}, StyleFunc: ui.Colored(colors.Muted)}
@@ -121,8 +157,10 @@ func (p pluginIndex) Render(cx *core.Scope) core.Node {
 		return core.View{TestID: "settings-plugins-index", Style: core.Style{AlignItems: core.AlignStretch, Margin: core.Edges{Bottom: 6}}, Children: []core.Node{
 			form.Label(locales.SettingsPluginsIndexTitle(cx), 6, core.View{Style: core.Style{Direction: core.Row, Gap: 8}, Children: []core.Node{refresh, hide}}),
 			status,
+			linkNote,
 			dropped,
 			core.View{Style: core.Style{Direction: core.Row, Gap: 8, AlignItems: core.AlignCenter, Margin: core.Edges{Top: 6, Bottom: 6}}, Children: []core.Node{search, filter}},
+			updatesOnly,
 			pluginIndexList{a: a},
 			more,
 		}}

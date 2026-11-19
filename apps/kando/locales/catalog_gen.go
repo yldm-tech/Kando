@@ -1011,6 +1011,9 @@ var Parameters = map[string][]string{
 	"SettingsPluginsIndexNeedsKando":           {"version"},
 	"SettingsPluginsIndexCancelLabel":          {"name"},
 	"SettingsPluginsIndexDropped":              {"count"},
+	"SettingsPluginsIndexUpdatesAvailable":     {"count"},
+	"SettingsPluginsIndexLinkMissing":          {"id"},
+	"SettingsSectionPluginsUpdates":            {"count"},
 	"SettingsPluginsIndexFailed":               {"reason"},
 	"SettingsPluginsIndexOffline":              {"date"},
 	"SettingsPluginsIndexUpdated":              {"date"},
@@ -1695,6 +1698,9 @@ type Translation struct {
 	SettingsPluginsIndexNeedsKando           func(version string) string
 	SettingsPluginsIndexCancelLabel          func(name string) string
 	SettingsPluginsIndexDropped              func(count int) string
+	SettingsPluginsIndexUpdatesAvailable     func(count int) string
+	SettingsPluginsIndexLinkMissing          func(id string) string
+	SettingsSectionPluginsUpdates            func(count int) string
 	SettingsPluginsIndexFailed               func(reason string) string
 	SettingsPluginsIndexOffline              func(date string) string
 	SettingsPluginsIndexUpdated              func(date string) string
@@ -3380,6 +3386,10 @@ const (
 	textSettingsPluginsIndexInstall
 	textSettingsPluginsIndexUpdate
 	textSettingsPluginsIndexInstalled
+	textSettingsPluginsIndexUpdatesShow
+	textSettingsPluginsIndexUpdatesOnly
+	textSettingsPluginsIndexShowAll
+	textSettingsPluginsIndexLinkBad
 	textSettingsPluginsIndexDownloading
 	textSettingsPluginsIndexNotConfigured
 	textSettingsPluginsIndexLoading
@@ -5144,6 +5154,10 @@ var keyOfText = [numTexts]string{
 	"settingsPluginsIndexInstall",
 	"settingsPluginsIndexUpdate",
 	"settingsPluginsIndexInstalled",
+	"settingsPluginsIndexUpdatesShow",
+	"settingsPluginsIndexUpdatesOnly",
+	"settingsPluginsIndexShowAll",
+	"settingsPluginsIndexLinkBad",
 	"settingsPluginsIndexDownloading",
 	"settingsPluginsIndexNotConfigured",
 	"settingsPluginsIndexLoading",
@@ -6906,6 +6920,10 @@ var textsEn = i18n.NewTexts(""+
 	"Install"+
 	"Update"+
 	"Installed"+
+	"Show Updates"+
+	"Only plugins with an update"+
+	"Show All"+
+	"The link doesn't name a plugin."+
 	"Downloading…"+
 	"This version of Kando has no plugin directory."+
 	"Loading the list…"+
@@ -8665,6 +8683,10 @@ var textsEn = i18n.NewTexts(""+
 		7,
 		6,
 		9,
+		12,
+		27,
+		8,
+		31,
 		14,
 		46,
 		19,
@@ -10427,6 +10449,10 @@ var textsJa = i18n.NewTexts(""+
 	"インストール"+
 	"アップデート"+
 	"インストール済み"+
+	"アップデートを表示"+
+	"アップデートのあるプラグインのみ"+
+	"すべて表示"+
+	"このリンクはプラグインを指定していません。"+
 	"ダウンロード中…"+
 	"このバージョンの Kando にはプラグイン一覧がありません。"+
 	"一覧を読み込んでいます…"+
@@ -12186,6 +12212,10 @@ var textsJa = i18n.NewTexts(""+
 		18,
 		18,
 		24,
+		27,
+		48,
+		15,
+		63,
 		24,
 		79,
 		36,
@@ -13948,6 +13978,10 @@ var textsKo = i18n.NewTexts(""+
 	"설치"+
 	"업데이트"+
 	"설치됨"+
+	"업데이트 보기"+
+	"업데이트가 있는 플러그인만"+
+	"모두 보기"+
+	"이 링크에는 플러그인이 지정되어 있지 않습니다."+
 	"다운로드 중…"+
 	"이 버전의 Kando에는 플러그인 목록이 없습니다."+
 	"목록을 읽는 중…"+
@@ -15707,6 +15741,10 @@ var textsKo = i18n.NewTexts(""+
 		6,
 		12,
 		9,
+		19,
+		38,
+		13,
+		66,
 		19,
 		62,
 		23,
@@ -17469,6 +17507,10 @@ var textsZhHans = i18n.NewTexts(""+
 	"安装"+
 	"更新"+
 	"已安装"+
+	"查看更新"+
+	"只显示有更新的插件"+
+	"显示全部"+
+	"这个链接没有指明插件。"+
 	"正在下载…"+
 	"这个版本的看懂没有插件目录。"+
 	"正在读取列表…"+
@@ -19228,6 +19270,10 @@ var textsZhHans = i18n.NewTexts(""+
 		6,
 		6,
 		9,
+		12,
+		27,
+		12,
+		33,
 		15,
 		42,
 		21,
@@ -20990,6 +21036,10 @@ var textsZhHant = i18n.NewTexts(""+
 	"安裝"+
 	"更新"+
 	"已安裝"+
+	"查看更新"+
+	"只顯示有更新的外掛"+
+	"顯示全部"+
+	"這個連結沒有指明外掛。"+
 	"正在下載…"+
 	"這個版本的看懂沒有外掛目錄。"+
 	"正在讀取清單…"+
@@ -22749,6 +22799,10 @@ var textsZhHant = i18n.NewTexts(""+
 		6,
 		6,
 		9,
+		12,
+		27,
+		12,
+		33,
 		15,
 		42,
 		21,
@@ -24665,6 +24719,15 @@ func Supply(lang string, t Translation) {
 	}
 	if t.SettingsPluginsIndexDropped != nil {
 		s.SettingsPluginsIndexDropped = t.SettingsPluginsIndexDropped
+	}
+	if t.SettingsPluginsIndexUpdatesAvailable != nil {
+		s.SettingsPluginsIndexUpdatesAvailable = t.SettingsPluginsIndexUpdatesAvailable
+	}
+	if t.SettingsPluginsIndexLinkMissing != nil {
+		s.SettingsPluginsIndexLinkMissing = t.SettingsPluginsIndexLinkMissing
+	}
+	if t.SettingsSectionPluginsUpdates != nil {
+		s.SettingsSectionPluginsUpdates = t.SettingsSectionPluginsUpdates
 	}
 	if t.SettingsPluginsIndexFailed != nil {
 		s.SettingsPluginsIndexFailed = t.SettingsPluginsIndexFailed
@@ -59426,6 +59489,184 @@ func (msgs Messages) SettingsPluginsIndexDropped(count int) string {
 				b.WriteString(" 個外掛")
 			}
 			b.WriteString("需要較新版本的看懂，沒有顯示。")
+			return b.String()
+		}
+	}
+}
+
+// SettingsPluginsIndexUpdatesAvailable says "Updates available ({count})"
+// in the language the app shows under cx.
+//
+// Top of the Plugins page in Settings, when the plugin directory lists a newer version of installed plugins; the button beside it shows the directory listing only those.
+func SettingsPluginsIndexUpdatesAvailable(cx *core.Scope, count int) string {
+	return For(cx).SettingsPluginsIndexUpdatesAvailable(count)
+}
+
+// SettingsPluginsIndexUpdatesAvailable is the package's SettingsPluginsIndexUpdatesAvailable in the language of msgs.
+func (msgs Messages) SettingsPluginsIndexUpdatesAvailable(count int) string {
+	if i18n.IsPseudo(msgs.lang) {
+		return i18n.Pseudo(msgs.lang, Messages{lang: Source, mark: true}.SettingsPluginsIndexUpdatesAvailable(count))
+	}
+	for lang := msgs.lang; ; lang = i18n.Parent(lang) {
+		if f := supplied[lang].SettingsPluginsIndexUpdatesAvailable; f != nil {
+			return f(count)
+		}
+		switch lang {
+		case "", "en":
+			return "Updates available (" + msgs.arg(i18n.FormatNumber("en", float64(count))) + ")"
+		case "ja":
+			return "アップデートがあります（" + i18n.FormatNumber("ja", float64(count)) + "）"
+		case "ko":
+			return "업데이트 있음 (" + i18n.FormatNumber("ko", float64(count)) + ")"
+		case "zh-Hans":
+			return "有可用更新（" + i18n.FormatNumber("zh-Hans", float64(count)) + "）"
+		case "zh-Hant":
+			return "有可用的更新（" + i18n.FormatNumber("zh-Hant", float64(count)) + "）"
+		}
+	}
+}
+
+// SettingsPluginsIndexUpdatesShow says "Show Updates"
+// in the language the app shows under cx.
+//
+// Button beside 'Updates available (N)' at the top of the Plugins page: opens the plugin directory listing only the installed plugins that have an update.
+func SettingsPluginsIndexUpdatesShow(cx *core.Scope) string {
+	return For(cx).SettingsPluginsIndexUpdatesShow()
+}
+
+// SettingsPluginsIndexUpdatesShow is the package's SettingsPluginsIndexUpdatesShow in the language of msgs.
+func (msgs Messages) SettingsPluginsIndexUpdatesShow() string {
+	return msgs.text(textSettingsPluginsIndexUpdatesShow)
+}
+
+// SettingsPluginsIndexUpdatesOnly says "Only plugins with an update"
+// in the language the app shows under cx.
+//
+// Plugin directory: above the list while it lists only the installed plugins that have an update.
+func SettingsPluginsIndexUpdatesOnly(cx *core.Scope) string {
+	return For(cx).SettingsPluginsIndexUpdatesOnly()
+}
+
+// SettingsPluginsIndexUpdatesOnly is the package's SettingsPluginsIndexUpdatesOnly in the language of msgs.
+func (msgs Messages) SettingsPluginsIndexUpdatesOnly() string {
+	return msgs.text(textSettingsPluginsIndexUpdatesOnly)
+}
+
+// SettingsPluginsIndexShowAll says "Show All"
+// in the language the app shows under cx.
+//
+// Plugin directory: button beside 'Only plugins with an update' that lists every plugin again.
+func SettingsPluginsIndexShowAll(cx *core.Scope) string { return For(cx).SettingsPluginsIndexShowAll() }
+
+// SettingsPluginsIndexShowAll is the package's SettingsPluginsIndexShowAll in the language of msgs.
+func (msgs Messages) SettingsPluginsIndexShowAll() string {
+	return msgs.text(textSettingsPluginsIndexShowAll)
+}
+
+// SettingsPluginsIndexLinkMissing says "The plugin directory doesn't list {id}."
+// in the language the app shows under cx.
+//
+// Plugin directory: when a link from Kando's website (Open in Kando) asked to install a plugin the directory does not list, even after downloading the list again. id is the plugin's id, such as example.terms.
+func SettingsPluginsIndexLinkMissing(cx *core.Scope, id string) string {
+	return For(cx).SettingsPluginsIndexLinkMissing(id)
+}
+
+// SettingsPluginsIndexLinkMissing is the package's SettingsPluginsIndexLinkMissing in the language of msgs.
+func (msgs Messages) SettingsPluginsIndexLinkMissing(id string) string {
+	if i18n.IsPseudo(msgs.lang) {
+		return i18n.Pseudo(msgs.lang, Messages{lang: Source, mark: true}.SettingsPluginsIndexLinkMissing(id))
+	}
+	for lang := msgs.lang; ; lang = i18n.Parent(lang) {
+		if f := supplied[lang].SettingsPluginsIndexLinkMissing; f != nil {
+			return f(id)
+		}
+		switch lang {
+		case "", "en":
+			return "The plugin directory doesn't list " + msgs.arg(id) + "."
+		case "ja":
+			return "プラグイン一覧に " + id + " はありません。"
+		case "ko":
+			return "플러그인 목록에 " + id + "이(가) 없습니다."
+		case "zh-Hans":
+			return "插件目录里没有 " + id + "。"
+		case "zh-Hant":
+			return "外掛目錄裡沒有 " + id + "。"
+		}
+	}
+}
+
+// SettingsPluginsIndexLinkBad says "The link doesn't name a plugin."
+// in the language the app shows under cx.
+//
+// Plugin directory: when a link from a web page asked Kando to install a plugin but names no valid plugin id.
+func SettingsPluginsIndexLinkBad(cx *core.Scope) string { return For(cx).SettingsPluginsIndexLinkBad() }
+
+// SettingsPluginsIndexLinkBad is the package's SettingsPluginsIndexLinkBad in the language of msgs.
+func (msgs Messages) SettingsPluginsIndexLinkBad() string {
+	return msgs.text(textSettingsPluginsIndexLinkBad)
+}
+
+// SettingsSectionPluginsUpdates says "{count, plural, one {# update} other {# updates}}"
+// in the language the app shows under cx.
+//
+// Settings sidebar: what assistive technology reads for the count beside Plugins, the number of installed plugins the plugin directory lists newer.
+func SettingsSectionPluginsUpdates(cx *core.Scope, count int) string {
+	return For(cx).SettingsSectionPluginsUpdates(count)
+}
+
+// SettingsSectionPluginsUpdates is the package's SettingsSectionPluginsUpdates in the language of msgs.
+func (msgs Messages) SettingsSectionPluginsUpdates(count int) string {
+	if i18n.IsPseudo(msgs.lang) {
+		return i18n.Pseudo(msgs.lang, Messages{lang: Source, mark: true}.SettingsSectionPluginsUpdates(count))
+	}
+	for lang := msgs.lang; ; lang = i18n.Parent(lang) {
+		if f := supplied[lang].SettingsSectionPluginsUpdates; f != nil {
+			return f(count)
+		}
+		switch lang {
+		case "", "en":
+			var b strings.Builder
+			switch i18n.Cardinal("en", float64(count)) {
+			case i18n.One:
+				b.WriteString(msgs.arg(i18n.FormatNumber("en", float64(count))))
+				b.WriteString(" update")
+			default:
+				b.WriteString(msgs.arg(i18n.FormatNumber("en", float64(count))))
+				b.WriteString(" updates")
+			}
+			return b.String()
+		case "ja":
+			var b strings.Builder
+			switch i18n.Cardinal("ja", float64(count)) {
+			default:
+				b.WriteString(i18n.FormatNumber("ja", float64(count)))
+				b.WriteString(" 件のアップデート")
+			}
+			return b.String()
+		case "ko":
+			var b strings.Builder
+			switch i18n.Cardinal("ko", float64(count)) {
+			default:
+				b.WriteString("업데이트 ")
+				b.WriteString(i18n.FormatNumber("ko", float64(count)))
+				b.WriteString("개")
+			}
+			return b.String()
+		case "zh-Hans":
+			var b strings.Builder
+			switch i18n.Cardinal("zh-Hans", float64(count)) {
+			default:
+				b.WriteString(i18n.FormatNumber("zh-Hans", float64(count)))
+				b.WriteString(" 个更新")
+			}
+			return b.String()
+		case "zh-Hant":
+			var b strings.Builder
+			switch i18n.Cardinal("zh-Hant", float64(count)) {
+			default:
+				b.WriteString(i18n.FormatNumber("zh-Hant", float64(count)))
+				b.WriteString(" 個更新")
+			}
 			return b.String()
 		}
 	}

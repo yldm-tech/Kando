@@ -7555,6 +7555,33 @@ settingsPluginsIndexDropped:
   description: "Plugin directory: under the status line, when the list has plugins this version of Kando cannot read or install, which it leaves out."
   placeholders:
     count: { type: "int", example: "3" }
+settingsPluginsIndexUpdatesAvailable:
+  message: "Updates available ({count})"
+  description: "Top of the Plugins page in Settings, when the plugin directory lists a newer version of installed plugins; the button beside it shows the directory listing only those."
+  placeholders:
+    count: { type: "int", example: "2" }
+settingsPluginsIndexUpdatesShow:
+  message: "Show Updates"
+  description: "Button beside 'Updates available (N)' at the top of the Plugins page: opens the plugin directory listing only the installed plugins that have an update."
+settingsPluginsIndexUpdatesOnly:
+  message: "Only plugins with an update"
+  description: "Plugin directory: above the list while it lists only the installed plugins that have an update."
+settingsPluginsIndexShowAll:
+  message: "Show All"
+  description: "Plugin directory: button beside 'Only plugins with an update' that lists every plugin again."
+settingsPluginsIndexLinkMissing:
+  message: "The plugin directory doesn't list {id}."
+  description: "Plugin directory: when a link from Kando's website (Open in Kando) asked to install a plugin the directory does not list, even after downloading the list again. id is the plugin's id, such as example.terms."
+  placeholders:
+    id: { type: "String", example: "example.terms" }
+settingsPluginsIndexLinkBad:
+  message: "The link doesn't name a plugin."
+  description: "Plugin directory: when a link from a web page asked Kando to install a plugin but names no valid plugin id."
+settingsSectionPluginsUpdates:
+  message: "{count, plural, one {# update} other {# updates}}"
+  description: "Settings sidebar: what assistive technology reads for the count beside Plugins, the number of installed plugins the plugin directory lists newer."
+  placeholders:
+    count: { type: "int", example: "2" }
 settingsPluginsIndexDownloading:
   message: "Downloading…"
   description: "Plugin directory: in place of Install while the plugin's file downloads."

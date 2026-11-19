@@ -3,7 +3,10 @@ package main
 import (
 	"context"
 
+	"kando/apps/kando/live"
+
 	"github.com/nsgo-dev/nsgo/core"
+	nsdesktop "github.com/nsgo-dev/nsgo/desktop"
 )
 
 // areaHooks is what an area does at the moments every area shares. Each area returns its hooks from a function in its own file (sidebarHooks in state_sidebar.go, libraryHooks in state_library.go, queueHooks in queue.go, settingsHooks in state_settings.go, cloudHooks in state_cloud.go, playerHooks in state_player.go, overlayHooks in state_overlay.go, menuHooks in state_menu.go, feedbackHooks in state_feedback.go, onboardingHooks in state_onboarding.go, kitsHooks in state_kits.go, toolsHooks in state_tools.go, remoteHooks in state_remote.go, windowHooks in state_window.go, logsHooks in state_logs.go, browseHooks in state_browse.go, lockHooks in state_lock.go), as each area returns its rows of the shortcut table. A nil field means the area does nothing then. An area that needs another moment sets the field in its own hooks, not a call where the moment happens.
@@ -15,6 +18,8 @@ type areaHooks struct {
 	restore func(saved savedSettings)
 	// ready runs once the main window exists, on the engine's goroutine, with the app's scope in app.cx. It runs once, from run.
 	ready func()
+	// openLinks runs, from ready on, with the links of Kando's own scheme (nsgo.yaml's url_schemes) the system opened Kando with; each area takes those it knows and leaves the others. One handler takes them for every area (areasReady), as NSGo gives the links that came before any handler, as the one Kando was launched to open, to the first handler registered alone (core.Scope.OnOpenLinks).
+	openLinks func(links []string)
 	// afterUpdate runs after each report of background work has run on the engine's goroutine (app.update). Only the app's own update (appUpdate) runs it; a test's update does not.
 	afterUpdate func()
 	// afterChange runs once the main view is built and again after every change of the app's state (live.State.Changed), once the bindings have followed it, to bring the area up to date with that change, as closing a dialog whose reason went away. It is no clock: it runs only after a change, never on its own while a film plays, so work that follows time uses core.Video's OnProgress or the app scope's AfterFunc instead. It may change what a binding or the menu bar reads, and then returns true, and only then: areasFollow lets everything follow and runs every afterChange again, so one that always returned true would never let the app settle. It runs under the main view's scope (areasFollow), so what it creates stays until the window goes; it creates no Effect, which would pile up with each run. A modal flag (holdModal) is given back by the handler that closes its dialog, not here, so the menu bar follows at once.
@@ -117,9 +122,19 @@ func (a *app) areasRestore(saved savedSettings) {
 }
 
 func (a *app) areasReady() {
+	nsdesktop.OnOpenLinks(a.cx, live.On(a, a.areasOpenLinks))
 	for _, h := range a.areas() {
 		if h.ready != nil {
 			h.ready()
+		}
+	}
+}
+
+// areasOpenLinks gives the links the system opened Kando with to every area's openLinks.
+func (a *app) areasOpenLinks(links []string) {
+	for _, h := range a.areas() {
+		if h.openLinks != nil {
+			h.openLinks(links)
 		}
 	}
 }

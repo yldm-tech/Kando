@@ -91,6 +91,32 @@ func (a *app) PluginIndexInstallable() bool {
 
 func (a *app) InstallFromPluginIndex(id string) { a.pluginsIndexInstall(id) }
 
+// PluginIndexUpdates is how many installed packs the index read lists newer, the copy kept read at startup included (pluginsIndexPeek), as 有可用更新 and the settings' sidebar count them.
+func (a *app) PluginIndexUpdates() int { return a.pluginsIndexUpdates() }
+
+// ShowPluginIndexUpdates shows 浏览插件 listing only the packs with an update, its search and kind filter cleared.
+func (a *app) ShowPluginIndexUpdates() {
+	p := &a.plugins.index
+	p.query, p.kind, p.updates = "", "", true
+	a.pluginsIndexOpen(true)
+}
+
+func (a *app) PluginIndexUpdatesOnly() bool { return a.plugins.index.updates }
+
+func (a *app) ShowAllPluginIndex() { a.plugins.index.updates = false }
+
+// PluginIndexLinkNote says why a link that asked to install a pack did not, in the interface's language: it named no pack, or one the index does not list; "" otherwise.
+func (a *app) PluginIndexLinkNote() string {
+	p := a.plugins.index
+	switch {
+	case p.linkBad:
+		return a.messages().SettingsPluginsIndexLinkBad()
+	case p.linkMissing != "":
+		return a.messages().SettingsPluginsIndexLinkMissing(p.linkMissing)
+	}
+	return ""
+}
+
 func (a *app) CancelPluginIndexDownload() { a.pluginsIndexCancel() }
 
 // pluginsIndexErrorText is the message of m for an error of the community index, false for another error.

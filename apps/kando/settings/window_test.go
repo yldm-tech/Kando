@@ -152,6 +152,7 @@ func (f *fakeApp) BrowserExtension() BrowserExtension    { return f.ext }
 func (f *fakeApp) ConnectBrowsers()                      { f.call("connect browsers") }
 func (f *fakeApp) DisconnectBrowsers()                   { f.call("disconnect browsers") }
 func (f *fakeApp) ShowExtensionFolder()                  { f.call("show extension folder") }
+func (f *fakeApp) PluginIndexUpdates() int               { return 0 }
 func (f *fakeApp) LinkStartAtOnce() bool                 { return f.startAtOnce }
 func (f *fakeApp) SetLinkStartAtOnce(on bool) {
 	f.call(fmt.Sprintf("start at once %v", on))

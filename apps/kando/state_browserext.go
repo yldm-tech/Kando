@@ -11,13 +11,10 @@ import (
 	"kando/apps/kando/addsheet"
 	"kando/apps/kando/browse"
 	"kando/apps/kando/browserext"
-	"kando/apps/kando/live"
 	"kando/apps/kando/remote"
 	"kando/apps/kando/settings"
 	"kando/apps/kando/sites/catalog"
 	kcore "kando/packages/core"
-
-	nsdesktop "github.com/nsgo-dev/nsgo/desktop"
 )
 
 // The browser extension (browserext/, resources/browser-extension): Settings › 通用 › 浏览器扩展, which registers Kando's native messaging host with the browsers and gives out the extension's folder, and the control socket's methods the host relays the extension's buttons to (remote.MethodBrowserState, MethodBrowserAdd, MethodBrowserShow), which follow the built-in browser's buttons (state_browse_buttons.go).
@@ -51,10 +48,9 @@ func (a *app) browserExtFolder() string {
 	return filepath.Join(a.browserExtDir(), browserext.FolderName)
 }
 
-// browserExtHooks: once the window exists, the links of Kando's own scheme the bookmarklet opens are heard (browserExtOpenLinks), and the host is registered again with the browsers it is registered with, for the executable as it is now, as after Kando moved or its AppImage was replaced, and the extension's folder given out before is brought up to the app's, off the UI thread; the browsers load the new one once the extension is reloaded.
+// browserExtHooks: the links of Kando's own scheme the bookmarklet opens are taken (browserExtOpenLinks), and once the window exists the host is registered again with the browsers it is registered with, for the executable as it is now, as after Kando moved or its AppImage was replaced, and the extension's folder given out before is brought up to the app's, off the UI thread; the browsers load the new one once the extension is reloaded.
 func (a *app) browserExtHooks() areaHooks {
-	return areaHooks{ready: func() {
-		nsdesktop.OnOpenLinks(a.cx, live.On(a, a.browserExtOpenLinks))
+	return areaHooks{openLinks: a.browserExtOpenLinks, ready: func() {
 		env, src, dst := a.ext.env(a.browserExtDir()), a.ext.shipped(), a.browserExtFolder()
 		go func() {
 			_ = browserext.Refresh(env)

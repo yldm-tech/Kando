@@ -1,6 +1,7 @@
 package settings
 
 import (
+	"strconv"
 	"strings"
 	"time"
 
@@ -231,6 +232,8 @@ type App interface {
 	// ShortcutPreset is the preset the player's keys follow, one of hotkey.Presets; SetShortcutPreset moves them at once and saves it.
 	ShortcutPreset() string
 	SetShortcutPreset(preset string)
+	// PluginIndexUpdates is how many installed plugins the plugin directory lists newer, which the sidebar counts beside 插件 (PluginIndexApp.PluginIndexUpdates).
+	PluginIndexUpdates() int
 }
 
 // screen is what every page reads: the app, and the version 通用 shows.
@@ -340,7 +343,7 @@ func (r rail) Render(cx *core.Scope) core.Node {
 			var items []ui.SidebarItem
 			for _, sec := range sections {
 				if strings.Contains(","+ids+",", ","+sec.id+",") {
-					items = append(items, ui.SidebarItem{ID: sec.id, Text: sec.title(cx), Content: categoryContent(cx, sec), TestID: "settings-section-" + sec.id})
+					items = append(items, ui.SidebarItem{ID: sec.id, Text: sec.title(cx), Content: categoryContent(cx, a, sec), TestID: "settings-section-" + sec.id})
 				}
 			}
 			return []ui.SidebarSection{{Items: items}}
@@ -369,13 +372,24 @@ func (r rail) Render(cx *core.Scope) core.Node {
 		Children: []core.Node{top, search{a: a}, none, core.View{Style: core.Style{FlexGrow: 1, FlexShrink: 1, MinHeight: core.Pt(0)}, Children: []core.Node{list}}}}
 }
 
-// categoryContent is a category of the rail: its colored tile and its title, as the prototype's settings sidebar draws it. ui.Sidebar marks the chosen one.
-func categoryContent(cx *core.Scope, sec section) core.Node {
+// categoryContent is a category of the rail: its colored tile and its title, as the prototype's settings sidebar draws it, and for 插件 how many installed packs the plugin directory lists newer, while some are (App.PluginIndexUpdates). ui.Sidebar marks the chosen one.
+func categoryContent(cx *core.Scope, a App, sec section) core.Node {
 	colors := ui.ColorsOf(cx)
 	tile := core.SVGView{SVG: sec.icon, Style: core.Style{Width: core.Pt(22), Height: core.Pt(22), FlexShrink: 0}}
 	label := ui.Text(sec.title(cx), 13, ui.Regular, colors.Text)
 	label.MaxLines, label.Style.FlexGrow, label.Style.FlexShrink = 1, 1, 1
-	return core.Group([]core.Node{tile, label})
+	if sec.id != SectionPlugins {
+		return core.Group([]core.Node{tile, label})
+	}
+	updates := live.Func(a, a.PluginIndexUpdates)
+	badge := core.Show{When: func() bool { return updates() > 0 }, Then: func(cx *core.Scope) core.Node {
+		k := ui.ColorsOf(cx)
+		return core.Text{TestID: "settings-section-plugins-updates", ContentFunc: func() string { return strconv.Itoa(updates()) },
+			LabelFunc: func() string { return locales.SettingsSectionPluginsUpdates(cx, updates()) }, MaxLines: 1,
+			Style:     core.Style{FontSize: 10, FontWeight: ui.Bold, LineHeight: 16, MinWidth: core.Pt(16), TextAlign: core.TextAlignCenter, CornerRadius: 8, Padding: core.Symmetric(0, 5), FlexShrink: 0},
+			StyleFunc: func() core.Style { return core.Style{Background: k.Accent(), Color: k.OnAccent()} }}
+	}}
+	return core.Group([]core.Node{tile, label, badge})
 }
 
 // search is the rail's search field, which narrows the categories to those whose title or keywords hold what is typed: 28 points high, its corners 8, gray without a border, a magnifying glass before the text and a clear button after it while it holds something. The button or Escape empties it.

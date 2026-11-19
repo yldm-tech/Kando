@@ -121,7 +121,7 @@ func (s *savedPlugins) clean() {
 	s.PluginExportTarget = strings.TrimSpace(s.PluginExportTarget)
 }
 
-// pluginsHooks: the order of the packs, how the lines are marked and developer mode are kept in settings.json, and the AI service of a pack that went is saved as its pack's; the plugins folder is read once the window is ready, and the inbox looked at again each time the app comes to the front; the open film's lines are marked as it plays and as the app's state changes; the dictionaries and the script plugins close as the app quits. The script plugins hear film.opened after the change that opened a film, job.completed as the shelf changes and llm.changed after the AI service changed; and those running whose grant changed with the app's state, as when Kando went offline, are loaded again.
+// pluginsHooks: the order of the packs, how the lines are marked and developer mode are kept in settings.json, and the AI service of a pack that went is saved as its pack's; the plugins folder and the copy of the community index kept in it (pluginsIndexPeek) are read once the window is ready, links that ask to install a pack of the index are taken (pluginsIndexOpenLinks), and the inbox looked at again each time the app comes to the front; the open film's lines are marked as it plays and as the app's state changes; the dictionaries and the script plugins close as the app quits. The script plugins hear film.opened after the change that opened a film, job.completed as the shelf changes and llm.changed after the AI service changed; and those running whose grant changed with the app's state, as when Kando went offline, are loaded again.
 func (a *app) pluginsHooks() areaHooks {
 	return areaHooks{
 		restore: func(saved savedSettings) {
@@ -147,7 +147,11 @@ func (a *app) pluginsHooks() areaHooks {
 			saved.PluginDeveloper = a.plugins.script.developer
 			saved.PluginExportTarget = a.plugins.exportTarget
 		},
-		ready: a.pluginsScan,
+		ready: func() {
+			a.pluginsScan()
+			a.pluginsIndexPeek()
+		},
+		openLinks: a.pluginsIndexOpenLinks,
 		becameActive: func() {
 			if a.plugins.scanned {
 				a.pluginsCheckInbox()

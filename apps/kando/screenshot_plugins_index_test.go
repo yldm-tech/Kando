@@ -83,3 +83,44 @@ func TestPluginIndexScene(t *testing.T) {
 		t.Errorf("a plugin for a newer Kando can be installed, or the list says it shows fewer than match; texts %q", tt.Texts())
 	}
 }
+
+// pluginsUpdatesScene puts the app in the plugins-updates scene's state: the scene's directory read, 浏览插件 closed, so the glossary installed at 1.2.0, which it lists at 1.3.0, shows as 有可用更新 at the top of the page and as a count beside 插件 in the sidebar.
+func pluginsUpdatesScene(t *testing.T, a *app, root string) {
+	t.Helper()
+	pluginsIndexScene(t, a, root)
+	a.plugins.index.open = false
+}
+
+// TestScreenshotsPluginUpdates renders Settings › 插件 with an update in the plugin directory (plugins-updates): the count beside 插件 in the sidebar, 有可用更新 (1) with 查看更新 at the top of the page, and the glossary it updates among the installed packs.
+func TestScreenshotsPluginUpdates(t *testing.T) {
+	f := newScreenshotFixture(t)
+	shown, models, turbo := settingsShotFolders(t, f)
+	shootSettings(t, f, settings.SectionPlugins, "plugins-updates", shown, models, turbo, func(a *app) {
+		shotCLITool(f, a, true)
+		pluginsUpdatesScene(t, a, filepath.Join(f.home, "Library", "Application Support", "Kando", "plugins"))
+	})
+}
+
+// TestPluginUpdatesScene checks headless what the plugins-updates scene shows, as its picture is rendered only on a platform: the count in the sidebar and its label, 有可用更新 with its button, and no directory; then the button shows the directory with the glossary alone.
+func TestPluginUpdatesScene(t *testing.T) {
+	a, tt, _, root := pluginsApp(t)
+	m := testlocale.Messages()
+	apply(tt, a, func() { pluginsUpdatesScene(t, a, root) })
+	tt = settingsOpenAt(a, tt, settings.SectionPlugins)
+	if !hasText(tt, m.SettingsPluginsIndexUpdatesAvailable(1)) || !tt.Exists("id:settings-plugins-updates-show") || !tt.Exists("id:settings-section-plugins-updates") || tt.Exists("id:settings-plugins-index") {
+		t.Fatalf("the notice; texts %q", tt.Texts())
+	}
+	if !tt.Exists(`label:"` + m.SettingsSectionPluginsUpdates(1) + `"`) {
+		t.Errorf("the sidebar's count has no label %q", m.SettingsSectionPluginsUpdates(1))
+	}
+	tt.Press("id:settings-plugins-updates-show")
+	refresh(tt, a)
+	for _, e := range pluginsIndexSceneEntries() {
+		if want := e.ID == "example.anime-ja-zh"; tt.Exists("id:settings-plugins-index-row-"+e.ID) != want {
+			t.Errorf("row of %s shown %v, want %v", e.ID, !want, want)
+		}
+	}
+	if !tt.Exists("id:settings-plugins-index-updates-only") || !tt.Exists("id:settings-plugins-index-show-all") {
+		t.Errorf("the filter to updates; texts %q", tt.Texts())
+	}
+}
