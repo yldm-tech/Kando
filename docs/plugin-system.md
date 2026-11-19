@@ -31,7 +31,7 @@
 - 所以先抽出一个共用的 `func (a *app) vocabResolve(q lookup.Query, film string) vocabAsk`（P1.3 已实现，在 `state_vocab.go`），顺序是缓存 → 已启用的词典（按 `savedPlugins` 里的顺序）→ AI。它分两半：`vocabResolve` 在引擎 goroutine 上读缓存、挑出已打开的词典、取 AI 服务；后台的那一半不碰 app 状态，放在非界面包 `lookup` 里（`lookup.Ask.Answer(ctx)`，词典按 `lookup.Dictionary` 这个窄接口传入，`*dict.Dict` 满足它，`lookup` 不导入 `plugins/dict`），查词典、再问 AI；决定按哪种语言挑词典的 `lookup.WordLanguage` 也在那里。`LookUpWord` 和 `phoneStudy.LookUp` 都改成调它，词典在 AI 之前，手机那条路不再先调 `s.ask(f)`，只有词典都没有这个词、又没有能用的 AI 服务时才回 `psync.CodeNoAI`，所以离线的手机也能查到词。
 - 缓存只存 AI 的回答：词典的结果每次现查（本地、很快），不写进缓存，免得挤掉花钱、要联网才能重新拿到的 AI 回答（缓存上限 5000 条）。手机只读（`psync.Caller.ReadOnly`）时的规则不变：它的 AI 回答也不写进缓存。
 - 挑词典：词的语言取影片的说话语言（`Spoken`），没有时看文字（有假名是日语，只有汉字时看整行有没有假名，否则是中文），都看不出就不按语言筛。词典的 `from` 要和它是同一种语言；`to` 和回答语言（`core.TargetTag(q.Language)`）相同的词典排在 AI 之前；`to` 是别的语言的词典只在没有能用的 AI 服务、或 AI 服务出错没答上来时才答（比如目标语言是简体中文、只装了 JMdict 英文版，离线时照样能看到英文释义，有 AI 时由 AI 用中文答）。
-- 查词卡在释义下面写出来源：「来自词典「<名称>」 · <attribution>」或「由 AI 服务解释」（缓存里的也是 AI 的回答）。手机也一样：手机同步协议 v2 的 `psync.WordEntry` 加了可选的 `Source`（`psync.WordSource`，`kind` 是 `dictionary` 或 `ai`；词典带名称和 attribution，用桌面的界面语言，`phoneWordSources` 在引擎 goroutine 上按包现取），手机的查词卡在释义下面照桌面的写法显示（`apps/mobile/player/words.go` 的 `sourceText`）。它是 v2 里新增的可选字段（`omitzero`），旧手机解 JSON 时忽略它，旧桌面不发它、手机就不显示来源；`packages/sync/v2.go` 的协商规则是新增只加在同一版本下，所以不升协议版本，`TestWordSourceIsAnAddition` 锁住两个方向的兼容。
+- 查词卡在释义下面写出来源：「来自词典「<名称>」 · <attribution>」或「由 AI 服务解释」（缓存里的也是 AI 的回答）。手机也一样：手机同步协议 v2 的 `psync.WordEntry` 加了可选的 `Source`（`psync.WordSource`，`kind` 是 `dictionary` 或 `ai`；词典带名称和 attribution，用桌面的界面语言，`phoneWordSources` 在引擎 goroutine 上按包现取；`desktop` 是回答的这台电脑的名字（`phoneSyncName`），手机把它和查词结果一起存下，之后从手机自己的缓存里答时也写出当初回答的电脑，而不是当前影片所在的电脑，没有名字时写「由电脑上的 AI 服务解释」），手机的查词卡在释义下面照桌面的写法显示（`apps/mobile/player/words.go` 的 `sourceText`）。它是 v2 里新增的可选字段（`omitzero`），旧手机解 JSON 时忽略它，旧桌面不发它、手机就不显示来源；`packages/sync/v2.go` 的协商规则是新增只加在同一版本下，所以不升协议版本，`TestWordSourceIsAnAddition` 锁住两个方向的兼容。
 - 日语查词要用原形，但现有分词给不了原形和读音：`packages/core/segment/segment.go:174-176` 有意用 `ipa.DictShrink()` 加载了去掉 features 的 IPA 词典，只保留词界和词性，以节省内存，手机也受益于此；`:191` 把助动词并进前一个词（`行った` 是一个词，没有单一的 kagome 原形）；中文的 gse（`:203-210`）只返回字符串，没有读音。因此原形和读音要单独做（P1.2）：
   - 新增 `segment.Annotated(lang, line) []Morph{Text, Word, Base, Reading}`，内部用另一个按需加载的完整 features 词典 `ipa.Dict()`，只在桌面上、并且启用了日语的词典包或词表包时才加载（12.2 第 5 条的测量门槛已达标，数字见第 15 节）。`Words` 保持用 `DictShrink`，`core.WordToken` 不改，手机的分词不受影响。合并后的词（`行った`）取它首个 token 的原形（`行く`），读音是各 token 读音（片假名）连起来（`イッタ`），有一个 token 没有读音就整个留空。Annotated 会等词典读完，所以只在后台 goroutine 里调。`lang` 是 `ja` 时即使整行没有假名也按日语切（`Words` 会把只有汉字的行当中文），是 `zh` 时按中文切，其余按文字判断，和 `Words` 一样。
   - P1.2 先在 Ubuntu 编译机（`ubuild`）上量出 `ipa.Dict()` 相对 `DictShrink()` 的常驻内存增量（RSS）和首次加载时间。门槛是增量不超过 200 MiB、加载不超过 3 s（12.2 第 5 条）。不达标就退到另一条路：Annotated 不出 Base 和 Reading，查词先查表层形，查不到再查拆开后首个 token 的表层形，读音只取自词典包的条目。测量数字和最终选择记在第 15 节：增量约 92 MiB、加载约 0.6 s，达标，用完整词典，没有走退路。
@@ -415,7 +415,7 @@ type PluginState struct {
 
 P1 的数据包没有授权：glossary、ai-service、dictionary、wordlist 装好就启用（6.2 节），`Hash` 只用来认出「同一个 id 换了内容」，好在列表里标出「已更新」。
 
-state.json 读不了、不是 JSON 或没有 format（format 为 0，比如被截成 `{}` 或手工改过）时是 `ErrBadState`，format 比本版新时是 `ErrStateFormat`，两种情况下所有包都按停用处理。这个「全部停用」只维持到下一次 `Save`：`Save` 只写 `Plugins` 里已有的条目，写完后没有条目的包又按启用处理。所以 P1.1 的 app 在发现 state.json 损坏后第一次保存之前，要先给 `Scan` 到的每个包补一条 `enabled: false`，否则用户拨一次开关，损坏前关掉的包就全被重新打开了。格式更新的文件 `Save` 不覆盖；没有 format 的文件按损坏处理，会被覆盖。
+state.json 读不了、不是 JSON 或没有 format（format 为 0，比如被截成 `{}` 或手工改过）时是 `ErrBadState`，format 比本版新时是 `ErrStateFormat`，两种情况下所有包都按停用处理。这个「全部停用」只维持到下一次 `Save`：`Save` 只写 `Plugins` 里已有的条目，写完后没有条目的包又按启用处理。所以 P1.1 的 app 在发现 state.json 损坏后第一次保存之前，要先给 `Scan` 到的每个包补一条 `enabled: false`，否则用户拨一次开关，损坏前关掉的包就全被重新打开了。格式更新的文件 `Save` 不覆盖；`Save` 写之前会重读磁盘上的 state.json，读到之后被更新版本的看懂改写过的也返回 `ErrStateFormat`，revision 取自己和磁盘上两者较大的再加一。没有 format 的文件按损坏处理，会被覆盖。
 
 P3 起追加的部分（脚本插件；本轮不写）：
 
@@ -753,7 +753,7 @@ export function kandoManifest() { return { /* identical to kando-plugin.json fie
 - 列表按 kind 分组。每行有名称、来源徽标、版本·作者、行内开关，以及展开详情的按钮（P1.1 没有每行的图标）。P1.1 的状态只有开关本身和「未安装」：savedPlugins 引用了、目录里却没有的包单独列在「不在插件文件夹里」一组（包已经读不到，不知道它的 kind），带「移除」按钮。其余状态到有对应机制的那一期再加：需要授权 / 已更新，需要重新授权 / 已停用：出错 / 已停用：太慢 / 已停用：上次让看懂停止响应 / 已被撤回 / 离线时不可用。
 - 词典分组里每行有上移、下移两个按钮（`lucide.ArrowUp`/`ArrowDown`，在第一行、最后一行时禁用），决定查词时谁先答，顺序存在 `savedPlugins.PluginOrder`。NSGo 固定版本没有可拖动排序的列表控件，所以不做拖动。移动只改顺序，行按包 id 保留并移动（`core.Each`），不重建，按下的按钮保住键盘焦点，可以连按几次。
 - 顶部按钮：「从文件安装…」（系统文件面板，配合 `holdModal()`，接受 `.zip` 和 `.kandopack`），以及「在访达中显示」（按平台换成文件资源管理器、文件管理器；`desktop.Reveal`，经 `revealInFolder`，插件目录不存在时先建出来）。开发者模式开着时，多一组「开发者」：生成开发者密钥、打包并安装文件夹…。
-- 详情在行下面展开：说明、它会加什么（术语条数和语言、AI 服务的 host 等，由 app 用界面语言写好）、许可、主页、词典的 attribution、id 和哈希前 12 位，以及「卸载…」。卸载的确认也在详情里展开（和手机同步「撤销…」的做法一样），确认后删除目录并从 state.json 移除。state.json 是更新版本写的时，和安装一样在删之前就拒绝，插件页写出原因；目录已经删掉、之后 state.json 没存上的，算卸载好了，插件页另写一句「已完成，但没能保存哪些插件是启用的」（`pluginsStateUnsaved`，安装后没存上也是这一句），不说卸载失败。
+- 详情在行下面展开：说明、它会加什么（术语条数和语言、AI 服务的 host 等，由 app 用界面语言写好）、许可、主页、词典的 attribution、id 和哈希前 12 位，以及「卸载…」。卸载的确认也在详情里展开（和手机同步「撤销…」的做法一样），确认后删除目录并从 state.json 移除。state.json 是更新版本写的时，和安装一样在删之前就拒绝，插件页另写一句「没有卸载」（`plugins.ErrUninstallRefused`，和列表上方说明 state.json 的那句不重复）；目录已经删掉、之后 state.json 没存上的，算卸载好了，插件页另写一句「已完成，但没能保存哪些插件是启用的」（`plugins.StateUnsaved`，安装后没存上也是这一句；原因是插件页认得的错误时用它自己的文案），不说卸载失败。
 - state.json 读不了或是更新版本写的，在列表上方用一行红字说明所有包暂时停用。
 - 问题区列出没能载入的包，以及原因的本地化文案。
 
@@ -786,7 +786,7 @@ P1.1 的确认框只有数据包要显示的部分：名称（标题）、说明
 
 ### 7.5 错误
 
-- 插件失败不弹窗打断，在出错的地方说清楚，比如查词卡上写「JMdict 没有这个词，问了 AI」：先问过的词典（`lookup.Ask.Dicts`）都没有这个词、由 AI 服务回答时，来源一行写「词典「<名称>」没有这个词，问了 AI 服务」，问过几本时写「你的词典都没有这个词，问了 AI 服务」（`vocabSourceText`）。缓存里的 AI 回答没有问过词典，照旧写「由 AI 服务解释」。手机的查词卡不写这一句（`psync.WordSource` 没有这一项）。
+- 插件失败不弹窗打断，在出错的地方说清楚，比如查词卡上写「JMdict 没有这个词，问了 AI」：先问过的词典（`lookup.Ask.Dicts`）都没有这个词、由 AI 服务回答时（查词出错的词典，比如索引坏了、经 `Failed` 报告的，不算「没有这个词」，不列进去），来源一行写「词典「<名称>」没有这个词，问了 AI 服务」，问过几本时写「你的词典都没有这个词，问了 AI 服务」（`vocabSourceText`）。缓存里的 AI 回答没有问过词典，照旧写「由 AI 服务解释」。手机的查词卡不写这一句（`psync.WordSource` 没有这一项）。
 - 错误码在 `plugins` 包里是英文哨兵错误（`ErrUnknownKind`、`ErrUnsupportedKind`、`ErrBadSignature`、`ErrRevoked`、`ErrTampered`、`ErrUnknownKey`、`ErrTooLarge`、`ErrBadID`、`ErrNoSecrets`、`ErrHung`……），由 `bind_plugins.go` 映射成 catalog 文案，不把 `err.Error()` 拼进本地化句子。
 
 ### 7.6 多语言
@@ -1165,3 +1165,4 @@ P1.2 的测量结果（Ubuntu 编译机，x86_64，Go 1.27.4，kagome-dict/ipa v
   - 手机查词卡的来源：协议的 `WordEntry` 加了可选的 `Source`，不升版本；名称和 attribution 用桌面的界面语言，因为桌面不知道手机的界面语言；手机缓存的旧查词结果没有来源，照旧不显示（E1）。手机截图场景 `player-word` 带了「由 AI 服务解释」一行。
   - 没做的 P1 缺口：手机端没有逐词标注（要加协议字段和手机的字幕层，不小）；真实的 JMdict、Jitendex、CC-CEDICT 全量文件和 64 个条目的上限没有测（要真实数据和 owner 定上限）；读音 view 的对齐和描边、彩色下划线的实际画面要在 macOS 截图任务里看；`ui.Select` 没有分组（`TODO(nsgo)`，等上游）。
   - 离线词典的提示只看装没装这种语言的词典包，不看开没开：装了却关掉是用户自己的选择，提示「去装一个」不对。插件目录还没读完时不提示，免得把已装的词典当成没装。提示作为卡片底部单独的一行加一个「打开插件设置」按钮，按了先关卡片再打开设置 › 插件（`LookupDictionaries`）。
+  - 评审后的修正：「词典没有这个词」不再算上查词出错的词典；手机查词卡的「由 … 上的 AI 服务解释」改用回答时桌面发来的名字（`WordSource.Desktop`，可选字段，不升协议版本）；`State.Save` 写之前重读磁盘上的格式；拒绝卸载时的提示和 state.json 的说明不再重复；`StateUnsaved` 挪进 `plugins` 包。
