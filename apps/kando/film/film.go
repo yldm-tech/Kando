@@ -172,6 +172,8 @@ type App interface {
 	FeedbackSubtitles()
 	// MoveOpenFilmMenu is the submenu 移到资料库 of ⋯ for the open film: the other libraries Kando knows, each moving the film there when chosen, which closes it; none when there is no other library.
 	MoveOpenFilmMenu(cx *ns.Scope) []nsdesktop.MenuItem
+	// StoredOpenMenu is the items of ⋯ that move the open film's video to a storage location or back to the library's folder; none when it cannot move or there is no location.
+	StoredOpenMenu(cx *ns.Scope) []nsdesktop.MenuItem
 	// ExplainLine has the AI service explain cue i, its meaning, key words and grammar, in the side panel (SideExplain), and holds the film.
 	ExplainLine(i int)
 	// LineSaved reports whether cue i is among the lines the learner saved; ToggleSaveLine saves it, or removes it from them, and says which on the picture.

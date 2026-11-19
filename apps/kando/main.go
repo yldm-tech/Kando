@@ -49,6 +49,7 @@ type app struct {
 	prefs     settingsUI  // state_settings.go
 	cloud     cloudUI     // state_cloud.go
 	locations locationsUI // state_locations.go
+	stored    storedUI    // state_stored.go
 	overlay   overlayUI   // state_overlay.go
 	menu      menuUI      // state_menu.go
 	feedback  feedbackUI  // state_feedback.go
@@ -96,6 +97,7 @@ func newApp(pipeline media.Pipeline, update func(fn func())) *app {
 		prefs:     newSettingsUI(),
 		cloud:     newCloudUI(),
 		locations: newLocationsUI(),
+		stored:    newStoredUI(),
 		overlay:   newOverlayUI(),
 		menu:      newMenuUI(),
 		feedback:  newFeedbackUI(),

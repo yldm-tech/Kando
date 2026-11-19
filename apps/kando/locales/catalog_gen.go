@@ -1030,6 +1030,23 @@ var Parameters = map[string][]string{
 	"GlossaryStepAccept":                       {"term"},
 	"GlossarySuggestAdd":                       {"term"},
 	"GlossarySuggestDismissLabel":              {"term"},
+	"FilmsRemoveStored":                        {"place"},
+	"StoredObjectStore":                        {"store"},
+	"StoredNotDone":                            {"name"},
+	"StoredOutside":                            {"name"},
+	"StoredProcessing":                         {"name"},
+	"StoredMovingTo":                           {"name", "place", "percent"},
+	"StoredMovingBack":                         {"name", "percent"},
+	"StoredStopped":                            {"name"},
+	"StoredMoveFailed":                         {"name", "place", "error_"},
+	"StoredRemoveFailed":                       {"name", "place"},
+	"StoredMoved":                              {"name", "place"},
+	"StoredMoveBackFailed":                     {"name", "place", "error_"},
+	"StoredMovedBack":                          {"name"},
+	"StoredMovedBackLeft":                      {"name", "place"},
+	"StoredReprocess":                          {"name", "place"},
+	"StoredUpload":                             {"place"},
+	"StoredLibraryMove":                        {"name", "place"},
 }
 
 // Translation is a language's messages another package supplies:
@@ -1607,6 +1624,23 @@ type Translation struct {
 	GlossaryStepAccept                       func(term string) string
 	GlossarySuggestAdd                       func(term string) string
 	GlossarySuggestDismissLabel              func(term string) string
+	FilmsRemoveStored                        func(place string) string
+	StoredObjectStore                        func(store string) string
+	StoredNotDone                            func(name string) string
+	StoredOutside                            func(name string) string
+	StoredProcessing                         func(name string) string
+	StoredMovingTo                           func(name string, place string, percent int) string
+	StoredMovingBack                         func(name string, percent int) string
+	StoredStopped                            func(name string) string
+	StoredMoveFailed                         func(name string, place string, error_ string) string
+	StoredRemoveFailed                       func(name string, place string) string
+	StoredMoved                              func(name string, place string) string
+	StoredMoveBackFailed                     func(name string, place string, error_ string) string
+	StoredMovedBack                          func(name string) string
+	StoredMovedBackLeft                      func(name string, place string) string
+	StoredReprocess                          func(name string, place string) string
+	StoredUpload                             func(place string) string
+	StoredLibraryMove                        func(name string, place string) string
 }
 
 var supplied = map[string]Translation{}
@@ -3158,6 +3192,18 @@ const (
 	textGlossaryUndoLast
 	textGlossarySuggested
 	textGlossarySuggestDismiss
+	textFilmsRemoveManyStored
+	textPlayerStoredGone
+	textPlayerStoredUnreachable
+	textPlayerStoredMissing
+	textPlayerStoredUnplayable
+	textStoredMoveTo
+	textStoredMoveBack
+	textStoredLocationGone
+	textStoredBusy
+	textStoredLocked
+	textStoredSizeMismatch
+	textStoredLocalTaken
 	numTexts
 )
 
@@ -4709,6 +4755,18 @@ var keyOfText = [numTexts]string{
 	"glossaryUndoLast",
 	"glossarySuggested",
 	"glossarySuggestDismiss",
+	"filmsRemoveManyStored",
+	"playerStoredGone",
+	"playerStoredUnreachable",
+	"playerStoredMissing",
+	"playerStoredUnplayable",
+	"storedMoveTo",
+	"storedMoveBack",
+	"storedLocationGone",
+	"storedBusy",
+	"storedLocked",
+	"storedSizeMismatch",
+	"storedLocalTaken",
 }
 
 // textsEn are the messages without arguments in en.
@@ -6257,7 +6315,19 @@ var textsEn = i18n.NewTexts(""+
 	"Edit Log"+
 	"Undo Latest"+
 	"Found in This Film"+
-	"Dismiss",
+	"Dismiss"+
+	"Their files will be moved to the Trash. The videos of those moved to a storage location will be deleted from it."+
+	"This film's video is on a storage location that is no longer in Settings. Its lines can still be studied."+
+	"Couldn't reach the storage location this film's video is on. Its lines can still be studied."+
+	"This film's video is no longer on its storage location. Its lines can still be studied."+
+	"This video can't be played from its storage location. Move it back to the library to play it."+
+	"Move Video To"+
+	"Move Video Back to the Library"+
+	"That storage location is no longer in Settings."+
+	"Another video is being moved. Try again once it's done."+
+	"The videos of a library with a password stay in it, so they aren't moved to a storage location."+
+	"the copy came out a different size"+
+	"a file is already where the video goes in the library",
 	[]uint16{
 		5,
 		19,
@@ -7804,6 +7874,18 @@ var textsEn = i18n.NewTexts(""+
 		11,
 		18,
 		7,
+		112,
+		105,
+		92,
+		87,
+		93,
+		13,
+		30,
+		47,
+		55,
+		95,
+		34,
+		53,
 	})
 
 // textsJa are the messages without arguments in ja.
@@ -9352,7 +9434,19 @@ var textsJa = i18n.NewTexts(""+
 	"編集履歴"+
 	"直前の操作を取り消す"+
 	"この動画で見つかった用語"+
-	"使わない",
+	"使わない"+
+	"ファイルはゴミ箱に移動します。保存場所に移した動画はそこから削除されます。"+
+	"この作品の動画がある保存場所は、もう設定にありません。字幕で学習することはできます。"+
+	"この作品の動画がある保存場所に接続できません。字幕で学習することはできます。"+
+	"この作品の動画が保存場所にもうありません。字幕で学習することはできます。"+
+	"この動画は保存場所から再生できません。ライブラリに戻してから再生してください。"+
+	"動画の移動先"+
+	"動画をライブラリに戻す"+
+	"その保存場所はもう設定にありません。"+
+	"別の動画を移動中です。終わってからもう一度お試しください。"+
+	"パスワードを設定したライブラリの動画はライブラリに残り、保存場所には移しません。"+
+	"コピーのサイズが一致しません"+
+	"ライブラリ内の動画の戻し先にすでにファイルがあります",
 	[]uint16{
 		5,
 		30,
@@ -10899,6 +10993,18 @@ var textsJa = i18n.NewTexts(""+
 		30,
 		36,
 		12,
+		111,
+		126,
+		114,
+		108,
+		117,
+		18,
+		33,
+		54,
+		87,
+		120,
+		42,
+		78,
 	})
 
 // textsKo are the messages without arguments in ko.
@@ -12447,7 +12553,19 @@ var textsKo = i18n.NewTexts(""+
 	"편집 기록"+
 	"최근 항목 실행 취소"+
 	"이 영상에서 찾은 용어"+
-	"사용 안 함",
+	"사용 안 함"+
+	"파일은 휴지통으로 이동합니다. 저장 위치로 옮긴 동영상은 그곳에서 삭제됩니다."+
+	"이 영화의 동영상이 있는 저장 위치가 더 이상 설정에 없습니다. 자막으로 학습할 수는 있습니다."+
+	"이 영화의 동영상이 있는 저장 위치에 연결할 수 없습니다. 자막으로 학습할 수는 있습니다."+
+	"이 영화의 동영상이 저장 위치에 더 이상 없습니다. 자막으로 학습할 수는 있습니다."+
+	"이 동영상은 저장 위치에서 재생할 수 없습니다. 라이브러리로 되돌린 뒤 재생하세요."+
+	"동영상 이동 위치"+
+	"동영상을 라이브러리로 되돌리기"+
+	"그 저장 위치는 더 이상 설정에 없습니다."+
+	"다른 동영상을 옮기는 중입니다. 끝난 뒤 다시 시도하세요."+
+	"암호를 설정한 라이브러리의 동영상은 라이브러리에 남으며 저장 위치로 옮기지 않습니다."+
+	"사본의 크기가 맞지 않습니다"+
+	"라이브러리에서 동영상이 돌아갈 자리에 이미 파일이 있습니다",
 	[]uint16{
 		5,
 		28,
@@ -13994,6 +14112,18 @@ var textsKo = i18n.NewTexts(""+
 		27,
 		30,
 		14,
+		109,
+		129,
+		122,
+		112,
+		114,
+		23,
+		44,
+		55,
+		78,
+		121,
+		39,
+		84,
 	})
 
 // textsZhHans are the messages without arguments in zh-Hans.
@@ -15542,7 +15672,19 @@ var textsZhHans = i18n.NewTexts(""+
 	"编辑记录"+
 	"撤销最近一项"+
 	"片中找到的术语"+
-	"不用",
+	"不用"+
+	"它们的文件将移到废纸篓。已移到存储位置的视频会从那里删除。"+
+	"这部影片的视频所在的存储位置已不在设置中。仍可以按字幕学习。"+
+	"连不上这部影片的视频所在的存储位置。仍可以按字幕学习。"+
+	"这部影片的视频已不在它的存储位置上。仍可以按字幕学习。"+
+	"无法从存储位置播放这个视频。把它移回资料库后再播放。"+
+	"移动视频到"+
+	"将视频移回资料库"+
+	"这个存储位置已不在设置中。"+
+	"另一个视频正在移动，等它完成后再试。"+
+	"设了密码的资料库的视频留在资料库里，不会移到存储位置。"+
+	"副本的大小不一致"+
+	"资料库中视频要放回的位置已经有文件",
 	[]uint16{
 		6,
 		15,
@@ -17089,6 +17231,18 @@ var textsZhHans = i18n.NewTexts(""+
 		18,
 		21,
 		6,
+		87,
+		90,
+		81,
+		81,
+		78,
+		15,
+		24,
+		39,
+		54,
+		81,
+		24,
+		51,
 	})
 
 // textsZhHant are the messages without arguments in zh-Hant.
@@ -18637,7 +18791,19 @@ var textsZhHant = i18n.NewTexts(""+
 	"編輯記錄"+
 	"復原最近一項"+
 	"片中找到的術語"+
-	"不用",
+	"不用"+
+	"它們的檔案將移到垃圾桶。已移到儲存位置的影片會從那裡刪除。"+
+	"這部影片的影片檔所在的儲存位置已不在設定中。仍可以按字幕學習。"+
+	"連不上這部影片的影片檔所在的儲存位置。仍可以按字幕學習。"+
+	"這部影片的影片檔已不在它的儲存位置上。仍可以按字幕學習。"+
+	"無法從儲存位置播放這個影片。把它移回資料庫後再播放。"+
+	"移動影片檔到"+
+	"將影片檔移回資料庫"+
+	"這個儲存位置已不在設定中。"+
+	"另一個影片檔正在移動，等它完成後再試。"+
+	"設了密碼的資料庫的影片檔留在資料庫裡，不會移到儲存位置。"+
+	"副本的大小不一致"+
+	"資料庫中影片檔要放回的位置已經有檔案",
 	[]uint16{
 		6,
 		15,
@@ -20184,6 +20350,18 @@ var textsZhHant = i18n.NewTexts(""+
 		18,
 		21,
 		6,
+		87,
+		93,
+		84,
+		84,
+		78,
+		18,
+		27,
+		39,
+		57,
+		84,
+		24,
+		54,
 	})
 
 // texts returns the messages without arguments in lang, nil for a
@@ -21952,6 +22130,57 @@ func Supply(lang string, t Translation) {
 	}
 	if t.GlossarySuggestDismissLabel != nil {
 		s.GlossarySuggestDismissLabel = t.GlossarySuggestDismissLabel
+	}
+	if t.FilmsRemoveStored != nil {
+		s.FilmsRemoveStored = t.FilmsRemoveStored
+	}
+	if t.StoredObjectStore != nil {
+		s.StoredObjectStore = t.StoredObjectStore
+	}
+	if t.StoredNotDone != nil {
+		s.StoredNotDone = t.StoredNotDone
+	}
+	if t.StoredOutside != nil {
+		s.StoredOutside = t.StoredOutside
+	}
+	if t.StoredProcessing != nil {
+		s.StoredProcessing = t.StoredProcessing
+	}
+	if t.StoredMovingTo != nil {
+		s.StoredMovingTo = t.StoredMovingTo
+	}
+	if t.StoredMovingBack != nil {
+		s.StoredMovingBack = t.StoredMovingBack
+	}
+	if t.StoredStopped != nil {
+		s.StoredStopped = t.StoredStopped
+	}
+	if t.StoredMoveFailed != nil {
+		s.StoredMoveFailed = t.StoredMoveFailed
+	}
+	if t.StoredRemoveFailed != nil {
+		s.StoredRemoveFailed = t.StoredRemoveFailed
+	}
+	if t.StoredMoved != nil {
+		s.StoredMoved = t.StoredMoved
+	}
+	if t.StoredMoveBackFailed != nil {
+		s.StoredMoveBackFailed = t.StoredMoveBackFailed
+	}
+	if t.StoredMovedBack != nil {
+		s.StoredMovedBack = t.StoredMovedBack
+	}
+	if t.StoredMovedBackLeft != nil {
+		s.StoredMovedBackLeft = t.StoredMovedBackLeft
+	}
+	if t.StoredReprocess != nil {
+		s.StoredReprocess = t.StoredReprocess
+	}
+	if t.StoredUpload != nil {
+		s.StoredUpload = t.StoredUpload
+	}
+	if t.StoredLibraryMove != nil {
+		s.StoredLibraryMove = t.StoredLibraryMove
 	}
 	supplied[lang] = s
 	Catalog.Add(lang)
@@ -56858,6 +57087,642 @@ func (msgs Messages) GlossarySuggestDismissLabel(term string) string {
 			return "不用「" + term + "」"
 		case "zh-Hant":
 			return "不用「" + term + "」"
+		}
+	}
+}
+
+// FilmsRemoveStored says "Its subtitles and the other files Kando keeps beside its video will be moved to the Trash, and its video will be deleted from {place}."
+// in the language the app shows under cx.
+//
+// What removing a film does when its video was moved out of the library folder to a storage location (a NAS folder or object storage): its subtitles go to the Trash and the video's copy on the location is deleted. place is the location's name.
+func FilmsRemoveStored(cx *core.Scope, place string) string { return For(cx).FilmsRemoveStored(place) }
+
+// FilmsRemoveStored is the package's FilmsRemoveStored in the language of msgs.
+func (msgs Messages) FilmsRemoveStored(place string) string {
+	if i18n.IsPseudo(msgs.lang) {
+		return i18n.Pseudo(msgs.lang, Messages{lang: Source, mark: true}.FilmsRemoveStored(place))
+	}
+	for lang := msgs.lang; ; lang = i18n.Parent(lang) {
+		if f := supplied[lang].FilmsRemoveStored; f != nil {
+			return f(place)
+		}
+		switch lang {
+		case "", "en":
+			return "Its subtitles and the other files Kando keeps beside its video will be moved to the Trash, and its video will be deleted from " + msgs.arg(place) + "."
+		case "ja":
+			return "字幕と、Kando が動画の横に置いているほかのファイルはゴミ箱に移動し、動画は「" + place + "」から削除されます。"
+		case "ko":
+			return "자막과 Kando가 동영상 옆에 둔 다른 파일은 휴지통으로 이동하고, 동영상은 ‘" + place + "’에서 삭제됩니다."
+		case "zh-Hans":
+			return "影片的字幕和 Kando 放在视频旁的其他文件将移到废纸篓，视频也会从「" + place + "」删除。"
+		case "zh-Hant":
+			return "影片的字幕和 Kando 放在影片旁的其他檔案將移到垃圾桶，影片也會從「" + place + "」刪除。"
+		}
+	}
+}
+
+// FilmsRemoveManyStored says "Their files will be moved to the Trash. The videos of those moved to a storage location will be deleted from it."
+// in the language the app shows under cx.
+//
+// What removing several selected films does when the video of at least one of them was moved to a storage location (a NAS folder or object storage): those videos are deleted from the location.
+func FilmsRemoveManyStored(cx *core.Scope) string { return For(cx).FilmsRemoveManyStored() }
+
+// FilmsRemoveManyStored is the package's FilmsRemoveManyStored in the language of msgs.
+func (msgs Messages) FilmsRemoveManyStored() string { return msgs.text(textFilmsRemoveManyStored) }
+
+// PlayerStoredGone says "This film's video is on a storage location that is no longer in Settings. Its lines can still be studied."
+// in the language the app shows under cx.
+//
+// Shown in place of the picture when the film's video was moved to a storage location (a NAS folder or object storage) that was since removed in Settings > Account & Upload.
+func PlayerStoredGone(cx *core.Scope) string { return For(cx).PlayerStoredGone() }
+
+// PlayerStoredGone is the package's PlayerStoredGone in the language of msgs.
+func (msgs Messages) PlayerStoredGone() string { return msgs.text(textPlayerStoredGone) }
+
+// PlayerStoredUnreachable says "Couldn't reach the storage location this film's video is on. Its lines can still be studied."
+// in the language the app shows under cx.
+//
+// Shown in place of the picture when the storage location (a NAS folder or object storage) the film's video was moved to cannot be reached, as when the NAS is off or the computer is offline.
+func PlayerStoredUnreachable(cx *core.Scope) string { return For(cx).PlayerStoredUnreachable() }
+
+// PlayerStoredUnreachable is the package's PlayerStoredUnreachable in the language of msgs.
+func (msgs Messages) PlayerStoredUnreachable() string { return msgs.text(textPlayerStoredUnreachable) }
+
+// PlayerStoredMissing says "This film's video is no longer on its storage location. Its lines can still be studied."
+// in the language the app shows under cx.
+//
+// Shown in place of the picture when the storage location the film's video was moved to can be reached but no longer has the video file.
+func PlayerStoredMissing(cx *core.Scope) string { return For(cx).PlayerStoredMissing() }
+
+// PlayerStoredMissing is the package's PlayerStoredMissing in the language of msgs.
+func (msgs Messages) PlayerStoredMissing() string { return msgs.text(textPlayerStoredMissing) }
+
+// PlayerStoredUnplayable says "This video can't be played from its storage location. Move it back to the library to play it."
+// in the language the app shows under cx.
+//
+// Shown in place of the picture when the system's player cannot play a video moved to a storage location; Kando can only convert a video for the player once it is back in the library folder.
+func PlayerStoredUnplayable(cx *core.Scope) string { return For(cx).PlayerStoredUnplayable() }
+
+// PlayerStoredUnplayable is the package's PlayerStoredUnplayable in the language of msgs.
+func (msgs Messages) PlayerStoredUnplayable() string { return msgs.text(textPlayerStoredUnplayable) }
+
+// StoredMoveTo says "Move Video To"
+// in the language the app shows under cx.
+//
+// Film menu item, a submenu listing the storage locations (NAS folders and the object storage set up in Settings > Account & Upload) the film's video can be moved to, out of the library folder. Its subtitles stay in the library.
+func StoredMoveTo(cx *core.Scope) string { return For(cx).StoredMoveTo() }
+
+// StoredMoveTo is the package's StoredMoveTo in the language of msgs.
+func (msgs Messages) StoredMoveTo() string { return msgs.text(textStoredMoveTo) }
+
+// StoredMoveBack says "Move Video Back to the Library"
+// in the language the app shows under cx.
+//
+// Film menu item for a film whose video was moved to a storage location: copies the video back into the library folder and then deletes it from the location.
+func StoredMoveBack(cx *core.Scope) string { return For(cx).StoredMoveBack() }
+
+// StoredMoveBack is the package's StoredMoveBack in the language of msgs.
+func (msgs Messages) StoredMoveBack() string { return msgs.text(textStoredMoveBack) }
+
+// StoredObjectStore says "{store} Object Storage"
+// in the language the app shows under cx.
+//
+// Name of the object storage set up in Settings > Account & Upload as a place a film's video can be moved to. store is the service's name.
+func StoredObjectStore(cx *core.Scope, store string) string { return For(cx).StoredObjectStore(store) }
+
+// StoredObjectStore is the package's StoredObjectStore in the language of msgs.
+func (msgs Messages) StoredObjectStore(store string) string {
+	if i18n.IsPseudo(msgs.lang) {
+		return i18n.Pseudo(msgs.lang, Messages{lang: Source, mark: true}.StoredObjectStore(store))
+	}
+	for lang := msgs.lang; ; lang = i18n.Parent(lang) {
+		if f := supplied[lang].StoredObjectStore; f != nil {
+			return f(store)
+		}
+		switch lang {
+		case "", "en":
+			return msgs.arg(store) + " Object Storage"
+		case "ja":
+			return store + " オブジェクトストレージ"
+		case "ko":
+			return store + " 오브젝트 스토리지"
+		case "zh-Hans":
+			return store + " 对象存储"
+		case "zh-Hant":
+			return store + " 物件儲存"
+		}
+	}
+}
+
+// StoredLocationGone says "That storage location is no longer in Settings."
+// in the language the app shows under cx.
+//
+// Message bar when a video is to be moved to or back from a storage location that was removed in Settings > Account & Upload.
+func StoredLocationGone(cx *core.Scope) string { return For(cx).StoredLocationGone() }
+
+// StoredLocationGone is the package's StoredLocationGone in the language of msgs.
+func (msgs Messages) StoredLocationGone() string { return msgs.text(textStoredLocationGone) }
+
+// StoredBusy says "Another video is being moved. Try again once it's done."
+// in the language the app shows under cx.
+//
+// Message bar when a film's video is to be moved to or from a storage location while another one is still being copied.
+func StoredBusy(cx *core.Scope) string { return For(cx).StoredBusy() }
+
+// StoredBusy is the package's StoredBusy in the language of msgs.
+func (msgs Messages) StoredBusy() string { return msgs.text(textStoredBusy) }
+
+// StoredNotDone says "Only the video of a film Kando has processed can be moved to a storage location, and “{name}” isn't one."
+// in the language the app shows under cx.
+//
+// Message bar when a film's video cannot be moved to a storage location because it is not a finished film with a video of its own (still processing, kept as subtitles only, or a video found in the folder that Kando never processed).
+func StoredNotDone(cx *core.Scope, name string) string { return For(cx).StoredNotDone(name) }
+
+// StoredNotDone is the package's StoredNotDone in the language of msgs.
+func (msgs Messages) StoredNotDone(name string) string {
+	if i18n.IsPseudo(msgs.lang) {
+		return i18n.Pseudo(msgs.lang, Messages{lang: Source, mark: true}.StoredNotDone(name))
+	}
+	for lang := msgs.lang; ; lang = i18n.Parent(lang) {
+		if f := supplied[lang].StoredNotDone; f != nil {
+			return f(name)
+		}
+		switch lang {
+		case "", "en":
+			return "Only the video of a film Kando has processed can be moved to a storage location, and “" + msgs.arg(name) + "” isn't one."
+		case "ja":
+			return "保存場所に移せるのは Kando が処理した作品の動画だけで、「" + name + "」は該当しません。"
+		case "ko":
+			return "저장 위치로 옮길 수 있는 것은 Kando가 처리한 영화의 동영상뿐이며, ‘" + name + "’은(는) 해당하지 않습니다."
+		case "zh-Hans":
+			return "只有 Kando 处理过的影片的视频才能移到存储位置，「" + name + "」不是。"
+		case "zh-Hant":
+			return "只有 Kando 處理過的影片的影片檔才能移到儲存位置，「" + name + "」不是。"
+		}
+	}
+}
+
+// StoredOutside says "The video of “{name}” isn't in the library folder, so it can't be moved to a storage location."
+// in the language the app shows under cx.
+//
+// Message bar when a film's video is kept outside the library folder (a local video picked where it was), which Kando does not move to a storage location.
+func StoredOutside(cx *core.Scope, name string) string { return For(cx).StoredOutside(name) }
+
+// StoredOutside is the package's StoredOutside in the language of msgs.
+func (msgs Messages) StoredOutside(name string) string {
+	if i18n.IsPseudo(msgs.lang) {
+		return i18n.Pseudo(msgs.lang, Messages{lang: Source, mark: true}.StoredOutside(name))
+	}
+	for lang := msgs.lang; ; lang = i18n.Parent(lang) {
+		if f := supplied[lang].StoredOutside; f != nil {
+			return f(name)
+		}
+		switch lang {
+		case "", "en":
+			return "The video of “" + msgs.arg(name) + "” isn't in the library folder, so it can't be moved to a storage location."
+		case "ja":
+			return "「" + name + "」の動画はライブラリのフォルダにないため、保存場所に移せません。"
+		case "ko":
+			return "‘" + name + "’의 동영상이 라이브러리 폴더에 없어서 저장 위치로 옮길 수 없습니다."
+		case "zh-Hans":
+			return "「" + name + "」的视频不在资料库文件夹里，不能移到存储位置。"
+		case "zh-Hant":
+			return "「" + name + "」的影片檔不在資料庫資料夾裡，不能移到儲存位置。"
+		}
+	}
+}
+
+// StoredLocked says "The videos of a library with a password stay in it, so they aren't moved to a storage location."
+// in the language the app shows under cx.
+//
+// Message bar when a film's video is to be moved to a storage location from a library protected by a password, whose files are kept encrypted.
+func StoredLocked(cx *core.Scope) string { return For(cx).StoredLocked() }
+
+// StoredLocked is the package's StoredLocked in the language of msgs.
+func (msgs Messages) StoredLocked() string { return msgs.text(textStoredLocked) }
+
+// StoredProcessing says "“{name}” is being processed. Move its video once that's done."
+// in the language the app shows under cx.
+//
+// Message bar when a film's video is to be moved to or from a storage location while the film is being processed.
+func StoredProcessing(cx *core.Scope, name string) string { return For(cx).StoredProcessing(name) }
+
+// StoredProcessing is the package's StoredProcessing in the language of msgs.
+func (msgs Messages) StoredProcessing(name string) string {
+	if i18n.IsPseudo(msgs.lang) {
+		return i18n.Pseudo(msgs.lang, Messages{lang: Source, mark: true}.StoredProcessing(name))
+	}
+	for lang := msgs.lang; ; lang = i18n.Parent(lang) {
+		if f := supplied[lang].StoredProcessing; f != nil {
+			return f(name)
+		}
+		switch lang {
+		case "", "en":
+			return "“" + msgs.arg(name) + "” is being processed. Move its video once that's done."
+		case "ja":
+			return "「" + name + "」は処理中です。終わってから動画を移動してください。"
+		case "ko":
+			return "‘" + name + "’을(를) 처리하는 중입니다. 끝난 뒤 동영상을 옮기세요."
+		case "zh-Hans":
+			return "「" + name + "」正在处理，处理完后再移动它的视频。"
+		case "zh-Hant":
+			return "「" + name + "」正在處理，處理完後再移動它的影片檔。"
+		}
+	}
+}
+
+// StoredMovingTo says "Moving the video of “{name}” to {place}… {percent}%"
+// in the language the app shows under cx.
+//
+// Message bar while a film's video is being copied to a storage location, with how much is copied.
+func StoredMovingTo(cx *core.Scope, name string, place string, percent int) string {
+	return For(cx).StoredMovingTo(name, place, percent)
+}
+
+// StoredMovingTo is the package's StoredMovingTo in the language of msgs.
+func (msgs Messages) StoredMovingTo(name string, place string, percent int) string {
+	if i18n.IsPseudo(msgs.lang) {
+		return i18n.Pseudo(msgs.lang, Messages{lang: Source, mark: true}.StoredMovingTo(name, place, percent))
+	}
+	for lang := msgs.lang; ; lang = i18n.Parent(lang) {
+		if f := supplied[lang].StoredMovingTo; f != nil {
+			return f(name, place, percent)
+		}
+		switch lang {
+		case "", "en":
+			return "Moving the video of “" + msgs.arg(name) + "” to " + msgs.arg(place) + "… " + msgs.arg(i18n.FormatNumber("en", float64(percent))) + "%"
+		case "ja":
+			return "「" + name + "」の動画を「" + place + "」に移動中… " + i18n.FormatNumber("ja", float64(percent)) + "%"
+		case "ko":
+			return "‘" + name + "’의 동영상을 ‘" + place + "’(으)로 옮기는 중… " + i18n.FormatNumber("ko", float64(percent)) + "%"
+		case "zh-Hans":
+			return "正在把「" + name + "」的视频移到「" + place + "」… " + i18n.FormatNumber("zh-Hans", float64(percent)) + "%"
+		case "zh-Hant":
+			return "正在把「" + name + "」的影片檔移到「" + place + "」… " + i18n.FormatNumber("zh-Hant", float64(percent)) + "%"
+		}
+	}
+}
+
+// StoredMovingBack says "Moving the video of “{name}” back to the library… {percent}%"
+// in the language the app shows under cx.
+//
+// Message bar while a film's video is being copied back from a storage location into the library folder, with how much is copied.
+func StoredMovingBack(cx *core.Scope, name string, percent int) string {
+	return For(cx).StoredMovingBack(name, percent)
+}
+
+// StoredMovingBack is the package's StoredMovingBack in the language of msgs.
+func (msgs Messages) StoredMovingBack(name string, percent int) string {
+	if i18n.IsPseudo(msgs.lang) {
+		return i18n.Pseudo(msgs.lang, Messages{lang: Source, mark: true}.StoredMovingBack(name, percent))
+	}
+	for lang := msgs.lang; ; lang = i18n.Parent(lang) {
+		if f := supplied[lang].StoredMovingBack; f != nil {
+			return f(name, percent)
+		}
+		switch lang {
+		case "", "en":
+			return "Moving the video of “" + msgs.arg(name) + "” back to the library… " + msgs.arg(i18n.FormatNumber("en", float64(percent))) + "%"
+		case "ja":
+			return "「" + name + "」の動画をライブラリに戻しています… " + i18n.FormatNumber("ja", float64(percent)) + "%"
+		case "ko":
+			return "‘" + name + "’의 동영상을 라이브러리로 되돌리는 중… " + i18n.FormatNumber("ko", float64(percent)) + "%"
+		case "zh-Hans":
+			return "正在把「" + name + "」的视频移回资料库… " + i18n.FormatNumber("zh-Hans", float64(percent)) + "%"
+		case "zh-Hant":
+			return "正在把「" + name + "」的影片檔移回資料庫… " + i18n.FormatNumber("zh-Hant", float64(percent)) + "%"
+		}
+	}
+}
+
+// StoredSizeMismatch says "the copy came out a different size"
+// in the language the app shows under cx.
+//
+// Reason, inside another sentence, why moving a video to or from a storage location failed: the copy is not as large as the video, so it was not used.
+func StoredSizeMismatch(cx *core.Scope) string { return For(cx).StoredSizeMismatch() }
+
+// StoredSizeMismatch is the package's StoredSizeMismatch in the language of msgs.
+func (msgs Messages) StoredSizeMismatch() string { return msgs.text(textStoredSizeMismatch) }
+
+// StoredLocalTaken says "a file is already where the video goes in the library"
+// in the language the app shows under cx.
+//
+// Reason, inside another sentence, why moving a video back from a storage location failed: a file already exists at the path the video goes back to.
+func StoredLocalTaken(cx *core.Scope) string { return For(cx).StoredLocalTaken() }
+
+// StoredLocalTaken is the package's StoredLocalTaken in the language of msgs.
+func (msgs Messages) StoredLocalTaken() string { return msgs.text(textStoredLocalTaken) }
+
+// StoredStopped says "Stopped moving the video of “{name}”. It is where it was."
+// in the language the app shows under cx.
+//
+// Message bar after the user stopped moving a film's video to or from a storage location; nothing moved.
+func StoredStopped(cx *core.Scope, name string) string { return For(cx).StoredStopped(name) }
+
+// StoredStopped is the package's StoredStopped in the language of msgs.
+func (msgs Messages) StoredStopped(name string) string {
+	if i18n.IsPseudo(msgs.lang) {
+		return i18n.Pseudo(msgs.lang, Messages{lang: Source, mark: true}.StoredStopped(name))
+	}
+	for lang := msgs.lang; ; lang = i18n.Parent(lang) {
+		if f := supplied[lang].StoredStopped; f != nil {
+			return f(name)
+		}
+		switch lang {
+		case "", "en":
+			return "Stopped moving the video of “" + msgs.arg(name) + "”. It is where it was."
+		case "ja":
+			return "「" + name + "」の動画の移動を中止しました。動画は元の場所にあります。"
+		case "ko":
+			return "‘" + name + "’의 동영상 이동을 중지했습니다. 동영상은 원래 자리에 있습니다."
+		case "zh-Hans":
+			return "已停止移动「" + name + "」的视频，它还在原处。"
+		case "zh-Hant":
+			return "已停止移動「" + name + "」的影片檔，它還在原處。"
+		}
+	}
+}
+
+// StoredMoveFailed says "Couldn't move the video of “{name}” to {place}: {error}. It is still in the library."
+// in the language the app shows under cx.
+//
+// Message bar when a film's video could not be moved to a storage location; the video stays in the library folder. error is the reason.
+func StoredMoveFailed(cx *core.Scope, name string, place string, error_ string) string {
+	return For(cx).StoredMoveFailed(name, place, error_)
+}
+
+// StoredMoveFailed is the package's StoredMoveFailed in the language of msgs.
+func (msgs Messages) StoredMoveFailed(name string, place string, error_ string) string {
+	if i18n.IsPseudo(msgs.lang) {
+		return i18n.Pseudo(msgs.lang, Messages{lang: Source, mark: true}.StoredMoveFailed(name, place, error_))
+	}
+	for lang := msgs.lang; ; lang = i18n.Parent(lang) {
+		if f := supplied[lang].StoredMoveFailed; f != nil {
+			return f(name, place, error_)
+		}
+		switch lang {
+		case "", "en":
+			return "Couldn't move the video of “" + msgs.arg(name) + "” to " + msgs.arg(place) + ": " + msgs.arg(error_) + ". It is still in the library."
+		case "ja":
+			return "「" + name + "」の動画を「" + place + "」に移動できませんでした：" + error_ + "。動画はライブラリに残っています。"
+		case "ko":
+			return "‘" + name + "’의 동영상을 ‘" + place + "’(으)로 옮기지 못했습니다: " + error_ + ". 동영상은 라이브러리에 그대로 있습니다."
+		case "zh-Hans":
+			return "没能把「" + name + "」的视频移到「" + place + "」：" + error_ + "。视频仍在资料库中。"
+		case "zh-Hant":
+			return "無法把「" + name + "」的影片檔移到「" + place + "」：" + error_ + "。影片檔仍在資料庫中。"
+		}
+	}
+}
+
+// StoredRemoveFailed says "Couldn't remove the video of “{name}” from the library after copying it to {place}, so it stays in the library."
+// in the language the app shows under cx.
+//
+// Message bar when a film's video was copied to a storage location but could not be deleted from the library folder; the copy on the location is removed again and the video stays in the library.
+func StoredRemoveFailed(cx *core.Scope, name string, place string) string {
+	return For(cx).StoredRemoveFailed(name, place)
+}
+
+// StoredRemoveFailed is the package's StoredRemoveFailed in the language of msgs.
+func (msgs Messages) StoredRemoveFailed(name string, place string) string {
+	if i18n.IsPseudo(msgs.lang) {
+		return i18n.Pseudo(msgs.lang, Messages{lang: Source, mark: true}.StoredRemoveFailed(name, place))
+	}
+	for lang := msgs.lang; ; lang = i18n.Parent(lang) {
+		if f := supplied[lang].StoredRemoveFailed; f != nil {
+			return f(name, place)
+		}
+		switch lang {
+		case "", "en":
+			return "Couldn't remove the video of “" + msgs.arg(name) + "” from the library after copying it to " + msgs.arg(place) + ", so it stays in the library."
+		case "ja":
+			return "「" + name + "」の動画を「" + place + "」にコピーしましたが、ライブラリから削除できなかったため、動画はライブラリに残っています。"
+		case "ko":
+			return "‘" + name + "’의 동영상을 ‘" + place + "’에 복사했지만 라이브러리에서 삭제하지 못해 동영상이 라이브러리에 남아 있습니다."
+		case "zh-Hans":
+			return "已把「" + name + "」的视频复制到「" + place + "」，但没能从资料库删除它，所以视频仍留在资料库中。"
+		case "zh-Hant":
+			return "已把「" + name + "」的影片檔複製到「" + place + "」，但無法從資料庫刪除它，所以影片檔仍留在資料庫中。"
+		}
+	}
+}
+
+// StoredMoved says "Moved the video of “{name}” to {place}. Its subtitles stay in the library."
+// in the language the app shows under cx.
+//
+// Message bar after a film's video was moved to a storage location; the film's subtitles and other files stay in the library folder.
+func StoredMoved(cx *core.Scope, name string, place string) string {
+	return For(cx).StoredMoved(name, place)
+}
+
+// StoredMoved is the package's StoredMoved in the language of msgs.
+func (msgs Messages) StoredMoved(name string, place string) string {
+	if i18n.IsPseudo(msgs.lang) {
+		return i18n.Pseudo(msgs.lang, Messages{lang: Source, mark: true}.StoredMoved(name, place))
+	}
+	for lang := msgs.lang; ; lang = i18n.Parent(lang) {
+		if f := supplied[lang].StoredMoved; f != nil {
+			return f(name, place)
+		}
+		switch lang {
+		case "", "en":
+			return "Moved the video of “" + msgs.arg(name) + "” to " + msgs.arg(place) + ". Its subtitles stay in the library."
+		case "ja":
+			return "「" + name + "」の動画を「" + place + "」に移動しました。字幕はライブラリに残ります。"
+		case "ko":
+			return "‘" + name + "’의 동영상을 ‘" + place + "’(으)로 옮겼습니다. 자막은 라이브러리에 남습니다."
+		case "zh-Hans":
+			return "已把「" + name + "」的视频移到「" + place + "」。字幕仍留在资料库中。"
+		case "zh-Hant":
+			return "已把「" + name + "」的影片檔移到「" + place + "」。字幕仍留在資料庫中。"
+		}
+	}
+}
+
+// StoredMoveBackFailed says "Couldn't move the video of “{name}” back from {place}: {error}. It is still there."
+// in the language the app shows under cx.
+//
+// Message bar when a film's video could not be copied back from a storage location into the library folder; it stays on the location. error is the reason.
+func StoredMoveBackFailed(cx *core.Scope, name string, place string, error_ string) string {
+	return For(cx).StoredMoveBackFailed(name, place, error_)
+}
+
+// StoredMoveBackFailed is the package's StoredMoveBackFailed in the language of msgs.
+func (msgs Messages) StoredMoveBackFailed(name string, place string, error_ string) string {
+	if i18n.IsPseudo(msgs.lang) {
+		return i18n.Pseudo(msgs.lang, Messages{lang: Source, mark: true}.StoredMoveBackFailed(name, place, error_))
+	}
+	for lang := msgs.lang; ; lang = i18n.Parent(lang) {
+		if f := supplied[lang].StoredMoveBackFailed; f != nil {
+			return f(name, place, error_)
+		}
+		switch lang {
+		case "", "en":
+			return "Couldn't move the video of “" + msgs.arg(name) + "” back from " + msgs.arg(place) + ": " + msgs.arg(error_) + ". It is still there."
+		case "ja":
+			return "「" + name + "」の動画を「" + place + "」から戻せませんでした：" + error_ + "。動画はそこに残っています。"
+		case "ko":
+			return "‘" + name + "’의 동영상을 ‘" + place + "’에서 되돌리지 못했습니다: " + error_ + ". 동영상은 그곳에 그대로 있습니다."
+		case "zh-Hans":
+			return "没能把「" + name + "」的视频从「" + place + "」移回：" + error_ + "。视频仍在那里。"
+		case "zh-Hant":
+			return "無法把「" + name + "」的影片檔從「" + place + "」移回：" + error_ + "。影片檔仍在那裡。"
+		}
+	}
+}
+
+// StoredMovedBack says "Moved the video of “{name}” back to the library."
+// in the language the app shows under cx.
+//
+// Message bar after a film's video was copied back from a storage location into the library folder.
+func StoredMovedBack(cx *core.Scope, name string) string { return For(cx).StoredMovedBack(name) }
+
+// StoredMovedBack is the package's StoredMovedBack in the language of msgs.
+func (msgs Messages) StoredMovedBack(name string) string {
+	if i18n.IsPseudo(msgs.lang) {
+		return i18n.Pseudo(msgs.lang, Messages{lang: Source, mark: true}.StoredMovedBack(name))
+	}
+	for lang := msgs.lang; ; lang = i18n.Parent(lang) {
+		if f := supplied[lang].StoredMovedBack; f != nil {
+			return f(name)
+		}
+		switch lang {
+		case "", "en":
+			return "Moved the video of “" + msgs.arg(name) + "” back to the library."
+		case "ja":
+			return "「" + name + "」の動画をライブラリに戻しました。"
+		case "ko":
+			return "‘" + name + "’의 동영상을 라이브러리로 되돌렸습니다."
+		case "zh-Hans":
+			return "已把「" + name + "」的视频移回资料库。"
+		case "zh-Hant":
+			return "已把「" + name + "」的影片檔移回資料庫。"
+		}
+	}
+}
+
+// StoredMovedBackLeft says "Moved the video of “{name}” back to the library, but couldn't delete its copy on {place}."
+// in the language the app shows under cx.
+//
+// Message bar when a film's video is back in the library folder but its copy on the storage location could not be deleted.
+func StoredMovedBackLeft(cx *core.Scope, name string, place string) string {
+	return For(cx).StoredMovedBackLeft(name, place)
+}
+
+// StoredMovedBackLeft is the package's StoredMovedBackLeft in the language of msgs.
+func (msgs Messages) StoredMovedBackLeft(name string, place string) string {
+	if i18n.IsPseudo(msgs.lang) {
+		return i18n.Pseudo(msgs.lang, Messages{lang: Source, mark: true}.StoredMovedBackLeft(name, place))
+	}
+	for lang := msgs.lang; ; lang = i18n.Parent(lang) {
+		if f := supplied[lang].StoredMovedBackLeft; f != nil {
+			return f(name, place)
+		}
+		switch lang {
+		case "", "en":
+			return "Moved the video of “" + msgs.arg(name) + "” back to the library, but couldn't delete its copy on " + msgs.arg(place) + "."
+		case "ja":
+			return "「" + name + "」の動画をライブラリに戻しましたが、「" + place + "」上のコピーを削除できませんでした。"
+		case "ko":
+			return "‘" + name + "’의 동영상을 라이브러리로 되돌렸지만 ‘" + place + "’에 있는 사본을 삭제하지 못했습니다."
+		case "zh-Hans":
+			return "已把「" + name + "」的视频移回资料库，但没能删除它在「" + place + "」上的副本。"
+		case "zh-Hant":
+			return "已把「" + name + "」的影片檔移回資料庫，但無法刪除它在「" + place + "」上的副本。"
+		}
+	}
+}
+
+// StoredReprocess says "The video of “{name}” is on {place}. Move it back to the library before processing the film again, as that needs its sound."
+// in the language the app shows under cx.
+//
+// Message bar when a film whose video was moved to a storage location is to be processed again; transcribing needs the video's sound on this computer.
+func StoredReprocess(cx *core.Scope, name string, place string) string {
+	return For(cx).StoredReprocess(name, place)
+}
+
+// StoredReprocess is the package's StoredReprocess in the language of msgs.
+func (msgs Messages) StoredReprocess(name string, place string) string {
+	if i18n.IsPseudo(msgs.lang) {
+		return i18n.Pseudo(msgs.lang, Messages{lang: Source, mark: true}.StoredReprocess(name, place))
+	}
+	for lang := msgs.lang; ; lang = i18n.Parent(lang) {
+		if f := supplied[lang].StoredReprocess; f != nil {
+			return f(name, place)
+		}
+		switch lang {
+		case "", "en":
+			return "The video of “" + msgs.arg(name) + "” is on " + msgs.arg(place) + ". Move it back to the library before processing the film again, as that needs its sound."
+		case "ja":
+			return "「" + name + "」の動画は「" + place + "」にあります。再処理には動画の音声が必要なため、先にライブラリに戻してください。"
+		case "ko":
+			return "‘" + name + "’의 동영상이 ‘" + place + "’에 있습니다. 다시 처리하려면 동영상의 소리가 필요하니 먼저 라이브러리로 되돌리세요."
+		case "zh-Hans":
+			return "「" + name + "」的视频在「" + place + "」上。重新处理需要视频的声音，请先把它移回资料库。"
+		case "zh-Hant":
+			return "「" + name + "」的影片檔在「" + place + "」上。重新處理需要影片的聲音，請先把它移回資料庫。"
+		}
+	}
+}
+
+// StoredUpload says "The video is on {place}. Move it back to the library to upload it."
+// in the language the app shows under cx.
+//
+// Shown by the player's upload button for a film whose video was moved to a storage location, which cannot be uploaded from there.
+func StoredUpload(cx *core.Scope, place string) string { return For(cx).StoredUpload(place) }
+
+// StoredUpload is the package's StoredUpload in the language of msgs.
+func (msgs Messages) StoredUpload(place string) string {
+	if i18n.IsPseudo(msgs.lang) {
+		return i18n.Pseudo(msgs.lang, Messages{lang: Source, mark: true}.StoredUpload(place))
+	}
+	for lang := msgs.lang; ; lang = i18n.Parent(lang) {
+		if f := supplied[lang].StoredUpload; f != nil {
+			return f(place)
+		}
+		switch lang {
+		case "", "en":
+			return "The video is on " + msgs.arg(place) + ". Move it back to the library to upload it."
+		case "ja":
+			return "動画は「" + place + "」にあります。アップロードするにはライブラリに戻してください。"
+		case "ko":
+			return "동영상이 ‘" + place + "’에 있습니다. 업로드하려면 라이브러리로 되돌리세요."
+		case "zh-Hans":
+			return "视频在「" + place + "」上。移回资料库后才能上传。"
+		case "zh-Hant":
+			return "影片檔在「" + place + "」上。移回資料庫後才能上傳。"
+		}
+	}
+}
+
+// StoredLibraryMove says "The video of “{name}” is on {place}. Move it back to the library before moving the film to another library."
+// in the language the app shows under cx.
+//
+// Message bar when a film whose video was moved to a storage location is to be moved to another library.
+func StoredLibraryMove(cx *core.Scope, name string, place string) string {
+	return For(cx).StoredLibraryMove(name, place)
+}
+
+// StoredLibraryMove is the package's StoredLibraryMove in the language of msgs.
+func (msgs Messages) StoredLibraryMove(name string, place string) string {
+	if i18n.IsPseudo(msgs.lang) {
+		return i18n.Pseudo(msgs.lang, Messages{lang: Source, mark: true}.StoredLibraryMove(name, place))
+	}
+	for lang := msgs.lang; ; lang = i18n.Parent(lang) {
+		if f := supplied[lang].StoredLibraryMove; f != nil {
+			return f(name, place)
+		}
+		switch lang {
+		case "", "en":
+			return "The video of “" + msgs.arg(name) + "” is on " + msgs.arg(place) + ". Move it back to the library before moving the film to another library."
+		case "ja":
+			return "「" + name + "」の動画は「" + place + "」にあります。作品を別のライブラリに移すには、先に動画をライブラリに戻してください。"
+		case "ko":
+			return "‘" + name + "’의 동영상이 ‘" + place + "’에 있습니다. 영화를 다른 라이브러리로 옮기려면 먼저 동영상을 라이브러리로 되돌리세요."
+		case "zh-Hans":
+			return "「" + name + "」的视频在「" + place + "」上。把它移回资料库后，才能把影片移到其他资料库。"
+		case "zh-Hant":
+			return "「" + name + "」的影片檔在「" + place + "」上。把它移回資料庫後，才能把影片移到其他資料庫。"
 		}
 	}
 }

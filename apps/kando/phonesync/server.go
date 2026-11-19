@@ -40,6 +40,10 @@ type Film struct {
 	// Video is its video file, Poster its poster's file, "" for none yet. For a film that keeps no video (SubtitlesOnly, core.Job.SubtitlesOnly) Video is where its sound was, which its subtitles are named after, and no file.
 	Video, Poster string
 	SubtitlesOnly bool
+	// Remote serves the video of a film whose video was moved off this computer to a storage location, by ranges as a file is served, in place of Video, which is then where it was in the library's folder and no file; RemoteSize is its size and RemoteAt when it moved. nil for a video on disk.
+	Remote     http.Handler
+	RemoteSize int64
+	RemoteAt   time.Time
 	// Watched is a film watched to its end, last at WatchedAt, zero when that is not known; the films through the bucket clean up its video after a while (FilmsConfig.CleanAfter).
 	Watched   bool
 	WatchedAt time.Time
@@ -623,6 +627,10 @@ func (s *Server) video(w http.ResponseWriter, r *http.Request, _ Device) {
 		s.sourceFailed(w, r, err)
 		return
 	}
+	if f.Remote != nil {
+		f.Remote.ServeHTTP(w, r)
+		return
+	}
 	s.serveFile(w, r, f.Video)
 }
 
@@ -737,18 +745,22 @@ type served struct {
 	film psync.Film
 }
 
-// playable is the films of films whose video is on disk, and those that keep no video whose subtitles are, with what their files tell: the video's size, and the latest time the video, a subtitle file or the corrections file changed.
+// playable is the films of films whose video is on disk or served from a storage location (Film.Remote), and those that keep no video whose subtitles are, with what their files tell: the video's size, and the latest time the video, a subtitle file or the corrections file changed.
 func playable(films []Film) []served {
 	var out []served
 	for _, f := range films {
 		var size int64
 		var updated time.Time
-		if f.SubtitlesOnly {
+		switch {
+		case f.SubtitlesOnly:
 			info, err := os.Stat(f.Subtitles)
 			if f.Subtitles == "" || err != nil || info.IsDir() {
 				continue
 			}
-		} else {
+		case f.Remote != nil:
+			// Its size and time are what the app noted as it moved, as asking its location would hold up the list.
+			size, updated = f.RemoteSize, f.RemoteAt
+		default:
 			info, err := os.Stat(f.Video)
 			if f.Video == "" || err != nil || info.IsDir() {
 				continue

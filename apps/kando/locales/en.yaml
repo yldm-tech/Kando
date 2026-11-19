@@ -7622,3 +7622,136 @@ glossarySuggestDismissLabel:
   description: "Accessible name and tooltip of the button that drops a term the AI service found, so it is not suggested again."
   placeholders:
     term: { type: "String", example: "Nile" }
+filmsRemoveStored:
+  message: "Its subtitles and the other files Kando keeps beside its video will be moved to the Trash, and its video will be deleted from {place}."
+  description: "What removing a film does when its video was moved out of the library folder to a storage location (a NAS folder or object storage): its subtitles go to the Trash and the video's copy on the location is deleted. place is the location's name."
+  placeholders:
+    place: { type: "String", example: "Home NAS" }
+filmsRemoveManyStored:
+  message: "Their files will be moved to the Trash. The videos of those moved to a storage location will be deleted from it."
+  description: "What removing several selected films does when the video of at least one of them was moved to a storage location (a NAS folder or object storage): those videos are deleted from the location."
+playerStoredGone:
+  message: "This film's video is on a storage location that is no longer in Settings. Its lines can still be studied."
+  description: "Shown in place of the picture when the film's video was moved to a storage location (a NAS folder or object storage) that was since removed in Settings > Account & Upload."
+playerStoredUnreachable:
+  message: "Couldn't reach the storage location this film's video is on. Its lines can still be studied."
+  description: "Shown in place of the picture when the storage location (a NAS folder or object storage) the film's video was moved to cannot be reached, as when the NAS is off or the computer is offline."
+playerStoredMissing:
+  message: "This film's video is no longer on its storage location. Its lines can still be studied."
+  description: "Shown in place of the picture when the storage location the film's video was moved to can be reached but no longer has the video file."
+playerStoredUnplayable:
+  message: "This video can't be played from its storage location. Move it back to the library to play it."
+  description: "Shown in place of the picture when the system's player cannot play a video moved to a storage location; Kando can only convert a video for the player once it is back in the library folder."
+storedMoveTo:
+  message: "Move Video To"
+  description: "Film menu item, a submenu listing the storage locations (NAS folders and the object storage set up in Settings > Account & Upload) the film's video can be moved to, out of the library folder. Its subtitles stay in the library."
+storedMoveBack:
+  message: "Move Video Back to the Library"
+  description: "Film menu item for a film whose video was moved to a storage location: copies the video back into the library folder and then deletes it from the location."
+storedObjectStore:
+  message: "{store} Object Storage"
+  description: "Name of the object storage set up in Settings > Account & Upload as a place a film's video can be moved to. store is the service's name."
+  placeholders:
+    store: { type: "String", example: "R2" }
+storedLocationGone:
+  message: "That storage location is no longer in Settings."
+  description: "Message bar when a video is to be moved to or back from a storage location that was removed in Settings > Account & Upload."
+storedBusy:
+  message: "Another video is being moved. Try again once it's done."
+  description: "Message bar when a film's video is to be moved to or from a storage location while another one is still being copied."
+storedNotDone:
+  message: "Only the video of a film Kando has processed can be moved to a storage location, and “{name}” isn't one."
+  description: "Message bar when a film's video cannot be moved to a storage location because it is not a finished film with a video of its own (still processing, kept as subtitles only, or a video found in the folder that Kando never processed)."
+  placeholders:
+    name: { type: "String", example: "Learn Rust" }
+storedOutside:
+  message: "The video of “{name}” isn't in the library folder, so it can't be moved to a storage location."
+  description: "Message bar when a film's video is kept outside the library folder (a local video picked where it was), which Kando does not move to a storage location."
+  placeholders:
+    name: { type: "String", example: "Learn Rust" }
+storedLocked:
+  message: "The videos of a library with a password stay in it, so they aren't moved to a storage location."
+  description: "Message bar when a film's video is to be moved to a storage location from a library protected by a password, whose files are kept encrypted."
+storedProcessing:
+  message: "“{name}” is being processed. Move its video once that's done."
+  description: "Message bar when a film's video is to be moved to or from a storage location while the film is being processed."
+  placeholders:
+    name: { type: "String", example: "Learn Rust" }
+storedMovingTo:
+  message: "Moving the video of “{name}” to {place}… {percent}%"
+  description: "Message bar while a film's video is being copied to a storage location, with how much is copied."
+  placeholders:
+    name: { type: "String", example: "Learn Rust" }
+    place: { type: "String", example: "Home NAS" }
+    percent: { type: "int", example: "42" }
+storedMovingBack:
+  message: "Moving the video of “{name}” back to the library… {percent}%"
+  description: "Message bar while a film's video is being copied back from a storage location into the library folder, with how much is copied."
+  placeholders:
+    name: { type: "String", example: "Learn Rust" }
+    percent: { type: "int", example: "42" }
+storedSizeMismatch:
+  message: "the copy came out a different size"
+  description: "Reason, inside another sentence, why moving a video to or from a storage location failed: the copy is not as large as the video, so it was not used."
+storedLocalTaken:
+  message: "a file is already where the video goes in the library"
+  description: "Reason, inside another sentence, why moving a video back from a storage location failed: a file already exists at the path the video goes back to."
+storedStopped:
+  message: "Stopped moving the video of “{name}”. It is where it was."
+  description: "Message bar after the user stopped moving a film's video to or from a storage location; nothing moved."
+  placeholders:
+    name: { type: "String", example: "Learn Rust" }
+storedMoveFailed:
+  message: "Couldn't move the video of “{name}” to {place}: {error}. It is still in the library."
+  description: "Message bar when a film's video could not be moved to a storage location; the video stays in the library folder. error is the reason."
+  placeholders:
+    name: { type: "String", example: "Learn Rust" }
+    place: { type: "String", example: "Home NAS" }
+    error: { type: "String", example: "The server refused the user name or password." }
+storedRemoveFailed:
+  message: "Couldn't remove the video of “{name}” from the library after copying it to {place}, so it stays in the library."
+  description: "Message bar when a film's video was copied to a storage location but could not be deleted from the library folder; the copy on the location is removed again and the video stays in the library."
+  placeholders:
+    name: { type: "String", example: "Learn Rust" }
+    place: { type: "String", example: "Home NAS" }
+storedMoved:
+  message: "Moved the video of “{name}” to {place}. Its subtitles stay in the library."
+  description: "Message bar after a film's video was moved to a storage location; the film's subtitles and other files stay in the library folder."
+  placeholders:
+    name: { type: "String", example: "Learn Rust" }
+    place: { type: "String", example: "Home NAS" }
+storedMoveBackFailed:
+  message: "Couldn't move the video of “{name}” back from {place}: {error}. It is still there."
+  description: "Message bar when a film's video could not be copied back from a storage location into the library folder; it stays on the location. error is the reason."
+  placeholders:
+    name: { type: "String", example: "Learn Rust" }
+    place: { type: "String", example: "Home NAS" }
+    error: { type: "String", example: "Couldn't reach nas.local." }
+storedMovedBack:
+  message: "Moved the video of “{name}” back to the library."
+  description: "Message bar after a film's video was copied back from a storage location into the library folder."
+  placeholders:
+    name: { type: "String", example: "Learn Rust" }
+storedMovedBackLeft:
+  message: "Moved the video of “{name}” back to the library, but couldn't delete its copy on {place}."
+  description: "Message bar when a film's video is back in the library folder but its copy on the storage location could not be deleted."
+  placeholders:
+    name: { type: "String", example: "Learn Rust" }
+    place: { type: "String", example: "Home NAS" }
+storedReprocess:
+  message: "The video of “{name}” is on {place}. Move it back to the library before processing the film again, as that needs its sound."
+  description: "Message bar when a film whose video was moved to a storage location is to be processed again; transcribing needs the video's sound on this computer."
+  placeholders:
+    name: { type: "String", example: "Learn Rust" }
+    place: { type: "String", example: "Home NAS" }
+storedUpload:
+  message: "The video is on {place}. Move it back to the library to upload it."
+  description: "Shown by the player's upload button for a film whose video was moved to a storage location, which cannot be uploaded from there."
+  placeholders:
+    place: { type: "String", example: "Home NAS" }
+storedLibraryMove:
+  message: "The video of “{name}” is on {place}. Move it back to the library before moving the film to another library."
+  description: "Message bar when a film whose video was moved to a storage location is to be moved to another library."
+  placeholders:
+    name: { type: "String", example: "Learn Rust" }
+    place: { type: "String", example: "Home NAS" }
