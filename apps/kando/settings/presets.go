@@ -68,9 +68,9 @@ func DefaultModel(preset Preset, models []string) string {
 	return models[0]
 }
 
-// PresetByID is the preset id, its name and blurb in the language of m.
-func PresetByID(m locales.Messages, id string) (Preset, bool) {
-	for _, preset := range Presets(m) {
+// PresetByID is the preset id among presets, the list the app offers (the app's llmPresets), with its name and blurb in whatever language that list was made in.
+func PresetByID(presets []Preset, id string) (Preset, bool) {
+	for _, preset := range presets {
 		if preset.ID == id {
 			return preset, true
 		}
@@ -78,10 +78,10 @@ func PresetByID(m locales.Messages, id string) (Preset, bool) {
 	return Preset{}, false
 }
 
-// ProviderID is the preset whose endpoint base is, "custom" for an endpoint none of them has. Only the presets' endpoints are read, so their names are left in the catalogs' source language.
-func ProviderID(base string) string {
+// ProviderID is the preset among presets whose endpoint base is, "custom" for an endpoint none of them has. Only the presets' endpoints are read, so the language of their names does not matter.
+func ProviderID(presets []Preset, base string) string {
 	base = strings.TrimRight(strings.TrimSpace(base), "/")
-	for _, preset := range Presets(locales.In(locales.Source)) {
+	for _, preset := range presets {
 		if preset.ID == "custom" || preset.BaseURL == "" {
 			continue
 		}

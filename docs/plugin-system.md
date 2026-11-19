@@ -48,10 +48,10 @@
 - 每个包最多 5000 条。
 
 **E4 AI 服务预设（P1）**
-- 现在服务商的身份只由包级函数决定，这两个函数只认内置预设：`settings/presets.go:72` 的 `PresetByID(m, id)` 只遍历 `Presets(m)`，`:82-92` 的 `ProviderID(base)` 只遍历 `Presets(locales.In(locales.Source))`，认不出就返回 `"custom"`。所以只在调用方追加插件预设没有用：`settings_ai.go:123` 会把插件的地址认成 `custom`，`:141` 的 `selectLLM` 会拒绝 `pack.` id，`:174` 的 `llmRemember` 会把服务存到 `custom` 下。
-- 改法：预设解析要知道当前 app 有哪些预设。`PresetByID(list []Preset, id)` 和 `ProviderID(list []Preset, base)` 都改成接收预设列表，app 提供 `a.llmPresets()`，内容是 `settings.Presets(m)` 加上 `a.PluginPresets()`。所有调用处一起改（不能只改一半）。`PresetByID` 的调用处：`settings_ai.go:47,141,215,392`、`bind_onboarding.go:92`、`bind_settings.go:186`、`state_feedback.go:184`、`state_phonesync_settings.go:57`；`ProviderID` 的调用处：`settings_ai.go:123,174`、`bind_settings.go:195`、`state_feedback.go:184`、`state_phonesync_settings.go:57`。`settings_ai.go:47` 在 `savedLLM.clean()` 里，那里没有 app，只传 `settings.Presets(...)`，插件服务靠 P0.2 的 `pack.` 前缀保住。另有三处直接读 `settings.Presets` 的列表，按用途分开处理：`bind_settings.go:189` 的 `Presets()` 是设置 › AI 下拉框（`settings/ai.go:155`）的数据源，P1.1 改成 `a.llmPresets()`；`bind_onboarding.go:119` 的引导页服务列表和 `state_feedback.go:367` 的 `feedbackPublicEndpoint` 只认内置预设，不改。这一步作为 P0.1 单独成 PR，行为不变，涉及约 13 处、6 个文件。
+- 现在服务商的身份只由包级函数决定，这两个函数只认内置预设：`settings/presets.go:72` 的 `PresetByID(m, id)` 只遍历 `Presets(m)`，`:82-92` 的 `ProviderID(base)` 只遍历 `Presets(locales.In(locales.Source))`，认不出就返回 `"custom"`。所以只在调用方追加插件预设没有用：`settings_ai.go` 的 `syncLLM` 会把插件的地址认成 `custom`，`selectLLM` 会拒绝 `pack.` id，`llmRemember` 会把服务存到 `custom` 下。
+- 改法：预设解析要知道当前 app 有哪些预设。`PresetByID(list []Preset, id)` 和 `ProviderID(list []Preset, base)` 都改成接收预设列表，app 提供 `a.llmPresets(m)`，内容是 `settings.Presets(m)` 加上 `a.PluginPresets()`（P0.1 时只有 `settings.Presets(m)`）。`m` 是调用方要的语言：引导页用 `locales.For(cx)`，反馈 issue 用固定的 `feedbackIssueLanguage`，其余用 `a.messages()`，这样各处显示的名称和改之前一样。`feedbackTranslator` 原来是不带 app 的包级函数，改成接收预设列表，由 `feedbackFacts` 传入 `a.llmPresets(locales.In(feedbackIssueLanguage))`。所有调用处一起改（不能只改一半）。`PresetByID` 的调用处：`settings_ai.go` 的 `savedLLM.clean`、`selectLLM`、`openLLMKeyPage`、`adoptLLMModel`，`bind_onboarding.go` 的 `OnboardingAI`，`bind_settings.go` 的 `CurrentPreset`，`state_feedback.go` 的 `feedbackTranslator`，`state_phonesync_settings.go` 的 `phoneSettings`；`ProviderID` 的调用处：`settings_ai.go` 的 `syncLLM`、`llmRemember`，`bind_settings.go` 的 `ProviderID` 绑定，`state_feedback.go` 的 `feedbackTranslator`，`state_phonesync_settings.go` 的 `phoneSettings`。（按函数名列出，不写行号，免得后面的改动让它们对不上。）`savedLLM.clean` 里没有 app，只传 `settings.Presets(...)`，插件服务靠 P0.2 的 `pack.` 前缀保住。另有三处直接读 `settings.Presets` 的列表，按用途分开处理：`bind_settings.go` 的 `Presets()` 绑定是设置 › AI 下拉框（`settings/ai.go` 里的 `a.Presets()`）的数据源，P1.1 改成 `a.llmPresets(a.messages())`；`bind_onboarding.go` 的 `OnboardingServices`（引导页服务列表）和 `state_feedback.go` 的 `feedbackPublicEndpoint` 只认内置预设，不改。这一步作为 P0.1 单独成 PR，行为不变，涉及约 13 处、6 个文件。
 - 插件预设的 id 统一用 `pack.<id>`，只预填 BaseURL、Model、KeyURL、Group。key 和 host 的绑定规则不变（`SameHost`、`restoreLLM`）。
-- 必须同时修一处：`settings_ai.go:40` 的 `savedLLM.clean()` 在 `:47-48` 遇到未知 preset id 时会 `delete(s.LLMServices, id)`，插件暂时缺席（比如所在的盘没挂上）时会把用户的 key 丢掉。改成保留 `pack.` 前缀的服务。测试要先在插件预设在场时让服务真的存到 `pack.<id>` 下，再拿掉插件、跑 clean，断言 key 还在。
+- 必须同时修一处：`settings_ai.go` 的 `savedLLM.clean()` 遇到未知 preset id 时会 `delete(s.LLMServices, id)`，插件暂时缺席（比如所在的盘没挂上）时会把用户的 key 丢掉。改成保留 `pack.` 前缀的服务。测试要先在插件预设在场时让服务真的存到 `pack.<id>` 下，再拿掉插件、跑 clean，断言 key 还在。
 - 防钓鱼：pack 预设的 `baseURL` 和 `keyURL` 只接受 https，只有回环地址（`127.0.0.1`、`::1`、`localhost`）可以用 http。内置服务商的名称加入保留名单（见 6.4）。服务商下拉框里，插件预设和内置预设分组显示，插件预设一行写明 host 和来源插件。点「获取 API Key」时先显示目标域名，确认后才打开 keyURL。
 
 **E5 翻译风格（P2）**
@@ -498,7 +498,7 @@ func (a *app) pluginKeys(cx *core.Scope) []shortcut // P3
 func (a *app) pluginsOverlay(cx *core.Scope) core.Node
 func (a *app) pluginTerms(job core.Job) []core.Term
 func (a *app) PluginPresets() []settings.Preset
-func (a *app) llmPresets() []settings.Preset // settings.Presets(m) + PluginPresets(), for PresetByID/ProviderID
+func (a *app) llmPresets(m locales.Messages) []settings.Preset // settings.Presets(m) + PluginPresets(), for PresetByID/ProviderID
 func (a *app) vocabResolve(ctx context.Context, q lookup.Query) (lookup.Entry, vocabSource, bool)
 ```
 
@@ -784,7 +784,7 @@ export function kandoManifest() { return { /* identical to kando-plugin.json fie
 
 ### 8.2 根目录 package main 的新文件
 
-- `state_plugins.go`：pluginsState、savedPlugins、pluginsHooks、pluginKeys、pluginsOverlay、pluginTerms、PluginPresets、llmPresets、pluginCall。
+- `state_plugins.go`：pluginsState、savedPlugins、pluginsHooks、pluginKeys、pluginsOverlay、pluginTerms、PluginPresets、pluginCall。`llmPresets` 在 P0.1 已经放在 `settings_ai.go`（AI 服务那块的文件），P1.1 在那里加上 `a.PluginPresets()`。
 - `bind_plugins.go`：settings.App 和 film.App 需要的插件 getter 和 action（`live.Func`、`live.Do`），错误到 catalog 的映射，每个插件自己的 `core.Host` 和 handler（读 app 状态、防剧透裁剪、LLM 代理、credentialFetch）。
 - `plugins_test.go`、`screenshot_plugins_test.go`。
 
@@ -798,10 +798,10 @@ export function kandoManifest() { return { /* identical to kando-plugin.json fie
 
 ### 8.4 各接点的最小改动
 
-- `settings/presets.go`：`PresetByID` 和 `ProviderID` 改成接收预设列表（P0.1），连同 E4 列出的全部调用处；`settings_ai.go:47` 的 clean（P0.2）。
+- `settings/presets.go`：`PresetByID` 和 `ProviderID` 改成接收预设列表（P0.1），连同 E4 列出的全部调用处；`settings_ai.go` 的 `savedLLM.clean`（P0.2）。
 - `state_vocab.go:215` 的 LookUpWord 和 `state_phonesync_study.go` 的 `phoneStudy.LookUp` 都改成调 `vocabResolve`（P1.3）。
 - `state_glossary.go:119`、`:151` 的 `FilmTerms`（P1.1）。
-- `bind_settings.go:189` 的 `Presets()` 改成返回 `a.llmPresets()`，设置 › AI 的下拉框按来源分组（P1.1）。
+- `bind_settings.go` 的 `Presets()` 绑定改成返回 `a.llmPresets(a.messages())`，设置 › AI 的下拉框按来源分组（P1.1）。
 - `packages/core/segment` 的 `Annotated`（P1.2）。
 - `film/subtitle.go:269` 的 lineWords 加 marks（P1.4），`film/subtitle` 叶子包里加 `Mark`。
 - `settings/sections.go:32` 改成函数，`settings/window.go` 的 `page()` 在 default 分支照 `Window.Account` 的先例注入，`settings/sectionid` 加 `Plugins`。
@@ -851,7 +851,7 @@ export function kandoManifest() { return { /* identical to kando-plugin.json fie
   - 插件 JS 用 `nsgo.Secrets` 读不到 `pluginhost.` 分区的凭据。
   - 任何 handler 返回的 JSON 里都不出现 `baseURL`、`apiKey` 和绝对路径。
   - `credentialFetch` 对未授权的 host、method、path 不注入，也不跟随重定向。
-  - 预设解析：`ProviderID(a.llmPresets(), base)` 对插件地址返回 `pack.<id>`。
+  - 预设解析：`ProviderID(a.llmPresets(a.messages()), base)` 对插件地址返回 `pack.<id>`。
   - in-flight 自愈：预先放一条残留的 in-flight 记录再启动，那个插件被标为 `hung` 并停用。
   - `llm.chat` 的 `ErrHostTimeout` 不计入熔断。
 - **app 级测试（nsgotest）**：`newTestApp(t, p)` 在 `f.home` 下放样例包。
@@ -1039,4 +1039,6 @@ export function kandoManifest() { return { /* identical to kando-plugin.json fie
 
 P1.2 的测量结果（Ubuntu 编译机，`ipa.Dict()` 相对 `DictShrink()`）：待测。
 
-与正文的偏差：实现过程中某个接点挪了位置或做了简化，就同时改正文对应的一节和这一段，写明改了什么、为什么。目前没有偏差。
+与正文的偏差：实现过程中某个接点挪了位置或做了简化，就同时改正文对应的一节和这一段，写明改了什么、为什么。
+
+- P0.1（已完成）：`llmPresets` 带一个语言参数 `m`，因为引导页（`locales.For(cx)`）和反馈 issue（固定简体中文）读预设名称用的语言和 `a.messages()` 不同，不带参数就会改变它们显示的名称；`llmPresets` 放在 `settings_ai.go` 而不是 `state_plugins.go`，因为 P0.1 时还没有插件块；`feedbackTranslator` 改成接收预设列表。见 E4 和 8.2 节。

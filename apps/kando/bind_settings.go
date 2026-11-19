@@ -185,7 +185,7 @@ func (a *app) SetSpeechSource(source string) { a.useSpeechSource(source) }
 
 // CurrentPreset and Presets read the presets' names and blurbs in the interface's language each time the page draws them.
 func (a *app) CurrentPreset() (settings.Preset, bool) {
-	return settings.PresetByID(a.messages(), a.prefs.llmProvider)
+	return settings.PresetByID(a.llmPresets(a.messages()), a.prefs.llmProvider)
 }
 
 func (a *app) Presets() []settings.Preset { return settings.Presets(a.messages()) }
@@ -194,7 +194,9 @@ func (a *app) LLMProvider() string { return a.prefs.llmProvider }
 
 func (a *app) SetLLMProvider(id string) { a.prefs.llmProvider = id }
 
-func (a *app) ProviderID(base string) string { return settings.ProviderID(base) }
+func (a *app) ProviderID(base string) string {
+	return settings.ProviderID(a.llmPresets(a.messages()), base)
+}
 
 func (a *app) LLMBase() *string { return &a.prefs.llmBase }
 

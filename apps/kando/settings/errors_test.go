@@ -98,12 +98,34 @@ func TestProviderIDFindsThePreset(t *testing.T) {
 		"https://llm.example.com/v1":   "custom",
 		"":                             "custom",
 	} {
-		if got := ProviderID(base); got != want {
+		if got := ProviderID(Presets(testlocale.Messages()), base); got != want {
 			t.Errorf("ProviderID(%q) = %q, want %q", base, got, want)
 		}
 	}
 	if !SameHost("https://api.openai.com/v1", "HTTPS://API.OPENAI.COM/other") || SameHost("https://api.openai.com/v1", "http://api.openai.com/v1") {
 		t.Error("SameHost compares the scheme and host alone")
+	}
+}
+
+// TestPresetResolutionReadsTheGivenList checks that PresetByID and ProviderID resolve against the list they are given alone: a preset only in that list is found by its id and its endpoint, and a built-in preset left out of it is not.
+func TestPresetResolutionReadsTheGivenList(t *testing.T) {
+	extra := Preset{ID: "extra", Name: "Extra", BaseURL: "https://llm.example.com/v1", Group: GroupCloud}
+	list := append(Presets(testlocale.Messages()), extra)
+	if got, ok := PresetByID(list, "extra"); !ok || got != extra {
+		t.Errorf("PresetByID(list, extra) = %+v, %v, want %+v, true", got, ok, extra)
+	}
+	if got := ProviderID(list, "https://llm.example.com/v1/"); got != "extra" {
+		t.Errorf("ProviderID(list, extra's endpoint) = %q, want extra", got)
+	}
+	only := []Preset{extra}
+	if _, ok := PresetByID(only, "openai"); ok {
+		t.Error("PresetByID found openai in a list without it")
+	}
+	if got := ProviderID(only, "https://api.openai.com/v1"); got != "custom" {
+		t.Errorf("ProviderID(list without openai, openai's endpoint) = %q, want custom", got)
+	}
+	if _, ok := PresetByID(Presets(testlocale.Messages()), "extra"); ok {
+		t.Error("PresetByID found extra among the built-in presets")
 	}
 }
 

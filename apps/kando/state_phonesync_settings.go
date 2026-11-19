@@ -54,7 +54,8 @@ func (s phoneSettings) PutSettings(ctx context.Context, caller psync.Caller, req
 func (a *app) phoneSettings() psync.Settings {
 	out := psync.Settings{Target: phonesync.TargetTag(a.prefs.language), TargetName: a.prefs.language, Context: new(a.prefs.translateContext)}
 	if tools, ok := a.pipeline.(media.Tools); ok && strings.TrimSpace(tools.Translator.BaseURL) != "" {
-		preset, _ := settings.PresetByID(a.messages(), settings.ProviderID(tools.Translator.BaseURL))
+		presets := a.llmPresets(a.messages())
+		preset, _ := settings.PresetByID(presets, settings.ProviderID(presets, tools.Translator.BaseURL))
 		out.Service, out.Model = preset.Name, strings.TrimSpace(tools.Translator.Model)
 	}
 	return out

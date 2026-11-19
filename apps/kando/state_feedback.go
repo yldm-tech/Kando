@@ -166,7 +166,7 @@ func (a *app) feedbackFacts() feedback.Facts {
 	if tools.WhisperModel != "" {
 		facts.Speech = filepath.Base(tools.WhisperModel)
 	}
-	facts.Translate = feedbackTranslator(tools.Translator.BaseURL, tools.Translator.Model)
+	facts.Translate = feedbackTranslator(a.llmPresets(locales.In(feedbackIssueLanguage)), tools.Translator.BaseURL, tools.Translator.Model)
 	item, ok := a.feedbackFilm()
 	if !ok {
 		return facts
@@ -179,9 +179,9 @@ func (a *app) feedbackFacts() feedback.Facts {
 	return facts
 }
 
-// feedbackTranslator names the translation service the pipeline uses at base, as the AI service presets name it (OpenAI 兼容 for an address none of them has), and its model, never its address or key.
-func feedbackTranslator(base, model string) string {
-	preset, _ := settings.PresetByID(locales.In(feedbackIssueLanguage), settings.ProviderID(base))
+// feedbackTranslator names the translation service the pipeline uses at base, as presets (the app's llmPresets in the issue's language) name it (OpenAI 兼容 for an address none of them has), and its model, never its address or key.
+func feedbackTranslator(presets []settings.Preset, base, model string) string {
+	preset, _ := settings.PresetByID(presets, settings.ProviderID(presets, base))
 	name := preset.Name
 	if model = strings.TrimSpace(model); model != "" {
 		name += " · " + model

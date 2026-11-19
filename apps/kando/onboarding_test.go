@@ -505,7 +505,7 @@ func TestOnboardingAIStatus(t *testing.T) {
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			a, _, _ := newTestApp(t, media.Tools{Translator: tc.translator})
-			a.prefs.llmProvider = settings.ProviderID(tc.translator.BaseURL)
+			a.prefs.llmProvider = settings.ProviderID(a.llmPresets(a.messages()), tc.translator.BaseURL)
 			a.side.ready.signInDone, a.side.ready.signInErr = tc.checked, tc.signInErr
 			if got := a.OnboardingAI(a.cx); got != tc.want {
 				t.Fatalf("OnboardingAI = %+v, want %+v", got, tc.want)

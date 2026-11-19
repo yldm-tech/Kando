@@ -44,7 +44,7 @@ func (s *savedLLM) clean() {
 	s.LLMProvider = strings.TrimSpace(s.LLMProvider)
 	for id, service := range s.LLMServices {
 		service = savedLLMService{BaseURL: strings.TrimSpace(service.BaseURL), Model: strings.TrimSpace(service.Model), APIKey: strings.TrimSpace(service.APIKey)}
-		if _, known := settings.PresetByID(locales.In(locales.Source), id); !known || service.BaseURL == "" {
+		if _, known := settings.PresetByID(settings.Presets(locales.In(locales.Source)), id); !known || service.BaseURL == "" {
 			delete(s.LLMServices, id)
 			continue
 		}
@@ -113,6 +113,11 @@ func (a *app) restoreLLM(saved savedSettings) {
 	a.syncLLM(tools.UseEveryAPICLI())
 }
 
+// llmPresets are the AI services the app offers, their names and blurbs in the language of m: what settings.PresetByID and settings.ProviderID resolve a service id or an endpoint against, so every caller sees the same list.
+func (a *app) llmPresets(m locales.Messages) []settings.Preset {
+	return settings.Presets(m)
+}
+
 // syncLLM shows the tools' AI service in the settings, its key as the key of its endpoint (llmKeyOwner).
 func (a *app) syncLLM(tools media.Tools) {
 	a.pipeline = tools
@@ -120,7 +125,7 @@ func (a *app) syncLLM(tools media.Tools) {
 	a.prefs.llmModel = tools.Translator.Model
 	a.prefs.llmKey = tools.Translator.APIKey
 	a.prefs.llmKeyOwner = llmKeyOwner{key: tools.Translator.APIKey, base: tools.Translator.BaseURL}
-	a.prefs.llmProvider = settings.ProviderID(tools.Translator.BaseURL)
+	a.prefs.llmProvider = settings.ProviderID(a.llmPresets(a.messages()), tools.Translator.BaseURL)
 }
 
 // llmKeyOwner is the key in the API Key field and the endpoint it belongs to: the one it came from settings.json, the environment or a service used before with, or the one that listed its models or passed the connection test with it. A key typed since belongs to no endpoint yet, so it goes with the Base URL as that is typed, in whichever order the two are filled in.
@@ -138,7 +143,7 @@ func (a *app) selectLLM(id string) {
 	if a.prefs.llmProvider == id {
 		return
 	}
-	preset, ok := settings.PresetByID(a.messages(), id)
+	preset, ok := settings.PresetByID(a.llmPresets(a.messages()), id)
 	if !ok {
 		return
 	}
@@ -171,7 +176,7 @@ func (a *app) llmRemember() {
 	if a.prefs.llmServices == nil {
 		a.prefs.llmServices = map[string]savedLLMService{}
 	}
-	a.prefs.llmServices[settings.ProviderID(base)] = savedLLMService{BaseURL: base, Model: strings.TrimSpace(tools.Translator.Model), APIKey: tools.Translator.APIKey}
+	a.prefs.llmServices[settings.ProviderID(a.llmPresets(a.messages()), base)] = savedLLMService{BaseURL: base, Model: strings.TrimSpace(tools.Translator.Model), APIKey: tools.Translator.APIKey}
 }
 
 func (a *app) applyLLM() {
@@ -212,7 +217,7 @@ func (a *app) applyLLM() {
 
 // openLLMKeyPage opens the page of the service in use where an API Key is made, as 获取 API Key on the AI 服务 page and in the first-run guide does, and says in the library's message bar when the system could not (menuOpenLink).
 func (a *app) openLLMKeyPage() {
-	if preset, ok := settings.PresetByID(a.messages(), a.prefs.llmProvider); ok && preset.KeyURL != "" {
+	if preset, ok := settings.PresetByID(a.llmPresets(a.messages()), a.prefs.llmProvider); ok && preset.KeyURL != "" {
 		a.menuOpenLink(preset.KeyURL)
 	}
 }
@@ -389,7 +394,7 @@ func (a *app) adoptLLMModel() {
 	if len(a.prefs.llmModels) == 0 {
 		return
 	}
-	preset, _ := settings.PresetByID(a.messages(), a.prefs.llmProvider)
+	preset, _ := settings.PresetByID(a.llmPresets(a.messages()), a.prefs.llmProvider)
 	model := strings.TrimSpace(a.prefs.llmModel)
 	if model != "" && (model != preset.Model || slices.Contains(a.prefs.llmModels, model)) {
 		return
