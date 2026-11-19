@@ -65,7 +65,7 @@ func (a *app) queuePausedJob(id string, result core.Job) {
 		a.show(job)
 	}
 	if a.queue.active == id {
-		a.queue.active, a.queue.cancel, a.queue.done, a.queue.whisperModel = "", nil, nil, ""
+		a.queue.active, a.queue.cancel, a.queue.done, a.queue.whisperModel, a.queue.watch = "", nil, nil, "", nil
 	}
 	a.pump()
 	a.queueKeepAwake()
