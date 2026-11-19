@@ -97,6 +97,8 @@ type remote struct {
 	relays       map[string]*relayLink
 	relayCalls   map[string]relayCall
 	relayStudies map[string]*relayStudy
+	// landings counts, by computer, the times the phone reached it on its network again (relayLanded), so a call to its storage that comes back after one lets go of what it held rather than take the computer as followed through the storage again (relaySend).
+	landings map[string]int
 	// shelf is the films the computers put in their storage, by ID (relay_films.go), which the bindings read; under shelfMu, shelfCopy is the same for the posters' fetchers off the engine's goroutine, and shelfAway the computers the phone reaches through the storage now.
 	shelf     *core.Signal[map[string]relayFilms]
 	shelfMu   gosync.Mutex
@@ -136,6 +138,7 @@ func newRemote(cx *core.Scope) *remote {
 		// The calls left in the computers' storage (relay.go).
 		relayCalls:   map[string]relayCall{},
 		relayStudies: map[string]*relayStudy{},
+		landings:     map[string]int{},
 		shelf:        core.NewSignalFunc(cx, map[string]relayFilms{}, nil),
 		shelfAway:    map[string]bool{},
 	}

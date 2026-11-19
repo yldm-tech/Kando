@@ -274,6 +274,7 @@ func (s *Session) setStorage(desktop string, failure sync.RelayFailure) {
 // relaySend leaves calls in desktop's storage, in their order, on a goroutine of its own, and tells done on the engine's goroutine how many of them went, the count of messages sent by then, and why the rest did not go. A call that did not go is sent again by whoever sent it, as the follower's next turn does for a link. What the storage answered is told to the queue (setStorage): a store that refuses the links has the phone join again on the computer's network.
 func (s *Session) relaySend(desktop, device string, calls []sync.Call, done func(gen uint64, sent int, err error)) {
 	rl := s.relayOf(desktop)
+	landings := s.remote.landings[desktop]
 	s.work.Go(func() {
 		ctx, cancel := context.WithTimeout(s.remote.ctx, actFor)
 		defer cancel()
@@ -306,6 +307,11 @@ func (s *Session) relaySend(desktop, device string, calls []sync.Call, done func
 		gen := rl.sent
 		// Posted with rl.mu held, so a turn of the follower that reads a reply to one of these calls posts what it read after done has had the calls waited for.
 		s.cx.Post(func() {
+			if _, paired := s.Desktop(desktop); !paired || s.remote.landings[desktop] != landings {
+				// Unpaired, or reached on its network again, while the calls went: what the storage said no longer tells where the computer is, and the calls are let go as relayLanded lets go of those already waiting, so no one waits on a reply read nowhere now.
+				done(gen, 0, errRelayLost)
+				return
+			}
 			switch {
 			case failure != sync.RelayNoFailure:
 				s.setStorage(desktop, failure)
@@ -415,6 +421,7 @@ func (s *Session) relayAct(desktop, key, op string, args any) {
 
 // relayLanded lets go of the calls left in desktop's storage as its computer answers on its network again: its queue is as it lists it there now, the links left in the storage go to it directly, under the same IDs (sendWaiting), so it takes each once, and the learning state, the settings and the subscriptions waiting for a reply there are asked for again on the network by those who wait (errRelayLost). Engine goroutine only.
 func (s *Session) relayLanded(desktop string) {
+	s.remote.landings[desktop]++
 	s.shelfLanded(desktop)
 	if rs := s.remote.relayStudies[desktop]; rs != nil {
 		// Read on the network from now on, and through the storage again once the phone is away again.
