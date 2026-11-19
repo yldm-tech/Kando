@@ -82,7 +82,8 @@ func newDesktop(t *testing.T) *synctest.Desktop {
 // openTab shows tab i (filmsTab, browseTab, learnTab, settingsTab), named name, pressing the drawn bar's tab, which headless always shows. Where the system's bar shows in its place, on an iOS target, it reports the change as the platform would, which nsgotest allows headless only: there it skips the test, so a screenshot scene must not depend on it.
 func (p *phone) openTab(i int, name string) {
 	p.t.Helper()
-	p.app.WaitFor("id:tab-bar", wait)
+	// The system's bar is mounted but takes no room in the tree, so WaitFor, which sees only visible views, would never find it.
+	p.app.WaitUntil(wait, func() bool { return len(p.app.QueryMounted("id:tab-bar")) == 1 })
 	if p.app.Exists("id:tab-bar >> label:" + name) {
 		p.app.Press("id:tab-bar >> label:" + name)
 		return
