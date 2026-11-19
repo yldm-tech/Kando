@@ -596,7 +596,12 @@ var Parameters = map[string][]string{
 	"SettingsConflictsCount":         {"count"},
 	"SettingsGoalValue":              {"count"},
 	"SettingsRemindDetail":           {"hour"},
+	"SettingsWidgetsHow":             {"app"},
 	"VocabRemoveTitle":               {"word"},
+	"WidgetContinuePercent":          {"percent"},
+	"WidgetDays":                     {"count"},
+	"WidgetDue":                      {"count"},
+	"WidgetFoot":                     {"due", "streak"},
 	"PlayerMiniOpen":                 {"title"},
 	"PlayerTabWordsCount":            {"count"},
 	"PlayerWordAddNamed":             {"word"},
@@ -747,7 +752,12 @@ type Translation struct {
 	SettingsConflictsCount         func(count int) string
 	SettingsGoalValue              func(count int) string
 	SettingsRemindDetail           func(hour int) string
+	SettingsWidgetsHow             func(app string) string
 	VocabRemoveTitle               func(word string) string
+	WidgetContinuePercent          func(percent int) string
+	WidgetDays                     func(count int) string
+	WidgetDue                      func(count int) string
+	WidgetFoot                     func(due int, streak int) string
 	PlayerMiniOpen                 func(title string) string
 	PlayerTabWordsCount            func(count int) string
 	PlayerWordAddNamed             func(word string) string
@@ -1095,6 +1105,9 @@ const (
 	textSettingsPair
 	textSettingsPairAnother
 	textSettingsRemind
+	textSettingsShortcuts
+	textSettingsShortcutsNote
+	textSettingsShortcutsValue
 	textSettingsSource
 	textSettingsSubtitleStyle
 	textSettingsSubtitles
@@ -1103,6 +1116,19 @@ const (
 	textSettingsTargetNote
 	textSettingsThisDevice
 	textSettingsTitle
+	textSettingsWidgets
+	textSettingsWidgetsLockScreen
+	textShortcutsAdd
+	textShortcutsExplain
+	textShortcutsJoin
+	textShortcutsLines
+	textShortcutsLoop
+	textShortcutsPlayPause
+	textShortcutsReplay
+	textShortcutsSave
+	textShortcutsSearch
+	textShortcutsSpace
+	textShortcutsSubtitles
 	textStyleBottom
 	textStyleColor
 	textStyleCyan
@@ -1121,6 +1147,12 @@ const (
 	textStyleYellow
 	textVocabEmpty
 	textVocabRemoveMessage
+	textWidgetContinue
+	textWidgetDueShort
+	textWidgetNoFilm
+	textWidgetNoFilmHint
+	textWidgetStreak
+	textWidgetTapToReview
 	textPlayerCannotAddWord
 	textPlayerMini
 	textPlayerMinimize
@@ -1468,6 +1500,9 @@ var keyOfText = [numTexts]string{
 	"settingsPair",
 	"settingsPairAnother",
 	"settingsRemind",
+	"settingsShortcuts",
+	"settingsShortcutsNote",
+	"settingsShortcutsValue",
 	"settingsSource",
 	"settingsSubtitleStyle",
 	"settingsSubtitles",
@@ -1476,6 +1511,19 @@ var keyOfText = [numTexts]string{
 	"settingsTargetNote",
 	"settingsThisDevice",
 	"settingsTitle",
+	"settingsWidgets",
+	"settingsWidgetsLockScreen",
+	"shortcutsAdd",
+	"shortcutsExplain",
+	"shortcutsJoin",
+	"shortcutsLines",
+	"shortcutsLoop",
+	"shortcutsPlayPause",
+	"shortcutsReplay",
+	"shortcutsSave",
+	"shortcutsSearch",
+	"shortcutsSpace",
+	"shortcutsSubtitles",
 	"styleBottom",
 	"styleColor",
 	"styleCyan",
@@ -1494,6 +1542,12 @@ var keyOfText = [numTexts]string{
 	"styleYellow",
 	"vocabEmpty",
 	"vocabRemoveMessage",
+	"widgetContinue",
+	"widgetDueShort",
+	"widgetNoFilm",
+	"widgetNoFilmHint",
+	"widgetStreak",
+	"widgetTapToReview",
 	"playerCannotAddWord",
 	"playerMini",
 	"playerMinimize",
@@ -1839,6 +1893,9 @@ var textsEn = i18n.NewTexts(""+
 	"Connect a Computer"+
 	"Connect Another Computer"+
 	"Review Reminder"+
+	"Keyboard Shortcuts"+
+	"These work while a hardware keyboard is connected."+
+	"Hardware Keyboard"+
 	"Source Code"+
 	"Subtitle Style"+
 	"Subtitles"+
@@ -1847,6 +1904,19 @@ var textsEn = i18n.NewTexts(""+
 	"Subtitles are translated into this language, by this device and by the computers it's connected to, which take your choice."+
 	"This Device"+
 	"Settings"+
+	"Widgets"+
+	"Lock Screen"+
+	"Add a Video"+
+	"Explain This Line"+
+	", "+
+	"Previous / Next Line"+
+	"Loop This Line"+
+	"Play / Pause"+
+	"Replay This Line"+
+	"Save This Line"+
+	"Search Films and Lines"+
+	"Space"+
+	"Switch Subtitles: Bilingual / Original / Translation / Hidden"+
 	"Bottom of the Picture"+
 	"Original Line Color"+
 	"Cyan"+
@@ -1865,6 +1935,12 @@ var textsEn = i18n.NewTexts(""+
 	"Yellow"+
 	"Words you look up and save while you watch show here"+
 	"It leaves the vocabulary on every device."+
+	"Continue"+
+	"to review"+
+	"Nothing to continue"+
+	"Films you leave partway show here."+
+	"Streak"+
+	"Tap to review"+
 	"Open this film once while its computer is reachable to add its words to the vocabulary."+
 	"Now Playing"+
 	"Minimize Player"+
@@ -2207,6 +2283,9 @@ var textsEn = i18n.NewTexts(""+
 		18,
 		24,
 		15,
+		18,
+		50,
+		17,
 		11,
 		14,
 		9,
@@ -2215,6 +2294,19 @@ var textsEn = i18n.NewTexts(""+
 		123,
 		11,
 		8,
+		7,
+		11,
+		11,
+		17,
+		2,
+		20,
+		14,
+		12,
+		16,
+		14,
+		22,
+		5,
+		61,
 		21,
 		19,
 		4,
@@ -2233,6 +2325,12 @@ var textsEn = i18n.NewTexts(""+
 		6,
 		52,
 		41,
+		8,
+		9,
+		19,
+		34,
+		6,
+		13,
 		87,
 		11,
 		15,
@@ -2578,6 +2676,9 @@ var textsJa = i18n.NewTexts(""+
 	"コンピュータに接続"+
 	"別のコンピュータに接続"+
 	"復習リマインダー"+
+	"キーボードショートカット"+
+	"外付けキーボードを接続しているときに使えます。"+
+	"外付けキーボード"+
 	"ソースコード"+
 	"字幕のスタイル"+
 	"字幕"+
@@ -2586,6 +2687,19 @@ var textsJa = i18n.NewTexts(""+
 	"字幕はこの言語に翻訳されます。変更すると、接続しているコンピュータもこの言語で翻訳します。"+
 	"この端末"+
 	"設定"+
+	"ウィジェット"+
+	"ロック画面"+
+	"動画を追加"+
+	"AI でこの文を解説"+
+	"、"+
+	"前の文 / 次の文"+
+	"この文をくり返す"+
+	"再生 / 一時停止"+
+	"この文をもう一度"+
+	"この文を保存"+
+	"映画とセリフを検索"+
+	"スペース"+
+	"字幕を切り替え：2 か国語 / 原文 / 訳文 / 隠す"+
 	"画面の下"+
 	"原文の色"+
 	"シアン"+
@@ -2604,6 +2718,12 @@ var textsJa = i18n.NewTexts(""+
 	"黄"+
 	"視聴中に調べて保存した単語がここに表示されます"+
 	"すべての端末の単語帳から削除されます。"+
+	"続きを見る"+
+	"復習待ち"+
+	"途中の映画はありません"+
+	"途中まで見た映画がここに表示されます。"+
+	"連続学習"+
+	"タップして復習"+
 	"パソコンにつながる場所で一度この映像を開くと、単語を単語帳に追加できるようになります。"+
 	"再生中"+
 	"プレーヤーをしまう"+
@@ -2946,6 +3066,9 @@ var textsJa = i18n.NewTexts(""+
 		27,
 		33,
 		24,
+		36,
+		69,
+		24,
 		18,
 		21,
 		6,
@@ -2954,6 +3077,19 @@ var textsJa = i18n.NewTexts(""+
 		135,
 		12,
 		6,
+		18,
+		15,
+		15,
+		24,
+		3,
+		21,
+		24,
+		21,
+		24,
+		18,
+		27,
+		12,
+		62,
 		12,
 		12,
 		9,
@@ -2972,6 +3108,12 @@ var textsJa = i18n.NewTexts(""+
 		3,
 		69,
 		57,
+		15,
+		12,
+		33,
+		57,
+		12,
+		21,
 		129,
 		9,
 		27,
@@ -3317,6 +3459,9 @@ var textsKo = i18n.NewTexts(""+
 	"컴퓨터 연결"+
 	"다른 컴퓨터 연결"+
 	"복습 알림"+
+	"키보드 단축키"+
+	"외장 키보드를 연결하면 사용할 수 있어요."+
+	"외장 키보드"+
 	"소스 코드"+
 	"자막 스타일"+
 	"자막"+
@@ -3325,6 +3470,19 @@ var textsKo = i18n.NewTexts(""+
 	"자막은 이 언어로 번역돼요. 바꾸면 연결된 컴퓨터도 이 언어로 번역해요."+
 	"이 기기"+
 	"설정"+
+	"위젯"+
+	"잠금 화면"+
+	"동영상 추가"+
+	"AI로 이 문장 설명"+
+	", "+
+	"이전 문장 / 다음 문장"+
+	"이 문장 반복"+
+	"재생 / 일시정지"+
+	"이 문장 다시 듣기"+
+	"이 문장 저장"+
+	"영화와 대사 검색"+
+	"스페이스"+
+	"자막 전환: 2개 언어 / 원문 / 번역 / 가리기"+
 	"화면 아래"+
 	"원문 색상"+
 	"청록색"+
@@ -3343,6 +3501,12 @@ var textsKo = i18n.NewTexts(""+
 	"노란색"+
 	"보면서 찾아 저장한 단어가 여기에 표시돼요"+
 	"모든 기기의 단어장에서 삭제됩니다."+
+	"이어 보기"+
+	"복습"+
+	"이어 볼 영화가 없어요"+
+	"보다 만 영화가 여기에 표시돼요."+
+	"연속 학습"+
+	"탭하여 복습"+
 	"컴퓨터에 연결된 상태에서 이 영상을 한 번 열면 단어를 단어장에 추가할 수 있습니다."+
 	"재생 중"+
 	"플레이어 최소화"+
@@ -3685,6 +3849,9 @@ var textsKo = i18n.NewTexts(""+
 		16,
 		23,
 		13,
+		19,
+		57,
+		16,
 		13,
 		16,
 		6,
@@ -3693,6 +3860,19 @@ var textsKo = i18n.NewTexts(""+
 		98,
 		10,
 		6,
+		6,
+		13,
+		16,
+		23,
+		2,
+		29,
+		17,
+		21,
+		24,
+		17,
+		23,
+		12,
+		56,
 		13,
 		13,
 		9,
@@ -3711,6 +3891,12 @@ var textsKo = i18n.NewTexts(""+
 		9,
 		59,
 		49,
+		13,
+		6,
+		30,
+		44,
+		13,
+		16,
 		115,
 		10,
 		22,
@@ -4056,6 +4242,9 @@ var textsZhHans = i18n.NewTexts(""+
 	"连接电脑"+
 	"连接另一台电脑"+
 	"复习提醒"+
+	"键盘快捷键"+
+	"接上外接键盘时可用。"+
+	"外接键盘"+
 	"源代码"+
 	"字幕样式"+
 	"字幕"+
@@ -4064,6 +4253,19 @@ var textsZhHans = i18n.NewTexts(""+
 	"字幕会翻译成这种语言。改了以后，连着的电脑也会按它翻译。"+
 	"这台设备"+
 	"设置"+
+	"桌面小组件"+
+	"锁屏小组件"+
+	"添加视频"+
+	"AI 解释这一句"+
+	"、"+
+	"上一句 / 下一句"+
+	"单句循环"+
+	"播放 / 暂停"+
+	"重听这一句"+
+	"收藏这一句"+
+	"搜索影片和台词"+
+	"空格"+
+	"切换字幕：双语 / 原文 / 译文 / 遮挡"+
 	"画面底部"+
 	"原文颜色"+
 	"青色"+
@@ -4082,6 +4284,12 @@ var textsZhHans = i18n.NewTexts(""+
 	"黄色"+
 	"看片时查过并收藏的生词会出现在这里"+
 	"它会从所有设备的生词本里移除。"+
+	"继续看"+
+	"待复习"+
+	"没有看到一半的影片"+
+	"看到一半的影片会显示在这里。"+
+	"连续学习"+
+	"轻点开始复习"+
 	"在能连上电脑时打开一次这部影片，就能把它的词加入生词本。"+
 	"正在播放"+
 	"收起播放器"+
@@ -4424,6 +4632,9 @@ var textsZhHans = i18n.NewTexts(""+
 		12,
 		21,
 		12,
+		15,
+		30,
+		12,
 		9,
 		12,
 		6,
@@ -4432,6 +4643,19 @@ var textsZhHans = i18n.NewTexts(""+
 		84,
 		12,
 		6,
+		15,
+		15,
+		12,
+		18,
+		3,
+		21,
+		12,
+		15,
+		15,
+		15,
+		21,
+		6,
+		48,
 		12,
 		12,
 		6,
@@ -4450,6 +4674,12 @@ var textsZhHans = i18n.NewTexts(""+
 		6,
 		51,
 		45,
+		9,
+		9,
+		27,
+		42,
+		12,
+		18,
 		84,
 		12,
 		15,
@@ -4795,6 +5025,9 @@ var textsZhHant = i18n.NewTexts(""+
 	"連接電腦"+
 	"連接另一台電腦"+
 	"複習提醒"+
+	"鍵盤快速鍵"+
+	"接上外接鍵盤時可用。"+
+	"外接鍵盤"+
 	"原始碼"+
 	"字幕樣式"+
 	"字幕"+
@@ -4803,6 +5036,19 @@ var textsZhHant = i18n.NewTexts(""+
 	"字幕會翻譯成這種語言。改了以後，連著的電腦也會按它翻譯。"+
 	"這台裝置"+
 	"設定"+
+	"桌面小工具"+
+	"鎖定畫面小工具"+
+	"新增影片"+
+	"AI 解釋這一句"+
+	"、"+
+	"上一句 / 下一句"+
+	"單句循環"+
+	"播放 / 暫停"+
+	"重聽這一句"+
+	"收藏這一句"+
+	"搜尋影片和台詞"+
+	"空白鍵"+
+	"切換字幕：雙語 / 原文 / 譯文 / 遮擋"+
 	"畫面底部"+
 	"原文顏色"+
 	"青色"+
@@ -4821,6 +5067,12 @@ var textsZhHant = i18n.NewTexts(""+
 	"黃色"+
 	"看片時查過並收藏的生詞會出現在這裡"+
 	"它會從所有裝置的生詞本裡移除。"+
+	"繼續看"+
+	"待複習"+
+	"沒有看到一半的影片"+
+	"看到一半的影片會顯示在這裡。"+
+	"連續學習"+
+	"輕點開始複習"+
 	"在能連上電腦時打開一次這部影片，就能把它的詞加入生詞本。"+
 	"正在播放"+
 	"收起播放器"+
@@ -5163,6 +5415,9 @@ var textsZhHant = i18n.NewTexts(""+
 		12,
 		21,
 		12,
+		15,
+		30,
+		12,
 		9,
 		12,
 		6,
@@ -5171,6 +5426,19 @@ var textsZhHant = i18n.NewTexts(""+
 		84,
 		12,
 		6,
+		15,
+		21,
+		12,
+		18,
+		3,
+		21,
+		12,
+		15,
+		15,
+		15,
+		21,
+		9,
+		48,
 		12,
 		12,
 		6,
@@ -5189,6 +5457,12 @@ var textsZhHant = i18n.NewTexts(""+
 		6,
 		51,
 		45,
+		9,
+		9,
+		27,
+		42,
+		12,
+		18,
 		84,
 		12,
 		15,
@@ -5663,8 +5937,23 @@ func Supply(lang string, t Translation) {
 	if t.SettingsRemindDetail != nil {
 		s.SettingsRemindDetail = t.SettingsRemindDetail
 	}
+	if t.SettingsWidgetsHow != nil {
+		s.SettingsWidgetsHow = t.SettingsWidgetsHow
+	}
 	if t.VocabRemoveTitle != nil {
 		s.VocabRemoveTitle = t.VocabRemoveTitle
+	}
+	if t.WidgetContinuePercent != nil {
+		s.WidgetContinuePercent = t.WidgetContinuePercent
+	}
+	if t.WidgetDays != nil {
+		s.WidgetDays = t.WidgetDays
+	}
+	if t.WidgetDue != nil {
+		s.WidgetDue = t.WidgetDue
+	}
+	if t.WidgetFoot != nil {
+		s.WidgetFoot = t.WidgetFoot
 	}
 	if t.PlayerMiniOpen != nil {
 		s.PlayerMiniOpen = t.PlayerMiniOpen
@@ -13324,6 +13613,33 @@ func (msgs Messages) SettingsRemindDetail(hour int) string {
 	}
 }
 
+// SettingsShortcuts says "Keyboard Shortcuts"
+// in the language the app shows under cx.
+//
+// Row of Settings on a tablet, and the title of its page: the shortcuts of a hardware keyboard.
+func SettingsShortcuts(cx *core.Scope) string { return For(cx).SettingsShortcuts() }
+
+// SettingsShortcuts is the package's SettingsShortcuts in the language of msgs.
+func (msgs Messages) SettingsShortcuts() string { return msgs.text(textSettingsShortcuts) }
+
+// SettingsShortcutsNote says "These work while a hardware keyboard is connected."
+// in the language the app shows under cx.
+//
+// Over the list of keyboard shortcuts.
+func SettingsShortcutsNote(cx *core.Scope) string { return For(cx).SettingsShortcutsNote() }
+
+// SettingsShortcutsNote is the package's SettingsShortcutsNote in the language of msgs.
+func (msgs Messages) SettingsShortcutsNote() string { return msgs.text(textSettingsShortcutsNote) }
+
+// SettingsShortcutsValue says "Hardware Keyboard"
+// in the language the app shows under cx.
+//
+// At the end of the Keyboard Shortcuts row: what they are for.
+func SettingsShortcutsValue(cx *core.Scope) string { return For(cx).SettingsShortcutsValue() }
+
+// SettingsShortcutsValue is the package's SettingsShortcutsValue in the language of msgs.
+func (msgs Messages) SettingsShortcutsValue() string { return msgs.text(textSettingsShortcutsValue) }
+
 // SettingsSource says "Source Code"
 // in the language the app shows under cx.
 //
@@ -13395,6 +13711,155 @@ func SettingsTitle(cx *core.Scope) string { return For(cx).SettingsTitle() }
 
 // SettingsTitle is the package's SettingsTitle in the language of msgs.
 func (msgs Messages) SettingsTitle() string { return msgs.text(textSettingsTitle) }
+
+// SettingsWidgets says "Widgets"
+// in the language the app shows under cx.
+//
+// Row of Settings on an iPhone or iPad, and the title of its page: the app's Home Screen and Lock Screen widgets.
+func SettingsWidgets(cx *core.Scope) string { return For(cx).SettingsWidgets() }
+
+// SettingsWidgets is the package's SettingsWidgets in the language of msgs.
+func (msgs Messages) SettingsWidgets() string { return msgs.text(textSettingsWidgets) }
+
+// SettingsWidgetsHow says "Touch and hold the Home Screen or the Lock Screen, tap Edit, then Add Widget, and search for “{app}”."
+// in the language the app shows under cx.
+//
+// Top of the Widgets page: how to add one. app is the app's name.
+func SettingsWidgetsHow(cx *core.Scope, app string) string { return For(cx).SettingsWidgetsHow(app) }
+
+// SettingsWidgetsHow is the package's SettingsWidgetsHow in the language of msgs.
+func (msgs Messages) SettingsWidgetsHow(app string) string {
+	if i18n.IsPseudo(msgs.lang) {
+		return i18n.Pseudo(msgs.lang, Messages{lang: Source, mark: true}.SettingsWidgetsHow(app))
+	}
+	for lang := msgs.lang; ; lang = i18n.Parent(lang) {
+		if f := supplied[lang].SettingsWidgetsHow; f != nil {
+			return f(app)
+		}
+		switch lang {
+		case "", "en":
+			return "Touch and hold the Home Screen or the Lock Screen, tap Edit, then Add Widget, and search for “" + msgs.arg(app) + "”."
+		case "ja":
+			return "ホーム画面またはロック画面を長押しし、「編集」→「ウィジェットを追加」をタップして「" + app + "」を検索します。"
+		case "ko":
+			return "홈 화면이나 잠금 화면을 길게 누르고 '편집' → '위젯 추가'를 탭한 다음 {app}을(를) 검색하세요."
+		case "zh-Hans":
+			return "在主屏幕或锁屏上长按，点「编辑」→「添加小组件」，搜索「" + app + "」。"
+		case "zh-Hant":
+			return "在主畫面或鎖定畫面上長按，點「編輯」→「加入小工具」，搜尋「" + app + "」。"
+		}
+	}
+}
+
+// SettingsWidgetsLockScreen says "Lock Screen"
+// in the language the app shows under cx.
+//
+// Beside the preview of the Lock Screen widget.
+func SettingsWidgetsLockScreen(cx *core.Scope) string { return For(cx).SettingsWidgetsLockScreen() }
+
+// SettingsWidgetsLockScreen is the package's SettingsWidgetsLockScreen in the language of msgs.
+func (msgs Messages) SettingsWidgetsLockScreen() string {
+	return msgs.text(textSettingsWidgetsLockScreen)
+}
+
+// ShortcutsAdd says "Add a Video"
+// in the language the app shows under cx.
+//
+// A keyboard shortcut: the Add sheet.
+func ShortcutsAdd(cx *core.Scope) string { return For(cx).ShortcutsAdd() }
+
+// ShortcutsAdd is the package's ShortcutsAdd in the language of msgs.
+func (msgs Messages) ShortcutsAdd() string { return msgs.text(textShortcutsAdd) }
+
+// ShortcutsExplain says "Explain This Line"
+// in the language the app shows under cx.
+//
+// A keyboard shortcut: have the computer's AI explain the line.
+func ShortcutsExplain(cx *core.Scope) string { return For(cx).ShortcutsExplain() }
+
+// ShortcutsExplain is the package's ShortcutsExplain in the language of msgs.
+func (msgs Messages) ShortcutsExplain() string { return msgs.text(textShortcutsExplain) }
+
+// ShortcutsJoin says ", "
+// in the language the app shows under cx.
+//
+// Between the names of the sections in the row of the shortcuts that go to them, as Library, Learn, Jobs, Settings.
+func ShortcutsJoin(cx *core.Scope) string { return For(cx).ShortcutsJoin() }
+
+// ShortcutsJoin is the package's ShortcutsJoin in the language of msgs.
+func (msgs Messages) ShortcutsJoin() string { return msgs.text(textShortcutsJoin) }
+
+// ShortcutsLines says "Previous / Next Line"
+// in the language the app shows under cx.
+//
+// A keyboard shortcut: play from the line before or after.
+func ShortcutsLines(cx *core.Scope) string { return For(cx).ShortcutsLines() }
+
+// ShortcutsLines is the package's ShortcutsLines in the language of msgs.
+func (msgs Messages) ShortcutsLines() string { return msgs.text(textShortcutsLines) }
+
+// ShortcutsLoop says "Loop This Line"
+// in the language the app shows under cx.
+//
+// A keyboard shortcut: loop the line, or stop looping.
+func ShortcutsLoop(cx *core.Scope) string { return For(cx).ShortcutsLoop() }
+
+// ShortcutsLoop is the package's ShortcutsLoop in the language of msgs.
+func (msgs Messages) ShortcutsLoop() string { return msgs.text(textShortcutsLoop) }
+
+// ShortcutsPlayPause says "Play / Pause"
+// in the language the app shows under cx.
+//
+// A keyboard shortcut: start or hold the film.
+func ShortcutsPlayPause(cx *core.Scope) string { return For(cx).ShortcutsPlayPause() }
+
+// ShortcutsPlayPause is the package's ShortcutsPlayPause in the language of msgs.
+func (msgs Messages) ShortcutsPlayPause() string { return msgs.text(textShortcutsPlayPause) }
+
+// ShortcutsReplay says "Replay This Line"
+// in the language the app shows under cx.
+//
+// A keyboard shortcut: play the line again.
+func ShortcutsReplay(cx *core.Scope) string { return For(cx).ShortcutsReplay() }
+
+// ShortcutsReplay is the package's ShortcutsReplay in the language of msgs.
+func (msgs Messages) ShortcutsReplay() string { return msgs.text(textShortcutsReplay) }
+
+// ShortcutsSave says "Save This Line"
+// in the language the app shows under cx.
+//
+// A keyboard shortcut: save the line, or take it back.
+func ShortcutsSave(cx *core.Scope) string { return For(cx).ShortcutsSave() }
+
+// ShortcutsSave is the package's ShortcutsSave in the language of msgs.
+func (msgs Messages) ShortcutsSave() string { return msgs.text(textShortcutsSave) }
+
+// ShortcutsSearch says "Search Films and Lines"
+// in the language the app shows under cx.
+//
+// A keyboard shortcut: the Library's search.
+func ShortcutsSearch(cx *core.Scope) string { return For(cx).ShortcutsSearch() }
+
+// ShortcutsSearch is the package's ShortcutsSearch in the language of msgs.
+func (msgs Messages) ShortcutsSearch() string { return msgs.text(textShortcutsSearch) }
+
+// ShortcutsSpace says "Space"
+// in the language the app shows under cx.
+//
+// The space bar, as a keyboard shortcut's key.
+func ShortcutsSpace(cx *core.Scope) string { return For(cx).ShortcutsSpace() }
+
+// ShortcutsSpace is the package's ShortcutsSpace in the language of msgs.
+func (msgs Messages) ShortcutsSpace() string { return msgs.text(textShortcutsSpace) }
+
+// ShortcutsSubtitles says "Switch Subtitles: Bilingual / Original / Translation / Hidden"
+// in the language the app shows under cx.
+//
+// A keyboard shortcut: the next subtitle mode, in this order.
+func ShortcutsSubtitles(cx *core.Scope) string { return For(cx).ShortcutsSubtitles() }
+
+// ShortcutsSubtitles is the package's ShortcutsSubtitles in the language of msgs.
+func (msgs Messages) ShortcutsSubtitles() string { return msgs.text(textShortcutsSubtitles) }
 
 // StyleBottom says "Bottom of the Picture"
 // in the language the app shows under cx.
@@ -13587,6 +14052,267 @@ func (msgs Messages) VocabRemoveTitle(word string) string {
 		}
 	}
 }
+
+// WidgetContinue says "Continue"
+// in the language the app shows under cx.
+//
+// Over the film of the Continue widget.
+func WidgetContinue(cx *core.Scope) string { return For(cx).WidgetContinue() }
+
+// WidgetContinue is the package's WidgetContinue in the language of msgs.
+func (msgs Messages) WidgetContinue() string { return msgs.text(textWidgetContinue) }
+
+// WidgetContinuePercent says "Continue · {percent}%"
+// in the language the app shows under cx.
+//
+// Over the film of the wide Continue widget: how far it was watched.
+func WidgetContinuePercent(cx *core.Scope, percent int) string {
+	return For(cx).WidgetContinuePercent(percent)
+}
+
+// WidgetContinuePercent is the package's WidgetContinuePercent in the language of msgs.
+func (msgs Messages) WidgetContinuePercent(percent int) string {
+	if i18n.IsPseudo(msgs.lang) {
+		return i18n.Pseudo(msgs.lang, Messages{lang: Source, mark: true}.WidgetContinuePercent(percent))
+	}
+	for lang := msgs.lang; ; lang = i18n.Parent(lang) {
+		if f := supplied[lang].WidgetContinuePercent; f != nil {
+			return f(percent)
+		}
+		switch lang {
+		case "", "en":
+			return "Continue · " + msgs.arg(i18n.FormatNumber("en", float64(percent))) + "%"
+		case "ja":
+			return "続きを見る · " + i18n.FormatNumber("ja", float64(percent)) + "%"
+		case "ko":
+			return "이어 보기 · " + i18n.FormatNumber("ko", float64(percent)) + "%"
+		case "zh-Hans":
+			return "继续看 · " + i18n.FormatNumber("zh-Hans", float64(percent)) + "%"
+		case "zh-Hant":
+			return "繼續看 · " + i18n.FormatNumber("zh-Hant", float64(percent)) + "%"
+		}
+	}
+}
+
+// WidgetDays says "{count, plural, one {day} other {days}}"
+// in the language the app shows under cx.
+//
+// After the big number of the streak widget: days in a row films played.
+func WidgetDays(cx *core.Scope, count int) string { return For(cx).WidgetDays(count) }
+
+// WidgetDays is the package's WidgetDays in the language of msgs.
+func (msgs Messages) WidgetDays(count int) string {
+	if i18n.IsPseudo(msgs.lang) {
+		return i18n.Pseudo(msgs.lang, Messages{lang: Source, mark: true}.WidgetDays(count))
+	}
+	for lang := msgs.lang; ; lang = i18n.Parent(lang) {
+		if f := supplied[lang].WidgetDays; f != nil {
+			return f(count)
+		}
+		switch lang {
+		case "", "en":
+			var b strings.Builder
+			switch i18n.Cardinal("en", float64(count)) {
+			case i18n.One:
+				b.WriteString("day")
+			default:
+				b.WriteString("days")
+			}
+			return b.String()
+		case "ja":
+			return "日"
+		case "ko":
+			return "일"
+		case "zh-Hans":
+			return "天"
+		case "zh-Hant":
+			return "天"
+		}
+	}
+}
+
+// WidgetDue says "{count, plural, =0 {Nothing to review} one {# to review} other {# to review}}"
+// in the language the app shows under cx.
+//
+// In a widget: how many words and lines are due for review.
+func WidgetDue(cx *core.Scope, count int) string { return For(cx).WidgetDue(count) }
+
+// WidgetDue is the package's WidgetDue in the language of msgs.
+func (msgs Messages) WidgetDue(count int) string {
+	if i18n.IsPseudo(msgs.lang) {
+		return i18n.Pseudo(msgs.lang, Messages{lang: Source, mark: true}.WidgetDue(count))
+	}
+	for lang := msgs.lang; ; lang = i18n.Parent(lang) {
+		if f := supplied[lang].WidgetDue; f != nil {
+			return f(count)
+		}
+		switch lang {
+		case "", "en":
+			var b strings.Builder
+			switch {
+			case count == 0:
+				b.WriteString("Nothing to review")
+			default:
+				switch i18n.Cardinal("en", float64(count)) {
+				case i18n.One:
+					b.WriteString(msgs.arg(i18n.FormatNumber("en", float64(count))))
+					b.WriteString(" to review")
+				default:
+					b.WriteString(msgs.arg(i18n.FormatNumber("en", float64(count))))
+					b.WriteString(" to review")
+				}
+			}
+			return b.String()
+		case "ja":
+			var b strings.Builder
+			switch {
+			case count == 0:
+				b.WriteString("復習するものはありません")
+			default:
+				switch i18n.Cardinal("ja", float64(count)) {
+				default:
+					b.WriteString("復習待ち ")
+					b.WriteString(i18n.FormatNumber("ja", float64(count)))
+					b.WriteString(" 件")
+				}
+			}
+			return b.String()
+		case "ko":
+			var b strings.Builder
+			switch {
+			case count == 0:
+				b.WriteString("복습할 항목 없음")
+			default:
+				switch i18n.Cardinal("ko", float64(count)) {
+				default:
+					b.WriteString("복습할 항목 ")
+					b.WriteString(i18n.FormatNumber("ko", float64(count)))
+					b.WriteString("개")
+				}
+			}
+			return b.String()
+		case "zh-Hans":
+			var b strings.Builder
+			switch {
+			case count == 0:
+				b.WriteString("没有待复习的")
+			default:
+				switch i18n.Cardinal("zh-Hans", float64(count)) {
+				default:
+					b.WriteString(i18n.FormatNumber("zh-Hans", float64(count)))
+					b.WriteString(" 个待复习")
+				}
+			}
+			return b.String()
+		case "zh-Hant":
+			var b strings.Builder
+			switch {
+			case count == 0:
+				b.WriteString("沒有待複習的")
+			default:
+				switch i18n.Cardinal("zh-Hant", float64(count)) {
+				default:
+					b.WriteString(i18n.FormatNumber("zh-Hant", float64(count)))
+					b.WriteString(" 個待複習")
+				}
+			}
+			return b.String()
+		}
+	}
+}
+
+// WidgetDueShort says "to review"
+// in the language the app shows under cx.
+//
+// Under the number of the Lock Screen widget: words and lines due for review.
+func WidgetDueShort(cx *core.Scope) string { return For(cx).WidgetDueShort() }
+
+// WidgetDueShort is the package's WidgetDueShort in the language of msgs.
+func (msgs Messages) WidgetDueShort() string { return msgs.text(textWidgetDueShort) }
+
+// WidgetFoot says "{due, plural, one {# to review} other {# to review}} · {streak, plural, one {#-day streak} other {#-day streak}}"
+// in the language the app shows under cx.
+//
+// Foot of the wide Continue widget: words and lines due, and days in a row films played.
+func WidgetFoot(cx *core.Scope, due int, streak int) string { return For(cx).WidgetFoot(due, streak) }
+
+// WidgetFoot is the package's WidgetFoot in the language of msgs.
+func (msgs Messages) WidgetFoot(due int, streak int) string {
+	if i18n.IsPseudo(msgs.lang) {
+		return i18n.Pseudo(msgs.lang, Messages{lang: Source, mark: true}.WidgetFoot(due, streak))
+	}
+	for lang := msgs.lang; ; lang = i18n.Parent(lang) {
+		if f := supplied[lang].WidgetFoot; f != nil {
+			return f(due, streak)
+		}
+		switch lang {
+		case "", "en":
+			var b strings.Builder
+			switch i18n.Cardinal("en", float64(due)) {
+			case i18n.One:
+				b.WriteString(msgs.arg(i18n.FormatNumber("en", float64(due))))
+				b.WriteString(" to review")
+			default:
+				b.WriteString(msgs.arg(i18n.FormatNumber("en", float64(due))))
+				b.WriteString(" to review")
+			}
+			b.WriteString(" · ")
+			switch i18n.Cardinal("en", float64(streak)) {
+			case i18n.One:
+				b.WriteString(msgs.arg(i18n.FormatNumber("en", float64(streak))))
+				b.WriteString("-day streak")
+			default:
+				b.WriteString(msgs.arg(i18n.FormatNumber("en", float64(streak))))
+				b.WriteString("-day streak")
+			}
+			return b.String()
+		case "ja":
+			return "復習待ち " + i18n.FormatNumber("ja", float64(due)) + " 件 · " + i18n.FormatNumber("ja", float64(streak)) + " 日連続"
+		case "ko":
+			return "복습 " + i18n.FormatNumber("ko", float64(due)) + "개 · " + i18n.FormatNumber("ko", float64(streak)) + "일 연속"
+		case "zh-Hans":
+			return i18n.FormatNumber("zh-Hans", float64(due)) + " 个待复习 · 连续 " + i18n.FormatNumber("zh-Hans", float64(streak)) + " 天"
+		case "zh-Hant":
+			return i18n.FormatNumber("zh-Hant", float64(due)) + " 個待複習 · 連續 " + i18n.FormatNumber("zh-Hant", float64(streak)) + " 天"
+		}
+	}
+}
+
+// WidgetNoFilm says "Nothing to continue"
+// in the language the app shows under cx.
+//
+// The Continue widget while no film was left partway.
+func WidgetNoFilm(cx *core.Scope) string { return For(cx).WidgetNoFilm() }
+
+// WidgetNoFilm is the package's WidgetNoFilm in the language of msgs.
+func (msgs Messages) WidgetNoFilm() string { return msgs.text(textWidgetNoFilm) }
+
+// WidgetNoFilmHint says "Films you leave partway show here."
+// in the language the app shows under cx.
+//
+// Under Nothing to continue in the Continue widget.
+func WidgetNoFilmHint(cx *core.Scope) string { return For(cx).WidgetNoFilmHint() }
+
+// WidgetNoFilmHint is the package's WidgetNoFilmHint in the language of msgs.
+func (msgs Messages) WidgetNoFilmHint() string { return msgs.text(textWidgetNoFilmHint) }
+
+// WidgetStreak says "Streak"
+// in the language the app shows under cx.
+//
+// Top of the streak widget, beside a flame.
+func WidgetStreak(cx *core.Scope) string { return For(cx).WidgetStreak() }
+
+// WidgetStreak is the package's WidgetStreak in the language of msgs.
+func (msgs Messages) WidgetStreak() string { return msgs.text(textWidgetStreak) }
+
+// WidgetTapToReview says "Tap to review"
+// in the language the app shows under cx.
+//
+// Foot of the streak widget.
+func WidgetTapToReview(cx *core.Scope) string { return For(cx).WidgetTapToReview() }
+
+// WidgetTapToReview is the package's WidgetTapToReview in the language of msgs.
+func (msgs Messages) WidgetTapToReview() string { return msgs.text(textWidgetTapToReview) }
 
 // PlayerCannotAddWord says "Open this film once while its computer is reachable to add its words to the vocabulary."
 // in the language the app shows under cx.
