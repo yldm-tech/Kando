@@ -87,8 +87,9 @@ func (a *app) DismissSuggestion(source string) {
 	if !g.ok || !slices.ContainsFunc(g.list.Terms, func(t core.Term) bool { return core.SameTerm(t.Source, source) }) {
 		return
 	}
-	next := g.list.Dismiss(source)
-	if err := media.SaveSuggestions(media.SuggestionsPath(g.video), next); err != nil {
+	// Read again as the file holds them, which a job translating the film again may have just written.
+	next, err := media.DismissSuggestion(g.video, source)
+	if err != nil {
 		if errors.Is(err, media.ErrSuggestionsNewer) {
 			a.flash(a.messages().GlossaryNewer())
 		} else {

@@ -381,6 +381,10 @@ func Run(ctx context.Context, p Pipeline, job core.Job, language string, report 
 	}
 
 	enter(core.StageExporting)
+	// Kept before the subtitles, whose change has the window read them again (state_glossary_suggest.go), so it reads these with them.
+	if suggestedOK {
+		_ = KeepSuggestions(job.VideoPath, suggested)
+	}
 	// A redo exports the film's transcript (TranscriptOf) in place of the one it kept aside.
 	if job.Redo != "" || transcript == "" {
 		transcript = TranscriptOf(job.VideoPath)
@@ -407,9 +411,6 @@ func Run(ctx context.Context, p Pipeline, job core.Job, language string, report 
 			proofs = nil
 		}
 		_ = SaveProofs(ProofsPath(job.VideoPath), proofs)
-	}
-	if suggestedOK {
-		_ = KeepSuggestions(job.VideoPath, suggested)
 	}
 	// A film whose video this run downloaded or kept has one again, as after a video download that failed and left the film at a quality that keeps it.
 	switch {

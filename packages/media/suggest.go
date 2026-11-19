@@ -11,6 +11,7 @@ import (
 	"path/filepath"
 	"slices"
 	"strings"
+	gosync "sync"
 	"unicode/utf8"
 
 	"kando/packages/core"
@@ -292,6 +293,8 @@ func SaveSuggestions(path string, s Suggestions) error {
 
 // KeepSuggestions keeps terms as the suggestions of the film whose video is at video, in place of those it had, but for the sources the user dismissed, which stay dismissed and are left out.
 func KeepSuggestions(video string, terms []core.Term) error {
+	suggestionsMu.Lock()
+	defer suggestionsMu.Unlock()
 	path := SuggestionsPath(video)
 	had, err := LoadSuggestions(path)
 	if err != nil {
@@ -304,4 +307,23 @@ func KeepSuggestions(video string, terms []core.Term) error {
 		}
 	}
 	return SaveSuggestions(path, kept)
+}
+
+// suggestionsMu orders the changes of the suggestions files that read what is there and write it back (KeepSuggestions, DismissSuggestion), as a job keeps the suggestions of a film the window shows while the user dismisses one of them: neither writes over what the other wrote.
+var suggestionsMu gosync.Mutex
+
+// DismissSuggestion takes the term suggested for source off the suggestions kept beside video for good (Suggestions.Dismiss), as the file holds them now, and returns what it holds then.
+func DismissSuggestion(video, source string) (Suggestions, error) {
+	suggestionsMu.Lock()
+	defer suggestionsMu.Unlock()
+	path := SuggestionsPath(video)
+	had, err := LoadSuggestions(path)
+	if err != nil {
+		return Suggestions{}, err
+	}
+	next := had.Dismiss(source)
+	if err := SaveSuggestions(path, next); err != nil {
+		return Suggestions{}, err
+	}
+	return next, nil
 }

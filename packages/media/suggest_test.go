@@ -159,3 +159,26 @@ func TestSuggestionsFile(t *testing.T) {
 		t.Fatalf("a newer file was written over: %v", err)
 	}
 }
+
+// Dismissing a suggestion reads the file as it is: suggestions a job kept since the window read them stay, and a source dismissed before stays dismissed when the job keeps new ones.
+func TestDismissSuggestionKeepsWhatAJobWroteMeanwhile(t *testing.T) {
+	video := filepath.Join(t.TempDir(), "film.mp4")
+	if err := KeepSuggestions(video, []core.Term{{Source: "Nile", Target: "尼罗河"}}); err != nil {
+		t.Fatal(err)
+	}
+	// A job translating the film again keeps new suggestions after the window read the first ones.
+	if err := KeepSuggestions(video, []core.Term{{Source: "Nile", Target: "尼罗河"}, {Source: "delta", Target: "三角洲"}}); err != nil {
+		t.Fatal(err)
+	}
+	got, err := DismissSuggestion(video, "Nile")
+	if err != nil || len(got.Terms) != 1 || got.Terms[0].Source != "delta" || !slices.Equal(got.Dismissed, []string{"Nile"}) {
+		t.Fatalf("dismissed, the suggestions are %+v, %v", got, err)
+	}
+	if err := KeepSuggestions(video, []core.Term{{Source: "Nile", Target: "尼罗河"}, {Source: "basin", Target: "流域"}}); err != nil {
+		t.Fatal(err)
+	}
+	kept, err := LoadSuggestions(SuggestionsPath(video))
+	if err != nil || len(kept.Terms) != 1 || kept.Terms[0].Source != "basin" || !slices.Equal(kept.Dismissed, []string{"Nile"}) {
+		t.Fatalf("a job kept %+v, %v; want Nile left dismissed", kept, err)
+	}
+}
