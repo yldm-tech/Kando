@@ -35,9 +35,11 @@ func (a *app) glossaryChange(kind string, t core.Term) bool {
 	if !had {
 		before = core.Term{Source: t.Source}
 	}
+	heldBefore := a.glossaryHeldOf(t.Source)
 	if !a.glossaryPut(t) {
 		return false
 	}
+	heldAfter := a.glossaryHeldOf(t.Source)
 	if !a.correctLoaded() {
 		return true
 	}
@@ -47,7 +49,7 @@ func (a *app) glossaryChange(kind string, t core.Term) bool {
 		name = before.Target
 	}
 	edits := a.player.subs.edits
-	step := correctStep{before: edits, after: edits, kind: kind, from: t.Source, to: name, scope: t.Scope, termBefore: &before, termAfter: &after}
+	step := correctStep{before: edits, after: edits, kind: kind, from: t.Source, to: name, scope: t.Scope, termBefore: &before, termAfter: &after, heldBefore: &heldBefore, heldAfter: &heldAfter}
 	a.correct.film = a.player.subs.path
 	a.correct.undo = append(a.correct.undo, step)
 	if len(a.correct.undo) > correctUndoDepth {

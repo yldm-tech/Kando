@@ -532,7 +532,8 @@ func TestAFixTakingANameOutOfTheOriginalsLeavesNoneEmpty(t *testing.T) {
 	}
 	wantText(t, tt, msgs.CorrectSpreadDone(1))
 	choose(tt, a, findMenuItem(t, a.menuBar(a.cx), msgs.MenuGroupEdit(), msgs.CorrectUndo(msgs.CorrectStepSpread("Jon", ""))))
-	if got := correctTexts(a)[2]; got != "问约翰。\nAsk Jon." {
+	// Undo takes back the spread alone: the first line keeps its own edit, made before it.
+	if got := correctTexts(a); got[2] != "问约翰。\nAsk Jon." || got[0] != "约翰，等等。\n, wait." {
 		t.Fatalf("Undo left %q", got)
 	}
 }

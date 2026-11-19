@@ -47,6 +47,8 @@ type correctStep struct {
 	from, to              string
 	scope                 core.TermScope
 	termBefore, termAfter *core.Term
+	// heldBefore and heldAfter are every entry the glossary held for the term's source before and after the step, in each scope (glossaryHeld), which Undo and Redo put back; nil for a step that changed no term.
+	heldBefore, heldAfter *glossaryHeld
 }
 
 // What a change of the corrections was, for the Edit menu's Undo and Redo to name it.
@@ -416,7 +418,7 @@ func (a *app) correctUndo() {
 	}
 	step := a.correct.undo[len(a.correct.undo)-1]
 	if correctTermStep(step) {
-		if !a.glossaryPut(*step.termBefore) {
+		if !a.correctPutTerm(step, false) {
 			return
 		}
 	} else if !a.correctWrite(step.before) {
@@ -426,7 +428,7 @@ func (a *app) correctUndo() {
 	a.correct.redo = append(a.correct.redo, step)
 	a.correct.editing, a.correct.spread = false, nil
 	if step.termBefore != nil && !correctTermStep(step) {
-		a.glossaryPut(*step.termBefore)
+		a.correctPutTerm(step, false)
 	}
 	a.flash(a.messages().CorrectUndone(a.correctStepName(a.messages(), step)))
 }
@@ -438,7 +440,7 @@ func (a *app) correctRedo() {
 	}
 	step := a.correct.redo[len(a.correct.redo)-1]
 	if correctTermStep(step) {
-		if !a.glossaryPut(*step.termAfter) {
+		if !a.correctPutTerm(step, true) {
 			return
 		}
 	} else if !a.correctWrite(step.after) {
@@ -448,9 +450,21 @@ func (a *app) correctRedo() {
 	a.correct.undo = append(a.correct.undo, step)
 	a.correct.editing, a.correct.spread = false, nil
 	if step.termAfter != nil && !correctTermStep(step) {
-		a.glossaryPut(*step.termAfter)
+		a.correctPutTerm(step, true)
 	}
 	a.flash(a.messages().CorrectRedone(a.correctStepName(a.messages(), step)))
+}
+
+// correctPutTerm puts back the glossary as step left it (after) or found it: every entry it held for the term's source in each scope when the step kept them, else the one term it kept. It reports whether it could.
+func (a *app) correctPutTerm(step correctStep, after bool) bool {
+	held, term := step.heldBefore, step.termBefore
+	if after {
+		held, term = step.heldAfter, step.termAfter
+	}
+	if held != nil {
+		return a.glossaryRestore(term.Source, *held)
+	}
+	return a.glossaryPut(*term)
 }
 
 // correctStepName is what step was, in the language of m, for the Edit menu and the picture to name it.

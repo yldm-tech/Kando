@@ -109,6 +109,36 @@ func TestTermsTabEditLogUndoesTermChanges(t *testing.T) {
 	}
 }
 
+// Undoing a change of a term puts back every entry the glossary held for its words: removing a film's own term also takes every film's term for the same words out, which the film's shadowed (glossaryPut), and Undo brings both back, Redo takes both out again.
+func TestUndoPutsBackATermEveryFilmHadForTheSameWords(t *testing.T) {
+	a, tt, own := glossaryOpen(t)
+	// The film's own term, and every film's for the same words, which the film's shadows.
+	apply(tt, a, func() {
+		a.gloss.store.Global = core.SetTerm(a.gloss.store.Global, core.Term{Source: "Hello", Target: "你好", Scope: core.ScopeGlobal})
+		if !a.glossarySetFilm([]core.Term{{Source: "Hello", Target: "哈喽", Scope: core.ScopeFilm}}) {
+			t.Fatal("the film's term was not kept")
+		}
+	})
+	if term, _ := a.glossaryTerm("Hello"); term.Target != "哈喽" {
+		t.Fatalf("the film shows %+v, want its own term", term)
+	}
+	tt.Press("id:film-term-remove")
+	if _, held := a.glossaryTerm("Hello"); held || len(a.gloss.store.Global) != 0 {
+		t.Fatalf("removed, the glossary still holds the term: film %+v, every film's %+v", a.gloss.film, a.gloss.store.Global)
+	}
+	tt.Press("id:film-edit-log-undo")
+	if terms, _ := media.LoadTerms(own); len(terms) != 1 || terms[0].Target != "哈喽" {
+		t.Fatalf("after Undo the film's file holds %+v", terms)
+	}
+	if g := a.gloss.store.Global; len(g) != 1 || g[0].Target != "你好" {
+		t.Fatalf("after Undo every film's terms are %+v, want 你好 back", g)
+	}
+	apply(tt, a, a.correctRedo)
+	if _, held := a.glossaryTerm("Hello"); held || len(a.gloss.store.Global) != 0 {
+		t.Fatalf("after Redo the glossary holds film %+v, every film's %+v", a.gloss.film, a.gloss.store.Global)
+	}
+}
+
 // The 术语 tab lists the terms found in the open film that its glossary does not hold: adding one is a change Undo takes back, after which it is suggested again; dismissing one keeps it from coming back.
 func TestTermsTabAddsAndDismissesSuggestedTerms(t *testing.T) {
 	a, tt, updates, item := playerFilm(t, 12, nil)
