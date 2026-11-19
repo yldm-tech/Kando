@@ -1,7 +1,9 @@
 package plugins
 
 import (
+	"slices"
 	"strings"
+	"unicode"
 
 	"kando/packages/core"
 )
@@ -40,7 +42,35 @@ func AddTerms(terms, more []core.Term) []core.Term {
 	return out
 }
 
-// termKey is what AddTerms tells the words of a term by: core.SameTerm's spaces and case, folded with strings.ToLower.
+// TermsIn is the terms of glossary that one of texts holds, as core.TermsIn finds them (core.TermIn), in the glossary's order. A glossary pack brings up to thousands of terms, so each is first looked for in all the texts at once, lowered once, and only one found there is checked line by line.
+func TermsIn(glossary []core.Term, texts []string) []core.Term {
+	if len(glossary) == 0 || len(texts) == 0 {
+		return nil
+	}
+	all := strings.ToLower(strings.Join(texts, "\n"))
+	var out []core.Term
+	for _, t := range glossary {
+		source := strings.ToLower(strings.TrimSpace(t.Source))
+		if source == "" || !strings.Contains(all, source) {
+			continue
+		}
+		if slices.ContainsFunc(texts, func(text string) bool { return core.TermIn(text, t.Source) }) {
+			out = append(out, t)
+		}
+	}
+	return out
+}
+
+// termKey is what AddTerms tells the words of a term by: core.SameTerm's spaces and case. SameTerm compares with strings.EqualFold, which takes two letters as the same when one is in the other's simple case folding (unicode.SimpleFold), as ſ and s or ς and σ, which strings.ToLower keeps apart; so each letter is made the least of its folding, which every letter of that folding shares.
 func termKey(source string) string {
-	return strings.ToLower(strings.TrimSpace(source))
+	return strings.Map(foldRune, strings.TrimSpace(source))
+}
+
+// foldRune is the least rune of r's simple case folding (unicode.SimpleFold), the same for every rune strings.EqualFold takes as r.
+func foldRune(r rune) rune {
+	least := r
+	for f := unicode.SimpleFold(r); f != r; f = unicode.SimpleFold(f) {
+		least = min(least, f)
+	}
+	return least
 }

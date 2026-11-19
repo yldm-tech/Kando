@@ -48,6 +48,9 @@ func TestValidateManifest(t *testing.T) {
 		{"id uppercase", glossaryManifest, `"example.anime-ja-zh"`, `"Example.terms"`, ErrBadID},
 		{"id slash", glossaryManifest, `"example.anime-ja-zh"`, `"a/../b.c"`, ErrBadID},
 		{"id too long", glossaryManifest, `"example.anime-ja-zh"`, `"example.` + strings.Repeat("a", 57) + `"`, ErrBadID},
+		{"id device publisher", glossaryManifest, `"example.anime-ja-zh"`, `"con.terms"`, ErrBadID},
+		{"id device name", glossaryManifest, `"example.anime-ja-zh"`, `"example.nul"`, ErrBadID},
+		{"id device inner", glossaryManifest, `"example.anime-ja-zh"`, `"example.lpt1.terms"`, ErrBadID},
 		{"id kando", glossaryManifest, `"example.anime-ja-zh"`, `"kando.terms"`, ErrReservedID},
 		{"schema new", glossaryManifest, `"schema": 1`, `"schema": 2`, ErrSchema},
 		{"schema none", glossaryManifest, `"schema": 1,`, ``, ErrSchema},
@@ -62,6 +65,8 @@ func TestValidateManifest(t *testing.T) {
 		{"name full width", glossaryManifest, `"Anime terms"`, `"ＯｐｅｎＡＩ"`, ErrReservedName},
 		{"name spaced", glossaryManifest, `"Anime terms"`, `"lm  studio"`, ErrReservedName},
 		{"name hidden in bidi", glossaryManifest, `"Anime terms"`, `"Open\u200bAI"`, ErrReservedName},
+		{"name official in Japanese", glossaryManifest, `"Anime terms"`, `"公式"`, ErrReservedName},
+		{"name official in Korean", glossaryManifest, `"Anime terms"`, `"공식"`, ErrReservedName},
 		{"localized provider", glossaryManifest, `"动画常用词"`, `"通义千问"`, ErrReservedName},
 		{"language not canonical", glossaryManifest, `"to": "zh-Hans"`, `"to": "zh-hans"`, ErrBadField},
 		{"language not a tag", glossaryManifest, `"from": "ja"`, `"from": "japanese!"`, ErrBadField},
@@ -97,6 +102,25 @@ func TestValidateManifest(t *testing.T) {
 		}
 		_, err := Validate(writePack(t, files))
 		wantErr(t, tt.name, err, tt.want)
+	}
+}
+
+// TestCheckURL checks that an address a pack names has a host name and nothing a reader cannot see or that rearranges it.
+func TestCheckURL(t *testing.T) {
+	for _, raw := range []string{"https://llm.example.com/v1", "https://例子.example/keys", "http://127.0.0.1:11434/v1"} {
+		if err := checkURL(raw); err != nil {
+			t.Errorf("%s: %v", raw, err)
+		}
+	}
+	for name, raw := range map[string]string{
+		"port alone":  "https://:443/v1",
+		"no host":     "https:///v1",
+		"bidi":        "https://example.com/\u202egnp.exe",
+		"bidi host":   "https://moc.\u202eexample.com/v1",
+		"zero width":  "https://open\u200bai.com/v1",
+		"word joiner": "https://openai\u2060.com/v1",
+	} {
+		wantErr(t, name, checkURL(raw), ErrBadField)
 	}
 }
 
@@ -234,6 +258,25 @@ func TestNestedBytesShareTheBudget(t *testing.T) {
 	if err := checkNested(path, b); err != nil || b.bytes != 0 || b.entries != 8 {
 		t.Errorf("checkNested = %v, budget left %+v", err, *b)
 	}
+}
+
+// TestNestedZipCountedOnce checks that a dictionary's Yomitan zip takes from the pack's bytes what its entries unpack to, and not also the zip's own bytes read to hash it.
+func TestNestedZipCountedOnce(t *testing.T) {
+	inner := zipBytes(t, []entry{{name: "term_bank_1.json", content: strings.Repeat("x", 600)}})
+	dir := writePack(t, map[string]string{ManifestName: dictionaryManifest, "jmdict.zip": string(inner)})
+	m, err := Parse([]byte(dictionaryManifest))
+	if err != nil {
+		t.Fatal(err)
+	}
+	names := []string{"jmdict.zip", ManifestName}
+	unpacked := int64(len(dictionaryManifest) + 600)
+	b := &budget{bytes: unpacked, entries: 10}
+	if _, err := readFiles(dir, names, m, b); err != nil || b.bytes != 0 || b.entries != 9 {
+		t.Errorf("readFiles = %v, budget left %+v", err, *b)
+	}
+	b = &budget{bytes: unpacked - 1, entries: 10}
+	_, err = readFiles(dir, names, m, b)
+	wantErr(t, "a byte short", err, ErrTooLarge)
 }
 
 func TestCheckFileName(t *testing.T) {

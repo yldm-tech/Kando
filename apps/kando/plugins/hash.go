@@ -9,11 +9,11 @@ import (
 	"path/filepath"
 )
 
-// hashFiles is the content hash of a pack: SHA-256 over its files in names' order (sorted), each as the length of its name, its name, its length and its bytes, the lengths as 8 bytes big-endian, so no two packs hash alike by moving bytes from one file or name to the next. The bytes read come out of b. A file that is not as long as it was when it was listed changed while it was read, and is an error.
-func hashFiles(dir string, names []string, b *budget) (string, error) {
+// hashFiles is the content hash of a pack: SHA-256 over its files in names' order (sorted), each as the length of its name, its name, its length and its bytes, the lengths as 8 bytes big-endian, so no two packs hash alike by moving bytes from one file or name to the next. The bytes read of each file come out of the budget budgetOf gives for its name. A file that is not as long as it was when it was listed changed while it was read, and is an error.
+func hashFiles(dir string, names []string, budgetOf func(name string) *budget) (string, error) {
 	h := sha256.New()
 	for _, name := range names {
-		if err := hashFile(h, filepath.Join(dir, name), name, b); err != nil {
+		if err := hashFile(h, filepath.Join(dir, name), name, budgetOf(name)); err != nil {
 			return "", err
 		}
 	}

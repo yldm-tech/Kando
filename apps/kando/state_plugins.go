@@ -31,6 +31,8 @@ type pluginsUI struct {
 	stateErr  error
 	scanned   bool
 	scanGen   int
+	stateGen  int // the app's own changes of state.json, made or saved, counted; saving is set while one is being saved. A read of the plugins folder that may have read state.json before such a change keeps the app's state (pluginsScan).
+	saving    bool
 	order     []string
 	busy      bool
 	inboxBusy bool
@@ -76,7 +78,7 @@ func (s *savedPlugins) clean() {
 	s.PluginOrder = out
 }
 
-// pluginsHooks: the order of the packs is kept in settings.json; the plugins folder is read once the window is ready, and the inbox looked at again each time the app comes to the front.
+// pluginsHooks: the order of the packs is kept in settings.json, and the AI service of a pack that went is saved as its pack's; the plugins folder is read once the window is ready, and the inbox looked at again each time the app comes to the front.
 func (a *app) pluginsHooks() areaHooks {
 	return areaHooks{
 		restore: func(saved savedSettings) {
@@ -85,7 +87,15 @@ func (a *app) pluginsHooks() areaHooks {
 				a.plugins.gone = pluginsGone{id: saved.LLMProvider, base: saved.LLMBaseURL}
 			}
 		},
-		save:  func(saved *savedSettings) { saved.PluginOrder = slices.Clone(a.plugins.order) },
+		save: func(saved *savedSettings) {
+			saved.PluginOrder = slices.Clone(a.plugins.order)
+			// The service of a pack that is not offered now is saved as its pack's, so the next start knows it as the pack's (pluginsGoneService); the settings' save, which comes before (areas), saved it as the service shown.
+			if tools, ok := a.pipeline.(media.Tools); ok {
+				if id := a.pluginsGoneService(tools.Translator.BaseURL); id != "" {
+					saved.LLMProvider = id
+				}
+			}
+		},
 		ready: a.pluginsScan,
 		becameActive: func() {
 			if a.plugins.scanned {
@@ -112,20 +122,23 @@ func (a *app) pluginsRoot() string {
 	return filepath.Join(filepath.Dir(a.settingsPath), "plugins")
 }
 
-// pluginsScan reads the plugins folder and its state.json off the UI thread (plugins.Scan, plugins.LoadState), and once they are read looks at the inbox.
+// pluginsScan reads the plugins folder and its state.json off the UI thread (plugins.Scan, plugins.LoadState), and once they are read looks at the inbox. The app writes state.json itself, so when it changed the state since the read started, or is saving it as the read ends, the state.json read may be older than its own: the read's packs and issues are taken, and the app's state kept.
 func (a *app) pluginsScan() {
 	root := a.pluginsRoot()
 	if root == "" {
 		return
 	}
 	a.plugins.scanGen++
-	gen, update := a.plugins.scanGen, a.update
+	gen, stateGen, update := a.plugins.scanGen, a.plugins.stateGen, a.update
 	go func() {
 		packs, issues := plugins.Scan(root)
 		state, err := plugins.LoadState(root)
 		update(func() {
 			if a.plugins.scanGen != gen {
 				return
+			}
+			if a.plugins.stateGen != stateGen || a.plugins.saving {
+				state, err = a.plugins.state, a.plugins.stateErr
 			}
 			a.pluginsScanned(packs, issues, state, err)
 		})
@@ -197,9 +210,9 @@ func (a *app) pluginsOn(kind plugins.Kind) []plugins.Pack {
 	return out
 }
 
-// pluginTerms are the terms of the glossary packs turned on that are for job: packs into the language job translates into (its Language, or RedoLanguage while it translates into another) and, once its speech was heard or named, from the language it is in; a job whose target Kando does not know gets none. They are every film's terms and the pack's (core.OriginPack), so a term the user has for the same words, and a locked one, comes first (plugins.AddTerms).
+// pluginTerms are the terms of the glossary packs turned on that are for job: packs into the language job translates into (its Language, or RedoLanguage while it translates into another, or the settings' language for a job that names none, as queueRun gives it once its glossary is found) and, once its speech was heard or named, from the language it is in; a job whose target Kando does not know gets none. They are every film's terms and the pack's (core.OriginPack), so a term the user has for the same words, and a locked one, comes first (plugins.AddTerms).
 func (a *app) pluginTerms(job core.Job) []core.Term {
-	target := core.TargetTag(cmp.Or(job.RedoLanguage, job.Language))
+	target := core.TargetTag(cmp.Or(strings.TrimSpace(job.RedoLanguage), strings.TrimSpace(job.Language), strings.TrimSpace(a.prefs.language)))
 	if target == "" {
 		return nil
 	}
@@ -321,11 +334,15 @@ func (a *app) pluginsClose(keep bool) {
 	a.pluginsCheckInbox()
 }
 
-// pluginsInstall installs the pack of the open confirmation off the UI thread (plugins.Swap), turned on for its content (state.json), and reads the plugins folder again. A pack of the same id is replaced; one of another kind with the id is not (plugins.ErrIDTaken). When the install fails the confirmation stays open and says why, as it may show over the main window with the 插件 page nowhere in sight.
+// pluginsInstall installs the pack of the open confirmation off the UI thread (plugins.Swap), turned on for its content (state.json), and reads the plugins folder again. A pack of the same id is replaced; one of another kind with the id is not (plugins.ErrIDTaken). When the install fails the confirmation stays open and says why, as it may show over the main window with the 插件 page nowhere in sight. A state.json a newer Kando wrote, which this one does not write over (plugins.ErrStateFormat), refuses the install before anything is replaced; once the pack is in place it is installed, and a state.json that could not be saved after is said on the page, apart from the install.
 func (a *app) pluginsInstall() {
 	p := a.plugins.pending
 	root := a.pluginsRoot()
 	if p == nil || p.err != nil || root == "" || a.plugins.busy {
+		return
+	}
+	if errors.Is(a.plugins.stateErr, plugins.ErrStateFormat) {
+		p.err = a.plugins.stateErr
 		return
 	}
 	if i := slices.IndexFunc(a.plugins.packs, func(o plugins.Pack) bool { return o.ID == p.pack.ID }); i >= 0 && a.plugins.packs[i].Kind == plugins.KindAIService {
@@ -333,23 +350,26 @@ func (a *app) pluginsInstall() {
 	}
 	pack, staged := p.pack, p.staged
 	state := a.pluginsNextState(func(s *plugins.State) {
-		pluginsSetEntry(s, plugins.PluginState{ID: pack.ID, Hash: pack.Hash, Enabled: true})
+		s.Set(plugins.PluginState{ID: pack.ID, Hash: pack.Hash, Enabled: true})
 	})
-	a.plugins.busy, a.plugins.err = true, nil
+	a.plugins.busy, a.plugins.err, a.plugins.saving = true, nil, true
 	update := a.update
 	go func() {
 		err := plugins.Swap(root, staged, &pack)
+		var saveErr error
 		if err == nil {
-			err = state.Save(root)
+			saveErr = state.Save(root)
 		}
 		update(func() {
-			a.plugins.busy = false
+			a.plugins.busy, a.plugins.saving = false, false
+			a.plugins.stateGen++
 			switch {
 			case err != nil && a.plugins.pending == p:
 				p.err = err
 			case err != nil:
 				a.plugins.err = err
 			default:
+				a.plugins.err = saveErr
 				if !slices.Contains(a.plugins.order, pack.ID) {
 					a.plugins.order = append(a.plugins.order, pack.ID)
 				}
@@ -362,7 +382,7 @@ func (a *app) pluginsInstall() {
 	}()
 }
 
-// pluginsSetEnabled turns the pack id on or off, saving state.json off the UI thread; the list shows the change at once and goes back when it could not be saved.
+// pluginsSetEnabled turns the pack id on or off, saving state.json off the UI thread; the list shows the change at once and goes back when it could not be saved. Once the save ends, the inbox is looked at again, as a look at it gives way while the switch runs (pluginsCheckInbox).
 func (a *app) pluginsSetEnabled(id string, on bool) {
 	root := a.pluginsRoot()
 	i := slices.IndexFunc(a.plugins.packs, func(p plugins.Pack) bool { return p.ID == id })
@@ -372,14 +392,17 @@ func (a *app) pluginsSetEnabled(id string, on bool) {
 	hash := a.plugins.packs[i].Hash
 	a.pluginsKeepLLM()
 	before := a.plugins.state
-	next := a.pluginsNextState(func(s *plugins.State) { pluginsSetEntry(s, plugins.PluginState{ID: id, Hash: hash, Enabled: on}) })
-	a.plugins.state, a.plugins.busy, a.plugins.err = next, true, nil
+	next := a.pluginsNextState(func(s *plugins.State) { s.Set(plugins.PluginState{ID: id, Hash: hash, Enabled: on}) })
+	a.plugins.state, a.plugins.busy, a.plugins.err, a.plugins.saving = next, true, nil, true
+	a.plugins.stateGen++
 	a.pluginsFollowLLM()
 	update := a.update
 	go func() {
 		err := next.Save(root)
 		update(func() {
-			a.plugins.busy = false
+			a.plugins.busy, a.plugins.saving = false, false
+			a.plugins.stateGen++
+			defer a.pluginsCheckInbox()
 			if err != nil {
 				a.plugins.state, a.plugins.err = before, err
 				a.pluginsFollowLLM()
@@ -400,6 +423,7 @@ func (a *app) pluginsUninstall(id string) {
 	state := a.pluginsNextState(func(s *plugins.State) {
 		s.Plugins = slices.DeleteFunc(s.Plugins, func(e plugins.PluginState) bool { return e.ID == id })
 	})
+	a.plugins.saving = true
 	a.plugins.busy, a.plugins.err = true, nil
 	update := a.update
 	go func() {
@@ -408,7 +432,8 @@ func (a *app) pluginsUninstall(id string) {
 			err = state.Save(root)
 		}
 		update(func() {
-			a.plugins.busy = false
+			a.plugins.busy, a.plugins.saving = false, false
+			a.plugins.stateGen++
 			if err != nil {
 				a.plugins.err = err
 			}
@@ -438,15 +463,6 @@ func (a *app) pluginsNextState(change func(s *plugins.State)) plugins.State {
 	}
 	change(&s)
 	return s
-}
-
-// pluginsSetEntry puts e in s in place of the entry of its id, or after the others.
-func pluginsSetEntry(s *plugins.State, e plugins.PluginState) {
-	if i := slices.IndexFunc(s.Plugins, func(o plugins.PluginState) bool { return o.ID == e.ID }); i >= 0 {
-		s.Plugins[i] = e
-		return
-	}
-	s.Plugins = append(s.Plugins, e)
 }
 
 // pluginsShowFolder shows the plugins folder in the file manager, making it first when no pack was ever installed, and says on the page when no file manager showed it.

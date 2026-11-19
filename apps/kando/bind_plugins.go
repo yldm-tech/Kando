@@ -4,13 +4,10 @@ import (
 	"errors"
 	"path/filepath"
 	"slices"
-	"strings"
 
-	"kando/apps/kando/film/subtitle"
 	"kando/apps/kando/locales"
 	"kando/apps/kando/plugins"
 	"kando/apps/kando/settings"
-	"kando/packages/core"
 )
 
 // The 插件 page's reads and edits (settings.PluginsApp). The page reads them in its bindings and calls the actions from its handlers, which tell the revision (package live), so none of them calls Changed itself. The words they say are in the interface's language (app.messages), which the page shows too; a pack's own words (its name, description) are the page's to pick in that language.
@@ -22,7 +19,7 @@ func (a *app) PluginRows() []settings.PluginRow {
 	seen := map[string]bool{}
 	add := func(pack plugins.Pack) {
 		seen[pack.ID] = true
-		rows = append(rows, settings.PluginRow{Pack: pack, Enabled: a.plugins.state.Enabled(pack.ID), Detail: pluginsDetail(m, pack)})
+		rows = append(rows, settings.PluginRow{Pack: pack, Enabled: a.plugins.state.Enabled(pack.ID), Detail: settings.PluginDetail(m, pack)})
 	}
 	for _, id := range a.plugins.order {
 		i := slices.IndexFunc(a.plugins.packs, func(p plugins.Pack) bool { return p.ID == id })
@@ -42,33 +39,7 @@ func (a *app) PluginRows() []settings.PluginRow {
 	return rows
 }
 
-// pluginsDetail is what pack adds, in the words of m: a glossary's number of terms and its languages, an AI service's host, which the user's key goes to, a dictionary's languages, a word list's language and number of levels.
-func pluginsDetail(m locales.Messages, pack plugins.Pack) string {
-	switch {
-	case pack.Glossary != nil:
-		return m.SettingsPluginsGlossaryDetail(len(pack.Glossary.Terms), pluginsLanguageName(m, pack.Glossary.From), pluginsLanguageName(m, pack.Glossary.To))
-	case pack.Service != nil:
-		return m.SettingsPluginsServiceDetail(settings.Host(pack.Service.BaseURL))
-	case pack.Dictionary != nil:
-		return m.SettingsPluginsDictionaryDetail(strings.Join(pack.Dictionary.From, ", "), strings.Join(pack.Dictionary.To, ", "))
-	case pack.Wordlist != nil:
-		return m.SettingsPluginsWordlistDetail(pack.Wordlist.Language, len(pack.Wordlist.Tiers))
-	}
-	return ""
-}
-
-// pluginsLanguageName names a pack's BCP 47 language tag in the words of m, as the settings name the languages Kando translates into and hears: 简体中文 for zh-Hans, 日语 for ja. A tag Kando does not name is shown as the settings show an unknown spoken language.
-func pluginsLanguageName(m locales.Messages, tag string) string {
-	switch strings.ToLower(tag) {
-	case "zh-hans":
-		return subtitle.TargetLanguageNameIn(m, "简体中文")
-	case "zh-hant":
-		return subtitle.TargetLanguageNameIn(m, "繁体中文")
-	}
-	return subtitle.SpokenLanguageNameIn(m, core.BaseLanguage(tag))
-}
-
-// PluginIssues are the folders of the plugins folder that are not valid packs, each named by its folder and why it is not, in the interface's language.
+// PluginIssues are the folders of the plugins folder that are not valid packs, the dictionaries turned on that could not be opened, and the word list chosen when it could not be read, each named by its folder and why, in the interface's language.
 func (a *app) PluginIssues() []settings.PluginIssue {
 	m := a.messages()
 	out := make([]settings.PluginIssue, 0, len(a.plugins.issues))
@@ -126,7 +97,7 @@ func (a *app) PluginInstall() settings.PluginInstall {
 	if p.err != nil {
 		return settings.PluginInstall{Open: true, Err: pluginsErrorText(m, p.err)}
 	}
-	in := settings.PluginInstall{Open: true, Pack: p.pack, Detail: pluginsDetail(m, p.pack)}
+	in := settings.PluginInstall{Open: true, Pack: p.pack, Detail: settings.PluginDetail(m, p.pack)}
 	if i := slices.IndexFunc(a.plugins.packs, func(o plugins.Pack) bool { return o.ID == p.pack.ID }); i >= 0 {
 		in.Replaces = a.plugins.packs[i].Version
 	}

@@ -142,7 +142,7 @@ type Service struct {
 	Group   string `json:"group"`
 }
 
-// Parse reads a manifest in two steps: its header (schema, id, kind) first, and then, for a kind this version implements, the whole of it strictly, a key it does not know at any level being an error. An unknown kind is ErrUnknownKind; a known kind not implemented yet returns its header alone, for Validate to refuse with ErrUnsupportedKind, as the rest of its fields are only defined in its phase. Parse checks nothing else: that is Validate's.
+// Parse reads a manifest in two steps: its header (schema, id, kind) first, and then, for a kind this version implements, the whole of it strictly, a key it does not know at any level being an error. A schema other than the one this version reads (dataSchema) is ErrSchema, checked before anything else of the manifest, as a newer format may have kinds and keys this version does not know; an unknown kind is ErrUnknownKind; a known kind not implemented yet returns its header alone, for Validate to refuse with ErrUnsupportedKind, as the rest of its fields are only defined in its phase. Parse checks nothing else: that is Validate's.
 func Parse(data []byte) (Manifest, error) {
 	if len(data) > manifestMax {
 		return Manifest{}, fmt.Errorf("%w: the manifest is over %d KiB", ErrTooLarge, manifestMax>>10)
@@ -154,6 +154,9 @@ func Parse(data []byte) (Manifest, error) {
 	}
 	if err := json.Unmarshal(data, &head); err != nil {
 		return Manifest{}, fmt.Errorf("%w: %v", ErrBadManifest, err)
+	}
+	if head.Schema != dataSchema {
+		return Manifest{}, fmt.Errorf("%w: schema %d", ErrSchema, head.Schema)
 	}
 	if !head.Kind.known() {
 		return Manifest{}, fmt.Errorf("%w: %q", ErrUnknownKind, head.Kind)

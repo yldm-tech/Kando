@@ -50,15 +50,26 @@ func Drop(root, src string) (string, error) {
 	return dst, nil
 }
 
-// inboxBase is the name of src as a file of the inbox may end in: its base name, with what is not a letter, a digit, a dot, a hyphen or an underscore in ASCII made an underscore, so a file name never carries a path or a character a file system refuses.
+// inboxBaseMax is the most bytes inboxBase keeps of a name, so the inbox's file, its random prefix before it, stays under the 255 bytes most file systems allow a name.
+const inboxBaseMax = 200
+
+// inboxBase is the name of src as a file of the inbox may end in: its base name, with what is not a letter, a digit, a dot, a hyphen or an underscore in ASCII made an underscore, so a file name never carries a path or a character a file system refuses, cut to inboxBaseMax bytes. A name cut keeps its extension, unless the extension is most of it. Every character is one byte once mapped, so the cut never splits one.
 func inboxBase(src string) string {
-	return strings.Map(func(r rune) rune {
+	name := strings.Map(func(r rune) rune {
 		switch {
 		case r >= 'a' && r <= 'z', r >= 'A' && r <= 'Z', r >= '0' && r <= '9', r == '.', r == '-', r == '_':
 			return r
 		}
 		return '_'
 	}, filepath.Base(src))
+	if len(name) <= inboxBaseMax {
+		return name
+	}
+	ext := filepath.Ext(name)
+	if len(ext) > inboxBaseMax/2 {
+		ext = ""
+	}
+	return name[:inboxBaseMax-len(ext)] + ext
 }
 
 // Inbox is the files waiting in root's inbox (Drop), oldest first, by when they were dropped; files being dropped (hidden ones) and anything that is not a regular file are left out. An inbox that does not exist holds none.

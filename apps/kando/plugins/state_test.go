@@ -3,6 +3,7 @@ package plugins
 import (
 	"os"
 	"path/filepath"
+	"slices"
 	"testing"
 )
 
@@ -90,5 +91,16 @@ func TestStateNoFormat(t *testing.T) {
 		if _, err := LoadState(root); err != nil {
 			t.Errorf("%s: the state written again: %v", data, err)
 		}
+	}
+}
+
+// TestStateSet checks that Set replaces the entry of its id where it is and adds one of a new id after the others.
+func TestStateSet(t *testing.T) {
+	s := State{Plugins: []PluginState{{ID: "example.a", Hash: "1", Enabled: true}, {ID: "example.b", Hash: "2", Enabled: true}}}
+	s.Set(PluginState{ID: "example.a", Hash: "3", Enabled: false})
+	s.Set(PluginState{ID: "example.c", Hash: "4", Enabled: true})
+	want := []PluginState{{ID: "example.a", Hash: "3", Enabled: false}, {ID: "example.b", Hash: "2", Enabled: true}, {ID: "example.c", Hash: "4", Enabled: true}}
+	if !slices.Equal(s.Plugins, want) {
+		t.Fatalf("Set made %+v, want %+v", s.Plugins, want)
 	}
 }

@@ -105,18 +105,35 @@ func Validate(dir string) (Pack, error) {
 	if err := b.take(len(names)); err != nil {
 		return Pack{}, err
 	}
-	hash, err := hashFiles(dir, names, b)
+	hash, err := readFiles(dir, names, m, b)
 	if err != nil {
 		return Pack{}, err
 	}
+	return Pack{Manifest: m, Dir: dir, Hash: hash}, nil
+}
+
+// readFiles reads the files names of the pack m in dir: it hashes them all (hashFiles) and checks a Yomitan dictionary's zips (checkNested). The bytes the files unpack to come out of b once: a Yomitan zip's are those its entries unpack to, which checkNested counts, so the zip itself, read to be hashed, takes from a budget of its own, as large as b, which only bounds how much is read.
+func readFiles(dir string, names []string, m Manifest, b *budget) (string, error) {
+	var nested []string
 	if m.Kind == KindDictionary && m.Dictionary.Format == FormatYomitan {
-		for _, name := range m.Dictionary.Files {
-			if err := checkNested(filepath.Join(dir, name), b); err != nil {
-				return Pack{}, fmt.Errorf("%s: %w", name, err)
-			}
+		nested = m.Dictionary.Files
+	}
+	raw := &budget{bytes: b.bytes}
+	hash, err := hashFiles(dir, names, func(name string) *budget {
+		if slices.Contains(nested, name) {
+			return raw
+		}
+		return b
+	})
+	if err != nil {
+		return "", err
+	}
+	for _, name := range nested {
+		if err := checkNested(filepath.Join(dir, name), b); err != nil {
+			return "", fmt.Errorf("%s: %w", name, err)
 		}
 	}
-	return Pack{Manifest: m, Dir: dir, Hash: hash}, nil
+	return hash, nil
 }
 
 // listFiles is the names of the files in dir, sorted, each checked by checkFileName; a folder, a link or a special file in it is an error. The files a file manager writes into a folder it shows (systemMetadata) are left out, so they are neither checked, counted nor hashed: opening an installed pack's folder in Finder or Explorer leaves the pack as it was.
@@ -186,7 +203,7 @@ func openRegular(name string) (*os.File, error) {
 	return f, nil
 }
 
-// windowsReserved are the names Windows keeps for devices, which no file of a pack may have before its first dot, whatever the system, so a pack valid on one is valid on all.
+// windowsReserved are the names Windows keeps for devices, which no file of a pack may have before its first dot and no part of an id between its dots may be, whatever the system, so a pack valid on one is valid on all.
 var windowsReserved = []string{"con", "prn", "aux", "nul", "com1", "com2", "com3", "com4", "com5", "com6", "com7", "com8", "com9", "lpt1", "lpt2", "lpt3", "lpt4", "lpt5", "lpt6", "lpt7", "lpt8", "lpt9"}
 
 // checkFileName checks the name of a file of a pack, which is a bare name: one that would reach into another folder or outside the pack is ErrUnsafePath; one that is not letters, digits, dots, hyphens and underscores of ASCII, starts with a dot, ends with one, is over 100 bytes or is a Windows device's is ErrBadShape.
@@ -310,7 +327,7 @@ func kindField(k Kind) string {
 	return string(k)
 }
 
-// checkID checks that id is <publisher>.<name> (idPattern with at least one dot, at most idMax bytes) and is not under the publisher kando., which is Kando's own.
+// checkID checks that id is <publisher>.<name> (idPattern with at least one dot, at most idMax bytes, no part between its dots a Windows device's name) and is not under the publisher kando., which is Kando's own.
 func checkID(id string) error {
 	if !validID(id) {
 		return fmt.Errorf("%w: %q", ErrBadID, id)
@@ -322,7 +339,15 @@ func checkID(id string) error {
 }
 
 func validID(id string) bool {
-	return len(id) <= idMax && strings.Contains(id, ".") && idPattern.MatchString(id) && filepath.IsLocal(id)
+	if len(id) > idMax || !strings.Contains(id, ".") || !idPattern.MatchString(id) || !filepath.IsLocal(id) {
+		return false
+	}
+	for part := range strings.SplitSeq(id, ".") {
+		if slices.Contains(windowsReserved, part) {
+			return false
+		}
+	}
+	return true
 }
 
 // checkText checks the text t a pack supplies for what: its languages are language tags in their canonical form, its English is there when required, and each, cleaned (cleanText), is at most max characters and not empty. It cleans t in place.
@@ -469,10 +494,10 @@ func checkService(s *Service) error {
 	return nil
 }
 
-// checkURL checks that raw is an absolute https address with a host and no user name or password, or an http one on this computer (loopback), the only addresses a pack may name.
+// checkURL checks that raw is an absolute https address with a host name and no user name or password, or an http one on this computer (loopback), the only addresses a pack may name. An address with a character cleanText takes out, such as a bidirectional control or a zero-width space, is refused, as the address is shown to the user before Kando opens it and must read as what it is.
 func checkURL(raw string) error {
 	u, err := url.Parse(raw)
-	if err != nil || len(raw) > urlMax || u.Host == "" || u.User != nil || u.Opaque != "" {
+	if err != nil || len(raw) > urlMax || cleanText(raw, false) != raw || u.Hostname() == "" || u.User != nil || u.Opaque != "" {
 		return fmt.Errorf("%w: %q", ErrBadField, raw)
 	}
 	switch u.Scheme {

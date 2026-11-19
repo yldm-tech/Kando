@@ -213,7 +213,7 @@ func TestPluginsInstallSaysWhyNot(t *testing.T) {
 	a, tt, updates, root := pluginsApp(t)
 	a.InstallPlugins([]string{pluginFolder(t, `{"schema": 2, "id": "example.script", "kind": "script"}`)})
 	waitUntil(t, tt, a, updates, func() bool { return a.plugins.pending != nil })
-	if !tt.Exists("id:plugins-install-failed") || !hasText(tt, testlocale.Messages().PluginsErrUnsupportedKind()) {
+	if !tt.Exists("id:plugins-install-failed") || !hasText(tt, testlocale.Messages().PluginsErrSchema()) {
 		t.Fatalf("the refusal; texts %q", tt.Texts())
 	}
 	tt.Press("id:plugins-install-done")
@@ -294,6 +294,17 @@ func TestPluginTermsJoinTheGlossary(t *testing.T) {
 	if _, terms := a.glossaryStart(english); target(terms, "お兄ちゃん") != "" {
 		t.Errorf("a job into English got the pack's terms: %+v", terms)
 	}
+	// A job that names no language, as one an older version left, is translated into the settings' (queueRun).
+	unnamed := job
+	unnamed.Language = ""
+	a.prefs.language = "简体中文"
+	if _, terms := a.glossaryStart(unnamed); target(terms, "お兄ちゃん") != "哥哥" {
+		t.Errorf("a job naming no language got %+v", terms)
+	}
+	a.prefs.language = "English"
+	if _, terms := a.glossaryStart(unnamed); target(terms, "お兄ちゃん") != "" {
+		t.Errorf("a job naming no language, the settings' English, got %+v", terms)
+	}
 	korean := job
 	korean.SpokenLanguage = "ko"
 	if _, terms := a.glossaryStart(korean); target(terms, "お兄ちゃん") != "" {
@@ -302,6 +313,10 @@ func TestPluginTermsJoinTheGlossary(t *testing.T) {
 
 	a.library.Jobs = []core.Job{job}
 	a.gloss.video = job.VideoPath
+	if target(a.FilmTerms(), "お兄ちゃん") != "" {
+		t.Errorf("the open film's glossary listed a pack's term before its lines were loaded: %+v", a.FilmTerms())
+	}
+	pluginsFilmLines(a, job, "お兄ちゃん、待って！")
 	if target(a.FilmTerms(), "お兄ちゃん") != "哥哥" {
 		t.Errorf("the open film's glossary %+v", a.FilmTerms())
 	}
@@ -311,6 +326,17 @@ func TestPluginTermsJoinTheGlossary(t *testing.T) {
 	if _, terms := a.glossaryStart(job); target(terms, "お兄ちゃん") != "" {
 		t.Errorf("a pack turned off added %+v", terms)
 	}
+}
+
+// pluginsFilmLines opens the film of job with lines whose originals are originals, as loaded subtitles, so its glossary (FilmTerms) lists the packs' terms they hold.
+func pluginsFilmLines(a *app, job core.Job, originals ...string) {
+	a.openKey, a.player.film.video = job.ID, job.VideoPath
+	subs := subtitleView{key: job.ID, ready: true}
+	for _, o := range originals {
+		subs.cues = append(subs.cues, core.Segment{Text: o})
+		subs.from = append(subs.from, core.Corrected{Line: core.Line{Original: o}, Edit: -1})
+	}
+	a.player.subs = subs
 }
 
 // TestPluginAIService checks an ai-service pack end to end: its service joins Settings › AI's list after Kando's own with its host, choosing it fills in its endpoint and model, its key is kept under pack.<id> when another service is chosen and through clean once the pack is uninstalled, and 获取 API Key names the page's host in an alert before it opens anything.
@@ -499,6 +525,55 @@ func TestPluginsInstallFailureStaysOpen(t *testing.T) {
 	}
 }
 
+// TestPluginsInstallRefusedOverANewerState checks that while state.json is a newer Kando's, which this one does not write over (plugins.ErrStateFormat), a confirmed install is refused before any pack is put in place, and the confirmation says why.
+func TestPluginsInstallRefusedOverANewerState(t *testing.T) {
+	a, tt, updates, root := pluginsApp(t)
+	if err := os.MkdirAll(root, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(root, "state.json"), []byte(`{"format": 99, "revision": 1, "plugins": []}`), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	a.plugins.scanned = false
+	onEngine(a, a.pluginsScan)
+	waitUntil(t, tt, a, updates, func() bool { return a.plugins.scanned && !a.plugins.inboxBusy })
+	a.InstallPlugins([]string{pluginFolder(t, pluginGlossary)})
+	waitUntil(t, tt, a, updates, func() bool { return a.plugins.pending != nil && !a.plugins.busy })
+	tt.Press("id:plugins-install-ok")
+	refresh(tt, a)
+	if a.plugins.busy || a.plugins.pending == nil || a.plugins.pending.err == nil {
+		t.Fatalf("the install over a newer state: busy %v, pending %+v", a.plugins.busy, a.plugins.pending)
+	}
+	if !tt.Exists("id:plugins-install-failed") || !hasText(tt, testlocale.Messages().SettingsPluginsStateNewer()) {
+		t.Fatalf("the refusal; texts %q", tt.Texts())
+	}
+	if packs, _ := plugins.Scan(root); len(packs) != 0 {
+		t.Fatalf("installed over a newer state: %+v", packs)
+	}
+}
+
+// TestPluginsInstalledThoughTheStateWasNotSaved checks that a pack put in place is installed even when state.json cannot be saved after it: the confirmation closes, as the pack already took the place of the one before, and the page says the state was not saved.
+func TestPluginsInstalledThoughTheStateWasNotSaved(t *testing.T) {
+	a, tt, updates, root := pluginsApp(t)
+	// A folder where state.json goes, which no file can be renamed over.
+	if err := os.MkdirAll(filepath.Join(root, "state.json", "x"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	a.InstallPlugins([]string{pluginFolder(t, pluginGlossary)})
+	waitUntil(t, tt, a, updates, func() bool { return a.plugins.pending != nil && !a.plugins.busy })
+	tt.Press("id:plugins-install-ok")
+	waitUntil(t, tt, a, updates, func() bool { return !a.plugins.busy && a.plugins.scanned && len(a.plugins.packs) == 1 })
+	if a.plugins.pending != nil || a.modalOpen() {
+		t.Fatalf("the confirmation stayed open after the pack was put in place: %+v", a.plugins.pending)
+	}
+	if a.plugins.err == nil || a.PluginsErr() == "" {
+		t.Fatal("the page does not say state.json was not saved")
+	}
+	if packs, _ := plugins.Scan(root); len(packs) != 1 {
+		t.Fatalf("installed %+v", packs)
+	}
+}
+
 // TestPluginsInstallCannotBeCancelledWhileItRuns checks that once 安装 is pressed the confirmation cannot be cancelled until the install ends: 取消 is off, and Escape, Enter and CancelPluginInstall leave it open, so the staged copy is not thrown away while plugins.Swap moves it into place; the pack is then installed whole and turned on.
 func TestPluginsInstallCannotBeCancelledWhileItRuns(t *testing.T) {
 	a, tt, updates, root := pluginsApp(t)
@@ -540,12 +615,103 @@ func TestPluginsInboxKeepsTheSwitches(t *testing.T) {
 	a.plugins.inboxBusy = false
 }
 
+// pluginsHeld runs fn on the engine's goroutine with the reports of the background work it starts held apart from the test's queue, and returns them as they come, so the test applies them in the order it chooses.
+func pluginsHeld(a *app, fn func()) <-chan func() {
+	held := make(chan func(), 4)
+	onEngine(a, func() {
+		update := a.update
+		a.update = func(report func()) { held <- report }
+		fn()
+		a.update = update
+	})
+	return held
+}
+
+// TestPluginsInboxLooksAgainAfterASwitch checks that a look at the inbox that gave way to a switch running meanwhile looks again once the switch is saved, so the file the command line dropped is asked about without the app having to come to the front again.
+func TestPluginsInboxLooksAgainAfterASwitch(t *testing.T) {
+	a, tt, updates, root := pluginsApp(t, pluginGlossary)
+	if _, err := plugins.Drop(root, pluginZip(t, pluginService)); err != nil {
+		t.Fatal(err)
+	}
+	look := <-pluginsHeld(a, a.pluginsCheckInbox)
+	onEngine(a, func() { a.SetPluginEnabled("example.anime-ja-zh", false) })
+	onEngine(a, look)
+	if a.plugins.pending != nil {
+		t.Fatal("the inbox was asked about while the switch ran")
+	}
+	if files, _ := plugins.Inbox(root); len(files) != 1 {
+		t.Fatalf("the look that gave way took the file: inbox %q", files)
+	}
+	waitUntil(t, tt, a, updates, func() bool { return a.plugins.pending != nil })
+	if p := a.plugins.pending; p.err != nil || p.pack.ID != "acme.corp-gateway" {
+		t.Fatalf("the confirmation after the switch: %+v", p)
+	}
+}
+
+// TestPluginsReadKeepsASwitch checks that a read of the plugins folder that read state.json before a switch was saved does not undo the switch, whichever report the engine takes first, and that one started while the switch is being saved does not either: the app writes state.json, so its own state is newer than such a read's (pluginsScan). The reports are taken from the test's queue in the order each case names.
+func TestPluginsReadKeepsASwitch(t *testing.T) {
+	const id = "example.anime-ja-zh"
+	check := func(t *testing.T, a *app, tt *nsgotest.App, updates chan func(), root string) {
+		t.Helper()
+		waitUntil(t, tt, a, updates, func() bool { return a.plugins.scanned && !a.plugins.busy && !a.plugins.inboxBusy })
+		if a.plugins.state.Enabled(id) || a.plugins.saving {
+			t.Fatalf("the switch was undone: %+v", a.plugins.state)
+		}
+		if state, err := plugins.LoadState(root); err != nil || state.Enabled(id) {
+			t.Fatalf("state.json %+v, %v", state, err)
+		}
+		// A read that starts once the switch is saved takes state.json as it is.
+		a.plugins.scanned = false
+		onEngine(a, a.pluginsScan)
+		waitUntil(t, tt, a, updates, func() bool { return a.plugins.scanned && !a.plugins.inboxBusy })
+		if a.plugins.state.Enabled(id) || a.plugins.stateErr != nil {
+			t.Fatalf("the read after the save: %+v", a.plugins.state)
+		}
+	}
+	for _, c := range []struct {
+		name      string
+		readFirst bool
+	}{{"saved, then read", false}, {"read, then saved", true}} {
+		t.Run(c.name, func(t *testing.T) {
+			a, tt, updates, root := pluginsApp(t, pluginGlossary)
+			// The read finds the pack on: its report is held until the switch's save reported too.
+			read := <-pluginsHeld(a, a.pluginsScan)
+			saved := <-pluginsHeld(a, func() { a.SetPluginEnabled(id, false) })
+			first, second := saved, read
+			if c.readFirst {
+				first, second = read, saved
+			}
+			onEngine(a, first)
+			onEngine(a, second)
+			check(t, a, tt, updates, root)
+		})
+	}
+	t.Run("read while saving", func(t *testing.T) {
+		a, tt, updates, root := pluginsApp(t, pluginGlossary)
+		held := pluginsHeld(a, func() {
+			a.SetPluginEnabled(id, false)
+			a.pluginsScan()
+		})
+		// Whichever ends first, the read may have found state.json before the save.
+		first := <-held
+		second := <-held
+		onEngine(a, first)
+		onEngine(a, second)
+		check(t, a, tt, updates, root)
+	})
+}
+
 // TestPluginTermsAreThePacks checks that a glossary pack's term in the open film's glossary is the pack's: the 术语 tab says so and offers no scope, lock or removal for it, removing it does nothing, and a term the user adds for the same words is the film's own, which comes first.
 func TestPluginTermsAreThePacks(t *testing.T) {
 	a, _, _, _ := pluginsApp(t, pluginGlossary)
 	job := core.Job{ID: "j", Language: "简体中文", SpokenLanguage: "ja", VideoPath: filepath.Join(t.TempDir(), "film.mp4")}
 	a.library.Jobs = []core.Job{job}
 	a.gloss.video, a.gloss.filmRead = job.VideoPath, true
+	pluginsFilmLines(a, job, "お兄ちゃん、待って！")
+	// The pack's terms the film's lines do not hold are its translation's alone, not listed.
+	if i := slices.IndexFunc(a.FilmTerms(), func(t core.Term) bool { return t.Source == "先輩" }); i >= 0 {
+		t.Fatalf("a pack's term no line holds is listed: %+v", a.FilmTerms()[i])
+	}
 	pack := func() (core.Term, bool) {
 		i := slices.IndexFunc(a.FilmTerms(), func(t core.Term) bool { return t.Source == "お兄ちゃん" })
 		if i < 0 {

@@ -42,10 +42,10 @@
 - 何时计算：按需计算，以「视频 + 字幕内容哈希」为键。触发点是插件块自己的 `playing` 钩子：播放器每次报告进度时都会调到它，它只比较当前影片的键和缓存的键，键不同时才起后台计算，算好经 `a.update` 存成不可变切片，再返回 changed。不放在 `shelfChanged` 里算，因为每次任务报进度都会触发它。也不去 film 块的打开函数里插调用，AGENTS.md 不允许这样做。绑定里只读缓存，从不调用插件。
 
 **E3 术语表包（P1）**
-- 接入位置：`apps/kando/state_glossary.go` 的 `glossaryStart` 末尾的 `return job, core.MergeTerms(own, series, global)`，改成 `plugins.AddTerms(core.MergeTerms(own, series, global), a.pluginTerms(job))`。`plugins.AddTerms` 把包的条目接在用户的术语表后面，按 `strings.ToLower(strings.TrimSpace(source))` 用 map 去重、先到的留下，不复制进 glossary.json 那份切片；不直接把包的条目塞进 `core.MergeTerms`，因为它对每一条都线性扫描已有的结果，一个 5000 条的包每次要比较约 1250 万次。按包声明的 from/to 和任务语言过滤：目标语言取任务的 `RedoLanguage`（在改译成别的语言时）或 `Language`，经 `core.TargetTag` 换成标签，认不出的目标语言一条也不加；包的 `to` 和它是同一个标签，或其中一方没有文字和地区子标签、语言相同（`zh` 的包对 `zh-Hans`、`zh-Hant` 都适用，`zh-Hans` 的包不适用于 `zh-Hant`）；听到的语言（`SpokenLanguage`，没有就用用户指定的 `SpeechLanguage`）已知时，还要和包的 `from` 是同一种语言，未知时不按来源语言过滤（只有字幕里出现原文的条目才会随批次发出，`core.TermsIn`）。包的条目是 `ScopeGlobal`、不锁定，来源是新加的 `core.OriginPack`（`packages/core/glossary.go`），只在内存里，从不写进术语文件。
+- 接入位置：`apps/kando/state_glossary.go` 的 `glossaryStart` 末尾的 `return job, core.MergeTerms(own, series, global)`，改成 `plugins.AddTerms(core.MergeTerms(own, series, global), a.pluginTerms(job))`。`plugins.AddTerms` 把包的条目接在用户的术语表后面，按 `core.SameTerm` 的规则用 map 去重（去掉首尾空白，每个字母换成它的简单大小写折叠 `unicode.SimpleFold` 里最小的那个，和 `strings.EqualFold` 一致，`ſ` 和 `s` 算同一个词），先到的留下，不复制进 glossary.json 那份切片；不直接把包的条目塞进 `core.MergeTerms`，因为它对每一条都线性扫描已有的结果，一个 5000 条的包每次要比较约 1250 万次。按包声明的 from/to 和任务语言过滤：目标语言取任务的 `RedoLanguage`（在改译成别的语言时）或 `Language`，两者都没有时取设置里的翻译语言（`queueRun` 在找完术语表之后才给这样的任务补上语言），经 `core.TargetTag` 换成标签，认不出的目标语言一条也不加；包的 `to` 和它是同一个标签，或其中一方没有文字和地区子标签、语言相同（`zh` 的包对 `zh-Hans`、`zh-Hant` 都适用，`zh-Hans` 的包不适用于 `zh-Hant`）；听到的语言（`SpokenLanguage`，没有就用用户指定的 `SpeechLanguage`）已知时，还要和包的 `from` 是同一种语言，未知时不按来源语言过滤（只有字幕里出现原文的条目才会随批次发出，`core.TermsIn`）。包的条目是 `ScopeGlobal`、不锁定，来源是新加的 `core.OriginPack`（`packages/core/glossary.go`），只在内存里，从不写进术语文件。
 - 包的条目排在用户的全部条目之后、按词去重，所以用户自己的条目和 Locked 条目总是优先。
-- `func (a *app) FilmTerms()`（播放时用的 `core.MergeTerms(a.gloss.film, series, global)`）同样经 `plugins.AddTerms` 追加一份。它是「术语」标签的绑定，每次状态变化都会重算，所以必须用 map 合并。播放器的「术语」标签也会列出包的条目，但它们是只读的：说明行写「<范围> · 来自插件，可在 设置 › 插件 关闭」（`glossaryMetaPack`），范围、锁定、删除三个按钮都禁用，`CycleTermScope`、`ToggleTermLock`、`RemoveTerm` 对它们什么也不做（`glossaryTerm` 找不到包的条目）。用户在下面的输入框给同一个词加译法时，存成这部影片自己的条目（不沿用包条目的全局范围），之后它优先。改字幕时顺带改到包的条目（`correctSpreadTerm`），存成用户锁定的条目，撤销时把用户的条目删掉、让包的条目重新露出来，不会把包的条目写进术语表。
-- 「术语」标签会为包里的每一条建一行（只在打开时建一次，之后由 `core.Each` 按键比对），只按语言过滤，不按影片字幕里是否出现过滤：按字幕过滤要在绑定之外缓存每部影片的结果，P1.1 不做。
+- `func (a *app) FilmTerms()`（播放时用的 `core.MergeTerms(a.gloss.film, series, global)`）同样经 `plugins.AddTerms` 追加一份。它是「术语」标签的绑定，每次状态变化都会重算，所以必须用 map 合并。播放器的「术语」标签也会列出包的条目，但它们是只读的：说明行写「<范围> · 来自插件，可在 设置 › 插件 关闭」（`glossaryMetaPack`），范围、锁定、删除三个按钮都禁用，`CycleTermScope`、`ToggleTermLock`、`RemoveTerm` 对它们什么也不做（`glossaryTerm` 找不到包的条目）。用户在下面的输入框给同一个词加译法时，存成这部影片自己的条目（不沿用包条目的全局范围），之后它优先。改字幕时顺带改到包的条目（`correctSpreadTerm`），同样存成这部影片自己的、用户锁定的条目，撤销时把用户的条目删掉、让包的条目重新露出来，不会把包的条目写进术语表。
+- 「术语」标签只列包里出现在这部影片原文字幕里的条目（`plugins.TermsIn`，判断和 `core.TermsIn` 一样；字幕还没读进来时一条也不列），翻译仍然拿到包的全部条目（`glossaryStart`）。一个 5000 条的包不会在标签里建几千行；`plugins.TermsIn` 先把所有原文小写后拼成一段、对每条做一次子串查找，只有找到的才逐行用 `core.TermIn` 确认，所以不需要在绑定之外缓存。
 - 每个包最多 5000 条。
 
 **E4 AI 服务预设（P1）**
@@ -55,7 +55,7 @@
 - 必须同时修一处：`settings_ai.go` 的 `savedLLM.clean()` 遇到未知 preset id 时会 `delete(s.LLMServices, id)`，插件暂时缺席（比如所在的盘没挂上）时会把用户的 key 丢掉。改成保留 `pack.` 前缀的服务（前缀是 `settings_ai.go` 的常量 `llmPackPrefix`；没有地址的服务照旧丢掉）。P0.2 时还没有插件预设，它的测试直接在 `pack.example.gw` 下存一个 key、在没有这个预设时跑 clean，断言 key 还在；「先在插件预设在场时让服务真的存到 `pack.<id>` 下，再拿掉插件、跑 clean」的端到端测试随 P1.1 的 ai-service kind 一起加（见第 9 节的测试策略）。
 - 防钓鱼：pack 预设的 `baseURL` 和 `keyURL` 只接受 https，只有回环地址（`127.0.0.1`、`::1`、`localhost`）可以用 http。内置服务商的名称加入保留名单（见 6.4）。服务商下拉框里，插件预设排在全部内置预设（含「自定义」）之后，每一行写成「插件 · <包名> · <host>」（`settings.Preset.Plugin` 标出来源包，`settings.Host` 取 host）。NSGo 固定版本的 `ui.Select` 没有带标题的选项分组，所以暂时只靠排在后面和行首的「插件」区分，代码里留 `// TODO(nsgo): …`。点「获取 API Key」时，插件预设先弹一个系统提示框（`base.ShowAlertDialog`），标题写目标 keyURL 的 host，正文写出给出这个地址的包名，用户点「打开」才打开 keyURL；内置预设照旧直接打开。
 - 插件预设在启动时晚到：`restoreLLM` → `syncLLM` 在读插件目录之前就按地址认服务商，这时 pack 的地址会被认成 `custom`。所以插件目录读完、以及开关、安装、卸载之后，插件块都会重新认一次服务商（`pluginsFollowLLM`）。规则是不替用户换：当前选的服务只要还在、地址还对得上就保留（`llmProviderFor`），选的是「自定义」就一直是「自定义」，所以 baseURL 和内置预设相同的包不会被换成内置预设，地址恰好和新装的包相同的自定义服务也不会被换成包的预设；只有当前的服务已经不在了，才按地址重认（`settings.ProviderID`）。
-- 正在用的包服务消失时（关掉、卸载、换成别的版本、盘没挂上），不能让它的地址和 key 存进 `custom`，否则会盖掉用户自己的自定义服务。做法：开关、卸载、替换和每次读目录之前，先把正在用的包服务按 `pack.<id>` 记下（`pluginsKeepLLM` → `llmRemember`）；消失之后服务显示成「自定义」，但记作 gone（`pluginsUI.gone`，id 和地址），此后 `llmRemember` 和 `saveLLM` 都把它算在 `pack.<id>` 名下（`pluginsGoneService`），包回来时它重新显示成包的预设。用户选了别的服务（不是「自定义」）就忘掉 gone（`llmChanged` 钩子）。上次存的服务商若是 `pack.<id>`，启动时就作为 gone 恢复（`restore` 钩子），所以插件目录读完前切换服务也不会写进 `custom`，读完后它显示成包的预设。`llmRemember` 不再直接用 `settings.ProviderID` 的第一个匹配，而是用 `llmProviderFor` 认出当前服务的 id。
+- 正在用的包服务消失时（关掉、卸载、换成别的版本、盘没挂上），不能让它的地址和 key 存进 `custom`，否则会盖掉用户自己的自定义服务。做法：开关、卸载、替换和每次读目录之前，先把正在用的包服务按 `pack.<id>` 记下（`pluginsKeepLLM` → `llmRemember`）；消失之后服务显示成「自定义」，但记作 gone（`pluginsUI.gone`，id 和地址），此后 `llmRemember` 和存 settings.json 时插件那块的 `save` 钩子（排在设置那块的 `saveLLM` 之后）都把它算在 `pack.<id>` 名下（`pluginsGoneService`），包回来时它重新显示成包的预设。用户选了别的服务（不是「自定义」）就忘掉 gone（`llmChanged` 钩子）。上次存的服务商若是 `pack.<id>`，启动时就作为 gone 恢复（`restore` 钩子），所以插件目录读完前切换服务也不会写进 `custom`，读完后它显示成包的预设。`llmRemember` 不再直接用 `settings.ProviderID` 的第一个匹配，而是用 `llmProviderFor` 认出当前服务的 id。
 - 反馈 issue 的「翻译服务」一行（`feedbackTranslator`）只认内置预设（`settings.Presets`），包服务和其他自定义地址一样写成「自定义」，包名（比如公司内网网关的名字）不会写进公开的 issue。
 
 **E5 翻译风格（P2）**
@@ -171,16 +171,16 @@ kind 是封闭枚举：`dictionary`、`wordlist`、`glossary`、`ai-service`、`
 
 文件名统一为 `kando-plugin.json`，用 `encoding/json` 的 `Decoder.DisallowUnknownFields()` 严格解码，任何层级出现未知键就整包拒绝。
 
-解码分两步：先只读 `schema`、`id`、`kind` 三个头部字段；kind 不在枚举里时返回 `ErrUnknownKind`；kind 在枚举里但本版还没实现时，返回只带头部的 Manifest，由 `Validate` 以 `ErrUnsupportedKind` 拒收，不对其余字段做严格解码（那些字段的类型要到对应的一期才定义）；kind 已实现时，再用 `DisallowUnknownFields` 严格解码全文。
+解码分两步：先只读 `schema`、`id`、`kind` 三个头部字段；`schema` 不是本版读的那个（数据包的 1）时先返回 `ErrSchema`，不再看 kind 和其余键，因为新版格式里可能有本版不认识的 kind 和键；kind 不在枚举里时返回 `ErrUnknownKind`；kind 在枚举里但本版还没实现时，返回只带头部的 Manifest，由 `Validate` 以 `ErrUnsupportedKind` 拒收，不对其余字段做严格解码（那些字段的类型要到对应的一期才定义）；kind 已实现时，再用 `DisallowUnknownFields` 严格解码全文。
 
 通用规则：
 
 - **id 在所有 kind 之间唯一**：state.json 和 `Remove` 只按 id 认包，所以一个 id 只能是一个包。`Swap` 遇到别的 kind 下已经装了同一个 id 时返回 `ErrIDTaken`，什么都不改，要先卸载那个包；手工拷进插件目录造成的重复，`Scan` 按 kind 的读取顺序保留第一个，后面的报成 `ErrIDTaken` 的 Issue。
-- **id 的格式是 `<publisher>.<name>`**，必须匹配 `^[a-z0-9]+(?:[.-][a-z0-9]+)*$`，至少含一个 `.`，不超过 64 字节。这个正则排除了 `.`、`..`、`a..b`、以点或连字符开头和结尾的写法。第一段是发布者：`kando.` 保留给官方包；签名脚本包的发布者段必须和证书覆盖的 app-ID 模式一致（`ai.yldm.kando.plugin.<publisher>.*`），由 `plugins.Validate` 检查。未签名的数据包也用这个格式，但发布者段未经验证，来源徽标一律是「本地」，而且不能用 `kando.`。
+- **id 的格式是 `<publisher>.<name>`**，必须匹配 `^[a-z0-9]+(?:[.-][a-z0-9]+)*$`，至少含一个 `.`，不超过 64 字节，以点分开的每一段都不能是 Windows 的设备名（`con`、`nul`、`com1` 之类，所有平台上都查）。这个正则排除了 `.`、`..`、`a..b`、以点或连字符开头和结尾的写法。第一段是发布者：`kando.` 保留给官方包；签名脚本包的发布者段必须和证书覆盖的 app-ID 模式一致（`ai.yldm.kando.plugin.<publisher>.*`），由 `plugins.Validate` 检查。未签名的数据包也用这个格式，但发布者段未经验证，来源徽标一律是「本地」，而且不能用 `kando.`。
 - **路径安全**：所有按 id 拼出来的路径（`root/<kind>/<id>`、staging、Remove）在拼完之后都要过两道检查：`filepath.IsLocal(id)`，以及 `filepath.Rel(root/<kind>, 结果)` 不以 `..` 开头，确认结果确实位于 `root/<kind>/` 下面。
 - `name`、`description` 以及所有 label 都是多语言 map，`en` 必填。
 - `schema` 只在旧版 Kando 必须拒收时才升：数据包为 1，script 为 2，这样不支持脚本的旧版和手机会在版本检查时就拒绝。新功能通过新增键表达，旧版遇到不认识的键会整包拒收，自然安全地拒绝。
-- **数据包的包形状**：平铺目录，最多 16 个文件，manifest 不超过 256 KiB，zip 文件不超过 32 MiB（dictionary 放宽到 200 MiB、64 个条目）。解压后的总字节数也设上限：数据包 64 MiB，dictionary 1 GiB。计数按实际读出的字节累加，不信任 `UncompressedSize64`；dictionary 里嵌套的 yomitan-zip 共用同一个计数器和条目上限，嵌套只允许一层。不允许符号链接，文件名只能是 ASCII，拦截 zip-slip 和绝对路径。每个文件都必须在 manifest 里被引用，`.md`、`.txt` 说明文件除外。
+- **数据包的包形状**：平铺目录，最多 16 个文件，manifest 不超过 256 KiB，zip 文件不超过 32 MiB（dictionary 放宽到 200 MiB、64 个条目）。解压后的总字节数也设上限：数据包 64 MiB，dictionary 1 GiB。计数按实际读出的字节累加，不信任 `UncompressedSize64`；dictionary 里嵌套的 yomitan-zip 共用同一个计数器和条目上限，嵌套只允许一层；计入的是嵌套 zip 解压出的字节，zip 文件本身为算哈希读出的字节不重复计入，只受一个同样大小的独立上限约束。不允许符号链接，文件名只能是 ASCII，拦截 zip-slip 和绝对路径。每个文件都必须在 manifest 里被引用，`.md`、`.txt` 说明文件除外。
   - 文件名只能由 ASCII 字母、数字和 `.`、`-`、`_` 组成，不以 `.` 开头或结尾，不超过 100 字节，也不能是 Windows 的设备名（`con`、`nul`、`com1` 之类，看第一个点之前的部分）。最后一条在所有平台上都查，同一个包在三个平台上的结果一致。
   - zip 里的 manifest 必须在顶层，不能有目录条目，所以「把整个文件夹压缩」得到的 `<文件夹>/kando-plugin.json` 会被拒收。zip 里两个名字只差大小写也拒收，因为在不分大小写的盘上它们是同一个文件。
   - yomitan-zip 内部只检查不解压：条目名可以带子路径，但不能有 `..`、绝对路径或反斜杠，不能是符号链接，不能再套 zip。条目数（目录条目也算）和 manifest、外层文件共用 64 的上限，P1.3 接真实词典时如果发现大型 Yomitan 词典超出，再调这个上限。里面的文件校验和不符或解压出错，算 `ErrBadArchive`。
@@ -262,7 +262,7 @@ kind 是封闭枚举：`dictionary`、`wordlist`、`glossary`、`ai-service`、`
 }
 ```
 
-数据包里不能出现 key、cookie、yt-dlp 参数或任何可执行内容。ai-service 的 `baseURL` 和 `keyURL` 必须是 https，只有回环地址可以用 http。
+数据包里不能出现 key、cookie、yt-dlp 参数或任何可执行内容。ai-service 的 `baseURL` 和 `keyURL` 必须是 https，只有回环地址可以用 http。包里的地址（还有 `homepage`）都必须有主机名，不能含 Bidi 控制符、零宽字符等看不见的字符，因为打开前要把地址给用户看。
 
 ### 4.2 脚本插件示例
 
@@ -625,7 +625,7 @@ export function kandoManifest() { return { /* identical to kando-plugin.json fie
 ### 5.4 外部接口
 
 - CLI 在 `cli/cli.go` 的命令表里加一行 `plugin`，子命令有 `list`、`validate <file-or-folder>`、`install <file>`，都带 `--json`。
-  - `install` 先用和 `validate` 一样的检查验过文件，再用 `plugins.Drop` 复制进 `plugins/inbox/`（先写隐藏文件再改名，文件名带随机前缀），用户在 app 里确认后才会安装（P1.1 已实现）。只接受文件，文件夹报用法错误，文件夹可以拖到 设置 › 插件 页上安装。app 在 `ready` 和 `becameActive` 时用 `plugins.Inbox` 取最早的一个文件，Stage 之后、弹出确认时把它移出 inbox（装不了的也只提示一次）；确认框开着或别的安装在跑时先不取，关掉后接着取下一个。看 inbox 用自己的 `inboxBusy`，不占 `busy`，所以切回前台时插件页的开关和按钮照常可用；看的过程中用户开始了别的安装，inbox 让路，文件留到下一次。
+  - `install` 先用和 `validate` 一样的检查验过文件，再用 `plugins.Drop` 复制进 `plugins/inbox/`（先写隐藏文件再改名，文件名带随机前缀），用户在 app 里确认后才会安装（P1.1 已实现）。只接受文件，文件夹报用法错误，文件夹可以拖到 设置 › 插件 页上安装。app 在 `ready` 和 `becameActive` 时用 `plugins.Inbox` 取最早的一个文件，Stage 之后、弹出确认时把它移出 inbox（装不了的也只提示一次）；确认框开着或别的安装在跑时先不取，关掉后接着取下一个。看 inbox 用自己的 `inboxBusy`，不占 `busy`，所以切回前台时插件页的开关和按钮照常可用；看的过程中用户开始了别的安装或开关，inbox 让路，文件留到下一次；开关存完 state.json 后会马上再看一次（`pluginsSetEnabled`），安装和卸载之后的重新读目录也会看。
   - `validate` 离线运行，不连 app：把包 `plugins.Stage` 进一个临时目录（和安装走同一条解压、复制和 `plugins.Validate`），打印 id、kind、版本、英文名和内容哈希，然后删掉临时目录。（P0.3 已实现）
   - `list` 也不连 app：直接 `plugins.Scan` 插件目录，按 state.json 标出开关，并在 stderr 列出不是有效包的目录。（P0.3 已实现）
   - dev root 的生成和开发者包的签名不放在 CLI，也不经过 socket（见 6.4）。原因有两个：CLI 进程没有 NSGo Scope，拿不到 `core.Secrets`；socket 对同用户的任何程序都开放，不能让它替别人签包。
@@ -696,7 +696,7 @@ export function kandoManifest() { return { /* identical to kando-plugin.json fie
 - 吊销列表用 `go tool nsgo revoke` 生成，随 appcast 一起发布。`Trust.Accept` 持久化已接受的最高 build，用来防回滚。
 - 联网时每天拉一次吊销列表。列表过期时，只暂停申请了网络或凭据的非官方插件（依据 `Package.ExpiredRevocations`），不在全局调用 `RequireFreshRevocations`，免得长期离线的用户连纯本地插件都用不了。被吊销的插件立刻 Close，并显示「已被撤回」。
 - 可选的加固：把每个根已见过的最高吊销序号，以及每个插件已接受的最高 build，额外存一份摘要到 `core.Secrets`。启动时和 `plugins/trust/trust.json` 比对，发现回退就停用所有非官方脚本插件。是否做由 owner 决定（见 12.3 第 2 条）。
-- 来源徽标（官方、已验证、开发者、本地数据包）由证书链推出，不读清单。插件名去掉 Bidi 控制符和零宽字符，最长 40 个字符。保留名单是「Kando」「看懂」「Official」「官方」，再加上所有内置 AI 服务商的名称（取自 `settings.Presets` 的显示名），比较时忽略大小写、全半角和空白。`plugins` 包不能导入界面包，所以名单以静态列表 `plugins.ReservedNames` 存在包里（含五种界面语言下的服务商名称），根目录的 `plugins_test.go` 断言 `settings.Presets` 在每种界面语言下的每个名称和 `appName` 都在名单里，内置服务商改名或新增时测试会失败。
+- 来源徽标（官方、已验证、开发者、本地数据包）由证书链推出，不读清单。插件名去掉 Bidi 控制符和零宽字符，最长 40 个字符。保留名单是「Kando」「看懂」「Official」「官方」「公式」「공식」，再加上所有内置 AI 服务商的名称（取自 `settings.Presets` 的显示名），比较时忽略大小写、全半角和空白。`plugins` 包不能导入界面包，所以名单以静态列表 `plugins.ReservedNames` 存在包里（含五种界面语言下的服务商名称），根目录的 `plugins_test.go` 断言 `settings.Presets` 在每种界面语言下的每个名称和 `appName` 都在名单里，内置服务商改名或新增时测试会失败。
 - **开发者模式**是设置里的显式开关。dev root 的生成和签名都在 app 里完成，位置是设置 › 插件 › 开发者：「生成开发者密钥」把私钥和公钥都存进 `core.Secrets`；「打包并安装文件夹…」由用户在系统文件面板里选一个源码文件夹，app 用 dev key 签名，然后走和正式包同一条 Stage → Verify → 比对 kandoManifest → 确认 sheet 的路径。不允许用 `tsx.Sandboxed` 直接跑源码，CLI 和 socket 都不能签。开发者包一直带着徽标，不参与更新，不能分享安装，也不允许占用已安装的非开发者包的 id。
 - 数据包可以不签名。将来如果支持签名数据包，site 包的高风险能力只对官方和已验证来源开放。
 
@@ -708,7 +708,7 @@ export function kandoManifest() { return { /* identical to kando-plugin.json fie
   2. 对 staging 里的副本跑 `plugins.Validate`，包括 id 正则和路径检查。脚本包还要 Verify，并在预读沙箱里比对 `kandoManifest()`。
   3. 静态检查：声明的 host 权限都在已知 handler 表里；签名 Capabilities 里除了 Host 和 Network 没有别的字段。
   4. 用户在确认 sheet 上点「安装」后，在引擎 goroutine 上关掉同 id 包的句柄，再 `plugins.Swap`（5.1 节的顺序）。
-  5. 残留的 `.staging-`、`.old-` 目录超过 24 小时才清理。清理由每次 `Stage` 开始时顺带做，不另设入口。
+  5. 残留的 `.staging-`、`.old-` 目录超过 24 小时才清理。清理由每次 `Stage` 开始时顺带做，不另设入口。rename 会保留目录原来的修改时间，很久以前装的包刚被挪开时看起来也已经过了 24 小时，所以挪开的目录命名为 `.old-<挪开时的秒数>-<随机串>`，`.old-` 目录的年龄从名字里的时间算起，免得另一个 Kando 的 `Stage` 删掉 `Swap` 回滚还要用的旧包。
 - 每次启动 Scan 时，用同一个校验器再校验一遍。
 - 第一版不做在线更新：更新就是安装一个新文件，走同样的确认流程，授权按 6.2 节的子集规则处理。将来做社区索引时，只从签名索引里列出的条目自动更新；能力扩大的版本必须由用户确认；离线模式下不检查。
 - 插件文件永远不写进 `.app` 包，只放在 `<UserConfigDir>/Kando/plugins/`。
@@ -742,7 +742,7 @@ export function kandoManifest() { return { /* identical to kando-plugin.json fie
 
 ### 7.2 安装确认（`settings.PluginInstallDialog`，`ui.Dialog`）
 
-P1.1 的确认框只有数据包要显示的部分：名称（标题）、说明、它会加什么（AI 服务包写明「会把你的 API Key 和要翻译的字幕发送到 <host>」）、来源（「来自这台电脑上的文件 · 未签名」）、版本·作者、许可、id 和哈希前 12 位，以及要替换的已安装版本。取消是默认按钮，回车和 Esc 都不安装。点了「安装」之后、安装结束之前，取消按钮变灰，回车和 Esc 也不起作用：这时 `plugins.Swap` 正把暂存副本移到位，取消会把它删掉，留下一个用户取消了却装上的包，或者一个缺文件的包顶替了旧版本。文件装不了时，同一个对话框只说原因（catalog 文案）和「好」；点了「安装」之后才失败的（另一种 kind 已有这个 id、写盘失败、state.json 是更新版本写的），确认框也不关，换成同样的失败视图，等用户点「好」，因为它可能画在主窗口上、插件页根本不在眼前。确认框开着时占用 `holdModal`。它的文字在建的时候取，所以界面语言切换时整个重建（读 `i18n.Language(cx)`，和 `settings.Window` 一样）。它画在哪里：设置在自己的窗口里、并且正停在插件页时，由插件页画；其余情况（CLI inbox、设置画在主窗口上、设置开在别的页）由主窗口的 `pluginsOverlay` 画（`PluginInstallHere` 决定），免得确认框被设置窗口挡在主窗口里。下面几条是脚本插件（P3）要加的部分。
+P1.1 的确认框只有数据包要显示的部分：名称（标题）、说明、它会加什么（AI 服务包写明「会把你的 API Key 和要翻译的字幕发送到 <host>」）、来源（「来自这台电脑上的文件 · 未签名」）、版本·作者、许可、id 和哈希前 12 位，以及要替换的已安装版本。取消是默认按钮，回车和 Esc 都不安装。点了「安装」之后、安装结束之前，取消按钮变灰，回车和 Esc 也不起作用：这时 `plugins.Swap` 正把暂存副本移到位，取消会把它删掉，留下一个用户取消了却装上的包，或者一个缺文件的包顶替了旧版本。文件装不了时，同一个对话框只说原因（catalog 文案）和「好」；点了「安装」之后才失败的（另一种 kind 已有这个 id、写盘失败），确认框也不关，换成同样的失败视图；state.json 是更新版本写的时，在 `plugins.Swap` 之前就拒绝，什么都不替换。包已经放到位、之后 state.json 没存上的，算装好了：确认框照常关掉，存不上的原因单独显示在插件页上（`plugins.err`）。失败视图等用户点「好」，因为它可能画在主窗口上、插件页根本不在眼前。确认框开着时占用 `holdModal`。它的文字在建的时候取，所以界面语言切换时整个重建（读 `i18n.Language(cx)`，和 `settings.Window` 一样）。它画在哪里：设置在自己的窗口里、并且正停在插件页时，由插件页画；其余情况（CLI inbox、设置画在主窗口上、设置开在别的页）由主窗口的 `pluginsOverlay` 画（`PluginInstallHere` 决定），免得确认框被设置窗口挡在主窗口里。下面几条是脚本插件（P3）要加的部分。
 
 
 - 显示名称、来源（例如「由 acme 发布，看懂已验证」，取自证书）、版本、大小、哈希前 12 位。
@@ -1089,9 +1089,9 @@ P1.2 的测量结果（Ubuntu 编译机，`ipa.Dict()` 相对 `DictShrink()`）�
   - `PluginPresets()` 改成 `pluginPresets(m)`：名称要用调用方的语言，为此 `locales.Messages` 加了 `Language()`（8.2）。插件预设排在全部内置预设之后，下拉框行写成「插件 · 包名 · host」；`ui.Select` 没有带标题的分组，留了 `TODO(nsgo)`（E4）。
   - 「获取 API Key」对插件预设先弹系统提示框（`base.ShowAlertDialog`）显示 host，不是画在页面里（E4）。
   - 启动时先认出的服务商在插件目录读完后会重新认一次（`pluginsFollowLLM`），开关、安装、卸载之后也一样；当前选的服务还在就不换，「自定义」不换（`llmProviderFor`）。正在用的包服务消失后记作 gone，它的地址和 key 只存进 `pack.<id>`，不会盖掉用户的自定义服务；`llmRemember` 改用 `llmProviderFor`，`settings` 加了 `SameEndpoint`（E4）。
-  - 术语包按目标语言严格过滤、来源语言已知时才过滤，经 `plugins.AddTerms` 用 map 合并（`core.MergeTerms` 是平方复杂度）。包的条目带新加的 `core.OriginPack`，在播放器的「术语」标签里只读，说明行指向 设置 › 插件；「术语」标签仍为包的每一条建一行，没有按影片字幕过滤（E3）。
+  - 术语包按目标语言严格过滤、来源语言已知时才过滤，经 `plugins.AddTerms` 用 map 合并（`core.MergeTerms` 是平方复杂度）。包的条目带新加的 `core.OriginPack`，在播放器的「术语」标签里只读，说明行指向 设置 › 插件；「术语」标签只列影片原文字幕里出现的包条目，翻译仍用全部条目（E3）。
   - `pluginsSameLanguage` 挪进 `plugins` 包，改名 `plugins.SameLanguage`，和 `AddTerms` 一起放在 `plugins/terms.go`。
-  - 点「安装」之后才失败的，确认框不关，换成失败视图等用户点「好」；确认框随界面语言重建（7.2）。看 inbox 用单独的 `inboxBusy`，不让开关在切回前台时失灵（5.4）。
+  - 点「安装」之后才失败的，确认框不关，换成失败视图等用户点「好」；确认框随界面语言重建（7.2）。看 inbox 用单独的 `inboxBusy`，不让开关在切回前台时失灵，开关存完后再看一次（5.4）。读目录（`pluginsScan`）在后台读 state.json，app 自己正在改或刚改过 state.json 时（`stateGen`、`saving`）保留 app 手里的状态，只取读到的包和问题，免得较旧的读取把刚做的开关改回去（5.1）。
   - 拖放安装只在 设置 › 插件 页上做，主窗口的拖放仍归片库（6.5）。
   - `settings/sections.go` 的 `sections` 不改成函数，只加一行；插件页由 `settings.Window.Plugins` 注入，读自己的 `settings.PluginsApp`，不扩大 `settings.App`（7.1、8.4）。
   - 安装确认在设置自己的窗口里由插件页画，其余情况由主窗口的 `pluginsOverlay` 画（7.2）；卸载确认在详情里展开，不是对话框（7.1）。

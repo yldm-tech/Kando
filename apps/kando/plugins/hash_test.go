@@ -13,7 +13,7 @@ func packHash(t *testing.T, files map[string]string) string {
 	if err != nil {
 		t.Fatal(err)
 	}
-	h, err := hashFiles(dir, names, &budget{bytes: 1 << 20, entries: 16})
+	h, err := hashFiles(dir, names, one(&budget{bytes: 1 << 20, entries: 16}))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -44,12 +44,17 @@ func TestHash(t *testing.T) {
 
 func TestHashChecksTheBudget(t *testing.T) {
 	dir := writePack(t, map[string]string{"a.md": "12345"})
-	_, err := hashFiles(dir, []string{"a.md"}, &budget{bytes: 4, entries: 1})
+	_, err := hashFiles(dir, []string{"a.md"}, one(&budget{bytes: 4, entries: 1}))
 	wantErr(t, "over the budget", err, ErrTooLarge)
 	if err := os.Remove(filepath.Join(dir, "a.md")); err != nil {
 		t.Fatal(err)
 	}
-	if _, err := hashFiles(dir, []string{"a.md"}, &budget{bytes: 10, entries: 1}); err == nil {
+	if _, err := hashFiles(dir, []string{"a.md"}, one(&budget{bytes: 10, entries: 1})); err == nil {
 		t.Error("a missing file hashed")
 	}
+}
+
+// one is a budgetOf for hashFiles that gives b for every file.
+func one(b *budget) func(string) *budget {
+	return func(string) *budget { return b }
 }

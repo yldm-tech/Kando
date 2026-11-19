@@ -10,11 +10,12 @@ import (
 	"os"
 	"path/filepath"
 	"slices"
+	"strconv"
 	"strings"
 	"time"
 )
 
-// The prefixes of the folders Stage and Swap leave in the plugins folder while they work: a pack being copied in, and one being replaced or removed. Scan skips them; Stage removes those a crash or a failed removal left once they are a day old (staleAfter), so one another Kando is still working in is never taken from under it.
+// The prefixes of the folders Stage and Swap leave in the plugins folder while they work: a pack being copied in, and one being replaced or removed. Scan skips them; Stage removes those a crash or a failed removal left once they are a day old (staleAfter), so one another Kando is still working in is never taken from under it. A folder moved out of the way is named .old-<time>-<random> (asideName), as the move keeps the folder's time of change, which for a pack installed long ago is long past.
 const (
 	stagingPrefix = ".staging-"
 	oldPrefix     = ".old-"
@@ -284,7 +285,7 @@ func randomName(prefix string) string {
 	return prefix + hex.EncodeToString(b[:])
 }
 
-// Swap puts the pack p, staged by Stage, in its place, root/<kind>/<id>, and sets p.Dir to it: the pack already there, if any, is first renamed out of the way to .old-<random> (a folder cannot be renamed over one that is not empty), then the staged folder is renamed into place, and the old one is removed. When the staged folder cannot be put in place the old pack is put back. An id is one pack whatever its kind, as the state and Remove know a pack by its id alone: when a pack of another kind has p's id, Swap refuses with ErrIDTaken and changes nothing, and that pack has to be removed first. The caller closes whatever it holds open in the old pack first. Removing the old folder may fail, as when a file of it is still open on Windows; it is then left for a later Stage to remove (cleanStale), and Swap still succeeds.
+// Swap puts the pack p, staged by Stage, in its place, root/<kind>/<id>, and sets p.Dir to it: the pack already there, if any, is first renamed out of the way to .old-<time>-<random> (asideName; a folder cannot be renamed over one that is not empty), then the staged folder is renamed into place, and the old one is removed. When the staged folder cannot be put in place the old pack is put back. An id is one pack whatever its kind, as the state and Remove know a pack by its id alone: when a pack of another kind has p's id, Swap refuses with ErrIDTaken and changes nothing, and that pack has to be removed first. The caller closes whatever it holds open in the old pack first. Removing the old folder may fail, as when a file of it is still open on Windows; it is then left for a later Stage to remove (cleanStale), and Swap still succeeds.
 func Swap(root, staged string, p *Pack) error {
 	if filepath.Dir(staged) != filepath.Clean(root) || !strings.HasPrefix(filepath.Base(staged), stagingPrefix) {
 		return fmt.Errorf("plugins: %s is not a folder Stage made in %s", staged, root)
@@ -312,7 +313,7 @@ func Swap(root, staged string, p *Pack) error {
 	}
 	old := ""
 	if _, err := os.Lstat(dst); err == nil {
-		old = filepath.Join(root, randomName(oldPrefix))
+		old = filepath.Join(root, asideName(time.Now()))
 		if err := os.Rename(dst, old); err != nil {
 			return err
 		}
@@ -334,7 +335,7 @@ func Swap(root, staged string, p *Pack) error {
 	return nil
 }
 
-// Remove takes the pack id out of root, whatever its kind: it is renamed out of the way to .old-<random> first, so it is gone at once even when removing its files fails or is cut short, and what is left then is removed by a later Stage. id is checked (packDir) before any path is made of it. An id no pack has is ErrNotInstalled.
+// Remove takes the pack id out of root, whatever its kind: it is renamed out of the way to .old-<time>-<random> (asideName) first, so it is gone at once even when removing its files fails or is cut short, and what is left then is removed by a later Stage. id is checked (packDir) before any path is made of it. An id no pack has is ErrNotInstalled.
 func Remove(root, id string) error {
 	for _, kind := range kinds {
 		dir, err := packDir(root, kind, id)
@@ -346,7 +347,7 @@ func Remove(root, id string) error {
 		} else if err != nil {
 			return err
 		}
-		old := filepath.Join(root, randomName(oldPrefix))
+		old := filepath.Join(root, asideName(time.Now()))
 		if err := os.Rename(dir, old); err != nil {
 			return err
 		}
@@ -399,7 +400,7 @@ func Scan(root string) ([]Pack, []Issue) {
 	return packs, issues
 }
 
-// cleanStale removes the folders Stage and Swap work in (.staging-, .old-) that are in root and were last changed staleAfter or more before now: those a crash, an install never confirmed or a removal that failed left behind. Younger ones may still be in use, by this Kando or another, and stay. What cannot be removed stays for the next time.
+// cleanStale removes the folders Stage and Swap work in (.staging-, .old-) that are in root and were last changed, and for an .old- folder also moved out of the way (movedAt), staleAfter or more before now: those a crash, an install never confirmed or a removal that failed left behind. Younger ones may still be in use, by this Kando or another, and stay: a Swap of another Kando may still need the old pack it just moved out of the way to put it back. What cannot be removed stays for the next time.
 func cleanStale(root string, now time.Time) {
 	entries, err := os.ReadDir(root)
 	if err != nil {
@@ -411,9 +412,38 @@ func cleanStale(root string, now time.Time) {
 			continue
 		}
 		info, err := e.Info()
-		if err != nil || now.Sub(info.ModTime()) < staleAfter {
+		if err != nil {
+			continue
+		}
+		changed := info.ModTime()
+		if moved, ok := movedAt(name); ok && moved.After(changed) {
+			changed = moved
+		}
+		if now.Sub(changed) < staleAfter {
 			continue
 		}
 		os.RemoveAll(filepath.Join(root, name))
 	}
+}
+
+// asideName is the name of the folder Swap or Remove moves a pack to at now: .old-, the seconds since 1970, a hyphen and a random part.
+func asideName(now time.Time) string {
+	return randomName(oldPrefix + strconv.FormatInt(now.Unix(), 10) + "-")
+}
+
+// movedAt is when the folder name was moved out of the way, as its name (asideName) says; ok is false for a name that does not say.
+func movedAt(name string) (moved time.Time, ok bool) {
+	rest, ok := strings.CutPrefix(name, oldPrefix)
+	if !ok {
+		return time.Time{}, false
+	}
+	secs, _, ok := strings.Cut(rest, "-")
+	if !ok {
+		return time.Time{}, false
+	}
+	n, err := strconv.ParseInt(secs, 10, 64)
+	if err != nil {
+		return time.Time{}, false
+	}
+	return time.Unix(n, 0), true
 }

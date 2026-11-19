@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"slices"
 )
 
 // StateFormat is the format of state.json this version reads and writes. It goes up only when an older Kando must not read the file as its own, as when the grants of script plugins are added to it (docs/plugin-system.md 5.1).
@@ -67,6 +68,15 @@ func (s State) Enabled(id string) bool {
 		}
 	}
 	return true
+}
+
+// Set puts e in s in place of the entry of its id, or after the others.
+func (s *State) Set(e PluginState) {
+	if i := slices.IndexFunc(s.Plugins, func(o PluginState) bool { return o.ID == e.ID }); i >= 0 {
+		s.Plugins[i] = e
+		return
+	}
+	s.Plugins = append(s.Plugins, e)
 }
 
 // Save writes s to the state.json of root in this format, with its revision one higher, through a file beside it renamed over it, so the file holds either the old state or all of the new one. It does not write over a newer format's state, which is ErrStateFormat. Saving a state read as every pack off (a bad state.json) writes only the entries it has, and every pack without one reads as on again afterwards: a writer that must keep the packs off, such as the app saving its first change after it found state.json damaged, first adds an entry turned off for each pack it has.

@@ -77,7 +77,7 @@ func TestPluginValidate(t *testing.T) {
 	if code != 1 || stdout != "" || !strings.Contains(stderr, "kando plugin:") || !strings.Contains(stderr, "reserved") {
 		t.Errorf("validate a reserved id = %d, %q, %q", code, stdout, stderr)
 	}
-	code, stdout, _ = run("plugin", "validate", "--json", pluginFolder(t, `{"schema": 2, "id": "example.x", "kind": "script"}`))
+	code, stdout, _ = run("plugin", "validate", "--json", pluginFolder(t, `{"schema": 1, "id": "example.x", "kind": "script"}`))
 	if code != 1 || !strings.Contains(stdout, `"error"`) || !strings.Contains(stdout, "cannot install this kind") {
 		t.Errorf("validate --json a script = %d, %q", code, stdout)
 	}

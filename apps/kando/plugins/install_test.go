@@ -147,7 +147,8 @@ func TestStageZipRefusesUnsafeEntries(t *testing.T) {
 		{"twice", []entry{manifest, tsv, {name: "JLPT.tsv", content: "x"}}, ErrBadShape},
 		{"no manifest", []entry{tsv}, ErrBadManifest},
 		{"manifest in a folder", []entry{{name: "pack/" + ManifestName, content: wordlistManifest}}, ErrBadManifest},
-		{"unsupported", []entry{{name: ManifestName, content: `{"schema": 2, "id": "example.x", "kind": "script"}`}}, ErrUnsupportedKind},
+		{"unsupported", []entry{{name: ManifestName, content: `{"schema": 1, "id": "example.x", "kind": "script"}`}}, ErrUnsupportedKind},
+		{"newer schema", []entry{{name: ManifestName, content: `{"schema": 2, "id": "example.x", "kind": "script"}`}}, ErrSchema},
 		{"invalid", []entry{{name: ManifestName, content: strings.Replace(wordlistManifest, "example.jlpt", "kando.jlpt", 1)}, tsv}, ErrReservedID},
 	} {
 		root := t.TempDir()
@@ -294,6 +295,28 @@ func TestStageRemovesStaleFolders(t *testing.T) {
 	slices.Sort(want)
 	if !slices.Equal(left, want) {
 		t.Errorf("left = %q, want %q", left, want)
+	}
+}
+
+// TestStaleAgeFromTheMove checks that a pack moved out of the way just now is not taken for a stale one, though its folder, renamed, keeps the time it was last changed, a day ago or more for a pack installed long ago: a Stage of another Kando must not remove the old pack a Swap may still put back.
+func TestStaleAgeFromTheMove(t *testing.T) {
+	root := t.TempDir()
+	now := time.Now()
+	moved := filepath.Join(root, asideName(now))
+	if err := os.MkdirAll(filepath.Join(moved, "x"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	installed := now.Add(-3 * staleAfter)
+	if err := os.Chtimes(moved, installed, installed); err != nil {
+		t.Fatal(err)
+	}
+	cleanStale(root, now.Add(time.Hour))
+	if _, err := os.Stat(moved); err != nil {
+		t.Fatalf("removed an hour after the move: %v", err)
+	}
+	cleanStale(root, now.Add(staleAfter))
+	if _, err := os.Stat(moved); !os.IsNotExist(err) {
+		t.Errorf("still there a day after the move: %v", err)
 	}
 }
 

@@ -178,9 +178,10 @@ func (a *app) correctSpreadTerm(s *correctSpread) (before, after core.Term, ok b
 		if t.Target == s.fix.From && slices.ContainsFunc(originals, func(o string) bool { return core.TermIn(o, t.Source) }) {
 			after = t
 			after.Target, after.Locked, after.Origin = s.fix.To, true, core.OriginUser
-			// A glossary pack's term is not the user's to put back: undoing takes the user's term out again, and the pack's shows through.
+			// A glossary pack's term is not the user's to put back: undoing takes the user's term out again, and the pack's shows through. The user's term is the film's own, as AddTerm makes it, not every film's, which the pack's term is (pluginTerms).
 			if t.Origin == core.OriginPack {
 				t.Target = ""
+				after.Scope = core.ScopeFilm
 			}
 			return t, after, true
 		}

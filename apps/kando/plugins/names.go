@@ -15,7 +15,7 @@ const (
 
 // ReservedNames are the names no pack may take, compared as reserved does (case, full and half width and spaces aside): Kando's own, in every language its interface has, and the name of every built-in AI service in every language (settings.Presets), so that a pack cannot pass itself off as Kando or as a service the user already trusts. The list is kept here rather than read from the settings because this package imports no interface package; a test of the app's (plugins_test.go) checks that every name settings.Presets gives, in every language, is in it.
 var ReservedNames = []string{
-	"Kando", "看懂", "Official", "官方",
+	"Kando", "看懂", "Official", "官方", "公式", "공식",
 	"EveryAPI", "OpenAI", "OpenRouter", "Groq", "DeepSeek", "xAI", "Mistral", "Kimi", "Ollama", "LM Studio",
 	"Qwen", "通义千问", "通義千問",
 	"Zhipu GLM", "智谱 GLM", "智譜 GLM",

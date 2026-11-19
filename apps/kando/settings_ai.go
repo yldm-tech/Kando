@@ -69,10 +69,6 @@ func (s *savedLLM) clean() {
 func (a *app) saveLLM(saved *savedSettings) {
 	saved.LLMProvider = a.prefs.llmProvider
 	if tools, ok := a.pipeline.(media.Tools); ok {
-		// The service of a plugin pack that is not offered now is saved as its pack's, so the next start knows it as the pack's (pluginsGoneService).
-		if id := a.pluginsGoneService(tools.Translator.BaseURL); id != "" {
-			saved.LLMProvider = id
-		}
 		saved.LLMBaseURL = tools.Translator.BaseURL
 		saved.LLMModel = tools.Translator.Model
 		saved.LLMAPIKey = tools.Translator.APIKey

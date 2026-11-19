@@ -69,12 +69,16 @@ func TestDropRefusesWhatIsNoFile(t *testing.T) {
 	}
 }
 
-// TestInboxBase checks the name a drop keeps of its file: its base name in plain ASCII.
+// TestInboxBase checks the name a drop keeps of its file: its base name in plain ASCII, cut to inboxBaseMax bytes with its extension kept.
 func TestInboxBase(t *testing.T) {
+	long := strings.Repeat("a", 300)
 	for src, want := range map[string]string{
-		"/x/pack.zip":      "pack.zip",
-		"/x/動画 terms.zip":  "___terms.zip",
-		"/x/a;b$(c).kando": "a_b__c_.kando",
+		"/x/pack.zip":                             "pack.zip",
+		"/x/動画 terms.zip":                         "___terms.zip",
+		"/x/a;b$(c).kando":                        "a_b__c_.kando",
+		"/x/" + long + ".zip":                     long[:inboxBaseMax-len(".zip")] + ".zip",
+		"/x/" + strings.Repeat("動", 300) + ".zip": strings.Repeat("_", inboxBaseMax-len(".zip")) + ".zip",
+		"/x/a." + long:                            ("a." + long)[:inboxBaseMax],
 	} {
 		if got := inboxBase(src); got != want {
 			t.Errorf("inboxBase(%q) = %q, want %q", src, got, want)

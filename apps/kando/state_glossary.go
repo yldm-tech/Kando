@@ -153,11 +153,16 @@ func (a *app) glossaryJob() (core.Job, bool) {
 	return core.Job{}, false
 }
 
-// FilmTerms is the open film's glossary as its translation uses it: its own terms, its series' and the global ones, a narrower scope's taking the place of a wider one's for the same words, then the glossary packs' for its languages (pluginTerms), which the 术语 tab shows as the packs', not to be changed there (core.OriginPack). The packs' thousands of terms are added through a map (plugins.AddTerms), as this is a binding of the 术语 tab.
+// FilmTerms is the open film's glossary as its translation uses it: its own terms, its series' and the global ones, a narrower scope's taking the place of a wider one's for the same words, then the glossary packs' for its languages (pluginTerms) that the originals of its lines hold, which the 术语 tab shows as the packs', not to be changed there (core.OriginPack). A pack brings up to thousands of terms: its translation is given all of them (glossaryStart), and the tab lists only those of its lines, none while they are not loaded (plugins.TermsIn). The packs' terms are added through a map (plugins.AddTerms), as this is a binding of the 术语 tab.
 func (a *app) FilmTerms() []core.Term {
 	job, _ := a.glossaryJob()
 	series, global := a.gloss.store.Terms(job.Series)
-	return plugins.AddTerms(core.MergeTerms(a.gloss.film, series, global), a.pluginTerms(job))
+	_, lines := a.correctLines()
+	originals := make([]string, len(lines))
+	for i, l := range lines {
+		originals[i] = l.Original
+	}
+	return plugins.AddTerms(core.MergeTerms(a.gloss.film, series, global), plugins.TermsIn(a.pluginTerms(job), originals))
 }
 
 // TermsWritable reports whether the open film's own terms can be changed: it has a video to keep them beside, and they were read.
