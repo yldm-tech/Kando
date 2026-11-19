@@ -194,11 +194,24 @@ func (a *app) VideoFailed(err error) { a.playerFailed(err) }
 
 func (a *app) Subs() film.Subs {
 	subs := film.Subs{Key: a.player.subs.key, Ready: a.player.subs.ready, Err: a.player.subs.err, Cues: a.player.subs.cues}
-	// Lines are marked drafts while the film is made, until the final proofread makes them final. Without the final proofread none becomes final, so none is marked; and a film done with lines the final proofread did not get to, as when the service went, is left as one done, rather than marked for good with nothing to make it final. A film made again (core.Job.Redo) shows the lines it had, done, until the redo is.
-	if item, ok := a.openFilm(); ok && a.prefs.review && item.Key == subs.Key && item.Stage != "" && !item.Stage.Done() && !a.filmRedoing(item.JobID) {
+	if a.player.subs.showDrafts {
 		subs.Drafts = a.player.subs.drafts
 	}
 	return subs
+}
+
+// playerDraftsFollow tells whether the open film's lines are marked drafts (subtitleView.showDrafts) and reports whether that changed. Lines are marked drafts while the film is made, until the final proofread makes them final. Without the final proofread none becomes final, so none is marked; and a film done with lines the final proofread did not get to, as when the service went, is left as one done, rather than marked for good with nothing to make it final. A film made again (core.Job.Redo) shows the lines it had, done, until the redo is.
+func (a *app) playerDraftsFollow() bool {
+	show := false
+	if a.prefs.review && a.openKey != "" && a.player.subs.key != "" {
+		item, ok := a.openFilm()
+		show = ok && item.Key == a.player.subs.key && item.Stage != "" && !item.Stage.Done() && !a.filmRedoing(item.JobID)
+	}
+	if show == a.player.subs.showDrafts {
+		return false
+	}
+	a.player.subs.showDrafts = show
+	return true
 }
 
 // filmRedoing reports whether the job of the film open, id, is making a done film again, which shows the lines it had until it is done.

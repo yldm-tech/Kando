@@ -60,6 +60,8 @@ type subtitleView struct {
 	// machineDrafts are the spans of the machine's lines that are drafts, not proofread as a whole yet (media.DraftSpans); drafts says, cue for cue, which of cues come from one.
 	machineDrafts map[core.Span]bool
 	drafts        []bool
+	// showDrafts is whether the lines are marked drafts as the film shows them, told after each change (playerDraftsFollow), so Subs, read for every line on screen, does not look the open film up each time.
+	showDrafts bool
 	edits         []core.Correction
 	editsErr      bool
 	cues          []core.Segment
