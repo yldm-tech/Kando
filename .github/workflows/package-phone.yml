@@ -37,7 +37,7 @@ jobs:
           key: go-${{ runner.os }}-mobile-${{ hashFiles('go.work.sum', '**/go.sum') }}
           restore-keys: go-${{ runner.os }}-mobile-
       # A TestFlight run signs the IPA. The Apple Distribution certificate goes into a keychain of the job's own, which codesign finds on the user's keychain list and nsgo build picks from by the profile's certificate; its file is deleted at once. The profiles of the app (ai.yldm.kando.mobile) and of its widget extension (ai.yldm.kando.mobile.widgets) both grant the app group group.ai.yldm.kando.mobile, which the app shares with its widgets and nsgo build checks for. nsgo build takes the app's profile from -profile but the extension's only from nsgo.yaml's sign.widgets_profile, so the step adds a sign section to the runner's copy of nsgo.yaml, which keeps no signing of its own, naming both profiles.
-      # TODO(nsgo): nsgo build has no flag for sign.widgets_profile as it has -profile for sign.profile; pass the extension's profile with a flag once there is one, and leave nsgo.yaml alone.
+      # TODO(nsgo#879): nsgo build has no flag for sign.widgets_profile as it has -profile for sign.profile; pass the extension's profile with a flag once there is one, and leave nsgo.yaml alone https://github.com/nsgo-dev/nsgo/issues/879
       - name: Import the distribution certificate and the profiles
         id: signing
         if: inputs.testflight
@@ -83,7 +83,7 @@ jobs:
         run: |
           go tool nsgo build -target ios -build-number "$BUILD_NUMBER" -output "$RUNNER_TEMP/ios" apps/mobile
           go tool nsgo build -target android_arm64 -channel store -build-number "$BUILD_NUMBER" -output "$RUNNER_TEMP/android" apps/mobile
-      # One IPA and one App Bundle, the IPA carrying the app's ID, the run's build number, its icon and the local network usage description iOS asks with. A signed IPA's app and widget extension must also carry valid signatures, each with its App Store profile embedded.
+      # One IPA and one App Bundle, the IPA carrying the app's ID, the run's build number, its icon, the local network usage description iOS asks with and the export compliance answer TestFlight needs. A signed IPA's app and widget extension must also carry valid signatures, each with its App Store profile embedded.
       - name: Collect the packages
         id: collect
         env:
@@ -101,6 +101,7 @@ jobs:
           plist=$(echo "$RUNNER_TEMP"/ipa/Payload/*.app/Info.plist)
           test "$(plutil -extract CFBundleIdentifier raw "$plist")" = ai.yldm.kando.mobile
           plutil -extract NSLocalNetworkUsageDescription raw "$plist" >/dev/null
+          test "$(plutil -extract ITSAppUsesNonExemptEncryption raw "$plist")" = false
           plutil -extract CFBundleIcons xml1 -o /dev/null "$plist"
           test "$(plutil -extract CFBundleVersion raw "$plist")" = "$BUILD_NUMBER"
           if [ "$SIGNED" = true ]; then
