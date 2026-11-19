@@ -56,7 +56,7 @@ type Pipeline interface {
 //
 // A job making a film for the first time (Redo empty) whose translation fails as a whole, other than by being stopped, or whose pipeline has no translator (TranslateChecker), still completes: Export writes the transcript and a bilingual file of the original lines alone, every line counts as untranslated, and job.TranslationErr says why. Translating its missing lines (RedoMissing) translates it later. A redo whose translation fails fails, leaving the film as it was.
 //
-// Before it translates, a job whose pipeline is a Proofreader has the transcript proofread, unless it was already (job.Proofread, or what a RedoAll or a translating redo kept aside): the words whisper misheard are corrected in the original lines, which every part of Kando shows and the translation is made from. A job making a film for the first time saves the proofread transcript over the one it heard and sets job.Proofread at once; a RedoAll writes it over the speech it keeps aside; a translating redo keeps it in a hidden file beside the video (proofreadTranscriptPath) until it exports, so a redo that fails leaves the film's transcript as it was and one run again does not pay for the proofreading twice. Proofreading that fails, or a translator that is not set up, leaves the lines as they were heard. A film heard in the language its subtitles are for (core.SameLanguage) is not translated: its subtitles are its own lines alone, no line counts as untranslated, and job.SameLanguage says so once it is complete. Once translated, a job whose context asks for it (WithReview) and whose pipeline is a Reviewer has the translation proofread as a whole (the final proofread, core.Proof): the changes of the kinds the user lets apply by themselves are exported, and every change is kept beside the video (ProofsPath) for the user to review.
+// Before it translates, a job whose pipeline is a Proofreader has the transcript proofread, unless it was already (job.Proofread, or what a RedoAll or a translating redo kept aside): the words whisper misheard are corrected in the original lines, which every part of Kando shows and the translation is made from. A job making a film for the first time saves the proofread transcript over the one it heard and sets job.Proofread at once; a RedoAll writes it over the speech it keeps aside; a translating redo keeps it in a hidden file beside the video (proofreadTranscriptPath) until it exports, so a redo that fails leaves the film's transcript as it was and one run again does not pay for the proofreading twice. Proofreading that fails, or a translator that is not set up, leaves the lines as they were heard. A film heard in the language its subtitles are for (core.SameLanguage) is not translated: its subtitles are its own lines alone, no line counts as untranslated, and job.SameLanguage says so once it is complete. Once translated, a job whose context asks for it (WithReview) and whose pipeline is a Reviewer has the translation proofread as a whole (the final proofread, core.Proof): the changes of the kinds the user lets apply by themselves are exported, and every change is kept beside the video (ProofsPath) for the user to review. Then, when the context asks for it (WithTermSuggestions) and the pipeline is a TermSuggester, terms are suggested for the film's glossary and kept beside the video (SuggestionsPath).
 //
 // A link's job whose SubtitleSource is core.SubtitlesPlatform, on a pipeline that is a PlatformSubtitler, fetches the subtitles the uploader put on the site in the language the speech was heard in once the speech it heard is kept and proofread, and takes them as the film's original lines where they match the speech (matchPlatform): where they do not, and where they have none, the lines are the ones heard, proofread. job.PlatformSubtitles and job.LocalLines say so, and the transcript kept beside the video holds those lines, so a job run again reads them back; one stopped while it fetches them keeps the speech it heard and fetches them again. The uploader's lines are not proofread. A job's Quality is the picture its download asks for (Tools.Download).
 //
@@ -370,6 +370,15 @@ func Run(ctx context.Context, p Pipeline, job core.Job, language string, report 
 		job.Progress = core.Progress{}
 		report(job)
 	}
+	// Terms are suggested for the film's glossary once it is translated, as the final proofread left it, when the job asks for them (WithTermSuggestions); a film not translated, or whose missing lines alone were translated, keeps the suggestions it had, and so does one whose request failed. A job stopped while it asks stops.
+	var suggested []core.Term
+	suggestedOK := false
+	if _, can := p.(TermSuggester); can && suggestsTerms(ctx) && notTranslated == "" && !same && job.Redo != core.RedoMissing {
+		suggested, suggestedOK = suggest(ctx, p, original, translated, filmTitle(job), language)
+		if ctxErr := ctx.Err(); ctxErr != nil {
+			return fail("translate", ctxErr)
+		}
+	}
 
 	enter(core.StageExporting)
 	// A redo exports the film's transcript (TranscriptOf) in place of the one it kept aside.
@@ -398,6 +407,9 @@ func Run(ctx context.Context, p Pipeline, job core.Job, language string, report 
 			proofs = nil
 		}
 		_ = SaveProofs(ProofsPath(job.VideoPath), proofs)
+	}
+	if suggestedOK {
+		_ = KeepSuggestions(job.VideoPath, suggested)
 	}
 	// A film whose video this run downloaded or kept has one again, as after a video download that failed and left the film at a quality that keeps it.
 	switch {
