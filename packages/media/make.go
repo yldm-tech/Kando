@@ -615,7 +615,14 @@ func (m *making) run(length time.Duration, language string, watch Watcher) core.
 			return m.fail("translate", err)
 		}
 	}
-	// A link made from its sound waits for its video, then keeps it in the sound's place.
+	// A link made from its sound waits for its video, then keeps it in the sound's place: a video already there is taken at once, without saying the job downloads again.
+	if m.coming != nil {
+		select {
+		case d := <-m.coming:
+			m.videoCame(d)
+		default:
+		}
+	}
 	if m.coming != nil {
 		job.Stage, job.Progress = core.StageDownloading, core.Progress{}
 		m.report(*job)
