@@ -514,3 +514,34 @@ func TestMakeTranslatesAFilmWhoseVideoIsElsewhere(t *testing.T) {
 		}
 	}
 }
+
+// A redo that gives up hearing a part of the film fails rather than replace the film with one that lacks that part, and the next redo begins again rather than going on with the one that gave up.
+func TestMakeRedoThatGivesUpAPartKeepsTheFilm(t *testing.T) {
+	job, video := makeJob(t)
+	job.SpeechLanguage = "ja"
+	f := &makeFilm{length: 60 * time.Second, language: "ja"}
+	film, _ := makeFilmOf(t, f, job, 0)
+	if film.Stage != core.StageComplete {
+		t.Fatalf("film ended %s: %v", film.Stage, film.Err)
+	}
+	// The speech recognition fails every run before it hears the second cell's last line, so that cell is given up.
+	f.say = func(at time.Duration) string { return "anew " + at.String() }
+	f.hearErr, f.failAfter = errors.New("whisper-cli: segfault"), 4
+	failed, _ := makeFilmOf(t, f, redoOf(film), 0)
+	if failed.Stage != core.StageFailed || !errors.Is(failed.Err, errGivenUp) || failed.Redo != core.RedoAll {
+		t.Fatalf("failed %+v", failed)
+	}
+	doc, _ := track.Read(video)
+	if lines := doc.View(); len(lines) != 6 || lines[0].Original.Text != "line 0s" || lines[5].Original.Text != "line 50s" {
+		t.Fatalf("the film shows %+v, want it as it was", lines)
+	}
+	f.hearErr = nil
+	done, _ := makeFilmOf(t, f, failed, 0)
+	if done.Stage != core.StageComplete {
+		t.Fatalf("done %+v", done)
+	}
+	doc, _ = track.Read(video)
+	if lines := doc.View(); len(lines) != 6 || lines[0].Original.Text != "anew 0s" || lines[5].Original.Text != "anew 50s" {
+		t.Fatalf("the film shows %+v, want it heard anew", lines)
+	}
+}

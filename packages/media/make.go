@@ -78,6 +78,9 @@ var runCellsMax = 10
 // minRun is how long a run of the speech recognition goes before a jump may stop it, so jumping back and forth does not stop every run before it hears anything; tests shorten it.
 var minRun = 10 * time.Second
 
+// errGivenUp is why a film made again failed that gave up a part of it, tried as many times as a part is (track.Attempts).
+var errGivenUp = errors.New("a part of the film failed every time it was tried")
+
 // ErrNoLength is why a film failed whose length cannot be told, as a file that is not a video, so its parts cannot be told either.
 var ErrNoLength = errors.New("the video's length cannot be told")
 
@@ -587,6 +590,17 @@ func (m *making) run(length time.Duration, language string, watch Watcher) core.
 	if err := m.ctx.Err(); err != nil {
 		return m.fail("transcribe", err)
 	}
+	// A redo that gave up hearing or drafting a part of the film would replace the film with one that lacks it: it fails, leaving the film as it was.
+	if m.redo {
+		for _, u := range last.GivenUp {
+			switch u.Work {
+			case track.WorkHear:
+				return m.fail("transcribe", errGivenUp)
+			case track.WorkDraft:
+				return m.fail("translate", errGivenUp)
+			}
+		}
+	}
 	lines := m.doc.Lines(gen)
 	if len(lines) == 0 {
 		return m.fail("transcribe", ErrNoSpeech)
@@ -682,7 +696,8 @@ func (m *making) fail(step string, err error) core.Job {
 func (m *making) generation(model string) (string, error) {
 	var open track.Event
 	for _, e := range m.doc.Events {
-		if e.Kind == track.KindGen && e.Source == makeSource && !m.doc.Done(e.Gen) && (!m.redo || e.Key == model) {
+		// A redo that gave up a part of the film failed for it (run), and is begun again rather than gone on with, which would fail at once.
+		if e.Kind == track.KindGen && e.Source == makeSource && !m.doc.Done(e.Gen) && (!m.redo || e.Key == model && !m.doc.GivenUp(e.Gen, track.WorkHear, track.WorkDraft)) {
 			open = e
 		}
 	}

@@ -209,6 +209,26 @@ func (d Doc) Plan(m Making) Plan {
 	return p
 }
 
+// GivenUp reports whether a unit of generation gen, of one of works (any work when none is named), was tried Attempts times without being made.
+func (d Doc) GivenUp(gen string, works ...Work) bool {
+	made := map[Unit]bool{}
+	tried := map[Unit]int{}
+	for _, e := range d.Events {
+		switch {
+		case e.Kind == KindUnit && e.Gen == gen:
+			made[unitOf(e)] = true
+		case e.Kind == KindAttempt && e.Gen == gen:
+			tried[unitOf(e)]++
+		}
+	}
+	for u, n := range tried {
+		if n >= Attempts && !made[u] && (len(works) == 0 || slices.Contains(works, u.Work)) {
+			return true
+		}
+	}
+	return false
+}
+
 // gone is the lines taken out of their generation.
 func (d Doc) gone() map[string]bool {
 	out := map[string]bool{}
