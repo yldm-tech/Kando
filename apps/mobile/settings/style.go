@@ -49,7 +49,7 @@ func setStyle(s *session.Session, change func(*store.SubStyle)) {
 	s.SetPrefs(p)
 }
 
-// StylePage is the page that sets how the player draws subtitles, over a preview that follows each choice: their size, the original line's color and where they show on the picture.
+// StylePage is the page that sets how the player draws subtitles, over a preview that follows each choice: their size, the original line's color and where they show on the picture; and whether the original's words show the marks the computer computes for them.
 func StylePage(cx *core.Scope, s *session.Session, back func()) base.NavPage {
 	colors := ui.ColorsOf(cx)
 	style := func() store.SubStyle { return s.Prefs().Subtitles }
@@ -107,6 +107,11 @@ func StylePage(cx *core.Scope, s *session.Session, back func()) base.NavPage {
 				group(func() string { return locales.StylePosition(cx) }, func() string { return locales.StylePosition(cx) },
 					position(0, false, "bottom", func() string { return locales.StyleBottom(cx) }),
 					position(1, true, "top", func() string { return locales.StyleTop(cx) })),
+				look.Group{Children: []core.Node{look.Row{TestID: "style-marks", TitleLines: 1,
+					Title:  func() string { return locales.StyleMarks(cx) },
+					Detail: func() string { return locales.StyleMarksDetail(cx) },
+					Trailing: ui.Switch{TestID: "style-marks-switch", Label: locales.StyleMarks(cx), Variant: ui.SwitchSystem,
+						Checked: func() bool { return !style().NoMarks }, OnChange: func(on bool) { setStyle(s, func(st *store.SubStyle) { st.NoMarks = !on }) }}}}},
 			}},
 		}},
 	}}, ui.NavHeader{OnBack: back, Scroll: ref})

@@ -394,6 +394,12 @@ const japaneseLine, japaneseWord = "今日は学校に行った。", "学校"
 // openJapanese opens the talk in the player as openStudy does, its first line in Japanese, from a desktop that knows the word japaneseWord, once the card has the words of that line to tap: the dictionary that cuts Japanese is read in the background.
 func openJapanese(t *testing.T) (*phone, *synctest.Desktop) {
 	t.Helper()
+	return openJapaneseMarked(t, nil)
+}
+
+// openJapaneseMarked is openJapanese with the computer marking the words of the film's lines with marks, none for nil.
+func openJapaneseMarked(t *testing.T, marks *sync.FilmMarks) (*phone, *synctest.Desktop) {
+	t.Helper()
 	lines := slices.Clone(talkCues)
 	lines[0].Original = japaneseLine
 	d := synctest.New(t, "Studio")
@@ -402,6 +408,9 @@ func openJapanese(t *testing.T) (*phone, *synctest.Desktop) {
 		Film: sync.Film{ID: "f1", Title: "Morning Talk", Source: "youtube", DurationMS: 10_000, Spoken: "ja", Translation: "简体中文", Updated: now()}})
 	d.Offer("123456")
 	d.SetEntry(japaneseWord, sync.WordEntry{Word: japaneseWord, Reading: "がっこう", Meaning: "n. 学校", Language: "简体中文"})
+	if marks != nil {
+		d.SetMarks("f1", *marks)
+	}
 	dir := t.TempDir()
 	f := keepTalkFrom(t, dir, store.DesktopID(d.Fingerprint))
 	if err := store.Open(dir).SaveCues(f.Desktop, f.Film.ID, lines); err != nil {

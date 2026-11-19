@@ -1987,6 +1987,12 @@ styleHuge:
 styleLarge:
   message: "Large"
   description: "A subtitle size."
+styleMarks:
+  message: "Word Marks"
+  description: "Switch in Subtitle Style: show the readings over words and the lines under them that the paired computer computes for a film's original lines."
+styleMarksDetail:
+  message: "Readings and underlines, as set on your computer"
+  description: "Detail under the Word Marks switch: which marks show is chosen in the computer's settings."
 styleMedium:
   message: "Medium"
   description: "A subtitle size."

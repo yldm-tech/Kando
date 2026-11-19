@@ -74,12 +74,13 @@ func (f Film) Done() bool { return f.Video != "" || f.LinesOnly }
 // HasVideo reports whether the film's video is on the phone.
 func (f Film) HasVideo() bool { return f.Video != "" }
 
-// The files of the store, under its folder: the paired desktops, and a folder per film under films/<desktop>/<film>, holding film.json, subtitles.json, the poster, and video.part while the video downloads.
+// The files of the store, under its folder: the paired desktops, and a folder per film under films/<desktop>/<film>, holding film.json, subtitles.json, marks.json once its computer marked its lines' words, the poster, and video.part while the video downloads.
 const (
 	desktopsFile  = "desktops.json"
 	filmsDir      = "films"
 	filmFile      = "film.json"
 	subtitlesFile = "subtitles.json"
+	marksFile     = "marks.json"
 	// PartFile is the video while it downloads.
 	PartFile = "video.part"
 )
@@ -160,6 +161,25 @@ func (s *Store) Cues(desktop, id string) ([]sync.Cue, bool, error) {
 		return nil, false, nil
 	}
 	return cues, err == nil, err
+}
+
+// SaveMarks keeps the word marks of the film's lines, as its computer answered them, so the film shows them offline. A film no longer kept, whose folder is gone, keeps nothing, so marks that came after it was deleted do not make its folder again.
+func (s *Store) SaveMarks(desktop, id string, m sync.FilmMarks) error {
+	dir := s.FilmDir(desktop, id)
+	if _, err := os.Stat(dir); errors.Is(err, fs.ErrNotExist) {
+		return nil
+	}
+	return writeJSON(filepath.Join(dir, marksFile), m)
+}
+
+// Marks are the word marks of the film's lines as last kept, and false when none are kept.
+func (s *Store) Marks(desktop, id string) (sync.FilmMarks, bool, error) {
+	var m sync.FilmMarks
+	err := readJSON(filepath.Join(s.FilmDir(desktop, id), marksFile), &m)
+	if errors.Is(err, fs.ErrNotExist) {
+		return sync.FilmMarks{}, false, nil
+	}
+	return m, err == nil, err
 }
 
 // Used is how many bytes the films take on the phone.

@@ -59,11 +59,12 @@ func Visited(visits []Visit, v Visit) []Visit {
 	return out
 }
 
-// SubStyle is how the player draws subtitles: their size, from SubSmall to SubHuge, the color of the original line, from SubYellow on, and whether they show at the top of the picture rather than at its foot. The zero SubStyle is the player's own: medium, yellow, at the foot.
+// SubStyle is how the player draws subtitles: their size, from SubSmall to SubHuge, the color of the original line, from SubYellow on, whether they show at the top of the picture rather than at its foot, and whether the original's words show no marks of the computer's (NoMarks: readings over them and lines under them, docs/plugin-system.md E2). The zero SubStyle is the player's own: medium, yellow, at the foot, with the marks.
 type SubStyle struct {
-	Size  SubSize  `json:"size,omitempty"`
-	Color SubColor `json:"color,omitempty"`
-	Top   bool     `json:"top,omitempty"`
+	Size    SubSize  `json:"size,omitempty"`
+	Color   SubColor `json:"color,omitempty"`
+	Top     bool     `json:"top,omitempty"`
+	NoMarks bool     `json:"no_marks,omitempty"`
 }
 
 // SubSize is a subtitle size; the zero one is medium.

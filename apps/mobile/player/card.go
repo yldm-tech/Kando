@@ -33,6 +33,7 @@ func card(cx *core.Scope, p *play, w *words) core.Node {
 		}
 	}
 	reveal := func(core.PressEvent) { p.revealed.Set(p.shown.GetUntracked()) }
+	tone := toneOf(colors)
 	original := core.Text{TestID: "player-card-original", PointerEvents: core.PointerEventsAuto, Style: core.Style{FontSize: 20, LineHeight: 27, FontWeight: core.FontWeightSemibold},
 		StyleFunc: func() core.Style { return core.Style{Color: colors.Text()}.Merge(hidden(true)()) },
 		SpansFunc: func() []core.Span {
@@ -40,17 +41,10 @@ func card(cx *core.Scope, p *play, w *words) core.Node {
 			if p.hides(true) {
 				return []core.Span{{Content: text}}
 			}
-			var spans []core.Span
-			for _, tok := range p.tokens(text) {
-				sp := core.Span{Content: tok.Text}
-				if tok.Word {
-					word, line := tok.Text, i()
-					sp.OnPress = func(core.PressEvent) { w.look(line, word) }
-					sp.Style = core.Style{TextDecoration: core.TextDecorationUnderline, TextDecorationColor: theme.SubtitleYellow.Faded(0.55)}
-				}
-				spans = append(spans, sp)
-			}
-			return spans
+			line := i()
+			ink := markInk{style: core.Style{FontSize: 20, FontWeight: core.FontWeightSemibold, Color: colors.Text()}, look: func(word string) { w.look(line, word) }, tone: tone,
+				word: core.Style{TextDecoration: core.TextDecorationUnderline, TextDecorationColor: theme.SubtitleYellow.Faded(0.55)}}
+			return markSpans(text, p.tokens(text), p.lineMarks(line), ink)
 		},
 		LabelFunc: func() string {
 			if p.hides(true) {

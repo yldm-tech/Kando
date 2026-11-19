@@ -213,21 +213,11 @@ func (w *words) saveExplained() {
 	p.s.SetNote(p.key, cue, note)
 }
 
-// tappable is t, the text of line i, with each of its words a span a tap looks up.
-func (w *words) tappable(t core.Text, i int, text string) core.Text {
+// tappable is t, the text of line i, with each of its words a span a tap looks up, and the line's word marks drawn on it (markSpans) in the colors of tone.
+func (w *words) tappable(t core.Text, i int, text string, tone func(string) (core.Color, bool)) core.Text {
+	ink := markInk{style: t.Style, look: func(word string) { w.look(i, word) }, tone: tone}
 	t.Spans, t.Content = nil, ""
-	t.SpansFunc = func() []core.Span {
-		var spans []core.Span
-		for _, tok := range w.p.tokens(text) {
-			sp := core.Span{Content: tok.Text}
-			if tok.Word {
-				word := tok.Text
-				sp.OnPress = func(core.PressEvent) { w.look(i, word) }
-			}
-			spans = append(spans, sp)
-		}
-		return spans
-	}
+	t.SpansFunc = func() []core.Span { return markSpans(text, w.p.tokens(text), w.p.lineMarks(i), ink) }
 	return t
 }
 

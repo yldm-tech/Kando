@@ -1,0 +1,159 @@
+package player
+
+import (
+	"slices"
+	"unicode/utf8"
+
+	kcore "kando/packages/core"
+	"kando/packages/sync"
+
+	"github.com/nsgo-dev/nsgo/core"
+	"github.com/nsgo-dev/nsgo/ui"
+)
+
+// The word marks of the lines' originals, as the computer draws them (docs/plugin-system.md, E2): readings over the words written in Han characters, a thick line in a level's tone under the words of the word list chosen there, and a dashed one under the words in the vocabulary. The computer computes them from its plugins and the phone draws them (session.FilmMarks), on the line over the picture and on the card; a line whose original is not the one they were computed for, as one fixed on the phone, shows none (sync.FilmMarks.Of). Settings › Subtitle Style turns them off (store.SubStyle.NoMarks).
+
+// lineMarks are the marks of line i's original, nil for none. Read it in a binding.
+func (p *play) lineMarks(i int) []sync.Mark {
+	if m := p.marks.Get(); i >= 0 && i < len(m) {
+		return m[i]
+	}
+	return nil
+}
+
+// sameMarks reports whether two films' marks are alike, line for line.
+func sameMarks(a, b [][]sync.Mark) bool { return slices.EqualFunc(a, b, slices.Equal[[]sync.Mark]) }
+
+// toneOf is the color of a mark's tone, the theme's role for each of a word list's tiers, false for none or one the phone does not know.
+func toneOf(colors ui.Colors) func(tone string) (core.Color, bool) {
+	return func(tone string) (core.Color, bool) {
+		switch tone {
+		case sync.ToneAccent:
+			return colors.Accent(), true
+		case sync.ToneWarn:
+			return colors.Warn(), true
+		case sync.ToneSuccess:
+			return colors.Up(), true
+		case sync.ToneMuted:
+			return colors.Muted(), true
+		}
+		return 0, false
+	}
+}
+
+// markInk is how markSpans draws a line: style is the line's text style, which a reading's view repeats, as an attachment does not take its text's; look looks up a word tapped; tone is the color of a mark's tone; word is how a word without a line of a mark under it is drawn, as the card's faint line under each word that says it can be tapped.
+type markInk struct {
+	style core.Style
+	look  func(word string)
+	tone  func(tone string) (core.Color, bool)
+	word  core.Style
+}
+
+// rubyScale is the size of a reading over a word, a share of the word's.
+const rubyScale = 0.5
+
+// markThickness and markOffset are the thickness of the line under a marked run and its room below the baseline, as shares of the font size, as the computer draws them.
+var (
+	markThickness = core.Pct(9)
+	markOffset    = core.Pct(14)
+)
+
+// markSpans is text cut into spans at each of tokens, its words and what lies between them, a tap on a word looking it up, and at the ends of each of marks: a mark with a reading is a view of its reading over its characters, the others draw a line under their runs, solid in a tone's color, dashed for a word in the vocabulary. A mark outside text, off a character's start, or overlapping a reading before it is left out; tokens of another text are too, as while a line changes.
+func markSpans(text string, tokens []kcore.WordToken, marks []sync.Mark, ink markInk) []core.Span {
+	inText := func(m sync.Mark) bool {
+		return m.Start >= 0 && m.Start < m.End && m.End <= len(text) && utf8.RuneStart(text[m.Start]) && (m.End == len(text) || utf8.RuneStart(text[m.End]))
+	}
+	cuts := []int{0, len(text)}
+	type run struct {
+		start, end int
+		word       string
+	}
+	var words []run
+	at := 0
+	for _, t := range tokens {
+		if t.Word {
+			words = append(words, run{at, at + len(t.Text), t.Text})
+		}
+		at += len(t.Text)
+		cuts = append(cuts, at)
+	}
+	if at != len(text) {
+		words, cuts = nil, []int{0, len(text)}
+	}
+	var rubies, lines []sync.Mark
+	for _, m := range marks {
+		switch {
+		case !inText(m):
+		case m.Ruby != "":
+			if len(rubies) == 0 || rubies[len(rubies)-1].End <= m.Start {
+				rubies = append(rubies, m)
+				cuts = append(cuts, m.Start, m.End)
+			}
+		case m.Tone != "" || m.Underline:
+			lines = append(lines, m)
+			cuts = append(cuts, m.Start, m.End)
+		}
+	}
+	slices.Sort(cuts)
+	cuts = slices.Compact(cuts)
+	var spans []core.Span
+	next := 0
+	for k := 0; k+1 < len(cuts); {
+		start, end, ruby := cuts[k], cuts[k+1], ""
+		if next < len(rubies) && rubies[next].Start == start {
+			end, ruby = rubies[next].End, rubies[next].Ruby
+			next++
+		}
+		for k+1 < len(cuts) && cuts[k] < end {
+			k++
+		}
+		word := ""
+		if i := slices.IndexFunc(words, func(w run) bool { return w.start <= start && start < w.end }); i >= 0 {
+			word = words[i].word
+		}
+		var color *core.Color
+		dashed, marked := false, false
+		for _, m := range lines {
+			if m.Start <= start && start < m.End {
+				if c, ok := ink.tone(m.Tone); ok && color == nil {
+					color = &c
+				}
+				dashed = dashed || m.Underline
+				marked = marked || color != nil || m.Underline
+			}
+		}
+		var st core.Style
+		switch {
+		case marked:
+			st.TextDecoration, st.TextDecorationThickness, st.TextUnderlineOffset = core.TextDecorationUnderline, markThickness, markOffset
+			if color != nil {
+				st.TextDecorationColor = *color
+			}
+			if dashed {
+				st.TextDecorationStyle = core.DecorationDashed
+			}
+		case word != "":
+			st = ink.word
+		}
+		spans = append(spans, ink.span(text[start:end], ruby, word, st))
+	}
+	return spans
+}
+
+// span is the run content of a line: under its reading ruby when there is one, looking word up on a tap when it is one of the words, drawn in st.
+func (ink markInk) span(content, ruby, word string, st core.Style) core.Span {
+	var press func(core.PressEvent)
+	if word != "" && ink.look != nil {
+		press = func(core.PressEvent) { ink.look(word) }
+	}
+	if ruby == "" {
+		return core.Span{Content: content, Style: st, OnPress: press}
+	}
+	base := core.Style{FontSize: ink.style.FontSize, FontWeight: ink.style.FontWeight, Color: ink.style.Color}.Merge(st)
+	small := core.Style{FontSize: ink.style.FontSize * rubyScale, Color: ink.style.Color}
+	return core.Span{Content: content, Style: core.Style{VerticalAlign: core.VerticalAlignTextBottom}, Attachment: core.View{TestID: "player-ruby", Style: core.Style{AlignItems: core.AlignCenter}, OnPress: press, Children: []core.Node{
+		// The screen reader reads the run, not its reading.
+		core.Text{Content: ruby, MaxLines: 1, Style: small, Role: core.RoleNone},
+		core.Text{Content: content, MaxLines: 1, Style: base},
+	}}}
+}

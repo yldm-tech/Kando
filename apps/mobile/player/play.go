@@ -59,7 +59,9 @@ type play struct {
 	ref  *core.Ref
 	cues *core.Resource[[]cues.Cue]
 	// lines are the film's lines as the player shows them: the cues kept, with the fixes of their translations laid over them (session.Corrections).
-	lines   *core.Memo[[]cues.Cue]
+	lines *core.Memo[[]cues.Cue]
+	// marks are the word marks of the lines' originals, index for index, as the film's computer last answered them (session.FilmMarks), nil while there are none or Settings › Subtitle Style turns them off (marks.go).
+	marks   *core.Memo[[][]sync.Mark]
 	playing *core.Signal[bool]
 	at      *core.Signal[time.Duration]
 	length  *core.Signal[time.Duration]
@@ -149,6 +151,18 @@ func newPlay(cx *core.Scope, s *session.Session, key string) *play {
 		list, _ := p.cues.Get()
 		return corrected(list, s.Corrections(key))
 	}, slices.Equal[[]cues.Cue])
+	p.marks = core.NewMemoFunc(cx, func() [][]sync.Mark {
+		m, ok := s.FilmMarks(key)
+		if !ok || s.Prefs().Subtitles.NoMarks {
+			return nil
+		}
+		list := p.list()
+		originals := make([]string, len(list))
+		for i, c := range list {
+			originals[i] = c.Original
+		}
+		return m.Of(originals)
+	}, sameMarks)
 	p.current = core.NewMemo(cx, func() int { return cues.Index(p.list(), p.subAt()) })
 	p.shown = core.NewMemo(cx, func() int {
 		if i := p.current.Get(); i >= 0 {
@@ -167,6 +181,8 @@ func newPlay(cx *core.Scope, s *session.Session, key string) *play {
 	})
 	// The lines kept play at once; a desktop that has changed them since, as by translating the film again, gives its own, which take their place.
 	s.Follow(key, p.cues.Refetch)
+	// The lines' word marks, as the phone keeps them, then as the computer has them once it answers.
+	s.OpenMarks(key)
 	// The lines saved from the film and their notes, as the phone keeps them, then as the desktop has them once it answers.
 	s.OpenStudy(key)
 	// The film's glossary, once the phone knows the film's library, which the first opening asks the desktop for.

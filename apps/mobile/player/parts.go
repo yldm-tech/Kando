@@ -35,7 +35,7 @@ func lineSizes(l layout) (translation, original core.Points) {
 	return 17, 14
 }
 
-// subtitles draws the line playing over the video, as the mode picks its texts, up out of the transport's way while it shows over the video; a tap on a word of its original looks the word up.
+// subtitles draws the line playing over the video, as the mode picks its texts, up out of the transport's way while it shows over the video; a tap on a word of its original looks the word up, and the original's words show their marks (markSpans).
 func subtitles(cx *core.Scope, p *play, w *words, shape func() layout, controlsOver func() bool) core.Node {
 	shown := core.NewMemoFunc(cx, func() []kcore.CueLine {
 		i, list := p.current.Get(), p.list()
@@ -44,6 +44,7 @@ func subtitles(cx *core.Scope, p *play, w *words, shape func() layout, controlsO
 		}
 		return kcore.PictureLines(p.shownMode(), kcore.SubTranslationFirst, kcore.UntranslatedDim, list[i].Translation, list[i].Original)
 	}, slices.Equal[[]kcore.CueLine])
+	tone := toneOf(ui.ColorsOf(cx))
 	body := core.Dynamic(func(cx *core.Scope) core.Node {
 		style := p.s.Prefs().Subtitles
 		tr, orig := lineSizes(shape())
@@ -61,7 +62,7 @@ func subtitles(cx *core.Scope, p *play, w *words, shape func() layout, controlsO
 			}
 			text := core.Text{Content: l.Text, Style: core.Style{FontSize: size, LineHeightMultiple: 1.25, FontWeight: weight, Color: color, TextAlign: core.TextAlignCenter}}
 			if l.Original && !l.Dim {
-				text = w.tappable(text, i, l.Text)
+				text = w.tappable(text, i, l.Text, tone)
 			}
 			children = append(children, core.View{Style: holder, Children: []core.Node{text}})
 		}

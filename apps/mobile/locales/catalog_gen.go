@@ -1203,6 +1203,8 @@ const (
 	textStyleCyan
 	textStyleHuge
 	textStyleLarge
+	textStyleMarks
+	textStyleMarksDetail
 	textStyleMedium
 	textStylePink
 	textStylePosition
@@ -1648,6 +1650,8 @@ var keyOfText = [numTexts]string{
 	"styleCyan",
 	"styleHuge",
 	"styleLarge",
+	"styleMarks",
+	"styleMarksDetail",
 	"styleMedium",
 	"stylePink",
 	"stylePosition",
@@ -2091,6 +2095,8 @@ var textsEn = i18n.NewTexts(""+
 	"Cyan"+
 	"Extra Large"+
 	"Large"+
+	"Word Marks"+
+	"Readings and underlines, as set on your computer"+
 	"Medium"+
 	"Pink"+
 	"Position"+
@@ -2531,6 +2537,8 @@ var textsEn = i18n.NewTexts(""+
 		4,
 		11,
 		5,
+		10,
+		48,
 		6,
 		4,
 		8,
@@ -2974,6 +2982,8 @@ var textsJa = i18n.NewTexts(""+
 	"シアン"+
 	"特大"+
 	"大"+
+	"単語の注釈"+
+	"読みと下線（パソコンの設定どおり）"+
 	"中"+
 	"ピンク"+
 	"位置"+
@@ -3414,6 +3424,8 @@ var textsJa = i18n.NewTexts(""+
 		9,
 		6,
 		3,
+		15,
+		51,
 		3,
 		9,
 		6,
@@ -3857,6 +3869,8 @@ var textsKo = i18n.NewTexts(""+
 	"청록색"+
 	"아주 크게"+
 	"크게"+
+	"단어 표시"+
+	"읽기와 밑줄, 컴퓨터 설정에 따름"+
 	"보통"+
 	"분홍색"+
 	"위치"+
@@ -4297,6 +4311,8 @@ var textsKo = i18n.NewTexts(""+
 		9,
 		13,
 		6,
+		13,
+		44,
 		6,
 		9,
 		6,
@@ -4740,6 +4756,8 @@ var textsZhHans = i18n.NewTexts(""+
 	"青色"+
 	"特大"+
 	"大"+
+	"逐词标注"+
+	"注音和下划线，按电脑上的设置"+
 	"中"+
 	"粉色"+
 	"位置"+
@@ -5180,6 +5198,8 @@ var textsZhHans = i18n.NewTexts(""+
 		6,
 		6,
 		3,
+		12,
+		42,
 		3,
 		6,
 		6,
@@ -5623,6 +5643,8 @@ var textsZhHant = i18n.NewTexts(""+
 	"青色"+
 	"特大"+
 	"大"+
+	"逐詞標注"+
+	"注音和底線，依電腦上的設定"+
 	"中"+
 	"粉色"+
 	"位置"+
@@ -6063,6 +6085,8 @@ var textsZhHant = i18n.NewTexts(""+
 		6,
 		6,
 		3,
+		12,
+		39,
 		3,
 		6,
 		6,
@@ -15492,6 +15516,24 @@ func StyleLarge(cx *core.Scope) string { return For(cx).StyleLarge() }
 
 // StyleLarge is the package's StyleLarge in the language of msgs.
 func (msgs Messages) StyleLarge() string { return msgs.text(textStyleLarge) }
+
+// StyleMarks says "Word Marks"
+// in the language the app shows under cx.
+//
+// Switch in Subtitle Style: show the readings over words and the lines under them that the paired computer computes for a film's original lines.
+func StyleMarks(cx *core.Scope) string { return For(cx).StyleMarks() }
+
+// StyleMarks is the package's StyleMarks in the language of msgs.
+func (msgs Messages) StyleMarks() string { return msgs.text(textStyleMarks) }
+
+// StyleMarksDetail says "Readings and underlines, as set on your computer"
+// in the language the app shows under cx.
+//
+// Detail under the Word Marks switch: which marks show is chosen in the computer's settings.
+func StyleMarksDetail(cx *core.Scope) string { return For(cx).StyleMarksDetail() }
+
+// StyleMarksDetail is the package's StyleMarksDetail in the language of msgs.
+func (msgs Messages) StyleMarksDetail() string { return msgs.text(textStyleMarksDetail) }
 
 // StyleMedium says "Medium"
 // in the language the app shows under cx.
