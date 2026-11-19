@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"kando/apps/kando/films"
+	"kando/apps/kando/jobfailure"
 	"kando/apps/kando/live"
 	"kando/apps/kando/locales"
 	"kando/apps/kando/playlist"
@@ -310,7 +311,7 @@ func (a *app) subscribeTook(id string, listing media.Listing, err error) (*subsc
 			a.subs.notes[id] = subscribeNote{Note: subscribe.Note{Kind: subscribe.NoteGone}}
 		} else {
 			if sub.Err != "" {
-				sub.Err = toolMessage(sub.Err)
+				sub.Err = jobfailure.ToolMessage(sub.Err)
 			}
 			a.subs.notes[id] = subscribeNote{Note: subscribe.Note{Kind: subscribe.NoteFailed}, why: subscribeFailure(*sub)}
 		}

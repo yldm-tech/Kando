@@ -880,3 +880,29 @@ func TestAnOlderKandoReadsTheNewFailure(t *testing.T) {
 		t.Fatalf("an older Kando reads %+v", older)
 	}
 }
+
+// TestLibraryKeepsTheSourceAFilmWasNotTranslatedBy checks that the translation source whose failure left a done film untranslated is kept beside why, and that a library saved before it, or by an older Kando, reads with none.
+func TestLibraryKeepsTheSourceAFilmWasNotTranslatedBy(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "library.json")
+	lib, _ := Load(path)
+	lib.Upsert(core.Job{ID: "a", Source: "https://example.com/a", Stage: core.StageComplete, Untranslated: 3, TranslationErr: "456 Quota Exceeded", TranslationSource: "DeepL"})
+	if err := lib.Save(); err != nil {
+		t.Fatal(err)
+	}
+	if data, _ := os.ReadFile(path); !strings.Contains(string(data), `"translationSource": "DeepL"`) || !strings.Contains(string(data), `"translationError": "456 Quota Exceeded"`) {
+		t.Fatalf("library.json:\n%s", data)
+	}
+	loaded, _ := Load(path)
+	if job, _ := loaded.Find("a"); job.TranslationErr != "456 Quota Exceeded" || job.TranslationSource != "DeepL" {
+		t.Fatalf("came back as %q from %q", job.TranslationErr, job.TranslationSource)
+	}
+
+	old := `{"jobs": [{"id": "b", "source": "https://example.com/b", "stage": "complete", "untranslated": 3, "translationError": "translate: KANDO_LLM_MODEL is not set"}]}`
+	if err := os.WriteFile(path, []byte(old), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	loaded, _ = Load(path)
+	if job, _ := loaded.Find("b"); job.TranslationErr != "translate: KANDO_LLM_MODEL is not set" || job.TranslationSource != "" {
+		t.Fatalf("an old library's film reads %q from %q", job.TranslationErr, job.TranslationSource)
+	}
+}

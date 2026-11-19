@@ -358,6 +358,8 @@ type storedJob struct {
 	Untranslated int `json:"untranslated,omitempty"`
 	// TranslationError is why a completed job translated none of its lines (core.Job.TranslationErr).
 	TranslationError string `json:"translationError,omitempty"`
+	// TranslationSource is the translation source other than the AI service whose failure TranslationError says (core.Job.TranslationSource); an older Kando, and a library saved before it, have none, which reads as the AI service's.
+	TranslationSource string `json:"translationSource,omitempty"`
 	// Transcribed is whether the job saved its transcript beside its video (core.Job.Transcribed).
 	Transcribed bool `json:"transcribed,omitempty"`
 	// Proofread is whether the job's transcript has been proofread (core.Job.Proofread), and SameLanguage whether the film needed no translation (core.Job.SameLanguage).
@@ -399,7 +401,7 @@ func storeJob(job core.Job) storedJob {
 		ID: job.ID, Source: job.Source, Language: job.Language, Stage: job.Stage,
 		Title: job.Title, Thumbnail: job.Thumbnail,
 		VideoPath: job.VideoPath, SubtitlePath: job.SubtitlePath, LibraryDir: job.LibraryDir,
-		CompletedAt: job.CompletedAt, FailKind: job.FailKind, Cookies: job.Cookies, Untranslated: job.Untranslated, TranslationError: job.TranslationErr,
+		CompletedAt: job.CompletedAt, FailKind: job.FailKind, Cookies: job.Cookies, Untranslated: job.Untranslated, TranslationError: job.TranslationErr, TranslationSource: job.TranslationSource,
 		Transcribed: job.Transcribed, Proofread: job.Proofread, SameLanguage: job.SameLanguage, Redo: job.Redo, RedoLanguage: job.RedoLanguage, SpokenLanguage: job.SpokenLanguage, SpeechLanguage: job.SpeechLanguage, FromFolder: job.FromFolder, Device: job.Device,
 	}
 	stored.Quality, stored.SubtitleSource = job.Quality, job.SubtitleSource
@@ -441,7 +443,7 @@ func (s storedJob) job() core.Job {
 		ID: s.ID, Source: s.Source, Language: s.Language, Stage: s.Stage,
 		Title: s.Title, Thumbnail: s.Thumbnail,
 		VideoPath: s.VideoPath, SubtitlePath: s.SubtitlePath, LibraryDir: s.LibraryDir,
-		CompletedAt: s.CompletedAt, FailKind: s.FailKind, Cookies: s.Cookies, Untranslated: s.Untranslated, TranslationErr: s.TranslationError,
+		CompletedAt: s.CompletedAt, FailKind: s.FailKind, Cookies: s.Cookies, Untranslated: s.Untranslated, TranslationErr: s.TranslationError, TranslationSource: s.TranslationSource,
 		Transcribed: s.Transcribed, Proofread: s.Proofread, SameLanguage: s.SameLanguage, Redo: s.Redo, RedoLanguage: s.RedoLanguage, SpokenLanguage: s.SpokenLanguage, SpeechLanguage: s.SpeechLanguage, FromFolder: s.FromFolder, Device: s.Device,
 	}
 	job.Quality, job.SubtitleSource = s.Quality, s.SubtitleSource

@@ -11,6 +11,7 @@ import (
 	"kando/apps/kando/cloud"
 	"kando/apps/kando/film"
 	"kando/apps/kando/films"
+	"kando/apps/kando/jobfailure"
 	"kando/apps/kando/locales/testlocale"
 	"kando/apps/kando/settings"
 	"kando/apps/kando/sidebar"
@@ -138,7 +139,7 @@ func TestOfflineRefusesWhatWouldReachTheNetwork(t *testing.T) {
 	if _, why := a.paletteTranslator(func(*ns.Scope) string { return "none" }); why == nil || why(a.cx) != m.PrivacyNoCloudAI() {
 		t.Fatal("the palette asks a cloud service offline")
 	}
-	if reason, section := translationHint(m, media.ErrOffline.Error()); reason != m.PrivacyNoCloudAI() || section != settings.SectionAI {
+	if reason, section := jobfailure.TranslationHint(m, media.ErrOffline.Error(), ""); reason != m.PrivacyNoCloudAI() || section != settings.SectionAI {
 		t.Fatalf("translation hint %q in %q", reason, section)
 	}
 	// Uploads, sign-in and the update check.

@@ -13,6 +13,7 @@ import (
 
 	"kando/apps/kando/desktop"
 	"kando/apps/kando/films"
+	"kando/apps/kando/jobfailure"
 	"kando/apps/kando/locales"
 	"kando/apps/kando/settings"
 	"kando/apps/kando/shelf"
@@ -607,7 +608,7 @@ func (a *app) queueRedoEnded(job core.Job) core.Job {
 	a.queue.redoEnded[job.ID] = job
 	if !errors.Is(job.Err, context.Canceled) && !errors.Is(job.Err, core.ErrLibrarySwitched) {
 		m := a.messages()
-		reason, section := failureHint(m, films.Film{Detail: statusText(m, job), Failure: films.FailureOf(job)})
+		reason, section := jobfailure.Hint(m, statusText(m, job), jobfailure.Of(job))
 		switch job.Redo {
 		case core.RedoAll:
 			a.warn(m.QueueReprocessFailed(jobName(job), reason), section)
@@ -661,7 +662,7 @@ func (a *app) queueFolderJob(job *core.Job, item films.Film) {
 func (a *app) queueFolderEnded(job core.Job) {
 	if !errors.Is(job.Err, context.Canceled) && !errors.Is(job.Err, core.ErrLibrarySwitched) {
 		m := a.messages()
-		reason, section := failureHint(m, films.Film{Detail: statusText(m, job), Failure: films.FailureOf(job)})
+		reason, section := jobfailure.Hint(m, statusText(m, job), jobfailure.Of(job))
 		if job.Redo == core.RedoAll {
 			a.warn(m.QueueReprocessFailed(a.libraryJobName(job), reason), section)
 		} else {
@@ -1008,7 +1009,7 @@ func (a *app) queueEndedElsewhere(id string) {
 	switch {
 	case job.Stage == core.StageComplete && job.TranslationErr != "":
 		m := a.messages()
-		reason, section := translationHint(m, job.TranslationErr)
+		reason, section := jobfailure.TranslationHint(m, job.TranslationErr, job.TranslationSource)
 		a.warn(m.QueueDoneElsewhereUntranslated(jobName(job), library, reason), section)
 	case job.Stage == core.StageComplete:
 		a.tell(a.messages().QueueDoneElsewhere(jobName(job), library))

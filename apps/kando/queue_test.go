@@ -1683,6 +1683,27 @@ func TestAFailedCardNamesTheTranslationSource(t *testing.T) {
 	}
 }
 
+// A done film a translation source of its own left untranslated says which source failed, and opens no AI service setting; one the AI service left untranslated says why as before.
+func TestAFilmNotTranslatedNamesTheTranslationSource(t *testing.T) {
+	a, _, _ := newTestApp(t, &fakePipeline{})
+	job := core.Job{ID: "d", Source: "https://www.youtube.com/watch?v=jNQXAC9IVRw", Stage: core.StageComplete, LibraryDir: a.snap().LibraryDir, Untranslated: 3,
+		TranslationErr: "translation API returned 401 Unauthorized: invalid key", TranslationSource: "DeepL"}
+	a.library.Jobs = []core.Job{job}
+	film, ok := a.JobFilm(job.ID)
+	if !ok {
+		t.Fatal("no card")
+	}
+	if reason, section := a.TranslationHint(film); reason != "翻译来源「DeepL」失败：translation API returned 401 Unauthorized: invalid key" || section != "" {
+		t.Fatalf("%q %q", reason, section)
+	}
+	job.TranslationSource = ""
+	a.library.Jobs = []core.Job{job}
+	film, _ = a.JobFilm(job.ID)
+	if reason, section := a.TranslationHint(film); reason != "AI 服务不接受这个 Key，去「AI 服务」里检查一下。" || section != settings.SectionAI {
+		t.Fatalf("the AI service's: %q %q", reason, section)
+	}
+}
+
 // A failed card says why in plain Chinese, never the pipeline's English: what went wrong with the translation, and 打开设置 to 「AI 服务」 when a setting there fixes it; and for a failure no reason is known for, the stage that failed with what the tool said, without the tool's own prefixes.
 func TestAFailedCardSaysWhyInChinese(t *testing.T) {
 	a, tt, _ := newTestApp(t, &fakePipeline{})

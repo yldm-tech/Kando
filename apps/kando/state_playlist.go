@@ -5,6 +5,7 @@ import (
 	"errors"
 
 	"kando/apps/kando/films"
+	"kando/apps/kando/jobfailure"
 	"kando/apps/kando/live"
 	"kando/apps/kando/locales"
 	"kando/apps/kando/playlist"
@@ -203,7 +204,7 @@ func playlistError(m locales.Messages, err error) string {
 	if errors.Is(err, media.ErrOffline) {
 		return m.PrivacyNoDownload()
 	}
-	return m.PlaylistFailed(toolMessage(err.Error()))
+	return m.PlaylistFailed(jobfailure.ToolMessage(err.Error()))
 }
 
 // playlistOverlay is the dialog over the window while it is open (state_overlay.go).

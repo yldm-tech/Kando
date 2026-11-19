@@ -11,6 +11,7 @@ import (
 	"kando/apps/kando/addsheet"
 	"kando/apps/kando/desktop"
 	"kando/apps/kando/films"
+	"kando/apps/kando/jobfailure"
 	"kando/apps/kando/live"
 	"kando/apps/kando/locales"
 	"kando/apps/kando/settings"
@@ -385,7 +386,7 @@ func (a *app) Retry(id string) {
 }
 
 func (a *app) FailureHint(item films.Film) (reason, section string) {
-	return failureHint(a.messages(), item)
+	return jobfailure.Hint(a.messages(), item.Detail, item.Failure)
 }
 
 // TranslationHint reads why a done film translated none of its lines as failureHint reads a failed translation, so it says what to do in the same words a failed job's card would.
@@ -393,7 +394,7 @@ func (a *app) TranslationHint(item films.Film) (reason, section string) {
 	if item.TranslationErr == "" {
 		return "", ""
 	}
-	return translationHint(a.messages(), item.TranslationErr)
+	return jobfailure.TranslationHint(a.messages(), item.TranslationErr, item.TranslationSource)
 }
 
 func (a *app) JobFilm(id string) (films.Film, bool) {

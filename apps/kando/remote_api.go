@@ -13,6 +13,7 @@ import (
 	"time"
 
 	"kando/apps/kando/films"
+	"kando/apps/kando/jobfailure"
 	"kando/apps/kando/lines"
 	"kando/apps/kando/locales"
 	"kando/apps/kando/playlist"
@@ -1020,7 +1021,7 @@ func remoteFilmOfIn(m locales.Messages, item films.Film) remote.Film {
 	}
 	switch {
 	case item.TranslationErr != "":
-		f.TranslationError, _ = translationHint(m, item.TranslationErr)
+		f.TranslationError, _ = jobfailure.TranslationHint(m, item.TranslationErr, item.TranslationSource)
 		f.Language = ""
 	case item.SameLanguage:
 		// A film heard in the language its subtitles are for was not translated: its lines are its own.
@@ -1030,7 +1031,7 @@ func remoteFilmOfIn(m locales.Messages, item films.Film) remote.Film {
 		f.Link = item.Source
 	}
 	if item.JobID != "" {
-		f.Status, _ = failureHint(m, item)
+		f.Status, _ = jobfailure.Hint(m, item.Detail, item.Failure)
 	}
 	return f
 }
@@ -1050,7 +1051,7 @@ func (a *app) remoteJobOf(job core.Job) remote.Job {
 	name := a.libraryJobName(job)
 	m := remoteMessages()
 	item := films.FromJob(job, name, statusText(m, job))
-	status, _ := failureHint(m, item)
+	status, _ := jobfailure.Hint(m, item.Detail, item.Failure)
 	j := remote.Job{
 		ID:           job.ID,
 		Source:       job.Source,
@@ -1065,7 +1066,7 @@ func (a *app) remoteJobOf(job core.Job) remote.Job {
 		Subtitles:    job.SubtitlePath,
 	}
 	if job.TranslationErr != "" {
-		j.TranslationError, _ = translationHint(m, job.TranslationErr)
+		j.TranslationError, _ = jobfailure.TranslationHint(m, job.TranslationErr, job.TranslationSource)
 		// A redo still names the language it translates into; a done film that was not translated has none.
 		if job.Redo == "" {
 			j.Language = ""
@@ -1074,7 +1075,7 @@ func (a *app) remoteJobOf(job core.Job) remote.Job {
 	if ended, ok := a.queue.redoEnded[job.ID]; ok && job.Stage == core.StageComplete {
 		j.Stage = string(core.StageFailed)
 		j.Progress = remoteProgress(core.StageFailed, ended.Progress, true)
-		j.Status, _ = failureHint(m, films.FromJob(ended, name, statusText(m, ended)))
+		j.Status, _ = jobfailure.Hint(m, statusText(m, ended), jobfailure.Of(ended))
 		j.Canceled = errors.Is(ended.Err, context.Canceled)
 		job = ended
 	}

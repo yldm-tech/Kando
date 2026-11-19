@@ -12,6 +12,7 @@ import (
 	"time"
 
 	"kando/apps/kando/films/sitename"
+	"kando/apps/kando/jobfailure"
 	"kando/apps/kando/locales"
 	"kando/apps/kando/sidebar"
 	"kando/packages/core"
@@ -40,6 +41,8 @@ type Film struct {
 	// SameLanguage is true for a film heard in the language its subtitles are for, which was not translated: its subtitles are its own lines alone (core.Job.SameLanguage).
 	SameLanguage   bool
 	TranslationErr string
+	// TranslationSource is the translation source other than the AI service whose failure TranslationErr says (core.Job.TranslationSource).
+	TranslationSource string
 	// PlatformSubtitles is true for a film whose original lines are its site's subtitles, and LocalLines how many of their lines the speech recognition replaced (core.Job.PlatformSubtitles).
 	PlatformSubtitles bool
 	LocalLines        int
@@ -155,20 +158,11 @@ func FromJob(job core.Job, name, detail string) Film {
 		Key: job.ID, Title: Shorten(name, 22), Name: name, Source: job.Source,
 		Detail: detail, Stage: job.Stage, JobID: job.ID,
 		VideoPath: job.VideoPath, SubtitlePath: job.SubtitlePath, Language: job.Language, Spoken: job.SpokenLanguage, SpeechLanguage: job.SpeechLanguage,
-		Progress: job.Progress, Thumbnail: job.Thumbnail, Untranslated: job.Untranslated, TranslationErr: job.TranslationErr, SameLanguage: job.SameLanguage,
-		Stopped: errors.Is(job.Err, context.Canceled), Failure: FailureOf(job), Target: jobTarget(job), Device: job.Device, PausedBy: job.PausedBy,
+		Progress: job.Progress, Thumbnail: job.Thumbnail, Untranslated: job.Untranslated, TranslationErr: job.TranslationErr, TranslationSource: job.TranslationSource, SameLanguage: job.SameLanguage,
+		Stopped: errors.Is(job.Err, context.Canceled), Failure: jobfailure.Of(job), Target: jobTarget(job), Device: job.Device, PausedBy: job.PausedBy,
 		PlatformSubtitles: job.PlatformSubtitles, LocalLines: job.LocalLines,
 		SubtitlesOnly: job.SubtitlesOnly, VideoComing: job.Redo == core.RedoVideo && !job.Stage.Done(),
 	}
-}
-
-// FailureOf is the step job failed at and why (Film.Failure), nil for a job that did not fail or whose error names no step.
-func FailureOf(job core.Job) *media.StageError {
-	var failed *media.StageError
-	if job.Stage != core.StageFailed || !errors.As(job.Err, &failed) {
-		return nil
-	}
-	return failed
 }
 
 // jobTarget is the language job translates into (Film.Target).

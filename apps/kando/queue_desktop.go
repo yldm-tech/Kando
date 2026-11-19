@@ -7,6 +7,7 @@ import (
 	"math"
 
 	"kando/apps/kando/films"
+	"kando/apps/kando/jobfailure"
 	"kando/apps/kando/live"
 	"kando/packages/core"
 
@@ -126,7 +127,7 @@ func (a *app) queueNotifyEnded(was core.Stage, job core.Job) {
 		body = m.QueueNotifyFailed(a.queueFailReason(job))
 	// A film made without a translation has no bilingual subtitles to speak of.
 	case job.TranslationErr != "":
-		reason, _ := translationHint(m, job.TranslationErr)
+		reason, _ := jobfailure.TranslationHint(m, job.TranslationErr, job.TranslationSource)
 		body = m.QueueNotifyUntranslated(reason)
 	}
 	d.notify(job.ID, jobName(job), body)
@@ -138,7 +139,7 @@ func (a *app) queueFailReason(job core.Job) string {
 	if r, ok := a.FailureRemedy(item); ok {
 		return r.Headline
 	}
-	reason, _ := failureHint(a.messages(), item)
+	reason, _ := jobfailure.Hint(a.messages(), item.Detail, item.Failure)
 	return reason
 }
 

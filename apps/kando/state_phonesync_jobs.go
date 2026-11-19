@@ -6,7 +6,7 @@ import (
 	"slices"
 	"strings"
 
-	"kando/apps/kando/films"
+	"kando/apps/kando/jobfailure"
 	"kando/apps/kando/phonesync"
 	"kando/apps/kando/remote"
 	"kando/apps/kando/settings"
@@ -105,7 +105,7 @@ func (a *app) phoneJobOf(job core.Job) psync.Job {
 	if job.Stage == core.StageFailed {
 		m := remoteMessages()
 		var section string
-		facts.Reason, section = failureHint(m, films.FromJob(job, facts.Title, statusText(m, job)))
+		facts.Reason, section = jobfailure.Hint(m, statusText(m, job), jobfailure.Of(job))
 		facts.Setup = section != ""
 	}
 	return phonesync.JobOf(job, facts)
