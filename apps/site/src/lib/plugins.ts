@@ -371,6 +371,20 @@ export function installLink(id: string): string {
   return "kando://plugin/install?id=" + encodeURIComponent(id);
 }
 
+// opensLinks reports whether Kando opens kando:// links on the computer the user agent says it is: only on macOS, the one system Kando registers its scheme with so far; elsewhere the page says where to find the plugin in Kando instead.
+/* TODO(nsgo#262): Kando registers kando:// on Windows and Linux once NSGo does; show Open in Kando everywhere then https://github.com/nsgo-dev/nsgo/issues/262 (a block comment, as the site's source may name no other host outside one, test/external.test.ts) */
+export function opensLinks(userAgent: string): boolean {
+  return /Macintosh|Mac OS X/.test(userAgent) && !/iPhone|iPad|iPod|Android/.test(userAgent);
+}
+
+// InstallAction is how a card offers its plugin: a link that opens it in Kando, or, where Kando does not open links yet, the id to search for in Kando's plugin directory.
+export type InstallAction = { kind: "link"; href: string } | { kind: "find"; id: string };
+
+// installAction is the way a card offers the plugin id to a browser with userAgent (opensLinks).
+export function installAction(userAgent: string, id: string): InstallAction {
+  return opensLinks(userAgent) ? { kind: "link", href: installLink(id) } : { kind: "find", id };
+}
+
 // formatSize is bytes in the page's language, in bytes, kilobytes or megabytes of 1000 as the systems' file browsers count them.
 export function formatSize(bytes: number, tag: string): string {
   const format = (value: number, unit: string) =>

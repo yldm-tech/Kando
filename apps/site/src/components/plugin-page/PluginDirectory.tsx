@@ -7,7 +7,7 @@ import {
   fetchIndex,
   filterPlugins,
   formatSize,
-  installLink,
+  installAction,
   languageName,
   localText,
   OfflineError,
@@ -162,6 +162,8 @@ function PluginCard({ entry: e }: { entry: PluginEntry }) {
   const { t, lang } = useWords();
   const name = localText(e.name, lang.tag);
   const summary = localText(e.summary, lang.tag);
+  // The cards are drawn only once the page runs, so the user agent is the browser's.
+  const action = installAction(typeof navigator === "undefined" ? "" : navigator.userAgent, e.id);
   // A text in another language than the page's says so, for its font and for screen readers.
   const langOf = (tag: string | undefined) => (tag === undefined || tag.toLowerCase() === lang.tag.toLowerCase() ? undefined : tag);
   return (
@@ -191,9 +193,16 @@ function PluginCard({ entry: e }: { entry: PluginEntry }) {
         {e.languages.length > 0 && <Field label={t("pluginLanguages")}>{e.languages.map((l) => languageName(l, lang.tag)).join(", ")}</Field>}
       </dl>
       <div className="mt-auto flex flex-wrap items-center gap-x-4 gap-y-2 pt-2">
-        <a className="btn primary h-10 rounded-[20px] px-[18px] text-[14px]" href={installLink(e.id)}>
-          {t("pluginOpen")}
-        </a>
+        {action.kind === "link" ? (
+          <a className="btn primary h-10 rounded-[20px] px-[18px] text-[14px]" href={action.href}>
+            {t("pluginOpen")}
+          </a>
+        ) : (
+          <p className="plugin-find m-0 text-[13px] leading-[1.6] text-ink-2">
+            {t("pluginFindInKando")}{" "}
+            <code className="rounded-md bg-[rgba(28,25,22,0.06)] px-1.5 py-0.5 font-mono text-[12px] text-ink select-all">{action.id}</code>
+          </p>
+        )}
         {e.homepage && (
           <a className="text-[14px] font-semibold text-accent-ink hover:text-accent-hover" href={e.homepage} rel="noopener noreferrer nofollow ugc">
             {t("pluginHomepage")}

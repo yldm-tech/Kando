@@ -17,6 +17,7 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"slices"
 	"strings"
 	"time"
 
@@ -128,8 +129,12 @@ func (t tool) dispatch(args []string) error {
 	return usagef("unknown command %q", verb)
 }
 
-// parse parses the flags of fs anywhere among args, before or after the paths, as `kando plugin` does; "--" ends them.
+// parse parses the flags of fs anywhere among args, before or after the paths, as `kando plugin` does. The first "--" ends them: everything after it is a path, even one that starts with a dash.
 func parse(fs *flag.FlagSet, args []string) ([]string, error) {
+	var rest []string
+	if i := slices.Index(args, "--"); i >= 0 {
+		args, rest = args[:i], args[i+1:]
+	}
 	var positional []string
 	for {
 		if err := fs.Parse(args); err != nil {
@@ -137,10 +142,7 @@ func parse(fs *flag.FlagSet, args []string) ([]string, error) {
 		}
 		args = fs.Args()
 		if len(args) == 0 {
-			return positional, nil
-		}
-		if args[0] == "--" {
-			return append(positional, args[1:]...), nil
+			return append(positional, rest...), nil
 		}
 		positional = append(positional, args[0])
 		args = args[1:]
@@ -161,10 +163,7 @@ func (t tool) check(paths []string) ([]checked, error) {
 		return nil, err
 	}
 	defer os.RemoveAll(work)
-	trust, err := signature.OpenTrust(work+string(os.PathSeparator)+"plugins", t.roots)
-	if err != nil {
-		return nil, err
-	}
+	trust := publish.Trust(work+string(os.PathSeparator)+"plugins", t.roots)
 	out := make([]checked, len(paths))
 	for i, path := range paths {
 		dir, err := os.MkdirTemp(work, "pack-")

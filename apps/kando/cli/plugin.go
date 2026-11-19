@@ -99,11 +99,7 @@ func pluginValidate(e *env, src string) error {
 	}
 	defer os.RemoveAll(work)
 	roots := signature.DefaultRoots(nil)
-	trust, err := signature.OpenTrust(pluginsRoot(), roots)
-	if err != nil {
-		return err
-	}
-	c, err := publish.Check(src, work, trust, roots)
+	c, err := publish.Check(src, work, publish.Trust(pluginsRoot(), roots), roots)
 	if err != nil {
 		return fmt.Errorf("%s: %w", src, err)
 	}

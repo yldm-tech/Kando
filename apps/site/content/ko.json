@@ -224,6 +224,7 @@
   "pluginLicense": "라이선스",
   "pluginLanguages": "언어",
   "pluginHomepage": "홈페이지",
+  "pluginFindInKando": "Kando에서 설정 › 플러그인 › 플러그인 둘러보기를 열고 다음을 검색:",
   "pluginOpen": "Kando에서 열기",
   "pluginContributeTitle": "플러그인 올리기",
   "pluginContributeBody": "플러그인은 kando-plugins 저장소에 풀 리퀘스트를 보내 추가합니다. 저장소가 하나씩 확인하고 Kando가 내려받는 목록에 서명합니다.",

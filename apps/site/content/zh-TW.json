@@ -224,6 +224,7 @@
   "pluginLicense": "授權",
   "pluginLanguages": "語言",
   "pluginHomepage": "首頁",
+  "pluginFindInKando": "在看懂中開啟 設定 › 外掛 › 瀏覽外掛，搜尋",
   "pluginOpen": "在看懂中開啟",
   "pluginContributeTitle": "提交你的外掛",
   "pluginContributeBody": "外掛透過向 kando-plugins 儲存庫提交拉取請求加入。儲存庫會檢查每個外掛，並為看懂下載的列表簽章。",

@@ -151,6 +151,12 @@ func TestValidate(t *testing.T) {
 		t.Errorf("a missing file %+v", p)
 	}
 
+	// After "--" every argument is a path, even one that looks like a flag.
+	code, out, _ = f.run("validate", "--json", "--", "--json")
+	if err := json.Unmarshal([]byte(out), &got); code != exitFailed || err != nil || len(got.Packs) != 1 || got.Packs[0].Path != "--json" || got.Packs[0].Code != "not-found" {
+		t.Errorf("validate -- --json = %d, %q, %v", code, out, err)
+	}
+
 	// Under another root, the script plugin is not trusted.
 	other := newFixture(t, signature.DefaultRoots(nil).Official, nil)
 	if code, out, _ := other.run("validate", "--json", hello); code != exitFailed || !strings.Contains(out, `"code": "untrusted"`) {

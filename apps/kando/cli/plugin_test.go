@@ -216,3 +216,22 @@ func TestPluginValidateScript(t *testing.T) {
 		t.Errorf("validate a developer plugin = %d, %q, %q", code, stdout, stderr)
 	}
 }
+
+// TestPluginValidateDataPackOpensNoTrust checks that kando plugin validate opens the plugins folder's trust only for a script plugin: a data pack passes even when that trust cannot be read.
+func TestPluginValidateDataPackOpensNoTrust(t *testing.T) {
+	shortSocket(t)
+	noLaunch(t)
+	root := filepath.Join(t.TempDir(), "plugins")
+	if err := os.MkdirAll(script.TrustDir(root), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(script.TrustDir(root), "trust.json"), []byte("not json"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	old := pluginsRoot
+	pluginsRoot = func() string { return root }
+	t.Cleanup(func() { pluginsRoot = old })
+	if code, stdout, stderr := run("plugin", "validate", pluginZip(t, pluginManifest)); code != 0 || !strings.Contains(stdout, "example.terms") {
+		t.Errorf("validate a data pack with an unreadable trust = %d, %q, %q", code, stdout, stderr)
+	}
+}

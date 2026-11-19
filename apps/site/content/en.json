@@ -224,6 +224,7 @@
   "pluginLicense": "License",
   "pluginLanguages": "Languages",
   "pluginHomepage": "Homepage",
+  "pluginFindInKando": "In Kando, open Settings › Plugins › Browse Plugins and search for",
   "pluginOpen": "Open in Kando",
   "pluginContributeTitle": "Add your plugin",
   "pluginContributeBody": "Plugins are added by pull request to the kando-plugins repository, which checks each one and signs the list Kando downloads.",

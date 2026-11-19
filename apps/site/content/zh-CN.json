@@ -224,6 +224,7 @@
   "pluginLicense": "许可",
   "pluginLanguages": "语言",
   "pluginHomepage": "主页",
+  "pluginFindInKando": "在看懂中打开 设置 › 插件 › 浏览插件，搜索",
   "pluginOpen": "在看懂中打开",
   "pluginContributeTitle": "提交你的插件",
   "pluginContributeBody": "插件通过向 kando-plugins 仓库提交拉取请求加入。仓库会检查每个插件，并为看懂下载的列表签名。",

@@ -224,6 +224,7 @@
   "pluginLicense": "Label of a plugin's license, such as MIT.",
   "pluginLanguages": "Label of the languages a plugin is for.",
   "pluginHomepage": "Link to a plugin's own website.",
+  "pluginFindInKando": "On computers other than Macs, where the Open in Kando link does not work yet: where to find the plugin in the Kando app, followed by the plugin's id in a code box the reader can copy. Keep the menu names as the app's own Settings › Plugins › Browse Plugins.",
   "pluginOpen": "Button that opens the plugin in the Kando app, which shows it in Settings › Plugins and asks before installing it.",
   "pluginContributeTitle": "Heading of the section that tells plugin makers how to add theirs.",
   "pluginContributeBody": "Paragraph of the section for plugin makers. kando-plugins is the repository's name and stays as is.",

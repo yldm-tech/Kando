@@ -224,6 +224,7 @@
   "pluginLicense": "ライセンス",
   "pluginLanguages": "言語",
   "pluginHomepage": "ホームページ",
+  "pluginFindInKando": "Kando の 設定 › プラグイン › プラグインを探す で次を検索：",
   "pluginOpen": "Kando で開く",
   "pluginContributeTitle": "プラグインを公開する",
   "pluginContributeBody": "プラグインは kando-plugins リポジトリへのプルリクエストで追加します。リポジトリが一つずつ確認し、Kando がダウンロードする一覧に署名します。",

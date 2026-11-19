@@ -28,7 +28,7 @@ var (
 	// ErrNoIndexKey is IndexKeyEnv empty or not set.
 	ErrNoIndexKey = errors.New(IndexKeyEnv + " is not set: put the index key's secret (go tool nsgo keygen) in it")
 	// ErrWrongIndexKey is a secret in IndexKeyEnv that is not the index key Kando checks with: the index it signed would be refused by every Kando.
-	ErrWrongIndexKey = errors.New(IndexKeyEnv + " holds another key than the one Kando checks the index with (script.IndexKey)")
+	ErrWrongIndexKey = errors.New(IndexKeyEnv + " holds another key than the one Kando checks the index with (signature.IndexKey)")
 	// ErrNoPacks is a folder with no pack file in it.
 	ErrNoPacks = errors.New("no pack files")
 )
@@ -43,8 +43,20 @@ type Checked struct {
 	SHA256 [sha256.Size]byte
 }
 
-// Check checks the pack at src, a pack file (a zip, whatever its extension) or a folder, as Kando installs it: a file is copied once into work, hashed as it is copied, and the copy is staged (plugins.Stage, which runs plugins.Validate) in a folder of work, so a file changing while it is read cannot be listed with another's hash; a script plugin's signature is then verified with trust against roots (signature.Verify). work is a folder the caller removes; Check leaves its copies there.
-func Check(src, work string, trust *pkg.Trust, roots signature.Roots) (Checked, error) {
+// Trust opens the trust a script plugin's signature is verified with the first time it is called (signature.OpenTrust on the plugins folder root, trusting roots) and gives the same one after, so checking data packs alone opens none. One goroutine at a time.
+func Trust(root string, roots signature.Roots) func() (*pkg.Trust, error) {
+	var t *pkg.Trust
+	var err error
+	return func() (*pkg.Trust, error) {
+		if t == nil && err == nil {
+			t, err = signature.OpenTrust(root, roots)
+		}
+		return t, err
+	}
+}
+
+// Check checks the pack at src, a pack file (a zip, whatever its extension) or a folder, as Kando installs it: a file is copied once into work, hashed as it is copied, and the copy is staged (plugins.Stage, which runs plugins.Validate) in a folder of work, so a file changing while it is read cannot be listed with another's hash; a script plugin's signature is then verified against roots with the trust trust opens (Trust), which only a script plugin opens. work is a folder the caller removes; Check leaves its copies there.
+func Check(src, work string, trust func() (*pkg.Trust, error), roots signature.Roots) (Checked, error) {
 	info, err := os.Stat(src)
 	if err != nil {
 		return Checked{}, err
@@ -68,7 +80,11 @@ func Check(src, work string, trust *pkg.Trust, roots signature.Roots) (Checked, 
 	}
 	c.Pack = p
 	if p.Kind == plugins.KindScript {
-		v, err := signature.Verify(trust, roots, p)
+		t, err := trust()
+		if err != nil {
+			return Checked{}, err
+		}
+		v, err := signature.Verify(t, roots, p)
 		if err != nil {
 			return Checked{}, err
 		}
@@ -171,10 +187,7 @@ func Index(folder, base string, generated time.Time, roots signature.Roots) (ind
 		return index.Index{}, err
 	}
 	defer os.RemoveAll(work)
-	trust, err := signature.OpenTrust(filepath.Join(work, "plugins"), roots)
-	if err != nil {
-		return index.Index{}, err
-	}
+	trust := Trust(filepath.Join(work, "plugins"), roots)
 	idx := index.Index{Format: index.Format, Version: index.Version, Generated: generated.UTC().Truncate(time.Second)}
 	for _, name := range files {
 		c, err := Check(filepath.Join(folder, name), work, trust, roots)

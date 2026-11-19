@@ -144,7 +144,7 @@ func TestPluginIndexRefuses(t *testing.T) {
 	indexKey(t)
 	other, _ := pkg.GenerateKey()
 	t.Setenv(IndexKeyEnv, pkg.EncodeSecretKey(other))
-	if code, _, stderr := run("plugin", "index", packs, "--base", "https://plugins.example.org", "--out", out); code != 1 || !strings.Contains(stderr, "script.IndexKey") {
+	if code, _, stderr := run("plugin", "index", packs, "--base", "https://plugins.example.org", "--out", out); code != 1 || !strings.Contains(stderr, "signature.IndexKey") {
 		t.Errorf("another key = %d, %q", code, stderr)
 	}
 	indexKey(t)

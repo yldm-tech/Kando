@@ -21,7 +21,7 @@ import (
 
 // pluginsIndex is the index's state: url and key are where it is read and what checks it (index.DefaultURL and script.IndexKey; tests set their own), client the HTTP client, nil for Go's own (tests set the TLS server's). open is set while 浏览插件 shows. idx is the index read, kept or new, read once the copy kept was read (or found missing), meta what is known of it, and hay the words each of its entries is found by, lowercased, in the order of its entries (set); reading is set while the copy kept is read, busy while a newer one is asked for, err why the last read or ask failed. query and kind are 浏览插件's search and kind filter.
 //
-// updates is set while 浏览插件 lists only the packs with an update (pluginsIndexUpdatable), as 有可用更新 at the top of the page shows it. wanted is the id of a pack a link of Kando's own scheme asked to install (index.ReadInstallLink), waiting for the index to be read, and asked whether a newer index was asked for since, as a pack the cached index does not list may be in a newer one; linkMissing is the id of such a pack the index does not list, and linkBad set for a link naming no valid id, which 浏览插件 says until the next link or until it closes.
+// updates is set while 浏览插件 lists only the packs with an update (pluginsIndexUpdatable), as 有可用更新 at the top of the page shows it. wanted is the id of a pack a link of Kando's own scheme asked to install (index.ReadInstallLink), waiting for an index asked for since the link came: the copy kept may list an older version, whose file the directory no longer serves, or not list a pack added since. asked is set once that ask started, fresh once it brought an index (pluginsIndexLinkFresh); linkMissing is the id of such a pack the fresh index does not list, and linkBad set for a link naming no valid id, which 浏览插件 says until the next link or until it closes.
 //
 // An ask for the index and a download each run with a cancel func (fetchCancel, dlCancel) and a generation (fetchGen, dlGen) that cancelling raises, so what a cancelled one brings back is dropped: both are cancelled as Kando goes offline and as 浏览插件 closes (pluginsIndexStop), and a download also from its row's 取消. downloading is the id of the pack whose download, staging or check runs, "" while none does; it holds none of the plugins' busy flag while it downloads, so the rest of the page works meanwhile, and only the staging does (pluginsIndexFollow). done is a download that ended, its file in a folder of its own or why it failed, waiting for no other install or confirmation to be under way.
 type pluginsIndex struct {
@@ -46,6 +46,7 @@ type pluginsIndex struct {
 	updates     bool
 	wanted      string
 	asked       bool
+	fresh       bool
 	linkMissing string
 	linkBad     bool
 }
@@ -152,6 +153,7 @@ func (a *app) pluginsIndexRefresh() {
 			if err == nil {
 				p.set(idx, meta)
 				p.read = true
+				p.fresh = p.wanted != ""
 			}
 		})
 	}()
@@ -220,6 +222,8 @@ func (a *app) pluginsIndexStop() {
 		p.fetchCancel()
 		p.fetchGen++
 		p.busy, p.fetchCancel = false, nil
+		// A link's pack waiting for that ask asks again once Kando is back online.
+		p.asked = false
 	}
 	a.pluginsIndexCancel()
 }
@@ -303,19 +307,21 @@ func (a *app) pluginsIndexOpenLinks(links []string) {
 		p := &a.plugins.index
 		p.updates, p.kind, p.linkMissing, p.linkBad = false, "", "", id == ""
 		p.wanted, p.asked = id, false
+		// An index read a moment ago is as fresh as one asked for now.
+		p.fresh = p.read && !p.reading && p.err == nil && time.Since(p.meta.Fetched) < pluginsIndexLinkFresh
 		if id != "" {
 			p.query = id
 		}
 		a.pluginsIndexOpen(true)
-		if _, listed := p.idx.Lookup(id); id != "" && p.read && !listed {
-			a.pluginsIndexRefresh()
-		}
 		a.pluginsIndexWanted()
 		a.remoteRaise()
 	}
 }
 
-// pluginsIndexWanted takes the pack a link asked to install once the index is read, no newer one is being asked for and no other download runs: a pack the index does not list is asked for in a newer index once, then said to be missing (linkMissing); one it lists that can be installed or updated starts downloading (pluginsIndexInstall) while Kando is online; one installed already, or needing a newer Kando, shows in its row. It reports whether it changed what a binding reads.
+// pluginsIndexLinkFresh is how recent an index is that a link takes without asking for a newer one.
+const pluginsIndexLinkFresh = time.Minute
+
+// pluginsIndexWanted takes the pack a link asked to install once an index asked for since the link came is in (fresh), the plugins folder is read and no other download runs. Until then it asks for one, once, while Kando is online; offline, or when that ask failed, the link waits and the status line says why, and 刷新, or Kando coming back online, asks again. With the fresh index, a pack it does not list is said to be missing (linkMissing); one it lists that can be installed or updated starts downloading (pluginsIndexInstall), at the version and file that index lists; one installed already, or needing a newer Kando, shows in its row. It reports whether it changed what a binding reads.
 func (a *app) pluginsIndexWanted() bool {
 	p := &a.plugins.index
 	if p.wanted == "" || !p.read || p.reading || p.busy || p.downloading != "" {
@@ -330,13 +336,14 @@ func (a *app) pluginsIndexWanted() bool {
 	if !a.plugins.scanned {
 		return false
 	}
-	e, ok := p.idx.Lookup(id)
-	if !ok && !p.asked && !a.privacy.offline {
-		a.pluginsIndexRefresh()
-		if p.busy {
-			return true
+	if !p.fresh {
+		if p.asked || a.privacy.offline {
+			return false
 		}
+		a.pluginsIndexRefresh()
+		return true
 	}
+	e, ok := p.idx.Lookup(id)
 	p.wanted = ""
 	if !ok {
 		p.linkMissing = id

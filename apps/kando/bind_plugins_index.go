@@ -94,10 +94,10 @@ func (a *app) InstallFromPluginIndex(id string) { a.pluginsIndexInstall(id) }
 // PluginIndexUpdates is how many installed packs the index read lists newer, the copy kept read at startup included (pluginsIndexPeek), as 有可用更新 and the settings' sidebar count them.
 func (a *app) PluginIndexUpdates() int { return a.pluginsIndexUpdates() }
 
-// ShowPluginIndexUpdates shows 浏览插件 listing only the packs with an update, its search and kind filter cleared.
+// ShowPluginIndexUpdates shows 浏览插件 listing only the packs with an update, its search and kind filter, and what was said of a link, cleared.
 func (a *app) ShowPluginIndexUpdates() {
 	p := &a.plugins.index
-	p.query, p.kind, p.updates = "", "", true
+	p.query, p.kind, p.updates, p.linkMissing, p.linkBad = "", "", true, "", false
 	a.pluginsIndexOpen(true)
 }
 
