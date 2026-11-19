@@ -3,6 +3,7 @@ package player
 import (
 	"context"
 	"strconv"
+	"sync/atomic"
 	"time"
 
 	"kando/apps/mobile/cues"
@@ -97,6 +98,8 @@ type play struct {
 	status func() core.StatusBarSetting
 	// cut counts the dictionaries that cut Japanese and Chinese lines into words read since the player opened, so the lines' words are cut again once one is (tokens).
 	cut *core.Signal[int]
+	// recut is set while a cut of the lines again is posted (cutAgain), so the lines waiting for a dictionary, however many, are cut again once.
+	recut atomic.Bool
 }
 
 // say shows title in a toast in place of the last one of kind, as a line saved and then taken back says only the latter.
