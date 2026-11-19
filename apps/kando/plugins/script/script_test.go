@@ -229,6 +229,8 @@ func TestScriptWatchdogStopsGrowingMemory(t *testing.T) {
 	e := newEngine(t)
 	watch := DefaultWatch
 	watch.Heap = 128 << 20
+	// The memory check is what this test is about: the collections of a heap this large, slower still under the race detector on a busy runner, can hold the engine's goroutine past three heartbeats, which would stop the plugin as slow first. TestScriptWatchdogStopsASlicedLoop covers the heartbeats.
+	watch.Stall = time.Hour
 	stopped := make(chan string, 4)
 	r := &Runner{Post: e.post, Watch: watch, Stopped: func(id, hash, reason string) { stopped <- reason }}
 	// Each piece makes fewer objects under the race detector, which slows it down past the call budget otherwise.
