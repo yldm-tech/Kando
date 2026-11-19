@@ -473,11 +473,14 @@ var Parameters = map[string][]string{
 	"AddSubscribed":                  {"title", "name"},
 	"AddSubscribedExisting":          {"title", "name"},
 	"AddSubtitlesRecognizeNote":      {"name"},
+	"ComputerContextFailed":          {"computer"},
 	"ComputersCertificate":           {"name"},
 	"ComputersOptions":               {"name"},
 	"ComputersUnpairTitle":           {"name"},
 	"ComputersUnpaired":              {"name"},
 	"ComputersUnreachable":           {"name"},
+	"DictationScore":                 {"hit", "total"},
+	"ExportCount":                    {"words", "lines"},
 	"FilmDeleteTitle":                {"title"},
 	"FilmDownloading":                {"percent"},
 	"FilmPaused":                     {"percent"},
@@ -504,6 +507,7 @@ var Parameters = map[string][]string{
 	"FilmsSubscriptionPausedLabel":   {"name"},
 	"FilmsSubscriptionReadOnly":      {"computer"},
 	"FilmsSubscriptionWaiting":       {"count"},
+	"LearnDays":                      {"count"},
 	"FilmsUnsubscribeMessage":        {"computer"},
 	"FilmsUnsubscribeTitle":          {"title"},
 	"JobsBadgeLabel":                 {"count"},
@@ -620,11 +624,14 @@ type Translation struct {
 	AddSubscribed                  func(title string, name string) string
 	AddSubscribedExisting          func(title string, name string) string
 	AddSubtitlesRecognizeNote      func(name string) string
+	ComputerContextFailed          func(computer string) string
 	ComputersCertificate           func(name string) string
 	ComputersOptions               func(name string) string
 	ComputersUnpairTitle           func(name string) string
 	ComputersUnpaired              func(name string) string
 	ComputersUnreachable           func(name string) string
+	DictationScore                 func(hit int, total int) string
+	ExportCount                    func(words int, lines int) string
 	FilmDeleteTitle                func(title string) string
 	FilmDownloading                func(percent int) string
 	FilmPaused                     func(percent int) string
@@ -651,6 +658,7 @@ type Translation struct {
 	FilmsSubscriptionPausedLabel   func(name string) string
 	FilmsSubscriptionReadOnly      func(computer string) string
 	FilmsSubscriptionWaiting       func(count int) string
+	LearnDays                      func(count int) string
 	FilmsUnsubscribeMessage        func(computer string) string
 	FilmsUnsubscribeTitle          func(title string) string
 	JobsBadgeLabel                 func(count int) string
@@ -772,16 +780,40 @@ const (
 	textCommonCancel
 	textCommonOK
 	textCommonRetry
+	textComputerContext
+	textComputerContextDetail
+	textComputerContextFailedMessage
+	textComputerReadOnly
+	textComputerService
+	textComputerServiceNone
+	textComputerServiceNote
+	textComputerTooOld
+	textComputerTranslation
+	textComputerUnknown
 	textComputersPairAgain
 	textComputersUnpair
 	textComputersUnpairMessage
-	textExportFilm
-	textExportLine
-	textExportMeaning
-	textExportNote
-	textExportReading
-	textExportTranslation
-	textExportWord
+	textDictationCantPlay
+	textDictationCheck
+	textDictationHint
+	textDictationLabel
+	textDictationNoFilm
+	textDictationPlaceholder
+	textDictationPlay
+	textDictationStop
+	textDictationTitle
+	textExportAnki
+	textExportAnkiDetail
+	textExportCSV
+	textExportCSVDetail
+	textExportFormat
+	textExportInclude
+	textExportTSV
+	textExportTSVDetail
+	textExportTitle
+	textExportWithLines
+	textExportWithSentence
+	textExportWithTranslation
 	textFilmCancel
 	textFilmDelete
 	textFilmDeleteConfirm
@@ -891,15 +923,21 @@ const (
 	textLearnGoalMet
 	textLearnMastered
 	textLearnMon
+	textLearnNewWords
 	textLearnNoComputer
 	textLearnOffline
 	textLearnReminderTitle
 	textLearnRemove
+	textLearnReviewCards
+	textLearnReviewDictation
+	textLearnReviewMode
 	textLearnReviewNone
 	textLearnReviewNoneDetail
 	textLearnReviewStart
 	textLearnSat
 	textLearnSavedLines
+	textLearnStreakLabel
+	textLearnStudyTime
 	textLearnSun
 	textLearnThu
 	textLearnTitle
@@ -908,6 +946,7 @@ const (
 	textLearnVocabulary
 	textLearnWed
 	textLearnWeek
+	textLearnWeekAll
 	textLinesEmpty
 	textLinesRemoveMessage
 	textLinesRemoveTitle
@@ -1114,16 +1153,40 @@ var keyOfText = [numTexts]string{
 	"commonCancel",
 	"commonOK",
 	"commonRetry",
+	"computerContext",
+	"computerContextDetail",
+	"computerContextFailedMessage",
+	"computerReadOnly",
+	"computerService",
+	"computerServiceNone",
+	"computerServiceNote",
+	"computerTooOld",
+	"computerTranslation",
+	"computerUnknown",
 	"computersPairAgain",
 	"computersUnpair",
 	"computersUnpairMessage",
-	"exportFilm",
-	"exportLine",
-	"exportMeaning",
-	"exportNote",
-	"exportReading",
-	"exportTranslation",
-	"exportWord",
+	"dictationCantPlay",
+	"dictationCheck",
+	"dictationHint",
+	"dictationLabel",
+	"dictationNoFilm",
+	"dictationPlaceholder",
+	"dictationPlay",
+	"dictationStop",
+	"dictationTitle",
+	"exportAnki",
+	"exportAnkiDetail",
+	"exportCSV",
+	"exportCSVDetail",
+	"exportFormat",
+	"exportInclude",
+	"exportTSV",
+	"exportTSVDetail",
+	"exportTitle",
+	"exportWithLines",
+	"exportWithSentence",
+	"exportWithTranslation",
 	"filmCancel",
 	"filmDelete",
 	"filmDeleteConfirm",
@@ -1233,15 +1296,21 @@ var keyOfText = [numTexts]string{
 	"learnGoalMet",
 	"learnMastered",
 	"learnMon",
+	"learnNewWords",
 	"learnNoComputer",
 	"learnOffline",
 	"learnReminderTitle",
 	"learnRemove",
+	"learnReviewCards",
+	"learnReviewDictation",
+	"learnReviewMode",
 	"learnReviewNone",
 	"learnReviewNoneDetail",
 	"learnReviewStart",
 	"learnSat",
 	"learnSavedLines",
+	"learnStreakLabel",
+	"learnStudyTime",
 	"learnSun",
 	"learnThu",
 	"learnTitle",
@@ -1250,6 +1319,7 @@ var keyOfText = [numTexts]string{
 	"learnVocabulary",
 	"learnWed",
 	"learnWeek",
+	"learnWeekAll",
 	"linesEmpty",
 	"linesRemoveMessage",
 	"linesRemoveTitle",
@@ -1454,16 +1524,40 @@ var textsEn = i18n.NewTexts(""+
 	"Cancel"+
 	"OK"+
 	"Try Again"+
+	"Use Context When Translating"+
+	"Lets the AI see the lines before each batch, for smoother translations."+
+	"Make sure the computer is on and Phone Sync is on, then try again."+
+	"This device can only view this computer's settings."+
+	"Translation Service"+
+	"Not Set Up"+
+	"The computer keeps its AI service and key. Change them in Kando on the computer."+
+	"Update Kando on this computer to see and change its translation settings here."+
+	"Translation"+
+	"Shown once this device reaches the computer."+
 	"Pair Again"+
 	"Unpair"+
 	"The films downloaded from it stay on this phone."+
-	"Film"+
-	"Line"+
-	"Meaning"+
-	"Note"+
-	"Reading"+
-	"Translation"+
-	"Word"+
+	"This line can't be played on this device."+
+	"Check"+
+	"Listen as many times as you like, then type what you hear."+
+	"What You Heard"+
+	"Save this film to this device to hear its lines."+
+	"Type what you heard"+
+	"Play the Line"+
+	"Stop"+
+	"Dictate This Line"+
+	"Anki"+
+	"Notes for Anki's File › Import: the word on the front, the rest on the back"+
+	"CSV Spreadsheet"+
+	"One word a row; opens in spreadsheet apps and Notion"+
+	"Format"+
+	"Include"+
+	"Plain Text (Tab-Separated)"+
+	"Imports into Quizlet and most flashcard apps"+
+	"Export Vocabulary"+
+	"Saved Lines, After the Words"+
+	"The Sentence Each Word Is From"+
+	"The Sentence's Translation"+
 	"Cancel Download"+
 	"Delete Download"+
 	"Delete"+
@@ -1573,15 +1667,21 @@ var textsEn = i18n.NewTexts(""+
 	"Today's goal is done"+
 	"Mastered"+
 	"M"+
+	"New Words"+
 	"Connect a computer to study the words and lines you save while you watch there."+
 	"Can't reach your computer. Showing what this device kept; your reviews are sent later."+
 	"Time to review"+
 	"Remove"+
+	"Cards"+
+	"Dictation"+
+	"Review Mode"+
 	"Nothing to review today"+
 	"What you saved comes back here when it's due."+
 	"Start Review"+
 	"S"+
 	"Saved Lines"+
+	"Streak"+
+	"Study Time"+
 	"S"+
 	"T"+
 	"Learn"+
@@ -1590,6 +1690,7 @@ var textsEn = i18n.NewTexts(""+
 	"Vocabulary"+
 	"W"+
 	"This Week"+
+	"All Devices"+
 	"Lines you save while you watch show here"+
 	"It leaves your saved lines on every device."+
 	"Remove this line?"+
@@ -1791,16 +1892,40 @@ var textsEn = i18n.NewTexts(""+
 		6,
 		2,
 		9,
+		28,
+		71,
+		66,
+		51,
+		19,
+		10,
+		80,
+		78,
+		11,
+		44,
 		10,
 		6,
 		48,
+		41,
+		5,
+		58,
+		14,
+		48,
+		19,
+		13,
 		4,
+		17,
 		4,
+		77,
+		15,
+		52,
+		6,
 		7,
-		4,
-		7,
-		11,
-		4,
+		26,
+		44,
+		17,
+		28,
+		30,
+		26,
 		15,
 		15,
 		6,
@@ -1910,15 +2035,21 @@ var textsEn = i18n.NewTexts(""+
 		20,
 		8,
 		1,
+		9,
 		79,
 		86,
 		14,
 		6,
+		5,
+		9,
+		11,
 		23,
 		45,
 		12,
 		1,
 		11,
+		6,
+		10,
 		1,
 		1,
 		5,
@@ -1927,6 +2058,7 @@ var textsEn = i18n.NewTexts(""+
 		10,
 		1,
 		9,
+		11,
 		40,
 		43,
 		17,
@@ -2131,16 +2263,40 @@ var textsJa = i18n.NewTexts(""+
 	"キャンセル"+
 	"OK"+
 	"再試行"+
+	"翻訳で前後の文脈を使う"+
+	"各バッチの前の台詞も AI に渡し、より自然な翻訳にします。"+
+	"コンピュータの電源とスマホ同期がオンになっていることを確認して、もう一度お試しください。"+
+	"この端末はこのコンピュータの設定を表示することしかできません。"+
+	"翻訳サービス"+
+	"未設定"+
+	"AI サービスとキーはコンピュータに保存されています。コンピュータの Kando で変更してください。"+
+	"このコンピュータの Kando をアップデートすると、ここで翻訳の設定を確認・変更できます。"+
+	"翻訳"+
+	"このコンピュータに接続すると表示されます。"+
 	"もう一度ペアリング"+
 	"ペアリングを解除"+
 	"ダウンロード済みの動画はこのスマートフォンに残ります。"+
-	"動画"+
-	"原文"+
-	"意味"+
-	"メモ"+
-	"読み"+
-	"訳文"+
-	"単語"+
+	"この端末ではこのセリフを再生できません。"+
+	"答え合わせ"+
+	"何度でも聞いて、聞こえたとおりに入力してください。"+
+	"聞き取った内容"+
+	"この映画を端末に保存すると、セリフを書き取れます。"+
+	"聞こえた内容を入力"+
+	"セリフを再生"+
+	"停止"+
+	"このセリフを書き取る"+
+	"Anki"+
+	"Anki の「ファイル › 読み込む」用：表に単語、裏にそれ以外"+
+	"CSV"+
+	"1 行に 1 単語。表計算アプリや Notion で開けます"+
+	"形式"+
+	"含める内容"+
+	"テキスト（タブ区切り）"+
+	"Quizlet や多くの単語カードアプリに読み込めます"+
+	"単語帳を書き出す"+
+	"保存したセリフも書き出す"+
+	"例文を含める"+
+	"例文の訳を含める"+
 	"ダウンロードをキャンセル"+
 	"ダウンロードを削除"+
 	"削除"+
@@ -2250,15 +2406,21 @@ var textsJa = i18n.NewTexts(""+
 	"今日の目標を達成しました"+
 	"習得済み"+
 	"月"+
+	"新しい単語"+
 	"コンピュータに接続すると、そこで視聴中に保存した単語や文をここで復習できます。"+
 	"コンピュータに接続できません。この端末に保存した内容を表示しています。復習の記録は後で送信します。"+
 	"復習の時間です"+
 	"削除"+
+	"カード"+
+	"ディクテーション"+
+	"復習の方法"+
 	"今日の復習はありません"+
 	"保存したものは復習の時期になるとここに戻ってきます。"+
 	"復習を始める"+
 	"土"+
 	"保存した文"+
+	"連続日数"+
+	"学習時間"+
 	"日"+
 	"木"+
 	"学習"+
@@ -2267,6 +2429,7 @@ var textsJa = i18n.NewTexts(""+
 	"単語帳"+
 	"水"+
 	"今週"+
+	"すべての端末"+
 	"視聴中に保存した文がここに表示されます"+
 	"すべての端末の保存した文から削除されます。"+
 	"この文を削除しますか？"+
@@ -2468,16 +2631,40 @@ var textsJa = i18n.NewTexts(""+
 		15,
 		2,
 		9,
+		33,
+		82,
+		132,
+		93,
+		18,
+		9,
+		133,
+		124,
+		6,
+		63,
 		27,
 		24,
 		81,
+		60,
+		15,
+		75,
+		21,
+		75,
+		27,
+		18,
 		6,
+		30,
+		4,
+		82,
+		3,
+		64,
 		6,
-		6,
-		6,
-		6,
-		6,
-		6,
+		15,
+		33,
+		65,
+		24,
+		36,
+		18,
+		24,
 		36,
 		27,
 		6,
@@ -2587,15 +2774,21 @@ var textsJa = i18n.NewTexts(""+
 		36,
 		12,
 		3,
+		15,
 		117,
 		147,
 		21,
 		6,
+		9,
+		24,
+		15,
 		33,
 		78,
 		18,
 		3,
 		15,
+		12,
+		12,
 		3,
 		3,
 		6,
@@ -2604,6 +2797,7 @@ var textsJa = i18n.NewTexts(""+
 		9,
 		3,
 		6,
+		18,
 		57,
 		63,
 		33,
@@ -2808,16 +3002,40 @@ var textsKo = i18n.NewTexts(""+
 	"취소"+
 	"확인"+
 	"다시 시도"+
+	"번역할 때 문맥 사용"+
+	"각 묶음 앞의 대사도 AI에 보내 더 자연스럽게 번역합니다."+
+	"컴퓨터가 켜져 있고 휴대폰 동기화가 켜져 있는지 확인한 후 다시 시도하세요."+
+	"이 기기는 이 컴퓨터의 설정을 보기만 할 수 있습니다."+
+	"번역 서비스"+
+	"설정 안 됨"+
+	"AI 서비스와 키는 컴퓨터에 저장됩니다. 컴퓨터의 Kando에서 변경하세요."+
+	"이 컴퓨터의 Kando를 업데이트하면 여기에서 번역 설정을 보고 변경할 수 있습니다."+
+	"번역"+
+	"이 컴퓨터에 연결되면 표시됩니다."+
 	"다시 페어링"+
 	"페어링 해제"+
 	"다운로드한 영상은 이 휴대폰에 남습니다."+
-	"영상"+
-	"원문"+
-	"뜻"+
-	"메모"+
-	"발음"+
-	"번역"+
-	"단어"+
+	"이 기기에서는 이 대사를 재생할 수 없습니다."+
+	"확인"+
+	"원하는 만큼 들은 뒤 들은 대로 입력하세요."+
+	"들은 내용"+
+	"이 영상을 기기에 저장하면 대사를 받아쓸 수 있습니다."+
+	"들은 내용을 입력하세요"+
+	"대사 재생"+
+	"정지"+
+	"이 대사 받아쓰기"+
+	"Anki"+
+	"Anki의 '파일 › 가져오기'용: 앞면에 단어, 나머지는 뒷면"+
+	"CSV"+
+	"한 줄에 단어 하나. 스프레드시트 앱과 Notion에서 열 수 있습니다"+
+	"형식"+
+	"포함"+
+	"텍스트(탭 구분)"+
+	"Quizlet과 대부분의 단어 카드 앱으로 가져올 수 있습니다"+
+	"단어장 내보내기"+
+	"저장한 대사도 내보내기"+
+	"예문 포함"+
+	"예문 번역 포함"+
 	"다운로드 취소"+
 	"다운로드 삭제"+
 	"삭제"+
@@ -2927,15 +3145,21 @@ var textsKo = i18n.NewTexts(""+
 	"오늘 목표를 달성했어요"+
 	"익힘"+
 	"월"+
+	"새 단어"+
 	"컴퓨터를 연결하면 그곳에서 보면서 저장한 단어와 문장을 여기서 복습할 수 있어요."+
 	"컴퓨터에 연결할 수 없어 이 기기에 저장된 내용을 보여 줍니다. 복습 기록은 나중에 보냅니다."+
 	"복습할 시간이에요"+
 	"삭제"+
+	"카드"+
+	"받아쓰기"+
+	"복습 방식"+
 	"오늘은 복습할 게 없어요"+
 	"저장한 항목은 복습할 때가 되면 여기에 다시 나타나요."+
 	"복습 시작"+
 	"토"+
 	"저장한 문장"+
+	"연속 학습"+
+	"학습 시간"+
 	"일"+
 	"목"+
 	"학습"+
@@ -2944,6 +3168,7 @@ var textsKo = i18n.NewTexts(""+
 	"단어장"+
 	"수"+
 	"이번 주"+
+	"모든 기기"+
 	"보면서 저장한 문장이 여기에 표시돼요"+
 	"모든 기기의 저장한 문장에서 삭제됩니다."+
 	"이 문장을 삭제할까요?"+
@@ -3145,16 +3370,40 @@ var textsKo = i18n.NewTexts(""+
 		6,
 		6,
 		13,
+		27,
+		77,
+		104,
+		72,
+		16,
+		14,
+		94,
+		109,
+		6,
+		46,
 		16,
 		16,
 		56,
+		61,
 		6,
+		58,
+		13,
+		74,
+		32,
+		13,
 		6,
+		23,
+		4,
+		75,
 		3,
+		85,
 		6,
 		6,
-		6,
-		6,
+		21,
+		74,
+		22,
+		32,
+		13,
+		20,
 		19,
 		19,
 		6,
@@ -3264,15 +3513,21 @@ var textsKo = i18n.NewTexts(""+
 		32,
 		6,
 		3,
+		10,
 		113,
 		126,
 		25,
 		6,
+		6,
+		12,
+		13,
 		33,
 		74,
 		13,
 		3,
 		16,
+		13,
+		13,
 		3,
 		3,
 		6,
@@ -3281,6 +3536,7 @@ var textsKo = i18n.NewTexts(""+
 		9,
 		3,
 		10,
+		13,
 		52,
 		56,
 		30,
@@ -3485,16 +3741,40 @@ var textsZhHans = i18n.NewTexts(""+
 	"取消"+
 	"好"+
 	"重试"+
+	"翻译时参考上下文"+
+	"让 AI 看到每批之前的台词，译文更连贯。"+
+	"请确认电脑已开机并打开了手机同步，然后再试一次。"+
+	"这台设备只能查看这台电脑的设置。"+
+	"翻译服务"+
+	"未设置"+
+	"AI 服务和密钥保存在电脑上，请在电脑上的看懂里更改。"+
+	"把这台电脑上的看懂更新到新版本，就能在这里查看和更改它的翻译设置。"+
+	"翻译"+
+	"连上这台电脑后显示。"+
 	"重新配对"+
 	"取消配对"+
 	"从它下载的影片仍会留在这部手机上。"+
-	"影片"+
-	"原句"+
-	"释义"+
-	"笔记"+
-	"读音"+
-	"译文"+
-	"生词"+
+	"这台设备播放不了这句。"+
+	"核对"+
+	"想听几遍都行，然后把听到的写下来。"+
+	"听到的内容"+
+	"把这部影片存到这台设备上，就能听写它的台词。"+
+	"在这里写下听到的内容"+
+	"播放这句"+
+	"停止"+
+	"听写这句"+
+	"Anki 卡片"+
+	"供 Anki「文件 › 导入」读取：正面是生词，其余在背面"+
+	"CSV 表格"+
+	"每行一个生词，可用表格软件和 Notion 打开"+
+	"格式"+
+	"包含"+
+	"纯文本（Tab 分隔）"+
+	"可导入 Quizlet 和大多数单词卡应用"+
+	"导出生词"+
+	"把收藏的句子也导出"+
+	"带上原句"+
+	"带上原句的译文"+
 	"取消下载"+
 	"删除下载"+
 	"删除"+
@@ -3604,15 +3884,21 @@ var textsZhHans = i18n.NewTexts(""+
 	"今天的目标完成了"+
 	"已掌握"+
 	"一"+
+	"新词"+
 	"连上电脑后，在电脑上看片时收藏的生词和句子就能在这里复习。"+
 	"连不上电脑，显示的是这台设备存下的内容；复习记录稍后再同步。"+
 	"该复习了"+
 	"移除"+
+	"卡片"+
+	"听写"+
+	"复习方式"+
 	"今天没有要复习的"+
 	"收藏的内容到期时会回到这里。"+
 	"开始复习"+
 	"六"+
 	"收藏的句子"+
+	"连续学习"+
+	"学习时长"+
 	"日"+
 	"四"+
 	"学习"+
@@ -3621,6 +3907,7 @@ var textsZhHans = i18n.NewTexts(""+
 	"生词本"+
 	"三"+
 	"本周"+
+	"所有设备"+
 	"看片时收藏的句子会出现在这里"+
 	"它会从所有设备的收藏里移除。"+
 	"移除这句？"+
@@ -3822,16 +4109,40 @@ var textsZhHans = i18n.NewTexts(""+
 		6,
 		3,
 		6,
+		24,
+		55,
+		72,
+		48,
+		12,
+		9,
+		75,
+		99,
+		6,
+		30,
 		12,
 		12,
 		51,
+		33,
+		6,
+		51,
+		15,
+		66,
+		30,
+		12,
+		6,
+		12,
+		11,
+		73,
+		10,
+		56,
 		6,
 		6,
-		6,
-		6,
-		6,
-		6,
-		6,
+		25,
+		45,
+		12,
+		27,
+		12,
+		21,
 		12,
 		12,
 		6,
@@ -3941,15 +4252,21 @@ var textsZhHans = i18n.NewTexts(""+
 		24,
 		9,
 		3,
+		6,
 		87,
 		90,
 		12,
 		6,
+		6,
+		6,
+		12,
 		24,
 		42,
 		12,
 		3,
 		15,
+		12,
+		12,
 		3,
 		3,
 		6,
@@ -3958,6 +4275,7 @@ var textsZhHans = i18n.NewTexts(""+
 		9,
 		3,
 		6,
+		12,
 		42,
 		42,
 		15,
@@ -4162,16 +4480,40 @@ var textsZhHant = i18n.NewTexts(""+
 	"取消"+
 	"好"+
 	"重試"+
+	"翻譯時參考上下文"+
+	"讓 AI 看到每批之前的台詞，譯文更連貫。"+
+	"請確認電腦已開機並開啟了手機同步，然後再試一次。"+
+	"這台裝置只能檢視這台電腦的設定。"+
+	"翻譯服務"+
+	"未設定"+
+	"AI 服務和金鑰保存在電腦上，請在電腦上的看懂裡更改。"+
+	"把這台電腦上的看懂更新到新版本，就能在這裡檢視和更改它的翻譯設定。"+
+	"翻譯"+
+	"連上這台電腦後顯示。"+
 	"重新配對"+
 	"取消配對"+
 	"從它下載的影片仍會留在這支手機上。"+
-	"影片"+
-	"原句"+
-	"釋義"+
-	"筆記"+
-	"讀音"+
-	"譯文"+
-	"生詞"+
+	"這台裝置播放不了這句。"+
+	"核對"+
+	"想聽幾遍都行，然後把聽到的寫下來。"+
+	"聽到的內容"+
+	"把這部影片存到這台裝置上，就能聽寫它的台詞。"+
+	"在這裡寫下聽到的內容"+
+	"播放這句"+
+	"停止"+
+	"聽寫這句"+
+	"Anki 卡片"+
+	"供 Anki「檔案 › 匯入」讀取：正面是生詞，其餘在背面"+
+	"CSV 表格"+
+	"每列一個生詞，可用試算表軟體和 Notion 開啟"+
+	"格式"+
+	"包含"+
+	"純文字（Tab 分隔）"+
+	"可匯入 Quizlet 和大多數單字卡 App"+
+	"匯出生詞"+
+	"把收藏的句子也匯出"+
+	"帶上原句"+
+	"帶上原句的譯文"+
 	"取消下載"+
 	"刪除下載"+
 	"刪除"+
@@ -4281,15 +4623,21 @@ var textsZhHant = i18n.NewTexts(""+
 	"今天的目標完成了"+
 	"已掌握"+
 	"一"+
+	"新詞"+
 	"連上電腦後，在電腦上看片時收藏的生詞和句子就能在這裡複習。"+
 	"連不上電腦，顯示的是這台裝置存下的內容；複習紀錄稍後再同步。"+
 	"該複習了"+
 	"移除"+
+	"卡片"+
+	"聽寫"+
+	"複習方式"+
 	"今天沒有要複習的"+
 	"收藏的內容到期時會回到這裡。"+
 	"開始複習"+
 	"六"+
 	"收藏的句子"+
+	"連續學習"+
+	"學習時長"+
 	"日"+
 	"四"+
 	"學習"+
@@ -4298,6 +4646,7 @@ var textsZhHant = i18n.NewTexts(""+
 	"生詞本"+
 	"三"+
 	"本週"+
+	"所有裝置"+
 	"看片時收藏的句子會出現在這裡"+
 	"它會從所有裝置的收藏裡移除。"+
 	"移除這句？"+
@@ -4499,16 +4848,40 @@ var textsZhHant = i18n.NewTexts(""+
 		6,
 		3,
 		6,
+		24,
+		55,
+		72,
+		48,
+		12,
+		9,
+		75,
+		99,
+		6,
+		30,
 		12,
 		12,
 		51,
+		33,
+		6,
+		51,
+		15,
+		66,
+		30,
+		12,
+		6,
+		12,
+		11,
+		73,
+		10,
+		59,
 		6,
 		6,
-		6,
-		6,
-		6,
-		6,
-		6,
+		25,
+		43,
+		12,
+		27,
+		12,
+		21,
 		12,
 		12,
 		6,
@@ -4618,15 +4991,21 @@ var textsZhHant = i18n.NewTexts(""+
 		24,
 		9,
 		3,
+		6,
 		87,
 		90,
 		12,
 		6,
+		6,
+		6,
+		12,
 		24,
 		42,
 		12,
 		3,
 		15,
+		12,
+		12,
 		3,
 		3,
 		6,
@@ -4635,6 +5014,7 @@ var textsZhHant = i18n.NewTexts(""+
 		9,
 		3,
 		6,
+		12,
 		42,
 		42,
 		15,
@@ -4914,6 +5294,9 @@ func Supply(lang string, t Translation) {
 	if t.AddSubtitlesRecognizeNote != nil {
 		s.AddSubtitlesRecognizeNote = t.AddSubtitlesRecognizeNote
 	}
+	if t.ComputerContextFailed != nil {
+		s.ComputerContextFailed = t.ComputerContextFailed
+	}
 	if t.ComputersCertificate != nil {
 		s.ComputersCertificate = t.ComputersCertificate
 	}
@@ -4928,6 +5311,12 @@ func Supply(lang string, t Translation) {
 	}
 	if t.ComputersUnreachable != nil {
 		s.ComputersUnreachable = t.ComputersUnreachable
+	}
+	if t.DictationScore != nil {
+		s.DictationScore = t.DictationScore
+	}
+	if t.ExportCount != nil {
+		s.ExportCount = t.ExportCount
 	}
 	if t.FilmDeleteTitle != nil {
 		s.FilmDeleteTitle = t.FilmDeleteTitle
@@ -5006,6 +5395,9 @@ func Supply(lang string, t Translation) {
 	}
 	if t.FilmsSubscriptionWaiting != nil {
 		s.FilmsSubscriptionWaiting = t.FilmsSubscriptionWaiting
+	}
+	if t.LearnDays != nil {
+		s.LearnDays = t.LearnDays
 	}
 	if t.FilmsUnsubscribeMessage != nil {
 		s.FilmsUnsubscribeMessage = t.FilmsUnsubscribeMessage
@@ -5853,6 +6245,132 @@ func CommonRetry(cx *core.Scope) string { return For(cx).CommonRetry() }
 // CommonRetry is the package's CommonRetry in the language of msgs.
 func (msgs Messages) CommonRetry() string { return msgs.text(textCommonRetry) }
 
+// ComputerContext says "Use Context When Translating"
+// in the language the app shows under cx.
+//
+// Switch on a computer's page: whether its translation sends the lines before each batch to the AI service.
+func ComputerContext(cx *core.Scope) string { return For(cx).ComputerContext() }
+
+// ComputerContext is the package's ComputerContext in the language of msgs.
+func (msgs Messages) ComputerContext() string { return msgs.text(textComputerContext) }
+
+// ComputerContextDetail says "Lets the AI see the lines before each batch, for smoother translations."
+// in the language the app shows under cx.
+//
+// Detail under the Use Context When Translating switch.
+func ComputerContextDetail(cx *core.Scope) string { return For(cx).ComputerContextDetail() }
+
+// ComputerContextDetail is the package's ComputerContextDetail in the language of msgs.
+func (msgs Messages) ComputerContextDetail() string { return msgs.text(textComputerContextDetail) }
+
+// ComputerContextFailed says "Couldn't Change the Setting on {computer}"
+// in the language the app shows under cx.
+//
+// Title of the alert when the computer could not be reached to change its context switch.
+func ComputerContextFailed(cx *core.Scope, computer string) string {
+	return For(cx).ComputerContextFailed(computer)
+}
+
+// ComputerContextFailed is the package's ComputerContextFailed in the language of msgs.
+func (msgs Messages) ComputerContextFailed(computer string) string {
+	if i18n.IsPseudo(msgs.lang) {
+		return i18n.Pseudo(msgs.lang, Messages{lang: Source, mark: true}.ComputerContextFailed(computer))
+	}
+	for lang := msgs.lang; ; lang = i18n.Parent(lang) {
+		if f := supplied[lang].ComputerContextFailed; f != nil {
+			return f(computer)
+		}
+		switch lang {
+		case "", "en":
+			return "Couldn't Change the Setting on " + msgs.arg(computer)
+		case "ja":
+			return computer + " の設定を変更できませんでした"
+		case "ko":
+			return computer + "의 설정을 변경할 수 없습니다"
+		case "zh-Hans":
+			return "无法更改 " + computer + " 上的设置"
+		case "zh-Hant":
+			return "無法更改 " + computer + " 上的設定"
+		}
+	}
+}
+
+// ComputerContextFailedMessage says "Make sure the computer is on and Phone Sync is on, then try again."
+// in the language the app shows under cx.
+//
+// Message of the alert when the computer could not be reached to change a setting.
+func ComputerContextFailedMessage(cx *core.Scope) string {
+	return For(cx).ComputerContextFailedMessage()
+}
+
+// ComputerContextFailedMessage is the package's ComputerContextFailedMessage in the language of msgs.
+func (msgs Messages) ComputerContextFailedMessage() string {
+	return msgs.text(textComputerContextFailedMessage)
+}
+
+// ComputerReadOnly says "This device can only view this computer's settings."
+// in the language the app shows under cx.
+//
+// Note on a computer's page when the computer made this device read-only.
+func ComputerReadOnly(cx *core.Scope) string { return For(cx).ComputerReadOnly() }
+
+// ComputerReadOnly is the package's ComputerReadOnly in the language of msgs.
+func (msgs Messages) ComputerReadOnly() string { return msgs.text(textComputerReadOnly) }
+
+// ComputerService says "Translation Service"
+// in the language the app shows under cx.
+//
+// Row on a computer's page naming the AI service the computer translates and explains with.
+func ComputerService(cx *core.Scope) string { return For(cx).ComputerService() }
+
+// ComputerService is the package's ComputerService in the language of msgs.
+func (msgs Messages) ComputerService() string { return msgs.text(textComputerService) }
+
+// ComputerServiceNone says "Not Set Up"
+// in the language the app shows under cx.
+//
+// Value of the Translation Service row when the computer has no AI service set up.
+func ComputerServiceNone(cx *core.Scope) string { return For(cx).ComputerServiceNone() }
+
+// ComputerServiceNone is the package's ComputerServiceNone in the language of msgs.
+func (msgs Messages) ComputerServiceNone() string { return msgs.text(textComputerServiceNone) }
+
+// ComputerServiceNote says "The computer keeps its AI service and key. Change them in Kando on the computer."
+// in the language the app shows under cx.
+//
+// Note under a computer's translation settings: the AI service can only be changed on the computer.
+func ComputerServiceNote(cx *core.Scope) string { return For(cx).ComputerServiceNote() }
+
+// ComputerServiceNote is the package's ComputerServiceNote in the language of msgs.
+func (msgs Messages) ComputerServiceNote() string { return msgs.text(textComputerServiceNote) }
+
+// ComputerTooOld says "Update Kando on this computer to see and change its translation settings here."
+// in the language the app shows under cx.
+//
+// Note on a computer's page when the computer's Kando is too old to share its AI service and context switch.
+func ComputerTooOld(cx *core.Scope) string { return For(cx).ComputerTooOld() }
+
+// ComputerTooOld is the package's ComputerTooOld in the language of msgs.
+func (msgs Messages) ComputerTooOld() string { return msgs.text(textComputerTooOld) }
+
+// ComputerTranslation says "Translation"
+// in the language the app shows under cx.
+//
+// Heading of a computer's page in Settings over its translation settings.
+func ComputerTranslation(cx *core.Scope) string { return For(cx).ComputerTranslation() }
+
+// ComputerTranslation is the package's ComputerTranslation in the language of msgs.
+func (msgs Messages) ComputerTranslation() string { return msgs.text(textComputerTranslation) }
+
+// ComputerUnknown says "Shown once this device reaches the computer."
+// in the language the app shows under cx.
+//
+// Note on a computer's page before a sync reached it, so its settings are not known yet.
+func ComputerUnknown(cx *core.Scope) string { return For(cx).ComputerUnknown() }
+
+// ComputerUnknown is the package's ComputerUnknown in the language of msgs.
+func (msgs Messages) ComputerUnknown() string { return msgs.text(textComputerUnknown) }
+
 // ComputersCertificate says "{name} answered with another certificate. Pair with it again."
 // in the language the app shows under cx.
 //
@@ -6036,68 +6554,289 @@ func (msgs Messages) ComputersUnreachable(name string) string {
 	}
 }
 
-// ExportFilm says "Film"
+// DictationCantPlay says "This line can't be played on this device."
 // in the language the app shows under cx.
 //
-// Heading of the exported tables' column of the film a word or line is from.
-func ExportFilm(cx *core.Scope) string { return For(cx).ExportFilm() }
+// Under the dictation card's heading when the film's sound could not be played.
+func DictationCantPlay(cx *core.Scope) string { return For(cx).DictationCantPlay() }
 
-// ExportFilm is the package's ExportFilm in the language of msgs.
-func (msgs Messages) ExportFilm() string { return msgs.text(textExportFilm) }
+// DictationCantPlay is the package's DictationCantPlay in the language of msgs.
+func (msgs Messages) DictationCantPlay() string { return msgs.text(textDictationCantPlay) }
 
-// ExportLine says "Line"
+// DictationCheck says "Check"
 // in the language the app shows under cx.
 //
-// Heading of the exported tables' column of the line: the line a word was looked up in, or the saved line.
-func ExportLine(cx *core.Scope) string { return For(cx).ExportLine() }
+// Button of the review that checks what the learner typed in a dictation.
+func DictationCheck(cx *core.Scope) string { return For(cx).DictationCheck() }
 
-// ExportLine is the package's ExportLine in the language of msgs.
-func (msgs Messages) ExportLine() string { return msgs.text(textExportLine) }
+// DictationCheck is the package's DictationCheck in the language of msgs.
+func (msgs Messages) DictationCheck() string { return msgs.text(textDictationCheck) }
 
-// ExportMeaning says "Meaning"
+// DictationHint says "Listen as many times as you like, then type what you hear."
 // in the language the app shows under cx.
 //
-// Heading of the exported vocabulary's column of a word's meaning.
-func ExportMeaning(cx *core.Scope) string { return For(cx).ExportMeaning() }
+// Under the dictation card's heading.
+func DictationHint(cx *core.Scope) string { return For(cx).DictationHint() }
 
-// ExportMeaning is the package's ExportMeaning in the language of msgs.
-func (msgs Messages) ExportMeaning() string { return msgs.text(textExportMeaning) }
+// DictationHint is the package's DictationHint in the language of msgs.
+func (msgs Messages) DictationHint() string { return msgs.text(textDictationHint) }
 
-// ExportNote says "Note"
+// DictationLabel says "What You Heard"
 // in the language the app shows under cx.
 //
-// Heading of the exported saved lines' column of the learner's note.
-func ExportNote(cx *core.Scope) string { return For(cx).ExportNote() }
+// Accessibility label of the dictation card's text box.
+func DictationLabel(cx *core.Scope) string { return For(cx).DictationLabel() }
 
-// ExportNote is the package's ExportNote in the language of msgs.
-func (msgs Messages) ExportNote() string { return msgs.text(textExportNote) }
+// DictationLabel is the package's DictationLabel in the language of msgs.
+func (msgs Messages) DictationLabel() string { return msgs.text(textDictationLabel) }
 
-// ExportReading says "Reading"
+// DictationNoFilm says "Save this film to this device to hear its lines."
 // in the language the app shows under cx.
 //
-// Heading of the exported vocabulary's column of how a word is said.
-func ExportReading(cx *core.Scope) string { return For(cx).ExportReading() }
+// Under a review card in dictation mode when the film is not kept on the phone, so the line cannot be played.
+func DictationNoFilm(cx *core.Scope) string { return For(cx).DictationNoFilm() }
 
-// ExportReading is the package's ExportReading in the language of msgs.
-func (msgs Messages) ExportReading() string { return msgs.text(textExportReading) }
+// DictationNoFilm is the package's DictationNoFilm in the language of msgs.
+func (msgs Messages) DictationNoFilm() string { return msgs.text(textDictationNoFilm) }
 
-// ExportTranslation says "Translation"
+// DictationPlaceholder says "Type what you heard"
 // in the language the app shows under cx.
 //
-// Heading of the exported tables' column of a line's translation.
-func ExportTranslation(cx *core.Scope) string { return For(cx).ExportTranslation() }
+// Placeholder of the dictation card's text box.
+func DictationPlaceholder(cx *core.Scope) string { return For(cx).DictationPlaceholder() }
 
-// ExportTranslation is the package's ExportTranslation in the language of msgs.
-func (msgs Messages) ExportTranslation() string { return msgs.text(textExportTranslation) }
+// DictationPlaceholder is the package's DictationPlaceholder in the language of msgs.
+func (msgs Messages) DictationPlaceholder() string { return msgs.text(textDictationPlaceholder) }
 
-// ExportWord says "Word"
+// DictationPlay says "Play the Line"
 // in the language the app shows under cx.
 //
-// Heading of the exported vocabulary's column of the word.
-func ExportWord(cx *core.Scope) string { return For(cx).ExportWord() }
+// Accessibility label of the dictation card's play button.
+func DictationPlay(cx *core.Scope) string { return For(cx).DictationPlay() }
 
-// ExportWord is the package's ExportWord in the language of msgs.
-func (msgs Messages) ExportWord() string { return msgs.text(textExportWord) }
+// DictationPlay is the package's DictationPlay in the language of msgs.
+func (msgs Messages) DictationPlay() string { return msgs.text(textDictationPlay) }
+
+// DictationScore says "{hit} of {total, plural, one {# word} other {# words}} heard right"
+// in the language the app shows under cx.
+//
+// Dictation card after the check: how many of the line's words the learner typed.
+func DictationScore(cx *core.Scope, hit int, total int) string {
+	return For(cx).DictationScore(hit, total)
+}
+
+// DictationScore is the package's DictationScore in the language of msgs.
+func (msgs Messages) DictationScore(hit int, total int) string {
+	if i18n.IsPseudo(msgs.lang) {
+		return i18n.Pseudo(msgs.lang, Messages{lang: Source, mark: true}.DictationScore(hit, total))
+	}
+	for lang := msgs.lang; ; lang = i18n.Parent(lang) {
+		if f := supplied[lang].DictationScore; f != nil {
+			return f(hit, total)
+		}
+		switch lang {
+		case "", "en":
+			var b strings.Builder
+			b.WriteString(msgs.arg(i18n.FormatNumber("en", float64(hit))))
+			b.WriteString(" of ")
+			switch i18n.Cardinal("en", float64(total)) {
+			case i18n.One:
+				b.WriteString(msgs.arg(i18n.FormatNumber("en", float64(total))))
+				b.WriteString(" word")
+			default:
+				b.WriteString(msgs.arg(i18n.FormatNumber("en", float64(total))))
+				b.WriteString(" words")
+			}
+			b.WriteString(" heard right")
+			return b.String()
+		case "ja":
+			return i18n.FormatNumber("ja", float64(total)) + " 語中 " + i18n.FormatNumber("ja", float64(hit)) + " 語を聞き取れました"
+		case "ko":
+			return i18n.FormatNumber("ko", float64(total)) + "개 중 " + i18n.FormatNumber("ko", float64(hit)) + "개를 맞게 들었습니다"
+		case "zh-Hans":
+			return "听对了 " + i18n.FormatNumber("zh-Hans", float64(total)) + " 个词中的 " + i18n.FormatNumber("zh-Hans", float64(hit)) + " 个"
+		case "zh-Hant":
+			return "聽對了 " + i18n.FormatNumber("zh-Hant", float64(total)) + " 個詞中的 " + i18n.FormatNumber("zh-Hant", float64(hit)) + " 個"
+		}
+	}
+}
+
+// DictationStop says "Stop"
+// in the language the app shows under cx.
+//
+// Accessibility label of the dictation card's play button while the line plays.
+func DictationStop(cx *core.Scope) string { return For(cx).DictationStop() }
+
+// DictationStop is the package's DictationStop in the language of msgs.
+func (msgs Messages) DictationStop() string { return msgs.text(textDictationStop) }
+
+// DictationTitle says "Dictate This Line"
+// in the language the app shows under cx.
+//
+// Heading of the dictation card in the review.
+func DictationTitle(cx *core.Scope) string { return For(cx).DictationTitle() }
+
+// DictationTitle is the package's DictationTitle in the language of msgs.
+func (msgs Messages) DictationTitle() string { return msgs.text(textDictationTitle) }
+
+// ExportAnki says "Anki"
+// in the language the app shows under cx.
+//
+// Export page: the format of notes Anki's File › Import reads.
+func ExportAnki(cx *core.Scope) string { return For(cx).ExportAnki() }
+
+// ExportAnki is the package's ExportAnki in the language of msgs.
+func (msgs Messages) ExportAnki() string { return msgs.text(textExportAnki) }
+
+// ExportAnkiDetail says "Notes for Anki's File › Import: the word on the front, the rest on the back"
+// in the language the app shows under cx.
+//
+// Export page: what the Anki format writes.
+func ExportAnkiDetail(cx *core.Scope) string { return For(cx).ExportAnkiDetail() }
+
+// ExportAnkiDetail is the package's ExportAnkiDetail in the language of msgs.
+func (msgs Messages) ExportAnkiDetail() string { return msgs.text(textExportAnkiDetail) }
+
+// ExportCSV says "CSV Spreadsheet"
+// in the language the app shows under cx.
+//
+// Export page: a CSV table, which spreadsheets open.
+func ExportCSV(cx *core.Scope) string { return For(cx).ExportCSV() }
+
+// ExportCSV is the package's ExportCSV in the language of msgs.
+func (msgs Messages) ExportCSV() string { return msgs.text(textExportCSV) }
+
+// ExportCSVDetail says "One word a row; opens in spreadsheet apps and Notion"
+// in the language the app shows under cx.
+//
+// Export page: what the CSV format writes.
+func ExportCSVDetail(cx *core.Scope) string { return For(cx).ExportCSVDetail() }
+
+// ExportCSVDetail is the package's ExportCSVDetail in the language of msgs.
+func (msgs Messages) ExportCSVDetail() string { return msgs.text(textExportCSVDetail) }
+
+// ExportCount says "{words, plural, one {# word} other {# words}} · {lines, plural, one {# saved line} other {# saved lines}} · from every computer"
+// in the language the app shows under cx.
+//
+// Export page: what the export writes, counted.
+func ExportCount(cx *core.Scope, words int, lines int) string {
+	return For(cx).ExportCount(words, lines)
+}
+
+// ExportCount is the package's ExportCount in the language of msgs.
+func (msgs Messages) ExportCount(words int, lines int) string {
+	if i18n.IsPseudo(msgs.lang) {
+		return i18n.Pseudo(msgs.lang, Messages{lang: Source, mark: true}.ExportCount(words, lines))
+	}
+	for lang := msgs.lang; ; lang = i18n.Parent(lang) {
+		if f := supplied[lang].ExportCount; f != nil {
+			return f(words, lines)
+		}
+		switch lang {
+		case "", "en":
+			var b strings.Builder
+			switch i18n.Cardinal("en", float64(words)) {
+			case i18n.One:
+				b.WriteString(msgs.arg(i18n.FormatNumber("en", float64(words))))
+				b.WriteString(" word")
+			default:
+				b.WriteString(msgs.arg(i18n.FormatNumber("en", float64(words))))
+				b.WriteString(" words")
+			}
+			b.WriteString(" · ")
+			switch i18n.Cardinal("en", float64(lines)) {
+			case i18n.One:
+				b.WriteString(msgs.arg(i18n.FormatNumber("en", float64(lines))))
+				b.WriteString(" saved line")
+			default:
+				b.WriteString(msgs.arg(i18n.FormatNumber("en", float64(lines))))
+				b.WriteString(" saved lines")
+			}
+			b.WriteString(" · from every computer")
+			return b.String()
+		case "ja":
+			return "単語 " + i18n.FormatNumber("ja", float64(words)) + " 件 · 保存したセリフ " + i18n.FormatNumber("ja", float64(lines)) + " 件 · すべてのコンピュータから"
+		case "ko":
+			return "단어 " + i18n.FormatNumber("ko", float64(words)) + "개 · 저장한 대사 " + i18n.FormatNumber("ko", float64(lines)) + "개 · 모든 컴퓨터에서"
+		case "zh-Hans":
+			return i18n.FormatNumber("zh-Hans", float64(words)) + " 个生词 · " + i18n.FormatNumber("zh-Hans", float64(lines)) + " 句收藏 · 来自所有电脑"
+		case "zh-Hant":
+			return i18n.FormatNumber("zh-Hant", float64(words)) + " 個生詞 · " + i18n.FormatNumber("zh-Hant", float64(lines)) + " 句收藏 · 來自所有電腦"
+		}
+	}
+}
+
+// ExportFormat says "Format"
+// in the language the app shows under cx.
+//
+// Export page: heading of the formats.
+func ExportFormat(cx *core.Scope) string { return For(cx).ExportFormat() }
+
+// ExportFormat is the package's ExportFormat in the language of msgs.
+func (msgs Messages) ExportFormat() string { return msgs.text(textExportFormat) }
+
+// ExportInclude says "Include"
+// in the language the app shows under cx.
+//
+// Export page: heading of the switches of what the export writes.
+func ExportInclude(cx *core.Scope) string { return For(cx).ExportInclude() }
+
+// ExportInclude is the package's ExportInclude in the language of msgs.
+func (msgs Messages) ExportInclude() string { return msgs.text(textExportInclude) }
+
+// ExportTSV says "Plain Text (Tab-Separated)"
+// in the language the app shows under cx.
+//
+// Export page: plain text with a tab between the fields.
+func ExportTSV(cx *core.Scope) string { return For(cx).ExportTSV() }
+
+// ExportTSV is the package's ExportTSV in the language of msgs.
+func (msgs Messages) ExportTSV() string { return msgs.text(textExportTSV) }
+
+// ExportTSVDetail says "Imports into Quizlet and most flashcard apps"
+// in the language the app shows under cx.
+//
+// Export page: what the plain text format is for.
+func ExportTSVDetail(cx *core.Scope) string { return For(cx).ExportTSVDetail() }
+
+// ExportTSVDetail is the package's ExportTSVDetail in the language of msgs.
+func (msgs Messages) ExportTSVDetail() string { return msgs.text(textExportTSVDetail) }
+
+// ExportTitle says "Export Vocabulary"
+// in the language the app shows under cx.
+//
+// Title of the page that exports the vocabulary, and the saved lines when asked, through the share sheet.
+func ExportTitle(cx *core.Scope) string { return For(cx).ExportTitle() }
+
+// ExportTitle is the package's ExportTitle in the language of msgs.
+func (msgs Messages) ExportTitle() string { return msgs.text(textExportTitle) }
+
+// ExportWithLines says "Saved Lines, After the Words"
+// in the language the app shows under cx.
+//
+// Export page: switch that adds the saved lines after the words.
+func ExportWithLines(cx *core.Scope) string { return For(cx).ExportWithLines() }
+
+// ExportWithLines is the package's ExportWithLines in the language of msgs.
+func (msgs Messages) ExportWithLines() string { return msgs.text(textExportWithLines) }
+
+// ExportWithSentence says "The Sentence Each Word Is From"
+// in the language the app shows under cx.
+//
+// Export page: switch that writes with each word the line it was looked up in.
+func ExportWithSentence(cx *core.Scope) string { return For(cx).ExportWithSentence() }
+
+// ExportWithSentence is the package's ExportWithSentence in the language of msgs.
+func (msgs Messages) ExportWithSentence() string { return msgs.text(textExportWithSentence) }
+
+// ExportWithTranslation says "The Sentence's Translation"
+// in the language the app shows under cx.
+//
+// Export page: switch that writes with each word the translation of the line it was looked up in.
+func ExportWithTranslation(cx *core.Scope) string { return For(cx).ExportWithTranslation() }
+
+// ExportWithTranslation is the package's ExportWithTranslation in the language of msgs.
+func (msgs Messages) ExportWithTranslation() string { return msgs.text(textExportWithTranslation) }
 
 // FilmCancel says "Cancel Download"
 // in the language the app shows under cx.
@@ -7474,6 +8213,45 @@ func FilmsUnpairedTitle(cx *core.Scope) string { return For(cx).FilmsUnpairedTit
 
 // FilmsUnpairedTitle is the package's FilmsUnpairedTitle in the language of msgs.
 func (msgs Messages) FilmsUnpairedTitle() string { return msgs.text(textFilmsUnpairedTitle) }
+
+// LearnDays says "{count, plural, one {# day} other {# days}}"
+// in the language the app shows under cx.
+//
+// Learn's week: the streak, in days.
+func LearnDays(cx *core.Scope, count int) string { return For(cx).LearnDays(count) }
+
+// LearnDays is the package's LearnDays in the language of msgs.
+func (msgs Messages) LearnDays(count int) string {
+	if i18n.IsPseudo(msgs.lang) {
+		return i18n.Pseudo(msgs.lang, Messages{lang: Source, mark: true}.LearnDays(count))
+	}
+	for lang := msgs.lang; ; lang = i18n.Parent(lang) {
+		if f := supplied[lang].LearnDays; f != nil {
+			return f(count)
+		}
+		switch lang {
+		case "", "en":
+			var b strings.Builder
+			switch i18n.Cardinal("en", float64(count)) {
+			case i18n.One:
+				b.WriteString(msgs.arg(i18n.FormatNumber("en", float64(count))))
+				b.WriteString(" day")
+			default:
+				b.WriteString(msgs.arg(i18n.FormatNumber("en", float64(count))))
+				b.WriteString(" days")
+			}
+			return b.String()
+		case "ja":
+			return i18n.FormatNumber("ja", float64(count)) + " 日"
+		case "ko":
+			return i18n.FormatNumber("ko", float64(count)) + "일"
+		case "zh-Hans":
+			return i18n.FormatNumber("zh-Hans", float64(count)) + " 天"
+		case "zh-Hant":
+			return i18n.FormatNumber("zh-Hant", float64(count)) + " 天"
+		}
+	}
+}
 
 // FilmsUnsubscribe says "Unsubscribe"
 // in the language the app shows under cx.
@@ -8964,7 +9742,7 @@ func (msgs Messages) LearnEmpty() string { return msgs.text(textLearnEmpty) }
 // LearnExport says "Export and Share"
 // in the language the app shows under cx.
 //
-// Row of Learn that exports the vocabulary and the saved lines as tables and opens the share sheet.
+// Row of Learn that opens the export of the vocabulary and the saved lines, and the button of that page that writes the file and opens the share sheet.
 func LearnExport(cx *core.Scope) string { return For(cx).LearnExport() }
 
 // LearnExport is the package's LearnExport in the language of msgs.
@@ -9183,6 +9961,15 @@ func LearnMon(cx *core.Scope) string { return For(cx).LearnMon() }
 // LearnMon is the package's LearnMon in the language of msgs.
 func (msgs Messages) LearnMon() string { return msgs.text(textLearnMon) }
 
+// LearnNewWords says "New Words"
+// in the language the app shows under cx.
+//
+// Learn's week: label under how many words were put in the vocabulary in the last seven days.
+func LearnNewWords(cx *core.Scope) string { return For(cx).LearnNewWords() }
+
+// LearnNewWords is the package's LearnNewWords in the language of msgs.
+func (msgs Messages) LearnNewWords() string { return msgs.text(textLearnNewWords) }
+
 // LearnNoComputer says "Connect a computer to study the words and lines you save while you watch there."
 // in the language the app shows under cx.
 //
@@ -9258,6 +10045,24 @@ func LearnRemove(cx *core.Scope) string { return For(cx).LearnRemove() }
 // LearnRemove is the package's LearnRemove in the language of msgs.
 func (msgs Messages) LearnRemove() string { return msgs.text(textLearnRemove) }
 
+// LearnReviewCards says "Cards"
+// in the language the app shows under cx.
+//
+// Review mode: a card that shows its answer on a press.
+func LearnReviewCards(cx *core.Scope) string { return For(cx).LearnReviewCards() }
+
+// LearnReviewCards is the package's LearnReviewCards in the language of msgs.
+func (msgs Messages) LearnReviewCards() string { return msgs.text(textLearnReviewCards) }
+
+// LearnReviewDictation says "Dictation"
+// in the language the app shows under cx.
+//
+// Review mode: the line is played and the learner types what they hear.
+func LearnReviewDictation(cx *core.Scope) string { return For(cx).LearnReviewDictation() }
+
+// LearnReviewDictation is the package's LearnReviewDictation in the language of msgs.
+func (msgs Messages) LearnReviewDictation() string { return msgs.text(textLearnReviewDictation) }
+
 // LearnReviewDue says "{count, plural, one {Review # item} other {Review # items}}"
 // in the language the app shows under cx.
 //
@@ -9330,6 +10135,15 @@ func (msgs Messages) LearnReviewDueDetail(count int) string {
 		}
 	}
 }
+
+// LearnReviewMode says "Review Mode"
+// in the language the app shows under cx.
+//
+// Accessibility label of Learn's choice of how the review goes: cards or dictation.
+func LearnReviewMode(cx *core.Scope) string { return For(cx).LearnReviewMode() }
+
+// LearnReviewMode is the package's LearnReviewMode in the language of msgs.
+func (msgs Messages) LearnReviewMode() string { return msgs.text(textLearnReviewMode) }
 
 // LearnReviewNone says "Nothing to review today"
 // in the language the app shows under cx.
@@ -9420,6 +10234,24 @@ func (msgs Messages) LearnStreak(count int) string {
 	}
 }
 
+// LearnStreakLabel says "Streak"
+// in the language the app shows under cx.
+//
+// Learn's week: label under the streak.
+func LearnStreakLabel(cx *core.Scope) string { return For(cx).LearnStreakLabel() }
+
+// LearnStreakLabel is the package's LearnStreakLabel in the language of msgs.
+func (msgs Messages) LearnStreakLabel() string { return msgs.text(textLearnStreakLabel) }
+
+// LearnStudyTime says "Study Time"
+// in the language the app shows under cx.
+//
+// Learn's week: label under the minutes watched in the last seven days.
+func LearnStudyTime(cx *core.Scope) string { return For(cx).LearnStudyTime() }
+
+// LearnStudyTime is the package's LearnStudyTime in the language of msgs.
+func (msgs Messages) LearnStudyTime() string { return msgs.text(textLearnStudyTime) }
+
 // LearnSun says "S"
 // in the language the app shows under cx.
 //
@@ -9486,11 +10318,20 @@ func (msgs Messages) LearnWed() string { return msgs.text(textLearnWed) }
 // LearnWeek says "This Week"
 // in the language the app shows under cx.
 //
-// Heading of the chart of the last seven days' minutes.
+// Heading of the card of the last seven days on every device: the streak, the minutes and the new words, and the chart of each day's minutes.
 func LearnWeek(cx *core.Scope) string { return For(cx).LearnWeek() }
 
 // LearnWeek is the package's LearnWeek in the language of msgs.
 func (msgs Messages) LearnWeek() string { return msgs.text(textLearnWeek) }
+
+// LearnWeekAll says "All Devices"
+// in the language the app shows under cx.
+//
+// Beside This Week on Learn: the week's figures add up every device's.
+func LearnWeekAll(cx *core.Scope) string { return For(cx).LearnWeekAll() }
+
+// LearnWeekAll is the package's LearnWeekAll in the language of msgs.
+func (msgs Messages) LearnWeekAll() string { return msgs.text(textLearnWeekAll) }
 
 // LearnWeekBars says "{count} minutes of films in the last 7 days"
 // in the language the app shows under cx.
