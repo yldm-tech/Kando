@@ -14,7 +14,7 @@
 
 ### 非目标
 
-- 插件不能替换流水线阶段（下载、识别、校对、翻译、导出落盘），也不能在 `media.Run` 中间挂通用钩子。原因是 `Run` 的续跑和重做依赖文件语义（转写稿、`pendingHeard`、checkpoint、proofs），而 `apps/kando` 里有大量 `a.pipeline.(media.Tools)` 断言（非测试文件约 73 处）。`packages/media` 只做两处加法：P2.0 的 `ChatWith`（见 5.3），以及第 5 期可选的 `media.Tools.Engine` 字段（见 2.3）。两处都不改 Pipeline、Run 的语义，也不碰任何断言。
+- 插件不能替换流水线阶段（下载、识别、校对、翻译、导出落盘），也不能在 `media.Run` 中间挂通用钩子。原因是 `Run` 的续跑和重做依赖文件语义（转写稿、`pendingHeard`、checkpoint、proofs），而 `apps/kando` 里有大量 `a.pipeline.(media.Tools)` 断言（非测试文件约 73 处）。`packages/media` 只做三处加法：P2.0 的 `ChatWith`（见 5.3），第 5 期可选的 `media.Tools.Engine` 字段，以及给失败标上步骤的 `media.StageError`（都见 2.3 的 E14）。三处都不改 Pipeline、Run 的语义（`StageError` 的文字和以前的错误文字一样），也不碰任何断言。
 - 不支持 Go `plugin`、原生 dylib、第三方原生 sidecar 和 MCP 子进程插件，原因见 3.4 节。要不要开放 MCP 子进程，以后单独立项、由 owner 决定，不写进本路线图。
 - 插件不能自己画整窗覆盖层，不能在影片画面或字幕层上自绘，也不能注册顶层 CLI 命令或 socket 方法。
 - 手机端不运行插件代码。
@@ -118,9 +118,11 @@
 ### 2.3 后期扩展点（P5，各自单独立项）
 
 **E14 候选译文和机器翻译来源（DeepL 等）**
-- 先接 `packages/media/candidates.go:36`，作为改错的候选来源。之后再考虑在 `media.Tools` 上加可选字段 `Engine media.SegmentTranslator`：设了它，`Tools.Translate` 就委托过去，否则走 `ChatTranslator`。这样不改动任何一处 `media.Tools` 断言。
+- 底座已做（`refactor/media-stage-error`，见第 15 节）：`media.Tools` 有可选字段 `Engine media.SegmentTranslator` 和 `EngineName`。设了 `Engine`，`Tools.Translate` 就委托过去，`Tools.CheckTranslate` 只查它（它实现 `TranslateChecker` 时问它自己，不再要求 AI 服务的模型和登录）；没设就走 `ChatTranslator`，和以前完全一样。离线模式下，`Engine` 不说自己在本机（`Local() bool`，`ChatTranslator` 也有这个方法）就在发送前返回 `media.ErrOffline`。校对、终校和术语建议仍走 `Translator`，`Engine` 只管翻译。没有改动任何一处 `media.Tools` 字面量或断言。
+- 改错的候选：`Tools.Candidates(ctx, req)` 在 `Engine` 也有 `Candidates(ctx, media.CandidateRequest) ([]string, error)` 方法时问它（接口 `candidater` 不导出，插件那边的类型实现同名方法即可），结果和 `ChatTranslator.Candidates` 一样过滤（去掉当前译文、空白和重复，最多 `CandidatesMax` 条）；没有这个方法就交给 `ChatTranslator`。改错流程（`state_correct_candidates.go`）目前仍直接调 `ChatTranslator.Candidates`，第一个设了 `Engine` 的贡献点（P3b 的 translator）接入时，把它改成调 `Tools.Candidates`。
 - 插件带凭据访问网络必须走 `kando.net.credentialFetch`，key 不进 JS（见第 6 节）。
-- 插件导致的失败要能识别出来，所以先引入 `*media.StageError{Stage, Err}`，替代 `state_tools.go:238` 对错误前缀字符串的解析（`strings.Cut(job.Err.Error(), ": ")`）。
+- 插件导致的失败要能识别出来：`media.Make` 的每个失败都是 `*media.StageError{Stage, Source, Err}`，`Stage` 是 `check`、`download`、`transcribe`、`translate`、`export` 之一（`media.StageCheck` 等常量；校对和终校的失败算 `translate`），`Error()` 仍是「步骤名: 原错误」，`Unwrap` 让 `errors.Is`/`errors.As` 照常工作。`Engine` 的失败带着 `EngineName` 进 `Source`。app 里原来按 `": "` 切错误文字的地方（`state_tools.go` 的 `failedStage`、`precheck.go` 的 `failureHint`、`phonesync/jobs.go` 的 `failedStep`）都改成 `errors.As`；`films.Film.Failure` 带着它给卡片用。`Source` 不为空的失败卡片写「翻译来源「X」失败：…」（`precheckFailedSource`），不给「打开设置」，因为来源的设置不在 AI 服务那一节。
+- library.json：`error` 照旧存完整文字（以步骤名开头，旧版 Kando 照旧能切出步骤），另加 `errorStage`、`errorSource` 两个可选键，只有 `job.Err` 本身就是 `*media.StageError` 时才写。读的时候有 `errorStage` 就按它还原；没有（旧文件）就用 `media.ReadStageError` 从文字里认出这五个步骤名，和以前的读法一致。完成但没翻译的影片的 `TranslationErr` 仍是字符串，不带来源名，卡片照旧按 AI 服务的失败来说；要显示来源名得在 `core.Job` 上加字段，留给接入 `Engine` 的那一期。
 
 **E15 插件 UI**
 - 播放器侧栏只加一个统一的「扩展」标签。`film/panel.go:26` 的 `var panelTabs` 改成 `film.App` 上的方法。标签内用二级选择器切换各插件，正文是 `tsx.View` 外包 `core.Catch`。
@@ -1102,7 +1104,8 @@ P0–P2 不新增任何 module。P3a 起 `github.com/dlclark/regexp2/v2 v2.11.0`
 | P3c | 官方参考插件 `kando.ankiconnect`，吊销列表随 appcast 发布和每日拉取 | — | 未开始 |
 | P4.0 | `core.ValidateVideoSite`、`ValidateVideoSites`、`VideoMatcher` | `feat/plugins-sites` | 已完成 |
 | P4.1 | site kind、`pluginSites`（工具栏的「下载视频」和网页按钮）、逐域名同意、站点包任务不借用登录 | `feat/plugins-sites` | 已完成 |
-| P5 | 按需单独立项 | — | 未开始 |
+| P5 底座（E14） | `*media.StageError`（失败带步骤和来源，library.json 加 `errorStage`、`errorSource`）、`media.Tools.Engine`/`EngineName`、`Tools.Candidates`，失败卡片说出是哪个翻译来源失败的 | `refactor/media-stage-error` | 已完成，出入见下 |
+| P5 其余 | 按需单独立项（DeepL 类插件本身要等 P3b 的 `credentialFetch`） | — | 未开始 |
 
 P1.2 的测量结果（Ubuntu 编译机，x86_64，Go 1.27.4，kagome-dict/ipa v1.2.6；每次读 `/proc/self/status` 前先 `runtime.GC()` 和 `debug.FreeOSMemory()`，各在一个新进程里量，量完的测试没有提交）：
 
@@ -1345,3 +1348,9 @@ NSGO_ROOT_KEY=<root secret> go tool nsgo revoke -sequence 3 -days 30 -keys <key 
   - P2.5：「文件」菜单和命令面板里有「把术语表导出为插件包…」和「把生词本导出为词表…」两行（插件块自己的 `pluginsKeys`，Key 为空，只在有可导出的内容时出现），打开主窗口上的一个表单（`settings.PluginExportDialog`，经插件块已有的 `pluginsOverlay` 画出，打开时占用 `holdModal`）：名称、id（预填 `local.<名称的 slug>`，没改过 id 时跟着名称变，名称是中文时用 `local.my-glossary`、`local.my-words`），术语表还有范围（全局、正在看的影片自己的、某个系列的）和原文、译文语言（预填正在看的影片或设置里的语言；用户自己的术语条目不带语言，所以由用户确认），词表还有语言（生词本里出现过的说话语言，一种语言一个包）。词表分两级：按复习进度，`Box` 达到 `study.MasteredBox` 的是「已掌握」，其余是「学习中」，等级名称按界面的五种语言写进包里。点「导出…」先在后台用 `plugins.Build` 把清单和文件写进临时文件夹、过一遍 `plugins.Validate`（和安装时一样），通过后打成 zip，再用系统的保存面板存成 `<id>.kandopack`；校验不过（比如名称和内置服务商重名）就在表单里说原因。包的 `license` 写 `Private`（用户自己的内容，不替用户选许可），版本是导出当天的日期。超过 200 字符的术语和超过 5000 条之后的术语不放进包，生词本里以 `#` 开头的词（词表文件里那是注释）也不放。导出的包可以直接用「从文件安装…」装回去，由 `plugins/export_test.go` 和根目录的两个测试锁住。
   - 截图场景 `TestScreenshotsPlugins` 加了 `plugins-task`（侧栏里 cards 形式的回答）、`plugins-translate-style`（设置 › 翻译 选中风格预设）、`plugins-export-template`（收藏句子面板的导出下拉框）和 `plugins-export-glossary`（导出术语表的表单），插件页那张多了一个 task 包。和 P1.4 一样，这些只在 Linux 上无头跑过、断言了节点，没有看过实际画面。
 - 评审之后的修改（P2）：回答上限按形状算、超过上限的形状拒收；`ChatWith` 识别 `finish_reason: length`（`ErrReplyCutOff`，`Chat` 照旧返回已写出的文字）；发送前按预算估算、film-so-far 裁到预算放得下；发出后失败的请求按提示词估算计入预算；task 结果在侧栏被换掉时停下；没听到的句子不发送；卸载时清掉用量；`plugins.TermsMax`、`TermMax`、`TextOf` 和 `task.LineAt`、`task.Trim` 从 package main 挪进了非界面包；安装确认写出替换后保留的预算；模板导出的音频提醒。NSGo 的 `ui.Select` 只接收静态的 Options，没有绑定形式，所以导出下拉框和风格预设下拉框仍在选项变化时重建（只在启用的包变了时，那时焦点在别处），代码里留了 `// TODO(nsgo#848): …`（[nsgo-dev/nsgo#848](https://github.com/nsgo-dev/nsgo/issues/848)）。
+- P5 底座（E14，`refactor/media-stage-error`）：E14 已同步改过。和正文的出入如下：
+  - `StageError` 比原定的 `{Stage, Err}` 多一个 `Source`，是失败的翻译来源的名字。`Engine` 的错误在 `media` 里先包一层不导出的 `engineError`（文字不变，`ClassifyTranslate` 照旧能认），`Make` 生成 `StageError` 时把名字取进 `Source`；只有 `Source` 会存进 library.json，所以读回来的失败也认得出来源。
+  - 名字用 `Tools.EngineName` 字段给，`SegmentTranslator` 只有 `Translate` 一个方法（`ChatTranslator` 也满足它）；检查和离线判断用可选方法（`TranslateChecker`、`Local() bool`），不扩大接口。
+  - 旧版 media 里从没有写过 `proofread:` 前缀（git 历史里没有），所以 `phonesync` 原来对 `proofread` 的分支删了，`ReadStageError` 也只认五个步骤名；其他前缀（例如 `yt-dlp: …`）和以前一样当作没有步骤。
+  - 不在 `media.StageError` 里、却以步骤名开头的内存中的错误（只有测试会这样造）现在不再被当成那一步的失败。测试里原来用 `errors.New("download: …")` 造失败的地方改成 `media.ReadStageError("download: …")`，也就是「从 library.json 读回来的旧失败」，`fmt.Errorf("transcribe: %w", …)` 改成 `&media.StageError{…}`。
+  - 界面只在 `Source` 不为空时有变化，现有截图场景都没有这种失败，所以没加场景；改动的地方由 `TestAFailedCardNamesTheTranslationSource` 锁住。
