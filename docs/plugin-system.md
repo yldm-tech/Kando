@@ -285,7 +285,7 @@ kind 是封闭枚举：`dictionary`、`wordlist`、`glossary`、`ai-service`、`
 
 ### 4.2 脚本插件示例
 
-`capabilities` 用 `pkg.Capabilities` 的 JSON 形状，只允许出现 `host` 和 `network` 两个键，`network` 只允许 `http` 规则。每条规则都必须写 `methods`，并写 `paths` 或 `pathPrefixes`，`host` 是一个确定的主机名（不带 `*`），最多 16 条；`network.hosts`（放行任意请求）一律拒收。下面的例子是完整形态，P3a 只认其中的 `commands`，`exporters`、`credentials` 和 `kando.sound.read` 要到 P3b（第 15 节）。
+`capabilities` 用 `pkg.Capabilities` 的 JSON 形状，只允许出现 `host` 和 `network` 两个键，`network` 只允许 `http` 规则。每条规则都必须写 `methods`，并写 `paths` 或 `pathPrefixes`，`host` 是一个确定的主机名（不带 `*`），最多 16 条；`network.hosts`（放行任意请求）一律拒收。下面的例子是完整形态，P3b 起全部认得（第 15 节）。贡献块 `lookups`、`subtitleFormats`、`exporters`、`annotators` 各最多 8 项，每项有 `id`、`export`（插件导出的函数名）、`label`；`subtitleFormats` 另有 `extension`（1–8 个小写字母或数字，不带点），`exporters` 另有 `takes`（`lines`、`words` 之一或两个），`lookups` 和 `annotators` 可以有 `languages`。`credentials` 最多 4 项，`header` 不能是 Host、Cookie、Content-Type 等由请求本身或看懂设置的头，`format` 恰好含一个 `{secret}`，`hosts` 是 1–8 个可注册域名下的主机名（不是 IP、不带 `*`、不是公共后缀），`methods` 只能是 GET、POST、PUT、PATCH、DELETE，`pathPrefixes` 1–8 个、以 `/` 开头、不含 `..`；声明了 `credentials` 就必须申请 `kando.net.credentialFetch`，反之亦然。
 
 ```json
 {
@@ -617,6 +617,21 @@ const (
 
 `kando.settings.get` 不需要权限，只返回这个插件在 `settings` 里声明的那些值。
 
+`kando.glossary.suggest` 和 `kando.candidates.offer` 没有实现（第 15 节 P3b）：看懂里没有「提议一个术语或一句译文、由用户取舍」的地方，`core.Proof` 是终审对字幕行的改动，不管术语表；改错的候选是用户按 ⇧E 时现问 AI，没有插件能在那时得知、也没有存放外来候选的地方。申请它们的插件照旧以 `ErrUnknownPerm` 拒收。
+
+P3b 实现的几个 handler 的形状（都在后台跑，等待期间暂停这次调用的看门狗，失败只回错误码）：
+
+- `kando.llm.chat`：`{system, user, maxTokens}`（system 最多 8000 字、user 最多 32000 字，maxTokens 默认 1024、最多 4096），回 `{text, model, tokens}`。预算是插件自己的每日 token 数（`State.Budget`，默认 50k，详情页可改），按「估算的 prompt + maxTokens」先查，超出回 `budget`；没有服务、离线用云服务、隐私设置不让用时回 `unavailable`；回复被截断 `cut-off`，宿主 120 s 取消 `timeout`。实际用量（服务给的或估算的）不论成败都计入 `usage.json` 并写进 audit.log。同一插件同一时刻只有一个请求，第二个回 `busy`。
+- `kando.sound.read`：`{saved: <收藏句子的 id>}`，回 `{mime: "audio/mp4", base64, durationMs}`，和导出到 Anki 一样用 ffmpeg 切（`saved.SoundFor`），最多 2 MiB；没有 ffmpeg 回 `no-ffmpeg`。也接受 `{current: true}`（正在播放的这一句）。
+- `kando.net.credentialFetch`：`{credential, method, url, header, body}`，见 6.3。回 `{status, header: {"Content-Type"}, body}`，body 最多 4 MiB，请求体最多 1 MiB，插件自己的头最多 16 个。没存密钥回 `no-credential`，系统没有安全存储回 `unavailable`。
+
+贡献点的函数收到的参数（宿主调用，不需要权限，插件没在运行时不调）：
+
+- `lookUp(q)`：`q = {word, base, reading, line, spoken, language}`，回 `{word, reading, meaning}` 或 `null`；没有 `meaning` 算没查到。等 15 s，超时问下一个来源。
+- `exportSubtitles(formatID, cues)`：`cues` 是 `Export.Cues` 的结果，每条 `{startMs, endMs, lines: [{text, original, dim}]}`，用户选的内容、顺序、缺译处理和延迟都已套用；回字符串（最多 8 MiB），宿主写文件。
+- `exportNotes(items, settings)`：`items` 是收藏句子和生词，形状和 `kando.saved.read`、`kando.words.read` 一样，多一个 `kind`（`line` 或 `word`），各最多 500 条；`settings` 是插件自己的设置值；回 `{sent, skipped}`。
+- `annotate(lang, lines)`：每批最多 50 行原文，回和 `lines` 等长的数组，每项是这一行的标注 `[{start, end, ruby}]` 或 `[{start, end, tone, underline}]`，偏移按 JavaScript 的 UTF-16 码元算（宿主换成字节偏移），越界、切开字符、空的标注丢掉，每行最多 64 个，读音最长 32 字；和看懂自己的标注同类重叠的丢掉（`annotate.Merge`）。
+
 插件侧调用（TSX）：
 
 ```ts
@@ -716,6 +731,7 @@ export function kandoManifest() { return { /* identical to kando-plugin.json fie
 - 凭据只能由宿主渲染的 secret 字段写入。输入框上直接写「此密钥只会发送到：<hosts>」，保存后界面只显示「已保存」，提供「替换」和「清除」。插件只能通过 `credentialFetch` 间接使用凭据：URL 的 host、method、path 都在授权范围内才注入，不跟随重定向，响应头只保留 `Content-Type`，`Set-Cookie` 丢弃。
 - 宿主内置一张常见服务的 host 表（DeepL、Notion 等）。凭据的 id 或标题指向这些服务、hosts 却不在表里时，或者非官方插件把凭据发往表外的主机时，安装页和输入框额外显示警示。
 - Linux 上没有 Secret Service 时（`ErrSecretsUnavailable`），声明了 `credentials` 的插件直接禁用并说明原因，不退回明文。
+- P3b 的做法：凭据的密钥存在 `pluginhost.<id>.<signer>` 分区的 `credential.<凭据 id>` 下（和 secret 设置的键分开），详情页「密钥」一组为每个凭据画一个 secret 字段，下面一行「此密钥只会发送到：<hosts>」；授权时凭据跟着 `kando.net.credentialFetch` 这一项走，打开它就按当前声明授予全部凭据，Grant 里存完整的 (id, header, format, hosts, methods, pathPrefixes)。注入只在 https、默认端口、URL 不带用户名、host 是凭据的主机之一（不区分大小写）、method 是其中之一、路径按整段落在某个前缀下（`/v2/translate` 管 `/v2/translate` 和 `/v2/translate/x`，不管 `/v2/translated`）时发生；插件自己的头不能是凭据的头，也不能是 Host、Cookie 这类（Content-Type 可以）。host 表是 `plugins.Services`（DeepL、Notion、OpenAI、Anthropic、Gemini 等），凭据 id 或英文标题含其中某个名字而 hosts 不全在它的表里时，安装页和详情页标红；非官方插件的 hosts 不全在表里时也标一行提醒。
 - 把 Kando 自己的 LLM key 从 settings.json 迁进 `core.Secrets` 是值得做的加固，但它不是插件系统的前提，列为独立 PR，由 owner 决定（见第 12 节）。
 
 ### 6.4 完整性与签名
@@ -724,7 +740,7 @@ export function kandoManifest() { return { /* identical to kando-plugin.json fie
 - **根密钥每次启动都要重新加入**：`Trust.AddRoot`（`tsx/pkg/trust.go:66-72`）只在内存里追加，`OpenTrust` 只恢复吊销列表和已接受的 build。所以 app 每次启动都要先 AddRoot 内嵌的官方插件根公钥；开发者模式开着时，再加入存在 `core.Secrets` 里的 dev root 公钥。dev root 公钥不放普通文件，这样同用户的程序没法悄悄塞进一把自己的根。
 - Kando 新建一把离线的插件根密钥，和应用更新用的 `NSGO_UPDATES_KEY`（`nsgo.yaml:31-33`）分开。用 `go tool nsgo certify` 给发布密钥签证书，限定 app-ID 前缀：官方是 `ai.yldm.kando.plugin.kando.*`，第三方是 `ai.yldm.kando.plugin.<publisher>.*`，和 id 的发布者段对齐（第 4 节）。证书有效期不超过一年。注意证书有效期是拿包头里签名者自己写的 `CreatedAt` 去比的（`tsx/pkg/package.go:428`），不是验证时的时间：过期前签的包过期后照样能装，发布密钥被偷时小偷也能把 `CreatedAt` 写进有效期内。所以有效期只限制正常的发布节奏，发布密钥泄露只能靠吊销（`revoke -keys`）。生成、签证书、签包和吊销的具体命令见第 15 节的 P3.0 测量。
 - 吊销列表用 `go tool nsgo revoke` 生成，随 appcast 一起发布。`Trust.Accept` 持久化已接受的最高 build，用来防回滚。
-- 联网时每天拉一次吊销列表。列表过期时，只暂停申请了网络或凭据的非官方插件（依据 `Package.ExpiredRevocations`），不在全局调用 `RequireFreshRevocations`，免得长期离线的用户连纯本地插件都用不了。被吊销的插件立刻 Close，并显示「已被撤回」。
+- 联网时每天拉一次吊销列表（P3b 已实现，`state_plugins_revoke.go`）：地址是 `script.RevocationsURL`，即最新发布版里和 appcast 放在一起的 `kando-plugin-revocations.json`（`nsgo.yaml` 的 `updates` 旁有一行注释指向它）；还没发布时这个地址回 404，按「没有列表」处理，插件照常运行。拉取时间记在插件目录的 `.revocations-checked`，失败一小时后再试。列表过期时，只暂停申请了网络或凭据的非官方插件（依据 `Package.ExpiredRevocations`），不在全局调用 `RequireFreshRevocations`，免得长期离线的用户连纯本地插件都用不了。被吊销的插件立刻 Close，并显示「已被撤回」。
 - 可选的加固：把每个根已见过的最高吊销序号，以及每个插件已接受的最高 build，额外存一份摘要到 `core.Secrets`。启动时和 `plugins/trust/trust.json` 比对，发现回退就停用所有非官方脚本插件。是否做由 owner 决定（见 12.3 第 2 条）。
 - 来源徽标（官方、已验证、开发者、本地数据包）由证书链推出，不读清单。插件名去掉 Bidi 控制符和零宽字符，最长 40 个字符。保留名单是「Kando」「看懂」「Official」「官方」「公式」「공식」，再加上所有内置 AI 服务商的名称（取自 `settings.Presets` 的显示名），比较时忽略大小写、全半角和空白。`plugins` 包不能导入界面包，所以名单以静态列表 `plugins.ReservedNames` 存在包里（含五种界面语言下的服务商名称），根目录的 `plugins_test.go` 断言 `settings.Presets` 在每种界面语言下的每个名称和 `appName` 都在名单里，内置服务商改名或新增时测试会失败。
 - **开发者模式**是设置里的显式开关。dev root 的生成和签名都在 app 里完成，位置是设置 › 插件 › 开发者：「生成开发者密钥」把私钥和公钥都存进 `core.Secrets`；「打包并安装文件夹…」由用户在系统文件面板里选一个源码文件夹，app 用 dev key 签名，然后走和正式包同一条 Stage → Verify → 比对 kandoManifest → 确认 sheet 的路径。不允许用 `tsx.Sandboxed` 直接跑源码，CLI 和 socket 都不能签。开发者包一直带着徽标，不参与更新，不能分享安装，也不允许占用已安装的非开发者包的 id。
@@ -1100,8 +1116,8 @@ P0–P2 不新增任何 module。P3a 起 `github.com/dlclark/regexp2/v2 v2.11.0`
 | P2（2.0–2.5） | `media.ChatWith`；`aiAsk`；task kind 和每日预算；translate-style kind；`saved/targets.go` 和 export-template kind；把术语表、生词本导出成包 | `feat/plugins-tasks` | 已完成 |
 | P3.0 | spike：体积、引擎阻塞、in-flight 开销、ReDoS 和大分配、缓解手段、签名命令 | `feat/plugins-script-spike`（只提交本文档） | 已测完，结果见下 |
 | P3a | 脚本插件的运行时和安装路径：`plugins/script`（Trust、Verify、预读沙箱、Limits、Sandbox、看门狗、熔断、in-flight 自愈）、script kind 的清单和校验、state.json 的授权、每个插件自己的 host 和 handler、命令贡献、安装确认和详情页的授权、声明式设置、审计日志、开发者模式、`kando plugin validate` 认脚本插件 | `feat/plugins-script` | 已完成，出入见下 |
-| P3b | 其余贡献点（查词来源、导出格式、学习导出目标、标注器）、`kando.llm.chat`（P2.0 的 `ChatWith` 已在 P2 里实现，用量可以像 task 包一样计入 `usage.json`）、`kando.sound.read`、`credentialFetch` 和 `credentials` | — | 未开始 |
-| P3c | 官方参考插件 `kando.ankiconnect`，吊销列表随 appcast 发布和每日拉取 | — | 未开始 |
+| P3b | 其余贡献点（查词来源、导出格式、学习导出目标、标注器）、`kando.llm.chat`、`kando.sound.read`、`credentialFetch` 和 `credentials`、吊销列表的每日拉取 | `feat/plugins-script-contrib` | 已完成，出入见下 |
+| P3c | 官方参考插件 `kando.ankiconnect`，吊销列表随 appcast 发布（客户端拉取已在 P3b） | — | 未开始 |
 | P4.0 | `core.ValidateVideoSite`、`ValidateVideoSites`、`VideoMatcher` | `feat/plugins-sites` | 已完成 |
 | P4.1 | site kind、`pluginSites`（工具栏的「下载视频」和网页按钮）、逐域名同意、站点包任务不借用登录 | `feat/plugins-sites` | 已完成 |
 | P5 底座（E14） | `*media.StageError`（失败带步骤和来源，library.json 加 `errorStage`、`errorSource`）、`media.Tools.Engine`/`EngineName`、`Tools.Candidates`，失败卡片说出是哪个翻译来源失败的 | `refactor/media-stage-error` | 已完成，出入见下 |
@@ -1233,13 +1249,29 @@ P1.2 的测量结果（Ubuntu 编译机，x86_64，Go 1.27.4，kagome-dict/ipa v
   - 插件看到的影片 id 是 `f_` 加 `HMAC(HMAC(filmKey, id + 签名者), 视频路径)` 的前 16 位 hex，`filmKey` 是插件文件夹里 `.filmkey` 的 32 个随机字节，第一次有脚本插件时生成。`kando.lines.seen` 的视界是调色板记的最远播放点，再加上正在播放的这一句。
   - `kando.toast` 用 NSGo 的 `ui.Toaster`，画在主窗口上（`pluginsOverlay`），标题是插件名；`kando.ui.openURL` 只收 https，每次用系统提示框确认，同一时刻只问一个，结果记进 audit.log。每个插件每分钟最多 60 次 host 调用（错误码 `quota`），同时启用的脚本插件最多 12 个。
   - audit.log 写到 512 KiB 时挪成 `audit.log.1`；清洗函数由调用方传进来（`feedbackScrubber().Clean`），`plugins` 不导入界面包。
-  - 吊销列表的每日拉取（6.4）没有做，归到 P3c 的签名运维；`Trust.Accept` 在插件第一次载入成功后调用。
+  - 吊销列表的每日拉取（6.4）没有做，P3b 补上了；`Trust.Accept` 在插件第一次载入成功后调用。
   - 插件 manifest 的 `kando` 写成 `>=MAJOR.MINOR.PATCH`，安装时和 `appVersion` 比，源码编译（版本不是三段数字）不拦。脚本包形状：zip 和解压后都不超过 16 MiB、最多 8 个文件，`.nsgopkg` 不超过 8 MiB。
   - 插件页里脚本插件一组排在最前；来源徽标是「官方」「开发者」，验签没过的插件开关灰掉，原因写在行内。
   - 测试：`plugins/script` 的测试自己起一个带 tree 的引擎（`core.NewRoot` 加 `core.NewTree`，`TODO(nsgo#838)`），用现场生成的根签包；spike 的三类敌意夹具都在（n=32 的正则 0.5 s 内失败、setTimeout 分片的 CPU 和内存插件 2 s 内被停、模块数组反复增长在过阈值后停用），`-race` 下时间放宽 5 倍。AST 不变量测试扫全仓：没有 `tsx.Sandboxed`，没有 `tsx.View`（这一期插件不画界面），`tsx.Load` 只在 `plugins/script` 的非测试代码里、第三个参数是 `Sandbox(...)` 或 `probeSandbox(...)`。app 的测试把测试密钥当官方根（`pluginsScripts.official`），用 `script.PackFolder` 签插件。截图场景是 `plugins-script-install` 和 `plugins-script-details`，在 Linux 上只跑了无头断言，没出图；Windows 上的插件运行时测试还没在 CI 上跑过。
   - 评审后的修正：改授权时从 state.json 条目出发，签名者变了就清空授权，开关只在条目的哈希就是当前内容时保留（`State.GrantEntry`）；第一次验签读到的 health.json、in-flight 标记和影片密钥，即使被后一次验签取代也照样生效；每个验过签的插件（不论是否在运行）都读出设置的值和 secret 是否已存，值没读出来之前不写；预读拿插件文件里**未清洗**的清单（`Verified.Manifest`）和 `kandoManifest()` 比，`Validate` 去掉的首尾空白、零宽字符不会让正常插件被判为篡改；来源徽标随验签结果重建；卸载和换签名者时用 state.json 记的签名者清分区（插件现在验不过签时 `Pack.Signer` 是空的）；纯函数挪进了 `plugins`（`Grant.Key`、`Grant.AuditText`、`RulesText`、`State.GrantEntry`、`InstallEntry`、`FilmKey`、`FilmID`、`LineValue`、`Values.Clone`）。
   - 和 P1 收尾、P4.1 合到一起后：`PluginState` 同时有站点包的 `Sites`（格式 1 就有）和脚本插件的 `OldHash`、`Signer`、`Grant`（格式 2）；`Save` 照 P1 收尾的做法先重读磁盘上的格式，磁盘上比 2 新就拒写，没有脚本插件的条目时仍写格式 1。`Scan` 的哈希缓存对脚本插件同样适用：缓存命中时不再重读包，但包的 SHA-256 每次验签（`script.Verify`）都会和清单比对，包被改过、修改时间变了就重新哈希并按 `ErrTampered` 拒收。
   - NSGo 缺口：同步 `throw` 丢掉 `code` 已提交为 [nsgo-dev/nsgo#847](https://github.com/nsgo-dev/nsgo/issues/847)，熔断那里留了 `TODO(nsgo#847)`。原记录：同步导出函数 `throw` 的错误带了 `code` 时，`Plugin.Call` 不像 promise 的拒绝那样把它转成 `core.Error`：`tsx/view.go:142-150` 的 recover 直接把 goja 的异常交给 `done`，只有 `onReject`（`view.go:166-169`）经过 `rejection`（`view.go:182-197`）。插件因此只能在 async 函数里用 `code` 报告预期内的失败。
+
+- P3b（已完成）：其余贡献点、三个宿主能力、凭据和吊销列表的每日拉取。和正文的出入如下，2.2、4.2、5.3、6.2–6.4 已同步改过：
+  - 代码位置：非界面包 `plugins` 加了 `contrib.go`（四种贡献块、`Credential`、`GrantedCredential`、`Services` 表、`PluginHeader`）和 `contribvalues.go`（`CueValues`、`Exported`、`Number`）；`lookup/plugin.go` 的 `FromPlugin` 读查词来源的回答，`plugins/annotate/plugin.go` 的 `FromPlugin`、`Merge` 读标注器的回答；app 一侧是 `state_plugins_calls.go`（三个 handler）、`state_plugins_contrib.go`（贡献点的调用）、`state_plugins_revoke.go`（吊销列表），共享文件只在各自块的接点加调用：`vocabResolve` 一行、`ExportSaved` 一个分支、`ExportTargets` 一行、`subexport` 的格式列表和写文件、`pluginsMarksFollow` 在算完看懂自己的标注后接标注器。
+  - 查词来源实现成 `lookup.Dictionary`，接在 `Ask.Dicts` 里数据包词典的后面，所以顺序是「数据包词典 → 插件来源 → AI → 别的语言的词典」；查词卡按插件名说来源（`vocabSourceText` 认的是包 id，插件也在 `a.plugins.packs` 里），插件没查到而 AI 答了时，卡片说「<插件名> 没有这个词」。来源的 `languages` 和词典一样，词的语言不知道时都问。`LookUp` 不带 ctx，所以每次最多等 15 s，到时间就问下一个来源，那次调用照常跑完。手机查词走同一条 `vocabResolve`，所以插件来源也回答手机。
+  - 导出格式的 id 是 `plugin:<插件 id>:<格式 id>`，存进 settings.json 的 `subtitleExportFormat`；`subexport.Choice.Clean` 原样保留这种值，插件不在运行时 `SubexportChoice` 按 SRT 给出。两个按钮（导出到影片文件夹、另存为）都可以用插件格式，文件名是 `<视频名>.<内容>.<extension>`；等插件回答期间不能再开第二次导出。
+  - 学习导出目标在收藏句子的下拉框里和模板包排在一起，id 同样是 `plugin:<插件 id>:<目标 id>`；选了它时「导出」不弹文件夹选择，直接把句子和生词（按 `takes`）交给插件，状态行说「<名称>：已发送 N 条，跳过 M 条」或失败。交给插件的句子和生词不要求插件申请 `kando.saved.read`：这是用户自己按的导出，和导出到文件一样。
+  - 标注器在看懂自己的标注算完之后、发布之前，在引擎 goroutine 上逐个插件、每批不超过 50 行地调，`stop` 一置位就在下一批前停；标注的键（`pluginsMarkKey.annotators`）包括插件 id、内容哈希和标注器 id，插件载入或停用后会重算。标注器的 `languages` 要求影片的说话语言已知且相同；不写 `languages` 的标注所有影片。插件标注器开着即生效，没有放进「逐词标注」卡片的开关（插件开关就是它的开关）。手机同步协议里还没有标注字段（main 上没有 `films.marks`），插件标注只在桌面。
+  - 读到「贡献点收到字幕文字」（查词来源、标注器）也算读字幕：`plugins.Risky` 改成看清单和授权，`ReadsLines` 或 `lines.current`、`lines.seen`、`llm.chat` 之一，再加上联网或 `credentialFetch`，就标高风险。
+  - `kando.llm.chat` 和 `credentialFetch` 离线时从 `Effective` 里拿掉（插件会按新授权重新载入），在线时 `llm.chat` 再过 `paletteTranslator` 的门控。预算复用 task 包的 `usage.json` 和 `State.Budget`；脚本插件改预算走 `State.GrantEntry`，不会让一份没开过的内容被打开；更新时（`InstallEntry`）预算跟着授权保留。
+  - 熔断不计 `ErrHostTimeout`：JS 里超时的 `host.call` 带 `ETIMEDOUT` 码，没接住时 `rejection` 把它转成带码的 `core.Error`，`Runner.count` 本来就不计带码的失败，所以不用改 runner，只加了测试（`TestScriptHostTimeoutIsNotAFailure`）。这对所有 host call 的超时都成立，不只 `llm.chat`。
+  - 宿主侧的等待（`llm.chat`、`sound.read`、`credentialFetch`）期间暂停这次调用的看门狗（`Runner.Pause`），否则 1 分钟的调用期限会在 120 s 的 LLM 请求里先到。
+  - `checkSigned` 比较签名能力时不看凭据：凭据是看懂代发的，不是包的能力；`kandoManifest()` 的比对（`signedKeys`）加了 `credentials`，`Probe` 检查所有贡献点的导出函数（`Manifest.ExportsNeeded`）。
+  - 插件函数的返回值（`Plugin.Call` 的结果）不经 JSON 往返，tsx 把 JS 的整数给成 `int64`；host call 的参数经 `core.hostValue` 的 JSON 往返，是 `float64`。读返回值的地方（`Exported`、标注的偏移）用 `plugins.Number` 两种都认。
+  - 吊销列表：`RevocationsURL` 是 Go 常量（`nsgo.yaml` 没有放自定义键的地方，只在 `updates` 旁加了注释）；测试把根换成测试密钥时（`pluginsScripts.official`）不去拉正式地址，只拉测试给的地址。列表还没有发布，发布流程留在 P3c。
+  - `kando.glossary.suggest`、`kando.candidates.offer` 没有做，原因见 5.3。
+  - 测试：`plugins` 的清单和凭据规则（`contrib_test.go`）、`plugins/script` 的 Probe 和 host 超时、`annotate`/`lookup` 的回答解析，app 层 `plugins_contrib_test.go`：四个贡献点各一个端到端测试；`llm.chat` 的回答不含地址和 key、用量计入预算和 audit.log、超预算拒绝、超时不熔断；`sound.read` 用假 ffmpeg 切、没有 ffmpeg 拒绝；`credentialFetch` 没存密钥拒绝、只在授权的 host/method/path 注入、响应头只留 Content-Type、不跟随重定向、插件的 `Secrets` 读不到密钥、插件不能自己设凭据的头或 Cookie、离线拒绝；详情页的密钥字段和「只会发送到」一行；没有安全存储时停用并说明；吊销列表 404 照常、吊销后关闭并显示「已被撤回」、过期只暂停联网的非官方插件。截图场景 `plugins-script-lookup`、`plugins-script-subtitle-format`、`plugins-script-exporter`、`plugins-script-credential`、`plugins-script-marks` 只在 Linux 上跑了无头断言，没有出图。
 
 ### P3.0 spike 的测量结果
 
