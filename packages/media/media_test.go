@@ -7,6 +7,7 @@ import (
 	"path/filepath"
 	"reflect"
 	"strings"
+	"sync"
 	"testing"
 	"time"
 
@@ -21,6 +22,8 @@ type fakePipeline struct {
 	transcribe   []core.Segment
 	translateErr error
 	language     string
+	// videoIn, when set, holds hearing back until it is closed, as a link's video that downloads faster than the film is heard is in before the film is made.
+	videoIn chan struct{}
 }
 
 func (f *fakePipeline) Check() error { return f.checkErr }
@@ -38,7 +41,14 @@ func (f *fakePipeline) Download(_ context.Context, source string) (string, error
 
 func (f *fakePipeline) Length(context.Context, string) time.Duration { return 30 * time.Second }
 
-func (f *fakePipeline) Hear(_ context.Context, _ string, from, to time.Duration, heard func(core.Segment)) (string, error) {
+func (f *fakePipeline) Hear(ctx context.Context, _ string, from, to time.Duration, heard func(core.Segment)) (string, error) {
+	if f.videoIn != nil {
+		select {
+		case <-f.videoIn:
+		case <-ctx.Done():
+			return "", ctx.Err()
+		}
+	}
 	for _, s := range f.transcribe {
 		if mid := (s.Start + s.End) / 2; mid >= from && mid < to {
 			heard(s)
@@ -66,9 +76,19 @@ func runStages(t *testing.T, p Pipeline) ([]core.Stage, core.Job) {
 
 func (f *fakePipeline) setDir(dir string) { f.dir = dir }
 
+// A link's video downloads beside the making of its subtitles; one in before they are made is taken at once, so the job downloads once. Hearing waits for the video here, as the race between the two is not what this test is about: a video still coming once the subtitles are made has the job say it downloads again (TestALinkIsMadeFromItsSoundWhileItsVideoDownloads).
 func TestMakeReportsEveryStage(t *testing.T) {
-	p := &fakePipeline{transcribe: []core.Segment{{End: time.Second, Text: "hello"}}}
-	stages, job := runStages(t, p)
+	p := &fakePipeline{dir: t.TempDir(), transcribe: []core.Segment{{End: time.Second, Text: "hello"}}, videoIn: make(chan struct{})}
+	job, _ := core.NewJob("https://example.com/video")
+	var stages []core.Stage
+	var videoIn sync.Once
+	job = Make(context.Background(), p, job, "简体中文", "mac", nil, func(j core.Job) {
+		stages = enteredStage(stages, j)
+		// A link's job has a video once the making took in the one downloaded beside it (making.videoCame).
+		if j.VideoPath != "" {
+			videoIn.Do(func() { close(p.videoIn) })
+		}
+	})
 	want := []core.Stage{core.StageDownloading, core.StageTranscribing, core.StageTranslating, core.StageComplete}
 	if !reflect.DeepEqual(stages, want) {
 		t.Fatalf("stages = %v, want %v", stages, want)

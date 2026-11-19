@@ -776,6 +776,14 @@ func TestALinkIsMadeFromItsSoundWhileItsVideoDownloads(t *testing.T) {
 	if done.Stage != core.StageComplete {
 		t.Fatalf("job ended %s: %v", done.Stage, done.Err)
 	}
+	// The subtitles made before the video is in, the job says it downloads again until it is.
+	var stages []core.Stage
+	for _, j := range reports {
+		stages = enteredStage(stages, j)
+	}
+	if want := []core.Stage{core.StageDownloading, core.StageTranscribing, core.StageTranslating, core.StageDownloading, core.StageComplete}; !slices.Equal(stages, want) {
+		t.Fatalf("stages = %v, want %v", stages, want)
+	}
 	video := filepath.Join(dir, "video.mp4")
 	if done.VideoPath != video || done.SubtitlePath != filepath.Join(dir, "video.bilingual.srt") || shownBefore {
 		t.Fatalf("job shows %q with %q (shown before its video: %v)", done.VideoPath, done.SubtitlePath, shownBefore)
