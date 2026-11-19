@@ -3,18 +3,25 @@ package main
 import (
 	"archive/zip"
 	"bytes"
+	"context"
+	"errors"
+	"io/fs"
 	"os"
 	"path/filepath"
 	"slices"
 	"strings"
 	"testing"
+	"time"
 
 	"kando/apps/kando/locales"
 	"kando/apps/kando/locales/testlocale"
 	"kando/apps/kando/plugins"
+	"kando/apps/kando/plugins/dict"
 	"kando/apps/kando/settings"
 	"kando/packages/core"
+	"kando/packages/core/segment"
 	"kando/packages/media"
+	psync "kando/packages/sync"
 
 	"github.com/nsgo-dev/nsgo/nsgotest"
 )
@@ -750,5 +757,370 @@ func TestPluginsConfirmationFollowsTheLanguage(t *testing.T) {
 	refresh(tt, a)
 	if !hasText(tt, locales.In("en").SettingsPluginsInstallConfirm()) {
 		t.Fatalf("the confirmation after the language changed; texts %q", tt.Texts())
+	}
+}
+
+// pluginDictionary is a dictionary pack's manifest, of id and name, its words of from defined in to, in the file words.tsv.
+func pluginDictionary(id, name, from, to string) string {
+	return `{"schema": 1, "id": "` + id + `", "kind": "dictionary", "version": "1.0.0", "license": "CC-BY-4.0", "name": {"en": "` + name + `"},
+  "dictionary": {"format": "tsv", "files": ["words.tsv"], "from": ["` + from + `"], "to": ["` + to + `"], "attribution": {"en": "` + name + ` © Example"}}}`
+}
+
+// pluginJMdict is a Yomitan dictionary pack of Japanese words defined in English, in jmdict.zip.
+const pluginJMdict = `{"schema": 1, "id": "example.jmdict", "kind": "dictionary", "version": "1.0.0", "license": "CC-BY-SA-4.0", "name": {"en": "JMdict (English)"},
+  "dictionary": {"format": "yomitan-zip", "files": ["jmdict.zip"], "from": ["ja"], "to": ["en"]}}`
+
+// pluginsDictInstalled installs into the app's plugins folder, made at root when it has none yet, the dictionary pack of manifest with its files (name to content), reads the folder again and waits until every dictionary turned on is open.
+func pluginsDictInstalled(t *testing.T, a *app, tt *nsgotest.App, updates chan func(), manifest string, files map[string][]byte) {
+	t.Helper()
+	if a.plugins.root == "" {
+		a.plugins.root = filepath.Join(t.TempDir(), "plugins")
+	}
+	dir := pluginFolder(t, manifest)
+	for name, data := range files {
+		if err := os.WriteFile(filepath.Join(dir, name), data, 0o644); err != nil {
+			t.Fatal(err)
+		}
+	}
+	staged, p, err := plugins.Stage(a.plugins.root, dir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := plugins.Swap(a.plugins.root, staged, &p); err != nil {
+		t.Fatal(err)
+	}
+	pluginsClosedAtEnd(t, a, updates)
+	pluginsReadAgain(t, a, tt, updates)
+}
+
+// pluginsClosedAtEnd closes the app's dictionaries as the test ends, as the app's quit does (pluginsCloseDicts), once the opens still running have reported: a test app never quits, and Windows cannot remove an index file that is still open. It runs before the folders the test made before calling it are removed, as t.Cleanup runs the last registered first, so it is called once the plugins folder exists.
+func pluginsClosedAtEnd(t *testing.T, a *app, updates <-chan func()) {
+	t.Helper()
+	t.Cleanup(func() {
+		timeout := time.After(5 * time.Second)
+		for {
+			var opening int
+			onEngine(a, func() { opening = len(a.plugins.opening) })
+			if opening == 0 {
+				break
+			}
+			select {
+			case fn := <-updates:
+				onEngine(a, fn)
+				continue
+			case <-timeout:
+				t.Error("a dictionary was still opening as the test ended")
+			}
+			break
+		}
+		onEngine(a, a.pluginsCloseDicts)
+	})
+}
+
+// pluginsReadAgain reads the plugins folder again and waits until every dictionary turned on is open.
+func pluginsReadAgain(t *testing.T, a *app, tt *nsgotest.App, updates chan func()) {
+	t.Helper()
+	a.plugins.scanned = false
+	onEngine(a, a.pluginsScan)
+	waitUntil(t, tt, a, updates, func() bool {
+		if !a.plugins.scanned || a.plugins.busy {
+			return false
+		}
+		for _, pack := range a.pluginsOn(plugins.KindDictionary) {
+			if open := a.plugins.dicts[pack.ID]; open == nil || (open.d == nil && open.err == nil) {
+				return false
+			}
+		}
+		return true
+	})
+}
+
+// TestPluginDictionaryAnswersOffline checks a word looked up on the picture with no AI service set: a dictionary pack turned on answers it, the card saying which dictionary, with its credit, and offering to add the word; the AI service is not asked, and the answer is not kept among the words looked up, which keep the AI service's alone. A word no dictionary has says so, and that the words they lack need an AI service. Turned off, the dictionary answers nothing; uninstalled, its index goes too.
+func TestPluginDictionaryAnswersOffline(t *testing.T) {
+	_, seen := fakeLLM(t, `{"word":"x","meaning":"x"}`)
+	a, tt, updates := vocabTalk(t, media.Tools{Translator: media.ChatTranslator{BaseURL: "https://api.openai.com/v1"}})
+	msgs := testlocale.Messages()
+	pluginsDictInstalled(t, a, tt, updates, pluginDictionary("example.words", "English words", "en", "zh-Hans"),
+		map[string][]byte{"words.tsv": []byte("hello\t/həˈləʊ/\tint. 你好\n")})
+
+	apply(tt, a, func() { a.LookUpWord(0, "Hello") })
+	waitUntil(t, tt, a, updates, func() bool { return !a.vocab.lookup.busy })
+	l := a.vocab.lookup
+	if l.failed || l.entry.Word != "hello" || l.entry.Reading != "/həˈləʊ/" || l.entry.Meaning != "int. 你好" || l.source != "example.words" || len(*seen) != 0 {
+		t.Fatalf("the lookup %+v, AI asked %d times", l, len(*seen))
+	}
+	refresh(tt, a)
+	wantText(t, tt, "int. 你好")
+	wantText(t, tt, msgs.VocabLookupSourceDictCredit("English words", "English words © Example"))
+	if !tt.Exists("id:film-lookup-save") {
+		t.Fatal("the card offers no Add to Vocabulary")
+	}
+	if _, ok := a.vocabCache().Get(vocabTalkQuery(a, "Hello", 0)); ok {
+		t.Fatal("the dictionary's answer was kept among the words looked up")
+	}
+
+	apply(tt, a, func() { a.LookUpWord(1, "Bye") })
+	waitUntil(t, tt, a, updates, func() bool { return !a.vocab.lookup.busy })
+	if !a.vocab.lookup.failed || !a.vocab.lookup.needsAI {
+		t.Fatalf("a word no dictionary has: %+v", a.vocab.lookup)
+	}
+	refresh(tt, a)
+	wantText(t, tt, msgs.VocabLookupNotInDicts())
+
+	a.SetPluginEnabled("example.words", false)
+	waitUntil(t, tt, a, updates, func() bool { return !a.plugins.busy })
+	if _, ok := a.plugins.dicts["example.words"]; ok {
+		t.Fatal("the dictionary stayed open once turned off")
+	}
+	apply(tt, a, func() { a.LookUpWord(0, "Hello") })
+	if !a.vocab.lookup.failed {
+		t.Fatalf("a dictionary turned off answered: %+v", a.vocab.lookup)
+	}
+
+	a.SetPluginEnabled("example.words", true)
+	pluginsReadAgain(t, a, tt, updates)
+	index := a.pluginsIndexDir()
+	if names, _ := filepath.Glob(filepath.Join(index, "example.words_*.idx")); len(names) != 1 {
+		t.Fatalf("the index: %v", names)
+	}
+	a.UninstallPlugin("example.words")
+	waitUntil(t, tt, a, updates, func() bool { return !a.plugins.busy && a.plugins.scanned && len(a.plugins.packs) == 0 })
+	if names, _ := filepath.Glob(filepath.Join(index, "example.words_*.idx")); len(names) != 0 || len(a.plugins.dicts) != 0 {
+		t.Fatalf("after the uninstall: indexes %v, open %v", names, a.plugins.dicts)
+	}
+}
+
+// TestPluginDictionaryOpenedAgainAfterAFailure checks a dictionary that fails: one whose index is found damaged by a lookup is closed, its index built again at once, and answers the next lookup; one that could not be opened for a reason that may pass, as a file it could not read, is listed among the page's problems and opened again at the next sync, while one Kando cannot read (dict.ErrEmpty) is not tried again.
+func TestPluginDictionaryOpenedAgainAfterAFailure(t *testing.T) {
+	a, tt, updates := vocabTalk(t, media.Tools{Translator: media.ChatTranslator{BaseURL: "https://api.openai.com/v1"}})
+	const id = "example.words"
+	pluginsDictInstalled(t, a, tt, updates, pluginDictionary(id, "English words", "en", "zh-Hans"), map[string][]byte{"words.tsv": []byte("hello\t\t你好\n")})
+	var hash string
+	onEngine(a, func() { hash = a.plugins.dicts[id].hash })
+	// The entry after the header, the only one, is damaged; the header still says the index is whole, so it stays open until a lookup reads the entry.
+	f, err := os.OpenFile(filepath.Join(a.pluginsIndexDir(), dict.IndexName(id, hash)), os.O_WRONLY, 0)
+	if err == nil {
+		_, err = f.WriteAt(bytes.Repeat([]byte{0xff}, 10), 32)
+		err = errors.Join(err, f.Close())
+	}
+	if err != nil {
+		t.Fatal(err)
+	}
+	apply(tt, a, func() { a.LookUpWord(0, "Hello") })
+	waitUntil(t, tt, a, updates, func() bool { return !a.vocab.lookup.busy })
+	if !a.vocab.lookup.failed {
+		t.Fatalf("a damaged index answered: %+v", a.vocab.lookup)
+	}
+	waitUntil(t, tt, a, updates, func() bool {
+		open := a.plugins.dicts[id]
+		return open != nil && open.d != nil && len(a.plugins.opening) == 0
+	})
+	apply(tt, a, func() { a.LookUpWord(0, "Hello") })
+	waitUntil(t, tt, a, updates, func() bool { return !a.vocab.lookup.busy })
+	if l := a.vocab.lookup; l.failed || l.source != id || l.entry.Meaning != "你好" {
+		t.Fatalf("the index built again: %+v", l)
+	}
+
+	failed := func(err error) {
+		onEngine(a, func() {
+			open := a.plugins.dicts[id]
+			open.d.Close()
+			open.d, open.err = nil, err
+		})
+	}
+	failed(&fs.PathError{Op: "open", Path: "words.tsv", Err: fs.ErrPermission})
+	if issues := a.pluginsDictIssues(); len(issues) != 1 {
+		t.Fatalf("the dictionary that failed is not listed: %v", issues)
+	}
+	onEngine(a, a.pluginsSyncDicts)
+	waitUntil(t, tt, a, updates, func() bool { open := a.plugins.dicts[id]; return open != nil && open.d != nil })
+	if issues := a.pluginsDictIssues(); len(issues) != 0 {
+		t.Fatalf("the dictionary opened again is still listed: %v", issues)
+	}
+	failed(dict.ErrEmpty)
+	onEngine(a, a.pluginsSyncDicts)
+	if open := a.plugins.dicts[id]; open.d != nil || open.err != dict.ErrEmpty || len(a.plugins.opening) != 0 {
+		t.Fatalf("a dictionary Kando cannot read was opened again: %+v", open)
+	}
+}
+
+// TestPluginDictionaryTurnedOnDuringARead checks that a dictionary turned on while a read of the plugins folder that found it off is under way opens, and answers, though that read reports after the switch was saved: the read keeps the app's state (pluginsScan), so the dictionary is neither closed again nor left without an open.
+func TestPluginDictionaryTurnedOnDuringARead(t *testing.T) {
+	a, tt, updates := vocabTalk(t, media.Tools{Translator: media.ChatTranslator{BaseURL: "https://api.openai.com/v1"}})
+	const id = "example.words"
+	pluginsDictInstalled(t, a, tt, updates, pluginDictionary(id, "English words", "en", "zh-Hans"), map[string][]byte{"words.tsv": []byte("hello\t\t你好\n")})
+	onEngine(a, func() { a.SetPluginEnabled(id, false) })
+	waitUntil(t, tt, a, updates, func() bool { return !a.plugins.busy })
+
+	// The read finds the dictionary off; its report is held apart from the film's until the switch's save and the dictionary's open have reported.
+	read := <-pluginsHeld(a, a.pluginsScan)
+	onEngine(a, func() { a.SetPluginEnabled(id, true) })
+	waitUntil(t, tt, a, updates, func() bool {
+		open := a.plugins.dicts[id]
+		return !a.plugins.busy && open != nil && open.d != nil
+	})
+	onEngine(a, read)
+	waitUntil(t, tt, a, updates, func() bool { return a.plugins.scanned && !a.plugins.inboxBusy })
+	if !a.plugins.state.Enabled(id) || a.plugins.dicts[id] == nil || a.plugins.dicts[id].d == nil {
+		t.Fatalf("the dictionary turned on: state %+v, open %+v", a.plugins.state, a.plugins.dicts[id])
+	}
+	apply(tt, a, func() { a.LookUpWord(0, "Hello") })
+	waitUntil(t, tt, a, updates, func() bool { return !a.vocab.lookup.busy })
+	if l := a.vocab.lookup; l.failed || l.source != id {
+		t.Fatalf("the lookup %+v", l)
+	}
+}
+
+// TestPluginDictionaryOpenedLateKeepsOnlyTheIndexWanted checks the indexes an open that finishes late leaves: one of a content replaced while it opened goes and the index of the content installed stays; turned off and on again while its content opens, the pack is not opened a second time but takes the dictionary of the open running; and an open that finishes after the pack's folder went, as when it is uninstalled while its index is built, leaves no index of it.
+func TestPluginDictionaryOpenedLateKeepsOnlyTheIndexWanted(t *testing.T) {
+	a, tt, updates := vocabTalk(t, media.Tools{})
+	pluginsDictInstalled(t, a, tt, updates, pluginDictionary("example.words", "English words", "en", "zh-Hans"), map[string][]byte{"words.tsv": []byte("hello\t\t你好\n")})
+	const id = "example.words"
+	var pack plugins.Pack
+	onEngine(a, func() {
+		pack = a.plugins.packs[slices.IndexFunc(a.plugins.packs, func(p plugins.Pack) bool { return p.ID == id })]
+	})
+	index := a.pluginsIndexDir()
+	current := filepath.Join(index, dict.IndexName(id, pack.Hash))
+	indexes := func(want ...string) {
+		t.Helper()
+		deadline := time.Now().Add(5 * time.Second)
+		for {
+			names, _ := filepath.Glob(filepath.Join(index, id+"_*.idx"))
+			if slices.Equal(names, want) {
+				return
+			}
+			if time.Now().After(deadline) {
+				t.Fatalf("indexes %v, want %v", names, want)
+			}
+			time.Sleep(10 * time.Millisecond)
+		}
+	}
+	indexes(current)
+
+	const old = "0000000000000000"
+	if err := os.WriteFile(filepath.Join(index, dict.IndexName(id, old)), nil, 0o644); err != nil {
+		t.Fatal(err)
+	}
+	onEngine(a, func() { a.pluginsDictOpened(id, old, nil, nil) })
+	indexes(current)
+	if open := a.plugins.dicts[id]; open == nil || open.d == nil {
+		t.Fatalf("the dictionary of the content installed: %+v", open)
+	}
+
+	name := dict.IndexName(id, pack.Hash)
+	onEngine(a, func() {
+		a.pluginsCloseDict(id)
+		a.plugins.opening[name] = true
+		a.pluginsSyncDicts()
+	})
+	if open := a.plugins.dicts[id]; open == nil || open.d != nil {
+		t.Fatalf("turned on while its content opens: %+v", open)
+	}
+	d, err := dict.Open(pack, index)
+	if err != nil {
+		t.Fatal(err)
+	}
+	onEngine(a, func() { a.pluginsDictOpened(id, pack.Hash, d, nil) })
+	if open := a.plugins.dicts[id]; open == nil || open.d != d || a.plugins.opening[name] {
+		t.Fatalf("the open running did not give its dictionary: %+v", open)
+	}
+
+	onEngine(a, a.pluginsCloseDicts)
+	if err := os.RemoveAll(pack.Dir); err != nil {
+		t.Fatal(err)
+	}
+	onEngine(a, func() { a.pluginsDictOpened(id, pack.Hash, nil, nil) })
+	indexes()
+}
+
+// TestPluginDictionariesAnswerInTheirOrder checks that of two dictionaries that have the word the first in the order Settings › 插件 keeps answers, that the page's buttons move a dictionary up and down, the first unable to move up and the last down, its row moved rather than built again, so its button keeps the focus, and that the order moved is the order lookups follow.
+func TestPluginDictionariesAnswerInTheirOrder(t *testing.T) {
+	a, tt, updates := vocabTalk(t, media.Tools{Translator: media.ChatTranslator{BaseURL: "https://api.openai.com/v1"}})
+	pluginsDictInstalled(t, a, tt, updates, pluginDictionary("example.first", "First words", "en", "zh-Hans"), map[string][]byte{"words.tsv": []byte("hello\t\t第一\n")})
+	pluginsDictInstalled(t, a, tt, updates, pluginDictionary("example.second", "Second words", "en", "zh-Hans"), map[string][]byte{"words.tsv": []byte("hello\t\t第二\n")})
+	meaning := func() string {
+		apply(tt, a, func() { a.LookUpWord(0, "Hello") })
+		waitUntil(t, tt, a, updates, func() bool { return !a.vocab.lookup.busy })
+		return a.vocab.lookup.entry.Meaning
+	}
+	if got := meaning(); got != "第一" {
+		t.Fatalf("the first dictionary did not answer: %q", got)
+	}
+	apply(tt, a, a.CloseLookup)
+
+	tt = settingsOpenAt(a, tt, settings.SectionPlugins)
+	for id, enabled := range map[string]bool{"settings-plugins-up-example.first": false, "settings-plugins-down-example.first": true, "settings-plugins-up-example.second": true, "settings-plugins-down-example.second": false} {
+		if !tt.Exists("id:"+id) || tt.Enabled("id:"+id) != enabled {
+			t.Fatalf("%s enabled %v, want %v; texts %q", id, tt.Enabled("id:"+id), enabled, tt.Texts())
+		}
+	}
+	pressed := tt.Find("id:settings-plugins-up-example.second").ID
+	tt.Press("id:settings-plugins-up-example.second")
+	if i, j := slices.Index(a.plugins.order, "example.second"), slices.Index(a.plugins.order, "example.first"); i < 0 || i > j {
+		t.Fatalf("the order after moving up: %q", a.plugins.order)
+	}
+	// The row moved, not built again, so the button pressed, which has the focus, is still there.
+	if got := tt.Find("id:settings-plugins-up-example.second").ID; got != pressed {
+		t.Fatalf("the button pressed was built again (view %v, was %v)", got, pressed)
+	}
+	if tt.Enabled("id:settings-plugins-up-example.second") {
+		t.Fatal("the dictionary moved first can still move up")
+	}
+	if got := meaning(); got != "第二" {
+		t.Fatalf("the dictionary moved first did not answer: %q", got)
+	}
+}
+
+// TestPluginDictionaryAnswersAPhone checks a paired phone's lookup through the desktop (phoneStudy.LookUp) with dictionaries: offline and without an AI service, a Japanese word as it inflects (行った) is found by its dictionary form (行く) in a Yomitan dictionary, though its definitions are in English while the film is translated into Chinese; with an AI service set the AI service answers instead, as only a dictionary in the language the lookup answers in comes before it; a dictionary in that language answers before the AI service, which is not asked; and a read-only phone keeps nothing among the words looked up.
+func TestPluginDictionaryAnswersAPhone(t *testing.T) {
+	a, tt, updates := newTestApp(t, &fakePipeline{})
+	onEngine(a, func() { a.prefs.language = "简体中文" })
+	bank := `[["行く","いく","v5k-s","v5",10,["to go","to move"],1,""],["公園","こうえん","n","",0,["park"],2,""]]`
+	var zb bytes.Buffer
+	zw := zip.NewWriter(&zb)
+	for name, data := range map[string]string{"index.json": `{"title":"JMdict","revision":"1","format":3}`, "term_bank_1.json": bank} {
+		w, err := zw.Create(name)
+		if err == nil {
+			_, err = w.Write([]byte(data))
+		}
+		if err != nil {
+			t.Fatal(err)
+		}
+	}
+	if err := zw.Close(); err != nil {
+		t.Fatal(err)
+	}
+	pluginsDictInstalled(t, a, tt, updates, pluginJMdict, map[string][]byte{"jmdict.zip": zb.Bytes()})
+	// The larger Japanese dictionary is read the first time a Japanese word is looked up, which under the race detector on one CPU takes about as long as a phone's request may: it is read here, outside the request's time.
+	segment.Annotated("ja", "公園に行った")
+	look := func(caller psync.Caller, word, line string) (psync.WordEntry, error) {
+		return phoneCall(t, a, tt, updates, func(ctx context.Context) (psync.WordEntry, error) {
+			return phoneStudy{a}.LookUp(ctx, caller, psync.WordLookup{Word: word, Line: line})
+		})
+	}
+	e, err := look(psync.Caller{}, "行った", "公園に行った")
+	if err != nil || e.Word != "行く" || e.Reading != "いく" || e.Meaning != "to go; to move" || e.Language != "简体中文" {
+		t.Fatalf("offline: %+v, %v", e, err)
+	}
+
+	srv, seen := fakeLLM(t, `{"word":"行く","reading":"いく","meaning":"去"}`)
+	onEngine(a, func() {
+		a.pipeline = media.Tools{Translator: media.ChatTranslator{BaseURL: srv.URL + "/v1", APIKey: "k", Model: "m1"}}
+	})
+	if e, err := look(psync.Caller{ReadOnly: true}, "行った", "公園に行った"); err != nil || e.Meaning != "去" || len(*seen) == 0 {
+		t.Fatalf("with an AI service: %+v, %v, asked %d times", e, err, len(*seen))
+	}
+	if a.vocabCache().Len() != 0 {
+		t.Fatal("a read-only phone's lookup was kept")
+	}
+	asked := len(*seen)
+
+	pluginsDictInstalled(t, a, tt, updates, pluginDictionary("example.ja-zh", "Japanese words", "ja", "zh-Hans"), map[string][]byte{"words.tsv": []byte("公園\tこうえん\t公园\n")})
+	if e, err := look(psync.Caller{}, "公園", "公園に行った"); err != nil || e.Meaning != "公园" || len(*seen) != asked {
+		t.Fatalf("a dictionary into Chinese: %+v, %v, the AI service asked again", e, err)
+	}
+	if a.vocabCache().Len() != 0 {
+		t.Fatal("a dictionary's answer was kept among the words looked up")
 	}
 }

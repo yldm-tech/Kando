@@ -932,6 +932,8 @@ var Parameters = map[string][]string{
 	"VocabLongest":                             {"count"},
 	"VocabLookupCard":                          {"word"},
 	"VocabLookupFailed":                        {"error_"},
+	"VocabLookupSourceDict":                    {"name"},
+	"VocabLookupSourceDictCredit":              {"name", "credit"},
 	"VocabLookupTerm":                          {"term"},
 	"VocabMastered":                            {"count"},
 	"VocabMinutes":                             {"count"},
@@ -984,6 +986,8 @@ var Parameters = map[string][]string{
 	"SettingsPluginsInstallReplaces":           {"version"},
 	"SettingsPluginsInstallTitle":              {"name"},
 	"SettingsPluginsLicense":                   {"license"},
+	"SettingsPluginsMoveDownLabel":             {"name"},
+	"SettingsPluginsMoveUpLabel":               {"name"},
 	"SettingsPluginsServiceDetail":             {"host"},
 	"SettingsPluginsShowFolder":                {"platform"},
 	"SettingsPluginsUninstallLabel":            {"name"},
@@ -1516,6 +1520,8 @@ type Translation struct {
 	VocabLongest                             func(count int) string
 	VocabLookupCard                          func(word string) string
 	VocabLookupFailed                        func(error_ string) string
+	VocabLookupSourceDict                    func(name string) string
+	VocabLookupSourceDictCredit              func(name string, credit string) string
 	VocabLookupTerm                          func(term string) string
 	VocabMastered                            func(count int) string
 	VocabMinutes                             func(count int) string
@@ -1568,6 +1574,8 @@ type Translation struct {
 	SettingsPluginsInstallReplaces           func(version string) string
 	SettingsPluginsInstallTitle              func(name string) string
 	SettingsPluginsLicense                   func(license string) string
+	SettingsPluginsMoveDownLabel             func(name string) string
+	SettingsPluginsMoveUpLabel               func(name string) string
 	SettingsPluginsServiceDetail             func(host string) string
 	SettingsPluginsShowFolder                func(platform string) string
 	SettingsPluginsUninstallLabel            func(name string) string
@@ -2391,6 +2399,7 @@ const (
 	textPluginsErrBadManifest
 	textPluginsErrBadName
 	textPluginsErrBadShape
+	textPluginsErrDictEmpty
 	textPluginsErrIDTaken
 	textPluginsErrInsecureURL
 	textPluginsErrMismatch
@@ -3022,7 +3031,9 @@ const (
 	textVocabLookupBusy
 	textVocabLookupClose
 	textVocabLookupNoAI
+	textVocabLookupNotInDicts
 	textVocabLookupSettings
+	textVocabLookupSourceAI
 	textVocabMastery
 	textVocabMasteryNote
 	textVocabOtherDevices
@@ -3934,6 +3945,7 @@ var keyOfText = [numTexts]string{
 	"pluginsErrBadManifest",
 	"pluginsErrBadName",
 	"pluginsErrBadShape",
+	"pluginsErrDictEmpty",
 	"pluginsErrIDTaken",
 	"pluginsErrInsecureURL",
 	"pluginsErrMismatch",
@@ -4565,7 +4577,9 @@ var keyOfText = [numTexts]string{
 	"vocabLookupBusy",
 	"vocabLookupClose",
 	"vocabLookupNoAI",
+	"vocabLookupNotInDicts",
 	"vocabLookupSettings",
+	"vocabLookupSourceAI",
 	"vocabMastery",
 	"vocabMasteryNote",
 	"vocabOtherDevices",
@@ -5475,6 +5489,7 @@ var textsEn = i18n.NewTexts(""+
 	"Its kando-plugin.json is missing, isn't valid, or has something this version of Kando doesn't know."+
 	"A name or description in it is missing, has no English, or is too long."+
 	"Its files don't match what its kando-plugin.json lists."+
+	"The dictionary has no entry Kando can read."+
 	"A plugin of another kind with the same ID is installed. Uninstall it first."+
 	"An address in it isn't https."+
 	"Its folder isn't named after its ID and kind."+
@@ -6105,8 +6120,10 @@ var textsEn = i18n.NewTexts(""+
 	"Saved lines"+
 	"Looking it up…"+
 	"Close"+
-	"Looking up a word asks the AI service. Set one up in AI Service."+
+	"Looking up a word asks your dictionaries, then the AI service. Set one up in AI Service, or install a dictionary in Plugins."+
+	"None of your dictionaries has this word. To look up the words they lack, set up an AI service in AI Service."+
 	"Open Settings"+
+	"Explained by your AI service"+
 	"Mastery"+
 	"Words and saved lines together. One counts as mastered once you knew it five times in a row and its next review is over three weeks away."+
 	"Other devices"+
@@ -7013,6 +7030,7 @@ var textsEn = i18n.NewTexts(""+
 		99,
 		71,
 		55,
+		43,
 		75,
 		29,
 		45,
@@ -7643,8 +7661,10 @@ var textsEn = i18n.NewTexts(""+
 		11,
 		16,
 		5,
-		64,
+		124,
+		108,
 		13,
+		28,
 		7,
 		137,
 		13,
@@ -8554,6 +8574,7 @@ var textsJa = i18n.NewTexts(""+
 	"kando-plugin.json がないか、正しくないか、このバージョンの Kando が知らない内容を含んでいます。"+
 	"名前や説明がないか、英語がないか、長すぎます。"+
 	"ファイルが kando-plugin.json の記載と一致しません。"+
+	"この辞書には読み取れる項目がありません。"+
 	"同じ ID で種類の違うプラグインがインストールされています。先にアンインストールしてください。"+
 	"https ではないアドレスが含まれています。"+
 	"フォルダー名が ID や種類と一致しません。"+
@@ -9184,8 +9205,10 @@ var textsJa = i18n.NewTexts(""+
 	"保存したセリフ"+
 	"調べています…"+
 	"閉じる"+
-	"単語を調べるには AI サービスを使います。「AI サービス」で設定してください。"+
+	"単語はインストールした辞書で調べ、なければ AI サービスに聞きます。「AI サービス」で設定するか、「プラグイン」で辞書をインストールしてください。"+
+	"インストールした辞書にこの単語はありません。辞書にない単語も調べるには、「AI サービス」で設定してください。"+
 	"設定を開く"+
+	"AI サービスによる説明"+
 	"習得状況"+
 	"単語と保存したセリフを合わせて数えます。5 回続けて正解し、次の復習が 3 週間以上先になったものを習得済みとします。"+
 	"ほかのデバイス"+
@@ -10092,6 +10115,7 @@ var textsJa = i18n.NewTexts(""+
 		130,
 		69,
 		67,
+		60,
 		136,
 		57,
 		58,
@@ -10722,8 +10746,10 @@ var textsJa = i18n.NewTexts(""+
 		21,
 		21,
 		9,
-		109,
+		211,
+		159,
 		15,
+		30,
 		12,
 		167,
 		21,
@@ -11633,6 +11659,7 @@ var textsKo = i18n.NewTexts(""+
 	"kando-plugin.json이 없거나 올바르지 않거나, 이 버전의 Kando가 모르는 내용이 있습니다."+
 	"이름이나 설명이 없거나, 영어가 없거나, 너무 깁니다."+
 	"파일이 kando-plugin.json에 적힌 것과 맞지 않습니다."+
+	"이 사전에는 읽을 수 있는 항목이 없습니다."+
 	"ID가 같고 종류가 다른 플러그인이 설치되어 있습니다. 먼저 제거하세요."+
 	"https가 아닌 주소가 있습니다."+
 	"폴더 이름이 ID나 종류와 맞지 않습니다."+
@@ -12263,8 +12290,10 @@ var textsKo = i18n.NewTexts(""+
 	"저장한 대사"+
 	"찾는 중…"+
 	"닫기"+
-	"단어를 찾으려면 AI 서비스가 필요합니다. 「AI 서비스」에서 설정하세요."+
+	"단어는 설치한 사전에서 먼저 찾고, 없으면 AI 서비스에 묻습니다. 「AI 서비스」에서 설정하거나 「플러그인」에서 사전을 설치하세요."+
+	"설치한 사전에 이 단어가 없습니다. 사전에 없는 단어도 찾으려면 「AI 서비스」에서 설정하세요."+
 	"설정 열기"+
+	"AI 서비스의 설명"+
 	"숙달 현황"+
 	"단어와 저장한 대사를 함께 셉니다. 5번 연속 맞히고 다음 복습이 3주 넘게 남으면 익힌 것으로 칩니다."+
 	"다른 기기"+
@@ -13171,6 +13200,7 @@ var textsKo = i18n.NewTexts(""+
 		111,
 		72,
 		65,
+		58,
 		96,
 		39,
 		53,
@@ -13801,8 +13831,10 @@ var textsKo = i18n.NewTexts(""+
 		16,
 		13,
 		6,
-		97,
+		180,
+		129,
 		13,
+		22,
 		13,
 		136,
 		13,
@@ -14712,6 +14744,7 @@ var textsZhHans = i18n.NewTexts(""+
 	"它的 kando-plugin.json 缺失、格式不对，或者含有这个版本的看懂不认识的内容。"+
 	"它的名称或说明缺失、没有英文，或者太长。"+
 	"它的文件和 kando-plugin.json 列出的不一致。"+
+	"这个词典里没有能读取的词条。"+
 	"已经装了一个 ID 相同、种类不同的插件。先卸载它。"+
 	"它的地址不是 https。"+
 	"它的文件夹名和它的 ID、种类对不上。"+
@@ -15342,8 +15375,10 @@ var textsZhHans = i18n.NewTexts(""+
 	"收藏的句子"+
 	"正在查…"+
 	"关闭"+
-	"查词要用 AI 服务。先在「AI 服务」里设置一个。"+
+	"查词会先查已安装的词典，再问 AI 服务。先在「AI 服务」里设置一个，或在「插件」里安装词典。"+
+	"已安装的词典里没有这个词。要查词典里没有的词，先在「AI 服务」里设置一个。"+
 	"打开设置"+
+	"由 AI 服务解释"+
 	"掌握情况"+
 	"生词和收藏的句子一起算。连续答对 5 次、下次复习在三周以后，就算掌握。"+
 	"其他设备"+
@@ -16250,6 +16285,7 @@ var textsZhHans = i18n.NewTexts(""+
 		103,
 		60,
 		55,
+		42,
 		70,
 		27,
 		51,
@@ -16880,8 +16916,10 @@ var textsZhHans = i18n.NewTexts(""+
 		15,
 		12,
 		6,
-		64,
+		130,
+		108,
 		12,
+		19,
 		12,
 		102,
 		12,
@@ -17791,6 +17829,7 @@ var textsZhHant = i18n.NewTexts(""+
 	"它的 kando-plugin.json 遺失、格式不對，或含有這個版本的看懂不認得的內容。"+
 	"它的名稱或說明遺失、沒有英文，或太長。"+
 	"它的檔案和 kando-plugin.json 列出的不一致。"+
+	"這個詞典裡沒有能讀取的詞條。"+
 	"已經裝了一個 ID 相同、種類不同的外掛。先解除安裝它。"+
 	"它的位址不是 https。"+
 	"它的資料夾名稱和它的 ID、種類對不上。"+
@@ -18421,8 +18460,10 @@ var textsZhHant = i18n.NewTexts(""+
 	"收藏的句子"+
 	"正在查…"+
 	"關閉"+
-	"查詞要用 AI 服務。先在「AI 服務」裡設定一個。"+
+	"查詞會先查已安裝的詞典，再問 AI 服務。先在「AI 服務」裡設定一個，或在「外掛」裡安裝詞典。"+
+	"已安裝的詞典裡沒有這個詞。要查詞典裡沒有的詞，先在「AI 服務」裡設定一個。"+
 	"打開設定"+
+	"由 AI 服務解釋"+
 	"掌握情況"+
 	"生詞和收藏的句子一起算。連續答對 5 次、下次複習在三週以後，就算掌握。"+
 	"其他裝置"+
@@ -19329,6 +19370,7 @@ var textsZhHant = i18n.NewTexts(""+
 		100,
 		57,
 		55,
+		42,
 		76,
 		27,
 		54,
@@ -19959,8 +20001,10 @@ var textsZhHant = i18n.NewTexts(""+
 		15,
 		12,
 		6,
-		64,
+		130,
+		108,
 		12,
+		19,
 		12,
 		102,
 		12,
@@ -21577,6 +21621,12 @@ func Supply(lang string, t Translation) {
 	if t.VocabLookupFailed != nil {
 		s.VocabLookupFailed = t.VocabLookupFailed
 	}
+	if t.VocabLookupSourceDict != nil {
+		s.VocabLookupSourceDict = t.VocabLookupSourceDict
+	}
+	if t.VocabLookupSourceDictCredit != nil {
+		s.VocabLookupSourceDictCredit = t.VocabLookupSourceDictCredit
+	}
 	if t.VocabLookupTerm != nil {
 		s.VocabLookupTerm = t.VocabLookupTerm
 	}
@@ -21732,6 +21782,12 @@ func Supply(lang string, t Translation) {
 	}
 	if t.SettingsPluginsLicense != nil {
 		s.SettingsPluginsLicense = t.SettingsPluginsLicense
+	}
+	if t.SettingsPluginsMoveDownLabel != nil {
+		s.SettingsPluginsMoveDownLabel = t.SettingsPluginsMoveDownLabel
+	}
+	if t.SettingsPluginsMoveUpLabel != nil {
+		s.SettingsPluginsMoveUpLabel = t.SettingsPluginsMoveUpLabel
 	}
 	if t.SettingsPluginsServiceDetail != nil {
 		s.SettingsPluginsServiceDetail = t.SettingsPluginsServiceDetail
@@ -38491,6 +38547,15 @@ func PluginsErrBadShape(cx *core.Scope) string { return For(cx).PluginsErrBadSha
 // PluginsErrBadShape is the package's PluginsErrBadShape in the language of msgs.
 func (msgs Messages) PluginsErrBadShape() string { return msgs.text(textPluginsErrBadShape) }
 
+// PluginsErrDictEmpty says "The dictionary has no entry Kando can read."
+// in the language the app shows under cx.
+//
+// Why a dictionary pack turned on cannot be used: none of its files has an entry in the format its manifest names.
+func PluginsErrDictEmpty(cx *core.Scope) string { return For(cx).PluginsErrDictEmpty() }
+
+// PluginsErrDictEmpty is the package's PluginsErrDictEmpty in the language of msgs.
+func (msgs Messages) PluginsErrDictEmpty() string { return msgs.text(textPluginsErrDictEmpty) }
+
 // PluginsErrIDTaken says "A plugin of another kind with the same ID is installed. Uninstall it first."
 // in the language the app shows under cx.
 //
@@ -51852,14 +51917,23 @@ func (msgs Messages) VocabLookupFailed(error_ string) string {
 	}
 }
 
-// VocabLookupNoAI says "Looking up a word asks the AI service. Set one up in AI Service."
+// VocabLookupNoAI says "Looking up a word asks your dictionaries, then the AI service. Set one up in AI Service, or install a dictionary in Plugins."
 // in the language the app shows under cx.
 //
-// Card of a word looked up, when no AI service is set up; Kando bundles no dictionary.
+// Card of a word looked up, when no dictionary is installed for the word's language and no AI service is set up.
 func VocabLookupNoAI(cx *core.Scope) string { return For(cx).VocabLookupNoAI() }
 
 // VocabLookupNoAI is the package's VocabLookupNoAI in the language of msgs.
 func (msgs Messages) VocabLookupNoAI() string { return msgs.text(textVocabLookupNoAI) }
+
+// VocabLookupNotInDicts says "None of your dictionaries has this word. To look up the words they lack, set up an AI service in AI Service."
+// in the language the app shows under cx.
+//
+// Card of a word looked up, when dictionaries are installed for the word's language but none has the word, and no AI service is set up.
+func VocabLookupNotInDicts(cx *core.Scope) string { return For(cx).VocabLookupNotInDicts() }
+
+// VocabLookupNotInDicts is the package's VocabLookupNotInDicts in the language of msgs.
+func (msgs Messages) VocabLookupNotInDicts() string { return msgs.text(textVocabLookupNotInDicts) }
 
 // VocabLookupSettings says "Open Settings"
 // in the language the app shows under cx.
@@ -51869,6 +51943,79 @@ func VocabLookupSettings(cx *core.Scope) string { return For(cx).VocabLookupSett
 
 // VocabLookupSettings is the package's VocabLookupSettings in the language of msgs.
 func (msgs Messages) VocabLookupSettings() string { return msgs.text(textVocabLookupSettings) }
+
+// VocabLookupSourceAI says "Explained by your AI service"
+// in the language the app shows under cx.
+//
+// Card of a word looked up, under the meaning: the meaning came from the AI service, now or when the word was looked up before.
+func VocabLookupSourceAI(cx *core.Scope) string { return For(cx).VocabLookupSourceAI() }
+
+// VocabLookupSourceAI is the package's VocabLookupSourceAI in the language of msgs.
+func (msgs Messages) VocabLookupSourceAI() string { return msgs.text(textVocabLookupSourceAI) }
+
+// VocabLookupSourceDict says "From the dictionary {name}"
+// in the language the app shows under cx.
+//
+// Card of a word looked up, under the meaning: the meaning came from a dictionary pack the user installed; {name} is its name.
+func VocabLookupSourceDict(cx *core.Scope, name string) string {
+	return For(cx).VocabLookupSourceDict(name)
+}
+
+// VocabLookupSourceDict is the package's VocabLookupSourceDict in the language of msgs.
+func (msgs Messages) VocabLookupSourceDict(name string) string {
+	if i18n.IsPseudo(msgs.lang) {
+		return i18n.Pseudo(msgs.lang, Messages{lang: Source, mark: true}.VocabLookupSourceDict(name))
+	}
+	for lang := msgs.lang; ; lang = i18n.Parent(lang) {
+		if f := supplied[lang].VocabLookupSourceDict; f != nil {
+			return f(name)
+		}
+		switch lang {
+		case "", "en":
+			return "From the dictionary " + msgs.arg(name)
+		case "ja":
+			return "辞書「" + name + "」より"
+		case "ko":
+			return "사전 「" + name + "」에서"
+		case "zh-Hans":
+			return "来自词典「" + name + "」"
+		case "zh-Hant":
+			return "來自詞典「" + name + "」"
+		}
+	}
+}
+
+// VocabLookupSourceDictCredit says "From the dictionary {name} · {credit}"
+// in the language the app shows under cx.
+//
+// Card of a word looked up, under the meaning: the meaning came from a dictionary pack the user installed; {name} is its name and {credit} the credit its license asks for, as the pack wrote it.
+func VocabLookupSourceDictCredit(cx *core.Scope, name string, credit string) string {
+	return For(cx).VocabLookupSourceDictCredit(name, credit)
+}
+
+// VocabLookupSourceDictCredit is the package's VocabLookupSourceDictCredit in the language of msgs.
+func (msgs Messages) VocabLookupSourceDictCredit(name string, credit string) string {
+	if i18n.IsPseudo(msgs.lang) {
+		return i18n.Pseudo(msgs.lang, Messages{lang: Source, mark: true}.VocabLookupSourceDictCredit(name, credit))
+	}
+	for lang := msgs.lang; ; lang = i18n.Parent(lang) {
+		if f := supplied[lang].VocabLookupSourceDictCredit; f != nil {
+			return f(name, credit)
+		}
+		switch lang {
+		case "", "en":
+			return "From the dictionary " + msgs.arg(name) + " · " + msgs.arg(credit)
+		case "ja":
+			return "辞書「" + name + "」より · " + credit
+		case "ko":
+			return "사전 「" + name + "」에서 · " + credit
+		case "zh-Hans":
+			return "来自词典「" + name + "」 · " + credit
+		case "zh-Hant":
+			return "來自詞典「" + name + "」 · " + credit
+		}
+	}
+}
 
 // VocabLookupTerm says "Film glossary: {term}"
 // in the language the app shows under cx.
@@ -54492,6 +54639,70 @@ func SettingsPluginsMissingGroup(cx *core.Scope) string { return For(cx).Setting
 // SettingsPluginsMissingGroup is the package's SettingsPluginsMissingGroup in the language of msgs.
 func (msgs Messages) SettingsPluginsMissingGroup() string {
 	return msgs.text(textSettingsPluginsMissingGroup)
+}
+
+// SettingsPluginsMoveDownLabel says "Move {name} down"
+// in the language the app shows under cx.
+//
+// Accessibility name of the button that moves a dictionary pack one place down among the dictionaries, the order lookups ask them in; {name} is the pack's name.
+func SettingsPluginsMoveDownLabel(cx *core.Scope, name string) string {
+	return For(cx).SettingsPluginsMoveDownLabel(name)
+}
+
+// SettingsPluginsMoveDownLabel is the package's SettingsPluginsMoveDownLabel in the language of msgs.
+func (msgs Messages) SettingsPluginsMoveDownLabel(name string) string {
+	if i18n.IsPseudo(msgs.lang) {
+		return i18n.Pseudo(msgs.lang, Messages{lang: Source, mark: true}.SettingsPluginsMoveDownLabel(name))
+	}
+	for lang := msgs.lang; ; lang = i18n.Parent(lang) {
+		if f := supplied[lang].SettingsPluginsMoveDownLabel; f != nil {
+			return f(name)
+		}
+		switch lang {
+		case "", "en":
+			return "Move " + msgs.arg(name) + " down"
+		case "ja":
+			return name + " を下へ移動"
+		case "ko":
+			return name + " 아래로 이동"
+		case "zh-Hans":
+			return "下移 " + name
+		case "zh-Hant":
+			return "下移 " + name
+		}
+	}
+}
+
+// SettingsPluginsMoveUpLabel says "Move {name} up"
+// in the language the app shows under cx.
+//
+// Accessibility name of the button that moves a dictionary pack one place up among the dictionaries, the order lookups ask them in; {name} is the pack's name.
+func SettingsPluginsMoveUpLabel(cx *core.Scope, name string) string {
+	return For(cx).SettingsPluginsMoveUpLabel(name)
+}
+
+// SettingsPluginsMoveUpLabel is the package's SettingsPluginsMoveUpLabel in the language of msgs.
+func (msgs Messages) SettingsPluginsMoveUpLabel(name string) string {
+	if i18n.IsPseudo(msgs.lang) {
+		return i18n.Pseudo(msgs.lang, Messages{lang: Source, mark: true}.SettingsPluginsMoveUpLabel(name))
+	}
+	for lang := msgs.lang; ; lang = i18n.Parent(lang) {
+		if f := supplied[lang].SettingsPluginsMoveUpLabel; f != nil {
+			return f(name)
+		}
+		switch lang {
+		case "", "en":
+			return "Move " + msgs.arg(name) + " up"
+		case "ja":
+			return name + " を上へ移動"
+		case "ko":
+			return name + " 위로 이동"
+		case "zh-Hans":
+			return "上移 " + name
+		case "zh-Hant":
+			return "上移 " + name
+		}
+	}
 }
 
 // SettingsPluginsNone says "No plugins installed"

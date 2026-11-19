@@ -1,6 +1,7 @@
 package settings
 
 import (
+	"slices"
 	"strings"
 
 	"kando/apps/kando/desktop"
@@ -17,12 +18,13 @@ import (
 	"github.com/nsgo-dev/nsgo/ui"
 )
 
-// PluginRow is a pack as the 插件 page lists it: one installed (Pack, with whether it is turned on), or one the settings remember that is not in the plugins folder any more (Missing), of which only Pack.ID and Pack.Kind are known. Detail is what it adds, worded by the app in the interface's language, as how many terms a glossary has and between which languages, or the host an AI service talks to.
+// PluginRow is a pack as the 插件 page lists it: one installed (Pack, with whether it is turned on), or one the settings remember that is not in the plugins folder any more (Missing), of which only Pack.ID and Pack.Kind are known. Detail is what it adds, worded by the app in the interface's language, as how many terms a glossary has and between which languages, or the host an AI service talks to. Up and Down say whether a dictionary can move up or down among the dictionaries, the order lookups ask them in.
 type PluginRow struct {
-	Pack    plugins.Pack
-	Enabled bool
-	Missing bool
-	Detail  string
+	Pack     plugins.Pack
+	Enabled  bool
+	Missing  bool
+	Detail   string
+	Up, Down bool
 }
 
 // PluginIssue is a folder of the plugins folder that is not a valid pack: its name, and why, in the interface's language.
@@ -56,9 +58,10 @@ type PluginsApp interface {
 	InstallPlugins(paths []string)
 	// ShowPluginsFolder shows the plugins folder in the file manager.
 	ShowPluginsFolder()
-	// UninstallPlugin removes the pack id, its folder and its entry of state.json; ForgetPlugin forgets a pack that is missing.
+	// UninstallPlugin removes the pack id, its folder and its entry of state.json; ForgetPlugin forgets a pack that is missing. MovePlugin moves the dictionary id one place up or down among the dictionaries.
 	UninstallPlugin(id string)
 	ForgetPlugin(id string)
+	MovePlugin(id string, up bool)
 	// PluginInstall is the install confirmation; PluginInstallHere reports whether the page draws it, as when the settings are in a window of their own, rather than the main window (the app's pluginsOverlay). ConfirmPluginInstall installs the pack it shows, CancelPluginInstall closes it and throws the staged copy away; it does nothing while PluginsBusy, as while the install runs.
 	PluginInstall() PluginInstall
 	PluginInstallHere() bool
@@ -135,7 +138,7 @@ func (p Plugins) Render(cx *core.Scope) core.Node {
 		Children: []core.Node{page}}
 }
 
-// pluginList is the packs grouped by kind, or a card saying none is installed. It is built again only when a pack comes, goes or changes; a row reads its switch in a binding.
+// pluginList is the packs grouped by kind, or a card saying none is installed. It is built again only when a pack comes, goes or changes, not when the dictionaries move: each group's rows are kept by pack id (core.Each) and moved, so the button that moved a dictionary keeps the keyboard focus; a row reads its switch, and whether it can move, in a binding.
 type pluginList struct{ a PluginsApp }
 
 // Render implements core.Node.
@@ -146,6 +149,8 @@ func (l pluginList) Render(cx *core.Scope) core.Node {
 		for _, r := range a.PluginRows() {
 			out = append(out, string(r.Pack.Kind)+"/"+r.Pack.ID+"/"+r.Pack.Hash)
 		}
+		// Sorted, so a move, which changes only the order, builds nothing again.
+		slices.Sort(out)
 		return strings.Join(out, ",")
 	}))
 	// open is the pack whose details show under its row, asking the one whose uninstall waits to be confirmed; "" for none.
@@ -156,22 +161,25 @@ func (l pluginList) Render(cx *core.Scope) core.Node {
 			card := form.Card(form.Row{Title: locales.SettingsPluginsNone(cx), Subtitle: locales.SettingsPluginsNoneHint(cx), NoGroup: true, TestID: "settings-plugins-none"})
 			return card
 		}
-		rows := a.PluginRows()
 		var groups []core.Node
 		group := func(title string, in func(r PluginRow) bool) {
-			var cards []core.Node
-			for _, r := range rows {
-				if !in(r) {
-					continue
-				}
-				if len(cards) > 0 {
-					cards = append(cards, form.Separator(true))
-				}
-				cards = append(cards, pluginRow(cx, a, r, open, asking))
+			if !slices.ContainsFunc(a.PluginRows(), in) {
+				return
 			}
-			if len(cards) > 0 {
-				groups = append(groups, form.Label(title, 12), form.Card(cards...))
-			}
+			rows := live.Func(a, func() []PluginRow {
+				var out []PluginRow
+				for _, r := range a.PluginRows() {
+					if in(r) {
+						out = append(out, r)
+					}
+				}
+				return out
+			})
+			list := core.Each(rows, func(r PluginRow) string { return r.Pack.ID }, func(cx *core.Scope, item func() PluginRow, index func() int) core.Node {
+				separator := core.Show{When: func() bool { return index() > 0 }, Then: func(*core.Scope) core.Node { return form.Separator(true) }}
+				return core.Group{separator, pluginRow(cx, a, item, open, asking)}
+			})
+			groups = append(groups, form.Label(title, 12), form.Card(list))
 		}
 		for _, kind := range pluginKinds {
 			group(pluginKindTitle(cx, kind), func(r PluginRow) bool { return !r.Missing && r.Pack.Kind == kind })
@@ -182,8 +190,9 @@ func (l pluginList) Render(cx *core.Scope) core.Node {
 	})
 }
 
-// pluginRow is the row of the pack in r: its name with 本地 after it over its version and author, or over 未安装 when it is missing; its switch and 详情, or 移除 for a missing one; and under it, while open names it, its details (pluginDetail).
-func pluginRow(cx *core.Scope, a PluginsApp, r PluginRow, open, asking *core.Signal[string]) core.Node {
+// pluginRow is the row of the pack item gives: its name with 本地 after it over its version and author, or over 未安装 when it is missing; a dictionary's buttons that move it up and down among the dictionaries, enabled as item says now; its switch and 详情, or 移除 for a missing one; and under it, while open names it, its details (pluginDetail). The rest is what the pack was as the row was built, as the list is built again when a pack changes.
+func pluginRow(cx *core.Scope, a PluginsApp, item func() PluginRow, open, asking *core.Signal[string]) core.Node {
+	r := item()
 	colors := ui.ColorsOf(cx)
 	id := r.Pack.ID
 	name := pluginName(cx, r.Pack)
@@ -206,6 +215,14 @@ func pluginRow(cx *core.Scope, a PluginsApp, r PluginRow, open, asking *core.Sig
 	if r.Missing {
 		trailing = append(trailing, form.Button{Text: locales.SettingsPluginsForget(cx), Label: locales.SettingsPluginsForgetLabel(cx, name), TestID: "settings-plugins-forget-" + id, OnPress: live.Do(a, func() { a.ForgetPlugin(id) })})
 	} else {
+		if r.Pack.Kind == plugins.KindDictionary {
+			trailing = append(trailing,
+				ui.IconButton{Icon: lucide.ArrowUp, LabelFunc: func() string { return locales.SettingsPluginsMoveUpLabel(cx, pluginName(cx, item().Pack)) }, Size: 22, TestID: "settings-plugins-up-" + id,
+					Disabled: func() bool { return !item().Up }, OnPress: live.Do(a, func() { a.MovePlugin(id, true) })},
+				ui.IconButton{Icon: lucide.ArrowDown, LabelFunc: func() string { return locales.SettingsPluginsMoveDownLabel(cx, pluginName(cx, item().Pack)) }, Size: 22, TestID: "settings-plugins-down-" + id,
+					Disabled: func() bool { return !item().Down }, OnPress: live.Do(a, func() { a.MovePlugin(id, false) })},
+			)
+		}
 		enabled := live.Func(a, func() bool {
 			for _, row := range a.PluginRows() {
 				if row.Pack.ID == id {

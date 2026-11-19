@@ -11,6 +11,7 @@ import (
 	"kando/apps/kando/live"
 	"kando/apps/kando/locales"
 	"kando/apps/kando/plugins"
+	"kando/apps/kando/plugins/dict"
 	"kando/apps/kando/settings"
 	"kando/packages/core"
 	"kando/packages/media"
@@ -19,9 +20,9 @@ import (
 	ns "github.com/nsgo-dev/nsgo/core"
 )
 
-// Plugins: the data packs the user installs from Settings › 插件 (docs/plugin-system.md). The packs are in the plugins folder beside settings.json (pluginsRoot), each in <kind>/<id>, and which are turned on in its state.json (plugins.State), never in settings.json. The app reads the folder off the UI thread once its window is ready (pluginsScan) and again after each install, removal or switch. A pack is installed only after the user confirmed what it is (the install confirmation), whether it came from 从文件安装…, a drop on the page, or the command line's inbox (`kando plugin install`), which the app looks at as it starts and each time it comes to the front. What the packs add: a glossary pack's terms join the global glossary of the films they match (pluginTerms), after the user's own; an ai-service pack's service joins the AI services the app offers (pluginPresets, through llmPresets).
+// Plugins: the data packs the user installs from Settings › 插件 (docs/plugin-system.md). The packs are in the plugins folder beside settings.json (pluginsRoot), each in <kind>/<id>, and which are turned on in its state.json (plugins.State), never in settings.json. The app reads the folder off the UI thread once its window is ready (pluginsScan) and again after each install, removal or switch. A pack is installed only after the user confirmed what it is (the install confirmation), whether it came from 从文件安装…, a drop on the page, or the command line's inbox (`kando plugin install`), which the app looks at as it starts and each time it comes to the front. What the packs add: a glossary pack's terms join the global glossary of the films they match (pluginTerms), after the user's own; an ai-service pack's service joins the AI services the app offers (pluginPresets, through llmPresets); a dictionary pack answers lookups, offline, before the AI service (state_plugins_dict.go, vocabResolve).
 
-// pluginsUI is the plugins' state. packs and issues are what the last read of the plugins folder found, state and stateErr what state.json held (plugins.LoadState); scanGen counts the reads, so only the last one's answer is kept. order is every pack id the app has seen, in the order it came (savedPlugins), which orders the list and decides which glossary pack's term wins. busy is set while an install, a removal, a switch or a copy into the staging folder runs, and err is why the last one failed; inboxBusy while the inbox is looked at, which keeps none of those from running. pending is the install confirmation, nil while it is closed. gone is the AI service of a pack that went while it was in use (pluginsGoneService).
+// pluginsUI is the plugins' state. packs and issues are what the last read of the plugins folder found, state and stateErr what state.json held (plugins.LoadState); scanGen counts the reads, so only the last one's answer is kept. order is every pack id the app has seen, in the order it came (savedPlugins), which orders the list and decides which glossary pack's term wins. busy is set while an install, a removal, a switch or a copy into the staging folder runs, and err is why the last one failed; inboxBusy while the inbox is looked at, which keeps none of those from running. pending is the install confirmation, nil while it is closed. gone is the AI service of a pack that went while it was in use (pluginsGoneService). dicts are the dictionary packs opened for lookups, by id (pluginsSyncDicts), and opening the index names (dict.IndexName) of the contents being opened; engine's goroutine only.
 type pluginsUI struct {
 	// root is the plugins folder when set, as the tests set it; pluginsRoot otherwise finds it beside settings.json.
 	root      string
@@ -39,6 +40,8 @@ type pluginsUI struct {
 	err       error
 	pending   *pluginsPending
 	gone      pluginsGone
+	dicts     map[string]*pluginsDict
+	opening   map[string]bool
 }
 
 // pluginsGone is the AI service of a pack that is not offered now, though the endpoint in use is still its own: id is its preset id (pack.<id>) and base its endpoint. The service settings.json saved, when it was a pack's, starts as one, as the packs are read only once the window is ready.
@@ -78,7 +81,7 @@ func (s *savedPlugins) clean() {
 	s.PluginOrder = out
 }
 
-// pluginsHooks: the order of the packs is kept in settings.json, and the AI service of a pack that went is saved as its pack's; the plugins folder is read once the window is ready, and the inbox looked at again each time the app comes to the front.
+// pluginsHooks: the order of the packs is kept in settings.json, and the AI service of a pack that went is saved as its pack's; the plugins folder is read once the window is ready, and the inbox looked at again each time the app comes to the front; the dictionaries close as the app quits.
 func (a *app) pluginsHooks() areaHooks {
 	return areaHooks{
 		restore: func(saved savedSettings) {
@@ -102,6 +105,7 @@ func (a *app) pluginsHooks() areaHooks {
 				a.pluginsCheckInbox()
 			}
 		},
+		quitStarting: a.pluginsCloseDicts,
 		// A service the user chose since, other than 自定义, which the gone pack's service shows as, is theirs: the gone pack's is forgotten.
 		llmChanged: func() {
 			if p := a.prefs.llmProvider; p != "custom" && p != a.plugins.gone.id {
@@ -145,7 +149,7 @@ func (a *app) pluginsScan() {
 	}()
 }
 
-// pluginsScanned takes what a read of the plugins folder found: the packs, which join the order the first time they are seen, the folders that are not valid packs and state.json. The AI service in use may be a pack's that came or went, so it is kept under its pack's id first and its preset found again after; then the inbox is looked at.
+// pluginsScanned takes what a read of the plugins folder found: the packs, which join the order the first time they are seen, the folders that are not valid packs and state.json. The AI service in use may be a pack's that came or went, so it is kept under its pack's id first and its preset found again after; the dictionaries turned on are opened; then the inbox is looked at.
 func (a *app) pluginsScanned(packs []plugins.Pack, issues []plugins.Issue, state plugins.State, err error) {
 	a.pluginsKeepLLM()
 	p := &a.plugins
@@ -156,6 +160,7 @@ func (a *app) pluginsScanned(packs []plugins.Pack, issues []plugins.Issue, state
 		}
 	}
 	a.pluginsFollowLLM()
+	a.pluginsSyncDicts()
 	a.pluginsCheckInbox()
 }
 
@@ -349,6 +354,8 @@ func (a *app) pluginsInstall() {
 		a.pluginsKeepLLM()
 	}
 	pack, staged := p.pack, p.staged
+	// The dictionary of the pack it replaces is closed first; the read of the folder after opens it again.
+	a.pluginsCloseDict(pack.ID)
 	state := a.pluginsNextState(func(s *plugins.State) {
 		s.Set(plugins.PluginState{ID: pack.ID, Hash: pack.Hash, Enabled: true})
 	})
@@ -396,6 +403,7 @@ func (a *app) pluginsSetEnabled(id string, on bool) {
 	a.plugins.state, a.plugins.busy, a.plugins.err, a.plugins.saving = next, true, nil, true
 	a.plugins.stateGen++
 	a.pluginsFollowLLM()
+	a.pluginsSyncDicts()
 	update := a.update
 	go func() {
 		err := next.Save(root)
@@ -406,6 +414,7 @@ func (a *app) pluginsSetEnabled(id string, on bool) {
 			if err != nil {
 				a.plugins.state, a.plugins.err = before, err
 				a.pluginsFollowLLM()
+				a.pluginsSyncDicts()
 				return
 			}
 			a.plugins.state, a.plugins.stateErr = next, nil
@@ -413,22 +422,24 @@ func (a *app) pluginsSetEnabled(id string, on bool) {
 	}()
 }
 
-// pluginsUninstall removes the pack id from the plugins folder and from state.json off the UI thread (plugins.Remove), and reads the folder again. The service an ai-service pack added keeps its key in settings.json under the pack's id (pluginsKeepLLM, savedLLM.clean), so installing it again brings it back.
+// pluginsUninstall removes the pack id from the plugins folder and from state.json off the UI thread (plugins.Remove), with a dictionary's index, closed first, and reads the folder again. The service an ai-service pack added keeps its key in settings.json under the pack's id (pluginsKeepLLM, savedLLM.clean), so installing it again brings it back.
 func (a *app) pluginsUninstall(id string) {
 	root := a.pluginsRoot()
 	if root == "" || a.plugins.busy {
 		return
 	}
 	a.pluginsKeepLLM()
+	a.pluginsCloseDict(id)
 	state := a.pluginsNextState(func(s *plugins.State) {
 		s.Plugins = slices.DeleteFunc(s.Plugins, func(e plugins.PluginState) bool { return e.ID == id })
 	})
 	a.plugins.saving = true
 	a.plugins.busy, a.plugins.err = true, nil
-	update := a.update
+	update, index := a.update, a.pluginsIndexDir()
 	go func() {
 		err := plugins.Remove(root, id)
 		if err == nil {
+			dict.Forget(index, id, "")
 			err = state.Save(root)
 		}
 		update(func() {

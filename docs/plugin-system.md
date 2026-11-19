@@ -28,7 +28,10 @@
 
 **E1 离线词典（P1，价值最高）**
 - 桌面和手机的查词现在是两条独立的路：桌面走 `apps/kando/state_vocab.go:215` 的 `func (a *app) LookUpWord(i int, word string)`，它是界面动作，会改 `a.vocab.lookup` 并暂停播放；手机走 `state_phonesync_study.go:65-105` 的 `phoneStudy.LookUp`，自己的流程是 `vocabCache().Get(q)` → `s.ask(f)` → `got.ask.t.Chat(...)`，不经过 `LookUpWord`，没配 AI 时在 `s.ask(f)` 就失败。
-- 所以先抽出一个共用的 `func (a *app) vocabResolve(ctx, q) (lookup.Entry, vocabSource, bool)`，顺序是缓存 → 已启用的词典（按 `savedPlugins` 里的顺序）→ AI。`LookUpWord` 和 `phoneStudy.LookUp` 都改成调它，并且词典要放在 `s.ask(f)` 之前，离线的手机也能查到词。手机只读（`psync.Caller.ReadOnly`）时的规则不变：词典结果不写进缓存。
+- 所以先抽出一个共用的 `func (a *app) vocabResolve(q lookup.Query, film string) vocabAsk`（P1.3 已实现，在 `state_vocab.go`），顺序是缓存 → 已启用的词典（按 `savedPlugins` 里的顺序）→ AI。它分两半：`vocabResolve` 在引擎 goroutine 上读缓存、挑出已打开的词典、取 AI 服务；后台的那一半不碰 app 状态，放在非界面包 `lookup` 里（`lookup.Ask.Answer(ctx)`，词典按 `lookup.Dictionary` 这个窄接口传入，`*dict.Dict` 满足它，`lookup` 不导入 `plugins/dict`），查词典、再问 AI；决定按哪种语言挑词典的 `lookup.WordLanguage` 也在那里。`LookUpWord` 和 `phoneStudy.LookUp` 都改成调它，词典在 AI 之前，手机那条路不再先调 `s.ask(f)`，只有词典都没有这个词、又没有能用的 AI 服务时才回 `psync.CodeNoAI`，所以离线的手机也能查到词。
+- 缓存只存 AI 的回答：词典的结果每次现查（本地、很快），不写进缓存，免得挤掉花钱、要联网才能重新拿到的 AI 回答（缓存上限 5000 条）。手机只读（`psync.Caller.ReadOnly`）时的规则不变：它的 AI 回答也不写进缓存。
+- 挑词典：词的语言取影片的说话语言（`Spoken`），没有时看文字（有假名是日语，只有汉字时看整行有没有假名，否则是中文），都看不出就不按语言筛。词典的 `from` 要和它是同一种语言；`to` 和回答语言（`core.TargetTag(q.Language)`）相同的词典排在 AI 之前；`to` 是别的语言的词典只在没有能用的 AI 服务、或 AI 服务出错没答上来时才答（比如目标语言是简体中文、只装了 JMdict 英文版，离线时照样能看到英文释义，有 AI 时由 AI 用中文答）。
+- 查词卡在释义下面写出来源：「来自词典「<名称>」 · <attribution>」或「由 AI 服务解释」（缓存里的也是 AI 的回答）。手机同步协议 v2 的 `psync.WordEntry` 没有来源字段，手机端暂时不显示来源；要显示得改协议和手机界面，另做。
 - 日语查词要用原形，但现有分词给不了原形和读音：`packages/core/segment/segment.go:174-176` 有意用 `ipa.DictShrink()` 加载了去掉 features 的 IPA 词典，只保留词界和词性，以节省内存，手机也受益于此；`:191` 把助动词并进前一个词（`行った` 是一个词，没有单一的 kagome 原形）；中文的 gse（`:203-210`）只返回字符串，没有读音。因此原形和读音要单独做（P1.2）：
   - 新增 `segment.Annotated(lang, line) []Morph{Text, Word, Base, Reading}`，内部用另一个按需加载的完整 features 词典 `ipa.Dict()`，只在桌面上、并且启用了日语的词典包或词表包时才加载（12.2 第 5 条的测量门槛已达标，数字见第 15 节）。`Words` 保持用 `DictShrink`，`core.WordToken` 不改，手机的分词不受影响。合并后的词（`行った`）取它首个 token 的原形（`行く`），读音是各 token 读音（片假名）连起来（`イッタ`），有一个 token 没有读音就整个留空。Annotated 会等词典读完，所以只在后台 goroutine 里调。`lang` 是 `ja` 时即使整行没有假名也按日语切（`Words` 会把只有汉字的行当中文），是 `zh` 时按中文切，其余按文字判断，和 `Words` 一样。
   - P1.2 先在 Ubuntu 编译机（`ubuild`）上量出 `ipa.Dict()` 相对 `DictShrink()` 的常驻内存增量（RSS）和首次加载时间。门槛是增量不超过 200 MiB、加载不超过 3 s（12.2 第 5 条）。不达标就退到另一条路：Annotated 不出 Base 和 Reading，查词先查表层形，查不到再查拆开后首个 token 的表层形，读音只取自词典包的条目。测量数字和最终选择记在第 15 节：增量约 92 MiB、加载约 0.6 s，达标，用完整词典，没有走退路。
@@ -187,7 +190,7 @@ kind 是封闭枚举：`dictionary`、`wordlist`、`glossary`、`ai-service`、`
   - `archive/zip` 打开 zip 时会先把中央目录的每一条记录都读进内存，不管记录数是多少，所以一个由几百万条空记录组成的 zip 会在任何上限生效之前就分配几 GB。外层 zip 和嵌套 zip 都经 `openZip` 打开：它在 `zip.NewReader` 读目录期间最多放行 1 MiB 的读取，超出就是 `ErrTooLarge`；64 个条目的目录加上最长 64 KiB 的注释远小于这个数。
 - **从文件夹安装**：用 `Lstat` 逐项检查，遇到符号链接或特殊文件就拒绝，再把普通文件复制进 staging，最后校验的是 staging 里的副本。不能先校验原目录再复制，那样有 TOCTOU 问题。打开每个文件后再用 `os.SameFile` 比对 Lstat 的结果，检查和打开之间被换成链接的文件也会被拒绝。文件管理器写进文件夹的文件（访达的 `.DS_Store`，资源管理器的 `Thumbs.db`、`desktop.ini`，后两个不分大小写）在复制时跳过，`Validate` 列文件时也跳过：不检查、不计数、不算进哈希，也从不读取。所以用户在访达里打开已安装包的目录后，下次 `Scan` 这个包照样有效、哈希不变。zip 里的这些文件仍按普通文件名规则处理（`.DS_Store` 以点开头，被拒收）。
 - **内容哈希**：对排序后的「路径、长度、字节」序列做 SHA-256，授权绑定在这个哈希上。路径和内容的长度都写成 8 字节大端整数，字节在名字和内容之间、或在相邻文件之间挪动都会改变哈希。
-- **字段规则**（`plugins.Validate`）：`version` 由字母、数字和 `.`、`+`、`-` 组成，不超过 32 字节；`license` 必填，不超过 64 个字符；`author` 可选，不超过 80 个字符；`homepage` 可选，规则同 https 地址；`Text` 的键必须是规范写法的语言标签（`zh-Hans`，不是 `zh-hans`），这样 `Text.In` 能用 app 的语言直接找到；名称和 label 不超过 40 个字符，`description` 和 `attribution` 不超过 500 个字符，都先清洗再计长度。glossary 的 `from`、`to` 是语言标签，1 到 5000 条，每条原文和译文各不超过 200 个字符；ai-service 的 `group` 只能是 `cloud` 或 `local`，`model` 不超过 200 个字符，地址不能带用户名和密码；dictionary 的 `format` 是 `yomitan-zip`、`cc-cedict` 或 `tsv`，只有 yomitan-zip 的文件以 `.zip` 结尾；wordlist 有 1 到 32 个 tier，tier 的 id 匹配 `^[a-z0-9][a-z0-9-]{0,31}$` 且不重复，`tone` 是 `accent`、`warn`、`success`、`muted` 之一。清单里只能有自己那个 kind 的字段。
+- **字段规则**（`plugins.Validate`）：`version` 由字母、数字和 `.`、`+`、`-` 组成，不超过 32 字节；`license` 必填，不超过 64 个字符；`author` 可选，不超过 80 个字符；`homepage` 可选，规则同 https 地址；`Text` 的键必须是规范写法的语言标签（`zh-Hans`，不是 `zh-hans`），这样 `Text.In` 能用 app 的语言直接找到；名称和 label 不超过 40 个字符，`description` 和 `attribution` 不超过 500 个字符，都先清洗再计长度。glossary 的 `from`、`to` 是语言标签，1 到 5000 条，每条原文和译文各不超过 200 个字符；ai-service 的 `group` 只能是 `cloud` 或 `local`，`model` 不超过 200 个字符，地址不能带用户名和密码；dictionary 的 `format` 是 `yomitan-zip`、`cc-cedict` 或 `tsv`，只有 yomitan-zip 的文件以 `.zip` 结尾（yomitan-zip 是 Yomitan 导出的词典 zip，只读其中的 `term_bank_<n>.json`；cc-cedict 是 CC-CEDICT 的 UTF-8 文本；tsv 每行是 `词条<TAB>读音<TAB>释义` 或 `词条<TAB>释义`，`#` 开头的行是注释，第三列之后的列忽略）；wordlist 有 1 到 32 个 tier，tier 的 id 匹配 `^[a-z0-9][a-z0-9-]{0,31}$` 且不重复，`tone` 是 `accent`、`warn`、`success`、`muted` 之一。清单里只能有自己那个 kind 的字段。
 
 ### 4.1 数据包示例
 
@@ -468,12 +471,13 @@ func ClearInFlight(root, id string) error
 数据包的查询接口，各扩展点只认这几个窄接口：
 
 ```go
-// Dict is an open dictionary pack; Manifest.Dictionary is what its manifest declares.
-type Dict interface {
-	ID() string
-	LookUp(ctx context.Context, word, base, language string) (lookup.Entry, bool, error)
-	Close() error // the index file stays open for binary search; Swap needs it closed
-}
+// in apps/kando/plugins/dict (P1.3 as implemented): a concrete type, not an interface, as it has one implementation until P3's script lookUp
+type Dict struct{ /* the open index file */ }
+func Open(p plugins.Pack, cache string) (*Dict, error) // builds <cache>/<id>_<hash16>.idx the first time this content is opened; removes no other index
+func Forget(cache, id, keep string)                    // removes the pack's indexes but keep; the app calls it on the engine goroutine's side after each Open, keeping the content installed then
+func (d *Dict) ID() string
+func (d *Dict) LookUp(word, base, reading string) (lookup.Entry, bool, error) // base first, then word; reading picks among homographs only for a hit on word itself
+func (d *Dict) Close() error
 
 // in apps/kando/film/subtitle (leaf package), so film does not import plugins
 type Mark struct {
@@ -485,7 +489,7 @@ type Mark struct {
 }
 ```
 
-替换同 id 包的顺序：先在引擎 goroutine 上关掉这个包的词典句柄并 Close 它的脚本，然后把旧目录重命名为 `.old-<rand>`，再把 staging 重命名为目标目录，最后重新打开。对已存在的非空目录直接 rename 在任何平台上都会失败，所以必须先挪走旧目录。Windows 上如果碰到共享冲突，先重试几次；还不行就记一个待替换标记，下次启动、还没打开任何句柄时再换。P0.3 的 `Swap` 还没有这层重试和待替换标记，因为那时 app 还不打开包里的任何文件；P1.3 有了词典句柄时再加。旧目录换下来后 `Swap` 立刻删掉它，删不掉（比如文件还被占用）就留给下一次 `Stage` 按 24 小时规则清理，安装照样算成功。
+替换同 id 包的顺序：先在引擎 goroutine 上关掉这个包的词典句柄并 Close 它的脚本，然后把旧目录重命名为 `.old-<rand>`，再把 staging 重命名为目标目录，最后重新打开。对已存在的非空目录直接 rename 在任何平台上都会失败，所以必须先挪走旧目录。P1.3 的词典索引不放在包目录里，而是放在插件目录的 `.index/` 下（`<id>_<哈希前 16 位>.idx`），长期打开的只有这个索引文件，包里的文件只在建索引时读一遍，所以 `Swap` 换包目录时没有打开的句柄，原先设想的 Windows 共享冲突重试和待替换标记都不需要，没有做。剩下的情形是建索引的那几秒里替换同一个包：Windows 上 rename 会失败，安装报错，用户重试即可。旧目录换下来后 `Swap` 立刻删掉它，删不掉（比如文件还被占用）就留给下一次 `Stage` 按 24 小时规则清理，安装照样算成功。
 
 ### 5.2 app 一侧（package main）
 
@@ -504,7 +508,7 @@ type pluginsUI struct {
 	err      error           // why the last one failed, mapped to catalog text in bind_plugins.go
 	pending  *pluginsPending // install confirmation: staged pack, or why it cannot be installed
 }
-// P1.3 adds dicts []plugins.Dict (open dictionaries in lookup order); P1.4 marks map[string][][]subtitle.Mark (video + subtitle hash -> per line, immutable once set).
+// P1.3 added dicts map[string]*pluginsDict (by id: the content hash, the open *dict.Dict or why it could not be opened; lookup order comes from order) and opening map[string]bool (index names of the contents being opened, so turning a pack off and on during its index build does not start a second build); P1.4 marks map[string][][]subtitle.Mark (video + subtitle hash -> per line, immutable once set).
 // P3 adds health, scripts (engine goroutine only), hosts (one per plugin, never shared) and loading (ids still to Load, one per update tick).
 
 // savedPlugins holds preferences only, never trust.
@@ -519,14 +523,15 @@ func (a *app) pluginsOverlay(cx *core.Scope) core.Node
 func (a *app) pluginTerms(job core.Job) []core.Term
 func (a *app) pluginPresets(m locales.Messages) []settings.Preset // names in m.Language()
 func (a *app) llmPresets(m locales.Messages) []settings.Preset    // settings.Presets(m) + pluginPresets(m), for PresetByID/ProviderID
-func (a *app) vocabResolve(ctx context.Context, q lookup.Query) (lookup.Entry, vocabSource, bool) // P1.3
+func (a *app) vocabResolve(q lookup.Query, film string) vocabAsk // P1.3, engine goroutine: the cache, the open dictionaries, the AI service
+func (k vocabAsk) answer(ctx context.Context) (lookup.Entry, string, error) // P1.3, any goroutine: the cache's entry, else lookup.Ask.Answer; the string is the dictionary pack's id, "" for the AI service
 ```
 
 `pluginsHooks` 各回调：
 
 - `restore`：读 savedPlugins；上次存的 AI 服务商是 `pack.<id>` 时把它记作 gone（P1.1，见 E4）。
 - `save`：写 savedPlugins。
-- `ready`（P1）：在后台 goroutine 里读 state.json、Scan，经 `a.update` 交回引擎（P1.3 起再打开已启用的词典），然后看一眼 CLI 的 inbox。
+- `ready`（P1）：在后台 goroutine 里读 state.json、Scan，经 `a.update` 交回引擎，再在后台打开已启用的词典（P1.3，`pluginsSyncDicts`，开关之后也一样），然后看一眼 CLI 的 inbox。
 - `becameActive`（P1.1）：app 回到前台时再看一眼 inbox，所以在终端里跑完 `kando plugin install` 再切回看懂，就会弹出确认。不在这里重新 Scan，免得 P1.3 的大词典每次切回都被重新哈希。
 - `ready`（P3 起追加）：在后台 goroutine 里读 health.json。如果发现上次留下的 in-flight 标记，就把对应的 (id, hash) 记为 `hung` 并停用它。然后 Scan、Verify，把结果交回引擎，再按每个 `a.update` 只 Load 一个插件的节奏逐个载入。每载入一个都会触发 `Changed`，菜单和面板经 `areasFollow` → `menuFollow` 补上插件行，不靠 hook 的先后顺序。
 - `playing`（P1.4）：当前影片的「视频 + 字幕哈希」和缓存的键不同时，起后台计算标注（P3 起同时推送 `film.opened` 事件）；其余时候只比较键、什么也不做，返回 false。
@@ -734,7 +739,7 @@ export function kandoManifest() { return { /* identical to kando-plugin.json fie
 
 - 设置里新增一节「插件」：`settings/sectionid` 加 `Plugins`；`settings/sections.go` 的 `var sections` 加一行（不需要改成函数，插件页一直显示）；页面写在 `settings/plugins.go`，用 `settings/form` 的 Card、Label、Badge、Button 和 `ui.Switch`、`ui.IconButton` 拼。它读自己的接口 `settings.PluginsApp`，不往 `settings.App` 里加方法，照 `Window.Account` 的先例由 `settings.Window.Plugins` 注入（`state_settings.go` 的 `settingsWindow` 里多一个字段）。
 - 列表按 kind 分组。每行有名称、来源徽标、版本·作者、行内开关，以及展开详情的按钮（P1.1 没有每行的图标）。P1.1 的状态只有开关本身和「未安装」：savedPlugins 引用了、目录里却没有的包单独列在「不在插件文件夹里」一组（包已经读不到，不知道它的 kind），带「移除」按钮。其余状态到有对应机制的那一期再加：需要授权 / 已更新，需要重新授权 / 已停用：出错 / 已停用：太慢 / 已停用：上次让看懂停止响应 / 已被撤回 / 离线时不可用。
-- 词典分组可以拖动排序，决定查词时谁先答。显示顺序和执行顺序分开管理。
+- 词典分组里每行有上移、下移两个按钮（`lucide.ArrowUp`/`ArrowDown`，在第一行、最后一行时禁用），决定查词时谁先答，顺序存在 `savedPlugins.PluginOrder`。NSGo 固定版本没有可拖动排序的列表控件，所以不做拖动。移动只改顺序，行按包 id 保留并移动（`core.Each`），不重建，按下的按钮保住键盘焦点，可以连按几次。
 - 顶部按钮：「从文件安装…」（系统文件面板，配合 `holdModal()`，接受 `.zip` 和 `.kandopack`），以及「在访达中显示」（按平台换成文件资源管理器、文件管理器；`desktop.Reveal`，经 `revealInFolder`，插件目录不存在时先建出来）。开发者模式开着时，多一组「开发者」：生成开发者密钥、打包并安装文件夹…。
 - 详情在行下面展开：说明、它会加什么（术语条数和语言、AI 服务的 host 等，由 app 用界面语言写好）、许可、主页、词典的 attribution、id 和哈希前 12 位，以及「卸载…」。卸载的确认也在详情里展开（和手机同步「撤销…」的做法一样），确认后删除目录并从 state.json 移除。
 - state.json 读不了或是更新版本写的，在列表上方用一行红字说明所有包暂时停用。
@@ -798,7 +803,7 @@ P1.1 的确认框只有数据包要显示的部分：名称（标题）、说明
   - `errors.go`
   - `names.go`：清洗、长度限制、保留名单
   - 测试跟着进包
-- `apps/kando/plugins/dict/`：解析 Yomitan、CC-CEDICT、TSV，安装时生成排序索引 `index.bin`，查词时在磁盘上二分查找，不整份读进内存，用完可以 Close。
+- `apps/kando/plugins/dict/`：解析 Yomitan（term bank 的第 1 版和第 3 版格式，含 structured-content）、CC-CEDICT（繁简两种写法都能查，词条按点的那种写法显示，拼音改成声调符号）、TSV（`词条<TAB>读音<TAB>释义`，或没有读音的两列），包装好后第一次打开时在插件目录的 `.index/` 下生成排序索引 `<id>_<哈希前 16 位>.idx`，查词时在磁盘上二分查找，不整份读进内存，用完可以 Close。建到一半中断留下的临时文件（`<索引名>.build-*`）由同一内容的下一次 Open 或这个包其他内容的 Forget 删掉。查词时读到损坏的索引，app 关掉它并立刻重建；打开失败的原因可能是暂时的（读写文件出错，`dict.Retry`）时，下一次同步再试，词典本身读不了（`dict.ErrEmpty`、格式错误）时等内容变了再试。
 - `apps/kando/plugins/wordlist/`：解析词表，word → tier。
 - `apps/kando/plugins/script/`（P3）：
   - Trust：OpenTrust，每次启动 AddRoot 内嵌根和 dev 根，吊销。
@@ -1057,7 +1062,7 @@ P1.1 的确认框只有数据包要显示的部分：名称（标题）、说明
 |---|---|---|---|
 | P0（0.1–0.3） | 0.1 `PresetByID`/`ProviderID` 接收预设列表；0.2 `savedLLM.clean` 保留 `pack.` 服务；0.3 `apps/kando/plugins` 骨架（Parse、Validate、Stage、Swap、Remove、Scan、最小 state.json）和 `kando plugin validate`、`list` | `feat/plugins-foundation` | 已完成 |
 | P1.1 | 设置 › 插件页、安装确认、拖到插件页上安装、CLI inbox，glossary 和 ai-service 两种 kind，savedPlugins、pluginsHooks | `feat/plugins-data-packs` | 已完成 |
-| P1.2 + P1.3 | `segment.Annotated`（含测量和路线选择），dictionary kind、`plugins/dict`、`vocabResolve`、查词卡来源、词典排序 | `feat/plugins-dictionary` | P1.2 已完成，P1.3 进行中 |
+| P1.2 + P1.3 | `segment.Annotated`（含测量和路线选择），dictionary kind、`plugins/dict`、`vocabResolve`、查词卡来源、词典排序 | `feat/plugins-dictionary` | 已完成 |
 | P1.4 | wordlist kind、`plugins/wordlist`、逐词标注（注音和等级色）、设置 › 外观 的开关 | `feat/plugins-wordlist` | 未开始 |
 | P1.5 | 官方词典包 | — | 不做（12.2 第 2 条） |
 | P2 | 学习任务、导出模板、翻译风格 | — | 未开始 |
@@ -1113,3 +1118,16 @@ P1.2 的测量结果（Ubuntu 编译机，x86_64，Go 1.27.4，kagome-dict/ipa v
   - `Words` 原来的切分循环（`cutRuns`）改成在新的 `cutMorphs` 上包一层，日语的合并规则抽成 `japaneseMorphs`，`Words` 和 `Annotated` 共用；`segment_test.go` 的 `TestWordsAreCutAsBeforeAnnotated` 用改动前的代码跑出的切分结果锁住 `Words` 的输出逐字不变。
   - 合并词的读音是各 token 读音连起来（片假名，`イッタ`），不是原形的读音；原形的读音要从词典包取。
   - `Annotated` 会等词典读完（`Words` 不等），只能在后台调；`lang` 为 `ja` 时只有汉字的行也按日语切。
+- P1.3（已完成）：dictionary kind 接入查词。和正文的出入如下，E1、5.1、5.2、7.1、8.1 已同步改过：
+  - `plugins/dict` 是具体类型 `*dict.Dict`，不是接口，`LookUp(word, base, reading)` 不带 ctx（几次小的磁盘读）；只有一个实现，到 P3 有脚本查词来源时再看要不要接口（5.1）。
+  - 索引放在插件目录的 `.index/`，不放进包目录（包目录里多一个文件会让 `Validate` 拒收、哈希改变）；按 `<id>_<哈希前 16 位>` 命名，内容变了就重建，旧的删掉，卸载时一起删。旧索引不在 `dict.Open` 里删，而是每次打开结束后在引擎 goroutine 上决定保留哪一份（当时装着的那份内容的索引，包目录已经不在就一份不留），再在后台 `dict.Forget`：这样建索引期间包被替换或卸载时，晚结束的那次打开既不会删掉新内容的索引，也不会留下自己那份几百 MB 的孤儿索引；同一份内容正在打开时再开关一次，不会再起第二次构建（`pluginsUI.opening`）。建索引发生在安装（或换内容）后第一次打开时，在后台，不在 `Stage` 里（5.1、8.1）。
+  - 因为长期打开的只有索引，`Swap` 换包目录时不受句柄影响，Windows 的重试和待替换标记不需要，没有做（5.1）。
+  - 打不开的词典（比如没有一条能读的词条，`dict.ErrEmpty`）列在插件页的问题区，同一内容不再重试。
+  - `vocabResolve` 拆成引擎 goroutine 上的一半和后台的 `lookup.Ask.Answer`（不碰 app 的部分放进 `lookup` 包，见 E1）；缓存只存 AI 的回答，词典的结果不进缓存；`to` 不是回答语言的词典只在没有 AI 时才答（E1）。
+  - 日语词先用 `segment.Annotated` 取原形和读音，按原形查；只在真的会查词典时才调 Annotated（有回答语言的日语词典，或者没有 AI 时有别的语言的日语词典），所以只装了英文释义的 JMdict、又配了 AI 时，查词不会去读那份约 92 MiB 的完整词典。读音是点到的词的读音（片假名，和词典的平假名比较前统一成平假名），只在按点到的词本身命中时用来挑同形词；按原形命中时（`行った` 读 イッタ，原形 `行く` 读 いく 或 ゆく）不挑，原形的各个读音都列出来，因为 kagome 的 IPA features 里没有原形的读音。
+  - 词典排序的上移、下移不重建列表：列表的 `core.Dynamic` 只按包的集合（排序后的 kind/id/hash）重建，每组的行用 `core.Each` 按 id 保留并移动，按钮能不能按从绑定里读，所以按过的按钮还在、焦点不丢。
+  - 词典排序用上移、下移按钮，不是拖动（7.1）。
+  - 查词卡的来源只在桌面显示；手机同步协议没有来源字段，手机端暂不显示，JMdict 这类 CC-BY-SA 词典在手机上的署名要等协议加字段（E1）。
+  - 查词卡没有 AI、词典也没查到时的提示（`vocabLookupNoAI`）改成同时指向「AI 服务」和「插件」里安装词典（12.2 第 2 条）。
+  - 截图场景 `TestScreenshotsPlugins` 加了 `plugins-lookup`（词典回答的查词卡）；插件页里的词典分组和详情页还没有截图场景。
+  - 没有拿真实的 JMdict、Jitendex、CC-CEDICT 全量文件测过（测试用小样例）。第 4 节 64 个条目的上限对条目多的 Yomitan 词典（带图片的 Jitendex 之类）可能不够，建索引的耗时和峰值内存（所有键先放在内存里排序）也还没量；有人装了大词典报上来再调。

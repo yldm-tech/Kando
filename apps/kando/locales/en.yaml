@@ -3732,6 +3732,9 @@ pluginsErrBadName:
 pluginsErrBadShape:
   message: "Its files don't match what its kando-plugin.json lists."
   description: "Why a plugin pack cannot be installed or loaded: its files."
+pluginsErrDictEmpty:
+  message: "The dictionary has no entry Kando can read."
+  description: "Why a dictionary pack turned on cannot be used: none of its files has an entry in the format its manifest names."
 pluginsErrIDTaken:
   message: "A plugin of another kind with the same ID is installed. Uninstall it first."
   description: "Why a plugin pack cannot be installed or loaded: its id is taken by a pack of another kind."
@@ -6654,11 +6657,28 @@ vocabLookupFailed:
   placeholders:
     error: { type: "String", example: "401 Unauthorized" }
 vocabLookupNoAI:
-  message: "Looking up a word asks the AI service. Set one up in AI Service."
-  description: "Card of a word looked up, when no AI service is set up; Kando bundles no dictionary."
+  message: "Looking up a word asks your dictionaries, then the AI service. Set one up in AI Service, or install a dictionary in Plugins."
+  description: "Card of a word looked up, when no dictionary is installed for the word's language and no AI service is set up."
+vocabLookupNotInDicts:
+  message: "None of your dictionaries has this word. To look up the words they lack, set up an AI service in AI Service."
+  description: "Card of a word looked up, when dictionaries are installed for the word's language but none has the word, and no AI service is set up."
 vocabLookupSettings:
   message: "Open Settings"
   description: "Button of the card of a word looked up, when no AI service can answer: opens the AI Service settings."
+vocabLookupSourceAI:
+  message: "Explained by your AI service"
+  description: "Card of a word looked up, under the meaning: the meaning came from the AI service, now or when the word was looked up before."
+vocabLookupSourceDict:
+  message: "From the dictionary {name}"
+  description: "Card of a word looked up, under the meaning: the meaning came from a dictionary pack the user installed; {name} is its name."
+  placeholders:
+    name: { type: "String", example: "JMdict (English)" }
+vocabLookupSourceDictCredit:
+  message: "From the dictionary {name} · {credit}"
+  description: "Card of a word looked up, under the meaning: the meaning came from a dictionary pack the user installed; {name} is its name and {credit} the credit its license asks for, as the pack wrote it."
+  placeholders:
+    name: { type: "String", example: "JMdict (English)" }
+    credit: { type: "String", example: "JMdict © EDRDG" }
 vocabLookupTerm:
   message: "Film glossary: {term}"
   description: "Card of a word looked up, when the film's glossary has a term for the word: the term and its translation, as source → target."
@@ -7167,6 +7187,16 @@ settingsPluginsMissing:
 settingsPluginsMissingGroup:
   message: "Not in the Plugins Folder"
   description: "Plugins page: heading of the packs Kando remembers that are no longer in the plugins folder."
+settingsPluginsMoveDownLabel:
+  message: "Move {name} down"
+  description: "Accessibility name of the button that moves a dictionary pack one place down among the dictionaries, the order lookups ask them in; {name} is the pack's name."
+  placeholders:
+    name: { type: "String", example: "JMdict (English)" }
+settingsPluginsMoveUpLabel:
+  message: "Move {name} up"
+  description: "Accessibility name of the button that moves a dictionary pack one place up among the dictionaries, the order lookups ask them in; {name} is the pack's name."
+  placeholders:
+    name: { type: "String", example: "JMdict (English)" }
 settingsPluginsNone:
   message: "No plugins installed"
   description: "Plugins page: the list's only row while no plugin pack is installed."

@@ -7,12 +7,13 @@ import (
 
 	"kando/apps/kando/locales"
 	"kando/apps/kando/plugins"
+	"kando/apps/kando/plugins/dict"
 	"kando/apps/kando/settings"
 )
 
 // The 插件 page's reads and edits (settings.PluginsApp). The page reads them in its bindings and calls the actions from its handlers, which tell the revision (package live), so none of them calls Changed itself. The words they say are in the interface's language (app.messages), which the page shows too; a pack's own words (its name, description) are the page's to pick in that language.
 
-// PluginRows are the installed packs and the remembered ones that are missing, in the order the settings keep (pluginsState.order); a pack not in it yet comes after.
+// PluginRows are the installed packs and the remembered ones that are missing, in the order the settings keep (pluginsUI.order); a pack not in it yet comes after. A dictionary's row says whether it can move up or down among the dictionaries.
 func (a *app) PluginRows() []settings.PluginRow {
 	m := a.messages()
 	var rows []settings.PluginRow
@@ -36,6 +37,16 @@ func (a *app) PluginRows() []settings.PluginRow {
 			add(pack)
 		}
 	}
+	// The dictionaries are asked in this order, which their rows move up and down.
+	var dicts []int
+	for i, r := range rows {
+		if !r.Missing && r.Pack.Kind == plugins.KindDictionary {
+			dicts = append(dicts, i)
+		}
+	}
+	for n, i := range dicts {
+		rows[i].Up, rows[i].Down = n > 0, n < len(dicts)-1
+	}
 	return rows
 }
 
@@ -43,7 +54,7 @@ func (a *app) PluginRows() []settings.PluginRow {
 func (a *app) PluginIssues() []settings.PluginIssue {
 	m := a.messages()
 	out := make([]settings.PluginIssue, 0, len(a.plugins.issues))
-	for _, issue := range a.plugins.issues {
+	for _, issue := range append(slices.Clone(a.plugins.issues), a.pluginsDictIssues()...) {
 		out = append(out, settings.PluginIssue{Folder: filepath.Base(issue.Dir), Reason: pluginsErrorText(m, issue.Err)})
 	}
 	return out
@@ -86,6 +97,8 @@ func (a *app) ShowPluginsFolder() { a.pluginsShowFolder() }
 func (a *app) UninstallPlugin(id string) { a.pluginsUninstall(id) }
 
 func (a *app) ForgetPlugin(id string) { a.pluginsForget(id) }
+
+func (a *app) MovePlugin(id string, up bool) { a.pluginsMove(id, up) }
 
 // PluginInstall is the install confirmation: the pack staged, what it adds, and the version of the pack of its id it replaces; or why the file cannot be installed.
 func (a *app) PluginInstall() settings.PluginInstall {
@@ -139,6 +152,7 @@ func pluginsErrorText(m locales.Messages, err error) string {
 		{plugins.ErrStateFormat, m.SettingsPluginsStateNewer},
 		{plugins.ErrBadState, m.SettingsPluginsStateBad},
 		{errPluginsFolderNotShown, m.LibraryRevealNotOpened},
+		{dict.ErrEmpty, m.PluginsErrDictEmpty},
 	} {
 		if errors.Is(err, e.err) {
 			return e.text()
