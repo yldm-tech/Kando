@@ -17,8 +17,11 @@ import (
 // MinContextLines is the fewest earlier lines the 翻译 page lets go with a batch while context is on; turning context off sends none.
 const MinContextLines = 10
 
-// translate is the 翻译 page: the language subtitles are translated into, whether each batch takes the sentences before it, the final proofread and which of its changes apply by themselves, and the prompt. The prototype's page starts 6 points lower than one that opens with a section label.
-type translate struct{ s screen }
+// translate is the 翻译 page: the language subtitles are translated into, whether each batch takes the sentences before it, the final proofread and which of its changes apply by themselves, and the prompt, with styles, the 风格预设 row the window is given (Styles), over it when it is. The prototype's page starts 6 points lower than one that opens with a section label.
+type translate struct {
+	s      screen
+	styles core.Node
+}
 
 // Render implements core.Node.
 func (p translate) Render(cx *core.Scope) core.Node {
@@ -115,9 +118,17 @@ func (p translate) Render(cx *core.Scope) core.Node {
 		form.Label(locales.SettingsReview(cx), 12),
 		form.Card(review, form.Separator(true), auto),
 		form.Label(locales.SettingsTranslatePrompt(cx), 12),
-		form.Card(editor),
+		p.promptCard(editor),
 		form.Note(static(locales.SettingsTranslatePromptNote(cx)), 0),
 	)
+}
+
+// promptCard is the card of the prompt editor, with the 风格预设 row over it when the window was given one.
+func (p translate) promptCard(editor core.Node) core.Node {
+	if p.styles == nil {
+		return form.Card(editor)
+	}
+	return form.Card(p.styles, editor)
 }
 
 // LanguageChoices is the target languages the settings offer, with current added when it is not one of them, as a language typed into an older version is kept. These are the values the settings, the jobs and the translation prompt keep, as 简体中文; LanguageName is what the interface shows for each.

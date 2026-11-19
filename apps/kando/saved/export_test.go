@@ -138,7 +138,7 @@ func TestExportWritesNotesAndSounds(t *testing.T) {
 			return time.Second
 		}
 		return 0
-	}, out, func(done, total int) { counted = append(counted, done, total) })
+	}, out, Target{}, func(done, total int) { counted = append(counted, done, total) })
 	if err != nil {
 		t.Fatal(err)
 	}

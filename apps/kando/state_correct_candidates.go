@@ -76,30 +76,22 @@ func (a *app) StartCandidates() {
 		req.Language = paletteAnswerLanguage(item, a.prefs.language)
 	}
 	pick.busy = true
-	ctx, cancel := context.WithTimeout(context.Background(), correctPickTimeout)
-	pick.cancel = cancel
-	gen, update := pick.gen, a.update
-	go func() {
-		defer cancel()
-		options, err := t.Candidates(ctx, req)
-		update(func() {
-			p := a.correct.pick
-			if p == nil || p.gen != gen {
-				return
-			}
-			p.busy, p.cancel = false, nil
-			switch {
-			case err != nil:
-				// The service's settings are the likely fix for a refused key, a wrong model or a signed-out CLI, as for Explain Line.
-				p.say = func(cx *ns.Scope) string { return locales.CorrectCandidatesFailed(cx, err.Error()) }
-				p.needsAI = true
-			case len(options) == 0:
-				p.say = locales.CorrectCandidatesNone
-			default:
-				p.options, p.at = options, 1
-			}
-		})
-	}()
+	gen := pick.gen
+	ask := func(ctx context.Context) ([]string, error) { return t.Candidates(ctx, req) }
+	pick.cancel = aiAsk(a, correctPickTimeout, ask, func() bool { return a.correct.pick != nil && a.correct.pick.gen == gen }, func(options []string, err error) {
+		p := a.correct.pick
+		p.busy, p.cancel = false, nil
+		switch {
+		case err != nil:
+			// The service's settings are the likely fix for a refused key, a wrong model or a signed-out CLI, as for Explain Line.
+			p.say = func(cx *ns.Scope) string { return locales.CorrectCandidatesFailed(cx, err.Error()) }
+			p.needsAI = true
+		case len(options) == 0:
+			p.say = locales.CorrectCandidatesNone
+		default:
+			p.options, p.at = options, 1
+		}
+	})
 }
 
 // Candidates is the other translations of the selected line as they show (film.Corrector).

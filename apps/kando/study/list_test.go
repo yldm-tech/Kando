@@ -26,6 +26,8 @@ type fakeApp struct {
 	due         int
 	calls       []string
 	note, draft string
+	targets     []ExportTarget
+	target      string
 }
 
 func (f *fakeApp) NoteEditing() string { return f.note }
@@ -50,13 +52,16 @@ func (f *fakeApp) SaveNote() {
 }
 func (f *fakeApp) CancelNote() { f.note, f.draft = "", "" }
 
-func (f *fakeApp) ExportSaved()        { f.calls = append(f.calls, "export") }
-func (f *fakeApp) ExportState() Export { return f.export }
-func (f *fakeApp) RevealExport()       { f.calls = append(f.calls, "reveal") }
-func (f *fakeApp) StopExport()         { f.calls = append(f.calls, "stop") }
-func (f *fakeApp) ExportSettings()     { f.calls = append(f.calls, "settings") }
-func (f *fakeApp) DueCount() int       { return f.due }
-func (f *fakeApp) StartReview()        { f.calls = append(f.calls, "review") }
+func (f *fakeApp) ExportSaved()                  { f.calls = append(f.calls, "export") }
+func (f *fakeApp) ExportState() Export           { return f.export }
+func (f *fakeApp) RevealExport()                 { f.calls = append(f.calls, "reveal") }
+func (f *fakeApp) StopExport()                   { f.calls = append(f.calls, "stop") }
+func (f *fakeApp) ExportSettings()               { f.calls = append(f.calls, "settings") }
+func (f *fakeApp) DueCount() int                 { return f.due }
+func (f *fakeApp) ExportTargets() []ExportTarget { return f.targets }
+func (f *fakeApp) ExportTarget() string          { return f.target }
+func (f *fakeApp) SetExportTarget(id string)     { f.target = id }
+func (f *fakeApp) StartReview()                  { f.calls = append(f.calls, "review") }
 
 func (f *fakeApp) SavedEntries() []Entry { return f.entries }
 func (f *fakeApp) OpenSaved(id string)   { f.calls = append(f.calls, "open "+id) }
@@ -181,13 +186,29 @@ func TestSheetSaysHowTheExportGoes(t *testing.T) {
 	if !app.Exists(whole(msgs.SavedExportedSomeAudio(3, 2))) {
 		t.Fatalf("done with some audio: %q", app.Texts())
 	}
-	a.export = Export{Finished: true, Lines: 3, NoFFmpeg: true}
+	a.export = Export{Finished: true, Lines: 3, NoFFmpeg: true, WithSound: true}
 	a.Changed()
 	app.Settle()
 	if !app.Exists(whole(msgs.SavedExportedNoAudio(3))) {
 		t.Fatalf("done without audio: %q", app.Texts())
 	}
 	app.Press("id:saved-export-settings")
+	// A plugin's template with a column for the audio warns as the Anki notes do, and one without does not, nor offers ffmpeg's settings.
+	for _, c := range []struct {
+		export Export
+		want   string
+	}{
+		{Export{Finished: true, Lines: 3, NoFFmpeg: true, WithSound: true, Template: "Cards", File: "cards.csv"}, msgs.SavedExportedTemplateNoAudio(3, "cards.csv")},
+		{Export{Finished: true, Lines: 3, Sounds: 1, WithSound: true, Template: "Cards", File: "cards.csv"}, msgs.SavedExportedTemplateSomeAudio(3, 1, "cards.csv")},
+		{Export{Finished: true, Lines: 3, NoFFmpeg: true, Template: "Cards", File: "cards.csv"}, msgs.SavedExportedTemplate(3, "cards.csv")},
+	} {
+		a.export = c.export
+		a.Changed()
+		app.Settle()
+		if !app.Exists(whole(c.want)) || app.Exists("id:saved-export-settings") != (c.export.NoFFmpeg && c.export.WithSound) {
+			t.Fatalf("%+v: %q", c.export, app.Texts())
+		}
+	}
 	a.export = Export{Finished: true, Err: "permission denied"}
 	a.Changed()
 	app.Settle()

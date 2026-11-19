@@ -62,7 +62,7 @@ func TestExportTakesTheKeptSoundOfAGoneVideo(t *testing.T) {
 		t.Fatal(err)
 	}
 	out := t.TempDir()
-	got, err := Export(context.Background(), "", b, func(string) time.Duration { return 0 }, out, nil)
+	got, err := Export(context.Background(), "", b, func(string) time.Duration { return 0 }, out, Target{}, nil)
 	if err != nil || got.Sounds != 1 {
 		t.Fatalf("exported %+v, %v", got, err)
 	}

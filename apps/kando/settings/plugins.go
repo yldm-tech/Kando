@@ -18,13 +18,14 @@ import (
 	"github.com/nsgo-dev/nsgo/ui"
 )
 
-// PluginRow is a pack as the 插件 page lists it (Script says more of a script plugin): one installed (Pack, with whether it is turned on), or one the settings remember that is not in the plugins folder any more (Missing), of which only Pack.ID and Pack.Kind are known. Detail is what it adds, worded by the app in the interface's language, as how many terms a glossary has and between which languages, or the host an AI service talks to. Up and Down say whether a dictionary can move up or down among the dictionaries, the order lookups ask them in.
+// PluginRow is a pack as the 插件 page lists it (Script says more of a script plugin): one installed (Pack, with whether it is turned on), or one the settings remember that is not in the plugins folder any more (Missing), of which only Pack.ID and Pack.Kind are known. Detail is what it adds, worded by the app in the interface's language, as how many terms a glossary has and between which languages, or the host an AI service talks to. Up and Down say whether a dictionary can move up or down among the dictionaries, the order lookups ask them in. A task's Budget is the most tokens of the user's AI service it may spend a day, and Spent what it spent today.
 type PluginRow struct {
-	Pack     plugins.Pack
-	Enabled  bool
-	Missing  bool
-	Detail   string
-	Up, Down bool
+	Pack          plugins.Pack
+	Enabled       bool
+	Missing       bool
+	Detail        string
+	Up, Down      bool
+	Budget, Spent int
 	// Script is a script plugin's, nil for a data pack.
 	Script *PluginScript
 }
@@ -43,6 +44,8 @@ type PluginInstall struct {
 	Err      string
 	// Script is what a script plugin asks for and where it comes from, nil for a data pack.
 	Script *PluginScript
+	// Budget is a task pack's daily budget of tokens: the one the pack it replaces keeps, else plugins.DefaultBudget.
+	Budget int
 }
 
 // PluginsApp is what the 插件 page reads and the edits it reports. The page reads the getters in its bindings and calls the actions from its handlers, which tell the revision (package live), so none of the actions calls Changed itself. Installing, removing and reading the plugins folder run off the UI thread and report back.
@@ -56,8 +59,9 @@ type PluginsApp interface {
 	PluginsNote() string
 	PluginsErr() string
 	PluginsBusy() bool
-	// SetPluginEnabled turns the pack id on or off and saves that to state.json.
+	// SetPluginEnabled turns the pack id on or off and saves that to state.json; SetPluginBudget sets a task pack's daily budget of tokens there.
 	SetPluginEnabled(id string, on bool)
+	SetPluginBudget(id string, tokens int)
 	// PickPluginFile asks for a pack file with the system's file panel, and InstallPlugins takes the files or folders dropped on the page; either opens the install confirmation of the first, never installing without it.
 	PickPluginFile()
 	InstallPlugins(paths []string)
@@ -77,10 +81,20 @@ type PluginsApp interface {
 	SetPluginSiteAllowed(id, domain string, on bool)
 	PluginInstallSiteTicked(domain string) bool
 	SetPluginInstallSite(domain string, on bool)
+	// PluginExport is the sheet that exports the user's glossary or vocabulary as a pack (PluginExportDialog), and the Set… actions change its fields; ConfirmPluginExport builds the pack and asks where to save it, CancelPluginExport closes the sheet, which neither does while it is busy.
+	PluginExport() PluginExport
+	SetPluginExportName(name string)
+	SetPluginExportID(id string)
+	SetPluginExportScope(id string)
+	SetPluginExportFrom(code string)
+	SetPluginExportTo(language string)
+	SetPluginExportLanguage(code string)
+	ConfirmPluginExport()
+	CancelPluginExport()
 }
 
 // pluginKinds are the kinds of packs the page groups the list by, in its order.
-var pluginKinds = []plugins.Kind{plugins.KindScript, plugins.KindGlossary, plugins.KindAIService, plugins.KindDictionary, plugins.KindWordlist, plugins.KindSite}
+var pluginKinds = []plugins.Kind{plugins.KindScript, plugins.KindGlossary, plugins.KindAIService, plugins.KindDictionary, plugins.KindWordlist, plugins.KindSite, plugins.KindStyle, plugins.KindTask, plugins.KindExportTemplate}
 
 // pluginKindTitle is the heading of the group of kind, in the language the app shows under cx.
 func pluginKindTitle(cx *core.Scope, kind plugins.Kind) string {
@@ -95,6 +109,12 @@ func pluginKindTitle(cx *core.Scope, kind plugins.Kind) string {
 		return locales.SettingsPluginsKindSite(cx)
 	case plugins.KindScript:
 		return locales.SettingsPluginsKindScript(cx)
+	case plugins.KindTask:
+		return locales.SettingsPluginsKindTask(cx)
+	case plugins.KindStyle:
+		return locales.SettingsPluginsKindStyle(cx)
+	case plugins.KindExportTemplate:
+		return locales.SettingsPluginsKindTemplate(cx)
 	}
 	return locales.SettingsPluginsKindWordlist(cx)
 }
@@ -291,7 +311,7 @@ func pluginRow(cx *core.Scope, a PluginsApp, item func() PluginRow, open, asking
 	return core.Group{row, details}
 }
 
-// pluginDetail is what the pack in r is, under its row: its description, what it adds, its license, homepage, id and the start of its hash, the credit its license asks for, a site pack's checkboxes that allow each of its domains, and 卸载…, which asks first, under it, with 卸载 and 取消.
+// pluginDetail is what the pack in r is, under its row: its description, what it adds, its license, homepage, id and the start of its hash, the credit its license asks for, a site pack's checkboxes that allow each of its domains, a task's daily budget of tokens and what it spent today, and 卸载…, which asks first, under it, with 卸载 and 取消.
 func pluginDetail(cx *core.Scope, a PluginsApp, r PluginRow, name string, asking *core.Signal[string]) core.Node {
 	colors := ui.ColorsOf(cx)
 	k := theme.Of(cx)
@@ -315,6 +335,9 @@ func pluginDetail(cx *core.Scope, a PluginsApp, r PluginRow, name string, asking
 		if credit := r.Pack.Dictionary.Attribution.In(lang); credit != "" {
 			lines = append(lines, text(credit, colors.Muted))
 		}
+	}
+	if r.Pack.Kind == plugins.KindTask {
+		lines = append(lines, pluginBudget(cx, a, id, name))
 	}
 	lines = append(lines, text(locales.SettingsPluginsIdentity(cx, id, shortHash(r.Pack.Hash)), colors.Muted))
 	if r.Pack.Site != nil {
@@ -370,6 +393,30 @@ func pluginSites(cx *core.Scope, a PluginsApp, domains []string, prefix string, 
 	return core.View{Role: core.RoleGroup, Label: locales.SettingsPluginsSitesAllowed(cx), Style: core.Style{Gap: 4, Margin: core.Edges{Top: 6, Bottom: 2}}, Children: rows}
 }
 
+// pluginBudget is a task pack's daily budget of tokens, which the user sets, with what it spent today beside it; both read the pack's row as it is now.
+func pluginBudget(cx *core.Scope, a PluginsApp, id, name string) core.Node {
+	colors := ui.ColorsOf(cx)
+	row := live.Func(a, func() PluginRow {
+		for _, r := range a.PluginRows() {
+			if r.Pack.ID == id {
+				return r
+			}
+		}
+		return PluginRow{}
+	})
+	input := ui.NumberInput{TestID: "settings-plugins-budget-" + id, Label: locales.SettingsPluginsTaskBudgetLabel(cx, name), Min: plugins.MinBudget, Max: plugins.MaxBudget, Step: 1000,
+		Disabled: live.Func(a, a.PluginsBusy),
+		Value:    func() float64 { return float64(row().Budget) },
+		OnChange: live.On(a, func(v float64) { a.SetPluginBudget(id, int(v)) }),
+		Style:    core.Style{Width: core.Pt(110)}}
+	return core.View{Style: core.Style{Direction: core.Row, Gap: 8, AlignItems: core.AlignCenter, Margin: core.Edges{Top: 4}}, Children: []core.Node{
+		core.Text{Content: locales.SettingsPluginsTaskBudget(cx), Style: core.Style{FontSize: 12, LineHeight: 17}, StyleFunc: ui.Colored(colors.Text)},
+		input,
+		core.Text{TestID: "settings-plugins-spent-" + id, ContentFunc: func() string { return locales.SettingsPluginsTaskSpent(cx, row().Spent) },
+			Style: core.Style{FontSize: 12, LineHeight: 17, FlexShrink: 1}, StyleFunc: ui.Colored(colors.Muted)},
+	}}
+}
+
 // shortHash is the first 12 hex digits of a pack's hash, enough to tell one content from another at a glance.
 func shortHash(hash string) string {
 	if len(hash) > 12 {
@@ -406,7 +453,7 @@ func (p pluginIssues) Render(cx *core.Scope) core.Node {
 	})
 }
 
-// PluginInstallDialog is the install confirmation while Open and the app's PluginInstall say it is open: the pack's name, what it is and adds, its version, author, license, id and the start of its hash, that it comes from a file on this computer and is not signed, and the version it replaces, for a site pack a checkbox for each of its domains, unticked unless the user allowed it for the version installed now, with 安装 and 取消; or, for a file that cannot be installed, why, with 好. 取消 is the default, so Enter and Escape install nothing. The 插件 page draws it when the settings are in a window of their own, the app's pluginsOverlay over the main window otherwise.
+// PluginInstallDialog is the install confirmation while Open and the app's PluginInstall say it is open: the pack's name, what it is and adds, for a task that it stays off until it is turned on and what it may spend, its version, author, license, id and the start of its hash, that it comes from a file on this computer and is not signed, and the version it replaces, for a site pack a checkbox for each of its domains, unticked unless the user allowed it for the version installed now, with 安装 and 取消; or, for a file that cannot be installed, why, with 好. 取消 is the default, so Enter and Escape install nothing. The 插件 page draws it when the settings are in a window of their own, the app's pluginsOverlay over the main window otherwise.
 type PluginInstallDialog struct {
 	App  PluginsApp
 	Open func() bool
@@ -465,6 +512,9 @@ func pluginInstallDialog(cx *core.Scope, a PluginsApp, in PluginInstall, cancel 
 	version := locales.SettingsPluginsVersion(cx, p.Version)
 	if p.Author != "" {
 		version = locales.SettingsPluginsVersionAuthor(cx, p.Version, p.Author)
+	}
+	if p.Kind == plugins.KindTask {
+		children = append(children, core.Text{Content: locales.SettingsPluginsTaskInstallNote(cx, in.Budget), Style: core.Style{FontSize: 12, LineHeight: 17}, StyleFunc: ui.Colored(colors.Text)})
 	}
 	children = append(children, facts(version), facts(locales.SettingsPluginsLicense(cx, p.License)), facts(locales.SettingsPluginsIdentity(cx, p.ID, shortHash(p.Hash))))
 	if in.Replaces != "" {

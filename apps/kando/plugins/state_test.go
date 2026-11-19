@@ -163,3 +163,39 @@ func TestStateAllowsSitesOneByOne(t *testing.T) {
 		t.Fatal("a damaged state.json allows a site")
 	}
 }
+
+// TestStateTaskPacksStartOff checks that a task pack without an entry is off, as it spends the user's tokens, while other kinds without one are on; and that Entry and Budget read an entry, or its defaults.
+func TestStateTaskPacksStartOff(t *testing.T) {
+	s := State{Format: StateFormat, Plugins: []PluginState{{ID: "example.quiz", Hash: "1", Enabled: true, Budget: 2000}}}
+	task := func(id string) Pack { return Pack{Manifest: Manifest{ID: id, Kind: KindTask}} }
+	if !s.EnabledPack(task("example.quiz")) || s.EnabledPack(task("example.other")) || !s.Enabled("example.other") {
+		t.Fatal("a task pack without an entry is on, or one with an entry turned on is off")
+	}
+	if s.Budget("example.quiz") != 2000 || s.Budget("example.other") != DefaultBudget {
+		t.Fatalf("budgets %d, %d", s.Budget("example.quiz"), s.Budget("example.other"))
+	}
+	if e, ok := s.Entry("example.other"); ok || e.Budget != 0 {
+		t.Fatalf("Entry of a pack without one = %+v, %v", e, ok)
+	}
+}
+
+// TestUsageCountsADayAndSurvivesARestart checks that the tokens spent are counted by pack for the day, kept across a load, and start again on another day.
+func TestUsageCountsADayAndSurvivesARestart(t *testing.T) {
+	root := t.TempDir()
+	u := LoadUsage(root, "2026-11-19")
+	u.Add("2026-11-19", "example.quiz", 300)
+	u.Add("2026-11-19", "example.quiz", 200)
+	if err := u.Save(root); err != nil {
+		t.Fatal(err)
+	}
+	if got := LoadUsage(root, "2026-11-19").Spent("2026-11-19", "example.quiz"); got != 500 {
+		t.Fatalf("spent %d after a restart, want 500", got)
+	}
+	if got := LoadUsage(root, "2026-11-20").Spent("2026-11-20", "example.quiz"); got != 0 {
+		t.Fatalf("spent %d the next day", got)
+	}
+	u.Add("2026-11-20", "example.quiz", 7)
+	if u.Spent("2026-11-20", "example.quiz") != 7 || u.Spent("2026-11-19", "example.quiz") != 0 {
+		t.Fatalf("a new day kept the old count: %+v", u)
+	}
+}

@@ -65,6 +65,37 @@ const siteManifest = `{
   ]}
 }`
 
+const taskManifest = `{
+  "schema": 1,
+  "id": "example.quiz",
+  "kind": "task",
+  "version": "1.0.0",
+  "license": "MIT",
+  "name": {"en": "Quiz me"},
+  "task": {"scope": "line", "prompt": "Ask the learner one question about the line.", "render": "cards", "maxTokens": 600,
+    "reply": {"fields": [{"key": "question", "label": {"en": "Question"}}, {"key": "answer", "label": {"en": "Answer"}}], "items": 3}}
+}`
+
+const styleManifest = `{
+  "schema": 1,
+  "id": "example.casual",
+  "kind": "translate-style",
+  "version": "1.0.0",
+  "license": "MIT",
+  "name": {"en": "Casual"},
+  "style": {"prompt": "Translate every line into {{language}} as friends talk."}
+}`
+
+const templateManifest = `{
+  "schema": 1,
+  "id": "example.cards",
+  "kind": "export-template",
+  "version": "1.0.0",
+  "license": "MIT",
+  "name": {"en": "Flash cards (CSV)"},
+  "template": {"format": "csv", "columns": [{"header": "Front", "value": "{{original}}"}, {"header": "Back", "value": "{{translation}}\n{{film}} {{time}}"}]}
+}`
+
 // writePack writes a pack folder of files, by name, into a new folder of dir, and returns it.
 func writePack(t *testing.T, files map[string]string) string {
 	t.Helper()

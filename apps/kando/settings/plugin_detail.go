@@ -9,7 +9,7 @@ import (
 	kcore "kando/packages/core"
 )
 
-// PluginDetail is what pack adds, in the words of m, as the 插件 page and the install confirmation say it (PluginRow.Detail, PluginInstall.Detail): a glossary's number of terms and its languages, an AI service's host, which the user's key goes to, a dictionary's languages, a word list's language and number of levels, a site pack's number of sites, whose downloads borrow no sign-in.
+// PluginDetail is what pack adds, in the words of m, as the 插件 page and the install confirmation say it (PluginRow.Detail, PluginInstall.Detail): a glossary's number of terms and its languages, an AI service's host, which the user's key goes to, a dictionary's languages, a word list's language and number of levels, a site pack's number of sites, whose downloads borrow no sign-in, what a task asks the user's AI service about, where a translation style is offered, and what an export template writes.
 func PluginDetail(m locales.Messages, pack plugins.Pack) string {
 	switch {
 	case pack.Glossary != nil:
@@ -22,6 +22,18 @@ func PluginDetail(m locales.Messages, pack plugins.Pack) string {
 		return m.SettingsPluginsWordlistDetail(pluginLanguageName(m, pack.Wordlist.Language), len(pack.Wordlist.Tiers))
 	case pack.Site != nil:
 		return m.SettingsPluginsSiteDetail(len(pack.Site.Sites))
+	case pack.Template != nil:
+		return m.SettingsPluginsTemplateDetail(strings.ToUpper(pack.Template.Format), len(pack.Template.Columns))
+	case pack.Style != nil:
+		return m.SettingsPluginsStyleDetail()
+	case pack.Task != nil:
+		switch pack.Task.Scope {
+		case plugins.ScopeWord:
+			return m.SettingsPluginsTaskDetailWord()
+		case plugins.ScopeFilm:
+			return m.SettingsPluginsTaskDetailFilm()
+		}
+		return m.SettingsPluginsTaskDetailLine()
 	}
 	return ""
 }

@@ -90,10 +90,14 @@ func limitsOf(k Kind) limits {
 	return limits{zip: 32 << 20, entries: 16, bytes: 64 << 20}
 }
 
-// The most a glossary pack, a word list or a field may hold.
+// TermsMax is the most terms a glossary pack holds, and TermMax the most characters of a term's source or target.
 const (
-	termsMax   = 5000
-	termMax    = 200
+	TermsMax = 5000
+	TermMax  = 200
+)
+
+// The most a word list or a field may hold.
+const (
 	tiersMax   = 32
 	versionMax = 32
 	licenseMax = 64
@@ -104,11 +108,19 @@ const (
 	sitesMax      = 8
 	siteShapesMax = 16
 	siteNotMax    = 16
+	promptMax     = 4000
+	fieldsMax     = 8
+	itemsMax      = 20
+	tokensMin     = 64
+	columnsMax    = 16
 )
 
 var (
 	versionPattern = regexp.MustCompile(`^[0-9A-Za-z][0-9A-Za-z.+-]*$`)
 	tierPattern    = regexp.MustCompile(`^[a-z0-9][a-z0-9-]{0,31}$`)
+	fieldPattern   = regexp.MustCompile(`^[a-z][A-Za-z0-9_]{0,31}$`)
+	// placeholderPattern finds the placeholders of an export template's column.
+	placeholderPattern = regexp.MustCompile(`\{\{([^{}]*)\}\}`)
 )
 
 // Validate checks the pack in the folder dir, the same way for the app's scan, for `kando plugin validate` and for a pack Stage has just copied: its manifest (Parse) and every field of it, its id, the shape of the folder (only the files its manifest names, plus .md and .txt notes, no folder, link or special file, names in plain ASCII), and its limits, counting the bytes actually read, those inside a dictionary's zips included. It returns the pack with its texts cleaned of invisible and bidirectional characters, and the hash of its files.
@@ -357,7 +369,7 @@ func checkManifest(m *Manifest) error {
 	}
 	// Exactly the field of its kind is set: Parse leaves another kind's field set when the manifest has it.
 	set := 0
-	for _, isSet := range []bool{m.Dictionary != nil, m.Wordlist != nil, m.Glossary != nil, m.Service != nil, m.Site != nil, m.Script != nil} {
+	for _, isSet := range []bool{m.Dictionary != nil, m.Wordlist != nil, m.Glossary != nil, m.Service != nil, m.Site != nil, m.Script != nil, m.Task != nil, m.Style != nil, m.Template != nil} {
 		if isSet {
 			set++
 		}
@@ -380,6 +392,12 @@ func checkManifest(m *Manifest) error {
 		err = checkSite(m.Site)
 	case m.Kind == KindScript && m.Script != nil && set == 1:
 		err = checkScript(m)
+	case m.Kind == KindTask && m.Task != nil && set == 1:
+		err = checkTask(m.Task)
+	case m.Kind == KindStyle && m.Style != nil && set == 1:
+		err = checkStyle(m.Style)
+	case m.Kind == KindExportTemplate && m.Template != nil && set == 1:
+		err = checkTemplate(m.Template)
 	default:
 		err = fmt.Errorf("%w: a %s pack needs its %s field and no other kind's", ErrBadField, m.Kind, kindField(m.Kind))
 	}
@@ -388,8 +406,13 @@ func checkManifest(m *Manifest) error {
 
 // kindField is the manifest's key for the fields of kind k.
 func kindField(k Kind) string {
-	if k == KindAIService {
+	switch k {
+	case KindAIService:
 		return "service"
+	case KindStyle:
+		return "style"
+	case KindExportTemplate:
+		return "template"
 	}
 	return string(k)
 }
@@ -525,14 +548,14 @@ func checkGlossary(g *Glossary) error {
 	if err := checkLanguage(g.To); err != nil {
 		return fmt.Errorf("to: %w", err)
 	}
-	if len(g.Terms) == 0 || len(g.Terms) > termsMax {
-		return fmt.Errorf("%w: a glossary has 1 to %d terms", ErrBadField, termsMax)
+	if len(g.Terms) == 0 || len(g.Terms) > TermsMax {
+		return fmt.Errorf("%w: a glossary has 1 to %d terms", ErrBadField, TermsMax)
 	}
 	for i := range g.Terms {
 		t := &g.Terms[i]
 		t.Source, t.Target = cleanText(t.Source, false), cleanText(t.Target, false)
-		if t.Source == "" || t.Target == "" || utf8.RuneCountInString(t.Source) > termMax || utf8.RuneCountInString(t.Target) > termMax {
-			return fmt.Errorf("%w: term %d is empty or over %d characters", ErrBadField, i+1, termMax)
+		if t.Source == "" || t.Target == "" || utf8.RuneCountInString(t.Source) > TermMax || utf8.RuneCountInString(t.Target) > TermMax {
+			return fmt.Errorf("%w: term %d is empty or over %d characters", ErrBadField, i+1, TermMax)
 		}
 	}
 	return nil
@@ -603,6 +626,91 @@ func siteKnown(domain string) bool {
 		}
 	}
 	return false
+}
+
+// checkTask checks a task pack: a scope and a way to show its reply this version knows, a prompt of 1 to promptMax characters, 1 to fieldsMax fields with keys of a letter and up to 31 letters, digits or underscores, none twice, each with a label; Items, for a list or cards only, at most itemsMax; and MaxTokens 0, when the shape must fit MaxTaskTokens at TaskFieldTokens a value, or tokensMin to MaxTaskTokens. It cleans the prompt and the labels in place.
+func checkTask(t *Task) error {
+	switch t.Scope {
+	case ScopeLine, ScopeWord, ScopeFilm:
+	default:
+		return fmt.Errorf("%w: task scope %q", ErrBadField, t.Scope)
+	}
+	switch t.Render {
+	case RenderSections, RenderList, RenderCards:
+	default:
+		return fmt.Errorf("%w: task render %q", ErrBadField, t.Render)
+	}
+	t.Prompt = cleanText(t.Prompt, true)
+	if t.Prompt == "" || utf8.RuneCountInString(t.Prompt) > promptMax {
+		return fmt.Errorf("%w: the task's prompt is empty or over %d characters", ErrBadField, promptMax)
+	}
+	fields := t.Reply.Fields
+	if len(fields) == 0 || len(fields) > fieldsMax {
+		return fmt.Errorf("%w: a task's reply has 1 to %d fields", ErrBadField, fieldsMax)
+	}
+	for i, f := range fields {
+		if !fieldPattern.MatchString(f.Key) || slices.ContainsFunc(fields[:i], func(o TaskField) bool { return o.Key == f.Key }) {
+			return fmt.Errorf("%w: reply field %q", ErrBadField, f.Key)
+		}
+		if err := checkText("field label", f.Label, nameMax, true, false); err != nil {
+			return err
+		}
+	}
+	if t.Reply.Items < 0 || t.Reply.Items > itemsMax || (t.Reply.Items > 0 && t.Render == RenderSections) {
+		return fmt.Errorf("%w: reply items %d", ErrBadField, t.Reply.Items)
+	}
+	if t.MaxTokens != 0 && (t.MaxTokens < tokensMin || t.MaxTokens > MaxTaskTokens) {
+		return fmt.Errorf("%w: maxTokens %d", ErrBadField, t.MaxTokens)
+	}
+	// A shape whose values would not fit the most a reply may take would only ever be cut off.
+	if t.MaxTokens == 0 && t.Tokens() > MaxTaskTokens {
+		return fmt.Errorf("%w: %d items of %d fields do not fit a reply of %d tokens", ErrBadField, t.Items(), len(fields), MaxTaskTokens)
+	}
+	return nil
+}
+
+// checkStyle checks a translate-style pack: a prompt of 1 to promptMax characters, cleaned in place.
+func checkStyle(st *Style) error {
+	st.Prompt = cleanText(st.Prompt, true)
+	if st.Prompt == "" || utf8.RuneCountInString(st.Prompt) > promptMax {
+		return fmt.Errorf("%w: the style's prompt is empty or over %d characters", ErrBadField, promptMax)
+	}
+	return nil
+}
+
+// checkTemplate checks an export-template pack: a format this version writes, 1 to columnsMax columns, each a value of 1 to textMax characters whose only placeholders are TemplatePlaceholders and that has no other {{ or }}, with a header of at most nameMax characters for CSV and TSV only, and a note type of at most nameMax characters for Anki only. It cleans the texts in place.
+func checkTemplate(t *Template) error {
+	switch t.Format {
+	case TemplateAnki, TemplateCSV, TemplateTSV:
+	default:
+		return fmt.Errorf("%w: template format %q", ErrBadField, t.Format)
+	}
+	t.NoteType = cleanText(t.NoteType, false)
+	if utf8.RuneCountInString(t.NoteType) > nameMax || (t.NoteType != "" && t.Format != TemplateAnki) {
+		return fmt.Errorf("%w: template note type %q", ErrBadField, t.NoteType)
+	}
+	if len(t.Columns) == 0 || len(t.Columns) > columnsMax {
+		return fmt.Errorf("%w: a template has 1 to %d columns", ErrBadField, columnsMax)
+	}
+	for i := range t.Columns {
+		c := &t.Columns[i]
+		c.Header, c.Value = cleanText(c.Header, false), cleanText(c.Value, true)
+		if utf8.RuneCountInString(c.Header) > nameMax || (c.Header != "" && t.Format == TemplateAnki) {
+			return fmt.Errorf("%w: template column %d's header", ErrBadField, i+1)
+		}
+		if c.Value == "" || utf8.RuneCountInString(c.Value) > textMax {
+			return fmt.Errorf("%w: template column %d is empty or over %d characters", ErrBadField, i+1, textMax)
+		}
+		for _, m := range placeholderPattern.FindAllStringSubmatch(c.Value, -1) {
+			if !slices.Contains(TemplatePlaceholders, m[1]) {
+				return fmt.Errorf("%w: template column %d has the placeholder %q", ErrBadField, i+1, m[0])
+			}
+		}
+		if rest := placeholderPattern.ReplaceAllString(c.Value, ""); strings.Contains(rest, "{{") || strings.Contains(rest, "}}") {
+			return fmt.Errorf("%w: template column %d has a placeholder that is not closed", ErrBadField, i+1)
+		}
+	}
+	return nil
 }
 
 // checkURL checks that raw is an absolute https address with a host name and no user name or password, or an http one on this computer (loopback), the only addresses a pack may name. An address with a character cleanText takes out, such as a bidirectional control or a zero-width space, is refused, as the address is shown to the user before Kando opens it and must read as what it is.

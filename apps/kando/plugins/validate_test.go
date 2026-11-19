@@ -14,11 +14,14 @@ import (
 
 func TestValidateKinds(t *testing.T) {
 	for name, files := range map[string]map[string]string{
-		"glossary":   {ManifestName: glossaryManifest, "README.md": "notes"},
-		"wordlist":   {ManifestName: wordlistManifest, "jlpt.tsv": "猫\tn5\n", "LICENSE.txt": "CC-BY"},
-		"ai-service": {ManifestName: serviceManifest},
-		"site":       {ManifestName: siteManifest},
-		"dictionary": {ManifestName: dictionaryManifest, "jmdict.zip": string(zipBytes(t, []entry{{name: "index.json", content: "{}"}, {name: "term_bank_1.json", content: "[]"}}))},
+		"glossary":        {ManifestName: glossaryManifest, "README.md": "notes"},
+		"wordlist":        {ManifestName: wordlistManifest, "jlpt.tsv": "猫\tn5\n", "LICENSE.txt": "CC-BY"},
+		"ai-service":      {ManifestName: serviceManifest},
+		"task":            {ManifestName: taskManifest},
+		"translate-style": {ManifestName: styleManifest},
+		"export-template": {ManifestName: templateManifest},
+		"site":            {ManifestName: siteManifest},
+		"dictionary":      {ManifestName: dictionaryManifest, "jmdict.zip": string(zipBytes(t, []entry{{name: "index.json", content: "{}"}, {name: "term_bank_1.json", content: "[]"}}))},
 	} {
 		p, err := Validate(writePack(t, files))
 		if err != nil {
@@ -90,6 +93,30 @@ func TestValidateManifest(t *testing.T) {
 		{"dictionary zip format", dictionaryManifest, `"yomitan-zip"`, `"tsv"`, ErrBadField},
 		{"dictionary no language", dictionaryManifest, `"to": ["en"]`, `"to": []`, ErrBadField},
 		{"dictionary file path", dictionaryManifest, `["jmdict.zip"]`, `["../jmdict.zip"]`, ErrUnsafePath},
+		{"task scope", taskManifest, `"scope": "line"`, `"scope": "film"`, ErrBadField},
+		{"task render", taskManifest, `"render": "cards"`, `"render": "table"`, ErrBadField},
+		{"task prompt empty", taskManifest, `"Ask the learner one question about the line."`, `" ​ "`, ErrBadField},
+		{"task prompt long", taskManifest, `"Ask the learner one question about the line."`, `"` + strings.Repeat("a", promptMax+1) + `"`, ErrBadField},
+		{"task no fields", taskManifest, `"fields": [{"key": "question", "label": {"en": "Question"}}, {"key": "answer", "label": {"en": "Answer"}}]`, `"fields": []`, ErrBadField},
+		{"task field twice", taskManifest, `"key": "answer"`, `"key": "question"`, ErrBadField},
+		{"task field key", taskManifest, `"key": "answer"`, `"key": "the answer"`, ErrBadField},
+		{"task field label", taskManifest, `"label": {"en": "Answer"}`, `"label": {"ja": "答え"}`, ErrBadName},
+		{"task items", taskManifest, `"items": 3`, `"items": 21`, ErrBadField},
+		{"task items of sections", taskManifest, `"render": "cards"`, `"render": "sections"`, ErrBadField},
+		{"task tokens low", taskManifest, `"maxTokens": 600`, `"maxTokens": 10`, ErrBadField},
+		{"task tokens high", taskManifest, `"maxTokens": 600`, `"maxTokens": 5000`, ErrBadField},
+		{"style prompt empty", styleManifest, `"Translate every line into {{language}} as friends talk."`, `""`, ErrBadField},
+		{"style prompt long", styleManifest, `"Translate every line into {{language}} as friends talk."`, `"` + strings.Repeat("a", promptMax+1) + `"`, ErrBadField},
+		{"style unknown key", styleManifest, `"style": {`, `"style": {"reply": "",`, ErrBadManifest},
+		{"template format", templateManifest, `"format": "csv"`, `"format": "xlsx"`, ErrBadField},
+		{"template no columns", templateManifest, `"columns": [{"header": "Front", "value": "{{original}}"}, {"header": "Back", "value": "{{translation}}\n{{film}} {{time}}"}]`, `"columns": []`, ErrBadField},
+		{"template unknown placeholder", templateManifest, `"{{original}}"`, `"{{video}}"`, ErrBadField},
+		{"template path placeholder", templateManifest, `"{{original}}"`, `"{{original}} {{ path }}"`, ErrBadField},
+		{"template open placeholder", templateManifest, `"{{original}}"`, `"{{original}} {{"`, ErrBadField},
+		{"template empty value", templateManifest, `"{{original}}"`, `""`, ErrBadField},
+		{"template note type for csv", templateManifest, `"format": "csv",`, `"format": "csv", "noteType": "Basic",`, ErrBadField},
+		{"template header for anki", templateManifest, `"format": "csv"`, `"format": "anki"`, ErrBadField},
+		{"task unknown key", taskManifest, `"render": "cards",`, `"render": "cards", "model": "gpt",`, ErrBadManifest},
 	} {
 		if !strings.Contains(tt.manifest, tt.old) {
 			t.Fatalf("%s: %q is not in the manifest", tt.name, tt.old)
@@ -148,13 +175,13 @@ func TestValidateCleansNames(t *testing.T) {
 }
 
 func TestValidateGlossaryLimit(t *testing.T) {
-	terms := make([]string, termsMax+1)
+	terms := make([]string, TermsMax+1)
 	for i := range terms {
 		terms[i] = fmt.Sprintf(`{"source": "s%d", "target": "t%d"}`, i, i)
 	}
-	manifest := strings.Replace(glossaryManifest, `[{"source": "先輩", "target": "前辈"}]`, "["+strings.Join(terms[:termsMax], ",")+"]", 1)
+	manifest := strings.Replace(glossaryManifest, `[{"source": "先輩", "target": "前辈"}]`, "["+strings.Join(terms[:TermsMax], ",")+"]", 1)
 	if _, err := Validate(writePack(t, map[string]string{ManifestName: manifest})); err != nil {
-		t.Errorf("%d terms: %v", termsMax, err)
+		t.Errorf("%d terms: %v", TermsMax, err)
 	}
 	manifest = strings.Replace(glossaryManifest, `[{"source": "先輩", "target": "前辈"}]`, "["+strings.Join(terms, ",")+"]", 1)
 	_, err := Validate(writePack(t, map[string]string{ManifestName: manifest}))
@@ -221,15 +248,6 @@ func TestValidateSite(t *testing.T) {
 	}
 	if got := p.Site.Domains(); len(got) != 2 || got[0] != "videos.example.org" || got[1] != "clips.example.net" {
 		t.Fatalf("domains %q", got)
-	}
-}
-
-// TestValidateUnsupportedKinds checks that the kinds of later phases are refused as not supported yet, not for keys this version does not know.
-func TestValidateUnsupportedKinds(t *testing.T) {
-	for _, kind := range []Kind{KindTask, KindStyle, KindExportTemplate} {
-		manifest := fmt.Sprintf(`{"schema": 1, "id": "example.x", "kind": %q, "future": {"anything": true}}`, kind)
-		_, err := Validate(writePack(t, map[string]string{ManifestName: manifest}))
-		wantErr(t, string(kind), err, ErrUnsupportedKind)
 	}
 }
 
@@ -430,5 +448,23 @@ func TestOpenZipBoundsTheDirectory(t *testing.T) {
 	n, err := (&budget{bytes: 4 << 20}).copy(io.Discard, rc)
 	if err != nil || n != 2<<20 {
 		t.Errorf("read %d bytes, %v", n, err)
+	}
+}
+
+// TestValidateTaskShape checks a task without maxTokens: its limit comes from its reply's shape, and a shape whose values do not fit the most a reply may take is refused.
+func TestValidateTaskShape(t *testing.T) {
+	small := strings.Replace(taskManifest, `, "maxTokens": 600`, ``, 1)
+	p, err := Validate(writePack(t, map[string]string{ManifestName: small}))
+	if err != nil || p.Task.Tokens() != 3*2*TaskFieldTokens+TaskReplyTokens {
+		t.Fatalf("a small shape: %v, %d tokens", err, p.Task.Tokens())
+	}
+	fields := `[{"key": "a", "label": {"en": "A"}}, {"key": "b", "label": {"en": "B"}}, {"key": "c", "label": {"en": "C"}}]`
+	large := strings.Replace(strings.Replace(small, `"items": 3`, `"items": 20`, 1), `[{"key": "question", "label": {"en": "Question"}}, {"key": "answer", "label": {"en": "Answer"}}]`, fields, 1)
+	_, err = Validate(writePack(t, map[string]string{ManifestName: large}))
+	wantErr(t, "a shape over the cap", err, ErrBadField)
+	// A pack that names its own limit may ask for many short values.
+	_, err = Validate(writePack(t, map[string]string{ManifestName: strings.Replace(large, `"render": "cards",`, `"render": "cards", "maxTokens": 4000,`, 1)}))
+	if err != nil {
+		t.Fatalf("a shape with its own limit: %v", err)
 	}
 }

@@ -1020,6 +1020,26 @@ var Parameters = map[string][]string{
 	"PluginsOpenURLTitle":                      {"host"},
 	"PluginsOpenURLMessage":                    {"plugin", "url"},
 	"PluginsCommandFailed":                     {"command"},
+	"PluginsTaskTooCostly":                     {"need", "left"},
+	"PluginsTaskCutOff":                        {"tokens"},
+	"SavedExportedTemplateNoAudio":             {"count", "file"},
+	"SavedExportedTemplateSomeAudio":           {"lines", "sounds", "file"},
+	"PluginsExportScopeSeries":                 {"name"},
+	"PluginsExportTermCount":                   {"count"},
+	"PluginsExportWordCount":                   {"count"},
+	"PluginsExportSaved":                       {"name"},
+	"SettingsPluginsTemplateDetail":            {"format", "count"},
+	"SavedExportTargetPlugin":                  {"name"},
+	"SavedExportedTemplate":                    {"count", "file"},
+	"PluginsTaskCommand":                       {"name"},
+	"PluginsTaskBusy":                          {"model"},
+	"PluginsTaskFailed":                        {"error_"},
+	"PluginsTaskOverBudget":                    {"budget"},
+	"PluginsTaskSoFar":                         {"time_"},
+	"PluginsTaskNote":                          {"model", "spent", "left"},
+	"SettingsPluginsTaskInstallNote":           {"budget"},
+	"SettingsPluginsTaskBudgetLabel":           {"name"},
+	"SettingsPluginsTaskSpent":                 {"count"},
 	"SettingsPhoneConflictUseLabel":            {"device"},
 	"SettingsPhoneDidLink":                     {"title"},
 	"SettingsPhoneDidPause":                    {"title"},
@@ -1662,6 +1682,26 @@ type Translation struct {
 	PluginsOpenURLTitle                      func(host string) string
 	PluginsOpenURLMessage                    func(plugin string, url string) string
 	PluginsCommandFailed                     func(command string) string
+	PluginsTaskTooCostly                     func(need int, left int) string
+	PluginsTaskCutOff                        func(tokens int) string
+	SavedExportedTemplateNoAudio             func(count int, file string) string
+	SavedExportedTemplateSomeAudio           func(lines int, sounds int, file string) string
+	PluginsExportScopeSeries                 func(name string) string
+	PluginsExportTermCount                   func(count int) string
+	PluginsExportWordCount                   func(count int) string
+	PluginsExportSaved                       func(name string) string
+	SettingsPluginsTemplateDetail            func(format string, count int) string
+	SavedExportTargetPlugin                  func(name string) string
+	SavedExportedTemplate                    func(count int, file string) string
+	PluginsTaskCommand                       func(name string) string
+	PluginsTaskBusy                          func(model string) string
+	PluginsTaskFailed                        func(error_ string) string
+	PluginsTaskOverBudget                    func(budget int) string
+	PluginsTaskSoFar                         func(time_ string) string
+	PluginsTaskNote                          func(model string, spent int, left int) string
+	SettingsPluginsTaskInstallNote           func(budget int) string
+	SettingsPluginsTaskBudgetLabel           func(name string) string
+	SettingsPluginsTaskSpent                 func(count int) string
 	SettingsPhoneConflictUseLabel            func(device string) string
 	SettingsPhoneDidLink                     func(title string) string
 	SettingsPhoneDidPause                    func(title string) string
@@ -3361,6 +3401,41 @@ const (
 	textPluginsErrNoDevKey
 	textPluginsOpenURLOpen
 	textPluginsToastClose
+	textPluginsTaskNotHeard
+	textPluginsExportGlossary
+	textPluginsExportWords
+	textPluginsExportGlossaryTitle
+	textPluginsExportWordsTitle
+	textPluginsExportName
+	textPluginsExportID
+	textPluginsExportScope
+	textPluginsExportFrom
+	textPluginsExportTo
+	textPluginsExportLanguage
+	textPluginsExportScopeGlobal
+	textPluginsExportScopeFilm
+	textPluginsExportGlossaryName
+	textPluginsExportWordsName
+	textPluginsExportTierLearning
+	textPluginsExportTierMastered
+	textPluginsExportNote
+	textPluginsExportSave
+	textSettingsPluginsKindTemplate
+	textSavedExportTarget
+	textSavedExportTargetAnki
+	textSavedExportTemplate
+	textSettingsPluginsKindStyle
+	textSettingsPluginsStyleDetail
+	textSettingsTranslateStyle
+	textSettingsTranslateStyleHint
+	textSettingsTranslateStyleNone
+	textPluginsTaskNoAI
+	textPluginsTaskOpenPlugins
+	textSettingsPluginsKindTask
+	textSettingsPluginsTaskDetailLine
+	textSettingsPluginsTaskDetailWord
+	textSettingsPluginsTaskDetailFilm
+	textSettingsPluginsTaskBudget
 	textSettingsPhoneConflictUse
 	textSettingsPhoneConflictBoth
 	textSettingsPhoneConflictOriginal
@@ -5052,6 +5127,41 @@ var keyOfText = [numTexts]string{
 	"pluginsErrNoDevKey",
 	"pluginsOpenURLOpen",
 	"pluginsToastClose",
+	"pluginsTaskNotHeard",
+	"pluginsExportGlossary",
+	"pluginsExportWords",
+	"pluginsExportGlossaryTitle",
+	"pluginsExportWordsTitle",
+	"pluginsExportName",
+	"pluginsExportID",
+	"pluginsExportScope",
+	"pluginsExportFrom",
+	"pluginsExportTo",
+	"pluginsExportLanguage",
+	"pluginsExportScopeGlobal",
+	"pluginsExportScopeFilm",
+	"pluginsExportGlossaryName",
+	"pluginsExportWordsName",
+	"pluginsExportTierLearning",
+	"pluginsExportTierMastered",
+	"pluginsExportNote",
+	"pluginsExportSave",
+	"settingsPluginsKindTemplate",
+	"savedExportTarget",
+	"savedExportTargetAnki",
+	"savedExportTemplate",
+	"settingsPluginsKindStyle",
+	"settingsPluginsStyleDetail",
+	"settingsTranslateStyle",
+	"settingsTranslateStyleHint",
+	"settingsTranslateStyleNone",
+	"pluginsTaskNoAI",
+	"pluginsTaskOpenPlugins",
+	"settingsPluginsKindTask",
+	"settingsPluginsTaskDetailLine",
+	"settingsPluginsTaskDetailWord",
+	"settingsPluginsTaskDetailFilm",
+	"settingsPluginsTaskBudget",
 	"settingsPhoneConflictUse",
 	"settingsPhoneConflictBoth",
 	"settingsPhoneConflictOriginal",
@@ -6741,6 +6851,41 @@ var textsEn = i18n.NewTexts(""+
 	"Make a developer key first."+
 	"Open"+
 	"Close"+
+	"This line hasn't been heard yet. Play up to it first, so the task gives nothing away."+
+	"Export Glossary as Pack…"+
+	"Export Vocabulary as Word List…"+
+	"Export Glossary as Pack"+
+	"Export Vocabulary as Word List"+
+	"Name"+
+	"ID"+
+	"Terms"+
+	"Terms In"+
+	"Translated Into"+
+	"Language"+
+	"All films' terms"+
+	"This film's terms"+
+	"My Glossary"+
+	"My Words"+
+	"Learning"+
+	"Mastered"+
+	"The pack is checked as an install checks it, then saved as a .kandopack file, which Settings › Plugins › Install from File… installs."+
+	"Export…"+
+	"Export Templates"+
+	"Export As"+
+	"Anki"+
+	"Export…"+
+	"Translation Styles"+
+	"Adds a style preset to the prompt in Settings › Translation."+
+	"Style Preset"+
+	"Puts a plugin's style into the prompt below, where you can still edit it."+
+	"None"+
+	"Plugin tasks need an AI service. Choose a model in “AI Service” first."+
+	"Open Plugin Settings"+
+	"Learning Tasks"+
+	"Asks your AI service about the line playing, with the lines before it."+
+	"Asks your AI service about the word you look up, with its line."+
+	"Asks your AI service about the film up to where you have watched."+
+	"Daily tokens"+
 	"Use This"+
 	"Keep Both"+
 	"Original"+
@@ -8427,6 +8572,41 @@ var textsEn = i18n.NewTexts(""+
 		27,
 		4,
 		5,
+		85,
+		26,
+		33,
+		23,
+		30,
+		4,
+		2,
+		5,
+		8,
+		15,
+		8,
+		16,
+		17,
+		11,
+		8,
+		8,
+		8,
+		139,
+		9,
+		16,
+		9,
+		4,
+		9,
+		18,
+		62,
+		12,
+		73,
+		4,
+		74,
+		20,
+		14,
+		70,
+		63,
+		65,
+		12,
 		8,
 		9,
 		8,
@@ -10116,6 +10296,41 @@ var textsJa = i18n.NewTexts(""+
 	"先に開発者キーを作成してください。"+
 	"開く"+
 	"閉じる"+
+	"この行はまだ再生されていません。先の内容が漏れないよう、ここまで再生してから実行してください。"+
+	"用語集をプラグインとして書き出す…"+
+	"単語帳を単語リストとして書き出す…"+
+	"用語集をプラグインとして書き出す"+
+	"単語帳を単語リストとして書き出す"+
+	"名前"+
+	"ID"+
+	"用語"+
+	"元の言語"+
+	"翻訳先"+
+	"言語"+
+	"すべての作品の用語"+
+	"この作品の用語"+
+	"マイ用語集"+
+	"マイ単語"+
+	"学習中"+
+	"習得済み"+
+	"インストール時と同じ検査をしてから .kandopack ファイルとして保存します。設定 › プラグイン › ファイルからインストール… で入れられます。"+
+	"書き出す…"+
+	"書き出しテンプレート"+
+	"書き出し形式"+
+	"Anki"+
+	"書き出す…"+
+	"翻訳スタイル"+
+	"設定 › 翻訳 のプロンプトにスタイルのプリセットを追加します。"+
+	"スタイルのプリセット"+
+	"プラグインのスタイルを下のプロンプトに入れます。入れた後も編集できます。"+
+	"使わない"+
+	"プラグインのタスクには AI サービスが必要です。先に「AI サービス」でモデルを選んでください。"+
+	"プラグイン設定を開く"+
+	"学習タスク"+
+	"再生中の行（とその前の数行）について AI サービスに尋ねます。"+
+	"調べた単語（とその行）について AI サービスに尋ねます。"+
+	"見たところまでの内容について AI サービスに尋ねます。"+
+	"1日のトークン上限"+
 	"これを使う"+
 	"両方残す"+
 	"原文"+
@@ -11802,6 +12017,41 @@ var textsJa = i18n.NewTexts(""+
 		51,
 		6,
 		9,
+		141,
+		51,
+		51,
+		48,
+		48,
+		6,
+		2,
+		6,
+		12,
+		9,
+		6,
+		27,
+		21,
+		15,
+		12,
+		9,
+		12,
+		197,
+		15,
+		30,
+		18,
+		4,
+		15,
+		18,
+		90,
+		30,
+		108,
+		12,
+		133,
+		30,
+		15,
+		88,
+		79,
+		76,
+		25,
 		15,
 		12,
 		6,
@@ -13491,6 +13741,41 @@ var textsKo = i18n.NewTexts(""+
 	"먼저 개발자 키를 만드세요."+
 	"열기"+
 	"닫기"+
+	"이 문장은 아직 듣지 않았습니다. 내용이 미리 드러나지 않도록 여기까지 재생한 뒤 실행하세요."+
+	"용어집을 플러그인으로 내보내기…"+
+	"단어장을 단어 목록으로 내보내기…"+
+	"용어집을 플러그인으로 내보내기"+
+	"단어장을 단어 목록으로 내보내기"+
+	"이름"+
+	"ID"+
+	"용어"+
+	"원문 언어"+
+	"번역 언어"+
+	"언어"+
+	"모든 영상의 용어"+
+	"이 영상의 용어"+
+	"내 용어집"+
+	"내 단어"+
+	"학습 중"+
+	"익힘"+
+	"설치할 때와 같은 검사를 거쳐 .kandopack 파일로 저장합니다. 설정 › 플러그인 › 파일에서 설치…로 설치할 수 있습니다."+
+	"내보내기…"+
+	"내보내기 템플릿"+
+	"내보내기 형식"+
+	"Anki"+
+	"내보내기…"+
+	"번역 스타일"+
+	"설정 › 번역의 프롬프트에 스타일 프리셋을 추가합니다."+
+	"스타일 프리셋"+
+	"플러그인의 스타일을 아래 프롬프트에 넣습니다. 넣은 뒤에도 고칠 수 있습니다."+
+	"사용 안 함"+
+	"플러그인 작업에는 AI 서비스가 필요합니다. 먼저 'AI 서비스'에서 모델을 선택하세요."+
+	"플러그인 설정 열기"+
+	"학습 작업"+
+	"재생 중인 문장(과 그 앞 문장들)에 대해 AI 서비스에 묻습니다."+
+	"찾아본 단어(와 그 문장)에 대해 AI 서비스에 묻습니다."+
+	"지금까지 본 부분에 대해 AI 서비스에 묻습니다."+
+	"하루 토큰 한도"+
 	"이것 사용"+
 	"둘 다 유지"+
 	"원문"+
@@ -15177,6 +15462,41 @@ var textsKo = i18n.NewTexts(""+
 		37,
 		6,
 		6,
+		128,
+		47,
+		48,
+		44,
+		45,
+		6,
+		2,
+		6,
+		13,
+		13,
+		6,
+		23,
+		20,
+		13,
+		10,
+		10,
+		6,
+		160,
+		15,
+		22,
+		19,
+		4,
+		15,
+		16,
+		76,
+		19,
+		107,
+		14,
+		113,
+		26,
+		13,
+		83,
+		72,
+		63,
+		20,
 		13,
 		14,
 		6,
@@ -16866,6 +17186,41 @@ var textsZhHans = i18n.NewTexts(""+
 	"请先生成开发者密钥。"+
 	"打开"+
 	"关闭"+
+	"这一句还没听到。先播到这里，免得任务提前透露内容。"+
+	"把术语表导出为插件包…"+
+	"把生词本导出为词表…"+
+	"把术语表导出为插件包"+
+	"把生词本导出为词表"+
+	"名称"+
+	"ID"+
+	"术语"+
+	"原文语言"+
+	"译成"+
+	"语言"+
+	"所有影片的术语"+
+	"这部影片的术语"+
+	"我的术语表"+
+	"我的生词"+
+	"学习中"+
+	"已掌握"+
+	"插件包会先按安装时的规则检查，再存成 .kandopack 文件，可在 设置 › 插件 › 从文件安装… 安装。"+
+	"导出…"+
+	"导出模板"+
+	"导出格式"+
+	"Anki"+
+	"导出…"+
+	"翻译风格"+
+	"在 设置 › 翻译 的提示词里加一个风格预设。"+
+	"风格预设"+
+	"把插件提供的风格填进下面的提示词，填好后仍可修改。"+
+	"不用预设"+
+	"插件任务需要 AI 服务。请先在「AI 服务」里选择模型。"+
+	"打开插件设置"+
+	"学习任务"+
+	"就正在播放的那句（连同之前几句）询问你的 AI 服务。"+
+	"就你查的词（连同它所在的句子）询问你的 AI 服务。"+
+	"就影片已看过的部分询问你的 AI 服务。"+
+	"每日 token 上限"+
 	"用这个"+
 	"两条都留"+
 	"原文"+
@@ -18552,6 +18907,41 @@ var textsZhHans = i18n.NewTexts(""+
 		30,
 		6,
 		6,
+		75,
+		33,
+		30,
+		30,
+		27,
+		6,
+		2,
+		6,
+		12,
+		6,
+		6,
+		21,
+		21,
+		15,
+		12,
+		9,
+		9,
+		132,
+		9,
+		12,
+		12,
+		4,
+		9,
+		12,
+		61,
+		12,
+		75,
+		12,
+		73,
+		18,
+		12,
+		73,
+		70,
+		52,
+		19,
 		9,
 		12,
 		6,
@@ -20241,6 +20631,41 @@ var textsZhHant = i18n.NewTexts(""+
 	"請先產生開發者金鑰。"+
 	"開啟"+
 	"關閉"+
+	"這一句還沒聽到。先播到這裡，免得任務提前透露內容。"+
+	"把術語表匯出為外掛包…"+
+	"把生詞本匯出為詞表…"+
+	"把術語表匯出為外掛包"+
+	"把生詞本匯出為詞表"+
+	"名稱"+
+	"ID"+
+	"術語"+
+	"原文語言"+
+	"譯成"+
+	"語言"+
+	"所有影片的術語"+
+	"這部影片的術語"+
+	"我的術語表"+
+	"我的生詞"+
+	"學習中"+
+	"已掌握"+
+	"外掛包會先按安裝時的規則檢查，再存成 .kandopack 檔案，可在 設定 › 外掛 › 從檔案安裝… 安裝。"+
+	"匯出…"+
+	"匯出範本"+
+	"匯出格式"+
+	"Anki"+
+	"匯出…"+
+	"翻譯風格"+
+	"在 設定 › 翻譯 的提示詞裡加一個風格預設。"+
+	"風格預設"+
+	"把外掛提供的風格填進下面的提示詞，填好後仍可修改。"+
+	"不用預設"+
+	"外掛任務需要 AI 服務。請先在「AI 服務」裡選擇模型。"+
+	"打開外掛設定"+
+	"學習任務"+
+	"就正在播放的那句（連同之前幾句）詢問你的 AI 服務。"+
+	"就你查的詞（連同它所在的句子）詢問你的 AI 服務。"+
+	"就影片已看過的部分詢問你的 AI 服務。"+
+	"每日 token 上限"+
 	"用這個"+
 	"兩條都留"+
 	"原文"+
@@ -21927,6 +22352,41 @@ var textsZhHant = i18n.NewTexts(""+
 		30,
 		6,
 		6,
+		75,
+		33,
+		30,
+		30,
+		27,
+		6,
+		2,
+		6,
+		12,
+		6,
+		6,
+		21,
+		21,
+		15,
+		12,
+		9,
+		9,
+		132,
+		9,
+		12,
+		12,
+		4,
+		9,
+		12,
+		61,
+		12,
+		75,
+		12,
+		73,
+		18,
+		12,
+		73,
+		70,
+		52,
+		19,
 		9,
 		12,
 		6,
@@ -23732,6 +24192,66 @@ func Supply(lang string, t Translation) {
 	}
 	if t.PluginsCommandFailed != nil {
 		s.PluginsCommandFailed = t.PluginsCommandFailed
+	}
+	if t.PluginsTaskTooCostly != nil {
+		s.PluginsTaskTooCostly = t.PluginsTaskTooCostly
+	}
+	if t.PluginsTaskCutOff != nil {
+		s.PluginsTaskCutOff = t.PluginsTaskCutOff
+	}
+	if t.SavedExportedTemplateNoAudio != nil {
+		s.SavedExportedTemplateNoAudio = t.SavedExportedTemplateNoAudio
+	}
+	if t.SavedExportedTemplateSomeAudio != nil {
+		s.SavedExportedTemplateSomeAudio = t.SavedExportedTemplateSomeAudio
+	}
+	if t.PluginsExportScopeSeries != nil {
+		s.PluginsExportScopeSeries = t.PluginsExportScopeSeries
+	}
+	if t.PluginsExportTermCount != nil {
+		s.PluginsExportTermCount = t.PluginsExportTermCount
+	}
+	if t.PluginsExportWordCount != nil {
+		s.PluginsExportWordCount = t.PluginsExportWordCount
+	}
+	if t.PluginsExportSaved != nil {
+		s.PluginsExportSaved = t.PluginsExportSaved
+	}
+	if t.SettingsPluginsTemplateDetail != nil {
+		s.SettingsPluginsTemplateDetail = t.SettingsPluginsTemplateDetail
+	}
+	if t.SavedExportTargetPlugin != nil {
+		s.SavedExportTargetPlugin = t.SavedExportTargetPlugin
+	}
+	if t.SavedExportedTemplate != nil {
+		s.SavedExportedTemplate = t.SavedExportedTemplate
+	}
+	if t.PluginsTaskCommand != nil {
+		s.PluginsTaskCommand = t.PluginsTaskCommand
+	}
+	if t.PluginsTaskBusy != nil {
+		s.PluginsTaskBusy = t.PluginsTaskBusy
+	}
+	if t.PluginsTaskFailed != nil {
+		s.PluginsTaskFailed = t.PluginsTaskFailed
+	}
+	if t.PluginsTaskOverBudget != nil {
+		s.PluginsTaskOverBudget = t.PluginsTaskOverBudget
+	}
+	if t.PluginsTaskSoFar != nil {
+		s.PluginsTaskSoFar = t.PluginsTaskSoFar
+	}
+	if t.PluginsTaskNote != nil {
+		s.PluginsTaskNote = t.PluginsTaskNote
+	}
+	if t.SettingsPluginsTaskInstallNote != nil {
+		s.SettingsPluginsTaskInstallNote = t.SettingsPluginsTaskInstallNote
+	}
+	if t.SettingsPluginsTaskBudgetLabel != nil {
+		s.SettingsPluginsTaskBudgetLabel = t.SettingsPluginsTaskBudgetLabel
+	}
+	if t.SettingsPluginsTaskSpent != nil {
+		s.SettingsPluginsTaskSpent = t.SettingsPluginsTaskSpent
 	}
 	if t.SettingsPhoneConflictUseLabel != nil {
 		s.SettingsPhoneConflictUseLabel = t.SettingsPhoneConflictUseLabel
@@ -59297,6 +59817,1060 @@ func PluginsToastClose(cx *core.Scope) string { return For(cx).PluginsToastClose
 
 // PluginsToastClose is the package's PluginsToastClose in the language of msgs.
 func (msgs Messages) PluginsToastClose() string { return msgs.text(textPluginsToastClose) }
+
+// PluginsTaskNotHeard says "This line hasn't been heard yet. Play up to it first, so the task gives nothing away."
+// in the language the app shows under cx.
+//
+// Side panel when a task plugin would run on a line past where the film was watched, as one selected ahead or the next line before the first is heard.
+func PluginsTaskNotHeard(cx *core.Scope) string { return For(cx).PluginsTaskNotHeard() }
+
+// PluginsTaskNotHeard is the package's PluginsTaskNotHeard in the language of msgs.
+func (msgs Messages) PluginsTaskNotHeard() string { return msgs.text(textPluginsTaskNotHeard) }
+
+// PluginsTaskTooCostly says "This run could take about {need} tokens, and the plugin has {left} left today. Raise its daily budget in Settings › Plugins, or try again tomorrow."
+// in the language the app shows under cx.
+//
+// Side panel when a task plugin's run, its prompt and the longest reply it allows, would go past what is left of its daily budget of AI tokens.
+func PluginsTaskTooCostly(cx *core.Scope, need int, left int) string {
+	return For(cx).PluginsTaskTooCostly(need, left)
+}
+
+// PluginsTaskTooCostly is the package's PluginsTaskTooCostly in the language of msgs.
+func (msgs Messages) PluginsTaskTooCostly(need int, left int) string {
+	if i18n.IsPseudo(msgs.lang) {
+		return i18n.Pseudo(msgs.lang, Messages{lang: Source, mark: true}.PluginsTaskTooCostly(need, left))
+	}
+	for lang := msgs.lang; ; lang = i18n.Parent(lang) {
+		if f := supplied[lang].PluginsTaskTooCostly; f != nil {
+			return f(need, left)
+		}
+		switch lang {
+		case "", "en":
+			return "This run could take about " + msgs.arg(i18n.FormatNumber("en", float64(need))) + " tokens, and the plugin has " + msgs.arg(i18n.FormatNumber("en", float64(left))) + " left today. Raise its daily budget in Settings › Plugins, or try again tomorrow."
+		case "ja":
+			return "この実行には約 " + i18n.FormatNumber("ja", float64(need)) + " トークンかかる見込みですが、このプラグインの今日の残りは " + i18n.FormatNumber("ja", float64(left)) + " です。設定 › プラグイン で1日の上限を上げるか、明日もう一度お試しください。"
+		case "ko":
+			return "이번 실행에는 약 " + i18n.FormatNumber("ko", float64(need)) + " 토큰이 들 수 있는데 이 플러그인은 오늘 " + i18n.FormatNumber("ko", float64(left)) + "만 남았습니다. 설정 › 플러그인에서 하루 한도를 올리거나 내일 다시 시도하세요."
+		case "zh-Hans":
+			return "这次运行可能要用约 " + i18n.FormatNumber("zh-Hans", float64(need)) + " 个 token，这个插件今天只剩 " + i18n.FormatNumber("zh-Hans", float64(left)) + "。可以在 设置 › 插件 调高每日预算，或者明天再试。"
+		case "zh-Hant":
+			return "這次執行可能要用約 " + i18n.FormatNumber("zh-Hant", float64(need)) + " 個 token，這個外掛今天只剩 " + i18n.FormatNumber("zh-Hant", float64(left)) + "。可以在 設定 › 外掛 調高每日預算，或者明天再試。"
+		}
+	}
+}
+
+// PluginsTaskCutOff says "The reply was cut off at {tokens} tokens, the most this plugin lets it take, before it was finished."
+// in the language the app shows under cx.
+//
+// Side panel when the AI model stopped a task plugin's reply at its token limit; tokens is that limit.
+func PluginsTaskCutOff(cx *core.Scope, tokens int) string { return For(cx).PluginsTaskCutOff(tokens) }
+
+// PluginsTaskCutOff is the package's PluginsTaskCutOff in the language of msgs.
+func (msgs Messages) PluginsTaskCutOff(tokens int) string {
+	if i18n.IsPseudo(msgs.lang) {
+		return i18n.Pseudo(msgs.lang, Messages{lang: Source, mark: true}.PluginsTaskCutOff(tokens))
+	}
+	for lang := msgs.lang; ; lang = i18n.Parent(lang) {
+		if f := supplied[lang].PluginsTaskCutOff; f != nil {
+			return f(tokens)
+		}
+		switch lang {
+		case "", "en":
+			return "The reply was cut off at " + msgs.arg(i18n.FormatNumber("en", float64(tokens))) + " tokens, the most this plugin lets it take, before it was finished."
+		case "ja":
+			return "回答はこのプラグインの上限 " + i18n.FormatNumber("ja", float64(tokens)) + " トークンで途切れ、最後まで書かれませんでした。"
+		case "ko":
+			return "답이 이 플러그인의 한도인 " + i18n.FormatNumber("ko", float64(tokens)) + " 토큰에서 끊겨 끝까지 작성되지 않았습니다."
+		case "zh-Hans":
+			return "回答写到 " + i18n.FormatNumber("zh-Hans", float64(tokens)) + " 个 token（这个插件允许的上限）就被截断了，没有写完。"
+		case "zh-Hant":
+			return "回答寫到 " + i18n.FormatNumber("zh-Hant", float64(tokens)) + " 個 token（這個外掛允許的上限）就被截斷了，沒有寫完。"
+		}
+	}
+}
+
+// SavedExportedTemplateNoAudio says "{count, plural, one {Exported # line} other {Exported # lines}} into “{file}” without audio, as ffmpeg is not installed or the videos are not in the library."
+// in the language the app shows under cx.
+//
+// Saved Lines sheet, once an export with a plugin's template that has an audio column could cut no audio; file is the file's name, not translated.
+func SavedExportedTemplateNoAudio(cx *core.Scope, count int, file string) string {
+	return For(cx).SavedExportedTemplateNoAudio(count, file)
+}
+
+// SavedExportedTemplateNoAudio is the package's SavedExportedTemplateNoAudio in the language of msgs.
+func (msgs Messages) SavedExportedTemplateNoAudio(count int, file string) string {
+	if i18n.IsPseudo(msgs.lang) {
+		return i18n.Pseudo(msgs.lang, Messages{lang: Source, mark: true}.SavedExportedTemplateNoAudio(count, file))
+	}
+	for lang := msgs.lang; ; lang = i18n.Parent(lang) {
+		if f := supplied[lang].SavedExportedTemplateNoAudio; f != nil {
+			return f(count, file)
+		}
+		switch lang {
+		case "", "en":
+			var b strings.Builder
+			switch i18n.Cardinal("en", float64(count)) {
+			case i18n.One:
+				b.WriteString("Exported ")
+				b.WriteString(msgs.arg(i18n.FormatNumber("en", float64(count))))
+				b.WriteString(" line")
+			default:
+				b.WriteString("Exported ")
+				b.WriteString(msgs.arg(i18n.FormatNumber("en", float64(count))))
+				b.WriteString(" lines")
+			}
+			b.WriteString(" into “")
+			b.WriteString(msgs.arg(file))
+			b.WriteString("” without audio, as ffmpeg is not installed or the videos are not in the library.")
+			return b.String()
+		case "ja":
+			return i18n.FormatNumber("ja", float64(count)) + " 行を「" + file + "」に書き出しましたが、ffmpeg が入っていないか動画が資料庫にないため音声はありません。"
+		case "ko":
+			return i18n.FormatNumber("ko", float64(count)) + "개 문장을 {file}(으)로 내보냈지만 ffmpeg가 없거나 동영상이 자료실에 없어 오디오는 없습니다."
+		case "zh-Hans":
+			return "已把 " + i18n.FormatNumber("zh-Hans", float64(count)) + " 句导出到「" + file + "」，但没有音频：没有安装 ffmpeg，或者视频不在资料库里。"
+		case "zh-Hant":
+			return "已把 " + i18n.FormatNumber("zh-Hant", float64(count)) + " 句匯出到「" + file + "」，但沒有音訊：沒有安裝 ffmpeg，或者影片不在資料庫裡。"
+		}
+	}
+}
+
+// SavedExportedTemplateSomeAudio says "{lines, plural, one {Exported # line} other {Exported # lines}} into “{file}”, {sounds} with audio. Copy the files of “Kando Saved Lines audio” to where the file's audio column expects them."
+// in the language the app shows under cx.
+//
+// Saved Lines sheet, once an export with a plugin's template that has an audio column cut the audio of only some lines; file is the file's name, not translated.
+func SavedExportedTemplateSomeAudio(cx *core.Scope, lines int, sounds int, file string) string {
+	return For(cx).SavedExportedTemplateSomeAudio(lines, sounds, file)
+}
+
+// SavedExportedTemplateSomeAudio is the package's SavedExportedTemplateSomeAudio in the language of msgs.
+func (msgs Messages) SavedExportedTemplateSomeAudio(lines int, sounds int, file string) string {
+	if i18n.IsPseudo(msgs.lang) {
+		return i18n.Pseudo(msgs.lang, Messages{lang: Source, mark: true}.SavedExportedTemplateSomeAudio(lines, sounds, file))
+	}
+	for lang := msgs.lang; ; lang = i18n.Parent(lang) {
+		if f := supplied[lang].SavedExportedTemplateSomeAudio; f != nil {
+			return f(lines, sounds, file)
+		}
+		switch lang {
+		case "", "en":
+			var b strings.Builder
+			switch i18n.Cardinal("en", float64(lines)) {
+			case i18n.One:
+				b.WriteString("Exported ")
+				b.WriteString(msgs.arg(i18n.FormatNumber("en", float64(lines))))
+				b.WriteString(" line")
+			default:
+				b.WriteString("Exported ")
+				b.WriteString(msgs.arg(i18n.FormatNumber("en", float64(lines))))
+				b.WriteString(" lines")
+			}
+			b.WriteString(" into “")
+			b.WriteString(msgs.arg(file))
+			b.WriteString("”, ")
+			b.WriteString(msgs.arg(i18n.FormatNumber("en", float64(sounds))))
+			b.WriteString(" with audio. Copy the files of “Kando Saved Lines audio” to where the file's audio column expects them.")
+			return b.String()
+		case "ja":
+			return i18n.FormatNumber("ja", float64(lines)) + " 行を「" + file + "」に書き出し、うち " + i18n.FormatNumber("ja", float64(sounds)) + " 行に音声があります。「Kando Saved Lines audio」のファイルを、このファイルの音声列が求める場所にコピーしてください。"
+		case "ko":
+			return i18n.FormatNumber("ko", float64(lines)) + "개 문장을 {file}(으)로 내보냈고 그중 " + i18n.FormatNumber("ko", float64(sounds)) + "개에 오디오가 있습니다. 'Kando Saved Lines audio'의 파일을 이 파일의 오디오 열이 요구하는 위치로 복사하세요."
+		case "zh-Hans":
+			return "已把 " + i18n.FormatNumber("zh-Hans", float64(lines)) + " 句导出到「" + file + "」，其中 " + i18n.FormatNumber("zh-Hans", float64(sounds)) + " 句有音频。请把「Kando Saved Lines audio」里的文件拷到这个文件的音频列要求的位置。"
+		case "zh-Hant":
+			return "已把 " + i18n.FormatNumber("zh-Hant", float64(lines)) + " 句匯出到「" + file + "」，其中 " + i18n.FormatNumber("zh-Hant", float64(sounds)) + " 句有音訊。請把「Kando Saved Lines audio」裡的檔案拷到這個檔案的音訊欄要求的位置。"
+		}
+	}
+}
+
+// PluginsExportGlossary says "Export Glossary as Pack…"
+// in the language the app shows under cx.
+//
+// File menu and command palette: opens the sheet that saves the user's glossary terms as a glossary plugin pack.
+func PluginsExportGlossary(cx *core.Scope) string { return For(cx).PluginsExportGlossary() }
+
+// PluginsExportGlossary is the package's PluginsExportGlossary in the language of msgs.
+func (msgs Messages) PluginsExportGlossary() string { return msgs.text(textPluginsExportGlossary) }
+
+// PluginsExportWords says "Export Vocabulary as Word List…"
+// in the language the app shows under cx.
+//
+// File menu and command palette: opens the sheet that saves the user's vocabulary as a word list plugin pack.
+func PluginsExportWords(cx *core.Scope) string { return For(cx).PluginsExportWords() }
+
+// PluginsExportWords is the package's PluginsExportWords in the language of msgs.
+func (msgs Messages) PluginsExportWords() string { return msgs.text(textPluginsExportWords) }
+
+// PluginsExportGlossaryTitle says "Export Glossary as Pack"
+// in the language the app shows under cx.
+//
+// Title of the sheet that saves glossary terms as a plugin pack.
+func PluginsExportGlossaryTitle(cx *core.Scope) string { return For(cx).PluginsExportGlossaryTitle() }
+
+// PluginsExportGlossaryTitle is the package's PluginsExportGlossaryTitle in the language of msgs.
+func (msgs Messages) PluginsExportGlossaryTitle() string {
+	return msgs.text(textPluginsExportGlossaryTitle)
+}
+
+// PluginsExportWordsTitle says "Export Vocabulary as Word List"
+// in the language the app shows under cx.
+//
+// Title of the sheet that saves the vocabulary as a word list plugin pack.
+func PluginsExportWordsTitle(cx *core.Scope) string { return For(cx).PluginsExportWordsTitle() }
+
+// PluginsExportWordsTitle is the package's PluginsExportWordsTitle in the language of msgs.
+func (msgs Messages) PluginsExportWordsTitle() string { return msgs.text(textPluginsExportWordsTitle) }
+
+// PluginsExportName says "Name"
+// in the language the app shows under cx.
+//
+// Export sheet: label of the pack's name field.
+func PluginsExportName(cx *core.Scope) string { return For(cx).PluginsExportName() }
+
+// PluginsExportName is the package's PluginsExportName in the language of msgs.
+func (msgs Messages) PluginsExportName() string { return msgs.text(textPluginsExportName) }
+
+// PluginsExportID says "ID"
+// in the language the app shows under cx.
+//
+// Export sheet: label of the pack's id field, such as local.my-glossary.
+func PluginsExportID(cx *core.Scope) string { return For(cx).PluginsExportID() }
+
+// PluginsExportID is the package's PluginsExportID in the language of msgs.
+func (msgs Messages) PluginsExportID() string { return msgs.text(textPluginsExportID) }
+
+// PluginsExportScope says "Terms"
+// in the language the app shows under cx.
+//
+// Export sheet: label of the drop-down of which terms go into the pack: every film's, this film's, or a series'.
+func PluginsExportScope(cx *core.Scope) string { return For(cx).PluginsExportScope() }
+
+// PluginsExportScope is the package's PluginsExportScope in the language of msgs.
+func (msgs Messages) PluginsExportScope() string { return msgs.text(textPluginsExportScope) }
+
+// PluginsExportFrom says "Terms In"
+// in the language the app shows under cx.
+//
+// Export sheet: label of the language the glossary's terms are in.
+func PluginsExportFrom(cx *core.Scope) string { return For(cx).PluginsExportFrom() }
+
+// PluginsExportFrom is the package's PluginsExportFrom in the language of msgs.
+func (msgs Messages) PluginsExportFrom() string { return msgs.text(textPluginsExportFrom) }
+
+// PluginsExportTo says "Translated Into"
+// in the language the app shows under cx.
+//
+// Export sheet: label of the language the glossary translates the terms into.
+func PluginsExportTo(cx *core.Scope) string { return For(cx).PluginsExportTo() }
+
+// PluginsExportTo is the package's PluginsExportTo in the language of msgs.
+func (msgs Messages) PluginsExportTo() string { return msgs.text(textPluginsExportTo) }
+
+// PluginsExportLanguage says "Language"
+// in the language the app shows under cx.
+//
+// Export sheet: label of the language of the vocabulary's words that go into the word list; one pack per language.
+func PluginsExportLanguage(cx *core.Scope) string { return For(cx).PluginsExportLanguage() }
+
+// PluginsExportLanguage is the package's PluginsExportLanguage in the language of msgs.
+func (msgs Messages) PluginsExportLanguage() string { return msgs.text(textPluginsExportLanguage) }
+
+// PluginsExportScopeGlobal says "All films' terms"
+// in the language the app shows under cx.
+//
+// Export sheet, the Terms drop-down: the glossary terms for every film.
+func PluginsExportScopeGlobal(cx *core.Scope) string { return For(cx).PluginsExportScopeGlobal() }
+
+// PluginsExportScopeGlobal is the package's PluginsExportScopeGlobal in the language of msgs.
+func (msgs Messages) PluginsExportScopeGlobal() string {
+	return msgs.text(textPluginsExportScopeGlobal)
+}
+
+// PluginsExportScopeFilm says "This film's terms"
+// in the language the app shows under cx.
+//
+// Export sheet, the Terms drop-down: the open film's own glossary terms.
+func PluginsExportScopeFilm(cx *core.Scope) string { return For(cx).PluginsExportScopeFilm() }
+
+// PluginsExportScopeFilm is the package's PluginsExportScopeFilm in the language of msgs.
+func (msgs Messages) PluginsExportScopeFilm() string { return msgs.text(textPluginsExportScopeFilm) }
+
+// PluginsExportScopeSeries says "Series: {name}"
+// in the language the app shows under cx.
+//
+// Export sheet, the Terms drop-down: a series' glossary terms; name is the series' name.
+func PluginsExportScopeSeries(cx *core.Scope, name string) string {
+	return For(cx).PluginsExportScopeSeries(name)
+}
+
+// PluginsExportScopeSeries is the package's PluginsExportScopeSeries in the language of msgs.
+func (msgs Messages) PluginsExportScopeSeries(name string) string {
+	if i18n.IsPseudo(msgs.lang) {
+		return i18n.Pseudo(msgs.lang, Messages{lang: Source, mark: true}.PluginsExportScopeSeries(name))
+	}
+	for lang := msgs.lang; ; lang = i18n.Parent(lang) {
+		if f := supplied[lang].PluginsExportScopeSeries; f != nil {
+			return f(name)
+		}
+		switch lang {
+		case "", "en":
+			return "Series: " + msgs.arg(name)
+		case "ja":
+			return "シリーズ：" + name
+		case "ko":
+			return "시리즈: " + name
+		case "zh-Hans":
+			return "系列：" + name
+		case "zh-Hant":
+			return "系列：" + name
+		}
+	}
+}
+
+// PluginsExportGlossaryName says "My Glossary"
+// in the language the app shows under cx.
+//
+// Export sheet: the name a glossary pack starts with.
+func PluginsExportGlossaryName(cx *core.Scope) string { return For(cx).PluginsExportGlossaryName() }
+
+// PluginsExportGlossaryName is the package's PluginsExportGlossaryName in the language of msgs.
+func (msgs Messages) PluginsExportGlossaryName() string {
+	return msgs.text(textPluginsExportGlossaryName)
+}
+
+// PluginsExportWordsName says "My Words"
+// in the language the app shows under cx.
+//
+// Export sheet: the name a word list pack starts with.
+func PluginsExportWordsName(cx *core.Scope) string { return For(cx).PluginsExportWordsName() }
+
+// PluginsExportWordsName is the package's PluginsExportWordsName in the language of msgs.
+func (msgs Messages) PluginsExportWordsName() string { return msgs.text(textPluginsExportWordsName) }
+
+// PluginsExportTierLearning says "Learning"
+// in the language the app shows under cx.
+//
+// Level of an exported word list: words still being reviewed. Written into the pack in every language.
+func PluginsExportTierLearning(cx *core.Scope) string { return For(cx).PluginsExportTierLearning() }
+
+// PluginsExportTierLearning is the package's PluginsExportTierLearning in the language of msgs.
+func (msgs Messages) PluginsExportTierLearning() string {
+	return msgs.text(textPluginsExportTierLearning)
+}
+
+// PluginsExportTierMastered says "Mastered"
+// in the language the app shows under cx.
+//
+// Level of an exported word list: words known well enough to count as mastered. Written into the pack in every language.
+func PluginsExportTierMastered(cx *core.Scope) string { return For(cx).PluginsExportTierMastered() }
+
+// PluginsExportTierMastered is the package's PluginsExportTierMastered in the language of msgs.
+func (msgs Messages) PluginsExportTierMastered() string {
+	return msgs.text(textPluginsExportTierMastered)
+}
+
+// PluginsExportTermCount says "{count, plural, one {# term goes into the pack.} other {# terms go into the pack.}}"
+// in the language the app shows under cx.
+//
+// Export sheet: how many glossary terms the pack would hold.
+func PluginsExportTermCount(cx *core.Scope, count int) string {
+	return For(cx).PluginsExportTermCount(count)
+}
+
+// PluginsExportTermCount is the package's PluginsExportTermCount in the language of msgs.
+func (msgs Messages) PluginsExportTermCount(count int) string {
+	if i18n.IsPseudo(msgs.lang) {
+		return i18n.Pseudo(msgs.lang, Messages{lang: Source, mark: true}.PluginsExportTermCount(count))
+	}
+	for lang := msgs.lang; ; lang = i18n.Parent(lang) {
+		if f := supplied[lang].PluginsExportTermCount; f != nil {
+			return f(count)
+		}
+		switch lang {
+		case "", "en":
+			var b strings.Builder
+			switch i18n.Cardinal("en", float64(count)) {
+			case i18n.One:
+				b.WriteString(msgs.arg(i18n.FormatNumber("en", float64(count))))
+				b.WriteString(" term goes into the pack.")
+			default:
+				b.WriteString(msgs.arg(i18n.FormatNumber("en", float64(count))))
+				b.WriteString(" terms go into the pack.")
+			}
+			return b.String()
+		case "ja":
+			return i18n.FormatNumber("ja", float64(count)) + " 件の用語が入ります。"
+		case "ko":
+			return i18n.FormatNumber("ko", float64(count)) + "개 용어가 들어갑니다."
+		case "zh-Hans":
+			return "包里会有 " + i18n.FormatNumber("zh-Hans", float64(count)) + " 条术语。"
+		case "zh-Hant":
+			return "包裡會有 " + i18n.FormatNumber("zh-Hant", float64(count)) + " 條術語。"
+		}
+	}
+}
+
+// PluginsExportWordCount says "{count, plural, one {# word goes into the list, by whether it is mastered.} other {# words go into the list, by whether they are mastered.}}"
+// in the language the app shows under cx.
+//
+// Export sheet: how many words the word list would hold; each is in the level Learning or Mastered.
+func PluginsExportWordCount(cx *core.Scope, count int) string {
+	return For(cx).PluginsExportWordCount(count)
+}
+
+// PluginsExportWordCount is the package's PluginsExportWordCount in the language of msgs.
+func (msgs Messages) PluginsExportWordCount(count int) string {
+	if i18n.IsPseudo(msgs.lang) {
+		return i18n.Pseudo(msgs.lang, Messages{lang: Source, mark: true}.PluginsExportWordCount(count))
+	}
+	for lang := msgs.lang; ; lang = i18n.Parent(lang) {
+		if f := supplied[lang].PluginsExportWordCount; f != nil {
+			return f(count)
+		}
+		switch lang {
+		case "", "en":
+			var b strings.Builder
+			switch i18n.Cardinal("en", float64(count)) {
+			case i18n.One:
+				b.WriteString(msgs.arg(i18n.FormatNumber("en", float64(count))))
+				b.WriteString(" word goes into the list, by whether it is mastered.")
+			default:
+				b.WriteString(msgs.arg(i18n.FormatNumber("en", float64(count))))
+				b.WriteString(" words go into the list, by whether they are mastered.")
+			}
+			return b.String()
+		case "ja":
+			return i18n.FormatNumber("ja", float64(count)) + " 語が入り、習得済みかどうかで分かれます。"
+		case "ko":
+			return i18n.FormatNumber("ko", float64(count)) + "개 단어가 들어가며 익혔는지에 따라 나뉩니다."
+		case "zh-Hans":
+			return "词表里会有 " + i18n.FormatNumber("zh-Hans", float64(count)) + " 个词，按是否已掌握分级。"
+		case "zh-Hant":
+			return "詞表裡會有 " + i18n.FormatNumber("zh-Hant", float64(count)) + " 個詞，按是否已掌握分級。"
+		}
+	}
+}
+
+// PluginsExportNote says "The pack is checked as an install checks it, then saved as a .kandopack file, which Settings › Plugins › Install from File… installs."
+// in the language the app shows under cx.
+//
+// Export sheet: what Export… does.
+func PluginsExportNote(cx *core.Scope) string { return For(cx).PluginsExportNote() }
+
+// PluginsExportNote is the package's PluginsExportNote in the language of msgs.
+func (msgs Messages) PluginsExportNote() string { return msgs.text(textPluginsExportNote) }
+
+// PluginsExportSave says "Export…"
+// in the language the app shows under cx.
+//
+// Export sheet: the button that checks the pack and opens the save panel.
+func PluginsExportSave(cx *core.Scope) string { return For(cx).PluginsExportSave() }
+
+// PluginsExportSave is the package's PluginsExportSave in the language of msgs.
+func (msgs Messages) PluginsExportSave() string { return msgs.text(textPluginsExportSave) }
+
+// PluginsExportSaved says "Saved the pack “{name}”."
+// in the language the app shows under cx.
+//
+// On the picture once an exported pack was saved; name is its name.
+func PluginsExportSaved(cx *core.Scope, name string) string { return For(cx).PluginsExportSaved(name) }
+
+// PluginsExportSaved is the package's PluginsExportSaved in the language of msgs.
+func (msgs Messages) PluginsExportSaved(name string) string {
+	if i18n.IsPseudo(msgs.lang) {
+		return i18n.Pseudo(msgs.lang, Messages{lang: Source, mark: true}.PluginsExportSaved(name))
+	}
+	for lang := msgs.lang; ; lang = i18n.Parent(lang) {
+		if f := supplied[lang].PluginsExportSaved; f != nil {
+			return f(name)
+		}
+		switch lang {
+		case "", "en":
+			return "Saved the pack “" + msgs.arg(name) + "”."
+		case "ja":
+			return "プラグイン「" + name + "」を保存しました。"
+		case "ko":
+			return "플러그인 {name}을(를) 저장했습니다."
+		case "zh-Hans":
+			return "已保存插件包「" + name + "」。"
+		case "zh-Hant":
+			return "已儲存外掛包「" + name + "」。"
+		}
+	}
+}
+
+// SettingsPluginsKindTemplate says "Export Templates"
+// in the language the app shows under cx.
+//
+// Plugins page: heading of the group of export-template packs, which add ways to export the saved lines.
+func SettingsPluginsKindTemplate(cx *core.Scope) string { return For(cx).SettingsPluginsKindTemplate() }
+
+// SettingsPluginsKindTemplate is the package's SettingsPluginsKindTemplate in the language of msgs.
+func (msgs Messages) SettingsPluginsKindTemplate() string {
+	return msgs.text(textSettingsPluginsKindTemplate)
+}
+
+// SettingsPluginsTemplateDetail says "Exports the saved lines as {format}, {count, plural, one {# column} other {# columns}} a line."
+// in the language the app shows under cx.
+//
+// Plugins page and install confirmation: what an export-template pack adds; format is CSV, TSV or ANKI, not translated.
+func SettingsPluginsTemplateDetail(cx *core.Scope, format string, count int) string {
+	return For(cx).SettingsPluginsTemplateDetail(format, count)
+}
+
+// SettingsPluginsTemplateDetail is the package's SettingsPluginsTemplateDetail in the language of msgs.
+func (msgs Messages) SettingsPluginsTemplateDetail(format string, count int) string {
+	if i18n.IsPseudo(msgs.lang) {
+		return i18n.Pseudo(msgs.lang, Messages{lang: Source, mark: true}.SettingsPluginsTemplateDetail(format, count))
+	}
+	for lang := msgs.lang; ; lang = i18n.Parent(lang) {
+		if f := supplied[lang].SettingsPluginsTemplateDetail; f != nil {
+			return f(format, count)
+		}
+		switch lang {
+		case "", "en":
+			var b strings.Builder
+			b.WriteString("Exports the saved lines as ")
+			b.WriteString(msgs.arg(format))
+			b.WriteString(", ")
+			switch i18n.Cardinal("en", float64(count)) {
+			case i18n.One:
+				b.WriteString(msgs.arg(i18n.FormatNumber("en", float64(count))))
+				b.WriteString(" column")
+			default:
+				b.WriteString(msgs.arg(i18n.FormatNumber("en", float64(count))))
+				b.WriteString(" columns")
+			}
+			b.WriteString(" a line.")
+			return b.String()
+		case "ja":
+			return "保存した行を " + format + " で書き出します（1行に " + i18n.FormatNumber("ja", float64(count)) + " 列）。"
+		case "ko":
+			return "저장한 문장을 " + format + "(으)로 내보냅니다. 문장마다 " + i18n.FormatNumber("ko", float64(count)) + "열입니다."
+		case "zh-Hans":
+			return "把收藏的句子导出为 " + format + "，每句 " + i18n.FormatNumber("zh-Hans", float64(count)) + " 列。"
+		case "zh-Hant":
+			return "把收藏的句子匯出為 " + format + "，每句 " + i18n.FormatNumber("zh-Hant", float64(count)) + " 欄。"
+		}
+	}
+}
+
+// SavedExportTarget says "Export As"
+// in the language the app shows under cx.
+//
+// Saved Lines sheet: accessible name of the drop-down that picks how the lines are exported, shown while an export-template plugin is turned on.
+func SavedExportTarget(cx *core.Scope) string { return For(cx).SavedExportTarget() }
+
+// SavedExportTarget is the package's SavedExportTarget in the language of msgs.
+func (msgs Messages) SavedExportTarget() string { return msgs.text(textSavedExportTarget) }
+
+// SavedExportTargetAnki says "Anki"
+// in the language the app shows under cx.
+//
+// Saved Lines sheet, the export drop-down: Kando's own notes for Anki.
+func SavedExportTargetAnki(cx *core.Scope) string { return For(cx).SavedExportTargetAnki() }
+
+// SavedExportTargetAnki is the package's SavedExportTargetAnki in the language of msgs.
+func (msgs Messages) SavedExportTargetAnki() string { return msgs.text(textSavedExportTargetAnki) }
+
+// SavedExportTargetPlugin says "{name} · Plugin"
+// in the language the app shows under cx.
+//
+// Saved Lines sheet, the export drop-down: an export template a plugin adds; name is the plugin's own name.
+func SavedExportTargetPlugin(cx *core.Scope, name string) string {
+	return For(cx).SavedExportTargetPlugin(name)
+}
+
+// SavedExportTargetPlugin is the package's SavedExportTargetPlugin in the language of msgs.
+func (msgs Messages) SavedExportTargetPlugin(name string) string {
+	if i18n.IsPseudo(msgs.lang) {
+		return i18n.Pseudo(msgs.lang, Messages{lang: Source, mark: true}.SavedExportTargetPlugin(name))
+	}
+	for lang := msgs.lang; ; lang = i18n.Parent(lang) {
+		if f := supplied[lang].SavedExportTargetPlugin; f != nil {
+			return f(name)
+		}
+		switch lang {
+		case "", "en":
+			return msgs.arg(name) + " · Plugin"
+		case "ja":
+			return name + " · プラグイン"
+		case "ko":
+			return name + " · 플러그인"
+		case "zh-Hans":
+			return name + " · 插件"
+		case "zh-Hant":
+			return name + " · 外掛"
+		}
+	}
+}
+
+// SavedExportTemplate says "Export…"
+// in the language the app shows under cx.
+//
+// Button of the Saved Lines sheet while an export-template plugin is chosen: writes the lines with it into a folder the user picks.
+func SavedExportTemplate(cx *core.Scope) string { return For(cx).SavedExportTemplate() }
+
+// SavedExportTemplate is the package's SavedExportTemplate in the language of msgs.
+func (msgs Messages) SavedExportTemplate() string { return msgs.text(textSavedExportTemplate) }
+
+// SavedExportedTemplate says "{count, plural, one {Exported # line} other {Exported # lines}} into “{file}”."
+// in the language the app shows under cx.
+//
+// Saved Lines sheet, once an export with a plugin's template is done: how many lines and the file's name, which is not translated.
+func SavedExportedTemplate(cx *core.Scope, count int, file string) string {
+	return For(cx).SavedExportedTemplate(count, file)
+}
+
+// SavedExportedTemplate is the package's SavedExportedTemplate in the language of msgs.
+func (msgs Messages) SavedExportedTemplate(count int, file string) string {
+	if i18n.IsPseudo(msgs.lang) {
+		return i18n.Pseudo(msgs.lang, Messages{lang: Source, mark: true}.SavedExportedTemplate(count, file))
+	}
+	for lang := msgs.lang; ; lang = i18n.Parent(lang) {
+		if f := supplied[lang].SavedExportedTemplate; f != nil {
+			return f(count, file)
+		}
+		switch lang {
+		case "", "en":
+			var b strings.Builder
+			switch i18n.Cardinal("en", float64(count)) {
+			case i18n.One:
+				b.WriteString("Exported ")
+				b.WriteString(msgs.arg(i18n.FormatNumber("en", float64(count))))
+				b.WriteString(" line")
+			default:
+				b.WriteString("Exported ")
+				b.WriteString(msgs.arg(i18n.FormatNumber("en", float64(count))))
+				b.WriteString(" lines")
+			}
+			b.WriteString(" into “")
+			b.WriteString(msgs.arg(file))
+			b.WriteString("”.")
+			return b.String()
+		case "ja":
+			return i18n.FormatNumber("ja", float64(count)) + " 行を「" + file + "」に書き出しました。"
+		case "ko":
+			return i18n.FormatNumber("ko", float64(count)) + "개 문장을 {file}(으)로 내보냈습니다."
+		case "zh-Hans":
+			return "已把 " + i18n.FormatNumber("zh-Hans", float64(count)) + " 句导出到「" + file + "」。"
+		case "zh-Hant":
+			return "已把 " + i18n.FormatNumber("zh-Hant", float64(count)) + " 句匯出到「" + file + "」。"
+		}
+	}
+}
+
+// SettingsPluginsKindStyle says "Translation Styles"
+// in the language the app shows under cx.
+//
+// Plugins page: heading of the group of translate-style packs, which add a style preset to the translation prompt.
+func SettingsPluginsKindStyle(cx *core.Scope) string { return For(cx).SettingsPluginsKindStyle() }
+
+// SettingsPluginsKindStyle is the package's SettingsPluginsKindStyle in the language of msgs.
+func (msgs Messages) SettingsPluginsKindStyle() string {
+	return msgs.text(textSettingsPluginsKindStyle)
+}
+
+// SettingsPluginsStyleDetail says "Adds a style preset to the prompt in Settings › Translation."
+// in the language the app shows under cx.
+//
+// Plugins page and install confirmation: what a translate-style pack adds.
+func SettingsPluginsStyleDetail(cx *core.Scope) string { return For(cx).SettingsPluginsStyleDetail() }
+
+// SettingsPluginsStyleDetail is the package's SettingsPluginsStyleDetail in the language of msgs.
+func (msgs Messages) SettingsPluginsStyleDetail() string {
+	return msgs.text(textSettingsPluginsStyleDetail)
+}
+
+// SettingsTranslateStyle says "Style Preset"
+// in the language the app shows under cx.
+//
+// Translation settings: the drop-down of the style presets that translate-style plugins add, over the prompt.
+func SettingsTranslateStyle(cx *core.Scope) string { return For(cx).SettingsTranslateStyle() }
+
+// SettingsTranslateStyle is the package's SettingsTranslateStyle in the language of msgs.
+func (msgs Messages) SettingsTranslateStyle() string { return msgs.text(textSettingsTranslateStyle) }
+
+// SettingsTranslateStyleHint says "Puts a plugin's style into the prompt below, where you can still edit it."
+// in the language the app shows under cx.
+//
+// Translation settings: under Style Preset, what choosing one does.
+func SettingsTranslateStyleHint(cx *core.Scope) string { return For(cx).SettingsTranslateStyleHint() }
+
+// SettingsTranslateStyleHint is the package's SettingsTranslateStyleHint in the language of msgs.
+func (msgs Messages) SettingsTranslateStyleHint() string {
+	return msgs.text(textSettingsTranslateStyleHint)
+}
+
+// SettingsTranslateStyleNone says "None"
+// in the language the app shows under cx.
+//
+// Translation settings: the Style Preset choice that uses no plugin's style; choosing it puts the default prompt back.
+func SettingsTranslateStyleNone(cx *core.Scope) string { return For(cx).SettingsTranslateStyleNone() }
+
+// SettingsTranslateStyleNone is the package's SettingsTranslateStyleNone in the language of msgs.
+func (msgs Messages) SettingsTranslateStyleNone() string {
+	return msgs.text(textSettingsTranslateStyleNone)
+}
+
+// PluginsTaskCommand says "Plugin Task: {name}"
+// in the language the app shows under cx.
+//
+// Command palette and the Study menu: runs a task plugin the user installed and turned on; name is the plugin's own name.
+func PluginsTaskCommand(cx *core.Scope, name string) string { return For(cx).PluginsTaskCommand(name) }
+
+// PluginsTaskCommand is the package's PluginsTaskCommand in the language of msgs.
+func (msgs Messages) PluginsTaskCommand(name string) string {
+	if i18n.IsPseudo(msgs.lang) {
+		return i18n.Pseudo(msgs.lang, Messages{lang: Source, mark: true}.PluginsTaskCommand(name))
+	}
+	for lang := msgs.lang; ; lang = i18n.Parent(lang) {
+		if f := supplied[lang].PluginsTaskCommand; f != nil {
+			return f(name)
+		}
+		switch lang {
+		case "", "en":
+			return "Plugin Task: " + msgs.arg(name)
+		case "ja":
+			return "プラグインのタスク：" + name
+		case "ko":
+			return "플러그인 작업: " + name
+		case "zh-Hans":
+			return "插件任务：" + name
+		case "zh-Hant":
+			return "外掛任務：" + name
+		}
+	}
+}
+
+// PluginsTaskNoAI says "Plugin tasks need an AI service. Choose a model in “AI Service” first."
+// in the language the app shows under cx.
+//
+// Side panel in place of a task plugin's reply when no AI service is set.
+func PluginsTaskNoAI(cx *core.Scope) string { return For(cx).PluginsTaskNoAI() }
+
+// PluginsTaskNoAI is the package's PluginsTaskNoAI in the language of msgs.
+func (msgs Messages) PluginsTaskNoAI() string { return msgs.text(textPluginsTaskNoAI) }
+
+// PluginsTaskBusy says "Asking {model}…"
+// in the language the app shows under cx.
+//
+// Side panel while a task plugin's question is with the AI model.
+func PluginsTaskBusy(cx *core.Scope, model string) string { return For(cx).PluginsTaskBusy(model) }
+
+// PluginsTaskBusy is the package's PluginsTaskBusy in the language of msgs.
+func (msgs Messages) PluginsTaskBusy(model string) string {
+	if i18n.IsPseudo(msgs.lang) {
+		return i18n.Pseudo(msgs.lang, Messages{lang: Source, mark: true}.PluginsTaskBusy(model))
+	}
+	for lang := msgs.lang; ; lang = i18n.Parent(lang) {
+		if f := supplied[lang].PluginsTaskBusy; f != nil {
+			return f(model)
+		}
+		switch lang {
+		case "", "en":
+			return "Asking " + msgs.arg(model) + "…"
+		case "ja":
+			return model + " に問い合わせ中…"
+		case "ko":
+			return model + "에 묻는 중…"
+		case "zh-Hans":
+			return "正在询问 " + model + "…"
+		case "zh-Hant":
+			return "正在詢問 " + model + "…"
+		}
+	}
+}
+
+// PluginsTaskFailed says "No reply came back: {error}"
+// in the language the app shows under cx.
+//
+// Side panel when a task plugin's question got no usable reply; error is the reason, as the service or the reply's check gave it.
+func PluginsTaskFailed(cx *core.Scope, error_ string) string {
+	return For(cx).PluginsTaskFailed(error_)
+}
+
+// PluginsTaskFailed is the package's PluginsTaskFailed in the language of msgs.
+func (msgs Messages) PluginsTaskFailed(error_ string) string {
+	if i18n.IsPseudo(msgs.lang) {
+		return i18n.Pseudo(msgs.lang, Messages{lang: Source, mark: true}.PluginsTaskFailed(error_))
+	}
+	for lang := msgs.lang; ; lang = i18n.Parent(lang) {
+		if f := supplied[lang].PluginsTaskFailed; f != nil {
+			return f(error_)
+		}
+		switch lang {
+		case "", "en":
+			return "No reply came back: " + msgs.arg(error_)
+		case "ja":
+			return "回答を取得できませんでした：" + error_
+		case "ko":
+			return "답을 받지 못했습니다: " + error_
+		case "zh-Hans":
+			return "没有拿到回答：" + error_
+		case "zh-Hant":
+			return "沒有拿到回答：" + error_
+		}
+	}
+}
+
+// PluginsTaskOverBudget says "This plugin has used its {budget} tokens for today. Raise its daily budget in Settings › Plugins, or try again tomorrow."
+// in the language the app shows under cx.
+//
+// Side panel when a task plugin has spent its daily budget of AI tokens; budget is that budget.
+func PluginsTaskOverBudget(cx *core.Scope, budget int) string {
+	return For(cx).PluginsTaskOverBudget(budget)
+}
+
+// PluginsTaskOverBudget is the package's PluginsTaskOverBudget in the language of msgs.
+func (msgs Messages) PluginsTaskOverBudget(budget int) string {
+	if i18n.IsPseudo(msgs.lang) {
+		return i18n.Pseudo(msgs.lang, Messages{lang: Source, mark: true}.PluginsTaskOverBudget(budget))
+	}
+	for lang := msgs.lang; ; lang = i18n.Parent(lang) {
+		if f := supplied[lang].PluginsTaskOverBudget; f != nil {
+			return f(budget)
+		}
+		switch lang {
+		case "", "en":
+			return "This plugin has used its " + msgs.arg(i18n.FormatNumber("en", float64(budget))) + " tokens for today. Raise its daily budget in Settings › Plugins, or try again tomorrow."
+		case "ja":
+			return "このプラグインは今日の " + i18n.FormatNumber("ja", float64(budget)) + " トークンを使い切りました。設定 › プラグイン で1日の上限を上げるか、明日もう一度お試しください。"
+		case "ko":
+			return "이 플러그인은 오늘의 " + i18n.FormatNumber("ko", float64(budget)) + " 토큰을 모두 사용했습니다. 설정 › 플러그인에서 하루 한도를 올리거나 내일 다시 시도하세요."
+		case "zh-Hans":
+			return "这个插件今天的 " + i18n.FormatNumber("zh-Hans", float64(budget)) + " 个 token 已经用完。可以在 设置 › 插件 调高每日预算，或者明天再试。"
+		case "zh-Hant":
+			return "這個外掛今天的 " + i18n.FormatNumber("zh-Hant", float64(budget)) + " 個 token 已經用完。可以在 設定 › 外掛 調高每日預算，或者明天再試。"
+		}
+	}
+}
+
+// PluginsTaskOpenPlugins says "Open Plugin Settings"
+// in the language the app shows under cx.
+//
+// Button in the side panel that opens Settings › Plugins, when a task plugin has spent its daily budget.
+func PluginsTaskOpenPlugins(cx *core.Scope) string { return For(cx).PluginsTaskOpenPlugins() }
+
+// PluginsTaskOpenPlugins is the package's PluginsTaskOpenPlugins in the language of msgs.
+func (msgs Messages) PluginsTaskOpenPlugins() string { return msgs.text(textPluginsTaskOpenPlugins) }
+
+// PluginsTaskSoFar says "The film up to {time}"
+// in the language the app shows under cx.
+//
+// Side panel heading of a task plugin's reply about the film so far; time is how far it was watched, as m:ss.
+func PluginsTaskSoFar(cx *core.Scope, time_ string) string { return For(cx).PluginsTaskSoFar(time_) }
+
+// PluginsTaskSoFar is the package's PluginsTaskSoFar in the language of msgs.
+func (msgs Messages) PluginsTaskSoFar(time_ string) string {
+	if i18n.IsPseudo(msgs.lang) {
+		return i18n.Pseudo(msgs.lang, Messages{lang: Source, mark: true}.PluginsTaskSoFar(time_))
+	}
+	for lang := msgs.lang; ; lang = i18n.Parent(lang) {
+		if f := supplied[lang].PluginsTaskSoFar; f != nil {
+			return f(time_)
+		}
+		switch lang {
+		case "", "en":
+			return "The film up to " + msgs.arg(time_)
+		case "ja":
+			return time_ + " までの内容"
+		case "ko":
+			return time_ + "까지의 내용"
+		case "zh-Hans":
+			return "影片开头到 " + time_
+		case "zh-Hant":
+			return "影片開頭到 " + time_
+		}
+	}
+}
+
+// PluginsTaskNote says "Written by {model} · {spent} tokens · {left} left today"
+// in the language the app shows under cx.
+//
+// Footnote under a task plugin's reply: the model that wrote it, the tokens this reply took, and how many the plugin may still spend today.
+func PluginsTaskNote(cx *core.Scope, model string, spent int, left int) string {
+	return For(cx).PluginsTaskNote(model, spent, left)
+}
+
+// PluginsTaskNote is the package's PluginsTaskNote in the language of msgs.
+func (msgs Messages) PluginsTaskNote(model string, spent int, left int) string {
+	if i18n.IsPseudo(msgs.lang) {
+		return i18n.Pseudo(msgs.lang, Messages{lang: Source, mark: true}.PluginsTaskNote(model, spent, left))
+	}
+	for lang := msgs.lang; ; lang = i18n.Parent(lang) {
+		if f := supplied[lang].PluginsTaskNote; f != nil {
+			return f(model, spent, left)
+		}
+		switch lang {
+		case "", "en":
+			return "Written by " + msgs.arg(model) + " · " + msgs.arg(i18n.FormatNumber("en", float64(spent))) + " tokens · " + msgs.arg(i18n.FormatNumber("en", float64(left))) + " left today"
+		case "ja":
+			return model + " が作成 · " + i18n.FormatNumber("ja", float64(spent)) + " トークン · 今日の残り " + i18n.FormatNumber("ja", float64(left))
+		case "ko":
+			return model + " 작성 · " + i18n.FormatNumber("ko", float64(spent)) + " 토큰 · 오늘 남은 양 " + i18n.FormatNumber("ko", float64(left))
+		case "zh-Hans":
+			return "由 " + model + " 生成 · 用了 " + i18n.FormatNumber("zh-Hans", float64(spent)) + " 个 token · 今天还剩 " + i18n.FormatNumber("zh-Hans", float64(left))
+		case "zh-Hant":
+			return "由 " + model + " 生成 · 用了 " + i18n.FormatNumber("zh-Hant", float64(spent)) + " 個 token · 今天還剩 " + i18n.FormatNumber("zh-Hant", float64(left))
+		}
+	}
+}
+
+// SettingsPluginsKindTask says "Learning Tasks"
+// in the language the app shows under cx.
+//
+// Plugins page: heading of the group of task packs, which ask the user's AI service their own questions about a line, a word or the film so far.
+func SettingsPluginsKindTask(cx *core.Scope) string { return For(cx).SettingsPluginsKindTask() }
+
+// SettingsPluginsKindTask is the package's SettingsPluginsKindTask in the language of msgs.
+func (msgs Messages) SettingsPluginsKindTask() string { return msgs.text(textSettingsPluginsKindTask) }
+
+// SettingsPluginsTaskDetailLine says "Asks your AI service about the line playing, with the lines before it."
+// in the language the app shows under cx.
+//
+// Plugins page and install confirmation: what a task pack that runs on the current line does.
+func SettingsPluginsTaskDetailLine(cx *core.Scope) string {
+	return For(cx).SettingsPluginsTaskDetailLine()
+}
+
+// SettingsPluginsTaskDetailLine is the package's SettingsPluginsTaskDetailLine in the language of msgs.
+func (msgs Messages) SettingsPluginsTaskDetailLine() string {
+	return msgs.text(textSettingsPluginsTaskDetailLine)
+}
+
+// SettingsPluginsTaskDetailWord says "Asks your AI service about the word you look up, with its line."
+// in the language the app shows under cx.
+//
+// Plugins page and install confirmation: what a task pack that runs on the word looked up does.
+func SettingsPluginsTaskDetailWord(cx *core.Scope) string {
+	return For(cx).SettingsPluginsTaskDetailWord()
+}
+
+// SettingsPluginsTaskDetailWord is the package's SettingsPluginsTaskDetailWord in the language of msgs.
+func (msgs Messages) SettingsPluginsTaskDetailWord() string {
+	return msgs.text(textSettingsPluginsTaskDetailWord)
+}
+
+// SettingsPluginsTaskDetailFilm says "Asks your AI service about the film up to where you have watched."
+// in the language the app shows under cx.
+//
+// Plugins page and install confirmation: what a task pack that runs on the film so far does; nothing after the point watched is sent.
+func SettingsPluginsTaskDetailFilm(cx *core.Scope) string {
+	return For(cx).SettingsPluginsTaskDetailFilm()
+}
+
+// SettingsPluginsTaskDetailFilm is the package's SettingsPluginsTaskDetailFilm in the language of msgs.
+func (msgs Messages) SettingsPluginsTaskDetailFilm() string {
+	return msgs.text(textSettingsPluginsTaskDetailFilm)
+}
+
+// SettingsPluginsTaskInstallNote says "It stays off until you turn it on, and then spends up to {budget} tokens of your AI service a day. You can change that in its details."
+// in the language the app shows under cx.
+//
+// Install confirmation of a task pack: it is not turned on by installing it, and the default daily budget of AI tokens it may spend.
+func SettingsPluginsTaskInstallNote(cx *core.Scope, budget int) string {
+	return For(cx).SettingsPluginsTaskInstallNote(budget)
+}
+
+// SettingsPluginsTaskInstallNote is the package's SettingsPluginsTaskInstallNote in the language of msgs.
+func (msgs Messages) SettingsPluginsTaskInstallNote(budget int) string {
+	if i18n.IsPseudo(msgs.lang) {
+		return i18n.Pseudo(msgs.lang, Messages{lang: Source, mark: true}.SettingsPluginsTaskInstallNote(budget))
+	}
+	for lang := msgs.lang; ; lang = i18n.Parent(lang) {
+		if f := supplied[lang].SettingsPluginsTaskInstallNote; f != nil {
+			return f(budget)
+		}
+		switch lang {
+		case "", "en":
+			return "It stays off until you turn it on, and then spends up to " + msgs.arg(i18n.FormatNumber("en", float64(budget))) + " tokens of your AI service a day. You can change that in its details."
+		case "ja":
+			return "オンにするまで動きません。オンにすると AI サービスのトークンを1日最大 " + i18n.FormatNumber("ja", float64(budget)) + " 使います。詳細で変更できます。"
+		case "ko":
+			return "켜기 전까지는 작동하지 않으며, 켜면 하루 최대 " + i18n.FormatNumber("ko", float64(budget)) + " 토큰의 AI 서비스를 사용합니다. 세부 정보에서 바꿀 수 있습니다."
+		case "zh-Hans":
+			return "安装后保持关闭，打开后每天最多花你的 AI 服务 " + i18n.FormatNumber("zh-Hans", float64(budget)) + " 个 token，可在详情里调整。"
+		case "zh-Hant":
+			return "安裝後保持關閉，打開後每天最多花你的 AI 服務 " + i18n.FormatNumber("zh-Hant", float64(budget)) + " 個 token，可在詳情裡調整。"
+		}
+	}
+}
+
+// SettingsPluginsTaskBudget says "Daily tokens"
+// in the language the app shows under cx.
+//
+// Plugins page, a task pack's details: label before the most AI tokens it may spend a day.
+func SettingsPluginsTaskBudget(cx *core.Scope) string { return For(cx).SettingsPluginsTaskBudget() }
+
+// SettingsPluginsTaskBudget is the package's SettingsPluginsTaskBudget in the language of msgs.
+func (msgs Messages) SettingsPluginsTaskBudget() string {
+	return msgs.text(textSettingsPluginsTaskBudget)
+}
+
+// SettingsPluginsTaskBudgetLabel says "Daily token budget of {name}"
+// in the language the app shows under cx.
+//
+// Plugins page: accessible name of a task pack's daily token budget field.
+func SettingsPluginsTaskBudgetLabel(cx *core.Scope, name string) string {
+	return For(cx).SettingsPluginsTaskBudgetLabel(name)
+}
+
+// SettingsPluginsTaskBudgetLabel is the package's SettingsPluginsTaskBudgetLabel in the language of msgs.
+func (msgs Messages) SettingsPluginsTaskBudgetLabel(name string) string {
+	if i18n.IsPseudo(msgs.lang) {
+		return i18n.Pseudo(msgs.lang, Messages{lang: Source, mark: true}.SettingsPluginsTaskBudgetLabel(name))
+	}
+	for lang := msgs.lang; ; lang = i18n.Parent(lang) {
+		if f := supplied[lang].SettingsPluginsTaskBudgetLabel; f != nil {
+			return f(name)
+		}
+		switch lang {
+		case "", "en":
+			return "Daily token budget of " + msgs.arg(name)
+		case "ja":
+			return name + " の1日のトークン上限"
+		case "ko":
+			return name + "의 하루 토큰 한도"
+		case "zh-Hans":
+			return name + " 的每日 token 上限"
+		case "zh-Hant":
+			return name + " 的每日 token 上限"
+		}
+	}
+}
+
+// SettingsPluginsTaskSpent says "{count} used today"
+// in the language the app shows under cx.
+//
+// Plugins page, a task pack's details: the AI tokens it spent today.
+func SettingsPluginsTaskSpent(cx *core.Scope, count int) string {
+	return For(cx).SettingsPluginsTaskSpent(count)
+}
+
+// SettingsPluginsTaskSpent is the package's SettingsPluginsTaskSpent in the language of msgs.
+func (msgs Messages) SettingsPluginsTaskSpent(count int) string {
+	if i18n.IsPseudo(msgs.lang) {
+		return i18n.Pseudo(msgs.lang, Messages{lang: Source, mark: true}.SettingsPluginsTaskSpent(count))
+	}
+	for lang := msgs.lang; ; lang = i18n.Parent(lang) {
+		if f := supplied[lang].SettingsPluginsTaskSpent; f != nil {
+			return f(count)
+		}
+		switch lang {
+		case "", "en":
+			return msgs.arg(i18n.FormatNumber("en", float64(count))) + " used today"
+		case "ja":
+			return "今日の使用量 " + i18n.FormatNumber("ja", float64(count))
+		case "ko":
+			return "오늘 " + i18n.FormatNumber("ko", float64(count)) + " 사용"
+		case "zh-Hans":
+			return "今天已用 " + i18n.FormatNumber("zh-Hans", float64(count))
+		case "zh-Hant":
+			return "今天已用 " + i18n.FormatNumber("zh-Hant", float64(count))
+		}
+	}
+}
 
 // SettingsPhoneConflictUse says "Use This"
 // in the language the app shows under cx.

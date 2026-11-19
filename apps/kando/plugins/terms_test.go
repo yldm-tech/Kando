@@ -85,13 +85,13 @@ func TestTermsIn(t *testing.T) {
 	}
 }
 
-// BenchmarkAddTerms is a full glossary pack (termsMax terms) joining a glossary of a hundred terms, as the player's 术语 tab does at each change while it shows.
+// BenchmarkAddTerms is a full glossary pack (TermsMax terms) joining a glossary of a hundred terms, as the player's 术语 tab does at each change while it shows.
 func BenchmarkAddTerms(b *testing.B) {
 	var user, pack []core.Term
 	for i := range 100 {
 		user = append(user, core.Term{Source: fmt.Sprintf("user %d", i), Target: "t"})
 	}
-	for i := range termsMax {
+	for i := range TermsMax {
 		pack = append(pack, core.Term{Source: fmt.Sprintf("pack %d", i), Target: "t"})
 	}
 	for b.Loop() {

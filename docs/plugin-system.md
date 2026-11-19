@@ -64,18 +64,24 @@
 - 正在用的包服务消失时（关掉、卸载、换成别的版本、盘没挂上），不能让它的地址和 key 存进 `custom`，否则会盖掉用户自己的自定义服务。做法：开关、卸载、替换和每次读目录之前，先把正在用的包服务按 `pack.<id>` 记下（`pluginsKeepLLM` → `llmRemember`）；消失之后服务显示成「自定义」，但记作 gone（`pluginsUI.gone`，id 和地址），此后 `llmRemember` 和存 settings.json 时插件那块的 `save` 钩子（排在设置那块的 `saveLLM` 之后）都把它算在 `pack.<id>` 名下（`pluginsGoneService`），包回来时它重新显示成包的预设。用户选了别的服务（不是「自定义」）就忘掉 gone（`llmChanged` 钩子）。上次存的服务商若是 `pack.<id>`，启动时就作为 gone 恢复（`restore` 钩子），所以插件目录读完前切换服务也不会写进 `custom`，读完后它显示成包的预设。`llmRemember` 不再直接用 `settings.ProviderID` 的第一个匹配，而是用 `llmProviderFor` 认出当前服务的 id。
 - 反馈 issue 的「翻译服务」一行（`feedbackTranslator`）只认内置预设（`settings.Presets`），包服务和其他自定义地址一样写成「自定义」，包名（比如公司内网网关的名字）不会写进公开的 issue。
 
-**E5 翻译风格（P2）**
-- 接入位置：设置 › 翻译 的提示词编辑区（`settings/translate.go:74-104`）加一组可选预设。
-- 宿主照旧在后面追加 `subtitleReplyRule`（`packages/media/translate.go:34`），插件改不坏解析。
+**E5 翻译风格（P2，P2.3 已实现）**
+- 接入位置：设置 › 翻译 的提示词卡片顶部加一行「风格预设」下拉框（`settings.Styles`，读自己的 `settings.StylesApp`，照 `Window.Marks` 的先例由 `settings.Window.Styles` 注入，不扩大 `settings.App`），只在有已启用的 translate-style 包时显示。选项是「不用预设」加上各包的名称；选一个就把包的 `style.prompt` 填进提示词输入框（之后照常可以改），选「不用预设」填回默认提示词。除了提示词本身不另存「选了哪个预设」：下拉框显示的是提示词和哪个包的 prompt 相同（去掉首尾空白比较），改过就显示「不用预设」。
+- 清单：`"style": {"prompt": "…{{language}}…"}`，prompt 1 到 4000 个字符，先清洗再计长度。
+- 宿主照旧在后面追加 `subtitleReplyRule`（`packages/media/translate.go`），插件改不坏解析；prompt 里没有 `{{language}}` 时照旧在后面写明目标语言（`stylePrompt`）。
 
-**E6 学习任务（P2）**
-- 先把五处重复的异步 Chat 流程合并成一个 `runTask`，合并前先补测试。五处是：`state_explain.go` 的 `explainAsk`、`state_vocab.go` 里 `LookUpWord` 起的 Chat goroutine、`state_recap.go` 的 recap 请求、`palette_app.go` 的面板提问、`state_correct_candidates.go` 的 `correctCandidates`。
-- task 数据包声明 `{scope: line|word|film-so-far, prompt, reply schema, render: sections|list|cards}`。宿主追加 JSON 回复规则，按播放进度截断上下文（不剧透），并记入每日 token 预算（依赖 P2.0 的 `ChatWith` 返回 usage）。
-- 入口有两个：命令面板，以及播放器侧栏的「扩展」标签（见 E15）。
+**E6 学习任务（P2，P2.1、P2.2 已实现）**
+- 五处异步 Chat 流程（`state_explain.go` 的 `explainAsk`、`state_vocab.go` 里 `LookUpWord` 起的 goroutine、`state_recap.go` 的 recap 请求、`palette_app.go` 的面板提问、`state_correct_candidates.go` 的 `correctCandidates`）重复的只有「带超时的 context、起 goroutine、经 `a.update` 回来、按代号丢掉过期回答」这几步，所以只抽出这一段：`ai_ask.go` 的 `aiAsk[T](a, timeout, ask, current, done) context.CancelFunc`。各处的代号、cancel 的存法（explain 是一组 cancel）、回答的解析和显示各不相同，留在原处，没有做成一个更大的 `runTask`，免得为合并而抽象。task 也用它。
+- task 数据包：`"task": {"scope": "line"|"word"|"film-so-far", "prompt": "…", "reply": {"fields": [{"key", "label"}], "items": N}, "render": "sections"|"list"|"cards", "maxTokens": N}`。规则：prompt 1 到 4000 字符；fields 1 到 8 个，key 匹配 `^[a-z][A-Za-z0-9_]{0,31}$` 且不重复，label 必填；`items` 只用于 list/cards，不超过 20（默认 8）；`maxTokens` 为 0 或 64 到 4096；为 0 时回答的上限按形状算（`Task.Tokens`：条数 × 字段数 × 每个值 100 个 token，再加 50），算出来超过 4096 的形状 `Validate` 拒收，免得回答总被截断。
+- 非界面包 `plugins/task`：`Prompt` 在包的 prompt 后面依次追加回答语言（替换 `{{language}}`，没有就另起一句写明）、「只依据给出的字幕，不要猜测或透露之后的内容」、以及 JSON 回复规则（sections 是一个对象，list/cards 是不超过 items 个对象的数组，每个值都是字符串）；宿主的规则排在最后，包改不掉它们。`Request` 按 scope 只发学习者已经看到的：line 是当前句（选中改错的那句，否则正在播的、刚听过的或下一句，和 I 讲解这句的挑法一样）和它之前 3 句；word 是查词卡上的词、它所在的句子和之前 3 句；film-so-far 是到最远播放点为止的字幕（`lines.Seen`），超过 40000 字符时丢掉最早的。`Parse` 容忍代码块和前后的文字，数组值按行拼接，数字和布尔值转成文字，一个值也没有算 `ErrEmpty`，不是要的 JSON 算 `ErrMalformed`。
+- 入口：每个已启用的 task 包在快捷键表里有一行（`pluginsTaskKeys`，`keys.go` 的 `shortcuts()` 加一项，Key 为空），所以出现在命令面板和菜单栏的「学习」菜单里，标签是「插件任务：<包名>」，只在有可运行的对象时出现（影片已打开、字幕已读入；word 还要查词卡开着）。播放器 ⋯ 菜单在自己的项后面加上同样的行（`film.Tasker.TaskMenu`，照 `MoveOpenFilmMenu` 的先例由 film 包自己在 ⋯ 里追加），不往别的块的函数里插调用。播放器侧栏的「扩展」标签（E15）仍属 P5。
+- 结果显示在侧栏，和「讲解这句」一样占据标签内容的位置（`film.SideTask`、`film/task.go`）：标题是包名，下面是对象（句子、词，或「影片开头到 m:ss」），回答按 render 显示成带标题的分段、列表或卡片，脚注写模型、这次用了多少 token、今天还剩多少。没有 AI 服务（含离线时的云端服务，`paletteTranslator` 的门控）、预算用完、或还没看过任何字幕时，侧栏说明原因，前两种附上打开 AI 服务设置或插件设置的按钮。换影片、或侧栏换成别的内容（比如「讲解这句」或别的标签）时结果关闭，正在等的请求一起停下（插件块自己的 `afterChange` 看 `filmSide`，不往 explain 的函数里插调用；讲解这句被 task 顶掉时仍像被别的标签顶掉一样留在后台，那是 explain 块原有的行为）。line scope 选到的那句还没听到（改错选中了最远播放点之后的句子）时不发送，侧栏说明。模型在上限处停下（`finish_reason` 为 `length`，`media.ErrReplyCutOff`）时说「回答被截断了」，不当作包的回答格式不对。
+- 预算：task 包装好后是关的（`plugins.State.EnabledPack` 对没有条目的 task 包返回 false，和 P3a 的脚本插件一样，安装和换新内容时都写成关），用户在插件页打开开关就是同意它花 token，确认框和详情里写明。每日预算存在 state.json 这个包的条目里（`PluginState.Budget`，0 表示默认 50000，可在详情里改，1000 到 1000000），开关、换内容时保留。发送前先估算这次最多用多少（提示词的 `EstimateTokens` 加回答上限）：超过今天剩下的预算就不发送并说明；film-so-far 先把字幕裁到剩下的预算放得下的最近几行（每个字符按一个 token 算，宁多勿少），连最后一行都放不下才拒绝。每次的用量来自 `ChatWith` 的 usage（没有就估算）；请求已经发到服务商但失败了的（重试前的那次、被拒的 key、超时、发出后被取消，靠 `httptrace` 的 `WroteRequest` 判断），每次按提示词的估算计入，`ChatWith` 出错时也带回这部分 usage。这些在 `aiAsk` 之外单独经 `a.update` 计入，所以用户关掉结果、回答被丢掉时 token 照样算；用量按本地日期存在插件目录的 `usage.json`（`plugins.Usage`，app 是唯一的写者，在引擎 goroutine 上写，和查词缓存一样），重启不清零；卸载 task 包时删掉它的那一条。请求头带 `X-Title: Kando plugin <id>`，`max_tokens` 用包的 `maxTokens`。
 
-**E7 导出模板（P2）**
-- 接入位置：在 `apps/kando/saved/export.go:40` 旁边新增学习导出注册表（`saved/targets.go`）。
-- 数据包只能用宿主列出的占位符，提供 CSV/TSV 列映射和 Anki 笔记字段模板。
+**E7 导出模板（P2，P2.4 已实现）**
+- `saved/targets.go`：`saved.Target{ID, Format, Headers, Columns, NoteType}`，零值是看懂自己的 Anki 笔记（`WriteNotes`，行为不变）；包的模板写 CSV、TSV（`encoding/csv` 的引号规则）或 Anki 文本导入（`#notetype:` 用模板的 `noteType`，默认 Basic）。`saved.Export` 多一个 target 参数，文件名是 `Kando Saved Lines (<id>).csv|tsv|txt`；模板里没有 `{{sound}}` 时不切音频。
+- 清单：`"template": {"format": "csv"|"tsv"|"anki", "noteType": "…", "columns": [{"header": "…", "value": "…"}]}`。只能用宿主列出的占位符 `{{original}}`、`{{translation}}`、`{{note}}`、`{{film}}`、`{{time}}`、`{{sound}}`（`plugins.TemplatePlaceholders`，和 `saved.Placeholders` 由根目录测试锁成一致），其余的 `{{…}}` 和没闭合的 `{{`、`}}` 一律拒收；1 到 16 列，值 1 到 500 字符，header 不超过 40 字符且只用于 CSV/TSV，noteType 只用于 Anki。
+- 模板有 `{{sound}}` 时，没装 ffmpeg 或部分句子切不出音频，导完的说明和 Anki 导出一样提醒（也给出打开设置的按钮）；没有 `{{sound}}` 的模板不提音频。
+- 界面：收藏句子的面板在导出按钮旁边加一个下拉框（「Anki」加上已启用的模板包「<包名> · 插件」），只在有模板包时显示；选中模板时按钮写「导出…」，导完说明写到了哪个文件。选择存在插件那块自己的 `savedPlugins.PluginExportTarget`，包缺席时保留。`state_saved.go` 的 `ExportSaved` 多了一行取 `a.pluginsExportTarget()`，这是导出必经的接点（8.4 已列出），没有别的写法。
 
 **E8 站点包（P4，最敏感）**
 - 站点包不往 `kcore.VideoSites` 或 `sites/catalog` 里加任何东西。这两处都是进程级的全局状态（`sites/catalog/catalog.go:35` 的 `sync.OnceValue`，`packages/core/videosites.go:70` 的 `compiledVideoSites`），控制 socket 的浏览器扩展路径也复用同一套判断（`state_browserext.go:194,196`：注释里写着「Any program of the user can call the socket」，下面是 `if !browse.VideoLink(link) || !catalog.Load().On(link)`）。只要往里加，CLI、socket、MCP 的入口就会一起放宽。
@@ -196,7 +202,7 @@ kind 是封闭枚举：`dictionary`、`wordlist`、`glossary`、`ai-service`、`
   - `archive/zip` 打开 zip 时会先把中央目录的每一条记录都读进内存，不管记录数是多少，所以一个由几百万条空记录组成的 zip 会在任何上限生效之前就分配几 GB。外层 zip 和嵌套 zip 都经 `openZip` 打开：它在 `zip.NewReader` 读目录期间最多放行 1 MiB 的读取，超出就是 `ErrTooLarge`；64 个条目的目录加上最长 64 KiB 的注释远小于这个数。
 - **从文件夹安装**：用 `Lstat` 逐项检查，遇到符号链接或特殊文件就拒绝，再把普通文件复制进 staging，最后校验的是 staging 里的副本。不能先校验原目录再复制，那样有 TOCTOU 问题。打开每个文件后再用 `os.SameFile` 比对 Lstat 的结果，检查和打开之间被换成链接的文件也会被拒绝。文件管理器写进文件夹的文件（访达的 `.DS_Store`，资源管理器的 `Thumbs.db`、`desktop.ini`，后两个不分大小写）在复制时跳过，`Validate` 列文件时也跳过：不检查、不计数、不算进哈希，也从不读取。所以用户在访达里打开已安装包的目录后，下次 `Scan` 这个包照样有效、哈希不变。zip 里的这些文件仍按普通文件名规则处理（`.DS_Store` 以点开头，被拒收）。
 - **内容哈希**：对排序后的「路径、长度、字节」序列做 SHA-256，授权绑定在这个哈希上。路径和内容的长度都写成 8 字节大端整数，字节在名字和内容之间、或在相邻文件之间挪动都会改变哈希。
-- **字段规则**（`plugins.Validate`）：`version` 由字母、数字和 `.`、`+`、`-` 组成，不超过 32 字节；`license` 必填，不超过 64 个字符；`author` 可选，不超过 80 个字符；`homepage` 可选，规则同 https 地址；`Text` 的键必须是规范写法的语言标签（`zh-Hans`，不是 `zh-hans`），这样 `Text.In` 能用 app 的语言直接找到；名称和 label 不超过 40 个字符，`description` 和 `attribution` 不超过 500 个字符，都先清洗再计长度。glossary 的 `from`、`to` 是语言标签，1 到 5000 条，每条原文和译文各不超过 200 个字符；ai-service 的 `group` 只能是 `cloud` 或 `local`，`model` 不超过 200 个字符，地址不能带用户名和密码；dictionary 的 `format` 是 `yomitan-zip`、`cc-cedict` 或 `tsv`，只有 yomitan-zip 的文件以 `.zip` 结尾（yomitan-zip 是 Yomitan 导出的词典 zip，只读其中的 `term_bank_<n>.json`；cc-cedict 是 CC-CEDICT 的 UTF-8 文本；tsv 每行是 `词条<TAB>读音<TAB>释义` 或 `词条<TAB>释义`，`#` 开头的行是注释，第三列之后的列忽略）；wordlist 有 1 到 32 个 tier，tier 的 id 匹配 `^[a-z0-9][a-z0-9-]{0,31}$` 且不重复，`tone` 是 `accent`、`warn`、`success`、`muted` 之一；它的文件每行是 `词<TAB>tier 的 id`，之后的列忽略，`#` 开头的行是注释，没有 tab 的行和 tier 没声明过的行忽略，同一个词再出现时保留第一次的 tier，词按小写比较，一个词也没留下的词表打开时以 `wordlist.ErrEmpty` 拒绝（P1.4）。清单里只能有自己那个 kind 的字段。
+- **字段规则**（`plugins.Validate`）：`version` 由字母、数字和 `.`、`+`、`-` 组成，不超过 32 字节；`license` 必填，不超过 64 个字符；`author` 可选，不超过 80 个字符；`homepage` 可选，规则同 https 地址；`Text` 的键必须是规范写法的语言标签（`zh-Hans`，不是 `zh-hans`），这样 `Text.In` 能用 app 的语言直接找到；名称和 label 不超过 40 个字符，`description` 和 `attribution` 不超过 500 个字符，都先清洗再计长度。glossary 的 `from`、`to` 是语言标签，1 到 5000 条，每条原文和译文各不超过 200 个字符；ai-service 的 `group` 只能是 `cloud` 或 `local`，`model` 不超过 200 个字符，地址不能带用户名和密码；dictionary 的 `format` 是 `yomitan-zip`、`cc-cedict` 或 `tsv`，只有 yomitan-zip 的文件以 `.zip` 结尾（yomitan-zip 是 Yomitan 导出的词典 zip，只读其中的 `term_bank_<n>.json`；cc-cedict 是 CC-CEDICT 的 UTF-8 文本；tsv 每行是 `词条<TAB>读音<TAB>释义` 或 `词条<TAB>释义`，`#` 开头的行是注释，第三列之后的列忽略）；wordlist 有 1 到 32 个 tier，tier 的 id 匹配 `^[a-z0-9][a-z0-9-]{0,31}$` 且不重复，`tone` 是 `accent`、`warn`、`success`、`muted` 之一；它的文件每行是 `词<TAB>tier 的 id`，之后的列忽略，`#` 开头的行是注释，没有 tab 的行和 tier 没声明过的行忽略，同一个词再出现时保留第一次的 tier，词按小写比较，一个词也没留下的词表打开时以 `wordlist.ErrEmpty` 拒绝（P1.4）。task、translate-style、export-template 的字段规则（P2）写在 E6、E5、E7。清单里只能有自己那个 kind 的字段（task、style、template 三个键分别对应三种 kind）。
 
 ### 4.1 数据包示例
 
@@ -433,7 +439,7 @@ P3 起追加的部分（脚本插件；本轮不写）：
 	Settings     []Setting         `json:"settings,omitempty"`
 	Events       []string          `json:"events,omitempty"`
 
-// P2 adds Style, Task and Template the same way; P4 adds Site.
+// P2 (as implemented) added Task *Task `json:"task"`, Style *Style `json:"style"` and Template *Template `json:"template"`, and PluginState.Budget; P4 adds Site.
 
 type Credential struct {
 	ID           string   `json:"id"`
@@ -640,7 +646,7 @@ export function kandoManifest() { return { /* identical to kando-plugin.json fie
 
 `line.changed` 不推送，插件需要当前行时自己调 `kando.line.current`。影片 id 是按插件派生的 `HMAC(pluginSecret, filmKey)`，不同插件之间关联不起来，也不泄露路径。
 
-`kando.llm.chat` 的处理流程：先查预算 → 过 `paletteTranslator` 的门控（离线、隐私、未配置）→ 在 goroutine 里调 `ChatWith` → 经 `a.update` 回来 Resolve。现有的 `ChatTranslator.Chat`（`packages/media/translate.go:230`）只返回字符串，不读 usage，不设 `max_tokens`，请求头也只有 Content-Type 和 Authorization（`:609-611`）。所以 P2.0 先在 `packages/media` 加一个 API：`ChatWith(ctx, ChatRequest{System, User, MaxTokens, Header}) (ChatReply{Text, Usage}, error)`，`Chat` 改成调它，行为不变。服务商不返回 usage 时，按字符数估算 token。请求头带 `X-Title: Kando plugin <id>`，用户在服务商的账单里能分辨出来。
+`kando.llm.chat` 的处理流程：先查预算 → 过 `paletteTranslator` 的门控（离线、隐私、未配置）→ 在 goroutine 里调 `ChatWith` → 经 `a.update` 回来 Resolve。现有的 `ChatTranslator.Chat`（`packages/media/translate.go:230`）只返回字符串，不读 usage，不设 `max_tokens`，请求头也只有 Content-Type 和 Authorization（`:609-611`）。所以 P2.0（已实现）先在 `packages/media` 加一个 API：`ChatWith(ctx, ChatRequest{System, User, MaxTokens, Header}) (ChatReply{Text, Usage}, error)`，`Chat` 改成调它，行为不变。服务商不返回 usage 时，按字符数估算 token。请求头带 `X-Title: Kando plugin <id>`，用户在服务商的账单里能分辨出来。
 
 ### 5.4 外部接口
 
@@ -679,7 +685,7 @@ export function kandoManifest() { return { /* identical to kando-plugin.json fie
 ### 6.2 能力授权
 
 - 安装不等于授权。
-  - 数据包：glossary、dictionary、wordlist、ai-service、translate-style、export-template 安装后默认启用。`task` 要消耗 token，必须先授 `kando.llm.chat`。`site` 必须逐个域名同意。
+  - 数据包：glossary、dictionary、wordlist、ai-service、translate-style、export-template 安装后默认启用。`task` 要消耗 token，必须先授 `kando.llm.chat`（P2.2 的做法：task 包装好后默认关，用户打开开关就是授权，确认框和详情里写明每日预算）。`site` 必须逐个域名同意。
   - 脚本：安装后处于停用状态，详情页的能力一项都不勾，用户勾选并打开开关才算授权。勾一项时，它依赖的能力一起勾上（例如 `llm.chat` 依赖 `lines.seen`）。
 - 授权记录是完整的 `Grant`：权限名、network 规则的完整集合、每个凭据的 (id, hosts, header, format, methods, pathPrefixes)，以及站点域名。不再只存权限名。
 - 实际生效的能力 = 包签名里的 `Capabilities` ∩ 清单声明 ∩ 用户授予的 `Grant` ∩ 当前状态。
@@ -950,7 +956,7 @@ P1.1 的确认框只有数据包要显示的部分：名称（标题）、说明
 - PR 2.2：task kind，加每日 token 预算（usage 或字符估算），接入命令面板。
 - PR 2.3：translate-style kind。
 - PR 2.4：`saved/targets.go` 注册表，加上 export-template kind。
-- PR 2.5：应用内「把我的术语表或词表导出成包」，同一种格式，走同一个校验器。
+- PR 2.5：应用内「把我的术语表或词表导出成包」，同一种格式，走同一个校验器。（已实现，见第 15 节）
 
 ### P3 脚本插件（只在桌面端，先过 spike 门槛）
 
@@ -1021,9 +1027,9 @@ P0–P2 不新增任何 module。P3a 起 `github.com/dlclark/regexp2/v2 v2.11.0`
 
 由 owner 的代理在 2026-11-19 决定：
 
-1. **本轮只做 P0（0.1、0.2、0.3）和 P1 的 1.1–1.4**：1.1 是设置 › 插件页、安装和 glossary、ai-service 两种 kind；1.2 是 `segment.Annotated`；1.3 是 dictionary；1.4 是 wordlist 和逐词标注。理由：这几项不执行第三方代码，对学习者价值最高，能单独发布，也不依赖还没决定的根密钥保管。P2、P3、P4、P5 推迟。
+1. **本轮只做 P0（0.1、0.2、0.3）和 P1 的 1.1–1.4**：1.1 是设置 › 插件页、安装和 glossary、ai-service 两种 kind；1.2 是 `segment.Annotated`；1.3 是 dictionary；1.4 是 wordlist 和逐词标注。理由：这几项不执行第三方代码，对学习者价值最高，能单独发布，也不依赖还没决定的根密钥保管。P2、P3、P4、P5 推迟。（之后 P2 的 2.0–2.5 在 `feat/plugins-tasks` 做了，见第 15 节。）
 2. **P1.5（随 app 分发官方词典包）跳过，词典包由用户自己安装**。理由：JMdict、CC-CEDICT 是 CC-BY-SA，随包分发要先过法务；官方包还会让安装包明显变大。设置 › 插件页和查词卡的提示引导用户「从文件安装…」。
-3. **本轮实现的 kind 只有 glossary、ai-service、dictionary、wordlist**。其余 kind 解析器认得，`Validate` 用 `ErrUnsupportedKind` 拒收，到各自那一期再放开（第 3.1、4 节）。理由：不给还没做的阶段留死代码；旧版本遇到新 kind 时也有明确、可本地化的报错。
+3. **本轮实现的 kind 只有 glossary、ai-service、dictionary、wordlist**。其余 kind 解析器认得，`Validate` 用 `ErrUnsupportedKind` 拒收，到各自那一期再放开（第 3.1、4 节）。理由：不给还没做的阶段留死代码；旧版本遇到新 kind 时也有明确、可本地化的报错。（P2 之后又放开了 task、translate-style、export-template，现在只有 script 仍被拒收。）
 4. **P3 才有的东西本轮一律不写**：不导入 `nsgo/tsx`，不定义 `Grant`、`Perm`、`Credential`，不做 health.json、in-flight 标记和 audit.log。`state.json` 的每一项只有 `{id, hash, enabled}`，`Grant`、`Signer`、`OldHash`、`Budget` 到 P3 再加（5.1 节）。理由：同上，避免没有调用方的代码；`State.Format` 保留，P3 升格式时旧文件按 6.2 节的规则处理。
 5. **P1.2 的选择按测量结果定**：在 Ubuntu 编译机上（`ubuild`）量完整 features 的 `ipa.Dict()` 相对 `DictShrink()` 的常驻内存增量（RSS）和首次加载时间。增量不超过 200 MiB、加载不超过 3 s，就在桌面上、只在启用了日语的词典包或词表包时按需加载完整词典；否则用 E1 的退路：Annotated 不出 Base 和 Reading，读音只取自词典包。理由：原形和读音对查词命中率帮助很大，但不能让所有用户为它付内存；手机的分词始终不变。测量数字和最终选择写在第 15 节。
 6. **看懂自己的 LLM key 留在 settings.json 原处**，本轮不迁进 `core.Secrets`。理由：与插件系统无关，本轮的数据包也碰不到它；以后是否迁移见 12.3。
@@ -1086,10 +1092,10 @@ P0–P2 不新增任何 module。P3a 起 `github.com/dlclark/regexp2/v2 v2.11.0`
 | P1.4 | wordlist kind、`plugins/wordlist`、`plugins/annotate`、逐词标注（注音和等级色、已学词下划线）、设置 › 字幕外观 的开关 | `feat/plugins-wordlist` | 已完成 |
 | P1 收尾 | 等级改成彩色粗下划线、已学词改成虚线；卸载遇到更新版本的 state.json 时先拒绝，删掉后没存上 state.json 算卸载好；Scan 的哈希缓存；手机查词卡显示来源（协议加 `WordSource`）；查词卡的离线词典提示和「词典没有这个词，问了 AI」；插件页词典分组的截图 | `feat/plugins-polish` | 已完成 |
 | P1.5 | 官方词典包 | — | 不做（12.2 第 2 条） |
-| P2 | 学习任务、导出模板、翻译风格 | — | 未开始 |
+| P2（2.0–2.5） | `media.ChatWith`；`aiAsk`；task kind 和每日预算；translate-style kind；`saved/targets.go` 和 export-template kind；把术语表、生词本导出成包 | `feat/plugins-tasks` | 已完成 |
 | P3.0 | spike：体积、引擎阻塞、in-flight 开销、ReDoS 和大分配、缓解手段、签名命令 | `feat/plugins-script-spike`（只提交本文档） | 已测完，结果见下 |
 | P3a | 脚本插件的运行时和安装路径：`plugins/script`（Trust、Verify、预读沙箱、Limits、Sandbox、看门狗、熔断、in-flight 自愈）、script kind 的清单和校验、state.json 的授权、每个插件自己的 host 和 handler、命令贡献、安装确认和详情页的授权、声明式设置、审计日志、开发者模式、`kando plugin validate` 认脚本插件 | `feat/plugins-script` | 已完成，出入见下 |
-| P3b | 其余贡献点（查词来源、导出格式、学习导出目标、标注器）、`kando.llm.chat`（等 P2.0 的 `ChatWith`）、`kando.sound.read`、`credentialFetch` 和 `credentials` | — | 未开始 |
+| P3b | 其余贡献点（查词来源、导出格式、学习导出目标、标注器）、`kando.llm.chat`（P2.0 的 `ChatWith` 已在 P2 里实现，用量可以像 task 包一样计入 `usage.json`）、`kando.sound.read`、`credentialFetch` 和 `credentials` | — | 未开始 |
 | P3c | 官方参考插件 `kando.ankiconnect`，吊销列表随 appcast 发布和每日拉取 | — | 未开始 |
 | P4.0 | `core.ValidateVideoSite`、`ValidateVideoSites`、`VideoMatcher` | `feat/plugins-sites` | 已完成 |
 | P4.1 | site kind、`pluginSites`（工具栏的「下载视频」和网页按钮）、逐域名同意、站点包任务不借用登录 | `feat/plugins-sites` | 已完成 |
@@ -1197,7 +1203,7 @@ P1.2 的测量结果（Ubuntu 编译机，x86_64，Go 1.27.4，kagome-dict/ipa v
   - 代码位置：非界面包 `plugins` 加了 `script.go`（script kind 的字段和校验、设置的取值、`RunsOn`）、`perm.go`、`grant.go`、`health.go`（health.json 和 in-flight 标记）、`audit.go`、`values.go`（插件设置的值）；`plugins/script` 是 `script.go`（根、Trust、Verify）、`sandbox.go`（`Limits`、`Sandbox`、`Load`、`Probe`）、`runner.go`（`Runner`：全局串行、看门狗、熔断、in-flight 标记）、`pack.go`（开发者打包）。app 一侧是 `state_plugins_script.go`、`state_plugins_host.go`（handler）、`bind_plugins_script.go`，界面是 `settings/plugins_script.go`；共享文件只动了 `keys.go`（`shortcuts` 里加 `a.pluginKeys(cx)`，`groupTitle` 加 `plugin:<id>` 的分支），插件块自己的 `state_plugins.go` 接上了钩子。
   - 贡献点只做了 `contributes.commands`。其余贡献块（`exporters` 等）和 `credentials` 不在 `Contributes`、`Manifest` 里定义，严格解码按未知键拒收，到 P3b 再加；`kando.llm.chat`、`kando.sound.read`、`kando.glossary.suggest`、`kando.candidates.offer`、`kando.net.credentialFetch` 这一版没有 handler，申请它们的插件以 `ErrUnknownPerm` 拒收。`kando.llm.chat` 要等 P2.0 的 `media.ChatWith`，main 上还没有。
   - `kando.settings.get` 是 host handler 的名字，tsx 的 Access 要求它出现在包签名的 `capabilities.host` 里，所以插件照样要声明它；它不需要用户授予（`Perm.Free`），声明了就一直生效，详情页不给它开关。
-  - state.json：`PluginState` 加了 `OldHash`、`Signer`、`Grant`（`omitzero`），`StateFormat` 升到 2，但 `Save` 只在有一项带这些字段时才写 2，没有脚本插件的文件照旧写 1，旧版还能读。`Budget` 跟 `llm.chat` 一起到 P3b。脚本插件没有条目就是停用（`State.EnabledPack`），数据包照旧没有条目就是启用。
+  - state.json：`PluginState` 加了 `OldHash`、`Signer`、`Grant`（`omitzero`），`StateFormat` 升到 2，但 `Save` 只在有一项带这些字段时才写 2，没有脚本插件的文件照旧写 1，旧版还能读。脚本插件的 `llm.chat` 预算到 P3b；P2 的 task 包已经用同一个 `Budget` 字段存每日预算，它不算格式 2 的字段（旧版读到会忽略），所以只有 task 包的文件照旧写 1。脚本插件没有条目就是停用（`State.EnabledPack`），数据包照旧没有条目就是启用。
   - 更新时的授权（6.2）：拿新版本的声明和**旧版本的声明**比，不是和旧授权比。新声明是旧声明的子集，授权按「旧授权 ∩ 新声明」沿用、开关不变；超出旧声明就仍按「旧授权 ∩ 新声明」运行，并记下 `OldHash`，详情页标出「申请了更多权限」，用户动过任何一项授权就清掉。和旧授权比的话，用户只勾了部分权限时每次更新都会被标成扩大能力。签名者变了按新安装处理（停用、授权清空），并清掉旧签名者的 Storage 分区和宿主代管的 secret。
   - 联网作为一项授权：`Grant.Network` 要么是声明的全部 HTTP 规则，要么没有，详情页一个开关（「联网：POST http://127.0.0.1:8765 /」这样列出规则）。高风险组合（`plugins.Risky`）是「读字幕（`line.current`、`lines.seen`）+ 联网」。
   - health.json 的 Reason 多了 `memory`（看门狗按堆阈值停掉的）。Kando 停用插件时同时把 state.json 的开关关掉，并记 health；用户再打开开关就清掉 health。
@@ -1318,3 +1324,12 @@ NSGO_ROOT_KEY=<root secret> go tool nsgo revoke -sequence 3 -days 30 -keys <key 
 5. 根密钥的保管（12.3 第 1 条）定下来之前，只跑官方插件和开发者模式插件。
 
 如果 owner 不接受第 1 条的体积，就停在 P2；体积这一项不是 Kando 能削掉的，只能等上游。
+- P2（2.0–2.5 已完成）：E5、E6、E7、5.1、5.3、6.2 已同步改过。和正文的出入如下：
+  - P2.0：`ChatWith` 的 `ChatReply.Usage` 是 `media.ChatUsage{Prompt, Completion, Estimated}`（`Total()` 求和）；服务商不返回 usage 时用 `media.EstimateTokens`（ASCII 每 4 个字符算 1 个 token，其他字符每个算 1 个，宁高勿低）。额外请求头不能覆盖 Content-Type 和 Authorization。`Chat` 改成包一层 `ChatWith`，请求体逐字不变（仍带 `temperature: 0`，不带 `max_tokens`）。
+  - P2.1：没有做成 `runTask`，只抽出共同的那一段 `aiAsk`（见 E6），各处的状态和解析留在原处；行为不变，由 `ai_ask_test.go` 和五处原有的测试锁住。
+  - P2.2：task 包的「授权」就是插件页的开关（装好默认关），没有单独的 `kando.llm.chat` 勾选，因为数据包只有这一项能力；没有条目时 task 包是关的（`State.EnabledPack`，和 P3a 的脚本插件共用这个入口）。预算放在 `PluginState.Budget`（第 5.1 节原定 P3 才加），没有升 `State.Format`：旧版读到会忽略这个键，旧版也装不了 task 包，丢掉它最多是回到默认预算。用量存在新的 `usage.json`，不在 state.json 里，因为它每次运行都要写。入口是命令面板、「学习」菜单和播放器 ⋯ 菜单；侧栏「扩展」标签仍属 E15/P5。结果复用讲解这句的侧栏样式，但不支持追问和存进笔记。
+  - P2.3：风格预设只是把包的 prompt 填进提示词，不另存选择（见 E5）。
+  - P2.4：导出的选择存在 `savedPlugins.PluginExportTarget`；收藏句子面板的状态文字对模板导出只说写了几句、写到哪个文件，不给 Anki 的导入说明。文件菜单的「导出到 Anki…」仍叫这个名字，但按面板里选的方式导出。
+  - P2.5：「文件」菜单和命令面板里有「把术语表导出为插件包…」和「把生词本导出为词表…」两行（插件块自己的 `pluginsKeys`，Key 为空，只在有可导出的内容时出现），打开主窗口上的一个表单（`settings.PluginExportDialog`，经插件块已有的 `pluginsOverlay` 画出，打开时占用 `holdModal`）：名称、id（预填 `local.<名称的 slug>`，没改过 id 时跟着名称变，名称是中文时用 `local.my-glossary`、`local.my-words`），术语表还有范围（全局、正在看的影片自己的、某个系列的）和原文、译文语言（预填正在看的影片或设置里的语言；用户自己的术语条目不带语言，所以由用户确认），词表还有语言（生词本里出现过的说话语言，一种语言一个包）。词表分两级：按复习进度，`Box` 达到 `study.MasteredBox` 的是「已掌握」，其余是「学习中」，等级名称按界面的五种语言写进包里。点「导出…」先在后台用 `plugins.Build` 把清单和文件写进临时文件夹、过一遍 `plugins.Validate`（和安装时一样），通过后打成 zip，再用系统的保存面板存成 `<id>.kandopack`；校验不过（比如名称和内置服务商重名）就在表单里说原因。包的 `license` 写 `Private`（用户自己的内容，不替用户选许可），版本是导出当天的日期。超过 200 字符的术语和超过 5000 条之后的术语不放进包，生词本里以 `#` 开头的词（词表文件里那是注释）也不放。导出的包可以直接用「从文件安装…」装回去，由 `plugins/export_test.go` 和根目录的两个测试锁住。
+  - 截图场景 `TestScreenshotsPlugins` 加了 `plugins-task`（侧栏里 cards 形式的回答）、`plugins-translate-style`（设置 › 翻译 选中风格预设）、`plugins-export-template`（收藏句子面板的导出下拉框）和 `plugins-export-glossary`（导出术语表的表单），插件页那张多了一个 task 包。和 P1.4 一样，这些只在 Linux 上无头跑过、断言了节点，没有看过实际画面。
+- 评审之后的修改（P2）：回答上限按形状算、超过上限的形状拒收；`ChatWith` 识别 `finish_reason: length`（`ErrReplyCutOff`，`Chat` 照旧返回已写出的文字）；发送前按预算估算、film-so-far 裁到预算放得下；发出后失败的请求按提示词估算计入预算；task 结果在侧栏被换掉时停下；没听到的句子不发送；卸载时清掉用量；`plugins.TermsMax`、`TermMax`、`TextOf` 和 `task.LineAt`、`task.Trim` 从 package main 挪进了非界面包；安装确认写出替换后保留的预算；模板导出的音频提醒。NSGo 的 `ui.Select` 只接收静态的 Options，没有绑定形式，所以导出下拉框和风格预设下拉框仍在选项变化时重建（只在启用的包变了时，那时焦点在别处），代码里留了 `// TODO(nsgo#848): …`（[nsgo-dev/nsgo#848](https://github.com/nsgo-dev/nsgo/issues/848)）。

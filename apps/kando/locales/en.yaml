@@ -7791,6 +7791,219 @@ pluginsCommandFailed:
 pluginsToastClose:
   message: "Close"
   description: "Accessibility name of the button that closes a plugin's toast."
+pluginsTaskNotHeard:
+  message: "This line hasn't been heard yet. Play up to it first, so the task gives nothing away."
+  description: "Side panel when a task plugin would run on a line past where the film was watched, as one selected ahead or the next line before the first is heard."
+pluginsTaskTooCostly:
+  message: "This run could take about {need} tokens, and the plugin has {left} left today. Raise its daily budget in Settings › Plugins, or try again tomorrow."
+  description: "Side panel when a task plugin's run, its prompt and the longest reply it allows, would go past what is left of its daily budget of AI tokens."
+  placeholders:
+    need: { type: "int", example: "6200" }
+    left: { type: "int", example: "4000" }
+pluginsTaskCutOff:
+  message: "The reply was cut off at {tokens} tokens, the most this plugin lets it take, before it was finished."
+  description: "Side panel when the AI model stopped a task plugin's reply at its token limit; tokens is that limit."
+  placeholders:
+    tokens: { type: "int", example: "1250" }
+savedExportedTemplateNoAudio:
+  message: "{count, plural, one {Exported # line} other {Exported # lines}} into “{file}” without audio, as ffmpeg is not installed or the videos are not in the library."
+  description: "Saved Lines sheet, once an export with a plugin's template that has an audio column could cut no audio; file is the file's name, not translated."
+  placeholders:
+    count: { type: "int", example: "12" }
+    file: { type: "String", example: "Kando Saved Lines (example.cards).csv" }
+savedExportedTemplateSomeAudio:
+  message: "{lines, plural, one {Exported # line} other {Exported # lines}} into “{file}”, {sounds} with audio. Copy the files of “Kando Saved Lines audio” to where the file's audio column expects them."
+  description: "Saved Lines sheet, once an export with a plugin's template that has an audio column cut the audio of only some lines; file is the file's name, not translated."
+  placeholders:
+    lines: { type: "int", example: "12" }
+    sounds: { type: "int", example: "9" }
+    file: { type: "String", example: "Kando Saved Lines (example.cards).csv" }
+pluginsExportGlossary:
+  message: "Export Glossary as Pack…"
+  description: "File menu and command palette: opens the sheet that saves the user's glossary terms as a glossary plugin pack."
+pluginsExportWords:
+  message: "Export Vocabulary as Word List…"
+  description: "File menu and command palette: opens the sheet that saves the user's vocabulary as a word list plugin pack."
+pluginsExportGlossaryTitle:
+  message: "Export Glossary as Pack"
+  description: "Title of the sheet that saves glossary terms as a plugin pack."
+pluginsExportWordsTitle:
+  message: "Export Vocabulary as Word List"
+  description: "Title of the sheet that saves the vocabulary as a word list plugin pack."
+pluginsExportName:
+  message: "Name"
+  description: "Export sheet: label of the pack's name field."
+pluginsExportID:
+  message: "ID"
+  description: "Export sheet: label of the pack's id field, such as local.my-glossary."
+pluginsExportScope:
+  message: "Terms"
+  description: "Export sheet: label of the drop-down of which terms go into the pack: every film's, this film's, or a series'."
+pluginsExportFrom:
+  message: "Terms In"
+  description: "Export sheet: label of the language the glossary's terms are in."
+pluginsExportTo:
+  message: "Translated Into"
+  description: "Export sheet: label of the language the glossary translates the terms into."
+pluginsExportLanguage:
+  message: "Language"
+  description: "Export sheet: label of the language of the vocabulary's words that go into the word list; one pack per language."
+pluginsExportScopeGlobal:
+  message: "All films' terms"
+  description: "Export sheet, the Terms drop-down: the glossary terms for every film."
+pluginsExportScopeFilm:
+  message: "This film's terms"
+  description: "Export sheet, the Terms drop-down: the open film's own glossary terms."
+pluginsExportScopeSeries:
+  message: "Series: {name}"
+  description: "Export sheet, the Terms drop-down: a series' glossary terms; name is the series' name."
+  placeholders:
+    name: { type: "String", example: "Planet Earth" }
+pluginsExportGlossaryName:
+  message: "My Glossary"
+  description: "Export sheet: the name a glossary pack starts with."
+pluginsExportWordsName:
+  message: "My Words"
+  description: "Export sheet: the name a word list pack starts with."
+pluginsExportTierLearning:
+  message: "Learning"
+  description: "Level of an exported word list: words still being reviewed. Written into the pack in every language."
+pluginsExportTierMastered:
+  message: "Mastered"
+  description: "Level of an exported word list: words known well enough to count as mastered. Written into the pack in every language."
+pluginsExportTermCount:
+  message: "{count, plural, one {# term goes into the pack.} other {# terms go into the pack.}}"
+  description: "Export sheet: how many glossary terms the pack would hold."
+  placeholders:
+    count: { type: "int", example: "42" }
+pluginsExportWordCount:
+  message: "{count, plural, one {# word goes into the list, by whether it is mastered.} other {# words go into the list, by whether they are mastered.}}"
+  description: "Export sheet: how many words the word list would hold; each is in the level Learning or Mastered."
+  placeholders:
+    count: { type: "int", example: "120" }
+pluginsExportNote:
+  message: "The pack is checked as an install checks it, then saved as a .kandopack file, which Settings › Plugins › Install from File… installs."
+  description: "Export sheet: what Export… does."
+pluginsExportSave:
+  message: "Export…"
+  description: "Export sheet: the button that checks the pack and opens the save panel."
+pluginsExportSaved:
+  message: "Saved the pack “{name}”."
+  description: "On the picture once an exported pack was saved; name is its name."
+  placeholders:
+    name: { type: "String", example: "My Glossary" }
+settingsPluginsKindTemplate:
+  message: "Export Templates"
+  description: "Plugins page: heading of the group of export-template packs, which add ways to export the saved lines."
+settingsPluginsTemplateDetail:
+  message: "Exports the saved lines as {format}, {count, plural, one {# column} other {# columns}} a line."
+  description: "Plugins page and install confirmation: what an export-template pack adds; format is CSV, TSV or ANKI, not translated."
+  placeholders:
+    format: { type: "String", example: "CSV" }
+    count: { type: "int", example: "3" }
+savedExportTarget:
+  message: "Export As"
+  description: "Saved Lines sheet: accessible name of the drop-down that picks how the lines are exported, shown while an export-template plugin is turned on."
+savedExportTargetAnki:
+  message: "Anki"
+  description: "Saved Lines sheet, the export drop-down: Kando's own notes for Anki."
+savedExportTargetPlugin:
+  message: "{name} · Plugin"
+  description: "Saved Lines sheet, the export drop-down: an export template a plugin adds; name is the plugin's own name."
+  placeholders:
+    name: { type: "String", example: "Flash cards (CSV)" }
+savedExportTemplate:
+  message: "Export…"
+  description: "Button of the Saved Lines sheet while an export-template plugin is chosen: writes the lines with it into a folder the user picks."
+savedExportedTemplate:
+  message: "{count, plural, one {Exported # line} other {Exported # lines}} into “{file}”."
+  description: "Saved Lines sheet, once an export with a plugin's template is done: how many lines and the file's name, which is not translated."
+  placeholders:
+    count: { type: "int", example: "12" }
+    file: { type: "String", example: "Kando Saved Lines (example.cards).csv" }
+settingsPluginsKindStyle:
+  message: "Translation Styles"
+  description: "Plugins page: heading of the group of translate-style packs, which add a style preset to the translation prompt."
+settingsPluginsStyleDetail:
+  message: "Adds a style preset to the prompt in Settings › Translation."
+  description: "Plugins page and install confirmation: what a translate-style pack adds."
+settingsTranslateStyle:
+  message: "Style Preset"
+  description: "Translation settings: the drop-down of the style presets that translate-style plugins add, over the prompt."
+settingsTranslateStyleHint:
+  message: "Puts a plugin's style into the prompt below, where you can still edit it."
+  description: "Translation settings: under Style Preset, what choosing one does."
+settingsTranslateStyleNone:
+  message: "None"
+  description: "Translation settings: the Style Preset choice that uses no plugin's style; choosing it puts the default prompt back."
+pluginsTaskCommand:
+  message: "Plugin Task: {name}"
+  description: "Command palette and the Study menu: runs a task plugin the user installed and turned on; name is the plugin's own name."
+  placeholders:
+    name: { type: "String", example: "Quiz Me" }
+pluginsTaskNoAI:
+  message: "Plugin tasks need an AI service. Choose a model in “AI Service” first."
+  description: "Side panel in place of a task plugin's reply when no AI service is set."
+pluginsTaskBusy:
+  message: "Asking {model}…"
+  description: "Side panel while a task plugin's question is with the AI model."
+  placeholders:
+    model: { type: "String", example: "gpt-4o-mini" }
+pluginsTaskFailed:
+  message: "No reply came back: {error}"
+  description: "Side panel when a task plugin's question got no usable reply; error is the reason, as the service or the reply's check gave it."
+  placeholders:
+    error: { type: "String", example: "401 Unauthorized" }
+pluginsTaskOverBudget:
+  message: "This plugin has used its {budget} tokens for today. Raise its daily budget in Settings › Plugins, or try again tomorrow."
+  description: "Side panel when a task plugin has spent its daily budget of AI tokens; budget is that budget."
+  placeholders:
+    budget: { type: "int", example: "50000" }
+pluginsTaskOpenPlugins:
+  message: "Open Plugin Settings"
+  description: "Button in the side panel that opens Settings › Plugins, when a task plugin has spent its daily budget."
+pluginsTaskSoFar:
+  message: "The film up to {time}"
+  description: "Side panel heading of a task plugin's reply about the film so far; time is how far it was watched, as m:ss."
+  placeholders:
+    time: { type: "String", example: "12:34" }
+pluginsTaskNote:
+  message: "Written by {model} · {spent} tokens · {left} left today"
+  description: "Footnote under a task plugin's reply: the model that wrote it, the tokens this reply took, and how many the plugin may still spend today."
+  placeholders:
+    model: { type: "String", example: "gpt-4o-mini" }
+    spent: { type: "int", example: "812" }
+    left: { type: "int", example: "49188" }
+settingsPluginsKindTask:
+  message: "Learning Tasks"
+  description: "Plugins page: heading of the group of task packs, which ask the user's AI service their own questions about a line, a word or the film so far."
+settingsPluginsTaskDetailLine:
+  message: "Asks your AI service about the line playing, with the lines before it."
+  description: "Plugins page and install confirmation: what a task pack that runs on the current line does."
+settingsPluginsTaskDetailWord:
+  message: "Asks your AI service about the word you look up, with its line."
+  description: "Plugins page and install confirmation: what a task pack that runs on the word looked up does."
+settingsPluginsTaskDetailFilm:
+  message: "Asks your AI service about the film up to where you have watched."
+  description: "Plugins page and install confirmation: what a task pack that runs on the film so far does; nothing after the point watched is sent."
+settingsPluginsTaskInstallNote:
+  message: "It stays off until you turn it on, and then spends up to {budget} tokens of your AI service a day. You can change that in its details."
+  description: "Install confirmation of a task pack: it is not turned on by installing it, and the default daily budget of AI tokens it may spend."
+  placeholders:
+    budget: { type: "int", example: "50000" }
+settingsPluginsTaskBudget:
+  message: "Daily tokens"
+  description: "Plugins page, a task pack's details: label before the most AI tokens it may spend a day."
+settingsPluginsTaskBudgetLabel:
+  message: "Daily token budget of {name}"
+  description: "Plugins page: accessible name of a task pack's daily token budget field."
+  placeholders:
+    name: { type: "String", example: "Quiz Me" }
+settingsPluginsTaskSpent:
+  message: "{count} used today"
+  description: "Plugins page, a task pack's details: the AI tokens it spent today."
+  placeholders:
+    count: { type: "int", example: "1200" }
 settingsPhoneConflictUse:
   message: "Use This"
   description: "Button under one version of a sync conflict that keeps it."

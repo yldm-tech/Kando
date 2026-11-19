@@ -27,12 +27,13 @@ type State struct {
 	off bool
 }
 
-// PluginState is one pack's entry of State. Sites are the domains of a site pack the user allowed, each on its own (docs/plugin-system.md 6.2); a file written before them has none, which allows no domain. A script plugin's also says who signed the content it is for (Signer, the release key's ID), what the user granted it (Grant), and, after an update that asks for more than the version before, that version's hash (OldHash), which tells "updated, look at the grant again" from "never granted".
+// PluginState is one pack's entry of State. Sites are the domains of a site pack the user allowed, each on its own (docs/plugin-system.md 6.2); a file written before them has none, which allows no domain. A script plugin's also says who signed the content it is for (Signer, the release key's ID), what the user granted it (Grant), and, after an update that asks for more than the version before, that version's hash (OldHash), which tells "updated, look at the grant again" from "never granted". Budget is the most tokens of the user's AI service a task pack may spend a day, DefaultBudget when 0; other kinds have none.
 type PluginState struct {
 	ID      string   `json:"id"`
 	Hash    string   `json:"hash"`
 	Enabled bool     `json:"enabled"`
 	Sites   []string `json:"sites,omitempty"`
+	Budget  int      `json:"budget,omitempty"`
 	OldHash string   `json:"oldHash,omitempty"`
 	Signer  string   `json:"signer,omitempty"`
 	Grant   Grant    `json:"grant,omitzero"`
@@ -42,6 +43,16 @@ type PluginState struct {
 func (e PluginState) scripted() bool {
 	return e.OldHash != "" || e.Signer != "" || len(e.Grant.Perms) > 0 || len(e.Grant.Network) > 0
 }
+
+// DefaultBudget is a task pack's daily budget of tokens until the user sets another (docs/plugin-system.md 6.2); MinBudget and MaxBudget bound what the user may set.
+const (
+	DefaultBudget = 50000
+	MinBudget     = 1000
+	MaxBudget     = 1000000
+)
+
+// optIn reports whether packs of kind k are off until the user turns them on: a task pack spends the user's tokens, so installing it is not agreeing to that (docs/plugin-system.md 6.2).
+func (k Kind) optIn() bool { return k == KindTask }
 
 // LoadState reads the state.json of the plugins folder root. A missing file is the state of a folder where no pack was ever turned off. A file that cannot be read, is not JSON or has no format (format 0 or less, as a file cut short to {} or edited by hand) is ErrBadState, and one of a newer format ErrStateFormat; either way the state returned has every pack turned off, as such a file may say anything about them. A newer format's state is not written over (Save); a bad one is.
 func LoadState(root string) (State, error) {
@@ -80,8 +91,20 @@ func (s State) Enabled(id string) bool {
 	return true
 }
 
-// EnabledPack reports whether the pack p is turned on: a data pack as Enabled says; a script plugin only when its entry turned it on for this content and signer, as one is off until the user turns it on, and a content or signer the user never turned on is off too.
+// Budget is the daily budget of tokens of the task pack id: its entry's, or DefaultBudget.
+func (s State) Budget(id string) int {
+	if e, _ := s.Entry(id); e.Budget > 0 {
+		return e.Budget
+	}
+	return DefaultBudget
+}
+
+// EnabledPack reports whether the pack p is turned on: a data pack as Enabled says, but a kind the user turns on first (a task pack, which spends the user's tokens; docs/plugin-system.md 6.2) only when its entry turned it on; a script plugin only when its entry turned it on for this content and signer, as one is off until the user turns it on, and a content or signer the user never turned on is off too.
 func (s State) EnabledPack(p Pack) bool {
+	if p.Kind.optIn() {
+		e, ok := s.entry(p.ID)
+		return ok && !s.off && e.Enabled
+	}
 	if p.Kind != KindScript {
 		return s.Enabled(p.ID)
 	}

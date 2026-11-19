@@ -28,6 +28,7 @@ type App interface {
 	Streamer
 	Explainer
 	Recapper
+	Tasker
 	OpenKey() string
 	SetOpenKey(string)
 	StopPlayback()

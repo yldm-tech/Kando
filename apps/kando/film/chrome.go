@@ -191,7 +191,7 @@ func (s *screen) actions() ns.Node {
 	}}
 }
 
-// moreButton is the ⋯ of a finished film, whose system menu processes it again from the start, as the prototype's offers, or only translates it again, every line or those that failed, reports a problem with its subtitles, or moves it to another library. A failed film has 重试 already.
+// moreButton is the ⋯ of a finished film, whose system menu processes it again from the start, as the prototype's offers, or only translates it again, every line or those that failed, reports a problem with its subtitles, or moves it to another library; then the task packs that can run (Tasker.TaskMenu). A failed film has 重试 already.
 func (s *screen) moreButton(cx *ns.Scope) ns.Node {
 	a := s.a
 	anchor := &ns.Ref{}
@@ -218,6 +218,9 @@ func (s *screen) moreButton(cx *ns.Scope) ns.Node {
 			items = append(items, nsdesktop.MenuItem{Label: locales.FilmsMoveToLibrary(cx), Items: move})
 		}
 		items = append(items, a.StoredOpenMenu(cx)...)
+		if tasks := a.TaskMenu(cx); len(tasks) > 0 {
+			items = append(append(items, nsdesktop.MenuItem{Separator: true}), tasks...)
+		}
 		b, _ := anchor.Bounds()
 		nsdesktop.PopupMenu(cx, items, ns.Point{X: b.Origin.X, Y: b.Origin.Y + b.Size.Height}, nil)
 	})

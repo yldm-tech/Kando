@@ -248,10 +248,7 @@ func (a *app) LookUpWord(i int, word string) {
 	a.vocab.lookup.busy = true
 	a.vocab.gen++
 	gen := a.vocab.gen
-	ctx, cancel := context.WithTimeout(context.Background(), lookupTimeout)
-	a.vocab.cancel = cancel
-	update, now := a.update, a.saved.now
-	// The dictionaries whose lookup failed, as one with a damaged index, are not among those that did not have the word (missed); Answer reports them on this goroutine before it returns.
+	// The dictionaries whose lookup failed, as one with a damaged index, are not among those that did not have the word (missed); Answer reports them on the goroutine that asks before it returns.
 	var broken []string
 	reportFailed := ask.ask.Failed
 	ask.ask.Failed = func(d lookup.Dictionary, err error) {
@@ -260,40 +257,44 @@ func (a *app) LookUpWord(i int, word string) {
 			reportFailed(d, err)
 		}
 	}
-	go func() {
-		defer cancel()
+	// answered is the entry and the id of the dictionary pack it came from, "" for the AI service (vocabAsk.answer), with the dictionaries whose lookup failed.
+	type answered struct {
+		entry  lookup.Entry
+		source string
+		broken []string
+	}
+	answer := func(ctx context.Context) (answered, error) {
 		entry, source, err := ask.answer(ctx)
-		update(func() {
-			l := &a.vocab.lookup
-			if gen != a.vocab.gen || !l.open {
-				return
-			}
-			a.vocab.cancel = nil
-			l.busy = false
-			switch {
-			case errors.Is(err, lookup.ErrNoAnswer):
-				l.failed, l.needsAI, l.say = true, true, ask.why
-				return
-			case err != nil:
-				l.failed, l.needsAI = true, !errors.Is(err, lookup.ErrNoMeaning)
-				msg := err.Error()
-				l.say = func(cx *core.Scope) string { return locales.VocabLookupFailed(cx, msg) }
-				return
-			}
-			l.entry, l.source = entry, source
-			if source == "" {
-				// The dictionaries asked before the AI service that did not have the word (lookup.Ask.Answer), not those whose lookup failed; the card says so.
-				for _, d := range ask.ask.Dicts {
-					if !slices.Contains(broken, d.ID()) {
-						l.missed = append(l.missed, d.ID())
-					}
+		return answered{entry, source, broken}, err
+	}
+	now := a.saved.now
+	a.vocab.cancel = aiAsk(a, lookupTimeout, answer, func() bool { return gen == a.vocab.gen && a.vocab.lookup.open }, func(got answered, err error) {
+		l := &a.vocab.lookup
+		a.vocab.cancel = nil
+		l.busy = false
+		switch {
+		case errors.Is(err, lookup.ErrNoAnswer):
+			l.failed, l.needsAI, l.say = true, true, ask.why
+			return
+		case err != nil:
+			l.failed, l.needsAI = true, !errors.Is(err, lookup.ErrNoMeaning)
+			msg := err.Error()
+			l.say = func(cx *core.Scope) string { return locales.VocabLookupFailed(cx, msg) }
+			return
+		}
+		l.entry, l.source = got.entry, got.source
+		if got.source == "" {
+			// The dictionaries asked before the AI service that did not have the word (lookup.Ask.Answer), not those whose lookup failed; the card says so.
+			for _, d := range ask.ask.Dicts {
+				if !slices.Contains(got.broken, d.ID()) {
+					l.missed = append(l.missed, d.ID())
 				}
-				cache := a.vocabCache()
-				cache.Put(q, entry, now())
-				_ = cache.Save()
 			}
-		})
-	}()
+			cache := a.vocabCache()
+			cache.Put(q, got.entry, now())
+			_ = cache.Save()
+		}
+	})
 }
 
 // vocabAsk is a lookup as vocabResolve found it on the engine's goroutine: the entry the cache keeps for it (cached), or what answers it off that goroutine (ask, lookup.Ask.Answer), and, when no AI service can answer, why (the dictionaries may still answer).

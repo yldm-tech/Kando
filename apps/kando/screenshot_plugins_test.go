@@ -11,17 +11,19 @@ import (
 	"kando/apps/kando/locales/testlocale"
 	"kando/apps/kando/plugins"
 	"kando/apps/kando/plugins/script"
+	"kando/apps/kando/plugins/task"
 	"kando/apps/kando/saved"
 	"kando/apps/kando/settings"
+	"kando/packages/core"
 
 	"github.com/nsgo-dev/nsgo/nsgotest"
 )
 
-// TestScreenshotsPlugins renders Settings › 插件 with a glossary pack and an AI service pack installed, the install confirmation of a third party's script plugin, verified by Kando (plugins-script-install), and of Kando's own (plugins-script-install-official) and a script plugin's details with what it was granted (plugins-script-details), and with two dictionary packs, which move up and down, the details of one open (settings-plugins-dictionaries), the install confirmation of a pack over the main window, as a pack from 从文件安装… or the command line's inbox shows it, and of a site pack with a checkbox for each of its sites (plugins-install-site), the card of a word on the picture that a dictionary pack answered, which names the dictionary and its credit (plugins-lookup), and a Japanese line with readings over its words, a line in the color of their level under the words of a word list and a dashed one under a word in the vocabulary (plugins-marks). The packs are in plugins folders of the fixture's home.
+// TestScreenshotsPlugins renders Settings › 插件 with a glossary pack, an AI service pack and a task pack installed, the install confirmation of a third party's script plugin, verified by Kando (plugins-script-install), and of Kando's own (plugins-script-install-official) and a script plugin's details with what it was granted (plugins-script-details), and with two dictionary packs, which move up and down, the details of one open (settings-plugins-dictionaries), the install confirmation of a pack over the main window, as a pack from 从文件安装… or the command line's inbox shows it, and of a site pack with a checkbox for each of its sites (plugins-install-site), the card of a word on the picture that a dictionary pack answered, which names the dictionary and its credit (plugins-lookup), and a Japanese line with readings over its words, a line in the color of their level under the words of a word list and a dashed one under a word in the vocabulary (plugins-marks), the side panel with a task pack's reply as cards (plugins-task), 翻译 with a translate-style pack's style chosen (plugins-translate-style), the Saved Lines sheet with an export template chosen (plugins-export-template), and the sheet that exports the glossary as a pack (plugins-export-glossary). The packs are in plugins folders of the fixture's home.
 func TestScreenshotsPlugins(t *testing.T) {
 	f := newScreenshotFixture(t)
 	root := filepath.Join(f.home, "Library", "Application Support", "Kando", "plugins")
-	pluginInstalled(t, root, pluginGlossary, pluginService)
+	pluginInstalled(t, root, pluginGlossary, pluginService, pluginTaskLine)
 	shown, models, turbo := settingsShotFolders(t, f)
 	shootSettings(t, f, settings.SectionPlugins, "settings-plugins", shown, models, turbo, func(a *app) {
 		shotCLITool(f, a, true)
@@ -46,6 +48,16 @@ func TestScreenshotsPlugins(t *testing.T) {
 		}
 		a.pluginsScanned(packs, issues, state, err)
 		a.plugins.root = dictRoot
+	})
+	// 翻译 with a translate-style pack turned on and its style chosen, its prompt in the field.
+	styles := filepath.Join(f.home, "styles")
+	pluginInstalled(t, styles, pluginStyle)
+	shootSettings(t, f, settings.SectionTranslate, "plugins-translate-style", shown, models, turbo, func(a *app) {
+		packs, issues := plugins.Scan(styles)
+		state, err := plugins.LoadState(styles)
+		a.pluginsScanned(packs, issues, state, err)
+		a.plugins.root = styles
+		a.prefs.translatePrompt = packs[0].Style.Prompt
 	})
 	f.shoot(t, "plugins-install", func(t *testing.T, a *app, tt *nsgotest.App, updates chan func()) {
 		a.plugins.root = filepath.Join(f.home, "staging")
@@ -130,6 +142,56 @@ func TestScreenshotsPlugins(t *testing.T) {
 		tt.Press("id:settings-plugins-details-acme.anki")
 		if !tt.Exists("id:settings-plugins-grant-acme.anki-network") {
 			t.Fatalf("no details; texts %q", tt.Texts())
+		}
+	})
+	// A word task's reply on the first line's word, as the side panel shows it once the AI service answered.
+	f.shoot(t, "plugins-task", func(t *testing.T, a *app, tt *nsgotest.App, updates chan func()) {
+		screenshotOpen(t, a, tt, updates, "j1", protoCues[0].Start)
+		screenshotLoad(tt, a)
+		pack, err := plugins.Parse([]byte(pluginTaskWord))
+		if err != nil {
+			t.Fatal(err)
+		}
+		onEngine(a, func() {
+			a.player.panel, a.player.filmSide = true, film.SideTask
+			a.plugins.task = pluginsTask{open: true, id: pack.ID, name: pack.Name, fields: pack.Task.Reply.Fields, render: pack.Task.Render, video: a.player.film.video,
+				scope: pack.Task.Scope, subject: "trickle", model: "gpt-4o-mini", spent: 412,
+				items: []task.Item{{"trick-", "to flow in drops, from Middle English trikelen"}, {"-le", "a small, repeated action, as in sparkle and drizzle"}}}
+		})
+		refresh(tt, a)
+		if !tt.Exists("id:film-task-card") {
+			t.Fatalf("no task's reply; texts %q", tt.Texts())
+		}
+	})
+	// The Saved Lines sheet with an export-template pack turned on and chosen, its drop-down beside 导出.
+	f.shoot(t, "plugins-export-template", func(t *testing.T, a *app, tt *nsgotest.App, updates chan func()) {
+		a.plugins.root = filepath.Join(f.home, "templates")
+		pluginInstalled(t, a.plugins.root, pluginTemplate)
+		packs, issues := plugins.Scan(a.plugins.root)
+		state, err := plugins.LoadState(a.plugins.root)
+		onEngine(a, func() {
+			a.pluginsScanned(packs, issues, state, err)
+			a.plugins.exportTarget = "example.cards"
+			a.OpenSavedSheet()
+		})
+		refresh(tt, a)
+		if !tt.Exists("id:saved-export-target") {
+			t.Fatalf("no export drop-down; texts %q", tt.Texts())
+		}
+	})
+	// The sheet that exports the glossary as a pack, over the main window, with a few global terms.
+	f.shoot(t, "plugins-export-glossary", func(t *testing.T, a *app, tt *nsgotest.App, updates chan func()) {
+		onEngine(a, func() {
+			for _, term := range []core.Term{{Source: "meander", Target: "河曲"}, {Source: "delta", Target: "三角洲"}, {Source: "tributary", Target: "支流"}} {
+				term.Scope = core.ScopeGlobal
+				a.gloss.store.Set("", term)
+			}
+			a.pluginsExportOpen(true)
+			a.SetPluginExportName("River Terms")
+		})
+		refresh(tt, a)
+		if !tt.Exists("id:plugins-export") {
+			t.Fatalf("no export sheet; texts %q", tt.Texts())
 		}
 	})
 	// A film heard in Japanese, its first line marked by a Japanese word list chosen in 字幕外观's 逐词标注 with readings and 标出已学词 on: furigana over the words in Han characters, from the larger Japanese dictionary the list lets the app read, a thick line in the tone of their level under the words of the list, and a dashed one under 小さな, a word in the vocabulary.

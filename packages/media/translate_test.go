@@ -354,6 +354,141 @@ func TestChatRenewsRejectedLogin(t *testing.T) {
 	}
 }
 
+// TestChatWithSendsTheLimitAndHeadersAndCountsTheTokens checks that ChatWith sends max_tokens and the extra headers, which cannot replace the key's Authorization, and returns the reply with the tokens the service counted.
+func TestChatWithSendsTheLimitAndHeadersAndCountsTheTokens(t *testing.T) {
+	var seen chatRequest
+	var title, auth string
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		title, auth = r.Header.Get("X-Title"), r.Header.Get("Authorization")
+		if err := json.NewDecoder(r.Body).Decode(&seen); err != nil {
+			http.Error(w, err.Error(), http.StatusBadRequest)
+			return
+		}
+		json.NewEncoder(w).Encode(map[string]any{
+			"choices": []map[string]any{{"message": map[string]string{"role": "assistant", "content": "```json\n{}\n```"}}},
+			"usage":   map[string]int{"prompt_tokens": 120, "completion_tokens": 30, "total_tokens": 150},
+		})
+	}))
+	t.Cleanup(srv.Close)
+	tr := ChatTranslator{BaseURL: srv.URL + "/v1", APIKey: "secret", Model: "m1"}
+	header := http.Header{"X-Title": {"Kando plugin acme.task"}, "Authorization": {"Bearer stolen"}}
+	got, err := tr.ChatWith(context.Background(), ChatRequest{System: "s", User: "u", MaxTokens: 400, Header: header})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got.Text != "{}" || got.Usage != (ChatUsage{Prompt: 120, Completion: 30}) || got.Usage.Total() != 150 {
+		t.Fatalf("reply %+v", got)
+	}
+	if seen.MaxTokens != 400 || title != "Kando plugin acme.task" || auth != "Bearer secret" {
+		t.Fatalf("request max_tokens %d, X-Title %q, Authorization %q", seen.MaxTokens, title, auth)
+	}
+}
+
+// TestChatWithEstimatesTheTokensOfAServiceThatSaysNone checks that a reply without usage is counted from the characters sent and received, and that Chat sends no max_tokens, as before.
+func TestChatWithEstimatesTheTokensOfAServiceThatSaysNone(t *testing.T) {
+	var raw map[string]any
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		raw = nil
+		json.NewDecoder(r.Body).Decode(&raw)
+		json.NewEncoder(w).Encode(map[string]any{
+			"choices": []map[string]any{{"message": map[string]string{"role": "assistant", "content": "你好"}}},
+		})
+	}))
+	t.Cleanup(srv.Close)
+	tr := ChatTranslator{BaseURL: srv.URL, Model: "m1"}
+	got, err := tr.ChatWith(context.Background(), ChatRequest{System: "abcdefgh", User: "日本語"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if want := (ChatUsage{Prompt: 2 + 3, Completion: 2, Estimated: true}); got.Usage != want {
+		t.Fatalf("usage %+v, want %+v", got.Usage, want)
+	}
+	if _, err := tr.Chat(context.Background(), "s", "u"); err != nil {
+		t.Fatal(err)
+	}
+	if _, ok := raw["max_tokens"]; ok {
+		t.Fatalf("Chat sent max_tokens: %v", raw)
+	}
+	if v, ok := raw["temperature"]; !ok || v != float64(0) {
+		t.Fatalf("Chat no longer sends temperature 0: %v", raw)
+	}
+}
+
+// TestChatWithCountsTheRequestsThatWentUnanswered checks the usage ChatWith returns besides the reply: a request retried after a server error counts the estimate of its prompt on top of the answer's usage; one that timed out after it was sent counts its prompt with the error; one that never reached a service counts nothing.
+func TestChatWithCountsTheRequestsThatWentUnanswered(t *testing.T) {
+	old := retryBaseDelay
+	retryBaseDelay = time.Millisecond
+	t.Cleanup(func() { retryBaseDelay = old })
+	var calls atomic.Int32
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if calls.Add(1) == 1 {
+			http.Error(w, "busy", http.StatusBadGateway)
+			return
+		}
+		json.NewEncoder(w).Encode(map[string]any{
+			"choices": []map[string]any{{"message": map[string]string{"role": "assistant", "content": "ok"}}},
+			"usage":   map[string]int{"prompt_tokens": 10, "completion_tokens": 5},
+		})
+	}))
+	t.Cleanup(srv.Close)
+	req := ChatRequest{System: "abcdefgh", User: "日本語"} // an estimate of 5 tokens
+	got, err := ChatTranslator{BaseURL: srv.URL, Model: "m"}.ChatWith(context.Background(), req)
+	if err != nil || got.Usage != (ChatUsage{Prompt: 5 + 10, Completion: 5, Estimated: true}) {
+		t.Fatalf("after a retry: %+v, %v", got.Usage, err)
+	}
+
+	release := make(chan struct{})
+	slow := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		select {
+		case <-r.Context().Done():
+		case <-release:
+		}
+	}))
+	t.Cleanup(slow.Close)
+	t.Cleanup(func() { close(release) })
+	ctx, cancel := context.WithTimeout(context.Background(), 200*time.Millisecond)
+	defer cancel()
+	got, err = ChatTranslator{BaseURL: slow.URL, Model: "m", Attempts: 1}.ChatWith(ctx, req)
+	if err == nil || got.Usage != (ChatUsage{Prompt: 5, Estimated: true}) {
+		t.Fatalf("a request that timed out: %+v, %v", got.Usage, err)
+	}
+
+	gone := httptest.NewServer(http.NotFoundHandler())
+	gone.Close()
+	got, err = ChatTranslator{BaseURL: gone.URL, Model: "m", Attempts: 1}.ChatWith(context.Background(), req)
+	if err == nil || got.Usage.Total() != 0 {
+		t.Fatalf("a request that reached nothing: %+v, %v", got.Usage, err)
+	}
+}
+
+// TestChatWithSaysAReplyWasCutOff checks that a reply the model stopped at its token limit is ErrReplyCutOff, with what it wrote and the tokens it took, and that Chat gives the text as before.
+func TestChatWithSaysAReplyWasCutOff(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		json.NewEncoder(w).Encode(map[string]any{
+			"choices": []map[string]any{{"message": map[string]string{"role": "assistant", "content": `{"a": "half`}, "finish_reason": "length"}},
+			"usage":   map[string]int{"prompt_tokens": 10, "completion_tokens": 64},
+		})
+	}))
+	t.Cleanup(srv.Close)
+	tr := ChatTranslator{BaseURL: srv.URL, Model: "m"}
+	got, err := tr.ChatWith(context.Background(), ChatRequest{System: "s", User: "u", MaxTokens: 64})
+	if !errors.Is(err, ErrReplyCutOff) || got.Text != `{"a": "half` || got.Usage.Total() != 74 {
+		t.Fatalf("cut off: %+v, %v", got, err)
+	}
+	if text, err := tr.Chat(context.Background(), "s", "u"); err != nil || text != `{"a": "half` {
+		t.Fatalf("Chat: %q, %v", text, err)
+	}
+}
+
+// TestEstimateTokens checks the estimate a budget falls back on.
+func TestEstimateTokens(t *testing.T) {
+	for text, want := range map[string]int{"": 0, "a": 1, "abcd": 1, "abcde": 2, "你好世界": 4, "hi 你好": 3} {
+		if got := EstimateTokens(text); got != want {
+			t.Errorf("EstimateTokens(%q) = %d, want %d", text, got, want)
+		}
+	}
+}
+
 // TestChatNeedsAModelAndAnEndpoint checks that Chat says what is missing rather than posting nowhere.
 func TestChatNeedsAModelAndAnEndpoint(t *testing.T) {
 	if _, err := (ChatTranslator{BaseURL: "http://127.0.0.1:1"}).Chat(context.Background(), "s", "u"); err == nil {

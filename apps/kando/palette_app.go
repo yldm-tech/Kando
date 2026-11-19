@@ -647,32 +647,23 @@ func (a *app) paletteSend(t media.ChatTranslator, item films.Film, system, user 
 	done.model, done.film = model, item.Key
 	busy, failed := locales.PaletteAsking, locales.PaletteAskFailed
 	a.palette.answer = &paletteAnswer{busy: true, say: func(cx *core.Scope) string { return busy(cx, model) }, horizon: done.horizon, model: model, film: item.Key}
-	ctx, cancel := context.WithTimeout(context.Background(), paletteAskTimeout)
-	a.palette.cancel = cancel
-	update := a.update
-	go func() {
-		defer cancel()
-		reply, err := t.Chat(ctx, system, user)
-		update(func() {
-			if gen != a.palette.askGen || a.palette.answer == nil {
-				return
+	ask := func(ctx context.Context) (string, error) { return t.Chat(ctx, system, user) }
+	a.palette.cancel = aiAsk(a, paletteAskTimeout, ask, func() bool { return gen == a.palette.askGen && a.palette.answer != nil }, func(reply string, err error) {
+		a.palette.cancel = nil
+		if err != nil {
+			// The service's settings are the likely fix for a refused key, a wrong model or a signed-out CLI, so the card offers them as it does when none is set.
+			a.palette.answer = &paletteAnswer{failed: true, needsAI: true, say: func(cx *core.Scope) string { return failed(cx, err.Error()) }}
+			return
+		}
+		text, refs := paletteParseReply(reply, seen)
+		for _, ref := range refs {
+			if !slices.Contains(done.refs, ref) {
+				done.refs = append(done.refs, ref)
 			}
-			a.palette.cancel = nil
-			if err != nil {
-				// The service's settings are the likely fix for a refused key, a wrong model or a signed-out CLI, so the card offers them as it does when none is set.
-				a.palette.answer = &paletteAnswer{failed: true, needsAI: true, say: func(cx *core.Scope) string { return failed(cx, err.Error()) }}
-				return
-			}
-			text, refs := paletteParseReply(reply, seen)
-			for _, ref := range refs {
-				if !slices.Contains(done.refs, ref) {
-					done.refs = append(done.refs, ref)
-				}
-			}
-			done.text = text
-			a.palette.answer = &done
-		})
-	}()
+		}
+		done.text = text
+		a.palette.answer = &done
+	})
 }
 
 // paletteAnswerLanguage is the language the AI service answers about item in: the one its subtitles are translated into, which may not be the one the settings name now, or, for a film translated into none, fallback, the settings' target language.

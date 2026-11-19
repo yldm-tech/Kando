@@ -145,7 +145,7 @@ func pluginList(e *env) error {
 	infos := make([]pluginInfo, 0, len(packs))
 	for _, p := range packs {
 		info := newPluginInfo(p)
-		enabled := state.Enabled(p.ID)
+		enabled := state.EnabledPack(p)
 		if p.Kind == plugins.KindScript {
 			// The command line does not verify who signed an installed script plugin: it reads as on when its entry turned it on for its content.
 			entry, ok := state.Entry(p.ID)

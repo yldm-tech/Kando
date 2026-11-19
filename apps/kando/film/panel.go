@@ -81,6 +81,8 @@ func (s *screen) panel() ns.Node {
 						return s.infoTab(cx)
 					case SideExplain:
 						return s.explainTab(cx)
+					case SideTask:
+						return s.taskTab(cx)
 					}
 					return s.subsTab(cx)
 				})

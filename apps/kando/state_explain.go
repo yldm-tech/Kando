@@ -162,19 +162,9 @@ func (a *app) ExplainLine(i int) {
 // explainAsk sends user, with the instruction system, to t off the engine's goroutine, and hands its reply to done back on it, unless the line explained changed or was closed meanwhile (explainStop).
 func (a *app) explainAsk(t media.ChatTranslator, system, user string, done func(reply string, err error)) {
 	gen := a.explain.gen
-	ctx, cancel := context.WithTimeout(context.Background(), explainTimeout)
+	cancel := aiAsk(a, explainTimeout, func(ctx context.Context) (string, error) { return t.Chat(ctx, system, user) },
+		func() bool { return gen == a.explain.gen && a.explain.line.open }, done)
 	a.explain.cancel = append(a.explain.cancel, cancel)
-	update := a.update
-	go func() {
-		defer cancel()
-		reply, err := t.Chat(ctx, system, user)
-		update(func() {
-			if gen != a.explain.gen || !a.explain.line.open {
-				return
-			}
-			done(reply, err)
-		})
-	}()
 }
 
 // explainPlaying is I: Explain Line on the line selected for correcting (E), or with none the line playing, or between lines on the line just heard, or before the first on the line coming, as L picks the line it loops.

@@ -34,6 +34,10 @@ type App interface {
 	StopExport()
 	RevealExport()
 	ExportSettings()
+	// ExportTargets are the ways the lines can be exported, Kando's own Anki notes first and the export-template plugins turned on after; ExportTarget is the id of the one chosen and SetExportTarget chooses one, which is saved.
+	ExportTargets() []ExportTarget
+	ExportTarget() string
+	SetExportTarget(id string)
 	// DueCount is how many saved lines are due for review; StartReview closes the sheet and reviews them (Review).
 	DueCount() int
 	StartReview()
@@ -46,7 +50,7 @@ type App interface {
 	CancelNote()
 }
 
-// Export is how the export of the saved lines goes: Busy while it runs, Done lines of Total; once Finished, the Lines and the Sounds it wrote, or Err, why it failed, or Stopped once the user stopped it. NoFFmpeg reports that ffmpeg is not installed, so no line has its audio.
+// Export is how the export of the saved lines goes: Busy while it runs, Done lines of Total; once Finished, the Lines and the Sounds it wrote, or Err, why it failed, or Stopped once the user stopped it. NoFFmpeg reports that ffmpeg is not installed, so no line has its audio. Template is the name of the export-template plugin it wrote with, "" for Kando's own Anki notes, and File the name of the file it wrote.
 type Export struct {
 	Busy, Finished bool
 	Done, Total    int
@@ -54,6 +58,14 @@ type Export struct {
 	Err            string
 	Stopped        bool
 	NoFFmpeg       bool
+	Template, File string
+	// WithSound is whether the export writes the lines' audio: Kando's own notes do, a template only when it has a column for it.
+	WithSound bool
+}
+
+// ExportTarget is a way the saved lines can be exported: ID "" for Kando's own Anki notes, else the export-template plugin's id; Label is what the sheet calls it, in the interface's language.
+type ExportTarget struct {
+	ID, Label string
 }
 
 // Entry is a saved line as the sheet lists it.
@@ -122,10 +134,14 @@ func (s Sheet) Render(cx *core.Scope) core.Node {
 	due := live.Memo(cx, a, a.DueCount)
 	footer := core.View{Style: core.Style{Direction: core.Row, Gap: 8, AlignItems: core.AlignCenter, FlexShrink: 0}, Children: []core.Node{
 		exportStatus(cx, export),
+		exportPicker(cx, a),
 		core.Show{When: func() bool { e := export(); return e.Finished && e.Err == "" && !e.Stopped }, Then: func(cx *core.Scope) core.Node {
 			return textButton(func(cx *core.Scope) string { return locales.FilmShowInFinder(cx, desktop.Platform(cx)) }, ui.Button{Variant: ui.ButtonSecondary, TestID: "saved-export-reveal", OnPress: live.Do(a, a.RevealExport)})
 		}},
-		core.Show{When: func() bool { e := export(); return e.Finished && e.NoFFmpeg && e.Err == "" && !e.Stopped }, Then: func(cx *core.Scope) core.Node {
+		core.Show{When: func() bool {
+			e := export()
+			return e.Finished && e.NoFFmpeg && e.WithSound && e.Err == "" && !e.Stopped
+		}, Then: func(cx *core.Scope) core.Node {
 			return textButton(locales.SavedExportOpenSettings, ui.Button{Variant: ui.ButtonSecondary, TestID: "saved-export-settings", OnPress: live.Do(a, a.ExportSettings)})
 		}},
 		core.Show{When: func() bool { return export().Busy },
@@ -133,7 +149,15 @@ func (s Sheet) Render(cx *core.Scope) core.Node {
 				return textButton(locales.SavedExportCancel, ui.Button{Variant: ui.ButtonSecondary, TestID: "saved-export-cancel", OnPress: live.Do(a, a.StopExport)})
 			},
 			Else: func(cx *core.Scope) core.Node {
-				return textButton(locales.SavedExport, ui.Button{Variant: ui.ButtonSecondary, TestID: "saved-export", OnPress: live.Do(a, a.ExportSaved),
+				// The button is built again when the way chosen changes, as its text says which.
+				target := live.Func(a, a.ExportTarget)
+				label := func(cx *core.Scope) string {
+					if target() != "" {
+						return locales.SavedExportTemplate(cx)
+					}
+					return locales.SavedExport(cx)
+				}
+				return textButton(label, ui.Button{Variant: ui.ButtonSecondary, TestID: "saved-export", OnPress: live.Do(a, a.ExportSaved),
 					Disabled: func() bool { return len(entries()) == 0 }})
 			}},
 		core.Dynamic(func(cx *core.Scope) core.Node {
@@ -174,6 +198,12 @@ func exportStatus(cx *core.Scope, export func() Export) core.Node {
 			return locales.SavedExportStopped(cx)
 		case e.Err != "":
 			return locales.SavedExportFailed(cx, e.Err)
+		case e.Template != "" && e.WithSound && e.Sounds == 0:
+			return locales.SavedExportedTemplateNoAudio(cx, e.Lines, e.File)
+		case e.Template != "" && e.WithSound && e.Sounds < e.Lines:
+			return locales.SavedExportedTemplateSomeAudio(cx, e.Lines, e.Sounds, e.File)
+		case e.Template != "":
+			return locales.SavedExportedTemplate(cx, e.Lines, e.File)
 		case e.Sounds == 0:
 			return locales.SavedExportedNoAudio(cx, e.Lines)
 		case e.Sounds < e.Lines:
@@ -184,6 +214,34 @@ func exportStatus(cx *core.Scope, export func() Export) core.Node {
 	return core.View{Style: core.Style{FlexGrow: 1, FlexShrink: 1, MinWidth: core.Pt(0)}, Children: []core.Node{
 		core.Text{TestID: "saved-export-status", ContentFunc: text, Style: ui.TypeCaption, StyleFunc: ui.Colored(colors.Muted)},
 	}}
+}
+
+// exportPicker is the drop-down of the ways the lines can be exported, beside 导出, while an export-template plugin is turned on; nothing otherwise. It is built again only when the ways change.
+func exportPicker(cx *core.Scope, a App) core.Node {
+	targets := core.NewMemo(cx, live.Func(a, func() string {
+		var out []string
+		for _, t := range a.ExportTargets() {
+			out = append(out, t.ID+"\x00"+t.Label)
+		}
+		return strings.Join(out, "\x01")
+	}))
+	return core.Show{When: func() bool { return strings.Contains(targets.Get(), "\x01") }, Then: func(cx *core.Scope) core.Node {
+		// TODO(nsgo#848): give ui.Select its options as a binding, so a list that changes does not build the drop-down again and take its focus; it is built again only when the plugins turned on change, which is done elsewhere https://github.com/nsgo-dev/nsgo/issues/848
+		return core.Dynamic(func(cx *core.Scope) core.Node { return exportSelect(cx, a, targets.Get()) })
+	}}
+}
+
+// exportSelect is the drop-down of the ways joined lists, each its id and label.
+func exportSelect(cx *core.Scope, a App, joined string) core.Node {
+	var options []ui.Option[string]
+	for _, item := range strings.Split(joined, "\x01") {
+		id, label, _ := strings.Cut(item, "\x00")
+		options = append(options, ui.Option[string]{Value: id, Label: label})
+	}
+	return ui.Select[string]{Options: options, Label: locales.SavedExportTarget(cx), TestID: "saved-export-target",
+		Value: live.Func(a, a.ExportTarget), OnChange: live.On(a, a.SetExportTarget), Disabled: live.Func(a, func() bool { return a.ExportState().Busy }),
+		Style: core.Style{Width: core.Pt(150)}}
+
 }
 
 // entryRow is a saved line of the sheet: its film and time over its original, its translation and the learner's note, which a click plays from, the pencil that opens the note's field under the line, and the × that removes it. A line whose video is gone does not play and says so.

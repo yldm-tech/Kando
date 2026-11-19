@@ -8,10 +8,12 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"net/http/httptrace"
 	"regexp"
 	"slices"
 	"strconv"
 	"strings"
+	"sync/atomic"
 	"time"
 	"unicode"
 	"unicode/utf8"
@@ -107,7 +109,7 @@ func (t ChatTranslator) Ping(ctx context.Context) error {
 	if client == nil {
 		client = &http.Client{Timeout: 30 * time.Second}
 	}
-	_, _, err = completeOnce(ctx, client, endpoint, body)
+	_, _, _, err = completeOnce(ctx, client, endpoint, body, nil)
 	return err
 }
 
@@ -215,46 +217,119 @@ func skippableBatch(err error) bool {
 	return true
 }
 
-// Chat sends one conversation, a system instruction and the user's message, to the same endpoint and model translations use, and returns the model's reply without the code fence a model may wrap around it. A key the API rejects is renewed once through Credential, as Translate does; rate limits, server errors, timeouts and lost connections are retried as for a translation.
+// Chat sends one conversation, a system instruction and the user's message, to the same endpoint and model translations use, and returns the model's reply without the code fence a model may wrap around it. A key the API rejects is renewed once through Credential, as Translate does; rate limits, server errors, timeouts and lost connections are retried as for a translation. It is ChatWith without a token limit or headers of its own, its usage left out.
 func (t ChatTranslator) Chat(ctx context.Context, system, user string) (string, error) {
+	reply, err := t.ChatWith(ctx, ChatRequest{System: system, User: user})
+	// Chat asks for no limit, and has always given what the model wrote before it stopped.
+	if errors.Is(err, ErrReplyCutOff) {
+		err = nil
+	}
+	return reply.Text, err
+}
+
+// ErrReplyCutOff is a reply the model stopped writing because it reached its token limit (finish_reason "length"), ChatRequest.MaxTokens or the model's own; ChatWith returns it with the text written so far and the tokens taken.
+var ErrReplyCutOff = errors.New("the reply was cut off at its token limit")
+
+// ChatRequest is one conversation ChatWith sends: the system instruction and the user's message; MaxTokens, when above 0, caps the reply's tokens (max_tokens); Header adds headers to the request, such as X-Title, which some services show on the user's bill. Header cannot replace Content-Type or Authorization, which ChatWith sets.
+type ChatRequest struct {
+	System, User string
+	MaxTokens    int
+	Header       http.Header
+}
+
+// ChatReply is the model's reply to a ChatRequest, without the code fence a model may wrap around it, and the tokens it took.
+type ChatReply struct {
+	Text  string
+	Usage ChatUsage
+}
+
+// ChatUsage is the tokens a conversation took: those of the request (Prompt) and of the reply (Completion), as the service counted them, or, when it said nothing of them, as estimated from their characters (Estimated, EstimateTokens).
+type ChatUsage struct {
+	Prompt, Completion int
+	Estimated          bool
+}
+
+// Total is all the tokens the conversation took.
+func (u ChatUsage) Total() int { return u.Prompt + u.Completion }
+
+// ChatWith sends the conversation r, as Chat does, and returns the reply with the tokens it took: those the service's usage says, or, when it says none, an estimate from the characters sent and received (EstimateTokens). A key the API rejects is renewed once through Credential; rate limits, server errors, timeouts and lost connections are retried as for a translation. Every request that was written to the service and got no reply it counted, a retry's, a rejected key's, one that timed out or was stopped after it went, counts the estimate of its prompt, as the service may bill it; so the usage is returned with an error too. A reply cut off at its token limit is ErrReplyCutOff, with its text and usage.
+func (t ChatTranslator) ChatWith(ctx context.Context, r ChatRequest) (ChatReply, error) {
 	if strings.TrimSpace(t.Model) == "" {
-		return "", ErrNoModel
+		return ChatReply{}, ErrNoModel
 	}
 	if err := t.offline(); err != nil {
-		return "", err
+		return ChatReply{}, err
 	}
 	endpoint := Endpoint{BaseURL: strings.TrimSpace(t.BaseURL), APIKey: t.APIKey}
 	if t.Credential != nil {
 		var err error
 		if endpoint, err = t.Credential(ctx, false); err != nil {
-			return "", err
+			return ChatReply{}, err
 		}
 	}
 	if strings.TrimSpace(endpoint.BaseURL) == "" {
-		return "", ErrNoBaseURL
+		return ChatReply{}, ErrNoBaseURL
 	}
 	body, err := json.Marshal(chatRequest{
-		Model:    t.Model,
-		Messages: []chatMessage{{Role: "system", Content: system}, {Role: "user", Content: user}},
+		Model:     t.Model,
+		Messages:  []chatMessage{{Role: "system", Content: r.System}, {Role: "user", Content: r.User}},
+		MaxTokens: max(r.MaxTokens, 0),
 	})
 	if err != nil {
-		return "", err
+		return ChatReply{}, err
 	}
-	reply, err := t.complete(ctx, endpoint, body, core.Progress{})
+	sent := 0
+	prompt := EstimateTokens(r.System) + EstimateTokens(r.User)
+	// unanswered is the usage of the requests sent that got no reply the service counted: the estimate of their prompts.
+	unanswered := func(n int) ChatUsage {
+		if n <= 0 {
+			return ChatUsage{}
+		}
+		return ChatUsage{Prompt: n * prompt, Estimated: true}
+	}
+	reply, err := t.completeWith(ctx, endpoint, body, core.Progress{}, r.Header, &sent)
 	var status *statusError
 	if t.Credential != nil && errors.As(err, &status) && status.code == http.StatusUnauthorized {
 		if endpoint, err = t.Credential(ctx, true); err != nil {
-			return "", err
+			return ChatReply{Usage: unanswered(sent)}, err
 		}
-		reply, err = t.complete(ctx, endpoint, body, core.Progress{})
+		reply, err = t.completeWith(ctx, endpoint, body, core.Progress{}, r.Header, &sent)
 	}
 	if err != nil {
-		return "", err
+		return ChatReply{Usage: unanswered(sent)}, err
 	}
 	if len(reply.Choices) == 0 {
-		return "", errors.New("chat API returned no choices")
+		return ChatReply{Usage: unanswered(sent)}, errors.New("chat API returned no choices")
 	}
-	return stripCodeFence(reply.Choices[0].Message.Content), nil
+	content := reply.Choices[0].Message.Content
+	out := ChatReply{Text: stripCodeFence(content), Usage: unanswered(sent - 1)}
+	if u := reply.Usage; u != nil && (u.PromptTokens > 0 || u.CompletionTokens > 0) {
+		out.Usage.Prompt += u.PromptTokens
+		out.Usage.Completion = u.CompletionTokens
+	} else {
+		out.Usage = ChatUsage{Prompt: out.Usage.Prompt + prompt, Completion: EstimateTokens(content), Estimated: true}
+	}
+	if reply.Choices[0].FinishReason == "length" {
+		return out, ErrReplyCutOff
+	}
+	return out, nil
+}
+
+// EstimateTokens is about how many tokens text takes, for a service that does not say: a token for every four characters of ASCII, as English and code run, and one for each other character, as Chinese, Japanese and Korean take about one a character; at least one for text that is not empty. It errs high for most other scripts, which is the safe side for a budget.
+func EstimateTokens(text string) int {
+	ascii, other := 0, 0
+	for _, r := range text {
+		if r < utf8.RuneSelf {
+			ascii++
+		} else {
+			other++
+		}
+	}
+	n := other + (ascii+3)/4
+	if n == 0 && text != "" {
+		n = 1
+	}
+	return n
 }
 
 type chatMessage struct {
@@ -266,12 +341,20 @@ type chatRequest struct {
 	Model       string        `json:"model"`
 	Messages    []chatMessage `json:"messages"`
 	Temperature float64       `json:"temperature"`
+	MaxTokens   int           `json:"max_tokens,omitempty"`
 }
 
 type chatResponse struct {
 	Choices []struct {
 		Message chatMessage `json:"message"`
+		// FinishReason is why the model stopped: "length" at its token limit.
+		FinishReason string `json:"finish_reason"`
 	} `json:"choices"`
+	// Usage is the tokens the request and the reply took, as OpenAI-compatible services count them; nil from a service that says nothing of them.
+	Usage *struct {
+		PromptTokens     int `json:"prompt_tokens"`
+		CompletionTokens int `json:"completion_tokens"`
+	} `json:"usage"`
 }
 
 // statusError is a non-200 reply from the translation API.
@@ -558,13 +641,21 @@ var retryBaseDelay = 2 * time.Second
 
 // complete posts body to the chat endpoint, retrying rate limits and server errors, which gateways return when upstream capacity is briefly exhausted, and requests that timed out, lost their connection or came back cut off, while ctx lasts. Before each retry it reports progress with how long it waits, as the server's Retry-After asked or the backoff chose, and which retry comes; once the wait is over it reports progress as it was.
 func (t ChatTranslator) complete(ctx context.Context, endpoint Endpoint, body []byte, progress core.Progress) (chatResponse, error) {
+	return t.completeWith(ctx, endpoint, body, progress, nil, nil)
+}
+
+// completeWith is complete with header added to each request (ChatRequest.Header), counting in sent, when it is not nil, the requests that were written to the service whatever came of them, which the service may bill.
+func (t ChatTranslator) completeWith(ctx context.Context, endpoint Endpoint, body []byte, progress core.Progress, header http.Header, sent *int) (chatResponse, error) {
 	client := t.Client
 	if client == nil {
 		client = &http.Client{Timeout: 2 * time.Minute}
 	}
 	delay := retryBaseDelay
 	for attempt := 1; ; attempt++ {
-		reply, retryAfter, err := completeOnce(ctx, client, endpoint, body)
+		reply, retryAfter, wrote, err := completeOnce(ctx, client, endpoint, body, header)
+		if wrote && sent != nil {
+			*sent++
+		}
 		if err == nil || retryAfter < 0 || attempt >= t.attempts() {
 			return reply, err
 		}
@@ -589,43 +680,59 @@ func (t ChatTranslator) complete(ctx context.Context, endpoint Endpoint, body []
 	}
 }
 
-// completeOnce makes one request. A non-negative retryAfter marks a retryable failure, positive when the server said how long to wait: a rate limit that does not say the account is out of credit, a server error, or a request that got no usable answer, as one that timed out, lost its connection or came back cut off. Once ctx is done its error is returned as it is, not retried.
-func completeOnce(ctx context.Context, client *http.Client, endpoint Endpoint, body []byte) (reply chatResponse, retryAfter time.Duration, err error) {
-	req, err := http.NewRequestWithContext(ctx, http.MethodPost, strings.TrimRight(endpoint.BaseURL, "/")+"/chat/completions", bytes.NewReader(body))
+// completeOnce makes one request, with header added to it, Content-Type and Authorization aside, and reports whether the request was written to the service (sent), which a request that could not connect, or whose ctx was done before it went, was not. A non-negative retryAfter marks a retryable failure, positive when the server said how long to wait: a rate limit that does not say the account is out of credit, a server error, or a request that got no usable answer, as one that timed out, lost its connection or came back cut off. Once ctx is done its error is returned as it is, not retried.
+func completeOnce(ctx context.Context, client *http.Client, endpoint Endpoint, body []byte, header http.Header) (reply chatResponse, retryAfter time.Duration, sent bool, err error) {
+	if err := ctx.Err(); err != nil {
+		return reply, -1, false, err
+	}
+	var wrote atomic.Bool
+	traced := httptrace.WithClientTrace(ctx, &httptrace.ClientTrace{WroteRequest: func(info httptrace.WroteRequestInfo) {
+		if info.Err == nil {
+			wrote.Store(true)
+		}
+	}})
+	req, err := http.NewRequestWithContext(traced, http.MethodPost, strings.TrimRight(endpoint.BaseURL, "/")+"/chat/completions", bytes.NewReader(body))
 	if err != nil {
-		return reply, -1, err
+		return reply, -1, false, err
+	}
+	defer func() { sent = wrote.Load() }()
+	for name, values := range header {
+		for _, v := range values {
+			req.Header.Add(name, v)
+		}
 	}
 	req.Header.Set("Content-Type", "application/json")
+	req.Header.Del("Authorization")
 	if endpoint.APIKey != "" {
 		req.Header.Set("Authorization", "Bearer "+endpoint.APIKey)
 	}
 	resp, err := client.Do(req)
 	if err != nil {
 		if ctxErr := ctx.Err(); ctxErr != nil {
-			return reply, -1, ctxErr
+			return reply, -1, false, ctxErr
 		}
-		return reply, 0, err
+		return reply, 0, false, err
 	}
 	defer resp.Body.Close()
 	if resp.StatusCode != http.StatusOK {
 		detail, _ := io.ReadAll(io.LimitReader(resp.Body, 1024))
 		err := &statusError{code: resp.StatusCode, status: resp.Status, detail: strings.TrimSpace(string(detail))}
 		if (resp.StatusCode != http.StatusTooManyRequests && resp.StatusCode < 500) || outOfCredit(err.code, err.detail) {
-			return reply, -1, err
+			return reply, -1, false, err
 		}
 		retryAfter = 0
 		if secs, convErr := strconv.Atoi(resp.Header.Get("Retry-After")); convErr == nil && secs > 0 {
 			retryAfter = time.Duration(secs) * time.Second
 		}
-		return reply, retryAfter, err
+		return reply, retryAfter, false, err
 	}
 	if err := json.NewDecoder(resp.Body).Decode(&reply); err != nil {
 		if ctxErr := ctx.Err(); ctxErr != nil {
-			return reply, -1, ctxErr
+			return reply, -1, false, ctxErr
 		}
-		return reply, 0, fmt.Errorf("decode translation response: %w", err)
+		return reply, 0, false, fmt.Errorf("decode translation response: %w", err)
 	}
-	return reply, -1, nil
+	return reply, -1, false, nil
 }
 
 // stripCodeFence removes the ```json fence that chat models often wrap around JSON.

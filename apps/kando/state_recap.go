@@ -131,35 +131,28 @@ func (a *app) recapSum(seen []lines.Line) {
 	c.busy = true
 	a.recap.gen++
 	gen := a.recap.gen
-	ctx, cancel := context.WithTimeout(context.Background(), recapTimeout)
-	a.recap.cancel = cancel
-	update := a.update
 	system, user := recap.Prompt(language), recap.Request(item.Name, seen)
 	if item.Name == "" {
 		user = recap.Request(item.Title, seen)
 	}
-	go func() {
-		defer cancel()
+	ask := func(ctx context.Context) ([]recap.Item, error) {
 		reply, err := t.Chat(ctx, system, user)
-		var items []recap.Item
-		if err == nil {
-			items, err = recap.Parse(reply, seen)
+		if err != nil {
+			return nil, err
 		}
-		update(func() {
-			c := &a.recap.card
-			if gen != a.recap.gen || !c.open {
-				return
-			}
-			a.recap.cancel = nil
-			c.busy = false
-			if err != nil {
-				c.items, c.excerpts, c.failed = recap.Excerpts(seen), true, true
-				return
-			}
-			c.items = items
-			a.recap.cache[key] = items
-		})
-	}()
+		return recap.Parse(reply, seen)
+	}
+	a.recap.cancel = aiAsk(a, recapTimeout, ask, func() bool { return gen == a.recap.gen && a.recap.card.open }, func(items []recap.Item, err error) {
+		c := &a.recap.card
+		a.recap.cancel = nil
+		c.busy = false
+		if err != nil {
+			c.items, c.excerpts, c.failed = recap.Excerpts(seen), true, true
+			return
+		}
+		c.items = items
+		a.recap.cache[key] = items
+	})
 }
 
 // recapStop stops the recap on its way, whose answer is then dropped.

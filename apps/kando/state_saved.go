@@ -55,6 +55,10 @@ type savedExport struct {
 	noFFmpeg    bool
 	cancel      context.CancelFunc
 	gen         int
+	// template is the name of the export-template pack the export writes with, "" for Kando's own Anki notes (pluginsExportTarget).
+	template string
+	// sounds is whether the export writes the lines' sound: Kando's own notes do, a template only with {{sound}} (saved.Target.Sounds).
+	sounds bool
 }
 
 func newSavedUI() savedUI { return savedUI{now: time.Now, keeping: map[string]bool{}} }
@@ -291,7 +295,8 @@ func (a *app) ExportSaved() {
 		book.Lines = slices.Clone(book.Lines)
 		delays := maps.Clone(a.player.delays)
 		ffmpeg, update := a.ffmpegPath(), a.update
-		a.saved.export = savedExport{busy: true, total: len(book.Lines), noFFmpeg: ffmpeg == "", cancel: cancel, gen: gen}
+		target, name := a.pluginsExportTarget()
+		a.saved.export = savedExport{busy: true, total: len(book.Lines), noFFmpeg: ffmpeg == "", cancel: cancel, gen: gen, template: name, sounds: target.Sounds()}
 		report := func(fn func(e *savedExport)) {
 			update(func() {
 				if a.saved.export.gen == gen {
@@ -300,12 +305,12 @@ func (a *app) ExportSaved() {
 			})
 		}
 		go func() {
-			result, err := saved.Export(ctx, ffmpeg, book, func(video string) time.Duration { return delays[video] }, dir, func(done, total int) {
+			result, err := saved.Export(ctx, ffmpeg, book, func(video string) time.Duration { return delays[video] }, dir, target, func(done, total int) {
 				report(func(e *savedExport) { e.done, e.total = done, total })
 			})
 			report(func(e *savedExport) {
 				cancel()
-				*e = savedExport{finished: true, result: result, err: err, noFFmpeg: e.noFFmpeg, gen: gen, total: e.total, done: e.done}
+				*e = savedExport{finished: true, result: result, err: err, noFFmpeg: e.noFFmpeg, gen: gen, total: e.total, done: e.done, template: e.template, sounds: e.sounds}
 			})
 		}()
 	})

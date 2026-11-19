@@ -36,9 +36,9 @@ type Exported struct {
 	File          string
 }
 
-// Export writes the lines of b into dir for Anki: ExportFile, a note per line, and in ExportAudio the sound of each line, cut out of its video with ffmpeg, which the line's note plays. delay is how far the subtitles of the video at a path were moved against its picture, so the sound is where the line is heard. A line whose video is gone, or every line when ffmpeg is "", takes the sound kept when it was saved (StoredSound), and one that has none either is written without its sound, which the log says when ffmpeg was at hand; Exported.Sounds counts the lines with one. progress, when set, is told after each line. A stopped ctx stops it, leaving what it wrote.
-func Export(ctx context.Context, ffmpeg string, b Book, delay func(video string) time.Duration, dir string, progress func(done, total int)) (Exported, error) {
-	out := Exported{File: filepath.Join(dir, ExportFile)}
+// Export writes the lines of b into dir as target says (Target, the zero Target being Kando's own notes for Anki): its file (Target.File), a note or a row per line, and in ExportAudio the sound of each line, cut out of its video with ffmpeg, which the line's note plays; a template that has no {{sound}} cuts none. delay is how far the subtitles of the video at a path were moved against its picture, so the sound is where the line is heard. A line whose video is gone, or every line when ffmpeg is "", takes the sound kept when it was saved (StoredSound), and one that has none either is written without its sound, which the log says when ffmpeg was at hand; Exported.Sounds counts the lines with one. progress, when set, is told after each line. A stopped ctx stops it, leaving what it wrote.
+func Export(ctx context.Context, ffmpeg string, b Book, delay func(video string) time.Duration, dir string, target Target, progress func(done, total int)) (Exported, error) {
+	out := Exported{File: filepath.Join(dir, target.File())}
 	audio := filepath.Join(dir, ExportAudio)
 	rows := make([]Row, len(b.Lines))
 	for i, l := range b.Lines {
@@ -46,6 +46,12 @@ func Export(ctx context.Context, ffmpeg string, b Book, delay func(video string)
 			return out, err
 		}
 		rows[i] = Row{Line: l}
+		if !target.Sounds() {
+			if progress != nil {
+				progress(i+1, len(b.Lines))
+			}
+			continue
+		}
 		name, err := soundFor(ctx, ffmpeg, b, l, delay, audio)
 		if err != nil {
 			return out, err
@@ -65,7 +71,7 @@ func Export(ctx context.Context, ffmpeg string, b Book, delay func(video string)
 	if err != nil {
 		return out, err
 	}
-	err = WriteNotes(f, rows)
+	err = target.Write(f, rows)
 	if cerr := f.Close(); err == nil {
 		err = cerr
 	}

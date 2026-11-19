@@ -44,10 +44,19 @@ func (k Kind) known() bool { return slices.Contains(kinds, k) }
 // implemented reports whether this version installs packs of kind k.
 func (k Kind) implemented() bool {
 	switch k {
-	case KindDictionary, KindWordlist, KindGlossary, KindAIService, KindSite, KindScript:
+	case KindDictionary, KindWordlist, KindGlossary, KindAIService, KindSite, KindScript, KindTask, KindStyle, KindExportTemplate:
 		return true
 	}
 	return false
+}
+
+// TextOf is the text of message in each language of tags, as Kando writes a pack of its own: tags are canonical language tags, "en" among them.
+func TextOf(tags []string, message func(tag string) string) Text {
+	out := Text{}
+	for _, tag := range tags {
+		out[tag] = message(tag)
+	}
+	return out
 }
 
 // Text is text a pack supplies, by language tag (as i18n.Language returns it, such as "zh-Hans"); "en" is always there in a valid pack.
@@ -79,6 +88,9 @@ type Manifest struct {
 	Glossary    *Glossary   `json:"glossary,omitempty"`
 	Service     *Service    `json:"service,omitempty"`
 	Site        *Site       `json:"site,omitempty"`
+	Task        *Task       `json:"task,omitempty"`
+	Style       *Style      `json:"style,omitempty"`
+	Template    *Template   `json:"template,omitempty"`
 
 	Kando        string            `json:"kando,omitempty"`
 	Script       *Script           `json:"script,omitempty"`
@@ -200,6 +212,96 @@ func (s *Site) Domains() []string {
 		out[i] = d.Domain
 	}
 	return out
+}
+
+// The scopes a task pack runs on: the line playing (or selected), the word looked up, and the film as far as it was watched. The app sends only those lines and the ones before them, never one the learner has not reached.
+const (
+	ScopeLine = "line"
+	ScopeWord = "word"
+	ScopeFilm = "film-so-far"
+)
+
+// The ways a task's reply shows: as headed sections, one a field (one reply object); as a list, a row an item with its fields side by side; or as cards, an item a card with its first field as its title.
+const (
+	RenderSections = "sections"
+	RenderList     = "list"
+	RenderCards    = "cards"
+)
+
+// Task is a task pack: an instruction (Prompt) the user's AI service is given about the Scope, the fields its reply has (Reply) and how they show (Render). The host adds to the prompt the language to answer in, that nothing after the lines given may be guessed at, and the JSON its reply must be; it caps the reply at Tokens, MaxTokens or, when that is 0, what the reply's shape takes (TaskFieldTokens a value). A task pack spends the user's tokens, so it runs only once the user turned it on, within its daily budget (PluginState.Budget).
+type Task struct {
+	Scope     string    `json:"scope"`
+	Prompt    string    `json:"prompt"`
+	Reply     TaskReply `json:"reply"`
+	Render    string    `json:"render"`
+	MaxTokens int       `json:"maxTokens,omitempty"`
+}
+
+// TaskReply is the shape of a task's reply: its Fields, each a string, in the order they show; for a list or cards, at most Items items, DefaultTaskItems when 0.
+type TaskReply struct {
+	Fields []TaskField `json:"fields"`
+	Items  int         `json:"items,omitempty"`
+}
+
+// TaskField is a field of a task's reply: the key the reply has it under, and its heading.
+type TaskField struct {
+	Key   string `json:"key"`
+	Label Text   `json:"label"`
+}
+
+// DefaultTaskItems is the most items of a list or cards when a task names no Items; TaskFieldTokens the tokens a value of its reply is allowed when it names no MaxTokens, and TaskReplyTokens what the JSON around them takes; MaxTaskTokens the most a reply may take, what Validate holds a task's shape to.
+const (
+	DefaultTaskItems = 8
+	TaskFieldTokens  = 100
+	TaskReplyTokens  = 50
+	MaxTaskTokens    = 4096
+)
+
+// Items is the most items the reply of t has: one for sections, else its Items or DefaultTaskItems.
+func (t Task) Items() int {
+	switch {
+	case t.Render == RenderSections:
+		return 1
+	case t.Reply.Items > 0:
+		return t.Reply.Items
+	}
+	return DefaultTaskItems
+}
+
+// Tokens is the most tokens the reply of t may take: its MaxTokens, or, when 0, TaskFieldTokens for each value its shape has (Items times its fields) and TaskReplyTokens, so a list of many items is not cut off at a fixed limit.
+func (t Task) Tokens() int {
+	if t.MaxTokens > 0 {
+		return t.MaxTokens
+	}
+	return t.Items()*len(t.Reply.Fields)*TaskFieldTokens + TaskReplyTokens
+}
+
+// Style is a translate-style pack: a style instruction Settings › 翻译 offers as a preset of its prompt, with {{language}} for the language translated into. The host still appends the reply rule of a translation (media's subtitleReplyRule), so a style cannot change how a translation is read.
+type Style struct {
+	Prompt string `json:"prompt"`
+}
+
+// The formats an export template writes: Anki's text import, comma-separated or tab-separated values.
+const (
+	TemplateAnki = "anki"
+	TemplateCSV  = "csv"
+	TemplateTSV  = "tsv"
+)
+
+// TemplatePlaceholders are what a column of an export template may hold, each written {{name}}, and nothing else: the line's original, its translation, the learner's note, the film's name, where the line starts and its sound. The saved lines' export fills them in (saved.Placeholders, the same list).
+var TemplatePlaceholders = []string{"original", "translation", "note", "film", "time", "sound"}
+
+// Template is an export-template pack: another way to export the saved lines, offered beside Kando's own Anki notes. Format is what it writes; Columns are a note's fields or a row's columns, in order, each a Value made of text and TemplatePlaceholders, with a Header for the first row of a CSV or TSV file; NoteType is the Anki note type the notes go into, Basic when empty.
+type Template struct {
+	Format   string           `json:"format"`
+	NoteType string           `json:"noteType,omitempty"`
+	Columns  []TemplateColumn `json:"columns"`
+}
+
+// TemplateColumn is a column of an export template.
+type TemplateColumn struct {
+	Header string `json:"header,omitempty"`
+	Value  string `json:"value"`
 }
 
 // Parse reads a manifest in two steps: its header (schema, id, kind) first, and then, for a kind this version implements, the whole of it strictly, a key it does not know at any level being an error. A schema other than those this version reads (dataSchema for the data packs, scriptSchema for script plugins) is ErrSchema, checked before anything else of the manifest, as a newer format may have kinds and keys this version does not know; an unknown kind is ErrUnknownKind; a known kind not implemented yet returns its header alone, for Validate to refuse with ErrUnsupportedKind, as the rest of its fields are only defined in its phase; a kind in the other schema's (a script plugin of schema 1, a data pack of schema 2) is ErrSchema. Parse checks nothing else: that is Validate's.

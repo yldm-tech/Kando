@@ -8,21 +8,27 @@ import (
 	"errors"
 	"fmt"
 	"io/fs"
+	"net/http"
+	"net/http/httptest"
 	"os"
 	"path/filepath"
 	"slices"
 	"strings"
+	"sync"
 	"sync/atomic"
 	"testing"
 	"time"
 
 	"kando/apps/kando/browse"
+	"kando/apps/kando/film"
 	"kando/apps/kando/film/subtitle"
 	"kando/apps/kando/films"
 	"kando/apps/kando/locales"
 	"kando/apps/kando/locales/testlocale"
 	"kando/apps/kando/plugins"
 	"kando/apps/kando/plugins/dict"
+	"kando/apps/kando/plugins/task"
+	"kando/apps/kando/plugins/wordlist"
 	"kando/apps/kando/remote"
 	"kando/apps/kando/saved"
 	"kando/apps/kando/settings"
@@ -30,6 +36,7 @@ import (
 	"kando/packages/core"
 	"kando/packages/core/segment"
 	"kando/packages/media"
+	"kando/packages/study"
 	psync "kando/packages/sync"
 
 	ns "github.com/nsgo-dev/nsgo/core"
@@ -1783,4 +1790,552 @@ func TestPluginMarksKeepTheLinesAsAFilmGrows(t *testing.T) {
 	if after := a.plugins.marks.lines; &after[0][0] != &before[0][0] || &after[1][0] != &before[1][0] {
 		t.Fatal("the lines that were there were marked again")
 	}
+}
+
+// pluginTaskSoFar is a task pack that lists the people of the film so far.
+const pluginTaskSoFar = `{"schema": 1, "id": "example.who", "kind": "task", "version": "1.0.0", "license": "MIT", "name": {"en": "Who is who", "zh-Hans": "人物表"},
+  "task": {"scope": "film-so-far", "prompt": "List the people met so far, in {{language}}.", "render": "list", "maxTokens": 500,
+    "reply": {"fields": [{"key": "name", "label": {"en": "Name"}}, {"key": "role", "label": {"en": "Role"}}], "items": 5}}}`
+
+// pluginTaskLine is a task pack that quizzes the learner on the line playing, and pluginTaskWord one that explains the word looked up.
+const (
+	pluginTaskLine = `{"schema": 1, "id": "example.quiz", "kind": "task", "version": "1.0.0", "license": "MIT", "name": {"en": "Quiz me"},
+  "task": {"scope": "line", "prompt": "Ask one question about the line.", "render": "sections",
+    "reply": {"fields": [{"key": "question", "label": {"en": "Question"}}, {"key": "answer", "label": {"en": "Answer"}}]}}}`
+	pluginTaskWord = `{"schema": 1, "id": "example.roots", "kind": "task", "version": "1.0.0", "license": "MIT", "name": {"en": "Word roots"},
+  "task": {"scope": "word", "prompt": "Explain the word's roots.", "render": "cards",
+    "reply": {"fields": [{"key": "root", "label": {"en": "Root"}}, {"key": "meaning", "label": {"en": "Meaning"}}]}}}`
+)
+
+// pluginTaskAsk is a request the fake AI service of a task was sent: its instruction, its message, its max_tokens and its X-Title.
+type pluginTaskAsk struct {
+	system, user, title string
+	maxTokens           int
+}
+
+// pluginTaskLLM is an AI service at a local endpoint that answers a task asking for roots with one card, another asking for a JSON array with two people, and anything else, a word looked up too, with one object, saying the request took 100 tokens and the reply 20; asks are what it was sent, in order.
+func pluginTaskLLM(t *testing.T) (media.Tools, func() []pluginTaskAsk) {
+	t.Helper()
+	var mu sync.Mutex
+	var asks []pluginTaskAsk
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		var req struct {
+			Messages  []struct{ Role, Content string }
+			MaxTokens int `json:"max_tokens"`
+		}
+		if json.NewDecoder(r.Body).Decode(&req) != nil || len(req.Messages) != 2 {
+			http.Error(w, "unexpected", http.StatusBadRequest)
+			return
+		}
+		mu.Lock()
+		asks = append(asks, pluginTaskAsk{system: req.Messages[0].Content, user: req.Messages[1].Content, title: r.Header.Get("X-Title"), maxTokens: req.MaxTokens})
+		mu.Unlock()
+		reply := `{"question": "Who speaks?", "answer": "The narrator.", "meaning": "to wind"}`
+		switch system := req.Messages[0].Content; {
+		case strings.Contains(system, `"root"`):
+			reply = `[{"root": "mean-", "meaning": "to wind"}]`
+		case strings.Contains(system, "JSON array"):
+			reply = `[{"name": "Narrator", "role": "tells the story"}, {"name": "River", "role": "the subject"}]`
+		}
+		json.NewEncoder(w).Encode(map[string]any{"choices": []map[string]any{{"message": map[string]string{"role": "assistant", "content": reply}}},
+			"usage": map[string]int{"prompt_tokens": 100, "completion_tokens": 20}})
+	}))
+	t.Cleanup(srv.Close)
+	return media.Tools{Translator: media.ChatTranslator{BaseURL: srv.URL + "/v1", APIKey: "k", Model: "m1"}}, func() []pluginTaskAsk {
+		mu.Lock()
+		defer mu.Unlock()
+		return slices.Clone(asks)
+	}
+}
+
+// pluginTaskOpen starts paletteLibrary on tools with the task packs of manifests installed in its plugins folder, read, and turned on, and opens rivers held at at.
+func pluginTaskOpen(t *testing.T, tools media.Tools, at time.Duration, manifests ...string) (*app, *nsgotest.App, chan func(), string) {
+	t.Helper()
+	a, tt, updates := paletteLibrary(t, tools)
+	root := filepath.Join(t.TempDir(), "plugins")
+	pluginInstalled(t, root, manifests...)
+	a.plugins.root = root
+	onEngine(a, a.pluginsScan)
+	waitUntil(t, tt, a, updates, func() bool { return a.plugins.scanned && !a.plugins.busy && !a.plugins.inboxBusy })
+	for _, pack := range a.plugins.packs {
+		if a.plugins.state.EnabledPack(pack) {
+			t.Fatalf("the task pack %s is on before the user turned it on", pack.ID)
+		}
+		onEngine(a, func() { a.SetPluginEnabled(pack.ID, true) })
+		waitUntil(t, tt, a, updates, func() bool { return !a.plugins.busy })
+	}
+	item, _ := a.paletteFilm("rivers")
+	a.OpenAt(item, at)
+	waitUntil(t, tt, a, updates, func() bool { return a.player.subs.ready })
+	refresh(tt, a)
+	return a, tt, updates, root
+}
+
+// TestPluginTaskRunsOnTheFilmSoFar checks a task pack on the film so far from the command palette: it is not offered until the user turns it on; its run sends the pack's prompt with the language and the host's rules, the lines up to the furthest point played and none after, at most the pack's tokens and an X-Title naming the pack; the side panel shows the reply as a list with the tokens it took, which count against the pack's budget in usage.json; and once the budget is spent the panel says so and offers the plugins' settings.
+func TestPluginTaskRunsOnTheFilmSoFar(t *testing.T) {
+	tools, asks := pluginTaskLLM(t)
+	a, tt, updates, root := pluginTaskOpen(t, tools, 20*time.Second, pluginTaskSoFar)
+	m := testlocale.Messages()
+	const id = "example.who"
+	label := m.PluginsTaskCommand("人物表")
+	paletteOpen(t, a, tt, updates)
+	paletteType(tt, "人物表")
+	tt.Press(label)
+	if a.player.filmSide != film.SideTask || !a.plugins.task.busy || !hasText(tt, m.PluginsTaskBusy("m1")) {
+		t.Fatalf("the run: side %q, task %+v, texts %q", a.player.filmSide, a.plugins.task, tt.Texts())
+	}
+	waitUntil(t, tt, a, updates, func() bool { return !a.plugins.task.busy })
+	for _, want := range []string{"人物表", m.PluginsTaskSoFar("0:31"), "Narrator · tells the story", "River · the subject", m.PluginsTaskNote("m1", 120, plugins.DefaultBudget-120)} {
+		if !tt.Exists("id:film-task >> " + whole(want)) {
+			t.Fatalf("the panel has no %q: %q", want, tt.Texts())
+		}
+	}
+	sent := asks()
+	if len(sent) != 1 {
+		t.Fatalf("asked %d times", len(sent))
+	}
+	ask := sent[0]
+	if !strings.HasPrefix(ask.system, "List the people met so far, in 简体中文.") || !strings.Contains(ask.system, "do not guess at or reveal anything that happens later") || !strings.Contains(ask.system, "a JSON array of at most 5 items") {
+		t.Fatalf("instruction %q", ask.system)
+	}
+	if !strings.Contains(ask.user, "Over thousands of years") || strings.Contains(ask.user, "meanders") {
+		t.Fatalf("the message went past the furthest point played: %q", ask.user)
+	}
+	if ask.maxTokens != 500 || ask.title != "Kando plugin "+id {
+		t.Fatalf("max_tokens %d, X-Title %q", ask.maxTokens, ask.title)
+	}
+	if got := plugins.LoadUsage(root, a.pluginsDay()).Spent(a.pluginsDay(), id); got != 120 {
+		t.Fatalf("usage.json has %d tokens", got)
+	}
+
+	// Past its budget the pack does not ask, and says why.
+	apply(tt, a, func() {
+		a.pluginsSpend(id, plugins.DefaultBudget)
+		a.pluginsRunTask(id)
+	})
+	if len(asks()) != 1 || !a.plugins.task.failed || !hasText(tt, m.PluginsTaskOverBudget(plugins.DefaultBudget)) {
+		t.Fatalf("over budget: asked %d, task %+v", len(asks()), a.plugins.task)
+	}
+	tt.Press("id:film-task-settings")
+	wantSettings(t, a, settings.SectionPlugins)
+}
+
+// TestPluginTaskOnTheLineAndTheWord checks the two other scopes: a line task, run from the player's ⋯, which lists only the tasks that can run now, sends the line playing and the lines before it, none after, and shows sections under their headings; a word task, offered only while a word's card shows, sends the word and its line and shows cards. ‹ 字幕 goes back to the list, and the run goes when another film opens.
+func TestPluginTaskOnTheLineAndTheWord(t *testing.T) {
+	tools, asks := pluginTaskLLM(t)
+	a, tt, updates, _ := pluginTaskOpen(t, tools, 71*time.Second, pluginTaskLine, pluginTaskWord)
+	if a.pluginsTaskCan(plugins.ScopeWord) || !a.pluginsTaskCan(plugins.ScopeLine) {
+		t.Fatal("the word task is offered with no word looked up, or the line task is not")
+	}
+	// ⋯ lists the task packs that can run, after its own items, and runs the one chosen.
+	tt.Press("id:film-more")
+	var labels []string
+	for _, it := range tt.PopupMenu {
+		labels = append(labels, it.Label)
+	}
+	quiz := testlocale.Messages().PluginsTaskCommand("Quiz me")
+	if !slices.Contains(labels, quiz) || slices.Contains(labels, testlocale.Messages().PluginsTaskCommand("Word roots")) {
+		t.Fatalf("⋯ lists %q", labels)
+	}
+	tt.ChoosePopup(quiz)
+	waitUntil(t, tt, a, updates, func() bool { return a.plugins.task.open && !a.plugins.task.busy })
+	for _, want := range []string{"Quiz me", "These sweeping curves are called meanders.", "Question", "Who speaks?", "Answer", "The narrator."} {
+		if !tt.Exists("id:film-task >> " + whole(want)) {
+			t.Fatalf("the line's run has no %q: %q", want, tt.Texts())
+		}
+	}
+	user := asks()[0].user
+	if !strings.Contains(user, "The line: [1:10] 这些大幅度的弯道被称为河曲。 / These sweeping curves are called meanders.") || !strings.Contains(user, "Over thousands of years") || strings.Contains(user, "Every river begins") {
+		t.Fatalf("the line's message %q", user)
+	}
+	tt.Press("id:film-task-back")
+	if a.player.filmSide != "" || a.plugins.task.open {
+		t.Fatalf("‹ 字幕 left side %q, task %+v", a.player.filmSide, a.plugins.task)
+	}
+
+	apply(tt, a, func() { a.LookUpWord(4, "meanders") })
+	waitUntil(t, tt, a, updates, func() bool { return !a.vocab.lookup.busy })
+	if !a.pluginsTaskCan(plugins.ScopeWord) {
+		t.Fatal("the word task is not offered while a word's card shows")
+	}
+	apply(tt, a, func() { a.pluginsRunTask("example.roots") })
+	waitUntil(t, tt, a, updates, func() bool { return !a.plugins.task.busy })
+	if !tt.Exists("id:film-task-card >> "+whole("mean-")) || !tt.Exists("id:film-task-card >> "+whole("to wind")) || !tt.Exists("id:film-task >> "+whole("meanders")) {
+		t.Fatalf("the word's run: %q", tt.Texts())
+	}
+	if last := asks()[len(asks())-1].user; !strings.Contains(last, "The word: meanders") {
+		t.Fatalf("the word's message %q", last)
+	}
+	paletteOpenFilm(t, a, tt, updates, "market")
+	refresh(tt, a)
+	if a.plugins.task.open || a.player.filmSide == film.SideTask {
+		t.Fatal("the run stayed with another film open")
+	}
+}
+
+// TestPluginTaskInstallsOffAndNeedsAnAIService checks that a task pack installed from Settings › 插件 is off until the user turns it on, its confirmation saying so, that its details hold its daily budget, which is saved in state.json, and that without an AI service its run says why and offers the service's settings.
+func TestPluginTaskInstallsOffAndNeedsAnAIService(t *testing.T) {
+	a, tt, updates, root := pluginsApp(t)
+	m := testlocale.Messages()
+	const id = "example.quiz"
+	tt = settingsOpenAt(a, tt, settings.SectionPlugins)
+	tt.DropFiles("id:settings-plugins", fileURLs(pluginFolder(t, pluginTaskLine))...)
+	waitUntil(t, tt, a, updates, func() bool { return a.plugins.pending != nil })
+	if !hasText(tt, m.SettingsPluginsTaskInstallNote(plugins.DefaultBudget)) || !hasText(tt, m.SettingsPluginsTaskDetailLine()) {
+		t.Fatalf("the confirmation: %q", tt.Texts())
+	}
+	tt.Press("id:plugins-install-ok")
+	waitUntil(t, tt, a, updates, func() bool {
+		return a.plugins.pending == nil && !a.plugins.busy && slices.ContainsFunc(a.plugins.packs, func(p plugins.Pack) bool { return p.ID == id })
+	})
+	if pluginsEntryOf(a.plugins.state, id).Enabled || len(a.pluginsOn(plugins.KindTask)) != 0 {
+		t.Fatal("the task pack was turned on by installing it")
+	}
+	if state, err := plugins.LoadState(root); err != nil || pluginsEntryOf(state, id).Enabled || pluginsEntryOf(state, id).Hash == "" {
+		t.Fatalf("state.json %+v, %v", state, err)
+	}
+	tt.Press("id:settings-plugins-details-" + id)
+	if !tt.Exists("id:settings-plugins-budget-"+id) || !tt.Exists("id:settings-plugins-detail-"+id+" >> "+whole(m.SettingsPluginsTaskSpent(0))) {
+		t.Fatalf("the details: %q", tt.Texts())
+	}
+	apply(tt, a, func() { a.SetPluginBudget(id, 2500) })
+	waitUntil(t, tt, a, updates, func() bool { return !a.plugins.busy })
+	if state, err := plugins.LoadState(root); err != nil || state.Budget(id) != 2500 || pluginsEntryOf(state, id).Enabled {
+		t.Fatalf("the budget in state.json %+v, %v", state, err)
+	}
+	apply(tt, a, func() { a.SetPluginEnabled(id, true) })
+	waitUntil(t, tt, a, updates, func() bool { return !a.plugins.busy })
+	if state, _ := plugins.LoadState(root); state.Budget(id) != 2500 || !pluginsEntryOf(state, id).Enabled {
+		t.Fatalf("turning it on lost its budget: %+v", state)
+	}
+
+	// Without an AI service set, a run says why and offers the service's settings.
+	b, btt, _, _ := pluginTaskOpen(t, media.Tools{}, 71*time.Second, pluginTaskLine)
+	apply(btt, b, func() { b.pluginsRunTask(id) })
+	if !b.plugins.task.failed || b.plugins.task.fix != "ai" || !hasText(btt, m.PluginsTaskNoAI()) {
+		t.Fatalf("without an AI service: %+v", b.plugins.task)
+	}
+	btt.Press("id:film-task-settings")
+	wantSettings(t, b, settings.SectionAI)
+}
+
+// pluginStyle is a translate-style pack.
+const pluginStyle = `{"schema": 1, "id": "example.casual", "kind": "translate-style", "version": "1.0.0", "license": "MIT", "name": {"en": "Casual", "zh-Hans": "口语"},
+  "style": {"prompt": "Translate every line into {{language}} as friends would say it."}}`
+
+// TestPluginStyleIsAPresetOfThePrompt checks the 风格预设 row of Settings › 翻译: it shows only while a translate-style pack is turned on; choosing the pack's style puts its prompt into the prompt field, which is saved and which the drop-down then names, and the translation still appends its reply rule; editing the prompt makes it the user's own again, and 不用预设 puts the default back.
+func TestPluginStyleIsAPresetOfThePrompt(t *testing.T) {
+	a, tt, updates, _ := pluginsApp(t, pluginStyle)
+	const id = "example.casual"
+	tt = settingsOpenAt(a, tt, settings.SectionTranslate)
+	if !tt.Exists("id:settings-translate-style") {
+		t.Fatalf("no style preset with a style pack on: %q", tt.Texts())
+	}
+	apply(tt, a, func() { a.SetTranslateStyle(id) })
+	want := "Translate every line into {{language}} as friends would say it."
+	if a.prefs.translatePrompt != want || a.TranslateStyle() != id {
+		t.Fatalf("prompt %q, style %q", a.prefs.translatePrompt, a.TranslateStyle())
+	}
+	if saved := a.settingsFile(); saved.TranslatePrompt != want {
+		t.Fatalf("saved prompt %q", saved.TranslatePrompt)
+	}
+	apply(tt, a, func() { a.prefs.translatePrompt += " Keep it short." })
+	if a.TranslateStyle() != "" {
+		t.Fatal("an edited prompt still reads as the pack's style")
+	}
+	apply(tt, a, func() { a.SetTranslateStyle("") })
+	if a.prefs.translatePrompt != media.DefaultSubtitlePrompt {
+		t.Fatalf("不用预设 left %q", a.prefs.translatePrompt)
+	}
+	apply(tt, a, func() { a.SetPluginEnabled(id, false) })
+	waitUntil(t, tt, a, updates, func() bool { return !a.plugins.busy })
+	refresh(tt, a)
+	if tt.Exists("id:settings-translate-style") {
+		t.Fatal("the style preset shows with no style pack on")
+	}
+}
+
+// pluginTemplate is an export-template pack that writes the saved lines as CSV.
+const pluginTemplate = `{"schema": 1, "id": "example.cards", "kind": "export-template", "version": "1.0.0", "license": "MIT", "name": {"en": "Flash cards", "zh-Hans": "闪卡"},
+  "template": {"format": "csv", "columns": [{"header": "Front", "value": "{{original}}"}, {"header": "Back", "value": "{{translation}} ({{film}} {{time}})"}]}}`
+
+// TestPluginTemplatePlaceholdersAreTheExports checks that the placeholders a pack's template may use are exactly those the export fills in.
+func TestPluginTemplatePlaceholdersAreTheExports(t *testing.T) {
+	if !slices.Equal(plugins.TemplatePlaceholders, saved.Placeholders) {
+		t.Fatalf("plugins.TemplatePlaceholders %q, saved.Placeholders %q", plugins.TemplatePlaceholders, saved.Placeholders)
+	}
+}
+
+// TestPluginTemplateExportsTheSavedLines checks an export-template pack in the Saved Lines sheet: the sheet offers it beside Anki only while it is on, the choice is kept in settings.json, and the export writes the template's CSV file, cutting no sound it does not use, and says where; with the pack turned off the export goes back to Kando's Anki notes.
+func TestPluginTemplateExportsTheSavedLines(t *testing.T) {
+	a, tt, updates := playerOpen(t)
+	root := filepath.Join(t.TempDir(), "plugins")
+	pluginInstalled(t, root, pluginTemplate)
+	a.plugins.root = root
+	onEngine(a, a.pluginsScan)
+	waitUntil(t, tt, a, updates, func() bool { return a.plugins.scanned && !a.plugins.inboxBusy })
+	const id = "example.cards"
+	m := testlocale.Messages()
+	playerPlayTo(tt, a, 1500*time.Millisecond)
+	tt.Key("b")
+	tt.Key("escape")
+	apply(tt, a, a.OpenSavedSheet)
+	if !tt.Exists("id:saved-export-target") || len(a.ExportTargets()) != 2 || a.ExportTargets()[1].Label != m.SavedExportTargetPlugin("闪卡") {
+		t.Fatalf("targets %+v; the sheet shows %q", a.ExportTargets(), tt.Texts())
+	}
+	apply(tt, a, func() { a.SetExportTarget(id) })
+	if a.settingsFile().PluginExportTarget != id || !hasText(tt, m.SavedExportTemplate()) {
+		t.Fatalf("the choice was not kept: %+v", a.settingsFile().PluginExportTarget)
+	}
+	out := t.TempDir()
+	tt.PickDirectories = func(ns.DirectoriesRequest) []ns.Directory { return []ns.Directory{{Path: out}} }
+	apply(tt, a, a.ExportSaved)
+	waitUntil(t, tt, a, updates, func() bool { return a.saved.export.finished })
+	file := "Kando Saved Lines (example.cards).csv"
+	data, err := os.ReadFile(filepath.Join(out, file))
+	if err != nil || string(data) != "Front,Back\nHello.,你好。 (talk 0:01.0)\n" || !hasText(tt, m.SavedExportedTemplate(1, file)) {
+		t.Fatalf("csv %q, %v; the sheet shows %q", data, err, tt.Texts())
+	}
+	if _, err := os.Stat(filepath.Join(out, saved.ExportAudio)); err == nil {
+		t.Fatal("the export cut sound its template does not use")
+	}
+	apply(tt, a, func() { a.SetPluginEnabled(id, false) })
+	waitUntil(t, tt, a, updates, func() bool { return !a.plugins.busy })
+	refresh(tt, a)
+	if a.ExportTarget() != "" || tt.Exists("id:saved-export-target") || a.settingsFile().PluginExportTarget != id {
+		t.Fatalf("with the pack off: target %q, kept %q", a.ExportTarget(), a.settingsFile().PluginExportTarget)
+	}
+}
+
+// TestPluginExportGlossaryAsPack checks 把术语表导出为插件包… from the command palette: the sheet opens with the global terms, a name, an id that follows the name until typed and the settings' languages; a name Kando keeps for itself is refused in the sheet; Export… writes, through the save panel, a .kandopack of the terms that fit a pack, which installs as it is.
+func TestPluginExportGlossaryAsPack(t *testing.T) {
+	a, tt, updates := playerOpen(t)
+	m := testlocale.Messages()
+	apply(tt, a, func() {
+		a.gloss.store.Set("", core.Term{Source: "meander", Target: "河曲", Scope: core.ScopeGlobal})
+		a.gloss.store.Set("", core.Term{Source: strings.Repeat("a", 201), Target: "too long", Scope: core.ScopeGlobal})
+	})
+	paletteOpen(t, a, tt, updates)
+	paletteType(tt, m.PluginsExportGlossary())
+	tt.Press(m.PluginsExportGlossary())
+	e := a.plugins.export
+	if e == nil || !tt.Exists("id:plugins-export") || e.scope != pluginsExportGlobal || e.to != "简体中文" || e.id != "local.my-glossary" || !hasText(tt, m.PluginsExportTermCount(1)) {
+		t.Fatalf("the sheet: %+v; texts %q", e, tt.Texts())
+	}
+	apply(tt, a, func() { a.SetPluginExportName("River Terms") })
+	if e.id != "local.river-terms" {
+		t.Fatalf("the id did not follow the name: %q", e.id)
+	}
+	apply(tt, a, func() { a.SetPluginExportName("Kando") })
+	tt.Press("id:plugins-export-save")
+	waitUntil(t, tt, a, updates, func() bool { return !e.busy })
+	if !tt.Exists("id:plugins-export-error") || a.plugins.export == nil {
+		t.Fatalf("a reserved name was not refused: %q", tt.Texts())
+	}
+	apply(tt, a, func() { a.SetPluginExportName("River Terms") })
+	file := filepath.Join(t.TempDir(), "river.kandopack")
+	tt.SaveFile = func(r ns.SaveRequest) string {
+		if r.Name != "local.river-terms.kandopack" {
+			t.Errorf("the panel suggests %q", r.Name)
+		}
+		return file
+	}
+	tt.Press("id:plugins-export-save")
+	pluginsExportSaved(t, a, tt, updates)
+	root := filepath.Join(t.TempDir(), "plugins")
+	staged, p, err := plugins.Stage(root, file)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if p.Kind != plugins.KindGlossary || p.Name["en"] != "River Terms" || p.Glossary.To != "zh-Hans" || len(p.Glossary.Terms) != 1 || p.Glossary.Terms[0] != (plugins.Term{Source: "meander", Target: "河曲"}) {
+		t.Fatalf("the pack %+v", p)
+	}
+	if err := plugins.Swap(root, staged, &p); err != nil {
+		t.Fatal(err)
+	}
+	if packs, issues := plugins.Scan(root); len(packs) != 1 || len(issues) != 0 {
+		t.Fatalf("installed %+v, %+v", packs, issues)
+	}
+}
+
+// TestPluginExportVocabularyAsWordList checks 把生词本导出为词表…: one pack per language of the vocabulary, the words in the levels Learning and Mastered by their review, which installs as a word list that colors them.
+func TestPluginExportVocabularyAsWordList(t *testing.T) {
+	a, tt, updates := playerOpen(t)
+	apply(tt, a, func() {
+		a.saved.book.AddWord(saved.Word{Text: "river", Spoken: "en"})
+		a.saved.book.AddWord(saved.Word{Text: "猫", Spoken: "ja"})
+		a.saved.book.AddWord(saved.Word{Text: "meander", Spoken: "en"})
+		for i := range a.saved.book.Words {
+			if a.saved.book.Words[i].Text == "meander" {
+				a.saved.book.Words[i].Box = study.MasteredBox
+			}
+		}
+	})
+	if len(a.savedBook().Words) != 3 {
+		t.Fatalf("the vocabulary %+v", a.savedBook().Words)
+	}
+	apply(tt, a, func() { a.pluginsExportOpen(false) })
+	if !tt.Exists("id:plugins-export-language") || len(a.PluginExport().Languages) != 2 {
+		t.Fatalf("the sheet %+v; texts %q", a.PluginExport(), tt.Texts())
+	}
+	apply(tt, a, func() { a.SetPluginExportLanguage("en") })
+	file := filepath.Join(t.TempDir(), "words.kandopack")
+	tt.SaveFile = func(ns.SaveRequest) string { return file }
+	tt.Press("id:plugins-export-save")
+	pluginsExportSaved(t, a, tt, updates)
+	root := filepath.Join(t.TempDir(), "plugins")
+	staged, p, err := plugins.Stage(root, file)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := plugins.Swap(root, staged, &p); err != nil {
+		t.Fatal(err)
+	}
+	list, err := wordlist.Open(p)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if tier, ok := list.Tier("meander"); !ok || tier.ID != "mastered" || tier.Label["en"] != locales.In("en").PluginsExportTierMastered() {
+		t.Fatalf("meander %+v, %v", tier, ok)
+	}
+	if tier, ok := list.Tier("River"); !ok || tier.ID != "learning" {
+		t.Fatalf("river %+v, %v", tier, ok)
+	}
+	if _, ok := list.Tier("猫"); ok || p.Wordlist.Language != "en" {
+		t.Fatalf("a word of another language is in the list, or its language is %q", p.Wordlist.Language)
+	}
+}
+
+// pluginsExportSaved applies the background updates, the window settling after each, until the export sheet has closed: the pack is built off the UI thread, and the save panel shows once its report is applied and the window settles.
+func pluginsExportSaved(t *testing.T, a *app, tt *nsgotest.App, updates chan func()) {
+	t.Helper()
+	timeout := time.After(5 * time.Second)
+	for a.plugins.export != nil {
+		select {
+		case fn := <-updates:
+			apply(tt, a, fn)
+		case <-timeout:
+			t.Fatalf("the sheet stayed open: %+v; texts %q", *a.plugins.export, tt.Texts())
+		}
+	}
+}
+
+// pluginTaskTools is an AI service at a local endpoint answering each request with handler, sent once (no retries).
+func pluginTaskTools(t *testing.T, handler http.HandlerFunc) media.Tools {
+	t.Helper()
+	srv := httptest.NewServer(handler)
+	t.Cleanup(srv.Close)
+	return media.Tools{Translator: media.ChatTranslator{BaseURL: srv.URL + "/v1", APIKey: "k", Model: "m1", Attempts: 1}}
+}
+
+// TestPluginTaskKeepsToItsBudget checks that a run is held to what is left of the pack's budget before it is sent: the film so far keeps only its latest lines that fit, a run that does not fit even with its last line is not sent and says why, and the tokens of a request the service failed count against the budget all the same.
+func TestPluginTaskKeepsToItsBudget(t *testing.T) {
+	tools, asks := pluginTaskLLM(t)
+	a, tt, updates, _ := pluginTaskOpen(t, tools, 31*time.Second, pluginTaskSoFar)
+	m := testlocale.Messages()
+	const id = "example.who"
+	pack := a.pluginsOn(plugins.KindTask)[0]
+	system := task.Prompt(*pack.Task, "简体中文")
+	// What is left is enough for the prompt, the reply and about the last line watched alone.
+	left := media.EstimateTokens(system) + pack.Task.Tokens() + 120
+	apply(tt, a, func() {
+		a.pluginsSpend(id, plugins.DefaultBudget-left)
+		a.pluginsRunTask(id)
+	})
+	waitUntil(t, tt, a, updates, func() bool { return !a.plugins.task.busy })
+	if len(asks()) != 1 {
+		t.Fatalf("asked %d times; task %+v", len(asks()), a.plugins.task)
+	}
+	if user := asks()[0].user; !strings.Contains(user, "Over thousands of years") || strings.Contains(user, "Every river begins") {
+		t.Fatalf("the film so far was not cut to the budget: %q", user)
+	}
+	apply(tt, a, func() {
+		a.plugins.usage = plugins.Usage{}
+		a.pluginsSpend(id, plugins.DefaultBudget-pack.Task.Tokens())
+		a.pluginsRunTask(id)
+	})
+	if len(asks()) != 1 || !a.plugins.task.failed || a.plugins.task.fix != "plugins" || hasText(tt, m.PluginsTaskOverBudget(plugins.DefaultBudget)) {
+		t.Fatalf("a run past the budget: asked %d, task %+v", len(asks()), a.plugins.task)
+	}
+
+	failing := pluginTaskTools(t, func(w http.ResponseWriter, r *http.Request) { http.Error(w, "upstream", http.StatusBadGateway) })
+	b, btt, bupdates, _ := pluginTaskOpen(t, failing, 31*time.Second, pluginTaskSoFar)
+	apply(btt, b, func() { b.pluginsRunTask(id) })
+	waitUntil(t, btt, b, bupdates, func() bool { return !b.plugins.task.busy && b.pluginsSpent(id) > 0 })
+	if !b.plugins.task.failed {
+		t.Fatalf("the failed run: %+v", b.plugins.task)
+	}
+}
+
+// TestPluginTaskSaysAReplyWasCutOff checks that a reply the model stopped at the pack's limit says so, not that the pack's reply was malformed, and that a task's limit comes from the shape of its reply.
+func TestPluginTaskSaysAReplyWasCutOff(t *testing.T) {
+	var limit int
+	tools := pluginTaskTools(t, func(w http.ResponseWriter, r *http.Request) {
+		var req struct {
+			MaxTokens int `json:"max_tokens"`
+		}
+		json.NewDecoder(r.Body).Decode(&req)
+		limit = req.MaxTokens
+		json.NewEncoder(w).Encode(map[string]any{"choices": []map[string]any{{"message": map[string]string{"role": "assistant", "content": `{"question": "Wh`}, "finish_reason": "length"}}})
+	})
+	a, tt, updates, _ := pluginTaskOpen(t, tools, 71*time.Second, pluginTaskLine)
+	apply(tt, a, func() { a.pluginsRunTask("example.quiz") })
+	waitUntil(t, tt, a, updates, func() bool { return !a.plugins.task.busy })
+	want := 2*plugins.TaskFieldTokens + plugins.TaskReplyTokens
+	if limit != want || !hasText(tt, testlocale.Messages().PluginsTaskCutOff(want)) || a.plugins.task.fix != "" {
+		t.Fatalf("max_tokens %d, task %+v; texts %q", limit, a.plugins.task, tt.Texts())
+	}
+}
+
+// TestPluginTaskSharesThePanelAndWaitsForTheLine checks that Explain Line in the panel stops and closes a task's run, and that a line not heard yet, as one selected for correcting past the furthest point played, is refused.
+func TestPluginTaskSharesThePanelAndWaitsForTheLine(t *testing.T) {
+	tools, asks := pluginTaskLLM(t)
+	a, tt, _, _ := pluginTaskOpen(t, tools, 71*time.Second, pluginTaskLine)
+	apply(tt, a, func() {
+		a.pluginsRunTask("example.quiz")
+		a.ExplainLine(4)
+	})
+	if a.plugins.task.open || a.plugins.taskCancel != nil || a.player.filmSide != film.SideExplain {
+		t.Fatalf("Explain Line left the run: %+v, side %q", a.plugins.task, a.player.filmSide)
+	}
+	// The last line, selected for correcting while the film was watched to 0:31 and holds at 0:20.
+	b, btt, _, _ := pluginTaskOpen(t, tools, 20*time.Second, pluginTaskLine)
+	asked := len(asks())
+	apply(btt, b, func() {
+		_, from := b.correctLines()
+		b.correct.on, b.correct.film, b.correct.sel = true, b.player.subs.path, from[4].Machine
+		b.pluginsRunTask("example.quiz")
+	})
+	if !b.plugins.task.failed || !hasText(btt, testlocale.Messages().PluginsTaskNotHeard()) || len(asks()) != asked {
+		t.Fatalf("a line not heard yet: %+v; texts %q", b.plugins.task, btt.Texts())
+	}
+}
+
+// TestPluginTaskUninstallForgetsWhatItSpent checks that uninstalling a task pack drops what it spent from usage.json, and that the install confirmation of a new version names the budget the pack keeps.
+func TestPluginTaskUninstallForgetsWhatItSpent(t *testing.T) {
+	a, tt, updates, root := pluginsApp(t, pluginTaskLine)
+	const id = "example.quiz"
+	apply(tt, a, func() {
+		a.SetPluginBudget(id, 3000)
+	})
+	waitUntil(t, tt, a, updates, func() bool { return !a.plugins.busy })
+	apply(tt, a, func() { a.pluginsAsk(&pluginsPending{pack: a.plugins.packs[0]}) })
+	if a.PluginInstall().Budget != 3000 {
+		t.Fatalf("the confirmation's budget %d", a.PluginInstall().Budget)
+	}
+	apply(tt, a, func() {
+		a.pluginsClose(true)
+		a.pluginsSpend(id, 500)
+		a.pluginsUninstall(id)
+	})
+	waitUntil(t, tt, a, updates, func() bool { return !a.plugins.busy && len(a.plugins.packs) == 0 })
+	if got := plugins.LoadUsage(root, a.pluginsDay()).Spent(a.pluginsDay(), id); got != 0 || a.pluginsSpent(id) != 0 {
+		t.Fatalf("usage.json keeps %d", got)
+	}
+}
+
+// pluginsEntryOf is the entry of the pack id in s, the zero entry when it has none.
+func pluginsEntryOf(s plugins.State, id string) plugins.PluginState {
+	e, _ := s.Entry(id)
+	return e
 }

@@ -14,7 +14,7 @@ import (
 
 // The 插件 page's reads and edits (settings.PluginsApp). The page reads them in its bindings and calls the actions from its handlers, which tell the revision (package live), so none of them calls Changed itself. The words they say are in the interface's language (app.messages), which the page shows too; a pack's own words (its name, description) are the page's to pick in that language.
 
-// PluginRows are the installed packs and the remembered ones that are missing, in the order the settings keep (pluginsUI.order); a pack not in it yet comes after. A dictionary's row says whether it can move up or down among the dictionaries.
+// PluginRows are the installed packs and the remembered ones that are missing, in the order the settings keep (pluginsUI.order); a pack not in it yet comes after. A dictionary's row says whether it can move up or down among the dictionaries, a task's its daily budget and what it spent today.
 func (a *app) PluginRows() []settings.PluginRow {
 	m := a.messages()
 	var rows []settings.PluginRow
@@ -24,6 +24,9 @@ func (a *app) PluginRows() []settings.PluginRow {
 		row := settings.PluginRow{Pack: pack, Enabled: a.plugins.state.EnabledPack(pack), Detail: settings.PluginDetail(m, pack)}
 		if pack.Kind == plugins.KindScript {
 			row.Script = a.pluginsScriptView(m, pack, false)
+		}
+		if pack.Kind == plugins.KindTask {
+			row.Budget, row.Spent = a.plugins.state.Budget(pack.ID), a.pluginsSpent(pack.ID)
 		}
 		rows = append(rows, row)
 	}
@@ -88,6 +91,8 @@ func (a *app) PluginsBusy() bool { return a.plugins.busy }
 
 func (a *app) SetPluginEnabled(id string, on bool) { a.pluginsSetEnabled(id, on) }
 
+func (a *app) SetPluginBudget(id string, tokens int) { a.pluginsSetBudget(id, tokens) }
+
 func (a *app) PickPluginFile() { a.pluginsPickFile() }
 
 // InstallPlugins installs the first of the files or folders dropped on the 插件 page, after its confirmation; a drop of several asks about the first alone, as each confirmation is one pack's.
@@ -115,7 +120,7 @@ func (a *app) PluginInstall() settings.PluginInstall {
 	if p.err != nil {
 		return settings.PluginInstall{Open: true, Err: pluginsErrorText(m, p.err)}
 	}
-	in := settings.PluginInstall{Open: true, Pack: p.pack, Detail: settings.PluginDetail(m, p.pack)}
+	in := settings.PluginInstall{Open: true, Pack: p.pack, Detail: settings.PluginDetail(m, p.pack), Budget: a.plugins.state.Budget(p.pack.ID)}
 	if p.pack.Kind == plugins.KindScript {
 		in.Script = a.pluginsScriptView(m, p.pack, true)
 	}
