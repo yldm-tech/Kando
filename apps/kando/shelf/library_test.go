@@ -550,6 +550,20 @@ func TestLibraryKeepsTheDeviceAJobCameFrom(t *testing.T) {
 	}
 }
 
+// The site pack a job's link was added from stays with its job across a restart, so its download keeps borrowing no sign-in (core.Job.PluginSite).
+func TestLibraryKeepsThePluginSiteOfAJob(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "library.json")
+	lib, _ := Load(path)
+	lib.Upsert(core.Job{ID: "a", Source: "https://videos.example.org/v/42", Stage: core.StageQueued, Cookies: core.CookiesNone, PluginSite: "example.videos"})
+	if err := lib.Save(); err != nil {
+		t.Fatal(err)
+	}
+	loaded, _ := Load(path)
+	if a, _ := loaded.Find("a"); a.PluginSite != "example.videos" || a.Cookies != core.CookiesNone {
+		t.Fatalf("job %+v", a)
+	}
+}
+
 // The series the user said a film is part of stays with its job across a restart, so its translation keeps using the series' glossary.
 func TestLibraryKeepsTheSeriesOfAJob(t *testing.T) {
 	path := filepath.Join(t.TempDir(), "library.json")

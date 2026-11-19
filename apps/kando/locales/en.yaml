@@ -3966,6 +3966,12 @@ pluginsErrBadName:
 pluginsErrBadShape:
   message: "Its files don't match what its kando-plugin.json lists."
   description: "Why a plugin pack cannot be installed or loaded: its files."
+pluginsErrBadSite:
+  message: "A site in it can't be recognized safely: its domain is shared by many sites, or a link pattern could slow pages down or be read differently by a browser."
+  description: "Why a site pack cannot be installed or loaded: a domain is a public suffix such as co.uk, or a pattern of its video links is outside the safe subset of regular expressions."
+pluginsErrSiteKnown:
+  message: "It names a site Kando already knows. Kando decides that site's videos itself."
+  description: "Why a site pack cannot be installed or loaded: it names a site, such as YouTube, whose videos Kando recognizes with its own rules."
 pluginsErrDictEmpty:
   message: "The dictionary has no entry Kando can read."
   description: "Why a dictionary pack turned on cannot be used: none of its files has an entry in the format its manifest names."
@@ -4462,6 +4468,9 @@ queueRemedyPremiumNeed:
 queueRemedyPrivate:
   message: "The video is private or was deleted"
   description: "Headline of a failed download's card: the video is private or deleted."
+queueRemedyPluginSite:
+  message: "Videos from sites a plugin adds are always downloaded without a browser's sign-in."
+  description: "Why the card of a failed download from a site a site pack added offers no sign-in: such downloads never borrow a browser's sign-in."
 queueRemedyPrivateWhy:
   message: "It can't be downloaded. If it's available elsewhere, use another link."
   description: "What to do about a private or deleted video."
@@ -7456,6 +7465,9 @@ settingsPluginsKindDictionary:
 settingsPluginsKindGlossary:
   message: "Glossaries"
   description: "Plugins page: heading of the group of glossary packs, which add terms to translations."
+settingsPluginsKindSite:
+  message: "Sites"
+  description: "Plugins page: heading of the group of site packs, which add websites whose video links Kando's built-in browser recognizes."
 settingsPluginsKindWordlist:
   message: "Word Lists"
   description: "Plugins page: heading of the group of word list packs, such as JLPT levels."
@@ -7500,6 +7512,22 @@ settingsPluginsServiceDetail:
   description: "Plugins page and install confirmation: what an AI service pack does once chosen in Settings › AI; {host} is the host of its address."
   placeholders:
     host: { type: "String", example: "llm.example.com" }
+settingsPluginsSiteDetail:
+  message: "{count, plural, one {Recognizes video links on # site in Kando's browser.} other {Recognizes video links on # sites in Kando's browser.}} Downloads from them never use a browser's sign-in."
+  description: "Plugins page and install confirmation: what a site pack adds, and that its downloads never borrow a browser's sign-in."
+  placeholders:
+    count: { type: "int", example: "2" }
+settingsPluginsSitesNote:
+  message: "Plugin sites work only with Download Video in the toolbar of Kando's browser. The browser extension and the buttons on web pages don't cover them."
+  description: "Plugins page: one line under the group of site packs. Download Video is the toolbar button of the built-in browser (browseDownload)."
+settingsPluginsSitesAllowed:
+  message: "Allowed Sites"
+  description: "Install confirmation and details of a site pack: heading over one checkbox per website of the pack, each of which the user allows on its own."
+settingsPluginsSiteAllowLabel:
+  message: "Allow {domain}"
+  description: "Accessibility name of the checkbox that allows one website of a site pack; {domain} is the website's domain."
+  placeholders:
+    domain: { type: "String", example: "videos.example.org" }
 settingsPluginsShowFolder:
   message: "{platform, select, macOS {Show in Finder} Windows {Show in File Explorer} other {Show in File Manager}}"
   description: "Plugins page: button that shows the plugins folder in the system's file manager. {platform} is the system the app runs on: macOS, Windows or another (Linux)."

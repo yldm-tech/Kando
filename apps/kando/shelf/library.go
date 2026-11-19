@@ -386,6 +386,8 @@ type storedJob struct {
 	// ResumeAtMs is where the film opens once done, in milliseconds (core.Job.ResumeAt), and ChapterUse how it is cut, as the Add sheet chose it (core.Job.ChapterUse).
 	ResumeAtMs int64           `json:"resumeAtMs,omitempty"`
 	ChapterUse core.ChapterUse `json:"chapterUse,omitempty"`
+	// PluginSite is the site pack whose site the job's link was added from, whose download borrows no sign-in (core.Job.PluginSite).
+	PluginSite string `json:"pluginSite,omitempty"`
 }
 
 func storeJob(job core.Job) storedJob {
@@ -401,6 +403,7 @@ func storeJob(job core.Job) storedJob {
 	stored.SubtitlesOnly = job.SubtitlesOnly
 	stored.Series, stored.PausedBy = job.Series, job.PausedBy
 	stored.ResumeAtMs, stored.ChapterUse = job.ResumeAt.Milliseconds(), job.ChapterUse
+	stored.PluginSite = job.PluginSite
 	switch {
 	case errors.Is(job.Err, context.Canceled):
 		stored.Error = storedCanceled
@@ -425,6 +428,7 @@ func (s storedJob) job() core.Job {
 	job.SubtitlesOnly = s.SubtitlesOnly
 	job.Series, job.PausedBy = s.Series, s.PausedBy
 	job.ResumeAt, job.ChapterUse = time.Duration(max(s.ResumeAtMs, 0))*time.Millisecond, s.ChapterUse
+	job.PluginSite = s.PluginSite
 	switch s.Error {
 	case "":
 	case storedCanceled:

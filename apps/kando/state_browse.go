@@ -401,7 +401,11 @@ func (a *app) browseEnqueue(u, title string) {
 		}
 		return
 	}
-	if err := a.Enqueue(u); err != nil {
+	// A video of a site pack's site borrows no sign-in (state_plugins_sites.go).
+	restore := a.pluginsStampSite(u)
+	err := a.Enqueue(u)
+	restore()
+	if err != nil {
 		a.browseWarn(sourceError(a.messages(), err), "")
 		var dup *queueDuplicate
 		if errors.As(err, &dup) {
@@ -423,8 +427,11 @@ func (a *app) browseEnqueue(u, title string) {
 	a.browse.noticeURL = a.browse.url
 }
 
-// browseList reports whether u is a playlist or a channel whose videos 下载视频 lists (core.Link.IsList), which the pipeline can do (playlistCan).
+// browseList reports whether u is a playlist or a channel whose videos 下载视频 lists (core.Link.IsList), which the pipeline can do (playlistCan). No page of a site pack's site is one (pluginSiteOf): only its links of one video are added.
 func (a *app) browseList(u string) bool {
+	if id, _ := a.pluginSiteOf(u); id != "" {
+		return false
+	}
 	link, ok := kcore.ParseLink(u)
 	return ok && link.IsList() && a.playlistCan()
 }
@@ -458,8 +465,11 @@ func (a *app) browseEnqueueAll(sources []string) {
 	}
 }
 
-// browseNotVideo reports whether u is a link to a page that lists videos without being one, which 下载视频 does not add: a site's home page, its search results, a feed or a hashtag, and a playlist or a channel when the pipeline cannot list their videos (browseList).
+// browseNotVideo reports whether u is a link to a page that lists videos without being one, which 下载视频 does not add: a site's home page, its search results, a feed or a hashtag, and a playlist or a channel when the pipeline cannot list their videos (browseList). On a site pack's site the pack's shapes decide: every page but those of one video is none (pluginSiteOf).
 func (a *app) browseNotVideo(u string) bool {
+	if id, video := a.pluginSiteOf(u); id != "" {
+		return !video
+	}
 	link, ok := kcore.ParseLink(u)
 	return ok && !link.OneVideo() && !a.browseList(u)
 }

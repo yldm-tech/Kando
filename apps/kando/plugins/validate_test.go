@@ -17,6 +17,7 @@ func TestValidateKinds(t *testing.T) {
 		"glossary":   {ManifestName: glossaryManifest, "README.md": "notes"},
 		"wordlist":   {ManifestName: wordlistManifest, "jlpt.tsv": "猫\tn5\n", "LICENSE.txt": "CC-BY"},
 		"ai-service": {ManifestName: serviceManifest},
+		"site":       {ManifestName: siteManifest},
 		"dictionary": {ManifestName: dictionaryManifest, "jmdict.zip": string(zipBytes(t, []entry{{name: "index.json", content: "{}"}, {name: "term_bank_1.json", content: "[]"}}))},
 	} {
 		p, err := Validate(writePack(t, files))
@@ -160,9 +161,70 @@ func TestValidateGlossaryLimit(t *testing.T) {
 	wantErr(t, "too many terms", err, ErrBadField)
 }
 
+// TestValidateSite checks the rules of a site pack: its sites are kcore.ValidateVideoSites's, so a pattern that could take a page's script exponential time, or that JavaScript reads otherwise, is refused, as are a public suffix, a site Kando knows itself, overlapping domains and too many sites; and it is data alone, so a key for scripts, cookies, sign-in, yt-dlp's arguments or buttons in the pages is a key the format does not know.
+func TestValidateSite(t *testing.T) {
+	for _, tt := range []struct {
+		name     string
+		old, new string
+		want     error
+	}{
+		{"nested quantifier", `"^/v/[0-9]+/?$"`, `"^/v/([0-9]+)+$"`, ErrBadSite},
+		{"alternatives repeated", `"^/v/[0-9]+/?$"`, `"^/v/(a|aa)*$"`, ErrBadSite},
+		{"backreference", `"^/v/[0-9]+/?$"`, `"^/v/([0-9])\\1$"`, ErrBadSite},
+		{"lookahead", `"^/v/[0-9]+/?$"`, `"^/v/(?=[0-9])[0-9]+$"`, ErrBadSite},
+		{"flags", `"^/v/[0-9]+/?$"`, `"^/v/(?i)x$"`, ErrBadSite},
+		{"long pattern", `"^/v/[0-9]+/?$"`, `"^/` + strings.Repeat("v", 260) + `$"`, ErrBadSite},
+		{"three unbounded", `"^/v/[0-9]+/?$"`, `"^/[a-z]+/[a-z]+/[0-9]+$"`, ErrBadSite},
+		{"unanchored", `"^/v/[0-9]+/?$"`, `"/v/[0-9]+"`, ErrBadSite},
+		{"value unanchored", `"^[0-9]+$"`, `"[0-9]+"`, ErrBadSite},
+		{"not a host", `"videos.example.org", "not"`, `"https://videos.example.org", "not"`, ErrBadSite},
+		{"not outside", `"live.videos.example.org"`, `"live.example.com"`, ErrBadSite},
+		{"public suffix", `"clips.example.net"`, `"co.uk"`, ErrBadSite},
+		{"private public suffix", `"clips.example.net"`, `"github.io"`, ErrBadSite},
+		{"tld", `"clips.example.net"`, `"net"`, ErrBadSite},
+		{"same domain", `"clips.example.net"`, `"videos.example.org"`, ErrBadSite},
+		{"domain under another", `"clips.example.net"`, `"a.videos.example.org"`, ErrBadSite},
+		{"kando's own", `"clips.example.net"`, `"youtube.com"`, ErrSiteKnown},
+		{"under kando's own", `"clips.example.net"`, `"music.youtube.com"`, ErrSiteKnown},
+		{"over kando's own", `"clips.example.net"`, `"bilibili.com"`, ErrSiteKnown},
+		{"no shape", `"videos": [{"path": "^/c/[a-z0-9]{6,12}$"}]`, `"videos": []`, ErrBadSite},
+		{"script", `"site": {"sites": [`, `"site": {"script": "alert(1)", "sites": [`, ErrBadManifest},
+		{"cookies", `"site": {"sites": [`, `"site": {"cookies": "chrome", "sites": [`, ErrBadManifest},
+		{"sign-in", `{"domain": "clips.example.net",`, `{"domain": "clips.example.net", "signin": {"cookies": ["sid"]},`, ErrBadManifest},
+		{"yt-dlp arguments", `{"domain": "clips.example.net",`, `{"domain": "clips.example.net", "args": ["--exec", "x"],`, ErrBadManifest},
+		{"buttons", `{"domain": "clips.example.net",`, `{"domain": "clips.example.net", "rows": [{"selector": "#x"}],`, ErrBadManifest},
+		{"menu", `{"path": "^/c/[a-z0-9]{6,12}$"}`, `{"path": "^/c/[a-z0-9]{6,12}$", "menu": ["/c/*"]}`, ErrBadManifest},
+		{"two kinds", `"license": "MIT",`, `"license": "MIT", "glossary": {"from": "ja", "to": "en", "terms": [{"source": "a", "target": "b"}]},`, ErrBadField},
+	} {
+		manifest := strings.Replace(siteManifest, tt.old, tt.new, 1)
+		if manifest == siteManifest {
+			t.Fatalf("%s: %q is not in the manifest", tt.name, tt.old)
+		}
+		_, err := Validate(writePack(t, map[string]string{ManifestName: manifest}))
+		wantErr(t, tt.name, err, tt.want)
+	}
+	empty := strings.Replace(siteManifest, siteManifest[strings.Index(siteManifest, `"sites": [`):strings.LastIndex(siteManifest, "]}")+1], `"sites": []`, 1)
+	_, err := Validate(writePack(t, map[string]string{ManifestName: empty}))
+	wantErr(t, "no sites", err, ErrBadField)
+	var sites []string
+	for i := range sitesMax + 1 {
+		sites = append(sites, fmt.Sprintf(`{"domain": "s%d.example.com", "videos": [{"path": "^/v$"}]}`, i))
+	}
+	manifest := strings.Replace(siteManifest, siteManifest[strings.Index(siteManifest, `"sites": [`):strings.LastIndex(siteManifest, "]}")+1], `"sites": [`+strings.Join(sites, ",")+`]`, 1)
+	_, err = Validate(writePack(t, map[string]string{ManifestName: manifest}))
+	wantErr(t, "too many sites", err, ErrBadField)
+	p, err := Validate(writePack(t, map[string]string{ManifestName: siteManifest}))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got := p.Site.Domains(); len(got) != 2 || got[0] != "videos.example.org" || got[1] != "clips.example.net" {
+		t.Fatalf("domains %q", got)
+	}
+}
+
 // TestValidateUnsupportedKinds checks that the kinds of later phases are refused as not supported yet, not for keys this version does not know.
 func TestValidateUnsupportedKinds(t *testing.T) {
-	for _, kind := range []Kind{KindScript, KindSite, KindTask, KindStyle, KindExportTemplate} {
+	for _, kind := range []Kind{KindScript, KindTask, KindStyle, KindExportTemplate} {
 		manifest := fmt.Sprintf(`{"schema": 1, "id": "example.x", "kind": %q, "future": {"anything": true}}`, kind)
 		_, err := Validate(writePack(t, map[string]string{ManifestName: manifest}))
 		wantErr(t, string(kind), err, ErrUnsupportedKind)

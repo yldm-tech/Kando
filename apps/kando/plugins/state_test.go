@@ -127,7 +127,40 @@ func TestStateSet(t *testing.T) {
 	s.Set(PluginState{ID: "example.a", Hash: "3", Enabled: false})
 	s.Set(PluginState{ID: "example.c", Hash: "4", Enabled: true})
 	want := []PluginState{{ID: "example.a", Hash: "3", Enabled: false}, {ID: "example.b", Hash: "2", Enabled: true}, {ID: "example.c", Hash: "4", Enabled: true}}
-	if !slices.Equal(s.Plugins, want) {
+	if !slices.EqualFunc(s.Plugins, want, func(a, b PluginState) bool {
+		return a.ID == b.ID && a.Hash == b.Hash && a.Enabled == b.Enabled && slices.Equal(a.Sites, b.Sites)
+	}) {
 		t.Fatalf("Set made %+v, want %+v", s.Plugins, want)
+	}
+}
+
+// TestStateAllowsSitesOneByOne checks the domains of a site pack the user allowed: each on its own, none for a pack without an entry or in a state that could not be read, and a state.json written before the field was added, without it, still read, allowing none.
+func TestStateAllowsSitesOneByOne(t *testing.T) {
+	root := t.TempDir()
+	old := `{"format": 1, "revision": 3, "plugins": [{"id": "example.videos", "hash": "abc", "enabled": true}]}`
+	if err := os.WriteFile(filepath.Join(root, stateName), []byte(old), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	s, err := LoadState(root)
+	if err != nil || !s.Enabled("example.videos") || s.Allowed("example.videos", "videos.example.org") {
+		t.Fatalf("an older state.json: %+v, %v", s, err)
+	}
+	s.Set(PluginState{ID: "example.videos", Hash: "abc", Enabled: true, Sites: []string{"videos.example.org"}})
+	if err := s.Save(root); err != nil {
+		t.Fatal(err)
+	}
+	got, err := LoadState(root)
+	if err != nil || !got.Allowed("example.videos", "videos.example.org") || got.Allowed("example.videos", "clips.example.net") || got.Allowed("example.other", "videos.example.org") {
+		t.Fatalf("state = %+v, %v", got, err)
+	}
+	if e, ok := got.Entry("example.videos"); !ok || !slices.Equal(e.Sites, []string{"videos.example.org"}) {
+		t.Fatalf("entry %+v, %v", e, ok)
+	}
+	if err := os.WriteFile(filepath.Join(root, stateName), []byte("{"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	bad, _ := LoadState(root)
+	if bad.Allowed("example.videos", "videos.example.org") {
+		t.Fatal("a damaged state.json allows a site")
 	}
 }

@@ -123,6 +123,19 @@ func (a *app) PluginInstallHere() bool {
 	return a.plugins.pending != nil && a.prefs.open && !a.prefs.inWindow && a.prefs.section == settings.SectionPlugins
 }
 
+// PluginSiteAllowed reports whether the user allowed domain of the installed site pack id (plugins.State.Allowed); SetPluginSiteAllowed allows it or no longer does, saving state.json.
+func (a *app) PluginSiteAllowed(id, domain string) bool { return a.plugins.state.Allowed(id, domain) }
+
+func (a *app) SetPluginSiteAllowed(id, domain string, on bool) { a.pluginsAllowSite(id, domain, on) }
+
+// PluginInstallSiteTicked reports whether domain of the site pack in the install confirmation is ticked, which installs it allowing the domain; SetPluginInstallSite ticks or unticks it.
+func (a *app) PluginInstallSiteTicked(domain string) bool {
+	p := a.plugins.pending
+	return p != nil && slices.Contains(p.sites, domain)
+}
+
+func (a *app) SetPluginInstallSite(domain string, on bool) { a.pluginsTickSite(domain, on) }
+
 func (a *app) ConfirmPluginInstall() { a.pluginsInstall() }
 
 func (a *app) CancelPluginInstall() { a.pluginsClose(false) }
@@ -159,6 +172,8 @@ func pluginsKnownErrorText(m locales.Messages, err error) (string, bool) {
 		{plugins.ErrReservedName, m.PluginsErrReservedName},
 		{plugins.ErrBadField, m.PluginsErrBadField},
 		{plugins.ErrInsecureURL, m.PluginsErrInsecureURL},
+		{plugins.ErrBadSite, m.PluginsErrBadSite},
+		{plugins.ErrSiteKnown, m.PluginsErrSiteKnown},
 		{plugins.ErrBadShape, m.PluginsErrBadShape},
 		{plugins.ErrUnsafePath, m.PluginsErrUnsafePath},
 		{plugins.ErrBadArchive, m.PluginsErrBadArchive},

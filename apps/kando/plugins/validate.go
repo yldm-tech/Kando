@@ -15,6 +15,9 @@ import (
 	"strings"
 	"unicode/utf8"
 
+	kcore "kando/packages/core"
+
+	"golang.org/x/net/publicsuffix"
 	"golang.org/x/text/language"
 )
 
@@ -70,6 +73,10 @@ const (
 	modelMax   = 200
 	urlMax     = 2048
 	langMax    = 35
+	// sitesMax is the most sites a site pack may name, siteShapesMax the most shapes of video links a site may have, and siteNotMax the most hosts it may leave out.
+	sitesMax      = 8
+	siteShapesMax = 16
+	siteNotMax    = 16
 )
 
 var (
@@ -316,7 +323,7 @@ func checkManifest(m *Manifest) error {
 	}
 	// Exactly the field of its kind is set: Parse leaves another kind's field set when the manifest has it.
 	set := 0
-	for _, isSet := range []bool{m.Dictionary != nil, m.Wordlist != nil, m.Glossary != nil, m.Service != nil} {
+	for _, isSet := range []bool{m.Dictionary != nil, m.Wordlist != nil, m.Glossary != nil, m.Service != nil, m.Site != nil} {
 		if isSet {
 			set++
 		}
@@ -331,6 +338,8 @@ func checkManifest(m *Manifest) error {
 		err = checkGlossary(m.Glossary)
 	case m.Kind == KindAIService && m.Service != nil && set == 1:
 		err = checkService(m.Service)
+	case m.Kind == KindSite && m.Site != nil && set == 1:
+		err = checkSite(m.Site)
 	default:
 		err = fmt.Errorf("%w: a %s pack needs its %s field and no other kind's", ErrBadField, m.Kind, kindField(m.Kind))
 	}
@@ -508,6 +517,32 @@ func checkService(s *Service) error {
 	case GroupCloud, GroupLocal:
 	default:
 		return fmt.Errorf("%w: service group %q", ErrBadField, s.Group)
+	}
+	return nil
+}
+
+// checkSite checks a site pack: 1 to sitesMax sites of at most siteShapesMax shapes and siteNotMax hosts left out each, which kcore.ValidateVideoSites takes (domains that do not overlap, patterns Go and JavaScript read alike that run in time), whose domains are each a registrable domain or a host under one, not a public suffix every site under it shares (publicsuffix), and none of which is, or is under or over, a site of Kando's own (kcore.VideoSites), whose videos Kando's rules decide.
+func checkSite(s *Site) error {
+	if len(s.Sites) == 0 || len(s.Sites) > sitesMax {
+		return fmt.Errorf("%w: a site pack has 1 to %d sites", ErrBadField, sitesMax)
+	}
+	for _, d := range s.Sites {
+		if len(d.Videos) > siteShapesMax || len(d.Not) > siteNotMax {
+			return fmt.Errorf("%w: %s has over %d shapes or %d hosts left out", ErrBadField, d.Domain, siteShapesMax, siteNotMax)
+		}
+	}
+	if err := kcore.ValidateVideoSites(s.VideoSites()); err != nil {
+		return fmt.Errorf("%w: %v", ErrBadSite, err)
+	}
+	for _, d := range s.Sites {
+		if _, err := publicsuffix.EffectiveTLDPlusOne(d.Domain); err != nil {
+			return fmt.Errorf("%w: %s is a public suffix", ErrBadSite, d.Domain)
+		}
+		for _, own := range kcore.VideoSites {
+			if d.Domain == own.Domain || strings.HasSuffix(d.Domain, "."+own.Domain) || strings.HasSuffix(own.Domain, "."+d.Domain) {
+				return fmt.Errorf("%w: %s", ErrSiteKnown, d.Domain)
+			}
+		}
 	}
 	return nil
 }

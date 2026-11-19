@@ -67,10 +67,15 @@ type PluginsApp interface {
 	PluginInstallHere() bool
 	ConfirmPluginInstall()
 	CancelPluginInstall()
+	// PluginSiteAllowed reports whether the user allowed domain of the installed site pack id, each domain on its own, and SetPluginSiteAllowed allows it or no longer does, saving that to state.json. PluginInstallSiteTicked reports whether domain of the site pack in the install confirmation is ticked, which installs it allowing the domain, and SetPluginInstallSite ticks or unticks it.
+	PluginSiteAllowed(id, domain string) bool
+	SetPluginSiteAllowed(id, domain string, on bool)
+	PluginInstallSiteTicked(domain string) bool
+	SetPluginInstallSite(domain string, on bool)
 }
 
 // pluginKinds are the kinds of packs the page groups the list by, in its order.
-var pluginKinds = []plugins.Kind{plugins.KindGlossary, plugins.KindAIService, plugins.KindDictionary, plugins.KindWordlist}
+var pluginKinds = []plugins.Kind{plugins.KindGlossary, plugins.KindAIService, plugins.KindDictionary, plugins.KindWordlist, plugins.KindSite}
 
 // pluginKindTitle is the heading of the group of kind, in the language the app shows under cx.
 func pluginKindTitle(cx *core.Scope, kind plugins.Kind) string {
@@ -81,6 +86,8 @@ func pluginKindTitle(cx *core.Scope, kind plugins.Kind) string {
 		return locales.SettingsPluginsKindAIService(cx)
 	case plugins.KindDictionary:
 		return locales.SettingsPluginsKindDictionary(cx)
+	case plugins.KindSite:
+		return locales.SettingsPluginsKindSite(cx)
 	}
 	return locales.SettingsPluginsKindWordlist(cx)
 }
@@ -156,6 +163,7 @@ func (l pluginList) Render(cx *core.Scope) core.Node {
 	// open is the pack whose details show under its row, asking the one whose uninstall waits to be confirmed; "" for none.
 	open := core.NewSignal(cx, "")
 	asking := core.NewSignal(cx, "")
+	colors := ui.ColorsOf(cx)
 	return core.Dynamic(func(cx *core.Scope) core.Node {
 		if keys.Get() == "" {
 			card := form.Card(form.Row{Title: locales.SettingsPluginsNone(cx), Subtitle: locales.SettingsPluginsNoneHint(cx), NoGroup: true, TestID: "settings-plugins-none"})
@@ -182,7 +190,13 @@ func (l pluginList) Render(cx *core.Scope) core.Node {
 			groups = append(groups, form.Label(title, 12), form.Card(list))
 		}
 		for _, kind := range pluginKinds {
+			before := len(groups)
 			group(pluginKindTitle(cx, kind), func(r PluginRow) bool { return !r.Missing && r.Pack.Kind == kind })
+			// The sites of site packs are known to the toolbar's 下载视频 alone, which the group says under it.
+			if kind == plugins.KindSite && len(groups) > before {
+				groups = append(groups, core.Text{Content: locales.SettingsPluginsSitesNote(cx), TestID: "settings-plugins-sites-note",
+					Style: core.Style{FontSize: 11, LineHeight: 15, Padding: core.Edges{Top: 6, Right: 12, Left: 12}}, StyleFunc: ui.Colored(colors.Muted)})
+			}
 		}
 		// A missing pack's kind is not known, as it was read from its folder: those are listed after the others, under a heading of their own.
 		group(locales.SettingsPluginsMissingGroup(cx), func(r PluginRow) bool { return r.Missing })
@@ -257,7 +271,7 @@ func pluginRow(cx *core.Scope, a PluginsApp, item func() PluginRow, open, asking
 	return core.Group{row, details}
 }
 
-// pluginDetail is what the pack in r is, under its row: its description, what it adds, its license, homepage, id and the start of its hash, the credit its license asks for, and 卸载…, which asks first, under it, with 卸载 and 取消.
+// pluginDetail is what the pack in r is, under its row: its description, what it adds, its license, homepage, id and the start of its hash, the credit its license asks for, a site pack's checkboxes that allow each of its domains, and 卸载…, which asks first, under it, with 卸载 and 取消.
 func pluginDetail(cx *core.Scope, a PluginsApp, r PluginRow, name string, asking *core.Signal[string]) core.Node {
 	colors := ui.ColorsOf(cx)
 	k := theme.Of(cx)
@@ -283,6 +297,11 @@ func pluginDetail(cx *core.Scope, a PluginsApp, r PluginRow, name string, asking
 		}
 	}
 	lines = append(lines, text(locales.SettingsPluginsIdentity(cx, id, shortHash(r.Pack.Hash)), colors.Muted))
+	if r.Pack.Site != nil {
+		lines = append(lines, pluginSites(cx, a, r.Pack.Site.Domains(), "settings-plugins-site-"+id+"-",
+			func(domain string) bool { return a.PluginSiteAllowed(id, domain) },
+			func(domain string, on bool) { a.SetPluginSiteAllowed(id, domain, on) }))
+	}
 	uninstall := form.Button{Text: locales.SettingsPluginsUninstall(cx), Label: locales.SettingsPluginsUninstallLabel(cx, name), TestID: "settings-plugins-uninstall-" + id,
 		Disabled: live.Func(a, a.PluginsBusy),
 		OnPress: func() {
@@ -313,6 +332,19 @@ func pluginDetail(cx *core.Scope, a PluginsApp, r PluginRow, name string, asking
 	return core.View{TestID: "settings-plugins-detail-" + id,
 		Style:     core.Style{FlexShrink: 0, Gap: 3, Margin: core.Edges{Right: 14, Bottom: 10, Left: 14}, Padding: core.Symmetric(10, 12), CornerRadius: 10},
 		StyleFunc: ui.Filled(k.Tile), Children: lines}
+}
+
+// pluginSites is the checkboxes of a site pack's domains, under their heading, one for each, which allow it on its own: checked reports whether domain is ticked now, set ticks or unticks it, and each box's test ID is prefix followed by its domain. They are off while an install, a removal or a save runs.
+func pluginSites(cx *core.Scope, a PluginsApp, domains []string, prefix string, checked func(domain string) bool, set func(domain string, on bool)) core.Node {
+	colors := ui.ColorsOf(cx)
+	rows := []core.Node{core.Text{Content: locales.SettingsPluginsSitesAllowed(cx), Role: core.RoleHeader, Style: core.Style{FontSize: 12, LineHeight: 17, FontWeight: ui.Semibold}, StyleFunc: ui.Colored(colors.Text)}}
+	for _, domain := range domains {
+		rows = append(rows, ui.Checkbox{Text: domain, Label: locales.SettingsPluginsSiteAllowLabel(cx, domain), TestID: prefix + domain,
+			Checked:  live.Func(a, func() bool { return checked(domain) }),
+			Disabled: live.Func(a, a.PluginsBusy),
+			OnChange: live.On(a, func(on bool) { set(domain, on) })})
+	}
+	return core.View{Role: core.RoleGroup, Label: locales.SettingsPluginsSitesAllowed(cx), Style: core.Style{Gap: 4, Margin: core.Edges{Top: 6, Bottom: 2}}, Children: rows}
 }
 
 // shortHash is the first 12 hex digits of a pack's hash, enough to tell one content from another at a glance.
@@ -351,7 +383,7 @@ func (p pluginIssues) Render(cx *core.Scope) core.Node {
 	})
 }
 
-// PluginInstallDialog is the install confirmation while Open and the app's PluginInstall say it is open: the pack's name, what it is and adds, its version, author, license, id and the start of its hash, that it comes from a file on this computer and is not signed, and the version it replaces, with 安装 and 取消; or, for a file that cannot be installed, why, with 好. 取消 is the default, so Enter and Escape install nothing. The 插件 page draws it when the settings are in a window of their own, the app's pluginsOverlay over the main window otherwise.
+// PluginInstallDialog is the install confirmation while Open and the app's PluginInstall say it is open: the pack's name, what it is and adds, its version, author, license, id and the start of its hash, that it comes from a file on this computer and is not signed, and the version it replaces, for a site pack a checkbox for each of its domains, unticked unless the user allowed it for the version installed now, with 安装 and 取消; or, for a file that cannot be installed, why, with 好. 取消 is the default, so Enter and Escape install nothing. The 插件 page draws it when the settings are in a window of their own, the app's pluginsOverlay over the main window otherwise.
 type PluginInstallDialog struct {
 	App  PluginsApp
 	Open func() bool
@@ -410,6 +442,9 @@ func pluginInstallDialog(cx *core.Scope, a PluginsApp, in PluginInstall, cancel 
 	children = append(children, facts(version), facts(locales.SettingsPluginsLicense(cx, p.License)), facts(locales.SettingsPluginsIdentity(cx, p.ID, shortHash(p.Hash))))
 	if in.Replaces != "" {
 		children = append(children, facts(locales.SettingsPluginsInstallReplaces(cx, in.Replaces)))
+	}
+	if p.Site != nil {
+		children = append(children, pluginSites(cx, a, p.Site.Domains(), "plugins-install-site-", a.PluginInstallSiteTicked, a.SetPluginInstallSite))
 	}
 	return ui.Dialog{TestID: "plugins-install-confirm", Role: core.RoleAlertDialog, NoCloseOnBackdropPress: true, Open: func() bool { return true },
 		Title: locales.SettingsPluginsInstallTitle(cx, name), Description: p.Description.In(i18n.Language(cx)), OnOpenChange: onOpen,

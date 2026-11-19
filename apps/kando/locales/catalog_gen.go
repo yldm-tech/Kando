@@ -1005,6 +1005,8 @@ var Parameters = map[string][]string{
 	"SettingsPluginsMoveDownLabel":             {"name"},
 	"SettingsPluginsMoveUpLabel":               {"name"},
 	"SettingsPluginsServiceDetail":             {"host"},
+	"SettingsPluginsSiteDetail":                {"count"},
+	"SettingsPluginsSiteAllowLabel":            {"domain"},
 	"SettingsPluginsShowFolder":                {"platform"},
 	"SettingsPluginsUninstallLabel":            {"name"},
 	"SettingsPluginsUninstallTitle":            {"name"},
@@ -1627,6 +1629,8 @@ type Translation struct {
 	SettingsPluginsMoveDownLabel             func(name string) string
 	SettingsPluginsMoveUpLabel               func(name string) string
 	SettingsPluginsServiceDetail             func(host string) string
+	SettingsPluginsSiteDetail                func(count int) string
+	SettingsPluginsSiteAllowLabel            func(domain string) string
 	SettingsPluginsShowFolder                func(platform string) string
 	SettingsPluginsUninstallLabel            func(name string) string
 	SettingsPluginsUninstallTitle            func(name string) string
@@ -2521,6 +2525,8 @@ const (
 	textPluginsErrBadManifest
 	textPluginsErrBadName
 	textPluginsErrBadShape
+	textPluginsErrBadSite
+	textPluginsErrSiteKnown
 	textPluginsErrDictEmpty
 	textPluginsErrWordlistEmpty
 	textPluginsErrIDTaken
@@ -2611,6 +2617,7 @@ const (
 	textQueueRemedyPremium
 	textQueueRemedyPremiumNeed
 	textQueueRemedyPrivate
+	textQueueRemedyPluginSite
 	textQueueRemedyPrivateWhy
 	textQueueRemedyRateLimitWait
 	textQueueRemedyRateLimitWhy
@@ -3242,6 +3249,7 @@ const (
 	textSettingsPluginsKindAIService
 	textSettingsPluginsKindDictionary
 	textSettingsPluginsKindGlossary
+	textSettingsPluginsKindSite
 	textSettingsPluginsKindWordlist
 	textSettingsPluginsMissing
 	textSettingsPluginsMissingGroup
@@ -3250,6 +3258,8 @@ const (
 	textSettingsPluginsOK
 	textSettingsPluginsPickButton
 	textSettingsPluginsPickTitle
+	textSettingsPluginsSitesNote
+	textSettingsPluginsSitesAllowed
 	textSettingsPluginsSourceLocal
 	textSettingsPluginsStateBad
 	textSettingsPluginsStateNewer
@@ -4147,6 +4157,8 @@ var keyOfText = [numTexts]string{
 	"pluginsErrBadManifest",
 	"pluginsErrBadName",
 	"pluginsErrBadShape",
+	"pluginsErrBadSite",
+	"pluginsErrSiteKnown",
 	"pluginsErrDictEmpty",
 	"pluginsErrWordlistEmpty",
 	"pluginsErrIDTaken",
@@ -4237,6 +4249,7 @@ var keyOfText = [numTexts]string{
 	"queueRemedyPremium",
 	"queueRemedyPremiumNeed",
 	"queueRemedyPrivate",
+	"queueRemedyPluginSite",
 	"queueRemedyPrivateWhy",
 	"queueRemedyRateLimitWait",
 	"queueRemedyRateLimitWhy",
@@ -4868,6 +4881,7 @@ var keyOfText = [numTexts]string{
 	"settingsPluginsKindAIService",
 	"settingsPluginsKindDictionary",
 	"settingsPluginsKindGlossary",
+	"settingsPluginsKindSite",
 	"settingsPluginsKindWordlist",
 	"settingsPluginsMissing",
 	"settingsPluginsMissingGroup",
@@ -4876,6 +4890,8 @@ var keyOfText = [numTexts]string{
 	"settingsPluginsOK",
 	"settingsPluginsPickButton",
 	"settingsPluginsPickTitle",
+	"settingsPluginsSitesNote",
+	"settingsPluginsSitesAllowed",
 	"settingsPluginsSourceLocal",
 	"settingsPluginsStateBad",
 	"settingsPluginsStateNewer",
@@ -5771,6 +5787,8 @@ var textsEn = i18n.NewTexts(""+
 	"Its kando-plugin.json is missing, isn't valid, or has something this version of Kando doesn't know."+
 	"A name or description in it is missing, has no English, or is too long."+
 	"Its files don't match what its kando-plugin.json lists."+
+	"A site in it can't be recognized safely: its domain is shared by many sites, or a link pattern could slow pages down or be read differently by a browser."+
+	"It names a site Kando already knows. Kando decides that site's videos itself."+
 	"The dictionary has no entry Kando can read."+
 	"The word list has no word of one of its levels."+
 	"A plugin of another kind with the same ID is installed. Uninstall it first."+
@@ -5861,6 +5879,7 @@ var textsEn = i18n.NewTexts(""+
 	"Video for Bilibili Premium members only"+
 	"It needs Bilibili Premium."+
 	"The video is private or was deleted"+
+	"Videos from sites a plugin adds are always downloaded without a browser's sign-in."+
 	"It can't be downloaded. If it's available elsewhere, use another link."+
 	"Too many requests. Wait a few minutes and retry."+
 	"Too many requests. Wait a few minutes and retry, or use the account you're signed in to in your browser."+
@@ -6492,6 +6511,7 @@ var textsEn = i18n.NewTexts(""+
 	"AI Services"+
 	"Dictionaries"+
 	"Glossaries"+
+	"Sites"+
 	"Word Lists"+
 	"Its folder is gone"+
 	"Not in the Plugins Folder"+
@@ -6500,6 +6520,8 @@ var textsEn = i18n.NewTexts(""+
 	"OK"+
 	"Choose"+
 	"Install a Plugin Pack"+
+	"Plugin sites work only with Download Video in the toolbar of Kando's browser. The browser extension and the buttons on web pages don't cover them."+
+	"Allowed Sites"+
 	"Local"+
 	"Kando couldn't read which plugins are on, so they are all off for now. Turning one on or off saves it again."+
 	"A newer version of Kando saved which plugins are on, so they are all off here and this version won't change that."+
@@ -7392,6 +7414,8 @@ var textsEn = i18n.NewTexts(""+
 		99,
 		71,
 		55,
+		153,
+		77,
 		43,
 		47,
 		75,
@@ -7482,6 +7506,7 @@ var textsEn = i18n.NewTexts(""+
 		39,
 		26,
 		35,
+		82,
 		70,
 		48,
 		104,
@@ -8113,6 +8138,7 @@ var textsEn = i18n.NewTexts(""+
 		11,
 		12,
 		10,
+		5,
 		10,
 		18,
 		25,
@@ -8121,6 +8147,8 @@ var textsEn = i18n.NewTexts(""+
 		2,
 		6,
 		21,
+		146,
+		13,
 		5,
 		108,
 		113,
@@ -9016,6 +9044,8 @@ var textsJa = i18n.NewTexts(""+
 	"kando-plugin.json がないか、正しくないか、このバージョンの Kando が知らない内容を含んでいます。"+
 	"名前や説明がないか、英語がないか、長すぎます。"+
 	"ファイルが kando-plugin.json の記載と一致しません。"+
+	"安全に認識できないサイトがあります。ドメインが多くのサイトで共有されているか、リンクのパターンがページを遅くしたり、ブラウザで異なる解釈になったりするおそれがあります。"+
+	"Kando がすでに知っているサイトが含まれています。そのサイトの動画は Kando 自身が判断します。"+
 	"この辞書には読み取れる項目がありません。"+
 	"この単語リストには、宣言されたレベルの単語が一つもありません。"+
 	"同じ ID で種類の違うプラグインがインストールされています。先にアンインストールしてください。"+
@@ -9106,6 +9136,7 @@ var textsJa = i18n.NewTexts(""+
 	"大会員限定の動画"+
 	"大会員が必要です。"+
 	"動画は非公開か削除されています"+
+	"プラグインが追加したサイトの動画は、常にブラウザのログインを借用せずにダウンロードします。"+
 	"ダウンロードできません。ほかの場所にあれば、別のリンクを使ってください。"+
 	"リクエストが多すぎます。数分待ってから再試行してください。"+
 	"リクエストが多すぎます。数分待ってから再試行するか、ブラウザでログイン済みのアカウントを使ってください。"+
@@ -9737,6 +9768,7 @@ var textsJa = i18n.NewTexts(""+
 	"AI サービス"+
 	"辞書"+
 	"用語集"+
+	"サイト"+
 	"単語リスト"+
 	"フォルダーが見つかりません"+
 	"プラグインフォルダーにありません"+
@@ -9745,6 +9777,8 @@ var textsJa = i18n.NewTexts(""+
 	"OK"+
 	"選択"+
 	"プラグインパックをインストール"+
+	"プラグインのサイトは、Kando のブラウザのツールバーにある「動画をダウンロード」でのみ使えます。ブラウザ拡張機能とウェブページ上のボタンは対応していません。"+
+	"許可したサイト"+
 	"ローカル"+
 	"どのプラグインがオンか読み取れなかったため、すべてオフにしています。いずれかをオンまたはオフにすると保存し直します。"+
 	"新しいバージョンの Kando がプラグインのオン・オフを保存したため、ここではすべてオフになり、このバージョンでは変更しません。"+
@@ -10637,6 +10671,8 @@ var textsJa = i18n.NewTexts(""+
 		130,
 		69,
 		67,
+		252,
+		130,
 		60,
 		93,
 		136,
@@ -10727,6 +10763,7 @@ var textsJa = i18n.NewTexts(""+
 		24,
 		27,
 		45,
+		135,
 		108,
 		87,
 		156,
@@ -11358,6 +11395,7 @@ var textsJa = i18n.NewTexts(""+
 		15,
 		6,
 		9,
+		9,
 		15,
 		39,
 		48,
@@ -11366,6 +11404,8 @@ var textsJa = i18n.NewTexts(""+
 		2,
 		6,
 		45,
+		228,
+		21,
 		12,
 		174,
 		181,
@@ -12261,6 +12301,8 @@ var textsKo = i18n.NewTexts(""+
 	"kando-plugin.json이 없거나 올바르지 않거나, 이 버전의 Kando가 모르는 내용이 있습니다."+
 	"이름이나 설명이 없거나, 영어가 없거나, 너무 깁니다."+
 	"파일이 kando-plugin.json에 적힌 것과 맞지 않습니다."+
+	"안전하게 인식할 수 없는 사이트가 있습니다. 도메인을 여러 사이트가 함께 쓰거나, 링크 패턴이 페이지를 느리게 하거나 브라우저에서 다르게 해석될 수 있습니다."+
+	"Kando가 이미 알고 있는 사이트가 들어 있습니다. 그 사이트의 동영상은 Kando가 직접 판단합니다."+
 	"이 사전에는 읽을 수 있는 항목이 없습니다."+
 	"이 단어 목록에는 선언된 등급의 단어가 하나도 없습니다."+
 	"ID가 같고 종류가 다른 플러그인이 설치되어 있습니다. 먼저 제거하세요."+
@@ -12351,6 +12393,7 @@ var textsKo = i18n.NewTexts(""+
 	"Bilibili 프리미엄 회원 전용 동영상"+
 	"Bilibili 프리미엄 회원이어야 합니다."+
 	"동영상이 비공개로 설정되었거나 삭제되었습니다"+
+	"플러그인이 추가한 사이트의 동영상은 항상 브라우저 로그인을 빌리지 않고 다운로드합니다."+
 	"다운로드할 수 없습니다. 다른 곳에 있으면 다른 링크를 사용하십시오."+
 	"요청이 너무 많습니다. 몇 분 후 다시 시도하십시오."+
 	"요청이 너무 많습니다. 몇 분 후 다시 시도하거나, 브라우저에 로그인된 계정을 사용하십시오."+
@@ -12982,6 +13025,7 @@ var textsKo = i18n.NewTexts(""+
 	"AI 서비스"+
 	"사전"+
 	"용어집"+
+	"사이트"+
 	"단어 목록"+
 	"폴더가 없습니다"+
 	"플러그인 폴더에 없음"+
@@ -12990,6 +13034,8 @@ var textsKo = i18n.NewTexts(""+
 	"확인"+
 	"선택"+
 	"플러그인 팩 설치"+
+	"플러그인 사이트는 Kando 브라우저 도구 막대의 '동영상 다운로드'에서만 작동합니다. 브라우저 확장 프로그램과 웹 페이지의 버튼은 지원하지 않습니다."+
+	"허용한 사이트"+
 	"로컬"+
 	"어떤 플러그인이 켜져 있는지 읽을 수 없어 모두 꺼 두었습니다. 하나를 켜거나 끄면 다시 저장됩니다."+
 	"최신 버전의 Kando가 플러그인 상태를 저장해서 여기서는 모두 꺼져 있으며, 이 버전에서는 바꾸지 않습니다."+
@@ -13882,6 +13928,8 @@ var textsKo = i18n.NewTexts(""+
 		111,
 		72,
 		65,
+		218,
+		126,
 		58,
 		77,
 		96,
@@ -13972,6 +14020,7 @@ var textsKo = i18n.NewTexts(""+
 		45,
 		48,
 		66,
+		124,
 		94,
 		69,
 		125,
@@ -14603,6 +14652,7 @@ var textsKo = i18n.NewTexts(""+
 		12,
 		6,
 		9,
+		9,
 		13,
 		22,
 		29,
@@ -14611,6 +14661,8 @@ var textsKo = i18n.NewTexts(""+
 		6,
 		6,
 		23,
+		202,
+		19,
 		6,
 		136,
 		143,
@@ -15506,6 +15558,8 @@ var textsZhHans = i18n.NewTexts(""+
 	"它的 kando-plugin.json 缺失、格式不对，或者含有这个版本的看懂不认识的内容。"+
 	"它的名称或说明缺失、没有英文，或者太长。"+
 	"它的文件和 kando-plugin.json 列出的不一致。"+
+	"其中有个网站无法安全识别：它的域名是许多网站共用的后缀，或者某条链接规则可能拖慢网页，或在浏览器里的理解不同。"+
+	"它列出了看懂本来就认识的网站，这个网站的视频由看懂自己判断。"+
 	"这个词典里没有能读取的词条。"+
 	"词表里没有一个属于它所列等级的词。"+
 	"已经装了一个 ID 相同、种类不同的插件。先卸载它。"+
@@ -15596,6 +15650,7 @@ var textsZhHans = i18n.NewTexts(""+
 	"大会员专享视频"+
 	"需要大会员。"+
 	"视频已设为私密或被删除"+
+	"插件添加的网站上的视频，下载时一律不借用浏览器登录。"+
 	"没法下载。别处有的话，换个链接。"+
 	"请求太频繁。等几分钟再重试。"+
 	"请求太频繁。等几分钟再重试，或借用浏览器里已登录的账号。"+
@@ -16227,6 +16282,7 @@ var textsZhHans = i18n.NewTexts(""+
 	"AI 服务"+
 	"词典"+
 	"术语表"+
+	"网站"+
 	"词表"+
 	"它的文件夹已经不在了"+
 	"不在插件文件夹里"+
@@ -16235,6 +16291,8 @@ var textsZhHans = i18n.NewTexts(""+
 	"好"+
 	"选择"+
 	"安装插件包"+
+	"插件网站只用于看懂浏览器工具栏里的「下载视频」，浏览器扩展和网页里的按钮不支持它们。"+
+	"允许的网站"+
 	"本地"+
 	"看懂读不出哪些插件是启用的，所以暂时全部停用。打开或关闭任意一个插件会重新保存。"+
 	"新版看懂保存了插件的启用状态，所以这里全部停用，这个版本也不会改动它。"+
@@ -17127,6 +17185,8 @@ var textsZhHans = i18n.NewTexts(""+
 		103,
 		60,
 		55,
+		165,
+		90,
 		42,
 		51,
 		70,
@@ -17217,6 +17277,7 @@ var textsZhHans = i18n.NewTexts(""+
 		21,
 		18,
 		33,
+		78,
 		48,
 		42,
 		84,
@@ -17849,12 +17910,15 @@ var textsZhHans = i18n.NewTexts(""+
 		6,
 		9,
 		6,
+		6,
 		30,
 		24,
 		21,
 		51,
 		3,
 		6,
+		15,
+		126,
 		15,
 		6,
 		120,
@@ -18751,6 +18815,8 @@ var textsZhHant = i18n.NewTexts(""+
 	"它的 kando-plugin.json 遺失、格式不對，或含有這個版本的看懂不認得的內容。"+
 	"它的名稱或說明遺失、沒有英文，或太長。"+
 	"它的檔案和 kando-plugin.json 列出的不一致。"+
+	"其中有個網站無法安全辨識：它的網域是許多網站共用的後綴，或某條連結規則可能拖慢網頁，或在瀏覽器中的解讀不同。"+
+	"它列出了看懂本來就認得的網站，這個網站的影片由看懂自己判斷。"+
 	"這個詞典裡沒有能讀取的詞條。"+
 	"詞表裡沒有一個屬於它所列等級的詞。"+
 	"已經裝了一個 ID 相同、種類不同的外掛。先解除安裝它。"+
@@ -18841,6 +18907,7 @@ var textsZhHant = i18n.NewTexts(""+
 	"大會員專屬影片"+
 	"需要大會員。"+
 	"影片已設為私人或已被刪除"+
+	"外掛加入的網站上的影片，下載時一律不借用瀏覽器登入。"+
 	"無法下載。其他地方有的話，換個連結。"+
 	"請求太頻繁。等幾分鐘再重試。"+
 	"請求太頻繁。等幾分鐘再重試，或借用瀏覽器中已登入的帳號。"+
@@ -19472,6 +19539,7 @@ var textsZhHant = i18n.NewTexts(""+
 	"AI 服務"+
 	"詞典"+
 	"術語表"+
+	"網站"+
 	"詞表"+
 	"它的資料夾已經不在了"+
 	"不在外掛資料夾裡"+
@@ -19480,6 +19548,8 @@ var textsZhHant = i18n.NewTexts(""+
 	"好"+
 	"選擇"+
 	"安裝外掛包"+
+	"外掛網站只用於看懂瀏覽器工具列中的「下載影片」，瀏覽器擴充功能和網頁中的按鈕不支援它們。"+
+	"允許的網站"+
 	"本機"+
 	"看懂讀不出哪些外掛是啟用的，所以暫時全部停用。開啟或關閉任一外掛會重新儲存。"+
 	"新版看懂儲存了外掛的啟用狀態，所以這裡全部停用，這個版本也不會變更它。"+
@@ -20372,6 +20442,8 @@ var textsZhHant = i18n.NewTexts(""+
 		100,
 		57,
 		55,
+		162,
+		90,
 		42,
 		51,
 		76,
@@ -20462,6 +20534,7 @@ var textsZhHant = i18n.NewTexts(""+
 		21,
 		18,
 		36,
+		78,
 		54,
 		42,
 		84,
@@ -21094,12 +21167,15 @@ var textsZhHant = i18n.NewTexts(""+
 		6,
 		9,
 		6,
+		6,
 		30,
 		24,
 		18,
 		51,
 		3,
 		6,
+		15,
+		132,
 		15,
 		6,
 		114,
@@ -22867,6 +22943,12 @@ func Supply(lang string, t Translation) {
 	}
 	if t.SettingsPluginsServiceDetail != nil {
 		s.SettingsPluginsServiceDetail = t.SettingsPluginsServiceDetail
+	}
+	if t.SettingsPluginsSiteDetail != nil {
+		s.SettingsPluginsSiteDetail = t.SettingsPluginsSiteDetail
+	}
+	if t.SettingsPluginsSiteAllowLabel != nil {
+		s.SettingsPluginsSiteAllowLabel = t.SettingsPluginsSiteAllowLabel
 	}
 	if t.SettingsPluginsShowFolder != nil {
 		s.SettingsPluginsShowFolder = t.SettingsPluginsShowFolder
@@ -40681,6 +40763,24 @@ func PluginsErrBadShape(cx *core.Scope) string { return For(cx).PluginsErrBadSha
 // PluginsErrBadShape is the package's PluginsErrBadShape in the language of msgs.
 func (msgs Messages) PluginsErrBadShape() string { return msgs.text(textPluginsErrBadShape) }
 
+// PluginsErrBadSite says "A site in it can't be recognized safely: its domain is shared by many sites, or a link pattern could slow pages down or be read differently by a browser."
+// in the language the app shows under cx.
+//
+// Why a site pack cannot be installed or loaded: a domain is a public suffix such as co.uk, or a pattern of its video links is outside the safe subset of regular expressions.
+func PluginsErrBadSite(cx *core.Scope) string { return For(cx).PluginsErrBadSite() }
+
+// PluginsErrBadSite is the package's PluginsErrBadSite in the language of msgs.
+func (msgs Messages) PluginsErrBadSite() string { return msgs.text(textPluginsErrBadSite) }
+
+// PluginsErrSiteKnown says "It names a site Kando already knows. Kando decides that site's videos itself."
+// in the language the app shows under cx.
+//
+// Why a site pack cannot be installed or loaded: it names a site, such as YouTube, whose videos Kando recognizes with its own rules.
+func PluginsErrSiteKnown(cx *core.Scope) string { return For(cx).PluginsErrSiteKnown() }
+
+// PluginsErrSiteKnown is the package's PluginsErrSiteKnown in the language of msgs.
+func (msgs Messages) PluginsErrSiteKnown() string { return msgs.text(textPluginsErrSiteKnown) }
+
 // PluginsErrDictEmpty says "The dictionary has no entry Kando can read."
 // in the language the app shows under cx.
 //
@@ -42956,6 +43056,15 @@ func QueueRemedyPrivate(cx *core.Scope) string { return For(cx).QueueRemedyPriva
 
 // QueueRemedyPrivate is the package's QueueRemedyPrivate in the language of msgs.
 func (msgs Messages) QueueRemedyPrivate() string { return msgs.text(textQueueRemedyPrivate) }
+
+// QueueRemedyPluginSite says "Videos from sites a plugin adds are always downloaded without a browser's sign-in."
+// in the language the app shows under cx.
+//
+// Why the card of a failed download from a site a site pack added offers no sign-in: such downloads never borrow a browser's sign-in.
+func QueueRemedyPluginSite(cx *core.Scope) string { return For(cx).QueueRemedyPluginSite() }
+
+// QueueRemedyPluginSite is the package's QueueRemedyPluginSite in the language of msgs.
+func (msgs Messages) QueueRemedyPluginSite() string { return msgs.text(textQueueRemedyPluginSite) }
 
 // QueueRemedyPrivateWhy says "It can't be downloaded. If it's available elsewhere, use another link."
 // in the language the app shows under cx.
@@ -56901,6 +57010,15 @@ func (msgs Messages) SettingsPluginsKindGlossary() string {
 	return msgs.text(textSettingsPluginsKindGlossary)
 }
 
+// SettingsPluginsKindSite says "Sites"
+// in the language the app shows under cx.
+//
+// Plugins page: heading of the group of site packs, which add websites whose video links Kando's built-in browser recognizes.
+func SettingsPluginsKindSite(cx *core.Scope) string { return For(cx).SettingsPluginsKindSite() }
+
+// SettingsPluginsKindSite is the package's SettingsPluginsKindSite in the language of msgs.
+func (msgs Messages) SettingsPluginsKindSite() string { return msgs.text(textSettingsPluginsKindSite) }
+
 // SettingsPluginsKindWordlist says "Word Lists"
 // in the language the app shows under cx.
 //
@@ -57105,6 +57223,104 @@ func (msgs Messages) SettingsPluginsServiceDetail(host string) string {
 			return "会把你的 API Key 和要翻译的字幕发送到 " + host
 		case "zh-Hant":
 			return "會把你的 API Key 和要翻譯的字幕傳送到 " + host
+		}
+	}
+}
+
+// SettingsPluginsSiteDetail says "{count, plural, one {Recognizes video links on # site in Kando's browser.} other {Recognizes video links on # sites in Kando's browser.}} Downloads from them never use a browser's sign-in."
+// in the language the app shows under cx.
+//
+// Plugins page and install confirmation: what a site pack adds, and that its downloads never borrow a browser's sign-in.
+func SettingsPluginsSiteDetail(cx *core.Scope, count int) string {
+	return For(cx).SettingsPluginsSiteDetail(count)
+}
+
+// SettingsPluginsSiteDetail is the package's SettingsPluginsSiteDetail in the language of msgs.
+func (msgs Messages) SettingsPluginsSiteDetail(count int) string {
+	if i18n.IsPseudo(msgs.lang) {
+		return i18n.Pseudo(msgs.lang, Messages{lang: Source, mark: true}.SettingsPluginsSiteDetail(count))
+	}
+	for lang := msgs.lang; ; lang = i18n.Parent(lang) {
+		if f := supplied[lang].SettingsPluginsSiteDetail; f != nil {
+			return f(count)
+		}
+		switch lang {
+		case "", "en":
+			var b strings.Builder
+			switch i18n.Cardinal("en", float64(count)) {
+			case i18n.One:
+				b.WriteString("Recognizes video links on ")
+				b.WriteString(msgs.arg(i18n.FormatNumber("en", float64(count))))
+				b.WriteString(" site in Kando's browser.")
+			default:
+				b.WriteString("Recognizes video links on ")
+				b.WriteString(msgs.arg(i18n.FormatNumber("en", float64(count))))
+				b.WriteString(" sites in Kando's browser.")
+			}
+			b.WriteString(" Downloads from them never use a browser's sign-in.")
+			return b.String()
+		case "ja":
+			return "Kando のブラウザで " + i18n.FormatNumber("ja", float64(count)) + " 件のサイトの動画リンクを認識します。これらのサイトからのダウンロードではブラウザのログインを使いません。"
+		case "ko":
+			return "Kando 브라우저에서 사이트 " + i18n.FormatNumber("ko", float64(count)) + "곳의 동영상 링크를 인식합니다. 이 사이트에서 다운로드할 때는 브라우저 로그인을 사용하지 않습니다."
+		case "zh-Hans":
+			return "在看懂的浏览器里识别 " + i18n.FormatNumber("zh-Hans", float64(count)) + " 个网站的视频链接。从这些网站下载时一律不借用浏览器登录。"
+		case "zh-Hant":
+			return "在看懂的瀏覽器中辨識 " + i18n.FormatNumber("zh-Hant", float64(count)) + " 個網站的影片連結。從這些網站下載時一律不借用瀏覽器登入。"
+		}
+	}
+}
+
+// SettingsPluginsSitesNote says "Plugin sites work only with Download Video in the toolbar of Kando's browser. The browser extension and the buttons on web pages don't cover them."
+// in the language the app shows under cx.
+//
+// Plugins page: one line under the group of site packs. Download Video is the toolbar button of the built-in browser (browseDownload).
+func SettingsPluginsSitesNote(cx *core.Scope) string { return For(cx).SettingsPluginsSitesNote() }
+
+// SettingsPluginsSitesNote is the package's SettingsPluginsSitesNote in the language of msgs.
+func (msgs Messages) SettingsPluginsSitesNote() string {
+	return msgs.text(textSettingsPluginsSitesNote)
+}
+
+// SettingsPluginsSitesAllowed says "Allowed Sites"
+// in the language the app shows under cx.
+//
+// Install confirmation and details of a site pack: heading over one checkbox per website of the pack, each of which the user allows on its own.
+func SettingsPluginsSitesAllowed(cx *core.Scope) string { return For(cx).SettingsPluginsSitesAllowed() }
+
+// SettingsPluginsSitesAllowed is the package's SettingsPluginsSitesAllowed in the language of msgs.
+func (msgs Messages) SettingsPluginsSitesAllowed() string {
+	return msgs.text(textSettingsPluginsSitesAllowed)
+}
+
+// SettingsPluginsSiteAllowLabel says "Allow {domain}"
+// in the language the app shows under cx.
+//
+// Accessibility name of the checkbox that allows one website of a site pack; {domain} is the website's domain.
+func SettingsPluginsSiteAllowLabel(cx *core.Scope, domain string) string {
+	return For(cx).SettingsPluginsSiteAllowLabel(domain)
+}
+
+// SettingsPluginsSiteAllowLabel is the package's SettingsPluginsSiteAllowLabel in the language of msgs.
+func (msgs Messages) SettingsPluginsSiteAllowLabel(domain string) string {
+	if i18n.IsPseudo(msgs.lang) {
+		return i18n.Pseudo(msgs.lang, Messages{lang: Source, mark: true}.SettingsPluginsSiteAllowLabel(domain))
+	}
+	for lang := msgs.lang; ; lang = i18n.Parent(lang) {
+		if f := supplied[lang].SettingsPluginsSiteAllowLabel; f != nil {
+			return f(domain)
+		}
+		switch lang {
+		case "", "en":
+			return "Allow " + msgs.arg(domain)
+		case "ja":
+			return domain + " を許可"
+		case "ko":
+			return domain + " 허용"
+		case "zh-Hans":
+			return "允许 " + domain
+		case "zh-Hant":
+			return "允許 " + domain
 		}
 	}
 }

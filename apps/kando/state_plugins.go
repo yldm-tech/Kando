@@ -22,7 +22,7 @@ import (
 	ns "github.com/nsgo-dev/nsgo/core"
 )
 
-// Plugins: the data packs the user installs from Settings › 插件 (docs/plugin-system.md). The packs are in the plugins folder beside settings.json (pluginsRoot), each in <kind>/<id>, and which are turned on in its state.json (plugins.State), never in settings.json. The app reads the folder off the UI thread once its window is ready (pluginsScan) and again after each install, removal or switch. A pack is installed only after the user confirmed what it is (the install confirmation), whether it came from 从文件安装…, a drop on the page, or the command line's inbox (`kando plugin install`), which the app looks at as it starts and each time it comes to the front. What the packs add: a glossary pack's terms join the global glossary of the films they match (pluginTerms), after the user's own; an ai-service pack's service joins the AI services the app offers (pluginPresets, through llmPresets); a dictionary pack answers lookups, offline, before the AI service (state_plugins_dict.go, vocabResolve); a word list pack draws a line in the color of their level under the words of a film's lines, with readings over them from the dictionaries (state_plugins_marks.go).
+// Plugins: the data packs the user installs from Settings › 插件 (docs/plugin-system.md). The packs are in the plugins folder beside settings.json (pluginsRoot), each in <kind>/<id>, and which are turned on in its state.json (plugins.State), never in settings.json. The app reads the folder off the UI thread once its window is ready (pluginsScan) and again after each install, removal or switch. A pack is installed only after the user confirmed what it is (the install confirmation), whether it came from 从文件安装…, a drop on the page, or the command line's inbox (`kando plugin install`), which the app looks at as it starts and each time it comes to the front. What the packs add: a glossary pack's terms join the global glossary of the films they match (pluginTerms), after the user's own; an ai-service pack's service joins the AI services the app offers (pluginPresets, through llmPresets); a dictionary pack answers lookups, offline, before the AI service (state_plugins_dict.go, vocabResolve); a word list pack draws a line in the color of their level under the words of a film's lines, with readings over them from the dictionaries (state_plugins_marks.go); a site pack's sites, those the user allowed, are known to the built-in browser's 下载视频 (state_plugins_sites.go).
 
 // pluginsUI is the plugins' state. packs and issues are what the last read of the plugins folder found, state and stateErr what state.json held (plugins.LoadState); scanGen counts the reads, so only the last one's answer is kept. order is every pack id the app has seen, in the order it came (savedPlugins), which orders the list and decides which glossary pack's term wins. busy is set while an install, a removal, a switch or a copy into the staging folder runs, and err is why the last one failed; inboxBusy while the inbox is looked at, which keeps none of those from running. pending is the install confirmation, nil while it is closed. gone is the AI service of a pack that went while it was in use (pluginsGoneService). dicts are the dictionary packs opened for lookups, by id (pluginsSyncDicts), and opening the index names (dict.IndexName) of the contents being opened; engine's goroutine only. prefs is how the open film's lines are marked (savedPlugins), marks their marks, marking the key of the marks being computed, zero while none are, and stop what stops that computation (pluginsMarkStop), subs the lines whose hash was taken last and list the word list chosen as last read (state_plugins_marks.go).
 type pluginsUI struct {
@@ -52,17 +52,20 @@ type pluginsUI struct {
 	list      *pluginsList
 	// dictHintShown is set once the lookup card showed the hint to install an offline dictionary (pluginsDictHint), which shows once.
 	dictHintShown bool
+	// sites are the site packs turned on with the domains the user allowed, which the browser's 下载视频 knows (state_plugins_sites.go).
+	sites []pluginsSite
 }
 
 // pluginsGone is the AI service of a pack that is not offered now, though the endpoint in use is still its own: id is its preset id (pack.<id>) and base its endpoint. The service settings.json saved, when it was a pack's, starts as one, as the packs are read only once the window is ready.
 type pluginsGone struct{ id, base string }
 
-// pluginsPending is the install confirmation: the pack staged in staged (plugins.Stage), or why the file could not be staged (err). release gives back the modal flag it holds (holdModal).
+// pluginsPending is the install confirmation: the pack staged in staged (plugins.Stage), or why the file could not be staged (err). release gives back the modal flag it holds (holdModal). sites are the domains of a site pack the user ticked, which it is installed allowing (state_plugins_sites.go).
 type pluginsPending struct {
 	pack    plugins.Pack
 	staged  string
 	err     error
 	release func()
+	sites   []string
 }
 
 func newPluginsUI() pluginsUI { return pluginsUI{} }
@@ -183,6 +186,7 @@ func (a *app) pluginsScanned(packs []plugins.Pack, issues []plugins.Issue, state
 	}
 	a.pluginsFollowLLM()
 	a.pluginsSyncDicts()
+	a.pluginsSyncSites()
 	a.pluginsCheckInbox()
 }
 
@@ -341,8 +345,11 @@ func (a *app) pluginsStage(src string) {
 	}()
 }
 
-// pluginsAsk opens the install confirmation of p, holding the window's modal flag until it closes (pluginsClose).
+// pluginsAsk opens the install confirmation of p, holding the window's modal flag until it closes (pluginsClose). A site pack's domains start ticked only where the user allowed them for the pack of its id installed now (pluginsTickedBefore).
 func (a *app) pluginsAsk(p *pluginsPending) {
+	if p.err == nil {
+		p.sites = a.pluginsTickedBefore(p.pack)
+	}
 	p.release = a.holdModal()
 	a.plugins.pending = p
 }
@@ -361,7 +368,7 @@ func (a *app) pluginsClose(keep bool) {
 	a.pluginsCheckInbox()
 }
 
-// pluginsInstall installs the pack of the open confirmation off the UI thread (plugins.Swap), turned on for its content (state.json), and reads the plugins folder again. A pack of the same id is replaced; one of another kind with the id is not (plugins.ErrIDTaken). When the install fails the confirmation stays open and says why, as it may show over the main window with the 插件 page nowhere in sight. A state.json a newer Kando wrote, which this one does not write over (plugins.ErrStateFormat), refuses the install before anything is replaced; once the pack is in place it is installed, and a state.json that could not be saved after is said on the page, apart from the install.
+// pluginsInstall installs the pack of the open confirmation off the UI thread (plugins.Swap), turned on for its content (state.json), a site pack allowing the domains ticked in it and no other, and reads the plugins folder again. A pack of the same id is replaced; one of another kind with the id is not (plugins.ErrIDTaken). When the install fails the confirmation stays open and says why, as it may show over the main window with the 插件 page nowhere in sight. A state.json a newer Kando wrote, which this one does not write over (plugins.ErrStateFormat), refuses the install before anything is replaced; once the pack is in place it is installed, and a state.json that could not be saved after is said on the page, apart from the install.
 func (a *app) pluginsInstall() {
 	p := a.plugins.pending
 	root := a.pluginsRoot()
@@ -379,7 +386,7 @@ func (a *app) pluginsInstall() {
 	// The dictionary of the pack it replaces is closed first; the read of the folder after opens it again.
 	a.pluginsCloseDict(pack.ID)
 	state := a.pluginsNextState(func(s *plugins.State) {
-		s.Set(plugins.PluginState{ID: pack.ID, Hash: pack.Hash, Enabled: true})
+		s.Set(plugins.PluginState{ID: pack.ID, Hash: pack.Hash, Enabled: true, Sites: pluginsInstallSites(p)})
 	})
 	a.plugins.busy, a.plugins.err, a.plugins.saving = true, nil, true
 	update := a.update
@@ -413,21 +420,31 @@ func (a *app) pluginsInstall() {
 	}()
 }
 
-// pluginsSetEnabled turns the pack id on or off, saving state.json off the UI thread; the list shows the change at once and goes back when it could not be saved. Once the save ends, the inbox is looked at again, as a look at it gives way while the switch runs (pluginsCheckInbox).
+// pluginsSetEnabled turns the pack id on or off, saving state.json off the UI thread (pluginsApplyState); a site pack keeps the domains the user allowed.
 func (a *app) pluginsSetEnabled(id string, on bool) {
-	root := a.pluginsRoot()
 	i := slices.IndexFunc(a.plugins.packs, func(p plugins.Pack) bool { return p.ID == id })
-	if root == "" || i < 0 || a.plugins.busy {
+	if a.pluginsRoot() == "" || i < 0 || a.plugins.busy {
 		return
 	}
 	hash := a.plugins.packs[i].Hash
 	a.pluginsKeepLLM()
+	next := a.pluginsNextState(func(s *plugins.State) {
+		e, _ := s.Entry(id)
+		e.ID, e.Hash, e.Enabled = id, hash, on
+		s.Set(e)
+	})
+	a.pluginsApplyState(next)
+}
+
+// pluginsApplyState takes next as state.json, a pack turned on or off or a site allowed, saving it off the UI thread; what follows the packs turned on (the AI services offered, the dictionaries open, the sites 下载视频 knows) follows at once, and goes back when the file could not be saved. Once the save ends, the inbox is looked at again, as a look at it gives way while the save runs (pluginsCheckInbox).
+func (a *app) pluginsApplyState(next plugins.State) {
+	root := a.pluginsRoot()
 	before := a.plugins.state
-	next := a.pluginsNextState(func(s *plugins.State) { s.Set(plugins.PluginState{ID: id, Hash: hash, Enabled: on}) })
 	a.plugins.state, a.plugins.busy, a.plugins.err, a.plugins.saving = next, true, nil, true
 	a.plugins.stateGen++
 	a.pluginsFollowLLM()
 	a.pluginsSyncDicts()
+	a.pluginsSyncSites()
 	update := a.update
 	go func() {
 		err := next.Save(root)
@@ -439,6 +456,7 @@ func (a *app) pluginsSetEnabled(id string, on bool) {
 				a.plugins.state, a.plugins.err = before, err
 				a.pluginsFollowLLM()
 				a.pluginsSyncDicts()
+				a.pluginsSyncSites()
 				return
 			}
 			a.plugins.state, a.plugins.stateErr = next, nil

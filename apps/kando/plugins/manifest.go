@@ -8,6 +8,8 @@ import (
 	"io"
 	"slices"
 
+	kcore "kando/packages/core"
+
 	"github.com/nsgo-dev/nsgo/i18n"
 )
 
@@ -41,7 +43,7 @@ func (k Kind) known() bool { return slices.Contains(kinds, k) }
 // implemented reports whether this version installs packs of kind k.
 func (k Kind) implemented() bool {
 	switch k {
-	case KindDictionary, KindWordlist, KindGlossary, KindAIService:
+	case KindDictionary, KindWordlist, KindGlossary, KindAIService, KindSite:
 		return true
 	}
 	return false
@@ -75,6 +77,7 @@ type Manifest struct {
 	Wordlist    *Wordlist   `json:"wordlist,omitempty"`
 	Glossary    *Glossary   `json:"glossary,omitempty"`
 	Service     *Service    `json:"service,omitempty"`
+	Site        *Site       `json:"site,omitempty"`
 }
 
 // The dictionary formats a dictionary pack's files may be in.
@@ -140,6 +143,54 @@ type Service struct {
 	Model   string `json:"model,omitempty"`
 	KeyURL  string `json:"keyURL,omitempty"`
 	Group   string `json:"group"`
+}
+
+// Site is a site pack: sites whose links to one video Kando's built-in browser knows by their shape, as it knows those of its own sites (kcore.VideoSites), for 下载视频 in its toolbar. It is data alone: no script, no cookies or sign-in, no arguments for yt-dlp, and no place for buttons in the pages. Each domain works only once the user allowed it (State.Allowed), and the downloads of its links borrow no sign-in (core.Job.PluginSite).
+type Site struct {
+	Sites []SiteDomain `json:"sites"`
+}
+
+// SiteDomain is one site of a site pack, as a kcore.VideoSite says it: its domain, which takes in the hosts under it, the hosts under it whose pages are no video's (Not), and the shapes of its videos' links (Videos).
+type SiteDomain struct {
+	Domain string      `json:"domain"`
+	Not    []string    `json:"not,omitempty"`
+	Videos []SiteVideo `json:"videos"`
+}
+
+// SiteVideo is the shape of a link to one video (kcore.VideoShape): its path, as the URL escapes it, matching Path, and, when Param is set, that query parameter's first value matching Value. Path and Value are regular expressions of the subset kcore.ValidateVideoSite takes.
+type SiteVideo struct {
+	Path  string `json:"path"`
+	Param string `json:"param,omitempty"`
+	Value string `json:"value,omitempty"`
+}
+
+// VideoSites are the sites of s as kcore.VideoSite.
+func (s *Site) VideoSites() []kcore.VideoSite {
+	out := make([]kcore.VideoSite, len(s.Sites))
+	for i, d := range s.Sites {
+		out[i] = kcore.VideoSite{Domain: d.Domain, Not: d.Not}
+		for _, v := range d.Videos {
+			out[i].Videos = append(out[i].Videos, kcore.VideoShape{Path: v.Path, Param: v.Param, Value: v.Value})
+		}
+	}
+	return out
+}
+
+// SiteDomains are the domains of a site pack's sites, in its order; none for another kind.
+func (m Manifest) SiteDomains() []string {
+	if m.Site == nil {
+		return nil
+	}
+	return m.Site.Domains()
+}
+
+// Domains are the domains of s, in its order.
+func (s *Site) Domains() []string {
+	out := make([]string, len(s.Sites))
+	for i, d := range s.Sites {
+		out[i] = d.Domain
+	}
+	return out
 }
 
 // Parse reads a manifest in two steps: its header (schema, id, kind) first, and then, for a kind this version implements, the whole of it strictly, a key it does not know at any level being an error. A schema other than the one this version reads (dataSchema) is ErrSchema, checked before anything else of the manifest, as a newer format may have kinds and keys this version does not know; an unknown kind is ErrUnknownKind; a known kind not implemented yet returns its header alone, for Validate to refuse with ErrUnsupportedKind, as the rest of its fields are only defined in its phase. Parse checks nothing else: that is Validate's.

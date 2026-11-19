@@ -191,6 +191,10 @@ func (a *app) FailureRemedy(item films.Film) (films.Remedy, bool) {
 	default:
 		return films.Remedy{}, false
 	}
+	// A download from a site pack's site never borrows a sign-in (queuePipeline), so its card offers none.
+	if job.PluginSite != "" {
+		r = pluginsSiteRemedy(m, r)
+	}
 	return r, true
 }
 

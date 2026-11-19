@@ -14,7 +14,7 @@ import (
 	"github.com/nsgo-dev/nsgo/nsgotest"
 )
 
-// TestScreenshotsPlugins renders Settings › 插件 with a glossary pack and an AI service pack installed, and with two dictionary packs, which move up and down, the details of one open (settings-plugins-dictionaries), the install confirmation of a pack over the main window, as a pack from 从文件安装… or the command line's inbox shows it, the card of a word on the picture that a dictionary pack answered, which names the dictionary and its credit (plugins-lookup), and a Japanese line with readings over its words, a line in the color of their level under the words of a word list and a dashed one under a word in the vocabulary (plugins-marks). The packs are in plugins folders of the fixture's home.
+// TestScreenshotsPlugins renders Settings › 插件 with a glossary pack and an AI service pack installed, and with two dictionary packs, which move up and down, the details of one open (settings-plugins-dictionaries), the install confirmation of a pack over the main window, as a pack from 从文件安装… or the command line's inbox shows it, and of a site pack with a checkbox for each of its sites (plugins-install-site), the card of a word on the picture that a dictionary pack answered, which names the dictionary and its credit (plugins-lookup), and a Japanese line with readings over its words, a line in the color of their level under the words of a word list and a dashed one under a word in the vocabulary (plugins-marks). The packs are in plugins folders of the fixture's home.
 func TestScreenshotsPlugins(t *testing.T) {
 	f := newScreenshotFixture(t)
 	root := filepath.Join(f.home, "Library", "Application Support", "Kando", "plugins")
@@ -54,6 +54,20 @@ func TestScreenshotsPlugins(t *testing.T) {
 		refresh(tt, a)
 		if !tt.Exists("id:plugins-install-confirm") {
 			t.Fatalf("no confirmation; texts %q", tt.Texts())
+		}
+	})
+	// The confirmation of a site pack, with a checkbox for each of its sites, which the user allows one by one: the first ticked, the second not yet.
+	f.shoot(t, "plugins-install-site", func(t *testing.T, a *app, tt *nsgotest.App, updates chan func()) {
+		a.plugins.root = filepath.Join(f.home, "staging")
+		staged, pack, err := plugins.Stage(a.plugins.root, pluginFolder(t, pluginSite))
+		if err != nil {
+			t.Fatal(err)
+		}
+		a.pluginsAsk(&pluginsPending{pack: pack, staged: staged})
+		a.SetPluginInstallSite("videos.example.org", true)
+		refresh(tt, a)
+		if !tt.Exists("id:plugins-install-confirm") || !tt.Exists("id:plugins-install-site-videos.example.org") || !tt.Exists("id:plugins-install-site-clips.example.net") {
+			t.Fatalf("no confirmation with the sites; texts %q", tt.Texts())
 		}
 	})
 	f.shoot(t, "plugins-lookup", func(t *testing.T, a *app, tt *nsgotest.App, updates chan func()) {

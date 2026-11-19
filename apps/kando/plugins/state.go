@@ -24,11 +24,12 @@ type State struct {
 	off bool
 }
 
-// PluginState is one pack's entry of State.
+// PluginState is one pack's entry of State. Sites are the domains of a site pack the user allowed, each on its own (docs/plugin-system.md 6.2); a file written before them has none, which allows no domain.
 type PluginState struct {
-	ID      string `json:"id"`
-	Hash    string `json:"hash"`
-	Enabled bool   `json:"enabled"`
+	ID      string   `json:"id"`
+	Hash    string   `json:"hash"`
+	Enabled bool     `json:"enabled"`
+	Sites   []string `json:"sites,omitempty"`
 }
 
 // LoadState reads the state.json of the plugins folder root. A missing file is the state of a folder where no pack was ever turned off. A file that cannot be read, is not JSON or has no format (format 0 or less, as a file cut short to {} or edited by hand) is ErrBadState, and one of a newer format ErrStateFormat; either way the state returned has every pack turned off, as such a file may say anything about them. A newer format's state is not written over (Save); a bad one is.
@@ -68,6 +69,25 @@ func (s State) Enabled(id string) bool {
 		}
 	}
 	return true
+}
+
+// Entry is the entry of the pack id, and whether s has one.
+func (s State) Entry(id string) (PluginState, bool) {
+	for _, p := range s.Plugins {
+		if p.ID == id {
+			return p, true
+		}
+	}
+	return PluginState{}, false
+}
+
+// Allowed reports whether the user allowed domain of the site pack id: its entry lists it. A pack without an entry allows none, unlike Enabled, as each domain needs its own consent; so does every pack in a state that could not be read as this format.
+func (s State) Allowed(id, domain string) bool {
+	if s.off {
+		return false
+	}
+	e, ok := s.Entry(id)
+	return ok && slices.Contains(e.Sites, domain)
 }
 
 // Set puts e in s in place of the entry of its id, or after the others.

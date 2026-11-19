@@ -129,6 +129,8 @@ type Job struct {
 	ResumeAt time.Duration
 	// ChapterUse is whether the film is cut at its site's chapters or evenly by time, as the user chose it on the Add sheet before it was downloaded; the download keeps it beside the video with the chapters it finds (media.FilmChapters.Use), where the player reads it. Empty follows the setting 导入平台章节.
 	ChapterUse ChapterUse
+	// PluginSite is the id of the site pack, a plugin, whose site the built-in browser's 下载视频 added the link from; empty for any other job. Its download borrows no browser's sign-in and none of the browser pages' cookies, whatever Cookies says, as which sites a site pack names is a third party's word, not Kando's. It stays when the job is run again.
+	PluginSite string
 }
 
 // CookiesNone is Job.Cookies for a download the user chose to borrow no browser's sign-in for, as the Add sheet's 未登录 does, so the queue does not give it the one Settings › 通用 › 浏览器登录 names as it first runs.

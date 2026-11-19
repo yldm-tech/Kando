@@ -51,6 +51,20 @@ const dictionaryManifest = `{
   "dictionary": {"format": "yomitan-zip", "files": ["jmdict.zip"], "from": ["ja"], "to": ["en"], "attribution": {"en": "JMdict © EDRDG"}}
 }`
 
+// siteManifest is a valid site pack's manifest of two sites.
+const siteManifest = `{
+  "schema": 1,
+  "id": "example.videos",
+  "kind": "site",
+  "version": "1.0.0",
+  "license": "MIT",
+  "name": {"en": "Example videos"},
+  "site": {"sites": [
+    {"domain": "videos.example.org", "not": ["live.videos.example.org"], "videos": [{"path": "^/v/[0-9]+/?$"}, {"path": "^/watch$", "param": "id", "value": "^[0-9]+$"}]},
+    {"domain": "clips.example.net", "videos": [{"path": "^/c/[a-z0-9]{6,12}$"}]}
+  ]}
+}`
+
 // writePack writes a pack folder of files, by name, into a new folder of dir, and returns it.
 func writePack(t *testing.T, files map[string]string) string {
 	t.Helper()

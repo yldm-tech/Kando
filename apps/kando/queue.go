@@ -831,8 +831,8 @@ func (a *app) queueRun(job core.Job) {
 	if job.LibraryDir == "" {
 		job.LibraryDir = a.snap().LibraryDir
 	}
-	// A download that borrows no browser's sign-in of its own, as one a failed card's remedy chose, borrows the one Settings › 通用 › 浏览器登录 names, from its first run, and keeps it on its card, whose remedies name it.
-	if job.Cookies == "" {
+	// A download that borrows no browser's sign-in of its own, as one a failed card's remedy chose, borrows the one Settings › 通用 › 浏览器登录 names, from its first run, and keeps it on its card, whose remedies name it. A link from a site pack's site borrows none (core.Job.PluginSite, queuePipeline).
+	if job.Cookies == "" && job.PluginSite == "" {
 		job.Cookies = a.signinFor(job.Source)
 	}
 	// A link the user chose no picture or original lines for takes those Settings › 通用 › 在线视频 names, from its first run, and keeps them (onlineFor).
@@ -927,13 +927,16 @@ func (a *app) queueRun(job core.Job) {
 // queueProgressEvery is how often at most a running job's progress reaches the window, about ten times a second, which is as often as its card's line and bar can be read.
 const queueProgressEvery = 100 * time.Millisecond
 
-// queuePipeline is the pipeline job runs with: the app's, borrowing the browser login the job names and saving into the job's own library rather than the one open, so a job goes on into its library after another is opened.
+// queuePipeline is the pipeline job runs with: the app's, borrowing the browser login the job names and saving into the job's own library rather than the one open, so a job goes on into its library after another is opened. A job whose link came from a site pack's site (core.Job.PluginSite) borrows no browser's login and none of the browser pages' cookies, whatever its Cookies say, as a remedy may have set them: the pack, not Kando, said the site is one to download from.
 func (a *app) queuePipeline(job core.Job) media.Pipeline {
 	tools, ok := a.pipeline.(media.Tools)
 	if !ok {
 		return a.pipeline
 	}
 	tools.Cookies = job.Browser()
+	if job.PluginSite != "" {
+		tools.Cookies, tools.SiteCookies = "", nil
+	}
 	if job.LibraryDir != "" {
 		tools.OutputDir = job.LibraryDir
 	}

@@ -9,7 +9,7 @@ import (
 	kcore "kando/packages/core"
 )
 
-// PluginDetail is what pack adds, in the words of m, as the 插件 page and the install confirmation say it (PluginRow.Detail, PluginInstall.Detail): a glossary's number of terms and its languages, an AI service's host, which the user's key goes to, a dictionary's languages, a word list's language and number of levels.
+// PluginDetail is what pack adds, in the words of m, as the 插件 page and the install confirmation say it (PluginRow.Detail, PluginInstall.Detail): a glossary's number of terms and its languages, an AI service's host, which the user's key goes to, a dictionary's languages, a word list's language and number of levels, a site pack's number of sites, whose downloads borrow no sign-in.
 func PluginDetail(m locales.Messages, pack plugins.Pack) string {
 	switch {
 	case pack.Glossary != nil:
@@ -20,6 +20,8 @@ func PluginDetail(m locales.Messages, pack plugins.Pack) string {
 		return m.SettingsPluginsDictionaryDetail(pluginLanguageNames(m, pack.Dictionary.From), pluginLanguageNames(m, pack.Dictionary.To))
 	case pack.Wordlist != nil:
 		return m.SettingsPluginsWordlistDetail(pluginLanguageName(m, pack.Wordlist.Language), len(pack.Wordlist.Tiers))
+	case pack.Site != nil:
+		return m.SettingsPluginsSiteDetail(len(pack.Site.Sites))
 	}
 	return ""
 }

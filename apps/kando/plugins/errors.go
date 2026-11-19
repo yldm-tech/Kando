@@ -22,6 +22,10 @@ var (
 	ErrReservedName = errors.New("the pack's name is reserved")
 	// ErrBadField is any other value of the manifest that is not valid, such as a language that is not a language tag.
 	ErrBadField = errors.New("a field of the manifest is not valid")
+	// ErrBadSite is a site of a site pack Kando's browser cannot recognize safely: a domain that is not a host name, or is a public suffix such as com or co.uk, which every site under it shares, or a pattern outside the regular expressions Go and JavaScript read alike, or one that could take a page's script exponential time (kcore.ValidateVideoSite).
+	ErrBadSite = errors.New("a site of the pack is not one Kando can recognize safely")
+	// ErrSiteKnown is a site of a site pack that is, or is under or over, a site Kando knows itself (kcore.VideoSites), whose videos only Kando's own rules decide.
+	ErrSiteKnown = errors.New("the pack names a site Kando knows itself")
 	// ErrInsecureURL is an address that is not https, other than one on this computer (loopback).
 	ErrInsecureURL = errors.New("an address of the pack is not https")
 	// ErrBadShape is a pack whose files are not what its manifest says: a folder in it, a file name that is not plain ASCII, a file it names that is missing, or a file it does not name.
