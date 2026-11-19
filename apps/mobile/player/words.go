@@ -234,7 +234,18 @@ func (w *words) tappable(t core.Text, i int, text string) core.Text {
 // tokens cuts text, a line of the film, into its words, its Japanese and Chinese by dictionary (segment.Words). The dictionary is read in the background the first time a line needs it; read in a binding, the line is cut again once it is.
 func (p *play) tokens(text string) []kcore.WordToken {
 	p.cut.Get()
-	return segment.Words(text, func() { p.cx.Post(func() { p.cut.Set(p.cut.GetUntracked() + 1) }) })
+	return segment.Words(text, p.cutAgain)
+}
+
+// cutAgain has the lines cut again (tokens), once a dictionary is read: segment.Words calls it, on the goroutine that read the dictionary, once for each line cut while it was being read, and those calls make one post.
+func (p *play) cutAgain() {
+	if p.recut.Swap(true) {
+		return
+	}
+	p.cx.Post(func() {
+		p.recut.Store(false)
+		p.cut.Set(p.cut.GetUntracked() + 1)
+	})
 }
 
 // computer is the name of the film's computer, as the sheets say who answers.

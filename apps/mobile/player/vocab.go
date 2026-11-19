@@ -73,8 +73,13 @@ func (p *play) filmWords() []filmWord {
 		}
 		add(filmWord{word: it.Text, tapped: it.Text, entry: sync.WordEntry{Word: it.Text, Reading: it.Reading, Meaning: it.Meaning}, line: line, saved: true})
 	}
+	// Each line is cut once for all the words, as cutting Japanese and Chinese by dictionary takes a while.
+	cut := make([][]kcore.WordToken, len(originals))
+	for i, l := range originals {
+		cut[i] = p.tokens(l)
+	}
 	for i := range out {
-		out[i].count = timesSaid(p.tokens, originals, out[i].tapped, out[i].word)
+		out[i].count = timesSaid(cut, out[i].tapped, out[i].word)
 	}
 	slices.SortStableFunc(out, func(a, b filmWord) int {
 		// A word whose line is gone goes last.
@@ -90,8 +95,8 @@ func (p *play) filmWords() []filmWord {
 	return out
 }
 
-// timesSaid is how many times lines say one of words, in whatever case, each line cut into its words by tokens.
-func timesSaid(tokens func(string) []kcore.WordToken, lines []string, words ...string) int {
+// timesSaid is how many times lines, each cut into its words (play.tokens), say one of words, in whatever case.
+func timesSaid(lines [][]kcore.WordToken, words ...string) int {
 	var keys []string
 	for _, w := range words {
 		if k := kstudy.WordKey(w); k != "" && !slices.Contains(keys, k) {
@@ -100,7 +105,7 @@ func timesSaid(tokens func(string) []kcore.WordToken, lines []string, words ...s
 	}
 	n := 0
 	for _, l := range lines {
-		for _, tok := range tokens(l) {
+		for _, tok := range l {
 			if tok.Word && slices.Contains(keys, kstudy.WordKey(tok.Text)) {
 				n++
 			}
