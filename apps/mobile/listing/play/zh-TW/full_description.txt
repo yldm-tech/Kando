@@ -19,6 +19,6 @@
 重視隱私
 不用註冊帳號，沒有任何追蹤。app 只和你配對過的電腦通訊，走你的區域網路，全程加密，而且只認你配對的那台電腦。
 
-需要一台裝有看懂的電腦（macOS、Windows 或 Linux），桌面版免費開源：github.com/yldm-tech/Kando
+需要一台裝有看懂的電腦（macOS、Windows 或 Linux），桌面版免費、原始碼公開：github.com/yldm-tech/Kando
 
 介面支援繁體中文、简体中文、English、日本語和한국어。

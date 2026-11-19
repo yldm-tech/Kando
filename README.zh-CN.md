@@ -3,7 +3,7 @@
 [![CI](https://github.com/yldm-tech/Kando/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/yldm-tech/Kando/actions/workflows/ci.yml)
 [![Release](https://github.com/yldm-tech/Kando/actions/workflows/release.yml/badge.svg)](https://github.com/yldm-tech/Kando/actions/workflows/release.yml)
 [![Latest release](https://img.shields.io/github/v/release/yldm-tech/Kando?include_prereleases&sort=semver)](https://github.com/yldm-tech/Kando/releases)
-[![License](https://img.shields.io/github/license/yldm-tech/Kando)](LICENSE)
+[![License](https://img.shields.io/badge/license-FSL--1.1--ALv2-blue)](LICENSE.md)
 [![Go](https://img.shields.io/github/go-mod/go-version/yldm-tech/Kando?filename=apps%2Fkando%2Fgo.mod)](go.work)
 [![Platforms](https://img.shields.io/badge/platform-macOS%20%7C%20Linux%20%7C%20Windows-lightgrey)](#install)
 [![GitHub stars](https://img.shields.io/github/stars/yldm-tech/Kando)](https://github.com/yldm-tech/Kando/stargazers)
@@ -325,4 +325,4 @@ go tool nsgo test -target macos -run TestScreenshots -env KANDO_SCREENSHOTS=1 ap
 
 ## 许可证
 
-[MIT](LICENSE)
+[FSL-1.1-ALv2](LICENSE.md)：除了做竞品，可以随意使用、修改和运行；每个版本发布两年后转为 Apache 2.0。2026-11-19 及之前的版本按 MIT 发布（[NOTICE.md](NOTICE.md)）。

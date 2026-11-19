@@ -10,7 +10,7 @@ export const repoURL = "https://github.com/yldm-tech/Kando";
 export const releasesURL = repoURL + "/releases";
 // latestURL redirects to the newest published release, for what has to stay current after a release comes out: the Linux install command and the structured data's download link. Drafts and prereleases are not "latest", so it never lands on a release that 404s for visitors.
 export const latestURL = releasesURL + "/latest";
-export const licenseURL = repoURL + "/blob/main/LICENSE";
+export const licenseURL = repoURL + "/blob/main/LICENSE.md";
 export const issuesURL = repoURL + "/issues";
 export const everyAPIURL = "https://everyapi.ai";
 // readmeBuildURL is the README's Build from source section, where get_download sends a visitor whose system has no build.

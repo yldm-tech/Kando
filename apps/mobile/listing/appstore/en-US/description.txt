@@ -19,6 +19,6 @@ TAKE THEM WITH YOU
 PRIVATE BY DESIGN
 No account and no tracking. The app talks only to the computers you pair it with, over your local network, encrypted and pinned to the computer you paired.
 
-Kando needs Kando on a computer running macOS, Windows or Linux, which is free and open source: github.com/yldm-tech/Kando
+Kando needs Kando on a computer running macOS, Windows or Linux, which is free, with its source code public: github.com/yldm-tech/Kando
 
 Kando speaks English, Simplified Chinese, Traditional Chinese, Japanese and Korean.
