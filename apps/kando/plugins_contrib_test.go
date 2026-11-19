@@ -55,6 +55,11 @@ export async function exportSubtitles(id, cues) {
   return id + "\n" + cues.map((c) => c.startMs + "-" + c.endMs + " " + c.lines.map((l) => l.text).join("/")).join("\n")
 }
 export async function exportNotes(items, settings) {
+  if (items.some((i) => i.original === "fail")) {
+    const e = new Error("Anki is not\u202e running.\nStart it.")
+    e.code = "anki-unreachable"
+    throw e
+  }
   return { sent: items.filter((i) => i.kind === "line").length, skipped: items.filter((i) => i.kind === "word").length }
 }
 export function exportSlow() { return new Promise(() => {}) }
@@ -200,6 +205,18 @@ func TestPluginContribExporter(t *testing.T) {
 		t.Fatalf("the export %+v", e)
 	}
 	wantText(t, tt, testlocale.Messages().SavedExportedPlugin(2, 1, "Anki 发送器"))
+
+	// A plugin that rejects the export on purpose, with a code, says why, cleaned to one line of what can be seen.
+	onEngine(a, func() {
+		a.saved.book.Lines = append(a.saved.book.Lines, study.Line{ID: "l3", Video: "talk/talk.mp4", Original: "fail", Film: "talk"})
+		a.ExportSaved()
+	})
+	scriptsSettle(t, a, tt, updates, func() bool { return a.ExportState().Finished })
+	if e := a.ExportState(); e.Err == "" || e.Reason != "Anki is not running. Start it." {
+		t.Fatalf("a coded failure: %+v", e)
+	}
+	wantText(t, tt, testlocale.Messages().SavedExportPluginFailedReason("Anki 发送器", "Anki is not running. Start it."))
+	onEngine(a, func() { a.saved.book.Lines = a.saved.book.Lines[:len(a.saved.book.Lines)-1] })
 
 	// An export to a plugin that never answers, stopped, says it stopped, not that it sent nothing.
 	onEngine(a, func() {

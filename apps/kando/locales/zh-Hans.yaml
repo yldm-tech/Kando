@@ -2218,6 +2218,7 @@ settingsPluginsCredentialMismatch: "它的名字说是 {service}，却会把密�
 settingsPluginsCredentialUnknown: "看懂不认识这些主机。只有确认它们属于该服务时再填写密钥。"
 savedExportingPlugin: "正在发送到 {name}…"
 savedExportPluginFailed: "{name} 没能接收这些句子。"
+savedExportPluginFailedReason: "{name} 没能接收这些句子：{reason}"
 savedExportedPlugin: "{name}：已发送 {sent} 条，跳过 {skipped} 条。"
 settingsPluginsStoppedInit: "已停用：启动时出错"
 settingsPluginsStoppedFailed: "已停用：多次出错"

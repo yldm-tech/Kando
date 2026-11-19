@@ -177,3 +177,19 @@ func TestRiskyContributions(t *testing.T) {
 		t.Error("risky")
 	}
 }
+
+// TestReason checks what Kando shows of why a plugin rejected a call: one line, its spaces collapsed, nothing invisible or reordering the text, cut at 200 characters.
+func TestReason(t *testing.T) {
+	for in, want := range map[string]string{
+		"Anki is not running.":                     "Anki is not running.",
+		"  Anki\r\nis \u202enot\u200b\trunning.  ": "Anki is not running.",
+		"": "",
+	} {
+		if got := Reason(in); got != want {
+			t.Errorf("Reason(%q) = %q, want %q", in, got, want)
+		}
+	}
+	if got := Reason(strings.Repeat("猫", 300)); got != strings.Repeat("猫", 199)+"…" {
+		t.Errorf("a long reason is %d characters", len([]rune(got)))
+	}
+}

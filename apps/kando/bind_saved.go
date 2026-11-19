@@ -11,6 +11,7 @@ import (
 	"kando/apps/kando/film"
 	"kando/apps/kando/films"
 	"kando/apps/kando/live"
+	"kando/apps/kando/plugins"
 	"kando/apps/kando/saved"
 	"kando/apps/kando/settings"
 	"kando/apps/kando/study"
@@ -171,6 +172,11 @@ func (a *app) ExportState() study.Export {
 		out.Stopped = true
 	case e.err != nil:
 		out.Err = e.err.Error()
+		// A plugin that rejected the export with a code did it on purpose, saying why (core.Error); anything else is Kando's or the runtime's error, which is not the user's to read.
+		var coded *core.Error
+		if e.plugin != "" && errors.As(e.err, &coded) && coded.Code != "" {
+			out.Reason = plugins.Reason(coded.Message)
+		}
 	}
 	return out
 }

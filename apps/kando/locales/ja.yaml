@@ -2220,6 +2220,7 @@ settingsPluginsCredentialMismatch: "名前は {service} ですが、{service} �
 settingsPluginsCredentialUnknown: "Kando はこれらのホストを知りません。そのサービス自身のものだと確かめてからキーを入力してください。"
 savedExportingPlugin: "{name} に送信しています…"
 savedExportPluginFailed: "{name} はセリフを受け取れませんでした。"
+savedExportPluginFailedReason: "{name} はセリフを受け取れませんでした：{reason}"
 savedExportedPlugin: "{name}：{sent} 件送信、{skipped} 件スキップしました。"
 settingsPluginsStoppedInit: "オフにしました：起動時にエラー"
 settingsPluginsStoppedFailed: "オフにしました：エラーが多すぎます"

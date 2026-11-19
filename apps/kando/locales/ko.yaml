@@ -2220,6 +2220,7 @@ settingsPluginsCredentialMismatch: "이름은 {service}이지만 {service}의 �
 settingsPluginsCredentialUnknown: "Kando가 모르는 호스트입니다. 해당 서비스의 것이 확실할 때만 키를 입력하세요."
 savedExportingPlugin: "{name}(으)로 보내는 중…"
 savedExportPluginFailed: "{name}에서 대사를 받지 못했습니다."
+savedExportPluginFailedReason: "{name}에서 대사를 받지 못했습니다: {reason}"
 savedExportedPlugin: "{name}: {sent}개 보냄, {skipped}개 건너뜀."
 settingsPluginsStoppedInit: "꺼짐: 시작할 때 오류"
 settingsPluginsStoppedFailed: "꺼짐: 오류가 너무 많음"

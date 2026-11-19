@@ -64,6 +64,8 @@ type Export struct {
 	// Plugin is the name of the script plugin the export sends the lines to, "" for a file; Sent and Skipped are what it answered it sent and skipped.
 	Plugin        string
 	Sent, Skipped int
+	// Reason is why the plugin's target failed, as the plugin said it rejecting the export on purpose (plugins.Reason), "" when it did not say.
+	Reason string
 }
 
 // ExportTarget is a way the saved lines can be exported: ID "" for Kando's own Anki notes, else the export-template plugin's id; Label is what the sheet calls it, in the interface's language.
@@ -197,6 +199,8 @@ func exportStatus(cx *core.Scope, export func() Export) core.Node {
 			return locales.SavedExportStopped(cx)
 		case e.Busy && e.Plugin != "":
 			return locales.SavedExportingPlugin(cx, e.Plugin)
+		case e.Plugin != "" && e.Finished && e.Err != "" && e.Reason != "":
+			return locales.SavedExportPluginFailedReason(cx, e.Plugin, e.Reason)
 		case e.Plugin != "" && e.Finished && e.Err != "":
 			return locales.SavedExportPluginFailed(cx, e.Plugin)
 		case e.Plugin != "" && e.Finished:

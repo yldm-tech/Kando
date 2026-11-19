@@ -7968,6 +7968,12 @@ savedExportPluginFailed:
   description: "Saved Lines sheet, once an export to a script plugin's target failed."
   placeholders:
     name: { type: "String", example: "AnkiConnect" }
+savedExportPluginFailedReason:
+  message: "{name} could not take the lines: {reason}"
+  description: "Saved Lines sheet, once an export to a script plugin's target failed and the plugin said why; reason is the plugin's own words, often in English, such as that Anki is not running."
+  placeholders:
+    name: { type: "String", example: "AnkiConnect" }
+    reason: { type: "String", example: "Anki is not running, or the AnkiConnect add-on is not installed." }
 savedExportedPlugin:
   message: "{name}: {sent, plural, one {sent #} other {sent #}}, {skipped, plural, one {skipped #} other {skipped #}}."
   description: "Saved Lines sheet, once an export to a script plugin's target is done: how many items it sent and how many it skipped, as the plugin answered."

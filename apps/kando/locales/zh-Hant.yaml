@@ -2220,6 +2220,7 @@ settingsPluginsCredentialMismatch: "它的名稱說是 {service}，卻會把金�
 settingsPluginsCredentialUnknown: "看懂不認識這些主機。只有確認它們屬於該服務時再填寫金鑰。"
 savedExportingPlugin: "正在傳送到 {name}…"
 savedExportPluginFailed: "{name} 沒能接收這些句子。"
+savedExportPluginFailedReason: "{name} 沒能接收這些句子：{reason}"
 savedExportedPlugin: "{name}：已傳送 {sent} 則，略過 {skipped} 則。"
 settingsPluginsStoppedInit: "已停用：啟動時出錯"
 settingsPluginsStoppedFailed: "已停用：多次出錯"

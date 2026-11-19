@@ -1041,6 +1041,7 @@ var Parameters = map[string][]string{
 	"SettingsPluginsCredentialMismatch":        {"service"},
 	"SavedExportingPlugin":                     {"name"},
 	"SavedExportPluginFailed":                  {"name"},
+	"SavedExportPluginFailedReason":            {"name", "reason"},
 	"SavedExportedPlugin":                      {"sent", "skipped", "name"},
 	"PluginsOpenURLTitle":                      {"host"},
 	"PluginsOpenURLMessage":                    {"plugin", "url"},
@@ -1728,6 +1729,7 @@ type Translation struct {
 	SettingsPluginsCredentialMismatch        func(service string) string
 	SavedExportingPlugin                     func(name string) string
 	SavedExportPluginFailed                  func(name string) string
+	SavedExportPluginFailedReason            func(name string, reason string) string
 	SavedExportedPlugin                      func(sent int, skipped int, name string) string
 	PluginsOpenURLTitle                      func(host string) string
 	PluginsOpenURLMessage                    func(plugin string, url string) string
@@ -24809,6 +24811,9 @@ func Supply(lang string, t Translation) {
 	}
 	if t.SavedExportPluginFailed != nil {
 		s.SavedExportPluginFailed = t.SavedExportPluginFailed
+	}
+	if t.SavedExportPluginFailedReason != nil {
+		s.SavedExportPluginFailedReason = t.SavedExportPluginFailedReason
 	}
 	if t.SavedExportedPlugin != nil {
 		s.SavedExportedPlugin = t.SavedExportedPlugin
@@ -61527,6 +61532,38 @@ func (msgs Messages) SavedExportPluginFailed(name string) string {
 			return name + " 没能接收这些句子。"
 		case "zh-Hant":
 			return name + " 沒能接收這些句子。"
+		}
+	}
+}
+
+// SavedExportPluginFailedReason says "{name} could not take the lines: {reason}"
+// in the language the app shows under cx.
+//
+// Saved Lines sheet, once an export to a script plugin's target failed and the plugin said why; reason is the plugin's own words, often in English, such as that Anki is not running.
+func SavedExportPluginFailedReason(cx *core.Scope, name string, reason string) string {
+	return For(cx).SavedExportPluginFailedReason(name, reason)
+}
+
+// SavedExportPluginFailedReason is the package's SavedExportPluginFailedReason in the language of msgs.
+func (msgs Messages) SavedExportPluginFailedReason(name string, reason string) string {
+	if i18n.IsPseudo(msgs.lang) {
+		return i18n.Pseudo(msgs.lang, Messages{lang: Source, mark: true}.SavedExportPluginFailedReason(name, reason))
+	}
+	for lang := msgs.lang; ; lang = i18n.Parent(lang) {
+		if f := supplied[lang].SavedExportPluginFailedReason; f != nil {
+			return f(name, reason)
+		}
+		switch lang {
+		case "", "en":
+			return msgs.arg(name) + " could not take the lines: " + msgs.arg(reason)
+		case "ja":
+			return name + " はセリフを受け取れませんでした：" + reason
+		case "ko":
+			return name + "에서 대사를 받지 못했습니다: " + reason
+		case "zh-Hans":
+			return name + " 没能接收这些句子：" + reason
+		case "zh-Hant":
+			return name + " 沒能接收這些句子：" + reason
 		}
 	}
 }

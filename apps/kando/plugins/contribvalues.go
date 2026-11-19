@@ -1,8 +1,23 @@
 package plugins
 
 import (
+	"strings"
+	"unicode/utf8"
+
 	kcore "kando/packages/core"
 )
+
+// reasonMax is the most characters of a plugin's reason Kando shows.
+const reasonMax = 200
+
+// Reason is what a script plugin said, rejecting a call on purpose with a coded error, as Kando shows it under the plugin's name, such as why its export target could not take the lines ("Anki is not running…"): on one line, its spaces collapsed, without invisible or control characters, at most reasonMax characters. It is the plugin's own text, in the plugin's words, which a toast of its (kando.toast) could show as well.
+func Reason(message string) string {
+	s := strings.Join(strings.Fields(cleanText(strings.NewReplacer("\r", " ", "\n", " ").Replace(message), false)), " ")
+	if utf8.RuneCountInString(s) > reasonMax {
+		s = string([]rune(s)[:reasonMax-1]) + "…"
+	}
+	return s
+}
 
 // SubtitlesMax is the most bytes of a file a subtitle format of a script plugin may return.
 const SubtitlesMax = 8 << 20
