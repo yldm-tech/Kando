@@ -40,6 +40,8 @@ type Library struct {
 	Names map[string]string
 	// Locks is the password of each library that has one, by the library folder's cleaned path (Lock). library.json is the machine's, so the lock stays with the library on this machine, follows it when its folder is renamed in Finder (MoveLock), and stays when the library is taken off the list.
 	Locks map[string]Lock
+	// Stored is where the video at each path lives when it was moved out of the library's folder to a storage location (Stored), by the path it had there, which the film is still known by: its subtitles and the other files beside it stay in the folder, named after it. A title kept here follows its video's path when the folder moves (MoveVideos).
+	Stored map[string]Stored
 	// unread is why Load could not read the file in full. While it is set Save does not write, as the file may hold jobs this library lacks; AllowSave clears it once a copy of the file is kept.
 	unread error
 }
@@ -70,7 +72,7 @@ func (l Library) Path() string { return l.path }
 
 // Load reads the library at path. A missing file is an empty library. A file that is there but cannot be read is empty too, and the error says why. A file that is not a library in full returns a *DamagedError with the file's bytes, and the library keeps what could be read: a value of another type leaves only that field out, as encoding/json goes on with the rest, and a file that is not JSON at all reads as empty. After either error Save returns ErrUnread rather than write over the file, until AllowSave. A job the app was still working on when it quit is read back as queued, so the queue runs it again from the start. A file written before positions were kept, a bare list of jobs, still reads.
 func Load(path string) (Library, error) {
-	lib := Library{path: path, Positions: map[string]time.Duration{}, Furthest: map[string]time.Duration{}, Played: map[string]time.Time{}, Delays: map[string]time.Duration{}, Lifts: map[string]float32{}, Names: map[string]string{}, Locks: map[string]Lock{}}
+	lib := Library{path: path, Positions: map[string]time.Duration{}, Furthest: map[string]time.Duration{}, Played: map[string]time.Time{}, Delays: map[string]time.Duration{}, Lifts: map[string]float32{}, Names: map[string]string{}, Locks: map[string]Lock{}, Stored: map[string]Stored{}}
 	data, err := os.ReadFile(path)
 	if err != nil {
 		if errors.Is(err, os.ErrNotExist) {
@@ -133,11 +135,35 @@ func Load(path string) (Library, error) {
 			lib.Locks[filepath.Clean(dir)] = lock
 		}
 	}
+	// A record without a location or a path says nothing of where the video is, and is dropped.
+	for path, at := range stored.Stored {
+		if at.Location = strings.TrimSpace(at.Location); path != "" && at.Location != "" && at.Path != "" {
+			lib.Stored[path] = Stored{Location: at.Location, Path: at.Path, Size: max(at.Size, 0), Duration: time.Duration(max(at.DurationMs, 0)) * time.Millisecond, Moved: at.Moved}
+		}
+	}
 	if err != nil {
 		lib.unread = err
 		return lib, &DamagedError{Data: data, Err: err}
 	}
 	return lib, nil
+}
+
+// Stored is a video moved to a storage location: the location's ID (a NAS location of the settings, or an object store, "store:" and its kind), its path there, relative to the location's folder and slash-separated, its size in bytes, which a copy is checked against, how long it plays, 0 when that was not known, and when it moved.
+type Stored struct {
+	Location string
+	Path     string
+	Size     int64
+	Duration time.Duration
+	Moved    time.Time
+}
+
+// storedVideo is a Stored in library.json, its length in milliseconds.
+type storedVideo struct {
+	Location   string    `json:"location"`
+	Path       string    `json:"path"`
+	Size       int64     `json:"size,omitempty"`
+	DurationMs int64     `json:"durationMs,omitempty"`
+	Moved      time.Time `json:"moved,omitzero"`
 }
 
 // Unread is why Load could not read the file in full while Save does not write it (ErrUnread), nil once it may.
@@ -195,7 +221,8 @@ func (l *Library) MoveVideos(move func(path string) (string, bool)) bool {
 	delays := MoveKeys(l.Delays, move)
 	lifts := MoveKeys(l.Lifts, move)
 	names := MoveKeys(l.Names, move)
-	return positions || furthest || played || delays || lifts || names
+	stored := MoveKeys(l.Stored, move)
+	return positions || furthest || played || delays || lifts || names || stored
 }
 
 // MoveKeys keys what m holds for each video that moved, by path, under the new path move gives for it. It reports whether any moved.
@@ -277,6 +304,12 @@ func (l Library) Save() error {
 	if len(l.Locks) > 0 {
 		stored.Locks = maps.Clone(l.Locks)
 	}
+	for path, at := range l.Stored {
+		if stored.Stored == nil {
+			stored.Stored = map[string]storedVideo{}
+		}
+		stored.Stored[path] = storedVideo{Location: at.Location, Path: at.Path, Size: at.Size, DurationMs: at.Duration.Milliseconds(), Moved: at.Moved}
+	}
 	data, err := json.MarshalIndent(stored, "", "  ")
 	if err != nil {
 		return err
@@ -289,16 +322,17 @@ func (l Library) Save() error {
 	return os.Rename(tmp, l.path)
 }
 
-// storedLibrary is library.json. Positions, Furthest and Delays are in seconds; Played is Library.Played, as RFC 3339 times; Lifts, Names and Locks are Library.Lifts, Library.Names and Library.Locks.
+// storedLibrary is library.json. Positions, Furthest and Delays are in seconds; Played is Library.Played, as RFC 3339 times; Lifts, Names, Locks and Stored are Library.Lifts, Library.Names, Library.Locks and Library.Stored. A field added later is left out when empty, so an older Kando reads the file as it did; one that does not know Stored drops it on its next save, and the moved videos' films then lose where their videos are.
 type storedLibrary struct {
-	Jobs      []storedJob          `json:"jobs"`
-	Positions map[string]float64   `json:"positions,omitempty"`
-	Furthest  map[string]float64   `json:"furthest,omitempty"`
-	Played    map[string]time.Time `json:"played,omitempty"`
-	Delays    map[string]float64   `json:"delays,omitempty"`
-	Lifts     map[string]float32   `json:"lifts,omitempty"`
-	Names     map[string]string    `json:"names,omitempty"`
-	Locks     map[string]Lock      `json:"locks,omitempty"`
+	Jobs      []storedJob            `json:"jobs"`
+	Positions map[string]float64     `json:"positions,omitempty"`
+	Furthest  map[string]float64     `json:"furthest,omitempty"`
+	Played    map[string]time.Time   `json:"played,omitempty"`
+	Delays    map[string]float64     `json:"delays,omitempty"`
+	Lifts     map[string]float32     `json:"lifts,omitempty"`
+	Names     map[string]string      `json:"names,omitempty"`
+	Locks     map[string]Lock        `json:"locks,omitempty"`
+	Stored    map[string]storedVideo `json:"stored,omitempty"`
 }
 
 type storedJob struct {
