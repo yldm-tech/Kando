@@ -140,3 +140,17 @@ func (d Doc) File(name string) (Event, bool) {
 func (d Doc) Done(gen string) bool {
 	return slices.ContainsFunc(d.Events, func(e Event) bool { return e.Kind == KindDone && e.Gen == gen })
 }
+
+// Lease is how long a device's log must go without a record before another device goes on with a generation it began and did not finish: until then it may still be making it.
+const Lease = 10 * time.Minute
+
+// Idle reports whether device's log has had no record for Lease as of now, or has none.
+func (d Doc) Idle(device string, now time.Time) bool {
+	last := int64(0)
+	for _, e := range d.Events {
+		if e.Device == device {
+			last = max(last, e.At)
+		}
+	}
+	return now.UnixMilli()-last >= Lease.Milliseconds()
+}

@@ -913,3 +913,45 @@ func TestAnEditOutsideKandoWhileAFilmIsMadeIsKept(t *testing.T) {
 		t.Fatalf("the transcript was written over: %s", data)
 	}
 }
+
+// Two computers sharing a library: one goes on with a film the other began and did not finish only once the other's log has had no record for track.Lease, as the other may still be making it; until then it makes a generation of its own.
+func TestMakeLeavesAnotherDevicesMakingToItWhileItWrites(t *testing.T) {
+	for _, tc := range []struct {
+		name  string
+		since time.Duration
+		gens  int
+	}{
+		{"the other device wrote a minute ago", time.Minute, 2},
+		{"the other device has written nothing for the lease", track.Lease + time.Minute, 1},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			job, video := makeJob(t)
+			job.SpeechLanguage = "ja"
+			ctx, stop := context.WithCancel(context.Background())
+			f := &makeFilm{length: 90 * time.Second, language: "ja", translate: func(string) (string, error) {
+				stop()
+				return "", context.Canceled
+			}}
+			track.Now = func() time.Time { return time.Now().Add(-tc.since) }
+			stopped := Make(ctx, f, job, "简体中文", "studio", From(0), func(core.Job) {})
+			track.Now = time.Now
+			if stopped.Stage != core.StageFailed {
+				t.Fatalf("stopped %+v", stopped)
+			}
+			f.translate = nil
+			if done, _ := makeFilmOf(t, f, job, 0); done.Stage != core.StageComplete {
+				t.Fatalf("done %+v", done)
+			}
+			doc, _ := track.Read(video)
+			gens := 0
+			for _, e := range doc.Events {
+				if e.Kind == track.KindGen {
+					gens++
+				}
+			}
+			if gens != tc.gens {
+				t.Fatalf("%d generations, want %d", gens, tc.gens)
+			}
+		})
+	}
+}

@@ -279,3 +279,15 @@ func TestARedoNotDoneDoesNotTakeTheFirstMakingsPlace(t *testing.T) {
 		t.Fatalf("the film shows %+v, want the first making's lines", got)
 	}
 }
+
+// A device's log is idle once it has had no record for Lease; a device with no log is idle.
+func TestADeviceIsIdleOnceItsLogHasNoRecordForTheLease(t *testing.T) {
+	clock(t)
+	path := video(t)
+	mustAppend(t, path, "studio", Event{Kind: KindGen, Gen: NewID(), Source: "make"})
+	doc := mustRead(t, path)
+	last := time.Date(2026, 11, 19, 9, 0, 0, 0, time.UTC).Add(2 * time.Millisecond)
+	if doc.Idle("studio", last.Add(Lease-time.Millisecond)) || !doc.Idle("studio", last.Add(Lease)) || !doc.Idle("mac", last) {
+		t.Fatal("idle is not told by the last record and the lease")
+	}
+}

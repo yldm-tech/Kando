@@ -692,11 +692,11 @@ func (m *making) fail(step string, err error) core.Job {
 	return *m.job
 }
 
-// generation is the generation the making makes, which names the speech model it is heard by (Key): the one an earlier run began and did not finish, or a new one. A redo goes on with one only when it was heard by the same model, as a redo is the film heard anew by the model set now; a first making goes on with whatever its earlier run heard, but never with the copy a film translated again made of its lines (copyGeneration), whose cells were not heard at all.
+// generation is the generation the making makes, which names the speech model it is heard by (Key): the one an earlier run began and did not finish, or a new one. A redo goes on with one only when it was heard by the same model, as a redo is the film heard anew by the model set now; a first making goes on with whatever its earlier run heard, but never with the copy a film translated again made of its lines (copyGeneration), whose cells were not heard at all. Neither goes on with one another device began while that device may still be making it (mayResume).
 func (m *making) generation(model string) (string, error) {
 	var open track.Event
 	for _, e := range m.doc.Events {
-		if e.Kind != track.KindGen || e.Source != makeSource || m.doc.Done(e.Gen) || strings.HasPrefix(e.Key, copyHearing+" ") {
+		if e.Kind != track.KindGen || e.Source != makeSource || m.doc.Done(e.Gen) || strings.HasPrefix(e.Key, copyHearing+" ") || !m.mayResume(e) {
 			continue
 		}
 		// A redo that gave up a part of the film failed for it (run), and is begun again rather than gone on with, which would fail at once.
@@ -1143,7 +1143,7 @@ func (m *making) copyGeneration(length time.Duration) (string, error) {
 	from := m.doc.Shown()
 	key := copyHearing + " " + from
 	for _, e := range m.doc.Events {
-		if e.Kind == track.KindGen && e.Source == makeSource && e.Key == key && !m.doc.Done(e.Gen) {
+		if e.Kind == track.KindGen && e.Source == makeSource && e.Key == key && !m.doc.Done(e.Gen) && m.mayResume(e) {
 			return e.Gen, nil
 		}
 	}
@@ -1160,6 +1160,11 @@ func (m *making) copyGeneration(length time.Duration) (string, error) {
 		events = append(events, track.Unit{Work: track.WorkHear, Gen: gen, Cell: c, Key: copyHearing}.Made())
 	}
 	return gen, m.append(events...)
+}
+
+// mayResume reports whether the making may go on with gen, a generation begun and not done: one this device began, or one another device began whose log has had no record for track.Lease, so two computers sharing a library do not make one generation at once, each writing its own lines into it.
+func (m *making) mayResume(gen track.Event) bool {
+	return gen.Device == m.device || m.doc.Idle(gen.Device, track.Now())
 }
 
 // heardIn is how generation gen's cells were heard, as their records name it (track.Making.Hearing): the language, or "auto" for a film whose language the speech recognition did not say; "" when no cell is heard yet.
