@@ -27,6 +27,9 @@ func init() {
 // OfficialRoot is the public key of Kando's plugin root, kept offline, which certifies the official release key for ai.yldm.kando.plugin.kando.* (docs/plugin-system.md 6.4, 15).
 const OfficialRoot = "lGuPTFQh1ONLAwOz71PTtGYNDCJvNf3cHQXgg7tvZNk="
 
+// IndexKey is the public key the community plugin index is signed with (plugins/index), apart from OfficialRoot, which certifies release keys and signs revocation lists: the base64 of an Ed25519 public key, as `go tool nsgo keygen` prints it. Empty, Kando reports the index as not configured and never asks for it. It holds OfficialRoot's value until a key of its own is made for it.
+const IndexKey = OfficialRoot
+
 // AppIDPrefix is what a script plugin's app ID is: AppIDPrefix and its id, so the publisher segment of its id is the one its certificate covers.
 const AppIDPrefix = "ai.yldm.kando.plugin."
 
