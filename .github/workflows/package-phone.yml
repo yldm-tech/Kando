@@ -1,8 +1,15 @@
 name: Package (phone)
 
-# Builds the phone app (apps/mobile) for the stores with nsgo build (go tool nsgo, the version apps/mobile/go.mod pins) and keeps the packages as the run's artifact kando-phone: the iOS app's IPA and the Android App Bundle, with a checksums-phone.txt of their SHA-256. It checks that the phone app packages for the stores before any account, certificate or upload key exists (#227), so it runs by hand only (Actions › Package (phone) › Run workflow) and publishes nothing. Neither file can be uploaded yet: the IPA is unsigned, as App Store Connect takes one signed with the team's App Store provisioning profile (nsgo.yaml's sign.profile), and the App Bundle is signed with the project's debug key, as Play Console takes one signed with the upload key (sign.keystore, with NSGO_KEYSTORE_PASSWORD and NSGO_KEY_PASSWORD).
+# Builds the phone app (apps/mobile) for the stores with nsgo build (go tool nsgo, the version apps/mobile/go.mod pins) and keeps the packages as the run's artifact kando-phone: the iOS app's IPA and the Android App Bundle, with a checksums-phone.txt of their SHA-256. It runs by hand only (Actions › Package (phone) › Run workflow). A plain run publishes nothing: the IPA is unsigned and the App Bundle is signed with the project's debug key, which checks that the phone app still packages for the stores. A run with testflight checked signs the IPA with the team's Apple Distribution certificate and the App Store provisioning profiles of the app and its widget extension, and uploads it to App Store Connect, where it reaches TestFlight's internal testers once Apple has processed it (#227). The App Bundle is still signed with the debug key, as Play Console takes one signed with the upload key (sign.keystore, with NSGO_KEYSTORE_PASSWORD and NSGO_KEY_PASSWORD), which does not exist yet.
+#
+# Every run numbers its packages with the workflow's run number (-build-number, CFBundleVersion and Android's versionCode), since App Store Connect and Google Play take each upload of a version only with a build number greater than the last one's, and the run number only grows.
 on:
   workflow_dispatch:
+    inputs:
+      testflight:
+        description: Sign the IPA for the App Store and upload it to TestFlight
+        type: boolean
+        default: false
 
 jobs:
   build:
@@ -29,16 +36,59 @@ jobs:
             ~/.cache/go-build
           key: go-${{ runner.os }}-mobile-${{ hashFiles('go.work.sum', '**/go.sum') }}
           restore-keys: go-${{ runner.os }}-mobile-
+      # A TestFlight run signs the IPA. The Apple Distribution certificate goes into a keychain of the job's own, which codesign finds on the user's keychain list and nsgo build picks from by the profile's certificate; its file is deleted at once. The profiles of the app (ai.yldm.kando.mobile) and of its widget extension (ai.yldm.kando.mobile.widgets) both grant the app group group.ai.yldm.kando.mobile, which the app shares with its widgets and nsgo build checks for. nsgo build takes the app's profile from -profile but the extension's only from nsgo.yaml's sign.widgets_profile, so the step adds a sign section to the runner's copy of nsgo.yaml, which keeps no signing of its own, naming both profiles.
+      # TODO(nsgo): nsgo build has no flag for sign.widgets_profile as it has -profile for sign.profile; pass the extension's profile with a flag once there is one, and leave nsgo.yaml alone.
+      - name: Import the distribution certificate and the profiles
+        id: signing
+        if: inputs.testflight
+        env:
+          IOS_DISTRIBUTION_P12: ${{ secrets.IOS_DISTRIBUTION_P12 }}
+          IOS_DISTRIBUTION_P12_PASSWORD: ${{ secrets.IOS_DISTRIBUTION_P12_PASSWORD }}
+          IOS_APPSTORE_PROFILE: ${{ secrets.IOS_APPSTORE_PROFILE }}
+          IOS_WIDGETS_APPSTORE_PROFILE: ${{ secrets.IOS_WIDGETS_APPSTORE_PROFILE }}
+        run: |
+          for name in IOS_DISTRIBUTION_P12 IOS_DISTRIBUTION_P12_PASSWORD IOS_APPSTORE_PROFILE IOS_WIDGETS_APPSTORE_PROFILE; do
+            if [ -z "${!name}" ]; then
+              echo "::error::The $name secret is not set, so the IPA cannot be signed for the App Store."
+              exit 1
+            fi
+          done
+          keychain="$RUNNER_TEMP/signing.keychain-db"
+          password="$(openssl rand -base64 24)"
+          security create-keychain -p "$password" "$keychain"
+          security set-keychain-settings -lut 21600 "$keychain"
+          security unlock-keychain -p "$password" "$keychain"
+          printf '%s' "$IOS_DISTRIBUTION_P12" | base64 --decode > "$RUNNER_TEMP/distribution.p12"
+          security import "$RUNNER_TEMP/distribution.p12" -k "$keychain" -P "$IOS_DISTRIBUTION_P12_PASSWORD" -T /usr/bin/codesign
+          rm "$RUNNER_TEMP/distribution.p12"
+          security set-key-partition-list -S apple-tool:,apple: -s -k "$password" "$keychain" >/dev/null
+          # shellcheck disable=SC2046 # one argument per keychain path
+          security list-keychains -d user -s "$keychain" $(security list-keychains -d user | xargs)
+          if ! security find-identity -v -p codesigning "$keychain" | grep -qF '"Apple Distribution: YLDM Co., Ltd. (LXCL4Z68GU)"'; then
+            echo "::error::IOS_DISTRIBUTION_P12 does not hold the team's Apple Distribution identity."
+            exit 1
+          fi
+          profiles="$RUNNER_TEMP/profiles"
+          mkdir "$profiles"
+          printf '%s' "$IOS_APPSTORE_PROFILE" | base64 --decode > "$profiles/AppStore.mobileprovision"
+          printf '%s' "$IOS_WIDGETS_APPSTORE_PROFILE" | base64 --decode > "$profiles/Widgets.mobileprovision"
+          printf '\nsign:\n  profile: %s\n  widgets_profile: %s\n' "$profiles/AppStore.mobileprovision" "$profiles/Widgets.mobileprovision" >> apps/mobile/nsgo.yaml
+          echo "keychain=$keychain" >> "$GITHUB_OUTPUT"
       # Each target is built into a folder of its own. The App Bundle is Google Play's package, which the store channel makes in place of an APK. The IPA is the App Store's whatever the channel, so its build takes none: on the store channel the app would also ask the App Store for a newer version, which it does not do today.
       # The store tag leaves Browse out of the store packages (browse.Available; nsgo.yaml says why), as every build for the App Store or Google Play does.
       - name: Build
         env:
           GOFLAGS: -tags=store
+          BUILD_NUMBER: ${{ github.run_number }}
         run: |
-          go tool nsgo build -target ios -output "$RUNNER_TEMP/ios" apps/mobile
-          go tool nsgo build -target android_arm64 -channel store -output "$RUNNER_TEMP/android" apps/mobile
-      # One IPA and one App Bundle, the IPA carrying the app's ID, its icon and the local network usage description iOS asks with.
+          go tool nsgo build -target ios -build-number "$BUILD_NUMBER" -output "$RUNNER_TEMP/ios" apps/mobile
+          go tool nsgo build -target android_arm64 -channel store -build-number "$BUILD_NUMBER" -output "$RUNNER_TEMP/android" apps/mobile
+      # One IPA and one App Bundle, the IPA carrying the app's ID, the run's build number, its icon and the local network usage description iOS asks with. A signed IPA's app and widget extension must also carry valid signatures, each with its App Store profile embedded.
       - name: Collect the packages
+        id: collect
+        env:
+          BUILD_NUMBER: ${{ github.run_number }}
+          SIGNED: ${{ inputs.testflight }}
         run: |
           shopt -s nullglob
           ipas=("$RUNNER_TEMP"/ios/releases/*-ios.ipa)
@@ -52,6 +102,16 @@ jobs:
           test "$(plutil -extract CFBundleIdentifier raw "$plist")" = ai.yldm.kando.mobile
           plutil -extract NSLocalNetworkUsageDescription raw "$plist" >/dev/null
           plutil -extract CFBundleIcons xml1 -o /dev/null "$plist"
+          test "$(plutil -extract CFBundleVersion raw "$plist")" = "$BUILD_NUMBER"
+          if [ "$SIGNED" = true ]; then
+            app=$(dirname "$plist")
+            codesign --verify --deep --strict --verbose=2 "$app"
+            for bundle in "$app" "$app"/PlugIns/*.appex; do
+              test -f "$bundle/embedded.mobileprovision"
+              codesign -dvv "$bundle" 2>&1 | grep -F "Authority=Apple Distribution: YLDM Co., Ltd. (LXCL4Z68GU)"
+            done
+          fi
+          echo "ipa=${ipas[0]}" >> "$GITHUB_OUTPUT"
           out=$RUNNER_TEMP/out
           mkdir "$out"
           cp -- "${ipas[0]}" "${aabs[0]}" "$out/"
@@ -66,3 +126,31 @@ jobs:
           path: ${{ runner.temp }}/out/
           retention-days: 7
           if-no-files-found: error
+      # The upload goes through asc, the App Store Connect CLI, pinned to a release whose checksum is checked before it runs, with the team's App Store Connect API key, the one the Package workflow notarizes with. --app takes the bundle ID, which names the app record. The upload commits the IPA and watches a couple of minutes for Apple refusing it at once; processing takes longer, after which the build shows in TestFlight for the internal testers.
+      - name: Upload to TestFlight
+        if: inputs.testflight
+        env:
+          ASC_VERSION: 5.3.4
+          ASC_SHA256: d4a3004973d601119801b30959c52d5fc289910ce294429c01aa63c2982570ba
+          ASC_KEY_ID: ${{ secrets.APPSTORE_API_KEY_ID }}
+          ASC_ISSUER_ID: ${{ secrets.APPSTORE_API_ISSUER_ID }}
+          ASC_PRIVATE_KEY_B64: ${{ secrets.APPSTORE_API_KEY_P8 }}
+          ASC_BYPASS_KEYCHAIN: "1"
+          IPA: ${{ steps.collect.outputs.ipa }}
+        run: |
+          for name in ASC_KEY_ID ASC_ISSUER_ID ASC_PRIVATE_KEY_B64; do
+            if [ -z "${!name}" ]; then
+              echo "::error::The App Store Connect API key's $name is not set, so the IPA cannot be uploaded."
+              exit 1
+            fi
+          done
+          asc="$RUNNER_TEMP/asc"
+          curl -fsSL -o "$asc" "https://github.com/rudrankriyam/App-Store-Connect-CLI/releases/download/$ASC_VERSION/asc_${ASC_VERSION}_macOS_arm64"
+          echo "$ASC_SHA256  $asc" | shasum -a 256 -c -
+          chmod +x "$asc"
+          "$asc" builds upload --app ai.yldm.kando.mobile --ipa "$IPA" --verify-timeout 2m --output table
+      - name: Remove the signing keychain
+        if: always() && steps.signing.outputs.keychain != ''
+        env:
+          KEYCHAIN: ${{ steps.signing.outputs.keychain }}
+        run: security delete-keychain "$KEYCHAIN"
