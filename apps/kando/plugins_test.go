@@ -115,6 +115,24 @@ func pluginInstalled(t *testing.T, root string, manifests ...string) {
 	}
 }
 
+// pluginInstalledWith installs into root the pack of manifest with its files (name to content), as an install the user confirmed would.
+func pluginInstalledWith(t *testing.T, root, manifest string, files map[string][]byte) {
+	t.Helper()
+	dir := pluginFolder(t, manifest)
+	for name, data := range files {
+		if err := os.WriteFile(filepath.Join(dir, name), data, 0o644); err != nil {
+			t.Fatal(err)
+		}
+	}
+	staged, p, err := plugins.Stage(root, dir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := plugins.Swap(root, staged, &p); err != nil {
+		t.Fatal(err)
+	}
+}
+
 // pluginsApp starts the app with its plugins folder in a new temporary folder, holding the packs of manifests, and waits until it has read it, as its ready does.
 func pluginsApp(t *testing.T, manifests ...string) (*app, *nsgotest.App, chan func(), string) {
 	t.Helper()
@@ -817,19 +835,7 @@ func pluginsDictInstalled(t *testing.T, a *app, tt *nsgotest.App, updates chan f
 	if a.plugins.root == "" {
 		a.plugins.root = filepath.Join(t.TempDir(), "plugins")
 	}
-	dir := pluginFolder(t, manifest)
-	for name, data := range files {
-		if err := os.WriteFile(filepath.Join(dir, name), data, 0o644); err != nil {
-			t.Fatal(err)
-		}
-	}
-	staged, p, err := plugins.Stage(a.plugins.root, dir)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if err := plugins.Swap(a.plugins.root, staged, &p); err != nil {
-		t.Fatal(err)
-	}
+	pluginInstalledWith(t, a.plugins.root, manifest, files)
 	pluginsClosedAtEnd(t, a, updates)
 	pluginsReadAgain(t, a, tt, updates)
 }

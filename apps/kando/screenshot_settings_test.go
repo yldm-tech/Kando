@@ -194,16 +194,22 @@ func shotPhoneSync(a *app) {
 // shootSettings renders the settings window open at section, at the prototype's 880 by 640, as name.png: the library shown, the whisper models in models with turbo in use, and EveryAPI as the AI service, without a key, through the everyapi program in ~/bin (writeFakeEveryAPI). setup, when given, changes the app before it is drawn.
 func shootSettings(t *testing.T, f *screenshotFixture, section, name, shown, models, turbo string, setup ...func(*app)) {
 	t.Helper()
-	shootSettingsAt(t, f, section, name, shown, models, turbo, false, setup...)
+	shootSettingsAt(t, f, section, name, shown, models, turbo, false, nil, setup...)
 }
 
 // shootSettingsScrolled is shootSettings with the page scrolled to its end, when it is longer than the window.
 func shootSettingsScrolled(t *testing.T, f *screenshotFixture, section, name, shown, models, turbo string, setup ...func(*app)) {
 	t.Helper()
-	shootSettingsAt(t, f, section, name, shown, models, turbo, true, setup...)
+	shootSettingsAt(t, f, section, name, shown, models, turbo, true, nil, setup...)
 }
 
-func shootSettingsAt(t *testing.T, f *screenshotFixture, section, name, shown, models, turbo string, end bool, setup ...func(*app)) {
+// shootSettingsPressed is shootSettings with the controls of press pressed, in order, before the shot, as a row's details opened on Settings › 插件; each must be on the page.
+func shootSettingsPressed(t *testing.T, f *screenshotFixture, section, name, shown, models, turbo string, press []string, setup ...func(*app)) {
+	t.Helper()
+	shootSettingsAt(t, f, section, name, shown, models, turbo, false, press, setup...)
+}
+
+func shootSettingsAt(t *testing.T, f *screenshotFixture, section, name, shown, models, turbo string, end bool, press []string, setup ...func(*app)) {
 	t.Helper()
 	t.Run(name, func(t *testing.T) {
 		a := newApp(f.pipeline, func(func()) {})
@@ -237,6 +243,13 @@ func shootSettingsAt(t *testing.T, f *screenshotFixture, section, name, shown, m
 			a.attach(cx)
 			return a.settingsView(cx)
 		}, nsgotest.Size(880, 640), nsgotest.Environment(env))
+		for _, selector := range press {
+			if !tt.Exists(selector) {
+				t.Fatalf("nothing to press at %s; texts %q", selector, tt.Texts())
+			}
+			tt.Press(selector)
+			refresh(tt, a)
+		}
 		if end {
 			// A page that fits in the window has no end to scroll to: the headless tester's approximate text engine fits the whole of 语音识别 in it, which a platform's fonts make longer.
 			if page := tt.Find("id:settings-page"); page.Content.Height > page.Frame.Size.Height {
