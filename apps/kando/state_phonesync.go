@@ -159,6 +159,7 @@ func (a *app) phoneSyncStart() {
 		Settings:      phoneSettings{a},
 		Study:         phoneStudy{a},
 		Subscriptions: phoneSubscriptions{a},
+		Glossary:      phoneGlossary{a},
 		Relay:         a.phoneRelayBucket(),
 		RelayHealth:   a.phoneRelayHealth(gen),
 		Addrs:         a.phone.listen,

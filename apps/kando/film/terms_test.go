@@ -23,6 +23,31 @@ type fakeGlossary struct {
 	left           bool
 	guess          []string
 	guessAnswer    string
+	suggestions    []core.Term
+	dismissed      []string
+	log            []string
+	undone         int
+}
+
+func (f *fakeGlossary) TermSuggestions() []core.Term { return f.suggestions }
+func (f *fakeGlossary) AcceptSuggestion(source string) {
+	for _, t := range f.suggestions {
+		if core.SameTerm(t.Source, source) {
+			f.terms = core.SetTerm(f.terms, t)
+			f.log = append([]string{"accept " + t.Target}, f.log...)
+		}
+	}
+	f.suggestions = core.RemoveTerm(f.suggestions, source)
+}
+func (f *fakeGlossary) DismissSuggestion(source string) {
+	f.dismissed = append(f.dismissed, source)
+	f.suggestions = core.RemoveTerm(f.suggestions, source)
+}
+func (f *fakeGlossary) EditLog() []string { return f.log }
+func (f *fakeGlossary) CanUndoEdit() bool { return len(f.log) > 0 }
+func (f *fakeGlossary) UndoEdit() {
+	f.undone++
+	f.log = f.log[1:]
 }
 
 func (f *fakeGlossary) FilmTerms() []core.Term    { return f.terms }
@@ -172,5 +197,45 @@ func TestTermsTabAsksAboutAGuessedSeries(t *testing.T) {
 	app.Press("id:film-terms-guess-no")
 	if a.guessAnswer != "no" || app.Exists("id:film-terms-guess") {
 		t.Fatalf("after no: answer %q", a.guessAnswer)
+	}
+}
+
+// The 术语 tab lists the terms found in the film that its glossary does not hold: Add puts one in the glossary, Dismiss drops another. The edit log lists the latest changes, the latest first, and 撤销最近一项 takes back the latest; with nothing to take back, neither shows.
+func TestTermsTabSuggestionsAndEditLog(t *testing.T) {
+	a := newFakeApp()
+	a.side, a.writable = "terms", true
+	a.suggestions = []core.Term{{Source: "Nile", Target: "尼罗河", Scope: core.ScopeFilm, Origin: core.OriginAuto}, {Source: "delta", Target: "三角洲", Scope: core.ScopeFilm, Origin: core.OriginAuto}}
+	app := start(t, a)
+	msgs := testlocale.Messages()
+	if !app.Exists(whole(msgs.GlossarySuggested())) || !app.Exists(whole("Nile → 尼罗河")) || app.Exists("id:film-edit-log") {
+		t.Fatalf("the suggestions: %q", app.Texts())
+	}
+	if got := app.Find("id:film-term-suggestion-add >> nth=0").Props.Label; got != msgs.GlossarySuggestAdd("Nile") {
+		t.Fatalf("Add is named %q", got)
+	}
+	app.Press("id:film-term-suggestion-add >> nth=0")
+	if len(a.terms) != 1 || a.terms[0].Source != "Nile" || !app.Exists(whole("Nile → 尼罗河")) || len(app.Query("id:film-term-suggestion")) != 1 {
+		t.Fatalf("after Add: terms %+v, texts %q", a.terms, app.Texts())
+	}
+	app.Press("id:film-term-suggestion-dismiss")
+	if len(a.dismissed) != 1 || a.dismissed[0] != "delta" || app.Exists("id:film-terms-suggestions") {
+		t.Fatalf("after Dismiss: dismissed %q, texts %q", a.dismissed, app.Texts())
+	}
+
+	change(app, a, func() { a.log = []string{"锁定术语「尼罗河」", "accept 尼罗河"} })
+	entries := app.Query("id:film-edit-log-entry")
+	if !app.Exists(whole(msgs.GlossaryEditLog())) || len(entries) != 2 || !app.Exists(whole("锁定术语「尼罗河」")) {
+		t.Fatalf("the edit log: %q", app.Texts())
+	}
+	if got := app.Find("id:film-edit-log-undo").Props.Label; got != msgs.GlossaryUndoLast() {
+		t.Fatalf("the undo button is named %q", got)
+	}
+	app.Press("id:film-edit-log-undo")
+	if a.undone != 1 || len(app.Query("id:film-edit-log-entry")) != 1 {
+		t.Fatalf("undo: %d undone, texts %q", a.undone, app.Texts())
+	}
+	app.Press("id:film-edit-log-undo")
+	if a.undone != 2 || app.Exists("id:film-edit-log") {
+		t.Fatalf("the edit log stays with nothing to take back: %q", app.Texts())
 	}
 }

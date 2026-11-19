@@ -30,15 +30,20 @@ type glossaryUI struct {
 	target   string
 	// episodes is the show each film's name says it is an episode of, by name (glossaryEpisodeOf).
 	episodes map[string]glossaryEpisode
+	// suggest is the terms suggested for the open film's glossary (state_glossary_suggest.go).
+	suggest glossarySuggest
 }
 
 func newGlossaryUI() glossaryUI { return glossaryUI{} }
 
-// glossaryHooks reads glossary.json at startup and follows the film open, whose own terms it reads.
+// glossaryHooks reads glossary.json at startup and follows the film open, whose own terms and the terms suggested for it it reads.
 func (a *app) glossaryHooks() areaHooks {
 	return areaHooks{
-		restore:     func(savedSettings) { a.glossaryLoad() },
-		afterChange: a.glossaryFollow,
+		restore: func(savedSettings) { a.glossaryLoad() },
+		afterChange: func() bool {
+			dropped := a.glossaryFollow()
+			return a.glossarySuggestFollow() || dropped
+		},
 	}
 }
 
@@ -211,7 +216,7 @@ func (a *app) AddTerm() {
 		old := a.FilmTerms()[i]
 		t.Scope, t.Locked = old.Scope, old.Locked
 	}
-	if a.glossaryPut(t) {
+	if a.glossaryChange(correctKindTermAdd, t) {
 		a.gloss.source, a.gloss.target = "", ""
 	}
 }
@@ -231,14 +236,18 @@ func (a *app) CycleTermScope(source string) {
 	default:
 		t.Scope = core.ScopeGlobal
 	}
-	a.glossaryPut(t)
+	a.glossaryChange(correctKindTermScope, t)
 }
 
 // ToggleTermLock locks the open film's term for source, so the translation must write it as it is and no machine pass changes it, or unlocks it.
 func (a *app) ToggleTermLock(source string) {
 	if t, ok := a.glossaryTerm(source); ok {
 		t.Locked = !t.Locked
-		a.glossaryPut(t)
+		kind := correctKindTermUnlock
+		if t.Locked {
+			kind = correctKindTermLock
+		}
+		a.glossaryChange(kind, t)
 	}
 }
 
@@ -249,7 +258,7 @@ func (a *app) RemoveTerm(source string) {
 		return
 	}
 	t.Target = ""
-	a.glossaryPut(t)
+	a.glossaryChange(correctKindTermRemove, t)
 }
 
 // glossaryTerm is the open film's term for source, as FilmTerms lists it.

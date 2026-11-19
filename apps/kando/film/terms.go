@@ -4,6 +4,7 @@ import (
 	"slices"
 	"strings"
 
+	"kando/apps/kando/hotkey"
 	"kando/apps/kando/live"
 	"kando/apps/kando/locales"
 	"kando/apps/kando/theme"
@@ -36,6 +37,14 @@ type Glossary interface {
 	NewTermSource() *string
 	NewTermTarget() *string
 	AddTerm()
+	// TermSuggestions are the terms the AI service found in the film once it was translated that its glossary does not hold yet, the most frequent first; AcceptSuggestion adds the one for source to the film's own terms, DismissSuggestion drops it for good.
+	TermSuggestions() []core.Term
+	AcceptSuggestion(source string)
+	DismissSuggestion(source string)
+	// EditLog is what the last changes Undo can take back were, the latest first; CanUndoEdit reports whether one can be taken back now, and UndoEdit takes back the latest, as Edit › Undo does.
+	EditLog() []string
+	CanUndoEdit() bool
+	UndoEdit()
 }
 
 // scopeColor is the pill of scope (prototype script 3010) in the palette under cx: the film's a plain glass, a series' the accent's blue and every film's green. It reads the palette, so it goes in a StyleFunc.
@@ -71,7 +80,7 @@ func nextScope(scope core.TermScope, series bool) core.TermScope {
 	return core.ScopeGlobal
 }
 
-// termsTab is the open film's glossary (prototype template 956-990): what the terms do, whether the films the open film looks like a series with are one (seriesGuessCard), the film's series with the button that takes it out of it, the terms each with its scope, which a press moves on, its lock and its removal, and the fields a term is added in.
+// termsTab is the open film's glossary (prototype template 956-990): what the terms do, whether the films the open film looks like a series with are one (seriesGuessCard), the film's series with the button that takes it out of it, the terms each with its scope, which a press moves on, its lock and its removal, the terms suggested for the film, the fields a term is added in, and the edit log with the button that undoes the latest change.
 func (s *screen) termsTab(cx *ns.Scope) ns.Node {
 	a := s.a
 	terms := live.Func(a, a.FilmTerms)
@@ -107,8 +116,91 @@ func (s *screen) termsTab(cx *ns.Scope) ns.Node {
 			guessCard,
 			seriesLine,
 			list,
+			s.termSuggestions(cx),
 			s.termAdder(cx),
+			s.editLog(cx),
 		}},
+	}}
+}
+
+// termSuggestions is the terms the AI service found in the film that its glossary does not hold yet, each with the buttons that add it to the film's own terms and dismiss it; nothing while there are none.
+func (s *screen) termSuggestions(cx *ns.Scope) ns.Node {
+	a := s.a
+	terms := ns.NewMemoFunc(cx, live.Func(a, a.TermSuggestions), slices.Equal[[]core.Term]).Get
+	return ns.Show{When: func() bool { return len(terms()) > 0 }, Then: func(cx *ns.Scope) ns.Node {
+		rows := ns.Each(terms, func(t core.Term) string { return strings.ToLower(t.Source) }, func(cx *ns.Scope, term func() core.Term, index func() int) ns.Node {
+			source := func() string { return term().Source }
+			return ns.View{TestID: "film-term-suggestion", Style: ns.Style{Direction: ns.Row, AlignItems: ns.AlignCenter, Gap: 6, MinHeight: ns.Pt(40), Padding: ns.Symmetric(6, 12)},
+				StyleFunc: func() ns.Style {
+					if index() > 0 {
+						return ns.Style{Borders: ns.Edges{Top: 1}, BorderColor: panelLine}
+					}
+					return ns.Style{Borders: ns.Edges{}}
+				},
+				Children: []ns.Node{
+					ns.Text{TestID: "film-term-suggestion-pair", Selectable: ns.SelectableOn, ContentFunc: func() string { t := term(); return t.Source + " → " + t.Target },
+						Style: ns.Style{FlexGrow: 1, FlexShrink: 1, MinWidth: ns.Pt(0), FontSize: 13, LineHeight: 17, Color: onGlass}},
+					pillButton(cx, pill{id: "film-term-suggestion-add", label: func() string { return locales.GlossaryAdd(cx) }, name: func() string { return locales.GlossarySuggestAdd(cx, source()) },
+						color: func() ns.Color { return ui.Alpha(theme.Of(cx).AccentInk(), 0.45) }, press: live.Do(a, func() { a.AcceptSuggestion(source()) })}),
+					pillButton(cx, pill{id: "film-term-suggestion-dismiss", label: func() string { return locales.GlossarySuggestDismiss(cx) }, name: func() string { return locales.GlossarySuggestDismissLabel(cx, source()) },
+						color: func() ns.Color { return ns.RGBA(0xFFFFFF, 0.12) }, press: live.Do(a, func() { a.DismissSuggestion(source()) })}),
+				}}
+		})
+		return ns.View{TestID: "film-terms-suggestions", Role: ns.RoleGroup, LabelFunc: func() string { return locales.GlossarySuggested(cx) }, Style: ns.Style{Gap: 6}, Children: []ns.Node{
+			ns.Text{ContentFunc: func() string { return locales.GlossarySuggested(cx) }, Role: ns.RoleHeader, Style: ns.Style{FontSize: 11, LineHeight: 14, FontWeight: ns.FontWeightBold, Color: onGlass, Opacity: ns.Alpha(0.6), Padding: ns.Symmetric(0, 4)}},
+			ns.View{Style: ns.Style{CornerRadius: 14, Background: panelCard}, Children: []ns.Node{rows}},
+		}}
+	}}
+}
+
+// editLog is the last changes Undo can take back, the latest first (prototype template 984-990), and the button that takes back the latest, with its shortcut; nothing while there is none.
+func (s *screen) editLog(cx *ns.Scope) ns.Node {
+	a := s.a
+	entries := ns.NewMemoFunc(cx, live.Func(a, a.EditLog), slices.Equal[[]string]).Get
+	return ns.Show{When: func() bool { return len(entries()) > 0 }, Then: func(cx *ns.Scope) ns.Node {
+		rows := ns.Each(func() []int {
+			out := make([]int, len(entries()))
+			for i := range out {
+				out[i] = i
+			}
+			return out
+		}, func(i int) int { return i }, func(cx *ns.Scope, i func() int, _ func() int) ns.Node {
+			return ns.View{TestID: "film-edit-log-entry", Style: ns.Style{Padding: ns.Symmetric(7, 12)},
+				StyleFunc: func() ns.Style {
+					if i() > 0 {
+						return ns.Style{Borders: ns.Edges{Top: 1}, BorderColor: panelLine}
+					}
+					return ns.Style{Borders: ns.Edges{}}
+				},
+				Children: []ns.Node{ns.Text{ContentFunc: func() string {
+					if list := entries(); i() < len(list) {
+						return list[i()]
+					}
+					return ""
+				}, Style: ns.Style{FontSize: 12, LineHeight: 16, Color: onGlass}, StyleFunc: func() ns.Style {
+					// The latest change is the one Undo takes back.
+					if i() == 0 {
+						return ns.Style{Opacity: ns.Alpha(1)}
+					}
+					return ns.Style{Opacity: ns.Alpha(0.6)}
+				}}}}
+		})
+		undo := live.Do(a, a.UndoEdit)
+		return ns.View{TestID: "film-edit-log", Role: ns.RoleGroup, LabelFunc: func() string { return locales.GlossaryEditLog(cx) }, Style: ns.Style{Gap: 6}, Children: []ns.Node{
+			ns.Text{ContentFunc: func() string { return locales.GlossaryEditLog(cx) }, Role: ns.RoleHeader, Style: ns.Style{FontSize: 11, LineHeight: 14, FontWeight: ns.FontWeightBold, Color: onGlass, Opacity: ns.Alpha(0.6), Padding: ns.Symmetric(0, 4)}},
+			ns.View{Style: ns.Style{CornerRadius: 14, Background: panelCard}, Children: []ns.Node{rows}},
+			ns.View{Style: ns.Style{Direction: ns.Row}, Children: []ns.Node{
+				base.Button{TestID: "film-edit-log-undo", LabelFunc: func() string { return locales.GlossaryUndoLast(cx) }, Disabled: live.Func(a, func() bool { return !a.CanUndoEdit() }),
+					Desktop: ns.DesktopViewProps{WindowDrag: ns.WindowDragOff},
+					OnPress: func(ns.PressEvent) { undo() },
+					Style: ns.Style{Direction: ns.Row, Gap: 6, Height: ns.Pt(26), Padding: ns.Symmetric(0, 12), AlignItems: ns.AlignCenter, CornerRadius: 13, Background: ns.RGBA(0xFFFFFF, 0.12),
+						Hover: &ns.Style{Opacity: ns.Alpha(0.85)}, FocusVisible: ui.FocusRing(cx, -2), Disabled: &ns.Style{Opacity: ns.Alpha(0.4)}},
+					Children: []ns.Node{
+						ns.Text{ContentFunc: func() string { return locales.GlossaryUndoLast(cx) }, PointerEvents: ns.PointerEventsNone, MaxLines: 1, Style: ns.Style{FontSize: 12, LineHeight: 16, Color: onGlass}},
+						ns.Text{ContentFunc: func() string { return hotkey.Label(cx, "mod+z") }, Role: ns.RoleNone, PointerEvents: ns.PointerEventsNone, MaxLines: 1, Style: ns.Style{FontSize: 12, LineHeight: 16, Color: onGlass, Opacity: ns.Alpha(0.55)}},
+					}},
+			}},
+		}}
 	}}
 }
 

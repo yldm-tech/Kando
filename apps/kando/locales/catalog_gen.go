@@ -986,6 +986,14 @@ var Parameters = map[string][]string{
 	"FilmBadgePercent":                         {"percent"},
 	"FilmBadgeUntranslated":                    {"lines"},
 	"FilmBadgeUntranslatedNote":                {"lines"},
+	"GlossaryStepAdd":                          {"term"},
+	"GlossaryStepScope":                        {"term", "scope"},
+	"GlossaryStepLock":                         {"term"},
+	"GlossaryStepUnlock":                       {"term"},
+	"GlossaryStepRemove":                       {"term"},
+	"GlossaryStepAccept":                       {"term"},
+	"GlossarySuggestAdd":                       {"term"},
+	"GlossarySuggestDismissLabel":              {"term"},
 }
 
 // Translation is a language's messages another package supplies:
@@ -1519,6 +1527,14 @@ type Translation struct {
 	FilmBadgePercent                         func(percent int) string
 	FilmBadgeUntranslated                    func(lines int) string
 	FilmBadgeUntranslatedNote                func(lines int) string
+	GlossaryStepAdd                          func(term string) string
+	GlossaryStepScope                        func(term string, scope string) string
+	GlossaryStepLock                         func(term string) string
+	GlossaryStepUnlock                       func(term string) string
+	GlossaryStepRemove                       func(term string) string
+	GlossaryStepAccept                       func(term string) string
+	GlossarySuggestAdd                       func(term string) string
+	GlossarySuggestDismissLabel              func(term string) string
 }
 
 var supplied = map[string]Translation{}
@@ -2992,6 +3008,10 @@ const (
 	textFilmLayerReview
 	textFilmBadgeTranslateMissing
 	textFilmBadgeSettings
+	textGlossaryEditLog
+	textGlossaryUndoLast
+	textGlossarySuggested
+	textGlossarySuggestDismiss
 	numTexts
 )
 
@@ -4465,6 +4485,10 @@ var keyOfText = [numTexts]string{
 	"filmLayerReview",
 	"filmBadgeTranslateMissing",
 	"filmBadgeSettings",
+	"glossaryEditLog",
+	"glossaryUndoLast",
+	"glossarySuggested",
+	"glossarySuggestDismiss",
 }
 
 // textsEn are the messages without arguments in en.
@@ -5935,7 +5959,11 @@ var textsEn = i18n.NewTexts(""+
 	"Translation"+
 	"Final proofread · Whole film"+
 	"Translate"+
-	"Settings…",
+	"Settings…"+
+	"Edit Log"+
+	"Undo Latest"+
+	"Found in This Film"+
+	"Dismiss",
 	[]uint16{
 		5,
 		19,
@@ -7404,6 +7432,10 @@ var textsEn = i18n.NewTexts(""+
 		29,
 		9,
 		11,
+		8,
+		11,
+		18,
+		7,
 	})
 
 // textsJa are the messages without arguments in ja.
@@ -8874,7 +8906,11 @@ var textsJa = i18n.NewTexts(""+
 	"訳文 · 翻訳"+
 	"最終校正 · 全体"+
 	"翻訳する"+
-	"設定…",
+	"設定…"+
+	"編集履歴"+
+	"直前の操作を取り消す"+
+	"この動画で見つかった用語"+
+	"使わない",
 	[]uint16{
 		5,
 		30,
@@ -10343,6 +10379,10 @@ var textsJa = i18n.NewTexts(""+
 		22,
 		12,
 		9,
+		12,
+		30,
+		36,
+		12,
 	})
 
 // textsKo are the messages without arguments in ko.
@@ -11813,7 +11853,11 @@ var textsKo = i18n.NewTexts(""+
 	"번역문 · 번역"+
 	"최종 교정 · 전체"+
 	"번역"+
-	"설정…",
+	"설정…"+
+	"편집 기록"+
+	"최근 항목 실행 취소"+
+	"이 영상에서 찾은 용어"+
+	"사용 안 함",
 	[]uint16{
 		5,
 		28,
@@ -13282,6 +13326,10 @@ var textsKo = i18n.NewTexts(""+
 		23,
 		6,
 		9,
+		13,
+		27,
+		30,
+		14,
 	})
 
 // textsZhHans are the messages without arguments in zh-Hans.
@@ -14752,7 +14800,11 @@ var textsZhHans = i18n.NewTexts(""+
 	"译文 · 翻译"+
 	"终校 · 通读全片"+
 	"补译"+
-	"设置…",
+	"设置…"+
+	"编辑记录"+
+	"撤销最近一项"+
+	"片中找到的术语"+
+	"不用",
 	[]uint16{
 		6,
 		15,
@@ -16221,6 +16273,10 @@ var textsZhHans = i18n.NewTexts(""+
 		22,
 		6,
 		9,
+		12,
+		18,
+		21,
+		6,
 	})
 
 // textsZhHant are the messages without arguments in zh-Hant.
@@ -17691,7 +17747,11 @@ var textsZhHant = i18n.NewTexts(""+
 	"譯文 · 翻譯"+
 	"終校 · 通讀全片"+
 	"補譯"+
-	"設定…",
+	"設定…"+
+	"編輯記錄"+
+	"復原最近一項"+
+	"片中找到的術語"+
+	"不用",
 	[]uint16{
 		6,
 		15,
@@ -19160,6 +19220,10 @@ var textsZhHant = i18n.NewTexts(""+
 		22,
 		6,
 		9,
+		12,
+		18,
+		21,
+		6,
 	})
 
 // texts returns the messages without arguments in lang, nil for a
@@ -20796,6 +20860,30 @@ func Supply(lang string, t Translation) {
 	}
 	if t.FilmBadgeUntranslatedNote != nil {
 		s.FilmBadgeUntranslatedNote = t.FilmBadgeUntranslatedNote
+	}
+	if t.GlossaryStepAdd != nil {
+		s.GlossaryStepAdd = t.GlossaryStepAdd
+	}
+	if t.GlossaryStepScope != nil {
+		s.GlossaryStepScope = t.GlossaryStepScope
+	}
+	if t.GlossaryStepLock != nil {
+		s.GlossaryStepLock = t.GlossaryStepLock
+	}
+	if t.GlossaryStepUnlock != nil {
+		s.GlossaryStepUnlock = t.GlossaryStepUnlock
+	}
+	if t.GlossaryStepRemove != nil {
+		s.GlossaryStepRemove = t.GlossaryStepRemove
+	}
+	if t.GlossaryStepAccept != nil {
+		s.GlossaryStepAccept = t.GlossaryStepAccept
+	}
+	if t.GlossarySuggestAdd != nil {
+		s.GlossarySuggestAdd = t.GlossarySuggestAdd
+	}
+	if t.GlossarySuggestDismissLabel != nil {
+		s.GlossarySuggestDismissLabel = t.GlossarySuggestDismissLabel
 	}
 	supplied[lang] = s
 	Catalog.Add(lang)
@@ -53438,6 +53526,286 @@ func FilmBadgeSettings(cx *core.Scope) string { return For(cx).FilmBadgeSettings
 
 // FilmBadgeSettings is the package's FilmBadgeSettings in the language of msgs.
 func (msgs Messages) FilmBadgeSettings() string { return msgs.text(textFilmBadgeSettings) }
+
+// GlossaryStepAdd says "Add Term “{term}”"
+// in the language the app shows under cx.
+//
+// What a change was, for the Terms tab's edit log and Undo to name it: a term added to the glossary, by its translation.
+func GlossaryStepAdd(cx *core.Scope, term string) string { return For(cx).GlossaryStepAdd(term) }
+
+// GlossaryStepAdd is the package's GlossaryStepAdd in the language of msgs.
+func (msgs Messages) GlossaryStepAdd(term string) string {
+	if i18n.IsPseudo(msgs.lang) {
+		return i18n.Pseudo(msgs.lang, Messages{lang: Source, mark: true}.GlossaryStepAdd(term))
+	}
+	for lang := msgs.lang; ; lang = i18n.Parent(lang) {
+		if f := supplied[lang].GlossaryStepAdd; f != nil {
+			return f(term)
+		}
+		switch lang {
+		case "", "en":
+			return "Add Term “" + msgs.arg(term) + "”"
+		case "ja":
+			return "用語「" + term + "」を追加"
+		case "ko":
+			return "용어 ‘" + term + "’ 추가"
+		case "zh-Hans":
+			return "添加术语「" + term + "」"
+		case "zh-Hant":
+			return "新增術語「" + term + "」"
+		}
+	}
+}
+
+// GlossaryStepScope says "Change Term “{term}” to {scope}"
+// in the language the app shows under cx.
+//
+// What a change was, for the Terms tab's edit log and Undo to name it: a term moved to another scope, by its translation and the scope's name (This Film, Series, All Films).
+func GlossaryStepScope(cx *core.Scope, term string, scope string) string {
+	return For(cx).GlossaryStepScope(term, scope)
+}
+
+// GlossaryStepScope is the package's GlossaryStepScope in the language of msgs.
+func (msgs Messages) GlossaryStepScope(term string, scope string) string {
+	if i18n.IsPseudo(msgs.lang) {
+		return i18n.Pseudo(msgs.lang, Messages{lang: Source, mark: true}.GlossaryStepScope(term, scope))
+	}
+	for lang := msgs.lang; ; lang = i18n.Parent(lang) {
+		if f := supplied[lang].GlossaryStepScope; f != nil {
+			return f(term, scope)
+		}
+		switch lang {
+		case "", "en":
+			return "Change Term “" + msgs.arg(term) + "” to " + msgs.arg(scope)
+		case "ja":
+			return "用語「" + term + "」を" + scope + "に変更"
+		case "ko":
+			return "용어 ‘" + term + "’ 범위를 " + scope + "(으)로 변경"
+		case "zh-Hans":
+			return "术语「" + term + "」改为" + scope
+		case "zh-Hant":
+			return "術語「" + term + "」改為" + scope
+		}
+	}
+}
+
+// GlossaryStepLock says "Lock Term “{term}”"
+// in the language the app shows under cx.
+//
+// What a change was, for the Terms tab's edit log and Undo to name it: a term locked, by its translation.
+func GlossaryStepLock(cx *core.Scope, term string) string { return For(cx).GlossaryStepLock(term) }
+
+// GlossaryStepLock is the package's GlossaryStepLock in the language of msgs.
+func (msgs Messages) GlossaryStepLock(term string) string {
+	if i18n.IsPseudo(msgs.lang) {
+		return i18n.Pseudo(msgs.lang, Messages{lang: Source, mark: true}.GlossaryStepLock(term))
+	}
+	for lang := msgs.lang; ; lang = i18n.Parent(lang) {
+		if f := supplied[lang].GlossaryStepLock; f != nil {
+			return f(term)
+		}
+		switch lang {
+		case "", "en":
+			return "Lock Term “" + msgs.arg(term) + "”"
+		case "ja":
+			return "用語「" + term + "」をロック"
+		case "ko":
+			return "용어 ‘" + term + "’ 잠금"
+		case "zh-Hans":
+			return "锁定术语「" + term + "」"
+		case "zh-Hant":
+			return "鎖定術語「" + term + "」"
+		}
+	}
+}
+
+// GlossaryStepUnlock says "Unlock Term “{term}”"
+// in the language the app shows under cx.
+//
+// What a change was, for the Terms tab's edit log and Undo to name it: a term unlocked, by its translation.
+func GlossaryStepUnlock(cx *core.Scope, term string) string { return For(cx).GlossaryStepUnlock(term) }
+
+// GlossaryStepUnlock is the package's GlossaryStepUnlock in the language of msgs.
+func (msgs Messages) GlossaryStepUnlock(term string) string {
+	if i18n.IsPseudo(msgs.lang) {
+		return i18n.Pseudo(msgs.lang, Messages{lang: Source, mark: true}.GlossaryStepUnlock(term))
+	}
+	for lang := msgs.lang; ; lang = i18n.Parent(lang) {
+		if f := supplied[lang].GlossaryStepUnlock; f != nil {
+			return f(term)
+		}
+		switch lang {
+		case "", "en":
+			return "Unlock Term “" + msgs.arg(term) + "”"
+		case "ja":
+			return "用語「" + term + "」のロックを解除"
+		case "ko":
+			return "용어 ‘" + term + "’ 잠금 해제"
+		case "zh-Hans":
+			return "解锁术语「" + term + "」"
+		case "zh-Hant":
+			return "解鎖術語「" + term + "」"
+		}
+	}
+}
+
+// GlossaryStepRemove says "Remove Term “{term}”"
+// in the language the app shows under cx.
+//
+// What a change was, for the Terms tab's edit log and Undo to name it: a term removed from the glossary, by its translation.
+func GlossaryStepRemove(cx *core.Scope, term string) string { return For(cx).GlossaryStepRemove(term) }
+
+// GlossaryStepRemove is the package's GlossaryStepRemove in the language of msgs.
+func (msgs Messages) GlossaryStepRemove(term string) string {
+	if i18n.IsPseudo(msgs.lang) {
+		return i18n.Pseudo(msgs.lang, Messages{lang: Source, mark: true}.GlossaryStepRemove(term))
+	}
+	for lang := msgs.lang; ; lang = i18n.Parent(lang) {
+		if f := supplied[lang].GlossaryStepRemove; f != nil {
+			return f(term)
+		}
+		switch lang {
+		case "", "en":
+			return "Remove Term “" + msgs.arg(term) + "”"
+		case "ja":
+			return "用語「" + term + "」を削除"
+		case "ko":
+			return "용어 ‘" + term + "’ 삭제"
+		case "zh-Hans":
+			return "删除术语「" + term + "」"
+		case "zh-Hant":
+			return "刪除術語「" + term + "」"
+		}
+	}
+}
+
+// GlossaryStepAccept says "Add Suggested Term “{term}”"
+// in the language the app shows under cx.
+//
+// What a change was, for the Terms tab's edit log and Undo to name it: a term the AI service found in the film added to the glossary, by its translation.
+func GlossaryStepAccept(cx *core.Scope, term string) string { return For(cx).GlossaryStepAccept(term) }
+
+// GlossaryStepAccept is the package's GlossaryStepAccept in the language of msgs.
+func (msgs Messages) GlossaryStepAccept(term string) string {
+	if i18n.IsPseudo(msgs.lang) {
+		return i18n.Pseudo(msgs.lang, Messages{lang: Source, mark: true}.GlossaryStepAccept(term))
+	}
+	for lang := msgs.lang; ; lang = i18n.Parent(lang) {
+		if f := supplied[lang].GlossaryStepAccept; f != nil {
+			return f(term)
+		}
+		switch lang {
+		case "", "en":
+			return "Add Suggested Term “" + msgs.arg(term) + "”"
+		case "ja":
+			return "提案された用語「" + term + "」を追加"
+		case "ko":
+			return "추천 용어 ‘" + term + "’ 추가"
+		case "zh-Hans":
+			return "采纳建议术语「" + term + "」"
+		case "zh-Hant":
+			return "採納建議術語「" + term + "」"
+		}
+	}
+}
+
+// GlossaryEditLog says "Edit Log"
+// in the language the app shows under cx.
+//
+// Terms tab: heading over the last changes Undo can take back, the latest first.
+func GlossaryEditLog(cx *core.Scope) string { return For(cx).GlossaryEditLog() }
+
+// GlossaryEditLog is the package's GlossaryEditLog in the language of msgs.
+func (msgs Messages) GlossaryEditLog() string { return msgs.text(textGlossaryEditLog) }
+
+// GlossaryUndoLast says "Undo Latest"
+// in the language the app shows under cx.
+//
+// Terms tab: button under the edit log that takes back the latest change, as Edit › Undo does. Its shortcut is shown beside it.
+func GlossaryUndoLast(cx *core.Scope) string { return For(cx).GlossaryUndoLast() }
+
+// GlossaryUndoLast is the package's GlossaryUndoLast in the language of msgs.
+func (msgs Messages) GlossaryUndoLast() string { return msgs.text(textGlossaryUndoLast) }
+
+// GlossarySuggested says "Found in This Film"
+// in the language the app shows under cx.
+//
+// Terms tab: heading over the names and terms the AI service found in the film after translating it, which the user adds to the glossary or dismisses.
+func GlossarySuggested(cx *core.Scope) string { return For(cx).GlossarySuggested() }
+
+// GlossarySuggested is the package's GlossarySuggested in the language of msgs.
+func (msgs Messages) GlossarySuggested() string { return msgs.text(textGlossarySuggested) }
+
+// GlossarySuggestAdd says "Add “{term}” to the Glossary"
+// in the language the app shows under cx.
+//
+// Accessible name and tooltip of the button that adds a term the AI service found to the film's glossary; its visible label is Add.
+func GlossarySuggestAdd(cx *core.Scope, term string) string { return For(cx).GlossarySuggestAdd(term) }
+
+// GlossarySuggestAdd is the package's GlossarySuggestAdd in the language of msgs.
+func (msgs Messages) GlossarySuggestAdd(term string) string {
+	if i18n.IsPseudo(msgs.lang) {
+		return i18n.Pseudo(msgs.lang, Messages{lang: Source, mark: true}.GlossarySuggestAdd(term))
+	}
+	for lang := msgs.lang; ; lang = i18n.Parent(lang) {
+		if f := supplied[lang].GlossarySuggestAdd; f != nil {
+			return f(term)
+		}
+		switch lang {
+		case "", "en":
+			return "Add “" + msgs.arg(term) + "” to the Glossary"
+		case "ja":
+			return "「" + term + "」を用語集に追加"
+		case "ko":
+			return "‘" + term + "’을(를) 용어집에 추가"
+		case "zh-Hans":
+			return "把「" + term + "」加进术语表"
+		case "zh-Hant":
+			return "把「" + term + "」加進術語表"
+		}
+	}
+}
+
+// GlossarySuggestDismiss says "Dismiss"
+// in the language the app shows under cx.
+//
+// Terms tab: button beside a term the AI service found that drops it for good.
+func GlossarySuggestDismiss(cx *core.Scope) string { return For(cx).GlossarySuggestDismiss() }
+
+// GlossarySuggestDismiss is the package's GlossarySuggestDismiss in the language of msgs.
+func (msgs Messages) GlossarySuggestDismiss() string { return msgs.text(textGlossarySuggestDismiss) }
+
+// GlossarySuggestDismissLabel says "Dismiss “{term}”"
+// in the language the app shows under cx.
+//
+// Accessible name and tooltip of the button that drops a term the AI service found, so it is not suggested again.
+func GlossarySuggestDismissLabel(cx *core.Scope, term string) string {
+	return For(cx).GlossarySuggestDismissLabel(term)
+}
+
+// GlossarySuggestDismissLabel is the package's GlossarySuggestDismissLabel in the language of msgs.
+func (msgs Messages) GlossarySuggestDismissLabel(term string) string {
+	if i18n.IsPseudo(msgs.lang) {
+		return i18n.Pseudo(msgs.lang, Messages{lang: Source, mark: true}.GlossarySuggestDismissLabel(term))
+	}
+	for lang := msgs.lang; ; lang = i18n.Parent(lang) {
+		if f := supplied[lang].GlossarySuggestDismissLabel; f != nil {
+			return f(term)
+		}
+		switch lang {
+		case "", "en":
+			return "Dismiss “" + msgs.arg(term) + "”"
+		case "ja":
+			return "「" + term + "」を使わない"
+		case "ko":
+			return "‘" + term + "’ 사용 안 함"
+		case "zh-Hans":
+			return "不用「" + term + "」"
+		case "zh-Hant":
+			return "不用「" + term + "」"
+		}
+	}
+}
 
 // dated is lang with the hour cycle the user set, which times take.
 func (msgs Messages) dated(lang string) string {

@@ -39,12 +39,13 @@ type correctUI struct {
 
 func newCorrectUI() correctUI { return correctUI{} }
 
-// correctStep is one change of the open film's corrections: the corrections before and after it, and what it was (one of the correctKind values), of which line, by its number from 1, or of how many lines; a fix spread to the film's lines is named by its words, from and to, and keeps the glossary term it changed, before and after it, for Undo and Redo to put back.
+// correctStep is one change of the open film's corrections: the corrections before and after it, and what it was (one of the correctKind values), of which line, by its number from 1, or of how many lines; a fix spread to the film's lines is named by its words, from and to, and keeps the glossary term it changed, before and after it, for Undo and Redo to put back. A change of the glossary alone, made in the 术语 tab (correctTermStep, state_glossary_log.go), keeps the corrections as they were and the term before and after it, named by its source (from) and translation (to), and scope for one moved to another scope.
 type correctStep struct {
 	before, after         []core.Correction
 	kind                  string
 	line                  int
 	from, to              string
+	scope                 core.TermScope
 	termBefore, termAfter *core.Term
 }
 
@@ -414,13 +415,17 @@ func (a *app) correctUndo() {
 		return
 	}
 	step := a.correct.undo[len(a.correct.undo)-1]
-	if !a.correctWrite(step.before) {
+	if correctTermStep(step) {
+		if !a.glossaryPut(*step.termBefore) {
+			return
+		}
+	} else if !a.correctWrite(step.before) {
 		return
 	}
 	a.correct.undo = a.correct.undo[:len(a.correct.undo)-1]
 	a.correct.redo = append(a.correct.redo, step)
 	a.correct.editing, a.correct.spread = false, nil
-	if step.termBefore != nil {
+	if step.termBefore != nil && !correctTermStep(step) {
 		a.glossaryPut(*step.termBefore)
 	}
 	a.flash(a.messages().CorrectUndone(a.correctStepName(a.messages(), step)))
@@ -432,13 +437,17 @@ func (a *app) correctRedo() {
 		return
 	}
 	step := a.correct.redo[len(a.correct.redo)-1]
-	if !a.correctWrite(step.after) {
+	if correctTermStep(step) {
+		if !a.glossaryPut(*step.termAfter) {
+			return
+		}
+	} else if !a.correctWrite(step.after) {
 		return
 	}
 	a.correct.redo = a.correct.redo[:len(a.correct.redo)-1]
 	a.correct.undo = append(a.correct.undo, step)
 	a.correct.editing, a.correct.spread = false, nil
-	if step.termAfter != nil {
+	if step.termAfter != nil && !correctTermStep(step) {
 		a.glossaryPut(*step.termAfter)
 	}
 	a.flash(a.messages().CorrectRedone(a.correctStepName(a.messages(), step)))
@@ -446,6 +455,9 @@ func (a *app) correctRedo() {
 
 // correctStepName is what step was, in the language of m, for the Edit menu and the picture to name it.
 func (a *app) correctStepName(m locales.Messages, step correctStep) string {
+	if correctTermStep(step) {
+		return glossaryStepName(m, step)
+	}
 	switch step.kind {
 	case correctKindStart:
 		return m.CorrectStepStart(step.line)

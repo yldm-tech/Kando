@@ -75,6 +75,8 @@ type Config struct {
 	Study psync.StudyService
 	// Subscriptions is the subscriptions protocol v2's calls list and change; nil answers them unsupported.
 	Subscriptions psync.SubscriptionService
+	// Glossary is the films' glossaries protocol v2's calls read and add terms to; nil answers them unsupported.
+	Glossary psync.GlossaryService
 	// Relay is the user's bucket the storage relay runs in (relay.go), nil while the relay is off. RelayHealth, when set, is told on a goroutine of the relay's after each of its turns what failed of it, nil for a turn that went through (psync.Relay.Health).
 	Relay       psync.RelayBucket
 	RelayHealth func(err error)
@@ -157,7 +159,7 @@ func Start(cfg Config) (*Server, error) {
 	if jobs == nil {
 		jobs = noJobs{}
 	}
-	s.desk = &psync.Desk{Service: jobs, State: cfg.State, Settings: cfg.Settings, Study: cfg.Study, Subscriptions: cfg.Subscriptions, Journal: psync.NewJournal(), Desktop: cfg.Name, Now: cfg.Now}
+	s.desk = &psync.Desk{Service: jobs, State: cfg.State, Settings: cfg.Settings, Study: cfg.Study, Subscriptions: cfg.Subscriptions, Glossary: cfg.Glossary, Journal: psync.NewJournal(), Desktop: cfg.Name, Now: cfg.Now}
 	s.http = &http.Server{
 		Handler:           s.routes(),
 		TLSConfig:         &tls.Config{Certificates: []tls.Certificate{cert}, MinVersion: tls.VersionTLS13},

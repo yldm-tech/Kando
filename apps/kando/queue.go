@@ -856,7 +856,8 @@ func (a *app) queueRun(job core.Job) {
 		language = job.RedoLanguage
 	}
 	ctx, cancel := context.WithCancelCause(context.Background())
-	ctx = media.WithGlossary(ctx, terms)
+	// Once translated, the film is suggested terms for its glossary (state_glossary_suggest.go).
+	ctx = media.WithTermSuggestions(media.WithGlossary(ctx, terms))
 	if a.prefs.review {
 		ctx = media.WithReview(ctx, a.prefs.reviewAuto)
 	}
