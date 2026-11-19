@@ -8,7 +8,8 @@ import (
 	"strings"
 
 	"kando/apps/kando/plugins"
-	"kando/apps/kando/plugins/script"
+	"kando/apps/kando/plugins/publish"
+	"kando/apps/kando/plugins/script/signature"
 )
 
 // pluginsRoot is the plugins folder `kando plugin list` reads, plugins.DefaultRoot; tests point it at a folder of their own.
@@ -90,40 +91,32 @@ func pluginVerbAt(args []string) int {
 	return -1
 }
 
+// pluginValidate checks the pack at src as the app installs it (publish.Check): plugins.Stage, which runs plugins.Validate, and a script plugin's signature verified as the app does (signature.Verify) against Kando's official root and the revocation lists and builds the plugins folder's trust keeps, without writing to it. The developer key is in the system's secure store, which the command line does not open, so a developer plugin is refused here as signed by a key not trusted; and its code's word on what it is (kandoManifest) is checked by the app alone, which runs it in a sandbox.
 func pluginValidate(e *env, src string) error {
-	root, err := os.MkdirTemp("", "kando-plugin-")
+	work, err := os.MkdirTemp("", "kando-plugin-")
 	if err != nil {
 		return err
 	}
-	defer os.RemoveAll(root)
-	_, p, err := plugins.Stage(root, src)
+	defer os.RemoveAll(work)
+	roots := signature.DefaultRoots(nil)
+	trust, err := signature.OpenTrust(pluginsRoot(), roots)
+	if err != nil {
+		return err
+	}
+	c, err := publish.Check(src, work, trust, roots)
 	if err != nil {
 		return fmt.Errorf("%s: %w", src, err)
 	}
-	info := newPluginInfo(p)
+	info := newPluginInfo(c.Pack)
 	rows := [][]string{{"id", info.ID}, {"kind", info.Kind}, {"version", info.Version}, {"name", info.Name}, {"hash", info.Hash}}
-	if p.Kind == plugins.KindScript {
-		v, err := pluginVerify(p)
-		if err != nil {
-			return fmt.Errorf("%s: %w", src, err)
-		}
-		info.Source, info.Signer = string(v.Source), v.Signer
+	if c.Pack.Kind == plugins.KindScript {
+		info.Source, info.Signer = string(c.Source), c.Signer
 		rows = append(rows, []string{"source", info.Source}, []string{"signer", info.Signer})
 	}
 	if e.json {
 		return pluginJSON(e, info)
 	}
 	return table(e.stdout, rows)
-}
-
-// pluginVerify verifies the signature of the script plugin p as the app does (script.Verify), against Kando's official root and the revocation lists and builds the plugins folder's trust keeps, without writing to it. The developer key is in the system's secure store, which the command line does not open, so a developer plugin is refused here as signed by a key not trusted; and its code's word on what it is (kandoManifest) is checked by the app alone, which runs it in a sandbox.
-func pluginVerify(p plugins.Pack) (script.Verified, error) {
-	roots := script.DefaultRoots(nil)
-	trust, err := script.OpenTrust(pluginsRoot(), roots)
-	if err != nil {
-		return script.Verified{}, err
-	}
-	return script.Verify(trust, roots, p)
 }
 
 // pluginInstall checks the pack file src as validate does and drops it into the inbox of the plugins folder for the app to confirm. A folder is refused: the inbox holds files, and a folder is installed by dropping it on Settings › Plugins.
