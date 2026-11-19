@@ -31,7 +31,7 @@
 - 所以先抽出一个共用的 `func (a *app) vocabResolve(q lookup.Query, film string) vocabAsk`（P1.3 已实现，在 `state_vocab.go`），顺序是缓存 → 已启用的词典（按 `savedPlugins` 里的顺序）→ AI。它分两半：`vocabResolve` 在引擎 goroutine 上读缓存、挑出已打开的词典、取 AI 服务；后台的那一半不碰 app 状态，放在非界面包 `lookup` 里（`lookup.Ask.Answer(ctx)`，词典按 `lookup.Dictionary` 这个窄接口传入，`*dict.Dict` 满足它，`lookup` 不导入 `plugins/dict`），查词典、再问 AI；决定按哪种语言挑词典的 `lookup.WordLanguage` 也在那里。`LookUpWord` 和 `phoneStudy.LookUp` 都改成调它，词典在 AI 之前，手机那条路不再先调 `s.ask(f)`，只有词典都没有这个词、又没有能用的 AI 服务时才回 `psync.CodeNoAI`，所以离线的手机也能查到词。
 - 缓存只存 AI 的回答：词典的结果每次现查（本地、很快），不写进缓存，免得挤掉花钱、要联网才能重新拿到的 AI 回答（缓存上限 5000 条）。手机只读（`psync.Caller.ReadOnly`）时的规则不变：它的 AI 回答也不写进缓存。
 - 挑词典：词的语言取影片的说话语言（`Spoken`），没有时看文字（有假名是日语，只有汉字时看整行有没有假名，否则是中文），都看不出就不按语言筛。词典的 `from` 要和它是同一种语言；`to` 和回答语言（`core.TargetTag(q.Language)`）相同的词典排在 AI 之前；`to` 是别的语言的词典只在没有能用的 AI 服务、或 AI 服务出错没答上来时才答（比如目标语言是简体中文、只装了 JMdict 英文版，离线时照样能看到英文释义，有 AI 时由 AI 用中文答）。
-- 查词卡在释义下面写出来源：「来自词典「<名称>」 · <attribution>」或「由 AI 服务解释」（缓存里的也是 AI 的回答）。手机同步协议 v2 的 `psync.WordEntry` 没有来源字段，手机端暂时不显示来源；要显示得改协议和手机界面，另做。
+- 查词卡在释义下面写出来源：「来自词典「<名称>」 · <attribution>」或「由 AI 服务解释」（缓存里的也是 AI 的回答）。手机也一样：手机同步协议 v2 的 `psync.WordEntry` 加了可选的 `Source`（`psync.WordSource`，`kind` 是 `dictionary` 或 `ai`；词典带名称和 attribution，用桌面的界面语言，`phoneWordSources` 在引擎 goroutine 上按包现取），手机的查词卡在释义下面照桌面的写法显示（`apps/mobile/player/words.go` 的 `sourceText`）。它是 v2 里新增的可选字段（`omitzero`），旧手机解 JSON 时忽略它，旧桌面不发它、手机就不显示来源；`packages/sync/v2.go` 的协商规则是新增只加在同一版本下，所以不升协议版本，`TestWordSourceIsAnAddition` 锁住两个方向的兼容。
 - 日语查词要用原形，但现有分词给不了原形和读音：`packages/core/segment/segment.go:174-176` 有意用 `ipa.DictShrink()` 加载了去掉 features 的 IPA 词典，只保留词界和词性，以节省内存，手机也受益于此；`:191` 把助动词并进前一个词（`行った` 是一个词，没有单一的 kagome 原形）；中文的 gse（`:203-210`）只返回字符串，没有读音。因此原形和读音要单独做（P1.2）：
   - 新增 `segment.Annotated(lang, line) []Morph{Text, Word, Base, Reading}`，内部用另一个按需加载的完整 features 词典 `ipa.Dict()`，只在桌面上、并且启用了日语的词典包或词表包时才加载（12.2 第 5 条的测量门槛已达标，数字见第 15 节）。`Words` 保持用 `DictShrink`，`core.WordToken` 不改，手机的分词不受影响。合并后的词（`行った`）取它首个 token 的原形（`行く`），读音是各 token 读音（片假名）连起来（`イッタ`），有一个 token 没有读音就整个留空。Annotated 会等词典读完，所以只在后台 goroutine 里调。`lang` 是 `ja` 时即使整行没有假名也按日语切（`Words` 会把只有汉字的行当中文），是 `zh` 时按中文切，其余按文字判断，和 `Words` 一样。
   - P1.2 先在 Ubuntu 编译机（`ubuild`）上量出 `ipa.Dict()` 相对 `DictShrink()` 的常驻内存增量（RSS）和首次加载时间。门槛是增量不超过 200 MiB、加载不超过 3 s（12.2 第 5 条）。不达标就退到另一条路：Annotated 不出 Base 和 Reading，查词先查表层形，查不到再查拆开后首个 token 的表层形，读音只取自词典包的条目。测量数字和最终选择记在第 15 节：增量约 92 MiB、加载约 0.6 s，达标，用完整词典，没有走退路。
@@ -39,9 +39,9 @@
 - 验收：装了对应的词典包后，断网、没配 AI 时，在桌面和手机上点日语或中文的词，都能看到释义。
 
 **E2 词表与逐词标注（P1，P1.4 已实现）**
-- 接入位置：`apps/kando/film/subtitle.go` 的 `type lineWords struct` 加了 `marks func() []subtitle.Mark`（在 `subtitleLayer` 里为每行原文建一个 `core.NewMemoFunc`，经 `live.Func` 读 `film.App.CueMarks(cue)`，只在这行的标注变了时才让 spans 重算）。`withWords` 改成调 `lineSpans`：在词的边界和每个标注的边界处切开（上色和下划线的标注也切，因为标注和词的切分不一定一致），带读音的一段是 `core.Span.Attachment`（一个上面是小一半字号的读音、下面是原文的 view，`VerticalAlignTextBottom`），点它照样查它所在的词；其余标注按 `Tone` 给 `core.Span.Style.Color`、按 `Underline` 给 `TextDecorationUnderline`。描边模式下原文要画十份（撑开大小的一份、九份黑色描边、最上面的一份），读音会改变行的排版，所以下面的九份和撑开大小的那一份也带上同样的读音 view（`withReadings`，不接点击，不上色），没有读音时它们照旧直接画 Content。
+- 接入位置：`apps/kando/film/subtitle.go` 的 `type lineWords struct` 加了 `marks func() []subtitle.Mark`（在 `subtitleLayer` 里为每行原文建一个 `core.NewMemoFunc`，经 `live.Func` 读 `film.App.CueMarks(cue)`，只在这行的标注变了时才让 spans 重算）。`withWords` 改成调 `lineSpans`：在词的边界和每个标注的边界处切开（画线的标注也切，因为标注和词的切分不一定一致），带读音的一段是 `core.Span.Attachment`（一个上面是小一半字号的读音、下面是原文的 view，`VerticalAlignTextBottom`），点它照样查它所在的词；其余标注不改字的颜色（字保持用户选的字幕颜色），而是在字下面画线：有 `Tone` 的画一条该等级颜色的粗实线（`TextDecorationUnderline`，`TextDecorationColor` 取 tone 的颜色，`TextDecorationThickness` 是字号的 9%，`TextUnderlineOffset` 是 14%），`Underline`（已学词）画虚线（`DecorationDashed`），两者都有时是 tone 颜色的虚线，所以等级和已学词永远不会看起来一样，彩色的线在任何字幕颜色上都看得见（owner 的决定）。NSGo 固定版本的 `core.Style` 有下划线的颜色、样式、粗细和位置（`core/style.go:220-230`），macOS、Windows、Linux 的文字后端都画得出来，不需要绕行。描边模式下原文要画十份（撑开大小的一份、九份黑色描边、最上面的一份），读音会改变行的排版，所以下面的九份和撑开大小的那一份也带上同样的读音 view（`withReadings`，不接点击，不画线），没有读音时它们照旧直接画 Content。
 - 颜色不写字面量：`accent`、`warn`、`success`、`muted` 分别取 `ui.Colors` 的 `Accent()`、`Warn()`、`Up()`、`Muted()`（播放器那棵子树用深色主题）。
-- `Mark` 定义在叶子包 `film/subtitle`（`Start, End int`、`Ruby`、`Tone`、`Underline`，字节偏移落在这一行原文里），所以 `film` 不导入插件包。计算放在非界面包 `plugins/annotate`，它有一个字段完全相同的 `annotate.Mark`，app 用类型转换 `subtitle.Mark(m)` 换过去，两边字段一旦不同就编译不过。一个词可以有两种标注：带 `Ruby` 的只盖住它的汉字部分（`食べた` 的读音 `た` 只在 `食` 上，前后相同的假名去掉），不带 `Ruby` 的给整词上色、加下划线。
+- `Mark` 定义在叶子包 `film/subtitle`（`Start, End int`、`Ruby`、`Tone`、`Underline`，字节偏移落在这一行原文里），所以 `film` 不导入插件包。计算放在非界面包 `plugins/annotate`，它有一个字段完全相同的 `annotate.Mark`，app 用类型转换 `subtitle.Mark(m)` 换过去，两边字段一旦不同就编译不过。一个词可以有两种标注：带 `Ruby` 的只盖住它的汉字部分（`食べた` 的读音 `た` 只在 `食` 上，前后相同的假名去掉），不带 `Ruby` 的在整词下面画线。
 - 数据来源：日语的读音来自 P1.2 的 `segment.Annotated`（IPA 词典的片假名读音换成平假名），只在启用了日语词典包、或选了日语词表时才读那份大词典，否则日语没有读音，词表和已学词也只按表层形查；不读大词典时，凡是 `segment.Annotated` 会按日语切的行（说话语言是 `ja`，或者说话语言不是 `zh` 而行里有假名，比如英语片里夹一句日语）都改用 `segment.Words` 和小词典切，免得一部非日语影片因为一行假名就读进那份约 92 MiB 的词典；假名注音去掉前后相同的假名时，长音符 `ー`（含半角 `ｰ`）和半角片假名也算假名（`ラーメン屋` 读 `らーめんや` 只在 `屋` 上标 `や`），半角浊音符号 `ﾞ` `ﾟ` 不合并，遇到时读音盖住的范围宽一些；中文的读音（拼音）取自已启用的中文词典包（`a.pluginsDictsFor("zh", "")` 的顺序，第一个有读音的），同一个词一次计算里只查一次；等级来自选中的 wordlist 包，日语先按原形再按表层形查，只给语言和词表 `language` 相同的行上色；已学词来自生词本（`savedBook().Words` 里说话语言和这部影片相同的词（`annotate.SpokenIn`），按 `wordlist.Key` 小写比较），没有用 study 的 `WordIndex`，因为要一次判断整部影片的所有词。没有词频。
 - 何时计算：插件块自己的 `playing` 和 `afterChange` 钩子（都是 `pluginsMarksFollow`；`afterChange` 管暂停时的改动，比如改了一行字幕、往生词本里加了词）每次只算一个可比较的键 `pluginsMarkKey`：视频、字幕哈希（`pluginsSubsHash`：只哈希每行的起止时间和原文（`film.SplitCue`），不含译文，所以翻译一批批写进来、或只改了译文时不重算；播放器换字幕时总是换一个新切片、从不原地改，所以只在切片变了时才重新哈希）、说话语言、三个开关、选中词表的 id 和内容哈希、已打开的中文词典的 id 和哈希、是否读大词典，以及生词本的内容指纹（`pluginsVocabHash`：和影片说话语言相同的词按 `wordlist.Key` 各取 `maphash.String` 哈希（本次运行的种子，不分配内存）后求和，再带上词数，与顺序无关；生词本是原地改的（`study.Book` 的 `slices.Insert`/`Delete`），改它的地方很多（生词本、收藏的句子、两种同步），没有用改动计数器，因为每处都得记得加一，漏一处下划线就不更新，所以每次报进度都扫一遍，只在下划线开着时才算；加词、删词、换词都会重算）。键和已有标注的键、正在算的键都不同时，才在后台 goroutine 里 `annotate.Lines`，算好经 `a.update` 存成不可变的切片；同一时刻只有最新的一份在算：开始新的一份、或键又回到已有标注的键时，前一份的停止标记（`pluginsUI.stop`，`annotate.Sources.Stop`）被置上，它在下一行之前停下，结果即使送回来也丢掉，免得它算完后盖掉当前的标注。它忘掉已读的词表（不再是选中的那份）时也报告有变化，因为插件页的问题区读它。开关在设置里改动时也调一次它；三个开关都关掉或影片没有字幕时丢掉标注。字幕文件被改写后播放器重读（`reloadOpenSubtitles`，字幕还没读完时 `subs.ready` 是 false）期间，它既不丢标注也不丢正在算的那一份，读回来的原文没变就直接沿用。缓存只留当前影片这一份（`pluginsUI.marks`），换回之前看过的影片会重算。不放在 `shelfChanged` 里算，因为每次任务报进度都会触发它；也不去 film 块的打开函数里插调用。绑定里只读缓存，从不调用插件，也不在里面算哈希：`CueMarks` 核对缓存的视频和行数与当前相同，再核对这一行的原文和算标注时的原文（`pluginsMarks.originals`）相同，所以字幕换了切片、新标注还在算的时候，原文没变的行照旧显示旧的标注，读音不会消失再出现、行高不会跳；原文改过的行在新标注到之前不显示标注，旧标注不会画在新文字上。
 - 开关在 设置 › 字幕外观 最后的「逐词标注」卡片（见 7.4）。
@@ -726,7 +726,7 @@ export function kandoManifest() { return { /* identical to kando-plugin.json fie
   3. 静态检查：声明的 host 权限都在已知 handler 表里；签名 Capabilities 里除了 Host 和 Network 没有别的字段。
   4. 用户在确认 sheet 上点「安装」后，在引擎 goroutine 上关掉同 id 包的句柄，再 `plugins.Swap`（5.1 节的顺序）。
   5. 残留的 `.staging-`、`.old-` 目录超过 24 小时才清理。清理由每次 `Stage` 开始时顺带做，不另设入口。rename 会保留目录原来的修改时间，很久以前装的包刚被挪开时看起来也已经过了 24 小时，所以挪开的目录命名为 `.old-<挪开时的秒数>-<随机串>`，`.old-` 目录的年龄从名字里的时间算起，免得另一个 Kando 的 `Stage` 删掉 `Swap` 回滚还要用的旧包。
-- 每次启动 Scan 时，用同一个校验器再校验一遍。
+- 每次启动 Scan 时，用同一个校验器再校验一遍。清单、字段和目录形状每次都查；内容哈希（和词典嵌套 zip 的检查）按包里每个文件的（文件名、大小、修改时间）缓存在插件目录的 `.hashes.json`（`plugins/hashcache.go`，写临时文件再 rename），都没变就沿用上次的哈希，不再把可能解开有 1 GiB 的词典读一遍，`kando plugin list` 也一样。修改时间离这次 Scan 不到 3 秒的文件不缓存（文件系统的时间粒度可能只到秒），下次再读；缓存的格式号变了、读不了或超过 4 MiB 就全部重算，校验规则一旦改到文件内容（哈希、上限、嵌套 zip 的检查）就要升 `hashCacheFormat`。同用户的程序可以改了文件再把大小和时间改回去，让旧哈希继续有效；它本来就能改 state.json，所以这不扩大 6.7 的风险。`Stage` 和 `kando plugin validate` 仍完整校验。
 - 第一版不做在线更新：更新就是安装一个新文件，走同样的确认流程，授权按 6.2 节的子集规则处理。将来做社区索引时，只从签名索引里列出的条目自动更新；能力扩大的版本必须由用户确认；离线模式下不检查。
 - 插件文件永远不写进 `.app` 包，只放在 `<UserConfigDir>/Kando/plugins/`。
 
@@ -753,13 +753,13 @@ export function kandoManifest() { return { /* identical to kando-plugin.json fie
 - 列表按 kind 分组。每行有名称、来源徽标、版本·作者、行内开关，以及展开详情的按钮（P1.1 没有每行的图标）。P1.1 的状态只有开关本身和「未安装」：savedPlugins 引用了、目录里却没有的包单独列在「不在插件文件夹里」一组（包已经读不到，不知道它的 kind），带「移除」按钮。其余状态到有对应机制的那一期再加：需要授权 / 已更新，需要重新授权 / 已停用：出错 / 已停用：太慢 / 已停用：上次让看懂停止响应 / 已被撤回 / 离线时不可用。
 - 词典分组里每行有上移、下移两个按钮（`lucide.ArrowUp`/`ArrowDown`，在第一行、最后一行时禁用），决定查词时谁先答，顺序存在 `savedPlugins.PluginOrder`。NSGo 固定版本没有可拖动排序的列表控件，所以不做拖动。移动只改顺序，行按包 id 保留并移动（`core.Each`），不重建，按下的按钮保住键盘焦点，可以连按几次。
 - 顶部按钮：「从文件安装…」（系统文件面板，配合 `holdModal()`，接受 `.zip` 和 `.kandopack`），以及「在访达中显示」（按平台换成文件资源管理器、文件管理器；`desktop.Reveal`，经 `revealInFolder`，插件目录不存在时先建出来）。开发者模式开着时，多一组「开发者」：生成开发者密钥、打包并安装文件夹…。
-- 详情在行下面展开：说明、它会加什么（术语条数和语言、AI 服务的 host 等，由 app 用界面语言写好）、许可、主页、词典的 attribution、id 和哈希前 12 位，以及「卸载…」。卸载的确认也在详情里展开（和手机同步「撤销…」的做法一样），确认后删除目录并从 state.json 移除。
+- 详情在行下面展开：说明、它会加什么（术语条数和语言、AI 服务的 host 等，由 app 用界面语言写好）、许可、主页、词典的 attribution、id 和哈希前 12 位，以及「卸载…」。卸载的确认也在详情里展开（和手机同步「撤销…」的做法一样），确认后删除目录并从 state.json 移除。state.json 是更新版本写的时，和安装一样在删之前就拒绝，插件页写出原因；目录已经删掉、之后 state.json 没存上的，算卸载好了，插件页另写一句「已完成，但没能保存哪些插件是启用的」（`pluginsStateUnsaved`，安装后没存上也是这一句），不说卸载失败。
 - state.json 读不了或是更新版本写的，在列表上方用一行红字说明所有包暂时停用。
 - 问题区列出没能载入的包，以及原因的本地化文案。
 
 ### 7.2 安装确认（`settings.PluginInstallDialog`，`ui.Dialog`）
 
-P1.1 的确认框只有数据包要显示的部分：名称（标题）、说明、它会加什么（AI 服务包写明「会把你的 API Key 和要翻译的字幕发送到 <host>」）、来源（「来自这台电脑上的文件 · 未签名」）、版本·作者、许可、id 和哈希前 12 位，以及要替换的已安装版本。取消是默认按钮，回车和 Esc 都不安装。点了「安装」之后、安装结束之前，取消按钮变灰，回车和 Esc 也不起作用：这时 `plugins.Swap` 正把暂存副本移到位，取消会把它删掉，留下一个用户取消了却装上的包，或者一个缺文件的包顶替了旧版本。文件装不了时，同一个对话框只说原因（catalog 文案）和「好」；点了「安装」之后才失败的（另一种 kind 已有这个 id、写盘失败），确认框也不关，换成同样的失败视图；state.json 是更新版本写的时，在 `plugins.Swap` 之前就拒绝，什么都不替换。包已经放到位、之后 state.json 没存上的，算装好了：确认框照常关掉，存不上的原因单独显示在插件页上（`plugins.err`）。失败视图等用户点「好」，因为它可能画在主窗口上、插件页根本不在眼前。确认框开着时占用 `holdModal`。它的文字在建的时候取，所以界面语言切换时整个重建（读 `i18n.Language(cx)`，和 `settings.Window` 一样）。它画在哪里：设置在自己的窗口里、并且正停在插件页时，由插件页画；其余情况（CLI inbox、设置画在主窗口上、设置开在别的页）由主窗口的 `pluginsOverlay` 画（`PluginInstallHere` 决定），免得确认框被设置窗口挡在主窗口里。下面几条是脚本插件（P3）要加的部分。
+P1.1 的确认框只有数据包要显示的部分：名称（标题）、说明、它会加什么（AI 服务包写明「会把你的 API Key 和要翻译的字幕发送到 <host>」）、来源（「来自这台电脑上的文件 · 未签名」）、版本·作者、许可、id 和哈希前 12 位，以及要替换的已安装版本。取消是默认按钮，回车和 Esc 都不安装。点了「安装」之后、安装结束之前，取消按钮变灰，回车和 Esc 也不起作用：这时 `plugins.Swap` 正把暂存副本移到位，取消会把它删掉，留下一个用户取消了却装上的包，或者一个缺文件的包顶替了旧版本。文件装不了时，同一个对话框只说原因（catalog 文案）和「好」；点了「安装」之后才失败的（另一种 kind 已有这个 id、写盘失败），确认框也不关，换成同样的失败视图；state.json 是更新版本写的时，在 `plugins.Swap` 之前就拒绝，什么都不替换。包已经放到位、之后 state.json 没存上的，算装好了：确认框照常关掉，存不上的原因单独显示在插件页上（`plugins.err`，「已完成，但没能保存哪些插件是启用的：<原因>」）。失败视图等用户点「好」，因为它可能画在主窗口上、插件页根本不在眼前。确认框开着时占用 `holdModal`。它的文字在建的时候取，所以界面语言切换时整个重建（读 `i18n.Language(cx)`，和 `settings.Window` 一样）。它画在哪里：设置在自己的窗口里、并且正停在插件页时，由插件页画；其余情况（CLI inbox、设置画在主窗口上、设置开在别的页）由主窗口的 `pluginsOverlay` 画（`PluginInstallHere` 决定），免得确认框被设置窗口挡在主窗口里。下面几条是脚本插件（P3）要加的部分。
 
 
 - 显示名称、来源（例如「由 acme 发布，看懂已验证」，取自证书）、版本、大小、哈希前 12 位。
@@ -778,7 +778,7 @@ P1.1 的确认框只有数据包要显示的部分：名称（标题）、说明
 
 ### 7.4 角色选择的位置
 
-- 设置 › 字幕外观 最后的「逐词标注」卡片（`settings.Marks`，读自己的 `settings.MarksApp`，照 `Window.Plugins` 的先例由 `settings.Window.Marks` 注入，不扩大 `settings.App`）：「注音或拼音」开关（说明写明日语假名要启用日语词典包、或在「按等级着色」里选日语词表，只装了日语词表包而没选它不会读大词典）、「按等级着色」下拉框（「关闭」加上已启用的词表包，名称取包的 `name`）、「标出已学词」开关。三项默认都关。（看懂的 设置 › 通用 › 外观 只管明暗，所以放在字幕外观。）
+- 设置 › 字幕外观 最后的「逐词标注」卡片（`settings.Marks`，读自己的 `settings.MarksApp`，照 `Window.Plugins` 的先例由 `settings.Window.Marks` 注入，不扩大 `settings.App`）：「注音或拼音」开关（说明写明日语假名要启用日语词典包、或在「按等级画线」里选日语词表，只装了日语词表包而没选它不会读大词典）、「按等级画线」下拉框（「关闭」加上已启用的词表包，名称取包的 `name`；说明写明会在词下面画一条该等级颜色的粗线）、「标出已学词」开关（说明写明是虚线）。三项默认都关。（看懂的 设置 › 通用 › 外观 只管明暗，所以放在字幕外观。）
 - 查词卡在底部标出来源，例如「JMdict」或「AI」。学日语或中文的用户第一次点词时，卡片底部提示「装离线词典，查词更快、不耗 AI」，点了打开设置 › 插件。
 - 设置 › AI 的服务商下拉框里，插件预设排在内置预设之后，每项写成「插件 · <包名> · <host>」（`ui.Select` 还没有带标题的分组，见 E4）。点「获取 API Key」时先用系统提示框显示目标域名再打开。
 - 导出字幕的格式下拉框、学习导出的目标列表里出现插件项，后面标出插件名。
@@ -878,7 +878,7 @@ P1.1 的确认框只有数据包要显示的部分：名称（标题）、说明
   - Grant 子集比较（P3）：只扩 credential 的 hosts、只改 header 或 format、只加一条 network 规则，都应判为扩大能力；换签名者时授权作废。
 - **对解析器做模糊测试**：`go test -fuzz` 覆盖 `Parse` 和 zip 解包，跑在 CI 里，带 `-fuzztime` 上限。
 - **`dict` 和 `wordlist`**：用小型样例词典验证索引构建、二分查找、原形查询、CC-CEDICT 的拼音，以及 Close 之后 Swap 能成功；词表的注释、未知 tier、大小写、重复词和空词表。
-- **`annotate`**（P1.4）：假名注音去掉前后相同的假名；日语按原形查词表和生词本；没有大词典时只按表层形；中文拼音取第一个有读音的词典；别的语言的词表不上色。`film` 包的 `lineSpans` 测读音 view、上色、下划线、越界标注被丢弃和描边副本只带读音，以及标注的边界落在词中间时只给标注自己的字上色。app 层测换词（词数不变）后下划线跟着换，键回到原值时丢掉过期的计算，以及译文写进来（字幕文件改写、重读）时标注一直在、不重算，原文改了才重算、新标注到之前原文没变的行照旧显示旧的、改了的那行不显示；新的一份计算会停下前一份。
+- **`annotate`**（P1.4）：假名注音去掉前后相同的假名；日语按原形查词表和生词本；没有大词典时只按表层形；中文拼音取第一个有读音的词典；别的语言的词表不画线。`film` 包的 `lineSpans` 测读音 view、等级的彩色实线（字的颜色不变）、已学词的虚线、越界标注被丢弃和描边副本只带读音，以及标注的边界落在词中间时只在标注自己的字下面画线。app 层测换词（词数不变）后下划线跟着换，键回到原值时丢掉过期的计算，以及译文写进来（字幕文件改写、重读）时标注一直在、不重算，原文改了才重算、新标注到之前原文没变的行照旧显示旧的、改了的那行不显示；新的一份计算会停下前一份。
 - **`segment.Annotated`**：`行った` 得到原形 `行く`；`Words` 的输出与改动前逐字相同。
 - **`core.ValidateVideoSite`**：拒绝嵌套量词、反向引用、环视。
 - **假脚本插件**：测试辅助函数在测试里现场生成测试根密钥，用 `pkg.Build` 签一个小 TSX bundle（用 `tsx/bundler.Compile` 或预编译好的 JS 字符串），不提交二进制夹具。准备这些夹具：
@@ -1079,6 +1079,7 @@ P1.1 的确认框只有数据包要显示的部分：名称（标题）、说明
 | P1.1 | 设置 › 插件页、安装确认、拖到插件页上安装、CLI inbox，glossary 和 ai-service 两种 kind，savedPlugins、pluginsHooks | `feat/plugins-data-packs` | 已完成 |
 | P1.2 + P1.3 | `segment.Annotated`（含测量和路线选择），dictionary kind、`plugins/dict`、`vocabResolve`、查词卡来源、词典排序 | `feat/plugins-dictionary` | 已完成 |
 | P1.4 | wordlist kind、`plugins/wordlist`、`plugins/annotate`、逐词标注（注音和等级色、已学词下划线）、设置 › 字幕外观 的开关 | `feat/plugins-wordlist` | 已完成 |
+| P1 收尾 | 等级改成彩色粗下划线、已学词改成虚线；卸载遇到更新版本的 state.json 时先拒绝，删掉后没存上 state.json 算卸载好；Scan 的哈希缓存；手机查词卡显示来源（协议加 `WordSource`） | `feat/plugins-polish` | 已完成 |
 | P1.5 | 官方词典包 | — | 不做（12.2 第 2 条） |
 | P2 | 学习任务、导出模板、翻译风格 | — | 未开始 |
 | P3 | 脚本插件 | — | 未开始（等 12.3 第 1、3 条） |
@@ -1112,7 +1113,7 @@ P1.2 的测量结果（Ubuntu 编译机，x86_64，Go 1.27.4，kagome-dict/ipa v
   - `State` 多了 `Revision`（每次 `Save` 加一）；state.json 读不了、没有 format 或格式比本版新时所有包按停用处理，格式更新的文件不覆盖；没有条目的包按启用处理。损坏后的第一次 `Save` 会让没有条目的包重新启用，P1.1 要在保存前给每个包补上停用条目（5.1、6.2）。
   - `kando plugin list` 在 P0.3 一起做了，它不连 app，直接读插件目录（5.4）；P3.6 只剩 `install`。
   - CI 的 Test（Linux）加了一步 `Fuzz the plugin packs`，`FuzzParse` 和 `FuzzUnzip` 各跑 20 秒（第 9 节）。
-  - `Scan` 每次都完整校验并哈希每个包，dictionary 还要把嵌套 zip 读一遍。P1.3 接入时如果启动时这一步太慢，再考虑按文件大小和修改时间缓存哈希。
+  - `Scan` 每次都完整校验并哈希每个包，dictionary 还要把嵌套 zip 读一遍。P1 收尾时加了按文件名、大小和修改时间的哈希缓存（6.5）。
 - P1.1（已完成）：设置 › 插件页（`settings/plugins.go`）、安装确认、CLI inbox、glossary 和 ai-service 接入。和正文的出入如下，各节已同步改过：
   - app 一侧的类型叫 `pluginsUI` 而不是 `pluginsState`，这样 `main.go` 的 `app` 结构体只多一行、不让 gofmt 重排整段对齐；`savedPlugins` 只有一个 `PluginOrder`（所有见过的 id，按出现顺序，决定列表顺序和术语包之间谁先），取代 `PluginDictOrder`，P1.3 让词典组可以重排，P1.4 再加标注开关（5.2）。
   - `PluginPresets()` 改成 `pluginPresets(m)`：名称要用调用方的语言，为此 `locales.Messages` 加了 `Language()`（8.2）。插件预设排在全部内置预设之后，下拉框行写成「插件 · 包名 · host」；`ui.Select` 没有带标题的分组，留了 `TODO(nsgo)`（E4）。
@@ -1142,7 +1143,7 @@ P1.2 的测量结果（Ubuntu 编译机，x86_64，Go 1.27.4，kagome-dict/ipa v
   - 日语词先用 `segment.Annotated` 取原形和读音，按原形查；只在真的会查词典时才调 Annotated（有回答语言的日语词典，或者没有 AI 时有别的语言的日语词典），所以只装了英文释义的 JMdict、又配了 AI 时，查词不会去读那份约 92 MiB 的完整词典。读音是点到的词的读音（片假名，和词典的平假名比较前统一成平假名），只在按点到的词本身命中时用来挑同形词；按原形命中时（`行った` 读 イッタ，原形 `行く` 读 いく 或 ゆく）不挑，原形的各个读音都列出来，因为 kagome 的 IPA features 里没有原形的读音。
   - 词典排序的上移、下移不重建列表：列表的 `core.Dynamic` 只按包的集合（排序后的 kind/id/hash）重建，每组的行用 `core.Each` 按 id 保留并移动，按钮能不能按从绑定里读，所以按过的按钮还在、焦点不丢。
   - 词典排序用上移、下移按钮，不是拖动（7.1）。
-  - 查词卡的来源只在桌面显示；手机同步协议没有来源字段，手机端暂不显示，JMdict 这类 CC-BY-SA 词典在手机上的署名要等协议加字段（E1）。
+  - 查词卡的来源只在桌面显示；手机同步协议没有来源字段，手机端暂不显示，JMdict 这类 CC-BY-SA 词典在手机上的署名要等协议加字段（E1）。P1 收尾时加了 `psync.WordSource`，手机也显示了。
   - 查词卡没有 AI、词典也没查到时的提示（`vocabLookupNoAI`）改成同时指向「AI 服务」和「插件」里安装词典（12.2 第 2 条）。
   - 截图场景 `TestScreenshotsPlugins` 加了 `plugins-lookup`（词典回答的查词卡）；插件页里的词典分组和详情页还没有截图场景。
   - 没有拿真实的 JMdict、Jitendex、CC-CEDICT 全量文件测过（测试用小样例）。第 4 节 64 个条目的上限对条目多的 Yomitan 词典（带图片的 Jitendex 之类）可能不够，建索引的耗时和峰值内存（所有键先放在内存里排序）也还没量；有人装了大词典报上来再调。
@@ -1151,9 +1152,15 @@ P1.2 的测量结果（Ubuntu 编译机，x86_64，Go 1.27.4，kagome-dict/ipa v
   - 缓存只留当前影片一份，不是按键的 map；键除了「视频 + 字幕哈希」，还包括说话语言、三个开关、选中词表和中文词典的内容、是否读日语大词典和生词本的内容指纹（不是词数，换一个词也重算），任何一项变了都重算一次；键回到已有标注的键时丢掉正在算的那一份。字幕哈希只含每行的起止时间和原文，不含译文，只在播放器换了字幕切片时重算。重算期间 `CueMarks` 照旧给出旧标注（视频和行数相同、这一行原文没变时），不再核对切片身份；除了 `playing`，`afterChange` 也调 `pluginsMarksFollow`，暂停时改字幕或生词本也会重算。
   - 开关放在 设置 › 字幕外观 的「逐词标注」卡片，默认都关；由 `settings.Window.Marks` 注入，读自己的 `settings.MarksApp`。
   - 已学词用生词本里同一说话语言的词集合判断，不调 `WordIndex`（它每次线性扫一遍）。
-  - 日语读音只在启用了日语词典包、或选了日语词表时才有（读大词典的门槛，见 E1）；中文拼音只来自中文词典包。词表只给语言和它的 `language` 相同的行上色，说话语言不知道、文字又看不出语言的行（比如没标语言的英文片）不上色。
-  - `lineSpans` 除了词和读音的边界，也在上色、下划线标注的两端切开（只在最上面那一份；描边副本不上色，不切）：标注来自 `segment.Annotated`，词来自 `segment.Words`，两者不一定切在同一处（比如只有汉字的日语行，`segment.Words` 按中文切）。
+  - 日语读音只在启用了日语词典包、或选了日语词表时才有（读大词典的门槛，见 E1）；中文拼音只来自中文词典包。词表只给语言和它的 `language` 相同的行画线，说话语言不知道、文字又看不出语言的行（比如没标语言的英文片）不画线。
+  - `lineSpans` 除了词和读音的边界，也在画线标注的两端切开（只在最上面那一份；描边副本不画线，不切）：标注来自 `segment.Annotated`，词来自 `segment.Words`，两者不一定切在同一处（比如只有汉字的日语行，`segment.Words` 按中文切）。
   - 描边模式下，读音让行的排版变了，所以描边副本和撑开大小的那一份也带同样的读音 view；没有读音时副本照旧画 Content，不切 spans。
   - 手机端没有标注（协议没有字段）。
   - 词表读不了（`wordlist.ErrEmpty` 或读文件失败）时列在插件页的问题区，同一内容不再重试。
   - 截图场景 `TestScreenshotsPlugins` 加了 `plugins-marks`（日语原文带假名注音和等级色）。Linux 上的 nsgotest 不出图，这一张只在 macOS 的截图任务里画得出来，本次只在 Linux 上断言了标注本身，没有看过实际画面；读音 view 的竖直对齐（`VerticalAlignTextBottom`）和描边副本的模糊滤镜是否作用到 attachment 上，要在 macOS 截图里核对。
+- P1 收尾（已完成）：等级的标注、卸载、Scan 的速度和手机查词卡的来源。和正文的出入如下，E1、E2、6.5、7.1、7.2、7.4、第 9 节已同步改过：
+  - 等级不再改字的颜色，改成在词下面画一条该等级颜色的粗实线；已学词从实线改成虚线，两者都有时是等级颜色的虚线（owner 的决定，E2）。设置里的「按等级着色」改名「按等级画线」，说明写明粗线和虚线（7.4）。NSGo 的 `core.Style` 本来就有下划线的颜色、样式和粗细，三个桌面平台都画，没有缺口。描边模式下线只画在最上面那一份，不带黑色描边；粗细和位置按字号的比例，没有在 macOS 截图里看过实际效果。
+  - 卸载遇到更新版本的 state.json 时在删除之前就拒绝；目录删掉后 state.json 没存上的，插件页说「已完成，但……」，不说失败。安装后没存上也改用这一句（新的 `pluginsErrStateUnsaved`），原来说的是「无法读写这个插件包」，和实际不符（7.1、7.2）。
+  - `Scan` 的哈希缓存放在插件目录的 `.hashes.json`，按 `<kind>/<id>` 存每个文件的名称、大小、修改时间（纳秒）和哈希；`Validate` 本身不变，`Scan` 走内部的 `validate(dir, cache)`（6.5）。
+  - 手机查词卡的来源：协议的 `WordEntry` 加了可选的 `Source`，不升版本；名称和 attribution 用桌面的界面语言，因为桌面不知道手机的界面语言；手机缓存的旧查词结果没有来源，照旧不显示（E1）。手机截图场景 `player-word` 带了「由 AI 服务解释」一行。
+  - 没做的 P1 缺口：手机端没有逐词标注（要加协议字段和手机的字幕层，不小）；插件页的词典分组和详情页没有截图场景（`shootSettings` 不能在截图前展开详情，要另加一个能按按钮的截图辅助）；真实的 JMdict、Jitendex、CC-CEDICT 全量文件和 64 个条目的上限没有测（要真实数据和 owner 定上限）；读音 view 的对齐和描边、彩色下划线的实际画面要在 macOS 截图任务里看；`ui.Select` 没有分组（`TODO(nsgo)`，等上游）；7.4、7.5 里「第一次查词时提示装离线词典」和「JMdict 没有这个词，问了 AI」两句提示没有做（不在第 15 节的缺口里，属于新的界面文字，留给 owner 决定要不要）。
