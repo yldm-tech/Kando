@@ -62,17 +62,20 @@ export async function exportNotes(items, settings) {
     throw e
   }
   if (items.some((i) => (i.original || "").startsWith("sound "))) {
+    // A line noted "real" has its sound read; the others ask for a line that is gone, which Kando refuses only after counting the call, without running ffmpeg. sent counts sounds read, soundless refusals of a line, skipped refusals for the quota.
     let read = 0
-    let refused = 0
+    let gone = 0
+    let quota = 0
     for (const i of items.filter((i) => i.kind === "line")) {
       try {
-        await host.call("kando.sound.read", { saved: i.id }, { timeout: 150000 })
-        read++
+        const clip = await host.call("kando.sound.read", { saved: i.note === "real" ? i.id : i.id + "-gone" }, { timeout: 150000 })
+        if (clip.base64) read++
       } catch (e) {
-        refused++
+        if (e.code === "quota") quota++
+        else gone++
       }
     }
-    return { sent: read, skipped: refused }
+    return { sent: read, skipped: quota, soundless: gone }
   }
   if (items.some((i) => i.original === "passed on")) {
     const e = new Error("quota")
@@ -689,22 +692,26 @@ func TestPluginExportReasonIsThePluginsOwn(t *testing.T) {
 	}
 }
 
-// TestPluginExportReadsEverySound checks that an export the user started may read the sound of every line it was given, past the plugin's quota of host calls a minute (docs/plugin-system.md 5.3): 200 lines all get theirs; the allowance ends with the call, and a call of the plugin's own afterwards is held to the minute's 60 again, the export's reads not counted against it.
+// TestPluginExportReadsEverySound checks that an export the user started may read the sound of every line it was given, past the plugin's quota of host calls a minute (docs/plugin-system.md 5.3): of 200 lines, none is refused for the quota, 10 have their sound read through ffmpeg and the other 190 ask for a line that is gone, which Kando counts against the quota before it refuses, so the test does not run ffmpeg 200 times; the allowance ends with the call, and a call of the plugin's own afterwards is held to the minute's 60 again, the export's reads not counted against it.
 func TestPluginExportReadsEverySound(t *testing.T) {
 	ffmpeg := fakeTool(t, filepath.Join(t.TempDir(), "bin"), "ffmpeg")
 	a, tt, updates, _, _ := contribApp(t, media.Tools{FFmpeg: ffmpeg})
 	onEngine(a, func() {
 		book, _ := study.Load(a.snap().LibraryDir)
 		for i := range 200 {
-			book.Lines = append(book.Lines, study.Line{ID: fmt.Sprintf("s%03d", i), Video: "talk/talk.mp4", Start: time.Second, End: 2500 * time.Millisecond, Original: fmt.Sprintf("sound %d", i), Film: "talk"})
+			note := ""
+			if i < 10 {
+				note = "real"
+			}
+			book.Lines = append(book.Lines, study.Line{ID: fmt.Sprintf("s%03d", i), Video: "talk/talk.mp4", Start: time.Second, End: 2500 * time.Millisecond, Original: fmt.Sprintf("sound %d", i), Note: note, Film: "talk"})
 		}
 		a.saved.book = book
 		a.SetExportTarget(pluginsContribID("acme.wiki", "notes"))
 		a.ExportSaved()
 	})
 	scriptsSettleWithin(t, a, tt, updates, time.Minute, func() bool { return a.ExportState().Finished })
-	if e := a.ExportState(); e.Err != "" || e.Sent != 200 || e.Skipped != 0 {
-		t.Fatalf("the export read %d sounds, %d refused: %+v", e.Sent, e.Skipped, e)
+	if e := a.ExportState(); e.Err != "" || e.Sent != 10 || e.Soundless != 190 || e.Skipped != 0 {
+		t.Fatalf("the export read %d sounds, %d lines refused, %d reads refused for the quota: %+v", e.Sent, e.Soundless, e.Skipped, e)
 	}
 	var left bool
 	onEngine(a, func() { _, left = a.plugins.script.sounds["acme.wiki"] })
