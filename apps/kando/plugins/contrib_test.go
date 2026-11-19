@@ -86,6 +86,11 @@ func TestCredentialAllows(t *testing.T) {
 		{"GET", "api.deepl.com", "/v2/translate", false},
 		{"POST", "api.deepl.com.evil.com", "/v2/translate", false},
 		{"POST", "deepl.com", "/v2/translate", false},
+		{"POST", "api.deepl.com", "/v2/translate/../admin", false},
+		{"POST", "api.deepl.com", "/v2/translate/%2e%2e/admin", false},
+		{"POST", "api.deepl.com", "/v2/translate/%2Fadmin", false},
+		{"POST", "api.deepl.com", "/v2/translate//x", false},
+		{"POST", "api.deepl.com", "/v2/translate/./x", false},
 	} {
 		if got := c.Allows(tt.method, tt.host, tt.path); got != tt.want {
 			t.Errorf("%s %s%s: %t, want %t", tt.method, tt.host, tt.path, got, tt.want)

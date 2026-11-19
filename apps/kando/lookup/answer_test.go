@@ -126,3 +126,20 @@ func TestWordLanguage(t *testing.T) {
 		}
 	}
 }
+
+// TestFromPlugin checks a lookup source's answer: null and an entry without a meaning are no entry, something else is an error, and a word it does not give is the word looked up.
+func TestFromPlugin(t *testing.T) {
+	if _, ok, err := FromPlugin("w", nil); ok || err != nil {
+		t.Error("null")
+	}
+	if _, ok, err := FromPlugin("w", "text"); ok || err == nil {
+		t.Error("a string")
+	}
+	if _, ok, _ := FromPlugin("w", map[string]any{"word": "w"}); ok {
+		t.Error("no meaning")
+	}
+	e, ok, err := FromPlugin("run", map[string]any{"meaning": " to go fast ", "reading": "rʌn"})
+	if !ok || err != nil || e != (Entry{Word: "run", Reading: "rʌn", Meaning: "to go fast"}) {
+		t.Errorf("entry %+v, %t, %v", e, ok, err)
+	}
+}
