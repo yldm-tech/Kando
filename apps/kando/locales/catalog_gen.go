@@ -748,6 +748,7 @@ var Parameters = map[string][]string{
 	"PlaylistSeveral":                          {"count"},
 	"PlaylistSubscribe":                        {"kind"},
 	"PlaylistVideos":                           {"count"},
+	"PluginsErrStateUnsaved":                   {"error_"},
 	"PluginsErrSystem":                         {"error_"},
 	"PrecheckChannel":                          {"site"},
 	"PrecheckFailedDownload":                   {"detail"},
@@ -1368,6 +1369,7 @@ type Translation struct {
 	PlaylistSeveral                          func(count int) string
 	PlaylistSubscribe                        func(kind string) string
 	PlaylistVideos                           func(count int) string
+	PluginsErrStateUnsaved                   func(error_ string) string
 	PluginsErrSystem                         func(error_ string) string
 	PrecheckChannel                          func(site string) string
 	PrecheckFailedDownload                   func(detail string) string
@@ -22045,6 +22047,9 @@ func Supply(lang string, t Translation) {
 	if t.PlaylistVideos != nil {
 		s.PlaylistVideos = t.PlaylistVideos
 	}
+	if t.PluginsErrStateUnsaved != nil {
+		s.PluginsErrStateUnsaved = t.PluginsErrStateUnsaved
+	}
 	if t.PluginsErrSystem != nil {
 		s.PluginsErrSystem = t.PluginsErrSystem
 	}
@@ -40703,6 +40708,38 @@ func PluginsErrSchema(cx *core.Scope) string { return For(cx).PluginsErrSchema()
 
 // PluginsErrSchema is the package's PluginsErrSchema in the language of msgs.
 func (msgs Messages) PluginsErrSchema() string { return msgs.text(textPluginsErrSchema) }
+
+// PluginsErrStateUnsaved says "Done, but Kando couldn't save which plugins are on: {error}"
+// in the language the app shows under cx.
+//
+// Plugins page: a pack was installed or uninstalled, but the file that says which plugins are on could not be saved after it; {error} is the system's error, in English.
+func PluginsErrStateUnsaved(cx *core.Scope, error_ string) string {
+	return For(cx).PluginsErrStateUnsaved(error_)
+}
+
+// PluginsErrStateUnsaved is the package's PluginsErrStateUnsaved in the language of msgs.
+func (msgs Messages) PluginsErrStateUnsaved(error_ string) string {
+	if i18n.IsPseudo(msgs.lang) {
+		return i18n.Pseudo(msgs.lang, Messages{lang: Source, mark: true}.PluginsErrStateUnsaved(error_))
+	}
+	for lang := msgs.lang; ; lang = i18n.Parent(lang) {
+		if f := supplied[lang].PluginsErrStateUnsaved; f != nil {
+			return f(error_)
+		}
+		switch lang {
+		case "", "en":
+			return "Done, but Kando couldn't save which plugins are on: " + msgs.arg(error_)
+		case "ja":
+			return "完了しましたが、どのプラグインがオンかを保存できませんでした：" + error_
+		case "ko":
+			return "완료했지만 어떤 플러그인이 켜져 있는지 저장할 수 없습니다: " + error_
+		case "zh-Hans":
+			return "已完成，但看懂没能保存哪些插件是启用的：" + error_
+		case "zh-Hant":
+			return "已完成，但看懂沒能儲存哪些外掛是啟用的：" + error_
+		}
+	}
+}
 
 // PluginsErrSystem says "Kando couldn't read or write the pack: {error}"
 // in the language the app shows under cx.

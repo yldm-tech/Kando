@@ -3993,6 +3993,11 @@ pluginsErrReservedName:
 pluginsErrSchema:
   message: "It's made for another version of Kando."
   description: "Why a plugin pack cannot be installed or loaded: its format version."
+pluginsErrStateUnsaved:
+  message: "Done, but Kando couldn't save which plugins are on: {error}"
+  description: "Plugins page: a pack was installed or uninstalled, but the file that says which plugins are on could not be saved after it; {error} is the system's error, in English."
+  placeholders:
+    error: { type: "String", example: "permission denied" }
 pluginsErrSystem:
   message: "Kando couldn't read or write the pack: {error}"
   description: "Why a plugin pack cannot be installed, removed or turned on: an error of the system, in English."

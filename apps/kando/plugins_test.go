@@ -195,6 +195,43 @@ func TestPluginsPageUninstalls(t *testing.T) {
 	}
 }
 
+// TestPluginsUninstallRefusedOverANewerState checks that while state.json is a newer Kando's, which this one does not write over (plugins.ErrStateFormat), an uninstall is refused before the pack's folder is removed, and the page says why, rather than removing the pack and then saying it failed.
+func TestPluginsUninstallRefusedOverANewerState(t *testing.T) {
+	a, tt, updates, root := pluginsApp(t, pluginGlossary)
+	if err := os.WriteFile(filepath.Join(root, "state.json"), []byte(`{"format": 99, "revision": 1, "plugins": []}`), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	a.plugins.scanned = false
+	onEngine(a, a.pluginsScan)
+	waitUntil(t, tt, a, updates, func() bool { return a.plugins.scanned && !a.plugins.inboxBusy })
+	apply(tt, a, func() { a.UninstallPlugin("example.anime-ja-zh") })
+	if a.plugins.busy || !errors.Is(a.plugins.err, plugins.ErrStateFormat) || a.PluginsErr() != testlocale.Messages().SettingsPluginsStateNewer() {
+		t.Fatalf("the uninstall over a newer state: busy %v, err %v, says %q", a.plugins.busy, a.plugins.err, a.PluginsErr())
+	}
+	if packs, _ := plugins.Scan(root); len(packs) != 1 {
+		t.Fatalf("removed over a newer state: %+v", packs)
+	}
+}
+
+// TestPluginsUninstalledThoughTheStateWasNotSaved checks that a pack whose folder was removed is uninstalled even when state.json cannot be saved after it: the pack leaves the list, and the page says it was done and that which packs are on was not saved, rather than that the uninstall failed.
+func TestPluginsUninstalledThoughTheStateWasNotSaved(t *testing.T) {
+	a, tt, updates, root := pluginsApp(t, pluginGlossary)
+	// A folder where state.json goes, which no file can be renamed over.
+	if err := os.MkdirAll(filepath.Join(root, "state.json", "x"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	apply(tt, a, func() { a.UninstallPlugin("example.anime-ja-zh") })
+	waitUntil(t, tt, a, updates, func() bool { return !a.plugins.busy && len(a.plugins.packs) == 0 })
+	if packs, _ := plugins.Scan(root); len(packs) != 0 {
+		t.Fatalf("still installed: %+v", packs)
+	}
+	var unsaved pluginsStateUnsaved
+	done := testlocale.Messages().PluginsErrStateUnsaved("")
+	if !errors.As(a.plugins.err, &unsaved) || !strings.HasPrefix(a.PluginsErr(), done) || len(a.PluginsErr()) == len(done) {
+		t.Fatalf("the page says %q (%v)", a.PluginsErr(), a.plugins.err)
+	}
+}
+
 // TestPluginsInboxAsksFirst checks that a pack the command line dropped into the inbox (kando plugin install) is offered in the install confirmation and never installed without it: it leaves the inbox, and 取消 installs nothing.
 func TestPluginsInboxAsksFirst(t *testing.T) {
 	a, tt, updates, root := pluginsApp(t)

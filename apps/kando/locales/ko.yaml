@@ -1112,6 +1112,7 @@ pluginsErrNotInstalled: "이 플러그인은 더 이상 설치되어 있지 않�
 pluginsErrReservedID: "ID가 Kando 공식 플러그인 전용입니다."
 pluginsErrReservedName: "이름이 예약되어 있습니다. Kando나 기본 AI 서비스처럼 보입니다."
 pluginsErrSchema: "다른 버전의 Kando용으로 만들어졌습니다."
+pluginsErrStateUnsaved: "완료했지만 어떤 플러그인이 켜져 있는지 저장할 수 없습니다: {error}"
 pluginsErrSystem: "팩을 읽거나 쓸 수 없습니다: {error}"
 pluginsErrTooLarge: "팩이 너무 큽니다."
 pluginsErrUnknownKind: "Kando가 모르는 종류의 플러그인입니다."

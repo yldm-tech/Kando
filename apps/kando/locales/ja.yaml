@@ -1112,6 +1112,7 @@ pluginsErrNotInstalled: "このプラグインはもうインストールされ�
 pluginsErrReservedID: "ID が Kando 公式のプラグイン専用です。"
 pluginsErrReservedName: "名前が予約されています。Kando や内蔵の AI サービスと紛らわしい名前です。"
 pluginsErrSchema: "別のバージョンの Kando 用に作られています。"
+pluginsErrStateUnsaved: "完了しましたが、どのプラグインがオンかを保存できませんでした：{error}"
 pluginsErrSystem: "パックを読み書きできませんでした：{error}"
 pluginsErrTooLarge: "パックが大きすぎます。"
 pluginsErrUnknownKind: "この種類のプラグインは Kando にはわかりません。"

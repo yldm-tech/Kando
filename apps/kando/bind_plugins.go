@@ -127,8 +127,13 @@ func (a *app) ConfirmPluginInstall() { a.pluginsInstall() }
 
 func (a *app) CancelPluginInstall() { a.pluginsClose(false) }
 
-// pluginsErrorText is why a pack could not be read, installed or removed, in the words of m: each of the plugins package's errors has a message of its own, and an error of the system, as a folder that cannot be written, says what it was about in the system's words after one.
+// pluginsErrorText is why a pack could not be read, installed or removed, in the words of m: each of the plugins package's errors has a message of its own, and an error of the system, as a folder that cannot be written, says what it was about in the system's words after one. An install or a removal done, after which state.json could not be saved (pluginsStateUnsaved), says it was done, and why the state was not saved.
 func pluginsErrorText(m locales.Messages, err error) string {
+	// An install or a removal that was done, after which state.json was not saved, says it was done.
+	var unsaved pluginsStateUnsaved
+	if errors.As(err, &unsaved) {
+		return m.PluginsErrStateUnsaved(unsaved.err.Error())
+	}
 	for _, e := range []struct {
 		err  error
 		text func() string
