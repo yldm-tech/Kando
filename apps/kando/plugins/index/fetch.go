@@ -17,8 +17,8 @@ import (
 	"kando/apps/kando/plugins"
 )
 
-// DefaultURL is where Kando reads the community index: a host of Kando's own domain, kando.yldm.ai, served from object storage (docs/plugin-system.md, P5), apart from the app's updates, which come from the GitHub releases (nsgo.yaml's release and updates).
-const DefaultURL = "https://plugins.kando.yldm.ai/index.json"
+// DefaultURL is where Kando reads the community index: Kando's landing site (apps/site, on GitHub Pages behind Cloudflare), which serves the signed index the owner commits under apps/site/public/plugin/, with the pack files beside it under plugin/packs/ on the same host (docs/plugin-system.md 15). The app's updates come from elsewhere, the GitHub releases (nsgo.yaml's release and updates).
+const DefaultURL = "https://kando.yldm.ai/plugin/index.json"
 
 // RefreshEvery is how often at most Kando asks for a newer index on its own; the user can ask at any time.
 const RefreshEvery = 24 * time.Hour

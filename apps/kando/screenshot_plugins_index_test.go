@@ -18,7 +18,7 @@ func pluginsIndexSceneEntries() []index.Entry {
 		publisher, _, _ := strings.Cut(id, ".")
 		return index.Entry{ID: id, Kind: kind, Version: version, Publisher: publisher, License: "CC-BY-4.0", Size: size,
 			Name: plugins.Text{"en": name, "zh-Hans": zh}, Summary: plugins.Text{"en": summary, "zh-Hans": zhSummary},
-			SHA256: strings.Repeat("ab", 32), URL: "https://plugins.kando.yldm.ai/packs/" + id + ".zip"}
+			SHA256: strings.Repeat("ab", 32), URL: "https://kando.yldm.ai/plugin/packs/" + id + ".zip"}
 	}
 	anki := entry("acme.anki", plugins.KindScript, "1.0.0", "Anki Sender", "Anki 发送器", "Sends saved lines to Anki.", "把收藏的句子发到 Anki。", 182<<10)
 	anki.Source, anki.License = plugins.SourceVerified, "MIT"
