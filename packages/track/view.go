@@ -92,13 +92,13 @@ func wins(e, was Event) bool {
 	return e.after(was)
 }
 
-// Shown is the generation the film shows: the one done last (KindDone), so a redo shows the film as it was until it is done, and one begun earlier that is done after another, as a redo stopped and run again later, shows once it is; or, while none is done, the latest one begun, which a film made for the first time shows as its lines come. "" for a document without one.
+// Shown is the generation the film shows: the one done last (KindDone), so a redo shows the film as it was until it is done, and one begun earlier that is done after another, as a redo stopped and run again later, shows once it is; or, while none is done, the first one begun, which a film made for the first time shows as its lines come, and which a redo begun before that first making was done does not take the place of, so a redo that fails or is stopped never leaves the film showing the part it made. "" for a document without one.
 func (d Doc) Shown() string {
-	var latest, latestDone Event
+	var first, latestDone Event
 	for _, e := range d.Events {
 		switch {
-		case e.Kind == KindGen && (latest.Gen == "" || e.after(latest)):
-			latest = e
+		case e.Kind == KindGen && (first.Gen == "" || first.after(e)):
+			first = e
 		case e.Kind == KindDone && (latestDone.Gen == "" || e.after(latestDone)):
 			latestDone = e
 		}
@@ -106,7 +106,7 @@ func (d Doc) Shown() string {
 	if latestDone.Gen != "" {
 		return latestDone.Gen
 	}
-	return latest.Gen
+	return first.Gen
 }
 
 // Plus is d with events added as device's, stamped after every record d holds, without writing them: the document as it would read had Append written them, as a read takes in what a subtitle file adds without writing it (media.ReadTrack).
