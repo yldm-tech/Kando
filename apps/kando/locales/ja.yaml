@@ -1132,6 +1132,7 @@ precheckEveryAPISignedOut: "ターミナルで everyapi auth login を実行し�
 precheckFailedDownload: "ダウンロードに失敗しました：{detail}"
 precheckFailedExport: "字幕の書き出しに失敗しました：{detail}"
 precheckFailedProcess: "処理に失敗しました：{detail}"
+precheckFailedSource: "翻訳ソース「{source}」が失敗しました：{detail}"
 precheckFailedTranscribe: "字幕の生成に失敗しました：{detail}"
 precheckFailedTranslate: "翻訳に失敗しました：{detail}"
 precheckList: "{site} の再生リストのリンクで、1 本の動画ではありません。先に動画を一覧にしてから追加してください。"

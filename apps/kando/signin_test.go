@@ -1,7 +1,6 @@
 package main
 
 import (
-	"errors"
 	"os"
 	"path/filepath"
 	"strings"
@@ -113,7 +112,7 @@ func TestCookieRemediesPointAtTheSetting(t *testing.T) {
 	} {
 		film := failedJob(t, a, yt, core.FailCookies, tc.browser)
 		job, _ := a.library.Find(film.JobID)
-		job.Err = errors.New("download: yt-dlp: exit status 1: " + tc.err)
+		job.Err = media.ReadStageError("download: yt-dlp: exit status 1: " + tc.err)
 		a.library.Upsert(job)
 		r, ok := a.FailureRemedy(film)
 		if !ok || r.Why != tc.why || strings.Join(remedyLabels(r), ",") != strings.Join(tc.actions, ",") {

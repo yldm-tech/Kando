@@ -2,7 +2,9 @@ package shelf
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
+	"fmt"
 	"os"
 	"path/filepath"
 	"reflect"
@@ -12,6 +14,7 @@ import (
 	"time"
 
 	"kando/packages/core"
+	"kando/packages/media"
 )
 
 func TestLibraryRoundTrip(t *testing.T) {
@@ -776,5 +779,104 @@ func TestLibraryKeepsWhereAMovedVideoIs(t *testing.T) {
 	}
 	if len(read.Stored) != 1 || read.Stored["/c.mp4"] != (Stored{Location: "nas", Path: "c.mp4"}) {
 		t.Fatalf("records read: %+v", read.Stored)
+	}
+}
+
+// TestLibraryKeepsTheStepAJobFailedAt checks that a failed job's step and the translation source that failed are kept beside its text, which reads as before, and that both come back as a media.StageError.
+func TestLibraryKeepsTheStepAJobFailedAt(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "library.json")
+	lib, _ := Load(path)
+	lib.Upsert(core.Job{ID: "engine", Source: "https://example.com/a", Stage: core.StageFailed, Err: &media.StageError{Stage: media.StageTranslate, Source: "DeepL", Err: errors.New("456 Quota Exceeded")}})
+	lib.Upsert(core.Job{ID: "download", Source: "https://example.com/b", Stage: core.StageFailed, Err: &media.StageError{Stage: media.StageDownload, Err: fmt.Errorf("yt-dlp: %w", media.ErrOffline)}})
+	lib.Upsert(core.Job{ID: "plain", Source: "https://example.com/c", Stage: core.StageFailed, Err: errors.New("download: not from media")})
+	if err := lib.Save(); err != nil {
+		t.Fatal(err)
+	}
+	data, err := os.ReadFile(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, want := range []string{`"error": "translate: 456 Quota Exceeded"`, `"errorStage": "translate"`, `"errorSource": "DeepL"`, `"error": "download: yt-dlp: ` + media.ErrOffline.Error() + `"`, `"errorStage": "download"`} {
+		if !strings.Contains(string(data), want) {
+			t.Errorf("library.json lacks %s:\n%s", want, data)
+		}
+	}
+	// An error that is not a step's as it is keeps no step of its own: its text is read for one, as an older library's is.
+	if strings.Count(string(data), `"errorStage"`) != 2 {
+		t.Errorf("library.json keeps a step for the plain error:\n%s", data)
+	}
+	loaded, err := Load(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for id, want := range map[string]media.StageError{
+		"engine":   {Stage: media.StageTranslate, Source: "DeepL"},
+		"download": {Stage: media.StageDownload},
+		"plain":    {Stage: media.StageDownload},
+	} {
+		job, _ := loaded.Find(id)
+		saved, _ := lib.Find(id)
+		var failed *media.StageError
+		if !errors.As(job.Err, &failed) || failed.Stage != want.Stage || failed.Source != want.Source || job.Err.Error() != saved.Err.Error() {
+			t.Errorf("%s came back as %#v (%v), want step %q from %q reading %q", id, failed, job.Err, want.Stage, want.Source, saved.Err.Error())
+		}
+	}
+}
+
+// TestLoadReadsTheStepOfAnOldFailure checks that a failed job saved before the step was kept apart reads its step from its text, as Kando read it before, and that one whose text names no step, or whose step and text disagree, reads as its text alone.
+func TestLoadReadsTheStepOfAnOldFailure(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "library.json")
+	old := `{"jobs": [
+  {"id": "a", "source": "https://example.com/a", "stage": "failed", "error": "download: yt-dlp: exit status 1: ERROR: [youtube] abc: Video unavailable"},
+  {"id": "b", "source": "https://example.com/b", "stage": "failed", "error": "translate: translation API returned 401 Unauthorized: invalid key"},
+  {"id": "c", "source": "https://example.com/c", "stage": "failed", "error": "whisper-cli: exit status 3"},
+  {"id": "d", "source": "https://example.com/d", "stage": "failed", "error": "check: ffmpeg is not installed", "errorStage": "export"},
+  {"id": "e", "source": "https://example.com/e", "stage": "failed", "error": "transcribe: newer", "errorStage": "transcribe", "errorFuture": true}
+]}
+`
+	if err := os.WriteFile(path, []byte(old), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	lib, err := Load(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for id, want := range map[string]struct {
+		stage media.Stage
+		text  string
+	}{
+		"a": {media.StageDownload, "download: yt-dlp: exit status 1: ERROR: [youtube] abc: Video unavailable"},
+		"b": {media.StageTranslate, "translate: translation API returned 401 Unauthorized: invalid key"},
+		"c": {"", "whisper-cli: exit status 3"},
+		"d": {"", "check: ffmpeg is not installed"},
+		"e": {media.StageTranscribe, "transcribe: newer"},
+	} {
+		job, _ := lib.Find(id)
+		var failed *media.StageError
+		named := errors.As(job.Err, &failed)
+		if job.Err == nil || job.Err.Error() != want.text || named != (want.stage != "") || (named && failed.Stage != want.stage) {
+			t.Errorf("%s reads as %v (%#v), want %q at %q", id, job.Err, failed, want.text, want.stage)
+		}
+	}
+}
+
+// TestAnOlderKandoReadsTheNewFailure checks that a failed job saved now reads in a Kando that knows neither the step nor the source apart from the text: its error is the same text, starting with the step it reads.
+func TestAnOlderKandoReadsTheNewFailure(t *testing.T) {
+	stored := storeJob(core.Job{ID: "a", Stage: core.StageFailed, Err: &media.StageError{Stage: media.StageTranslate, Source: "DeepL", Err: errors.New("456 Quota Exceeded")}})
+	data, err := json.Marshal(stored)
+	if err != nil {
+		t.Fatal(err)
+	}
+	// The fields of a failed job as Kando read them before the step was kept apart.
+	var older struct {
+		ID    string     `json:"id"`
+		Stage core.Stage `json:"stage"`
+		Error string     `json:"error"`
+	}
+	if err := json.Unmarshal(data, &older); err != nil {
+		t.Fatal(err)
+	}
+	if stage, _, _ := strings.Cut(older.Error, ": "); older.Stage != core.StageFailed || stage != "translate" || older.Error != "translate: 456 Quota Exceeded" {
+		t.Fatalf("an older Kando reads %+v", older)
 	}
 }

@@ -755,6 +755,7 @@ var Parameters = map[string][]string{
 	"PrecheckFailedDownload":                   {"detail"},
 	"PrecheckFailedExport":                     {"detail"},
 	"PrecheckFailedProcess":                    {"detail"},
+	"PrecheckFailedSource":                     {"source", "detail"},
 	"PrecheckFailedTranscribe":                 {"detail"},
 	"PrecheckFailedTranslate":                  {"detail"},
 	"PrecheckList":                             {"site"},
@@ -1417,6 +1418,7 @@ type Translation struct {
 	PrecheckFailedDownload                   func(detail string) string
 	PrecheckFailedExport                     func(detail string) string
 	PrecheckFailedProcess                    func(detail string) string
+	PrecheckFailedSource                     func(source string, detail string) string
 	PrecheckFailedTranscribe                 func(detail string) string
 	PrecheckFailedTranslate                  func(detail string) string
 	PrecheckList                             func(site string) string
@@ -23398,6 +23400,9 @@ func Supply(lang string, t Translation) {
 	if t.PrecheckFailedProcess != nil {
 		s.PrecheckFailedProcess = t.PrecheckFailedProcess
 	}
+	if t.PrecheckFailedSource != nil {
+		s.PrecheckFailedSource = t.PrecheckFailedSource
+	}
 	if t.PrecheckFailedTranscribe != nil {
 		s.PrecheckFailedTranscribe = t.PrecheckFailedTranscribe
 	}
@@ -42499,6 +42504,38 @@ func (msgs Messages) PrecheckFailedProcess(detail string) string {
 			return "处理失败：" + detail
 		case "zh-Hant":
 			return "處理失敗：" + detail
+		}
+	}
+}
+
+// PrecheckFailedSource says "Translation source {source} failed: {detail}"
+// in the language the app shows under cx.
+//
+// Card of a job that failed because a translation source other than the AI service, such as a machine translation plugin, failed; source is its name as the plugin gives it, detail what it said (often English).
+func PrecheckFailedSource(cx *core.Scope, source string, detail string) string {
+	return For(cx).PrecheckFailedSource(source, detail)
+}
+
+// PrecheckFailedSource is the package's PrecheckFailedSource in the language of msgs.
+func (msgs Messages) PrecheckFailedSource(source string, detail string) string {
+	if i18n.IsPseudo(msgs.lang) {
+		return i18n.Pseudo(msgs.lang, Messages{lang: Source, mark: true}.PrecheckFailedSource(source, detail))
+	}
+	for lang := msgs.lang; ; lang = i18n.Parent(lang) {
+		if f := supplied[lang].PrecheckFailedSource; f != nil {
+			return f(source, detail)
+		}
+		switch lang {
+		case "", "en":
+			return "Translation source " + msgs.arg(source) + " failed: " + msgs.arg(detail)
+		case "ja":
+			return "翻訳ソース「" + source + "」が失敗しました：" + detail
+		case "ko":
+			return "번역 소스 \"" + source + "\" 실패: " + detail
+		case "zh-Hans":
+			return "翻译来源「" + source + "」失败：" + detail
+		case "zh-Hant":
+			return "翻譯來源「" + source + "」失敗：" + detail
 		}
 	}
 }

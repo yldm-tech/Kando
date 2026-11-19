@@ -85,7 +85,7 @@ func (a *app) RedoFailure(cx *ns.Scope) (text, section string) {
 		return "", ""
 	}
 	m := locales.For(cx)
-	reason, section := failureHint(m, films.Film{Detail: statusText(m, ended)})
+	reason, section := failureHint(m, films.Film{Detail: statusText(m, ended), Failure: films.FailureOf(ended)})
 	if ended.Redo == core.RedoAll {
 		return m.FilmReprocessFailed(reason), section
 	}

@@ -92,16 +92,16 @@ func JobOf(job core.Job, facts JobFacts) psync.Job {
 	return out
 }
 
-// failedStep is the index of the step job failed in, which media.Run names before its error: the check of the tools before any step counts as the first, and the proofreading and the export as the translation's.
+// failedStep is the index of the step job failed in, as media.Make names it (media.StageError): the check of the tools before any step counts as the first, and the export as the translation's.
 func failedStep(job core.Job) int {
-	if job.Err == nil {
+	var failed *media.StageError
+	if !errors.As(job.Err, &failed) {
 		return 0
 	}
-	step, _, _ := strings.Cut(job.Err.Error(), ":")
-	switch step {
-	case "transcribe":
+	switch failed.Stage {
+	case media.StageTranscribe:
 		return 1
-	case "translate", "proofread", "export":
+	case media.StageTranslate, media.StageExport:
 		return 2
 	}
 	return 0

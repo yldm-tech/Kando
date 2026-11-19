@@ -48,7 +48,7 @@ func TestPick(t *testing.T) {
 	}
 }
 
-// TestStageTools checks that every stage of media.Run that runs a program names it, and the translation, which runs none, names none.
+// TestStageTools checks that every step of media.Make that runs a program names it, and the translation, which runs none, names none.
 func TestStageTools(t *testing.T) {
 	if got := StageTools("transcribe"); !slices.Equal(got, []string{"ffmpeg", "whisper-cli"}) {
 		t.Errorf("transcribe runs %v", got)

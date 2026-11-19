@@ -852,7 +852,7 @@ func TestRetryKeepsTheSameCard(t *testing.T) {
 	a.library.Jobs = []core.Job{{
 		ID: "same", Source: "https://www.youtube.com/watch?v=TRWgBxVAb1M", Language: "简体中文",
 		Stage: core.StageFailed, VideoPath: testVideos + "/Colibri [TRWgBxVAb1M].mp4",
-		Err: errors.New("translate: translation API returned 401"),
+		Err: media.ReadStageError("translate: translation API returned 401"),
 	}}
 	refresh(tt, a)
 	tt.Press("重试")
@@ -1070,7 +1070,7 @@ func failedJob(t *testing.T, a *app, source string, kind core.FailKind, cookies 
 		t.Fatal(err)
 	}
 	job.Language, job.Stage, job.LibraryDir = "简体中文", core.StageFailed, a.snap().LibraryDir
-	job.Err, job.FailKind, job.Cookies, job.Title = errors.New("download: yt-dlp: exit status 1"), kind, cookies, "Coastal Erosion Documentary"
+	job.Err, job.FailKind, job.Cookies, job.Title = media.ReadStageError("download: yt-dlp: exit status 1"), kind, cookies, "Coastal Erosion Documentary"
 	a.library.Upsert(job)
 	film, _ := a.JobFilm(job.ID)
 	return film
@@ -1133,7 +1133,7 @@ func TestAFailedDownloadOffersWhatFixesIt(t *testing.T) {
 		if tc.kind == core.FailCookies && tc.cookies == "safari" {
 			// The real error of yt-dlp reading Safari's cookies without Full Disk Access (packages/media/testdata/ytdlp/errors/cookies-safari-denied.stderr).
 			job, _ := a.library.Find(film.JobID)
-			job.Err = errors.New("download: yt-dlp: exit status 1: ERROR: [Errno 1] Operation not permitted: '/Users/someone/Library/Containers/com.apple.Safari/Data/Library/Cookies/Cookies.binarycookies'")
+			job.Err = media.ReadStageError("download: yt-dlp: exit status 1: ERROR: [Errno 1] Operation not permitted: '/Users/someone/Library/Containers/com.apple.Safari/Data/Library/Cookies/Cookies.binarycookies'")
 			a.library.Upsert(job)
 		}
 		r, ok := a.FailureRemedy(film)
@@ -1652,13 +1652,35 @@ func TestOpenSystemSettingsForSafarisLogin(t *testing.T) {
 // failedWith is a failed card of the open library whose job's error is err, as media.Run wraps it.
 func failedWith(t *testing.T, a *app, err string) films.Film {
 	t.Helper()
-	job := core.Job{ID: "f", Source: "https://www.youtube.com/watch?v=jNQXAC9IVRw", Stage: core.StageFailed, Err: errors.New(err), LibraryDir: a.snap().LibraryDir}
+	job := core.Job{ID: "f", Source: "https://www.youtube.com/watch?v=jNQXAC9IVRw", Stage: core.StageFailed, Err: media.ReadStageError(err), LibraryDir: a.snap().LibraryDir}
 	a.library.Jobs = []core.Job{job}
 	film, ok := a.JobFilm(job.ID)
 	if !ok {
 		t.Fatal("no card")
 	}
 	return film
+}
+
+// A job a translation source of its own failed (media.Tools.Engine) says which source failed, with what it said, and opens no AI service setting, which is not where that source is set up, even for a refused key.
+func TestAFailedCardNamesTheTranslationSource(t *testing.T) {
+	a, tt, _ := newTestApp(t, &fakePipeline{})
+	for _, said := range []string{"456 Quota Exceeded", "translation API returned 401 Unauthorized: invalid key"} {
+		job := core.Job{ID: "f", Source: "https://www.youtube.com/watch?v=jNQXAC9IVRw", Stage: core.StageFailed, LibraryDir: a.snap().LibraryDir,
+			Err: &media.StageError{Stage: media.StageTranslate, Source: "DeepL", Err: errors.New(said)}}
+		a.library.Jobs = []core.Job{job}
+		film, ok := a.JobFilm(job.ID)
+		if !ok {
+			t.Fatal("no card")
+		}
+		if reason, section := a.FailureHint(film); reason != "翻译来源「DeepL」失败："+said || section != "" {
+			t.Errorf("%q: %q %q", said, reason, section)
+		}
+	}
+	refresh(tt, a)
+	wantText(t, tt, "翻译来源「DeepL」失败：translation API returned 401 Unauthorized: invalid key")
+	if shows(tt, "打开设置") {
+		t.Fatal("the card opens the AI service's settings for a source of its own")
+	}
 }
 
 // A failed card says why in plain Chinese, never the pipeline's English: what went wrong with the translation, and 打开设置 to 「AI 服务」 when a setting there fixes it; and for a failure no reason is known for, the stage that failed with what the tool said, without the tool's own prefixes.
@@ -1883,9 +1905,9 @@ func TestAddingAVideoInTheLibraryOffersToOpenIt(t *testing.T) {
 func TestAddingAFailedVideoAgainRetriesIt(t *testing.T) {
 	a, tt, updates := newTestApp(t, &fakePipeline{})
 	a.library.Jobs = []core.Job{
-		{ID: "failed", Source: "https://www.youtube.com/watch?v=TRWgBxVAb1M", Language: "简体中文", Stage: core.StageFailed, Err: errors.New("download: boom"), LibraryDir: testVideos},
+		{ID: "failed", Source: "https://www.youtube.com/watch?v=TRWgBxVAb1M", Language: "简体中文", Stage: core.StageFailed, Err: media.ReadStageError("download: boom"), LibraryDir: testVideos},
 		{ID: "cancelled", Source: "file:///Users/me/Movies/clip.mp4", Language: "简体中文", Stage: core.StageFailed, Err: context.Canceled, LibraryDir: testVideos},
-		{ID: "elsewhere", Source: "https://vimeo.com/76979871", Language: "简体中文", Stage: core.StageFailed, Err: errors.New("download: boom"), LibraryDir: "/other"},
+		{ID: "elsewhere", Source: "https://vimeo.com/76979871", Language: "简体中文", Stage: core.StageFailed, Err: media.ReadStageError("download: boom"), LibraryDir: "/other"},
 	}
 	startJob(t, tt, "https://youtu.be/TRWgBxVAb1M")
 	refresh(tt, a)
@@ -3033,7 +3055,7 @@ func TestRetryAllAndRemoveFailed(t *testing.T) {
 	g := newGatePipeline()
 	a, tt, _ := newTestApp(t, g)
 	failed := func(id string, kind core.FailKind) core.Job {
-		return core.Job{ID: id, Source: "https://example.com/" + id, Language: "简体中文", Stage: core.StageFailed, Err: errors.New("download: boom"), FailKind: kind, LibraryDir: testVideos}
+		return core.Job{ID: id, Source: "https://example.com/" + id, Language: "简体中文", Stage: core.StageFailed, Err: media.ReadStageError("download: boom"), FailKind: kind, LibraryDir: testVideos}
 	}
 	stopped := failed("stopped", "")
 	stopped.Err = context.Canceled
@@ -3071,7 +3093,7 @@ func TestRetryAllAndRemoveFailedKeepToTheSourceShown(t *testing.T) {
 	g := newGatePipeline()
 	a, tt, _ := newTestApp(t, g)
 	failed := func(id, source string) core.Job {
-		return core.Job{ID: id, Source: source, Language: "简体中文", Stage: core.StageFailed, Err: errors.New("download: boom"), LibraryDir: testVideos}
+		return core.Job{ID: id, Source: source, Language: "简体中文", Stage: core.StageFailed, Err: media.ReadStageError("download: boom"), LibraryDir: testVideos}
 	}
 	a.library.Jobs = []core.Job{
 		failed("yt1", "https://youtu.be/TRWgBxVAb1M"), failed("yt2", "https://youtu.be/dQw4w9WgXcQ"),

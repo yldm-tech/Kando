@@ -315,7 +315,7 @@ func TestRemoteAddSkipsListsAndVideosAlreadyThere(t *testing.T) {
 	a.edit(func(s *session) { s.LibraryDir = dir })
 	a.library.Jobs = []core.Job{
 		{ID: "done", Source: "https://www.youtube.com/watch?v=TRWgBxVAb1M", Stage: core.StageComplete, VideoPath: done, LibraryDir: dir},
-		{ID: "failed", Source: "https://www.bilibili.com/video/BV1GJ411x7h7", Language: "简体中文", Stage: core.StageFailed, Err: errors.New("download: boom"), LibraryDir: dir},
+		{ID: "failed", Source: "https://www.bilibili.com/video/BV1GJ411x7h7", Language: "简体中文", Stage: core.StageFailed, Err: media.ReadStageError("download: boom"), LibraryDir: dir},
 	}
 	// Adding from kando add or MCP, a failed video queued again included, leaves the window where the user is.
 	a.page = pageAccount
@@ -680,7 +680,7 @@ func TestRemoteRetriesAJobWithoutMovingTheWindow(t *testing.T) {
 	dir := t.TempDir()
 	a.edit(func(s *session) { s.LibraryDir = dir })
 	a.library.Jobs = []core.Job{
-		{ID: "bad", Source: "https://example.com/bad", Stage: core.StageFailed, Err: errors.New("download: boom"), FailKind: "network", LibraryDir: dir},
+		{ID: "bad", Source: "https://example.com/bad", Stage: core.StageFailed, Err: media.ReadStageError("download: boom"), FailKind: "network", LibraryDir: dir},
 		{ID: "stopped", Source: "https://example.com/stopped", Language: "日本語", Stage: core.StageFailed, Err: context.Canceled, LibraryDir: dir},
 		{ID: "done", Source: "https://example.com/done", Language: "简体中文", Stage: core.StageComplete, SubtitlePath: filepath.Join(dir, "done.bilingual.srt"), LibraryDir: dir, CompletedAt: time.Now()},
 	}

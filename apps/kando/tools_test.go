@@ -2,7 +2,6 @@ package main
 
 import (
 	"context"
-	"errors"
 	"os"
 	"path/filepath"
 	"runtime"
@@ -106,14 +105,14 @@ func TestToolsSayACopyThatDoesNotStart(t *testing.T) {
 // TestToolsCheckAgainAfterAFailure checks that a job failing at a stage a program runs has the copies run again, once for that job, as the program may have broken while Kando was open; and a job that had failed before the window was ready does not.
 func TestToolsCheckAgainAfterAFailure(t *testing.T) {
 	a, _, _ := newTestApp(t, media.Tools{YTDLP: testYTDLP, FFmpeg: testFFmpeg, Whisper: testWhisper})
-	a.library.Jobs = []core.Job{{ID: "old", Stage: core.StageFailed, Err: errors.New("transcribe: ffmpeg: exit status 1")}}
+	a.library.Jobs = []core.Job{{ID: "old", Stage: core.StageFailed, Err: media.ReadStageError("transcribe: ffmpeg: exit status 1")}}
 	a.toolsAfterFailure()
 	if a.tools.gen != 0 {
 		t.Fatal("a job that failed before the window was ready started a check")
 	}
 	a.tools.ready = true
-	a.library.Jobs = append(a.library.Jobs, core.Job{ID: "new", Stage: core.StageFailed, Err: errors.New("transcribe: ffmpeg: signal: abort trap")},
-		core.Job{ID: "translation", Stage: core.StageFailed, Err: errors.New("translate: the AI service is busy")})
+	a.library.Jobs = append(a.library.Jobs, core.Job{ID: "new", Stage: core.StageFailed, Err: media.ReadStageError("transcribe: ffmpeg: signal: abort trap")},
+		core.Job{ID: "translation", Stage: core.StageFailed, Err: media.ReadStageError("translate: the AI service is busy")})
 	a.toolsAfterFailure()
 	if a.tools.gen != 1 {
 		t.Fatalf("%d checks after a transcription failed, want 1", a.tools.gen)
@@ -133,9 +132,9 @@ func TestToolRemedyDownloadsKandosOwnAndRetries(t *testing.T) {
 	// The queue is paused, so the jobs run again wait in it rather than running.
 	a.queue.paused = true
 	a.library.Jobs = []core.Job{
-		{ID: "stopped", Source: "https://example.com/a", Stage: core.StageFailed, LibraryDir: testVideos, Err: errors.New("transcribe: ffmpeg: signal: abort trap: dyld[1]: Library not loaded")},
-		{ID: "also", Source: "https://example.com/b", Stage: core.StageFailed, LibraryDir: testVideos, Err: errors.New("download: ffmpeg: exit status 134")},
-		{ID: "translation", Source: "https://example.com/c", Stage: core.StageFailed, LibraryDir: testVideos, Err: errors.New("translate: the AI service is busy")},
+		{ID: "stopped", Source: "https://example.com/a", Stage: core.StageFailed, LibraryDir: testVideos, Err: media.ReadStageError("transcribe: ffmpeg: signal: abort trap: dyld[1]: Library not loaded")},
+		{ID: "also", Source: "https://example.com/b", Stage: core.StageFailed, LibraryDir: testVideos, Err: media.ReadStageError("download: ffmpeg: exit status 134")},
+		{ID: "translation", Source: "https://example.com/c", Stage: core.StageFailed, LibraryDir: testVideos, Err: media.ReadStageError("translate: the AI service is busy")},
 	}
 	checkTools(t, a, func(done func() bool) { waitUntil(t, tt, a, updates, done) })
 	a.kitsCancel()

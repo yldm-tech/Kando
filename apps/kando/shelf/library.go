@@ -14,6 +14,7 @@ import (
 	"time"
 
 	"kando/packages/core"
+	"kando/packages/media"
 )
 
 // The error of a stopped job is stored as one of these words so it reads back as the same error; any other error is stored as its text.
@@ -347,6 +348,9 @@ type storedJob struct {
 	LibraryDir   string     `json:"libraryDir,omitempty"`
 	CompletedAt  time.Time  `json:"completedAt,omitzero"`
 	Error        string     `json:"error,omitempty"`
+	// ErrorStage is the step a failed job failed at (media.StageError.Stage), and ErrorSource the translation source whose failure stopped it (media.StageError.Source), both kept beside Error, whose text still starts with the step as it always has, so an older Kando, which reads the step from the text and knows neither field, reads the job as before. A library saved before them has neither, and its Error is read for the step (media.ReadStageError).
+	ErrorStage  media.Stage `json:"errorStage,omitempty"`
+	ErrorSource string      `json:"errorSource,omitempty"`
 	// FailKind is why the download failed (core.FailKind), and Cookies the browser whose login the job borrows.
 	FailKind core.FailKind `json:"failKind,omitempty"`
 	Cookies  string        `json:"cookies,omitempty"`
@@ -411,8 +415,25 @@ func storeJob(job core.Job) storedJob {
 		stored.Error = storedLibrarySwitched
 	case job.Err != nil:
 		stored.Error = job.Err.Error()
+		// Only a step's error as it is, whose text starts with the step, keeps the step apart, so its text reads back the same (failure).
+		if failed, ok := job.Err.(*media.StageError); ok {
+			stored.ErrorStage, stored.ErrorSource = failed.Stage, failed.Source
+		}
 	}
 	return stored
+}
+
+// failure is the error of a failed job as it was saved: the step it failed at, with what stopped it as text, or, for a library saved before the step was kept apart (ErrorStage), the step its text names.
+func (s storedJob) failure() error {
+	if s.ErrorStage == "" {
+		return media.ReadStageError(s.Error)
+	}
+	rest, ok := strings.CutPrefix(s.Error, string(s.ErrorStage)+": ")
+	if !ok {
+		// Not as storeJob writes it: the text is kept as it is.
+		return errors.New(s.Error)
+	}
+	return &media.StageError{Stage: s.ErrorStage, Source: s.ErrorSource, Err: errors.New(rest)}
 }
 
 func (s storedJob) job() core.Job {
@@ -436,7 +457,7 @@ func (s storedJob) job() core.Job {
 	case storedLibrarySwitched:
 		job.Err = core.ErrLibrarySwitched
 	default:
-		job.Err = errors.New(s.Error)
+		job.Err = s.failure()
 	}
 	if job.Stage != "" && !job.Stage.Done() {
 		job.Stage = core.StageQueued

@@ -2,7 +2,6 @@ package phonesync
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"net/http"
 	"reflect"
@@ -41,8 +40,8 @@ func TestJobOfTellsEachStep(t *testing.T) {
 		{"done", core.Job{Stage: core.StageComplete, Source: link, VideoPath: "/v.mp4"}, psync.JobDone, "download:done:1 transcribe:done:1 translate:done:1 "},
 		{"done in its own language", core.Job{Stage: core.StageComplete, Source: link, SameLanguage: true}, psync.JobDone, "download:done:1 transcribe:done:1 translate:skipped:0 "},
 		{"done untranslated", core.Job{Stage: core.StageComplete, Source: link, TranslationErr: "no AI service"}, psync.JobDone, "download:done:1 transcribe:done:1 translate:failed:0 "},
-		{"failed to transcribe", core.Job{Stage: core.StageFailed, Source: link, Err: fmt.Errorf("transcribe: %w", media.ErrNoSpeech)}, psync.JobFailed, "download:done:1 transcribe:failed:0 translate:waiting:0 "},
-		{"a local video's check failed", core.Job{Stage: core.StageFailed, Source: "file:///films/talk.mp4", Err: errors.New("check: whisper-cli is not installed")}, psync.JobFailed, "download:skipped:0 transcribe:failed:0 translate:waiting:0 "},
+		{"failed to transcribe", core.Job{Stage: core.StageFailed, Source: link, Err: &media.StageError{Stage: media.StageTranscribe, Err: media.ErrNoSpeech}}, psync.JobFailed, "download:done:1 transcribe:failed:0 translate:waiting:0 "},
+		{"a local video's check failed", core.Job{Stage: core.StageFailed, Source: "file:///films/talk.mp4", Err: media.ReadStageError("check: whisper-cli is not installed")}, psync.JobFailed, "download:skipped:0 transcribe:failed:0 translate:waiting:0 "},
 		{"canceled downloading", core.Job{Stage: core.StageFailed, Source: link, Err: context.Canceled}, psync.JobCanceled, "download:waiting:0 transcribe:waiting:0 translate:waiting:0 "},
 		{"paused by a phone", core.Job{Stage: core.StageQueued, Source: link, PausedBy: "Evan's iPhone", VideoPath: "/v.mp4", Transcribed: true}, psync.JobPaused, "download:waiting:0 transcribe:waiting:0 translate:waiting:0 "},
 		{"paused while transcribing, not stopped yet", core.Job{Stage: core.StageTranscribing, Source: link, PausedBy: "Evan's iPhone"}, psync.JobPaused, "download:done:1 transcribe:waiting:0 translate:waiting:0 "},
@@ -77,17 +76,17 @@ func TestJobOfTypesTheFailure(t *testing.T) {
 		facts JobFacts
 		want  psync.Failure
 	}{
-		{"yt-dlp too old", core.Job{Err: errors.New("download: ERROR: unable to extract"), FailKind: core.FailOutdated}, JobFacts{Reason: "yt-dlp is too old"},
+		{"yt-dlp too old", core.Job{Err: media.ReadStageError("download: ERROR: unable to extract"), FailKind: core.FailOutdated}, JobFacts{Reason: "yt-dlp is too old"},
 			psync.Failure{Step: psync.StepDownload, Code: psync.FailOutdated, Message: "yt-dlp is too old", Remedy: psync.RemedyUpdateYTDLP}},
-		{"the network", core.Job{Err: errors.New("download: timed out"), FailKind: core.FailNetwork}, JobFacts{},
+		{"the network", core.Job{Err: media.ReadStageError("download: timed out"), FailKind: core.FailNetwork}, JobFacts{},
 			psync.Failure{Step: psync.StepDownload, Code: psync.FailNetwork, Message: "download: timed out", Remedy: psync.RemedyRetry}},
-		{"members only", core.Job{Err: errors.New("download: members"), FailKind: core.FailMembers}, JobFacts{Reason: "members only"},
+		{"members only", core.Job{Err: media.ReadStageError("download: members"), FailKind: core.FailMembers}, JobFacts{Reason: "members only"},
 			psync.Failure{Step: psync.StepDownload, Code: psync.FailMembers, Message: "members only", Remedy: psync.RemedyDesktop}},
-		{"no speech model", core.Job{Err: errors.New("check: no whisper model")}, JobFacts{Reason: "Choose a speech model", Setup: true},
+		{"no speech model", core.Job{Err: media.ReadStageError("check: no whisper model")}, JobFacts{Reason: "Choose a speech model", Setup: true},
 			psync.Failure{Step: psync.StepDownload, Code: psync.FailDesktopSetup, Message: "Choose a speech model", Remedy: psync.RemedyDesktop}},
-		{"no speech", core.Job{Err: fmt.Errorf("transcribe: %w", media.ErrNoSpeech)}, JobFacts{Reason: "No speech"},
+		{"no speech", core.Job{Err: &media.StageError{Stage: media.StageTranscribe, Err: media.ErrNoSpeech}}, JobFacts{Reason: "No speech"},
 			psync.Failure{Step: psync.StepTranscribe, Code: psync.FailNoSpeech, Message: "No speech"}},
-		{"a redo's translation", core.Job{Err: errors.New("translate: 500"), Redo: core.RedoTranslation}, JobFacts{Reason: "The AI service failed"},
+		{"a redo's translation", core.Job{Err: media.ReadStageError("translate: 500"), Redo: core.RedoTranslation}, JobFacts{Reason: "The AI service failed"},
 			psync.Failure{Step: psync.StepTranslate, Code: psync.FailTranslation, Message: "The AI service failed", Remedy: psync.RemedyRetry}},
 	} {
 		tc.job.Stage, tc.job.Source = core.StageFailed, link

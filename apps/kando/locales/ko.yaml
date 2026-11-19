@@ -1132,6 +1132,7 @@ precheckEveryAPISignedOut: "터미널에서 everyapi auth login을 실행해 로
 precheckFailedDownload: "다운로드 실패: {detail}"
 precheckFailedExport: "자막 내보내기 실패: {detail}"
 precheckFailedProcess: "처리 실패: {detail}"
+precheckFailedSource: "번역 소스 \"{source}\" 실패: {detail}"
 precheckFailedTranscribe: "자막 생성 실패: {detail}"
 precheckFailedTranslate: "번역 실패: {detail}"
 precheckList: "{site} 재생목록 링크이며 동영상 하나가 아닙니다. 먼저 동영상 목록을 불러온 뒤 추가하세요."

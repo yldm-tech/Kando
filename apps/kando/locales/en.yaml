@@ -4067,6 +4067,12 @@ precheckFailedProcess:
   description: "Card of a failed job whose failure has no known reason, with what the program said (often English)."
   placeholders:
     detail: { type: "String", example: "boom" }
+precheckFailedSource:
+  message: "Translation source {source} failed: {detail}"
+  description: "Card of a job that failed because a translation source other than the AI service, such as a machine translation plugin, failed; source is its name as the plugin gives it, detail what it said (often English)."
+  placeholders:
+    source: { type: "String", example: "DeepL" }
+    detail: { type: "String", example: "456 Quota Exceeded" }
 precheckFailedTranscribe:
   message: "Generating subtitles failed: {detail}"
   description: "Card of a job whose transcription failed for an unknown reason, with what whisper-cli said (often English)."

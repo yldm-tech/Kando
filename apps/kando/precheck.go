@@ -161,14 +161,21 @@ func sourceError(m locales.Messages, err error) string {
 
 // translationHint says, in the language of m, why a done film translated none of its lines, err being core.Job.TranslationErr, as failureHint says why a translation failed, and the settings section that fixes it: the film page and the card say it (TranslationHint), and the control socket says it in English.
 func translationHint(m locales.Messages, err string) (reason, section string) {
-	return failureHint(m, films.Film{Detail: m.QueueStatusFailed("translate: " + err)})
+	failed := &media.StageError{Stage: media.StageTranslate, Err: errors.New(err)}
+	return failureHint(m, films.Film{Detail: m.QueueStatusFailed(failed.Error()), Failure: failed})
 }
 
-// failureHint says in the user's words, in the language of m, which is the one the card's detail is in, what a failed job's error means for them, and the settings section that fixes it ("" when none does): a known reason in the user's words, or else the stage that failed and what its tool said, without the tool's prefixes. A job that was stopped rather than failed, as one whose library was switched, already says so in the app's words (statusText), which are kept as they are.
+// failureHint says in the user's words, in the language of m, which is the one the card's detail is in, what a failed job's error means for them, and the settings section that fixes it ("" when none does): a known reason in the user's words, or else the stage that failed (item.Failure) and what its tool said, without the tool's prefixes; a translation source of its own that failed (media.Tools.Engine) is named, as its settings are not Kando's AI service's. A job that was stopped rather than failed, as one whose library was switched, already says so in the app's words (statusText), which are kept as they are.
 func failureHint(m locales.Messages, item films.Film) (reason, section string) {
 	detail, isError := strings.CutPrefix(item.Detail, failedPrefix(m))
 	if !isError {
 		return item.Detail, ""
+	}
+	// The step media.Make failed at, and its error without the step's name.
+	var stage media.Stage
+	rest := detail
+	if failed := item.Failure; failed != nil {
+		stage, rest = failed.Stage, failed.Err.Error()
 	}
 	switch {
 	case strings.Contains(detail, "KANDO_WHISPER_MODEL"), strings.Contains(detail, "whisper model"):
@@ -195,17 +202,15 @@ func failureHint(m locales.Messages, item films.Film) (reason, section string) {
 		return m.PrecheckNewerKando(), ""
 	case strings.Contains(detail, media.ErrNoLength.Error()):
 		return m.PrecheckNoLength(), ""
-	case strings.Contains(detail, media.ErrOffline.Error()) && strings.HasPrefix(detail, "download: "):
+	case strings.Contains(detail, media.ErrOffline.Error()) && stage == media.StageDownload:
 		return m.PrivacyNoDownload(), sectionid.Privacy
 	case strings.Contains(detail, media.ErrOffline.Error()):
 		return m.PrivacyNoCloudAI(), settings.SectionAI
 	}
-	// media.Make names the step that failed before its error.
-	stage, rest, ok := strings.Cut(detail, ": ")
-	if !ok {
-		stage, rest = "", detail
+	if failed := item.Failure; failed != nil && failed.Source != "" {
+		return m.PrecheckFailedSource(failed.Source, films.Shorten(toolMessage(rest), 72)), ""
 	}
-	if stage == "translate" {
+	if stage == media.StageTranslate {
 		switch media.ClassifyTranslate(rest) {
 		case media.TranslateQuota:
 			return m.PrecheckTranslateQuota(), settings.SectionAI
@@ -236,17 +241,17 @@ func failedPrefix(m locales.Messages) string {
 }
 
 // stageFailed says that the step media.Make says failed did, with what its tool said, for an error no reason is known for, in the language of m; known is false for a stage it does not know.
-func stageFailed(m locales.Messages, stage, detail string) (msg string, known bool) {
+func stageFailed(m locales.Messages, stage media.Stage, detail string) (msg string, known bool) {
 	switch stage {
-	case "check":
+	case media.StageCheck:
 		return m.PrecheckFailedProcess(detail), true
-	case "download":
+	case media.StageDownload:
 		return m.PrecheckFailedDownload(detail), true
-	case "transcribe":
+	case media.StageTranscribe:
 		return m.PrecheckFailedTranscribe(detail), true
-	case "translate":
+	case media.StageTranslate:
 		return m.PrecheckFailedTranslate(detail), true
-	case "export":
+	case media.StageExport:
 		return m.PrecheckFailedExport(detail), true
 	}
 	return "", false

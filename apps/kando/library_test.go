@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"context"
 	"errors"
-	"fmt"
 	"image"
 	"image/color"
 	"image/draw"
@@ -951,12 +950,12 @@ func TestFailedCardOpensTheSettingThatFixesIt(t *testing.T) {
 		reason  func() string
 		section string
 	}{
-		{"speech model", errors.New("check: KANDO_WHISPER_MODEL is not set"), testlocale.Messages().PrecheckNoSpeechModel, settings.SectionSpeech},
-		{"everyapi missing at check", fmt.Errorf("check: %w", media.ErrEveryAPIMissing), testlocale.Messages().PrecheckEveryAPIMissing, settings.SectionAI},
-		{"everyapi gone before translate", fmt.Errorf("translate: %w", media.ErrEveryAPIMissing), testlocale.Messages().PrecheckEveryAPIMissing, settings.SectionAI},
-		{"everyapi signed out", fmt.Errorf("translate: %w", media.ErrEveryAPISignedOut), testlocale.Messages().PrecheckEveryAPISignedOut, settings.SectionAI},
+		{"speech model", media.ReadStageError("check: KANDO_WHISPER_MODEL is not set"), testlocale.Messages().PrecheckNoSpeechModel, settings.SectionSpeech},
+		{"everyapi missing at check", &media.StageError{Stage: media.StageCheck, Err: media.ErrEveryAPIMissing}, testlocale.Messages().PrecheckEveryAPIMissing, settings.SectionAI},
+		{"everyapi gone before translate", &media.StageError{Stage: media.StageTranslate, Err: media.ErrEveryAPIMissing}, testlocale.Messages().PrecheckEveryAPIMissing, settings.SectionAI},
+		{"everyapi signed out", &media.StageError{Stage: media.StageTranslate, Err: media.ErrEveryAPISignedOut}, testlocale.Messages().PrecheckEveryAPISignedOut, settings.SectionAI},
 		// What Kando said before it told a missing everyapi from a signed-out one, as a failed job in library.json still says it.
-		{"everyapi legacy text", errors.New("translate: EveryAPI is not signed in; run `everyapi auth login` or set EVERYAPI_API_KEY"), testlocale.Messages().PrecheckEveryAPISignedOut, settings.SectionAI},
+		{"everyapi legacy text", media.ReadStageError("translate: EveryAPI is not signed in; run `everyapi auth login` or set EVERYAPI_API_KEY"), testlocale.Messages().PrecheckEveryAPISignedOut, settings.SectionAI},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			a, tt, _ := newTestApp(t, &fakePipeline{})
@@ -977,8 +976,8 @@ func TestFailedCardSaysTheVideoHasNoSound(t *testing.T) {
 		name string
 		err  error
 	}{
-		{"no audio", fmt.Errorf("transcribe: %w", media.ErrNoAudio)},
-		{"ffmpeg's words", errors.New("transcribe: ffmpeg: exit status 234: [out#0/wav @ 0x77a5028180] Output file does not contain any stream\nError opening output file /tmp/kando-1/audio.wav.\nError opening output files: Invalid argument")},
+		{"no audio", &media.StageError{Stage: media.StageTranscribe, Err: media.ErrNoAudio}},
+		{"ffmpeg's words", media.ReadStageError("transcribe: ffmpeg: exit status 234: [out#0/wav @ 0x77a5028180] Output file does not contain any stream\nError opening output file /tmp/kando-1/audio.wav.\nError opening output files: Invalid argument")},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			a, tt, _ := newTestApp(t, &fakePipeline{})

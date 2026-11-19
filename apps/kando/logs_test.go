@@ -179,7 +179,7 @@ func TestFailedJobIsLogged(t *testing.T) {
 	a, tt, updates := newTestApp(t, &logsFailPipeline{tools: media.Tools{YTDLP: ytdlp, OutputDir: t.TempDir()}})
 	shelfPath := filepath.Join(t.TempDir(), "library.json")
 	a.openLibrary(shelfPath)
-	a.library.Upsert(core.Job{ID: "old", Source: "https://example.com/old", Stage: core.StageFailed, Err: errors.New("download: an old failure")})
+	a.library.Upsert(core.Job{ID: "old", Source: "https://example.com/old", Stage: core.StageFailed, Err: media.ReadStageError("download: an old failure")})
 	if err := a.library.Save(); err != nil {
 		t.Fatal(err)
 	}

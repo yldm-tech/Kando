@@ -1,7 +1,6 @@
 package main
 
 import (
-	"errors"
 	"path/filepath"
 	"slices"
 	"strings"
@@ -116,7 +115,7 @@ func queueShotHiddenX(t *testing.T, f *screenshotFixture, a *app, tt *nsgotest.A
 	t.Helper()
 	job := f.job(t, "j5")
 	job.Source, job.FailKind, job.Cookies = "https://x.com/streetfood/status/2122000096271503767", core.FailHiddenVideo, cookies
-	job.Err = errors.New("download: yt-dlp: exit status 1: ERROR: [twitter] 2122000096271503767: No video could be found in this tweet")
+	job.Err = media.ReadStageError("download: yt-dlp: exit status 1: ERROR: [twitter] 2122000096271503767: No video could be found in this tweet")
 	a.library.Upsert(job)
 	a.queue.ytdlp.browsers = []media.Browser{media.Browsers[0], media.Browsers[1]}
 	queueShotScroll(t, a, tt)

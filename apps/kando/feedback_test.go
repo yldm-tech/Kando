@@ -1,7 +1,6 @@
 package main
 
 import (
-	"errors"
 	"fmt"
 	"net/url"
 	"os"
@@ -362,7 +361,7 @@ func TestFeedbackHidesTheFilmsPaths(t *testing.T) {
 	a.edit(func(s *session) { s.Libraries = append(s.Libraries, other) })
 	openTalk(t, a, tt, updates, 1500*time.Millisecond)
 	a.library.Jobs[0].Stage = core.StageFailed
-	a.library.Jobs[0].Err = errors.New("download: yt-dlp: [download] Destination: " + filepath.Join(dir, "talk", "My Private Title：第二部 [abc].mp4") + "\nERROR: unable to write the file")
+	a.library.Jobs[0].Err = media.ReadStageError("download: yt-dlp: [download] Destination: " + filepath.Join(dir, "talk", "My Private Title：第二部 [abc].mp4") + "\nERROR: unable to write the file")
 	refresh(tt, a)
 	chooseHelp(t, a, tt, "反馈这部影片的字幕…")
 	a.feedback.form.Description = "另一个资料库 " + filepath.Join(other, "videos", "a b.mp4") + " 也打不开"
@@ -506,7 +505,7 @@ func TestFeedbackDialogInEnglish(t *testing.T) {
 func TestReportingAFailedJobAttachesIt(t *testing.T) {
 	a, tt, _ := newTestApp(t, &fakePipeline{})
 	a.library.Jobs = []core.Job{{ID: "bad", Source: "https://example.com/bad", Language: "简体中文", Stage: core.StageFailed, LibraryDir: testVideos,
-		Err: errors.New("transcribe: whisper-cli: exit status 3: failed to load model\nsecond line of the error")}}
+		Err: media.ReadStageError("transcribe: whisper-cli: exit status 3: failed to load model\nsecond line of the error")}}
 	refresh(tt, a)
 	if got := a.FailureDetail(films.Film{JobID: "bad"}); got != a.library.Jobs[0].Err.Error() {
 		t.Fatalf("detail %q", got)

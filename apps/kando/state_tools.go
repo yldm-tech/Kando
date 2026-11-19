@@ -2,9 +2,9 @@ package main
 
 import (
 	"context"
+	"errors"
 	"maps"
 	"slices"
-	"strings"
 
 	"kando/apps/kando/toolhealth"
 	"kando/packages/core"
@@ -230,16 +230,13 @@ func (a *app) toolsAfterFailure() {
 	}
 }
 
-// failedStage is the step of media.Make a failed job's error names first, "" for an error that names none.
-func failedStage(job core.Job) string {
-	if job.Err == nil {
+// failedStage is the step of media.Make a failed job failed at (media.StageError), "" for an error that names none.
+func failedStage(job core.Job) media.Stage {
+	var failed *media.StageError
+	if !errors.As(job.Err, &failed) {
 		return ""
 	}
-	stage, _, found := strings.Cut(job.Err.Error(), ": ")
-	if !found {
-		return ""
-	}
-	return stage
+	return failed.Stage
 }
 
 // toolBrokenFor is the program that stopped job: the first program the stage it failed at runs whose copy is known not to run now. ok is false for a job that did not fail, or one whose programs all work.

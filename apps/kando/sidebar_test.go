@@ -3,7 +3,6 @@ package main
 import (
 	"context"
 	"encoding/json"
-	"errors"
 	"net/http"
 	"net/http/httptest"
 	"os"
@@ -954,7 +953,7 @@ func TestSidebarCountsTheJobs(t *testing.T) {
 	a, tt, _ := newTestApp(t, &fakePipeline{})
 	a.library.Jobs = []core.Job{
 		{ID: "wait", Source: "https://example.com/a", Stage: core.StageQueued, LibraryDir: testVideos},
-		{ID: "bad", Source: "https://example.com/b", Stage: core.StageFailed, Err: errors.New("download: boom"), LibraryDir: testVideos},
+		{ID: "bad", Source: "https://example.com/b", Stage: core.StageFailed, Err: media.ReadStageError("download: boom"), LibraryDir: testVideos},
 		{ID: "stop", Source: "https://example.com/c", Stage: core.StageFailed, Err: context.Canceled, LibraryDir: testVideos},
 	}
 	a.page = sidebar.PageBrowse

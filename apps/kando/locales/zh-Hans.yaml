@@ -1132,6 +1132,7 @@ precheckEveryAPISignedOut: "在终端运行 everyapi auth login 登录，或在�
 precheckFailedDownload: "下载失败：{detail}"
 precheckFailedExport: "导出字幕失败：{detail}"
 precheckFailedProcess: "处理失败：{detail}"
+precheckFailedSource: "翻译来源「{source}」失败：{detail}"
 precheckFailedTranscribe: "生成字幕失败：{detail}"
 precheckFailedTranslate: "翻译失败：{detail}"
 precheckList: "这是{site}播放列表的链接，不是单个视频。请先列出它的视频再加入。"

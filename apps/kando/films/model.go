@@ -48,6 +48,8 @@ type Film struct {
 	VideoComing   bool
 	// Stopped reports a failed job that was cancelled rather than one that went wrong; Canceled reads it.
 	Stopped bool
+	// Failure is the step a failed job failed at and why (media.StageError), which the card reads its reason from; nil for a job that did not fail, or one whose error names no step.
+	Failure *media.StageError
 	// Library is the name of the library the job saves into when that is not the open one, as for a job that kept running after another library was opened; empty for the open library's films.
 	Library string
 	// Ahead is how many jobs run before a waiting one; 0 for any other film.
@@ -154,10 +156,19 @@ func FromJob(job core.Job, name, detail string) Film {
 		Detail: detail, Stage: job.Stage, JobID: job.ID,
 		VideoPath: job.VideoPath, SubtitlePath: job.SubtitlePath, Language: job.Language, Spoken: job.SpokenLanguage, SpeechLanguage: job.SpeechLanguage,
 		Progress: job.Progress, Thumbnail: job.Thumbnail, Untranslated: job.Untranslated, TranslationErr: job.TranslationErr, SameLanguage: job.SameLanguage,
-		Stopped: errors.Is(job.Err, context.Canceled), Target: jobTarget(job), Device: job.Device, PausedBy: job.PausedBy,
+		Stopped: errors.Is(job.Err, context.Canceled), Failure: FailureOf(job), Target: jobTarget(job), Device: job.Device, PausedBy: job.PausedBy,
 		PlatformSubtitles: job.PlatformSubtitles, LocalLines: job.LocalLines,
 		SubtitlesOnly: job.SubtitlesOnly, VideoComing: job.Redo == core.RedoVideo && !job.Stage.Done(),
 	}
+}
+
+// FailureOf is the step job failed at and why (Film.Failure), nil for a job that did not fail or whose error names no step.
+func FailureOf(job core.Job) *media.StageError {
+	var failed *media.StageError
+	if job.Stage != core.StageFailed || !errors.As(job.Err, &failed) {
+		return nil
+	}
+	return failed
 }
 
 // jobTarget is the language job translates into (Film.Target).
