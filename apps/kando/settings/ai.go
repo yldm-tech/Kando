@@ -161,7 +161,7 @@ func providerSelect(cx *core.Scope, a App) core.Node {
 		return strings.Join(out, "\x01")
 	}))
 	return core.Dynamic(func(cx *core.Scope) core.Node {
-		// TODO(nsgo): give ui.Select headed groups of options, so the services of plugin packs show under a heading of their own rather than only after Kando's, each marked in its label
+		// TODO(nsgo#906): give ui.Select headed groups of options, so the services of plugin packs show under a heading of their own rather than only after Kando's, each marked in its label https://github.com/nsgo-dev/nsgo/issues/906
 		var options []ui.Option[string]
 		for _, item := range strings.Split(labels.Get(), "\x01") {
 			id, label, _ := strings.Cut(item, "\x00")
