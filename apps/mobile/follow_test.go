@@ -79,8 +79,14 @@ func TestAPlayedFilmFollowsItsDesktopsNewLines(t *testing.T) {
 	if cues, ok, err := st.Cues(f.Desktop, f.Film.ID); err != nil || !ok || cues[0].Original != "Good morning!" {
 		t.Fatalf("the phone kept lines %+v, %v, %v", cues, ok, err)
 	}
+	// The film's record is written once its lines are, a turn later (Session's follow), so it may not be on disk yet when they show.
+	updated := func() bool {
+		films, err := st.Films()
+		return err == nil && len(films) == 1 && films[0].Film.Updated.Equal(now().Add(time.Hour))
+	}
+	p.app.WaitUntil(wait, updated)
 	films, err := st.Films()
-	if err != nil || len(films) != 1 || !films[0].Film.Updated.Equal(now().Add(time.Hour)) || films[0].Video != f.Video || films[0].Film.VideoSize != f.Film.VideoSize {
+	if err != nil || len(films) != 1 || films[0].Video != f.Video || films[0].Film.VideoSize != f.Film.VideoSize {
 		t.Fatalf("the phone kept %+v, %v", films, err)
 	}
 }

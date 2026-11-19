@@ -1222,6 +1222,27 @@ const (
 	textPlayerWordAdd
 	textPlayerWordInVocabulary
 	textPlayerWordsEmpty
+	textPlayerFixOpen
+	textPlayerFixTitle
+	textPlayerFixCancel
+	textPlayerFixSave
+	textPlayerFixOriginal
+	textPlayerFixYours
+	textPlayerFixAddTerm
+	textPlayerFixAddTermDetail
+	textPlayerFixTermSource
+	textPlayerFixTermSourceHint
+	textPlayerFixTermTarget
+	textPlayerFixTermTargetHint
+	textPlayerFixNote
+	textPlayerFixSaved
+	textPlayerFixSavedTerm
+	textPlayerFixTermFailed
+	textPlayerFixCannot
+	textPlayerTerms
+	textPlayerTermsOnComputer
+	textPlayerTermsEmpty
+	textPlayerTermLocked
 	numTexts
 )
 
@@ -1645,6 +1666,27 @@ var keyOfText = [numTexts]string{
 	"playerWordAdd",
 	"playerWordInVocabulary",
 	"playerWordsEmpty",
+	"playerFixOpen",
+	"playerFixTitle",
+	"playerFixCancel",
+	"playerFixSave",
+	"playerFixOriginal",
+	"playerFixYours",
+	"playerFixAddTerm",
+	"playerFixAddTermDetail",
+	"playerFixTermSource",
+	"playerFixTermSourceHint",
+	"playerFixTermTarget",
+	"playerFixTermTargetHint",
+	"playerFixNote",
+	"playerFixSaved",
+	"playerFixSavedTerm",
+	"playerFixTermFailed",
+	"playerFixCannot",
+	"playerTerms",
+	"playerTermsOnComputer",
+	"playerTermsEmpty",
+	"playerTermLocked",
 }
 
 // textsEn are the messages without arguments in en.
@@ -2065,7 +2107,28 @@ var textsEn = i18n.NewTexts(""+
 	"Words"+
 	"Add to Vocabulary"+
 	"In Vocabulary · Remove"+
-	"Words you tap in the lines show here, to add to your vocabulary.",
+	"Words you tap in the lines show here, to add to your vocabulary."+
+	"Translation Wrong? Fix It"+
+	"Fix Translation"+
+	"Cancel"+
+	"Save"+
+	"Original"+
+	"Your Translation"+
+	"Also Add to Glossary"+
+	"From now on, this film's same words are translated your way."+
+	"Words in the Original"+
+	"As the line says it"+
+	"Translate As"+
+	"Your translation of them"+
+	"Your fix syncs to the computer, which shows it too."+
+	"Fixed · syncs to the computer"+
+	"Fixed and added to the glossary · syncs to the computer"+
+	"Fixed, but the computer did not take the term. Try again once it is in reach."+
+	"This line can't be fixed now."+
+	"Glossary"+
+	"Managed on the computer"+
+	"This film has no terms yet. You can add one while fixing a translation."+
+	"Locked",
 	[]uint16{
 		7,
 		15,
@@ -2484,6 +2547,27 @@ var textsEn = i18n.NewTexts(""+
 		17,
 		23,
 		64,
+		25,
+		15,
+		6,
+		4,
+		8,
+		16,
+		20,
+		60,
+		21,
+		19,
+		12,
+		24,
+		51,
+		30,
+		56,
+		77,
+		29,
+		8,
+		23,
+		71,
+		6,
 	})
 
 // textsJa are the messages without arguments in ja.
@@ -2904,7 +2988,28 @@ var textsJa = i18n.NewTexts(""+
 	"単語"+
 	"単語帳に追加"+
 	"単語帳にあります · 削除"+
-	"字幕でタップした単語がここに表示され、単語帳に追加できます。",
+	"字幕でタップした単語がここに表示され、単語帳に追加できます。"+
+	"訳が違う？直す"+
+	"訳を直す"+
+	"キャンセル"+
+	"保存"+
+	"原文"+
+	"あなたの訳"+
+	"用語集にも追加"+
+	"今後この動画の同じ語はあなたの訳で翻訳されます"+
+	"原文の語"+
+	"台詞どおりに"+
+	"訳語"+
+	"あなたの訳語"+
+	"直した訳はコンピュータに同期され、コンピュータでも表示されます。"+
+	"直しました · コンピュータに同期します"+
+	"直して用語集にも追加しました · コンピュータに同期します"+
+	"直しましたが、用語をコンピュータに追加できませんでした。つながってからもう一度お試しください"+
+	"今はこの行を直せません"+
+	"用語集"+
+	"コンピュータで管理"+
+	"この動画にはまだ用語がありません。訳を直すときに追加できます。"+
+	"ロック中",
 	[]uint16{
 		9,
 		18,
@@ -3323,6 +3428,27 @@ var textsJa = i18n.NewTexts(""+
 		18,
 		34,
 		90,
+		21,
+		12,
+		15,
+		6,
+		6,
+		15,
+		21,
+		69,
+		12,
+		18,
+		6,
+		18,
+		96,
+		55,
+		82,
+		138,
+		33,
+		9,
+		27,
+		93,
+		12,
 	})
 
 // textsKo are the messages without arguments in ko.
@@ -3743,7 +3869,28 @@ var textsKo = i18n.NewTexts(""+
 	"단어"+
 	"단어장에 추가"+
 	"단어장에 있음 · 삭제"+
-	"자막에서 누른 단어가 여기에 표시되며, 단어장에 추가할 수 있습니다.",
+	"자막에서 누른 단어가 여기에 표시되며, 단어장에 추가할 수 있습니다."+
+	"번역이 틀렸나요? 고치기"+
+	"번역 고치기"+
+	"취소"+
+	"저장"+
+	"원문"+
+	"내 번역"+
+	"용어집에도 추가"+
+	"앞으로 이 영상의 같은 단어는 내 번역대로 옮깁니다"+
+	"원문의 단어"+
+	"대사에 쓰인 그대로"+
+	"번역어"+
+	"내 번역어"+
+	"고친 번역은 컴퓨터에 동기화되어 컴퓨터에서도 보입니다."+
+	"고쳤습니다 · 컴퓨터에 동기화합니다"+
+	"고치고 용어집에도 추가했습니다 · 컴퓨터에 동기화합니다"+
+	"고쳤지만 용어를 컴퓨터에 추가하지 못했습니다. 연결된 뒤 다시 시도하세요"+
+	"지금은 이 줄을 고칠 수 없습니다"+
+	"용어집"+
+	"컴퓨터에서 관리"+
+	"이 영상에는 아직 용어가 없습니다. 번역을 고칠 때 함께 추가할 수 있습니다."+
+	"잠김",
 	[]uint16{
 		10,
 		16,
@@ -4162,6 +4309,27 @@ var textsKo = i18n.NewTexts(""+
 		19,
 		29,
 		94,
+		33,
+		16,
+		6,
+		6,
+		6,
+		10,
+		22,
+		70,
+		16,
+		26,
+		9,
+		13,
+		78,
+		50,
+		79,
+		102,
+		44,
+		9,
+		22,
+		103,
+		6,
 	})
 
 // textsZhHans are the messages without arguments in zh-Hans.
@@ -4582,7 +4750,28 @@ var textsZhHans = i18n.NewTexts(""+
 	"生词"+
 	"加入生词本"+
 	"已在生词本 · 移除"+
-	"在字幕里点过的词会出现在这里，可以加入生词本。",
+	"在字幕里点过的词会出现在这里，可以加入生词本。"+
+	"译文不对？改一下"+
+	"改译文"+
+	"取消"+
+	"保存"+
+	"原文"+
+	"你的译文"+
+	"同时加进术语表"+
+	"以后翻译这部片里的同一个词，都按你的写法"+
+	"原文里的词"+
+	"照台词里的写法"+
+	"译法"+
+	"你的译法"+
+	"改好的译文会同步到电脑，电脑上也能看到。"+
+	"已改好，同步到电脑"+
+	"已改好，并加进术语表 · 同步到电脑"+
+	"已改好，但术语没能加进电脑的术语表，连上电脑后再试一次"+
+	"现在改不了这句"+
+	"术语表"+
+	"在电脑上管理"+
+	"这部片还没有术语。改译文时可以顺手加进来。"+
+	"已锁定",
 	[]uint16{
 		6,
 		12,
@@ -5001,6 +5190,27 @@ var textsZhHans = i18n.NewTexts(""+
 		15,
 		25,
 		69,
+		24,
+		9,
+		6,
+		6,
+		6,
+		12,
+		21,
+		60,
+		15,
+		21,
+		6,
+		12,
+		60,
+		27,
+		49,
+		81,
+		21,
+		9,
+		18,
+		63,
+		9,
 	})
 
 // textsZhHant are the messages without arguments in zh-Hant.
@@ -5421,7 +5631,28 @@ var textsZhHant = i18n.NewTexts(""+
 	"生詞"+
 	"加入生詞本"+
 	"已在生詞本 · 移除"+
-	"在字幕裡點過的詞會出現在這裡，可以加入生詞本。",
+	"在字幕裡點過的詞會出現在這裡，可以加入生詞本。"+
+	"譯文不對？改一下"+
+	"改譯文"+
+	"取消"+
+	"儲存"+
+	"原文"+
+	"你的譯文"+
+	"同時加進術語表"+
+	"以後翻譯這部片裡的同一個詞，都按你的寫法"+
+	"原文裡的詞"+
+	"照台詞裡的寫法"+
+	"譯法"+
+	"你的譯法"+
+	"改好的譯文會同步到電腦，電腦上也看得到。"+
+	"已改好，同步到電腦"+
+	"已改好，並加進術語表 · 同步到電腦"+
+	"已改好，但術語沒能加進電腦的術語表，連上電腦後再試一次"+
+	"現在改不了這句"+
+	"術語表"+
+	"在電腦上管理"+
+	"這部片還沒有術語。改譯文時可以順手加進來。"+
+	"已鎖定",
 	[]uint16{
 		6,
 		12,
@@ -5840,6 +6071,27 @@ var textsZhHant = i18n.NewTexts(""+
 		15,
 		25,
 		69,
+		24,
+		9,
+		6,
+		6,
+		6,
+		12,
+		21,
+		60,
+		15,
+		21,
+		6,
+		12,
+		60,
+		27,
+		49,
+		81,
+		21,
+		9,
+		18,
+		63,
+		9,
 	})
 
 // texts returns the messages without arguments in lang, nil for a
@@ -15800,6 +16052,195 @@ func PlayerWordsEmpty(cx *core.Scope) string { return For(cx).PlayerWordsEmpty()
 
 // PlayerWordsEmpty is the package's PlayerWordsEmpty in the language of msgs.
 func (msgs Messages) PlayerWordsEmpty() string { return msgs.text(textPlayerWordsEmpty) }
+
+// PlayerFixOpen says "Translation Wrong? Fix It"
+// in the language the app shows under cx.
+//
+// Button at the bottom of the explained line's sheet that opens the sheet fixing the line's translation.
+func PlayerFixOpen(cx *core.Scope) string { return For(cx).PlayerFixOpen() }
+
+// PlayerFixOpen is the package's PlayerFixOpen in the language of msgs.
+func (msgs Messages) PlayerFixOpen() string { return msgs.text(textPlayerFixOpen) }
+
+// PlayerFixTitle says "Fix Translation"
+// in the language the app shows under cx.
+//
+// Title of the sheet where the learner types their own translation of a line.
+func PlayerFixTitle(cx *core.Scope) string { return For(cx).PlayerFixTitle() }
+
+// PlayerFixTitle is the package's PlayerFixTitle in the language of msgs.
+func (msgs Messages) PlayerFixTitle() string { return msgs.text(textPlayerFixTitle) }
+
+// PlayerFixCancel says "Cancel"
+// in the language the app shows under cx.
+//
+// Button at the top left of the fix sheet that closes it without keeping anything.
+func PlayerFixCancel(cx *core.Scope) string { return For(cx).PlayerFixCancel() }
+
+// PlayerFixCancel is the package's PlayerFixCancel in the language of msgs.
+func (msgs Messages) PlayerFixCancel() string { return msgs.text(textPlayerFixCancel) }
+
+// PlayerFixSave says "Save"
+// in the language the app shows under cx.
+//
+// Button at the top right of the fix sheet that keeps the learner's translation of the line.
+func PlayerFixSave(cx *core.Scope) string { return For(cx).PlayerFixSave() }
+
+// PlayerFixSave is the package's PlayerFixSave in the language of msgs.
+func (msgs Messages) PlayerFixSave() string { return msgs.text(textPlayerFixSave) }
+
+// PlayerFixOriginal says "Original"
+// in the language the app shows under cx.
+//
+// Fix sheet: label over the line as it is spoken.
+func PlayerFixOriginal(cx *core.Scope) string { return For(cx).PlayerFixOriginal() }
+
+// PlayerFixOriginal is the package's PlayerFixOriginal in the language of msgs.
+func (msgs Messages) PlayerFixOriginal() string { return msgs.text(textPlayerFixOriginal) }
+
+// PlayerFixYours says "Your Translation"
+// in the language the app shows under cx.
+//
+// Fix sheet: label of the field the learner types their translation of the line in.
+func PlayerFixYours(cx *core.Scope) string { return For(cx).PlayerFixYours() }
+
+// PlayerFixYours is the package's PlayerFixYours in the language of msgs.
+func (msgs Messages) PlayerFixYours() string { return msgs.text(textPlayerFixYours) }
+
+// PlayerFixAddTerm says "Also Add to Glossary"
+// in the language the app shows under cx.
+//
+// Fix sheet: switch that also adds the words the fix changed to the film's glossary on the computer.
+func PlayerFixAddTerm(cx *core.Scope) string { return For(cx).PlayerFixAddTerm() }
+
+// PlayerFixAddTerm is the package's PlayerFixAddTerm in the language of msgs.
+func (msgs Messages) PlayerFixAddTerm() string { return msgs.text(textPlayerFixAddTerm) }
+
+// PlayerFixAddTermDetail says "From now on, this film's same words are translated your way."
+// in the language the app shows under cx.
+//
+// Fix sheet: line under the switch that adds a term, saying what the term does.
+func PlayerFixAddTermDetail(cx *core.Scope) string { return For(cx).PlayerFixAddTermDetail() }
+
+// PlayerFixAddTermDetail is the package's PlayerFixAddTermDetail in the language of msgs.
+func (msgs Messages) PlayerFixAddTermDetail() string { return msgs.text(textPlayerFixAddTermDetail) }
+
+// PlayerFixTermSource says "Words in the Original"
+// in the language the app shows under cx.
+//
+// Fix sheet: label of the field for the term's words as the original line says them.
+func PlayerFixTermSource(cx *core.Scope) string { return For(cx).PlayerFixTermSource() }
+
+// PlayerFixTermSource is the package's PlayerFixTermSource in the language of msgs.
+func (msgs Messages) PlayerFixTermSource() string { return msgs.text(textPlayerFixTermSource) }
+
+// PlayerFixTermSourceHint says "As the line says it"
+// in the language the app shows under cx.
+//
+// Placeholder of the field for the term's words as the original line says them.
+func PlayerFixTermSourceHint(cx *core.Scope) string { return For(cx).PlayerFixTermSourceHint() }
+
+// PlayerFixTermSourceHint is the package's PlayerFixTermSourceHint in the language of msgs.
+func (msgs Messages) PlayerFixTermSourceHint() string { return msgs.text(textPlayerFixTermSourceHint) }
+
+// PlayerFixTermTarget says "Translate As"
+// in the language the app shows under cx.
+//
+// Fix sheet: label of the field for how the term is to be translated.
+func PlayerFixTermTarget(cx *core.Scope) string { return For(cx).PlayerFixTermTarget() }
+
+// PlayerFixTermTarget is the package's PlayerFixTermTarget in the language of msgs.
+func (msgs Messages) PlayerFixTermTarget() string { return msgs.text(textPlayerFixTermTarget) }
+
+// PlayerFixTermTargetHint says "Your translation of them"
+// in the language the app shows under cx.
+//
+// Placeholder of the field for how the term is to be translated.
+func PlayerFixTermTargetHint(cx *core.Scope) string { return For(cx).PlayerFixTermTargetHint() }
+
+// PlayerFixTermTargetHint is the package's PlayerFixTermTargetHint in the language of msgs.
+func (msgs Messages) PlayerFixTermTargetHint() string { return msgs.text(textPlayerFixTermTargetHint) }
+
+// PlayerFixNote says "Your fix syncs to the computer, which shows it too."
+// in the language the app shows under cx.
+//
+// Fix sheet: note at its bottom saying where the fixed translation goes.
+func PlayerFixNote(cx *core.Scope) string { return For(cx).PlayerFixNote() }
+
+// PlayerFixNote is the package's PlayerFixNote in the language of msgs.
+func (msgs Messages) PlayerFixNote() string { return msgs.text(textPlayerFixNote) }
+
+// PlayerFixSaved says "Fixed · syncs to the computer"
+// in the language the app shows under cx.
+//
+// Toast after the learner's translation of a line was kept.
+func PlayerFixSaved(cx *core.Scope) string { return For(cx).PlayerFixSaved() }
+
+// PlayerFixSaved is the package's PlayerFixSaved in the language of msgs.
+func (msgs Messages) PlayerFixSaved() string { return msgs.text(textPlayerFixSaved) }
+
+// PlayerFixSavedTerm says "Fixed and added to the glossary · syncs to the computer"
+// in the language the app shows under cx.
+//
+// Toast after the learner's translation of a line was kept and the term added to the film's glossary on the computer.
+func PlayerFixSavedTerm(cx *core.Scope) string { return For(cx).PlayerFixSavedTerm() }
+
+// PlayerFixSavedTerm is the package's PlayerFixSavedTerm in the language of msgs.
+func (msgs Messages) PlayerFixSavedTerm() string { return msgs.text(textPlayerFixSavedTerm) }
+
+// PlayerFixTermFailed says "Fixed, but the computer did not take the term. Try again once it is in reach."
+// in the language the app shows under cx.
+//
+// Toast after the learner's translation was kept but the computer could not be reached, or refused, to add the term.
+func PlayerFixTermFailed(cx *core.Scope) string { return For(cx).PlayerFixTermFailed() }
+
+// PlayerFixTermFailed is the package's PlayerFixTermFailed in the language of msgs.
+func (msgs Messages) PlayerFixTermFailed() string { return msgs.text(textPlayerFixTermFailed) }
+
+// PlayerFixCannot says "This line can't be fixed now."
+// in the language the app shows under cx.
+//
+// Toast when the learner's translation could not be kept, as the film's library is not known yet.
+func PlayerFixCannot(cx *core.Scope) string { return For(cx).PlayerFixCannot() }
+
+// PlayerFixCannot is the package's PlayerFixCannot in the language of msgs.
+func (msgs Messages) PlayerFixCannot() string { return msgs.text(textPlayerFixCannot) }
+
+// PlayerTerms says "Glossary"
+// in the language the app shows under cx.
+//
+// Heading over the film's terms in the player's Info tab.
+func PlayerTerms(cx *core.Scope) string { return For(cx).PlayerTerms() }
+
+// PlayerTerms is the package's PlayerTerms in the language of msgs.
+func (msgs Messages) PlayerTerms() string { return msgs.text(textPlayerTerms) }
+
+// PlayerTermsOnComputer says "Managed on the computer"
+// in the language the app shows under cx.
+//
+// Beside the glossary's heading in the player's Info tab: the terms are changed on the computer.
+func PlayerTermsOnComputer(cx *core.Scope) string { return For(cx).PlayerTermsOnComputer() }
+
+// PlayerTermsOnComputer is the package's PlayerTermsOnComputer in the language of msgs.
+func (msgs Messages) PlayerTermsOnComputer() string { return msgs.text(textPlayerTermsOnComputer) }
+
+// PlayerTermsEmpty says "This film has no terms yet. You can add one while fixing a translation."
+// in the language the app shows under cx.
+//
+// Shown in the player's Info tab in place of the glossary when the film has no terms.
+func PlayerTermsEmpty(cx *core.Scope) string { return For(cx).PlayerTermsEmpty() }
+
+// PlayerTermsEmpty is the package's PlayerTermsEmpty in the language of msgs.
+func (msgs Messages) PlayerTermsEmpty() string { return msgs.text(textPlayerTermsEmpty) }
+
+// PlayerTermLocked says "Locked"
+// in the language the app shows under cx.
+//
+// Accessible name of the lock beside a term of the glossary the translation must write as it is.
+func PlayerTermLocked(cx *core.Scope) string { return For(cx).PlayerTermLocked() }
+
+// PlayerTermLocked is the package's PlayerTermLocked in the language of msgs.
+func (msgs Messages) PlayerTermLocked() string { return msgs.text(textPlayerTermLocked) }
 
 // dated is lang with the hour cycle the user set, which times take.
 func (msgs Messages) dated(lang string) string {

@@ -161,6 +161,8 @@ type Session struct {
 	subs *subscriptions
 	// settle is the conflicts being resolved (conflicts.go).
 	settle *settle
+	// gloss are the films' glossaries (glossary.go).
+	gloss *glossaries
 }
 
 // filmSave is what is still to be written of a film's record: next, once pending; or its folder deleted, once removed.
@@ -219,6 +221,7 @@ func New(cx *core.Scope, cfg Config) *Session {
 		closed:       make(chan struct{}),
 		remote:       newRemote(cx),
 		subs:         newSubscriptions(cx),
+		gloss:        newGlossaries(cx),
 		studies:      core.NewSignalFunc(cx, map[string]study.Library{}, nil),
 		studyLoading: map[string]bool{}, studyRuns: map[string]*studyRun{}, finding: map[string]bool{},
 		studySaving: map[string]uint64{}, studySaved: map[string]uint64{},

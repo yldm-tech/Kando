@@ -2,6 +2,40 @@
 
 What changed in each version of Kando, newest first. The app shows the section of a new version when it offers the update.
 
+## 0.27.0 - 2026-11-19
+
+### Features
+
+- Settle sync conflicts on the phone and send where a film was left to the computer (#265)
+- Storage relay switch and health on the desktop, and phones following the queue through it away from home (#270)
+- Notes tab, words in the review, audio kept at save, glossary term on lookups, Anki audio for words (#268)
+- A reviewable final proofread, series from playlists and file names, and the subtitle progress badge (#271)
+- Confirm sheet for online links, playback time from the extension and bookmarklet (#273)
+- Job options, read-only phones, unfinished counts and a centred Add dialog on tablets (#266)
+- Recap and Explain follow-ups on phone and tablet through the computer (#267)
+- Words tab, Add to Vocabulary and the mini player in the learning player (#269)
+- Study stats and the computers' subscriptions in the Library, over protocol v2 (#272)
+- Dictation, export formats, a computer's settings, and every device's study time (#276)
+- IOS widgets and hardware keyboard shortcuts (#275)
+- Browse the video sites and send a page's video to the computer (#277)
+- Store packaging for the phone app: icon, Android permissions, listings, privacy answers and a manual package workflow (#274)
+- Word links for Japanese and Chinese, kept sounds follow their records, word ends over sync (#281)
+- Series, a channel's latest videos, video details before adding, automatic captions as a reference layer, bilibili 480p (#280)
+- Films through the user's storage: upload after export, stream or download away from home, storage use, cleanup and moving (#288)
+- Subscriptions in the tablet sidebar, a film's computer actions, and films without a video on phones (#286)
+- One prompt where a film's video would play, wherever the video is (#292)
+
+### Fixes
+
+- Gofmt the merged phone files, wait for the tab bar, and wait out a yt-dlp update before its folder goes (#282)
+- Wait for the phone's tab bar to be mounted, and for Cancel to be enabled (#289)
+- Drop captions a video lacks, and hide the reference line with the subtitles (#284)
+- Two tests that failed on CI, and a sync that turned a computer's settings back on the phone (#291)
+- Bring the two Chinese dictionaries compressed, 29 MB off the apps (#290)
+- Subscribe to a bilibili upload of several parts from its video page (#293)
+- Wait for Retry to take input, and for the widgets to count the streak (#294)
+- The phone tests' texts read nothing while the view is not there yet (#296)
+
 ## 0.26.0 - 2026-11-19
 
 ### Features

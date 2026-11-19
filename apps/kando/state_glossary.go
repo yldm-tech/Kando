@@ -30,15 +30,20 @@ type glossaryUI struct {
 	target   string
 	// episodes is the show each film's name says it is an episode of, by name (glossaryEpisodeOf).
 	episodes map[string]glossaryEpisode
+	// suggest is the terms suggested for the open film's glossary (state_glossary_suggest.go).
+	suggest glossarySuggest
 }
 
 func newGlossaryUI() glossaryUI { return glossaryUI{} }
 
-// glossaryHooks reads glossary.json at startup and follows the film open, whose own terms it reads.
+// glossaryHooks reads glossary.json at startup and follows the film open, whose own terms and the terms suggested for it it reads.
 func (a *app) glossaryHooks() areaHooks {
 	return areaHooks{
-		restore:     func(savedSettings) { a.glossaryLoad() },
-		afterChange: a.glossaryFollow,
+		restore: func(savedSettings) { a.glossaryLoad() },
+		afterChange: func() bool {
+			dropped := a.glossaryFollow()
+			return a.glossarySuggestFollow() || dropped
+		},
 	}
 }
 
@@ -211,7 +216,7 @@ func (a *app) AddTerm() {
 		old := a.FilmTerms()[i]
 		t.Scope, t.Locked = old.Scope, old.Locked
 	}
-	if a.glossaryPut(t) {
+	if a.glossaryChange(correctKindTermAdd, t) {
 		a.gloss.source, a.gloss.target = "", ""
 	}
 }
@@ -231,14 +236,18 @@ func (a *app) CycleTermScope(source string) {
 	default:
 		t.Scope = core.ScopeGlobal
 	}
-	a.glossaryPut(t)
+	a.glossaryChange(correctKindTermScope, t)
 }
 
 // ToggleTermLock locks the open film's term for source, so the translation must write it as it is and no machine pass changes it, or unlocks it.
 func (a *app) ToggleTermLock(source string) {
 	if t, ok := a.glossaryTerm(source); ok {
 		t.Locked = !t.Locked
-		a.glossaryPut(t)
+		kind := correctKindTermUnlock
+		if t.Locked {
+			kind = correctKindTermLock
+		}
+		a.glossaryChange(kind, t)
 	}
 }
 
@@ -249,7 +258,7 @@ func (a *app) RemoveTerm(source string) {
 		return
 	}
 	t.Target = ""
-	a.glossaryPut(t)
+	a.glossaryChange(correctKindTermRemove, t)
 }
 
 // glossaryTerm is the open film's term for source, as FilmTerms lists it.
@@ -265,8 +274,7 @@ func (a *app) glossaryTerm(source string) (core.Term, bool) {
 // glossaryPut puts t in the glossary of its scope and takes the same words out of the others the open film has, so the film has one entry for them; a t without a target is taken out of all of them. It saves what changed and reports whether it could; when glossary.json cannot take the change, the film's terms file is written back as it was, so a term moved out of it is not lost.
 func (a *app) glossaryPut(t core.Term) bool {
 	job, _ := a.glossaryJob()
-	old := a.gloss.film
-	film := core.RemoveTerm(old, t.Source)
+	film := core.RemoveTerm(a.gloss.film, t.Source)
 	if t.Valid() && t.Scope == core.ScopeFilm {
 		film = core.SetTerm(film, t)
 	}
@@ -278,6 +286,56 @@ func (a *app) glossaryPut(t core.Term) bool {
 	} else {
 		changed = store.Remove(job.Series, t.Source)
 	}
+	return a.glossaryCommit(film, store, changed)
+}
+
+// glossaryHeld is every entry the open film's glossary holds for one source: the film's own, its series' and every film's, each nil when there is none. Undo and Redo put a change of the glossary back by it, as a change takes the source out of every scope (glossaryPut) and the term the film shows is only the narrowest of them.
+type glossaryHeld struct {
+	film, series, global *core.Term
+}
+
+// glossaryHeldOf is what the open film's glossary holds for source now.
+func (a *app) glossaryHeldOf(source string) glossaryHeld {
+	job, _ := a.glossaryJob()
+	series, global := a.gloss.store.Terms(job.Series)
+	find := func(terms []core.Term) *core.Term {
+		if i := slices.IndexFunc(terms, func(t core.Term) bool { return core.SameTerm(t.Source, source) }); i >= 0 {
+			t := terms[i]
+			return &t
+		}
+		return nil
+	}
+	return glossaryHeld{film: find(a.gloss.film), series: find(series), global: find(global)}
+}
+
+// glossaryRestore makes the open film's glossary hold for source what held does, in each scope, and saves it as glossaryPut does, reporting whether it could.
+func (a *app) glossaryRestore(source string, held glossaryHeld) bool {
+	job, _ := a.glossaryJob()
+	film := core.RemoveTerm(a.gloss.film, source)
+	if held.film != nil {
+		film = core.SetTerm(film, *held.film)
+	}
+	store := a.gloss.store.Clone()
+	changed := store.Remove(job.Series, source)
+	if held.global != nil {
+		store.Global = core.SetTerm(store.Global, *held.global)
+		changed = true
+	}
+	if held.series != nil {
+		if _, ok := store.Find(job.Series); !ok && job.Series != "" {
+			store.Series = append(store.Series, glossary.Series{ID: job.Series})
+		}
+		if series, ok := store.Find(job.Series); ok {
+			series.Terms = core.SetTerm(series.Terms, *held.series)
+			changed = true
+		}
+	}
+	return a.glossaryCommit(film, store, changed)
+}
+
+// glossaryCommit saves film as the open film's own terms and store as glossary.json when changed, and keeps them; when glossary.json cannot take the change, the film's terms file is written back as it was, so a term moved out of it is not lost. It reports whether it could.
+func (a *app) glossaryCommit(film []core.Term, store glossary.Store, changed bool) bool {
+	old := a.gloss.film
 	// A glossary.json that cannot be read is not written over, so the film's file is not changed either: a term moved out of it would be in neither.
 	if changed && a.gloss.storeErr != nil {
 		a.flash(a.messages().GlossaryUnreadable())

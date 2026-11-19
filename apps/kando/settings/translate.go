@@ -55,8 +55,15 @@ func (p translate) Render(cx *core.Scope) core.Node {
 			a.Save()
 		}),
 		Style: core.Style{Width: core.Pt(96)}}
+	suggest := form.SwitchRow{Title: locales.SettingsSuggestTerms(cx), Subtitle: locales.SettingsSuggestTermsHint(cx), TestID: "settings-suggest-terms",
+		On: live.Func(a, func() bool { return *a.SuggestTerms() }),
+		OnChange: live.On(a, func(on bool) {
+			*a.SuggestTerms() = on
+			a.Save()
+		})}
 	card := form.Card(form.Row{Title: locales.SettingsTranslateTarget(cx), NoGroup: true, Trailing: []core.Node{target}}, form.Separator(true), context,
-		form.Separator(true), form.Row{Title: locales.SettingsTranslateContextLines(cx), Subtitle: locales.SettingsTranslateContextLinesHint(cx), Trailing: []core.Node{lines}})
+		form.Separator(true), form.Row{Title: locales.SettingsTranslateContextLines(cx), Subtitle: locales.SettingsTranslateContextLinesHint(cx), Trailing: []core.Node{lines}},
+		form.Separator(true), suggest)
 	card.Style.Margin = core.Edges{Top: 6}
 	review := form.SwitchRow{Title: locales.SettingsReviewOn(cx), Subtitle: locales.SettingsReviewOnHint(cx), TestID: "settings-review",
 		On: live.Func(a, func() bool { return *a.Review() }),

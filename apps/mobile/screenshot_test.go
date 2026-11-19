@@ -337,6 +337,32 @@ func TestScreenshotsPlayerStudy(t *testing.T) {
 	shot(p, "player-settings")
 }
 
+// TestScreenshotsPlayerGlossary renders the sheet that fixes the first line's translation with 同时加进术语表 on and the term filled in (player-fix), and the Info tab's glossary as the computer keeps it (player-terms).
+func TestScreenshotsPlayerGlossary(t *testing.T) {
+	shot := screenshots(t)
+	d := newDesktop(t)
+	d.SetExplanation("整句是早上见面时的问候，相当于「早上好」。")
+	d.SetGlossary("lib", "f1", "日常会话", true,
+		sync.Term{Source: "Good morning", Target: "早安", Scope: sync.TermFilm, Locked: true},
+		sync.Term{Source: "thanks", Target: "谢谢", Scope: sync.TermSeries},
+		sync.Term{Source: "See you", Target: "回头见", Scope: sync.TermGlobal})
+	p, _ := openStudy(t, d)
+	p.app.Press("id:player-explain-line")
+	p.app.WaitFor("id:player-explain-fix", wait)
+	p.app.Press("id:player-explain-fix")
+	p.app.WaitFor("id:player-fix", wait)
+	p.app.Clear("id:player-fix-draft")
+	p.app.Type("id:player-fix-draft", "早安。")
+	p.app.Press("id:player-fix-term-switch")
+	p.app.WaitFor("id:player-fix-term-source", wait)
+	p.app.Type("id:player-fix-term-source", "Good morning")
+	shot(p, "player-fix")
+	p.app.Press("id:player-fix-cancel")
+	p.app.Press("id:player-tab-info")
+	p.app.WaitFor("id:player-terms", wait)
+	shot(p, "player-terms")
+}
+
 func TestScreenshotsTabletSubscriptions(t *testing.T) {
 	shot := screenshots(t)
 	d := newDesktopWithMovies(t)

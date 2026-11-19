@@ -75,6 +75,8 @@ type Desk struct {
 	Study StudyService
 	// Subscriptions answers the subscriptions' calls (subscriptions.go), nil for a desktop that does not share them, which answers them CodeUnsupported.
 	Subscriptions SubscriptionService
+	// Glossary answers the glossary's calls (glossary.go), nil for a desktop that does not share it, which answers them CodeUnsupported.
+	Glossary GlossaryService
 	// Films answers the calls on a film of a library (films.go), nil for a desktop that does not, which answers them CodeUnsupported.
 	Films FilmService
 	// Relay answers OpRelayJoin, nil while the desktop's storage relay is off, which answers it CodeUnsupported.
@@ -146,7 +148,7 @@ func (d *Desk) Answer(ctx context.Context, caller Caller, call Call) Reply {
 // Mutates reports whether op changes something on the desktop: a read-only device's calls of it are refused (Caller.ReadOnly), and a call of it sent again answers the reply it got the first time.
 func Mutates(op string) bool {
 	switch op {
-	case OpJobCreate, OpJobCancel, OpJobRetry, OpJobPause, OpJobResume, OpUpdateYTDLP, OpStatePut, OpStateResolve, OpSettingsPut, OpSubscribe, OpSubscriptionSet, OpSubscriptionTake, OpUnsubscribe, OpFilmRetranslate, OpFilmDelete, OpFilmVideo:
+	case OpJobCreate, OpJobCancel, OpJobRetry, OpJobPause, OpJobResume, OpUpdateYTDLP, OpStatePut, OpStateResolve, OpSettingsPut, OpSubscribe, OpSubscriptionSet, OpSubscriptionTake, OpUnsubscribe, OpFilmRetranslate, OpFilmDelete, OpFilmVideo, OpTermPut:
 		return true
 	}
 	return false
@@ -266,6 +268,8 @@ func (d *Desk) answer(ctx context.Context, caller Caller, call Call) (any, error
 		return d.answerStudy(ctx, caller, call)
 	case OpSubscriptions, OpSubscribe, OpSubscriptionSet, OpSubscriptionTake, OpUnsubscribe:
 		return d.answerSubscriptions(ctx, caller, call)
+	case OpTerms, OpTermPut:
+		return d.answerGlossary(ctx, caller, call)
 	case OpFilmRetranslate, OpFilmExport, OpFilmDelete, OpFilmVideo:
 		return d.answerFilms(ctx, caller, call)
 	case OpEvents:

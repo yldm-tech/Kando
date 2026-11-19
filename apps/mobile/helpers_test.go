@@ -166,9 +166,12 @@ func (p *phone) waitFile(path string, size int64) {
 	})
 }
 
-// texts are the texts under the view selector names, joined by newlines.
+// texts are the texts under the view selector names, joined by newlines; "" while no view matches it, so a WaitUntil that reads them waits for the view rather than failing before it shows.
 func (p *phone) texts(selector string) string {
 	p.t.Helper()
+	if !p.app.Exists(selector) {
+		return ""
+	}
 	var out []string
 	var walk func(v *nsgotest.View)
 	walk = func(v *nsgotest.View) {

@@ -137,13 +137,21 @@ func (a *app) SpreadAll() {
 	if before, after, ok := a.correctSpreadTerm(s); ok {
 		step.termBefore, step.termAfter = &before, &after
 	}
+	var heldBefore glossaryHeld
+	if step.termAfter != nil {
+		heldBefore = a.glossaryHeldOf(step.termAfter.Source)
+	}
 	if !a.correctSave(edits, step) {
 		return
 	}
 	termed := step.termAfter != nil && a.glossaryPut(*step.termAfter)
-	if !termed {
-		step.termBefore, step.termAfter = nil, nil
-		a.correct.undo[len(a.correct.undo)-1] = step
+	// The step correctSave kept, with the corrections before and after it.
+	kept := &a.correct.undo[len(a.correct.undo)-1]
+	if termed {
+		heldAfter := a.glossaryHeldOf(step.termAfter.Source)
+		kept.heldBefore, kept.heldAfter = &heldBefore, &heldAfter
+	} else {
+		kept.termBefore, kept.termAfter = nil, nil
 	}
 	m := a.messages()
 	switch {

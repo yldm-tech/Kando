@@ -2107,3 +2107,66 @@ playerWordTimes:
 playerWordsEmpty:
   message: "Words you tap in the lines show here, to add to your vocabulary."
   description: "Words tab while no word of the film was looked up or is in the vocabulary."
+playerFixOpen:
+  message: "Translation Wrong? Fix It"
+  description: "Button at the bottom of the explained line's sheet that opens the sheet fixing the line's translation."
+playerFixTitle:
+  message: "Fix Translation"
+  description: "Title of the sheet where the learner types their own translation of a line."
+playerFixCancel:
+  message: "Cancel"
+  description: "Button at the top left of the fix sheet that closes it without keeping anything."
+playerFixSave:
+  message: "Save"
+  description: "Button at the top right of the fix sheet that keeps the learner's translation of the line."
+playerFixOriginal:
+  message: "Original"
+  description: "Fix sheet: label over the line as it is spoken."
+playerFixYours:
+  message: "Your Translation"
+  description: "Fix sheet: label of the field the learner types their translation of the line in."
+playerFixAddTerm:
+  message: "Also Add to Glossary"
+  description: "Fix sheet: switch that also adds the words the fix changed to the film's glossary on the computer."
+playerFixAddTermDetail:
+  message: "From now on, this film's same words are translated your way."
+  description: "Fix sheet: line under the switch that adds a term, saying what the term does."
+playerFixTermSource:
+  message: "Words in the Original"
+  description: "Fix sheet: label of the field for the term's words as the original line says them."
+playerFixTermSourceHint:
+  message: "As the line says it"
+  description: "Placeholder of the field for the term's words as the original line says them."
+playerFixTermTarget:
+  message: "Translate As"
+  description: "Fix sheet: label of the field for how the term is to be translated."
+playerFixTermTargetHint:
+  message: "Your translation of them"
+  description: "Placeholder of the field for how the term is to be translated."
+playerFixNote:
+  message: "Your fix syncs to the computer, which shows it too."
+  description: "Fix sheet: note at its bottom saying where the fixed translation goes."
+playerFixSaved:
+  message: "Fixed · syncs to the computer"
+  description: "Toast after the learner's translation of a line was kept."
+playerFixSavedTerm:
+  message: "Fixed and added to the glossary · syncs to the computer"
+  description: "Toast after the learner's translation of a line was kept and the term added to the film's glossary on the computer."
+playerFixTermFailed:
+  message: "Fixed, but the computer did not take the term. Try again once it is in reach."
+  description: "Toast after the learner's translation was kept but the computer could not be reached, or refused, to add the term."
+playerFixCannot:
+  message: "This line can't be fixed now."
+  description: "Toast when the learner's translation could not be kept, as the film's library is not known yet."
+playerTerms:
+  message: "Glossary"
+  description: "Heading over the film's terms in the player's Info tab."
+playerTermsOnComputer:
+  message: "Managed on the computer"
+  description: "Beside the glossary's heading in the player's Info tab: the terms are changed on the computer."
+playerTermsEmpty:
+  message: "This film has no terms yet. You can add one while fixing a translation."
+  description: "Shown in the player's Info tab in place of the glossary when the film has no terms."
+playerTermLocked:
+  message: "Locked"
+  description: "Accessible name of the lock beside a term of the glossary the translation must write as it is."

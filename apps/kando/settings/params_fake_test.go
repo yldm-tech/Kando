@@ -60,4 +60,13 @@ func (f *fakeApp) Review() *bool {
 
 func (f *fakeApp) ReviewAuto() string { return f.reviewAuto }
 
+// SuggestTerms is on until a test turns it off, as the app's is.
+func (f *fakeApp) SuggestTerms() *bool {
+	if f.suggestTerms == nil {
+		on := true
+		f.suggestTerms = &on
+	}
+	return f.suggestTerms
+}
+
 func (f *fakeApp) SetReviewAuto(auto string) { f.reviewAuto = auto }

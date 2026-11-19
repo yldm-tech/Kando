@@ -857,6 +857,10 @@ func (a *app) queueRun(job core.Job) {
 	}
 	ctx, cancel := context.WithCancelCause(context.Background())
 	ctx = media.WithGlossary(ctx, terms)
+	// Once translated, the film is suggested terms for its glossary (state_glossary_suggest.go), unless Settings › 翻译 turned that off.
+	if a.prefs.suggestTerms {
+		ctx = media.WithTermSuggestions(ctx)
+	}
 	if a.prefs.review {
 		ctx = media.WithReview(ctx, a.prefs.reviewAuto)
 	}

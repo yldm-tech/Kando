@@ -32,6 +32,8 @@ type settingsUI struct {
 	// review is whether a job proofreads the translation as a whole once it is made (the final proofread, media.WithReview), and reviewAuto which of its changes apply without the user.
 	review     bool
 	reviewAuto kcore.ProofAuto
+	// suggestTerms is whether a job asks the AI service for the terms of the film it translated, for its glossary (media.WithTermSuggestions).
+	suggestTerms bool
 	// shortcutPreset is the preset of Settings › 快捷键 the player's keys follow, one of hotkey.Presets.
 	shortcutPreset string
 	// appearance is the one the windows show: settings.AppearanceLight or AppearanceDark, or "" to follow the system's.
@@ -91,7 +93,7 @@ type settingsUI struct {
 }
 
 func newSettingsUI() settingsUI {
-	return settingsUI{interfaceLanguage: locales.Default, language: "简体中文", translatePrompt: media.DefaultSubtitlePrompt, translateContext: true, review: true, reviewAuto: kcore.ProofAutoConsistency, listModels: func(ctx context.Context, t media.ChatTranslator) ([]string, error) { return t.Models(ctx) }, pingLLM: func(ctx context.Context, t media.ChatTranslator) error { return t.Ping(ctx) }}
+	return settingsUI{interfaceLanguage: locales.Default, language: "简体中文", translatePrompt: media.DefaultSubtitlePrompt, translateContext: true, review: true, reviewAuto: kcore.ProofAutoConsistency, suggestTerms: true, listModels: func(ctx context.Context, t media.ChatTranslator) ([]string, error) { return t.Models(ctx) }, pingLLM: func(ctx context.Context, t media.ChatTranslator) error { return t.Ping(ctx) }}
 }
 
 // savedInterface is the settings window's own part of settings.json: the interface language, kept separate from savedTranslate, whose language is the target language of generated subtitles, and where the window was, which MyGo's StateKey used to keep in a file of its own.
@@ -162,6 +164,8 @@ type savedTranslate struct {
 	// Review is whether the final proofread runs, nil for on; ReviewAuto which of its changes apply without the user, "" for the default (core.ProofAutoConsistency).
 	Review     *bool  `json:"review,omitempty"`
 	ReviewAuto string `json:"reviewAuto,omitempty"`
+	// SuggestTerms is whether a job asks for the terms of the film it translated, nil for on.
+	SuggestTerms *bool `json:"suggestTerms,omitempty"`
 }
 
 func (s *savedTranslate) clean() {
@@ -189,6 +193,8 @@ func (a *app) saveTranslate(saved *savedSettings) {
 	}
 	review := a.prefs.review
 	saved.Review = &review
+	suggest := a.prefs.suggestTerms
+	saved.SuggestTerms = &suggest
 	if a.prefs.reviewAuto != kcore.ProofAutoConsistency {
 		saved.ReviewAuto = string(a.prefs.reviewAuto)
 	}
@@ -210,6 +216,9 @@ func (a *app) restoreTranslate(saved savedSettings) {
 	a.prefs.translateContextLines = saved.TranslateContextLines
 	if saved.Review != nil {
 		a.prefs.review = *saved.Review
+	}
+	if saved.SuggestTerms != nil {
+		a.prefs.suggestTerms = *saved.SuggestTerms
 	}
 	a.prefs.reviewAuto = kcore.CleanProofAuto(kcore.ProofAuto(saved.ReviewAuto))
 }

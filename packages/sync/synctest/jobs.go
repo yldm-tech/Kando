@@ -146,6 +146,9 @@ func (s jobService) Hello(context.Context, sync.Caller) (sync.Hello, error) {
 	if !s.d.subs.none {
 		ops = append(ops, sync.OpSubscriptions, sync.OpSubscribe, sync.OpSubscriptionSet, sync.OpSubscriptionTake, sync.OpUnsubscribe)
 	}
+	if !s.d.gloss.none {
+		ops = append(ops, sync.OpTerms, sync.OpTermPut)
+	}
 	if !s.d.ops.none {
 		ops = append(ops, sync.OpFilmRetranslate, sync.OpFilmExport, sync.OpFilmDelete, sync.OpFilmVideo)
 	}

@@ -194,6 +194,8 @@ type App interface {
 	Review() *bool
 	ReviewAuto() string
 	SetReviewAuto(auto string)
+	// SuggestTerms is whether a job asks the AI service for the terms of the film it translated, which the film's 术语 tab then suggests; Save keeps it.
+	SuggestTerms() *bool
 
 	// Appearance is the one the windows show, AppearanceLight or AppearanceDark, or "" to follow the system's; SetAppearance shows and saves it.
 	Appearance() string
