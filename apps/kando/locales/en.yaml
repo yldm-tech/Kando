@@ -3995,7 +3995,7 @@ pluginsErrSchema:
   description: "Why a plugin pack cannot be installed or loaded: its format version."
 pluginsErrStateUnsaved:
   message: "Done, but Kando couldn't save which plugins are on: {error}"
-  description: "Plugins page: a pack was installed or uninstalled, but the file that says which plugins are on could not be saved after it; {error} is the system's error, in English."
+  description: "Plugins page: a pack was installed or uninstalled, but the file that says which plugins are on could not be saved after it; {error} is why: one of the plugins page's own messages, or the system's error in English."
   placeholders:
     error: { type: "String", example: "permission denied" }
 pluginsErrSystem:
@@ -4006,6 +4006,9 @@ pluginsErrSystem:
 pluginsErrTooLarge:
   message: "The pack is too large."
   description: "Why a plugin pack cannot be installed or loaded: over its limits."
+pluginsErrUninstallRefused:
+  message: "Kando didn't uninstall it, so that the plugins a newer version of Kando set up stay as they are."
+  description: "Plugins page: an uninstall was refused before anything was removed, as the file that says which plugins are on was written by a newer Kando, which this one does not change; the note above the list says so too."
 pluginsErrUnknownKind:
   message: "Kando doesn't know this kind of plugin."
   description: "Why a plugin pack cannot be installed or loaded: its kind is unknown."

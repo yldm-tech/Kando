@@ -42,4 +42,13 @@ var (
 	ErrStateFormat = errors.New("the plugins' state was written by a newer version of Kando")
 	// ErrBadState is a state.json that cannot be read, is not JSON or has no format; every pack reads as turned off until it is written again.
 	ErrBadState = errors.New("the plugins' state cannot be read")
+	// ErrUninstallRefused is an uninstall refused before anything was removed, wrapped with why, as while state.json is a newer Kando's (ErrStateFormat), which this one does not write over.
+	ErrUninstallRefused = errors.New("the pack was not uninstalled")
 )
+
+// StateUnsaved is state.json not saved after an install or a removal that was done: the pack is installed or removed, and Err is why which packs are on was not saved. The app says the work was done and why the state was not saved, rather than that it failed.
+type StateUnsaved struct{ Err error }
+
+func (e StateUnsaved) Error() string { return "the plugins' state was not saved: " + e.Err.Error() }
+
+func (e StateUnsaved) Unwrap() error { return e.Err }

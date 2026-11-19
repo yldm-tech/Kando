@@ -127,17 +127,28 @@ func (a *app) ConfirmPluginInstall() { a.pluginsInstall() }
 
 func (a *app) CancelPluginInstall() { a.pluginsClose(false) }
 
-// pluginsErrorText is why a pack could not be read, installed or removed, in the words of m: each of the plugins package's errors has a message of its own, and an error of the system, as a folder that cannot be written, says what it was about in the system's words after one. An install or a removal done, after which state.json could not be saved (pluginsStateUnsaved), says it was done, and why the state was not saved.
+// pluginsErrorText is why a pack could not be read, installed or removed, in the words of m: each of the plugins package's errors has a message of its own (pluginsKnownErrorText), and an error of the system, as a folder that cannot be written, says what it was about in the system's words after one. An install or a removal done, after which state.json could not be saved (plugins.StateUnsaved), says it was done, and why the state was not saved, in its own message when it has one; an uninstall refused (plugins.ErrUninstallRefused) says it was not done.
 func pluginsErrorText(m locales.Messages, err error) string {
-	// An install or a removal that was done, after which state.json was not saved, says it was done.
-	var unsaved pluginsStateUnsaved
+	var unsaved plugins.StateUnsaved
 	if errors.As(err, &unsaved) {
-		return m.PluginsErrStateUnsaved(unsaved.err.Error())
+		if text, ok := pluginsKnownErrorText(m, unsaved.Err); ok {
+			return m.PluginsErrStateUnsaved(text)
+		}
+		return m.PluginsErrStateUnsaved(unsaved.Err.Error())
 	}
+	if text, ok := pluginsKnownErrorText(m, err); ok {
+		return text
+	}
+	return m.PluginsErrSystem(err.Error())
+}
+
+// pluginsKnownErrorText is the message of m for err when it is one of the errors the app knows, false for an error of the system.
+func pluginsKnownErrorText(m locales.Messages, err error) (string, bool) {
 	for _, e := range []struct {
 		err  error
 		text func() string
 	}{
+		{plugins.ErrUninstallRefused, m.PluginsErrUninstallRefused},
 		{plugins.ErrBadManifest, m.PluginsErrBadManifest},
 		{plugins.ErrUnknownKind, m.PluginsErrUnknownKind},
 		{plugins.ErrUnsupportedKind, m.PluginsErrUnsupportedKind},
@@ -162,8 +173,8 @@ func pluginsErrorText(m locales.Messages, err error) string {
 		{wordlist.ErrEmpty, m.PluginsErrWordlistEmpty},
 	} {
 		if errors.Is(err, e.err) {
-			return e.text()
+			return e.text(), true
 		}
 	}
-	return m.PluginsErrSystem(err.Error())
+	return "", false
 }

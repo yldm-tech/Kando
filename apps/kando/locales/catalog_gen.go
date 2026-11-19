@@ -2531,6 +2531,7 @@ const (
 	textPluginsErrReservedName
 	textPluginsErrSchema
 	textPluginsErrTooLarge
+	textPluginsErrUninstallRefused
 	textPluginsErrUnknownKind
 	textPluginsErrUnsafePath
 	textPluginsErrUnsupportedKind
@@ -4156,6 +4157,7 @@ var keyOfText = [numTexts]string{
 	"pluginsErrReservedName",
 	"pluginsErrSchema",
 	"pluginsErrTooLarge",
+	"pluginsErrUninstallRefused",
 	"pluginsErrUnknownKind",
 	"pluginsErrUnsafePath",
 	"pluginsErrUnsupportedKind",
@@ -5779,6 +5781,7 @@ var textsEn = i18n.NewTexts(""+
 	"Its name is reserved: it reads like Kando or a built-in AI service."+
 	"It's made for another version of Kando."+
 	"The pack is too large."+
+	"Kando didn't uninstall it, so that the plugins a newer version of Kando set up stay as they are."+
 	"Kando doesn't know this kind of plugin."+
 	"It holds a link or a path outside the pack."+
 	"This version of Kando doesn't support this kind of plugin yet."+
@@ -7399,6 +7402,7 @@ var textsEn = i18n.NewTexts(""+
 		67,
 		39,
 		22,
+		96,
 		39,
 		43,
 		62,
@@ -9022,6 +9026,7 @@ var textsJa = i18n.NewTexts(""+
 	"名前が予約されています。Kando や内蔵の AI サービスと紛らわしい名前です。"+
 	"別のバージョンの Kando 用に作られています。"+
 	"パックが大きすぎます。"+
+	"新しいバージョンの Kando が設定したプラグインを変えないよう、アンインストールしませんでした。"+
 	"この種類のプラグインは Kando にはわかりません。"+
 	"リンクやパックの外を指すパスが含まれています。"+
 	"このバージョンの Kando はこの種類のプラグインにまだ対応していません。"+
@@ -10642,6 +10647,7 @@ var textsJa = i18n.NewTexts(""+
 		103,
 		61,
 		33,
+		136,
 		67,
 		69,
 		100,
@@ -12265,6 +12271,7 @@ var textsKo = i18n.NewTexts(""+
 	"이름이 예약되어 있습니다. Kando나 기본 AI 서비스처럼 보입니다."+
 	"다른 버전의 Kando용으로 만들어졌습니다."+
 	"팩이 너무 큽니다."+
+	"최신 버전의 Kando가 설정한 플러그인을 바꾸지 않도록 제거하지 않았습니다."+
 	"Kando가 모르는 종류의 플러그인입니다."+
 	"링크나 팩 밖을 가리키는 경로가 있습니다."+
 	"이 버전의 Kando는 아직 이 종류의 플러그인을 지원하지 않습니다."+
@@ -13885,6 +13892,7 @@ var textsKo = i18n.NewTexts(""+
 		85,
 		54,
 		24,
+		101,
 		51,
 		57,
 		86,
@@ -15508,6 +15516,7 @@ var textsZhHans = i18n.NewTexts(""+
 	"它的名称被保留：看起来像看懂或内置的 AI 服务。"+
 	"它是为别的版本的看懂做的。"+
 	"这个插件包太大了。"+
+	"看懂没有卸载它，免得改动更新版本的看懂设置好的插件。"+
 	"看懂不认识这类插件。"+
 	"它含有链接或指向包外的路径。"+
 	"这个版本的看懂还不支持这类插件。"+
@@ -17128,6 +17137,7 @@ var textsZhHans = i18n.NewTexts(""+
 		67,
 		39,
 		27,
+		78,
 		30,
 		42,
 		48,
@@ -18751,6 +18761,7 @@ var textsZhHant = i18n.NewTexts(""+
 	"它的名稱被保留：看起來像看懂或內建的 AI 服務。"+
 	"它是為其他版本的看懂製作的。"+
 	"這個外掛包太大了。"+
+	"看懂沒有解除安裝它，免得改動較新版本的看懂設定好的外掛。"+
 	"看懂不認得這類外掛。"+
 	"它含有連結或指向包外的路徑。"+
 	"這個版本的看懂還不支援這類外掛。"+
@@ -20371,6 +20382,7 @@ var textsZhHant = i18n.NewTexts(""+
 		67,
 		42,
 		27,
+		84,
 		30,
 		42,
 		48,
@@ -40753,7 +40765,7 @@ func (msgs Messages) PluginsErrSchema() string { return msgs.text(textPluginsErr
 // PluginsErrStateUnsaved says "Done, but Kando couldn't save which plugins are on: {error}"
 // in the language the app shows under cx.
 //
-// Plugins page: a pack was installed or uninstalled, but the file that says which plugins are on could not be saved after it; {error} is the system's error, in English.
+// Plugins page: a pack was installed or uninstalled, but the file that says which plugins are on could not be saved after it; {error} is why: one of the plugins page's own messages, or the system's error in English.
 func PluginsErrStateUnsaved(cx *core.Scope, error_ string) string {
 	return For(cx).PluginsErrStateUnsaved(error_)
 }
@@ -40820,6 +40832,17 @@ func PluginsErrTooLarge(cx *core.Scope) string { return For(cx).PluginsErrTooLar
 
 // PluginsErrTooLarge is the package's PluginsErrTooLarge in the language of msgs.
 func (msgs Messages) PluginsErrTooLarge() string { return msgs.text(textPluginsErrTooLarge) }
+
+// PluginsErrUninstallRefused says "Kando didn't uninstall it, so that the plugins a newer version of Kando set up stay as they are."
+// in the language the app shows under cx.
+//
+// Plugins page: an uninstall was refused before anything was removed, as the file that says which plugins are on was written by a newer Kando, which this one does not change; the note above the list says so too.
+func PluginsErrUninstallRefused(cx *core.Scope) string { return For(cx).PluginsErrUninstallRefused() }
+
+// PluginsErrUninstallRefused is the package's PluginsErrUninstallRefused in the language of msgs.
+func (msgs Messages) PluginsErrUninstallRefused() string {
+	return msgs.text(textPluginsErrUninstallRefused)
+}
 
 // PluginsErrUnknownKind says "Kando doesn't know this kind of plugin."
 // in the language the app shows under cx.

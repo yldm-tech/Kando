@@ -1115,6 +1115,7 @@ pluginsErrSchema: "別のバージョンの Kando 用に作られています。
 pluginsErrStateUnsaved: "完了しましたが、どのプラグインがオンかを保存できませんでした：{error}"
 pluginsErrSystem: "パックを読み書きできませんでした：{error}"
 pluginsErrTooLarge: "パックが大きすぎます。"
+pluginsErrUninstallRefused: "新しいバージョンの Kando が設定したプラグインを変えないよう、アンインストールしませんでした。"
 pluginsErrUnknownKind: "この種類のプラグインは Kando にはわかりません。"
 pluginsErrUnsafePath: "リンクやパックの外を指すパスが含まれています。"
 pluginsErrUnsupportedKind: "このバージョンの Kando はこの種類のプラグインにまだ対応していません。"

@@ -3,6 +3,7 @@ package main
 import (
 	"cmp"
 	"errors"
+	"fmt"
 	"os"
 	"path/filepath"
 	"slices"
@@ -398,7 +399,7 @@ func (a *app) pluginsInstall() {
 				a.plugins.err = err
 			default:
 				if saveErr != nil {
-					a.plugins.err = pluginsStateUnsaved{saveErr}
+					a.plugins.err = plugins.StateUnsaved{Err: saveErr}
 				}
 				if !slices.Contains(a.plugins.order, pack.ID) {
 					a.plugins.order = append(a.plugins.order, pack.ID)
@@ -445,14 +446,14 @@ func (a *app) pluginsSetEnabled(id string, on bool) {
 	}()
 }
 
-// pluginsUninstall removes the pack id from the plugins folder and from state.json off the UI thread (plugins.Remove), with a dictionary's index, closed first, and reads the folder again. The service an ai-service pack added keeps its key in settings.json under the pack's id (pluginsKeepLLM, savedLLM.clean), so installing it again brings it back. As with an install, a state.json a newer Kando wrote, which this one does not write over (plugins.ErrStateFormat), refuses the removal before anything is removed; once the folder is gone the pack is uninstalled, and a state.json that could not be saved after is said on the page apart from it (pluginsStateUnsaved).
+// pluginsUninstall removes the pack id from the plugins folder and from state.json off the UI thread (plugins.Remove), with a dictionary's index, closed first, and reads the folder again. The service an ai-service pack added keeps its key in settings.json under the pack's id (pluginsKeepLLM, savedLLM.clean), so installing it again brings it back. As with an install, a state.json a newer Kando wrote, which this one does not write over (plugins.ErrStateFormat), refuses the removal before anything is removed; once the folder is gone the pack is uninstalled, and a state.json that could not be saved after is said on the page apart from it (plugins.StateUnsaved).
 func (a *app) pluginsUninstall(id string) {
 	root := a.pluginsRoot()
 	if root == "" || a.plugins.busy {
 		return
 	}
 	if errors.Is(a.plugins.stateErr, plugins.ErrStateFormat) {
-		a.plugins.err = a.plugins.stateErr
+		a.plugins.err = fmt.Errorf("%w: %w", plugins.ErrUninstallRefused, a.plugins.stateErr)
 		return
 	}
 	a.pluginsKeepLLM()
@@ -468,7 +469,7 @@ func (a *app) pluginsUninstall(id string) {
 		if err == nil {
 			dict.Forget(index, id, "")
 			if saveErr := state.Save(root); saveErr != nil {
-				err = pluginsStateUnsaved{saveErr}
+				err = plugins.StateUnsaved{Err: saveErr}
 			}
 		}
 		update(func() {
@@ -481,15 +482,6 @@ func (a *app) pluginsUninstall(id string) {
 		})
 	}()
 }
-
-// pluginsStateUnsaved is state.json not saved after an install or a removal that was done: the page says the pack was installed or removed and why which packs are on was not saved (pluginsErrorText), rather than that the install or removal failed.
-type pluginsStateUnsaved struct{ err error }
-
-func (e pluginsStateUnsaved) Error() string {
-	return "plugins: state.json was not saved: " + e.err.Error()
-}
-
-func (e pluginsStateUnsaved) Unwrap() error { return e.err }
 
 // pluginsForget forgets the missing pack id, which leaves the list.
 func (a *app) pluginsForget(id string) {

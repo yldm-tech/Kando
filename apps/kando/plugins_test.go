@@ -6,6 +6,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"io/fs"
 	"os"
 	"path/filepath"
@@ -213,7 +214,7 @@ func TestPluginsPageUninstalls(t *testing.T) {
 	}
 }
 
-// TestPluginsUninstallRefusedOverANewerState checks that while state.json is a newer Kando's, which this one does not write over (plugins.ErrStateFormat), an uninstall is refused before the pack's folder is removed, and the page says why, rather than removing the pack and then saying it failed.
+// TestPluginsUninstallRefusedOverANewerState checks that while state.json is a newer Kando's, which this one does not write over (plugins.ErrStateFormat), an uninstall is refused before the pack's folder is removed, and the page says it was not uninstalled, in a sentence of its own beside the note above the list, rather than removing the pack and then saying it failed.
 func TestPluginsUninstallRefusedOverANewerState(t *testing.T) {
 	a, tt, updates, root := pluginsApp(t, pluginGlossary)
 	if err := os.WriteFile(filepath.Join(root, "state.json"), []byte(`{"format": 99, "revision": 1, "plugins": []}`), 0o644); err != nil {
@@ -223,7 +224,8 @@ func TestPluginsUninstallRefusedOverANewerState(t *testing.T) {
 	onEngine(a, a.pluginsScan)
 	waitUntil(t, tt, a, updates, func() bool { return a.plugins.scanned && !a.plugins.inboxBusy })
 	apply(tt, a, func() { a.UninstallPlugin("example.anime-ja-zh") })
-	if a.plugins.busy || !errors.Is(a.plugins.err, plugins.ErrStateFormat) || a.PluginsErr() != testlocale.Messages().SettingsPluginsStateNewer() {
+	m := testlocale.Messages()
+	if a.plugins.busy || !errors.Is(a.plugins.err, plugins.ErrUninstallRefused) || !errors.Is(a.plugins.err, plugins.ErrStateFormat) || a.PluginsErr() != m.PluginsErrUninstallRefused() || a.PluginsNote() != m.SettingsPluginsStateNewer() {
 		t.Fatalf("the uninstall over a newer state: busy %v, err %v, says %q", a.plugins.busy, a.plugins.err, a.PluginsErr())
 	}
 	if packs, _ := plugins.Scan(root); len(packs) != 1 {
@@ -243,10 +245,21 @@ func TestPluginsUninstalledThoughTheStateWasNotSaved(t *testing.T) {
 	if packs, _ := plugins.Scan(root); len(packs) != 0 {
 		t.Fatalf("still installed: %+v", packs)
 	}
-	var unsaved pluginsStateUnsaved
+	var unsaved plugins.StateUnsaved
 	done := testlocale.Messages().PluginsErrStateUnsaved("")
 	if !errors.As(a.plugins.err, &unsaved) || !strings.HasPrefix(a.PluginsErr(), done) || len(a.PluginsErr()) == len(done) {
 		t.Fatalf("the page says %q (%v)", a.PluginsErr(), a.plugins.err)
+	}
+}
+
+// TestPluginsUnsavedSaysWhy checks the page's sentence for an install or a removal done whose state.json was not saved: why is the message of a known error when it has one, and the system's words otherwise.
+func TestPluginsUnsavedSaysWhy(t *testing.T) {
+	m := testlocale.Messages()
+	if got := pluginsErrorText(m, plugins.StateUnsaved{Err: fmt.Errorf("%w: format 99", plugins.ErrStateFormat)}); got != m.PluginsErrStateUnsaved(m.SettingsPluginsStateNewer()) {
+		t.Errorf("a known error: %q", got)
+	}
+	if got := pluginsErrorText(m, plugins.StateUnsaved{Err: errors.New("disk full")}); got != m.PluginsErrStateUnsaved("disk full") {
+		t.Errorf("an error of the system: %q", got)
 	}
 }
 
