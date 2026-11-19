@@ -33,6 +33,9 @@ type ListedVideo struct {
 	Duration time.Duration
 }
 
+// ErrOneVideo is ListVideos' error for a link that lists as one video rather than a list, as a bilibili upload of one part does (core.Link.Parts).
+var ErrOneVideo = errors.New("the link is one video, not a list")
+
 // ListTimeout is how long ListVideos waits for yt-dlp to list a playlist or a channel: yt-dlp reads a long playlist a page of a hundred videos at a time.
 const ListTimeout = 3 * time.Minute
 
@@ -121,7 +124,7 @@ func parseListing(data []byte) (Listing, error) {
 		return Listing{}, err
 	}
 	if list.Type != "" && list.Type != "playlist" {
-		return Listing{}, errors.New("the link is one video, not a list")
+		return Listing{}, ErrOneVideo
 	}
 	listing := Listing{Title: strings.TrimSpace(list.Title)}
 	// A channel's Videos tab is titled "<channel> - Videos"; the channel's own name says it better.

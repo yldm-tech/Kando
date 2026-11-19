@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"errors"
+	"fmt"
 	"os"
 	"path/filepath"
 	"slices"
@@ -121,6 +122,54 @@ func TestSubscribeRefusesAVideo(t *testing.T) {
 	tt.Press("id:subscribe-cancel")
 	if tt.Exists("id:subscribe-ask") || a.modalOpen() {
 		t.Fatal("the dialog stayed")
+	}
+}
+
+// oneVideoPipeline is a listingPipeline for which the links in one list as one video, as yt-dlp lists a bilibili upload of one part.
+type oneVideoPipeline struct {
+	*listingPipeline
+	one map[string]bool
+}
+
+func (p *oneVideoPipeline) ListVideos(ctx context.Context, source string, limit int) (media.Listing, error) {
+	if !p.one[source] {
+		return p.listingPipeline.ListVideos(ctx, source, limit)
+	}
+	p.calls <- listCall{source, limit}
+	return media.Listing{}, fmt.Errorf("yt-dlp: %w", media.ErrOneVideo)
+}
+
+// A bilibili video's page, whatever part or tracking it carries, is read as its whole upload: one of several parts becomes a subscription to that upload, whose parts now count as seen; one of a single part is refused as one video, and the dialog stays open.
+func TestSubscribeToABilibiliUploadOfParts(t *testing.T) {
+	const parts, single = "https://www.bilibili.com/video/BV1Eb4u6bEsd", "https://www.bilibili.com/video/BV1GJ411x7h7"
+	p := newListingPipeline(map[string]media.Listing{parts: {Title: "英语动画短片", Videos: []media.ListedVideo{{URL: parts + "?p=1", Title: "p01"}, {URL: parts + "?p=2", Title: "p02"}}}})
+	a, tt, updates := newTestApp(t, &oneVideoPipeline{listingPipeline: p, one: map[string]bool{single: true}})
+	msgs := testlocale.Messages()
+
+	tt.Press("id:subscribe-add")
+	tt.Type("id:subscribe-link", single+"/?spm_id_from=333.1007")
+	tt.Press("id:subscribe-submit")
+	if got := nextCall(t, p); got.source != single {
+		t.Fatalf("listed %+v, want the whole upload", got)
+	}
+	waitUntil(t, tt, a, updates, func() bool { return !a.subs.ask.reading })
+	if len(a.subs.store.Subs) != 0 || a.subs.ask.err != msgs.SubscribeAddNotList() || !tt.Exists("id:subscribe-ask") {
+		t.Fatalf("an upload of one part: subscriptions %+v, dialog error %q", a.subs.store.Subs, a.subs.ask.err)
+	}
+
+	tt.Press("id:subscribe-cancel")
+	tt.Press("id:subscribe-add")
+	tt.Type("id:subscribe-link", parts+"?p=3&vd_source=abc")
+	tt.Press("id:subscribe-submit")
+	if got := nextCall(t, p); got.source != parts {
+		t.Fatalf("listed %+v, want the whole upload", got)
+	}
+	waitUntil(t, tt, a, updates, func() bool { return !a.subs.ask.reading })
+	if len(a.subs.store.Subs) != 1 {
+		t.Fatalf("subscriptions %+v, dialog error %q", a.subs.store.Subs, a.subs.ask.err)
+	}
+	if sub := a.subs.store.Subs[0]; sub.Source != parts || sub.Name != "英语动画短片" || len(sub.Seen) != 2 {
+		t.Fatalf("subscription %+v", sub)
 	}
 }
 

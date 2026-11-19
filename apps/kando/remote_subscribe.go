@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"strings"
 	"time"
 
@@ -10,7 +11,6 @@ import (
 	"kando/apps/kando/remote"
 	"kando/apps/kando/sidebar"
 	"kando/apps/kando/subscribe"
-	kcore "kando/packages/core"
 	"kando/packages/media"
 )
 
@@ -83,8 +83,8 @@ func (a *app) remoteSubscriptions(ctx context.Context) ([]remote.Subscription, e
 // remoteSubscribe subscribes the open library to the list at p.Source, as the window's dialog does (subscribeAskSubmit): a link that is not a channel, a collection or a playlist is refused; one the library follows already answers that subscription; any other is read with yt-dlp, and the videos it holds now count as seen. The window's sidebar lists it, but the window stays on the page it shows.
 func (a *app) remoteSubscribe(ctx context.Context, p remote.SubscribeParams) (remote.Subscribed, error) {
 	m := remoteMessages()
-	source := strings.TrimSpace(p.Source)
-	if link, ok := kcore.ParseLink(source); !ok || !link.IsList() {
+	source, ok := subscribe.Source(p.Source)
+	if !ok {
 		return remote.Subscribed{}, remote.Errorf(remote.CodeInvalid, "%s", m.SubscribeAddNotList())
 	}
 	type setup struct {
@@ -116,6 +116,9 @@ func (a *app) remoteSubscribe(ctx context.Context, p remote.SubscribeParams) (re
 	if err != nil {
 		if ctx.Err() != nil {
 			return remote.Subscribed{}, ctx.Err()
+		}
+		if errors.Is(err, media.ErrOneVideo) {
+			return remote.Subscribed{}, remote.Errorf(remote.CodeInvalid, "%s", m.SubscribeAddNotList())
 		}
 		return remote.Subscribed{}, remote.Errorf(remote.CodeFailed, "%s", playlistError(m, err))
 	}

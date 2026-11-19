@@ -313,3 +313,26 @@ func TestFileURLRoundTrips(t *testing.T) {
 		}
 	}
 }
+
+// A bilibili video's page names its whole upload, which may hold several parts, whatever part or tracking it carries; no other link does.
+func TestLinkParts(t *testing.T) {
+	cases := map[string]string{
+		"https://www.bilibili.com/video/BV1Eb4u6bEsd":                      "https://www.bilibili.com/video/BV1Eb4u6bEsd",
+		"https://www.bilibili.com/video/BV1GJ411x7h7?p=3":                  "https://www.bilibili.com/video/BV1GJ411x7h7",
+		"https://www.bilibili.com/video/BV1GJ411x7h7/?spm_id_from=333":     "https://www.bilibili.com/video/BV1GJ411x7h7",
+		"https://m.bilibili.com/video/av170001":                            "https://www.bilibili.com/video/av170001",
+		"https://space.bilibili.com/946974/channel/collectiondetail?sid=1": "",
+		"https://space.bilibili.com/946974":                                "",
+		"https://b23.tv/abc123":                                            "",
+		"https://www.youtube.com/watch?v=Rv3Hn7Qm2Ts":                      "",
+	}
+	for raw, want := range cases {
+		link, ok := ParseLink(raw)
+		if !ok {
+			t.Fatalf("ParseLink(%q) reported false", raw)
+		}
+		if got := link.Parts(); got != want {
+			t.Errorf("ParseLink(%q).Parts() = %q, want %q", raw, got, want)
+		}
+	}
+}

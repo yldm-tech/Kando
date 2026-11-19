@@ -66,6 +66,14 @@ func (l Link) IsList() bool {
 	return l.Kind == LinkChannel || (l.Kind == LinkPlaylist && !l.OneVideo())
 }
 
+// Parts is the link of the whole upload a bilibili video's page names, https://www.bilibili.com/video/<BV or av number>, whatever part (?p=) or tracking it carries: an upload of several parts lists as a list (yt-dlp --flat-playlist), one part each, to which uploaders add parts later, so it can be subscribed to; an upload of one part lists as that video, which only reading it tells. It is "" for any other link, as a list's page, and for a b23.tv short link, whose video is only known once the link is followed.
+func (l Link) Parts() string {
+	if l.Platform != PlatformBilibili || l.Short || l.ID == "" || !strings.Contains(l.URL, "/video/") {
+		return ""
+	}
+	return "https://www.bilibili.com/video/" + l.ID
+}
+
 // WholeList is the link of the whole YouTube playlist a link to one of its videos names, as watch?v=…&list=… does, so the list can be added after the video: https://www.youtube.com/playlist?list=…. It is "" for any other link, and for a mix (a list= starting with RD), which YouTube makes up from the video and has no end.
 func (l Link) WholeList() string {
 	if l.Platform != PlatformYouTube || l.Kind != LinkPlaylist || !l.OneVideo() || l.List == "" || strings.HasPrefix(l.List, "RD") {
