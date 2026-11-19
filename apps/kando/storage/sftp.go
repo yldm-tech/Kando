@@ -23,6 +23,9 @@ import (
 // ErrUnknownHostKey is the error of connecting to an SFTP server without a host key to check its key against. It comes inside a HostKeyError that holds the key the server offered.
 var ErrUnknownHostKey = errors.New("storage: the server's host key is not trusted yet")
 
+// ErrPrivateKey is the error of an SFTP private key that cannot be read: not a PEM key, an encrypted one without its passphrase, or a wrong passphrase. The parser's error comes with it.
+var ErrPrivateKey = errors.New("storage: SFTP private key")
+
 // ErrHostKeyMismatch is the error of an SFTP server that offered a key other than the trusted one: the server was reinstalled, or another machine answers in its place. It comes inside a HostKeyError that holds the key the server offered.
 var ErrHostKeyMismatch = errors.New("storage: the server's host key is not the trusted one")
 
@@ -92,7 +95,7 @@ func openSFTP(ctx context.Context, cfg Remote) (*sftpStore, error) {
 			signer, err = ssh.ParsePrivateKey([]byte(cfg.PrivateKey))
 		}
 		if err != nil {
-			return nil, fmt.Errorf("storage: SFTP private key: %w", err)
+			return nil, fmt.Errorf("%w: %w", ErrPrivateKey, err)
 		}
 		auth = append(auth, ssh.PublicKeys(signer))
 	}
