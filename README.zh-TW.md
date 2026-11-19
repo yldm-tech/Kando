@@ -152,7 +152,7 @@ tools 發佈由 Tools 工作流程（`.github/workflows/tools.yml`）依 `.githu
 | `kando subscriptions [list \| add <link> \| check <id>]` | 列出資料庫訂閱的頻道、B 站空間和合集、播放清單，以及各有幾部新影片在視窗裡等你確認；`add` 訂閱一個（訂閱時已有的影片不算新影片），`check` 像「立即檢查」一樣馬上檢查新影片。自動加入的訂閱每次檢查最多加入 3 部新影片，其餘的在訂閱頁等你確認。 |
 | `kando sites [query] [--limit N]` | 依名稱、網域或影片連結搜尋看懂支援下載的網站。 |
 | `kando open [film-id] [--at T]` | 把看懂視窗移到最前面，顯示指定的影片；不帶 ID 時顯示資料庫。`--at` 從字幕中的這個時間開始播放，例如 `kando search` 找到的某一句。仍在處理中的影片在影片檔已在磁碟上時就會播放，和卡片上的「觀看」相同；還不能觀看的會改為顯示資料庫，並給出提示。視窗中有對話框開著時，它會失敗且不做任何改變。 |
-| `kando plugin (validate <file-or-folder> \| list) [--json]` | 不需要應用程式執行。`validate` 依外掛包的格式檢查一個外掛包（`.zip` 檔或資料夾），輸出它的 ID、種類、版本、名稱和內容雜湊，不通過時輸出原因。`list` 列出 `settings.json` 所在資料夾裡 `plugins` 資料夾中的外掛包及各自是否啟用，並指出其中不是有效外掛包的資料夾。 |
+| `kando plugin (validate <file-or-folder> \| list \| install <file>) [--json]` | 不需要應用程式執行。`validate` 依外掛包的格式檢查一個外掛包（`.zip` 檔或資料夾），輸出它的 ID、種類、版本、名稱和內容雜湊，不通過時輸出原因。`list` 列出 `settings.json` 所在資料夾裡 `plugins` 資料夾中的外掛包及各自是否啟用，並指出其中不是有效外掛包的資料夾。`install` 用同樣的檢查驗過一個外掛包檔案後交給看懂，看懂下次啟動或回到前景時顯示它是什麼，你確認後才安裝。也可以在 設定 › 外掛 裡安裝。 |
 | `kando mcp` | 在標準輸入和標準輸出上提供 MCP 服務（見下文）。 |
 | `kando version` | 輸出版本號碼。 |
 | `kando help [command]` | 列出所有命令，或顯示某個命令的用法和選項。 |

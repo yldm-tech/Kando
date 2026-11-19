@@ -166,7 +166,8 @@ func (a *app) feedbackFacts() feedback.Facts {
 	if tools.WhisperModel != "" {
 		facts.Speech = filepath.Base(tools.WhisperModel)
 	}
-	facts.Translate = feedbackTranslator(a.llmPresets(locales.In(feedbackIssueLanguage)), tools.Translator.BaseURL, tools.Translator.Model)
+	// Kando's own services alone: a plugin pack's name, as a company's internal gateway, does not go into a public issue, and its service is named as any other endpoint is.
+	facts.Translate = feedbackTranslator(settings.Presets(locales.In(feedbackIssueLanguage)), tools.Translator.BaseURL, tools.Translator.Model)
 	item, ok := a.feedbackFilm()
 	if !ok {
 		return facts
@@ -179,7 +180,7 @@ func (a *app) feedbackFacts() feedback.Facts {
 	return facts
 }
 
-// feedbackTranslator names the translation service the pipeline uses at base, as presets (the app's llmPresets in the issue's language) name it (OpenAI 兼容 for an address none of them has), and its model, never its address or key.
+// feedbackTranslator names the translation service the pipeline uses at base, as presets (Kando's own, in the issue's language, never a plugin pack's) name it (OpenAI 兼容 for an address none of them has), and its model, never its address or key.
 func feedbackTranslator(presets []settings.Preset, base, model string) string {
 	preset, _ := settings.PresetByID(presets, settings.ProviderID(presets, base))
 	name := preset.Name

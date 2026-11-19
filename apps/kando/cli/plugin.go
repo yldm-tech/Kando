@@ -32,7 +32,7 @@ type pluginIssue struct {
 	Error string `json:"error"`
 }
 
-// runPlugin is `kando plugin`, which works without the app: validate checks a pack, a zip or a folder, with the checks the app installs it with (plugins.Stage and plugins.Validate), copying it into a folder of its own that it removes afterwards; list lists the packs in the plugins folder (plugins.Scan) and whether each is turned on (plugins.State).
+// runPlugin is `kando plugin`, which works without the app: validate checks a pack, a zip or a folder, with the checks the app installs it with (plugins.Stage and plugins.Validate), copying it into a folder of its own that it removes afterwards; list lists the packs in the plugins folder (plugins.Scan) and whether each is turned on (plugins.State); install checks a pack file as validate does and drops it into the plugins folder's inbox (plugins.Drop), where the app offers it in its install confirmation the next time it starts or comes to the front. Nothing here installs a pack: only the app does, once the user confirms what it shows.
 func runPlugin(e *env, args []string) error {
 	fs := e.flags()
 	fs.BoolVar(&e.json, "json", false, "print the result as JSON")
@@ -41,7 +41,7 @@ func runPlugin(e *env, args []string) error {
 		return err
 	}
 	if len(positional) == 0 {
-		return usagef("needs a subcommand: validate or list")
+		return usagef("needs a subcommand: validate, list or install")
 	}
 	verb, positional := positional[0], positional[1:]
 	switch verb {
@@ -55,8 +55,13 @@ func runPlugin(e *env, args []string) error {
 			return usagef("list takes no arguments, got %d", len(positional))
 		}
 		return pluginList(e)
+	case "install":
+		if len(positional) != 1 {
+			return usagef("install takes one pack file, a .zip, got %d arguments", len(positional))
+		}
+		return pluginInstall(e, positional[0])
 	}
-	return usagef("unknown subcommand %q: use validate or list", verb)
+	return usagef("unknown subcommand %q: use validate, list or install", verb)
 }
 
 func pluginValidate(e *env, src string) error {
@@ -74,6 +79,36 @@ func pluginValidate(e *env, src string) error {
 		return pluginJSON(e, info)
 	}
 	return table(e.stdout, [][]string{{"id", info.ID}, {"kind", info.Kind}, {"version", info.Version}, {"name", info.Name}, {"hash", info.Hash}})
+}
+
+// pluginInstall checks the pack file src as validate does and drops it into the inbox of the plugins folder for the app to confirm. A folder is refused: the inbox holds files, and a folder is installed by dropping it on Settings › Plugins.
+func pluginInstall(e *env, src string) error {
+	if info, err := os.Stat(src); err == nil && info.IsDir() {
+		return usagef("install takes a pack file, a .zip; %s is a folder", src)
+	}
+	tmp, err := os.MkdirTemp("", "kando-plugin-")
+	if err != nil {
+		return err
+	}
+	defer os.RemoveAll(tmp)
+	_, p, err := plugins.Stage(tmp, src)
+	if err != nil {
+		return fmt.Errorf("%s: %w", src, err)
+	}
+	dropped, err := plugins.Drop(pluginsRoot(), src)
+	if err != nil {
+		return fmt.Errorf("%s: %w", src, err)
+	}
+	info := newPluginInfo(p)
+	if e.json {
+		out := struct {
+			pluginInfo
+			Inbox string `json:"inbox"`
+		}{info, dropped}
+		return pluginJSON(e, out)
+	}
+	fmt.Fprintf(e.stdout, "%s %s is waiting in Kando: bring Kando to the front to confirm installing it.\n", printable(info.Name), printable(info.Version))
+	return nil
 }
 
 func pluginList(e *env) error {

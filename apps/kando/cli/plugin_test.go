@@ -89,8 +89,8 @@ func TestPluginValidate(t *testing.T) {
 func TestPluginUsage(t *testing.T) {
 	shortSocket(t)
 	noLaunch(t)
-	for _, args := range [][]string{{"plugin"}, {"plugin", "validate"}, {"plugin", "validate", "a", "b"}, {"plugin", "list", "extra"}, {"plugin", "install", "a.zip"}} {
-		if code, _, stderr := run(args...); code != 2 || !strings.Contains(stderr, "Usage: kando plugin (validate <file-or-folder> | list) [--json]") {
+	for _, args := range [][]string{{"plugin"}, {"plugin", "validate"}, {"plugin", "validate", "a", "b"}, {"plugin", "list", "extra"}, {"plugin", "install"}, {"plugin", "install", "a.zip", "b.zip"}, {"plugin", "install", t.TempDir()}, {"plugin", "enable", "a"}} {
+		if code, _, stderr := run(args...); code != 2 || !strings.Contains(stderr, "Usage: kando plugin (validate <file-or-folder> | list | install <file>) [--json]") {
 			t.Errorf("%q = %d, %q", args, code, stderr)
 		}
 	}
@@ -147,5 +147,44 @@ func TestPluginList(t *testing.T) {
 	}
 	if p := got.Plugins[1]; p.ID != "example.terms" || p.Enabled == nil || !*p.Enabled || p.Dir != filepath.Join(root, "glossary", "example.terms") {
 		t.Errorf("list --json plugin = %+v", p)
+	}
+}
+
+// TestPluginInstall checks that kando plugin install checks a pack file and only drops it into the inbox of the plugins folder, installing nothing, and that a pack that is not valid never reaches the inbox.
+func TestPluginInstall(t *testing.T) {
+	shortSocket(t)
+	noLaunch(t)
+	root := t.TempDir()
+	old := pluginsRoot
+	pluginsRoot = func() string { return root }
+	t.Cleanup(func() { pluginsRoot = old })
+
+	code, stdout, stderr := run("plugin", "install", pluginZip(t, pluginManifest))
+	if code != 0 || stderr != "" || !strings.Contains(stdout, "Terms 1.0.0") {
+		t.Fatalf("install = %d, %q, %q", code, stdout, stderr)
+	}
+	inbox, err := plugins.Inbox(root)
+	if err != nil || len(inbox) != 1 {
+		t.Fatalf("inbox %q, %v", inbox, err)
+	}
+	if packs, _ := plugins.Scan(root); len(packs) != 0 {
+		t.Errorf("install installed %d packs itself", len(packs))
+	}
+
+	code, stdout, _ = run("plugin", "install", "--json", pluginZip(t, pluginManifest))
+	var got struct {
+		ID    string `json:"id"`
+		Inbox string `json:"inbox"`
+	}
+	if err := json.Unmarshal([]byte(stdout), &got); code != 0 || err != nil || got.ID != "example.terms" || filepath.Dir(got.Inbox) != filepath.Join(root, plugins.InboxName) {
+		t.Errorf("install --json = %d, %q, %v", code, stdout, err)
+	}
+
+	reserved := strings.Replace(pluginManifest, "example.terms", "kando.terms", 1)
+	if code, _, stderr := run("plugin", "install", pluginZip(t, reserved)); code != 1 || !strings.Contains(stderr, "reserved") {
+		t.Errorf("install a reserved id = %d, %q", code, stderr)
+	}
+	if inbox, _ := plugins.Inbox(root); len(inbox) != 2 {
+		t.Errorf("inbox after a refused install %q", inbox)
 	}
 }

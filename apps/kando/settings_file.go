@@ -176,6 +176,7 @@ type savedSettings struct {
 	savedPrivacy    // state_privacy.go
 	savedSubexport  // state_subexport.go
 	savedTools      // state_tools.go
+	savedPlugins    // state_plugins.go
 }
 
 // clean tidies what was read. Every part has a clean of its own, in its own file, which trims its text or does nothing, and each is called here, so an area changes only its own clean.
@@ -205,4 +206,5 @@ func (s *savedSettings) clean() {
 	s.savedPrivacy.clean()
 	s.savedSubexport.clean()
 	s.savedTools.clean()
+	s.savedPlugins.clean()
 }

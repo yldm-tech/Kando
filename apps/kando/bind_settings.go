@@ -188,7 +188,7 @@ func (a *app) CurrentPreset() (settings.Preset, bool) {
 	return settings.PresetByID(a.llmPresets(a.messages()), a.prefs.llmProvider)
 }
 
-func (a *app) Presets() []settings.Preset { return settings.Presets(a.messages()) }
+func (a *app) Presets() []settings.Preset { return a.llmPresets(a.messages()) }
 
 func (a *app) LLMProvider() string { return a.prefs.llmProvider }
 

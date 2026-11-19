@@ -69,6 +69,10 @@ func (s *savedLLM) clean() {
 func (a *app) saveLLM(saved *savedSettings) {
 	saved.LLMProvider = a.prefs.llmProvider
 	if tools, ok := a.pipeline.(media.Tools); ok {
+		// The service of a plugin pack that is not offered now is saved as its pack's, so the next start knows it as the pack's (pluginsGoneService).
+		if id := a.pluginsGoneService(tools.Translator.BaseURL); id != "" {
+			saved.LLMProvider = id
+		}
 		saved.LLMBaseURL = tools.Translator.BaseURL
 		saved.LLMModel = tools.Translator.Model
 		saved.LLMAPIKey = tools.Translator.APIKey
@@ -117,9 +121,9 @@ func (a *app) restoreLLM(saved savedSettings) {
 	a.syncLLM(tools.UseEveryAPICLI())
 }
 
-// llmPresets are the AI services the app offers, their names and blurbs in the language of m: what settings.PresetByID and settings.ProviderID resolve a service id or an endpoint against, so every caller sees the same list.
+// llmPresets are the AI services the app offers, their names and blurbs in the language of m: Kando's own, then those of the ai-service plugin packs turned on (pluginPresets). It is what settings.PresetByID and settings.ProviderID resolve a service id or an endpoint against, so every caller sees the same list.
 func (a *app) llmPresets(m locales.Messages) []settings.Preset {
-	return settings.Presets(m)
+	return append(settings.Presets(m), a.pluginPresets(m)...)
 }
 
 // syncLLM shows the tools' AI service in the settings, its key as the key of its endpoint (llmKeyOwner).
@@ -170,7 +174,7 @@ func (a *app) selectLLM(id string) {
 	a.applyLLM()
 }
 
-// llmRemember keeps the AI service in use, its endpoint, model and key, under its preset id for when it is chosen again (selectLLM); settings.json keeps them too (savedLLM.LLMServices).
+// llmRemember keeps the AI service in use, its endpoint, model and key, under its id for when it is chosen again (selectLLM); settings.json keeps them too (savedLLM.LLMServices). The id is the service chosen while it is still offered at the endpoint in use (llmProviderFor), so a plugin pack's service whose endpoint is also a built-in one's, or 自定义 at a pack's endpoint, is kept as itself; a pack's service whose pack is not offered now is kept under the pack's id (pluginsGoneService), never as 自定义's, whose endpoint and key it would take the place of.
 func (a *app) llmRemember() {
 	tools, ok := a.pipeline.(media.Tools)
 	base := strings.TrimSpace(tools.Translator.BaseURL)
@@ -180,7 +184,20 @@ func (a *app) llmRemember() {
 	if a.prefs.llmServices == nil {
 		a.prefs.llmServices = map[string]savedLLMService{}
 	}
-	a.prefs.llmServices[settings.ProviderID(a.llmPresets(a.messages()), base)] = savedLLMService{BaseURL: base, Model: strings.TrimSpace(tools.Translator.Model), APIKey: tools.Translator.APIKey}
+	id := a.pluginsGoneService(base)
+	if id == "" {
+		id = a.llmProviderFor(a.prefs.llmProvider, base)
+	}
+	a.prefs.llmServices[id] = savedLLMService{BaseURL: base, Model: strings.TrimSpace(tools.Translator.Model), APIKey: tools.Translator.APIKey}
+}
+
+// llmProviderFor is the preset the endpoint base is shown as when keep was the one chosen: keep while it is still offered with that endpoint, and 自定义, which has no endpoint of its own, as it stays 自定义 until the user picks another; otherwise the first preset whose endpoint base is (settings.ProviderID).
+func (a *app) llmProviderFor(keep, base string) string {
+	presets := a.llmPresets(a.messages())
+	if preset, ok := settings.PresetByID(presets, keep); ok && (keep == "custom" || preset.BaseURL != "" && settings.SameEndpoint(preset.BaseURL, base)) {
+		return keep
+	}
+	return settings.ProviderID(presets, base)
 }
 
 func (a *app) applyLLM() {
@@ -219,9 +236,14 @@ func (a *app) applyLLM() {
 	}
 }
 
-// openLLMKeyPage opens the page of the service in use where an API Key is made, as 获取 API Key on the AI 服务 page and in the first-run guide does, and says in the library's message bar when the system could not (menuOpenLink).
+// openLLMKeyPage opens the page of the service in use where an API Key is made, as 获取 API Key on the AI 服务 page and in the first-run guide does, and says in the library's message bar when the system could not (menuOpenLink). The page of a service a plugin pack added opens once the user agreed to go to its host (pluginsOpenKeyPage).
 func (a *app) openLLMKeyPage() {
-	if preset, ok := settings.PresetByID(a.llmPresets(a.messages()), a.prefs.llmProvider); ok && preset.KeyURL != "" {
+	preset, ok := settings.PresetByID(a.llmPresets(a.messages()), a.prefs.llmProvider)
+	switch {
+	case !ok || preset.KeyURL == "":
+	case preset.Plugin != "":
+		a.pluginsOpenKeyPage(preset)
+	default:
 		a.menuOpenLink(preset.KeyURL)
 	}
 }
