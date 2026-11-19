@@ -3,9 +3,10 @@
   "id": "kando.deepl",
   "kind": "script",
   "version": "1.0.0",
+  "kando": ">=0.36.0",
   "license": "FSL-1.1-ALv2",
   "author": "Kando",
-  "homepage": "https://www.deepl.com/pro-api",
+  "homepage": "https://github.com/yldm-tech/Kando/tree/main/apps/kando/plugins/official/deepl",
   "name": {"en": "DeepL", "zh-Hans": "DeepL 翻译", "zh-Hant": "DeepL 翻譯", "ja": "DeepL 翻訳", "ko": "DeepL 번역"},
   "description": {
     "en": "Translates the subtitles with the DeepL API, using your own API key (Free or Pro).",

@@ -1,7 +1,6 @@
 package main
 
 import (
-	"os"
 	"path/filepath"
 	"strings"
 	"testing"
@@ -16,22 +15,11 @@ import (
 	"github.com/nsgo-dev/nsgo/nsgotest"
 )
 
-// shootPluginTranslators renders a script plugin's translator (docs/plugin-system.md E14): 翻译 with Kando's official DeepL plugin, packed from the repository with the scenes' key standing in for the official root, chosen as the translation source, its line saying proofreading stays with the AI service (plugins-translate-source); and the card of Street Food Night Tour (j5) whose translation DeepL failed, its key refused, which names the source and opens 插件, its actions on one row and 移除 its ×, in the scenes' language and in English and Japanese (plugins-translate-failed, -en, -ja).
+// shootPluginTranslators renders a script plugin's translator (docs/plugin-system.md E14): 翻译 with Kando's official DeepL plugin, signed and wrapped from the repository as a release makes it with the scenes' key standing in for the official root (deeplRelease), chosen as the translation source, its line saying proofreading stays with the AI service (plugins-translate-source); and the card of Street Food Night Tour (j5) whose translation DeepL failed, its key refused, which names the source and opens 插件, its actions on one row and 移除 its ×, in the scenes' language and in English and Japanese (plugins-translate-failed, -en, -ja).
 func shootPluginTranslators(t *testing.T, f *screenshotFixture, key pluginsKey) {
 	f.shoot(t, "plugins-translate-source", func(t *testing.T, a *app, tt *nsgotest.App, updates chan func()) {
-		priv, _, err := script.DevKey(key.secret)
-		if err != nil {
-			t.Fatal(err)
-		}
-		packed := filepath.Join(f.home, "deepl-packed")
-		if err := os.MkdirAll(packed, 0o755); err != nil {
-			t.Fatal(err)
-		}
-		if err := script.PackFolder(deeplFolder, packed, priv); err != nil {
-			t.Fatal(err)
-		}
 		a.plugins.root = filepath.Join(f.home, "translators")
-		pluginsScriptInstalled(t, a.plugins.root, packed)
+		pluginsScriptInstalled(t, a.plugins.root, deeplRelease(t, key))
 		a.plugins.script.official = key.public
 		a.plugins.script.watch = script.Watch{Beat: 100 * time.Millisecond, Stall: time.Minute, Stalls: 3, Deadline: time.Minute}
 		onEngine(a, a.pluginsScan)

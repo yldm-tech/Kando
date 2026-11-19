@@ -20,6 +20,7 @@ import (
 	"kando/apps/kando/jobfailure"
 	"kando/apps/kando/locales/testlocale"
 	"kando/apps/kando/plugins"
+	"kando/apps/kando/plugins/official"
 	"kando/apps/kando/plugins/script"
 	"kando/apps/kando/settings"
 	"kando/apps/kando/settings/sectionid"
@@ -296,16 +297,50 @@ func deeplServer(t *testing.T) (client *http.Client, heard func() (requests, bod
 	return client, heard, setUsed
 }
 
-// deeplFolder is the official DeepL plugin's source in the repository, found from this file's own place (runtime.Caller), as `nsgo test -target` runs the test binary from another folder than the package's; relative to the package's folder only when the build left no absolute path.
+// deeplRelease is the official DeepL plugin as a release makes it, signed with key standing in for the official root: its folder packed (script.PackFolder, which nsgo publish does on the owner's computer) and wrapped into its .kandoplugin (official.Wrap), the file Kando installs.
+func deeplRelease(t *testing.T, key pluginsKey) string {
+	t.Helper()
+	priv, _, err := script.DevKey(key.secret)
+	if err != nil {
+		t.Fatal(err)
+	}
+	packed := t.TempDir()
+	if err := script.PackFolder(deeplFolder, packed, priv); err != nil {
+		t.Fatal(err)
+	}
+	pkgPath, _ := filepath.Glob(filepath.Join(packed, "*.nsgopkg"))
+	if len(pkgPath) != 1 {
+		t.Fatalf("packed %v", pkgPath)
+	}
+	data, err := os.ReadFile(pkgPath[0])
+	if err != nil {
+		t.Fatal(err)
+	}
+	manifest, err := os.ReadFile(filepath.Join(deeplFolder, plugins.ManifestName))
+	if err != nil {
+		t.Fatal(err)
+	}
+	zipped, id, version, err := official.Wrap(manifest, filepath.Base(pkgPath[0]), data)
+	if err != nil || id != "kando.deepl" {
+		t.Fatalf("wrapped %s %s: %v", id, version, err)
+	}
+	file := filepath.Join(t.TempDir(), official.FileName(id, version))
+	if err := os.WriteFile(file, zipped, 0o644); err != nil {
+		t.Fatal(err)
+	}
+	return file
+}
+
+// deeplFolder is the official DeepL plugin's source in the repository (plugins/official/deepl), found from this file's own place (runtime.Caller), as `nsgo test -target` runs the test binary from another folder than the package's; relative to the package's folder only when the build left no absolute path.
 var deeplFolder = func() string {
-	rel := filepath.Join("..", "..", "plugins", "official", "kando.deepl")
+	rel := filepath.Join("plugins", "official", "deepl")
 	if _, file, _, ok := runtime.Caller(0); ok && filepath.IsAbs(file) {
 		return filepath.Join(filepath.Dir(file), rel)
 	}
 	return rel
 }()
 
-// TestOfficialDeepL checks Kando's official DeepL plugin (plugins/official/kando.deepl), packed with a throwaway root standing in for the official one, against a fake DeepL: without a key it fails as no-credential; a Free key (:fx) is sent to api-free.deepl.com alone, a Pro key to api.deepl.com once the host it knew refused it, and only by Kando, in the Authorization header, never in what the plugin's code composes nor answers; Kando's tags become DeepL's codes, Chinese with its script, English American by default and Portuguese Brazilian; blank lines stay blank and are not sent; the line count is kept; DeepL's 456 and an exhausted limit fail as quota, a key refused at both hosts as auth, each worded on the card by the source's name.
+// TestOfficialDeepL checks Kando's official DeepL plugin (plugins/official/deepl), signed and wrapped as a release makes it with a throwaway root standing in for the official one (deeplRelease), against a fake DeepL: without a key it fails as no-credential; a Free key (:fx) is sent to api-free.deepl.com alone, a Pro key to api.deepl.com once the host it knew refused it, and only by Kando, in the Authorization header, never in what the plugin's code composes nor answers; Kando's tags become DeepL's codes, Chinese with its script, English American by default and Portuguese Brazilian; blank lines stay blank and are not sent; the line count is kept; DeepL's 456 and an exhausted limit fail as quota, a key refused at both hosts as auth, each worded on the card by the source's name.
 func TestOfficialDeepL(t *testing.T) {
 	code, err := os.ReadFile(filepath.Join(deeplFolder, script.Entry))
 	if err != nil {
@@ -315,15 +350,7 @@ func TestOfficialDeepL(t *testing.T) {
 		t.Fatal("the plugin's code reaches for a store of its own")
 	}
 	key := newPluginsKey(t)
-	priv, _, err := script.DevKey(key.secret)
-	if err != nil {
-		t.Fatal(err)
-	}
-	dir := t.TempDir()
-	if err := script.PackFolder(deeplFolder, dir, priv); err != nil {
-		t.Fatal(err)
-	}
-	a, tt, updates, _ := scriptsApp(t, key, dir)
+	a, tt, updates, _ := scriptsApp(t, key, deeplRelease(t, key))
 	scriptsGrant(t, a, tt, updates, "kando.deepl", string(plugins.PermCredFetch))
 	client, heard, setUsed := deeplServer(t)
 	m := testlocale.Messages()

@@ -1,0 +1,6 @@
+# What go tool nsgo publish signs of Kando's official DeepL plugin (.github/scripts/official-plugins.sh). The id is ai.yldm.kando.plugin. and the plugin's id, the version is kando-plugin.json's, and the capabilities are exactly what kando-plugin.json declares, in nsgo.yaml's snake_case: Kando refuses a package that signed anything else, and TestPluginDeepLPublishes checks that they agree. The DeepL key is not a capability: Kando keeps it and adds it to the plugin's kando.net.credentialFetch requests (kando-plugin.json's credentials), so the plugin signs no network rule of its own.
+name: DeepL
+id: ai.yldm.kando.plugin.kando.deepl
+version: 1.0.0
+capabilities:
+  host: [kando.net.credentialFetch]
