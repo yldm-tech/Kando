@@ -486,3 +486,31 @@ func TestPluginStaleRevocationsPause(t *testing.T) {
 		t.Errorf("stale: network %t, local %t, official %t", a.pluginsStale(online), a.pluginsStale(local), a.pluginsStale(official))
 	}
 }
+
+// TestPluginContribAnnotatorForPhones checks that a paired phone's film is marked by the script plugins' annotators too, as the desktop computes its marks for it (pluginsMarksFor).
+func TestPluginContribAnnotatorForPhones(t *testing.T) {
+	a, tt, updates, _, _ := contribApp(t, media.Tools{})
+	var w *pluginsMarkWait
+	var found pluginsMarks
+	onEngine(a, func() {
+		var state pluginsMarkState
+		found, w, state = a.pluginsMarksFor("/films/other.mp4", "", false, []string{"Good morning.", "x"})
+		if state != pluginsMarksFound {
+			t.Errorf("state %d", state)
+		}
+	})
+	if w != nil {
+		scriptsSettle(t, a, tt, updates, func() bool {
+			select {
+			case <-w.done:
+				return true
+			default:
+				return false
+			}
+		})
+		found = w.marks
+	}
+	if len(found.lines) != 2 || len(found.lines[0]) != 1 || found.lines[0][0].Ruby != "wk" || len(found.lines[1]) != 0 {
+		t.Fatalf("the phone's marks %+v", found)
+	}
+}
