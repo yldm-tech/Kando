@@ -36,6 +36,8 @@ type Relay struct {
 	Every, MinWrite time.Duration
 	// Health, when set, is told after each of Run's turns what failed of its poll and its writes, nil for a turn that went through, so the desktop can say whether the store answers. It is called on Run's goroutine.
 	Health func(err error)
+	// Films, when set, is what the desktop put in the bucket for its phones (relay_films.go), listed in every phone's state.json with links to the files; nil, or a nil answer, lists none. It is called on Run's goroutine.
+	Films func() *RelayFiles
 
 	// minting is held from looking at a phone's grant to storing a new one, so two turns (a join and Publish) never mint for the same phone at once.
 	minting gosync.Mutex
@@ -45,6 +47,8 @@ type Relay struct {
 	written map[string]writtenState
 	// wake has Run take its next turn at once.
 	wake chan struct{}
+	// filmLinks are the links to the films' files signed so far, by object name (shelf).
+	filmLinks map[string]filmLink
 }
 
 // relayGrant is a grant the desktop gave a phone, with the slots of it the phone has used.
@@ -257,20 +261,33 @@ func (r *Relay) markUsed(device, slot string) {
 
 // Publish writes the state.json of each phone that joined whose state changed, whose grant is new, or whose state.json is RelayHeartbeat old.
 func (r *Relay) Publish(ctx context.Context) error {
+	devices := r.Devices()
+	if len(devices) == 0 {
+		return nil
+	}
+	shelf, err := r.shelf(ctx)
+	if err != nil {
+		return err
+	}
 	var errs []error
-	for _, dev := range r.Devices() {
-		errs = append(errs, r.publish(ctx, dev))
+	for _, dev := range devices {
+		errs = append(errs, r.publish(ctx, dev, shelf))
 	}
 	return errors.Join(errs...)
 }
 
-func (r *Relay) publish(ctx context.Context, dev RelayDevice) error {
+func (r *Relay) publish(ctx context.Context, dev RelayDevice, shelf *RelayShelf) error {
 	grant, err := r.Grant(ctx, dev.ID)
 	if err != nil {
 		return err
 	}
+	return r.writeState(ctx, dev, grant, shelf, false)
+}
+
+// writeState writes dev's state.json with grant and shelf: when force, or when it says something else than the last one written, or that one is RelayHeartbeat old.
+func (r *Relay) writeState(ctx context.Context, dev RelayDevice, grant RelayGrant, shelf *RelayShelf, force bool) error {
 	caller := Caller{DeviceID: dev.ID, Name: dev.Name, ReadOnly: dev.ReadOnly, Relay: true}
-	state := RelayState{V: RelayVersion, Desktop: r.Desk.Desktop, Jobs: r.Desk.Journal.List(), Learning: r.Desk.Journal.Learning(), Grant: grant}
+	state := RelayState{V: RelayVersion, Desktop: r.Desk.Desktop, Jobs: r.Desk.Journal.List(), Learning: r.Desk.Journal.Learning(), Grant: grant, Shelf: shelf}
 	hello := r.Desk.Answer(ctx, caller, Call{V: CallVersion, Op: OpHello})
 	if hello.Error != nil {
 		return fmt.Errorf("hello: %s", hello.Error.Message)
@@ -286,7 +303,7 @@ func (r *Relay) publish(ctx context.Context, dev RelayDevice) error {
 	r.mu.Lock()
 	last := r.written[dev.ID]
 	r.mu.Unlock()
-	if bytes.Equal(body, last.body) && now.Sub(last.at) < RelayHeartbeat {
+	if !force && bytes.Equal(body, last.body) && now.Sub(last.at) < RelayHeartbeat {
 		return nil
 	}
 	state.Written = now

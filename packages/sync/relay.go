@@ -29,7 +29,7 @@ import (
 //
 // What the relay does not carry. OpEvents does not wait over the relay: it answers at once, and the phone follows the changes by reading state.json, which holds the jobs' list and, for each library, the revision its learning state last changed at, and which the desktop writes whenever either changes (at most every RelayMinWrite) and at least every RelayHeartbeat while it runs. A phone takes a state.json RelayStale old for a desktop that is off, and says the desktop will pick up its messages when it is back.
 //
-// Encryption at rest. Every object of the relay is sealed (SealRelay) with AES-256-GCM under its phone's own key, RelayKeySize random bytes the desktop makes when the phone joins, with the object's name below the prefix (as "inbox/{device}/{slot}") as additional data, so a message cannot be read, changed, or moved to another slot or phone without failing to open. The store sees the names, the sizes and the times, nothing else. The films the desktop will upload for phones to stream (films/, not yet written) are not sealed, so the phone's system player can play them from their links; their names are random, and only the links in a phone's state.json reach them.
+// Encryption at rest. Every object of the relay is sealed (SealRelay) with AES-256-GCM under its phone's own key, RelayKeySize random bytes the desktop makes when the phone joins, with the object's name below the prefix (as "inbox/{device}/{slot}") as additional data, so a message cannot be read, changed, or moved to another slot or phone without failing to open. The store sees the names, the sizes and the times, nothing else. The films the desktop puts in the bucket for phones to stream or download (films/, relay_films.go) are not sealed, so the phone's system player can play them from their links; their folders' names are random, and only the links in a phone's state.json reach them.
 //
 // Revocation. Unpairing a phone deletes its inbox and outbox and forgets its key: its links then reach nothing, and anything it still PUTs to a slot whose link has not lapsed is deleted unread, as is any message of a device the desktop does not know. A link stays good until it lapses whatever the desktop does, so the user who wants a lost phone's film links cut at once changes the store's key in 账号与上传, which ends every link signed with the old one.
 
@@ -110,6 +110,8 @@ type RelayState struct {
 	Learning map[string]int64 `json:"learning"`
 	// Grant is the phone's newest grant.
 	Grant RelayGrant `json:"grant"`
+	// Shelf is the films the desktop put in the bucket for its phones, with links to their files (relay_films.go); nil while it shares none, as a desktop of before them.
+	Shelf *RelayShelf `json:"shelf,omitempty"`
 }
 
 // RelayPrefix is the folder of a desktop's relay in the bucket, named by its certificate's fingerprint (Fingerprint).
