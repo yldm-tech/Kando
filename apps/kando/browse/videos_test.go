@@ -5,6 +5,7 @@ import (
 	"regexp"
 	"strings"
 	"testing"
+	"time"
 	"unicode/utf8"
 
 	"kando/apps/kando/sites/catalog"
@@ -154,5 +155,23 @@ func TestPageMessagesAreRead(t *testing.T) {
 	var back PageState
 	if rest, ok := strings.CutPrefix(state, StateMessage); !ok || json.Unmarshal([]byte(rest), &back) != nil || back.Have[video] != HaveDone || back.Text.Add != "下载视频" {
 		t.Fatalf("StateData = %q", state)
+	}
+}
+
+// 下载视频 says where the page's player was, which AddedAt reads to the second; a time that is none, or no AddMessage, is nowhere.
+func TestAddedAt(t *testing.T) {
+	video := "https://www.youtube.com/watch?v=jNQXAC9IVRw"
+	for data, want := range map[string]time.Duration{
+		AddMessage + `{"url":"` + video + `","at":84}`:   84 * time.Second,
+		AddMessage + `{"url":"` + video + `","at":84.9}`: 84 * time.Second,
+		AddMessage + `{"url":"` + video + `"}`:           0,
+		AddMessage + `{"url":"` + video + `","at":-3}`:   0,
+		AddMessage + `{"url":"` + video + `","at":1e12}`: 0,
+		AddMessage + `{"url":"` + video + `","at":"84"}`: 0,
+		`{"url":"` + video + `","at":84}`:                0,
+	} {
+		if got := AddedAt(data); got != want {
+			t.Errorf("AddedAt(%q) = %v, want %v", data, got, want)
+		}
 	}
 }

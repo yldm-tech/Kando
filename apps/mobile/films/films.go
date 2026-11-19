@@ -3,6 +3,7 @@ package films
 
 import (
 	"context"
+	"time"
 
 	"kando/apps/mobile/catalog"
 	"kando/apps/mobile/computers"
@@ -25,8 +26,9 @@ type Actions struct {
 	Pair func()
 	// Film opens a film's page.
 	Film func(catalog.Entry)
-	// Play plays the film kept on the phone under key, from where it was left on the phone.
-	Play func(key string)
+	// Play plays the film kept on the phone under key, from where it was left on the phone, and PlayAt from at.
+	Play   func(key string)
+	PlayAt func(key string, at time.Duration)
 	// Add opens the Add sheet, and Jobs the Jobs page, which a tablet shows as a section of its own instead.
 	Add, Jobs func()
 }
@@ -90,12 +92,24 @@ func Page(cx *core.Scope, s *session.Session, act Actions) base.NavPage {
 			core.Show{When: func() bool { return v.query.Get() == "" && len(v.subscriptions()) > 0 }, Then: v.subscriptionRow},
 			v.list(cx),
 		}}}}
-	jobsLabel := func() string { return locales.JobsTitle(cx) }
+	unfinished := func() int { active, failed := s.Unfinished(); return active + failed }
+	jobsLabel := func() string {
+		if n := unfinished(); n > 0 {
+			return locales.JobsBadgeLabel(cx, n)
+		}
+		return locales.JobsTitle(cx)
+	}
 	addLabel := func() string { return locales.AddTitle(cx) }
 	trailing := []core.Node{ui.IconButton{TestID: "films-add", Icon: lucide.Plus, LabelFunc: addLabel, Size: 44, OnPress: act.Add}}
 	tablet := look.Tablet(cx)
 	if !tablet {
-		trailing = append([]core.Node{ui.IconButton{TestID: "films-jobs", Icon: lucide.ListChecks, LabelFunc: jobsLabel, Size: 44, OnPress: act.Jobs}}, trailing...)
+		// TODO(nsgo): core.HeaderSymbol is a name and a label only (core/platformprops.go:57), so iOS's native header shows no count on the Jobs button; its label says the count, and the drawn header elsewhere shows the badge. Pass the count once a header symbol takes a badge (UIBarButtonItem.badge).
+		jobs := core.View{Children: []core.Node{
+			ui.IconButton{TestID: "films-jobs", Icon: lucide.ListChecks, LabelFunc: jobsLabel, Size: 44, OnPress: act.Jobs},
+			look.Count{TestID: "films-jobs-badge", Count: unfinished, Warn: func() bool { _, failed := s.Unfinished(); return failed > 0 },
+				Style: core.Style{Position: core.Absolute, Top: core.Pt(2), Right: core.Pt(0)}},
+		}}
+		trailing = append([]core.Node{jobs}, trailing...)
 	}
 	// Jobs and Add matter once a computer is paired; before, the card that asks to pair is the page's one action.
 	paired := func() bool { return len(s.Desktops()) > 0 }

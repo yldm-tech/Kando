@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"errors"
+	"log"
 	"os"
 	"path/filepath"
 	"slices"
@@ -532,7 +533,7 @@ func (a *app) libraryMoveRefresh(from, to string) {
 	a.countLibraries()
 }
 
-// libraryMoveLines moves the saved lines of the video at video from source to dest, keyed in dest by its path once moved (move), and saves both books, dest first, so a line is never in neither. When dest cannot be saved the lines stay in source, and the sidebar says so.
+// libraryMoveLines moves the saved lines of the video at video from source to dest, keyed in dest by its path once moved (move), and saves both books, dest first, so a line is never in neither, and then the sound kept of each line goes with it. When dest cannot be saved the lines stay in source, and the sidebar says so.
 func (a *app) libraryMoveLines(source, dest *saved.Book, video string, move func(string) (string, bool)) {
 	next, ok := move(video)
 	if !ok {
@@ -552,6 +553,15 @@ func (a *app) libraryMoveLines(source, dest *saved.Book, video string, move func
 	}
 	if err := source.Save(); err != nil {
 		a.saveErr = a.messages().SavedWriteFailed()
+	}
+	// The sound kept of each line goes with it (saved.StoredSound), under the id it has in dest.
+	key := dest.Key(next)
+	for _, l := range lines {
+		if i := dest.Find(key, l.Start); i >= 0 {
+			if err := saved.MoveSound(*source, l.ID, *dest, dest.Lines[i].ID); err != nil {
+				log.Printf("library: the sound of the line %s did not move: %v", l.ID, err)
+			}
+		}
 	}
 }
 

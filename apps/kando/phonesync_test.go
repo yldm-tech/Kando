@@ -516,6 +516,49 @@ func TestPhoneSyncAsksFirstOrRefusesLinks(t *testing.T) {
 	}
 }
 
+// A phone's link comes with the picture and the source of original lines the phone chose, which its job keeps over the desktop's Settings › 通用 › 在线视频; a value the protocol does not name is refused, and a link with none takes the desktop's.
+func TestPhoneSyncTakesTheOptionsAPhoneChose(t *testing.T) {
+	a, tt, updates, _, c := phonePaired(t)
+	h, err := phoneCall(t, a, tt, updates, c.Hello)
+	if err != nil || !slices.Contains(h.Options, psync.OptionQuality) || !slices.Contains(h.Options, psync.OptionSubtitles) {
+		t.Fatalf("hello %+v, %v", h, err)
+	}
+	a.online.quality, a.online.heardAlone = core.QualityBest, false
+	send := func(link string, opts psync.JobOptions) (psync.JobCreated, error) {
+		return phoneCall(t, a, tt, updates, func(ctx context.Context) (psync.JobCreated, error) { return c.CreateJob(ctx, link, opts) })
+	}
+	_, err = send("https://www.youtube.com/watch?v=M7lc1UVf-VE", psync.JobOptions{Quality: "4320p"})
+	phoneWantCode(t, err, http.StatusBadRequest, psync.CodeInvalid)
+	_, err = send("https://www.youtube.com/watch?v=M7lc1UVf-VE", psync.JobOptions{Subtitles: "guess"})
+	phoneWantCode(t, err, http.StatusBadRequest, psync.CodeInvalid)
+
+	chosen, err := send("https://www.youtube.com/watch?v=jNQXAC9IVRw", psync.JobOptions{Quality: psync.Quality720, Subtitles: psync.SubtitlesRecognize})
+	if err != nil || chosen.Job == nil {
+		t.Fatalf("created %+v, %v", chosen, err)
+	}
+	plain, err := send("https://www.youtube.com/watch?v=M7lc1UVf-VE", psync.JobOptions{})
+	if err != nil || plain.Job == nil {
+		t.Fatalf("created %+v, %v", plain, err)
+	}
+	// The first runs and is given the desktop's settings where it has none of its own (onlineFor): the phone's stay.
+	waitUntil(t, tt, a, updates, func() bool {
+		job, _ := a.library.Find(chosen.Job.ID)
+		return job.Stage == core.StageDownloading || job.Stage == core.StageTranscribing
+	})
+	if job, _ := a.library.Find(chosen.Job.ID); job.Quality != core.Quality720 || job.SubtitleSource != core.SubtitlesLocal {
+		t.Fatalf("the job the phone chose for runs at %q from %q", job.Quality, job.SubtitleSource)
+	}
+	if job, _ := a.library.Find(plain.Job.ID); job.Quality != "" || job.SubtitleSource != "" {
+		t.Fatalf("the job the phone chose nothing for was given %q from %q before it ran", job.Quality, job.SubtitleSource)
+	}
+	// Both stop here, so the queue starts neither as the test ends.
+	for _, id := range []string{plain.Job.ID, chosen.Job.ID} {
+		if _, err := phoneCall(t, a, tt, updates, func(ctx context.Context) (psync.Job, error) { return c.ActOnJob(ctx, psync.OpJobCancel, id) }); err != nil {
+			t.Fatal(err)
+		}
+	}
+}
+
 // A phone cancels and retries the jobs it lists of a library that is not the open one: the job the queue runs for it, one waiting for it, and one the queue ran to its end, as the list keeps it.
 func TestPhoneSyncActsOnJobsOfAnotherLibrary(t *testing.T) {
 	a, tt, updates, dir, c := phonePaired(t)

@@ -211,7 +211,7 @@ func (a *app) phoneSyncLinked(st *settings.PhoneSync) {
 		titles[f.ID] = f.Title
 	}
 	for _, c := range phonesync.OpenConflicts(l.ledger) {
-		out := settings.PhoneConflict{ID: c.ID, Field: c.Field, Film: titles[c.Film], At: -1, Both: phonesync.Joinable(c.Kind, c.Field)}
+		out := settings.PhoneConflict{ID: c.ID, Field: c.Field, Film: titles[c.Film], At: -1, Both: psync.Joinable(c.Kind, c.Field)}
 		if r, ok := l.ledger.Record(c.Kind, c.Record); ok {
 			switch c.Kind {
 			case psync.KindLine:
@@ -274,7 +274,7 @@ func (a *app) phoneSyncResolve(id string, keep settings.PhoneKeep) {
 	case settings.KeepLost:
 		value = c.Lost.Value
 	case settings.KeepBoth:
-		value = phonesync.Joined(c)
+		value = psync.Joined(c)
 	}
 	a.phone.resolveErr = ""
 	req := psync.ConflictResolve{Library: phoneLibraryID(a.snap().LibraryDir), ID: id, Value: value}

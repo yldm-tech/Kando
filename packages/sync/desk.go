@@ -260,7 +260,7 @@ func (d *Desk) answer(ctx context.Context, caller Caller, call Call) (any, error
 		return d.answerState(ctx, caller, call)
 	case OpSettingsGet, OpSettingsPut:
 		return d.answerSettings(ctx, caller, call)
-	case OpLookUp, OpExplain:
+	case OpLookUp, OpExplain, OpExplainAsk, OpRecap:
 		return d.answerStudy(ctx, caller, call)
 	case OpSubscriptions, OpSubscribe, OpSubscriptionSet, OpSubscriptionTake, OpUnsubscribe:
 		return d.answerSubscriptions(ctx, caller, call)

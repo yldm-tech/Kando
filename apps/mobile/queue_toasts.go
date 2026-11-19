@@ -52,6 +52,8 @@ func queueToasts(cx *core.Scope, s *session.Session, toaster *ui.Toaster, openFi
 				title = locales.JobsFilmGone(cx, name(desktop))
 			case p == session.Unpaired || p == session.Certificate:
 				title = locales.ComputersUnpaired(cx, name(desktop))
+			case errors.As(err, &e) && e.Code == sync.CodeReadOnly:
+				title = locales.JobsReadOnly(cx, name(desktop))
 			case errors.As(err, &e):
 				title = locales.JobsActionFailed(cx, name(desktop))
 			}

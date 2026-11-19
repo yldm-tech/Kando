@@ -182,16 +182,26 @@ func TestAPositionThatCouldNotBeWrittenIsWrittenOnceItCan(t *testing.T) {
 }
 
 func TestThePlayerKeepsWhereTheFilmWasLeft(t *testing.T) {
-	p, f := openPlayer(t)
-	p.at(6 * sec)
-	p.app.Press("id:player-back")
-	p.app.WaitUntil(wait, func() bool {
-		films, _ := store.Open(p.dir).Films()
-		return len(films) == 1 && films[0].PositionMS == 6000
+	dir := t.TempDir()
+	f := keepTalk(t, dir)
+	play := func(t *testing.T) *phone {
+		p := startPhone(t, dir)
+		p.app.WaitFor(talkRow(f.Desktop), wait)
+		p.app.Press(talkRow(f.Desktop))
+		p.app.WaitFor("id:film-play", wait)
+		p.app.Press("id:film-play")
+		p.app.WaitFor("id:player-video", wait)
+		p.app.Play("id:player-video", core.VideoInfo{Duration: 10 * sec})
+		return p
+	}
+	t.Run("before", func(t *testing.T) {
+		p := play(t)
+		p.at(6 * sec)
+		p.app.Press("id:player-minimize")
+		p.app.WaitUntil(wait, func() bool { return p.keptPosition() == 6000 })
 	})
-	p.app.Press("id:film-play")
-	p.app.WaitFor("id:player-video", wait)
-	p.app.Play("id:player-video", core.VideoInfo{Duration: 10 * sec})
+	// The app started again plays the film from where it was left.
+	p := play(t)
 	if s := p.seeks(); !slices.Contains(s, 6*sec) {
 		t.Fatalf("reopened, %s went to %v, not where it was left", f.Film.Title, s)
 	}

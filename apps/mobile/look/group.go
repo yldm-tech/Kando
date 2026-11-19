@@ -21,12 +21,15 @@ func (g Group) Render(cx *core.Scope) core.Node {
 		StyleFunc: func() core.Style { return core.Style{Background: ui.Alpha(colors.Text(), 0.045)} }}
 }
 
-// IconTile is a row's leading icon on a small rounded tile: white on the accent, or danger's on its tint.
+// IconTile is a row's leading icon on a small rounded tile: white on the accent or on the warning's color, or danger's on its tint.
 func IconTile(cx *core.Scope, icon func() *core.SVG, tone Tone) core.Node {
 	colors, tints := ui.ColorsOf(cx), ui.TintsOf(cx)
 	fill, tint := colors.Accent, colors.OnAccent
-	if tone == ToneDanger {
+	switch tone {
+	case ToneDanger:
 		fill, tint = tints.Danger, colors.Danger
+	case ToneWarn:
+		fill = colors.Warn
 	}
 	return core.View{Style: core.Style{Width: core.Pt(28), Height: core.Pt(28), CornerRadius: 7, BorderCurve: core.BorderCurveContinuous, FlexShrink: 0,
 		AlignItems: core.AlignCenter, JustifyContent: core.JustifyCenter},

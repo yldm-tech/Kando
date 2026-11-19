@@ -44,7 +44,7 @@ func freeName(dir, name string) string {
 func Companions(video string) []string {
 	base := strings.TrimSuffix(video, filepath.Ext(video))
 	var out []string
-	for _, path := range []string{transcriptPath(video), asideTranscriptPath(video), base + ".bilingual.srt", translationCheckpointPath(video), pendingTranscriptPath(video), pendingHeardPath(video), proofreadTranscriptPath(video), CorrectionsPath(video), ChaptersPath(video), TermsPath(video)} {
+	for _, path := range []string{transcriptPath(video), asideTranscriptPath(video), base + ".bilingual.srt", translationCheckpointPath(video), pendingTranscriptPath(video), pendingHeardPath(video), proofreadTranscriptPath(video), CorrectionsPath(video), ChaptersPath(video), TermsPath(video), ProofsPath(video)} {
 		if info, err := os.Lstat(path); err == nil && info.Mode().IsRegular() {
 			out = append(out, path)
 		}

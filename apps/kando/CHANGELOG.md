@@ -2,6 +2,13 @@
 
 What changed in each version of Kando, newest first. The app shows the section of a new version when it offers the update.
 
+## 0.26.0 - 2026-11-19
+
+### Features
+
+- Say when a program's copy does not start, run one that does, and fix it from where it shows (#261)
+- Float the sidebar over the page in glass on macOS, as Finder does (#262)
+
 ## 0.25.0 - 2026-11-19
 
 ### Features

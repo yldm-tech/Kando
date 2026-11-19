@@ -31,7 +31,7 @@ func (v *view) subscriptions() []session.Subscription {
 // canSubscribe reports whether a paired computer takes a list link to subscribe to, which the Add sheet sends it.
 func (v *view) canSubscribe() bool {
 	for _, d := range v.s.Desktops() {
-		if v.s.Queue(d.ID).Lets(sync.OpSubscribe) {
+		if v.s.Queue(d.ID).Can(sync.OpSubscribe) {
 			return true
 		}
 	}
@@ -194,7 +194,7 @@ func (v *view) subscriptionSheet(cx *core.Scope) core.Node {
 	})
 	sub := func() session.Subscription { got, _ := shown(); return got }
 	computer := func() string { d, _ := s.Desktop(sub().Desktop); return d.Name }
-	lets := func(op string) bool { return s.Queue(sub().Desktop).Lets(op) && !s.SubscriptionBusy(sub()) }
+	lets := func(op string) bool { return s.Queue(sub().Desktop).Can(op) && !s.SubscriptionBusy(sub()) }
 	waiting := func() int { return len(sub().Waiting) }
 	close := func() { v.shownSub.Set("") }
 	unsubscribe := func() {
@@ -268,17 +268,17 @@ func (v *view) subscriptionSheet(cx *core.Scope) core.Node {
 						}, Style: look.Subhead.Merge(core.Style{Padding: core.Edges{Left: 4, Right: 4}}), StyleFunc: ui.Colored(colors.Muted)}
 					}},
 			}},
-			core.Show{When: func() bool { return waiting() > 0 && s.Queue(sub().Desktop).Lets(sync.OpSubscriptionTake) }, Then: func(cx *core.Scope) core.Node {
+			core.Show{When: func() bool { return waiting() > 0 && s.Queue(sub().Desktop).Can(sync.OpSubscriptionTake) }, Then: func(cx *core.Scope) core.Node {
 				return look.Button{TestID: "films-subscription-take", Kind: look.Primary, Text: func() string { return locales.FilmsSubscriptionTake(cx) },
 					Busy: func() bool { return s.SubscriptionBusy(sub()) }, Disabled: func() bool { return !lets(sync.OpSubscriptionTake) },
 					OnPress: func() { s.TakeSubscription(sub()) }}
 			}},
 			core.Show{When: func() bool {
 				q := s.Queue(sub().Desktop)
-				return q.Lets(sync.OpSubscriptionSet) || q.Lets(sync.OpUnsubscribe)
+				return q.Can(sync.OpSubscriptionSet) || q.Can(sync.OpUnsubscribe)
 			}, Then: func(cx *core.Scope) core.Node {
 				return look.Group{Children: []core.Node{
-					core.Show{When: func() bool { return s.Queue(sub().Desktop).Lets(sync.OpSubscriptionSet) }, Then: func(cx *core.Scope) core.Node {
+					core.Show{When: func() bool { return s.Queue(sub().Desktop).Can(sync.OpSubscriptionSet) }, Then: func(cx *core.Scope) core.Node {
 						// TODO(nsgo#145): ui.Switch's Label is a string only (ui/switch.go:19), so its spoken name keeps the language it was built in; pass a LabelFunc once Switch has one https://github.com/nsgo-dev/nsgo/issues/145
 						return look.Row{TestID: "films-subscription-auto", TitleLines: 2,
 							Title:  func() string { return locales.FilmsSubscriptionAuto(cx) },
@@ -287,10 +287,10 @@ func (v *view) subscriptionSheet(cx *core.Scope) core.Node {
 								Checked: func() bool { return sub().Auto }, Disabled: func() bool { return !lets(sync.OpSubscriptionSet) },
 								OnChange: func(on bool) { s.SetSubscriptionAuto(sub(), on) }}}
 					}},
-					core.Show{When: func() bool { return s.Queue(sub().Desktop).Lets(sync.OpUnsubscribe) }, Then: func(cx *core.Scope) core.Node {
+					core.Show{When: func() bool { return s.Queue(sub().Desktop).Can(sync.OpUnsubscribe) }, Then: func(cx *core.Scope) core.Node {
 						return look.Row{TestID: "films-subscription-unsubscribe", TitleTone: look.ToneDanger,
 							Index: func() int {
-								if s.Queue(sub().Desktop).Lets(sync.OpSubscriptionSet) {
+								if s.Queue(sub().Desktop).Can(sync.OpSubscriptionSet) {
 									return 1
 								}
 								return 0

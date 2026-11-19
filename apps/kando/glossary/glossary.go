@@ -19,17 +19,34 @@ type Series struct {
 	Terms []core.Term `json:"terms,omitempty"`
 }
 
-// Store is the global terms and the series, in the order they were made, and the file they are kept in.
+// Store is the global terms and the series, in the order they were made, and the file they are kept in. NotSeries are the shows the user said are not a series when the app guessed they were from their films' names (core.EpisodeOf), each a key of NotSeriesKey, so the app does not ask again.
 type Store struct {
-	path   string
-	Global []core.Term
-	Series []Series
+	path      string
+	Global    []core.Term
+	Series    []Series
+	NotSeries []string
 }
 
 // stored is glossary.json.
 type stored struct {
-	Global []core.Term `json:"global"`
-	Series []Series    `json:"series"`
+	Global    []core.Term `json:"global"`
+	Series    []Series    `json:"series"`
+	NotSeries []string    `json:"notSeries,omitempty"`
+}
+
+// NotSeriesKey is the key Store.NotSeries keeps a show by: the library its films are in and the show's key (core.EpisodeOf).
+func NotSeriesKey(library, show string) string { return filepath.Clean(library) + "\x00" + show }
+
+// IsNotSeries reports whether the user said the show of key, of NotSeriesKey, is not a series.
+func (s Store) IsNotSeries(key string) bool { return slices.Contains(s.NotSeries, key) }
+
+// SetNotSeries keeps that the show of key, of NotSeriesKey, is not a series, and reports whether that changed anything.
+func (s *Store) SetNotSeries(key string) bool {
+	if s.IsNotSeries(key) {
+		return false
+	}
+	s.NotSeries = append(s.NotSeries, key)
+	return true
 }
 
 // Load reads the glossary at path. A missing file holds none; a file that cannot be read or is not JSON holds none either, and the error says why.
@@ -47,6 +64,7 @@ func Load(path string) (Store, error) {
 		return s, err
 	}
 	s.Global = clean(file.Global, core.ScopeGlobal)
+	s.NotSeries = slices.DeleteFunc(file.NotSeries, func(key string) bool { return strings.TrimSpace(key) == "" })
 	for _, series := range file.Series {
 		if strings.TrimSpace(series.ID) == "" {
 			continue
@@ -80,7 +98,7 @@ func (s Store) Save() error {
 	if err := os.MkdirAll(filepath.Dir(s.path), 0o700); err != nil {
 		return err
 	}
-	file := stored{Global: clean(s.Global, core.ScopeGlobal), Series: []Series{}}
+	file := stored{Global: clean(s.Global, core.ScopeGlobal), Series: []Series{}, NotSeries: s.NotSeries}
 	if file.Global == nil {
 		file.Global = []core.Term{}
 	}
@@ -168,7 +186,7 @@ func (s *Store) Remove(id, source string) bool {
 
 // Clone is a copy of s that shares nothing with it, so a change to one of them leaves the other as it was.
 func (s Store) Clone() Store {
-	out := Store{path: s.path, Global: slices.Clone(s.Global)}
+	out := Store{path: s.path, Global: slices.Clone(s.Global), NotSeries: slices.Clone(s.NotSeries)}
 	for _, series := range s.Series {
 		series.Terms = slices.Clone(series.Terms)
 		out.Series = append(out.Series, series)
@@ -177,7 +195,7 @@ func (s Store) Clone() Store {
 }
 
 func (s Store) equal(o Store) bool {
-	return slices.Equal(s.Global, o.Global) && slices.EqualFunc(s.Series, o.Series, func(a, b Series) bool {
+	return slices.Equal(s.Global, o.Global) && slices.Equal(s.NotSeries, o.NotSeries) && slices.EqualFunc(s.Series, o.Series, func(a, b Series) bool {
 		return a.ID == b.ID && a.Name == b.Name && slices.Equal(a.Terms, b.Terms)
 	})
 }

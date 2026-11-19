@@ -126,6 +126,7 @@ func (v View) Render(cx *core.Scope) core.Node {
 			s.streamCard(),
 			s.recapCard(),
 			s.osd(),
+			s.progressBadge(),
 			s.uploadCapsule(),
 			s.topBar(),
 			s.transport(),

@@ -203,6 +203,25 @@ func Conflictable(kind, field string) bool {
 	return false
 }
 
+// Joinable reports whether a conflict of field of a record of kind can keep both versions, one after the other: a note or a word's meaning, which say more together, unlike two translations of one line.
+func Joinable(kind, field string) bool {
+	return field == FieldNote || (kind == KindWord && field == FieldMeaning)
+}
+
+// Joined is the value keeping both of c's versions, the one kept first, as every device resolves a Joinable conflict to keep both.
+func Joined(c Conflict) json.RawMessage {
+	return Value(Text(c.Kept.Value) + "\n" + Text(c.Lost.Value))
+}
+
+// Text is a text field's value, "" for one that is not a string.
+func Text(v json.RawMessage) string {
+	var s string
+	if json.Unmarshal(v, &s) != nil {
+		return ""
+	}
+	return s
+}
+
 // CorrectionID is the ID of the correction of film's machine line from startMS to endMS.
 func CorrectionID(film string, startMS, endMS int64) string {
 	return film + "/" + strconv.FormatInt(startMS, 10) + "-" + strconv.FormatInt(endMS, 10)

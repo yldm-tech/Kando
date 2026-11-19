@@ -20,13 +20,30 @@ type queue struct {
 	made    int
 	pending []string
 	updates int
-	// drops are how many links still to take and hang up on (DropCreates); older is a desktop speaking protocol v1 alone (SetOlder); readOnly a desktop whose user made the phones read-only (SetReadOnly).
-	drops    int
-	older    bool
+	// drops are how many links still to take and hang up on (DropCreates); older is a desktop speaking protocol v1 alone (SetOlder).
+	drops int
+	older bool
+	// options are the job options the desktop takes (SetOptions), and asked those each link it took or put before the user came with (Asked); readOnly makes every paired device read-only (SetReadOnly).
+	options  []string
+	asked    []sync.JobOptions
 	readOnly bool
 }
 
-// SetReadOnly makes every paired phone read-only while on, as the desktop's user can in Settings › Phone Sync: Hello says so, and the calls that change something are refused with sync.CodeReadOnly.
+// SetOptions has the desktop take the job options named (sync.OptionQuality, sync.OptionSubtitles), as Hello.Options lists them; it takes none by default, refusing a link that comes with any.
+func (d *Desktop) SetOptions(options ...string) {
+	d.mu.Lock()
+	defer d.mu.Unlock()
+	d.queue.options = options
+}
+
+// Asked are the options each link the desktop took or put before the user came with, in the order they came.
+func (d *Desktop) Asked() []sync.JobOptions {
+	d.mu.Lock()
+	defer d.mu.Unlock()
+	return slices.Clone(d.queue.asked)
+}
+
+// SetReadOnly makes every paired device read-only while on, as the desktop's user can (sync.Caller.ReadOnly): Hello says so, and every call that changes something is refused with sync.CodeReadOnly.
 func (d *Desktop) SetReadOnly(on bool) {
 	d.mu.Lock()
 	defer d.mu.Unlock()
@@ -125,12 +142,12 @@ type jobService struct{ d *Desktop }
 func (s jobService) Hello(context.Context, sync.Caller) (sync.Hello, error) {
 	s.d.mu.Lock()
 	defer s.d.mu.Unlock()
-	ops := []string{sync.OpHello, sync.OpJobCreate, sync.OpJobs, sync.OpJob, sync.OpJobCancel, sync.OpJobRetry, sync.OpJobPause, sync.OpJobResume, sync.OpUpdateYTDLP, sync.OpEvents, sync.OpStateGet, sync.OpStatePut, sync.OpStateResolve, sync.OpLookUp, sync.OpExplain, sync.OpSettingsGet, sync.OpSettingsPut}
+	ops := []string{sync.OpHello, sync.OpJobCreate, sync.OpJobs, sync.OpJob, sync.OpJobCancel, sync.OpJobRetry, sync.OpJobPause, sync.OpJobResume, sync.OpUpdateYTDLP, sync.OpEvents, sync.OpStateGet, sync.OpStatePut, sync.OpStateResolve, sync.OpLookUp, sync.OpExplain, sync.OpExplainAsk, sync.OpRecap, sync.OpSettingsGet, sync.OpSettingsPut}
 	if !s.d.subs.none {
 		ops = append(ops, sync.OpSubscriptions, sync.OpSubscribe, sync.OpSubscriptionSet, sync.OpSubscriptionTake, sync.OpUnsubscribe)
 	}
 	return sync.Hello{Ops: ops,
-		Options: []string{}, State: []string{sync.KindPosition, sync.KindLine, sync.KindCorrection, sync.KindWord}, Receive: s.d.queue.receive}, nil
+		Options: slices.Clone(s.d.queue.options), State: []string{sync.KindPosition, sync.KindLine, sync.KindCorrection, sync.KindWord}, Receive: s.d.queue.receive}, nil
 }
 
 // CreateJob queues link as a waiting job of the caller's, puts it among the pending links, or refuses it, as the desktop's setting says.
@@ -139,14 +156,16 @@ func (s jobService) CreateJob(_ context.Context, caller sync.Caller, req sync.Jo
 	d.mu.Lock()
 	defer d.mu.Unlock()
 	switch {
-	case req.Options != (sync.JobOptions{}):
-		return sync.JobCreated{}, sync.Errorf(sync.CodeUnsupported, "no job options")
+	case req.Options.Quality != "" && (!slices.Contains(d.queue.options, sync.OptionQuality) || (req.Options.Quality != sync.QualityBest && req.Options.Quality != sync.Quality720)),
+		req.Options.Subtitles != "" && (!slices.Contains(d.queue.options, sync.OptionSubtitles) || (req.Options.Subtitles != sync.SubtitlesPlatform && req.Options.Subtitles != sync.SubtitlesRecognize)):
+		return sync.JobCreated{}, sync.Errorf(sync.CodeUnsupported, "job options %+v are not taken", req.Options)
 	case req.Link == "":
 		return sync.JobCreated{}, sync.Errorf(sync.CodeInvalid, "no link")
 	case d.queue.receive == sync.ReceiveOff:
 		return sync.JobCreated{}, sync.Errorf(sync.CodeLinksOff, "links from phones are off")
 	case d.queue.receive == sync.ReceiveAsk:
 		d.queue.pending = append(d.queue.pending, req.Link)
+		d.queue.asked = append(d.queue.asked, req.Options)
 		return sync.JobCreated{Pending: true}, nil
 	}
 	for _, job := range d.queue.jobs {
@@ -155,6 +174,7 @@ func (s jobService) CreateJob(_ context.Context, caller sync.Caller, req sync.Jo
 		}
 	}
 	d.queue.made++
+	d.queue.asked = append(d.queue.asked, req.Options)
 	job := sync.Job{ID: fmt.Sprintf("job%d", d.queue.made), Link: req.Link, Title: req.Link, Device: caller.Name, State: sync.JobWaiting, Steps: []sync.Step{
 		{Name: sync.StepDownload, State: sync.StepWaiting}, {Name: sync.StepTranscribe, State: sync.StepWaiting}, {Name: sync.StepTranslate, State: sync.StepWaiting},
 	}}

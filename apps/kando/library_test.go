@@ -489,6 +489,7 @@ func TestAddingShowsTheNewJob(t *testing.T) {
 		a, tt := newApp(t, sidebar.SourceLocal)
 		tt.Type("视频链接", "https://youtu.be/TRWgBxVAb1M")
 		tt.Submit("视频链接")
+		confirmAddSheet(tt)
 		refresh(tt, a)
 		if a.side.filter != sidebar.SourceAll || len(a.library.Jobs) != 1 {
 			t.Fatalf("filter %q jobs %+v after adding a link, want every source", a.side.filter, a.library.Jobs)
@@ -560,6 +561,7 @@ func TestLibraryControlsStayOpenWhileAJobRuns(t *testing.T) {
 	refresh(tt, a)
 	tt.Type("视频链接", "https://example.com/c")
 	tt.Submit("视频链接")
+	confirmAddSheet(tt)
 	refresh(tt, a)
 	if !passedOn("https://example.com/c") {
 		t.Fatalf("Enter in the link field while a job runs did nothing: %q", tt.Texts())

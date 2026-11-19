@@ -200,8 +200,20 @@ func TestATabletShowsJobsInItsSidebar(t *testing.T) {
 	p.app.WaitUntil(wait, func() bool {
 		return p.app.Find("id:jobs-summary-"+store.DesktopID(d.Fingerprint)).Text == msgs.JobsIdle()
 	})
+	if p.app.Exists("id:sidebar-badge-tab-jobs") {
+		t.Fatal("the sidebar counts jobs with nothing to do")
+	}
+	moved(d, "job1", "https://youtu.be/dQw4w9WgXcQ", sync.JobRunning, 0, 0.1)
+	p.app.WaitUntil(wait, func() bool {
+		return p.app.Exists("id:sidebar-badge-tab-jobs") && p.texts("id:sidebar-badge-tab-jobs") == "1"
+	})
+	// A tablet's Add sheet is a card in the middle of the screen, as the Pad artboards draw it, not a sheet across its width.
 	p.app.Press("id:jobs-add")
 	p.app.WaitFor("id:add-link", wait)
+	field := p.app.Find("id:add-link").Bounds()
+	if field.Size.Width > 560 || field.Origin.X < 300 {
+		t.Fatalf("the Add sheet's field is at %+v on a 1180pt-wide tablet, want it in a card in the middle", field)
+	}
 }
 
 // A link whose call drops after the computer took it, while the computer keeps answering, goes again under the same call ID rather than waiting until the computer drops off; the computer makes one job of it.
@@ -381,4 +393,132 @@ func TestTheAppEndsWithoutWaitingForACallUnderWay(t *testing.T) {
 	if took := time.Since(ended); took > 5*time.Second {
 		t.Fatalf("the app took %v to end with a call under way", took)
 	}
+}
+
+// A computer that takes job options has the Add sheet offer them, and the link goes with the picture and the source of original lines picked; the computer's own setting sends none. One that takes none is offered none.
+func TestTheAddSheetSendsTheOptionsTheComputerTakes(t *testing.T) {
+	d := newDesktop(t)
+	dir := t.TempDir()
+	secrets := pairedWith(t, d, dir)
+	t.Run("none", func(t *testing.T) {
+		p := startPhone(t, dir, secrets)
+		p.app.WaitFor("id:films-jobs", wait)
+		p.app.Press("id:films-jobs")
+		p.app.WaitUntil(wait, func() bool {
+			return p.app.Find("id:jobs-summary-"+store.DesktopID(d.Fingerprint)).Text == msgs.JobsIdle()
+		})
+		p.app.Press("id:jobs-add")
+		p.app.WaitFor("id:add-link", wait)
+		if p.app.Exists("id:add-quality-best") || p.app.Exists("id:add-subtitles-platform") {
+			t.Fatal("the Add sheet offers options to a computer that takes none")
+		}
+	})
+
+	d.SetOptions(sync.OptionQuality, sync.OptionSubtitles)
+	p := startPhone(t, dir, secrets)
+	p.app.WaitFor("id:films-add", wait)
+	p.app.Press("id:films-add")
+	p.app.WaitFor("id:add-quality-720", wait)
+	p.app.Press("id:add-quality-720")
+	p.app.Press("id:add-subtitles-recognize")
+	p.app.Type("id:add-link", "https://youtu.be/dQw4w9WgXcQ")
+	p.app.Press("id:add-send")
+	p.app.WaitFor("id:jobs-job-job1", wait)
+	if asked := d.Asked(); len(asked) != 1 || asked[0] != (sync.JobOptions{Quality: sync.Quality720, Subtitles: sync.SubtitlesRecognize}) {
+		t.Fatalf("the computer was asked %+v", asked)
+	}
+
+	p.app.Press("id:jobs-add")
+	p.app.WaitFor("id:add-quality-computer", wait)
+	p.app.Press("id:add-quality-computer")
+	p.app.Press("id:add-subtitles-computer")
+	p.app.Type("id:add-link", "https://youtu.be/M7lc1UVf-VE")
+	p.app.Press("id:add-send")
+	p.app.WaitFor("id:jobs-job-job2", wait)
+	if asked := d.Asked(); len(asked) != 2 || asked[1] != (sync.JobOptions{}) {
+		t.Fatalf("the computer was asked %+v", asked)
+	}
+}
+
+// A computer that made the phone read-only still shows its jobs, without the buttons that would change them, and says why; the Add sheet sends it nothing. One made read-only while the phone follows it refuses an action, and the phone drops its buttons.
+func TestAReadOnlyPhoneFollowsJobsWithoutChangingThem(t *testing.T) {
+	d := newDesktop(t)
+	dir := t.TempDir()
+	moved(d, "job1", "https://youtu.be/dQw4w9WgXcQ", sync.JobRunning, 1, 0.5)
+	failed := moved(d, "job2", "https://youtu.be/M7lc1UVf-VE", sync.JobFailed, 3, 0)
+	failed.Failure = &sync.Failure{Step: sync.StepDownload, Code: sync.FailNetwork, Remedy: sync.RemedyRetry}
+	d.SetJob(failed)
+	secrets := pairedWith(t, d, dir)
+	id := store.DesktopID(d.Fingerprint)
+
+	d.SetReadOnly(true)
+	t.Run("read-only", func(t *testing.T) {
+		p := startPhone(t, dir, secrets)
+		p.app.WaitFor("id:films-jobs", wait)
+		p.app.Press("id:films-jobs")
+		p.app.WaitFor("id:jobs-read-only-"+id, wait)
+		if got := p.app.Find("id:jobs-read-only-" + id).Text; got != msgs.JobsReadOnly("Studio") {
+			t.Fatalf("the page says %q, want %q", got, msgs.JobsReadOnly("Studio"))
+		}
+		p.app.WaitFor("id:jobs-failure-job2", wait)
+		for _, button := range []string{"id:jobs-pause-job1", "id:jobs-cancel-job1", "id:jobs-retry-job2"} {
+			if p.app.Exists(button) {
+				t.Fatalf("a read-only phone shows %s", button)
+			}
+		}
+		p.app.Press("id:jobs-add")
+		p.app.WaitFor("id:add-link", wait)
+		p.app.Type("id:add-link", "https://youtu.be/abcdefghijk")
+		if p.app.Enabled("id:add-send") {
+			t.Fatal("a read-only phone sends links")
+		}
+		if got := p.app.Find("id:add-note").Text; got != msgs.JobsReadOnly("Studio") {
+			t.Fatalf("the Add sheet says %q, want %q", got, msgs.JobsReadOnly("Studio"))
+		}
+	})
+
+	d.SetReadOnly(false)
+	p := startPhone(t, dir, secrets)
+	p.app.WaitFor("id:films-jobs", wait)
+	p.app.Press("id:films-jobs")
+	p.app.WaitFor("id:jobs-pause-job1", wait)
+	if p.app.Exists("id:jobs-read-only-" + id) {
+		t.Fatal("a phone that may change the jobs is told it is read-only")
+	}
+	d.SetReadOnly(true)
+	p.app.Press("id:jobs-pause-job1")
+	p.app.WaitUntil(wait, func() bool {
+		return p.app.Exists("id:toasts") && strings.Contains(p.texts("id:toasts"), msgs.JobsReadOnly("Studio"))
+	})
+	p.app.WaitForGone("id:jobs-pause-job1", wait)
+	p.app.WaitFor("id:jobs-read-only-"+id, wait)
+	if jobs := d.Jobs(); jobs[0].State != sync.JobRunning {
+		t.Fatalf("a read-only phone paused the job: %+v", jobs[0])
+	}
+}
+
+// The Library's Jobs button counts what is not done, the links waiting on the phone among it, in warning's color once something needs the user, and shows nothing once all is done.
+func TestTheJobsButtonCountsWhatIsUnfinished(t *testing.T) {
+	d := newDesktop(t)
+	dir := t.TempDir()
+	p := startPhone(t, dir, pairedWith(t, d, dir))
+	p.app.WaitFor("id:films-jobs", wait)
+	p.app.WaitUntil(wait, func() bool { return p.app.Find("id:films-jobs").Props.Label == msgs.JobsTitle() })
+	if p.app.Exists("id:films-jobs-badge") {
+		t.Fatal("the Jobs button counts with nothing to do")
+	}
+	moved(d, "job1", "https://youtu.be/dQw4w9WgXcQ", sync.JobRunning, 0, 0.1)
+	failed := moved(d, "job2", "https://youtu.be/M7lc1UVf-VE", sync.JobFailed, 3, 0)
+	failed.Failure = &sync.Failure{Step: sync.StepDownload, Code: sync.FailNetwork, Remedy: sync.RemedyRetry}
+	d.SetJob(failed)
+	p.app.WaitUntil(wait, func() bool { return p.app.Exists("id:films-jobs-badge") && p.texts("id:films-jobs-badge") == "2" })
+	if got := p.app.Find("id:films-jobs").Props.Label; got != msgs.JobsBadgeLabel(2) {
+		t.Fatalf("the Jobs button is called %q, want %q", got, msgs.JobsBadgeLabel(2))
+	}
+
+	for _, id := range []string{"job1", "job2"} {
+		done := moved(d, id, "https://youtu.be/"+id, sync.JobDone, 3, 0)
+		d.SetJob(done)
+	}
+	p.app.WaitForGone("id:films-jobs-badge", wait)
 }

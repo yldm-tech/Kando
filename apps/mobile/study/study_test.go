@@ -158,3 +158,36 @@ func TestBatchesKeepEachPutWithinTheLimit(t *testing.T) {
 		t.Fatal("the long record is not alone")
 	}
 }
+
+func TestAWordAddedIsAWordRecordDueAtOnceAndGoesWhenTakenBack(t *testing.T) {
+	e := sync.WordEntry{Word: "go", Reading: "ɡoʊ", Meaning: "去", Language: "zh-Hans"}
+	r := AddWord("w", "f1", "Talk", "en", "went", e, hello, t0)
+	if r.Kind != sync.KindWord || r.Film != "f1" {
+		t.Fatalf("record %+v", r)
+	}
+	text := func(name string) string {
+		var s string
+		_ = json.Unmarshal(r.Fields[name].Value, &s)
+		return s
+	}
+	if text(sync.FieldWord) != "go" || text(sync.FieldSpoken) != "en" || text(sync.FieldMeaning) != "去" || text(sync.FieldContext) != "Hello." || text(sync.FieldContextTranslation) != "你好。" || text(sync.FieldTitle) != "Talk" {
+		t.Fatalf("fields %+v", r.Fields)
+	}
+	var rv sync.Review
+	_ = json.Unmarshal(r.Fields[sync.FieldReview].Value, &rv)
+	if rv.Box != 0 || !rv.Due.Equal(t0) {
+		t.Fatalf("review %+v", rv)
+	}
+	// Without a dictionary form the word is as tapped.
+	if r := AddWord("w2", "f1", "Talk", "en", " went ", sync.WordEntry{}, hello, t0); !strings.Contains(string(r.Fields[sync.FieldWord].Value), `"went"`) {
+		t.Fatalf("word %s", r.Fields[sync.FieldWord].Value)
+	}
+	l := Change(Library{}, r)
+	if _, ok := View(l, sync.KindWord, "w"); !ok {
+		t.Fatal("the word added does not show")
+	}
+	l = Change(l, RemoveWord("w", "f1", t0.Add(time.Second)))
+	if _, ok := View(l, sync.KindWord, "w"); ok || len(l.Pending) != 0 {
+		t.Fatalf("taken back before it was sent: %+v", l.Pending)
+	}
+}

@@ -1,6 +1,7 @@
 package film
 
 import (
+	"slices"
 	"strings"
 
 	"kando/apps/kando/live"
@@ -23,6 +24,10 @@ type Glossary interface {
 	// FilmSeries is the name of the open film's series and how many films of the library are in it, "" and 0 for a film of no series; LeaveSeries takes the film out of it.
 	FilmSeries() (name string, films int)
 	LeaveSeries()
+	// SeriesGuess is the films of the library the open film looks like it is a series with, as their names say they are episodes of one show, the open film's name first, and the show; none when the open film is in a series or nothing is to be asked. ConfirmSeries puts them in a series named after the show; DismissSeries keeps that they are not one, so it is not asked again.
+	SeriesGuess() (show string, films []string)
+	ConfirmSeries()
+	DismissSeries()
 	// CycleTermScope moves the term for source to the next scope (the film's, its series', every film's), ToggleTermLock locks or unlocks it, and RemoveTerm takes it out of the glossary.
 	CycleTermScope(source string)
 	ToggleTermLock(source string)
@@ -66,7 +71,7 @@ func nextScope(scope core.TermScope, series bool) core.TermScope {
 	return core.ScopeGlobal
 }
 
-// termsTab is the open film's glossary (prototype template 956-990): what the terms do, the film's series with the button that takes it out of it, the terms each with its scope, which a press moves on, its lock and its removal, and the fields a term is added in.
+// termsTab is the open film's glossary (prototype template 956-990): what the terms do, whether the films the open film looks like a series with are one (seriesGuessCard), the film's series with the button that takes it out of it, the terms each with its scope, which a press moves on, its lock and its removal, and the fields a term is added in.
 func (s *screen) termsTab(cx *ns.Scope) ns.Node {
 	a := s.a
 	terms := live.Func(a, a.FilmTerms)
@@ -79,6 +84,10 @@ func (s *screen) termsTab(cx *ns.Scope) ns.Node {
 					Style: ns.Style{FlexGrow: 1, FlexShrink: 1, MinWidth: ns.Pt(0), FontSize: 12, LineHeight: 16, Color: onGlass}},
 				pillButton(cx, pill{id: "film-terms-leave-series", label: func() string { return locales.GlossaryLeaveSeries(cx) }, color: func() ns.Color { return ns.RGBA(0xFFFFFF, 0.12) }, press: live.Do(a, a.LeaveSeries)}),
 			}}
+	}}
+	guess := ns.NewMemoFunc(cx, live.Func(a, func() []string { _, names := a.SeriesGuess(); return names }), slices.Equal[[]string]).Get
+	guessCard := ns.Show{When: func() bool { return len(guess()) > 1 }, Then: func(cx *ns.Scope) ns.Node {
+		return s.seriesGuessCard(cx, guess)
 	}}
 	rows := ns.Each(terms, func(t core.Term) string { return strings.ToLower(t.Source) }, func(cx *ns.Scope, term func() core.Term, index func() int) ns.Node {
 		return s.termRow(cx, term, index, inSeries)
@@ -95,11 +104,31 @@ func (s *screen) termsTab(cx *ns.Scope) ns.Node {
 	return ns.Scroll{TestID: "film-terms", Style: ns.Style{FlexGrow: 1, MinHeight: ns.Pt(0)}, Children: []ns.Node{
 		ns.View{Style: ns.Style{Padding: ns.Edges{Right: 14, Bottom: 16, Left: 14}, Gap: 10}, Children: []ns.Node{
 			ns.Text{ContentFunc: func() string { return locales.GlossaryIntro(cx) }, Style: ns.Style{FontSize: 11, LineHeight: 16, Color: onGlass, Opacity: ns.Alpha(0.7)}},
+			guessCard,
 			seriesLine,
 			list,
 			s.termAdder(cx),
 		}},
 	}}
+}
+
+// seriesGuessCard asks whether the films of names, which look like episodes of one show, are a series (prototype template 959-966): the question, their names, what a series does and that only their names were read, and Same Series and Not a Series.
+func (s *screen) seriesGuessCard(cx *ns.Scope, names func() []string) ns.Node {
+	a := s.a
+	return ns.View{TestID: "film-terms-guess", Role: ns.RoleGroup, LabelFunc: func() string { return locales.GlossaryGuessTitle(cx) },
+		Style: ns.Style{CornerRadius: 14, Padding: ns.Symmetric(11, 12), Gap: 8},
+		StyleFunc: func() ns.Style {
+			return ns.Style{Background: ui.Alpha(theme.Of(cx).AccentInk(), 0.18), BorderWidth: 1, BorderColor: ui.Alpha(theme.Of(cx).AccentInk(), 0.45)}
+		},
+		Children: []ns.Node{
+			ns.Text{ContentFunc: func() string { return locales.GlossaryGuessTitle(cx) }, Style: ns.Style{FontSize: 13, LineHeight: 17, FontWeight: ns.FontWeightBold, Color: onGlass}},
+			ns.Text{TestID: "film-terms-guess-films", ContentFunc: func() string { return strings.Join(names(), " · ") }, Style: ns.Style{FontSize: 12, LineHeight: 17, Color: onGlass, Opacity: ns.Alpha(0.85)}},
+			ns.Text{ContentFunc: func() string { return locales.GlossaryGuessHint(cx) }, Style: ns.Style{FontSize: 11, LineHeight: 15, Color: onGlass, Opacity: ns.Alpha(0.65)}},
+			ns.View{Style: ns.Style{Direction: ns.Row, Gap: 6}, Children: []ns.Node{
+				pillButton(cx, pill{id: "film-terms-guess-yes", label: func() string { return locales.GlossaryGuessYes(cx) }, color: func() ns.Color { return ns.RGBA(0xFFFFFF, 0.28) }, press: live.Do(a, a.ConfirmSeries)}),
+				pillButton(cx, pill{id: "film-terms-guess-no", label: func() string { return locales.GlossaryGuessNo(cx) }, color: func() ns.Color { return ns.RGBA(0xFFFFFF, 0.14) }, press: live.Do(a, a.DismissSeries)}),
+			}},
+		}}
 }
 
 // termRow is a term of the 术语 tab: the words and their translation over where the term applies and whether it is locked, its scope's pill, its lock and its removal.
