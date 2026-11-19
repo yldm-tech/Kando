@@ -175,7 +175,8 @@ func TestAJobIsCanceledAfterAskingAndStartedAgain(t *testing.T) {
 	}
 	p.app.Press("id:jobs-cancel-job1")
 	p.app.Answer(1)
-	p.app.WaitFor("id:jobs-retry-job1", wait)
+	// The row shows Retry once the job is canceled, and takes its press once the computer's reply to the cancel reached the phone.
+	p.app.WaitUntil(wait, func() bool { return p.app.Exists("id:jobs-retry-job1") && p.app.Enabled("id:jobs-retry-job1") })
 	if d.Jobs()[0].State != sync.JobCanceled {
 		t.Fatalf("the job is %s on the computer after canceling", d.Jobs()[0].State)
 	}
