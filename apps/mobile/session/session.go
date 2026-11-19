@@ -535,11 +535,16 @@ func (s *Session) Follow(key string, changed func()) {
 			}
 			// The subtitles first: a record kept with the desktop's date says they are the desktop's, so an app closed between the two asks for them again.
 			s.work.Go(func() {
+				before, _, _ := s.st.Cues(cur.Desktop, cur.Film.ID)
 				err := s.st.SaveCues(cur.Desktop, cur.Film.ID, cues)
 				s.cx.Post(func() {
 					delete(s.following, key)
 					if err != nil {
 						return
+					}
+					// Lines whose originals changed, as more lines of a film whose subtitles are made while it plays, or one proofread, are marked again by the computer.
+					if !sameOriginals(before, cues) {
+						s.OpenMarks(key)
 					}
 					// Taken again as it stands now, so a position kept while the subtitles were written stays, and kept after the saves of the position before it.
 					if cur, ok := s.followed(key, listed); ok {

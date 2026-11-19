@@ -162,3 +162,31 @@ func TestMarksTurnOffInSubtitleStyle(t *testing.T) {
 		t.Fatal("the marks show once turned off")
 	}
 }
+
+// TestMarksFollowTheComputersNewLines checks a film whose lines changed on its computer since the phone kept it, as one proofread or one whose subtitles are made while it plays: once the player takes the new lines, the phone asks the computer for their marks again, and draws those of the new original.
+func TestMarksFollowTheComputersNewLines(t *testing.T) {
+	d := desktopWith(t, revisedCues, now().Add(time.Hour))
+	d.SetMarks("f1", sync.FilmMarks{Lines: []sync.LineMarks{{Line: 0, Hash: sync.LineHash("Good morning!"), Marks: []sync.Mark{{Start: 0, End: 4, Ruby: "ぐっど"}}}}})
+	dir, _ := keptFrom(t, d)
+	p := playKept(t, d, dir)
+	// The new lines show, with the marks of the new original, which the phone asked for again once it took them.
+	p.app.WaitUntil(wait, func() bool { return p.texts("id:player-card-translation") == "早安！" })
+	p.app.WaitUntil(wait, func() bool { return d.MarksAsked() >= 2 })
+	p.app.WaitFor("id:player-card >> id:player-ruby >> text:ぐっど", wait)
+}
+
+// TestMarksAskAgainWhileTheComputerComputesThem checks a computer still computing a film's marks: the phone asks again, a while apart, up to its tries, and keeps the marks it had.
+func TestMarksAskAgainWhileTheComputerComputesThem(t *testing.T) {
+	d := newDesktop(t)
+	d.SetMarksPending(true)
+	p, dir, f := openWithMarks(t, d)
+	began := time.Now()
+	p.app.WaitUntil(wait, func() bool { return d.MarksAsked() >= 3 })
+	if took := time.Since(began); took < time.Second {
+		t.Fatalf("the phone asked three times in %v", took)
+	}
+	if m, ok, _ := store.Open(dir).Marks(f.Desktop, f.Film.ID); !ok || len(m.Lines) != 3 {
+		t.Fatalf("the marks kept are %+v", m)
+	}
+	p.app.WaitFor("id:player-card >> id:player-ruby >> text:はう", wait)
+}
