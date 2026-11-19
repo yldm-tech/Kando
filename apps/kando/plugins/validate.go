@@ -15,6 +15,7 @@ import (
 	"strings"
 	"unicode/utf8"
 
+	"kando/apps/kando/sites/catalog"
 	kcore "kando/packages/core"
 
 	"golang.org/x/net/publicsuffix"
@@ -521,7 +522,7 @@ func checkService(s *Service) error {
 	return nil
 }
 
-// checkSite checks a site pack: 1 to sitesMax sites of at most siteShapesMax shapes and siteNotMax hosts left out each, which kcore.ValidateVideoSites takes (domains that do not overlap, patterns Go and JavaScript read alike that run in time), whose domains are each a registrable domain or a host under one, not a public suffix every site under it shares (publicsuffix), and none of which is, or is under or over, a site of Kando's own (kcore.VideoSites), whose videos Kando's rules decide.
+// checkSite checks a site pack: 1 to sitesMax sites of at most siteShapesMax shapes and siteNotMax hosts left out each, which kcore.ValidateVideoSites takes (domains that do not overlap, patterns Go and JavaScript read alike that run in time), whose domains are each a registrable domain or a host under one, not a public suffix every site under it shares (publicsuffix), and none of which is, or is under or over, a site Kando knows itself (siteKnown).
 func checkSite(s *Site) error {
 	if len(s.Sites) == 0 || len(s.Sites) > sitesMax {
 		return fmt.Errorf("%w: a site pack has 1 to %d sites", ErrBadField, sitesMax)
@@ -538,13 +539,31 @@ func checkSite(s *Site) error {
 		if _, err := publicsuffix.EffectiveTLDPlusOne(d.Domain); err != nil {
 			return fmt.Errorf("%w: %s is a public suffix", ErrBadSite, d.Domain)
 		}
-		for _, own := range kcore.VideoSites {
-			if d.Domain == own.Domain || strings.HasSuffix(d.Domain, "."+own.Domain) || strings.HasSuffix(own.Domain, "."+d.Domain) {
-				return fmt.Errorf("%w: %s", ErrSiteKnown, d.Domain)
-			}
+		if siteKnown(d.Domain) {
+			return fmt.Errorf("%w: %s", ErrSiteKnown, d.Domain)
 		}
 	}
 	return nil
+}
+
+// siteKnown reports whether domain is, or is under or over, a site Kando knows itself: one of kcore.VideoSites, whose videos Kando's rules decide, or one of the catalog's (sites/catalog, its domain or an alias that is a domain), which yt-dlp downloads from and the sign-in recipes, the extension and the remote API trust, so no pack decides how Kando reads such a site or keeps its downloads from the sign-in.
+func siteKnown(domain string) bool {
+	overlaps := func(known string) bool {
+		return domain == known || strings.HasSuffix(domain, "."+known) || strings.HasSuffix(known, "."+domain)
+	}
+	for _, own := range kcore.VideoSites {
+		if overlaps(own.Domain) {
+			return true
+		}
+	}
+	for _, s := range catalog.Load().Sites {
+		for _, known := range append([]string{s.Domain}, s.Aliases...) {
+			if strings.Contains(known, ".") && overlaps(strings.ToLower(known)) {
+				return true
+			}
+		}
+	}
+	return false
 }
 
 // checkURL checks that raw is an absolute https address with a host name and no user name or password, or an http one on this computer (loopback), the only addresses a pack may name. An address with a character cleanText takes out, such as a bidirectional control or a zero-width space, is refused, as the address is shown to the user before Kando opens it and must read as what it is.

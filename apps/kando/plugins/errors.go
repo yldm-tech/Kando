@@ -24,7 +24,7 @@ var (
 	ErrBadField = errors.New("a field of the manifest is not valid")
 	// ErrBadSite is a site of a site pack Kando's browser cannot recognize safely: a domain that is not a host name, or is a public suffix such as com or co.uk, which every site under it shares, or a pattern outside the regular expressions Go and JavaScript read alike, or one that could take a page's script exponential time (kcore.ValidateVideoSite).
 	ErrBadSite = errors.New("a site of the pack is not one Kando can recognize safely")
-	// ErrSiteKnown is a site of a site pack that is, or is under or over, a site Kando knows itself (kcore.VideoSites), whose videos only Kando's own rules decide.
+	// ErrSiteKnown is a site of a site pack that is, or is under or over, a site Kando knows itself: one of kcore.VideoSites, whose videos only Kando's own rules decide, or one of the sites yt-dlp downloads from that Kando lists (sites/catalog).
 	ErrSiteKnown = errors.New("the pack names a site Kando knows itself")
 	// ErrInsecureURL is an address that is not https, other than one on this computer (loopback).
 	ErrInsecureURL = errors.New("an address of the pack is not https")

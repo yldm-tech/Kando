@@ -1669,6 +1669,16 @@ func TestPluginSiteWidensNoGate(t *testing.T) {
 		}
 	}
 
+	// A pack that names a site the catalog lists, as one that slipped past plugins.Validate, is not consulted for it.
+	twitch, err := core.NewVideoMatcher([]core.VideoSite{{Domain: "twitch.tv", Videos: []core.VideoShape{{Path: `^/videos/[0-9]+$`}}}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	a.plugins.sites = append(a.plugins.sites, pluginsSite{id: "example.twitch", sites: twitch})
+	if id, _ := a.pluginSiteOf("https://www.twitch.tv/videos/1"); id != "" {
+		t.Fatalf("a site of the catalog is the pack %q's", id)
+	}
+
 	added, err := remoteCall[remote.AddResult](t, updates, remote.MethodAdd, remote.AddParams{Sources: []string{pluginSiteVideo}})
 	if err != nil || len(added.Jobs) != 1 {
 		t.Fatalf("add %+v, %v", added, err)
@@ -1698,7 +1708,14 @@ func TestPluginSitePageButtons(t *testing.T) {
 	if len(states) != 1 || len(states[0].Have) != 1 || states[0].Have[pluginSiteVideo] != "" {
 		t.Fatalf("answers %+v", states)
 	}
-	for _, add := range []struct{ page, link string }{{pluginSiteClip, pluginSiteClip}, {pluginSiteHome, pluginSiteClip}, {pluginSiteHome, pluginSiteHome}, {"https://evil.example.com/", pluginSiteVideo}} {
+	// A page of a pack's site asks about and adds only that pack's videos, never Kando's sites' (which would borrow a sign-in), and a page of Kando's sites never the pack's.
+	youtube := "https://www.youtube.com/watch?v=jNQXAC9IVRw"
+	browsePagePost(tt, pluginSiteHome, browseAskData(youtube))
+	browsePagePost(tt, "https://www.youtube.com/", browseAskData(pluginSiteVideo))
+	if n := len(browsePageStates(t, tt)); n != 1 {
+		t.Fatalf("%d answers to a page asking about another site's videos", n-1)
+	}
+	for _, add := range []struct{ page, link string }{{pluginSiteClip, pluginSiteClip}, {pluginSiteHome, pluginSiteClip}, {pluginSiteHome, pluginSiteHome}, {"https://evil.example.com/", pluginSiteVideo}, {pluginSiteHome, youtube}, {"https://www.youtube.com/", pluginSiteVideo}} {
 		browsePagePost(tt, add.page, browseAddData(add.link, ""))
 	}
 	if len(a.library.Jobs) != 0 {

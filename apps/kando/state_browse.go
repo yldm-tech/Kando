@@ -55,7 +55,7 @@ type browseUI struct {
 	buttons browseButtons
 	// signin is what the browser knows of its pages' sign-in (state_browse_signin.go).
 	signin browseSignInState
-	// script is the script the pages run before their own (BrowseScript), "" until it is first asked for; sites are the sites of the site packs its buttons know besides Kando's own (browseSitesChanged).
+	// script is the script the pages run before their own (BrowseScript); sites are the sites of the site packs its buttons know besides Kando's own (browseSitesChanged).
 	script string
 	sites  []kcore.VideoSite
 }
@@ -63,7 +63,7 @@ type browseUI struct {
 func newBrowseUI() browseUI {
 	agent := &browseAgent{}
 	agent.set(browse.UserAgent())
-	return browseUI{view: &core.Ref{}, agent: agent}
+	return browseUI{view: &core.Ref{}, agent: agent, script: browse.Script()}
 }
 
 // browseAgent is the user agent of the browser's pages, which a download sends with their cookies so the site sees the same browser that signed in. It is "" where the pages keep the platform's own, which the app does not know.

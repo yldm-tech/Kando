@@ -187,6 +187,8 @@ func TestValidateSite(t *testing.T) {
 		{"kando's own", `"clips.example.net"`, `"youtube.com"`, ErrSiteKnown},
 		{"under kando's own", `"clips.example.net"`, `"music.youtube.com"`, ErrSiteKnown},
 		{"over kando's own", `"clips.example.net"`, `"bilibili.com"`, ErrSiteKnown},
+		{"catalog", `"clips.example.net"`, `"twitch.tv"`, ErrSiteKnown},
+		{"under the catalog", `"clips.example.net"`, `"clips.twitch.tv"`, ErrSiteKnown},
 		{"no shape", `"videos": [{"path": "^/c/[a-z0-9]{6,12}$"}]`, `"videos": []`, ErrBadSite},
 		{"script", `"site": {"sites": [`, `"site": {"script": "alert(1)", "sites": [`, ErrBadManifest},
 		{"cookies", `"site": {"sites": [`, `"site": {"cookies": "chrome", "sites": [`, ErrBadManifest},

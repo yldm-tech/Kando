@@ -7,6 +7,7 @@ import (
 	"kando/apps/kando/films"
 	"kando/apps/kando/locales"
 	"kando/apps/kando/plugins"
+	"kando/apps/kando/sites/catalog"
 	kcore "kando/packages/core"
 )
 
@@ -48,8 +49,12 @@ func (a *app) pluginsSyncSites() {
 	a.browseSitesChanged(sites)
 }
 
-// pluginSiteOf is the site pack one of whose allowed sites u is on, "" for none, and whether u is a link to one video of it.
+// pluginSiteOf is the site pack one of whose allowed sites u is on, "" for none and for a site the catalog lists, and whether u is a link to one video of it. browseList and browseNotVideo, and the pages' buttons, consult it, so the catalog comes first for them too.
 func (a *app) pluginSiteOf(u string) (id string, video bool) {
+	// A site the catalog lists is never a pack's, whatever a pack says: plugins.Validate refuses such a pack, and this keeps it so for one that slipped by.
+	if catalog.Load().On(u) {
+		return "", false
+	}
 	for _, s := range a.plugins.sites {
 		if domain, video := s.sites.Find(u); domain != "" {
 			return s.id, video

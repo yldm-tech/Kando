@@ -2,6 +2,7 @@ package main
 
 import (
 	"reflect"
+	"slices"
 	"time"
 
 	"kando/apps/kando/browse"
@@ -49,7 +50,7 @@ func (a *app) browseHaves() map[string]string {
 	return out
 }
 
-// browsePageVideo reports whether u is a link to one video the page's buttons know: of Kando's sites (browse.VideoLink) or of an allowed site of a site pack turned on, as the app's own matcher of those sites decides it, never the page (pluginSiteOf).
+// browsePageVideo reports whether u is a link to one video the page's buttons know at all: of Kando's sites (browse.VideoLink) or of an allowed site of a site pack turned on, as the app's own matcher of those sites decides it, never the page (pluginSiteOf). Which of them a page may ask about and add depends on its site (browsePageTakes).
 func (a *app) browsePageVideo(u string) bool {
 	if browse.VideoLink(u) {
 		return true
@@ -58,18 +59,24 @@ func (a *app) browsePageVideo(u string) bool {
 	return id != "" && video
 }
 
-// browsePageSite reports whether origin, a page's, is of a site whose pages get the buttons: one the catalog lists, or an allowed site of a site pack turned on (pluginSiteOf).
-func (a *app) browsePageSite(origin string) bool {
+// browsePageTakes is what a page of origin may ask about and add, nil for a page of a site that gets no buttons: a page of a site the catalog lists, links to one video of Kando's sites (browse.VideoLink), as before; a page of an allowed site of a site pack, links to one video of that pack's allowed sites alone, so a pack's page never adds a video of Kando's sites, which would borrow a sign-in, nor another pack's.
+func (a *app) browsePageTakes(origin string) func(u string) bool {
 	if catalog.Load().On(origin) {
-		return true
+		return browse.VideoLink
 	}
-	id, _ := a.pluginSiteOf(origin)
-	return id != ""
+	pack, _ := a.pluginSiteOf(origin)
+	if pack == "" {
+		return nil
+	}
+	return func(u string) bool {
+		id, video := a.pluginSiteOf(u)
+		return id == pack && video
+	}
 }
 
 // browseSitesChanged gives the pages' buttons sites, the allowed sites of the site packs turned on, besides Kando's own (browse.ScriptWith). The web view reads its script once, as it is made, so when the script changes the web view is made again (browse.View), loading the page it showed, or the blank page under the start, though without the history before it, as when the browser's column goes (browseColumnGone).
 func (a *app) browseSitesChanged(sites []kcore.VideoSite) {
-	if a.browse.script != "" && reflect.DeepEqual(sites, a.browse.sites) {
+	if reflect.DeepEqual(sites, a.browse.sites) {
 		return
 	}
 	a.browse.sites = sites
@@ -83,9 +90,14 @@ func (a *app) browseSitesChanged(sites []kcore.VideoSite) {
 	}
 }
 
-// browsePageAsk answers a page of a site the catalog lists, or of an allowed site of a site pack (browsePageSite), that asks what the library has of links, the videos it shows (browse.ParseAskWith with browsePageVideo), with the buttons' words, and follows those videos, so the page hears when that changes (browsePagePush). A page of another site, which gets no buttons, is not answered.
+// browsePageAsk answers a page of a site the catalog lists, or of an allowed site of a site pack, that asks what the library has of links, the videos it shows (browse.ParseAskWith with browsePageVideo) that its site may ask about (browsePageTakes), with the buttons' words, and follows those videos, so the page hears when that changes (browsePagePush). A page of another site, which gets no buttons, is not answered.
 func (a *app) browsePageAsk(origin string, links []string) {
-	if !a.browsePageSite(origin) || len(links) == 0 {
+	takes := a.browsePageTakes(origin)
+	if takes == nil {
+		return
+	}
+	links = slices.DeleteFunc(slices.Clone(links), func(u string) bool { return !takes(u) })
+	if len(links) == 0 {
 		return
 	}
 	b := &a.browse.buttons
@@ -133,12 +145,13 @@ func (a *app) browsePagePush() {
 	a.browse.view.PostMessage(browse.StateData(browse.PageState{Text: text, Have: have}))
 }
 
-// browsePageAdd is a click on one of the page's own buttons, which adds the video at link as 下载视频 does (browseAdd), named by the title the page gave it. It takes it only while the browser's page shows, from a page of a site the catalog lists or an allowed site of a site pack (browsePageSite), and only a link to one video of such a site (browse.ParseAddWith with browsePageVideo, and kcore.Link.OneVideo for Kando's sites), as any script of the page can post what its buttons do. A video of a site pack's site borrows no sign-in (browseEnqueue, pluginsStampSite).
+// browsePageAdd is a click on one of the page's own buttons, which adds the video at link as 下载视频 does (browseAdd), named by the title the page gave it. It takes it only while the browser's page shows, from a page of a site the catalog lists or an allowed site of a site pack, and only a link its site may add (browsePageTakes): of Kando's sites, a link to one video of a site the catalog lists (kcore.Link.OneVideo) from such a page; of a site pack's, one to a video of that pack's sites from its page, which borrows no sign-in (browseEnqueue, pluginsStampSite). Any script of the page can post what its buttons do.
 func (a *app) browsePageAdd(origin, link, title string, at time.Duration) {
-	if a.page != pageBrowse || !a.browseShowing() || !a.browsePageSite(origin) {
+	takes := a.browsePageTakes(origin)
+	if a.page != pageBrowse || !a.browseShowing() || takes == nil || !takes(link) {
 		return
 	}
-	if id, video := a.pluginSiteOf(link); id == "" || !video {
+	if catalog.Load().On(origin) {
 		if !catalog.Load().On(link) {
 			return
 		}
