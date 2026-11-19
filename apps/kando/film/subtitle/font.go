@@ -23,8 +23,7 @@ var fontFamilies = map[string]string{
 	FontSerif:    "SimSun, Noto Serif CJK SC, Source Han Serif SC, AR PL UMing CN, Songti SC",
 }
 
-// systemFont names the system's font in a style's FontFamily. An empty FontFamily would not do: it inherits the family of the views around the line, and the windows set the design's interface font (theme.FontOf), Segoe UI Variable or Cantarell, which is not what 默认 means.
-// TODO(nsgo): on Linux system-ui is fontconfig's sans-serif (internal/platform/linux/fontlist.go familyNames), not GTK's interface font that an empty FontFamily gets, and a style has no way to undo an inherited FontFamily; once it can, 默认 should undo the window's family so Linux draws it in GTK's font again.
+// systemFont names the system's font in a style's FontFamily. An empty FontFamily would not do: it inherits the family of the views around the line, and the windows set the design's interface font (theme.FontOf), Segoe UI Variable or Cantarell, which is not what 默认 means. NSGo draws system-ui in the system's interface font on every desktop, GTK's own (gtk-font-name) on Linux.
 const systemFont = "system-ui"
 
 // FontFamily is the font list that draws the saved family name, or the system's font for 默认 and a family it does not know. The player and the settings' preview draw lines with it.
