@@ -13,6 +13,7 @@ import (
 	"net/http/httptest"
 	"os"
 	"path/filepath"
+	"runtime"
 	"slices"
 	"strings"
 	"sync"
@@ -28,6 +29,16 @@ import (
 	"github.com/nsgo-dev/nsgo/tsx/pkg"
 	"go.yaml.in/yaml/v3"
 )
+
+// source is the plugin's folder, the one this file is in, found from the file's own path rather than the working directory, which nsgo test -target runs the test binary elsewhere than.
+func source(t *testing.T) string {
+	t.Helper()
+	_, file, _, ok := runtime.Caller(0)
+	if !ok {
+		t.Fatal("no path of the test's source")
+	}
+	return filepath.Dir(file)
+}
 
 // endpoint is the one address the plugin may reach, AnkiConnect's.
 const endpoint = "http://127.0.0.1:8765/"
@@ -379,10 +390,10 @@ func signed(t *testing.T) *plugin {
 		t.Fatal(err)
 	}
 	packed := t.TempDir()
-	if err := script.PackFolder(".", packed, key); err != nil {
+	if err := script.PackFolder(source(t), packed, key); err != nil {
 		t.Fatal(err)
 	}
-	manifest, err := os.ReadFile(plugins.ManifestName)
+	manifest, err := os.ReadFile(filepath.Join(source(t), plugins.ManifestName))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -794,7 +805,7 @@ func TestPluginAnkiConnectSlowAnki(t *testing.T) {
 
 // TestPluginAnkiConnectPublishes checks that nsgo.yaml, which go tool nsgo publish signs the package from, says what kando-plugin.json says: the app ID Kando requires of the id, the version, and exactly the permissions and HTTP rules it declares, so the package it signs is the one Kando's checks expect (script.Verify refuses a package that signed anything else).
 func TestPluginAnkiConnectPublishes(t *testing.T) {
-	data, err := os.ReadFile("nsgo.yaml")
+	data, err := os.ReadFile(filepath.Join(source(t), "nsgo.yaml"))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -821,7 +832,7 @@ func TestPluginAnkiConnectPublishes(t *testing.T) {
 	if err := dec.Decode(&y); err != nil {
 		t.Fatal(err)
 	}
-	raw, err := os.ReadFile(plugins.ManifestName)
+	raw, err := os.ReadFile(filepath.Join(source(t), plugins.ManifestName))
 	if err != nil {
 		t.Fatal(err)
 	}
