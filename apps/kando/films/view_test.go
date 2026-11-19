@@ -11,6 +11,7 @@ import (
 
 	"kando/apps/kando/film/subtitle"
 	"kando/apps/kando/live"
+	"kando/apps/kando/locales"
 	"kando/apps/kando/locales/testlocale"
 	"kando/apps/kando/sidebar"
 	"kando/apps/kando/theme"
@@ -244,11 +245,17 @@ func (f *fakeApp) Renaming() (*bool, *string, string) {
 func (f *fakeApp) CloseRename()                                         { f.call("close-rename"); f.renameOpen = false }
 func (f *fakeApp) RenameFilm()                                          { f.call("rename", f.renameName); f.renameOpen = false }
 func (f *fakeApp) MoveFilmMenu(*ns.Scope, ...Film) []nsdesktop.MenuItem { return nil }
-func (f *fakeApp) Selection() *Selection                                { return &f.selection }
-func (f *fakeApp) PosterFocus() *bool                                   { return &f.posterFocus }
-func (f *fakeApp) UndoMove()                                            { f.call("undo-move") }
-func (f *fakeApp) CancelMove()                                          { f.call("cancel-move") }
-func (f *fakeApp) Choose(dir string)                                    { f.call("choose", dir) }
+
+func (f *fakeApp) StoredMenu(*ns.Scope, Film) []nsdesktop.MenuItem { return nil }
+
+func (f *fakeApp) StoredMark(locales.Messages, Film) (string, bool, bool) { return "", false, false }
+
+func (f *fakeApp) StoredPlace(Film) string { return "" }
+func (f *fakeApp) Selection() *Selection   { return &f.selection }
+func (f *fakeApp) PosterFocus() *bool      { return &f.posterFocus }
+func (f *fakeApp) UndoMove()               { f.call("undo-move") }
+func (f *fakeApp) CancelMove()             { f.call("cancel-move") }
+func (f *fakeApp) Choose(dir string)       { f.call("choose", dir) }
 
 // testEnvironment is a Mac desktop in testlocale's language.
 func testEnvironment() ns.Environment {

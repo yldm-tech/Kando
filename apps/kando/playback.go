@@ -22,6 +22,8 @@ type filmPlay struct {
 	path   string
 	source string
 	stream bool
+	// stored is set for a video moved to a storage location, which source plays through the proxy, "" while it is looked up (playerStored).
+	stored bool
 	// remux is the step the copy in source was made by, 0 for the video itself.
 	remux film.RemuxStep
 	// loaded is set once the system's player has opened the source and knows its length, duration.
@@ -71,7 +73,7 @@ func (a *app) playerNow() time.Time {
 	return time.Now()
 }
 
-// startPlayback opens path on the film page, in the system's player, held where it is asked to open (playFrom: where the film stopped last time, or its first frame) or, for 继续, 从头看 and a jump to a line, playing from where it was asked to (playFrom, playJump). A missing file leaves the page as a subtitle list, but for a film that keeps no video, which streams (playerStream). A jump within the open film's video (playSame) seeks it rather than open it again.
+// startPlayback opens path on the film page, in the system's player, held where it is asked to open (playFrom: where the film stopped last time, or its first frame) or, for 继续, 从头看 and a jump to a line, playing from where it was asked to (playFrom, playJump). A missing file leaves the page as a subtitle list, but for a video moved to a storage location, which plays from there (playerStored), and a film that keeps no video, which streams (playerStream). A jump within the open film's video (playSame) seeks it rather than open it again.
 func (a *app) startPlayback(path string) {
 	at := a.player.playFrom
 	jump, same := a.player.playJump, a.player.playSame
@@ -97,6 +99,9 @@ func (a *app) startPlayback(path string) {
 		}
 	}
 	a.playerNowPlayingClear()
+	if !opens && a.playerStored(path, at, jump) {
+		return
+	}
 	if !opens {
 		// A film that keeps no video streams from its site instead.
 		a.playerStream(path, at, jump)
@@ -210,6 +215,14 @@ func (a *app) playerFailed(err error) {
 	if p.stream {
 		log.Printf("player: the system's player cannot play the stream of %s: %v", filepath.Base(p.path), err)
 		a.playerStreamFailed(p)
+		return
+	}
+	// ffmpeg's copy is made of a file on disk, which a video on a storage location is not.
+	if p.stored {
+		log.Printf("player: the system's player cannot play %s from its storage location: %v", filepath.Base(p.path), err)
+		a.player.playErr = playerErrStoredUnplayable
+		p.source = ""
+		a.playerNowPlayingClear()
 		return
 	}
 	log.Printf("player: the system's player cannot play %s: %v", filepath.Base(p.source), err)

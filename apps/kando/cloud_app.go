@@ -82,6 +82,12 @@ func (a *app) UploadView(item films.Film) film.Upload {
 	}
 	m := a.messages()
 	view := film.Upload{Show: true, Label: a.uploadLabel()}
+	// A video moved to a storage location is not on disk to be uploaded (state_stored.go).
+	if refused := a.storedUploadRefused(m, item.VideoPath); refused != nil {
+		view.Detail = refused.Error()
+		view.Status = film.UploadBlocked
+		return view
+	}
 	if a.cloud.uploadPath == item.VideoPath {
 		view.Detail = uploadProgress(m, a.cloud.uploadWritten, a.cloud.uploadTotal)
 		view.Status = film.UploadBusy
@@ -126,7 +132,7 @@ func (a *app) UploadView(item films.Film) film.Upload {
 }
 
 func (a *app) BeginUpload(item films.Film) {
-	if strings.TrimSpace(item.VideoPath) == "" || a.cloud.uploadPath != "" || a.uploadBlocked() != "" {
+	if strings.TrimSpace(item.VideoPath) == "" || a.cloud.uploadPath != "" || a.uploadBlocked() != "" || a.storedUploadRefused(a.messages(), item.VideoPath) != nil {
 		return
 	}
 	a.cloud.uploadCanceled = false

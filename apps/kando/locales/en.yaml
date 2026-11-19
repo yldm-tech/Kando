@@ -25,6 +25,240 @@ accountFixSettings:
 accountGoogleFailed:
   message: "Google sign-in didn't finish"
   description: "Error under the account card when the Google sign-in failed or was cancelled."
+accountLocationAdd:
+  message: "Add…"
+  description: "Button at the end of the Storage Locations card on the Account & Upload settings page, opening the dialog that adds a NAS or server folder."
+accountLocationAddTitle:
+  message: "Add a Storage Location"
+  description: "Title of the dialog adding a storage location (a folder on a NAS or a server, over SMB, WebDAV or SFTP)."
+accountLocationCancel:
+  message: "Cancel"
+  description: "Button closing a storage location's dialog or alert without changing anything."
+accountLocationConnected:
+  message: "Connected"
+  description: "Status under a storage location, or in its dialog, once Test reached the server and read the folder."
+accountLocationDomain:
+  message: "Domain"
+  description: "Field of an SMB storage location: the Windows domain or workgroup the user signs in to."
+accountLocationDomainHint:
+  message: "Optional, often WORKGROUP"
+  description: "Hint under the Domain field of an SMB storage location. WORKGROUP is the literal default name, not translated."
+accountLocationEdit:
+  message: "Edit…"
+  description: "Button of a storage location's row opening its dialog."
+accountLocationEditLabel:
+  message: "Edit {name}"
+  description: "Accessible name of a storage location's Edit button, read by screen readers."
+  placeholders:
+    name: { type: "String", example: "Home NAS" }
+accountLocationEditTitle:
+  message: "Edit Storage Location"
+  description: "Title of the dialog editing a storage location."
+accountLocationFailBadRoot:
+  message: "The folder can't climb above where it starts with “..”."
+  description: "Test connection error: the storage location's folder goes above the share, the address or the home folder."
+accountLocationFailCertificate:
+  message: "This computer doesn't trust the certificate of {host}."
+  description: "Test connection error: the WebDAV server's HTTPS certificate did not verify."
+  placeholders:
+    host: { type: "String", example: "nas.local" }
+accountLocationFailDenied:
+  message: "This user can't open the folder."
+  description: "Test connection error: the server let the user in but refused access to the share or folder."
+accountLocationFailNoRoot:
+  message: "The folder isn't on the server."
+  description: "Test connection error: the storage location's folder does not exist on the server."
+accountLocationFailNoShare:
+  message: "The server has no share named {share}."
+  description: "Test connection error: the SMB server has no share of that name."
+  placeholders:
+    share: { type: "String", example: "films" }
+accountLocationFailOther:
+  message: "Couldn't connect. The log has the details."
+  description: "Test connection error with no more specific reason; the whole error is in Kando's log file."
+accountLocationFailPrivateKey:
+  message: "The private key can't be read. Check it and its passphrase."
+  description: "Test connection error: the SFTP private key is not a PEM key, or its passphrase is missing or wrong."
+accountLocationFailSignIn:
+  message: "The server refused the user, password or key."
+  description: "Test connection error: the server refused the sign-in."
+accountLocationFailTimeout:
+  message: "{host} didn't answer in time."
+  description: "Test connection error: the server did not answer before the test gave up."
+  placeholders:
+    host: { type: "String", example: "nas.local" }
+accountLocationFailUnreachable:
+  message: "Couldn't reach {host}. Check the address and that the server is on."
+  description: "Test connection error: the server's name does not resolve or nothing answers at its address."
+  placeholders:
+    host: { type: "String", example: "nas.local" }
+accountLocationHost:
+  message: "Server"
+  description: "Field of an SMB or SFTP storage location: the server's name or IP address."
+accountLocationHostKey:
+  message: "Server Key"
+  description: "Row of an SFTP storage location showing the fingerprint of the server's key Kando trusts."
+accountLocationHostKeyHint:
+  message: "Trusted at the first connection"
+  description: "Subtitle of the Server Key row once a key is trusted."
+accountLocationHostKeyNone:
+  message: "Asked at the first connection"
+  description: "Value of the Server Key row before any key is trusted: the first Test asks whether to trust it."
+accountLocationKeyChangedMessage:
+  message: "The server offered another key than the one trusted before. It may have been reinstalled, or another machine may be answering in its place. Trusted: {trusted}. Offered now: {offered}. Replace the key only if you know why it changed."
+  description: "Message of the warning shown when an SFTP server's key is not the one trusted before. The fingerprints look like SHA256:abc…"
+  placeholders:
+    trusted: { type: "String", example: "SHA256:0f2c…" }
+    offered: { type: "String", example: "SHA256:9a1b…" }
+accountLocationKeyChangedTitle:
+  message: "The key of {host} has changed"
+  description: "Title of the warning shown when an SFTP server's key is not the one trusted before."
+  placeholders:
+    host: { type: "String", example: "nas.local" }
+accountLocationKind:
+  message: "Type"
+  description: "Drop-down of a storage location choosing SMB, WebDAV or SFTP."
+accountLocationName:
+  message: "Name"
+  description: "Field of a storage location: the name it is listed by."
+accountLocationNamePlaceholder:
+  message: "Home NAS"
+  description: "Placeholder of a storage location's Name field: an example name."
+accountLocationNeedsHost:
+  message: "Fill in the server."
+  description: "Error in a storage location's dialog: the Server field is empty."
+accountLocationNeedsName:
+  message: "Give the location a name."
+  description: "Error in a storage location's dialog on Save: the Name field is empty."
+accountLocationNeedsPort:
+  message: "The port is a number from 1 to 65535."
+  description: "Error in a storage location's dialog: the Port field is not a port number."
+accountLocationNeedsSecret:
+  message: "Fill in a password, a private key or both."
+  description: "Error in an SFTP storage location's dialog: neither a password nor a private key is filled in."
+accountLocationNeedsShare:
+  message: "Fill in the share's name, without slashes."
+  description: "Error in an SMB storage location's dialog: the Share field is empty or holds a path."
+accountLocationNeedsURL:
+  message: "The address starts with https:// or http://, without a user, a password or a query."
+  description: "Error in a WebDAV storage location's dialog: the Address field is not a plain https or http address."
+accountLocationNeedsUser:
+  message: "Fill in the user."
+  description: "Error in a storage location's dialog: the User field is empty."
+accountLocationNotTrusted:
+  message: "Not connected: the server's key isn't trusted."
+  description: "Status under an SFTP storage location after the person declined to trust the server's key."
+accountLocationPassphrase:
+  message: "Passphrase"
+  description: "Field of an SFTP storage location: the passphrase of an encrypted private key."
+accountLocationPassword:
+  message: "Password"
+  description: "Field of a storage location: the user's password."
+accountLocationPort:
+  message: "Port"
+  description: "Field of an SMB or SFTP storage location: the server's port."
+accountLocationPortHint:
+  message: "Empty for {port}"
+  description: "Hint under the Port field: the port used when it is left empty."
+  placeholders:
+    port: { type: "String", example: "22" }
+accountLocationPrivateKey:
+  message: "Private Key"
+  description: "Field of an SFTP storage location: the PEM text of the user's private key."
+accountLocationPrivateKeyHint:
+  message: "Paste the key's PEM text"
+  description: "Hint under the Private Key field. PEM is a file format's name, not translated."
+accountLocationRemove:
+  message: "Remove…"
+  description: "Button of a storage location's row asking to remove it."
+accountLocationRemoveButton:
+  message: "Remove"
+  description: "Destructive button of the alert confirming that a storage location is removed."
+accountLocationRemoveLabel:
+  message: "Remove {name}"
+  description: "Accessible name of a storage location's Remove button, read by screen readers."
+  placeholders:
+    name: { type: "String", example: "Home NAS" }
+accountLocationRemoveMessage:
+  message: "Its password and keys are forgotten too. The files on the server stay."
+  description: "Message of the alert confirming that a storage location is removed."
+accountLocationRemoveTitle:
+  message: "Remove “{name}”?"
+  description: "Title of the alert confirming that a storage location is removed."
+  placeholders:
+    name: { type: "String", example: "Home NAS" }
+accountLocationReplaceKey:
+  message: "Replace Key"
+  description: "Destructive button of the changed-key warning: trust the server's new key in place of the old one."
+accountLocationRoot:
+  message: "Folder"
+  description: "Field of a storage location: the folder on the server films are kept in."
+accountLocationRootHintSFTP:
+  message: "Absolute, or in the home folder; empty for the home folder"
+  description: "Hint under the Folder field of an SFTP storage location."
+accountLocationRootHintSMB:
+  message: "A folder in the share; empty for its top"
+  description: "Hint under the Folder field of an SMB storage location."
+accountLocationRootHintWebDAV:
+  message: "A folder below the address; may be empty"
+  description: "Hint under the Folder field of a WebDAV storage location."
+accountLocationSave:
+  message: "Save"
+  description: "Button saving a storage location's dialog."
+accountLocationSaveFailed:
+  message: "The location couldn't be saved"
+  description: "Error in a storage location's dialog, or under the card, when the settings file could not be written."
+accountLocationShare:
+  message: "Share"
+  description: "Field of an SMB storage location: the name of the shared folder on the server."
+accountLocationSummary:
+  message: "{kind} · {place}"
+  description: "Subtitle of a storage location's row: its protocol (SMB, WebDAV, SFTP) and where it is, such as nas.local/films."
+  placeholders:
+    kind: { type: "String", example: "SMB" }
+    place: { type: "String", example: "nas.local/films" }
+accountLocationTest:
+  message: "Test"
+  description: "Button of a storage location's row and dialog: connect to the server and read the folder."
+accountLocationTestLabel:
+  message: "Test the connection to {name}"
+  description: "Accessible name of a storage location's Test button, read by screen readers."
+  placeholders:
+    name: { type: "String", example: "Home NAS" }
+accountLocationTesting:
+  message: "Connecting…"
+  description: "Status under a storage location, or in its dialog, while Test connects."
+accountLocationTrust:
+  message: "Trust"
+  description: "Button of the alert asking whether to trust an SFTP server's key at the first connection."
+accountLocationTrustMessage:
+  message: "This is the first connection to it. Its key's fingerprint is {fingerprint}. Trust it only if it matches what the server shows (ssh-keygen -l) or what its administrator gives you."
+  description: "Message of the alert asking whether to trust an SFTP server's key at the first connection. ssh-keygen -l is a command, not translated."
+  placeholders:
+    fingerprint: { type: "String", example: "SHA256:0f2c…" }
+accountLocationTrustTitle:
+  message: "Trust the server {host}?"
+  description: "Title of the alert asking whether to trust an SFTP server's key at the first connection."
+  placeholders:
+    host: { type: "String", example: "nas.local" }
+accountLocationURL:
+  message: "Address"
+  description: "Field of a WebDAV storage location: the server's https:// address."
+accountLocationUser:
+  message: "User"
+  description: "Field of a storage location: the user name to sign in with."
+accountLocationUserHintSMB:
+  message: "guest for a share open to anyone"
+  description: "Hint under the User field of an SMB storage location. guest is the literal user name, not translated."
+accountLocationsEmpty:
+  message: "No storage locations yet"
+  description: "Row of the Storage Locations card while none is set up."
+accountLocationsNote:
+  message: "Folders on a NAS or a server, over SMB, WebDAV or SFTP. Passwords and keys are saved only in the settings file on this computer."
+  description: "Note under the Storage Locations card: what a location is and where its secrets are kept."
+accountSectionLocations:
+  message: "Storage Locations"
+  description: "Heading of the card listing folders on a NAS or a server on the Account & Upload settings page."
 accountNeedsStore:
   message: "Fill in {store} in Settings › Account & Upload first"
   description: "Why the player cannot upload: the chosen storage is not filled in. Names the settings page."
@@ -5124,7 +5358,7 @@ settingsKeywordsAI:
   message: "translation service EveryAPI OpenAI OpenRouter Groq DeepSeek xAI Mistral Qwen Kimi Zhipu SiliconFlow Ollama LM Studio Base URL API Key model test connection batch lines per request retries"
   description: "Search keywords of the AI Service settings section, separated by spaces, besides its title: the services it offers and its fields. Not shown."
 settingsKeywordsAccount:
-  message: "Google sign in sign out object storage upload R2 S3 OSS COS Endpoint Region Bucket Access Key Secret path style"
+  message: "Google sign in sign out object storage upload R2 S3 OSS COS Endpoint Region Bucket Access Key Secret path style NAS SMB WebDAV SFTP"
   description: "Search keywords of the Account & Upload settings section, separated by spaces, besides its title. Not shown."
 settingsKeywordsGeneral:
   message: "library location Finder File Explorer file manager interface language version components yt-dlp ffmpeg whisper-cli detect again command line terminal kando install MCP Claude Code Cursor copy config update notifications notify browser sign-in signed in cookies members-only age-restricted Chrome Safari Firefox Edge Brave Chromium keychain Full Disk Access appearance light dark mode follow system bookmarklet bookmark start at once"
@@ -7388,3 +7622,144 @@ glossarySuggestDismissLabel:
   description: "Accessible name and tooltip of the button that drops a term the AI service found, so it is not suggested again."
   placeholders:
     term: { type: "String", example: "Nile" }
+filmsRemoveStored:
+  message: "Its subtitles and the other files Kando keeps beside its video will be moved to the Trash, and its video will be deleted from {place}."
+  description: "What removing a film does when its video was moved out of the library folder to a storage location (a NAS folder or object storage): its subtitles go to the Trash and the video's copy on the location is deleted. place is the location's name."
+  placeholders:
+    place: { type: "String", example: "Home NAS" }
+filmsRemoveManyStored:
+  message: "Their files will be moved to the Trash. The videos of those moved to a storage location will be deleted from it."
+  description: "What removing several selected films does when the video of at least one of them was moved to a storage location (a NAS folder or object storage): those videos are deleted from the location."
+filmsStoredOn:
+  message: "Video on {place}"
+  description: "Accessible name and tooltip of the small mark on a film's poster and list row whose video was moved out of the library folder to a storage location (a NAS folder or object storage). place is the location's name."
+  placeholders:
+    place: { type: "String", example: "Home NAS" }
+filmsStoredGone:
+  message: "The video's storage location is no longer in Settings"
+  description: "Accessible name and tooltip of the mark on a film's poster and list row, drawn as a warning, when its video was moved to a storage location that was since removed from Settings > Account & Upload."
+playerStoredGone:
+  message: "This film's video is on a storage location that is no longer in Settings. Its lines can still be studied."
+  description: "Shown in place of the picture when the film's video was moved to a storage location (a NAS folder or object storage) that was since removed in Settings > Account & Upload."
+playerStoredUnreachable:
+  message: "Couldn't reach the storage location this film's video is on. Its lines can still be studied."
+  description: "Shown in place of the picture when the storage location (a NAS folder or object storage) the film's video was moved to cannot be reached, as when the NAS is off or the computer is offline."
+playerStoredMissing:
+  message: "This film's video is no longer on its storage location. Its lines can still be studied."
+  description: "Shown in place of the picture when the storage location the film's video was moved to can be reached but no longer has the video file."
+playerStoredUnplayable:
+  message: "This video can't be played from its storage location. Move it back to the library to play it."
+  description: "Shown in place of the picture when the system's player cannot play a video moved to a storage location; Kando can only convert a video for the player once it is back in the library folder."
+storedMoveTo:
+  message: "Move Video To"
+  description: "Film menu item, a submenu listing the storage locations (NAS folders and the object storage set up in Settings > Account & Upload) the film's video can be moved to, out of the library folder. Its subtitles stay in the library."
+storedMoveBack:
+  message: "Move Video Back to the Library"
+  description: "Film menu item for a film whose video was moved to a storage location: copies the video back into the library folder and then deletes it from the location."
+storedObjectStore:
+  message: "{store} Object Storage"
+  description: "Name of the object storage set up in Settings > Account & Upload as a place a film's video can be moved to. store is the service's name."
+  placeholders:
+    store: { type: "String", example: "R2" }
+storedLocationGone:
+  message: "That storage location is no longer in Settings."
+  description: "Message bar when a video is to be moved to or back from a storage location that was removed in Settings > Account & Upload."
+storedBusy:
+  message: "Another video is being moved. Try again once it's done."
+  description: "Message bar when a film's video is to be moved to or from a storage location while another one is still being copied."
+storedNotDone:
+  message: "Only the video of a film Kando has processed can be moved to a storage location, and “{name}” isn't one."
+  description: "Message bar when a film's video cannot be moved to a storage location because it is not a finished film with a video of its own (still processing, kept as subtitles only, or a video found in the folder that Kando never processed)."
+  placeholders:
+    name: { type: "String", example: "Learn Rust" }
+storedOutside:
+  message: "The video of “{name}” isn't in the library folder, so it can't be moved to a storage location."
+  description: "Message bar when a film's video is kept outside the library folder (a local video picked where it was), which Kando does not move to a storage location."
+  placeholders:
+    name: { type: "String", example: "Learn Rust" }
+storedLocked:
+  message: "The videos of a library with a password stay in it, so they aren't moved to a storage location."
+  description: "Message bar when a film's video is to be moved to a storage location from a library protected by a password, whose files are kept encrypted."
+storedProcessing:
+  message: "“{name}” is being processed. Move its video once that's done."
+  description: "Message bar when a film's video is to be moved to or from a storage location while the film is being processed."
+  placeholders:
+    name: { type: "String", example: "Learn Rust" }
+storedMovingTo:
+  message: "Moving the video of “{name}” to {place}… {percent}%"
+  description: "Message bar while a film's video is being copied to a storage location, with how much is copied."
+  placeholders:
+    name: { type: "String", example: "Learn Rust" }
+    place: { type: "String", example: "Home NAS" }
+    percent: { type: "int", example: "42" }
+storedMovingBack:
+  message: "Moving the video of “{name}” back to the library… {percent}%"
+  description: "Message bar while a film's video is being copied back from a storage location into the library folder, with how much is copied."
+  placeholders:
+    name: { type: "String", example: "Learn Rust" }
+    percent: { type: "int", example: "42" }
+storedSizeMismatch:
+  message: "the copy came out a different size"
+  description: "Reason, inside another sentence, why moving a video to or from a storage location failed: the copy is not as large as the video, so it was not used."
+storedLocalTaken:
+  message: "a file is already where the video goes in the library"
+  description: "Reason, inside another sentence, why moving a video back from a storage location failed: a file already exists at the path the video goes back to."
+storedStopped:
+  message: "Stopped moving the video of “{name}”. It is where it was."
+  description: "Message bar after the user stopped moving a film's video to or from a storage location; nothing moved."
+  placeholders:
+    name: { type: "String", example: "Learn Rust" }
+storedMoveFailed:
+  message: "Couldn't move the video of “{name}” to {place}: {error}. It is still in the library."
+  description: "Message bar when a film's video could not be moved to a storage location; the video stays in the library folder. error is the reason."
+  placeholders:
+    name: { type: "String", example: "Learn Rust" }
+    place: { type: "String", example: "Home NAS" }
+    error: { type: "String", example: "The server refused the user name or password." }
+storedRemoveFailed:
+  message: "Couldn't remove the video of “{name}” from the library after copying it to {place}, so it stays in the library."
+  description: "Message bar when a film's video was copied to a storage location but could not be deleted from the library folder; the copy on the location is removed again and the video stays in the library."
+  placeholders:
+    name: { type: "String", example: "Learn Rust" }
+    place: { type: "String", example: "Home NAS" }
+storedMoved:
+  message: "Moved the video of “{name}” to {place}. Its subtitles stay in the library."
+  description: "Message bar after a film's video was moved to a storage location; the film's subtitles and other files stay in the library folder."
+  placeholders:
+    name: { type: "String", example: "Learn Rust" }
+    place: { type: "String", example: "Home NAS" }
+storedMoveBackFailed:
+  message: "Couldn't move the video of “{name}” back from {place}: {error}. It is still there."
+  description: "Message bar when a film's video could not be copied back from a storage location into the library folder; it stays on the location. error is the reason."
+  placeholders:
+    name: { type: "String", example: "Learn Rust" }
+    place: { type: "String", example: "Home NAS" }
+    error: { type: "String", example: "Couldn't reach nas.local." }
+storedMovedBack:
+  message: "Moved the video of “{name}” back to the library."
+  description: "Message bar after a film's video was copied back from a storage location into the library folder."
+  placeholders:
+    name: { type: "String", example: "Learn Rust" }
+storedMovedBackLeft:
+  message: "Moved the video of “{name}” back to the library, but couldn't delete its copy on {place}."
+  description: "Message bar when a film's video is back in the library folder but its copy on the storage location could not be deleted."
+  placeholders:
+    name: { type: "String", example: "Learn Rust" }
+    place: { type: "String", example: "Home NAS" }
+storedReprocess:
+  message: "The video of “{name}” is on {place}. Move it back to the library before processing the film again, as that needs its sound."
+  description: "Message bar when a film whose video was moved to a storage location is to be processed again; transcribing needs the video's sound on this computer."
+  placeholders:
+    name: { type: "String", example: "Learn Rust" }
+    place: { type: "String", example: "Home NAS" }
+storedUpload:
+  message: "The video is on {place}. Move it back to the library to upload it."
+  description: "Shown by the player's upload button for a film whose video was moved to a storage location, which cannot be uploaded from there."
+  placeholders:
+    place: { type: "String", example: "Home NAS" }
+storedLibraryMove:
+  message: "The video of “{name}” is on {place}. Move it back to the library before moving the film to another library."
+  description: "Message bar when a film whose video was moved to a storage location is to be moved to another library."
+  placeholders:
+    name: { type: "String", example: "Learn Rust" }
+    place: { type: "String", example: "Home NAS" }

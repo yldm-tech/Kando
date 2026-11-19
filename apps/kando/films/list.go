@@ -403,7 +403,7 @@ func (l filmList) Render(cx *core.Scope) core.Node {
 	}
 }
 
-// listNameCell is a row's first cell: the film's poster, small, then its name on one line.
+// listNameCell is a row's first cell: the film's poster, small, then its name on one line, and the mark of a video on a storage location after it (storedIcon).
 func listNameCell(cx *core.Scope, a App, item func() Film, name func() string) core.Node {
 	colors, k := ui.ColorsOf(cx), theme.Of(cx)
 	thumb := core.View{
@@ -414,6 +414,7 @@ func listNameCell(cx *core.Scope, a App, item func() Film, name func() string) c
 	return core.View{Style: core.Style{Direction: core.Row, AlignItems: core.AlignCenter, Gap: 10, Height: core.Pct(100), MinWidth: core.Pt(0)}, Children: []core.Node{
 		thumb,
 		core.Text{ContentFunc: name, MaxLines: 1, EllipsizeMode: core.EllipsizeTail, Style: core.Style{FontSize: 13, FlexShrink: 1}, StyleFunc: ui.Colored(colors.Text)},
+		storedIcon(cx, storedMemo(cx, a, item)),
 	}}
 }
 

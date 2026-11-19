@@ -45,12 +45,17 @@ func (a *app) ensurePoster(item films.Film) {
 		a.markPosterMiss(video)
 		return
 	}
-	if _, err := os.Stat(video); err != nil {
+	// A video moved to a storage location is not here for ffmpeg to read: its cover is the one kept before it moved, or its site's picture (state_stored.go).
+	_, stored := a.storedOf(video)
+	if _, err := os.Stat(video); err != nil && !stored {
 		a.markPosterMiss(video)
 		return
 	}
 	tools, _ := a.pipeline.(media.Tools)
 	cover := coverSources{ffmpeg: tools.FFmpeg, video: video, dest: dest}
+	if stored {
+		cover.ffmpeg = ""
+	}
 	if dir := posterFolder(a.lib.posterDir, video); item.Thumbnail != "" && dir != "" {
 		// Offline mode fetches no site's picture: only one fetched before is used.
 		if cache := siteThumbnailPath(dir, item.Thumbnail); !a.privacy.offline || fileExists(cache) {

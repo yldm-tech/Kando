@@ -161,6 +161,7 @@ type savedSettings struct {
 	savedTranslate  // state_settings.go
 	savedShortcuts  // keys_preset.go
 	savedCloud      // state_cloud.go
+	savedLocations  // state_locations.go
 	savedPlayer     // state_player.go
 	savedOverlay    // state_overlay.go
 	savedMenu       // state_menu.go
@@ -190,6 +191,7 @@ func (s *savedSettings) clean() {
 	s.savedTranslate.clean()
 	s.savedShortcuts.clean()
 	s.savedCloud.clean()
+	s.savedLocations.clean()
 	s.savedPlayer.clean()
 	s.savedOverlay.clean()
 	s.savedMenu.clean()

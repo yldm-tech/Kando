@@ -60,6 +60,8 @@ type Film struct {
 	Device string
 	// PausedBy is the paired phone that paused the waiting job where it was, empty for one that is not paused (core.Job.PausedBy).
 	PausedBy string
+	// Stored is the ID of the storage location the film's video was moved to (shelf.Library.Stored), empty for a video in the library's folder. Its subtitles and the other files beside the video stay in the folder.
+	Stored string
 }
 
 // List is the open library's films: the jobs that belong on its shelf, then the videos found in its folder that no job holds. Such a video shows the bilingual subtitles found beside it (media.Video.Subtitles), as a film copied from another library or one whose job records were lost has them. names is the title the user gave each video in Kando, by path (shelf.Library.Names), which a film shows in place of the name nameOf gives its job or its file's name.

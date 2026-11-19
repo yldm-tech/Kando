@@ -19,6 +19,7 @@ func TestMain(m *testing.M) {
 // fakeApp is the account and the storage as the app keeps them, plain fields, with the calls the page made.
 type fakeApp struct {
 	live.Rev
+	fakeLocations
 	email                                      string
 	busy, configured                           bool
 	failed                                     string

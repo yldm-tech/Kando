@@ -18,7 +18,9 @@ import (
 	"kando/apps/kando/phonesync"
 	"kando/apps/kando/remote"
 	"kando/apps/kando/settings"
+	"kando/apps/kando/shelf"
 	"kando/apps/kando/sidebar"
+	"kando/apps/kando/storage"
 	"kando/packages/core"
 	"kando/packages/media"
 	psync "kando/packages/sync"
@@ -355,6 +357,10 @@ type phoneShelf struct {
 	// furthest is how far each video was played, and played when it last played, by path, which say whether a film was watched to its end and when (films.WatchState).
 	furthest map[string]time.Duration
 	played   map[string]time.Time
+	// stored is where each video moved to a storage location is (shelf.Library.Stored), targets the locations of those that are still in the settings, by ID, and pool what opens them (state_stored.go).
+	stored  map[string]shelf.Stored
+	targets map[string]storage.Target
+	pool    *storage.Pool
 }
 
 // Duration, ResumeAt and Furthest are the shelf as films.Progress, for films.WatchState: where a film stopped does not tell whether it was watched to its end.
@@ -401,6 +407,14 @@ func phoneFilmOf(item films.Film, shelf phoneShelf) phonesync.Film {
 	if item.TranslationErr == "" && !item.SameLanguage {
 		f.Translation = item.Language
 	}
+	// A video moved to a storage location is served from there, by ranges as a file here is; one whose location is no longer in the settings is served by its lines alone, as a film that keeps no video is, which a phone cannot download.
+	if s, ok := shelf.stored[item.VideoPath]; ok {
+		if t, there := shelf.targets[s.Location]; there {
+			f.Remote, f.RemoteSize, f.RemoteAt = shelf.pool.Handler(t, s.Path), s.Size, s.Moved
+		} else {
+			f.SubtitlesOnly = true
+		}
+	}
 	if dest := posterDest(shelf.posterDir, item.VideoPath); dest != "" && fileExists(dest) {
 		f.Poster = dest
 	}
@@ -418,7 +432,8 @@ func (s phoneSource) items(ctx context.Context, lib phonesync.Library) ([]films.
 			return phoneShelf{}, phonesync.ErrNotFound
 		}
 		return phoneShelf{jobs: slices.Clone(a.library.Jobs), names: maps.Clone(a.library.Names), durations: maps.Clone(a.lib.durations), posterDir: a.lib.posterDir,
-			furthest: maps.Clone(a.palette.furthest), played: maps.Clone(a.player.played)}, nil
+			furthest: maps.Clone(a.palette.furthest), played: maps.Clone(a.player.played),
+			stored: maps.Clone(a.library.Stored), targets: a.storedPlayable(), pool: a.stored.pool}, nil
 	})
 	if err != nil {
 		return nil, phoneShelf{}, err
@@ -429,7 +444,7 @@ func (s phoneSource) items(ctx context.Context, lib phonesync.Library) ([]films.
 	}
 	noDetail := func(core.Job) string { return "" }
 	var out []films.Film
-	for _, item := range films.List(lib.Dir, shelf.jobs, videos, shelf.names, jobName, noDetail) {
+	for _, item := range storedMark(films.List(lib.Dir, shelf.jobs, videos, shelf.names, jobName, noDetail), shelf.stored) {
 		if !films.InQueue(item) && item.VideoPath != "" {
 			out = append(out, item)
 		}

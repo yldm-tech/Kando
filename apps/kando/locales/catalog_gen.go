@@ -461,6 +461,20 @@ func For(cx *core.Scope) Messages {
 // its method, for the TSX declarations of the messages
 // (tsx.RegisterMessages).
 var Parameters = map[string][]string{
+	"AccountLocationEditLabel":                 {"name"},
+	"AccountLocationFailCertificate":           {"host"},
+	"AccountLocationFailNoShare":               {"share"},
+	"AccountLocationFailTimeout":               {"host"},
+	"AccountLocationFailUnreachable":           {"host"},
+	"AccountLocationKeyChangedMessage":         {"trusted", "offered"},
+	"AccountLocationKeyChangedTitle":           {"host"},
+	"AccountLocationPortHint":                  {"port"},
+	"AccountLocationRemoveLabel":               {"name"},
+	"AccountLocationRemoveTitle":               {"name"},
+	"AccountLocationSummary":                   {"kind", "place"},
+	"AccountLocationTestLabel":                 {"name"},
+	"AccountLocationTrustMessage":              {"fingerprint"},
+	"AccountLocationTrustTitle":                {"host"},
 	"AccountNeedsStore":                        {"store"},
 	"AccountUploadDenied":                      {"bucket"},
 	"AccountUploadFailedBecause":               {"error_"},
@@ -1016,6 +1030,24 @@ var Parameters = map[string][]string{
 	"GlossaryStepAccept":                       {"term"},
 	"GlossarySuggestAdd":                       {"term"},
 	"GlossarySuggestDismissLabel":              {"term"},
+	"FilmsRemoveStored":                        {"place"},
+	"FilmsStoredOn":                            {"place"},
+	"StoredObjectStore":                        {"store"},
+	"StoredNotDone":                            {"name"},
+	"StoredOutside":                            {"name"},
+	"StoredProcessing":                         {"name"},
+	"StoredMovingTo":                           {"name", "place", "percent"},
+	"StoredMovingBack":                         {"name", "percent"},
+	"StoredStopped":                            {"name"},
+	"StoredMoveFailed":                         {"name", "place", "error_"},
+	"StoredRemoveFailed":                       {"name", "place"},
+	"StoredMoved":                              {"name", "place"},
+	"StoredMoveBackFailed":                     {"name", "place", "error_"},
+	"StoredMovedBack":                          {"name"},
+	"StoredMovedBackLeft":                      {"name", "place"},
+	"StoredReprocess":                          {"name", "place"},
+	"StoredUpload":                             {"place"},
+	"StoredLibraryMove":                        {"name", "place"},
 }
 
 // Translation is a language's messages another package supplies:
@@ -1024,6 +1056,20 @@ var Parameters = map[string][]string{
 // catalog.
 type Translation struct {
 	Texts                                    map[string]string
+	AccountLocationEditLabel                 func(name string) string
+	AccountLocationFailCertificate           func(host string) string
+	AccountLocationFailNoShare               func(share string) string
+	AccountLocationFailTimeout               func(host string) string
+	AccountLocationFailUnreachable           func(host string) string
+	AccountLocationKeyChangedMessage         func(trusted string, offered string) string
+	AccountLocationKeyChangedTitle           func(host string) string
+	AccountLocationPortHint                  func(port string) string
+	AccountLocationRemoveLabel               func(name string) string
+	AccountLocationRemoveTitle               func(name string) string
+	AccountLocationSummary                   func(kind string, place string) string
+	AccountLocationTestLabel                 func(name string) string
+	AccountLocationTrustMessage              func(fingerprint string) string
+	AccountLocationTrustTitle                func(host string) string
 	AccountNeedsStore                        func(store string) string
 	AccountUploadDenied                      func(bucket string) string
 	AccountUploadFailedBecause               func(error_ string) string
@@ -1579,6 +1625,24 @@ type Translation struct {
 	GlossaryStepAccept                       func(term string) string
 	GlossarySuggestAdd                       func(term string) string
 	GlossarySuggestDismissLabel              func(term string) string
+	FilmsRemoveStored                        func(place string) string
+	FilmsStoredOn                            func(place string) string
+	StoredObjectStore                        func(store string) string
+	StoredNotDone                            func(name string) string
+	StoredOutside                            func(name string) string
+	StoredProcessing                         func(name string) string
+	StoredMovingTo                           func(name string, place string, percent int) string
+	StoredMovingBack                         func(name string, percent int) string
+	StoredStopped                            func(name string) string
+	StoredMoveFailed                         func(name string, place string, error_ string) string
+	StoredRemoveFailed                       func(name string, place string) string
+	StoredMoved                              func(name string, place string) string
+	StoredMoveBackFailed                     func(name string, place string, error_ string) string
+	StoredMovedBack                          func(name string) string
+	StoredMovedBackLeft                      func(name string, place string) string
+	StoredReprocess                          func(name string, place string) string
+	StoredUpload                             func(place string) string
+	StoredLibraryMove                        func(name string, place string) string
 }
 
 var supplied = map[string]Translation{}
@@ -1594,6 +1658,60 @@ const (
 	textAccountCompatRegionHint
 	textAccountFixSettings
 	textAccountGoogleFailed
+	textAccountLocationAdd
+	textAccountLocationAddTitle
+	textAccountLocationCancel
+	textAccountLocationConnected
+	textAccountLocationDomain
+	textAccountLocationDomainHint
+	textAccountLocationEdit
+	textAccountLocationEditTitle
+	textAccountLocationFailBadRoot
+	textAccountLocationFailDenied
+	textAccountLocationFailNoRoot
+	textAccountLocationFailOther
+	textAccountLocationFailPrivateKey
+	textAccountLocationFailSignIn
+	textAccountLocationHost
+	textAccountLocationHostKey
+	textAccountLocationHostKeyHint
+	textAccountLocationHostKeyNone
+	textAccountLocationKind
+	textAccountLocationName
+	textAccountLocationNamePlaceholder
+	textAccountLocationNeedsHost
+	textAccountLocationNeedsName
+	textAccountLocationNeedsPort
+	textAccountLocationNeedsSecret
+	textAccountLocationNeedsShare
+	textAccountLocationNeedsURL
+	textAccountLocationNeedsUser
+	textAccountLocationNotTrusted
+	textAccountLocationPassphrase
+	textAccountLocationPassword
+	textAccountLocationPort
+	textAccountLocationPrivateKey
+	textAccountLocationPrivateKeyHint
+	textAccountLocationRemove
+	textAccountLocationRemoveButton
+	textAccountLocationRemoveMessage
+	textAccountLocationReplaceKey
+	textAccountLocationRoot
+	textAccountLocationRootHintSFTP
+	textAccountLocationRootHintSMB
+	textAccountLocationRootHintWebDAV
+	textAccountLocationSave
+	textAccountLocationSaveFailed
+	textAccountLocationShare
+	textAccountLocationTest
+	textAccountLocationTesting
+	textAccountLocationTrust
+	textAccountLocationURL
+	textAccountLocationUser
+	textAccountLocationUserHintSMB
+	textAccountLocationsEmpty
+	textAccountLocationsNote
+	textAccountSectionLocations
 	textAccountOSSRegionHint
 	textAccountPathStyle
 	textAccountPathStyleHint
@@ -3076,6 +3194,19 @@ const (
 	textGlossaryUndoLast
 	textGlossarySuggested
 	textGlossarySuggestDismiss
+	textFilmsRemoveManyStored
+	textFilmsStoredGone
+	textPlayerStoredGone
+	textPlayerStoredUnreachable
+	textPlayerStoredMissing
+	textPlayerStoredUnplayable
+	textStoredMoveTo
+	textStoredMoveBack
+	textStoredLocationGone
+	textStoredBusy
+	textStoredLocked
+	textStoredSizeMismatch
+	textStoredLocalTaken
 	numTexts
 )
 
@@ -3091,6 +3222,60 @@ var keyOfText = [numTexts]string{
 	"accountCompatRegionHint",
 	"accountFixSettings",
 	"accountGoogleFailed",
+	"accountLocationAdd",
+	"accountLocationAddTitle",
+	"accountLocationCancel",
+	"accountLocationConnected",
+	"accountLocationDomain",
+	"accountLocationDomainHint",
+	"accountLocationEdit",
+	"accountLocationEditTitle",
+	"accountLocationFailBadRoot",
+	"accountLocationFailDenied",
+	"accountLocationFailNoRoot",
+	"accountLocationFailOther",
+	"accountLocationFailPrivateKey",
+	"accountLocationFailSignIn",
+	"accountLocationHost",
+	"accountLocationHostKey",
+	"accountLocationHostKeyHint",
+	"accountLocationHostKeyNone",
+	"accountLocationKind",
+	"accountLocationName",
+	"accountLocationNamePlaceholder",
+	"accountLocationNeedsHost",
+	"accountLocationNeedsName",
+	"accountLocationNeedsPort",
+	"accountLocationNeedsSecret",
+	"accountLocationNeedsShare",
+	"accountLocationNeedsURL",
+	"accountLocationNeedsUser",
+	"accountLocationNotTrusted",
+	"accountLocationPassphrase",
+	"accountLocationPassword",
+	"accountLocationPort",
+	"accountLocationPrivateKey",
+	"accountLocationPrivateKeyHint",
+	"accountLocationRemove",
+	"accountLocationRemoveButton",
+	"accountLocationRemoveMessage",
+	"accountLocationReplaceKey",
+	"accountLocationRoot",
+	"accountLocationRootHintSFTP",
+	"accountLocationRootHintSMB",
+	"accountLocationRootHintWebDAV",
+	"accountLocationSave",
+	"accountLocationSaveFailed",
+	"accountLocationShare",
+	"accountLocationTest",
+	"accountLocationTesting",
+	"accountLocationTrust",
+	"accountLocationURL",
+	"accountLocationUser",
+	"accountLocationUserHintSMB",
+	"accountLocationsEmpty",
+	"accountLocationsNote",
+	"accountSectionLocations",
 	"accountOSSRegionHint",
 	"accountPathStyle",
 	"accountPathStyleHint",
@@ -4573,6 +4758,19 @@ var keyOfText = [numTexts]string{
 	"glossaryUndoLast",
 	"glossarySuggested",
 	"glossarySuggestDismiss",
+	"filmsRemoveManyStored",
+	"filmsStoredGone",
+	"playerStoredGone",
+	"playerStoredUnreachable",
+	"playerStoredMissing",
+	"playerStoredUnplayable",
+	"storedMoveTo",
+	"storedMoveBack",
+	"storedLocationGone",
+	"storedBusy",
+	"storedLocked",
+	"storedSizeMismatch",
+	"storedLocalTaken",
 }
 
 // textsEn are the messages without arguments in en.
@@ -4586,6 +4784,60 @@ var textsEn = i18n.NewTexts(""+
 	"The region name used for signing. For MinIO, usually us-east-1."+
 	"Open Settings"+
 	"Google sign-in didn't finish"+
+	"Add…"+
+	"Add a Storage Location"+
+	"Cancel"+
+	"Connected"+
+	"Domain"+
+	"Optional, often WORKGROUP"+
+	"Edit…"+
+	"Edit Storage Location"+
+	"The folder can't climb above where it starts with “..”."+
+	"This user can't open the folder."+
+	"The folder isn't on the server."+
+	"Couldn't connect. The log has the details."+
+	"The private key can't be read. Check it and its passphrase."+
+	"The server refused the user, password or key."+
+	"Server"+
+	"Server Key"+
+	"Trusted at the first connection"+
+	"Asked at the first connection"+
+	"Type"+
+	"Name"+
+	"Home NAS"+
+	"Fill in the server."+
+	"Give the location a name."+
+	"The port is a number from 1 to 65535."+
+	"Fill in a password, a private key or both."+
+	"Fill in the share's name, without slashes."+
+	"The address starts with https:// or http://, without a user, a password or a query."+
+	"Fill in the user."+
+	"Not connected: the server's key isn't trusted."+
+	"Passphrase"+
+	"Password"+
+	"Port"+
+	"Private Key"+
+	"Paste the key's PEM text"+
+	"Remove…"+
+	"Remove"+
+	"Its password and keys are forgotten too. The files on the server stay."+
+	"Replace Key"+
+	"Folder"+
+	"Absolute, or in the home folder; empty for the home folder"+
+	"A folder in the share; empty for its top"+
+	"A folder below the address; may be empty"+
+	"Save"+
+	"The location couldn't be saved"+
+	"Share"+
+	"Test"+
+	"Connecting…"+
+	"Trust"+
+	"Address"+
+	"User"+
+	"guest for a share open to anyone"+
+	"No storage locations yet"+
+	"Folders on a NAS or a server, over SMB, WebDAV or SFTP. Passwords and keys are saved only in the settings file on this computer."+
+	"Storage Locations"+
 	"For example, cn-hangzhou. For the internal network, enter cn-hangzhou-internal."+
 	"Path Style"+
 	"On for MinIO. Off for B2, Wasabi, Huawei Cloud and Qiniu."+
@@ -5622,7 +5874,7 @@ var textsEn = i18n.NewTexts(""+
 	"Downloads online videos"+
 	"Version"+
 	"translation service EveryAPI OpenAI OpenRouter Groq DeepSeek xAI Mistral Qwen Kimi Zhipu SiliconFlow Ollama LM Studio Base URL API Key model test connection batch lines per request retries"+
-	"Google sign in sign out object storage upload R2 S3 OSS COS Endpoint Region Bucket Access Key Secret path style"+
+	"Google sign in sign out object storage upload R2 S3 OSS COS Endpoint Region Bucket Access Key Secret path style NAS SMB WebDAV SFTP"+
 	"library location Finder File Explorer file manager interface language version components yt-dlp ffmpeg whisper-cli detect again command line terminal kando install MCP Claude Code Cursor copy config update notifications notify browser sign-in signed in cookies members-only age-restricted Chrome Safari Firefox Edge Brave Chromium keychain Full Disk Access appearance light dark mode follow system bookmarklet bookmark start at once"+
 	"subtitles display bilingual original only translation only order translation original dim blank make room preview preset font size color bold"+
 	"iPhone Android phone mobile sync pair QR code Wi-Fi network device revoke"+
@@ -6067,7 +6319,20 @@ var textsEn = i18n.NewTexts(""+
 	"Edit Log"+
 	"Undo Latest"+
 	"Found in This Film"+
-	"Dismiss",
+	"Dismiss"+
+	"Their files will be moved to the Trash. The videos of those moved to a storage location will be deleted from it."+
+	"The video's storage location is no longer in Settings"+
+	"This film's video is on a storage location that is no longer in Settings. Its lines can still be studied."+
+	"Couldn't reach the storage location this film's video is on. Its lines can still be studied."+
+	"This film's video is no longer on its storage location. Its lines can still be studied."+
+	"This video can't be played from its storage location. Move it back to the library to play it."+
+	"Move Video To"+
+	"Move Video Back to the Library"+
+	"That storage location is no longer in Settings."+
+	"Another video is being moved. Try again once it's done."+
+	"The videos of a library with a password stay in it, so they aren't moved to a storage location."+
+	"the copy came out a different size"+
+	"a file is already where the video goes in the library",
 	[]uint16{
 		5,
 		19,
@@ -6078,6 +6343,60 @@ var textsEn = i18n.NewTexts(""+
 		63,
 		13,
 		28,
+		6,
+		22,
+		6,
+		9,
+		6,
+		25,
+		7,
+		21,
+		59,
+		32,
+		31,
+		42,
+		59,
+		45,
+		6,
+		10,
+		31,
+		29,
+		4,
+		4,
+		8,
+		19,
+		25,
+		37,
+		42,
+		42,
+		83,
+		17,
+		46,
+		10,
+		8,
+		4,
+		11,
+		24,
+		9,
+		6,
+		70,
+		11,
+		6,
+		58,
+		40,
+		40,
+		4,
+		30,
+		5,
+		4,
+		13,
+		5,
+		7,
+		4,
+		32,
+		24,
+		128,
+		17,
 		79,
 		10,
 		57,
@@ -7114,7 +7433,7 @@ var textsEn = i18n.NewTexts(""+
 		23,
 		7,
 		188,
-		111,
+		131,
 		432,
 		141,
 		73,
@@ -7560,6 +7879,19 @@ var textsEn = i18n.NewTexts(""+
 		11,
 		18,
 		7,
+		112,
+		53,
+		105,
+		92,
+		87,
+		93,
+		13,
+		30,
+		47,
+		55,
+		95,
+		34,
+		53,
 	})
 
 // textsJa are the messages without arguments in ja.
@@ -7573,6 +7905,60 @@ var textsJa = i18n.NewTexts(""+
 	"署名に使うリージョン名。MinIO では通常 us-east-1 です。"+
 	"設定を開く"+
 	"Google ログインが完了しませんでした"+
+	"追加…"+
+	"保存場所を追加"+
+	"キャンセル"+
+	"接続できました"+
+	"ドメイン"+
+	"省略可。多くは WORKGROUP"+
+	"編集…"+
+	"保存場所を編集"+
+	"フォルダは「..」で始点より上を指定できません。"+
+	"このユーザはフォルダを開けません。"+
+	"フォルダがサーバにありません。"+
+	"接続できませんでした。詳細はログにあります。"+
+	"秘密鍵を読み込めません。鍵とパスフレーズを確認してください。"+
+	"サーバがユーザ名、パスワード、または鍵を拒否しました。"+
+	"サーバ"+
+	"サーバの鍵"+
+	"最初の接続で信頼しました"+
+	"最初の接続で確認します"+
+	"種類"+
+	"名前"+
+	"自宅の NAS"+
+	"サーバを入力してください。"+
+	"場所に名前を付けてください。"+
+	"ポートは 1〜65535 の数字です。"+
+	"パスワードか秘密鍵、または両方を入力してください。"+
+	"共有名をスラッシュなしで入力してください。"+
+	"アドレスは https:// か http:// で始め、ユーザ名、パスワード、クエリを含めないでください。"+
+	"ユーザ名を入力してください。"+
+	"接続していません：サーバの鍵が信頼されていません。"+
+	"パスフレーズ"+
+	"パスワード"+
+	"ポート"+
+	"秘密鍵"+
+	"鍵の PEM テキストを貼り付けます"+
+	"削除…"+
+	"削除"+
+	"パスワードと鍵も消去されます。サーバ上のファイルはそのままです。"+
+	"鍵を置き換える"+
+	"フォルダ"+
+	"絶対パスかホームフォルダ内のパス。空欄ならホームフォルダ"+
+	"共有内のフォルダ。空欄なら共有の最上位"+
+	"アドレスの下のフォルダ。空欄も可"+
+	"保存"+
+	"場所を保存できませんでした"+
+	"共有"+
+	"テスト"+
+	"接続しています…"+
+	"信頼する"+
+	"アドレス"+
+	"ユーザ名"+
+	"誰でも使える共有は guest"+
+	"保存場所はまだありません"+
+	"SMB、WebDAV、SFTP で接続する NAS やサーバのフォルダです。パスワードと鍵はこのコンピュータの設定ファイルにだけ保存されます。"+
+	"保存場所"+
 	"例：cn-hangzhou。内部ネットワークでは cn-hangzhou-internal と入力します。"+
 	"パス形式"+
 	"MinIO ではオン。B2、Wasabi、Huawei Cloud、Qiniu ではオフのままにします。"+
@@ -8609,7 +8995,7 @@ var textsJa = i18n.NewTexts(""+
 	"オンライン動画のダウンロード"+
 	"バージョン"+
 	"翻訳 サービス EveryAPI OpenAI OpenRouter Groq DeepSeek xAI Mistral Qwen Kimi Zhipu SiliconFlow Ollama LM Studio Base URL API Key モデル 接続テスト 行数 リクエスト 再試行"+
-	"Google ログイン ログアウト オブジェクトストレージ アップロード R2 S3 OSS COS Endpoint Region Bucket Access Key Secret パス形式"+
+	"Google ログイン ログアウト オブジェクトストレージ アップロード R2 S3 OSS COS Endpoint Region Bucket Access Key Secret パス形式 NAS SMB WebDAV SFTP"+
 	"ライブラリ 場所 Finder エクスプローラー ファイルマネージャー 表示言語 バージョン コンポーネント yt-dlp ffmpeg whisper-cli 再検出 コマンドライン ターミナル kando インストール MCP Claude Code Cursor 設定をコピー アップデート 通知 ブラウザ ログイン Cookie メンバー限定 年齢確認 Chrome Safari Firefox Edge キーチェーン フルディスクアクセス 外観 ライト ダーク システム ブックマークレット ブックマーク すぐに開始"+
 	"字幕 表示方法 二言語 原文のみ 訳文のみ 順序 訳文 原文 薄く 空白 移動 プレビュー プリセット フォント サイズ 色 太字"+
 	"iPhone Android スマホ スマートフォン 同期 ペアリング QR コード Wi-Fi ネットワーク デバイス 取り消し"+
@@ -9054,7 +9440,20 @@ var textsJa = i18n.NewTexts(""+
 	"編集履歴"+
 	"直前の操作を取り消す"+
 	"この動画で見つかった用語"+
-	"使わない",
+	"使わない"+
+	"ファイルはゴミ箱に移動します。保存場所に移した動画はそこから削除されます。"+
+	"動画がある保存場所は、もう設定にありません"+
+	"この作品の動画がある保存場所は、もう設定にありません。字幕で学習することはできます。"+
+	"この作品の動画がある保存場所に接続できません。字幕で学習することはできます。"+
+	"この作品の動画が保存場所にもうありません。字幕で学習することはできます。"+
+	"この動画は保存場所から再生できません。ライブラリに戻してから再生してください。"+
+	"動画の移動先"+
+	"動画をライブラリに戻す"+
+	"その保存場所はもう設定にありません。"+
+	"別の動画を移動中です。終わってからもう一度お試しください。"+
+	"パスワードを設定したライブラリの動画はライブラリに残り、保存場所には移しません。"+
+	"コピーのサイズが一致しません"+
+	"ライブラリ内の動画の戻し先にすでにファイルがあります",
 	[]uint16{
 		5,
 		30,
@@ -9065,6 +9464,60 @@ var textsJa = i18n.NewTexts(""+
 		74,
 		15,
 		49,
+		9,
+		21,
+		15,
+		21,
+		12,
+		31,
+		9,
+		21,
+		68,
+		51,
+		45,
+		66,
+		90,
+		81,
+		9,
+		15,
+		36,
+		33,
+		6,
+		6,
+		13,
+		39,
+		42,
+		41,
+		75,
+		63,
+		124,
+		42,
+		75,
+		18,
+		15,
+		9,
+		9,
+		44,
+		9,
+		6,
+		96,
+		21,
+		12,
+		84,
+		57,
+		48,
+		6,
+		39,
+		6,
+		9,
+		24,
+		12,
+		12,
+		12,
+		33,
+		36,
+		175,
+		12,
 		93,
 		12,
 		92,
@@ -10101,7 +10554,7 @@ var textsJa = i18n.NewTexts(""+
 		42,
 		15,
 		193,
-		156,
+		176,
 		548,
 		163,
 		133,
@@ -10547,6 +11000,19 @@ var textsJa = i18n.NewTexts(""+
 		30,
 		36,
 		12,
+		111,
+		63,
+		126,
+		114,
+		108,
+		117,
+		18,
+		33,
+		54,
+		87,
+		120,
+		42,
+		78,
 	})
 
 // textsKo are the messages without arguments in ko.
@@ -10560,6 +11026,60 @@ var textsKo = i18n.NewTexts(""+
 	"서명에 사용하는 리전 이름입니다. MinIO는 보통 us-east-1입니다."+
 	"설정 열기"+
 	"Google 로그인이 완료되지 않았습니다"+
+	"추가…"+
+	"저장 위치 추가"+
+	"취소"+
+	"연결되었습니다"+
+	"도메인"+
+	"선택 사항, 보통 WORKGROUP"+
+	"편집…"+
+	"저장 위치 편집"+
+	"폴더는 ‘..’로 시작 위치보다 위를 가리킬 수 없습니다."+
+	"이 사용자는 폴더를 열 수 없습니다."+
+	"서버에 폴더가 없습니다."+
+	"연결하지 못했습니다. 자세한 내용은 로그에 있습니다."+
+	"개인 키를 읽을 수 없습니다. 키와 암호 문구를 확인하십시오."+
+	"서버가 사용자 이름, 암호 또는 키를 거부했습니다."+
+	"서버"+
+	"서버 키"+
+	"첫 연결 때 신뢰함"+
+	"첫 연결 때 확인합니다"+
+	"종류"+
+	"이름"+
+	"집 NAS"+
+	"서버를 입력하십시오."+
+	"위치 이름을 입력하십시오."+
+	"포트는 1~65535 사이의 숫자입니다."+
+	"암호나 개인 키, 또는 둘 다 입력하십시오."+
+	"슬래시 없이 공유 이름을 입력하십시오."+
+	"주소는 https:// 또는 http://로 시작하고 사용자 이름, 암호, 쿼리를 넣지 마십시오."+
+	"사용자 이름을 입력하십시오."+
+	"연결하지 않음: 서버 키를 신뢰하지 않았습니다."+
+	"암호 문구"+
+	"암호"+
+	"포트"+
+	"개인 키"+
+	"키의 PEM 텍스트를 붙여 넣으십시오"+
+	"제거…"+
+	"제거"+
+	"암호와 키도 함께 지워집니다. 서버의 파일은 그대로 남습니다."+
+	"키 바꾸기"+
+	"폴더"+
+	"절대 경로 또는 홈 폴더 안의 경로, 비워 두면 홈 폴더"+
+	"공유 안의 폴더, 비워 두면 공유의 최상위"+
+	"주소 아래의 폴더, 비워 둘 수 있음"+
+	"저장"+
+	"위치를 저장할 수 없습니다"+
+	"공유"+
+	"테스트"+
+	"연결 중…"+
+	"신뢰"+
+	"주소"+
+	"사용자 이름"+
+	"누구나 쓰는 공유는 guest"+
+	"아직 저장 위치가 없습니다"+
+	"SMB, WebDAV 또는 SFTP로 연결하는 NAS나 서버의 폴더입니다. 암호와 키는 이 컴퓨터의 설정 파일에만 저장됩니다."+
+	"저장 위치"+
 	"예: cn-hangzhou. 내부 네트워크는 cn-hangzhou-internal을 입력합니다."+
 	"경로 스타일"+
 	"MinIO는 켭니다. B2, Wasabi, Huawei Cloud, Qiniu는 끈 상태로 둡니다."+
@@ -11596,7 +12116,7 @@ var textsKo = i18n.NewTexts(""+
 	"온라인 동영상 다운로드"+
 	"버전"+
 	"번역 서비스 EveryAPI OpenAI OpenRouter Groq DeepSeek xAI Mistral Qwen Kimi Zhipu SiliconFlow Ollama LM Studio Base URL API Key 모델 연결 테스트 줄 수 요청 재시도"+
-	"Google 로그인 로그아웃 오브젝트 스토리지 업로드 R2 S3 OSS COS Endpoint Region Bucket Access Key Secret 경로 스타일"+
+	"Google 로그인 로그아웃 오브젝트 스토리지 업로드 R2 S3 OSS COS Endpoint Region Bucket Access Key Secret 경로 스타일 NAS SMB WebDAV SFTP"+
 	"라이브러리 위치 Finder 파일 탐색기 파일 관리자 인터페이스 언어 버전 구성 요소 yt-dlp ffmpeg whisper-cli 다시 감지 명령줄 터미널 kando 설치 MCP Claude Code Cursor 설정 복사 업데이트 알림 브라우저 로그인 쿠키 멤버십 연령 확인 Chrome Safari Firefox Edge 키체인 전체 디스크 접근 권한 화면 모드 라이트 다크 시스템 북마클릿 북마크 바로 시작"+
 	"자막 표시 방식 이중 언어 원문만 번역만 순서 번역 원문 흐리게 비워 두기 이동 미리 보기 프리셋 서체 크기 색상 굵게"+
 	"iPhone Android 휴대폰 스마트폰 동기화 페어링 QR 코드 Wi-Fi 네트워크 기기 해제"+
@@ -12041,7 +12561,20 @@ var textsKo = i18n.NewTexts(""+
 	"편집 기록"+
 	"최근 항목 실행 취소"+
 	"이 영상에서 찾은 용어"+
-	"사용 안 함",
+	"사용 안 함"+
+	"파일은 휴지통으로 이동합니다. 저장 위치로 옮긴 동영상은 그곳에서 삭제됩니다."+
+	"동영상이 있는 저장 위치가 더 이상 설정에 없습니다"+
+	"이 영화의 동영상이 있는 저장 위치가 더 이상 설정에 없습니다. 자막으로 학습할 수는 있습니다."+
+	"이 영화의 동영상이 있는 저장 위치에 연결할 수 없습니다. 자막으로 학습할 수는 있습니다."+
+	"이 영화의 동영상이 저장 위치에 더 이상 없습니다. 자막으로 학습할 수는 있습니다."+
+	"이 동영상은 저장 위치에서 재생할 수 없습니다. 라이브러리로 되돌린 뒤 재생하세요."+
+	"동영상 이동 위치"+
+	"동영상을 라이브러리로 되돌리기"+
+	"그 저장 위치는 더 이상 설정에 없습니다."+
+	"다른 동영상을 옮기는 중입니다. 끝난 뒤 다시 시도하세요."+
+	"암호를 설정한 라이브러리의 동영상은 라이브러리에 남으며 저장 위치로 옮기지 않습니다."+
+	"사본의 크기가 맞지 않습니다"+
+	"라이브러리에서 동영상이 돌아갈 자리에 이미 파일이 있습니다",
 	[]uint16{
 		5,
 		28,
@@ -12052,6 +12585,60 @@ var textsKo = i18n.NewTexts(""+
 		82,
 		13,
 		48,
+		9,
+		20,
+		6,
+		21,
+		9,
+		31,
+		9,
+		20,
+		76,
+		48,
+		33,
+		73,
+		82,
+		68,
+		6,
+		10,
+		24,
+		30,
+		6,
+		6,
+		7,
+		29,
+		36,
+		44,
+		56,
+		53,
+		106,
+		39,
+		64,
+		13,
+		6,
+		6,
+		10,
+		46,
+		9,
+		6,
+		84,
+		13,
+		6,
+		71,
+		55,
+		46,
+		6,
+		36,
+		6,
+		9,
+		13,
+		6,
+		6,
+		16,
+		32,
+		36,
+		144,
+		13,
 		81,
 		16,
 		79,
@@ -13088,7 +13675,7 @@ var textsKo = i18n.NewTexts(""+
 		32,
 		6,
 		180,
-		137,
+		157,
 		437,
 		158,
 		100,
@@ -13534,6 +14121,19 @@ var textsKo = i18n.NewTexts(""+
 		27,
 		30,
 		14,
+		109,
+		70,
+		129,
+		122,
+		112,
+		114,
+		23,
+		44,
+		55,
+		78,
+		121,
+		39,
+		84,
 	})
 
 // textsZhHans are the messages without arguments in zh-Hans.
@@ -13547,6 +14147,60 @@ var textsZhHans = i18n.NewTexts(""+
 	"签名用的区域名。MinIO 通常填 us-east-1。"+
 	"去设置"+
 	"Google 登录没有完成"+
+	"添加…"+
+	"添加存储位置"+
+	"取消"+
+	"连接成功"+
+	"域"+
+	"可不填，常为 WORKGROUP"+
+	"编辑…"+
+	"编辑存储位置"+
+	"文件夹不能用“..”跳到起点之上。"+
+	"这个用户打不开该文件夹。"+
+	"服务器上没有这个文件夹。"+
+	"连接失败。详情见日志。"+
+	"读不了私钥。检查私钥和私钥密码。"+
+	"服务器拒绝了用户名、密码或私钥。"+
+	"服务器"+
+	"服务器密钥"+
+	"首次连接时已信任"+
+	"首次连接时询问"+
+	"类型"+
+	"名称"+
+	"家里的 NAS"+
+	"填写服务器。"+
+	"给这个位置起个名字。"+
+	"端口是 1 到 65535 之间的数字。"+
+	"填写密码或私钥，或两者都填。"+
+	"填写共享名称，不带斜杠。"+
+	"地址以 https:// 或 http:// 开头，不含用户名、密码或查询参数。"+
+	"填写用户名。"+
+	"未连接：服务器的密钥未被信任。"+
+	"私钥密码"+
+	"密码"+
+	"端口"+
+	"私钥"+
+	"粘贴私钥的 PEM 文本"+
+	"移除…"+
+	"移除"+
+	"它的密码和密钥也会一并删除。服务器上的文件不受影响。"+
+	"替换密钥"+
+	"文件夹"+
+	"绝对路径或主目录下的路径，留空为主目录"+
+	"共享里的文件夹，留空为共享的顶层"+
+	"地址下的文件夹，可留空"+
+	"保存"+
+	"无法保存这个位置"+
+	"共享"+
+	"测试"+
+	"正在连接…"+
+	"信任"+
+	"地址"+
+	"用户名"+
+	"对所有人开放的共享填 guest"+
+	"还没有存储位置"+
+	"通过 SMB、WebDAV 或 SFTP 连接的 NAS 或服务器上的文件夹。密码和密钥只存在本机设置文件里。"+
+	"存储位置"+
 	"例如 cn-hangzhou。内网填 cn-hangzhou-internal。"+
 	"路径样式"+
 	"MinIO 打开。B2、Wasabi、华为云、七牛保持关闭。"+
@@ -14583,7 +15237,7 @@ var textsZhHans = i18n.NewTexts(""+
 	"下载在线视频"+
 	"版本"+
 	"翻译 服务 EveryAPI OpenAI OpenRouter Groq DeepSeek xAI Mistral 通义千问 Kimi 智谱 硅基流动 Ollama LM Studio Base URL API Key 模型 测试连接 每批 句数 请求 重试"+
-	"Google 登录 退出 对象存储 上传 R2 S3 OSS COS Endpoint Region Bucket Access Key Secret 路径样式"+
+	"Google 登录 退出 对象存储 上传 R2 S3 OSS COS Endpoint Region Bucket Access Key Secret 路径样式 NAS SMB WebDAV SFTP"+
 	"资料库 位置 访达 文件资源管理器 文件管理器 界面语言 版本 组件 yt-dlp ffmpeg whisper-cli 重新检测 命令行 终端 kando 安装 MCP Claude Code Cursor 拷贝配置 更新 通知 浏览器 登录 借用 Cookie 会员 年龄验证 Chrome Safari Firefox Edge 钥匙串 完全磁盘访问权限 外观 浅色 深色 跟随系统 书签小工具 书签 立即开始"+
 	"字幕 显示方式 双语 仅原文 仅译文 顺序 译文 原文 弱化 留空 让位 预览 预设 字体 字号 颜色 粗体"+
 	"iPhone Android 手机 移动 同步 配对 二维码 Wi-Fi 网络 设备 撤销"+
@@ -15028,7 +15682,20 @@ var textsZhHans = i18n.NewTexts(""+
 	"编辑记录"+
 	"撤销最近一项"+
 	"片中找到的术语"+
-	"不用",
+	"不用"+
+	"它们的文件将移到废纸篓。已移到存储位置的视频会从那里删除。"+
+	"视频所在的存储位置已不在设置中"+
+	"这部影片的视频所在的存储位置已不在设置中。仍可以按字幕学习。"+
+	"连不上这部影片的视频所在的存储位置。仍可以按字幕学习。"+
+	"这部影片的视频已不在它的存储位置上。仍可以按字幕学习。"+
+	"无法从存储位置播放这个视频。把它移回资料库后再播放。"+
+	"移动视频到"+
+	"将视频移回资料库"+
+	"这个存储位置已不在设置中。"+
+	"另一个视频正在移动，等它完成后再试。"+
+	"设了密码的资料库的视频留在资料库里，不会移到存储位置。"+
+	"副本的大小不一致"+
+	"资料库中视频要放回的位置已经有文件",
 	[]uint16{
 		6,
 		15,
@@ -15039,6 +15706,60 @@ var textsZhHans = i18n.NewTexts(""+
 		52,
 		9,
 		25,
+		9,
+		18,
+		6,
+		12,
+		3,
+		28,
+		9,
+		18,
+		47,
+		36,
+		36,
+		33,
+		48,
+		48,
+		9,
+		15,
+		24,
+		21,
+		6,
+		6,
+		13,
+		18,
+		30,
+		40,
+		42,
+		36,
+		82,
+		18,
+		45,
+		12,
+		6,
+		6,
+		6,
+		26,
+		9,
+		6,
+		78,
+		12,
+		9,
+		57,
+		48,
+		33,
+		6,
+		24,
+		6,
+		6,
+		15,
+		6,
+		6,
+		9,
+		36,
+		21,
+		121,
+		12,
 		54,
 		12,
 		62,
@@ -16075,7 +16796,7 @@ var textsZhHans = i18n.NewTexts(""+
 		18,
 		6,
 		186,
-		108,
+		128,
 		390,
 		130,
 		79,
@@ -16521,6 +17242,19 @@ var textsZhHans = i18n.NewTexts(""+
 		18,
 		21,
 		6,
+		87,
+		45,
+		90,
+		81,
+		81,
+		78,
+		15,
+		24,
+		39,
+		54,
+		81,
+		24,
+		51,
 	})
 
 // textsZhHant are the messages without arguments in zh-Hant.
@@ -16534,6 +17268,60 @@ var textsZhHant = i18n.NewTexts(""+
 	"簽章用的區域名稱。MinIO 通常填 us-east-1。"+
 	"前往設定"+
 	"Google 登入未完成"+
+	"新增…"+
+	"新增儲存位置"+
+	"取消"+
+	"連線成功"+
+	"網域"+
+	"可不填，常為 WORKGROUP"+
+	"編輯…"+
+	"編輯儲存位置"+
+	"資料夾不能用「..」跳到起點之上。"+
+	"這個使用者打不開該資料夾。"+
+	"伺服器上沒有這個資料夾。"+
+	"連線失敗。詳情見記錄。"+
+	"讀不了私密金鑰。檢查金鑰和金鑰密碼。"+
+	"伺服器拒絕了使用者名稱、密碼或金鑰。"+
+	"伺服器"+
+	"伺服器金鑰"+
+	"首次連線時已信任"+
+	"首次連線時詢問"+
+	"類型"+
+	"名稱"+
+	"家裡的 NAS"+
+	"填寫伺服器。"+
+	"幫這個位置取個名字。"+
+	"連接埠是 1 到 65535 之間的數字。"+
+	"填寫密碼或私密金鑰，或兩者都填。"+
+	"填寫共用名稱，不含斜線。"+
+	"位址以 https:// 或 http:// 開頭，不含使用者名稱、密碼或查詢參數。"+
+	"填寫使用者名稱。"+
+	"未連線：伺服器的金鑰未被信任。"+
+	"金鑰密碼"+
+	"密碼"+
+	"連接埠"+
+	"私密金鑰"+
+	"貼上金鑰的 PEM 文字"+
+	"移除…"+
+	"移除"+
+	"它的密碼和金鑰也會一併刪除。伺服器上的檔案不受影響。"+
+	"替換金鑰"+
+	"資料夾"+
+	"絕對路徑或家目錄下的路徑，留空為家目錄"+
+	"共用裡的資料夾，留空為共用的最上層"+
+	"位址下的資料夾，可留空"+
+	"儲存"+
+	"無法儲存這個位置"+
+	"共用"+
+	"測試"+
+	"正在連線…"+
+	"信任"+
+	"位址"+
+	"使用者名稱"+
+	"對所有人開放的共用填 guest"+
+	"還沒有儲存位置"+
+	"透過 SMB、WebDAV 或 SFTP 連線的 NAS 或伺服器上的資料夾。密碼和金鑰只存在本機設定檔中。"+
+	"儲存位置"+
 	"例如 cn-hangzhou。內網填 cn-hangzhou-internal。"+
 	"路徑樣式"+
 	"MinIO 打開。B2、Wasabi、華為雲、七牛保持關閉。"+
@@ -17570,7 +18358,7 @@ var textsZhHant = i18n.NewTexts(""+
 	"下載線上影片"+
 	"版本"+
 	"翻譯 服務 EveryAPI OpenAI OpenRouter Groq DeepSeek xAI Mistral 通義千問 Kimi 智譜 矽基流動 Ollama LM Studio Base URL API Key 模型 測試連線 每批 句數 請求 重試"+
-	"Google 登入 登出 物件儲存 上傳 R2 S3 OSS COS Endpoint Region Bucket Access Key Secret 路徑樣式"+
+	"Google 登入 登出 物件儲存 上傳 R2 S3 OSS COS Endpoint Region Bucket Access Key Secret 路徑樣式 NAS SMB WebDAV SFTP"+
 	"資料庫 位置 Finder 檔案總管 檔案管理員 介面語言 版本 元件 yt-dlp ffmpeg whisper-cli 重新偵測 命令列 終端機 kando 安裝 MCP Claude Code Cursor 拷貝設定 更新 通知 瀏覽器 登入 借用 Cookie 會員 年齡驗證 Chrome Safari Firefox Edge 鑰匙圈 完整取用磁碟 外觀 淺色 深色 跟隨系統 書籤小工具 書籤 立即開始"+
 	"字幕 顯示方式 雙語 僅原文 僅譯文 順序 譯文 原文 淡化 留空 讓位 預覽 預設 字體 字級 顏色 粗體"+
 	"iPhone Android 手機 行動 同步 配對 QR 碼 Wi-Fi 網路 裝置 撤銷"+
@@ -18015,7 +18803,20 @@ var textsZhHant = i18n.NewTexts(""+
 	"編輯記錄"+
 	"復原最近一項"+
 	"片中找到的術語"+
-	"不用",
+	"不用"+
+	"它們的檔案將移到垃圾桶。已移到儲存位置的影片會從那裡刪除。"+
+	"影片檔所在的儲存位置已不在設定中"+
+	"這部影片的影片檔所在的儲存位置已不在設定中。仍可以按字幕學習。"+
+	"連不上這部影片的影片檔所在的儲存位置。仍可以按字幕學習。"+
+	"這部影片的影片檔已不在它的儲存位置上。仍可以按字幕學習。"+
+	"無法從儲存位置播放這個影片。把它移回資料庫後再播放。"+
+	"移動影片檔到"+
+	"將影片檔移回資料庫"+
+	"這個儲存位置已不在設定中。"+
+	"另一個影片檔正在移動，等它完成後再試。"+
+	"設了密碼的資料庫的影片檔留在資料庫裡，不會移到儲存位置。"+
+	"副本的大小不一致"+
+	"資料庫中影片檔要放回的位置已經有檔案",
 	[]uint16{
 		6,
 		15,
@@ -18026,6 +18827,60 @@ var textsZhHant = i18n.NewTexts(""+
 		55,
 		12,
 		22,
+		9,
+		18,
+		6,
+		12,
+		6,
+		28,
+		9,
+		18,
+		47,
+		39,
+		36,
+		33,
+		54,
+		54,
+		9,
+		15,
+		24,
+		21,
+		6,
+		6,
+		13,
+		18,
+		30,
+		43,
+		48,
+		36,
+		88,
+		24,
+		45,
+		12,
+		6,
+		9,
+		12,
+		26,
+		9,
+		6,
+		78,
+		12,
+		9,
+		57,
+		51,
+		33,
+		6,
+		24,
+		6,
+		6,
+		15,
+		6,
+		6,
+		15,
+		36,
+		21,
+		118,
+		12,
 		54,
 		12,
 		62,
@@ -19062,7 +19917,7 @@ var textsZhHant = i18n.NewTexts(""+
 		18,
 		6,
 		186,
-		108,
+		128,
 		378,
 		130,
 		76,
@@ -19508,6 +20363,19 @@ var textsZhHant = i18n.NewTexts(""+
 		18,
 		21,
 		6,
+		87,
+		48,
+		93,
+		84,
+		84,
+		78,
+		18,
+		27,
+		39,
+		57,
+		84,
+		24,
+		54,
 	})
 
 // texts returns the messages without arguments in lang, nil for a
@@ -19570,6 +20438,48 @@ func Supply(lang string, t Translation) {
 		}
 	}
 	s := supplied[lang]
+	if t.AccountLocationEditLabel != nil {
+		s.AccountLocationEditLabel = t.AccountLocationEditLabel
+	}
+	if t.AccountLocationFailCertificate != nil {
+		s.AccountLocationFailCertificate = t.AccountLocationFailCertificate
+	}
+	if t.AccountLocationFailNoShare != nil {
+		s.AccountLocationFailNoShare = t.AccountLocationFailNoShare
+	}
+	if t.AccountLocationFailTimeout != nil {
+		s.AccountLocationFailTimeout = t.AccountLocationFailTimeout
+	}
+	if t.AccountLocationFailUnreachable != nil {
+		s.AccountLocationFailUnreachable = t.AccountLocationFailUnreachable
+	}
+	if t.AccountLocationKeyChangedMessage != nil {
+		s.AccountLocationKeyChangedMessage = t.AccountLocationKeyChangedMessage
+	}
+	if t.AccountLocationKeyChangedTitle != nil {
+		s.AccountLocationKeyChangedTitle = t.AccountLocationKeyChangedTitle
+	}
+	if t.AccountLocationPortHint != nil {
+		s.AccountLocationPortHint = t.AccountLocationPortHint
+	}
+	if t.AccountLocationRemoveLabel != nil {
+		s.AccountLocationRemoveLabel = t.AccountLocationRemoveLabel
+	}
+	if t.AccountLocationRemoveTitle != nil {
+		s.AccountLocationRemoveTitle = t.AccountLocationRemoveTitle
+	}
+	if t.AccountLocationSummary != nil {
+		s.AccountLocationSummary = t.AccountLocationSummary
+	}
+	if t.AccountLocationTestLabel != nil {
+		s.AccountLocationTestLabel = t.AccountLocationTestLabel
+	}
+	if t.AccountLocationTrustMessage != nil {
+		s.AccountLocationTrustMessage = t.AccountLocationTrustMessage
+	}
+	if t.AccountLocationTrustTitle != nil {
+		s.AccountLocationTrustTitle = t.AccountLocationTrustTitle
+	}
 	if t.AccountNeedsStore != nil {
 		s.AccountNeedsStore = t.AccountNeedsStore
 	}
@@ -21235,6 +22145,60 @@ func Supply(lang string, t Translation) {
 	if t.GlossarySuggestDismissLabel != nil {
 		s.GlossarySuggestDismissLabel = t.GlossarySuggestDismissLabel
 	}
+	if t.FilmsRemoveStored != nil {
+		s.FilmsRemoveStored = t.FilmsRemoveStored
+	}
+	if t.FilmsStoredOn != nil {
+		s.FilmsStoredOn = t.FilmsStoredOn
+	}
+	if t.StoredObjectStore != nil {
+		s.StoredObjectStore = t.StoredObjectStore
+	}
+	if t.StoredNotDone != nil {
+		s.StoredNotDone = t.StoredNotDone
+	}
+	if t.StoredOutside != nil {
+		s.StoredOutside = t.StoredOutside
+	}
+	if t.StoredProcessing != nil {
+		s.StoredProcessing = t.StoredProcessing
+	}
+	if t.StoredMovingTo != nil {
+		s.StoredMovingTo = t.StoredMovingTo
+	}
+	if t.StoredMovingBack != nil {
+		s.StoredMovingBack = t.StoredMovingBack
+	}
+	if t.StoredStopped != nil {
+		s.StoredStopped = t.StoredStopped
+	}
+	if t.StoredMoveFailed != nil {
+		s.StoredMoveFailed = t.StoredMoveFailed
+	}
+	if t.StoredRemoveFailed != nil {
+		s.StoredRemoveFailed = t.StoredRemoveFailed
+	}
+	if t.StoredMoved != nil {
+		s.StoredMoved = t.StoredMoved
+	}
+	if t.StoredMoveBackFailed != nil {
+		s.StoredMoveBackFailed = t.StoredMoveBackFailed
+	}
+	if t.StoredMovedBack != nil {
+		s.StoredMovedBack = t.StoredMovedBack
+	}
+	if t.StoredMovedBackLeft != nil {
+		s.StoredMovedBackLeft = t.StoredMovedBackLeft
+	}
+	if t.StoredReprocess != nil {
+		s.StoredReprocess = t.StoredReprocess
+	}
+	if t.StoredUpload != nil {
+		s.StoredUpload = t.StoredUpload
+	}
+	if t.StoredLibraryMove != nil {
+		s.StoredLibraryMove = t.StoredLibraryMove
+	}
 	supplied[lang] = s
 	Catalog.Add(lang)
 }
@@ -21330,6 +22294,1010 @@ func AccountGoogleFailed(cx *core.Scope) string { return For(cx).AccountGoogleFa
 
 // AccountGoogleFailed is the package's AccountGoogleFailed in the language of msgs.
 func (msgs Messages) AccountGoogleFailed() string { return msgs.text(textAccountGoogleFailed) }
+
+// AccountLocationAdd says "Add…"
+// in the language the app shows under cx.
+//
+// Button at the end of the Storage Locations card on the Account & Upload settings page, opening the dialog that adds a NAS or server folder.
+func AccountLocationAdd(cx *core.Scope) string { return For(cx).AccountLocationAdd() }
+
+// AccountLocationAdd is the package's AccountLocationAdd in the language of msgs.
+func (msgs Messages) AccountLocationAdd() string { return msgs.text(textAccountLocationAdd) }
+
+// AccountLocationAddTitle says "Add a Storage Location"
+// in the language the app shows under cx.
+//
+// Title of the dialog adding a storage location (a folder on a NAS or a server, over SMB, WebDAV or SFTP).
+func AccountLocationAddTitle(cx *core.Scope) string { return For(cx).AccountLocationAddTitle() }
+
+// AccountLocationAddTitle is the package's AccountLocationAddTitle in the language of msgs.
+func (msgs Messages) AccountLocationAddTitle() string { return msgs.text(textAccountLocationAddTitle) }
+
+// AccountLocationCancel says "Cancel"
+// in the language the app shows under cx.
+//
+// Button closing a storage location's dialog or alert without changing anything.
+func AccountLocationCancel(cx *core.Scope) string { return For(cx).AccountLocationCancel() }
+
+// AccountLocationCancel is the package's AccountLocationCancel in the language of msgs.
+func (msgs Messages) AccountLocationCancel() string { return msgs.text(textAccountLocationCancel) }
+
+// AccountLocationConnected says "Connected"
+// in the language the app shows under cx.
+//
+// Status under a storage location, or in its dialog, once Test reached the server and read the folder.
+func AccountLocationConnected(cx *core.Scope) string { return For(cx).AccountLocationConnected() }
+
+// AccountLocationConnected is the package's AccountLocationConnected in the language of msgs.
+func (msgs Messages) AccountLocationConnected() string {
+	return msgs.text(textAccountLocationConnected)
+}
+
+// AccountLocationDomain says "Domain"
+// in the language the app shows under cx.
+//
+// Field of an SMB storage location: the Windows domain or workgroup the user signs in to.
+func AccountLocationDomain(cx *core.Scope) string { return For(cx).AccountLocationDomain() }
+
+// AccountLocationDomain is the package's AccountLocationDomain in the language of msgs.
+func (msgs Messages) AccountLocationDomain() string { return msgs.text(textAccountLocationDomain) }
+
+// AccountLocationDomainHint says "Optional, often WORKGROUP"
+// in the language the app shows under cx.
+//
+// Hint under the Domain field of an SMB storage location. WORKGROUP is the literal default name, not translated.
+func AccountLocationDomainHint(cx *core.Scope) string { return For(cx).AccountLocationDomainHint() }
+
+// AccountLocationDomainHint is the package's AccountLocationDomainHint in the language of msgs.
+func (msgs Messages) AccountLocationDomainHint() string {
+	return msgs.text(textAccountLocationDomainHint)
+}
+
+// AccountLocationEdit says "Edit…"
+// in the language the app shows under cx.
+//
+// Button of a storage location's row opening its dialog.
+func AccountLocationEdit(cx *core.Scope) string { return For(cx).AccountLocationEdit() }
+
+// AccountLocationEdit is the package's AccountLocationEdit in the language of msgs.
+func (msgs Messages) AccountLocationEdit() string { return msgs.text(textAccountLocationEdit) }
+
+// AccountLocationEditLabel says "Edit {name}"
+// in the language the app shows under cx.
+//
+// Accessible name of a storage location's Edit button, read by screen readers.
+func AccountLocationEditLabel(cx *core.Scope, name string) string {
+	return For(cx).AccountLocationEditLabel(name)
+}
+
+// AccountLocationEditLabel is the package's AccountLocationEditLabel in the language of msgs.
+func (msgs Messages) AccountLocationEditLabel(name string) string {
+	if i18n.IsPseudo(msgs.lang) {
+		return i18n.Pseudo(msgs.lang, Messages{lang: Source, mark: true}.AccountLocationEditLabel(name))
+	}
+	for lang := msgs.lang; ; lang = i18n.Parent(lang) {
+		if f := supplied[lang].AccountLocationEditLabel; f != nil {
+			return f(name)
+		}
+		switch lang {
+		case "", "en":
+			return "Edit " + msgs.arg(name)
+		case "ja":
+			return name + " を編集"
+		case "ko":
+			return name + " 편집"
+		case "zh-Hans":
+			return "编辑" + name
+		case "zh-Hant":
+			return "編輯" + name
+		}
+	}
+}
+
+// AccountLocationEditTitle says "Edit Storage Location"
+// in the language the app shows under cx.
+//
+// Title of the dialog editing a storage location.
+func AccountLocationEditTitle(cx *core.Scope) string { return For(cx).AccountLocationEditTitle() }
+
+// AccountLocationEditTitle is the package's AccountLocationEditTitle in the language of msgs.
+func (msgs Messages) AccountLocationEditTitle() string {
+	return msgs.text(textAccountLocationEditTitle)
+}
+
+// AccountLocationFailBadRoot says "The folder can't climb above where it starts with “..”."
+// in the language the app shows under cx.
+//
+// Test connection error: the storage location's folder goes above the share, the address or the home folder.
+func AccountLocationFailBadRoot(cx *core.Scope) string { return For(cx).AccountLocationFailBadRoot() }
+
+// AccountLocationFailBadRoot is the package's AccountLocationFailBadRoot in the language of msgs.
+func (msgs Messages) AccountLocationFailBadRoot() string {
+	return msgs.text(textAccountLocationFailBadRoot)
+}
+
+// AccountLocationFailCertificate says "This computer doesn't trust the certificate of {host}."
+// in the language the app shows under cx.
+//
+// Test connection error: the WebDAV server's HTTPS certificate did not verify.
+func AccountLocationFailCertificate(cx *core.Scope, host string) string {
+	return For(cx).AccountLocationFailCertificate(host)
+}
+
+// AccountLocationFailCertificate is the package's AccountLocationFailCertificate in the language of msgs.
+func (msgs Messages) AccountLocationFailCertificate(host string) string {
+	if i18n.IsPseudo(msgs.lang) {
+		return i18n.Pseudo(msgs.lang, Messages{lang: Source, mark: true}.AccountLocationFailCertificate(host))
+	}
+	for lang := msgs.lang; ; lang = i18n.Parent(lang) {
+		if f := supplied[lang].AccountLocationFailCertificate; f != nil {
+			return f(host)
+		}
+		switch lang {
+		case "", "en":
+			return "This computer doesn't trust the certificate of " + msgs.arg(host) + "."
+		case "ja":
+			return "このコンピュータは " + host + " の証明書を信頼していません。"
+		case "ko":
+			return "이 컴퓨터는 " + host + "의 인증서를 신뢰하지 않습니다."
+		case "zh-Hans":
+			return "本机不信任 " + host + " 的证书。"
+		case "zh-Hant":
+			return "本機不信任 " + host + " 的憑證。"
+		}
+	}
+}
+
+// AccountLocationFailDenied says "This user can't open the folder."
+// in the language the app shows under cx.
+//
+// Test connection error: the server let the user in but refused access to the share or folder.
+func AccountLocationFailDenied(cx *core.Scope) string { return For(cx).AccountLocationFailDenied() }
+
+// AccountLocationFailDenied is the package's AccountLocationFailDenied in the language of msgs.
+func (msgs Messages) AccountLocationFailDenied() string {
+	return msgs.text(textAccountLocationFailDenied)
+}
+
+// AccountLocationFailNoRoot says "The folder isn't on the server."
+// in the language the app shows under cx.
+//
+// Test connection error: the storage location's folder does not exist on the server.
+func AccountLocationFailNoRoot(cx *core.Scope) string { return For(cx).AccountLocationFailNoRoot() }
+
+// AccountLocationFailNoRoot is the package's AccountLocationFailNoRoot in the language of msgs.
+func (msgs Messages) AccountLocationFailNoRoot() string {
+	return msgs.text(textAccountLocationFailNoRoot)
+}
+
+// AccountLocationFailNoShare says "The server has no share named {share}."
+// in the language the app shows under cx.
+//
+// Test connection error: the SMB server has no share of that name.
+func AccountLocationFailNoShare(cx *core.Scope, share string) string {
+	return For(cx).AccountLocationFailNoShare(share)
+}
+
+// AccountLocationFailNoShare is the package's AccountLocationFailNoShare in the language of msgs.
+func (msgs Messages) AccountLocationFailNoShare(share string) string {
+	if i18n.IsPseudo(msgs.lang) {
+		return i18n.Pseudo(msgs.lang, Messages{lang: Source, mark: true}.AccountLocationFailNoShare(share))
+	}
+	for lang := msgs.lang; ; lang = i18n.Parent(lang) {
+		if f := supplied[lang].AccountLocationFailNoShare; f != nil {
+			return f(share)
+		}
+		switch lang {
+		case "", "en":
+			return "The server has no share named " + msgs.arg(share) + "."
+		case "ja":
+			return "サーバに " + share + " という共有はありません。"
+		case "ko":
+			return "서버에 " + share + " 공유가 없습니다."
+		case "zh-Hans":
+			return "服务器上没有名为 " + share + " 的共享。"
+		case "zh-Hant":
+			return "伺服器上沒有名為 " + share + " 的共用。"
+		}
+	}
+}
+
+// AccountLocationFailOther says "Couldn't connect. The log has the details."
+// in the language the app shows under cx.
+//
+// Test connection error with no more specific reason; the whole error is in Kando's log file.
+func AccountLocationFailOther(cx *core.Scope) string { return For(cx).AccountLocationFailOther() }
+
+// AccountLocationFailOther is the package's AccountLocationFailOther in the language of msgs.
+func (msgs Messages) AccountLocationFailOther() string {
+	return msgs.text(textAccountLocationFailOther)
+}
+
+// AccountLocationFailPrivateKey says "The private key can't be read. Check it and its passphrase."
+// in the language the app shows under cx.
+//
+// Test connection error: the SFTP private key is not a PEM key, or its passphrase is missing or wrong.
+func AccountLocationFailPrivateKey(cx *core.Scope) string {
+	return For(cx).AccountLocationFailPrivateKey()
+}
+
+// AccountLocationFailPrivateKey is the package's AccountLocationFailPrivateKey in the language of msgs.
+func (msgs Messages) AccountLocationFailPrivateKey() string {
+	return msgs.text(textAccountLocationFailPrivateKey)
+}
+
+// AccountLocationFailSignIn says "The server refused the user, password or key."
+// in the language the app shows under cx.
+//
+// Test connection error: the server refused the sign-in.
+func AccountLocationFailSignIn(cx *core.Scope) string { return For(cx).AccountLocationFailSignIn() }
+
+// AccountLocationFailSignIn is the package's AccountLocationFailSignIn in the language of msgs.
+func (msgs Messages) AccountLocationFailSignIn() string {
+	return msgs.text(textAccountLocationFailSignIn)
+}
+
+// AccountLocationFailTimeout says "{host} didn't answer in time."
+// in the language the app shows under cx.
+//
+// Test connection error: the server did not answer before the test gave up.
+func AccountLocationFailTimeout(cx *core.Scope, host string) string {
+	return For(cx).AccountLocationFailTimeout(host)
+}
+
+// AccountLocationFailTimeout is the package's AccountLocationFailTimeout in the language of msgs.
+func (msgs Messages) AccountLocationFailTimeout(host string) string {
+	if i18n.IsPseudo(msgs.lang) {
+		return i18n.Pseudo(msgs.lang, Messages{lang: Source, mark: true}.AccountLocationFailTimeout(host))
+	}
+	for lang := msgs.lang; ; lang = i18n.Parent(lang) {
+		if f := supplied[lang].AccountLocationFailTimeout; f != nil {
+			return f(host)
+		}
+		switch lang {
+		case "", "en":
+			return msgs.arg(host) + " didn't answer in time."
+		case "ja":
+			return host + " から時間内に応答がありませんでした。"
+		case "ko":
+			return host + "에서 제때 응답하지 않았습니다."
+		case "zh-Hans":
+			return host + " 没有及时响应。"
+		case "zh-Hant":
+			return host + " 沒有及時回應。"
+		}
+	}
+}
+
+// AccountLocationFailUnreachable says "Couldn't reach {host}. Check the address and that the server is on."
+// in the language the app shows under cx.
+//
+// Test connection error: the server's name does not resolve or nothing answers at its address.
+func AccountLocationFailUnreachable(cx *core.Scope, host string) string {
+	return For(cx).AccountLocationFailUnreachable(host)
+}
+
+// AccountLocationFailUnreachable is the package's AccountLocationFailUnreachable in the language of msgs.
+func (msgs Messages) AccountLocationFailUnreachable(host string) string {
+	if i18n.IsPseudo(msgs.lang) {
+		return i18n.Pseudo(msgs.lang, Messages{lang: Source, mark: true}.AccountLocationFailUnreachable(host))
+	}
+	for lang := msgs.lang; ; lang = i18n.Parent(lang) {
+		if f := supplied[lang].AccountLocationFailUnreachable; f != nil {
+			return f(host)
+		}
+		switch lang {
+		case "", "en":
+			return "Couldn't reach " + msgs.arg(host) + ". Check the address and that the server is on."
+		case "ja":
+			return host + " に接続できませんでした。アドレスとサーバの電源を確認してください。"
+		case "ko":
+			return host + "에 연결할 수 없습니다. 주소와 서버 전원을 확인하십시오."
+		case "zh-Hans":
+			return "连不上 " + host + "。检查地址，并确认服务器已开机。"
+		case "zh-Hant":
+			return "連不上 " + host + "。檢查位址，並確認伺服器已開機。"
+		}
+	}
+}
+
+// AccountLocationHost says "Server"
+// in the language the app shows under cx.
+//
+// Field of an SMB or SFTP storage location: the server's name or IP address.
+func AccountLocationHost(cx *core.Scope) string { return For(cx).AccountLocationHost() }
+
+// AccountLocationHost is the package's AccountLocationHost in the language of msgs.
+func (msgs Messages) AccountLocationHost() string { return msgs.text(textAccountLocationHost) }
+
+// AccountLocationHostKey says "Server Key"
+// in the language the app shows under cx.
+//
+// Row of an SFTP storage location showing the fingerprint of the server's key Kando trusts.
+func AccountLocationHostKey(cx *core.Scope) string { return For(cx).AccountLocationHostKey() }
+
+// AccountLocationHostKey is the package's AccountLocationHostKey in the language of msgs.
+func (msgs Messages) AccountLocationHostKey() string { return msgs.text(textAccountLocationHostKey) }
+
+// AccountLocationHostKeyHint says "Trusted at the first connection"
+// in the language the app shows under cx.
+//
+// Subtitle of the Server Key row once a key is trusted.
+func AccountLocationHostKeyHint(cx *core.Scope) string { return For(cx).AccountLocationHostKeyHint() }
+
+// AccountLocationHostKeyHint is the package's AccountLocationHostKeyHint in the language of msgs.
+func (msgs Messages) AccountLocationHostKeyHint() string {
+	return msgs.text(textAccountLocationHostKeyHint)
+}
+
+// AccountLocationHostKeyNone says "Asked at the first connection"
+// in the language the app shows under cx.
+//
+// Value of the Server Key row before any key is trusted: the first Test asks whether to trust it.
+func AccountLocationHostKeyNone(cx *core.Scope) string { return For(cx).AccountLocationHostKeyNone() }
+
+// AccountLocationHostKeyNone is the package's AccountLocationHostKeyNone in the language of msgs.
+func (msgs Messages) AccountLocationHostKeyNone() string {
+	return msgs.text(textAccountLocationHostKeyNone)
+}
+
+// AccountLocationKeyChangedMessage says "The server offered another key than the one trusted before. It may have been reinstalled, or another machine may be answering in its place. Trusted: {trusted}. Offered now: {offered}. Replace the key only if you know why it changed."
+// in the language the app shows under cx.
+//
+// Message of the warning shown when an SFTP server's key is not the one trusted before. The fingerprints look like SHA256:abc…
+func AccountLocationKeyChangedMessage(cx *core.Scope, trusted string, offered string) string {
+	return For(cx).AccountLocationKeyChangedMessage(trusted, offered)
+}
+
+// AccountLocationKeyChangedMessage is the package's AccountLocationKeyChangedMessage in the language of msgs.
+func (msgs Messages) AccountLocationKeyChangedMessage(trusted string, offered string) string {
+	if i18n.IsPseudo(msgs.lang) {
+		return i18n.Pseudo(msgs.lang, Messages{lang: Source, mark: true}.AccountLocationKeyChangedMessage(trusted, offered))
+	}
+	for lang := msgs.lang; ; lang = i18n.Parent(lang) {
+		if f := supplied[lang].AccountLocationKeyChangedMessage; f != nil {
+			return f(trusted, offered)
+		}
+		switch lang {
+		case "", "en":
+			return "The server offered another key than the one trusted before. It may have been reinstalled, or another machine may be answering in its place. Trusted: " + msgs.arg(trusted) + ". Offered now: " + msgs.arg(offered) + ". Replace the key only if you know why it changed."
+		case "ja":
+			return "サーバが以前信頼したものとは別の鍵を提示しました。再インストールされたか、別のマシンがなりすましている可能性があります。信頼済み：" + trusted + "。今回：" + offered + "。理由が分かっている場合だけ鍵を置き換えてください。"
+		case "ko":
+			return "서버가 전에 신뢰한 것과 다른 키를 보냈습니다. 서버가 다시 설치되었거나 다른 기기가 대신 응답하고 있을 수 있습니다. 신뢰한 키: " + trusted + ". 지금 보낸 키: " + offered + ". 바뀐 이유를 알 때만 키를 바꾸십시오."
+		case "zh-Hans":
+			return "服务器给出的密钥和之前信任的不同。可能是服务器重装了，也可能是另一台机器在冒充它。之前信任的：" + trusted + "。现在给出的：" + offered + "。只有清楚原因时才替换密钥。"
+		case "zh-Hant":
+			return "伺服器給出的金鑰和之前信任的不同。可能是伺服器重裝了，也可能是另一台機器在冒充它。之前信任的：" + trusted + "。現在給出的：" + offered + "。只有清楚原因時才替換金鑰。"
+		}
+	}
+}
+
+// AccountLocationKeyChangedTitle says "The key of {host} has changed"
+// in the language the app shows under cx.
+//
+// Title of the warning shown when an SFTP server's key is not the one trusted before.
+func AccountLocationKeyChangedTitle(cx *core.Scope, host string) string {
+	return For(cx).AccountLocationKeyChangedTitle(host)
+}
+
+// AccountLocationKeyChangedTitle is the package's AccountLocationKeyChangedTitle in the language of msgs.
+func (msgs Messages) AccountLocationKeyChangedTitle(host string) string {
+	if i18n.IsPseudo(msgs.lang) {
+		return i18n.Pseudo(msgs.lang, Messages{lang: Source, mark: true}.AccountLocationKeyChangedTitle(host))
+	}
+	for lang := msgs.lang; ; lang = i18n.Parent(lang) {
+		if f := supplied[lang].AccountLocationKeyChangedTitle; f != nil {
+			return f(host)
+		}
+		switch lang {
+		case "", "en":
+			return "The key of " + msgs.arg(host) + " has changed"
+		case "ja":
+			return host + " の鍵が変わりました"
+		case "ko":
+			return host + "의 키가 바뀌었습니다"
+		case "zh-Hans":
+			return host + " 的密钥变了"
+		case "zh-Hant":
+			return host + " 的金鑰變了"
+		}
+	}
+}
+
+// AccountLocationKind says "Type"
+// in the language the app shows under cx.
+//
+// Drop-down of a storage location choosing SMB, WebDAV or SFTP.
+func AccountLocationKind(cx *core.Scope) string { return For(cx).AccountLocationKind() }
+
+// AccountLocationKind is the package's AccountLocationKind in the language of msgs.
+func (msgs Messages) AccountLocationKind() string { return msgs.text(textAccountLocationKind) }
+
+// AccountLocationName says "Name"
+// in the language the app shows under cx.
+//
+// Field of a storage location: the name it is listed by.
+func AccountLocationName(cx *core.Scope) string { return For(cx).AccountLocationName() }
+
+// AccountLocationName is the package's AccountLocationName in the language of msgs.
+func (msgs Messages) AccountLocationName() string { return msgs.text(textAccountLocationName) }
+
+// AccountLocationNamePlaceholder says "Home NAS"
+// in the language the app shows under cx.
+//
+// Placeholder of a storage location's Name field: an example name.
+func AccountLocationNamePlaceholder(cx *core.Scope) string {
+	return For(cx).AccountLocationNamePlaceholder()
+}
+
+// AccountLocationNamePlaceholder is the package's AccountLocationNamePlaceholder in the language of msgs.
+func (msgs Messages) AccountLocationNamePlaceholder() string {
+	return msgs.text(textAccountLocationNamePlaceholder)
+}
+
+// AccountLocationNeedsHost says "Fill in the server."
+// in the language the app shows under cx.
+//
+// Error in a storage location's dialog: the Server field is empty.
+func AccountLocationNeedsHost(cx *core.Scope) string { return For(cx).AccountLocationNeedsHost() }
+
+// AccountLocationNeedsHost is the package's AccountLocationNeedsHost in the language of msgs.
+func (msgs Messages) AccountLocationNeedsHost() string {
+	return msgs.text(textAccountLocationNeedsHost)
+}
+
+// AccountLocationNeedsName says "Give the location a name."
+// in the language the app shows under cx.
+//
+// Error in a storage location's dialog on Save: the Name field is empty.
+func AccountLocationNeedsName(cx *core.Scope) string { return For(cx).AccountLocationNeedsName() }
+
+// AccountLocationNeedsName is the package's AccountLocationNeedsName in the language of msgs.
+func (msgs Messages) AccountLocationNeedsName() string {
+	return msgs.text(textAccountLocationNeedsName)
+}
+
+// AccountLocationNeedsPort says "The port is a number from 1 to 65535."
+// in the language the app shows under cx.
+//
+// Error in a storage location's dialog: the Port field is not a port number.
+func AccountLocationNeedsPort(cx *core.Scope) string { return For(cx).AccountLocationNeedsPort() }
+
+// AccountLocationNeedsPort is the package's AccountLocationNeedsPort in the language of msgs.
+func (msgs Messages) AccountLocationNeedsPort() string {
+	return msgs.text(textAccountLocationNeedsPort)
+}
+
+// AccountLocationNeedsSecret says "Fill in a password, a private key or both."
+// in the language the app shows under cx.
+//
+// Error in an SFTP storage location's dialog: neither a password nor a private key is filled in.
+func AccountLocationNeedsSecret(cx *core.Scope) string { return For(cx).AccountLocationNeedsSecret() }
+
+// AccountLocationNeedsSecret is the package's AccountLocationNeedsSecret in the language of msgs.
+func (msgs Messages) AccountLocationNeedsSecret() string {
+	return msgs.text(textAccountLocationNeedsSecret)
+}
+
+// AccountLocationNeedsShare says "Fill in the share's name, without slashes."
+// in the language the app shows under cx.
+//
+// Error in an SMB storage location's dialog: the Share field is empty or holds a path.
+func AccountLocationNeedsShare(cx *core.Scope) string { return For(cx).AccountLocationNeedsShare() }
+
+// AccountLocationNeedsShare is the package's AccountLocationNeedsShare in the language of msgs.
+func (msgs Messages) AccountLocationNeedsShare() string {
+	return msgs.text(textAccountLocationNeedsShare)
+}
+
+// AccountLocationNeedsURL says "The address starts with https:// or http://, without a user, a password or a query."
+// in the language the app shows under cx.
+//
+// Error in a WebDAV storage location's dialog: the Address field is not a plain https or http address.
+func AccountLocationNeedsURL(cx *core.Scope) string { return For(cx).AccountLocationNeedsURL() }
+
+// AccountLocationNeedsURL is the package's AccountLocationNeedsURL in the language of msgs.
+func (msgs Messages) AccountLocationNeedsURL() string { return msgs.text(textAccountLocationNeedsURL) }
+
+// AccountLocationNeedsUser says "Fill in the user."
+// in the language the app shows under cx.
+//
+// Error in a storage location's dialog: the User field is empty.
+func AccountLocationNeedsUser(cx *core.Scope) string { return For(cx).AccountLocationNeedsUser() }
+
+// AccountLocationNeedsUser is the package's AccountLocationNeedsUser in the language of msgs.
+func (msgs Messages) AccountLocationNeedsUser() string {
+	return msgs.text(textAccountLocationNeedsUser)
+}
+
+// AccountLocationNotTrusted says "Not connected: the server's key isn't trusted."
+// in the language the app shows under cx.
+//
+// Status under an SFTP storage location after the person declined to trust the server's key.
+func AccountLocationNotTrusted(cx *core.Scope) string { return For(cx).AccountLocationNotTrusted() }
+
+// AccountLocationNotTrusted is the package's AccountLocationNotTrusted in the language of msgs.
+func (msgs Messages) AccountLocationNotTrusted() string {
+	return msgs.text(textAccountLocationNotTrusted)
+}
+
+// AccountLocationPassphrase says "Passphrase"
+// in the language the app shows under cx.
+//
+// Field of an SFTP storage location: the passphrase of an encrypted private key.
+func AccountLocationPassphrase(cx *core.Scope) string { return For(cx).AccountLocationPassphrase() }
+
+// AccountLocationPassphrase is the package's AccountLocationPassphrase in the language of msgs.
+func (msgs Messages) AccountLocationPassphrase() string {
+	return msgs.text(textAccountLocationPassphrase)
+}
+
+// AccountLocationPassword says "Password"
+// in the language the app shows under cx.
+//
+// Field of a storage location: the user's password.
+func AccountLocationPassword(cx *core.Scope) string { return For(cx).AccountLocationPassword() }
+
+// AccountLocationPassword is the package's AccountLocationPassword in the language of msgs.
+func (msgs Messages) AccountLocationPassword() string { return msgs.text(textAccountLocationPassword) }
+
+// AccountLocationPort says "Port"
+// in the language the app shows under cx.
+//
+// Field of an SMB or SFTP storage location: the server's port.
+func AccountLocationPort(cx *core.Scope) string { return For(cx).AccountLocationPort() }
+
+// AccountLocationPort is the package's AccountLocationPort in the language of msgs.
+func (msgs Messages) AccountLocationPort() string { return msgs.text(textAccountLocationPort) }
+
+// AccountLocationPortHint says "Empty for {port}"
+// in the language the app shows under cx.
+//
+// Hint under the Port field: the port used when it is left empty.
+func AccountLocationPortHint(cx *core.Scope, port string) string {
+	return For(cx).AccountLocationPortHint(port)
+}
+
+// AccountLocationPortHint is the package's AccountLocationPortHint in the language of msgs.
+func (msgs Messages) AccountLocationPortHint(port string) string {
+	if i18n.IsPseudo(msgs.lang) {
+		return i18n.Pseudo(msgs.lang, Messages{lang: Source, mark: true}.AccountLocationPortHint(port))
+	}
+	for lang := msgs.lang; ; lang = i18n.Parent(lang) {
+		if f := supplied[lang].AccountLocationPortHint; f != nil {
+			return f(port)
+		}
+		switch lang {
+		case "", "en":
+			return "Empty for " + msgs.arg(port)
+		case "ja":
+			return "空欄なら " + port
+		case "ko":
+			return "비워 두면 " + port
+		case "zh-Hans":
+			return "留空为 " + port
+		case "zh-Hant":
+			return "留空為 " + port
+		}
+	}
+}
+
+// AccountLocationPrivateKey says "Private Key"
+// in the language the app shows under cx.
+//
+// Field of an SFTP storage location: the PEM text of the user's private key.
+func AccountLocationPrivateKey(cx *core.Scope) string { return For(cx).AccountLocationPrivateKey() }
+
+// AccountLocationPrivateKey is the package's AccountLocationPrivateKey in the language of msgs.
+func (msgs Messages) AccountLocationPrivateKey() string {
+	return msgs.text(textAccountLocationPrivateKey)
+}
+
+// AccountLocationPrivateKeyHint says "Paste the key's PEM text"
+// in the language the app shows under cx.
+//
+// Hint under the Private Key field. PEM is a file format's name, not translated.
+func AccountLocationPrivateKeyHint(cx *core.Scope) string {
+	return For(cx).AccountLocationPrivateKeyHint()
+}
+
+// AccountLocationPrivateKeyHint is the package's AccountLocationPrivateKeyHint in the language of msgs.
+func (msgs Messages) AccountLocationPrivateKeyHint() string {
+	return msgs.text(textAccountLocationPrivateKeyHint)
+}
+
+// AccountLocationRemove says "Remove…"
+// in the language the app shows under cx.
+//
+// Button of a storage location's row asking to remove it.
+func AccountLocationRemove(cx *core.Scope) string { return For(cx).AccountLocationRemove() }
+
+// AccountLocationRemove is the package's AccountLocationRemove in the language of msgs.
+func (msgs Messages) AccountLocationRemove() string { return msgs.text(textAccountLocationRemove) }
+
+// AccountLocationRemoveButton says "Remove"
+// in the language the app shows under cx.
+//
+// Destructive button of the alert confirming that a storage location is removed.
+func AccountLocationRemoveButton(cx *core.Scope) string { return For(cx).AccountLocationRemoveButton() }
+
+// AccountLocationRemoveButton is the package's AccountLocationRemoveButton in the language of msgs.
+func (msgs Messages) AccountLocationRemoveButton() string {
+	return msgs.text(textAccountLocationRemoveButton)
+}
+
+// AccountLocationRemoveLabel says "Remove {name}"
+// in the language the app shows under cx.
+//
+// Accessible name of a storage location's Remove button, read by screen readers.
+func AccountLocationRemoveLabel(cx *core.Scope, name string) string {
+	return For(cx).AccountLocationRemoveLabel(name)
+}
+
+// AccountLocationRemoveLabel is the package's AccountLocationRemoveLabel in the language of msgs.
+func (msgs Messages) AccountLocationRemoveLabel(name string) string {
+	if i18n.IsPseudo(msgs.lang) {
+		return i18n.Pseudo(msgs.lang, Messages{lang: Source, mark: true}.AccountLocationRemoveLabel(name))
+	}
+	for lang := msgs.lang; ; lang = i18n.Parent(lang) {
+		if f := supplied[lang].AccountLocationRemoveLabel; f != nil {
+			return f(name)
+		}
+		switch lang {
+		case "", "en":
+			return "Remove " + msgs.arg(name)
+		case "ja":
+			return name + " を削除"
+		case "ko":
+			return name + " 제거"
+		case "zh-Hans":
+			return "移除" + name
+		case "zh-Hant":
+			return "移除" + name
+		}
+	}
+}
+
+// AccountLocationRemoveMessage says "Its password and keys are forgotten too. The files on the server stay."
+// in the language the app shows under cx.
+//
+// Message of the alert confirming that a storage location is removed.
+func AccountLocationRemoveMessage(cx *core.Scope) string {
+	return For(cx).AccountLocationRemoveMessage()
+}
+
+// AccountLocationRemoveMessage is the package's AccountLocationRemoveMessage in the language of msgs.
+func (msgs Messages) AccountLocationRemoveMessage() string {
+	return msgs.text(textAccountLocationRemoveMessage)
+}
+
+// AccountLocationRemoveTitle says "Remove “{name}”?"
+// in the language the app shows under cx.
+//
+// Title of the alert confirming that a storage location is removed.
+func AccountLocationRemoveTitle(cx *core.Scope, name string) string {
+	return For(cx).AccountLocationRemoveTitle(name)
+}
+
+// AccountLocationRemoveTitle is the package's AccountLocationRemoveTitle in the language of msgs.
+func (msgs Messages) AccountLocationRemoveTitle(name string) string {
+	if i18n.IsPseudo(msgs.lang) {
+		return i18n.Pseudo(msgs.lang, Messages{lang: Source, mark: true}.AccountLocationRemoveTitle(name))
+	}
+	for lang := msgs.lang; ; lang = i18n.Parent(lang) {
+		if f := supplied[lang].AccountLocationRemoveTitle; f != nil {
+			return f(name)
+		}
+		switch lang {
+		case "", "en":
+			return "Remove “" + msgs.arg(name) + "”?"
+		case "ja":
+			return "「" + name + "」を削除しますか？"
+		case "ko":
+			return "‘" + name + "’을(를) 제거하시겠습니까?"
+		case "zh-Hans":
+			return "移除「" + name + "」？"
+		case "zh-Hant":
+			return "移除「" + name + "」？"
+		}
+	}
+}
+
+// AccountLocationReplaceKey says "Replace Key"
+// in the language the app shows under cx.
+//
+// Destructive button of the changed-key warning: trust the server's new key in place of the old one.
+func AccountLocationReplaceKey(cx *core.Scope) string { return For(cx).AccountLocationReplaceKey() }
+
+// AccountLocationReplaceKey is the package's AccountLocationReplaceKey in the language of msgs.
+func (msgs Messages) AccountLocationReplaceKey() string {
+	return msgs.text(textAccountLocationReplaceKey)
+}
+
+// AccountLocationRoot says "Folder"
+// in the language the app shows under cx.
+//
+// Field of a storage location: the folder on the server films are kept in.
+func AccountLocationRoot(cx *core.Scope) string { return For(cx).AccountLocationRoot() }
+
+// AccountLocationRoot is the package's AccountLocationRoot in the language of msgs.
+func (msgs Messages) AccountLocationRoot() string { return msgs.text(textAccountLocationRoot) }
+
+// AccountLocationRootHintSFTP says "Absolute, or in the home folder; empty for the home folder"
+// in the language the app shows under cx.
+//
+// Hint under the Folder field of an SFTP storage location.
+func AccountLocationRootHintSFTP(cx *core.Scope) string { return For(cx).AccountLocationRootHintSFTP() }
+
+// AccountLocationRootHintSFTP is the package's AccountLocationRootHintSFTP in the language of msgs.
+func (msgs Messages) AccountLocationRootHintSFTP() string {
+	return msgs.text(textAccountLocationRootHintSFTP)
+}
+
+// AccountLocationRootHintSMB says "A folder in the share; empty for its top"
+// in the language the app shows under cx.
+//
+// Hint under the Folder field of an SMB storage location.
+func AccountLocationRootHintSMB(cx *core.Scope) string { return For(cx).AccountLocationRootHintSMB() }
+
+// AccountLocationRootHintSMB is the package's AccountLocationRootHintSMB in the language of msgs.
+func (msgs Messages) AccountLocationRootHintSMB() string {
+	return msgs.text(textAccountLocationRootHintSMB)
+}
+
+// AccountLocationRootHintWebDAV says "A folder below the address; may be empty"
+// in the language the app shows under cx.
+//
+// Hint under the Folder field of a WebDAV storage location.
+func AccountLocationRootHintWebDAV(cx *core.Scope) string {
+	return For(cx).AccountLocationRootHintWebDAV()
+}
+
+// AccountLocationRootHintWebDAV is the package's AccountLocationRootHintWebDAV in the language of msgs.
+func (msgs Messages) AccountLocationRootHintWebDAV() string {
+	return msgs.text(textAccountLocationRootHintWebDAV)
+}
+
+// AccountLocationSave says "Save"
+// in the language the app shows under cx.
+//
+// Button saving a storage location's dialog.
+func AccountLocationSave(cx *core.Scope) string { return For(cx).AccountLocationSave() }
+
+// AccountLocationSave is the package's AccountLocationSave in the language of msgs.
+func (msgs Messages) AccountLocationSave() string { return msgs.text(textAccountLocationSave) }
+
+// AccountLocationSaveFailed says "The location couldn't be saved"
+// in the language the app shows under cx.
+//
+// Error in a storage location's dialog, or under the card, when the settings file could not be written.
+func AccountLocationSaveFailed(cx *core.Scope) string { return For(cx).AccountLocationSaveFailed() }
+
+// AccountLocationSaveFailed is the package's AccountLocationSaveFailed in the language of msgs.
+func (msgs Messages) AccountLocationSaveFailed() string {
+	return msgs.text(textAccountLocationSaveFailed)
+}
+
+// AccountLocationShare says "Share"
+// in the language the app shows under cx.
+//
+// Field of an SMB storage location: the name of the shared folder on the server.
+func AccountLocationShare(cx *core.Scope) string { return For(cx).AccountLocationShare() }
+
+// AccountLocationShare is the package's AccountLocationShare in the language of msgs.
+func (msgs Messages) AccountLocationShare() string { return msgs.text(textAccountLocationShare) }
+
+// AccountLocationSummary says "{kind} · {place}"
+// in the language the app shows under cx.
+//
+// Subtitle of a storage location's row: its protocol (SMB, WebDAV, SFTP) and where it is, such as nas.local/films.
+func AccountLocationSummary(cx *core.Scope, kind string, place string) string {
+	return For(cx).AccountLocationSummary(kind, place)
+}
+
+// AccountLocationSummary is the package's AccountLocationSummary in the language of msgs.
+func (msgs Messages) AccountLocationSummary(kind string, place string) string {
+	if i18n.IsPseudo(msgs.lang) {
+		return i18n.Pseudo(msgs.lang, Messages{lang: Source, mark: true}.AccountLocationSummary(kind, place))
+	}
+	for lang := msgs.lang; ; lang = i18n.Parent(lang) {
+		if f := supplied[lang].AccountLocationSummary; f != nil {
+			return f(kind, place)
+		}
+		switch lang {
+		case "", "en":
+			return msgs.arg(kind) + " · " + msgs.arg(place)
+		case "ja":
+			return kind + " · " + place
+		case "ko":
+			return kind + " · " + place
+		case "zh-Hans":
+			return kind + " · " + place
+		case "zh-Hant":
+			return kind + " · " + place
+		}
+	}
+}
+
+// AccountLocationTest says "Test"
+// in the language the app shows under cx.
+//
+// Button of a storage location's row and dialog: connect to the server and read the folder.
+func AccountLocationTest(cx *core.Scope) string { return For(cx).AccountLocationTest() }
+
+// AccountLocationTest is the package's AccountLocationTest in the language of msgs.
+func (msgs Messages) AccountLocationTest() string { return msgs.text(textAccountLocationTest) }
+
+// AccountLocationTestLabel says "Test the connection to {name}"
+// in the language the app shows under cx.
+//
+// Accessible name of a storage location's Test button, read by screen readers.
+func AccountLocationTestLabel(cx *core.Scope, name string) string {
+	return For(cx).AccountLocationTestLabel(name)
+}
+
+// AccountLocationTestLabel is the package's AccountLocationTestLabel in the language of msgs.
+func (msgs Messages) AccountLocationTestLabel(name string) string {
+	if i18n.IsPseudo(msgs.lang) {
+		return i18n.Pseudo(msgs.lang, Messages{lang: Source, mark: true}.AccountLocationTestLabel(name))
+	}
+	for lang := msgs.lang; ; lang = i18n.Parent(lang) {
+		if f := supplied[lang].AccountLocationTestLabel; f != nil {
+			return f(name)
+		}
+		switch lang {
+		case "", "en":
+			return "Test the connection to " + msgs.arg(name)
+		case "ja":
+			return name + " への接続をテスト"
+		case "ko":
+			return name + " 연결 테스트"
+		case "zh-Hans":
+			return "测试与" + name + "的连接"
+		case "zh-Hant":
+			return "測試與" + name + "的連線"
+		}
+	}
+}
+
+// AccountLocationTesting says "Connecting…"
+// in the language the app shows under cx.
+//
+// Status under a storage location, or in its dialog, while Test connects.
+func AccountLocationTesting(cx *core.Scope) string { return For(cx).AccountLocationTesting() }
+
+// AccountLocationTesting is the package's AccountLocationTesting in the language of msgs.
+func (msgs Messages) AccountLocationTesting() string { return msgs.text(textAccountLocationTesting) }
+
+// AccountLocationTrust says "Trust"
+// in the language the app shows under cx.
+//
+// Button of the alert asking whether to trust an SFTP server's key at the first connection.
+func AccountLocationTrust(cx *core.Scope) string { return For(cx).AccountLocationTrust() }
+
+// AccountLocationTrust is the package's AccountLocationTrust in the language of msgs.
+func (msgs Messages) AccountLocationTrust() string { return msgs.text(textAccountLocationTrust) }
+
+// AccountLocationTrustMessage says "This is the first connection to it. Its key's fingerprint is {fingerprint}. Trust it only if it matches what the server shows (ssh-keygen -l) or what its administrator gives you."
+// in the language the app shows under cx.
+//
+// Message of the alert asking whether to trust an SFTP server's key at the first connection. ssh-keygen -l is a command, not translated.
+func AccountLocationTrustMessage(cx *core.Scope, fingerprint string) string {
+	return For(cx).AccountLocationTrustMessage(fingerprint)
+}
+
+// AccountLocationTrustMessage is the package's AccountLocationTrustMessage in the language of msgs.
+func (msgs Messages) AccountLocationTrustMessage(fingerprint string) string {
+	if i18n.IsPseudo(msgs.lang) {
+		return i18n.Pseudo(msgs.lang, Messages{lang: Source, mark: true}.AccountLocationTrustMessage(fingerprint))
+	}
+	for lang := msgs.lang; ; lang = i18n.Parent(lang) {
+		if f := supplied[lang].AccountLocationTrustMessage; f != nil {
+			return f(fingerprint)
+		}
+		switch lang {
+		case "", "en":
+			return "This is the first connection to it. Its key's fingerprint is " + msgs.arg(fingerprint) + ". Trust it only if it matches what the server shows (ssh-keygen -l) or what its administrator gives you."
+		case "ja":
+			return "このサーバへの最初の接続です。鍵のフィンガープリントは " + fingerprint + " です。サーバに表示されるもの（ssh-keygen -l）や管理者から聞いたものと一致する場合だけ信頼してください。"
+		case "ko":
+			return "이 서버에 처음 연결합니다. 키의 지문은 " + fingerprint + "입니다. 서버에 표시되는 지문(ssh-keygen -l)이나 관리자가 알려 준 지문과 같을 때만 신뢰하십시오."
+		case "zh-Hans":
+			return "这是第一次连接这台服务器。它的密钥指纹是 " + fingerprint + "。只有和服务器上显示的（ssh-keygen -l）或管理员给你的一致时才信任。"
+		case "zh-Hant":
+			return "這是第一次連線這台伺服器。它的金鑰指紋是 " + fingerprint + "。只有和伺服器上顯示的（ssh-keygen -l）或管理員給你的一致時才信任。"
+		}
+	}
+}
+
+// AccountLocationTrustTitle says "Trust the server {host}?"
+// in the language the app shows under cx.
+//
+// Title of the alert asking whether to trust an SFTP server's key at the first connection.
+func AccountLocationTrustTitle(cx *core.Scope, host string) string {
+	return For(cx).AccountLocationTrustTitle(host)
+}
+
+// AccountLocationTrustTitle is the package's AccountLocationTrustTitle in the language of msgs.
+func (msgs Messages) AccountLocationTrustTitle(host string) string {
+	if i18n.IsPseudo(msgs.lang) {
+		return i18n.Pseudo(msgs.lang, Messages{lang: Source, mark: true}.AccountLocationTrustTitle(host))
+	}
+	for lang := msgs.lang; ; lang = i18n.Parent(lang) {
+		if f := supplied[lang].AccountLocationTrustTitle; f != nil {
+			return f(host)
+		}
+		switch lang {
+		case "", "en":
+			return "Trust the server " + msgs.arg(host) + "?"
+		case "ja":
+			return "サーバ " + host + " を信頼しますか？"
+		case "ko":
+			return "서버 " + host + "을(를) 신뢰하시겠습니까?"
+		case "zh-Hans":
+			return "信任服务器 " + host + " 吗？"
+		case "zh-Hant":
+			return "信任伺服器 " + host + " 嗎？"
+		}
+	}
+}
+
+// AccountLocationURL says "Address"
+// in the language the app shows under cx.
+//
+// Field of a WebDAV storage location: the server's https:// address.
+func AccountLocationURL(cx *core.Scope) string { return For(cx).AccountLocationURL() }
+
+// AccountLocationURL is the package's AccountLocationURL in the language of msgs.
+func (msgs Messages) AccountLocationURL() string { return msgs.text(textAccountLocationURL) }
+
+// AccountLocationUser says "User"
+// in the language the app shows under cx.
+//
+// Field of a storage location: the user name to sign in with.
+func AccountLocationUser(cx *core.Scope) string { return For(cx).AccountLocationUser() }
+
+// AccountLocationUser is the package's AccountLocationUser in the language of msgs.
+func (msgs Messages) AccountLocationUser() string { return msgs.text(textAccountLocationUser) }
+
+// AccountLocationUserHintSMB says "guest for a share open to anyone"
+// in the language the app shows under cx.
+//
+// Hint under the User field of an SMB storage location. guest is the literal user name, not translated.
+func AccountLocationUserHintSMB(cx *core.Scope) string { return For(cx).AccountLocationUserHintSMB() }
+
+// AccountLocationUserHintSMB is the package's AccountLocationUserHintSMB in the language of msgs.
+func (msgs Messages) AccountLocationUserHintSMB() string {
+	return msgs.text(textAccountLocationUserHintSMB)
+}
+
+// AccountLocationsEmpty says "No storage locations yet"
+// in the language the app shows under cx.
+//
+// Row of the Storage Locations card while none is set up.
+func AccountLocationsEmpty(cx *core.Scope) string { return For(cx).AccountLocationsEmpty() }
+
+// AccountLocationsEmpty is the package's AccountLocationsEmpty in the language of msgs.
+func (msgs Messages) AccountLocationsEmpty() string { return msgs.text(textAccountLocationsEmpty) }
+
+// AccountLocationsNote says "Folders on a NAS or a server, over SMB, WebDAV or SFTP. Passwords and keys are saved only in the settings file on this computer."
+// in the language the app shows under cx.
+//
+// Note under the Storage Locations card: what a location is and where its secrets are kept.
+func AccountLocationsNote(cx *core.Scope) string { return For(cx).AccountLocationsNote() }
+
+// AccountLocationsNote is the package's AccountLocationsNote in the language of msgs.
+func (msgs Messages) AccountLocationsNote() string { return msgs.text(textAccountLocationsNote) }
+
+// AccountSectionLocations says "Storage Locations"
+// in the language the app shows under cx.
+//
+// Heading of the card listing folders on a NAS or a server on the Account & Upload settings page.
+func AccountSectionLocations(cx *core.Scope) string { return For(cx).AccountSectionLocations() }
+
+// AccountSectionLocations is the package's AccountSectionLocations in the language of msgs.
+func (msgs Messages) AccountSectionLocations() string { return msgs.text(textAccountSectionLocations) }
 
 // AccountNeedsStore says "Fill in {store} in Settings › Account & Upload first"
 // in the language the app shows under cx.
@@ -44286,7 +46254,7 @@ func SettingsKeywordsAI(cx *core.Scope) string { return For(cx).SettingsKeywords
 // SettingsKeywordsAI is the package's SettingsKeywordsAI in the language of msgs.
 func (msgs Messages) SettingsKeywordsAI() string { return msgs.text(textSettingsKeywordsAI) }
 
-// SettingsKeywordsAccount says "Google sign in sign out object storage upload R2 S3 OSS COS Endpoint Region Bucket Access Key Secret path style"
+// SettingsKeywordsAccount says "Google sign in sign out object storage upload R2 S3 OSS COS Endpoint Region Bucket Access Key Secret path style NAS SMB WebDAV SFTP"
 // in the language the app shows under cx.
 //
 // Search keywords of the Account & Upload settings section, separated by spaces, besides its title. Not shown.
@@ -55136,6 +57104,681 @@ func (msgs Messages) GlossarySuggestDismissLabel(term string) string {
 			return "不用「" + term + "」"
 		case "zh-Hant":
 			return "不用「" + term + "」"
+		}
+	}
+}
+
+// FilmsRemoveStored says "Its subtitles and the other files Kando keeps beside its video will be moved to the Trash, and its video will be deleted from {place}."
+// in the language the app shows under cx.
+//
+// What removing a film does when its video was moved out of the library folder to a storage location (a NAS folder or object storage): its subtitles go to the Trash and the video's copy on the location is deleted. place is the location's name.
+func FilmsRemoveStored(cx *core.Scope, place string) string { return For(cx).FilmsRemoveStored(place) }
+
+// FilmsRemoveStored is the package's FilmsRemoveStored in the language of msgs.
+func (msgs Messages) FilmsRemoveStored(place string) string {
+	if i18n.IsPseudo(msgs.lang) {
+		return i18n.Pseudo(msgs.lang, Messages{lang: Source, mark: true}.FilmsRemoveStored(place))
+	}
+	for lang := msgs.lang; ; lang = i18n.Parent(lang) {
+		if f := supplied[lang].FilmsRemoveStored; f != nil {
+			return f(place)
+		}
+		switch lang {
+		case "", "en":
+			return "Its subtitles and the other files Kando keeps beside its video will be moved to the Trash, and its video will be deleted from " + msgs.arg(place) + "."
+		case "ja":
+			return "字幕と、Kando が動画の横に置いているほかのファイルはゴミ箱に移動し、動画は「" + place + "」から削除されます。"
+		case "ko":
+			return "자막과 Kando가 동영상 옆에 둔 다른 파일은 휴지통으로 이동하고, 동영상은 ‘" + place + "’에서 삭제됩니다."
+		case "zh-Hans":
+			return "影片的字幕和 Kando 放在视频旁的其他文件将移到废纸篓，视频也会从「" + place + "」删除。"
+		case "zh-Hant":
+			return "影片的字幕和 Kando 放在影片旁的其他檔案將移到垃圾桶，影片也會從「" + place + "」刪除。"
+		}
+	}
+}
+
+// FilmsRemoveManyStored says "Their files will be moved to the Trash. The videos of those moved to a storage location will be deleted from it."
+// in the language the app shows under cx.
+//
+// What removing several selected films does when the video of at least one of them was moved to a storage location (a NAS folder or object storage): those videos are deleted from the location.
+func FilmsRemoveManyStored(cx *core.Scope) string { return For(cx).FilmsRemoveManyStored() }
+
+// FilmsRemoveManyStored is the package's FilmsRemoveManyStored in the language of msgs.
+func (msgs Messages) FilmsRemoveManyStored() string { return msgs.text(textFilmsRemoveManyStored) }
+
+// FilmsStoredOn says "Video on {place}"
+// in the language the app shows under cx.
+//
+// Accessible name and tooltip of the small mark on a film's poster and list row whose video was moved out of the library folder to a storage location (a NAS folder or object storage). place is the location's name.
+func FilmsStoredOn(cx *core.Scope, place string) string { return For(cx).FilmsStoredOn(place) }
+
+// FilmsStoredOn is the package's FilmsStoredOn in the language of msgs.
+func (msgs Messages) FilmsStoredOn(place string) string {
+	if i18n.IsPseudo(msgs.lang) {
+		return i18n.Pseudo(msgs.lang, Messages{lang: Source, mark: true}.FilmsStoredOn(place))
+	}
+	for lang := msgs.lang; ; lang = i18n.Parent(lang) {
+		if f := supplied[lang].FilmsStoredOn; f != nil {
+			return f(place)
+		}
+		switch lang {
+		case "", "en":
+			return "Video on " + msgs.arg(place)
+		case "ja":
+			return "動画は「" + place + "」にあります"
+		case "ko":
+			return "동영상 위치: ‘" + place + "’"
+		case "zh-Hans":
+			return "视频在「" + place + "」上"
+		case "zh-Hant":
+			return "影片檔在「" + place + "」上"
+		}
+	}
+}
+
+// FilmsStoredGone says "The video's storage location is no longer in Settings"
+// in the language the app shows under cx.
+//
+// Accessible name and tooltip of the mark on a film's poster and list row, drawn as a warning, when its video was moved to a storage location that was since removed from Settings > Account & Upload.
+func FilmsStoredGone(cx *core.Scope) string { return For(cx).FilmsStoredGone() }
+
+// FilmsStoredGone is the package's FilmsStoredGone in the language of msgs.
+func (msgs Messages) FilmsStoredGone() string { return msgs.text(textFilmsStoredGone) }
+
+// PlayerStoredGone says "This film's video is on a storage location that is no longer in Settings. Its lines can still be studied."
+// in the language the app shows under cx.
+//
+// Shown in place of the picture when the film's video was moved to a storage location (a NAS folder or object storage) that was since removed in Settings > Account & Upload.
+func PlayerStoredGone(cx *core.Scope) string { return For(cx).PlayerStoredGone() }
+
+// PlayerStoredGone is the package's PlayerStoredGone in the language of msgs.
+func (msgs Messages) PlayerStoredGone() string { return msgs.text(textPlayerStoredGone) }
+
+// PlayerStoredUnreachable says "Couldn't reach the storage location this film's video is on. Its lines can still be studied."
+// in the language the app shows under cx.
+//
+// Shown in place of the picture when the storage location (a NAS folder or object storage) the film's video was moved to cannot be reached, as when the NAS is off or the computer is offline.
+func PlayerStoredUnreachable(cx *core.Scope) string { return For(cx).PlayerStoredUnreachable() }
+
+// PlayerStoredUnreachable is the package's PlayerStoredUnreachable in the language of msgs.
+func (msgs Messages) PlayerStoredUnreachable() string { return msgs.text(textPlayerStoredUnreachable) }
+
+// PlayerStoredMissing says "This film's video is no longer on its storage location. Its lines can still be studied."
+// in the language the app shows under cx.
+//
+// Shown in place of the picture when the storage location the film's video was moved to can be reached but no longer has the video file.
+func PlayerStoredMissing(cx *core.Scope) string { return For(cx).PlayerStoredMissing() }
+
+// PlayerStoredMissing is the package's PlayerStoredMissing in the language of msgs.
+func (msgs Messages) PlayerStoredMissing() string { return msgs.text(textPlayerStoredMissing) }
+
+// PlayerStoredUnplayable says "This video can't be played from its storage location. Move it back to the library to play it."
+// in the language the app shows under cx.
+//
+// Shown in place of the picture when the system's player cannot play a video moved to a storage location; Kando can only convert a video for the player once it is back in the library folder.
+func PlayerStoredUnplayable(cx *core.Scope) string { return For(cx).PlayerStoredUnplayable() }
+
+// PlayerStoredUnplayable is the package's PlayerStoredUnplayable in the language of msgs.
+func (msgs Messages) PlayerStoredUnplayable() string { return msgs.text(textPlayerStoredUnplayable) }
+
+// StoredMoveTo says "Move Video To"
+// in the language the app shows under cx.
+//
+// Film menu item, a submenu listing the storage locations (NAS folders and the object storage set up in Settings > Account & Upload) the film's video can be moved to, out of the library folder. Its subtitles stay in the library.
+func StoredMoveTo(cx *core.Scope) string { return For(cx).StoredMoveTo() }
+
+// StoredMoveTo is the package's StoredMoveTo in the language of msgs.
+func (msgs Messages) StoredMoveTo() string { return msgs.text(textStoredMoveTo) }
+
+// StoredMoveBack says "Move Video Back to the Library"
+// in the language the app shows under cx.
+//
+// Film menu item for a film whose video was moved to a storage location: copies the video back into the library folder and then deletes it from the location.
+func StoredMoveBack(cx *core.Scope) string { return For(cx).StoredMoveBack() }
+
+// StoredMoveBack is the package's StoredMoveBack in the language of msgs.
+func (msgs Messages) StoredMoveBack() string { return msgs.text(textStoredMoveBack) }
+
+// StoredObjectStore says "{store} Object Storage"
+// in the language the app shows under cx.
+//
+// Name of the object storage set up in Settings > Account & Upload as a place a film's video can be moved to. store is the service's name.
+func StoredObjectStore(cx *core.Scope, store string) string { return For(cx).StoredObjectStore(store) }
+
+// StoredObjectStore is the package's StoredObjectStore in the language of msgs.
+func (msgs Messages) StoredObjectStore(store string) string {
+	if i18n.IsPseudo(msgs.lang) {
+		return i18n.Pseudo(msgs.lang, Messages{lang: Source, mark: true}.StoredObjectStore(store))
+	}
+	for lang := msgs.lang; ; lang = i18n.Parent(lang) {
+		if f := supplied[lang].StoredObjectStore; f != nil {
+			return f(store)
+		}
+		switch lang {
+		case "", "en":
+			return msgs.arg(store) + " Object Storage"
+		case "ja":
+			return store + " オブジェクトストレージ"
+		case "ko":
+			return store + " 오브젝트 스토리지"
+		case "zh-Hans":
+			return store + " 对象存储"
+		case "zh-Hant":
+			return store + " 物件儲存"
+		}
+	}
+}
+
+// StoredLocationGone says "That storage location is no longer in Settings."
+// in the language the app shows under cx.
+//
+// Message bar when a video is to be moved to or back from a storage location that was removed in Settings > Account & Upload.
+func StoredLocationGone(cx *core.Scope) string { return For(cx).StoredLocationGone() }
+
+// StoredLocationGone is the package's StoredLocationGone in the language of msgs.
+func (msgs Messages) StoredLocationGone() string { return msgs.text(textStoredLocationGone) }
+
+// StoredBusy says "Another video is being moved. Try again once it's done."
+// in the language the app shows under cx.
+//
+// Message bar when a film's video is to be moved to or from a storage location while another one is still being copied.
+func StoredBusy(cx *core.Scope) string { return For(cx).StoredBusy() }
+
+// StoredBusy is the package's StoredBusy in the language of msgs.
+func (msgs Messages) StoredBusy() string { return msgs.text(textStoredBusy) }
+
+// StoredNotDone says "Only the video of a film Kando has processed can be moved to a storage location, and “{name}” isn't one."
+// in the language the app shows under cx.
+//
+// Message bar when a film's video cannot be moved to a storage location because it is not a finished film with a video of its own (still processing, kept as subtitles only, or a video found in the folder that Kando never processed).
+func StoredNotDone(cx *core.Scope, name string) string { return For(cx).StoredNotDone(name) }
+
+// StoredNotDone is the package's StoredNotDone in the language of msgs.
+func (msgs Messages) StoredNotDone(name string) string {
+	if i18n.IsPseudo(msgs.lang) {
+		return i18n.Pseudo(msgs.lang, Messages{lang: Source, mark: true}.StoredNotDone(name))
+	}
+	for lang := msgs.lang; ; lang = i18n.Parent(lang) {
+		if f := supplied[lang].StoredNotDone; f != nil {
+			return f(name)
+		}
+		switch lang {
+		case "", "en":
+			return "Only the video of a film Kando has processed can be moved to a storage location, and “" + msgs.arg(name) + "” isn't one."
+		case "ja":
+			return "保存場所に移せるのは Kando が処理した作品の動画だけで、「" + name + "」は該当しません。"
+		case "ko":
+			return "저장 위치로 옮길 수 있는 것은 Kando가 처리한 영화의 동영상뿐이며, ‘" + name + "’은(는) 해당하지 않습니다."
+		case "zh-Hans":
+			return "只有 Kando 处理过的影片的视频才能移到存储位置，「" + name + "」不是。"
+		case "zh-Hant":
+			return "只有 Kando 處理過的影片的影片檔才能移到儲存位置，「" + name + "」不是。"
+		}
+	}
+}
+
+// StoredOutside says "The video of “{name}” isn't in the library folder, so it can't be moved to a storage location."
+// in the language the app shows under cx.
+//
+// Message bar when a film's video is kept outside the library folder (a local video picked where it was), which Kando does not move to a storage location.
+func StoredOutside(cx *core.Scope, name string) string { return For(cx).StoredOutside(name) }
+
+// StoredOutside is the package's StoredOutside in the language of msgs.
+func (msgs Messages) StoredOutside(name string) string {
+	if i18n.IsPseudo(msgs.lang) {
+		return i18n.Pseudo(msgs.lang, Messages{lang: Source, mark: true}.StoredOutside(name))
+	}
+	for lang := msgs.lang; ; lang = i18n.Parent(lang) {
+		if f := supplied[lang].StoredOutside; f != nil {
+			return f(name)
+		}
+		switch lang {
+		case "", "en":
+			return "The video of “" + msgs.arg(name) + "” isn't in the library folder, so it can't be moved to a storage location."
+		case "ja":
+			return "「" + name + "」の動画はライブラリのフォルダにないため、保存場所に移せません。"
+		case "ko":
+			return "‘" + name + "’의 동영상이 라이브러리 폴더에 없어서 저장 위치로 옮길 수 없습니다."
+		case "zh-Hans":
+			return "「" + name + "」的视频不在资料库文件夹里，不能移到存储位置。"
+		case "zh-Hant":
+			return "「" + name + "」的影片檔不在資料庫資料夾裡，不能移到儲存位置。"
+		}
+	}
+}
+
+// StoredLocked says "The videos of a library with a password stay in it, so they aren't moved to a storage location."
+// in the language the app shows under cx.
+//
+// Message bar when a film's video is to be moved to a storage location from a library protected by a password, whose files are kept encrypted.
+func StoredLocked(cx *core.Scope) string { return For(cx).StoredLocked() }
+
+// StoredLocked is the package's StoredLocked in the language of msgs.
+func (msgs Messages) StoredLocked() string { return msgs.text(textStoredLocked) }
+
+// StoredProcessing says "“{name}” is being processed. Move its video once that's done."
+// in the language the app shows under cx.
+//
+// Message bar when a film's video is to be moved to or from a storage location while the film is being processed.
+func StoredProcessing(cx *core.Scope, name string) string { return For(cx).StoredProcessing(name) }
+
+// StoredProcessing is the package's StoredProcessing in the language of msgs.
+func (msgs Messages) StoredProcessing(name string) string {
+	if i18n.IsPseudo(msgs.lang) {
+		return i18n.Pseudo(msgs.lang, Messages{lang: Source, mark: true}.StoredProcessing(name))
+	}
+	for lang := msgs.lang; ; lang = i18n.Parent(lang) {
+		if f := supplied[lang].StoredProcessing; f != nil {
+			return f(name)
+		}
+		switch lang {
+		case "", "en":
+			return "“" + msgs.arg(name) + "” is being processed. Move its video once that's done."
+		case "ja":
+			return "「" + name + "」は処理中です。終わってから動画を移動してください。"
+		case "ko":
+			return "‘" + name + "’을(를) 처리하는 중입니다. 끝난 뒤 동영상을 옮기세요."
+		case "zh-Hans":
+			return "「" + name + "」正在处理，处理完后再移动它的视频。"
+		case "zh-Hant":
+			return "「" + name + "」正在處理，處理完後再移動它的影片檔。"
+		}
+	}
+}
+
+// StoredMovingTo says "Moving the video of “{name}” to {place}… {percent}%"
+// in the language the app shows under cx.
+//
+// Message bar while a film's video is being copied to a storage location, with how much is copied.
+func StoredMovingTo(cx *core.Scope, name string, place string, percent int) string {
+	return For(cx).StoredMovingTo(name, place, percent)
+}
+
+// StoredMovingTo is the package's StoredMovingTo in the language of msgs.
+func (msgs Messages) StoredMovingTo(name string, place string, percent int) string {
+	if i18n.IsPseudo(msgs.lang) {
+		return i18n.Pseudo(msgs.lang, Messages{lang: Source, mark: true}.StoredMovingTo(name, place, percent))
+	}
+	for lang := msgs.lang; ; lang = i18n.Parent(lang) {
+		if f := supplied[lang].StoredMovingTo; f != nil {
+			return f(name, place, percent)
+		}
+		switch lang {
+		case "", "en":
+			return "Moving the video of “" + msgs.arg(name) + "” to " + msgs.arg(place) + "… " + msgs.arg(i18n.FormatNumber("en", float64(percent))) + "%"
+		case "ja":
+			return "「" + name + "」の動画を「" + place + "」に移動中… " + i18n.FormatNumber("ja", float64(percent)) + "%"
+		case "ko":
+			return "‘" + name + "’의 동영상을 ‘" + place + "’(으)로 옮기는 중… " + i18n.FormatNumber("ko", float64(percent)) + "%"
+		case "zh-Hans":
+			return "正在把「" + name + "」的视频移到「" + place + "」… " + i18n.FormatNumber("zh-Hans", float64(percent)) + "%"
+		case "zh-Hant":
+			return "正在把「" + name + "」的影片檔移到「" + place + "」… " + i18n.FormatNumber("zh-Hant", float64(percent)) + "%"
+		}
+	}
+}
+
+// StoredMovingBack says "Moving the video of “{name}” back to the library… {percent}%"
+// in the language the app shows under cx.
+//
+// Message bar while a film's video is being copied back from a storage location into the library folder, with how much is copied.
+func StoredMovingBack(cx *core.Scope, name string, percent int) string {
+	return For(cx).StoredMovingBack(name, percent)
+}
+
+// StoredMovingBack is the package's StoredMovingBack in the language of msgs.
+func (msgs Messages) StoredMovingBack(name string, percent int) string {
+	if i18n.IsPseudo(msgs.lang) {
+		return i18n.Pseudo(msgs.lang, Messages{lang: Source, mark: true}.StoredMovingBack(name, percent))
+	}
+	for lang := msgs.lang; ; lang = i18n.Parent(lang) {
+		if f := supplied[lang].StoredMovingBack; f != nil {
+			return f(name, percent)
+		}
+		switch lang {
+		case "", "en":
+			return "Moving the video of “" + msgs.arg(name) + "” back to the library… " + msgs.arg(i18n.FormatNumber("en", float64(percent))) + "%"
+		case "ja":
+			return "「" + name + "」の動画をライブラリに戻しています… " + i18n.FormatNumber("ja", float64(percent)) + "%"
+		case "ko":
+			return "‘" + name + "’의 동영상을 라이브러리로 되돌리는 중… " + i18n.FormatNumber("ko", float64(percent)) + "%"
+		case "zh-Hans":
+			return "正在把「" + name + "」的视频移回资料库… " + i18n.FormatNumber("zh-Hans", float64(percent)) + "%"
+		case "zh-Hant":
+			return "正在把「" + name + "」的影片檔移回資料庫… " + i18n.FormatNumber("zh-Hant", float64(percent)) + "%"
+		}
+	}
+}
+
+// StoredSizeMismatch says "the copy came out a different size"
+// in the language the app shows under cx.
+//
+// Reason, inside another sentence, why moving a video to or from a storage location failed: the copy is not as large as the video, so it was not used.
+func StoredSizeMismatch(cx *core.Scope) string { return For(cx).StoredSizeMismatch() }
+
+// StoredSizeMismatch is the package's StoredSizeMismatch in the language of msgs.
+func (msgs Messages) StoredSizeMismatch() string { return msgs.text(textStoredSizeMismatch) }
+
+// StoredLocalTaken says "a file is already where the video goes in the library"
+// in the language the app shows under cx.
+//
+// Reason, inside another sentence, why moving a video back from a storage location failed: a file already exists at the path the video goes back to.
+func StoredLocalTaken(cx *core.Scope) string { return For(cx).StoredLocalTaken() }
+
+// StoredLocalTaken is the package's StoredLocalTaken in the language of msgs.
+func (msgs Messages) StoredLocalTaken() string { return msgs.text(textStoredLocalTaken) }
+
+// StoredStopped says "Stopped moving the video of “{name}”. It is where it was."
+// in the language the app shows under cx.
+//
+// Message bar after the user stopped moving a film's video to or from a storage location; nothing moved.
+func StoredStopped(cx *core.Scope, name string) string { return For(cx).StoredStopped(name) }
+
+// StoredStopped is the package's StoredStopped in the language of msgs.
+func (msgs Messages) StoredStopped(name string) string {
+	if i18n.IsPseudo(msgs.lang) {
+		return i18n.Pseudo(msgs.lang, Messages{lang: Source, mark: true}.StoredStopped(name))
+	}
+	for lang := msgs.lang; ; lang = i18n.Parent(lang) {
+		if f := supplied[lang].StoredStopped; f != nil {
+			return f(name)
+		}
+		switch lang {
+		case "", "en":
+			return "Stopped moving the video of “" + msgs.arg(name) + "”. It is where it was."
+		case "ja":
+			return "「" + name + "」の動画の移動を中止しました。動画は元の場所にあります。"
+		case "ko":
+			return "‘" + name + "’의 동영상 이동을 중지했습니다. 동영상은 원래 자리에 있습니다."
+		case "zh-Hans":
+			return "已停止移动「" + name + "」的视频，它还在原处。"
+		case "zh-Hant":
+			return "已停止移動「" + name + "」的影片檔，它還在原處。"
+		}
+	}
+}
+
+// StoredMoveFailed says "Couldn't move the video of “{name}” to {place}: {error}. It is still in the library."
+// in the language the app shows under cx.
+//
+// Message bar when a film's video could not be moved to a storage location; the video stays in the library folder. error is the reason.
+func StoredMoveFailed(cx *core.Scope, name string, place string, error_ string) string {
+	return For(cx).StoredMoveFailed(name, place, error_)
+}
+
+// StoredMoveFailed is the package's StoredMoveFailed in the language of msgs.
+func (msgs Messages) StoredMoveFailed(name string, place string, error_ string) string {
+	if i18n.IsPseudo(msgs.lang) {
+		return i18n.Pseudo(msgs.lang, Messages{lang: Source, mark: true}.StoredMoveFailed(name, place, error_))
+	}
+	for lang := msgs.lang; ; lang = i18n.Parent(lang) {
+		if f := supplied[lang].StoredMoveFailed; f != nil {
+			return f(name, place, error_)
+		}
+		switch lang {
+		case "", "en":
+			return "Couldn't move the video of “" + msgs.arg(name) + "” to " + msgs.arg(place) + ": " + msgs.arg(error_) + ". It is still in the library."
+		case "ja":
+			return "「" + name + "」の動画を「" + place + "」に移動できませんでした：" + error_ + "。動画はライブラリに残っています。"
+		case "ko":
+			return "‘" + name + "’의 동영상을 ‘" + place + "’(으)로 옮기지 못했습니다: " + error_ + ". 동영상은 라이브러리에 그대로 있습니다."
+		case "zh-Hans":
+			return "没能把「" + name + "」的视频移到「" + place + "」：" + error_ + "。视频仍在资料库中。"
+		case "zh-Hant":
+			return "無法把「" + name + "」的影片檔移到「" + place + "」：" + error_ + "。影片檔仍在資料庫中。"
+		}
+	}
+}
+
+// StoredRemoveFailed says "Couldn't remove the video of “{name}” from the library after copying it to {place}, so it stays in the library."
+// in the language the app shows under cx.
+//
+// Message bar when a film's video was copied to a storage location but could not be deleted from the library folder; the copy on the location is removed again and the video stays in the library.
+func StoredRemoveFailed(cx *core.Scope, name string, place string) string {
+	return For(cx).StoredRemoveFailed(name, place)
+}
+
+// StoredRemoveFailed is the package's StoredRemoveFailed in the language of msgs.
+func (msgs Messages) StoredRemoveFailed(name string, place string) string {
+	if i18n.IsPseudo(msgs.lang) {
+		return i18n.Pseudo(msgs.lang, Messages{lang: Source, mark: true}.StoredRemoveFailed(name, place))
+	}
+	for lang := msgs.lang; ; lang = i18n.Parent(lang) {
+		if f := supplied[lang].StoredRemoveFailed; f != nil {
+			return f(name, place)
+		}
+		switch lang {
+		case "", "en":
+			return "Couldn't remove the video of “" + msgs.arg(name) + "” from the library after copying it to " + msgs.arg(place) + ", so it stays in the library."
+		case "ja":
+			return "「" + name + "」の動画を「" + place + "」にコピーしましたが、ライブラリから削除できなかったため、動画はライブラリに残っています。"
+		case "ko":
+			return "‘" + name + "’의 동영상을 ‘" + place + "’에 복사했지만 라이브러리에서 삭제하지 못해 동영상이 라이브러리에 남아 있습니다."
+		case "zh-Hans":
+			return "已把「" + name + "」的视频复制到「" + place + "」，但没能从资料库删除它，所以视频仍留在资料库中。"
+		case "zh-Hant":
+			return "已把「" + name + "」的影片檔複製到「" + place + "」，但無法從資料庫刪除它，所以影片檔仍留在資料庫中。"
+		}
+	}
+}
+
+// StoredMoved says "Moved the video of “{name}” to {place}. Its subtitles stay in the library."
+// in the language the app shows under cx.
+//
+// Message bar after a film's video was moved to a storage location; the film's subtitles and other files stay in the library folder.
+func StoredMoved(cx *core.Scope, name string, place string) string {
+	return For(cx).StoredMoved(name, place)
+}
+
+// StoredMoved is the package's StoredMoved in the language of msgs.
+func (msgs Messages) StoredMoved(name string, place string) string {
+	if i18n.IsPseudo(msgs.lang) {
+		return i18n.Pseudo(msgs.lang, Messages{lang: Source, mark: true}.StoredMoved(name, place))
+	}
+	for lang := msgs.lang; ; lang = i18n.Parent(lang) {
+		if f := supplied[lang].StoredMoved; f != nil {
+			return f(name, place)
+		}
+		switch lang {
+		case "", "en":
+			return "Moved the video of “" + msgs.arg(name) + "” to " + msgs.arg(place) + ". Its subtitles stay in the library."
+		case "ja":
+			return "「" + name + "」の動画を「" + place + "」に移動しました。字幕はライブラリに残ります。"
+		case "ko":
+			return "‘" + name + "’의 동영상을 ‘" + place + "’(으)로 옮겼습니다. 자막은 라이브러리에 남습니다."
+		case "zh-Hans":
+			return "已把「" + name + "」的视频移到「" + place + "」。字幕仍留在资料库中。"
+		case "zh-Hant":
+			return "已把「" + name + "」的影片檔移到「" + place + "」。字幕仍留在資料庫中。"
+		}
+	}
+}
+
+// StoredMoveBackFailed says "Couldn't move the video of “{name}” back from {place}: {error}. It is still there."
+// in the language the app shows under cx.
+//
+// Message bar when a film's video could not be copied back from a storage location into the library folder; it stays on the location. error is the reason.
+func StoredMoveBackFailed(cx *core.Scope, name string, place string, error_ string) string {
+	return For(cx).StoredMoveBackFailed(name, place, error_)
+}
+
+// StoredMoveBackFailed is the package's StoredMoveBackFailed in the language of msgs.
+func (msgs Messages) StoredMoveBackFailed(name string, place string, error_ string) string {
+	if i18n.IsPseudo(msgs.lang) {
+		return i18n.Pseudo(msgs.lang, Messages{lang: Source, mark: true}.StoredMoveBackFailed(name, place, error_))
+	}
+	for lang := msgs.lang; ; lang = i18n.Parent(lang) {
+		if f := supplied[lang].StoredMoveBackFailed; f != nil {
+			return f(name, place, error_)
+		}
+		switch lang {
+		case "", "en":
+			return "Couldn't move the video of “" + msgs.arg(name) + "” back from " + msgs.arg(place) + ": " + msgs.arg(error_) + ". It is still there."
+		case "ja":
+			return "「" + name + "」の動画を「" + place + "」から戻せませんでした：" + error_ + "。動画はそこに残っています。"
+		case "ko":
+			return "‘" + name + "’의 동영상을 ‘" + place + "’에서 되돌리지 못했습니다: " + error_ + ". 동영상은 그곳에 그대로 있습니다."
+		case "zh-Hans":
+			return "没能把「" + name + "」的视频从「" + place + "」移回：" + error_ + "。视频仍在那里。"
+		case "zh-Hant":
+			return "無法把「" + name + "」的影片檔從「" + place + "」移回：" + error_ + "。影片檔仍在那裡。"
+		}
+	}
+}
+
+// StoredMovedBack says "Moved the video of “{name}” back to the library."
+// in the language the app shows under cx.
+//
+// Message bar after a film's video was copied back from a storage location into the library folder.
+func StoredMovedBack(cx *core.Scope, name string) string { return For(cx).StoredMovedBack(name) }
+
+// StoredMovedBack is the package's StoredMovedBack in the language of msgs.
+func (msgs Messages) StoredMovedBack(name string) string {
+	if i18n.IsPseudo(msgs.lang) {
+		return i18n.Pseudo(msgs.lang, Messages{lang: Source, mark: true}.StoredMovedBack(name))
+	}
+	for lang := msgs.lang; ; lang = i18n.Parent(lang) {
+		if f := supplied[lang].StoredMovedBack; f != nil {
+			return f(name)
+		}
+		switch lang {
+		case "", "en":
+			return "Moved the video of “" + msgs.arg(name) + "” back to the library."
+		case "ja":
+			return "「" + name + "」の動画をライブラリに戻しました。"
+		case "ko":
+			return "‘" + name + "’의 동영상을 라이브러리로 되돌렸습니다."
+		case "zh-Hans":
+			return "已把「" + name + "」的视频移回资料库。"
+		case "zh-Hant":
+			return "已把「" + name + "」的影片檔移回資料庫。"
+		}
+	}
+}
+
+// StoredMovedBackLeft says "Moved the video of “{name}” back to the library, but couldn't delete its copy on {place}."
+// in the language the app shows under cx.
+//
+// Message bar when a film's video is back in the library folder but its copy on the storage location could not be deleted.
+func StoredMovedBackLeft(cx *core.Scope, name string, place string) string {
+	return For(cx).StoredMovedBackLeft(name, place)
+}
+
+// StoredMovedBackLeft is the package's StoredMovedBackLeft in the language of msgs.
+func (msgs Messages) StoredMovedBackLeft(name string, place string) string {
+	if i18n.IsPseudo(msgs.lang) {
+		return i18n.Pseudo(msgs.lang, Messages{lang: Source, mark: true}.StoredMovedBackLeft(name, place))
+	}
+	for lang := msgs.lang; ; lang = i18n.Parent(lang) {
+		if f := supplied[lang].StoredMovedBackLeft; f != nil {
+			return f(name, place)
+		}
+		switch lang {
+		case "", "en":
+			return "Moved the video of “" + msgs.arg(name) + "” back to the library, but couldn't delete its copy on " + msgs.arg(place) + "."
+		case "ja":
+			return "「" + name + "」の動画をライブラリに戻しましたが、「" + place + "」上のコピーを削除できませんでした。"
+		case "ko":
+			return "‘" + name + "’의 동영상을 라이브러리로 되돌렸지만 ‘" + place + "’에 있는 사본을 삭제하지 못했습니다."
+		case "zh-Hans":
+			return "已把「" + name + "」的视频移回资料库，但没能删除它在「" + place + "」上的副本。"
+		case "zh-Hant":
+			return "已把「" + name + "」的影片檔移回資料庫，但無法刪除它在「" + place + "」上的副本。"
+		}
+	}
+}
+
+// StoredReprocess says "The video of “{name}” is on {place}. Move it back to the library before processing the film again, as that needs its sound."
+// in the language the app shows under cx.
+//
+// Message bar when a film whose video was moved to a storage location is to be processed again; transcribing needs the video's sound on this computer.
+func StoredReprocess(cx *core.Scope, name string, place string) string {
+	return For(cx).StoredReprocess(name, place)
+}
+
+// StoredReprocess is the package's StoredReprocess in the language of msgs.
+func (msgs Messages) StoredReprocess(name string, place string) string {
+	if i18n.IsPseudo(msgs.lang) {
+		return i18n.Pseudo(msgs.lang, Messages{lang: Source, mark: true}.StoredReprocess(name, place))
+	}
+	for lang := msgs.lang; ; lang = i18n.Parent(lang) {
+		if f := supplied[lang].StoredReprocess; f != nil {
+			return f(name, place)
+		}
+		switch lang {
+		case "", "en":
+			return "The video of “" + msgs.arg(name) + "” is on " + msgs.arg(place) + ". Move it back to the library before processing the film again, as that needs its sound."
+		case "ja":
+			return "「" + name + "」の動画は「" + place + "」にあります。再処理には動画の音声が必要なため、先にライブラリに戻してください。"
+		case "ko":
+			return "‘" + name + "’의 동영상이 ‘" + place + "’에 있습니다. 다시 처리하려면 동영상의 소리가 필요하니 먼저 라이브러리로 되돌리세요."
+		case "zh-Hans":
+			return "「" + name + "」的视频在「" + place + "」上。重新处理需要视频的声音，请先把它移回资料库。"
+		case "zh-Hant":
+			return "「" + name + "」的影片檔在「" + place + "」上。重新處理需要影片的聲音，請先把它移回資料庫。"
+		}
+	}
+}
+
+// StoredUpload says "The video is on {place}. Move it back to the library to upload it."
+// in the language the app shows under cx.
+//
+// Shown by the player's upload button for a film whose video was moved to a storage location, which cannot be uploaded from there.
+func StoredUpload(cx *core.Scope, place string) string { return For(cx).StoredUpload(place) }
+
+// StoredUpload is the package's StoredUpload in the language of msgs.
+func (msgs Messages) StoredUpload(place string) string {
+	if i18n.IsPseudo(msgs.lang) {
+		return i18n.Pseudo(msgs.lang, Messages{lang: Source, mark: true}.StoredUpload(place))
+	}
+	for lang := msgs.lang; ; lang = i18n.Parent(lang) {
+		if f := supplied[lang].StoredUpload; f != nil {
+			return f(place)
+		}
+		switch lang {
+		case "", "en":
+			return "The video is on " + msgs.arg(place) + ". Move it back to the library to upload it."
+		case "ja":
+			return "動画は「" + place + "」にあります。アップロードするにはライブラリに戻してください。"
+		case "ko":
+			return "동영상이 ‘" + place + "’에 있습니다. 업로드하려면 라이브러리로 되돌리세요."
+		case "zh-Hans":
+			return "视频在「" + place + "」上。移回资料库后才能上传。"
+		case "zh-Hant":
+			return "影片檔在「" + place + "」上。移回資料庫後才能上傳。"
+		}
+	}
+}
+
+// StoredLibraryMove says "The video of “{name}” is on {place}. Move it back to the library before moving the film to another library."
+// in the language the app shows under cx.
+//
+// Message bar when a film whose video was moved to a storage location is to be moved to another library.
+func StoredLibraryMove(cx *core.Scope, name string, place string) string {
+	return For(cx).StoredLibraryMove(name, place)
+}
+
+// StoredLibraryMove is the package's StoredLibraryMove in the language of msgs.
+func (msgs Messages) StoredLibraryMove(name string, place string) string {
+	if i18n.IsPseudo(msgs.lang) {
+		return i18n.Pseudo(msgs.lang, Messages{lang: Source, mark: true}.StoredLibraryMove(name, place))
+	}
+	for lang := msgs.lang; ; lang = i18n.Parent(lang) {
+		if f := supplied[lang].StoredLibraryMove; f != nil {
+			return f(name, place)
+		}
+		switch lang {
+		case "", "en":
+			return "The video of “" + msgs.arg(name) + "” is on " + msgs.arg(place) + ". Move it back to the library before moving the film to another library."
+		case "ja":
+			return "「" + name + "」の動画は「" + place + "」にあります。作品を別のライブラリに移すには、先に動画をライブラリに戻してください。"
+		case "ko":
+			return "‘" + name + "’의 동영상이 ‘" + place + "’에 있습니다. 영화를 다른 라이브러리로 옮기려면 먼저 동영상을 라이브러리로 되돌리세요."
+		case "zh-Hans":
+			return "「" + name + "」的视频在「" + place + "」上。把它移回资料库后，才能把影片移到其他资料库。"
+		case "zh-Hant":
+			return "「" + name + "」的影片檔在「" + place + "」上。把它移回資料庫後，才能把影片移到其他資料庫。"
 		}
 	}
 }

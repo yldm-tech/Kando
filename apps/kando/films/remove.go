@@ -14,6 +14,8 @@ type removeLook struct {
 	name            string
 	outside, folder bool
 	count           int
+	// stored names the storage location the film's video is on, whose copy there is deleted too (Film.Stored), "" for a video in the library's folder; of several films, one of those whose video is on one.
+	stored string
 }
 
 // removeDialog confirms 从资料库移除 before the film's folder, or only its video and subtitles, goes to the Trash, or those of each of several films selected. 取消 is the default answer, so Enter keeps the film, as do Escape and closing the dialog.
@@ -31,10 +33,16 @@ func (r removeDialog) Render(cx *core.Scope) core.Node {
 	look := live.Memo(cx, a, func() removeLook {
 		_, items, folder := a.Removing()
 		if len(items) != 1 {
-			return removeLook{count: len(items)}
+			l := removeLook{count: len(items)}
+			for _, item := range items {
+				if place := a.StoredPlace(item); place != "" {
+					l.stored = place
+				}
+			}
+			return l
 		}
 		item := items[0]
-		return removeLook{name: filmName(item), outside: !InDir(a.LibraryDir(), item.VideoPath), folder: folder, count: 1}
+		return removeLook{name: filmName(item), outside: !InDir(a.LibraryDir(), item.VideoPath), folder: folder, count: 1, stored: a.StoredPlace(item)}
 	})
 	cancel := live.Do(a, a.CloseRemove)
 	trash := live.Do(a, func() {
@@ -51,8 +59,12 @@ func (r removeDialog) Render(cx *core.Scope) core.Node {
 			l := look()
 			title, message := locales.FilmsRemoveConfirm(cx, l.name), locales.FilmsRemoveFiles(cx)
 			switch {
+			case l.count > 1 && l.stored != "":
+				title, message = locales.FilmsRemoveConfirmMany(cx, l.count), locales.FilmsRemoveManyStored(cx)
 			case l.count > 1:
 				title, message = locales.FilmsRemoveConfirmMany(cx, l.count), locales.FilmsRemoveManyMessage(cx)
+			case l.stored != "":
+				message = locales.FilmsRemoveStored(cx, l.stored)
 			case l.outside:
 				message = locales.FilmsRemoveOutside(cx)
 			case l.folder:

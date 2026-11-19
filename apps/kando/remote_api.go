@@ -712,6 +712,9 @@ func (a *app) remoteRetry(ctx context.Context, id string) (remote.Job, error) {
 		if errors.Is(err, errInQueue) {
 			return remote.Job{}, remote.Errorf(remote.CodeInvalid, "job %s is still running or waiting in the queue; cancel it first, or wait until it ends", id)
 		}
+		if refused := a.storedNeedsFile(remoteMessages(), job.VideoPath, a.libraryJobName(job), locales.Messages.StoredReprocess); refused != nil && err != nil {
+			return remote.Job{}, remote.Errorf(remote.CodeNotReady, "%s", refused)
+		}
 		if msg, _ := a.precheckIn(remoteMessages(), []string{job.Source}); msg != "" {
 			return remote.Job{}, remote.Errorf(remote.CodeNotReady, "%s", msg)
 		}
@@ -889,7 +892,7 @@ func (a *app) remoteLibraryFilms() ([]films.Film, error) {
 func (a *app) remoteFilmList() []films.Film {
 	shot := a.snap()
 	m := remoteMessages()
-	return films.List(shot.LibraryDir, a.library.Jobs, shot.Videos, a.library.Names, jobName, func(job core.Job) string { return statusText(m, job) })
+	return storedMark(films.List(shot.LibraryDir, a.library.Jobs, shot.Videos, a.library.Names, jobName, func(job core.Job) string { return statusText(m, job) }), a.library.Stored)
 }
 
 // remoteFind is the open library's film with key id, the ID the socket names films by, or, for an id that is a video's path, the film of that video: a video of the folder is named by its path until a job processes it, and by the job's ID from then on, so a client that kept the path still finds it (remote.Film.ID). UI thread only.

@@ -214,6 +214,7 @@ func (s *screen) moreButton(cx *ns.Scope) ns.Node {
 		if move := a.MoveOpenFilmMenu(cx); len(move) > 0 {
 			items = append(items, nsdesktop.MenuItem{Label: locales.FilmsMoveToLibrary(cx), Items: move})
 		}
+		items = append(items, a.StoredOpenMenu(cx)...)
 		b, _ := anchor.Bounds()
 		nsdesktop.PopupMenu(cx, items, ns.Point{X: b.Origin.X, Y: b.Origin.Y + b.Size.Height}, nil)
 	})
