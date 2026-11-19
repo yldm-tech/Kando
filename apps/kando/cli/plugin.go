@@ -36,16 +36,18 @@ type pluginIssue struct {
 	Error string `json:"error"`
 }
 
-// runPlugin is `kando plugin`, which works without the app: validate checks a pack, a zip or a folder, with the checks the app installs it with (plugins.Stage and plugins.Validate), copying it into a folder of its own that it removes afterwards; list lists the packs in the plugins folder (plugins.Scan) and whether each is turned on (plugins.State); install checks a pack file as validate does and drops it into the plugins folder's inbox (plugins.Drop), where the app offers it in its install confirmation the next time it starts or comes to the front. Nothing here installs a pack: only the app does, once the user confirms what it shows.
+// runPlugin is `kando plugin`, which works without the app: validate checks a pack, a zip or a folder, with the checks the app installs it with (plugins.Stage and plugins.Validate), copying it into a folder of its own that it removes afterwards; list lists the packs in the plugins folder (plugins.Scan) and whether each is turned on (plugins.State); install checks a pack file as validate does and drops it into the plugins folder's inbox (plugins.Drop), where the app offers it in its install confirmation the next time it starts or comes to the front; index builds and signs the community index from a folder of pack files (pluginIndex). Nothing here installs a pack: only the app does, once the user confirms what it shows.
 func runPlugin(e *env, args []string) error {
 	fs := e.flags()
 	fs.BoolVar(&e.json, "json", false, "print the result as JSON")
+	base := fs.String("base", "", "index: the https address the pack files are published under")
+	out := fs.String("out", "index.json", "index: the index file to write")
 	positional, err := e.parse(fs, args)
 	if err != nil {
 		return err
 	}
 	if len(positional) == 0 {
-		return usagef("needs a subcommand: validate, list or install")
+		return usagef("needs a subcommand: validate, list, install or index")
 	}
 	verb, positional := positional[0], positional[1:]
 	switch verb {
@@ -64,8 +66,13 @@ func runPlugin(e *env, args []string) error {
 			return usagef("install takes one pack file, a .zip, got %d arguments", len(positional))
 		}
 		return pluginInstall(e, positional[0])
+	case "index":
+		if len(positional) != 1 {
+			return usagef("index takes one folder of pack files, got %d arguments", len(positional))
+		}
+		return pluginIndex(e, positional[0], *base, *out)
 	}
-	return usagef("unknown subcommand %q: use validate, list or install", verb)
+	return usagef("unknown subcommand %q: use validate, list, install or index", verb)
 }
 
 func pluginValidate(e *env, src string) error {
