@@ -176,7 +176,7 @@ func TestScriptGrantIsMadeFromNothing(t *testing.T) {
 	}
 }
 
-// TestScriptRegexpIsBounded checks that a backtracking pattern, which would hold the engine for about twenty minutes at n=32, fails in under half a second (regexp2.DefaultMatchTimeout, nsgo#759).
+// TestScriptRegexpIsBounded checks that a backtracking pattern, which would hold the engine for about twenty minutes at n=32, fails within its call's budget: tsx gives the regular expressions a sandboxed call compiles the call's budget as their match timeout (Limits' Call, half a second), and regexp2 reads its clock every 100ms, so the match fails within a second.
 func TestScriptRegexpIsBounded(t *testing.T) {
 	s := newSigner(t, AppIDPrefix+"acme.*")
 	roots := s.roots()
@@ -188,7 +188,7 @@ func TestScriptRegexpIsBounded(t *testing.T) {
 	if got.err == nil {
 		t.Fatalf("the match ended: %v", got.v)
 	}
-	if d := got.at.Sub(start); d > slow(500*time.Millisecond) {
+	if d := got.at.Sub(start); d > slow(time.Second) {
 		t.Errorf("the match failed after %v", d)
 	}
 }

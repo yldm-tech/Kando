@@ -325,8 +325,9 @@ func (l filmList) Render(cx *core.Scope) core.Node {
 			a.Open(item)
 		}
 	})
-	// Return opens the film selected last, as it does in Finder's list; a field or a button with the keyboard keeps its own Return.
-	cx.OnKey("enter", open)
+	// Return opens the film selected last, as it does in Finder's list; a field with the keyboard keeps its own Return.
+	// TODO(nsgo#904): once a focused data table leaves Return to the app (or reports it as OnActivate), bind it with OnKey again so a button with the keyboard keeps its own Return; the table takes the focus on a click and would take Return as a press of its first row, so the binding takes Return from any focused view but a field https://github.com/nsgo-dev/nsgo/issues/904
+	cx.OnKeyWith("enter", core.KeyOptions{When: core.KeyNotEditing}, open)
 	styles := func() datatable.Styles {
 		chevron := core.Style{Color: colors.Faint(), Selected: &core.Style{Color: colors.Text()}}
 		return datatable.Styles{

@@ -4,20 +4,12 @@ package script
 import (
 	"crypto/ed25519"
 	"errors"
-	"time"
 
 	"kando/apps/kando/plugins"
 	"kando/apps/kando/plugins/script/signature"
 
-	"github.com/dlclark/regexp2/v2"
 	"github.com/nsgo-dev/nsgo/tsx/pkg"
 )
-
-func init() {
-	// goja compiles every regular expression a plugin makes with regexp2, whose matches no time budget interrupts: a backtracking pattern would hold the engine's goroutine, the window's, for minutes. regexp2 reads its default timeout as it compiles, so it is set before any plugin loads; a match past it throws a RangeError in the plugin. Kando uses regexp2 nowhere else.
-	// TODO(nsgo#759): tsx does not bound regexp2's matches; set MatchTimeout per runtime there and drop this process-wide default https://github.com/nsgo-dev/nsgo/issues/759
-	regexp2.DefaultMatchTimeout = 100 * time.Millisecond
-}
 
 // The keys, the trust and the verification of a script plugin's signature are package signature's, which builds without the TSX runtime for the command line and the plugin directory's CI tool; they are re-exported here so the app keeps one name for each.
 const (

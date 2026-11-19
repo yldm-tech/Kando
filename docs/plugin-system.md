@@ -777,7 +777,7 @@ export function kandoManifest() { return { /* identical to kando-plugin.json fie
 - 每次调用都包在 recover 和超时里，失败就整段丢弃这次的产出。
 - 熔断按 (id, hash) 计：init 失败立即停用；最近 50 次调用里有 3 次出错或超出 `ErrBudget`，也停用；`llm.chat` 上的 `ErrHostTimeout` 不计入。结果写进 `plugins/health.json`，只存类别。
 - **卡死和崩溃后自愈**：每次 Call 之前先把 (id, hash) 写成 in-flight 记录，回调时清掉（5.2 节）。下次启动时如果发现残留的记录，就把那个插件标为 `hung` 并自动停用，详情页说明「上次运行时让看懂停止响应」。这一条覆盖了 Limits 拦不住的卡死和 OOM（见 6.7）。
-- **看门狗**（P3.0 加的，Limits 管不到的部分）：所有脚本插件的 Call 全局串行，同一时刻只有一个在跑，引擎变慢和内存上涨都能归到它头上。一个 goroutine 定时往引擎投心跳，并用 `runtime/metrics` 读 Go 堆；有调用在跑时，心跳连续几次等待超过 250ms，或者堆比 Load 前的基线多出 512 MiB，就在引擎上 `Plugin.Close()` 这个插件，记一次熔断并停用。Close 在两个片段之间生效（实测 0.05–0.4 s），单个同步片段由 500ms 预算兜住，所以最坏多占约 0.5 GB、多卡一个片段。正则另由进程级的 `regexp2.DefaultMatchTimeout` 兜住（6.7）。
+- **看门狗**（P3.0 加的，Limits 管不到的部分）：所有脚本插件的 Call 全局串行，同一时刻只有一个在跑，引擎变慢和内存上涨都能归到它头上。一个 goroutine 定时往引擎投心跳，并用 `runtime/metrics` 读 Go 堆；有调用在跑时，心跳连续几次等待超过 250ms，或者堆比 Load 前的基线多出 512 MiB，就在引擎上 `Plugin.Close()` 这个插件，记一次熔断并停用。Close 在两个片段之间生效（实测 0.05–0.4 s），单个同步片段由 500ms 预算兜住，所以最坏多占约 0.5 GB、多卡一个片段。正则由 tsx 兜住：沙箱里的调用编译的正则以这次调用的预算（500ms）为匹配超时（nsgo#759 修好后，Kando 不再设进程级的 `regexp2.DefaultMatchTimeout`，6.7）。
 - `plugins/audit.log` 记录安装、授权、吊销、熔断、确认框结果，以及每次 `llm.chat` 的 token 数，不记录内容。写盘前先经过 `feedback.Scrubber`。
 
 ### 6.7 残余风险（在授权页如实写出）
@@ -1019,7 +1019,7 @@ P1.1 的确认框只有数据包要显示的部分：名称（标题）、说明
 
 ## 11. 新依赖
 
-P0–P2 不新增任何 module。P3a 起 `github.com/dlclark/regexp2/v2 v2.11.0` 成为 `apps/kando/go.mod` 的直接依赖（只用来设 `regexp2.DefaultMatchTimeout`，见 6.7），`go mod tidy` 多出 `github.com/google/pprof v0.0.0-20230207041349-798e818bf904`（indirect），两者的版本都是 NSGo 已经选定的，owner 已同意（12.3 第 3 条）。其余用到的都已经在 `apps/kando/go.mod` 里：
+P0–P2 不新增任何 module。P3a 起 `github.com/dlclark/regexp2/v2 v2.11.0` 成为 `apps/kando/go.mod` 的直接依赖（只用来设 `regexp2.DefaultMatchTimeout`，见 6.7；nsgo#759 修好后不再设，又回到 indirect），`go mod tidy` 多出 `github.com/google/pprof v0.0.0-20230207041349-798e818bf904`（indirect），两者的版本都是 NSGo 已经选定的，owner 已同意（12.3 第 3 条）。其余用到的都已经在 `apps/kando/go.mod` 里：
 
 | 模块 | 版本 | 用途 | 位置 |
 |---|---|---|---|

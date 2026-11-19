@@ -10,7 +10,6 @@ require (
 	github.com/aws/aws-sdk-go-v2/service/s3 v1.114.10
 	github.com/aws/smithy-go v1.28.9
 	github.com/cloudsoda/go-smb2 v0.0.0-20261105190815-95be04a983b8
-	github.com/dlclark/regexp2/v2 v2.11.0
 	github.com/modelcontextprotocol/go-sdk v1.8.0
 	github.com/nsgo-dev/nsgo v0.2.1-0.20261119193104-729f238f5678
 	github.com/pkg/sftp v1.13.12
@@ -51,6 +50,7 @@ require (
 	github.com/aws/aws-sdk-go-v2/service/internal/presigned-url v1.14.12 // indirect
 	github.com/aws/aws-sdk-go-v2/service/internal/s3shared v1.20.12 // indirect
 	github.com/cloudsoda/sddl v0.0.0-20261105185302-1c8f96799263 // indirect
+	github.com/dlclark/regexp2/v2 v2.11.0 // indirect
 	github.com/dop251/goja v0.0.0-20261027234916-5f913d1693d9 // indirect
 	github.com/ebitengine/purego v0.11.3 // indirect
 	github.com/egoist/mygo v0.9.0 // indirect
