@@ -67,7 +67,33 @@ func (t ChatTranslator) Candidates(ctx context.Context, req CandidateRequest) ([
 	if err := json.Unmarshal([]byte(reply), &got); err != nil {
 		return nil, fmt.Errorf("candidates: the reply is not a list of translations: %w", err)
 	}
-	current := strings.TrimSpace(req.Line.Translation)
+	return keepCandidates(got, req.Line.Translation), nil
+}
+
+// candidater is a translation source that offers other translations of a line the viewer says is wrong, as ChatTranslator does: a Tools.Engine that does is asked for them in place of Translator (Tools.Candidates).
+type candidater interface {
+	Candidates(ctx context.Context, req CandidateRequest) ([]string, error)
+}
+
+// Candidates asks for other translations of req.Line: Engine's, when it offers them, else Translator's (ChatTranslator.Candidates). Engine's are kept as ChatTranslator keeps the model's, best first, at most CandidatesMax, without the line's current translation, blanks or repeats; its failure names it (engineError), and offline mode refuses one not on this computer before anything is sent.
+func (t Tools) Candidates(ctx context.Context, req CandidateRequest) ([]string, error) {
+	source, ok := t.Engine.(candidater)
+	if !ok {
+		return t.withOffline().Candidates(ctx, req)
+	}
+	if err := t.engineOffline(); err != nil {
+		return nil, err
+	}
+	got, err := source.Candidates(ctx, req)
+	if err != nil {
+		return nil, &engineError{name: t.EngineName, err: err}
+	}
+	return keepCandidates(got, req.Line.Translation), nil
+}
+
+// keepCandidates are the translations got offers for a line translated as current, best first, with their spaces made single, at most CandidatesMax, without current, blanks or repeats.
+func keepCandidates(got []string, current string) []string {
+	current = strings.TrimSpace(current)
 	var out []string
 	for _, c := range got {
 		c = strings.Join(strings.Fields(c), " ")
@@ -79,5 +105,5 @@ func (t ChatTranslator) Candidates(ctx context.Context, req CandidateRequest) ([
 			break
 		}
 	}
-	return out, nil
+	return out
 }

@@ -43,6 +43,9 @@ type Tools struct {
 	WhisperThreads int
 	WhisperHints   string
 	Translator     ChatTranslator
+	// Engine, when set, is the translation source Translate translates a film's lines with in place of Translator, such as a machine translation service a plugin offers; nil translates with Translator, as Kando always has. Only the translation goes to it: proofreading, the final proofread and term suggestions stay with Translator. EngineName is what the viewer knows it by, which a job it fails names (StageError.Source).
+	Engine     SegmentTranslator
+	EngineName string
 	// Cookies is the browser whose login Download borrows, as yt-dlp's --cookies-from-browser names it (chrome, safari, firefox, edge, brave); empty borrows none.
 	Cookies string
 	// OEmbed is YouTube's oEmbed endpoint, which names a video yt-dlp could not look up, as one that is age-restricted or blocked where this machine is; empty asks nothing.
@@ -269,8 +272,20 @@ func (t Tools) hearing(ctx context.Context) (model, language string) {
 	return t.WhisperModel, language
 }
 
-// CheckTranslate reports what translating needs and is missing, the translator's model and its sign-in, which Check leaves out (TranslateChecker).
+// CheckTranslate reports what translating needs and is missing, which Check leaves out (TranslateChecker): the translator's model and its sign-in, or, with Engine set, what Engine says it needs (its own CheckTranslate) and offline mode for one not on this computer.
 func (t Tools) CheckTranslate() error {
+	// A source of its own is checked by itself, as it needs neither the model nor the sign-in.
+	if t.Engine != nil {
+		if err := t.engineOffline(); err != nil {
+			return err
+		}
+		if tc, ok := t.Engine.(TranslateChecker); ok {
+			if err := tc.CheckTranslate(); err != nil {
+				return &engineError{name: t.EngineName, err: err}
+			}
+		}
+		return nil
+	}
 	// The sign-in asks EveryAPI's servers, so offline mode refuses before it, as it refuses the translation.
 	if err := t.withOffline().offline(); err != nil {
 		return err
@@ -501,8 +516,40 @@ func whisperThreadCount() int {
 	return n
 }
 
+// SegmentTranslator translates a film's lines into language, as Pipeline.Translate does: ChatTranslator, or a source of its own set as Tools.Engine. One that leaves some lines untranslated returns every line with an *UntranslatedError. One that implements TranslateChecker is asked before a film is translated what it needs and is missing, and one whose Local method reports true is used in offline mode too.
+type SegmentTranslator interface {
+	Translate(ctx context.Context, segments []core.Segment, language string) ([]core.Segment, error)
+}
+
+// localSource is a translation source that may say it runs on this computer, as ChatTranslator does, which offline mode leaves on.
+type localSource interface {
+	Local() bool
+}
+
+// engineOffline is ErrOffline while offline mode is on and Engine is not on this computer, as the translator refuses a service that is not.
+func (t Tools) engineOffline() error {
+	if local, ok := t.Engine.(localSource); ok && local.Local() {
+		return nil
+	}
+	if t.offlineNow() {
+		return ErrOffline
+	}
+	return nil
+}
+
+// Translate translates segments into language with Engine when one is set, else with Translator (ChatTranslator.Translate). Engine's failure names it (StageError.Source); offline mode refuses one not on this computer before anything is sent.
 func (t Tools) Translate(ctx context.Context, segments []core.Segment, language string) ([]core.Segment, error) {
-	return t.withOffline().Translate(ctx, segments, language)
+	if t.Engine == nil {
+		return t.withOffline().Translate(ctx, segments, language)
+	}
+	if err := t.engineOffline(); err != nil {
+		return nil, err
+	}
+	translated, err := t.Engine.Translate(ctx, segments, language)
+	if err != nil {
+		err = &engineError{name: t.EngineName, err: err}
+	}
+	return translated, err
 }
 
 // Proofread corrects what whisper misheard through the translator (ChatTranslator.Proofread).

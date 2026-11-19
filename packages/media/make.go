@@ -94,7 +94,7 @@ func Make(ctx context.Context, p Pipeline, job core.Job, language, device string
 		watch = From(job.ResumeAt)
 	}
 	if device == "" && job.Redo != core.RedoVideo {
-		job.Err, job.Stage = fmt.Errorf("check: %w", track.ErrDevice), core.StageFailed
+		job.Err, job.Stage = failedAt(StageCheck, track.ErrDevice), core.StageFailed
 		report(job)
 		return job
 	}
@@ -103,8 +103,8 @@ func Make(ctx context.Context, p Pipeline, job core.Job, language, device string
 		job.Progress = core.Progress{}
 		report(job)
 	}
-	fail := func(step string, err error) core.Job {
-		job.Err = fmt.Errorf("%s: %w", step, err)
+	fail := func(step Stage, err error) core.Job {
+		job.Err = failedAt(step, err)
 		enter(core.StageFailed)
 		return job
 	}
@@ -150,7 +150,7 @@ func Make(ctx context.Context, p Pipeline, job core.Job, language, device string
 		check = func() error { return errors.Join(p.Check(), tc.CheckTranslate()) }
 	}
 	if err := check(); err != nil {
-		return fail("check", err)
+		return fail(StageCheck, err)
 	}
 	_, local := localVideoPath(job.Source)
 	// soundOnly is a link at core.QualitySubtitles, which keeps no video: it is made from its sound alone, which goes once its subtitles are written.
@@ -167,7 +167,7 @@ func Make(ctx context.Context, p Pipeline, job core.Job, language, device string
 			var err error
 			if video, err = p.Download(ctx, job.Source); err != nil {
 				job.FailKind = downloadFailKind(job, err)
-				return fail("download", err)
+				return fail(StageDownload, err)
 			}
 		}
 		job.VideoPath, hearFrom = video, video
@@ -176,7 +176,7 @@ func Make(ctx context.Context, p Pipeline, job core.Job, language, device string
 		sound, err := p.Download(withQuality(ctx, core.QualitySubtitles), job.Source)
 		if err != nil {
 			job.FailKind = downloadFailKind(job, err)
-			return fail("download", err)
+			return fail(StageDownload, err)
 		}
 		// The sound is kept hidden beside where the video comes (soundPath), so the library does not take a sound saved as .webm for a video of its own; the film's document is the video's from the start, as the video is named as the sound was but for its extension.
 		video, hearFrom = sound, soundPath(sound)
@@ -222,7 +222,7 @@ func Make(ctx context.Context, p Pipeline, job core.Job, language, device string
 		if hearFrom != video {
 			_ = os.Remove(hearFrom)
 		}
-		return fail("transcribe", err)
+		return fail(StageTranscribe, err)
 	}
 	// A redo keeps showing the film as its files hold it until it is done: what they hold that the document does not is taken in first, as the film it redoes.
 	if job.Redo != "" {
@@ -260,7 +260,7 @@ func downloadVideo(ctx context.Context, p Pipeline, job *core.Job, report func(c
 	}
 	if err != nil {
 		job.FailKind = downloadFailKind(*job, err)
-		job.Err, job.Stage = fmt.Errorf("download: %w", err), core.StageFailed
+		job.Err, job.Stage = failedAt(StageDownload, err), core.StageFailed
 	} else {
 		job.VideoPath, job.SubtitlesOnly = video, false
 		job.Redo, job.RedoLanguage = "", ""
@@ -360,7 +360,7 @@ func (m *making) run(length time.Duration, language string, watch Watcher) core.
 		gen, err = m.generation(model)
 	}
 	if err != nil {
-		return m.fail("transcribe", err)
+		return m.fail(StageTranscribe, err)
 	}
 	m.transcript = TranscriptOf(m.video)
 	if _, local := localVideoPath(job.Source); local && !job.Transcribed && foreignTranscript(m.video) {
@@ -445,7 +445,7 @@ func (m *making) run(length time.Duration, language string, watch Watcher) core.
 	for {
 		// A making stopped starts nothing more, though what it waited for came at once with the stop and was taken first.
 		if err := m.ctx.Err(); err != nil {
-			return m.fail("transcribe", err)
+			return m.fail(StageTranscribe, err)
 		}
 		plan.Playhead = watch.Playhead()
 		if m.reference == referenceUnasked && hearing != "" && hearing != "auto" {
@@ -501,11 +501,11 @@ func (m *making) run(length time.Duration, language string, watch Watcher) core.
 		}
 		if hearStop == nil && !drafting && m.siteState != siteFetching && m.reference != referenceFetching {
 			// Nothing runs and nothing can start, yet the film is not done. Plan says no such state exists, and a draft waits for more cells only while a run hears them; stop rather than wait for ever.
-			return m.fail("transcribe", errors.New("subtitles: work is left that nothing can do"))
+			return m.fail(StageTranscribe, errors.New("subtitles: work is left that nothing can do"))
 		}
 		select {
 		case <-m.ctx.Done():
-			return m.fail("transcribe", m.ctx.Err())
+			return m.fail(StageTranscribe, m.ctx.Err())
 		case d := <-m.coming:
 			m.videoCame(d)
 		case subtitles := <-m.siteCh:
@@ -529,7 +529,7 @@ func (m *making) run(length time.Duration, language string, watch Watcher) core.
 				// Stopped for a jump: the cells it did not hear are heard again.
 			case d.err != nil && !d.heard:
 				// A run that failed before it heard anything, as one whose model cannot load, fails every run: the job fails, as the transcription failing does.
-				return m.fail("transcribe", d.err)
+				return m.fail(StageTranscribe, d.err)
 			case d.err != nil:
 				m.append(track.Unit{Work: track.WorkHear, Gen: gen, Cell: m.firstUnheard(gen, plan.Hearing, hearCells), Key: plan.Hearing}.Failed(d.err.Error()))
 			case hearing == "":
@@ -568,7 +568,7 @@ func (m *making) run(length time.Duration, language string, watch Watcher) core.
 				relanguage()
 			case (errors.Is(d.err, ErrOffline) || draftFailures+1 >= maxFailedBatches) && m.redo:
 				// A redo without its translation would replace the film's translated subtitles with fewer: it fails, leaving the film as it was.
-				return m.fail("translate", d.err)
+				return m.fail(StageTranslate, d.err)
 			case errors.Is(d.err, ErrOffline) || draftFailures+1 >= maxFailedBatches:
 				// The service is not there, or fails cell after cell: the film is made without the translation of the cells left, as it is without a translator.
 				notTranslated = d.err.Error()
@@ -582,13 +582,13 @@ func (m *making) run(length time.Duration, language string, watch Watcher) core.
 		}
 		m.project(gen)
 		if m.writeErr != nil {
-			return m.fail("export", m.writeErr)
+			return m.fail(StageExport, m.writeErr)
 		}
 	}
 
 	// A making stopped as its last work ended, as the fetch of the site's captions, is stopped, not done.
 	if err := m.ctx.Err(); err != nil {
-		return m.fail("transcribe", err)
+		return m.fail(StageTranscribe, err)
 	}
 	// A redo that gave up hearing or drafting a part of the film would replace the film with one that lacks it: it fails, leaving the film as it was.
 	if m.redo {
@@ -603,7 +603,7 @@ func (m *making) run(length time.Duration, language string, watch Watcher) core.
 	}
 	lines := m.doc.Lines(gen)
 	if len(lines) == 0 {
-		return m.fail("transcribe", ErrNoSpeech)
+		return m.fail(StageTranscribe, ErrNoSpeech)
 	}
 	same := core.SameLanguage(cmpOr(spoken, job.SpokenLanguage), language, track.Originals(lines))
 	// Terms are suggested for the film's glossary once it is translated, when the job asks for them (WithTermSuggestions), and kept before its subtitles are written whole, whose change has the window read them again (state_glossary_suggest.go), so it reads these with them. A film not translated, or whose missing lines alone are translated (fillMissing), keeps the suggestions it had, and so does one whose request failed; a making stopped while it asks stops.
@@ -612,7 +612,7 @@ func (m *making) run(length time.Duration, language string, watch Watcher) core.
 			_ = KeepSuggestions(m.video, terms)
 		}
 		if err := m.ctx.Err(); err != nil {
-			return m.fail("translate", err)
+			return m.fail(StageTranslate, err)
 		}
 	}
 	// A link made from its sound waits for its video, then keeps it in the sound's place: a video already there is taken at once, without saying the job downloads again.
@@ -630,15 +630,15 @@ func (m *making) run(length time.Duration, language string, watch Watcher) core.
 		case d := <-m.coming:
 			m.videoCame(d)
 		case <-m.ctx.Done():
-			return m.fail("download", m.ctx.Err())
+			return m.fail(StageDownload, m.ctx.Err())
 		}
 	}
 	if m.videoErr != nil {
 		job.FailKind = downloadFailKind(*job, m.videoErr)
-		return m.fail("download", m.videoErr)
+		return m.fail(StageDownload, m.videoErr)
 	}
 	if err := m.finish(gen); err != nil {
-		return m.fail("export", err)
+		return m.fail(StageExport, err)
 	}
 	if m.redo {
 		m.keepProofs(gen, last)
@@ -664,7 +664,7 @@ func (m *making) run(length time.Duration, language string, watch Watcher) core.
 	// The chapters' titles are translated as the lines are; a film not translated has their earlier translations cleared (translateChapters).
 	if notTranslated == "" {
 		if err := translateChapters(m.ctx, m.p, m.video, language, same); err != nil {
-			return m.fail("translate", err)
+			return m.fail(StageTranslate, err)
 		}
 	}
 	job.SameLanguage = same
@@ -684,7 +684,7 @@ func (m *making) run(length time.Duration, language string, watch Watcher) core.
 	return *job
 }
 
-func (m *making) fail(step string, err error) core.Job {
+func (m *making) fail(step Stage, err error) core.Job {
 	// A link made from its sound keeps its video once it comes, as a job that fails after its download does, so one run again does not download it again; a job stopped stops the download at once.
 	if m.coming != nil {
 		m.videoCame(<-m.coming)
@@ -692,7 +692,7 @@ func (m *making) fail(step string, err error) core.Job {
 			_ = os.Remove(m.hearFrom)
 		}
 	}
-	m.job.Err = fmt.Errorf("%s: %w", step, err)
+	m.job.Err = failedAt(step, err)
 	m.job.Stage = core.StageFailed
 	m.job.Progress = core.Progress{}
 	m.report(*m.job)
@@ -965,43 +965,43 @@ func (m *making) siteCounts(gen string) (bool, int) {
 
 // translateAgain translates job's film again (core.RedoTranslation), every line of it, into language, a part at a time nearest where it is watched first, as Make makes a film: its lines as the film shows them, its files taken in first, are copied into a generation of their own (copyGeneration), which the film shows once it is done, so one that fails or is stopped leaves the film as it was. It neither downloads nor hears the film, so it checks only what translating needs, and a film whose lines are gone fails with ErrNoTranscript.
 func translateAgain(ctx context.Context, p Pipeline, job *core.Job, language, device string, watch Watcher, report func(core.Job)) core.Job {
-	failed := func(step string, err error) core.Job {
-		job.Err, job.Stage, job.Progress = fmt.Errorf("%s: %w", step, err), core.StageFailed, core.Progress{}
+	failed := func(step Stage, err error) core.Job {
+		job.Err, job.Stage, job.Progress = failedAt(step, err), core.StageFailed, core.Progress{}
 		report(*job)
 		return *job
 	}
 	if tc, ok := p.(TranslateChecker); ok {
 		if err := tc.CheckTranslate(); err != nil {
-			return failed("check", err)
+			return failed(StageCheck, err)
 		}
 	}
 	if device == "" {
-		return failed("check", track.ErrDevice)
+		return failed(StageCheck, track.ErrDevice)
 	}
 	doc, err := track.Read(job.VideoPath)
 	if err == nil && doc.Newer {
 		err = track.ErrNewer
 	}
 	if err != nil {
-		return failed("translate", err)
+		return failed(StageTranslate, err)
 	}
 	// A film whose document holds no line is read from its files, which need the transcript: the bilingual subtitles alone cannot tell a translation from an original line of two rows.
 	transcript := TranscriptOf(job.VideoPath)
 	if len(doc.View()) == 0 && !fileExists(transcript) {
-		return failed("translate", ErrNoTranscript)
+		return failed(StageTranslate, ErrNoTranscript)
 	}
 	if events, err := trackFiles(doc, job.SubtitlePath, transcript); err != nil {
-		return failed("translate", err)
+		return failed(StageTranslate, err)
 	} else if len(events) > 0 {
 		written, err := track.Append(job.VideoPath, device, events...)
 		doc.Events = append(doc.Events, written...)
 		if err != nil {
-			return failed("export", err)
+			return failed(StageExport, err)
 		}
 	}
 	lines := doc.View()
 	if len(lines) == 0 {
-		return failed("translate", ErrNoTranscript)
+		return failed(StageTranslate, ErrNoTranscript)
 	}
 	if watch == nil {
 		watch = From(job.ResumeAt)
@@ -1017,18 +1017,18 @@ func translateAgain(ctx context.Context, p Pipeline, job *core.Job, language, de
 
 // fillMissing translates the lines of job's film that the film shows without a translation (core.RedoMissing) into language, a batch at a time, with the lines said before each as context, and keeps the rest as they are. It writes each batch into the lines the film shows and out beside the video as it is translated, as filling in what is missing cannot make the film worse: one that fails or is stopped keeps the lines it filled, and job.Untranslated says how many are left. It neither downloads nor hears the film. A film whose subtitles were edited outside Kando so they no longer match its transcript line for line fails with ErrSubtitlesChanged, sending nothing, as which lines are missing cannot be told; one whose bilingual subtitles are gone has every line its document does not translate translated.
 func fillMissing(ctx context.Context, p Pipeline, job *core.Job, language, device string, report func(core.Job)) core.Job {
-	failed := func(step string, err error) core.Job {
-		job.Err, job.Stage, job.Progress = fmt.Errorf("%s: %w", step, err), core.StageFailed, core.Progress{}
+	failed := func(step Stage, err error) core.Job {
+		job.Err, job.Stage, job.Progress = failedAt(step, err), core.StageFailed, core.Progress{}
 		report(*job)
 		return *job
 	}
 	if tc, ok := p.(TranslateChecker); ok {
 		if err := tc.CheckTranslate(); err != nil {
-			return failed("check", err)
+			return failed(StageCheck, err)
 		}
 	}
 	if device == "" {
-		return failed("check", track.ErrDevice)
+		return failed(StageCheck, track.ErrDevice)
 	}
 	video := job.VideoPath
 	doc, err := track.Read(video)
@@ -1036,7 +1036,7 @@ func fillMissing(ctx context.Context, p Pipeline, job *core.Job, language, devic
 		err = track.ErrNewer
 	}
 	if err != nil {
-		return failed("translate", err)
+		return failed(StageTranslate, err)
 	}
 	transcript := TranscriptOf(video)
 	subtitles := job.SubtitlePath
@@ -1046,23 +1046,23 @@ func fillMissing(ctx context.Context, p Pipeline, job *core.Job, language, devic
 	}
 	events, err := trackFiles(doc, subtitles, transcript)
 	if err != nil {
-		return failed("translate", err)
+		return failed(StageTranslate, err)
 	}
 	if len(events) > 0 {
 		// The files hold what the document did not write: they are taken in only when they still match the transcript line for line.
 		if _, _, err := readExported(video, subtitles != transcript); err != nil {
-			return failed("translate", err)
+			return failed(StageTranslate, err)
 		}
 		written, err := track.Append(video, device, events...)
 		doc.Events = append(doc.Events, written...)
 		if err != nil {
-			return failed("export", err)
+			return failed(StageExport, err)
 		}
 	}
 	gen := doc.Shown()
 	lines := doc.Lines(gen)
 	if len(lines) == 0 {
-		return failed("translate", ErrNoTranscript)
+		return failed(StageTranslate, ErrNoTranscript)
 	}
 	job.Stage, job.Progress = core.StageTranslating, core.Progress{}
 	report(*job)
@@ -1104,7 +1104,7 @@ func fillMissing(ctx context.Context, p Pipeline, job *core.Job, language, devic
 			err = fmt.Errorf("%d translated lines for %d untranslated lines", len(translated), len(segments))
 		}
 		if err != nil {
-			return failed("translate", err)
+			return failed(StageTranslate, err)
 		}
 		var revs []track.Event
 		for k, i := range batch {
@@ -1122,7 +1122,7 @@ func fillMissing(ctx context.Context, p Pipeline, job *core.Job, language, devic
 			err = project()
 		}
 		if err != nil {
-			return failed("export", err)
+			return failed(StageExport, err)
 		}
 		job.Untranslated = left
 		progress := core.Fraction(float64(at+len(batch)) / float64(len(missing)))
@@ -1132,11 +1132,11 @@ func fillMissing(ctx context.Context, p Pipeline, job *core.Job, language, devic
 	}
 	if len(missing) == 0 {
 		if err := project(); err != nil {
-			return failed("export", err)
+			return failed(StageExport, err)
 		}
 	}
 	if err := translateChapters(ctx, p, video, language, same); err != nil {
-		return failed("translate", err)
+		return failed(StageTranslate, err)
 	}
 	job.SubtitlePath, job.SameLanguage = bilingual, same
 	job.CompletedAt = time.Now()
