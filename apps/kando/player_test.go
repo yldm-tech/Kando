@@ -2741,7 +2741,7 @@ func TestPlayerFollowsTheMainWindowsLifecycle(t *testing.T) {
 	}
 }
 
-// TestALineOnScreenIsNotRewrittenWhileItIsRead checks that a line the machine rewrites while it is on screen keeps showing as it was until the playhead leaves it, while a line not on screen takes its new text at once, and so does a line on screen that had no translation and gets one.
+// TestALineOnScreenIsNotRewrittenWhileItIsRead checks that a line the machine rewrites while it is on screen keeps showing as it was until the playhead leaves it, while a line not on screen takes its new text at once, and so does a line on screen that had no translation and gets one. The machine's lines hold the new text all along, which the export writes.
 func TestALineOnScreenIsNotRewrittenWhileItIsRead(t *testing.T) {
 	a, tt, updates := playerOpen(t)
 	path := a.player.subs.path
@@ -2757,21 +2757,27 @@ func TestALineOnScreenIsNotRewrittenWhileItIsRead(t *testing.T) {
 		apply(tt, a, a.reloadOpenSubtitles)
 		waitUntil(t, tt, a, updates, func() bool { return a.player.subs.ready })
 	}
-	machine := func(i int) string { return a.player.subs.machine[i].Text }
+	shown := func(i int) string { return a.player.subs.cues[i].Text }
 	playerPlayTo(tt, a, 1500*time.Millisecond)
 	rewrite("1\n00:00:01,000 --> 00:00:02,500\n您好。\nHello.\n\n2\n00:00:04,000 --> 00:00:05,000\n再见。\nBye.\n\n")
-	if machine(0) != "你好。\nHello." || machine(1) != "再见。\nBye." {
-		t.Fatalf("lines %q, %q: want the one on screen as it was and the other rewritten", machine(0), machine(1))
+	if shown(0) != "你好。\nHello." || shown(1) != "再见。\nBye." {
+		t.Fatalf("lines %q, %q: want the one on screen as it was and the other rewritten", shown(0), shown(1))
+	}
+	if got := a.player.subs.machine[0].Text; got != "您好。\nHello." {
+		t.Fatalf("the machine's line on screen reads %q, want its new text", got)
+	}
+	if lines := a.subexportLines(); len(lines) != 2 || lines[0].Translation != "您好。" {
+		t.Fatalf("the export of a line held on screen %+v, want its new text", lines)
 	}
 	playerPlayTo(tt, a, 3*time.Second)
-	if machine(0) != "您好。\nHello." {
-		t.Fatalf("line left reads %q, want its new text", machine(0))
+	if shown(0) != "您好。\nHello." {
+		t.Fatalf("line left reads %q, want its new text", shown(0))
 	}
 	// A line on screen without a translation takes the one that comes at once.
 	rewrite("1\n00:00:01,000 --> 00:00:02,500\n您好。\nHello.\n\n2\n00:00:04,000 --> 00:00:05,000\nBye.\n\n")
 	playerPlayTo(tt, a, 4500*time.Millisecond)
 	rewrite("1\n00:00:01,000 --> 00:00:02,500\n您好。\nHello.\n\n2\n00:00:04,000 --> 00:00:05,000\n回头见。\nBye.\n\n")
-	if machine(1) != "回头见。\nBye." {
-		t.Fatalf("line on screen without a translation reads %q, want the translation at once", machine(1))
+	if shown(1) != "回头见。\nBye." {
+		t.Fatalf("line on screen without a translation reads %q, want the translation at once", shown(1))
 	}
 }

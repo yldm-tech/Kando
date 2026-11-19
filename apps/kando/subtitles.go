@@ -71,7 +71,7 @@ type subtitleView struct {
 	mod           time.Time
 	size          int64
 	seen          bool
-	// held is the line on screen when the machine rewrote it, shown as it was until the playhead leaves it (subtitlesLetGo), so a line is not changed while it is read; immediate has the next read of the file show what it holds at once, as after the user's own decision on a change of the final proofread.
+	// held is the line on screen when the machine rewrote it, shown as it was until the playhead leaves it (subtitlesLetGo), so a line is not changed while it is read; machine holds its new text all along, which export and the corrections work from. immediate has the next read of the file show what it holds at once, as after the user's own decision on a change of the final proofread.
 	held      *heldCue
 	immediate bool
 }
@@ -82,7 +82,7 @@ func (a *app) loadSubtitles(key, video, path string) {
 		return
 	}
 	// A read of the open film's subtitles again knows what showed before it, so the line on screen is kept as it was.
-	was, immediate := a.player.subs.machine, a.player.subs.immediate
+	was, immediate := subtitlesShown(a.player.subs.machine, a.player.subs.held), a.player.subs.immediate
 	if a.player.subs.key != key {
 		was = nil
 	}
@@ -125,7 +125,7 @@ func (a *app) loadSubtitles(key, video, path string) {
 				return
 			}
 			if !immediate {
-				cues, a.player.subs.held = subtitlesHold(was, cues, a.playerLineAt())
+				a.player.subs.held = subtitlesHold(was, cues, a.playerLineAt())
 			}
 			a.player.subs.machine, a.player.subs.machineDrafts = cues, drafts
 			a.player.subs.edits, a.player.subs.editsErr = edits, editsErr != nil
@@ -142,36 +142,48 @@ func (a *app) loadSubtitles(key, video, path string) {
 	}()
 }
 
-// heldCue is a line kept as it showed while it is on screen: its span, and the machine's new text, which it takes once the playhead leaves it.
+// heldCue is a line kept as it showed while it is on screen: its span, and the text it showed, which it shows until the playhead leaves it.
 type heldCue struct {
 	span core.Span
 	text string
 }
 
-// subtitlesHold is cues, a film's lines read again, with the line on screen at at as it was in was, the lines read before, when the machine rewrote it there: a line rewritten while it is read is distracting, so it takes its new text once it is left (subtitlesLetGo). A line that had no translation takes the one that came at once, as a gap filled is not a line rewritten.
-func subtitlesHold(was, cues []core.Segment, at time.Duration) ([]core.Segment, *heldCue) {
+// subtitlesHold is the line of cues, a film's lines read again, to keep on screen at at as it was in was, the lines read before, when the machine rewrote it there, or nil: a line rewritten while it is read is distracting, so it shows its new text once it is left (subtitlesLetGo). A line that had no translation takes the one that came at once, as a gap filled is not a line rewritten.
+func subtitlesHold(was, cues []core.Segment, at time.Duration) *heldCue {
 	_, cur, _ := film.CueNear(was, at)
 	if cur < 0 || at < was[cur].Start || at >= was[cur].End {
-		return cues, nil
+		return nil
 	}
 	shown := was[cur]
 	if translation, _ := core.SplitCue(shown.Text); translation == "" {
-		return cues, nil
+		return nil
 	}
-	for i, c := range cues {
+	for _, c := range cues {
 		if c.Start == shown.Start && c.End == shown.End {
 			if c.Text == shown.Text {
-				return cues, nil
+				return nil
 			}
-			out := slices.Clone(cues)
-			out[i].Text = shown.Text
-			return out, &heldCue{span: core.Span{Start: c.Start, End: c.End}, text: c.Text}
+			return &heldCue{span: core.Span{Start: c.Start, End: c.End}, text: shown.Text}
 		}
 	}
-	return cues, nil
+	return nil
 }
 
-// subtitlesLetGo gives the line held on screen its new text once the playhead is off it (subtitlesHold), and reports whether that changed the lines.
+// subtitlesShown is machine, the machine's lines, as they show: the line held on screen (held) with the text it shows.
+func subtitlesShown(machine []core.Segment, held *heldCue) []core.Segment {
+	if held == nil {
+		return machine
+	}
+	out := slices.Clone(machine)
+	for i, c := range out {
+		if c.Start == held.span.Start && c.End == held.span.End {
+			out[i].Text = held.text
+		}
+	}
+	return out
+}
+
+// subtitlesLetGo shows the line held on screen with its new text once the playhead is off it (subtitlesHold), and reports whether that changed the lines.
 func (a *app) subtitlesLetGo() bool {
 	subs := &a.player.subs
 	if subs.held == nil {
@@ -179,12 +191,6 @@ func (a *app) subtitlesLetGo() bool {
 	}
 	if at := a.playerLineAt(); at >= subs.held.span.Start && at < subs.held.span.End {
 		return false
-	}
-	for i, c := range subs.machine {
-		if c.Start == subs.held.span.Start && c.End == subs.held.span.End {
-			subs.machine[i].Text = subs.held.text
-			break
-		}
 	}
 	subs.held = nil
 	a.playerCorrectSubs()
@@ -217,10 +223,10 @@ func (a *app) reloadOpenSubtitles() {
 	a.loadSubtitles(key, video, path)
 }
 
-// playerCorrectSubs lays the user's corrections of the open film over the lines the machine wrote, as the picture, the subtitle list and the keys take them (subtitleView.cues).
+// playerCorrectSubs lays the user's corrections of the open film over the lines the machine wrote, as the picture, the subtitle list and the keys take them (subtitleView.cues), the line held on screen as it showed (subtitleView.held) unless the user corrected it.
 func (a *app) playerCorrectSubs() {
 	subs := &a.player.subs
-	subs.cues, subs.from = core.CorrectSegments(subs.machine, subs.edits)
+	subs.cues, subs.from = core.CorrectSegments(subtitlesShown(subs.machine, subs.held), subs.edits)
 	if len(subs.machine) == 0 {
 		subs.cues, subs.from = nil, nil
 	}
