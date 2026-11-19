@@ -11,6 +11,7 @@ import (
 
 	"kando/apps/kando/film/subtitle"
 	"kando/apps/kando/live"
+	"kando/apps/kando/locales"
 	"kando/apps/kando/locales/testlocale"
 	"kando/apps/kando/sidebar"
 	"kando/apps/kando/theme"
@@ -246,6 +247,8 @@ func (f *fakeApp) RenameFilm()                                          { f.call
 func (f *fakeApp) MoveFilmMenu(*ns.Scope, ...Film) []nsdesktop.MenuItem { return nil }
 
 func (f *fakeApp) StoredMenu(*ns.Scope, Film) []nsdesktop.MenuItem { return nil }
+
+func (f *fakeApp) StoredMark(locales.Messages, Film) (string, bool, bool) { return "", false, false }
 
 func (f *fakeApp) StoredPlace(Film) string { return "" }
 func (f *fakeApp) Selection() *Selection   { return &f.selection }

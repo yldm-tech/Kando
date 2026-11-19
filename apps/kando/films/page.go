@@ -7,6 +7,7 @@ import (
 
 	"kando/apps/kando/desktop"
 	"kando/apps/kando/live"
+	"kando/apps/kando/locales"
 	"kando/apps/kando/sidebar"
 
 	"github.com/nsgo-dev/nsgo/core"
@@ -173,6 +174,8 @@ type App interface {
 	// StoredMenu is the items of a done film's menu that move its video out of the library's folder to a storage location and back (Film.Stored): 移动视频到 ▸ with each location, or 将视频移回资料库; none for a film whose video cannot move, or when there is no location. StoredPlace names the location the film's video is on, "" for one in the library's folder.
 	StoredMenu(cx *core.Scope, item Film) []nsdesktop.MenuItem
 	StoredPlace(item Film) string
+	// StoredMark is what the mark on the poster and list row of a film whose video is on a storage location says (storedMark): the location's name in m's language, whether it is an object store rather than a NAS location, and whether it is no longer in the settings. It never reaches the location. All zero for a video in the library's folder.
+	StoredMark(m locales.Messages, item Film) (place string, cloud, gone bool)
 	UndoMove()
 	CancelMove()
 	Choose(dir string)

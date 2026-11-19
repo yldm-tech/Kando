@@ -13,8 +13,10 @@ import (
 	"time"
 
 	"kando/apps/kando/account"
+	"kando/apps/kando/cloud"
 	"kando/apps/kando/film"
 	"kando/apps/kando/films"
+	"kando/apps/kando/locales"
 	"kando/apps/kando/locales/testlocale"
 	"kando/apps/kando/settings"
 	"kando/apps/kando/shelf"
@@ -23,6 +25,7 @@ import (
 	"kando/packages/core"
 
 	ns "github.com/nsgo-dev/nsgo/core"
+	"github.com/nsgo-dev/nsgo/nsgotest"
 )
 
 // storedPlace is the name of the NAS location the tests move videos to.
@@ -428,5 +431,79 @@ func TestPhoneSyncServesAMovedVideo(t *testing.T) {
 	ps.targets = nil
 	if got := phoneFilmOf(item, ps); got.Remote != nil || !got.SubtitlesOnly {
 		t.Fatalf("a film on a location gone is served as %+v", got)
+	}
+}
+
+// wantStoredMark fails t unless the mark of a video on a storage location in the view at where is named want.
+func wantStoredMark(t *testing.T, tt *nsgotest.App, where, want string) {
+	t.Helper()
+	sel := where + " >> id:film-stored"
+	if !tt.Exists(sel) {
+		t.Fatalf("no mark of a video on a storage location in %s", where)
+	}
+	if got := tt.Find(sel).Props.Label; got != want {
+		t.Fatalf("the mark in %s is named %q, want %q", where, got, want)
+	}
+}
+
+// A film whose video was moved to a storage location has a mark on its poster and its list row that says where the video is, which the poster's tooltip says too and which follows the interface language; a cloud for an object store. A location removed from the settings turns the mark into a warning that says so, without reaching any location. A film whose video is in the library's folder has none.
+func TestStoredMarkOnPostersAndRows(t *testing.T) {
+	f := newMoveFixture(t)
+	a, tt := f.a, f.tt
+	m := testlocale.Messages()
+	poster, row := "id:film-film", "id:films-list"
+	if tt.Exists(poster + " >> id:film-stored") {
+		t.Fatal("a film whose video is in the library's folder has the mark")
+	}
+
+	a.locations.list = []account.Location{{ID: "nas", Name: storedPlace, Remote: storage.Remote{Kind: storage.KindWebDAV, URL: "https://nas.local/dav"}}}
+	a.library.Stored = map[string]shelf.Stored{f.video: {Location: "nas", Path: "Kando/films/video.mp4", Size: 7}}
+	refresh(tt, a)
+	on := m.FilmsStoredOn(storedPlace)
+	wantStoredMark(t, tt, poster, on)
+	if place, cloud, gone := a.StoredMark(m, must(films.Find(a.films(), "film"))); place != storedPlace || cloud || gone {
+		t.Fatalf("StoredMark = %q, cloud %v, gone %v", place, cloud, gone)
+	}
+	tt.Hover(poster)
+	tt.Advance(time.Second)
+	wantText(t, tt, moveName+"\n"+on)
+	tt.HoverOut()
+
+	a.cx.SetLocale("en")
+	refresh(tt, a)
+	wantStoredMark(t, tt, poster, locales.In("en").FilmsStoredOn(storedPlace))
+	a.cx.SetLocale(testlocale.Current())
+	refresh(tt, a)
+
+	a.SetLibraryView(films.ViewList)
+	refresh(tt, a)
+	wantStoredMark(t, tt, row, on)
+
+	// The location is removed in Settings: the mark stays, as a warning.
+	a.locations.list = nil
+	refresh(tt, a)
+	wantStoredMark(t, tt, row, m.FilmsStoredGone())
+	a.SetLibraryView(films.ViewGrid)
+	refresh(tt, a)
+	wantStoredMark(t, tt, poster, m.FilmsStoredGone())
+	if _, _, gone := a.StoredMark(m, must(films.Find(a.films(), "film"))); !gone {
+		t.Fatal("StoredMark does not say the location is gone")
+	}
+
+	// On the object store set up in 账号与上传, named by its brand, the mark is a cloud.
+	a.cloud.r2Endpoint, a.cloud.r2Bucket, a.cloud.r2AccessKey, a.cloud.r2Secret = "acct", "clips", "key", "secret-value"
+	a.library.Stored[f.video] = shelf.Stored{Location: storedStorePrefix + cloud.KindR2, Path: "Kando/films/video.mp4", Size: 7}
+	refresh(tt, a)
+	store := a.storedName(m, storedStorePrefix+cloud.KindR2)
+	wantStoredMark(t, tt, poster, m.FilmsStoredOn(store))
+	if place, isCloud, gone := a.StoredMark(m, must(films.Find(a.films(), "film"))); place != store || !isCloud || gone {
+		t.Fatalf("StoredMark of the object store = %q, cloud %v, gone %v", place, isCloud, gone)
+	}
+
+	// Moved back, the film has no mark.
+	delete(a.library.Stored, f.video)
+	refresh(tt, a)
+	if tt.Exists(poster + " >> id:film-stored") {
+		t.Fatal("the mark stays on a film whose video is back in the library's folder")
 	}
 }

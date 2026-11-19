@@ -8,6 +8,7 @@ import (
 	"testing"
 
 	"kando/apps/kando/account"
+	"kando/apps/kando/cloud"
 	"kando/apps/kando/films"
 	"kando/apps/kando/locales/testlocale"
 	"kando/apps/kando/shelf"
@@ -16,7 +17,7 @@ import (
 	"github.com/nsgo-dev/nsgo/nsgotest"
 )
 
-// TestScreenshotsStoredVideos renders moving a film's video to a storage location: ⋯ on the first poster with 移动视频到 and the two NAS locations of the settings (library-video-move-menu; the menu is the system's, which the tester lists rather than draws, so the picture shows the button pressed open), the message bar while the video is copied, with 取消 (library-video-moving), and the film page of a film whose video is on a NAS that cannot be reached, its lines listed beside the note (film-video-unreachable). The locations are names in the scene, never reached. It is skipped when KANDO_SCREENSHOTS is unset.
+// TestScreenshotsStoredVideos renders moving a film's video to a storage location: ⋯ on the first poster with 移动视频到 and the two NAS locations of the settings (library-video-move-menu; the menu is the system's, which the tester lists rather than draws, so the picture shows the button pressed open), the message bar while the video is copied, with 取消 (library-video-moving), and the film page of a film whose video is on a NAS that cannot be reached, its lines listed beside the note (film-video-unreachable), and the marks of videos moved to Home NAS, to the R2 object store and to a location since removed from the settings, on the posters (library-video-stored-grid) and in the list (library-video-stored-list). The locations are names in the scene, never reached. It is skipped when KANDO_SCREENSHOTS is unset.
 func TestScreenshotsStoredVideos(t *testing.T) {
 	f := newScreenshotFixture(t)
 	locations := func(a *app) {
@@ -28,6 +29,47 @@ func TestScreenshotsStoredVideos(t *testing.T) {
 			return nil, nil, errors.New("dial tcp: connection refused")
 		})
 	}
+	// stored records the videos of the first three films shown as moved: to Home NAS, to the R2 object store set up in 账号与上传, and to a location since removed from the settings, whose mark is the warning. The videos stay on disk; the marks read library.json's records and the settings alone.
+	stored := func(t *testing.T, a *app) {
+		a.cloud.r2Endpoint, a.cloud.r2Bucket, a.cloud.r2AccessKey, a.cloud.r2Secret = "acct", "clips", "key", "secret"
+		shown := a.libraryShownFilms()
+		if len(shown) < 3 {
+			t.Fatalf("%d films shown", len(shown))
+		}
+		a.library.Stored = map[string]shelf.Stored{}
+		for i, place := range []string{"nas", storedStorePrefix + cloud.KindR2, "old-nas"} {
+			a.library.Stored[shown[i].VideoPath] = shelf.Stored{Location: place, Path: "Kando/films/video.mp4", Size: 1}
+		}
+	}
+	// The grid scrolled as library-scrolled-grid is, with the message bar the prototype shows after its onboarding, and the marks on the first three posters.
+	f.shoot(t, "library-video-stored-grid", func(t *testing.T, a *app, tt *nsgotest.App, _ chan func()) {
+		locations(a)
+		*a.Notice() = films.Notice{Kind: "warning", Text: "随时可以在「帮助 › 重新查看入门引导」回到这里。", Open: true}
+		stored(t, a)
+		refresh(tt, a)
+		sel := whole(testlocale.Messages().FilmsGridCount(len(a.libraryShownFilms())))
+		if !tt.Exists(sel) {
+			t.Fatalf("no grid heading; texts %q", tt.Texts())
+		}
+		if d := pageFrame(tt.Find(sel)).Origin.Y - 315; d*d >= 0.25 {
+			tt.Scroll(sel, d)
+			refresh(tt, a)
+		}
+		if n := len(tt.Query("id:film-stored")); n != 3 {
+			t.Fatalf("%d marks on the posters, want 3", n)
+		}
+	})
+	// The list as library-list shows it, sorted by length, with the marks after the first three names.
+	f.shoot(t, "library-video-stored-list", func(t *testing.T, a *app, tt *nsgotest.App, _ chan func()) {
+		locations(a)
+		a.SetLibraryView(films.ViewList)
+		a.SetLibrarySort(films.Order{By: films.SortDuration})
+		stored(t, a)
+		refresh(tt, a)
+		if n := len(tt.Query("id:films-list >> id:film-stored")); n != 3 {
+			t.Fatalf("%d marks in the list, want 3", n)
+		}
+	})
 	f.shoot(t, "library-video-move-menu", func(t *testing.T, a *app, tt *nsgotest.App, _ chan func()) {
 		locations(a)
 		refresh(tt, a)
