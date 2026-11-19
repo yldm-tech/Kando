@@ -467,6 +467,11 @@ var Parameters = map[string][]string{
 	"AddNoteOffline":                 {"name"},
 	"AddNoteOfflineRelay":            {"name"},
 	"AddNoteRelay":                   {"name"},
+	"AddSubscribeNote":               {"name"},
+	"AddSubscribeOffline":            {"name"},
+	"AddSubscribeReadOnly":           {"name"},
+	"AddSubscribed":                  {"title", "name"},
+	"AddSubscribedExisting":          {"title", "name"},
 	"AddSubtitlesRecognizeNote":      {"name"},
 	"ComputersCertificate":           {"name"},
 	"ComputersOptions":               {"name"},
@@ -486,6 +491,21 @@ var Parameters = map[string][]string{
 	"FilmsLibraryOn":                 {"library", "computer"},
 	"FilmsNoResults":                 {"query"},
 	"FilmsOptions":                   {"title"},
+	"FilmsStatDays":                  {"count"},
+	"FilmsStatWords":                 {"count"},
+	"FilmsSubscriptionAutoDetail":    {"count"},
+	"FilmsSubscriptionFailed":        {"error_"},
+	"FilmsSubscriptionGone":          {"site", "computer"},
+	"FilmsSubscriptionGoneLabel":     {"name"},
+	"FilmsSubscriptionLabel":         {"name", "count"},
+	"FilmsSubscriptionMeta":          {"site", "kind", "computer"},
+	"FilmsSubscriptionNew":           {"count"},
+	"FilmsSubscriptionPaused":        {"computer"},
+	"FilmsSubscriptionPausedLabel":   {"name"},
+	"FilmsSubscriptionReadOnly":      {"computer"},
+	"FilmsSubscriptionWaiting":       {"count"},
+	"FilmsUnsubscribeMessage":        {"computer"},
+	"FilmsUnsubscribeTitle":          {"title"},
 	"JobsBadgeLabel":                 {"count"},
 	"JobsReadOnly":                   {"name"},
 	"LearnDueIn":                     {"count"},
@@ -594,6 +614,11 @@ type Translation struct {
 	AddNoteOffline                 func(name string) string
 	AddNoteOfflineRelay            func(name string) string
 	AddNoteRelay                   func(name string) string
+	AddSubscribeNote               func(name string) string
+	AddSubscribeOffline            func(name string) string
+	AddSubscribeReadOnly           func(name string) string
+	AddSubscribed                  func(title string, name string) string
+	AddSubscribedExisting          func(title string, name string) string
 	AddSubtitlesRecognizeNote      func(name string) string
 	ComputersCertificate           func(name string) string
 	ComputersOptions               func(name string) string
@@ -613,6 +638,21 @@ type Translation struct {
 	FilmsLibraryOn                 func(library string, computer string) string
 	FilmsNoResults                 func(query string) string
 	FilmsOptions                   func(title string) string
+	FilmsStatDays                  func(count int) string
+	FilmsStatWords                 func(count int) string
+	FilmsSubscriptionAutoDetail    func(count int) string
+	FilmsSubscriptionFailed        func(error_ string) string
+	FilmsSubscriptionGone          func(site string, computer string) string
+	FilmsSubscriptionGoneLabel     func(name string) string
+	FilmsSubscriptionLabel         func(name string, count int) string
+	FilmsSubscriptionMeta          func(site string, kind string, computer string) string
+	FilmsSubscriptionNew           func(count int) string
+	FilmsSubscriptionPaused        func(computer string) string
+	FilmsSubscriptionPausedLabel   func(name string) string
+	FilmsSubscriptionReadOnly      func(computer string) string
+	FilmsSubscriptionWaiting       func(count int) string
+	FilmsUnsubscribeMessage        func(computer string) string
+	FilmsUnsubscribeTitle          func(title string) string
 	JobsBadgeLabel                 func(count int) string
 	JobsReadOnly                   func(name string) string
 	LearnDueIn                     func(count int) string
@@ -722,6 +762,7 @@ const (
 	textAddQuality720
 	textAddQualityBest
 	textAddSend
+	textAddSubscribe
 	textAddSubtitles
 	textAddSubtitlesPlatform
 	textAddSubtitlesPlatformNote
@@ -771,9 +812,25 @@ const (
 	textFilmsSourceLocal
 	textFilmsSourceWeb
 	textFilmsSourceYoutube
+	textFilmsStatStreak
+	textFilmsStatToday
+	textFilmsStatVocabulary
+	textFilmsSubscriptionAuto
+	textFilmsSubscriptionChannel
+	textFilmsSubscriptionCollection
+	textFilmsSubscriptionDone
+	textFilmsSubscriptionNone
+	textFilmsSubscriptionNoneAuto
+	textFilmsSubscriptionPlaylist
+	textFilmsSubscriptionSpace
+	textFilmsSubscriptionTake
+	textFilmsSubscriptions
+	textFilmsSubscriptionsAdd
+	textFilmsSubscriptionsAddLabel
 	textFilmsTitle
 	textFilmsUnpairedBody
 	textFilmsUnpairedTitle
+	textFilmsUnsubscribe
 	textJobsEmpty
 	textLearnDueNow
 	textJobsCancel
@@ -1047,6 +1104,7 @@ var keyOfText = [numTexts]string{
 	"addQuality720",
 	"addQualityBest",
 	"addSend",
+	"addSubscribe",
 	"addSubtitles",
 	"addSubtitlesPlatform",
 	"addSubtitlesPlatformNote",
@@ -1096,9 +1154,25 @@ var keyOfText = [numTexts]string{
 	"filmsSourceLocal",
 	"filmsSourceWeb",
 	"filmsSourceYoutube",
+	"filmsStatStreak",
+	"filmsStatToday",
+	"filmsStatVocabulary",
+	"filmsSubscriptionAuto",
+	"filmsSubscriptionChannel",
+	"filmsSubscriptionCollection",
+	"filmsSubscriptionDone",
+	"filmsSubscriptionNone",
+	"filmsSubscriptionNoneAuto",
+	"filmsSubscriptionPlaylist",
+	"filmsSubscriptionSpace",
+	"filmsSubscriptionTake",
+	"filmsSubscriptions",
+	"filmsSubscriptionsAdd",
+	"filmsSubscriptionsAddLabel",
 	"filmsTitle",
 	"filmsUnpairedBody",
 	"filmsUnpairedTitle",
+	"filmsUnsubscribe",
 	"jobsEmpty",
 	"learnDueNow",
 	"jobsCancel",
@@ -1370,6 +1444,7 @@ var textsEn = i18n.NewTexts(""+
 	"720p"+
 	"Best"+
 	"Send"+
+	"Subscribe"+
 	"Original Subtitles"+
 	"The Uploader's Subtitles"+
 	"Most accurate when someone wrote them. The lines that match the speech are translated as they are."+
@@ -1419,9 +1494,25 @@ var textsEn = i18n.NewTexts(""+
 	"Local Files"+
 	"Other Sites"+
 	"YouTube"+
+	"Streak"+
+	"Watched today"+
+	"Vocabulary"+
+	"Add New Videos Automatically"+
+	"Channel"+
+	"Collection"+
+	"Done"+
+	"No new videos. New ones wait here for you."+
+	"No new videos. New ones are added to Jobs automatically."+
+	"Playlist"+
+	"Uploader"+
+	"Add All to Jobs"+
+	"Subscriptions"+
+	"Add"+
+	"Add a subscription"+
 	"Library"+
 	"Downloading, transcription and translation all happen in Kando on your computer. Once connected, its libraries show up here."+
 	"Not connected to a computer yet"+
+	"Unsubscribe"+
 	"No jobs. Tap + to send a video's link."+
 	"Due for review"+
 	"Cancel Job"+
@@ -1690,6 +1781,7 @@ var textsEn = i18n.NewTexts(""+
 		4,
 		4,
 		4,
+		9,
 		18,
 		24,
 		98,
@@ -1739,9 +1831,25 @@ var textsEn = i18n.NewTexts(""+
 		11,
 		11,
 		7,
+		6,
+		13,
+		10,
+		28,
+		7,
+		10,
+		4,
+		42,
+		56,
+		8,
+		8,
+		15,
+		13,
+		3,
+		18,
 		7,
 		124,
 		31,
+		11,
 		38,
 		14,
 		10,
@@ -2013,6 +2121,7 @@ var textsJa = i18n.NewTexts(""+
 	"720p"+
 	"最高画質"+
 	"送信"+
+	"購読"+
 	"元の字幕"+
 	"投稿者の字幕"+
 	"人が付けた字幕があれば最も正確です。音声と合う行はそのまま翻訳します。"+
@@ -2062,9 +2171,25 @@ var textsJa = i18n.NewTexts(""+
 	"ローカルファイル"+
 	"その他のサイト"+
 	"YouTube"+
+	"連続"+
+	"今日の視聴"+
+	"単語帳"+
+	"新しい動画を自動で追加"+
+	"チャンネル"+
+	"コレクション"+
+	"完了"+
+	"新しい動画はありません。新しい動画はここで待ちます。"+
+	"新しい動画はありません。新しい動画は自動でジョブに追加されます。"+
+	"再生リスト"+
+	"投稿者"+
+	"すべてジョブに追加"+
+	"購読"+
+	"追加"+
+	"購読を追加"+
 	"ライブラリ"+
 	"ダウンロード、文字起こし、翻訳はすべてコンピュータの Kando が行います。接続すると、コンピュータのライブラリがここに表示されます。"+
 	"まだコンピュータに接続していません"+
+	"購読を解除"+
 	"ジョブはありません。+ をタップして動画のリンクを送信します。"+
 	"復習の時期"+
 	"ジョブをキャンセル"+
@@ -2333,6 +2458,7 @@ var textsJa = i18n.NewTexts(""+
 		4,
 		12,
 		6,
+		6,
 		12,
 		18,
 		105,
@@ -2382,9 +2508,25 @@ var textsJa = i18n.NewTexts(""+
 		24,
 		21,
 		7,
+		6,
+		15,
+		9,
+		33,
+		15,
+		18,
+		6,
+		78,
+		96,
+		15,
+		9,
+		27,
+		6,
+		6,
+		15,
 		15,
 		190,
 		51,
+		15,
 		89,
 		15,
 		27,
@@ -2656,6 +2798,7 @@ var textsKo = i18n.NewTexts(""+
 	"720p"+
 	"최고 화질"+
 	"보내기"+
+	"구독"+
 	"원문 자막"+
 	"업로더 자막"+
 	"사람이 만든 자막이 있으면 가장 정확합니다. 음성과 맞는 줄은 그대로 번역합니다."+
@@ -2705,9 +2848,25 @@ var textsKo = i18n.NewTexts(""+
 	"로컬 파일"+
 	"기타 사이트"+
 	"YouTube"+
+	"연속 학습"+
+	"오늘 시청"+
+	"단어장"+
+	"새 동영상 자동 추가"+
+	"채널"+
+	"컬렉션"+
+	"완료"+
+	"새 동영상이 없습니다. 새 동영상은 여기서 기다립니다."+
+	"새 동영상이 없습니다. 새 동영상은 자동으로 작업에 추가됩니다."+
+	"재생목록"+
+	"업로더"+
+	"모두 작업에 추가"+
+	"구독"+
+	"추가"+
+	"구독 추가"+
 	"보관함"+
 	"다운로드, 받아쓰기, 번역은 모두 컴퓨터의 Kando에서 이루어집니다. 연결하면 컴퓨터의 보관함이 여기에 표시됩니다."+
 	"아직 컴퓨터에 연결하지 않았습니다"+
+	"구독 취소"+
 	"작업이 없습니다. +를 눌러 동영상 링크를 보내세요."+
 	"복습할 차례"+
 	"작업 취소"+
@@ -2976,6 +3135,7 @@ var textsKo = i18n.NewTexts(""+
 		4,
 		13,
 		9,
+		6,
 		13,
 		16,
 		111,
@@ -3025,9 +3185,25 @@ var textsKo = i18n.NewTexts(""+
 		13,
 		16,
 		7,
+		13,
+		13,
+		9,
+		27,
+		6,
+		9,
+		6,
+		74,
+		87,
+		12,
+		9,
+		23,
+		6,
+		6,
+		13,
 		9,
 		155,
 		48,
+		13,
 		69,
 		16,
 		13,
@@ -3299,6 +3475,7 @@ var textsZhHans = i18n.NewTexts(""+
 	"720p"+
 	"最高画质"+
 	"发送"+
+	"订阅"+
 	"原文字幕"+
 	"用上传者的字幕"+
 	"有人工字幕时最准，和原声对得上的句子直接拿来翻译。"+
@@ -3348,9 +3525,25 @@ var textsZhHans = i18n.NewTexts(""+
 	"本地文件"+
 	"其他网站"+
 	"YouTube"+
+	"连续学习"+
+	"今天看了"+
+	"生词"+
+	"自动加入新视频"+
+	"频道"+
+	"合集"+
+	"完成"+
+	"没有新视频。有新视频时会在这里等你。"+
+	"没有新视频。有新视频时会自动加入任务。"+
+	"播放列表"+
+	"UP 主"+
+	"全部加入任务"+
+	"订阅"+
+	"添加"+
+	"添加订阅"+
 	"片库"+
 	"下载、识别、翻译都在电脑上的看懂里完成。连上以后，电脑上的片库会出现在这里。"+
 	"还没连上电脑"+
+	"取消订阅"+
 	"没有任务。点 + 把视频链接发给电脑。"+
 	"待复习"+
 	"取消任务"+
@@ -3619,6 +3812,7 @@ var textsZhHans = i18n.NewTexts(""+
 		4,
 		12,
 		6,
+		6,
 		12,
 		21,
 		75,
@@ -3668,9 +3862,25 @@ var textsZhHans = i18n.NewTexts(""+
 		12,
 		12,
 		7,
+		12,
+		12,
+		6,
+		21,
+		6,
+		6,
+		6,
+		54,
+		57,
+		12,
+		6,
+		18,
+		6,
+		6,
+		12,
 		6,
 		114,
 		18,
+		12,
 		51,
 		9,
 		12,
@@ -3942,6 +4152,7 @@ var textsZhHant = i18n.NewTexts(""+
 	"720p"+
 	"最高畫質"+
 	"傳送"+
+	"訂閱"+
 	"原文字幕"+
 	"用上傳者的字幕"+
 	"有人工字幕時最準，和原聲對得上的句子直接拿來翻譯。"+
@@ -3991,9 +4202,25 @@ var textsZhHant = i18n.NewTexts(""+
 	"本機檔案"+
 	"其他網站"+
 	"YouTube"+
+	"連續學習"+
+	"今天看了"+
+	"生詞"+
+	"自動加入新影片"+
+	"頻道"+
+	"合集"+
+	"完成"+
+	"沒有新影片。有新影片時會在這裡等你。"+
+	"沒有新影片。有新影片時會自動加入任務。"+
+	"播放清單"+
+	"UP 主"+
+	"全部加入任務"+
+	"訂閱"+
+	"新增"+
+	"新增訂閱"+
 	"片庫"+
 	"下載、辨識、翻譯都在電腦上的看懂裡完成。連上以後，電腦上的片庫會出現在這裡。"+
 	"還沒連上電腦"+
+	"取消訂閱"+
 	"沒有任務。點 + 把影片連結傳給電腦。"+
 	"待複習"+
 	"取消任務"+
@@ -4262,6 +4489,7 @@ var textsZhHant = i18n.NewTexts(""+
 		4,
 		12,
 		6,
+		6,
 		12,
 		21,
 		75,
@@ -4311,9 +4539,25 @@ var textsZhHant = i18n.NewTexts(""+
 		12,
 		12,
 		7,
+		12,
+		12,
+		6,
+		21,
+		6,
+		6,
+		6,
+		54,
+		57,
+		12,
+		6,
+		18,
+		6,
+		6,
+		12,
 		6,
 		114,
 		18,
+		12,
 		51,
 		9,
 		12,
@@ -4652,6 +4896,21 @@ func Supply(lang string, t Translation) {
 	if t.AddNoteRelay != nil {
 		s.AddNoteRelay = t.AddNoteRelay
 	}
+	if t.AddSubscribeNote != nil {
+		s.AddSubscribeNote = t.AddSubscribeNote
+	}
+	if t.AddSubscribeOffline != nil {
+		s.AddSubscribeOffline = t.AddSubscribeOffline
+	}
+	if t.AddSubscribeReadOnly != nil {
+		s.AddSubscribeReadOnly = t.AddSubscribeReadOnly
+	}
+	if t.AddSubscribed != nil {
+		s.AddSubscribed = t.AddSubscribed
+	}
+	if t.AddSubscribedExisting != nil {
+		s.AddSubscribedExisting = t.AddSubscribedExisting
+	}
 	if t.AddSubtitlesRecognizeNote != nil {
 		s.AddSubtitlesRecognizeNote = t.AddSubtitlesRecognizeNote
 	}
@@ -4708,6 +4967,51 @@ func Supply(lang string, t Translation) {
 	}
 	if t.FilmsOptions != nil {
 		s.FilmsOptions = t.FilmsOptions
+	}
+	if t.FilmsStatDays != nil {
+		s.FilmsStatDays = t.FilmsStatDays
+	}
+	if t.FilmsStatWords != nil {
+		s.FilmsStatWords = t.FilmsStatWords
+	}
+	if t.FilmsSubscriptionAutoDetail != nil {
+		s.FilmsSubscriptionAutoDetail = t.FilmsSubscriptionAutoDetail
+	}
+	if t.FilmsSubscriptionFailed != nil {
+		s.FilmsSubscriptionFailed = t.FilmsSubscriptionFailed
+	}
+	if t.FilmsSubscriptionGone != nil {
+		s.FilmsSubscriptionGone = t.FilmsSubscriptionGone
+	}
+	if t.FilmsSubscriptionGoneLabel != nil {
+		s.FilmsSubscriptionGoneLabel = t.FilmsSubscriptionGoneLabel
+	}
+	if t.FilmsSubscriptionLabel != nil {
+		s.FilmsSubscriptionLabel = t.FilmsSubscriptionLabel
+	}
+	if t.FilmsSubscriptionMeta != nil {
+		s.FilmsSubscriptionMeta = t.FilmsSubscriptionMeta
+	}
+	if t.FilmsSubscriptionNew != nil {
+		s.FilmsSubscriptionNew = t.FilmsSubscriptionNew
+	}
+	if t.FilmsSubscriptionPaused != nil {
+		s.FilmsSubscriptionPaused = t.FilmsSubscriptionPaused
+	}
+	if t.FilmsSubscriptionPausedLabel != nil {
+		s.FilmsSubscriptionPausedLabel = t.FilmsSubscriptionPausedLabel
+	}
+	if t.FilmsSubscriptionReadOnly != nil {
+		s.FilmsSubscriptionReadOnly = t.FilmsSubscriptionReadOnly
+	}
+	if t.FilmsSubscriptionWaiting != nil {
+		s.FilmsSubscriptionWaiting = t.FilmsSubscriptionWaiting
+	}
+	if t.FilmsUnsubscribeMessage != nil {
+		s.FilmsUnsubscribeMessage = t.FilmsUnsubscribeMessage
+	}
+	if t.FilmsUnsubscribeTitle != nil {
+		s.FilmsUnsubscribeTitle = t.FilmsUnsubscribeTitle
 	}
 	if t.JobsBadgeLabel != nil {
 		s.JobsBadgeLabel = t.JobsBadgeLabel
@@ -5266,6 +5570,173 @@ func AddSend(cx *core.Scope) string { return For(cx).AddSend() }
 
 // AddSend is the package's AddSend in the language of msgs.
 func (msgs Messages) AddSend() string { return msgs.text(textAddSend) }
+
+// AddSubscribe says "Subscribe"
+// in the language the app shows under cx.
+//
+// Add sheet: the button that subscribes the computer to a channel or playlist link, in place of Send.
+func AddSubscribe(cx *core.Scope) string { return For(cx).AddSubscribe() }
+
+// AddSubscribe is the package's AddSubscribe in the language of msgs.
+func (msgs Messages) AddSubscribe() string { return msgs.text(textAddSubscribe) }
+
+// AddSubscribeNote says "{name} follows this list and adds its new videos as they come."
+// in the language the app shows under cx.
+//
+// Add sheet: under the form, for a channel or playlist link, what the computer does with it.
+func AddSubscribeNote(cx *core.Scope, name string) string { return For(cx).AddSubscribeNote(name) }
+
+// AddSubscribeNote is the package's AddSubscribeNote in the language of msgs.
+func (msgs Messages) AddSubscribeNote(name string) string {
+	if i18n.IsPseudo(msgs.lang) {
+		return i18n.Pseudo(msgs.lang, Messages{lang: Source, mark: true}.AddSubscribeNote(name))
+	}
+	for lang := msgs.lang; ; lang = i18n.Parent(lang) {
+		if f := supplied[lang].AddSubscribeNote; f != nil {
+			return f(name)
+		}
+		switch lang {
+		case "", "en":
+			return msgs.arg(name) + " follows this list and adds its new videos as they come."
+		case "ja":
+			return name + " がこのリストを購読し、新しい動画が出たら追加します。"
+		case "ko":
+			return name + "에서 이 목록을 구독하고 새 동영상이 올라오면 추가합니다."
+		case "zh-Hans":
+			return "由 " + name + " 订阅，有新视频时自动加入。"
+		case "zh-Hant":
+			return "由 " + name + " 訂閱，有新影片時自動加入。"
+		}
+	}
+}
+
+// AddSubscribeOffline says "{name} is offline. Subscribe once it's back."
+// in the language the app shows under cx.
+//
+// Add sheet: for a channel or playlist link while the computer cannot be reached; subscribing needs it to answer.
+func AddSubscribeOffline(cx *core.Scope, name string) string {
+	return For(cx).AddSubscribeOffline(name)
+}
+
+// AddSubscribeOffline is the package's AddSubscribeOffline in the language of msgs.
+func (msgs Messages) AddSubscribeOffline(name string) string {
+	if i18n.IsPseudo(msgs.lang) {
+		return i18n.Pseudo(msgs.lang, Messages{lang: Source, mark: true}.AddSubscribeOffline(name))
+	}
+	for lang := msgs.lang; ; lang = i18n.Parent(lang) {
+		if f := supplied[lang].AddSubscribeOffline; f != nil {
+			return f(name)
+		}
+		switch lang {
+		case "", "en":
+			return msgs.arg(name) + " is offline. Subscribe once it's back."
+		case "ja":
+			return name + " はオフラインです。戻ってから購読してください。"
+		case "ko":
+			return name + "이(가) 오프라인입니다. 다시 연결되면 구독하세요."
+		case "zh-Hans":
+			return name + " 离线。等它上线后再订阅。"
+		case "zh-Hant":
+			return name + " 離線。等它上線後再訂閱。"
+		}
+	}
+}
+
+// AddSubscribeReadOnly says "{name} lets this phone look but not subscribe."
+// in the language the app shows under cx.
+//
+// Add sheet: for a channel or playlist link, when the computer made this phone read-only.
+func AddSubscribeReadOnly(cx *core.Scope, name string) string {
+	return For(cx).AddSubscribeReadOnly(name)
+}
+
+// AddSubscribeReadOnly is the package's AddSubscribeReadOnly in the language of msgs.
+func (msgs Messages) AddSubscribeReadOnly(name string) string {
+	if i18n.IsPseudo(msgs.lang) {
+		return i18n.Pseudo(msgs.lang, Messages{lang: Source, mark: true}.AddSubscribeReadOnly(name))
+	}
+	for lang := msgs.lang; ; lang = i18n.Parent(lang) {
+		if f := supplied[lang].AddSubscribeReadOnly; f != nil {
+			return f(name)
+		}
+		switch lang {
+		case "", "en":
+			return msgs.arg(name) + " lets this phone look but not subscribe."
+		case "ja":
+			return name + " はこの端末を読み取り専用にしているため、購読できません。"
+		case "ko":
+			return name + "에서 이 휴대폰을 읽기 전용으로 설정해 구독할 수 없습니다."
+		case "zh-Hans":
+			return name + " 把这台手机设为只读，不能订阅。"
+		case "zh-Hant":
+			return name + " 把這台手機設為唯讀，不能訂閱。"
+		}
+	}
+}
+
+// AddSubscribed says "{name} subscribed to “{title}”"
+// in the language the app shows under cx.
+//
+// Toast: the computer subscribed to the channel or playlist the phone sent.
+func AddSubscribed(cx *core.Scope, title string, name string) string {
+	return For(cx).AddSubscribed(title, name)
+}
+
+// AddSubscribed is the package's AddSubscribed in the language of msgs.
+func (msgs Messages) AddSubscribed(title string, name string) string {
+	if i18n.IsPseudo(msgs.lang) {
+		return i18n.Pseudo(msgs.lang, Messages{lang: Source, mark: true}.AddSubscribed(title, name))
+	}
+	for lang := msgs.lang; ; lang = i18n.Parent(lang) {
+		if f := supplied[lang].AddSubscribed; f != nil {
+			return f(title, name)
+		}
+		switch lang {
+		case "", "en":
+			return msgs.arg(name) + " subscribed to “" + msgs.arg(title) + "”"
+		case "ja":
+			return name + " が「" + title + "」を購読しました"
+		case "ko":
+			return name + "에서 ‘" + title + "’을(를) 구독했습니다"
+		case "zh-Hans":
+			return name + " 已订阅「" + title + "」"
+		case "zh-Hant":
+			return name + " 已訂閱「" + title + "」"
+		}
+	}
+}
+
+// AddSubscribedExisting says "{name} already follows “{title}”"
+// in the language the app shows under cx.
+//
+// Toast: the computer was subscribed to the list the phone sent already.
+func AddSubscribedExisting(cx *core.Scope, title string, name string) string {
+	return For(cx).AddSubscribedExisting(title, name)
+}
+
+// AddSubscribedExisting is the package's AddSubscribedExisting in the language of msgs.
+func (msgs Messages) AddSubscribedExisting(title string, name string) string {
+	if i18n.IsPseudo(msgs.lang) {
+		return i18n.Pseudo(msgs.lang, Messages{lang: Source, mark: true}.AddSubscribedExisting(title, name))
+	}
+	for lang := msgs.lang; ; lang = i18n.Parent(lang) {
+		if f := supplied[lang].AddSubscribedExisting; f != nil {
+			return f(title, name)
+		}
+		switch lang {
+		case "", "en":
+			return msgs.arg(name) + " already follows “" + msgs.arg(title) + "”"
+		case "ja":
+			return name + " は「" + title + "」をすでに購読しています"
+		case "ko":
+			return name + "에서 이미 ‘" + title + "’을(를) 구독하고 있습니다"
+		case "zh-Hans":
+			return name + " 已经订阅过「" + title + "」"
+		case "zh-Hant":
+			return name + " 已經訂閱過「" + title + "」"
+		}
+	}
+}
 
 // AddSubtitles says "Original Subtitles"
 // in the language the app shows under cx.
@@ -6326,6 +6797,657 @@ func FilmsSourceYoutube(cx *core.Scope) string { return For(cx).FilmsSourceYoutu
 // FilmsSourceYoutube is the package's FilmsSourceYoutube in the language of msgs.
 func (msgs Messages) FilmsSourceYoutube() string { return msgs.text(textFilmsSourceYoutube) }
 
+// FilmsStatDays says "{count, plural, one {# day} other {# days}}"
+// in the language the app shows under cx.
+//
+// Library stats tile: the streak, days in a row with study.
+func FilmsStatDays(cx *core.Scope, count int) string { return For(cx).FilmsStatDays(count) }
+
+// FilmsStatDays is the package's FilmsStatDays in the language of msgs.
+func (msgs Messages) FilmsStatDays(count int) string {
+	if i18n.IsPseudo(msgs.lang) {
+		return i18n.Pseudo(msgs.lang, Messages{lang: Source, mark: true}.FilmsStatDays(count))
+	}
+	for lang := msgs.lang; ; lang = i18n.Parent(lang) {
+		if f := supplied[lang].FilmsStatDays; f != nil {
+			return f(count)
+		}
+		switch lang {
+		case "", "en":
+			var b strings.Builder
+			switch i18n.Cardinal("en", float64(count)) {
+			case i18n.One:
+				b.WriteString(msgs.arg(i18n.FormatNumber("en", float64(count))))
+				b.WriteString(" day")
+			default:
+				b.WriteString(msgs.arg(i18n.FormatNumber("en", float64(count))))
+				b.WriteString(" days")
+			}
+			return b.String()
+		case "ja":
+			return i18n.FormatNumber("ja", float64(count)) + " 日"
+		case "ko":
+			return i18n.FormatNumber("ko", float64(count)) + "일"
+		case "zh-Hans":
+			return i18n.FormatNumber("zh-Hans", float64(count)) + " 天"
+		case "zh-Hant":
+			return i18n.FormatNumber("zh-Hant", float64(count)) + " 天"
+		}
+	}
+}
+
+// FilmsStatStreak says "Streak"
+// in the language the app shows under cx.
+//
+// Library stats tile: label under the days in a row.
+func FilmsStatStreak(cx *core.Scope) string { return For(cx).FilmsStatStreak() }
+
+// FilmsStatStreak is the package's FilmsStatStreak in the language of msgs.
+func (msgs Messages) FilmsStatStreak() string { return msgs.text(textFilmsStatStreak) }
+
+// FilmsStatToday says "Watched today"
+// in the language the app shows under cx.
+//
+// Library stats tile: label under the minutes of films played today.
+func FilmsStatToday(cx *core.Scope) string { return For(cx).FilmsStatToday() }
+
+// FilmsStatToday is the package's FilmsStatToday in the language of msgs.
+func (msgs Messages) FilmsStatToday() string { return msgs.text(textFilmsStatToday) }
+
+// FilmsStatVocabulary says "Vocabulary"
+// in the language the app shows under cx.
+//
+// Library stats tile: label under the count of words saved to the vocabulary.
+func FilmsStatVocabulary(cx *core.Scope) string { return For(cx).FilmsStatVocabulary() }
+
+// FilmsStatVocabulary is the package's FilmsStatVocabulary in the language of msgs.
+func (msgs Messages) FilmsStatVocabulary() string { return msgs.text(textFilmsStatVocabulary) }
+
+// FilmsStatWords says "{count, plural, one {# word} other {# words}}"
+// in the language the app shows under cx.
+//
+// Library stats tile: how many words the vocabulary holds.
+func FilmsStatWords(cx *core.Scope, count int) string { return For(cx).FilmsStatWords(count) }
+
+// FilmsStatWords is the package's FilmsStatWords in the language of msgs.
+func (msgs Messages) FilmsStatWords(count int) string {
+	if i18n.IsPseudo(msgs.lang) {
+		return i18n.Pseudo(msgs.lang, Messages{lang: Source, mark: true}.FilmsStatWords(count))
+	}
+	for lang := msgs.lang; ; lang = i18n.Parent(lang) {
+		if f := supplied[lang].FilmsStatWords; f != nil {
+			return f(count)
+		}
+		switch lang {
+		case "", "en":
+			var b strings.Builder
+			switch i18n.Cardinal("en", float64(count)) {
+			case i18n.One:
+				b.WriteString(msgs.arg(i18n.FormatNumber("en", float64(count))))
+				b.WriteString(" word")
+			default:
+				b.WriteString(msgs.arg(i18n.FormatNumber("en", float64(count))))
+				b.WriteString(" words")
+			}
+			return b.String()
+		case "ja":
+			return i18n.FormatNumber("ja", float64(count)) + " 語"
+		case "ko":
+			return i18n.FormatNumber("ko", float64(count)) + "개"
+		case "zh-Hans":
+			return i18n.FormatNumber("zh-Hans", float64(count)) + " 个"
+		case "zh-Hant":
+			return i18n.FormatNumber("zh-Hant", float64(count)) + " 個"
+		}
+	}
+}
+
+// FilmsSubscriptionAuto says "Add New Videos Automatically"
+// in the language the app shows under cx.
+//
+// Subscription sheet: switch that has the computer queue the new videos by themselves rather than wait for the user.
+func FilmsSubscriptionAuto(cx *core.Scope) string { return For(cx).FilmsSubscriptionAuto() }
+
+// FilmsSubscriptionAuto is the package's FilmsSubscriptionAuto in the language of msgs.
+func (msgs Messages) FilmsSubscriptionAuto() string { return msgs.text(textFilmsSubscriptionAuto) }
+
+// FilmsSubscriptionAutoDetail says "At most {count} each check; the rest wait here."
+// in the language the app shows under cx.
+//
+// Subscription sheet: under the switch, how many new videos a check queues at most.
+func FilmsSubscriptionAutoDetail(cx *core.Scope, count int) string {
+	return For(cx).FilmsSubscriptionAutoDetail(count)
+}
+
+// FilmsSubscriptionAutoDetail is the package's FilmsSubscriptionAutoDetail in the language of msgs.
+func (msgs Messages) FilmsSubscriptionAutoDetail(count int) string {
+	if i18n.IsPseudo(msgs.lang) {
+		return i18n.Pseudo(msgs.lang, Messages{lang: Source, mark: true}.FilmsSubscriptionAutoDetail(count))
+	}
+	for lang := msgs.lang; ; lang = i18n.Parent(lang) {
+		if f := supplied[lang].FilmsSubscriptionAutoDetail; f != nil {
+			return f(count)
+		}
+		switch lang {
+		case "", "en":
+			return "At most " + msgs.arg(i18n.FormatNumber("en", float64(count))) + " each check; the rest wait here."
+		case "ja":
+			return "1 回のチェックで最大 " + i18n.FormatNumber("ja", float64(count)) + " 本、残りはここで待ちます。"
+		case "ko":
+			return "한 번 확인할 때 최대 " + i18n.FormatNumber("ko", float64(count)) + "개, 나머지는 여기서 기다립니다."
+		case "zh-Hans":
+			return "每次检查最多加入 " + i18n.FormatNumber("zh-Hans", float64(count)) + " 个，其余的在这里等你。"
+		case "zh-Hant":
+			return "每次檢查最多加入 " + i18n.FormatNumber("zh-Hant", float64(count)) + " 個，其餘的在這裡等你。"
+		}
+	}
+}
+
+// FilmsSubscriptionChannel says "Channel"
+// in the language the app shows under cx.
+//
+// Subscription sheet: what a subscription follows, a channel.
+func FilmsSubscriptionChannel(cx *core.Scope) string { return For(cx).FilmsSubscriptionChannel() }
+
+// FilmsSubscriptionChannel is the package's FilmsSubscriptionChannel in the language of msgs.
+func (msgs Messages) FilmsSubscriptionChannel() string {
+	return msgs.text(textFilmsSubscriptionChannel)
+}
+
+// FilmsSubscriptionCollection says "Collection"
+// in the language the app shows under cx.
+//
+// Subscription sheet: what a subscription follows, a Bilibili collection.
+func FilmsSubscriptionCollection(cx *core.Scope) string { return For(cx).FilmsSubscriptionCollection() }
+
+// FilmsSubscriptionCollection is the package's FilmsSubscriptionCollection in the language of msgs.
+func (msgs Messages) FilmsSubscriptionCollection() string {
+	return msgs.text(textFilmsSubscriptionCollection)
+}
+
+// FilmsSubscriptionDone says "Done"
+// in the language the app shows under cx.
+//
+// Subscription sheet: button that closes it.
+func FilmsSubscriptionDone(cx *core.Scope) string { return For(cx).FilmsSubscriptionDone() }
+
+// FilmsSubscriptionDone is the package's FilmsSubscriptionDone in the language of msgs.
+func (msgs Messages) FilmsSubscriptionDone() string { return msgs.text(textFilmsSubscriptionDone) }
+
+// FilmsSubscriptionFailed says "The last check failed: {error}"
+// in the language the app shows under cx.
+//
+// Subscription sheet: why the computer's last check of the list failed, in the computer's words.
+func FilmsSubscriptionFailed(cx *core.Scope, error_ string) string {
+	return For(cx).FilmsSubscriptionFailed(error_)
+}
+
+// FilmsSubscriptionFailed is the package's FilmsSubscriptionFailed in the language of msgs.
+func (msgs Messages) FilmsSubscriptionFailed(error_ string) string {
+	if i18n.IsPseudo(msgs.lang) {
+		return i18n.Pseudo(msgs.lang, Messages{lang: Source, mark: true}.FilmsSubscriptionFailed(error_))
+	}
+	for lang := msgs.lang; ; lang = i18n.Parent(lang) {
+		if f := supplied[lang].FilmsSubscriptionFailed; f != nil {
+			return f(error_)
+		}
+		switch lang {
+		case "", "en":
+			return "The last check failed: " + msgs.arg(error_)
+		case "ja":
+			return "前回のチェックに失敗しました：" + error_
+		case "ko":
+			return "지난 확인에 실패했습니다: " + error_
+		case "zh-Hans":
+			return "上次检查失败：" + error_
+		case "zh-Hant":
+			return "上次檢查失敗：" + error_
+		}
+	}
+}
+
+// FilmsSubscriptionGone says "{site} no longer has this list. {computer} still looks for it once a day."
+// in the language the app shows under cx.
+//
+// Subscription sheet: the site deleted the list.
+func FilmsSubscriptionGone(cx *core.Scope, site string, computer string) string {
+	return For(cx).FilmsSubscriptionGone(site, computer)
+}
+
+// FilmsSubscriptionGone is the package's FilmsSubscriptionGone in the language of msgs.
+func (msgs Messages) FilmsSubscriptionGone(site string, computer string) string {
+	if i18n.IsPseudo(msgs.lang) {
+		return i18n.Pseudo(msgs.lang, Messages{lang: Source, mark: true}.FilmsSubscriptionGone(site, computer))
+	}
+	for lang := msgs.lang; ; lang = i18n.Parent(lang) {
+		if f := supplied[lang].FilmsSubscriptionGone; f != nil {
+			return f(site, computer)
+		}
+		switch lang {
+		case "", "en":
+			return msgs.arg(site) + " no longer has this list. " + msgs.arg(computer) + " still looks for it once a day."
+		case "ja":
+			return site + " からこのリストが削除されました。" + computer + " は 1 日 1 回確認を続けます。"
+		case "ko":
+			return site + "에서 이 목록이 삭제되었습니다. " + computer + "에서 하루에 한 번 계속 확인합니다."
+		case "zh-Hans":
+			return site + " 上已经没有这个列表了。" + computer + " 仍会每天检查一次。"
+		case "zh-Hant":
+			return site + " 上已經沒有這個列表了。" + computer + " 仍會每天檢查一次。"
+		}
+	}
+}
+
+// FilmsSubscriptionGoneLabel says "{name}, deleted by its site"
+// in the language the app shows under cx.
+//
+// Library subscriptions row, for assistive technology: a subscription whose list is gone.
+func FilmsSubscriptionGoneLabel(cx *core.Scope, name string) string {
+	return For(cx).FilmsSubscriptionGoneLabel(name)
+}
+
+// FilmsSubscriptionGoneLabel is the package's FilmsSubscriptionGoneLabel in the language of msgs.
+func (msgs Messages) FilmsSubscriptionGoneLabel(name string) string {
+	if i18n.IsPseudo(msgs.lang) {
+		return i18n.Pseudo(msgs.lang, Messages{lang: Source, mark: true}.FilmsSubscriptionGoneLabel(name))
+	}
+	for lang := msgs.lang; ; lang = i18n.Parent(lang) {
+		if f := supplied[lang].FilmsSubscriptionGoneLabel; f != nil {
+			return f(name)
+		}
+		switch lang {
+		case "", "en":
+			return msgs.arg(name) + ", deleted by its site"
+		case "ja":
+			return name + "、サイトで削除済み"
+		case "ko":
+			return name + ", 사이트에서 삭제됨"
+		case "zh-Hans":
+			return name + "，网站上已删除"
+		case "zh-Hant":
+			return name + "，網站上已刪除"
+		}
+	}
+}
+
+// FilmsSubscriptionLabel says "{name}, {count, plural, =0 {no new videos} one {# new video} other {# new videos}}"
+// in the language the app shows under cx.
+//
+// Library subscriptions row, for assistive technology: a subscription and how many new videos wait on it.
+func FilmsSubscriptionLabel(cx *core.Scope, name string, count int) string {
+	return For(cx).FilmsSubscriptionLabel(name, count)
+}
+
+// FilmsSubscriptionLabel is the package's FilmsSubscriptionLabel in the language of msgs.
+func (msgs Messages) FilmsSubscriptionLabel(name string, count int) string {
+	if i18n.IsPseudo(msgs.lang) {
+		return i18n.Pseudo(msgs.lang, Messages{lang: Source, mark: true}.FilmsSubscriptionLabel(name, count))
+	}
+	for lang := msgs.lang; ; lang = i18n.Parent(lang) {
+		if f := supplied[lang].FilmsSubscriptionLabel; f != nil {
+			return f(name, count)
+		}
+		switch lang {
+		case "", "en":
+			var b strings.Builder
+			b.WriteString(msgs.arg(name))
+			b.WriteString(", ")
+			switch {
+			case count == 0:
+				b.WriteString("no new videos")
+			default:
+				switch i18n.Cardinal("en", float64(count)) {
+				case i18n.One:
+					b.WriteString(msgs.arg(i18n.FormatNumber("en", float64(count))))
+					b.WriteString(" new video")
+				default:
+					b.WriteString(msgs.arg(i18n.FormatNumber("en", float64(count))))
+					b.WriteString(" new videos")
+				}
+			}
+			return b.String()
+		case "ja":
+			return name + "、新しい動画 " + i18n.FormatNumber("ja", float64(count)) + " 本"
+		case "ko":
+			return name + ", 새 동영상 " + i18n.FormatNumber("ko", float64(count)) + "개"
+		case "zh-Hans":
+			return name + "，" + i18n.FormatNumber("zh-Hans", float64(count)) + " 个新视频"
+		case "zh-Hant":
+			return name + "，" + i18n.FormatNumber("zh-Hant", float64(count)) + " 個新影片"
+		}
+	}
+}
+
+// FilmsSubscriptionMeta says "{site} · {kind} · {computer}"
+// in the language the app shows under cx.
+//
+// Subscription sheet: under its name, the site, what it follows and the computer that checks it.
+func FilmsSubscriptionMeta(cx *core.Scope, site string, kind string, computer string) string {
+	return For(cx).FilmsSubscriptionMeta(site, kind, computer)
+}
+
+// FilmsSubscriptionMeta is the package's FilmsSubscriptionMeta in the language of msgs.
+func (msgs Messages) FilmsSubscriptionMeta(site string, kind string, computer string) string {
+	if i18n.IsPseudo(msgs.lang) {
+		return i18n.Pseudo(msgs.lang, Messages{lang: Source, mark: true}.FilmsSubscriptionMeta(site, kind, computer))
+	}
+	for lang := msgs.lang; ; lang = i18n.Parent(lang) {
+		if f := supplied[lang].FilmsSubscriptionMeta; f != nil {
+			return f(site, kind, computer)
+		}
+		switch lang {
+		case "", "en":
+			return msgs.arg(site) + " · " + msgs.arg(kind) + " · " + msgs.arg(computer)
+		case "ja":
+			return site + " · " + kind + " · " + computer
+		case "ko":
+			return site + " · " + kind + " · " + computer
+		case "zh-Hans":
+			return site + " · " + kind + " · " + computer
+		case "zh-Hant":
+			return site + " · " + kind + " · " + computer
+		}
+	}
+}
+
+// FilmsSubscriptionNew says "{count}"
+// in the language the app shows under cx.
+//
+// Library subscriptions row: the badge with how many new videos wait on a subscription.
+func FilmsSubscriptionNew(cx *core.Scope, count int) string {
+	return For(cx).FilmsSubscriptionNew(count)
+}
+
+// FilmsSubscriptionNew is the package's FilmsSubscriptionNew in the language of msgs.
+func (msgs Messages) FilmsSubscriptionNew(count int) string {
+	if i18n.IsPseudo(msgs.lang) {
+		return i18n.Pseudo(msgs.lang, Messages{lang: Source, mark: true}.FilmsSubscriptionNew(count))
+	}
+	for lang := msgs.lang; ; lang = i18n.Parent(lang) {
+		if f := supplied[lang].FilmsSubscriptionNew; f != nil {
+			return f(count)
+		}
+		switch lang {
+		case "", "en":
+			return msgs.arg(i18n.FormatNumber("en", float64(count)))
+		case "ja":
+			return i18n.FormatNumber("ja", float64(count))
+		case "ko":
+			return i18n.FormatNumber("ko", float64(count))
+		case "zh-Hans":
+			return i18n.FormatNumber("zh-Hans", float64(count))
+		case "zh-Hant":
+			return i18n.FormatNumber("zh-Hant", float64(count))
+		}
+	}
+}
+
+// FilmsSubscriptionNone says "No new videos. New ones wait here for you."
+// in the language the app shows under cx.
+//
+// Subscription sheet: no new video waits, for a subscription that asks first.
+func FilmsSubscriptionNone(cx *core.Scope) string { return For(cx).FilmsSubscriptionNone() }
+
+// FilmsSubscriptionNone is the package's FilmsSubscriptionNone in the language of msgs.
+func (msgs Messages) FilmsSubscriptionNone() string { return msgs.text(textFilmsSubscriptionNone) }
+
+// FilmsSubscriptionNoneAuto says "No new videos. New ones are added to Jobs automatically."
+// in the language the app shows under cx.
+//
+// Subscription sheet: no new video waits, for a subscription that adds them by itself.
+func FilmsSubscriptionNoneAuto(cx *core.Scope) string { return For(cx).FilmsSubscriptionNoneAuto() }
+
+// FilmsSubscriptionNoneAuto is the package's FilmsSubscriptionNoneAuto in the language of msgs.
+func (msgs Messages) FilmsSubscriptionNoneAuto() string {
+	return msgs.text(textFilmsSubscriptionNoneAuto)
+}
+
+// FilmsSubscriptionPaused says "Paused on {computer}."
+// in the language the app shows under cx.
+//
+// Subscription sheet: the computer does not check the list now.
+func FilmsSubscriptionPaused(cx *core.Scope, computer string) string {
+	return For(cx).FilmsSubscriptionPaused(computer)
+}
+
+// FilmsSubscriptionPaused is the package's FilmsSubscriptionPaused in the language of msgs.
+func (msgs Messages) FilmsSubscriptionPaused(computer string) string {
+	if i18n.IsPseudo(msgs.lang) {
+		return i18n.Pseudo(msgs.lang, Messages{lang: Source, mark: true}.FilmsSubscriptionPaused(computer))
+	}
+	for lang := msgs.lang; ; lang = i18n.Parent(lang) {
+		if f := supplied[lang].FilmsSubscriptionPaused; f != nil {
+			return f(computer)
+		}
+		switch lang {
+		case "", "en":
+			return "Paused on " + msgs.arg(computer) + "."
+		case "ja":
+			return computer + " で一時停止中です。"
+		case "ko":
+			return computer + "에서 일시 정지됨."
+		case "zh-Hans":
+			return "已在 " + computer + " 上暂停。"
+		case "zh-Hant":
+			return "已在 " + computer + " 上暫停。"
+		}
+	}
+}
+
+// FilmsSubscriptionPausedLabel says "{name}, paused"
+// in the language the app shows under cx.
+//
+// Library subscriptions row, for assistive technology: a paused subscription.
+func FilmsSubscriptionPausedLabel(cx *core.Scope, name string) string {
+	return For(cx).FilmsSubscriptionPausedLabel(name)
+}
+
+// FilmsSubscriptionPausedLabel is the package's FilmsSubscriptionPausedLabel in the language of msgs.
+func (msgs Messages) FilmsSubscriptionPausedLabel(name string) string {
+	if i18n.IsPseudo(msgs.lang) {
+		return i18n.Pseudo(msgs.lang, Messages{lang: Source, mark: true}.FilmsSubscriptionPausedLabel(name))
+	}
+	for lang := msgs.lang; ; lang = i18n.Parent(lang) {
+		if f := supplied[lang].FilmsSubscriptionPausedLabel; f != nil {
+			return f(name)
+		}
+		switch lang {
+		case "", "en":
+			return msgs.arg(name) + ", paused"
+		case "ja":
+			return name + "、一時停止中"
+		case "ko":
+			return name + ", 일시 정지됨"
+		case "zh-Hans":
+			return name + "，已暂停"
+		case "zh-Hant":
+			return name + "，已暫停"
+		}
+	}
+}
+
+// FilmsSubscriptionPlaylist says "Playlist"
+// in the language the app shows under cx.
+//
+// Subscription sheet: what a subscription follows, a playlist.
+func FilmsSubscriptionPlaylist(cx *core.Scope) string { return For(cx).FilmsSubscriptionPlaylist() }
+
+// FilmsSubscriptionPlaylist is the package's FilmsSubscriptionPlaylist in the language of msgs.
+func (msgs Messages) FilmsSubscriptionPlaylist() string {
+	return msgs.text(textFilmsSubscriptionPlaylist)
+}
+
+// FilmsSubscriptionReadOnly says "{computer} lets this phone look at its subscriptions but not change them."
+// in the language the app shows under cx.
+//
+// Subscription sheet: the computer made this phone read-only, so the sheet offers no action.
+func FilmsSubscriptionReadOnly(cx *core.Scope, computer string) string {
+	return For(cx).FilmsSubscriptionReadOnly(computer)
+}
+
+// FilmsSubscriptionReadOnly is the package's FilmsSubscriptionReadOnly in the language of msgs.
+func (msgs Messages) FilmsSubscriptionReadOnly(computer string) string {
+	if i18n.IsPseudo(msgs.lang) {
+		return i18n.Pseudo(msgs.lang, Messages{lang: Source, mark: true}.FilmsSubscriptionReadOnly(computer))
+	}
+	for lang := msgs.lang; ; lang = i18n.Parent(lang) {
+		if f := supplied[lang].FilmsSubscriptionReadOnly; f != nil {
+			return f(computer)
+		}
+		switch lang {
+		case "", "en":
+			return msgs.arg(computer) + " lets this phone look at its subscriptions but not change them."
+		case "ja":
+			return computer + " はこの端末を読み取り専用にしています。購読は見られますが変更できません。"
+		case "ko":
+			return computer + "에서 이 휴대폰을 읽기 전용으로 설정했습니다. 구독을 볼 수는 있지만 바꿀 수는 없습니다."
+		case "zh-Hans":
+			return computer + " 把这台手机设为只读：可以查看订阅，不能更改。"
+		case "zh-Hant":
+			return computer + " 把這台手機設為唯讀：可以查看訂閱，不能更改。"
+		}
+	}
+}
+
+// FilmsSubscriptionSpace says "Uploader"
+// in the language the app shows under cx.
+//
+// Subscription sheet: what a subscription follows, a Bilibili uploader's space.
+func FilmsSubscriptionSpace(cx *core.Scope) string { return For(cx).FilmsSubscriptionSpace() }
+
+// FilmsSubscriptionSpace is the package's FilmsSubscriptionSpace in the language of msgs.
+func (msgs Messages) FilmsSubscriptionSpace() string { return msgs.text(textFilmsSubscriptionSpace) }
+
+// FilmsSubscriptionTake says "Add All to Jobs"
+// in the language the app shows under cx.
+//
+// Subscription sheet: button that sends every new video waiting on it to the computer's queue.
+func FilmsSubscriptionTake(cx *core.Scope) string { return For(cx).FilmsSubscriptionTake() }
+
+// FilmsSubscriptionTake is the package's FilmsSubscriptionTake in the language of msgs.
+func (msgs Messages) FilmsSubscriptionTake() string { return msgs.text(textFilmsSubscriptionTake) }
+
+// FilmsSubscriptionWaiting says "{count, plural, =0 {New Videos} one {# New Video} other {# New Videos}}"
+// in the language the app shows under cx.
+//
+// Subscription sheet: heading of the new videos waiting for the user.
+func FilmsSubscriptionWaiting(cx *core.Scope, count int) string {
+	return For(cx).FilmsSubscriptionWaiting(count)
+}
+
+// FilmsSubscriptionWaiting is the package's FilmsSubscriptionWaiting in the language of msgs.
+func (msgs Messages) FilmsSubscriptionWaiting(count int) string {
+	if i18n.IsPseudo(msgs.lang) {
+		return i18n.Pseudo(msgs.lang, Messages{lang: Source, mark: true}.FilmsSubscriptionWaiting(count))
+	}
+	for lang := msgs.lang; ; lang = i18n.Parent(lang) {
+		if f := supplied[lang].FilmsSubscriptionWaiting; f != nil {
+			return f(count)
+		}
+		switch lang {
+		case "", "en":
+			var b strings.Builder
+			switch {
+			case count == 0:
+				b.WriteString("New Videos")
+			default:
+				switch i18n.Cardinal("en", float64(count)) {
+				case i18n.One:
+					b.WriteString(msgs.arg(i18n.FormatNumber("en", float64(count))))
+					b.WriteString(" New Video")
+				default:
+					b.WriteString(msgs.arg(i18n.FormatNumber("en", float64(count))))
+					b.WriteString(" New Videos")
+				}
+			}
+			return b.String()
+		case "ja":
+			var b strings.Builder
+			switch {
+			case count == 0:
+				b.WriteString("新しい動画")
+			default:
+				switch i18n.Cardinal("ja", float64(count)) {
+				default:
+					b.WriteString("新しい動画 ")
+					b.WriteString(i18n.FormatNumber("ja", float64(count)))
+					b.WriteString(" 本")
+				}
+			}
+			return b.String()
+		case "ko":
+			var b strings.Builder
+			switch {
+			case count == 0:
+				b.WriteString("새 동영상")
+			default:
+				switch i18n.Cardinal("ko", float64(count)) {
+				default:
+					b.WriteString("새 동영상 ")
+					b.WriteString(i18n.FormatNumber("ko", float64(count)))
+					b.WriteString("개")
+				}
+			}
+			return b.String()
+		case "zh-Hans":
+			var b strings.Builder
+			switch {
+			case count == 0:
+				b.WriteString("新视频")
+			default:
+				switch i18n.Cardinal("zh-Hans", float64(count)) {
+				default:
+					b.WriteString(i18n.FormatNumber("zh-Hans", float64(count)))
+					b.WriteString(" 个新视频")
+				}
+			}
+			return b.String()
+		case "zh-Hant":
+			var b strings.Builder
+			switch {
+			case count == 0:
+				b.WriteString("新影片")
+			default:
+				switch i18n.Cardinal("zh-Hant", float64(count)) {
+				default:
+					b.WriteString(i18n.FormatNumber("zh-Hant", float64(count)))
+					b.WriteString(" 個新影片")
+				}
+			}
+			return b.String()
+		}
+	}
+}
+
+// FilmsSubscriptions says "Subscriptions"
+// in the language the app shows under cx.
+//
+// Library: heading of the computers' subscriptions.
+func FilmsSubscriptions(cx *core.Scope) string { return For(cx).FilmsSubscriptions() }
+
+// FilmsSubscriptions is the package's FilmsSubscriptions in the language of msgs.
+func (msgs Messages) FilmsSubscriptions() string { return msgs.text(textFilmsSubscriptions) }
+
+// FilmsSubscriptionsAdd says "Add"
+// in the language the app shows under cx.
+//
+// Library: beside the subscriptions' heading, opens the Add sheet, which takes a channel or playlist link.
+func FilmsSubscriptionsAdd(cx *core.Scope) string { return For(cx).FilmsSubscriptionsAdd() }
+
+// FilmsSubscriptionsAdd is the package's FilmsSubscriptionsAdd in the language of msgs.
+func (msgs Messages) FilmsSubscriptionsAdd() string { return msgs.text(textFilmsSubscriptionsAdd) }
+
+// FilmsSubscriptionsAddLabel says "Add a subscription"
+// in the language the app shows under cx.
+//
+// Library: what assistive technology reads for the subscriptions' Add button.
+func FilmsSubscriptionsAddLabel(cx *core.Scope) string { return For(cx).FilmsSubscriptionsAddLabel() }
+
+// FilmsSubscriptionsAddLabel is the package's FilmsSubscriptionsAddLabel in the language of msgs.
+func (msgs Messages) FilmsSubscriptionsAddLabel() string {
+	return msgs.text(textFilmsSubscriptionsAddLabel)
+}
+
 // FilmsTitle says "Library"
 // in the language the app shows under cx.
 //
@@ -6352,6 +7474,79 @@ func FilmsUnpairedTitle(cx *core.Scope) string { return For(cx).FilmsUnpairedTit
 
 // FilmsUnpairedTitle is the package's FilmsUnpairedTitle in the language of msgs.
 func (msgs Messages) FilmsUnpairedTitle() string { return msgs.text(textFilmsUnpairedTitle) }
+
+// FilmsUnsubscribe says "Unsubscribe"
+// in the language the app shows under cx.
+//
+// Subscription sheet: the row that removes the subscription, and its confirmation's button.
+func FilmsUnsubscribe(cx *core.Scope) string { return For(cx).FilmsUnsubscribe() }
+
+// FilmsUnsubscribe is the package's FilmsUnsubscribe in the language of msgs.
+func (msgs Messages) FilmsUnsubscribe() string { return msgs.text(textFilmsUnsubscribe) }
+
+// FilmsUnsubscribeMessage says "The videos it added stay in the library on {computer}."
+// in the language the app shows under cx.
+//
+// Confirmation before unsubscribing: what stays.
+func FilmsUnsubscribeMessage(cx *core.Scope, computer string) string {
+	return For(cx).FilmsUnsubscribeMessage(computer)
+}
+
+// FilmsUnsubscribeMessage is the package's FilmsUnsubscribeMessage in the language of msgs.
+func (msgs Messages) FilmsUnsubscribeMessage(computer string) string {
+	if i18n.IsPseudo(msgs.lang) {
+		return i18n.Pseudo(msgs.lang, Messages{lang: Source, mark: true}.FilmsUnsubscribeMessage(computer))
+	}
+	for lang := msgs.lang; ; lang = i18n.Parent(lang) {
+		if f := supplied[lang].FilmsUnsubscribeMessage; f != nil {
+			return f(computer)
+		}
+		switch lang {
+		case "", "en":
+			return "The videos it added stay in the library on " + msgs.arg(computer) + "."
+		case "ja":
+			return "追加済みの動画は " + computer + " のライブラリに残ります。"
+		case "ko":
+			return "추가된 동영상은 " + computer + "의 라이브러리에 남습니다."
+		case "zh-Hans":
+			return "它加过的视频仍留在 " + computer + " 的资料库里。"
+		case "zh-Hant":
+			return "它加過的影片仍留在 " + computer + " 的資料庫裡。"
+		}
+	}
+}
+
+// FilmsUnsubscribeTitle says "Unsubscribe from “{title}”?"
+// in the language the app shows under cx.
+//
+// Confirmation before unsubscribing.
+func FilmsUnsubscribeTitle(cx *core.Scope, title string) string {
+	return For(cx).FilmsUnsubscribeTitle(title)
+}
+
+// FilmsUnsubscribeTitle is the package's FilmsUnsubscribeTitle in the language of msgs.
+func (msgs Messages) FilmsUnsubscribeTitle(title string) string {
+	if i18n.IsPseudo(msgs.lang) {
+		return i18n.Pseudo(msgs.lang, Messages{lang: Source, mark: true}.FilmsUnsubscribeTitle(title))
+	}
+	for lang := msgs.lang; ; lang = i18n.Parent(lang) {
+		if f := supplied[lang].FilmsUnsubscribeTitle; f != nil {
+			return f(title)
+		}
+		switch lang {
+		case "", "en":
+			return "Unsubscribe from “" + msgs.arg(title) + "”?"
+		case "ja":
+			return "「" + title + "」の購読を解除しますか？"
+		case "ko":
+			return "‘" + title + "’ 구독을 취소할까요?"
+		case "zh-Hans":
+			return "取消订阅「" + title + "」？"
+		case "zh-Hant":
+			return "取消訂閱「" + title + "」？"
+		}
+	}
+}
 
 // JobsBadgeLabel says "Jobs, {count} unfinished"
 // in the language the app shows under cx.
