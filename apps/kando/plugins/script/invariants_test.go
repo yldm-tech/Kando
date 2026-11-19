@@ -14,7 +14,7 @@ import (
 // tsxPath is the import path of NSGo's TSX runtime.
 const tsxPath = "github.com/nsgo-dev/nsgo/tsx"
 
-// TestScriptRuntimeEntrances scans every Go file of the repository, tests included, for the ways into tsx that would run code with more than a plugin is granted (docs/plugin-system.md 3.3, 9): tsx.Sandboxed, which with neither capabilities nor grant runs a bundle with the app's own authority, file:// included, appears nowhere, developer mode included; tsx.View, whose sandbox fills a nil grant with what the package declares, appears nowhere either, as no plugin shows a view yet; and tsx.Load appears only in this package's own code, each time with the sandbox of Sandbox or probeSandbox, whose grants are made from nothing.
+// TestScriptRuntimeEntrances scans every Go file of the repository, tests included, for the ways into tsx that would run code with more than a plugin is granted (docs/plugin-system.md 3.3, 9): tsx.Sandboxed, which with neither capabilities nor grant runs a bundle with the app's own authority, file:// included, appears nowhere, developer mode included; tsx.View, whose sandbox fills a nil grant with what the package declares, appears only in this package's own code, each time as a literal whose Sandbox is Sandbox's (a panel's view, Runner.Panel), never probeSandbox's nor one written out; and tsx.Load appears only in this package's own code, each time with the sandbox of Sandbox or probeSandbox, whose grants are made from nothing.
 func TestScriptRuntimeEntrances(t *testing.T) {
 	repo, err := filepath.Abs(filepath.Join("..", "..", "..", ".."))
 	if err != nil {
@@ -24,7 +24,7 @@ func TestScriptRuntimeEntrances(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	files, loads := 0, 0
+	files, loads, views := 0, 0, 0
 	err = filepath.WalkDir(repo, func(path string, d fs.DirEntry, err error) error {
 		if err != nil {
 			return err
@@ -57,7 +57,20 @@ func TestScriptRuntimeEntrances(t *testing.T) {
 			return nil
 		}
 		ours := filepath.Dir(path) == here && !strings.HasSuffix(path, "_test.go")
+		// The selectors of tsx.View that are the type of a literal checked here, which the selector's own visit lets pass.
+		literals := map[*ast.SelectorExpr]bool{}
 		ast.Inspect(f, func(n ast.Node) bool {
+			if lit, ok := n.(*ast.CompositeLit); ok {
+				if s, ok := lit.Type.(*ast.SelectorExpr); ok && isTSX(s, name, "View") {
+					literals[s] = true
+					views++
+					if !ours {
+						t.Errorf("%s: tsx.View outside plugins/script", fset.Position(lit.Pos()))
+					} else if !viewSandboxed(lit) {
+						t.Errorf("%s: tsx.View without the Sandbox of Sandbox", fset.Position(lit.Pos()))
+					}
+				}
+			}
 			sel, ok := n.(*ast.SelectorExpr)
 			if !ok {
 				if call, ok := n.(*ast.CallExpr); ok {
@@ -75,7 +88,7 @@ func TestScriptRuntimeEntrances(t *testing.T) {
 			switch {
 			case isTSX(sel, name, "Sandboxed"):
 				t.Errorf("%s: tsx.Sandboxed runs a bundle with the app's authority", fset.Position(sel.Pos()))
-			case isTSX(sel, name, "View"):
+			case isTSX(sel, name, "View") && !literals[sel]:
 				t.Errorf("%s: tsx.View fills a nil grant with what the package declares", fset.Position(sel.Pos()))
 			}
 			return true
@@ -85,9 +98,35 @@ func TestScriptRuntimeEntrances(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if files < 100 || loads == 0 {
-		t.Fatalf("scanned %d files and %d loads: is the repository where the test looks (%s)?", files, loads, repo)
+	if files < 100 || loads == 0 || views == 0 {
+		t.Fatalf("scanned %d files, %d loads and %d views: is the repository where the test looks (%s)?", files, loads, views, repo)
 	}
+}
+
+// viewSandboxed reports whether lit, a tsx.View literal, sets its Sandbox, by key, to a call of Sandbox, and nothing else but its Package.
+func viewSandboxed(lit *ast.CompositeLit) bool {
+	sandboxed := false
+	for _, e := range lit.Elts {
+		kv, ok := e.(*ast.KeyValueExpr)
+		if !ok {
+			return false
+		}
+		key, _ := kv.Key.(*ast.Ident)
+		switch {
+		case key == nil:
+			return false
+		case key.Name == "Sandbox":
+			call, ok := kv.Value.(*ast.CallExpr)
+			if !ok {
+				return false
+			}
+			fn, ok := call.Fun.(*ast.Ident)
+			sandboxed = ok && fn.Name == "Sandbox"
+		case key.Name != "Package":
+			return false
+		}
+	}
+	return sandboxed
 }
 
 // isTSX reports whether sel is the tsx package's member, imported as name.

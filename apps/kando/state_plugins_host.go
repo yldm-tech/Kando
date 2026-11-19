@@ -96,11 +96,11 @@ func (a *app) pluginsHost(id string, host *ns.Host) {
 	}
 }
 
-// pluginsGuard is fn behind the checks every call passes: the plugin id runs under host still, what it may do now holds perm, and its quota is not used up.
+// pluginsGuard is fn behind the checks every call passes: the plugin id runs under host still, as the host it was loaded with or the one of the view of its panel shown now, what it may do now holds perm, and its quota, which its panel shares, is not used up.
 func (a *app) pluginsGuard(id string, host *ns.Host, perm plugins.Perm, fn func(l *pluginsScript, c *ns.HostCall)) func(*ns.HostCall) {
 	return func(c *ns.HostCall) {
 		l := a.plugins.script.loaded[id]
-		if l == nil || l.host != host || !a.pluginsEffective(l.pack).Has(perm) {
+		if l == nil || l.host != host && l.panel != host || !a.pluginsEffective(l.pack).Has(perm) {
 			pluginsRefuse(c, pluginsDenied)
 			return
 		}

@@ -22,8 +22,33 @@ import (
 	"github.com/nsgo-dev/nsgo/ui"
 )
 
-// panelTabs are the side panel's tabs, by the FilmSide each one is; tabLabel names them.
-var panelTabs = []string{"", "clips", "terms", SideNotes, "info", "style"}
+// panelTabs are the side panel's tabs, by the FilmSide each one is, each with whether it shows now: all of them always, but 扩展, which shows while a script plugin running adds a panel (Extender); tabLabel names them.
+func (s *screen) panelTabs(cx *ns.Scope) []panelTab {
+	always := func() bool { return true }
+	return []panelTab{{"", always}, {"clips", always}, {"terms", always}, {SideNotes, always}, {"info", always}, {SideExtensions, s.extended(cx)}, {"style", always}}
+}
+
+// panelTab is a tab of the side panel: the FilmSide it is and whether it shows now.
+type panelTab struct {
+	id    string
+	shown func() bool
+}
+
+// extended reports, as a binding, whether a script plugin running adds a panel to the 扩展 tab.
+func (s *screen) extended(cx *ns.Scope) func() bool {
+	return live.Func(s.a, func() bool { return len(s.a.Extensions(cx)) > 0 })
+}
+
+// side is the side panel's tab as a binding: FilmSide, but 字幕 in place of 扩展 while no plugin running adds a panel, as once the last one was turned off.
+func (s *screen) side(cx *ns.Scope) func() string {
+	extended := s.extended(cx)
+	return live.Func(s.a, func() string {
+		if side := s.a.FilmSide(); side != SideExtensions || extended() {
+			return side
+		}
+		return ""
+	})
+}
 
 // tabLabel is what a tab of the side panel is called in the language the interface shows under cx.
 func tabLabel(cx *ns.Scope, id string) string {
@@ -38,6 +63,8 @@ func tabLabel(cx *ns.Scope, id string) string {
 		return locales.FilmTabInfo(cx)
 	case "style":
 		return locales.FilmTabStyle(cx)
+	case SideExtensions:
+		return locales.FilmTabExtensions(cx)
 	}
 	return locales.FilmSubtitles(cx)
 }
@@ -64,7 +91,7 @@ func (s *screen) panel() ns.Node {
 			in.Set(false)
 			cx.AfterFunc(panelMotion, done)
 		})
-		side := live.Memo(cx, a, a.FilmSide)
+		side := ns.NewMemo(cx, s.side(cx)).Get
 		body := ns.Show{
 			When: live.Func(a, a.StyleView),
 			Then: s.styleView,
@@ -83,6 +110,8 @@ func (s *screen) panel() ns.Node {
 						return s.explainTab(cx)
 					case SideTask:
 						return s.taskTab(cx)
+					case SideExtensions:
+						return s.extensionsTab(cx)
 					}
 					return s.subsTab(cx)
 				})
@@ -108,16 +137,19 @@ func (s *screen) panel() ns.Node {
 // panelTabBar is the prototype's tab bar across the panel (template 718-724): a track of white at 10%, its tabs sharing its width, the chosen one lit with white at 22% and its label semibold.
 func (s *screen) panelTabBar(cx *ns.Scope) ns.Node {
 	a := s.a
+	side := s.side(cx)
 	chosen := live.Func(a, func() string {
 		if a.StyleView() {
 			return "style"
 		}
-		return a.FilmSide()
+		return side()
 	})
-	tabs := make([]ns.Node, 0, len(panelTabs))
-	for _, tab := range panelTabs {
+	all := s.panelTabs(cx)
+	tabs := make([]ns.Node, 0, len(all))
+	for _, t := range all {
+		tab := t.id
 		on := func() bool { return chosen() == tab }
-		tabs = append(tabs, base.Tab{
+		node := base.Tab{
 			TestID: "film-tab-" + cmp.Or(tab, "subs"), Selected: on,
 			OnPress: live.On(a, func(ns.PressEvent) {
 				if tab == "style" {
@@ -143,7 +175,13 @@ func (s *screen) panelTabBar(cx *ns.Scope) ns.Node {
 					}
 					return ns.Style{FontWeight: ns.FontWeightNormal}
 				}}},
-		})
+		}
+		if t.id == SideExtensions {
+			// Built while it shows, so a tab not there takes no focus nor a share of the bar's width.
+			tabs = append(tabs, ns.Show{When: t.shown, Then: func(*ns.Scope) ns.Node { return node }})
+			continue
+		}
+		tabs = append(tabs, node)
 	}
 	// TODO(nsgo#145): give base.Tabs' Label a LabelFunc twin, so the tab list's accessible name follows the interface language as it changes; it is read once here https://github.com/nsgo-dev/nsgo/issues/145
 	return base.Tabs{TestID: "film-tabs", Label: locales.FilmSidebar(cx),

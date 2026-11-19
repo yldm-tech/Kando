@@ -14,6 +14,7 @@ func contribManifest() string {
     "subtitleFormats": [{"id": "lrc", "export": "exportSubtitles", "extension": "lrc", "label": {"en": "LRC lyrics"}}],
     "exporters": [{"id": "notes", "export": "exportNotes", "takes": ["lines", "words"], "label": {"en": "Anki (AnkiConnect)"}}],
     "annotators": [{"id": "pitch", "export": "annotate", "label": {"en": "Pitch accent"}}],
+    "panels": [{"id": "deck", "export": "Deck", "icon": "notebook-pen", "title": {"en": "Deck"}}, {"id": "plain", "export": "Plain", "title": {"en": "Plain"}}],
     "commands": [`, 1)
 	m = strings.Replace(m, `"kando.settings.get"]`, `"kando.settings.get", "kando.net.credentialFetch", "kando.llm.chat"]`, 1)
 	return strings.Replace(m, `"events"`, `"credentials": [{"id": "deepl", "title": {"en": "DeepL API key"}, "header": "Authorization", "format": "DeepL-Auth-Key {secret}", "hosts": ["api-free.deepl.com", "api.deepl.com"], "methods": ["POST"], "pathPrefixes": ["/v2/translate"]}], "events"`, 1)
@@ -25,7 +26,7 @@ func TestValidateContributions(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if got := p.ExportsNeeded(); strings.Join(got, ",") != "run,lookUp,exportSubtitles,exportNotes,annotate" {
+	if got := p.ExportsNeeded(); strings.Join(got, ",") != "run,lookUp,exportSubtitles,exportNotes,annotate,Deck,Plain" {
 		t.Errorf("exports %v", got)
 	}
 	if _, err := Validate(writeScript(t, strings.Replace(scriptManifest(), `"kando.settings.get"]`, `"kando.settings.get", "kando.net.credentialFetch"]`, 1))); err == nil {
@@ -52,6 +53,12 @@ func TestValidateContributions(t *testing.T) {
 		{"an exporter that takes films", `"takes": ["lines", "words"]`, `"takes": ["films"]`},
 		{"lines twice", `"takes": ["lines", "words"]`, `"takes": ["lines", "lines"]`},
 		{"an annotator's id", `"id": "pitch"`, `"id": ""`},
+		{"a panel's id", `"id": "deck"`, `"id": "Deck"`},
+		{"a panel's id twice", `"id": "plain"`, `"id": "deck"`},
+		{"a panel's export", `"export": "Deck"`, `"export": "<Deck/>"`},
+		{"a panel without a title", `"title": {"en": "Deck"}`, `"title": {}`},
+		{"a panel's icon not on the list", `"icon": "notebook-pen"`, `"icon": "skull"`},
+		{"a panel's icon as an image", `"icon": "notebook-pen"`, `"icon": "data:image/png;base64,AAAA"`},
 		{"a header Kando sets", `"header": "Authorization"`, `"header": "Cookie"`},
 		{"a header that is not one", `"header": "Authorization"`, `"header": "Auth orization"`},
 		{"a format without the secret", `"DeepL-Auth-Key {secret}"`, `"DeepL-Auth-Key"`},

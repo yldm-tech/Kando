@@ -68,13 +68,15 @@ type pluginsScripts struct {
 	revocationsURL string
 }
 
-// pluginsScript is a script plugin running: its pack, its package as verified, the plugin the runner calls, its own host and what it was granted as it loaded.
+// pluginsScript is a script plugin running: its pack, its package as verified, the plugin the runner calls, its own host and what it was granted as it loaded; the host of the view of its panel shown now, nil while none is (state_plugins_panels.go), and which load of a plugin it is, counting every load (pluginsPanels.runs), so the panel's view is built again for a plugin loaded again.
 type pluginsScript struct {
 	pack   plugins.Pack
 	v      script.Verified
 	plugin *script.Plugin
 	host   *ns.Host
 	grant  plugins.Grant
+	panel  *ns.Host
+	run    int
 }
 
 // The limits of the script plugins: how many may be turned on at once, and how many host calls each may make a minute.
@@ -349,7 +351,8 @@ func (a *app) pluginsLoadNext() {
 		a.pluginsTurnOff(id, p.Hash, plugins.ReasonInit)
 		return
 	}
-	s.loaded[id] = &pluginsScript{pack: p, v: v, plugin: plugin, host: host, grant: grant}
+	a.plugins.panels.runs++
+	s.loaded[id] = &pluginsScript{pack: p, v: v, plugin: plugin, host: host, grant: grant, run: a.plugins.panels.runs}
 	a.pluginsHost(id, host)
 	if trust := s.trust; trust != nil {
 		go trust.Accept(v.Package)
@@ -739,12 +742,16 @@ func (a *app) pluginsFilmID(l *pluginsScript, video string) string {
 	return plugins.FilmID(a.plugins.script.filmKey, l.pack.ID, l.pack.Signer, video)
 }
 
-// pluginsSend sends each plugin running that hears event (its manifest's events) the event, with what data gives it for that plugin: scalars alone (docs/plugin-system.md 5.3).
+// pluginsSend sends each plugin running that hears event (its manifest's events) the event, with what data gives it for that plugin: scalars alone (docs/plugin-system.md 5.3); and the view of its panel shown now, which runs apart from it.
 func (a *app) pluginsSend(event string, data func(l *pluginsScript) map[string]any) {
 	for _, id := range slices.Sorted(maps.Keys(a.plugins.script.loaded)) {
 		l := a.plugins.script.loaded[id]
 		if slices.Contains(l.pack.Events, event) {
-			l.host.Send(event, data(l))
+			d := data(l)
+			l.host.Send(event, d)
+			if l.panel != nil {
+				l.panel.Send(event, d)
+			}
 		}
 	}
 }

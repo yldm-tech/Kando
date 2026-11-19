@@ -59,5 +59,8 @@ func Risky(m Manifest, g Grant) bool {
 	return reads && sends
 }
 
-// Events are the events of the app a script plugin may hear (Manifest.Events), each with scalars alone (docs/plugin-system.md 5.3).
-var Events = []string{"film.opened", "job.completed", "llm.changed"}
+// Events are the events of the app a script plugin may hear (Manifest.Events), each with scalars alone (docs/plugin-system.md 5.3). line.changed reaches only the view of a panel of the plugin's (Panel) while it shows, and only while the plugin may read the line playing.
+var Events = []string{"film.opened", "job.completed", "llm.changed", EventLineChanged}
+
+// EventLineChanged is the event a panel hears as the line playing changes, with the index of the line now playing, -1 for none; the line itself is kando.line.current's to give.
+const EventLineChanged = "line.changed"

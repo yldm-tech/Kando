@@ -592,6 +592,8 @@ var Parameters = map[string][]string{
 	"FilmStatusDraft":                          {"percent"},
 	"FilmStatusTranslated":                     {"percent"},
 	"FilmSubtitlesMode":                        {"mode"},
+	"FilmExtensionFrom":                        {"name"},
+	"FilmExtensionFailed":                      {"name"},
 	"FilmTranscribeAgain":                      {"language"},
 	"FilmsGridCount":                           {"count"},
 	"FilmsHeroKickerBilingual":                 {"language"},
@@ -1038,6 +1040,7 @@ var Parameters = map[string][]string{
 	"SettingsPluginsAddsExporter":              {"name"},
 	"SettingsPluginsAddsAnnotator":             {"name"},
 	"SettingsPluginsAddsTranslator":            {"name"},
+	"SettingsPluginsAddsPanel":                 {"name"},
 	"SettingsPluginsCredentialHosts":           {"hosts"},
 	"SettingsPluginsCredentialMismatch":        {"service"},
 	"SavedExportingPlugin":                     {"name"},
@@ -1292,6 +1295,8 @@ type Translation struct {
 	FilmStatusDraft                          func(percent int) string
 	FilmStatusTranslated                     func(percent int) string
 	FilmSubtitlesMode                        func(mode string) string
+	FilmExtensionFrom                        func(name string) string
+	FilmExtensionFailed                      func(name string) string
 	FilmTranscribeAgain                      func(language string) string
 	FilmsGridCount                           func(count int) string
 	FilmsHeroKickerBilingual                 func(language string) string
@@ -1738,6 +1743,7 @@ type Translation struct {
 	SettingsPluginsAddsExporter              func(name string) string
 	SettingsPluginsAddsAnnotator             func(name string) string
 	SettingsPluginsAddsTranslator            func(name string) string
+	SettingsPluginsAddsPanel                 func(name string) string
 	SettingsPluginsCredentialHosts           func(hosts string) string
 	SettingsPluginsCredentialMismatch        func(service string) string
 	SavedExportingPlugin                     func(name string) string
@@ -2323,6 +2329,9 @@ const (
 	textFilmTabClips
 	textFilmTabInfo
 	textFilmTabStyle
+	textFilmTabExtensions
+	textFilmExtensionPick
+	textFilmExtensionRetry
 	textFilmTabTerms
 	textFilmTranslateAgain
 	textFilmTranslateMissing
@@ -4094,6 +4103,9 @@ var keyOfText = [numTexts]string{
 	"filmTabClips",
 	"filmTabInfo",
 	"filmTabStyle",
+	"filmTabExtensions",
+	"filmExtensionPick",
+	"filmExtensionRetry",
 	"filmTabTerms",
 	"filmTranslateAgain",
 	"filmTranslateMissing",
@@ -5863,6 +5875,9 @@ var textsEn = i18n.NewTexts(""+
 	"Clips"+
 	"Info"+
 	"Style"+
+	"Extensions"+
+	"Panel"+
+	"Try Again"+
 	"Terms"+
 	"Translate Again Into"+
 	"Translate Missing Lines"+
@@ -7629,6 +7644,9 @@ var textsEn = i18n.NewTexts(""+
 		5,
 		4,
 		5,
+		10,
+		5,
+		9,
 		5,
 		20,
 		23,
@@ -9398,6 +9416,9 @@ var textsJa = i18n.NewTexts(""+
 	"クリップ"+
 	"情報"+
 	"スタイル"+
+	"拡張"+
+	"パネル"+
+	"再試行"+
 	"用語"+
 	"再翻訳先"+
 	"未翻訳の行を翻訳"+
@@ -11164,6 +11185,9 @@ var textsJa = i18n.NewTexts(""+
 		12,
 		6,
 		12,
+		6,
+		9,
+		9,
 		6,
 		12,
 		24,
@@ -12933,6 +12957,9 @@ var textsKo = i18n.NewTexts(""+
 	"클립"+
 	"정보"+
 	"스타일"+
+	"확장"+
+	"패널"+
+	"다시 시도"+
 	"용어"+
 	"다시 번역할 언어"+
 	"번역 안 된 대사 번역"+
@@ -14699,6 +14726,9 @@ var textsKo = i18n.NewTexts(""+
 		6,
 		6,
 		9,
+		6,
+		6,
+		13,
 		6,
 		23,
 		28,
@@ -16468,6 +16498,9 @@ var textsZhHans = i18n.NewTexts(""+
 	"片段"+
 	"信息"+
 	"样式"+
+	"扩展"+
+	"面板"+
+	"重试"+
 	"术语"+
 	"重新翻译为"+
 	"补译未译的句子"+
@@ -18231,6 +18264,9 @@ var textsZhHans = i18n.NewTexts(""+
 		51,
 		6,
 		24,
+		6,
+		6,
+		6,
 		6,
 		6,
 		6,
@@ -20003,6 +20039,9 @@ var textsZhHant = i18n.NewTexts(""+
 	"片段"+
 	"資訊"+
 	"樣式"+
+	"擴充"+
+	"面板"+
+	"重試"+
 	"術語"+
 	"重新翻譯為"+
 	"補譯未譯的句子"+
@@ -21770,6 +21809,9 @@ var textsZhHant = i18n.NewTexts(""+
 		6,
 		6,
 		6,
+		6,
+		6,
+		6,
 		15,
 		21,
 		12,
@@ -23525,6 +23567,12 @@ func Supply(lang string, t Translation) {
 	if t.FilmSubtitlesMode != nil {
 		s.FilmSubtitlesMode = t.FilmSubtitlesMode
 	}
+	if t.FilmExtensionFrom != nil {
+		s.FilmExtensionFrom = t.FilmExtensionFrom
+	}
+	if t.FilmExtensionFailed != nil {
+		s.FilmExtensionFailed = t.FilmExtensionFailed
+	}
 	if t.FilmTranscribeAgain != nil {
 		s.FilmTranscribeAgain = t.FilmTranscribeAgain
 	}
@@ -24862,6 +24910,9 @@ func Supply(lang string, t Translation) {
 	}
 	if t.SettingsPluginsAddsTranslator != nil {
 		s.SettingsPluginsAddsTranslator = t.SettingsPluginsAddsTranslator
+	}
+	if t.SettingsPluginsAddsPanel != nil {
+		s.SettingsPluginsAddsPanel = t.SettingsPluginsAddsPanel
 	}
 	if t.SettingsPluginsCredentialHosts != nil {
 		s.SettingsPluginsCredentialHosts = t.SettingsPluginsCredentialHosts
@@ -34032,6 +34083,95 @@ func FilmTabStyle(cx *core.Scope) string { return For(cx).FilmTabStyle() }
 
 // FilmTabStyle is the package's FilmTabStyle in the language of msgs.
 func (msgs Messages) FilmTabStyle() string { return msgs.text(textFilmTabStyle) }
+
+// FilmTabExtensions says "Extensions"
+// in the language the app shows under cx.
+//
+// Side panel tab with the panels that script plugins add to the player. Shown only while a plugin adds one.
+func FilmTabExtensions(cx *core.Scope) string { return For(cx).FilmTabExtensions() }
+
+// FilmTabExtensions is the package's FilmTabExtensions in the language of msgs.
+func (msgs Messages) FilmTabExtensions() string { return msgs.text(textFilmTabExtensions) }
+
+// FilmExtensionPick says "Panel"
+// in the language the app shows under cx.
+//
+// Accessible label of the drop-down in the side panel's Extensions tab that picks which plugin's panel shows.
+func FilmExtensionPick(cx *core.Scope) string { return For(cx).FilmExtensionPick() }
+
+// FilmExtensionPick is the package's FilmExtensionPick in the language of msgs.
+func (msgs Messages) FilmExtensionPick() string { return msgs.text(textFilmExtensionPick) }
+
+// FilmExtensionFrom says "From the plugin {name}"
+// in the language the app shows under cx.
+//
+// Under the title of a plugin's panel in the side panel's Extensions tab: which installed plugin draws it.
+func FilmExtensionFrom(cx *core.Scope, name string) string { return For(cx).FilmExtensionFrom(name) }
+
+// FilmExtensionFrom is the package's FilmExtensionFrom in the language of msgs.
+func (msgs Messages) FilmExtensionFrom(name string) string {
+	if i18n.IsPseudo(msgs.lang) {
+		return i18n.Pseudo(msgs.lang, Messages{lang: Source, mark: true}.FilmExtensionFrom(name))
+	}
+	for lang := msgs.lang; ; lang = i18n.Parent(lang) {
+		if f := supplied[lang].FilmExtensionFrom; f != nil {
+			return f(name)
+		}
+		switch lang {
+		case "", "en":
+			return "From the plugin " + msgs.arg(name)
+		case "ja":
+			return "プラグイン「" + name + "」より"
+		case "ko":
+			return "플러그인 「" + name + "」 제공"
+		case "zh-Hans":
+			return "来自插件「" + name + "」"
+		case "zh-Hant":
+			return "來自外掛「" + name + "」"
+		}
+	}
+}
+
+// FilmExtensionFailed says "The plugin {name} stopped showing its panel."
+// in the language the app shows under cx.
+//
+// In the side panel's Extensions tab, in place of a plugin's panel that failed to show or broke while it showed.
+func FilmExtensionFailed(cx *core.Scope, name string) string {
+	return For(cx).FilmExtensionFailed(name)
+}
+
+// FilmExtensionFailed is the package's FilmExtensionFailed in the language of msgs.
+func (msgs Messages) FilmExtensionFailed(name string) string {
+	if i18n.IsPseudo(msgs.lang) {
+		return i18n.Pseudo(msgs.lang, Messages{lang: Source, mark: true}.FilmExtensionFailed(name))
+	}
+	for lang := msgs.lang; ; lang = i18n.Parent(lang) {
+		if f := supplied[lang].FilmExtensionFailed; f != nil {
+			return f(name)
+		}
+		switch lang {
+		case "", "en":
+			return "The plugin " + msgs.arg(name) + " stopped showing its panel."
+		case "ja":
+			return "プラグイン「" + name + "」のパネルを表示できませんでした。"
+		case "ko":
+			return "플러그인 「" + name + "」의 패널을 표시하지 못했습니다."
+		case "zh-Hans":
+			return "插件「" + name + "」的面板出错了。"
+		case "zh-Hant":
+			return "外掛「" + name + "」的面板出錯了。"
+		}
+	}
+}
+
+// FilmExtensionRetry says "Try Again"
+// in the language the app shows under cx.
+//
+// Button under the failure of a plugin's panel in the side panel's Extensions tab: shows the panel again.
+func FilmExtensionRetry(cx *core.Scope) string { return For(cx).FilmExtensionRetry() }
+
+// FilmExtensionRetry is the package's FilmExtensionRetry in the language of msgs.
+func (msgs Messages) FilmExtensionRetry() string { return msgs.text(textFilmExtensionRetry) }
 
 // FilmTabTerms says "Terms"
 // in the language the app shows under cx.
@@ -61508,6 +61648,38 @@ func (msgs Messages) SettingsPluginsAddsTranslator(name string) string {
 			return "翻译来源：" + name
 		case "zh-Hant":
 			return "翻譯來源：" + name
+		}
+	}
+}
+
+// SettingsPluginsAddsPanel says "A panel in the player's Extensions tab: {name}"
+// in the language the app shows under cx.
+//
+// What a script plugin adds: a panel of its own in the player's side panel, under the Extensions tab.
+func SettingsPluginsAddsPanel(cx *core.Scope, name string) string {
+	return For(cx).SettingsPluginsAddsPanel(name)
+}
+
+// SettingsPluginsAddsPanel is the package's SettingsPluginsAddsPanel in the language of msgs.
+func (msgs Messages) SettingsPluginsAddsPanel(name string) string {
+	if i18n.IsPseudo(msgs.lang) {
+		return i18n.Pseudo(msgs.lang, Messages{lang: Source, mark: true}.SettingsPluginsAddsPanel(name))
+	}
+	for lang := msgs.lang; ; lang = i18n.Parent(lang) {
+		if f := supplied[lang].SettingsPluginsAddsPanel; f != nil {
+			return f(name)
+		}
+		switch lang {
+		case "", "en":
+			return "A panel in the player's Extensions tab: " + msgs.arg(name)
+		case "ja":
+			return "プレーヤーの「拡張」タブのパネル：" + name
+		case "ko":
+			return "플레이어 「확장」 탭의 패널: " + name
+		case "zh-Hans":
+			return "播放器「扩展」标签里的面板：" + name
+		case "zh-Hant":
+			return "播放器「擴充」標籤裡的面板：" + name
 		}
 	}
 }

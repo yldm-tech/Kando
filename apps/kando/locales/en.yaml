@@ -2077,6 +2077,25 @@ filmTabInfo:
 filmTabStyle:
   message: "Style"
   description: "Side panel tab with the subtitle style."
+filmTabExtensions:
+  message: "Extensions"
+  description: "Side panel tab with the panels that script plugins add to the player. Shown only while a plugin adds one."
+filmExtensionPick:
+  message: "Panel"
+  description: "Accessible label of the drop-down in the side panel's Extensions tab that picks which plugin's panel shows."
+filmExtensionFrom:
+  message: "From the plugin {name}"
+  description: "Under the title of a plugin's panel in the side panel's Extensions tab: which installed plugin draws it."
+  placeholders:
+    name: { type: "String", example: "Anki Sender" }
+filmExtensionFailed:
+  message: "The plugin {name} stopped showing its panel."
+  description: "In the side panel's Extensions tab, in place of a plugin's panel that failed to show or broke while it showed."
+  placeholders:
+    name: { type: "String", example: "Anki Sender" }
+filmExtensionRetry:
+  message: "Try Again"
+  description: "Button under the failure of a plugin's panel in the side panel's Extensions tab: shows the panel again."
 filmTabTerms:
   message: "Terms"
   description: "Side panel tab with the film's glossary: how names and terms are translated."
@@ -7947,6 +7966,11 @@ settingsPluginsAddsTranslator:
   description: "What a script plugin adds: a source of machine translation that Settings › Translation offers in place of the AI service."
   placeholders:
     name: { type: "String", example: "DeepL" }
+settingsPluginsAddsPanel:
+  message: "A panel in the player's Extensions tab: {name}"
+  description: "What a script plugin adds: a panel of its own in the player's side panel, under the Extensions tab."
+  placeholders:
+    name: { type: "String", example: "Deck" }
 settingsPluginsCredentials:
   message: "Keys"
   description: "Plugin details: heading of the keys of other services a script plugin uses through Kando."

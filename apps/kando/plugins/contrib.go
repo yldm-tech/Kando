@@ -64,6 +64,17 @@ type Annotator struct {
 	Label     Text     `json:"label"`
 }
 
+// Panel is a panel a script plugin adds to the 扩展 tab of the player's side panel (E15): its code exports Export, a TSX component, which the view of the panel mounts (script.Runner.Panel); Title names it in the tab's picker, and Icon, one of PanelIcons, draws beside it, none when empty.
+type Panel struct {
+	ID     string `json:"id"`
+	Export string `json:"export"`
+	Title  Text   `json:"title"`
+	Icon   string `json:"icon,omitempty"`
+}
+
+// PanelIcons are the Lucide icons a panel may name (Panel.Icon), by their Lucide names: a short list Kando draws itself, never an image of the plugin's, so a panel cannot dress as one of Kando's own.
+var PanelIcons = []string{"book-a", "book-open", "brain", "captions", "chart-bar", "graduation-cap", "highlighter", "languages", "lightbulb", "list-checks", "message-square", "notebook-pen", "puzzle", "search", "sparkles", "star"}
+
 // Credential is a secret of a third-party service a script plugin uses through Kando alone (kando.net.credentialFetch, docs/plugin-system.md 6.3): the user enters it in a field Kando draws, Kando keeps it where the plugin's code cannot reach it, and puts it in the request header Header, written as Format with {secret} where it goes, only for a request to one of Hosts (https) with one of Methods and a path under one of PathPrefixes.
 type Credential struct {
 	ID           string   `json:"id"`
@@ -160,9 +171,9 @@ var (
 	credHeaders = []string{"host", "cookie", "content-length", "content-type", "transfer-encoding", "connection", "proxy-authorization", "te", "upgrade", "expect", "origin", "referer", "user-agent"}
 )
 
-// checkContributes checks what a script plugin adds besides its commands: at most contribMax of each kind, each with an id unique among its kind, an export, a label, and what its kind needs.
+// checkContributes checks what a script plugin adds besides its commands: at most contribMax of each kind, each with an id unique among its kind, an export, a label (a panel's title), and what its kind needs.
 func checkContributes(c *Contributes) error {
-	if len(c.Lookups) > contribMax || len(c.SubtitleFormats) > contribMax || len(c.Exporters) > contribMax || len(c.Annotators) > contribMax {
+	if len(c.Lookups) > contribMax || len(c.SubtitleFormats) > contribMax || len(c.Exporters) > contribMax || len(c.Annotators) > contribMax || len(c.Panels) > contribMax {
 		return fmt.Errorf("%w: at most %d contributions of a kind", ErrBadField, contribMax)
 	}
 	check := func(what string, ids, exports []string, labels []Text) error {
@@ -223,7 +234,17 @@ func checkContributes(c *Contributes) error {
 			return err
 		}
 	}
-	return check("annotator", ids, exports, labels)
+	if err := check("annotator", ids, exports, labels); err != nil {
+		return err
+	}
+	reset()
+	for _, pn := range c.Panels {
+		ids, exports, labels = append(ids, pn.ID), append(exports, pn.Export), append(labels, pn.Title)
+		if pn.Icon != "" && !slices.Contains(PanelIcons, pn.Icon) {
+			return fmt.Errorf("%w: panel icon %q", ErrBadField, pn.Icon)
+		}
+	}
+	return check("panel", ids, exports, labels)
 }
 
 // checkCredentials checks a script plugin's credentials: at most credentialsMax, each with an id unique among them, a title, a header Kando lets it set, a format with the secret once and no line break, 1 to credHostsMax hosts that are host names under a registrable domain (no IP, no wildcard, no public suffix), methods among credMethods, and 1 to credPrefixesMax path prefixes; and that a plugin has credentials if and only if it asks for kando.net.credentialFetch.
@@ -310,6 +331,9 @@ func (m Manifest) ExportsNeeded() []string {
 	}
 	if len(c.Translators) > 0 {
 		add(TranslateExport)
+	}
+	for _, x := range c.Panels {
+		add(x.Export)
 	}
 	return out
 }

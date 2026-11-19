@@ -52,6 +52,7 @@ type fakeApp struct {
 	fakeReferencer
 	fakeStreamer
 	fakeExplainer
+	fakeExtender
 	item       Item
 	play       *fakePlay
 	path       string

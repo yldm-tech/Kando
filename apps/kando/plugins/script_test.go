@@ -87,7 +87,7 @@ func TestValidateScript(t *testing.T) {
 		{"a choice not there", `"title": {"en": "Note type"}`, `"default": "other", "title": {"en": "Note type"}`, ErrBadField},
 		{"a number out of bounds", `"default": 20`, `"default": 51`, ErrBadField},
 		{"a secret's default", `"type": "secret"`, `"type": "secret", "default": "x"`, ErrBadField},
-		{"an event", `"job.completed"`, `"line.changed"`, ErrBadField},
+		{"an event", `"job.completed"`, `"line.played"`, ErrBadField},
 		{"a data pack's field", `"events"`, `"glossary": {"from": "ja", "to": "en", "terms": [{"source": "a", "target": "b"}]}, "events"`, ErrBadField},
 	} {
 		manifest := strings.Replace(scriptManifest(), tt.from, tt.to, 1)

@@ -56,6 +56,8 @@ type pluginsUI struct {
 	phone pluginsPhoneMarks
 	// dictHintShown is set once the lookup card showed the hint to install an offline dictionary (pluginsDictHint), which shows once.
 	dictHintShown bool
+	// panels is the 扩展 tab's state (state_plugins_panels.go).
+	panels pluginsPanels
 	// sites are the site packs turned on with the domains the user allowed, which the browser's 下载视频 knows (state_plugins_sites.go).
 	sites  []pluginsSite
 	script pluginsScripts
@@ -100,6 +102,8 @@ type savedPlugins struct {
 	PluginDeveloper     bool     `json:"pluginDeveloper,omitempty"`
 	// PluginExportTarget is the export-template pack the saved lines are exported with, "" for Kando's own Anki notes; kept while that pack is missing (state_plugins_templates.go).
 	PluginExportTarget string `json:"pluginExportTarget,omitempty"`
+	// PluginPanel is the panel of the 扩展 tab chosen last, whichever film is open, as plugin:<plugin id>:<panel id>; kept while its plugin is not running (state_plugins_panels.go).
+	PluginPanel string `json:"pluginPanel,omitempty"`
 }
 
 // pluginOrderMax is the most ids PluginOrder keeps.
@@ -121,6 +125,7 @@ func (s *savedPlugins) clean() {
 	s.PluginOrder = out
 	s.PluginWordlist = strings.TrimSpace(s.PluginWordlist)
 	s.PluginExportTarget = strings.TrimSpace(s.PluginExportTarget)
+	s.PluginPanel = strings.TrimSpace(s.PluginPanel)
 }
 
 // pluginsHooks: the order of the packs, how the lines are marked and developer mode are kept in settings.json, and the AI service of a pack that went is saved as its pack's; the plugins folder and the copy of the community index kept in it (pluginsIndexPeek) are read once the window is ready, links that ask to install a pack of the index are taken (pluginsIndexOpenLinks), and the inbox looked at again each time the app comes to the front; the open film's lines are marked as it plays and as the app's state changes; the dictionaries and the script plugins close as the app quits. The script plugins hear film.opened after the change that opened a film, job.completed as the shelf changes and llm.changed after the AI service changed; and those running whose grant changed with the app's state, as when Kando went offline, are loaded again.
@@ -132,6 +137,7 @@ func (a *app) pluginsHooks() areaHooks {
 			a.plugins.dictHintShown = saved.PluginDictHintShown
 			a.plugins.script.developer = saved.PluginDeveloper
 			a.plugins.exportTarget = saved.PluginExportTarget
+			a.plugins.panels.chosen = saved.PluginPanel
 			if strings.HasPrefix(saved.LLMProvider, llmPackPrefix) {
 				a.plugins.gone = pluginsGone{id: saved.LLMProvider, base: saved.LLMBaseURL}
 			}
@@ -148,6 +154,7 @@ func (a *app) pluginsHooks() areaHooks {
 			saved.PluginDictHintShown = a.plugins.dictHintShown
 			saved.PluginDeveloper = a.plugins.script.developer
 			saved.PluginExportTarget = a.plugins.exportTarget
+			saved.PluginPanel = a.plugins.panels.chosen
 		},
 		ready: func() {
 			a.pluginsScan()
@@ -168,11 +175,15 @@ func (a *app) pluginsHooks() areaHooks {
 		shelfChanged: a.pluginsJobsCompleted,
 		quitting:     a.pluginsTaskStop,
 		// The open film's lines are marked again only when its key changed (pluginsMarksFollow), never on shelfChanged, which every report of a job's progress runs. afterChange catches what changes while the film is paused, as a line corrected or a word added to the vocabulary; playing what changes while it plays without a change of the app's state.
-		playing: a.pluginsMarksFollow,
+		playing: func() bool {
+			a.pluginsPanelsLine()
+			return a.pluginsMarksFollow()
+		},
 		afterChange: func() bool {
 			changed := a.pluginsMarksFollow()
 			changed = a.pluginsIndexFollow() || changed
 			a.pluginsFilmOpened()
+			a.pluginsPanelsLine()
 			a.pluginsGrantsFollow()
 			changed = a.pluginsTranslateFollow() || changed
 			// A task's run goes once its film is not the one open (pluginsTaskFollow).
