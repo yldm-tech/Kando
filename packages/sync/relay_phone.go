@@ -4,11 +4,14 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"encoding/xml"
 	"errors"
 	"fmt"
 	"io"
 	"net/http"
+	"net/url"
 	"slices"
+	"strings"
 	"time"
 )
 
@@ -120,10 +123,10 @@ func (p *RelayPhone) Send(ctx context.Context, call Call) (string, error) {
 		return slot.ID, err
 	}
 	defer resp.Body.Close()
-	_, _ = io.Copy(io.Discard, io.LimitReader(resp.Body, 64<<10))
-	if err := statusErr(resp.StatusCode); err != nil {
+	if err := storeErr(resp); err != nil {
 		return slot.ID, err
 	}
+	_, _ = io.Copy(io.Discard, io.LimitReader(resp.Body, 64<<10))
 	return slot.ID, nil
 }
 
@@ -166,7 +169,7 @@ func (p *RelayPhone) get(ctx context.Context, link string, limit int) ([]byte, e
 		return nil, err
 	}
 	defer resp.Body.Close()
-	if err := statusErr(resp.StatusCode); err != nil {
+	if err := storeErr(resp); err != nil {
 		return nil, err
 	}
 	data, err := io.ReadAll(io.LimitReader(resp.Body, int64(limit)+1))
@@ -179,16 +182,99 @@ func (p *RelayPhone) get(ctx context.Context, link string, limit int) ([]byte, e
 	return data, nil
 }
 
-func statusErr(status int) error {
-	switch {
-	case status == http.StatusNotFound:
-		return ErrNoObject
-	case status == http.StatusForbidden:
-		return ErrRelayLapsed
-	case status >= 300:
-		return fmt.Errorf("the store answered %d", status)
+// RelayStoreError is the store's refusal of a link of the relay: the HTTP status it answered, and the error code and message its S3 error document names, "" where it sent none.
+type RelayStoreError struct {
+	Status  int
+	Code    string
+	Message string
+}
+
+func (e *RelayStoreError) Error() string {
+	if e.Code == "" {
+		return fmt.Sprintf("the store answered %d", e.Status)
 	}
-	return nil
+	return fmt.Sprintf("the store answered %d %s: %s", e.Status, e.Code, e.Message)
+}
+
+// Is reads the refusal as the relay's errors: a 403 is ErrRelayLapsed, as the store refuses links past their expiry or signed with a key it no longer takes, which only a new grant mends; a 404 of an object, not of the whole bucket, is ErrNoObject.
+func (e *RelayStoreError) Is(target error) bool {
+	switch target {
+	case ErrRelayLapsed:
+		return e.Status == http.StatusForbidden
+	case ErrNoObject:
+		return e.Status == http.StatusNotFound && e.Code != "NoSuchBucket"
+	}
+	return false
+}
+
+// storeErr is the error of resp, nil for a 2xx: a *RelayStoreError with the code and message of the S3 error document it carries.
+func storeErr(resp *http.Response) error {
+	if resp.StatusCode < 300 {
+		return nil
+	}
+	e := &RelayStoreError{Status: resp.StatusCode}
+	var doc struct {
+		Code    string `xml:"Code"`
+		Message string `xml:"Message"`
+	}
+	if data, err := io.ReadAll(io.LimitReader(resp.Body, 64<<10)); err == nil && xml.Unmarshal(data, &doc) == nil {
+		e.Code, e.Message = strings.TrimSpace(doc.Code), strings.TrimSpace(doc.Message)
+	}
+	return e
+}
+
+// RelayFailure is why the store did not serve a phone's request of the relay, as the phone tells its user; RelayNoFailure for an error that is not the store's, or none.
+type RelayFailure uint8
+
+const (
+	RelayNoFailure RelayFailure = iota
+	// RelayLapsed is links past their expiry: the phone joins again on the desktop's network.
+	RelayLapsed
+	// RelayKeys is links signed with a key the store no longer takes, as once the desktop's user changed or deleted it.
+	RelayKeys
+	// RelayDenied is a key that may not reach the bucket.
+	RelayDenied
+	// RelayNoBucket is a bucket that is no longer there.
+	RelayNoBucket
+	// RelayFull is a store that takes nothing more: out of space, or over its quota.
+	RelayFull
+	// RelayUnreachable is a store the phone could not connect to, as with no network.
+	RelayUnreachable
+	// RelayFailed is any other answer of the store, as a 5xx.
+	RelayFailed
+)
+
+// The S3 error codes that name a key the store does not take, as the desktop reads them (apps/kando/cloud's Diagnose), and those S3-compatible stores (MinIO among them) answer when they take nothing more, besides HTTP 507.
+var (
+	relayKeyCodes  = []string{"SignatureDoesNotMatch", "InvalidAccessKeyId", "InvalidSecurity", "InvalidToken", "ExpiredToken"}
+	relayFullCodes = []string{"QuotaExceeded", "StorageFull", "XMinioStorageFull", "XMinioAdminBucketQuotaExceeded"}
+)
+
+// FailureOf is why err, an error of State, Send or Reply, is the store's: a 403 is RelayLapsed once the grant's links are past Grant.Expires by the phone's clock, or the store says the request expired.
+func (p *RelayPhone) FailureOf(err error) RelayFailure {
+	var e *RelayStoreError
+	var u *url.Error
+	switch {
+	case err == nil || errors.Is(err, ErrNoObject) || errors.Is(err, context.Canceled):
+		return RelayNoFailure
+	case errors.As(err, &e):
+		switch {
+		case slices.Contains(relayKeyCodes, e.Code):
+			return RelayKeys
+		case e.Code == "NoSuchBucket":
+			return RelayNoBucket
+		case e.Status == http.StatusInsufficientStorage || slices.Contains(relayFullCodes, e.Code):
+			return RelayFull
+		case e.Status == http.StatusForbidden && (!p.now().Before(p.Grant.Expires) || strings.Contains(strings.ToLower(e.Message), "expired")):
+			return RelayLapsed
+		case e.Status == http.StatusForbidden:
+			return RelayDenied
+		}
+		return RelayFailed
+	case errors.As(err, &u):
+		return RelayUnreachable
+	}
+	return RelayNoFailure
 }
 
 // Err is the error reply answers, as Client.CallID answers the same reply on the local network: an *Error with the status its code stands for, nil for a reply with a result.

@@ -3,6 +3,7 @@ package synctest
 import (
 	"context"
 	"crypto/rand"
+	"fmt"
 	"io"
 	"net/http"
 	"net/http/httptest"
@@ -23,6 +24,13 @@ type Bucket struct {
 	mu      gosync.Mutex
 	objects map[string][]byte
 	links   map[string]bucketLink
+	// refusal is what the bucket answers every link with while set (Refuse).
+	refusal *refusal
+}
+
+type refusal struct {
+	status int
+	code   string
 }
 
 type bucketLink struct {
@@ -43,6 +51,12 @@ func (b *Bucket) serve(w http.ResponseWriter, r *http.Request) {
 	body, _ := io.ReadAll(r.Body)
 	b.mu.Lock()
 	defer b.mu.Unlock()
+	if f := b.refusal; f != nil {
+		w.Header().Set("Content-Type", "application/xml")
+		w.WriteHeader(f.status)
+		_, _ = fmt.Fprintf(w, "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<Error><Code>%s</Code><Message>refused</Message></Error>", f.code)
+		return
+	}
 	link, ok := b.links[r.URL.Query().Get("sig")]
 	if !ok || link.method != r.Method || "/o/"+link.key != r.URL.Path || !b.now().Before(link.expires) {
 		w.WriteHeader(http.StatusForbidden)
@@ -58,6 +72,16 @@ func (b *Bucket) serve(w http.ResponseWriter, r *http.Request) {
 		_, _ = w.Write(data)
 	case http.MethodPut:
 		b.objects[link.key] = body
+	}
+}
+
+// Refuse has the bucket answer every link with status and an S3 error document naming code, as a store that no longer takes the key the links were signed with (403 SignatureDoesNotMatch), whose bucket was deleted (404 NoSuchBucket) or that is full (507); a status of 0 serves the links again. The desktop's own requests, with the store's credentials, still go through.
+func (b *Bucket) Refuse(status int, code string) {
+	b.mu.Lock()
+	defer b.mu.Unlock()
+	b.refusal = nil
+	if status != 0 {
+		b.refusal = &refusal{status: status, code: code}
 	}
 }
 
@@ -199,11 +223,13 @@ func (d *Desktop) RelayJoins() int {
 	return d.relay.joins
 }
 
+// relayDevices are the phones that joined, read-only while the desktop makes every device so (SetReadOnly), as Kando's desktop reads each device's switch at every pass.
 func (d *Desktop) relayDevices() []sync.RelayDevice {
 	d.mu.Lock()
 	defer d.mu.Unlock()
 	var out []sync.RelayDevice
 	for _, dev := range d.relay.devices {
+		dev.ReadOnly = d.queue.readOnly
 		out = append(out, dev)
 	}
 	return out

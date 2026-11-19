@@ -3,6 +3,8 @@ package phonesync
 import (
 	"context"
 	"encoding/json"
+	"fmt"
+	"maps"
 	"net/http"
 	"os"
 	"path/filepath"
@@ -242,5 +244,98 @@ func TestClosingDoesNotWaitForAStuckStore(t *testing.T) {
 	case <-closed:
 	case <-time.After(5 * time.Second):
 		t.Fatal("Close waited for the store")
+	}
+}
+
+// TestARelayedReadOnlyPhoneChangesNothing makes a phone that joined the relay read-only, then leaves in its inbox, as it would away from home, a change of the learning state, of the settings and of a subscription: the server refuses each with the code it answers on the local network, before any of its work, and still answers the reads; let write again, the phone's change goes through.
+func TestARelayedReadOnlyPhoneChangesNothing(t *testing.T) {
+	every, minWrite := relayEvery, relayMinWrite
+	relayEvery, relayMinWrite = 50*time.Millisecond, 10*time.Millisecond
+	t.Cleanup(func() { relayEvery, relayMinWrite = every, minWrite })
+	bucket := &memBucket{}
+	jobs := &fakeJobs{}
+	dir := t.TempDir()
+	srv, err := Start(Config{Dir: dir, Name: "Test Mac", Source: fakeSource{dir: t.TempDir()}, Jobs: jobs, Relay: bucket, Addrs: loopback, Logf: testLogf(t)})
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { srv.Close() })
+	jobs.srv = srv
+	ctx := context.Background()
+	c := client(t, srv, "")
+	res, err := pair(t, c, srv.NewOffer().Code)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var joined psync.RelayJoin
+	if err := c.Call(ctx, psync.OpRelayJoin, nil, &joined); err != nil {
+		t.Fatal(err)
+	}
+	if err := srv.SetReadOnly(res.DeviceID, true); err != nil {
+		t.Fatal(err)
+	}
+	prefix := psync.RelayPrefix(srv.Fingerprint())
+	seq := int64(0)
+	// leave puts a call of op with args in the next slot, as the phone does, and answers the slot.
+	leave := func(op string, args any) string {
+		t.Helper()
+		seq++
+		slot := joined.Grant.Slots[seq-1].ID
+		call := psync.Call{ID: fmt.Sprintf("c%d", seq), V: psync.CallVersion, Op: op}
+		if args != nil {
+			call.Args, _ = json.Marshal(args)
+		}
+		plain, _ := json.Marshal(psync.RelayMessage{Seq: seq, Call: call})
+		sealed, err := psync.SealRelay(joined.Key, psync.RelayInbox(res.DeviceID, slot), plain)
+		if err != nil {
+			t.Fatal(err)
+		}
+		bucket.Put(ctx, prefix+psync.RelayInbox(res.DeviceID, slot), sealed)
+		return slot
+	}
+	// replyOf waits for the reply in slot.
+	replyOf := func(slot string) psync.Reply {
+		t.Helper()
+		var reply psync.Reply
+		waitFor(t, "the reply in "+slot, func() bool {
+			body, err := bucket.Get(ctx, prefix+psync.RelayReply(res.DeviceID, slot))
+			if err != nil {
+				return false
+			}
+			plain, err := psync.OpenRelay(joined.Key, psync.RelayReply(res.DeviceID, slot), body)
+			return err == nil && json.Unmarshal(plain, &reply) == nil
+		})
+		return reply
+	}
+	note := psync.Field{Value: psync.Value("a note"), Stamp: psync.Stamp{At: time.Now()}}
+	changes := map[string]any{
+		psync.OpStatePut:         psync.StatePut{Library: "lib", Records: []psync.Record{{Kind: psync.KindLine, ID: "l1", Film: "f1", Fields: map[string]psync.Field{psync.FieldNote: note}}}},
+		psync.OpStateResolve:     psync.ConflictResolve{Library: "lib", ID: "x", Value: psync.Value("a")},
+		psync.OpSettingsPut:      psync.SettingsPut{Target: "ja"},
+		psync.OpSubscribe:        psync.SubscriptionAdd{Link: "https://www.youtube.com/@earthscience"},
+		psync.OpSubscriptionSet:  psync.SubscriptionSet{ID: "s1"},
+		psync.OpSubscriptionTake: psync.SubscriptionTake{ID: "s1"},
+		psync.OpUnsubscribe:      psync.SubscriptionRef{ID: "s1"},
+		psync.OpJobCreate:        psync.JobCreate{Link: "https://youtu.be/abc"},
+	}
+	slots := map[string]string{}
+	for _, op := range slices.Sorted(maps.Keys(changes)) {
+		slots[op] = leave(op, changes[op])
+	}
+	read := leave(psync.OpSettingsGet, nil)
+	for op, slot := range slots {
+		if reply := replyOf(slot); reply.Error == nil || reply.Error.Code != psync.CodeReadOnly {
+			t.Errorf("a read-only phone's %s over the relay was answered %+v", op, reply)
+		}
+	}
+	if reply := replyOf(read); reply.Error != nil && reply.Error.Code == psync.CodeReadOnly {
+		t.Errorf("a read-only phone's read of the settings was refused: %+v", reply.Error)
+	}
+
+	if err := srv.SetReadOnly(res.DeviceID, false); err != nil {
+		t.Fatal(err)
+	}
+	if reply := replyOf(leave(psync.OpJobCreate, psync.JobCreate{Link: "https://youtu.be/abc"})); reply.Error != nil {
+		t.Fatalf("once it may write again: %+v", reply.Error)
 	}
 }

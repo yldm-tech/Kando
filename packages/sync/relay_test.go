@@ -26,6 +26,18 @@ type memRelay struct {
 	objects map[string]memObject
 	links   map[string]memLink
 	puts    int
+	// refusal, while its status is set, is what the store answers every link with: the status and the code of an S3 error document (refuse).
+	refusal struct {
+		status int
+		code   string
+	}
+}
+
+// refuse has the store answer every link with status and an S3 error document naming code, 0 to serve them again.
+func (m *memRelay) refuse(status int, code string) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	m.refusal.status, m.refusal.code = status, code
 }
 
 type memObject struct {
@@ -49,6 +61,11 @@ func (m *memRelay) serve(w http.ResponseWriter, r *http.Request) {
 	body, _ := io.ReadAll(r.Body)
 	m.mu.Lock()
 	defer m.mu.Unlock()
+	if f := m.refusal; f.status != 0 {
+		w.WriteHeader(f.status)
+		fmt.Fprintf(w, `<?xml version="1.0" encoding="UTF-8"?><Error><Code>%s</Code><Message>Request has been refused</Message></Error>`, f.code)
+		return
+	}
 	link, ok := m.links[r.URL.Query().Get("sig")]
 	if !ok || link.method != r.Method || "/o/"+link.key != r.URL.Path || !m.now().Before(link.expires) {
 		w.WriteHeader(http.StatusForbidden)
@@ -688,5 +705,83 @@ func TestRelayReplyErrorIsTheClientsError(t *testing.T) {
 	var e *Error
 	if !errors.As(err, &e) || e.Status != http.StatusForbidden || e.Code != CodeLinksOff || e.Message != "off" {
 		t.Fatalf("error %v", err)
+	}
+}
+
+// Every call that changes something is refused over the relay to a read-only device, the learning state's, the settings' and the subscriptions' as the jobs', before the desktop's work and with the code the local network answers; the calls that only read are not.
+func TestRelayRefusesEveryChangeOfAReadOnlyDevice(t *testing.T) {
+	g := newRelayRig(t)
+	g.devs[0].ReadOnly = true
+	ops := []string{OpStatePut, OpStateResolve, OpSettingsPut, OpSubscribe, OpSubscriptionSet, OpSubscriptionTake, OpUnsubscribe, OpStateGet, OpSettingsGet, OpSubscriptions}
+	slots := map[string]string{}
+	for i, op := range ops {
+		slots[op] = g.send(t, fmt.Sprintf("c%d", i), op, nil)
+	}
+	g.poll(t, len(ops))
+	for _, op := range ops {
+		reply := g.reply(t, slots[op])
+		code := ""
+		if reply.Error != nil {
+			code = reply.Error.Code
+		}
+		if Mutates(op) && code != CodeReadOnly {
+			t.Errorf("a read-only device's %s over the relay answered %+v", op, reply.Error)
+		}
+		if !Mutates(op) && code == CodeReadOnly {
+			t.Errorf("a read-only device's %s, which only reads, was refused", op)
+		}
+	}
+}
+
+// The phone tells why the store did not serve it from the store's answer, as the desktop does for its uploads: a key the store no longer takes, links past their expiry, a key that may not reach the bucket, a bucket that is gone, a store that is full, one it could not connect to, or another error. A 403 still has the phone join again, and a missing object is no failure.
+func TestRelayPhoneTellsWhyTheStoreFailed(t *testing.T) {
+	g := newRelayRig(t)
+	ctx := context.Background()
+	if _, err := g.phone.State(ctx); !errors.Is(err, ErrNoObject) || g.phone.FailureOf(err) != RelayNoFailure {
+		t.Fatalf("a state.json not written yet: %v, %v", err, g.phone.FailureOf(err))
+	}
+	for _, c := range []struct {
+		status int
+		code   string
+		want   RelayFailure
+		lapsed bool
+	}{
+		{http.StatusForbidden, "SignatureDoesNotMatch", RelayKeys, true},
+		{http.StatusForbidden, "InvalidAccessKeyId", RelayKeys, true},
+		{http.StatusForbidden, "AccessDenied", RelayDenied, true},
+		{http.StatusNotFound, "NoSuchBucket", RelayNoBucket, false},
+		{http.StatusInsufficientStorage, "", RelayFull, false},
+		{http.StatusForbidden, "QuotaExceeded", RelayFull, true},
+		{http.StatusInternalServerError, "InternalError", RelayFailed, false},
+	} {
+		g.store.refuse(c.status, c.code)
+		_, err := g.phone.State(ctx)
+		if got := g.phone.FailureOf(err); got != c.want {
+			t.Errorf("%d %s read as failure %d, want %d (%v)", c.status, c.code, got, c.want, err)
+		}
+		if errors.Is(err, ErrRelayLapsed) != c.lapsed || errors.Is(err, ErrNoObject) {
+			t.Errorf("%d %s: lapsed %v, no object %v", c.status, c.code, errors.Is(err, ErrRelayLapsed), errors.Is(err, ErrNoObject))
+		}
+		_, err = g.phone.Send(ctx, Call{ID: "c-" + c.code, V: CallVersion, Op: OpJobs})
+		if got := g.phone.FailureOf(err); got != c.want {
+			t.Errorf("a call put as the store answers %d %s read as failure %d, want %d", c.status, c.code, got, c.want)
+		}
+	}
+
+	// Past the grant's expiry, a refusal is the links lapsing, whatever the store calls it.
+	g.store.refuse(http.StatusForbidden, "AccessDenied")
+	g.store.mu.Lock()
+	g.clock = g.phone.Grant.Expires
+	g.store.mu.Unlock()
+	_, err := g.phone.State(ctx)
+	if got := g.phone.FailureOf(err); got != RelayLapsed {
+		t.Fatalf("links past their expiry read as failure %d", got)
+	}
+
+	g.store.refuse(0, "")
+	g.store.srv.Close()
+	_, err = g.phone.State(ctx)
+	if got := g.phone.FailureOf(err); got != RelayUnreachable {
+		t.Fatalf("a store that does not answer read as failure %d (%v)", got, err)
 	}
 }
