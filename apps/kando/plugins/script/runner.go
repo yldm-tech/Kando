@@ -27,8 +27,14 @@ type Runner struct {
 	// Stopped hears, on the engine's goroutine, that the runner stopped the plugin id, for its content hash, and why (plugins.ReasonSlow, ReasonMemory, ReasonFailed).
 	Stopped func(id, hash, reason string)
 
+	// PanelWatch is the watchdog of the panels' views (Panel), DefaultPanelWatch when zero.
+	PanelWatch PanelWatch
+
 	queue   []*call
 	running *call
+	// marks are the in-flight marks of the panels' views to write, in order, on one goroutine (mark).
+	marksOnce sync.Once
+	marks     chan func()
 }
 
 // Watch is when the watchdog stops a plugin.

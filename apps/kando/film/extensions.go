@@ -65,16 +65,16 @@ func (s *screen) extensionsTab(cx *ns.Scope) ns.Node {
 		e := chosen()
 		return Extension{ID: e.ID, Run: e.Run}
 	}).Get
-	// options are the panels for the drop-down, each its id, title and icon, joined, so the drop-down is built again only when they change.
+	// options are the drop-down's label and the panels for it, each its id, title and icon, joined, so the drop-down is built again only when they change, or the language does, as ui.Select's Label is read once.
 	options := ns.NewMemo(cx, func() string {
-		var out []string
+		out := []string{locales.FilmExtensionPick(cx)}
 		for _, e := range list() {
 			out = append(out, e.ID+"\x00"+e.Title+"\x00"+e.Icon)
 		}
 		return strings.Join(out, "\x01")
 	}).Get
 	muted := ns.RGBA(0xFFFFFF, 0.6)
-	heading := ns.Show{When: func() bool { return !strings.Contains(options(), "\x01") }, Then: func(cx *ns.Scope) ns.Node {
+	heading := ns.Show{When: func() bool { return strings.Count(options(), "\x01") < 2 }, Then: func(cx *ns.Scope) ns.Node {
 		return ns.View{Style: ns.Style{Direction: ns.Row, AlignItems: ns.AlignCenter, Gap: 6}, Children: []ns.Node{
 			ns.Show{When: func() bool { return extensionIcons[chosen().Icon] != nil }, Then: func(cx *ns.Scope) ns.Node {
 				return ns.Icon{SVGFunc: func() *ns.SVG {
@@ -113,11 +113,12 @@ func (s *screen) extensionsTab(cx *ns.Scope) ns.Node {
 		Children: []ns.Node{head, ns.View{TestID: "film-extension-body", Style: ns.Style{FlexGrow: 1, FlexShrink: 1, MinHeight: ns.Pt(0)}, Children: []ns.Node{body}}}}
 }
 
-// extensionSelect is the drop-down of the panels joined lists, each its id, title and icon.
+// extensionSelect is the drop-down of the panels joined lists after its label, each its id, title and icon.
 func (s *screen) extensionSelect(cx *ns.Scope, joined string) ns.Node {
 	a := s.a
+	items := strings.Split(joined, "\x01")
 	var options []ui.Option[string]
-	for _, item := range strings.Split(joined, "\x01") {
+	for _, item := range items[1:] {
 		parts := strings.SplitN(item, "\x00", 3)
 		if len(parts) < 3 {
 			continue
@@ -128,7 +129,7 @@ func (s *screen) extensionSelect(cx *ns.Scope, joined string) ns.Node {
 		}
 		options = append(options, o)
 	}
-	return ui.Select[string]{Options: options, Label: locales.FilmExtensionPick(cx), TestID: "film-extension-pick",
+	return ui.Select[string]{Options: options, Label: items[0], TestID: "film-extension-pick",
 		Value:    live.Func(a, func() string { return extensionChosen(a.Extensions(cx), a.Extension()).ID }),
 		OnChange: live.On(a, a.SetExtension), Style: ns.Style{AlignSelf: ns.AlignStretch}}
 }

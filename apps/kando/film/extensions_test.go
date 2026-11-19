@@ -1,12 +1,14 @@
 package film
 
 import (
+	"fmt"
 	"testing"
 
 	"kando/apps/kando/locales/testlocale"
 	"kando/apps/kando/plugins"
 
 	ns "github.com/nsgo-dev/nsgo/core"
+	"github.com/nsgo-dev/nsgo/nsgotest"
 )
 
 // fakeExtender is the fake app's 扩展 tab: the panels of the plugins running, the one chosen, the views it built, by id, and which panels fail.
@@ -97,5 +99,52 @@ func TestEveryPanelIconIsDrawn(t *testing.T) {
 	}
 	if len(extensionIcons) != len(plugins.PanelIcons) {
 		t.Errorf("%d icons drawn for %d names", len(extensionIcons), len(plugins.PanelIcons))
+	}
+}
+
+// tabLabelCut is why a tab of the side panel cuts its label, "" when none does: each label lies whole within its tab, which is no narrower than it with the tab's padding, as the tabs keep their labels' widths and scroll sideways when they need more room than the panel has.
+func tabLabelCut(app *nsgotest.App, ids ...string) string {
+	for _, id := range ids {
+		tab := app.Find("id:film-tab-" + id)
+		if tab == nil {
+			return "no tab " + id
+		}
+		var text *nsgotest.View
+		var find func(v *nsgotest.View)
+		find = func(v *nsgotest.View) {
+			for _, c := range v.Children {
+				if text == nil && c.Text != "" {
+					text = c
+				}
+				find(c)
+			}
+		}
+		find(tab)
+		if text == nil {
+			return "no label in " + id
+		}
+		f, w := text.Frame, tab.Frame.Size.Width
+		if f.Size.Width <= 0 || f.Origin.X < 0 || f.Origin.X+f.Size.Width > w+0.5 || w < f.Size.Width+16-0.5 {
+			return fmt.Sprintf("%s: label %q at %+v in a tab %v wide", id, text.Text, f, w)
+		}
+	}
+	return ""
+}
+
+// TestTabLabelsFit checks that no tab of the side panel cuts its label, in Chinese, English and Japanese, with 扩展 among them, and that the bar still spans the panel.
+func TestTabLabelsFit(t *testing.T) {
+	for _, lang := range []string{"zh-Hans", "en", "ja"} {
+		t.Run(lang, func(t *testing.T) {
+			testlocale.Use(t, lang)
+			a := newFakeApp()
+			a.extensions = []Extension{{ID: "plugin:acme.deck:deck", Title: "Deck", Plugin: "Acme", Run: 1}}
+			app := start(t, a)
+			if why := tabLabelCut(app, "subs", "clips", "terms", SideNotes, "info", SideExtensions, "style"); why != "" {
+				t.Errorf("%s\n%s", why, app.Dump())
+			}
+			if w := app.Find("id:film-tabs").Frame.Size.Width; w < panelWidth-28-0.5 {
+				t.Errorf("the bar is %v wide in a panel of %v", w, panelWidth)
+			}
+		})
 	}
 }

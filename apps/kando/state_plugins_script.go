@@ -109,7 +109,7 @@ func (a *app) pluginsWatch() script.Watch {
 func (a *app) pluginsRunner() *script.Runner {
 	s := &a.plugins.script
 	if s.runner == nil {
-		s.runner = &script.Runner{Post: a.cx.Post, Root: a.pluginsRoot(), Watch: a.pluginsWatch(), Stopped: a.pluginsStopped}
+		s.runner = &script.Runner{Post: a.cx.Post, Root: a.pluginsRoot(), Watch: a.pluginsWatch(), PanelWatch: a.plugins.panels.watch, Stopped: a.pluginsStopped}
 	}
 	return s.runner
 }

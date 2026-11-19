@@ -141,6 +141,7 @@ func (s signer) pack(t testing.TB, f fixture) plugins.Pack {
 // engine is a graph of its own on a goroutine of its own, the engine's in the app, with the system's clock, so a plugin's timers and the watchdog's heartbeats run as they do in the app. Its graph has a tree, which tsx.Load needs (nsgo#838).
 type engine struct {
 	root  *core.Scope
+	tree  *core.Tree
 	posts chan func()
 }
 
@@ -152,7 +153,7 @@ func newEngine(t testing.TB) *engine {
 	go func() {
 		e.root = core.NewRoot(core.RootOptions{Post: e.post})
 		// TODO(nsgo#838): tsx.Load fails with a nil pointer on a graph without a tree, which its documentation does not say; drop the tree once Load needs none https://github.com/nsgo-dev/nsgo/issues/838
-		core.NewTree(e.root, nil)
+		e.tree = core.NewTree(e.root, nil)
 		close(ready)
 		for fn := range e.posts {
 			if fn == nil {

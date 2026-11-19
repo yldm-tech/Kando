@@ -1,6 +1,7 @@
 package main
 
 import (
+	"fmt"
 	"os"
 	"path/filepath"
 	"slices"
@@ -51,6 +52,8 @@ func panelsApp(t *testing.T, key pluginsKey, folders ...string) (*app, *nsgotest
 	a.plugins.root = root
 	a.plugins.script.official = key.public
 	a.plugins.script.watch = script.Watch{Beat: 100 * time.Millisecond, Stall: time.Minute, Stalls: 3, Deadline: time.Minute}
+	// Headless, the engine runs what is posted only as the test settles, so the panels' watchdog would read the test's own time as the engine's: its windows outlast the test.
+	a.plugins.panels.watch = script.PanelWatch{Window: time.Hour, Share: 0.6, Windows: 3, Probe: time.Minute, Idle: 0.3, Retries: 3}
 	onEngine(a, a.pluginsScan)
 	waitUntil(t, tt, a, updates, func() bool {
 		return a.plugins.scanned && !a.plugins.busy && !a.plugins.inboxBusy && a.plugins.script.verified != nil
@@ -60,7 +63,7 @@ func panelsApp(t *testing.T, key pluginsKey, folders ...string) (*app, *nsgotest
 	return a, tt, updates
 }
 
-// TestPluginPanels checks a script plugin's panels in the player's 扩展 tab (docs/plugin-system.md E15): the tab is there only while the plugin runs; the panel is the plugin's view, which reads the line playing through kando.line.current under the plugin's grant and hears line.changed as the line changes, while the tab is not built again; the drop-down picks the other panel, which throws and shows that it failed in the tab, the player still there, and whose failures turn the plugin off at the third; the choice is kept in settings.json; and the tab goes once the plugin is turned off.
+// TestPluginPanels checks a script plugin's panels in the player's 扩展 tab (docs/plugin-system.md E15): the tab is there only while the plugin runs; the panel is the plugin's view, which reads the line playing through kando.line.current under the plugin's grant and hears line.changed as the line changes, the changes of one turn as one event, while the tab is not built again; the drop-down picks the other panel, which throws and shows that it failed in the tab, the player still there and no host of its hearing events, and whose failures, its retries' too, turn the plugin off at the third; the choice is kept in settings.json; and the tab goes once the plugin is turned off.
 func TestPluginPanels(t *testing.T) {
 	key := newPluginsKey(t)
 	a, tt, updates := panelsApp(t, key, pluginScriptFolder(t, key, "acme.panels", "1.0.0", pluginPanelsFields, pluginPanelsCode))
@@ -94,6 +97,20 @@ func TestPluginPanels(t *testing.T) {
 	if a.plugins.script.loaded["acme.panels"].panel != l.panel {
 		t.Error("the panel's view was built again as the line changed")
 	}
+	// Reports that change the line twice before the engine's next turn make one line.changed, with the line playing then.
+	before := tt.Find("id:panel-heard").Text
+	onEngine(a, func() {
+		a.VideoProgress(1500*time.Millisecond, a.PlayLength())
+		a.VideoProgress(4600*time.Millisecond, a.PlayLength())
+		a.VideoProgress(1600*time.Millisecond, a.PlayLength())
+	})
+	scriptsSettle(t, a, tt, updates, func() bool {
+		return tt.Find("id:panel-line").Text == "Hello." && tt.Find("id:panel-heard").Text != before
+	})
+	var n int
+	if _, err := fmt.Sscanf(before, "heard %d", &n); err != nil || tt.Find("id:panel-heard").Text != fmt.Sprintf("heard %d", n+1) {
+		t.Errorf("heard %q after %q: the line's changes in one turn were not one event", tt.Find("id:panel-heard").Text, before)
+	}
 	// The other panel, from the drop-down, throws: the tab says so, and the player is still there.
 	if !tt.Exists("id:film-extension-pick") {
 		t.Fatalf("no drop-down of the two panels; texts %q", tt.Texts())
@@ -103,6 +120,10 @@ func TestPluginPanels(t *testing.T) {
 	scriptsSettle(t, a, tt, updates, func() bool { return tt.Exists("id:film-extension-failed") })
 	if !hasText(tt, m.FilmExtensionFailed("Anki 发送器")) || !tt.Exists("id:film-video") || !tt.Exists("id:film-panel") {
 		t.Fatalf("a panel that throws; texts %q", tt.Texts())
+	}
+	// Nothing is sent to a panel that is not there: no host is the panel's while it shows its failure.
+	if a.plugins.script.loaded["acme.panels"].panel != nil {
+		t.Error("the failed panel's host still hears the events")
 	}
 	if a.plugins.panels.chosen != broken {
 		t.Errorf("chose %q", a.plugins.panels.chosen)
@@ -114,6 +135,9 @@ func TestPluginPanels(t *testing.T) {
 	for range 2 {
 		tt.Press("id:film-extension-retry")
 		refresh(tt, a)
+		if l := a.plugins.script.loaded["acme.panels"]; l != nil && l.panel != nil {
+			t.Error("a retry that failed left its host the panel's")
+		}
 	}
 	scriptsSettle(t, a, tt, updates, func() bool { return a.plugins.script.loaded["acme.panels"] == nil && !a.plugins.saving })
 	if h, sick := plugins.HealthOf(a.plugins.script.health, "acme.panels", l.pack.Hash); !sick || h.Reason != plugins.ReasonFailed {

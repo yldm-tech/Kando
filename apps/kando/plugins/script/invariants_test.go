@@ -14,7 +14,7 @@ import (
 // tsxPath is the import path of NSGo's TSX runtime.
 const tsxPath = "github.com/nsgo-dev/nsgo/tsx"
 
-// TestScriptRuntimeEntrances scans every Go file of the repository, tests included, for the ways into tsx that would run code with more than a plugin is granted (docs/plugin-system.md 3.3, 9): tsx.Sandboxed, which with neither capabilities nor grant runs a bundle with the app's own authority, file:// included, appears nowhere, developer mode included; tsx.View, whose sandbox fills a nil grant with what the package declares, appears only in this package's own code, each time as a literal whose Sandbox is Sandbox's (a panel's view, Runner.Panel), never probeSandbox's nor one written out; and tsx.Load appears only in this package's own code, each time with the sandbox of Sandbox or probeSandbox, whose grants are made from nothing.
+// TestScriptRuntimeEntrances scans every Go file of the repository, tests included, for the ways into tsx that would run code with more than a plugin is granted (docs/plugin-system.md 3.3, 9): tsx.Sandboxed, which with neither capabilities nor grant runs a bundle with the app's own authority, file:// included, appears nowhere, developer mode included; tsx.View, whose sandbox fills a nil grant with what the package declares, appears only in this package's own code, each time as a literal whose Sandbox is Sandbox's (a panel's view, Runner.Panel), never probeSandbox's nor one written out, rendered where it is made (tsx.View{…}.Render), so no field of it is set after it was checked; and tsx.Load appears only in this package's own code, each time with the sandbox of Sandbox or probeSandbox, whose grants are made from nothing.
 func TestScriptRuntimeEntrances(t *testing.T) {
 	repo, err := filepath.Abs(filepath.Join("..", "..", "..", ".."))
 	if err != nil {
@@ -59,6 +59,16 @@ func TestScriptRuntimeEntrances(t *testing.T) {
 		ours := filepath.Dir(path) == here && !strings.HasSuffix(path, "_test.go")
 		// The selectors of tsx.View that are the type of a literal checked here, which the selector's own visit lets pass.
 		literals := map[*ast.SelectorExpr]bool{}
+		// The tsx.View literals rendered where they are made, as tsx.View{…}.Render: none is kept in a variable whose fields could be set after the literal was checked.
+		rendered := map[*ast.CompositeLit]bool{}
+		ast.Inspect(f, func(n ast.Node) bool {
+			if s, ok := n.(*ast.SelectorExpr); ok && s.Sel.Name == "Render" {
+				if lit, ok := s.X.(*ast.CompositeLit); ok {
+					rendered[lit] = true
+				}
+			}
+			return true
+		})
 		ast.Inspect(f, func(n ast.Node) bool {
 			if lit, ok := n.(*ast.CompositeLit); ok {
 				if s, ok := lit.Type.(*ast.SelectorExpr); ok && isTSX(s, name, "View") {
@@ -68,6 +78,8 @@ func TestScriptRuntimeEntrances(t *testing.T) {
 						t.Errorf("%s: tsx.View outside plugins/script", fset.Position(lit.Pos()))
 					} else if !viewSandboxed(lit) {
 						t.Errorf("%s: tsx.View without the Sandbox of Sandbox", fset.Position(lit.Pos()))
+					} else if !rendered[lit] {
+						t.Errorf("%s: tsx.View not rendered where it is made (tsx.View{…}.Render)", fset.Position(lit.Pos()))
 					}
 				}
 			}
