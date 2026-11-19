@@ -31,7 +31,8 @@ func VideoPrompt(cx *core.Scope, s *session.Session, desktop string, f sync.Film
 	phase := core.NewMemo(cx, func() videoPhase {
 		switch {
 		case ready():
-			if _, moving := s.Transfer(key); moving {
+			// A download paused or failed offers to go on with it.
+			if t, moving := s.Transfer(key); moving && t.State == session.Running {
 				return videoDownloading
 			}
 			return videoReady

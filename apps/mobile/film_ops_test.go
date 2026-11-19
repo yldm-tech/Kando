@@ -164,6 +164,41 @@ func TestAFilmWithoutAVideoIsStudiedByItsLines(t *testing.T) {
 	p.app.WaitFor("id:player-video", wait)
 }
 
+// The video of a film kept by its lines, cancelled partway, is gone from the phone and the film is kept by its lines again, to be studied as before.
+func TestCancellingTheVideoOfAFilmKeptByItsLinesKeepsThem(t *testing.T) {
+	d := newDesktop(t)
+	d.AddFilm(linesFilm())
+	dir := t.TempDir()
+	p := startPhone(t, dir, pairedWith(t, d, dir))
+	id := store.DesktopID(d.Fingerprint)
+	row := filmRow(id, "f3")
+	p.options("id:films-options-"+id+"-f3", msgs.FilmSaveLines())
+	p.answer(msgs.FilmSaveLines())
+	p.app.WaitFor(row+" >> text:YouTube · 0:10 · "+msgs.FilmSubtitlesOnly()+" · "+msgs.FilmLinesSaved(), wait)
+
+	// The computer has the video now, which the Library reads again.
+	d.ReplaceVideo("f3", talkVideo)
+	d.Stall(200_000)
+	p.app.PullToRefresh("id:films-scroll")
+	p.app.Press(row)
+	p.app.WaitFor("id:film-no-video-download", wait)
+	p.app.Press("id:film-no-video-download")
+	p.app.WaitFor("id:film-cancel", wait)
+	folder := filepath.Join("films", id, "f3")
+	p.waitFile(filepath.Join(folder, store.PartFile), 200_000)
+	p.app.Press("id:film-cancel")
+	p.app.WaitFor("id:film-no-video-download", wait)
+	p.waitFile(filepath.Join(folder, store.PartFile), -1)
+	if got := p.texts("id:film-play"); got != msgs.FilmStudyLines() {
+		t.Fatalf("once the video was cancelled the page's button reads %q", got)
+	}
+	if _, err := os.Stat(filepath.Join(p.dir, folder, "subtitles.json")); err != nil {
+		t.Fatalf("the lines went with the video: %v", err)
+	}
+	p.app.Press("id:film-play")
+	p.app.WaitFor("id:player-lines-pane >> text:How are you?", wait)
+}
+
 // A tablet's sidebar lists the computers' subscriptions under the sections, with the count of new videos waiting on each; pressed, one opens its sheet over whichever section shows, and the Add button opens the Add sheet.
 func TestATabletsSidebarListsTheSubscriptions(t *testing.T) {
 	d := newDesktop(t)
