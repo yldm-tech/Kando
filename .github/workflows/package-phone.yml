@@ -83,6 +83,53 @@ jobs:
         run: |
           go tool nsgo build -target ios -build-number "$BUILD_NUMBER" -output "$RUNNER_TEMP/ios" apps/mobile
           go tool nsgo build -target android_arm64 -channel store -build-number "$BUILD_NUMBER" -output "$RUNNER_TEMP/android" apps/mobile
+      # App Store Connect refuses an IPA whose app and widget extension do not say which SDK and Xcode built them (DTPlatformName, DTSDKName, DTXcode and the rest Xcode writes) and that they need arm64 (UIRequiredDeviceCapabilities), and nsgo build writes neither into their Info.plists. A TestFlight run adds them from the runner's Xcode and signs the extension and then the app again, with the same identity and the entitlements nsgo build signed them with; the embedded profiles stay as they are.
+      # TODO(nsgo): nsgo build's iOS Info.plists (cmd/nsgo/ios.go's iosPlist, widgets.go's addIOSWidgets) lack UIRequiredDeviceCapabilities and the DT* keys of the SDK and Xcode; drop this step once nsgo build writes them.
+      - name: Add the SDK keys App Store Connect checks
+        if: inputs.testflight
+        run: |
+          shopt -s nullglob
+          ipas=("$RUNNER_TEMP"/ios/releases/*-ios.ipa)
+          if [ "${#ipas[@]}" -ne 1 ]; then
+            echo "::error::nsgo build made ${#ipas[@]} IPAs, not one"
+            exit 1
+          fi
+          ipa=${ipas[0]}
+          work="$RUNNER_TEMP/resign"
+          mkdir "$work"
+          unzip -q "$ipa" -d "$work"
+          xcode_version=$(xcodebuild -version | awk '/^Xcode/{print $2}')
+          xcode_build=$(xcodebuild -version | awk '/^Build version/{print $3}')
+          IFS=. read -r major minor patch <<< "$xcode_version"
+          dt_xcode=$(printf '%d%d%d' "$major" "${minor:-0}" "${patch:-0}")
+          [ "${#dt_xcode}" -lt 4 ] && dt_xcode="0$dt_xcode"
+          sdk_version=$(xcrun --sdk iphoneos --show-sdk-version)
+          sdk_build=$(xcrun --sdk iphoneos --show-sdk-build-version)
+          os_build=$(sw_vers -buildVersion)
+          echo "Xcode $xcode_version ($xcode_build, DTXcode $dt_xcode), iphoneos $sdk_version ($sdk_build)"
+          identity="Apple Distribution: YLDM Co., Ltd. (LXCL4Z68GU)"
+          app=$(echo "$work"/Payload/*.app)
+          # The extension first, as the app's signature seals it.
+          for bundle in "$app"/PlugIns/*.appex "$app"; do
+            plist="$bundle/Info.plist"
+            plutil -replace UIRequiredDeviceCapabilities -json '["arm64"]' "$plist"
+            plutil -replace DTPlatformName -string iphoneos "$plist"
+            plutil -replace DTPlatformVersion -string "$sdk_version" "$plist"
+            plutil -replace DTPlatformBuild -string "$sdk_build" "$plist"
+            plutil -replace DTSDKName -string "iphoneos$sdk_version" "$plist"
+            plutil -replace DTSDKBuild -string "$sdk_build" "$plist"
+            plutil -replace DTXcode -string "$dt_xcode" "$plist"
+            plutil -replace DTXcodeBuild -string "$xcode_build" "$plist"
+            plutil -replace DTCompiler -string com.apple.compilers.llvm.clang.1_0 "$plist"
+            plutil -replace BuildMachineOSBuild -string "$os_build" "$plist"
+            ents="$RUNNER_TEMP/resign.entitlements"
+            codesign -d --entitlements - --xml "$bundle" > "$ents"
+            codesign --force --sign "$identity" --entitlements "$ents" --generate-entitlement-der "$bundle"
+            rm "$ents"
+          done
+          rm "$ipa"
+          (cd "$work" && zip -qry "$ipa" .)
+          rm -rf "$work"
       # One IPA and one App Bundle, the IPA carrying the app's ID, the run's build number, its icon, the local network usage description iOS asks with and the export compliance answer TestFlight needs. A signed IPA's app and widget extension must also carry valid signatures, each with its App Store profile embedded.
       - name: Collect the packages
         id: collect
