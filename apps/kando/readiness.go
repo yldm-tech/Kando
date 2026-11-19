@@ -77,7 +77,7 @@ func (a *app) checkReadiness(signIn bool) {
 		}, Section: settings.SectionGeneral}
 		return
 	}
-	if r, missing := toolsMissing(tools); missing {
+	if r, missing := toolsMissing(tools, a.pluginsTranslating()); missing {
 		a.side.ready.status = r
 		return
 	}
@@ -125,8 +125,8 @@ func (a *app) signedIn(err error) {
 	a.checkReadiness(false)
 }
 
-// toolsMissing reports the first thing tools lack that the UI thread can read at once, with the settings section that fixes it.
-func toolsMissing(tools media.Tools) (sidebar.Readiness, bool) {
+// toolsMissing reports the first thing tools lack that the UI thread can read at once, with the settings section that fixes it. With ownSource, a script plugin's translator chosen in Settings › 翻译 (pluginsTranslating), the films are translated without the AI service, which is then not missing.
+func toolsMissing(tools media.Tools, ownSource bool) (sidebar.Readiness, bool) {
 	var absent []string
 	for _, tool := range []struct{ name, path string }{{"yt-dlp", tools.YTDLP}, {"ffmpeg", tools.FFmpeg}, {"whisper-cli", tools.Whisper}} {
 		if tool.path == "" {
@@ -146,6 +146,9 @@ func toolsMissing(tools media.Tools) (sidebar.Readiness, bool) {
 	}
 	if info, err := os.Stat(tools.WhisperModel); err != nil || info.IsDir() {
 		return missing(noSpeechModel, settings.SectionSpeech)
+	}
+	if ownSource {
+		return sidebar.Readiness{}, false
 	}
 	if strings.TrimSpace(tools.Translator.Model) == "" {
 		return missing(noLLMModel, settings.SectionAI)

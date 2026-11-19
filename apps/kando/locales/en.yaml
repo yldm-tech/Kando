@@ -7942,6 +7942,11 @@ settingsPluginsAddsAnnotator:
   description: "What a script plugin adds: marks over or under the words of the subtitles."
   placeholders:
     name: { type: "String", example: "Pitch accent" }
+settingsPluginsAddsTranslator:
+  message: "Translation source: {name}"
+  description: "What a script plugin adds: a source of machine translation that Settings › Translation offers in place of the AI service."
+  placeholders:
+    name: { type: "String", example: "DeepL" }
 settingsPluginsCredentials:
   message: "Keys"
   description: "Plugin details: heading of the keys of other services a script plugin uses through Kando."
@@ -8210,6 +8215,60 @@ settingsTranslateStyleHint:
 settingsTranslateStyleNone:
   message: "None"
   description: "Translation settings: the Style Preset choice that uses no plugin's style; choosing it puts the default prompt back."
+settingsTranslateSource:
+  message: "Translation Source"
+  description: "Settings › Translation: label of the drop-down that chooses what translates the subtitles, the AI service or a plugin's machine translation."
+settingsTranslateSourceAI:
+  message: "AI Service"
+  description: "Settings › Translation › Translation Source: the choice that translates with the AI service set in Settings › AI Service."
+settingsTranslateSourceHint:
+  message: "Proofreading and term suggestions still use the AI service, and are skipped when it is not set up."
+  description: "Settings › Translation: line under Translation Source while a plugin's machine translation is chosen."
+settingsTranslateSourceGone:
+  message: "Translation source {source} is no longer available, as its plugin was turned off or removed. Subtitles are translated with the AI service."
+  description: "Settings › Translation and the message bar: the plugin of the translation source chosen is off or gone, so Kando translates with the AI service again."
+  placeholders:
+    source: { type: "String", example: "DeepL" }
+precheckSourceQuota:
+  message: "Translation source {source} has used up its quota. Check your plan with the service, then retry."
+  description: "Card of a job whose plugin translation source said its quota is used up (DeepL's 456)."
+  placeholders:
+    source: { type: "String", example: "DeepL" }
+precheckSourceAuth:
+  message: "Translation source {source} doesn't accept the key. Check it in the plugin's details in “Plugins”."
+  description: "Card of a job whose plugin translation source refused its API key (DeepL's 403)."
+  placeholders:
+    source: { type: "String", example: "DeepL" }
+precheckSourceNoCredential:
+  message: "Translation source {source} has no key yet. Enter it in the plugin's details in “Plugins”."
+  description: "Card of a job whose plugin translation source has no API key entered."
+  placeholders:
+    source: { type: "String", example: "DeepL" }
+precheckSourceLanguage:
+  message: "Translation source {source} doesn't translate into this language. Choose another source or target language in “Translation”."
+  description: "Card of a job whose plugin translation source does not translate into the film's target language."
+  placeholders:
+    source: { type: "String", example: "DeepL" }
+precheckSourceRateLimit:
+  message: "Translation source {source} asked to slow down. Retry in a few minutes."
+  description: "Card of a job whose plugin translation source answered with a rate limit (429)."
+  placeholders:
+    source: { type: "String", example: "DeepL" }
+precheckSourceUnavailable:
+  message: "Translation source {source} can't be reached right now. Retry later."
+  description: "Card of a job whose plugin translation source's service did not answer or had a server error."
+  placeholders:
+    source: { type: "String", example: "DeepL" }
+precheckSourceNotRunning:
+  message: "Translation source {source} isn't running. Turn its plugin on in “Plugins”, then retry."
+  description: "Card of a job whose plugin translation source was not running (turned off, stopped by Kando, or still loading)."
+  placeholders:
+    source: { type: "String", example: "DeepL" }
+precheckSourceBadReply:
+  message: "Translation source {source} answered with lines that don't match the ones it was sent."
+  description: "Card of a job whose plugin translation source answered with a different number of lines, or something that is not lines."
+  placeholders:
+    source: { type: "String", example: "DeepL" }
 pluginsTaskCommand:
   message: "Plugin Task: {name}"
   description: "Command palette and the Study menu: runs a task plugin the user installed and turned on; name is the plugin's own name."

@@ -64,15 +64,19 @@ func (a *app) SubtitleLayers() film.Layers {
 		{Kind: film.LayerTranslation, Engine: translateEngine, Done: translation},
 	}
 	if a.prefs.review {
-		rows = append(rows, film.Layer{Kind: film.LayerReview, Engine: translateEngine, Done: review})
+		// The final proofread is the AI service's, whatever translates the lines.
+		rows = append(rows, film.Layer{Kind: film.LayerReview, Engine: strings.TrimSpace(a.prefs.llmModel), Done: review})
 	}
 	return film.Layers{Show: true, Running: true, Percent: int(translation * 100), Rows: rows}
 }
 
-// layersEngines are what hears the films' speech and what translates them, as the badge names them: the whisper model's name, without its file's ggml- and .bin, and the AI service's model; "" for one not set.
+// layersEngines are what hears the films' speech and what translates them, as the badge names them: the whisper model's name, without its file's ggml- and .bin, and the title of the script plugin's translator chosen in Settings › 翻译, else the AI service's model; "" for one not set.
 func (a *app) layersEngines() (speech, translate string) {
 	if tools, ok := a.pipeline.(media.Tools); ok && tools.WhisperModel != "" {
 		speech = strings.TrimSuffix(strings.TrimPrefix(filepath.Base(tools.WhisperModel), "ggml-"), ".bin")
+	}
+	if t, ok := a.pluginsTranslatorChosen(); ok {
+		return speech, t.of.Title.In(a.messages().Language())
 	}
 	return speech, strings.TrimSpace(a.prefs.llmModel)
 }

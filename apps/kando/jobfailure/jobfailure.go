@@ -7,6 +7,7 @@ import (
 	"strings"
 
 	"kando/apps/kando/locales"
+	"kando/apps/kando/plugins"
 	"kando/apps/kando/settings/sectionid"
 	"kando/packages/core"
 	"kando/packages/media"
@@ -49,7 +50,7 @@ func Hint(m locales.Messages, detail string, failed *media.StageError) (reason, 
 	if failed != nil {
 		stage, rest = failed.Stage, failed.Detail()
 		if failed.Source != "" {
-			return m.PrecheckFailedSource(failed.Source, shorten(ToolMessage(rest), 72)), ""
+			return SourceHint(m, failed.Source, rest)
 		}
 	}
 	switch {
@@ -104,6 +105,30 @@ func Hint(m locales.Messages, detail string, failed *media.StageError) (reason, 
 		return msg, ""
 	}
 	return m.PrecheckFailedProcess(shorten(ToolMessage(detail), 72)), ""
+}
+
+// SourceHint says in the user's words, in the language of m, what the failure of the translation source named source (media.Tools.Engine, media.StageError.Source) means, detail being what it said (media.StageError.Detail), and the settings section that fixes it ("" when none does). A plugin's translator that failed with a code Kando knows (plugins.TranslateCode) is told in words of its own: its key and its plugin's switch are in 插件, the target language in 翻译. Any other failure is told with what the source said, as its words are not the AI service's.
+func SourceHint(m locales.Messages, source, detail string) (reason, section string) {
+	code, _ := plugins.TranslateCode(strings.TrimSpace(detail))
+	switch code {
+	case plugins.TranslateQuota:
+		return m.PrecheckSourceQuota(source), ""
+	case plugins.TranslateAuth:
+		return m.PrecheckSourceAuth(source), sectionid.Plugins
+	case plugins.TranslateNoCredential:
+		return m.PrecheckSourceNoCredential(source), sectionid.Plugins
+	case plugins.TranslateLanguage:
+		return m.PrecheckSourceLanguage(source), sectionid.Translate
+	case plugins.TranslateRateLimit:
+		return m.PrecheckSourceRateLimit(source), ""
+	case plugins.TranslateUnavailable:
+		return m.PrecheckSourceUnavailable(source), ""
+	case plugins.TranslateNotRunning:
+		return m.PrecheckSourceNotRunning(source), sectionid.Plugins
+	case plugins.TranslateBadReply:
+		return m.PrecheckSourceBadReply(source), ""
+	}
+	return m.PrecheckFailedSource(source, shorten(ToolMessage(detail), 72)), ""
 }
 
 // failedPrefix is what a failed job's status line says before its error in the language of m (QueueStatusFailed), which Hint takes off the card's detail to read the error.

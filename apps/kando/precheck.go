@@ -123,10 +123,10 @@ func (a *app) precheckFollow(text, section *string, open *bool) bool {
 	return true
 }
 
-// untranslatable reports whether a job added now would have no translator: no model is chosen, or EveryAPI has neither an API Key nor the everyapi program to sign in through. What only running a program can tell, as an expired sign-in, is left to the job.
+// untranslatable reports whether a job added now would have no translator: no script plugin's translator is chosen in Settings › 翻译 (pluginsTranslating), and no model is chosen, or EveryAPI has neither an API Key nor the everyapi program to sign in through. What only running a program can tell, as an expired sign-in, is left to the job.
 func (a *app) untranslatable() bool {
 	tools, ok := a.pipeline.(media.Tools)
-	return ok && (strings.TrimSpace(tools.Translator.Model) == "" || everyAPICLIMissing(tools.Translator))
+	return ok && !a.pluginsTranslating() && (strings.TrimSpace(tools.Translator.Model) == "" || everyAPICLIMissing(tools.Translator))
 }
 
 // precheckWhole says that link names a channel, a list or a page that lists videos rather than one video, which a job would download whole or pick a video of, naming the site when Kando knows it, in the language of m. It asks for its videos to be listed first, which the playlist dialog does where the pipeline can list them (playlistSplit).

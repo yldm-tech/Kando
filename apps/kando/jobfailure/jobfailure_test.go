@@ -3,9 +3,11 @@ package jobfailure
 import (
 	"context"
 	"errors"
+	"strings"
 	"testing"
 
 	"kando/apps/kando/locales"
+	"kando/apps/kando/plugins"
 	"kando/apps/kando/settings/sectionid"
 	"kando/packages/core"
 	"kando/packages/media"
@@ -101,5 +103,32 @@ func TestOfAndStage(t *testing.T) {
 func TestToolMessage(t *testing.T) {
 	if got := ToolMessage("yt-dlp: exit status 1: ERROR: [youtube] abc: Video unavailable\nmore"); got != "Video unavailable" {
 		t.Fatalf("%q", got)
+	}
+}
+
+// A plugin's translator that failed with a code Kando knows is told in words of its own in every interface language, each naming the source and none of them the code or the AI service's settings; the key and the plugin's switch are in 插件, the target language in 翻译. A code it does not know is told with what it said.
+func TestSourceHintOfACode(t *testing.T) {
+	sections := map[string]string{
+		plugins.TranslateQuota: "", plugins.TranslateAuth: sectionid.Plugins, plugins.TranslateNoCredential: sectionid.Plugins, plugins.TranslateLanguage: sectionid.Translate,
+		plugins.TranslateRateLimit: "", plugins.TranslateUnavailable: "", plugins.TranslateNotRunning: sectionid.Plugins, plugins.TranslateBadReply: "",
+	}
+	for _, lang := range locales.Interface {
+		m := locales.In(lang)
+		seen := map[string]string{}
+		for code, want := range sections {
+			failed := &media.StageError{Stage: media.StageTranslate, Source: "DeepL", Err: plugins.NewTranslateError(code, "the service said so")}
+			reason, section := Hint(m, m.QueueStatusFailed(failed.Error()), failed)
+			if !strings.Contains(reason, "DeepL") || strings.Contains(reason, code+":") || strings.Contains(reason, "the service said so") || section != want {
+				t.Errorf("%s %s: %q %q", lang, code, reason, section)
+			}
+			if other, ok := seen[reason]; ok {
+				t.Errorf("%s: %s and %s read the same: %q", lang, code, other, reason)
+			}
+			seen[reason] = code
+		}
+		failed := &media.StageError{Stage: media.StageTranslate, Source: "DeepL", Err: plugins.NewTranslateError("teapot", "I'm a teapot")}
+		if reason, section := Hint(m, m.QueueStatusFailed(failed.Error()), failed); reason != m.PrecheckFailedSource("DeepL", "I'm a teapot") || section != "" {
+			t.Errorf("%s: an unknown code: %q %q", lang, reason, section)
+		}
 	}
 }

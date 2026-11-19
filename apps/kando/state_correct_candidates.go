@@ -5,6 +5,7 @@ import (
 	"time"
 
 	"kando/apps/kando/film"
+	"kando/apps/kando/jobfailure"
 	"kando/apps/kando/locales"
 	"kando/apps/kando/settings"
 	"kando/packages/media"
@@ -12,9 +13,9 @@ import (
 	ns "github.com/nsgo-dev/nsgo/core"
 )
 
-// 这句不对 (⇧E): the AI service set translates the selected line again from the lines around it and the film's glossary (media.ChatTranslator.Candidates), and the user picks one of its translations, or keeps the line as it is. The one picked is kept as the user's correction of the line, which no machine pass writes over.
+// 这句不对 (⇧E): the translation source chosen in Settings › 翻译 translates the selected line again from the lines around it and the film's glossary (media.Tools.Candidates): a script plugin's translator whose plugin exports candidates (state_plugins_translate.go), else the AI service set (media.ChatTranslator.Candidates). The user picks one of its translations, or keeps the line as it is. The one picked is kept as the user's correction of the line, which no machine pass writes over.
 
-// correctPick is the other translations of the selected line while they show. busy is set while they are on their way, gen telling their reply from one of a request made before; options are the AI service's, best first, and at the one highlighted, 0 for the line as it is. say, when set, says why there are none, and needsAI that the AI service's settings are the fix.
+// correctPick is the other translations of the selected line while they show. busy is set while they are on their way, gen telling their reply from one of a request made before; options are the translation source's, best first, and at the one highlighted, 0 for the line as it is. say, when set, says why there are none, and needsAI that the AI service's settings are the fix; a script plugin's translator that failed is not the AI service's to fix.
 type correctPick struct {
 	busy    bool
 	gen     int
@@ -42,7 +43,7 @@ func (a *app) correctCanPick() bool {
 	return a.correctCanSelect() && !a.correct.editing && a.correct.pick == nil
 }
 
-// StartCandidates is 这句不对 (⇧E): the selected line, or with none the line playing (correctSelectPlaying), held on the picture while the AI service set translates it again, its translations to pick from showing over it (film.Corrector). Without an AI service they say why and offer its settings.
+// StartCandidates is 这句不对 (⇧E): the selected line, or with none the line playing (correctSelectPlaying), held on the picture while the translation source translates it again, its translations to pick from showing over it (film.Corrector): the script plugin's translator chosen when its plugin offers them, else the AI service. Without an AI service, where it is the one asked, they say why and offer its settings.
 func (a *app) StartCandidates() {
 	if !a.correctCanPick() {
 		return
@@ -58,10 +59,16 @@ func (a *app) StartCandidates() {
 	a.correct.pickGen++
 	pick := &correctPick{gen: a.correct.pickGen}
 	a.correct.pick = pick
-	t, why := a.paletteTranslator(locales.CorrectCandidatesNoAI)
-	if why != nil {
-		pick.say, pick.needsAI = why, true
-		return
+	item, open := a.paletteOpenFilm()
+	tools, _ := a.pipeline.(media.Tools)
+	tools = a.pluginsTranslateTools(tools, item.Spoken)
+	if _, offers := tools.Engine.(pluginsCandidater); !offers {
+		t, why := a.paletteTranslator(locales.CorrectCandidatesNoAI)
+		if why != nil {
+			pick.say, pick.needsAI = why, true
+			return
+		}
+		tools.Translator = t
 	}
 	_, from := a.correctLines()
 	req := media.CandidateRequest{Line: from[i].Line, Terms: a.FilmTerms()}
@@ -72,16 +79,24 @@ func (a *app) StartCandidates() {
 		req.After = append(req.After, l.Line)
 	}
 	req.Language = a.prefs.language
-	if item, ok := a.paletteOpenFilm(); ok {
+	if open {
 		req.Language = paletteAnswerLanguage(item, a.prefs.language)
 	}
 	pick.busy = true
 	gen := pick.gen
-	ask := func(ctx context.Context) ([]string, error) { return t.Candidates(ctx, req) }
+	ask := func(ctx context.Context) ([]string, error) { return tools.Candidates(ctx, req) }
 	pick.cancel = aiAsk(a, correctPickTimeout, ask, func() bool { return a.correct.pick != nil && a.correct.pick.gen == gen }, func(options []string, err error) {
 		p := a.correct.pick
 		p.busy, p.cancel = false, nil
+		source, bySource := media.EngineOf(err)
 		switch {
+		case err != nil && bySource:
+			// A script plugin's translator failed: its card's words, as a job's card says them (jobfailure.SourceHint), and not the AI service's settings.
+			detail := err.Error()
+			p.say = func(cx *ns.Scope) string {
+				reason, _ := jobfailure.SourceHint(locales.For(cx), source, detail)
+				return reason
+			}
 		case err != nil:
 			// The service's settings are the likely fix for a refused key, a wrong model or a signed-out CLI, as for Explain Line.
 			p.say = func(cx *ns.Scope) string { return locales.CorrectCandidatesFailed(cx, err.Error()) }

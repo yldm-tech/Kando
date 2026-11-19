@@ -1037,6 +1037,7 @@ var Parameters = map[string][]string{
 	"SettingsPluginsAddsSubtitleFormat":        {"name"},
 	"SettingsPluginsAddsExporter":              {"name"},
 	"SettingsPluginsAddsAnnotator":             {"name"},
+	"SettingsPluginsAddsTranslator":            {"name"},
 	"SettingsPluginsCredentialHosts":           {"hosts"},
 	"SettingsPluginsCredentialMismatch":        {"service"},
 	"SavedExportingPlugin":                     {"name"},
@@ -1058,6 +1059,15 @@ var Parameters = map[string][]string{
 	"SettingsPluginsTemplateDetail":            {"format", "count"},
 	"SavedExportTargetPlugin":                  {"name"},
 	"SavedExportedTemplate":                    {"count", "file"},
+	"SettingsTranslateSourceGone":              {"source"},
+	"PrecheckSourceQuota":                      {"source"},
+	"PrecheckSourceAuth":                       {"source"},
+	"PrecheckSourceNoCredential":               {"source"},
+	"PrecheckSourceLanguage":                   {"source"},
+	"PrecheckSourceRateLimit":                  {"source"},
+	"PrecheckSourceUnavailable":                {"source"},
+	"PrecheckSourceNotRunning":                 {"source"},
+	"PrecheckSourceBadReply":                   {"source"},
 	"PluginsTaskCommand":                       {"name"},
 	"PluginsTaskBusy":                          {"model"},
 	"PluginsTaskFailed":                        {"error_"},
@@ -1726,6 +1736,7 @@ type Translation struct {
 	SettingsPluginsAddsSubtitleFormat        func(name string) string
 	SettingsPluginsAddsExporter              func(name string) string
 	SettingsPluginsAddsAnnotator             func(name string) string
+	SettingsPluginsAddsTranslator            func(name string) string
 	SettingsPluginsCredentialHosts           func(hosts string) string
 	SettingsPluginsCredentialMismatch        func(service string) string
 	SavedExportingPlugin                     func(name string) string
@@ -1747,6 +1758,15 @@ type Translation struct {
 	SettingsPluginsTemplateDetail            func(format string, count int) string
 	SavedExportTargetPlugin                  func(name string) string
 	SavedExportedTemplate                    func(count int, file string) string
+	SettingsTranslateSourceGone              func(source string) string
+	PrecheckSourceQuota                      func(source string) string
+	PrecheckSourceAuth                       func(source string) string
+	PrecheckSourceNoCredential               func(source string) string
+	PrecheckSourceLanguage                   func(source string) string
+	PrecheckSourceRateLimit                  func(source string) string
+	PrecheckSourceUnavailable                func(source string) string
+	PrecheckSourceNotRunning                 func(source string) string
+	PrecheckSourceBadReply                   func(source string) string
 	PluginsTaskCommand                       func(name string) string
 	PluginsTaskBusy                          func(model string) string
 	PluginsTaskFailed                        func(error_ string) string
@@ -3525,6 +3545,9 @@ const (
 	textSettingsTranslateStyle
 	textSettingsTranslateStyleHint
 	textSettingsTranslateStyleNone
+	textSettingsTranslateSource
+	textSettingsTranslateSourceAI
+	textSettingsTranslateSourceHint
 	textPluginsTaskNoAI
 	textPluginsTaskOpenPlugins
 	textSettingsPluginsKindTask
@@ -5293,6 +5316,9 @@ var keyOfText = [numTexts]string{
 	"settingsTranslateStyle",
 	"settingsTranslateStyleHint",
 	"settingsTranslateStyleNone",
+	"settingsTranslateSource",
+	"settingsTranslateSourceAI",
+	"settingsTranslateSourceHint",
 	"pluginsTaskNoAI",
 	"pluginsTaskOpenPlugins",
 	"settingsPluginsKindTask",
@@ -7059,6 +7085,9 @@ var textsEn = i18n.NewTexts(""+
 	"Style Preset"+
 	"Puts a plugin's style into the prompt below, where you can still edit it."+
 	"None"+
+	"Translation Source"+
+	"AI Service"+
+	"Proofreading and term suggestions still use the AI service, and are skipped when it is not set up."+
 	"Plugin tasks need an AI service. Choose a model in “AI Service” first."+
 	"Open Plugin Settings"+
 	"Learning Tasks"+
@@ -8822,6 +8851,9 @@ var textsEn = i18n.NewTexts(""+
 		12,
 		73,
 		4,
+		18,
+		10,
+		98,
 		74,
 		20,
 		14,
@@ -10588,6 +10620,9 @@ var textsJa = i18n.NewTexts(""+
 	"スタイルのプリセット"+
 	"プラグインのスタイルを下のプロンプトに入れます。入れた後も編集できます。"+
 	"使わない"+
+	"翻訳ソース"+
+	"AI サービス"+
+	"校正と用語の提案は引き続き AI サービスで行い、AI サービスが未設定なら行いません。"+
 	"プラグインのタスクには AI サービスが必要です。先に「AI サービス」でモデルを選んでください。"+
 	"プラグイン設定を開く"+
 	"学習タスク"+
@@ -12351,6 +12386,9 @@ var textsJa = i18n.NewTexts(""+
 		30,
 		108,
 		12,
+		15,
+		15,
+		118,
 		133,
 		30,
 		15,
@@ -14117,6 +14155,9 @@ var textsKo = i18n.NewTexts(""+
 	"스타일 프리셋"+
 	"플러그인의 스타일을 아래 프롬프트에 넣습니다. 넣은 뒤에도 고칠 수 있습니다."+
 	"사용 안 함"+
+	"번역 소스"+
+	"AI 서비스"+
+	"교정과 용어 제안은 계속 AI 서비스가 맡으며, AI 서비스를 설정하지 않으면 건너뜁니다."+
 	"플러그인 작업에는 AI 서비스가 필요합니다. 먼저 'AI 서비스'에서 모델을 선택하세요."+
 	"플러그인 설정 열기"+
 	"학습 작업"+
@@ -15880,6 +15921,9 @@ var textsKo = i18n.NewTexts(""+
 		19,
 		107,
 		14,
+		13,
+		12,
+		116,
 		113,
 		26,
 		13,
@@ -17646,6 +17690,9 @@ var textsZhHans = i18n.NewTexts(""+
 	"风格预设"+
 	"把插件提供的风格填进下面的提示词，填好后仍可修改。"+
 	"不用预设"+
+	"翻译来源"+
+	"AI 服务"+
+	"校对和术语建议仍用 AI 服务，没有设置 AI 服务时跳过。"+
 	"插件任务需要 AI 服务。请先在「AI 服务」里选择模型。"+
 	"打开插件设置"+
 	"学习任务"+
@@ -19409,6 +19456,9 @@ var textsZhHans = i18n.NewTexts(""+
 		12,
 		75,
 		12,
+		12,
+		9,
+		74,
 		73,
 		18,
 		12,
@@ -21175,6 +21225,9 @@ var textsZhHant = i18n.NewTexts(""+
 	"風格預設"+
 	"把外掛提供的風格填進下面的提示詞，填好後仍可修改。"+
 	"不用預設"+
+	"翻譯來源"+
+	"AI 服務"+
+	"校對和術語建議仍用 AI 服務，沒有設定 AI 服務時略過。"+
 	"外掛任務需要 AI 服務。請先在「AI 服務」裡選擇模型。"+
 	"打開外掛設定"+
 	"學習任務"+
@@ -22938,6 +22991,9 @@ var textsZhHant = i18n.NewTexts(""+
 		12,
 		75,
 		12,
+		12,
+		9,
+		74,
 		73,
 		18,
 		12,
@@ -24802,6 +24858,9 @@ func Supply(lang string, t Translation) {
 	if t.SettingsPluginsAddsAnnotator != nil {
 		s.SettingsPluginsAddsAnnotator = t.SettingsPluginsAddsAnnotator
 	}
+	if t.SettingsPluginsAddsTranslator != nil {
+		s.SettingsPluginsAddsTranslator = t.SettingsPluginsAddsTranslator
+	}
 	if t.SettingsPluginsCredentialHosts != nil {
 		s.SettingsPluginsCredentialHosts = t.SettingsPluginsCredentialHosts
 	}
@@ -24864,6 +24923,33 @@ func Supply(lang string, t Translation) {
 	}
 	if t.SavedExportedTemplate != nil {
 		s.SavedExportedTemplate = t.SavedExportedTemplate
+	}
+	if t.SettingsTranslateSourceGone != nil {
+		s.SettingsTranslateSourceGone = t.SettingsTranslateSourceGone
+	}
+	if t.PrecheckSourceQuota != nil {
+		s.PrecheckSourceQuota = t.PrecheckSourceQuota
+	}
+	if t.PrecheckSourceAuth != nil {
+		s.PrecheckSourceAuth = t.PrecheckSourceAuth
+	}
+	if t.PrecheckSourceNoCredential != nil {
+		s.PrecheckSourceNoCredential = t.PrecheckSourceNoCredential
+	}
+	if t.PrecheckSourceLanguage != nil {
+		s.PrecheckSourceLanguage = t.PrecheckSourceLanguage
+	}
+	if t.PrecheckSourceRateLimit != nil {
+		s.PrecheckSourceRateLimit = t.PrecheckSourceRateLimit
+	}
+	if t.PrecheckSourceUnavailable != nil {
+		s.PrecheckSourceUnavailable = t.PrecheckSourceUnavailable
+	}
+	if t.PrecheckSourceNotRunning != nil {
+		s.PrecheckSourceNotRunning = t.PrecheckSourceNotRunning
+	}
+	if t.PrecheckSourceBadReply != nil {
+		s.PrecheckSourceBadReply = t.PrecheckSourceBadReply
 	}
 	if t.PluginsTaskCommand != nil {
 		s.PluginsTaskCommand = t.PluginsTaskCommand
@@ -61389,6 +61475,38 @@ func (msgs Messages) SettingsPluginsAddsAnnotator(name string) string {
 	}
 }
 
+// SettingsPluginsAddsTranslator says "Translation source: {name}"
+// in the language the app shows under cx.
+//
+// What a script plugin adds: a source of machine translation that Settings › Translation offers in place of the AI service.
+func SettingsPluginsAddsTranslator(cx *core.Scope, name string) string {
+	return For(cx).SettingsPluginsAddsTranslator(name)
+}
+
+// SettingsPluginsAddsTranslator is the package's SettingsPluginsAddsTranslator in the language of msgs.
+func (msgs Messages) SettingsPluginsAddsTranslator(name string) string {
+	if i18n.IsPseudo(msgs.lang) {
+		return i18n.Pseudo(msgs.lang, Messages{lang: Source, mark: true}.SettingsPluginsAddsTranslator(name))
+	}
+	for lang := msgs.lang; ; lang = i18n.Parent(lang) {
+		if f := supplied[lang].SettingsPluginsAddsTranslator; f != nil {
+			return f(name)
+		}
+		switch lang {
+		case "", "en":
+			return "Translation source: " + msgs.arg(name)
+		case "ja":
+			return "翻訳ソース：" + name
+		case "ko":
+			return "번역 소스: " + name
+		case "zh-Hans":
+			return "翻译来源：" + name
+		case "zh-Hant":
+			return "翻譯來源：" + name
+		}
+	}
+}
+
 // SettingsPluginsCredentials says "Keys"
 // in the language the app shows under cx.
 //
@@ -62675,6 +62793,325 @@ func SettingsTranslateStyleNone(cx *core.Scope) string { return For(cx).Settings
 // SettingsTranslateStyleNone is the package's SettingsTranslateStyleNone in the language of msgs.
 func (msgs Messages) SettingsTranslateStyleNone() string {
 	return msgs.text(textSettingsTranslateStyleNone)
+}
+
+// SettingsTranslateSource says "Translation Source"
+// in the language the app shows under cx.
+//
+// Settings › Translation: label of the drop-down that chooses what translates the subtitles, the AI service or a plugin's machine translation.
+func SettingsTranslateSource(cx *core.Scope) string { return For(cx).SettingsTranslateSource() }
+
+// SettingsTranslateSource is the package's SettingsTranslateSource in the language of msgs.
+func (msgs Messages) SettingsTranslateSource() string { return msgs.text(textSettingsTranslateSource) }
+
+// SettingsTranslateSourceAI says "AI Service"
+// in the language the app shows under cx.
+//
+// Settings › Translation › Translation Source: the choice that translates with the AI service set in Settings › AI Service.
+func SettingsTranslateSourceAI(cx *core.Scope) string { return For(cx).SettingsTranslateSourceAI() }
+
+// SettingsTranslateSourceAI is the package's SettingsTranslateSourceAI in the language of msgs.
+func (msgs Messages) SettingsTranslateSourceAI() string {
+	return msgs.text(textSettingsTranslateSourceAI)
+}
+
+// SettingsTranslateSourceHint says "Proofreading and term suggestions still use the AI service, and are skipped when it is not set up."
+// in the language the app shows under cx.
+//
+// Settings › Translation: line under Translation Source while a plugin's machine translation is chosen.
+func SettingsTranslateSourceHint(cx *core.Scope) string { return For(cx).SettingsTranslateSourceHint() }
+
+// SettingsTranslateSourceHint is the package's SettingsTranslateSourceHint in the language of msgs.
+func (msgs Messages) SettingsTranslateSourceHint() string {
+	return msgs.text(textSettingsTranslateSourceHint)
+}
+
+// SettingsTranslateSourceGone says "Translation source {source} is no longer available, as its plugin was turned off or removed. Subtitles are translated with the AI service."
+// in the language the app shows under cx.
+//
+// Settings › Translation and the message bar: the plugin of the translation source chosen is off or gone, so Kando translates with the AI service again.
+func SettingsTranslateSourceGone(cx *core.Scope, source string) string {
+	return For(cx).SettingsTranslateSourceGone(source)
+}
+
+// SettingsTranslateSourceGone is the package's SettingsTranslateSourceGone in the language of msgs.
+func (msgs Messages) SettingsTranslateSourceGone(source string) string {
+	if i18n.IsPseudo(msgs.lang) {
+		return i18n.Pseudo(msgs.lang, Messages{lang: Source, mark: true}.SettingsTranslateSourceGone(source))
+	}
+	for lang := msgs.lang; ; lang = i18n.Parent(lang) {
+		if f := supplied[lang].SettingsTranslateSourceGone; f != nil {
+			return f(source)
+		}
+		switch lang {
+		case "", "en":
+			return "Translation source " + msgs.arg(source) + " is no longer available, as its plugin was turned off or removed. Subtitles are translated with the AI service."
+		case "ja":
+			return "翻訳ソース「" + source + "」は使えなくなりました（プラグインがオフになったか削除されました）。AI サービスで翻訳します。"
+		case "ko":
+			return "번역 소스 \"" + source + "\"를 더 이상 쓸 수 없습니다(플러그인이 꺼졌거나 삭제됨). AI 서비스로 번역합니다."
+		case "zh-Hans":
+			return "翻译来源「" + source + "」已不可用（它的插件被关闭或卸载了），改用 AI 服务翻译。"
+		case "zh-Hant":
+			return "翻譯來源「" + source + "」已無法使用（它的外掛被關閉或移除了），改用 AI 服務翻譯。"
+		}
+	}
+}
+
+// PrecheckSourceQuota says "Translation source {source} has used up its quota. Check your plan with the service, then retry."
+// in the language the app shows under cx.
+//
+// Card of a job whose plugin translation source said its quota is used up (DeepL's 456).
+func PrecheckSourceQuota(cx *core.Scope, source string) string {
+	return For(cx).PrecheckSourceQuota(source)
+}
+
+// PrecheckSourceQuota is the package's PrecheckSourceQuota in the language of msgs.
+func (msgs Messages) PrecheckSourceQuota(source string) string {
+	if i18n.IsPseudo(msgs.lang) {
+		return i18n.Pseudo(msgs.lang, Messages{lang: Source, mark: true}.PrecheckSourceQuota(source))
+	}
+	for lang := msgs.lang; ; lang = i18n.Parent(lang) {
+		if f := supplied[lang].PrecheckSourceQuota; f != nil {
+			return f(source)
+		}
+		switch lang {
+		case "", "en":
+			return "Translation source " + msgs.arg(source) + " has used up its quota. Check your plan with the service, then retry."
+		case "ja":
+			return "翻訳ソース「" + source + "」の利用枠を使い切りました。サービス側でプランを確認してから再試行してください。"
+		case "ko":
+			return "번역 소스 \"" + source + "\"의 사용량을 모두 썼습니다. 서비스에서 요금제를 확인한 후 다시 시도하십시오."
+		case "zh-Hans":
+			return "翻译来源「" + source + "」的额度用完了。到该服务查看你的套餐后再重试。"
+		case "zh-Hant":
+			return "翻譯來源「" + source + "」的額度用完了。到該服務查看你的方案後再重試。"
+		}
+	}
+}
+
+// PrecheckSourceAuth says "Translation source {source} doesn't accept the key. Check it in the plugin's details in “Plugins”."
+// in the language the app shows under cx.
+//
+// Card of a job whose plugin translation source refused its API key (DeepL's 403).
+func PrecheckSourceAuth(cx *core.Scope, source string) string {
+	return For(cx).PrecheckSourceAuth(source)
+}
+
+// PrecheckSourceAuth is the package's PrecheckSourceAuth in the language of msgs.
+func (msgs Messages) PrecheckSourceAuth(source string) string {
+	if i18n.IsPseudo(msgs.lang) {
+		return i18n.Pseudo(msgs.lang, Messages{lang: Source, mark: true}.PrecheckSourceAuth(source))
+	}
+	for lang := msgs.lang; ; lang = i18n.Parent(lang) {
+		if f := supplied[lang].PrecheckSourceAuth; f != nil {
+			return f(source)
+		}
+		switch lang {
+		case "", "en":
+			return "Translation source " + msgs.arg(source) + " doesn't accept the key. Check it in the plugin's details in “Plugins”."
+		case "ja":
+			return "翻訳ソース「" + source + "」がキーを受け付けません。「プラグイン」の詳細で確認してください。"
+		case "ko":
+			return "번역 소스 \"" + source + "\"가 키를 받아들이지 않습니다. ‘플러그인’의 세부 정보에서 확인하십시오."
+		case "zh-Hans":
+			return "翻译来源「" + source + "」不接受这个密钥，去「插件」里它的详情中检查一下。"
+		case "zh-Hant":
+			return "翻譯來源「" + source + "」不接受這個金鑰，去「外掛」中它的詳細資訊裡檢查一下。"
+		}
+	}
+}
+
+// PrecheckSourceNoCredential says "Translation source {source} has no key yet. Enter it in the plugin's details in “Plugins”."
+// in the language the app shows under cx.
+//
+// Card of a job whose plugin translation source has no API key entered.
+func PrecheckSourceNoCredential(cx *core.Scope, source string) string {
+	return For(cx).PrecheckSourceNoCredential(source)
+}
+
+// PrecheckSourceNoCredential is the package's PrecheckSourceNoCredential in the language of msgs.
+func (msgs Messages) PrecheckSourceNoCredential(source string) string {
+	if i18n.IsPseudo(msgs.lang) {
+		return i18n.Pseudo(msgs.lang, Messages{lang: Source, mark: true}.PrecheckSourceNoCredential(source))
+	}
+	for lang := msgs.lang; ; lang = i18n.Parent(lang) {
+		if f := supplied[lang].PrecheckSourceNoCredential; f != nil {
+			return f(source)
+		}
+		switch lang {
+		case "", "en":
+			return "Translation source " + msgs.arg(source) + " has no key yet. Enter it in the plugin's details in “Plugins”."
+		case "ja":
+			return "翻訳ソース「" + source + "」のキーがまだありません。「プラグイン」の詳細で入力してください。"
+		case "ko":
+			return "번역 소스 \"" + source + "\"에 아직 키가 없습니다. ‘플러그인’의 세부 정보에서 입력하십시오."
+		case "zh-Hans":
+			return "翻译来源「" + source + "」还没有密钥，去「插件」里它的详情中填写。"
+		case "zh-Hant":
+			return "翻譯來源「" + source + "」還沒有金鑰，去「外掛」中它的詳細資訊裡填寫。"
+		}
+	}
+}
+
+// PrecheckSourceLanguage says "Translation source {source} doesn't translate into this language. Choose another source or target language in “Translation”."
+// in the language the app shows under cx.
+//
+// Card of a job whose plugin translation source does not translate into the film's target language.
+func PrecheckSourceLanguage(cx *core.Scope, source string) string {
+	return For(cx).PrecheckSourceLanguage(source)
+}
+
+// PrecheckSourceLanguage is the package's PrecheckSourceLanguage in the language of msgs.
+func (msgs Messages) PrecheckSourceLanguage(source string) string {
+	if i18n.IsPseudo(msgs.lang) {
+		return i18n.Pseudo(msgs.lang, Messages{lang: Source, mark: true}.PrecheckSourceLanguage(source))
+	}
+	for lang := msgs.lang; ; lang = i18n.Parent(lang) {
+		if f := supplied[lang].PrecheckSourceLanguage; f != nil {
+			return f(source)
+		}
+		switch lang {
+		case "", "en":
+			return "Translation source " + msgs.arg(source) + " doesn't translate into this language. Choose another source or target language in “Translation”."
+		case "ja":
+			return "翻訳ソース「" + source + "」はこの言語に翻訳できません。「翻訳」で別のソースか翻訳先言語を選択してください。"
+		case "ko":
+			return "번역 소스 \"" + source + "\"는 이 언어로 번역할 수 없습니다. ‘번역’에서 다른 소스나 대상 언어를 선택하십시오."
+		case "zh-Hans":
+			return "翻译来源「" + source + "」不能译成这种语言。在「翻译」里换个来源或目标语言。"
+		case "zh-Hant":
+			return "翻譯來源「" + source + "」不能翻譯成這種語言。在「翻譯」中換個來源或目標語言。"
+		}
+	}
+}
+
+// PrecheckSourceRateLimit says "Translation source {source} asked to slow down. Retry in a few minutes."
+// in the language the app shows under cx.
+//
+// Card of a job whose plugin translation source answered with a rate limit (429).
+func PrecheckSourceRateLimit(cx *core.Scope, source string) string {
+	return For(cx).PrecheckSourceRateLimit(source)
+}
+
+// PrecheckSourceRateLimit is the package's PrecheckSourceRateLimit in the language of msgs.
+func (msgs Messages) PrecheckSourceRateLimit(source string) string {
+	if i18n.IsPseudo(msgs.lang) {
+		return i18n.Pseudo(msgs.lang, Messages{lang: Source, mark: true}.PrecheckSourceRateLimit(source))
+	}
+	for lang := msgs.lang; ; lang = i18n.Parent(lang) {
+		if f := supplied[lang].PrecheckSourceRateLimit; f != nil {
+			return f(source)
+		}
+		switch lang {
+		case "", "en":
+			return "Translation source " + msgs.arg(source) + " asked to slow down. Retry in a few minutes."
+		case "ja":
+			return "翻訳ソース「" + source + "」からリクエストを減らすよう求められました。数分後に再試行してください。"
+		case "ko":
+			return "번역 소스 \"" + source + "\"가 요청을 줄여 달라고 했습니다. 몇 분 후 다시 시도하십시오."
+		case "zh-Hans":
+			return "翻译来源「" + source + "」要求放慢请求。过几分钟再重试。"
+		case "zh-Hant":
+			return "翻譯來源「" + source + "」要求放慢請求。過幾分鐘再重試。"
+		}
+	}
+}
+
+// PrecheckSourceUnavailable says "Translation source {source} can't be reached right now. Retry later."
+// in the language the app shows under cx.
+//
+// Card of a job whose plugin translation source's service did not answer or had a server error.
+func PrecheckSourceUnavailable(cx *core.Scope, source string) string {
+	return For(cx).PrecheckSourceUnavailable(source)
+}
+
+// PrecheckSourceUnavailable is the package's PrecheckSourceUnavailable in the language of msgs.
+func (msgs Messages) PrecheckSourceUnavailable(source string) string {
+	if i18n.IsPseudo(msgs.lang) {
+		return i18n.Pseudo(msgs.lang, Messages{lang: Source, mark: true}.PrecheckSourceUnavailable(source))
+	}
+	for lang := msgs.lang; ; lang = i18n.Parent(lang) {
+		if f := supplied[lang].PrecheckSourceUnavailable; f != nil {
+			return f(source)
+		}
+		switch lang {
+		case "", "en":
+			return "Translation source " + msgs.arg(source) + " can't be reached right now. Retry later."
+		case "ja":
+			return "翻訳ソース「" + source + "」に今は接続できません。しばらくしてから再試行してください。"
+		case "ko":
+			return "번역 소스 \"" + source + "\"에 지금 연결할 수 없습니다. 나중에 다시 시도하십시오."
+		case "zh-Hans":
+			return "翻译来源「" + source + "」现在连不上。稍后再重试。"
+		case "zh-Hant":
+			return "翻譯來源「" + source + "」現在連不上。稍後再重試。"
+		}
+	}
+}
+
+// PrecheckSourceNotRunning says "Translation source {source} isn't running. Turn its plugin on in “Plugins”, then retry."
+// in the language the app shows under cx.
+//
+// Card of a job whose plugin translation source was not running (turned off, stopped by Kando, or still loading).
+func PrecheckSourceNotRunning(cx *core.Scope, source string) string {
+	return For(cx).PrecheckSourceNotRunning(source)
+}
+
+// PrecheckSourceNotRunning is the package's PrecheckSourceNotRunning in the language of msgs.
+func (msgs Messages) PrecheckSourceNotRunning(source string) string {
+	if i18n.IsPseudo(msgs.lang) {
+		return i18n.Pseudo(msgs.lang, Messages{lang: Source, mark: true}.PrecheckSourceNotRunning(source))
+	}
+	for lang := msgs.lang; ; lang = i18n.Parent(lang) {
+		if f := supplied[lang].PrecheckSourceNotRunning; f != nil {
+			return f(source)
+		}
+		switch lang {
+		case "", "en":
+			return "Translation source " + msgs.arg(source) + " isn't running. Turn its plugin on in “Plugins”, then retry."
+		case "ja":
+			return "翻訳ソース「" + source + "」が実行されていません。「プラグイン」でプラグインをオンにしてから再試行してください。"
+		case "ko":
+			return "번역 소스 \"" + source + "\"가 실행 중이 아닙니다. ‘플러그인’에서 플러그인을 켠 후 다시 시도하십시오."
+		case "zh-Hans":
+			return "翻译来源「" + source + "」没有在运行。去「插件」里打开它的插件后再重试。"
+		case "zh-Hant":
+			return "翻譯來源「" + source + "」沒有在執行。去「外掛」中開啟它的外掛後再重試。"
+		}
+	}
+}
+
+// PrecheckSourceBadReply says "Translation source {source} answered with lines that don't match the ones it was sent."
+// in the language the app shows under cx.
+//
+// Card of a job whose plugin translation source answered with a different number of lines, or something that is not lines.
+func PrecheckSourceBadReply(cx *core.Scope, source string) string {
+	return For(cx).PrecheckSourceBadReply(source)
+}
+
+// PrecheckSourceBadReply is the package's PrecheckSourceBadReply in the language of msgs.
+func (msgs Messages) PrecheckSourceBadReply(source string) string {
+	if i18n.IsPseudo(msgs.lang) {
+		return i18n.Pseudo(msgs.lang, Messages{lang: Source, mark: true}.PrecheckSourceBadReply(source))
+	}
+	for lang := msgs.lang; ; lang = i18n.Parent(lang) {
+		if f := supplied[lang].PrecheckSourceBadReply; f != nil {
+			return f(source)
+		}
+		switch lang {
+		case "", "en":
+			return "Translation source " + msgs.arg(source) + " answered with lines that don't match the ones it was sent."
+		case "ja":
+			return "翻訳ソース「" + source + "」が返した行が、送った行と一致しません。"
+		case "ko":
+			return "번역 소스 \"" + source + "\"가 보낸 줄과 맞지 않는 줄을 돌려주었습니다."
+		case "zh-Hans":
+			return "翻译来源「" + source + "」返回的句子和发给它的对不上。"
+		case "zh-Hant":
+			return "翻譯來源「" + source + "」傳回的句子和送給它的對不上。"
+		}
+	}
 }
 
 // PluginsTaskCommand says "Plugin Task: {name}"

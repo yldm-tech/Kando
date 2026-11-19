@@ -17,10 +17,11 @@ import (
 // MinContextLines is the fewest earlier lines the 翻译 page lets go with a batch while context is on; turning context off sends none.
 const MinContextLines = 10
 
-// translate is the 翻译 page: the language subtitles are translated into, whether each batch takes the sentences before it, the final proofread and which of its changes apply by themselves, and the prompt, with styles, the 风格预设 row the window is given (Styles), over it when it is. The prototype's page starts 6 points lower than one that opens with a section label.
+// translate is the 翻译 page: what translates the subtitles, with sources, the 翻译来源 row the window is given (Sources), at the top of its first card when it is, the language subtitles are translated into, whether each batch takes the sentences before it, the final proofread and which of its changes apply by themselves, and the prompt, with styles, the 风格预设 row the window is given (Styles), over it when it is. The prototype's page starts 6 points lower than one that opens with a section label.
 type translate struct {
-	s      screen
-	styles core.Node
+	s       screen
+	styles  core.Node
+	sources core.Node
 }
 
 // Render implements core.Node.
@@ -64,7 +65,7 @@ func (p translate) Render(cx *core.Scope) core.Node {
 			*a.SuggestTerms() = on
 			a.Save()
 		})}
-	card := form.Card(form.Row{Title: locales.SettingsTranslateTarget(cx), NoGroup: true, Trailing: []core.Node{target}}, form.Separator(true), context,
+	card := form.Card(p.sourcesRow(), form.Row{Title: locales.SettingsTranslateTarget(cx), NoGroup: true, Trailing: []core.Node{target}}, form.Separator(true), context,
 		form.Separator(true), form.Row{Title: locales.SettingsTranslateContextLines(cx), Subtitle: locales.SettingsTranslateContextLinesHint(cx), Trailing: []core.Node{lines}},
 		form.Separator(true), suggest)
 	card.Style.Margin = core.Edges{Top: 6}
@@ -121,6 +122,14 @@ func (p translate) Render(cx *core.Scope) core.Node {
 		p.promptCard(editor),
 		form.Note(static(locales.SettingsTranslatePromptNote(cx)), 0),
 	)
+}
+
+// sourcesRow is the 翻译来源 row with its separator under it, which the window gives the page (Sources), or nothing when it gives none.
+func (p translate) sourcesRow() core.Node {
+	if p.sources == nil {
+		return core.Group{}
+	}
+	return p.sources
 }
 
 // promptCard is the card of the prompt editor, with the 风格预设 row over it when the window was given one.

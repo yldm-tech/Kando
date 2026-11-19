@@ -1,0 +1,37 @@
+{
+  "schema": 2,
+  "id": "kando.deepl",
+  "kind": "script",
+  "version": "1.0.0",
+  "license": "FSL-1.1-ALv2",
+  "author": "Kando",
+  "homepage": "https://www.deepl.com/pro-api",
+  "name": {"en": "DeepL", "zh-Hans": "DeepL 翻译", "zh-Hant": "DeepL 翻譯", "ja": "DeepL 翻訳", "ko": "DeepL 번역"},
+  "description": {
+    "en": "Translates the subtitles with the DeepL API, using your own API key (Free or Pro).",
+    "zh-Hans": "用你自己的 DeepL API 密钥（免费版或专业版）翻译字幕。",
+    "zh-Hant": "用你自己的 DeepL API 金鑰（免費版或專業版）翻譯字幕。",
+    "ja": "あなたの DeepL API キー（Free または Pro）で字幕を翻訳します。",
+    "ko": "본인의 DeepL API 키(Free 또는 Pro)로 자막을 번역합니다."
+  },
+  "capabilities": {"host": ["kando.net.credentialFetch"]},
+  "contributes": {
+    "translators": [{
+      "id": "deepl",
+      "title": {"en": "DeepL"},
+      "languages": {
+        "from": ["ar", "bg", "cs", "da", "de", "el", "en", "es", "et", "fi", "fr", "hu", "id", "it", "ja", "ko", "lt", "lv", "nb", "nl", "pl", "pt", "ro", "ru", "sk", "sl", "sv", "tr", "uk", "zh"],
+        "to": ["ar", "bg", "cs", "da", "de", "el", "en", "en-GB", "en-US", "es", "et", "fi", "fr", "hu", "id", "it", "ja", "ko", "lt", "lv", "nb", "nl", "pl", "pt", "pt-BR", "pt-PT", "ro", "ru", "sk", "sl", "sv", "tr", "uk", "zh", "zh-Hans", "zh-Hant"]
+      }
+    }]
+  },
+  "credentials": [{
+    "id": "deepl",
+    "title": {"en": "DeepL API key", "zh-Hans": "DeepL API 密钥", "zh-Hant": "DeepL API 金鑰", "ja": "DeepL API キー", "ko": "DeepL API 키"},
+    "header": "Authorization",
+    "format": "DeepL-Auth-Key {secret}",
+    "hosts": ["api-free.deepl.com", "api.deepl.com"],
+    "methods": ["POST"],
+    "pathPrefixes": ["/v2/translate", "/v2/usage"]
+  }]
+}

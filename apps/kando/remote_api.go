@@ -788,7 +788,7 @@ func (a *app) remoteTranslate(ctx context.Context, id string) (remote.Job, error
 func (a *app) remoteNoTranslator(m locales.Messages) string {
 	tools, ok := a.pipeline.(media.Tools)
 	switch {
-	case !ok:
+	case !ok, a.pluginsTranslating():
 		return ""
 	case strings.TrimSpace(tools.Translator.Model) == "":
 		return m.PrecheckNoLLMModel()

@@ -964,7 +964,8 @@ func (a *app) queuePipeline(job core.Job) media.Pipeline {
 	if job.LibraryDir != "" {
 		tools.OutputDir = job.LibraryDir
 	}
-	return tools
+	// A script plugin's translator chosen in Settings › 翻译 translates the film in place of the AI service (state_plugins_translate.go).
+	return a.pluginsTranslateTools(tools, job.SpokenLanguage)
 }
 
 // finished clears the job that just returned from the pipeline, remembers that the queue ran it (jobQueue.ran), says in the message bar how a job of another library ended (queueEndedElsewhere), and starts the next one, letting the computer sleep again when there is none.

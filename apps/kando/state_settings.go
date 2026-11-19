@@ -34,6 +34,9 @@ type settingsUI struct {
 	reviewAuto kcore.ProofAuto
 	// suggestTerms is whether a job asks the AI service for the terms of the film it translated, for its glossary (media.WithTermSuggestions).
 	suggestTerms bool
+	// translateSource is the translation source chosen in Settings › 翻译, a script plugin's translator, zero for the AI service (state_plugins_translate.go); sourceGoneSaid is set once the message bar said it is gone, so it says so once a run.
+	translateSource savedTranslateSource
+	sourceGoneSaid  bool
 	// shortcutPreset is the preset of Settings › 快捷键 the player's keys follow, one of hotkey.Presets.
 	shortcutPreset string
 	// appearance is the one the windows show: settings.AppearanceLight or AppearanceDark, or "" to follow the system's.
@@ -166,6 +169,8 @@ type savedTranslate struct {
 	ReviewAuto string `json:"reviewAuto,omitempty"`
 	// SuggestTerms is whether a job asks for the terms of the film it translated, nil for on.
 	SuggestTerms *bool `json:"suggestTerms,omitempty"`
+	// TranslateSource is the script plugin's translator that translates the films in place of the AI service, nil for the AI service (state_plugins_translate.go).
+	TranslateSource *savedTranslateSource `json:"translateSource,omitempty"`
 }
 
 func (s *savedTranslate) clean() {
@@ -176,6 +181,9 @@ func (s *savedTranslate) clean() {
 	}
 	if s.TranslateContextLines != 0 {
 		s.TranslateContextLines = min(max(s.TranslateContextLines, settings.MinContextLines), media.MaxContextLines)
+	}
+	if s.TranslateSource != nil && !s.TranslateSource.valid() {
+		s.TranslateSource = nil
 	}
 }
 
@@ -201,6 +209,9 @@ func (a *app) saveTranslate(saved *savedSettings) {
 	if lines := a.prefs.translateContextLines; lines != media.DefaultContextLines {
 		saved.TranslateContextLines = lines
 	}
+	if source := a.prefs.translateSource; source.Plugin != "" {
+		saved.TranslateSource = &source
+	}
 }
 
 func (a *app) restoreTranslate(saved savedSettings) {
@@ -221,9 +232,12 @@ func (a *app) restoreTranslate(saved savedSettings) {
 		a.prefs.suggestTerms = *saved.SuggestTerms
 	}
 	a.prefs.reviewAuto = kcore.CleanProofAuto(kcore.ProofAuto(saved.ReviewAuto))
+	if saved.TranslateSource != nil {
+		a.prefs.translateSource = *saved.TranslateSource
+	}
 }
 
-// settingsHooks: the settings window saves the speech model, the AI service and the translation, shows the interface in its saved language and appearance once the main window exists, looks for the whisper models on disk again when the tools change, and after every change opens for a settings page chosen in the main sidebar, gives back the trash confirmation's modal flag once it closed and fetches the AI service's models when its settings changed.
+// settingsHooks: the settings window saves the speech model, the AI service and the translation, shows the interface in its saved language and appearance once the main window exists, looks for the whisper models on disk again when the tools change, and after every change opens for a settings page chosen in the main sidebar, gives back the trash confirmation's modal flag once it closed, fetches the AI service's models when its settings changed and says once a run that the translation source chosen is gone (pluginsTranslateFollow).
 func (a *app) settingsHooks() areaHooks {
 	return areaHooks{
 		save: func(saved *savedSettings) {
@@ -254,7 +268,8 @@ func (a *app) settingsHooks() areaHooks {
 			page := a.followSettingsPage()
 			modals := a.speechModals()
 			models := a.loadLLMModels()
-			return page || modals || models
+			source := a.pluginsTranslateFollow()
+			return page || modals || models || source
 		},
 	}
 }
@@ -298,7 +313,7 @@ func (a *app) settingsView(cx *core.Scope) core.Node {
 
 // settingsWindow is the settings, with the 账号与上传 page of package account, the 插件 page, which reads the plugins' state (bind_plugins.go), 字幕外观's 逐词标注 card, which reads how the lines are marked (state_plugins_marks.go), and 翻译's 风格预设 row, which reads the translate-style packs (state_plugins_styles.go), in the settings window or over the main window. closeButton is the settings window's own close button where the system draws none, nil over the main window, whose dialog closes as dialogs do.
 func (a *app) settingsWindow(closeButton core.Node) core.Node {
-	return settings.Window{App: a, Version: appVersion, Account: account.View{App: a}, Plugins: settings.Plugins{App: a}, Marks: settings.Marks{App: a}, Styles: settings.Styles{App: a}, Close: closeButton}
+	return settings.Window{App: a, Version: appVersion, Account: account.View{App: a}, Plugins: settings.Plugins{App: a}, Marks: settings.Marks{App: a}, Styles: settings.Styles{App: a}, Sources: settings.Sources{App: a}, Close: closeButton}
 }
 
 // showSettingsWindow brings the settings window to the front, opening it the first time. It opens from a post under the app's scope, which owns it, rather than under the handler that asked, whose part of the window may go first, as the sidebar's gear goes when a film fills the window. Where the platform opens no windows of the app's, the settings show over the main window instead (settingsOverlay). Without the app's scope, as in tests that start no app, there is nothing to open.

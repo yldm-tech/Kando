@@ -65,7 +65,7 @@ type PluginScriptsApp interface {
 	ShowPluginAudit()
 }
 
-// PluginAdds is what the script plugin m adds besides its commands, a line each, in the words of msgs: its lookup sources, subtitle formats, export targets and annotators, each by its label.
+// PluginAdds is what the script plugin m adds besides its commands, a line each, in the words of msgs: its lookup sources, subtitle formats, export targets and annotators, each by its label, and its translation sources, each by its title.
 func PluginAdds(msgs locales.Messages, m plugins.Manifest) []string {
 	c := m.Contributes
 	if c == nil {
@@ -84,6 +84,9 @@ func PluginAdds(msgs locales.Messages, m plugins.Manifest) []string {
 	}
 	for _, x := range c.Annotators {
 		out = append(out, msgs.SettingsPluginsAddsAnnotator(x.Label.In(lang)))
+	}
+	for _, x := range c.Translators {
+		out = append(out, msgs.SettingsPluginsAddsTranslator(x.Title.In(lang)))
 	}
 	return out
 }
