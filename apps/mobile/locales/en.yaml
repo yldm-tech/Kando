@@ -825,6 +825,37 @@ jobsRelayed:
 jobsViaStorage:
   message: "Via storage"
   description: "Jobs page, a computer's card: it answers through the user's storage, away from its network."
+jobsStorageLapsed:
+  message: "The links to your storage have expired. Connect to {name}'s network once to renew them."
+  description: "Jobs page, a computer's card away from its network: the user's storage refused the phone's links because they are past their expiry; the computer hands new ones on its network."
+  placeholders:
+    name: { type: "String", example: "Studio" }
+jobsStorageKeys:
+  message: "Your storage no longer accepts {name}'s key. Check Account & Upload on {name}, then connect to its network once."
+  description: "Jobs page, a computer's card away from its network: the user's storage refused the links signed with the computer's storage key, which was changed or deleted. Account & Upload is the computer's settings section of that name."
+  placeholders:
+    name: { type: "String", example: "Studio" }
+jobsStorageDenied:
+  message: "{name}'s key can't reach the bucket. Check Account & Upload on {name}, then connect to its network once."
+  description: "Jobs page, a computer's card away from its network: the user's storage refused the computer's key access to the bucket. Account & Upload is the computer's settings section of that name."
+  placeholders:
+    name: { type: "String", example: "Studio" }
+jobsStorageNoBucket:
+  message: "The bucket in your storage is gone. Check Account & Upload on {name}, then connect to its network once."
+  description: "Jobs page, a computer's card away from its network: the bucket the computer set up for phones no longer exists. Account & Upload is the computer's settings section of that name."
+  placeholders:
+    name: { type: "String", example: "Studio" }
+jobsStorageFull:
+  message: "Your storage is full. Free up space in it so links can reach {name}."
+  description: "Jobs page, a computer's card away from its network: the user's storage takes nothing more."
+  placeholders:
+    name: { type: "String", example: "Studio" }
+jobsStorageUnreachable:
+  message: "Couldn't connect to your storage. Check the network."
+  description: "Jobs page, a computer's card away from its network: the phone could not connect to the user's storage, as with no network."
+jobsStorageFailed:
+  message: "Your storage didn't answer properly. The phone tries again shortly."
+  description: "Jobs page, a computer's card away from its network: the user's storage answered with another error, as a server error."
 jobsOlder:
   message: "Kando on this computer is too old to take links. Update it."
   description: "Jobs page: the computer speaks an older protocol."

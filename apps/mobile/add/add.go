@@ -135,6 +135,9 @@ func Sheet(cx *core.Scope, s *session.Session, open func() bool, close func(), s
 					return locales.JobsReadOnly(cx, desktopName())
 				case !Takes(q):
 					return locales.AddNoLinks(cx, desktopName())
+				case q.Relayed && q.Storage != sync.RelayNoFailure:
+					// The storage fails the phone: the link waits on it.
+					return locales.AddNoteOffline(cx, desktopName())
 				case q.Reach == session.Online && q.Relayed:
 					return locales.AddNoteRelay(cx, desktopName())
 				case q.Reach == session.Online:

@@ -133,9 +133,12 @@ func computerCard(cx *core.Scope, s *session.Session, desktop string) core.Node 
 		}}
 }
 
-// summary is what a computer's queue is doing, as its card says it, and that it is reached through the user's storage when it is.
+// summary is what a computer's queue is doing, as its card says it, and that it is reached through the user's storage when it is, or why that storage failed the phone.
 func summary(cx *core.Scope, s *session.Session, desktop string) string {
 	q := s.Queue(desktop)
+	if q.Relayed && q.Storage != sync.RelayNoFailure && q.Reach != session.Revoked {
+		return StorageFailure(cx, q.Storage, name(s, desktop))
+	}
 	switch q.Reach {
 	case session.Reaching:
 		return locales.JobsConnecting(cx)
@@ -153,6 +156,27 @@ func summary(cx *core.Scope, s *session.Session, desktop string) string {
 		return locales.JobsRelayed(cx, queueSummary(cx, q))
 	}
 	return queueSummary(cx, q)
+}
+
+// StorageFailure is why the user's storage failed the phone as it follows desktop, the computer's name, through it (sync.RelayFailure), in the words the computer's Phone Sync page uses for the same failure; "" for none.
+func StorageFailure(cx *core.Scope, f sync.RelayFailure, desktop string) string {
+	switch f {
+	case sync.RelayLapsed:
+		return locales.JobsStorageLapsed(cx, desktop)
+	case sync.RelayKeys:
+		return locales.JobsStorageKeys(cx, desktop)
+	case sync.RelayDenied:
+		return locales.JobsStorageDenied(cx, desktop)
+	case sync.RelayNoBucket:
+		return locales.JobsStorageNoBucket(cx, desktop)
+	case sync.RelayFull:
+		return locales.JobsStorageFull(cx, desktop)
+	case sync.RelayUnreachable:
+		return locales.JobsStorageUnreachable(cx)
+	case sync.RelayFailed:
+		return locales.JobsStorageFailed(cx)
+	}
+	return ""
 }
 
 // queueSummary is what a computer's queue is doing: how many jobs run or wait, and how many failed.

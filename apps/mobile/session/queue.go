@@ -48,6 +48,8 @@ type Queue struct {
 	Seen time.Time
 	// Relayed is a computer the phone last heard of through the user's storage, away from its network (relay.go): Online while the state.json it writes there is fresh, Offline once it is sync.RelayStale old. Its jobs are as that file last said, and the links and actions sent to it are left in the storage, where it answers them within a minute or two while it runs.
 	Relayed bool
+	// Storage is why the user's storage last failed the phone while it follows the computer there: it refused the links, as once they lapsed or the computer's key changed, the bucket is gone or full, or the phone could not connect to it; sync.RelayNoFailure while it serves the phone.
+	Storage sync.RelayFailure
 }
 
 // Can reports whether the computer answers op for this phone: none that changes something (sync.Mutates) while it made the phone read-only.
@@ -89,9 +91,10 @@ type remote struct {
 	// linksMu orders the saves of the links as prefsMu does the preferences'.
 	linksMu                 gosync.Mutex
 	linksSaving, linksSaved uint64
-	// relays are the computers' storage relays, by ID, and relayCalls the calls left in them whose replies the session waits for, by call ID (relay.go).
-	relays     map[string]*relayLink
-	relayCalls map[string]relayCall
+	// relays are the computers' storage relays, by ID, and relayCalls the calls left in them whose replies the session waits for, by call ID (relay.go); relayStudies what the phone follows there of each computer's learning state and settings (relay_study.go).
+	relays       map[string]*relayLink
+	relayCalls   map[string]relayCall
+	relayStudies map[string]*relayStudy
 }
 
 // follower is the goroutine following a computer's queue.
@@ -124,7 +127,8 @@ func newRemote(cx *core.Scope) *remote {
 		sending: map[string]bool{},
 		relays:  map[string]*relayLink{},
 		// The calls left in the computers' storage (relay.go).
-		relayCalls: map[string]relayCall{},
+		relayCalls:   map[string]relayCall{},
+		relayStudies: map[string]*relayStudy{},
 	}
 }
 
@@ -428,11 +432,16 @@ func (s *Session) followQueue(ctx context.Context, id, device string, c *sync.Cl
 			continue
 		}
 		post(func() {
+			was := s.remote.queues.GetUntracked()[id].Relayed
 			s.setQueue(id, func(Queue) Queue {
 				return Queue{Reach: Online, Ops: hello.Ops, Options: hello.Options, Receive: hello.Receive, ReadOnly: hello.ReadOnly, Jobs: list.Jobs, Seen: s.cfg.Now()}
 			})
 			s.relayLanded(id)
 			s.sendWaiting(id)
+			if was {
+				// Back on the computer's network, the learning state and the settings left for the storage go directly.
+				s.SyncLearning()
+			}
 		})
 		if !slices.Contains(hello.Ops, sync.OpEvents) {
 			// A computer that tells no events is listed again from time to time.

@@ -217,7 +217,7 @@ type studyPut struct {
 	rejected bool
 }
 
-// syncStudy sends library lib of desktop's pending changes and takes in the desktop's since the revision the phone has, on a goroutine of its own, one sync of a library at a time. The changes go in puts the desktop takes (study.Batches); a put it refuses for good, as one with a change of a film it no longer serves, is put again a change at a time, so only the changes it refuses are dropped. A desktop out of reach leaves the changes not taken pending for the next sync, and so does a phone the desktop's user made read-only, which still takes the desktop's changes in.
+// syncStudy sends library lib of desktop's pending changes and takes in the desktop's since the revision the phone has, on a goroutine of its own, one sync of a library at a time. The changes go in puts the desktop takes (study.Batches); a put it refuses for good, as one with a change of a film it no longer serves, is put again a change at a time, so only the changes it refuses are dropped. A desktop out of reach leaves the changes not taken pending for the next sync, and so does a phone the desktop's user made read-only, which still takes the desktop's changes in. Away from the desktop's network, the sync goes through its storage (relay_study.go), and ends once the desktop answered there.
 func (s *Session) syncStudy(desktop, lib string) { s.syncStudyThen(desktop, lib, nil) }
 
 // syncLibrary syncs library lib of desktop as syncStudy does, and calls done on the engine's goroutine once the sync is done, with the error it ended with. A library the phone keeps nothing of yet starts empty: the session has read every one it kept before it syncs them all (learn.ready).
@@ -265,40 +265,54 @@ func (s *Session) syncStudyThen(desktop, lib string, done func(error)) {
 		l = study.Sending(l, sent)
 		s.setStudy(desktop, lib, l)
 	}
+	if s.relayed(desktop) {
+		// Away from the computer's network, through its storage (relay_study.go).
+		s.relayStudyRun(desktop, lib, l, sent, func(puts []studyPut, ch *sync.StateChanges, err error) {
+			s.studyFinish(desktop, lib, run, puts, ch, err)
+		})
+		return
+	}
 	s.work.Go(func() {
 		ctx, cancel := context.WithTimeout(s.ctx, studyTimeout)
 		defer cancel()
 		puts, err := putStudy(ctx, c, lib, sent)
-		var ch sync.StateChanges
+		var ch *sync.StateChanges
 		if err == nil {
-			ch, err = c.State(ctx, lib, l.Epoch, l.Rev)
+			var got sync.StateChanges
+			if got, err = c.State(ctx, lib, l.Epoch, l.Rev); err == nil {
+				ch = &got
+			}
 		}
-		s.cx.Post(func() {
-			delete(s.studyRuns, k)
-			cur, kept := s.studies.GetUntracked()[k]
-			changed := false
-			for _, p := range puts {
-				cur, changed = study.Took(cur, p.sent, p.res, p.rejected), true
-			}
-			if err == nil {
-				cur, changed = study.Apply(cur, ch), true
-			}
-			// A library forgotten meanwhile, as its desktop unpaired, stays forgotten.
-			if changed && kept {
-				s.setStudy(desktop, lib, cur)
-			}
-			if run.again {
-				s.syncStudyThen(desktop, lib, nil)
-				if next, ok := s.studyRuns[k]; ok {
-					next.done = append(next.done, run.done...)
-					return
-				}
-			}
-			for _, done := range run.done {
-				done(err)
-			}
-		})
+		s.cx.Post(func() { s.studyFinish(desktop, lib, run, puts, ch, err) })
 	})
+}
+
+// studyFinish ends run, a sync of library lib of desktop, on the engine's goroutine with what the computer answered: the puts it took or refused, and its changes since the revision the phone had, nil when it did not tell them, then runs the sync asked for meanwhile, or tells those waiting for the sync err, the error it ended with.
+func (s *Session) studyFinish(desktop, lib string, run *studyRun, puts []studyPut, ch *sync.StateChanges, err error) {
+	k := studyKey(desktop, lib)
+	delete(s.studyRuns, k)
+	cur, kept := s.studies.GetUntracked()[k]
+	changed := false
+	for _, p := range puts {
+		cur, changed = study.Took(cur, p.sent, p.res, p.rejected), true
+	}
+	if ch != nil {
+		cur, changed = study.Apply(cur, *ch), true
+	}
+	// A library forgotten meanwhile, as its desktop unpaired, stays forgotten.
+	if changed && kept {
+		s.setStudy(desktop, lib, cur)
+	}
+	if run.again {
+		s.syncStudyThen(desktop, lib, nil)
+		if next, ok := s.studyRuns[k]; ok {
+			next.done = append(next.done, run.done...)
+			return
+		}
+	}
+	for _, done := range run.done {
+		done(err)
+	}
 }
 
 // dropStudy forgets library lib of desktop's learning state, in the session at once and on disk after the saves of it handed before.

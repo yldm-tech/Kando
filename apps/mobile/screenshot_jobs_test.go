@@ -1,6 +1,7 @@
 package main
 
 import (
+	"net/http"
 	"testing"
 
 	"kando/apps/mobile/store"
@@ -35,11 +36,12 @@ func TestScreenshotsJobs(t *testing.T) {
 	shot(p, "jobs-add")
 }
 
-// TestScreenshotsJobsAway renders the Jobs page away from the computer's network, following its queue through the storage relay (jobs-relay), with a link left in the storage that the computer, gone to sleep, has not taken yet (jobs-relay-off).
+// TestScreenshotsJobsAway renders the Jobs page away from the computer's network, following its queue through the storage relay (jobs-relay), with a link left in the storage that the computer, gone to sleep, has not taken yet (jobs-relay-off), and once the storage no longer takes the computer's key (jobs-relay-storage).
 func TestScreenshotsJobsAway(t *testing.T) {
 	shot := screenshots(t)
 	d := newDesktop(t)
-	d.StartRelay(t, synctest.NewBucket(t, now), now, relayTurn)
+	bucket := synctest.NewBucket(t, now)
+	d.StartRelay(t, bucket, now, relayTurn)
 	moved(d, "job1", "https://youtu.be/dQw4w9WgXcQ", sync.JobRunning, 1, 0.64)
 	dir := t.TempDir()
 	p := startPhone(t, dir, pairedWith(t, d, dir))
@@ -56,4 +58,7 @@ func TestScreenshotsJobsAway(t *testing.T) {
 	p.app.Press("id:add-send")
 	p.app.WaitUntil(wait, func() bool { links, _ := store.Open(dir).Links(); return len(links) == 1 && links[0].Relayed })
 	shot(p, "jobs-relay-off")
+	bucket.Refuse(http.StatusForbidden, "SignatureDoesNotMatch")
+	p.app.WaitUntil(wait, func() bool { return p.texts("id:jobs-summary-"+id) == msgs.JobsStorageKeys("Studio") })
+	shot(p, "jobs-relay-storage")
 }

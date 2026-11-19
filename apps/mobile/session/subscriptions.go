@@ -13,7 +13,7 @@ import (
 	"github.com/nsgo-dev/nsgo/core"
 )
 
-// The computers' subscriptions over protocol v2 (kando/packages/sync, subscriptions.go): the session reads each paired computer's as it reads its shelf (RefreshDesktop), so the Library lists them, and turns a subscription's auto-download on or off, sends its waiting videos to the queue, unsubscribes and subscribes to a list link through the computer, each answered with the subscription as it is after. The checks stay the computer's; what they found shows at the next read.
+// The computers' subscriptions over protocol v2 (kando/packages/sync, subscriptions.go): the session reads each paired computer's as it reads its shelf (RefreshDesktop), so the Library lists them, and turns a subscription's auto-download on or off, sends its waiting videos to the queue, unsubscribes and subscribes to a list link through the computer, each answered with the subscription as it is after. The checks stay the computer's; what they found shows at the next read. Away from the computer's network the reads and the actions go through its storage (relay.go), where the computer answers them within a minute or two, and the list is read there as the phone begins following it there.
 
 // Subscription is a paired computer's subscription.
 type Subscription struct {
@@ -31,15 +31,21 @@ type subscriptions struct {
 	// busy are the subscriptions an action is under way for, by Key, and the computers subscribing to a link, by subscribingKey.
 	busy *core.Signal[map[string]bool]
 	// reads are the reads under way, by computer, each told from a later one by its generation.
-	reads map[string]listing
+	reads map[string]subsRead
 	gen   uint64
+}
+
+// subsRead is a read of a computer's subscriptions under way, relayed when it waits in the computer's storage.
+type subsRead struct {
+	listing
+	relayed bool
 }
 
 func newSubscriptions(cx *core.Scope) *subscriptions {
 	return &subscriptions{
 		lists: core.NewSignalFunc(cx, map[string][]sync.Subscription{}, nil),
 		busy:  core.NewSignalFunc(cx, map[string]bool{}, nil),
-		reads: map[string]listing{},
+		reads: map[string]subsRead{},
 	}
 }
 
@@ -82,29 +88,44 @@ func (s *Session) readSubscriptions(id string) {
 	if c == nil {
 		return
 	}
+	relayed := s.relayed(id)
 	if r, running := s.subs.reads[id]; running {
+		if relayed && r.relayed {
+			// One read waits in the storage already, and answers what it lists then.
+			return
+		}
 		r.cancel()
 	}
 	s.subs.gen++
 	gen := s.subs.gen
+	answered := func(got sync.SubscriptionList, err error) {
+		if cur, ok := s.subs.reads[id]; !ok || cur.gen != gen {
+			return
+		}
+		delete(s.subs.reads, id)
+		var e *sync.Error
+		switch {
+		case err == nil:
+			s.setSubscriptions(id, got.Subscriptions)
+		case errors.As(err, &e) && (e.Code == sync.CodeUnsupported || e.Status == http.StatusNotFound):
+			s.setSubscriptions(id, nil)
+		}
+	}
+	if relayed {
+		// Through the storage, from a computer that lists them there: an older one keeps what it listed on its network.
+		if !slices.Contains(s.remote.queues.GetUntracked()[id].Ops, sync.OpSubscriptions) {
+			return
+		}
+		s.subs.reads[id] = subsRead{listing: listing{cancel: func() {}, gen: gen}, relayed: true}
+		relayCallResult(s, id, sync.OpSubscriptions, nil, answered)
+		return
+	}
 	ctx, cancel := context.WithTimeout(s.ctx, listFor)
-	s.subs.reads[id] = listing{cancel: cancel, gen: gen}
+	s.subs.reads[id] = subsRead{listing: listing{cancel: cancel, gen: gen}}
 	s.work.Go(func() {
 		defer cancel()
 		got, err := c.Subscriptions(ctx)
-		s.cx.Post(func() {
-			if cur, ok := s.subs.reads[id]; !ok || cur.gen != gen {
-				return
-			}
-			delete(s.subs.reads, id)
-			var e *sync.Error
-			switch {
-			case err == nil:
-				s.setSubscriptions(id, got.Subscriptions)
-			case errors.As(err, &e) && (e.Code == sync.CodeUnsupported || e.Status == http.StatusNotFound):
-				s.setSubscriptions(id, nil)
-			}
-		})
+		s.cx.Post(func() { answered(got, err) })
 	})
 }
 
@@ -148,35 +169,47 @@ func (s *Session) setSubscriptionBusy(key string, on bool) {
 	s.subs.busy.Set(m)
 }
 
-// actOnSubscription runs call on sub's computer, off the engine's goroutine, while sub is busy: the subscription it answers takes sub's place, and an error is told as a queue's action that failed (QueueEvents.Failed), after which a computer that answered is read again. A subscription the computer no longer has leaves the list.
-func (s *Session) actOnSubscription(sub Subscription, call func(ctx context.Context, c *sync.Client) (sync.Subscription, error)) {
+// actOnSubscription runs op with args on sub's computer, off the engine's goroutine, while sub is busy: the subscription it answers takes sub's place, and one unsubscribed leaves the list; an error is told as a queue's action that failed (QueueEvents.Failed), after which a computer that answered is read again. A subscription the computer no longer has leaves the list. Away from the computer's network the call goes through its storage, and sub stays busy until the computer answered there.
+func (s *Session) actOnSubscription(sub Subscription, op string, args any) {
 	c := s.Client(sub.Desktop)
 	key := sub.Key()
 	if c == nil || s.subs.busy.GetUntracked()[key] {
 		return
 	}
 	s.setSubscriptionBusy(key, true)
+	answered := func(got sync.Subscription, err error) {
+		s.setSubscriptionBusy(key, false)
+		if _, paired := s.Desktop(sub.Desktop); !paired {
+			// Unpaired while the call waited in its storage.
+			return
+		}
+		var e *sync.Error
+		switch {
+		case errors.As(err, &e) && e.Code == sync.CodeNotFound:
+			s.dropSubscription(sub.Desktop, sub.ID)
+			s.queueFailed(sub.Desktop, err)
+		case err != nil:
+			s.queueFailed(sub.Desktop, err)
+			// A computer that did part of it, as queueing some of the waiting videos and not the others, is read again for what it did.
+			if errors.As(err, &e) {
+				s.readSubscriptions(sub.Desktop)
+			}
+		case op == sync.OpUnsubscribe:
+			s.dropSubscription(sub.Desktop, sub.ID)
+		case got.ID != "":
+			s.putSubscription(sub.Desktop, got)
+		}
+	}
+	if s.relayed(sub.Desktop) {
+		relayCallResult(s, sub.Desktop, op, args, answered)
+		return
+	}
 	s.work.Go(func() {
 		ctx, cancel := context.WithTimeout(s.ctx, actFor)
 		defer cancel()
-		got, err := call(ctx, c)
-		s.cx.Post(func() {
-			s.setSubscriptionBusy(key, false)
-			var e *sync.Error
-			switch {
-			case errors.As(err, &e) && e.Code == sync.CodeNotFound:
-				s.dropSubscription(sub.Desktop, sub.ID)
-				s.queueFailed(sub.Desktop, err)
-			case err != nil:
-				s.queueFailed(sub.Desktop, err)
-				// A computer that did part of it, as queueing some of the waiting videos and not the others, is read again for what it did.
-				if errors.As(err, &e) {
-					s.readSubscriptions(sub.Desktop)
-				}
-			case got.ID != "":
-				s.putSubscription(sub.Desktop, got)
-			}
-		})
+		var got sync.Subscription
+		err := c.Call(ctx, op, args, &got)
+		s.cx.Post(func() { answered(got, err) })
 	})
 }
 
@@ -189,30 +222,20 @@ func (s *Session) dropSubscription(desktop, id string) {
 
 // SetSubscriptionAuto turns sub's auto-download on or off on its computer.
 func (s *Session) SetSubscriptionAuto(sub Subscription, auto bool) {
-	s.actOnSubscription(sub, func(ctx context.Context, c *sync.Client) (sync.Subscription, error) {
-		return c.SetSubscription(ctx, sync.SubscriptionSet{ID: sub.ID, Auto: &auto})
-	})
+	s.actOnSubscription(sub, sync.OpSubscriptionSet, sync.SubscriptionSet{ID: sub.ID, Auto: &auto})
 }
 
 // TakeSubscription sends every video waiting on sub to its computer's queue.
 func (s *Session) TakeSubscription(sub Subscription) {
-	s.actOnSubscription(sub, func(ctx context.Context, c *sync.Client) (sync.Subscription, error) {
-		return c.TakeSubscription(ctx, sub.ID, nil)
-	})
+	s.actOnSubscription(sub, sync.OpSubscriptionTake, sync.SubscriptionTake{ID: sub.ID})
 }
 
 // Unsubscribe removes sub from its computer, which keeps the videos it added.
 func (s *Session) Unsubscribe(sub Subscription) {
-	s.actOnSubscription(sub, func(ctx context.Context, c *sync.Client) (sync.Subscription, error) {
-		if err := c.Unsubscribe(ctx, sub.ID); err != nil {
-			return sync.Subscription{}, err
-		}
-		s.cx.Post(func() { s.dropSubscription(sub.Desktop, sub.ID) })
-		return sync.Subscription{}, nil
-	})
+	s.actOnSubscription(sub, sync.OpUnsubscribe, sync.SubscriptionRef{ID: sub.ID})
 }
 
-// Subscribe subscribes desktop's open library to the channel, space, collection or playlist at link. The computer reads the whole list before it answers (sync.SubscribeWait); its answer is told through QueueEvents.Subscribed, and a failure through Failed.
+// Subscribe subscribes desktop's open library to the channel, space, collection or playlist at link. The computer reads the whole list before it answers (sync.SubscribeWait); its answer is told through QueueEvents.Subscribed, and a failure through Failed. Away from the computer's network the link goes through its storage, and the computer subscribes once it answered there.
 func (s *Session) Subscribe(desktop, link string) {
 	c := s.Client(desktop)
 	key := store.Key(desktop, subscribingKey)
@@ -220,20 +243,29 @@ func (s *Session) Subscribe(desktop, link string) {
 		return
 	}
 	s.setSubscriptionBusy(key, true)
+	answered := func(got sync.Subscribed, err error) {
+		s.setSubscriptionBusy(key, false)
+		if _, paired := s.Desktop(desktop); !paired {
+			// Unpaired while the link waited in its storage.
+			return
+		}
+		if err != nil {
+			s.queueFailed(desktop, err)
+			return
+		}
+		s.putSubscription(desktop, got.Subscription)
+		if s.remote.events.Subscribed != nil {
+			s.remote.events.Subscribed(desktop, got)
+		}
+	}
+	if s.relayed(desktop) {
+		relayCallResult(s, desktop, sync.OpSubscribe, sync.SubscriptionAdd{Link: link}, answered)
+		return
+	}
 	s.work.Go(func() {
 		ctx, cancel := context.WithTimeout(s.ctx, sync.SubscribeWait)
 		defer cancel()
 		got, err := c.Subscribe(ctx, link)
-		s.cx.Post(func() {
-			s.setSubscriptionBusy(key, false)
-			if err != nil {
-				s.queueFailed(desktop, err)
-				return
-			}
-			s.putSubscription(desktop, got.Subscription)
-			if s.remote.events.Subscribed != nil {
-				s.remote.events.Subscribed(desktop, got)
-			}
-		})
+		s.cx.Post(func() { answered(got, err) })
 	})
 }

@@ -3,6 +3,7 @@ package main
 import (
 	"errors"
 
+	"kando/apps/mobile/jobs"
 	"kando/apps/mobile/locales"
 	"kando/apps/mobile/session"
 	"kando/packages/sync"
@@ -48,6 +49,9 @@ func queueToasts(cx *core.Scope, s *session.Session, toaster *ui.Toaster, openFi
 			title := locales.ComputersUnreachable(cx, name(desktop))
 			var e *sync.Error
 			switch p := session.ProblemOf(err); {
+			case s.Queue(desktop).Relayed && s.Queue(desktop).Storage != sync.RelayNoFailure:
+				// Away from the computer's network, the storage it goes through failed the phone.
+				title = jobs.StorageFailure(cx, s.Queue(desktop).Storage, name(desktop))
 			case errors.Is(err, session.ErrFilmGone):
 				title = locales.JobsFilmGone(cx, name(desktop))
 			case p == session.Unpaired || p == session.Certificate:

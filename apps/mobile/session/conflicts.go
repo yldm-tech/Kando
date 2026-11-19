@@ -106,7 +106,7 @@ func (s *Session) Resolving(c SyncConflict) bool { return s.settle.resolving.Get
 // ResolveFailed is why the last resolution failed, the zero value when it did not. Read it in a binding.
 func (s *Session) ResolveFailed() ResolveFailure { return s.settle.failure.Get() }
 
-// ResolveConflict resolves c through its computer with the version keep names, which then becomes the value on every device; c goes from the list once the computer took it. One the computer no longer has open, settled on another device meanwhile, goes too, and the library syncs to take the value kept in. A computer out of reach, or that lets the phone only read, leaves c open, and says why (ResolveFailed).
+// ResolveConflict resolves c through its computer with the version keep names, which then becomes the value on every device; c goes from the list once the computer took it. One the computer no longer has open, settled on another device meanwhile, goes too, and the library syncs to take the value kept in. A computer out of reach, or that lets the phone only read, leaves c open, and says why (ResolveFailed). Away from the computer's network the resolution goes through its storage (relay_study.go), and c shows as being resolved until the computer answered there.
 func (s *Session) ResolveConflict(c SyncConflict, keep Keep) {
 	k := studyKey(c.Desktop, c.Library)
 	if s.settle.resolving.GetUntracked()[c.Key()] {
@@ -128,34 +128,41 @@ func (s *Session) ResolveConflict(c SyncConflict, keep Keep) {
 	}
 	s.settle.failure.Set(ResolveFailure{})
 	s.setResolving(c.Key(), true)
+	answered := func(res sync.StatePutResult, err error) {
+		s.setResolving(c.Key(), false)
+		cur, kept := s.studies.GetUntracked()[k]
+		var e *sync.Error
+		switch {
+		case err == nil:
+			if kept {
+				s.setStudy(c.Desktop, c.Library, study.Resolved(cur, res))
+			}
+		case errors.As(err, &e) && e.Code == sync.CodeNotFound:
+			if kept {
+				s.setStudy(c.Desktop, c.Library, study.Forget(cur, c.ID))
+			}
+		case errors.As(err, &e) && e.Code == sync.CodeReadOnly:
+			s.settle.failure.Set(ResolveFailure{Computer: c.Computer, ReadOnly: true})
+			return
+		default:
+			s.settle.failure.Set(ResolveFailure{Computer: c.Computer, Problem: ProblemOf(err)})
+			return
+		}
+		if kept {
+			s.syncStudy(c.Desktop, c.Library)
+		}
+	}
+	req := sync.ConflictResolve{Library: c.Library, ID: c.ID, Value: value}
+	if s.relayed(c.Desktop) {
+		// Away from the computer's network, through its storage: the conflict shows as being resolved until the computer answered there.
+		relayCallResult(s, c.Desktop, sync.OpStateResolve, req, answered)
+		return
+	}
 	s.work.Go(func() {
 		ctx, cancel := context.WithTimeout(s.ctx, studyTimeout)
 		defer cancel()
-		res, err := cl.ResolveConflict(ctx, c.Library, c.ID, value)
-		s.cx.Post(func() {
-			s.setResolving(c.Key(), false)
-			cur, kept := s.studies.GetUntracked()[k]
-			var e *sync.Error
-			switch {
-			case err == nil:
-				if kept {
-					s.setStudy(c.Desktop, c.Library, study.Resolved(cur, res))
-				}
-			case errors.As(err, &e) && e.Code == sync.CodeNotFound:
-				if kept {
-					s.setStudy(c.Desktop, c.Library, study.Forget(cur, c.ID))
-				}
-			case errors.As(err, &e) && e.Code == sync.CodeReadOnly:
-				s.settle.failure.Set(ResolveFailure{Computer: c.Computer, ReadOnly: true})
-				return
-			default:
-				s.settle.failure.Set(ResolveFailure{Computer: c.Computer, Problem: ProblemOf(err)})
-				return
-			}
-			if kept {
-				s.syncStudy(c.Desktop, c.Library)
-			}
-		})
+		res, err := cl.ResolveConflict(ctx, req.Library, req.ID, req.Value)
+		s.cx.Post(func() { answered(res, err) })
 	})
 }
 

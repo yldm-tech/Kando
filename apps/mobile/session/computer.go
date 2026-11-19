@@ -39,23 +39,33 @@ func (s *Session) forgetDesktopSettings(id string) {
 	s.learn.settings.Set(m)
 }
 
-// SetDesktopContext turns computer id's sending of the lines before a batch with it as it translates on or off, there at once: the computer must be in reach, and done, on the engine's goroutine, is told why it was not changed, nil once it was. Unlike the language translated into, which the phone keeps and every computer takes, it is the one computer's own setting, so a change it cannot take now is not kept for later.
+// SetDesktopContext turns computer id's sending of the lines before a batch with it as it translates on or off, there at once: the computer must be in reach, and done, on the engine's goroutine, is told why it was not changed, nil once it was. Unlike the language translated into, which the phone keeps and every computer takes, it is the one computer's own setting, so a change it cannot take now is not kept for later. Away from the computer's network it goes through its storage while the computer runs (relay_study.go), and done is told once the computer answered there.
 func (s *Session) SetDesktopContext(id string, on bool, done func(error)) {
 	c := s.Client(id)
 	if c == nil {
 		done(&sync.Error{Status: 401})
 		return
 	}
+	answered := func(got sync.Settings, err error) {
+		if _, paired := s.Desktop(id); err == nil && paired {
+			was, _ := s.DesktopSettings(id)
+			s.setDesktopSettings(id, DesktopSettings{Settings: got, ReadOnly: was.ReadOnly})
+		}
+		done(err)
+	}
+	if s.relayed(id) {
+		// Away from its network, through its storage, while the computer writes there: it answers within a minute or two.
+		if s.remote.queues.GetUntracked()[id].Reach != Online {
+			done(errAway)
+			return
+		}
+		relayCallResult(s, id, sync.OpSettingsPut, sync.SettingsPut{Context: &on}, answered)
+		return
+	}
 	s.work.Go(func() {
 		ctx, cancel := context.WithTimeout(s.ctx, learnSyncFor)
 		defer cancel()
 		got, err := c.PutSettings(ctx, sync.SettingsPut{Context: &on})
-		s.cx.Post(func() {
-			if _, paired := s.Desktop(id); err == nil && paired {
-				was, _ := s.DesktopSettings(id)
-				s.setDesktopSettings(id, DesktopSettings{Settings: got, ReadOnly: was.ReadOnly})
-			}
-			done(err)
-		})
+		s.cx.Post(func() { answered(got, err) })
 	})
 }

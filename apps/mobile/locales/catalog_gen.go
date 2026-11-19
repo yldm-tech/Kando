@@ -531,6 +531,11 @@ var Parameters = map[string][]string{
 	"JobsNotReady":                   {"name", "message"},
 	"JobsInStorage":                  {"name"},
 	"JobsRelayed":                    {"summary"},
+	"JobsStorageLapsed":              {"name"},
+	"JobsStorageKeys":                {"name"},
+	"JobsStorageDenied":              {"name"},
+	"JobsStorageNoBucket":            {"name"},
+	"JobsStorageFull":                {"name"},
 	"JobsPercent":                    {"percent"},
 	"JobsRefused":                    {"name", "message"},
 	"JobsRemedyDesktop":              {"name"},
@@ -689,6 +694,11 @@ type Translation struct {
 	JobsNotReady                   func(name string, message string) string
 	JobsInStorage                  func(name string) string
 	JobsRelayed                    func(summary string) string
+	JobsStorageLapsed              func(name string) string
+	JobsStorageKeys                func(name string) string
+	JobsStorageDenied              func(name string) string
+	JobsStorageNoBucket            func(name string) string
+	JobsStorageFull                func(name string) string
 	JobsPercent                    func(percent int) string
 	JobsRefused                    func(name string, message string) string
 	JobsRemedyDesktop              func(name string) string
@@ -929,6 +939,8 @@ const (
 	textJobsOfflineSummary
 	textJobsOfflineRelay
 	textJobsViaStorage
+	textJobsStorageUnreachable
+	textJobsStorageFailed
 	textJobsOlder
 	textJobsOnline
 	textJobsOpen
@@ -1340,6 +1352,8 @@ var keyOfText = [numTexts]string{
 	"jobsOfflineSummary",
 	"jobsOfflineRelay",
 	"jobsViaStorage",
+	"jobsStorageUnreachable",
+	"jobsStorageFailed",
 	"jobsOlder",
 	"jobsOnline",
 	"jobsOpen",
@@ -1749,6 +1763,8 @@ var textsEn = i18n.NewTexts(""+
 	"Offline. Links you send wait on this phone and go once it's back."+
 	"Offline. Links you send wait in your storage and start once it's back."+
 	"Via storage"+
+	"Couldn't connect to your storage. Check the network."+
+	"Your storage didn't answer properly. The phone tries again shortly."+
 	"Kando on this computer is too old to take links. Update it."+
 	"Online"+
 	"Open"+
@@ -2155,6 +2171,8 @@ var textsEn = i18n.NewTexts(""+
 		65,
 		70,
 		11,
+		52,
+		67,
 		59,
 		6,
 		4,
@@ -2564,6 +2582,8 @@ var textsJa = i18n.NewTexts(""+
 	"オフラインです。送ったリンクはこのスマートフォンで待機し、オンラインになると送信されます。"+
 	"オフラインです。送ったリンクはストレージで待機し、オンラインになると開始されます。"+
 	"ストレージ経由"+
+	"ストレージに接続できませんでした。ネットワークを確認してください。"+
+	"ストレージが正常に応答しませんでした。しばらくしてからもう一度試します。"+
 	"このパソコンの Kando は古いため、リンクを受け取れません。アップデートしてください。"+
 	"オンライン"+
 	"開く"+
@@ -2970,6 +2990,8 @@ var textsJa = i18n.NewTexts(""+
 		135,
 		123,
 		21,
+		99,
+		108,
 		121,
 		15,
 		6,
@@ -3379,6 +3401,8 @@ var textsKo = i18n.NewTexts(""+
 	"오프라인입니다. 보낸 링크는 이 휴대폰에서 기다렸다가 다시 연결되면 보내집니다."+
 	"오프라인입니다. 보낸 링크는 스토리지에서 기다렸다가 다시 연결되면 시작됩니다."+
 	"스토리지 경유"+
+	"스토리지에 연결할 수 없습니다. 네트워크를 확인하십시오."+
+	"스토리지가 제대로 응답하지 않았습니다. 잠시 후 다시 시도합니다."+
 	"이 컴퓨터의 Kando가 오래되어 링크를 받을 수 없습니다. 업데이트하세요."+
 	"온라인"+
 	"열기"+
@@ -3785,6 +3809,8 @@ var textsKo = i18n.NewTexts(""+
 		112,
 		111,
 		19,
+		79,
+		90,
 		96,
 		9,
 		6,
@@ -4194,6 +4220,8 @@ var textsZhHans = i18n.NewTexts(""+
 	"电脑离线。新链接先排在这台手机上，电脑上线后自动处理。"+
 	"电脑离线。新链接先存在你的存储里，电脑上线后自动开始。"+
 	"经存储"+
+	"连不上你的存储。检查网络。"+
+	"你的存储没有正常响应，手机稍后会再试。"+
 	"这台电脑上的看懂版本太旧，不能接收链接。请更新它。"+
 	"在线"+
 	"打开"+
@@ -4600,6 +4628,8 @@ var textsZhHans = i18n.NewTexts(""+
 		81,
 		81,
 		9,
+		39,
+		57,
 		75,
 		6,
 		6,
@@ -5009,6 +5039,8 @@ var textsZhHant = i18n.NewTexts(""+
 	"電腦離線。新連結先排在這支手機上，電腦上線後自動處理。"+
 	"電腦離線。新連結先存在你的儲存空間裡，電腦上線後自動開始。"+
 	"經儲存空間"+
+	"無法連線到你的儲存空間。檢查網路。"+
+	"你的儲存空間沒有正常回應，手機稍後會再試。"+
 	"這台電腦上的看懂版本太舊，無法接收連結。請更新它。"+
 	"線上"+
 	"打開"+
@@ -5415,6 +5447,8 @@ var textsZhHant = i18n.NewTexts(""+
 		81,
 		87,
 		15,
+		51,
+		63,
 		75,
 		6,
 		6,
@@ -5937,6 +5971,21 @@ func Supply(lang string, t Translation) {
 	}
 	if t.JobsRelayed != nil {
 		s.JobsRelayed = t.JobsRelayed
+	}
+	if t.JobsStorageLapsed != nil {
+		s.JobsStorageLapsed = t.JobsStorageLapsed
+	}
+	if t.JobsStorageKeys != nil {
+		s.JobsStorageKeys = t.JobsStorageKeys
+	}
+	if t.JobsStorageDenied != nil {
+		s.JobsStorageDenied = t.JobsStorageDenied
+	}
+	if t.JobsStorageNoBucket != nil {
+		s.JobsStorageNoBucket = t.JobsStorageNoBucket
+	}
+	if t.JobsStorageFull != nil {
+		s.JobsStorageFull = t.JobsStorageFull
 	}
 	if t.JobsPercent != nil {
 		s.JobsPercent = t.JobsPercent
@@ -9965,6 +10014,176 @@ func JobsViaStorage(cx *core.Scope) string { return For(cx).JobsViaStorage() }
 
 // JobsViaStorage is the package's JobsViaStorage in the language of msgs.
 func (msgs Messages) JobsViaStorage() string { return msgs.text(textJobsViaStorage) }
+
+// JobsStorageLapsed says "The links to your storage have expired. Connect to {name}'s network once to renew them."
+// in the language the app shows under cx.
+//
+// Jobs page, a computer's card away from its network: the user's storage refused the phone's links because they are past their expiry; the computer hands new ones on its network.
+func JobsStorageLapsed(cx *core.Scope, name string) string { return For(cx).JobsStorageLapsed(name) }
+
+// JobsStorageLapsed is the package's JobsStorageLapsed in the language of msgs.
+func (msgs Messages) JobsStorageLapsed(name string) string {
+	if i18n.IsPseudo(msgs.lang) {
+		return i18n.Pseudo(msgs.lang, Messages{lang: Source, mark: true}.JobsStorageLapsed(name))
+	}
+	for lang := msgs.lang; ; lang = i18n.Parent(lang) {
+		if f := supplied[lang].JobsStorageLapsed; f != nil {
+			return f(name)
+		}
+		switch lang {
+		case "", "en":
+			return "The links to your storage have expired. Connect to " + msgs.arg(name) + "'s network once to renew them."
+		case "ja":
+			return "ストレージへのリンクの期限が切れました。一度 " + name + " のネットワークに接続すると更新されます。"
+		case "ko":
+			return "스토리지 링크가 만료되었습니다. " + name + "의 네트워크에 한 번 연결하면 갱신됩니다."
+		case "zh-Hans":
+			return "通往你的存储的链接已过期。连一次 " + name + " 所在的网络即可更新。"
+		case "zh-Hant":
+			return "通往你的儲存空間的連結已過期。連一次 " + name + " 所在的網路即可更新。"
+		}
+	}
+}
+
+// JobsStorageKeys says "Your storage no longer accepts {name}'s key. Check Account & Upload on {name}, then connect to its network once."
+// in the language the app shows under cx.
+//
+// Jobs page, a computer's card away from its network: the user's storage refused the links signed with the computer's storage key, which was changed or deleted. Account & Upload is the computer's settings section of that name.
+func JobsStorageKeys(cx *core.Scope, name string) string { return For(cx).JobsStorageKeys(name) }
+
+// JobsStorageKeys is the package's JobsStorageKeys in the language of msgs.
+func (msgs Messages) JobsStorageKeys(name string) string {
+	if i18n.IsPseudo(msgs.lang) {
+		return i18n.Pseudo(msgs.lang, Messages{lang: Source, mark: true}.JobsStorageKeys(name))
+	}
+	for lang := msgs.lang; ; lang = i18n.Parent(lang) {
+		if f := supplied[lang].JobsStorageKeys; f != nil {
+			return f(name)
+		}
+		switch lang {
+		case "", "en":
+			return "Your storage no longer accepts " + msgs.arg(name) + "'s key. Check Account & Upload on " + msgs.arg(name) + ", then connect to its network once."
+		case "ja":
+			return "ストレージが " + name + " のキーを受け付けなくなりました。" + name + " の「アカウントとアップロード」を確認してから、一度そのネットワークに接続してください。"
+		case "ko":
+			return "스토리지가 더 이상 " + name + "의 키를 받아들이지 않습니다. " + name + "의 계정 및 업로드를 확인한 다음 그 네트워크에 한 번 연결하십시오."
+		case "zh-Hans":
+			return "你的存储不再接受 " + name + " 的密钥。在 " + name + " 的「账号与上传」里检查，然后连一次它所在的网络。"
+		case "zh-Hant":
+			return "你的儲存空間不再接受 " + name + " 的金鑰。在 " + name + " 的「帳號與上傳」裡檢查，然後連一次它所在的網路。"
+		}
+	}
+}
+
+// JobsStorageDenied says "{name}'s key can't reach the bucket. Check Account & Upload on {name}, then connect to its network once."
+// in the language the app shows under cx.
+//
+// Jobs page, a computer's card away from its network: the user's storage refused the computer's key access to the bucket. Account & Upload is the computer's settings section of that name.
+func JobsStorageDenied(cx *core.Scope, name string) string { return For(cx).JobsStorageDenied(name) }
+
+// JobsStorageDenied is the package's JobsStorageDenied in the language of msgs.
+func (msgs Messages) JobsStorageDenied(name string) string {
+	if i18n.IsPseudo(msgs.lang) {
+		return i18n.Pseudo(msgs.lang, Messages{lang: Source, mark: true}.JobsStorageDenied(name))
+	}
+	for lang := msgs.lang; ; lang = i18n.Parent(lang) {
+		if f := supplied[lang].JobsStorageDenied; f != nil {
+			return f(name)
+		}
+		switch lang {
+		case "", "en":
+			return msgs.arg(name) + "'s key can't reach the bucket. Check Account & Upload on " + msgs.arg(name) + ", then connect to its network once."
+		case "ja":
+			return name + " のキーではバケットにアクセスできません。" + name + " の「アカウントとアップロード」を確認してから、一度そのネットワークに接続してください。"
+		case "ko":
+			return name + "의 키로는 버킷에 접근할 수 없습니다. " + name + "의 계정 및 업로드를 확인한 다음 그 네트워크에 한 번 연결하십시오."
+		case "zh-Hans":
+			return name + " 的密钥无权访问存储桶。在 " + name + " 的「账号与上传」里检查，然后连一次它所在的网络。"
+		case "zh-Hant":
+			return name + " 的金鑰無權存取儲存桶。在 " + name + " 的「帳號與上傳」裡檢查，然後連一次它所在的網路。"
+		}
+	}
+}
+
+// JobsStorageNoBucket says "The bucket in your storage is gone. Check Account & Upload on {name}, then connect to its network once."
+// in the language the app shows under cx.
+//
+// Jobs page, a computer's card away from its network: the bucket the computer set up for phones no longer exists. Account & Upload is the computer's settings section of that name.
+func JobsStorageNoBucket(cx *core.Scope, name string) string {
+	return For(cx).JobsStorageNoBucket(name)
+}
+
+// JobsStorageNoBucket is the package's JobsStorageNoBucket in the language of msgs.
+func (msgs Messages) JobsStorageNoBucket(name string) string {
+	if i18n.IsPseudo(msgs.lang) {
+		return i18n.Pseudo(msgs.lang, Messages{lang: Source, mark: true}.JobsStorageNoBucket(name))
+	}
+	for lang := msgs.lang; ; lang = i18n.Parent(lang) {
+		if f := supplied[lang].JobsStorageNoBucket; f != nil {
+			return f(name)
+		}
+		switch lang {
+		case "", "en":
+			return "The bucket in your storage is gone. Check Account & Upload on " + msgs.arg(name) + ", then connect to its network once."
+		case "ja":
+			return "ストレージのバケットがなくなりました。" + name + " の「アカウントとアップロード」を確認してから、一度そのネットワークに接続してください。"
+		case "ko":
+			return "스토리지의 버킷이 없어졌습니다. " + name + "의 계정 및 업로드를 확인한 다음 그 네트워크에 한 번 연결하십시오."
+		case "zh-Hans":
+			return "你的存储里的存储桶已不存在。在 " + name + " 的「账号与上传」里检查，然后连一次它所在的网络。"
+		case "zh-Hant":
+			return "你的儲存空間裡的儲存桶已不存在。在 " + name + " 的「帳號與上傳」裡檢查，然後連一次它所在的網路。"
+		}
+	}
+}
+
+// JobsStorageFull says "Your storage is full. Free up space in it so links can reach {name}."
+// in the language the app shows under cx.
+//
+// Jobs page, a computer's card away from its network: the user's storage takes nothing more.
+func JobsStorageFull(cx *core.Scope, name string) string { return For(cx).JobsStorageFull(name) }
+
+// JobsStorageFull is the package's JobsStorageFull in the language of msgs.
+func (msgs Messages) JobsStorageFull(name string) string {
+	if i18n.IsPseudo(msgs.lang) {
+		return i18n.Pseudo(msgs.lang, Messages{lang: Source, mark: true}.JobsStorageFull(name))
+	}
+	for lang := msgs.lang; ; lang = i18n.Parent(lang) {
+		if f := supplied[lang].JobsStorageFull; f != nil {
+			return f(name)
+		}
+		switch lang {
+		case "", "en":
+			return "Your storage is full. Free up space in it so links can reach " + msgs.arg(name) + "."
+		case "ja":
+			return "ストレージがいっぱいです。空きを作ると、リンクが " + name + " に届きます。"
+		case "ko":
+			return "스토리지가 가득 찼습니다. 공간을 확보해야 링크가 " + name + "에 전달됩니다."
+		case "zh-Hans":
+			return "你的存储已满。腾出空间后，链接才能送到 " + name + "。"
+		case "zh-Hant":
+			return "你的儲存空間已滿。騰出空間後，連結才能送到 " + name + "。"
+		}
+	}
+}
+
+// JobsStorageUnreachable says "Couldn't connect to your storage. Check the network."
+// in the language the app shows under cx.
+//
+// Jobs page, a computer's card away from its network: the phone could not connect to the user's storage, as with no network.
+func JobsStorageUnreachable(cx *core.Scope) string { return For(cx).JobsStorageUnreachable() }
+
+// JobsStorageUnreachable is the package's JobsStorageUnreachable in the language of msgs.
+func (msgs Messages) JobsStorageUnreachable() string { return msgs.text(textJobsStorageUnreachable) }
+
+// JobsStorageFailed says "Your storage didn't answer properly. The phone tries again shortly."
+// in the language the app shows under cx.
+//
+// Jobs page, a computer's card away from its network: the user's storage answered with another error, as a server error.
+func JobsStorageFailed(cx *core.Scope) string { return For(cx).JobsStorageFailed() }
+
+// JobsStorageFailed is the package's JobsStorageFailed in the language of msgs.
+func (msgs Messages) JobsStorageFailed() string { return msgs.text(textJobsStorageFailed) }
 
 // JobsOlder says "Kando on this computer is too old to take links. Update it."
 // in the language the app shows under cx.

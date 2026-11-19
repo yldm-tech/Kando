@@ -21,8 +21,9 @@ type Relay struct {
 	Seq    int64           `json:"seq"`
 	// Waiting are the calls sent whose replies the phone has not read, by slot.
 	Waiting map[string]sync.RelayWaiting `json:"waiting,omitempty"`
-	// Lapsed is a grant whose links the storage refused, as one past its expiry: the phone joins again once it is back on the computer's network.
-	Lapsed bool `json:"lapsed,omitempty"`
+	// Lapsed is a grant whose links the storage refused, as one past its expiry: the phone joins again once it is back on the computer's network. Failure is why the storage refused them, which the Jobs page says.
+	Lapsed  bool              `json:"lapsed,omitempty"`
+	Failure sync.RelayFailure `json:"failure,omitempty"`
 }
 
 // RelayKeyAccount is the account the relay key of desktop id is kept under in the platform's secure store.
