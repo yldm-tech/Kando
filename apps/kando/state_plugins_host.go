@@ -26,6 +26,15 @@ const (
 	pluginsBusy   = "busy"
 )
 
+// pluginsOwnCode reports whether code, the code of an error a plugin rejected a call with, is the plugin's own rather than one Kando or the runtime gave it: not empty, not one of the codes Kando refuses a host call with, and not the runtime's (ETIMEDOUT of a host call that timed out, ERR_… of a refusal), whose words are not written for the user.
+func pluginsOwnCode(code string) bool {
+	switch code {
+	case "", "ETIMEDOUT", pluginsDenied, pluginsQuota, pluginsBad, pluginsBusy, pluginsUnavailable, pluginsOverBudget, pluginsCutOff, pluginsTimedOut, pluginsFailed, pluginsNoFFmpeg, pluginsNotFound, pluginsTooLarge, pluginsNoSecret:
+		return false
+	}
+	return !strings.HasPrefix(code, "ERR_")
+}
+
 // pluginsRefuse fails c with code.
 func pluginsRefuse(c *ns.HostCall, code string) {
 	c.Reject(&ns.Error{Code: code, Message: code})

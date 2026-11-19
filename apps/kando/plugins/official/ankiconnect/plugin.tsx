@@ -24,6 +24,18 @@ const apiVersion = 6
 // The most notes sent in one canAddNotes or addNotes.
 const batchSize = 100
 
+// Kando's runner stops a call that runs for more than a minute, the time Kando spends on the plugin's behalf (reading a sound) aside, and turns the plugin off as slow (docs/plugin-system.md 6.6). An export keeps well under it: its own time (requests to Anki, waits) is held to budgetMs, each request to requestMs, and one that cannot finish in what is left fails with anki-timeout, saying how many notes went in, so the user exports again and Anki skips those.
+const budgetMs = 45000
+const requestMs = 20000
+// The least time a request is started with: below it, the export stops rather than start one that would be cut off.
+const requestMinMs = 2000
+// Kando answers at most 60 host calls of a plugin in a minute (quota); after the 60th sound of an export the plugin waits for the minute to pass when its budget allows it, and the lines after that go without sound, which the export reports.
+const callsPerMinute = 60
+// What a wait for the quota's minute must leave of the budget, for the requests still to come.
+const quotaReserveMs = 15000
+// How long a sound may take: Kando gives up on one after 120 s and refuses with "timeout".
+const soundMs = 150000
+
 // The note types the noteType setting chooses, by its choice id. Kando's own is made the first time it is missing; Basic's are Anki's stock ones, whose first two fields, whatever the collection's language named them, take the front and the back.
 const noteTypes = {
   kando: "Kando",
@@ -54,45 +66,86 @@ function fail(code: string, message: string): Error {
   return e
 }
 
-// anki runs one AnkiConnect action and gives its result, or rejects with a coded Error: AnkiConnect not answering, a refused request, an answer that is not AnkiConnect's, or the error AnkiConnect returned.
-async function anki(action: string, params?: object): Promise<any> {
-  let res
+// Export is one export's clock and tallies: the time it spent of its own, which is all of it but the waits for Kando to read a sound (hostMs), how many notes went in so far, and the state of the sounds: whether to ask for them still, the times it asked (for the quota), and how many lines went in without one.
+class Export {
+  start = Date.now()
+  hostMs = 0
+  sent = 0
+  sound: boolean
+  asked: number[] = []
+  soundless = 0
+
+  constructor(sound: boolean) {
+    this.sound = sound
+  }
+
+  // left is how much of the budget is left.
+  left(): number {
+    return budgetMs - (Date.now() - this.start - this.hostMs)
+  }
+
+  // tooSlow is the failure of an export that ran out of time, saying what went in.
+  tooSlow(): Error {
+    return fail("anki-timeout", `Anki is answering too slowly; ${this.sent} notes went in. Export again when Anki is idle to send the rest: it skips those it has.`)
+  }
+}
+
+// sleep waits ms.
+function sleep(ms: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, ms))
+}
+
+// anki runs one AnkiConnect action and gives its result, or rejects with a coded Error: AnkiConnect not answering, or not within the request's time, a refused request, an answer that is not AnkiConnect's, or the error AnkiConnect returned.
+async function anki(x: Export, action: string, params?: object): Promise<any> {
+  const ms = Math.min(requestMs, x.left())
+  if (ms < requestMinMs) throw x.tooSlow()
+  const abort = new AbortController()
+  const slow = fail("anki-timeout", `AnkiConnect did not answer within ${Math.round(ms / 1000)} s; Anki may be busy. ${x.sent} notes went in; export again to send the rest.`)
+  const timer = setTimeout(() => abort.abort(slow), ms)
   try {
-    res = await fetch(endpoint, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ action, version: apiVersion, params: params ?? {} }),
-    })
-  } catch (e) {
-    // Kando refuses the request before it is sent when the user did not grant the network (ERR_ACCESS_DENIED); anything else is nothing listening on the port.
-    if (e && (e.code === "ERR_ACCESS_DENIED" || e.permission)) {
-      throw fail("no-network", "Kando does not let this plugin reach Anki: turn on its network permission in Settings › Plugins.")
+    let res
+    try {
+      res = await fetch(endpoint, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action, version: apiVersion, params: params ?? {} }),
+        signal: abort.signal,
+      })
+    } catch (e) {
+      if (e === slow) throw slow
+      // Kando refuses the request before it is sent when the user did not grant the network (ERR_ACCESS_DENIED); anything else is nothing listening on the port.
+      if (e && (e.code === "ERR_ACCESS_DENIED" || e.permission)) {
+        throw fail("no-network", "Kando does not let this plugin reach Anki: turn on its network permission in Settings › Plugins.")
+      }
+      throw fail("anki-unreachable", "Anki is not running, or the AnkiConnect add-on is not installed: nothing answers at 127.0.0.1:8765.")
     }
-    throw fail("anki-unreachable", "Anki is not running, or the AnkiConnect add-on is not installed: nothing answers at 127.0.0.1:8765.")
+    if (!res.ok) {
+      throw fail("anki-bad-reply", `AnkiConnect answered HTTP ${res.status}.`)
+    }
+    let reply
+    try {
+      reply = await res.json()
+    } catch (e) {
+      if (e === slow) throw slow
+      throw fail("anki-bad-reply", "What answered at 127.0.0.1:8765 is not AnkiConnect.")
+    }
+    if (reply === null || typeof reply !== "object" || !("result" in reply) || !("error" in reply)) {
+      throw fail("anki-bad-reply", "What answered at 127.0.0.1:8765 is not AnkiConnect.")
+    }
+    if (reply.error) {
+      throw fail("anki-error", `AnkiConnect: ${String(reply.error).slice(0, 300)}`)
+    }
+    return reply.result
+  } finally {
+    clearTimeout(timer)
   }
-  if (!res.ok) {
-    throw fail("anki-bad-reply", `AnkiConnect answered HTTP ${res.status}.`)
-  }
-  let reply
-  try {
-    reply = await res.json()
-  } catch {
-    throw fail("anki-bad-reply", "What answered at 127.0.0.1:8765 is not AnkiConnect.")
-  }
-  if (reply === null || typeof reply !== "object" || !("result" in reply) || !("error" in reply)) {
-    throw fail("anki-bad-reply", "What answered at 127.0.0.1:8765 is not AnkiConnect.")
-  }
-  if (reply.error) {
-    throw fail("anki-error", `AnkiConnect: ${String(reply.error).slice(0, 300)}`)
-  }
-  return reply.result
 }
 
 // connect checks that AnkiConnect lets Kando in and speaks apiVersion or newer. requestPermission makes Anki ask the user when AnkiConnect does not know the caller; one that is too old to have it is told apart from one that refuses.
-async function connect(): Promise<void> {
+async function connect(x: Export): Promise<void> {
   let permission
   try {
-    permission = await anki("requestPermission")
+    permission = await anki(x, "requestPermission")
   } catch (e) {
     if (e.code === "anki-error") {
       throw fail("anki-version", "AnkiConnect is too old for Kando: update the add-on in Anki (Tools › Add-ons › Check for Updates).")
@@ -105,23 +158,23 @@ async function connect(): Promise<void> {
   if (permission.requireApikey) {
     throw fail("anki-api-key", "AnkiConnect asks for an API key, which this plugin does not send: clear apiKey in AnkiConnect's settings.")
   }
-  const version = await anki("version")
+  const version = await anki(x, "version")
   if (typeof version !== "number" || version < apiVersion) {
     throw fail("anki-version", `AnkiConnect speaks version ${version}; Kando needs ${apiVersion} or newer. Update the add-on in Anki.`)
   }
 }
 
 // noteFields makes sure the note type exists and gives the names of its fields: Kando's own, made the first time it is missing, or a stock Basic one, whose first two fields are its front and back.
-async function noteFields(model: string): Promise<string[]> {
-  const models = await anki("modelNames")
+async function noteFields(x: Export, model: string): Promise<string[]> {
+  const models = await anki(x, "modelNames")
   if (!Array.isArray(models) || !models.includes(model)) {
     if (model !== kandoModel.modelName) {
       throw fail("anki-note-type", `Anki has no note type named "${model}": choose Kando in the plugin's settings, which it makes for you.`)
     }
-    await anki("createModel", kandoModel)
+    await anki(x, "createModel", kandoModel)
     return kandoFields
   }
-  const fields = await anki("modelFieldNames", { modelName: model })
+  const fields = await anki(x, "modelFieldNames", { modelName: model })
   if (!Array.isArray(fields)) {
     throw fail("anki-bad-reply", "AnkiConnect did not list the note type's fields.")
   }
@@ -153,18 +206,18 @@ function parts(item: any): Record<string, string> {
 // fieldsOf are the parts as the note type's fields: Kando's own one by one, a Basic one's text on the front and the rest, the sound included, on the back, so a sound file never makes two notes of the same text look different to Anki's duplicate check.
 function fieldsOf(p: Record<string, string>, model: string, fields: string[]): Record<string, string> {
   if (model === kandoModel.modelName) {
-    return { ...p }
+    return Object.assign({}, p)
   }
   const back = [p.Reading, p.Meaning, p.Context, p.Sound, p.Source].filter((t) => t).join("<br>")
   return { [fields[0]]: p.Text, [fields[1]]: back }
 }
 
-// settingsOf are the plugin's settings as Kando gave them, with what is missing or empty at its default.
+// settingsOf are the plugin's settings as Kando gave them, with what is missing or empty at its default: the deck Kando, Kando's note type, the tag kando and the sound attached.
 function settingsOf(s: any) {
   const deck = typeof s?.deck === "string" && s.deck.trim() !== "" ? s.deck.trim() : "Kando"
   const model = noteTypes[s?.noteType] ?? noteTypes.kando
-  const tags = typeof s?.tags === "string" ? s.tags.split(/[\s,]+/).filter((t) => t) : ["kando"]
-  return { deck, model, tags, sound: s?.sound !== false }
+  const tags = typeof s?.tags === "string" ? s.tags.split(/[\s,]+/).filter((t) => t) : []
+  return { deck, model, tags: tags.length > 0 ? tags : ["kando"], sound: s?.sound !== false }
 }
 
 // mediaName is the file a saved line's sound is stored under in Anki's media folder: the same for the same line, so sending it again does not pile up copies.
@@ -172,26 +225,46 @@ function mediaName(id: string): string {
   return "kando-" + String(id).replace(/[^A-Za-z0-9_-]/g, "_").slice(0, 80) + ".m4a"
 }
 
-// readSound is the sound of the saved line id, base64, or null when there is none to attach: the setting is off, Kando has no ffmpeg, the user did not grant kando.sound.read, or the line has no sound. Once Kando refuses for a reason that holds for every line (not granted, no ffmpeg, the plugin's minute of host calls used up), the rest go without asking.
-async function readSound(id: string, sound: { on: boolean }): Promise<string | null> {
-  if (!sound.on || !id) return null
-  try {
-    const clip = await host.call("kando.sound.read", { saved: id }, { timeout: 60000 })
-    return clip && typeof clip.base64 === "string" && clip.base64 !== "" ? clip.base64 : null
-  } catch (e) {
-    if (["ERR_ACCESS_DENIED", "denied", "no-ffmpeg", "quota"].includes(e?.code)) {
-      sound.on = false
+// readSound is the sound of the saved line id, base64, or null when it goes without one. A refusal that holds for every line (not granted, no ffmpeg, a sound that hung until Kando gave up) stops asking for the rest; one of this line's alone (no sound, too large, failed, another read in flight) skips it. Kando's quota of host calls is a minute's: past it the export waits for the minute to pass when its budget allows that, and asks again once; otherwise the rest go without sound. The time Kando spends reading is not the export's own (Export.hostMs), as it is not the runner's either.
+async function readSound(x: Export, id: string): Promise<string | null> {
+  if (!x.sound || !id) return null
+  for (let attempt = 0; attempt < 2; attempt++) {
+    const asked = Date.now()
+    x.asked.push(asked)
+    try {
+      const clip = await host.call("kando.sound.read", { saved: id }, { timeout: soundMs })
+      return clip && typeof clip.base64 === "string" && clip.base64 !== "" ? clip.base64 : null
+    } catch (e) {
+      const code = e?.code
+      if (code === "quota" && attempt === 0) {
+        const window = x.asked.filter((t) => t > Date.now() - 60000)
+        const wait = window.length >= callsPerMinute ? window[window.length - callsPerMinute] + 60000 + 250 - Date.now() : 60250
+        if (x.left() - wait > quotaReserveMs) {
+          await sleep(wait)
+          continue
+        }
+      }
+      if (["quota", "ERR_ACCESS_DENIED", "denied", "no-ffmpeg", "timeout", "ETIMEDOUT"].includes(code)) {
+        x.sound = false
+      }
+      return null
+    } finally {
+      x.hostMs += Date.now() - asked
     }
-    return null
   }
+  x.sound = false
+  return null
 }
 
 // addOneByOne adds notes one at a time, for an AnkiConnect whose addNotes failed as a whole because one of them could not be added: it reports how many were.
-async function addOneByOne(notes: any[]): Promise<number> {
+async function addOneByOne(x: Export, notes: any[]): Promise<number> {
   let added = 0
   for (const note of notes) {
     try {
-      if (await anki("addNote", { note })) added++
+      if (await anki(x, "addNote", { note })) {
+        added++
+        x.sent++
+      }
     } catch (e) {
       if (e.code !== "anki-error") throw e
     }
@@ -199,18 +272,17 @@ async function addOneByOne(notes: any[]): Promise<number> {
   return added
 }
 
-// exportNotes is the export target "Anki (AnkiConnect)": it sends items, the saved lines and words the user exported, to the deck the settings name as notes of the note type they choose, the sound of each line attached when they ask for it, and answers how many it sent and how many it skipped: those Anki already has in the deck (canAddNotes), the same text twice in one export, and items with nothing to show on the front.
+// exportNotes is the export target "Anki (AnkiConnect)": it sends items, the saved lines and words the user exported, to the deck the settings name as notes of the note type they choose, the sound of each line attached when they ask for it, and answers how many it sent, how many it skipped (those Anki already has in the deck, canAddNotes; the same text twice in one export; items with nothing to show on the front) and, with the sound asked for, how many lines went in without one. Kando's runner allows a call a minute of its own time, so an export of more than Anki answers in that time fails with anki-timeout after sending what it could (Export).
 export async function exportNotes(items: any[], settings: any) {
   if (!Array.isArray(items) || items.length === 0) {
-    return { sent: 0, skipped: 0 }
+    return { sent: 0, skipped: 0, soundless: 0 }
   }
   const s = settingsOf(settings)
-  await connect()
-  await anki("createDeck", { deck: s.deck })
-  const fields = await noteFields(s.model)
-  const sound = { on: s.sound }
+  const x = new Export(s.sound)
+  await connect(x)
+  await anki(x, "createDeck", { deck: s.deck })
+  const fields = await noteFields(x, s.model)
   const seen = new Set()
-  let sent = 0
   let skipped = 0
   for (let start = 0; start < items.length; start += batchSize) {
     const batch = []
@@ -226,7 +298,7 @@ export async function exportNotes(items: any[], settings: any) {
     }
     if (batch.length === 0) continue
     const notes = batch.map(({ p }) => ({ deckName: s.deck, modelName: s.model, fields: fieldsOf(p, s.model, fields), tags: s.tags, options: { allowDuplicate: false, duplicateScope: "deck" } }))
-    const can = await anki("canAddNotes", { notes })
+    const can = await anki(x, "canAddNotes", { notes })
     if (!Array.isArray(can) || can.length !== notes.length) {
       throw fail("anki-bad-reply", "AnkiConnect did not say which notes it can add.")
     }
@@ -239,27 +311,33 @@ export async function exportNotes(items: any[], settings: any) {
       const { item, p } = batch[i]
       // The sound is read and stored only for a line that is going in, never for a duplicate.
       if (item.kind !== "word") {
-        const data = await readSound(item.id, sound)
+        const data = await readSound(x, item.id)
         if (data !== null) {
-          const name = await anki("storeMediaFile", { filename: mediaName(item.id), data })
+          const name = await anki(x, "storeMediaFile", { filename: mediaName(item.id), data })
           p.Sound = `[sound:${escape(typeof name === "string" && name !== "" ? name : mediaName(item.id))}]`
           notes[i].fields = fieldsOf(p, s.model, fields)
         }
       }
-      adding.push(notes[i])
+      adding.push({ note: notes[i], sound: p.Sound !== "", line: item.kind !== "word" })
     }
     if (adding.length === 0) continue
     let added
     try {
-      const ids = await anki("addNotes", { notes: adding })
-      added = Array.isArray(ids) ? ids.filter((id) => id !== null).length : 0
+      const ids = await anki(x, "addNotes", { notes: adding.map((a) => a.note) })
+      added = Array.isArray(ids) ? adding.filter((a, i) => ids[i] !== null && ids[i] !== undefined) : []
+      x.sent += added.length
     } catch (e) {
       // Newer AnkiConnect fails addNotes as a whole when one note cannot be added, such as one added from elsewhere since canAddNotes; older ones answer null for it.
       if (e.code !== "anki-error") throw e
-      added = await addOneByOne(adding)
+      added = []
+      for (const a of adding) {
+        if ((await addOneByOne(x, [a.note])) === 1) added.push(a)
+      }
     }
-    sent += added
-    skipped += adding.length - added
+    skipped += adding.length - added.length
+    if (s.sound) {
+      x.soundless += added.filter((a) => a.line && !a.sound).length
+    }
   }
-  return { sent, skipped }
+  return { sent: x.sent, skipped, soundless: x.soundless }
 }

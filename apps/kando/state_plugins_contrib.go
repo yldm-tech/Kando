@@ -215,11 +215,11 @@ func (a *app) pluginsExportTo(e pluginsContribution[plugins.Exporter]) {
 		if a.saved.export.gen != gen {
 			return
 		}
-		sent, skipped, ok := plugins.Exported(v)
+		sent, skipped, soundless, ok := plugins.Exported(v)
 		if err == nil && !ok {
 			err = errPluginsBadExport
 		}
-		a.saved.export = savedExport{finished: true, gen: gen, plugin: name, sent: sent, skipped: skipped, err: err, total: len(items), done: len(items)}
+		a.saved.export = savedExport{finished: true, gen: gen, plugin: name, sent: sent, skipped: skipped, soundless: soundless, err: err, total: len(items), done: len(items)}
 	})
 }
 

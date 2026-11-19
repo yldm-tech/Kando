@@ -166,15 +166,15 @@ func (a *app) CancelNote() { a.saved.note, a.saved.draft = "", "" }
 func (a *app) ExportState() study.Export {
 	e := a.saved.export
 	out := study.Export{Busy: e.busy, Finished: e.finished, Done: e.done, Total: e.total, Lines: e.result.Lines, Sounds: e.result.Sounds, NoFFmpeg: e.noFFmpeg,
-		Template: e.template, File: filepath.Base(e.result.File), WithSound: e.sounds, Plugin: e.plugin, Sent: e.sent, Skipped: e.skipped}
+		Template: e.template, File: filepath.Base(e.result.File), WithSound: e.sounds, Plugin: e.plugin, Sent: e.sent, Skipped: e.skipped, Soundless: e.soundless}
 	switch {
 	case errors.Is(e.err, context.Canceled):
 		out.Stopped = true
 	case e.err != nil:
 		out.Err = e.err.Error()
-		// A plugin that rejected the export with a code did it on purpose, saying why (core.Error); anything else is Kando's or the runtime's error, which is not the user's to read.
+		// A plugin that rejected the export with a code of its own did it on purpose, saying why (core.Error); anything else is Kando's or the runtime's error, or a refusal of Kando's the plugin passed on, which is not the user's to read.
 		var coded *core.Error
-		if e.plugin != "" && errors.As(e.err, &coded) && coded.Code != "" {
+		if e.plugin != "" && errors.As(e.err, &coded) && pluginsOwnCode(coded.Code) {
 			out.Reason = plugins.Reason(coded.Message)
 		}
 	}

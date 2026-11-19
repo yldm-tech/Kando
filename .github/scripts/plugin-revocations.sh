@@ -25,17 +25,30 @@ done
 [[ $days =~ ^[1-9][0-9]*$ ]] || fail "-days is a number of days, 1 or more"
 [ -n "${NSGO_ROOT_KEY:-}" ] || fail "NSGO_ROOT_KEY is not set: give the plugin root's secret in it, on the offline computer that keeps it"
 
+# Packages named by file, relative to where the script was run from, made absolute before it moves to the repository's top.
+if [ -n "$add_packages" ]; then
+  IFS=, read -r -a named <<<"$add_packages"
+  add_packages=""
+  for p in "${named[@]}"; do
+    if [ -f "$p" ]; then
+      p=$(cd "$(dirname "$p")" && pwd)/$(basename "$p")
+    fi
+    add_packages=${add_packages:+$add_packages,}$p
+  done
+fi
+
 root=$(git rev-parse --show-toplevel)
 cd "$root"
 list=apps/kando/plugins/revocations/kando-plugin-revocations.json
 tool=(go run ./apps/kando/plugins/official/cmd/official)
 
 # The committed list's next sequence and what it revokes, a line each.
+next=$("${tool[@]}" revocations -list "$list" -next) || fail "could not read the committed list $list (see above)"
 {
   read -r sequence
   read -r keys
   read -r packages
-} < <("${tool[@]}" revocations -list "$list" -next)
+} <<<"$next"
 [[ $sequence =~ ^[1-9][0-9]*$ ]] || fail "could not read the committed list's sequence"
 
 join() {

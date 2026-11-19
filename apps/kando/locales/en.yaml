@@ -7981,6 +7981,14 @@ savedExportedPlugin:
     sent: { type: "int", example: "12" }
     skipped: { type: "int", example: "0" }
     name: { type: "String", example: "AnkiConnect" }
+savedExportedPluginSoundless:
+  message: "{name}: {sent, plural, one {sent #} other {sent #}}, {skipped, plural, one {skipped #} other {skipped #}}, {soundless, plural, one {# line without its sound} other {# lines without their sound}}."
+  description: "Saved Lines sheet, once an export to a script plugin's target is done and some lines went without the sound the plugin was to attach (for instance more lines than Kando reads sounds for in a minute): how many it sent, skipped and sent without sound."
+  placeholders:
+    sent: { type: "int", example: "120" }
+    skipped: { type: "int", example: "0" }
+    soundless: { type: "int", example: "60" }
+    name: { type: "String", example: "AnkiConnect" }
 settingsPluginsStoppedInit:
   message: "Turned off: it failed as it started"
   description: "Plugins page: why Kando turned a script plugin off."

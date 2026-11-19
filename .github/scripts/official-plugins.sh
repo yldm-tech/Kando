@@ -20,8 +20,15 @@ case $cert in
   "$root"/*) fail "the certificate is inside the repository; keep it outside, with the keys" ;;
 esac
 packs=${KANDO_PLUGIN_PACKS:-$root/apps/site/public/plugin/packs}
+# Paths given relative to where the script was run from, made absolute before it moves to the repository's top.
+mkdir -p "$packs"
+packs=$(cd "$packs" && pwd)
 
-folders=("$@")
+folders=()
+for dir in "$@"; do
+  [ -d "$dir" ] || fail "$dir is not a folder"
+  folders+=("$(cd "$dir" && pwd)")
+done
 if [ ${#folders[@]} -eq 0 ]; then
   for f in "$root"/apps/kando/plugins/official/*/nsgo.yaml; do
     folders+=("$(dirname "$f")")
@@ -34,7 +41,6 @@ trap 'rm -rf "$work"' EXIT
 
 cd "$root"
 for dir in "${folders[@]}"; do
-  dir=$(cd "$dir" && pwd)
   [ -f "$dir/nsgo.yaml" ] && [ -f "$dir/kando-plugin.json" ] && [ -f "$dir/plugin.tsx" ] || fail "$dir is not an official plugin's folder (nsgo.yaml, kando-plugin.json, plugin.tsx)"
   name=$(basename "$dir")
   # The package's file name is what kando-plugin.json's script names in the .kandoplugin.

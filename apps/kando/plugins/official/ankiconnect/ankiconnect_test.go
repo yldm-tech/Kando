@@ -42,8 +42,9 @@ type anki struct {
 	apiKey       bool
 	// wholeBatch fails addNotes as a whole, adding nothing, when one of its notes cannot be added, as newer AnkiConnect does; else it answers null for that one, as older ones do. lying makes canAddNotes say yes to every note, as for a note added from elsewhere in between.
 	wholeBatch, lying bool
-	// notJSON answers what is not AnkiConnect.
+	// notJSON answers what is not AnkiConnect; delay holds every answer that long, or until the request is given up, as a busy Anki does.
 	notJSON bool
+	delay   time.Duration
 
 	models  map[string][]string
 	decks   map[string]bool
@@ -86,6 +87,16 @@ func (a *anki) canAdd(n note) bool {
 }
 
 func (a *anki) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+	a.mu.Lock()
+	delay := a.delay
+	a.mu.Unlock()
+	if delay > 0 {
+		select {
+		case <-time.After(delay):
+		case <-r.Context().Done():
+			return
+		}
+	}
 	a.mu.Lock()
 	defer a.mu.Unlock()
 	if a.notJSON {
@@ -351,6 +362,9 @@ type plugin struct {
 	v      script.Verified
 	net    *network
 	sounds *sounds
+	// soundless is what the last export answered of lines sent without their sound; stopped are the reasons the runner stopped the plugin for, which no test expects (engine's goroutine).
+	soundless int
+	stopped   []string
 }
 
 // signed signs this folder as it is with a key the test makes, which stands in for Kando's official root (script.PackFolder certifies it for the publisher kando), wraps the package as the release does (official.Wrap) and stages the .kandoplugin as Kando installs it (plugins.Stage), verifying it as an official plugin (script.Verify) and reading what its code says of itself (script.Probe).
@@ -416,8 +430,19 @@ func signed(t *testing.T) *plugin {
 	if err != nil {
 		t.Fatalf("what the code says of itself is not its manifest: %v", err)
 	}
-	return &plugin{e: e, v: v, net: newNetwork(t), sounds: &sounds{clips: map[string]string{}},
-		r: &script.Runner{Post: e.post, Watch: script.Watch{Beat: 100 * time.Millisecond, Stall: time.Minute, Stalls: 3, Heap: 512 << 20, Deadline: time.Minute, Paused: 5 * time.Minute}}}
+	out := &plugin{e: e, v: v, net: newNetwork(t), sounds: &sounds{clips: map[string]string{}}}
+	// The runner's deadline and pauses are Kando's (script.DefaultWatch); only the heartbeat is lenient, as the race detector slows the engine down.
+	w := script.DefaultWatch
+	w.Stall = time.Minute
+	out.r = &script.Runner{Post: e.post, Watch: w, Stopped: func(id, hash, reason string) { out.stopped = append(out.stopped, reason) }}
+	t.Cleanup(func() {
+		var stopped []string
+		e.do(func() { stopped = out.stopped })
+		if len(stopped) > 0 {
+			t.Errorf("the runner stopped the plugin: %v", stopped)
+		}
+	})
+	return out
 }
 
 // load runs the plugin with grant, in Kando's sandbox (script.Load), its fetches going through p.net and its host answering kando.sound.read with p.sounds.
@@ -463,10 +488,11 @@ func (p *plugin) export(t *testing.T, pl *script.Plugin, items []map[string]any,
 	if err != nil {
 		return 0, 0, err
 	}
-	s, k, ok := plugins.Exported(v)
+	s, k, q, ok := plugins.Exported(v)
 	if !ok {
 		t.Fatalf("exportNotes answered %v", v)
 	}
+	p.soundless = q
 	return s, k, nil
 }
 
@@ -574,7 +600,7 @@ func TestPluginAnkiConnectBasic(t *testing.T) {
 	}
 	a.mu.Lock()
 	n0, n1 := a.notes[0], a.notes[1]
-	if n0.Model != "Basic (and reversed card)" || n0.Fields["正面"] != "猫" || n0.Fields["背面"] != "cat<br>[sound:kando-l1.m4a]<br>Talk" || len(n0.Tags) != 0 {
+	if n0.Model != "Basic (and reversed card)" || n0.Fields["正面"] != "猫" || n0.Fields["背面"] != "cat<br>[sound:kando-l1.m4a]<br>Talk" || !slices.Equal(n0.Tags, []string{"kando"}) {
 		t.Errorf("the line %+v", n0)
 	}
 	if n1.Fields["正面"] != "犬" || n1.Fields["背面"] != "いぬ<br>dog<br>猫が好き<br>喜欢猫<br>Talk" {
@@ -685,8 +711,8 @@ func TestPluginAnkiConnectGrant(t *testing.T) {
 	p.sounds.clips["l1"] = "bTRh"
 	p.sounds.clips["l2"] = "bTRh"
 	sent, _, err := p.export(t, silent, []map[string]any{line("l1", "猫", "cat"), line("l2", "犬", "dog")}, map[string]any{"sound": true})
-	if err != nil || sent != 2 {
-		t.Fatalf("without the sound: sent %d, %v", sent, err)
+	if err != nil || sent != 2 || p.soundless != 2 {
+		t.Fatalf("without the sound: sent %d, %d without sound, %v", sent, p.soundless, err)
 	}
 	wantOnlyAnki(t, p.net)
 	if _, media, _ := a.counts(""); p.sounds.count() != 0 || media != 0 {
@@ -701,8 +727,8 @@ func TestPluginAnkiConnectGrant(t *testing.T) {
 	}
 	p.sounds.mu.Unlock()
 	sent, _, err = p.export(t, full, []map[string]any{line("l3", "鳥", "bird"), line("l4", "魚", "fish"), line("l5", "馬", "horse")}, map[string]any{"sound": true})
-	if err != nil || sent != 3 {
-		t.Fatalf("over the quota: sent %d, %v", sent, err)
+	if err != nil || sent != 3 || p.soundless != 2 {
+		t.Fatalf("over the quota: sent %d, %d without sound, %v", sent, p.soundless, err)
 	}
 	if _, media, _ := a.counts(""); p.sounds.count() != 2 || media != 1 {
 		t.Errorf("over the quota: %d sound calls, %d media files", p.sounds.count(), media)
@@ -713,8 +739,59 @@ func TestPluginAnkiConnectGrant(t *testing.T) {
 	p.sounds.limit = 0
 	p.sounds.mu.Unlock()
 	before := p.sounds.count()
-	if _, _, err := p.export(t, full, []map[string]any{line("l6", "牛", "cow")}, map[string]any{"sound": false}); err != nil || p.sounds.count() != before {
-		t.Errorf("sound off: %v, %d calls", err, p.sounds.count()-before)
+	if _, _, err := p.export(t, full, []map[string]any{line("l6", "牛", "cow")}, map[string]any{"sound": false}); err != nil || p.sounds.count() != before || p.soundless != 0 {
+		t.Errorf("sound off: %v, %d calls, %d without sound", err, p.sounds.count()-before, p.soundless)
+	}
+}
+
+// TestPluginAnkiConnectManyLines checks an export of more lines than Kando reads sounds for in a minute (its quota of 60 host calls): every line goes in, the first 60 with their sound; the rest, as the minute's wait does not fit in the call's time, go without, which the export reports rather than saying only how many it sent.
+func TestPluginAnkiConnectManyLines(t *testing.T) {
+	p := signed(t)
+	pl := p.load(t, p.granted())
+	a := newAnki()
+	p.net.use(a)
+	p.sounds.mu.Lock()
+	p.sounds.limit = 60
+	p.sounds.mu.Unlock()
+	var items []map[string]any
+	for i := range 70 {
+		id := fmt.Sprintf("l%02d", i)
+		p.sounds.clips[id] = "bTRh"
+		items = append(items, line(id, "line "+id, "行"))
+	}
+	sent, skipped, err := p.export(t, pl, items, map[string]any{"sound": true})
+	if err != nil || sent != 70 || skipped != 0 || p.soundless != 10 {
+		t.Fatalf("sent %d, skipped %d, %d without sound, %v", sent, skipped, p.soundless, err)
+	}
+	if _, media, stored := a.counts("storeMediaFile"); media != 60 || stored != 60 || p.sounds.count() != 61 {
+		t.Errorf("%d media files, stored %d times, %d sound calls", media, stored, p.sounds.count())
+	}
+}
+
+// TestPluginAnkiConnectSlowAnki checks a busy Anki that takes 12 s to answer each request: the export gives up a request it has no time left for (abort), within the time Kando's runner allows a call, with a coded anki-timeout that says what went in, so the runner never stops the plugin as slow (the plugin's cleanup checks it).
+func TestPluginAnkiConnectSlowAnki(t *testing.T) {
+	if testing.Short() {
+		t.Skip("waits on a slow Anki for most of a minute")
+	}
+	p := signed(t)
+	pl := p.load(t, p.granted())
+	a := newAnki()
+	a.delay = 12 * time.Second
+	p.net.use(a)
+	start := time.Now()
+	_, _, err := p.export(t, pl, []map[string]any{line("l1", "猫", "cat")}, map[string]any{})
+	took := time.Since(start)
+	var coded *core.Error
+	if !errors.As(err, &coded) || coded.Code != "anki-timeout" || !strings.Contains(coded.Message, "0 notes went in") {
+		t.Fatalf("%v", err)
+	}
+	if took > script.DefaultWatch.Deadline-5*time.Second {
+		t.Errorf("the export took %v, near the runner's deadline of %v", took, script.DefaultWatch.Deadline)
+	}
+	var closed bool
+	p.e.do(func() { closed = pl.Closed() })
+	if closed {
+		t.Fatal("the plugin was stopped")
 	}
 }
 

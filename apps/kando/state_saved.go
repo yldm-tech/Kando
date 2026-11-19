@@ -59,9 +59,9 @@ type savedExport struct {
 	template string
 	// sounds is whether the export writes the lines' sound: Kando's own notes do, a template only with {{sound}} (saved.Target.Sounds).
 	sounds bool
-	// plugin is the name of the script plugin the export sends to, "" for a file; sent and skipped are what it answered it sent and skipped (pluginsExportTo).
-	plugin        string
-	sent, skipped int
+	// plugin is the name of the script plugin the export sends to, "" for a file; sent, skipped and soundless are what it answered it sent, skipped and sent without the sound it was to attach (pluginsExportTo).
+	plugin                   string
+	sent, skipped, soundless int
 }
 
 func newSavedUI() savedUI { return savedUI{now: time.Now, keeping: map[string]bool{}} }

@@ -41,11 +41,11 @@ func SubtitlesText(v any) (string, bool) {
 	return s, ok && len(s) <= SubtitlesMax
 }
 
-// Exported is what an exporter of a script plugin answered as v ({sent, skipped}), each a count of at least 0, and whether it answered that.
-func Exported(v any) (sent, skipped int, ok bool) {
+// Exported is what an exporter of a script plugin answered as v ({sent, skipped, soundless}), each a count of at least 0, and whether it answered that; soundless is how many lines it sent without the sound it was to attach, as when Kando's quota of host calls ran out. A count left out is 0.
+func Exported(v any) (sent, skipped, soundless int, ok bool) {
 	m, isMap := v.(map[string]any)
 	if !isMap {
-		return 0, 0, false
+		return 0, 0, 0, false
 	}
 	count := func(key string) (int, bool) {
 		n, ok := Number(m[key])
@@ -56,7 +56,8 @@ func Exported(v any) (sent, skipped int, ok bool) {
 	}
 	sent, ok1 := count("sent")
 	skipped, ok2 := count("skipped")
-	return sent, skipped, ok1 && ok2
+	soundless, ok3 := count("soundless")
+	return sent, skipped, soundless, ok1 && ok2 && ok3
 }
 
 // Number is v as a number, as a plugin's answer holds one: tsx gives a whole number as an int64 and another as a float64.

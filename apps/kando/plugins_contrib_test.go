@@ -28,6 +28,7 @@ import (
 	"kando/packages/study"
 	psync "kando/packages/sync"
 
+	ns "github.com/nsgo-dev/nsgo/core"
 	"github.com/nsgo-dev/nsgo/nsgotest"
 	"github.com/nsgo-dev/nsgo/tsx/pkg"
 )
@@ -60,7 +61,12 @@ export async function exportNotes(items, settings) {
     e.code = "anki-unreachable"
     throw e
   }
-  return { sent: items.filter((i) => i.kind === "line").length, skipped: items.filter((i) => i.kind === "word").length }
+  if (items.some((i) => i.original === "passed on")) {
+    const e = new Error("quota")
+    e.code = "quota"
+    throw e
+  }
+  return { sent: items.filter((i) => i.kind === "line").length, skipped: items.filter((i) => i.kind === "word").length, soundless: items.filter((i) => i.original === "quiet").length }
 }
 export function exportSlow() { return new Promise(() => {}) }
 export async function loopFetch() {
@@ -216,6 +222,28 @@ func TestPluginContribExporter(t *testing.T) {
 		t.Fatalf("a coded failure: %+v", e)
 	}
 	wantText(t, tt, testlocale.Messages().SavedExportPluginFailedReason("Anki 发送器", "Anki is not running. Start it."))
+
+	// A refusal of Kando's the plugin passes on is not a reason of its own: the sheet says only that it failed.
+	onEngine(a, func() {
+		a.saved.book.Lines[len(a.saved.book.Lines)-1].Original = "passed on"
+		a.ExportSaved()
+	})
+	scriptsSettle(t, a, tt, updates, func() bool { return a.ExportState().Finished })
+	if e := a.ExportState(); e.Err == "" || e.Reason != "" {
+		t.Fatalf("a refusal passed on: %+v", e)
+	}
+	wantText(t, tt, testlocale.Messages().SavedExportPluginFailed("Anki 发送器"))
+
+	// Lines the plugin sent without their sound are counted on the sheet.
+	onEngine(a, func() {
+		a.saved.book.Lines[len(a.saved.book.Lines)-1].Original = "quiet"
+		a.ExportSaved()
+	})
+	scriptsSettle(t, a, tt, updates, func() bool { return a.ExportState().Finished })
+	if e := a.ExportState(); e.Err != "" || e.Sent != 3 || e.Soundless != 1 {
+		t.Fatalf("lines without sound: %+v", e)
+	}
+	wantText(t, tt, testlocale.Messages().SavedExportedPluginSoundless(3, 1, 1, "Anki 发送器"))
 	onEngine(a, func() { a.saved.book.Lines = a.saved.book.Lines[:len(a.saved.book.Lines)-1] })
 
 	// An export to a plugin that never answers, stopped, says it stopped, not that it sent nothing.
@@ -625,4 +653,25 @@ func TestPluginDetailsFollowTheLanguage(t *testing.T) {
 	en := locales.In("en")
 	wantText(t, tt, "· "+en.SettingsPluginsAddsLookup("Wiki"))
 	wantText(t, tt, en.SettingsPluginsCredentialHosts("api.deepl.com"))
+}
+
+// TestPluginExportReasonIsThePluginsOwn checks that the sheet shows why an export target failed only when the plugin rejected with a code of its own: never for a refusal of Kando's it passed on, a host call that timed out (ETIMEDOUT) or the runtime's refusals (ERR_…), whose words are not written for the user, nor for an error without a code.
+func TestPluginExportReasonIsThePluginsOwn(t *testing.T) {
+	for code, shown := range map[string]bool{
+		"anki-unreachable": true, "my-own": true,
+		"": false, "ETIMEDOUT": false, "ERR_ACCESS_DENIED": false, "ERR_QUOTA": false,
+		"denied": false, "quota": false, "bad-request": false, "busy": false, "unavailable": false, "budget": false, "cut-off": false,
+		"timeout": false, "failed": false, "no-ffmpeg": false, "not-found": false, "too-large": false, "no-credential": false,
+	} {
+		a := &app{}
+		a.saved.export = savedExport{finished: true, plugin: "Anki", err: &ns.Error{Code: code, Message: "why"}}
+		if got := a.ExportState().Reason; (got == "why") != shown {
+			t.Errorf("code %q: reason %q", code, got)
+		}
+	}
+	a := &app{}
+	a.saved.export = savedExport{finished: true, plugin: "Anki", err: errors.New("why")}
+	if got := a.ExportState().Reason; got != "" {
+		t.Errorf("an error without a code: reason %q", got)
+	}
 }

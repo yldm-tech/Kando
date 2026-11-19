@@ -64,6 +64,8 @@ type Export struct {
 	// Plugin is the name of the script plugin the export sends the lines to, "" for a file; Sent and Skipped are what it answered it sent and skipped.
 	Plugin        string
 	Sent, Skipped int
+	// Soundless is how many lines the plugin answered it sent without the sound it was to attach.
+	Soundless int
 	// Reason is why the plugin's target failed, as the plugin said it rejecting the export on purpose (plugins.Reason), "" when it did not say.
 	Reason string
 }
@@ -203,6 +205,8 @@ func exportStatus(cx *core.Scope, export func() Export) core.Node {
 			return locales.SavedExportPluginFailedReason(cx, e.Plugin, e.Reason)
 		case e.Plugin != "" && e.Finished && e.Err != "":
 			return locales.SavedExportPluginFailed(cx, e.Plugin)
+		case e.Plugin != "" && e.Finished && e.Soundless > 0:
+			return locales.SavedExportedPluginSoundless(cx, e.Sent, e.Skipped, e.Soundless, e.Plugin)
 		case e.Plugin != "" && e.Finished:
 			return locales.SavedExportedPlugin(cx, e.Sent, e.Skipped, e.Plugin)
 		case e.Busy:
