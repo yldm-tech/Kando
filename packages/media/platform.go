@@ -202,6 +202,14 @@ func containment(want, have map[string]int) float64 {
 
 // PlatformSubtitles fetches the subtitles the uploader put on source's page in language with yt-dlp, without the video, borrowing the same sign-ins a download does, as bilibili shows its CC subtitles only to a viewer signed in. It runs apart from Download, so a site that refuses the subtitles, as YouTube does to a client asking too often, never fails the download; it gives up after platformFetchTimeout. Subtitles in a variant of language, as en-GB or zh-Hans, are taken when the language itself has none.
 func (t Tools) PlatformSubtitles(ctx context.Context, source, language string) ([]core.Segment, error) {
+	// --write-subs takes the uploader's subtitles alone; the site's own automatic ones would need --write-auto-subs (AutoCaptions).
+	return t.fetchSubtitles(ctx, source, language, func(language string) []string {
+		return []string{"--write-subs", "--sub-langs", subtitleLanguages(language)}
+	})
+}
+
+// fetchSubtitles fetches the subtitles of source's page in language with yt-dlp, without the video, as PlatformSubtitles and AutoCaptions do: which gives the options that choose them, for language lowered and trimmed. It borrows the sign-ins a download does and gives up after platformFetchTimeout.
+func (t Tools) fetchSubtitles(ctx context.Context, source, language string, which func(language string) []string) ([]core.Segment, error) {
 	if t.YTDLP == "" {
 		return nil, errors.New("yt-dlp is not installed")
 	}
@@ -220,14 +228,14 @@ func (t Tools) PlatformSubtitles(ctx context.Context, source, language string) (
 		"--skip-download",
 		"--no-playlist",
 		"--ignore-no-formats-error",
-		// --write-subs takes the uploader's subtitles alone; the site's own automatic ones would need --write-auto-subs.
-		"--write-subs",
-		"--sub-langs", subtitleLanguages(language),
+	}
+	args = append(args, which(language)...)
+	args = append(args,
 		"--sub-format", "srt/vtt/best",
 		"--convert-subs", "srt",
 		"-P", dir,
-		"-o", "subtitle:" + platformSubtitlesName + ".%(ext)s",
-	}
+		"-o", "subtitle:"+platformSubtitlesName+".%(ext)s",
+	)
 	if t.FFmpeg != "" {
 		args = append(args, "--ffmpeg-location", t.FFmpeg)
 	}

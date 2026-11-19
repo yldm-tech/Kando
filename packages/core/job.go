@@ -112,7 +112,7 @@ type Job struct {
 	Quality Quality
 	// SubtitlesOnly is true for a link's film that keeps no video (QualitySubtitles): its download fetched the sound alone, which was removed once the subtitles were exported. VideoPath still names where that sound was, as the subtitles and the files kept beside them are named after it, and the film is watched by streaming Source. Downloading its video (RedoVideo) clears it.
 	SubtitlesOnly bool
-	// SubtitleSource is where the job takes the original lines of a link's film from, as the user chose it: the subtitles the uploader put on the site, checked against the speech (SubtitlesPlatform), or the speech recognition alone (SubtitlesLocal). Empty until the queue gives the job the one Settings › 通用 › 在线视频 names, as it first runs; a local video is always heard.
+	// SubtitleSource is where the job takes the original lines of a link's film from, as the user chose it: the subtitles the uploader put on the site, checked against the speech (SubtitlesPlatform), the speech recognition alone (SubtitlesLocal), or the speech recognition with the site's own captions kept as a reference layer (SubtitlesAuto). Empty until the queue gives the job the one Settings › 通用 › 在线视频 names, as it first runs; a local video is always heard.
 	SubtitleSource SubtitleSource
 	// PlatformSubtitles is true once the film's original lines are the subtitles its site carries, which matched the speech the job heard (media.Run); LocalLines then counts the lines of those subtitles that lines the speech recognition heard replaced, where the speech did not match them. A job transcribing the video again finds them anew; one processing a done film again entirely (RedoAll) keeps the film's until it completes.
 	PlatformSubtitles bool
@@ -172,11 +172,13 @@ const (
 	SubtitlesPlatform SubtitleSource = "platform"
 	// SubtitlesLocal hears the speech with the speech recognition alone.
 	SubtitlesLocal SubtitleSource = "local"
+	// SubtitlesAuto hears the speech with the speech recognition alone, as SubtitlesLocal does, and keeps the captions the site made itself in the language heard (YouTube's automatic captions, bilibili's AI subtitles) beside the video as a reference layer the player can show over the film's own lines; they never become its original lines.
+	SubtitlesAuto SubtitleSource = "auto"
 )
 
 // Known reports whether s is one of the sources Kando knows; empty is not.
 func (s SubtitleSource) Known() bool {
-	return s == SubtitlesPlatform || s == SubtitlesLocal
+	return s == SubtitlesPlatform || s == SubtitlesLocal || s == SubtitlesAuto
 }
 
 // Redo is what a job made to process a done film again does. RedoTranslation and RedoMissing read the subtitles the film's job exported beside its video and neither download nor transcribe it again; RedoAll runs every stage.
