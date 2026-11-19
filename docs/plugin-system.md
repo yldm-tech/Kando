@@ -75,7 +75,7 @@
 - 五处异步 Chat 流程（`state_explain.go` 的 `explainAsk`、`state_vocab.go` 里 `LookUpWord` 起的 goroutine、`state_recap.go` 的 recap 请求、`palette_app.go` 的面板提问、`state_correct_candidates.go` 的 `correctCandidates`）重复的只有「带超时的 context、起 goroutine、经 `a.update` 回来、按代号丢掉过期回答」这几步，所以只抽出这一段：`ai_ask.go` 的 `aiAsk[T](a, timeout, ask, current, done) context.CancelFunc`。各处的代号、cancel 的存法（explain 是一组 cancel）、回答的解析和显示各不相同，留在原处，没有做成一个更大的 `runTask`，免得为合并而抽象。task 也用它。
 - task 数据包：`"task": {"scope": "line"|"word"|"film-so-far", "prompt": "…", "reply": {"fields": [{"key", "label"}], "items": N}, "render": "sections"|"list"|"cards", "maxTokens": N}`。规则：prompt 1 到 4000 字符；fields 1 到 8 个，key 匹配 `^[a-z][A-Za-z0-9_]{0,31}$` 且不重复，label 必填；`items` 只用于 list/cards，不超过 20（默认 8）；`maxTokens` 为 0 或 64 到 4096；为 0 时回答的上限按形状算（`Task.Tokens`：条数 × 字段数 × 每个值 100 个 token，再加 50），算出来超过 4096 的形状 `Validate` 拒收，免得回答总被截断。
 - 非界面包 `plugins/task`：`Prompt` 在包的 prompt 后面依次追加回答语言（替换 `{{language}}`，没有就另起一句写明）、「只依据给出的字幕，不要猜测或透露之后的内容」、以及 JSON 回复规则（sections 是一个对象，list/cards 是不超过 items 个对象的数组，每个值都是字符串）；宿主的规则排在最后，包改不掉它们。`Request` 按 scope 只发学习者已经看到的：line 是当前句（选中改错的那句，否则正在播的、刚听过的或下一句，和 I 讲解这句的挑法一样）和它之前 3 句；word 是查词卡上的词、它所在的句子和之前 3 句；film-so-far 是到最远播放点为止的字幕（`lines.Seen`），超过 40000 字符时丢掉最早的。`Parse` 容忍代码块和前后的文字，数组值按行拼接，数字和布尔值转成文字，一个值也没有算 `ErrEmpty`，不是要的 JSON 算 `ErrMalformed`。
-- 入口：每个已启用的 task 包在快捷键表里有一行（`pluginsTaskKeys`，`keys.go` 的 `shortcuts()` 加一项，Key 为空），所以出现在命令面板和菜单栏的「学习」菜单里，标签是「插件任务：<包名>」，只在有可运行的对象时出现（影片已打开、字幕已读入；word 还要查词卡开着）。播放器 ⋯ 菜单在自己的项后面加上同样的行（`film.Tasker.TaskMenu`，照 `MoveOpenFilmMenu` 的先例由 film 包自己在 ⋯ 里追加），不往别的块的函数里插调用。播放器侧栏的「扩展」标签（E15）仍属 P5。
+- 入口：每个已启用的 task 包在快捷键表里有一行（`pluginsTaskKeys`，`keys.go` 的 `shortcuts()` 加一项，Key 为空），所以出现在命令面板和菜单栏的「学习」菜单里，标签是「插件任务：<包名>」，只在有可运行的对象时出现（影片已打开、字幕已读入；word 还要查词卡开着）。播放器 ⋯ 菜单在自己的项后面加上同样的行（`film.Tasker.TaskMenu`，照 `MoveOpenFilmMenu` 的先例由 film 包自己在 ⋯ 里追加），不往别的块的函数里插调用。task 包的结果没有搬进播放器侧栏的「扩展」标签（E15，第 15 节），仍用自己的侧栏视图。
 - 结果显示在侧栏，和「讲解这句」一样占据标签内容的位置（`film.SideTask`、`film/task.go`）：标题是包名，下面是对象（句子、词，或「影片开头到 m:ss」），回答按 render 显示成带标题的分段、列表或卡片，脚注写模型、这次用了多少 token、今天还剩多少。没有 AI 服务（含离线时的云端服务，`paletteTranslator` 的门控）、预算用完、或还没看过任何字幕时，侧栏说明原因，前两种附上打开 AI 服务设置或插件设置的按钮。换影片、或侧栏换成别的内容（比如「讲解这句」或别的标签）时结果关闭，正在等的请求一起停下（插件块自己的 `afterChange` 看 `filmSide`，不往 explain 的函数里插调用；讲解这句被 task 顶掉时仍像被别的标签顶掉一样留在后台，那是 explain 块原有的行为）。line scope 选到的那句还没听到（改错选中了最远播放点之后的句子）时不发送，侧栏说明。模型在上限处停下（`finish_reason` 为 `length`，`media.ErrReplyCutOff`）时说「回答被截断了」，不当作包的回答格式不对。
 - 预算：task 包装好后是关的（`plugins.State.EnabledPack` 对没有条目的 task 包返回 false，和 P3a 的脚本插件一样，安装和换新内容时都写成关），用户在插件页打开开关就是同意它花 token，确认框和详情里写明。每日预算存在 state.json 这个包的条目里（`PluginState.Budget`，0 表示默认 50000，可在详情里改，1000 到 1000000），开关、换内容时保留。发送前先估算这次最多用多少（提示词的 `EstimateTokens` 加回答上限）：超过今天剩下的预算就不发送并说明；film-so-far 先把字幕裁到剩下的预算放得下的最近几行（每个字符按一个 token 算，宁多勿少），连最后一行都放不下才拒绝。每次的用量来自 `ChatWith` 的 usage（没有就估算）；请求已经发到服务商但失败了的（重试前的那次、被拒的 key、超时、发出后被取消，靠 `httptrace` 的 `WroteRequest` 判断），每次按提示词的估算计入，`ChatWith` 出错时也带回这部分 usage。这些在 `aiAsk` 之外单独经 `a.update` 计入，所以用户关掉结果、回答被丢掉时 token 照样算；用量按本地日期存在插件目录的 `usage.json`（`plugins.Usage`，app 是唯一的写者，在引擎 goroutine 上写，和查词缓存一样），重启不清零；卸载 task 包时删掉它的那一条。请求头带 `X-Title: Kando plugin <id>`，`max_tokens` 用包的 `maxTokens`。
 
@@ -129,8 +129,12 @@
 - 插件导致的失败要能识别出来：`media.Make` 的每个失败都是 `*media.StageError{Stage, Source, Err}`，`Stage` 是 `check`、`download`、`transcribe`、`translate`、`export` 之一（`media.StageCheck` 等常量；校对和终校的失败算 `translate`），`Error()` 仍是「步骤名: 原错误」，`Unwrap` 让 `errors.Is`/`errors.As` 照常工作。只有完全是 `Engine` 自己的失败才带着名字进 `Source`（`media.EngineOf`）：检查时把看懂自己缺的工具和来源的抱怨 `errors.Join` 在一起的，不算来源的失败。`StageError` 的 `Err` 为 nil 时 `Error()` 只是步骤名，`Detail()` 给不带步骤名的错误文字。app 里原来按 `": "` 切错误文字的地方都改成 `errors.As`，并从 package main 挪进了非界面包 `apps/kando/jobfailure`：`jobfailure.Stage`（原 `failedStage`）、`jobfailure.Hint`（原 `failureHint`，参数改成状态行和 `*media.StageError`，不再依赖 `films.Film`）、`jobfailure.TranslationHint`（原 `translationHint`）、`jobfailure.Of`、`jobfailure.ToolMessage`（原 `toolMessage`，订阅和播放列表也用它）；`phonesync/jobs.go` 的 `failedStep` 也改成 `errors.As`。`films.Film.Failure` 带着它给卡片用。`Source` 不为空的失败卡片先于其他已知原因写「翻译来源「X」失败：…」（`precheckFailedSource`），只看来源自己的错误，不给「打开设置」，因为来源的设置不在 AI 服务那一节。
 - library.json：`error` 照旧存完整文字（以步骤名开头，旧版 Kando 照旧能切出步骤），另加 `errorStage`、`errorSource` 两个可选键，只有 `job.Err` 本身就是 `*media.StageError` 时才写。读的时候有 `errorStage` 就按它还原；没有（旧文件）就用 `media.ReadStageError` 从文字里认出这五个步骤名，和以前的读法一致。完成但没翻译的影片：`core.Job.TranslationSource` 记下让它没翻成的来源（`Make` 用 `EngineOf` 从检查或翻译的失败里取），library.json 加可选键 `translationSource`，旧文件和旧版读到都当作 AI 服务的；`films.Film.TranslationSource` 带给 `jobfailure.TranslationHint`，卡片同样写「翻译来源「X」失败：…」。
 
-**E15 插件 UI**
-- 播放器侧栏只加一个统一的「扩展」标签。`film/panel.go:26` 的 `var panelTabs` 改成 `film.App` 上的方法。标签内用二级选择器切换各插件，正文是 `tsx.View` 外包 `core.Catch`。
+**E15 插件 UI**（已实现，出入见第 15 节）
+- 播放器侧栏只加一个统一的「扩展」标签，只在有正在运行的脚本插件贡献了面板时出现。原来的 `var panelTabs` 改成 film 的 `screen.panelTabs`，按 `film.Extender` 读出有没有面板。标签内只有一个面板时是标题，多于一个时用 `ui.Select` 切换，选择存在 settings.json 的 `pluginPanel`（`plugin:<插件 id>:<面板 id>`，插件不在运行时保留）；标题下写「来自插件「<插件名>」」。正文是插件自己的视图（`tsx.View`，在 `script.Runner.Panel` 里外包 `core.Catch`）。
+- 贡献块 `contributes.panels`：最多 8 项，每项 `id`、`export`（插件导出的 TSX 组件）、`title`，可选 `icon`（只能是 `plugins.PanelIcons` 里的 Lucide 名，看懂自己画，不收插件的图片）；`Probe` 检查导出存在，`kandoManifest()` 的比对覆盖它，详情页「添加的功能」列出「播放器「扩展」标签里的面板：<标题>」。
+- 面板的视图是同一个包在另一个运行时里再跑一次入口模块：沙箱和插件函数的完全一样（`script.Sandbox`：`Limits`、从零建的 Grant、同一个 Storage 分区），Grant 用插件载入时的那份；Host 是这个视图自己的（`core.Host` 同一时刻只服务一个 app），handler 和插件的一样，`pluginsGuard` 只在它是当前显示的视图时认它，配额和插件共用。宿主参数 `host.params` 写着 `panel` 和 `export`，入口模块据此自己 `mount`：`if (host.params.panel === "deck") mount(Deck)`；插件为函数载入或预读时参数是空的，什么都不挂。
+- 面板的视图抛错（载入、渲染、之后处理事件时）、某一段超过 `Limits` 的预算或超了配额，`core.Catch` 在标签里显示「插件「X」的面板出错了」和「重试」，播放器不受影响；每次失败都像一次失败的调用一样计入插件的熔断，第 3 次停用插件并记进 health.json。入口模块运行期间写 in-flight 标记（这个插件正有调用在跑时不写，免得清掉调用的标记）。
+- 正文只在换了面板或插件重新载入时重建（`Extension.Run`），播放、换句、别的状态变化都不重建，面板里的焦点和滚动位置保住。
 - 插件设置页以声明式 schema 为主（见 7.3），`tsx.View` 只作退路。
 
 **E16 TTS、Transcriber**
@@ -290,7 +294,7 @@ kind 是封闭枚举：`dictionary`、`wordlist`、`glossary`、`ai-service`、`
 
 ### 4.2 脚本插件示例
 
-`capabilities` 用 `pkg.Capabilities` 的 JSON 形状，只允许出现 `host` 和 `network` 两个键，`network` 只允许 `http` 规则。每条规则都必须写 `methods`，并写 `paths` 或 `pathPrefixes`，`host` 是一个确定的主机名（不带 `*`），最多 16 条；`network.hosts`（放行任意请求）一律拒收。下面的例子是完整形态，P3b 起全部认得（第 15 节）。贡献块 `lookups`、`subtitleFormats`、`exporters`、`annotators` 各最多 8 项，每项有 `id`、`export`（插件导出的函数名）、`label`；`subtitleFormats` 另有 `extension`（不带点，只能是 `plugins.SubtitleExtensions` 里的字幕和文本扩展名：srt、vtt、ass、ssa、sub、lrc、txt、tsv、csv、json、md、ttml、xml、sbv、smi，文件写在视频旁边，不能是 bat、exe、js 这类可执行的扩展名），`exporters` 另有 `takes`（`lines`、`words` 之一或两个），`lookups` 和 `annotators` 可以有 `languages`。`translators` 最多 8 项，每项 `{id, title, languages, local}`，没有 `export`（固定调 `translate`，可选 `candidates`），见 E14。`credentials` 最多 4 项，`header` 不能是 Host、Cookie、Content-Type 等由请求本身或看懂设置的头，`format` 恰好含一个 `{secret}`，`hosts` 是 1–8 个可注册域名下的主机名（不是 IP、不带 `*`、不是公共后缀），`methods` 只能是 GET、POST、PUT、PATCH、DELETE，`pathPrefixes` 1–8 个、以 `/` 开头、不含 `..`；声明了 `credentials` 就必须申请 `kando.net.credentialFetch`，反之亦然。
+`capabilities` 用 `pkg.Capabilities` 的 JSON 形状，只允许出现 `host` 和 `network` 两个键，`network` 只允许 `http` 规则。每条规则都必须写 `methods`，并写 `paths` 或 `pathPrefixes`，`host` 是一个确定的主机名（不带 `*`），最多 16 条；`network.hosts`（放行任意请求）一律拒收。下面的例子是完整形态，P3b 起全部认得（第 15 节）。贡献块 `lookups`、`subtitleFormats`、`exporters`、`annotators` 各最多 8 项，每项有 `id`、`export`（插件导出的函数名）、`label`；`subtitleFormats` 另有 `extension`（不带点，只能是 `plugins.SubtitleExtensions` 里的字幕和文本扩展名：srt、vtt、ass、ssa、sub、lrc、txt、tsv、csv、json、md、ttml、xml、sbv、smi，文件写在视频旁边，不能是 bat、exe、js 这类可执行的扩展名），`exporters` 另有 `takes`（`lines`、`words` 之一或两个），`lookups` 和 `annotators` 可以有 `languages`。`panels`（E15）最多 8 项，每项是 `id`、`export`（TSX 组件）、`title` 和可选的 `icon`（`plugins.PanelIcons` 之一）。`translators` 最多 8 项，每项 `{id, title, languages, local}`，没有 `export`（固定调 `translate`，可选 `candidates`），见 E14。`credentials` 最多 4 项，`header` 不能是 Host、Cookie、Content-Type 等由请求本身或看懂设置的头，`format` 恰好含一个 `{secret}`，`hosts` 是 1–8 个可注册域名下的主机名（不是 IP、不带 `*`、不是公共后缀），`methods` 只能是 GET、POST、PUT、PATCH、DELETE，`pathPrefixes` 1–8 个、以 `/` 开头、不含 `..`；声明了 `credentials` 就必须申请 `kando.net.credentialFetch`，反之亦然。
 
 ```json
 {
@@ -669,9 +673,10 @@ export function kandoManifest() { return { /* identical to kando-plugin.json fie
 {"name":"film.opened","data":{"film":"f_3a9c…","spoken":"ja"}}
 {"name":"job.completed","data":{"film":"f_3a9c…","stage":"complete"}}
 {"name":"llm.changed","data":{}}
+{"name":"line.changed","data":{"index":41}}
 ```
 
-`line.changed` 不推送，插件需要当前行时自己调 `kando.line.current`。影片 id 是按插件派生的 `HMAC(pluginSecret, filmKey)`，不同插件之间关联不起来，也不泄露路径。
+`line.changed`（E15 起）只推给正在显示的面板视图（数据是 `{"index": 正在播放的行号}`，没有行时是 -1），并且要插件声明了这个事件、此刻有 `kando.line.current` 的授权；为函数载入的插件收不到它，需要当前行时自己调 `kando.line.current`。其余事件也同时推给面板视图。影片 id 是按插件派生的 `HMAC(pluginSecret, filmKey)`，不同插件之间关联不起来，也不泄露路径。
 
 `kando.llm.chat` 的处理流程：先查预算 → 过 `paletteTranslator` 的门控（离线、隐私、未配置）→ 在 goroutine 里调 `ChatWith` → 经 `a.update` 回来 Resolve。现有的 `ChatTranslator.Chat`（`packages/media/translate.go:230`）只返回字符串，不读 usage，不设 `max_tokens`，请求头也只有 Content-Type 和 Authorization（`:609-611`）。所以 P2.0（已实现）先在 `packages/media` 加一个 API：`ChatWith(ctx, ChatRequest{System, User, MaxTokens, Header}) (ChatReply{Text, Usage}, error)`，`Chat` 改成调它，行为不变。服务商不返回 usage 时，按字符数估算 token。请求头带 `X-Title: Kando plugin <id>`，用户在服务商的账单里能分辨出来。
 
@@ -897,7 +902,7 @@ P1.1 的确认框只有数据包要显示的部分：名称（标题）、说明
 - `remote/remote.go` 和 `remote_api.go` 加只读的 `plugins.list`。
 - `state_browse.go` 的 `browseNotVideo`、`browseList`、`browseEnqueue`、`browseHeard`，和 `state_browse_buttons.go` 的 `browsePageAsk`、`browsePageAdd` 接 `pluginSites`，`browseSitesChanged` 换页面脚本并重建 web view（见 E8）；`queue.go` 的 `queueRun`、`queuePipeline` 和 `queue_remedy.go` 的 `FailureRemedy` 对 `core.Job.PluginSite` 的任务不借用登录（P4）。
 - `locales/*.yaml` 五份，加上 `catalog_gen.go`。
-- `film/panel.go:26`（P5）。
+- `film/panel.go` 的 `panelTabs`（E15，已实现：`screen.panelTabs`，「扩展」一项按 `film.Extender` 出现）。
 - 不改：`packages/media` 的 Pipeline、Run、Tools 语义（P5 的 Engine 字段除外）；`sites/catalog` 和 `kcore.VideoSites`；`state_browserext.go` 的判断。
 
 ## 9. 测试策略
@@ -930,7 +935,7 @@ P1.1 的确认框只有数据包要显示的部分：名称（标题）、说明
   - 回滚插件：build 号更低，应被拒绝；
   - 证书范围不符的插件：id 的发布者段与证书的 `Apps` 不一致，应被拒绝。
 - **安全不变量测试**：
-  - 用 `go/ast` 扫描整个仓库，断言 `tsx.Sandboxed` 一处都不出现；`tsx.Load`、`tsx.View` 只出现在 `plugins/script`，并且都经过 `script.Sandbox`。
+  - 用 `go/ast` 扫描整个仓库，断言 `tsx.Sandboxed` 一处都不出现；`tsx.Load`、`tsx.View` 只出现在 `plugins/script` 的非测试代码里，并且都经过 `script.Sandbox`（`tsx.View` 只能写成 `Sandbox` 字段是 `Sandbox(...)` 调用的字面量）。
   - `script.Sandbox` 构造的 Grant 里，除 `Network` 和 `Host` 外所有字段都是零值（用反射遍历 `pkg.Capabilities` 的字段断言）。
   - Kando 构造的每份 Limits（运行时和预读）都满足 `Harden == true`，`Stack`、`Nodes`、`Timers`、`Requests`、`Body`、`Storage` 都大于 0。
   - 每个插件拿到的 `*core.Host` 都是不同的实例。
@@ -1008,7 +1013,7 @@ P1.1 的确认框只有数据包要显示的部分：名称（标题）、说明
 各项单独评审，不承诺：
 
 - 候选译文和机器翻译来源（`media.StageError` 加 `Tools.Engine`）；
-- 播放器侧栏的「扩展」标签和 `tsx.View`；
+- 播放器侧栏的「扩展」标签和 `tsx.View`（已实现，第 15 节 E15）；
 - 社区索引（数据包限速后即时上架，代码包审核后上架，安装仍然不授予任何能力；客户端和打包工具已做，放在官网上而不是原定的 R2，见第 15 节）；
 - TTS。
 
@@ -1132,6 +1137,7 @@ P0–P2 不新增任何 module。P3a 起 `github.com/dlclark/regexp2/v2 v2.11.0`
 | P5 社区索引 | `plugins/index`（签名索引的格式、校验、缓存和 ETag、下载）、设置 › 插件 的「浏览插件」、`kando plugin index` | `feat/plugins-community-index` | 客户端和工具已完成，出入见下 |
 | P5 目录发布 | `cmd/kando-plugin`（kando-plugins 仓库 CI 用的 validate、preview、index，不依赖 cgo）、`plugins/publish` 和 `plugins/script/signature`、`kando://plugin/install?id=` 链接、目录的更新提示、官网 `/plugin` 页 | `feat/plugins-directory-site` | 已完成，出入见下 |
 | P5 翻译来源（E14） | 贡献块 `translators`、`translate`/`candidates` 导出、设置 › 翻译 的「翻译来源」、`media.Tools.Engine` 的插件适配器、⇧E 改走 `Tools.Candidates`、带码的来源失败、官方 DeepL 插件 `kando.deepl` | `feat/plugins-translators` | 已完成，出入见下 |
+| P5 E15 | 播放器侧栏的「扩展」标签：`contributes.panels`、`script.Runner.Panel`（`tsx.View` 外包 `core.Catch`，同一个沙箱，失败计入熔断）、面板视图自己的 Host 和 `line.changed`、`film.Extender`、选择存进 `pluginPanel` | `feat/plugins-panels` | 已完成，出入见下 |
 | P5 其余 | 按需单独立项 | — | 未开始 |
 
 P1.2 的测量结果（Ubuntu 编译机，x86_64，Go 1.27.4，kagome-dict/ipa v1.2.6；每次读 `/proc/self/status` 前先 `runtime.GC()` 和 `debug.FreeOSMemory()`，各在一个新进程里量，量完的测试没有提交）：
@@ -1373,6 +1379,19 @@ NSGO_ROOT_KEY=<root secret> make plugin-revocations
 
 - 发新版本的插件：改代码后把 `kando-plugin.json` 和 `nsgo.yaml` 的 `version` 一起改大（`nsgo publish` 按版本推算 build，build 必须变大，否则看懂按防回滚拒收），再跑 `make official-plugins`；旧版本的文件留着。
 - 吊销列表提交后，下一次发布才会附上；需要马上生效时手动触发一次 Release（`workflow_dispatch`）。
+
+- P5 E15（已完成）：播放器侧栏的「扩展」标签。和正文的出入如下，2.1、2.3、5.3、8.4、第 9 节已同步改过：
+  - 代码位置：非界面包 `plugins` 加了 `Panel`、`PanelIcons`（`contrib.go`）和 `EventLineChanged`（`perm.go`）；`plugins/script/panel.go` 是 `Runner.Panel`（唯一的 `tsx.View`）和 `Runner.Failed`；界面是 `film/extensions.go`（`film.Extender`、`SideExtensions`、标签正文），`film/panel.go` 的 `panelTabs` 改成 `screen.panelTabs`；app 一侧是 `state_plugins_panels.go`。共享文件只动了插件块自己的：`pluginsScript` 加 `panel`、`run` 两个字段，`pluginsGuard` 也认面板视图的 Host，`pluginsSend` 同时发给面板视图，`savedPlugins` 加 `PluginPanel`，`pluginsHooks` 的 `playing`、`afterChange` 各加一行 `pluginsPanelsLine`；`settings.PluginAdds` 加一行面板。
+  - 「`var panelTabs` 改成 `film.App` 上的方法」：`film.App` 是接口，标签的 id 是 film 自己的知识，所以改成 film 的 `screen.panelTabs`（`screen` 持有 `film.App`），由新的 `film.Extender.Extensions` 决定「扩展」出不出现；没有面板时 `FilmSide` 仍记着 `extensions`，侧栏照字幕显示，插件回来时直接回到「扩展」。
+  - 面板除了 `{id, title, icon?}` 还要写 `export`：和其余四种贡献一样点名插件导出的函数，`Probe` 据此检查它确实导出了。NSGo 缺口：宿主没法把包的某个导出当作视图渲染。`tsx.View` 只显示入口模块自己 `mount` 的东西（`tsx/view.go:26-31` 经 `Sandboxed` 跑整个包，`tsx/sandbox.go:135-142` 取的是运行时的根），`tsx.Plugin` 只有 `Call`，返回值经 `exportJSON` 变成 JSON，画不出节点（`tsx/view.go:118-177`）。所以入口模块要读 `host.params`（`tsx/host.go:20-22`，`core.Host.SetParams`）自己 `mount`，代码里留了 `TODO(nsgo)`（还没有上游 issue，没提）。
+  - 一个 `core.Host` 同一时刻只服务一个 app（`core/host.go:239-253` 的 `serve` 把 `h.app` 换成新的），所以面板视图不能和插件函数共用 Host，否则插件就收不到事件了。面板视图有自己的 Host，handler 相同；每次建视图都新建一个，旧视图的调用被 `pluginsGuard` 拒绝。
+  - 看门狗：面板视图不在 `Runner` 的调用里，不受心跳、单次 1 分钟期限和堆阈值管。理由是视图一直开着，心跳会把引擎上任何别的卡顿（app 自己的、其他插件调用的）算到它头上，误停的风险太大。它受的约束是：每段 JS（渲染、事件处理、定时器回调）超过 `Limits.Call` 的 0.5 s 就被切断，进 `core.Catch` 并计入熔断；入口模块 1 s；节点、定时器、请求、存储的配额照旧。残余风险：一个用 setTimeout 把工作切成小于 0.5 s 的片、一直不停的面板能让窗口变慢，也能让堆增长，直到用户切走标签或关掉插件（切走就销毁视图和它的运行时）。等 nsgo#836、nsgo#760 有了总时长和内存上限再补。
+  - 熔断：面板视图的每次失败都经 `Runner.Failed` 计数（规则和调用一样，带 `code` 的 `core.Error` 不算），第 3 次按 `failed` 停用插件，health.json 和 audit.log 照常记；计数在 `core.Catch` 的 Fallback 之后经 `Runner.Post` 做，因为停用会改 app 的状态，而 Fallback 正在建树。「重试」重建视图，再失败也算一次。
+  - in-flight 标记只盖入口模块同步运行的那一段（`MarkInFlight` 到 `ClearInFlight`）；这个插件正有调用在跑时不写，否则会清掉调用自己的标记。
+  - `line.changed` 原来不推送（5.3）。现在只推给面板视图：数据是行号，正文要插件有 `kando.line.current` 的授权自己取，没授权时不推。为函数载入的插件仍收不到它，免得每次换句都在 Runner 外跑插件的 JS。新建面板视图后下一次状态变化会再推一次当前行；插件建视图时自己读一次 `kando.line.current` 更稳。
+  - 正文只在换了面板或插件重新载入时重建；但侧栏本身收起再打开（`ns.Presence`）、换到别的标签再回来都会重建面板视图，入口模块会再跑一次，面板自己的内存状态要放进 Storage 才能留住。
+  - E5 说 task 包的结果也可以放进这个标签：没有做。task 的结果已经有自己的侧栏视图（`SideTask`，⋯ 菜单和命令面板进入，带返回按钮），搬进「扩展」要么让 task 包也出现在面板选择器里（但它没有视图、只在运行后才有内容），要么在标签里混两种来源，选择器的语义会变复杂；保持原样。
+  - 测试：`plugins` 的贡献校验（`contrib_test.go`，含图标不在列表里、图片当图标）；`plugins/script` 的 `TestScriptPanel`（按参数挂对应的导出、函数载入不挂、抛错显示 Fallback、三次失败停用）和 `TestScriptPanelPastItsBudget`；不变量测试改成 `tsx.View` 只能在 `plugins/script` 的非测试代码里、`Sandbox` 字段是 `Sandbox(...)` 的字面量，并要求至少有一处；`film` 的 `TestThePanelShowsTheExtensions`（标签出现和消失、只有一个时是标题、两个时有下拉框、状态变化不重建、换面板和插件重载才重建、失败和重试）和 `TestEveryPanelIconIsDrawn`；app 的 `TestPluginPanels`（打开播放器、出现「扩展」、面板经授权读当前行、播放换句时收到 `line.changed` 且不重建、换到会抛错的面板显示出错而播放器还在、三次失败停用插件并记 health、选择存进 settings.json、标签消失）和 `TestPluginPanelsGoWithThePlugin`（关掉插件标签消失、侧栏回到字幕，再打开时按新的载入重建，详情页列出面板）。截图场景 `plugins-script-panel`（`TestScreenshotsPlugins` 里的 `shootPluginPanels`）只在 Linux 上跑了无头断言，没有出图。
 
 ### P3.0 spike 的测量结果
 
