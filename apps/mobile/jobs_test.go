@@ -166,7 +166,8 @@ func TestAJobIsCanceledAfterAskingAndStartedAgain(t *testing.T) {
 	p.app.Press("id:jobs-resume-job1")
 	p.app.WaitUntil(wait, func() bool { return d.Jobs()[0].State == sync.JobWaiting })
 
-	p.app.WaitFor("id:jobs-cancel-job1", wait)
+	// The computer resumes the job before its reply reaches the phone, which keeps the row's buttons disabled until then.
+	p.app.WaitUntil(wait, func() bool { return p.app.Exists("id:jobs-cancel-job1") && p.app.Enabled("id:jobs-cancel-job1") })
 	p.app.Press("id:jobs-cancel-job1")
 	p.app.Answer(0)
 	if d.Jobs()[0].State == sync.JobCanceled {
