@@ -18,7 +18,7 @@ import (
 // Progress hears how far the video is: done bytes of total.
 type Progress func(done, total int64)
 
-// Film downloads f from c into its folder in st and returns its record as it then stands, which it also keeps: whole, or as far as it got when ctx ended or the download failed. The subtitles and the poster come first, once (a film the desktop changes later takes its new subtitles when it is played, Follow); then the video goes on from the part already kept, if the desktop's file has not changed since (its ETag), else from the start.
+// Film downloads f from c into its folder in st and returns its record as it then stands, which it also keeps: whole, or as far as it got when ctx ended or the download failed. The subtitles and the poster come first, once (a film the desktop changes later takes its new subtitles when it is played, Follow); then the video goes on from the part already kept, if the desktop's file has not changed since (its ETag), else from the start. A film the desktop keeps no video of (sync.Film.SubtitlesOnly) is whole with its subtitles and poster (store.Film.LinesOnly).
 func Film(ctx context.Context, c *sync.Client, st *store.Store, f store.Film, progress Progress) (store.Film, error) {
 	if err := st.SaveFilm(f); err != nil {
 		return f, err
@@ -52,6 +52,10 @@ func Film(ctx context.Context, c *sync.Client, st *store.Store, f store.Film, pr
 	}
 	if f.Done() {
 		return f, nil
+	}
+	if f.Film.SubtitlesOnly {
+		f.LinesOnly = true
+		return f, st.SaveFilm(f)
 	}
 	name, err := video(ctx, c, f.Film.ID, dir, f.ETag, func(etag string) error {
 		if etag == f.ETag {

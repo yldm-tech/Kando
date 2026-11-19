@@ -470,10 +470,14 @@ func (s *Session) Used() int64 { return s.used.Get() }
 // Store is the store the session reads and writes, for the player's files.
 func (s *Session) Store() *store.Store { return s.st }
 
-// Download starts downloading f of desktop's library, or goes on with it.
+// Download starts downloading f of desktop's library, or goes on with it. A film that keeps no video on its computer is downloaded by its subtitles and poster (store.Film.LinesOnly); one the phone keeps so, whose video the computer has since (f, as the computer lists it now), takes the computer's record and downloads its video.
 func (s *Session) Download(desktop, library string, f sync.Film) {
 	key := store.Key(desktop, f.ID)
 	if kept, ok := s.Film(key); ok {
+		if kept.LinesOnly && !kept.HasVideo() && !f.SubtitlesOnly {
+			kept.Film, kept.LinesOnly = f, false
+			s.replace(kept)
+		}
 		s.start(kept)
 		return
 	}
@@ -533,13 +537,16 @@ func (s *Session) Follow(key string, changed func()) {
 	})
 }
 
-// followed is the film kept under key as it stands now, with its desktop's record listed in place of its own but its video's size and poster, which are the phone's files; false for a film deleted meanwhile, or downloading again, which Follow does not touch.
+// followed is the film kept under key as it stands now, with its desktop's record listed in place of its own but its video's size and poster, which are the phone's files; false for a film deleted meanwhile, or downloading again, which Follow does not touch. A film kept by its lines alone keeps saying it keeps no video until its video is downloaded (Download), as that is what the phone holds of it.
 func (s *Session) followed(key string, listed sync.Film) (store.Film, bool) {
 	cur, ok := s.Film(key)
 	if !ok || !cur.Done() {
 		return store.Film{}, false
 	}
 	listed.VideoSize, listed.Poster = cur.Film.VideoSize, cur.Film.Poster
+	if cur.LinesOnly {
+		listed.SubtitlesOnly = true
+	}
 	cur.Film = listed
 	return cur, true
 }

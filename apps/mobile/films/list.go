@@ -231,7 +231,7 @@ func (v *view) row(cx *core.Scope, r func() catalog.Result, i func() int) core.N
 		}}
 }
 
-// facts is what a row says under a film's title: its source, then where it was left or how long it plays, and where it stands on the phone.
+// facts is what a row says under a film's title: its source, then where it was left or how long it plays, that its computer keeps no video of it, and where it stands on the phone.
 func (v *view) facts(cx *core.Scope, e catalog.Entry) string {
 	length := time.Duration(e.Film.DurationMS) * time.Millisecond
 	when := ""
@@ -242,7 +242,11 @@ func (v *view) facts(cx *core.Scope, e catalog.Entry) string {
 		when = look.Duration(length)
 	}
 	parts := []string{sourceName(cx, catalog.SourceOf(e.Film))}
-	for _, p := range []string{when, look.Status(cx, v.s, e.Key())} {
+	only := ""
+	if e.Film.SubtitlesOnly {
+		only = locales.FilmSubtitlesOnly(cx)
+	}
+	for _, p := range []string{when, only, look.Status(cx, v.s, e.Key())} {
 		if p != "" {
 			parts = append(parts, p)
 		}

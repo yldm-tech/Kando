@@ -117,7 +117,8 @@ func transport(cx *core.Scope, p *play) core.Node {
 			}
 			return locales.PlayerPlay(cx)
 		},
-		OnPress: p.toggle}
+		Disabled: func() bool { return !p.hasVideo() },
+		OnPress:  p.toggle}
 	loop := ui.IconButton{TestID: "player-loop", Icon: lucide.Repeat1, LabelFunc: func() string { return locales.PlayerLoopLine(cx) }, Variant: ui.IconButtonGhost, Size: 44, IconSize: 22,
 		Selected: func() bool { return p.loop.Get() >= 0 }, OnPress: p.toggleLoop}
 	speed := ui.Menu{TestID: "player-speed", Label: locales.PlayerSpeed(cx), Presentation: base.PresentSheet,

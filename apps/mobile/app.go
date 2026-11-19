@@ -91,6 +91,8 @@ func App(cx *core.Scope, cfg session.Config) core.Node {
 	shown := shownTabs(look.Tablet(cx))
 	adding := core.NewSignal(cx, false)
 	openAdd := func() { adding.Set(true) }
+	// subscription is the subscription whose sheet shows over the app, by its key, "" for none: the Library's row and a tablet's sidebar open it.
+	subscription := core.NewSignal(cx, "")
 	// searches counts the times the user asked for the Library's search from the keyboard (shortcuts.Search), which the Library's page focuses each time.
 	searches := core.NewSignal(cx, 0)
 	// openJobs shows the Jobs page: a tablet's section, or a page of the Library's stack on a phone, which goes to the Library.
@@ -216,7 +218,7 @@ func App(cx *core.Scope, cfg session.Config) core.Node {
 					return jobs.Page(cx, s, act)
 				}
 				return films.Page(cx, s, films.Actions{Pair: openPair, Play: play, PlayAt: layer.PlayAt, Add: openAdd, Jobs: openJobs, Searches: searches.Get,
-					Film: func(e catalog.Entry) { openFilm(e.Desktop, e.Library, e.Film) }})
+					Subscription: subscription.Set, Film: func(e catalog.Entry) { openFilm(e.Desktop, e.Library, e.Film) }})
 			})
 			return core.View{Style: core.Style{FlexGrow: 1}, Children: []core.Node{stack, player.MiniBar(cx, layer)}}
 		}
@@ -250,6 +252,7 @@ func App(cx *core.Scope, cfg session.Config) core.Node {
 			searches.Update(func(n int) int { return n + 1 })
 		})
 		return shell.Shell{Selected: func() int { return slices.Index(shown, selected.Get()) }, OnChange: change,
+			Aside:  films.Sidebar(cx, s, subscription.Set, openAdd),
 			Footer: settings.Computers(cx, s, func() { change(slices.Index(shown, settingsTab)) }),
 			Tabs:   list}
 	}
@@ -277,6 +280,7 @@ func App(cx *core.Scope, cfg session.Config) core.Node {
 			// Under the player, the tabs are out of assistive technology's reach.
 			core.View{Style: core.Style{FlexGrow: 1, FlexShrink: 1, MinHeight: core.Pt(0)}, AccessibilityElementsHidden: layer.Full, Children: []core.Node{root}},
 			add.Sheet(cx, s, adding.Get, func() { adding.Set(false) }, openJobs),
+			films.SubscriptionSheet(cx, s, subscription),
 			ui.Toasts{Toaster: toaster, TestID: "toasts"},
 			layer.Node(cx),
 		}}

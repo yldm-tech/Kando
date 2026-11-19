@@ -1,4 +1,4 @@
-// Package film is a film's page: its poster where it has one, its title, facts and library, and its download, whose actions sit at the page's foot: it starts, pauses, resumes, cancels and, once whole, plays, or is deleted from the phone from the header.
+// Package film is a film's page: its poster where it has one, its title, facts and library, and its download, whose actions sit at the page's foot: it starts, pauses, resumes, cancels and, once whole, plays, or is deleted from the phone from the header. A film its computer keeps no video of is kept by its lines, which play without the picture, and says what can be done to have the video (VideoPrompt), as the player does in the picture's place.
 package film
 
 import (
@@ -23,6 +23,13 @@ func Page(cx *core.Scope, s *session.Session, desktop, library string, f sync.Fi
 	key := store.Key(desktop, f.ID)
 	kept := func() (store.Film, bool) { return s.Film(key) }
 	done := func() bool { k, ok := kept(); return ok && k.Done() }
+	// noVideo is a film whose video is on neither the phone nor its computer, as the phone last heard: one kept by its lines, or one listed without a video.
+	noVideo := func() bool {
+		if k, ok := kept(); ok {
+			return k.LinesOnly && !k.HasVideo()
+		}
+		return f.SubtitlesOnly
+	}
 	transfer := func() (session.Transfer, bool) { return s.Transfer(key) }
 	state := func() (session.State, bool) { t, ok := transfer(); return t.State, ok }
 	running := func() bool { st, ok := state(); return ok && st == session.Running }
@@ -98,6 +105,9 @@ func Page(cx *core.Scope, s *session.Session, desktop, library string, f sync.Fi
 		}
 		switch phase.Get() {
 		case whole:
+			if noVideo() {
+				return look.Button{Kind: look.Primary, Text: text(locales.FilmStudyLines), Icon: lucide.Captions, TestID: "film-play", OnPress: func() { play(key) }}
+			}
 			return look.Button{Kind: look.Primary, Text: text(locales.FilmPlay), Icon: lucide.Play, TestID: "film-play", OnPress: func() { play(key) }}
 		case downloading:
 			return pair(
@@ -108,8 +118,15 @@ func Page(cx *core.Scope, s *session.Session, desktop, library string, f sync.Fi
 				look.Button{Kind: look.Primary, Text: text(locales.FilmResume), Flex: 2, TestID: "film-resume", OnPress: func() { s.Resume(key) }},
 				look.Button{Kind: look.Danger, Text: text(locales.FilmCancel), Flex: 1, TestID: "film-cancel", OnPress: cancel})
 		}
+		if f.SubtitlesOnly {
+			return look.Button{Kind: look.Primary, Text: text(locales.FilmSaveLines), Icon: lucide.Captions, TestID: "film-download", OnPress: func() { s.Download(desktop, library, f) }}
+		}
 		return look.Button{Kind: look.Primary, Text: text(locales.FilmDownload), Icon: lucide.Download, TestID: "film-download", OnPress: func() { s.Download(desktop, library, f) }}
 	})
+	prompt := core.Show{When: noVideo, Then: func(cx *core.Scope) core.Node {
+		return core.View{Style: core.Style{CornerRadius: ui.RadiusCard, BorderCurve: core.BorderCurveContinuous}, StyleFunc: func() core.Style { return core.Style{Background: ui.Alpha(colors.Text(), 0.045)} },
+			Children: []core.Node{VideoPrompt(cx, s, desktop, f, "film-no-video")}}
+	}}
 	progress := core.Show{When: func() bool { _, ok := transfer(); return ok }, Then: func(cx *core.Scope) core.Node {
 		return core.View{Style: core.Style{Gap: 8}, Children: []core.Node{
 			// TODO(nsgo#145): ui.Progress.Label is a string only (ui/progress.go:12-19), so the bar's spoken name keeps the language it was built in; pass a LabelFunc once Progress has one https://github.com/nsgo-dev/nsgo/issues/145
@@ -164,6 +181,7 @@ func Page(cx *core.Scope, s *session.Session, desktop, library string, f sync.Fi
 					Gap: 20, MaxWidth: core.Pt(560), Width: core.Pct(100), AlignSelf: core.AlignCenter}, Children: []core.Node{
 					art,
 					core.View{Style: core.Style{Gap: 6}, Children: about},
+					prompt,
 					progress,
 				}},
 			}},

@@ -1,4 +1,4 @@
-// Package films is the Library tab: the films of every paired computer and those on the phone as one library (catalog.Merge), which pull to refresh reads again. At its top are the day's study at a glance (stats.go), and under the films to go on with, the computers' subscriptions, each with its sheet (subscriptions.go). A search finds titles and the lines kept on the phone, the films left partway on any device come first to go on with, and chips and the library switcher narrow the list to a source or a library. A computer that cannot be reached says so with the way to try again or pair again, and before any computer is paired the tab says what pairing brings and how.
+// Package films is the Library tab: the films of every paired computer and those on the phone as one library (catalog.Merge), which pull to refresh reads again. At its top are the day's study at a glance (stats.go), and under the films to go on with, the computers' subscriptions, each with its sheet, which a tablet's sidebar lists too (subscriptions.go, sidebar.go). A search finds titles and the lines kept on the phone, the films left partway on any device come first to go on with, and chips and the library switcher narrow the list to a source or a library. A computer that cannot be reached says so with the way to try again or pair again, and before any computer is paired the tab says what pairing brings and how.
 package films
 
 import (
@@ -33,19 +33,20 @@ type Actions struct {
 	Add, Jobs func()
 	// Searches counts the times the user asked for the search from the keyboard (shortcuts.Search): the tab focuses its search field each time it grows. Nil for none.
 	Searches func() int
+	// Subscription opens the sheet of the subscription with that key (SubscriptionSheet), which the app shows over every section.
+	Subscription func(key string)
 }
 
-// view is the tab's state: what the user searched for, the source and the library the list is narrowed to, none for all, and the subscription whose sheet shows, by its key, "" for none.
+// view is the tab's state: what the user searched for, and the source and the library the list is narrowed to, none for all.
 type view struct {
-	cx       *core.Scope
-	s        *session.Session
-	act      Actions
-	query    *core.Signal[string]
-	source   *core.Signal[string]
-	library  *core.Signal[catalog.Scope]
-	shownSub *core.Signal[string]
-	entries  *core.Memo[[]catalog.Entry]
-	lines    *core.Resource[map[string][]sync.Cue]
+	cx      *core.Scope
+	s       *session.Session
+	act     Actions
+	query   *core.Signal[string]
+	source  *core.Signal[string]
+	library *core.Signal[catalog.Scope]
+	entries *core.Memo[[]catalog.Entry]
+	lines   *core.Resource[map[string][]sync.Cue]
 	// field is the search field's.
 	field *core.Ref
 }
@@ -53,12 +54,11 @@ type view struct {
 // Page is the tab's root page.
 func Page(cx *core.Scope, s *session.Session, act Actions) base.NavPage {
 	v := &view{cx: cx, s: s, act: act,
-		query:    core.NewSignal(cx, ""),
-		source:   core.NewSignal(cx, ""),
-		library:  core.NewSignal(cx, catalog.Scope{}),
-		shownSub: core.NewSignal(cx, ""),
-		entries:  core.NewMemoFunc(cx, s.Entries, nil),
-		field:    &core.Ref{},
+		query:   core.NewSignal(cx, ""),
+		source:  core.NewSignal(cx, ""),
+		library: core.NewSignal(cx, catalog.Scope{}),
+		entries: core.NewMemoFunc(cx, s.Entries, nil),
+		field:   &core.Ref{},
 	}
 	// The lines kept on the phone are read for a search once there is one, and again as the films on the phone change. Both inputs are memos, so typing on or a saved position, which change neither, does not read them again: the resource loads afresh whenever its source reruns.
 	searching := core.NewMemo(cx, func() bool { return v.query.Get() != "" })
@@ -131,7 +131,7 @@ func Page(cx *core.Scope, s *session.Session, act Actions) base.NavPage {
 	shown := []core.Node{core.Show{When: paired, Then: func(*core.Scope) core.Node {
 		return core.View{Style: core.Style{Direction: core.Row, AlignItems: core.AlignCenter}, Children: trailing}
 	}}}
-	return look.TabRoot(cx, base.NavPage{TestID: "films-page", Children: []core.Node{body, v.subscriptionSheet(cx)}}, title, shown, func() []core.HeaderSymbol {
+	return look.TabRoot(cx, base.NavPage{TestID: "films-page", Children: []core.Node{body}}, title, shown, func() []core.HeaderSymbol {
 		switch {
 		case !paired():
 			return nil

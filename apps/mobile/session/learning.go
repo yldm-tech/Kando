@@ -531,7 +531,7 @@ func (s *Session) learnSave(write func() error) {
 	})
 }
 
-// LineClips are the clips of items' lines to dictate (learning.ClipOf), by their keys, read off the engine's goroutine and answered on it: an item whose film is not kept whole on the phone has none, as its line cannot be heard.
+// LineClips are the clips of items' lines to dictate (learning.ClipOf), by their keys, read off the engine's goroutine and answered on it: an item whose film's video is not kept whole on the phone has none, as its line cannot be heard.
 func (s *Session) LineClips(items []learning.Item, done func(map[string]learning.Clip)) {
 	type kept struct {
 		video string
@@ -540,7 +540,7 @@ func (s *Session) LineClips(items []learning.Item, done func(map[string]learning
 	films := map[string]kept{}
 	for _, it := range items {
 		key := store.Key(it.Desktop, it.Film)
-		if f, ok := s.Film(key); ok && f.Done() && it.Film != "" {
+		if f, ok := s.Film(key); ok && f.HasVideo() && it.Film != "" {
 			films[key] = kept{video: filepath.Join(s.st.FilmDir(f.Desktop, f.Film.ID), f.Video), film: f}
 		}
 	}

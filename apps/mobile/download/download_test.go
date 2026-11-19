@@ -160,3 +160,41 @@ func TestExtensionNamesTheVideoByItsType(t *testing.T) {
 		}
 	}
 }
+
+// A film the desktop keeps no video of is kept whole by its lines and poster, without asking for a video; once the desktop has the video, the film's record as listed then downloads it beside them.
+func TestAFilmWithoutAVideoIsKeptByItsLines(t *testing.T) {
+	d := synctest.New(t, "Studio")
+	d.AddLibrary("lib", "Films")
+	d.AddFilm(synctest.Film{Film: sync.Film{ID: "f1", Title: "Talk", SubtitlesOnly: true}, Library: "lib", Poster: []byte("jpeg"),
+		Cues: []sync.Cue{{StartMS: 0, EndMS: 1000, Original: "hi", Translation: "你好"}}})
+	d.Offer("123456")
+	c := sync.NewClient(d.Addr, d.Fingerprint, "")
+	t.Cleanup(c.Close)
+	if _, err := c.Pair(context.Background(), sync.PairRequest{Code: "123456", Device: "Phone", Platform: sync.PlatformIOS}); err != nil {
+		t.Fatal(err)
+	}
+	st := store.Open(t.TempDir())
+	f := filmOf(t, c)
+	if !f.Film.SubtitlesOnly {
+		t.Fatalf("listed %+v", f.Film)
+	}
+	got, err := Film(context.Background(), c, st, f, func(int64, int64) {})
+	if err != nil || !got.Done() || got.HasVideo() || !got.LinesOnly || got.Poster != "poster.jpg" || len(d.Ranges()) != 0 {
+		t.Fatalf("kept %+v, %v, asked for the video %q", got, err, d.Ranges())
+	}
+	if cues, ok, err := st.Cues("desk", "f1"); err != nil || !ok || len(cues) != 1 {
+		t.Fatalf("lines %+v %v %v", cues, ok, err)
+	}
+
+	video := []byte("the video at last")
+	d.ReplaceVideo("f1", video)
+	listed := filmOf(t, c)
+	got.Film, got.LinesOnly = listed.Film, false
+	got, err = Film(context.Background(), c, st, got, func(int64, int64) {})
+	if err != nil || !got.HasVideo() {
+		t.Fatalf("with the video: %+v, %v", got, err)
+	}
+	if data, err := os.ReadFile(filepath.Join(st.FilmDir("desk", "f1"), got.Video)); err != nil || !bytes.Equal(data, video) {
+		t.Fatalf("the video kept is %q, %v", data, err)
+	}
+}
