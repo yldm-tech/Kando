@@ -56560,13 +56560,13 @@ func (msgs Messages) SettingsPluginsDictionaryDetail(from string, to string) str
 		case "", "en":
 			return "Looks up " + msgs.arg(from) + " words, defined in " + msgs.arg(to)
 		case "ja":
-			return from + " の単語を " + to + " で引けます"
+			return from + "の単語を" + to + "で引けます"
 		case "ko":
 			return from + " 단어를 " + to + "(으)로 찾습니다"
 		case "zh-Hans":
-			return "查 " + from + " 词，释义为 " + to
+			return "查" + from + "词，释义为" + to
 		case "zh-Hant":
-			return "查 " + from + " 詞，釋義為 " + to
+			return "查" + from + "詞，釋義為" + to
 		}
 	}
 }
@@ -56689,13 +56689,13 @@ func (msgs Messages) SettingsPluginsGlossaryDetail(count int, from string, to st
 			b.WriteString(msgs.arg(to))
 			return b.String()
 		case "ja":
-			return from + " から " + to + " への翻訳に使う用語 " + i18n.FormatNumber("ja", float64(count)) + " 件"
+			return from + "から" + to + "への翻訳に使う用語 " + i18n.FormatNumber("ja", float64(count)) + " 件"
 		case "ko":
 			return from + "에서 " + to + "(으)로 번역할 때 쓰는 용어 " + i18n.FormatNumber("ko", float64(count)) + "개"
 		case "zh-Hans":
-			return i18n.FormatNumber("zh-Hans", float64(count)) + " 条术语，用于从 " + from + " 译成 " + to
+			return i18n.FormatNumber("zh-Hans", float64(count)) + " 条术语，用于从" + from + "译成" + to
 		case "zh-Hant":
-			return i18n.FormatNumber("zh-Hant", float64(count)) + " 條術語，用於從 " + from + " 譯成 " + to
+			return i18n.FormatNumber("zh-Hant", float64(count)) + " 條術語，用於從" + from + "譯成" + to
 		}
 	}
 }
@@ -57414,13 +57414,13 @@ func (msgs Messages) SettingsPluginsWordlistDetail(language string, count int) s
 			}
 			return b.String()
 		case "ja":
-			return language + " の単語、" + i18n.FormatNumber("ja", float64(count)) + " 段階"
+			return language + "の単語、" + i18n.FormatNumber("ja", float64(count)) + " 段階"
 		case "ko":
 			return language + " 단어, " + i18n.FormatNumber("ko", float64(count)) + "단계"
 		case "zh-Hans":
-			return language + " 词汇，分 " + i18n.FormatNumber("zh-Hans", float64(count)) + " 级"
+			return language + "词汇，分 " + i18n.FormatNumber("zh-Hans", float64(count)) + " 级"
 		case "zh-Hant":
-			return language + " 詞彙，分 " + i18n.FormatNumber("zh-Hant", float64(count)) + " 級"
+			return language + "詞彙，分 " + i18n.FormatNumber("zh-Hant", float64(count)) + " 級"
 		}
 	}
 }
