@@ -74,6 +74,22 @@ func Load(ctx context.Context, c *sync.Client, device string) (Listing, error) {
 	return Listing{Libraries: kept}, nil
 }
 
+// FromRelay is what a computer lists through the user's storage away from its network (sync.RelayShelf): its libraries, in its order, with the films each holds there; a film of a library the shelf does not name is left out. It lists no positions, as the learning state does not travel through the storage yet.
+func FromRelay(shelf sync.RelayShelf) Listing {
+	var out []Library
+	at := map[string]int{}
+	for _, lib := range shelf.Libraries {
+		at[lib.ID] = len(out)
+		out = append(out, Library{Library: lib, Films: []sync.Film{}})
+	}
+	for _, f := range shelf.Films {
+		if i, ok := at[f.Library]; ok {
+			out[i].Films = append(out[i].Films, f.Film)
+		}
+	}
+	return Listing{Libraries: out}
+}
+
 // Positions are the positions of a library's learning state, by film ID, named by the devices the state names; device is this phone's ID. A film whose position is null, to start from the beginning, has none.
 func Positions(changes sync.StateChanges, device string) map[string]Position {
 	out := map[string]Position{}
