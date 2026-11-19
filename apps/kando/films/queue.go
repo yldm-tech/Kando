@@ -129,8 +129,9 @@ func (q queueCard) Render(cx *ns.Scope) ns.Node {
 		return ns.Text{TestID: "queue-into", ContentFunc: func() string { return locales.FilmsQueueInto(cx, subtitle.TargetLanguageName(cx, item().Target)) }, MaxLines: 1,
 			Style: ns.Style{FontSize: 11, FlexShrink: 0}, StyleFunc: ui.Colored(colors.Muted)}
 	}}
-	text := ns.View{Style: ns.Style{FlexGrow: 1, FlexShrink: 1, MinWidth: ns.Pt(0), Gap: 4, Padding: ns.Edges{Right: 18}}, Children: []ns.Node{
-		ns.View{Style: ns.Style{Direction: ns.Row, Gap: 6, AlignItems: ns.AlignBaseline, MinWidth: ns.Pt(0)}, Children: []ns.Node{
+	// Only the title's row keeps clear of the × at the card's top right; the rows under it, a failed card's actions among them, take the card's whole width.
+	text := ns.View{Style: ns.Style{FlexGrow: 1, FlexShrink: 1, MinWidth: ns.Pt(0), Gap: 4}, Children: []ns.Node{
+		ns.View{Style: ns.Style{Direction: ns.Row, Gap: 6, AlignItems: ns.AlignBaseline, MinWidth: ns.Pt(0), Padding: ns.Edges{Right: 18}}, Children: []ns.Node{
 			ns.Text{ContentFunc: func() string { return filmName(item()) }, MaxLines: 1, EllipsizeMode: ns.EllipsizeTail, Style: ns.Style{FontSize: 13, FontWeight: ui.Semibold, FlexShrink: 1, MinWidth: ns.Pt(0)},
 				StyleFunc: ui.Colored(colors.Text)},
 			into,
@@ -139,13 +140,19 @@ func (q queueCard) Render(cx *ns.Scope) ns.Node {
 		from,
 		ns.Show{When: failed, Then: func(*ns.Scope) ns.Node { return failedDetail{a: a, item: item} }, Else: working},
 	}}
-	cancel := ns.Show{When: func() bool { return !failed() }, Then: func(cx *ns.Scope) ns.Node {
-		return base.Button{TestID: "queue-cancel", LabelFunc: func() string { return locales.FilmsQueueCancel(cx) },
-			OnPress: live.On(a, func(ns.PressEvent) { a.Withdraw(item().JobID) }),
+	// The × at the card's top right: a waiting or running card's withdraws it, a failed or cancelled card's removes it (移除), which leaves the row under its reason to what fixes it, so the row fits the card on one line.
+	closeButton := func(cx *ns.Scope, id string, label func(*ns.Scope) string, press func(string)) ns.Node {
+		return base.Button{TestID: id, LabelFunc: func() string { return label(cx) },
+			OnPress: live.On(a, func(ns.PressEvent) { press(item().JobID) }),
 			Style: ns.Style{Position: ns.Absolute, Top: ns.Pt(8), Right: ns.Pt(8), Width: ns.Pt(22), Height: ns.Pt(22), CornerRadius: 11, AlignItems: ns.AlignCenter,
 				JustifyContent: ns.JustifyCenter, Cursor: ns.CursorDefault, FocusVisible: ui.FocusRing(cx, -2)},
 			StyleFunc: func() ns.Style { return ns.Style{Hover: &ns.Style{Background: k.Shade(0.06)}} },
 			Children:  []ns.Node{ui.Icon(svg(closeIcon), 10, colors.Muted)}}
+	}
+	cancel := ns.Show{When: func() bool { return !failed() }, Then: func(cx *ns.Scope) ns.Node {
+		return closeButton(cx, "queue-cancel", locales.FilmsQueueCancel, a.Withdraw)
+	}, Else: func(cx *ns.Scope) ns.Node {
+		return closeButton(cx, "queue-remove", locales.FilmsRemove, a.Remove)
 	}}
 	return ns.View{
 		Role:      ns.RoleGroup,
@@ -402,7 +409,7 @@ func (f failure) equal(o failure) bool {
 	return f.remedy.equal(o.remedy) && f.known == o.known && f.canceled == o.canceled && f.reason == o.reason && f.section == o.section
 }
 
-// failedDetail is what a failed or cancelled card says and offers: for a download whose failure the app knows, its remedy (App.FailureRemedy); otherwise why, in red unless it was cancelled, and 打开设置 when a setting fixes it, 重试 and 移除.
+// failedDetail is what a failed or cancelled card says and offers: for a download whose failure the app knows, its remedy (App.FailureRemedy); otherwise why, in red unless it was cancelled, and 打开设置 when a setting fixes it, 重试, and 报告… when none does. 移除 is the card's × (queueCard).
 type failedDetail struct {
 	a    App
 	item func() Film
@@ -423,7 +430,6 @@ func (f failedDetail) Render(cx *ns.Scope) ns.Node {
 		out.reason, out.section = a.FailureHint(it)
 		return out
 	}), failure.equal).Get
-	remove := textButton(locales.FilmsRemove, ui.Button{Variant: ui.ButtonSecondary, Size: ui.SizeSmall, TestID: "queue-remove", OnPress: live.Do(a, func() { a.Remove(item().JobID) })})
 	plain := func(*ns.Scope) ns.Node {
 		reason := ns.Text{ContentFunc: func() string {
 			if look().canceled {
@@ -450,7 +456,7 @@ func (f failedDetail) Render(cx *ns.Scope) ns.Node {
 		report := ns.Show{When: func() bool { return !look().canceled && look().section == "" }, Then: func(*ns.Scope) ns.Node {
 			return textButton(locales.FilmsReport, ui.Button{Variant: ui.ButtonSecondary, Size: ui.SizeSmall, TestID: "queue-report", OnPress: live.Do(a, func() { a.ReportFailure(item().JobID) })})
 		}}
-		return ns.Group{why, actionRow(settings, retry, remove, report)}
+		return ns.Group{why, actionRow(settings, retry, report)}
 	}
 	remedy := func(*ns.Scope) ns.Node {
 		headline := ns.Text{ContentFunc: func() string { return look().remedy.Headline }, MaxLines: 2, EllipsizeMode: ns.EllipsizeTail, Style: ns.Style{FontSize: 11},
@@ -478,7 +484,7 @@ func (f failedDetail) Render(cx *ns.Scope) ns.Node {
 						OnPress:  live.Do(a, func() { a.RunRemedy(item(), action().ID) })}
 				})
 			})
-		return ns.Group{headline, why, actionRow(actions, remove)}
+		return ns.Group{headline, why, actionRow(actions)}
 	}
 	return ns.Show{When: func() bool { return look().known }, Then: remedy, Else: plain}
 }

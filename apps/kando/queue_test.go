@@ -1151,10 +1151,14 @@ func TestAFailedDownloadOffersWhatFixesIt(t *testing.T) {
 
 	failedJob(t, a, yt, core.FailRegion, "")
 	refresh(tt, a)
-	for _, want := range []string{"你所在的地区不能看", "上传者限制了地区。别处有这个视频的话，换个链接。", "换个链接", "移除"} {
+	for _, want := range []string{"你所在的地区不能看", "上传者限制了地区。别处有这个视频的话，换个链接。", "换个链接"} {
 		if textCount(tt, want) == 0 {
 			t.Fatalf("the card does not say %q", want)
 		}
+	}
+	// 移除 is the card's ×.
+	if !tt.Exists("id:queue-remove") {
+		t.Fatal("the card cannot be removed")
 	}
 }
 

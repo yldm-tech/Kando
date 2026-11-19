@@ -1496,6 +1496,8 @@ NSGO_ROOT_KEY=<root secret> go tool nsgo revoke -sequence 3 -days 30 -keys <key 
   - 插件来源翻译一个 cell 时进度只在 cell 之间动：`media` 的进度上报（`reportProgress`）不导出，`Engine` 报不了批次进度。没有为此再改 media。
   - ⇧E 只在按下时插件已载入、并导出了 `candidates` 时问插件，否则问 AI 服务（和没选插件时一样，没有 AI 服务就说没有）。DeepL 插件的候选是同一句在 `formality` 为 `prefer_more` 和 `prefer_less` 下的两种译法，前后几句原文作为 DeepL 的 `context` 一并发送，由看懂去掉和现在的译文相同的、重复的。
   - 评审之后的修改：启动时恢复的任务改成在翻译开始时才确定插件、等它载入（原来在 `queuePipeline` 时插件目录还没读，`Engine` 为空，会悄悄用 AI 服务翻译）；跑不起来的插件不再算在用，而是按 `not-running` 失败并在侧栏说明；状态变化时重查侧栏状态行和翻译提议；离线判断看来源的 `local`；whisper 的 `no` 换成 `nb`；等待中任务被停下不调插件；AI 服务没配好时不显示终校行；`jobfailure.SourceHint` 对离线拒绝给自己的话和隐私页；跟随移到插件块的 hooks。都有测试（`TestPluginTranslatorAtLaunch`、`TestPluginTranslatorFollowsReadinessAndOffline`、`TestOfficialDeepL` 末尾没有安全存储的部分、`TestSpokenTag`、`TestSourceHintOffline`）。
+  - 失败卡片的按钮：带「打开设置」的失败卡片有三个按钮（打开设置、重试、移除），在英文里第三个、有时第二个会折到第二行，main 上 AI 服务的失败卡片也一样。现在所有失败和取消的卡片都把「移除」做成右上角的 ×（和排队、运行中的卡片的 × 同一个位置），下面一行只放能修好它的按钮、重试和报告；卡片文字栏原来整栏给 × 让出 18 pt，现在只有标题那一行让出。截图场景 `plugins-translate-failed`（以及 `-en`、`-ja`）断言这三张失败卡片的按钮在同一行、不超出卡片。
+  - 截图场景 `plugins-translate-source` 用仓库里的 DeepL 插件（标题「DeepL」），不用测试夹具。
   - 来源不在了不清掉存着的选择：插件重新打开后又用回它；在那之前任务用 AI 服务，设置页说明，消息栏每次运行说一次（`prefs.sourceGoneSaid`）。设置页的下拉框列出已启用（不一定已载入）的插件来源，免得启动验签期间选项闪烁。
   - 失败卡片：P5 底座定的是来源失败一律不给「打开设置」；带码的失败现在给：`auth`、`no-credential`、`not-running` 到插件页，`language` 到翻译页，因为那就是能修好它的地方。没有码的失败照旧不给。
   - 播放器进度徽章的「翻译」一行写来源的标题，「终校」一行仍写 AI 服务的模型。

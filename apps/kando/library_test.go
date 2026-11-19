@@ -568,11 +568,12 @@ func TestLibraryControlsStayOpenWhileAJobRuns(t *testing.T) {
 
 	a.lib.notice = films.Notice{}
 	refresh(tt, a)
-	if countText(tt, "重试") != 2 || countText(tt, "移除") != 2 {
+	// 移除 is each failed card's × (films' queueCard).
+	if countText(tt, "重试") != 2 || len(tt.Query("id:queue-remove")) != 2 {
 		t.Fatalf("the failed cards hide 重试 or 移除 while a job runs: %q", tt.Texts())
 	}
 	// Either failed card will do, as the check below takes either; nsgotest asks which of the two, so the first is named
-	tt.Press("移除 >> nth=0")
+	tt.Press("id:queue-remove >> nth=0")
 	refresh(tt, a)
 	left := ""
 	for _, id := range []string{"gone", "old"} {
@@ -1386,10 +1387,14 @@ func TestLibraryInEnglish(t *testing.T) {
 	for _, want := range []string{
 		"Recently Finished · Simplified Chinese Bilingual", "Play", testlocale.Messages().FilmsShowInFinder(platformName()),
 		"Bilingual · CHS", "All Films", "1 film",
-		"Processing", "1 queued", "Queued", "Canceled", "Retry", "Remove",
+		"Processing", "1 queued", "Queued", "Canceled", "Retry",
 		"Start Processing", "Local Video",
 	} {
 		wantText(t, tt, want)
+	}
+	// Remove is the cancelled card's ×, named in English.
+	if v := tt.Find("id:queue-remove"); v == nil || v.Props.Label != "Remove" {
+		t.Fatalf("the cancelled card's ×: %+v", v)
 	}
 	a.AskRemove(a.films()[0])
 	refresh(tt, a)
