@@ -116,7 +116,9 @@ func TestPluginMarksForAPhoneOfAGrowingFilm(t *testing.T) {
 		t.Fatalf("the first part's marks: %+v", first.lines)
 	}
 	// A mark only the marks kept have shows that the line there is not marked again.
-	onEngine(a, func() { a.plugins.phone.kept[0].byOriginal["Hello there"] = []subtitle.Mark{{Start: 0, End: 5, Ruby: "kept"}} })
+	onEngine(a, func() {
+		a.plugins.phone.kept[0].byOriginal["Hello there"] = []subtitle.Mark{{Start: 0, End: 5, Ruby: "kept"}}
+	})
 	grown := ask("Hello there", "General Kenobi")
 	if len(grown.lines) != 2 || grown.lines[0][0].Ruby != "kept" || !slices.Equal(grown.lines[1], []subtitle.Mark{{Start: 0, End: 7, Tone: subtitle.ToneWarn}}) {
 		t.Fatalf("the grown film's marks: %+v", grown.lines)
