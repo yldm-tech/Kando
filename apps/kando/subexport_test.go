@@ -13,6 +13,7 @@ import (
 	"kando/apps/kando/subexport"
 	"kando/packages/core"
 	"kando/packages/media"
+	"kando/packages/track"
 
 	ns "github.com/nsgo-dev/nsgo/core"
 	"github.com/nsgo-dev/nsgo/nsgotest"
@@ -232,6 +233,34 @@ func TestSubexportUndo(t *testing.T) {
 	defer os.Chmod(dir, 0o755)
 	if ours, _, err := subexportUndo(kept, video, bilingual, false); !ours || err == nil {
 		t.Fatalf("in a read-only folder = %v, %v, want an error", ours, err)
+	}
+}
+
+// TestSubexportUndoLeavesTheTrackLogsOut: a record added to the film's subtitle document while the save panel is open, as the one taking in the file the save wrote, is no change of its subtitles, and the save is put back as it was rather than removed.
+func TestSubexportUndoLeavesTheTrackLogsOut(t *testing.T) {
+	dir := t.TempDir()
+	video := filepath.Join(dir, "v.mp4")
+	bilingual := filepath.Join(dir, "v.bilingual.srt")
+	for path, data := range map[string]string{video: "v", bilingual: "old"} {
+		if err := os.WriteFile(path, []byte(data), 0o644); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if _, err := track.Append(video, "mac", track.Event{Kind: track.KindGen, Gen: track.NewID(), Source: "make"}); err != nil {
+		t.Fatal(err)
+	}
+	kept := subexportKeep(video, bilingual)
+	if err := os.WriteFile(bilingual, []byte("export"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := track.Append(video, "mac", track.Event{Kind: track.KindFile, Source: "v.bilingual.srt", Key: "export"}); err != nil {
+		t.Fatal(err)
+	}
+	if ours, changed, err := subexportUndo(kept, video, bilingual, false); !ours || changed || err != nil {
+		t.Fatalf("put back = %v, %v, %v", ours, changed, err)
+	}
+	if data, _ := os.ReadFile(bilingual); string(data) != "old" {
+		t.Fatalf("put back %q", data)
 	}
 }
 

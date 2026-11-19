@@ -5,6 +5,7 @@ import (
 	"errors"
 	"os"
 	"path/filepath"
+	"slices"
 	"strings"
 	"time"
 
@@ -12,6 +13,7 @@ import (
 	"kando/apps/kando/subexport"
 	"kando/packages/core"
 	"kando/packages/media"
+	"kando/packages/track"
 
 	ns "github.com/nsgo-dev/nsgo/core"
 )
@@ -211,7 +213,7 @@ func subexportKeep(video, subtitles string) subexportKept {
 	if video != "" {
 		base := strings.TrimSuffix(video, filepath.Ext(video))
 		paths = append(paths, base+".srt", base+".kando.srt", base+".bilingual.srt")
-		for _, p := range media.Companions(video) {
+		for _, p := range subexportCompanions(video) {
 			if data, err := os.ReadFile(p); err == nil {
 				kept.companions[subexportKey(p)] = data
 			}
@@ -252,7 +254,7 @@ func subexportCompanionsChanged(kept subexportKept, video, skip string) bool {
 		return false
 	}
 	now := map[string]bool{}
-	for _, p := range media.Companions(video) {
+	for _, p := range subexportCompanions(video) {
 		key := subexportKey(p)
 		if key == skip {
 			continue
@@ -270,6 +272,15 @@ func subexportCompanionsChanged(kept subexportKept, video, skip string) bool {
 		}
 	}
 	return false
+}
+
+// subexportCompanions are the files of the film whose video is video (media.Companions) that tell whether Kando wrote its subtitles while the save panel was open: all but the logs of its subtitle document (track.Logs), which grow with records of no change to the lines, as the one taking in the very file the save wrote, and whose changes to the lines are written out to the subtitle files, which are compared.
+func subexportCompanions(video string) []string {
+	logs := map[string]bool{}
+	for _, p := range track.Logs(video) {
+		logs[filepath.Clean(p)] = true
+	}
+	return slices.DeleteFunc(media.Companions(video), func(p string) bool { return logs[filepath.Clean(p)] })
 }
 
 // subexportKey is path with its folder's symbolic links resolved, so a file is found among subexportKandoFiles under the path the save dialog gives for it, as /private/var for /var on macOS.
