@@ -67,3 +67,6 @@ func speechLanguageOf(ctx context.Context) string {
 	code, _ := ctx.Value(speechLanguageKey{}).(string)
 	return strings.TrimSpace(code)
 }
+
+// SpeechLanguageOf is the language the film ctx is making is heard in, as whisper's code ("ja"), once Make knows it: the one the user named for it, or the one heard so far; "" while it is not known. A translation source of its own (Tools.Engine) translates from it.
+func SpeechLanguageOf(ctx context.Context) string { return speechLanguageOf(ctx) }
