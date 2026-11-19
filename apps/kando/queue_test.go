@@ -951,6 +951,32 @@ func TestFilmPageCancelsTheFilmItShows(t *testing.T) {
 	}
 }
 
+// TestTheFilmOpenedThatCannotRunTakesNoTurn opens a film waiting in the queue that cannot run now, as one whose library is not open on this computer: the job running goes on rather than give way to it.
+func TestTheFilmOpenedThatCannotRunTakesNoTurn(t *testing.T) {
+	g := newGatePipeline()
+	a, tt, updates := newTestApp(t, g)
+	if err := a.Enqueue("https://example.com/a", "https://example.com/b"); err != nil {
+		t.Fatal(err)
+	}
+	nextStarted(t, g, updates)
+	ids := jobIDs(a)
+	apply(tt, a, func() {
+		for i := range a.library.Jobs {
+			if a.library.Jobs[i].ID == ids["https://example.com/b"] {
+				a.library.Jobs[i].LibraryDir = filepath.Join(t.TempDir(), "elsewhere")
+			}
+		}
+		a.openKey = ids["https://example.com/b"]
+	})
+	refresh(tt, a)
+	noneStarted(t, g, updates)
+	if a.queue.active != ids["https://example.com/a"] {
+		t.Fatalf("running %q, want a", a.queue.active)
+	}
+	a.Cancel(ids["https://example.com/a"])
+	settle(t, a, tt, updates)
+}
+
 // ytdlpPipeline downloads with the real media.Tools.Download, run on a yt-dlp script that prints what the real yt-dlp prints for Download's arguments, and stubs the stages after it.
 type ytdlpPipeline struct {
 	hearsHello

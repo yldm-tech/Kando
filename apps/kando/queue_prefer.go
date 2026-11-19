@@ -20,7 +20,8 @@ func (a *app) queuePreferOpen() bool {
 		return false
 	}
 	job, ok := a.library.Find(id)
-	if !ok || job.Stage != core.StageQueued || queueHeld(job) || job.Redo != "" {
+	// A job that cannot run now, as one of a library not open on this computer or a download while offline mode is on (queueCanRun), would not run first: the job running does not give way to it.
+	if !ok || job.Stage != core.StageQueued || queueHeld(job) || job.Redo != "" || !a.queueCanRun(job) {
 		return false
 	}
 	a.queue.preferred = id
