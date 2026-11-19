@@ -34,9 +34,9 @@ func TestParseKinds(t *testing.T) {
 	_, err := Parse([]byte(`{"schema": 1, "id": "a.b", "kind": "plugin"}`))
 	wantErr(t, "unknown kind", err, ErrUnknownKind)
 	// A kind known but not implemented yet is read as far as its header, its other keys not checked, as they are only defined in its phase.
-	m, err := Parse([]byte(`{"schema": 1, "id": "kando.ankiconnect", "kind": "script", "capabilities": {"host": []}, "script": {"package": "a.nsgopkg"}}`))
-	if err != nil || m.Kind != KindScript || m.ID != "kando.ankiconnect" || m.Schema != 1 {
-		t.Errorf("script = %+v, %v", m, err)
+	m, err := Parse([]byte(`{"schema": 1, "id": "example.tasks", "kind": "task", "task": {"prompt": "x"}}`))
+	if err != nil || m.Kind != KindTask || m.ID != "example.tasks" || m.Schema != 1 {
+		t.Errorf("task = %+v, %v", m, err)
 	}
 	_, err = Parse([]byte(strings.Repeat(" ", manifestMax+1)))
 	wantErr(t, "too large", err, ErrTooLarge)
@@ -45,9 +45,10 @@ func TestParseKinds(t *testing.T) {
 // TestParseSchema checks that a manifest of another schema is ErrSchema before its kind or its keys are looked at, as a newer format may have kinds and keys this version does not know.
 func TestParseSchema(t *testing.T) {
 	for name, data := range map[string]string{
-		"newer, unknown keys": strings.Replace(glossaryManifest, `"schema": 1,`, `"schema": 2, "extra": true,`, 1),
+		"newer, unknown keys": strings.Replace(glossaryManifest, `"schema": 1,`, `"schema": 3, "extra": true,`, 1),
 		"newer, unknown kind": `{"schema": 3, "id": "a.b", "kind": "plugin"}`,
-		"script":              `{"schema": 2, "id": "kando.ankiconnect", "kind": "script", "capabilities": {"host": []}}`,
+		"script of schema 1":  `{"schema": 1, "id": "kando.ankiconnect", "kind": "script", "capabilities": {"host": []}}`,
+		"data pack of 2":      `{"schema": 2, "id": "a.b", "kind": "glossary"}`,
 		"none":                `{"id": "a.b", "kind": "glossary"}`,
 	} {
 		_, err := Parse([]byte(data))

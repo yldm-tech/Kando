@@ -11,6 +11,7 @@ import (
 	kcore "kando/packages/core"
 
 	"github.com/nsgo-dev/nsgo/i18n"
+	"github.com/nsgo-dev/nsgo/tsx/pkg"
 )
 
 // ManifestName is the manifest's file name in every pack.
@@ -43,7 +44,7 @@ func (k Kind) known() bool { return slices.Contains(kinds, k) }
 // implemented reports whether this version installs packs of kind k.
 func (k Kind) implemented() bool {
 	switch k {
-	case KindDictionary, KindWordlist, KindGlossary, KindAIService, KindSite:
+	case KindDictionary, KindWordlist, KindGlossary, KindAIService, KindSite, KindScript:
 		return true
 	}
 	return false
@@ -62,7 +63,7 @@ func (t Text) In(lang string) string {
 	return t["en"]
 }
 
-// Manifest is a pack's kando-plugin.json. It has a field for each kind implemented so far; a known kind not implemented yet is read only as far as its header (Schema, ID, Kind), and Validate refuses it with ErrUnsupportedKind.
+// Manifest is a pack's kando-plugin.json. It has a field for each kind implemented so far; a known kind not implemented yet is read only as far as its header (Schema, ID, Kind), and Validate refuses it with ErrUnsupportedKind. A script plugin (schema 2) has the fields after Service: the oldest Kando it runs on, its signed package, what it may reach (host permissions and HTTP requests) and which of those it can do without, the commands it adds, its settings and the events it hears; docs/plugin-system.md 4.2.
 type Manifest struct {
 	Schema      int         `json:"schema"`
 	ID          string      `json:"id"`
@@ -78,6 +79,14 @@ type Manifest struct {
 	Glossary    *Glossary   `json:"glossary,omitempty"`
 	Service     *Service    `json:"service,omitempty"`
 	Site        *Site       `json:"site,omitempty"`
+
+	Kando        string            `json:"kando,omitempty"`
+	Script       *Script           `json:"script,omitempty"`
+	Capabilities *pkg.Capabilities `json:"capabilities,omitempty"`
+	Optional     []Perm            `json:"optional,omitempty"`
+	Contributes  *Contributes      `json:"contributes,omitempty"`
+	Settings     []Setting         `json:"settings,omitempty"`
+	Events       []string          `json:"events,omitempty"`
 }
 
 // The dictionary formats a dictionary pack's files may be in.
@@ -193,7 +202,7 @@ func (s *Site) Domains() []string {
 	return out
 }
 
-// Parse reads a manifest in two steps: its header (schema, id, kind) first, and then, for a kind this version implements, the whole of it strictly, a key it does not know at any level being an error. A schema other than the one this version reads (dataSchema) is ErrSchema, checked before anything else of the manifest, as a newer format may have kinds and keys this version does not know; an unknown kind is ErrUnknownKind; a known kind not implemented yet returns its header alone, for Validate to refuse with ErrUnsupportedKind, as the rest of its fields are only defined in its phase. Parse checks nothing else: that is Validate's.
+// Parse reads a manifest in two steps: its header (schema, id, kind) first, and then, for a kind this version implements, the whole of it strictly, a key it does not know at any level being an error. A schema other than those this version reads (dataSchema for the data packs, scriptSchema for script plugins) is ErrSchema, checked before anything else of the manifest, as a newer format may have kinds and keys this version does not know; an unknown kind is ErrUnknownKind; a known kind not implemented yet returns its header alone, for Validate to refuse with ErrUnsupportedKind, as the rest of its fields are only defined in its phase; a kind in the other schema's (a script plugin of schema 1, a data pack of schema 2) is ErrSchema. Parse checks nothing else: that is Validate's.
 func Parse(data []byte) (Manifest, error) {
 	if len(data) > manifestMax {
 		return Manifest{}, fmt.Errorf("%w: the manifest is over %d KiB", ErrTooLarge, manifestMax>>10)
@@ -206,11 +215,14 @@ func Parse(data []byte) (Manifest, error) {
 	if err := json.Unmarshal(data, &head); err != nil {
 		return Manifest{}, fmt.Errorf("%w: %v", ErrBadManifest, err)
 	}
-	if head.Schema != dataSchema {
+	if head.Schema != dataSchema && head.Schema != scriptSchema {
 		return Manifest{}, fmt.Errorf("%w: schema %d", ErrSchema, head.Schema)
 	}
 	if !head.Kind.known() {
 		return Manifest{}, fmt.Errorf("%w: %q", ErrUnknownKind, head.Kind)
+	}
+	if head.Schema != head.Kind.schema() {
+		return Manifest{}, fmt.Errorf("%w: schema %d for a %s pack", ErrSchema, head.Schema, head.Kind)
 	}
 	if !head.Kind.implemented() {
 		return Manifest{Schema: head.Schema, ID: head.ID, Kind: head.Kind}, nil

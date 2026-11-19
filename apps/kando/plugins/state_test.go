@@ -3,6 +3,7 @@ package plugins
 import (
 	"os"
 	"path/filepath"
+	"reflect"
 	"slices"
 	"testing"
 )
@@ -36,7 +37,7 @@ func TestStateRoundTrip(t *testing.T) {
 // TestStateNewerFormat checks that a state.json of a newer Kando turns every pack off and is not written over.
 func TestStateNewerFormat(t *testing.T) {
 	root := t.TempDir()
-	newer := `{"format": 2, "revision": 7, "plugins": [{"id": "example.jlpt", "hash": "abc", "enabled": true, "grant": {}}]}`
+	newer := `{"format": 3, "revision": 7, "plugins": [{"id": "example.jlpt", "hash": "abc", "enabled": true, "grant": {}}]}`
 	if err := os.WriteFile(filepath.Join(root, stateName), []byte(newer), 0o644); err != nil {
 		t.Fatal(err)
 	}
@@ -58,7 +59,7 @@ func TestStateNewerFormatWrittenSince(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	newer := `{"format": 2, "revision": 7, "plugins": []}`
+	newer := `{"format": 3, "revision": 7, "plugins": []}`
 	if err := os.WriteFile(filepath.Join(root, stateName), []byte(newer), 0o644); err != nil {
 		t.Fatal(err)
 	}
@@ -127,9 +128,7 @@ func TestStateSet(t *testing.T) {
 	s.Set(PluginState{ID: "example.a", Hash: "3", Enabled: false})
 	s.Set(PluginState{ID: "example.c", Hash: "4", Enabled: true})
 	want := []PluginState{{ID: "example.a", Hash: "3", Enabled: false}, {ID: "example.b", Hash: "2", Enabled: true}, {ID: "example.c", Hash: "4", Enabled: true}}
-	if !slices.EqualFunc(s.Plugins, want, func(a, b PluginState) bool {
-		return a.ID == b.ID && a.Hash == b.Hash && a.Enabled == b.Enabled && slices.Equal(a.Sites, b.Sites)
-	}) {
+	if !reflect.DeepEqual(s.Plugins, want) {
 		t.Fatalf("Set made %+v, want %+v", s.Plugins, want)
 	}
 }

@@ -48,6 +48,12 @@ var (
 	ErrBadState = errors.New("the plugins' state cannot be read")
 	// ErrUninstallRefused is an uninstall refused before anything was removed, wrapped with why, as while state.json is a newer Kando's (ErrStateFormat), which this one does not write over.
 	ErrUninstallRefused = errors.New("the pack was not uninstalled")
+	// ErrUnknownPerm is a script plugin that asks for a permission of Kando's this version does not have, or that is not a permission at all.
+	ErrUnknownPerm = errors.New("the plugin asks for a permission this version of Kando does not have")
+	// ErrBadCapabilities is a script plugin that asks for a capability Kando never grants a plugin: anything but its own permissions (host) and HTTP requests each limited to methods and paths (network).
+	ErrBadCapabilities = errors.New("the plugin asks for a capability Kando does not grant plugins")
+	// ErrTampered is a script plugin whose parts do not agree: its package is not the one its manifest names by hash, or what its signed code says of itself (kandoManifest, its capabilities, its id or version) is not what its manifest says.
+	ErrTampered = errors.New("the plugin was changed after it was signed")
 )
 
 // StateUnsaved is state.json not saved after an install or a removal that was done: the pack is installed or removed, and Err is why which packs are on was not saved. The app says the work was done and why the state was not saved, rather than that it failed.

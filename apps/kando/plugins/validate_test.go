@@ -226,7 +226,7 @@ func TestValidateSite(t *testing.T) {
 
 // TestValidateUnsupportedKinds checks that the kinds of later phases are refused as not supported yet, not for keys this version does not know.
 func TestValidateUnsupportedKinds(t *testing.T) {
-	for _, kind := range []Kind{KindScript, KindTask, KindStyle, KindExportTemplate} {
+	for _, kind := range []Kind{KindTask, KindStyle, KindExportTemplate} {
 		manifest := fmt.Sprintf(`{"schema": 1, "id": "example.x", "kind": %q, "future": {"anything": true}}`, kind)
 		_, err := Validate(writePack(t, map[string]string{ManifestName: manifest}))
 		wantErr(t, string(kind), err, ErrUnsupportedKind)

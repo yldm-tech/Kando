@@ -22,11 +22,22 @@ import (
 	"golang.org/x/text/language"
 )
 
-// Pack is a pack that passed Validate: its manifest, with its texts cleaned (cleanText), the folder it is in and the hash of its files (hashFiles), which tells one content of an id from another.
+// Pack is a pack that passed Validate: its manifest, with its texts cleaned (cleanText), the folder it is in and the hash of its files (hashFiles), which tells one content of an id from another. A script plugin's Source and Signer are set once its signature was verified (plugins/script), never from its manifest: where it comes from by the root its certificate chains to, and the ID of the release key that signed it.
 type Pack struct {
 	Manifest
 	Dir, Hash string
+	Source    Source
+	Signer    string
 }
+
+// Source is where a script plugin comes from, by the root its certificate chains to: Kando's official root, or the developer key of this computer (developer mode). Data packs are not signed, and come from a file on this computer (SourceLocal).
+type Source string
+
+const (
+	SourceLocal     Source = ""
+	SourceOfficial  Source = "official"
+	SourceDeveloper Source = "developer"
+)
 
 // Issue is a folder of the plugins folder that is not a valid pack, and why.
 type Issue struct {
@@ -34,8 +45,19 @@ type Issue struct {
 	Err error
 }
 
-// dataSchema is the schema of the data packs, the only ones this version installs.
-const dataSchema = 1
+// dataSchema is the schema of the data packs, scriptSchema that of the script plugins: a Kando or a phone that runs no script refuses a script plugin by its schema alone.
+const (
+	dataSchema   = 1
+	scriptSchema = 2
+)
+
+// schema is the schema of the manifests of kind k.
+func (k Kind) schema() int {
+	if k == KindScript {
+		return scriptSchema
+	}
+	return dataSchema
+}
 
 // idMax is the most bytes an id may have.
 const idMax = 64
@@ -43,7 +65,7 @@ const idMax = 64
 // idPattern is an id's shape: lowercase words of letters and digits joined by single dots or hyphens, which leaves out ".", "..", "a..b" and an id that starts or ends with either.
 var idPattern = regexp.MustCompile(`^[a-z0-9]+(?:[.-][a-z0-9]+)*$`)
 
-// reservedPublisher is the publisher of Kando's own packs, which no pack Validate passes may use: there are none yet (docs/plugin-system.md 12.2).
+// reservedPublisher is the publisher of Kando's own packs, which no data pack may use; a script plugin may only when Kando's official release key signed it (plugins/script).
 const reservedPublisher = "kando."
 
 // The limits of a pack (limitsOf).
@@ -58,8 +80,11 @@ type limits struct {
 
 // limitsOf is the limits of a pack of kind k: a dictionary's are wider, as dictionaries are large.
 func limitsOf(k Kind) limits {
-	if k == KindDictionary {
+	switch k {
+	case KindDictionary:
 		return limits{zip: 200 << 20, entries: 64, bytes: 1 << 30}
+	case KindScript:
+		return limits{zip: scriptMax, entries: 8, bytes: scriptMax}
 	}
 	return limits{zip: 32 << 20, entries: 16, bytes: 64 << 20}
 }
@@ -131,6 +156,11 @@ func validate(dir string, cache *hashCache) (Pack, error) {
 	hash, err := readFiles(dir, names, m, b)
 	if err != nil {
 		return Pack{}, err
+	}
+	if m.Script != nil {
+		if err := checkScriptPackage(dir, m.Script); err != nil {
+			return Pack{}, err
+		}
 	}
 	if cache != nil {
 		cache.put(dir, stamps, hash)
@@ -280,6 +310,8 @@ func (m Manifest) files() []string {
 		return m.Dictionary.Files
 	case m.Wordlist != nil:
 		return []string{m.Wordlist.File}
+	case m.Script != nil:
+		return []string{m.Script.Package}
 	}
 	return nil
 }
@@ -289,10 +321,10 @@ func checkManifest(m *Manifest) error {
 	if !m.Kind.implemented() {
 		return fmt.Errorf("%w: %s", ErrUnsupportedKind, m.Kind)
 	}
-	if m.Schema != dataSchema {
+	if m.Schema != m.Kind.schema() {
 		return fmt.Errorf("%w: schema %d", ErrSchema, m.Schema)
 	}
-	if err := checkID(m.ID); err != nil {
+	if err := checkID(m.ID, m.Kind); err != nil {
 		return err
 	}
 	if len(m.Version) > versionMax || !versionPattern.MatchString(m.Version) {
@@ -324,10 +356,14 @@ func checkManifest(m *Manifest) error {
 	}
 	// Exactly the field of its kind is set: Parse leaves another kind's field set when the manifest has it.
 	set := 0
-	for _, isSet := range []bool{m.Dictionary != nil, m.Wordlist != nil, m.Glossary != nil, m.Service != nil, m.Site != nil} {
+	for _, isSet := range []bool{m.Dictionary != nil, m.Wordlist != nil, m.Glossary != nil, m.Service != nil, m.Site != nil, m.Script != nil} {
 		if isSet {
 			set++
 		}
+	}
+	// The fields of a script plugin's besides its script are only a script plugin's.
+	if m.Kind != KindScript && (m.Kando != "" || m.Capabilities != nil || m.Optional != nil || m.Contributes != nil || m.Settings != nil || m.Events != nil) {
+		return fmt.Errorf("%w: a %s pack has a script plugin's fields", ErrBadField, m.Kind)
 	}
 	var err error
 	switch {
@@ -341,6 +377,8 @@ func checkManifest(m *Manifest) error {
 		err = checkService(m.Service)
 	case m.Kind == KindSite && m.Site != nil && set == 1:
 		err = checkSite(m.Site)
+	case m.Kind == KindScript && m.Script != nil && set == 1:
+		err = checkScript(m)
 	default:
 		err = fmt.Errorf("%w: a %s pack needs its %s field and no other kind's", ErrBadField, m.Kind, kindField(m.Kind))
 	}
@@ -355,12 +393,12 @@ func kindField(k Kind) string {
 	return string(k)
 }
 
-// checkID checks that id is <publisher>.<name> (idPattern with at least one dot, at most idMax bytes, no part between its dots a Windows device's name) and is not under the publisher kando., which is Kando's own.
-func checkID(id string) error {
+// checkID checks that id is <publisher>.<name> (idPattern with at least one dot, at most idMax bytes, no part between its dots a Windows device's name) and, for a data pack of kind, is not under the publisher kando., which is Kando's own. A script plugin's publisher is the one its certificate covers, which the app checks once it verified its signature (plugins/script): only Kando's official release key may sign kando. plugins.
+func checkID(id string, kind Kind) error {
 	if !validID(id) {
 		return fmt.Errorf("%w: %q", ErrBadID, id)
 	}
-	if strings.HasPrefix(id, reservedPublisher) {
+	if kind != KindScript && strings.HasPrefix(id, reservedPublisher) {
 		return fmt.Errorf("%w: %q", ErrReservedID, id)
 	}
 	return nil

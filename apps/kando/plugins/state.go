@@ -9,8 +9,11 @@ import (
 	"slices"
 )
 
-// StateFormat is the format of state.json this version reads and writes. It goes up only when an older Kando must not read the file as its own, as when the grants of script plugins are added to it (docs/plugin-system.md 5.1).
-const StateFormat = 1
+// StateFormat is the newest format of state.json this version reads and writes. It goes up only when an older Kando must not read the file as its own: format 2 holds the grants of script plugins (PluginState.Grant, Signer, OldHash), which a Kando of format 1 would drop as it saved the file. Save writes format 1 while no entry has any of them, so a Kando that never ran a script plugin leaves a file older versions still read (docs/plugin-system.md 5.1).
+const StateFormat = 2
+
+// grantsFormat is the format whose entries may hold grants; formats before it have only id, hash and enabled.
+const grantsFormat = 2
 
 // stateName is the state file's name in the plugins folder.
 const stateName = "state.json"
@@ -24,12 +27,20 @@ type State struct {
 	off bool
 }
 
-// PluginState is one pack's entry of State. Sites are the domains of a site pack the user allowed, each on its own (docs/plugin-system.md 6.2); a file written before them has none, which allows no domain.
+// PluginState is one pack's entry of State. Sites are the domains of a site pack the user allowed, each on its own (docs/plugin-system.md 6.2); a file written before them has none, which allows no domain. A script plugin's also says who signed the content it is for (Signer, the release key's ID), what the user granted it (Grant), and, after an update that asks for more than the version before, that version's hash (OldHash), which tells "updated, look at the grant again" from "never granted".
 type PluginState struct {
 	ID      string   `json:"id"`
 	Hash    string   `json:"hash"`
 	Enabled bool     `json:"enabled"`
 	Sites   []string `json:"sites,omitempty"`
+	OldHash string   `json:"oldHash,omitempty"`
+	Signer  string   `json:"signer,omitempty"`
+	Grant   Grant    `json:"grant,omitzero"`
+}
+
+// scripted reports whether e holds what only format 2 has: the sites of a site pack are format 1's.
+func (e PluginState) scripted() bool {
+	return e.OldHash != "" || e.Signer != "" || len(e.Grant.Perms) > 0 || len(e.Grant.Network) > 0
 }
 
 // LoadState reads the state.json of the plugins folder root. A missing file is the state of a folder where no pack was ever turned off. A file that cannot be read, is not JSON or has no format (format 0 or less, as a file cut short to {} or edited by hand) is ErrBadState, and one of a newer format ErrStateFormat; either way the state returned has every pack turned off, as such a file may say anything about them. A newer format's state is not written over (Save); a bad one is.
@@ -58,27 +69,35 @@ func LoadState(root string) (State, error) {
 	return s, nil
 }
 
-// Enabled reports whether the pack id is turned on: as its entry says, and when it has none, on, as a data pack is turned on once it is installed (docs/plugin-system.md 6.2). Every pack is off in a state that could not be read as this format.
+// Enabled reports whether the pack id is turned on: as its entry says, and when it has none, on, as a data pack is turned on once it is installed (docs/plugin-system.md 6.2). Every pack is off in a state that could not be read as this format. A script plugin is EnabledPack's.
 func (s State) Enabled(id string) bool {
 	if s.off {
 		return false
 	}
-	for _, p := range s.Plugins {
-		if p.ID == id {
-			return p.Enabled
-		}
+	if e, ok := s.entry(id); ok {
+		return e.Enabled
 	}
 	return true
 }
 
-// Entry is the entry of the pack id, and whether s has one.
-func (s State) Entry(id string) (PluginState, bool) {
-	for _, p := range s.Plugins {
-		if p.ID == id {
-			return p, true
-		}
+// EnabledPack reports whether the pack p is turned on: a data pack as Enabled says; a script plugin only when its entry turned it on for this content and signer, as one is off until the user turns it on, and a content or signer the user never turned on is off too.
+func (s State) EnabledPack(p Pack) bool {
+	if p.Kind != KindScript {
+		return s.Enabled(p.ID)
 	}
-	return PluginState{}, false
+	e, ok := s.entry(p.ID)
+	return ok && !s.off && e.Enabled && e.Hash == p.Hash && e.Signer == p.Signer
+}
+
+// Entry is the entry of the pack id, and whether it has one.
+func (s State) Entry(id string) (PluginState, bool) { return s.entry(id) }
+
+func (s State) entry(id string) (PluginState, bool) {
+	i := slices.IndexFunc(s.Plugins, func(p PluginState) bool { return p.ID == id })
+	if i < 0 {
+		return PluginState{}, false
+	}
+	return s.Plugins[i], true
 }
 
 // Allowed reports whether the user allowed domain of the site pack id: its entry lists it. A pack without an entry allows none, unlike Enabled, as each domain needs its own consent; so does every pack in a state that could not be read as this format.
@@ -99,13 +118,16 @@ func (s *State) Set(e PluginState) {
 	s.Plugins = append(s.Plugins, e)
 }
 
-// Save writes s to the state.json of root in this format, with its revision one higher than both its own and that of the file on disk, through a file beside it renamed over it, so the file holds either the old state or all of the new one. It does not write over a newer format's state, which is ErrStateFormat: neither one s was read from nor one a newer Kando wrote since s was read, which Save reads the file again for. Saving a state read as every pack off (a bad state.json) writes only the entries it has, and every pack without one reads as on again afterwards: a writer that must keep the packs off, such as the app saving its first change after it found state.json damaged, first adds an entry turned off for each pack it has.
+// Save writes s to the state.json of root in the oldest format that holds it (StateFormat), with its revision one higher than both its own and that of the file on disk, through a file beside it renamed over it, so the file holds either the old state or all of the new one. It does not write over a newer format's state, which is ErrStateFormat: neither one s was read from nor one a newer Kando wrote since s was read, which Save reads the file again for. Saving a state read as every pack off (a bad state.json) writes only the entries it has, and every pack without one reads as on again afterwards: a writer that must keep the packs off, such as the app saving its first change after it found state.json damaged, first adds an entry turned off for each pack it has.
 func (s *State) Save(root string) error {
 	if s.Format > StateFormat {
 		return fmt.Errorf("%w: format %d", ErrStateFormat, s.Format)
 	}
 	next := *s
-	next.Format = StateFormat
+	next.Format = 1
+	if slices.ContainsFunc(next.Plugins, PluginState.scripted) {
+		next.Format = grantsFormat
+	}
 	// The file as it is now: a newer Kando may have written it since s was read. One that cannot be read as a state is written over, as LoadState reads it as bad.
 	if data, err := os.ReadFile(filepath.Join(root, stateName)); err == nil {
 		var disk struct {

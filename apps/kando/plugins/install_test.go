@@ -147,8 +147,8 @@ func TestStageZipRefusesUnsafeEntries(t *testing.T) {
 		{"twice", []entry{manifest, tsv, {name: "JLPT.tsv", content: "x"}}, ErrBadShape},
 		{"no manifest", []entry{tsv}, ErrBadManifest},
 		{"manifest in a folder", []entry{{name: "pack/" + ManifestName, content: wordlistManifest}}, ErrBadManifest},
-		{"unsupported", []entry{{name: ManifestName, content: `{"schema": 1, "id": "example.x", "kind": "script"}`}}, ErrUnsupportedKind},
-		{"newer schema", []entry{{name: ManifestName, content: `{"schema": 2, "id": "example.x", "kind": "script"}`}}, ErrSchema},
+		{"unsupported", []entry{{name: ManifestName, content: `{"schema": 1, "id": "example.x", "kind": "task"}`}}, ErrUnsupportedKind},
+		{"newer schema", []entry{{name: ManifestName, content: `{"schema": 3, "id": "example.x", "kind": "script"}`}}, ErrSchema},
 		{"invalid", []entry{{name: ManifestName, content: strings.Replace(wordlistManifest, "example.jlpt", "kando.jlpt", 1)}, tsv}, ErrReservedID},
 	} {
 		root := t.TempDir()
