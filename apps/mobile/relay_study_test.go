@@ -3,6 +3,7 @@ package main
 import (
 	"net/http"
 	"strings"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -125,6 +126,8 @@ func TestAwayFromTheComputerTheSubscriptionsGoThroughItsStorage(t *testing.T) {
 	p.app.Press("id:films-subscription-auto-switch")
 	p.app.WaitUntil(wait, func() bool { subs := d.Subscriptions(); return len(subs) == 1 && subs[0].Auto })
 	p.app.WaitUntil(wait, func() bool { return p.app.Find("id:films-subscription-auto-switch").Props.Checked })
+	// The switch shows the change as it is pressed, and the computer makes it before the phone reads its reply in the storage: the subscription takes no other action until then.
+	p.app.WaitUntil(wait, func() bool { return !p.app.Find("id:films-subscription-take").Props.Disabled })
 	p.app.Press("id:films-subscription-take")
 	p.app.WaitUntil(wait, func() bool { return len(d.Jobs()) == 2 })
 	p.app.WaitFor("id:films-subscription-none", wait)
@@ -185,4 +188,28 @@ func TestTheJobsPageSaysWhyTheStorageFailed(t *testing.T) {
 	p.app.WaitUntil(wait, func() bool {
 		return p.reach(id) == msgs.JobsViaStorage() && summary() == msgs.JobsRelayed(msgs.JobsIdle())
 	})
+}
+
+// A storage that is full says so on the computer's card until it takes something again: once space is freed, the computer's next state.json there clears it, though the phone has nothing to send.
+func TestTheJobsPageSaysTheStorageIsFullUntilItTakesWritesAgain(t *testing.T) {
+	d := newDesktop(t)
+	bucket := synctest.NewBucket(t, now)
+	// The computer's clock moves on, so a state.json written later tells by its date that the storage took it.
+	var tick atomic.Int64
+	d.StartRelay(t, bucket, func() time.Time { return now().Add(time.Duration(tick.Load()) * time.Second) }, relayTurn)
+	dir := t.TempDir()
+	p := startPhone(t, dir, pairedWith(t, d, dir))
+	id := store.DesktopID(d.Fingerprint)
+	p.app.WaitUntil(wait, func() bool { return d.RelayJoins() == 1 })
+	p.awayFrom(d)
+	p.openJobs()
+	summary := func() string { return p.texts("id:jobs-summary-" + id) }
+	p.app.WaitUntil(wait, func() bool { return summary() == msgs.JobsRelayed(msgs.JobsIdle()) })
+
+	bucket.Refuse(http.StatusInsufficientStorage, "")
+	p.app.WaitUntil(wait, func() bool { return summary() == msgs.JobsStorageFull("Studio") })
+	bucket.Refuse(0, "")
+	tick.Add(1)
+	moved(d, "job1", "https://youtu.be/dQw4w9WgXcQ", sync.JobRunning, 1, 0.64)
+	p.app.WaitUntil(wait, func() bool { return summary() == msgs.JobsRelayed(msgs.JobsActive(1)) })
 }

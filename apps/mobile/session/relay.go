@@ -199,7 +199,10 @@ func (s *Session) followRelay(ctx context.Context, desktop, device string, rl *r
 		return false
 	}
 	var replies []sync.Reply
-	for _, slot := range slices.Sorted(maps.Keys(p.Waiting)) {
+	// In the order the calls were sent, which the computer answers them in, so a reply that tells an older state, as a list of the subscriptions read before one was changed, is not taken after a newer one.
+	slots := slices.Sorted(maps.Keys(p.Waiting))
+	slices.SortStableFunc(slots, func(a, b string) int { return cmp.Compare(p.Waiting[a].Seq, p.Waiting[b].Seq) })
+	for _, slot := range slots {
 		reply, ok, rerr := p.Reply(ctx, slot)
 		switch {
 		case ok:
@@ -225,8 +228,8 @@ func (s *Session) followRelay(ctx context.Context, desktop, device string, rl *r
 			if fresh {
 				q.Reach = Online
 			}
-			// The storage answered: a store that was full stays so until it takes a call again (relaySend).
-			if q.Storage != sync.RelayFull {
+			// The storage answered: a store that was full stays so until it takes something again, a call of the phone's (relaySend) or a state.json the computer wrote since, so a store freed while the phone has nothing to send does not stay full on the card.
+			if q.Storage != sync.RelayFull || (written && state.Written.After(q.Seen)) {
 				q.Storage = sync.RelayNoFailure
 			}
 			if written {

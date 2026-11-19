@@ -31,11 +31,12 @@ type RelayPhone struct {
 	Now  func() time.Time
 }
 
-// RelayWaiting is a call sent in a slot whose reply the phone has not read: the call's ID, the slot's reply link, and when that link lapses.
+// RelayWaiting is a call sent in a slot whose reply the phone has not read: the call's ID, the slot's reply link, when that link lapses, and the number of its message (RelayMessage.Seq), by which the phone reads the replies in the order the desktop answered the calls; 0 for one kept by a phone that did not keep it.
 type RelayWaiting struct {
 	Call    string    `json:"call"`
 	Reply   string    `json:"reply"`
 	Expires time.Time `json:"expires"`
+	Seq     int64     `json:"seq,omitempty"`
 }
 
 // ErrRelayCallTooLarge is Send's error for a call that, sealed, is larger than MaxRelayObject: the desktop would not read it.
@@ -113,7 +114,7 @@ func (p *RelayPhone) Send(ctx context.Context, call Call) (string, error) {
 	if p.Waiting == nil {
 		p.Waiting = map[string]RelayWaiting{}
 	}
-	p.Waiting[slot.ID] = RelayWaiting{Call: call.ID, Reply: slot.Reply, Expires: p.Grant.Expires}
+	p.Waiting[slot.ID] = RelayWaiting{Call: call.ID, Reply: slot.Reply, Expires: p.Grant.Expires, Seq: p.Seq}
 	req, err := http.NewRequestWithContext(ctx, http.MethodPut, slot.Put, bytes.NewReader(sealed))
 	if err != nil {
 		return "", err
