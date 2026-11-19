@@ -314,6 +314,7 @@ func filmMenu(cx *core.Scope, a App, item Film) []nsdesktop.MenuItem {
 	if move := a.MoveFilmMenu(cx, item); len(move) > 0 {
 		items = append(items, nsdesktop.MenuItem{Label: locales.FilmsMoveToLibrary(cx), Items: move})
 	}
+	items = append(items, a.StoredMenu(cx, item)...)
 	return append(items, nsdesktop.MenuItem{Separator: true}, nsdesktop.MenuItem{Label: locales.FilmsRemoveFromLibrary(cx), OnSelect: live.Do(a, func() { a.AskRemove(item) })})
 }
 

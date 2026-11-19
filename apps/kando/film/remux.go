@@ -29,6 +29,14 @@ const (
 // ErrMissingPlugins is PlayErr's ID for a video the system's player cannot play because GStreamer, which plays videos on Linux, lacks the plug-ins for it (MissingPlugins); the page says which to install and offers GStreamerInstall to copy.
 const ErrMissingPlugins = "video-plugins"
 
+// The PlayErr IDs of a video moved to a storage location: the location is no longer in the settings, could not be reached, no longer has the video, or the system's player cannot play it from there. The page offers the settings for the first three and moving the video back for the last, rather than a file manager on a video that is not on this computer.
+const (
+	ErrStoredGone        = "stored-gone"
+	ErrStoredUnreachable = "stored-unreachable"
+	ErrStoredMissing     = "stored-missing"
+	ErrStoredUnplayable  = "stored-unplayable"
+)
+
 // GStreamerInstall is the command that installs GTK 4's GStreamer media backend and the GStreamer plug-ins that play the videos Kando downloads, on Debian and Ubuntu, as the README gives it.
 const GStreamerInstall = "sudo apt install libgtk-4-media-gstreamer gstreamer1.0-plugins-good gstreamer1.0-plugins-bad gstreamer1.0-libav"
 

@@ -711,3 +711,56 @@ func TestStoredJobKeepsEveryField(t *testing.T) {
 		}
 	}
 }
+
+// TestLibraryKeepsWhereAMovedVideoIs checks that where a video moved to a storage location lives is kept across a save and a load, follows the video's path when its folder moves, that a record without a location or a path is dropped, and that a library written before any video moved reads with none.
+func TestLibraryKeepsWhereAMovedVideoIs(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "library.json")
+	lib, err := Load(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(lib.Stored) != 0 {
+		t.Fatalf("a new library has moved videos: %v", lib.Stored)
+	}
+	moved := time.Date(2026, 11, 18, 9, 30, 0, 0, time.UTC)
+	want := Stored{Location: "nas", Path: "Kando/Films/Talk/video.mp4", Size: 1234, Duration: 90 * time.Second, Moved: moved}
+	lib.Stored["/films/Talk/video.mp4"] = want
+	if err := lib.Save(); err != nil {
+		t.Fatal(err)
+	}
+	data, err := os.ReadFile(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(string(data), `"stored"`) || !strings.Contains(string(data), `"location": "nas"`) {
+		t.Fatalf("library.json does not keep the moved video:\n%s", data)
+	}
+	back, err := Load(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got := back.Stored["/films/Talk/video.mp4"]; got != want {
+		t.Fatalf("read back %+v, want %+v", got, want)
+	}
+	back.MoveVideos(func(p string) (string, bool) {
+		if rest, ok := strings.CutPrefix(p, "/films/"); ok {
+			return "/renamed/" + rest, true
+		}
+		return "", false
+	})
+	if _, ok := back.Stored["/films/Talk/video.mp4"]; ok || back.Stored["/renamed/Talk/video.mp4"] != want {
+		t.Fatalf("after the folder moved: %v", back.Stored)
+	}
+
+	broken := filepath.Join(t.TempDir(), "library.json")
+	if err := os.WriteFile(broken, []byte(`{"jobs":[],"stored":{"/a.mp4":{"location":"","path":"x"},"/b.mp4":{"location":"nas","path":""},"/c.mp4":{"location":"nas","path":"c.mp4","size":-1}}}`), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	read, err := Load(broken)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(read.Stored) != 1 || read.Stored["/c.mp4"] != (Stored{Location: "nas", Path: "c.mp4"}) {
+		t.Fatalf("records read: %+v", read.Stored)
+	}
+}

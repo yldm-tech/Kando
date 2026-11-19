@@ -690,12 +690,16 @@ func (a *app) queueAgain(job core.Job, err error) {
 // errInQueue is queueRetryable's answer for a job that is running or waiting already.
 var errInQueue = errors.New("the job is already running or waiting in the queue")
 
-// queueRetryable is job ready for queueAdd to queue again under the same ID, with the language the settings name when it has none, or why it cannot be: errInQueue for a job running or waiting already, or, in the interface's language, that no language is set. A done film is made ready to be processed again entirely (core.RedoAll), into the language queueReprocessLanguage picks, which becomes its Language once it is done. It changes nothing, neither the page, the selected card nor the line under the link field, so the window's retry, queueTake (a video added again from kando add, MCP or the top bar of another page, queued where the user is) and the control socket's jobs.retry, which must not move the window, all start from it.
+// queueRetryable is job ready for queueAdd to queue again under the same ID, with the language the settings name when it has none, or why it cannot be: errInQueue for a job running or waiting already, or, in the interface's language, that no language is set or, for a done film, that its video is on a storage location (a *storedRefusal). A done film is made ready to be processed again entirely (core.RedoAll), into the language queueReprocessLanguage picks, which becomes its Language once it is done. It changes nothing, neither the page, the selected card nor the line under the link field, so the window's retry, queueTake (a video added again from kando add, MCP or the top bar of another page, queued where the user is) and the control socket's jobs.retry, which must not move the window, all start from it.
 func (a *app) queueRetryable(job core.Job) (core.Job, error) {
 	if job.ID == a.queue.active || job.Stage == core.StageQueued {
 		return core.Job{}, errInQueue
 	}
 	if job.Stage == core.StageComplete {
+		// Transcribing again needs the video's sound, which is not on disk while the video is on a storage location (state_stored.go).
+		if err := a.storedNeedsFile(a.messages(), job.VideoPath, a.libraryJobName(job), locales.Messages.StoredReprocess); err != nil {
+			return core.Job{}, err
+		}
 		language := a.queueReprocessLanguage(job)
 		if language == "" {
 			return core.Job{}, errors.New(a.messages().QueueNoLanguage())

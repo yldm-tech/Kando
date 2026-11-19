@@ -369,6 +369,11 @@ func (a *app) Retry(id string) {
 		return
 	}
 	ready, err := a.queueRetryable(job)
+	var stored *storedRefusal
+	if errors.As(err, &stored) {
+		a.warn(err.Error(), "")
+		return
+	}
 	a.queueAgain(ready, err)
 	if err == nil || errors.Is(err, errInQueue) {
 		return
@@ -396,7 +401,7 @@ func (a *app) JobFilm(id string) (films.Film, bool) {
 	if !ok || a.lockHidesJob(job) {
 		return films.Film{}, false
 	}
-	return films.FromJob(job, a.libraryJobName(job), statusText(a.messages(), job)), true
+	return storedMark([]films.Film{films.FromJob(job, a.libraryJobName(job), statusText(a.messages(), job))}, a.library.Stored)[0], true
 }
 
 func (a *app) Notice() *films.Notice { return &a.lib.notice }
@@ -478,9 +483,9 @@ func filmFiles(root string, item films.Film) []string {
 	if films.InDir(root, dir) && films.AloneIn(dir, video) {
 		return []string{dir}
 	}
-	// A film that keeps no video (core.Job.SubtitlesOnly) has none where its sound was, to go with its subtitles.
+	// A film that keeps no video (core.Job.SubtitlesOnly) has none where its sound was, to go with its subtitles, nor has one whose video was moved to a storage location, whose copy there is removed as it leaves the shelf (storedForget).
 	files := []string{video}
-	if item.SubtitlesOnly {
+	if item.SubtitlesOnly || item.Stored != "" {
 		files = nil
 	}
 	for _, sub := range append([]string{item.SubtitlePath}, media.Companions(video)...) {
@@ -497,7 +502,7 @@ func (a *app) films() []films.Film {
 		return nil
 	}
 	shot := a.snap()
-	return films.List(shot.LibraryDir, a.library.Jobs, shot.Videos, a.library.Names, jobName, a.statusOf)
+	return storedMark(films.List(shot.LibraryDir, a.library.Jobs, shot.Videos, a.library.Names, jobName, a.statusOf), a.library.Stored)
 }
 
 // statusOf is what a job's card says of where it is, in the interface's language (statusText), as films.List and films.Queue take it.

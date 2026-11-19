@@ -211,8 +211,9 @@ func (a *app) UndoMove() {
 	})
 }
 
-// CancelMove stops the move going on, as the message bar's 取消 does: the copy of a film to another volume, whose files stay where they were, and the films after it. The films moved before it stay moved.
+// CancelMove stops the move going on, as the message bar's 取消 does: the copy of a film to another volume, whose files stay where they were, and the films after it, or the copy of a video to or from a storage location (storedCancel), which stays where it was. The films moved before it stay moved.
 func (a *app) CancelMove() {
+	a.storedCancel()
 	if r := a.lib.move.run; r != nil {
 		r.stopped = true
 	}
@@ -304,6 +305,12 @@ func (a *app) libraryMoveCheck(m locales.Messages, item films.Film, from string)
 		return refuse(remote.CodeInvalid, func(m locales.Messages) string { return m.LibraryMoveNoVideo(name) })
 	case a.libraryMoveBusy(item):
 		return refuse(remote.CodeNotReady, func(m locales.Messages) string { return m.LibraryMoveProcessing(name) })
+	}
+	// A video moved to a storage location goes back to the library's folder before the film moves to another library, which would otherwise keep it under a path it does not have there (state_stored.go).
+	if _, stored := a.storedOf(item.VideoPath); stored {
+		return refuse(remote.CodeNotReady, func(m locales.Messages) string {
+			return a.storedNeedsFile(m, item.VideoPath, name, locales.Messages.StoredLibraryMove).Error()
+		})
 	}
 	// A film that keeps no video (core.Job.SubtitlesOnly) is on disk as its subtitles, whose folder moves.
 	kept := item.VideoPath

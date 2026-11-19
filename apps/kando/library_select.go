@@ -156,6 +156,7 @@ func (a *app) libraryForget(items []films.Film) {
 		}
 		// The film leaves the shelf, and the title given to it in Kando with it; remove saves library.json for a job, and a video no job processed saves it here.
 		named = a.library.Rename(item.VideoPath, "") || named
+		a.storedForget(item)
 		if item.JobID != "" {
 			a.remove(item.JobID)
 		}
@@ -200,9 +201,12 @@ func (a *app) libraryReprocessOne(item films.Film) (msg, section string) {
 		return "", ""
 	}
 	ready, err := a.queueRetryable(job)
+	var stored *storedRefusal
 	switch {
 	case errors.Is(err, errInQueue):
 		return "", ""
+	case errors.As(err, &stored):
+		return err.Error(), ""
 	case err != nil:
 		return err.Error(), settings.SectionTranslate
 	}

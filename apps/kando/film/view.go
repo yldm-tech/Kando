@@ -6,6 +6,7 @@ import (
 	"kando/apps/kando/desktop"
 	"kando/apps/kando/live"
 	"kando/apps/kando/locales"
+	"kando/apps/kando/settings/sectionid"
 	"kando/apps/kando/theme"
 	kcore "kando/packages/core"
 
@@ -279,12 +280,20 @@ func (s *screen) pluginsRemedy(note func() stageNoteState) core.Node {
 	}}
 }
 
-// unplayableRemedy is the button under the note of a video that would not play: Show in Finder, or the system's file manager, on the video, which the user can open in another player or replace. Processing the film again would not help, as it plays the same file.
+// unplayableRemedy is the button under the note of a video that would not play: Show in Finder, or the system's file manager, on the video, which the user can open in another player or replace. Processing the film again would not help, as it plays the same file. A video moved to a storage location is not on this computer: the page offers the settings, where the location is, when the location is gone, cannot be reached or lost the video, and moving the video back, where it can be remuxed, when the system's player cannot play it from there.
 func (s *screen) unplayableRemedy(note func() stageNoteState) core.Node {
 	a := s.a
 	return core.Show{When: func() bool { return note().err != "" && a.PlayPath() != "" }, Then: func(cx *core.Scope) core.Node {
 		// TODO(nsgo#145): give ui.Button a TextFunc twin so its text follows the interface language without building the button again, then drop this Dynamic https://github.com/nsgo-dev/nsgo/issues/145
 		return core.Dynamic(func(cx *core.Scope) core.Node {
+			switch note().err {
+			case ErrStoredGone, ErrStoredUnreachable, ErrStoredMissing:
+				return ui.Button{TestID: "film-stage-stored-settings", Text: locales.FilmsOpenSettings(cx), Variant: ui.ButtonSecondary, Size: ui.SizeSmall,
+					OnPress: live.Do(a, func() { a.OpenSettings(sectionid.Account) })}
+			case ErrStoredUnplayable:
+				return ui.Button{TestID: "film-stage-stored-back", Text: locales.StoredMoveBack(cx), Variant: ui.ButtonSecondary, Size: ui.SizeSmall,
+					OnPress: live.Do(a, a.MoveOpenVideoBack)}
+			}
 			return ui.Button{TestID: "film-stage-reveal", Text: locales.FilmShowInFinder(cx, desktop.Platform(cx)), Variant: ui.ButtonSecondary, Size: ui.SizeSmall,
 				OnPress: live.Do(a, func() { a.Reveal(a.PlayPath()) })}
 		})

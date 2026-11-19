@@ -638,8 +638,8 @@ func (a *app) retargetRenamed() bool {
 		}
 	}
 	for _, job := range a.library.Jobs {
-		// A film that keeps no video has none to be renamed with its folder, and is not paired with a video that turns up (core.Job.SubtitlesOnly).
-		if !job.SubtitlesOnly {
+		// A film that keeps no video has none to be renamed with its folder, and is not paired with a video that turns up (core.Job.SubtitlesOnly); nor has one whose video was moved to a storage location (state_stored.go).
+		if !job.SubtitlesOnly && !a.storedHas(job) {
 			add(job.VideoPath)
 		}
 		add(job.SubtitlePath)
@@ -658,9 +658,9 @@ func (a *app) retargetRenamed() bool {
 		}
 	}
 	moved := media.RetargetRenamed(root, missing, live)
-	// A film that keeps no video is on disk as its subtitles alone, which follow its folder renamed in Finder by the folder's [id], and the path its sound was downloaded to, which its place and its subtitles' names are kept by, goes with them.
+	// A film that keeps no video is on disk as its subtitles alone, which follow its folder renamed in Finder by the folder's [id], and the path its sound was downloaded to, which its place and its subtitles' names are kept by, goes with them; so is a film whose video was moved to a storage location, whose record follows the path (shelf.Library.MoveVideos).
 	for _, job := range a.library.Jobs {
-		if !job.SubtitlesOnly || job.VideoPath == "" {
+		if !(job.SubtitlesOnly || a.storedHas(job)) || job.VideoPath == "" {
 			continue
 		}
 		if next, ok := media.RetargetRenamedFolder(root, job.SubtitlePath); ok {
@@ -708,7 +708,8 @@ func (a *app) dropMissing() bool {
 	kept := make([]core.Job, 0, len(a.library.Jobs))
 	changed := false
 	for _, job := range a.library.Jobs {
-		if job.VideoPath != "" && job.Stage.Done() && films.InLibrary(root, job) && shelfVideoGone(root, shelfKept(job)) {
+		// A film whose video was moved to a storage location is kept by library.json's record of where it is, not by a file here (state_stored.go).
+		if job.VideoPath != "" && job.Stage.Done() && films.InLibrary(root, job) && !a.storedHas(job) && shelfVideoGone(root, shelfKept(job)) {
 			changed = true
 			if a.openKey == job.ID {
 				a.openKey = ""
@@ -767,7 +768,9 @@ func (a *app) relocateMissing() bool {
 		if !films.InDir(root, job.VideoPath) {
 			continue
 		}
-		if next, ok := media.Relocate(root, job.VideoPath); ok {
+		// A video moved to a storage location is not looked for here; its subtitles are, as a film's that keeps no video.
+		stored := a.storedHas(job)
+		if next, ok := media.Relocate(root, job.VideoPath); ok && !stored {
 			moved[job.VideoPath] = next
 			a.library.Jobs[i].VideoPath = next
 			changed = true
@@ -779,7 +782,7 @@ func (a *app) relocateMissing() bool {
 			a.library.Jobs[i].SubtitlePath = next
 			changed = true
 			// A film that keeps no video has no video to be found, so the path its sound was downloaded to goes with its subtitles.
-			if job.SubtitlesOnly && a.library.Jobs[i].VideoPath == job.VideoPath {
+			if (job.SubtitlesOnly || stored) && a.library.Jobs[i].VideoPath == job.VideoPath {
 				video := filepath.Join(filepath.Dir(next), filepath.Base(job.VideoPath))
 				moved[job.VideoPath] = video
 				a.library.Jobs[i].VideoPath = video
