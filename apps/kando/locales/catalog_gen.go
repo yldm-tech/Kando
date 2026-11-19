@@ -1031,6 +1031,7 @@ var Parameters = map[string][]string{
 	"GlossarySuggestAdd":                       {"term"},
 	"GlossarySuggestDismissLabel":              {"term"},
 	"FilmsRemoveStored":                        {"place"},
+	"FilmsStoredOn":                            {"place"},
 	"StoredObjectStore":                        {"store"},
 	"StoredNotDone":                            {"name"},
 	"StoredOutside":                            {"name"},
@@ -1625,6 +1626,7 @@ type Translation struct {
 	GlossarySuggestAdd                       func(term string) string
 	GlossarySuggestDismissLabel              func(term string) string
 	FilmsRemoveStored                        func(place string) string
+	FilmsStoredOn                            func(place string) string
 	StoredObjectStore                        func(store string) string
 	StoredNotDone                            func(name string) string
 	StoredOutside                            func(name string) string
@@ -3193,6 +3195,7 @@ const (
 	textGlossarySuggested
 	textGlossarySuggestDismiss
 	textFilmsRemoveManyStored
+	textFilmsStoredGone
 	textPlayerStoredGone
 	textPlayerStoredUnreachable
 	textPlayerStoredMissing
@@ -4756,6 +4759,7 @@ var keyOfText = [numTexts]string{
 	"glossarySuggested",
 	"glossarySuggestDismiss",
 	"filmsRemoveManyStored",
+	"filmsStoredGone",
 	"playerStoredGone",
 	"playerStoredUnreachable",
 	"playerStoredMissing",
@@ -6317,6 +6321,7 @@ var textsEn = i18n.NewTexts(""+
 	"Found in This Film"+
 	"Dismiss"+
 	"Their files will be moved to the Trash. The videos of those moved to a storage location will be deleted from it."+
+	"The video's storage location is no longer in Settings"+
 	"This film's video is on a storage location that is no longer in Settings. Its lines can still be studied."+
 	"Couldn't reach the storage location this film's video is on. Its lines can still be studied."+
 	"This film's video is no longer on its storage location. Its lines can still be studied."+
@@ -7875,6 +7880,7 @@ var textsEn = i18n.NewTexts(""+
 		18,
 		7,
 		112,
+		53,
 		105,
 		92,
 		87,
@@ -9436,6 +9442,7 @@ var textsJa = i18n.NewTexts(""+
 	"この動画で見つかった用語"+
 	"使わない"+
 	"ファイルはゴミ箱に移動します。保存場所に移した動画はそこから削除されます。"+
+	"動画がある保存場所は、もう設定にありません"+
 	"この作品の動画がある保存場所は、もう設定にありません。字幕で学習することはできます。"+
 	"この作品の動画がある保存場所に接続できません。字幕で学習することはできます。"+
 	"この作品の動画が保存場所にもうありません。字幕で学習することはできます。"+
@@ -10994,6 +11001,7 @@ var textsJa = i18n.NewTexts(""+
 		36,
 		12,
 		111,
+		63,
 		126,
 		114,
 		108,
@@ -12555,6 +12563,7 @@ var textsKo = i18n.NewTexts(""+
 	"이 영상에서 찾은 용어"+
 	"사용 안 함"+
 	"파일은 휴지통으로 이동합니다. 저장 위치로 옮긴 동영상은 그곳에서 삭제됩니다."+
+	"동영상이 있는 저장 위치가 더 이상 설정에 없습니다"+
 	"이 영화의 동영상이 있는 저장 위치가 더 이상 설정에 없습니다. 자막으로 학습할 수는 있습니다."+
 	"이 영화의 동영상이 있는 저장 위치에 연결할 수 없습니다. 자막으로 학습할 수는 있습니다."+
 	"이 영화의 동영상이 저장 위치에 더 이상 없습니다. 자막으로 학습할 수는 있습니다."+
@@ -14113,6 +14122,7 @@ var textsKo = i18n.NewTexts(""+
 		30,
 		14,
 		109,
+		70,
 		129,
 		122,
 		112,
@@ -15674,6 +15684,7 @@ var textsZhHans = i18n.NewTexts(""+
 	"片中找到的术语"+
 	"不用"+
 	"它们的文件将移到废纸篓。已移到存储位置的视频会从那里删除。"+
+	"视频所在的存储位置已不在设置中"+
 	"这部影片的视频所在的存储位置已不在设置中。仍可以按字幕学习。"+
 	"连不上这部影片的视频所在的存储位置。仍可以按字幕学习。"+
 	"这部影片的视频已不在它的存储位置上。仍可以按字幕学习。"+
@@ -17232,6 +17243,7 @@ var textsZhHans = i18n.NewTexts(""+
 		21,
 		6,
 		87,
+		45,
 		90,
 		81,
 		81,
@@ -18793,6 +18805,7 @@ var textsZhHant = i18n.NewTexts(""+
 	"片中找到的術語"+
 	"不用"+
 	"它們的檔案將移到垃圾桶。已移到儲存位置的影片會從那裡刪除。"+
+	"影片檔所在的儲存位置已不在設定中"+
 	"這部影片的影片檔所在的儲存位置已不在設定中。仍可以按字幕學習。"+
 	"連不上這部影片的影片檔所在的儲存位置。仍可以按字幕學習。"+
 	"這部影片的影片檔已不在它的儲存位置上。仍可以按字幕學習。"+
@@ -20351,6 +20364,7 @@ var textsZhHant = i18n.NewTexts(""+
 		21,
 		6,
 		87,
+		48,
 		93,
 		84,
 		84,
@@ -22133,6 +22147,9 @@ func Supply(lang string, t Translation) {
 	}
 	if t.FilmsRemoveStored != nil {
 		s.FilmsRemoveStored = t.FilmsRemoveStored
+	}
+	if t.FilmsStoredOn != nil {
+		s.FilmsStoredOn = t.FilmsStoredOn
 	}
 	if t.StoredObjectStore != nil {
 		s.StoredObjectStore = t.StoredObjectStore
@@ -57129,6 +57146,45 @@ func FilmsRemoveManyStored(cx *core.Scope) string { return For(cx).FilmsRemoveMa
 
 // FilmsRemoveManyStored is the package's FilmsRemoveManyStored in the language of msgs.
 func (msgs Messages) FilmsRemoveManyStored() string { return msgs.text(textFilmsRemoveManyStored) }
+
+// FilmsStoredOn says "Video on {place}"
+// in the language the app shows under cx.
+//
+// Accessible name and tooltip of the small mark on a film's poster and list row whose video was moved out of the library folder to a storage location (a NAS folder or object storage). place is the location's name.
+func FilmsStoredOn(cx *core.Scope, place string) string { return For(cx).FilmsStoredOn(place) }
+
+// FilmsStoredOn is the package's FilmsStoredOn in the language of msgs.
+func (msgs Messages) FilmsStoredOn(place string) string {
+	if i18n.IsPseudo(msgs.lang) {
+		return i18n.Pseudo(msgs.lang, Messages{lang: Source, mark: true}.FilmsStoredOn(place))
+	}
+	for lang := msgs.lang; ; lang = i18n.Parent(lang) {
+		if f := supplied[lang].FilmsStoredOn; f != nil {
+			return f(place)
+		}
+		switch lang {
+		case "", "en":
+			return "Video on " + msgs.arg(place)
+		case "ja":
+			return "動画は「" + place + "」にあります"
+		case "ko":
+			return "동영상 위치: ‘" + place + "’"
+		case "zh-Hans":
+			return "视频在「" + place + "」上"
+		case "zh-Hant":
+			return "影片檔在「" + place + "」上"
+		}
+	}
+}
+
+// FilmsStoredGone says "The video's storage location is no longer in Settings"
+// in the language the app shows under cx.
+//
+// Accessible name and tooltip of the mark on a film's poster and list row, drawn as a warning, when its video was moved to a storage location that was since removed from Settings > Account & Upload.
+func FilmsStoredGone(cx *core.Scope) string { return For(cx).FilmsStoredGone() }
+
+// FilmsStoredGone is the package's FilmsStoredGone in the language of msgs.
+func (msgs Messages) FilmsStoredGone() string { return msgs.text(textFilmsStoredGone) }
 
 // PlayerStoredGone says "This film's video is on a storage location that is no longer in Settings. Its lines can still be studied."
 // in the language the app shows under cx.

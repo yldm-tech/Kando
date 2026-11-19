@@ -7630,6 +7630,14 @@ filmsRemoveStored:
 filmsRemoveManyStored:
   message: "Their files will be moved to the Trash. The videos of those moved to a storage location will be deleted from it."
   description: "What removing several selected films does when the video of at least one of them was moved to a storage location (a NAS folder or object storage): those videos are deleted from the location."
+filmsStoredOn:
+  message: "Video on {place}"
+  description: "Accessible name and tooltip of the small mark on a film's poster and list row whose video was moved out of the library folder to a storage location (a NAS folder or object storage). place is the location's name."
+  placeholders:
+    place: { type: "String", example: "Home NAS" }
+filmsStoredGone:
+  message: "The video's storage location is no longer in Settings"
+  description: "Accessible name and tooltip of the mark on a film's poster and list row, drawn as a warning, when its video was moved to a storage location that was since removed from Settings > Account & Upload."
 playerStoredGone:
   message: "This film's video is on a storage location that is no longer in Settings. Its lines can still be studied."
   description: "Shown in place of the picture when the film's video was moved to a storage location (a NAS folder or object storage) that was since removed in Settings > Account & Upload."

@@ -125,6 +125,7 @@ func (d doneCard) Render(cx *core.Scope) core.Node {
 	})
 	seen := live.Memo(cx, a, func() watched { return watchedOf(a, item()) })
 	selected := live.Func(a, func() bool { return a.Selection().Has(item().Key) })
+	stored := storedMemo(cx, a, item)
 	menu := func() []nsdesktop.MenuItem { return menuOf(cx, a, item(), d.done(), false) }
 	ref := &core.Ref{}
 	// The first poster takes the keyboard focus when it is asked for (PosterFocus).
@@ -159,14 +160,15 @@ func (d doneCard) Render(cx *core.Scope) core.Node {
 			core.Show{When: func() bool { return duration() != "" }, Then: func(*core.Scope) core.Node {
 				return posterChip(duration, core.Style{Right: core.Pt(9), Bottom: core.Pt(9), FontWeight: ui.Semibold, FontVariant: core.FontTabularNums})
 			}},
+			storedChip(cx, stored),
 			core.Show{When: func() bool { return seen().end }, Then: func(*core.Scope) core.Node { return watchedMark(cx) }},
 			core.Show{When: func() bool { s := seen(); return s.part > 0 && !s.end }, Then: func(*core.Scope) core.Node {
 				return watchedBar(cx, func() float64 { return seen().part })
 			}},
 		)},
 	}
-	// The title under the poster may be cut short; the tooltip names the film in full.
-	tip := ui.Tooltip{TextFunc: name, Trigger: poster, Style: core.Style{Width: core.Pct(100)}}
+	// The title under the poster may be cut short; the tooltip names the film in full, and says where its video is when it was moved to a storage location.
+	tip := ui.Tooltip{TextFunc: storedTip(cx, name, stored), Trigger: poster, Style: core.Style{Width: core.Pct(100)}}
 	meta := core.Text{ContentFunc: live.Func(a, func() string { return doneMeta(locales.For(cx), item()) }), MaxLines: 1, EllipsizeMode: core.EllipsizeTail,
 		Style: core.Style{FontSize: 12}, StyleFunc: ui.Colored(colors.Muted)}
 	missing := core.Show{When: func() bool { return item().JobID != "" && item().Untranslated > 0 }, Then: func(*core.Scope) core.Node {

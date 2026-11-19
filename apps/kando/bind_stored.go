@@ -51,6 +51,18 @@ func (a *app) StoredPlace(item films.Film) string {
 	return strings.TrimSpace(a.storedName(a.messages(), item.Stored))
 }
 
+// StoredMark is what the mark on the poster and list row of a film whose video is on a storage location says (films.App): the location's name in m's language, whether it is an object store rather than a NAS location, and whether it is no longer in the settings (storedTargetOf). It only reads the settings and never reaches the location. All zero for a video in the library's folder.
+func (a *app) StoredMark(m locales.Messages, item films.Film) (place string, cloud, gone bool) {
+	if item.Stored == "" {
+		return "", false, false
+	}
+	cloud = strings.HasPrefix(item.Stored, storedStorePrefix)
+	if _, there := a.storedTargetOf(item.Stored); !there {
+		return "", cloud, true
+	}
+	return strings.TrimSpace(a.storedName(m, item.Stored)), cloud, false
+}
+
 // MoveOpenVideoBack moves the open film's video back to the library, as its menu's 将视频移回资料库 does (MoveVideoBack); nothing for a video that was not moved.
 func (a *app) MoveOpenVideoBack() {
 	if item, ok := a.storedFilm(a.player.playPath); ok {
