@@ -79,6 +79,11 @@ var (
 
 // Validate checks the pack in the folder dir, the same way for the app's scan, for `kando plugin validate` and for a pack Stage has just copied: its manifest (Parse) and every field of it, its id, the shape of the folder (only the files its manifest names, plus .md and .txt notes, no folder, link or special file, names in plain ASCII), and its limits, counting the bytes actually read, those inside a dictionary's zips included. It returns the pack with its texts cleaned of invisible and bidirectional characters, and the hash of its files.
 func Validate(dir string) (Pack, error) {
+	return validate(dir, nil)
+}
+
+// validate is Validate, with the hashes of the packs a scan before read (cache, nil for none): a pack whose files are just as they were then keeps its hash, and its dictionary's zips are not read again, while its manifest, its fields and the shape of its folder are checked as Validate checks them. The hash of a pack read in full goes into cache.
+func validate(dir string, cache *hashCache) (Pack, error) {
 	names, err := listFiles(dir)
 	if err != nil {
 		return Pack{}, err
@@ -105,9 +110,22 @@ func Validate(dir string) (Pack, error) {
 	if err := b.take(len(names)); err != nil {
 		return Pack{}, err
 	}
+	// The files are stamped before they are read, so one that changes while it is read leaves a stamp the next scan does not find again.
+	var stamps []fileStamp
+	if cache != nil {
+		if stamps, err = stampFiles(dir, names); err != nil {
+			return Pack{}, err
+		}
+		if hash, ok := cache.get(dir, stamps); ok {
+			return Pack{Manifest: m, Dir: dir, Hash: hash}, nil
+		}
+	}
 	hash, err := readFiles(dir, names, m, b)
 	if err != nil {
 		return Pack{}, err
+	}
+	if cache != nil {
+		cache.put(dir, stamps, hash)
 	}
 	return Pack{Manifest: m, Dir: dir, Hash: hash}, nil
 }

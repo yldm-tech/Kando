@@ -357,11 +357,13 @@ func Remove(root, id string) error {
 	return fmt.Errorf("%w: %s", ErrNotInstalled, id)
 }
 
-// Scan validates every pack in root (Validate), the same checks a pack passed when it was installed, and returns those that pass, by id, and an Issue for each folder that does not: a pack whose folder is not named after its kind and id (ErrMismatch), and a pack whose id a pack of a kind before it (in the order of kinds) already has (ErrIDTaken), which Swap never installs but a folder copied in by hand may be. Folders whose names start with a dot, those Stage and Swap work in, are skipped.
+// Scan validates every pack in root, the same checks a pack passed when it was installed (Validate), and returns those that pass, by id, and an Issue for each folder that does not: a pack whose folder is not named after its kind and id (ErrMismatch), and a pack whose id a pack of a kind before it (in the order of kinds) already has (ErrIDTaken), which Swap never installs but a folder copied in by hand may be. Folders whose names start with a dot, those Stage and Swap work in, are skipped. A pack whose files are as they were at the scan before, by name, size and time of change, keeps the hash it had then rather than being read again in full (hashCache, in root's .hashes.json): its manifest and its folder's shape are still checked.
 func Scan(root string) ([]Pack, []Issue) {
 	var packs []Pack
 	var issues []Issue
 	seen := map[string]Kind{}
+	cache := loadHashCache(root, time.Now())
+	defer cache.save()
 	for _, kind := range kinds {
 		base := filepath.Join(root, string(kind))
 		entries, err := os.ReadDir(base)
@@ -381,7 +383,7 @@ func Scan(root string) ([]Pack, []Issue) {
 				issues = append(issues, Issue{Dir: dir, Err: fmt.Errorf("%w: not a folder", ErrBadShape)})
 				continue
 			}
-			p, err := Validate(dir)
+			p, err := validate(dir, cache)
 			if err == nil && (p.ID != e.Name() || p.Kind != kind) {
 				err = fmt.Errorf("%w: %s %s in %s/%s", ErrMismatch, p.Kind, p.ID, kind, e.Name())
 			}
