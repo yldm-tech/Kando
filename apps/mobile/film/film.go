@@ -23,13 +23,13 @@ func Page(cx *core.Scope, s *session.Session, desktop, library string, f sync.Fi
 	key := store.Key(desktop, f.ID)
 	kept := func() (store.Film, bool) { return s.Film(key) }
 	done := func() bool { k, ok := kept(); return ok && k.Done() }
-	// noVideo is a film whose video is on neither the phone nor its computer, as the phone last heard: one kept by its lines, or one listed without a video.
-	noVideo := func() bool {
+	// noVideo is a film whose video is on neither the phone nor its computer, as the phone last heard: one kept by its lines, or one listed without a video. It is a memo because the page's actions are built again when it changes: read through kept() alone, they would be built again at every change of the film's record, and a press landing while they are would be lost.
+	noVideo := core.NewMemo(cx, func() bool {
 		if k, ok := kept(); ok {
 			return k.LinesOnly && !k.HasVideo()
 		}
 		return f.SubtitlesOnly
-	}
+	}).Get
 	transfer := func() (session.Transfer, bool) { return s.Transfer(key) }
 	state := func() (session.State, bool) { t, ok := transfer(); return t.State, ok }
 	running := func() bool { st, ok := state(); return ok && st == session.Running }
