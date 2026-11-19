@@ -26,6 +26,42 @@ const (
 	pluginsBusy   = "busy"
 )
 
+// pluginsSoundMargin is how many reads of a sound an export the user started may make beyond one per line it was given, for a read the plugin tries again.
+const pluginsSoundMargin = 8
+
+// pluginsSoundAllowance is an export's allowance of sound reads: the export it belongs to and the reads left.
+type pluginsSoundAllowance struct {
+	gen, left int
+}
+
+// pluginsAllowSounds lets the plugin id read the sound of lines lines plus pluginsSoundMargin times without counting toward its quota of host calls a minute, while an export the user started (the Saved Lines sheet's, pluginsExportTo) runs: an export of a few hundred lines with their sound would otherwise run out of the minute's sixty calls after the sixtieth line. It returns the end of the allowance, which the export calls as its call ends, however it ends; reads left then are not kept for later, and a plugin's own calls, from a command or a timer outside an export, are held to the quota as before. The allowance is the plugin's while the export runs, so a timer of its own may use it then, never past the count.
+func (a *app) pluginsAllowSounds(id string, lines int) (end func()) {
+	s := &a.plugins.script
+	if s.sounds == nil {
+		s.sounds = map[string]pluginsSoundAllowance{}
+	}
+	s.soundsGen++
+	gen := s.soundsGen
+	s.sounds[id] = pluginsSoundAllowance{gen: gen, left: lines + pluginsSoundMargin}
+	return func() {
+		if s.sounds[id].gen == gen {
+			delete(s.sounds, id)
+		}
+	}
+}
+
+// pluginsSoundAllowed reports whether the plugin id may read a sound under an export's allowance now, and counts it.
+func (a *app) pluginsSoundAllowed(id string) bool {
+	s := &a.plugins.script
+	al, ok := s.sounds[id]
+	if !ok || al.left <= 0 {
+		return false
+	}
+	al.left--
+	s.sounds[id] = al
+	return true
+}
+
 // pluginsOwnCode reports whether code, the code of an error a plugin rejected a call with, is the plugin's own rather than one Kando or the runtime gave it: not empty, not one of the codes Kando refuses a host call with, and not the runtime's (ETIMEDOUT of a host call that timed out, ERR_… of a refusal), whose words are not written for the user.
 func pluginsOwnCode(code string) bool {
 	switch code {
@@ -68,7 +104,8 @@ func (a *app) pluginsGuard(id string, host *ns.Host, perm plugins.Perm, fn func(
 			pluginsRefuse(c, pluginsDenied)
 			return
 		}
-		if !a.pluginsQuota(id) {
+		// A line's sound read for an export the user started is metered against that export, not the minute's quota (pluginsAllowSounds).
+		if !(perm == plugins.PermSoundRead && a.pluginsSoundAllowed(id)) && !a.pluginsQuota(id) {
 			pluginsRefuse(c, pluginsQuota)
 			return
 		}

@@ -744,26 +744,23 @@ func TestPluginAnkiConnectGrant(t *testing.T) {
 	}
 }
 
-// TestPluginAnkiConnectManyLines checks an export of more lines than Kando reads sounds for in a minute (its quota of 60 host calls): every line goes in, the first 60 with their sound; the rest, as the minute's wait does not fit in the call's time, go without, which the export reports rather than saying only how many it sent.
+// TestPluginAnkiConnectManyLines checks an export of more lines than Kando's quota of host calls a minute allows (60): Kando meters a sound read for an export against the export (docs/plugin-system.md 5.3), so every one of 200 lines goes in with its sound and none is reported without it.
 func TestPluginAnkiConnectManyLines(t *testing.T) {
 	p := signed(t)
 	pl := p.load(t, p.granted())
 	a := newAnki()
 	p.net.use(a)
-	p.sounds.mu.Lock()
-	p.sounds.limit = 60
-	p.sounds.mu.Unlock()
 	var items []map[string]any
-	for i := range 70 {
-		id := fmt.Sprintf("l%02d", i)
+	for i := range 200 {
+		id := fmt.Sprintf("l%03d", i)
 		p.sounds.clips[id] = "bTRh"
 		items = append(items, line(id, "line "+id, "行"))
 	}
 	sent, skipped, err := p.export(t, pl, items, map[string]any{"sound": true})
-	if err != nil || sent != 70 || skipped != 0 || p.soundless != 10 {
+	if err != nil || sent != 200 || skipped != 0 || p.soundless != 0 {
 		t.Fatalf("sent %d, skipped %d, %d without sound, %v", sent, skipped, p.soundless, err)
 	}
-	if _, media, stored := a.counts("storeMediaFile"); media != 60 || stored != 60 || p.sounds.count() != 61 {
+	if _, media, stored := a.counts("storeMediaFile"); media != 200 || stored != 200 || p.sounds.count() != 200 {
 		t.Errorf("%d media files, stored %d times, %d sound calls", media, stored, p.sounds.count())
 	}
 }

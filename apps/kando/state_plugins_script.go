@@ -42,6 +42,9 @@ type pluginsScripts struct {
 	runner    *script.Runner
 	watch     script.Watch
 	calls     map[string][]time.Time
+	// sounds are the exports the user started that are running, by plugin id: the reads of a line's sound each may still make without counting toward the plugin's quota (pluginsSoundAllowance); soundsGen numbers them, so the end of an older export never ends a newer one's allowance.
+	sounds    map[string]pluginsSoundAllowance
+	soundsGen int
 	toaster   *ui.Toaster
 	toasting  bool
 	opened    string

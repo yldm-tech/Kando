@@ -61,6 +61,19 @@ export async function exportNotes(items, settings) {
     e.code = "anki-unreachable"
     throw e
   }
+  if (items.some((i) => (i.original || "").startsWith("sound "))) {
+    let read = 0
+    let refused = 0
+    for (const i of items.filter((i) => i.kind === "line")) {
+      try {
+        await host.call("kando.sound.read", { saved: i.id }, { timeout: 150000 })
+        read++
+      } catch (e) {
+        refused++
+      }
+    }
+    return { sent: read, skipped: refused }
+  }
   if (items.some((i) => i.original === "passed on")) {
     const e = new Error("quota")
     e.code = "quota"
@@ -673,5 +686,40 @@ func TestPluginExportReasonIsThePluginsOwn(t *testing.T) {
 	a.saved.export = savedExport{finished: true, plugin: "Anki", err: errors.New("why")}
 	if got := a.ExportState().Reason; got != "" {
 		t.Errorf("an error without a code: reason %q", got)
+	}
+}
+
+// TestPluginExportReadsEverySound checks that an export the user started may read the sound of every line it was given, past the plugin's quota of host calls a minute (docs/plugin-system.md 5.3): 200 lines all get theirs; the allowance ends with the call, and a call of the plugin's own afterwards is held to the minute's 60 again, the export's reads not counted against it.
+func TestPluginExportReadsEverySound(t *testing.T) {
+	ffmpeg := fakeTool(t, filepath.Join(t.TempDir(), "bin"), "ffmpeg")
+	a, tt, updates, _, _ := contribApp(t, media.Tools{FFmpeg: ffmpeg})
+	onEngine(a, func() {
+		book, _ := study.Load(a.snap().LibraryDir)
+		for i := range 200 {
+			book.Lines = append(book.Lines, study.Line{ID: fmt.Sprintf("s%03d", i), Video: "talk/talk.mp4", Start: time.Second, End: 2500 * time.Millisecond, Original: fmt.Sprintf("sound %d", i), Film: "talk"})
+		}
+		a.saved.book = book
+		a.SetExportTarget(pluginsContribID("acme.wiki", "notes"))
+		a.ExportSaved()
+	})
+	scriptsSettleWithin(t, a, tt, updates, time.Minute, func() bool { return a.ExportState().Finished })
+	if e := a.ExportState(); e.Err != "" || e.Sent != 200 || e.Skipped != 0 {
+		t.Fatalf("the export read %d sounds, %d refused: %+v", e.Sent, e.Skipped, e)
+	}
+	var left bool
+	onEngine(a, func() { _, left = a.plugins.script.sounds["acme.wiki"] })
+	if left {
+		t.Fatal("the export's allowance outlived its call")
+	}
+	// Outside an export, the plugin's own reads count: 60 in the minute, then quota, though the export left reads of its margin unused.
+	for i := range 61 {
+		got, _ := scriptsCall(t, a, tt, updates, "acme.wiki", "sound", map[string]any{"saved": "nope"})
+		want := "refused not-found"
+		if i == 60 {
+			want = "refused quota"
+		}
+		if got != want {
+			t.Fatalf("call %d of the plugin's own: %v, want %s", i+1, got, want)
+		}
 	}
 }

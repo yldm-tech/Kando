@@ -179,7 +179,7 @@ func (a *app) pluginsExportTargets() []study.ExportTarget {
 	return out
 }
 
-// pluginsExportTo sends the saved lines, the words of the vocabulary or both, as the target e takes them, to its plugin's export, exportNotes(items, settings): items the lines and the words as kando.saved.read and kando.words.read give them, each with its kind ("line" or "word"), at most pluginsListMax of each, the newest first; settings the plugin's own (kando.settings.get's). The Saved Lines sheet says how many it sent and skipped, as the plugin answered ({sent, skipped}), or that it failed.
+// pluginsExportTo sends the saved lines, the words of the vocabulary or both, as the target e takes them, to its plugin's export, exportNotes(items, settings): items the lines and the words as kando.saved.read and kando.words.read give them, each with its kind ("line" or "word"), at most pluginsListMax of each, the newest first; settings the plugin's own (kando.settings.get's). While the call runs, the plugin may read the sound of each line it was given without counting toward its quota of host calls a minute (pluginsAllowSounds). The Saved Lines sheet says how many it sent and skipped, and how many lines went without their sound, as the plugin answered ({sent, skipped, soundless}), or that it failed.
 func (a *app) pluginsExportTo(e pluginsContribution[plugins.Exporter]) {
 	l := a.plugins.script.loaded[e.id]
 	if l == nil {
@@ -210,7 +210,15 @@ func (a *app) pluginsExportTo(e pluginsContribution[plugins.Exporter]) {
 	a.saved.export.gen++
 	gen := a.saved.export.gen
 	a.saved.export = savedExport{busy: true, total: len(items), gen: gen, plugin: name}
+	lines := 0
+	for _, it := range items {
+		if it.(map[string]any)["kind"] == "line" {
+			lines++
+		}
+	}
+	endSounds := a.pluginsAllowSounds(e.id, lines)
 	a.pluginsContribCall(e.id, e.of.Export, []any{items, l.pack.Resolve(a.plugins.script.values[e.id])}, func(v any, err error) {
+		endSounds()
 		defer a.Changed()
 		if a.saved.export.gen != gen {
 			return

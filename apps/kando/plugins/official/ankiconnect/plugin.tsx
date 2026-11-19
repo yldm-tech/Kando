@@ -29,10 +29,6 @@ const budgetMs = 45000
 const requestMs = 20000
 // The least time a request is started with: below it, the export stops rather than start one that would be cut off.
 const requestMinMs = 2000
-// Kando answers at most 60 host calls of a plugin in a minute (quota); after the 60th sound of an export the plugin waits for the minute to pass when its budget allows it, and the lines after that go without sound, which the export reports.
-const callsPerMinute = 60
-// What a wait for the quota's minute must leave of the budget, for the requests still to come.
-const quotaReserveMs = 15000
 // How long a sound may take: Kando gives up on one after 120 s and refuses with "timeout".
 const soundMs = 150000
 
@@ -66,13 +62,12 @@ function fail(code: string, message: string): Error {
   return e
 }
 
-// Export is one export's clock and tallies: the time it spent of its own, which is all of it but the waits for Kando to read a sound (hostMs), how many notes went in so far, and the state of the sounds: whether to ask for them still, the times it asked (for the quota), and how many lines went in without one.
+// Export is one export's clock and tallies: the time it spent of its own, which is all of it but the waits for Kando to read a sound (hostMs), how many notes went in so far, whether to ask for sounds still, and how many lines went in without one.
 class Export {
   start = Date.now()
   hostMs = 0
   sent = 0
   sound: boolean
-  asked: number[] = []
   soundless = 0
 
   constructor(sound: boolean) {
@@ -88,11 +83,6 @@ class Export {
   tooSlow(): Error {
     return fail("anki-timeout", `Anki is answering too slowly; ${this.sent} notes went in. Export again when Anki is idle to send the rest: it skips those it has.`)
   }
-}
-
-// sleep waits ms.
-function sleep(ms: number): Promise<void> {
-  return new Promise((resolve) => setTimeout(resolve, ms))
 }
 
 // anki runs one AnkiConnect action and gives its result, or rejects with a coded Error: AnkiConnect not answering, or not within the request's time, a refused request, an answer that is not AnkiConnect's, or the error AnkiConnect returned.
@@ -225,35 +215,21 @@ function mediaName(id: string): string {
   return "kando-" + String(id).replace(/[^A-Za-z0-9_-]/g, "_").slice(0, 80) + ".m4a"
 }
 
-// readSound is the sound of the saved line id, base64, or null when it goes without one. A refusal that holds for every line (not granted, no ffmpeg, a sound that hung until Kando gave up) stops asking for the rest; one of this line's alone (no sound, too large, failed, another read in flight) skips it. Kando's quota of host calls is a minute's: past it the export waits for the minute to pass when its budget allows that, and asks again once; otherwise the rest go without sound. The time Kando spends reading is not the export's own (Export.hostMs), as it is not the runner's either.
+// readSound is the sound of the saved line id, base64, or null when it goes without one. Kando reads the sound of every line an export was given without counting it toward the plugin's quota of host calls (docs/plugin-system.md 5.3), so a refusal is a real failure: one that holds for every line (not granted, no ffmpeg, the quota after all, a sound that hung until Kando gave up) stops asking for the rest; one of this line's alone (no sound, too large, failed, another read in flight) skips it. The time Kando spends reading is not the export's own (Export.hostMs), as it is not the runner's either.
 async function readSound(x: Export, id: string): Promise<string | null> {
   if (!x.sound || !id) return null
-  for (let attempt = 0; attempt < 2; attempt++) {
-    const asked = Date.now()
-    x.asked.push(asked)
-    try {
-      const clip = await host.call("kando.sound.read", { saved: id }, { timeout: soundMs })
-      return clip && typeof clip.base64 === "string" && clip.base64 !== "" ? clip.base64 : null
-    } catch (e) {
-      const code = e?.code
-      if (code === "quota" && attempt === 0) {
-        const window = x.asked.filter((t) => t > Date.now() - 60000)
-        const wait = window.length >= callsPerMinute ? window[window.length - callsPerMinute] + 60000 + 250 - Date.now() : 60250
-        if (x.left() - wait > quotaReserveMs) {
-          await sleep(wait)
-          continue
-        }
-      }
-      if (["quota", "ERR_ACCESS_DENIED", "denied", "no-ffmpeg", "timeout", "ETIMEDOUT"].includes(code)) {
-        x.sound = false
-      }
-      return null
-    } finally {
-      x.hostMs += Date.now() - asked
+  const asked = Date.now()
+  try {
+    const clip = await host.call("kando.sound.read", { saved: id }, { timeout: soundMs })
+    return clip && typeof clip.base64 === "string" && clip.base64 !== "" ? clip.base64 : null
+  } catch (e) {
+    if (["quota", "ERR_ACCESS_DENIED", "denied", "no-ffmpeg", "timeout", "ETIMEDOUT"].includes(e?.code)) {
+      x.sound = false
     }
+    return null
+  } finally {
+    x.hostMs += Date.now() - asked
   }
-  x.sound = false
-  return null
 }
 
 // addOneByOne adds notes one at a time, for an AnkiConnect whose addNotes failed as a whole because one of them could not be added: it reports how many were.

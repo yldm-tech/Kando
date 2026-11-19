@@ -142,7 +142,13 @@ func pluginsScriptInstalled(t *testing.T, root string, folders ...string) {
 // scriptsSettle applies the background updates and runs what the engine was posted, as a plugin's host calls and the runner's answers are, until done holds, failing t after five seconds.
 func scriptsSettle(t *testing.T, a *app, tt *nsgotest.App, updates chan func(), done func() bool) {
 	t.Helper()
-	deadline := time.Now().Add(5 * time.Second)
+	scriptsSettleWithin(t, a, tt, updates, 5*time.Second, done)
+}
+
+// scriptsSettleWithin is scriptsSettle, failing t after limit.
+func scriptsSettleWithin(t *testing.T, a *app, tt *nsgotest.App, updates chan func(), limit time.Duration, done func() bool) {
+	t.Helper()
+	deadline := time.Now().Add(limit)
 	for !done() {
 		if time.Now().After(deadline) {
 			t.Fatal("timed out waiting for the plugins")
