@@ -79,10 +79,10 @@
 
 **E8 站点包（P4，最敏感）**
 - 站点包不往 `kcore.VideoSites` 或 `sites/catalog` 里加任何东西。这两处都是进程级的全局状态（`sites/catalog/catalog.go:35` 的 `sync.OnceValue`，`packages/core/videosites.go:70` 的 `compiledVideoSites`），控制 socket 的浏览器扩展路径也复用同一套判断（`state_browserext.go:194,196`：注释里写着「Any program of the user can call the socket」，下面是 `if !browse.VideoLink(link) || !catalog.Load().On(link)`）。只要往里加，CLI、socket、MCP 的入口就会一起放宽。
-- 改为单独做一个 `pluginSites` 匹配器（实现是 `pluginsUI.sites`，每个包一个 `kcore.VideoMatcher`，在 `state_plugins_sites.go`），只给内置浏览器工具栏的「下载视频」用：`browseNotVideo`、`browseList` 和 `browseEnqueue`（`state_browse.go`）。原设计接的是网页里按钮的两个入口 `browsePageAsk` 和 `browsePageAdd`（`state_browse_buttons.go`），P4.1 实现时改了，原因见下一条。`browsePageAsk`、`browsePageAdd`、`browserExtVideo`、remote 的 `browser.state`、`browser.add`、`browser.show` 和 `sites` 都不认插件站点；CLI 和 MCP 经 remote 的 `add` 加进来的插件站点链接，按任何未知网站的链接处理，不算站点包的任务。这些都写了测试锁住（`plugins_test.go` 的 `TestPluginSiteWidensNoGate`）。
-- 网页里的按钮（视频页上的「下载视频」和缩略图上的 +）不覆盖插件站点。内置浏览器的页面脚本 `browse.Script()` 虽然是运行时在 Go 里拼出来的（`go generate` 只生成浏览器扩展的文件），但它是 `core.WebView.InjectedJavaScriptBeforeContent`，NSGo 只在 web view 创建时读一次（`nsgo/core/webview.go` 的 `mountWebView`），而 web view 从第一次打开网页起一直活到退出，所以之后安装的包、之后同意的域名都进不了页面脚本。要覆盖就得在每次加载后用 `Ref.InjectJavaScript` 再注入一份按钮脚本，并给它单独的消息前缀（第一份脚本的 `hear` 会 `stopImmediatePropagation` 吞掉 `kando-state:`），这等于在第三方网页里新增一段只能在真机上验证的脚本，P4.1 没有做。站点包的清单因此也没有按钮位置（`rows`、`titles`、`cut`）和扩展菜单（`menu`）这些字段，写了就是未知键。
+- 改为单独做一个 `pluginSites` 匹配器（实现是 `pluginsUI.sites`，每个包一个 `kcore.VideoMatcher`，在 `state_plugins_sites.go`），只给内置浏览器用：工具栏的「下载视频」（`browseNotVideo`、`browseList`、`browseEnqueue`，`state_browse.go`），以及网页里按钮的两个入口 `browsePageAsk` 和 `browsePageAdd`（`state_browse_buttons.go`，经 `browsePageSite` 判断页面的 origin、`browsePageVideo` 判断链接，二者都用同一个匹配器，不信页面发来的任何东西）。`browserExtVideo`、remote 的 `browser.state`、`browser.add`、`browser.show` 和 `sites` 都不认插件站点；CLI 和 MCP 经 remote 的 `add` 加进来的插件站点链接，按任何未知网站的链接处理，不算站点包的任务。这些都写了测试锁住（`plugins_test.go` 的 `TestPluginSiteWidensNoGate`、`TestPluginSitePageButtons`）。
+- 网页里的按钮（视频页上的「下载视频」和缩略图上的 +）覆盖已同意的插件站点：`browse.ScriptWith(sites)` 把这些网站的规则接在看懂自己的网站后面写进页面脚本（每个网站先过 `kcore.ValidateVideoSite`，不过的不写；JSON 由 `encoding/json` 转义 `<`、`>`、`&`、U+2028、U+2029，写不出 `</script>`）。插件网站没有按钮位置，所以「下载视频」浮在播放器角上，标题取文档标题。页面脚本是 `core.WebView.InjectedJavaScriptBeforeContent`，NSGo 只在 web view 创建时读一次（`nsgo/core/webview.go:23-24` 是静态字段，只在 `mountWebView` 的 `:141-142` 读进 config；平台的 `Configure` 其实已经能换脚本，如 `internal/platform/apple/web.go:373-378`），所以已同意的网站一变（安装、卸载、开关、勾选域名），`browseSitesChanged` 就让 `browse.View` 用 `core.Dynamic` 重建 web view，载入它原来显示的页面，但之前的历史记录没了。已提交 [nsgo-dev/nsgo#840](https://github.com/nsgo-dev/nsgo/issues/840)，绕行处写了 `TODO(nsgo#840)`。站点包的清单没有按钮位置（`rows`、`titles`、`cut`）和扩展菜单（`menu`）这些字段，写了就是未知键。
 - 在站点包的、已同意的域名上，「下载视频」按包的链接规则判断：匹配的是一个视频，可以加；该域名下的其他页面一律不是视频（按钮变灰，提示和别的列表页一样），也不当成播放列表或频道去列视频（`browseList` 返回 false），所以不会经 `playlistAsk` 用浏览器登录去读列表。没同意的域名、停用的包，和没装包时一样。
-- 站点包加的下载一律不带 `--cookies-from-browser`，也不带内置浏览器页面的 cookie。接点：`browseEnqueue` 加入时经 `jobQueue.stamp` 给任务打上 `core.Job.PluginSite`（包 id，存进 library.json）并把 `Cookies` 设为 `core.CookiesNone`；`queueRun` 不给这类任务补设置里的浏览器；`queuePipeline` 只要 `PluginSite` 非空就把 `Tools.Cookies` 和 `Tools.SiteCookies` 都清空，不管 `Cookies` 被谁改过（失败卡片的「借用登录」也一样）。所有用 yt-dlp 的地方（下载、重做、仅字幕影片的串流 `StreamURL`）都经 `queuePipeline` 取 Tools。失败卡片（`FailureRemedy`）对这类任务去掉借用登录、查找浏览器、选择浏览器和完全磁盘访问权限的按钮，说明改成「插件添加的网站上的视频，下载时一律不借用浏览器登录」。
+- 站点包加的下载（工具栏和网页按钮都一样）一律不带 `--cookies-from-browser`，也不带内置浏览器页面的 cookie。接点：`browseEnqueue` 加入时经 `jobQueue.stamp` 给任务打上 `core.Job.PluginSite`（包 id，存进 library.json）并把 `Cookies` 设为 `core.CookiesNone`；`queueRun` 不给这类任务补设置里的浏览器；`queuePipeline` 只要 `PluginSite` 非空就把 `Tools.Cookies` 和 `Tools.SiteCookies` 都清空，不管 `Cookies` 被谁改过（失败卡片的「借用登录」也一样）。所有用 yt-dlp 的地方（下载、重做、仅字幕影片的串流 `StreamURL`）都经 `queuePipeline` 取 Tools。失败卡片（`FailureRemedy`）对这类任务去掉借用登录、查找浏览器、选择浏览器和完全磁盘访问权限的按钮，说明改成「插件添加的网站上的视频，下载时一律不借用浏览器登录」。
 - 前置条件（P4.0）：抽出共用的 `core.ValidateVideoSite` 和 `ValidateVideoSites`，只允许 Go 和 JS 共有的正则子集，不允许嵌套量词、反向引用和环视，长度不超过 256，域名唯一。站点包和 `pluginSites` 用它校验。`catalog.Load` 和 `compiledVideoSites` 不再需要改。实现时比这几条更严，见第 15 节 P4.0。
 - 每个域名都要用户单独同意：安装确认框和包的详情里每个域名一个复选框，默认不勾；同意的域名存在 state.json 里这个包的条目上（`plugins.PluginState.Sites`），和 `enabled` 并列，旧文件没有这个字段照样能读，读出来是一个都没同意。不接受 sign-in cookie 配方，不新增 `core.Platform`。
 - 站点包的清单：`site.sites` 是 1 到 8 个网站，每个有 `domain`、可选的 `not`（域名下不是视频页的主机，最多 16 个）和 `videos`（1 到 16 个链接规则：`path`，以及成对出现的 `param`、`value`，和 `kcore.VideoShape` 同义）。只有数据：没有脚本、cookie、登录配方、yt-dlp 参数，也没有按钮位置。域名必须是可注册域名或它下面的主机，不能是公共后缀（`co.uk`、`github.io`，用 `golang.org/x/net/publicsuffix` 判断，`apps/kando` 已经依赖 x/net），也不能等于、在下面或在上面包含看懂自己的 `kcore.VideoSites` 的域名（`ErrSiteKnown`）。
@@ -860,7 +860,7 @@ P1.1 的确认框只有数据包要显示的部分：名称（标题）、说明
 - `saved/targets.go`（P2）。
 - `cli/cli.go:148-165` 加一行。
 - `remote/remote.go` 和 `remote_api.go` 加只读的 `plugins.list`。
-- `state_browse.go` 的 `browseNotVideo`、`browseList`、`browseEnqueue` 接 `pluginSites`（P4.1 时从 `state_browse_buttons.go` 的 `browsePageAsk`、`browsePageAdd` 改到这里，见 E8）；`queue.go` 的 `queueRun`、`queuePipeline` 和 `queue_remedy.go` 的 `FailureRemedy` 对 `core.Job.PluginSite` 的任务不借用登录（P4）。
+- `state_browse.go` 的 `browseNotVideo`、`browseList`、`browseEnqueue`、`browseHeard`，和 `state_browse_buttons.go` 的 `browsePageAsk`、`browsePageAdd` 接 `pluginSites`，`browseSitesChanged` 换页面脚本并重建 web view（见 E8）；`queue.go` 的 `queueRun`、`queuePipeline` 和 `queue_remedy.go` 的 `FailureRemedy` 对 `core.Job.PluginSite` 的任务不借用登录（P4）。
 - `locales/*.yaml` 五份，加上 `catalog_gen.go`。
 - `film/panel.go:26`（P5）。
 - 不改：`packages/media` 的 Pipeline、Run、Tools 语义（P5 的 Engine 字段除外）；`sites/catalog` 和 `kcore.VideoSites`；`state_browserext.go` 的判断。
@@ -915,7 +915,7 @@ P1.1 的确认框只有数据包要显示的部分：名称（标题）、说明
   - 插件命令进入菜单和面板，和内置按键冲突时插件的按键被清空（运行时去重，和 `keys_test.go:266` 的唯一性测试并存）。
   - 切换语言后插件名跟着变（follow_test 的规则）。
   - 在 CLI inbox 放一个文件，app 只弹确认，不直接安装。
-  - P4：`browserExtVideo`、remote 的 `browser.*` 和 `sites`、网页按钮的两个入口都不认插件站点，CLI 和 MCP 的 `add` 不把它当站点包的任务；站点包任务的 Tools 不带 Cookies 和 SiteCookies；每个域名单独同意（`TestPluginSite*`）。
+  - P4：`browserExtVideo`、remote 的 `browser.*` 和 `sites` 都不认插件站点，网页按钮的两个入口只认已同意的插件站点，且用宿主的匹配器重新判断，CLI 和 MCP 的 `add` 不把它当站点包的任务；站点包任务的 Tools 不带 Cookies 和 SiteCookies；每个域名单独同意（`TestPluginSite*`）。
   - 现有的 `settings_file_test`、`locales/catalog_test` 照常要求：五份 catalog 齐全、settings 键唯一、没有自定义 Marshal。
 - **截图**：`screenshot_plugins_test.go` 的 `TestScreenshotsPlugins` 覆盖插件列表、安装确认、详情页、查词卡来源标注、带注音和等级色的字幕。样例包放在 `f.home`，路径显示成 `~/…`，不读本机环境。
 - **P3 spike 的性能和安全门槛**：
@@ -965,7 +965,7 @@ P1.1 的确认框只有数据包要显示的部分：名称（标题）、说明
 ### P4 站点包
 
 - PR 4.0：`core.ValidateVideoSite`。
-- PR 4.1：site kind 和单独的 `pluginSites` 匹配器，只接内置浏览器工具栏的「下载视频」（原计划是网页按钮的两个入口，见 E8），逐域名同意，不带浏览器 cookie，不支持 sign-in。加测试锁住 socket、浏览器扩展、remote 不认插件站点。设置页说明浏览器扩展不覆盖插件新增的站点。
+- PR 4.1：site kind 和单独的 `pluginSites` 匹配器，只接内置浏览器（工具栏的「下载视频」和网页按钮的两个入口，见 E8），逐域名同意，不带浏览器 cookie，不支持 sign-in。加测试锁住 socket、浏览器扩展、remote 不认插件站点。设置页说明浏览器扩展不覆盖插件新增的站点。
 
 ### P5 按需单独立项
 
@@ -1005,7 +1005,7 @@ P1.1 的确认框只有数据包要显示的部分：名称（标题）、说明
 2. **插件跑在引擎 goroutine 上，而且卡死不一定能打断**：await 不计入预算（`sandbox.go:311` 的 `within`），同步片段有 500ms 预算；但 regexp2 的回溯匹配不响应中断，Limits 也没有内存上限，恶意插件可以让窗口永久卡死或耗尽内存（6.7 节）。缓解：in-flight 记录加下次启动自动停用，签名问责，重计算（分词、注音）留在 Go 原生实现，Load 逐个 tick 进行；上游已有 [nsgo-dev/nsgo#759](https://github.com/nsgo-dev/nsgo/issues/759)（正则不可中断，已复现：200ms 发 Interrupt，10s 后仍在跑）和 [nsgo-dev/nsgo#760](https://github.com/nsgo-dev/nsgo/issues/760)（没有内存上限）。如果 P3.0 测出引擎阻塞问题，再请求让无 UI 的插件跑在 worker goroutine 上。
 3. **签名元数据缺口**：靠比对 `kandoManifest()` 绕行，上游是 [nsgo-dev/nsgo#761](https://github.com/nsgo-dev/nsgo/issues/761)（见 4.3）。
 4. **`tsx.Sandboxed` 和共享 Host 才是绕开权限的入口**：`tsx.Sandboxed` 在 Capabilities 和 Grant 都为 nil 时拿到宿主的全部权限，连 `file://` 都能读；Load 路径上的 nil Grant 会让包声明的能力绕过用户勾选生效；handler 只要用 `a.cx` 调 NSGo 服务，就带着 app 的权限。缓解：AST 测试全仓禁止 `tsx.Sandboxed`；Grant 由唯一构造函数从零构造，并测试零值字段；每个插件独立的 Host；每个 handler 都查 `Effective`。
-5. **site 包**：已经改成独立的 `pluginSites`，不放宽全局闸门；剩下的风险是 JS 正则的校验漏了嵌套量词时会让页面卡顿，以及用户对「浏览器扩展不覆盖插件站点」的预期要讲清楚。P4.1 的插件正则只在 Go（RE2，线性时间）里匹配，不进页面脚本，所以目前没有页面卡顿的风险；将来让网页按钮覆盖插件站点时，这条风险才真正出现。设置页的说明写的是「插件网站只用于看懂浏览器工具栏里的『下载视频』，浏览器扩展和网页里的按钮不支持它们」。
+5. **site 包**：已经改成独立的 `pluginSites`，不放宽全局闸门；剩下的风险是 JS 正则的校验漏了嵌套量词时会让页面卡顿，以及用户对「浏览器扩展不覆盖插件站点」的预期要讲清楚。插件正则现在也写进内置浏览器的页面脚本，在网页的 JS（回溯引擎）里跑，所以这条风险是真实的；缓解全靠 P4.0 的规则：不允许重复里套量词或多选、每条最多两个无上限量词、不超过 256 字节，链接最长 2048 字节，最坏是平方级，约几百万步。规则只在 Go 里校验，`ScriptWith` 写进页面前再校验一次。浏览器扩展不认插件站点（扩展的文件由 `go generate` 生成、随版本发布，装不进用户的包），设置页的说明写的是「浏览器扩展不支持插件网站，请在看懂内置的浏览器里使用」。另一个代价：同意的网站一变，内置浏览器的 web view 就重建，后退历史没了（nsgo#840）。
 6. **clean 丢数据**：`savedLLM.clean` 和 `savedPlugins.clean` 一旦写错，插件暂时缺席时就会丢用户的 key 或选择。P0.1、P0.2 和 P1 都有测试锁住。
 7. **token 费用**：task 和 `llm.chat` 花的是用户的钱，默认预算必须保守，用量必须可见；服务商不返回 usage 时只能估算。
 8. **离线用户收不到吊销列表**：长期离线时，已被吊销的纯本地插件可能继续运行，这是有意的折中。本机程序还可以通过删改 trust.json 清掉吊销和防回滚（6.7 节）。
@@ -1087,7 +1087,7 @@ P1.1 的确认框只有数据包要显示的部分：名称（标题）、说明
 | P2 | 学习任务、导出模板、翻译风格 | — | 未开始 |
 | P3 | 脚本插件 | — | 未开始（等 12.3 第 1、3 条） |
 | P4.0 | `core.ValidateVideoSite`、`ValidateVideoSites`、`VideoMatcher` | `feat/plugins-sites` | 已完成 |
-| P4.1 | site kind、`pluginSites`（只接工具栏的「下载视频」）、逐域名同意、站点包任务不借用登录 | `feat/plugins-sites` | 已完成 |
+| P4.1 | site kind、`pluginSites`（工具栏的「下载视频」和网页按钮）、逐域名同意、站点包任务不借用登录 | `feat/plugins-sites` | 已完成 |
 | P5 | 按需单独立项 | — | 未开始 |
 
 P1.2 的测量结果（Ubuntu 编译机，x86_64，Go 1.27.4，kagome-dict/ipa v1.2.6；每次读 `/proc/self/status` 前先 `runtime.GC()` 和 `debug.FreeOSMemory()`，各在一个新进程里量，量完的测试没有提交）：
@@ -1177,10 +1177,11 @@ P1.2 的测量结果（Ubuntu 编译机，x86_64，Go 1.27.4，kagome-dict/ipa v
   - 只看 `domain`、`not` 和 `videos` 的 `path`、`param`、`value`，不看 `menu`、`rows`、`titles`、`cut`，这几样只有页面脚本和扩展读。
   - 加了 `kcore.VideoMatcher`（`NewVideoMatcher` 先跑 `ValidateVideoSites` 再编译），`Find` 返回链接所在的网站域名和它是不是一个视频；`VideoLink` 改成和它共用 `findVideo`，行为不变（`browse/videos_test.go` 的 `TestVideoLinkFollowsParseLink` 照旧通过）。`VideoLink` 不认 `VideoMatcher` 的网站。
 - P4.1（已完成）：site kind。和正文的出入如下，E8、3.1、7.2、8.4、第 9 节、10、12.1、12.3 已同步改过：
-  - **只接工具栏的「下载视频」，不接网页里的按钮**（`browsePageAsk`、`browsePageAdd`）。原因见 E8：页面脚本在 web view 创建时读一次，之后同意的域名进不去；绕开它要在第三方网页里新增一段只能在真机上验证的脚本。`browsePageAsk`、`browsePageAdd` 照旧只认 `catalog`，有测试锁住插件站点从网页发来的询问和加入都不理。网页按钮和缩略图上的 + 不覆盖插件站点，设置页的说明写明了。
-  - 因为工具栏的「下载视频」本来就能加任何网站的页面，站点包对它的作用是：在同意的域名上按包的规则判断哪些页面是视频（其余页面按钮变灰、不当播放列表），以及让这些任务不借用登录。它不让任何入口多接受一个原本不接受的链接。
+  - 先只接了工具栏的「下载视频」，同一分支上的后续提交补上了网页按钮（视频页上的「下载视频」和缩略图上的 +），做法和限制见 E8：页面脚本在 web view 创建时读一次（nsgo#840），所以同意的网站一变就重建 web view，载入原来的页面，历史记录丢失。网页按钮的询问和加入都在 Go 一侧用同一个匹配器重新判断（`browsePageSite`、`browsePageVideo`，`browse.ParseAskWith`、`ParseAddWith`），页面说什么都不信；插件站点的视频不再要求 `kcore.ParseLink` 认为是单个视频，和工具栏一样由包的规则决定。`TestScriptWithKnowsTheSitesGiven` 锁住页面脚本只含合法、已给出的网站，`TestPluginSitePageButtons` 锁住只有已同意的域名进脚本、Go 一侧的判断和重建。浏览器扩展生成的文件没有变化（`go generate` 后无差异，`.github/scripts/browser-extension.sh` 通过）。
+  - 在同意的域名上，工具栏按包的规则判断哪些页面是视频（其余页面按钮变灰、不当播放列表），这些任务不借用登录。除了内置浏览器，没有任何入口多接受一个原本不接受的链接。
   - 站点包任务的标记是新加的 `core.Job.PluginSite`（包 id，`shelf` 的 `storedJob` 存为 `pluginSite`），不是只在构造 Tools 时判断链接：加入时同意过、之后撤回同意或卸载了包，这个任务照样不借用登录；反过来，CLI、MCP 加的同一个链接不是站点包的任务。除了 `Cookies`，`SiteCookies`（内置浏览器页面的 cookie，目前因 nsgo#112 还没接上）也一起清空。
   - 同意存在 `plugins.PluginState.Sites`，不是 5.1 节草图里 P3 才有的 `Grant.Sites`；`State.Format` 不升，旧文件照读。没有条目的包一个域名都没同意（`State.Allowed`），和「没有条目就是启用」的 `Enabled` 相反；state.json 读不了时也一个都不同意。开关包、换内容不会丢掉已同意的域名；生效的是「已同意 ∩ 当前包列出的域名」。到 P3 引入 `Grant` 时把它挪进去。
   - 安装确认框的复选框默认不勾；同 id 的旧版本已经同意、新版本仍然列出的域名预先勾上（`pluginsTickedBefore`），用户在框里看得到。
   - 校验错误多了两个：`ErrBadSite`（规则不安全、域名是公共后缀）和 `ErrSiteKnown`（看懂自己认识的网站）。站点包最多 8 个网站，每个最多 16 个链接规则、16 个 `not` 主机。
+  - 设置页网站分组下的说明一行只说浏览器扩展不支持插件网站（网页按钮已经支持）。
   - 截图场景 `TestScreenshotsPlugins` 加了 `plugins-install-site`（站点包的安装确认，两个域名的复选框，勾了第一个）。Linux 上的 nsgotest 不出图，这一张只在 macOS 的截图任务里画得出来，本次只在 Linux 上跑通了场景本身。
