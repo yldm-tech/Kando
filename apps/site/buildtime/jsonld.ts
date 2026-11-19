@@ -1,4 +1,4 @@
-// The structured data of each page, as JSON-LD in a <script type="application/ld+json"> data block, which the browser never runs, so the Content Security Policy stays as strict as it is (buildtime/csp.ts leaves data blocks out of the hashes). Every page describes the app (SoftwareApplication), its publisher (Organization) and the site in its language (WebSite); a home page adds its questions (FAQPage) and a sites page or a privacy policy the way back to its home page (BreadcrumbList). Each graph is checked with the zod schemas below, so that a missing or misshapen field fails the build rather than reaching the search engines. The data is put into the prerendered HTML after the build (finishHTML), so that it adds nothing to the scripts the pages load.
+// The structured data of each page, as JSON-LD in a <script type="application/ld+json"> data block, which the browser never runs, so the Content Security Policy stays as strict as it is (buildtime/csp.ts leaves data blocks out of the hashes). Every page describes the app (SoftwareApplication), its publisher (Organization) and the site in its language (WebSite); a home page adds its questions (FAQPage) and a sites page, a privacy policy or the plugin page the way back to its home page (BreadcrumbList). Each graph is checked with the zod schemas below, so that a missing or misshapen field fails the build rather than reaching the search engines. The data is put into the prerendered HTML after the build (finishHTML), so that it adds nothing to the scripts the pages load.
 import { z } from "zod";
 import { faqPairs, languages, latestURL, licenseURL, pageURL, repoURL, siteURL, type LangCode, type PageName } from "../src/lib/site";
 import { fill, type Strings } from "./content";
@@ -107,7 +107,7 @@ export interface PageInput {
 }
 
 // pageTitleKeys are the content keys of the pages' titles below a home page, which their breadcrumbs name.
-const pageTitleKeys = { sites: "sitesPageTitle", privacy: "privacyPageTitle" } as const;
+const pageTitleKeys = { sites: "sitesPageTitle", privacy: "privacyPageTitle", plugin: "pluginPageTitle" } as const;
 
 // structuredData is the graph of a page, checked against graphSchema.
 export function structuredData(p: PageInput): Graph {

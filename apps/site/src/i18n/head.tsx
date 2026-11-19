@@ -3,7 +3,7 @@ import site from "virtual:kando/site";
 import { languages, pageURL, siteURL, sourceLang, type LangCode, type PageName } from "../lib/site";
 import { jsonForScript } from "../lib/json";
 
-// PageKind is the kind of page: a language's home page, its catalog of websites, its privacy policy, or 404.html, which serves every missing address.
+// PageKind is the kind of page: a language's home page, its catalog of websites, its privacy policy, its directory of plugins, or 404.html, which serves every missing address.
 export type PageKind = PageName | "404";
 
 // PageHead is what the root document needs to know of the page it renders.

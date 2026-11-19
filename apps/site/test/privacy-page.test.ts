@@ -26,7 +26,7 @@ it("server-renders every section of the policy and the contact on each language'
 
 it("links each language's privacy page from the footer of all its pages", () => {
   for (const l of builtLangs()) {
-    for (const kind of ["home", "sites", "privacy"] as const) {
+    for (const kind of ["home", "sites", "privacy", "plugin"] as const) {
       const foot = section(readOut(pageFile(l, kind)), 'class="foot"', "</footer>");
       expect(
         tags(foot, "a").some((a) => attr(a, "href") === pagePath(l.code, "privacy")),

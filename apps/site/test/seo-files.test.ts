@@ -13,8 +13,8 @@ import { builtLangs, dist, readJSON, readOut, repoRoot, siteDir } from "./helper
 it("lists every page in the sitemap with its alternates and when it last changed", () => {
   const sitemap = readOut("sitemap.xml");
   const langs = builtLangs();
-  expect((sitemap.match(/<loc>/g) ?? []).length).toBe(3 * langs.length);
-  for (const kind of ["home", "sites", "privacy"] as const) {
+  expect((sitemap.match(/<loc>/g) ?? []).length).toBe(4 * langs.length);
+  for (const kind of ["home", "sites", "privacy", "plugin"] as const) {
     for (const l of langs) {
       expect(sitemap).toContain(`<loc>${pageURL(l.code, kind)}</loc>`);
       const alt = `<xhtml:link rel="alternate" hreflang="${l.tag}" href="${pageURL(l.code, kind)}"/>`;
@@ -70,6 +70,7 @@ it("writes llms.txt as the llms.txt proposal lays it out, linking every page, th
     expect(linked.has(pageURL(l.code)), pageURL(l.code)).toBe(true);
     expect(linked.has(pageURL(l.code, "sites")), pageURL(l.code, "sites")).toBe(true);
     expect(linked.has(pageURL(l.code, "privacy")), pageURL(l.code, "privacy")).toBe(true);
+    expect(linked.has(pageURL(l.code, "plugin")), pageURL(l.code, "plugin")).toBe(true);
     expect(linked.has(readmeURL(l)), readmeURL(l)).toBe(true);
   }
   const version = appVersion(repoRoot);

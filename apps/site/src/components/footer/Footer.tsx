@@ -1,4 +1,4 @@
-// The footer, one row: the brand and the license, the languages, and the project's links with the privacy policy.
+// The footer, one row: the brand and the license, the languages, and the project's links with the plugin directory and the privacy policy.
 import { useWords } from "../../i18n/content";
 import type { PageKind } from "../../i18n/head";
 import { issuesURL, licenseURL, pagePath, releasesURL, repoURL } from "../../lib/site";
@@ -22,6 +22,9 @@ export function Footer({ page }: { page: PageKind }) {
           <LangLinks page={page} />
         </nav>
         <nav className="foot-links" aria-label={t("footerLinksLabel")}>
+          <a href={pagePath(lang.code, "plugin")} aria-current={page === "plugin" ? "page" : undefined}>
+            {t("footerPlugins")}
+          </a>
           <a href={repoURL}>{t("footerGitHub")}</a>
           <a href={releasesURL}>{t("footerReleases")}</a>
           <a href={issuesURL}>{t("footerIssues")}</a>

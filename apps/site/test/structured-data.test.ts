@@ -22,7 +22,7 @@ function node<T extends Graph["@graph"][number]["@type"]>(g: Graph, type: T): Ex
   return found[0] as Extract<Graph["@graph"][number], { "@type": T }>;
 }
 
-describe.each(["home", "sites", "privacy"] as const)("%s pages", (kind) => {
+describe.each(["home", "sites", "privacy", "plugin"] as const)("%s pages", (kind) => {
   for (const l of builtLangs()) {
     it(l.code, () => {
       const html = readOut(pageFile(l, kind));

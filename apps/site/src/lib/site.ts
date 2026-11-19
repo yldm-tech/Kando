@@ -15,6 +15,11 @@ export const issuesURL = repoURL + "/issues";
 // privacyContact is where the privacy policy sends questions and requests about privacy: the address YLDM answers them at.
 export const privacyContact = "mailto:support@yldm.ai";
 export const everyAPIURL = "https://everyapi.ai";
+// pluginsRepoURL is the repository of Kando's community plugin directory, where plugins are added by pull request, and pluginsGuideURL its guide to adding one.
+export const pluginsRepoURL = "https://github.com/yldm-tech/kando-plugins";
+export const pluginsGuideURL = pluginsRepoURL + "/blob/main/CONTRIBUTING.md";
+// pluginIndexPath is where the site serves the signed plugin index, the same file Kando downloads; a Worker answers it, so it is not one of the built files.
+export const pluginIndexPath = "/plugin/index.json";
 // readmeBuildURL is the README's Build from source section, where get_download sends a visitor whose system has no build.
 export const readmeBuildURL = repoURL + "#build-from-source";
 
@@ -76,10 +81,10 @@ export function language(code: LangCode): Language {
   return l;
 }
 
-// PageName is a page every language has: its home page, its catalog of websites and its privacy policy.
-export type PageName = "home" | "sites" | "privacy";
+// PageName is a page every language has: its home page, its catalog of websites, its privacy policy and its directory of community plugins.
+export type PageName = "home" | "sites" | "privacy" | "plugin";
 
-// pagePath is the path of a language's page: the root for English, a folder named after the language for the others; page "sites" is the catalog page below it and "privacy" the privacy policy.
+// pagePath is the path of a language's page: the root for English, a folder named after the language for the others; page "sites" is the catalog page below it, "privacy" the privacy policy and "plugin" the plugin directory.
 export function pagePath(code: LangCode, page: PageName = "home"): string {
   const base = code === sourceLang ? "/" : "/" + code + "/";
   return page === "home" ? base : base + page + "/";

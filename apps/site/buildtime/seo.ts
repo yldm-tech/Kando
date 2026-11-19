@@ -6,7 +6,7 @@ import { pageURL, siteURL, sourceLang, themeColor, type Language, type PageName 
 import { manifestIconSizes } from "./icons";
 
 // pageGroups are the kinds of page every language has; each lists its pages in every language as alternates of one another.
-export const pageGroups = ["home", "sites", "privacy"] as const satisfies readonly PageName[];
+export const pageGroups = ["home", "sites", "privacy", "plugin"] as const satisfies readonly PageName[];
 
 // lastModified is the time of the commit the site is built from, as a W3C datetime with its offset (2026-11-11T00:33:26+09:00): the site is built on a push to main that changes what it shows, or after a release, so the commit's time is when its pages last changed. A date alone would be the day in the committer's time zone, which reads as midnight UTC and can lie ahead of the moment the site is built: a merge at 00:33 in Tokyo is the 10th in UTC. Where git cannot tell, as in a copy without its history, it is now.
 export const lastmodPattern = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(Z|[+-]\d{2}:\d{2})$/;

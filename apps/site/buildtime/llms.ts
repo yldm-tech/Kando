@@ -58,6 +58,7 @@ export function llmsTxt(p: LLMsInput): string {
     ...p.langs.map((l) => `- [${l.name}](${pageURL(l.code)}): ${tl(l)("metaTitle")}`),
     ...p.langs.map((l) => `- [${l.name}: ${tl(l)("sitesPageTitle")}](${pageURL(l.code, "sites")}): ${tl(l)("sitesMetaDescription")}`),
     ...p.langs.map((l) => `- [${l.name}: ${tl(l)("privacyPageTitle")}](${pageURL(l.code, "privacy")}): ${tl(l)("privacyMetaDescription")}`),
+    ...p.langs.map((l) => `- [${l.name}: ${tl(l)("pluginPageTitle")}](${pageURL(l.code, "plugin")}): ${tl(l)("pluginMetaDescription")}`),
   ];
   const docs = [
     ...p.langs.map((l) => `- [README (${l.name})](${readmeURL(l)}): ${tl(l)("dlReadme")}`),
@@ -95,7 +96,7 @@ export function llmsFullTxt(p: LLMsInput): string {
   out.push(`## ${p.agent.start.title}\n\n${p.agent.start.lead}\n\n` + start.join("\n") + `\n[${p.agent.start.readme.text}](${p.agent.start.readme.url})\n`);
   out.push(`## ${t("faqTitle")}\n\n` + faqPairs.map(([q, a]) => `### ${t(q)}\n\n${t(a)}\n`).join("\n"));
   out.push(
-    `## Links\n\n- [${t("sitesPageTitle")}](${pageURL(sourceLang, "sites")})\n- [${t("privacyPageTitle")}](${pageURL(sourceLang, "privacy")})\n- [GitHub](${repoURL})\n- [${t("footerReleases")}](${latestURL})\n- [${t("footerLicense")}](${licenseURL})\n`,
+    `## Links\n\n- [${t("sitesPageTitle")}](${pageURL(sourceLang, "sites")})\n- [${t("privacyPageTitle")}](${pageURL(sourceLang, "privacy")})\n- [${t("pluginPageTitle")}](${pageURL(sourceLang, "plugin")})\n- [GitHub](${repoURL})\n- [${t("footerReleases")}](${latestURL})\n- [${t("footerLicense")}](${licenseURL})\n`,
   );
   return out.join("\n");
 }

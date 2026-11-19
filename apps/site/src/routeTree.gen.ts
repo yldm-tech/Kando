@@ -12,8 +12,10 @@ import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as R404RouteImport } from './routes/404'
 import { Route as LangIndexRouteImport } from './routes/$lang/index'
+import { Route as PluginIndexRouteImport } from './routes/plugin/index'
 import { Route as PrivacyIndexRouteImport } from './routes/privacy/index'
 import { Route as SitesIndexRouteImport } from './routes/sites/index'
+import { Route as LangPluginIndexRouteImport } from './routes/$lang/plugin/index'
 import { Route as LangPrivacyIndexRouteImport } from './routes/$lang/privacy/index'
 import { Route as LangSitesIndexRouteImport } from './routes/$lang/sites/index'
 
@@ -32,6 +34,11 @@ const LangIndexRoute = LangIndexRouteImport.update({
   path: '/$lang/',
   getParentRoute: () => rootRouteImport,
 } as any)
+const PluginIndexRoute = PluginIndexRouteImport.update({
+  id: '/plugin/',
+  path: '/plugin/',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const PrivacyIndexRoute = PrivacyIndexRouteImport.update({
   id: '/privacy/',
   path: '/privacy/',
@@ -40,6 +47,11 @@ const PrivacyIndexRoute = PrivacyIndexRouteImport.update({
 const SitesIndexRoute = SitesIndexRouteImport.update({
   id: '/sites/',
   path: '/sites/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const LangPluginIndexRoute = LangPluginIndexRouteImport.update({
+  id: '/$lang/plugin/',
+  path: '/$lang/plugin/',
   getParentRoute: () => rootRouteImport,
 } as any)
 const LangPrivacyIndexRoute = LangPrivacyIndexRouteImport.update({
@@ -57,8 +69,10 @@ export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/404': typeof R404Route
   '/$lang/': typeof LangIndexRoute
+  '/plugin/': typeof PluginIndexRoute
   '/privacy/': typeof PrivacyIndexRoute
   '/sites/': typeof SitesIndexRoute
+  '/$lang/plugin/': typeof LangPluginIndexRoute
   '/$lang/privacy/': typeof LangPrivacyIndexRoute
   '/$lang/sites/': typeof LangSitesIndexRoute
 }
@@ -66,8 +80,10 @@ export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/404': typeof R404Route
   '/$lang': typeof LangIndexRoute
+  '/plugin': typeof PluginIndexRoute
   '/privacy': typeof PrivacyIndexRoute
   '/sites': typeof SitesIndexRoute
+  '/$lang/plugin': typeof LangPluginIndexRoute
   '/$lang/privacy': typeof LangPrivacyIndexRoute
   '/$lang/sites': typeof LangSitesIndexRoute
 }
@@ -76,8 +92,10 @@ export interface FileRoutesById {
   '/': typeof IndexRoute
   '/404': typeof R404Route
   '/$lang/': typeof LangIndexRoute
+  '/plugin/': typeof PluginIndexRoute
   '/privacy/': typeof PrivacyIndexRoute
   '/sites/': typeof SitesIndexRoute
+  '/$lang/plugin/': typeof LangPluginIndexRoute
   '/$lang/privacy/': typeof LangPrivacyIndexRoute
   '/$lang/sites/': typeof LangSitesIndexRoute
 }
@@ -87,8 +105,10 @@ export interface FileRouteTypes {
     | '/'
     | '/404'
     | '/$lang/'
+    | '/plugin/'
     | '/privacy/'
     | '/sites/'
+    | '/$lang/plugin/'
     | '/$lang/privacy/'
     | '/$lang/sites/'
   fileRoutesByTo: FileRoutesByTo
@@ -96,8 +116,10 @@ export interface FileRouteTypes {
     | '/'
     | '/404'
     | '/$lang'
+    | '/plugin'
     | '/privacy'
     | '/sites'
+    | '/$lang/plugin'
     | '/$lang/privacy'
     | '/$lang/sites'
   id:
@@ -105,8 +127,10 @@ export interface FileRouteTypes {
     | '/'
     | '/404'
     | '/$lang/'
+    | '/plugin/'
     | '/privacy/'
     | '/sites/'
+    | '/$lang/plugin/'
     | '/$lang/privacy/'
     | '/$lang/sites/'
   fileRoutesById: FileRoutesById
@@ -115,8 +139,10 @@ export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   R404Route: typeof R404Route
   LangIndexRoute: typeof LangIndexRoute
+  PluginIndexRoute: typeof PluginIndexRoute
   PrivacyIndexRoute: typeof PrivacyIndexRoute
   SitesIndexRoute: typeof SitesIndexRoute
+  LangPluginIndexRoute: typeof LangPluginIndexRoute
   LangPrivacyIndexRoute: typeof LangPrivacyIndexRoute
   LangSitesIndexRoute: typeof LangSitesIndexRoute
 }
@@ -144,6 +170,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof LangIndexRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/plugin/': {
+      id: '/plugin/'
+      path: '/plugin'
+      fullPath: '/plugin/'
+      preLoaderRoute: typeof PluginIndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/privacy/': {
       id: '/privacy/'
       path: '/privacy'
@@ -156,6 +189,13 @@ declare module '@tanstack/react-router' {
       path: '/sites'
       fullPath: '/sites/'
       preLoaderRoute: typeof SitesIndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/$lang/plugin/': {
+      id: '/$lang/plugin/'
+      path: '/$lang/plugin'
+      fullPath: '/$lang/plugin/'
+      preLoaderRoute: typeof LangPluginIndexRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/$lang/privacy/': {
@@ -179,8 +219,10 @@ const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   R404Route: R404Route,
   LangIndexRoute: LangIndexRoute,
+  PluginIndexRoute: PluginIndexRoute,
   PrivacyIndexRoute: PrivacyIndexRoute,
   SitesIndexRoute: SitesIndexRoute,
+  LangPluginIndexRoute: LangPluginIndexRoute,
   LangPrivacyIndexRoute: LangPrivacyIndexRoute,
   LangSitesIndexRoute: LangSitesIndexRoute,
 }

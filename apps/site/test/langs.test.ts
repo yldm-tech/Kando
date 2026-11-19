@@ -44,14 +44,25 @@ it("lists only the languages with a content file to prerender and to load", () =
   expect(paths).not.toContain(`/${dropped}/`);
   expect(paths).not.toContain(`/${dropped}/sites/`);
   expect(paths).toContain("/ja/sites/");
+  expect(paths).not.toContain(`/${dropped}/plugin/`);
+  expect(paths).toContain("/ja/plugin/");
   expect(loadersSource(builtCodes(content))).not.toContain(`content/${dropped}`);
 });
 
 it("builds the other languages and leaves the one without content out", () => {
-  for (const path of ["index.html", "sites/index.html", "zh-CN/index.html", "zh-TW/sites/index.html", "ja/index.html", "404.html", "webmcp/ja.json"]) {
+  for (const path of [
+    "index.html",
+    "sites/index.html",
+    "zh-CN/index.html",
+    "zh-TW/sites/index.html",
+    "ja/plugin/index.html",
+    "ja/index.html",
+    "404.html",
+    "webmcp/ja.json",
+  ]) {
     expect(existsSync(join(pages, path)), path).toBe(true);
   }
-  for (const path of [`${dropped}/index.html`, `${dropped}/sites/index.html`, `webmcp/${dropped}.json`, `shots/${dropped}`]) {
+  for (const path of [`${dropped}/index.html`, `${dropped}/sites/index.html`, `${dropped}/plugin/index.html`, `webmcp/${dropped}.json`, `shots/${dropped}`]) {
     expect(existsSync(join(pages, path)), path).toBe(false);
   }
   const home = readFileSync(join(pages, "index.html"), "utf8");

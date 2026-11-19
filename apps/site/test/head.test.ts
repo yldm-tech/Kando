@@ -6,7 +6,7 @@ import { ogSize } from "../buildtime/media";
 import { pageURL, siteURL, sourceLang } from "../src/lib/site";
 import { attr, builtLangs, dist, pageFile, readJSON, readOut, section, siteDir, tags } from "./helpers";
 
-describe.each(["home", "sites", "privacy"] as const)("%s pages", (kind) => {
+describe.each(["home", "sites", "privacy", "plugin"] as const)("%s pages", (kind) => {
   for (const l of builtLangs()) {
     it(l.code, () => {
       const html = readOut(pageFile(l, kind));
