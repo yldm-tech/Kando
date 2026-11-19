@@ -14,7 +14,7 @@ import (
 	"kando/packages/core/segment"
 )
 
-// Mark is a run of a line the player draws marked, by byte offsets in the line, Start before End. A mark with Ruby gives the reading drawn over its characters; one without gives their Tone (plugins.ToneAccent, ToneWarn, ToneSuccess or ToneMuted, which the player maps to its theme's roles; "" for none) and whether they are underlined, as a word in the vocabulary is. A word may have both, the ruby mark over its Han characters alone. Keep it the same as film/subtitle.Mark, which the app converts it into.
+// Mark is a run of a line the player draws marked, by byte offsets in the line, Start before End. A mark with Ruby gives the reading drawn over its characters; one without gives their Tone (plugins.ToneAccent, ToneWarn, ToneSuccess or ToneMuted, which the player maps to its theme's roles and draws as a line under them; "" for none) and whether they are underlined, dashed, as a word in the vocabulary is. A word may have both, the ruby mark over its Han characters alone. Keep it the same as film/subtitle.Mark, which the app converts it into.
 type Mark struct {
 	Start, End int
 	Ruby       string

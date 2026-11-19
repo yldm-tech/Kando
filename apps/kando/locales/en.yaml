@@ -5450,7 +5450,7 @@ settingsKeywordsGeneral:
   message: "library location Finder File Explorer file manager interface language version components yt-dlp ffmpeg whisper-cli detect again command line terminal kando install MCP Claude Code Cursor copy config update notifications notify browser sign-in signed in cookies members-only age-restricted Chrome Safari Firefox Edge Brave Chromium keychain Full Disk Access appearance light dark mode follow system bookmarklet bookmark start at once"
   description: "Search keywords of the General settings section, separated by spaces, besides its title. Not shown; the sidebar's search finds the section by them. Use the words the section's page shows."
 settingsKeywordsLook:
-  message: "subtitles display bilingual original only translation only order translation original dim blank make room preview preset font size color bold word marks readings furigana ruby pinyin level color by level JLPT HSK CEFR vocabulary underline word list"
+  message: "subtitles display bilingual original only translation only order translation original dim blank make room preview preset font size color bold word marks readings furigana ruby pinyin level underline by level JLPT HSK CEFR vocabulary underline dashed word list"
   description: "Search keywords of the Subtitle Style settings section, separated by spaces, besides its title. Not shown."
 settingsKeywordsPhone:
   message: "iPhone Android phone mobile sync pair QR code Wi-Fi network device revoke"
@@ -5548,10 +5548,10 @@ settingsLookColorOf:
     line: { type: "String", example: "Translation" }
 settingsLookKnown:
   message: "Underline Words in My Vocabulary"
-  description: "Switch of Subtitle Style's word marks card: underline the words of the original line that are in the learner's vocabulary."
+  description: "Switch of Subtitle Style's word marks card: draw a dashed line under the words of the original line that are in the learner's vocabulary."
 settingsLookKnownHint:
-  message: "Words you added to the vocabulary are underlined on the picture."
-  description: "Hint under the switch that underlines the words in the vocabulary."
+  message: "Words you added to the vocabulary get a dashed line under them on the picture."
+  description: "Hint under the switch that underlines the words in the vocabulary: the line is dashed, unlike the solid lines of the levels."
 settingsLookMarks:
   message: "Word Marks"
   description: "Heading of the card of Subtitle Style that sets what is drawn on the words of the original line: readings, levels and words in the vocabulary."
@@ -5595,20 +5595,20 @@ settingsLookReadings:
   message: "Readings over Words"
   description: "Switch of Subtitle Style's word marks card: draw furigana over Japanese words and pinyin over Chinese words in the original line."
 settingsLookReadingsHint:
-  message: "Furigana over Japanese needs a Japanese dictionary pack turned on, or a Japanese word list chosen in Color by Level; pinyin over Chinese comes from a Chinese dictionary pack."
+  message: "Furigana over Japanese needs a Japanese dictionary pack turned on, or a Japanese word list chosen in Underline by Level; pinyin over Chinese comes from a Chinese dictionary pack."
   description: "Hint under the readings switch: where the readings come from, packs installed in Settings › Plugins."
 settingsLookStyle:
   message: "Style"
   description: "Label over the card of Settings › Subtitle Style that picks the subtitles' preset and font."
 settingsLookTiers:
-  message: "Color by Level"
-  description: "Row of Subtitle Style's word marks card: the word list pack whose levels color the words of the original line, or none."
+  message: "Underline by Level"
+  description: "Row of Subtitle Style's word marks card: the word list pack whose levels draw a line in their color under the words of the original line, or none."
 settingsLookTiersHint:
-  message: "Word list packs from Plugins, such as JLPT or HSK levels."
-  description: "Hint under the Color by Level row: the choices are word list packs installed and turned on in Settings › Plugins."
+  message: "A thick line in each level's color under the words of a word list pack from Plugins, such as JLPT or HSK levels."
+  description: "Hint under the Underline by Level row: the choices are word list packs installed and turned on in Settings › Plugins, and each level's words get a solid line in its color; the text keeps its own color."
 settingsLookTiersOff:
   message: "Off"
-  description: "Choice of the Color by Level drop-down: color no word."
+  description: "Choice of the Underline by Level drop-down: draw no level's line."
 settingsLookUntranslated:
   message: "Translation only, before the translation is ready"
   description: "Row title: what Translation Only shows for a line whose translation has not arrived yet."

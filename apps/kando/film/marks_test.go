@@ -18,7 +18,7 @@ func mark(line, word string, m subtitle.Mark) subtitle.Mark {
 	return m
 }
 
-// TestLineSpansDrawTheMarks checks the spans of a line with marks: a reading is a view over its characters, which a click looks up as the word it is in; a tone colors its run with the tone's color and an underline underlines it; a mark off a character's start or outside the line is left out; and a copy under the line, without look, has the readings alone, which take no click.
+// TestLineSpansDrawTheMarks checks the spans of a line with marks: a reading is a view over its characters, which a click looks up as the word it is in; a tone draws a thick solid line in its color under its run, which keeps the line's color, and a word in the vocabulary a dashed one, so the two never look alike; a mark off a character's start or outside the line is left out; and a copy under the line, without look, has the readings alone, which take no click.
 func TestLineSpansDrawTheMarks(t *testing.T) {
 	line := "猫が行った。"
 	tokens := []lookup.Token{{Text: "猫", Word: true}, {Text: "が", Word: true}, {Text: "行った", Word: true}, {Text: "。"}}
@@ -45,11 +45,11 @@ func TestLineSpansDrawTheMarks(t *testing.T) {
 	if spans[0].Attachment == nil || spans[1].Attachment != nil {
 		t.Fatalf("the reading's view: %+v", spans[:2])
 	}
-	if spans[1].Style.Color != accent || spans[1].Style.TextDecoration != 0 {
-		t.Fatalf("the toned run: %+v", spans[1].Style)
+	if st := spans[1].Style; st.Color != 0 || st.TextDecoration != ns.TextDecorationUnderline || st.TextDecorationColor != accent || st.TextDecorationStyle != 0 || st.TextDecorationThickness != markThickness {
+		t.Fatalf("the toned run: %+v", st)
 	}
-	if spans[2].Style.TextDecoration != ns.TextDecorationUnderline || spans[2].Style.Color != 0 {
-		t.Fatalf("the underlined run: %+v", spans[2].Style)
+	if st := spans[2].Style; st.TextDecoration != ns.TextDecorationUnderline || st.TextDecorationStyle != ns.DecorationDashed || st.TextDecorationColor != 0 || st.Color != 0 {
+		t.Fatalf("the underlined run: %+v", st)
 	}
 	if spans[3].OnPress != nil {
 		t.Fatal("the punctuation looks something up")
@@ -65,7 +65,7 @@ func TestLineSpansDrawTheMarks(t *testing.T) {
 	}
 
 	copied := lineSpans(line, nil, marks, spanInk{style: ns.Style{FontSize: 22}})
-	if len(copied) != 2 || copied[0].Attachment == nil || copied[1].Content != "が行った。" || copied[1].Style.Color != 0 || copied[1].OnPress != nil {
+	if len(copied) != 2 || copied[0].Attachment == nil || copied[1].Content != "が行った。" || copied[1].Style.TextDecoration != 0 || copied[1].OnPress != nil {
 		t.Fatalf("the copy's spans: %+v", copied)
 	}
 	if v := copied[0].Attachment.(ns.View); v.OnPress != nil || v.PointerEvents != ns.PointerEventsNone {
@@ -73,7 +73,7 @@ func TestLineSpansDrawTheMarks(t *testing.T) {
 	}
 }
 
-// TestLineSpansCutAtTheTones checks that a tone whose mark ends inside a token colors its own characters alone: a kanji-only line the tokens leave whole, while the marks cut it into two words of different levels, takes each word's color, and a click on either half looks up the token.
+// TestLineSpansCutAtTheTones checks that a tone whose mark ends inside a token draws its line under its own characters alone: a kanji-only line the tokens leave whole, while the marks cut it into two words of different levels, has each word's line in its level's color, dashed under the word in the vocabulary, and a click on either half looks up the token.
 func TestLineSpansCutAtTheTones(t *testing.T) {
 	line := "東京大学"
 	tokens := []lookup.Token{{Text: line, Word: true}}
@@ -93,11 +93,11 @@ func TestLineSpansCutAtTheTones(t *testing.T) {
 	if len(spans) != 2 || spans[0].Content != "東京" || spans[1].Content != "大学" {
 		t.Fatalf("the spans: %+v", spans)
 	}
-	if spans[0].Style.Color != accent || spans[0].Style.TextDecoration != 0 {
-		t.Fatalf("the first word's run: %+v", spans[0].Style)
+	if st := spans[0].Style; st.TextDecorationColor != accent || st.TextDecoration != ns.TextDecorationUnderline || st.TextDecorationStyle != 0 {
+		t.Fatalf("the first word's run: %+v", st)
 	}
-	if spans[1].Style.Color != warn || spans[1].Style.TextDecoration != ns.TextDecorationUnderline {
-		t.Fatalf("the second word's run: %+v", spans[1].Style)
+	if st := spans[1].Style; st.TextDecorationColor != warn || st.TextDecoration != ns.TextDecorationUnderline || st.TextDecorationStyle != ns.DecorationDashed {
+		t.Fatalf("the second word's run: %+v", st)
 	}
 	spans[0].OnPress(ns.PressEvent{})
 	spans[1].OnPress(ns.PressEvent{})

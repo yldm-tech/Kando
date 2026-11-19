@@ -1,4 +1,4 @@
-// Package wordlist reads the word list packs of Kando's plugins (plugins.KindWordlist): the words of a language, each with one of the pack's tiers, such as a JLPT or HSK level, which the player colors the words of its lines by. A list's file is a table of tab-separated values, a word and the id of its tier on each line; it is read into memory once, when the list is first wanted. It imports no interface package. docs/plugin-system.md is the design.
+// Package wordlist reads the word list packs of Kando's plugins (plugins.KindWordlist): the words of a language, each with one of the pack's tiers, such as a JLPT or HSK level, which the player draws a line in its tone under the words of its lines by. A list's file is a table of tab-separated values, a word and the id of its tier on each line; it is read into memory once, when the list is first wanted. It imports no interface package. docs/plugin-system.md is the design.
 package wordlist
 
 import (

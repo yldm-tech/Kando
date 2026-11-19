@@ -207,7 +207,7 @@ func (s *screen) subtitleLayer(cx *core.Scope, lines func() []styledLine, tip fu
 		cut.Get()
 		return lookup.Tokens(text, loaded)
 	}
-	// The tones of the marks of a word list's tiers are the theme's roles.
+	// The tones of the marks of a word list's tiers are the theme's roles, which color the lines drawn under the words.
 	tone := func(t string) (core.Color, bool) {
 		switch t {
 		case subtitle.ToneAccent:
@@ -221,7 +221,7 @@ func (s *screen) subtitleLayer(cx *core.Scope, lines func() []styledLine, tip fu
 		}
 		return 0, false
 	}
-	// A click on a word of the original looks it up, holding the film (LookUpWord); a click elsewhere on the lines is the picture's, as above. The original's words are drawn with the marks the app computed for them (CueMarks): readings over them, the colors of their tiers, an underline under those in the vocabulary.
+	// A click on a word of the original looks it up, holding the film (LookUpWord); a click elsewhere on the lines is the picture's, as above. The original's words are drawn with the marks the app computed for them (CueMarks): readings over them, a thick line in the color of their tier under those of a word list, a dashed one under those in the vocabulary.
 	body := core.Dynamic(func(cx *core.Scope) core.Node {
 		l := look()
 		children := []core.Node{}
@@ -359,7 +359,7 @@ func withReadings(t core.Text, text func() string, words *lineWords) core.Text {
 	return t
 }
 
-// spanInk is how lineSpans draws a line's runs: style is the line's text style, which a reading's view repeats, as an attachment does not take its text's, and hidden is set for a copy assistive technology does not read (core.RoleNone); with look, the line on top, a click on a word looks it up and tone colors the runs of a mark's tone, which the copies under it leave to their own color.
+// spanInk is how lineSpans draws a line's runs: style is the line's text style, which a reading's view repeats, as an attachment does not take its text's, and hidden is set for a copy assistive technology does not read (core.RoleNone); with look, the line on top, a click on a word looks it up and tone is the color of the line under the runs of a mark's tone, which the copies under it do not draw.
 type spanInk struct {
 	style  core.Style
 	hidden bool
@@ -370,7 +370,7 @@ type spanInk struct {
 // rubyScale is the size of a reading over a word, a share of the word's.
 const rubyScale = 0.5
 
-// lineSpans is text cut into spans: at each of tokens, its words and what lies between them, which ink.look looks up on a click, and at each mark with a reading, which is a view of its reading over its characters (rubySpan). The other marks color their runs in their tone and underline them, cut at the marks' own ends on the line on top. A mark outside text, off a character's start, or overlapping a reading before it is left out; tokens of another text are too, as while a line changes.
+// lineSpans is text cut into spans: at each of tokens, its words and what lies between them, which ink.look looks up on a click, and at each mark with a reading, which is a view of its reading over its characters (rubySpan). The other marks draw a line under their runs, cut at the marks' own ends, on the line on top (runStyle). A mark outside text, off a character's start, or overlapping a reading before it is left out; tokens of another text are too, as while a line changes.
 func lineSpans(text string, tokens []lookup.Token, marks []subtitle.Mark, ink spanInk) []core.Span {
 	inText := func(m subtitle.Mark) bool {
 		return m.Start >= 0 && m.Start < m.End && m.End <= len(text) && utf8.RuneStart(text[m.Start]) && (m.End == len(text) || utf8.RuneStart(text[m.End]))
@@ -443,11 +443,17 @@ func lineSpans(text string, tokens []lookup.Token, marks []subtitle.Mark, ink sp
 	return spans
 }
 
-// runStyle is how a run of a line is drawn besides its line's style: in the color of a mark's tone, when one has it, and underlined.
+// runStyle is how a run of a line is drawn besides its line's style: with a line under it in the color of a mark's tone, when one has it, and with a dashed one when it is in the vocabulary (underline), in the tone's color too when it has one and the text's otherwise. The text keeps the color of its line, which the learner chose, so a tone shows on any of them, and the two marks never look alike: solid for a level, dashed for a word in the vocabulary.
 type runStyle struct {
 	color     *core.Color
 	underline bool
 }
+
+// markThickness and markOffset are the thickness of the line under a marked run and its room below the baseline, as shares of the font size, thick enough for its color to show over the picture.
+var (
+	markThickness = core.Pct(9)
+	markOffset    = core.Pct(14)
+)
 
 // toneOf is the color of tone, false for none or without ink.tone.
 func (ink spanInk) toneOf(tone string) (core.Color, bool) {
@@ -460,11 +466,14 @@ func (ink spanInk) toneOf(tone string) (core.Color, bool) {
 // span is the run content of a line: under its reading ruby when there is one (rubyView), looking word up on a click when it is one of the words, drawn in rs.
 func (ink spanInk) span(content, ruby, word string, rs runStyle) core.Span {
 	var st core.Style
+	if rs.color != nil || rs.underline {
+		st.TextDecoration, st.TextDecorationThickness, st.TextUnderlineOffset = core.TextDecorationUnderline, markThickness, markOffset
+	}
 	if rs.color != nil {
-		st.Color = *rs.color
+		st.TextDecorationColor = *rs.color
 	}
 	if rs.underline {
-		st.TextDecoration = core.TextDecorationUnderline
+		st.TextDecorationStyle = core.DecorationDashed
 	}
 	var press func(core.PressEvent)
 	if word != "" {
@@ -477,7 +486,7 @@ func (ink spanInk) span(content, ruby, word string, rs runStyle) core.Span {
 	return core.Span{Content: content, Style: core.Style{VerticalAlign: core.VerticalAlignTextBottom}, Attachment: ink.rubyView(content, ruby, st, press)}
 }
 
-// rubyView is the view of a run of a line, content, with its reading ruby over it, in the line's text style with extra over it (its tone and underline). Without press it takes no pointer, as in the copies under the line; assistive technology reads the run, not its reading, and nothing of a hidden copy.
+// rubyView is the view of a run of a line, content, with its reading ruby over it, in the line's text style with extra over it (the line under it). Without press it takes no pointer, as in the copies under the line; assistive technology reads the run, not its reading, and nothing of a hidden copy.
 func (ink spanInk) rubyView(content, ruby string, extra core.Style, press func(core.PressEvent)) core.Node {
 	base := core.Style{FontSize: ink.style.FontSize, FontFamily: ink.style.FontFamily, FontWeight: ink.style.FontWeight, Color: ink.style.Color}.Merge(extra)
 	small := core.Style{FontSize: ink.style.FontSize * rubyScale, FontFamily: ink.style.FontFamily, Color: base.Color}

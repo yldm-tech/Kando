@@ -17,7 +17,7 @@ import (
 	"kando/packages/core"
 )
 
-// The marks drawn on the words of the open film's originals (docs/plugin-system.md, E2): readings over the words in Han characters, the colors of their levels in the word list chosen, and an underline under the words in the vocabulary, as 字幕外观's 逐词标注 card turns them on (savedPlugins). They are computed off the UI thread (annotate.Lines) when the plugins' playing or afterChange hook finds that the film's key changed: its video, the times and originals of its lines, how it is marked and what from (pluginsMarkKey). Only the latest computation runs on: starting another, or the key going back to that of the marks shown, stops the one before at its next line. The result is kept, never changed, until the key changes again; the picture only reads it (CueMarks), and keeps showing it while the next one is computed, but not on a line whose original changed.
+// The marks drawn on the words of the open film's originals (docs/plugin-system.md, E2): readings over the words in Han characters, a line in the color of their level under the words of the word list chosen, and a dashed one under the words in the vocabulary, as 字幕外观's 逐词标注 card turns them on (savedPlugins). They are computed off the UI thread (annotate.Lines) when the plugins' playing or afterChange hook finds that the film's key changed: its video, the times and originals of its lines, how it is marked and what from (pluginsMarkKey). Only the latest computation runs on: starting another, or the key going back to that of the marks shown, stops the one before at its next line. The result is kept, never changed, until the key changes again; the picture only reads it (CueMarks), and keeps showing it while the next one is computed, but not on a line whose original changed.
 
 // pluginsMarks is the marks of the lines of a film: key is what they were computed for, lines the marks of each line's original, and originals the originals they were computed for, index for index.
 type pluginsMarks struct {
@@ -47,7 +47,7 @@ type pluginsList struct {
 	err      error
 }
 
-// pluginsMarkPrefs is how the lines are marked, as 逐词标注 sets it: readings, the id of the word list whose levels color the words ("" for none), and known, an underline under the words in the vocabulary.
+// pluginsMarkPrefs is how the lines are marked, as 逐词标注 sets it: readings, the id of the word list whose levels draw a line under the words ("" for none), and known, a dashed line under the words in the vocabulary.
 type pluginsMarkPrefs struct {
 	readings bool
 	list     string

@@ -8,12 +8,13 @@ import (
 	"kando/apps/kando/film"
 	"kando/apps/kando/film/subtitle"
 	"kando/apps/kando/plugins"
+	"kando/apps/kando/saved"
 	"kando/apps/kando/settings"
 
 	"github.com/nsgo-dev/nsgo/nsgotest"
 )
 
-// TestScreenshotsPlugins renders Settings › 插件 with a glossary pack and an AI service pack installed, the install confirmation of a pack over the main window, as a pack from 从文件安装… or the command line's inbox shows it, the card of a word on the picture that a dictionary pack answered, which names the dictionary and its credit (plugins-lookup), and a Japanese line with readings over its words and the colors of their levels in a word list (plugins-marks). The packs are in plugins folders of the fixture's home.
+// TestScreenshotsPlugins renders Settings › 插件 with a glossary pack and an AI service pack installed, the install confirmation of a pack over the main window, as a pack from 从文件安装… or the command line's inbox shows it, the card of a word on the picture that a dictionary pack answered, which names the dictionary and its credit (plugins-lookup), and a Japanese line with readings over its words, a line in the color of their level under the words of a word list and a dashed one under a word in the vocabulary (plugins-marks). The packs are in plugins folders of the fixture's home.
 func TestScreenshotsPlugins(t *testing.T) {
 	f := newScreenshotFixture(t)
 	root := filepath.Join(f.home, "Library", "Application Support", "Kando", "plugins")
@@ -52,7 +53,7 @@ func TestScreenshotsPlugins(t *testing.T) {
 			t.Fatalf("no dictionary's answer: %+v; texts %q", a.vocab.lookup, tt.Texts())
 		}
 	})
-	// A film heard in Japanese, its first line marked by a Japanese word list chosen in 字幕外观's 逐词标注 with readings on: furigana over the words in Han characters, from the larger Japanese dictionary the list lets the app read, and the words of the list in the tones of their levels.
+	// A film heard in Japanese, its first line marked by a Japanese word list chosen in 字幕外观's 逐词标注 with readings and 标出已学词 on: furigana over the words in Han characters, from the larger Japanese dictionary the list lets the app read, a thick line in the tone of their level under the words of the list, and a dashed one under 小さな, a word in the vocabulary.
 	f.shoot(t, "plugins-marks", func(t *testing.T, a *app, tt *nsgotest.App, updates chan func()) {
 		for i, job := range a.library.Jobs {
 			if job.ID == "j1" {
@@ -71,12 +72,14 @@ func TestScreenshotsPlugins(t *testing.T) {
 		a.plugins.root = filepath.Join(f.home, "wordlists")
 		pluginsDictInstalled(t, a, tt, updates, pluginWordlist("example.jlpt", "ja"), map[string][]byte{"words.tsv": []byte("川\tb1\n山\tb1\n流れ\tc1\n始まる\tc1\n")})
 		onEngine(a, func() {
+			a.saved.book.AddWord(saved.Word{Text: "小さな", Spoken: "ja"})
 			a.SetMarkReadings(true)
 			a.SetMarkWordlist("example.jlpt")
+			a.SetMarkKnown(true)
 		})
 		waitUntil(t, tt, a, updates, func() bool { return a.plugins.marks.lines != nil })
 		refresh(tt, a)
-		if marks := a.CueMarks(0); !slices.ContainsFunc(marks, func(m subtitle.Mark) bool { return m.Ruby == "かわ" }) || !slices.ContainsFunc(marks, func(m subtitle.Mark) bool { return m.Tone == subtitle.ToneWarn }) {
+		if marks := a.CueMarks(0); !slices.ContainsFunc(marks, func(m subtitle.Mark) bool { return m.Ruby == "かわ" }) || !slices.ContainsFunc(marks, func(m subtitle.Mark) bool { return m.Tone == subtitle.ToneWarn }) || !slices.ContainsFunc(marks, func(m subtitle.Mark) bool { return m.Underline }) {
 			t.Fatalf("the first line's marks: %+v", marks)
 		}
 	})

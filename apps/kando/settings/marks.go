@@ -13,7 +13,7 @@ import (
 	"github.com/nsgo-dev/nsgo/ui"
 )
 
-// MarksApp is what the 逐词标注 card of 字幕外观 reads and changes: whether readings are drawn over the words of the original line, the word list whose levels color them, and whether the words in the vocabulary are underlined. The plugins compute the marks (the app's state_plugins_marks.go); like PluginsApp it is an App of its own, which the window is given (Window.Marks), so App does not grow.
+// MarksApp is what the 逐词标注 card of 字幕外观 reads and changes: whether readings are drawn over the words of the original line, the word list whose levels draw a line in their color under them, and whether the words in the vocabulary have a dashed one. The plugins compute the marks (the app's state_plugins_marks.go); like PluginsApp it is an App of its own, which the window is given (Window.Marks), so App does not grow.
 type MarksApp interface {
 	live.State
 
@@ -29,7 +29,7 @@ type MarksApp interface {
 	SetMarkKnown(on bool)
 }
 
-// Marks is the 逐词标注 card at the end of 字幕外观: 注音或拼音, 按等级着色 with the word lists turned on, and 标出已学词. Every change shows on the picture once the app has marked the open film's lines again, and is saved.
+// Marks is the 逐词标注 card at the end of 字幕外观: 注音或拼音, 按等级画线 with the word lists turned on, and 标出已学词. Every change shows on the picture once the app has marked the open film's lines again, and is saved.
 type Marks struct{ App MarksApp }
 
 // Render implements core.Node.
