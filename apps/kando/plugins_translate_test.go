@@ -11,6 +11,7 @@ import (
 	"net/http/httptest"
 	"os"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"sync"
 	"testing"
@@ -295,8 +296,14 @@ func deeplServer(t *testing.T) (client *http.Client, heard func() (requests, bod
 	return client, heard, setUsed
 }
 
-// deeplFolder is the official DeepL plugin's source in the repository.
-var deeplFolder = filepath.Join("..", "..", "plugins", "official", "kando.deepl")
+// deeplFolder is the official DeepL plugin's source in the repository, found from this file's own place (runtime.Caller), as `nsgo test -target` runs the test binary from another folder than the package's; relative to the package's folder only when the build left no absolute path.
+var deeplFolder = func() string {
+	rel := filepath.Join("..", "..", "plugins", "official", "kando.deepl")
+	if _, file, _, ok := runtime.Caller(0); ok && filepath.IsAbs(file) {
+		return filepath.Join(filepath.Dir(file), rel)
+	}
+	return rel
+}()
 
 // TestOfficialDeepL checks Kando's official DeepL plugin (plugins/official/kando.deepl), packed with a throwaway root standing in for the official one, against a fake DeepL: without a key it fails as no-credential; a Free key (:fx) is sent to api-free.deepl.com alone, a Pro key to api.deepl.com once the host it knew refused it, and only by Kando, in the Authorization header, never in what the plugin's code composes nor answers; Kando's tags become DeepL's codes, Chinese with its script, English American by default and Portuguese Brazilian; blank lines stay blank and are not sent; the line count is kept; DeepL's 456 and an exhausted limit fail as quota, a key refused at both hosts as auth, each worded on the card by the source's name.
 func TestOfficialDeepL(t *testing.T) {
