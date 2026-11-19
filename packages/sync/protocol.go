@@ -27,6 +27,12 @@ const (
 // FilmsPath is PathFilms for library lib.
 func FilmsPath(lib string) string { return "/v1/libraries/" + lib + "/films" }
 
+// QueryWith and WithSubtitlesOnly ask PathFilms for the films that keep no video too (Film.SubtitlesOnly), as "?with=subtitles_only". A phone from before them knew a film by its video alone, so a desktop lists them only to a phone that asks.
+const (
+	QueryWith         = "with"
+	WithSubtitlesOnly = "subtitles_only"
+)
+
 // SubtitlesPath is PathSubtitles for film id.
 func SubtitlesPath(id string) string { return "/v1/films/" + id + "/subtitles" }
 
@@ -68,7 +74,7 @@ type Libraries struct {
 	Libraries []Library `json:"libraries"`
 }
 
-// Film is a film of a library that a phone can play: one that is done processing, with its video on the desktop's disk.
+// Film is a film of a library that a phone can play or study: one that is done processing, with its video on the desktop's disk, or, listed only to a phone that asks for them (WithSubtitlesOnly), one that keeps no video (SubtitlesOnly).
 type Film struct {
 	ID    string `json:"id"`
 	Title string `json:"title"`
@@ -83,8 +89,10 @@ type Film struct {
 	Untranslated int `json:"untranslated"`
 	// Poster is the path of the film's poster (PosterPath), "" for a film that has none yet.
 	Poster string `json:"poster"`
-	// VideoSize is the size of the video file in bytes.
+	// VideoSize is the size of the video file in bytes, 0 for a film that keeps none.
 	VideoSize int64 `json:"video_size"`
+	// SubtitlesOnly is a film the desktop keeps no video of, only its subtitles (仅字幕): PathVideo answers it not_found, and its lines are studied without the picture until the desktop downloads the video (OpFilmVideo).
+	SubtitlesOnly bool `json:"subtitles_only,omitempty"`
 	// Updated is when the film's video or subtitles last changed on the desktop, so a phone knows to fetch them again.
 	Updated time.Time `json:"updated"`
 }
