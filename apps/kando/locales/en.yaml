@@ -6946,6 +6946,21 @@ settingsPhoneDidUnsubscribe:
   description: "Recent activity: a phone removed a subscription; the videos it added stay."
   placeholders:
     title: { type: "String", example: "Earth Science" }
+settingsPhoneDidRetranslate:
+  message: "Translated “{title}” again"
+  description: "Recent activity: a phone had a film translated again."
+  placeholders:
+    title: { type: "String", example: "Rust Talk" }
+settingsPhoneDidDelete:
+  message: "Moved “{title}” to the Trash"
+  description: "Recent activity: a phone deleted a film from the library; its files went to the Trash."
+  placeholders:
+    title: { type: "String", example: "Rust Talk" }
+settingsPhoneDidVideo:
+  message: "Downloading the video of “{title}”"
+  description: "Recent activity: a phone asked this computer to download the video of a film it kept as subtitles only."
+  placeholders:
+    title: { type: "String", example: "Rust Talk" }
 phoneSyncAgoNow:
   message: "Just now"
   description: "When something happened: less than a minute ago."

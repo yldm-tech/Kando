@@ -159,6 +159,7 @@ func (a *app) phoneSyncStart() {
 		Settings:      phoneSettings{a},
 		Study:         phoneStudy{a},
 		Subscriptions: phoneSubscriptions{a},
+		Films:         phoneFilms{a},
 		Relay:         a.phoneRelayBucket(),
 		RelayHealth:   a.phoneRelayHealth(gen),
 		Addrs:         a.phone.listen,
@@ -364,7 +365,7 @@ func (s phoneSource) Libraries(ctx context.Context) ([]phonesync.Library, error)
 	})
 }
 
-// Films are lib's films that are done, as its done grid shows them, with their files (phoneSource.items). A library locked since it was listed, or whose folder cannot be read, is not found.
+// Films are lib's films that are done, as its done grid shows them, with their files (phoneSource.items), those that keep no video among them (films.Film.SubtitlesOnly), which the server serves by their subtitles. A library locked since it was listed, or whose folder cannot be read, is not found.
 func (s phoneSource) Films(ctx context.Context, lib phonesync.Library) ([]phonesync.Film, error) {
 	items, shelf, err := s.items(ctx, lib)
 	if err != nil {
@@ -372,18 +373,23 @@ func (s phoneSource) Films(ctx context.Context, lib phonesync.Library) ([]phones
 	}
 	var out []phonesync.Film
 	for _, item := range items {
-		f := phonesync.Film{ID: phoneFilmID(item), Title: remoteFilmTitle(item), Source: films.SourceOf(item), Spoken: films.Heard(item), Untranslated: item.Untranslated,
-			Duration: shelf.durations[item.VideoPath], Video: item.VideoPath, Subtitles: item.SubtitlePath, Transcript: media.TranscriptOf(item.VideoPath), Corrections: media.CorrectionsPath(item.VideoPath)}
-		// A film that was not translated, as one heard in the language its subtitles are for, names no translation.
-		if item.TranslationErr == "" && !item.SameLanguage {
-			f.Translation = item.Language
-		}
-		if dest := posterDest(shelf.posterDir, item.VideoPath); dest != "" && fileExists(dest) {
-			f.Poster = dest
-		}
-		out = append(out, f)
+		out = append(out, phoneFilmOf(item, shelf))
 	}
 	return out, nil
+}
+
+// phoneFilmOf is item, a done film of a library, as Phone Sync serves it, with what shelf holds of it and its files.
+func phoneFilmOf(item films.Film, shelf phoneShelf) phonesync.Film {
+	f := phonesync.Film{ID: phoneFilmID(item), Title: remoteFilmTitle(item), Source: films.SourceOf(item), Spoken: films.Heard(item), Untranslated: item.Untranslated,
+		Duration: shelf.durations[item.VideoPath], Video: item.VideoPath, SubtitlesOnly: item.SubtitlesOnly, Subtitles: item.SubtitlePath, Transcript: media.TranscriptOf(item.VideoPath), Corrections: media.CorrectionsPath(item.VideoPath)}
+	// A film that was not translated, as one heard in the language its subtitles are for, names no translation.
+	if item.TranslationErr == "" && !item.SameLanguage {
+		f.Translation = item.Language
+	}
+	if dest := posterDest(shelf.posterDir, item.VideoPath); dest != "" && fileExists(dest) {
+		f.Poster = dest
+	}
+	return f
 }
 
 // items are lib's films that are done, as the app files them: the jobs the shelf keeps for it and the videos in its folder (films.List), with what the app holds of them. A library locked since it was listed, or whose folder cannot be read, is not found.

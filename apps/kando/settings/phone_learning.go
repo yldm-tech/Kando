@@ -92,6 +92,10 @@ const (
 	ActivitySubscribed        = "subscribed"
 	ActivitySubscriptionAdded = "subscription-added"
 	ActivityUnsubscribed      = "unsubscribed"
+	// ActivityRetranslated, ActivityDeleted and ActivityVideo are a phone having the film Title translated again, moved to the Trash, and its video downloaded.
+	ActivityRetranslated = "retranslated"
+	ActivityDeleted      = "deleted"
+	ActivityVideo        = "video"
 )
 
 // learning is the page's part of what the phones sync with this computer: how much of the open library's learning state they were told, the sync conflicts left to settle with how many there are beside their label, and what the phones did lately.
@@ -295,6 +299,12 @@ func activityText(cx *core.Scope, item PhoneActivity) string {
 		return locales.SettingsPhoneDidSubscriptionAdd(cx, item.Title, item.Count)
 	case ActivityUnsubscribed:
 		return locales.SettingsPhoneDidUnsubscribe(cx, item.Title)
+	case ActivityRetranslated:
+		return locales.SettingsPhoneDidRetranslate(cx, item.Title)
+	case ActivityDeleted:
+		return locales.SettingsPhoneDidDelete(cx, item.Title)
+	case ActivityVideo:
+		return locales.SettingsPhoneDidVideo(cx, item.Title)
 	}
 	return item.Kind
 }
