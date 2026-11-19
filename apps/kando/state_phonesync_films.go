@@ -84,7 +84,8 @@ func (a *app) phoneFilmsConfig(gen int, cfg cloud.Store) *phonesync.FilmsConfig 
 				}
 				a.phone.films.status = st
 				f := &a.phone.films
-				if f.moving && gen == f.moveGen && st.Measured && st.Uploading == "" && st.Waiting == 0 && st.Err == nil {
+				// The move is done once a whole turn of the new start went through with every film up, not at a measure within the turn, before a video that failed says so.
+				if f.moving && gen == f.moveGen && st.Settled && st.Measured && st.Uploading == "" && st.Waiting == 0 && st.Err == nil {
 					f.moving, f.moved = false, true
 				}
 			})

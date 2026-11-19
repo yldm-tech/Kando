@@ -49,6 +49,9 @@ type Relay struct {
 	wake chan struct{}
 	// filmLinks are the links to the films' files signed so far, by object name (shelf).
 	filmLinks map[string]filmLink
+	// publishing is held while state.json files are written, by Publish or Handoff, so a turn of Run never writes over the state.json a handoff wrote; handedOff is a Handoff that went through, after which this relay writes no state.json, so the phones keep the grant of links to the new bucket.
+	publishing gosync.Mutex
+	handedOff  bool
 }
 
 // relayGrant is a grant the desktop gave a phone, with the slots of it the phone has used.
@@ -261,6 +264,11 @@ func (r *Relay) markUsed(device, slot string) {
 
 // Publish writes the state.json of each phone that joined whose state changed, whose grant is new, or whose state.json is RelayHeartbeat old.
 func (r *Relay) Publish(ctx context.Context) error {
+	r.publishing.Lock()
+	defer r.publishing.Unlock()
+	if r.handedOff {
+		return nil
+	}
 	devices := r.Devices()
 	if len(devices) == 0 {
 		return nil

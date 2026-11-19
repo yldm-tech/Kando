@@ -52,8 +52,9 @@ type FilmsStatus struct {
 	Waiting    int
 	// Watched are the films whose video is in the bucket and which were watched to their end, the longest ago first, which the user may clean up.
 	Watched []WatchedFilm
-	// Err is why the last turn failed, nil for one that went through.
-	Err error
+	// Err is why the last turn failed, nil for one that went through. Settled is a status told as a turn ended, until the next measure: one told within a turn, with videos still to go up or a failure not yet known, is not.
+	Err     error
+	Settled bool
 }
 
 // WatchedFilm is a film whose video is in the bucket and was watched to its end: its library's ID and its ID, its title, the size of its video in the bucket, and when it was last watched to its end, zero when not known.
@@ -192,7 +193,7 @@ func (f *films) run(ctx context.Context) {
 		if err != nil {
 			f.s.cfg.Logf("phonesync: relay films: %v", err)
 		}
-		f.tell(func(st *FilmsStatus) { st.Err = err })
+		f.tell(func(st *FilmsStatus) { st.Err, st.Settled = err, true })
 		wait := filmsEvery
 		if err != nil {
 			wait = filmsRetry
@@ -300,17 +301,20 @@ func (f *films) turn(ctx context.Context) error {
 	f.persist(&errs)
 	f.s.relay.Wake()
 	f.measure(ctx, prefix, len(videos))
+	failed := 0
 	for i, l := range videos {
 		if err := f.video(ctx, prefix, l, len(videos)-i); err != nil {
 			if ctx.Err() != nil {
 				return ctx.Err()
 			}
 			errs = append(errs, err)
+			failed++
 		}
 		f.s.relay.Wake()
 	}
 	if len(videos) > 0 {
-		f.measure(ctx, prefix, 0)
+		// A video that failed is still to go up, at the next turn.
+		f.measure(ctx, prefix, failed)
 	}
 	return errors.Join(errs...)
 }

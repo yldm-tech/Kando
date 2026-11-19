@@ -125,27 +125,67 @@ func (r *Relay) shelf(ctx context.Context) (*RelayShelf, error) {
 	return out, nil
 }
 
-// Handoff hands the phones over to the bucket to, as the desktop moves its relay there (换一个存储): it answers what waits in the inboxes here, then writes each phone's state.json here once more with a grant of links to to, which the phone takes as its newest (RelayPhone.State), so from then on it reads its state.json and leaves its messages in to without joining again. The caller then stops this relay and starts one in to under the same Prefix, whose first grants are newer still; the objects left here are the user's to delete.
+// Handoff hands the phones over to the bucket to, as the desktop moves its relay there (换一个存储): it answers what waits in the inboxes here, then writes each phone's state.json here once more with a grant of links to to, which the phone takes as its newest (RelayPhone.State), so from then on it reads its state.json and leaves its messages in to without joining again. Once it went through, this relay writes no state.json any more, so a turn of Run does not take the phones back; it still answers what they left here before they moved. The caller then stops this relay and starts one in to under the same Prefix, whose first grants are newer still; the objects left here are the user's to delete. A handoff that fails partway takes the phones back: each is given a newer grant of links here, in its state.json here and in to, wherever it reads it now.
 func (r *Relay) Handoff(ctx context.Context, to RelayBucket) error {
 	if _, err := r.Poll(ctx); err != nil {
 		r.logf("relay: handoff: inbox: %v", err)
+	}
+	r.publishing.Lock()
+	defer r.publishing.Unlock()
+	if r.handedOff {
+		return errors.New("kando sync: the relay was handed over already")
 	}
 	next := &Relay{Bucket: to, Prefix: r.Prefix, Desk: r.Desk, Devices: r.Devices, Now: r.Now, Logf: r.Logf}
 	shelf, err := r.shelf(ctx)
 	if err != nil {
 		return err
 	}
+	devices := r.Devices()
+	given := map[string]RelayGrant{}
 	var errs []error
-	for _, dev := range r.Devices() {
+	for _, dev := range devices {
 		grant, err := next.NewGrant(ctx, dev.ID)
 		if err != nil {
 			errs = append(errs, err)
 			continue
 		}
+		given[dev.ID] = grant
 		errs = append(errs, r.writeState(ctx, dev, grant, shelf, true))
 	}
-	return errors.Join(errs...)
+	if err := errors.Join(errs...); err != nil {
+		back, cancel := context.WithTimeout(context.WithoutCancel(ctx), relayHandBack)
+		defer cancel()
+		for _, dev := range devices {
+			if g, ok := given[dev.ID]; ok {
+				// The grant given last is the one to be newer than, as the phone keeps the newest.
+				r.mu.Lock()
+				if r.grants == nil {
+					r.grants = map[string]*relayGrant{}
+				}
+				r.grants[dev.ID] = &relayGrant{RelayGrant: g, used: map[string]bool{}}
+				r.mu.Unlock()
+			}
+			grant, gerr := r.NewGrant(back, dev.ID)
+			if gerr != nil {
+				r.logf("relay: handoff: take %s back: %v", dev.ID, gerr)
+				continue
+			}
+			if werr := r.writeState(back, dev, grant, shelf, true); werr != nil {
+				r.logf("relay: handoff: take %s back: %v", dev.ID, werr)
+			}
+			// A phone that took the grant to to reads its state.json there now.
+			if werr := next.writeState(back, dev, grant, shelf, true); werr != nil {
+				r.logf("relay: handoff: take %s back from the new bucket: %v", dev.ID, werr)
+			}
+		}
+		return err
+	}
+	r.handedOff = true
+	return nil
 }
+
+// relayHandBack is how long a handoff that failed has to give the phones their grants here again.
+const relayHandBack = 30 * time.Second
 
 // The most a phone reads of a film's lines and of its poster by their links.
 const (

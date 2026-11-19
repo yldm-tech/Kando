@@ -6,6 +6,7 @@ import (
 	"errors"
 	"io"
 	"net/http"
+	"strings"
 	"testing"
 	"time"
 )
@@ -157,6 +158,11 @@ func TestRelayHandoffMovesThePhonesToAnotherBucket(t *testing.T) {
 	if r := g.reply(t, slot); r.ID != "c1" {
 		t.Fatalf("reply %+v", r)
 	}
+	// A turn of the old relay before it stops does not write over the state.json that hands the phone over.
+	g.clock = g.clock.Add(time.Minute)
+	if err := g.relay.Publish(ctx); err != nil {
+		t.Fatal(err)
+	}
 	if _, err := g.phone.State(ctx); err != nil {
 		t.Fatal(err)
 	}
@@ -180,5 +186,66 @@ func TestRelayHandoffMovesThePhonesToAnotherBucket(t *testing.T) {
 	}
 	if keys := g.store.keys(g.relay.Prefix + "inbox/"); len(keys) != 0 {
 		t.Fatalf("the old bucket's inbox holds %q", keys)
+	}
+}
+
+// failingPuts is a bucket whose links to PUT a key holding fail are not signed, as a store that refuses them; before refusing it calls first, once.
+type failingPuts struct {
+	*memRelay
+	fail  string
+	first *func()
+}
+
+func (f failingPuts) PresignPut(ctx context.Context, key string, ttl time.Duration) (string, error) {
+	if strings.Contains(key, f.fail) {
+		if *f.first != nil {
+			(*f.first)()
+			*f.first = nil
+		}
+		return "", errors.New("refused")
+	}
+	return f.memRelay.PresignPut(ctx, key, ttl)
+}
+
+// A handoff that fails for one phone takes the others back: the phone that read its state.json between the handoff's writes, and took the grant to the new bucket, finds there a newer grant of links to the old one, and goes on with the relay that still runs there.
+func TestAHandoffThatFailsTakesThePhonesBack(t *testing.T) {
+	g := newRelayRig(t)
+	ctx := context.Background()
+	g.devs = append(g.devs, RelayDevice{ID: "D2", Name: "iPad", Key: NewRelayKey()})
+	g.relay.Publish(ctx)
+	if _, err := g.phone.State(ctx); err != nil {
+		t.Fatal(err)
+	}
+	var tookNew error
+	first := func() { _, tookNew = g.phone.State(ctx) }
+	moved := newMemRelay(t, func() time.Time { return g.clock })
+	if err := g.relay.Handoff(ctx, failingPuts{moved, "/D2/", &first}); err == nil {
+		t.Fatal("a handoff that failed for a phone went through")
+	}
+	if tookNew != nil {
+		t.Fatalf("the state.json the handoff wrote: %v", tookNew)
+	}
+	// The phone reads its state.json in the new bucket now, which takes it back.
+	if _, err := g.phone.State(ctx); err != nil {
+		t.Fatalf("the new bucket's state.json after the handoff failed: %v", err)
+	}
+	if _, err := g.phone.State(ctx); err != nil {
+		t.Fatalf("the old bucket's state.json: %v", err)
+	}
+	slot := g.send(t, "c1", OpJobs, nil)
+	g.poll(t, 1)
+	if r := g.reply(t, slot); r.ID != "c1" {
+		t.Fatalf("reply %+v", r)
+	}
+	// The old relay goes on writing the phones' state.json.
+	g.clock = g.clock.Add(time.Minute)
+	if err := g.relay.Publish(ctx); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := g.phone.State(ctx); err != nil {
+		t.Fatal(err)
+	}
+	if keys := moved.keys(g.relay.Prefix + "inbox/"); len(keys) != 0 {
+		t.Fatalf("the new bucket's inbox holds %q", keys)
 	}
 }
