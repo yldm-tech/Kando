@@ -2,6 +2,7 @@ package browse
 
 import (
 	"encoding/json"
+	"slices"
 	"strings"
 	"testing"
 	"time"
@@ -164,5 +165,32 @@ func TestAddedAt(t *testing.T) {
 		if got := AddedAt(data); got != want {
 			t.Errorf("AddedAt(%q) = %v, want %v", data, got, want)
 		}
+	}
+}
+
+// ScriptWith's buttons know the sites given after Kando's own, as the page reads them, and leave out a site whose patterns kcore.ValidateVideoSite refuses; Script knows Kando's own alone, as before.
+func TestScriptWithKnowsTheSitesGiven(t *testing.T) {
+	good := kcore.VideoSite{Domain: "videos.example.org", Videos: []kcore.VideoShape{{Path: `^/v/[0-9]+/?$`}}}
+	bad := kcore.VideoSite{Domain: "bad.example.net", Videos: []kcore.VideoShape{{Path: `^/(a+)+$`}}}
+	script := ScriptWith([]kcore.VideoSite{good, bad})
+	if !strings.Contains(script, "const sites = ("+sitesJSON(append(slices.Clone(videoSites), good))+")") || strings.Contains(script, "bad.example.net") {
+		t.Fatal("ScriptWith does not know exactly the valid site given after Kando's own")
+	}
+	if Script() != ScriptWith(nil) || strings.Contains(Script(), "example.org") {
+		t.Fatal("Script knows another site")
+	}
+	// A site's text cannot end the script it is written into.
+	odd := kcore.VideoSite{Domain: "videos.example.org", Videos: []kcore.VideoShape{{Path: `^/v/[0-9]+/?$`}}, Cut: []string{"</script><script>alert(1)</script>\u2028"}}
+	if strings.Contains(sitesJSON([]videoSite{odd}), "</script>") {
+		t.Fatal("sitesJSON wrote </script>")
+	}
+	// The page's messages read by another rule keep only the links it takes.
+	video := func(u string) bool { return u == "https://videos.example.org/v/1" }
+	ask, _ := json.Marshal([]string{"https://videos.example.org/v/1", "https://www.youtube.com/watch?v=jNQXAC9IVRw"})
+	if got, ok := ParseAskWith(AskMessage+string(ask), video); !ok || len(got) != 1 || got[0] != "https://videos.example.org/v/1" {
+		t.Fatalf("ParseAskWith = %q", got)
+	}
+	if _, _, ok := ParseAddWith(AddMessage+`{"url":"https://www.youtube.com/watch?v=jNQXAC9IVRw"}`, video); ok {
+		t.Fatal("ParseAddWith took a link its rule does not")
 	}
 }

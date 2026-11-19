@@ -18,8 +18,11 @@ const MaxVideoURL = kcore.MaxVideoURL
 func VideoLink(rawURL string) bool { return kcore.VideoLink(rawURL) }
 
 // sitesScript is the JavaScript that reads videoSites as VideoLink does: sites, siteOf(hostname), the site of a host or null, and videoOf(raw), the link raw resolves to against base, a JavaScript expression, when it is one video's, and "" otherwise. It expects MAX_URL to be declared before it. The page's buttons (buttonsScript) and the browser extension's background and popup (ExtensionFiles' sites.js) share it.
-func sitesScript(base string) string {
-	return `  const sites = (` + videoSitesJSON() + `).map((s) => ({
+func sitesScript(base string) string { return sitesScriptOf(base, videoSitesJSON()) }
+
+// sitesScriptOf is sitesScript reading the sites of sitesJSON (sitesJSON) rather than videoSites alone, as the built-in browser's pages read the sites of the site packs the user allowed after Kando's own (ScriptWith).
+func sitesScriptOf(base, sitesJSON string) string {
+	return `  const sites = (` + sitesJSON + `).map((s) => ({
     domain: s.domain, not: s.not || [], rows: s.rows || [], titles: s.titles || [], cut: s.cut || [],
     videos: s.videos.map((v) => ({ path: new RegExp(v.path), param: v.param || "", value: v.param ? new RegExp(v.value) : null })),
   }));
@@ -49,10 +52,13 @@ func sitesScript(base string) string {
 }
 
 // videoSitesJSON is videoSites as the page's script reads them.
-func videoSitesJSON() string {
-	data, err := json.Marshal(videoSites)
+func videoSitesJSON() string { return sitesJSON(videoSites) }
+
+// sitesJSON is sites as the page's script reads them. encoding/json writes <, >, &, U+2028 and U+2029 as escapes, so no site's text can end the script it is written into or break its line.
+func sitesJSON(sites []videoSite) string {
+	data, err := json.Marshal(sites)
 	if err != nil {
-		panic("browse: videoSites: " + err.Error())
+		panic("browse: sites: " + err.Error())
 	}
 	return string(data)
 }

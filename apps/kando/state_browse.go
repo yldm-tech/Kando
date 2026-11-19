@@ -55,6 +55,9 @@ type browseUI struct {
 	buttons browseButtons
 	// signin is what the browser knows of its pages' sign-in (state_browse_signin.go).
 	signin browseSignInState
+	// script is the script the pages run before their own (BrowseScript), "" until it is first asked for; sites are the sites of the site packs its buttons know besides Kando's own (browseSitesChanged).
+	script string
+	sites  []kcore.VideoSite
 }
 
 func newBrowseUI() browseUI {
@@ -300,11 +303,11 @@ func (a *app) browseCutShort() {
 // browseHeard is what a page posted: that it changed its address without loading another page, or its title (browse.Script), as the web view reports nothing then, or what its own buttons ask and add (browsePageAsk, browsePageAdd). The address and the title are read from the page itself rather than taken from what it posted, which any page could fill with another site's address. A page that pushed an address has the one it left to go back to, and none to go forward to.
 func (a *app) browseHeard(msg core.WebMessage) {
 	data := msg.Data
-	if links, ok := browse.ParseAsk(data); ok {
+	if links, ok := browse.ParseAskWith(data, a.browsePageVideo); ok {
 		a.browsePageAsk(msg.Origin, links)
 		return
 	}
-	if link, title, ok := browse.ParseAdd(data); ok {
+	if link, title, ok := browse.ParseAddWith(data, a.browsePageVideo); ok {
 		a.browsePageAdd(msg.Origin, link, title, browse.AddedAt(data))
 		return
 	}

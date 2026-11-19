@@ -10,17 +10,18 @@ import (
 	kcore "kando/packages/core"
 )
 
-// Site packs (plugins.KindSite, docs/plugin-system.md E8): sites a third party says are video sites, with the shapes of their videos' links, which the built-in browser's 下载视频 in its toolbar then knows as it knows the videos of Kando's own sites (kcore.VideoSites): on a page of an allowed site, 下载视频 adds the page only when its link is one of a video, and is off on the site's other pages, which it never reads as a playlist or a channel either. Each domain works only once the user allowed it, on its own, in the install confirmation or the pack's details (plugins.State.Allowed), and only while the pack is turned on.
+// Site packs (plugins.KindSite, docs/plugin-system.md E8): sites a third party says are video sites, with the shapes of their videos' links, which the built-in browser then knows as it knows the videos of Kando's own sites (kcore.VideoSites). On a page of an allowed site, the toolbar's 下载视频 adds the page only when its link is one of a video, and is off on the site's other pages, which it never reads as a playlist or a channel either; the page's own buttons, 下载视频 over the player and + over the thumbnails, show on the site's pages as on Kando's sites (browse.ScriptWith). Each domain works only once the user allowed it, on its own, in the install confirmation or the pack's details (plugins.State.Allowed), and only while the pack is turned on.
 //
-// The sites widen no gate of the app. They are never added to kcore.VideoSites or the catalog (sites/catalog), which the browser extension's socket, the remote API, the command line and the MCP server trust; only the toolbar's 下载视频 consults them (browseNotVideo, browseList, browseEnqueue), never the pages' own buttons (browsePageAsk, browsePageAdd), the extension (browserExtVideo) or any other way a link comes in. The pages' buttons do not cover them: the browser's page script (browse.Script) holds the sites it knows as it is handed to the web view, once, when the web view is made (core.WebView.InjectedJavaScriptBeforeContent), and the web view lives for the whole launch, so it could not follow a pack installed or a domain allowed since. The jobs 下载视频 adds from these sites borrow no browser's sign-in and none of the pages' cookies (core.Job.PluginSite, queuePipeline).
+// The sites widen no gate but the built-in browser's. They are never added to kcore.VideoSites or the catalog (sites/catalog), which the browser extension's socket, the remote API, the command line and the MCP server trust; only the browser consults them: the toolbar's 下载视频 (browseNotVideo, browseList, browseEnqueue) and what the pages' buttons ask and add (browsePageAsk, browsePageAdd), which the app checks with its own matcher of the sites (pluginSiteOf), whatever the page says. The page script knows them as it is handed to the web view, once, when the web view is made, so the web view is made again as they change (browseSitesChanged). The jobs the browser adds from these sites borrow no browser's sign-in and none of the pages' cookies (core.Job.PluginSite, queuePipeline).
 
-// pluginsSite is a site pack turned on, with the sites of it the user allowed, as 下载视频 matches links against them.
+// pluginsSite is a site pack turned on, with the sites of it the user allowed (allowed), as the browser matches links against them (sites).
 type pluginsSite struct {
-	id    string
-	sites *kcore.VideoMatcher
+	id      string
+	sites   *kcore.VideoMatcher
+	allowed []kcore.VideoSite
 }
 
-// pluginsSyncSites matches 下载视频's links against the site packs turned on, in the order the settings keep, each with the domains the user allowed, once the packs, their switches or the domains allowed changed. A pack none of whose domains is allowed is left out.
+// pluginsSyncSites matches the browser's links against the site packs turned on, in the order the settings keep, each with the domains the user allowed, once the packs, their switches or the domains allowed changed, and gives the pages' buttons the same sites. A pack none of whose domains is allowed is left out.
 func (a *app) pluginsSyncSites() {
 	var out []pluginsSite
 	for _, pack := range a.pluginsOn(plugins.KindSite) {
@@ -35,10 +36,16 @@ func (a *app) pluginsSyncSites() {
 		}
 		// The pack passed plugins.Validate, which checks its sites as NewVideoMatcher does, as it was read; a pack that does not is left out all the same.
 		if m, err := kcore.NewVideoMatcher(allowed); err == nil {
-			out = append(out, pluginsSite{id: pack.ID, sites: m})
+			out = append(out, pluginsSite{id: pack.ID, sites: m, allowed: allowed})
 		}
 	}
 	a.plugins.sites = out
+	// The pages' buttons know the same sites, in the same order, the first pack's of a domain two name (browseSitesChanged).
+	var sites []kcore.VideoSite
+	for _, s := range out {
+		sites = append(sites, s.allowed...)
+	}
+	a.browseSitesChanged(sites)
 }
 
 // pluginSiteOf is the site pack one of whose allowed sites u is on, "" for none, and whether u is a link to one video of it.
@@ -51,7 +58,7 @@ func (a *app) pluginSiteOf(u string) (id string, video bool) {
 	return "", false
 }
 
-// pluginsStampSite has the job 下载视频 queues for u, a link to one video of a site pack's allowed site, borrow no browser's sign-in (core.Job.PluginSite, core.CookiesNone), after whatever else stamps it (jobQueue.stamp); it returns what puts the stamp back as it was, which the caller runs once it has queued. Any other link is left alone.
+// pluginsStampSite has the job 下载视频, or a page's button, queues for u, a link to one video of a site pack's allowed site, borrow no browser's sign-in (core.Job.PluginSite, core.CookiesNone), after whatever else stamps it (jobQueue.stamp); it returns what puts the stamp back as it was, which the caller runs once it has queued. Any other link is left alone.
 func (a *app) pluginsStampSite(u string) (restore func()) {
 	id, video := a.pluginSiteOf(u)
 	before := a.queue.stamp
@@ -86,7 +93,7 @@ func pluginsSiteRemedy(m locales.Messages, r films.Remedy) films.Remedy {
 	return r
 }
 
-// pluginsAllowSite allows or no longer allows domain of the site pack id, saving state.json off the UI thread as a switch does (pluginsApplyState); 下载视频 follows at once.
+// pluginsAllowSite allows or no longer allows domain of the site pack id, saving state.json off the UI thread as a switch does (pluginsApplyState); the browser follows at once.
 func (a *app) pluginsAllowSite(id, domain string, on bool) {
 	i := slices.IndexFunc(a.plugins.packs, func(p plugins.Pack) bool { return p.ID == id })
 	if a.pluginsRoot() == "" || i < 0 || a.plugins.busy || !slices.Contains(a.plugins.packs[i].SiteDomains(), domain) {

@@ -59,7 +59,7 @@ type App interface {
 	BrowseSource() string
 	// BrowseWeb is the web view's Ref, which the app drives the page through: back, forward, reload, stop and the scripts it runs in the page.
 	BrowseWeb() *core.Ref
-	// BrowseUserAgent is the pages' user agent, "" for the platform's own; BrowseScript runs in each page before the page's own scripts.
+	// BrowseUserAgent is the pages' user agent, "" for the platform's own; BrowseScript runs in each page before the page's own scripts, and the web view is made again when it changes.
 	BrowseUserAgent() string
 	BrowseScript() string
 	// BrowseNavigated hears the page's address and history as it starts loading, finishes and navigates, BrowseFailed a page that failed to load or a navigation the web view refused, and BrowseMessage what a page posted to window.nsgo, with the page's origin.
@@ -112,11 +112,18 @@ func (v View) Render(cx *core.Scope) core.Node {
 	a := v.App
 	colors := ui.ColorsOf(cx)
 	state := live.Memo(cx, a, a.BrowseState)
-	// The web view is made once a page is first asked for and stays while the browser does, hidden behind the start after home, so back finds the pages before it.
+	// The web view is made once a page is first asked for and stays while the browser does, hidden behind the start after home, so back finds the pages before it. It is made again only when its script changes, as the sites the user allowed of the site packs did, since the web view reads the script once, as it is made (core.WebView.InjectedJavaScriptBeforeContent); the app has it load the page it showed then (BrowseScript).
+	script := core.NewMemo(cx, live.Func(a, a.BrowseScript))
 	body := core.View{
 		Style: core.Style{FlexGrow: 1, FlexShrink: 1, MinHeight: core.Pt(0), AlignItems: core.AlignStretch},
 		Children: []core.Node{
-			core.Show{When: live.Func(a, func() bool { return a.BrowseSource() != "" }), Then: func(*core.Scope) core.Node { return page{a} }},
+			core.Show{When: live.Func(a, func() bool { return a.BrowseSource() != "" }), Then: func(*core.Scope) core.Node {
+				// TODO(nsgo#840): let a web view take a new InjectedJavaScriptBeforeContent for its next page, as the platforms' Configure already applies a changed one, then give the page script through that rather than making the web view again, which loses its history https://github.com/nsgo-dev/nsgo/issues/840
+				return core.Dynamic(func(*core.Scope) core.Node {
+					_ = script.Get()
+					return page{a}
+				})
+			}},
 			core.Show{When: func() bool { return !state().Page }, Then: func(*core.Scope) core.Node { return start{a} }},
 		},
 	}

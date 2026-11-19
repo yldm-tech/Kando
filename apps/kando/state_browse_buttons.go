@@ -1,6 +1,7 @@
 package main
 
 import (
+	"reflect"
 	"time"
 
 	"kando/apps/kando/browse"
@@ -48,9 +49,43 @@ func (a *app) browseHaves() map[string]string {
 	return out
 }
 
-// browsePageAsk answers a page of a site the catalog lists that asks what the library has of links, the videos it shows (browse.ParseAsk), with the buttons' words, and follows those videos, so the page hears when that changes (browsePagePush). A page of another site, which gets no buttons, is not answered.
+// browsePageVideo reports whether u is a link to one video the page's buttons know: of Kando's sites (browse.VideoLink) or of an allowed site of a site pack turned on, as the app's own matcher of those sites decides it, never the page (pluginSiteOf).
+func (a *app) browsePageVideo(u string) bool {
+	if browse.VideoLink(u) {
+		return true
+	}
+	id, video := a.pluginSiteOf(u)
+	return id != "" && video
+}
+
+// browsePageSite reports whether origin, a page's, is of a site whose pages get the buttons: one the catalog lists, or an allowed site of a site pack turned on (pluginSiteOf).
+func (a *app) browsePageSite(origin string) bool {
+	if catalog.Load().On(origin) {
+		return true
+	}
+	id, _ := a.pluginSiteOf(origin)
+	return id != ""
+}
+
+// browseSitesChanged gives the pages' buttons sites, the allowed sites of the site packs turned on, besides Kando's own (browse.ScriptWith). The web view reads its script once, as it is made, so when the script changes the web view is made again (browse.View), loading the page it showed, or the blank page under the start, though without the history before it, as when the browser's column goes (browseColumnGone).
+func (a *app) browseSitesChanged(sites []kcore.VideoSite) {
+	if a.browse.script != "" && reflect.DeepEqual(sites, a.browse.sites) {
+		return
+	}
+	a.browse.sites = sites
+	script := browse.ScriptWith(sites)
+	if script == a.browse.script {
+		return
+	}
+	a.browse.script = script
+	if a.browse.source != "" {
+		a.browseColumnGone()
+	}
+}
+
+// browsePageAsk answers a page of a site the catalog lists, or of an allowed site of a site pack (browsePageSite), that asks what the library has of links, the videos it shows (browse.ParseAskWith with browsePageVideo), with the buttons' words, and follows those videos, so the page hears when that changes (browsePagePush). A page of another site, which gets no buttons, is not answered.
 func (a *app) browsePageAsk(origin string, links []string) {
-	if !catalog.Load().On(origin) || len(links) == 0 {
+	if !a.browsePageSite(origin) || len(links) == 0 {
 		return
 	}
 	b := &a.browse.buttons
@@ -98,13 +133,18 @@ func (a *app) browsePagePush() {
 	a.browse.view.PostMessage(browse.StateData(browse.PageState{Text: text, Have: have}))
 }
 
-// browsePageAdd is a click on one of the page's own buttons, which adds the video at link as 下载视频 does (browseAdd), named by the title the page gave it. It takes it only while the browser's page shows, from a page of a site the catalog lists, and only a link to one video of such a site (browse.ParseAdd and kcore.Link.OneVideo), as any script of the page can post what its buttons do.
+// browsePageAdd is a click on one of the page's own buttons, which adds the video at link as 下载视频 does (browseAdd), named by the title the page gave it. It takes it only while the browser's page shows, from a page of a site the catalog lists or an allowed site of a site pack (browsePageSite), and only a link to one video of such a site (browse.ParseAddWith with browsePageVideo, and kcore.Link.OneVideo for Kando's sites), as any script of the page can post what its buttons do. A video of a site pack's site borrows no sign-in (browseEnqueue, pluginsStampSite).
 func (a *app) browsePageAdd(origin, link, title string, at time.Duration) {
-	if a.page != pageBrowse || !a.browseShowing() || !catalog.Load().On(origin) || !catalog.Load().On(link) {
+	if a.page != pageBrowse || !a.browseShowing() || !a.browsePageSite(origin) {
 		return
 	}
-	if parsed, ok := kcore.ParseLink(link); !ok || !parsed.OneVideo() {
-		return
+	if id, video := a.pluginSiteOf(link); id == "" || !video {
+		if !catalog.Load().On(link) {
+			return
+		}
+		if parsed, ok := kcore.ParseLink(link); !ok || !parsed.OneVideo() {
+			return
+		}
 	}
 	// 下载视频 on a page that plays the video says where it was, so the film opens there once done (core.Job.ResumeAt).
 	a.queue.stamp = addSheetResumeStamp(at)

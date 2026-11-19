@@ -32,6 +32,7 @@ import (
 	"kando/packages/media"
 	psync "kando/packages/sync"
 
+	ns "github.com/nsgo-dev/nsgo/core"
 	"github.com/nsgo-dev/nsgo/nsgotest"
 )
 
@@ -1636,9 +1637,9 @@ func TestPluginSiteRemedyBorrowsNoSignIn(t *testing.T) {
 	}
 }
 
-// TestPluginSiteWidensNoGate checks that an allowed site of a site pack is known to the toolbar's 下载视频 alone: not to kcore.VideoLink or the catalog, which the other ways in trust; not to the pages' own buttons, whose asks and adds from the site are not answered; not to the browser extension's methods on the control socket (browser.state, browser.add, browser.show); not to the list of sites the command line and the MCP server read; and a link of it the command line or the MCP server adds (add) is a link of a site like any other, not the pack's.
+// TestPluginSiteWidensNoGate checks that an allowed site of a site pack is known to the built-in browser alone: not to kcore.VideoLink or the catalog, which the other ways in trust; not to the browser extension's methods on the control socket (browser.state, browser.add, browser.show); not to the list of sites the command line and the MCP server read; and a link of it the command line or the MCP server adds (add) is a link of a site like any other, not the pack's.
 func TestPluginSiteWidensNoGate(t *testing.T) {
-	a, tt, updates, _ := pluginsSiteApp(t, "videos.example.org", "clips.example.net")
+	a, _, updates, _ := pluginsSiteApp(t, "videos.example.org", "clips.example.net")
 	remoteServe(t, a)
 	for _, u := range []string{pluginSiteVideo, pluginSiteClip} {
 		if core.VideoLink(u) || browse.VideoLink(u) || catalog.Load().On(u) || browserExtVideo(u) {
@@ -1647,13 +1648,6 @@ func TestPluginSiteWidensNoGate(t *testing.T) {
 		if id, video := a.pluginSiteOf(u); id == "" || !video {
 			t.Fatalf("%s is not known to 下载视频", u)
 		}
-	}
-
-	browseOpen(t, a, tt, pluginSiteVideo)
-	browsePagePost(tt, pluginSiteVideo, browseAskData(pluginSiteVideo))
-	browsePagePost(tt, pluginSiteVideo, browseAddData(pluginSiteVideo, "A video"))
-	if n := len(browsePageStates(t, tt)); n != 0 || len(a.library.Jobs) != 0 {
-		t.Fatalf("the page's buttons got %d answers and added %+v", n, a.library.Jobs)
 	}
 
 	state, err := remoteCall[remote.BrowserState](t, updates, remote.MethodBrowserState, remote.BrowserStateParams{URLs: []string{pluginSiteVideo, pluginSiteClip}})
@@ -1681,5 +1675,63 @@ func TestPluginSiteWidensNoGate(t *testing.T) {
 	}
 	if job, ok := a.queueFindSource(pluginSiteVideo); !ok || job.PluginSite != "" {
 		t.Fatalf("the command line's job is the pack's: %+v", job)
+	}
+}
+
+// TestPluginSitePageButtons checks the built-in browser's own buttons on a site pack's sites: the page script knows the sites the user allowed and no other, and the web view is made again, at the page it showed, as that changes; the app answers what a page of an allowed site asks about its videos and adds the one its button posts, borrowing no sign-in, checking both with its own matcher of the sites, whatever the page says: a link of a domain not allowed, a page of a site not allowed, and a link of the site that is no video's are left alone.
+func TestPluginSitePageButtons(t *testing.T) {
+	a, tt, updates, _ := pluginsSiteApp(t, "videos.example.org")
+	browseOpen(t, a, tt, pluginSiteHome)
+	script := tt.FindMounted(browsePage).Web.InjectedJavaScriptBeforeContent
+	if !strings.Contains(script, `"videos.example.org"`) || strings.Contains(script, "clips.example.net") || !strings.Contains(script, `"youtube.com"`) {
+		t.Fatal("the page script does not know exactly the allowed site besides Kando's own")
+	}
+
+	// A page of a site not allowed, and links not allowed or of no video, are not answered.
+	browsePagePost(tt, pluginSiteClip, browseAskData(pluginSiteClip))
+	browsePagePost(tt, pluginSiteHome, browseAskData(pluginSiteClip, pluginSiteHome, "https://videos.example.org/v/x"))
+	if n := len(browsePageStates(t, tt)); n != 0 {
+		t.Fatalf("%d answers to what no button may ask", n)
+	}
+	browsePagePost(tt, pluginSiteHome, browseAskData(pluginSiteVideo, pluginSiteClip))
+	states := browsePageStates(t, tt)
+	if len(states) != 1 || len(states[0].Have) != 1 || states[0].Have[pluginSiteVideo] != "" {
+		t.Fatalf("answers %+v", states)
+	}
+	for _, add := range []struct{ page, link string }{{pluginSiteClip, pluginSiteClip}, {pluginSiteHome, pluginSiteClip}, {pluginSiteHome, pluginSiteHome}, {"https://evil.example.com/", pluginSiteVideo}} {
+		browsePagePost(tt, add.page, browseAddData(add.link, ""))
+	}
+	if len(a.library.Jobs) != 0 {
+		t.Fatalf("jobs %+v", a.library.Jobs)
+	}
+	a.signin.browser = "chrome"
+	browsePagePost(tt, pluginSiteHome, browseAddData(pluginSiteVideo, "A video"))
+	settle(t, a, tt, updates)
+	job, ok := a.queueFindSource(pluginSiteVideo)
+	if !ok || job.PluginSite != "example.videos" || job.Cookies != core.CookiesNone {
+		t.Fatalf("the job the page's button added: %+v", job)
+	}
+
+	// Allowing the second domain makes the web view again, at the page it showed, with a script that knows it.
+	a.Select(pageFilms)
+	a.SetPluginSiteAllowed("example.videos", "clips.example.net", true)
+	waitUntil(t, tt, a, updates, func() bool { return !a.plugins.busy })
+	a.Select(pageBrowse)
+	refresh(tt, a)
+	web := tt.FindMounted(browsePage).Web
+	if !strings.Contains(web.InjectedJavaScriptBeforeContent, "clips.example.net") || web.Source.Src != pluginSiteHome {
+		t.Fatalf("the web view after allowing a domain loads %q", web.Source.Src)
+	}
+	browseReport(tt, ns.WebNavigation{URL: pluginSiteHome})
+	browsePagePost(tt, pluginSiteClip, browseAskData(pluginSiteClip))
+	if states := browsePageStates(t, tt); len(states) != 1 || len(states[0].Have) != 1 {
+		t.Fatalf("answers on the web view made again %+v", states)
+	}
+	// Turning the pack off takes its sites out of the script.
+	a.SetPluginEnabled("example.videos", false)
+	waitUntil(t, tt, a, updates, func() bool { return !a.plugins.busy })
+	refresh(tt, a)
+	if strings.Contains(tt.FindMounted(browsePage).Web.InjectedJavaScriptBeforeContent, "example") {
+		t.Fatal("the script knows the sites of a pack turned off")
 	}
 }

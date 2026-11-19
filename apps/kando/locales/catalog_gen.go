@@ -6520,7 +6520,7 @@ var textsEn = i18n.NewTexts(""+
 	"OK"+
 	"Choose"+
 	"Install a Plugin Pack"+
-	"Plugin sites work only with Download Video in the toolbar of Kando's browser. The browser extension and the buttons on web pages don't cover them."+
+	"The browser extension doesn't cover plugin sites. Use Kando's built-in browser for them."+
 	"Allowed Sites"+
 	"Local"+
 	"Kando couldn't read which plugins are on, so they are all off for now. Turning one on or off saves it again."+
@@ -8147,7 +8147,7 @@ var textsEn = i18n.NewTexts(""+
 		2,
 		6,
 		21,
-		146,
+		88,
 		13,
 		5,
 		108,
@@ -9777,7 +9777,7 @@ var textsJa = i18n.NewTexts(""+
 	"OK"+
 	"選択"+
 	"プラグインパックをインストール"+
-	"プラグインのサイトは、Kando のブラウザのツールバーにある「動画をダウンロード」でのみ使えます。ブラウザ拡張機能とウェブページ上のボタンは対応していません。"+
+	"ブラウザ拡張機能はプラグインのサイトに対応していません。Kando 内蔵のブラウザで使ってください。"+
 	"許可したサイト"+
 	"ローカル"+
 	"どのプラグインがオンか読み取れなかったため、すべてオフにしています。いずれかをオンまたはオフにすると保存し直します。"+
@@ -11404,7 +11404,7 @@ var textsJa = i18n.NewTexts(""+
 		2,
 		6,
 		45,
-		228,
+		138,
 		21,
 		12,
 		174,
@@ -13034,7 +13034,7 @@ var textsKo = i18n.NewTexts(""+
 	"확인"+
 	"선택"+
 	"플러그인 팩 설치"+
-	"플러그인 사이트는 Kando 브라우저 도구 막대의 '동영상 다운로드'에서만 작동합니다. 브라우저 확장 프로그램과 웹 페이지의 버튼은 지원하지 않습니다."+
+	"브라우저 확장 프로그램은 플러그인 사이트를 지원하지 않습니다. Kando 내장 브라우저에서 사용하십시오."+
 	"허용한 사이트"+
 	"로컬"+
 	"어떤 플러그인이 켜져 있는지 읽을 수 없어 모두 꺼 두었습니다. 하나를 켜거나 끄면 다시 저장됩니다."+
@@ -14661,7 +14661,7 @@ var textsKo = i18n.NewTexts(""+
 		6,
 		6,
 		23,
-		202,
+		140,
 		19,
 		6,
 		136,
@@ -16291,7 +16291,7 @@ var textsZhHans = i18n.NewTexts(""+
 	"好"+
 	"选择"+
 	"安装插件包"+
-	"插件网站只用于看懂浏览器工具栏里的「下载视频」，浏览器扩展和网页里的按钮不支持它们。"+
+	"浏览器扩展不支持插件网站，请在看懂内置的浏览器里使用。"+
 	"允许的网站"+
 	"本地"+
 	"看懂读不出哪些插件是启用的，所以暂时全部停用。打开或关闭任意一个插件会重新保存。"+
@@ -17918,7 +17918,7 @@ var textsZhHans = i18n.NewTexts(""+
 		3,
 		6,
 		15,
-		126,
+		81,
 		15,
 		6,
 		120,
@@ -19548,7 +19548,7 @@ var textsZhHant = i18n.NewTexts(""+
 	"好"+
 	"選擇"+
 	"安裝外掛包"+
-	"外掛網站只用於看懂瀏覽器工具列中的「下載影片」，瀏覽器擴充功能和網頁中的按鈕不支援它們。"+
+	"瀏覽器擴充功能不支援外掛網站，請在看懂內建的瀏覽器中使用。"+
 	"允許的網站"+
 	"本機"+
 	"看懂讀不出哪些外掛是啟用的，所以暫時全部停用。開啟或關閉任一外掛會重新儲存。"+
@@ -21175,7 +21175,7 @@ var textsZhHant = i18n.NewTexts(""+
 		3,
 		6,
 		15,
-		132,
+		87,
 		15,
 		6,
 		114,
@@ -57271,10 +57271,10 @@ func (msgs Messages) SettingsPluginsSiteDetail(count int) string {
 	}
 }
 
-// SettingsPluginsSitesNote says "Plugin sites work only with Download Video in the toolbar of Kando's browser. The browser extension and the buttons on web pages don't cover them."
+// SettingsPluginsSitesNote says "The browser extension doesn't cover plugin sites. Use Kando's built-in browser for them."
 // in the language the app shows under cx.
 //
-// Plugins page: one line under the group of site packs. Download Video is the toolbar button of the built-in browser (browseDownload).
+// Plugins page: one line under the group of site packs. Their sites work in the built-in browser (its toolbar and the buttons it puts in web pages) but not in the browser extension.
 func SettingsPluginsSitesNote(cx *core.Scope) string { return For(cx).SettingsPluginsSitesNote() }
 
 // SettingsPluginsSitesNote is the package's SettingsPluginsSitesNote in the language of msgs.

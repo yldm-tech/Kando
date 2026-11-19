@@ -7518,8 +7518,8 @@ settingsPluginsSiteDetail:
   placeholders:
     count: { type: "int", example: "2" }
 settingsPluginsSitesNote:
-  message: "Plugin sites work only with Download Video in the toolbar of Kando's browser. The browser extension and the buttons on web pages don't cover them."
-  description: "Plugins page: one line under the group of site packs. Download Video is the toolbar button of the built-in browser (browseDownload)."
+  message: "The browser extension doesn't cover plugin sites. Use Kando's built-in browser for them."
+  description: "Plugins page: one line under the group of site packs. Their sites work in the built-in browser (its toolbar and the buttons it puts in web pages) but not in the browser extension."
 settingsPluginsSitesAllowed:
   message: "Allowed Sites"
   description: "Install confirmation and details of a site pack: heading over one checkbox per website of the pack, each of which the user allows on its own."

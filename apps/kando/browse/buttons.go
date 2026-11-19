@@ -53,7 +53,10 @@ func StateData(s PageState) string {
 }
 
 // ParseAsk reads an AskMessage: the links to one video it asks about (VideoLink), each once, at most MaxAsk; false when data is no AskMessage.
-func ParseAsk(data string) ([]string, bool) {
+func ParseAsk(data string) ([]string, bool) { return ParseAskWith(data, VideoLink) }
+
+// ParseAskWith is ParseAsk keeping the links video takes for one video's, as the app's pages ask about the videos of the site packs the user allowed too.
+func ParseAskWith(data string, video func(string) bool) ([]string, bool) {
 	rest, ok := strings.CutPrefix(data, AskMessage)
 	if !ok {
 		return nil, false
@@ -62,15 +65,18 @@ func ParseAsk(data string) ([]string, bool) {
 	if json.Unmarshal([]byte(rest), &links) != nil {
 		return nil, false
 	}
-	return AskLinks(links), true
+	return AskLinksWith(links, video), true
 }
 
 // AskLinks are the links among the first MaxAsk of links that are to one video (VideoLink), each once, as an AskMessage or the browser extension asks about them.
-func AskLinks(links []string) []string {
+func AskLinks(links []string) []string { return AskLinksWith(links, VideoLink) }
+
+// AskLinksWith is AskLinks keeping the links video takes for one video's.
+func AskLinksWith(links []string, video func(string) bool) []string {
 	var out []string
 	seen := map[string]bool{}
 	for _, u := range links[:min(len(links), MaxAsk)] {
-		if !seen[u] && VideoLink(u) {
+		if !seen[u] && video(u) {
 			seen[u] = true
 			out = append(out, u)
 		}
@@ -79,7 +85,10 @@ func AskLinks(links []string) []string {
 }
 
 // ParseAdd reads an AddMessage: the link to one video it adds (VideoLink), and the title the page gave it, on one line, without control characters and at most maxTitle characters long; false when data is no AddMessage or names no video.
-func ParseAdd(data string) (link, title string, ok bool) {
+func ParseAdd(data string) (link, title string, ok bool) { return ParseAddWith(data, VideoLink) }
+
+// ParseAddWith is ParseAdd taking the links video takes for one video's.
+func ParseAddWith(data string, video func(string) bool) (link, title string, ok bool) {
 	rest, ok := strings.CutPrefix(data, AddMessage)
 	if !ok {
 		return "", "", false
@@ -91,7 +100,7 @@ func ParseAdd(data string) (link, title string, ok bool) {
 	if json.Unmarshal([]byte(rest), &add) != nil {
 		return "", "", false
 	}
-	return AddVideo(add.URL, add.Title)
+	return AddVideoWith(add.URL, add.Title, video)
 }
 
 // AddedAt is where the player of the page that posted an AddMessage was in its video (PlayedTo), 0 when data says nowhere or is no AddMessage.
@@ -121,8 +130,11 @@ func PlayedTo(seconds float64) time.Duration {
 const maxPlayedTo = 100 * time.Hour
 
 // AddVideo reads what an AddMessage or the browser extension adds: the link to one video (VideoLink), and the title the page gave it, on one line, without control characters and at most maxTitle characters long; false when link names no video.
-func AddVideo(link, title string) (string, string, bool) {
-	if !VideoLink(link) {
+func AddVideo(link, title string) (string, string, bool) { return AddVideoWith(link, title, VideoLink) }
+
+// AddVideoWith is AddVideo taking the links video takes for one video's.
+func AddVideoWith(link, title string, video func(string) bool) (string, string, bool) {
+	if !video(link) {
 		return "", "", false
 	}
 	title = strings.Join(strings.Fields(strings.Map(func(r rune) rune {
@@ -177,12 +189,15 @@ const extensionBridge = `  const api = globalThis.browser || globalThis.chrome;
 `
 
 // buttonsScript is the part of Script, and of the browser extension's content script (ExtensionScript), that draws the page's buttons; bridge is the JavaScript that declares how they speak to Kando, tell(data) and hear(fn) (webViewBridge, extensionBridge), and may return when the page cannot. It reads videoSites as VideoLink does (sitesScript), finds the videos of a page by its links (a[href]) that are videos' and hold a picture, rather than by the sites' own components, and looks again as the page changes, a site that is one page as much as any other: once things settle after a change of the page or its address. Its buttons never move what the page lays out: + and the marks of the videos the library has float over the top-left corner of the thumbnails, above whatever the site draws over them, and each thumbnail's link holds only a button that takes no room, for the keyboard, marked so another look does not add it again; 下载视频 goes into the site's row of buttons or floats over the player. They live in a closed shadow root, drawn with inline styles only, so the page's styles and its content security policy leave them be, and they keep to themselves only the events of their own clicks, keys and the app's StateMessage. A click adds only when the user made it (event.isTrusted); the app checks again what it adds (the app's browsePageAdd).
-func buttonsScript(bridge string) string {
+func buttonsScript(bridge string) string { return buttonsScriptOf(bridge, videoSitesJSON()) }
+
+// buttonsScriptOf is buttonsScript knowing the sites of sitesJSON (sitesJSON).
+func buttonsScriptOf(bridge, sitesJSON string) string {
 	return `(() => {
   const ASK = "` + AskMessage + `", ADD = "` + AddMessage + `", STATE = "` + StateMessage + `";
   const MAX_URL = ` + strconv.Itoa(MaxVideoURL) + `, MAX_ASK = ` + strconv.Itoa(MaxAsk) + `, KEEP = ` + strconv.Itoa(PageVideos) + `;
   const MARK = "data-kando-add", PILL = "data-kando-video";
-` + sitesScript("document.baseURI") + bridge + `
+` + sitesScriptOf("document.baseURI", sitesJSON) + bridge + `
 
   // What the library has of the videos asked about, oldest first, and the words of the buttons, which the app sends with its first answer.
   let text = null;
