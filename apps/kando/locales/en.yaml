@@ -25,6 +25,240 @@ accountFixSettings:
 accountGoogleFailed:
   message: "Google sign-in didn't finish"
   description: "Error under the account card when the Google sign-in failed or was cancelled."
+accountLocationAdd:
+  message: "Add…"
+  description: "Button at the end of the Storage Locations card on the Account & Upload settings page, opening the dialog that adds a NAS or server folder."
+accountLocationAddTitle:
+  message: "Add a Storage Location"
+  description: "Title of the dialog adding a storage location (a folder on a NAS or a server, over SMB, WebDAV or SFTP)."
+accountLocationCancel:
+  message: "Cancel"
+  description: "Button closing a storage location's dialog or alert without changing anything."
+accountLocationConnected:
+  message: "Connected"
+  description: "Status under a storage location, or in its dialog, once Test reached the server and read the folder."
+accountLocationDomain:
+  message: "Domain"
+  description: "Field of an SMB storage location: the Windows domain or workgroup the user signs in to."
+accountLocationDomainHint:
+  message: "Optional, often WORKGROUP"
+  description: "Hint under the Domain field of an SMB storage location. WORKGROUP is the literal default name, not translated."
+accountLocationEdit:
+  message: "Edit…"
+  description: "Button of a storage location's row opening its dialog."
+accountLocationEditLabel:
+  message: "Edit {name}"
+  description: "Accessible name of a storage location's Edit button, read by screen readers."
+  placeholders:
+    name: { type: "String", example: "Home NAS" }
+accountLocationEditTitle:
+  message: "Edit Storage Location"
+  description: "Title of the dialog editing a storage location."
+accountLocationFailBadRoot:
+  message: "The folder can't climb above where it starts with “..”."
+  description: "Test connection error: the storage location's folder goes above the share, the address or the home folder."
+accountLocationFailCertificate:
+  message: "This computer doesn't trust the certificate of {host}."
+  description: "Test connection error: the WebDAV server's HTTPS certificate did not verify."
+  placeholders:
+    host: { type: "String", example: "nas.local" }
+accountLocationFailDenied:
+  message: "This user can't open the folder."
+  description: "Test connection error: the server let the user in but refused access to the share or folder."
+accountLocationFailNoRoot:
+  message: "The folder isn't on the server."
+  description: "Test connection error: the storage location's folder does not exist on the server."
+accountLocationFailNoShare:
+  message: "The server has no share named {share}."
+  description: "Test connection error: the SMB server has no share of that name."
+  placeholders:
+    share: { type: "String", example: "films" }
+accountLocationFailOther:
+  message: "Couldn't connect. The log has the details."
+  description: "Test connection error with no more specific reason; the whole error is in Kando's log file."
+accountLocationFailPrivateKey:
+  message: "The private key can't be read. Check it and its passphrase."
+  description: "Test connection error: the SFTP private key is not a PEM key, or its passphrase is missing or wrong."
+accountLocationFailSignIn:
+  message: "The server refused the user, password or key."
+  description: "Test connection error: the server refused the sign-in."
+accountLocationFailTimeout:
+  message: "{host} didn't answer in time."
+  description: "Test connection error: the server did not answer before the test gave up."
+  placeholders:
+    host: { type: "String", example: "nas.local" }
+accountLocationFailUnreachable:
+  message: "Couldn't reach {host}. Check the address and that the server is on."
+  description: "Test connection error: the server's name does not resolve or nothing answers at its address."
+  placeholders:
+    host: { type: "String", example: "nas.local" }
+accountLocationHost:
+  message: "Server"
+  description: "Field of an SMB or SFTP storage location: the server's name or IP address."
+accountLocationHostKey:
+  message: "Server Key"
+  description: "Row of an SFTP storage location showing the fingerprint of the server's key Kando trusts."
+accountLocationHostKeyHint:
+  message: "Trusted at the first connection"
+  description: "Subtitle of the Server Key row once a key is trusted."
+accountLocationHostKeyNone:
+  message: "Asked at the first connection"
+  description: "Value of the Server Key row before any key is trusted: the first Test asks whether to trust it."
+accountLocationKeyChangedMessage:
+  message: "The server offered another key than the one trusted before. It may have been reinstalled, or another machine may be answering in its place. Trusted: {trusted}. Offered now: {offered}. Replace the key only if you know why it changed."
+  description: "Message of the warning shown when an SFTP server's key is not the one trusted before. The fingerprints look like SHA256:abc…"
+  placeholders:
+    trusted: { type: "String", example: "SHA256:0f2c…" }
+    offered: { type: "String", example: "SHA256:9a1b…" }
+accountLocationKeyChangedTitle:
+  message: "The key of {host} has changed"
+  description: "Title of the warning shown when an SFTP server's key is not the one trusted before."
+  placeholders:
+    host: { type: "String", example: "nas.local" }
+accountLocationKind:
+  message: "Type"
+  description: "Drop-down of a storage location choosing SMB, WebDAV or SFTP."
+accountLocationName:
+  message: "Name"
+  description: "Field of a storage location: the name it is listed by."
+accountLocationNamePlaceholder:
+  message: "Home NAS"
+  description: "Placeholder of a storage location's Name field: an example name."
+accountLocationNeedsHost:
+  message: "Fill in the server."
+  description: "Error in a storage location's dialog: the Server field is empty."
+accountLocationNeedsName:
+  message: "Give the location a name."
+  description: "Error in a storage location's dialog on Save: the Name field is empty."
+accountLocationNeedsPort:
+  message: "The port is a number from 1 to 65535."
+  description: "Error in a storage location's dialog: the Port field is not a port number."
+accountLocationNeedsSecret:
+  message: "Fill in a password, a private key or both."
+  description: "Error in an SFTP storage location's dialog: neither a password nor a private key is filled in."
+accountLocationNeedsShare:
+  message: "Fill in the share's name, without slashes."
+  description: "Error in an SMB storage location's dialog: the Share field is empty or holds a path."
+accountLocationNeedsURL:
+  message: "The address starts with https:// or http://, without a user, a password or a query."
+  description: "Error in a WebDAV storage location's dialog: the Address field is not a plain https or http address."
+accountLocationNeedsUser:
+  message: "Fill in the user."
+  description: "Error in a storage location's dialog: the User field is empty."
+accountLocationNotTrusted:
+  message: "Not connected: the server's key isn't trusted."
+  description: "Status under an SFTP storage location after the person declined to trust the server's key."
+accountLocationPassphrase:
+  message: "Passphrase"
+  description: "Field of an SFTP storage location: the passphrase of an encrypted private key."
+accountLocationPassword:
+  message: "Password"
+  description: "Field of a storage location: the user's password."
+accountLocationPort:
+  message: "Port"
+  description: "Field of an SMB or SFTP storage location: the server's port."
+accountLocationPortHint:
+  message: "Empty for {port}"
+  description: "Hint under the Port field: the port used when it is left empty."
+  placeholders:
+    port: { type: "String", example: "22" }
+accountLocationPrivateKey:
+  message: "Private Key"
+  description: "Field of an SFTP storage location: the PEM text of the user's private key."
+accountLocationPrivateKeyHint:
+  message: "Paste the key's PEM text"
+  description: "Hint under the Private Key field. PEM is a file format's name, not translated."
+accountLocationRemove:
+  message: "Remove…"
+  description: "Button of a storage location's row asking to remove it."
+accountLocationRemoveButton:
+  message: "Remove"
+  description: "Destructive button of the alert confirming that a storage location is removed."
+accountLocationRemoveLabel:
+  message: "Remove {name}"
+  description: "Accessible name of a storage location's Remove button, read by screen readers."
+  placeholders:
+    name: { type: "String", example: "Home NAS" }
+accountLocationRemoveMessage:
+  message: "Its password and keys are forgotten too. The files on the server stay."
+  description: "Message of the alert confirming that a storage location is removed."
+accountLocationRemoveTitle:
+  message: "Remove “{name}”?"
+  description: "Title of the alert confirming that a storage location is removed."
+  placeholders:
+    name: { type: "String", example: "Home NAS" }
+accountLocationReplaceKey:
+  message: "Replace Key"
+  description: "Destructive button of the changed-key warning: trust the server's new key in place of the old one."
+accountLocationRoot:
+  message: "Folder"
+  description: "Field of a storage location: the folder on the server films are kept in."
+accountLocationRootHintSFTP:
+  message: "Absolute, or in the home folder; empty for the home folder"
+  description: "Hint under the Folder field of an SFTP storage location."
+accountLocationRootHintSMB:
+  message: "A folder in the share; empty for its top"
+  description: "Hint under the Folder field of an SMB storage location."
+accountLocationRootHintWebDAV:
+  message: "A folder below the address; may be empty"
+  description: "Hint under the Folder field of a WebDAV storage location."
+accountLocationSave:
+  message: "Save"
+  description: "Button saving a storage location's dialog."
+accountLocationSaveFailed:
+  message: "The location couldn't be saved"
+  description: "Error in a storage location's dialog, or under the card, when the settings file could not be written."
+accountLocationShare:
+  message: "Share"
+  description: "Field of an SMB storage location: the name of the shared folder on the server."
+accountLocationSummary:
+  message: "{kind} · {place}"
+  description: "Subtitle of a storage location's row: its protocol (SMB, WebDAV, SFTP) and where it is, such as nas.local/films."
+  placeholders:
+    kind: { type: "String", example: "SMB" }
+    place: { type: "String", example: "nas.local/films" }
+accountLocationTest:
+  message: "Test"
+  description: "Button of a storage location's row and dialog: connect to the server and read the folder."
+accountLocationTestLabel:
+  message: "Test the connection to {name}"
+  description: "Accessible name of a storage location's Test button, read by screen readers."
+  placeholders:
+    name: { type: "String", example: "Home NAS" }
+accountLocationTesting:
+  message: "Connecting…"
+  description: "Status under a storage location, or in its dialog, while Test connects."
+accountLocationTrust:
+  message: "Trust"
+  description: "Button of the alert asking whether to trust an SFTP server's key at the first connection."
+accountLocationTrustMessage:
+  message: "This is the first connection to it. Its key's fingerprint is {fingerprint}. Trust it only if it matches what the server shows (ssh-keygen -l) or what its administrator gives you."
+  description: "Message of the alert asking whether to trust an SFTP server's key at the first connection. ssh-keygen -l is a command, not translated."
+  placeholders:
+    fingerprint: { type: "String", example: "SHA256:0f2c…" }
+accountLocationTrustTitle:
+  message: "Trust the server {host}?"
+  description: "Title of the alert asking whether to trust an SFTP server's key at the first connection."
+  placeholders:
+    host: { type: "String", example: "nas.local" }
+accountLocationURL:
+  message: "Address"
+  description: "Field of a WebDAV storage location: the server's https:// address."
+accountLocationUser:
+  message: "User"
+  description: "Field of a storage location: the user name to sign in with."
+accountLocationUserHintSMB:
+  message: "guest for a share open to anyone"
+  description: "Hint under the User field of an SMB storage location. guest is the literal user name, not translated."
+accountLocationsEmpty:
+  message: "No storage locations yet"
+  description: "Row of the Storage Locations card while none is set up."
+accountLocationsNote:
+  message: "Folders on a NAS or a server, over SMB, WebDAV or SFTP. Passwords and keys are saved only in the settings file on this computer."
+  description: "Note under the Storage Locations card: what a location is and where its secrets are kept."
+accountSectionLocations:
+  message: "Storage Locations"
+  description: "Heading of the card listing folders on a NAS or a server on the Account & Upload settings page."
 accountNeedsStore:
   message: "Fill in {store} in Settings › Account & Upload first"
   description: "Why the player cannot upload: the chosen storage is not filled in. Names the settings page."
@@ -5124,7 +5358,7 @@ settingsKeywordsAI:
   message: "translation service EveryAPI OpenAI OpenRouter Groq DeepSeek xAI Mistral Qwen Kimi Zhipu SiliconFlow Ollama LM Studio Base URL API Key model test connection batch lines per request retries"
   description: "Search keywords of the AI Service settings section, separated by spaces, besides its title: the services it offers and its fields. Not shown."
 settingsKeywordsAccount:
-  message: "Google sign in sign out object storage upload R2 S3 OSS COS Endpoint Region Bucket Access Key Secret path style"
+  message: "Google sign in sign out object storage upload R2 S3 OSS COS Endpoint Region Bucket Access Key Secret path style NAS SMB WebDAV SFTP"
   description: "Search keywords of the Account & Upload settings section, separated by spaces, besides its title. Not shown."
 settingsKeywordsGeneral:
   message: "library location Finder File Explorer file manager interface language version components yt-dlp ffmpeg whisper-cli detect again command line terminal kando install MCP Claude Code Cursor copy config update notifications notify browser sign-in signed in cookies members-only age-restricted Chrome Safari Firefox Edge Brave Chromium keychain Full Disk Access appearance light dark mode follow system bookmarklet bookmark start at once"
