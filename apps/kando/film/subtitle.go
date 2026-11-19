@@ -77,11 +77,16 @@ func (s *screen) subtitles() core.Node {
 		list := cues()
 		i := s.playingCue(list)
 		var out []styledLine
+		// Subtitles turned off hide the reference layer too, between lines as on them, unless a line is peeked at.
+		off := a.SubMode() == SubOff
 		switch {
 		case i < 0:
+			if off {
+				return nil
+			}
 		case i == a.Peek():
 			out = ofCue(styledLines(bothLines{a}, list[i].Text), i)
-		case a.SubMode() == SubOff:
+		case off:
 			return nil
 		default:
 			out = ofCue(pictureLines(s.lineSettings(), list[i].Text), i)

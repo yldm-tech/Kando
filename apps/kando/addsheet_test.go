@@ -264,8 +264,10 @@ type previewPipeline struct {
 	preview     media.Preview
 	err         error
 	holdPreview bool
-	previewed   chan string
-	halted      chan error
+	// gate, when set, holds the answer until it is closed.
+	gate      chan struct{}
+	previewed chan string
+	halted    chan error
 }
 
 func newPreviewPipeline(preview media.Preview) *previewPipeline {
@@ -278,6 +280,9 @@ func (p *previewPipeline) Preview(ctx context.Context, source string) (media.Pre
 		<-ctx.Done()
 		p.halted <- ctx.Err()
 		return media.Preview{}, ctx.Err()
+	}
+	if p.gate != nil {
+		<-p.gate
 	}
 	return p.preview, p.err
 }
@@ -400,5 +405,25 @@ func TestAddSheetSaysBilibiliIs480pSignedOut(t *testing.T) {
 	tt.Press(whole(msgs.FilmsStart()))
 	if hasText(tt, msgs.AddSheetQualityBest480()) || !hasText(tt, msgs.AddSheetSourceAuto()) {
 		t.Fatalf("YouTube signed out: %q", tt.Texts())
+	}
+}
+
+// The site's captions chosen before the video is read, on a video the site made none for, are not left chosen behind a disabled radio: the film is heard.
+func TestAddSheetDropsCaptionsTheVideoLacks(t *testing.T) {
+	p := newPreviewPipeline(media.Preview{Title: "No captions", Subtitles: true})
+	p.gate = make(chan struct{})
+	a, tt, updates := newTestApp(t, p)
+	msgs := testlocale.Messages()
+	tt.Type(msgs.FilmsLinkLabel(), "https://youtu.be/jNQXAC9IVRw")
+	tt.Press(whole(msgs.FilmsStart()))
+	<-p.previewed
+	tt.Press("id:addsheet-source-auto")
+	if a.addsheet.choice.Source != core.SubtitlesAuto {
+		t.Fatalf("choice %+v", a.addsheet.choice)
+	}
+	close(p.gate)
+	waitUntil(t, tt, a, updates, func() bool { return a.addsheet.meta.Known })
+	if a.addsheet.choice.Source != core.SubtitlesLocal || !tt.Find("id:addsheet-source-auto").Props.Disabled {
+		t.Fatalf("choice %+v", a.addsheet.choice)
 	}
 }
