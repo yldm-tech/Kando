@@ -1,7 +1,10 @@
 package main
 
 import (
+	"fmt"
+	"os"
 	"slices"
+	"strings"
 	"testing"
 	"time"
 
@@ -14,7 +17,13 @@ import (
 	"github.com/nsgo-dev/nsgo/nsgotest"
 )
 
-// TestScreenshotsPlayer renders the prototype's film, How Rivers Shape Landscapes (j1), from the library every scene starts from (screenshot_helpers_test.go), in the states the prototype's player screenshots show: opened and held at the start with the side panel on 字幕 (01), playing on the first line with the controls showing (02), the 片段 and 信息 tabs (04, 08), the 信息 tab with another spoken language named than the one heard, the subtitle mode menu (09), the style view (10), playing with the controls faded (11), playing with the subtitles dragged up, playing muted, the speed menu, playing at 1.5× and playing with its line looped, and, beyond the prototype, a line of the subtitle list right-clicked for its menu, the picture saying ⇧⌘C copied the playing line, the lines under the pointer showing they can be taken hold of, and the once-only tip that they can be dragged. It also renders the film on its first line (film), the film opened from the YouTube page, the film whose video the system's player cannot play, and a video no job has processed playing with the subtitles exported beside it.
+// srtClock is a time as SubRip writes it, 00:00:01,500.
+func srtClock(d time.Duration) string {
+	ms := d.Milliseconds()
+	return fmt.Sprintf("%02d:%02d:%02d,%03d", ms/3600000, ms/60000%60, ms/1000%60, ms%1000)
+}
+
+// TestScreenshotsPlayer renders the prototype's film, How Rivers Shape Landscapes (j1), from the library every scene starts from (screenshot_helpers_test.go), in the states the prototype's player screenshots show: opened and held at the start with the side panel on 字幕 (01), playing on the first line with the controls showing (02), the 片段 and 信息 tabs (04, 08), the 信息 tab with another spoken language named than the one heard, the subtitle mode menu (09), the film's reference layer with the menu that hides it, the style view (10), playing with the controls faded (11), playing with the subtitles dragged up, playing muted, the speed menu, playing at 1.5× and playing with its line looped, and, beyond the prototype, a line of the subtitle list right-clicked for its menu, the picture saying ⇧⌘C copied the playing line, the lines under the pointer showing they can be taken hold of, and the once-only tip that they can be dragged. It also renders the film on its first line (film), the film opened from the YouTube page, the film whose video the system's player cannot play, and a video no job has processed playing with the subtitles exported beside it.
 func TestScreenshotsPlayer(t *testing.T) {
 	f := newScreenshotFixture(t)
 	// open opens film id at at and has the system's player report it loaded, held there.
@@ -144,6 +153,26 @@ func TestScreenshotsPlayer(t *testing.T) {
 		}
 	}))
 	f.shoot(t, "player-menu", held(func(t *testing.T, _ *app, tt *nsgotest.App) { tt.Press("id:film-mode") }))
+	// The film's job kept YouTube's automatic captions as its reference layer: the line playing shows above the film's own, and the subtitle menu offers to hide it.
+	f.shoot(t, "player-reference", func(t *testing.T, a *app, tt *nsgotest.App, updates chan func()) {
+		job, ok := a.library.Find("j1")
+		if !ok {
+			t.Fatal("no j1")
+		}
+		var srt strings.Builder
+		for i, cue := range protoCues[:3] {
+			fmt.Fprintf(&srt, "%d\n%s --> %s\n%s\n\n", i+1, srtClock(cue.Start), srtClock(cue.End), strings.ToLower(strings.Trim(cue.Original, ".")))
+		}
+		if err := os.WriteFile(media.ReferencePath(job.VideoPath), []byte(srt.String()), 0o644); err != nil {
+			t.Fatal(err)
+		}
+		open(t, a, tt, updates, "j1", protoCues[0].Start+time.Second)
+		waitUntil(t, tt, a, updates, func() bool { return len(a.Reference()) == 3 })
+		tt.Press("id:film-mode")
+		if !tt.Exists("id:film-reference") {
+			t.Fatalf("no reference row: %q", tt.Texts())
+		}
+	})
 	f.shoot(t, "player-style", held(func(t *testing.T, _ *app, tt *nsgotest.App) {
 		tt.Press("id:film-mode")
 		tt.Press("id:film-style")

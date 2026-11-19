@@ -32,15 +32,27 @@ func (l Look) Adds() int {
 	return l.Videos - l.Have
 }
 
-// Confirm is the dialog over the window while Open returns true: it says that the videos are being looked for, then how many there are, a channel's limited to its ChannelLimit most recent, and how many of them the library has, and asks before they are queued. Once one list was read, a switch subscribes to it as the videos are added (Subscribe, OnSubscribe), so its new videos are added as they come out. Add queues the ones the library does not have and runs OnAdd, as it does with none to add while the switch is on; Cancel, Escape and closing the dialog run OnCancel, which also stops the reading.
+// Confirm is the dialog over the window while Open returns true: it says that the videos are being looked for, then how many there are, a channel's limited to its ChannelLimit most recent, and how many of them the library has, and asks before they are queued. Once one list was read, a switch subscribes to it as the videos are added (Subscribe, OnSubscribe), so its new videos are added as they come out; for one playlist, another has its films share a glossary as one series (Series, OnSeries); for one channel, a choice says how many of its most recent videos are added now (Recent, OnRecent). Add queues the ones the library does not have, Adding of them when set, else Look.Adds, and runs OnAdd, as it does with none to add while the subscribe switch is on; Cancel, Escape and closing the dialog run OnCancel, which also stops the reading.
 type Confirm struct {
 	Open        func() bool
 	Look        func() Look
 	Subscribe   func() bool
 	OnSubscribe func(on bool)
-	OnAdd       func()
-	OnCancel    func()
+	Series      func() bool
+	OnSeries    func(on bool)
+	Recent      func() int
+	OnRecent    func(n int)
+	// Adding is how many videos Add queues, which a channel's Recent limits; nil for Look.Adds.
+	Adding   func() int
+	OnAdd    func()
+	OnCancel func()
 }
+
+// RecentChoices are how many of a channel's most recent videos the dialog offers to add now, as the prototype has it: none, the latest 3 or the latest 10; RecentDefault is the one it starts at.
+var RecentChoices = []int{0, 3, 10}
+
+// RecentDefault is how many of a channel's most recent videos the dialog adds unless the user chooses otherwise.
+const RecentDefault = 3
 
 // kind is what the one list read is, as PlaylistSubscribe's select names it: "channel" or "playlist".
 func (l Look) kind() string {
@@ -53,6 +65,16 @@ func (l Look) kind() string {
 // Subscribable reports whether the dialog offers to subscribe to what was read: one list, read.
 func (l Look) Subscribable() bool {
 	return !l.Loading && l.Err == "" && l.Lists == 1
+}
+
+// Serial reports whether the films of what was read can be one series: one playlist with a name and at least two videos, as the app names the series after it.
+func (l Look) Serial() bool {
+	return l.Subscribable() && l.Channels == 0 && l.Title != "" && l.Videos >= 2
+}
+
+// OneChannel reports whether what was read is one channel, of whose most recent videos the dialog asks how many to add now.
+func (l Look) OneChannel() bool {
+	return l.Subscribable() && l.Channels == 1 && l.Videos > 0
 }
 
 // Render implements core.Node.
@@ -68,17 +90,28 @@ func (c Confirm) Render(cx *core.Scope) core.Node {
 		return core.Dynamic(func(cx *core.Scope) core.Node {
 			l := look.Get()
 			// TODO(nsgo#145): give ui.Dialog and ui.AlertDialog TitleFunc and DescriptionFunc twins so the words follow the list and the language without building the dialog again, then drop this Dynamic https://github.com/nsgo-dev/nsgo/issues/145
-			footer := []core.Node{ui.Button{Text: locales.PlaylistCancel(cx), Variant: ui.ButtonSecondary, TestID: "playlist-cancel", OnPress: cancel}}
-			if n := l.Adds(); n > 0 {
-				footer = append(footer, ui.Button{Text: locales.PlaylistAdd(cx, n), TestID: "playlist-add", OnPress: c.OnAdd})
-			} else if l.Subscribable() && c.Subscribe != nil {
-				footer = append(footer, ui.Button{Text: locales.PlaylistSubscribeOnly(cx), TestID: "playlist-add", OnPress: c.OnAdd,
-					Disabled: func() bool { return !c.Subscribe() }})
-			}
+			footer := []core.Node{ui.Button{Text: locales.PlaylistCancel(cx), Variant: ui.ButtonSecondary, TestID: "playlist-cancel", OnPress: cancel}, c.addButton(cx, l)}
 			children := body(cx, l)
+			var rows []core.Node
+			add := func(row core.Node) {
+				if len(rows) > 0 {
+					rows = append(rows, form.Separator(true))
+				}
+				rows = append(rows, row)
+			}
+			if l.OneChannel() && c.Recent != nil && c.OnRecent != nil {
+				add(recentRow(cx, c))
+			}
 			if l.Subscribable() && c.Subscribe != nil && c.OnSubscribe != nil {
-				children = append(children, form.Card(form.SwitchRow{Title: locales.PlaylistSubscribe(cx, l.kind()), Subtitle: locales.PlaylistSubscribeHint(cx), TestID: "playlist-subscribe",
-					On: c.Subscribe, OnChange: c.OnSubscribe}))
+				add(form.SwitchRow{Title: locales.PlaylistSubscribe(cx, l.kind()), Subtitle: locales.PlaylistSubscribeHint(cx), TestID: "playlist-subscribe",
+					On: c.Subscribe, OnChange: c.OnSubscribe})
+			}
+			if l.Serial() && c.Series != nil && c.OnSeries != nil {
+				add(form.SwitchRow{Title: locales.PlaylistSeries(cx), Subtitle: locales.PlaylistSeriesHint(cx), TestID: "playlist-series",
+					On: c.Series, OnChange: c.OnSeries})
+			}
+			if len(rows) > 0 {
+				children = append(children, form.Card(rows...))
 			}
 			return ui.Dialog{
 				TestID:                 "playlist-confirm",
@@ -96,6 +129,43 @@ func (c Confirm) Render(cx *core.Scope) core.Node {
 			}
 		})
 	}}
+}
+
+// addButton is Add, which says how many videos it queues, or, with none to queue, Subscribe, which is on while the subscribe switch is. It is built again as the number changes, as a channel's Recent changes it, while the rest of the dialog stays.
+func (c Confirm) addButton(cx *core.Scope, l Look) core.Node {
+	adding := func() int {
+		if c.Adding != nil && !l.Loading && l.Err == "" {
+			return c.Adding()
+		}
+		return l.Adds()
+	}
+	n := core.NewMemo(cx, adding)
+	// TODO(nsgo#145): give ui.Button a TextFunc twin, so its label follows the number without building the button again https://github.com/nsgo-dev/nsgo/issues/145
+	return core.Dynamic(func(cx *core.Scope) core.Node {
+		if n := n.Get(); n > 0 {
+			return ui.Button{Text: locales.PlaylistAdd(cx, n), TestID: "playlist-add", OnPress: c.OnAdd}
+		}
+		if l.Subscribable() && c.Subscribe != nil {
+			return ui.Button{Text: locales.PlaylistSubscribeOnly(cx), TestID: "playlist-add", OnPress: c.OnAdd,
+				Disabled: func() bool { return !c.Subscribe() }}
+		}
+		return core.View{}
+	})
+}
+
+// recentRow is 现在添加: how many of the channel's most recent videos Add queues now, none, the latest 3 or the latest 10 (RecentChoices).
+func recentRow(cx *core.Scope, c Confirm) core.Node {
+	options := make([]ui.Option[int], 0, len(RecentChoices))
+	for _, n := range RecentChoices {
+		label := locales.PlaylistRecentNone(cx)
+		if n > 0 {
+			label = locales.PlaylistRecentLatest(cx, n)
+		}
+		options = append(options, ui.Option[int]{Value: n, Label: label})
+	}
+	return form.Row{Title: locales.PlaylistRecent(cx), Subtitle: locales.PlaylistRecentHint(cx), NoGroup: true, TestID: "playlist-recent-row",
+		Trailing: []core.Node{ui.Select[int]{Options: options, Label: locales.PlaylistRecent(cx), TestID: "playlist-recent",
+			Value: c.Recent, OnChange: c.OnRecent, Style: core.Style{Width: core.Pt(130)}}}}
 }
 
 // title is the dialog's title for l: that the videos are being looked for, the one list's name, what it is when it has none, or how many lists were read.

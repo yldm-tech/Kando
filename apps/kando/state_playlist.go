@@ -26,6 +26,9 @@ type playlistUI struct {
 	err     error
 	// subscribe is the dialog's switch that subscribes to the one list read as its videos are added (playlist.Confirm), off until the user turns it on.
 	subscribe bool
+	// series is the dialog's switch that has the films of the one playlist read share a glossary as one series (glossaryPlaylistSeries), on until the user turns it off, as the Add sheet's 作为剧集处理 may have; recent is how many of the one channel read's most recent videos Add queues now (playlist.RecentChoices).
+	series bool
+	recent int
 }
 
 // The pages that open the dialog, whose message bar says what became of the videos it adds.
@@ -78,7 +81,7 @@ func (a *app) playlistAsk(sources []string, from string) {
 	a.playlistClose()
 	ctx, cancel := context.WithCancel(context.Background())
 	run := a.playlist.run + 1
-	a.playlist = playlistUI{open: true, release: a.holdModal(), from: from, loading: true, cancel: cancel, run: run}
+	a.playlist = playlistUI{open: true, release: a.holdModal(), from: from, loading: true, cancel: cancel, run: run, series: true, recent: playlist.RecentDefault}
 	go func() {
 		lists, err := playlist.Read(ctx, lister, sources)
 		a.update(func() {
@@ -130,10 +133,30 @@ func (a *app) playlistNew() (all, fresh []string) {
 	return all, fresh
 }
 
-// playlistAdd queues the videos read that the library does not have yet, in their order, and closes the dialog; the message bar of the page that opened it says what became of them. With the dialog's switch on, the open library subscribes to the one list read first (subscribeFollow), the videos it holds now counting as seen, so only those that come out later are added by the subscription. A playlist's films, those queued and those the library had, join a series named after it.
+// playlistAdding is the videos Add queues, in their order: those read that the library does not have yet (playlistNew), and of one channel read only those among the most recent the dialog chose (playlistUI.recent).
+func (a *app) playlistAdding() []string {
+	all, fresh := a.playlistNew()
+	lists := a.playlist.lists
+	if len(lists) != 1 || !lists[0].Channel {
+		return fresh
+	}
+	recent := map[string]bool{}
+	for _, source := range all[:min(max(a.playlist.recent, 0), len(all))] {
+		recent[queueSourceKey(source)] = true
+	}
+	var out []string
+	for _, source := range fresh {
+		if recent[queueSourceKey(source)] {
+			out = append(out, source)
+		}
+	}
+	return out
+}
+
+// playlistAdd queues the videos read that the library does not have yet, in their order, a channel's as many of its most recent as the dialog chose (playlistAdding), and closes the dialog; the message bar of the page that opened it says what became of them. With the dialog's switch on, the open library subscribes to the one list read first (subscribeFollow), the videos it holds now counting as seen, so only those that come out later are added by the subscription. A playlist's films, those queued and those the library had, join a series named after it, unless the dialog's 作为剧集处理 was turned off.
 func (a *app) playlistAdd() {
-	_, fresh := a.playlistNew()
-	from, lists := a.playlist.from, a.playlist.lists
+	fresh := a.playlistAdding()
+	from, lists, series := a.playlist.from, a.playlist.lists, a.playlist.series
 	if a.playlist.subscribe && len(lists) == 1 {
 		a.subscribeFollow(lists[0].Source, lists[0].Listing)
 	}
@@ -146,7 +169,9 @@ func (a *app) playlistAdd() {
 		a.libraryEnqueue(fresh...)
 	}
 	// The films of a playlist are a series, as its site groups them (glossaryPlaylistSeries).
-	a.glossaryPlaylistSeries(lists)
+	if series {
+		a.glossaryPlaylistSeries(lists)
+	}
 }
 
 // playlistLook is what the dialog shows of what was read, in the interface's language.
@@ -188,6 +213,11 @@ func (a *app) playlistOverlay(*core.Scope) core.Node {
 		Look:        live.Func(a, a.playlistLook),
 		Subscribe:   live.Func(a, func() bool { return a.playlist.subscribe }),
 		OnSubscribe: live.On(a, func(on bool) { a.playlist.subscribe = on }),
+		Series:      live.Func(a, func() bool { return a.playlist.series }),
+		OnSeries:    live.On(a, func(on bool) { a.playlist.series = on }),
+		Recent:      live.Func(a, func() int { return a.playlist.recent }),
+		OnRecent:    live.On(a, func(n int) { a.playlist.recent = n }),
+		Adding:      live.Func(a, func() int { return len(a.playlistAdding()) }),
 		OnAdd:       live.Do(a, a.playlistAdd),
 		OnCancel:    live.Do(a, a.playlistClose),
 	}

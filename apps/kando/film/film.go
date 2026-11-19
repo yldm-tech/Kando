@@ -21,6 +21,7 @@ type App interface {
 	Glossary
 	Reviewer
 	Progresser
+	Referencer
 	Notebook
 	Streamer
 	Explainer

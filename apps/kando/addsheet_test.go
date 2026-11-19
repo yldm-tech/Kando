@@ -1,7 +1,9 @@
 package main
 
 import (
+	"context"
 	"encoding/json"
+	"errors"
 	"net/url"
 	"strings"
 	"testing"
@@ -253,5 +255,150 @@ func TestPlaylistDialogSubscribes(t *testing.T) {
 	tt.Press("id:playlist-add")
 	if len(a.subs.store.Subs) != 1 || a.subs.store.Subs[0].Source != testPlaylist || len(a.library.Jobs) != 3 {
 		t.Fatalf("subscriptions %+v, jobs %d", a.subs.store.Subs, len(a.library.Jobs))
+	}
+}
+
+// previewPipeline is a listingPipeline that also reads a link's video before it is added, as media.Tools does with yt-dlp -J (media.Previewer): it answers preview, or err, and reports each source on previewed; with holdPreview set it waits until its context ends, and halted receives its error.
+type previewPipeline struct {
+	*listingPipeline
+	preview     media.Preview
+	err         error
+	holdPreview bool
+	previewed   chan string
+	halted      chan error
+}
+
+func newPreviewPipeline(preview media.Preview) *previewPipeline {
+	return &previewPipeline{listingPipeline: newListingPipeline(map[string]media.Listing{testPlaylist: testListing}), preview: preview, previewed: make(chan string, 8), halted: make(chan error, 8)}
+}
+
+func (p *previewPipeline) Preview(ctx context.Context, source string) (media.Preview, error) {
+	p.previewed <- source
+	if p.holdPreview {
+		<-ctx.Done()
+		p.halted <- ctx.Err()
+		return media.Preview{}, ctx.Err()
+	}
+	return p.preview, p.err
+}
+
+// A link pasted in the link field has its video read as the sheet opens, off the engine's goroutine: the sheet says it reads it, then names it with the page's title, says who put it on the site, how long it plays, how many videos its playlist holds and that it has no subtitles of the uploader's, so the original lines are heard on this computer and the uploader's subtitles cannot be chosen; the site's own captions can, and go onto the job.
+func TestAddSheetReadsTheVideoFirst(t *testing.T) {
+	p := newPreviewPipeline(media.Preview{Title: "Why Glaciers Move Faster in Summer", Uploader: "Earth Lab", Duration: 754 * time.Second, AutoCaptions: true})
+	a, tt, updates := newTestApp(t, p)
+	msgs := testlocale.Messages()
+	tt.Type(msgs.FilmsLinkLabel(), "https://www.youtube.com/watch?v=aaaaaaaaaaa&list=PLx0sYbCqOb8")
+	tt.Press(whole(msgs.FilmsStart()))
+	if got := <-p.previewed; got != "https://www.youtube.com/watch?v=aaaaaaaaaaa&list=PLx0sYbCqOb8" {
+		t.Fatalf("read %q", got)
+	}
+	waitUntil(t, tt, a, updates, func() bool { return !a.addsheet.meta.Reading })
+	if got := <-p.calls; got != (listCall{testPlaylist, 0}) {
+		t.Fatalf("counted %+v, want the whole playlist", got)
+	}
+	wantText(t, tt, "Why Glaciers Move Faster in Summer")
+	wantText(t, tt, strings.Join([]string{"Earth Lab", "12:34", msgs.AddSheetEpisodesCount(3), msgs.AddSheetNoSubtitles()}, " · "))
+	if a.addsheet.choice.Source != core.SubtitlesLocal {
+		t.Fatalf("a video without the uploader's subtitles takes them: %+v", a.addsheet.choice)
+	}
+	if !tt.Find("id:addsheet-source-platform").Props.Disabled || tt.Find("id:addsheet-source-auto").Props.Disabled {
+		t.Fatal("the choices do not follow the subtitles the site has")
+	}
+	tt.Press("id:addsheet-source-auto")
+	tt.Press("id:addsheet-add")
+	if len(a.library.Jobs) != 1 || a.library.Jobs[0].SubtitleSource != core.SubtitlesAuto {
+		t.Fatalf("jobs %+v", a.library.Jobs)
+	}
+}
+
+// Before the video is read the sheet says so, and closing the sheet stops the reading, which then changes nothing; a page that cannot be read leaves the sheet as it was, every choice open.
+func TestAddSheetStopsReadingAsItCloses(t *testing.T) {
+	p := newPreviewPipeline(media.Preview{})
+	p.holdPreview = true
+	a, tt, updates := newTestApp(t, p)
+	msgs := testlocale.Messages()
+	tt.Type(msgs.FilmsLinkLabel(), "https://youtu.be/jNQXAC9IVRw")
+	tt.Press(whole(msgs.FilmsStart()))
+	<-p.previewed
+	wantText(t, tt, msgs.AddSheetReading())
+	tt.Key("escape")
+	select {
+	case err := <-p.halted:
+		if !errors.Is(err, context.Canceled) {
+			t.Fatalf("stopped with %v", err)
+		}
+	case <-time.After(10 * time.Second):
+		t.Fatal("closing the sheet did not stop the reading")
+	}
+	refresh(tt, a)
+	if a.addsheet.open || a.addsheet.meta != (addsheet.Meta{}) {
+		t.Fatalf("after Escape: %+v", a.addsheet)
+	}
+
+	p.holdPreview, p.err = false, errors.New("yt-dlp: exit status 1: ERROR: Video unavailable")
+	tt.Type(msgs.FilmsLinkLabel(), "https://youtu.be/jNQXAC9IVRw")
+	tt.Press(whole(msgs.FilmsStart()))
+	<-p.previewed
+	waitUntil(t, tt, a, updates, func() bool { return !a.addsheet.meta.Reading })
+	if a.addsheet.meta.Known || tt.Exists("id:addsheet-meta") || tt.Find("id:addsheet-source-platform").Props.Disabled || tt.Find("id:addsheet-source-auto").Props.Disabled {
+		t.Fatalf("a page that could not be read: %+v, %q", a.addsheet.meta, tt.Texts())
+	}
+	wantText(t, tt, msgs.AddSheetUntitled("YouTube"))
+}
+
+// Under the whole playlist, 作为剧集处理 is on; turned off, the playlist dialog starts with it off and the films it adds are no series.
+func TestAddSheetLeavesThePlaylistOutOfASeries(t *testing.T) {
+	p := newListingPipeline(map[string]media.Listing{testPlaylist: testListing})
+	a, tt, updates := newTestApp(t, p)
+	msgs := testlocale.Messages()
+	tt.Type(msgs.FilmsLinkLabel(), "https://www.youtube.com/watch?v=aaaaaaaaaaa&list=PLx0sYbCqOb8")
+	tt.Press(whole(msgs.FilmsStart()))
+	if tt.Exists("id:addsheet-series") {
+		t.Fatal("the series switch shows for one video")
+	}
+	tt.Press("id:addsheet-whole-list")
+	wantText(t, tt, msgs.AddSheetSeries())
+	if !a.addsheet.choice.Series {
+		t.Fatal("作为剧集处理 starts off")
+	}
+	tt.Press("id:addsheet-series")
+	tt.Press("id:addsheet-add")
+	<-p.calls
+	waitUntil(t, tt, a, updates, func() bool { return a.playlist.open && !a.playlist.loading })
+	if a.playlist.series || !tt.Exists("id:playlist-series") {
+		t.Fatalf("the dialog's series switch: on %v, texts %q", a.playlist.series, tt.Texts())
+	}
+	tt.Press("id:playlist-add")
+	if len(a.library.Jobs) != 3 {
+		t.Fatalf("jobs %+v", a.library.Jobs)
+	}
+	for _, job := range a.library.Jobs {
+		if job.Series != "" {
+			t.Fatalf("%s is in series %q", job.Source, job.Series)
+		}
+	}
+}
+
+// A bilibili video downloaded without a sign-in is 480p at best, which the sheet's best picture says; with a browser's sign-in it is the best again.
+func TestAddSheetSaysBilibiliIs480pSignedOut(t *testing.T) {
+	a, tt, _ := newTestApp(t, &fakePipeline{block: true})
+	msgs := testlocale.Messages()
+	tt.Type(msgs.FilmsLinkLabel(), "https://www.bilibili.com/video/BV1GJ411x7h7")
+	tt.Press(whole(msgs.FilmsStart()))
+	if !a.addsheet.open {
+		t.Fatal("the sheet did not open")
+	}
+	wantText(t, tt, msgs.AddSheetQualityBest480())
+	wantText(t, tt, msgs.AddSheetSourceAutoBilibili())
+	apply(tt, a, func() { a.addsheet.choice.Browser = "chrome" })
+	if hasText(tt, msgs.AddSheetQualityBest480()) || !hasText(tt, msgs.SettingsGeneralQualityBest()) {
+		t.Fatalf("signed in: %q", tt.Texts())
+	}
+	tt.Key("escape")
+
+	tt.Type(msgs.FilmsLinkLabel(), "https://youtu.be/jNQXAC9IVRw")
+	tt.Press(whole(msgs.FilmsStart()))
+	if hasText(tt, msgs.AddSheetQualityBest480()) || !hasText(tt, msgs.AddSheetSourceAuto()) {
+		t.Fatalf("YouTube signed out: %q", tt.Texts())
 	}
 }

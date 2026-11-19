@@ -229,7 +229,7 @@ func writeFakeScript(t *testing.T, dir, name, body string) string {
 // fakeYTDLPFolder is the folder the fake yt-dlp downloads its one video into, as the real one names "Me at the zoo" with Kando's output template.
 const fakeYTDLPFolder = "Me at the zoo [jNQXAC9IVRw]"
 
-// fakeYTDLP answers --version and, given no URL, the check of a browser's sign-in (fakeYTDLPLogin), and downloads "Me at the zoo" whatever the source as the real yt-dlp downloads a video YouTube serves as separate video and sound: the video track video.f395.mp4, then the sound track, written as video.f251.webm.part and renamed to video.f251.webm when done, both in the temp path (-P temp:) or, without one, in the video's folder under the home path (-P); then it merges them into <home>/Me at the zoo [jNQXAC9IVRw]/video.mp4, a clip the fake ffmpeg plays, and prints its path. A track gone by then fails the merge as the real one fails. A video already there is reported without downloading it again. When FAKE_YTDLP_GATE names a folder, the fake writes "tracks" there while the sound track is still a .part file and waits for "go" before it goes on, so a test can look at the library in between.
+// fakeYTDLP answers --version, given no URL the check of a browser's sign-in (fakeYTDLPLogin), and -J with what it knows of a video or a playlist (fakeYTDLPInfo), and downloads "Me at the zoo" whatever the source as the real yt-dlp downloads a video YouTube serves as separate video and sound: the video track video.f395.mp4, then the sound track, written as video.f251.webm.part and renamed to video.f251.webm when done, both in the temp path (-P temp:) or, without one, in the video's folder under the home path (-P); then it merges them into <home>/Me at the zoo [jNQXAC9IVRw]/video.mp4, a clip the fake ffmpeg plays, and prints its path. A track gone by then fails the merge as the real one fails. A video already there is reported without downloading it again. When FAKE_YTDLP_GATE names a folder, the fake writes "tracks" there while the sound track is still a .part file and waits for "go" before it goes on, so a test can look at the library in between.
 func fakeYTDLP(args []string) int {
 	if slices.Contains(args, "--version") {
 		fmt.Println(fakeYTDLPVersion)
@@ -238,6 +238,9 @@ func fakeYTDLP(args []string) int {
 	browser := fakeArg(args, "--cookies-from-browser")
 	if browser != "" && !slices.Contains(args, "--") {
 		return fakeYTDLPLogin(browser, fakeArg(args, "--cookies"))
+	}
+	if slices.Contains(args, "-J") {
+		return fakeYTDLPInfo(args)
 	}
 	if code, ok := fakeYTDLPHiddenPost(args, browser); ok {
 		return code
@@ -319,6 +322,25 @@ func fakeYTDLP(args []string) int {
 		return fail(err)
 	}
 	fmt.Println(final)
+	return 0
+}
+
+// fakeYTDLPVideoInfo and fakeYTDLPListInfo are what the fake yt-dlp -J prints of any video and, with --flat-playlist, of any playlist, as the real one prints them (trimmed): the video of the screenshot fixture's Add sheet, a YouTube video with the site's automatic captions and none of the uploader's, and a playlist of three of its videos.
+const (
+	fakeYTDLPVideoInfo = `{"_type": "video", "id": "Rv3Hn7Qm2Ts", "title": "Why Glaciers Move Faster in Summer", "channel": "Earth Lab", "uploader": "Earth Lab", "duration": 754.0, "subtitles": {}, "automatic_captions": {"en": [{"ext": "vtt", "name": "English"}], "en-orig": [{"ext": "vtt", "name": "English (Original)"}]}}`
+	fakeYTDLPListInfo  = `{"_type": "playlist", "id": "PLx0sYbCqOb8", "title": "Glaciers, Season 1", "channel": "Earth Lab", "uploader": "Earth Lab", "entries": [` +
+		`{"_type": "url", "url": "https://www.youtube.com/watch?v=aaaaaaaaaaa", "title": "Episode 1", "duration": 754.0}, ` +
+		`{"_type": "url", "url": "https://www.youtube.com/watch?v=bbbbbbbbbbb", "title": "Episode 2", "duration": 802.0}, ` +
+		`{"_type": "url", "url": "https://www.youtube.com/watch?v=ccccccccccc", "title": "Episode 3", "duration": 689.0}]}`
+)
+
+// fakeYTDLPInfo answers -J as the real yt-dlp does for a video (media.Tools.Preview) and, with --flat-playlist, for a playlist (media.Tools.ListVideos), whatever the link.
+func fakeYTDLPInfo(args []string) int {
+	if slices.Contains(args, "--flat-playlist") {
+		fmt.Println(fakeYTDLPListInfo)
+		return 0
+	}
+	fmt.Println(fakeYTDLPVideoInfo)
 	return 0
 }
 

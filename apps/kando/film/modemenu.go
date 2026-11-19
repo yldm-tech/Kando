@@ -103,7 +103,7 @@ func check(checked func() bool) core.Node {
 	}, Style: core.Style{FontSize: 13, LineHeight: 18, Width: core.Pt(14), FlexShrink: 0, Color: onGlass}}
 }
 
-// modeMenu is the transport's subtitle button, named for the mode, and the menu it opens above it: the four modes, the subtitle delay and 样式…, which opens the style view in the side panel.
+// modeMenu is the transport's subtitle button, named for the mode, and the menu it opens above it: the four modes, the reference layer of a film that has one (referenceRow), the subtitle delay and 样式…, which opens the style view in the side panel.
 func (s *screen) modeMenu(cx *core.Scope) core.Node {
 	a := s.a
 	name := live.Func(a, func() string { return ModeName(cx, s.subMode()) })
@@ -126,6 +126,7 @@ func (s *screen) modeMenu(cx *core.Scope) core.Node {
 			out = append(out, s.modeRow(cx, choice.mode, choice.key))
 		}
 		out = append(out,
+			s.referenceRow(cx),
 			core.View{Style: core.Style{Height: core.Pt(0.5), Margin: core.Symmetric(5, 10), Background: core.RGBA(0xFFFFFF, 0.15)}},
 			s.delayRow(cx),
 			menuRow(cx, "film-style", core.RoleButton, func() string { return locales.FilmStyleMenuItem(cx) }, nil,

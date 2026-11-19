@@ -64,10 +64,11 @@ func NudgeLift(lift float32, dir int, room SubRoom) float32 {
 	return next
 }
 
-// subtitles draws the playing cue over the picture, centered above the transport, its lines as the mode picks them, or both for the cue the app peeks at (Peek), whatever the mode. While the controls show and the look yields to them, the lines move up out of their way; with the side panel open they keep to the room it leaves. The pointer drags the lines up and down, off a film's own burned-in subtitles, to a place the film keeps (SubLift), and a double click puts dragged lines back; on lines in their place it enters or leaves full screen, as on the picture, and a click starts or holds the film. The once-only tip that says so (SubTip) shows over them, and alone where they go between two lines. The lines are built again only when the playing cue or how it is drawn changes, as the clock moves on (tick).
+// subtitles draws the playing cue over the picture, centered above the transport, its lines as the mode picks them, or both for the cue the app peeks at (Peek), whatever the mode, and above them the line of the film's reference layer playing, while it shows (Referencer). While the controls show and the look yields to them, the lines move up out of their way; with the side panel open they keep to the room it leaves. The pointer drags the lines up and down, off a film's own burned-in subtitles, to a place the film keeps (SubLift), and a double click puts dragged lines back; on lines in their place it enters or leaves full screen, as on the picture, and a click starts or holds the film. The once-only tip that says so (SubTip) shows over them, and alone where they go between two lines. The lines are built again only when the playing cue or how it is drawn changes, as the clock moves on (tick).
 func (s *screen) subtitles() core.Node {
 	a, cx := s.a, s.cx
 	cues := filmCues(cx, a)
+	reference := core.NewMemoFunc(cx, live.Func(a, a.Reference), sameCues).Get
 	lines := core.NewMemoFunc(cx, func() []styledLine {
 		a.Track()
 		if a.Play() == nil {
@@ -75,15 +76,23 @@ func (s *screen) subtitles() core.Node {
 		}
 		list := cues()
 		i := s.playingCue(list)
+		var out []styledLine
 		switch {
 		case i < 0:
-			return nil
 		case i == a.Peek():
-			return ofCue(styledLines(bothLines{a}, list[i].Text), i)
+			out = ofCue(styledLines(bothLines{a}, list[i].Text), i)
 		case a.SubMode() == SubOff:
 			return nil
+		default:
+			out = ofCue(pictureLines(s.lineSettings(), list[i].Text), i)
 		}
-		return ofCue(pictureLines(s.lineSettings(), list[i].Text), i)
+		// The reference layer's line, while it shows, goes above the film's own, or alone where they have none.
+		if a.ShowReference() {
+			if line, ok := referenceLine(a.Cue(), reference(), s.playhead()-a.Delay()); ok {
+				out = append([]styledLine{line}, out...)
+			}
+		}
+		return out
 	}, slices.Equal[[]styledLine]).Get
 	tip := live.Memo(cx, a, a.SubTip)
 	return core.Show{When: func() bool { return len(lines()) > 0 || tip() }, Then: func(cx *core.Scope) core.Node { return s.subtitleLayer(cx, lines, tip) }}
