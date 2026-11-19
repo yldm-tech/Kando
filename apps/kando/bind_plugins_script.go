@@ -35,7 +35,7 @@ func (a *app) pluginsScriptView(m locales.Messages, p plugins.Pack, installing b
 	if len(declared.Network) > 0 {
 		out.Perms = append(out.Perms, settings.PluginPerm{ID: pluginsNetwork, Text: m.SettingsPluginsPermNetwork(plugins.RulesText(declared.Network)), Granted: len(granted.Network) > 0})
 	}
-	out.Risky = plugins.Risky(declared)
+	out.Risky = plugins.Risky(p.Manifest, declared)
 	if !installing {
 		out.Problem = a.pluginsScriptProblem(m, p)
 		if a.cx != nil && s.loaded[p.ID] != nil {

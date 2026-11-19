@@ -375,7 +375,7 @@ func checkManifest(m *Manifest) error {
 		}
 	}
 	// The fields of a script plugin's besides its script are only a script plugin's.
-	if m.Kind != KindScript && (m.Kando != "" || m.Capabilities != nil || m.Optional != nil || m.Contributes != nil || m.Settings != nil || m.Events != nil) {
+	if m.Kind != KindScript && (m.Kando != "" || m.Capabilities != nil || m.Optional != nil || m.Contributes != nil || m.Credentials != nil || m.Settings != nil || m.Events != nil) {
 		return fmt.Errorf("%w: a %s pack has a script plugin's fields", ErrBadField, m.Kind)
 	}
 	var err error

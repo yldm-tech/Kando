@@ -9,13 +9,14 @@ import (
 	"github.com/nsgo-dev/nsgo/tsx/pkg"
 )
 
-// Grant is what a script plugin may do, in full: the permissions and the HTTP rules. A plugin's manifest declares one (Manifest.Declared), the user grants one, kept in state.json (PluginState.Grant), and the plugin runs with what both hold and the app's state allows (State.Effective). The user grants the network as a whole: every rule the plugin declares, or none.
+// Grant is what a script plugin may do, in full: the permissions, the HTTP rules and the credentials, each of these whole (GrantedCredential: id, header, format, hosts, methods and path prefixes), so an update that changes any part of one asks for something never granted (docs/plugin-system.md 6.2). A plugin's manifest declares one (Manifest.Declared), the user grants one, kept in state.json (PluginState.Grant), and the plugin runs with what both hold and the app's state allows (State.Effective). The user grants the network as a whole, every rule the plugin declares or none, and its credentials with kando.net.credentialFetch, every one it declares or none.
 type Grant struct {
-	Perms   []Perm         `json:"perms,omitempty"`
-	Network []pkg.HTTPRule `json:"network,omitempty"`
+	Perms       []Perm              `json:"perms,omitempty"`
+	Network     []pkg.HTTPRule      `json:"network,omitempty"`
+	Credentials []GrantedCredential `json:"credentials,omitempty"`
 }
 
-// Declared is what the script plugin m asks for: its permissions, those it needs (capabilities.host) and those it can do without (optional), and its HTTP rules. A data pack declares nothing.
+// Declared is what the script plugin m asks for: its permissions, those it needs (capabilities.host) and those it can do without (optional), its HTTP rules and its credentials. A data pack declares nothing.
 func (m Manifest) Declared() Grant {
 	if m.Capabilities == nil {
 		return Grant{}
@@ -23,6 +24,9 @@ func (m Manifest) Declared() Grant {
 	g := Grant{Perms: slices.Concat(perms(m.Capabilities.Host), m.Optional)}
 	if m.Capabilities.Network != nil {
 		g.Network = slices.Clone(m.Capabilities.Network.HTTP)
+	}
+	for _, c := range m.Credentials {
+		g.Credentials = append(g.Credentials, c.Grant())
 	}
 	return g
 }
@@ -39,7 +43,7 @@ func perms(names []string) []Perm {
 // Has reports whether g holds the permission p.
 func (g Grant) Has(p Perm) bool { return slices.Contains(g.Perms, p) }
 
-// Within reports whether every part of g is in d: each permission, and each HTTP rule as a whole.
+// Within reports whether every part of g is in d: each permission, and each HTTP rule and each credential as a whole.
 func (g Grant) Within(d Grant) bool {
 	for _, p := range g.Perms {
 		if !d.Has(p) {
@@ -51,7 +55,26 @@ func (g Grant) Within(d Grant) bool {
 			return false
 		}
 	}
+	for _, c := range g.Credentials {
+		if !hasCredential(d.Credentials, c) {
+			return false
+		}
+	}
 	return true
+}
+
+// Credential is the credential id g holds, and whether it holds one.
+func (g Grant) Credential(id string) (GrantedCredential, bool) {
+	i := slices.IndexFunc(g.Credentials, func(c GrantedCredential) bool { return c.ID == id })
+	if i < 0 {
+		return GrantedCredential{}, false
+	}
+	return g.Credentials[i], true
+}
+
+// hasCredential reports whether creds holds one equal to c in every part.
+func hasCredential(creds []GrantedCredential, c GrantedCredential) bool {
+	return slices.ContainsFunc(creds, c.equal)
 }
 
 // Intersect is what both g and d hold, in g's order.
@@ -67,6 +90,11 @@ func (g Grant) Intersect(d Grant) Grant {
 			out.Network = append(out.Network, r)
 		}
 	}
+	for _, c := range g.Credentials {
+		if hasCredential(d.Credentials, c) && !hasCredential(out.Credentials, c) {
+			out.Credentials = append(out.Credentials, c)
+		}
+	}
 	return out
 }
 
@@ -80,7 +108,7 @@ func Regrant(old, before, now Grant) (g Grant, widened bool) {
 	return old.Intersect(now), !now.Within(before)
 }
 
-// Effective is what the script plugin p may do now under s: what the user granted it, for its content and signer, intersected with what it declares, with the permissions that need no grant (Perm.Free) it declares, and without what the gates take: no network while Kando is offline, no permission that reads the library while the library is locked. A plugin turned off, or whose entry is for another content or signer, may do nothing.
+// Effective is what the script plugin p may do now under s: what the user granted it, for its content and signer, intersected with what it declares, with the permissions that need no grant (Perm.Free) it declares, and without what the gates take: no network, credential nor AI service while Kando is offline, no permission that reads the library while the library is locked. A plugin turned off, or whose entry is for another content or signer, may do nothing.
 func (s State) Effective(p Pack, offline, locked bool) Grant {
 	e, ok := s.entry(p.ID)
 	if !ok || s.off || !e.Enabled || e.Hash != p.Hash || e.Signer != p.Signer {
@@ -94,7 +122,8 @@ func (s State) Effective(p Pack, offline, locked bool) Grant {
 		}
 	}
 	if offline {
-		g.Network = nil
+		g.Network, g.Credentials = nil, nil
+		g.Perms = slices.DeleteFunc(g.Perms, func(p Perm) bool { return p == PermCredFetch || p == PermLLMChat })
 	}
 	if locked {
 		g.Perms = slices.DeleteFunc(g.Perms, Perm.Library)
@@ -111,6 +140,9 @@ func (g Grant) Key() string {
 	for _, r := range g.Network {
 		b.WriteString(r.Host + "|" + strings.Join(r.Methods, ",") + "|" + strings.Join(r.Paths, ",") + "|" + strings.Join(r.PathPrefixes, ",") + "|" + strings.Join(r.Schemes, ",") + "|" + strconv.Itoa(r.Port) + ";")
 	}
+	for _, c := range g.Credentials {
+		b.WriteString("cred:" + c.ID + "|" + c.Header + "|" + c.Format + "|" + strings.Join(c.Hosts, ",") + "|" + strings.Join(c.Methods, ",") + "|" + strings.Join(c.PathPrefixes, ",") + ";")
+	}
 	return b.String()
 }
 
@@ -122,6 +154,9 @@ func (g Grant) AuditText() string {
 	}
 	for _, r := range g.Network {
 		parts = append(parts, "network:"+r.Host)
+	}
+	for _, c := range g.Credentials {
+		parts = append(parts, "credential:"+c.ID+"@"+strings.Join(c.Hosts, ","))
 	}
 	if len(parts) == 0 {
 		return "none"
@@ -168,7 +203,7 @@ func InstallEntry(p Pack, old *Pack, entry PluginState, had bool) PluginState {
 		return fresh
 	}
 	g, widened := Regrant(entry.Grant, old.Declared(), p.Declared())
-	fresh.Enabled, fresh.Grant = entry.Enabled, g
+	fresh.Enabled, fresh.Grant, fresh.Budget = entry.Enabled, g, entry.Budget
 	if widened {
 		fresh.OldHash = old.Hash
 	}

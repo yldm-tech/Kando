@@ -72,7 +72,7 @@ func (t Text) In(lang string) string {
 	return t["en"]
 }
 
-// Manifest is a pack's kando-plugin.json. It has a field for each kind implemented so far; a known kind not implemented yet is read only as far as its header (Schema, ID, Kind), and Validate refuses it with ErrUnsupportedKind. A script plugin (schema 2) has the fields after Service: the oldest Kando it runs on, its signed package, what it may reach (host permissions and HTTP requests) and which of those it can do without, the commands it adds, its settings and the events it hears; docs/plugin-system.md 4.2.
+// Manifest is a pack's kando-plugin.json. It has a field for each kind implemented so far; a known kind not implemented yet is read only as far as its header (Schema, ID, Kind), and Validate refuses it with ErrUnsupportedKind. A script plugin (schema 2) has the fields after Service: the oldest Kando it runs on, its signed package, what it may reach (host permissions and HTTP requests) and which of those it can do without, what it adds (Contributes), the secrets of other services it sends through Kando (Credentials), its settings and the events it hears; docs/plugin-system.md 4.2.
 type Manifest struct {
 	Schema      int         `json:"schema"`
 	ID          string      `json:"id"`
@@ -97,6 +97,7 @@ type Manifest struct {
 	Capabilities *pkg.Capabilities `json:"capabilities,omitempty"`
 	Optional     []Perm            `json:"optional,omitempty"`
 	Contributes  *Contributes      `json:"contributes,omitempty"`
+	Credentials  []Credential      `json:"credentials,omitempty"`
 	Settings     []Setting         `json:"settings,omitempty"`
 	Events       []string          `json:"events,omitempty"`
 }

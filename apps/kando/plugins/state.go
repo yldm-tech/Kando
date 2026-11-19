@@ -41,7 +41,7 @@ type PluginState struct {
 
 // scripted reports whether e holds what only format 2 has: the sites of a site pack are format 1's.
 func (e PluginState) scripted() bool {
-	return e.OldHash != "" || e.Signer != "" || len(e.Grant.Perms) > 0 || len(e.Grant.Network) > 0
+	return e.OldHash != "" || e.Signer != "" || len(e.Grant.Perms) > 0 || len(e.Grant.Network) > 0 || len(e.Grant.Credentials) > 0
 }
 
 // DefaultBudget is a task pack's daily budget of tokens until the user sets another (docs/plugin-system.md 6.2); MinBudget and MaxBudget bound what the user may set.

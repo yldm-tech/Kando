@@ -74,9 +74,9 @@ func Load(cx *core.Scope, v Verified, grant plugins.Grant, host *core.Host) (*Pl
 const manifestExport = "kandoManifest"
 
 // signedKeys are the keys of the manifest whose values kandoManifest returns, as the package's signature does not cover kando-plugin.json.
-var signedKeys = []string{"capabilities", "optional", "contributes", "settings", "events"}
+var signedKeys = []string{"capabilities", "optional", "contributes", "credentials", "settings", "events"}
 
-// Probe runs the plugin v under cx in a sandbox that grants nothing (probeSandbox), calls its kandoManifest and closes it, and checks that what it returned is what its manifest, as its file says it (Verified.Manifest), says of what it may reach and adds: capabilities, optional, contributes, settings and events, key for key, and nothing else; and that it exports every function m's commands call. Its entry module runs here before the user agreed to anything, which is why the sandbox grants nothing and its partition is thrown away. A plugin that does not export kandoManifest, or fails as it loads or says it, is ErrNoManifest; one that says something else plugins.ErrTampered. Call it on the engine's goroutine.
+// Probe runs the plugin v under cx in a sandbox that grants nothing (probeSandbox), calls its kandoManifest and closes it, and checks that what it returned is what its manifest, as its file says it (Verified.Manifest), says of what it may reach and adds: capabilities, optional, contributes, credentials, settings and events, key for key, and nothing else; and that it exports every function its contributions call (Manifest.ExportsNeeded). Its entry module runs here before the user agreed to anything, which is why the sandbox grants nothing and its partition is thrown away. A plugin that does not export kandoManifest, or fails as it loads or says it, is ErrNoManifest; one that says something else plugins.ErrTampered. Call it on the engine's goroutine.
 //
 // TODO(nsgo#761): pkg.Contents has no app-defined signed entries; compare kandoManifest() instead https://github.com/nsgo-dev/nsgo/issues/761
 func Probe(cx *core.Scope, v Verified) error {
@@ -89,11 +89,9 @@ func Probe(cx *core.Scope, v Verified) error {
 	}
 	defer p.Close()
 	exports := p.Exports()
-	if m.Contributes != nil {
-		for _, c := range m.Contributes.Commands {
-			if !slices.Contains(exports, c.Export) {
-				return fmt.Errorf("%w: it does not export %s", plugins.ErrTampered, c.Export)
-			}
+	for _, e := range m.ExportsNeeded() {
+		if !slices.Contains(exports, e) {
+			return fmt.Errorf("%w: it does not export %s", plugins.ErrTampered, e)
 		}
 	}
 	var said any

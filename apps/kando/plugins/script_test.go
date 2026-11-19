@@ -67,7 +67,7 @@ func TestValidateScript(t *testing.T) {
 		{"schema 1", `"schema": 2`, `"schema": 1`, ErrSchema},
 		{"kando", `">=0.30.0"`, `"0.30"`, ErrBadField},
 		{"sha256", `"sha256": "`, `"sha256": "0`, ErrBadField},
-		{"unknown permission", `"kando.saved.read"`, `"kando.llm.chat"`, ErrUnknownPerm},
+		{"unknown permission", `"kando.saved.read"`, `"kando.glossary.suggest"`, ErrUnknownPerm},
 		{"another capability", `"capabilities": {`, `"capabilities": {"clipboard": true,`, ErrBadCapabilities},
 		{"open url", `"capabilities": {`, `"capabilities": {"openUrl": {"schemes": ["https"]},`, ErrBadCapabilities},
 		{"any request", `"network": {"http"`, `"network": {"hosts": ["*"], "http"`, ErrBadCapabilities},
@@ -75,9 +75,9 @@ func TestValidateScript(t *testing.T) {
 		{"no paths", `, "paths": ["/"]`, ``, ErrBadCapabilities},
 		{"a host pattern", `"host": "127.0.0.1"`, `"host": "*.example.com"`, ErrBadCapabilities},
 		{"optional twice", `"optional": ["kando.toast"]`, `"optional": ["kando.saved.read"]`, ErrBadField},
-		{"optional unknown", `"optional": ["kando.toast"]`, `"optional": ["kando.sound.read"]`, ErrUnknownPerm},
-		{"another contribution", `"contributes": {`, `"contributes": {"exporters": [],`, ErrBadManifest},
-		{"credentials", `"events"`, `"credentials": [], "events"`, ErrBadManifest},
+		{"optional unknown", `"optional": ["kando.toast"]`, `"optional": ["kando.candidates.offer"]`, ErrUnknownPerm},
+		{"another contribution", `"contributes": {`, `"contributes": {"widgets": [],`, ErrBadManifest},
+		{"credentials without credentialFetch", `"events"`, `"credentials": [{"id": "k", "title": {"en": "Key"}, "header": "Authorization", "format": "Bearer {secret}", "hosts": ["api.example.com"], "methods": ["POST"], "pathPrefixes": ["/v1"]}], "events"`, ErrBadField},
 		{"a bare key", `"mod+shift+k"`, `"k"`, ErrBadField},
 		{"shift alone", `"mod+shift+k"`, `"shift+k"`, ErrBadField},
 		{"a command's export", `"export": "run"`, `"export": "run me"`, ErrBadField},
@@ -211,7 +211,7 @@ func TestScriptEffective(t *testing.T) {
 	if err := data.Save(root); err != nil || data.Format != 1 {
 		t.Errorf("a data pack's state in format %d, %v", data.Format, err)
 	}
-	if Risky(Grant{Perms: []Perm{PermSavedRead}, Network: grant.Network}) || !Risky(grant) {
+	if Risky(p.Manifest, Grant{Perms: []Perm{PermSavedRead}, Network: grant.Network}) || !Risky(p.Manifest, grant) {
 		t.Error("risky")
 	}
 }

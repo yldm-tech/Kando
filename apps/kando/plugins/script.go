@@ -34,9 +34,13 @@ type Script struct {
 	SHA256  string `json:"sha256"`
 }
 
-// Contributes is what a script plugin adds to Kando's interface. This version takes commands alone; the other contribution points (docs/plugin-system.md 2.2) come with their phase, and a manifest that has them is refused as a key this version does not know.
+// Contributes is what a script plugin adds to Kando (docs/plugin-system.md 2.2): commands (E9), sources of word lookups (E10), subtitle formats (E11), targets of the saved lines' export (E12) and annotators of the lines (E13). Each names the function of the plugin that does it (Export), which the plugin's code must export.
 type Contributes struct {
-	Commands []Command `json:"commands,omitempty"`
+	Commands        []Command        `json:"commands,omitempty"`
+	Lookups         []Lookup         `json:"lookups,omitempty"`
+	SubtitleFormats []SubtitleFormat `json:"subtitleFormats,omitempty"`
+	Exporters       []Exporter       `json:"exporters,omitempty"`
+	Annotators      []Annotator      `json:"annotators,omitempty"`
 }
 
 // The moments a command applies (Command.When).
@@ -88,7 +92,7 @@ var (
 	settingPattern = regexp.MustCompile(`^[A-Za-z][A-Za-z0-9_]{0,31}$`)
 )
 
-// checkScript checks the fields of a script plugin m (docs/plugin-system.md 4.2): its package, the capabilities it asks for, which are its own permissions (host) and HTTP requests each limited to methods and paths (network) and nothing else, the permissions it can do without (optional), its commands, settings and events. Its texts are cleaned in place.
+// checkScript checks the fields of a script plugin m (docs/plugin-system.md 4.2): its package, the capabilities it asks for, which are its own permissions (host) and HTTP requests each limited to methods and paths (network) and nothing else, the permissions it can do without (optional), what it contributes, its credentials, settings and events. Its texts are cleaned in place.
 func checkScript(m *Manifest) error {
 	if m.Kando != "" && !kandoPattern.MatchString(m.Kando) {
 		return fmt.Errorf("%w: kando %q is not >=MAJOR.MINOR.PATCH", ErrBadField, m.Kando)
@@ -122,6 +126,12 @@ func checkScript(m *Manifest) error {
 		if err := checkCommands(m.Contributes.Commands); err != nil {
 			return err
 		}
+		if err := checkContributes(m.Contributes); err != nil {
+			return err
+		}
+	}
+	if err := checkCredentials(m); err != nil {
+		return err
 	}
 	if err := checkSettings(m.Settings); err != nil {
 		return err
