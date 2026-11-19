@@ -2,7 +2,6 @@ package browse
 
 import (
 	"encoding/json"
-	"regexp"
 	"strings"
 	"testing"
 	"time"
@@ -85,21 +84,13 @@ func TestPageScriptReadsTheVideoShapes(t *testing.T) {
 	if err := json.Unmarshal([]byte(videoSitesJSON()), &back); err != nil || len(back) != len(videoSites) {
 		t.Fatalf("videoSites as the script reads them: %v", err)
 	}
-	// Go's and JavaScript's regular expressions differ in flags, named groups and lookaround, which the shapes leave out.
-	shared := regexp.MustCompile(`^[\w\\^$/|()\[\]{}+*?.,@-]*$`)
+	// Go's and JavaScript's regular expressions differ in flags, named groups, lookaround and backreferences, which the shapes leave out, as kcore.ValidateVideoSites checks.
+	if err := kcore.ValidateVideoSites(videoSites); err != nil {
+		t.Error(err)
+	}
 	for _, s := range videoSites {
 		if !catalog.Load().On("https://" + s.Domain) {
 			t.Errorf("%s is not a site of the catalog", s.Domain)
-		}
-		for _, v := range s.Videos {
-			for _, p := range []string{v.Path, v.Value} {
-				if strings.Contains(p, "(?") || !shared.MatchString(p) {
-					t.Errorf("%s: %q is not read alike by Go and JavaScript", s.Domain, p)
-				}
-			}
-			if !strings.HasPrefix(v.Path, "^/") || !strings.HasSuffix(v.Path, "$") || (v.Param != "") != (v.Value != "") {
-				t.Errorf("%s: shape %+v", s.Domain, v)
-			}
 		}
 	}
 	for _, want := range []string{AskMessage, AddMessage, StateMessage, "ev.isTrusted", "MutationObserver", "attachShadow"} {

@@ -1,6 +1,7 @@
 package core
 
 import (
+	"fmt"
 	"net/url"
 	"regexp"
 	"strings"
@@ -68,50 +69,98 @@ type compiledVideoShape struct {
 }
 
 var compiledVideoSites = func() [][]compiledVideoShape {
-	out := make([][]compiledVideoShape, len(VideoSites))
-	for i, s := range VideoSites {
+	out, err := compileVideoSites(VideoSites)
+	if err != nil {
+		panic("core: VideoSites: " + err.Error())
+	}
+	return out
+}()
+
+// compileVideoSites is the shapes of sites as Go reads them, by site.
+func compileVideoSites(sites []VideoSite) ([][]compiledVideoShape, error) {
+	out := make([][]compiledVideoShape, len(sites))
+	for i, s := range sites {
 		for _, v := range s.Videos {
-			c := compiledVideoShape{path: regexp.MustCompile(v.Path), param: v.Param}
+			path, err := regexp.Compile(v.Path)
+			if err != nil {
+				return nil, err
+			}
+			c := compiledVideoShape{path: path, param: v.Param}
 			if v.Param != "" {
-				c.value = regexp.MustCompile(v.Value)
+				if c.value, err = regexp.Compile(v.Value); err != nil {
+					return nil, err
+				}
 			}
 			out[i] = append(out[i], c)
 		}
 	}
-	return out
-}()
+	return out, nil
+}
 
 // MaxVideoURL is the longest link Kando's browsers take for a video's; a longer one is no video's.
 const MaxVideoURL = 2048
 
 // VideoLink reports whether rawURL is a link to one video of a site Kando's browsers know (VideoSites), as the computer's page script decides it too.
 func VideoLink(rawURL string) bool {
+	_, video := findVideo(VideoSites, compiledVideoSites, rawURL)
+	return video
+}
+
+// findVideo is the index of the site of sites whose domain rawURL's host is or is under, the first one, and whether rawURL is a link to one video of it: an http or https link of at most MaxVideoURL bytes, its host not one of the site's Not, its path and parameter matching one of its shapes (compiled). The index is -1 for a link of no site of sites.
+func findVideo(sites []VideoSite, compiled [][]compiledVideoShape, rawURL string) (int, bool) {
 	if len(rawURL) > MaxVideoURL {
-		return false
+		return -1, false
 	}
 	u, err := url.Parse(rawURL)
 	if err != nil || (!strings.EqualFold(u.Scheme, "http") && !strings.EqualFold(u.Scheme, "https")) {
-		return false
+		return -1, false
 	}
 	host := strings.TrimSuffix(strings.ToLower(u.Hostname()), ".")
 	bare := strings.TrimPrefix(strings.TrimPrefix(host, "www."), "m.")
-	for i, s := range VideoSites {
+	for i, s := range sites {
 		if host != s.Domain && !strings.HasSuffix(host, "."+s.Domain) {
 			continue
 		}
 		for _, not := range s.Not {
 			if bare == not {
-				return false
+				return i, false
 			}
 		}
-		for _, v := range compiledVideoSites[i] {
+		for _, v := range compiled[i] {
 			if v.path.MatchString(u.EscapedPath()) && (v.param == "" || v.value.MatchString(u.Query().Get(v.param))) {
-				return true
+				return i, true
 			}
 		}
-		return false
+		return i, false
 	}
-	return false
+	return -1, false
+}
+
+// VideoMatcher knows the videos of sites other than Kando's own (VideoSites), as those of a site pack the user allowed, the way VideoLink knows Kando's. It is never consulted where VideoLink is: the sites it knows widen no gate of the app.
+type VideoMatcher struct {
+	sites    []VideoSite
+	compiled [][]compiledVideoShape
+}
+
+// NewVideoMatcher is the matcher of sites, which pass ValidateVideoSites.
+func NewVideoMatcher(sites []VideoSite) (*VideoMatcher, error) {
+	if err := ValidateVideoSites(sites); err != nil {
+		return nil, err
+	}
+	compiled, err := compileVideoSites(sites)
+	if err != nil {
+		return nil, fmt.Errorf("%w: %v", ErrVideoSite, err)
+	}
+	return &VideoMatcher{sites: sites, compiled: compiled}, nil
+}
+
+// Find is the domain of the site of m whose domain rawURL's host is or is under, "" for none, and whether rawURL is a link to one video of it, as VideoLink decides it for Kando's sites.
+func (m *VideoMatcher) Find(rawURL string) (domain string, video bool) {
+	i, video := findVideo(m.sites, m.compiled, rawURL)
+	if i < 0 {
+		return "", false
+	}
+	return m.sites[i].Domain, video
 }
 
 // pageCount is the count of unread notifications a site puts before its page's title, as YouTube's "(3) ".
