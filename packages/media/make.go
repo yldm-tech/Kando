@@ -1202,13 +1202,14 @@ func (m *making) hear(ctx context.Context, cells []int, heardCh chan<- heardCell
 	from := time.Duration(first) * track.Cell
 	to := time.Duration(last+1) * track.Cell
 	buffers := map[int][]core.Segment{}
-	// before and after are the lines heard in the sound before and after the run's cells.
-	var before, after []core.Segment
+	// before and after are the lines heard in the sound before and after the run's cells; late are lines heard in a cell already handed on, which go with the next cell handed on.
+	var before, after, late []core.Segment
 	next := first
 	heard := false
 	send := func(upTo int) {
 		for ; next <= last && next < upTo; next++ {
-			c := heardCell{cell: next, lines: buffers[next]}
+			c := heardCell{cell: next, lines: buffers[next], edges: late}
+			late = nil
 			if next == first {
 				c.edges = append(c.edges, before...)
 			}
@@ -1235,6 +1236,11 @@ func (m *making) hear(ctx context.Context, cells []int, heardCh chan<- heardCell
 			return
 		}
 		cell := int(mid / track.Cell)
+		if cell < next {
+			// A line heard after a line of a later cell, as the speech recognition may place one a little out of order, belongs to a cell handed on already: it goes with the next one as an edge, kept where that cell has no line of its own over it (commitHeard).
+			late = append(late, s)
+			return
+		}
 		buffers[cell] = append(buffers[cell], s)
 		// Lines come in the order they are said: a line in this cell means every cell before it is heard whole.
 		send(cell)

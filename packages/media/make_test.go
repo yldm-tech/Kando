@@ -955,3 +955,44 @@ func TestMakeLeavesAnotherDevicesMakingToItWhileItWrites(t *testing.T) {
 		})
 	}
 }
+
+// lateFilm is makeFilm whose speech recognition hands on the line said at 20 s after the one said at 30 s, in the next cell, as whisper may place a line a little out of order.
+type lateFilm struct{ *makeFilm }
+
+func (f lateFilm) Hear(ctx context.Context, video string, from, to time.Duration, heard func(core.Segment)) (string, error) {
+	var held *core.Segment
+	language, err := f.makeFilm.Hear(ctx, video, from, to, func(s core.Segment) {
+		switch {
+		case s.Start == 20*time.Second:
+			held = &s
+			return
+		case held != nil && s.Start == 30*time.Second:
+			heard(s)
+			heard(*held)
+			held = nil
+			return
+		}
+		heard(s)
+	})
+	if held != nil {
+		heard(*held)
+	}
+	return language, err
+}
+
+// A line the speech recognition hands on after a line of a later cell, whose own cell was handed on already, is kept, not dropped.
+func TestMakeKeepsALineHeardLate(t *testing.T) {
+	job, video := makeJob(t)
+	job.SpeechLanguage = "ja"
+	if done, _ := makeFilmOf(t, lateFilm{&makeFilm{length: 60 * time.Second, language: "ja"}}, job, 0); done.Stage != core.StageComplete {
+		t.Fatalf("done %+v", done)
+	}
+	doc, _ := track.Read(video)
+	var texts []string
+	for _, l := range doc.View() {
+		texts = append(texts, l.Original.Text)
+	}
+	if want := []string{"line 0s", "line 10s", "line 20s", "line 30s", "line 40s", "line 50s"}; !slices.Equal(texts, want) {
+		t.Fatalf("lines %q, want %q", texts, want)
+	}
+}
