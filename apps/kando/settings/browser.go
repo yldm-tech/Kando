@@ -4,7 +4,6 @@ import (
 	"strings"
 
 	"kando/apps/kando/browserext"
-	"kando/apps/kando/desktop"
 	"kando/apps/kando/live"
 	"kando/apps/kando/locales"
 	"kando/apps/kando/settings/form"
@@ -91,13 +90,8 @@ func (b browserExt) Render(cx *core.Scope) core.Node {
 			a.SetLinkStartAtOnce(on)
 			a.Save()
 		})}
-	rows := []core.Node{browsers, form.Separator(true), folder}
-	// The bookmarklet opens a link of Kando's own scheme, which only the macOS package registers with the system (nsgo.yaml's url_schemes), so it is offered there alone.
-	// TODO(nsgo#262): register the app's url_schemes with Windows (HKCU\Software\Classes) and the Linux desktop entry (x-scheme-handler), and hand the running app the links a second launch is started with to desktop.OnOpenLinks, then offer the bookmarklet there too https://github.com/nsgo-dev/nsgo/issues/262
-	if desktop.Platform(cx) == "macOS" {
-		rows = append(rows, form.Separator(true), bookmarklet(cx))
-	}
-	rows = append(rows, form.Separator(true), startAtOnce)
+	// The bookmarklet opens a link of Kando's own scheme, which every package registers with the system (nsgo.yaml's url_schemes).
+	rows := []core.Node{browsers, form.Separator(true), folder, form.Separator(true), bookmarklet(cx), form.Separator(true), startAtOnce}
 	failed := core.Show{When: live.Func(a, func() bool { return a.BrowserExtension().Err != "" }), Then: func(cx *core.Scope) core.Node {
 		return core.Text{ContentFunc: live.Func(a, func() string { return a.BrowserExtension().Err }),
 			Style: core.Style{FontSize: 11, Padding: core.Edges{Top: 4, Right: 12, Left: 12}}, StyleFunc: ui.Colored(colors.Danger)}

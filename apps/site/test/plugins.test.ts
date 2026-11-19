@@ -253,18 +253,22 @@ it("writes a size in bytes, kilobytes or megabytes of 1000", () => {
   expect(formatSize(4_200_000, "en")).toBe("4.2 MB");
 });
 
-// Kando opens kando:// links only on macOS so far (nsgo#262): a Mac gets Open in Kando, any other system the id to search for in Kando's plugin directory.
+// Kando opens kando:// links on the desktops it installs on: a Mac, Windows or Linux computer gets Open in Kando, a phone, a tablet or an unknown agent the id to search for in Kando's plugin directory.
 describe("installAction", () => {
   const mac = "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/18.0 Safari/605.1.15";
   const windows = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/140.0.0.0 Safari/537.36";
   const linux = "Mozilla/5.0 (X11; Linux x86_64; rv:140.0) Gecko/20100101 Firefox/140.0";
   const iphone = "Mozilla/5.0 (iPhone; CPU iPhone OS 18_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/18.0 Mobile/15E148 Safari/604.1";
-  it("links on macOS", () => {
-    expect(opensLinks(mac)).toBe(true);
-    expect(installAction(mac, "a&b")).toEqual({ kind: "link", href: "kando://plugin/install?id=a%26b" });
+  const android = "Mozilla/5.0 (Linux; Android 15; Pixel 9) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/140.0.0.0 Mobile Safari/537.36";
+  const chromebook = "Mozilla/5.0 (X11; CrOS x86_64 16093.0.0) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/140.0.0.0 Safari/537.36";
+  it("links on the desktops", () => {
+    for (const ua of [mac, windows, linux]) {
+      expect(opensLinks(ua), ua).toBe(true);
+      expect(installAction(ua, "a&b"), ua).toEqual({ kind: "link", href: "kando://plugin/install?id=a%26b" });
+    }
   });
   it("names the id elsewhere", () => {
-    for (const ua of [windows, linux, iphone, ""]) {
+    for (const ua of [iphone, android, chromebook, ""]) {
       expect(opensLinks(ua), ua).toBe(false);
       expect(installAction(ua, "ada.oxford-words"), ua).toEqual({ kind: "find", id: "ada.oxford-words" });
     }

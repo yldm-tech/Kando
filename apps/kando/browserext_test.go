@@ -198,3 +198,20 @@ func TestSettingsGeneralConnectsTheBrowsers(t *testing.T) {
 	waitUntil(t, tt, a, updates, func() bool { return !a.ext.busy })
 	wantText(t, tt, msgs.SettingsGeneralBrowserNotShipped())
 }
+
+// The bookmarklet opens a kando:// link, which every desktop package registers with the system (nsgo.yaml's url_schemes), so Settings › 通用 › 浏览器扩展 offers it on macOS, Windows and Linux alike.
+func TestSettingsGeneralOffersTheBookmarkletOnEveryDesktop(t *testing.T) {
+	for name, system := range map[string]ns.OS{"macOS": ns.OSMacOS, "Windows": ns.OSWindows, "Linux": ns.OSLinux} {
+		t.Run(name, func(t *testing.T) {
+			useNoMenuBar(t)
+			usePlatform(t, system)
+			a, tt, _ := newTestApp(t, &fakePipeline{})
+			browserExtFake(t, a)
+			tt = settingsOpenAt(a, tt, settings.SectionGeneral)
+			tt.Resize(880, 1800)
+			if !tt.Exists("id:settings-bookmarklet-copy") {
+				t.Fatal("the bookmarklet row is missing")
+			}
+		})
+	}
+}

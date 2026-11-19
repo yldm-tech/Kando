@@ -371,10 +371,9 @@ export function installLink(id: string): string {
   return "kando://plugin/install?id=" + encodeURIComponent(id);
 }
 
-// opensLinks reports whether Kando opens kando:// links on the computer the user agent says it is: only on macOS, the one system Kando registers its scheme with so far; elsewhere the page says where to find the plugin in Kando instead.
-/* TODO(nsgo#262): Kando registers kando:// on Windows and Linux once NSGo does; show Open in Kando everywhere then https://github.com/nsgo-dev/nsgo/issues/262 (a block comment, as the site's source may name no other host outside one, test/external.test.ts) */
+// opensLinks reports whether Kando opens kando:// links on the device the user agent says it is: a Mac, Windows or Linux computer, where Kando's installer registers the scheme; on a phone or tablet, or an agent that names no system, the page says where to find the plugin in Kando instead.
 export function opensLinks(userAgent: string): boolean {
-  return /Macintosh|Mac OS X/.test(userAgent) && !/iPhone|iPad|iPod|Android/.test(userAgent);
+  return /Macintosh|Mac OS X|Windows NT|X11|Linux/.test(userAgent) && !/iPhone|iPad|iPod|Android|CrOS/.test(userAgent);
 }
 
 // InstallAction is how a card offers its plugin: a link that opens it in Kando, or, where Kando does not open links yet, the id to search for in Kando's plugin directory.

@@ -233,6 +233,8 @@ func TestOpensWindow(t *testing.T) {
 		{dir},
 		{"kando://film/f1"},
 		{"https://youtu.be/x"},
+		{"--", "kando://plugin/install?id=ada.oxford-words"},
+		{"--", clip},
 	} {
 		if !OpensWindow(args) {
 			t.Errorf("OpensWindow(%q) = false, want the window", args)
@@ -255,6 +257,11 @@ func TestOpensWindow(t *testing.T) {
 			if OpensWindow([]string{name}) {
 				t.Errorf("OpensWindow(%q) = true, want the command line", name)
 			}
+		}
+	}
+	for _, args := range [][]string{{"--"}, {"--", "status"}, {"--", "missing.mp4"}} {
+		if OpensWindow(args) {
+			t.Errorf("OpensWindow(%q) = true, want the command line", args)
 		}
 	}
 }

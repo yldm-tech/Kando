@@ -32,12 +32,15 @@ func Main(args []string, version string) (code int, ok bool) {
 	return Run(ctx, args, os.Stdout, os.Stderr, version), true
 }
 
-// OpensWindow reports whether args are ones the app is opened with rather than a command: no arguments; the -psn_, -NS and -Apple arguments macOS passes; a link with a scheme, such as a deep link; or the path of an existing file or folder the app is asked to open. A command's name wins over a file of the same name in the current folder.
+// OpensWindow reports whether args are ones the app is opened with rather than a command: no arguments; the -psn_, -NS and -Apple arguments macOS passes; a link with a scheme, such as a deep link; or the path of an existing file or folder the app is asked to open. A command's name wins over a file of the same name in the current folder. A link may come after --, as Windows starts the app for one of its own scheme ("<exe>" -- "%1", NSGo's installer), so that a link that breaks out of its quotes is read as no flag.
 func OpensWindow(args []string) bool {
 	if len(args) == 0 {
 		return true
 	}
 	first := args[0]
+	if first == "--" {
+		return len(args) > 1 && OpensWindow(args[1:])
+	}
 	if lookup(first) != nil {
 		return false
 	}
