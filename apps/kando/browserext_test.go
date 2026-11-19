@@ -40,10 +40,11 @@ func TestBrowserExtAsksWhatTheLibraryHas(t *testing.T) {
 	}
 }
 
-// A video the extension adds is added as a click on the built-in browser's button adds it: bilibili's localized link by its canonical one, named by the page's title in what the extension shows, without moving the window; adding a video the library has shows it in front instead.
+// A video the extension adds while 链接到达后立即开始 is on is added as a click on the built-in browser's button adds it: bilibili's localized link by its canonical one, named by the page's title in what the extension shows, without moving the window; adding a video the library has shows it in front instead.
 func TestBrowserExtAddsAsTheBrowsersButton(t *testing.T) {
 	a, _, updates := newTestApp(t, &fakePipeline{block: true})
 	remoteServe(t, a)
+	a.addsheet.startAtOnce = true
 	msgs := testlocale.Messages()
 	a.page = pageYouTube
 	localized, canonical := "https://www.bilibili.com/zh-Hans/video/BV1nx4y1x7t1/?p=2", "https://www.bilibili.com/video/BV1nx4y1x7t1/?p=2"

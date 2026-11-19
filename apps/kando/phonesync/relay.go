@@ -30,6 +30,7 @@ func (s *Server) startRelay(bucket psync.RelayBucket) {
 		Logf:     s.cfg.Logf,
 		Every:    relayEvery,
 		MinWrite: relayMinWrite,
+		Health:   s.cfg.RelayHealth,
 	}
 	s.desk.Relay = relayJoiner{s}
 	s.done.Add(1)

@@ -6,6 +6,7 @@ import (
 	"kando/apps/kando/live"
 	"kando/apps/kando/locales"
 	"kando/apps/kando/saved"
+	"kando/apps/kando/theme"
 
 	"github.com/nsgo-dev/nsgo/base"
 	"github.com/nsgo-dev/nsgo/core"
@@ -26,11 +27,14 @@ type ReviewApp interface {
 	CloseReview()
 }
 
-// Card is the line the review shows: its film, where in it it starts, its original and its translation, whether the translation is shown, and its sound, the file Clip, "" while it is cut, which plays while Playing; Plays counts the times it was started, so each one plays it from its start. NoAudio is set for a line whose sound cannot be had. Left is how many lines are left, this one with them, and Reviewed how many were answered; Done is set once none is left.
+// Card is what the review shows: a saved line, its film, where in it it starts, its original and its translation, with the learner's Note on it, or with Word set a word of the vocabulary, the word as Original, its Reading, its meaning as Translation and the line it was looked up in, Context, with that line's ContextTranslation; whether the translation is shown, and the line's sound, the file Clip, "" while it is cut, which plays while Playing; Plays counts the times it was started, so each one plays it from its start. NoAudio is set for a line whose sound cannot be had. Left is how many are left, this one with them, and Reviewed how many were answered; Done is set once none is left.
 type Card struct {
 	Done                        bool
 	Reviewed, Left              int
+	Word                        bool
 	Film, Original, Translation string
+	Reading, Note               string
+	Context, ContextTranslation string
 	Start                       time.Duration
 	Revealed                    bool
 	Clip                        string
@@ -38,7 +42,7 @@ type Card struct {
 	Plays                       int
 }
 
-// Review is the review of the saved lines due, a line at a time over the window: the line's sound plays and its original shows, its translation hidden until Show Translation or Space; then Again or Good, or 1 and 2, tell how the learner knew it, which goes on to the next. Play Again or R plays its sound again. Once no line is left it says how many were reviewed. Done, Escape and closing it run CloseReview.
+// Review is the review of the saved lines and the words due, one at a time over the window: the line's sound plays and its original shows, or the word with its reading over the line it was looked up in, its translation, the note on the line or the word's meaning hidden until Show Translation or Space; then Again or Good, or 1 and 2, tell how the learner knew it, which goes on to the next. Play Again or R plays its sound again. Once none is left it says how many were reviewed. Done, Escape and closing it run CloseReview.
 type Review struct {
 	App ReviewApp
 }
@@ -123,11 +127,16 @@ func (r Review) Render(cx *core.Scope) core.Node {
 	}
 }
 
-// lineCard is the line under review: its film and time, Play Again, its original, and its translation once revealed.
+// lineCard is the line or the word under review: its film and time, Play Again, its original, or the word with its reading over the line it was looked up in, and once revealed its translation and the learner's note on it, or the word's meaning and the line's translation.
 func lineCard(cx *core.Scope, a ReviewApp, card func() Card, revealed func() bool) core.Node {
 	colors := ui.ColorsOf(cx)
 	where := func() string { c := card(); return locales.SavedWhere(cx, c.Film, saved.Clock(c.Start)) }
 	replay := func() string { return locales.SavedReviewReplay(cx) }
+	shown := func(text func() string) func() bool { return func() bool { return text() != "" } }
+	reading := func() string { return card().Reading }
+	context := func() string { return card().Context }
+	note := func() string { return card().Note }
+	contextTranslation := func() string { return card().ContextTranslation }
 	return core.View{Style: core.Style{FlexGrow: 1, Gap: 12}, Children: []core.Node{
 		core.View{Style: core.Style{Direction: core.Row, AlignItems: core.AlignCenter, Gap: 8}, Children: []core.Node{
 			core.Text{ContentFunc: where, MaxLines: 1, Style: ui.TypeCaption.Merge(core.Style{FlexGrow: 1, FlexShrink: 1}), StyleFunc: ui.Colored(colors.Muted)},
@@ -138,9 +147,29 @@ func lineCard(cx *core.Scope, a ReviewApp, card func() Card, revealed func() boo
 					Disabled: func() bool { return card().Clip == "" }})
 			}},
 		}},
-		core.Text{TestID: "review-original", ContentFunc: func() string { return card().Original }, Style: core.Style{FontSize: 22, LineHeight: 30, FontWeight: ui.Semibold}, StyleFunc: ui.Colored(colors.Text)},
+		core.View{Style: core.Style{Direction: core.Row, Wrap: core.Wrap, AlignItems: core.AlignBaseline, Gap: 10}, Children: []core.Node{
+			core.Text{TestID: "review-original", ContentFunc: func() string { return card().Original }, Style: core.Style{FontSize: 22, LineHeight: 30, FontWeight: ui.Semibold}, StyleFunc: ui.Colored(colors.Text)},
+			core.Show{When: shown(reading), Then: func(cx *core.Scope) core.Node {
+				return core.Text{TestID: "review-reading", ContentFunc: reading, Style: core.Style{FontSize: 14, LineHeight: 20}, StyleFunc: ui.Colored(colors.Muted)}
+			}},
+		}},
+		core.Show{When: shown(context), Then: func(cx *core.Scope) core.Node {
+			return core.Text{TestID: "review-context", ContentFunc: context, Style: core.Style{FontSize: 15, LineHeight: 21, FontStyle: core.FontStyleItalic}, StyleFunc: ui.Colored(colors.Text)}
+		}},
 		core.Show{When: revealed, Then: func(cx *core.Scope) core.Node {
-			return core.Text{TestID: "review-translation", ContentFunc: func() string { return card().Translation }, Style: core.Style{FontSize: 16, LineHeight: 22}, StyleFunc: ui.Colored(colors.Muted)}
+			return core.View{Style: core.Style{Gap: 8}, Children: []core.Node{
+				core.Text{TestID: "review-translation", ContentFunc: func() string { return card().Translation }, Style: core.Style{FontSize: 16, LineHeight: 22}, StyleFunc: ui.Colored(colors.Muted)},
+				core.Show{When: shown(contextTranslation), Then: func(cx *core.Scope) core.Node {
+					return core.Text{TestID: "review-context-translation", ContentFunc: contextTranslation, Style: core.Style{FontSize: 14, LineHeight: 20}, StyleFunc: ui.Colored(colors.Muted)}
+				}},
+				core.Show{When: shown(note), Then: func(cx *core.Scope) core.Node {
+					k := theme.Of(cx)
+					return core.View{TestID: "review-note", Role: core.RoleGroup, LabelFunc: func() string { return locales.SavedNote(cx) },
+						Style:     core.Style{Padding: core.Symmetric(6, 8), CornerRadius: 6, BorderWidth: 1},
+						StyleFunc: func() core.Style { return core.Style{Background: k.WarnFill(), BorderColor: k.WarnRing()} },
+						Children:  []core.Node{core.Text{ContentFunc: note, Style: ui.TypeBody, StyleFunc: ui.Colored(k.WarnText)}}}
+				}},
+			}}
 		}},
 	}}
 }

@@ -64,6 +64,8 @@ type jobQueue struct {
 	awake     func()
 	// sys is what the queue tells the system outside the window: notifications, and the badge and progress bar on the app's icon (queue_desktop.go).
 	sys queueSystem
+	// stamp, while it is set, gives each job queueTakeFrom queues, new or a failed one queued again, what the user chose for its link before it runs: the Add sheet's choices, and where the browser that sent it was (state_addsheet.go). It is set only around one call that queues, and nil otherwise.
+	stamp func(job *core.Job)
 }
 
 func newJobQueue() jobQueue { return jobQueue{sys: newQueueSystem()} }
@@ -197,11 +199,11 @@ func (a *app) queueEnqueue(sources []string) (added int, err error) {
 
 // queueTake queues the job for source and returns its ID: a new job, or, when the open library already has a failed or cancelled job for the same video, that job again on its card (retry), so the shelf keeps one card for it. A video already waiting, running or done is not queued again; the error is then a *queueDuplicate naming its job. A local video that is a film of the library's folder no job holds (films.List), as one dropped again from the library's own folder, is that film: with subtitles beside it, it is in the library already, and the *queueDuplicate names it, so its subtitles are neither paid for nor written again; without any, its job leaves it as it was if it fails or is stopped, as 生成字幕 does (queueFromFolder).
 func (a *app) queueTake(source string) (string, error) {
-	return a.queueTakeFrom(source, "")
+	return a.queueTakeFrom(source, "", "", "")
 }
 
-// queueTakeFrom is queueTake for a link the paired phone named device sent, whose new job is that phone's from before it first runs (core.Job.Device), as the quality it downloads at depends on it (onlineFor).
-func (a *app) queueTakeFrom(source, device string) (string, error) {
+// queueTakeFrom is queueTake for a link the paired phone named device sent, whose new job is that phone's from before it first runs (core.Job.Device), as the quality it downloads at depends on it (onlineFor), with the quality and the source of original lines the phone chose, each "" for the desktop's own. A failed job queued again keeps the ones it had.
+func (a *app) queueTakeFrom(source, device string, quality core.Quality, subtitles core.SubtitleSource) (string, error) {
 	// Offline mode adds no link, as it would be downloaded (state_privacy.go).
 	if err := a.privacyRefusesLink(source); err != nil {
 		return "", err
@@ -212,6 +214,9 @@ func (a *app) queueTakeFrom(source, device string) (string, error) {
 		old, _ := a.library.Find(dup.ID)
 		ready, rerr := a.queueRetryable(old)
 		if rerr == nil {
+			if a.queue.stamp != nil {
+				a.queue.stamp(&ready)
+			}
 			a.queueAdd(ready)
 			return ready.ID, nil
 		}
@@ -231,6 +236,15 @@ func (a *app) queueTakeFrom(source, device string) (string, error) {
 		}
 	}
 	job.Device = device
+	if quality != "" {
+		job.Quality = quality
+	}
+	if subtitles != "" {
+		job.SubtitleSource = subtitles
+	}
+	if a.queue.stamp != nil {
+		a.queue.stamp(&job)
+	}
 	a.queueAdd(job)
 	return job.ID, nil
 }
@@ -843,6 +857,9 @@ func (a *app) queueRun(job core.Job) {
 	}
 	ctx, cancel := context.WithCancelCause(context.Background())
 	ctx = media.WithGlossary(ctx, terms)
+	if a.prefs.review {
+		ctx = media.WithReview(ctx, a.prefs.reviewAuto)
+	}
 	done := make(chan struct{})
 	a.queue.active, a.queue.cancel, a.queue.done, a.queue.cancelled = job.ID, cancel, done, false
 	a.queueKeepAwake()
@@ -908,7 +925,7 @@ func (a *app) queuePipeline(job core.Job) media.Pipeline {
 	if !ok {
 		return a.pipeline
 	}
-	tools.Cookies = job.Cookies
+	tools.Cookies = job.Browser()
 	if job.LibraryDir != "" {
 		tools.OutputDir = job.LibraryDir
 	}
@@ -1069,6 +1086,9 @@ func statusText(m locales.Messages, job core.Job) string {
 	case core.StageTranslating:
 		if job.Progress.Proofreading {
 			return m.QueueStatusProofreading()
+		}
+		if job.Progress.Reviewing {
+			return m.QueueStatusReviewing()
 		}
 		return m.QueueStatusTranslating()
 	case core.StageExporting:

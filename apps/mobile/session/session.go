@@ -94,6 +94,8 @@ type Config struct {
 	Device, Platform string
 	// Now is the clock pairings and downloads are dated by; time.Now when nil.
 	Now func() time.Time
+	// RelayEvery is how often the phone reads a computer's state.json through the storage relay while away from its network (relay.go), sync.RelayPoll when 0. Tests shorten it.
+	RelayEvery time.Duration
 }
 
 // Session is the app's state. Its methods belong to the engine's goroutine.
@@ -146,14 +148,19 @@ type Session struct {
 	studyMu      gosync.Mutex
 	studySaving  map[string]uint64
 	studySaved   map[string]uint64
-	// lookups are the words looked up through the desktops, read with the store; lookupMu orders their saves.
+	// lookups are the words looked up through the desktops, read with the store, and lookupRev counts their changes, for bindings to read; lookupMu orders their saves.
 	lookups                   map[string]store.Lookup
+	lookupRev                 *core.Signal[int]
 	lookupMu                  gosync.Mutex
 	lookupSaving, lookupSaved uint64
 	// remote follows the computers' queues (queue.go).
 	remote *remote
 	// learn is the learner's study (learning.go).
 	learn *learn
+	// subs are the computers' subscriptions (subscriptions.go).
+	subs *subscriptions
+	// settle is the conflicts being resolved (conflicts.go).
+	settle *settle
 }
 
 // filmSave is what is still to be written of a film's record: next, once pending; or its folder deleted, once removed.
@@ -209,13 +216,15 @@ func New(cx *core.Scope, cfg Config) *Session {
 		filmSaves:    map[string]*filmSave{},
 		closed:       make(chan struct{}),
 		remote:       newRemote(cx),
+		subs:         newSubscriptions(cx),
 		studies:      core.NewSignalFunc(cx, map[string]study.Library{}, nil),
 		studyLoading: map[string]bool{}, studyRuns: map[string]*studyRun{}, finding: map[string]bool{},
 		studySaving: map[string]uint64{}, studySaved: map[string]uint64{},
-		lookups: map[string]store.Lookup{},
+		lookups: map[string]store.Lookup{}, lookupRev: core.NewSignal(cx, 0),
 	}
 	s.ctx, s.cancel = context.WithCancel(context.Background())
 	s.learn = newLearn(s)
+	s.settle = newSettle(cx)
 	cx.Cleanup(func() {
 		close(s.closed)
 		s.cancel()
@@ -267,6 +276,7 @@ func New(cx *core.Scope, cfg Config) *Session {
 			// A word looked up before the store was read stays.
 			maps.Copy(lookups, s.lookups)
 			s.lookups = lookups
+			s.lookupRev.Update(func(n int) int { return n + 1 })
 			if migrated {
 				s.SetPrefs(prefs)
 			} else {
@@ -560,8 +570,14 @@ func (s *Session) Delete(key string) {
 	s.remove(key)
 }
 
-// SavePosition keeps where the film under key was left playing, and that it was left there now, even where it was left there before: a film played from the beginning again is newer on the phone than where a computer left it (catalog.Merge).
-func (s *Session) SavePosition(key string, at time.Duration) {
+// SavePosition keeps where the film under key was left playing, and that it was left there now, even where it was left there before: a film played from the beginning again is newer on the phone than where a computer left it (catalog.Merge). Its computer takes it through the film's library's learning state (yldm-tech/Kando#217), at once or once it can be reached, so the computer and the other devices go on from there; a film whose library is not known yet (Studyable) keeps it on the phone alone.
+func (s *Session) SavePosition(key string, at time.Duration) { s.savePosition(key, at, true) }
+
+// KeepPosition is SavePosition for a film that plays on: the computer takes the position with the next sync of the film's library rather than at once, so a film playing does not call the computer every few seconds.
+func (s *Session) KeepPosition(key string, at time.Duration) { s.savePosition(key, at, false) }
+
+// savePosition keeps where the film under key was left, and syncs its library when send is set.
+func (s *Session) savePosition(key string, at time.Duration, send bool) {
 	f, ok := s.Film(key)
 	if !ok {
 		return
@@ -569,6 +585,18 @@ func (s *Session) SavePosition(key string, at time.Duration) {
 	f.PositionMS, f.PositionAt = at.Milliseconds(), s.cfg.Now()
 	s.replace(f)
 	s.saveFilm(f)
+	if f.LibraryID == "" {
+		return
+	}
+	// A library still being read from disk is not written over: the player's next save sends the position.
+	k := studyKey(f.Desktop, f.LibraryID)
+	if _, ok := s.studies.GetUntracked()[k]; !ok && (!s.learn.ready.GetUntracked() || s.studyLoading[k]) {
+		return
+	}
+	s.setStudy(f.Desktop, f.LibraryID, study.Change(s.studies.GetUntracked()[k], study.Position(f.Film.ID, at, f.PositionAt)))
+	if send {
+		s.syncStudy(f.Desktop, f.LibraryID)
+	}
 }
 
 // saveFilm keeps f's record on disk after the saves of it handed before, the latest last, trying again until it is written (filmSaves).
@@ -649,6 +677,13 @@ func (s *Session) Poster(ctx context.Context, c *sync.Client, desktop, id string
 	s.posters[key] = data
 	s.postersMu.Unlock()
 	return data, nil
+}
+
+// KnownPoster is the poster of the film under key that Poster has fetched this session, nil for none: it may be called from any goroutine, as the widgets read it (kando/apps/mobile/widgets).
+func (s *Session) KnownPoster(key string) []byte {
+	s.postersMu.Lock()
+	defer s.postersMu.Unlock()
+	return s.posters[key]
 }
 
 func (s *Session) start(f store.Film) {

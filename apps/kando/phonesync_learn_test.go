@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"net/http"
@@ -11,6 +12,7 @@ import (
 	"time"
 
 	"kando/apps/kando/saved"
+	"kando/packages/media"
 	"kando/packages/study"
 	psync "kando/packages/sync"
 )
@@ -127,4 +129,80 @@ func TestPhoneSyncSharesTheLanguageTranslatedInto(t *testing.T) {
 	if err != nil || got.Target != "" || got.TargetName != "Klingon" {
 		t.Fatalf("settings %+v, %v", got, err)
 	}
+}
+
+// A phone sees the AI service this computer translates with, by its name and model and never its address or key, and turns the context switch on and off, which settings.json keeps.
+func TestPhoneSyncSharesTheAIServiceAndTheContextSwitch(t *testing.T) {
+	a, p, _, _, c, _ := phoneStateLibrary(t)
+	a.pipeline = media.Tools{Translator: media.ChatTranslator{BaseURL: "https://api.openai.com/v1", Model: "gpt-4.1-mini", APIKey: "sk-secret"}}
+	a.prefs.translateContext = true
+	got, err := phoneAsk(t, p, c.Settings)
+	if err != nil || got.Service != "OpenAI" || got.Model != "gpt-4.1-mini" || got.Context == nil || !*got.Context {
+		t.Fatalf("settings %+v, %v; want OpenAI's gpt-4.1-mini with the context on", got, err)
+	}
+	raw, err := json.Marshal(got)
+	if err != nil || bytes.Contains(raw, []byte("sk-secret")) || bytes.Contains(raw, []byte("api.openai.com")) {
+		t.Fatalf("the settings a phone reads carry the service's key or address: %s", raw)
+	}
+
+	got, err = phoneAsk(t, p, func(ctx context.Context) (psync.Settings, error) {
+		return c.PutSettings(ctx, psync.SettingsPut{Context: new(false)})
+	})
+	if err != nil || got.Context == nil || *got.Context || a.prefs.translateContext {
+		t.Fatalf("put answered %+v, %v; the desktop's context is %v", got, err, a.prefs.translateContext)
+	}
+	var file savedSettings
+	data, err := os.ReadFile(a.settingsPath)
+	if err == nil {
+		err = json.Unmarshal(data, &file)
+	}
+	if err != nil || file.TranslateContext == nil || *file.TranslateContext {
+		t.Fatalf("settings.json keeps the context as %v, %v", file.TranslateContext, err)
+	}
+
+	// Without a service set up, none is named.
+	a.pipeline = media.Tools{}
+	got, err = phoneAsk(t, p, c.Settings)
+	if err != nil || got.Service != "" || got.Model != "" {
+		t.Fatalf("settings without a service %+v, %v", got, err)
+	}
+}
+
+// A phone reads how long films of the library played on each device each day, this computer's among them, and puts its own, which the study record keeps, so the stats on either side add up every device's; it cannot put another device's.
+func TestPhoneSyncSharesTheTimeWatched(t *testing.T) {
+	a, p, dir, _, c, clock := phoneStateLibrary(t)
+	lib := phoneLibraryID(dir)
+	a.saved.book.Watch(clock.Now(), 10*time.Minute)
+	a.savedWrite()
+	refresh(p.tt, a)
+	h, err := phoneAsk(t, p, c.Hello)
+	if err != nil || !slices.Contains(h.State, psync.KindWatched) {
+		t.Fatalf("hello %+v, %v; want the time watched among the state", h, err)
+	}
+	got, err := phoneAsk(t, p, func(ctx context.Context) (psync.StateChanges, error) { return c.State(ctx, lib, "", 0) })
+	if err != nil {
+		t.Fatal(err)
+	}
+	day := study.Day(clock.Now())
+	mine := phoneStateFind(t, got.Records, psync.KindWatched, psync.WatchedID(a.saved.book.Device, day))
+	var ms float64
+	if err := json.Unmarshal(mine.Fields[psync.FieldWatchedMS].Value, &ms); err != nil || ms != 600_000 {
+		t.Fatalf("this computer's time reads %v, %v", ms, err)
+	}
+
+	phone := a.phone.devices[0].ID
+	put := []psync.Record{{Kind: psync.KindWatched, ID: psync.WatchedID(phone, day), Fields: map[string]psync.Field{psync.FieldWatchedMS: {Value: psync.Value(300_000), Stamp: psync.Stamp{At: clock.Now()}}}}}
+	if _, err := phoneAsk(t, p, func(ctx context.Context) (psync.StatePutResult, error) { return c.PutState(ctx, lib, put) }); err != nil {
+		t.Fatal(err)
+	}
+	if !slices.Contains(a.saved.book.Watched, study.Watched{Day: day, Device: phone, Time: 5 * time.Minute}) {
+		t.Errorf("the study record's time watched %+v; want the phone's five minutes", a.saved.book.Watched)
+	}
+	if disk, err := study.Load(dir); err != nil || !slices.Contains(disk.Watched, study.Watched{Day: day, Device: phone, Time: 5 * time.Minute}) {
+		t.Errorf("the study record on disk keeps %+v, %v", disk.Watched, err)
+	}
+
+	other := []psync.Record{{Kind: psync.KindWatched, ID: psync.WatchedID(a.saved.book.Device, day), Fields: map[string]psync.Field{psync.FieldWatchedMS: {Value: psync.Value(0)}}}}
+	_, err = phoneAsk(t, p, func(ctx context.Context) (psync.StatePutResult, error) { return c.PutState(ctx, lib, other) })
+	phoneWantCode(t, err, http.StatusBadRequest, psync.CodeInvalid)
 }

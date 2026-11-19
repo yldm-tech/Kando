@@ -1,6 +1,8 @@
 package learn
 
 import (
+	"strconv"
+
 	"kando/apps/mobile/learning"
 	"kando/apps/mobile/locales"
 	"kando/apps/mobile/look"
@@ -21,11 +23,23 @@ type reviewRun struct {
 	shown bool
 }
 
-// ReviewPage reviews the items due when it opens, a card at a time: the word or the line, then on a press its meaning, the line it came from and its translation, and whether the learner knew it, which schedules it (session.Grade). An item not known comes back at the end, until it is known. back leaves; the computers take the review at the next sync, which leaving starts.
+// ReviewPage reviews the items due when it opens, a card at a time, as the Learn tab's review mode says (session.ReviewMode). As cards: the word or the line, then on a press its meaning, the line it came from and its translation. As dictation: the line is heard from the film kept on the phone, the learner types it and Check marks what they heard (dictationCard); an item whose film is not on the phone is a card. Then whether the learner knew it, which schedules it (session.Grade). An item not known comes back at the end, until it is known. back leaves; the computers take the review at the next sync, which leaving starts.
 func ReviewPage(cx *core.Scope, s *session.Session, back func()) base.NavPage {
 	colors := ui.ColorsOf(cx)
 	due := learning.Due(s.LearnItems(), s.Now())
 	run := core.NewSignalFunc(cx, reviewRun{queue: due, total: len(due)}, nil)
+	dictating := s.ReviewMode() == session.ReviewDictation
+	// clips are the lines' clips to dictate, by the items' keys, once read (session.LineClips).
+	clips := core.NewSignalFunc[map[string]learning.Clip](cx, nil, nil)
+	clipsRead := core.NewSignal(cx, !dictating)
+	if dictating {
+		cx.Post(func() {
+			s.LineClips(due, func(m map[string]learning.Clip) {
+				clips.Set(m)
+				clipsRead.Set(true)
+			})
+		})
+	}
 	current := func() (learning.Item, bool) {
 		r := run.Get()
 		if r.at >= len(r.queue) {
@@ -34,6 +48,16 @@ func ReviewPage(cx *core.Scope, s *session.Session, back func()) base.NavPage {
 		return r.queue[r.at], true
 	}
 	done := func() bool { _, ok := current(); return !ok }
+	// clip is the current item's clip, false when it is reviewed as a card.
+	clip := func() (learning.Clip, bool) {
+		it, ok := current()
+		if !ok || !dictating {
+			return learning.Clip{}, false
+		}
+		c, ok := clips.Get()[it.Key()]
+		return c, ok
+	}
+	dictated := func() bool { _, ok := clip(); return ok }
 	grade := func(good bool) {
 		r := run.GetUntracked()
 		it, ok := current()
@@ -93,9 +117,35 @@ func ReviewPage(cx *core.Scope, s *session.Session, back func()) base.NavPage {
 		}
 		return locales.ReviewFrom(cx, it.Title)
 	})
+	noFilm := core.Show{When: func() bool { return dictating && clipsRead.Get() && !dictated() }, Then: func(cx *core.Scope) core.Node {
+		return core.Text{TestID: "review-no-film", ContentFunc: func() string { return locales.DictationNoFilm(cx) }, Style: look.Caption.Merge(core.Style{TextAlign: core.TextAlignCenter}), StyleFunc: ui.Colored(colors.Muted)}
+	}}
 	cardView := core.View{TestID: "review-card", Style: core.Style{FlexGrow: 1, JustifyContent: core.JustifyCenter, Padding: core.All(24), Gap: 8, CornerRadius: ui.RadiusCard, BorderCurve: core.BorderCurveContinuous},
 		StyleFunc: func() core.Style { return core.Style{Background: ui.Alpha(colors.Text(), 0.045)} },
 		Children:  []core.Node{front, answer, from}}
+	// shownAsk is the item's own card: the dictation of its line, built anew for each card (the key of the card is its place in the review), or the card with its answer.
+	type at struct {
+		key string
+		n   int
+	}
+	shownAsk := core.Show{When: clipsRead.Get,
+		Then: func(cx *core.Scope) core.Node {
+			return core.Show{When: dictated,
+				Then: func(cx *core.Scope) core.Node {
+					card := func() []at {
+						it, _ := current()
+						return []at{{it.Key(), run.Get().at}}
+					}
+					return core.Each(card, func(a at) string { return a.key + "#" + strconv.Itoa(a.n) }, func(cx *core.Scope, _ func() at, _ func() int) core.Node {
+						c, _ := clip()
+						return dictationCard(cx, c, shown)
+					})
+				},
+				Else: func(cx *core.Scope) core.Node { return cardView }}
+		},
+		Else: func(cx *core.Scope) core.Node {
+			return core.View{TestID: "review-loading", Style: core.Style{FlexGrow: 1, AlignItems: core.AlignCenter, JustifyContent: core.JustifyCenter}, Children: []core.Node{ui.Spinner{Size: 24}}}
+		}}
 	actions := core.Show{When: shown,
 		Then: func(cx *core.Scope) core.Node {
 			return core.View{Style: core.Style{Direction: core.Row, Gap: 12}, Children: []core.Node{
@@ -104,8 +154,15 @@ func ReviewPage(cx *core.Scope, s *session.Session, back func()) base.NavPage {
 			}}
 		},
 		Else: func(cx *core.Scope) core.Node {
-			return look.Button{TestID: "review-show", Kind: look.Primary, Text: func() string { return locales.ReviewShow(cx) },
-				OnPress: func() { r := run.GetUntracked(); r.shown = true; run.Set(r) }}
+			return look.Button{TestID: "review-show", Kind: look.Primary,
+				Text: func() string {
+					if dictated() {
+						return locales.DictationCheck(cx)
+					}
+					return locales.ReviewShow(cx)
+				},
+				Disabled: func() bool { return !clipsRead.Get() },
+				OnPress:  func() { r := run.GetUntracked(); r.shown = true; run.Set(r) }}
 		}}
 	progress := func() string {
 		r := run.Get()
@@ -118,7 +175,8 @@ func ReviewPage(cx *core.Scope, s *session.Session, back func()) base.NavPage {
 				core.View{Style: core.Style{FlexGrow: 1, Padding: core.Edges{Top: 8, Right: 16, Left: 16}, PaddingEnv: core.EnvEdges{Right: core.EnvSafeArea, Left: core.EnvSafeArea},
 					MaxWidth: core.Pt(560), Width: core.Pct(100), AlignSelf: core.AlignCenter, Gap: 12}, Children: []core.Node{
 					ui.Tabular(core.Text{TestID: "review-progress", ContentFunc: progress, Style: look.Caption.Merge(core.Style{TextAlign: core.TextAlignCenter}), StyleFunc: ui.Colored(colors.Muted)}),
-					cardView,
+					shownAsk,
+					noFilm,
 				}},
 				look.ActionBar(cx, actions),
 			}}

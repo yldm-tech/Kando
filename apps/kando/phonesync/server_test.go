@@ -431,3 +431,15 @@ func TestACorrectionTellsThePhoneTheFilmChanged(t *testing.T) {
 		t.Fatalf("after a correction the film changed at %v, want %v", got, corrected)
 	}
 }
+
+// A call waits for the app as long as an ordinary request does, but subscribing, which reads the whole list first, waits as long as the phone does for it.
+func TestCallTimeout(t *testing.T) {
+	if got := callTimeout(psync.OpSubscribe); got != psync.SubscribeWait {
+		t.Fatalf("subscribing waits %v, want %v", got, psync.SubscribeWait)
+	}
+	for _, op := range []string{psync.OpJobs, psync.OpSubscriptions, psync.OpSubscriptionTake, ""} {
+		if got := callTimeout(op); got != sourceTimeout {
+			t.Fatalf("%q waits %v, want %v", op, got, sourceTimeout)
+		}
+	}
+}

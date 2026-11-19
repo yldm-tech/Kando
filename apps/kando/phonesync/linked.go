@@ -77,16 +77,6 @@ func Text(v json.RawMessage) string {
 	return s
 }
 
-// Joinable reports whether a conflict of field of a record of kind can keep both versions, one after the other: a note or a word's meaning, which say more together, unlike two translations of one line.
-func Joinable(kind, field string) bool {
-	return field == psync.FieldNote || (kind == psync.KindWord && field == psync.FieldMeaning)
-}
-
-// Joined is the value keeping both of a conflict's versions, the one kept first.
-func Joined(c psync.Conflict) json.RawMessage {
-	return psync.Value(Text(c.Kept.Value) + "\n" + Text(c.Lost.Value))
-}
-
 // OpenConflicts are the ledger's open conflicts, the oldest first.
 func OpenConflicts(l *psync.Ledger) []psync.Conflict {
 	out := slices.Clone(l.Conflicts())

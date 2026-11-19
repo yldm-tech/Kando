@@ -37,4 +37,10 @@ func TestTheSettingsOverV2(t *testing.T) {
 	if d.Target() != "ja" {
 		t.Fatalf("a refused change left the desktop translating into %q", d.Target())
 	}
+
+	d.SetService("OpenAI", "gpt-4.1-mini")
+	got, err = c.PutSettings(ctx, sync.SettingsPut{Context: new(false)})
+	if err != nil || got.Context == nil || *got.Context || d.Context() || got.Service != "OpenAI" || got.Model != "gpt-4.1-mini" || got.Target != "ja" {
+		t.Fatalf("turning the context off answered %+v, %v; the desktop's is %v", got, err, d.Context())
+	}
 }

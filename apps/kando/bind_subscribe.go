@@ -164,8 +164,14 @@ func (a *app) CheckSubscription() {
 
 // PauseSubscription stops or starts the checks; pausing stops the one that runs.
 func (a *app) PauseSubscription(paused bool) {
-	sub, ok := a.subscribeShown()
-	if !ok || sub.Paused == paused {
+	if sub, ok := a.subscribeShown(); ok {
+		a.subscribePause(sub, paused)
+	}
+}
+
+// subscribePause stops or starts the checks of sub, as its page's switch and a phone do; pausing stops the one that runs.
+func (a *app) subscribePause(sub *subscribe.Sub, paused bool) {
+	if sub.Paused == paused {
 		return
 	}
 	sub.Paused = paused
@@ -182,7 +188,15 @@ func (a *app) Unsubscribe() {
 	if !ok {
 		return
 	}
-	id, name := sub.ID, sub.Name
+	name := sub.Name
+	a.subscribeRemove(sub.ID)
+	a.Select(pageFilms)
+	a.subs.shown = ""
+	a.tell(a.messages().SubscribeUnsubscribed(name))
+}
+
+// subscribeRemove removes the subscription with id, stopping its check, and starts the next check lined up; the videos it added stay. A page that shows it goes back to the library after the change (subscribeFollowPage).
+func (a *app) subscribeRemove(id string) {
 	if id == a.subs.checking {
 		a.subscribeStopCheck()
 	}
@@ -190,9 +204,6 @@ func (a *app) Unsubscribe() {
 	a.subs.store.Remove(id)
 	delete(a.subs.notes, id)
 	a.subscribeSave()
-	a.Select(pageFilms)
-	a.subs.shown = ""
-	a.tell(a.messages().SubscribeUnsubscribed(name))
 	a.subscribeNext()
 }
 
@@ -223,13 +234,16 @@ func (a *app) StopSubscription() {
 
 // AddWaiting queues the waiting videos at links, all of them for nil; those that could not be queued stay, and the page says why.
 func (a *app) AddWaiting(links []string) {
-	sub, ok := a.subscribeShown()
-	if !ok {
-		return
+	if sub, ok := a.subscribeShown(); ok {
+		a.subscribeAddWaiting(sub, links)
 	}
+}
+
+// subscribeAddWaiting queues the videos waiting on sub at links, all of them for nil, as its page and a phone do: those that could not be queued stay, and the page says why, which is returned, nil when every one was.
+func (a *app) subscribeAddWaiting(sub *subscribe.Sub, links []string) subscribeReason {
 	videos := sub.Waiting(links)
 	if len(videos) == 0 {
-		return
+		return nil
 	}
 	failed, why := a.subscribeEnqueue(sub, videos)
 	note := subscribeNote{Note: subscribe.Note{Kind: subscribe.NoteAdded, Count: len(videos) - len(failed)}}
@@ -238,6 +252,7 @@ func (a *app) AddWaiting(links []string) {
 	}
 	a.subs.notes[sub.ID] = note
 	a.subscribeSave()
+	return note.why
 }
 
 // SkipWaiting drops the waiting videos at links, all of them for nil.

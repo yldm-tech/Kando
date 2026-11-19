@@ -19,6 +19,7 @@ import (
 	"kando/apps/kando/settings"
 	"kando/apps/kando/shelf"
 	"kando/apps/kando/study"
+	"kando/packages/core"
 	"kando/packages/media"
 	recordstudy "kando/packages/study"
 
@@ -661,6 +662,64 @@ func TestStatsLeaveOutLibrariesWhoseRecordCannotBeRead(t *testing.T) {
 	for dir, data := range records {
 		if after, err := os.ReadFile(filepath.Join(dir, recordstudy.FileName)); err != nil || !bytes.Equal(after, data) {
 			t.Fatalf("the study record of %s changed: %v", filepath.Base(dir), err)
+		}
+	}
+}
+
+// TestVocabExportForAnkiCutsTheSounds exports the vocabulary for Anki with ffmpeg at hand (the fake one): the word added on the picture keeps its line's sound in the library as it is added, the export cuts the line's sound into the folder beside the notes off the engine's goroutine, saying it is busy meanwhile, and the word's note plays it.
+func TestVocabExportForAnkiCutsTheSounds(t *testing.T) {
+	srv, _ := fakeLLM(t, `{"word":"bye","reading":"/baɪ/","meaning":"再见"}`)
+	tools := media.Tools{FFmpeg: fakeTool(t, filepath.Join(t.TempDir(), "bin"), "ffmpeg"), Translator: media.ChatTranslator{BaseURL: srv.URL + "/v1", APIKey: "k", Model: "m1"}}
+	a, tt, updates := vocabTalk(t, tools)
+	apply(tt, a, func() { a.LookUpWord(1, "Bye") })
+	waitUntil(t, tt, a, updates, func() bool { return !a.vocab.lookup.busy })
+	tt.Press("id:film-lookup-save")
+	w := a.saved.book.Words[0]
+	if w.Start != 4*time.Second || w.End != 5*time.Second {
+		t.Fatalf("the word keeps its line at %v to %v", w.Start, w.End)
+	}
+	kept := saved.StoredSound(a.saved.book, w.ID)
+	waitUntil(t, tt, a, updates, func() bool { return len(a.saved.keeping) == 0 })
+	if !saved.HasSound(kept) {
+		t.Fatalf("the word's line kept no sound at %s", kept)
+	}
+	apply(tt, a, func() { a.OpenStats(vocabTabExport) })
+	out := t.TempDir()
+	tt.PickDirectories = func(ns.DirectoriesRequest) []ns.Directory { return []ns.Directory{{Path: out}} }
+	tt.Press("id:stats-export")
+	if !a.vocab.stats.exported.Busy {
+		t.Fatalf("the export for Anki is %+v", a.vocab.stats.exported)
+	}
+	wantText(t, tt, testlocale.Messages().VocabExporting())
+	waitUntil(t, tt, a, updates, func() bool { return !a.vocab.stats.exported.Busy })
+	if e := a.vocab.stats.exported; e.File != filepath.Join(out, "Kando Vocabulary.txt") || e.Err != "" {
+		t.Fatalf("exported %+v", e)
+	}
+	sound := saved.SoundName(saved.WordLine(w))
+	notes, _ := os.ReadFile(filepath.Join(out, "Kando Vocabulary.txt"))
+	if !strings.Contains(string(notes), "[sound:"+sound+"]") {
+		t.Fatalf("the notes read %q", notes)
+	}
+	if !saved.HasSound(filepath.Join(out, saved.VocabAudio, sound)) {
+		t.Fatal("no sound beside the notes")
+	}
+}
+
+// TestLookupNamesTheFilmsTerm checks which of the open film's glossary terms the card of a word names: a term that is the word, in any case, as clicked or as its dictionary form, before one that has the word among its words; none when no term has it.
+func TestLookupNamesTheFilmsTerm(t *testing.T) {
+	terms := []core.Term{{Source: "Mekong River", Target: "湄公河"}, {Source: "River", Target: "河流"}, {Source: "meander", Target: "河曲"}}
+	for _, c := range []struct {
+		words []string
+		want  string
+	}{
+		{[]string{"river"}, "River → 河流"},
+		{[]string{"Mekong"}, "Mekong River → 湄公河"},
+		{[]string{"meanders", "meander"}, "meander → 河曲"},
+		{[]string{"delta"}, ""},
+		{[]string{""}, ""},
+	} {
+		if got := vocabTerm(terms, c.words...); got != c.want {
+			t.Errorf("vocabTerm(%q) = %q, want %q", c.words, got, c.want)
 		}
 	}
 }

@@ -1,7 +1,8 @@
-// Package add is the Add sheet: a link to a video, pasted or typed, the site it is on, and the computer it goes to, which downloads, transcribes and translates it while the Jobs page follows it.
+// Package add is the Add sheet: a link to a video, pasted or typed, the site it is on, the computer it goes to, which downloads, transcribes and translates it while the Jobs page follows it, and, where that computer takes them, the picture it downloads and where the original lines come from. A link to a channel, an uploader's space, a collection or a playlist becomes a subscription of the computer's instead, whose new videos it adds as they come (Session.Subscribe), where the computer shares its subscriptions.
 package add
 
 import (
+	"slices"
 	"strings"
 
 	"kando/apps/mobile/locales"
@@ -24,52 +25,60 @@ func Sheet(cx *core.Scope, s *session.Session, open func() bool, close func(), s
 	text := core.NewSignal(cx, "")
 	// chosen is the computer the user picked, "" for the first one that answers.
 	chosen := core.NewSignal(cx, "")
+	// quality and subtitles are the job options the user picked (sync.JobOptions), "" for the computer's own setting.
+	quality := core.NewSignal(cx, "")
+	subtitles := core.NewSignal(cx, "")
 	link := func() (kcore.Link, bool) {
 		l, ok := kcore.ParseLink(text.Get())
 		return l, ok && l.Platform != kcore.PlatformLocal
 	}
 	valid := func() bool { _, ok := link(); return ok }
-	desktop := func() string {
-		list := s.Desktops()
-		for _, d := range list {
-			if d.ID == chosen.Get() {
-				return d.ID
-			}
-		}
-		for _, d := range list {
-			if q := s.Queue(d.ID); q.Reach == session.Online && takes(q) {
-				return d.ID
-			}
-		}
-		for _, d := range list {
-			if takes(s.Queue(d.ID)) {
-				return d.ID
-			}
-		}
-		if len(list) > 0 {
-			return list[0].ID
-		}
-		return ""
+	// list is a link the computer subscribes to rather than downloads: a list, sent to a computer that shares its subscriptions.
+	list := func(to string) bool {
+		l, ok := link()
+		return ok && l.IsList() && slices.Contains(s.Queue(to).Ops, sync.OpSubscribe)
 	}
+	// ready reports whether the link can go to computer to now: a subscription needs the computer to answer, and to let this phone subscribe; a video waits on the phone for a computer not reached yet.
+	ready := func(to string) bool {
+		if to == "" || !valid() {
+			return false
+		}
+		if list(to) {
+			q := s.Queue(to)
+			return q.Reach == session.Online && q.Can(sync.OpSubscribe) && !s.Subscribing(to)
+		}
+		return Takes(s.Queue(to))
+	}
+	desktop := func() string { return Destination(s, chosen.Get()) }
 	desktopName := func() string { d, _ := s.Desktop(desktop()); return d.Name }
 	send := func() {
-		l, ok := link()
+		l, _ := link()
 		to := desktop()
-		if !ok || to == "" || !takes(s.Queue(to)) {
+		if !ready(to) {
 			return
 		}
-		s.Send(to, l.URL)
+		if list(to) {
+			text.Set("")
+			close()
+			s.Subscribe(to, l.URL)
+			return
+		}
+		// Only the options the sheet shows for this computer go with the link: one picked for another computer, or before this one went offline, is not on screen and not sent.
+		q := s.Queue(to)
+		var opts sync.JobOptions
+		if q.Offers(sync.OptionQuality) {
+			opts.Quality = quality.Get()
+		}
+		if q.Offers(sync.OptionSubtitles) {
+			opts.Subtitles = subtitles.Get()
+		}
+		s.Send(to, l.URL, opts)
 		text.Set("")
 		close()
 		sent()
 	}
 	paste := func() { cx.ReadClipboard(func(clip string) { text.Set(firstLink(clip)) }) }
-	return ui.Dialog{TestID: "add-sheet", Open: open, TitleFunc: func() string { return locales.AddTitle(cx) },
-		OnOpenChange: func(open bool, _ base.Reason) {
-			if !open {
-				close()
-			}
-		},
+	return look.Dialog{TestID: "add-sheet", Open: open, Title: func() string { return locales.AddTitle(cx) }, OnClose: close,
 		OnConfirm: send,
 		Children: []core.Node{
 			core.View{Style: core.Style{Gap: 8}, Children: []core.Node{
@@ -103,26 +112,94 @@ func Sheet(cx *core.Scope, s *session.Session, open func() bool, close func(), s
 					)}},
 				}}
 			}},
+			core.Show{When: func() bool { return !list(desktop()) && s.Queue(desktop()).Offers(sync.OptionQuality) }, Then: func(cx *core.Scope) core.Node {
+				return qualityChoice(cx, desktopName, quality)
+			}},
+			core.Show{When: func() bool { return !list(desktop()) && s.Queue(desktop()).Offers(sync.OptionSubtitles) }, Then: func(cx *core.Scope) core.Node {
+				return subtitlesChoice(cx, desktopName, subtitles)
+			}},
 			core.Text{TestID: "add-note", ContentFunc: func() string {
 				q := s.Queue(desktop())
 				switch {
+				case list(desktop()) && q.Reach == session.Online && !q.Can(sync.OpSubscribe):
+					return locales.AddSubscribeReadOnly(cx, desktopName())
+				case list(desktop()) && q.Reach == session.Online:
+					return locales.AddSubscribeNote(cx, desktopName())
+				case list(desktop()):
+					return locales.AddSubscribeOffline(cx, desktopName())
 				case q.Reach == session.Older:
 					return locales.JobsOlder(cx)
 				case q.Reach == session.Revoked:
 					return locales.ComputersUnpaired(cx, desktopName())
-				case !takes(q):
+				case q.ReadOnly:
+					return locales.JobsReadOnly(cx, desktopName())
+				case !Takes(q):
 					return locales.AddNoLinks(cx, desktopName())
+				case q.Reach == session.Online && q.Relayed:
+					return locales.AddNoteRelay(cx, desktopName())
 				case q.Reach == session.Online:
 					return locales.AddNote(cx, desktopName())
+				case q.Relayed:
+					return locales.AddNoteOfflineRelay(cx, desktopName())
 				}
 				return locales.AddNoteOffline(cx, desktopName())
 			}, Style: look.Caption, StyleFunc: ui.Colored(colors.Muted)},
 		},
 		Footer: []core.Node{
 			look.Button{Kind: look.Plain, Text: func() string { return locales.CommonCancel(cx) }, TestID: "add-cancel", OnPress: close},
-			look.Button{Kind: look.Primary, Text: func() string { return locales.AddSend(cx) }, Icon: lucide.Send, TestID: "add-send",
-				Disabled: func() bool { to := desktop(); return !valid() || to == "" || !takes(s.Queue(to)) }, OnPress: send},
+			look.Button{Kind: look.Primary, TestID: "add-send",
+				Text: func() string {
+					if list(desktop()) {
+						return locales.AddSubscribe(cx)
+					}
+					return locales.AddSend(cx)
+				},
+				Icon: func() *core.SVG {
+					if list(desktop()) {
+						return lucide.Rss()
+					}
+					return lucide.Send()
+				},
+				Busy:     func() bool { return s.Subscribing(desktop()) },
+				Disabled: func() bool { return !ready(desktop()) }, OnPress: send},
 		}}
+}
+
+// qualityChoice is the picture the computer downloads, as chips: its own setting, the best there is, or 720p.
+func qualityChoice(cx *core.Scope, computer func() string, quality *core.Signal[string]) core.Node {
+	colors := ui.ColorsOf(cx)
+	label := func() string { return locales.AddQuality(cx) }
+	chip := func(value, id string, text func() string) core.Node {
+		return look.Chip{TestID: "add-quality-" + id, Radio: true, Text: text, On: func() bool { return quality.Get() == value }, OnPress: func() { quality.Set(value) }}
+	}
+	return core.View{Style: core.Style{Gap: 8}, Children: []core.Node{
+		core.Text{ContentFunc: label, Style: look.Section.Merge(core.Style{Padding: core.Edges{Left: 4}}), StyleFunc: ui.Colored(colors.Muted)},
+		core.View{Role: core.RoleRadioGroup, LabelFunc: label, Children: []core.Node{look.Chips(
+			chip("", "computer", func() string { return locales.AddAsComputer(cx, computer()) }),
+			chip(sync.QualityBest, "best", func() string { return locales.AddQualityBest(cx) }),
+			chip(sync.Quality720, "720", func() string { return locales.AddQuality720(cx) }),
+		)}},
+	}}
+}
+
+// subtitlesChoice is where the original lines come from, as a group of rows: the computer's own setting, the subtitles the uploader put on the site, or the computer's speech recognition.
+func subtitlesChoice(cx *core.Scope, computer func() string, subtitles *core.Signal[string]) core.Node {
+	colors := ui.ColorsOf(cx)
+	label := func() string { return locales.AddSubtitles(cx) }
+	row := func(i int, value, id string, title, detail func() string) core.Node {
+		on := func() bool { return subtitles.Get() == value }
+		return look.Row{TestID: "add-subtitles-" + id, Index: func() int { return i }, Title: title, Detail: detail, Checked: on,
+			Trailing: core.Show{When: on, Then: func(*core.Scope) core.Node { return ui.Icon(lucide.Check, 20, colors.Accent) }},
+			OnPress:  func() { subtitles.Set(value) }}
+	}
+	return core.View{Style: core.Style{Gap: 8}, Children: []core.Node{
+		core.Text{ContentFunc: label, Style: look.Section.Merge(core.Style{Padding: core.Edges{Left: 4}}), StyleFunc: ui.Colored(colors.Muted)},
+		core.View{Role: core.RoleRadioGroup, LabelFunc: label, Children: []core.Node{look.Group{Children: []core.Node{
+			row(0, "", "computer", func() string { return locales.AddAsComputer(cx, computer()) }, nil),
+			row(1, sync.SubtitlesPlatform, "platform", func() string { return locales.AddSubtitlesPlatform(cx) }, func() string { return locales.AddSubtitlesPlatformNote(cx) }),
+			row(2, sync.SubtitlesRecognize, "recognize", func() string { return locales.AddSubtitlesRecognize(cx) }, func() string { return locales.AddSubtitlesRecognizeNote(cx, computer()) }),
+		}}}},
+	}}
 }
 
 // pasteButton puts the clipboard's link in the field.
@@ -139,8 +216,8 @@ func pasteButton(cx *core.Scope, paste func()) core.Node {
 		}}
 }
 
-// takes reports whether a computer's queue may take a link: not one too old for links or that revoked the phone, nor one that answers without listing sync.OpJobCreate. One not reached yet may, and the link waits on the phone until it answers.
-func takes(q session.Queue) bool {
+// Takes reports whether a computer's queue may take a link: not one too old for links or that revoked the phone, nor one that answers without listing sync.OpJobCreate. One not reached yet may, and the link waits on the phone until it answers.
+func Takes(q session.Queue) bool {
 	switch q.Reach {
 	case session.Older, session.Revoked:
 		return false
@@ -148,6 +225,30 @@ func takes(q session.Queue) bool {
 		return q.Can(sync.OpJobCreate)
 	}
 	return true
+}
+
+// Destination is the paired computer a link goes to: chosen, the one the user picked, while it is paired; else the first that answers and takes links, else the first that may take them once it answers, else the first paired; "" with none paired.
+func Destination(s *session.Session, chosen string) string {
+	list := s.Desktops()
+	for _, d := range list {
+		if d.ID == chosen {
+			return d.ID
+		}
+	}
+	for _, d := range list {
+		if q := s.Queue(d.ID); q.Reach == session.Online && Takes(q) {
+			return d.ID
+		}
+	}
+	for _, d := range list {
+		if Takes(s.Queue(d.ID)) {
+			return d.ID
+		}
+	}
+	if len(list) > 0 {
+		return list[0].ID
+	}
+	return ""
 }
 
 // site is the site a link is on, as its chip names it: the site Kando knows it as, else its host.

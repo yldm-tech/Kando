@@ -39,8 +39,8 @@ func ContentStyle(*core.Scope) core.Style {
 		MaxWidth: core.Pt(720), Width: core.Pct(100), AlignSelf: core.AlignCenter, Gap: 28}
 }
 
-// BottomPad is the room under a scrolled list's end, clear of iOS's tab bar floating over it; read it in a StyleFunc.
-func BottomPad(cx *core.Scope) core.Points { return 24 + ui.TabBarInset(cx) }
+// BottomPad is the room under a scrolled list's end, clear of iOS's tab bar floating over it and of the mini player; read it in a StyleFunc.
+func BottomPad(cx *core.Scope) core.Points { return 24 + ui.TabBarInset(cx) + MiniRoom(cx) }
 
 // Column is ContentStyle with BottomPad under it, as a StyleFunc.
 func Column(cx *core.Scope) func() core.Style {

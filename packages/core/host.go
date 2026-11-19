@@ -2,6 +2,7 @@ package core
 
 import (
 	"net"
+	"net/url"
 	"strconv"
 	"strings"
 )
@@ -12,6 +13,27 @@ func WithScheme(text string) string {
 		return "https://" + text
 	}
 	return text
+}
+
+// WebAddress reports whether rawURL is an address on the web a browser's page may go to: http or https with a host, not a file, an app's own scheme or a page of a page's own making (about:, data:, blob:).
+func WebAddress(rawURL string) bool {
+	u, err := url.Parse(rawURL)
+	return err == nil && (strings.EqualFold(u.Scheme, "http") || strings.EqualFold(u.Scheme, "https")) && u.Host != ""
+}
+
+// AddressTarget is the address a browser's address field opens for text in the interface's language (a BCP 47 tag): the text itself when it is an http or https address, the text after https:// when it reads as a host, as example.com/watch or localhost:8080, and otherwise a search for it, on Bing in simplified Chinese, where Google does not answer, and on Google elsewhere. Kando's browser on the computer and the phone's open what they are typed alike.
+func AddressTarget(text, language string) string {
+	if WebAddress(text) {
+		return text
+	}
+	if LooksLikeHost(text) {
+		return "https://" + text
+	}
+	search := "https://www.google.com/search?q="
+	if language == "zh-Hans" {
+		search = "https://www.bing.com/search?q="
+	}
+	return search + url.QueryEscape(text)
 }
 
 // LooksLikeHost reports whether text, without a scheme, starts with a host a browser would open rather than search for: localhost, an IP address, or a name of dot-separated labels whose last is a top-level domain of letters, with a port and a path after it or not. It is how an address typed without https:// is told from other text, in Kando's link field and its browser's address field alike.

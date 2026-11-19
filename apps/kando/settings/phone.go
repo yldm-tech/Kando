@@ -39,6 +39,8 @@ type PhoneSync struct {
 	Stats     PhoneStats
 	Conflicts []PhoneConflict
 	Activity  []PhoneActivity
+	// Relay is the storage relay, through which phones away from this network reach the computer (phone_relay.go).
+	Relay PhoneRelay
 }
 
 // PhoneDevice is a paired phone: its ID, the name it gave itself, its platform (ios, android or ""), when it paired and when it was last seen, whether it was seen lately enough to be online, and whether the user made it read-only, so it changes nothing on this computer.
@@ -74,7 +76,7 @@ func (p phone) Render(cx *core.Scope) core.Node {
 			Style: core.Style{FontSize: 11, Padding: core.Edges{Top: 4, Right: 12, Left: 12}}, StyleFunc: ui.Colored(colors.Danger)}
 	}}
 	running := core.Show{When: live.Func(a, func() bool { return a.PhoneSync().Running }), Then: func(cx *core.Scope) core.Node {
-		// The phones paired come first, each with what it may do and what revoking it does; pairing another follows, then what comes of the links they send and what they sync (phone_devices.go, phone_learning.go).
+		// The phones paired come first, each with what it may do and what revoking it does; pairing another follows, then what comes of the links they send, how they reach the computer away from its network, and what they sync (phone_devices.go, phone_relay.go, phone_learning.go).
 		nodes := []core.Node{
 			form.Label(locales.SettingsPhoneDevices(cx), 14),
 			form.Card(devices{a: a}),
@@ -84,6 +86,8 @@ func (p phone) Render(cx *core.Scope) core.Node {
 			form.Card(pairing{a: a}),
 			form.Label(locales.SettingsPhoneLinks(cx), 14),
 			form.Card(receiveLinks(cx, a)...),
+			form.Label(locales.SettingsPhoneAway(cx), 14),
+			relayCard(cx, a),
 		}
 		return core.Group(append(nodes, learning(cx, a)...))
 	}}

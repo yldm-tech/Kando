@@ -30,7 +30,10 @@ jobs:
           key: go-${{ runner.os }}-mobile-${{ hashFiles('go.work.sum', '**/go.sum') }}
           restore-keys: go-${{ runner.os }}-mobile-
       # Each target is built into a folder of its own. The App Bundle is Google Play's package, which the store channel makes in place of an APK. The IPA is the App Store's whatever the channel, so its build takes none: on the store channel the app would also ask the App Store for a newer version, which it does not do today.
+      # The store tag leaves Browse out of the store packages (browse.Available; nsgo.yaml says why), as every build for the App Store or Google Play does.
       - name: Build
+        env:
+          GOFLAGS: -tags=store
         run: |
           go tool nsgo build -target ios -output "$RUNNER_TEMP/ios" apps/mobile
           go tool nsgo build -target android_arm64 -channel store -output "$RUNNER_TEMP/android" apps/mobile

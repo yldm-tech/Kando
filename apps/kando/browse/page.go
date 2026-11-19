@@ -1,9 +1,6 @@
 package browse
 
 import (
-	"net/url"
-	"strings"
-
 	"kando/apps/kando/live"
 	kcore "kando/packages/core"
 
@@ -62,22 +59,4 @@ func (webOnly) WebHosts() []string { return []string{"*"} }
 func (webOnly) WebSchemes() []string { return nil }
 
 // Allowed reports whether a page may go to rawURL: only http and https addresses, not files, the app's own schemes or other apps'.
-func Allowed(rawURL string) bool {
-	u, err := url.Parse(rawURL)
-	return err == nil && (strings.EqualFold(u.Scheme, "http") || strings.EqualFold(u.Scheme, "https")) && u.Host != ""
-}
-
-// Target is the address the address field's text opens in the interface's language: the text itself when it is an http or https address, the text after https:// when it reads as a host, as example.com/watch or localhost:8080, and otherwise a search for it, on Bing in simplified Chinese, where Google does not answer, and on Google elsewhere.
-func Target(text, language string) string {
-	if u, err := url.Parse(text); err == nil && (strings.EqualFold(u.Scheme, "http") || strings.EqualFold(u.Scheme, "https")) && u.Host != "" {
-		return text
-	}
-	if kcore.LooksLikeHost(text) {
-		return "https://" + text
-	}
-	search := "https://www.google.com/search?q="
-	if language == "zh-Hans" {
-		search = "https://www.bing.com/search?q="
-	}
-	return search + url.QueryEscape(text)
-}
+func Allowed(rawURL string) bool { return kcore.WebAddress(rawURL) }
