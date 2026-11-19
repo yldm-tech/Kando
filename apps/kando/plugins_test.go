@@ -937,7 +937,7 @@ func TestPluginDictionaryAnswersOffline(t *testing.T) {
 	}
 }
 
-// TestPluginDictionariesMissedAreNamed checks the card of a word the dictionaries asked first did not have, which the AI service then answered (docs/plugin-system.md 7.5): with one dictionary asked it names it, with several it says "your dictionaries"; a word the AI service answers with no dictionary asked says only that it did.
+// TestPluginDictionariesMissedAreNamed checks the card of a word the dictionaries asked first did not have, which the AI service then answered (docs/plugin-system.md 7.5): with one dictionary asked it names it, with several it says "your dictionaries"; a word the AI service answers with no dictionary asked says only that it did; and a dictionary whose lookup failed is not counted among those that did not have the word.
 func TestPluginDictionariesMissedAreNamed(t *testing.T) {
 	srv, _ := fakeLLM(t, `{"word":"bye","meaning":"int. 再见"}`)
 	a, tt, updates := vocabTalk(t, media.Tools{Translator: media.ChatTranslator{BaseURL: srv.URL + "/v1", APIKey: "k", Model: "m1"}})
@@ -962,6 +962,21 @@ func TestPluginDictionariesMissedAreNamed(t *testing.T) {
 	pluginsDictInstalled(t, a, tt, updates, pluginDictionary("example.more", "More words", "en", "zh-Hans"), map[string][]byte{"words.tsv": []byte("river\t\t河\n")})
 	if got := look("Byebye"); got != msgs.VocabLookupSourceAINotInDicts() {
 		t.Fatalf("two dictionaries asked: %q", got)
+	}
+
+	// The first dictionary's index is damaged where it keeps hello, so its lookup of hello fails: only the other is named as not having the word.
+	var hash string
+	onEngine(a, func() { hash = a.plugins.dicts["example.words"].hash })
+	f, err := os.OpenFile(filepath.Join(a.pluginsIndexDir(), dict.IndexName("example.words", hash)), os.O_WRONLY, 0)
+	if err == nil {
+		_, err = f.WriteAt(bytes.Repeat([]byte{0xff}, 10), 32)
+		err = errors.Join(err, f.Close())
+	}
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got := look("Hello"); got != msgs.VocabLookupSourceAINotInDict("More words") {
+		t.Fatalf("one dictionary failed, the other missed: %q", got)
 	}
 }
 

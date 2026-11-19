@@ -251,6 +251,15 @@ func (a *app) LookUpWord(i int, word string) {
 	ctx, cancel := context.WithTimeout(context.Background(), lookupTimeout)
 	a.vocab.cancel = cancel
 	update, now := a.update, a.saved.now
+	// The dictionaries whose lookup failed, as one with a damaged index, are not among those that did not have the word (missed); Answer reports them on this goroutine before it returns.
+	var broken []string
+	reportFailed := ask.ask.Failed
+	ask.ask.Failed = func(d lookup.Dictionary, err error) {
+		broken = append(broken, d.ID())
+		if reportFailed != nil {
+			reportFailed(d, err)
+		}
+	}
 	go func() {
 		defer cancel()
 		entry, source, err := ask.answer(ctx)
@@ -273,9 +282,11 @@ func (a *app) LookUpWord(i int, word string) {
 			}
 			l.entry, l.source = entry, source
 			if source == "" {
-				// The dictionaries asked before the AI service did not have the word (lookup.Ask.Answer); the card says so.
+				// The dictionaries asked before the AI service that did not have the word (lookup.Ask.Answer), not those whose lookup failed; the card says so.
 				for _, d := range ask.ask.Dicts {
-					l.missed = append(l.missed, d.ID())
+					if !slices.Contains(broken, d.ID()) {
+						l.missed = append(l.missed, d.ID())
+					}
 				}
 				cache := a.vocabCache()
 				cache.Put(q, entry, now())
