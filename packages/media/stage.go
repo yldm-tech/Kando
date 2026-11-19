@@ -28,18 +28,51 @@ type StageError struct {
 	Err    error
 }
 
-func (e *StageError) Error() string { return string(e.Stage) + ": " + e.Err.Error() }
+// Error is the step's name, ": " and the error's text; the step's name alone for one with no error.
+func (e *StageError) Error() string {
+	if e.Err == nil {
+		return string(e.Stage)
+	}
+	return string(e.Stage) + ": " + e.Err.Error()
+}
+
+// Detail is the error's text without the step's name, "" for one with no error.
+func (e *StageError) Detail() string {
+	if e.Err == nil {
+		return ""
+	}
+	return e.Err.Error()
+}
 
 func (e *StageError) Unwrap() error { return e.Err }
 
-// failedAt is err as the failure of stage, with the translation source that failed when the error came from one (engineError).
+// failedAt is err as the failure of stage, with the translation source that failed when the error is that source's alone (EngineOf).
 func failedAt(stage Stage, err error) *StageError {
-	failed := &StageError{Stage: stage, Err: err}
-	var engine *engineError
-	if errors.As(err, &engine) {
-		failed.Source = engine.name
+	source, _ := EngineOf(err)
+	return &StageError{Stage: stage, Source: source, Err: err}
+}
+
+// EngineOf is the name of the translation source (Tools.Engine) whose failure err is, and whether it is one: err wraps that source's error and nothing else, so a check that joins Kando's own missing tools with the source's complaint (errors.Join) is not the source's. An error two sources joined names neither.
+func EngineOf(err error) (string, bool) {
+	switch e := err.(type) {
+	case nil:
+		return "", false
+	case *engineError:
+		return e.name, true
+	case interface{ Unwrap() []error }:
+		name := ""
+		for _, part := range e.Unwrap() {
+			got, ok := EngineOf(part)
+			if !ok || (name != "" && got != name) {
+				return "", false
+			}
+			name = got
+		}
+		return name, name != ""
+	case interface{ Unwrap() error }:
+		return EngineOf(e.Unwrap())
 	}
-	return failed
+	return "", false
 }
 
 // ReadStageError is the error a failed job's saved text stands for when the library kept no step beside it, as a library saved before the step was kept apart: a *StageError when the text starts with the name of a step and ": ", as Make wrote it, with the rest as its error's text; otherwise the text as an error of its own. Neither tells the error it once wrapped (errors.Is), as no saved text does.

@@ -3,6 +3,7 @@ package media
 import (
 	"context"
 	"errors"
+	"fmt"
 	"os"
 	"slices"
 	"strings"
@@ -289,5 +290,118 @@ func TestToolsCandidatesAskTheEngine(t *testing.T) {
 	plain := Tools{Engine: &fakeEngine{}, Translator: ChatTranslator{BaseURL: srv.URL + "/v1", APIKey: "k", Model: "m"}}
 	if got, err := plain.Candidates(ctx, req); err != nil || !slices.Equal(got, []string{"你好。"}) || len(*seen) != 1 {
 		t.Fatalf("an engine without candidates: %q, %v after %d requests", got, err, len(*seen))
+	}
+}
+
+func (f engineFilm) chats() bool { return f.tools.chats() }
+
+// With a translation source of its own and no AI service set up, a film is translated by the source and made without proofreading, the final proofread or term suggestions, which need the AI service, rather than fail at them; with the AI service set up as well, it does them too.
+func TestMakeWithAnEngineLeavesOutWhatNeedsTheAIService(t *testing.T) {
+	for _, setUp := range []bool{false, true} {
+		job, video := makeJob(t)
+		job.SpeechLanguage = "ja"
+		tools := Tools{Engine: &fakeEngine{}, EngineName: "DeepL"}
+		if setUp {
+			tools.Translator = ChatTranslator{BaseURL: "https://api.example.com/v1", APIKey: "k", Model: "m"}
+		}
+		f := &makeFilm{length: 30 * time.Second, language: "ja"}
+		ctx := WithTermSuggestions(WithReview(context.Background(), core.ProofAutoAll))
+		done := makeFilmWith(t, ctx, engineFilm{makeFilm: f, tools: tools}, job, 0)
+		if done.Stage != core.StageComplete || done.TranslationErr != "" {
+			t.Fatalf("set up %v: job ended %s: %v %q", setUp, done.Stage, done.Err, done.TranslationErr)
+		}
+		if doc, _ := track.Read(video); !strings.Contains(doc.View()[0].Translation.Text, "MT:") {
+			t.Fatalf("set up %v: lines %+v", setUp, doc.View())
+		}
+		if asked := f.proofreads > 0 || len(f.reviewed) > 0; asked != setUp {
+			t.Errorf("set up %v: %d proofreads, final proofread of %v", setUp, f.proofreads, f.reviewed)
+		}
+	}
+}
+
+func TestToolsChatsOnlyWithTheAIServiceSetUp(t *testing.T) {
+	ready := ChatTranslator{BaseURL: "https://api.example.com/v1", APIKey: "k", Model: "m"}
+	for _, tc := range []struct {
+		name  string
+		tools Tools
+		want  bool
+	}{
+		{"no engine", Tools{}, true},
+		{"engine alone", Tools{Engine: &fakeEngine{}}, false},
+		{"engine and the AI service", Tools{Engine: &fakeEngine{}, Translator: ready}, true},
+		{"no model", Tools{Engine: &fakeEngine{}, Translator: ChatTranslator{BaseURL: ready.BaseURL, APIKey: "k"}}, false},
+		{"EveryAPI without a key or a sign-in", Tools{Engine: &fakeEngine{}, Translator: ChatTranslator{BaseURL: EveryAPIBaseURL, Model: "m"}}, false},
+		{"EveryAPI signed in", Tools{Engine: &fakeEngine{}, Translator: ChatTranslator{BaseURL: EveryAPIBaseURL, Model: "m", Credential: func(context.Context, bool) (Endpoint, error) { return Endpoint{}, nil }}}, true},
+		{"offline", Tools{Engine: &fakeEngine{}, Translator: ready, Offline: true}, false},
+		{"offline on this computer", Tools{Engine: &fakeEngine{}, Translator: ChatTranslator{BaseURL: "http://127.0.0.1:11434/v1", Model: "m"}, Offline: true}, true},
+	} {
+		if got := tc.tools.chats(); got != tc.want {
+			t.Errorf("%s: chats %v, want %v", tc.name, got, tc.want)
+		}
+	}
+}
+
+// A check that joins Kando's own missing tools with a translation source's complaint is not the source's failure; one the source's complaint alone fails is, and so is the failure offline mode gives a source not on this computer.
+func TestTheSourceIsNamedOnlyForItsOwnFailure(t *testing.T) {
+	tools := Tools{Engine: &fakeEngine{checkErr: errors.New("no DeepL key")}, EngineName: "DeepL"}
+	own := tools.CheckTranslate()
+	if got := failedAt(StageCheck, errors.Join(errors.New("ffmpeg is not installed"), own)); got.Source != "" {
+		t.Fatalf("a joined check names %q", got.Source)
+	}
+	if got := failedAt(StageCheck, errors.Join(nil, own)); got.Source != "DeepL" {
+		t.Fatalf("the source's check alone names %q", got.Source)
+	}
+	if got := failedAt(StageTranslate, fmt.Errorf("draft: %w", own)); got.Source != "DeepL" {
+		t.Fatalf("a wrapped failure names %q", got.Source)
+	}
+	other := Tools{Engine: &fakeEngine{checkErr: errors.New("no key")}, EngineName: "Papago"}.CheckTranslate()
+	if got := failedAt(StageCheck, errors.Join(own, other)); got.Source != "" {
+		t.Fatalf("two sources' failures name %q", got.Source)
+	}
+	if got := failedAt(StageCheck, nil); got.Source != "" {
+		t.Fatalf("no error names %q", got.Source)
+	}
+
+	tools = Tools{Engine: &fakeEngine{}, EngineName: "DeepL", Offline: true}
+	_, err := tools.Translate(context.Background(), []core.Segment{{Text: "hi"}}, "简体中文")
+	if name, ok := EngineOf(err); !ok || name != "DeepL" || !errors.Is(err, ErrOffline) {
+		t.Fatalf("offline: %v names %q", err, name)
+	}
+}
+
+// An engine set without a name is named by its Go type, so its failure is never taken for the AI service's.
+func TestAnEngineWithoutANameIsNamedByItsType(t *testing.T) {
+	tools := Tools{Engine: &fakeEngine{err: errors.New("boom")}, EngineName: "  "}
+	_, err := tools.Translate(context.Background(), []core.Segment{{Text: "hi"}}, "简体中文")
+	if got := failedAt(StageTranslate, err); got.Source != "*media.fakeEngine" {
+		t.Fatalf("named %q", got.Source)
+	}
+}
+
+// A StageError with no error reads as its step alone, and making one does not panic.
+func TestAStageErrorWithoutAnError(t *testing.T) {
+	failed := failedAt(StageExport, nil)
+	if failed.Error() != "export" || failed.Detail() != "" || failed.Source != "" || errors.Unwrap(failed) != nil {
+		t.Fatalf("%q %q %q", failed.Error(), failed.Detail(), failed.Source)
+	}
+	if got := (&StageError{Stage: StageTranslate, Err: errors.New("busy")}).Detail(); got != "busy" {
+		t.Fatalf("detail %q", got)
+	}
+}
+
+// A film whose translation source fails cell after cell is made with its original lines, and says which source failed (core.Job.TranslationSource); the AI service's failure names none.
+func TestAFilmNotTranslatedNamesTheSource(t *testing.T) {
+	job, _ := makeJob(t)
+	job.SpeechLanguage = "ja"
+	f := &makeFilm{length: 60 * time.Second, language: "ja"}
+	done := makeFilmWith(t, context.Background(), engineFilm{makeFilm: f, tools: Tools{Engine: &fakeEngine{err: errors.New("456 Quota Exceeded")}, EngineName: "DeepL"}}, job, 0)
+	if done.Stage != core.StageComplete || done.TranslationErr != "456 Quota Exceeded" || done.TranslationSource != "DeepL" {
+		t.Fatalf("job ended %s: %q from %q", done.Stage, done.TranslationErr, done.TranslationSource)
+	}
+	job, _ = makeJob(t)
+	job.SpeechLanguage = "ja"
+	f = &makeFilm{length: 60 * time.Second, language: "ja", translate: func(string) (string, error) { return "", errors.New("502 bad gateway") }}
+	if done := makeFilmWith(t, context.Background(), f, job, 0); done.TranslationErr == "" || done.TranslationSource != "" {
+		t.Fatalf("the AI service's failure: %q from %q", done.TranslationErr, done.TranslationSource)
 	}
 }

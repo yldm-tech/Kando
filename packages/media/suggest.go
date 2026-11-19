@@ -197,10 +197,10 @@ func (t Tools) SuggestTerms(ctx context.Context, original, translated []core.Seg
 	return t.withOffline().SuggestTerms(ctx, original, translated, title, language)
 }
 
-// suggest asks p for suggestions for the film's glossary when the job's context asks for them (WithTermSuggestions) and p can (TermSuggester). ok is false when none were asked for, or the request failed, which keeps the suggestions the film had.
+// suggest asks p for suggestions for the film's glossary when the job's context asks for them (WithTermSuggestions) and p can (TermSuggester), with an AI service to ask (chats). ok is false when none were asked for, or the request failed, which keeps the suggestions the film had.
 func suggest(ctx context.Context, p Pipeline, original, translated []core.Segment, title, language string) (terms []core.Term, ok bool) {
 	s, can := p.(TermSuggester)
-	if !suggestsTerms(ctx) || !can {
+	if !suggestsTerms(ctx) || !can || !chats(p) {
 		return nil, false
 	}
 	terms, err := s.SuggestTerms(ctx, original, translated, title, language)

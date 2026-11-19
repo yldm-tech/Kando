@@ -86,7 +86,7 @@ func (t Tools) Candidates(ctx context.Context, req CandidateRequest) ([]string, 
 	}
 	got, err := source.Candidates(ctx, req)
 	if err != nil {
-		return nil, &engineError{name: t.EngineName, err: err}
+		return nil, t.engineErr(err)
 	}
 	return keepCandidates(got, req.Line.Translation), nil
 }

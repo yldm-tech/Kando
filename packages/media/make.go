@@ -242,6 +242,17 @@ func Make(ctx context.Context, p Pipeline, job core.Job, language, device string
 	return m.run(length, language, watch)
 }
 
+// chatter is a Pipeline that says whether its AI service does the work Make asks of it apart from translating, proofreading, the final proofread and term suggestions, as Tools does when its translation goes to a source of its own (Tools.chats).
+type chatter interface {
+	chats() bool
+}
+
+// chats reports whether p's AI service does the work apart from translating: always, unless p says it does not (chatter). Make leaves that work out when it does not, rather than fail at it.
+func chats(p Pipeline) bool {
+	c, ok := p.(chatter)
+	return !ok || c.chats()
+}
+
 // soundPath is where the sound of the link whose video is to be at video is kept while it is made from it: a hidden file beside it, as ".video.sound", which moves with the video (Companions) and goes once the video is there.
 func soundPath(video string) string { return hiddenBeside(video, ".sound") }
 
@@ -401,9 +412,12 @@ func (m *making) run(length time.Duration, language string, watch Watcher) core.
 
 	// notTranslated is why the film is not translated, once it is not: no translator set up, the service gone, or failing cell after cell.
 	var notTranslated string
+	// notTranslatedBy is the translation source whose failure notTranslated is, "" for the AI service's (EngineOf).
+	var notTranslatedBy string
 	if tc, ok := m.p.(TranslateChecker); ok {
 		if err := tc.CheckTranslate(); err != nil {
 			notTranslated = err.Error()
+			notTranslatedBy, _ = EngineOf(err)
 		}
 	}
 	// translates is the language the film's lines are drafted in, "" while they are not: a film heard in the language its subtitles are for is not translated, which for Chinese is told by the script of the lines heard so far.
@@ -416,7 +430,7 @@ func (m *making) run(length time.Duration, language string, watch Watcher) core.
 	// The final proofread, when the job asks for it and the pipeline can: each block of the film proofread as a whole once drafted, its inputs the film's terms found in it.
 	auto, reviewAsked := reviewOf(m.ctx)
 	_, canReview := m.p.(Reviewer)
-	finals := reviewAsked && canReview
+	finals := reviewAsked && canReview && chats(m.p)
 	relanguage := func() {
 		plan.Language, plan.Final = translates(), nil
 		if finals && plan.Language != "" {
@@ -572,6 +586,7 @@ func (m *making) run(length time.Duration, language string, watch Watcher) core.
 			case errors.Is(d.err, ErrOffline) || draftFailures+1 >= maxFailedBatches:
 				// The service is not there, or fails cell after cell: the film is made without the translation of the cells left, as it is without a translator.
 				notTranslated = d.err.Error()
+				notTranslatedBy, _ = EngineOf(d.err)
 				relanguage()
 			default:
 				draftFailures++
@@ -595,9 +610,9 @@ func (m *making) run(length time.Duration, language string, watch Watcher) core.
 		for _, u := range last.GivenUp {
 			switch u.Work {
 			case track.WorkHear:
-				return m.fail("transcribe", errGivenUp)
+				return m.fail(StageTranscribe, errGivenUp)
 			case track.WorkDraft:
-				return m.fail("translate", errGivenUp)
+				return m.fail(StageTranslate, errGivenUp)
 			}
 		}
 	}
@@ -676,7 +691,7 @@ func (m *making) run(length time.Duration, language string, watch Watcher) core.
 	}
 	job.SubtitlePath = m.bilingual
 	job.CompletedAt = time.Now()
-	job.Language, job.Untranslated, job.TranslationErr = language, untranslated, notTranslated
+	job.Language, job.Untranslated, job.TranslationErr, job.TranslationSource = language, untranslated, notTranslated, notTranslatedBy
 	job.Redo, job.RedoLanguage = "", ""
 	job.Progress = core.Progress{}
 	job.Stage = core.StageComplete
@@ -1140,7 +1155,7 @@ func fillMissing(ctx context.Context, p Pipeline, job *core.Job, language, devic
 	}
 	job.SubtitlePath, job.SameLanguage = bilingual, same
 	job.CompletedAt = time.Now()
-	job.Language, job.Untranslated, job.TranslationErr = language, left, ""
+	job.Language, job.Untranslated, job.TranslationErr, job.TranslationSource = language, left, "", ""
 	job.Redo, job.RedoLanguage = "", ""
 	job.Stage, job.Progress = core.StageComplete, core.Progress{}
 	report(*job)
@@ -1408,7 +1423,7 @@ func (m *making) draft(ctx context.Context, in draftInput, language string, out 
 	heard, at := heardOnly(lines, in.site)
 	ApplyRecurring(heard, in.terms)
 	var fixes []Fix
-	if pr, ok := m.p.(Proofreader); ok && !in.redraft && !m.copied && len(heard) > 0 {
+	if pr, ok := m.p.(Proofreader); ok && chats(m.p) && !in.redraft && !m.copied && len(heard) > 0 {
 		if fixed, err := pr.Proofread(ctx, heard, in.title); err == nil && len(fixed) == len(heard) {
 			heard = fixed
 		} else if ctx.Err() != nil {

@@ -92,6 +92,8 @@ type Job struct {
 	Untranslated int
 	// TranslationErr is why a completed job translated none of its lines: its translation failed as a whole, or no AI service was set up to do it. Its subtitles are then the original lines alone, and Untranslated counts every line, so translating its missing lines (RedoMissing) translates the film once the service works. Empty for a job that translated, or has not completed; a job translating a done film again keeps the film's until it completes again.
 	TranslationErr string
+	// TranslationSource is the name of the translation source other than the AI service whose failure TranslationErr says (media.Tools.Engine), "" when the AI service's or none.
+	TranslationSource string
 	// Transcribed is true once this job's transcription has saved the speech it heard beside VideoPath, so running the job again, as a retry after a failed translation or after the app quit in the middle, reads it back instead of transcribing the video again. Processing a done film again clears it, so its speech is transcribed anew.
 	Transcribed bool
 	// Proofread is true once the transcript beside VideoPath has been proofread (media.Proofreader): a job making a film for the first time sets it as it saves the proofread transcript, so running it again does not proofread it again, and a done film's says whether its transcript was, so translating it again proofreads one that was not. Transcribing the video anew clears it; a job processing a done film again keeps the film's until it completes.
