@@ -47,7 +47,7 @@ The interface is in English, Simplified Chinese, Traditional Chinese, Japanese a
 Builds for macOS (Apple silicon and Intel), Windows (x86-64 and ARM64) and Linux (x86-64 and ARM64) are on [GitHub Releases](https://github.com/yldm-tech/Kando/releases). Pick the file for your system, where `<version>` is the release's version, such as `0.5.0`:
 
 - macOS: `kando-<version>-macos-arm64.dmg` for Apple silicon, `kando-<version>-macos-x64.dmg` for Intel. Open the disk image and drag Kando to Applications.
-- Windows: `kando-<version>-windows-x64-setup.exe` for most PCs, `kando-<version>-windows-arm64-setup.exe` for a Windows on Arm PC. Run the installer. It is not signed yet, so SmartScreen may warn before it runs: choose More info, then Run anyway.
+- Windows: `kando-<version>-windows-x64-setup.exe` for most PCs, `kando-<version>-windows-arm64-setup.exe` for a Windows on Arm PC. Run the installer. It is signed, but while its certificate is new to SmartScreen, SmartScreen may warn before it runs: choose More info, then Run anyway.
 - Debian, Ubuntu and their derivatives: `kando-<version>-linux-x64.deb` for x86-64, `kando-<version>-linux-arm64.deb` for ARM64. Install it with `sudo apt install ./kando-<version>-linux-<arch>.deb` in the folder you downloaded it to.
 - Arch Linux and its derivatives: `kando-<version>-linux-<arch>.pkg.tar.gz`, installed with `sudo pacman -U ./kando-<version>-linux-<arch>.pkg.tar.gz`.
 - Other Linux distributions: `kando-<version>-linux-<arch>.AppImage` runs without installing: make it executable with `chmod +x` and open it. It takes GTK 4 from the system.

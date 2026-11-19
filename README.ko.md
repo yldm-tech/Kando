@@ -50,7 +50,7 @@ Kando는 배우고 싶은 언어로 된 동영상을 보면서 그 언어를 공
 macOS(Apple 실리콘과 Intel), Windows(x86-64와 ARM64), Linux(x86-64와 ARM64)용 빌드는 [GitHub Releases](https://github.com/yldm-tech/Kando/releases)에 있습니다. 사용하는 시스템에 맞는 파일을 고르세요. `<version>`은 릴리스의 버전(예: `0.5.0`)입니다.
 
 - macOS: Apple 실리콘 Mac은 `kando-<version>-macos-arm64.dmg`, Intel Mac은 `kando-<version>-macos-x64.dmg`. 디스크 이미지를 열고 Kando를 응용 프로그램 폴더로 드래그합니다.
-- Windows: 대부분의 PC는 `kando-<version>-windows-x64-setup.exe`, Arm 기반 Windows PC는 `kando-<version>-windows-arm64-setup.exe`. 설치 프로그램을 실행합니다. 아직 서명되지 않아 실행 전에 SmartScreen 경고가 뜰 수 있으니, ‘추가 정보’를 누른 뒤 ‘실행’을 누르세요.
+- Windows: 대부분의 PC는 `kando-<version>-windows-x64-setup.exe`, Arm 기반 Windows PC는 `kando-<version>-windows-arm64-setup.exe`. 설치 프로그램을 실행합니다. 서명되어 있지만 인증서가 아직 SmartScreen 평판을 쌓는 중이라 실행 전에 경고가 뜰 수 있으니, ‘추가 정보’를 누른 뒤 ‘실행’을 누르세요.
 - Debian, Ubuntu와 그 파생 배포판: x86-64는 `kando-<version>-linux-x64.deb`, ARM64는 `kando-<version>-linux-arm64.deb`. 내려받은 폴더에서 `sudo apt install ./kando-<version>-linux-<arch>.deb`로 설치합니다.
 - Arch Linux와 그 파생 배포판: `kando-<version>-linux-<arch>.pkg.tar.gz`를 `sudo pacman -U ./kando-<version>-linux-<arch>.pkg.tar.gz`로 설치합니다.
 - 그 밖의 Linux 배포판: `kando-<version>-linux-<arch>.AppImage`는 설치 없이 실행됩니다. `chmod +x`로 실행 권한을 준 뒤 여세요. GTK 4는 시스템에 있는 것을 씁니다.

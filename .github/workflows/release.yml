@@ -116,7 +116,7 @@ jobs:
           done
           echo "::error::Could not push the tag $VERSION."
           exit 1
-      # The release's notes start with a table of the downloads for each system, whose names are the ones package.yml and browser-extension.sh give the files, then the version's section of CHANGELOG.md. The macOS packages are signed and notarized (see package.yml); the Windows installers are not signed yet, which the notes say.
+      # The release's notes start with a table of the downloads for each system, whose names are the ones package.yml and browser-extension.sh give the files, then the version's section of CHANGELOG.md. The macOS packages are signed and notarized and the Windows ones signed (see package.yml), which the notes say.
       - name: Draft the release
         if: steps.commit.outputs.sha != ''
         env:
@@ -141,7 +141,7 @@ jobs:
           EOF
           cat >> "$RUNNER_TEMP/notes.md" <<'EOF'
           > [!NOTE]
-          > The macOS disk images are signed with a Developer ID and notarized by Apple. The Windows installers are not signed yet, so SmartScreen warns before the first run: choose More info, then Run anyway. On Windows, Kando does not download yt-dlp, ffmpeg and whisper-cli yet; install them with a package manager and put them on your PATH. `checksums.txt` lists the SHA-256 of every file, and `gh attestation verify <file> --repo ${{ github.repository }}` checks that a file was built by this repository's Release workflow.
+          > The macOS disk images are signed with a Developer ID and notarized by Apple. The Windows installers and the app are signed with a Certum code signing certificate; while the certificate is new to SmartScreen, it may still warn before the first run: choose More info, then Run anyway. On Windows, Kando does not download yt-dlp, ffmpeg and whisper-cli yet; install them with a package manager and put them on your PATH. `checksums.txt` lists the SHA-256 of every file, and `gh attestation verify <file> --repo ${{ github.repository }}` checks that a file was built by this repository's Release workflow.
           EOF
           {
             echo

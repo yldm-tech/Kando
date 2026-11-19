@@ -50,7 +50,7 @@
 macOS（Apple 晶片和 Intel）、Windows（x86-64 和 ARM64）和 Linux（x86-64 和 ARM64）的建置版本在 [GitHub Releases](https://github.com/yldm-tech/Kando/releases) 上。請依你的系統選擇檔案，其中 `<version>` 是該版本的版本號，例如 `0.5.0`：
 
 - macOS：Apple 晶片的 Mac 選 `kando-<version>-macos-arm64.dmg`，Intel 的 Mac 選 `kando-<version>-macos-x64.dmg`。開啟磁碟映像檔，把看懂拖到「應用程式」檔案夾。
-- Windows：大多數電腦選 `kando-<version>-windows-x64-setup.exe`，ARM 處理器的 Windows 電腦選 `kando-<version>-windows-arm64-setup.exe`，下載後執行安裝程式。安裝程式暫時沒有簽署，SmartScreen 可能會在執行前跳出警告：按「其他資訊」，再按「仍要執行」。
+- Windows：大多數電腦選 `kando-<version>-windows-x64-setup.exe`，ARM 處理器的 Windows 電腦選 `kando-<version>-windows-arm64-setup.exe`，下載後執行安裝程式。安裝程式已簽署，但憑證剛開始使用、尚未累積信譽時，SmartScreen 仍可能在執行前跳出警告：按「其他資訊」，再按「仍要執行」。
 - Debian、Ubuntu 及其衍生發行版：x86-64 選 `kando-<version>-linux-x64.deb`，ARM64 選 `kando-<version>-linux-arm64.deb`。在下載所在的資料夾中以 `sudo apt install ./kando-<version>-linux-<arch>.deb` 安裝。
 - Arch Linux 及其衍生發行版：選 `kando-<version>-linux-<arch>.pkg.tar.gz`，以 `sudo pacman -U ./kando-<version>-linux-<arch>.pkg.tar.gz` 安裝。
 - 其他 Linux 發行版：`kando-<version>-linux-<arch>.AppImage` 不需安裝，以 `chmod +x` 加上執行權限後直接開啟。它使用系統內建的 GTK 4。

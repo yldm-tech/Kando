@@ -52,6 +52,8 @@ env:
   MACOS_SIGNING_IDENTITY: "Developer ID Application: YLDM Co., Ltd. (LXCL4Z68GU)"
   # The ssign commit the Windows packages are signed with, reviewed before it was pinned: it talks only to Certum's cloudsign.webnotarius.pl and time.certum.pl.
   SSIGN_REV: 367bf7d3da14d5041d5e47f855ae2397b8028e33
+  # The subject of the SimplySign certificate the Windows files must be signed by; ssign signs with the account's first card.
+  WINDOWS_SIGNING_SUBJECT: "CN=Open Source Developer PENG HU,O=Open Source Developer,L=Yokohama,ST=Kanagawa,C=JP"
 
 jobs:
   build:
@@ -235,11 +237,12 @@ jobs:
               echo "signed: ${file#"$RUNNER_TEMP"/packages/}"
             done
           done
-          printf '%s\n' "${subjects[@]}" | sort | uniq -c
-          if [ "$(printf '%s\n' "${subjects[@]}" | sort -u | wc -l)" -ne 1 ]; then
-            echo "::error::The Windows files are signed by more than one certificate"
-            exit 1
-          fi
+          for subject in "${subjects[@]}"; do
+            if [ "$subject" != "$WINDOWS_SIGNING_SUBJECT" ]; then
+              echo "::error::A Windows file is signed by $subject, not $WINDOWS_SIGNING_SUBJECT"
+              exit 1
+            fi
+          done
       # Kando's MyGo builds (0.12.0 and older) update from update-<target>.json in the latest release, which nsgo build does not make, so a release build makes it for them (.github/scripts/mygo-bridge.go): the NSGo app as MyGo's updater unpacks it, with a manifest signed by MYGO_UPDATER_PRIVATE_KEY. An installed MyGo build then updates to this release once, and the NSGo build updates itself from its appcast after that. Every release makes it, so a copy left on 0.12.0 for a while still finds the latest release; a signed run by hand makes it too, as the run's artifacts, to check it before a release. On macOS each app gets its notarization ticket stapled first, as nsgo build staples only the disk images, so the updated app opens offline too. Linux has none: see mygo-bridge.go.
       - name: Make the updates of the MyGo builds
         if: matrix.bridge && (inputs.tag != '' || inputs.sign)
