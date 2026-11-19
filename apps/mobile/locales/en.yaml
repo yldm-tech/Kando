@@ -627,6 +627,78 @@ filmsUnsubscribeTitle:
   description: "Confirmation before unsubscribing."
   placeholders:
     title: { type: "String", example: "Earth Science" }
+filmStudyLines:
+  message: "Study Lines"
+  description: "Button and option that open the player of a film kept on the phone by its lines alone, as its computer keeps no video of it."
+filmSaveLines:
+  message: "Save Lines to Phone"
+  description: "Button and option that keep the lines of a film whose computer keeps no video of it on the phone, to study them."
+filmLinesSaved:
+  message: "Lines saved"
+  description: "Where a film stands: its lines are on the phone, without its video, which its computer does not keep."
+filmSubtitlesOnly:
+  message: "Subtitles only"
+  description: "A film whose computer kept its subtitles but not its video; heading where its video would play, and a tag in its row."
+filmNoVideo:
+  message: "{computer} keeps no video of this film, only its lines."
+  description: "Under “Subtitles only” where a film’s video would play."
+  placeholders:
+    computer: { type: "String", example: "Studio" }
+filmVideoComing:
+  message: "{computer} is downloading the video."
+  description: "Under “Subtitles only” while the computer downloads the film’s video."
+  placeholders:
+    computer: { type: "String", example: "Studio" }
+filmVideoReady:
+  message: "The video is on {computer} now."
+  description: "Under “Subtitles only” once the computer has the film’s video, which the phone can download."
+  placeholders:
+    computer: { type: "String", example: "Studio" }
+filmDownloadVideo:
+  message: "Download Video"
+  description: "Button that downloads to the phone the video of a film it kept by its lines, once its computer has it."
+filmVideoOnComputer:
+  message: "Download Video on {computer}"
+  description: "Button and option that have the computer download the video of a film it kept only the subtitles of."
+  placeholders:
+    computer: { type: "String", example: "Studio" }
+filmVideoAsked:
+  message: "{computer} is downloading the video of “{title}”"
+  description: "Toast once the computer took the phone’s asking to download a film’s video."
+  placeholders:
+    title: { type: "String", example: "Rust Talk" }
+    computer: { type: "String", example: "Studio" }
+filmsExportSubtitles:
+  message: "Export Subtitles"
+  description: "In a film’s options: takes its subtitles from the computer as a file and shares it."
+filmsRetranslate:
+  message: "Translate Again"
+  description: "In a film’s options: has the computer translate every line of the film again."
+filmsRetranslating:
+  message: "Translating “{title}” again on {computer}"
+  description: "Toast once the computer took the phone’s asking to translate a film again."
+  placeholders:
+    title: { type: "String", example: "Rust Talk" }
+    computer: { type: "String", example: "Studio" }
+filmsDeleteFromLibrary:
+  message: "Delete from Library"
+  description: "In a film’s options: deletes it from the computer’s library."
+filmsDeleteFromLibraryTitle:
+  message: "Delete “{title}” from the library?"
+  description: "Title of the alert that confirms deleting a film from the computer’s library."
+  placeholders:
+    title: { type: "String", example: "Rust Talk" }
+filmsDeleteFromLibraryMessage:
+  message: "Its files go to the Trash on {computer}."
+  description: "Message of the alert that confirms deleting a film from the computer’s library."
+  placeholders:
+    computer: { type: "String", example: "Studio" }
+filmsDeletedFromLibrary:
+  message: "Deleted “{title}” from {computer}"
+  description: "Toast once the computer deleted a film from its library as the phone asked."
+  placeholders:
+    title: { type: "String", example: "Rust Talk" }
+    computer: { type: "String", example: "Studio" }
 jobsBadgeLabel:
   message: "Jobs, {count} unfinished"
   description: "Spoken name of the Jobs button and section while jobs run, wait or failed, or links wait to be sent."

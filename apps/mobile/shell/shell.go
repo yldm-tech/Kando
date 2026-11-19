@@ -34,11 +34,12 @@ func (t Tab) badge(testID string, st core.Style) []core.Node {
 	return []core.Node{look.Count{TestID: testID, Count: t.Badge, Warn: t.BadgeWarn, Style: st}}
 }
 
-// Shell is the sections and the bar or sidebar between them. Selected is the app's, set from OnChange, which a press on the section shown reports too. Footer ends a tablet's sidebar.
+// Shell is the sections and the bar or sidebar between them. Selected is the app's, set from OnChange, which a press on the section shown reports too. Aside follows the sections down a tablet's sidebar, taking the room left, as the subscriptions do, and Footer ends it.
 type Shell struct {
 	Tabs     []Tab
 	Selected func() int
 	OnChange func(int)
+	Aside    core.Node
 	Footer   core.Node
 }
 
@@ -158,9 +159,17 @@ func (s Shell) sidebar(cx *core.Scope) core.Node {
 				core.Text{ContentFunc: func() string { return locales.AppName(cx) }, Role: core.RoleHeader, MaxLines: 1, Style: look.Title.Merge(core.Style{FontWeight: core.FontWeightBold})},
 			}},
 			base.Tabs{TestID: "sidebar-tabs", Label: locales.AppName(cx), Style: core.Style{Gap: 2}, Children: rows},
-			core.View{Style: core.Style{FlexGrow: 1}},
+			core.View{Style: core.Style{FlexGrow: 1, FlexShrink: 1, MinHeight: core.Pt(0)}, Children: []core.Node{s.aside()}},
 			s.Footer,
 		}}
+}
+
+// aside is what follows the sections down the sidebar, nothing where the shell has none.
+func (s Shell) aside() core.Node {
+	if s.Aside == nil {
+		return core.View{}
+	}
+	return s.Aside
 }
 
 // bar is the tab bar of an upright tablet: the sections' icons over their names, the selected one in the accent.

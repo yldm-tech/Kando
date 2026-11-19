@@ -211,6 +211,7 @@ func (s *Session) relaySettings(desktop string, retry bool) {
 		return
 	}
 	rs.settings = true
+	asked := s.learn.settingsPuts[desktop]
 	s.relayAsk(desktop, []sync.Call{call}, func(answers map[string]relayAnswer, err error) {
 		rs.settings = false
 		got, err := relayResult[sync.Settings](answers, call.ID, err)
@@ -226,7 +227,10 @@ func (s *Session) relaySettings(desktop string, retry bool) {
 		rs.settingsFailed = time.Time{}
 		targetWas := s.prefs.Get().Target
 		s.learnTakeSettings(desktop, got, put)
-		s.setDesktopSettings(desktop, DesktopSettings{Settings: got, ReadOnly: h.ReadOnly})
+		// A change of the computer's settings begun since this was asked keeps what it answered: these may be from before it, as learnAsked takes them.
+		if s.learn.settingsPuts[desktop] == asked {
+			s.setDesktopSettings(desktop, DesktopSettings{Settings: got, ReadOnly: h.ReadOnly})
+		}
 		if put && slices.Contains(s.prefs.Get().TargetPending, desktop) {
 			// The computer answered with another language than the phone put: it is put again after a while, not at every turn.
 			rs.settingsFailed = time.Now()

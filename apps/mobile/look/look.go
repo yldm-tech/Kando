@@ -107,7 +107,7 @@ func LocalPoster(s *session.Session, f store.Film) core.ImageSource {
 	return core.Src(kcore.FileURL(filepath.Join(s.Store().FilmDir(f.Desktop, f.Film.ID), f.Poster)))
 }
 
-// Status is where the film under key stands on the phone, as its rows and its page say it: downloading or paused at a share of its video, why its download stopped, or downloaded; "" for a film not on the phone.
+// Status is where the film under key stands on the phone, as its rows and its page say it: downloading or paused at a share of its video, why its download stopped, downloaded, or its lines kept for a film kept without its video; "" for a film not on the phone.
 func Status(cx *core.Scope, s *session.Session, key string) string {
 	if t, ok := s.Transfer(key); ok {
 		percent := int(t.Fraction() * 100)
@@ -120,6 +120,9 @@ func Status(cx *core.Scope, s *session.Session, key string) string {
 		return ProblemText(cx, t.Problem)
 	}
 	if f, ok := s.Film(key); ok && f.Done() {
+		if !f.HasVideo() {
+			return locales.FilmLinesSaved(cx)
+		}
 		return locales.FilmDownloaded(cx)
 	}
 	return ""

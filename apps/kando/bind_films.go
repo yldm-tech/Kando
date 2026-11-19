@@ -478,7 +478,11 @@ func filmFiles(root string, item films.Film) []string {
 	if films.InDir(root, dir) && films.AloneIn(dir, video) {
 		return []string{dir}
 	}
+	// A film that keeps no video (core.Job.SubtitlesOnly) has none where its sound was, to go with its subtitles.
 	files := []string{video}
+	if item.SubtitlesOnly {
+		files = nil
+	}
 	for _, sub := range append([]string{item.SubtitlePath}, media.Companions(video)...) {
 		if sub != "" && fileExists(sub) && !slices.Contains(files, sub) {
 			files = append(files, sub)

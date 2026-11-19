@@ -98,10 +98,10 @@ func (c *Client) Libraries(ctx context.Context) ([]Library, error) {
 	return out.Libraries, err
 }
 
-// Films are the films of library lib a phone can play.
+// Films are the films of library lib a phone can play or study, those that keep no video among them (Film.SubtitlesOnly).
 func (c *Client) Films(ctx context.Context, lib string) ([]Film, error) {
 	var out Films
-	err := c.getJSON(ctx, http.MethodGet, FilmsPath(lib), nil, &out)
+	err := c.getJSON(ctx, http.MethodGet, FilmsPath(lib)+"?"+QueryWith+"="+WithSubtitlesOnly, nil, &out)
 	return out.Films, err
 }
 

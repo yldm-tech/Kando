@@ -405,7 +405,7 @@ func TestPhoneSyncQueuesALinkAPhoneSends(t *testing.T) {
 		t.Fatalf("jobs %+v", list.Jobs)
 	}
 
-	// A phone is served films by their video, so its link keeps the video though the desktop downloads links as 仅字幕.
+	// A phone's link is downloaded as the desktop downloads links, 仅字幕 here: the phone studies such a film by its lines and asks for its video when it is to be watched.
 	a.online.quality = core.QualitySubtitles
 	link := "https://www.youtube.com/watch?v=jNQXAC9IVRw"
 	created, err := phoneSend(t, a, tt, updates, c, link)
@@ -427,8 +427,8 @@ func TestPhoneSyncQueuesALinkAPhoneSends(t *testing.T) {
 		job, _ := a.library.Find(id)
 		return job.Stage == core.StageDownloading || job.Stage == core.StageTranscribing
 	})
-	if job, _ := a.library.Find(id); job.Device != "Evan's iPhone" || job.Quality != core.QualityBest {
-		t.Fatalf("the running job forgot its phone, or keeps no video: %+v", job)
+	if job, _ := a.library.Find(id); job.Device != "Evan's iPhone" || job.Quality != core.QualitySubtitles {
+		t.Fatalf("the running job forgot its phone, or keeps a video the settings do not: %+v", job)
 	}
 
 	ev, err := phoneCall(t, a, tt, updates, func(ctx context.Context) (psync.Events, error) {

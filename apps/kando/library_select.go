@@ -93,9 +93,24 @@ func (a *app) TrashFilms(items ...films.Film) {
 		return
 	}
 	m := a.messages()
-	root := a.snap().LibraryDir
-	var gone []films.Film
-	trashed, reason := false, ""
+	gone, trashed, reason := a.libraryTrashIn(a.snap().LibraryDir, items, m)
+	a.libraryForget(gone)
+	switch {
+	case len(items) == 1 && len(gone) == 0:
+		a.warn(reason, "")
+	case len(items) == 1 && trashed:
+		a.tell(m.LibraryTrashed(films.Name(items[0])))
+	case len(items) == 1:
+		a.tell(m.LibraryRemoved(films.Name(items[0])))
+	case trashed:
+		a.librarySay(len(items), len(gone), reason, "", m.LibraryTrashedMany, m.LibraryTrashedSome)
+	default:
+		a.librarySay(len(items), len(gone), reason, "", m.LibraryRemovedMany, m.LibraryTrashedSome)
+	}
+}
+
+// libraryTrashIn moves the files of items, films of the library at root, to the Trash, one unit after another (films.Units), as TrashFilms does, and returns the films whose files went, or that had none to go, for libraryForget to take off the shelf; whether any file went; and why the first film that stayed did, in the language of m. It neither takes them off the shelf nor says anything.
+func (a *app) libraryTrashIn(root string, items []films.Film, m locales.Messages) (gone []films.Film, trashed bool, reason string) {
 	for _, unit := range films.Units(root, items) {
 		files := []string{unit.Folder}
 		if unit.Folder == "" {
@@ -115,19 +130,7 @@ func (a *app) TrashFilms(items ...films.Film) {
 		trashed = trashed || len(files) > 0
 		gone = append(gone, unit.Items...)
 	}
-	a.libraryForget(gone)
-	switch {
-	case len(items) == 1 && len(gone) == 0:
-		a.warn(reason, "")
-	case len(items) == 1 && trashed:
-		a.tell(m.LibraryTrashed(films.Name(items[0])))
-	case len(items) == 1:
-		a.tell(m.LibraryRemoved(films.Name(items[0])))
-	case trashed:
-		a.librarySay(len(items), len(gone), reason, "", m.LibraryTrashedMany, m.LibraryTrashedSome)
-	default:
-		a.librarySay(len(items), len(gone), reason, "", m.LibraryRemovedMany, m.LibraryTrashedSome)
-	}
+	return gone, trashed, reason
 }
 
 // libraryTrash moves files to the Trash, stopping at the first that cannot go, whose error it returns.

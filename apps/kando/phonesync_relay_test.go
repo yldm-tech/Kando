@@ -107,6 +107,8 @@ func phoneRelayRefusingStore(t *testing.T, a *app) {
 // relayJoinable reports whether c's desktop offers the relay to join.
 func relayJoinable(t *testing.T, a *app, tt *nsgotest.App, updates chan func(), c *psync.Client) bool {
 	t.Helper()
+	// Phone Sync may have started again since c's last call: a connection kept to the server it replaced is closed, and on Windows a request written to it fails (wsasend: connection aborted) rather than being sent on a new one, as a POST is not retried.
+	c.Close()
 	h, err := phoneCall(t, a, tt, updates, c.Hello)
 	if err != nil {
 		t.Fatal(err)

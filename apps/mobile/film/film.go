@@ -1,4 +1,4 @@
-// Package film is a film's page: its poster where it has one, its title, facts and library, and its download, whose actions sit at the page's foot: it starts, pauses, resumes, cancels and, once whole, plays, or is deleted from the phone from the header.
+// Package film is a film's page: its poster where it has one, its title, facts and library, and its download, whose actions sit at the page's foot: it starts, pauses, resumes, cancels and, once whole, plays, or is deleted from the phone from the header. A film its computer keeps no video of is kept by its lines, which play without the picture, and says what can be done to have the video (VideoPrompt), as the player does in the picture's place.
 package film
 
 import (
@@ -23,6 +23,13 @@ func Page(cx *core.Scope, s *session.Session, desktop, library string, f sync.Fi
 	key := store.Key(desktop, f.ID)
 	kept := func() (store.Film, bool) { return s.Film(key) }
 	done := func() bool { k, ok := kept(); return ok && k.Done() }
+	// noVideo is a film whose video is on neither the phone nor its computer, as the phone last heard: one kept by its lines, or one listed without a video. It is a memo because the page's actions are built again when it changes: read through kept() alone, they would be built again at every change of the film's record, and a press landing while they are would be lost.
+	noVideo := core.NewMemo(cx, func() bool {
+		if k, ok := kept(); ok {
+			return k.LinesOnly && !k.HasVideo()
+		}
+		return f.SubtitlesOnly
+	}).Get
 	transfer := func() (session.Transfer, bool) { return s.Transfer(key) }
 	state := func() (session.State, bool) { t, ok := transfer(); return t.State, ok }
 	running := func() bool { st, ok := state(); return ok && st == session.Running }
@@ -131,6 +138,9 @@ func Page(cx *core.Scope, s *session.Session, desktop, library string, f sync.Fi
 		}
 		switch phase.Get() {
 		case whole:
+			if noVideo() {
+				return look.Button{Kind: look.Primary, Text: text(locales.FilmStudyLines), Icon: lucide.Captions, TestID: "film-play", OnPress: func() { play(key) }}
+			}
 			return look.Button{Kind: look.Primary, Text: text(locales.FilmPlay), Icon: lucide.Play, TestID: "film-play", OnPress: func() { play(key) }}
 		case downloading:
 			return pair(
@@ -142,6 +152,10 @@ func Page(cx *core.Scope, s *session.Session, desktop, library string, f sync.Fi
 				look.Button{Kind: look.Danger, Text: text(locales.FilmCancel), Flex: 1, TestID: "film-cancel", OnPress: cancel})
 		}
 		download := look.Button{Kind: look.Primary, Text: text(locales.FilmDownload), Icon: lucide.Download, TestID: "film-download", OnPress: func() { s.Download(desktop, library, f) }}
+		if f.SubtitlesOnly {
+			// Its computer keeps no video of it: downloading it keeps its lines.
+			download.Text, download.Icon = text(locales.FilmSaveLines), lucide.Captions
+		}
 		// Away from its computer's network, the film plays from the user's storage, or opens for its lines alone when the storage holds no video of it.
 		switch stored.Get() {
 		case videoStored:
@@ -152,6 +166,10 @@ func Page(cx *core.Scope, s *session.Session, desktop, library string, f sync.Fi
 		}
 		return download
 	})
+	prompt := core.Show{When: noVideo, Then: func(cx *core.Scope) core.Node {
+		return core.View{Style: core.Style{CornerRadius: ui.RadiusCard, BorderCurve: core.BorderCurveContinuous}, StyleFunc: func() core.Style { return core.Style{Background: ui.Alpha(colors.Text(), 0.045)} },
+			Children: []core.Node{VideoPrompt(cx, s, desktop, f, "film-no-video")}}
+	}}
 	// What the storage holds of a film whose video stays on the computer, and why it could not be read from there.
 	storageNote := core.Show{When: func() bool { return stored.Get() == linesStored && phase.Get() != whole }, Then: func(cx *core.Scope) core.Node {
 		return core.Text{TestID: "film-lines-only", Content: locales.FilmLinesOnly(cx), Style: look.Subhead, StyleFunc: ui.Colored(colors.Muted)}
@@ -213,6 +231,7 @@ func Page(cx *core.Scope, s *session.Session, desktop, library string, f sync.Fi
 					Gap: 20, MaxWidth: core.Pt(560), Width: core.Pct(100), AlignSelf: core.AlignCenter}, Children: []core.Node{
 					art,
 					core.View{Style: core.Style{Gap: 6}, Children: about},
+					prompt,
 					progress,
 					storageNote,
 					storageFailed,

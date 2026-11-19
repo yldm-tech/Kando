@@ -987,6 +987,9 @@ var Parameters = map[string][]string{
 	"SettingsPhoneDidSubscribe":                {"title"},
 	"SettingsPhoneDidSubscriptionAdd":          {"title", "count"},
 	"SettingsPhoneDidUnsubscribe":              {"title"},
+	"SettingsPhoneDidRetranslate":              {"title"},
+	"SettingsPhoneDidDelete":                   {"title"},
+	"SettingsPhoneDidVideo":                    {"title"},
 	"PhoneSyncAgoMinutes":                      {"count"},
 	"PhoneSyncAgoHours":                        {"count"},
 	"PhoneSyncAgoDays":                         {"count"},
@@ -1539,6 +1542,9 @@ type Translation struct {
 	SettingsPhoneDidSubscribe                func(title string) string
 	SettingsPhoneDidSubscriptionAdd          func(title string, count int) string
 	SettingsPhoneDidUnsubscribe              func(title string) string
+	SettingsPhoneDidRetranslate              func(title string) string
+	SettingsPhoneDidDelete                   func(title string) string
+	SettingsPhoneDidVideo                    func(title string) string
 	PhoneSyncAgoMinutes                      func(count int) string
 	PhoneSyncAgoHours                        func(count int) string
 	PhoneSyncAgoDays                         func(count int) string
@@ -21053,6 +21059,15 @@ func Supply(lang string, t Translation) {
 	}
 	if t.SettingsPhoneDidUnsubscribe != nil {
 		s.SettingsPhoneDidUnsubscribe = t.SettingsPhoneDidUnsubscribe
+	}
+	if t.SettingsPhoneDidRetranslate != nil {
+		s.SettingsPhoneDidRetranslate = t.SettingsPhoneDidRetranslate
+	}
+	if t.SettingsPhoneDidDelete != nil {
+		s.SettingsPhoneDidDelete = t.SettingsPhoneDidDelete
+	}
+	if t.SettingsPhoneDidVideo != nil {
+		s.SettingsPhoneDidVideo = t.SettingsPhoneDidVideo
 	}
 	if t.PhoneSyncAgoMinutes != nil {
 		s.PhoneSyncAgoMinutes = t.PhoneSyncAgoMinutes
@@ -53613,6 +53628,102 @@ func (msgs Messages) SettingsPhoneDidUnsubscribe(title string) string {
 			return "取消订阅了「" + title + "」"
 		case "zh-Hant":
 			return "取消訂閱了「" + title + "」"
+		}
+	}
+}
+
+// SettingsPhoneDidRetranslate says "Translated “{title}” again"
+// in the language the app shows under cx.
+//
+// Recent activity: a phone had a film translated again.
+func SettingsPhoneDidRetranslate(cx *core.Scope, title string) string {
+	return For(cx).SettingsPhoneDidRetranslate(title)
+}
+
+// SettingsPhoneDidRetranslate is the package's SettingsPhoneDidRetranslate in the language of msgs.
+func (msgs Messages) SettingsPhoneDidRetranslate(title string) string {
+	if i18n.IsPseudo(msgs.lang) {
+		return i18n.Pseudo(msgs.lang, Messages{lang: Source, mark: true}.SettingsPhoneDidRetranslate(title))
+	}
+	for lang := msgs.lang; ; lang = i18n.Parent(lang) {
+		if f := supplied[lang].SettingsPhoneDidRetranslate; f != nil {
+			return f(title)
+		}
+		switch lang {
+		case "", "en":
+			return "Translated “" + msgs.arg(title) + "” again"
+		case "ja":
+			return "「" + title + "」を再翻訳"
+		case "ko":
+			return "‘" + title + "’ 다시 번역"
+		case "zh-Hans":
+			return "重新翻译了「" + title + "」"
+		case "zh-Hant":
+			return "重新翻譯了「" + title + "」"
+		}
+	}
+}
+
+// SettingsPhoneDidDelete says "Moved “{title}” to the Trash"
+// in the language the app shows under cx.
+//
+// Recent activity: a phone deleted a film from the library; its files went to the Trash.
+func SettingsPhoneDidDelete(cx *core.Scope, title string) string {
+	return For(cx).SettingsPhoneDidDelete(title)
+}
+
+// SettingsPhoneDidDelete is the package's SettingsPhoneDidDelete in the language of msgs.
+func (msgs Messages) SettingsPhoneDidDelete(title string) string {
+	if i18n.IsPseudo(msgs.lang) {
+		return i18n.Pseudo(msgs.lang, Messages{lang: Source, mark: true}.SettingsPhoneDidDelete(title))
+	}
+	for lang := msgs.lang; ; lang = i18n.Parent(lang) {
+		if f := supplied[lang].SettingsPhoneDidDelete; f != nil {
+			return f(title)
+		}
+		switch lang {
+		case "", "en":
+			return "Moved “" + msgs.arg(title) + "” to the Trash"
+		case "ja":
+			return "「" + title + "」をゴミ箱に移動"
+		case "ko":
+			return "‘" + title + "’ 휴지통으로 이동"
+		case "zh-Hans":
+			return "把「" + title + "」移到了废纸篓"
+		case "zh-Hant":
+			return "把「" + title + "」移到了垃圾桶"
+		}
+	}
+}
+
+// SettingsPhoneDidVideo says "Downloading the video of “{title}”"
+// in the language the app shows under cx.
+//
+// Recent activity: a phone asked this computer to download the video of a film it kept as subtitles only.
+func SettingsPhoneDidVideo(cx *core.Scope, title string) string {
+	return For(cx).SettingsPhoneDidVideo(title)
+}
+
+// SettingsPhoneDidVideo is the package's SettingsPhoneDidVideo in the language of msgs.
+func (msgs Messages) SettingsPhoneDidVideo(title string) string {
+	if i18n.IsPseudo(msgs.lang) {
+		return i18n.Pseudo(msgs.lang, Messages{lang: Source, mark: true}.SettingsPhoneDidVideo(title))
+	}
+	for lang := msgs.lang; ; lang = i18n.Parent(lang) {
+		if f := supplied[lang].SettingsPhoneDidVideo; f != nil {
+			return f(title)
+		}
+		switch lang {
+		case "", "en":
+			return "Downloading the video of “" + msgs.arg(title) + "”"
+		case "ja":
+			return "「" + title + "」の動画をダウンロード"
+		case "ko":
+			return "‘" + title + "’ 동영상 다운로드"
+		case "zh-Hans":
+			return "下载「" + title + "」的视频"
+		case "zh-Hant":
+			return "下載「" + title + "」的影片"
 		}
 	}
 }

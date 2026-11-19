@@ -47,6 +47,7 @@ func (s *Session) SetDesktopContext(id string, on bool, done func(error)) {
 		return
 	}
 	answered := func(got sync.Settings, err error) {
+		s.learn.settingsPuts[id]++
 		if _, paired := s.Desktop(id); err == nil && paired {
 			was, _ := s.DesktopSettings(id)
 			s.setDesktopSettings(id, DesktopSettings{Settings: got, ReadOnly: was.ReadOnly})
@@ -59,9 +60,11 @@ func (s *Session) SetDesktopContext(id string, on bool, done func(error)) {
 			done(errAway)
 			return
 		}
+		s.learn.settingsPuts[id]++
 		relayCallResult(s, id, sync.OpSettingsPut, sync.SettingsPut{Context: &on}, answered)
 		return
 	}
+	s.learn.settingsPuts[id]++
 	s.work.Go(func() {
 		ctx, cancel := context.WithTimeout(s.ctx, learnSyncFor)
 		defer cancel()

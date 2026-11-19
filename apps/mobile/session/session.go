@@ -182,6 +182,8 @@ type job struct {
 	remove atomic.Bool
 	// paused is a job Pause or Unpair stopped, whose goroutine may still be finishing; again starts the download anew once it has, as Resume asks meanwhile. Both belong to the engine's goroutine.
 	paused, again bool
+	// lines is a download of the video of a film kept by its lines (start), which keeps them should it not finish: Delete while it runs cancels the video alone.
+	lines bool
 }
 
 // follow is a check Follow runs on a goroutine of its own. Its fields belong to the engine's goroutine.
@@ -476,10 +478,14 @@ func (s *Session) Used() int64 { return s.used.Get() }
 // Store is the store the session reads and writes, for the player's files.
 func (s *Session) Store() *store.Store { return s.st }
 
-// Download starts downloading f of desktop's library, or goes on with it.
+// Download starts downloading f of desktop's library, or goes on with it. A film that keeps no video on its computer is downloaded by its subtitles and poster (store.Film.LinesOnly); one the phone keeps so, whose video the computer has since (f, as the computer lists it now), takes the computer's record and downloads its video (start).
 func (s *Session) Download(desktop, library string, f sync.Film) {
 	key := store.Key(desktop, f.ID)
 	if kept, ok := s.Film(key); ok {
+		if kept.LinesOnly && !kept.HasVideo() && !f.SubtitlesOnly {
+			kept.Film = f
+			s.replace(kept)
+		}
 		s.start(kept)
 		return
 	}
@@ -543,13 +549,16 @@ func (s *Session) Follow(key string, changed func()) {
 	})
 }
 
-// followed is the film kept under key as it stands now, with its desktop's record listed in place of its own but its video's size and poster, which are the phone's files; false for a film deleted meanwhile, or downloading again, which Follow does not touch.
+// followed is the film kept under key as it stands now, with its desktop's record listed in place of its own but its video's size and poster, which are the phone's files; false for a film deleted meanwhile, or downloading again, which Follow does not touch. A film kept by its lines alone keeps saying it keeps no video until its video is downloaded (Download), as that is what the phone holds of it.
 func (s *Session) followed(key string, listed sync.Film) (store.Film, bool) {
 	cur, ok := s.Film(key)
 	if !ok || !cur.Done() {
 		return store.Film{}, false
 	}
 	listed.VideoSize, listed.Poster = cur.Film.VideoSize, cur.Film.Poster
+	if cur.LinesOnly {
+		listed.SubtitlesOnly = true
+	}
 	cur.Film = listed
 	return cur, true
 }
@@ -570,7 +579,7 @@ func (s *Session) Resume(key string) {
 	}
 }
 
-// Delete removes the film under key from the phone, stopping its download first.
+// Delete removes the film under key from the phone, stopping its download first; while the video of a film kept by its lines downloads (job.lines), it cancels that download alone, and the film stays kept by its lines.
 func (s *Session) Delete(key string) {
 	if j, ok := s.jobs[key]; ok {
 		j.remove.Store(true)
@@ -702,6 +711,7 @@ func (s *Session) KnownPoster(key string) []byte {
 	return s.posters[key]
 }
 
+// start downloads f, or goes on with its download. A film kept by its lines (store.Film.LinesOnly) whose computer lists it with its video now (Download) downloads that video as any film does, and is kept by its lines again should the download stop, fail or be cancelled (job.lines, finished).
 func (s *Session) start(f store.Film) {
 	key := f.Key()
 	if f.Streamed && !f.Done() {
@@ -709,7 +719,8 @@ func (s *Session) start(f store.Film) {
 		f.Streamed = false
 		s.replace(f)
 	}
-	if j, running := s.jobs[key]; running || f.Done() {
+	lines := f.LinesOnly && !f.HasVideo() && !f.Film.SubtitlesOnly
+	if j, running := s.jobs[key]; running || (f.Done() && !lines) {
 		if running && j.paused && !j.remove.Load() {
 			// Paused, but still finishing: the download starts again once the goroutine is done with the part file.
 			j.again = true
@@ -727,8 +738,12 @@ func (s *Session) start(f store.Film) {
 		}
 		src = c
 	}
+	if lines {
+		f.LinesOnly = false
+		s.replace(f)
+	}
 	ctx, cancel := context.WithCancel(context.Background())
-	j := &job{cancel: cancel}
+	j := &job{cancel: cancel, lines: lines}
 	s.jobs[key] = j
 	s.setTransfer(key, func(t Transfer) Transfer {
 		return Transfer{State: Running, Done: t.Done, Total: f.Film.VideoSize}
@@ -753,7 +768,10 @@ func (s *Session) start(f store.Film) {
 		})
 		stopped := ctx.Err() != nil
 		cancel()
-		if j.remove.Load() {
+		switch {
+		case j.remove.Load() && lines:
+			_ = os.Remove(filepath.Join(s.st.FilmDir(f.Desktop, f.Film.ID), store.PartFile))
+		case j.remove.Load():
 			_ = s.st.DeleteFilm(f.Desktop, f.Film.ID)
 		}
 		used, _ := s.st.Used()
@@ -768,8 +786,21 @@ func (s *Session) finished(key string, j *job, got store.Film, err error, stoppe
 	}
 	s.used.Set(used)
 	defer s.keepAwake()
+	// A film kept by its lines whose video's download stopped, failed or was cancelled is kept by them again; cancelled, the part of its video is gone too.
+	if j.lines && err != nil {
+		got.LinesOnly = true
+		if j.remove.Load() {
+			got.ETag = ""
+		}
+		s.saveFilm(got)
+	}
 	if j.remove.Load() {
-		s.dropFilm(key)
+		if !j.lines {
+			s.dropFilm(key)
+			return
+		}
+		s.replace(got)
+		s.setTransfer(key, nil)
 		return
 	}
 	s.replace(got)
