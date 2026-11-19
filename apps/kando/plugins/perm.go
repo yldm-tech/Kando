@@ -5,7 +5,7 @@ import "slices"
 // Perm is a permission a script plugin asks for: the name of the host handler it calls (core.Host), which is the name it has in the package's signed capabilities (pkg.Capabilities.Host) and in the grant the user gave (Grant.Perms). docs/plugin-system.md 5.3.
 type Perm string
 
-// The permissions this version has a handler for. A plugin that asks for another is refused (ErrUnknownPerm): kando.glossary.suggest and kando.candidates.offer have no handler, as Kando has no place yet where a glossary term or a translation is proposed for the user to take or leave (docs/plugin-system.md 15, P3b).
+// The permissions this version has a handler for. A plugin that asks for another is refused (ErrUnknownPerm): kando.glossary.suggest has no handler, as Kando has no place yet where a glossary term is proposed for the user to take or leave (docs/plugin-system.md 15, P3b), and kando.candidates.offer none either, as a translator offers other translations of a line through its candidates export instead (Translator, CandidatesExport).
 const (
 	// PermFilmCurrent reads the film that is open: its id for this plugin, title, spoken language, the language it is translated into and where it plays.
 	PermFilmCurrent Perm = "kando.film.current"

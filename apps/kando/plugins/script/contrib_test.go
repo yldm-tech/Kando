@@ -135,3 +135,28 @@ func TestScriptPausedTimeIsCapped(t *testing.T) {
 		t.Errorf("stopped for %s", reason)
 	}
 }
+
+// TestScriptProbeTranslators checks that Probe holds a plugin with translators to export translate, and compares their languages, "any" or {from, to}, as kandoManifest writes them.
+func TestScriptProbeTranslators(t *testing.T) {
+	s := newSigner(t, AppIDPrefix+"acme.*")
+	roots := s.roots()
+	trust := trustOf(t, roots)
+	e := newEngine(t)
+	probe := func(f fixture) error {
+		t.Helper()
+		p := s.pack(t, f)
+		v, err := Verify(trust, roots, p)
+		if err != nil {
+			t.Fatal(err)
+		}
+		e.do(func() { err = Probe(e.root, v) })
+		return err
+	}
+	extra := `"contributes": {"translators": [{"id": "any", "title": {"en": "Any"}, "languages": "any"}, {"id": "zh", "title": {"en": "Into Chinese"}, "languages": {"from": ["en"], "to": ["zh-Hans"]}}]}`
+	if err := probe(fixture{id: "acme.mt", extra: extra, code: "export async function translate(lines) { return lines }"}); err != nil {
+		t.Fatalf("a translator that says what it is: %v", err)
+	}
+	wantErr(t, "no translate", probe(fixture{id: "acme.mt", extra: extra, code: "export async function candidates() { return [] }"}), plugins.ErrTampered)
+	wantErr(t, "another language", probe(fixture{id: "acme.mt", extra: extra, code: "export async function translate(lines) { return lines }",
+		said: `{"contributes": {"translators": [{"id": "any", "title": {"en": "Any"}, "languages": "any"}, {"id": "zh", "title": {"en": "Into Chinese"}, "languages": {"from": ["en"], "to": ["zh-Hant"]}}]}}`}), plugins.ErrTampered)
+}

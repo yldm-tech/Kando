@@ -308,13 +308,16 @@ func (m Manifest) ExportsNeeded() []string {
 	for _, x := range c.Annotators {
 		add(x.Export)
 	}
+	if len(c.Translators) > 0 {
+		add(TranslateExport)
+	}
 	return out
 }
 
-// ReadsLines reports whether the plugin m is given the words of a film's lines or of the saved lines without asking a permission for them, which its contributions are: a lookup source hears each word looked up and its line, a subtitle format the cues it writes, an export target the saved lines and words, an annotator the lines it marks.
+// ReadsLines reports whether the plugin m is given the words of a film's lines or of the saved lines without asking a permission for them, which its contributions are: a lookup source hears each word looked up and its line, a subtitle format the cues it writes, an export target the saved lines and words, an annotator the lines it marks, a translator the lines it translates.
 func (m Manifest) ReadsLines() bool {
 	c := m.Contributes
-	return c != nil && (len(c.Lookups) > 0 || len(c.SubtitleFormats) > 0 || len(c.Exporters) > 0 || len(c.Annotators) > 0)
+	return c != nil && (len(c.Lookups) > 0 || len(c.SubtitleFormats) > 0 || len(c.Exporters) > 0 || len(c.Annotators) > 0 || len(c.Translators) > 0)
 }
 
 // KnownService is a well-known service: its name, in lower case, as a credential's id or title would say it, and the hosts of its API.

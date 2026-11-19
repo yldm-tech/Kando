@@ -34,13 +34,14 @@ type Script struct {
 	SHA256  string `json:"sha256"`
 }
 
-// Contributes is what a script plugin adds to Kando (docs/plugin-system.md 2.2): commands (E9), sources of word lookups (E10), subtitle formats (E11), targets of the saved lines' export (E12) and annotators of the lines (E13). Each names the function of the plugin that does it (Export), which the plugin's code must export.
+// Contributes is what a script plugin adds to Kando (docs/plugin-system.md 2.2, 2.3): commands (E9), sources of word lookups (E10), subtitle formats (E11), targets of the saved lines' export (E12), annotators of the lines (E13) and sources of machine translation (E14). Each but a translator names the function of the plugin that does it (Export), which the plugin's code must export; translators call translate, and candidates when the plugin exports it (TranslateExport, CandidatesExport).
 type Contributes struct {
 	Commands        []Command        `json:"commands,omitempty"`
 	Lookups         []Lookup         `json:"lookups,omitempty"`
 	SubtitleFormats []SubtitleFormat `json:"subtitleFormats,omitempty"`
 	Exporters       []Exporter       `json:"exporters,omitempty"`
 	Annotators      []Annotator      `json:"annotators,omitempty"`
+	Translators     []Translator     `json:"translators,omitempty"`
 }
 
 // The moments a command applies (Command.When).
@@ -129,6 +130,9 @@ func checkScript(m *Manifest) error {
 		if err := checkContributes(m.Contributes); err != nil {
 			return err
 		}
+	}
+	if err := checkTranslators(m); err != nil {
+		return err
 	}
 	if err := checkCredentials(m); err != nil {
 		return err
