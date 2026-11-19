@@ -1149,6 +1149,7 @@ const (
 	textPlayerTabParts
 	textPlayerUnsavedToast
 	textPlayerWordInLine
+	textPlayerWordSourceAIUnnamed
 	textSessionDownloading
 	textSettingsAbout
 	textSettingsComputers
@@ -1593,6 +1594,7 @@ var keyOfText = [numTexts]string{
 	"playerTabParts",
 	"playerUnsavedToast",
 	"playerWordInLine",
+	"playerWordSourceAIUnnamed",
 	"sessionDownloading",
 	"settingsAbout",
 	"settingsComputers",
@@ -2035,6 +2037,7 @@ var textsEn = i18n.NewTexts(""+
 	"Parts"+
 	"Line removed from saved"+
 	"In this line"+
+	"Explained by your computer's AI service"+
 	"Downloading films"+
 	"About"+
 	"Computers"+
@@ -2474,6 +2477,7 @@ var textsEn = i18n.NewTexts(""+
 		5,
 		23,
 		12,
+		39,
 		17,
 		5,
 		9,
@@ -2916,6 +2920,7 @@ var textsJa = i18n.NewTexts(""+
 	"パート"+
 	"保存を取り消しました"+
 	"この文では"+
+	"パソコンの AI サービスによる説明"+
 	"動画をダウンロード中"+
 	"このアプリについて"+
 	"コンピュータ"+
@@ -3355,6 +3360,7 @@ var textsJa = i18n.NewTexts(""+
 		9,
 		30,
 		15,
+		46,
 		30,
 		27,
 		18,
@@ -3797,6 +3803,7 @@ var textsKo = i18n.NewTexts(""+
 	"구간"+
 	"저장을 취소했습니다"+
 	"이 문장에서"+
+	"컴퓨터에 있는 AI 서비스의 설명"+
 	"영상 다운로드 중"+
 	"정보"+
 	"컴퓨터"+
@@ -4236,6 +4243,7 @@ var textsKo = i18n.NewTexts(""+
 		6,
 		28,
 		16,
+		42,
 		23,
 		6,
 		9,
@@ -4678,6 +4686,7 @@ var textsZhHans = i18n.NewTexts(""+
 	"片段"+
 	"已取消收藏"+
 	"在这句里"+
+	"由电脑上的 AI 服务解释"+
 	"正在下载影片"+
 	"关于"+
 	"电脑"+
@@ -5117,6 +5126,7 @@ var textsZhHans = i18n.NewTexts(""+
 		6,
 		15,
 		12,
+		31,
 		18,
 		6,
 		6,
@@ -5559,6 +5569,7 @@ var textsZhHant = i18n.NewTexts(""+
 	"片段"+
 	"已取消收藏"+
 	"在這句裡"+
+	"由電腦上的 AI 服務解釋"+
 	"正在下載影片"+
 	"關於"+
 	"電腦"+
@@ -5998,6 +6009,7 @@ var textsZhHant = i18n.NewTexts(""+
 		6,
 		15,
 		12,
+		31,
 		18,
 		6,
 		6,
@@ -14526,6 +14538,17 @@ func (msgs Messages) PlayerWordSourceAI(computer string) string {
 			return "由 " + computer + " 上的 AI 服務解釋"
 		}
 	}
+}
+
+// PlayerWordSourceAIUnnamed says "Explained by your computer's AI service"
+// in the language the app shows under cx.
+//
+// Word card, under the meaning: a computer's AI service gave the meaning, from a computer that did not say its name with the answer.
+func PlayerWordSourceAIUnnamed(cx *core.Scope) string { return For(cx).PlayerWordSourceAIUnnamed() }
+
+// PlayerWordSourceAIUnnamed is the package's PlayerWordSourceAIUnnamed in the language of msgs.
+func (msgs Messages) PlayerWordSourceAIUnnamed() string {
+	return msgs.text(textPlayerWordSourceAIUnnamed)
 }
 
 // PlayerWordSourceDict says "From the dictionary {name}"

@@ -297,7 +297,7 @@ func TestScreenshotsPlayerJapanese(t *testing.T) {
 func TestScreenshotsPlayerStudy(t *testing.T) {
 	shot := screenshots(t)
 	d := newDesktop(t)
-	d.SetEntry("morning", sync.WordEntry{Word: "morning", Reading: "/ˈmɔːnɪŋ/", Meaning: "n. 早晨；上午。这里和 good 连用，是早上见面时的问候。", Language: "简体中文", Source: sync.WordSource{Kind: sync.SourceAI}})
+	d.SetEntry("morning", sync.WordEntry{Word: "morning", Reading: "/ˈmɔːnɪŋ/", Meaning: "n. 早晨；上午。这里和 good 连用，是早上见面时的问候。", Language: "简体中文", Source: sync.WordSource{Kind: sync.SourceAI, Desktop: "Studio"}})
 	d.SetExplanationSections(
 		sync.ExplainSection{Kind: sync.ExplainMeaning, Text: "整句是早上见面时的问候，相当于「早上好」。"},
 		sync.ExplainSection{Kind: sync.ExplainBreakdown, Text: "good morning · 早上好，早上见面时的固定问候"},

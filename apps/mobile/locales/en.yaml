@@ -1754,6 +1754,9 @@ playerWordSourceAI:
   description: "Word card, under the meaning: the computer's AI service gave the meaning, now or when the word was looked up there before."
   placeholders:
     computer: { type: "String", example: "Studio" }
+playerWordSourceAIUnnamed:
+  message: "Explained by your computer's AI service"
+  description: "Word card, under the meaning: a computer's AI service gave the meaning, from a computer that did not say its name with the answer."
 playerWordSourceDict:
   message: "From the dictionary {name}"
   description: "Word card, under the meaning: a dictionary pack installed on the computer gave the meaning; {name} is its name, as the computer gives it."

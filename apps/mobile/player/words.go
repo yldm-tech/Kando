@@ -271,8 +271,8 @@ func problemText(cx *core.Scope, p *play, problem session.StudyProblem) string {
 	return locales.PlayerStudyUnreachable(cx, name)
 }
 
-// sourceText is where the meaning of a word looked up came from, as the computer's own card says it: a dictionary installed on the computer, with the credit its license asks for, or the computer's AI service; "" for a computer that does not say, or a source this phone does not know.
-func sourceText(cx *core.Scope, p *play, src sync.WordSource) string {
+// sourceText is where the meaning of a word looked up came from, as the computer's own card says it: a dictionary installed on the computer, with the credit its license asks for, or the AI service of the computer that answered, by the name it gave with the answer, which the phone kept with the word, rather than the computer of the film open now, which need not be the one that answered; "" for a computer that does not say, or a source this phone does not know.
+func sourceText(cx *core.Scope, src sync.WordSource) string {
 	switch src.Kind {
 	case sync.SourceDictionary:
 		if src.Name == "" {
@@ -283,7 +283,10 @@ func sourceText(cx *core.Scope, p *play, src sync.WordSource) string {
 		}
 		return locales.PlayerWordSourceDict(cx, src.Name)
 	case sync.SourceAI:
-		return locales.PlayerWordSourceAI(cx, computer(p))
+		if src.Desktop == "" {
+			return locales.PlayerWordSourceAIUnnamed(cx)
+		}
+		return locales.PlayerWordSourceAI(cx, src.Desktop)
 	}
 	return ""
 }
@@ -302,7 +305,7 @@ func wordBody(cx *core.Scope, p *play, w *words, compact bool) []core.Node {
 		if x.busy || x.failed || x.entry.Meaning == "" {
 			return ""
 		}
-		return sourceText(cx, p, x.entry.Source)
+		return sourceText(cx, x.entry.Source)
 	}
 	return []core.Node{
 		core.View{Style: core.Style{Direction: core.Row, AlignItems: core.AlignCenter, Gap: 10}, Children: []core.Node{

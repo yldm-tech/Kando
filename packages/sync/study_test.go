@@ -209,8 +209,8 @@ func TestWordSourceIsAnAddition(t *testing.T) {
 	if err := json.Unmarshal([]byte(`{"word":"river","reading":"","meaning":"河","language":"简体中文"}`), &e); err != nil || e.Source != (WordSource{}) || e.Meaning != "河" {
 		t.Fatalf("an older desktop's entry reads %+v, %v", e, err)
 	}
-	data, err = json.Marshal(WordEntry{Word: "川", Meaning: "river", Source: WordSource{Kind: SourceDictionary, Name: "JMdict (English)", Credit: "JMdict © EDRDG"}})
-	if err != nil || !strings.Contains(string(data), `"source":{"kind":"dictionary","name":"JMdict (English)","credit":"JMdict © EDRDG"}`) {
+	data, err = json.Marshal(WordEntry{Word: "川", Meaning: "river", Source: WordSource{Kind: SourceDictionary, Name: "JMdict (English)", Credit: "JMdict © EDRDG", Desktop: "Studio"}})
+	if err != nil || !strings.Contains(string(data), `"source":{"kind":"dictionary","name":"JMdict (English)","credit":"JMdict © EDRDG","desktop":"Studio"}`) {
 		t.Fatalf("a dictionary's entry reads %s, %v", data, err)
 	}
 	var older struct {
@@ -220,7 +220,12 @@ func TestWordSourceIsAnAddition(t *testing.T) {
 	if err := json.Unmarshal(data, &older); err != nil || older.Word != "川" || older.Meaning != "river" {
 		t.Fatalf("an older phone reads %+v, %v", older, err)
 	}
-	if err := json.Unmarshal(data, &e); err != nil || e.Source.Kind != SourceDictionary || e.Source.Credit != "JMdict © EDRDG" {
+	if err := json.Unmarshal(data, &e); err != nil || e.Source.Kind != SourceDictionary || e.Source.Credit != "JMdict © EDRDG" || e.Source.Desktop != "Studio" {
 		t.Fatalf("a phone reads %+v, %v", e, err)
+	}
+	// A desktop before Desktop sends a source without it, which reads as a source of no desktop's name.
+	var unnamed WordEntry
+	if err := json.Unmarshal([]byte(`{"word":"river","meaning":"河","source":{"kind":"ai"}}`), &unnamed); err != nil || unnamed.Source != (WordSource{Kind: SourceAI}) {
+		t.Fatalf("a source without the desktop's name reads %+v, %v", unnamed, err)
 	}
 }

@@ -1238,7 +1238,7 @@ func TestPluginDictionaryAnswersAPhone(t *testing.T) {
 	if err != nil || e.Word != "行く" || e.Reading != "いく" || e.Meaning != "to go; to move" || e.Language != "简体中文" {
 		t.Fatalf("offline: %+v, %v", e, err)
 	}
-	if e.Source != (psync.WordSource{Kind: psync.SourceDictionary, Name: "JMdict (English)"}) {
+	if e.Source != (psync.WordSource{Kind: psync.SourceDictionary, Name: "JMdict (English)", Desktop: phoneSyncName()}) {
 		t.Fatalf("offline, the source: %+v", e.Source)
 	}
 
@@ -1246,7 +1246,7 @@ func TestPluginDictionaryAnswersAPhone(t *testing.T) {
 	onEngine(a, func() {
 		a.pipeline = media.Tools{Translator: media.ChatTranslator{BaseURL: srv.URL + "/v1", APIKey: "k", Model: "m1"}}
 	})
-	if e, err := look(psync.Caller{ReadOnly: true}, "行った", "公園に行った"); err != nil || e.Meaning != "去" || len(*seen) == 0 || e.Source != (psync.WordSource{Kind: psync.SourceAI}) {
+	if e, err := look(psync.Caller{ReadOnly: true}, "行った", "公園に行った"); err != nil || e.Meaning != "去" || len(*seen) == 0 || e.Source != (psync.WordSource{Kind: psync.SourceAI, Desktop: phoneSyncName()}) {
 		t.Fatalf("with an AI service: %+v, %v, asked %d times", e, err, len(*seen))
 	}
 	if a.vocabCache().Len() != 0 {
@@ -1255,7 +1255,7 @@ func TestPluginDictionaryAnswersAPhone(t *testing.T) {
 	asked := len(*seen)
 
 	pluginsDictInstalled(t, a, tt, updates, pluginDictionary("example.ja-zh", "Japanese words", "ja", "zh-Hans"), map[string][]byte{"words.tsv": []byte("公園\tこうえん\t公园\n")})
-	if e, err := look(psync.Caller{}, "公園", "公園に行った"); err != nil || e.Meaning != "公园" || len(*seen) != asked || e.Source != (psync.WordSource{Kind: psync.SourceDictionary, Name: "Japanese words", Credit: "Japanese words © Example"}) {
+	if e, err := look(psync.Caller{}, "公園", "公園に行った"); err != nil || e.Meaning != "公园" || len(*seen) != asked || e.Source != (psync.WordSource{Kind: psync.SourceDictionary, Name: "Japanese words", Credit: "Japanese words © Example", Desktop: phoneSyncName()}) {
 		t.Fatalf("a dictionary into Chinese: %+v, %v, the AI service asked again", e, err)
 	}
 	if a.vocabCache().Len() != 0 {

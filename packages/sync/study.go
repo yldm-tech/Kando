@@ -39,11 +39,12 @@ type WordEntry struct {
 	Source   WordSource `json:"source,omitzero"`
 }
 
-// WordSource is where a WordEntry came from: Kind is SourceDictionary, a dictionary pack installed on the desktop, with its name (Name) and the credit its license asks for (Credit, "" for none), both in the desktop's interface language, or SourceAI, the desktop's AI service, now or when the word was looked up before; a kind a phone does not know it says nothing of, so later kinds can be added. The zero WordSource is a desktop that did not say.
+// WordSource is where a WordEntry came from: Kind is SourceDictionary, a dictionary pack installed on the desktop, with its name (Name) and the credit its license asks for (Credit, "" for none), both in the desktop's interface language, or SourceAI, the desktop's AI service, now or when the word was looked up before; a kind a phone does not know it says nothing of, so later kinds can be added. Desktop is the name of the desktop that answered, as Hello names it, which a phone keeps with the entry, so a word it answers from its own lookups later still names the desktop that answered it; "" from a desktop that did not say. The zero WordSource is a desktop that did not say where the entry came from.
 type WordSource struct {
-	Kind   string `json:"kind"`
-	Name   string `json:"name,omitempty"`
-	Credit string `json:"credit,omitempty"`
+	Kind    string `json:"kind"`
+	Name    string `json:"name,omitempty"`
+	Credit  string `json:"credit,omitempty"`
+	Desktop string `json:"desktop,omitempty"`
 }
 
 // The kinds of a WordSource.

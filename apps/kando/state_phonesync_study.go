@@ -63,7 +63,7 @@ func (s phoneStudy) ask(item films.Film) (phoneStudyAsk, error) {
 	return phoneStudyAsk{t: t, language: paletteAnswerLanguage(item, a.prefs.language)}, nil
 }
 
-// LookUp answers what the word means in the line as the picture's lookup does (vocabResolve): from the words looked up on this computer, else from the dictionary packs turned on, offline and without an AI service, else as the AI service set says, whose answer it then keeps among the words looked up, unless the phone is read-only (psync.Caller.ReadOnly): a read-only phone reads the words looked up, the dictionaries and asks the AI service, but changes nothing on this computer, the words looked up among it. Only when no dictionary has the word and no AI service can answer is it psync.CodeNoAI. The entry says where it came from (psync.WordSource), as the picture's card does: the dictionary, with its name and credit, or the AI service, a word looked up before among it.
+// LookUp answers what the word means in the line as the picture's lookup does (vocabResolve): from the words looked up on this computer, else from the dictionary packs turned on, offline and without an AI service, else as the AI service set says, whose answer it then keeps among the words looked up, unless the phone is read-only (psync.Caller.ReadOnly): a read-only phone reads the words looked up, the dictionaries and asks the AI service, but changes nothing on this computer, the words looked up among it. Only when no dictionary has the word and no AI service can answer is it psync.CodeNoAI. The entry says where it came from (psync.WordSource), as the picture's card does: the dictionary, with its name and credit, or the AI service, a word looked up before among it; and the name of this computer, as phones list it (phoneSyncName), which the phone keeps with the word.
 func (s phoneStudy) LookUp(ctx context.Context, caller psync.Caller, req psync.WordLookup) (psync.WordEntry, error) {
 	a := s.a
 	f := s.film(ctx, req.Library, req.Film)
@@ -100,6 +100,7 @@ func (s phoneStudy) LookUp(ctx context.Context, caller psync.Caller, req psync.W
 	if source != "" {
 		from = resolved.sources[source]
 	}
+	from.Desktop = phoneSyncName()
 	return psync.WordEntry{Word: cmp.Or(entry.Word, word), Reading: entry.Reading, Meaning: entry.Meaning, Language: ask.ask.Query.Language, Source: from}, nil
 }
 
