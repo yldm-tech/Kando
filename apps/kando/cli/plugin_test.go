@@ -78,9 +78,10 @@ func TestPluginValidate(t *testing.T) {
 	if code != 1 || stdout != "" || !strings.Contains(stderr, "kando plugin:") || !strings.Contains(stderr, "reserved") {
 		t.Errorf("validate a reserved id = %d, %q, %q", code, stdout, stderr)
 	}
-	code, stdout, _ = run("plugin", "validate", "--json", pluginFolder(t, `{"schema": 1, "id": "example.x", "kind": "task"}`))
-	if code != 1 || !strings.Contains(stdout, `"error"`) || !strings.Contains(stdout, "cannot install this kind") {
-		t.Errorf("validate --json a task pack = %d, %q", code, stdout)
+	// Every kind Kando knows is installable now, so a kind it does not know is the one refused for its kind.
+	code, stdout, _ = run("plugin", "validate", "--json", pluginFolder(t, `{"schema": 1, "id": "example.x", "kind": "plugin"}`))
+	if code != 1 || !strings.Contains(stdout, `"error"`) || !strings.Contains(stdout, "kind of pack is unknown") {
+		t.Errorf("validate --json a pack of an unknown kind = %d, %q", code, stdout)
 	}
 	if code, _, stderr := run("plugin", "validate", filepath.Join(t.TempDir(), "missing.zip")); code != 1 || !strings.Contains(stderr, "missing.zip") {
 		t.Errorf("validate a missing file = %d, %q", code, stderr)
