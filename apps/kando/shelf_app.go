@@ -603,7 +603,8 @@ func (a *app) refreshLibrary() {
 		a.areasShelfChanged()
 		return
 	}
-	moved, err := media.GatherVideos(dir)
+	// A video moved to a storage location still belongs where it was: its folder is not taken as the folder of a video left in it, and no file is renamed to its path (state_stored.go).
+	moved, err := media.GatherVideos(dir, a.storedPaths())
 	if err != nil {
 		a.saveErr = err.Error()
 		return

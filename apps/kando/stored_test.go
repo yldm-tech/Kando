@@ -906,3 +906,77 @@ func TestRemoteSaysWhereAMovedVideoIs(t *testing.T) {
 		t.Fatalf("film.get once the location is gone = %+v, %v", one.VideoLocation, err)
 	}
 }
+
+// TestMovedVideoKeepsItsPathInAFolderOfTwo moves one of two videos in a folder to a location, for a film a job made and for videos found in the folder: reading the library again leaves the other video's name alone, as the folder still holds two films, rather than renaming it to video.<ext>, which could be the moved video's path; both come back to their own paths. A file found where a video goes back is not written over, and the move back says why.
+func TestMovedVideoKeepsItsPathInAFolderOfTwo(t *testing.T) {
+	m := testlocale.Messages()
+	read := func(t *testing.T, path, want string) {
+		t.Helper()
+		if got, err := os.ReadFile(path); err != nil || string(got) != want {
+			t.Fatalf("%s holds %q, %v; want %q", path, got, err, want)
+		}
+	}
+
+	t.Run("a job's film", func(t *testing.T) {
+		f := newMoveFixture(t)
+		a, tt := f.a, f.tt
+		extra := filepath.Join(f.from, "Talk", "extra.mp4")
+		writeFiles(t, map[string]string{extra: "extra"})
+		a.refreshLibrary()
+		useStoredLocation(t, f, storage.Remote{Kind: storage.KindWebDAV, URL: "https://nas.local/dav"}, localOpen(t.TempDir()))
+		a.MoveVideoTo(must(films.Find(a.films(), "film")), "nas")
+		waitStored(t, f)
+		a.refreshLibrary()
+		refresh(tt, a)
+		read(t, extra, "extra")
+		if _, err := os.Stat(f.video); !errors.Is(err, os.ErrNotExist) {
+			t.Fatalf("a file took the moved video's path: %v", err)
+		}
+		if _, ok := films.Find(a.films(), extra); !ok {
+			t.Fatal("the video left in the folder is not on the shelf by its name")
+		}
+		a.MoveVideoBack(must(films.Find(a.films(), "film")))
+		waitStored(t, f)
+		wantText(t, tt, m.StoredMovedBack(moveName))
+		read(t, f.video, "picture")
+		read(t, extra, "extra")
+	})
+
+	t.Run("videos found in the folder", func(t *testing.T) {
+		f, ep1, ep2 := newSeriesFixture(t)
+		a, tt := f.a, f.tt
+		useStoredLocation(t, f, storage.Remote{Kind: storage.KindWebDAV, URL: "https://nas.local/dav"}, localOpen(t.TempDir()))
+		a.MoveVideoTo(must(films.Find(a.films(), ep1)), "nas")
+		waitStored(t, f)
+		read(t, ep2, "two")
+		a.MoveVideoTo(must(films.Find(a.films(), ep2)), "nas")
+		waitStored(t, f)
+		// The first comes back while the second is away: its folder holds two films still, so it keeps its name.
+		a.MoveVideoBack(must(films.Find(a.films(), ep1)))
+		waitStored(t, f)
+		a.refreshLibrary()
+		read(t, ep1, "one")
+		if _, err := os.Stat(filepath.Join(filepath.Dir(ep1), "video.mp4")); !errors.Is(err, os.ErrNotExist) {
+			t.Fatalf("a video was renamed in the folder: %v", err)
+		}
+		// A file where the second goes back, as one copied in by hand, stays, and the move back says why.
+		writeFiles(t, map[string]string{ep2: "someone else's"})
+		a.MoveVideoBack(films.Film{Key: ep2, VideoPath: ep2, Name: "ep2"})
+		refresh(tt, a)
+		if a.stored.run != nil || a.lib.notice.Text != m.StoredMoveBackFailed("ep2", storedPlace, m.StoredLocalTaken()) {
+			t.Fatalf("moving back over a file: run %v, bar %q", a.stored.run != nil, a.lib.notice.Text)
+		}
+		read(t, ep2, "someone else's")
+		if err := os.Remove(ep2); err != nil {
+			t.Fatal(err)
+		}
+		a.refreshLibrary()
+		a.MoveVideoBack(must(films.Find(a.films(), ep2)))
+		waitStored(t, f)
+		read(t, ep1, "one")
+		read(t, ep2, "two")
+		if len(a.library.Stored) != 0 {
+			t.Fatalf("library.json still notes %v", a.library.Stored)
+		}
+	})
+}

@@ -132,7 +132,7 @@ func TestGatherVideosTakesTheCorrectionsAlong(t *testing.T) {
 			t.Fatal(err)
 		}
 	}
-	if _, err := GatherVideos(dir); err != nil {
+	if _, err := GatherVideos(dir, nil); err != nil {
 		t.Fatal(err)
 	}
 	if _, err := os.Stat(filepath.Join(dir, "Talk", ".video.edits.json")); err != nil {

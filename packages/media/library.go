@@ -178,8 +178,12 @@ func bilingualBeside(dir, video string, files map[string]bool) string {
 	return filepath.Join(dir, name)
 }
 
-// GatherVideos moves a loose video and its subtitles, the transcript Kando keeps beside subtitles of the user's (asideTranscriptPath) and the user's corrections of its lines (CorrectionsPath) among them, into "<name>/video.<ext>", and renames a video already inside a folder to video.<ext>. The returned map is the old path to the new path. A folder that already contains video.<ext> is left alone, including its other subtitle names, and so is one that holds what a download leaves while it runs (downloadLeftover): its single finished track is not a video to rename.
-func GatherVideos(dir string) (map[string]string, error) {
+// GatherVideos moves a loose video and its subtitles, the transcript Kando keeps beside subtitles of the user's (asideTranscriptPath) and the user's corrections of its lines (CorrectionsPath) among them, into "<name>/video.<ext>", and renames a video already inside a folder to video.<ext>. The returned map is the old path to the new path. A folder that already contains video.<ext> is left alone, including its other subtitle names, and so is one that holds what a download leaves while it runs (downloadLeftover): its single finished track is not a video to rename. away are the paths of videos that belong in dir but are not on disk now, as those moved to a storage location, which come back to those paths: each counts as a video of its folder, so a folder that holds one besides a video on disk is not one video's folder, and no file is renamed or moved to one of those paths.
+func GatherVideos(dir string, away []string) (map[string]string, error) {
+	held := map[string]bool{}
+	for _, path := range away {
+		held[filepath.Clean(path)] = true
+	}
 	entries, err := os.ReadDir(dir)
 	if os.IsNotExist(err) {
 		return nil, nil
@@ -193,7 +197,7 @@ func GatherVideos(dir string) (map[string]string, error) {
 			continue
 		}
 		if entry.IsDir() {
-			nested, err := normalizeItem(filepath.Join(dir, entry.Name()))
+			nested, err := normalizeItem(filepath.Join(dir, entry.Name()), held)
 			if err != nil {
 				return moved, err
 			}
@@ -223,7 +227,7 @@ func GatherVideos(dir string) (map[string]string, error) {
 				continue
 			}
 			dst := filepath.Join(folder, pair[1])
-			if _, err := os.Stat(dst); err == nil {
+			if _, err := os.Stat(dst); err == nil || held[dst] {
 				continue
 			}
 			if err := os.Rename(src, dst); err != nil {
@@ -281,7 +285,7 @@ func AdoptLibrary(from, to string) (map[string]string, error) {
 		}); err != nil {
 			return moved, err
 		}
-		nested, err := normalizeItem(dst)
+		nested, err := normalizeItem(dst, nil)
 		if err != nil {
 			return moved, err
 		}
@@ -515,10 +519,16 @@ func RemoveEmptyLibrary(dir string) {
 	_ = os.RemoveAll(dir)
 }
 
-func normalizeItem(folder string) (map[string]string, error) {
+// normalizeItem renames the one video of folder and the files beside it that are its to video.<ext> and the names that go with it, unless folder holds no video, more than one, a video of held (one that belongs there but is not on disk now, GatherVideos' away), or what a download leaves while it runs. No file goes to a path of held.
+func normalizeItem(folder string, held map[string]bool) (map[string]string, error) {
 	entries, err := os.ReadDir(folder)
 	if err != nil {
 		return nil, err
+	}
+	for path := range held {
+		if filepath.Dir(path) == filepath.Clean(folder) {
+			return nil, nil
+		}
 	}
 	var videos []string
 	for _, entry := range entries {
@@ -551,7 +561,7 @@ func normalizeItem(folder string) (map[string]string, error) {
 			continue
 		}
 		dst := filepath.Join(folder, pair[1])
-		if _, err := os.Stat(dst); err == nil {
+		if _, err := os.Stat(dst); err == nil || held[dst] {
 			continue
 		}
 		if err := os.Rename(src, dst); err != nil {

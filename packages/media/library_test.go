@@ -105,7 +105,7 @@ func TestGatherVideosMovesLooseFilesIntoAFolder(t *testing.T) {
 			t.Fatal(err)
 		}
 	}
-	moved, err := GatherVideos(dir)
+	moved, err := GatherVideos(dir, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -437,7 +437,7 @@ func TestGatherVideosLeavesAnUnfinishedDownloadAlone(t *testing.T) {
 				t.Fatal(err)
 			}
 		}
-		moved, err := GatherVideos(dir)
+		moved, err := GatherVideos(dir, nil)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -458,7 +458,7 @@ func TestGatherVideosLeavesALooseTrackAlone(t *testing.T) {
 	if err := os.WriteFile(track, []byte("x"), 0o644); err != nil {
 		t.Fatal(err)
 	}
-	if moved, err := GatherVideos(dir); err != nil || len(moved) != 0 {
+	if moved, err := GatherVideos(dir, nil); err != nil || len(moved) != 0 {
 		t.Fatalf("moved %v, err %v", moved, err)
 	}
 	if _, err := os.Stat(track); err != nil {
@@ -487,5 +487,41 @@ func TestListVideosSkipsTheTracksOfAnUnfinishedDownload(t *testing.T) {
 	}
 	if len(videos) != 1 || videos[0].Path != filepath.Join(merged, "video.mp4") {
 		t.Fatalf("videos = %#v", videos)
+	}
+}
+
+// TestGatherVideosKeepsThePathsOfVideosAway checks that a video away from the library, as one moved to a storage location, keeps its folder from being taken as the folder of the video left in it, and its path from being given to another file: the video left keeps its name, and a loose video whose folder would put it there stays loose.
+func TestGatherVideosKeepsThePathsOfVideosAway(t *testing.T) {
+	dir := t.TempDir()
+	write := func(rel string) {
+		t.Helper()
+		path := filepath.Join(dir, rel)
+		if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
+			t.Fatal(err)
+		}
+		if err := os.WriteFile(path, []byte(rel), 0o644); err != nil {
+			t.Fatal(err)
+		}
+	}
+	write("Course/ep2.mp4")
+	write("Course/ep2.bilingual.srt")
+	write("Talk.mp4")
+	away := []string{filepath.Join(dir, "Course", "ep1.mp4"), filepath.Join(dir, "Talk", "video.mp4")}
+	moved, err := GatherVideos(dir, away)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(moved) != 0 {
+		t.Fatalf("moved %v", moved)
+	}
+	for _, rel := range []string{"Course/ep2.mp4", "Course/ep2.bilingual.srt", "Talk.mp4"} {
+		if _, err := os.Stat(filepath.Join(dir, rel)); err != nil {
+			t.Fatalf("%s: %v", rel, err)
+		}
+	}
+	// Once the video is back, the folder holds two videos and is left as it is.
+	write("Course/ep1.mp4")
+	if moved, err := GatherVideos(dir, nil); err != nil || len(moved) != 1 || moved[filepath.Join(dir, "Talk.mp4")] != filepath.Join(dir, "Talk", "video.mp4") {
+		t.Fatalf("without videos away: %v, %v", moved, err)
 	}
 }

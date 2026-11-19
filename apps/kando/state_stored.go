@@ -421,6 +421,10 @@ func (a *app) storedBeginBack(item films.Film, batch *storedBatch) error {
 	case t.Store != nil && a.privacy.offline:
 		return errors.New(m.PrivacyNoUpload())
 	}
+	// Another file where the video goes back, as another film's, is never written over nor taken for it; storage.Get refuses it too, after the copy.
+	if _, err := os.Lstat(item.VideoPath); err == nil {
+		return errors.New(m.StoredMoveBackFailed(films.Name(item), a.storedName(m, s.Location), m.StoredLocalTaken()))
+	}
 	run := a.storedStart(item, s.Location, true, batch)
 	pool, update, video := a.stored.pool, a.update, item.VideoPath
 	progress := a.storedProgress(update, run)
