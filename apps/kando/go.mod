@@ -9,11 +9,15 @@ require (
 	github.com/aws/aws-sdk-go-v2/credentials v1.21.0
 	github.com/aws/aws-sdk-go-v2/service/s3 v1.114.10
 	github.com/aws/smithy-go v1.28.9
+	github.com/hirochachacha/go-smb2 v1.1.0
 	github.com/modelcontextprotocol/go-sdk v1.8.0
 	github.com/nsgo-dev/nsgo v0.1.1-0.20261118094851-ec272782be28
+	github.com/pkg/sftp v1.13.12
+	github.com/studio-b12/gowebdav v0.13.0
 	github.com/yldm-tech/ai-logo/nsgo v1.22.0
 	github.com/yldm-tech/nodra v1.6.0
 	go.yaml.in/yaml/v3 v3.0.6
+	golang.org/x/crypto v0.59.0
 	golang.org/x/image v0.48.0
 	golang.org/x/net v0.62.0
 	golang.org/x/oauth2 v0.38.0
@@ -47,6 +51,7 @@ require (
 	github.com/ebitengine/purego v0.11.3 // indirect
 	github.com/egoist/mygo v0.9.0 // indirect
 	github.com/evanw/esbuild v0.28.2 // indirect
+	github.com/geoffgarside/ber v1.1.0 // indirect
 	github.com/go-ego/gse v1.3.1 // indirect
 	github.com/go-sourcemap/sourcemap v2.1.4+incompatible // indirect
 	github.com/gofrs/flock v0.13.1 // indirect
@@ -54,6 +59,7 @@ require (
 	github.com/ikawaha/kagome-dict v1.1.7 // indirect
 	github.com/ikawaha/kagome-dict/ipa v1.2.6 // indirect
 	github.com/ikawaha/kagome/v2 v2.11.1 // indirect
+	github.com/kr/fs v0.1.0 // indirect
 	github.com/segmentio/asm v1.1.3 // indirect
 	github.com/segmentio/encoding v0.5.4 // indirect
 	github.com/vcaesar/cedar v0.50.1 // indirect
