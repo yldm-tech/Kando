@@ -10,7 +10,7 @@ import (
 // fakeGlossary counts the terms put.
 type fakeGlossary struct{ puts int }
 
-func (f *fakeGlossary) Terms(_ context.Context, _ Caller, req FilmRef) (Glossary, error) {
+func (f *fakeGlossary) Terms(_ context.Context, _ Caller, req GlossaryRef) (Glossary, error) {
 	return Glossary{Library: req.Library, Film: req.Film, Terms: []Term{{Source: "meander", Target: "河曲", Scope: TermFilm}}}, nil
 }
 
@@ -36,7 +36,7 @@ func TestGlossaryUnsupportedAndReadOnly(t *testing.T) {
 	if r := desk.Answer(ctx, reader, Call{ID: "w", V: CallVersion, Op: OpTermPut, Args: data}); r.Error == nil || r.Error.Code != CodeReadOnly || f.puts != 0 {
 		t.Fatalf("a read-only device's term answered %s %+v, %d puts", r.Result, r.Error, f.puts)
 	}
-	data, _ = json.Marshal(FilmRef{Library: "lib", Film: "f1"})
+	data, _ = json.Marshal(GlossaryRef{Library: "lib", Film: "f1"})
 	r := desk.Answer(ctx, reader, Call{ID: "r", V: CallVersion, Op: OpTerms, Args: data})
 	var g Glossary
 	if r.Error != nil || json.Unmarshal(r.Result, &g) != nil || len(g.Terms) != 1 {

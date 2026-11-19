@@ -46,7 +46,7 @@ func (d *Desktop) SetNoGlossary(none bool) {
 // glossaryService is the stand-in's glossaries as v2's calls read and change them.
 type glossaryService struct{ d *Desktop }
 
-func (s glossaryService) Terms(_ context.Context, _ sync.Caller, req sync.FilmRef) (sync.Glossary, error) {
+func (s glossaryService) Terms(_ context.Context, _ sync.Caller, req sync.GlossaryRef) (sync.Glossary, error) {
 	d := s.d
 	d.mu.Lock()
 	defer d.mu.Unlock()

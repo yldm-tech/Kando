@@ -158,6 +158,8 @@ func TestSearchFindsTheLinesOnThePhone(t *testing.T) {
 // A film's options download it and, once it is on the phone, play it or delete it from the phone after asking.
 func TestAFilmsOptionsDownloadAndDeleteIt(t *testing.T) {
 	d := newDesktop(t)
+	// The computer's own actions on a film are films_test.go's; here the options are the phone's.
+	d.SetNoFilmOps(true)
 	dir := t.TempDir()
 	p := startPhone(t, dir, pairedWith(t, d, dir))
 	id := store.DesktopID(d.Fingerprint)
@@ -283,6 +285,8 @@ func TestAFailedRefreshKeepsTheLibraryChosen(t *testing.T) {
 // A film's options pause a download under way, resume it and cancel it, which deletes what it downloaded.
 func TestAFilmsOptionsPauseResumeAndCancelItsDownload(t *testing.T) {
 	d := newDesktop(t)
+	// The computer's own actions on a film are films_test.go's; here the options are the phone's.
+	d.SetNoFilmOps(true)
 	dir := t.TempDir()
 	p := startPhone(t, dir, pairedWith(t, d, dir))
 	id := store.DesktopID(d.Fingerprint)
@@ -315,6 +319,8 @@ func TestAFilmsOptionsPauseResumeAndCancelItsDownload(t *testing.T) {
 // Played from the beginning from its options, a film the computer left partway is the phone's from then on: it goes from the films to go on with, and its row no longer says where the computer left it.
 func TestPlayFromTheBeginningOutdatesTheComputersPosition(t *testing.T) {
 	d := newDesktop(t)
+	// The computer's own actions on a film are films_test.go's; here the options are the phone's.
+	d.SetNoFilmOps(true)
 	d.SetState("lib", now().Add(-time.Hour), sync.Record{Kind: sync.KindPosition, ID: "f1", Film: "f1",
 		Fields: map[string]sync.Field{sync.FieldPositionMS: {Value: sync.Value(4000)}}})
 	dir := t.TempDir()

@@ -63,13 +63,17 @@ func TestAwayFromTheComputerItsFilmsComeFromTheStorage(t *testing.T) {
 	// A film whose video is not in the storage opens for its lines.
 	p.app.Press(filmRow(id, "f2"))
 	p.app.WaitFor("id:film-lines", reconnect)
-	if got := p.texts("id:film-lines-only"); got != msgs.FilmLinesOnly() || p.app.Exists("id:film-download") {
+	if got := p.texts("id:film-lines-only"); got != msgs.FilmVideoAtHome("Studio") || p.app.Exists("id:film-download") {
 		t.Fatalf("a film shared as its lines: %q", p.app.Texts())
 	}
 	p.app.Press("id:film-lines")
 	p.app.WaitFor("id:player-no-video", wait)
 	if p.app.Exists("id:player-video") {
 		t.Fatal("the player opened a video the storage does not hold")
+	}
+	// Where the video would play, it says the video is on the computer, with nothing to press away from its network.
+	if got := p.texts("id:player-no-video-status"); got != msgs.FilmVideoAtHome("Studio") || p.app.Exists("id:player-no-video-download") || p.app.Exists("id:player-no-video-ask") {
+		t.Fatalf("the player says %q", p.app.Texts())
 	}
 	p.app.Press("id:player-minimize")
 	p.app.HeaderBack("id:film-page")

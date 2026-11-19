@@ -29,7 +29,7 @@ type Library struct {
 	ID, Name, Dir string
 }
 
-// Film is a film the app serves, done processing: its ID in the protocol, what the protocol says of it, and its files.
+// Film is a film the app serves, done processing: its ID in the protocol, what the protocol says of it, and its files. A film that keeps no video (SubtitlesOnly) is served by its subtitles alone, and only to a phone that asks for such films (psync.WithSubtitlesOnly).
 type Film struct {
 	ID, Title, Source string
 	// Spoken is the language spoken in it as whisper's code, Translation the language its subtitles are translated into, "" for one not translated.
@@ -37,8 +37,9 @@ type Film struct {
 	Untranslated        int
 	// Duration is how long it plays, 0 when the app does not know.
 	Duration time.Duration
-	// Video is its video file, Poster its poster's file, "" for none yet.
+	// Video is its video file, Poster its poster's file, "" for none yet. For a film that keeps no video (SubtitlesOnly, core.Job.SubtitlesOnly) Video is where its sound was, which its subtitles are named after, and no file.
 	Video, Poster string
+	SubtitlesOnly bool
 	// Watched is a film watched to its end, last at WatchedAt, zero when that is not known; the films through the bucket clean up its video after a while (FilmsConfig.CleanAfter).
 	Watched   bool
 	WatchedAt time.Time
@@ -53,7 +54,7 @@ var ErrNotFound = errors.New("not found")
 type Source interface {
 	// Libraries are the libraries the app knows, locked ones left out: those are never served.
 	Libraries(ctx context.Context) ([]Library, error)
-	// Films are lib's films a phone can play.
+	// Films are lib's films a phone can play or study.
 	Films(ctx context.Context, lib Library) ([]Film, error)
 	// Cues are f's subtitles, line by line.
 	Cues(ctx context.Context, f Film) ([]psync.Cue, error)
@@ -80,6 +81,8 @@ type Config struct {
 	Subscriptions psync.SubscriptionService
 	// Glossary is the films' glossaries protocol v2's calls read and add terms to; nil answers them unsupported.
 	Glossary psync.GlossaryService
+	// FilmOps is what protocol v2's calls do to a film: translate it again, export its subtitles, delete it and download its video; nil answers them unsupported.
+	FilmOps psync.FilmService
 	// Relay is the user's bucket the storage relay runs in (relay.go), nil while the relay is off. RelayHealth, when set, is told on a goroutine of the relay's after each of its turns what failed of it, nil for a turn that went through (psync.Relay.Health).
 	Relay       Bucket
 	RelayHealth func(err error)
@@ -118,7 +121,7 @@ type Server struct {
 	order     []netip.Addr
 	offer     *offer
 	limit     limiter
-	// listed is each library's playable films as last read, by its ID, which a request for a film's files looks it up in for filmsFresh after (filmsFor).
+	// listed is each library's films as last read, by its ID, which a request for a film's files looks it up in for filmsFresh after (filmsFor).
 	listed map[string]listing
 	// desk answers protocol v2's calls; relay carries them through the user's bucket, nil while it is off.
 	desk  *psync.Desk
@@ -166,7 +169,7 @@ func Start(cfg Config) (*Server, error) {
 	if jobs == nil {
 		jobs = noJobs{}
 	}
-	s.desk = &psync.Desk{Service: jobs, State: cfg.State, Settings: cfg.Settings, Study: cfg.Study, Subscriptions: cfg.Subscriptions, Glossary: cfg.Glossary, Journal: psync.NewJournal(), Desktop: cfg.Name, Now: cfg.Now}
+	s.desk = &psync.Desk{Service: jobs, State: cfg.State, Settings: cfg.Settings, Study: cfg.Study, Subscriptions: cfg.Subscriptions, Glossary: cfg.Glossary, Films: cfg.FilmOps, Journal: psync.NewJournal(), Desktop: cfg.Name, Now: cfg.Now}
 	s.http = &http.Server{
 		Handler:           s.routes(),
 		TLSConfig:         &tls.Config{Certificates: []tls.Certificate{cert}, MinVersion: tls.VersionTLS13},
@@ -522,7 +525,7 @@ func sourceContext(r *http.Request) (context.Context, context.CancelFunc) {
 	return context.WithTimeout(r.Context(), sourceTimeout)
 }
 
-// libraries answers the libraries, each with how many films a phone can play.
+// libraries answers the libraries, each with how many films a phone can play, those that keep no video left out, as a phone from before them listed only these.
 func (s *Server) libraries(w http.ResponseWriter, r *http.Request, _ Device) {
 	ctx, cancel := sourceContext(r)
 	defer cancel()
@@ -538,12 +541,18 @@ func (s *Server) libraries(w http.ResponseWriter, r *http.Request, _ Device) {
 			s.sourceFailed(w, r, err)
 			return
 		}
-		out.Libraries = append(out.Libraries, psync.Library{ID: lib.ID, Name: lib.Name, Films: len(films)})
+		n := 0
+		for _, f := range films {
+			if !f.SubtitlesOnly {
+				n++
+			}
+		}
+		out.Libraries = append(out.Libraries, psync.Library{ID: lib.ID, Name: lib.Name, Films: n})
 	}
 	writeJSON(w, http.StatusOK, out)
 }
 
-// films answers the films of library {lib}.
+// films answers the films of library {lib}: those with their video, and those that keep none for a phone that asks for them (psync.WithSubtitlesOnly).
 func (s *Server) films(w http.ResponseWriter, r *http.Request, _ Device) {
 	ctx, cancel := sourceContext(r)
 	defer cancel()
@@ -557,9 +566,12 @@ func (s *Server) films(w http.ResponseWriter, r *http.Request, _ Device) {
 		s.sourceFailed(w, r, err)
 		return
 	}
+	all := r.URL.Query().Get(psync.QueryWith) == psync.WithSubtitlesOnly
 	out := psync.Films{Films: []psync.Film{}}
 	for _, f := range films {
-		out.Films = append(out.Films, f.film)
+		if all || !f.SubtitlesOnly {
+			out.Films = append(out.Films, f.film)
+		}
 	}
 	writeJSON(w, http.StatusOK, out)
 }
@@ -599,11 +611,14 @@ func (s *Server) poster(w http.ResponseWriter, r *http.Request, _ Device) {
 	s.serveFile(w, r, f.Poster)
 }
 
-// video answers film {id}'s video file, by ranges when asked, with an ETag that changes when the file does.
+// video answers film {id}'s video file, by ranges when asked, with an ETag that changes when the file does. A film that keeps no video has none.
 func (s *Server) video(w http.ResponseWriter, r *http.Request, _ Device) {
 	ctx, cancel := sourceContext(r)
 	f, err := s.film(ctx, r.PathValue("id"))
 	cancel()
+	if err == nil && f.SubtitlesOnly {
+		err = ErrNotFound
+	}
 	if err != nil {
 		s.sourceFailed(w, r, err)
 		return
@@ -668,7 +683,7 @@ func (s *Server) library(ctx context.Context, id string) (Library, error) {
 	return Library{}, ErrNotFound
 }
 
-// film is the playable film with ID id in any of the libraries the app serves.
+// film is the film with ID id in any of the libraries the app serves, one that keeps no video among them.
 func (s *Server) film(ctx context.Context, id string) (Film, error) {
 	libs, err := s.cfg.Source.Libraries(ctx)
 	if err != nil {
@@ -691,7 +706,7 @@ func (s *Server) film(ctx context.Context, id string) (Film, error) {
 	return Film{}, ErrNotFound
 }
 
-// filmsFor is lib's playable films: read from the app, or with cached, as last read when that was less than filmsFresh ago. lib is one the app serves now, as the caller just asked (Source.Libraries).
+// filmsFor is lib's films a phone can play or study (served): read from the app, or with cached, as last read when that was less than filmsFresh ago. lib is one the app serves now, as the caller just asked (Source.Libraries).
 func (s *Server) filmsFor(ctx context.Context, lib Library, cached bool) ([]served, error) {
 	now := s.cfg.Now()
 	if cached {
@@ -722,22 +737,31 @@ type served struct {
 	film psync.Film
 }
 
-// playable is the films of films whose video is on disk, with what their files tell: the video's size, and the latest time the video, a subtitle file or the corrections file changed.
+// playable is the films of films whose video is on disk, and those that keep no video whose subtitles are, with what their files tell: the video's size, and the latest time the video, a subtitle file or the corrections file changed.
 func playable(films []Film) []served {
 	var out []served
 	for _, f := range films {
-		info, err := os.Stat(f.Video)
-		if f.Video == "" || err != nil || info.IsDir() {
-			continue
+		var size int64
+		var updated time.Time
+		if f.SubtitlesOnly {
+			info, err := os.Stat(f.Subtitles)
+			if f.Subtitles == "" || err != nil || info.IsDir() {
+				continue
+			}
+		} else {
+			info, err := os.Stat(f.Video)
+			if f.Video == "" || err != nil || info.IsDir() {
+				continue
+			}
+			size, updated = info.Size(), info.ModTime()
 		}
-		updated := info.ModTime()
 		for _, sub := range []string{f.Subtitles, f.Transcript, f.Corrections} {
 			if si, err := os.Stat(sub); sub != "" && err == nil && si.ModTime().After(updated) {
 				updated = si.ModTime()
 			}
 		}
 		p := psync.Film{ID: f.ID, Title: f.Title, Source: f.Source, DurationMS: f.Duration.Milliseconds(), Spoken: f.Spoken, Translation: f.Translation,
-			Untranslated: f.Untranslated, VideoSize: info.Size(), Updated: updated.UTC()}
+			Untranslated: f.Untranslated, VideoSize: size, SubtitlesOnly: f.SubtitlesOnly, Updated: updated.UTC()}
 		if f.Poster != "" {
 			if _, err := os.Stat(f.Poster); err == nil {
 				p.Poster = psync.PosterPath(f.ID)

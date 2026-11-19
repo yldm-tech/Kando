@@ -29,9 +29,9 @@ func (v *view) subscriptions() []session.Subscription {
 }
 
 // canSubscribe reports whether a paired computer takes a list link to subscribe to, which the Add sheet sends it.
-func (v *view) canSubscribe() bool {
-	for _, d := range v.s.Desktops() {
-		if v.s.Queue(d.ID).Can(sync.OpSubscribe) {
+func canSubscribe(s *session.Session) bool {
+	for _, d := range s.Desktops() {
+		if s.Queue(d.ID).Can(sync.OpSubscribe) {
 			return true
 		}
 	}
@@ -43,7 +43,7 @@ func (v *view) subscriptionRow(cx *core.Scope) core.Node {
 	return core.View{TestID: "films-subscriptions", Style: core.Style{Gap: 12}, Children: []core.Node{
 		core.View{Style: core.Style{Direction: core.Row, AlignItems: core.AlignCenter, Gap: 8}, Children: []core.Node{
 			core.View{Style: core.Style{FlexGrow: 1, FlexShrink: 1}, Children: []core.Node{look.SectionTitle(cx, func() string { return locales.FilmsSubscriptions(cx) })}},
-			core.Show{When: func() bool { return v.act.Add != nil && v.canSubscribe() }, Then: func(cx *core.Scope) core.Node {
+			core.Show{When: func() bool { return v.act.Add != nil && canSubscribe(v.s) }, Then: func(cx *core.Scope) core.Node {
 				colors := ui.ColorsOf(cx)
 				return core.View{TestID: "films-subscriptions-add", Role: core.RoleButton, LabelFunc: func() string { return locales.FilmsSubscriptionsAddLabel(cx) },
 					OnPress: func(core.PressEvent) { v.act.Add() },
@@ -99,19 +99,9 @@ func trouble(sub session.Subscription) bool { return sub.Gone || sub.Error != ""
 func (v *view) subscriptionMark(cx *core.Scope, sub func() session.Subscription) core.Node {
 	colors := ui.ColorsOf(cx)
 	waiting := func() int { return len(sub().Waiting) }
-	label := func() string {
-		s := sub()
-		switch {
-		case s.Gone:
-			return locales.FilmsSubscriptionGoneLabel(cx, s.Name)
-		case s.Paused:
-			return locales.FilmsSubscriptionPausedLabel(cx, s.Name)
-		}
-		return locales.FilmsSubscriptionLabel(cx, s.Name, waiting())
-	}
 	id := sub().Desktop + "-" + sub().ID
-	return core.View{TestID: "films-subscription-" + id, Role: core.RoleButton, LabelFunc: label,
-		OnPress: func(core.PressEvent) { v.shownSub.Set(sub().Key()) },
+	return core.View{TestID: "films-subscription-" + id, Role: core.RoleButton, LabelFunc: func() string { return subscriptionLabel(cx, sub()) },
+		OnPress: func(core.PressEvent) { v.act.Subscription(sub().Key()) },
 		Style:   core.Style{Width: core.Pt(72), AlignItems: core.AlignCenter, Gap: 6, Active: &core.Style{Opacity: core.Alpha(0.7)}},
 		StyleFunc: func() core.Style {
 			if sub().Paused {
@@ -150,6 +140,17 @@ func (v *view) subscriptionMark(cx *core.Scope, sub func() session.Subscription)
 		}}
 }
 
+// subscriptionLabel is what assistive technology reads of sub in the row and the sidebar: its name, with the count of new videos waiting on it, or that its list is gone or it is paused.
+func subscriptionLabel(cx *core.Scope, sub session.Subscription) string {
+	switch {
+	case sub.Gone:
+		return locales.FilmsSubscriptionGoneLabel(cx, sub.Name)
+	case sub.Paused:
+		return locales.FilmsSubscriptionPausedLabel(cx, sub.Name)
+	}
+	return locales.FilmsSubscriptionLabel(cx, sub.Name, len(sub.Waiting))
+}
+
 // subscriptionKind is what sub follows, as its sheet names it.
 func subscriptionKind(cx *core.Scope, sub session.Subscription) string {
 	switch sub.Kind {
@@ -174,12 +175,11 @@ func subscriptionSite(cx *core.Scope, sub session.Subscription) string {
 	return locales.FilmsSourceWeb(cx)
 }
 
-// subscriptionSheet is the sheet of the subscription pressed in the row, a dialog in the middle of a tablet's screen: its site, what it follows and its computer, how its last check went, the new videos waiting on it with the way to send them all to the queue, its auto-download, and the way to unsubscribe, which the computer keeps the videos it added through. A phone the computer made read-only sees it without the actions. It closes once the subscription is gone.
-func (v *view) subscriptionSheet(cx *core.Scope) core.Node {
+// SubscriptionSheet is the sheet of the subscription whose key open holds, "" for none, as the Library's row and a tablet's sidebar open it, a dialog in the middle of a tablet's screen: its site, what it follows and its computer, how its last check went, the new videos waiting on it with the way to send them all to the queue, its auto-download, and the way to unsubscribe, which the computer keeps the videos it added through. A phone the computer made read-only sees it without the actions. It closes once the subscription is gone. It belongs over the app, so it shows whatever section a tablet shows.
+func SubscriptionSheet(cx *core.Scope, s *session.Session, open *core.Signal[string]) core.Node {
 	colors := ui.ColorsOf(cx)
-	s := v.s
 	shown := func() (session.Subscription, bool) {
-		key := v.shownSub.Get()
+		key := open.Get()
 		if key == "" {
 			return session.Subscription{}, false
 		}
@@ -188,15 +188,15 @@ func (v *view) subscriptionSheet(cx *core.Scope) core.Node {
 	// A subscription gone from its computer's list, as one unsubscribed on the computer and read again, closes its sheet: the key is cleared after this turn, which the sheet follows.
 	// TODO(nsgo): in nsgotest a ui.Dialog shown as a sheet (base.Sheet) stayed shown when its Open turned false in the same turn as this Effect's own Set, or in the turn after a cx.ShowAlert over it was answered; clearing the key a turn later, once the list changed, closes it. Set it directly once that closes the sheet
 	cx.Effect(func() {
-		if _, ok := shown(); !ok && v.shownSub.Get() != "" {
-			cx.Post(func() { v.shownSub.Set("") })
+		if _, ok := shown(); !ok && open.Get() != "" {
+			cx.Post(func() { open.Set("") })
 		}
 	})
 	sub := func() session.Subscription { got, _ := shown(); return got }
 	computer := func() string { d, _ := s.Desktop(sub().Desktop); return d.Name }
 	lets := func(op string) bool { return s.Queue(sub().Desktop).Can(op) && !s.SubscriptionBusy(sub()) }
 	waiting := func() int { return len(sub().Waiting) }
-	close := func() { v.shownSub.Set("") }
+	close := func() { open.Set("") }
 	unsubscribe := func() {
 		target := sub()
 		cx.ShowAlert(core.AlertConfig{Title: locales.FilmsUnsubscribeTitle(cx, target.Name), Message: locales.FilmsUnsubscribeMessage(cx, computer()), Actions: []core.AlertAction{

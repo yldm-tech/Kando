@@ -44,7 +44,7 @@ func (g phoneGlossary) film(ctx context.Context, library, film string) (films.Fi
 	return list[j], nil
 }
 
-func (g phoneGlossary) Terms(ctx context.Context, _ psync.Caller, req psync.FilmRef) (psync.Glossary, error) {
+func (g phoneGlossary) Terms(ctx context.Context, _ psync.Caller, req psync.GlossaryRef) (psync.Glossary, error) {
 	item, err := g.film(ctx, req.Library, req.Film)
 	if err != nil {
 		return psync.Glossary{}, err
@@ -74,7 +74,7 @@ func (g phoneGlossary) PutTerm(ctx context.Context, caller psync.Caller, req psy
 			log.Printf("phonesync: keep the term %s added: %v", caller.Name, err)
 			return psync.Glossary{}, err
 		}
-		return a.phoneGlossaryOf(psync.FilmRef{Library: req.Library, Film: req.Film}, item, own, true), nil
+		return a.phoneGlossaryOf(psync.GlossaryRef{Library: req.Library, Film: req.Film}, item, own, true), nil
 	})
 }
 
@@ -92,7 +92,7 @@ func (a *app) phoneGlossaryJob(item films.Film) core.Job {
 }
 
 // phoneGlossaryOf is item's glossary as a phone sees it, own being its own terms as read from beside its video, read whether they could be: the open film's are the ones the 术语 tab holds. UI thread only.
-func (a *app) phoneGlossaryOf(ref psync.FilmRef, item films.Film, own []core.Term, read bool) psync.Glossary {
+func (a *app) phoneGlossaryOf(ref psync.GlossaryRef, item films.Film, own []core.Term, read bool) psync.Glossary {
 	if a.gloss.video != "" && filepath.Clean(a.gloss.video) == filepath.Clean(item.VideoPath) && a.gloss.filmRead {
 		own, read = a.gloss.film, true
 	}

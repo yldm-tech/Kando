@@ -4,7 +4,7 @@ import "context"
 
 // The glossary of a film (yldm-tech/Kando#213): how the computer translates the names and terms of a film, the film's own terms, its series' and those of every film, as the computer's 术语 tab keeps them. A phone lists a film's glossary (OpTerms), which its player shows without changing it, and adds a term to the film's own while it corrects a line (OpTermPut), which the computer translates the film with from then on. The computer keeps the glossary: a phone neither moves a term to another scope nor removes one. A film of a locked library is not found. Like every v2 call they go over any transport, the storage relay too; OpTermPut changes the computer (Mutates), so a read-only device (Caller.ReadOnly) is refused it, and OpTerms only reads.
 const (
-	// OpTerms takes FilmRef and answers Glossary.
+	// OpTerms takes GlossaryRef and answers Glossary.
 	OpTerms = "glossary.get"
 	// OpTermPut takes TermPut and answers the Glossary as it is once changed.
 	OpTermPut = "glossary.put"
@@ -25,8 +25,8 @@ type Term struct {
 	Locked bool   `json:"locked,omitempty"`
 }
 
-// FilmRef names film Film of library Library.
-type FilmRef struct {
+// GlossaryRef names film Film of library Library.
+type GlossaryRef struct {
 	Library string `json:"library"`
 	Film    string `json:"film"`
 }
@@ -49,7 +49,7 @@ type TermPut struct {
 
 // GlossaryService is what a desktop does for the glossary's calls, whichever transport carries them. Its errors are as Service's.
 type GlossaryService interface {
-	Terms(ctx context.Context, caller Caller, req FilmRef) (Glossary, error)
+	Terms(ctx context.Context, caller Caller, req GlossaryRef) (Glossary, error)
 	PutTerm(ctx context.Context, caller Caller, req TermPut) (Glossary, error)
 }
 
@@ -59,7 +59,7 @@ func (d *Desk) answerGlossary(ctx context.Context, caller Caller, call Call) (an
 		return nil, Errorf(CodeUnsupported, "this desktop does not share its glossary")
 	}
 	if call.Op == OpTerms {
-		var req FilmRef
+		var req GlossaryRef
 		if err := args(call, &req); err != nil {
 			return nil, err
 		}
@@ -75,7 +75,7 @@ func (d *Desk) answerGlossary(ctx context.Context, caller Caller, call Call) (an
 // Terms is the glossary of film of library.
 func (c *Client) Terms(ctx context.Context, library, film string) (Glossary, error) {
 	var out Glossary
-	err := c.Call(ctx, OpTerms, FilmRef{Library: library, Film: film}, &out)
+	err := c.Call(ctx, OpTerms, GlossaryRef{Library: library, Film: film}, &out)
 	return out, err
 }
 

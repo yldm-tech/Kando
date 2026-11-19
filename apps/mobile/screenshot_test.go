@@ -362,3 +362,49 @@ func TestScreenshotsPlayerGlossary(t *testing.T) {
 	p.app.WaitFor("id:player-terms", wait)
 	shot(p, "player-terms")
 }
+
+func TestScreenshotsTabletSubscriptions(t *testing.T) {
+	shot := screenshots(t)
+	d := newDesktopWithMovies(t)
+	d.AddSubscription(earthScience())
+	d.AddSubscription(sync.Subscription{ID: "s2", Library: "movies", Name: "线性代数的几何意义", Kind: sync.SubscriptionCollection, Platform: sync.PlatformBilibili, Auto: true, AddPerCheck: 3})
+	d.AddSubscription(sync.Subscription{ID: "s3", Library: "lib", Name: "日语听力每日一练", Kind: sync.SubscriptionCollection, Platform: sync.PlatformBilibili, Gone: true, AddPerCheck: 3})
+	dir := t.TempDir()
+	p := startPhone(t, dir, pairedWith(t, d, dir), nsgotest.Size(1180, 820), nsgotest.Environment(core.Environment{Locale: lang, Idiom: core.IdiomTablet}))
+	id := store.DesktopID(d.Fingerprint)
+	p.app.WaitFor(filmRow(id, "f2"), wait)
+	// A target reports its own idiom, which an app on a computer's or a phone's is not a tablet's.
+	if !p.app.Exists("id:sidebar") {
+		t.Skip("the target is not a tablet")
+	}
+	p.app.WaitFor("id:sidebar-subscription-"+id+"-s3", wait)
+	shot(p, "tablet-subscriptions")
+	p.app.Press("id:sidebar-subscription-" + id + "-s1")
+	p.app.WaitFor("id:films-subscription-auto-switch", wait)
+	shot(p, "tablet-subscription-sheet")
+}
+
+func TestScreenshotsSubtitlesOnly(t *testing.T) {
+	shot := screenshots(t)
+	d := newDesktop(t)
+	d.AddFilm(linesFilm())
+	dir := t.TempDir()
+	id := store.DesktopID(d.Fingerprint)
+	// The film's lines are on the phone already, as Save Lines to Phone keeps them.
+	st := store.Open(dir)
+	kept := store.Film{Desktop: id, Library: "Japanese Class", LinesOnly: true, Added: now(), Film: linesFilm().Film}
+	if err := st.SaveFilm(kept); err != nil {
+		t.Fatal(err)
+	}
+	if err := st.SaveCues(id, kept.Film.ID, talkCues); err != nil {
+		t.Fatal(err)
+	}
+	p := startPhone(t, dir, pairedWith(t, d, dir))
+	p.app.WaitFor(filmRow(id, "f3")+" >> text:YouTube · 0:10 · "+msgs.FilmSubtitlesOnly()+" · "+msgs.FilmLinesSaved(), wait)
+	p.app.Press(filmRow(id, "f3"))
+	p.app.WaitFor("id:film-no-video-ask", wait)
+	shot(p, "film-subtitles-only")
+	p.app.Press("id:film-play")
+	p.app.WaitFor("id:player-no-video-ask", wait)
+	shot(p, "player-subtitles-only")
+}

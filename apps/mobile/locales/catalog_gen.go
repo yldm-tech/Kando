@@ -512,6 +512,16 @@ var Parameters = map[string][]string{
 	"LearnDays":                      {"count"},
 	"FilmsUnsubscribeMessage":        {"computer"},
 	"FilmsUnsubscribeTitle":          {"title"},
+	"FilmNoVideo":                    {"computer"},
+	"FilmVideoComing":                {"computer"},
+	"FilmVideoAtHome":                {"computer"},
+	"FilmVideoReady":                 {"computer"},
+	"FilmVideoOnComputer":            {"computer"},
+	"FilmVideoAsked":                 {"title", "computer"},
+	"FilmsRetranslating":             {"title", "computer"},
+	"FilmsDeleteFromLibraryTitle":    {"title"},
+	"FilmsDeleteFromLibraryMessage":  {"computer"},
+	"FilmsDeletedFromLibrary":        {"title", "computer"},
 	"JobsBadgeLabel":                 {"count"},
 	"JobsReadOnly":                   {"name"},
 	"LearnDueIn":                     {"count"},
@@ -670,6 +680,16 @@ type Translation struct {
 	LearnDays                      func(count int) string
 	FilmsUnsubscribeMessage        func(computer string) string
 	FilmsUnsubscribeTitle          func(title string) string
+	FilmNoVideo                    func(computer string) string
+	FilmVideoComing                func(computer string) string
+	FilmVideoAtHome                func(computer string) string
+	FilmVideoReady                 func(computer string) string
+	FilmVideoOnComputer            func(computer string) string
+	FilmVideoAsked                 func(title string, computer string) string
+	FilmsRetranslating             func(title string, computer string) string
+	FilmsDeleteFromLibraryTitle    func(title string) string
+	FilmsDeleteFromLibraryMessage  func(computer string) string
+	FilmsDeletedFromLibrary        func(title string, computer string) string
 	JobsBadgeLabel                 func(count int) string
 	JobsReadOnly                   func(name string) string
 	LearnDueIn                     func(count int) string
@@ -854,7 +874,6 @@ const (
 	textFilmPause
 	textFilmPlay
 	textFilmLines
-	textFilmLinesOnly
 	textFilmStorageFailed
 	textFilmResume
 	textFilmStopped
@@ -896,6 +915,14 @@ const (
 	textFilmsUnpairedBody
 	textFilmsUnpairedTitle
 	textFilmsUnsubscribe
+	textFilmStudyLines
+	textFilmSaveLines
+	textFilmLinesSaved
+	textFilmSubtitlesOnly
+	textFilmDownloadVideo
+	textFilmsExportSubtitles
+	textFilmsRetranslate
+	textFilmsDeleteFromLibrary
 	textJobsEmpty
 	textLearnDueNow
 	textJobsCancel
@@ -1016,7 +1043,6 @@ const (
 	textPlayerAudioOnlyNote
 	textPlayerCannotSave
 	textPlayerCantPlay
-	textPlayerNoVideo
 	textPlayerClose
 	textPlayerDelay
 	textPlayerDelayEarlier
@@ -1290,7 +1316,6 @@ var keyOfText = [numTexts]string{
 	"filmPause",
 	"filmPlay",
 	"filmLines",
-	"filmLinesOnly",
 	"filmStorageFailed",
 	"filmResume",
 	"filmStopped",
@@ -1332,6 +1357,14 @@ var keyOfText = [numTexts]string{
 	"filmsUnpairedBody",
 	"filmsUnpairedTitle",
 	"filmsUnsubscribe",
+	"filmStudyLines",
+	"filmSaveLines",
+	"filmLinesSaved",
+	"filmSubtitlesOnly",
+	"filmDownloadVideo",
+	"filmsExportSubtitles",
+	"filmsRetranslate",
+	"filmsDeleteFromLibrary",
 	"jobsEmpty",
 	"learnDueNow",
 	"jobsCancel",
@@ -1452,7 +1485,6 @@ var keyOfText = [numTexts]string{
 	"playerAudioOnlyNote",
 	"playerCannotSave",
 	"playerCantPlay",
-	"playerNoVideo",
 	"playerClose",
 	"playerDelay",
 	"playerDelayEarlier",
@@ -1724,7 +1756,6 @@ var textsEn = i18n.NewTexts(""+
 	"Pause"+
 	"Play"+
 	"Read the Lines"+
-	"Only this film's subtitles are in your storage. Its video is on the computer: watch it there, or download it there first."+
 	"Couldn't read it from your storage. Try again in a moment."+
 	"Resume"+
 	"The download stopped. Resume it when the computer can be reached."+
@@ -1766,6 +1797,14 @@ var textsEn = i18n.NewTexts(""+
 	"Downloading, transcription and translation all happen in Kando on your computer. Once connected, its libraries show up here."+
 	"Not connected to a computer yet"+
 	"Unsubscribe"+
+	"Study Lines"+
+	"Save Lines to Phone"+
+	"Lines saved"+
+	"Subtitles only"+
+	"Download Video"+
+	"Export Subtitles"+
+	"Translate Again"+
+	"Delete from Library"+
 	"No jobs. Tap + to send a video's link."+
 	"Due for review"+
 	"Cancel Job"+
@@ -1886,7 +1925,6 @@ var textsEn = i18n.NewTexts(""+
 	"Hides the picture, to listen as you would to a podcast."+
 	"Open this film once while its computer is reachable to save its lines."+
 	"This video can't play on this phone."+
-	"Only the subtitles are here. Watch the video on the computer, or download it there first."+
 	"Close"+
 	"Subtitle Timing"+
 	"Earlier"+
@@ -2155,7 +2193,6 @@ var textsEn = i18n.NewTexts(""+
 		5,
 		4,
 		14,
-		121,
 		58,
 		6,
 		65,
@@ -2197,6 +2234,14 @@ var textsEn = i18n.NewTexts(""+
 		124,
 		31,
 		11,
+		11,
+		19,
+		11,
+		14,
+		14,
+		16,
+		15,
+		19,
 		38,
 		14,
 		10,
@@ -2317,7 +2362,6 @@ var textsEn = i18n.NewTexts(""+
 		55,
 		70,
 		36,
-		89,
 		5,
 		15,
 		7,
@@ -2589,7 +2633,6 @@ var textsJa = i18n.NewTexts(""+
 	"一時停止"+
 	"再生"+
 	"セリフを見る"+
-	"ストレージにあるのはこの作品の字幕だけです。動画はコンピュータにあります。そちらで観るか、先にコンピュータでダウンロードしてください。"+
 	"ストレージから読み込めませんでした。少し待ってからもう一度お試しください。"+
 	"ダウンロードを再開"+
 	"ダウンロードが中断しました。コンピュータに接続できるときに再開してください。"+
@@ -2631,6 +2674,14 @@ var textsJa = i18n.NewTexts(""+
 	"ダウンロード、文字起こし、翻訳はすべてコンピュータの Kando が行います。接続すると、コンピュータのライブラリがここに表示されます。"+
 	"まだコンピュータに接続していません"+
 	"購読を解除"+
+	"セリフを学習"+
+	"セリフをスマートフォンに保存"+
+	"セリフを保存済み"+
+	"字幕のみ"+
+	"動画をダウンロード"+
+	"字幕を書き出す"+
+	"もう一度翻訳"+
+	"ライブラリから削除"+
 	"ジョブはありません。+ をタップして動画のリンクを送信します。"+
 	"復習の時期"+
 	"ジョブをキャンセル"+
@@ -2751,7 +2802,6 @@ var textsJa = i18n.NewTexts(""+
 	"画面を隠して、ポッドキャストのように聞けます。"+
 	"パソコンにつながる場所で一度この映像を開くと、文を保存できるようになります。"+
 	"この動画はこのスマートフォンでは再生できません。"+
-	"ここにあるのは字幕だけです。動画はコンピュータで観るか、先にそちらでダウンロードしてください。"+
 	"閉じる"+
 	"字幕のタイミング"+
 	"早める"+
@@ -3020,7 +3070,6 @@ var textsJa = i18n.NewTexts(""+
 		12,
 		6,
 		18,
-		201,
 		111,
 		27,
 		114,
@@ -3062,6 +3111,14 @@ var textsJa = i18n.NewTexts(""+
 		190,
 		51,
 		15,
+		18,
+		42,
+		24,
+		12,
+		27,
+		21,
+		18,
+		27,
 		89,
 		15,
 		27,
@@ -3182,7 +3239,6 @@ var textsJa = i18n.NewTexts(""+
 		69,
 		114,
 		72,
-		141,
 		9,
 		24,
 		9,
@@ -3454,7 +3510,6 @@ var textsKo = i18n.NewTexts(""+
 	"일시 정지"+
 	"재생"+
 	"대사 보기"+
-	"스토리지에는 이 작품의 자막만 있습니다. 동영상은 컴퓨터에 있으니 거기서 보거나 먼저 컴퓨터에서 내려받으세요."+
 	"스토리지에서 읽지 못했습니다. 잠시 후 다시 시도하세요."+
 	"다운로드 재개"+
 	"다운로드가 중단되었습니다. 컴퓨터에 연결할 수 있을 때 다시 시작하세요."+
@@ -3496,6 +3551,14 @@ var textsKo = i18n.NewTexts(""+
 	"다운로드, 받아쓰기, 번역은 모두 컴퓨터의 Kando에서 이루어집니다. 연결하면 컴퓨터의 보관함이 여기에 표시됩니다."+
 	"아직 컴퓨터에 연결하지 않았습니다"+
 	"구독 취소"+
+	"대사 학습"+
+	"대사를 휴대폰에 저장"+
+	"대사 저장됨"+
+	"자막만"+
+	"동영상 다운로드"+
+	"자막 내보내기"+
+	"다시 번역"+
+	"라이브러리에서 삭제"+
 	"작업이 없습니다. +를 눌러 동영상 링크를 보내세요."+
 	"복습할 차례"+
 	"작업 취소"+
@@ -3616,7 +3679,6 @@ var textsKo = i18n.NewTexts(""+
 	"화면을 숨기고 팟캐스트처럼 들을 수 있습니다."+
 	"컴퓨터에 연결된 상태에서 이 영상을 한 번 열면 문장을 저장할 수 있습니다."+
 	"이 영상은 이 휴대폰에서 재생할 수 없습니다."+
-	"여기에는 자막만 있습니다. 동영상은 컴퓨터에서 보거나 먼저 거기서 내려받으세요."+
 	"닫기"+
 	"자막 타이밍"+
 	"앞당기기"+
@@ -3885,7 +3947,6 @@ var textsKo = i18n.NewTexts(""+
 		13,
 		6,
 		13,
-		155,
 		77,
 		19,
 		100,
@@ -3927,6 +3988,14 @@ var textsKo = i18n.NewTexts(""+
 		155,
 		48,
 		13,
+		13,
+		29,
+		16,
+		9,
+		22,
+		19,
+		13,
+		28,
 		69,
 		16,
 		13,
@@ -4047,7 +4116,6 @@ var textsKo = i18n.NewTexts(""+
 		63,
 		102,
 		61,
-		112,
 		6,
 		16,
 		12,
@@ -4319,7 +4387,6 @@ var textsZhHans = i18n.NewTexts(""+
 	"暂停"+
 	"播放"+
 	"看台词"+
-	"存储里只有这部片的字幕，视频在电脑上：到电脑上看，或者先在电脑上下载视频。"+
 	"没能从存储里读到，过一会儿再试。"+
 	"继续下载"+
 	"下载中断了。能连上电脑时再继续。"+
@@ -4361,6 +4428,14 @@ var textsZhHans = i18n.NewTexts(""+
 	"下载、识别、翻译都在电脑上的看懂里完成。连上以后，电脑上的片库会出现在这里。"+
 	"还没连上电脑"+
 	"取消订阅"+
+	"学习台词"+
+	"把台词存到手机"+
+	"已存台词"+
+	"仅字幕"+
+	"下载视频"+
+	"导出字幕"+
+	"重新翻译"+
+	"从片库删除"+
 	"没有任务。点 + 把视频链接发给电脑。"+
 	"待复习"+
 	"取消任务"+
@@ -4481,7 +4556,6 @@ var textsZhHans = i18n.NewTexts(""+
 	"不显示画面，适合通勤时练听力。"+
 	"在能连上电脑时打开一次这部影片，就能收藏它的句子。"+
 	"这个视频无法在这部手机上播放。"+
-	"这里只有字幕。视频请到电脑上看，或者先在电脑上下载。"+
 	"关闭"+
 	"字幕时间"+
 	"提前"+
@@ -4750,7 +4824,6 @@ var textsZhHans = i18n.NewTexts(""+
 		6,
 		6,
 		9,
-		111,
 		48,
 		12,
 		48,
@@ -4792,6 +4865,14 @@ var textsZhHans = i18n.NewTexts(""+
 		114,
 		18,
 		12,
+		12,
+		21,
+		12,
+		9,
+		12,
+		12,
+		12,
+		15,
 		51,
 		9,
 		12,
@@ -4912,7 +4993,6 @@ var textsZhHans = i18n.NewTexts(""+
 		45,
 		75,
 		45,
-		78,
 		6,
 		12,
 		6,
@@ -5184,7 +5264,6 @@ var textsZhHant = i18n.NewTexts(""+
 	"暫停"+
 	"播放"+
 	"看台詞"+
-	"儲存空間裡只有這部片的字幕，影片在電腦上：到電腦上看，或者先在電腦上下載影片。"+
 	"沒能從儲存空間讀到，過一會兒再試。"+
 	"繼續下載"+
 	"下載中斷了。能連上電腦時再繼續。"+
@@ -5226,6 +5305,14 @@ var textsZhHant = i18n.NewTexts(""+
 	"下載、辨識、翻譯都在電腦上的看懂裡完成。連上以後，電腦上的片庫會出現在這裡。"+
 	"還沒連上電腦"+
 	"取消訂閱"+
+	"學習台詞"+
+	"把台詞存到手機"+
+	"已存台詞"+
+	"僅字幕"+
+	"下載影片"+
+	"匯出字幕"+
+	"重新翻譯"+
+	"從片庫刪除"+
 	"沒有任務。點 + 把影片連結傳給電腦。"+
 	"待複習"+
 	"取消任務"+
@@ -5346,7 +5433,6 @@ var textsZhHant = i18n.NewTexts(""+
 	"不顯示畫面，適合通勤時練聽力。"+
 	"在能連上電腦時打開一次這部影片，就能收藏它的句子。"+
 	"這個影片無法在這支手機上播放。"+
-	"這裡只有字幕。影片請到電腦上看，或者先在電腦上下載。"+
 	"關閉"+
 	"字幕時間"+
 	"提前"+
@@ -5615,7 +5701,6 @@ var textsZhHant = i18n.NewTexts(""+
 		6,
 		6,
 		9,
-		117,
 		51,
 		12,
 		48,
@@ -5657,6 +5742,14 @@ var textsZhHant = i18n.NewTexts(""+
 		114,
 		18,
 		12,
+		12,
+		21,
+		12,
+		9,
+		12,
+		12,
+		12,
+		15,
 		51,
 		9,
 		12,
@@ -5777,7 +5870,6 @@ var textsZhHant = i18n.NewTexts(""+
 		45,
 		75,
 		45,
-		78,
 		6,
 		12,
 		6,
@@ -6180,6 +6272,36 @@ func Supply(lang string, t Translation) {
 	}
 	if t.FilmsUnsubscribeTitle != nil {
 		s.FilmsUnsubscribeTitle = t.FilmsUnsubscribeTitle
+	}
+	if t.FilmNoVideo != nil {
+		s.FilmNoVideo = t.FilmNoVideo
+	}
+	if t.FilmVideoComing != nil {
+		s.FilmVideoComing = t.FilmVideoComing
+	}
+	if t.FilmVideoAtHome != nil {
+		s.FilmVideoAtHome = t.FilmVideoAtHome
+	}
+	if t.FilmVideoReady != nil {
+		s.FilmVideoReady = t.FilmVideoReady
+	}
+	if t.FilmVideoOnComputer != nil {
+		s.FilmVideoOnComputer = t.FilmVideoOnComputer
+	}
+	if t.FilmVideoAsked != nil {
+		s.FilmVideoAsked = t.FilmVideoAsked
+	}
+	if t.FilmsRetranslating != nil {
+		s.FilmsRetranslating = t.FilmsRetranslating
+	}
+	if t.FilmsDeleteFromLibraryTitle != nil {
+		s.FilmsDeleteFromLibraryTitle = t.FilmsDeleteFromLibraryTitle
+	}
+	if t.FilmsDeleteFromLibraryMessage != nil {
+		s.FilmsDeleteFromLibraryMessage = t.FilmsDeleteFromLibraryMessage
+	}
+	if t.FilmsDeletedFromLibrary != nil {
+		s.FilmsDeletedFromLibrary = t.FilmsDeletedFromLibrary
 	}
 	if t.JobsBadgeLabel != nil {
 		s.JobsBadgeLabel = t.JobsBadgeLabel
@@ -8013,15 +8135,6 @@ func FilmLines(cx *core.Scope) string { return For(cx).FilmLines() }
 // FilmLines is the package's FilmLines in the language of msgs.
 func (msgs Messages) FilmLines() string { return msgs.text(textFilmLines) }
 
-// FilmLinesOnly says "Only this film's subtitles are in your storage. Its video is on the computer: watch it there, or download it there first."
-// in the language the app shows under cx.
-//
-// Shown on the page of a film the computer shares through the storage without its video.
-func FilmLinesOnly(cx *core.Scope) string { return For(cx).FilmLinesOnly() }
-
-// FilmLinesOnly is the package's FilmLinesOnly in the language of msgs.
-func (msgs Messages) FilmLinesOnly() string { return msgs.text(textFilmLinesOnly) }
-
 // FilmStorageFailed says "Couldn't read it from your storage. Try again in a moment."
 // in the language the app shows under cx.
 //
@@ -9344,6 +9457,394 @@ func (msgs Messages) FilmsUnsubscribeTitle(title string) string {
 			return "取消订阅「" + title + "」？"
 		case "zh-Hant":
 			return "取消訂閱「" + title + "」？"
+		}
+	}
+}
+
+// FilmStudyLines says "Study Lines"
+// in the language the app shows under cx.
+//
+// Button and option that open the player of a film kept on the phone by its lines alone, as its computer keeps no video of it.
+func FilmStudyLines(cx *core.Scope) string { return For(cx).FilmStudyLines() }
+
+// FilmStudyLines is the package's FilmStudyLines in the language of msgs.
+func (msgs Messages) FilmStudyLines() string { return msgs.text(textFilmStudyLines) }
+
+// FilmSaveLines says "Save Lines to Phone"
+// in the language the app shows under cx.
+//
+// Button and option that keep the lines of a film whose computer keeps no video of it on the phone, to study them.
+func FilmSaveLines(cx *core.Scope) string { return For(cx).FilmSaveLines() }
+
+// FilmSaveLines is the package's FilmSaveLines in the language of msgs.
+func (msgs Messages) FilmSaveLines() string { return msgs.text(textFilmSaveLines) }
+
+// FilmLinesSaved says "Lines saved"
+// in the language the app shows under cx.
+//
+// Where a film stands: its lines are on the phone, without its video, which its computer does not keep.
+func FilmLinesSaved(cx *core.Scope) string { return For(cx).FilmLinesSaved() }
+
+// FilmLinesSaved is the package's FilmLinesSaved in the language of msgs.
+func (msgs Messages) FilmLinesSaved() string { return msgs.text(textFilmLinesSaved) }
+
+// FilmSubtitlesOnly says "Subtitles only"
+// in the language the app shows under cx.
+//
+// A film whose computer kept its subtitles but not its video; heading where its video would play, and a tag in its row.
+func FilmSubtitlesOnly(cx *core.Scope) string { return For(cx).FilmSubtitlesOnly() }
+
+// FilmSubtitlesOnly is the package's FilmSubtitlesOnly in the language of msgs.
+func (msgs Messages) FilmSubtitlesOnly() string { return msgs.text(textFilmSubtitlesOnly) }
+
+// FilmNoVideo says "{computer} keeps no video of this film, only its lines."
+// in the language the app shows under cx.
+//
+// Under “Subtitles only” where a film’s video would play.
+func FilmNoVideo(cx *core.Scope, computer string) string { return For(cx).FilmNoVideo(computer) }
+
+// FilmNoVideo is the package's FilmNoVideo in the language of msgs.
+func (msgs Messages) FilmNoVideo(computer string) string {
+	if i18n.IsPseudo(msgs.lang) {
+		return i18n.Pseudo(msgs.lang, Messages{lang: Source, mark: true}.FilmNoVideo(computer))
+	}
+	for lang := msgs.lang; ; lang = i18n.Parent(lang) {
+		if f := supplied[lang].FilmNoVideo; f != nil {
+			return f(computer)
+		}
+		switch lang {
+		case "", "en":
+			return msgs.arg(computer) + " keeps no video of this film, only its lines."
+		case "ja":
+			return computer + " にはこの作品の動画がなく、セリフだけがあります。"
+		case "ko":
+			return computer + "에는 이 영화의 동영상 없이 대사만 있습니다."
+		case "zh-Hans":
+			return computer + " 只有这部影片的台词，没有视频。"
+		case "zh-Hant":
+			return computer + " 只有這部影片的台詞，沒有影片檔。"
+		}
+	}
+}
+
+// FilmVideoComing says "{computer} is downloading the video."
+// in the language the app shows under cx.
+//
+// Under “Subtitles only” while the computer downloads the film’s video.
+func FilmVideoComing(cx *core.Scope, computer string) string {
+	return For(cx).FilmVideoComing(computer)
+}
+
+// FilmVideoComing is the package's FilmVideoComing in the language of msgs.
+func (msgs Messages) FilmVideoComing(computer string) string {
+	if i18n.IsPseudo(msgs.lang) {
+		return i18n.Pseudo(msgs.lang, Messages{lang: Source, mark: true}.FilmVideoComing(computer))
+	}
+	for lang := msgs.lang; ; lang = i18n.Parent(lang) {
+		if f := supplied[lang].FilmVideoComing; f != nil {
+			return f(computer)
+		}
+		switch lang {
+		case "", "en":
+			return msgs.arg(computer) + " is downloading the video."
+		case "ja":
+			return computer + " が動画をダウンロードしています。"
+		case "ko":
+			return computer + "에서 동영상을 다운로드하는 중입니다."
+		case "zh-Hans":
+			return computer + " 正在下载视频。"
+		case "zh-Hant":
+			return computer + " 正在下載影片。"
+		}
+	}
+}
+
+// FilmVideoAtHome says "The video is on {computer}. On the same network as it, you can download it to this phone."
+// in the language the app shows under cx.
+//
+// Under “Subtitles only” where the video of a film streamed from the user's storage would play, and on its page: the storage holds only its lines, the computer has its video.
+func FilmVideoAtHome(cx *core.Scope, computer string) string {
+	return For(cx).FilmVideoAtHome(computer)
+}
+
+// FilmVideoAtHome is the package's FilmVideoAtHome in the language of msgs.
+func (msgs Messages) FilmVideoAtHome(computer string) string {
+	if i18n.IsPseudo(msgs.lang) {
+		return i18n.Pseudo(msgs.lang, Messages{lang: Source, mark: true}.FilmVideoAtHome(computer))
+	}
+	for lang := msgs.lang; ; lang = i18n.Parent(lang) {
+		if f := supplied[lang].FilmVideoAtHome; f != nil {
+			return f(computer)
+		}
+		switch lang {
+		case "", "en":
+			return "The video is on " + msgs.arg(computer) + ". On the same network as it, you can download it to this phone."
+		case "ja":
+			return "動画は " + computer + " にあります。同じネットワークにつながっていれば、このスマートフォンにダウンロードできます。"
+		case "ko":
+			return "동영상은 " + computer + "에 있습니다. 같은 네트워크에 연결되어 있으면 이 휴대폰에 내려받을 수 있습니다."
+		case "zh-Hans":
+			return "视频在 " + computer + " 上。和它连上同一网络时，可以下载到这台手机。"
+		case "zh-Hant":
+			return "影片在 " + computer + " 上。和它連上同一網路時，可以下載到這支手機。"
+		}
+	}
+}
+
+// FilmVideoReady says "The video is on {computer} now."
+// in the language the app shows under cx.
+//
+// Under “Subtitles only” once the computer has the film’s video, which the phone can download.
+func FilmVideoReady(cx *core.Scope, computer string) string { return For(cx).FilmVideoReady(computer) }
+
+// FilmVideoReady is the package's FilmVideoReady in the language of msgs.
+func (msgs Messages) FilmVideoReady(computer string) string {
+	if i18n.IsPseudo(msgs.lang) {
+		return i18n.Pseudo(msgs.lang, Messages{lang: Source, mark: true}.FilmVideoReady(computer))
+	}
+	for lang := msgs.lang; ; lang = i18n.Parent(lang) {
+		if f := supplied[lang].FilmVideoReady; f != nil {
+			return f(computer)
+		}
+		switch lang {
+		case "", "en":
+			return "The video is on " + msgs.arg(computer) + " now."
+		case "ja":
+			return "動画が " + computer + " に届きました。"
+		case "ko":
+			return "이제 " + computer + "에 동영상이 있습니다."
+		case "zh-Hans":
+			return "视频已在 " + computer + " 上。"
+		case "zh-Hant":
+			return "影片已在 " + computer + " 上。"
+		}
+	}
+}
+
+// FilmDownloadVideo says "Download Video"
+// in the language the app shows under cx.
+//
+// Button that downloads to the phone the video of a film it kept by its lines, once its computer has it.
+func FilmDownloadVideo(cx *core.Scope) string { return For(cx).FilmDownloadVideo() }
+
+// FilmDownloadVideo is the package's FilmDownloadVideo in the language of msgs.
+func (msgs Messages) FilmDownloadVideo() string { return msgs.text(textFilmDownloadVideo) }
+
+// FilmVideoOnComputer says "Download Video on {computer}"
+// in the language the app shows under cx.
+//
+// Button and option that have the computer download the video of a film it kept only the subtitles of.
+func FilmVideoOnComputer(cx *core.Scope, computer string) string {
+	return For(cx).FilmVideoOnComputer(computer)
+}
+
+// FilmVideoOnComputer is the package's FilmVideoOnComputer in the language of msgs.
+func (msgs Messages) FilmVideoOnComputer(computer string) string {
+	if i18n.IsPseudo(msgs.lang) {
+		return i18n.Pseudo(msgs.lang, Messages{lang: Source, mark: true}.FilmVideoOnComputer(computer))
+	}
+	for lang := msgs.lang; ; lang = i18n.Parent(lang) {
+		if f := supplied[lang].FilmVideoOnComputer; f != nil {
+			return f(computer)
+		}
+		switch lang {
+		case "", "en":
+			return "Download Video on " + msgs.arg(computer)
+		case "ja":
+			return computer + " で動画をダウンロード"
+		case "ko":
+			return computer + "에서 동영상 다운로드"
+		case "zh-Hans":
+			return "在 " + computer + " 上下载视频"
+		case "zh-Hant":
+			return "在 " + computer + " 上下載影片"
+		}
+	}
+}
+
+// FilmVideoAsked says "{computer} is downloading the video of “{title}”"
+// in the language the app shows under cx.
+//
+// Toast once the computer took the phone’s asking to download a film’s video.
+func FilmVideoAsked(cx *core.Scope, title string, computer string) string {
+	return For(cx).FilmVideoAsked(title, computer)
+}
+
+// FilmVideoAsked is the package's FilmVideoAsked in the language of msgs.
+func (msgs Messages) FilmVideoAsked(title string, computer string) string {
+	if i18n.IsPseudo(msgs.lang) {
+		return i18n.Pseudo(msgs.lang, Messages{lang: Source, mark: true}.FilmVideoAsked(title, computer))
+	}
+	for lang := msgs.lang; ; lang = i18n.Parent(lang) {
+		if f := supplied[lang].FilmVideoAsked; f != nil {
+			return f(title, computer)
+		}
+		switch lang {
+		case "", "en":
+			return msgs.arg(computer) + " is downloading the video of “" + msgs.arg(title) + "”"
+		case "ja":
+			return computer + " が「" + title + "」の動画をダウンロードしています"
+		case "ko":
+			return computer + "에서 ‘" + title + "’ 동영상을 다운로드하는 중"
+		case "zh-Hans":
+			return computer + " 正在下载「" + title + "」的视频"
+		case "zh-Hant":
+			return computer + " 正在下載「" + title + "」的影片"
+		}
+	}
+}
+
+// FilmsExportSubtitles says "Export Subtitles"
+// in the language the app shows under cx.
+//
+// In a film’s options: takes its subtitles from the computer as a file and shares it.
+func FilmsExportSubtitles(cx *core.Scope) string { return For(cx).FilmsExportSubtitles() }
+
+// FilmsExportSubtitles is the package's FilmsExportSubtitles in the language of msgs.
+func (msgs Messages) FilmsExportSubtitles() string { return msgs.text(textFilmsExportSubtitles) }
+
+// FilmsRetranslate says "Translate Again"
+// in the language the app shows under cx.
+//
+// In a film’s options: has the computer translate every line of the film again.
+func FilmsRetranslate(cx *core.Scope) string { return For(cx).FilmsRetranslate() }
+
+// FilmsRetranslate is the package's FilmsRetranslate in the language of msgs.
+func (msgs Messages) FilmsRetranslate() string { return msgs.text(textFilmsRetranslate) }
+
+// FilmsRetranslating says "Translating “{title}” again on {computer}"
+// in the language the app shows under cx.
+//
+// Toast once the computer took the phone’s asking to translate a film again.
+func FilmsRetranslating(cx *core.Scope, title string, computer string) string {
+	return For(cx).FilmsRetranslating(title, computer)
+}
+
+// FilmsRetranslating is the package's FilmsRetranslating in the language of msgs.
+func (msgs Messages) FilmsRetranslating(title string, computer string) string {
+	if i18n.IsPseudo(msgs.lang) {
+		return i18n.Pseudo(msgs.lang, Messages{lang: Source, mark: true}.FilmsRetranslating(title, computer))
+	}
+	for lang := msgs.lang; ; lang = i18n.Parent(lang) {
+		if f := supplied[lang].FilmsRetranslating; f != nil {
+			return f(title, computer)
+		}
+		switch lang {
+		case "", "en":
+			return "Translating “" + msgs.arg(title) + "” again on " + msgs.arg(computer)
+		case "ja":
+			return computer + " で「" + title + "」をもう一度翻訳しています"
+		case "ko":
+			return computer + "에서 ‘" + title + "’을(를) 다시 번역하는 중"
+		case "zh-Hans":
+			return computer + " 正在重新翻译「" + title + "」"
+		case "zh-Hant":
+			return computer + " 正在重新翻譯「" + title + "」"
+		}
+	}
+}
+
+// FilmsDeleteFromLibrary says "Delete from Library"
+// in the language the app shows under cx.
+//
+// In a film’s options: deletes it from the computer’s library.
+func FilmsDeleteFromLibrary(cx *core.Scope) string { return For(cx).FilmsDeleteFromLibrary() }
+
+// FilmsDeleteFromLibrary is the package's FilmsDeleteFromLibrary in the language of msgs.
+func (msgs Messages) FilmsDeleteFromLibrary() string { return msgs.text(textFilmsDeleteFromLibrary) }
+
+// FilmsDeleteFromLibraryTitle says "Delete “{title}” from the library?"
+// in the language the app shows under cx.
+//
+// Title of the alert that confirms deleting a film from the computer’s library.
+func FilmsDeleteFromLibraryTitle(cx *core.Scope, title string) string {
+	return For(cx).FilmsDeleteFromLibraryTitle(title)
+}
+
+// FilmsDeleteFromLibraryTitle is the package's FilmsDeleteFromLibraryTitle in the language of msgs.
+func (msgs Messages) FilmsDeleteFromLibraryTitle(title string) string {
+	if i18n.IsPseudo(msgs.lang) {
+		return i18n.Pseudo(msgs.lang, Messages{lang: Source, mark: true}.FilmsDeleteFromLibraryTitle(title))
+	}
+	for lang := msgs.lang; ; lang = i18n.Parent(lang) {
+		if f := supplied[lang].FilmsDeleteFromLibraryTitle; f != nil {
+			return f(title)
+		}
+		switch lang {
+		case "", "en":
+			return "Delete “" + msgs.arg(title) + "” from the library?"
+		case "ja":
+			return "「" + title + "」をライブラリから削除しますか？"
+		case "ko":
+			return "‘" + title + "’을(를) 라이브러리에서 삭제할까요?"
+		case "zh-Hans":
+			return "要从片库删除「" + title + "」吗？"
+		case "zh-Hant":
+			return "要從片庫刪除「" + title + "」嗎？"
+		}
+	}
+}
+
+// FilmsDeleteFromLibraryMessage says "Its files go to the Trash on {computer}."
+// in the language the app shows under cx.
+//
+// Message of the alert that confirms deleting a film from the computer’s library.
+func FilmsDeleteFromLibraryMessage(cx *core.Scope, computer string) string {
+	return For(cx).FilmsDeleteFromLibraryMessage(computer)
+}
+
+// FilmsDeleteFromLibraryMessage is the package's FilmsDeleteFromLibraryMessage in the language of msgs.
+func (msgs Messages) FilmsDeleteFromLibraryMessage(computer string) string {
+	if i18n.IsPseudo(msgs.lang) {
+		return i18n.Pseudo(msgs.lang, Messages{lang: Source, mark: true}.FilmsDeleteFromLibraryMessage(computer))
+	}
+	for lang := msgs.lang; ; lang = i18n.Parent(lang) {
+		if f := supplied[lang].FilmsDeleteFromLibraryMessage; f != nil {
+			return f(computer)
+		}
+		switch lang {
+		case "", "en":
+			return "Its files go to the Trash on " + msgs.arg(computer) + "."
+		case "ja":
+			return "ファイルは " + computer + " のゴミ箱に移動します。"
+		case "ko":
+			return "파일은 " + computer + "의 휴지통으로 이동합니다."
+		case "zh-Hans":
+			return "它的文件会移到 " + computer + " 的废纸篓。"
+		case "zh-Hant":
+			return "它的檔案會移到 " + computer + " 的垃圾桶。"
+		}
+	}
+}
+
+// FilmsDeletedFromLibrary says "Deleted “{title}” from {computer}"
+// in the language the app shows under cx.
+//
+// Toast once the computer deleted a film from its library as the phone asked.
+func FilmsDeletedFromLibrary(cx *core.Scope, title string, computer string) string {
+	return For(cx).FilmsDeletedFromLibrary(title, computer)
+}
+
+// FilmsDeletedFromLibrary is the package's FilmsDeletedFromLibrary in the language of msgs.
+func (msgs Messages) FilmsDeletedFromLibrary(title string, computer string) string {
+	if i18n.IsPseudo(msgs.lang) {
+		return i18n.Pseudo(msgs.lang, Messages{lang: Source, mark: true}.FilmsDeletedFromLibrary(title, computer))
+	}
+	for lang := msgs.lang; ; lang = i18n.Parent(lang) {
+		if f := supplied[lang].FilmsDeletedFromLibrary; f != nil {
+			return f(title, computer)
+		}
+		switch lang {
+		case "", "en":
+			return "Deleted “" + msgs.arg(title) + "” from " + msgs.arg(computer)
+		case "ja":
+			return computer + " から「" + title + "」を削除しました"
+		case "ko":
+			return computer + "에서 ‘" + title + "’을(를) 삭제했습니다"
+		case "zh-Hans":
+			return "已从 " + computer + " 删除「" + title + "」"
+		case "zh-Hant":
+			return "已從 " + computer + " 刪除「" + title + "」"
 		}
 	}
 }
@@ -11873,15 +12374,6 @@ func PlayerCantPlay(cx *core.Scope) string { return For(cx).PlayerCantPlay() }
 
 // PlayerCantPlay is the package's PlayerCantPlay in the language of msgs.
 func (msgs Messages) PlayerCantPlay() string { return msgs.text(textPlayerCantPlay) }
-
-// PlayerNoVideo says "Only the subtitles are here. Watch the video on the computer, or download it there first."
-// in the language the app shows under cx.
-//
-// Over the player of a film whose video is not in the user's storage, only its lines.
-func PlayerNoVideo(cx *core.Scope) string { return For(cx).PlayerNoVideo() }
-
-// PlayerNoVideo is the package's PlayerNoVideo in the language of msgs.
-func (msgs Messages) PlayerNoVideo() string { return msgs.text(textPlayerNoVideo) }
 
 // PlayerCardPlace says "Line {index} of {count} · {time}"
 // in the language the app shows under cx.

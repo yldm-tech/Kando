@@ -59,9 +59,9 @@ func TestJobOfTellsEachStep(t *testing.T) {
 	if done.Film != "j1" || done.Device != "Evan's iPhone" || done.Link != link {
 		t.Fatalf("done %+v", done)
 	}
-	// A film that keeps no video is not among the films a phone is served.
-	if streamed := JobOf(core.Job{ID: "j2", Stage: core.StageComplete, Source: link, VideoPath: "/v.webm", SubtitlesOnly: true}, facts); streamed.Film != "" {
-		t.Fatalf("a film that keeps no video is served as %q", streamed.Film)
+	// A film that keeps no video is served too, by its subtitles.
+	if streamed := JobOf(core.Job{ID: "j2", Stage: core.StageComplete, Source: link, VideoPath: "/v.webm", SubtitlesOnly: true}, facts); streamed.Film != "j2" {
+		t.Fatalf("a film that keeps no video is served as %q, want j2", streamed.Film)
 	}
 	// A local video's path is the desktop's own, which a phone is not told.
 	if local := JobOf(core.Job{Stage: core.StageQueued, Source: "file:///Users/evan/talk.mp4"}, facts); local.Link != "" {
