@@ -779,14 +779,14 @@ P1.1 的确认框只有数据包要显示的部分：名称（标题）、说明
 ### 7.4 角色选择的位置
 
 - 设置 › 字幕外观 最后的「逐词标注」卡片（`settings.Marks`，读自己的 `settings.MarksApp`，照 `Window.Plugins` 的先例由 `settings.Window.Marks` 注入，不扩大 `settings.App`）：「注音或拼音」开关（说明写明日语假名要启用日语词典包、或在「按等级画线」里选日语词表，只装了日语词表包而没选它不会读大词典）、「按等级画线」下拉框（「关闭」加上已启用的词表包，名称取包的 `name`；说明写明会在词下面画一条该等级颜色的粗线）、「标出已学词」开关（说明写明是虚线）。三项默认都关。（看懂的 设置 › 通用 › 外观 只管明暗，所以放在字幕外观。）
-- 查词卡在底部标出来源，例如「JMdict」或「AI」。学日语或中文的用户第一次点词时，卡片底部提示「装离线词典，查词更快、不耗 AI」，点了打开设置 › 插件。
+- 查词卡在底部标出来源，例如「JMdict」或「AI」。学日语或中文的用户第一次点词时，卡片底部提示「装离线词典，查词更快、不耗 AI」，点了打开设置 › 插件。条件是这个词是日语或中文（`lookup.WordLanguage`），插件目录已经读过，并且没有装这种语言的词典包（开没开都算装了）；只提示一次，提示过就记在 settings.json（`savedPlugins.PluginDictHintShown`，`pluginsDictHint`）。
 - 设置 › AI 的服务商下拉框里，插件预设排在内置预设之后，每项写成「插件 · <包名> · <host>」（`ui.Select` 还没有带标题的分组，见 E4）。点「获取 API Key」时先用系统提示框显示目标域名再打开。
 - 导出字幕的格式下拉框、学习导出的目标列表里出现插件项，后面标出插件名。
 - 插件命令出现在命令面板和菜单栏。在 macOS 上，不认识的分组会由现有逻辑放在「窗口」菜单前面，单独成一个菜单（`menu.go:20`）；在 Linux 和 Windows 上，命令面板是唯一入口。
 
 ### 7.5 错误
 
-- 插件失败不弹窗打断，在出错的地方说清楚，比如查词卡上写「JMdict 没有这个词，问了 AI」。
+- 插件失败不弹窗打断，在出错的地方说清楚，比如查词卡上写「JMdict 没有这个词，问了 AI」：先问过的词典（`lookup.Ask.Dicts`）都没有这个词、由 AI 服务回答时，来源一行写「词典「<名称>」没有这个词，问了 AI 服务」，问过几本时写「你的词典都没有这个词，问了 AI 服务」（`vocabSourceText`）。缓存里的 AI 回答没有问过词典，照旧写「由 AI 服务解释」。手机的查词卡不写这一句（`psync.WordSource` 没有这一项）。
 - 错误码在 `plugins` 包里是英文哨兵错误（`ErrUnknownKind`、`ErrUnsupportedKind`、`ErrBadSignature`、`ErrRevoked`、`ErrTampered`、`ErrUnknownKey`、`ErrTooLarge`、`ErrBadID`、`ErrNoSecrets`、`ErrHung`……），由 `bind_plugins.go` 映射成 catalog 文案，不把 `err.Error()` 拼进本地化句子。
 
 ### 7.6 多语言
@@ -1079,7 +1079,7 @@ P1.1 的确认框只有数据包要显示的部分：名称（标题）、说明
 | P1.1 | 设置 › 插件页、安装确认、拖到插件页上安装、CLI inbox，glossary 和 ai-service 两种 kind，savedPlugins、pluginsHooks | `feat/plugins-data-packs` | 已完成 |
 | P1.2 + P1.3 | `segment.Annotated`（含测量和路线选择），dictionary kind、`plugins/dict`、`vocabResolve`、查词卡来源、词典排序 | `feat/plugins-dictionary` | 已完成 |
 | P1.4 | wordlist kind、`plugins/wordlist`、`plugins/annotate`、逐词标注（注音和等级色、已学词下划线）、设置 › 字幕外观 的开关 | `feat/plugins-wordlist` | 已完成 |
-| P1 收尾 | 等级改成彩色粗下划线、已学词改成虚线；卸载遇到更新版本的 state.json 时先拒绝，删掉后没存上 state.json 算卸载好；Scan 的哈希缓存；手机查词卡显示来源（协议加 `WordSource`） | `feat/plugins-polish` | 已完成 |
+| P1 收尾 | 等级改成彩色粗下划线、已学词改成虚线；卸载遇到更新版本的 state.json 时先拒绝，删掉后没存上 state.json 算卸载好；Scan 的哈希缓存；手机查词卡显示来源（协议加 `WordSource`）；查词卡的离线词典提示和「词典没有这个词，问了 AI」；插件页词典分组的截图 | `feat/plugins-polish` | 已完成 |
 | P1.5 | 官方词典包 | — | 不做（12.2 第 2 条） |
 | P2 | 学习任务、导出模板、翻译风格 | — | 未开始 |
 | P3 | 脚本插件 | — | 未开始（等 12.3 第 1、3 条） |
@@ -1145,7 +1145,7 @@ P1.2 的测量结果（Ubuntu 编译机，x86_64，Go 1.27.4，kagome-dict/ipa v
   - 词典排序用上移、下移按钮，不是拖动（7.1）。
   - 查词卡的来源只在桌面显示；手机同步协议没有来源字段，手机端暂不显示，JMdict 这类 CC-BY-SA 词典在手机上的署名要等协议加字段（E1）。P1 收尾时加了 `psync.WordSource`，手机也显示了。
   - 查词卡没有 AI、词典也没查到时的提示（`vocabLookupNoAI`）改成同时指向「AI 服务」和「插件」里安装词典（12.2 第 2 条）。
-  - 截图场景 `TestScreenshotsPlugins` 加了 `plugins-lookup`（词典回答的查词卡）；插件页里的词典分组和详情页还没有截图场景。
+  - 截图场景 `TestScreenshotsPlugins` 加了 `plugins-lookup`（词典回答的查词卡）；插件页里的词典分组和详情页还没有截图场景。P1 收尾时加了 `settings-plugins-dictionaries`（两个词典包、上移下移按钮、展开的详情），截图辅助 `shootSettingsPressed` 在截图前按下给定的控件。
   - 没有拿真实的 JMdict、Jitendex、CC-CEDICT 全量文件测过（测试用小样例）。第 4 节 64 个条目的上限对条目多的 Yomitan 词典（带图片的 Jitendex 之类）可能不够，建索引的耗时和峰值内存（所有键先放在内存里排序）也还没量；有人装了大词典报上来再调。
 - P1.4（已完成）：wordlist kind 和逐词标注。和正文的出入如下，E2、第 4 节、5.1、5.2、7.4、7.6、8.1–8.4、第 9 节已同步改过：
   - `Mark` 去掉了 `Tip` 和 `Tier`：`core.Span` 没有悬停提示，也没有别的地方读 tier 的 id；加了 `ToneAccent` 等四个常量。计算放在新的非界面包 `plugins/annotate`，它的 `Mark` 和 `subtitle.Mark` 字段相同，app 用类型转换，`film` 照旧不导入插件包。
@@ -1158,9 +1158,10 @@ P1.2 的测量结果（Ubuntu 编译机，x86_64，Go 1.27.4，kagome-dict/ipa v
   - 手机端没有标注（协议没有字段）。
   - 词表读不了（`wordlist.ErrEmpty` 或读文件失败）时列在插件页的问题区，同一内容不再重试。
   - 截图场景 `TestScreenshotsPlugins` 加了 `plugins-marks`（日语原文带假名注音和等级色）。Linux 上的 nsgotest 不出图，这一张只在 macOS 的截图任务里画得出来，本次只在 Linux 上断言了标注本身，没有看过实际画面；读音 view 的竖直对齐（`VerticalAlignTextBottom`）和描边副本的模糊滤镜是否作用到 attachment 上，要在 macOS 截图里核对。
-- P1 收尾（已完成）：等级的标注、卸载、Scan 的速度和手机查词卡的来源。和正文的出入如下，E1、E2、6.5、7.1、7.2、7.4、第 9 节已同步改过：
+- P1 收尾（已完成）：等级的标注、卸载、Scan 的速度、手机查词卡的来源、查词卡的两句词典提示（7.4、7.5）和插件页词典分组的截图。和正文的出入如下，E1、E2、6.5、7.1、7.2、7.4、7.5、第 9 节已同步改过：
   - 等级不再改字的颜色，改成在词下面画一条该等级颜色的粗实线；已学词从实线改成虚线，两者都有时是等级颜色的虚线（owner 的决定，E2）。设置里的「按等级着色」改名「按等级画线」，说明写明粗线和虚线（7.4）。NSGo 的 `core.Style` 本来就有下划线的颜色、样式和粗细，三个桌面平台都画，没有缺口。描边模式下线只画在最上面那一份，不带黑色描边；粗细和位置按字号的比例，没有在 macOS 截图里看过实际效果。
   - 卸载遇到更新版本的 state.json 时在删除之前就拒绝；目录删掉后 state.json 没存上的，插件页说「已完成，但……」，不说失败。安装后没存上也改用这一句（新的 `pluginsErrStateUnsaved`），原来说的是「无法读写这个插件包」，和实际不符（7.1、7.2）。
   - `Scan` 的哈希缓存放在插件目录的 `.hashes.json`，按 `<kind>/<id>` 存每个文件的名称、大小、修改时间（纳秒）和哈希；`Validate` 本身不变，`Scan` 走内部的 `validate(dir, cache)`（6.5）。
   - 手机查词卡的来源：协议的 `WordEntry` 加了可选的 `Source`，不升版本；名称和 attribution 用桌面的界面语言，因为桌面不知道手机的界面语言；手机缓存的旧查词结果没有来源，照旧不显示（E1）。手机截图场景 `player-word` 带了「由 AI 服务解释」一行。
-  - 没做的 P1 缺口：手机端没有逐词标注（要加协议字段和手机的字幕层，不小）；插件页的词典分组和详情页没有截图场景（`shootSettings` 不能在截图前展开详情，要另加一个能按按钮的截图辅助）；真实的 JMdict、Jitendex、CC-CEDICT 全量文件和 64 个条目的上限没有测（要真实数据和 owner 定上限）；读音 view 的对齐和描边、彩色下划线的实际画面要在 macOS 截图任务里看；`ui.Select` 没有分组（`TODO(nsgo)`，等上游）；7.4、7.5 里「第一次查词时提示装离线词典」和「JMdict 没有这个词，问了 AI」两句提示没有做（不在第 15 节的缺口里，属于新的界面文字，留给 owner 决定要不要）。
+  - 没做的 P1 缺口：手机端没有逐词标注（要加协议字段和手机的字幕层，不小）；真实的 JMdict、Jitendex、CC-CEDICT 全量文件和 64 个条目的上限没有测（要真实数据和 owner 定上限）；读音 view 的对齐和描边、彩色下划线的实际画面要在 macOS 截图任务里看；`ui.Select` 没有分组（`TODO(nsgo)`，等上游）。
+  - 离线词典的提示只看装没装这种语言的词典包，不看开没开：装了却关掉是用户自己的选择，提示「去装一个」不对。插件目录还没读完时不提示，免得把已装的词典当成没装。提示作为卡片底部单独的一行加一个「打开插件设置」按钮，按了先关卡片再打开设置 › 插件（`LookupDictionaries`）。
