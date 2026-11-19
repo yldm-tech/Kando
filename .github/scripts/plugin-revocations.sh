@@ -44,10 +44,11 @@ tool=(go run ./apps/kando/plugins/official/cmd/official)
 
 # The committed list's next sequence and what it revokes, a line each.
 next=$("${tool[@]}" revocations -list "$list" -next) || fail "could not read the committed list $list (see above)"
+# The substitution drops the trailing empty lines of a list that revokes nothing, so a missing line reads as empty.
 {
-  read -r sequence
-  read -r keys
-  read -r packages
+  read -r sequence || true
+  read -r keys || true
+  read -r packages || true
 } <<<"$next"
 [[ $sequence =~ ^[1-9][0-9]*$ ]] || fail "could not read the committed list's sequence"
 
@@ -65,7 +66,6 @@ packages=$(join "$packages" "$add_packages")
 work=$(mktemp -d)
 trap 'rm -rf "$work"' EXIT
 go tool nsgo revoke -sequence "$sequence" -days "$days" -keys "$keys" -packages "$packages" -out "$work/list.json"
-mkdir -p "$(dirname "$list")"
 previous=()
 if [ -f "$list" ]; then
   cp "$list" "$work/previous.json"
@@ -73,5 +73,6 @@ if [ -f "$list" ]; then
 fi
 # Checked as the release will, against the committed list it replaces, before it replaces it.
 "${tool[@]}" revocations -list "$work/list.json" ${previous[@]+"${previous[@]}"}
+mkdir -p "$(dirname "$list")"
 mv "$work/list.json" "$list"
 echo "plugin-revocations: wrote $list (list $sequence); commit it, and the next release publishes it."
