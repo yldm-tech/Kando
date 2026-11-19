@@ -13,13 +13,13 @@ import (
 	"strings"
 	"time"
 
-	"github.com/hirochachacha/go-smb2"
+	"github.com/cloudsoda/go-smb2"
 )
 
 // smbDialTimeout bounds connecting, signing in and mounting the share when ctx sets no deadline of its own.
 const smbDialTimeout = 30 * time.Second
 
-// smbStore is a Provider over a folder of an SMB share, spoken with SMB 2 or 3 and signed in with NTLM. It keeps one connection and makes it again when it breaks. Write uploads into a hidden file beside the target and renames it into place. The library's rename does not replace a file, so a file already at the target is first renamed aside and removed once the new one is in place: a reader in that moment finds nothing there, and a rename that fails puts the old file back.
+// smbStore is a Provider over a folder of an SMB share, spoken with SMB 2 or 3 and signed in with NTLM. It keeps one connection and makes it again when it breaks. Write uploads into a hidden file beside the target and renames it over the target in one step (the rename asks the server to replace what is there), so a reader finds the old file or all of the new one.
 type smbStore struct {
 	root string
 	s    session[*smb2.Share]
@@ -62,7 +62,7 @@ func openSMB(ctx context.Context, cfg Remote) (*smbStore, error) {
 	st := &smbStore{root: root}
 	st.s.broken = smbBroken
 	st.s.dial = func(ctx context.Context) (*smb2.Share, io.Closer, error) {
-		c, err := dialSMB(ctx, addr, share, cfg.User, cfg.Password, cfg.Domain)
+		c, err := dialSMB(ctx, host, addr, share, cfg.User, cfg.Password, cfg.Domain)
 		if err != nil {
 			return nil, nil, err
 		}
@@ -75,7 +75,8 @@ func openSMB(ctx context.Context, cfg Remote) (*smbStore, error) {
 	return st, nil
 }
 
-func dialSMB(ctx context.Context, addr, share, user, password, domain string) (*smbConn, error) {
+// dialSMB connects to host at addr; the share is named on the server as \\host\share.
+func dialSMB(ctx context.Context, host, addr, share, user, password, domain string) (*smbConn, error) {
 	if _, ok := ctx.Deadline(); !ok {
 		var cancel context.CancelFunc
 		ctx, cancel = context.WithTimeout(ctx, smbDialTimeout)
@@ -86,7 +87,7 @@ func dialSMB(ctx context.Context, addr, share, user, password, domain string) (*
 		return nil, err
 	}
 	d := &smb2.Dialer{Initiator: &smb2.NTLMInitiator{User: user, Password: password, Domain: domain}}
-	session, err := d.DialContext(ctx, tcp)
+	session, err := d.DialConn(ctx, tcp, host)
 	if err != nil {
 		tcp.Close()
 		return nil, err
@@ -147,16 +148,6 @@ func baseName(p string) string {
 	return p[strings.LastIndexByte(p, '/')+1:]
 }
 
-// smbReadDir is share.ReadDir, with a panic of it read as an error. The library indexes a listing by offsets the server sends without checking them against the reply (GO-2026-5051, fixed in no release of the library), so a broken or hostile server can make it panic; that panic is in this goroutine and is recovered here rather than ending Kando.
-func smbReadDir(share *smb2.Share, name string) (entries []os.FileInfo, err error) {
-	defer func() {
-		if r := recover(); r != nil {
-			entries, err = nil, fmt.Errorf("storage: SMB listing of %q is malformed: %v", name, r)
-		}
-	}()
-	return share.ReadDir(name)
-}
-
 // List is what lies in the folder dir, leaving out the files a Write is still writing.
 func (s *smbStore) List(ctx context.Context, dir string) ([]Info, error) {
 	dir, err := cleanPath(dir)
@@ -165,7 +156,7 @@ func (s *smbStore) List(ctx context.Context, dir string) ([]Info, error) {
 	}
 	var out []Info
 	err = s.do(ctx, func(share *smb2.Share) error {
-		entries, err := smbReadDir(share, s.path(dir))
+		entries, err := share.ReadDir(s.path(dir))
 		if err != nil {
 			return err
 		}
@@ -251,7 +242,7 @@ func (s *smbStore) Write(ctx context.Context, p string, r io.Reader, size int64)
 		return err
 	}()
 	if err == nil {
-		err = s.replace(share, temp, s.path(p))
+		err = share.Rename(temp, s.path(p))
 	}
 	if err != nil {
 		if !s.s.drop(gen, err) {
@@ -261,32 +252,6 @@ func (s *smbStore) Write(ctx context.Context, p string, r io.Reader, size int64)
 		}
 		return smbErr(err)
 	}
-	return nil
-}
-
-// replace renames from to to; a file at to is renamed aside first and removed once from is in its place, or put back when the rename fails.
-func (s *smbStore) replace(share *smb2.Share, from, to string) error {
-	fi, err := share.Stat(to)
-	if errors.Is(err, fs.ErrNotExist) {
-		return share.Rename(from, to)
-	}
-	if err != nil {
-		return err
-	}
-	if fi.IsDir() {
-		return fmt.Errorf("%s: %w", to, fs.ErrExist)
-	}
-	aside := within(parent(to), tempPrefix+rand.Text())
-	if err := share.Rename(to, aside); err != nil {
-		return err
-	}
-	if err := share.Rename(from, to); err != nil {
-		if back := share.Rename(aside, to); back != nil {
-			return errors.Join(err, back)
-		}
-		return err
-	}
-	_ = share.Remove(aside)
 	return nil
 }
 
@@ -303,7 +268,7 @@ func (s *smbStore) Remove(ctx context.Context, p string) error {
 			return err
 		}
 		if fi.IsDir() {
-			entries, err := smbReadDir(share, name)
+			entries, err := share.ReadDir(name)
 			if err != nil {
 				return err
 			}
@@ -319,7 +284,7 @@ func (s *smbStore) Remove(ctx context.Context, p string) error {
 	return err
 }
 
-// Move renames from to to, making the folders above to; a file at to is replaced as Write replaces it.
+// Move renames from to to, making the folders above to; a file at to is replaced in the same rename.
 func (s *smbStore) Move(ctx context.Context, from, to string) error {
 	from, err := cleanFile(from)
 	if err != nil {
@@ -342,7 +307,7 @@ func (s *smbStore) Move(ctx context.Context, from, to string) error {
 		if err := share.MkdirAll(s.path(parent(to)), 0o755); err != nil {
 			return err
 		}
-		return s.replace(share, s.path(from), s.path(to))
+		return share.Rename(s.path(from), s.path(to))
 	})
 	return smbErr(err)
 }
