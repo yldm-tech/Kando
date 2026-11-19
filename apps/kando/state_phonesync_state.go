@@ -349,7 +349,8 @@ func (a *app) phoneStateKeep(st *phoneStateLib, records []psync.Record) error {
 				}
 				return err
 			}
-			// Saved, the lines taken from saved-lines.json keep their IDs too.
+			// Saved, the lines taken from saved-lines.json keep their IDs too; the sounds kept of the lines and words another device took out go with them.
+			saved.DropGoneSounds(st.book, next)
 			st.book, st.lines = next, true
 			if st.open {
 				a.saved.book = next

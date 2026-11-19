@@ -2,13 +2,14 @@ package phonesync
 
 import (
 	"encoding/json"
+	"strconv"
 	"time"
 
 	"kando/packages/study"
 	psync "kando/packages/sync"
 )
 
-// WordRecords are book's words as records, and the words removed from it as tombstones. film is the ID of the film of a word's line's video, "" for one the desktop does not serve or a word looked up in none.
+// WordRecords are book's words as records, and the words removed from it as tombstones. film is the ID of the film of a word's line's video, "" for one the desktop does not serve or a word looked up in none. The end of a word's line goes with it only when it is known.
 func WordRecords(book study.Book, film func(video string) string) []psync.Record {
 	out := make([]psync.Record, 0, len(book.Words)+len(book.RemovedWords))
 	for _, w := range book.Words {
@@ -18,7 +19,7 @@ func WordRecords(book study.Book, film func(video string) string) []psync.Record
 		if w.Video != "" {
 			id = film(w.Video)
 		}
-		out = append(out, psync.Record{Kind: psync.KindWord, ID: w.ID, Film: id, Fields: map[string]psync.Field{
+		fields := map[string]psync.Field{
 			psync.FieldWord:               {Value: psync.Value(w.Text), Stamp: saved},
 			psync.FieldSpoken:             {Value: psync.Value(w.Spoken), Stamp: saved},
 			psync.FieldContext:            {Value: psync.Value(w.Context), Stamp: saved},
@@ -30,7 +31,11 @@ func WordRecords(book study.Book, film func(video string) string) []psync.Record
 			psync.FieldMeaning:            {Value: psync.Value(w.Meaning), Stamp: meaning},
 			psync.FieldLanguage:           {Value: psync.Value(w.Language), Stamp: meaning},
 			psync.FieldReview:             {Value: psync.Value(psync.Review{Box: w.Box, Due: w.Due}), Stamp: stampOf(w.Stamps.Review)},
-		}})
+		}
+		if w.End > 0 {
+			fields[psync.FieldEndMS] = psync.Field{Value: psync.Value(w.End.Milliseconds()), Stamp: saved}
+		}
+		out = append(out, psync.Record{Kind: psync.KindWord, ID: w.ID, Film: id, Fields: fields})
 	}
 	for _, r := range book.RemovedWords {
 		at := stampOf(r.At)
@@ -79,6 +84,9 @@ func WordsOf(book study.Book, records []psync.Record, video func(film string) (s
 		if f, ok := r.Fields[psync.FieldStartMS]; ok {
 			w.Start = max(msField(f), 0)
 		}
+		if f, ok := r.Fields[psync.FieldEndMS]; ok {
+			w.End = max(msField(f), 0)
+		}
 		if f, ok := r.Fields[psync.FieldMeaning]; ok {
 			text(psync.FieldReading, &w.Reading)
 			text(psync.FieldMeaning, &w.Meaning)
@@ -106,7 +114,7 @@ func wordFieldValid(name string, v json.RawMessage, x any) bool {
 	switch name {
 	case psync.FieldWord, psync.FieldSpoken, psync.FieldReading, psync.FieldMeaning, psync.FieldLanguage, psync.FieldContext, psync.FieldContextTranslation, psync.FieldTitle, psync.FieldNote:
 		return isString
-	case psync.FieldStartMS:
+	case psync.FieldStartMS, psync.FieldEndMS:
 		return isNumber
 	case psync.FieldSavedAt:
 		var at time.Time
@@ -119,7 +127,7 @@ func wordFieldValid(name string, v json.RawMessage, x any) bool {
 	return true
 }
 
-// WordSign is what a phone is told of w that the desktop changes, as text, for the desktop to sum up and see when it changed.
+// WordSign is what a phone is told of w that the desktop changes, as text, for the desktop to sum up and see when it changed: its line's end among it, which a word added before ends were kept learns from another device's copy (study.Book.MergeWords).
 func WordSign(w study.Word) []string {
-	return []string{w.ID, w.Video, stampSign(w.Stamps.Meaning), stampSign(w.Stamps.Review)}
+	return []string{w.ID, w.Video, strconv.FormatInt(w.End.Milliseconds(), 10), stampSign(w.Stamps.Meaning), stampSign(w.Stamps.Review)}
 }

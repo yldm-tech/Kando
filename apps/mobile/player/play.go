@@ -95,6 +95,8 @@ type play struct {
 	toasts int
 	// status is the status bar while the player shows (Layer.StatusBar).
 	status func() core.StatusBarSetting
+	// cut counts the dictionaries that cut Japanese and Chinese lines into words read since the player opened, so the lines' words are cut again once one is (tokens).
+	cut *core.Signal[int]
 }
 
 // say shows title in a toast in place of the last one of kind, as a line saved and then taken back says only the latter.
@@ -125,6 +127,7 @@ func newPlay(cx *core.Scope, s *session.Session, key string) *play {
 		delay:        core.NewSignal(cx, time.Duration(f.DelayMS)*time.Millisecond),
 		sleep:        core.NewSignal(cx, sleepOff),
 		revealed:     core.NewSignal(cx, -1),
+		cut:          core.NewSignal(cx, 0),
 		saved:        time.Duration(f.PositionMS) * time.Millisecond,
 		untranslated: f.Film.Translation == "",
 		heard:        -1,

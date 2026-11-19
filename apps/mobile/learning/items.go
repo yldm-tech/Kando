@@ -93,13 +93,12 @@ func Items(desktop, lib string, l phonestudy.Library) []Item {
 			text(sync.FieldOriginal, &it.Text)
 			text(sync.FieldTranslation, &it.Meaning)
 			text(sync.FieldNote, &it.Note)
-			it.End = ms(r.Fields[sync.FieldEndMS])
 		}
 		if it.Text == "" {
 			continue
 		}
 		text(sync.FieldTitle, &it.Title)
-		it.Start = ms(r.Fields[sync.FieldStartMS])
+		it.Start, it.End = ms(r.Fields[sync.FieldStartMS]), ms(r.Fields[sync.FieldEndMS])
 		saved := r.Fields[sync.FieldSavedAt]
 		read(saved.Value, &it.SavedAt)
 		it.Device = saved.Device

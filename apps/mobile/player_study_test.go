@@ -353,6 +353,50 @@ func fieldText(r sync.Record, name string) string {
 	return s
 }
 
+// japaneseLine is the first line of the talk as openJapanese has it, a line of Japanese, and japaneseWord a word of it.
+const japaneseLine, japaneseWord = "今日は学校に行った。", "学校"
+
+// openJapanese opens the talk in the player as openStudy does, its first line in Japanese, from a desktop that knows the word japaneseWord, once the card has the words of that line to tap: the dictionary that cuts Japanese is read in the background.
+func openJapanese(t *testing.T) (*phone, *synctest.Desktop) {
+	t.Helper()
+	lines := slices.Clone(talkCues)
+	lines[0].Original = japaneseLine
+	d := synctest.New(t, "Studio")
+	d.AddLibrary("lib", "Japanese Class")
+	d.AddFilm(synctest.Film{Library: "lib", Video: talkVideo, Poster: []byte("jpeg"), Cues: lines,
+		Film: sync.Film{ID: "f1", Title: "Morning Talk", Source: "youtube", DurationMS: 10_000, Spoken: "ja", Translation: "简体中文", Updated: now()}})
+	d.Offer("123456")
+	d.SetEntry(japaneseWord, sync.WordEntry{Word: japaneseWord, Reading: "がっこう", Meaning: "n. 学校", Language: "简体中文"})
+	dir := t.TempDir()
+	f := keepTalkFrom(t, dir, store.DesktopID(d.Fingerprint))
+	if err := store.Open(dir).SaveCues(f.Desktop, f.Film.ID, lines); err != nil {
+		t.Fatal(err)
+	}
+	p := startPhone(t, dir, pairedWith(t, d, dir))
+	p.app.WaitFor(talkRow(f.Desktop), wait)
+	p.app.Press(talkRow(f.Desktop))
+	p.app.WaitFor("id:film-play", wait)
+	p.app.Press("id:film-play")
+	p.app.WaitFor("id:player-video", wait)
+	p.app.WaitUntil(time.Minute, func() bool { return p.app.Exists(`id:player-card >> text:"` + japaneseWord + `"`) })
+	return p, d
+}
+
+// A line of a film in Japanese, written without spaces between words, has words to tap on the card once the dictionary that cuts it is read in the background, and a word tapped is looked up through the computer in its line.
+func TestTheWordsOfAJapaneseLineAreTappedOnTheCard(t *testing.T) {
+	p, d := openJapanese(t)
+	p.app.Play("id:player-video", core.VideoInfo{Duration: 10 * sec, Size: core.Size{Width: 1920, Height: 1080}})
+	p.at(1500 * time.Millisecond)
+	p.app.Press(`id:player-card >> text:"` + japaneseWord + `"`)
+	p.app.WaitUntil(wait, func() bool { return p.app.Exists("id:player-word-meaning") })
+	if got := d.Lookups(); len(got) != 1 || got[0].Word != japaneseWord || got[0].Line != japaneseLine {
+		t.Fatalf("the computer was asked %+v", got)
+	}
+	if p.app.Find("id:player-word-meaning").Text != "n. 学校" {
+		t.Fatalf("the word card reads %q", p.texts("id:player-word-sheet"))
+	}
+}
+
 // A line saved on the phone goes to the computer, with the note written on it; one saved on the computer shows on the phone; a line taken back is gone on the computer too.
 func TestSavedLinesAndNotesSyncWithTheComputer(t *testing.T) {
 	d := newDesktop(t)
@@ -664,6 +708,13 @@ func TestAWordLookedUpGoesInTheVocabularyFromItsCardAndTheWordsTab(t *testing.T)
 	if w.Film != "f1" || fieldText(w, sync.FieldWord) != "morning" || fieldText(w, sync.FieldMeaning) != "n. 早晨" || fieldText(w, sync.FieldContext) != "Good morning." ||
 		fieldText(w, sync.FieldContextTranslation) != "早上好。" || fieldText(w, sync.FieldSpoken) != "ja" || fieldText(w, sync.FieldTitle) != "Morning Talk" {
 		t.Fatalf("the computer has %+v", w)
+	}
+	// The word's line keeps its end, so its sound is cut to the line's real length.
+	var start, end int64
+	_ = json.Unmarshal(w.Fields[sync.FieldStartMS].Value, &start)
+	_ = json.Unmarshal(w.Fields[sync.FieldEndMS].Value, &end)
+	if start != 1000 || end != 2000 {
+		t.Fatalf("the word's line is at %d–%d ms", start, end)
 	}
 	if !p.app.Exists("id:player-word-vocab >> text:" + msgs.PlayerWordInVocabulary()) {
 		t.Fatalf("once added the word card offers %q", p.texts("id:player-word-vocab"))

@@ -70,7 +70,7 @@ const (
 	FieldNoSpeech = "no_speech"
 )
 
-// The fields of a KindWord record: a word of the vocabulary (yldm-tech/Kando#214), whose ID is the word's own (study.Word.ID) and Film the film of the line it was looked up in, besides FieldReview, its schedule, FieldTitle, that film's title, FieldStartMS, the line's start, and FieldSavedAt, when it was added. The word, the language it is spoken in, the line and the line's translation do not change after it is added; its reading, meaning and the meaning's language change together.
+// The fields of a KindWord record: a word of the vocabulary (yldm-tech/Kando#214), whose ID is the word's own (study.Word.ID) and Film the film of the line it was looked up in, besides FieldReview, its schedule, FieldTitle, that film's title, FieldStartMS and FieldEndMS, the line's start and end, the end left out when it is not known, as for a word added before ends were kept, and FieldSavedAt, when it was added. The word, the language it is spoken in, the line and the line's translation do not change after it is added; its reading, meaning and the meaning's language change together.
 const (
 	// FieldWord is the word as the vocabulary lists it, its dictionary form, and FieldSpoken the language of the film it was looked up in, as whisper's code ("en"), "" for one not known: strings.
 	FieldWord   = "word"

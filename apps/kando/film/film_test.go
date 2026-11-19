@@ -1591,6 +1591,28 @@ func TestWordsOfTheOriginalLookUp(t *testing.T) {
 	}
 }
 
+// TestWordsOfAJapaneseOrChineseOriginalLookUp checks that the original of a film in Japanese or Chinese, written without spaces between words, has words to click once the dictionary that cuts it is read in the background, and that a click on one looks it up in its cue.
+func TestWordsOfAJapaneseOrChineseOriginalLookUp(t *testing.T) {
+	for _, c := range []struct{ name, translation, original, word string }{
+		{"japanese", "I went to school today.", "今日は学校に行った。", "学校"},
+		{"chinese", "We are going to Beijing tomorrow.", "我们明天去北京。", "北京"},
+	} {
+		t.Run(c.name, func(t *testing.T) {
+			a := newFakeApp()
+			a.subs.Cues[0].Text = c.translation + "\n" + c.original
+			app := start(t, a)
+			app.Play("id:film-video", ns.VideoInfo{Duration: 10 * time.Second})
+			app.Progress("id:film-video", 1500*time.Millisecond, 10*time.Second)
+			word := `id:film-subtitle-lines >> text:"` + c.word + `"`
+			app.WaitUntil(time.Minute, func() bool { return app.Exists(word) })
+			app.Press(word)
+			if !slices.Contains(a.calls, "look up 0 "+c.word) {
+				t.Fatalf("a click on %s made %q", c.word, a.calls)
+			}
+		})
+	}
+}
+
 // TestNotesTabListsTheFilmsLinesAndWords checks the 笔记 tab: the review card says how many are due and starts the review; the lines show by default, each with its translation and note, and the words on their own choice, each with its meaning, reading and line; a click on a row plays from its line, the delay counted, and its × takes it out; with nothing saved each choice says how to save some.
 func TestNotesTabListsTheFilmsLinesAndWords(t *testing.T) {
 	a := newFakeApp()

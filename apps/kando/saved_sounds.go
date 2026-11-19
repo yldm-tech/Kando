@@ -67,6 +67,14 @@ func (a *app) savedSoundKept(id, out string) {
 	}
 }
 
+// savedSweepSounds takes away the sounds kept in the open library that no saved line or word has any more (saved.SweepSounds), as the library is read, leaving those being cut now. A sound follows its line or word, not its film: one whose film was deleted stays while its line does, so the review and the export still have it.
+func (a *app) savedSweepSounds() {
+	cutting := func(id string) bool { return a.saved.keeping[id] || a.saved.review.cutting[id] }
+	if n := saved.SweepSounds(a.saved.book, cutting); n > 0 {
+		log.Printf("saved: took away %d sounds no saved line or word has", n)
+	}
+}
+
 // savedDropSound takes away the sound kept of the line or word id, as it is taken out of the study record.
 func (a *app) savedDropSound(id string) {
 	if path := saved.StoredSound(a.saved.book, id); path != "" {

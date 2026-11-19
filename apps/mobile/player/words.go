@@ -10,6 +10,7 @@ import (
 	"kando/apps/mobile/session"
 	"kando/apps/mobile/theme"
 	kcore "kando/packages/core"
+	"kando/packages/core/segment"
 	"kando/packages/sync"
 
 	"github.com/nsgo-dev/nsgo/core"
@@ -214,17 +215,26 @@ func (w *words) saveExplained() {
 
 // tappable is t, the text of line i, with each of its words a span a tap looks up.
 func (w *words) tappable(t core.Text, i int, text string) core.Text {
-	t.Spans = nil
-	for _, tok := range kcore.WordTokens(text) {
-		sp := core.Span{Content: tok.Text}
-		if tok.Word {
-			word := tok.Text
-			sp.OnPress = func(core.PressEvent) { w.look(i, word) }
+	t.Spans, t.Content = nil, ""
+	t.SpansFunc = func() []core.Span {
+		var spans []core.Span
+		for _, tok := range w.p.tokens(text) {
+			sp := core.Span{Content: tok.Text}
+			if tok.Word {
+				word := tok.Text
+				sp.OnPress = func(core.PressEvent) { w.look(i, word) }
+			}
+			spans = append(spans, sp)
 		}
-		t.Spans = append(t.Spans, sp)
+		return spans
 	}
-	t.Content = ""
 	return t
+}
+
+// tokens cuts text, a line of the film, into its words, its Japanese and Chinese by dictionary (segment.Words). The dictionary is read in the background the first time a line needs it; read in a binding, the line is cut again once it is.
+func (p *play) tokens(text string) []kcore.WordToken {
+	p.cut.Get()
+	return segment.Words(text, func() { p.cx.Post(func() { p.cut.Set(p.cut.GetUntracked() + 1) }) })
 }
 
 // computer is the name of the film's computer, as the sheets say who answers.

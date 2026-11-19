@@ -185,6 +185,13 @@ func (s *screen) subtitleLayer(cx *core.Scope, lines func() []styledLine, tip fu
 		}
 		a.ToggleFullScreen()
 	})
+	// The words of a Japanese or Chinese line are cut by a dictionary read in the background the first time a line needs it (lookup.Tokens); until then the line has no words to click. cut counts the dictionaries read since, so the lines' words are cut again once one is.
+	cut := core.NewSignal(cx, 0)
+	loaded := func() { cx.Post(func() { cut.Set(cut.GetUntracked() + 1) }) }
+	tokens := func(text string) []lookup.Token {
+		cut.Get()
+		return lookup.Tokens(text, loaded)
+	}
 	// A click on a word of the original looks it up, holding the film (LookUpWord); a click elsewhere on the lines is the picture's, as above.
 	body := core.Dynamic(func(cx *core.Scope) core.Node {
 		l := look()
@@ -194,7 +201,7 @@ func (s *screen) subtitleLayer(cx *core.Scope, lines func() []styledLine, tip fu
 			var words *lineWords
 			if line.original {
 				cue := line.cue
-				words = &lineWords{look: live.On(a, func(word string) { a.LookUpWord(cue, word) }), press: press}
+				words = &lineWords{look: live.On(a, func(word string) { a.LookUpWord(cue, word) }), press: press, tokens: tokens}
 			}
 			children = append(children, subtitleLine(func() string { return text }, line, l.Box, l.Shadow, words))
 		}
@@ -249,10 +256,11 @@ func (s *screen) subtitleLayer(cx *core.Scope, lines func() []styledLine, tip fu
 	}
 }
 
-// lineWords is what a click on a line's words does: look looks up the word clicked, and press is the click on the rest of the line.
+// lineWords is what a click on a line's words does: look looks up the word clicked, and press is the click on the rest of the line; tokens cuts a line into its words, in a binding, as lookup.Tokens does.
 type lineWords struct {
-	look  func(word string)
-	press func(core.PressEvent)
+	look   func(word string)
+	press  func(core.PressEvent)
+	tokens func(text string) []lookup.Token
 }
 
 // subtitleLine draws one line of a cue, on its own box with Box, outlined with Shadow. A view's shadow is a box's and would not follow the glyphs, so the outline is the line drawn again in black under it (outlineCopies), after the prototype's text-shadow (0 0 3px, 0 1px 2px and 0 0 1px). With words, the line drawn on top takes the clicks: a click on one of its words looks it up.
@@ -293,7 +301,7 @@ func withWords(t core.Text, text func() string, words *lineWords) core.Text {
 	t.OnPress = words.press
 	t.SpansFunc = func() []core.Span {
 		var spans []core.Span
-		for _, tok := range lookup.Tokens(text()) {
+		for _, tok := range words.tokens(text()) {
 			sp := core.Span{Content: tok.Text}
 			if tok.Word {
 				word := tok.Text

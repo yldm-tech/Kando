@@ -4,9 +4,12 @@ import (
 	"context"
 	"os"
 	"path/filepath"
+	"slices"
 	"strings"
 	"testing"
 	"time"
+
+	"kando/packages/study"
 )
 
 // TestKeepSoundWritesTheLinesSoundInTheLibrary keeps a line's sound through the stand-in for ffmpeg: it goes into the library's hidden folder under the line's id, cut from the line with its delay, and nothing is left beside it; a book without a folder or a record with an id that is not one keeps none.
@@ -133,5 +136,83 @@ func TestMoveSoundFollowsTheLine(t *testing.T) {
 	}
 	if err := MoveSound(from, "cccc3333", to, "dddd4444"); err != nil || HasSound(StoredSound(to, "dddd4444")) {
 		t.Fatalf("a line without a sound moved one: %v", err)
+	}
+}
+
+// keepFile writes a stand-in for a sound kept at path.
+func keepFile(t *testing.T, path string) {
+	t.Helper()
+	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(path, []byte("kept\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+}
+
+// TestSoundsFollowTheirRecords checks that the sounds of the lines and words another device took out go as the books merge, the others staying; and that the sweep as a library is read takes away the sounds no line or word has and the halves of stopped cuts, leaving what is being cut now, and touches nothing of a study record it could not read.
+func TestSoundsFollowTheirRecords(t *testing.T) {
+	lib := t.TempDir()
+	b, _ := Load(lib)
+	b.Device = "desk"
+	b.Toggle(Line{Video: "Talk/video.mp4", Start: time.Second, End: 2 * time.Second, Original: "Stays", Film: "Talk"})
+	b.Toggle(Line{Video: "Talk/video.mp4", Start: 3 * time.Second, End: 4 * time.Second, Original: "Goes", Film: "Talk"})
+	b.AddWord(Word{Text: "stays", Spoken: "en", Video: "Talk/video.mp4", Start: time.Second})
+	b.AddWord(Word{Text: "goes", Spoken: "en", Video: "Talk/video.mp4", Start: 3 * time.Second})
+	stays, goes := b.Lines[b.Find("Talk/video.mp4", time.Second)].ID, b.Lines[b.Find("Talk/video.mp4", 3*time.Second)].ID
+	wordStays, wordGoes := b.Words[b.WordIndex("stays", "en")].ID, b.Words[b.WordIndex("goes", "en")].ID
+	for _, id := range []string{stays, goes, wordStays, wordGoes} {
+		keepFile(t, StoredSound(b, id))
+	}
+	if err := b.Save(); err != nil {
+		t.Fatal(err)
+	}
+
+	after := b
+	after.Lines, after.Words = slices.Clone(b.Lines), slices.Clone(b.Words)
+	at := study.Stamp{At: time.Now(), Device: "phone"}
+	after.Merge(nil, []study.Removed{{ID: goes, At: at}})
+	after.MergeWords(nil, []study.Removed{{ID: wordGoes, Video: "goes", At: at}})
+	DropGoneSounds(b, after)
+	for id, want := range map[string]bool{stays: true, goes: false, wordStays: true, wordGoes: false} {
+		if got := HasSound(StoredSound(after, id)); got != want {
+			t.Errorf("after the merge the sound of %s is kept: %v, want %v", id, got, want)
+		}
+	}
+
+	// Left behind: a sound no record has, a cut stopped halfway, and a cut going on now with its half.
+	orphan, cutting := StoredSound(after, "0ddba11"), StoredSound(after, "c0ffee")
+	half := strings.TrimSuffix(StoredSound(after, stays), ".m4a") + ".cutting.m4a"
+	cuttingHalf := strings.TrimSuffix(cutting, ".m4a") + ".cutting.m4a"
+	for _, p := range []string{orphan, half, cuttingHalf} {
+		keepFile(t, p)
+	}
+	if err := after.Save(); err != nil {
+		t.Fatal(err)
+	}
+	read, err := Load(lib)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if n := SweepSounds(read, func(id string) bool { return id == "c0ffee" }); n != 2 {
+		t.Errorf("the sweep took away %d files, want 2", n)
+	}
+	for p, want := range map[string]bool{StoredSound(read, stays): true, StoredSound(read, wordStays): true, orphan: false, half: false, cuttingHalf: true} {
+		if _, err := os.Stat(p); (err == nil) != want {
+			t.Errorf("after the sweep %s is there: %v, want %v", filepath.Base(p), err == nil, want)
+		}
+	}
+
+	// A study record that cannot be read names no lines: nothing is swept.
+	keepFile(t, orphan)
+	if err := os.WriteFile(filepath.Join(lib, FileName), []byte("{not json"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	unread, _ := Load(lib)
+	if unread.Unread() == nil {
+		t.Fatal("a broken study record was read")
+	}
+	if n := SweepSounds(unread, nil); n != 0 || !HasSound(StoredSound(read, stays)) || !HasSound(orphan) {
+		t.Errorf("the sweep of an unread record took away %d files", n)
 	}
 }

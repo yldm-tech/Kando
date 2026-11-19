@@ -287,6 +287,13 @@ func TestScreenshotsPlayerRecap(t *testing.T) {
 	shot(p, "player-recap")
 }
 
+// The card of a line of Japanese, whose words the dictionary cut, underlined to tap.
+func TestScreenshotsPlayerJapanese(t *testing.T) {
+	shot := screenshots(t)
+	p, _ := openJapanese(t)
+	shot(p, "player-card-japanese")
+}
+
 func TestScreenshotsPlayerStudy(t *testing.T) {
 	shot := screenshots(t)
 	d := newDesktop(t)

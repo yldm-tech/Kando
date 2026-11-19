@@ -21,12 +21,12 @@ const clipPad = 250 * time.Millisecond
 // clipNoEnd is how long the clip of a line whose end is not known plays, as the computer's export plays one.
 const clipNoEnd = 4 * time.Second
 
-// ClipOf is the clip of it, heard in video, the film it was saved or looked up in kept on the phone, whose subtitles the player moves by delay against its picture: a saved line's own, or the line a word was looked up in, which ends where the film's subtitle that starts there ends; a line whose end is not known plays for clipNoEnd. False for a word with no line, or a line with nothing to say.
+// ClipOf is the clip of it, heard in video, the film it was saved or looked up in kept on the phone, whose subtitles the player moves by delay against its picture: a saved line's own, or the line a word was looked up in. A line whose end the record does not say, as a word added before ends were kept, ends where the film's subtitle that starts there ends, and one whose end is not known either way plays for clipNoEnd. False for a word with no line, or a line with nothing to say.
 func ClipOf(it Item, video string, delay time.Duration, cues []sync.Cue) (Clip, bool) {
 	c := Clip{Video: video, Line: it.Text, Translation: it.Meaning}
 	end := it.End
 	if it.Kind == Word {
-		c.Line, c.Translation, end = it.Context, it.ContextTranslation, 0
+		c.Line, c.Translation = it.Context, it.ContextTranslation
 	}
 	if strings.TrimSpace(c.Line) == "" || video == "" {
 		return Clip{}, false

@@ -17,7 +17,7 @@ import (
 	psync "kando/packages/sync"
 )
 
-// A phone reads the open library's vocabulary with the lines, reviews a word, and the desktop keeps the word's new schedule in its study record; a word removed on the phone is removed on the desktop for good.
+// A phone reads the open library's vocabulary with the lines, reviews a word, and the desktop keeps the word's new schedule in its study record; a word removed on the phone is removed on the desktop for good, with the sound kept of its line. A word the phone adds keeps its line's end.
 func TestPhoneSyncSyncsTheVocabulary(t *testing.T) {
 	a, p, dir, talk, c, clock := phoneStateLibrary(t)
 	lib := phoneLibraryID(dir)
@@ -45,9 +45,23 @@ func TestPhoneSyncSyncsTheVocabulary(t *testing.T) {
 	due := now.Add(study.Intervals[0])
 	base := word.Fields[psync.FieldReview].Stamp
 	owner := a.saved.book.Words[a.saved.book.WordIndex("owner", "en")].ID
+	for _, id := range []string{borrow.ID, owner} {
+		kept := saved.StoredSound(a.saved.book, id)
+		if err := os.MkdirAll(filepath.Dir(kept), 0o755); err != nil {
+			t.Fatal(err)
+		}
+		if err := os.WriteFile(kept, []byte("kept\n"), 0o644); err != nil {
+			t.Fatal(err)
+		}
+	}
+	at := func(v any) psync.Field { return psync.Field{Value: psync.Value(v), Stamp: psync.Stamp{At: now}} }
 	put := []psync.Record{
 		{Kind: psync.KindWord, ID: borrow.ID, Fields: map[string]psync.Field{psync.FieldReview: {Value: psync.Value(psync.Review{Box: 1, Due: due}), Stamp: psync.Stamp{At: now}, Base: &base}}},
 		{Kind: psync.KindWord, ID: owner, Removed: &psync.Stamp{At: now}},
+		{Kind: psync.KindWord, ID: "phoneword", Film: "yt", Fields: map[string]psync.Field{
+			psync.FieldWord: at("trait"), psync.FieldSpoken: at("en"), psync.FieldContext: at("Traits are shared."), psync.FieldStartMS: at(4000), psync.FieldEndMS: at(5500),
+			psync.FieldSavedAt: at(now), psync.FieldReview: at(psync.Review{Due: now}),
+		}},
 	}
 	if _, err := phoneAsk(t, p, func(ctx context.Context) (psync.StatePutResult, error) { return c.PutState(ctx, lib, put) }); err != nil {
 		t.Fatal(err)
@@ -58,6 +72,12 @@ func TestPhoneSyncSyncsTheVocabulary(t *testing.T) {
 	}
 	if a.saved.book.WordIndex("owner", "en") >= 0 {
 		t.Error("the word removed on the phone is still in the vocabulary")
+	}
+	if saved.HasSound(saved.StoredSound(a.saved.book, owner)) || !saved.HasSound(saved.StoredSound(a.saved.book, borrow.ID)) {
+		t.Error("the sound of the word removed on the phone stayed, or the other's went")
+	}
+	if i := a.saved.book.WordIndex("trait", "en"); i < 0 || a.saved.book.Words[i].Start != 4*time.Second || a.saved.book.Words[i].End != 5500*time.Millisecond {
+		t.Errorf("the phone's word is %+v", a.saved.book.Words)
 	}
 	if disk, err := study.Load(dir); err != nil || disk.WordIndex("owner", "en") >= 0 || disk.Words[disk.WordIndex("borrow", "en")].Box != 1 {
 		t.Errorf("the study record on disk did not keep the phone's changes: %v", err)

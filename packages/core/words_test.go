@@ -14,6 +14,7 @@ func TestWordTokens(t *testing.T) {
 		{"Don't—it's well-known, 'quoted' 42", []WordToken{{"Don't", true}, {"—", false}, {"it's", true}, {" ", false}, {"well-known", true}, {", '", false}, {"quoted", true}, {"' 42", false}}},
 		{"Ça va? Très bien!", []WordToken{{"Ça", true}, {" ", false}, {"va", true}, {"? ", false}, {"Très", true}, {" ", false}, {"bien", true}, {"!", false}}},
 		{"今日はいい天気", []WordToken{{"今日はいい天気", false}}},
+		{"コーヒー, please", []WordToken{{"コーヒー, ", false}, {"please", true}}},
 		{"안녕 세상", []WordToken{{"안녕", true}, {" ", false}, {"세상", true}}},
 		{"", nil},
 	}
