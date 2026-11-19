@@ -1,6 +1,7 @@
 package main
 
 import (
+	"os"
 	"path/filepath"
 	"slices"
 	"testing"
@@ -19,7 +20,7 @@ import (
 	"github.com/nsgo-dev/nsgo/nsgotest"
 )
 
-// TestScreenshotsPlugins renders Settings › 插件 with a glossary pack, an AI service pack and a task pack installed, the install confirmation of a third party's script plugin, verified by Kando (plugins-script-install), and of Kando's own (plugins-script-install-official) and a script plugin's details with what it was granted (plugins-script-details), and with two dictionary packs, which move up and down, the details of one open (settings-plugins-dictionaries), the install confirmation of a pack over the main window, as a pack from 从文件安装… or the command line's inbox shows it, and of a site pack with a checkbox for each of its sites (plugins-install-site), the card of a word on the picture that a dictionary pack answered, which names the dictionary and its credit (plugins-lookup), and a Japanese line with readings over its words, a line in the color of their level under the words of a word list and a dashed one under a word in the vocabulary (plugins-marks), the side panel with a task pack's reply as cards (plugins-task), 翻译 with a translate-style pack's style chosen (plugins-translate-style), the Saved Lines sheet with an export template chosen (plugins-export-template), and the sheet that exports the glossary as a pack (plugins-export-glossary). The packs are in plugins folders of the fixture's home.
+// TestScreenshotsPlugins renders Settings › 插件 with a glossary pack, an AI service pack and a task pack installed, the install confirmation of a third party's script plugin, verified by Kando (plugins-script-install), and of Kando's own (plugins-script-install-official) and a script plugin's details with what it was granted (plugins-script-details), and with two dictionary packs, which move up and down, the details of one open (settings-plugins-dictionaries), the install confirmation of a pack over the main window, as a pack from 从文件安装… or the command line's inbox shows it, and of a site pack with a checkbox for each of its sites (plugins-install-site), the card of a word on the picture that a dictionary pack answered, which names the dictionary and its credit (plugins-lookup), and a Japanese line with readings over its words, a line in the color of their level under the words of a word list and a dashed one under a word in the vocabulary (plugins-marks), the side panel with a task pack's reply as cards (plugins-task), 翻译 with a translate-style pack's style chosen (plugins-translate-style), the Saved Lines sheet with three lines saved and an export template chosen (plugins-export-template), and the sheet that exports the glossary as a pack (plugins-export-glossary). The packs are in plugins folders of the fixture's home.
 func TestScreenshotsPlugins(t *testing.T) {
 	f := newScreenshotFixture(t)
 	root := filepath.Join(f.home, "Library", "Application Support", "Kando", "plugins")
@@ -169,13 +170,25 @@ func TestScreenshotsPlugins(t *testing.T) {
 		pluginInstalled(t, a.plugins.root, pluginTemplate)
 		packs, issues := plugins.Scan(a.plugins.root)
 		state, err := plugins.LoadState(a.plugins.root)
+		// Three lines of How Rivers Shape Landscapes saved, as the saved scene saves them, in a library that has none, as the scenes share its folder.
+		screenshotOpen(t, a, tt, updates, "j1", protoCues[0].Start)
+		onEngine(a, func() {
+			if err := os.Remove(filepath.Join(f.lib, saved.FileName)); err != nil && !os.IsNotExist(err) {
+				t.Fatal(err)
+			}
+			a.saved.book = saved.Book{}
+			for _, i := range []int{1, 3, 9} {
+				a.ToggleSaveLine(i)
+			}
+		})
+		tt.Key("escape")
 		onEngine(a, func() {
 			a.pluginsScanned(packs, issues, state, err)
 			a.plugins.exportTarget = "example.cards"
 			a.OpenSavedSheet()
 		})
 		refresh(tt, a)
-		if !tt.Exists("id:saved-export-target") {
+		if !tt.Exists("id:saved-export-target") || len(a.SavedEntries()) != 3 {
 			t.Fatalf("no export drop-down; texts %q", tt.Texts())
 		}
 	})

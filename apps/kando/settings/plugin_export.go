@@ -60,6 +60,9 @@ func (d PluginExportDialog) Render(cx *core.Scope) core.Node {
 	}}
 }
 
+// pluginExportWidth is the export sheet's width; its rows fill it, as the feedback dialog's fill its own.
+const pluginExportWidth core.Points = 460
+
 // pluginExportDialog is the sheet of a glossary pack, or of a word list.
 func pluginExportDialog(cx *core.Scope, a PluginsApp, glossary bool, cancel func()) core.Node {
 	colors := ui.ColorsOf(cx)
@@ -68,15 +71,20 @@ func pluginExportDialog(cx *core.Scope, a PluginsApp, glossary bool, cancel func
 	if glossary {
 		title = locales.PluginsExportGlossaryTitle(cx)
 	}
-	name := ui.Input{TestID: "plugins-export-name", Label: locales.PluginsExportName(cx), Value: func() string { return e().Name }, OnChange: live.On(a, a.SetPluginExportName)}
+	name := ui.Input{TestID: "plugins-export-name", Label: locales.PluginsExportName(cx), Value: func() string { return e().Name }, OnChange: live.On(a, a.SetPluginExportName),
+		Style: core.Style{MinWidth: core.Pt(0)}}
 	id := ui.Input{TestID: "plugins-export-id", Label: locales.PluginsExportID(cx), Value: func() string { return e().ID }, OnChange: live.On(a, a.SetPluginExportID),
-		Style: core.Style{FontFamily: "monospace"}}
+		Style: core.Style{FontFamily: ui.Mono, MinWidth: core.Pt(0)}}
+	// Each field fills the sheet's width, as the feedback dialog's do: its label over its control, stretched, never wider than the sheet.
 	field := func(label string, control core.Node) core.Node {
-		return core.View{Style: core.Style{Gap: 4}, Children: []core.Node{
+		return core.View{Style: core.Style{Gap: 4, AlignItems: core.AlignStretch, MinWidth: core.Pt(0)}, Children: []core.Node{
 			core.Text{Content: label, Style: core.Style{FontSize: 12, LineHeight: 16}, StyleFunc: ui.Colored(colors.Muted)},
 			control,
 		}}
 	}
+	// fill makes a drop-down as wide as the field it is in, rather than ui.Select's 200 points; half is each of the two language fields side by side, sharing the row equally.
+	fill := core.Style{Width: core.Pct(100), MinWidth: core.Pt(0)}
+	half := core.Style{FlexGrow: 1, FlexShrink: 1, FlexBasis: core.Pt(0), MinWidth: core.Pt(0), AlignItems: core.AlignStretch}
 	children := []core.Node{field(locales.PluginsExportName(cx), name), field(locales.PluginsExportID(cx), id)}
 	if glossary {
 		var scopes []ui.Option[string]
@@ -93,12 +101,12 @@ func pluginExportDialog(cx *core.Scope, a PluginsApp, glossary bool, cancel func
 		}
 		children = append(children,
 			field(locales.PluginsExportScope(cx), ui.Select[string]{Options: scopes, Label: locales.PluginsExportScope(cx), TestID: "plugins-export-scope",
-				Value: func() string { return e().Scope }, OnChange: live.On(a, a.SetPluginExportScope)}),
-			core.View{Style: core.Style{Direction: core.Row, Gap: 10}, Children: []core.Node{
-				core.View{Style: core.Style{FlexGrow: 1, FlexBasis: core.Pt(0)}, Children: []core.Node{field(locales.PluginsExportFrom(cx), ui.Select[string]{Options: from, Label: locales.PluginsExportFrom(cx), TestID: "plugins-export-from", Searchable: true,
-					Value: func() string { return e().From }, OnChange: live.On(a, a.SetPluginExportFrom)})}},
-				core.View{Style: core.Style{FlexGrow: 1, FlexBasis: core.Pt(0)}, Children: []core.Node{field(locales.PluginsExportTo(cx), ui.Select[string]{Options: to, Label: locales.PluginsExportTo(cx), TestID: "plugins-export-to", Searchable: true,
-					Value: func() string { return e().To }, OnChange: live.On(a, a.SetPluginExportTo)})}},
+				Value: func() string { return e().Scope }, OnChange: live.On(a, a.SetPluginExportScope), Style: fill}),
+			core.View{Style: core.Style{Direction: core.Row, Gap: 10, AlignItems: core.AlignStart}, Children: []core.Node{
+				core.View{Style: half, Children: []core.Node{field(locales.PluginsExportFrom(cx), ui.Select[string]{Options: from, Label: locales.PluginsExportFrom(cx), TestID: "plugins-export-from", Searchable: true,
+					Value: func() string { return e().From }, OnChange: live.On(a, a.SetPluginExportFrom), Style: fill})}},
+				core.View{Style: half, Children: []core.Node{field(locales.PluginsExportTo(cx), ui.Select[string]{Options: to, Label: locales.PluginsExportTo(cx), TestID: "plugins-export-to", Searchable: true,
+					Value: func() string { return e().To }, OnChange: live.On(a, a.SetPluginExportTo), Style: fill})}},
 			}})
 	} else {
 		var languages []ui.Option[string]
@@ -106,7 +114,7 @@ func pluginExportDialog(cx *core.Scope, a PluginsApp, glossary bool, cancel func
 			languages = append(languages, ui.Option[string]{Value: code, Label: subtitle.SpokenLanguageName(cx, code)})
 		}
 		children = append(children, field(locales.PluginsExportLanguage(cx), ui.Select[string]{Options: languages, Label: locales.PluginsExportLanguage(cx), TestID: "plugins-export-language",
-			Value: func() string { return e().Language }, OnChange: live.On(a, a.SetPluginExportLanguage)}))
+			Value: func() string { return e().Language }, OnChange: live.On(a, a.SetPluginExportLanguage), Style: fill}))
 	}
 	children = append(children,
 		core.Text{TestID: "plugins-export-count", ContentFunc: func() string {
@@ -114,8 +122,8 @@ func pluginExportDialog(cx *core.Scope, a PluginsApp, glossary bool, cancel func
 				return locales.PluginsExportTermCount(cx, e().Count)
 			}
 			return locales.PluginsExportWordCount(cx, e().Count)
-		}, Style: core.Style{FontSize: 12, LineHeight: 17}, StyleFunc: ui.Colored(colors.Text)},
-		core.Text{Content: locales.PluginsExportNote(cx), Style: core.Style{FontSize: 12, LineHeight: 17}, StyleFunc: ui.Colored(colors.Muted)},
+		}, Style: core.Style{FontSize: 12, LineHeight: 17, MinWidth: core.Pt(0)}, StyleFunc: ui.Colored(colors.Text)},
+		core.Text{Content: locales.PluginsExportNote(cx), Style: core.Style{FontSize: 12, LineHeight: 17, MinWidth: core.Pt(0)}, StyleFunc: ui.Colored(colors.Muted)},
 		core.Show{When: func() bool { return e().Err != "" }, Then: func(cx *core.Scope) core.Node {
 			return core.Text{TestID: "plugins-export-error", ContentFunc: func() string { return e().Err }, Selectable: core.SelectableOn, Style: core.Style{FontSize: 12, LineHeight: 17}, StyleFunc: ui.Colored(colors.Danger)}
 		}},
@@ -126,7 +134,8 @@ func pluginExportDialog(cx *core.Scope, a PluginsApp, glossary bool, cancel func
 				cancel()
 			}
 		},
-		Children: []core.Node{core.View{Style: core.Style{Gap: 10, Width: core.Pt(420)}, Children: children}},
+		Style:    core.Style{Width: core.Pt(pluginExportWidth)},
+		Children: []core.Node{core.View{Style: core.Style{Gap: 10, AlignItems: core.AlignStretch, MinWidth: core.Pt(0)}, Children: children}},
 		Footer: []core.Node{
 			ui.Button{Text: locales.SettingsPluginsCancel(cx), Variant: ui.ButtonSecondary, TestID: "plugins-export-cancel", Disabled: func() bool { return e().Busy }, OnPress: cancel},
 			ui.Button{Text: ok, TestID: "plugins-export-save", Disabled: func() bool { x := e(); return x.Busy || x.Count == 0 }, OnPress: live.Do(a, a.ConfirmPluginExport)},
