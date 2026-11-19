@@ -6,7 +6,7 @@ import (
 	"github.com/nsgo-dev/nsgo/ui"
 )
 
-// Tone is the color a row's text or a tile takes: the slot's own (the text's for a title, the muted text's for a detail), the accent, danger's, or the muted text's.
+// Tone is the color a row's text or a tile takes: the slot's own (the text's for a title, the muted text's for a detail), the accent, danger's, the muted text's, or the warning's.
 type Tone uint8
 
 const (
@@ -14,6 +14,7 @@ const (
 	ToneAccent
 	ToneDanger
 	ToneMuted
+	ToneWarn
 )
 
 // color is t's color, fallback for ToneDefault.
@@ -25,6 +26,8 @@ func (t Tone) color(colors ui.Colors, fallback func() core.Color) core.Color {
 		return colors.Danger()
 	case ToneMuted:
 		return colors.Muted()
+	case ToneWarn:
+		return colors.Warn()
 	}
 	return fallback()
 }

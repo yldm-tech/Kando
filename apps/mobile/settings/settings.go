@@ -1,4 +1,4 @@
-// Package settings is the Settings tab: the computers the phone is paired with, each of which it can unpair, and the way to pair another; the language subtitles are translated into, which the computers translate into too, and how the player draws them; the phone's own daily goal and review reminder, its widgets on iOS (widgets.go) and a tablet's keyboard shortcuts (shortcuts.go); and where Kando's source is, with the introduction to see again. It has the page the phone shows once a computer no longer takes it too (revoked.go).
+// Package settings is the Settings tab: the computers the phone is paired with, each with its page of the AI service it translates with and its context switch, and each of which it can unpair, and the way to pair another; the language subtitles are translated into, which the computers translate into too, and how the player draws them; the phone's own daily goal and review reminder, its widgets on iOS (widgets.go) and a tablet's keyboard shortcuts (shortcuts.go); the sync conflicts to settle (conflicts.go); and where Kando's source is, with the introduction to see again. It has the page the phone shows once a computer no longer takes it too (revoked.go).
 package settings
 
 import (
@@ -18,11 +18,11 @@ import (
 	"github.com/nsgo-dev/nsgo/ui"
 )
 
-// Actions are where the tab leads; Unpaired runs once the user unpaired computer id, for the pages of it to go. Shortcuts opens the keyboard shortcuts, which a tablet lists, and Widgets the widgets, which iOS has.
+// Actions are where the tab leads; Computer opens computer id's page, and Unpaired runs once the user unpaired computer id, for the pages of it to go. Shortcuts opens the keyboard shortcuts, which a tablet lists, and Widgets the widgets, which iOS has.
 type Actions struct {
-	Pair, Target, Style, Goal, Introduction func()
-	Shortcuts, Widgets                      func()
-	Unpaired                                func(id string)
+	Pair, Target, Style, Goal, Conflicts, Introduction func()
+	Shortcuts, Widgets                                 func()
+	Computer, Unpaired                                 func(id string)
 }
 
 // Page is the tab's root page.
@@ -35,7 +35,7 @@ func Page(cx *core.Scope, s *session.Session, act Actions) base.NavPage {
 			core.View{StyleFunc: look.Column(cx), Children: []core.Node{
 				section(cx, func() string { return locales.SettingsComputers(cx) },
 					core.Each(s.Desktops, func(d store.Desktop) string { return d.ID }, func(cx *core.Scope, d func() store.Desktop, i func() int) core.Node {
-						return computer(cx, s, d, i, act.Unpaired)
+						return computer(cx, s, d, i, act.Computer, act.Unpaired)
 					}),
 					look.Row{TestID: "settings-pair", Index: pairRow, Inset: 56, TitleTone: look.ToneAccent,
 						Leading: look.IconTile(cx, lucide.Plus, look.ToneAccent),
@@ -61,6 +61,23 @@ func Page(cx *core.Scope, s *session.Session, act Actions) base.NavPage {
 						},
 						OnPress: act.Style}),
 				section(cx, func() string { return locales.SettingsThisDevice(cx) }, deviceRows(cx, s, act)...),
+				section(cx, func() string { return locales.SettingsSync(cx) },
+					look.Row{TestID: "settings-conflicts", Inset: 56, Chevron: true,
+						Leading: look.IconTile(cx, lucide.ArrowLeftRight, look.ToneWarn),
+						Title:   func() string { return locales.SettingsConflicts(cx) },
+						Detail: func() string {
+							if len(s.Conflicts()) == 0 {
+								return ""
+							}
+							return locales.SettingsConflictsDetail(cx)
+						},
+						Value: func() string {
+							if n := len(s.Conflicts()); n > 0 {
+								return locales.SettingsConflictsCount(cx, n)
+							}
+							return locales.SettingsConflictsNone(cx)
+						},
+						OnPress: act.Conflicts}),
 				section(cx, func() string { return locales.SettingsAbout(cx) },
 					look.Row{TestID: "settings-source", Inset: 56,
 						Leading: look.IconTile(cx, lucide.Code, look.ToneAccent),
@@ -114,28 +131,30 @@ func section(cx *core.Scope, title func() string, rows ...core.Node) core.Node {
 	return core.View{Style: core.Style{Gap: 8}, Children: []core.Node{look.SectionTitle(cx, title), look.Group{Children: rows}}}
 }
 
-// computer is a paired computer's row: its name and address, with its options, which unpair it; unpaired runs once they did.
-func computer(cx *core.Scope, s *session.Session, d func() store.Desktop, i func() int, unpaired func(id string)) core.Node {
-	options := func() {
-		id, name := d().ID, d().Name
-		// A tablet asks in a dialog in the middle of the screen, as its sheets show, rather than an action sheet with nothing to point at.
-		cx.ShowAlert(core.AlertConfig{Title: locales.ComputersUnpairTitle(cx, name), Message: locales.ComputersUnpairMessage(cx), Sheet: !look.Tablet(cx), Cancelable: true,
-			Actions: []core.AlertAction{
-				{Label: locales.CommonCancel(cx), Role: core.AlertCancel},
-				{Label: locales.ComputersUnpair(cx), Role: core.AlertDestructive},
-			}}, func(i int) {
-			if i == 1 {
-				s.Unpair(id)
-				unpaired(id)
-			}
-		})
-	}
+// computer is a paired computer's row: its name and address, which opens its page, with its options, which unpair it; unpaired runs once they did.
+func computer(cx *core.Scope, s *session.Session, d func() store.Desktop, i func() int, open func(id string), unpaired func(id string)) core.Node {
 	return look.Row{TestID: "settings-computer-" + d().ID, Index: i, Inset: 56,
 		Leading: look.IconTile(cx, lucide.Laptop, look.ToneAccent),
 		Title:   func() string { return d().Name },
 		Detail:  func() string { return d().Addr.String() },
+		OnPress: func() { open(d().ID) },
 		Trailing: ui.IconButton{TestID: "settings-computer-options-" + d().ID, Icon: lucide.Ellipsis, Variant: ui.IconButtonGhost, Size: 44, IconSize: 20,
-			LabelFunc: func() string { return locales.ComputersOptions(cx, d().Name) }, OnPress: options}}
+			LabelFunc: func() string { return locales.ComputersOptions(cx, d().Name) }, OnPress: func() { confirmUnpair(cx, s, d().ID, d().Name, unpaired) }}}
+}
+
+// confirmUnpair asks whether to unpair computer id, named name, and unpairs it once the user confirms; unpaired runs then.
+func confirmUnpair(cx *core.Scope, s *session.Session, id, name string, unpaired func(id string)) {
+	// A tablet asks in a dialog in the middle of the screen, as its sheets show, rather than an action sheet with nothing to point at.
+	cx.ShowAlert(core.AlertConfig{Title: locales.ComputersUnpairTitle(cx, name), Message: locales.ComputersUnpairMessage(cx), Sheet: !look.Tablet(cx), Cancelable: true,
+		Actions: []core.AlertAction{
+			{Label: locales.CommonCancel(cx), Role: core.AlertCancel},
+			{Label: locales.ComputersUnpair(cx), Role: core.AlertDestructive},
+		}}, func(i int) {
+		if i == 1 {
+			s.Unpair(id)
+			unpaired(id)
+		}
+	})
 }
 
 // TargetPage is the page that picks the language subtitles are translated into.

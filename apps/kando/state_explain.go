@@ -319,4 +319,5 @@ func (a *app) SaveExplained() {
 	book.Toggle(saved.Line{Video: book.Key(l.video), Start: l.start, End: cues[l.index].End, Original: l.line.Original, Translation: l.line.Translation, Note: note, Film: l.film, SavedAt: a.saved.now()})
 	a.flash(a.messages().ExplainOsdNoted())
 	a.savedWrite()
+	a.savedKeepSound(book.Lines[0])
 }

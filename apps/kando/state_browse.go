@@ -305,7 +305,7 @@ func (a *app) browseHeard(msg core.WebMessage) {
 		return
 	}
 	if link, title, ok := browse.ParseAdd(data); ok {
-		a.browsePageAdd(msg.Origin, link, title)
+		a.browsePageAdd(msg.Origin, link, title, browse.AddedAt(data))
 		return
 	}
 	if data == browse.TitleMessage {

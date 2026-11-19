@@ -58,6 +58,8 @@ type Progress struct {
 	Attempt, Attempts int
 	// Proofreading is true while the translation stage proofreads the transcript before it translates it (media.Proofreader): Batch and Lines then count the lines being proofread.
 	Proofreading bool
+	// Reviewing is true while the translation stage proofreads the translation as a whole once it is made (media.Reviewer, the final proofread): Batch and Lines then count the translated lines being read.
+	Reviewing bool
 	// Unanswered is true while the translation waits to try again a request that got no usable answer, as one that timed out, lost its connection or came back cut off; false while it waits out a rate limit or a server error.
 	Unanswered bool
 }
@@ -123,6 +125,21 @@ type Job struct {
 	PausedBy string
 	// Series is the ID of the series the user said the film is part of, whose glossary its translation uses with its own (Term, ScopeSeries); empty for a film of no series. It stays when the job is run again.
 	Series string
+	// ResumeAt is where the user was in the video in the browser the link came from (the extension's or the bookmarklet's playback time, or the link's own t=, StartAt), so the film opens there once it is done: the app keeps it as the film's resume position as the job completes, unless the film has one already, and clears it then. 0 for none.
+	ResumeAt time.Duration
+	// ChapterUse is whether the film is cut at its site's chapters or evenly by time, as the user chose it on the Add sheet before it was downloaded; the download keeps it beside the video with the chapters it finds (media.FilmChapters.Use), where the player reads it. Empty follows the setting 导入平台章节.
+	ChapterUse ChapterUse
+}
+
+// CookiesNone is Job.Cookies for a download the user chose to borrow no browser's sign-in for, as the Add sheet's 未登录 does, so the queue does not give it the one Settings › 通用 › 浏览器登录 names as it first runs.
+const CookiesNone = "none"
+
+// Browser is the browser whose sign-in the job's download borrows, yt-dlp's --cookies-from-browser name, "" for none (an empty Cookies, or CookiesNone).
+func (j Job) Browser() string {
+	if j.Cookies == CookiesNone {
+		return ""
+	}
+	return j.Cookies
 }
 
 // Quality is how good a picture the download of a link asks for (Job.Quality).

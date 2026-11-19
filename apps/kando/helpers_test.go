@@ -247,6 +247,14 @@ func startJob(t *testing.T, tt *nsgotest.App, source string) {
 	t.Helper()
 	tt.Type(testlocale.Messages().FilmsLinkLabel(), source)
 	tt.Press(whole(testlocale.Messages().FilmsStart()))
+	confirmAddSheet(tt)
+}
+
+// confirmAddSheet presses the Add sheet's 添加并开始 when the sheet is open, as it is after a link to one online video was submitted: it adds the link with the settings' choices, as the link field added it before the sheet.
+func confirmAddSheet(tt *nsgotest.App) {
+	if tt.Exists("id:addsheet-add") {
+		tt.Press("id:addsheet-add")
+	}
 }
 
 func filmRows(t *testing.T, tt *nsgotest.App) int {

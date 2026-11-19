@@ -71,10 +71,11 @@ func Page(cx *core.Scope, s *session.Session, done func()) core.Node {
 	actions := core.Show{When: func() bool { return step.Get() < pairing }, Then: func(cx *core.Scope) core.Node {
 		return look.Button{Kind: look.Primary, Text: func() string { return locales.OnboardingContinue(cx) }, TestID: "onboarding-continue", OnPress: next}
 	}}
-	return core.View{TestID: "onboarding", Style: core.Style{FlexGrow: 1, PaddingEnv: core.EnvAll(core.EnvSafeArea), Padding: core.Edges{Right: 24, Bottom: 16, Left: 24}},
+	// The steps scroll inside the window, so the page shrinks to it rather than grow past it with a long step, as the languages', and keeps its button in view.
+	return core.View{TestID: "onboarding", Style: core.Style{FlexGrow: 1, FlexShrink: 1, MinHeight: core.Pt(0), PaddingEnv: core.EnvAll(core.EnvSafeArea), Padding: core.Edges{Right: 24, Bottom: 16, Left: 24}},
 		StyleFunc: ui.Filled(colors.Background),
 		Children: []core.Node{
-			core.View{Style: core.Style{FlexGrow: 1, MaxWidth: core.Pt(560), Width: core.Pct(100), AlignSelf: core.AlignCenter, Gap: 12}, Children: []core.Node{top, body, actions}},
+			core.View{Style: core.Style{FlexGrow: 1, FlexShrink: 1, MinHeight: core.Pt(0), MaxWidth: core.Pt(560), Width: core.Pct(100), AlignSelf: core.AlignCenter, Gap: 12}, Children: []core.Node{top, body, actions}},
 		}}
 }
 

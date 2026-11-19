@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"net/http"
+	"strings"
 	"testing"
 )
 
@@ -22,6 +23,20 @@ func (f fakeStudy) Explain(_ context.Context, _ Caller, req LineExplain) (Explan
 		return Explanation{}, Errorf(CodeNoAI, "no AI service")
 	}
 	return Explanation{Text: "about " + req.Lines[req.Index].Original}, nil
+}
+
+func (f fakeStudy) Ask(_ context.Context, _ Caller, req ExplainAsk) (ExplainAnswer, error) {
+	if f.noAI {
+		return ExplainAnswer{}, Errorf(CodeNoAI, "no AI service")
+	}
+	return ExplainAnswer{Text: req.Question + " of " + req.Lines[req.Index].Original}, nil
+}
+
+func (f fakeStudy) Recap(_ context.Context, _ Caller, req FilmRecap) (Recap, error) {
+	if f.noAI {
+		return Recap{}, Errorf(CodeNoAI, "no AI service")
+	}
+	return Recap{Items: []RecapItem{{StartMS: req.Lines[0].StartMS, Text: "began with " + req.Lines[0].Original}}}, nil
 }
 
 func studyCall(t *testing.T, d *Desk, op string, args any) Reply {
@@ -45,6 +60,57 @@ func TestLookupsAndExplanationsGoToTheStudyService(t *testing.T) {
 	if reply.Error != nil || json.Unmarshal(reply.Result, &x) != nil || x.Text != "about This one." {
 		t.Fatalf("explain: %+v", reply)
 	}
+	reply = studyCall(t, d, OpExplainAsk, ExplainAsk{LineExplain: LineExplain{Lines: []Cue{{Original: "This one."}}}, Question: "why"})
+	var a ExplainAnswer
+	if reply.Error != nil || json.Unmarshal(reply.Result, &a) != nil || a.Text != "why of This one." {
+		t.Fatalf("ask: %+v", reply)
+	}
+	reply = studyCall(t, d, OpRecap, FilmRecap{Lines: []Cue{{StartMS: 1000, Original: "Once."}}})
+	var r Recap
+	if reply.Error != nil || json.Unmarshal(reply.Result, &r) != nil || len(r.Items) != 1 || r.Items[0].StartMS != 1000 {
+		t.Fatalf("recap: %+v", reply)
+	}
+}
+
+// An explanation's sections travel with it, and a follow-up question carries the line as LineExplain does, flat in the same object.
+func TestExplanationSectionsAndFollowUpsTravelAsJSON(t *testing.T) {
+	data, err := json.Marshal(ExplainAsk{LineExplain: LineExplain{Film: "f1", Lines: []Cue{{Original: "a"}}}, Question: "why"})
+	if err != nil || !strings.Contains(string(data), `"film":"f1"`) || !strings.Contains(string(data), `"question":"why"`) {
+		t.Fatalf("a follow-up reads %s, %v", data, err)
+	}
+	var x Explanation
+	if err := json.Unmarshal([]byte(`{"text":"t","model":"m"}`), &x); err != nil || x.Sections != nil || x.Local {
+		t.Fatalf("an explanation of an older desktop reads %+v, %v", x, err)
+	}
+}
+
+// RecapLines keeps the latest lines watched that fit in a call, and every line of a short film.
+func TestRecapLinesKeepTheLatestThatFit(t *testing.T) {
+	short := []Cue{{StartMS: 0, Original: "a"}, {StartMS: 1000, Original: "b"}}
+	if got := RecapLines(short); len(got) != 2 {
+		t.Fatalf("a short film keeps %d lines", len(got))
+	}
+	long := make([]Cue, 2000)
+	for i := range long {
+		long[i] = Cue{StartMS: int64(i) * 1000, Original: strings.Repeat("word ", 10), Translation: strings.Repeat("词", 10)}
+	}
+	got := RecapLines(long)
+	if len(got) == 0 || len(got) == len(long) || got[len(got)-1].StartMS != long[len(long)-1].StartMS {
+		t.Fatalf("a long film keeps %d lines ending at %d", len(got), got[len(got)-1].StartMS)
+	}
+	data, _ := json.Marshal(Call{ID: NewCallID(), V: CallVersion, Op: OpRecap, Args: mustJSON(t, FilmRecap{Lines: got})})
+	if len(data) > MaxCall {
+		t.Fatalf("the recap's call takes %d bytes, more than %d", len(data), MaxCall)
+	}
+}
+
+func mustJSON(t *testing.T, v any) json.RawMessage {
+	t.Helper()
+	data, err := json.Marshal(v)
+	if err != nil {
+		t.Fatal(err)
+	}
+	return data
 }
 
 func TestLookupsAndExplanationsAreChecked(t *testing.T) {
@@ -58,6 +124,11 @@ func TestLookupsAndExplanationsAreChecked(t *testing.T) {
 		{OpExplain, LineExplain{Lines: []Cue{{Original: "a"}}, Index: 1}},
 		{OpExplain, LineExplain{Lines: []Cue{{Original: "a"}, {}}, Index: 1}},
 		{OpExplain, LineExplain{Lines: make([]Cue, MaxExplainLines+1), Index: 0}},
+		{OpExplainAsk, ExplainAsk{LineExplain: LineExplain{Lines: []Cue{{Original: "a"}}}, Question: " "}},
+		{OpExplainAsk, ExplainAsk{LineExplain: LineExplain{}, Question: "why"}},
+		{OpExplainAsk, ExplainAsk{LineExplain: LineExplain{Lines: []Cue{{Original: "a"}}}, Question: "why", Asked: make([]ExplainQA, MaxExplainAsked+1)}},
+		{OpRecap, FilmRecap{}},
+		{OpRecap, FilmRecap{Lines: []Cue{{StartMS: 1000}}}},
 	}
 	for _, b := range bad {
 		if reply := studyCall(t, d, b.op, b.args); reply.Error == nil || reply.Error.Code != CodeInvalid {
@@ -99,7 +170,7 @@ func (f callerStudy) Explain(ctx context.Context, caller Caller, req LineExplain
 
 // Lookups and explanations are reads: a read-only device has them answered, on the local network and over the relay alike, and the study service is told it is read-only, so it keeps nothing the device looked up; what changes something is still refused.
 func TestAReadOnlyDeviceLooksUpAndHasLinesExplained(t *testing.T) {
-	if Mutates(OpLookUp) || Mutates(OpExplain) {
+	if Mutates(OpLookUp) || Mutates(OpExplain) || Mutates(OpExplainAsk) || Mutates(OpRecap) {
 		t.Fatal("lookups and explanations are taken to change something")
 	}
 	var callers []Caller

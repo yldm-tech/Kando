@@ -9,7 +9,7 @@ import (
 // prefsFile keeps the phone's own preferences.
 const prefsFile = "prefs.json"
 
-// Prefs are what the user chose on this phone: whether they went through the introduction, the languages they watch (whisper's codes, as "en") and the language they want the subtitles translated into (a BCP 47 tag, as "zh-Hans"; "" before they chose one), which the paired computers translate into too (TargetPending are the paired computers, by ID, still to take it: each one paired while it was set, all of them once the user chose it, and the others once one of them changed it); the daily goal in minutes of films played (0 for the default), whether to be reminded to review, and how the player draws subtitles.
+// Prefs are what the user chose on this phone: whether they went through the introduction, the languages they watch (whisper's codes, as "en") and the language they want the subtitles translated into (a BCP 47 tag, as "zh-Hans"; "" before they chose one), which the paired computers translate into too (TargetPending are the paired computers, by ID, still to take it: each one paired while it was set, all of them once the user chose it, and the others once one of them changed it); the daily goal in minutes of films played (0 for the default), whether to be reminded to review, how the player draws subtitles, and what the Learn tab's export writes.
 type Prefs struct {
 	Onboarded     bool     `json:"onboarded"`
 	Spoken        []string `json:"spoken,omitempty"`
@@ -18,6 +18,17 @@ type Prefs struct {
 	Goal          int      `json:"goal,omitempty"`
 	Remind        bool     `json:"remind,omitempty"`
 	Subtitles     SubStyle `json:"subtitles,omitzero"`
+	Export        Export   `json:"export,omitzero"`
+	// Review is how the Learn tab reviews: "dictation", or "" for cards.
+	Review string `json:"review,omitempty"`
+}
+
+// Export is what the Learn tab's export writes, as its page last chose it: the format, one of study's Vocab formats ("" for Anki), and what it leaves out of what it writes by default: the line each word was looked up in, that line's translation, and the saved lines after the words.
+type Export struct {
+	Format        string `json:"format,omitempty"`
+	NoSentence    bool   `json:"no_sentence,omitempty"`
+	NoTranslation bool   `json:"no_translation,omitempty"`
+	NoLines       bool   `json:"no_lines,omitempty"`
 }
 
 // SubStyle is how the player draws subtitles: their size, from SubSmall to SubHuge, the color of the original line, from SubYellow on, and whether they show at the top of the picture rather than at its foot. The zero SubStyle is the player's own: medium, yellow, at the foot.

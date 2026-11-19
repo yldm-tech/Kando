@@ -2,6 +2,7 @@ package learning
 
 import (
 	"encoding/csv"
+	"encoding/json"
 	"os"
 	"path/filepath"
 	"slices"
@@ -181,41 +182,98 @@ func TestNextReminder(t *testing.T) {
 	}
 }
 
-func TestExportWritesATableOfEachKind(t *testing.T) {
-	dir := t.TempDir()
+// The export writes the words in the format and with what the options ask for, the saved lines after them only when asked for, as the computer's export writes a library's.
+func TestExportWritesTheWordsAsTheComputerDoes(t *testing.T) {
 	items := []Item{
 		{Kind: Word, Text: "river", Reading: "/ˈrɪvər/", Meaning: "河", Context: "A river, here.", ContextTranslation: "一条河。", Title: "Talk"},
 		{Kind: Line, Text: "Hello.\nAgain.", Meaning: "你好。", Note: "greeting", Title: "Talk"},
 	}
-	cols := Columns{Word: "Word", Reading: "Reading", Meaning: "Meaning", Line: "Line", Translation: "Translation", Film: "Film", Note: "Note"}
-	files, err := Export(dir, items, cols)
-	if err != nil || len(files) != 2 {
-		t.Fatalf("files %v, %v", files, err)
+	path, err := Export(filepath.Join(t.TempDir(), "export"), items, study.VocabOptions{Format: study.VocabCSV, Context: true, Lines: true})
+	if err != nil || filepath.Base(path) != study.VocabFile(study.VocabCSV) {
+		t.Fatalf("exported %q, %v", path, err)
 	}
-	read := func(name string) [][]string {
-		data, err := os.ReadFile(filepath.Join(dir, name))
-		if err != nil {
-			t.Fatal(err)
-		}
-		if !strings.HasPrefix(string(data), "\ufeff") {
-			t.Errorf("%s has no byte-order mark", name)
-		}
-		rows, err := csv.NewReader(strings.NewReader(strings.TrimPrefix(string(data), "\ufeff"))).ReadAll()
-		if err != nil {
-			t.Fatal(err)
-		}
-		return rows
+	data, err := os.ReadFile(path)
+	if err != nil || !strings.HasPrefix(string(data), "\ufeff") {
+		t.Fatalf("read %q, %v; want a byte-order mark", data, err)
 	}
-	words := read(WordsFile)
-	if len(words) != 2 || words[0][0] != "Word" || words[1][0] != "river" || words[1][3] != "A river, here." || words[1][5] != "Talk" {
-		t.Errorf("words %q", words)
+	rows, err := csv.NewReader(strings.NewReader(strings.TrimPrefix(string(data), "\ufeff"))).ReadAll()
+	if err != nil {
+		t.Fatal(err)
 	}
-	lines := read(LinesFile)
-	if len(lines) != 2 || lines[1][0] != "Hello.\nAgain." || lines[1][2] != "greeting" {
-		t.Errorf("lines %q", lines)
+	if len(rows) != 3 || strings.Join(rows[0], "|") != "Word|Reading|Meaning|Sentence|Film" || strings.Join(rows[1], "|") != "river|/ˈrɪvər/|河|A river, here.|Talk" || rows[2][0] != "Hello.\nAgain." || rows[2][2] != "你好。\ngreeting" {
+		t.Errorf("rows %q", rows)
 	}
-	files, err = Export(t.TempDir(), items[:1], cols)
-	if err != nil || len(files) != 1 || filepath.Base(files[0]) != WordsFile {
-		t.Errorf("a vocabulary alone wrote %v, %v", files, err)
+
+	path, err = Export(t.TempDir(), items, study.VocabOptions{Format: study.VocabAnki})
+	if err != nil {
+		t.Fatal(err)
+	}
+	data, err = os.ReadFile(path)
+	if want := "#separator:tab\n#html:false\n#notetype:Basic\n\"river\"\t\"/ˈrɪvər/\n河\nTalk\"\n"; err != nil || string(data) != want {
+		t.Errorf("Anki's notes without the lines read %q, %v; want %q", data, err, want)
+	}
+}
+
+// A dictation marks each word of the line the learner typed, whatever its case, punctuation and order, each typed word standing for one of the line's; a line in Japanese is checked a character at a time.
+func TestDictateMarksTheWordsHeard(t *testing.T) {
+	words, hit, total := Dictate("Fine, thanks. Fine!", "fine THANKS")
+	if hit != 2 || total != 3 || !words[0].Typed || !words[1].Typed || words[2].Typed || words[0].Text != "Fine," {
+		t.Errorf("Dictate = %+v, %d/%d", words, hit, total)
+	}
+	words, hit, total = Dictate("It’s a well-known fact — 42.", "its a well-known fact 42")
+	if hit != 4 || total != 5 || words[0].Typed || words[4].Counted {
+		t.Errorf("Dictate = %+v, %d/%d; want the dash left out and it’s not its", words, hit, total)
+	}
+	words, hit, total = Dictate("おはようございます。", "おはよう")
+	if hit != 4 || total != 9 || len(words) != 10 || words[9].Counted {
+		t.Errorf("Dictate = %+v, %d/%d", words, hit, total)
+	}
+	if _, hit, total := Dictate("Hello.", ""); hit != 0 || total != 1 {
+		t.Errorf("nothing typed: %d/%d", hit, total)
+	}
+}
+
+// A line's clip is its own span, a word's the line it was looked up in, which the film's subtitles end, both moved by the film's delay and padded; a word with no line, or a film not on the phone, has none.
+func TestClipOf(t *testing.T) {
+	cues := []sync.Cue{{StartMS: 1000, EndMS: 2000, Original: "Good morning."}, {StartMS: 3000, EndMS: 4500, Original: "How are you?"}}
+	line := Item{Kind: Line, Text: "Fine.", Meaning: "很好。", Start: 5 * time.Second, End: 6500 * time.Millisecond}
+	c, ok := ClipOf(line, "/v.mp4", time.Second, cues)
+	if !ok || c.From != 5750*time.Millisecond || c.To != 7750*time.Millisecond || c.Line != "Fine." || c.Translation != "很好。" || c.Video != "/v.mp4" {
+		t.Errorf("the line's clip %+v, %v", c, ok)
+	}
+	word := Item{Kind: Word, Text: "how", Meaning: "怎样", Context: "How are you?", ContextTranslation: "你好吗？", Start: 3 * time.Second}
+	c, ok = ClipOf(word, "/v.mp4", 0, cues)
+	if !ok || c.From != 2750*time.Millisecond || c.To != 4750*time.Millisecond || c.Line != "How are you?" || c.Translation != "你好吗？" {
+		t.Errorf("the word's clip %+v, %v", c, ok)
+	}
+	word.Start = 9 * time.Second
+	if c, ok = ClipOf(word, "/v.mp4", 0, cues); !ok || c.To != 13250*time.Millisecond {
+		t.Errorf("a line not among the subtitles plays %+v, %v; want four seconds", c, ok)
+	}
+	if _, ok := ClipOf(Item{Kind: Word, Text: "how"}, "/v.mp4", 0, cues); ok {
+		t.Error("a word with no line has a clip")
+	}
+	if _, ok := ClipOf(line, "", 0, cues); ok {
+		t.Error("a line with no video has a clip")
+	}
+}
+
+// The time watched of a library's other devices adds to the phone's own, the phone's own records there left out; the phone's change adds to what the library has of its day.
+func TestWatchedAddsTheOtherDevices(t *testing.T) {
+	day := study.Day(t0)
+	rec := func(device string, ms int) sync.Record {
+		return sync.Record{Kind: sync.KindWatched, ID: sync.WatchedID(device, day), Fields: map[string]sync.Field{sync.FieldWatchedMS: field(ms, t0, device)}}
+	}
+	l := phonestudy.Library{Records: []sync.Record{rec("mac", 600_000), rec("phone", 120_000), rec("pad", 60_000)}}
+	w := Watched{}
+	w.Add(t0, 3*time.Minute)
+	w.AddOthers(l, func(device string) bool { return device == "phone" })
+	if got := w.Day(t0); got != 14*time.Minute {
+		t.Errorf("the day's time is %v, want the phone's 3 minutes with the mac's 10 and the pad's 1", got)
+	}
+	change := WatchedChange(l, "phone", t0, 30*time.Second)
+	var ms float64
+	if err := json.Unmarshal(change.Fields[sync.FieldWatchedMS].Value, &ms); err != nil || ms != 150_000 || change.ID != sync.WatchedID("phone", day) || change.Fields[sync.FieldWatchedMS].Device != "phone" {
+		t.Errorf("the change %+v reads %v, %v", change, ms, err)
 	}
 }

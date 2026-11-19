@@ -2,6 +2,7 @@
 package learn
 
 import (
+	"strconv"
 	"time"
 
 	"kando/apps/mobile/learning"
@@ -17,8 +18,8 @@ import (
 
 // Actions are where the tab leads.
 type Actions struct {
-	// Review starts a review of the items due; Vocabulary and Lines open their lists; Pair opens pairing.
-	Review, Vocabulary, Lines, Pair func()
+	// Review starts a review of the items due; Vocabulary and Lines open their lists; Export opens the export; Pair opens pairing.
+	Review, Vocabulary, Lines, Export, Pair func()
 }
 
 // Page is the tab's root page.
@@ -43,9 +44,9 @@ func Page(cx *core.Scope, s *session.Session, act Actions) base.NavPage {
 			status(cx, s),
 			goal(cx, s),
 			core.Show{When: empty, Then: func(cx *core.Scope) core.Node { return nothingSaved(cx, s, act.Pair) },
-				Else: func(cx *core.Scope) core.Node { return review(cx, due.Get, act.Review) }},
-			week(cx, s),
-			core.Show{When: func() bool { return !empty() }, Then: func(cx *core.Scope) core.Node { return lists(cx, s, items.Get, due.Get, act) }},
+				Else: func(cx *core.Scope) core.Node { return review(cx, s, due.Get, act.Review) }},
+			week(cx, s, items.Get),
+			core.Show{When: func() bool { return !empty() }, Then: func(cx *core.Scope) core.Node { return lists(cx, items.Get, act) }},
 		}}}}
 	return look.TabRoot(cx, base.NavPage{TestID: "learn-page", Children: []core.Node{body}}, title, nil, nil)
 }
@@ -95,8 +96,8 @@ func goal(cx *core.Scope, s *session.Session) core.Node {
 	)
 }
 
-// review is the card that starts the review of the items due, or says none is.
-func review(cx *core.Scope, due func() []learning.Item, start func()) core.Node {
+// review is the card that starts the review of the items due, or says none is, with the way the review goes: cards, or the lines dictated.
+func review(cx *core.Scope, s *session.Session, due func() []learning.Item, start func()) core.Node {
 	colors := ui.ColorsOf(cx)
 	n := func() int { return len(due()) }
 	return card(cx, "learn-review", 12,
@@ -117,6 +118,15 @@ func review(cx *core.Scope, due func() []learning.Item, start func()) core.Node 
 				}, Style: look.Subhead, StyleFunc: ui.Colored(colors.Muted)},
 			}},
 		}},
+		// ui.Tabs' labels are strings, so the modes are built again as the language changes.
+		core.Dynamic(func(cx *core.Scope) core.Node {
+			return ui.Tabs[string]{TestID: "learn-review-mode", Label: locales.LearnReviewMode(cx), Equal: true,
+				Options: []ui.Option[string]{
+					{Value: session.ReviewCards, Label: locales.LearnReviewCards(cx), TestID: "learn-review-cards"},
+					{Value: session.ReviewDictation, Label: locales.LearnReviewDictation(cx), TestID: "learn-review-dictation"},
+				},
+				Value: s.ReviewMode, OnChange: s.SetReviewMode}
+		}),
 		core.Show{When: func() bool { return n() > 0 }, Then: func(cx *core.Scope) core.Node {
 			return look.Button{TestID: "learn-review-start", Kind: look.Primary, Text: func() string { return locales.LearnReviewStart(cx) }, OnPress: start}
 		}},
@@ -143,8 +153,8 @@ func nothingSaved(cx *core.Scope, s *session.Session, pair func()) core.Node {
 	)
 }
 
-// week is the last seven days' minutes watched as bars, today's in the accent.
-func week(cx *core.Scope, s *session.Session) core.Node {
+// week is the last seven days on every device: the streak, the minutes watched and the words put in the vocabulary, and the minutes of each day as bars, today's in the accent.
+func week(cx *core.Scope, s *session.Session, items func() []learning.Item) core.Node {
 	colors := ui.ColorsOf(cx)
 	const height = 56
 	days := func() [7]time.Duration { return s.Watched().Week(s.Now()) }
@@ -178,10 +188,31 @@ func week(cx *core.Scope, s *session.Session) core.Node {
 			core.Text{ContentFunc: func() string { return dayName(cx, learning.WeekDays(s.Now())[i]) }, MaxLines: 1, Style: look.Caption, StyleFunc: ui.Colored(colors.Muted)},
 		}})
 	}
+	newWords := func() int {
+		since := learning.WeekDays(s.Now())[0].Add(-12 * time.Hour)
+		n := 0
+		for _, it := range items() {
+			if it.Kind == learning.Word && !it.SavedAt.Before(since) {
+				n++
+			}
+		}
+		return n
+	}
+	kpi := func(id string, value, label func() string) core.Node {
+		return core.View{TestID: id, Style: core.Style{FlexGrow: 1, FlexBasis: core.Pt(0), Gap: 2}, Children: []core.Node{
+			ui.Tabular(core.Text{ContentFunc: value, MaxLines: 1, Style: look.Heading, StyleFunc: ui.Colored(colors.Text)}),
+			core.Text{ContentFunc: label, MaxLines: 1, Style: look.Caption, StyleFunc: ui.Colored(colors.Muted)},
+		}}
+	}
 	return card(cx, "learn-week", 12,
 		core.View{Style: core.Style{Direction: core.Row, AlignItems: core.AlignCenter, JustifyContent: core.JustifySpaceBetween}, Children: []core.Node{
 			core.Text{ContentFunc: func() string { return locales.LearnWeek(cx) }, Role: core.RoleHeader, Style: look.Title, StyleFunc: ui.Colored(colors.Text)},
-			ui.Tabular(core.Text{TestID: "learn-week-total", ContentFunc: func() string { return locales.LearnMinutes(cx, total()) }, Style: look.Subhead, StyleFunc: ui.Colored(colors.Muted)}),
+			core.Text{ContentFunc: func() string { return locales.LearnWeekAll(cx) }, Style: look.Caption, StyleFunc: ui.Colored(colors.Muted)},
+		}},
+		core.View{Style: core.Style{Direction: core.Row, Gap: 8}, Children: []core.Node{
+			kpi("learn-week-streak", func() string { return locales.LearnDays(cx, s.Watched().Streak(s.Now())) }, func() string { return locales.LearnStreakLabel(cx) }),
+			kpi("learn-week-total", func() string { return locales.LearnMinutes(cx, total()) }, func() string { return locales.LearnStudyTime(cx) }),
+			kpi("learn-week-words", func() string { return strconv.Itoa(newWords()) }, func() string { return locales.LearnNewWords(cx) }),
 		}},
 		core.View{Role: core.RoleImage, LabelFunc: func() string { return locales.LearnWeekBars(cx, total()) }, Style: core.Style{Direction: core.Row, Gap: 4}, Children: bars},
 	)
@@ -207,7 +238,7 @@ func dayName(cx *core.Scope, day time.Time) string {
 }
 
 // lists are the rows of the vocabulary, the saved lines and the export.
-func lists(cx *core.Scope, s *session.Session, items, due func() []learning.Item, act Actions) core.Node {
+func lists(cx *core.Scope, items func() []learning.Item, act Actions) core.Node {
 	count := func(k learning.Kind) func() int {
 		return func() int {
 			n := 0
@@ -220,23 +251,6 @@ func lists(cx *core.Scope, s *session.Session, items, due func() []learning.Item
 		}
 	}
 	words, lines := count(learning.Word), count(learning.Line)
-	anchor := &core.Ref{}
-	exporting := core.NewSignal(cx, false)
-	export := func() {
-		exporting.Set(true)
-		s.ExportLearning(Columns(cx), func(files []string, err error) {
-			if err != nil {
-				exporting.Set(false)
-				cx.ShowAlert(core.AlertConfig{Title: locales.LearnExportFailed(cx), Actions: []core.AlertAction{{Label: locales.CommonOK(cx), Role: core.AlertCancel}}}, nil)
-				return
-			}
-			shared := make([]core.SharedFile, len(files))
-			for i, f := range files {
-				shared[i] = core.SharedFile{Path: f}
-			}
-			cx.Share(core.ShareOptions{Files: shared, Anchor: anchor}, func(bool, error) { exporting.Set(false) })
-		})
-	}
 	return look.Group{TestID: "learn-lists", Children: []core.Node{
 		look.Row{TestID: "learn-vocabulary", Inset: 56, Chevron: true,
 			Leading: look.IconTile(cx, lucide.BookOpen, look.ToneAccent),
@@ -248,22 +262,9 @@ func lists(cx *core.Scope, s *session.Session, items, due func() []learning.Item
 			Title:   func() string { return locales.LearnSavedLines(cx) },
 			Value:   func() string { return locales.LearnLineCount(cx, lines()) },
 			OnPress: act.Lines},
-		core.View{Ref: anchor, Children: []core.Node{
-			look.Row{TestID: "learn-export", Index: func() int { return 2 }, Inset: 56, TitleTone: look.ToneAccent,
-				Leading:  look.IconTile(cx, lucide.Share, look.ToneAccent),
-				Title:    func() string { return locales.LearnExport(cx) },
-				Trailing: core.Show{When: exporting.Get, Then: func(*core.Scope) core.Node { return ui.Spinner{Size: 16} }},
-				OnPress: func() {
-					if !exporting.GetUntracked() {
-						export()
-					}
-				}},
-		}},
+		look.Row{TestID: "learn-export", Index: func() int { return 2 }, Inset: 56, Chevron: true,
+			Leading: look.IconTile(cx, lucide.Share, look.ToneAccent),
+			Title:   func() string { return locales.LearnExport(cx) },
+			OnPress: act.Export},
 	}}
-}
-
-// Columns are the headings of the export's tables, in the interface's language.
-func Columns(cx *core.Scope) learning.Columns {
-	return learning.Columns{Word: locales.ExportWord(cx), Reading: locales.ExportReading(cx), Meaning: locales.ExportMeaning(cx), Line: locales.ExportLine(cx),
-		Translation: locales.ExportTranslation(cx), Film: locales.ExportFilm(cx), Note: locales.ExportNote(cx)}
 }

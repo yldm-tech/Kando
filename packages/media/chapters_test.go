@@ -187,21 +187,31 @@ func TestDownloadAgainKeepsTheChaptersChosen(t *testing.T) {
 	if err := SaveChapters(video, kept); err != nil {
 		t.Fatal(err)
 	}
-	keepChapters(video, []core.Chapter{chapter(0, "Intro", ""), chapter(24, "Where Rivers Begin", "")})
+	keepChapters(video, []core.Chapter{chapter(0, "Intro", ""), chapter(24, "Where Rivers Begin", "")}, core.ChaptersEven)
 	if got, _ := ReadChapters(video); !reflect.DeepEqual(got, kept) {
 		t.Fatalf("same chapters %+v", got)
 	}
-	keepChapters(video, []core.Chapter{chapter(0, "Only one", "")})
+	keepChapters(video, []core.Chapter{chapter(0, "Only one", "")}, "")
 	if got, _ := ReadChapters(video); !reflect.DeepEqual(got, kept) {
 		t.Fatalf("one chapter replaced them: %+v", got)
 	}
-	keepChapters(video, []core.Chapter{chapter(0, "Intro", ""), chapter(30, "Sources", "")})
+	keepChapters(video, []core.Chapter{chapter(0, "Intro", ""), chapter(30, "Sources", "")}, "")
 	want := FilmChapters{Chapters: []core.Chapter{chapter(0, "Intro", ""), chapter(30, "Sources", "")}, Use: core.ChaptersPlatform}
 	if got, _ := ReadChapters(video); !reflect.DeepEqual(got, want) {
 		t.Fatalf("changed chapters %+v", got)
 	}
 	if !slices.Contains(Companions(video), ChaptersPath(video)) {
 		t.Fatal("the chapters do not move with the film")
+	}
+}
+
+// The first download of a film keeps the chapter use its job carries, as the Add sheet chose it, with the chapters it finds.
+func TestDownloadKeepsTheJobsChapterUse(t *testing.T) {
+	video := filepath.Join(t.TempDir(), "video.mp4")
+	keepChapters(video, []core.Chapter{chapter(0, "Intro", ""), chapter(24, "Where Rivers Begin", "")}, core.ChaptersEven)
+	want := FilmChapters{Chapters: []core.Chapter{chapter(0, "Intro", ""), chapter(24, "Where Rivers Begin", "")}, Use: core.ChaptersEven}
+	if got, _ := ReadChapters(video); !reflect.DeepEqual(got, want) {
+		t.Fatalf("chapters %+v", got)
 	}
 }
 

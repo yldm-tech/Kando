@@ -21,7 +21,7 @@ const LedgerFile = ".kando-state.json"
 func LedgerPath(dir string) string { return filepath.Join(dir, LedgerFile) }
 
 // StateKinds are the kinds of record the desktop syncs, which Hello lists.
-var StateKinds = []string{psync.KindPosition, psync.KindLine, psync.KindCorrection, psync.KindWord}
+var StateKinds = []string{psync.KindPosition, psync.KindLine, psync.KindCorrection, psync.KindWord, psync.KindWatched}
 
 // stampOf is a study record's stamp as the protocol carries it.
 func stampOf(s study.Stamp) psync.Stamp { return psync.Stamp{At: s.At, Device: s.Device} }
@@ -200,11 +200,11 @@ func SetCorrection(edits []core.Correction, c core.Correction) []core.Correction
 	return core.SetCorrection(edits, at, c)
 }
 
-// StateAccepts reports why records a device put cannot be kept, "" when they all can: a record of a kind the desktop does not sync, a field whose value is not of its type (FieldValid), a correction whose ID names no line, a new word without its word, or a record of a film the desktop does not serve (known), unless the ledger has it already (have), as a line whose film has left the library; a word may be of any film.
+// StateAccepts reports why records a device put cannot be kept, "" when they all can: a record of a kind the desktop does not sync, a field whose value is not of its type (FieldValid), a correction whose ID names no line, a new word without its word, a device's time watched that is not its own (watchedAccepts), or a record of a film the desktop does not serve (known), unless the ledger has it already (have), as a line whose film has left the library; a word may be of any film.
 func StateAccepts(records []psync.Record, known func(film string) bool, have func(kind, id string) bool) string {
 	for _, r := range records {
 		switch r.Kind {
-		case psync.KindPosition, psync.KindLine, psync.KindCorrection, psync.KindWord:
+		case psync.KindPosition, psync.KindLine, psync.KindCorrection, psync.KindWord, psync.KindWatched:
 		default:
 			return "this desktop does not sync records of kind " + r.Kind
 		}
@@ -221,6 +221,12 @@ func StateAccepts(records []psync.Record, known func(film string) bool, have fun
 		}
 		if r.Kind == psync.KindPosition && r.ID != r.Film {
 			return "position " + r.ID + " is not of film " + r.Film
+		}
+		if r.Kind == psync.KindWatched {
+			if why := watchedAccepts(r); why != "" {
+				return why
+			}
+			continue
 		}
 		if have(r.Kind, r.ID) || r.Removed != nil {
 			continue
@@ -284,6 +290,8 @@ func FieldValid(kind, name string, v json.RawMessage) bool {
 		}
 	case psync.KindWord:
 		return wordFieldValid(name, v, x)
+	case psync.KindWatched:
+		return watchedFieldValid(name, x)
 	}
 	return true
 }

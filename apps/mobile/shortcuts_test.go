@@ -60,6 +60,23 @@ func TestThePlayerTakesItsKeys(t *testing.T) {
 	}
 }
 
+// Minimized, the player leaves the keys alone: the film plays on in the mini player, and Space and the arrows do nothing to it.
+func TestTheMiniPlayerTakesNoKeys(t *testing.T) {
+	p, _ := openPlayer(t)
+	p.at(3200 * time.Millisecond)
+	p.app.Back()
+	p.app.WaitFor("id:player-mini", wait)
+	seeks := len(p.seeks())
+	p.app.Key("space")
+	p.app.Key("right")
+	if p.app.Find("id:player-video").Video.Paused {
+		t.Fatal("Space held the film in the mini player")
+	}
+	if s := p.seeks(); len(s) != seeks {
+		t.Fatalf("→ moved the film in the mini player: %v", s[seeks:])
+	}
+}
+
 // S saves the line the card shows, and E has the computer explain it.
 func TestThePlayerSavesAndExplainsFromTheKeyboard(t *testing.T) {
 	d := newDesktop(t)

@@ -30,6 +30,14 @@ func TestLookupsAndExplanationsOverV2(t *testing.T) {
 	if got := d.Lookups(); len(got) != 1 || got[0].Line != "Every river begins." || got[0].Film != "f1" {
 		t.Fatalf("the desktop was asked %+v", got)
 	}
+	a, err := c.Ask(ctx, sync.ExplainAsk{LineExplain: sync.LineExplain{Library: "lib", Film: "f1", Lines: []sync.Cue{{Original: "Every river begins."}}}, Question: "Why river?"})
+	if err != nil || a.Text != "Answered: Why river?" || len(d.Asks()) != 1 || d.Asks()[0].Question != "Why river?" {
+		t.Fatalf("ask: %+v, %v", a, err)
+	}
+	r, err := c.Recap(ctx, sync.FilmRecap{Library: "lib", Film: "f1", Lines: []sync.Cue{{StartMS: 1000, Original: "One."}, {StartMS: 4000, Original: "Two."}}})
+	if err != nil || len(r.Items) != 2 || r.Items[1].StartMS != 4000 || len(d.Recaps()) != 1 {
+		t.Fatalf("recap: %+v, %v", r, err)
+	}
 	d.SetNoAI(true)
 	var e2 *sync.Error
 	if _, err := c.LookUp(ctx, sync.WordLookup{Word: "river"}); !errors.As(err, &e2) || e2.Code != sync.CodeNoAI {

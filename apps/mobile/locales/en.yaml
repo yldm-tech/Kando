@@ -1,3 +1,8 @@
+addAsComputer:
+  message: "As on {name}"
+  description: "Add sheet: the choice that leaves the quality, or where the original subtitles come from, to the computer's own setting."
+  placeholders:
+    name: { type: "String", example: "Studio" }
 addComputer:
   message: "Send To"
   description: "Add sheet: label over the computers to send the link to, when several are paired."
@@ -25,12 +30,78 @@ addNoteOffline:
   description: "Add sheet: under the form while the computer cannot be reached."
   placeholders:
     name: { type: "String", example: "Studio" }
+addNoteOfflineRelay:
+  message: "{name} is offline. The link waits in your storage and starts once it's back."
+  description: "Add sheet: under the form while the computer is reached through the user's storage away from its network, but has not written there lately."
+  placeholders:
+    name: { type: "String", example: "Studio" }
+addNoteRelay:
+  message: "Away from its network, the link goes through your storage. {name} takes it within a minute or two."
+  description: "Add sheet: under the form while the computer is reached through the user's storage away from its network."
+  placeholders:
+    name: { type: "String", example: "Studio" }
 addPaste:
   message: "Paste"
   description: "Add sheet: button that puts the clipboard's link in the field."
+addQuality:
+  message: "Quality"
+  description: "Add sheet: label over the choices of the picture the computer downloads."
+addQuality720:
+  message: "720p"
+  description: "Add sheet: the computer downloads the best picture no taller than 720 lines."
+addQualityBest:
+  message: "Best"
+  description: "Add sheet: the computer downloads the best picture the site has."
 addSend:
   message: "Send"
   description: "Add sheet: button that sends the link to the computer."
+addSubscribe:
+  message: "Subscribe"
+  description: "Add sheet: the button that subscribes the computer to a channel or playlist link, in place of Send."
+addSubscribeNote:
+  message: "{name} follows this list and adds its new videos as they come."
+  description: "Add sheet: under the form, for a channel or playlist link, what the computer does with it."
+  placeholders:
+    name: { type: "String", example: "Studio" }
+addSubscribeOffline:
+  message: "{name} is offline. Subscribe once it's back."
+  description: "Add sheet: for a channel or playlist link while the computer cannot be reached; subscribing needs it to answer."
+  placeholders:
+    name: { type: "String", example: "Studio" }
+addSubscribeReadOnly:
+  message: "{name} lets this phone look but not subscribe."
+  description: "Add sheet: for a channel or playlist link, when the computer made this phone read-only."
+  placeholders:
+    name: { type: "String", example: "Studio" }
+addSubscribed:
+  message: "{name} subscribed to “{title}”"
+  description: "Toast: the computer subscribed to the channel or playlist the phone sent."
+  placeholders:
+    title: { type: "String", example: "Earth Science" }
+    name: { type: "String", example: "Studio" }
+addSubscribedExisting:
+  message: "{name} already follows “{title}”"
+  description: "Toast: the computer was subscribed to the list the phone sent already."
+  placeholders:
+    title: { type: "String", example: "Earth Science" }
+    name: { type: "String", example: "Studio" }
+addSubtitles:
+  message: "Original Subtitles"
+  description: "Add sheet: label over the choices of where the video's original lines come from."
+addSubtitlesPlatform:
+  message: "The Uploader's Subtitles"
+  description: "Add sheet: the original lines are the subtitles the uploader put on the site, where they match the speech."
+addSubtitlesPlatformNote:
+  message: "Most accurate when someone wrote them. The lines that match the speech are translated as they are."
+  description: "Add sheet: under The Uploader's Subtitles."
+addSubtitlesRecognize:
+  message: "Recognized on the Computer"
+  description: "Add sheet: the original lines are what the computer's speech recognition hears."
+addSubtitlesRecognizeNote:
+  message: "Whisper on {name} transcribes the speech."
+  description: "Add sheet: under Recognized on the Computer."
+  placeholders:
+    name: { type: "String", example: "Studio" }
 addTitle:
   message: "Add Video"
   description: "Title of the Add sheet, and the spoken name of the + button that opens it."
@@ -46,6 +117,41 @@ commonOK:
 commonRetry:
   message: "Try Again"
   description: "Row or button that asks the computer again after it could not be reached."
+computerContext:
+  message: "Use Context When Translating"
+  description: "Switch on a computer's page: whether its translation sends the lines before each batch to the AI service."
+computerContextDetail:
+  message: "Lets the AI see the lines before each batch, for smoother translations."
+  description: "Detail under the Use Context When Translating switch."
+computerContextFailed:
+  message: "Couldn't Change the Setting on {computer}"
+  description: "Title of the alert when the computer could not be reached to change its context switch."
+  placeholders:
+    computer: { type: "String", example: "Studio" }
+computerContextFailedMessage:
+  message: "Make sure the computer is on and Phone Sync is on, then try again."
+  description: "Message of the alert when the computer could not be reached to change a setting."
+computerReadOnly:
+  message: "This device can only view this computer's settings."
+  description: "Note on a computer's page when the computer made this device read-only."
+computerService:
+  message: "Translation Service"
+  description: "Row on a computer's page naming the AI service the computer translates and explains with."
+computerServiceNone:
+  message: "Not Set Up"
+  description: "Value of the Translation Service row when the computer has no AI service set up."
+computerServiceNote:
+  message: "The computer keeps its AI service and key. Change them in Kando on the computer."
+  description: "Note under a computer's translation settings: the AI service can only be changed on the computer."
+computerTooOld:
+  message: "Update Kando on this computer to see and change its translation settings here."
+  description: "Note on a computer's page when the computer's Kando is too old to share its AI service and context switch."
+computerTranslation:
+  message: "Translation"
+  description: "Heading of a computer's page in Settings over its translation settings."
+computerUnknown:
+  message: "Shown once this device reaches the computer."
+  description: "Note on a computer's page before a sync reached it, so its settings are not known yet."
 computersCertificate:
   message: "{name} answered with another certificate. Pair with it again."
   description: "In a computer's section: it answered with another certificate."
@@ -80,27 +186,81 @@ computersUnreachable:
   description: "In a computer's section and on a library's page: it does not answer."
   placeholders:
     name: { type: "String", example: "Studio" }
-exportFilm:
-  message: "Film"
-  description: "Heading of the exported tables' column of the film a word or line is from."
-exportLine:
-  message: "Line"
-  description: "Heading of the exported tables' column of the line: the line a word was looked up in, or the saved line."
-exportMeaning:
-  message: "Meaning"
-  description: "Heading of the exported vocabulary's column of a word's meaning."
-exportNote:
-  message: "Note"
-  description: "Heading of the exported saved lines' column of the learner's note."
-exportReading:
-  message: "Reading"
-  description: "Heading of the exported vocabulary's column of how a word is said."
-exportTranslation:
-  message: "Translation"
-  description: "Heading of the exported tables' column of a line's translation."
-exportWord:
-  message: "Word"
-  description: "Heading of the exported vocabulary's column of the word."
+dictationCantPlay:
+  message: "This line can't be played on this device."
+  description: "Under the dictation card's heading when the film's sound could not be played."
+dictationCheck:
+  message: "Check"
+  description: "Button of the review that checks what the learner typed in a dictation."
+dictationHint:
+  message: "Listen as many times as you like, then type what you hear."
+  description: "Under the dictation card's heading."
+dictationLabel:
+  message: "What You Heard"
+  description: "Accessibility label of the dictation card's text box."
+dictationNoFilm:
+  message: "Save this film to this device to hear its lines."
+  description: "Under a review card in dictation mode when the film is not kept on the phone, so the line cannot be played."
+dictationPlaceholder:
+  message: "Type what you heard"
+  description: "Placeholder of the dictation card's text box."
+dictationPlay:
+  message: "Play the Line"
+  description: "Accessibility label of the dictation card's play button."
+dictationScore:
+  message: "{hit} of {total, plural, one {# word} other {# words}} heard right"
+  description: "Dictation card after the check: how many of the line's words the learner typed."
+  placeholders:
+    hit: { type: "int", example: 3 }
+    total: { type: "int", example: 5 }
+dictationStop:
+  message: "Stop"
+  description: "Accessibility label of the dictation card's play button while the line plays."
+dictationTitle:
+  message: "Dictate This Line"
+  description: "Heading of the dictation card in the review."
+exportAnki:
+  message: "Anki"
+  description: "Export page: the format of notes Anki's File › Import reads."
+exportAnkiDetail:
+  message: "Notes for Anki's File › Import: the word on the front, the rest on the back"
+  description: "Export page: what the Anki format writes."
+exportCSV:
+  message: "CSV Spreadsheet"
+  description: "Export page: a CSV table, which spreadsheets open."
+exportCSVDetail:
+  message: "One word a row; opens in spreadsheet apps and Notion"
+  description: "Export page: what the CSV format writes."
+exportCount:
+  message: "{words, plural, one {# word} other {# words}} · {lines, plural, one {# saved line} other {# saved lines}} · from every computer"
+  description: "Export page: what the export writes, counted."
+  placeholders:
+    words: { type: "int", example: 12 }
+    lines: { type: "int", example: 3 }
+exportFormat:
+  message: "Format"
+  description: "Export page: heading of the formats."
+exportInclude:
+  message: "Include"
+  description: "Export page: heading of the switches of what the export writes."
+exportTSV:
+  message: "Plain Text (Tab-Separated)"
+  description: "Export page: plain text with a tab between the fields."
+exportTSVDetail:
+  message: "Imports into Quizlet and most flashcard apps"
+  description: "Export page: what the plain text format is for."
+exportTitle:
+  message: "Export Vocabulary"
+  description: "Title of the page that exports the vocabulary, and the saved lines when asked, through the share sheet."
+exportWithLines:
+  message: "Saved Lines, After the Words"
+  description: "Export page: switch that adds the saved lines after the words."
+exportWithSentence:
+  message: "The Sentence Each Word Is From"
+  description: "Export page: switch that writes with each word the line it was looked up in."
+exportWithTranslation:
+  message: "The Sentence's Translation"
+  description: "Export page: switch that writes with each word the translation of the line it was looked up in."
 filmCancel:
   message: "Cancel Download"
   description: "Button on a film's page that stops its download and deletes what was downloaded."
@@ -259,6 +419,120 @@ filmsSourceWeb:
 filmsSourceYoutube:
   message: "YouTube"
   description: "Library chip and a film's source: films from YouTube."
+filmsStatDays:
+  message: "{count, plural, one {# day} other {# days}}"
+  description: "Library stats tile: the streak, days in a row with study."
+  placeholders:
+    count: { type: "int", example: "5" }
+filmsStatStreak:
+  message: "Streak"
+  description: "Library stats tile: label under the days in a row."
+filmsStatToday:
+  message: "Watched today"
+  description: "Library stats tile: label under the minutes of films played today."
+filmsStatVocabulary:
+  message: "Vocabulary"
+  description: "Library stats tile: label under the count of words saved to the vocabulary."
+filmsStatWords:
+  message: "{count, plural, one {# word} other {# words}}"
+  description: "Library stats tile: how many words the vocabulary holds."
+  placeholders:
+    count: { type: "int", example: "38" }
+filmsSubscriptionAuto:
+  message: "Add New Videos Automatically"
+  description: "Subscription sheet: switch that has the computer queue the new videos by themselves rather than wait for the user."
+filmsSubscriptionAutoDetail:
+  message: "At most {count} each check; the rest wait here."
+  description: "Subscription sheet: under the switch, how many new videos a check queues at most."
+  placeholders:
+    count: { type: "int", example: "3" }
+filmsSubscriptionChannel:
+  message: "Channel"
+  description: "Subscription sheet: what a subscription follows, a channel."
+filmsSubscriptionCollection:
+  message: "Collection"
+  description: "Subscription sheet: what a subscription follows, a Bilibili collection."
+filmsSubscriptionDone:
+  message: "Done"
+  description: "Subscription sheet: button that closes it."
+filmsSubscriptionFailed:
+  message: "The last check failed: {error}"
+  description: "Subscription sheet: why the computer's last check of the list failed, in the computer's words."
+  placeholders:
+    error: { type: "String", example: "yt-dlp could not reach the site" }
+filmsSubscriptionGone:
+  message: "{site} no longer has this list. {computer} still looks for it once a day."
+  description: "Subscription sheet: the site deleted the list."
+  placeholders:
+    site: { type: "String", example: "YouTube" }
+    computer: { type: "String", example: "Studio" }
+filmsSubscriptionGoneLabel:
+  message: "{name}, deleted by its site"
+  description: "Library subscriptions row, for assistive technology: a subscription whose list is gone."
+  placeholders:
+    name: { type: "String", example: "Earth Science" }
+filmsSubscriptionLabel:
+  message: "{name}, {count, plural, =0 {no new videos} one {# new video} other {# new videos}}"
+  description: "Library subscriptions row, for assistive technology: a subscription and how many new videos wait on it."
+  placeholders:
+    name: { type: "String", example: "Earth Science" }
+    count: { type: "int", example: "2" }
+filmsSubscriptionMeta:
+  message: "{site} · {kind} · {computer}"
+  description: "Subscription sheet: under its name, the site, what it follows and the computer that checks it."
+  placeholders:
+    site: { type: "String", example: "YouTube" }
+    kind: { type: "String", example: "Channel" }
+    computer: { type: "String", example: "Studio" }
+filmsSubscriptionNew:
+  message: "{count}"
+  description: "Library subscriptions row: the badge with how many new videos wait on a subscription."
+  placeholders:
+    count: { type: "int", example: "2" }
+filmsSubscriptionNone:
+  message: "No new videos. New ones wait here for you."
+  description: "Subscription sheet: no new video waits, for a subscription that asks first."
+filmsSubscriptionNoneAuto:
+  message: "No new videos. New ones are added to Jobs automatically."
+  description: "Subscription sheet: no new video waits, for a subscription that adds them by itself."
+filmsSubscriptionPaused:
+  message: "Paused on {computer}."
+  description: "Subscription sheet: the computer does not check the list now."
+  placeholders:
+    computer: { type: "String", example: "Studio" }
+filmsSubscriptionPausedLabel:
+  message: "{name}, paused"
+  description: "Library subscriptions row, for assistive technology: a paused subscription."
+  placeholders:
+    name: { type: "String", example: "Earth Science" }
+filmsSubscriptionPlaylist:
+  message: "Playlist"
+  description: "Subscription sheet: what a subscription follows, a playlist."
+filmsSubscriptionReadOnly:
+  message: "{computer} lets this phone look at its subscriptions but not change them."
+  description: "Subscription sheet: the computer made this phone read-only, so the sheet offers no action."
+  placeholders:
+    computer: { type: "String", example: "Studio" }
+filmsSubscriptionSpace:
+  message: "Uploader"
+  description: "Subscription sheet: what a subscription follows, a Bilibili uploader's space."
+filmsSubscriptionTake:
+  message: "Add All to Jobs"
+  description: "Subscription sheet: button that sends every new video waiting on it to the computer's queue."
+filmsSubscriptionWaiting:
+  message: "{count, plural, =0 {New Videos} one {# New Video} other {# New Videos}}"
+  description: "Subscription sheet: heading of the new videos waiting for the user."
+  placeholders:
+    count: { type: "int", example: "2" }
+filmsSubscriptions:
+  message: "Subscriptions"
+  description: "Library: heading of the computers' subscriptions."
+filmsSubscriptionsAdd:
+  message: "Add"
+  description: "Library: beside the subscriptions' heading, opens the Add sheet, which takes a channel or playlist link."
+filmsSubscriptionsAddLabel:
+  message: "Add a subscription"
+  description: "Library: what assistive technology reads for the subscriptions' Add button."
 filmsTitle:
   message: "Library"
   description: "Tab and title of the Library: the films on the phone and the computers' libraries."
@@ -268,6 +542,37 @@ filmsUnpairedBody:
 filmsUnpairedTitle:
   message: "Not connected to a computer yet"
   description: "Title of the Library's card while no computer is paired."
+learnDays:
+  message: "{count, plural, one {# day} other {# days}}"
+  description: "Learn's week: the streak, in days."
+  placeholders:
+    count: { type: "int", example: 5 }
+filmsUnsubscribe:
+  message: "Unsubscribe"
+  description: "Subscription sheet: the row that removes the subscription, and its confirmation's button."
+filmsUnsubscribeMessage:
+  message: "The videos it added stay in the library on {computer}."
+  description: "Confirmation before unsubscribing: what stays."
+  placeholders:
+    computer: { type: "String", example: "Studio" }
+filmsUnsubscribeTitle:
+  message: "Unsubscribe from “{title}”?"
+  description: "Confirmation before unsubscribing."
+  placeholders:
+    title: { type: "String", example: "Earth Science" }
+jobsBadgeLabel:
+  message: "Jobs, {count} unfinished"
+  description: "Spoken name of the Jobs button and section while jobs run, wait or failed, or links wait to be sent."
+  placeholders:
+    count: { type: "int", example: "2" }
+jobsEmpty:
+  message: "No jobs. Tap + to send a video's link."
+  description: "Jobs page, under a computer's card when it has no jobs and no links wait for it."
+jobsReadOnly:
+  message: "{name} made this phone read-only: it shows the jobs but can't send links or change them. Turn off Read-only for this phone in the computer's Settings › Phone Sync."
+  description: "Jobs page and Add sheet: the computer's user made this phone read-only; also why a link was refused."
+  placeholders:
+    name: { type: "String", example: "Studio" }
 learnDueIn:
   message: "{count, plural, one {Due in # day} other {Due in # days}}"
   description: "Under a word or a line: when it is next due for review."
@@ -446,6 +751,22 @@ jobsOffline:
 jobsOfflineSummary:
   message: "Offline. Links you send wait on this phone and go once it's back."
   description: "Jobs page, a computer's card while it cannot be reached."
+jobsOfflineRelay:
+  message: "Offline. Links you send wait in your storage and start once it's back."
+  description: "Jobs page, a computer's card while it is reached through the user's storage away from its network but has not written there lately."
+jobsInStorage:
+  message: "In your storage, waiting for {name}"
+  description: "Where a link stands once it was left in the user's storage for the computer to take, away from its network."
+  placeholders:
+    name: { type: "String", example: "Studio" }
+jobsRelayed:
+  message: "{summary} · through your storage"
+  description: "Jobs page, a computer's card while it is reached through the user's storage away from its network: what its queue does, then how it is reached."
+  placeholders:
+    summary: { type: "String", example: "Processing 2 videos" }
+jobsViaStorage:
+  message: "Via storage"
+  description: "Jobs page, a computer's card: it answers through the user's storage, away from its network."
 jobsOlder:
   message: "Kando on this computer is too old to take links. Update it."
   description: "Jobs page: the computer speaks an older protocol."
@@ -555,7 +876,7 @@ learnEmpty:
   description: "Learn tab while nothing is saved."
 learnExport:
   message: "Export and Share"
-  description: "Row of Learn that exports the vocabulary and the saved lines as tables and opens the share sheet."
+  description: "Row of Learn that opens the export of the vocabulary and the saved lines, and the button of that page that writes the file and opens the share sheet."
 learnExportFailed:
   message: "Couldn't export the vocabulary"
   description: "Alert when the export could not be written."
@@ -596,6 +917,9 @@ learnMinutes:
 learnMon:
   message: "M"
   description: "Short name of Monday under its bar in the week's chart."
+learnNewWords:
+  message: "New Words"
+  description: "Learn's week: label under how many words were put in the vocabulary in the last seven days."
 learnNoComputer:
   message: "Connect a computer to study the words and lines you save while you watch there."
   description: "Learn while no computer is paired."
@@ -613,6 +937,12 @@ learnReminderTitle:
 learnRemove:
   message: "Remove"
   description: "Destructive button of the alert that removes a word or a line."
+learnReviewCards:
+  message: "Cards"
+  description: "Review mode: a card that shows its answer on a press."
+learnReviewDictation:
+  message: "Dictation"
+  description: "Review mode: the line is played and the learner types what they hear."
 learnReviewDue:
   message: "{count, plural, one {Review # item} other {Review # items}}"
   description: "Title of Learn's review card: how many words and lines are due."
@@ -623,6 +953,9 @@ learnReviewDueDetail:
   description: "Under the review card's title: how long the review takes."
   placeholders:
     count: { type: "int", example: "3" }
+learnReviewMode:
+  message: "Review Mode"
+  description: "Accessibility label of Learn's choice of how the review goes: cards or dictation."
 learnReviewNone:
   message: "Nothing to review today"
   description: "Title of Learn's review card while nothing is due."
@@ -643,6 +976,12 @@ learnStreak:
   description: "Beside today's minutes: how many days in a row films played."
   placeholders:
     count: { type: "int", example: "5" }
+learnStreakLabel:
+  message: "Streak"
+  description: "Learn's week: label under the streak."
+learnStudyTime:
+  message: "Study Time"
+  description: "Learn's week: label under the minutes watched in the last seven days."
 learnSun:
   message: "S"
   description: "Short name of Sunday under its bar in the week's chart."
@@ -666,7 +1005,10 @@ learnWed:
   description: "Short name of Wednesday under its bar in the week's chart."
 learnWeek:
   message: "This Week"
-  description: "Heading of the chart of the last seven days' minutes."
+  description: "Heading of the card of the last seven days on every device: the streak, the minutes and the new words, and the chart of each day's minutes."
+learnWeekAll:
+  message: "All Devices"
+  description: "Beside This Week on Learn: the week's figures add up every device's."
 learnWeekBars:
   message: "{count} minutes of films in the last 7 days"
   description: "Spoken name of the week's chart."
@@ -800,9 +1142,6 @@ playerAudioOnly:
 playerAudioOnlyNote:
   message: "Hides the picture, to listen as you would to a podcast."
   description: "Under the Audio Only switch in the playback settings."
-playerBack:
-  message: "Back"
-  description: "Spoken name of the player's button that leaves it."
 playerCannotSave:
   message: "Open this film once while its computer is reachable to save its lines."
   description: "Toast when a line is saved from a film whose library the phone does not know yet, as one downloaded by an older version and opened away from the computer."
@@ -849,15 +1188,60 @@ playerDelaySeconds:
 playerExplain:
   message: "Explain"
   description: "Action under the player's card: has the computer's AI service explain the line."
+playerExplainAnswering:
+  message: "Answering…"
+  description: "Under a follow-up question about the line explained while the computer's AI service answers it."
+playerExplainAsk:
+  message: "Ask"
+  description: "Button beside the follow-up field of the explanation sheet: asks the question typed."
+playerExplainAskLabel:
+  message: "Ask About This Line"
+  description: "Spoken name of the follow-up field of the explanation sheet."
+playerExplainAskPlaceholder:
+  message: "Ask about this line…"
+  description: "Placeholder of the follow-up field of the explanation sheet."
+playerExplainBreakdown:
+  message: "Breakdown"
+  description: "Heading of the explanation's section that takes the line's words and phrases one by one."
 playerExplainBy:
   message: "{model} on {computer}"
-  description: "Under the explanation's title: which model, on which computer, wrote it."
+  description: "Under the explanation's title when the model runs on the computer itself: which model, on which computer, wrote it."
   placeholders:
     model: { type: "String", example: "gpt-4o-mini" }
     computer: { type: "String", example: "Studio" }
+playerExplainMeaning:
+  message: "Meaning"
+  description: "Heading of the explanation's section that says what the line means."
+playerExplainMore:
+  message: "More: Tone and Related Expressions"
+  description: "Button under the explanation that shows its tone and related expressions too."
+playerExplainOnlyBefore:
+  message: "From this line and the ones before it only"
+  description: "Footnote of the explanation: the computer's AI service is given no line after the one explained, so it gives nothing away."
+playerExplainRelated:
+  message: "Related Expressions"
+  description: "Heading of the explanation's section of related expressions, shown after More."
+playerExplainSave:
+  message: "Save Line to Notes"
+  description: "Button of the explanation sheet: saves the line, with what the explanation says it means as its note, so it comes up in review."
+playerExplainSaved:
+  message: "In Notes · it will come up in review"
+  description: "The explanation sheet's save button once the line is saved."
 playerExplainTitle:
   message: "Explain This Line"
   description: "Title of the sheet that explains a line."
+playerExplainTone:
+  message: "Tone"
+  description: "Heading of the explanation's section on the line's tone, shown after More."
+playerExplainTranslation:
+  message: "About the Translation"
+  description: "Heading of the explanation's section on what is worth knowing of the line's translation."
+playerExplainVia:
+  message: "{model}, asked through {computer}"
+  description: "Under the explanation's title when the model is a cloud service the computer asked, not one running on it."
+  placeholders:
+    model: { type: "String", example: "gpt-4o-mini" }
+    computer: { type: "String", example: "Studio" }
 playerFollow:
   message: "Shadowing"
   description: "Playback setting, and the pill over the picture while it is on: the film holds after each line for the learner to say it."
@@ -978,6 +1362,62 @@ playerPosition:
 playerPrevLine:
   message: "Previous Line"
   description: "Spoken name of the player's button that plays from the line before."
+playerRecapBusy:
+  message: "Summing up what you watched on {computer}…"
+  description: "In the recap sheet while the computer's AI service sums up the part of the film watched."
+  placeholders:
+    computer: { type: "String", example: "Studio" }
+playerRecapContinue:
+  message: "Continue from {at}"
+  description: "Main button of the recap sheet: plays the film on from where it was left."
+  placeholders:
+    at: { type: "String", example: "1:40" }
+playerRecapExcerptsFailed:
+  message: "Lines you watched: the AI service on {computer} could not sum them up"
+  description: "Footnote of the recap sheet when the computer's AI service failed and the sheet shows lines watched instead."
+  placeholders:
+    computer: { type: "String", example: "Studio" }
+playerRecapExcerptsNoAI:
+  message: "Lines you watched, not summed up: {computer} has no AI service set up"
+  description: "Footnote of the recap sheet when the computer has no AI service and the sheet shows lines watched instead."
+  placeholders:
+    computer: { type: "String", example: "Studio" }
+playerRecapExcerptsUnpaired:
+  message: "Lines you watched, not summed up: this film's computer is no longer paired"
+  description: "Footnote of the recap sheet when the film's computer is not paired any more and the sheet shows lines watched instead."
+playerRecapExcerptsUnreachable:
+  message: "Lines you watched, not summed up: can't reach {computer}"
+  description: "Footnote of the recap sheet when the computer cannot be reached and the sheet shows lines watched instead."
+  placeholders:
+    computer: { type: "String", example: "Studio" }
+playerRecapJump:
+  message: "Play from {at}: {text}"
+  description: "Spoken name of a moment of the recap, which plays the film from there."
+  placeholders:
+    at: { type: "String", example: "1:40" }
+    text: { type: "String", example: "They meet at the station." }
+playerRecapNote:
+  message: "Only what you watched · summed up by {model}"
+  description: "Footnote of the recap sheet: the computer asked a cloud model, which was given only the lines watched."
+  placeholders:
+    model: { type: "String", example: "gpt-4o-mini" }
+playerRecapNoteOn:
+  message: "Only what you watched · summed up by {model} on {computer}"
+  description: "Footnote of the recap sheet: a model running on the computer itself wrote it from the lines watched only."
+  placeholders:
+    model: { type: "String", example: "gpt-4o-mini" }
+    computer: { type: "String", example: "Studio" }
+playerRecapStartOver:
+  message: "Start Over"
+  description: "Button of the recap sheet: plays the film from its start."
+playerRecapStoppedAt:
+  message: "You stopped at {at}"
+  description: "Under the recap sheet's title: where the film was left."
+  placeholders:
+    at: { type: "String", example: "1:40" }
+playerRecapTitle:
+  message: "Previously"
+  description: "Title of the recap sheet a film left partway opens with: what happened in the part watched."
 playerReplay:
   message: "Replay"
   description: "Action under the player's card: plays the line again from its start."
@@ -1146,6 +1586,96 @@ settingsAbout:
 settingsComputers:
   message: "Computers"
   description: "Heading of Settings' section of the paired computers."
+settingsConflictBoth:
+  message: "Keep Both"
+  description: "Under a sync conflict of two notes or two meanings: keeps both, one after the other."
+settingsConflictDate:
+  message: "{when, date, ::MMMd}, {when, time, short}"
+  description: "When a version of a sync conflict was made, before yesterday."
+  placeholders:
+    when: { type: "DateTime" }
+settingsConflictMeaning:
+  message: "Meaning"
+  description: "Badge of a sync conflict over a word's meaning."
+settingsConflictNote:
+  message: "Note"
+  description: "Badge of a sync conflict over a note."
+settingsConflictOriginal:
+  message: "Line"
+  description: "Badge of a sync conflict over a line's original text, as corrected."
+settingsConflictOtherDevice:
+  message: "Another Device"
+  description: "Where a version of a sync conflict was made, when the computer does not name the device."
+settingsConflictReadOnly:
+  message: "{computer} lets this device only view what it has, so the conflict stays."
+  description: "Under the sync conflicts when the computer refused to resolve one: the user made this device read-only there."
+  placeholders:
+    computer: { type: "String", example: "MacBook Pro" }
+settingsConflictThisPhone:
+  message: "This Phone"
+  description: "Where a version of a sync conflict was made: on this phone."
+settingsConflictThisTablet:
+  message: "This Tablet"
+  description: "Where a version of a sync conflict was made: on this tablet."
+settingsConflictToday:
+  message: "Today {when, time, short}"
+  description: "When a version of a sync conflict was made, today."
+  placeholders:
+    when: { type: "DateTime" }
+settingsConflictTranslation:
+  message: "Translation"
+  description: "Badge of a sync conflict over a line's translation."
+settingsConflictUnpaired:
+  message: "{computer} no longer takes this device, so the conflict stays."
+  description: "Under the sync conflicts when the computer refused to resolve one: it unpaired this device."
+  placeholders:
+    computer: { type: "String", example: "MacBook Pro" }
+settingsConflictUnreachable:
+  message: "Couldn't reach {computer}. Try again when it's on and on the same network."
+  description: "Under the sync conflicts when resolving one failed: the computer could not be reached."
+  placeholders:
+    computer: { type: "String", example: "MacBook Pro" }
+settingsConflictUse:
+  message: "Use This"
+  description: "Beside a version of a sync conflict: keeps it on every device."
+settingsConflictUseLabel:
+  message: "Use the version from {device}"
+  description: "Spoken label of Use This beside a version of a sync conflict, with the device it was made on."
+  placeholders:
+    device: { type: "String", example: "MacBook Pro" }
+settingsConflictWord:
+  message: "Word “{word}”"
+  description: "Where a sync conflict is: the word of the vocabulary it is of."
+  placeholders:
+    word: { type: "String", example: "basis vector" }
+settingsConflictYesterday:
+  message: "Yesterday {when, time, short}"
+  description: "When a version of a sync conflict was made, yesterday."
+  placeholders:
+    when: { type: "DateTime" }
+settingsConflicts:
+  message: "Sync Conflicts"
+  description: "Row in Settings, and the title of its page, listing what two devices changed apart, to pick the version to keep."
+settingsConflictsCount:
+  message: "{count, plural, one {# to resolve} other {# to resolve}}"
+  description: "Beside Sync Conflicts in Settings: how many are open."
+  placeholders:
+    count: { type: "int", example: "2" }
+settingsConflictsDetail:
+  message: "Two devices changed the same thing. Keep one."
+  description: "Under Sync Conflicts in Settings while some are open."
+settingsConflictsDone:
+  message: "No Conflicts Left"
+  description: "The Sync Conflicts page when none is open."
+settingsConflictsDoneDetail:
+  message: "Everything matches on all devices."
+  description: "Under No Conflicts Left."
+settingsConflictsNone:
+  message: "None"
+  description: "Beside Sync Conflicts in Settings when none is open."
+settingsConflictsNote:
+  message: "When two devices change the same translated line or the same note, choose which to keep here. Words, saved lines and progress merge on their own."
+  description: "At the top of the Sync Conflicts page."
 settingsGoal:
   message: "Daily Goal"
   description: "Row in Settings, and the title of its page, that picks the daily goal of minutes of films."
@@ -1192,6 +1722,9 @@ settingsSubtitleStyle:
 settingsSubtitles:
   message: "Subtitles"
   description: "Heading of Settings' section of the subtitles."
+settingsSync:
+  message: "Sync"
+  description: "Heading of Settings' section of what syncs between this device and the computers."
 settingsTarget:
   message: "Translate Into"
   description: "Row in Settings, and the title of its page, that picks the language subtitles are translated into."
@@ -1346,3 +1879,59 @@ widgetStreak:
 widgetTapToReview:
   message: "Tap to review"
   description: "Foot of the streak widget."
+playerCannotAddWord:
+  message: "Open this film once while its computer is reachable to add its words to the vocabulary."
+  description: "Toast when a word can't go in the vocabulary yet, as the film's library on the computer isn't known."
+playerMini:
+  message: "Now Playing"
+  description: "Spoken name of the mini player, the bar over the tabs while the player is minimized."
+playerMiniOpen:
+  message: "Open {title}"
+  description: "Spoken name of the mini player's button that opens the player again."
+  placeholders:
+    title: { type: "String", example: "Morning Talk" }
+playerMinimize:
+  message: "Minimize Player"
+  description: "Spoken name of the player's button that minimizes it to a bar over the tabs while the film plays on."
+playerTabWords:
+  message: "Words"
+  description: "Tab of the player's panel: the film's words looked up or in the vocabulary, while there are none."
+playerTabWordsCount:
+  message: "Words {count}"
+  description: "Tab of the player's panel with how many of the film's words were looked up or are in the vocabulary."
+  placeholders:
+    count: { type: "int", example: "5" }
+playerWordAdd:
+  message: "Add to Vocabulary"
+  description: "Button of the word card that puts the word in the vocabulary."
+playerWordAddNamed:
+  message: "Add {word} to Vocabulary"
+  description: "Spoken name of a word's star in the Words tab while the word isn't in the vocabulary."
+  placeholders:
+    word: { type: "String", example: "river" }
+playerWordAdded:
+  message: "{word} added to Vocabulary"
+  description: "Toast once a word is put in the vocabulary."
+  placeholders:
+    word: { type: "String", example: "river" }
+playerWordInVocabulary:
+  message: "In Vocabulary · Remove"
+  description: "Button of the word card while the word is in the vocabulary; a tap takes it out."
+playerWordRemoveNamed:
+  message: "Remove {word} from Vocabulary"
+  description: "Spoken name of a word's star in the Words tab while the word is in the vocabulary."
+  placeholders:
+    word: { type: "String", example: "river" }
+playerWordRemoved:
+  message: "{word} removed from Vocabulary"
+  description: "Toast once a word is taken out of the vocabulary."
+  placeholders:
+    word: { type: "String", example: "river" }
+playerWordTimes:
+  message: "{count, plural, one {Said # time in this film} other {Said # times in this film}}"
+  description: "Under a word in the Words tab: how many times the film's lines say it."
+  placeholders:
+    count: { type: "int", example: "3" }
+playerWordsEmpty:
+  message: "Words you tap in the lines show here, to add to your vocabulary."
+  description: "Words tab while no word of the film was looked up or is in the vocabulary."

@@ -2,6 +2,7 @@ package playlist
 
 import (
 	"kando/apps/kando/locales"
+	"kando/apps/kando/settings/form"
 
 	"github.com/nsgo-dev/nsgo/base"
 	"github.com/nsgo-dev/nsgo/core"
@@ -31,12 +32,27 @@ func (l Look) Adds() int {
 	return l.Videos - l.Have
 }
 
-// Confirm is the dialog over the window while Open returns true: it says that the videos are being looked for, then how many there are, a channel's limited to its ChannelLimit most recent, and how many of them the library has, and asks before they are queued. Add queues the ones the library does not have and runs OnAdd; Cancel, Escape and closing the dialog run OnCancel, which also stops the reading.
+// Confirm is the dialog over the window while Open returns true: it says that the videos are being looked for, then how many there are, a channel's limited to its ChannelLimit most recent, and how many of them the library has, and asks before they are queued. Once one list was read, a switch subscribes to it as the videos are added (Subscribe, OnSubscribe), so its new videos are added as they come out. Add queues the ones the library does not have and runs OnAdd, as it does with none to add while the switch is on; Cancel, Escape and closing the dialog run OnCancel, which also stops the reading.
 type Confirm struct {
-	Open     func() bool
-	Look     func() Look
-	OnAdd    func()
-	OnCancel func()
+	Open        func() bool
+	Look        func() Look
+	Subscribe   func() bool
+	OnSubscribe func(on bool)
+	OnAdd       func()
+	OnCancel    func()
+}
+
+// kind is what the one list read is, as PlaylistSubscribe's select names it: "channel" or "playlist".
+func (l Look) kind() string {
+	if l.Channels > 0 {
+		return "channel"
+	}
+	return "playlist"
+}
+
+// Subscribable reports whether the dialog offers to subscribe to what was read: one list, read.
+func (l Look) Subscribable() bool {
+	return !l.Loading && l.Err == "" && l.Lists == 1
 }
 
 // Render implements core.Node.
@@ -55,6 +71,14 @@ func (c Confirm) Render(cx *core.Scope) core.Node {
 			footer := []core.Node{ui.Button{Text: locales.PlaylistCancel(cx), Variant: ui.ButtonSecondary, TestID: "playlist-cancel", OnPress: cancel}}
 			if n := l.Adds(); n > 0 {
 				footer = append(footer, ui.Button{Text: locales.PlaylistAdd(cx, n), TestID: "playlist-add", OnPress: c.OnAdd})
+			} else if l.Subscribable() && c.Subscribe != nil {
+				footer = append(footer, ui.Button{Text: locales.PlaylistSubscribeOnly(cx), TestID: "playlist-add", OnPress: c.OnAdd,
+					Disabled: func() bool { return !c.Subscribe() }})
+			}
+			children := body(cx, l)
+			if l.Subscribable() && c.Subscribe != nil && c.OnSubscribe != nil {
+				children = append(children, form.Card(form.SwitchRow{Title: locales.PlaylistSubscribe(cx, l.kind()), Subtitle: locales.PlaylistSubscribeHint(cx), TestID: "playlist-subscribe",
+					On: c.Subscribe, OnChange: c.OnSubscribe}))
 			}
 			return ui.Dialog{
 				TestID:                 "playlist-confirm",
@@ -62,7 +86,7 @@ func (c Confirm) Render(cx *core.Scope) core.Node {
 				NoCloseOnBackdropPress: true,
 				Open:                   func() bool { return true },
 				Title:                  title(cx, l),
-				Children:               body(cx, l),
+				Children:               children,
 				OnOpenChange: func(open bool, _ base.Reason) {
 					if !open {
 						cancel()

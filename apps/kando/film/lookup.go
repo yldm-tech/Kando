@@ -13,7 +13,7 @@ import (
 // lookupGlass is the glass of the card of a word looked up, as the selection bar's.
 var lookupGlass = glassSpec{theme.GlassCard, 16}
 
-// lookupCard is the card of the word looked up on the picture (App.Lookup), under the title bar in the middle of the room the side panel leaves, clear of the lines it was clicked in: the word, how it is read and the × that closes it, what it means in the line, or that the AI service is asked, or why no meaning came, and the line itself; then Add to Vocabulary, In Vocabulary once it is there, which takes it out again, and Explain Line, or Open Settings when no AI service can answer. Escape closes it.
+// lookupCard is the card of the word looked up on the picture (App.Lookup), under the title bar in the middle of the room the side panel leaves, clear of the lines it was clicked in: the word, how it is read and the × that closes it, what it means in the line, or that the AI service is asked, or why no meaning came, the film's glossary's term for it when it has one, and the line itself; then Add to Vocabulary, In Vocabulary once it is there, which takes it out again, and Explain Line, or Open Settings when no AI service can answer. Escape closes it.
 func (s *screen) lookupCard() core.Node {
 	a, cx := s.a, s.cx
 	open := live.Memo(cx, a, func() bool { return a.Lookup().Open })
@@ -50,6 +50,10 @@ func (s *screen) lookupCard() core.Node {
 				}
 				return st
 			}}
+		term := core.Show{When: func() bool { return l().Term != "" }, Then: func(cx *core.Scope) core.Node {
+			return core.Text{TestID: "film-lookup-term", ContentFunc: func() string { return locales.VocabLookupTerm(cx, l().Term) }, Selectable: core.SelectableOn,
+				Style: core.Style{FontSize: 11, LineHeight: 15}, StyleFunc: func() core.Style { return core.Style{Color: theme.Of(cx).SuccessInk()} }}
+		}}
 		line := core.Text{TestID: "film-lookup-line", ContentFunc: func() string { return l().Line }, Selectable: core.SelectableOn,
 			Style: core.Style{FontSize: 12, LineHeight: 17, Color: muted, FontStyle: core.FontStyleItalic}}
 		saveLabel := func() string {
@@ -71,7 +75,7 @@ func (s *screen) lookupCard() core.Node {
 		}}
 		card := core.View{TestID: "film-lookup", Role: core.RoleGroup, LabelFunc: func() string { return locales.VocabLookupCard(cx, l().Word) },
 			Style:    lookupGlass.style().Merge(core.Style{Width: core.Pct(100), MaxWidth: core.Pt(420), Gap: 8, Padding: core.Symmetric(12, 14)}),
-			Children: []core.Node{head, meaning, line, buttons}}
+			Children: []core.Node{head, meaning, term, line, buttons}}
 		return core.View{PointerEvents: core.PointerEventsBoxNone,
 			Style: core.Style{Position: core.Absolute, Left: core.Pt(20), Top: core.Pt(72), Direction: core.Row, JustifyContent: core.JustifyCenter},
 			StyleFunc: func() core.Style {

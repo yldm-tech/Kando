@@ -68,8 +68,17 @@ func section(cx *core.Scope, s *session.Session, desktop string, act Actions) co
 		}
 		return out
 	}
+	colors := ui.ColorsOf(cx)
+	online := func() bool { return queue().Reach == session.Online }
 	return core.View{TestID: "jobs-desktop-" + desktop, Style: core.Style{Gap: 12}, Children: []core.Node{
 		computerCard(cx, s, desktop),
+		// A computer that made the phone read-only keeps showing its jobs, without the buttons that would change them, and says why.
+		core.Show{When: func() bool { return online() && queue().ReadOnly }, Then: func(cx *core.Scope) core.Node {
+			return core.Text{TestID: "jobs-read-only-" + desktop, ContentFunc: func() string { return locales.JobsReadOnly(cx, name(s, desktop)) }, Style: look.Caption.Merge(core.Style{Padding: core.Symmetric(0, 4)}), StyleFunc: ui.Colored(colors.Muted)}
+		}},
+		core.Show{When: func() bool { return online() && !queue().ReadOnly && len(queue().Jobs) == 0 && len(links()) == 0 }, Then: func(cx *core.Scope) core.Node {
+			return core.Text{TestID: "jobs-empty-" + desktop, ContentFunc: func() string { return locales.JobsEmpty(cx) }, Style: look.Caption.Merge(core.Style{Padding: core.Symmetric(0, 4)}), StyleFunc: ui.Colored(colors.Muted)}
+		}},
 		core.Each(links, func(o session.Outgoing) string { return o.ID }, func(cx *core.Scope, o func() session.Outgoing, _ func() int) core.Node {
 			return linkCard(cx, s, desktop, o)
 		}),
@@ -106,8 +115,11 @@ func computerCard(cx *core.Scope, s *session.Session, desktop string) core.Node 
 						}
 						return core.Style{Background: colors.Faint()}
 					}},
-				core.Text{ContentFunc: func() string {
-					if online() {
+				core.Text{TestID: "jobs-reach-" + desktop, ContentFunc: func() string {
+					switch {
+					case online() && queue().Relayed:
+						return locales.JobsViaStorage(cx)
+					case online():
 						return locales.JobsOnline(cx)
 					}
 					return locales.JobsOffline(cx)
@@ -121,19 +133,30 @@ func computerCard(cx *core.Scope, s *session.Session, desktop string) core.Node 
 		}}
 }
 
-// summary is what a computer's queue is doing, as its card says it.
+// summary is what a computer's queue is doing, as its card says it, and that it is reached through the user's storage when it is.
 func summary(cx *core.Scope, s *session.Session, desktop string) string {
 	q := s.Queue(desktop)
 	switch q.Reach {
 	case session.Reaching:
 		return locales.JobsConnecting(cx)
 	case session.Offline:
+		if q.Relayed {
+			return locales.JobsOfflineRelay(cx)
+		}
 		return locales.JobsOfflineSummary(cx)
 	case session.Older:
 		return locales.JobsOlder(cx)
 	case session.Revoked:
 		return locales.ComputersUnpaired(cx, name(s, desktop))
 	}
+	if q.Relayed {
+		return locales.JobsRelayed(cx, queueSummary(cx, q))
+	}
+	return queueSummary(cx, q)
+}
+
+// queueSummary is what a computer's queue is doing: how many jobs run or wait, and how many failed.
+func queueSummary(cx *core.Scope, q session.Queue) string {
 	active, failed := 0, 0
 	for _, j := range q.Jobs {
 		switch j.State {
@@ -181,6 +204,9 @@ func linkCard(cx *core.Scope, s *session.Session, desktop string, o func() sessi
 					if r := o().Refusal; r != nil {
 						return refusal(cx, *r, name(s, desktop))
 					}
+					if o().Relayed {
+						return locales.JobsInStorage(cx, name(s, desktop))
+					}
 					return locales.JobsWaitingFor(cx, name(s, desktop))
 				}, Style: look.Caption, StyleFunc: func() core.Style {
 					if refused() {
@@ -208,6 +234,8 @@ func refusal(cx *core.Scope, r sync.ErrorBody, desktop string) string {
 		return locales.JobsOlder(cx)
 	case sync.CodeNotReady:
 		return locales.JobsNotReady(cx, desktop, r.Message)
+	case sync.CodeReadOnly:
+		return locales.JobsReadOnly(cx, desktop)
 	}
 	return locales.JobsRefused(cx, desktop, r.Message)
 }

@@ -313,9 +313,9 @@ func (a *app) cookiesRemedy(job core.Job, other media.Browser) films.Remedy {
 func (a *app) hiddenVideoRemedy(job core.Job, other media.Browser) films.Remedy {
 	m := a.messages()
 	retry := films.RemedyAction{ID: remedyRetry, Label: m.QueueRemedyRetry()}
-	if job.Cookies != "" {
+	if job.Browser() != "" {
 		retry.Primary = true
-		r := films.Remedy{Headline: m.QueueRemedyXSignedIn(), Why: m.QueueRemedyXSignedInWhy(media.BrowserName(job.Cookies)), Actions: []films.RemedyAction{retry}}
+		r := films.Remedy{Headline: m.QueueRemedyXSignedIn(), Why: m.QueueRemedyXSignedInWhy(media.BrowserName(job.Browser())), Actions: []films.RemedyAction{retry}}
 		if other.ID != "" {
 			r.Actions = append(r.Actions, films.RemedyAction{ID: remedyBorrow + other.ID, Label: m.QueueRemedySwitchBrowser(other.Name)})
 		}
@@ -335,7 +335,7 @@ func (a *app) hiddenVideoRemedy(job core.Job, other media.Browser) films.Remedy 
 func (a *app) remedyBrowsers(job core.Job) (browser, other media.Browser) {
 	installed := a.queue.ytdlp.browsers
 	for _, b := range installed {
-		if b.ID == job.Cookies {
+		if b.ID == job.Browser() {
 			browser = b
 		}
 	}
@@ -364,6 +364,11 @@ func (a *app) RunRemedy(item films.Film, action string) {
 		a.queue.ytdlp.kitRetry = true
 		a.kitsInstall("yt-dlp")
 	case action == remedyRetry:
+		// An X post that showed no video to a download the Add sheet sent out signed out (core.CookiesNone) is tried again with the browser Settings › 通用 › 浏览器登录 names, which its card asked to choose.
+		if job.FailKind == core.FailHiddenVideo && job.Cookies == core.CookiesNone {
+			job.Cookies = ""
+			a.library.Upsert(job)
+		}
 		a.Retry(job.ID)
 	case strings.HasPrefix(action, remedyBorrow):
 		browser := strings.TrimPrefix(action, remedyBorrow)

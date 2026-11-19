@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"os"
 	"path/filepath"
+	"slices"
 	"strings"
 	"testing"
 	"time"
@@ -187,7 +188,7 @@ func TestTheVocabularyRemovesAWordOnTheComputerToo(t *testing.T) {
 	p.app.WaitUntil(wait, func() bool { r, ok := d.State("lib", sync.KindWord, "w-later"); return ok && r.Removed != nil })
 }
 
-// The words and lines go out through the share sheet as two tables.
+// The export writes the words, and the saved lines, as Anki's notes until another format is picked, and shares the file; what it picks it keeps for the next export.
 func TestTheExportGoesThroughTheShareSheet(t *testing.T) {
 	d := studyDesktop(t)
 	dir := t.TempDir()
@@ -196,14 +197,35 @@ func TestTheExportGoesThroughTheShareSheet(t *testing.T) {
 	p.openTab(learnTab, msgs.LearnTitle())
 	p.app.WaitFor("id:learn-export", wait)
 	p.app.Press("id:learn-export")
+	p.app.WaitFor("id:export-page", wait)
+	p.app.WaitUntil(wait, func() bool { return p.texts("id:export-count") == msgs.ExportCount(2, 1) })
+	if !p.app.Find("id:export-format-anki").Props.Checked {
+		t.Fatal("the export does not start with Anki's notes")
+	}
+	p.app.Press("id:export-share")
 	p.app.WaitUntil(wait, func() bool { return len(p.app.Shares) == 1 })
 	files := p.app.Shares[0].Files
-	if len(files) != 2 {
-		t.Fatalf("shared %+v, want the vocabulary and the lines", files)
+	if len(files) != 1 || filepath.Base(files[0].Path) != study.VocabFile(study.VocabAnki) {
+		t.Fatalf("shared %+v, want Anki's notes", files)
 	}
 	data, err := os.ReadFile(files[0].Path)
-	if err != nil || !strings.Contains(string(data), "おはよう") || !strings.Contains(string(data), msgs.ExportMeaning()) {
-		t.Fatalf("the vocabulary's table reads %q, %v", data, err)
+	if err != nil || !strings.HasPrefix(string(data), "#separator:tab") || !strings.Contains(string(data), "おはよう") || !strings.Contains(string(data), "Fine, thanks.") {
+		t.Fatalf("the notes read %q, %v", data, err)
+	}
+
+	p.app.Press("id:export-format-csv")
+	p.app.Press("id:export-lines-switch")
+	p.app.WaitUntil(wait, func() bool { return p.texts("id:export-count") == msgs.ExportCount(2, 0) })
+	p.app.WaitUntil(wait, func() bool { return !p.app.Find("id:export-share").Props.Disabled })
+	p.app.Press("id:export-share")
+	p.app.WaitUntil(wait, func() bool { return len(p.app.Shares) == 2 })
+	data, err = os.ReadFile(p.app.Shares[1].Files[0].Path)
+	if err != nil || !strings.HasPrefix(string(data), "\ufeffWord,Reading,Meaning,Sentence,Translation,Film") || strings.Contains(string(data), "Fine, thanks.") {
+		t.Fatalf("the table reads %q, %v", data, err)
+	}
+	prefs, err := store.Open(dir).Prefs()
+	if err != nil || prefs.Export.Format != study.VocabCSV || !prefs.Export.NoLines {
+		t.Fatalf("kept %+v, %v; want the CSV without the lines", prefs.Export, err)
 	}
 }
 
@@ -478,4 +500,181 @@ func TestARefusedChangeLeavesTheOthers(t *testing.T) {
 	// The refused line goes from what the phone has to send: read afresh, it shows due again, as the computer has it.
 	p.learnRefresh()
 	p.app.WaitUntil(wait, func() bool { return p.texts("id:learn-review-title") == msgs.LearnReviewDue(1) })
+}
+
+// Dictation plays each line due from the film kept on the phone, from just before it starts to just after it ends, and marks what the learner typed once they check it; the grade they give then goes to the computer, as a card's does.
+func TestTheReviewDictatesTheLinesOfAFilmOnThePhone(t *testing.T) {
+	d := studyDesktop(t)
+	dir, f := keptFrom(t, d)
+	p := startPhone(t, dir, pairedWith(t, d, dir), nsgotest.Environment(core.Environment{Locale: lang, Audio: true}))
+	video := filepath.Join(store.Open(dir).FilmDir(f.Desktop, f.Film.ID), f.Video)
+	p.app.AudioDurations = map[string]time.Duration{video: 10 * time.Second}
+	p.waitLearned(f.Desktop)
+	p.openTab(learnTab, msgs.LearnTitle())
+	p.app.WaitUntil(wait, func() bool { return p.texts("id:learn-review-title") == msgs.LearnReviewDue(2) })
+	p.app.Press("id:learn-review-dictation")
+	p.app.Press("id:learn-review-start")
+
+	// The word comes first: its line is the one it was looked up in, which the film's subtitles end at two seconds.
+	p.app.WaitFor("id:dictation-card", wait)
+	p.app.Press("id:dictation-play")
+	if len(p.app.Players) != 1 || !p.app.Players[0].Playing || p.app.Players[0].Position != 750*time.Millisecond || p.app.Players[0].Source.URI != video {
+		t.Fatalf("the players %+v; want the film's from 0.75s", p.app.Players)
+	}
+	p.app.Advance(2 * time.Second)
+	if pl := p.app.Players[0]; pl.Playing || pl.Position != 750*time.Millisecond {
+		t.Fatalf("the line's clip played on to %v (playing %v); want it stopped after 2.25s and back at its start", pl.Position, pl.Playing)
+	}
+	p.app.Type("id:dictation-input", "おはよう")
+	p.app.Press("id:review-show")
+	if got, want := p.texts("id:dictation-score"), msgs.DictationScore(4, 9); got != want {
+		t.Errorf("the check says %q, want %q", got, want)
+	}
+	if got := p.texts("id:dictation-translation"); got != "早上好。" {
+		t.Errorf("the line's translation shows %q", got)
+	}
+	p.app.Press("id:review-known")
+
+	p.app.WaitUntil(wait, func() bool { return p.texts("id:dictation-input") == "" })
+	p.app.Type("id:dictation-input", "fine THANKS")
+	p.app.Press("id:review-show")
+	if got, want := p.texts("id:dictation-score"), msgs.DictationScore(2, 2); got != want {
+		t.Errorf("the check says %q, want %q", got, want)
+	}
+	p.app.Press("id:review-known")
+	p.app.WaitFor("id:review-done", wait)
+	p.app.Press("id:review-finish")
+	p.app.WaitUntil(wait, func() bool {
+		return reviewOf(t, d, sync.KindWord, "w-morning").Box == 1 && reviewOf(t, d, sync.KindLine, "l-fine").Box == 1
+	})
+	if prefs, err := store.Open(dir).Prefs(); err != nil || prefs.Review != "dictation" {
+		t.Errorf("the review mode kept is %q, %v", prefs.Review, err)
+	}
+}
+
+// A line whose film is not on the phone cannot be heard: dictation shows it as a card, and says why.
+func TestDictationShowsACardForAFilmNotOnThePhone(t *testing.T) {
+	d := studyDesktop(t)
+	dir := t.TempDir()
+	p := startPhone(t, dir, pairedWith(t, d, dir))
+	p.waitLearned(store.DesktopID(d.Fingerprint))
+	p.openTab(learnTab, msgs.LearnTitle())
+	p.app.WaitFor("id:learn-review-start", wait)
+	p.app.Press("id:learn-review-dictation")
+	p.app.Press("id:learn-review-start")
+	p.app.WaitFor("id:review-no-film", wait)
+	if p.app.Exists("id:dictation-card") || p.texts("id:review-text") != "おはよう" || p.texts("id:review-show") != msgs.ReviewShow() {
+		t.Fatalf("a line not on the phone shows %q", p.texts("id:review-page"))
+	}
+}
+
+// Learn's minutes and streak are the learner's on every device: the computer's time watched of its libraries adds to the phone's, and the phone's own time in a film goes to the film's library on the computer at the next sync.
+func TestTheTimeWatchedIsEveryDevices(t *testing.T) {
+	d := studyDesktop(t)
+	day := study.Day(now())
+	d.SetState("lib", now().Add(-time.Hour), sync.Record{Kind: sync.KindWatched, ID: sync.WatchedID("studio-device", day), Fields: map[string]sync.Field{
+		sync.FieldWatchedMS: {Value: sync.Value(10 * 60_000), Stamp: sync.Stamp{At: now().Add(-time.Hour), Device: "studio-device"}}}})
+	dir, f := keptFrom(t, d)
+	p := startPhone(t, dir, pairedWith(t, d, dir))
+	p.waitLearned(f.Desktop)
+	p.openTab(learnTab, msgs.LearnTitle())
+	p.app.WaitUntil(wait, func() bool { return p.texts("id:learn-goal-minutes") == msgs.LearnMinutes(10) })
+	if got, want := p.texts("id:learn-week-total"), msgs.LearnMinutes(10)+"\n"+msgs.LearnStudyTime(); got != want {
+		t.Errorf("the week's study time says %q, want %q", got, want)
+	}
+	if got, want := p.texts("id:learn-week-words"), "2\n"+msgs.LearnNewWords(); got != want {
+		t.Errorf("the week's new words say %q, want %q", got, want)
+	}
+
+	p.openTab(filmsTab, msgs.FilmsTitle())
+	p.app.WaitFor(talkRow(f.Desktop), wait)
+	p.app.Press(talkRow(f.Desktop))
+	p.app.WaitFor("id:film-play", wait)
+	p.app.Press("id:film-play")
+	p.app.WaitFor("id:player-video", wait)
+	p.app.Play("id:player-video", core.VideoInfo{Duration: 10 * time.Second, Size: core.Size{Width: 1920, Height: 1080}})
+	for at := 500 * time.Millisecond; at <= 6*time.Second; at += 500 * time.Millisecond {
+		p.at(at)
+	}
+	// Back minimizes the player, which keeps where the film is and its time watched.
+	p.app.Back()
+	p.app.WaitFor("id:player-mini", wait)
+	p.openTab(learnTab, msgs.LearnTitle())
+	p.app.PullToRefresh("id:learn-scroll")
+	desktops, err := store.Open(dir).Desktops()
+	if err != nil || len(desktops) != 1 {
+		t.Fatalf("desktops %+v, %v", desktops, err)
+	}
+	p.app.WaitUntil(wait, func() bool {
+		r, ok := d.State("lib", sync.KindWatched, sync.WatchedID(desktops[0].DeviceID, day))
+		if !ok {
+			return false
+		}
+		var ms float64
+		return json.Unmarshal(r.Fields[sync.FieldWatchedMS].Value, &ms) == nil && ms >= 5000
+	})
+}
+
+// A film watched while the computer is out of reach, before any sync reached it this run, still gives its time to the computer: the library's state, which holds the computer's time, says the computer takes it, and the next sync puts it.
+func TestTheTimeWatchedOfflineReachesTheComputer(t *testing.T) {
+	d := studyDesktop(t)
+	day := study.Day(now())
+	d.SetState("lib", now().Add(-time.Hour), sync.Record{Kind: sync.KindWatched, ID: sync.WatchedID("studio-device", day), Fields: map[string]sync.Field{
+		sync.FieldWatchedMS: {Value: sync.Value(10 * 60_000), Stamp: sync.Stamp{At: now().Add(-time.Hour), Device: "studio-device"}}}})
+	dir, f := keptFrom(t, d)
+	secrets := pairedWith(t, d, dir)
+	t.Run("learn", func(t *testing.T) {
+		p := startPhone(t, dir, secrets)
+		p.waitLearned(f.Desktop)
+		p.app.WaitFor(talkRow(f.Desktop), wait)
+		p.app.Press(talkRow(f.Desktop))
+		p.app.WaitFor("id:film-play", wait)
+		p.app.Press("id:film-play")
+		p.app.WaitFor("id:player-video", wait)
+		p.app.WaitUntil(wait, func() bool {
+			films, _ := store.Open(dir).Films()
+			return len(films) == 1 && films[0].LibraryID == "lib"
+		})
+	})
+
+	d.SetOff(true)
+	p := startPhone(t, dir, secrets)
+	p.app.WaitFor(talkRow(f.Desktop), wait)
+	p.app.Press(talkRow(f.Desktop))
+	p.app.WaitFor("id:film-play", wait)
+	p.app.Press("id:film-play")
+	p.app.WaitFor("id:player-video", wait)
+	p.app.Play("id:player-video", core.VideoInfo{Duration: 10 * time.Second, Size: core.Size{Width: 1920, Height: 1080}})
+	for at := 500 * time.Millisecond; at <= 6*time.Second; at += 500 * time.Millisecond {
+		p.at(at)
+	}
+	// Back minimizes the player, which keeps where the film is and its time watched.
+	p.app.Back()
+	p.app.WaitFor("id:player-mini", wait)
+	desktops, err := store.Open(dir).Desktops()
+	if err != nil || len(desktops) != 1 {
+		t.Fatalf("desktops %+v, %v", desktops, err)
+	}
+	mine := sync.WatchedID(desktops[0].DeviceID, day)
+	p.app.WaitUntil(wait, func() bool {
+		all, _ := store.Open(dir).Learnings()
+		for _, l := range all {
+			if slices.ContainsFunc(l.Pending, func(r sync.Record) bool { return r.Kind == sync.KindWatched && r.ID == mine }) {
+				return true
+			}
+		}
+		return false
+	})
+
+	d.SetOff(false)
+	p.openTab(learnTab, msgs.LearnTitle())
+	p.app.PullToRefresh("id:learn-scroll")
+	p.app.WaitUntil(reconnect, func() bool {
+		r, ok := d.State("lib", sync.KindWatched, mine)
+		if !ok {
+			return false
+		}
+		var ms float64
+		return json.Unmarshal(r.Fields[sync.FieldWatchedMS].Value, &ms) == nil && ms >= 5000
+	})
 }
