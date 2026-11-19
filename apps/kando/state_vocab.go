@@ -35,7 +35,7 @@ type vocabUI struct {
 	stats  vocabStats
 }
 
-// vocabLookup is the word looked up on the picture (film.Lookup): the word as clicked, the line it was clicked in, cue, its index in the open film's lines, and the film's video, title and the language it is spoken in, so the word goes into the vocabulary with them; busy while a dictionary or the AI service is asked, then its entry and the id of the dictionary pack it came from (source, "" for the AI service), or why there is none (say), with needsAI set when the AI service's settings are what helps.
+// vocabLookup is the word looked up on the picture (film.Lookup): the word as clicked, the line it was clicked in, cue, its index in the open film's lines, and the film's video, title and the language it is spoken in, so the word goes into the vocabulary with them; busy while a dictionary or the AI service is asked, then its entry and the id of the dictionary pack it came from (source, "" for the AI service), with the ids of the dictionaries asked first that did not have the word when the AI service answered (missed), or why there is none (say), with needsAI set when the AI service's settings are what helps; dictHint while the card shows, once, the hint to install an offline dictionary (pluginsDictHint).
 type vocabLookup struct {
 	open              bool
 	word              string
@@ -49,6 +49,8 @@ type vocabLookup struct {
 	language          string
 	entry             lookup.Entry
 	source            string
+	missed            []string
+	dictHint          bool
 	say               func(*core.Scope) string
 }
 
@@ -178,11 +180,11 @@ func (a *app) Lookup() film.Lookup {
 	if !l.open {
 		return film.Lookup{}
 	}
-	out := film.Lookup{Open: true, Word: l.word, Line: l.line, Busy: l.busy, Failed: l.failed, NeedsAI: l.needsAI, Say: l.say, Term: vocabTerm(a.FilmTerms(), l.word, l.entry.Word)}
+	out := film.Lookup{Open: true, Word: l.word, Line: l.line, Busy: l.busy, Failed: l.failed, NeedsAI: l.needsAI, Say: l.say, Term: vocabTerm(a.FilmTerms(), l.word, l.entry.Word), DictHint: l.dictHint}
 	if !l.busy && !l.failed {
 		out.Word = cmp.Or(l.entry.Word, l.word)
 		out.Reading, out.Meaning = l.entry.Reading, l.entry.Meaning
-		out.Source = a.vocabSourceText(l.source)
+		out.Source = a.vocabSourceText(l.source, l.missed)
 		book := a.savedBook()
 		out.Saved = book.WordIndex(out.Word, l.spoken) >= 0
 	}
@@ -234,6 +236,7 @@ func (a *app) LookUpWord(i int, word string) {
 	a.vocab.lookup = vocabLookup{open: true, word: word, cue: i, line: original, translation: translation, video: a.player.film.video,
 		film: title, spoken: q.Spoken, start: cues[i].Start, end: cues[i].End, language: q.Language}
 	ask := a.vocabResolve(q, title)
+	a.vocab.lookup.dictHint = a.pluginsDictHint(q)
 	if ask.cached {
 		a.vocab.lookup.entry = ask.entry
 		return
@@ -270,6 +273,10 @@ func (a *app) LookUpWord(i int, word string) {
 			}
 			l.entry, l.source = entry, source
 			if source == "" {
+				// The dictionaries asked before the AI service did not have the word (lookup.Ask.Answer); the card says so.
+				for _, d := range ask.ask.Dicts {
+					l.missed = append(l.missed, d.ID())
+				}
 				cache := a.vocabCache()
 				cache.Put(q, entry, now())
 				_ = cache.Save()
@@ -320,10 +327,22 @@ func (k vocabAsk) answer(ctx context.Context) (lookup.Entry, string, error) {
 	return k.ask.Answer(ctx)
 }
 
-// vocabSourceText says where an entry came from, as the lookup card shows it under the meaning: the dictionary pack of the id dict, by its name, with the credit its license asks for, or the AI service; in the language shown under the card's scope.
-func (a *app) vocabSourceText(dict string) func(*core.Scope) string {
+// vocabSourceText says where an entry came from, as the lookup card shows it under the meaning: the dictionary pack of the id dict, by its name, with the credit its license asks for, or the AI service, saying so when the dictionaries missed, asked first, did not have the word (docs/plugin-system.md 7.5): by its name when one was asked, as "your dictionaries" when several were; in the language shown under the card's scope.
+func (a *app) vocabSourceText(dict string, missed []string) func(*core.Scope) string {
 	if dict == "" {
-		return locales.VocabLookupSourceAI
+		switch len(missed) {
+		case 0:
+			return locales.VocabLookupSourceAI
+		case 1:
+			var name plugins.Text
+			if i := slices.IndexFunc(a.plugins.packs, func(p plugins.Pack) bool { return p.ID == missed[0] }); i >= 0 {
+				name = a.plugins.packs[i].Name
+			}
+			return func(cx *core.Scope) string {
+				return locales.VocabLookupSourceAINotInDict(cx, cmp.Or(name.In(i18n.Language(cx)), missed[0]))
+			}
+		}
+		return locales.VocabLookupSourceAINotInDicts
 	}
 	var name, credit plugins.Text
 	if i := slices.IndexFunc(a.plugins.packs, func(p plugins.Pack) bool { return p.ID == dict }); i >= 0 {

@@ -13,7 +13,7 @@ import (
 // lookupGlass is the glass of the card of a word looked up, as the selection bar's.
 var lookupGlass = glassSpec{theme.GlassCard, 16}
 
-// lookupCard is the card of the word looked up on the picture (App.Lookup), under the title bar in the middle of the room the side panel leaves, clear of the lines it was clicked in: the word, how it is read and the × that closes it, what it means in the line, or that a dictionary or the AI service is asked, or why no meaning came, where the meaning came from, the film's glossary's term for it when it has one, and the line itself; then Add to Vocabulary, In Vocabulary once it is there, which takes it out again, and Explain Line, or Open Settings when no AI service can answer. Escape closes it.
+// lookupCard is the card of the word looked up on the picture (App.Lookup), under the title bar in the middle of the room the side panel leaves, clear of the lines it was clicked in: the word, how it is read and the × that closes it, what it means in the line, or that a dictionary or the AI service is asked, or why no meaning came, where the meaning came from, the film's glossary's term for it when it has one, and the line itself; then Add to Vocabulary, In Vocabulary once it is there, which takes it out again, and Explain Line, or Open Settings when no AI service can answer; and at its foot, once, the hint to install an offline dictionary with the button that opens Settings › 插件 (Lookup.DictHint). Escape closes it.
 func (s *screen) lookupCard() core.Node {
 	a, cx := s.a, s.cx
 	open := live.Memo(cx, a, func() bool { return a.Lookup().Open })
@@ -81,9 +81,15 @@ func (s *screen) lookupCard() core.Node {
 				return lookupButton(cx, func() string { return locales.VocabLookupSettings(cx) }, "film-lookup-settings", live.Do(a, a.LookupSettings), nil)
 			}},
 		}}
+		hint := core.Show{When: func() bool { return l().DictHint }, Then: func(cx *core.Scope) core.Node {
+			return core.View{TestID: "film-lookup-dict-hint", Style: core.Style{Direction: core.Row, AlignItems: core.AlignCenter, Gap: 8, Padding: core.Edges{Top: 4}}, Children: []core.Node{
+				core.Text{ContentFunc: func() string { return locales.VocabLookupDictHint(cx) }, Style: core.Style{FlexGrow: 1, FlexShrink: 1, FontSize: 11, LineHeight: 15, Color: muted}},
+				lookupButton(cx, func() string { return locales.VocabLookupDictHintOpen(cx) }, "film-lookup-dict-hint-open", live.Do(a, a.LookupDictionaries), nil),
+			}}
+		}}
 		card := core.View{TestID: "film-lookup", Role: core.RoleGroup, LabelFunc: func() string { return locales.VocabLookupCard(cx, l().Word) },
 			Style:    lookupGlass.style().Merge(core.Style{Width: core.Pct(100), MaxWidth: core.Pt(420), Gap: 8, Padding: core.Symmetric(12, 14)}),
-			Children: []core.Node{head, meaning, source, term, line, buttons}}
+			Children: []core.Node{head, meaning, source, term, line, buttons, hint}}
 		return core.View{PointerEvents: core.PointerEventsBoxNone,
 			Style: core.Style{Position: core.Absolute, Left: core.Pt(20), Top: core.Pt(72), Direction: core.Row, JustifyContent: core.JustifyCenter},
 			StyleFunc: func() core.Style {

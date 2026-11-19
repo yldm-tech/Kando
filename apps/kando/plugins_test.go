@@ -931,6 +931,79 @@ func TestPluginDictionaryAnswersOffline(t *testing.T) {
 	}
 }
 
+// TestPluginDictionariesMissedAreNamed checks the card of a word the dictionaries asked first did not have, which the AI service then answered (docs/plugin-system.md 7.5): with one dictionary asked it names it, with several it says "your dictionaries"; a word the AI service answers with no dictionary asked says only that it did.
+func TestPluginDictionariesMissedAreNamed(t *testing.T) {
+	srv, _ := fakeLLM(t, `{"word":"bye","meaning":"int. 再见"}`)
+	a, tt, updates := vocabTalk(t, media.Tools{Translator: media.ChatTranslator{BaseURL: srv.URL + "/v1", APIKey: "k", Model: "m1"}})
+	msgs := testlocale.Messages()
+	// Each look asks about another word, as the cache keeps the AI service's answers and a word answered from it asks no dictionary.
+	look := func(word string) string {
+		apply(tt, a, func() { a.LookUpWord(1, word) })
+		waitUntil(t, tt, a, updates, func() bool { return !a.vocab.lookup.busy })
+		if l := a.vocab.lookup; l.failed || l.entry.Meaning != "int. 再见" || l.source != "" {
+			t.Fatalf("the lookup %+v", l)
+		}
+		refresh(tt, a)
+		return tt.Find("id:film-lookup-source").Text
+	}
+	if got := look("Bye"); got != msgs.VocabLookupSourceAI() {
+		t.Fatalf("no dictionary asked: %q", got)
+	}
+	pluginsDictInstalled(t, a, tt, updates, pluginDictionary("example.words", "English words", "en", "zh-Hans"), map[string][]byte{"words.tsv": []byte("hello\t\t你好\n")})
+	if got := look("Byes"); got != msgs.VocabLookupSourceAINotInDict("English words") {
+		t.Fatalf("one dictionary asked: %q", got)
+	}
+	pluginsDictInstalled(t, a, tt, updates, pluginDictionary("example.more", "More words", "en", "zh-Hans"), map[string][]byte{"words.tsv": []byte("river\t\t河\n")})
+	if got := look("Byebye"); got != msgs.VocabLookupSourceAINotInDicts() {
+		t.Fatalf("two dictionaries asked: %q", got)
+	}
+}
+
+// TestPluginDictionaryHintShowsOnce checks the hint to install an offline dictionary on the card of a word looked up (docs/plugin-system.md 7.4): a learner of Japanese with no Japanese dictionary pack sees it the first time, and never again, as settings.json keeps it shown; its button opens Settings › 插件. A word of another language, or a learner with a Japanese dictionary installed, sees none.
+func TestPluginDictionaryHintShowsOnce(t *testing.T) {
+	srv, _ := fakeLLM(t, `{"word":"hello","meaning":"int. 你好"}`)
+	a, tt, updates, item := playerFilm(t, 12, media.Tools{Translator: media.ChatTranslator{BaseURL: srv.URL + "/v1", APIKey: "k", Model: "m1"}})
+	playerOpenFilm(t, a, tt, updates, item)
+	playerLoadFilm(tt, a, 12*time.Second)
+	// An English dictionary installed, which a Japanese word does not count as one of its language.
+	pluginsDictInstalled(t, a, tt, updates, pluginDictionary("example.words", "English words", "en", "zh-Hans"), map[string][]byte{"words.tsv": []byte("hello\t\t你好\n")})
+
+	apply(tt, a, func() { a.LookUpWord(0, "Hello") })
+	if a.vocab.lookup.dictHint || a.plugins.dictHintShown {
+		t.Fatal("the hint showed for an English word")
+	}
+	apply(tt, a, func() {
+		a.CloseLookup()
+		a.library.Jobs[0].SpokenLanguage = "ja"
+		a.LookUpWord(0, "Hello")
+	})
+	if !a.vocab.lookup.dictHint || !tt.Exists("id:film-lookup-dict-hint") || !hasText(tt, testlocale.Messages().VocabLookupDictHint()) {
+		t.Fatalf("no hint for a Japanese word: %+v; texts %q", a.vocab.lookup, tt.Texts())
+	}
+	var saved savedSettings
+	if data, err := os.ReadFile(a.settingsPath); err != nil || json.Unmarshal(data, &saved) != nil || !saved.PluginDictHintShown {
+		t.Fatalf("settings.json: %s, %v", data, err)
+	}
+	tt.Press("id:film-lookup-dict-hint-open")
+	refresh(tt, a)
+	wantSettings(t, a, settings.SectionPlugins)
+	if a.vocab.lookup.open {
+		t.Fatal("the card stayed open")
+	}
+	apply(tt, a, func() { a.prefs.open = false; a.LookUpWord(0, "Hello") })
+	if a.vocab.lookup.dictHint {
+		t.Fatal("the hint showed twice")
+	}
+
+	// A Japanese dictionary installed: no hint, though it was never shown.
+	apply(tt, a, func() { a.plugins.dictHintShown = false; a.CloseLookup() })
+	pluginsDictInstalled(t, a, tt, updates, pluginDictionary("example.ja-zh", "Japanese words", "ja", "zh-Hans"), map[string][]byte{"words.tsv": []byte("公園\tこうえん\t公园\n")})
+	apply(tt, a, func() { a.LookUpWord(0, "Hello") })
+	if a.vocab.lookup.dictHint || a.plugins.dictHintShown {
+		t.Fatal("the hint showed with a Japanese dictionary installed")
+	}
+}
+
 // TestPluginDictionaryOpenedAgainAfterAFailure checks a dictionary that fails: one whose index is found damaged by a lookup is closed, its index built again at once, and answers the next lookup; one that could not be opened for a reason that may pass, as a file it could not read, is listed among the page's problems and opened again at the next sync, while one Kando cannot read (dict.ErrEmpty) is not tried again.
 func TestPluginDictionaryOpenedAgainAfterAFailure(t *testing.T) {
 	a, tt, updates := vocabTalk(t, media.Tools{Translator: media.ChatTranslator{BaseURL: "https://api.openai.com/v1"}})

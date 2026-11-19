@@ -947,6 +947,7 @@ var Parameters = map[string][]string{
 	"VocabLongest":                             {"count"},
 	"VocabLookupCard":                          {"word"},
 	"VocabLookupFailed":                        {"error_"},
+	"VocabLookupSourceAINotInDict":             {"dictionary"},
 	"VocabLookupSourceDict":                    {"name"},
 	"VocabLookupSourceDictCredit":              {"name", "credit"},
 	"VocabLookupTerm":                          {"term"},
@@ -1568,6 +1569,7 @@ type Translation struct {
 	VocabLongest                             func(count int) string
 	VocabLookupCard                          func(word string) string
 	VocabLookupFailed                        func(error_ string) string
+	VocabLookupSourceAINotInDict             func(dictionary string) string
 	VocabLookupSourceDict                    func(name string) string
 	VocabLookupSourceDictCredit              func(name string, credit string) string
 	VocabLookupTerm                          func(term string) string
@@ -3159,10 +3161,13 @@ const (
 	textVocabLines
 	textVocabLookupBusy
 	textVocabLookupClose
+	textVocabLookupDictHint
+	textVocabLookupDictHintOpen
 	textVocabLookupNoAI
 	textVocabLookupNotInDicts
 	textVocabLookupSettings
 	textVocabLookupSourceAI
+	textVocabLookupSourceAINotInDicts
 	textVocabMastery
 	textVocabMasteryNote
 	textVocabOtherDevices
@@ -4781,10 +4786,13 @@ var keyOfText = [numTexts]string{
 	"vocabLines",
 	"vocabLookupBusy",
 	"vocabLookupClose",
+	"vocabLookupDictHint",
+	"vocabLookupDictHintOpen",
 	"vocabLookupNoAI",
 	"vocabLookupNotInDicts",
 	"vocabLookupSettings",
 	"vocabLookupSourceAI",
+	"vocabLookupSourceAINotInDicts",
 	"vocabMastery",
 	"vocabMasteryNote",
 	"vocabOtherDevices",
@@ -6401,10 +6409,13 @@ var textsEn = i18n.NewTexts(""+
 	"Saved lines"+
 	"Looking it up…"+
 	"Close"+
+	"Install an offline dictionary: lookups get faster and don't use the AI service."+
+	"Open Plugins"+
 	"Looking up a word asks your dictionaries, then the AI service. Set one up in AI Service, or install a dictionary in Plugins."+
 	"None of your dictionaries has this word. To look up the words they lack, set up an AI service in AI Service."+
 	"Open Settings"+
 	"Explained by your AI service"+
+	"Your dictionaries don't have this word; asked your AI service"+
 	"Mastery"+
 	"Words and saved lines together. One counts as mastered once you knew it five times in a row and its next review is over three weeks away."+
 	"Other devices"+
@@ -8018,10 +8029,13 @@ var textsEn = i18n.NewTexts(""+
 		11,
 		16,
 		5,
+		79,
+		12,
 		124,
 		108,
 		13,
 		28,
+		61,
 		7,
 		137,
 		13,
@@ -9638,10 +9652,13 @@ var textsJa = i18n.NewTexts(""+
 	"保存したセリフ"+
 	"調べています…"+
 	"閉じる"+
+	"オフライン辞書を入れると、調べるのが速くなり、AI も使いません。"+
+	"プラグイン設定を開く"+
 	"単語はインストールした辞書で調べ、なければ AI サービスに聞きます。「AI サービス」で設定するか、「プラグイン」で辞書をインストールしてください。"+
 	"インストールした辞書にこの単語はありません。辞書にない単語も調べるには、「AI サービス」で設定してください。"+
 	"設定を開く"+
 	"AI サービスによる説明"+
+	"どの辞書にもこの語がないため、AI サービスに聞きました"+
 	"習得状況"+
 	"単語と保存したセリフを合わせて数えます。5 回続けて正解し、次の復習が 3 週間以上先になったものを習得済みとします。"+
 	"ほかのデバイス"+
@@ -11255,10 +11272,13 @@ var textsJa = i18n.NewTexts(""+
 		21,
 		21,
 		9,
+		93,
+		30,
 		211,
 		159,
 		15,
 		30,
+		78,
 		12,
 		167,
 		21,
@@ -12875,10 +12895,13 @@ var textsKo = i18n.NewTexts(""+
 	"저장한 대사"+
 	"찾는 중…"+
 	"닫기"+
+	"오프라인 사전을 설치하면 더 빨리 찾고 AI를 쓰지 않습니다."+
+	"플러그인 설정 열기"+
 	"단어는 설치한 사전에서 먼저 찾고, 없으면 AI 서비스에 묻습니다. 「AI 서비스」에서 설정하거나 「플러그인」에서 사전을 설치하세요."+
 	"설치한 사전에 이 단어가 없습니다. 사전에 없는 단어도 찾으려면 「AI 서비스」에서 설정하세요."+
 	"설정 열기"+
 	"AI 서비스의 설명"+
+	"어느 사전에도 이 단어가 없어 AI 서비스에 물었습니다"+
 	"숙달 현황"+
 	"단어와 저장한 대사를 함께 셉니다. 5번 연속 맞히고 다음 복습이 3주 넘게 남으면 익힌 것으로 칩니다."+
 	"다른 기기"+
@@ -14492,10 +14515,13 @@ var textsKo = i18n.NewTexts(""+
 		16,
 		13,
 		6,
+		80,
+		26,
 		180,
 		129,
 		13,
 		22,
+		72,
 		13,
 		136,
 		13,
@@ -16112,10 +16138,13 @@ var textsZhHans = i18n.NewTexts(""+
 	"收藏的句子"+
 	"正在查…"+
 	"关闭"+
+	"装一个离线词典，查词更快、不耗 AI。"+
+	"打开插件设置"+
 	"查词会先查已安装的词典，再问 AI 服务。先在「AI 服务」里设置一个，或在「插件」里安装词典。"+
 	"已安装的词典里没有这个词。要查词典里没有的词，先在「AI 服务」里设置一个。"+
 	"打开设置"+
 	"由 AI 服务解释"+
+	"你的词典都没有这个词，问了 AI 服务"+
 	"掌握情况"+
 	"生词和收藏的句子一起算。连续答对 5 次、下次复习在三周以后，就算掌握。"+
 	"其他设备"+
@@ -17729,10 +17758,13 @@ var textsZhHans = i18n.NewTexts(""+
 		15,
 		12,
 		6,
+		51,
+		18,
 		130,
 		108,
 		12,
 		19,
+		49,
 		12,
 		102,
 		12,
@@ -19349,10 +19381,13 @@ var textsZhHant = i18n.NewTexts(""+
 	"收藏的句子"+
 	"正在查…"+
 	"關閉"+
+	"裝一個離線詞典，查詞更快、不耗 AI。"+
+	"打開外掛設定"+
 	"查詞會先查已安裝的詞典，再問 AI 服務。先在「AI 服務」裡設定一個，或在「外掛」裡安裝詞典。"+
 	"已安裝的詞典裡沒有這個詞。要查詞典裡沒有的詞，先在「AI 服務」裡設定一個。"+
 	"打開設定"+
 	"由 AI 服務解釋"+
+	"你的詞典都沒有這個詞，問了 AI 服務"+
 	"掌握情況"+
 	"生詞和收藏的句子一起算。連續答對 5 次、下次複習在三週以後，就算掌握。"+
 	"其他裝置"+
@@ -20966,10 +21001,13 @@ var textsZhHant = i18n.NewTexts(""+
 		15,
 		12,
 		6,
+		51,
+		18,
 		130,
 		108,
 		12,
 		19,
+		49,
 		12,
 		102,
 		12,
@@ -22643,6 +22681,9 @@ func Supply(lang string, t Translation) {
 	}
 	if t.VocabLookupFailed != nil {
 		s.VocabLookupFailed = t.VocabLookupFailed
+	}
+	if t.VocabLookupSourceAINotInDict != nil {
+		s.VocabLookupSourceAINotInDict = t.VocabLookupSourceAINotInDict
 	}
 	if t.VocabLookupSourceDict != nil {
 		s.VocabLookupSourceDict = t.VocabLookupSourceDict
@@ -54081,6 +54122,24 @@ func VocabLookupClose(cx *core.Scope) string { return For(cx).VocabLookupClose()
 // VocabLookupClose is the package's VocabLookupClose in the language of msgs.
 func (msgs Messages) VocabLookupClose() string { return msgs.text(textVocabLookupClose) }
 
+// VocabLookupDictHint says "Install an offline dictionary: lookups get faster and don't use the AI service."
+// in the language the app shows under cx.
+//
+// Card of a word looked up, at its foot, shown once: the first time a learner of Japanese or Chinese looks a word up with no dictionary pack of its language installed.
+func VocabLookupDictHint(cx *core.Scope) string { return For(cx).VocabLookupDictHint() }
+
+// VocabLookupDictHint is the package's VocabLookupDictHint in the language of msgs.
+func (msgs Messages) VocabLookupDictHint() string { return msgs.text(textVocabLookupDictHint) }
+
+// VocabLookupDictHintOpen says "Open Plugins"
+// in the language the app shows under cx.
+//
+// Button after the offline dictionary hint of the lookup card: opens Settings › Plugins, where dictionary packs are installed.
+func VocabLookupDictHintOpen(cx *core.Scope) string { return For(cx).VocabLookupDictHintOpen() }
+
+// VocabLookupDictHintOpen is the package's VocabLookupDictHintOpen in the language of msgs.
+func (msgs Messages) VocabLookupDictHintOpen() string { return msgs.text(textVocabLookupDictHintOpen) }
+
 // VocabLookupFailed says "No meaning came back: {error}"
 // in the language the app shows under cx.
 //
@@ -54148,6 +54207,51 @@ func VocabLookupSourceAI(cx *core.Scope) string { return For(cx).VocabLookupSour
 
 // VocabLookupSourceAI is the package's VocabLookupSourceAI in the language of msgs.
 func (msgs Messages) VocabLookupSourceAI() string { return msgs.text(textVocabLookupSourceAI) }
+
+// VocabLookupSourceAINotInDict says "{dictionary} doesn't have this word; asked your AI service"
+// in the language the app shows under cx.
+//
+// Card of a word looked up, under the meaning: the one dictionary pack asked did not have the word, so the AI service gave the meaning; {dictionary} is the pack's name.
+func VocabLookupSourceAINotInDict(cx *core.Scope, dictionary string) string {
+	return For(cx).VocabLookupSourceAINotInDict(dictionary)
+}
+
+// VocabLookupSourceAINotInDict is the package's VocabLookupSourceAINotInDict in the language of msgs.
+func (msgs Messages) VocabLookupSourceAINotInDict(dictionary string) string {
+	if i18n.IsPseudo(msgs.lang) {
+		return i18n.Pseudo(msgs.lang, Messages{lang: Source, mark: true}.VocabLookupSourceAINotInDict(dictionary))
+	}
+	for lang := msgs.lang; ; lang = i18n.Parent(lang) {
+		if f := supplied[lang].VocabLookupSourceAINotInDict; f != nil {
+			return f(dictionary)
+		}
+		switch lang {
+		case "", "en":
+			return msgs.arg(dictionary) + " doesn't have this word; asked your AI service"
+		case "ja":
+			return "辞書「" + dictionary + "」にこの語がないため、AI サービスに聞きました"
+		case "ko":
+			return "사전 「" + dictionary + "」에 이 단어가 없어 AI 서비스에 물었습니다"
+		case "zh-Hans":
+			return "词典「" + dictionary + "」没有这个词，问了 AI 服务"
+		case "zh-Hant":
+			return "詞典「" + dictionary + "」沒有這個詞，問了 AI 服務"
+		}
+	}
+}
+
+// VocabLookupSourceAINotInDicts says "Your dictionaries don't have this word; asked your AI service"
+// in the language the app shows under cx.
+//
+// Card of a word looked up, under the meaning: none of the dictionary packs asked had the word, so the AI service gave the meaning.
+func VocabLookupSourceAINotInDicts(cx *core.Scope) string {
+	return For(cx).VocabLookupSourceAINotInDicts()
+}
+
+// VocabLookupSourceAINotInDicts is the package's VocabLookupSourceAINotInDicts in the language of msgs.
+func (msgs Messages) VocabLookupSourceAINotInDicts() string {
+	return msgs.text(textVocabLookupSourceAINotInDicts)
+}
 
 // VocabLookupSourceDict says "From the dictionary {name}"
 // in the language the app shows under cx.

@@ -49,6 +49,8 @@ type pluginsUI struct {
 	stop      *atomic.Bool
 	subs      pluginsSubs
 	list      *pluginsList
+	// dictHintShown is set once the lookup card showed the hint to install an offline dictionary (pluginsDictHint), which shows once.
+	dictHintShown bool
 }
 
 // pluginsGone is the AI service of a pack that is not offered now, though the endpoint in use is still its own: id is its preset id (pack.<id>) and base its endpoint. The service settings.json saved, when it was a pack's, starts as one, as the packs are read only once the window is ready.
@@ -64,12 +66,13 @@ type pluginsPending struct {
 
 func newPluginsUI() pluginsUI { return pluginsUI{} }
 
-// savedPlugins is the plugins' part of settings.json: preferences alone, never what is installed or turned on, which the plugins folder and its state.json keep. PluginOrder is every pack id seen, in the order it came; an id whose pack is not in the plugins folder now is kept, and the page lists it as missing until the user forgets it. PluginReadings, PluginWordlist and PluginKnownWords are how 字幕外观's 逐词标注 marks the words of the originals (pluginsMarkPrefs): readings, the id of the word list whose levels draw a line under them, kept while that pack is missing, and a dashed line under the words in the vocabulary.
+// savedPlugins is the plugins' part of settings.json: preferences alone, never what is installed or turned on, which the plugins folder and its state.json keep. PluginOrder is every pack id seen, in the order it came; an id whose pack is not in the plugins folder now is kept, and the page lists it as missing until the user forgets it. PluginReadings, PluginWordlist and PluginKnownWords are how 字幕外观's 逐词标注 marks the words of the originals (pluginsMarkPrefs): readings, the id of the word list whose levels draw a line under them, kept while that pack is missing, and a dashed line under the words in the vocabulary. PluginDictHintShown is set once the lookup card showed the hint to install an offline dictionary, which shows once (pluginsDictHint).
 type savedPlugins struct {
-	PluginOrder      []string `json:"pluginOrder,omitempty"`
-	PluginReadings   bool     `json:"pluginReadings,omitempty"`
-	PluginWordlist   string   `json:"pluginWordlist,omitempty"`
-	PluginKnownWords bool     `json:"pluginKnownWords,omitempty"`
+	PluginOrder         []string `json:"pluginOrder,omitempty"`
+	PluginReadings      bool     `json:"pluginReadings,omitempty"`
+	PluginWordlist      string   `json:"pluginWordlist,omitempty"`
+	PluginKnownWords    bool     `json:"pluginKnownWords,omitempty"`
+	PluginDictHintShown bool     `json:"pluginDictHintShown,omitempty"`
 }
 
 // pluginOrderMax is the most ids PluginOrder keeps.
@@ -98,6 +101,7 @@ func (a *app) pluginsHooks() areaHooks {
 		restore: func(saved savedSettings) {
 			a.plugins.order = slices.Clone(saved.PluginOrder)
 			a.plugins.prefs = pluginsMarkPrefs{readings: saved.PluginReadings, list: saved.PluginWordlist, known: saved.PluginKnownWords}
+			a.plugins.dictHintShown = saved.PluginDictHintShown
 			if strings.HasPrefix(saved.LLMProvider, llmPackPrefix) {
 				a.plugins.gone = pluginsGone{id: saved.LLMProvider, base: saved.LLMBaseURL}
 			}
@@ -111,6 +115,7 @@ func (a *app) pluginsHooks() areaHooks {
 				}
 			}
 			saved.PluginReadings, saved.PluginWordlist, saved.PluginKnownWords = a.plugins.prefs.readings, a.plugins.prefs.list, a.plugins.prefs.known
+			saved.PluginDictHintShown = a.plugins.dictHintShown
 		},
 		ready: a.pluginsScan,
 		becameActive: func() {

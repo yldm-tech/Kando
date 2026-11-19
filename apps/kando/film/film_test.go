@@ -263,6 +263,7 @@ func (f *fakeApp) CloseLookup()                            { f.call("close looku
 func (f *fakeApp) ToggleLookupWord()                       { f.call("toggle word") }
 func (f *fakeApp) ExplainLookupLine()                      { f.call("explain lookup") }
 func (f *fakeApp) LookupSettings()                         { f.call("lookup settings") }
+func (f *fakeApp) LookupDictionaries()                     { f.call("lookup dictionaries") }
 func (f *fakeApp) RemoveNote(n Note) {
 	f.call("remove note " + n.ID)
 	f.notes = slices.DeleteFunc(f.notes, func(o Note) bool { return o.ID == n.ID })
@@ -1597,6 +1598,21 @@ func TestWordsOfTheOriginalLookUp(t *testing.T) {
 	app.Press("id:film-lookup-settings")
 	if a.calls[len(a.calls)-1] != "lookup settings" {
 		t.Fatalf("Open Settings made %q", a.calls)
+	}
+
+	// The hint to install an offline dictionary shows at the card's foot while the app says so, and its button opens Settings › 插件.
+	if app.Exists("id:film-lookup-dict-hint") {
+		t.Fatal("the dictionary hint shows unasked")
+	}
+	change(app, a, func() {
+		a.lookup = Lookup{Open: true, Word: "猫", Meaning: "cat", Line: "猫がいる。", DictHint: true}
+	})
+	if !app.Exists(whole(msgs.VocabLookupDictHint())) {
+		t.Fatalf("the dictionary hint: %q", app.Texts())
+	}
+	app.Press("id:film-lookup-dict-hint-open")
+	if a.calls[len(a.calls)-1] != "lookup dictionaries" {
+		t.Fatalf("the hint's button made %q", a.calls)
 	}
 }
 

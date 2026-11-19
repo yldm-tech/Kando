@@ -6917,6 +6917,12 @@ vocabLookupCard:
 vocabLookupClose:
   message: "Close"
   description: "Close button of the card of a word looked up on the subtitles."
+vocabLookupDictHint:
+  message: "Install an offline dictionary: lookups get faster and don't use the AI service."
+  description: "Card of a word looked up, at its foot, shown once: the first time a learner of Japanese or Chinese looks a word up with no dictionary pack of its language installed."
+vocabLookupDictHintOpen:
+  message: "Open Plugins"
+  description: "Button after the offline dictionary hint of the lookup card: opens Settings › Plugins, where dictionary packs are installed."
 vocabLookupFailed:
   message: "No meaning came back: {error}"
   description: "Card of a word looked up, when the AI service did not answer, with its reason."
@@ -6934,6 +6940,14 @@ vocabLookupSettings:
 vocabLookupSourceAI:
   message: "Explained by your AI service"
   description: "Card of a word looked up, under the meaning: the meaning came from the AI service, now or when the word was looked up before."
+vocabLookupSourceAINotInDict:
+  message: "{dictionary} doesn't have this word; asked your AI service"
+  description: "Card of a word looked up, under the meaning: the one dictionary pack asked did not have the word, so the AI service gave the meaning; {dictionary} is the pack's name."
+  placeholders:
+    dictionary: { type: "String", example: "JMdict (English)" }
+vocabLookupSourceAINotInDicts:
+  message: "Your dictionaries don't have this word; asked your AI service"
+  description: "Card of a word looked up, under the meaning: none of the dictionary packs asked had the word, so the AI service gave the meaning."
 vocabLookupSourceDict:
   message: "From the dictionary {name}"
   description: "Card of a word looked up, under the meaning: the meaning came from a dictionary pack the user installed; {name} is its name."

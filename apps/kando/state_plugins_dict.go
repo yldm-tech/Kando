@@ -9,6 +9,7 @@ import (
 	"kando/apps/kando/lookup"
 	"kando/apps/kando/plugins"
 	"kando/apps/kando/plugins/dict"
+	"kando/apps/kando/settings"
 	"kando/packages/core"
 )
 
@@ -155,6 +156,33 @@ func (a *app) pluginsDictsFor(lang, answer string) (first, others []lookup.Dicti
 		}
 	}
 	return first, others
+}
+
+// pluginsDictHint reports whether the card of the word looked up as q shows, once, the hint that an offline dictionary looks words up faster and without the AI service (docs/plugin-system.md 7.4): the word is Japanese or Chinese, no dictionary pack of its language is installed, turned on or not, and the hint was never shown. Once it reports true the hint counts as shown, which settings.json keeps (savedPlugins.PluginDictHintShown). Before the plugins folder is read it reports false, as the packs are not known yet.
+func (a *app) pluginsDictHint(q lookup.Query) bool {
+	if a.plugins.dictHintShown || !a.plugins.scanned {
+		return false
+	}
+	lang := core.BaseLanguage(lookup.WordLanguage(q))
+	if lang != "ja" && lang != "zh" {
+		return false
+	}
+	for _, p := range a.plugins.packs {
+		if p.Kind == plugins.KindDictionary && p.Dictionary != nil && slices.ContainsFunc(p.Dictionary.From, func(from string) bool { return core.BaseLanguage(from) == lang }) {
+			return false
+		}
+	}
+	a.plugins.dictHintShown = true
+	if err := a.saveSettingsChanged(); err != nil {
+		a.saveErr = a.messages().SettingsSaveFailed(err.Error())
+	}
+	return true
+}
+
+// LookupDictionaries is the action of the lookup card's dictionary hint (pluginsDictHint): the card closes and the settings open at 插件, where a dictionary pack is installed.
+func (a *app) LookupDictionaries() {
+	a.CloseLookup()
+	a.OpenSettings(settings.SectionPlugins)
 }
 
 // pluginsDictIssues are the dictionaries turned on that could not be opened, and why, for the page's problems.
