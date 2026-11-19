@@ -1,6 +1,7 @@
 package media
 
 import (
+	"errors"
 	"os"
 	"path/filepath"
 	"testing"
@@ -72,5 +73,15 @@ func TestClassifyReadsOnlyTheErrorLines(t *testing.T) {
 	stderr := "WARNING: [youtube] unable to extract yt initial data; please report this issue on  https://github.com/yt-dlp/yt-dlp/issues?q= , filling out the appropriate issue template. Confirm you are on the latest version using  yt-dlp -U\nERROR: [youtube] yZIXLfi8CZQ: Private video\n"
 	if got := ClassifyDownload(stderr); got != core.FailPrivate {
 		t.Fatalf("got %q", got)
+	}
+}
+
+// A download that wants a login while it borrows a browser's has let that login run out; one that borrows none, an empty Cookies or the Add sheet's core.CookiesNone, only wants one, and its card offers to borrow a browser's rather than naming a browser called "none".
+func TestDownloadFailKindOfABorrowedLogin(t *testing.T) {
+	err := errors.New("ERROR: [vimeo] 1: This video is only available for registered users. Use --cookies-from-browser or --cookies for the authentication.")
+	for cookies, want := range map[string]core.FailKind{"": core.FailLogin, core.CookiesNone: core.FailLogin, "chrome": core.FailLoginExpired} {
+		if got := downloadFailKind(core.Job{Cookies: cookies}, err); got != want {
+			t.Errorf("Cookies %q: %q, want %q", cookies, got, want)
+		}
 	}
 }

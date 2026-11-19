@@ -1,9 +1,12 @@
 package main
 
 import (
+	"context"
+	"maps"
 	"os"
 	"path/filepath"
 	"slices"
+	"time"
 
 	"kando/apps/kando/films"
 	"kando/apps/kando/live"
@@ -164,7 +167,9 @@ func (a *app) VocabOptions() saved.VocabOptions { return a.vocab.stats.options }
 
 func (a *app) SetVocabOptions(o saved.VocabOptions) {
 	a.vocab.stats.options = o
-	a.vocab.stats.exported = study.VocabExported{}
+	if !a.vocab.stats.exported.Busy {
+		a.vocab.stats.exported = study.VocabExported{}
+	}
 }
 
 // vocabRows is the records the export writes with its options now.
@@ -198,18 +203,42 @@ func (a *app) VocabSummary() study.VocabSummary {
 	return out
 }
 
-// ExportVocab is the Export Vocabulary tab's Export…: in the folder the user picks, the file of the vocabulary in the format chosen (saved.ExportVocab), the dialog then saying where it went or why it did not.
+// ExportVocab is the Export Vocabulary tab's Export…: in the folder the user picks, the file of the vocabulary in the format chosen (saved.ExportVocab), the dialog then saying where it went or why it did not. For Anki the sound of each word's line, and of each saved line when they go too, goes into a folder beside it (saved.VocabSounds), cut with ffmpeg off the engine's goroutine or copied from the sounds the library keeps, which the notes play.
 func (a *app) ExportVocab() {
-	if len(a.vocabRows()) == 0 {
+	if len(a.vocabRows()) == 0 || a.vocab.stats.exported.Busy {
 		return
 	}
 	a.pickFolder(core.PickDirectoriesOptions{}, func(dir string) {
-		path, err := saved.ExportVocab(dir, a.vocabRows(), a.vocab.stats.options)
-		if err != nil {
-			a.vocab.stats.exported = study.VocabExported{Err: err.Error()}
+		book := a.savedBook()
+		o := a.vocab.stats.options
+		rows := a.vocabRows()
+		done := func(path string, err error) {
+			if err != nil {
+				a.vocab.stats.exported = study.VocabExported{Err: err.Error()}
+				return
+			}
+			a.vocab.stats.exported = study.VocabExported{File: path, Shown: films.DisplayPath(a.messages(), path)}
+		}
+		if o.Format != saved.VocabAnki || a.update == nil {
+			done(saved.ExportVocab(dir, rows, o))
 			return
 		}
-		a.vocab.stats.exported = study.VocabExported{File: path, Shown: films.DisplayPath(a.messages(), path)}
+		book.Words, book.Lines = slices.Clone(book.Words), slices.Clone(book.Lines)
+		delays := maps.Clone(a.player.delays)
+		ffmpeg, update := a.ffmpegPath(), a.update
+		a.vocab.stats.exported = study.VocabExported{Busy: true}
+		go func() {
+			sounds, err := saved.VocabSounds(context.Background(), ffmpeg, book, o, func(video string) time.Duration { return delays[video] }, filepath.Join(dir, saved.VocabAudio), nil)
+			path := ""
+			if err == nil {
+				path, err = saved.ExportVocab(dir, saved.WithSounds(rows, book.Words, book.Lines, o, sounds), o)
+			}
+			update(func() {
+				if a.vocab.stats.exported.Busy {
+					done(path, err)
+				}
+			})
+		}()
 	})
 }
 

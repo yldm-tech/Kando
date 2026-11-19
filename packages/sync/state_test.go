@@ -463,3 +463,16 @@ func TestAStateEventWakesAPhoneAndKeepsApartFromAJobOfTheSameID(t *testing.T) {
 		t.Errorf("events = %+v, want the job's newest and the state's newest", all.Events)
 	}
 }
+
+func TestJoinedKeepsBothNotesTheKeptFirst(t *testing.T) {
+	c := Conflict{Kind: KindWord, Field: FieldMeaning, Kept: Field{Value: Value("axes")}, Lost: Field{Value: Value("directions")}}
+	if got := Text(Joined(c)); got != "axes\ndirections" {
+		t.Fatalf("joined %q", got)
+	}
+	if !Joinable(KindLine, FieldNote) || !Joinable(KindWord, FieldMeaning) || Joinable(KindLine, FieldTranslation) || Joinable(KindCorrection, FieldOriginal) {
+		t.Fatal("Joinable")
+	}
+	if Text(Value(5)) != "" {
+		t.Fatal("a number read as text")
+	}
+}

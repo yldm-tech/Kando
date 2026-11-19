@@ -121,7 +121,7 @@ func TestWordsRoundTrip(t *testing.T) {
 	b, _ := Load(dir)
 	b.Device = "mac"
 	b.Now = func() time.Time { return at(clock) }
-	b.AddWord(Word{Text: "trickle", Spoken: "en", Reading: "/ˈtrɪk(ə)l/", Meaning: "细流", Language: "简体中文", Context: "Every river begins as a trickle.", ContextTranslation: "每条河都始于一股细流。", Video: b.Key(filepath.Join(dir, "Rivers", "video.mp4")), Start: 2300 * time.Millisecond, Film: "Rivers"})
+	b.AddWord(Word{Text: "trickle", Spoken: "en", Reading: "/ˈtrɪk(ə)l/", Meaning: "细流", Language: "简体中文", Context: "Every river begins as a trickle.", ContextTranslation: "每条河都始于一股细流。", Video: b.Key(filepath.Join(dir, "Rivers", "video.mp4")), Start: 2300 * time.Millisecond, End: 4100 * time.Millisecond, Film: "Rivers"})
 	b.AddWord(Word{Text: "gone"})
 	clock = 1
 	b.RemoveWord("gone", "")
@@ -139,7 +139,7 @@ func TestWordsRoundTrip(t *testing.T) {
 	}
 	w, want := got.Words[0], b.Words[0]
 	if w.ID != want.ID || w.Text != "trickle" || w.Spoken != "en" || w.Reading != want.Reading || w.Meaning != "细流" || w.Language != "简体中文" || w.Context != want.Context || w.ContextTranslation != want.ContextTranslation ||
-		w.Video != "Rivers/video.mp4" || w.Start != 2300*time.Millisecond || w.Film != "Rivers" || w.Box != 1 || !w.Due.Equal(want.Due) || !w.SavedAt.Equal(at(0)) ||
+		w.Video != "Rivers/video.mp4" || w.Start != 2300*time.Millisecond || w.End != 4100*time.Millisecond || w.Film != "Rivers" || w.Box != 1 || !w.Due.Equal(want.Due) || !w.SavedAt.Equal(at(0)) ||
 		w.Device != "mac" || !w.Stamps.Review.At.Equal(at(2)) || !w.Stamps.Meaning.At.Equal(at(0)) {
 		t.Fatalf("word read back as %+v, want %+v", w, want)
 	}
@@ -181,5 +181,44 @@ func TestWordsOfTwoLanguagesAreTwoWords(t *testing.T) {
 		if len(b.Words) != 2 || len(b.RemovedWords) != 0 || b.WordIndex("son", "fr") < 0 || b.WordIndex("son", "es") < 0 {
 			t.Fatalf("%s has %+v, removed %+v", name, b.Words, b.RemovedWords)
 		}
+	}
+}
+
+// TestDueWordsComeLongestDueFirst checks that the words due are those due by now, the one due longest first, and a word known is no longer due until its box's interval has passed.
+func TestDueWordsComeLongestDueFirst(t *testing.T) {
+	clock := 0
+	b := bookOn("mac", &clock)
+	b.AddWord(Word{Text: "first"})
+	clock = 5
+	b.AddWord(Word{Text: "second"})
+	if got := b.DueWords(at(1)); len(got) != 1 || b.Words[got[0]].Text != "first" {
+		t.Fatalf("due at 1: %v of %+v", got, b.Words)
+	}
+	due := b.DueWords(at(10))
+	if len(due) != 2 || b.Words[due[0]].Text != "first" || b.Words[due[1]].Text != "second" {
+		t.Fatalf("due at 10: %v of %+v", due, b.Words)
+	}
+	b.GradeWord("first", "", true, at(10))
+	if due := b.DueWords(at(11)); len(due) != 1 || b.Words[due[0]].Text != "second" {
+		t.Fatalf("after first was known: %v", due)
+	}
+	if i := b.WordByID(b.Words[0].ID); i != 0 || b.WordByID("") != -1 || b.WordByID("nope") != -1 {
+		t.Fatalf("WordByID: %d", i)
+	}
+}
+
+// TestMergeWordsKeepsTheLinesEnd checks that a copy of a word that does not know where its line ends, as one a phone sent, takes the end the other copy keeps, whichever merges into which.
+func TestMergeWordsKeepsTheLinesEnd(t *testing.T) {
+	clock := 0
+	mac, phone := bookOn("mac", &clock), bookOn("phone", &clock)
+	mac.AddWord(Word{ID: "w1", Text: "trickle", Start: time.Second, End: 3 * time.Second})
+	bare := mac.Words[0]
+	bare.End = 0
+	phone.MergeWords([]Word{bare}, nil)
+	if !phone.MergeWords(mac.Words, nil) || phone.Words[0].End != 3*time.Second {
+		t.Fatalf("the phone has %+v", phone.Words)
+	}
+	if mac.MergeWords([]Word{bare}, nil) || mac.Words[0].End != 3*time.Second {
+		t.Fatalf("the mac has %+v", mac.Words)
 	}
 }

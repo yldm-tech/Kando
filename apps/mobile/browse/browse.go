@@ -13,6 +13,7 @@ import (
 	"kando/apps/mobile/session"
 	"kando/apps/mobile/store"
 	kcore "kando/packages/core"
+	"kando/packages/sync"
 
 	"github.com/nsgo-dev/nsgo/base"
 	"github.com/nsgo-dev/nsgo/core"
@@ -321,6 +322,8 @@ func (b *browser) videoBar(cx *core.Scope) core.Node {
 			return locales.JobsOlder(cx)
 		case q.Reach == session.Revoked:
 			return locales.ComputersUnpaired(cx, name())
+		case q.ReadOnly:
+			return locales.JobsReadOnly(cx, name())
 		case !takes():
 			return locales.AddNoLinks(cx, name())
 		case sent():
@@ -339,7 +342,8 @@ func (b *browser) videoBar(cx *core.Scope) core.Node {
 		if l == "" || !takes() || sent() {
 			return
 		}
-		b.s.Send(to(), l)
+		// With no options, the computer's own settings pick the picture and where the lines come from.
+		b.s.Send(to(), l, sync.JobOptions{})
 		b.sent[l] = true
 		b.sends.Set(len(b.sent))
 	}

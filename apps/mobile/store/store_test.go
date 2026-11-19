@@ -180,3 +180,32 @@ func TestVisitedKeepsTheLastVideosNewestFirst(t *testing.T) {
 		t.Fatalf("the oldest looked at again: %+v", visits)
 	}
 }
+
+// A computer's relay is kept by the computer's ID until deleted; one never kept is not found, and deleting it is no error.
+func TestTheRelayIsKeptPerComputer(t *testing.T) {
+	st := Open(t.TempDir())
+	if _, ok, err := st.Relay("abc"); ok || err != nil {
+		t.Fatalf("a relay never kept: %v, %v", ok, err)
+	}
+	want := Relay{Device: "dev-1", Grant: sync.RelayGrant{State: "https://store/state", Slots: []sync.RelaySlot{{ID: "s1", Put: "https://store/put", Reply: "https://store/reply"}}}, Spent: []string{"s1"}, Seq: 3,
+		Waiting: map[string]sync.RelayWaiting{"s1": {Call: "c1", Reply: "https://store/reply"}}}
+	if err := st.SaveRelay("abc", want); err != nil {
+		t.Fatal(err)
+	}
+	got, ok, err := st.Relay("abc")
+	if !ok || err != nil || got.Device != want.Device || got.Seq != 3 || got.Waiting["s1"].Call != "c1" || len(got.Grant.Slots) != 1 {
+		t.Fatalf("kept %+v, %v, %v", got, ok, err)
+	}
+	if _, ok, _ := st.Relay("other"); ok {
+		t.Fatal("another computer's relay found")
+	}
+	if err := st.DeleteRelay("abc"); err != nil {
+		t.Fatal(err)
+	}
+	if _, ok, _ := st.Relay("abc"); ok {
+		t.Fatal("a deleted relay found")
+	}
+	if err := st.DeleteRelay("abc"); err != nil {
+		t.Fatalf("deleting a relay not kept: %v", err)
+	}
+}

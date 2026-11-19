@@ -1341,6 +1341,7 @@ func TestSwapLinkRemovesTheCardAndFocusesTheLinkField(t *testing.T) {
 		t.Fatalf("typed into %q", a.queue.source)
 	}
 	tt.Press("开始处理")
+	confirmAddSheet(tt)
 	if got := nextStarted(t, g, updates); got != "https://vimeo.com/76979871" {
 		t.Fatalf("started %s", got)
 	}

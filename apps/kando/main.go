@@ -45,6 +45,7 @@ type app struct {
 	player   playerUI    // state_player.go
 	correct  correctUI   // state_correct.go
 	gloss    glossaryUI  // state_glossary.go
+	review   reviewUI    // state_review.go
 	prefs    settingsUI  // state_settings.go
 	cloud    cloudUI     // state_cloud.go
 	overlay  overlayUI   // state_overlay.go
@@ -63,6 +64,7 @@ type app struct {
 	logs     logsUI      // state_logs.go
 	browse   browseUI    // state_browse.go
 	playlist playlistUI  // state_playlist.go
+	addsheet addSheetUI  // state_addsheet.go
 	online   onlineUI    // state_online.go
 	saved    savedUI     // state_saved.go
 	signin   signinUI    // state_signin.go
@@ -89,6 +91,7 @@ func newApp(pipeline media.Pipeline, update func(fn func())) *app {
 		player:   newPlayerUI(),
 		correct:  newCorrectUI(),
 		gloss:    newGlossaryUI(),
+		review:   newReviewUI(),
 		prefs:    newSettingsUI(),
 		cloud:    newCloudUI(),
 		overlay:  newOverlayUI(),
@@ -107,6 +110,7 @@ func newApp(pipeline media.Pipeline, update func(fn func())) *app {
 		logs:     newLogsUI(),
 		browse:   newBrowseUI(),
 		playlist: newPlaylistUI(),
+		addsheet: addSheetUI{},
 		saved:    newSavedUI(),
 		signin:   signinUI{},
 		phone:    newPhoneUI(),

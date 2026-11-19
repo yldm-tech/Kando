@@ -17,3 +17,15 @@ apple:
     # iOS asks before an app reaches devices on the local network, as the computers the app pairs with and downloads from are. Go's net/http on iOS goes through no URLSession, so App Transport Security does not apply to the computer's self-signed certificate, which the app pins by its fingerprint (kando/packages/sync).
     NSLocalNetworkUsageDescription: Kando connects to Kando on your computer over your local network to list and download your films.
 # Android: the runtime's manifest asks for INTERNET, the one permission the app needs; HTTPS to the computer needs no cleartext exception.
+
+# The widgets of iPhones and iPads (package widgets, yldm-tech/Kando#225): the streak with what is due for review, on the Home Screen and as a ring on the Lock Screen, and the film to go on with. Android has none of NSGo's yet (nsgo#657).
+# TODO(nsgo): a kind's name and description, which the system's gallery of widgets shows, are one string each (cmd/nsgo/widgets.go:108-118, Kinds.swift's Text(verbatim:)), so they are in English whatever the phone's language; say them in the catalog's languages once nsgo.yaml can take them from the app's locales
+widgets:
+  - kind: study
+    name: Kando Streak
+    description: Days in a row you watched, and what is waiting for review.
+    families: [small, circular]
+  - kind: continue
+    name: Kando Continue Watching
+    description: The film you left partway, and the line you left it on.
+    families: [small, medium]

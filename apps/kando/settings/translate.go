@@ -7,6 +7,7 @@ import (
 	"kando/apps/kando/live"
 	"kando/apps/kando/locales"
 	"kando/apps/kando/settings/form"
+	kcore "kando/packages/core"
 	"kando/packages/media"
 
 	"github.com/nsgo-dev/nsgo/core"
@@ -16,7 +17,7 @@ import (
 // MinContextLines is the fewest earlier lines the 翻译 page lets go with a batch while context is on; turning context off sends none.
 const MinContextLines = 10
 
-// translate is the 翻译 page: the language subtitles are translated into, whether each batch takes the sentences before it, and the prompt. The prototype's page starts 6 points lower than one that opens with a section label.
+// translate is the 翻译 page: the language subtitles are translated into, whether each batch takes the sentences before it, the final proofread and which of its changes apply by themselves, and the prompt. The prototype's page starts 6 points lower than one that opens with a section label.
 type translate struct{ s screen }
 
 // Render implements core.Node.
@@ -57,6 +58,19 @@ func (p translate) Render(cx *core.Scope) core.Node {
 	card := form.Card(form.Row{Title: locales.SettingsTranslateTarget(cx), NoGroup: true, Trailing: []core.Node{target}}, form.Separator(true), context,
 		form.Separator(true), form.Row{Title: locales.SettingsTranslateContextLines(cx), Subtitle: locales.SettingsTranslateContextLinesHint(cx), Trailing: []core.Node{lines}})
 	card.Style.Margin = core.Edges{Top: 6}
+	review := form.SwitchRow{Title: locales.SettingsReviewOn(cx), Subtitle: locales.SettingsReviewOnHint(cx), TestID: "settings-review",
+		On: live.Func(a, func() bool { return *a.Review() }),
+		OnChange: live.On(a, func(on bool) {
+			*a.Review() = on
+			a.Save()
+		})}
+	autos := []ui.Option[string]{
+		{Value: string(kcore.ProofAutoConsistency), Label: locales.SettingsReviewAutoConsistency(cx)},
+		{Value: string(kcore.ProofAutoAll), Label: locales.SettingsReviewAutoAll(cx)},
+		{Value: string(kcore.ProofAutoNone), Label: locales.SettingsReviewAutoNone(cx)},
+	}
+	auto := choice{a: a, id: "settings-review-auto", title: locales.SettingsReviewAuto(cx), subtitle: locales.SettingsReviewAutoHint(cx), options: autos,
+		get: a.ReviewAuto, set: a.SetReviewAuto}
 	usingDefault := live.Func(a, func() bool {
 		return strings.TrimSpace(*a.TranslatePrompt()) == strings.TrimSpace(media.DefaultSubtitlePrompt)
 	})
@@ -91,6 +105,8 @@ func (p translate) Render(cx *core.Scope) core.Node {
 	return form.Page(
 		card,
 		form.Note(static(locales.SettingsTranslateTargetNote(cx)), 0),
+		form.Label(locales.SettingsReview(cx), 12),
+		form.Card(review, form.Separator(true), auto),
 		form.Label(locales.SettingsTranslatePrompt(cx), 12),
 		form.Card(editor),
 		form.Note(static(locales.SettingsTranslatePromptNote(cx)), 0),

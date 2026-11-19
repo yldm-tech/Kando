@@ -2,8 +2,10 @@ package browse
 
 import (
 	"encoding/json"
+	"math"
 	"strconv"
 	"strings"
+	"time"
 	"unicode"
 	"unicode/utf8"
 )
@@ -13,7 +15,7 @@ import (
 // AskMessage starts what the page posts to ask what the library has of the videos it shows: a JSON array of their links follows it, at most MaxAsk of them.
 const AskMessage = "kando-ask:"
 
-// AddMessage starts what the page posts when the user clicks one of its buttons: a JSON object follows it, the video's link (url) and its title as the page names it, "" when it does not (title).
+// AddMessage starts what the page posts when the user clicks one of its buttons: a JSON object follows it, the video's link (url), its title as the page names it, "" when it does not (title), and for the page's own video, 下载视频's, where its player was, in whole seconds (at), 0 when it was not playing it.
 const AddMessage = "kando-add:"
 
 // StateMessage starts what the app posts to the page (core.Ref.PostMessage): a JSON PageState follows it.
@@ -91,6 +93,32 @@ func ParseAdd(data string) (link, title string, ok bool) {
 	}
 	return AddVideo(add.URL, add.Title)
 }
+
+// AddedAt is where the player of the page that posted an AddMessage was in its video (PlayedTo), 0 when data says nowhere or is no AddMessage.
+func AddedAt(data string) time.Duration {
+	rest, ok := strings.CutPrefix(data, AddMessage)
+	if !ok {
+		return 0
+	}
+	var add struct {
+		At float64 `json:"at"`
+	}
+	if json.Unmarshal([]byte(rest), &add) != nil {
+		return 0
+	}
+	return PlayedTo(add.At)
+}
+
+// PlayedTo is a page's player's time, in seconds as an AddMessage or the browser extension says it, as a time in the video to open the film at, to the second: 0 for none, and for anything that is no time in a video, as a negative one or one longer than any video.
+func PlayedTo(seconds float64) time.Duration {
+	if math.IsNaN(seconds) || seconds < 1 || seconds > maxPlayedTo.Seconds() {
+		return 0
+	}
+	return time.Duration(seconds) * time.Second
+}
+
+// maxPlayedTo is the longest time a page's player may say it was at, longer than any video a site serves.
+const maxPlayedTo = 100 * time.Hour
 
 // AddVideo reads what an AddMessage or the browser extension adds: the link to one video (VideoLink), and the title the page gave it, on one line, without control characters and at most maxTitle characters long; false when link names no video.
 func AddVideo(link, title string) (string, string, bool) {
@@ -393,7 +421,18 @@ func buttonsScript(bridge string) string {
     }
     return words;
   };
-  const add = (e) => { if (e && e.url) tell(ADD + JSON.stringify({ url: e.url, title: titleOf(e).slice(0, 300) })); };
+  // playedTo is where the largest video of the page is, in whole seconds, for 下载视频, which adds the page's own video, so its film opens where the user was; 0 for a thumbnail's +, and when the page plays nothing.
+  const playedTo = (e) => {
+    if (e.kind !== PILL) return 0;
+    let best = null, area = 0;
+    for (const v of document.querySelectorAll("video")) {
+      const r = v.getBoundingClientRect();
+      if (r.width * r.height > area) { best = v; area = r.width * r.height; }
+    }
+    const t = best ? best.currentTime : 0;
+    return Number.isFinite(t) && t >= 1 ? Math.floor(t) : 0;
+  };
+  const add = (e) => { if (e && e.url) tell(ADD + JSON.stringify({ url: e.url, title: titleOf(e).slice(0, 300), at: playedTo(e) })); };
 
   // paint gives every button its words and its glyph for what the library has of its video.
   const marks = new Set();

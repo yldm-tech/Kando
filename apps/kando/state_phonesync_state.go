@@ -226,7 +226,7 @@ func (a *app) phoneStateOpenFilm(films map[string]phonesync.Film) (string, bool)
 	return "", false
 }
 
-// phoneStateObserve takes st, the library's state as the desktop holds it, into its ledger, stamping what changed now on this computer: the resume positions of its films, its corrections and, unless their IDs are not kept yet (lines), its lines. What it does not hold, as a film's corrections that could not be read, stays as the ledger has it. UI thread only.
+// phoneStateObserve takes st, the library's state as the desktop holds it, into its ledger, stamping what changed now on this computer: the resume positions of its films, its corrections and, unless their IDs are not kept yet (lines), its lines, words and every device's time watched. What it does not hold, as a film's corrections that could not be read, stays as the ledger has it. UI thread only.
 func (a *app) phoneStateObserve(st *phoneStateLib) {
 	var current []psync.Record
 	for _, f := range st.list {
@@ -241,10 +241,11 @@ func (a *app) phoneStateObserve(st *phoneStateLib) {
 		film := func(video string) string { return st.keys[video] }
 		current = append(current, phonesync.LineRecords(st.book, film)...)
 		current = append(current, phonesync.WordRecords(st.book, film)...)
+		current = append(current, phonesync.WatchedRecords(st.book)...)
 	}
 	covered := func(r psync.Record) bool {
 		switch r.Kind {
-		case psync.KindLine, psync.KindWord:
+		case psync.KindLine, psync.KindWord, psync.KindWatched:
 			return st.lines
 		case psync.KindPosition:
 			_, ok := st.films[r.Film]
@@ -296,9 +297,9 @@ func (a *app) phoneStateKeepLedger(dir string) error {
 	return nil
 }
 
-// phoneStateKeep keeps records, as the ledger has them once merged, where the desktop keeps them: the lines in the study record, the positions with the shelf, the corrections in their films' files, the open film's through the player so it shows them. UI thread only.
+// phoneStateKeep keeps records, as the ledger has them once merged, where the desktop keeps them: the lines, words and time watched in the study record, the positions with the shelf, the corrections in their films' files, the open film's through the player so it shows them. UI thread only.
 func (a *app) phoneStateKeep(st *phoneStateLib, records []psync.Record) error {
-	var lines, words []psync.Record
+	var lines, words, watched []psync.Record
 	moved := false
 	corrections := map[string][]psync.Record{}
 	for _, r := range records {
@@ -307,6 +308,8 @@ func (a *app) phoneStateKeep(st *phoneStateLib, records []psync.Record) error {
 			lines = append(lines, r)
 		case psync.KindWord:
 			words = append(words, r)
+		case psync.KindWatched:
+			watched = append(watched, r)
 		case psync.KindPosition:
 			f, ok := st.films[r.Film]
 			if !ok {
@@ -321,7 +324,7 @@ func (a *app) phoneStateKeep(st *phoneStateLib, records []psync.Record) error {
 	if moved {
 		a.playerPositionsChanged()
 	}
-	if len(lines) > 0 || len(words) > 0 {
+	if len(lines) > 0 || len(words) > 0 || len(watched) > 0 {
 		video := func(film string) (string, bool) {
 			f, ok := st.films[film]
 			if !ok {
@@ -335,8 +338,10 @@ func (a *app) phoneStateKeep(st *phoneStateLib, records []psync.Record) error {
 		next := st.book
 		next.Lines, next.Removed = slices.Clone(st.book.Lines), slices.Clone(st.book.Removed)
 		next.Words, next.RemovedWords = slices.Clone(st.book.Words), slices.Clone(st.book.RemovedWords)
+		next.Watched = slices.Clone(st.book.Watched)
 		merged := len(lines) > 0 && next.Merge(in, removed)
 		merged = len(words) > 0 && next.MergeWords(inWords, removedWords) || merged
+		merged = len(watched) > 0 && next.MergeWatched(phonesync.WatchedOf(watched)) || merged
 		if merged {
 			if err := next.Save(); err != nil {
 				if st.open {

@@ -72,6 +72,9 @@ type App interface {
 	ConnectBrowsers()
 	DisconnectBrowsers()
 	ShowExtensionFolder()
+	// LinkStartAtOnce is the card's 链接到达后立即开始: a link the browser extension sends is added at once rather than on the Add sheet. SetLinkStartAtOnce turns it on or off; the page saves after it.
+	LinkStartAtOnce() bool
+	SetLinkStartAtOnce(on bool)
 	// SignIn is the browser whose sign-in every download borrows and what the last check of it found, which the 浏览器登录 card shows. SetSignInBrowser chooses one, "" for none, saves it and checks its sign-in at once, off the UI thread, which on macOS asks the user to allow its key in the Keychain the first time; CheckSignIn checks it again. OpenFullDiskAccess opens the pane of System Settings that lets Kando read Safari's sign-in.
 	SignIn() SignIn
 	SetSignInBrowser(id string)
@@ -94,6 +97,8 @@ type App interface {
 	SetPhoneAskFirst(ask bool)
 	// SetPhoneReadOnly makes a paired phone read-only (on), so it changes nothing on this computer from its next call on, or lets it change things again; it is kept with the device. ResolvePhoneConflict settles a sync conflict of the open library with the version keep names, as a change made on this computer now, which travels to the phones.
 	SetPhoneReadOnly(id string, on bool)
+	// SetPhoneRelay turns the storage relay on or off, saves that, and has a running Phone Sync take it up at once.
+	SetPhoneRelay(on bool)
 	ResolvePhoneConflict(id string, keep PhoneKeep)
 	// PhoneNow is the time the page's relative times (刚刚, 5 分钟前) are told against. The app runs the bindings again as they come to say something else, so a binding that reads it follows time.
 	PhoneNow() time.Time
@@ -180,6 +185,10 @@ type App interface {
 	// TranslateContextLines is how many earlier lines go with a batch while TranslateContext is on; SetTranslateContextLines changes it, kept between MinContextLines and media.MaxContextLines, and Save keeps it.
 	TranslateContextLines() int
 	SetTranslateContextLines(n int)
+	// Review is whether a job proofreads the translation as a whole once it is made (the final proofread); ReviewAuto is which of its changes apply without the user, one of core.ProofAutos, which SetReviewAuto changes. Save keeps them.
+	Review() *bool
+	ReviewAuto() string
+	SetReviewAuto(auto string)
 
 	// Appearance is the one the windows show, AppearanceLight or AppearanceDark, or "" to follow the system's; SetAppearance shows and saves it.
 	Appearance() string

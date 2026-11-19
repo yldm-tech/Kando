@@ -13,7 +13,7 @@ import (
 	"kando/packages/sync"
 )
 
-// The learning state of the films kept on the phone (yldm-tech/Kando#222): the lines saved from them and the notes on those lines, which the phone keeps per library of each desktop (study.Library) and syncs with the desktop through protocol v2's learning state (sync.OpStateGet, OpStatePut) whenever the player opens a film of the library or changes something, and every library a computer lists whenever the Learn tab syncs (SyncLearning, learning.go), which lists and reviews the same state, so a line saved on the phone shows on the computer, in the Learn tab at once, and the other way round. A change made away from the computer waits on the phone until it can be sent. The words of a line are looked up, and a line explained, through the desktop too (LookUp, Explain): its AI service answers, and its key never leaves it.
+// The learning state of the films kept on the phone (yldm-tech/Kando#222): the lines saved from them and the notes on those lines, which the phone keeps per library of each desktop (study.Library) and syncs with the desktop through protocol v2's learning state (sync.OpStateGet, OpStatePut) whenever the player opens a film of the library or changes something, and every library a computer lists whenever the Learn tab syncs (SyncLearning, learning.go), which lists and reviews the same state, so a line saved on the phone shows on the computer, in the Learn tab at once, and the other way round. A change made away from the computer waits on the phone until it can be sent. The words of a line are looked up, a line explained and asked about, and the part of a film watched summed up, through the desktop too (LookUp, Explain, Ask, Recap): its AI service answers, and its key never leaves it.
 
 // studyRun is a sync of a library's learning state running on a goroutine of its own; again asks for another once it is done, as for a change made meanwhile, and done are told once the last of them is done, with the error it ended with.
 type studyRun struct {
@@ -24,7 +24,7 @@ type studyRun struct {
 // studyKey names library lib of desktop.
 func studyKey(desktop, lib string) string { return desktop + "/" + lib }
 
-// studyTimeout, lookupTimeout and explainTimeout are how long a sync of the learning state, a lookup or an explanation waits for the desktop.
+// studyTimeout, lookupTimeout and explainTimeout are how long a sync of the learning state, a lookup, or an explanation, a follow-up question or a recap waits for the desktop.
 const (
 	studyTimeout   = 15 * time.Second
 	lookupTimeout  = 60 * time.Second
@@ -432,6 +432,7 @@ func (s *Session) LookUp(key, word, line string, done func(sync.WordEntry, error
 // keepLookup keeps e as the lookup under lk, in the session at once and on disk after the saves handed before.
 func (s *Session) keepLookup(lk string, e sync.WordEntry) {
 	s.lookups[lk] = store.Lookup{Entry: e, At: s.cfg.Now()}
+	s.lookupRev.Update(func(n int) int { return n + 1 })
 	m := maps.Clone(s.lookups)
 	s.lookupMu.Lock()
 	s.lookupSaving++
@@ -463,6 +464,48 @@ func (s *Session) Explain(key string, lines []sync.Cue, i int, done func(sync.Ex
 		defer cancel()
 		x, err := c.Explain(ctx, req)
 		s.cx.Post(func() { done(x, err) })
+	})
+}
+
+// Ask has the film's desktop answer question about line i of lines, the film under key's lines around it, with what was explained of it and the questions asked before, the latest sync.MaxExplainAsked of them, and calls done on the engine's goroutine with the answer.
+func (s *Session) Ask(key string, lines []sync.Cue, i int, explained []sync.ExplainSection, asked []sync.ExplainQA, question string, done func(sync.ExplainAnswer, error)) {
+	f, ok := s.Film(key)
+	question = strings.TrimSpace(question)
+	if !ok || i < 0 || i >= len(lines) || question == "" {
+		return
+	}
+	c := s.Client(f.Desktop)
+	if c == nil {
+		done(sync.ExplainAnswer{}, errUnpaired)
+		return
+	}
+	asked = asked[max(len(asked)-sync.MaxExplainAsked, 0):]
+	req := sync.ExplainAsk{LineExplain: sync.LineExplain{Library: f.LibraryID, Film: f.Film.ID, Lines: lines, Index: i}, Explained: explained, Asked: asked, Question: question}
+	s.work.Go(func() {
+		ctx, cancel := context.WithTimeout(s.ctx, explainTimeout)
+		defer cancel()
+		a, err := c.Ask(ctx, req)
+		s.cx.Post(func() { done(a, err) })
+	})
+}
+
+// Recap has the film's desktop sum up watched, the lines of the film under key watched, in the order they play, the latest of them that fit in a call (sync.RecapLines), and calls done on the engine's goroutine with the recap.
+func (s *Session) Recap(key string, watched []sync.Cue, done func(sync.Recap, error)) {
+	f, ok := s.Film(key)
+	if !ok || len(watched) == 0 {
+		return
+	}
+	c := s.Client(f.Desktop)
+	if c == nil {
+		done(sync.Recap{}, errUnpaired)
+		return
+	}
+	req := sync.FilmRecap{Library: f.LibraryID, Film: f.Film.ID, Lines: sync.RecapLines(watched)}
+	s.work.Go(func() {
+		ctx, cancel := context.WithTimeout(s.ctx, explainTimeout)
+		defer cancel()
+		r, err := c.Recap(ctx, req)
+		s.cx.Post(func() { done(r, err) })
 	})
 }
 

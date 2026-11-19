@@ -27,6 +27,8 @@ type savedUI struct {
 	note, draft string
 	// now is the clock the saved lines are stamped and scheduled by; tests set it.
 	now func() time.Time
+	// notesWords is whether the player's 笔记 tab lists the words rather than the saved lines.
+	notesWords bool
 	// only is whether the player's subtitle list shows the saved lines alone, for the film onlyFor, the open key it was picked in; another film opens showing them all.
 	only    bool
 	onlyFor string
@@ -37,6 +39,8 @@ type savedUI struct {
 	export savedExport
 	// review is the review of the lines due open now (saved_review.go).
 	review savedReview
+	// keeping is the saved lines and words whose sound is being cut to be kept in the library, by id (saved_sounds.go).
+	keeping map[string]bool
 	// filled is the open film's subtitle lines the saved lines last followed (savedFollowSubtitles), so each reading of them is followed once.
 	filled []kcore.Segment
 }
@@ -53,7 +57,7 @@ type savedExport struct {
 	gen         int
 }
 
-func newSavedUI() savedUI { return savedUI{now: time.Now} }
+func newSavedUI() savedUI { return savedUI{now: time.Now, keeping: map[string]bool{}} }
 
 // savedStudy is the saved lines' part of settings.json: this computer's id in the study record (savedUI.device).
 type savedStudy struct {
@@ -232,7 +236,7 @@ func (a *app) LineSaved(i int) bool {
 	return book.Find(book.Key(a.player.film.video), cues[i].Start) >= 0
 }
 
-// ToggleSaveLine is B, the Save Line of a line's right-click menu and of the card of the line the film is held on: line i of the open film goes into the saved lines with its two lines as they read now, or out of them, and the picture says which.
+// ToggleSaveLine is B, the Save Line of a line's right-click menu and of the card of the line the film is held on: line i of the open film goes into the saved lines with its two lines as they read now, its sound cut to be kept with it (savedKeepSound), or out of them with its sound, and the picture says which.
 func (a *app) ToggleSaveLine(i int) {
 	cues := a.playerCues()
 	if i < 0 || i >= len(cues) || a.player.film.video == "" {
@@ -252,10 +256,15 @@ func (a *app) ToggleSaveLine(i int) {
 	line := saved.Line{Video: book.Key(a.player.film.video), Start: cue.Start, End: cue.End, Original: original, Translation: translation, Film: title, SavedAt: a.saved.now()}
 	if book.Toggle(line) {
 		a.flash(a.messages().SavedOsdSaved())
-	} else {
-		a.flash(a.messages().SavedOsdRemoved())
+		a.savedWrite()
+		a.savedKeepSound(book.Lines[0])
+		return
 	}
+	a.flash(a.messages().SavedOsdRemoved())
 	a.savedWrite()
+	if n := len(book.Removed); n > 0 {
+		a.savedDropSound(book.Removed[n-1].ID)
+	}
 }
 
 // ExportSaved is Export for Anki…: in the folder the user picks, the saved lines' notes and their sound (saved.Export), cut with ffmpeg off the engine's goroutine. The Saved Lines sheet opens to say how it goes and what it wrote.

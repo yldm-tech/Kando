@@ -2,7 +2,7 @@ package sync
 
 import "context"
 
-// The computer's settings a paired phone reads and changes (yldm-tech/Kando#224): the language the computer translates subtitles into, which the phone's Settings › Translate into shows and sets, so the phone and the computer name one language rather than each its own. Only what a phone may change travels: the AI service's key never leaves the computer. Like every v2 call they go over any transport, the storage relay too. OpSettingsPut changes the computer (Mutates), so a read-only device (Caller.ReadOnly) is refused it; OpSettingsGet only reads.
+// The computer's settings a paired phone reads and changes (yldm-tech/Kando#224): the language the computer translates subtitles into, which the phone's Settings › Translate into shows and sets, so the phone and the computer name one language rather than each its own; whether translating sends the lines before a batch with it, which the phone's page of the computer sets; and the AI service the computer translates with, which the phone only shows. Only what a phone may see travels: the AI service's address and key never leave the computer. Like every v2 call they go over any transport, the storage relay too. OpSettingsPut changes the computer (Mutates), so a read-only device (Caller.ReadOnly) is refused it; OpSettingsGet only reads.
 const (
 	// OpSettingsGet takes nothing and answers Settings.
 	OpSettingsGet = "settings.get"
@@ -15,11 +15,17 @@ type Settings struct {
 	// Target is the language the computer translates subtitles into, as a BCP 47 tag ("zh-Hans", "en", "ja"), "" when the computer's language is none a tag names, as one the user typed in; TargetName is how the computer names it, as its settings show it, which a phone shows for a Target it does not list.
 	Target     string `json:"target"`
 	TargetName string `json:"target_name,omitempty"`
+	// Service is the AI service the computer translates and explains with, as its settings name it in its own language ("OpenAI", "DeepSeek", its word for a custom endpoint), and Model the model it uses there; both "" while no service is set up. Neither is the service's address.
+	Service string `json:"service,omitempty"`
+	Model   string `json:"model,omitempty"`
+	// Context reports whether the computer sends the lines before a batch with it when it translates, for a smoother translation; nil from a computer that does not share it.
+	Context *bool `json:"context,omitempty"`
 }
 
-// SettingsPut changes the computer's settings: Target, when not "", is the language to translate into, a BCP 47 tag. A tag the computer does not translate into answers CodeInvalid.
+// SettingsPut changes the computer's settings: Target, when not "", is the language to translate into, a BCP 47 tag, and Context, when not nil, whether translating sends the lines before a batch with it. A tag the computer does not translate into answers CodeInvalid.
 type SettingsPut struct {
-	Target string `json:"target,omitempty"`
+	Target  string `json:"target,omitempty"`
+	Context *bool  `json:"context,omitempty"`
 }
 
 // SettingsService is what a desktop does for the settings' calls, whichever transport carries them. Its errors are as Service's.

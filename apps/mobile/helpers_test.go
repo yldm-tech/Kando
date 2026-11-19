@@ -31,6 +31,9 @@ var msgs = locales.In(lang)
 // wait is how long a step waits for what a goroutine posts back: a request to the desktop on loopback, or the disk.
 const wait = 10 * time.Second
 
+// relayEvery is how often the tests' phones read a computer's state.json through its storage relay, away from its network.
+const relayEvery = 50 * time.Millisecond
+
 // now is the clock the tests' sessions date pairings and downloads by.
 func now() time.Time { return time.Date(2026, 11, 17, 9, 0, 0, 0, time.UTC) }
 
@@ -49,7 +52,7 @@ func startPhone(t *testing.T, dir string, opts ...nsgotest.Option) *phone {
 	}
 	opts = append([]nsgotest.Option{nsgotest.Environment(core.Environment{Locale: lang})}, opts...)
 	app := nsgotest.Start(t, func(cx *core.Scope) core.Node {
-		return App(cx, session.Config{Dir: dir, Device: "Test Phone", Platform: sync.PlatformIOS, Now: now})
+		return App(cx, session.Config{Dir: dir, Device: "Test Phone", Platform: sync.PlatformIOS, Now: now, RelayEvery: relayEvery})
 	}, opts...)
 	return &phone{t: t, app: app, dir: dir}
 }

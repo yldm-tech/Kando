@@ -88,6 +88,10 @@ const (
 	ActivityRevoked   = "revoked"
 	ActivityReadOnly  = "read-only"
 	ActivityReadWrite = "read-write"
+	// ActivitySubscribed, ActivitySubscriptionAdded and ActivityUnsubscribed are a phone subscribing to the list Title, sending Count videos waiting on it to the queue, and unsubscribing from it.
+	ActivitySubscribed        = "subscribed"
+	ActivitySubscriptionAdded = "subscription-added"
+	ActivityUnsubscribed      = "unsubscribed"
 )
 
 // learning is the page's part of what the phones sync with this computer: how much of the open library's learning state they were told, the sync conflicts left to settle with how many there are beside their label, and what the phones did lately.
@@ -285,6 +289,12 @@ func activityText(cx *core.Scope, item PhoneActivity) string {
 		return locales.SettingsPhoneDidReadOnly(cx, item.Title)
 	case ActivityReadWrite:
 		return locales.SettingsPhoneDidReadWrite(cx, item.Title)
+	case ActivitySubscribed:
+		return locales.SettingsPhoneDidSubscribe(cx, item.Title)
+	case ActivitySubscriptionAdded:
+		return locales.SettingsPhoneDidSubscriptionAdd(cx, item.Title, item.Count)
+	case ActivityUnsubscribed:
+		return locales.SettingsPhoneDidUnsubscribe(cx, item.Title)
 	}
 	return item.Kind
 }

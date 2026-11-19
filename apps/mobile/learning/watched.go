@@ -3,7 +3,9 @@ package learning
 import (
 	"time"
 
+	phonestudy "kando/apps/mobile/study"
 	"kando/packages/study"
+	"kando/packages/sync"
 )
 
 // GoalMinutes are the daily goals the Learn tab offers, in minutes of films played, and DefaultGoal the one it starts with.
@@ -12,7 +14,7 @@ var GoalMinutes = []int{10, 20, 30, 60}
 // DefaultGoal is the daily goal until the learner picks one.
 const DefaultGoal = 20
 
-// Watched is how long films played on the phone each day, by the day in the phone's calendar (study.Day).
+// Watched is how long films played each day, by the day in the phone's calendar (study.Day): on the phone, as it keeps it, and with AddOthers on the computers and the other devices too.
 type Watched map[string]time.Duration
 
 // Add adds d, time a film played, to the day of at.
@@ -20,6 +22,33 @@ func (w Watched) Add(at time.Time, d time.Duration) {
 	if d > 0 {
 		w[study.Day(at)] += d
 	}
+}
+
+// AddOthers adds the time watched of library l's learning state (sync.KindWatched) on every device but the phone, which mine says the IDs of: the computer's and other devices' time, which the phone's own (Add) does not count.
+func (w Watched) AddOthers(l phonestudy.Library, mine func(device string) bool) {
+	for _, id := range phonestudy.IDs(l, sync.KindWatched) {
+		device, day, ok := sync.ParseWatchedID(id)
+		if !ok || mine(device) {
+			continue
+		}
+		if r, ok := phonestudy.View(l, sync.KindWatched, id); ok {
+			if d := ms(r.Fields[sync.FieldWatchedMS]); d > 0 {
+				w[day] += d
+			}
+		}
+	}
+}
+
+// WatchedChange is the change of device's time watched in library l's learning state on the day of at, d more than l has of it: the phone's time watched there, which the computer adds to its stats.
+func WatchedChange(l phonestudy.Library, device string, at time.Time, d time.Duration) sync.Record {
+	id := sync.WatchedID(device, study.Day(at))
+	var have time.Duration
+	if r, ok := phonestudy.View(l, sync.KindWatched, id); ok {
+		have = ms(r.Fields[sync.FieldWatchedMS])
+	}
+	return sync.Record{Kind: sync.KindWatched, ID: id, Fields: map[string]sync.Field{
+		sync.FieldWatchedMS: {Value: sync.Value((have + d).Milliseconds()), Stamp: sync.Stamp{At: at, Device: device}},
+	}}
 }
 
 // Day is how long films played on the day of at.
