@@ -1200,6 +1200,9 @@ linesRemoveMessage:
 linesRemoveTitle:
   message: "Remove this line?"
   description: "Title of the alert that removes a saved line."
+NSLocalNetworkUsageDescription:
+  message: "Kando connects to Kando on your computer over your local network to list and download your films."
+  description: "iOS: the reason the system shows as it asks to let the app reach devices on the local network (the Info.plist's NSLocalNetworkUsageDescription, which nsgo.yaml's apple.info gives in English); the app reaches the computers it is paired with that way."
 onboardingContinue:
   message: "Continue"
   description: "Button that goes to the introduction's next step."

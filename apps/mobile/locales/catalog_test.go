@@ -32,10 +32,19 @@ func TestCatalogsAreComplete(t *testing.T) {
 	}
 }
 
-// Every message of the source catalog is named by the app's Go code outside this package's generated file and the tests, so translators keep no strings nobody sees. appName is NSGo's, which it reads by its key for the packages.
+// Every message of the source catalog is named by the app's Go code outside this package's generated file and the tests, so translators keep no strings nobody sees. appName is NSGo's, which it reads by its key for the packages, as it reads the message of an apple.info entry of nsgo.yaml by the entry's key for the Apple packages' InfoPlist.strings.
 func TestEveryMessageIsUsed(t *testing.T) {
 	used := map[string]bool{"AppName": true}
-	err := filepath.WalkDir("..", func(path string, d fs.DirEntry, err error) error {
+	manifest, err := os.ReadFile(filepath.Join("..", "nsgo.yaml"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, line := range strings.Split(string(manifest), "\n") {
+		if key, _, ok := strings.Cut(strings.TrimSpace(line), ":"); ok && !strings.HasPrefix(key, "#") {
+			used[key] = true
+		}
+	}
+	err = filepath.WalkDir("..", func(path string, d fs.DirEntry, err error) error {
 		if err != nil || d.IsDir() || !strings.HasSuffix(path, ".go") || strings.HasSuffix(path, "_test.go") || filepath.Base(path) == "catalog_gen.go" {
 			return err
 		}

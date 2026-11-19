@@ -14,7 +14,7 @@ build:
 
 apple:
   info:
-    # iOS asks before an app reaches devices on the local network, as the computers the app pairs with and downloads from are. Go's net/http on iOS goes through no URLSession, so App Transport Security does not apply to the computer's self-signed certificate, which the app pins by its fingerprint (kando/packages/sync).
+    # iOS asks before an app reaches devices on the local network, as the computers the app pairs with and downloads from are. Go's net/http on iOS goes through no URLSession, so App Transport Security does not apply to the computer's self-signed certificate, which the app pins by its fingerprint (kando/packages/sync). The catalogs' NSLocalNetworkUsageDescription message says it in each language (InfoPlist.strings); this English one is the Info.plist's.
     NSLocalNetworkUsageDescription: Kando connects to Kando on your computer over your local network to list and download your films.
 # Android: the runtime's manifest asks for INTERNET, which the app reaches the computer with; HTTPS to the computer needs no cleartext exception. POST_NOTIFICATIONS lets the daily review reminder (session/learning.go) ask to show notifications from Android 13, where the system refuses an app whose manifest does not list it. target_sdk is the API level Google Play requires of new apps and updates, above the runtime's 34.
 android:

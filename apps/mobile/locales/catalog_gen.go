@@ -1030,6 +1030,7 @@ const (
 	textLinesEmpty
 	textLinesRemoveMessage
 	textLinesRemoveTitle
+	textNSLocalNetworkUsageDescription
 	textOnboardingContinue
 	textOnboardingIntroBody
 	textOnboardingIntroTitle
@@ -1477,6 +1478,7 @@ var keyOfText = [numTexts]string{
 	"linesEmpty",
 	"linesRemoveMessage",
 	"linesRemoveTitle",
+	"NSLocalNetworkUsageDescription",
 	"onboardingContinue",
 	"onboardingIntroBody",
 	"onboardingIntroTitle",
@@ -1922,6 +1924,7 @@ var textsEn = i18n.NewTexts(""+
 	"Lines you save while you watch show here"+
 	"It leaves your saved lines on every device."+
 	"Remove this line?"+
+	"Kando connects to Kando on your computer over your local network to list and download your films."+
 	"Continue"+
 	"Paste a link and Kando on your computer downloads the video, recognizes the speech and translates it line by line. Your phone plays the films with both lines, and replays any line you didn't catch."+
 	"Watch the original, with subtitles in your language."+
@@ -2364,6 +2367,7 @@ var textsEn = i18n.NewTexts(""+
 		40,
 		43,
 		17,
+		97,
 		8,
 		197,
 		52,
@@ -2809,6 +2813,7 @@ var textsJa = i18n.NewTexts(""+
 	"視聴中に保存した文がここに表示されます"+
 	"すべての端末の保存した文から削除されます。"+
 	"この文を削除しますか？"+
+	"Kando はローカルネットワーク経由でコンピュータの Kando に接続し、映画の一覧を表示してダウンロードします。"+
 	"続ける"+
 	"リンクを貼り付けると、コンピュータの Kando が動画をダウンロードし、音声を認識して 1 行ずつ翻訳します。スマートフォンでは原文と訳文を一緒に表示し、聞き取れなかったセリフはすぐに聞き直せます。"+
 	"原語のまま、あなたの言語の字幕で観よう。"+
@@ -3251,6 +3256,7 @@ var textsJa = i18n.NewTexts(""+
 		57,
 		63,
 		33,
+		151,
 		9,
 		280,
 		60,
@@ -3696,6 +3702,7 @@ var textsKo = i18n.NewTexts(""+
 	"보면서 저장한 문장이 여기에 표시돼요"+
 	"모든 기기의 저장한 문장에서 삭제됩니다."+
 	"이 문장을 삭제할까요?"+
+	"Kando는 로컬 네트워크를 통해 컴퓨터의 Kando에 연결하여 영화 목록을 보고 다운로드합니다."+
 	"계속"+
 	"링크를 붙여 넣으면 컴퓨터의 Kando가 동영상을 다운로드하고, 음성을 인식해 한 줄씩 번역합니다. 휴대폰에서는 원문과 번역을 함께 보여 주고, 놓친 대사는 바로 다시 들을 수 있습니다."+
 	"원어 그대로, 내 언어 자막과 함께 보세요."+
@@ -4138,6 +4145,7 @@ var textsKo = i18n.NewTexts(""+
 		52,
 		56,
 		30,
+		120,
 		6,
 		246,
 		56,
@@ -4583,6 +4591,7 @@ var textsZhHans = i18n.NewTexts(""+
 	"看片时收藏的句子会出现在这里"+
 	"它会从所有设备的收藏里移除。"+
 	"移除这句？"+
+	"看懂通过局域网连接你电脑上的看懂，列出并下载你的影片。"+
 	"继续"+
 	"粘贴一个链接，电脑上的看懂就会下载视频、识别原声、逐句翻译。手机上看片时原文和译文一起显示，听不懂的句子一键重听。"+
 	"看原片，字幕跟着你的语言走。"+
@@ -5025,6 +5034,7 @@ var textsZhHans = i18n.NewTexts(""+
 		42,
 		42,
 		15,
+		81,
 		6,
 		171,
 		42,
@@ -5470,6 +5480,7 @@ var textsZhHant = i18n.NewTexts(""+
 	"看片時收藏的句子會出現在這裡"+
 	"它會從所有裝置的收藏裡移除。"+
 	"移除這句？"+
+	"看懂透過區域網路連線到你電腦上的看懂，列出並下載你的影片。"+
 	"繼續"+
 	"貼上一個連結，電腦上的看懂就會下載影片、辨識原聲、逐句翻譯。手機上看片時原文和譯文一起顯示，聽不懂的句子一鍵重聽。"+
 	"看原片，字幕跟著你的語言走。"+
@@ -5912,6 +5923,7 @@ var textsZhHant = i18n.NewTexts(""+
 		42,
 		42,
 		15,
+		87,
 		6,
 		171,
 		42,
@@ -12226,6 +12238,19 @@ func LinesRemoveTitle(cx *core.Scope) string { return For(cx).LinesRemoveTitle()
 
 // LinesRemoveTitle is the package's LinesRemoveTitle in the language of msgs.
 func (msgs Messages) LinesRemoveTitle() string { return msgs.text(textLinesRemoveTitle) }
+
+// NSLocalNetworkUsageDescription says "Kando connects to Kando on your computer over your local network to list and download your films."
+// in the language the app shows under cx.
+//
+// iOS: the reason the system shows as it asks to let the app reach devices on the local network (the Info.plist's NSLocalNetworkUsageDescription, which nsgo.yaml's apple.info gives in English); the app reaches the computers it is paired with that way.
+func NSLocalNetworkUsageDescription(cx *core.Scope) string {
+	return For(cx).NSLocalNetworkUsageDescription()
+}
+
+// NSLocalNetworkUsageDescription is the package's NSLocalNetworkUsageDescription in the language of msgs.
+func (msgs Messages) NSLocalNetworkUsageDescription() string {
+	return msgs.text(textNSLocalNetworkUsageDescription)
+}
 
 // OnboardingContinue says "Continue"
 // in the language the app shows under cx.
