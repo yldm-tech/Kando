@@ -84,7 +84,7 @@ jobs:
           go tool nsgo build -target ios -build-number "$BUILD_NUMBER" -output "$RUNNER_TEMP/ios" apps/mobile
           go tool nsgo build -target android_arm64 -channel store -build-number "$BUILD_NUMBER" -output "$RUNNER_TEMP/android" apps/mobile
       # App Store Connect refuses an IPA whose app and widget extension do not say which SDK and Xcode built them (DTPlatformName, DTSDKName, DTXcode and the rest Xcode writes) and that they need arm64 (UIRequiredDeviceCapabilities), and nsgo build writes neither into their Info.plists. A TestFlight run adds them from the runner's Xcode and signs the extension and then the app again, with the same identity and the entitlements nsgo build signed them with; the embedded profiles stay as they are.
-      # TODO(nsgo): nsgo build's iOS Info.plists (cmd/nsgo/ios.go's iosPlist, widgets.go's addIOSWidgets) lack UIRequiredDeviceCapabilities and the DT* keys of the SDK and Xcode; drop this step once nsgo build writes them.
+      # TODO(nsgo#889): nsgo build's iOS Info.plists (cmd/nsgo/ios.go's iosPlist, widgets.go's addIOSWidgets) lack UIRequiredDeviceCapabilities and the DT* keys of the SDK and Xcode; drop this step once nsgo build writes them. https://github.com/nsgo-dev/nsgo/issues/889
       - name: Add the SDK keys App Store Connect checks
         if: inputs.testflight
         run: |
