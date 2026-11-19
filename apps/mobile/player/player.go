@@ -149,12 +149,8 @@ func view(cx *core.Scope, l *Layer, key string) core.Node {
 			},
 		}
 	}
+	// Without a video to play, a film kept by its lines and one streamed from a storage that holds only its lines alike say where the video is and how to have it (film.VideoPrompt).
 	picture := core.Show{When: p.hasVideo, Then: video, Else: func(cx *core.Scope) core.Node {
-		if p.streamed() {
-			return core.View{Style: fill.Merge(core.Style{AlignItems: core.AlignCenter, JustifyContent: core.JustifyCenter, Padding: core.All(24)}), Children: []core.Node{
-				core.Text{TestID: "player-no-video", ContentFunc: func() string { return locales.PlayerNoVideo(cx) }, Style: look.Body.Merge(core.Style{TextAlign: core.TextAlignCenter, Color: core.RGB(0xFFFFFF)})},
-			}}
-		}
 		return core.View{Style: fill.Merge(core.Style{JustifyContent: core.JustifyCenter, Background: core.RGB(0x0B0B0D)}), Children: []core.Node{
 			film.VideoPrompt(cx, s, f.Desktop, f.Film, "player-no-video"),
 		}}

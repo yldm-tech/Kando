@@ -12,7 +12,7 @@ import (
 	"github.com/nsgo-dev/nsgo/ui"
 )
 
-// VideoPrompt is what shows where the video would of film f of desktop's library, one its computer keeps no video of (sync.Film.SubtitlesOnly), whose lines the phone studies without the picture: that the video is not on the computer, with the button that has the computer download it where it may; that the computer is downloading it; or, once the computer has it, the button that downloads it to the phone, with where that download stands. testID names it; the buttons' IDs follow it.
+// VideoPrompt is what shows where the video would of film f of desktop's library whose lines the phone studies without the picture: one its computer keeps no video of (sync.Film.SubtitlesOnly), or one streamed away from the computer's network from a storage that holds only its lines. It says that the video is not on the computer, with the button that has the computer download it where it may; that the computer is downloading it; that the video is on the computer, which the phone downloads on its network; or, on that network once the computer has it, the button that downloads it to the phone, with where that download stands. testID names it; the buttons' IDs follow it.
 func VideoPrompt(cx *core.Scope, s *session.Session, desktop string, f sync.Film, testID string) core.Node {
 	colors := ui.ColorsOf(cx)
 	key := store.Key(desktop, f.ID)
@@ -24,8 +24,9 @@ func VideoPrompt(cx *core.Scope, s *session.Session, desktop string, f sync.Film
 		}
 		return f, ""
 	}
-	// ready is a video on the computer the phone can download now.
-	ready := func() bool { got, _ := listed(); return !got.SubtitlesOnly && s.Client(desktop) != nil }
+	// onComputer is a video the computer has; ready one the phone can download now, on the computer's network rather than through the storage.
+	onComputer := func() bool { got, _ := listed(); return !got.SubtitlesOnly }
+	ready := func() bool { return onComputer() && s.Client(desktop) != nil && !s.Queue(desktop).Relayed }
 	coming := func() bool { return s.VideoComing(desktop, f.ID) }
 	// phase is which action the prompt offers, which changes far less often than a download's progress.
 	phase := core.NewMemo(cx, func() videoPhase {
@@ -36,7 +37,7 @@ func VideoPrompt(cx *core.Scope, s *session.Session, desktop string, f sync.Film
 				return videoDownloading
 			}
 			return videoReady
-		case coming() || !s.Queue(desktop).Can(sync.OpFilmVideo):
+		case onComputer() || coming() || !s.Queue(desktop).Can(sync.OpFilmVideo):
 			return videoWaiting
 		}
 		return videoAsk
@@ -51,6 +52,8 @@ func VideoPrompt(cx *core.Scope, s *session.Session, desktop string, f sync.Film
 			switch {
 			case ready():
 				return locales.FilmVideoReady(cx, computer())
+			case onComputer():
+				return locales.FilmVideoAtHome(cx, computer())
 			case coming():
 				return locales.FilmVideoComing(cx, computer())
 			}
@@ -81,7 +84,7 @@ type videoPhase uint8
 const (
 	// videoAsk offers to have the computer download the video.
 	videoAsk videoPhase = iota
-	// videoWaiting offers nothing: the computer is downloading it, or does not take the phone's asking.
+	// videoWaiting offers nothing: the computer has it while the phone is away from its network, is downloading it, or does not take the phone's asking.
 	videoWaiting
 	// videoReady offers to download to the phone the video the computer has now, and videoDownloading says how far that download is.
 	videoReady
