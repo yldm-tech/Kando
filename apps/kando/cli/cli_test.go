@@ -1553,3 +1553,49 @@ func TestSubscriptions(t *testing.T) {
 		t.Errorf("usage errors asked the app %+v", f.asked()[asked:])
 	}
 }
+
+// kando list adds a VIDEO column naming where each video moved to a storage location is, only when one was, and kando show says the location and the video's path there, and when the location is no longer in Settings; --json passes video_location on as the app answers it.
+func TestFilmVideoOnALocation(t *testing.T) {
+	moved := cannedFilm
+	moved.VideoLocation = &remote.VideoLocation{Name: "Home NAS", Kind: "webdav", Path: "Kando/lib/rivers.mp4"}
+	other := remote.Film{ID: "f2", Title: "Local Walk", Source: "local", Progress: -1}
+	f := func(film remote.Film) func(string, json.RawMessage) (any, error) {
+		return func(method string, params json.RawMessage) (any, error) {
+			switch method {
+			case remote.MethodFilm:
+				return film, nil
+			case remote.MethodFilms:
+				return []remote.Film{film, other}, nil
+			}
+			return cannedApp(method, params)
+		}
+	}
+	startFake(t, f(moved))
+	code, stdout, _ := run("list")
+	if code != 0 || !strings.Contains(stdout, "VIDEO") || !strings.Contains(stdout, "Home NAS (webdav)") || !strings.Contains(stdout, "-  ") {
+		t.Errorf("list = %d, %q", code, stdout)
+	}
+	code, stdout, _ = run("show", "f1")
+	for _, want := range []string{"video on            Home NAS (webdav)\n", "video there         Kando/lib/rivers.mp4\n"} {
+		if code != 0 || !strings.Contains(stdout, want) {
+			t.Errorf("show = %d, %q, want it to hold %q", code, stdout, want)
+		}
+	}
+	code, stdout, _ = run("show", "f1", "--json")
+	if code != 0 || !strings.Contains(stdout, `"video_location"`) {
+		t.Errorf("show --json = %d, %q", code, stdout)
+	}
+	assertSameJSON(t, []string{"show", "f1", "--json"}, stdout, moved)
+
+	gone := moved
+	gone.VideoLocation = &remote.VideoLocation{Kind: "smb", Path: "x.mp4", Missing: true}
+	startFake(t, f(gone))
+	if code, stdout, _ := run("show", "f1"); code != 0 || !strings.Contains(stdout, "video on            storage location (smb, no longer in Settings)\n") {
+		t.Errorf("show of a video on a location gone = %d, %q", code, stdout)
+	}
+
+	startFake(t, f(cannedFilm))
+	if code, stdout, _ := run("list"); code != 0 || strings.Contains(stdout, "VIDEO") {
+		t.Errorf("list without a moved video = %d, %q", code, stdout)
+	}
+}

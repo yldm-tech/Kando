@@ -9,6 +9,7 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"sync"
 	"testing"
 	"time"
 
@@ -18,13 +19,16 @@ import (
 	"kando/apps/kando/films"
 	"kando/apps/kando/locales"
 	"kando/apps/kando/locales/testlocale"
+	"kando/apps/kando/remote"
 	"kando/apps/kando/settings"
 	"kando/apps/kando/shelf"
 	"kando/apps/kando/sidebar"
 	"kando/apps/kando/storage"
 	"kando/packages/core"
+	"kando/packages/media"
 
 	ns "github.com/nsgo-dev/nsgo/core"
+	nsdesktop "github.com/nsgo-dev/nsgo/desktop"
 	"github.com/nsgo-dev/nsgo/nsgotest"
 )
 
@@ -505,5 +509,400 @@ func TestStoredMarkOnPostersAndRows(t *testing.T) {
 	refresh(tt, a)
 	if tt.Exists(poster + " >> id:film-stored") {
 		t.Fatal("the mark stays on a film whose video is back in the library's folder")
+	}
+}
+
+// pickyStore is a location whose writes of a path holding hold wait until they are stopped, and of one holding fail fail, as a NAS that fills up partway; it counts the writes begun.
+type pickyStore struct {
+	storage.Provider
+	mu         sync.Mutex
+	hold, fail string
+	writes     int
+}
+
+// set makes the writes of paths holding hold wait and those holding fail fail from now on, and counts writes from 0 again.
+func (s *pickyStore) set(hold, fail string) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	s.hold, s.fail, s.writes = hold, fail, 0
+}
+
+// count is how many writes began since set.
+func (s *pickyStore) count() int {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	return s.writes
+}
+
+func (s *pickyStore) Write(ctx context.Context, p string, r io.Reader, size int64) error {
+	s.mu.Lock()
+	s.writes++
+	hold, fail := s.hold, s.fail
+	s.mu.Unlock()
+	switch {
+	case hold != "" && strings.Contains(p, hold):
+		<-ctx.Done()
+		return ctx.Err()
+	case fail != "" && strings.Contains(p, fail):
+		return errStoreFull
+	}
+	return s.Provider.Write(ctx, p, r, size)
+}
+
+// storedSeries is newSeriesFixture with Home NAS, a folder nas on this computer, as its storage location, opened by open (localOpen(nas) when nil), and the three films selected on the library page: the talk a job made and the two episodes of Course no job processed.
+func storedSeries(t *testing.T, open func(context.Context, storage.Target) (storage.Provider, io.Closer, error)) (f *moveFixture, nas string, items []films.Film) {
+	t.Helper()
+	f, ep1, ep2 := newSeriesFixture(t)
+	nas = t.TempDir()
+	if open == nil {
+		open = localOpen(nas)
+	}
+	useStoredLocation(t, f, storage.Remote{Kind: storage.KindWebDAV, URL: "https://nas.local/dav"}, open)
+	a := f.a
+	items = []films.Film{must(films.Find(a.films(), "film")), must(films.Find(a.films(), ep1)), must(films.Find(a.films(), ep2))}
+	for _, item := range items {
+		a.lib.selection.Toggle(item.Key)
+	}
+	refresh(f.tt, a)
+	return f, nas, items
+}
+
+// TestMoveSeveralVideosAtOnce moves the videos of three films selected, a job's and two no job processed, to a NAS location from the selection's menu, one after another, and back from the File menu: each is copied whole, the films stay on the shelf marked as on the location, and the message bar says once how many moved.
+func TestMoveSeveralVideosAtOnce(t *testing.T) {
+	f, nas, items := storedSeries(t, nil)
+	a, tt := f.a, f.tt
+	m := testlocale.Messages()
+
+	menu := films.SelectionMenu(a.cx, a, items)
+	var to *nsdesktop.MenuItem
+	for i := range menu {
+		if menu[i].Label == m.StoredMoveTo() {
+			to = &menu[i]
+		}
+		if menu[i].Label == m.StoredMoveBack() {
+			t.Fatalf("the selection offers moving back videos in the library: %+v", menu)
+		}
+	}
+	if to == nil || len(to.Items) != 1 || to.Items[0].Label != storedPlace || to.Items[0].Disabled {
+		t.Fatalf("the selection's menu offers %+v", menu)
+	}
+	if row := menuRow(t, a, m.StoredMoveTo()); !row.When() || len(row.Items()) != 1 {
+		t.Fatal("File › 移动视频到 is not offered for the films selected")
+	}
+	if row := menuRow(t, a, m.StoredMoveBack()); row.When() {
+		t.Fatal("File › 将视频移回资料库 is offered for videos in the library")
+	}
+	to.Items[0].OnSelect()
+	refresh(tt, a)
+	wantText(t, tt, m.StoredMovingToMany(1, 3, storedPlace, 0))
+	waitStored(t, f)
+	wantText(t, tt, m.StoredMovedMany(3, storedPlace))
+	for _, item := range items {
+		if _, err := os.Stat(item.VideoPath); !errors.Is(err, os.ErrNotExist) {
+			t.Fatalf("%s stayed in the library: %v", item.VideoPath, err)
+		}
+		s, ok := a.library.Stored[item.VideoPath]
+		if !ok {
+			t.Fatalf("%s is not noted as moved", item.VideoPath)
+		}
+		if _, err := os.Stat(filepath.Join(nas, filepath.FromSlash(s.Path))); err != nil {
+			t.Fatalf("%s is not on the location: %v", item.VideoPath, err)
+		}
+		if got, ok := films.Find(a.films(), item.Key); !ok || got.Stored != "nas" {
+			t.Fatalf("%s left the shelf or has no mark: %+v", item.Key, got)
+		}
+	}
+
+	refresh(tt, a)
+	back := menuRow(t, a, m.StoredMoveBack())
+	if !back.When() {
+		t.Fatal("File › 将视频移回资料库 is not offered for the moved videos")
+	}
+	back.Run()
+	waitStored(t, f)
+	wantText(t, tt, m.StoredMovedBackMany(3))
+	for _, item := range items {
+		if _, err := os.Stat(item.VideoPath); err != nil {
+			t.Fatalf("%s is not back: %v", item.VideoPath, err)
+		}
+	}
+	if len(a.library.Stored) != 0 {
+		t.Fatalf("library.json still notes %v", a.library.Stored)
+	}
+}
+
+// TestMoveSeveralVideosStopsOrFails checks that 取消 while the second of three videos is copied stops it and leaves it and the third in the library, the first staying moved; and that a copy that fails partway leaves that video and the ones after it in the library, the message bar saying how many moved and why the others did not.
+func TestMoveSeveralVideosStopsOrFails(t *testing.T) {
+	store := &pickyStore{hold: "ep1"}
+	f, nas, items := storedSeries(t, func(context.Context, storage.Target) (storage.Provider, io.Closer, error) { return store, nil, nil })
+	store.Provider = storage.NewLocal(nas)
+	a, tt := f.a, f.tt
+	m := testlocale.Messages()
+
+	a.MoveVideosTo(items, "nas")
+	waitUntil(t, tt, a, f.updates, func() bool { return a.stored.run != nil && a.stored.run.batch.at == 2 })
+	refresh(tt, a)
+	wantText(t, tt, m.StoredMovingToMany(2, 3, storedPlace, 0))
+	tt.Press("id:notice-stop")
+	waitStored(t, f)
+	if n := a.lib.notice; n.Text != m.StoredStoppedMany(1, storedPlace) {
+		t.Fatalf("after 取消 the bar says %+v", n)
+	}
+	if _, moved := a.library.Stored[items[0].VideoPath]; !moved || len(a.library.Stored) != 1 {
+		t.Fatalf("after 取消 library.json notes %v", a.library.Stored)
+	}
+	for _, item := range items[1:] {
+		if _, err := os.Stat(item.VideoPath); err != nil {
+			t.Fatalf("a stopped move took %s: %v", item.VideoPath, err)
+		}
+	}
+	if n := store.count(); n != 2 {
+		t.Fatalf("%d copies began, want 2", n)
+	}
+
+	// The first is back; now the second's copy fails, as a full NAS does, and the third is not tried.
+	a.MoveVideoBack(must(films.Find(a.films(), items[0].Key)))
+	waitStored(t, f)
+	store.set("", "ep1")
+	items = []films.Film{must(films.Find(a.films(), items[0].Key)), must(films.Find(a.films(), items[1].Key)), must(films.Find(a.films(), items[2].Key))}
+	a.MoveVideosTo(items, "nas")
+	waitStored(t, f)
+	reason := m.StoredMoveFailed(films.Name(items[1]), storedPlace, m.AccountLocationFailOther())
+	if n := a.lib.notice; n.Kind != "warning" || n.Text != m.StoredMovedSome(1, 3, storedPlace, reason) {
+		t.Fatalf("after a failed copy the bar says %+v", n)
+	}
+	if n := store.count(); n != 2 {
+		t.Fatalf("%d copies began, want 2: the third should not be tried", n)
+	}
+	for _, item := range items[1:] {
+		if _, err := os.Stat(item.VideoPath); err != nil {
+			t.Fatalf("%s left the library: %v", item.VideoPath, err)
+		}
+		if _, moved := a.library.Stored[item.VideoPath]; moved {
+			t.Fatalf("%s is noted as moved", item.VideoPath)
+		}
+	}
+}
+
+// TestMoveAVideoNoJobProcessed moves the video of a film found in the library's folder, which no job processed: it stays on the shelf by its path, with its title and its subtitles, after the folder is read again and after library.json is read again; it plays from the location; processing it refuses with why; and it comes back.
+func TestMoveAVideoNoJobProcessed(t *testing.T) {
+	f, ep1, _ := newSeriesFixture(t)
+	a, tt := f.a, f.tt
+	m := testlocale.Messages()
+	nas := t.TempDir()
+	a.library.Names[ep1] = "Episode One"
+	path := useStoredLocation(t, f, storage.Remote{Kind: storage.KindWebDAV, URL: "https://nas.local/dav"}, localOpen(nas))
+	item := must(films.Find(a.films(), ep1))
+	if item.JobID != "" || len(a.StoredMenu(a.cx, item)) != 1 {
+		t.Fatalf("the folder's film %+v offers %+v", item, a.StoredMenu(a.cx, item))
+	}
+	a.MoveVideoTo(item, "nas")
+	waitStored(t, f)
+	wantText(t, tt, m.StoredMoved("Episode One", storedPlace))
+	if _, err := os.Stat(ep1); !errors.Is(err, os.ErrNotExist) {
+		t.Fatalf("the video stayed: %v", err)
+	}
+	check := func(when string) films.Film {
+		t.Helper()
+		got, ok := films.Find(a.films(), ep1)
+		if !ok || got.Stored != "nas" || got.JobID != "" || films.Name(got) != "Episode One" || got.SubtitlePath != filepath.Join(filepath.Dir(ep1), "ep1.bilingual.srt") {
+			t.Fatalf("%s the film is %+v (%v)", when, got, ok)
+		}
+		return got
+	}
+	check("after the move")
+	a.refreshLibrary()
+	check("after the folder is read again")
+	a.openLibrary(path)
+	refresh(tt, a)
+	item = check("after library.json is read again")
+
+	if source := playStored(t, f, item); a.player.playErr != "" || !strings.HasPrefix(source, "http://127.0.0.1:") {
+		t.Fatalf("the player plays %q, error %q", source, a.player.playErr)
+	}
+	a.closeFilm()
+	jobs := len(a.library.Jobs)
+	a.Reprocess(item)
+	refresh(tt, a)
+	if len(a.library.Jobs) != jobs || a.lib.notice.Text != m.StoredReprocess("Episode One", storedPlace) {
+		t.Fatalf("processing it: %d jobs, bar %q", len(a.library.Jobs), a.lib.notice.Text)
+	}
+	if msg, _ := a.libraryReprocessOne(item); msg != m.StoredReprocess("Episode One", storedPlace) {
+		t.Fatalf("processing several says %q", msg)
+	}
+
+	a.MoveVideoBack(item)
+	waitStored(t, f)
+	if got, err := os.ReadFile(ep1); err != nil || string(got) != "one" {
+		t.Fatalf("back in the library: %q, %v", got, err)
+	}
+	if got, ok := films.Find(a.films(), ep1); !ok || got.Stored != "" || films.Name(got) != "Episode One" {
+		t.Fatalf("the film back is %+v (%v)", got, ok)
+	}
+}
+
+// TestRemoveALocationVideosAreOn checks that removing a NAS location two films' videos are on says so in its confirmation, removes nothing on the location, and that adding the location back at the same address, under another user, finds those videos again.
+func TestRemoveALocationVideosAreOn(t *testing.T) {
+	f := newMoveFixture(t)
+	a, tt := f.a, f.tt
+	m := testlocale.Messages()
+	a.settingsPath = filepath.Join(t.TempDir(), "settings.json")
+	nas := t.TempDir()
+	useStoredLocation(t, f, storage.Remote{Kind: storage.KindWebDAV, URL: "https://nas.local/dav", User: "kando", Password: "secret"}, localOpen(nas))
+	a.MoveVideoTo(must(films.Find(a.films(), "film")), "nas")
+	waitStored(t, f)
+	a.library.Stored["/elsewhere/Other/video.mp4"] = shelf.Stored{Location: "nas", Path: "Other/video.mp4", Size: 5}
+	dest := filepath.Join(nas, filepath.FromSlash(storedDest(f)))
+
+	tt = settingsOpenAt(a, tt, settings.SectionAccount)
+	tt.Press("id:location-remove-nas")
+	if !tt.Exists("id:location-remove-confirm") {
+		t.Fatal("no confirmation")
+	}
+	wantText(t, tt, m.AccountLocationRemoveStored(2))
+	tt.Press("id:location-alert-remove")
+	if len(a.locations.list) != 0 || len(a.locations.removed) != 1 {
+		t.Fatalf("list %+v, removed %+v", a.locations.list, a.locations.removed)
+	}
+	if _, err := os.Stat(dest); err != nil {
+		t.Fatalf("removing the location removed the video on it: %v", err)
+	}
+	raw, err := os.ReadFile(a.settingsPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if strings.Contains(string(raw), "secret") || !strings.Contains(string(raw), "removedStorageLocations") {
+		t.Fatalf("settings.json: %s", raw)
+	}
+	item := must(films.Find(a.films(), "film"))
+	if _, _, gone := a.StoredMark(m, item); !gone {
+		t.Fatal("the film's mark does not say its location is gone")
+	}
+	if loc := a.storedRemote(item.VideoPath); loc == nil || !loc.Missing || loc.Name != storedPlace || loc.Kind != "webdav" {
+		t.Fatalf("the socket tells %+v", loc)
+	}
+
+	// Added back at the same address, as another user: the videos are found again.
+	a.AddLocation()
+	*a.LocationDraft() = account.DraftOf(account.Location{Name: "NAS again", Remote: storage.Remote{Kind: storage.KindWebDAV, URL: "https://nas.local/dav/", User: "other", Password: "pw"}})
+	a.SaveLocation()
+	if len(a.locations.list) != 1 || a.locations.list[0].ID != "nas" || len(a.locations.removed) != 0 {
+		t.Fatalf("added back: list %+v, removed %+v", a.locations.list, a.locations.removed)
+	}
+	if _, _, gone := a.StoredMark(m, item); gone {
+		t.Fatal("the film's location is still gone after it was added back")
+	}
+
+	// A location at another address is a new one.
+	a.AddLocation()
+	*a.LocationDraft() = account.DraftOf(account.Location{Name: "Other", Remote: storage.Remote{Kind: storage.KindWebDAV, URL: "https://other.local/dav"}})
+	a.SaveLocation()
+	if len(a.locations.list) != 2 || a.locations.list[1].ID == "nas" {
+		t.Fatalf("a new location: %+v", a.locations.list)
+	}
+}
+
+// TestRemuxAVideoFromALocation plays a video moved to a NAS location that the system's player cannot open: Kando copies it for the player with the fake ffmpeg, which reads it through the proxy, into the cache of such copies, saying how far it got, and plays the copy; when not even the copies play, or there is no ffmpeg, the page says it cannot be played, with no button, and the film's menu still moves the video back.
+func TestRemuxAVideoFromALocation(t *testing.T) {
+	f := newMoveFixture(t)
+	a, tt := f.a, f.tt
+	m := testlocale.Messages()
+	a.pipeline = media.Tools{FFmpeg: fakeTool(t, filepath.Join(t.TempDir(), "bin"), "ffmpeg")}
+	a.player.remuxDir = filepath.Join(t.TempDir(), "playback")
+	nas := t.TempDir()
+	useStoredLocation(t, f, storage.Remote{Kind: storage.KindWebDAV, URL: "https://nas.local/dav"}, localOpen(nas))
+	a.MoveVideoTo(must(films.Find(a.films(), "film")), "nas")
+	waitStored(t, f)
+	item := must(films.Find(a.films(), "film"))
+	a.libraryLearnDuration(f.video, 2*time.Second)
+
+	url := playStored(t, f, item)
+	p := a.player.play
+	if !strings.HasPrefix(url, "http://127.0.0.1:") || p.storedURL != url {
+		t.Fatalf("the player plays %q", url)
+	}
+	apply(tt, a, func() { a.VideoFailed(errors.New("Cannot Open")) })
+	if p.remux != film.RemuxCopy || p.source != "" {
+		t.Fatalf("no copy is made: remux %v source %q", p.remux, p.source)
+	}
+	waitUntil(t, tt, a, f.updates, func() bool { return p.source != "" || a.player.playErr != "" })
+	if a.player.playErr != "" || filepath.Dir(p.source) != a.player.remuxDir {
+		t.Fatalf("the copy: source %q, error %q", p.source, a.player.playErr)
+	}
+	if got, err := os.ReadFile(p.source); err != nil || string(got) != "picture" {
+		t.Fatalf("the copy holds %q, %v", got, err)
+	}
+	if v := a.playerVideo(); v.Source != p.source {
+		t.Fatalf("the system's player is given %q", v.Source)
+	}
+	// ffmpeg said it got 0.5 s and then 1 s into the 2 s video: the stage says 50% while the copy is not yet played.
+	if p.remuxAt != time.Second {
+		t.Fatalf("the copy got %v far", p.remuxAt)
+	}
+	source := p.source
+	p.source = ""
+	if got := a.playerRemuxText(m); got != m.PlayerRemuxingFrom(storedPlace, 50) {
+		t.Fatalf("while copying the stage says %q", got)
+	}
+	p.source = source
+
+	// Neither copy plays.
+	apply(tt, a, func() { a.VideoFailed(errors.New("Cannot Open")) })
+	waitUntil(t, tt, a, f.updates, func() bool { return p.source != "" || a.player.playErr != "" })
+	if p.remux != film.RemuxEncode {
+		t.Fatalf("the copy encoded anew is not made: %v", p.remux)
+	}
+	apply(tt, a, func() { a.VideoFailed(errors.New("Cannot Open")) })
+	if a.player.playErr != playerErrStoredUnplayable {
+		t.Fatalf("when no copy plays the player says %q", a.player.playErr)
+	}
+	refresh(tt, a)
+	wantText(t, tt, m.PlayerStoredUnplayable())
+	if tt.Exists("id:film-stage-reveal") || tt.Exists("id:film-stage-stored-settings") {
+		t.Fatalf("an unplayable video on a location offers %q", tt.Texts())
+	}
+	if menu := a.StoredOpenMenu(a.cx); len(menu) != 1 || menu[0].Label != m.StoredMoveBack() || menu[0].Disabled {
+		t.Fatalf("the film's ⋯ offers %+v", menu)
+	}
+	a.closeFilm()
+
+	// Without ffmpeg there is no copy.
+	a.pipeline = &fakePipeline{}
+	playStored(t, f, item)
+	apply(tt, a, func() { a.VideoFailed(errors.New("Cannot Open")) })
+	if a.player.playErr != playerErrStoredUnplayable {
+		t.Fatalf("without ffmpeg the player says %q", a.player.playErr)
+	}
+}
+
+// TestRemoteSaysWhereAMovedVideoIs checks that films.list and film.get over the control socket say where a moved video is: the location's name and kind and the video's path there, and that the location is gone once it is removed from the settings; a video in the library's folder has none.
+func TestRemoteSaysWhereAMovedVideoIs(t *testing.T) {
+	f, _, items := storedSeries(t, nil)
+	a := f.a
+	a.MoveVideoTo(items[0], "nas")
+	waitStored(t, f)
+	remoteServe(t, a)
+	all, err := remoteCall[[]remote.Film](t, f.updates, remote.MethodFilms, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	want := remote.VideoLocation{Name: storedPlace, Kind: "webdav", Path: storedDest(f)}
+	for _, film := range all {
+		switch {
+		case film.ID == "film" && (film.VideoLocation == nil || *film.VideoLocation != want):
+			t.Fatalf("films.list tells %+v of the moved video", film.VideoLocation)
+		case film.ID != "film" && film.VideoLocation != nil:
+			t.Fatalf("films.list tells %+v of %s, in the library", film.VideoLocation, film.ID)
+		}
+	}
+	one, err := remoteCall[remote.Film](t, f.updates, remote.MethodFilm, remote.IDParams{ID: "film"})
+	if err != nil || one.VideoLocation == nil || *one.VideoLocation != want || one.VideoPath != f.video {
+		t.Fatalf("film.get = %+v, %v", one, err)
+	}
+
+	a.locations.list = nil
+	one, err = remoteCall[remote.Film](t, f.updates, remote.MethodFilm, remote.IDParams{ID: "film"})
+	if err != nil || one.VideoLocation == nil || !one.VideoLocation.Missing || one.VideoLocation.Path != want.Path {
+		t.Fatalf("film.get once the location is gone = %+v, %v", one.VideoLocation, err)
 	}
 }

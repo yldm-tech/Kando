@@ -30,7 +30,7 @@ var (
 	sampleStatus = remote.Status{Version: "1.2.3", LibraryDir: "/lib", Ready: true, Readiness: "Ready", Tools: map[string]string{"yt-dlp": "/bin/yt-dlp", "ffmpeg": "", "whisper-cli": "/bin/whisper-cli"}, SpeechModel: "ggml-large.bin", TranslationModel: "gpt", Language: "简体中文", Running: "j1", Queued: 2}
 	sampleFilms  = []remote.Film{
 		{ID: "f1", Title: "Rivers of Light", Source: "youtube", Link: "https://youtu.be/x", Stage: "complete", Progress: 1, Subtitles: "/lib/a.bilingual.srt"},
-		{ID: "f2", Title: "Local Walk", Source: "local", Progress: -1},
+		{ID: "f2", Title: "Local Walk", Source: "local", Progress: -1, VideoPath: "/lib/Walk/video.mp4", VideoLocation: &remote.VideoLocation{Name: "Home NAS", Kind: "webdav", Path: "Kando/lib/Walk/video.mp4"}},
 	}
 	sampleJobs = []remote.Job{
 		{ID: "j1", Source: "https://youtu.be/y", Stage: "transcribing", Progress: 0.4, Status: "Transcribing 40%"},
@@ -368,6 +368,11 @@ func TestReadTools(t *testing.T) {
 	}
 	if got := string(f.lastParams(remote.MethodFilms)); got != `{"source":"youtube","query":"RIVERS"}` {
 		t.Errorf("films params = %s", got)
+	}
+	// A video moved to a storage location says where it is, which the tool's output schema lets through.
+	all := structured[listFilmsOutput](t, call(t, cs, "kando_list_films", nil))
+	if len(all.Films) != 2 || all.Films[0].VideoLocation != nil || all.Films[1].VideoLocation == nil || *all.Films[1].VideoLocation != (remote.VideoLocation{Name: "Home NAS", Kind: "webdav", Path: "Kando/lib/Walk/video.mp4"}) {
+		t.Errorf("all films = %+v", all.Films)
 	}
 	none := structured[listFilmsOutput](t, call(t, cs, "kando_list_films", map[string]any{"query": "nothing"}))
 	if none.Films == nil || len(none.Films) != 0 {

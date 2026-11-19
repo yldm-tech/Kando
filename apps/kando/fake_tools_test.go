@@ -8,8 +8,10 @@ import (
 	"image/color"
 	"image/jpeg"
 	"image/png"
+	"io"
 	"io/fs"
 	"math"
+	"net/http"
 	"net/url"
 	"os"
 	"path"
@@ -408,6 +410,9 @@ func fakeFFmpeg(args []string) int {
 		return 0
 	}
 	input := fakeArg(args, "-i")
+	if fakeArg(args, "-f") == "mp4" {
+		return fakeRemux(args, input)
+	}
 	clip, ok := readFakeClip(input)
 	if !ok {
 		fmt.Fprintf(os.Stderr, "%s: Invalid data found when processing input\n", filepath.Base(input))
@@ -455,6 +460,42 @@ func fakeFFmpeg(args []string) int {
 	fmt.Fprintf(os.Stderr, "Input #0, mov,mp4,m4a,3gp,3g2,mj2, from '%s':\n  Duration: %02d:%02d:%02d.00, start: 0.000000, bitrate: 98 kb/s\n  Stream #0:0[0x1](und): Video: mpeg4 (Simple Profile) (mp4v / 0x7634706D), yuv420p, %dx%d [SAR 1:1 DAR 16:9], %d fps, %d tbr, %d tbn (default)\nAt least one output file must be specified\n",
 		filepath.Base(input), clip.seconds/3600, clip.seconds/60%60, clip.seconds%60, ownWidth, ownHeight, fakeClipFPS, fakeClipFPS, fakeClipFPS*1000)
 	return 1
+}
+
+// fakeRemux makes the copy of input for the system's player (film.RemuxArgs) as the fake ffmpeg does: the bytes of input, a file or an http address read as ffmpeg reads one, written to the last argument; with -progress pipe:1, how far it got, halfway and then whole, as ffmpeg's out_time_us lines, the length a placeholder clip says or a second.
+func fakeRemux(args []string, input string) int {
+	var data []byte
+	if strings.HasPrefix(input, "http://") || strings.HasPrefix(input, "https://") {
+		resp, err := http.Get(input)
+		if err != nil {
+			fmt.Fprintln(os.Stderr, err)
+			return 1
+		}
+		data, err = io.ReadAll(resp.Body)
+		resp.Body.Close()
+		if err != nil || resp.StatusCode != http.StatusOK {
+			fmt.Fprintf(os.Stderr, "%s: Server returned %d\n", input, resp.StatusCode)
+			return 1
+		}
+	} else {
+		var err error
+		if data, err = os.ReadFile(input); err != nil {
+			fmt.Fprintln(os.Stderr, err)
+			return 1
+		}
+	}
+	if fakeArg(args, "-progress") == "pipe:1" {
+		length := time.Second
+		if clip, ok := readFakeClip(input); ok {
+			length = time.Duration(clip.seconds) * time.Second
+		}
+		fmt.Printf("out_time_us=%d\nprogress=continue\nout_time_us=%d\nprogress=end\n", length.Microseconds()/2, length.Microseconds())
+	}
+	if err := os.WriteFile(args[len(args)-1], data, 0o644); err != nil {
+		fmt.Fprintln(os.Stderr, err)
+		return 1
+	}
+	return 0
 }
 
 // fakeSoundRate is the rate the fake ffmpeg writes sound at, the one the player asks for (-ar).
