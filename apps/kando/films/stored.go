@@ -83,7 +83,7 @@ func storedTip(cx *core.Scope, name func() string, look func() storedLook) func(
 }
 
 // storedIcon is the mark after a film's name in the list, in the muted ink of the row's other details, or the warning's when its location is no longer in the settings, named for assistive technology by what it means.
-// TODO(nsgo): DataTable's body takes no pointer events (base/datatable/view.go body), so a view drawn in a cell (RenderCell) never hears the pointer and a ui.Tooltip there never shows; once cells can carry a tooltip, give this mark its label as one, as the poster's tooltip says it
+// TODO(nsgo#820): DataTable's body takes no pointer events (base/datatable/view.go body), so a view drawn in a cell (RenderCell) never hears the pointer and a ui.Tooltip there never shows; once cells can carry a tooltip, give this mark its label as one, as the poster's tooltip says it https://github.com/nsgo-dev/nsgo/issues/820
 func storedIcon(cx *core.Scope, look func() storedLook) core.Node {
 	colors, k := ui.ColorsOf(cx), theme.Of(cx)
 	return core.Show{When: func() bool { return look().on }, Then: func(cx *core.Scope) core.Node {
