@@ -46,11 +46,13 @@ func (s *Session) SetDesktopContext(id string, on bool, done func(error)) {
 		done(&sync.Error{Status: 401})
 		return
 	}
+	s.learn.settingsPuts[id]++
 	s.work.Go(func() {
 		ctx, cancel := context.WithTimeout(s.ctx, learnSyncFor)
 		defer cancel()
 		got, err := c.PutSettings(ctx, sync.SettingsPut{Context: &on})
 		s.cx.Post(func() {
+			s.learn.settingsPuts[id]++
 			if _, paired := s.Desktop(id); err == nil && paired {
 				was, _ := s.DesktopSettings(id)
 				s.setDesktopSettings(id, DesktopSettings{Settings: got, ReadOnly: was.ReadOnly})

@@ -11,7 +11,6 @@ import (
 	"kando/apps/kando/live"
 	"kando/apps/kando/phonesync"
 	"kando/apps/kando/settings"
-	psync "kando/packages/sync"
 )
 
 // The storage relay (phonesync/relay.go, yldm-tech/Kando#219) carries Phone Sync's calls through the bucket of 账号与上传 when a phone is away from the computer's network. It runs while Phone Sync runs and its switch on the 手机同步 page (settings.json's phoneRelay) is on, in the store set up in 账号与上传, unless 离线模式 is on. Phone Sync starts again when the switch is turned, and phoneRelayRestartAfter after the store's settings or 离线模式 last changed, so the relay always runs in the store the page names.
@@ -37,7 +36,7 @@ func (a *app) phoneRelaySig() string {
 }
 
 // phoneRelayBucket is the bucket the relay runs in, nil while the relay is off, 离线模式 is on or no store is set up. A store that does not open says why on the page.
-func (a *app) phoneRelayBucket() psync.RelayBucket {
+func (a *app) phoneRelayBucket() phonesync.Bucket {
 	if a.phoneRelaySig() == "" {
 		if a.phone.relay && !a.privacy.offline {
 			log.Printf("phonesync: relay: no storage is set up in Account & Upload")
@@ -119,7 +118,7 @@ func (a *app) phoneRelayFollow() bool {
 func (a *app) phoneRelayStatus() settings.PhoneRelay {
 	m := a.messages()
 	cfg := a.currentStore()
-	r := settings.PhoneRelay{On: a.phone.relay, Offline: a.privacy.offline, Working: a.phone.relayOK}
+	r := settings.PhoneRelay{On: a.phone.relay, Offline: a.privacy.offline, Working: a.phone.relayOK, SubtitlesOnly: a.phone.films.subtitlesOnly, Storage: a.phoneFilmsStorage(m)}
 	if storeReady(cfg) {
 		r.Store = m.SettingsPhoneRelayStoreName(uploadStoreName(m, cfg.Kind), cfg.Bucket)
 	}

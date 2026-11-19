@@ -134,7 +134,7 @@ func (a *app) addSheetAsk(source string, from addsheet.From, title string, at ti
 	return true
 }
 
-// addSheetRead reads what the video at source is off the engine's goroutine, as the sheet shows it (addsheet.Meta): its title, who put it on the site, its length and which subtitles its site has (media.Previewer), then, for a video of a playlist (inList), how many videos the playlist holds (media.Lister). It borrows the sign-in downloads borrow, as a video only a signed-in account sees is read so. A video whose page could not be read shows what the sheet knew; one without the uploader's subtitles has its original lines heard, unless the user chose otherwise meanwhile. Closing the sheet stops the reading.
+// addSheetRead reads what the video at source is off the engine's goroutine, as the sheet shows it (addsheet.Meta): its title, who put it on the site, its length and which subtitles its site has (media.Previewer), then, for a video of a playlist (inList), how many videos the playlist holds (media.Lister). It borrows the sign-in downloads borrow, as a video only a signed-in account sees is read so. A video whose page could not be read shows what the sheet knew; one without the uploader's subtitles, or without the site's own captions when those were chosen, has its original lines heard instead. Closing the sheet stops the reading.
 func (a *app) addSheetRead(source string, inList bool) {
 	previewer, ok := a.pipeline.(media.Previewer)
 	if !ok {
@@ -167,7 +167,8 @@ func (a *app) addSheetRead(source string, inList bool) {
 				return
 			}
 			a.addsheet.meta = addsheet.Meta{Reading: a.addsheet.meta.Reading, Known: true, Title: preview.Title, Uploader: preview.Uploader, Length: preview.Duration, Subtitles: preview.Subtitles, AutoCaptions: preview.AutoCaptions}
-			if !preview.Subtitles && a.addsheet.choice.Source == kcore.SubtitlesPlatform {
+			// A source the video turned out not to have, its radio now disabled, is not left chosen: the film is heard instead.
+			if (!preview.Subtitles && a.addsheet.choice.Source == kcore.SubtitlesPlatform) || (!preview.AutoCaptions && a.addsheet.choice.Source == kcore.SubtitlesAuto) {
 				a.addsheet.choice.Source = kcore.SubtitlesLocal
 			}
 		})

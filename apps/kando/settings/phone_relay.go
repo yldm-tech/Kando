@@ -21,6 +21,10 @@ type PhoneRelay struct {
 	// Working is a turn of the relay that went through since it started, and Err why its last turn failed, in the interface's language, "" for none.
 	Working bool
 	Err     string
+	// SubtitlesOnly is 只同步字幕, which settings.json keeps: the films go to the storage as their lines and posters, without their videos.
+	SubtitlesOnly bool
+	// Storage is what the films and the messages take in the storage (phone_storage.go).
+	Storage PhoneStorage
 }
 
 // relayState is what the relay's status row says.
@@ -105,5 +109,25 @@ func relayCard(cx *core.Scope, a App) core.Node {
 			form.Status(dot, color, text),
 		}}}
 	}}
-	return form.Card(toggle, form.Separator(true), store, status)
+	// 只同步字幕 shows while the relay is on, as it is about what goes through it.
+	subtitles := core.Show{When: live.Func(a, func() bool { return relay().On }), Then: func(cx *core.Scope) core.Node {
+		return core.Group{form.Separator(true), form.SwitchRow{Title: locales.SettingsPhoneRelaySubtitlesOnly(cx), Subtitle: locales.SettingsPhoneRelaySubtitlesOnlyHint(cx), TestID: "settings-phone-relay-subtitles-only",
+			On:       live.Func(a, func() bool { return relay().SubtitlesOnly }),
+			OnChange: live.On(a, a.SetPhoneRelaySubtitlesOnly)}}
+	}}
+	return form.Card(toggle, form.Separator(true), store, status, subtitles)
+}
+
+// storageSection is the 存储用量 label and card, while the relay is on with a storage set up and not paused by 离线模式.
+func storageSection(cx *core.Scope, a App) core.Node {
+	shown := live.Func(a, func() bool {
+		r := a.PhoneSync().Relay
+		return r.state() == relayWorking || r.state() == relayChecking || r.state() == relayFailed
+	})
+	return core.Show{When: shown, Then: func(cx *core.Scope) core.Node {
+		colors := ui.ColorsOf(cx)
+		where := core.Text{TestID: "settings-phone-storage-where", ContentFunc: live.Func(a, func() string { return a.PhoneSync().Relay.Store }), MaxLines: 1,
+			Style: core.Style{FontSize: 11, LineHeight: 16}, StyleFunc: ui.Colored(colors.Muted)}
+		return core.Group{form.Label(locales.SettingsPhoneStorage(cx), 14, where), storageCard(cx, a)}
+	}}
 }

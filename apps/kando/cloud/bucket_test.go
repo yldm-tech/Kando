@@ -28,6 +28,10 @@ type memS3 struct {
 	modified  map[string]time.Time
 	presigned []string
 	lists     int
+	// uploads are the uploads in parts begun and not completed, by ID, each its key and its parts by number; partPuts counts the parts sent, and failPart fails the part of that number, as a network gone, until it is set back to 0.
+	uploads  map[string]*memUpload
+	partPuts int
+	failPart int32
 }
 
 func (m *memS3) ServeHTTP(w http.ResponseWriter, r *http.Request) {
@@ -49,6 +53,9 @@ func (m *memS3) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	bucket, key, _ := strings.Cut(strings.TrimPrefix(r.URL.Path, "/"), "/")
 	if bucket != m.bucket {
 		m.fail(w, http.StatusNotFound, "NoSuchBucket")
+		return
+	}
+	if m.multipart(w, r, key) {
 		return
 	}
 	switch {

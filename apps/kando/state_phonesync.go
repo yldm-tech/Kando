@@ -18,6 +18,7 @@ import (
 	"kando/apps/kando/phonesync"
 	"kando/apps/kando/remote"
 	"kando/apps/kando/settings"
+	"kando/apps/kando/sidebar"
 	"kando/packages/core"
 	"kando/packages/media"
 	psync "kando/packages/sync"
@@ -70,6 +71,8 @@ type phoneUI struct {
 	// clockAt is when the timer phoneClockArm set runs the bindings again, as what the page or the handoff bar shows changes with time alone; zero for none, and clockStop stops it.
 	clockAt   time.Time
 	clockStop func() bool
+	// films is the films shared through the storage relay (state_phonesync_films.go).
+	films phoneFilms
 }
 
 func newPhoneUI() phoneUI { return phoneUI{} }
@@ -162,6 +165,7 @@ func (a *app) phoneSyncStart() {
 		Glossary:      phoneGlossary{a},
 		Relay:         a.phoneRelayBucket(),
 		RelayHealth:   a.phoneRelayHealth(gen),
+		Films:         a.phoneFilmsConfig(gen, a.currentStore()),
 		Addrs:         a.phone.listen,
 		Changed:       func() { update(a.phoneSyncPull) },
 		Now:           a.phone.now,
@@ -347,7 +351,17 @@ type phoneShelf struct {
 	names     map[string]string
 	durations map[string]time.Duration
 	posterDir string
+	// furthest is how far each video was played, and played when it last played, by path, which say whether a film was watched to its end and when (films.WatchState).
+	furthest map[string]time.Duration
+	played   map[string]time.Time
 }
+
+// Duration, ResumeAt and Furthest are the shelf as films.Progress, for films.WatchState: where a film stopped does not tell whether it was watched to its end.
+func (s phoneShelf) Duration(path string) time.Duration { return s.durations[path] }
+
+func (s phoneShelf) ResumeAt(string) time.Duration { return 0 }
+
+func (s phoneShelf) Furthest(path string) time.Duration { return s.furthest[path] }
 
 // Libraries are the libraries the app knows, named as the library drop-down names them, locked ones left out.
 func (s phoneSource) Libraries(ctx context.Context) ([]phonesync.Library, error) {
@@ -382,6 +396,9 @@ func (s phoneSource) Films(ctx context.Context, lib phonesync.Library) ([]phones
 		if dest := posterDest(shelf.posterDir, item.VideoPath); dest != "" && fileExists(dest) {
 			f.Poster = dest
 		}
+		if films.WatchState(shelf, item) == sidebar.WatchWatched {
+			f.Watched, f.WatchedAt = true, shelf.played[item.VideoPath]
+		}
 		out = append(out, f)
 	}
 	return out, nil
@@ -394,7 +411,8 @@ func (s phoneSource) items(ctx context.Context, lib phonesync.Library) ([]films.
 		if a.libraryLocked(lib.Dir) {
 			return phoneShelf{}, phonesync.ErrNotFound
 		}
-		return phoneShelf{jobs: slices.Clone(a.library.Jobs), names: maps.Clone(a.library.Names), durations: maps.Clone(a.lib.durations), posterDir: a.lib.posterDir}, nil
+		return phoneShelf{jobs: slices.Clone(a.library.Jobs), names: maps.Clone(a.library.Names), durations: maps.Clone(a.lib.durations), posterDir: a.lib.posterDir,
+			furthest: maps.Clone(a.palette.furthest), played: maps.Clone(a.player.played)}, nil
 	})
 	if err != nil {
 		return nil, phoneShelf{}, err

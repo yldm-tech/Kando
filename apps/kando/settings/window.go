@@ -99,6 +99,11 @@ type App interface {
 	SetPhoneReadOnly(id string, on bool)
 	// SetPhoneRelay turns the storage relay on or off, saves that, and has a running Phone Sync take it up at once.
 	SetPhoneRelay(on bool)
+	// SetPhoneRelaySubtitlesOnly has the films go to the storage as their lines alone (on), or with their videos; SetPhoneRelayClean sets how many days after a film was watched to its end its video is deleted from the storage, 0 for never. Both are saved and taken up by a running relay at once. CleanPhoneVideos deletes the videos of films from the storage now, off the UI thread. MovePhoneStorage moves the relay and the films to the storage of kind set up in 账号与上传, which becomes the one in use, handing the paired phones over to it.
+	SetPhoneRelaySubtitlesOnly(on bool)
+	SetPhoneRelayClean(days int)
+	CleanPhoneVideos(films []PhoneWatched)
+	MovePhoneStorage(kind string)
 	ResolvePhoneConflict(id string, keep PhoneKeep)
 	// PhoneNow is the time the page's relative times (刚刚, 5 分钟前) are told against. The app runs the bindings again as they come to say something else, so a binding that reads it follows time.
 	PhoneNow() time.Time

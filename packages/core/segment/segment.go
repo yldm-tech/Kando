@@ -2,6 +2,10 @@
 package segment
 
 import (
+	"bytes"
+	"compress/gzip"
+	_ "embed"
+	"io"
 	"strings"
 	"sync"
 	"unicode"
@@ -199,11 +203,40 @@ var japanese = newDictionary(func() func(run string) []string {
 	}
 })
 
-// chinese cuts Chinese, simplified and traditional, with gse and the dictionary it comes with, guessing at words the dictionary lacks (its HMM).
+// chinese cuts Chinese, simplified and traditional, with gse and its dictionaries of both (dict/zh_s.txt.gz, dict/zh_t.txt.gz), guessing at words they lack (its HMM). It reads these compressed copies rather than calling gse.LoadDictEmbed, which would keep every dictionary gse embeds in the apps, its Japanese one and a word-weight list among them, about 38 MB; with LoadDictEmbed never called the linker leaves those out, and these two are about 3 MB.
 var chinese = newDictionary(func() func(run string) []string {
+	simplified, err := gunzip(zhS)
+	if err != nil {
+		return nil
+	}
+	traditional, err := gunzip(zhT)
+	if err != nil {
+		return nil
+	}
 	seg := &gse.Segmenter{SkipLog: true}
-	if err := seg.LoadDictEmbed("zh"); err != nil {
+	if err := seg.LoadDictStr(simplified + "\n" + traditional); err != nil {
 		return nil
 	}
 	return func(run string) []string { return seg.Cut(run, true) }
 })
+
+// The dictionaries of gse v1.3.1 (data/dict/zh/s_1.txt and t_1.txt), gzipped, under gse's licence (dict/LICENSE).
+var (
+	//go:embed dict/zh_s.txt.gz
+	zhS []byte
+	//go:embed dict/zh_t.txt.gz
+	zhT []byte
+)
+
+// gunzip is the text gzipped in b.
+func gunzip(b []byte) (string, error) {
+	r, err := gzip.NewReader(bytes.NewReader(b))
+	if err != nil {
+		return "", err
+	}
+	text, err := io.ReadAll(r)
+	if err != nil {
+		return "", err
+	}
+	return string(text), nil
+}

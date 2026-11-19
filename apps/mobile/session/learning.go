@@ -38,6 +38,8 @@ type learn struct {
 	settings *core.Signal[map[string]DesktopSettings]
 	// watchedKind are the paired computers that sync the time watched (sync.KindWatched), as each said at the last sync this run.
 	watchedKind map[string]bool
+	// settingsPuts counts, for each computer, the changes of its settings the phone began and finished this run (SetDesktopContext), so a sync that asked for its settings before one or while one ran does not put back what the computer answered then.
+	settingsPuts map[string]int
 	// again is set when a sync was asked for while one ran, which runs once it is done, so a change made meanwhile is not left until the next.
 	again bool
 	// waiting is how many libraries' syncs the sync running waits for (syncStudy).
@@ -56,14 +58,15 @@ const reminderID = "learn.review"
 // newLearn is the session's study, read from disk off the engine's goroutine: the time watched, and every library's learning state, which a film opened meanwhile may have read already (loadStudy).
 func newLearn(s *Session) *learn {
 	l := &learn{disk: learning.Open(s.cfg.Dir),
-		ready:       core.NewSignal(s.cx, false),
-		watched:     core.NewSignalFunc(s.cx, learning.Watched{}, nil),
-		syncing:     core.NewSignal(s.cx, false),
-		problem:     core.NewSignal(s.cx, NoProblem),
-		revoked:     core.NewSignalFunc[[]string](s.cx, nil, nil),
-		dismissed:   map[string]bool{},
-		settings:    core.NewSignalFunc[map[string]DesktopSettings](s.cx, nil, nil),
-		watchedKind: map[string]bool{},
+		ready:        core.NewSignal(s.cx, false),
+		watched:      core.NewSignalFunc(s.cx, learning.Watched{}, nil),
+		syncing:      core.NewSignal(s.cx, false),
+		problem:      core.NewSignal(s.cx, NoProblem),
+		revoked:      core.NewSignalFunc[[]string](s.cx, nil, nil),
+		dismissed:    map[string]bool{},
+		settings:     core.NewSignalFunc[map[string]DesktopSettings](s.cx, nil, nil),
+		watchedKind:  map[string]bool{},
+		settingsPuts: map[string]int{},
 	}
 	s.work.Go(func() {
 		libs, _ := s.st.Learnings()
@@ -236,6 +239,8 @@ type learnResult struct {
 	settings *sync.Settings
 	// targetPut is set when the phone's language was put to the computer, readOnly when the computer takes no change of the phone's, and watched when it syncs the time watched.
 	targetPut, readOnly, watched bool
+	// puts is the computer's settingsPuts when the sync asked it.
+	puts int
 }
 
 // SyncLearning brings the learning state up to date with every paired computer that serves it, each library the computer lists synced as a film's is (syncStudy): the phone's changes put first, then the computer's asked for; and the language translated into, the phone's put to a computer that has not taken it yet, else the computer's taken. A computer out of reach is left as it was. LearnSyncing is true until every library's sync is done.
@@ -261,10 +266,12 @@ func (s *Session) SyncLearning() {
 	for i, d := range desktops {
 		c := s.Client(d.ID)
 		putTarget := slices.Contains(prefs.TargetPending, d.ID)
+		puts := s.learn.settingsPuts[d.ID]
 		wg.Add(1)
 		s.work.Go(func() {
 			defer wg.Done()
 			results[i] = learnAsk(s.ctx, c, d.ID, putTarget, target)
+			results[i].puts = puts
 		})
 	}
 	s.work.Go(func() {
@@ -344,7 +351,10 @@ func (s *Session) learnAsked(results []learnResult) {
 		}
 		if r.settings != nil {
 			s.learnTakeSettings(r.desktop, *r.settings, r.targetPut)
-			s.setDesktopSettings(r.desktop, DesktopSettings{Settings: *r.settings, ReadOnly: r.readOnly})
+			// A change of the computer's settings begun since the sync asked keeps what it answered: these may be from before it.
+			if s.learn.settingsPuts[r.desktop] == r.puts {
+				s.setDesktopSettings(r.desktop, DesktopSettings{Settings: *r.settings, ReadOnly: r.readOnly})
+			}
 		}
 		if !r.state {
 			continue

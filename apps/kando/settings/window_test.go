@@ -189,6 +189,24 @@ func (f *fakeApp) SetPhoneRelay(on bool) {
 	f.phone.Relay.On = on
 	f.call(fmt.Sprintf("relay %v", on))
 }
+func (f *fakeApp) SetPhoneRelaySubtitlesOnly(on bool) {
+	f.phone.Relay.SubtitlesOnly = on
+	f.call(fmt.Sprintf("subtitles only %v", on))
+}
+func (f *fakeApp) SetPhoneRelayClean(days int) {
+	f.phone.Relay.Storage.CleanDays = days
+	f.call(fmt.Sprintf("clean after %d", days))
+}
+func (f *fakeApp) CleanPhoneVideos(films []PhoneWatched) {
+	ids := make([]string, len(films))
+	for i, w := range films {
+		ids[i] = w.ID
+	}
+	f.call(fmt.Sprintf("clean %s", strings.Join(ids, " ")))
+}
+func (f *fakeApp) MovePhoneStorage(kind string) {
+	f.call("move " + kind)
+}
 func (f *fakeApp) ResolvePhoneConflict(id string, keep PhoneKeep) {
 	f.call(fmt.Sprintf("resolve %s %d", id, keep))
 }

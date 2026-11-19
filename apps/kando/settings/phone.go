@@ -88,6 +88,7 @@ func (p phone) Render(cx *core.Scope) core.Node {
 			form.Card(receiveLinks(cx, a)...),
 			form.Label(locales.SettingsPhoneAway(cx), 14),
 			relayCard(cx, a),
+			storageSection(cx, a),
 		}
 		return core.Group(append(nodes, learning(cx, a)...))
 	}}

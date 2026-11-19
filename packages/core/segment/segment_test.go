@@ -158,3 +158,20 @@ func TestWordsCallsLoadedOnceTheDictionaryIsRead(t *testing.T) {
 		t.Fatalf("once read the line cuts into %q", got)
 	}
 }
+
+// The two Chinese dictionaries come with the package and each has the words only its script writes, as the HMM alone cuts many traditional lines right and a test of cuts would not see one missing.
+func TestChineseDictionaries(t *testing.T) {
+	for _, d := range []struct {
+		name string
+		data []byte
+		word string
+	}{{"simplified", zhS, "软件"}, {"traditional", zhT, "軟體"}} {
+		text, err := gunzip(d.data)
+		if err != nil {
+			t.Fatalf("the %s dictionary: %v", d.name, err)
+		}
+		if !strings.Contains(text, "\n"+d.word+" ") {
+			t.Fatalf("the %s dictionary has no %s", d.name, d.word)
+		}
+	}
+}
