@@ -79,13 +79,26 @@ func (s *State) Set(e PluginState) {
 	s.Plugins = append(s.Plugins, e)
 }
 
-// Save writes s to the state.json of root in this format, with its revision one higher, through a file beside it renamed over it, so the file holds either the old state or all of the new one. It does not write over a newer format's state, which is ErrStateFormat. Saving a state read as every pack off (a bad state.json) writes only the entries it has, and every pack without one reads as on again afterwards: a writer that must keep the packs off, such as the app saving its first change after it found state.json damaged, first adds an entry turned off for each pack it has.
+// Save writes s to the state.json of root in this format, with its revision one higher than both its own and that of the file on disk, through a file beside it renamed over it, so the file holds either the old state or all of the new one. It does not write over a newer format's state, which is ErrStateFormat: neither one s was read from nor one a newer Kando wrote since s was read, which Save reads the file again for. Saving a state read as every pack off (a bad state.json) writes only the entries it has, and every pack without one reads as on again afterwards: a writer that must keep the packs off, such as the app saving its first change after it found state.json damaged, first adds an entry turned off for each pack it has.
 func (s *State) Save(root string) error {
 	if s.Format > StateFormat {
 		return fmt.Errorf("%w: format %d", ErrStateFormat, s.Format)
 	}
 	next := *s
 	next.Format = StateFormat
+	// The file as it is now: a newer Kando may have written it since s was read. One that cannot be read as a state is written over, as LoadState reads it as bad.
+	if data, err := os.ReadFile(filepath.Join(root, stateName)); err == nil {
+		var disk struct {
+			Format   int `json:"format"`
+			Revision int `json:"revision"`
+		}
+		if json.Unmarshal(data, &disk) == nil {
+			if disk.Format > StateFormat {
+				return fmt.Errorf("%w: format %d", ErrStateFormat, disk.Format)
+			}
+			next.Revision = max(next.Revision, disk.Revision)
+		}
+	}
 	next.Revision++
 	if next.Plugins == nil {
 		next.Plugins = []PluginState{}

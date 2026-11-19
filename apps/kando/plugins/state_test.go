@@ -51,6 +51,33 @@ func TestStateNewerFormat(t *testing.T) {
 	}
 }
 
+// TestStateNewerFormatWrittenSince checks that a state read in this format is not saved over a state.json a newer Kando wrote after it was read, and that a save takes its revision past the file's, so a state read before another of this format was saved still counts up.
+func TestStateNewerFormatWrittenSince(t *testing.T) {
+	root := t.TempDir()
+	s, err := LoadState(root)
+	if err != nil {
+		t.Fatal(err)
+	}
+	newer := `{"format": 2, "revision": 7, "plugins": []}`
+	if err := os.WriteFile(filepath.Join(root, stateName), []byte(newer), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	wantErr(t, "save over a newer state written since", s.Save(root), ErrStateFormat)
+	if data, _ := os.ReadFile(filepath.Join(root, stateName)); string(data) != newer {
+		t.Errorf("state.json was written over: %s", data)
+	}
+
+	if err := os.WriteFile(filepath.Join(root, stateName), []byte(`{"format": 1, "revision": 9, "plugins": []}`), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := s.Save(root); err != nil {
+		t.Fatal(err)
+	}
+	if got, err := LoadState(root); err != nil || got.Revision != 10 {
+		t.Errorf("after a save over revision 9: %+v, %v", got, err)
+	}
+}
+
 // TestStateDamaged checks that a state.json that is not JSON turns every pack off until the state is written again.
 func TestStateDamaged(t *testing.T) {
 	root := t.TempDir()
