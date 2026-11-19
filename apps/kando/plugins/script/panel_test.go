@@ -219,3 +219,27 @@ func TestScriptPanelWatchdogSparesAQuietPanel(t *testing.T) {
 	case <-time.After(slow(4 * time.Second)):
 	}
 }
+
+// TestScriptMarksStopWithTheRunner checks the writer of the panels' in-flight marks: Drain waits until it wrote every mark asked before, a build's clearing included, and nothing is written after it, however many marks are asked for then.
+func TestScriptMarksStopWithTheRunner(t *testing.T) {
+	root := t.TempDir()
+	r := &Runner{Root: root}
+	p := &Plugin{ID: "acme.marks", Hash: "h1"}
+	for range 30 {
+		r.mark(p, true)
+		r.mark(p, false)
+	}
+	r.mark(p, true)
+	r.Drain()
+	if got := plugins.InFlight(root); got["acme.marks"] != "h1" {
+		t.Fatalf("after Drain the marks are %v: the last one asked was not written", got)
+	}
+	for range 30 {
+		r.mark(p, true)
+	}
+	r.Drain()
+	time.Sleep(50 * time.Millisecond)
+	if got := plugins.InFlight(root); len(got) != 0 {
+		t.Errorf("marks written after Drain: %v", got)
+	}
+}

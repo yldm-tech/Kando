@@ -191,6 +191,12 @@ func newTestApp(t *testing.T, p media.Pipeline, opts ...nsgotest.Option) (*app, 
 	a.tools.candidates = noCandidates
 	a.edit(func(s *session) { s.LibraryDir = testVideos })
 	opts = append([]nsgotest.Option{nsgotest.Size(1100, 720), nsgotest.Environment(testEnvironment())}, opts...)
+	// The plugins' work on their folder still under way when the test ends is waited for, as quitting waits for it, so it writes nothing more into the test's folders once they go.
+	t.Cleanup(func() {
+		if !a.pluginsWaitWrites(10 * time.Second) {
+			t.Error("the plugins' work on their folder did not end")
+		}
+	})
 	// A job still running when the test ends is stopped as quitting stops it, and the test waits for it to return, so it writes nothing more into the test's folders once they go.
 	t.Cleanup(func() {
 		if a.queue.cancel == nil || a.queue.done == nil {

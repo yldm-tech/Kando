@@ -148,7 +148,7 @@ func TestPluginPanels(t *testing.T) {
 	}
 }
 
-// TestPluginPanelsGoWithThePlugin checks that turning the plugin off takes its panel and the 扩展 tab away, the side panel showing the subtitles again, and turning it on again brings the panel chosen back, built anew for the plugin loaded again; and that its details list its panels among what it adds.
+// TestPluginPanelsGoWithThePlugin checks that turning the plugin off takes its panel and the 扩展 tab away, the side panel showing the subtitles again, and turning it on again brings the panel chosen back, built anew for the plugin loaded again; that no in-flight mark is written once the app waited for the plugins' work on their folder, as it does when it quits; and that its details list its panels among what it adds.
 func TestPluginPanelsGoWithThePlugin(t *testing.T) {
 	key := newPluginsKey(t)
 	a, tt, updates := panelsApp(t, key, pluginScriptFolder(t, key, "acme.panels", "1.0.0", pluginPanelsFields, pluginPanelsCode))
@@ -169,6 +169,18 @@ func TestPluginPanelsGoWithThePlugin(t *testing.T) {
 	l := a.plugins.script.loaded["acme.panels"]
 	if l.run == run || l.panel == nil {
 		t.Errorf("the panel was not built anew for the plugin loaded again: run %d, was %d", l.run, run)
+	}
+	// Once the app waited for the plugins' work on their folder, as it quits, a panel built again writes no in-flight mark.
+	root := a.plugins.root
+	plugins.InFlight(root)
+	if !a.pluginsWaitWrites(5 * time.Second) {
+		t.Fatal("the plugins' work on their folder did not end")
+	}
+	apply(tt, a, func() { a.SetExtension(pluginsContribID("acme.panels", "broken")) })
+	scriptsSettle(t, a, tt, updates, func() bool { return tt.Exists("id:film-extension-failed") })
+	time.Sleep(50 * time.Millisecond)
+	if got := plugins.InFlight(root); len(got) != 0 {
+		t.Errorf("a mark written once the app had waited for the plugins' work: %v", got)
 	}
 	// Its details list its panels among what it adds.
 	m := testlocale.Messages()

@@ -140,25 +140,45 @@ func (r *Runner) panelWatch() PanelWatch {
 	return DefaultPanelWatch
 }
 
-// mark writes, or with on false clears, the in-flight mark of p off the engine's goroutine, in the order asked, on the runner's one writer.
+// mark writes, or with on false clears, the in-flight mark of p off the engine's goroutine, in the order asked, on the runner's one writer; nothing once the runner was drained (Drain).
 func (r *Runner) mark(p *Plugin, on bool) {
-	r.marksOnce.Do(func() {
-		r.marks = make(chan func(), 64)
-		go func() {
-			for fn := range r.marks {
-				fn()
-			}
-		}()
-	})
 	root, id, hash := r.Root, p.ID, p.Hash
 	fn := func() { plugins.ClearInFlight(root, id) }
 	if on {
 		fn = func() { plugins.MarkInFlight(root, id, hash) }
 	}
+	r.marksMu.Lock()
+	defer r.marksMu.Unlock()
+	if r.drained {
+		return
+	}
+	if r.marks == nil {
+		r.marks = make(chan func(), 64)
+		r.marksDone = make(chan struct{})
+		go func(marks <-chan func(), done chan<- struct{}) {
+			defer close(done)
+			for fn := range marks {
+				fn()
+			}
+		}(r.marks, r.marksDone)
+	}
 	select {
 	case r.marks <- fn:
 	default:
 		// A writer this far behind is stuck on the disk; a mark lost is one chance less to turn a plugin off.
+	}
+}
+
+// Drain stops the writer of the panels' in-flight marks once it wrote what was asked of it, and waits for it: the marks of a build are asked for together, on the engine's goroutine, so a build's mark is never left without its clearing. No mark is written after it returns. Call it as the app quits, or a test ends, once no panel is built any more.
+func (r *Runner) Drain() {
+	r.marksMu.Lock()
+	r.drained = true
+	marks, done := r.marks, r.marksDone
+	r.marks = nil
+	r.marksMu.Unlock()
+	if marks != nil {
+		close(marks)
+		<-done
 	}
 }
 

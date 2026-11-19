@@ -35,7 +35,7 @@ func (a *app) pluginsCheckRevocations() {
 	}
 	s.revoking = true
 	trust, client, target, update := s.trust, a.pluginsRevocationsClient(), a.pluginsRevocationsURL(), a.update
-	go func() {
+	pluginsWrite(func() {
 		last := script.RevocationsChecked(root)
 		taken, err := false, error(nil)
 		if now.Sub(last) >= pluginsRevocationsEvery {
@@ -57,7 +57,7 @@ func (a *app) pluginsCheckRevocations() {
 				a.pluginsVerify()
 			}
 		})
-	}()
+	})
 }
 
 // pluginsRevocationsClient is the client the list is fetched with: the tests' when they set one.
