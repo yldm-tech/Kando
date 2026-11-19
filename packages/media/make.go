@@ -692,12 +692,15 @@ func (m *making) fail(step string, err error) core.Job {
 	return *m.job
 }
 
-// generation is the generation the making makes, which names the speech model it is heard by (Key): the one an earlier run began and did not finish, or a new one. A redo goes on with one only when it was heard by the same model, as a redo is the film heard anew by the model set now; a first making goes on with whatever its earlier run heard.
+// generation is the generation the making makes, which names the speech model it is heard by (Key): the one an earlier run began and did not finish, or a new one. A redo goes on with one only when it was heard by the same model, as a redo is the film heard anew by the model set now; a first making goes on with whatever its earlier run heard, but never with the copy a film translated again made of its lines (copyGeneration), whose cells were not heard at all.
 func (m *making) generation(model string) (string, error) {
 	var open track.Event
 	for _, e := range m.doc.Events {
+		if e.Kind != track.KindGen || e.Source != makeSource || m.doc.Done(e.Gen) || strings.HasPrefix(e.Key, copyHearing+" ") {
+			continue
+		}
 		// A redo that gave up a part of the film failed for it (run), and is begun again rather than gone on with, which would fail at once.
-		if e.Kind == track.KindGen && e.Source == makeSource && !m.doc.Done(e.Gen) && (!m.redo || e.Key == model && !m.doc.GivenUp(e.Gen, track.WorkHear, track.WorkDraft)) {
+		if !m.redo || e.Key == model && !m.doc.GivenUp(e.Gen, track.WorkHear, track.WorkDraft) {
 			open = e
 		}
 	}

@@ -545,3 +545,32 @@ func TestMakeRedoThatGivesUpAPartKeepsTheFilm(t *testing.T) {
 		t.Fatalf("the film shows %+v, want it heard anew", lines)
 	}
 }
+
+// A film made again from the start, not as a redo, after a translation again of it was stopped begins a generation of its own: it does not go on with the copy the translation made of the film's lines, which were never heard.
+func TestMakeDoesNotGoOnWithAStoppedTranslationAgain(t *testing.T) {
+	job, video := makeJob(t)
+	job.SpeechLanguage = "ja"
+	f := &makeFilm{length: 30 * time.Second, language: "ja"}
+	film, _ := makeFilmOf(t, f, job, 0)
+	if film.Stage != core.StageComplete {
+		t.Fatalf("film %+v", film)
+	}
+	f.translate = func(string) (string, error) { return "", ErrOffline }
+	again := film
+	again.Redo, again.RedoLanguage, again.Stage = core.RedoTranslation, "日本語", core.StageQueued
+	if failed, _ := makeFilmOf(t, f, again, 0); failed.Stage != core.StageFailed {
+		t.Fatalf("failed %+v", failed)
+	}
+	f.translate = nil
+	plain := film
+	plain.Stage = core.StageQueued
+	if done, _ := makeFilmOf(t, f, plain, 0); done.Stage != core.StageComplete {
+		t.Fatalf("done %+v", done)
+	}
+	doc, _ := track.Read(video)
+	for _, e := range doc.Events {
+		if e.Kind == track.KindGen && e.Gen == doc.Shown() && strings.HasPrefix(e.Key, copyHearing+" ") {
+			t.Fatalf("the film was made into the copy %q", e.Key)
+		}
+	}
+}
