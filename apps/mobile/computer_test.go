@@ -31,6 +31,8 @@ func TestAComputersPageShowsItsServiceAndSetsItsContext(t *testing.T) {
 	p.app.WaitUntil(wait, func() bool { return !p.app.Find("id:computer-context-switch").Props.Checked })
 
 	d.SetOff(true)
+	// The computer takes the change before its reply reaches the phone, which keeps the switch disabled until then.
+	p.app.WaitUntil(wait, func() bool { return p.app.Enabled("id:computer-context-switch") })
 	p.app.Press("id:computer-context-switch")
 	p.app.WaitUntil(wait, func() bool { return len(p.app.Alerts()) == 1 })
 	if got, want := p.app.Alerts()[0].Title, msgs.ComputerContextFailed("Studio"); got != want {
