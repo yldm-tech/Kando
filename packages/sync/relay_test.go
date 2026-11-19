@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"crypto/rand"
+	"crypto/sha256"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -78,7 +79,8 @@ func (m *memRelay) serve(w http.ResponseWriter, r *http.Request) {
 			w.WriteHeader(http.StatusNotFound)
 			return
 		}
-		w.Write(o.body)
+		w.Header().Set("ETag", fmt.Sprintf(`"%x"`, sha256.Sum256(o.body)))
+		http.ServeContent(w, r, "", o.modified, bytes.NewReader(o.body))
 	case http.MethodPut:
 		m.objects[link.key] = memObject{body: body, modified: m.now()}
 	}

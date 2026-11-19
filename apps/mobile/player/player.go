@@ -111,8 +111,14 @@ func view(cx *core.Scope, l *Layer, key string) core.Node {
 	// The keyboard's shortcuts act on the player while it shows over the app, not on the film playing on in the mini player.
 	keys(cx, p, w, shown)
 
+	source := filepath.Join(s.Store().FilmDir(f.Desktop, f.Film.ID), f.Video)
+	if !f.Done() {
+		// A film kept to stream plays from its computer's storage; one whose video is not there shows its lines alone (session.Stream).
+		source = s.StreamLink(key)
+	}
+	noVideo := source == ""
 	video := core.Video{TestID: "player-video", Ref: p.ref, Label: f.Film.Title,
-		Source:           filepath.Join(s.Store().FilmDir(f.Desktop, f.Film.ID), f.Video),
+		Source:           source,
 		PausedFunc:       func() bool { return !p.playing.Get() },
 		RateFunc:         p.speed,
 		ProgressInterval: 100 * time.Millisecond,
@@ -139,11 +145,19 @@ func view(cx *core.Scope, l *Layer, key string) core.Node {
 			p.toggle()
 		},
 	}
-	failed := core.Show{When: p.failed.Get, Then: func(cx *core.Scope) core.Node {
+	failed := core.Show{When: func() bool { return noVideo || p.failed.Get() }, Then: func(cx *core.Scope) core.Node {
+		say, id := locales.PlayerCantPlay, "player-failed"
+		if noVideo {
+			say, id = locales.PlayerNoVideo, "player-no-video"
+		}
 		return core.View{Style: fill.Merge(core.Style{AlignItems: core.AlignCenter, JustifyContent: core.JustifyCenter, Padding: core.All(24)}), Children: []core.Node{
-			core.Text{TestID: "player-failed", ContentFunc: func() string { return locales.PlayerCantPlay(cx) }, Style: look.Body.Merge(core.Style{TextAlign: core.TextAlignCenter, Color: core.RGB(0xFFFFFF)})},
+			core.Text{TestID: id, ContentFunc: func() string { return say(cx) }, Style: look.Body.Merge(core.Style{TextAlign: core.TextAlignCenter, Color: core.RGB(0xFFFFFF)})},
 		}}
 	}}
+	var picture core.Node = video
+	if noVideo {
+		picture = core.Group{}
+	}
 	overlaid := func() bool { return shape.Get() != full || controls.Get() }
 	onPicture := func() bool { return shape.Get() == full || p.onPicture.Get() }
 	stage := core.View{TestID: "player-stage", Style: core.Style{Background: core.RGB(0x000000), Overflow: core.Hidden},
@@ -153,7 +167,7 @@ func view(cx *core.Scope, l *Layer, key string) core.Node {
 			}
 			return core.Style{Width: core.Pct(100), AspectRatio: max(p.aspect.Get(), 1)}
 		},
-		Children: []core.Node{video, audioOnly(cx, p),
+		Children: []core.Node{picture, audioOnly(cx, p),
 			core.Show{When: onPicture, Then: func(cx *core.Scope) core.Node { return subtitles(cx, p, w, shape.Get, overlaid) }},
 			pills(cx, p, func() bool { return shape.Get() != full || controls.Get() }), failed}}
 

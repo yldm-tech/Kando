@@ -39,6 +39,9 @@ type Film struct {
 	Duration time.Duration
 	// Video is its video file, Poster its poster's file, "" for none yet.
 	Video, Poster string
+	// Watched is a film watched to its end, last at WatchedAt, zero when that is not known; the films through the bucket clean up its video after a while (FilmsConfig.CleanAfter).
+	Watched   bool
+	WatchedAt time.Time
 	// Subtitles is its bilingual subtitles' file, Transcript its original lines' (media.TranscriptOf) and Corrections the user's corrections of its lines (media.CorrectionsPath), each "" or missing for a film without; their times say when it last changed besides its video's (psync.Film.Updated), so a phone that has the film reads its lines again once the user corrects one.
 	Subtitles, Transcript, Corrections string
 }
@@ -76,8 +79,10 @@ type Config struct {
 	// Subscriptions is the subscriptions protocol v2's calls list and change; nil answers them unsupported.
 	Subscriptions psync.SubscriptionService
 	// Relay is the user's bucket the storage relay runs in (relay.go), nil while the relay is off. RelayHealth, when set, is told on a goroutine of the relay's after each of its turns what failed of it, nil for a turn that went through (psync.Relay.Health).
-	Relay       psync.RelayBucket
+	Relay       Bucket
 	RelayHealth func(err error)
+	// Films, with the relay on, shares the films with the phones through the bucket (films.go); nil shares none.
+	Films *FilmsConfig
 	// Addrs are the addresses to listen on, looked at again every rescanEvery as the computer joins other networks; nil is LANAddrs. Tests give loopback.
 	Addrs func() []netip.Addr
 	// Changed is told, on any goroutine, that what the settings show changed: the code on offer, the devices, or the addresses listened on.
@@ -116,6 +121,8 @@ type Server struct {
 	// desk answers protocol v2's calls; relay carries them through the user's bucket, nil while it is off.
 	desk  *psync.Desk
 	relay *psync.Relay
+	// shared puts the films in the bucket, nil while it does not (films.go).
+	shared *films
 }
 
 // listing is a library's playable films as read at a time.
@@ -167,6 +174,9 @@ func Start(cfg Config) (*Server, error) {
 	}
 	if cfg.Relay != nil {
 		s.startRelay(cfg.Relay)
+		if cfg.Films != nil {
+			s.startFilms(cfg.Relay, *cfg.Films)
+		}
 	}
 	if err := s.rescan(); err != nil {
 		s.Close()

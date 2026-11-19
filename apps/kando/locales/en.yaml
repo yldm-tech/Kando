@@ -6779,6 +6779,165 @@ settingsPhoneRelayNeedsStore:
 settingsPhoneRelayOffline:
   message: "Paused while Offline mode is on"
   description: "Status of the storage relay while Offline mode (Settings › Privacy) stops every network use."
+settingsPhoneRelaySubtitlesOnly:
+  message: "Subtitles only"
+  description: "Switch under the storage relay on the Phone Sync settings page: films go to the storage with their subtitles and posters but without their videos."
+settingsPhoneRelaySubtitlesOnlyHint:
+  message: "Videos stay off the storage to save room: phones show and study the lines, and the videos are watched on this computer."
+  description: "Subtitle of the Subtitles only switch."
+settingsPhoneStorage:
+  message: "Storage Use"
+  description: "Heading of the card on the Phone Sync settings page that says how much the films and the phones' messages take in the storage."
+settingsPhoneStorageMeasuring:
+  message: "Measuring…"
+  description: "Shown in place of the storage's total while it is being measured."
+settingsPhoneStorageFilms:
+  message: "{films, plural, one {# film} other {# films}} · {videos, plural, one {# with its video} other {# with their videos}}"
+  description: "How many films are in the storage, and how many of them with their video."
+  placeholders:
+    films: { type: "int", example: "14" }
+    videos: { type: "int", example: "9" }
+settingsPhoneStorageBar:
+  message: "Videos {videos}, subtitles and posters {lines}, messages {mail}"
+  description: "Spoken name of the bar that shows what the storage holds, for assistive technology."
+  placeholders:
+    videos: { type: "String", example: "6.7 GB" }
+    lines: { type: "String", example: "3.4 MB" }
+    mail: { type: "String", example: "20 KB" }
+settingsPhoneStorageVideos:
+  message: "Videos {size}"
+  description: "Key of the storage bar: the size of the videos."
+  placeholders:
+    size: { type: "String", example: "6.7 GB" }
+settingsPhoneStorageLines:
+  message: "Subtitles and posters {size}"
+  description: "Key of the storage bar: the size of the subtitles and posters."
+  placeholders:
+    size: { type: "String", example: "3.4 MB" }
+settingsPhoneStorageMail:
+  message: "Messages {size}"
+  description: "Key of the storage bar: the size of the messages between the phones and the computer."
+  placeholders:
+    size: { type: "String", example: "20 KB" }
+settingsPhoneStorageUploading:
+  message: "Uploading “{title}” · {percent}%"
+  description: "Which film's video goes up to the storage now, and how far."
+  placeholders:
+    title: { type: "String", example: "Morning Talk" }
+    percent: { type: "int", example: "42" }
+settingsPhoneStorageUploadingMore:
+  message: "Uploading “{title}” · {percent}% · {left, plural, one {# more after it} other {# more after it}}"
+  description: "Which film's video goes up to the storage now, how far, and how many videos wait after it."
+  placeholders:
+    title: { type: "String", example: "Morning Talk" }
+    percent: { type: "int", example: "42" }
+    left: { type: "int", example: "2" }
+settingsPhoneStorageFailed:
+  message: "Couldn't upload the films: {error}"
+  description: "Shown in the Storage Use card when putting the films in the storage failed; error says why, as an upload's failure does."
+  placeholders:
+    error: { type: "String", example: "The storage does not take the access key" }
+settingsPhoneStorageAutoClean:
+  message: "Clean up videos in the storage"
+  description: "Row title with a drop-down of when the videos of watched films are deleted from the storage."
+settingsPhoneStorageAutoCleanHint:
+  message: "Only the videos in the storage are deleted; subtitles, words and progress stay, and so does the video on this computer."
+  description: "Subtitle of the automatic cleanup row."
+settingsPhoneStorageNever:
+  message: "Never"
+  description: "Choice of the automatic cleanup: videos are never deleted."
+settingsPhoneStorageAfterDays:
+  message: "{days, plural, one {# day after watching} other {# days after watching}}"
+  description: "Choice of the automatic cleanup: a film's video is deleted from the storage this many days after it was watched to its end."
+  placeholders:
+    days: { type: "int", example: "30" }
+settingsPhoneStorageWatched:
+  message: "Watched Videos to Clean Up"
+  description: "Heading of the list of films whose video is in the storage and that were watched to their end."
+settingsPhoneStorageCleanAll:
+  message: "Clean Up All ({size})"
+  description: "Button that deletes the videos of every watched film from the storage; size is what that frees."
+  placeholders:
+    size: { type: "String", example: "2.0 GB" }
+settingsPhoneStorageClean:
+  message: "Clean Up"
+  description: "Button that deletes one watched film's video from the storage."
+settingsPhoneStorageCleanLabel:
+  message: "Clean up the video of “{title}”"
+  description: "Spoken name of a film's Clean Up button."
+  placeholders:
+    title: { type: "String", example: "Rivers" }
+settingsPhoneStorageWatchedAgo:
+  message: "Watched · {ago}"
+  description: "When a film in the cleanup list was watched to its end; ago is a relative time such as 3 days ago."
+  placeholders:
+    ago: { type: "String", example: "3 days ago" }
+settingsPhoneStorageWatchedSome:
+  message: "Watched"
+  description: "Shown for a film in the cleanup list marked watched without a time it was watched."
+settingsPhoneStorageNothing:
+  message: "Nothing to clean up."
+  description: "Shown when no watched film's video is in the storage."
+settingsPhoneStorageCleanFailed:
+  message: "Couldn't clean up: {error}"
+  description: "Shown when deleting videos from the storage failed."
+  placeholders:
+    error: { type: "String", example: "The storage could not be reached" }
+settingsPhoneStorageMove:
+  message: "Move to Another Storage"
+  description: "Row title for moving the films and the phones' messages to another storage set up in Account & Upload."
+settingsPhoneStorageMoveHint:
+  message: "The videos and subtitles go up to the new storage again, and paired phones follow it the next time they connect, without scanning a code."
+  description: "Subtitle of the move row."
+settingsPhoneStorageMoveTo:
+  message: "Move to"
+  description: "Spoken name of the drop-down of storages to move to."
+settingsPhoneStorageMoveButton:
+  message: "Move…"
+  description: "Button that asks to move the films and the phones to the storage picked."
+settingsPhoneStorageNoTarget:
+  message: "Set up another storage in Account & Upload first"
+  description: "Shown in the move row when no storage other than the one in use is set up."
+settingsPhoneStorageMoveAsk:
+  message: "Move to {store}?"
+  description: "Title of the confirmation of a move to another storage."
+  placeholders:
+    store: { type: "String", example: "S3" }
+settingsPhoneStorageMoveAskBody:
+  message: "Account & Upload switches to {store}. What is in {from} stays there; delete it yourself once everything works."
+  description: "Body of the confirmation of a move: the storage in use changes, and the files in the old one are not deleted."
+  placeholders:
+    store: { type: "String", example: "S3" }
+    from: { type: "String", example: "R2 · kando-films" }
+settingsPhoneStorageMoveConfirm:
+  message: "Move"
+  description: "Button of the confirmation that moves to the other storage."
+settingsPhoneStorageMoveCancel:
+  message: "Cancel"
+  description: "Button of the confirmation that closes it without moving."
+settingsPhoneStorageMoving:
+  message: "Moving to {store}…"
+  description: "Shown while the move to another storage begins."
+  placeholders:
+    store: { type: "String", example: "S3" }
+settingsPhoneStorageMovingCount:
+  message: "Moving to {store} · {done} of {total} videos"
+  description: "Shown while the videos go up to the new storage."
+  placeholders:
+    store: { type: "String", example: "S3" }
+    done: { type: "int", example: "3" }
+    total: { type: "int", example: "9" }
+settingsPhoneStorageMoved:
+  message: "Moved to {store}. What is in {from} stays there; delete it yourself once everything works."
+  description: "Shown once the move to another storage is done."
+  placeholders:
+    store: { type: "String", example: "S3" }
+    from: { type: "String", example: "R2 · kando-films" }
+settingsPhoneStorageMoveFailed:
+  message: "Couldn't move: {error}"
+  description: "Shown when the move to another storage failed."
+  placeholders:
+    error: { type: "String", example: "The storage does not take the access key" }
 settingsPhoneRevokeStorage:
   message: "Its messages in your storage are deleted. Links it already holds keep working for up to 7 days; to cut them off now, change the storage's access key in Account & Upload."
   description: "Consequence of revoking a phone while the storage relay is on, in the confirmation's list."

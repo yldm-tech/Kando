@@ -3,6 +3,7 @@ package phonesync
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"maps"
 	"net/http"
@@ -14,6 +15,7 @@ import (
 	"testing"
 	"time"
 
+	"kando/apps/kando/cloud"
 	psync "kando/packages/sync"
 )
 
@@ -21,6 +23,10 @@ import (
 type memBucket struct {
 	mu      gosync.Mutex
 	objects map[string][]byte
+	// files are the keys PutFile was asked to store, resumed the upload each went on from ("" for none), and fail the names of the files whose uploads fail.
+	files   []string
+	resumed []string
+	fail    map[string]bool
 }
 
 func (m *memBucket) Get(_ context.Context, key string) ([]byte, error) {
@@ -67,6 +73,50 @@ func (m *memBucket) Delete(_ context.Context, key string) error {
 	defer m.mu.Unlock()
 	delete(m.objects, key)
 	return nil
+}
+
+// PutFile stores the file at path, as the store does; a file whose name is in m.fail fails, as a network gone, after a first part kept in the upload's resume.
+func (m *memBucket) PutFile(_ context.Context, key, path, _ string, resume cloud.Resume, save func(cloud.Resume) error, progress func(done, total int64)) error {
+	body, err := os.ReadFile(path)
+	if err != nil {
+		return err
+	}
+	m.mu.Lock()
+	m.files = append(m.files, key)
+	failing := m.fail[filepath.Base(path)]
+	m.mu.Unlock()
+	if failing {
+		if err := save(cloud.Resume{UploadID: "u1", PartSize: 1, Size: int64(len(body)), Parts: []cloud.UploadedPart{{N: 1, ETag: "e1"}}}); err != nil {
+			return err
+		}
+		return errors.New("the network went away")
+	}
+	if progress != nil {
+		progress(int64(len(body)), int64(len(body)))
+	}
+	m.mu.Lock()
+	m.resumed = append(m.resumed, resume.UploadID)
+	m.mu.Unlock()
+	return m.Put(context.Background(), key, body)
+}
+
+// putFiles are the keys PutFile was asked to store, in their order.
+func (m *memBucket) putFiles() []string {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	return slices.Clone(m.files)
+}
+
+func (m *memBucket) Sizes(_ context.Context, prefix string) ([]cloud.Object, error) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	var out []cloud.Object
+	for k, body := range m.objects {
+		if strings.HasPrefix(k, prefix) {
+			out = append(out, cloud.Object{Key: k, Size: int64(len(body))})
+		}
+	}
+	return out, nil
 }
 
 func (m *memBucket) PresignGet(_ context.Context, key string, _ time.Duration) (string, error) {

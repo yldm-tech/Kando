@@ -18,6 +18,8 @@ type Shelf struct {
 	Listed  bool
 	Loading bool
 	Err     error
+	// Relayed is a listing the computer gave through the user's storage away from its network (relay_films.go), not by answering itself.
+	Relayed bool
 }
 
 // Waiting reports whether the shelf has nothing to show while it is read: the first time, or again after a failure.
@@ -80,6 +82,11 @@ func (s *Session) RefreshDesktop(id string) {
 			}
 			delete(s.listings, id)
 			if err != nil {
+				// Away from its network, the films it put in the storage stand in for its answer.
+				if sh, ok := s.relayShelf(id); ok && ProblemOf(err) == Unreachable {
+					s.setShelf(id, func(Shelf) Shelf { return sh })
+					return
+				}
 				s.setShelf(id, func(Shelf) Shelf { return Shelf{Err: err} })
 				return
 			}
