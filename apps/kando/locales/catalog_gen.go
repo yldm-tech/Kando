@@ -1009,6 +1009,8 @@ var Parameters = map[string][]string{
 	"SettingsPluginsIndexUpdateLabel":          {"name", "version"},
 	"SettingsPluginsIndexInstalledVersion":     {"version"},
 	"SettingsPluginsIndexNeedsKando":           {"version"},
+	"SettingsPluginsIndexCancelLabel":          {"name"},
+	"SettingsPluginsIndexDropped":              {"count"},
 	"SettingsPluginsIndexFailed":               {"reason"},
 	"SettingsPluginsIndexOffline":              {"date"},
 	"SettingsPluginsIndexUpdated":              {"date"},
@@ -1691,6 +1693,8 @@ type Translation struct {
 	SettingsPluginsIndexUpdateLabel          func(name string, version string) string
 	SettingsPluginsIndexInstalledVersion     func(version string) string
 	SettingsPluginsIndexNeedsKando           func(version string) string
+	SettingsPluginsIndexCancelLabel          func(name string) string
+	SettingsPluginsIndexDropped              func(count int) string
 	SettingsPluginsIndexFailed               func(reason string) string
 	SettingsPluginsIndexOffline              func(date string) string
 	SettingsPluginsIndexUpdated              func(date string) string
@@ -24655,6 +24659,12 @@ func Supply(lang string, t Translation) {
 	}
 	if t.SettingsPluginsIndexNeedsKando != nil {
 		s.SettingsPluginsIndexNeedsKando = t.SettingsPluginsIndexNeedsKando
+	}
+	if t.SettingsPluginsIndexCancelLabel != nil {
+		s.SettingsPluginsIndexCancelLabel = t.SettingsPluginsIndexCancelLabel
+	}
+	if t.SettingsPluginsIndexDropped != nil {
+		s.SettingsPluginsIndexDropped = t.SettingsPluginsIndexDropped
 	}
 	if t.SettingsPluginsIndexFailed != nil {
 		s.SettingsPluginsIndexFailed = t.SettingsPluginsIndexFailed
@@ -58954,7 +58964,7 @@ func (msgs Messages) SettingsPluginsIndexBrowse() string {
 // SettingsPluginsIndexHide says "Hide Directory"
 // in the language the app shows under cx.
 //
-// Plugins page: the Browse Plugins button while the plugin directory shows; it hides the directory.
+// Plugin directory: button in its header, beside Refresh, that hides the directory.
 func SettingsPluginsIndexHide(cx *core.Scope) string { return For(cx).SettingsPluginsIndexHide() }
 
 // SettingsPluginsIndexHide is the package's SettingsPluginsIndexHide in the language of msgs.
@@ -59304,6 +59314,119 @@ func (msgs Messages) SettingsPluginsIndexNeedsKando(version string) string {
 			return "需要看懂 " + version
 		case "zh-Hant":
 			return "需要看懂 " + version
+		}
+	}
+}
+
+// SettingsPluginsIndexCancelLabel says "Stop downloading {name}"
+// in the language the app shows under cx.
+//
+// Plugin directory: accessibility label of Cancel beside a plugin being downloaded.
+func SettingsPluginsIndexCancelLabel(cx *core.Scope, name string) string {
+	return For(cx).SettingsPluginsIndexCancelLabel(name)
+}
+
+// SettingsPluginsIndexCancelLabel is the package's SettingsPluginsIndexCancelLabel in the language of msgs.
+func (msgs Messages) SettingsPluginsIndexCancelLabel(name string) string {
+	if i18n.IsPseudo(msgs.lang) {
+		return i18n.Pseudo(msgs.lang, Messages{lang: Source, mark: true}.SettingsPluginsIndexCancelLabel(name))
+	}
+	for lang := msgs.lang; ; lang = i18n.Parent(lang) {
+		if f := supplied[lang].SettingsPluginsIndexCancelLabel; f != nil {
+			return f(name)
+		}
+		switch lang {
+		case "", "en":
+			return "Stop downloading " + msgs.arg(name)
+		case "ja":
+			return "「" + name + "」のダウンロードを中止"
+		case "ko":
+			return "‘" + name + "’ 다운로드 중지"
+		case "zh-Hans":
+			return "停止下载“" + name + "”"
+		case "zh-Hant":
+			return "停止下載「" + name + "」"
+		}
+	}
+}
+
+// SettingsPluginsIndexDropped says "{count, plural, one {# plugin in the list needs} other {# plugins in the list need}} a newer version of Kando and {count, plural, one {isn't} other {aren't}} shown."
+// in the language the app shows under cx.
+//
+// Plugin directory: under the status line, when the list has plugins this version of Kando cannot read or install, which it leaves out.
+func SettingsPluginsIndexDropped(cx *core.Scope, count int) string {
+	return For(cx).SettingsPluginsIndexDropped(count)
+}
+
+// SettingsPluginsIndexDropped is the package's SettingsPluginsIndexDropped in the language of msgs.
+func (msgs Messages) SettingsPluginsIndexDropped(count int) string {
+	if i18n.IsPseudo(msgs.lang) {
+		return i18n.Pseudo(msgs.lang, Messages{lang: Source, mark: true}.SettingsPluginsIndexDropped(count))
+	}
+	for lang := msgs.lang; ; lang = i18n.Parent(lang) {
+		if f := supplied[lang].SettingsPluginsIndexDropped; f != nil {
+			return f(count)
+		}
+		switch lang {
+		case "", "en":
+			var b strings.Builder
+			switch i18n.Cardinal("en", float64(count)) {
+			case i18n.One:
+				b.WriteString(msgs.arg(i18n.FormatNumber("en", float64(count))))
+				b.WriteString(" plugin in the list needs")
+			default:
+				b.WriteString(msgs.arg(i18n.FormatNumber("en", float64(count))))
+				b.WriteString(" plugins in the list need")
+			}
+			b.WriteString(" a newer version of Kando and ")
+			switch i18n.Cardinal("en", float64(count)) {
+			case i18n.One:
+				b.WriteString("isn't")
+			default:
+				b.WriteString("aren't")
+			}
+			b.WriteString(" shown.")
+			return b.String()
+		case "ja":
+			var b strings.Builder
+			b.WriteString("一覧のうち ")
+			switch i18n.Cardinal("ja", float64(count)) {
+			default:
+				b.WriteString(i18n.FormatNumber("ja", float64(count)))
+				b.WriteString(" 件")
+			}
+			b.WriteString("のプラグインは新しいバージョンの Kando が必要なため、表示していません。")
+			return b.String()
+		case "ko":
+			var b strings.Builder
+			b.WriteString("목록의 플러그인 중 ")
+			switch i18n.Cardinal("ko", float64(count)) {
+			default:
+				b.WriteString(i18n.FormatNumber("ko", float64(count)))
+				b.WriteString("개")
+			}
+			b.WriteString("는 더 새로운 버전의 Kando가 필요해서 표시하지 않습니다.")
+			return b.String()
+		case "zh-Hans":
+			var b strings.Builder
+			b.WriteString("列表里有 ")
+			switch i18n.Cardinal("zh-Hans", float64(count)) {
+			default:
+				b.WriteString(i18n.FormatNumber("zh-Hans", float64(count)))
+				b.WriteString(" 个插件")
+			}
+			b.WriteString("需要更新版本的看懂，没有显示。")
+			return b.String()
+		case "zh-Hant":
+			var b strings.Builder
+			b.WriteString("清單裡有 ")
+			switch i18n.Cardinal("zh-Hant", float64(count)) {
+			default:
+				b.WriteString(i18n.FormatNumber("zh-Hant", float64(count)))
+				b.WriteString(" 個外掛")
+			}
+			b.WriteString("需要較新版本的看懂，沒有顯示。")
+			return b.String()
 		}
 	}
 }

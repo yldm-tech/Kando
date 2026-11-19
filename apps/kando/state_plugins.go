@@ -165,6 +165,7 @@ func (a *app) pluginsHooks() areaHooks {
 		playing: a.pluginsMarksFollow,
 		afterChange: func() bool {
 			changed := a.pluginsMarksFollow()
+			changed = a.pluginsIndexFollow() || changed
 			a.pluginsFilmOpened()
 			a.pluginsGrantsFollow()
 			// A task's run goes once its film is not the one open (pluginsTaskFollow).

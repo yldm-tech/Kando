@@ -27,6 +27,12 @@ const IndexKeyEnv = "KANDO_PLUGINS_INDEX_KEY"
 // indexRoots are the roots `kando plugin index` verifies a script plugin's signature against: Kando's official root; tests trust a key of their own.
 var indexRoots = func() script.Roots { return script.DefaultRoots(nil) }
 
+// indexPublicKey is the public key Kando checks the index with, script.IndexKey; tests check against a key of their own.
+var indexPublicKey = func() string { return script.IndexKey }
+
+// errWrongIndexKey is a secret in IndexKeyEnv that is not the index key Kando checks with: the index it signed would be refused by every Kando.
+var errWrongIndexKey = errors.New(IndexKeyEnv + " holds another key than the one Kando checks the index with (script.IndexKey)")
+
 // indexNow is when an index `kando plugin index` writes was made; tests fix it.
 var indexNow = time.Now
 
@@ -58,6 +64,9 @@ func pluginIndex(e *env, folder, base, out string) error {
 	key, err := pkg.DecodeSecretKey(secret)
 	if err != nil {
 		return fmt.Errorf("%s: %w", IndexKeyEnv, err)
+	}
+	if want, err := pkg.DecodePublicKey(indexPublicKey()); err != nil || !want.Equal(key.Public()) {
+		return errWrongIndexKey
 	}
 	if base == "" {
 		return usagef("index needs --base, the https address the pack files are published under")

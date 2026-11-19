@@ -6,6 +6,7 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"net/http"
@@ -54,12 +55,18 @@ type Source struct {
 	Client *http.Client
 }
 
-// Cached is the index kept in the cache, checked again as when it came (Parse), and what is known of it; an error when there is none or it no longer checks, as when the key changed.
+// ErrOtherAddress is a copy kept of the index of another address than the source's, or of an address not known: it is no copy of this source's index, neither shown nor compared with what comes.
+var ErrOtherAddress = errors.New("the plugin list kept came from another address")
+
+// Cached is the index kept in the cache, checked again as when it came (Parse), and what is known of it; an error when there is none, it came from another address (ErrOtherAddress) or it no longer checks, as when the key changed.
 func (s Source) Cached() (Index, Meta, error) {
 	if s.Key == nil {
 		return Index{}, Meta{}, ErrNotConfigured
 	}
 	meta := s.meta()
+	if meta.URL != s.URL {
+		return Index{}, meta, fmt.Errorf("%w: %s", ErrOtherAddress, meta.URL)
+	}
 	data, err := readSmall(filepath.Join(s.Dir, cacheName), MaxBytes)
 	if err != nil {
 		return Index{}, meta, err
@@ -84,7 +91,7 @@ func (s Source) Due(now time.Time) bool {
 	return m.URL != s.URL || m.Fetched.IsZero() || now.Sub(m.Fetched) >= RefreshEvery || now.Before(m.Fetched)
 }
 
-// Refresh asks for the index at URL, with the ETag of the one kept when it came from there too, and keeps what comes: the index kept when the server says it has not changed (304), else the new one once it checks (Parse) and is not older than the one kept (ErrRollback). The file is read up to MaxBytes and no further. It returns the index and what is known of it now. Call it off the engine's goroutine; never while Kando is offline.
+// Refresh asks for the index at URL, with the ETag of the one kept when it came from there too, and keeps what comes: the index kept when the server says it has not changed (304), else the new one once it checks (Parse) and is not older than the one kept from the same address (ErrRollback); a copy of another address is neither kept on a 304 nor compared (Cached). The file is read up to MaxBytes and no further. It returns the index and what is known of it now. Call it off the engine's goroutine; never while Kando is offline.
 func (s Source) Refresh(ctx context.Context, now time.Time) (Index, Meta, error) {
 	if s.Key == nil {
 		return Index{}, Meta{}, ErrNotConfigured

@@ -70,6 +70,16 @@ type Index struct {
 	Version   int       `json:"version"`
 	Generated time.Time `json:"generated"`
 	Entries   []Entry   `json:"entries"`
+	// Dropped counts the entries Parse left out: those this version cannot read (a key it does not know, a value of the wrong type), cannot install (a kind it does not know, a file over its kind's limit) or that are not valid, and an id listed again. It is never written.
+	Dropped int `json:"-"`
+}
+
+// signedBody is the signed index as Parse reads it: strict about its own keys, with each entry left raw, so one entry this version cannot read is left out rather than refusing the index (Index.Dropped).
+type signedBody struct {
+	Format    string            `json:"format"`
+	Version   int               `json:"version"`
+	Generated time.Time         `json:"generated"`
+	Entries   []json.RawMessage `json:"entries"`
 }
 
 // Entry is a pack the index lists: its id, kind, name and summary (its manifest's description), version, publisher (the segment of its id before the first dot), license and homepage, as its manifest says them; the size, SHA-256 and https address of its file; the languages it is for, where its kind has some; the oldest Kando it runs on, for a script plugin that names one; and for a script plugin where its signature comes from, official or verified, which the package's certificate must say too once Kando verified it.
@@ -135,7 +145,7 @@ func Sign(idx Index, key ed25519.PrivateKey) ([]byte, error) {
 	return data, nil
 }
 
-// Parse reads the index file data once key verifies its signature, and checks every entry of it (Check). Nothing of the index is read before its signature is checked but its format and version.
+// Parse reads the index file data once key verifies its signature. The file, its signature and the index's own keys are read strictly; its entries are not: an entry this version cannot read or install, or that is not valid (Entry.Check), and an id listed again, are left out and counted (Index.Dropped), so an index made for newer versions of Kando still lists to an older one what it can install. Nothing of the index is read before its signature is checked but its format and version.
 func Parse(data []byte, key ed25519.PublicKey) (Index, error) {
 	if key == nil {
 		return Index{}, ErrNotConfigured
@@ -164,15 +174,29 @@ func Parse(data []byte, key ed25519.PublicKey) (Index, error) {
 	if err != nil || len(signature) != ed25519.SignatureSize || !ed25519.Verify(key, framed(body), signature) {
 		return Index{}, ErrSignature
 	}
-	var idx Index
-	if err := decodeStrict(body, &idx); err != nil {
+	var b signedBody
+	if err := decodeStrict(body, &b); err != nil {
 		return Index{}, err
 	}
-	if idx.Format != f.Format || idx.Version != f.Version {
-		return Index{}, fmt.Errorf("%w: the signed index is %q version %d", ErrFormat, idx.Format, idx.Version)
+	if b.Format != f.Format || b.Version != f.Version {
+		return Index{}, fmt.Errorf("%w: the signed index is %q version %d", ErrFormat, b.Format, b.Version)
 	}
-	if err := idx.Check(); err != nil {
-		return Index{}, err
+	if b.Generated.IsZero() {
+		return Index{}, fmt.Errorf("%w: no time it was made", ErrFormat)
+	}
+	if len(b.Entries) > MaxEntries {
+		return Index{}, fmt.Errorf("%w: %d entries, over %d", ErrTooLarge, len(b.Entries), MaxEntries)
+	}
+	idx := Index{Format: b.Format, Version: b.Version, Generated: b.Generated, Entries: make([]Entry, 0, len(b.Entries))}
+	seen := make(map[string]bool, len(b.Entries))
+	for _, raw := range b.Entries {
+		var e Entry
+		if decodeStrict(raw, &e) != nil || e.Check() != nil || seen[e.ID] {
+			idx.Dropped++
+			continue
+		}
+		seen[e.ID] = true
+		idx.Entries = append(idx.Entries, e)
 	}
 	return idx, nil
 }
@@ -190,7 +214,7 @@ func decodeStrict(data []byte, v any) error {
 	return nil
 }
 
-// Check checks the index: its format and version, when it was made, at most MaxEntries entries, each valid (Entry.Check) and no id twice. It cleans the entries' texts in place.
+// Check checks the index as `kando plugin index` signs it, strictly: its format and version, when it was made, at most MaxEntries entries, each valid (Entry.Check) and no id twice. It cleans the entries' texts in place. Parse is more lenient with the entries of an index it reads.
 func (idx Index) Check() error {
 	if idx.Format != Format || idx.Version != Version {
 		return fmt.Errorf("%w: %q version %d", ErrFormat, idx.Format, idx.Version)
@@ -243,7 +267,7 @@ func (e *Entry) Check() error {
 		return bad(err)
 	}
 	if e.Homepage != "" {
-		if err := plugins.CheckHTTPS(e.Homepage); err != nil {
+		if err := plugins.CheckHomepage(e.Homepage); err != nil {
 			return bad(err)
 		}
 	}

@@ -40,8 +40,8 @@ type pluginIssue struct {
 
 // runPlugin is `kando plugin`, which works without the app: validate checks a pack, a zip or a folder, with the checks the app installs it with (plugins.Stage and plugins.Validate), copying it into a folder of its own that it removes afterwards; list lists the packs in the plugins folder (plugins.Scan) and whether each is turned on (plugins.State); install checks a pack file as validate does and drops it into the plugins folder's inbox (plugins.Drop), where the app offers it in its install confirmation the next time it starts or comes to the front; index builds and signs the community index from a folder of pack files (pluginIndex). Nothing here installs a pack: only the app does, once the user confirms what it shows.
 func runPlugin(e *env, args []string) error {
-	// index has flags of its own, which the other subcommands do not take; the flags before a subcommand can only be --json, which takes no value, so the first argument that is not a flag is the subcommand.
-	if i := slices.IndexFunc(args, func(arg string) bool { return !strings.HasPrefix(arg, "-") }); i >= 0 && args[i] == "index" && !slices.Contains(args[:i], "--") {
+	// index has flags of its own, which the other subcommands do not take; the flags before a subcommand can only be --json, which takes no value, so the subcommand is the first argument that is not a flag, or the one after "--".
+	if i := pluginVerbAt(args); i >= 0 && args[i] == "index" {
 		return runPluginIndex(e, slices.Concat(args[:i], args[i+1:]))
 	}
 	fs := e.flags()
@@ -72,6 +72,22 @@ func runPlugin(e *env, args []string) error {
 		return pluginInstall(e, positional[0])
 	}
 	return usagef("unknown subcommand %q: use validate, list, install or index", verb)
+}
+
+// pluginVerbAt is where the subcommand is in the arguments of `kando plugin`: the first that is not a flag, or the one right after "--", which ends the flags; -1 for none.
+func pluginVerbAt(args []string) int {
+	for i, arg := range args {
+		switch {
+		case arg == "--":
+			if i+1 < len(args) {
+				return i + 1
+			}
+			return -1
+		case !strings.HasPrefix(arg, "-"):
+			return i
+		}
+	}
+	return -1
 }
 
 func pluginValidate(e *env, src string) error {

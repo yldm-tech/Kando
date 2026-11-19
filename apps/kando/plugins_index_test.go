@@ -34,6 +34,19 @@ type pluginsIndexServer struct {
 	files      sync.Map
 	hits, full atomic.Int32
 	made       time.Time
+	// hold, while set, keeps every answer back until it is closed or the request is cancelled (holdAnswers).
+	hold atomic.Pointer[chan struct{}]
+}
+
+// holdAnswers keeps the server's answers back until the returned func, which the test's cleanup calls too, lets them go.
+func (s *pluginsIndexServer) holdAnswers(t *testing.T) func() {
+	t.Helper()
+	c := make(chan struct{})
+	s.hold.Store(&c)
+	var once sync.Once
+	release := func() { once.Do(func() { s.hold.Store(nil); close(c) }) }
+	t.Cleanup(release)
+	return release
 }
 
 func newPluginsIndexServer(t *testing.T) *pluginsIndexServer {
@@ -44,6 +57,13 @@ func newPluginsIndexServer(t *testing.T) *pluginsIndexServer {
 	}
 	s := &pluginsIndexServer{key: key, made: time.Date(2026, 11, 19, 10, 0, 0, 0, time.UTC)}
 	s.Server = httptest.NewTLSServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if hold := s.hold.Load(); hold != nil {
+			select {
+			case <-*hold:
+			case <-r.Context().Done():
+				return
+			}
+		}
 		if r.URL.Path == "/index.json" {
 			s.hits.Add(1)
 			data := s.served.Load()
@@ -392,5 +412,145 @@ func TestPluginIndexScript(t *testing.T) {
 	p := a.pluginsScriptPacks()[0]
 	if a.plugins.state.EnabledPack(p) || len(a.plugins.state.Effective(p, false, false).Perms) > 1 {
 		t.Errorf("installed on or granted: %+v", a.plugins.state)
+	}
+}
+
+// TestPluginIndexUnreadableCache checks that a copy kept that cannot be read, its file gone or signed by another key, is asked for again at once, however recently it was asked for, and that why it could not be read shows when the ask fails.
+func TestPluginIndexUnreadableCache(t *testing.T) {
+	a, tt, updates, root := pluginsApp(t)
+	srv := newPluginsIndexServer(t)
+	srv.point(a)
+	m := testlocale.Messages()
+	srv.list(t, srv.entry(t, "anime.zip", pluginZip(t, pluginGlossary), ""))
+	src, err := a.pluginsIndexSource()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, _, err := src.Refresh(context.Background(), time.Now()); err != nil {
+		t.Fatal(err)
+	}
+	// The file is gone, what is known of it says it was asked for a moment ago.
+	if err := os.Remove(filepath.Join(index.CacheDir(root), "index.json")); err != nil {
+		t.Fatal(err)
+	}
+	hits := srv.hits.Load()
+	tt = settingsOpenAt(a, tt, settings.SectionPlugins)
+	tt.Press("id:settings-plugins-browse")
+	waitUntil(t, tt, a, updates, pluginsIndexReady(a))
+	if srv.hits.Load() != hits+1 || !tt.Exists("id:settings-plugins-index-row-example.anime-ja-zh") {
+		t.Fatalf("a copy gone: %d asks; texts %q", srv.hits.Load()-hits, tt.Texts())
+	}
+
+	// Kando's key changed: the copy kept is another key's, and the server does not answer.
+	apply(tt, a, func() {
+		a.SetPluginIndexOpen(false)
+		a.plugins.index = newPluginsIndex()
+		srv.point(a)
+	})
+	other, err := pkg.GenerateKey()
+	if err != nil {
+		t.Fatal(err)
+	}
+	srv.key = other
+	srv.point(a)
+	srv.served.Store(nil)
+	hits = srv.hits.Load()
+	tt.Press("id:settings-plugins-browse")
+	waitUntil(t, tt, a, updates, pluginsIndexReady(a))
+	if srv.hits.Load() != hits+1 || !errors.Is(a.plugins.index.err, index.ErrHTTP) || !hasText(tt, m.SettingsPluginsIndexFailed(m.PluginsErrIndexHTTP())) {
+		t.Errorf("another key's copy: %d asks, %v; texts %q", srv.hits.Load()-hits, a.plugins.index.err, tt.Texts())
+	}
+	// Offline, the line says so rather than the error of an ask made before.
+	apply(tt, a, func() { a.privacy.offline = true })
+	if !hasText(tt, m.SettingsPluginsIndexOfflineNone()) || a.PluginIndexFailed() {
+		t.Errorf("offline after a failed ask; texts %q", tt.Texts())
+	}
+}
+
+// TestPluginIndexOfflineStops checks that going offline stops an ask for the list and a download under way, and that what they bring back afterwards is dropped: no list replaced, no install confirmation.
+func TestPluginIndexOfflineStops(t *testing.T) {
+	a, tt, updates, root := pluginsApp(t)
+	srv := newPluginsIndexServer(t)
+	srv.point(a)
+	srv.list(t, srv.entry(t, "anime.zip", pluginZip(t, pluginGlossary), ""))
+	release := srv.holdAnswers(t)
+	tt = settingsOpenAt(a, tt, settings.SectionPlugins)
+	tt.Press("id:settings-plugins-browse")
+	waitUntil(t, tt, a, updates, func() bool { return a.plugins.index.busy })
+	apply(tt, a, func() { a.privacy.offline = true })
+	if a.plugins.index.busy || a.plugins.index.fetchCancel != nil {
+		t.Fatal("going offline did not stop the ask")
+	}
+	release()
+	waitUpdate(t, tt, a, updates)
+	if len(a.plugins.index.idx.Entries) != 0 || a.plugins.index.err != nil || a.plugins.index.busy {
+		t.Fatalf("the cancelled ask's answer was taken: %+v, %v", a.plugins.index.idx, a.plugins.index.err)
+	}
+
+	// Online again, the list comes; a download then stops as Kando goes offline.
+	apply(tt, a, func() { a.privacy.offline = false })
+	tt.Press("id:settings-plugins-index-refresh")
+	waitUntil(t, tt, a, updates, pluginsIndexReady(a))
+	release = srv.holdAnswers(t)
+	tt.Press("id:settings-plugins-index-install-example.anime-ja-zh")
+	if a.plugins.index.downloading != "example.anime-ja-zh" || a.plugins.busy {
+		t.Fatalf("the download: %q, busy %v", a.plugins.index.downloading, a.plugins.busy)
+	}
+	apply(tt, a, func() { a.privacy.offline = true })
+	if a.plugins.index.downloading != "" {
+		t.Fatal("going offline did not stop the download")
+	}
+	release()
+	waitUpdate(t, tt, a, updates)
+	if a.plugins.pending != nil || a.plugins.busy {
+		t.Errorf("the cancelled download opened a confirmation: %+v", a.plugins.pending)
+	}
+	entries, _ := os.ReadDir(root)
+	for _, e := range entries {
+		if strings.HasPrefix(e.Name(), ".staging-") {
+			t.Errorf("left %s", e.Name())
+		}
+	}
+}
+
+// TestPluginIndexDownloadLeavesThePageFree checks that a download from the index holds nothing else up: another pack is turned off meanwhile, and its row's 取消 stops it, after which nothing opens. Closing 浏览插件 stops one too.
+func TestPluginIndexDownloadLeavesThePageFree(t *testing.T) {
+	a, tt, updates, root := pluginsApp(t, pluginService)
+	srv := newPluginsIndexServer(t)
+	srv.point(a)
+	srv.list(t, srv.entry(t, "anime.zip", pluginZip(t, pluginGlossary), ""))
+	tt = settingsOpenAt(a, tt, settings.SectionPlugins)
+	tt.Press("id:settings-plugins-browse")
+	waitUntil(t, tt, a, updates, pluginsIndexReady(a))
+	release := srv.holdAnswers(t)
+	tt.Press("id:settings-plugins-index-install-example.anime-ja-zh")
+	if !tt.Exists("id:settings-plugins-index-cancel-example.anime-ja-zh") || a.plugins.busy {
+		t.Fatalf("downloading: busy %v; texts %q", a.plugins.busy, tt.Texts())
+	}
+	tt.Press("id:settings-plugins-switch-acme.corp-gateway")
+	waitUntil(t, tt, a, updates, func() bool { return !a.plugins.busy && !a.plugins.saving })
+	if state, err := plugins.LoadState(root); err != nil || state.Enabled("acme.corp-gateway") {
+		t.Fatalf("turning a pack off during a download: %+v, %v", state, err)
+	}
+	tt.Press("id:settings-plugins-index-cancel-example.anime-ja-zh")
+	if a.plugins.index.downloading != "" || tt.Exists("id:settings-plugins-index-cancel-example.anime-ja-zh") {
+		t.Fatalf("取消 did not stop the download; texts %q", tt.Texts())
+	}
+	release()
+	waitUpdate(t, tt, a, updates)
+	if a.plugins.pending != nil {
+		t.Error("a cancelled download opened a confirmation")
+	}
+
+	release = srv.holdAnswers(t)
+	tt.Press("id:settings-plugins-index-install-example.anime-ja-zh")
+	tt.Press("id:settings-plugins-index-hide")
+	if a.plugins.index.downloading != "" || tt.Exists("id:settings-plugins-index") {
+		t.Fatal("closing 浏览插件 did not stop the download")
+	}
+	release()
+	waitUpdate(t, tt, a, updates)
+	if a.plugins.pending != nil {
+		t.Error("a download stopped by closing opened a confirmation")
 	}
 }

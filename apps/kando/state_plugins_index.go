@@ -2,7 +2,9 @@ package main
 
 import (
 	"context"
+	"errors"
 	"fmt"
+	"io/fs"
 	"net/http"
 	"os"
 	"slices"
@@ -17,7 +19,9 @@ import (
 
 // The community plugin index (docs/plugin-system.md, P5): Settings › 插件's 浏览插件 shows the packs Kando's signed index lists (plugins/index), which the user searches, filters by kind and installs or updates from there. The index is read only once the user opens 浏览插件: the copy kept in the plugins folder at once, and a newer one asked for when the one kept is a day old or more (index.RefreshEvery), or when the user asks; never while Kando is offline, which shows the copy kept. Installing downloads the pack's file, checked against the size and SHA-256 the index gives, and hands it to the same path as a file the user picked: plugins.Stage, plugins.Validate, for a script plugin script.Verify, and the install confirmation, which installs nothing until the user confirms; so a listed pack is granted nothing, a script plugin and a task pack are installed off, and an update keeps or narrows what the version before it was granted (plugins.InstallEntry).
 
-// pluginsIndex is the index's state: url and key are where it is read and what checks it (index.DefaultURL and script.IndexKey; tests set their own), client the HTTP client, nil for Go's own (tests set the TLS server's). open is set while 浏览插件 shows. idx is the index read, kept or new, read once the copy kept was read (or found missing), meta what is known of it, and hay the words each of its entries is found by, lowercased, in the order of its entries (pluginsIndexSet); reading is set while the copy kept is read, busy while a newer one is asked for, err why the last ask failed. query and kind are 浏览插件's search and kind filter. downloading is the id of the pack being downloaded, "" while none is.
+// pluginsIndex is the index's state: url and key are where it is read and what checks it (index.DefaultURL and script.IndexKey; tests set their own), client the HTTP client, nil for Go's own (tests set the TLS server's). open is set while 浏览插件 shows. idx is the index read, kept or new, read once the copy kept was read (or found missing), meta what is known of it, and hay the words each of its entries is found by, lowercased, in the order of its entries (set); reading is set while the copy kept is read, busy while a newer one is asked for, err why the last read or ask failed. query and kind are 浏览插件's search and kind filter.
+//
+// An ask for the index and a download each run with a cancel func (fetchCancel, dlCancel) and a generation (fetchGen, dlGen) that cancelling raises, so what a cancelled one brings back is dropped: both are cancelled as Kando goes offline and as 浏览插件 closes (pluginsIndexStop), and a download also from its row's 取消. downloading is the id of the pack whose download, staging or check runs, "" while none does; it holds none of the plugins' busy flag while it downloads, so the rest of the page works meanwhile, and only the staging does (pluginsIndexFollow). done is a download that ended, its file in a folder of its own or why it failed, waiting for no other install or confirmation to be under way.
 type pluginsIndex struct {
 	url, key    string
 	client      *http.Client
@@ -31,7 +35,19 @@ type pluginsIndex struct {
 	err         error
 	query       string
 	kind        plugins.Kind
+	fetchGen    int
+	fetchCancel context.CancelFunc
 	downloading string
+	dlGen       int
+	dlCancel    context.CancelFunc
+	done        *pluginsIndexDownload
+}
+
+// pluginsIndexDownload is a download that ended: the entry, the folder its file is in and the file, or why it failed.
+type pluginsIndexDownload struct {
+	entry     index.Entry
+	dir, file string
+	err       error
 }
 
 func newPluginsIndex() pluginsIndex {
@@ -54,15 +70,19 @@ func (a *app) pluginsIndexSource() (index.Source, error) {
 	return index.Source{URL: a.plugins.index.url, Key: key, Dir: index.CacheDir(root), Client: a.plugins.index.client}, nil
 }
 
-// pluginsIndexOpen shows or hides 浏览插件. Shown the first time, it reads the copy of the index kept, then asks for a newer one when that is due (pluginsIndexRead).
+// pluginsIndexOpen shows or hides 浏览插件. Shown the first time, it reads the copy of the index kept, then asks for a newer one when that is due (pluginsIndexRead); hidden, what it asks for or downloads stops (pluginsIndexStop).
 func (a *app) pluginsIndexOpen(open bool) {
 	a.plugins.index.open = open
-	if open && !a.plugins.index.read {
+	if !open {
+		a.pluginsIndexStop()
+		return
+	}
+	if !a.plugins.index.read {
 		a.pluginsIndexRead()
 	}
 }
 
-// pluginsIndexRead reads the copy of the index kept in the plugins folder off the UI thread, and once it is read asks for a newer one when Kando is online and the one kept is RefreshEvery old or more, or there is none.
+// pluginsIndexRead reads the copy of the index kept in the plugins folder off the UI thread, and once it is read asks for a newer one when Kando is online and the one kept is RefreshEvery old or more, or there is none, or it cannot be read: a file gone, another key's, another address's. Why a copy that is there could not be read shows until a newer one comes.
 func (a *app) pluginsIndexRead() {
 	src, err := a.pluginsIndexSource()
 	p := &a.plugins.index
@@ -77,11 +97,14 @@ func (a *app) pluginsIndexRead() {
 	update := a.update
 	go func() {
 		idx, meta, err := src.Cached()
-		due := src.Due(time.Now())
+		due := err != nil || src.Due(time.Now())
 		update(func() {
 			p.reading, p.read = false, true
-			if err == nil {
+			switch {
+			case err == nil:
 				p.set(idx, meta)
+			case !errors.Is(err, fs.ErrNotExist) && !errors.Is(err, index.ErrOtherAddress):
+				p.err = err
 			}
 			if due && !a.privacy.offline {
 				a.pluginsIndexRefresh()
@@ -90,7 +113,7 @@ func (a *app) pluginsIndexRead() {
 	}()
 }
 
-// pluginsIndexRefresh asks for a newer index off the UI thread (index.Source.Refresh), unless one is being asked for or Kando is offline; what comes replaces the index shown, and a failure keeps it and says why.
+// pluginsIndexRefresh asks for a newer index off the UI thread (index.Source.Refresh), unless one is being asked for or Kando is offline; what comes replaces the index shown, and a failure keeps it and says why. What comes after the ask was cancelled, or once Kando went offline, is dropped.
 func (a *app) pluginsIndexRefresh() {
 	p := &a.plugins.index
 	if p.busy || a.privacy.offline {
@@ -101,12 +124,19 @@ func (a *app) pluginsIndexRefresh() {
 		p.read, p.err = true, err
 		return
 	}
-	p.busy, p.err = true, nil
+	ctx, cancel := context.WithCancel(context.Background())
+	p.fetchGen++
+	gen := p.fetchGen
+	p.busy, p.err, p.fetchCancel = true, nil, cancel
 	update := a.update
 	go func() {
-		idx, meta, err := src.Refresh(context.Background(), time.Now())
+		idx, meta, err := src.Refresh(ctx, time.Now())
 		update(func() {
-			p.busy, p.err = false, err
+			cancel()
+			if gen != p.fetchGen || a.privacy.offline {
+				return
+			}
+			p.busy, p.err, p.fetchCancel = false, err, nil
 			if err == nil {
 				p.set(idx, meta)
 				p.read = true
@@ -115,12 +145,11 @@ func (a *app) pluginsIndexRefresh() {
 	}()
 }
 
-// pluginsIndexInstall downloads the pack id the index lists into a folder of its own, off the UI thread (index.Source.Download, which checks its size and SHA-256), and hands it to the install path a picked file takes: plugins.Stage, then for a script plugin script.Verify, then the install confirmation (pluginsAskStaged), which installs nothing until the user confirms. The pack read from the file must be the one the entry names, by id, kind and version, and a script plugin's signature must come from where the entry says (index.ErrNotListed). A failure, the download's included, shows in the confirmation's failure view, as a file that cannot be installed does. It waits while another install or a confirmation is under way, and does nothing while Kando is offline.
+// pluginsIndexInstall downloads the pack id the index lists into a folder of its own, off the UI thread (index.Source.Download, which checks its size and SHA-256); once no other install or confirmation is under way, pluginsIndexFollow hands it to the install path a picked file takes. It holds none of the plugins' busy flag while it downloads, so turning packs on and off, removing and installing them goes on meanwhile; one download runs at a time, and none while Kando is offline.
 func (a *app) pluginsIndexInstall(id string) {
-	root := a.pluginsRoot()
 	p := &a.plugins.index
 	entry, ok := p.idx.Lookup(id)
-	if root == "" || !ok || a.plugins.busy || a.plugins.pending != nil || p.downloading != "" || a.privacy.offline {
+	if a.pluginsRoot() == "" || !ok || p.downloading != "" || a.privacy.offline {
 		return
 	}
 	src, err := a.pluginsIndexSource()
@@ -128,31 +157,111 @@ func (a *app) pluginsIndexInstall(id string) {
 		p.err = err
 		return
 	}
-	a.plugins.busy, a.plugins.err, p.downloading = true, nil, id
-	update, verify := a.update, a.pluginsStagedVerifier()
+	ctx, cancel := context.WithCancel(context.Background())
+	p.dlGen++
+	gen := p.dlGen
+	p.downloading, p.dlCancel = id, cancel
+	update := a.update
 	go func() {
-		staged, pack, v, err := pluginsIndexStage(src, entry, root, verify)
+		d := &pluginsIndexDownload{entry: entry}
+		d.dir, d.err = os.MkdirTemp("", "kando-plugin-download-")
+		if d.err == nil {
+			d.file, d.err = src.Download(ctx, entry, d.dir)
+		}
 		update(func() {
-			a.plugins.busy, p.downloading = false, ""
-			a.pluginsAskStaged(pack, staged, v, err)
-			if a.plugins.pending != nil {
-				a.plugins.pending.listed = true
+			cancel()
+			if gen != p.dlGen || a.privacy.offline {
+				pluginsIndexDiscard(d)
+				return
 			}
+			p.dlCancel, p.done = nil, d
+			a.pluginsIndexFollow()
 		})
 	}()
 }
 
-// pluginsIndexStage downloads the file of entry into a temporary folder, stages it in the plugins folder root (plugins.Stage, which runs plugins.Validate on the copy) and verifies a script plugin (verify), checking the pack is the one entry lists; the downloaded file goes once it is staged. Off the engine's goroutine.
-func pluginsIndexStage(src index.Source, entry index.Entry, root string, verify func(plugins.Pack) (script.Verified, error)) (string, plugins.Pack, script.Verified, error) {
-	tmp, err := os.MkdirTemp("", "kando-plugin-download-")
-	if err != nil {
-		return "", plugins.Pack{}, script.Verified{}, err
+// pluginsIndexDiscard removes the folder of the download d, off the UI thread.
+func pluginsIndexDiscard(d *pluginsIndexDownload) {
+	if d != nil && d.dir != "" {
+		go os.RemoveAll(d.dir)
 	}
-	defer os.RemoveAll(tmp)
-	file, err := src.Download(context.Background(), entry, tmp)
-	if err != nil {
-		return "", plugins.Pack{}, script.Verified{}, err
+}
+
+// pluginsIndexCancel stops the download, staging or check of the pack being installed from the index: its request is cancelled, a file it brought is removed, and what it brings back later is dropped.
+func (a *app) pluginsIndexCancel() {
+	p := &a.plugins.index
+	if p.downloading == "" {
+		return
 	}
+	if p.dlCancel != nil {
+		p.dlCancel()
+	}
+	pluginsIndexDiscard(p.done)
+	p.dlGen++
+	p.downloading, p.dlCancel, p.done = "", nil, nil
+}
+
+// pluginsIndexStop cancels the ask for the index and the download under way, as Kando goes offline or 浏览插件 closes.
+func (a *app) pluginsIndexStop() {
+	p := &a.plugins.index
+	if p.fetchCancel != nil {
+		p.fetchCancel()
+		p.fetchGen++
+		p.busy, p.fetchCancel = false, nil
+	}
+	a.pluginsIndexCancel()
+}
+
+// pluginsIndexFollow brings the index up to the app's state after each change (pluginsHooks' afterChange): Kando gone offline stops what it asks for and downloads; a download that ended, once no other install or confirmation is under way, opens the install confirmation, through the path a picked file takes: plugins.Stage, then for a script plugin script.Verify, then pluginsAskStaged, which installs nothing until the user confirms. The pack read from the file must be the one the entry names, by id, kind and version, and a script plugin's signature must come from where the entry says (index.ErrNotListed). A failure, the download's included, shows in the confirmation's failure view, as a file that cannot be installed does. Only the staging holds the plugins' busy flag. It reports whether it changed what a binding reads.
+func (a *app) pluginsIndexFollow() bool {
+	p := &a.plugins.index
+	if a.privacy.offline && (p.fetchCancel != nil || p.downloading != "") {
+		a.pluginsIndexStop()
+		return true
+	}
+	d := p.done
+	root := a.pluginsRoot()
+	if d == nil || a.plugins.busy || a.plugins.pending != nil || root == "" {
+		return false
+	}
+	p.done = nil
+	if d.err != nil {
+		pluginsIndexDiscard(d)
+		p.downloading = ""
+		a.pluginsIndexAsk(plugins.Pack{}, "", script.Verified{}, d.err)
+		return true
+	}
+	gen := p.dlGen
+	a.plugins.busy, a.plugins.err = true, nil
+	update, verify := a.update, a.pluginsStagedVerifier()
+	go func() {
+		staged, pack, v, err := pluginsIndexStage(d.entry, d.file, root, verify)
+		os.RemoveAll(d.dir)
+		update(func() {
+			a.plugins.busy = false
+			if gen != p.dlGen {
+				if staged != "" {
+					go os.RemoveAll(staged)
+				}
+				return
+			}
+			p.downloading = ""
+			a.pluginsIndexAsk(pack, staged, v, err)
+		})
+	}()
+	return true
+}
+
+// pluginsIndexAsk opens the install confirmation of a pack from the index, which says where it comes from, or says why it cannot be installed.
+func (a *app) pluginsIndexAsk(pack plugins.Pack, staged string, v script.Verified, err error) {
+	a.pluginsAskStaged(pack, staged, v, err)
+	if a.plugins.pending != nil {
+		a.plugins.pending.listed = true
+	}
+}
+
+// pluginsIndexStage stages the downloaded file of entry in the plugins folder root (plugins.Stage, which runs plugins.Validate on the copy) and verifies a script plugin (verify), checking the pack is the one entry lists. Off the engine's goroutine.
+func pluginsIndexStage(entry index.Entry, file, root string, verify func(plugins.Pack) (script.Verified, error)) (string, plugins.Pack, script.Verified, error) {
 	staged, pack, err := plugins.Stage(root, file)
 	if err == nil {
 		err = entry.Matches(pack)

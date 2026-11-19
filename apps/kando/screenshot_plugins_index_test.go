@@ -44,11 +44,11 @@ func pluginsIndexScene(t *testing.T, a *app, root string) {
 	a.plugins.root = root
 	p := &a.plugins.index
 	p.open, p.read = true, true
-	p.set(index.Index{Format: index.Format, Version: index.Version, Generated: time.Date(2026, 11, 19, 10, 0, 0, 0, time.UTC), Entries: pluginsIndexSceneEntries()},
+	p.set(index.Index{Format: index.Format, Version: index.Version, Generated: time.Date(2026, 11, 19, 10, 0, 0, 0, time.UTC), Entries: pluginsIndexSceneEntries(), Dropped: 2},
 		index.Meta{URL: index.DefaultURL, Fetched: time.Date(2026, 11, 19, 10, 30, 0, 0, time.Local)})
 }
 
-// TestScreenshotsPluginIndex renders Settings › 插件 with 浏览插件 open (plugins-index): the directory's heading with 刷新 and when it was updated, the search field and the kind filter, and six packs, a glossary with 更新 beside the version installed, a script plugin verified by Kando, one of Kando's own that needs a newer Kando, and the rest with 安装.
+// TestScreenshotsPluginIndex renders Settings › 插件 with 浏览插件 open (plugins-index): the directory's heading with 刷新 and 收起插件目录, when it was updated and that two entries need a newer Kando, the search field and the kind filter, and six packs, a glossary with 更新 beside the version installed, a script plugin verified by Kando, one of Kando's own that needs a newer Kando, and the rest with 安装.
 func TestScreenshotsPluginIndex(t *testing.T) {
 	f := newScreenshotFixture(t)
 	shown, models, turbo := settingsShotFolders(t, f)
@@ -69,12 +69,12 @@ func TestPluginIndexScene(t *testing.T) {
 			t.Errorf("no row of %s; texts %q", e.ID, tt.Texts())
 		}
 	}
-	for _, id := range []string{"settings-plugins-index-update-example.anime-ja-zh", "settings-plugins-index-install-acme.anki", "settings-plugins-index-install-example.jmdict", "settings-plugins-index-refresh", "settings-plugins-index-search", "settings-plugins-index-kind"} {
+	for _, id := range []string{"settings-plugins-index-update-example.anime-ja-zh", "settings-plugins-index-install-acme.anki", "settings-plugins-index-install-example.jmdict", "settings-plugins-index-refresh", "settings-plugins-index-hide", "settings-plugins-index-search", "settings-plugins-index-kind"} {
 		if !tt.Exists("id:" + id) {
 			t.Errorf("no %s; texts %q", id, tt.Texts())
 		}
 	}
-	for _, s := range []string{m.SettingsPluginsIndexInstalledVersion("1.2.0"), m.SettingsPluginsIndexNeedsKando("99.0.0"), m.SettingsPluginsSourceVerified(), m.SettingsPluginsSourceOfficial(), m.SettingsPluginsIndexUpdated("2026-11-19 10:30"), m.SettingsPluginsIndexFacts("example", "2026.11.0", "18.0 MB", "CC-BY-4.0")} {
+	for _, s := range []string{m.SettingsPluginsIndexInstalledVersion("1.2.0"), m.SettingsPluginsIndexNeedsKando("99.0.0"), m.SettingsPluginsSourceVerified(), m.SettingsPluginsSourceOfficial(), m.SettingsPluginsIndexUpdated("2026-11-19 10:30"), m.SettingsPluginsIndexFacts("example", "2026.11.0", "18.0 MB", "CC-BY-4.0"), m.SettingsPluginsIndexDropped(2)} {
 		if !hasText(tt, s) {
 			t.Errorf("no %q; texts %q", s, tt.Texts())
 		}

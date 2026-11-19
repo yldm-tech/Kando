@@ -2101,6 +2101,8 @@ settingsPluginsIndexUpdateLabel: "‘{name}’을(를) 버전 {version}(으)로 
 settingsPluginsIndexInstalledVersion: "{version} 설치됨"
 settingsPluginsIndexInstalled: "설치됨"
 settingsPluginsIndexNeedsKando: "Kando {version} 필요"
+settingsPluginsIndexCancelLabel: "‘{name}’ 다운로드 중지"
+settingsPluginsIndexDropped: "목록의 플러그인 중 {count, plural, other {#개}}는 더 새로운 버전의 Kando가 필요해서 표시하지 않습니다."
 settingsPluginsIndexDownloading: "다운로드 중…"
 settingsPluginsIndexNotConfigured: "이 버전의 Kando에는 플러그인 목록이 없습니다."
 settingsPluginsIndexLoading: "목록을 읽는 중…"

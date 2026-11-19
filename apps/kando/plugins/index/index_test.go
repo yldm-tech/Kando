@@ -144,7 +144,6 @@ func TestIndexFormat(t *testing.T) {
 		"inner version": {signRaw(key, []byte(`{"format":"kando-plugins-index","version":2,"generated":"2026-11-19T10:00:00Z","entries":[]}`)), ErrFormat},
 		"inner unknown": {signRaw(key, []byte(`{"format":"kando-plugins-index","version":1,"generated":"2026-11-19T10:00:00Z","entries":[],"x":1}`)), ErrFormat},
 		"no time":       {signRaw(key, []byte(`{"format":"kando-plugins-index","version":1,"generated":"0001-01-01T00:00:00Z","entries":[]}`)), ErrFormat},
-		"entry key":     {signRaw(key, []byte(`{"format":"kando-plugins-index","version":1,"generated":"2026-11-19T10:00:00Z","entries":[{"id":"a.b","extra":1}]}`)), ErrFormat},
 	} {
 		if _, err := Parse(c.data, public); !errors.Is(err, c.want) {
 			t.Errorf("%s: %v, want %v", name, err, c.want)
@@ -152,7 +151,7 @@ func TestIndexFormat(t *testing.T) {
 	}
 }
 
-// TestIndexEntryFields checks every field of an entry against the rules its pack's manifest follows and its own: one bad entry refuses the whole index, as does an id listed twice.
+// TestIndexEntryFields checks every field of an entry against the rules its pack's manifest follows and its own: Sign refuses an index with one bad entry or an id listed twice, and Parse leaves such an entry out.
 func TestIndexEntryFields(t *testing.T) {
 	key, public := testKey(t)
 	script := func(e *Entry) { e.Kind, e.Source, e.Languages = plugins.KindScript, plugins.SourceVerified, nil }
@@ -191,8 +190,9 @@ func TestIndexEntryFields(t *testing.T) {
 		e := testEntry("example.terms", []byte("x"))
 		edit(&e)
 		body, _ := json.Marshal(testIndex(testTime, e))
-		if _, err := Parse(signRaw(key, body), public); !errors.Is(err, ErrBadEntry) {
-			t.Errorf("%s: %v", name, err)
+		// Read, the entry is left out and counted; signed, it is refused.
+		if idx, err := Parse(signRaw(key, body), public); err != nil || len(idx.Entries) != 0 || idx.Dropped != 1 {
+			t.Errorf("%s: Parse = %d entries, %d dropped, %v", name, len(idx.Entries), idx.Dropped, err)
 		}
 		if _, err := Sign(testIndex(testTime, e), key); !errors.Is(err, ErrBadEntry) {
 			t.Errorf("%s: Sign took it: %v", name, err)
@@ -442,5 +442,60 @@ func TestIndexFromPack(t *testing.T) {
 	p.Version = "1.3.0"
 	if err := e.Matches(p); !errors.Is(err, ErrNotListed) {
 		t.Errorf("another version matched: %v", err)
+	}
+}
+
+// TestIndexDropsWhatItCannotRead checks that an entry this version cannot read or install, one of a kind it does not know, with a key it does not know, of a file over its kind's limit, or an id listed again, is left out and counted, and the other entries are still listed: an index made for newer versions of Kando keeps working on older ones.
+func TestIndexDropsWhatItCannotRead(t *testing.T) {
+	key, public := testKey(t)
+	good, again := testEntry("example.terms", []byte("x")), testEntry("example.terms", []byte("y"))
+	other := testEntry("example.more", []byte("z"))
+	unknownKind := testEntry("example.theme", []byte("t"))
+	unknownKind.Kind = "theme"
+	oversize := testEntry("example.huge", []byte("h"))
+	oversize.Kind, oversize.Size, oversize.Languages = plugins.KindDictionary, plugins.ZipMax(plugins.KindDictionary)+1, nil
+	var raws []json.RawMessage
+	for _, e := range []Entry{good, unknownKind, oversize, again, other} {
+		raw, _ := json.Marshal(e)
+		raws = append(raws, raw)
+	}
+	withField, _ := json.Marshal(testEntry("example.future", []byte("f")))
+	raws = append(raws, json.RawMessage(strings.Replace(string(withField), `{"id"`, `{"rating":5,"id"`, 1)))
+	body, _ := json.Marshal(map[string]any{"format": Format, "version": Version, "generated": testTime, "entries": raws})
+	idx, err := Parse(signRaw(key, body), public)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(idx.Entries) != 2 || idx.Entries[0].ID != "example.terms" || idx.Entries[0].SHA256 != good.SHA256 || idx.Entries[1].ID != "example.more" || idx.Dropped != 4 {
+		t.Errorf("Parse = %+v, %d dropped", idx.Entries, idx.Dropped)
+	}
+	// The index's own keys stay strict.
+	body, _ = json.Marshal(map[string]any{"format": Format, "version": Version, "generated": testTime, "entries": raws, "mirror": "x"})
+	if _, err := Parse(signRaw(key, body), public); !errors.Is(err, ErrFormat) {
+		t.Errorf("an unknown key of the index: %v", err)
+	}
+}
+
+// TestIndexCacheIsPerAddress checks that the copy kept is the index of the address it came from alone: read for another address it is no index, and an index from another address is never refused as older than it.
+func TestIndexCacheIsPerAddress(t *testing.T) {
+	key, public := testKey(t)
+	newer := mustSign(t, key, testIndex(testTime.Add(time.Hour), testEntry("example.terms", []byte("x"))))
+	older := mustSign(t, key, testIndex(testTime, testEntry("example.more", []byte("y"))))
+	first, second := newIndexServer(t, newer), newIndexServer(t, older)
+	src := first.source(t, public)
+	if _, _, err := src.Refresh(context.Background(), testTime); err != nil {
+		t.Fatal(err)
+	}
+	moved := src
+	moved.URL, moved.Client = second.URL+"/index.json", second.Client()
+	if _, _, err := moved.Cached(); !errors.Is(err, ErrOtherAddress) {
+		t.Errorf("the copy of another address: %v", err)
+	}
+	idx, _, err := moved.Refresh(context.Background(), testTime)
+	if err != nil || len(idx.Entries) != 1 || idx.Entries[0].ID != "example.more" {
+		t.Errorf("an older index of another address: %+v, %v", idx, err)
+	}
+	if second.full.Load() != 1 {
+		t.Errorf("the other address answered %d times in full", second.full.Load())
 	}
 }

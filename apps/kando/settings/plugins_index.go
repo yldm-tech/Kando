@@ -58,19 +58,16 @@ type PluginIndexApp interface {
 	PluginIndexRows() []PluginIndexRow
 	PluginIndexMatches() int
 	PluginIndexInstallable() bool
-	// InstallFromPluginIndex downloads the pack id and opens its install confirmation.
+	// PluginIndexDropped is how many entries of the list this version of Kando cannot show.
+	PluginIndexDropped() int
+	// InstallFromPluginIndex downloads the pack id and opens its install confirmation; CancelPluginIndexDownload stops that before the confirmation opens.
 	InstallFromPluginIndex(id string)
+	CancelPluginIndexDownload()
 }
 
-// pluginIndexButton is the 插件 page's 浏览插件…, which shows 浏览插件 under the page's buttons, and hides it again.
+// pluginIndexButton is the 插件 page's 浏览插件…, which shows 浏览插件 at the top of the page; off while it shows, as its header has the button that hides it.
 func pluginIndexButton(cx *core.Scope, a PluginsApp) core.Node {
-	return form.Button{TestID: "settings-plugins-browse", OnPress: live.Do(a, func() { a.SetPluginIndexOpen(!a.PluginIndexOpen()) }),
-		TextFunc: live.Func(a, func() string {
-			if a.PluginIndexOpen() {
-				return locales.SettingsPluginsIndexHide(cx)
-			}
-			return locales.SettingsPluginsIndexBrowse(cx)
-		})}
+	return form.Button{Text: locales.SettingsPluginsIndexBrowse(cx), TestID: "settings-plugins-browse", Disabled: live.Func(a, a.PluginIndexOpen), OnPress: live.Do(a, func() { a.SetPluginIndexOpen(true) })}
 }
 
 // pluginIndex is 浏览插件 while it shows: its heading with 刷新, how the list stands, the search field and the kind filter, and the packs that match, each with its kind, summary, publisher, version and size, and 安装, 更新 or where it stands; a line under them when more match than show.
@@ -83,6 +80,7 @@ func (p pluginIndex) Render(cx *core.Scope) core.Node {
 		colors := ui.ColorsOf(cx)
 		refresh := form.Button{Text: locales.SettingsPluginsIndexRefresh(cx), TestID: "settings-plugins-index-refresh",
 			Disabled: live.Func(a, func() bool { return !a.PluginIndexCanRefresh() }), OnPress: live.Do(a, a.RefreshPluginIndex)}
+		hide := form.Button{Text: locales.SettingsPluginsIndexHide(cx), TestID: "settings-plugins-index-hide", OnPress: live.Do(a, func() { a.SetPluginIndexOpen(false) })}
 		status := core.Text{TestID: "settings-plugins-index-status", ContentFunc: live.Func(a, a.PluginIndexStatus), Selectable: core.SelectableOn,
 			Style: core.Style{FontSize: 11, LineHeight: 15, Padding: core.Symmetric(0, 12)},
 			StyleFunc: live.Func(a, func() core.Style {
@@ -116,9 +114,14 @@ func (p pluginIndex) Render(cx *core.Scope) core.Node {
 				return locales.SettingsPluginsIndexMore(cx, len(a.PluginIndexRows()), a.PluginIndexMatches())
 			}), Style: core.Style{FontSize: 11, LineHeight: 15, Padding: core.Edges{Top: 6, Right: 12, Left: 12}}, StyleFunc: ui.Colored(colors.Muted)}
 		}}
+		dropped := core.Show{When: live.Func(a, func() bool { return a.PluginIndexDropped() > 0 }), Then: func(cx *core.Scope) core.Node {
+			return core.Text{TestID: "settings-plugins-index-dropped", ContentFunc: live.Func(a, func() string { return locales.SettingsPluginsIndexDropped(cx, a.PluginIndexDropped()) }),
+				Style: core.Style{FontSize: 11, LineHeight: 15, Padding: core.Symmetric(0, 12)}, StyleFunc: ui.Colored(colors.Muted)}
+		}}
 		return core.View{TestID: "settings-plugins-index", Style: core.Style{AlignItems: core.AlignStretch, Margin: core.Edges{Bottom: 6}}, Children: []core.Node{
-			form.Label(locales.SettingsPluginsIndexTitle(cx), 6, refresh),
+			form.Label(locales.SettingsPluginsIndexTitle(cx), 6, core.View{Style: core.Style{Direction: core.Row, Gap: 8}, Children: []core.Node{refresh, hide}}),
 			status,
+			dropped,
 			core.View{Style: core.Style{Direction: core.Row, Gap: 8, AlignItems: core.AlignCenter, Margin: core.Edges{Top: 6, Bottom: 6}}, Children: []core.Node{search, filter}},
 			pluginIndexList{a: a},
 			more,
@@ -174,7 +177,7 @@ func pluginIndexRow(cx *core.Scope, a PluginsApp, r PluginIndexRow) core.Node {
 	if summary := e.Summary.In(lang); summary != "" {
 		titles = append(titles, core.Text{Content: summary, MaxLines: 2, EllipsizeMode: core.EllipsizeTail, Style: core.Style{FontSize: 12, LineHeight: 16}, StyleFunc: ui.Colored(colors.Text)})
 	}
-	titles = append(titles, small(locales.SettingsPluginsIndexFacts(cx, e.Publisher, e.Version, pluginIndexSize(e.Size), e.License)))
+	titles = append(titles, small(locales.SettingsPluginsIndexFacts(cx, e.Publisher, e.Version, byteSize(e.Size), e.License)))
 	var trailing core.Node
 	disabled := live.Func(a, func() bool { return !a.PluginIndexInstallable() })
 	install := func() { a.InstallFromPluginIndex(e.ID) }
@@ -191,7 +194,10 @@ func pluginIndexRow(cx *core.Scope, a PluginsApp, r PluginIndexRow) core.Node {
 	case PluginIndexNeedsKando:
 		trailing = small(locales.SettingsPluginsIndexNeedsKando(cx, e.MinKando))
 	case PluginIndexDownloading:
-		trailing = small(locales.SettingsPluginsIndexDownloading(cx))
+		trailing = core.View{Style: core.Style{Direction: core.Row, Gap: 8, AlignItems: core.AlignCenter}, Children: []core.Node{
+			small(locales.SettingsPluginsIndexDownloading(cx)),
+			form.Button{Text: locales.SettingsPluginsCancel(cx), Label: locales.SettingsPluginsIndexCancelLabel(cx, name), TestID: "settings-plugins-index-cancel-" + e.ID, OnPress: live.Do(a, a.CancelPluginIndexDownload)},
+		}}
 	}
 	return core.View{Role: core.RoleGroup, Label: name, TestID: "settings-plugins-index-row-" + e.ID,
 		Style: core.Style{Direction: core.Row, FlexShrink: 0, MinHeight: core.Pt(52), Padding: core.Symmetric(8, 14), Gap: 10, AlignItems: core.AlignCenter},
@@ -199,15 +205,4 @@ func pluginIndexRow(cx *core.Scope, a PluginsApp, r PluginIndexRow) core.Node {
 			core.View{Style: core.Style{FlexGrow: 1, FlexShrink: 1, MinWidth: core.Pt(0), Gap: 2}, Children: titles},
 			core.View{TestID: "settings-plugins-index-state-" + e.ID, Style: core.Style{FlexShrink: 0}, Children: []core.Node{trailing}},
 		}}
-}
-
-// pluginIndexSize is n bytes as the list shows a pack's size.
-func pluginIndexSize(n int64) string {
-	switch {
-	case n >= 1<<20:
-		return fmt.Sprintf("%.1f MB", float64(n)/(1<<20))
-	case n >= 1<<10:
-		return fmt.Sprintf("%.0f KB", float64(n)/(1<<10))
-	}
-	return fmt.Sprintf("%d B", n)
 }

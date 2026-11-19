@@ -7482,7 +7482,7 @@ settingsPluginsIndexBrowse:
   description: "Plugins page: button that shows the plugin directory, the list of plugins Kando's signed index offers, above the installed ones."
 settingsPluginsIndexHide:
   message: "Hide Directory"
-  description: "Plugins page: the Browse Plugins button while the plugin directory shows; it hides the directory."
+  description: "Plugin directory: button in its header, beside Refresh, that hides the directory."
 settingsPluginsIndexTitle:
   message: "Plugin Directory"
   description: "Plugins page: heading of the plugin directory, the plugins Kando's signed index lists, which can be installed from there."
@@ -7545,6 +7545,16 @@ settingsPluginsIndexNeedsKando:
   description: "Plugin directory: in place of Install, for a plugin that runs only on a newer version of Kando."
   placeholders:
     version: { type: "String", example: "0.40.0" }
+settingsPluginsIndexCancelLabel:
+  message: "Stop downloading {name}"
+  description: "Plugin directory: accessibility label of Cancel beside a plugin being downloaded."
+  placeholders:
+    name: { type: "String", example: "Anime terms" }
+settingsPluginsIndexDropped:
+  message: "{count, plural, one {# plugin in the list needs} other {# plugins in the list need}} a newer version of Kando and {count, plural, one {isn't} other {aren't}} shown."
+  description: "Plugin directory: under the status line, when the list has plugins this version of Kando cannot read or install, which it leaves out."
+  placeholders:
+    count: { type: "int", example: "3" }
 settingsPluginsIndexDownloading:
   message: "Downloading…"
   description: "Plugin directory: in place of Install while the plugin's file downloads."

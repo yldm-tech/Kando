@@ -18,7 +18,7 @@ func (a *app) SetPluginIndexOpen(open bool) { a.pluginsIndexOpen(open) }
 // pluginsIndexDate is when the list was last asked for, as 浏览插件 says it.
 func pluginsIndexDate(meta index.Meta) string { return meta.Fetched.Local().Format("2006-01-02 15:04") }
 
-// PluginIndexStatus says how the list stands, in the interface's language: that this Kando has no index, that it is being read or updated, why it could not be updated (the list kept still shows), that Kando is offline and shows the list kept, or when it was last updated.
+// PluginIndexStatus says how the list stands, in the interface's language: that this Kando has no index, that it is being read or updated, that Kando is offline and shows the list kept, which it says before an error of an ask made while online, why the list could not be read or updated (the list kept still shows), or when it was last updated.
 func (a *app) PluginIndexStatus() string {
 	m := a.messages()
 	p := a.plugins.index
@@ -30,23 +30,26 @@ func (a *app) PluginIndexStatus() string {
 		return m.SettingsPluginsIndexLoading()
 	case p.busy:
 		return m.SettingsPluginsIndexUpdating()
-	case p.err != nil:
-		return m.SettingsPluginsIndexFailed(pluginsErrorText(m, p.err))
 	case a.privacy.offline && fetched:
 		return m.SettingsPluginsIndexOffline(pluginsIndexDate(p.meta))
 	case a.privacy.offline:
 		return m.SettingsPluginsIndexOfflineNone()
+	case p.err != nil:
+		return m.SettingsPluginsIndexFailed(pluginsErrorText(m, p.err))
 	case fetched:
 		return m.SettingsPluginsIndexUpdated(pluginsIndexDate(p.meta))
 	}
 	return ""
 }
 
-// PluginIndexFailed reports whether the last ask for the list failed, other than for want of an index.
+// PluginIndexFailed reports whether the status says why the list could not be read or updated, other than for want of an index.
 func (a *app) PluginIndexFailed() bool {
 	p := a.plugins.index
-	return p.err != nil && !p.reading && !p.busy && !errors.Is(p.err, index.ErrNotConfigured)
+	return p.err != nil && !p.reading && !p.busy && !a.privacy.offline && !errors.Is(p.err, index.ErrNotConfigured)
 }
+
+// PluginIndexDropped is how many entries of the list this version of Kando left out (index.Index.Dropped).
+func (a *app) PluginIndexDropped() int { return a.plugins.index.idx.Dropped }
 
 // PluginIndexCanRefresh reports whether 刷新 can ask for a newer list: Kando has an index and is online, and it is not being read or asked for.
 func (a *app) PluginIndexCanRefresh() bool {
@@ -81,12 +84,14 @@ func (a *app) PluginIndexRows() []settings.PluginIndexRow {
 
 func (a *app) PluginIndexMatches() int { return len(a.pluginsIndexFound()) }
 
-// PluginIndexInstallable reports whether 安装 and 更新 can start: Kando is online, and no download, install or confirmation is under way.
+// PluginIndexInstallable reports whether 安装 and 更新 can start: Kando is online and no other download from the index runs. Another install or confirmation under way does not stop it: the download waits for them before its confirmation opens.
 func (a *app) PluginIndexInstallable() bool {
-	return !a.privacy.offline && !a.plugins.busy && a.plugins.pending == nil && a.plugins.index.downloading == ""
+	return !a.privacy.offline && a.plugins.index.downloading == ""
 }
 
 func (a *app) InstallFromPluginIndex(id string) { a.pluginsIndexInstall(id) }
+
+func (a *app) CancelPluginIndexDownload() { a.pluginsIndexCancel() }
 
 // pluginsIndexErrorText is the message of m for an error of the community index, false for another error.
 func pluginsIndexErrorText(m locales.Messages, err error) (string, bool) {

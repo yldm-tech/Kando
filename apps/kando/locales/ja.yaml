@@ -2101,6 +2101,8 @@ settingsPluginsIndexUpdateLabel: "「{name}」をバージョン {version} に�
 settingsPluginsIndexInstalledVersion: "{version} をインストール済み"
 settingsPluginsIndexInstalled: "インストール済み"
 settingsPluginsIndexNeedsKando: "Kando {version} が必要"
+settingsPluginsIndexCancelLabel: "「{name}」のダウンロードを中止"
+settingsPluginsIndexDropped: "一覧のうち {count, plural, other {# 件}}のプラグインは新しいバージョンの Kando が必要なため、表示していません。"
 settingsPluginsIndexDownloading: "ダウンロード中…"
 settingsPluginsIndexNotConfigured: "このバージョンの Kando にはプラグイン一覧がありません。"
 settingsPluginsIndexLoading: "一覧を読み込んでいます…"

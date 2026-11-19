@@ -56,7 +56,10 @@ func indexKey(t *testing.T) ed25519.PublicKey {
 		t.Fatal(err)
 	}
 	t.Setenv(IndexKeyEnv, pkg.EncodeSecretKey(key))
-	return key.Public().(ed25519.PublicKey)
+	public := key.Public().(ed25519.PublicKey)
+	indexPublicKey = func() string { return pkg.EncodePublicKey(public) }
+	t.Cleanup(func() { indexPublicKey = func() string { return script.IndexKey } })
+	return public
 }
 
 // TestPluginIndex checks that kando plugin index lists every pack file of a folder, a data pack and a script plugin certified by the root it trusts, with the size, SHA-256 and address of each file, signed with the key in KANDO_PLUGINS_INDEX_KEY, as Kando reads it (index.Parse).
@@ -137,6 +140,13 @@ func TestPluginIndexRefuses(t *testing.T) {
 	if code, _, stderr := run("plugin", "index", packs, "--base", "https://plugins.example.org", "--out", out); code != 1 || !strings.Contains(stderr, IndexKeyEnv) {
 		t.Errorf("a bad key = %d, %q", code, stderr)
 	}
+	// A key that is not the one Kando checks with signs nothing.
+	indexKey(t)
+	other, _ := pkg.GenerateKey()
+	t.Setenv(IndexKeyEnv, pkg.EncodeSecretKey(other))
+	if code, _, stderr := run("plugin", "index", packs, "--base", "https://plugins.example.org", "--out", out); code != 1 || !strings.Contains(stderr, "script.IndexKey") {
+		t.Errorf("another key = %d, %q", code, stderr)
+	}
 	indexKey(t)
 	if code, _, _ := run("plugin", "index", packs, "--out", out); code != 2 {
 		t.Errorf("no --base = %d", code)
@@ -146,6 +156,10 @@ func TestPluginIndexRefuses(t *testing.T) {
 	}
 	if code, _, _ := run("plugin", "index", "--base", "https://plugins.example.org"); code != 2 {
 		t.Errorf("no folder = %d", code)
+	}
+	// After "--", index is still the subcommand, and what follows it positional.
+	if code, _, stderr := run("plugin", "--", "index", packs); code != 2 || !strings.Contains(stderr, "--base") {
+		t.Errorf("plugin -- index = %d, %q", code, stderr)
 	}
 
 	twice := t.TempDir()
