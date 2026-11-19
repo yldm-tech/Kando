@@ -89,8 +89,15 @@ func (j relayJoiner) Join(ctx context.Context, caller psync.Caller) (psync.Relay
 	return psync.RelayJoin{Key: key, Grant: grant}, nil
 }
 
-// RelayBucket is b as the relay uses it.
-func RelayBucket(b *cloud.Bucket) psync.RelayBucket { return relayBucket{b} }
+// Bucket is the user's bucket as the relay and the films through it use it: the relay's objects and links, a file put from disk in parts as large as it is (cloud.Bucket.PutFile), and the objects under a prefix with their sizes.
+type Bucket interface {
+	psync.RelayBucket
+	PutFile(ctx context.Context, key, path, contentType string, resume cloud.Resume, save func(cloud.Resume) error, progress func(done, total int64)) error
+	Sizes(ctx context.Context, prefix string) ([]cloud.Object, error)
+}
+
+// RelayBucket is b as the relay and the films use it.
+func RelayBucket(b *cloud.Bucket) Bucket { return relayBucket{b} }
 
 type relayBucket struct{ b *cloud.Bucket }
 
@@ -130,6 +137,14 @@ func (r relayBucket) List(ctx context.Context, prefix string) ([]psync.RelayObje
 }
 
 func (r relayBucket) Delete(ctx context.Context, key string) error { return r.b.Delete(ctx, key) }
+
+func (r relayBucket) PutFile(ctx context.Context, key, path, contentType string, resume cloud.Resume, save func(cloud.Resume) error, progress func(done, total int64)) error {
+	return r.b.PutFile(ctx, key, path, contentType, resume, save, progress)
+}
+
+func (r relayBucket) Sizes(ctx context.Context, prefix string) ([]cloud.Object, error) {
+	return r.b.List(ctx, prefix)
+}
 
 func (r relayBucket) PresignGet(ctx context.Context, key string, ttl time.Duration) (string, error) {
 	return r.b.PresignGet(ctx, key, ttl)
