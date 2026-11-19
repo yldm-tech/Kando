@@ -25,7 +25,7 @@ func (a *app) PluginRows() []settings.PluginRow {
 		if pack.Kind == plugins.KindScript {
 			row.Script = a.pluginsScriptView(m, pack, false)
 		}
-		if pack.Kind == plugins.KindTask {
+		if pack.Kind == plugins.KindTask || pack.Kind == plugins.KindScript && pack.Declared().Has(plugins.PermLLMChat) {
 			row.Budget, row.Spent = a.plugins.state.Budget(pack.ID), a.pluginsSpent(pack.ID)
 		}
 		rows = append(rows, row)

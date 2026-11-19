@@ -34,10 +34,28 @@ func (d Dialog) Render(cx *ns.Scope) ns.Node {
 				Value:    func() string { return get(choice()) },
 				OnChange: func(v string) { set(func(c *Choice) { put(c, v) }) }}
 		}
-		format := tabs("export-format", locales.SubexportFormat(cx), func(c Choice) string { return c.Format }, func(c *Choice, v string) { c.Format = v },
-			ui.Option[string]{Value: core.FormatSRT, Label: "SRT", TestID: "export-format-srt"},
-			ui.Option[string]{Value: core.FormatVTT, Label: "WebVTT", TestID: "export-format-vtt"},
-			ui.Option[string]{Value: core.FormatASS, Label: "ASS", TestID: "export-format-ass"})
+		// The plugins' formats come after Kando's own; the tabs are built again only when they change.
+		formats := ns.NewMemo(cx, live.Func(a, func() string {
+			var out []string
+			for _, f := range a.SubexportFormats() {
+				out = append(out, f.Value+"\x00"+f.Label)
+			}
+			return strings.Join(out, "\x01")
+		}))
+		format := ns.Dynamic(func(cx *ns.Scope) ns.Node {
+			options := []ui.Option[string]{
+				{Value: core.FormatSRT, Label: "SRT", TestID: "export-format-srt"},
+				{Value: core.FormatVTT, Label: "WebVTT", TestID: "export-format-vtt"},
+				{Value: core.FormatASS, Label: "ASS", TestID: "export-format-ass"},
+			}
+			if joined := formats.Get(); joined != "" {
+				for _, item := range strings.Split(joined, "\x01") {
+					value, label, _ := strings.Cut(item, "\x00")
+					options = append(options, ui.Option[string]{Value: value, Label: label, TestID: "export-format-" + strings.ReplaceAll(strings.TrimPrefix(value, PluginPrefix), ":", "-")})
+				}
+			}
+			return tabs("export-format", locales.SubexportFormat(cx), func(c Choice) string { return c.Format }, func(c *Choice, v string) { c.Format = v }, options...)
+		})
 		content := tabs("export-content", locales.SubexportContent(cx), func(c Choice) string { return c.Content }, func(c *Choice, v string) { c.Content = v },
 			ui.Option[string]{Value: core.SubOriginal, Label: locales.SubexportOriginal(cx), TestID: "export-content-original"},
 			ui.Option[string]{Value: core.SubTranslation, Label: locales.SubexportTranslation(cx), TestID: "export-content-translation"},

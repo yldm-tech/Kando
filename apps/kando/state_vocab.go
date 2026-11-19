@@ -305,7 +305,7 @@ type vocabAsk struct {
 	why    func(*core.Scope) string
 }
 
-// vocabResolve is how the word looked up as q, in a line of the film titled film, is answered, for the picture (LookUpWord) and paired phones (phoneStudy.LookUp) alike: from the words looked up before on this computer, else from the dictionary packs turned on, in the order Settings › 插件 keeps them, else by the AI service. It reads the cache, the dictionaries open and the AI service set, so it runs on the engine's goroutine; lookup.Ask.Answer asks them off it.
+// vocabResolve is how the word looked up as q, in a line of the film titled film, is answered, for the picture (LookUpWord) and paired phones (phoneStudy.LookUp) alike: from the words looked up before on this computer, else from the dictionary packs turned on, in the order Settings › 插件 keeps them, else from the lookup sources of the script plugins running, else by the AI service. It reads the cache, the dictionaries open and the AI service set, so it runs on the engine's goroutine; lookup.Ask.Answer asks them off it.
 func (a *app) vocabResolve(q lookup.Query, film string) vocabAsk {
 	ask := vocabAsk{ask: lookup.Ask{Query: q, Film: film}}
 	if e, ok := a.vocabCache().Get(q); ok {
@@ -313,6 +313,8 @@ func (a *app) vocabResolve(q lookup.Query, film string) vocabAsk {
 		return ask
 	}
 	ask.ask.Dicts, ask.ask.Others = a.pluginsDictsFor(lookup.WordLanguage(q), kcore.TargetTag(q.Language))
+	// The lookup sources of the script plugins running come after the dictionary packs and before the AI service.
+	ask.ask.Dicts = append(ask.ask.Dicts, a.pluginsLookups(q)...)
 	update := a.update
 	ask.ask.Failed = func(d lookup.Dictionary, err error) { update(func() { a.pluginsDictFailed(d, err) }) }
 	// With dictionaries for the word, no AI service means only that the words they lack find nothing.

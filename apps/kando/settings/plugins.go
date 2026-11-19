@@ -336,7 +336,7 @@ func pluginDetail(cx *core.Scope, a PluginsApp, r PluginRow, name string, asking
 			lines = append(lines, text(credit, colors.Muted))
 		}
 	}
-	if r.Pack.Kind == plugins.KindTask {
+	if r.Pack.Kind == plugins.KindTask || r.Pack.Kind == plugins.KindScript && r.Pack.Declared().Has(plugins.PermLLMChat) {
 		lines = append(lines, pluginBudget(cx, a, id, name))
 	}
 	lines = append(lines, text(locales.SettingsPluginsIdentity(cx, id, shortHash(r.Pack.Hash)), colors.Muted))

@@ -16,14 +16,16 @@ const (
 
 // The events of the audit log (Audit).
 const (
-	AuditInstall   = "install"
-	AuditUninstall = "uninstall"
-	AuditGrant     = "grant"
-	AuditEnable    = "enable"
-	AuditDisable   = "disable"
-	AuditStopped   = "stopped"
-	AuditRevoked   = "revoked"
-	AuditOpenURL   = "open-url"
+	AuditInstall     = "install"
+	AuditUninstall   = "uninstall"
+	AuditGrant       = "grant"
+	AuditEnable      = "enable"
+	AuditDisable     = "disable"
+	AuditStopped     = "stopped"
+	AuditRevoked     = "revoked"
+	AuditOpenURL     = "open-url"
+	AuditLLM         = "llm-chat"
+	AuditRevocations = "revocations"
 )
 
 // Audit adds a line to the audit log of root, audit.log: the time, the event, the plugin's id and what it was about, such as the permissions granted, the reason a plugin was turned off or the answer to a confirmation; never what a plugin read or sent. The line goes through scrub first, which hides what reads as a secret or a path of the user's (the app passes feedback.Scrubber's Clean, which this package, imported by no interface package, cannot import itself), and is one line whatever detail holds. Past auditMax bytes the log moves to audit.log.1 and starts again.

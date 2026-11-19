@@ -33,12 +33,13 @@ func (k pluginsMarkKey) sameMarking(o pluginsMarkKey) bool {
 	return k == o
 }
 
-// pluginsMarkKey is what a film's marks are computed for: its video and the hash of its lines (pluginsSubsHash), the language it is spoken in, and how it is marked: readings, from the larger Japanese dictionary (analyze) and from the Chinese dictionaries open (dicts, their ids and contents), the word list chosen (list, its id and content), and the words in the vocabulary (known, with vocab the hash of the words in it spoken in the film's language, pluginsVocabHash, so a word added, removed or changed marks the lines again). It is comparable, so the playing hook compares it at each report.
+// pluginsMarkKey is what a film's marks are computed for: its video and the hash of its lines (pluginsSubsHash), the language it is spoken in, and how it is marked: readings, from the larger Japanese dictionary (analyze) and from the Chinese dictionaries open (dicts, their ids and contents), the word list chosen (list, its id and content), the words in the vocabulary (known, with vocab the hash of the words in it spoken in the film's language, pluginsVocabHash, so a word added, removed or changed marks the lines again), and the annotators of the script plugins running for the film's language (annotators, pluginsAnnotatorsKey). It is comparable, so the playing hook compares it at each report.
 type pluginsMarkKey struct {
 	video, subs, spoken string
 	readings, analyze   bool
 	known               bool
 	list, dicts, vocab  string
+	annotators          string
 }
 
 // pluginsSubs is the lines a hash was last taken of (pluginsSubsHash).
@@ -112,26 +113,34 @@ func (a *app) pluginsMarksFollow() bool {
 			if p.stop != stop || stop.Load() {
 				return
 			}
-			p.marking, p.stop = pluginsMarkKey{}, nil
-			p.marks = pluginsMarks{key: key, lines: marks, originals: lines, byOriginal: byOriginal}
+			// The annotators of the script plugins mark the originals marked now after Kando's own marks, on the engine's goroutine (pluginsAnnotate).
+			a.pluginsAnnotate(key, stop.Load, lines, job.had, marks, byOriginal, func() {
+				if p.stop != stop || stop.Load() {
+					return
+				}
+				p.marking, p.stop = pluginsMarkKey{}, nil
+				p.marks = pluginsMarks{key: key, lines: marks, originals: lines, byOriginal: byOriginal}
+				a.Changed()
+			})
 		})
 	}()
 	return forgot
 }
 
-// pluginsMarkJob is what computing the marks of a key takes, read on the engine's goroutine (pluginsMarkJobFor): the sources but the word list, the word list chosen when there is one (pack, listed), the list read of it already (cached), which run reads otherwise, and had, the marks of originals computed before for the same film marked the same way (pluginsMarks.byOriginal), which run takes rather than marking those originals again.
+// pluginsMarkJob is what computing the marks of a key takes, read on the engine's goroutine (pluginsMarkJobFor): whether any of Kando's own marks is turned on (builtIn), as the plugins' annotators alone mark nothing here; the sources but the word list, the word list chosen when there is one (pack, listed), the list read of it already (cached), which run reads otherwise, and had, the marks of originals computed before for the same film marked the same way (pluginsMarks.byOriginal), which run takes rather than marking those originals again.
 type pluginsMarkJob struct {
-	src    annotate.Sources
-	pack   plugins.Pack
-	listed bool
-	cached *pluginsList
-	had    map[string][]subtitle.Mark
+	builtIn bool
+	src     annotate.Sources
+	pack    plugins.Pack
+	listed  bool
+	cached  *pluginsList
+	had     map[string][]subtitle.Mark
 }
 
 // pluginsMarkJobFor is what computing the marks of key takes, on the engine's goroutine: the Chinese dictionaries open for the readings, the words of the vocabulary spoken in the film's language for the dashed lines, and the word list chosen.
 func (a *app) pluginsMarkJobFor(key pluginsMarkKey) pluginsMarkJob {
 	p := &a.plugins
-	j := pluginsMarkJob{src: annotate.Sources{Spoken: key.spoken, Readings: key.readings, Analyze: key.analyze}}
+	j := pluginsMarkJob{builtIn: key.readings || key.list != "" || key.known, src: annotate.Sources{Spoken: key.spoken, Readings: key.readings, Analyze: key.analyze}}
 	if key.readings {
 		j.src.Dicts, _ = a.pluginsDictsFor("zh", "")
 	}
@@ -170,7 +179,10 @@ func (j pluginsMarkJob) run(lines []string) ([][]subtitle.Mark, map[string][]sub
 			fresh = append(fresh, line)
 		}
 	}
-	got := annotate.Lines(fresh, src)
+	got := make([][]annotate.Mark, len(fresh))
+	if j.builtIn {
+		got = annotate.Lines(fresh, src)
+	}
 	byOriginal := make(map[string][]subtitle.Mark, len(lines))
 	for i, line := range got {
 		var marks []subtitle.Mark
@@ -210,11 +222,12 @@ func (a *app) pluginsMarkStop() {
 // pluginsMarkKey is the open film's key (pluginsMarkKey), and false when there is nothing to mark: no film open with lines, or no mark turned on.
 func (a *app) pluginsMarkKey() (pluginsMarkKey, bool) {
 	cues := a.playerCues()
-	if len(cues) == 0 || a.player.film.video == "" || !a.pluginsMarksOn() {
+	job, _ := a.library.Find(a.openKey)
+	spoken := cmp.Or(job.SpeechLanguage, job.SpokenLanguage)
+	if len(cues) == 0 || a.player.film.video == "" || !a.pluginsMarksOnFor(spoken) {
 		return pluginsMarkKey{}, false
 	}
-	job, _ := a.library.Find(a.openKey)
-	return a.pluginsMarkKeyFor(a.player.film.video, a.pluginsSubsHash(cues), cmp.Or(job.SpeechLanguage, job.SpokenLanguage), true)
+	return a.pluginsMarkKeyFor(a.player.film.video, a.pluginsSubsHash(cues), spoken, true)
 }
 
 // pluginsMarksOn reports whether a mark is turned on: the readings, a word list installed and turned on chosen, or the words in the vocabulary.
@@ -223,14 +236,19 @@ func (a *app) pluginsMarksOn() bool {
 	return a.plugins.prefs.readings || listed || a.plugins.prefs.known
 }
 
+// pluginsMarksOnFor reports whether a film heard in spoken is marked: a mark is turned on (pluginsMarksOn), or a script plugin running annotates it (pluginsAnnotators).
+func (a *app) pluginsMarksOnFor(spoken string) bool {
+	return a.pluginsMarksOn() || len(a.pluginsAnnotators(spoken)) > 0
+}
+
 // pluginsMarkKeyFor is the key (pluginsMarkKey) of the marks of the lines of video, whose hash is subs, heard in spoken, as they are marked now, and false when no mark is turned on. vocab says whether the words of the vocabulary are underlined, as they are in a film of the open library, whose vocabulary is the one the app holds (savedBook).
 func (a *app) pluginsMarkKeyFor(video, subs, spoken string, vocab bool) (pluginsMarkKey, bool) {
-	if !a.pluginsMarksOn() {
+	if !a.pluginsMarksOnFor(spoken) {
 		return pluginsMarkKey{}, false
 	}
 	prefs := a.plugins.prefs
 	pack, listed := a.pluginsMarkList()
-	key := pluginsMarkKey{video: video, subs: subs, spoken: spoken, readings: prefs.readings, known: prefs.known && vocab}
+	key := pluginsMarkKey{video: video, subs: subs, spoken: spoken, readings: prefs.readings, known: prefs.known && vocab, annotators: a.pluginsAnnotatorsKey(spoken)}
 	if listed {
 		key.list = pack.ID + "\x00" + pack.Hash
 	}
@@ -353,4 +371,87 @@ func (a *app) pluginsSetMarks(change func(p *pluginsMarkPrefs)) {
 		a.saveErr = a.messages().SettingsSaveFailed(err.Error())
 	}
 	a.pluginsMarksFollow()
+}
+
+// pluginsAnnotateBatch is the most lines an annotator of a script plugin is given at once.
+const pluginsAnnotateBatch = 50
+
+// pluginsAnnotators are the annotators of the script plugins running that mark a film heard in spoken: those of no language, or of its language when it is known.
+func (a *app) pluginsAnnotators(spoken string) []pluginsContribution[plugins.Annotator] {
+	lang := core.BaseLanguage(spoken)
+	var out []pluginsContribution[plugins.Annotator]
+	for _, c := range pluginsContributions(a, func(c *plugins.Contributes) []plugins.Annotator { return c.Annotators }) {
+		if len(c.of.Languages) == 0 || lang != "" && slices.ContainsFunc(c.of.Languages, func(l string) bool { return core.BaseLanguage(l) == lang }) {
+			out = append(out, c)
+		}
+	}
+	return out
+}
+
+// pluginsAnnotatorsKey is what the marks of a film heard in spoken depend on of the annotators that mark it (pluginsAnnotators): each one's plugin, the content it was loaded from, and its id; "" for none.
+func (a *app) pluginsAnnotatorsKey(spoken string) string {
+	var parts []string
+	for _, c := range a.pluginsAnnotators(spoken) {
+		parts = append(parts, c.id+"\x00"+a.plugins.script.loaded[c.id].pack.Hash+"\x00"+c.of.ID)
+	}
+	return strings.Join(parts, "\x01")
+}
+
+// pluginsAnnotate has the annotators of the script plugins running for key's film mark the originals of lines that had, the marks of originals computed before, does not hold, and adds their marks to marks and byOriginal, which hold Kando's own (pluginsMarkJob.run), where they overlap none of the same kind (annotate.Merge); then it calls done. Each annotator is called with the film's language and at most pluginsAnnotateBatch originals at a time (annotate(lang, lines)), one batch after the other through the runner, and gives up at the next batch once stopped reports true, done then never called; an annotator that fails, or answers something that is not a list for each line, marks nothing more of this film, and the others go on. Call it on the engine's goroutine.
+func (a *app) pluginsAnnotate(key pluginsMarkKey, stopped func() bool, lines []string, had map[string][]subtitle.Mark, marks [][]subtitle.Mark, byOriginal map[string][]subtitle.Mark, done func()) {
+	annotators := a.pluginsAnnotators(key.spoken)
+	var fresh []string
+	for _, line := range lines {
+		if _, ok := had[line]; !ok && !slices.Contains(fresh, line) {
+			fresh = append(fresh, line)
+		}
+	}
+	if key.annotators == "" || len(annotators) == 0 || len(fresh) == 0 {
+		done()
+		return
+	}
+	lang := core.BaseLanguage(key.spoken)
+	finish := func() {
+		for i, line := range lines {
+			marks[i] = byOriginal[line]
+		}
+		done()
+	}
+	var next func(k, from int)
+	next = func(k, from int) {
+		if stopped() {
+			return
+		}
+		if from >= len(fresh) {
+			k, from = k+1, 0
+		}
+		if k >= len(annotators) {
+			finish()
+			return
+		}
+		c := annotators[k]
+		batch := fresh[from:min(from+pluginsAnnotateBatch, len(fresh))]
+		a.pluginsContribCall(c.id, c.of.Export, []any{lang, slices.Clone(batch)}, func(v any, err error) {
+			list, ok := v.([]any)
+			if err != nil || !ok || len(list) != len(batch) {
+				next(k+1, 0)
+				return
+			}
+			for i, extra := range list {
+				line := batch[i]
+				have := make([]annotate.Mark, len(byOriginal[line]))
+				for j, m := range byOriginal[line] {
+					have[j] = annotate.Mark(m)
+				}
+				merged := annotate.Merge(have, annotate.FromPlugin(line, extra))
+				out := make([]subtitle.Mark, len(merged))
+				for j, m := range merged {
+					out[j] = subtitle.Mark(m)
+				}
+				byOriginal[line] = out
+			}
+			next(k, from+len(batch))
+		})
+	}
+	next(0, 0)
 }

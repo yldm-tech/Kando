@@ -1018,6 +1018,15 @@ var Parameters = map[string][]string{
 	"SettingsPluginsInstallSourceVerified":     {"publisher"},
 	"SettingsPluginsPermNetwork":               {"rules"},
 	"SettingsPluginsConflicts":                 {"commands"},
+	"SettingsPluginsAddsLookup":                {"name"},
+	"SettingsPluginsAddsSubtitleFormat":        {"name"},
+	"SettingsPluginsAddsExporter":              {"name"},
+	"SettingsPluginsAddsAnnotator":             {"name"},
+	"SettingsPluginsCredentialHosts":           {"hosts"},
+	"SettingsPluginsCredentialMismatch":        {"service"},
+	"SavedExportingPlugin":                     {"name"},
+	"SavedExportPluginFailed":                  {"name"},
+	"SavedExportedPlugin":                      {"sent", "skipped", "name"},
 	"PluginsOpenURLTitle":                      {"host"},
 	"PluginsOpenURLMessage":                    {"plugin", "url"},
 	"PluginsCommandFailed":                     {"command"},
@@ -1681,6 +1690,15 @@ type Translation struct {
 	SettingsPluginsInstallSourceVerified     func(publisher string) string
 	SettingsPluginsPermNetwork               func(rules string) string
 	SettingsPluginsConflicts                 func(commands string) string
+	SettingsPluginsAddsLookup                func(name string) string
+	SettingsPluginsAddsSubtitleFormat        func(name string) string
+	SettingsPluginsAddsExporter              func(name string) string
+	SettingsPluginsAddsAnnotator             func(name string) string
+	SettingsPluginsCredentialHosts           func(hosts string) string
+	SettingsPluginsCredentialMismatch        func(service string) string
+	SavedExportingPlugin                     func(name string) string
+	SavedExportPluginFailed                  func(name string) string
+	SavedExportedPlugin                      func(sent int, skipped int, name string) string
 	PluginsOpenURLTitle                      func(host string) string
 	PluginsOpenURLMessage                    func(plugin string, url string) string
 	PluginsCommandFailed                     func(command string) string
@@ -3383,6 +3401,14 @@ const (
 	textSettingsPluginsPermToast
 	textSettingsPluginsPermOpenURL
 	textSettingsPluginsPermSettingsGet
+	textSettingsPluginsPermSoundRead
+	textSettingsPluginsPermLLMChat
+	textSettingsPluginsPermCredFetch
+	textSettingsPluginsNoSecretStore
+	textSettingsPluginsRevocationsStale
+	textSettingsPluginsAdds
+	textSettingsPluginsCredentials
+	textSettingsPluginsCredentialUnknown
 	textSettingsPluginsStoppedInit
 	textSettingsPluginsStoppedFailed
 	textSettingsPluginsStoppedSlow
@@ -5109,6 +5135,14 @@ var keyOfText = [numTexts]string{
 	"settingsPluginsPermToast",
 	"settingsPluginsPermOpenURL",
 	"settingsPluginsPermSettingsGet",
+	"settingsPluginsPermSoundRead",
+	"settingsPluginsPermLLMChat",
+	"settingsPluginsPermCredFetch",
+	"settingsPluginsNoSecretStore",
+	"settingsPluginsRevocationsStale",
+	"settingsPluginsAdds",
+	"settingsPluginsCredentials",
+	"settingsPluginsCredentialUnknown",
 	"settingsPluginsStoppedInit",
 	"settingsPluginsStoppedFailed",
 	"settingsPluginsStoppedSlow",
@@ -6833,6 +6867,14 @@ var textsEn = i18n.NewTexts(""+
 	"Show short messages in the window"+
 	"Open web pages in your browser, after you agree to each"+
 	"Read its own settings"+
+	"Read the sound of a saved line or of the line playing"+
+	"Ask your AI service, within its daily budget of tokens"+
+	"Send requests with the keys you enter below, only to the hosts listed with them"+
+	"Turned off: this computer has no secure store for the plugin's keys"+
+	"Paused: Kando could not check recently whether this plugin was withdrawn"+
+	"Adds"+
+	"Keys"+
+	"Kando does not know these hosts. Enter a key only if they are the service's own."+
 	"Turned off: it failed as it started"+
 	"Turned off: it failed too often"+
 	"Turned off: it kept Kando from responding"+
@@ -8554,6 +8596,14 @@ var textsEn = i18n.NewTexts(""+
 		33,
 		55,
 		21,
+		53,
+		54,
+		79,
+		67,
+		72,
+		4,
+		4,
+		80,
 		35,
 		31,
 		41,
@@ -10278,6 +10328,14 @@ var textsJa = i18n.NewTexts(""+
 	"ウインドウに短いメッセージを表示する"+
 	"ブラウザで Web ページを開く（毎回あなたの許可が必要）"+
 	"自分の設定を読み取る"+
+	"保存したセリフや再生中のセリフの音声を読む"+
+	"1 日のトークン予算の範囲で AI サービスに質問する"+
+	"下に入力したキーを付けてリクエストを送る（それぞれに示されたホストだけ）"+
+	"オフ：このコンピュータにはプラグインのキーを安全に保存する場所がありません"+
+	"一時停止：このプラグインが撤回されていないか最近確認できていません"+
+	"追加する機能"+
+	"キー"+
+	"Kando はこれらのホストを知りません。そのサービス自身のものだと確かめてからキーを入力してください。"+
 	"オフにしました：起動時にエラー"+
 	"オフにしました：エラーが多すぎます"+
 	"オフにしました：Kando が応答しなくなりました"+
@@ -11999,6 +12057,14 @@ var textsJa = i18n.NewTexts(""+
 		54,
 		77,
 		30,
+		63,
+		69,
+		108,
+		111,
+		99,
+		18,
+		6,
+		144,
 		45,
 		51,
 		63,
@@ -13723,6 +13789,14 @@ var textsKo = i18n.NewTexts(""+
 	"창에 짧은 메시지 표시"+
 	"브라우저에서 웹 페이지 열기(매번 동의 필요)"+
 	"자신의 설정 읽기"+
+	"저장한 대사나 재생 중인 대사의 소리 읽기"+
+	"하루 토큰 예산 안에서 AI 서비스에 질문하기"+
+	"아래에 입력한 키로 요청 보내기(각각 표시된 호스트로만)"+
+	"꺼짐: 이 컴퓨터에는 플러그인 키를 안전하게 보관할 곳이 없습니다"+
+	"일시 중지: 이 플러그인이 철회되었는지 최근에 확인하지 못했습니다"+
+	"추가하는 기능"+
+	"키"+
+	"Kando가 모르는 호스트입니다. 해당 서비스의 것이 확실할 때만 키를 입력하세요."+
 	"꺼짐: 시작할 때 오류"+
 	"꺼짐: 오류가 너무 많음"+
 	"꺼짐: Kando가 응답하지 않게 함"+
@@ -15444,6 +15518,14 @@ var textsKo = i18n.NewTexts(""+
 		30,
 		61,
 		23,
+		57,
+		59,
+		77,
+		90,
+		92,
+		19,
+		3,
+		106,
 		28,
 		31,
 		40,
@@ -17168,6 +17250,14 @@ var textsZhHans = i18n.NewTexts(""+
 	"在窗口里显示简短提示"+
 	"在浏览器中打开网页，每次都要你同意"+
 	"读取它自己的设置"+
+	"读取收藏句子或正在播放的句子的声音"+
+	"在每日 token 预算内询问你的 AI 服务"+
+	"用你在下面填写的密钥发送请求，只发往各自列出的主机"+
+	"已停用：这台电脑没有可以安全保存插件密钥的地方"+
+	"已暂停：看懂最近没能确认这个插件是否已被撤回"+
+	"添加的功能"+
+	"密钥"+
+	"看懂不认识这些主机。只有确认它们属于该服务时再填写密钥。"+
 	"已停用：启动时出错"+
 	"已停用：多次出错"+
 	"已停用：让看懂无法响应"+
@@ -18889,6 +18979,14 @@ var textsZhHans = i18n.NewTexts(""+
 		30,
 		51,
 		24,
+		51,
+		47,
+		75,
+		69,
+		66,
+		15,
+		6,
+		84,
 		27,
 		24,
 		33,
@@ -20613,6 +20711,14 @@ var textsZhHant = i18n.NewTexts(""+
 	"在視窗裡顯示簡短提示"+
 	"在瀏覽器中開啟網頁，每次都要你同意"+
 	"讀取它自己的設定"+
+	"讀取收藏句子或正在播放的句子的聲音"+
+	"在每日 token 預算內詢問你的 AI 服務"+
+	"用你在下面填寫的金鑰傳送請求，只傳往各自列出的主機"+
+	"已停用：這台電腦沒有可以安全保存外掛金鑰的地方"+
+	"已暫停：看懂最近沒能確認這個外掛是否已被撤回"+
+	"新增的功能"+
+	"金鑰"+
+	"看懂不認識這些主機。只有確認它們屬於該服務時再填寫金鑰。"+
 	"已停用：啟動時出錯"+
 	"已停用：多次出錯"+
 	"已停用：讓看懂無法回應"+
@@ -22334,6 +22440,14 @@ var textsZhHant = i18n.NewTexts(""+
 		30,
 		51,
 		24,
+		51,
+		47,
+		75,
+		69,
+		66,
+		15,
+		6,
+		84,
 		27,
 		24,
 		33,
@@ -24188,6 +24302,33 @@ func Supply(lang string, t Translation) {
 	}
 	if t.SettingsPluginsConflicts != nil {
 		s.SettingsPluginsConflicts = t.SettingsPluginsConflicts
+	}
+	if t.SettingsPluginsAddsLookup != nil {
+		s.SettingsPluginsAddsLookup = t.SettingsPluginsAddsLookup
+	}
+	if t.SettingsPluginsAddsSubtitleFormat != nil {
+		s.SettingsPluginsAddsSubtitleFormat = t.SettingsPluginsAddsSubtitleFormat
+	}
+	if t.SettingsPluginsAddsExporter != nil {
+		s.SettingsPluginsAddsExporter = t.SettingsPluginsAddsExporter
+	}
+	if t.SettingsPluginsAddsAnnotator != nil {
+		s.SettingsPluginsAddsAnnotator = t.SettingsPluginsAddsAnnotator
+	}
+	if t.SettingsPluginsCredentialHosts != nil {
+		s.SettingsPluginsCredentialHosts = t.SettingsPluginsCredentialHosts
+	}
+	if t.SettingsPluginsCredentialMismatch != nil {
+		s.SettingsPluginsCredentialMismatch = t.SettingsPluginsCredentialMismatch
+	}
+	if t.SavedExportingPlugin != nil {
+		s.SavedExportingPlugin = t.SavedExportingPlugin
+	}
+	if t.SavedExportPluginFailed != nil {
+		s.SavedExportPluginFailed = t.SavedExportPluginFailed
+	}
+	if t.SavedExportedPlugin != nil {
+		s.SavedExportedPlugin = t.SavedExportedPlugin
 	}
 	if t.PluginsOpenURLTitle != nil {
 		s.PluginsOpenURLTitle = t.PluginsOpenURLTitle
@@ -59557,6 +59698,411 @@ func (msgs Messages) SettingsPluginsConflicts(commands string) string {
 			return "看懂已占用这些命令的快捷键：" + commands + "；可以在菜单栏和命令面板里使用它们。"
 		case "zh-Hant":
 			return "看懂已占用這些命令的快速鍵：" + commands + "；可以在選單列和命令面板裡使用它們。"
+		}
+	}
+}
+
+// SettingsPluginsPermSoundRead says "Read the sound of a saved line or of the line playing"
+// in the language the app shows under cx.
+//
+// Permission of a script plugin: the audio clip of a line, cut with ffmpeg.
+func SettingsPluginsPermSoundRead(cx *core.Scope) string {
+	return For(cx).SettingsPluginsPermSoundRead()
+}
+
+// SettingsPluginsPermSoundRead is the package's SettingsPluginsPermSoundRead in the language of msgs.
+func (msgs Messages) SettingsPluginsPermSoundRead() string {
+	return msgs.text(textSettingsPluginsPermSoundRead)
+}
+
+// SettingsPluginsPermLLMChat says "Ask your AI service, within its daily budget of tokens"
+// in the language the app shows under cx.
+//
+// Permission of a script plugin: it asks the user's AI service through Kando, which counts the tokens against the plugin's daily budget.
+func SettingsPluginsPermLLMChat(cx *core.Scope) string { return For(cx).SettingsPluginsPermLLMChat() }
+
+// SettingsPluginsPermLLMChat is the package's SettingsPluginsPermLLMChat in the language of msgs.
+func (msgs Messages) SettingsPluginsPermLLMChat() string {
+	return msgs.text(textSettingsPluginsPermLLMChat)
+}
+
+// SettingsPluginsPermCredFetch says "Send requests with the keys you enter below, only to the hosts listed with them"
+// in the language the app shows under cx.
+//
+// Permission of a script plugin: requests Kando sends with a key the user gave Kando for the plugin.
+func SettingsPluginsPermCredFetch(cx *core.Scope) string {
+	return For(cx).SettingsPluginsPermCredFetch()
+}
+
+// SettingsPluginsPermCredFetch is the package's SettingsPluginsPermCredFetch in the language of msgs.
+func (msgs Messages) SettingsPluginsPermCredFetch() string {
+	return msgs.text(textSettingsPluginsPermCredFetch)
+}
+
+// SettingsPluginsNoSecretStore says "Turned off: this computer has no secure store for the plugin's keys"
+// in the language the app shows under cx.
+//
+// Plugins page: why a script plugin with credentials does not run, on Linux without a Secret Service.
+func SettingsPluginsNoSecretStore(cx *core.Scope) string {
+	return For(cx).SettingsPluginsNoSecretStore()
+}
+
+// SettingsPluginsNoSecretStore is the package's SettingsPluginsNoSecretStore in the language of msgs.
+func (msgs Messages) SettingsPluginsNoSecretStore() string {
+	return msgs.text(textSettingsPluginsNoSecretStore)
+}
+
+// SettingsPluginsRevocationsStale says "Paused: Kando could not check recently whether this plugin was withdrawn"
+// in the language the app shows under cx.
+//
+// Plugins page: why a non-official script plugin that reaches the network is paused while the revocation list is out of date.
+func SettingsPluginsRevocationsStale(cx *core.Scope) string {
+	return For(cx).SettingsPluginsRevocationsStale()
+}
+
+// SettingsPluginsRevocationsStale is the package's SettingsPluginsRevocationsStale in the language of msgs.
+func (msgs Messages) SettingsPluginsRevocationsStale() string {
+	return msgs.text(textSettingsPluginsRevocationsStale)
+}
+
+// SettingsPluginsAdds says "Adds"
+// in the language the app shows under cx.
+//
+// Plugin details and install confirmation: heading of what a script plugin adds to Kando.
+func SettingsPluginsAdds(cx *core.Scope) string { return For(cx).SettingsPluginsAdds() }
+
+// SettingsPluginsAdds is the package's SettingsPluginsAdds in the language of msgs.
+func (msgs Messages) SettingsPluginsAdds() string { return msgs.text(textSettingsPluginsAdds) }
+
+// SettingsPluginsAddsLookup says "Word lookups: {name}"
+// in the language the app shows under cx.
+//
+// What a script plugin adds: a source of word lookups, asked after the dictionaries.
+func SettingsPluginsAddsLookup(cx *core.Scope, name string) string {
+	return For(cx).SettingsPluginsAddsLookup(name)
+}
+
+// SettingsPluginsAddsLookup is the package's SettingsPluginsAddsLookup in the language of msgs.
+func (msgs Messages) SettingsPluginsAddsLookup(name string) string {
+	if i18n.IsPseudo(msgs.lang) {
+		return i18n.Pseudo(msgs.lang, Messages{lang: Source, mark: true}.SettingsPluginsAddsLookup(name))
+	}
+	for lang := msgs.lang; ; lang = i18n.Parent(lang) {
+		if f := supplied[lang].SettingsPluginsAddsLookup; f != nil {
+			return f(name)
+		}
+		switch lang {
+		case "", "en":
+			return "Word lookups: " + msgs.arg(name)
+		case "ja":
+			return "単語の検索元：" + name
+		case "ko":
+			return "단어 찾기 출처: " + name
+		case "zh-Hans":
+			return "查词来源：" + name
+		case "zh-Hant":
+			return "查詞來源：" + name
+		}
+	}
+}
+
+// SettingsPluginsAddsSubtitleFormat says "Subtitle export format: {name}"
+// in the language the app shows under cx.
+//
+// What a script plugin adds: a format of the subtitle export.
+func SettingsPluginsAddsSubtitleFormat(cx *core.Scope, name string) string {
+	return For(cx).SettingsPluginsAddsSubtitleFormat(name)
+}
+
+// SettingsPluginsAddsSubtitleFormat is the package's SettingsPluginsAddsSubtitleFormat in the language of msgs.
+func (msgs Messages) SettingsPluginsAddsSubtitleFormat(name string) string {
+	if i18n.IsPseudo(msgs.lang) {
+		return i18n.Pseudo(msgs.lang, Messages{lang: Source, mark: true}.SettingsPluginsAddsSubtitleFormat(name))
+	}
+	for lang := msgs.lang; ; lang = i18n.Parent(lang) {
+		if f := supplied[lang].SettingsPluginsAddsSubtitleFormat; f != nil {
+			return f(name)
+		}
+		switch lang {
+		case "", "en":
+			return "Subtitle export format: " + msgs.arg(name)
+		case "ja":
+			return "字幕の書き出し形式：" + name
+		case "ko":
+			return "자막 내보내기 형식: " + name
+		case "zh-Hans":
+			return "字幕导出格式：" + name
+		case "zh-Hant":
+			return "字幕匯出格式：" + name
+		}
+	}
+}
+
+// SettingsPluginsAddsExporter says "Export saved lines to: {name}"
+// in the language the app shows under cx.
+//
+// What a script plugin adds: a target of the saved lines' export.
+func SettingsPluginsAddsExporter(cx *core.Scope, name string) string {
+	return For(cx).SettingsPluginsAddsExporter(name)
+}
+
+// SettingsPluginsAddsExporter is the package's SettingsPluginsAddsExporter in the language of msgs.
+func (msgs Messages) SettingsPluginsAddsExporter(name string) string {
+	if i18n.IsPseudo(msgs.lang) {
+		return i18n.Pseudo(msgs.lang, Messages{lang: Source, mark: true}.SettingsPluginsAddsExporter(name))
+	}
+	for lang := msgs.lang; ; lang = i18n.Parent(lang) {
+		if f := supplied[lang].SettingsPluginsAddsExporter; f != nil {
+			return f(name)
+		}
+		switch lang {
+		case "", "en":
+			return "Export saved lines to: " + msgs.arg(name)
+		case "ja":
+			return "保存したセリフの書き出し先：" + name
+		case "ko":
+			return "저장한 대사 내보내기 대상: " + name
+		case "zh-Hans":
+			return "收藏句子导出到：" + name
+		case "zh-Hant":
+			return "收藏句子匯出到：" + name
+		}
+	}
+}
+
+// SettingsPluginsAddsAnnotator says "Marks on the subtitles: {name}"
+// in the language the app shows under cx.
+//
+// What a script plugin adds: marks over or under the words of the subtitles.
+func SettingsPluginsAddsAnnotator(cx *core.Scope, name string) string {
+	return For(cx).SettingsPluginsAddsAnnotator(name)
+}
+
+// SettingsPluginsAddsAnnotator is the package's SettingsPluginsAddsAnnotator in the language of msgs.
+func (msgs Messages) SettingsPluginsAddsAnnotator(name string) string {
+	if i18n.IsPseudo(msgs.lang) {
+		return i18n.Pseudo(msgs.lang, Messages{lang: Source, mark: true}.SettingsPluginsAddsAnnotator(name))
+	}
+	for lang := msgs.lang; ; lang = i18n.Parent(lang) {
+		if f := supplied[lang].SettingsPluginsAddsAnnotator; f != nil {
+			return f(name)
+		}
+		switch lang {
+		case "", "en":
+			return "Marks on the subtitles: " + msgs.arg(name)
+		case "ja":
+			return "字幕の単語への注記：" + name
+		case "ko":
+			return "자막 단어 표시: " + name
+		case "zh-Hans":
+			return "字幕上的逐词标注：" + name
+		case "zh-Hant":
+			return "字幕上的逐詞標註：" + name
+		}
+	}
+}
+
+// SettingsPluginsCredentials says "Keys"
+// in the language the app shows under cx.
+//
+// Plugin details: heading of the keys of other services a script plugin uses through Kando.
+func SettingsPluginsCredentials(cx *core.Scope) string { return For(cx).SettingsPluginsCredentials() }
+
+// SettingsPluginsCredentials is the package's SettingsPluginsCredentials in the language of msgs.
+func (msgs Messages) SettingsPluginsCredentials() string {
+	return msgs.text(textSettingsPluginsCredentials)
+}
+
+// SettingsPluginsCredentialHosts says "This key is only sent to: {hosts}"
+// in the language the app shows under cx.
+//
+// Under a plugin's key field and in its install confirmation: the hosts Kando sends the key to, and no others.
+func SettingsPluginsCredentialHosts(cx *core.Scope, hosts string) string {
+	return For(cx).SettingsPluginsCredentialHosts(hosts)
+}
+
+// SettingsPluginsCredentialHosts is the package's SettingsPluginsCredentialHosts in the language of msgs.
+func (msgs Messages) SettingsPluginsCredentialHosts(hosts string) string {
+	if i18n.IsPseudo(msgs.lang) {
+		return i18n.Pseudo(msgs.lang, Messages{lang: Source, mark: true}.SettingsPluginsCredentialHosts(hosts))
+	}
+	for lang := msgs.lang; ; lang = i18n.Parent(lang) {
+		if f := supplied[lang].SettingsPluginsCredentialHosts; f != nil {
+			return f(hosts)
+		}
+		switch lang {
+		case "", "en":
+			return "This key is only sent to: " + msgs.arg(hosts)
+		case "ja":
+			return "このキーの送信先は次だけです：" + hosts
+		case "ko":
+			return "이 키는 다음으로만 보내집니다: " + hosts
+		case "zh-Hans":
+			return "此密钥只会发送到：" + hosts
+		case "zh-Hant":
+			return "此金鑰只會傳送到：" + hosts
+		}
+	}
+}
+
+// SettingsPluginsCredentialMismatch says "Its name says {service}, but it sends the key to hosts that are not {service}'s."
+// in the language the app shows under cx.
+//
+// Warning under a plugin's key whose name names a well-known service but whose hosts are not that service's.
+func SettingsPluginsCredentialMismatch(cx *core.Scope, service string) string {
+	return For(cx).SettingsPluginsCredentialMismatch(service)
+}
+
+// SettingsPluginsCredentialMismatch is the package's SettingsPluginsCredentialMismatch in the language of msgs.
+func (msgs Messages) SettingsPluginsCredentialMismatch(service string) string {
+	if i18n.IsPseudo(msgs.lang) {
+		return i18n.Pseudo(msgs.lang, Messages{lang: Source, mark: true}.SettingsPluginsCredentialMismatch(service))
+	}
+	for lang := msgs.lang; ; lang = i18n.Parent(lang) {
+		if f := supplied[lang].SettingsPluginsCredentialMismatch; f != nil {
+			return f(service)
+		}
+		switch lang {
+		case "", "en":
+			return "Its name says " + msgs.arg(service) + ", but it sends the key to hosts that are not " + msgs.arg(service) + "'s."
+		case "ja":
+			return "名前は " + service + " ですが、" + service + " のものではないホストにキーを送ります。"
+		case "ko":
+			return "이름은 " + service + "이지만 " + service + "의 것이 아닌 호스트로 키를 보냅니다."
+		case "zh-Hans":
+			return "它的名字说是 " + service + "，却会把密钥发往不属于 " + service + " 的主机。"
+		case "zh-Hant":
+			return "它的名稱說是 " + service + "，卻會把金鑰傳往不屬於 " + service + " 的主機。"
+		}
+	}
+}
+
+// SettingsPluginsCredentialUnknown says "Kando does not know these hosts. Enter a key only if they are the service's own."
+// in the language the app shows under cx.
+//
+// Warning under a key of a plugin that is not Kando's own, sent to hosts of no service Kando knows.
+func SettingsPluginsCredentialUnknown(cx *core.Scope) string {
+	return For(cx).SettingsPluginsCredentialUnknown()
+}
+
+// SettingsPluginsCredentialUnknown is the package's SettingsPluginsCredentialUnknown in the language of msgs.
+func (msgs Messages) SettingsPluginsCredentialUnknown() string {
+	return msgs.text(textSettingsPluginsCredentialUnknown)
+}
+
+// SavedExportingPlugin says "Sending to {name}…"
+// in the language the app shows under cx.
+//
+// Saved Lines sheet, while the saved lines are sent to a script plugin's export target; name is the plugin's target.
+func SavedExportingPlugin(cx *core.Scope, name string) string {
+	return For(cx).SavedExportingPlugin(name)
+}
+
+// SavedExportingPlugin is the package's SavedExportingPlugin in the language of msgs.
+func (msgs Messages) SavedExportingPlugin(name string) string {
+	if i18n.IsPseudo(msgs.lang) {
+		return i18n.Pseudo(msgs.lang, Messages{lang: Source, mark: true}.SavedExportingPlugin(name))
+	}
+	for lang := msgs.lang; ; lang = i18n.Parent(lang) {
+		if f := supplied[lang].SavedExportingPlugin; f != nil {
+			return f(name)
+		}
+		switch lang {
+		case "", "en":
+			return "Sending to " + msgs.arg(name) + "…"
+		case "ja":
+			return name + " に送信しています…"
+		case "ko":
+			return name + "(으)로 보내는 중…"
+		case "zh-Hans":
+			return "正在发送到 " + name + "…"
+		case "zh-Hant":
+			return "正在傳送到 " + name + "…"
+		}
+	}
+}
+
+// SavedExportPluginFailed says "{name} could not take the lines."
+// in the language the app shows under cx.
+//
+// Saved Lines sheet, once an export to a script plugin's target failed.
+func SavedExportPluginFailed(cx *core.Scope, name string) string {
+	return For(cx).SavedExportPluginFailed(name)
+}
+
+// SavedExportPluginFailed is the package's SavedExportPluginFailed in the language of msgs.
+func (msgs Messages) SavedExportPluginFailed(name string) string {
+	if i18n.IsPseudo(msgs.lang) {
+		return i18n.Pseudo(msgs.lang, Messages{lang: Source, mark: true}.SavedExportPluginFailed(name))
+	}
+	for lang := msgs.lang; ; lang = i18n.Parent(lang) {
+		if f := supplied[lang].SavedExportPluginFailed; f != nil {
+			return f(name)
+		}
+		switch lang {
+		case "", "en":
+			return msgs.arg(name) + " could not take the lines."
+		case "ja":
+			return name + " はセリフを受け取れませんでした。"
+		case "ko":
+			return name + "에서 대사를 받지 못했습니다."
+		case "zh-Hans":
+			return name + " 没能接收这些句子。"
+		case "zh-Hant":
+			return name + " 沒能接收這些句子。"
+		}
+	}
+}
+
+// SavedExportedPlugin says "{name}: {sent, plural, one {sent #} other {sent #}}, {skipped, plural, one {skipped #} other {skipped #}}."
+// in the language the app shows under cx.
+//
+// Saved Lines sheet, once an export to a script plugin's target is done: how many items it sent and how many it skipped, as the plugin answered.
+func SavedExportedPlugin(cx *core.Scope, sent int, skipped int, name string) string {
+	return For(cx).SavedExportedPlugin(sent, skipped, name)
+}
+
+// SavedExportedPlugin is the package's SavedExportedPlugin in the language of msgs.
+func (msgs Messages) SavedExportedPlugin(sent int, skipped int, name string) string {
+	if i18n.IsPseudo(msgs.lang) {
+		return i18n.Pseudo(msgs.lang, Messages{lang: Source, mark: true}.SavedExportedPlugin(sent, skipped, name))
+	}
+	for lang := msgs.lang; ; lang = i18n.Parent(lang) {
+		if f := supplied[lang].SavedExportedPlugin; f != nil {
+			return f(sent, skipped, name)
+		}
+		switch lang {
+		case "", "en":
+			var b strings.Builder
+			b.WriteString(msgs.arg(name))
+			b.WriteString(": ")
+			switch i18n.Cardinal("en", float64(sent)) {
+			case i18n.One:
+				b.WriteString("sent ")
+				b.WriteString(msgs.arg(i18n.FormatNumber("en", float64(sent))))
+			default:
+				b.WriteString("sent ")
+				b.WriteString(msgs.arg(i18n.FormatNumber("en", float64(sent))))
+			}
+			b.WriteString(", ")
+			switch i18n.Cardinal("en", float64(skipped)) {
+			case i18n.One:
+				b.WriteString("skipped ")
+				b.WriteString(msgs.arg(i18n.FormatNumber("en", float64(skipped))))
+			default:
+				b.WriteString("skipped ")
+				b.WriteString(msgs.arg(i18n.FormatNumber("en", float64(skipped))))
+			}
+			b.WriteString(".")
+			return b.String()
+		case "ja":
+			return name + "：" + i18n.FormatNumber("ja", float64(sent)) + " 件送信、" + i18n.FormatNumber("ja", float64(skipped)) + " 件スキップしました。"
+		case "ko":
+			return name + ": " + i18n.FormatNumber("ko", float64(sent)) + "개 보냄, " + i18n.FormatNumber("ko", float64(skipped)) + "개 건너뜀."
+		case "zh-Hans":
+			return name + "：已发送 " + i18n.FormatNumber("zh-Hans", float64(sent)) + " 条，跳过 " + i18n.FormatNumber("zh-Hans", float64(skipped)) + " 条。"
+		case "zh-Hant":
+			return name + "：已傳送 " + i18n.FormatNumber("zh-Hant", float64(sent)) + " 則，略過 " + i18n.FormatNumber("zh-Hant", float64(skipped)) + " 則。"
 		}
 	}
 }

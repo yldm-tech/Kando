@@ -10,7 +10,7 @@ import (
 	"kando/apps/kando/plugins/annotate"
 )
 
-// The marks of the films the paired phones play (docs/plugin-system.md, E2, and the phones' OpFilmMarks, state_phonesync_marks.go): a phone runs no plugin, so the desktop computes the marks of a film's lines for it, as its own player draws them, with the switches of 逐词标注, for a film that is not open as for the one that is. They are computed on demand, off the engine's goroutine, once for each key (pluginsMarkKey, with subs the hash of the lines' originals alone, annotate.LinesHash, as a phone's lines come without the player's times), and kept for the films last asked for, one set per film marked a way; the open film's marks answer when they are of the same lines marked the same way. A line's marks depend on its original alone, so the originals marked before for the same film marked the same way, the open film's or a phone's, are not marked again (pluginsMarksHad): a film whose subtitles are made while it plays (media.Make) has more lines at each ask, and only those are marked; the phone draws each line's marks only over the original they were computed for (psync.LineHash).
+// The marks of the films the paired phones play (docs/plugin-system.md, E2, and the phones' OpFilmMarks, state_phonesync_marks.go): a phone runs no plugin, so the desktop computes the marks of a film's lines for it, as its own player draws them, with the switches of 逐词标注 and the annotators of the script plugins running, for a film that is not open as for the one that is. They are computed on demand, off the engine's goroutine, once for each key (pluginsMarkKey, with subs the hash of the lines' originals alone, annotate.LinesHash, as a phone's lines come without the player's times), and kept for the films last asked for, one set per film marked a way; the open film's marks answer when they are of the same lines marked the same way. A line's marks depend on its original alone, so the originals marked before for the same film marked the same way, the open film's or a phone's, are not marked again (pluginsMarksHad): a film whose subtitles are made while it plays (media.Make) has more lines at each ask, and only those are marked; the phone draws each line's marks only over the original they were computed for (psync.LineHash).
 
 // pluginsPhoneMarks are the marks computed for the phones' films: kept, those of the films last asked for, the latest last, at most pluginsPhoneKept, one per film marked a way; and running, the computation running for each film, by its video, at most one: a newer ask of the film for another key (more lines, or marked another way) stops it (pluginsMarkWait.stop), so a run that ends late never replaces the newer marks.
 type pluginsPhoneMarks struct {
@@ -81,24 +81,34 @@ func (a *app) pluginsMarksFor(video, spoken string, vocab bool, originals []stri
 			if w.stopped || w.stop.Load() {
 				return
 			}
-			m := pluginsMarks{key: key, lines: marks, originals: lines, byOriginal: byOriginal}
-			delete(ph.running, video)
-			// The film's marks before, of fewer lines as while its subtitles are made, give way to these, which hold theirs.
-			ph.kept = slices.DeleteFunc(ph.kept, func(o pluginsMarks) bool { return o.key.sameMarking(key) })
-			ph.kept = append(ph.kept, m)
-			if n := len(ph.kept) - pluginsPhoneKept; n > 0 {
-				ph.kept = slices.Delete(ph.kept, 0, n)
-			}
-			w.marks = m
-			close(w.done)
+			// The script plugins' annotators mark the phone's film too, as they mark the open one (pluginsAnnotate).
+			a.pluginsAnnotate(key, func() bool { return w.stopped || w.stop.Load() }, lines, job.had, marks, byOriginal, func() {
+				if w.stopped || w.stop.Load() {
+					return
+				}
+				m := pluginsMarks{key: key, lines: marks, originals: lines, byOriginal: byOriginal}
+				delete(ph.running, video)
+				// The film's marks before, of fewer lines as while its subtitles are made, give way to these, which hold theirs.
+				ph.kept = slices.DeleteFunc(ph.kept, func(o pluginsMarks) bool { return o.key.sameMarking(key) })
+				ph.kept = append(ph.kept, m)
+				if n := len(ph.kept) - pluginsPhoneKept; n > 0 {
+					ph.kept = slices.Delete(ph.kept, 0, n)
+				}
+				w.marks = m
+				close(w.done)
+			})
 		})
 	}()
 	return pluginsMarks{}, w, pluginsMarksFound
 }
 
-// pluginsMarksReady reports whether what the marks are computed from is read, on the engine's goroutine: with a mark turned on, the plugins folder (scanned) and, for the readings, each dictionary turned on opened or failed to open. Right after the app starts it is not, and marks computed then would lack the word list or the readings.
+// pluginsMarksReady reports whether what the marks are computed from is read, on the engine's goroutine: the script plugins turned on verified and loaded; with a mark turned on, the plugins folder (scanned) and, for the readings, each dictionary turned on opened or failed to open. Right after the app starts it is not, and marks computed then would lack the word list or the readings.
 func (a *app) pluginsMarksReady() bool {
 	p := &a.plugins
+	// The script plugins turned on are verified and loaded first, as their annotators may mark the lines too.
+	if p.scanned && slices.ContainsFunc(a.pluginsScriptPacks(), p.state.EnabledPack) && (p.script.verified == nil || len(p.script.loading) > 0) {
+		return false
+	}
 	if !p.prefs.readings && p.prefs.list == "" && !p.prefs.known {
 		return true
 	}

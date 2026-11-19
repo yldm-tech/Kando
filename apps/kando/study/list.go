@@ -61,6 +61,9 @@ type Export struct {
 	Template, File string
 	// WithSound is whether the export writes the lines' audio: Kando's own notes do, a template only when it has a column for it.
 	WithSound bool
+	// Plugin is the name of the script plugin the export sends the lines to, "" for a file; Sent and Skipped are what it answered it sent and skipped.
+	Plugin        string
+	Sent, Skipped int
 }
 
 // ExportTarget is a way the saved lines can be exported: ID "" for Kando's own Anki notes, else the export-template plugin's id; Label is what the sheet calls it, in the interface's language.
@@ -135,7 +138,7 @@ func (s Sheet) Render(cx *core.Scope) core.Node {
 	footer := core.View{Style: core.Style{Direction: core.Row, Gap: 8, AlignItems: core.AlignCenter, FlexShrink: 0}, Children: []core.Node{
 		exportStatus(cx, export),
 		exportPicker(cx, a),
-		core.Show{When: func() bool { e := export(); return e.Finished && e.Err == "" && !e.Stopped }, Then: func(cx *core.Scope) core.Node {
+		core.Show{When: func() bool { e := export(); return e.Finished && e.Err == "" && !e.Stopped && e.Plugin == "" }, Then: func(cx *core.Scope) core.Node {
 			return textButton(func(cx *core.Scope) string { return locales.FilmShowInFinder(cx, desktop.Platform(cx)) }, ui.Button{Variant: ui.ButtonSecondary, TestID: "saved-export-reveal", OnPress: live.Do(a, a.RevealExport)})
 		}},
 		core.Show{When: func() bool {
@@ -190,6 +193,12 @@ func exportStatus(cx *core.Scope, export func() Export) core.Node {
 	text := func() string {
 		e := export()
 		switch {
+		case e.Busy && e.Plugin != "":
+			return locales.SavedExportingPlugin(cx, e.Plugin)
+		case e.Plugin != "" && e.Finished && e.Err != "":
+			return locales.SavedExportPluginFailed(cx, e.Plugin)
+		case e.Plugin != "" && e.Finished:
+			return locales.SavedExportedPlugin(cx, e.Sent, e.Skipped, e.Plugin)
 		case e.Busy:
 			return locales.SavedExporting(cx, e.Done, e.Total)
 		case !e.Finished:

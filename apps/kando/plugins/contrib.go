@@ -94,9 +94,9 @@ func (c GrantedCredential) equal(o GrantedCredential) bool {
 	return c.ID == o.ID && c.Header == o.Header && c.Format == o.Format && slices.Equal(c.Hosts, o.Hosts) && slices.Equal(c.Methods, o.Methods) && slices.Equal(c.PathPrefixes, o.PathPrefixes)
 }
 
-// Allows reports whether c lets its secret go with a request of method to host and path: host one of its hosts, as written, method one of its methods, and path under one of its prefixes, by whole segments when the prefix does not end in a slash, so /v2/translate takes /v2/translate and /v2/translate/x but not /v2/translated.
+// Allows reports whether c lets its secret go with a request of method to host and path: host one of its hosts, as written, method one of its methods, and path under one of its prefixes, by whole segments when the prefix does not end in a slash, so /v2/translate takes /v2/translate and /v2/translate/x but not /v2/translated; and only a plain path (plainPath), so /v2/translate/../admin is under none.
 func (c GrantedCredential) Allows(method, host, path string) bool {
-	if !slices.Contains(c.Hosts, strings.ToLower(host)) || !slices.Contains(c.Methods, method) {
+	if !slices.Contains(c.Hosts, strings.ToLower(host)) || !slices.Contains(c.Methods, method) || !plainPath(path) {
 		return false
 	}
 	return slices.ContainsFunc(c.PathPrefixes, func(p string) bool {
@@ -105,6 +105,21 @@ func (c GrantedCredential) Allows(method, host, path string) bool {
 		}
 		return strings.HasSuffix(p, "/") || len(path) == len(p) || path[len(p)] == '/' || path[len(p)] == '?'
 	})
+}
+
+// plainPath reports whether path, as a URL writes it, names one place a server cannot read as another: it starts with a slash and has no segment . or .., no empty segment, no escaped slash, backslash or dot, and no backslash, so a path under a prefix stays under it whatever the server makes of it.
+func plainPath(path string) bool {
+	lower := strings.ToLower(path)
+	if !strings.HasPrefix(path, "/") || strings.Contains(path, "\\") || strings.Contains(lower, "%2f") || strings.Contains(lower, "%5c") || strings.Contains(lower, "%2e") {
+		return false
+	}
+	segments := strings.Split(path[1:], "/")
+	for i, s := range segments {
+		if s == "." || s == ".." || s == "" && i < len(segments)-1 {
+			return false
+		}
+	}
+	return true
 }
 
 // Value is the header's value with secret in its place.
@@ -284,11 +299,14 @@ func (m Manifest) ReadsLines() bool {
 	return m.Contributes != nil && (len(m.Contributes.Lookups) > 0 || len(m.Contributes.Annotators) > 0)
 }
 
-// Services is a table of well-known services and the hosts their APIs are on, which a credential that names one of them is expected to be sent to (docs/plugin-system.md 6.3): a plugin whose credential's id or title names DeepL but sends it elsewhere is flagged.
-var Services = []struct {
+// KnownService is a well-known service: its name, in lower case, as a credential's id or title would say it, and the hosts of its API.
+type KnownService struct {
 	Name  string
 	Hosts []string
-}{
+}
+
+// Services is a table of well-known services and the hosts their APIs are on, which a credential that names one of them is expected to be sent to (docs/plugin-system.md 6.3): a plugin whose credential's id or title names DeepL but sends it elsewhere is flagged.
+var Services = []KnownService{
 	{"deepl", []string{"api.deepl.com", "api-free.deepl.com"}},
 	{"notion", []string{"api.notion.com"}},
 	{"openai", []string{"api.openai.com"}},
@@ -320,4 +338,23 @@ func (c Credential) Mismatched() string {
 		}
 	}
 	return ""
+}
+
+// PluginHeader reports whether a plugin may set the header name on a request it sends with a credential whose header is credHeader: a header's name, not the credential's own, and none the request's framing or Kando sets (Host, Cookie and the like), but Content-Type, which a body needs.
+func PluginHeader(name, credHeader string) bool {
+	lower := strings.ToLower(name)
+	if !headerPattern.MatchString(name) || strings.EqualFold(name, credHeader) || strings.HasPrefix(lower, "sec-") || strings.HasPrefix(lower, "proxy-") {
+		return false
+	}
+	return lower == "content-type" || !slices.Contains(credHeaders, lower)
+}
+
+// KnownHosts reports whether every one of hosts is a host of a service of Services.
+func KnownHosts(hosts []string) bool {
+	for _, h := range hosts {
+		if !slices.ContainsFunc(Services, func(s KnownService) bool { return slices.Contains(s.Hosts, h) }) {
+			return false
+		}
+	}
+	return true
 }

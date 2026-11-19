@@ -166,3 +166,12 @@ func soundFor(ctx context.Context, ffmpeg string, b Book, l Line, delay func(vid
 	}
 	return "", nil
 }
+
+// SoundFor writes the sound of l into dir as an export does (SoundName): cut out of its video with ffmpeg, else copied from the sound kept when it was saved, and returns its path, "" when it has none; an error only when ctx stopped. A plugin reading a line's sound (kando.sound.read) takes it this way, as the Anki export does.
+func SoundFor(ctx context.Context, ffmpeg string, b Book, l Line, delay time.Duration, dir string) (string, error) {
+	name, err := soundFor(ctx, ffmpeg, b, l, func(string) time.Duration { return delay }, dir)
+	if name == "" || err != nil {
+		return "", err
+	}
+	return filepath.Join(dir, name), nil
+}

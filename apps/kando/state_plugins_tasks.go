@@ -268,7 +268,7 @@ func (a *app) pluginsSpend(id string, n int) {
 	}
 }
 
-// pluginsSetBudget sets the daily budget of tokens of the task pack id, within plugins.MinBudget and plugins.MaxBudget, in state.json (pluginsApplyState); a pack without an entry keeps the switch it shows.
+// pluginsSetBudget sets the daily budget of tokens of the task pack id, or of the script plugin id that asks the AI service (kando.llm.chat), within plugins.MinBudget and plugins.MaxBudget, in state.json (pluginsApplyState); a pack without an entry keeps the switch it shows.
 func (a *app) pluginsSetBudget(id string, tokens int) {
 	i := slices.IndexFunc(a.plugins.packs, func(p plugins.Pack) bool { return p.ID == id })
 	tokens = min(max(tokens, plugins.MinBudget), plugins.MaxBudget)
@@ -276,6 +276,16 @@ func (a *app) pluginsSetBudget(id string, tokens int) {
 		return
 	}
 	pack := a.plugins.packs[i]
+	if pack.Kind == plugins.KindScript {
+		// A script plugin's entry is for its content and signer (State.GrantEntry): setting its budget turns no content on the user did not.
+		if pack.Signer == "" {
+			return
+		}
+		e := a.plugins.state.GrantEntry(pack)
+		e.Budget = tokens
+		a.pluginsSaveState(a.pluginsNextState(func(s *plugins.State) { s.Set(e) }))
+		return
+	}
 	on := a.plugins.state.EnabledPack(pack)
 	next := a.pluginsNextState(func(s *plugins.State) {
 		e, ok := s.Entry(id)

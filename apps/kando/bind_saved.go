@@ -165,7 +165,7 @@ func (a *app) CancelNote() { a.saved.note, a.saved.draft = "", "" }
 func (a *app) ExportState() study.Export {
 	e := a.saved.export
 	out := study.Export{Busy: e.busy, Finished: e.finished, Done: e.done, Total: e.total, Lines: e.result.Lines, Sounds: e.result.Sounds, NoFFmpeg: e.noFFmpeg,
-		Template: e.template, File: filepath.Base(e.result.File), WithSound: e.sounds}
+		Template: e.template, File: filepath.Base(e.result.File), WithSound: e.sounds, Plugin: e.plugin, Sent: e.sent, Skipped: e.skipped}
 	switch {
 	case errors.Is(e.err, context.Canceled):
 		out.Stopped = true

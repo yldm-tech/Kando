@@ -19,6 +19,8 @@ type App interface {
 	// SubexportChoice is what the user chose to export; SetSubexportChoice changes it.
 	SubexportChoice() Choice
 	SetSubexportChoice(c Choice)
+	// SubexportFormats are the formats the script plugins running add, after Kando's own.
+	SubexportFormats() []Format
 	// SubexportCount is what the export as chosen holds of the open film's lines.
 	SubexportCount() core.ExportCount
 	// SubexportDelay is the open film's subtitle delay, which the export moves its times by while the choice says so.
@@ -40,12 +42,20 @@ type Choice struct {
 	Delay   bool
 }
 
+// Format is a format a script plugin adds to the export: Value, what Choice.Format holds when it is chosen (plugin:<plugin id>:<format id>), and its Label in the interface's language.
+type Format struct {
+	Value, Label string
+}
+
+// PluginPrefix starts the Format of a choice of a plugin's format, which Clean keeps as it is: the app knows whether the plugin is still there.
+const PluginPrefix = "plugin:"
+
 // Default is the dialog's choice before the user changed it: bilingual SubRip, the translation on top, a line without a translation left out, the delay written into the times.
 func Default() Choice {
 	return Choice{Format: core.FormatSRT, Content: core.SubBilingual, Order: core.SubTranslationFirst, Missing: core.MissingSkip, Delay: true}
 }
 
-// Clean is c with each value one the dialog offers, Default's in place of one it does not, as a choice read back from settings.json may hold.
+// Clean is c with each value one the dialog offers, Default's in place of one it does not, as a choice read back from settings.json may hold; a plugin's format is kept as it is (PluginPrefix).
 func (c Choice) Clean() Choice {
 	d := Default()
 	pick := func(v, def string, allowed ...string) string {
@@ -56,7 +66,9 @@ func (c Choice) Clean() Choice {
 		}
 		return def
 	}
-	c.Format = pick(c.Format, d.Format, core.FormatSRT, core.FormatVTT, core.FormatASS)
+	if !strings.HasPrefix(c.Format, PluginPrefix) {
+		c.Format = pick(c.Format, d.Format, core.FormatSRT, core.FormatVTT, core.FormatASS)
+	}
 	c.Content = pick(c.Content, d.Content, core.SubOriginal, core.SubTranslation, core.SubBilingual)
 	c.Order = pick(c.Order, d.Order, core.SubTranslationFirst, core.SubOriginalFirst)
 	c.Missing = pick(c.Missing, d.Missing, core.MissingSkip, core.MissingPlaceholder, core.MissingOriginal)
@@ -72,8 +84,13 @@ func (c Choice) Export(delay time.Duration, placeholder string) core.Export {
 	return e
 }
 
-// FileName is the name of the file c exports of the video named video: the video's name without its extension, what the file holds (original, translation, or dual for both) and the format's extension, as "video.dual.srt". The names never take one of those Kando keeps a film's subtitles under (<video>.srt, <video>.kando.srt, <video>.bilingual.srt), which an export must not overwrite: the corrections would then be laid over lines that already hold them.
+// FileName is the name of the file c exports of the video named video: the video's name without its extension, what the file holds (original, translation, or dual for both) and the format's extension, as "video.dual.srt"; a plugin's format has its own (FileNameExt). The names never take one of those Kando keeps a film's subtitles under (<video>.srt, <video>.kando.srt, <video>.bilingual.srt), which an export must not overwrite: the corrections would then be laid over lines that already hold them.
 func (c Choice) FileName(video string) string {
+	return c.FileNameExt(video, core.Export{Format: c.Format}.Ext())
+}
+
+// FileNameExt is FileName with the extension ext, its dot included.
+func (c Choice) FileNameExt(video, ext string) string {
 	base := strings.TrimSuffix(filepath.Base(video), filepath.Ext(video))
 	tag := "dual"
 	switch c.Content {
@@ -82,7 +99,7 @@ func (c Choice) FileName(video string) string {
 	case core.SubTranslation:
 		tag = "translation"
 	}
-	return base + "." + tag + core.Export{Format: c.Format}.Ext()
+	return base + "." + tag + ext
 }
 
 // Write writes data to path through a hidden file beside it, renamed over it once written, so path holds either what it held before or all of data.

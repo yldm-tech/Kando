@@ -8,6 +8,7 @@ import (
 	"kando/apps/kando/film"
 	"kando/apps/kando/lines"
 	"kando/apps/kando/plugins"
+	"kando/apps/kando/saved"
 	"kando/packages/core"
 
 	"github.com/nsgo-dev/nsgo/base"
@@ -38,6 +39,9 @@ func (a *app) pluginsHost(id string, host *ns.Host) {
 		plugins.PermLinesSeen:   a.pluginsLinesSeen,
 		plugins.PermSavedRead:   a.pluginsSavedRead,
 		plugins.PermWordsRead:   a.pluginsWordsRead,
+		plugins.PermSoundRead:   a.pluginsSoundRead,
+		plugins.PermLLMChat:     a.pluginsLLMChat,
+		plugins.PermCredFetch:   a.pluginsCredentialFetch,
 		plugins.PermToast:       a.pluginsToastCall,
 		plugins.PermOpenURL:     a.pluginsOpenURLCall,
 		plugins.PermSettingsGet: a.pluginsSettingsGet,
@@ -152,11 +156,21 @@ func (a *app) pluginsSavedRead(l *pluginsScript, c *ns.HostCall) {
 	book := a.savedBook()
 	out := []any{}
 	for i := len(book.Lines) - 1; i >= 0 && len(out) < pluginsArg(c, "limit", pluginsListMax, pluginsListMax); i-- {
-		line := book.Lines[i]
-		out = append(out, map[string]any{"id": line.ID, "film": a.pluginsFilmID(l, line.Video), "title": line.Film, "original": line.Original, "translation": line.Translation,
-			"note": line.Note, "startMs": line.Start.Milliseconds(), "endMs": line.End.Milliseconds(), "savedAt": line.SavedAt.UnixMilli()})
+		out = append(out, a.pluginsSavedLine(l, book.Lines[i]))
 	}
 	c.Resolve(out)
+}
+
+// pluginsSavedLine is the saved line as the plugin l reads it: the id of its film for this plugin, never its path.
+func (a *app) pluginsSavedLine(l *pluginsScript, line saved.Line) map[string]any {
+	return map[string]any{"id": line.ID, "film": a.pluginsFilmID(l, line.Video), "title": line.Film, "original": line.Original, "translation": line.Translation,
+		"note": line.Note, "startMs": line.Start.Milliseconds(), "endMs": line.End.Milliseconds(), "savedAt": line.SavedAt.UnixMilli()}
+}
+
+// pluginsWord is the word of the vocabulary as the plugin l reads it.
+func (a *app) pluginsWord(l *pluginsScript, w saved.Word) map[string]any {
+	return map[string]any{"id": w.ID, "text": w.Text, "spoken": w.Spoken, "reading": w.Reading, "meaning": w.Meaning, "language": w.Language,
+		"context": w.Context, "contextTranslation": w.ContextTranslation, "film": a.pluginsFilmID(l, w.Video), "title": w.Film, "savedAt": w.SavedAt.UnixMilli()}
 }
 
 // pluginsWordsRead answers kando.words.read: the words of the vocabulary, the newest first, limit of them (at most pluginsListMax).
@@ -164,9 +178,7 @@ func (a *app) pluginsWordsRead(l *pluginsScript, c *ns.HostCall) {
 	book := a.savedBook()
 	out := []any{}
 	for i := len(book.Words) - 1; i >= 0 && len(out) < pluginsArg(c, "limit", pluginsListMax, pluginsListMax); i-- {
-		w := book.Words[i]
-		out = append(out, map[string]any{"id": w.ID, "text": w.Text, "spoken": w.Spoken, "reading": w.Reading, "meaning": w.Meaning, "language": w.Language,
-			"context": w.Context, "contextTranslation": w.ContextTranslation, "film": a.pluginsFilmID(l, w.Video), "title": w.Film, "savedAt": w.SavedAt.UnixMilli()})
+		out = append(out, a.pluginsWord(l, book.Words[i]))
 	}
 	c.Resolve(out)
 }

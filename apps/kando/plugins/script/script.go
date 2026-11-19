@@ -65,6 +65,9 @@ type Roots struct {
 	Official, Dev ed25519.PublicKey
 }
 
+// RevocationsURL is where the revocation list of the plugins' roots is published, beside the appcasts of Kando's latest release (nsgo.yaml's release, whose feed NSGo's updater reads): a file go tool nsgo revoke writes, which the app fetches once a day (docs/plugin-system.md 6.4). Until one is published the address answers 404, which is no list.
+const RevocationsURL = "https://github.com/yldm-tech/Kando/releases/latest/download/kando-plugin-revocations.json"
+
 // DefaultRoots are the official root and the developer root dev, nil while developer mode is off.
 func DefaultRoots(dev ed25519.PublicKey) Roots { return Roots{Official: officialRoot, Dev: dev} }
 
@@ -241,7 +244,9 @@ func checkSigned(info pkg.Info, m plugins.Manifest) error {
 	if !reflect.ValueOf(rest).IsZero() {
 		return fmt.Errorf("%w: it signed more than host and network", plugins.ErrBadCapabilities)
 	}
+	// The credentials are Kando's to send, not a capability of the package: what it signed is its permissions and HTTP rules alone.
 	declared := m.Declared()
+	declared.Credentials = nil
 	signed := plugins.Grant{}
 	for _, h := range c.Host {
 		signed.Perms = append(signed.Perms, plugins.Perm(h))

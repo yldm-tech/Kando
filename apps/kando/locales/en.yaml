@@ -7721,6 +7721,77 @@ settingsPluginsConflicts:
   description: "Plugin details: commands whose shortcut keys Kando's own shortcuts take."
   placeholders:
     commands: { type: "String", example: "Send to Anki" }
+settingsPluginsPermSoundRead:
+  message: "Read the sound of a saved line or of the line playing"
+  description: "Permission of a script plugin: the audio clip of a line, cut with ffmpeg."
+settingsPluginsPermLLMChat:
+  message: "Ask your AI service, within its daily budget of tokens"
+  description: "Permission of a script plugin: it asks the user's AI service through Kando, which counts the tokens against the plugin's daily budget."
+settingsPluginsPermCredFetch:
+  message: "Send requests with the keys you enter below, only to the hosts listed with them"
+  description: "Permission of a script plugin: requests Kando sends with a key the user gave Kando for the plugin."
+settingsPluginsNoSecretStore:
+  message: "Turned off: this computer has no secure store for the plugin's keys"
+  description: "Plugins page: why a script plugin with credentials does not run, on Linux without a Secret Service."
+settingsPluginsRevocationsStale:
+  message: "Paused: Kando could not check recently whether this plugin was withdrawn"
+  description: "Plugins page: why a non-official script plugin that reaches the network is paused while the revocation list is out of date."
+settingsPluginsAdds:
+  message: "Adds"
+  description: "Plugin details and install confirmation: heading of what a script plugin adds to Kando."
+settingsPluginsAddsLookup:
+  message: "Word lookups: {name}"
+  description: "What a script plugin adds: a source of word lookups, asked after the dictionaries."
+  placeholders:
+    name: { type: "String", example: "Wiktionary" }
+settingsPluginsAddsSubtitleFormat:
+  message: "Subtitle export format: {name}"
+  description: "What a script plugin adds: a format of the subtitle export."
+  placeholders:
+    name: { type: "String", example: "LRC" }
+settingsPluginsAddsExporter:
+  message: "Export saved lines to: {name}"
+  description: "What a script plugin adds: a target of the saved lines' export."
+  placeholders:
+    name: { type: "String", example: "Anki (AnkiConnect)" }
+settingsPluginsAddsAnnotator:
+  message: "Marks on the subtitles: {name}"
+  description: "What a script plugin adds: marks over or under the words of the subtitles."
+  placeholders:
+    name: { type: "String", example: "Pitch accent" }
+settingsPluginsCredentials:
+  message: "Keys"
+  description: "Plugin details: heading of the keys of other services a script plugin uses through Kando."
+settingsPluginsCredentialHosts:
+  message: "This key is only sent to: {hosts}"
+  description: "Under a plugin's key field and in its install confirmation: the hosts Kando sends the key to, and no others."
+  placeholders:
+    hosts: { type: "String", example: "api-free.deepl.com, api.deepl.com" }
+settingsPluginsCredentialMismatch:
+  message: "Its name says {service}, but it sends the key to hosts that are not {service}'s."
+  description: "Warning under a plugin's key whose name names a well-known service but whose hosts are not that service's."
+  placeholders:
+    service: { type: "String", example: "deepl" }
+settingsPluginsCredentialUnknown:
+  message: "Kando does not know these hosts. Enter a key only if they are the service's own."
+  description: "Warning under a key of a plugin that is not Kando's own, sent to hosts of no service Kando knows."
+savedExportingPlugin:
+  message: "Sending to {name}…"
+  description: "Saved Lines sheet, while the saved lines are sent to a script plugin's export target; name is the plugin's target."
+  placeholders:
+    name: { type: "String", example: "AnkiConnect" }
+savedExportPluginFailed:
+  message: "{name} could not take the lines."
+  description: "Saved Lines sheet, once an export to a script plugin's target failed."
+  placeholders:
+    name: { type: "String", example: "AnkiConnect" }
+savedExportedPlugin:
+  message: "{name}: {sent, plural, one {sent #} other {sent #}}, {skipped, plural, one {skipped #} other {skipped #}}."
+  description: "Saved Lines sheet, once an export to a script plugin's target is done: how many items it sent and how many it skipped, as the plugin answered."
+  placeholders:
+    sent: { type: "int", example: "12" }
+    skipped: { type: "int", example: "0" }
+    name: { type: "String", example: "AnkiConnect" }
 settingsPluginsStoppedInit:
   message: "Turned off: it failed as it started"
   description: "Plugins page: why Kando turned a script plugin off."

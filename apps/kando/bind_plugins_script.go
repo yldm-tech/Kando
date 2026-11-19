@@ -36,6 +36,16 @@ func (a *app) pluginsScriptView(m locales.Messages, p plugins.Pack, installing b
 		out.Perms = append(out.Perms, settings.PluginPerm{ID: pluginsNetwork, Text: m.SettingsPluginsPermNetwork(plugins.RulesText(declared.Network)), Granted: len(granted.Network) > 0})
 	}
 	out.Risky = plugins.Risky(p.Manifest, declared)
+	out.Adds = pluginsAddsText(m, p.Manifest)
+	for _, c := range p.Credentials {
+		pc := settings.PluginCredential{Key: plugins.SecretKey(c.ID), Title: c.Title.In(m.Language()), Hosts: strings.Join(c.Hosts, ", ")}
+		if service := c.Mismatched(); service != "" {
+			pc.Warning = m.SettingsPluginsCredentialMismatch(service)
+		} else if p.Source != plugins.SourceOfficial && !plugins.KnownHosts(c.Hosts) {
+			pc.Warning = m.SettingsPluginsCredentialUnknown()
+		}
+		out.Credentials = append(out.Credentials, pc)
+	}
 	if !installing {
 		out.Problem = a.pluginsScriptProblem(m, p)
 		if a.cx != nil && s.loaded[p.ID] != nil {
@@ -63,6 +73,12 @@ func (a *app) pluginsScriptProblem(m locales.Messages, p plugins.Pack) string {
 	}
 	if h, ok := plugins.HealthOf(s.health, p.ID, p.Hash); ok {
 		return pluginsHealthText(m, h.Reason)
+	}
+	if s.noSecrets && len(p.Credentials) > 0 {
+		return m.SettingsPluginsNoSecretStore()
+	}
+	if a.pluginsStale(p) {
+		return m.SettingsPluginsRevocationsStale()
 	}
 	return ""
 }
@@ -101,8 +117,37 @@ func pluginsPermText(m locales.Messages, perm plugins.Perm) string {
 		return m.SettingsPluginsPermToast()
 	case plugins.PermOpenURL:
 		return m.SettingsPluginsPermOpenURL()
+	case plugins.PermSoundRead:
+		return m.SettingsPluginsPermSoundRead()
+	case plugins.PermLLMChat:
+		return m.SettingsPluginsPermLLMChat()
+	case plugins.PermCredFetch:
+		return m.SettingsPluginsPermCredFetch()
 	}
 	return m.SettingsPluginsPermSettingsGet()
+}
+
+// pluginsAddsText is what the script plugin m adds besides its commands, a line each, in the words of m.
+func pluginsAddsText(msgs locales.Messages, m plugins.Manifest) []string {
+	c := m.Contributes
+	if c == nil {
+		return nil
+	}
+	lang := msgs.Language()
+	var out []string
+	for _, x := range c.Lookups {
+		out = append(out, msgs.SettingsPluginsAddsLookup(x.Label.In(lang)))
+	}
+	for _, x := range c.SubtitleFormats {
+		out = append(out, msgs.SettingsPluginsAddsSubtitleFormat(x.Label.In(lang)))
+	}
+	for _, x := range c.Exporters {
+		out = append(out, msgs.SettingsPluginsAddsExporter(x.Label.In(lang)))
+	}
+	for _, x := range c.Annotators {
+		out = append(out, msgs.SettingsPluginsAddsAnnotator(x.Label.In(lang)))
+	}
+	return out
 }
 
 func (a *app) SetPluginGrant(id, perm string, on bool) { a.pluginsSetGrant(id, perm, on) }

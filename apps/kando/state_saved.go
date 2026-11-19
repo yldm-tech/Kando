@@ -59,6 +59,9 @@ type savedExport struct {
 	template string
 	// sounds is whether the export writes the lines' sound: Kando's own notes do, a template only with {{sound}} (saved.Target.Sounds).
 	sounds bool
+	// plugin is the name of the script plugin the export sends to, "" for a file; sent and skipped are what it answered it sent and skipped (pluginsExportTo).
+	plugin        string
+	sent, skipped int
 }
 
 func newSavedUI() savedUI { return savedUI{now: time.Now, keeping: map[string]bool{}} }
@@ -286,6 +289,10 @@ func (a *app) ExportSaved() {
 	}
 	a.savedSync()
 	a.OpenSavedSheet()
+	if e, ok := a.pluginsExporter(a.plugins.exportTarget); ok {
+		a.pluginsExportTo(e)
+		return
+	}
 	a.pickFolder(core.PickDirectoriesOptions{}, func(dir string) {
 		a.savedStopExport()
 		ctx, cancel := context.WithCancel(context.Background())
@@ -321,5 +328,10 @@ func (a *app) savedStopExport() {
 	if a.saved.export.cancel != nil {
 		a.saved.export.cancel()
 		a.saved.export.cancel = nil
+	}
+	// An export to a plugin's target cannot be called back: what the plugin answers is dropped, and the sheet says it stopped (pluginsExportTo).
+	if e := a.saved.export; e.busy && e.plugin != "" {
+		a.saved.export.gen++
+		a.saved.export = savedExport{finished: true, err: context.Canceled, plugin: e.plugin, gen: a.saved.export.gen}
 	}
 }

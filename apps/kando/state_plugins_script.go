@@ -5,6 +5,7 @@ import (
 	"crypto/ed25519"
 	"errors"
 	"maps"
+	"net/http"
 	"os"
 	"path/filepath"
 	"slices"
@@ -25,7 +26,7 @@ import (
 
 // Script plugins (docs/plugin-system.md P3): signed TSX packages, installed as the data packs are, which run sandboxed (plugins/script) once the user turned them on, with what the user granted on their details. After each read of the plugins folder their packages are verified off the UI thread against Kando's official root and, in developer mode, the developer key of this computer (pluginsVerify); then the plugins turned on are loaded one per update, each after its code said again what it is (script.Probe), each with a host of its own whose handlers check, at every call, what it may do now (State.Effective): what the user granted, while the library is not locked and, for the network, while Kando is not offline. Their calls run one at a time under a watchdog (script.Runner), which turns off a plugin that keeps the window from answering, holds too much memory or fails too often, and records why in health.json; a call still running when Kando stopped turns its plugin off at the next start (in-flight marks). What they add: commands (pluginKeys), and they hear film.opened, job.completed and llm.changed. Every install, grant, switch, stop and confirmation goes into plugins/audit.log.
 
-// pluginsScripts is the script plugins' part of the plugins' state (pluginsUI.script). trust verifies them, made once the developer key is read (devRead), with the developer root (dev) in developer mode, again when that changes; trustErr is why it could not be opened. verified are the packages verified, by id, for the content hash of each, and issues why the others were refused; verifyGen counts the verifications, so only the last one's answer is kept. loaded are the plugins running, by id, and loading the ids to load, one per update. health is health.json, which the plugins Kando turned off are in. runner calls them; watch is its watchdog's, which the tests set. calls are each plugin's host calls of the last minute, for its quota. toaster shows their toasts, and toasting is set once one showed. opened is the film film.opened was last sent for, jobs the stages of the jobs as job.completed last saw them. asking is set while a page a plugin asked to open waits for the user's answer. filmKey is the secret the films' ids for the plugins are derived from. values are the plugins' settings, by id; secrets which of their secret settings are kept, by id and key. started is set once the first verification started, which reads health.json and the in-flight marks; developer is developer mode (savedPlugins.PluginDeveloper). keying is set while pluginsConflicts reads the shortcuts without the plugins'. saves counts the saves of state.json pluginsSaveState started. official stands in for Kando's official root in the tests, which sign their plugins with roots of their own; nil otherwise. Engine's goroutine only.
+// pluginsScripts is the script plugins' part of the plugins' state (pluginsUI.script). trust verifies them, made once the developer key is read (devRead), with the developer root (dev) in developer mode, again when that changes; trustErr is why it could not be opened. verified are the packages verified, by id, for the content hash of each, and issues why the others were refused; verifyGen counts the verifications, so only the last one's answer is kept. loaded are the plugins running, by id, and loading the ids to load, one per update. health is health.json, which the plugins Kando turned off are in. runner calls them; watch is its watchdog's, which the tests set. calls are each plugin's host calls of the last minute, for its quota. toaster shows their toasts, and toasting is set once one showed. opened is the film film.opened was last sent for, jobs the stages of the jobs as job.completed last saw them. asking is set while a page a plugin asked to open waits for the user's answer. filmKey is the secret the films' ids for the plugins are derived from. values are the plugins' settings, by id; secrets which of their secret settings are kept, by id and key. started is set once the first verification started, which reads health.json and the in-flight marks; developer is developer mode (savedPlugins.PluginDeveloper). keying is set while pluginsConflicts reads the shortcuts without the plugins'. saves counts the saves of state.json pluginsSaveState started. official stands in for Kando's official root in the tests, which sign their plugins with roots of their own; nil otherwise. waiting are the host calls waiting outside the engine, by plugin and kind (pluginsWaiting); client is what the credentials' requests go through, which the tests set (pluginsHTTPClient); noSecrets is set once the system's secure store turned out to be missing, as on Linux without a Secret Service, which keeps the plugins with credentials off; contrib is the state of what the plugins contribute besides commands (state_plugins_contrib.go). revoking is set while the revocation list is fetched, and revokedAt is when it was last fetched (state_plugins_revoke.go). Engine's goroutine only.
 type pluginsScripts struct {
 	trust     *pkg.Trust
 	trustErr  error
@@ -54,6 +55,14 @@ type pluginsScripts struct {
 	keying    bool
 	official  ed25519.PublicKey
 	saves     int
+	waiting   map[string]bool
+	client    *http.Client
+	noSecrets bool
+	contrib   pluginsContrib
+	revoking  bool
+	revokedAt time.Time
+	// revocationsURL stands in for script.RevocationsURL in the tests.
+	revocationsURL string
 }
 
 // pluginsScript is a script plugin running: its pack, its package as verified, the plugin the runner calls, its own host and what it was granted as it loaded.
@@ -211,6 +220,7 @@ func (a *app) pluginsVerified(verified map[string]script.Verified, issues []plug
 			a.pluginsAudit(plugins.AuditRevoked, filepath.Base(issue.Dir), "")
 		}
 	}
+	a.pluginsCheckRevocations()
 }
 
 // pluginsRoots are the roots the trust takes: Kando's official root, and the developer root in developer mode.
@@ -289,7 +299,7 @@ func (a *app) pluginsScriptsSync() {
 	}
 }
 
-// pluginsRunnable reports whether the script plugin p is to run: verified for its content, turned on for it and its signer, and not turned off by Kando for it.
+// pluginsRunnable reports whether the script plugin p is to run: verified for its content, turned on for it and its signer, not turned off by Kando for it, for one with credentials, while the system has a secure store to keep them in (docs/plugin-system.md 6.3), and not paused for a revocation list out of date (pluginsStale).
 func (a *app) pluginsRunnable(p plugins.Pack) bool {
 	s := &a.plugins.script
 	v, ok := s.verified[p.ID]
@@ -297,7 +307,7 @@ func (a *app) pluginsRunnable(p plugins.Pack) bool {
 		return false
 	}
 	_, sick := plugins.HealthOf(s.health, p.ID, p.Hash)
-	return !sick
+	return !sick && !(s.noSecrets && len(p.Credentials) > 0) && !a.pluginsStale(p)
 }
 
 // pluginsEffective is what the script plugin p may do now (plugins.State.Effective): its grant, while Kando is online for the network and the library is not locked for what reads it.
@@ -549,6 +559,13 @@ func (a *app) pluginsSetGrant(id, perm string, on bool) {
 		if on && declared.Has(pp) {
 			g.Perms = append(g.Perms, pp)
 		}
+		// The credentials go with credentialFetch, each as it is declared now.
+		if pp == plugins.PermCredFetch {
+			g.Credentials = nil
+			if on {
+				g.Credentials = slices.Clone(declared.Credentials)
+			}
+		}
 	}
 	e.Grant, e.OldHash = g, ""
 	a.pluginsSaveState(a.pluginsNextState(func(st *plugins.State) { st.Set(e) }))
@@ -564,12 +581,7 @@ func (a *app) pluginsForgetPartitions(p plugins.Pack, signer string) {
 		return
 	}
 	script.ClearStorage(a.cx, p.ID, signer)
-	var keys []string
-	for _, st := range p.Settings {
-		if st.Type == plugins.SettingSecret {
-			keys = append(keys, st.Key)
-		}
-	}
+	keys := pluginsSecretKeys(p)
 	delete(a.plugins.script.secrets, p.ID)
 	if len(keys) == 0 {
 		return
@@ -580,6 +592,20 @@ func (a *app) pluginsForgetPartitions(p plugins.Pack, signer string) {
 			secrets.Delete(k)
 		}
 	}()
+}
+
+// pluginsSecretKeys are the keys of what Kando keeps for the plugin p in its host partition: its secret settings' and its credentials' (plugins.SecretKey).
+func pluginsSecretKeys(p plugins.Pack) []string {
+	var keys []string
+	for _, st := range p.Settings {
+		if st.Type == plugins.SettingSecret {
+			keys = append(keys, st.Key)
+		}
+	}
+	for _, c := range p.Credentials {
+		keys = append(keys, plugins.SecretKey(c.ID))
+	}
+	return keys
 }
 
 // pluginsHostSecrets is the secure store's partition where Kando keeps the secrets of the plugin id signed by signer (script.HostPartition), which its own code cannot reach.
@@ -600,23 +626,25 @@ func (a *app) pluginsLoadValues(p plugins.Pack) {
 	if root == "" || a.cx == nil {
 		return
 	}
-	var secretKeys []string
-	for _, st := range p.Settings {
-		if st.Type == plugins.SettingSecret {
-			secretKeys = append(secretKeys, st.Key)
-		}
-	}
+	secretKeys := pluginsSecretKeys(p)
 	id := p.ID
 	secrets, update := a.pluginsHostSecrets(id, p.Signer), a.update
 	go func() {
 		values, _ := plugins.LoadValues(root, id)
 		kept := map[string]bool{}
+		missing := false
 		for _, k := range secretKeys {
-			_, ok, _ := secrets.Get(k)
+			_, ok, err := secrets.Get(k)
 			kept[k] = ok
+			missing = missing || errors.Is(err, ns.ErrSecretsUnavailable)
 		}
 		update(func() {
 			s := &a.plugins.script
+			if missing && !s.noSecrets {
+				// Without a secure store a plugin's credentials could only be kept in plain files, which Kando never does: the plugins that have some stay off (pluginsRunnable).
+				s.noSecrets = true
+				a.pluginsScriptsSync()
+			}
 			if s.values == nil {
 				s.values = map[string]plugins.Values{}
 			}
@@ -687,7 +715,7 @@ func (a *app) pluginsSetSecret(id, key, value string) {
 		return
 	}
 	p := a.plugins.packs[i]
-	if !slices.ContainsFunc(p.Settings, func(s plugins.Setting) bool { return s.Key == key && s.Type == plugins.SettingSecret }) {
+	if !slices.Contains(pluginsSecretKeys(p), key) {
 		return
 	}
 	secrets, update := a.pluginsHostSecrets(id, p.Signer), a.update

@@ -148,6 +148,7 @@ func (a *app) pluginsHooks() areaHooks {
 		becameActive: func() {
 			if a.plugins.scanned {
 				a.pluginsCheckInbox()
+				a.pluginsCheckRevocations()
 			}
 		},
 		quitStarting: func() {

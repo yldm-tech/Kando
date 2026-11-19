@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"kando/apps/kando/locales"
+	"kando/apps/kando/plugins"
 	"kando/apps/kando/subexport"
 	"kando/packages/core"
 	"kando/packages/media"
@@ -105,7 +106,54 @@ func (a *app) OpenSubexport() {
 
 func (a *app) SubexportOpen() bool { return a.export.open }
 
-func (a *app) SubexportChoice() subexport.Choice { return a.export.choice }
+// SubexportChoice is what the user chose, with SubRip in place of a plugin's format that is not running now.
+func (a *app) SubexportChoice() subexport.Choice {
+	c := a.export.choice
+	if _, ok := a.pluginsSubtitleFormat(c.Format); strings.HasPrefix(c.Format, subexport.PluginPrefix) && !ok {
+		c.Format = core.FormatSRT
+	}
+	return c
+}
+
+// SubexportFormats are the subtitle formats of the script plugins running, each labelled with its plugin's label in the interface's language (subexport.App).
+func (a *app) SubexportFormats() []subexport.Format {
+	m := a.messages()
+	var out []subexport.Format
+	for _, f := range a.pluginsSubtitleFormats() {
+		out = append(out, subexport.Format{Value: pluginsContribID(f.id, f.of.ID), Label: f.of.Label.In(m.Language())})
+	}
+	return out
+}
+
+// subexportData makes the export the user chose and has done hear it on the engine's goroutine: Kando's own formats at once (core.Export.Write), a plugin's from its exportSubtitles(formatID, cues), given the cues Kando's own would write (plugins.CueValues); err when the plugin failed, is not running, or returned something that is not a file's text.
+func (a *app) subexportData(done func(data []byte, err error)) {
+	e, lines := a.subexportAs(), a.subexportLines()
+	f, ok := a.pluginsSubtitleFormat(a.SubexportChoice().Format)
+	if !ok {
+		done(e.Write(lines), nil)
+		return
+	}
+	if a.plugins.script.contrib.formatting {
+		return
+	}
+	a.plugins.script.contrib.formatting = true
+	a.pluginsContribCall(f.id, f.of.Export, []any{f.of.ID, plugins.CueValues(e.Cues(lines))}, func(v any, err error) {
+		a.plugins.script.contrib.formatting = false
+		defer a.Changed()
+		text, ok := plugins.SubtitlesText(v)
+		if err == nil && !ok {
+			err = errPluginsBadSubtitles
+		}
+		if err != nil {
+			done(nil, err)
+			return
+		}
+		done([]byte(text), nil)
+	})
+}
+
+// errPluginsBadSubtitles is a subtitle format of a plugin that returned something other than a file's text.
+var errPluginsBadSubtitles = errors.New("the plugin's subtitle format returned no text")
 
 // SetSubexportChoice keeps c as the choice and saves it.
 func (a *app) SetSubexportChoice(c subexport.Choice) {
@@ -128,7 +176,11 @@ func (a *app) SubexportPath() string {
 	if video == "" || !a.subexportCan() {
 		return ""
 	}
-	return filepath.Join(filepath.Dir(video), a.export.choice.FileName(video))
+	c := a.SubexportChoice()
+	if f, ok := a.pluginsSubtitleFormat(c.Format); ok {
+		return filepath.Join(filepath.Dir(video), c.FileNameExt(video, "."+f.of.Extension))
+	}
+	return filepath.Join(filepath.Dir(video), c.FileName(video))
 }
 
 // CloseSubexport closes the dialog and gives back the window's modal flag.
@@ -139,18 +191,23 @@ func (a *app) CloseSubexport() {
 	a.export.open, a.export.release = false, nil
 }
 
-// SubexportToFolder writes the export beside the film's video, closes the dialog and says on the picture what it wrote, or why it could not.
+// SubexportToFolder writes the export beside the film's video, closes the dialog and says on the picture what it wrote, or why it could not; a plugin's format waits for the plugin first (subexportData).
 func (a *app) SubexportToFolder() {
 	path := a.SubexportPath()
 	if path == "" {
 		return
 	}
-	if err := subexport.Write(path, a.subexportAs().Write(a.subexportLines())); err != nil {
-		a.flash(a.messages().SubexportFailed())
-		return
-	}
-	a.CloseSubexport()
-	a.flash(a.messages().SubexportDone(filepath.Base(path)))
+	a.subexportData(func(data []byte, err error) {
+		if err == nil {
+			err = subexport.Write(path, data)
+		}
+		if err != nil {
+			a.flash(a.messages().SubexportFailed())
+			return
+		}
+		a.CloseSubexport()
+		a.flash(a.messages().SubexportDone(filepath.Base(path)))
+	})
 }
 
 // SubexportSaveAs asks where to save the export, under the name it takes in the film's folder, and closes the dialog once it is saved. The system's dialog writes the file itself, so a save under one of the names Kando keeps the film's subtitles under, which would then lay the corrections over lines already holding them, is undone (subexportUndo).
@@ -159,7 +216,17 @@ func (a *app) SubexportSaveAs() {
 	if path == "" || a.cx == nil {
 		return
 	}
-	data := a.subexportAs().Write(a.subexportLines())
+	a.subexportData(func(data []byte, err error) {
+		if err != nil {
+			a.flash(a.messages().SubexportFailed())
+			return
+		}
+		a.subexportSave(path, data)
+	})
+}
+
+// subexportSave asks where to save data, the export, under the name of path, as SubexportSaveAs does.
+func (a *app) subexportSave(path string, data []byte) {
 	video := a.subexportVideo()
 	kept := subexportKeep(video, a.player.subs.path)
 	busy := a.subexportJobRunning()
