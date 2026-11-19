@@ -115,7 +115,7 @@ func (p *play) say(kind, title string) {
 func newPlay(cx *core.Scope, s *session.Session, key string) *play {
 	f, _ := s.Film(key)
 	p := &play{cx: cx, s: s, key: key, ref: &core.Ref{},
-		playing:      core.NewSignal(cx, true),
+		playing:      core.NewSignal(cx, f.HasVideo()),
 		at:           core.NewSignal(cx, time.Duration(f.PositionMS)*time.Millisecond),
 		length:       core.NewSignal(cx, time.Duration(f.Film.DurationMS)*time.Millisecond),
 		aspect:       core.NewSignal(cx, float32(16.0/9)),
@@ -180,6 +180,21 @@ func newPlay(cx *core.Scope, s *session.Session, key string) *play {
 	})
 	cx.Cleanup(p.save)
 	return p
+}
+
+// hasVideo reports whether the film has a video to play: on the phone, or for a film kept to stream (streamed) in its computer's storage. A film kept by its lines alone is studied line by line, holding still, until it has. Read it in a binding.
+func (p *play) hasVideo() bool {
+	if p.streamed() {
+		return p.s.StreamLink(p.key) != ""
+	}
+	f, ok := p.s.Film(p.key)
+	return ok && f.HasVideo()
+}
+
+// streamed reports whether the film is kept to play from its computer's storage, away from its network, rather than downloaded (store.Film.Streamed). Read it in a binding.
+func (p *play) streamed() bool {
+	f, ok := p.s.Film(p.key)
+	return ok && f.Streamed && !f.Done()
 }
 
 // subAt is where the playhead is in the lines' time: the picture's, less the delay.
@@ -313,8 +328,11 @@ func (p *play) keep(send bool) {
 	p.watched = 0
 }
 
-// toggle starts or holds the film.
+// toggle starts or holds the film; one without its video on the phone holds still.
 func (p *play) toggle() {
+	if !p.hasVideo() {
+		return
+	}
 	p.held.Set(false)
 	p.playing.Update(func(on bool) bool { return !on })
 	if !p.playing.GetUntracked() {
@@ -332,7 +350,7 @@ func (p *play) step(i int) {
 	}
 	p.held.Set(false)
 	p.seek(p.list()[i].Start + p.delay.GetUntracked())
-	p.playing.Set(true)
+	p.playing.Set(p.hasVideo())
 }
 
 // prev plays from the line before the one heard, or from the start of the one playing when it has played for more than a moment.

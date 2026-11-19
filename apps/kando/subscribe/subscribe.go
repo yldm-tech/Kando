@@ -136,6 +136,21 @@ type Sub struct {
 	Added   []Video  `json:"added,omitempty"`
 }
 
+// Source is the link a subscription follows for one typed or sent to subscribe to: a playlist or a channel (core.Link.IsList) as it is, and a bilibili video's page as its whole upload (core.Link.Parts), which may hold several parts; reading it says whether it does, as an upload of one part lists as one video (media.ErrOneVideo). It reports false for any other link.
+func Source(typed string) (string, bool) {
+	typed = strings.TrimSpace(typed)
+	link, ok := core.ParseLink(typed)
+	switch {
+	case !ok:
+		return "", false
+	case link.IsList():
+		return typed, true
+	case link.Parts() != "":
+		return link.Parts(), true
+	}
+	return "", false
+}
+
 // New is a subscription to source for the library at library, which listing, what a first check found, seeds: its name is the list's, and the videos the list holds now count as seen, so only the ones that come after are new.
 func New(source, library string, listing media.Listing, now time.Time) Sub {
 	s := Sub{ID: newID(), Source: strings.TrimSpace(source), Library: library, Name: listing.Title, Title: listing.Title, Rules: DefaultRules(), Checked: now}

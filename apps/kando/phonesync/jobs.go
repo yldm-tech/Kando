@@ -37,8 +37,8 @@ func JobOf(job core.Job, facts JobFacts) psync.Job {
 		out.State, at = psync.JobRunning, 2
 	case core.StageComplete:
 		out.State, at = psync.JobDone, 3
-		// A film that keeps no video (core.Job.SubtitlesOnly) is not among the films the phone is served.
-		if job.VideoPath != "" && !job.SubtitlesOnly {
+		// A film that keeps no video (core.Job.SubtitlesOnly) is served too, by its subtitles.
+		if job.VideoPath != "" {
 			out.Film = job.ID
 		}
 	case core.StageFailed:

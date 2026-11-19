@@ -1,4 +1,4 @@
-// Package film is a film's page: its poster where it has one, its title, facts and library, and its download, whose actions sit at the page's foot: it starts, pauses, resumes, cancels and, once whole, plays, or is deleted from the phone from the header.
+// Package film is a film's page: its poster where it has one, its title, facts and library, and its download, whose actions sit at the page's foot: it starts, pauses, resumes, cancels and, once whole, plays, or is deleted from the phone from the header. A film its computer keeps no video of is kept by its lines, which play without the picture, and says what can be done to have the video (VideoPrompt), as the player does in the picture's place.
 package film
 
 import (
@@ -23,6 +23,13 @@ func Page(cx *core.Scope, s *session.Session, desktop, library string, f sync.Fi
 	key := store.Key(desktop, f.ID)
 	kept := func() (store.Film, bool) { return s.Film(key) }
 	done := func() bool { k, ok := kept(); return ok && k.Done() }
+	// noVideo is a film whose video is on neither the phone nor its computer, as the phone last heard: one kept by its lines, or one listed without a video. It is a memo because the page's actions are built again when it changes: read through kept() alone, they would be built again at every change of the film's record, and a press landing while they are would be lost.
+	noVideo := core.NewMemo(cx, func() bool {
+		if k, ok := kept(); ok {
+			return k.LinesOnly && !k.HasVideo()
+		}
+		return f.SubtitlesOnly
+	}).Get
 	transfer := func() (session.Transfer, bool) { return s.Transfer(key) }
 	state := func() (session.State, bool) { t, ok := transfer(); return t.State, ok }
 	running := func() bool { st, ok := state(); return ok && st == session.Running }
@@ -90,6 +97,39 @@ func Page(cx *core.Scope, s *session.Session, desktop, library string, f sync.Fi
 		}
 		return notKept
 	})
+	// stored is what the user's storage holds of the film while the phone reaches its computer through it (session.RelayFilm): nothing, its lines alone, or its video too.
+	const (
+		notStored = iota
+		linesStored
+		videoStored
+	)
+	stored := core.NewMemo(cx, func() int {
+		rf, ok := s.RelayFilm(desktop, f.ID)
+		switch {
+		case !ok:
+			return notStored
+		case rf.Video == "":
+			return linesStored
+		}
+		return videoStored
+	})
+	// streamErr is why the film could not be read from the storage, nil for none; streaming is a read under way.
+	streamErr := core.NewSignal[error](cx, nil)
+	streaming := core.NewSignal(cx, false)
+	stream := func() {
+		if streaming.GetUntracked() {
+			return
+		}
+		streaming.Set(true)
+		streamErr.Set(nil)
+		s.Stream(desktop, library, f, func(key string) {
+			streaming.Set(false)
+			play(key)
+		}, func(err error) {
+			streaming.Set(false)
+			streamErr.Set(err)
+		})
+	}
 	text := func(say func(*core.Scope) string) func() string { return func() string { return say(cx) } }
 	cancel := func() { s.Delete(key) }
 	actions := core.Dynamic(func(cx *core.Scope) core.Node {
@@ -98,6 +138,9 @@ func Page(cx *core.Scope, s *session.Session, desktop, library string, f sync.Fi
 		}
 		switch phase.Get() {
 		case whole:
+			if noVideo() {
+				return look.Button{Kind: look.Primary, Text: text(locales.FilmStudyLines), Icon: lucide.Captions, TestID: "film-play", OnPress: func() { play(key) }}
+			}
 			return look.Button{Kind: look.Primary, Text: text(locales.FilmPlay), Icon: lucide.Play, TestID: "film-play", OnPress: func() { play(key) }}
 		case downloading:
 			return pair(
@@ -108,8 +151,32 @@ func Page(cx *core.Scope, s *session.Session, desktop, library string, f sync.Fi
 				look.Button{Kind: look.Primary, Text: text(locales.FilmResume), Flex: 2, TestID: "film-resume", OnPress: func() { s.Resume(key) }},
 				look.Button{Kind: look.Danger, Text: text(locales.FilmCancel), Flex: 1, TestID: "film-cancel", OnPress: cancel})
 		}
-		return look.Button{Kind: look.Primary, Text: text(locales.FilmDownload), Icon: lucide.Download, TestID: "film-download", OnPress: func() { s.Download(desktop, library, f) }}
+		download := look.Button{Kind: look.Primary, Text: text(locales.FilmDownload), Icon: lucide.Download, TestID: "film-download", OnPress: func() { s.Download(desktop, library, f) }}
+		if f.SubtitlesOnly {
+			// Its computer keeps no video of it: downloading it keeps its lines.
+			download.Text, download.Icon = text(locales.FilmSaveLines), lucide.Captions
+		}
+		// Away from its computer's network, the film plays from the user's storage, or opens for its lines alone when the storage holds no video of it.
+		switch stored.Get() {
+		case videoStored:
+			download.Kind, download.Flex = look.Tinted, 1
+			return pair(look.Button{Kind: look.Primary, Text: text(locales.FilmPlay), Icon: lucide.Play, Flex: 1, TestID: "film-stream", Busy: streaming.Get, OnPress: stream}, download)
+		case linesStored:
+			return look.Button{Kind: look.Primary, Text: text(locales.FilmLines), Icon: lucide.Captions, TestID: "film-lines", Busy: streaming.Get, OnPress: stream}
+		}
+		return download
 	})
+	prompt := core.Show{When: noVideo, Then: func(cx *core.Scope) core.Node {
+		return core.View{Style: core.Style{CornerRadius: ui.RadiusCard, BorderCurve: core.BorderCurveContinuous}, StyleFunc: func() core.Style { return core.Style{Background: ui.Alpha(colors.Text(), 0.045)} },
+			Children: []core.Node{VideoPrompt(cx, s, desktop, f, "film-no-video")}}
+	}}
+	// What the storage holds of a film whose video stays on the computer, and why it could not be read from there.
+	storageNote := core.Show{When: func() bool { return stored.Get() == linesStored && phase.Get() != whole && !noVideo() }, Then: func(cx *core.Scope) core.Node {
+		return core.Text{TestID: "film-lines-only", ContentFunc: func() string { d, _ := s.Desktop(desktop); return locales.FilmVideoAtHome(cx, d.Name) }, Style: look.Subhead, StyleFunc: ui.Colored(colors.Muted)}
+	}}
+	storageFailed := core.Show{When: func() bool { return streamErr.Get() != nil }, Then: func(cx *core.Scope) core.Node {
+		return core.Text{TestID: "film-storage-failed", Content: locales.FilmStorageFailed(cx), LiveRegion: core.LiveRegionPolite, Style: look.Subhead, StyleFunc: ui.Colored(colors.Danger)}
+	}}
 	progress := core.Show{When: func() bool { _, ok := transfer(); return ok }, Then: func(cx *core.Scope) core.Node {
 		return core.View{Style: core.Style{Gap: 8}, Children: []core.Node{
 			// TODO(nsgo#145): ui.Progress.Label is a string only (ui/progress.go:12-19), so the bar's spoken name keeps the language it was built in; pass a LabelFunc once Progress has one https://github.com/nsgo-dev/nsgo/issues/145
@@ -164,7 +231,10 @@ func Page(cx *core.Scope, s *session.Session, desktop, library string, f sync.Fi
 					Gap: 20, MaxWidth: core.Pt(560), Width: core.Pct(100), AlignSelf: core.AlignCenter}, Children: []core.Node{
 					art,
 					core.View{Style: core.Style{Gap: 6}, Children: about},
+					prompt,
 					progress,
+					storageNote,
+					storageFailed,
 				}},
 			}},
 			look.ActionBar(cx, actions),

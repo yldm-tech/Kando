@@ -8,6 +8,7 @@ import (
 	"path/filepath"
 	"time"
 
+	"kando/apps/mobile/film"
 	"kando/apps/mobile/locales"
 	"kando/apps/mobile/look"
 	"kando/apps/mobile/theme"
@@ -111,34 +112,49 @@ func view(cx *core.Scope, l *Layer, key string) core.Node {
 	// The keyboard's shortcuts act on the player while it shows over the app, not on the film playing on in the mini player.
 	keys(cx, p, w, shown)
 
-	video := core.Video{TestID: "player-video", Ref: p.ref, Label: f.Film.Title,
-		Source:           filepath.Join(s.Store().FilmDir(f.Desktop, f.Film.ID), f.Video),
-		PausedFunc:       func() bool { return !p.playing.Get() },
-		RateFunc:         p.speed,
-		ProgressInterval: 100 * time.Millisecond,
-		AudioSession:     core.AudioSessionPlayback,
-		ResizeMode:       core.Contain,
-		Style:            fill,
-		OnLoad: func(info core.VideoInfo) {
-			p.length.Set(info.Duration)
-			if info.Size.Width > 0 && info.Size.Height > 0 {
-				p.aspect.Set(float32(info.Size.Width / info.Size.Height))
-			}
-			if at := time.Duration(f.PositionMS) * time.Millisecond; at > 0 && (info.Duration == 0 || at < info.Duration-2*time.Second) {
-				p.seek(at)
-			}
-		},
-		OnProgress: p.progress,
-		OnEnd:      p.ended,
-		OnError:    func(error) { p.failed.Set(true) },
-		OnPress: func(core.PressEvent) {
-			if shape.Get() == full {
-				controls.Update(func(on bool) bool { return !on })
-				return
-			}
-			p.toggle()
-		},
+	// A film kept by its lines alone, as its computer keeps no video of it, shows in the picture's place what can be done to have the video (film.VideoPrompt), and plays it once it is on the phone. A film kept to stream plays from its computer's storage, and shows its lines alone when the storage holds no video of it (session.Stream).
+	video := func(cx *core.Scope) core.Node {
+		k, _ := s.Film(key)
+		source := filepath.Join(s.Store().FilmDir(k.Desktop, k.Film.ID), k.Video)
+		if p.streamed() {
+			source = s.StreamLink(key)
+		}
+		return core.Video{TestID: "player-video", Ref: p.ref, Label: f.Film.Title,
+			Source:           source,
+			PausedFunc:       func() bool { return !p.playing.Get() },
+			RateFunc:         p.speed,
+			ProgressInterval: 100 * time.Millisecond,
+			AudioSession:     core.AudioSessionPlayback,
+			ResizeMode:       core.Contain,
+			Style:            fill,
+			OnLoad: func(info core.VideoInfo) {
+				p.length.Set(info.Duration)
+				if info.Size.Width > 0 && info.Size.Height > 0 {
+					p.aspect.Set(float32(info.Size.Width / info.Size.Height))
+				}
+				// Where the film was left, or where its lines were followed to while its video was not on the phone yet.
+				if at := p.at.GetUntracked(); at > 0 && (info.Duration == 0 || at < info.Duration-2*time.Second) {
+					p.seek(at)
+				}
+			},
+			OnProgress: p.progress,
+			OnEnd:      p.ended,
+			OnError:    func(error) { p.failed.Set(true) },
+			OnPress: func(core.PressEvent) {
+				if shape.Get() == full {
+					controls.Update(func(on bool) bool { return !on })
+					return
+				}
+				p.toggle()
+			},
+		}
 	}
+	// Without a video to play, a film kept by its lines and one streamed from a storage that holds only its lines alike say where the video is and how to have it (film.VideoPrompt).
+	picture := core.Show{When: p.hasVideo, Then: video, Else: func(cx *core.Scope) core.Node {
+		return core.View{Style: fill.Merge(core.Style{JustifyContent: core.JustifyCenter, Background: core.RGB(0x0B0B0D)}), Children: []core.Node{
+			film.VideoPrompt(cx, s, f.Desktop, f.Film, "player-no-video"),
+		}}
+	}}
 	failed := core.Show{When: p.failed.Get, Then: func(cx *core.Scope) core.Node {
 		return core.View{Style: fill.Merge(core.Style{AlignItems: core.AlignCenter, JustifyContent: core.JustifyCenter, Padding: core.All(24)}), Children: []core.Node{
 			core.Text{TestID: "player-failed", ContentFunc: func() string { return locales.PlayerCantPlay(cx) }, Style: look.Body.Merge(core.Style{TextAlign: core.TextAlignCenter, Color: core.RGB(0xFFFFFF)})},
@@ -153,7 +169,7 @@ func view(cx *core.Scope, l *Layer, key string) core.Node {
 			}
 			return core.Style{Width: core.Pct(100), AspectRatio: max(p.aspect.Get(), 1)}
 		},
-		Children: []core.Node{video, audioOnly(cx, p),
+		Children: []core.Node{picture, audioOnly(cx, p),
 			core.Show{When: onPicture, Then: func(cx *core.Scope) core.Node { return subtitles(cx, p, w, shape.Get, overlaid) }},
 			pills(cx, p, func() bool { return shape.Get() != full || controls.Get() }), failed}}
 

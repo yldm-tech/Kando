@@ -273,8 +273,11 @@ func uploadStoreName(m locales.Messages, kind string) string {
 	}
 }
 
-func (a *app) currentStore() cloud.Store {
-	switch a.storageKind() {
+func (a *app) currentStore() cloud.Store { return a.storeFor(a.storageKind()) }
+
+// storeFor is the store of kind as 账号与上传 has it set up, whether or not it is the one in use.
+func (a *app) storeFor(kind string) cloud.Store {
+	switch kind {
 	case cloud.KindS3:
 		return cloud.Store{
 			Kind:      cloud.KindS3,

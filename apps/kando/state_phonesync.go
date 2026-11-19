@@ -18,6 +18,7 @@ import (
 	"kando/apps/kando/phonesync"
 	"kando/apps/kando/remote"
 	"kando/apps/kando/settings"
+	"kando/apps/kando/sidebar"
 	"kando/packages/core"
 	"kando/packages/media"
 	psync "kando/packages/sync"
@@ -70,6 +71,8 @@ type phoneUI struct {
 	// clockAt is when the timer phoneClockArm set runs the bindings again, as what the page or the handoff bar shows changes with time alone; zero for none, and clockStop stops it.
 	clockAt   time.Time
 	clockStop func() bool
+	// films is the films shared through the storage relay (state_phonesync_films.go).
+	films phoneFilms
 }
 
 func newPhoneUI() phoneUI { return phoneUI{} }
@@ -159,8 +162,10 @@ func (a *app) phoneSyncStart() {
 		Settings:      phoneSettings{a},
 		Study:         phoneStudy{a},
 		Subscriptions: phoneSubscriptions{a},
+		FilmOps:       phoneFilmOps{a},
 		Relay:         a.phoneRelayBucket(),
 		RelayHealth:   a.phoneRelayHealth(gen),
+		Films:         a.phoneFilmsConfig(gen, a.currentStore()),
 		Addrs:         a.phone.listen,
 		Changed:       func() { update(a.phoneSyncPull) },
 		Now:           a.phone.now,
@@ -346,7 +351,17 @@ type phoneShelf struct {
 	names     map[string]string
 	durations map[string]time.Duration
 	posterDir string
+	// furthest is how far each video was played, and played when it last played, by path, which say whether a film was watched to its end and when (films.WatchState).
+	furthest map[string]time.Duration
+	played   map[string]time.Time
 }
+
+// Duration, ResumeAt and Furthest are the shelf as films.Progress, for films.WatchState: where a film stopped does not tell whether it was watched to its end.
+func (s phoneShelf) Duration(path string) time.Duration { return s.durations[path] }
+
+func (s phoneShelf) ResumeAt(string) time.Duration { return 0 }
+
+func (s phoneShelf) Furthest(path string) time.Duration { return s.furthest[path] }
 
 // Libraries are the libraries the app knows, named as the library drop-down names them, locked ones left out.
 func (s phoneSource) Libraries(ctx context.Context) ([]phonesync.Library, error) {
@@ -364,7 +379,7 @@ func (s phoneSource) Libraries(ctx context.Context) ([]phonesync.Library, error)
 	})
 }
 
-// Films are lib's films that are done, as its done grid shows them, with their files (phoneSource.items). A library locked since it was listed, or whose folder cannot be read, is not found.
+// Films are lib's films that are done, as its done grid shows them, with their files (phoneSource.items), those that keep no video among them (films.Film.SubtitlesOnly), which the server serves by their subtitles. A library locked since it was listed, or whose folder cannot be read, is not found.
 func (s phoneSource) Films(ctx context.Context, lib phonesync.Library) ([]phonesync.Film, error) {
 	items, shelf, err := s.items(ctx, lib)
 	if err != nil {
@@ -372,18 +387,26 @@ func (s phoneSource) Films(ctx context.Context, lib phonesync.Library) ([]phones
 	}
 	var out []phonesync.Film
 	for _, item := range items {
-		f := phonesync.Film{ID: phoneFilmID(item), Title: remoteFilmTitle(item), Source: films.SourceOf(item), Spoken: films.Heard(item), Untranslated: item.Untranslated,
-			Duration: shelf.durations[item.VideoPath], Video: item.VideoPath, Subtitles: item.SubtitlePath, Transcript: media.TranscriptOf(item.VideoPath), Corrections: media.CorrectionsPath(item.VideoPath)}
-		// A film that was not translated, as one heard in the language its subtitles are for, names no translation.
-		if item.TranslationErr == "" && !item.SameLanguage {
-			f.Translation = item.Language
-		}
-		if dest := posterDest(shelf.posterDir, item.VideoPath); dest != "" && fileExists(dest) {
-			f.Poster = dest
-		}
-		out = append(out, f)
+		out = append(out, phoneFilmOf(item, shelf))
 	}
 	return out, nil
+}
+
+// phoneFilmOf is item, a done film of a library, as Phone Sync serves it, with what shelf holds of it and its files.
+func phoneFilmOf(item films.Film, shelf phoneShelf) phonesync.Film {
+	f := phonesync.Film{ID: phoneFilmID(item), Title: remoteFilmTitle(item), Source: films.SourceOf(item), Spoken: films.Heard(item), Untranslated: item.Untranslated,
+		Duration: shelf.durations[item.VideoPath], Video: item.VideoPath, SubtitlesOnly: item.SubtitlesOnly, Subtitles: item.SubtitlePath, Transcript: media.TranscriptOf(item.VideoPath), Corrections: media.CorrectionsPath(item.VideoPath)}
+	// A film that was not translated, as one heard in the language its subtitles are for, names no translation.
+	if item.TranslationErr == "" && !item.SameLanguage {
+		f.Translation = item.Language
+	}
+	if dest := posterDest(shelf.posterDir, item.VideoPath); dest != "" && fileExists(dest) {
+		f.Poster = dest
+	}
+	if films.WatchState(shelf, item) == sidebar.WatchWatched {
+		f.Watched, f.WatchedAt = true, shelf.played[item.VideoPath]
+	}
+	return f
 }
 
 // items are lib's films that are done, as the app files them: the jobs the shelf keeps for it and the videos in its folder (films.List), with what the app holds of them. A library locked since it was listed, or whose folder cannot be read, is not found.
@@ -393,7 +416,8 @@ func (s phoneSource) items(ctx context.Context, lib phonesync.Library) ([]films.
 		if a.libraryLocked(lib.Dir) {
 			return phoneShelf{}, phonesync.ErrNotFound
 		}
-		return phoneShelf{jobs: slices.Clone(a.library.Jobs), names: maps.Clone(a.library.Names), durations: maps.Clone(a.lib.durations), posterDir: a.lib.posterDir}, nil
+		return phoneShelf{jobs: slices.Clone(a.library.Jobs), names: maps.Clone(a.library.Names), durations: maps.Clone(a.lib.durations), posterDir: a.lib.posterDir,
+			furthest: maps.Clone(a.palette.furthest), played: maps.Clone(a.player.played)}, nil
 	})
 	if err != nil {
 		return nil, phoneShelf{}, err

@@ -25,6 +25,14 @@ func (a *app) SetPhoneReadOnly(id string, on bool) { a.phoneSyncSetReadOnly(id, 
 
 func (a *app) SetPhoneRelay(on bool) { a.phoneRelaySet(on) }
 
+func (a *app) SetPhoneRelaySubtitlesOnly(on bool) { a.phoneFilmsSetSubtitlesOnly(on) }
+
+func (a *app) SetPhoneRelayClean(days int) { a.phoneFilmsSetClean(days) }
+
+func (a *app) CleanPhoneVideos(watched []settings.PhoneWatched) { a.phoneFilmsClean(watched) }
+
+func (a *app) MovePhoneStorage(kind string) { a.phoneFilmsMove(kind) }
+
 func (a *app) ResolvePhoneConflict(id string, keep settings.PhoneKeep) { a.phoneSyncResolve(id, keep) }
 
 func (a *app) PhoneNow() time.Time { return a.phoneStateNow() }

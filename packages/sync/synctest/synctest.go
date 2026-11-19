@@ -1,4 +1,4 @@
-// Package synctest is a stand-in for Kando's phone sync server on loopback, speaking protocols v1 and v2 (package sync) from memory, for the phone's tests: it pairs with the code it offers, lists its libraries and films, and serves their subtitles, posters and videos by ranges with an ETag. A video can be made to stall partway (Stall), as a network that drops does, so a download's pause and resume can be tested. Over v2 it takes the links a phone sends into a queue of its own, which the test moves along (jobs.go), and keeps each library's learning state in a ledger, which the test changes as the desktop would (state.go), and its subscriptions, which the test sets as the desktop's checks would (subscriptions.go).
+// Package synctest is a stand-in for Kando's phone sync server on loopback, speaking protocols v1 and v2 (package sync) from memory, for the phone's tests: it pairs with the code it offers, lists its libraries and films, and serves their subtitles, posters and videos by ranges with an ETag. A video can be made to stall partway (Stall), as a network that drops does, so a download's pause and resume can be tested. Over v2 it takes the links a phone sends into a queue of its own, which the test moves along (jobs.go), and keeps each library's learning state in a ledger, which the test changes as the desktop would (state.go), and its subscriptions, which the test sets as the desktop's checks would (subscriptions.go), and does what phones ask of its films (films.go).
 package synctest
 
 import (
@@ -66,7 +66,9 @@ type Desktop struct {
 	study study
 	relay relay
 	// subs are the subscriptions (subscriptions.go).
-	subs  subscriptions
+	subs subscriptions
+	// ops are what phones asked of its films (films.go).
+	ops   filmOps
 	desk  *sync.Desk
 	libs  []sync.Library
 	films []Film
@@ -83,7 +85,7 @@ func New(t testing.TB, name string) *Desktop {
 	t.Helper()
 	d := &Desktop{Name: name, tokens: map[string]bool{}, names: map[string]string{}, modTime: time.Unix(1_700_000_000, 0), target: "zh-Hans", context: true}
 	d.queue.receive = sync.ReceiveQueue
-	d.desk = &sync.Desk{Service: jobService{d}, State: stateService{d}, Settings: settingsService{d}, Study: studyService{d}, Subscriptions: subscriptionService{d}, Journal: sync.NewJournal(), Desktop: name}
+	d.desk = &sync.Desk{Service: jobService{d}, State: stateService{d}, Settings: settingsService{d}, Study: studyService{d}, Subscriptions: subscriptionService{d}, Films: filmService{d}, Journal: sync.NewJournal(), Desktop: name}
 	mux := http.NewServeMux()
 	mux.HandleFunc("POST "+sync.PathPair, d.pair)
 	mux.HandleFunc("GET "+sync.PathLibraries, d.authed(d.libraries))
@@ -128,10 +130,13 @@ func (d *Desktop) RemoveLibrary(id string) {
 	d.libs = slices.DeleteFunc(d.libs, func(l sync.Library) bool { return l.ID == id })
 }
 
-// AddFilm adds f to its library.
+// AddFilm adds f to its library. A film that keeps no video (sync.Film.SubtitlesOnly) has none to serve, and is listed only to a phone that asks for such films (sync.WithSubtitlesOnly).
 func (d *Desktop) AddFilm(f Film) {
 	d.mu.Lock()
 	defer d.mu.Unlock()
+	if f.SubtitlesOnly {
+		f.Video = nil
+	}
 	f.VideoSize = int64(len(f.Video))
 	if f.Poster != nil {
 		f.Film.Poster = sync.PosterPath(f.ID)
@@ -141,20 +146,31 @@ func (d *Desktop) AddFilm(f Film) {
 	}
 	d.films = append(d.films, f)
 	for i := range d.libs {
-		if d.libs[i].ID == f.Library {
+		if d.libs[i].ID == f.Library && !f.SubtitlesOnly {
 			d.libs[i].Films++
 		}
 	}
 }
 
-// ReplaceVideo gives film id another video, whose ETag differs from the one before.
+// ReplaceVideo gives film id another video, whose ETag differs from the one before; a film that kept no video keeps this one from now on, as once the desktop downloaded it, and says it changed.
 func (d *Desktop) ReplaceVideo(id string, video []byte) {
 	d.mu.Lock()
 	defer d.mu.Unlock()
 	for i := range d.films {
-		if d.films[i].ID == id {
-			d.films[i].Video, d.films[i].VideoSize = video, int64(len(video))
+		f := &d.films[i]
+		if f.ID != id {
+			continue
 		}
+		if f.SubtitlesOnly {
+			f.SubtitlesOnly = false
+			f.Updated = f.Updated.Add(time.Second)
+			for j := range d.libs {
+				if d.libs[j].ID == f.Library {
+					d.libs[j].Films++
+				}
+			}
+		}
+		f.Video, f.VideoSize = video, int64(len(video))
 	}
 }
 
@@ -310,8 +326,9 @@ func (d *Desktop) filmList(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	out := sync.Films{Films: []sync.Film{}}
+	all := r.URL.Query().Get(sync.QueryWith) == sync.WithSubtitlesOnly
 	for _, f := range d.films {
-		if f.Library == r.PathValue("lib") {
+		if f.Library == r.PathValue("lib") && (all || !f.SubtitlesOnly) {
 			out.Films = append(out.Films, f.Film)
 		}
 	}
@@ -353,6 +370,10 @@ func (d *Desktop) poster(w http.ResponseWriter, r *http.Request) {
 func (d *Desktop) video(w http.ResponseWriter, r *http.Request) {
 	f, ok := d.film(w, r)
 	if !ok {
+		return
+	}
+	if f.SubtitlesOnly {
+		fail(w, http.StatusNotFound, sync.CodeNotFound)
 		return
 	}
 	d.mu.Lock()

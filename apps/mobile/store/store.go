@@ -50,12 +50,16 @@ type Film struct {
 	// Video is the name of the video file in the film's folder once it is whole, "" until then; Poster the poster's, "" for none.
 	Video  string `json:"video"`
 	Poster string `json:"poster"`
+	// LinesOnly is a film kept by its subtitles alone, as its computer keeps no video of it (sync.Film.SubtitlesOnly): its lines are studied without the picture until the computer downloads the video and the phone downloads it in turn.
+	LinesOnly bool `json:"lines_only,omitempty"`
 	// PositionMS is where it was left playing, and PositionAt when, zero for a film left before the phone kept when (yldm-tech/Kando#221).
 	PositionMS int64     `json:"position_ms"`
 	PositionAt time.Time `json:"position_at,omitzero"`
 	// DelayMS moves the film's subtitles against its picture, later for more than 0, as the player's settings set it for this film alone.
 	DelayMS int64     `json:"delay_ms,omitempty"`
 	Added   time.Time `json:"added"`
+	// Streamed is a film kept to play from the user's storage, away from its desktop: its record and lines, with no download of its video asked for, which is not taken for one paused.
+	Streamed bool `json:"streamed,omitempty"`
 }
 
 // Key names a film on the phone: its desktop's ID and its own.
@@ -64,8 +68,11 @@ func Key(desktop, film string) string { return desktop + "/" + film }
 // Key is the film's.
 func (f Film) Key() string { return Key(f.Desktop, f.Film.ID) }
 
-// Done reports whether the video is whole.
-func (f Film) Done() bool { return f.Video != "" }
+// Done reports whether the film is kept whole: its video, or its lines for a film kept by them alone (LinesOnly).
+func (f Film) Done() bool { return f.Video != "" || f.LinesOnly }
+
+// HasVideo reports whether the film's video is on the phone.
+func (f Film) HasVideo() bool { return f.Video != "" }
 
 // The files of the store, under its folder: the paired desktops, and a folder per film under films/<desktop>/<film>, holding film.json, subtitles.json, the poster, and video.part while the video downloads.
 const (

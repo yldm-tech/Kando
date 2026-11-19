@@ -18,8 +18,15 @@ import (
 // Progress hears how far the video is: done bytes of total.
 type Progress func(done, total int64)
 
-// Film downloads f from c into its folder in st and returns its record as it then stands, which it also keeps: whole, or as far as it got when ctx ended or the download failed. The subtitles and the poster come first, once (a film the desktop changes later takes its new subtitles when it is played, Follow); then the video goes on from the part already kept, if the desktop's file has not changed since (its ETag), else from the start.
-func Film(ctx context.Context, c *sync.Client, st *store.Store, f store.Film, progress Progress) (store.Film, error) {
+// Source is where a film's files come from: its desktop on the local network (*sync.Client), or, away from it, the user's storage by the links the desktop lists in its state.json (sync.RelayFilms), which answer alike.
+type Source interface {
+	Subtitles(ctx context.Context, id string) ([]sync.Cue, error)
+	Poster(ctx context.Context, id string) ([]byte, string, error)
+	Video(ctx context.Context, id string, from, to int64, ifRange string) (*sync.Part, error)
+}
+
+// Film downloads f from src into its folder in st and returns its record as it then stands, which it also keeps: whole, or as far as it got when ctx ended or the download failed. The subtitles and the poster come first, once (a film the desktop changes later takes its new subtitles when it is played, Follow); then the video goes on from the part already kept, if the desktop's file has not changed since (its ETag), else from the start. A film the desktop keeps no video of (sync.Film.SubtitlesOnly) is whole with its subtitles and poster (store.Film.LinesOnly).
+func Film(ctx context.Context, c Source, st *store.Store, f store.Film, progress Progress) (store.Film, error) {
 	if err := st.SaveFilm(f); err != nil {
 		return f, err
 	}
@@ -52,6 +59,10 @@ func Film(ctx context.Context, c *sync.Client, st *store.Store, f store.Film, pr
 	}
 	if f.Done() {
 		return f, nil
+	}
+	if f.Film.SubtitlesOnly {
+		f.LinesOnly = true
+		return f, st.SaveFilm(f)
 	}
 	name, err := video(ctx, c, f.Film.ID, dir, f.ETag, func(etag string) error {
 		if etag == f.ETag {
@@ -101,7 +112,7 @@ func listedFilm(ctx context.Context, c *sync.Client, id string) (sync.Film, bool
 }
 
 // poster keeps the film's poster in dir and returns the file's name.
-func poster(ctx context.Context, c *sync.Client, id, dir string) (string, error) {
+func poster(ctx context.Context, c Source, id, dir string) (string, error) {
 	data, kind, err := c.Poster(ctx, id)
 	if err != nil {
 		return "", err
@@ -111,7 +122,7 @@ func poster(ctx context.Context, c *sync.Client, id, dir string) (string, error)
 }
 
 // video downloads the film's video into dir's part file, from as far as it goes when its ETag is etag, and once whole renames it after its type, returning the name. saveETag keeps the ETag of the answer before any of its bytes are written.
-func video(ctx context.Context, c *sync.Client, id, dir, etag string, saveETag func(string) error, progress Progress) (string, error) {
+func video(ctx context.Context, c Source, id, dir, etag string, saveETag func(string) error, progress Progress) (string, error) {
 	partPath := filepath.Join(dir, store.PartFile)
 	var from int64
 	if info, err := os.Stat(partPath); err == nil && etag != "" {

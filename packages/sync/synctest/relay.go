@@ -1,8 +1,13 @@
 package synctest
 
 import (
+	"bytes"
 	"context"
 	"crypto/rand"
+	"crypto/sha256"
+	"encoding/hex"
+	"encoding/json"
+	"fmt"
 	"io"
 	"net/http"
 	"net/http/httptest"
@@ -23,6 +28,8 @@ type Bucket struct {
 	mu      gosync.Mutex
 	objects map[string][]byte
 	links   map[string]bucketLink
+	// gets are the GETs by link, each its key and its Range header, in their order.
+	gets []string
 }
 
 type bucketLink struct {
@@ -55,7 +62,11 @@ func (b *Bucket) serve(w http.ResponseWriter, r *http.Request) {
 			w.WriteHeader(http.StatusNotFound)
 			return
 		}
-		_, _ = w.Write(data)
+		// As S3 does, a GET answers a Range with the part asked for, and names the object by an ETag of its bytes.
+		sum := sha256.Sum256(data)
+		w.Header().Set("ETag", `"`+hex.EncodeToString(sum[:8])+`"`)
+		b.gets = append(b.gets, link.key+" "+r.Header.Get("Range"))
+		http.ServeContent(w, r, "", time.Time{}, bytes.NewReader(data))
 	case http.MethodPut:
 		b.objects[link.key] = body
 	}
@@ -73,6 +84,20 @@ func (b *Bucket) Keys(prefix string) []string {
 	}
 	slices.Sort(out)
 	return out
+}
+
+// Gets are the GETs the bucket answered by link, each its key and its Range header, "" for none, in their order.
+func (b *Bucket) Gets() []string {
+	b.mu.Lock()
+	defer b.mu.Unlock()
+	return slices.Clone(b.gets)
+}
+
+// Delete deletes the object at key, as the user or a cleanup does.
+func (b *Bucket) Delete(key string) {
+	b.mu.Lock()
+	defer b.mu.Unlock()
+	delete(b.objects, key)
 }
 
 // relayBucket is b as the desktop's relay uses it, with the store's credentials.
@@ -138,7 +163,9 @@ func (r relayBucket) PresignPut(_ context.Context, key string, ttl time.Duration
 
 // relay is the stand-in's storage relay: the phones that joined, by device ID, and the relay running while it is on.
 type relay struct {
-	relay   *sync.Relay
+	relay *sync.Relay
+	// films are what ShareFilms put in the bucket, nil before.
+	films   *sync.RelayFiles
 	devices map[string]sync.RelayDevice
 	joins   int
 	stop    context.CancelFunc
@@ -150,7 +177,7 @@ func (d *Desktop) StartRelay(t testing.TB, bucket *Bucket, now func() time.Time,
 	t.Helper()
 	d.mu.Lock()
 	d.relay.devices = map[string]sync.RelayDevice{}
-	d.relay.relay = &sync.Relay{Bucket: relayBucket{bucket}, Prefix: sync.RelayPrefix(d.Fingerprint), Desk: d.desk, Devices: d.relayDevices, Now: now, Every: every, MinWrite: time.Millisecond}
+	d.relay.relay = &sync.Relay{Bucket: relayBucket{bucket}, Prefix: sync.RelayPrefix(d.Fingerprint), Desk: d.desk, Devices: d.relayDevices, Films: d.relayFilms, Now: now, Every: every, MinWrite: time.Millisecond}
 	d.mu.Unlock()
 	d.desk.Relay = relayJoiner{d}
 	d.runRelay()
@@ -229,4 +256,45 @@ func (j relayJoiner) Join(ctx context.Context, caller sync.Caller) (sync.RelayJo
 	}
 	r.Wake()
 	return sync.RelayJoin{Key: slices.Clone(dev.Key), Grant: grant}, nil
+}
+
+// ShareFilms puts the desktop's films in the relay's bucket as the desktop shares them with its phones away from its network (package sync's relay_films.go), each in a folder of its own, and lists them in the phones' state.json from the relay's next turn: its lines and poster always, its video when videos is set, else it is shared as lines alone. StartRelay comes first.
+func (d *Desktop) ShareFilms(videos bool) {
+	d.mu.Lock()
+	r := d.relay.relay
+	libs := slices.Clone(d.libs)
+	films := slices.Clone(d.films)
+	d.mu.Unlock()
+	b := r.Bucket.(relayBucket).b
+	files := &sync.RelayFiles{Libraries: libs}
+	for i, f := range films {
+		folder := fmt.Sprintf("f%02d", i)
+		ff := sync.RelayFilmFiles{Library: f.Library, Film: f.Film, Subtitles: sync.RelayFilmObject(folder, sync.RelaySubtitlesFile)}
+		lines, _ := json.Marshal(sync.Subtitles{Cues: append([]sync.Cue{}, f.Cues...)})
+		put := func(name string, body []byte) {
+			b.mu.Lock()
+			b.objects[r.Prefix+name] = body
+			b.mu.Unlock()
+		}
+		put(ff.Subtitles, lines)
+		if videos && f.Video != nil {
+			ff.Video = sync.RelayFilmObject(folder, "video.mp4")
+			put(ff.Video, f.Video)
+		}
+		if f.Poster != nil {
+			ff.Poster = sync.RelayFilmObject(folder, "poster.jpg")
+			put(ff.Poster, f.Poster)
+		}
+		files.Films = append(files.Films, ff)
+	}
+	d.mu.Lock()
+	d.relay.films = files
+	d.mu.Unlock()
+	r.Wake()
+}
+
+func (d *Desktop) relayFilms() *sync.RelayFiles {
+	d.mu.Lock()
+	defer d.mu.Unlock()
+	return d.relay.films
 }

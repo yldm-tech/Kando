@@ -84,6 +84,7 @@ func (a *app) areas() []areaHooks {
 		a.savedHooks(),
 		a.signinHooks(),
 		a.phoneSyncHooks(),
+		a.phoneFilmsHooks(),
 		a.trayHooks(),
 		a.privacyHooks(),
 		a.subscribeHooks(),

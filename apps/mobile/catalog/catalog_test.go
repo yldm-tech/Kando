@@ -212,3 +212,19 @@ func TestContinueListsFilmsLeftPartway(t *testing.T) {
 		t.Fatalf("go on with %q", got)
 	}
 }
+
+// What a computer lists through the storage is its libraries in its order, each with its films there; a film of a library it does not name is left out.
+func TestFromRelayListsTheLibrariesFilms(t *testing.T) {
+	shelf := sync.RelayShelf{
+		Libraries: []sync.Library{{ID: "b", Name: "Movies"}, {ID: "a", Name: "Japanese Class"}},
+		Films: []sync.RelayFilm{
+			{Library: "a", Film: film("f1", "One", "youtube", day)},
+			{Library: "b", Film: film("f2", "Two", "web", day)},
+			{Library: "gone", Film: film("f3", "Three", "web", day)},
+		},
+	}
+	got := FromRelay(shelf)
+	if len(got.Libraries) != 2 || got.Libraries[0].Name != "Movies" || len(got.Libraries[0].Films) != 1 || got.Libraries[0].Films[0].ID != "f2" || got.Libraries[1].Films[0].ID != "f1" || got.Libraries[0].Positions != nil {
+		t.Fatalf("listed %+v", got)
+	}
+}

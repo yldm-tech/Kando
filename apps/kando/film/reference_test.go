@@ -6,6 +6,8 @@ import (
 
 	"kando/apps/kando/locales/testlocale"
 	"kando/packages/core"
+
+	ns "github.com/nsgo-dev/nsgo/core"
 )
 
 // fakeReferencer is the fake app's reference layer: the captions as a test sets them, shown while show holds.
@@ -57,5 +59,22 @@ func TestModeMenuTurnsTheReferenceLayerOff(t *testing.T) {
 	app.Press("id:film-reference")
 	if !a.ShowReference() {
 		t.Fatal("the row did not show the reference layer again")
+	}
+}
+
+// The reference layer's line shows alone between the film's own lines, and turning the subtitles off hides it there as on them.
+func TestReferenceLineHidesWithTheSubtitles(t *testing.T) {
+	a := newFakeApp()
+	a.reference = []core.Segment{{Start: 3 * time.Second, End: 4 * time.Second, Text: "between the lines"}}
+	app := start(t, a)
+	app.Play("id:film-video", ns.VideoInfo{Duration: 10 * time.Second})
+	a.play.playing = true
+	app.Progress("id:film-video", 3500*time.Millisecond, 10*time.Second)
+	if !app.Exists(`text:"between the lines"`) {
+		t.Fatalf("between the film's lines the reference line does not show: %q", app.Texts())
+	}
+	change(app, a, func() { a.mode = SubOff })
+	if app.Exists(`text:"between the lines"`) {
+		t.Fatal("with the subtitles off the reference line shows")
 	}
 }

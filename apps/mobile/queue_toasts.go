@@ -11,7 +11,7 @@ import (
 	"github.com/nsgo-dev/nsgo/ui"
 )
 
-// queueToasts has toaster tell what happens to the computers' queues while the app is open: a job that finished, as a banner whose Open opens its film (openFilm), a link a computer took, a list it subscribed to, and an action that failed.
+// queueToasts has toaster tell what happens to the computers' queues while the app is open: a job that finished, as a banner whose Open opens its film (openFilm), a link a computer took, a list it subscribed to, a film it translates again, deleted or downloads the video of, and an action that failed.
 // TODO(nsgo#59): tell a finished job with a push notification while the app is closed too; NSGo has no remote push (APNs, FCM) yet, so the banner shows only while the app is open https://github.com/nsgo-dev/nsgo/issues/59
 func queueToasts(cx *core.Scope, s *session.Session, toaster *ui.Toaster, openFilm func(desktop string, lib sync.Library, f sync.Film)) {
 	name := func(desktop string) string { d, _ := s.Desktop(desktop); return d.Name }
@@ -42,6 +42,20 @@ func queueToasts(cx *core.Scope, s *session.Session, toaster *ui.Toaster, openFi
 				title = locales.AddSubscribedExisting(cx, got.Subscription.Name, name(desktop))
 			}
 			toaster.Show(ui.ToastContent{Type: ui.ToastSuccess, Title: title})
+		},
+		Acted: func(desktop, op, title string) {
+			var text string
+			switch op {
+			case sync.OpFilmRetranslate:
+				text = locales.FilmsRetranslating(cx, title, name(desktop))
+			case sync.OpFilmDelete:
+				text = locales.FilmsDeletedFromLibrary(cx, title, name(desktop))
+			case sync.OpFilmVideo:
+				text = locales.FilmVideoAsked(cx, title, name(desktop))
+			default:
+				return
+			}
+			toaster.Show(ui.ToastContent{Type: ui.ToastSuccess, Title: text})
 		},
 		Failed: func(desktop string, err error) {
 			// A done job's film the computer does not serve is told as such; a computer that answered refused the action, as for a job whose state changed meanwhile; one that did not answer is out of reach.
