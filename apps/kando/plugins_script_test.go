@@ -206,7 +206,7 @@ func TestPluginScriptInstallGrantAndRun(t *testing.T) {
 	if p := a.plugins.pending; p.err != nil {
 		t.Fatalf("staged with %v", p.err)
 	}
-	for _, s := range []string{m.SettingsPluginsInstallSourceOfficial(), m.SettingsPluginsWants(), m.SettingsPluginsWantsOptional(), m.SettingsPluginsPermSavedRead(), m.SettingsPluginsPermToast(), m.SettingsPluginsScriptStaysOff()} {
+	for _, s := range []string{m.SettingsPluginsInstallSourceVerified("acme"), m.SettingsPluginsWants(), m.SettingsPluginsWantsOptional(), m.SettingsPluginsPermSavedRead(), m.SettingsPluginsPermToast(), m.SettingsPluginsScriptStaysOff()} {
 		if !tt.Exists("text:" + s) {
 			t.Errorf("the confirmation does not say %q; texts %q", s, tt.Texts())
 		}
@@ -214,12 +214,16 @@ func TestPluginScriptInstallGrantAndRun(t *testing.T) {
 	if !tt.Exists("id:plugins-install-risky") {
 		t.Error("reading the lines with the network is not flagged")
 	}
+	// Another publisher than kando, under the official root, is verified, named by its id's publisher, never Kando's own nor its manifest's author.
+	if tt.Exists("text:"+m.SettingsPluginsInstallSourceOfficial()) || hasText(tt, m.SettingsPluginsInstallSourceVerified("Acme")) {
+		t.Errorf("acme.anki reads as Kando's own or by its author; texts %q", tt.Texts())
+	}
 	tt.Press("id:plugins-install-ok")
 	waitUntil(t, tt, a, updates, func() bool {
 		return a.plugins.pending == nil && !a.plugins.busy && !a.plugins.saving && len(a.pluginsScriptPacks()) == 1 && a.pluginsScriptPacks()[0].Signer != ""
 	})
 	p := a.pluginsScriptPacks()[0]
-	if a.plugins.state.EnabledPack(p) || len(a.plugins.state.Effective(p, false, false).Perms) > 1 || p.Source != plugins.SourceOfficial {
+	if a.plugins.state.EnabledPack(p) || len(a.plugins.state.Effective(p, false, false).Perms) > 1 || p.Source != plugins.SourceVerified {
 		t.Fatalf("installed %+v, state %+v", p, a.plugins.state)
 	}
 	tt.Press("id:settings-plugins-details-acme.anki")
@@ -665,7 +669,7 @@ func TestPluginScriptBadgeFollowsTheVerification(t *testing.T) {
 		t.Fatalf("before the verification; texts %q", tt.Texts())
 	}
 	scriptsSettle(t, a, tt, updates, func() bool { return a.plugins.script.verified != nil })
-	if !hasText(tt, m.SettingsPluginsSourceOfficial()) || hasText(tt, m.SettingsPluginsSourceLocal()) {
+	if !hasText(tt, m.SettingsPluginsSourceVerified()) || hasText(tt, m.SettingsPluginsSourceLocal()) {
 		t.Errorf("after it; texts %q", tt.Texts())
 	}
 }

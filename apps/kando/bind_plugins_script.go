@@ -21,7 +21,7 @@ import (
 func (a *app) pluginsScriptView(m locales.Messages, p plugins.Pack, installing bool) *settings.PluginScript {
 	s := &a.plugins.script
 	v, verified := s.verified[p.ID]
-	out := &settings.PluginScript{Source: p.Source, Verified: installing || verified && v.Hash == p.Hash && p.Signer != ""}
+	out := &settings.PluginScript{Source: p.Source, Publisher: script.Publisher(p.ID), Verified: installing || verified && v.Hash == p.Hash && p.Signer != ""}
 	var granted plugins.Grant
 	if e, ok := a.plugins.state.Entry(p.ID); ok && !installing && e.Hash == p.Hash && e.Signer == p.Signer {
 		granted = e.Grant

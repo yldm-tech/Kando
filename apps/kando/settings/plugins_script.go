@@ -16,7 +16,9 @@ import (
 
 // PluginScript is what the 插件 page and the install confirmation show of a script plugin, worded by the app in the interface's language: where it comes from (Source), whether its signature was verified for its content (Verified), why it does not run when Kando turned it off or refused it (Problem), that an update asked for more than the version before (Updated), the permissions it asks for with whether each is granted, the combination of reading the lines and the network flagged (Risky), and the commands whose keys were taken by Kando's own (Conflicts).
 type PluginScript struct {
-	Source    plugins.Source
+	Source plugins.Source
+	// Publisher is the publisher its certificate covers, the segment of its id before the first dot, which a verified plugin is said to come from.
+	Publisher string
 	Verified  bool
 	Problem   string
 	Updated   bool
@@ -58,6 +60,8 @@ func pluginSourceBadge(cx *core.Scope, p plugins.Pack) string {
 	switch {
 	case p.Kind == plugins.KindScript && p.Source == plugins.SourceOfficial:
 		return locales.SettingsPluginsSourceOfficial(cx)
+	case p.Kind == plugins.KindScript && p.Source == plugins.SourceVerified:
+		return locales.SettingsPluginsSourceVerified(cx)
 	case p.Kind == plugins.KindScript && p.Source == plugins.SourceDeveloper:
 		return locales.SettingsPluginsSourceDeveloper(cx)
 	}
@@ -214,8 +218,13 @@ func pluginScriptInstall(cx *core.Scope, s PluginScript) []core.Node {
 	line := func(text string, color func() core.Color) core.Node {
 		return core.Text{Content: text, Style: core.Style{FontSize: 12, LineHeight: 17}, StyleFunc: ui.Colored(color)}
 	}
-	source := locales.SettingsPluginsInstallSourceOfficial(cx)
-	if s.Source == plugins.SourceDeveloper {
+	var source string
+	switch s.Source {
+	case plugins.SourceOfficial:
+		source = locales.SettingsPluginsInstallSourceOfficial(cx)
+	case plugins.SourceVerified:
+		source = locales.SettingsPluginsInstallSourceVerified(cx, s.Publisher)
+	default:
 		source = locales.SettingsPluginsInstallSourceDeveloper(cx)
 	}
 	nodes := []core.Node{line(source, colors.Muted)}

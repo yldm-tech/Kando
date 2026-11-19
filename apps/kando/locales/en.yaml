@@ -7587,6 +7587,9 @@ settingsPluginsSourceOfficial:
 settingsPluginsSourceDeveloper:
   message: "Developer"
   description: "Plugins page: badge after a script plugin's name saying this computer's developer key signed it."
+settingsPluginsSourceVerified:
+  message: "Verified"
+  description: "Plugins page: badge after a script plugin's name saying Kando verified its publisher's signature; it is not Kando's own."
 settingsPluginsUpdated:
   message: "This update asks for more than before. Look over its permissions again."
   description: "Plugin details: note when an update of a script plugin asks for permissions the version before did not."
@@ -7620,6 +7623,11 @@ settingsPluginsInstallSourceOfficial:
 settingsPluginsInstallSourceDeveloper:
   message: "Signed with this computer's developer key"
   description: "Install confirmation: where a script plugin packed in developer mode comes from."
+settingsPluginsInstallSourceVerified:
+  message: "Published by {publisher} · verified by Kando"
+  description: "Install confirmation: where a script plugin of another publisher, whose key Kando certified, comes from; {publisher} is the publisher segment of the plugin's id, which its certificate covers, never its stated author."
+  placeholders:
+    publisher: { type: "String", example: "acme" }
 settingsPluginsDeveloperWarning:
   message: "Developer plugins run only in developer mode and were not reviewed by Kando."
   description: "Install confirmation: warning for a script plugin signed with the developer key."

@@ -27,6 +27,16 @@ func TestScriptVerify(t *testing.T) {
 		t.Fatalf("verified %+v, %v", v, err)
 	}
 
+	// The official root's certificate for another publisher makes its plugins verified, not Kando's own; one of its certificates scoped to acme.* signs no kando. id.
+	acme := certified(t, official, AppIDPrefix+"acme.*")
+	if v, err := Verify(trust, roots, acme.pack(t, fixture{id: "acme.anki"})); err != nil || v.Source != plugins.SourceVerified {
+		t.Errorf("another publisher under the official root: %+v, %v", v, err)
+	}
+	// tsx/pkg will not sign a kando. id under a certificate for acme.* alone (Build checks what the certificate covers), so the closest is a certificate for acme.* that names the kando. id itself: it is not scoped to kando.*, and is refused.
+	named := certified(t, official, AppIDPrefix+"acme.*", AppIDPrefix+"kando.other")
+	_, err = Verify(trust, roots, named.pack(t, fixture{id: "kando.other"}))
+	wantErr(t, "a kando. id under a certificate for acme.*", err, ErrScope)
+
 	dev := newSigner(t, AppIDPrefix+"acme.*")
 	both := Roots{Official: official.public(), Dev: dev.public()}
 	if v, err := Verify(trustOf(t, both), both, dev.pack(t, fixture{id: "acme.tool"})); err != nil || v.Source != plugins.SourceDeveloper {
@@ -440,4 +450,18 @@ func TestScriptRunnerSparesAnInnocentPlugin(t *testing.T) {
 	at := time.Now()
 	live := LiveHeapBytes()
 	t.Logf("a collection of a %d MiB heap took %v", live>>20, time.Since(at))
+}
+
+// certified is a new release key that the root of s certifies for apps.
+func certified(t *testing.T, s signer, apps ...string) signer {
+	t.Helper()
+	release, err := pkg.GenerateKey()
+	if err != nil {
+		t.Fatal(err)
+	}
+	cert, err := pkg.Certify(s.root, release.Public().(ed25519Public), apps, time.Now().Add(-time.Hour), time.Now().Add(time.Hour))
+	if err != nil {
+		t.Fatal(err)
+	}
+	return signer{root: s.root, release: release, cert: cert}
 }

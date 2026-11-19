@@ -8,6 +8,7 @@ import (
 
 	"kando/apps/kando/film"
 	"kando/apps/kando/film/subtitle"
+	"kando/apps/kando/locales/testlocale"
 	"kando/apps/kando/plugins"
 	"kando/apps/kando/plugins/script"
 	"kando/apps/kando/saved"
@@ -16,7 +17,7 @@ import (
 	"github.com/nsgo-dev/nsgo/nsgotest"
 )
 
-// TestScreenshotsPlugins renders Settings › 插件 with a glossary pack and an AI service pack installed, the install confirmation of a script plugin (plugins-script-install) and a script plugin's details with what it was granted (plugins-script-details), and with two dictionary packs, which move up and down, the details of one open (settings-plugins-dictionaries), the install confirmation of a pack over the main window, as a pack from 从文件安装… or the command line's inbox shows it, and of a site pack with a checkbox for each of its sites (plugins-install-site), the card of a word on the picture that a dictionary pack answered, which names the dictionary and its credit (plugins-lookup), and a Japanese line with readings over its words, a line in the color of their level under the words of a word list and a dashed one under a word in the vocabulary (plugins-marks). The packs are in plugins folders of the fixture's home.
+// TestScreenshotsPlugins renders Settings › 插件 with a glossary pack and an AI service pack installed, the install confirmation of a third party's script plugin, verified by Kando (plugins-script-install), and of Kando's own (plugins-script-install-official) and a script plugin's details with what it was granted (plugins-script-details), and with two dictionary packs, which move up and down, the details of one open (settings-plugins-dictionaries), the install confirmation of a pack over the main window, as a pack from 从文件安装… or the command line's inbox shows it, and of a site pack with a checkbox for each of its sites (plugins-install-site), the card of a word on the picture that a dictionary pack answered, which names the dictionary and its credit (plugins-lookup), and a Japanese line with readings over its words, a line in the color of their level under the words of a word list and a dashed one under a word in the vocabulary (plugins-marks). The packs are in plugins folders of the fixture's home.
 func TestScreenshotsPlugins(t *testing.T) {
 	f := newScreenshotFixture(t)
 	root := filepath.Join(f.home, "Library", "Application Support", "Kando", "plugins")
@@ -85,7 +86,7 @@ func TestScreenshotsPlugins(t *testing.T) {
 			t.Fatalf("no dictionary's answer: %+v; texts %q", a.vocab.lookup, tt.Texts())
 		}
 	})
-	// A script plugin as the install confirmation shows it, signed by a key standing in for Kando's official one: where it comes from, what it asks for, needed and optional, the lines read together with the network flagged, and that it stays off once installed.
+	// A third party's script plugin, acme.anki, as the install confirmation shows it, certified by a key standing in for Kando's official root: published by acme and verified by Kando, what it asks for, needed and optional, the lines read together with the network flagged, and that it stays off once installed.
 	key := newPluginsKey(t)
 	f.shoot(t, "plugins-script-install", func(t *testing.T, a *app, tt *nsgotest.App, updates chan func()) {
 		a.plugins.root = filepath.Join(f.home, "scripts")
@@ -96,8 +97,22 @@ func TestScreenshotsPlugins(t *testing.T) {
 			a.pluginsAskStaged(pack, staged, v, err)
 		})
 		refresh(tt, a)
-		if !tt.Exists("id:plugins-install-confirm") || !tt.Exists("id:plugins-install-risky") {
+		if !tt.Exists("id:plugins-install-confirm") || !tt.Exists("id:plugins-install-risky") || !hasText(tt, testlocale.Messages().SettingsPluginsInstallSourceVerified("acme")) {
 			t.Fatalf("no confirmation of the script plugin: %v; texts %q", a.plugins.pending.err, tt.Texts())
+		}
+	})
+	// Kando's own plugin, kando.ankiconnect, signed under the official root with a certificate for kando.*: published by Kando.
+	f.shoot(t, "plugins-script-install-official", func(t *testing.T, a *app, tt *nsgotest.App, updates chan func()) {
+		a.plugins.root = filepath.Join(f.home, "official")
+		a.plugins.script.official = key.public
+		onEngine(a, func() {
+			staged, pack, err := plugins.Stage(a.plugins.root, pluginScriptFolder(t, key, "kando.ankiconnect", "1.2.0", pluginAnkiFields, pluginAnkiCode))
+			v, err := pluginsVerifyStaged(a.pluginsStagedVerifier(), pack, err)
+			a.pluginsAskStaged(pack, staged, v, err)
+		})
+		refresh(tt, a)
+		if p := a.plugins.pending; p.err != nil || p.pack.Source != plugins.SourceOfficial || !hasText(tt, testlocale.Messages().SettingsPluginsInstallSourceOfficial()) {
+			t.Fatalf("Kando's own plugin: %+v; texts %q", p.err, tt.Texts())
 		}
 	})
 	// The same plugin installed, its details open on 插件: its permissions with the saved lines and the network granted, its commands' key conflict and its settings.

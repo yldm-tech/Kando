@@ -30,12 +30,13 @@ type Pack struct {
 	Signer    string
 }
 
-// Source is where a script plugin comes from, by the root its certificate chains to: Kando's official root, or the developer key of this computer (developer mode). Data packs are not signed, and come from a file on this computer (SourceLocal).
+// Source is where a script plugin comes from, by the root its certificate chains to and the publisher its certificate covers: Kando's own, under the official root for the publisher kando (SourceOfficial); another publisher's the official root certified, verified by Kando (SourceVerified); or the developer key of this computer (developer mode). Data packs are not signed, and come from a file on this computer (SourceLocal).
 type Source string
 
 const (
 	SourceLocal     Source = ""
 	SourceOfficial  Source = "official"
+	SourceVerified  Source = "verified"
 	SourceDeveloper Source = "developer"
 )
 

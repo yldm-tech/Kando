@@ -1013,6 +1013,7 @@ var Parameters = map[string][]string{
 	"SettingsPluginsVersion":                   {"version"},
 	"SettingsPluginsVersionAuthor":             {"version", "author"},
 	"SettingsPluginsWordlistDetail":            {"language", "count"},
+	"SettingsPluginsInstallSourceVerified":     {"publisher"},
 	"SettingsPluginsPermNetwork":               {"rules"},
 	"SettingsPluginsConflicts":                 {"commands"},
 	"PluginsOpenURLTitle":                      {"host"},
@@ -1653,6 +1654,7 @@ type Translation struct {
 	SettingsPluginsVersion                   func(version string) string
 	SettingsPluginsVersionAuthor             func(version string, author string) string
 	SettingsPluginsWordlistDetail            func(language string, count int) string
+	SettingsPluginsInstallSourceVerified     func(publisher string) string
 	SettingsPluginsPermNetwork               func(rules string) string
 	SettingsPluginsConflicts                 func(commands string) string
 	PluginsOpenURLTitle                      func(host string) string
@@ -3301,6 +3303,7 @@ const (
 	textSettingsPluginsKindScript
 	textSettingsPluginsSourceOfficial
 	textSettingsPluginsSourceDeveloper
+	textSettingsPluginsSourceVerified
 	textSettingsPluginsUpdated
 	textSettingsPluginsPermissions
 	textSettingsPluginsRisky
@@ -4988,6 +4991,7 @@ var keyOfText = [numTexts]string{
 	"settingsPluginsKindScript",
 	"settingsPluginsSourceOfficial",
 	"settingsPluginsSourceDeveloper",
+	"settingsPluginsSourceVerified",
 	"settingsPluginsUpdated",
 	"settingsPluginsPermissions",
 	"settingsPluginsRisky",
@@ -6673,6 +6677,7 @@ var textsEn = i18n.NewTexts(""+
 	"Script Plugins"+
 	"Official"+
 	"Developer"+
+	"Verified"+
 	"This update asks for more than before. Look over its permissions again."+
 	"Permissions"+
 	"It can read your subtitles and reach the network: what the subtitles say could lead it to send what it reads. Grant both only if you trust it."+
@@ -8355,6 +8360,7 @@ var textsEn = i18n.NewTexts(""+
 		14,
 		8,
 		9,
+		8,
 		71,
 		11,
 		142,
@@ -10040,6 +10046,7 @@ var textsJa = i18n.NewTexts(""+
 	"スクリプトプラグイン"+
 	"公式"+
 	"開発者"+
+	"検証済み"+
 	"このアップデートは以前より多くの権限を求めています。権限をもう一度確認してください。"+
 	"権限"+
 	"字幕を読み取ることもネットワークに接続することもできます。字幕の内容に誘導されて、読み取ったものを送信するおそれがあります。信頼できる場合だけ両方を許可してください。"+
@@ -11722,6 +11729,7 @@ var textsJa = i18n.NewTexts(""+
 		30,
 		6,
 		9,
+		12,
 		126,
 		6,
 		249,
@@ -13407,6 +13415,7 @@ var textsKo = i18n.NewTexts(""+
 	"스크립트 플러그인"+
 	"공식"+
 	"개발자"+
+	"확인됨"+
 	"이번 업데이트는 이전보다 많은 권한을 요청합니다. 권한을 다시 확인하세요."+
 	"권한"+
 	"자막을 읽을 수도 있고 네트워크에 연결할 수도 있습니다. 자막 내용에 유도되어 읽은 내용을 보낼 수 있습니다. 신뢰할 때만 둘 다 허용하세요."+
@@ -15088,6 +15097,7 @@ var textsKo = i18n.NewTexts(""+
 		93,
 		25,
 		6,
+		9,
 		9,
 		103,
 		6,
@@ -16774,6 +16784,7 @@ var textsZhHans = i18n.NewTexts(""+
 	"脚本插件"+
 	"官方"+
 	"开发者"+
+	"已验证"+
 	"这次更新申请了比之前更多的权限，请重新查看授权。"+
 	"权限"+
 	"它既能读取你的字幕，又能联网：字幕内容可能诱导它把读到的东西发出去。只有在信任它时才同时授予这两项。"+
@@ -18455,6 +18466,7 @@ var textsZhHans = i18n.NewTexts(""+
 		90,
 		12,
 		6,
+		9,
 		9,
 		72,
 		6,
@@ -20141,6 +20153,7 @@ var textsZhHant = i18n.NewTexts(""+
 	"腳本外掛"+
 	"官方"+
 	"開發者"+
+	"已驗證"+
 	"這次更新申請了比之前更多的權限，請重新查看授權。"+
 	"權限"+
 	"它既能讀取你的字幕，又能連網：字幕內容可能誘導它把讀到的東西傳出去。只有在信任它時才同時授予這兩項。"+
@@ -21822,6 +21835,7 @@ var textsZhHant = i18n.NewTexts(""+
 		90,
 		12,
 		6,
+		9,
 		9,
 		72,
 		6,
@@ -23659,6 +23673,9 @@ func Supply(lang string, t Translation) {
 	}
 	if t.SettingsPluginsWordlistDetail != nil {
 		s.SettingsPluginsWordlistDetail = t.SettingsPluginsWordlistDetail
+	}
+	if t.SettingsPluginsInstallSourceVerified != nil {
+		s.SettingsPluginsInstallSourceVerified = t.SettingsPluginsInstallSourceVerified
 	}
 	if t.SettingsPluginsPermNetwork != nil {
 		s.SettingsPluginsPermNetwork = t.SettingsPluginsPermNetwork
@@ -58418,6 +58435,19 @@ func (msgs Messages) SettingsPluginsSourceDeveloper() string {
 	return msgs.text(textSettingsPluginsSourceDeveloper)
 }
 
+// SettingsPluginsSourceVerified says "Verified"
+// in the language the app shows under cx.
+//
+// Plugins page: badge after a script plugin's name saying Kando verified its publisher's signature; it is not Kando's own.
+func SettingsPluginsSourceVerified(cx *core.Scope) string {
+	return For(cx).SettingsPluginsSourceVerified()
+}
+
+// SettingsPluginsSourceVerified is the package's SettingsPluginsSourceVerified in the language of msgs.
+func (msgs Messages) SettingsPluginsSourceVerified() string {
+	return msgs.text(textSettingsPluginsSourceVerified)
+}
+
 // SettingsPluginsUpdated says "This update asks for more than before. Look over its permissions again."
 // in the language the app shows under cx.
 //
@@ -58531,6 +58561,38 @@ func SettingsPluginsInstallSourceDeveloper(cx *core.Scope) string {
 // SettingsPluginsInstallSourceDeveloper is the package's SettingsPluginsInstallSourceDeveloper in the language of msgs.
 func (msgs Messages) SettingsPluginsInstallSourceDeveloper() string {
 	return msgs.text(textSettingsPluginsInstallSourceDeveloper)
+}
+
+// SettingsPluginsInstallSourceVerified says "Published by {publisher} · verified by Kando"
+// in the language the app shows under cx.
+//
+// Install confirmation: where a script plugin of another publisher, whose key Kando certified, comes from; {publisher} is the publisher segment of the plugin's id, which its certificate covers, never its stated author.
+func SettingsPluginsInstallSourceVerified(cx *core.Scope, publisher string) string {
+	return For(cx).SettingsPluginsInstallSourceVerified(publisher)
+}
+
+// SettingsPluginsInstallSourceVerified is the package's SettingsPluginsInstallSourceVerified in the language of msgs.
+func (msgs Messages) SettingsPluginsInstallSourceVerified(publisher string) string {
+	if i18n.IsPseudo(msgs.lang) {
+		return i18n.Pseudo(msgs.lang, Messages{lang: Source, mark: true}.SettingsPluginsInstallSourceVerified(publisher))
+	}
+	for lang := msgs.lang; ; lang = i18n.Parent(lang) {
+		if f := supplied[lang].SettingsPluginsInstallSourceVerified; f != nil {
+			return f(publisher)
+		}
+		switch lang {
+		case "", "en":
+			return "Published by " + msgs.arg(publisher) + " · verified by Kando"
+		case "ja":
+			return publisher + " が公開 · Kando が検証済み"
+		case "ko":
+			return publisher + " 배포 · Kando 확인됨"
+		case "zh-Hans":
+			return "由 " + publisher + " 发布 · 看懂已验证"
+		case "zh-Hant":
+			return "由 " + publisher + " 發布 · 看懂已驗證"
+		}
+	}
 }
 
 // SettingsPluginsDeveloperWarning says "Developer plugins run only in developer mode and were not reviewed by Kando."

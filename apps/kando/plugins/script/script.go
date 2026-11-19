@@ -117,18 +117,18 @@ func Verify(trust *pkg.Trust, roots Roots, p plugins.Pack) (Verified, error) {
 	if err != nil {
 		return Verified{}, fmt.Errorf("%w: %w", ErrUntrusted, err)
 	}
-	var source plugins.Source
+	var official bool
 	switch cert.Signer {
 	case pkg.KeyID(roots.Official):
-		source = plugins.SourceOfficial
+		official = true
 	case keyID(roots.Dev):
-		source = plugins.SourceDeveloper
 	default:
 		return Verified{}, fmt.Errorf("%w: root %s", ErrUntrusted, cert.Signer)
 	}
-	if err := checkScope(p.ID, signed.App.ID, cert.Apps, source); err != nil {
+	if err := checkScope(p.ID, signed.App.ID, cert.Apps, official); err != nil {
 		return Verified{}, err
 	}
+	source := sourceOf(p.ID, official)
 	raw, err := readManifest(p)
 	if err != nil {
 		return Verified{}, err
@@ -200,15 +200,34 @@ func verifyError(err error) error {
 }
 
 // checkScope checks that a pattern of apps covering app, the plugin id's app ID, covers no more than the publisher of id (ai.yldm.kando.plugin.<publisher>.*) or the app ID itself, so a certificate given to one publisher cannot sign another's ids; and that a plugin of the publisher kando comes from the official root.
-func checkScope(id, app string, apps []string, source plugins.Source) error {
+func checkScope(id, app string, apps []string, official bool) error {
 	publisher, _, _ := strings.Cut(id, ".")
-	if publisher == officialPublisher && source != plugins.SourceOfficial {
+	// Kando's own plugins come from the official root under a certificate for the whole of kando.*, never one that names an id of it alone.
+	if publisher == officialPublisher && (!official || !slices.Contains(apps, AppIDPrefix+officialPublisher+".*")) {
 		return fmt.Errorf("%w: %s is Kando's own", ErrScope, id)
 	}
 	if !slices.ContainsFunc(apps, func(p string) bool { return p == app || p == AppIDPrefix+publisher+".*" }) {
 		return fmt.Errorf("%w: the certificate covers %s", ErrScope, strings.Join(apps, ", "))
 	}
 	return nil
+}
+
+// sourceOf is where the plugin id comes from, its certificate chaining to the official root when official is set, as checkScope let it: Kando's own (SourceOfficial) only for the publisher kando, whose certificates only the official root signs, scoped to ai.yldm.kando.plugin.kando.*; another publisher's that root certified is verified by Kando (SourceVerified); one of this computer's developer key is a developer's (SourceDeveloper). Never from the manifest: its author says nothing of who signed it (docs/plugin-system.md 6.4).
+func sourceOf(id string, official bool) plugins.Source {
+	publisher, _, _ := strings.Cut(id, ".")
+	switch {
+	case official && publisher == officialPublisher:
+		return plugins.SourceOfficial
+	case official:
+		return plugins.SourceVerified
+	}
+	return plugins.SourceDeveloper
+}
+
+// Publisher is the publisher of the plugin id, the segment before its first dot, which its certificate covers (checkScope): what the install confirmation names it by, never its manifest's author.
+func Publisher(id string) string {
+	publisher, _, _ := strings.Cut(id, ".")
+	return publisher
 }
 
 // checkSigned checks that the capabilities the package signed are those the manifest m declares: its permissions, those it needs and those it can do without, as a set, and its HTTP rules, and nothing else, not even one this runtime does not know (Info.Ignored).
