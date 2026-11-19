@@ -2974,6 +2974,8 @@ const (
 	textSettingsReview
 	textSettingsReviewOn
 	textSettingsReviewOnHint
+	textSettingsSuggestTerms
+	textSettingsSuggestTermsHint
 	textSettingsReviewAuto
 	textSettingsReviewAutoHint
 	textSettingsReviewAutoConsistency
@@ -4451,6 +4453,8 @@ var keyOfText = [numTexts]string{
 	"settingsReview",
 	"settingsReviewOn",
 	"settingsReviewOnHint",
+	"settingsSuggestTerms",
+	"settingsSuggestTermsHint",
 	"settingsReviewAuto",
 	"settingsReviewAutoHint",
 	"settingsReviewAutoConsistency",
@@ -5926,6 +5930,8 @@ var textsEn = i18n.NewTexts(""+
 	"Final Proofread"+
 	"Read the whole film again after translating"+
 	"Makes names, forms of address and terms the same throughout and smooths the wording. It changes only the machine's translation, never a line you edited."+
+	"Find terms after translating"+
+	"Suggests names and terms for the film's Terms tab. Takes one more request to the AI service per 200 lines."+
 	"Apply Automatically"+
 	"The rest wait for you under Proofread in the subtitle list."+
 	"Consistency Only"+
@@ -7398,6 +7404,8 @@ var textsEn = i18n.NewTexts(""+
 		15,
 		43,
 		152,
+		28,
+		106,
 		19,
 		59,
 		16,
@@ -8873,6 +8881,8 @@ var textsJa = i18n.NewTexts(""+
 	"最終校正"+
 	"翻訳後に全体を読み直して校正"+
 	"人名・呼び方・用語を全体でそろえ、言い回しを整えます。機械の訳だけを直し、あなたが編集した行には触れません。"+
+	"翻訳後に作品の用語を探す"+
+	"作品の「用語」タブに人名や用語を提案します。200 行ごとに AI サービスへのリクエストが 1 回増えます。"+
 	"自動で適用"+
 	"残りは字幕一覧の「校正」であなたの確認を待ちます。"+
 	"表記の統一のみ"+
@@ -10345,6 +10355,8 @@ var textsJa = i18n.NewTexts(""+
 		12,
 		42,
 		162,
+		36,
+		143,
 		15,
 		75,
 		21,
@@ -11820,6 +11832,8 @@ var textsKo = i18n.NewTexts(""+
 	"최종 교정"+
 	"번역 후 영상 전체를 다시 읽고 교정"+
 	"인명, 호칭, 용어를 통일하고 문장을 다듬습니다. 기계 번역만 고치며 직접 수정한 줄은 건드리지 않습니다."+
+	"번역 후 영상의 용어 찾기"+
+	"영상의 '용어' 탭에 인명과 용어를 제안합니다. 200줄마다 AI 서비스 요청이 한 번 늘어납니다."+
 	"자동 적용"+
 	"나머지는 자막 목록의 '교정'에서 확인을 기다립니다."+
 	"일관성만"+
@@ -13292,6 +13306,8 @@ var textsKo = i18n.NewTexts(""+
 		13,
 		48,
 		143,
+		34,
+		123,
 		13,
 		71,
 		12,
@@ -14767,6 +14783,8 @@ var textsZhHans = i18n.NewTexts(""+
 	"全文终校"+
 	"译完后通读全片再校一遍"+
 	"统一人名、称谓和术语，顺一顺语句；只改机器译文，不碰你改过的句子。"+
+	"译完后找出片中术语"+
+	"在影片的「术语」页建议人名和术语；每 200 行多向 AI 服务发一次请求。"+
 	"自动生效"+
 	"其余进字幕侧栏「终校」等你确认"+
 	"仅一致性类"+
@@ -16239,6 +16257,8 @@ var textsZhHans = i18n.NewTexts(""+
 		12,
 		33,
 		99,
+		27,
+		96,
 		12,
 		45,
 		15,
@@ -17714,6 +17734,8 @@ var textsZhHant = i18n.NewTexts(""+
 	"全文終校"+
 	"譯完後通讀全片再校一遍"+
 	"統一人名、稱謂和術語，順一順語句；只改機器譯文，不碰你改過的句子。"+
+	"譯完後找出片中術語"+
+	"在影片的「術語」頁建議人名和術語；每 200 行多向 AI 服務發一次請求。"+
 	"自動生效"+
 	"其餘進字幕側欄「終校」等你確認"+
 	"僅一致性類"+
@@ -19186,6 +19208,8 @@ var textsZhHant = i18n.NewTexts(""+
 		12,
 		33,
 		99,
+		27,
+		96,
 		12,
 		45,
 		15,
@@ -52805,6 +52829,26 @@ func SettingsReviewOnHint(cx *core.Scope) string { return For(cx).SettingsReview
 
 // SettingsReviewOnHint is the package's SettingsReviewOnHint in the language of msgs.
 func (msgs Messages) SettingsReviewOnHint() string { return msgs.text(textSettingsReviewOnHint) }
+
+// SettingsSuggestTerms says "Find terms after translating"
+// in the language the app shows under cx.
+//
+// Switch in Settings › Translation: once a film is translated, the AI service lists its names and terms, which the film's Terms tab offers to add to the glossary.
+func SettingsSuggestTerms(cx *core.Scope) string { return For(cx).SettingsSuggestTerms() }
+
+// SettingsSuggestTerms is the package's SettingsSuggestTerms in the language of msgs.
+func (msgs Messages) SettingsSuggestTerms() string { return msgs.text(textSettingsSuggestTerms) }
+
+// SettingsSuggestTermsHint says "Suggests names and terms for the film's Terms tab. Takes one more request to the AI service per 200 lines."
+// in the language the app shows under cx.
+//
+// Line under the switch that finds terms after translating, in Settings › Translation.
+func SettingsSuggestTermsHint(cx *core.Scope) string { return For(cx).SettingsSuggestTermsHint() }
+
+// SettingsSuggestTermsHint is the package's SettingsSuggestTermsHint in the language of msgs.
+func (msgs Messages) SettingsSuggestTermsHint() string {
+	return msgs.text(textSettingsSuggestTermsHint)
+}
 
 // SettingsReviewAuto says "Apply Automatically"
 // in the language the app shows under cx.

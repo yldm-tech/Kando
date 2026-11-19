@@ -3,11 +3,13 @@ package main
 import (
 	"context"
 	"os"
+	"path/filepath"
 	"reflect"
 	"slices"
 	"testing"
 
 	"kando/apps/kando/locales/testlocale"
+	"kando/apps/kando/settings"
 	"kando/packages/core"
 	"kando/packages/media"
 )
@@ -33,6 +35,28 @@ func TestJobsSuggestTermsForTheGlossary(t *testing.T) {
 	settle(t, a, tt, updates)
 	if p.asked != 1 {
 		t.Fatalf("asked for terms %d times", p.asked)
+	}
+}
+
+// Turned off in Settings › 翻译, a job translates without asking for terms, and the choice is saved.
+func TestSettingsTurnOffSuggestingTerms(t *testing.T) {
+	p := &suggestingPipeline{}
+	a, tt, updates := newTestApp(t, p)
+	a.settingsPath = filepath.Join(t.TempDir(), "settings.json")
+	st := settingsOpenAt(a, tt, settings.SectionTranslate)
+	st.Press("id:settings-suggest-terms")
+	if a.prefs.suggestTerms {
+		t.Fatal("the switch left finding terms on")
+	}
+	if saved := loadSavedSettings(a.settingsPath).SuggestTerms; saved == nil || *saved {
+		t.Fatalf("saved %v", saved)
+	}
+	if err := a.Enqueue("https://example.com/a"); err != nil {
+		t.Fatal(err)
+	}
+	settle(t, a, tt, updates)
+	if p.asked != 0 {
+		t.Fatalf("asked for terms %d times with finding them off", p.asked)
 	}
 }
 

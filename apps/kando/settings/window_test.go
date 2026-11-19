@@ -64,7 +64,7 @@ type fakeApp struct {
 	language                string
 	context                 bool
 	contextLines, batchSize int
-	review                  *bool
+	review, suggestTerms    *bool
 	reviewAuto              string
 	retries                 *int
 	appearance, preset      string

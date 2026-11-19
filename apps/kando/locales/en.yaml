@@ -6995,6 +6995,12 @@ settingsReviewOn:
 settingsReviewOnHint:
   message: "Makes names, forms of address and terms the same throughout and smooths the wording. It changes only the machine's translation, never a line you edited."
   description: "Line under the final proofread switch in Settings › Translation."
+settingsSuggestTerms:
+  message: "Find terms after translating"
+  description: "Switch in Settings › Translation: once a film is translated, the AI service lists its names and terms, which the film's Terms tab offers to add to the glossary."
+settingsSuggestTermsHint:
+  message: "Suggests names and terms for the film's Terms tab. Takes one more request to the AI service per 200 lines."
+  description: "Line under the switch that finds terms after translating, in Settings › Translation."
 settingsReviewAuto:
   message: "Apply Automatically"
   description: "Row in Settings › Translation choosing which changes of the final proofread take effect without asking."

@@ -40,6 +40,8 @@ func (a *app) TranslatePrompt() *string { return &a.prefs.translatePrompt }
 
 func (a *app) Review() *bool { return &a.prefs.review }
 
+func (a *app) SuggestTerms() *bool { return &a.prefs.suggestTerms }
+
 func (a *app) ReviewAuto() string { return string(a.prefs.reviewAuto) }
 
 func (a *app) SetReviewAuto(auto string) {
