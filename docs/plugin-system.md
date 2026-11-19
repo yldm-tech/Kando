@@ -42,17 +42,21 @@
 - 何时计算：按需计算，以「视频 + 字幕内容哈希」为键。触发点是插件块自己的 `playing` 钩子：播放器每次报告进度时都会调到它，它只比较当前影片的键和缓存的键，键不同时才起后台计算，算好经 `a.update` 存成不可变切片，再返回 changed。不放在 `shelfChanged` 里算，因为每次任务报进度都会触发它。也不去 film 块的打开函数里插调用，AGENTS.md 不允许这样做。绑定里只读缓存，从不调用插件。
 
 **E3 术语表包（P1）**
-- 接入位置：`apps/kando/state_glossary.go:119` 的 `return job, core.MergeTerms(own, series, global)`，改成 `core.MergeTerms(own, series, append(global, a.pluginTerms(job)...))`，按包声明的 from/to 和任务语言过滤。
-- `MergeTerms` 按 `SameTerm` 去重、先到的留下，所以用户自己的条目和 Locked 条目总是优先。
-- `:151` 的 `func (a *app) FilmTerms()`（播放时用的 `core.MergeTerms(a.gloss.film, series, global)`）同样追加一份。
+- 接入位置：`apps/kando/state_glossary.go` 的 `glossaryStart` 末尾的 `return job, core.MergeTerms(own, series, global)`，改成 `plugins.AddTerms(core.MergeTerms(own, series, global), a.pluginTerms(job))`。`plugins.AddTerms` 把包的条目接在用户的术语表后面，按 `strings.ToLower(strings.TrimSpace(source))` 用 map 去重、先到的留下，不复制进 glossary.json 那份切片；不直接把包的条目塞进 `core.MergeTerms`，因为它对每一条都线性扫描已有的结果，一个 5000 条的包每次要比较约 1250 万次。按包声明的 from/to 和任务语言过滤：目标语言取任务的 `RedoLanguage`（在改译成别的语言时）或 `Language`，经 `core.TargetTag` 换成标签，认不出的目标语言一条也不加；包的 `to` 和它是同一个标签，或其中一方没有文字和地区子标签、语言相同（`zh` 的包对 `zh-Hans`、`zh-Hant` 都适用，`zh-Hans` 的包不适用于 `zh-Hant`）；听到的语言（`SpokenLanguage`，没有就用用户指定的 `SpeechLanguage`）已知时，还要和包的 `from` 是同一种语言，未知时不按来源语言过滤（只有字幕里出现原文的条目才会随批次发出，`core.TermsIn`）。包的条目是 `ScopeGlobal`、不锁定，来源是新加的 `core.OriginPack`（`packages/core/glossary.go`），只在内存里，从不写进术语文件。
+- 包的条目排在用户的全部条目之后、按词去重，所以用户自己的条目和 Locked 条目总是优先。
+- `func (a *app) FilmTerms()`（播放时用的 `core.MergeTerms(a.gloss.film, series, global)`）同样经 `plugins.AddTerms` 追加一份。它是「术语」标签的绑定，每次状态变化都会重算，所以必须用 map 合并。播放器的「术语」标签也会列出包的条目，但它们是只读的：说明行写「<范围> · 来自插件，可在 设置 › 插件 关闭」（`glossaryMetaPack`），范围、锁定、删除三个按钮都禁用，`CycleTermScope`、`ToggleTermLock`、`RemoveTerm` 对它们什么也不做（`glossaryTerm` 找不到包的条目）。用户在下面的输入框给同一个词加译法时，存成这部影片自己的条目（不沿用包条目的全局范围），之后它优先。改字幕时顺带改到包的条目（`correctSpreadTerm`），存成用户锁定的条目，撤销时把用户的条目删掉、让包的条目重新露出来，不会把包的条目写进术语表。
+- 「术语」标签会为包里的每一条建一行（只在打开时建一次，之后由 `core.Each` 按键比对），只按语言过滤，不按影片字幕里是否出现过滤：按字幕过滤要在绑定之外缓存每部影片的结果，P1.1 不做。
 - 每个包最多 5000 条。
 
 **E4 AI 服务预设（P1）**
 - 现在服务商的身份只由包级函数决定，这两个函数只认内置预设：`settings/presets.go:72` 的 `PresetByID(m, id)` 只遍历 `Presets(m)`，`:82-92` 的 `ProviderID(base)` 只遍历 `Presets(locales.In(locales.Source))`，认不出就返回 `"custom"`。所以只在调用方追加插件预设没有用：`settings_ai.go` 的 `syncLLM` 会把插件的地址认成 `custom`，`selectLLM` 会拒绝 `pack.` id，`llmRemember` 会把服务存到 `custom` 下。
-- 改法：预设解析要知道当前 app 有哪些预设。`PresetByID(list []Preset, id)` 和 `ProviderID(list []Preset, base)` 都改成接收预设列表，app 提供 `a.llmPresets(m)`，内容是 `settings.Presets(m)` 加上 `a.PluginPresets()`（P0.1 时只有 `settings.Presets(m)`）。`m` 是调用方要的语言：引导页用 `locales.For(cx)`，反馈 issue 用固定的 `feedbackIssueLanguage`，其余用 `a.messages()`，这样各处显示的名称和改之前一样。`feedbackTranslator` 原来是不带 app 的包级函数，改成接收预设列表，由 `feedbackFacts` 传入 `a.llmPresets(locales.In(feedbackIssueLanguage))`。所有调用处一起改（不能只改一半）。`PresetByID` 的调用处：`settings_ai.go` 的 `savedLLM.clean`、`selectLLM`、`openLLMKeyPage`、`adoptLLMModel`，`bind_onboarding.go` 的 `OnboardingAI`，`bind_settings.go` 的 `CurrentPreset`，`state_feedback.go` 的 `feedbackTranslator`，`state_phonesync_settings.go` 的 `phoneSettings`；`ProviderID` 的调用处：`settings_ai.go` 的 `syncLLM`、`llmRemember`，`bind_settings.go` 的 `ProviderID` 绑定，`state_feedback.go` 的 `feedbackTranslator`，`state_phonesync_settings.go` 的 `phoneSettings`。（按函数名列出，不写行号，免得后面的改动让它们对不上。）`savedLLM.clean` 里没有 app，只传 `settings.Presets(...)`，插件服务靠 P0.2 的 `pack.` 前缀保住。另有三处直接读 `settings.Presets` 的列表，按用途分开处理：`bind_settings.go` 的 `Presets()` 绑定是设置 › AI 下拉框（`settings/ai.go` 里的 `a.Presets()`）的数据源，P1.1 改成 `a.llmPresets(a.messages())`；`bind_onboarding.go` 的 `OnboardingServices`（引导页服务列表）和 `state_feedback.go` 的 `feedbackPublicEndpoint` 只认内置预设，不改。这一步作为 P0.1 单独成 PR，行为不变，涉及约 13 处、6 个文件。
+- 改法：预设解析要知道当前 app 有哪些预设。`PresetByID(list []Preset, id)` 和 `ProviderID(list []Preset, base)` 都改成接收预设列表，app 提供 `a.llmPresets(m)`，内容是 `settings.Presets(m)` 加上 `a.PluginPresets()`（P0.1 时只有 `settings.Presets(m)`）。`m` 是调用方要的语言：引导页用 `locales.For(cx)`，反馈 issue 用固定的 `feedbackIssueLanguage`，其余用 `a.messages()`，这样各处显示的名称和改之前一样。`feedbackTranslator` 原来是不带 app 的包级函数，改成接收预设列表，P0.1 时由 `feedbackFacts` 传入 `a.llmPresets(locales.In(feedbackIssueLanguage))`，P1.1 起只传内置预设（见本节最后一条）。所有调用处一起改（不能只改一半）。`PresetByID` 的调用处：`settings_ai.go` 的 `savedLLM.clean`、`selectLLM`、`openLLMKeyPage`、`adoptLLMModel`，`bind_onboarding.go` 的 `OnboardingAI`，`bind_settings.go` 的 `CurrentPreset`，`state_feedback.go` 的 `feedbackTranslator`，`state_phonesync_settings.go` 的 `phoneSettings`；`ProviderID` 的调用处：`settings_ai.go` 的 `syncLLM`、`llmRemember`，`bind_settings.go` 的 `ProviderID` 绑定，`state_feedback.go` 的 `feedbackTranslator`，`state_phonesync_settings.go` 的 `phoneSettings`。（按函数名列出，不写行号，免得后面的改动让它们对不上。）`savedLLM.clean` 里没有 app，只传 `settings.Presets(...)`，插件服务靠 P0.2 的 `pack.` 前缀保住。另有三处直接读 `settings.Presets` 的列表，按用途分开处理：`bind_settings.go` 的 `Presets()` 绑定是设置 › AI 下拉框（`settings/ai.go` 里的 `a.Presets()`）的数据源，P1.1 改成 `a.llmPresets(a.messages())`；`bind_onboarding.go` 的 `OnboardingServices`（引导页服务列表）和 `state_feedback.go` 的 `feedbackPublicEndpoint` 只认内置预设，不改。这一步作为 P0.1 单独成 PR，行为不变，涉及约 13 处、6 个文件。
 - 插件预设的 id 统一用 `pack.<id>`，只预填 BaseURL、Model、KeyURL、Group。key 和 host 的绑定规则不变（`SameHost`、`restoreLLM`）。
 - 必须同时修一处：`settings_ai.go` 的 `savedLLM.clean()` 遇到未知 preset id 时会 `delete(s.LLMServices, id)`，插件暂时缺席（比如所在的盘没挂上）时会把用户的 key 丢掉。改成保留 `pack.` 前缀的服务（前缀是 `settings_ai.go` 的常量 `llmPackPrefix`；没有地址的服务照旧丢掉）。P0.2 时还没有插件预设，它的测试直接在 `pack.example.gw` 下存一个 key、在没有这个预设时跑 clean，断言 key 还在；「先在插件预设在场时让服务真的存到 `pack.<id>` 下，再拿掉插件、跑 clean」的端到端测试随 P1.1 的 ai-service kind 一起加（见第 9 节的测试策略）。
-- 防钓鱼：pack 预设的 `baseURL` 和 `keyURL` 只接受 https，只有回环地址（`127.0.0.1`、`::1`、`localhost`）可以用 http。内置服务商的名称加入保留名单（见 6.4）。服务商下拉框里，插件预设和内置预设分组显示，插件预设一行写明 host 和来源插件。点「获取 API Key」时先显示目标域名，确认后才打开 keyURL。
+- 防钓鱼：pack 预设的 `baseURL` 和 `keyURL` 只接受 https，只有回环地址（`127.0.0.1`、`::1`、`localhost`）可以用 http。内置服务商的名称加入保留名单（见 6.4）。服务商下拉框里，插件预设排在全部内置预设（含「自定义」）之后，每一行写成「插件 · <包名> · <host>」（`settings.Preset.Plugin` 标出来源包，`settings.Host` 取 host）。NSGo 固定版本的 `ui.Select` 没有带标题的选项分组，所以暂时只靠排在后面和行首的「插件」区分，代码里留 `// TODO(nsgo): …`。点「获取 API Key」时，插件预设先弹一个系统提示框（`base.ShowAlertDialog`），标题写目标 keyURL 的 host，正文写出给出这个地址的包名，用户点「打开」才打开 keyURL；内置预设照旧直接打开。
+- 插件预设在启动时晚到：`restoreLLM` → `syncLLM` 在读插件目录之前就按地址认服务商，这时 pack 的地址会被认成 `custom`。所以插件目录读完、以及开关、安装、卸载之后，插件块都会重新认一次服务商（`pluginsFollowLLM`）。规则是不替用户换：当前选的服务只要还在、地址还对得上就保留（`llmProviderFor`），选的是「自定义」就一直是「自定义」，所以 baseURL 和内置预设相同的包不会被换成内置预设，地址恰好和新装的包相同的自定义服务也不会被换成包的预设；只有当前的服务已经不在了，才按地址重认（`settings.ProviderID`）。
+- 正在用的包服务消失时（关掉、卸载、换成别的版本、盘没挂上），不能让它的地址和 key 存进 `custom`，否则会盖掉用户自己的自定义服务。做法：开关、卸载、替换和每次读目录之前，先把正在用的包服务按 `pack.<id>` 记下（`pluginsKeepLLM` → `llmRemember`）；消失之后服务显示成「自定义」，但记作 gone（`pluginsUI.gone`，id 和地址），此后 `llmRemember` 和 `saveLLM` 都把它算在 `pack.<id>` 名下（`pluginsGoneService`），包回来时它重新显示成包的预设。用户选了别的服务（不是「自定义」）就忘掉 gone（`llmChanged` 钩子）。上次存的服务商若是 `pack.<id>`，启动时就作为 gone 恢复（`restore` 钩子），所以插件目录读完前切换服务也不会写进 `custom`，读完后它显示成包的预设。`llmRemember` 不再直接用 `settings.ProviderID` 的第一个匹配，而是用 `llmProviderFor` 认出当前服务的 id。
+- 反馈 issue 的「翻译服务」一行（`feedbackTranslator`）只认内置预设（`settings.Presets`），包服务和其他自定义地址一样写成「自定义」，包名（比如公司内网网关的名字）不会写进公开的 issue。
 
 **E5 翻译风格（P2）**
 - 接入位置：设置 › 翻译 的提示词编辑区（`settings/translate.go:74-104`）加一组可选预设。
@@ -486,50 +490,52 @@ type Mark struct {
 ### 5.2 app 一侧（package main）
 
 ```go
-// state_plugins.go
-type pluginsState struct {
-	packs   []plugins.Pack
-	issues  []plugins.Issue
-	state   plugins.State
-	pending *plugins.Pack                 // install confirmation (P1.1)
-	dicts   []plugins.Dict                // open dictionaries in lookup order (P1.3)
-	marks   map[string][][]subtitle.Mark  // video + subtitle hash -> per line, immutable once set (P1.4)
-	// P3 adds:
-	health  map[string]plugins.Health
-	scripts map[string]*tsx.Plugin        // engine goroutine only
-	hosts   map[string]*core.Host         // one per plugin, never shared
-	loading []string                      // ids still to Load, one per update tick
+// state_plugins.go (P1.1 as implemented; the type is pluginsUI so main.go's app struct keeps its alignment and gains one line)
+type pluginsUI struct {
+	root     string          // the plugins folder; tests set it, else <dir of settings.json>/plugins
+	packs    []plugins.Pack
+	issues   []plugins.Issue
+	state    plugins.State
+	stateErr error           // LoadState's: ErrBadState or ErrStateFormat keep every pack off
+	scanned  bool
+	scanGen  int             // only the last read's answer is kept
+	order    []string        // savedPlugins.PluginOrder
+	busy     bool            // an install, removal, switch or staging runs
+	err      error           // why the last one failed, mapped to catalog text in bind_plugins.go
+	pending  *pluginsPending // install confirmation: staged pack, or why it cannot be installed
 }
+// P1.3 adds dicts []plugins.Dict (open dictionaries in lookup order); P1.4 marks map[string][][]subtitle.Mark (video + subtitle hash -> per line, immutable once set).
+// P3 adds health, scripts (engine goroutine only), hosts (one per plugin, never shared) and loading (ids still to Load, one per update tick).
 
-// savedPlugins holds preferences only, never trust: dictionary order, annotation switches, chosen exporter.
+// savedPlugins holds preferences only, never trust.
 type savedPlugins struct {
-	PluginDictOrder []string         `json:"pluginDictOrder,omitempty"`
-	PluginMarks     savedPluginMarks `json:"pluginMarks,omitempty"`
+	PluginOrder []string `json:"pluginOrder,omitempty"` // every pack id seen, in the order it came: list order, glossary precedence; P1.3 lets the dictionary group be reordered
 }
-// clean() trims, dedupes, and keeps ids that are missing now (their disk may be unmounted).
+// clean() trims, dedupes, caps at 1000 and keeps ids that are missing now; the page lists those as missing until the user removes them. P1.4 adds the annotation switches as a field of their own.
 
 func (a *app) pluginsHooks() areaHooks
 func (a *app) pluginKeys(cx *core.Scope) []shortcut // P3
 func (a *app) pluginsOverlay(cx *core.Scope) core.Node
 func (a *app) pluginTerms(job core.Job) []core.Term
-func (a *app) PluginPresets() []settings.Preset
-func (a *app) llmPresets(m locales.Messages) []settings.Preset // settings.Presets(m) + PluginPresets(), for PresetByID/ProviderID
-func (a *app) vocabResolve(ctx context.Context, q lookup.Query) (lookup.Entry, vocabSource, bool)
+func (a *app) pluginPresets(m locales.Messages) []settings.Preset // names in m.Language()
+func (a *app) llmPresets(m locales.Messages) []settings.Preset    // settings.Presets(m) + pluginPresets(m), for PresetByID/ProviderID
+func (a *app) vocabResolve(ctx context.Context, q lookup.Query) (lookup.Entry, vocabSource, bool) // P1.3
 ```
 
 `pluginsHooks` 各回调：
 
-- `restore`：读 savedPlugins。
+- `restore`：读 savedPlugins；上次存的 AI 服务商是 `pack.<id>` 时把它记作 gone（P1.1，见 E4）。
 - `save`：写 savedPlugins。
-- `ready`（P1）：在后台 goroutine 里读 state.json、Scan，经 `a.update` 交回引擎，打开已启用的词典。
+- `ready`（P1）：在后台 goroutine 里读 state.json、Scan，经 `a.update` 交回引擎（P1.3 起再打开已启用的词典），然后看一眼 CLI 的 inbox。
+- `becameActive`（P1.1）：app 回到前台时再看一眼 inbox，所以在终端里跑完 `kando plugin install` 再切回看懂，就会弹出确认。不在这里重新 Scan，免得 P1.3 的大词典每次切回都被重新哈希。
 - `ready`（P3 起追加）：在后台 goroutine 里读 health.json。如果发现上次留下的 in-flight 标记，就把对应的 (id, hash) 记为 `hung` 并停用它。然后 Scan、Verify，把结果交回引擎，再按每个 `a.update` 只 Load 一个插件的节奏逐个载入。每载入一个都会触发 `Changed`，菜单和面板经 `areasFollow` → `menuFollow` 补上插件行，不靠 hook 的先后顺序。
 - `playing`（P1.4）：当前影片的「视频 + 字幕哈希」和缓存的键不同时，起后台计算标注（P3 起同时推送 `film.opened` 事件）；其余时候只比较键、什么也不做，返回 false。
 - `shelfChanged`（P3）：只在任务完成时推 `job.completed`，不计算标注。
-- `llmChanged`（P3）：推 `llm.changed`。
+- `llmChanged`（P1.1）：用户选了「自定义」和 gone 以外的服务时忘掉 gone（E4）。P3 起再推 `llm.changed`。
 - `afterChange`：返回 false。
 - `quitStarting`：关掉词典句柄（P1.3）；P3 起还要 Close 所有插件。这时引擎还在跑，`a.cx` 还在。不用 `quitting`，因为那时引擎已经停了，app 的 scope 也没了，而 `Plugin.Close` 要释放的正是那个 scope 的子 scope。
 
-在 `events.go` 的 `areas()` 里，它放在 `settingsHooks` 之后。
+在 `events.go` 的 `areas()` 里，它放在 `settingsHooks` 之后。P1.1 还没有快捷键，所以 `keys.go` 不加 `pluginKeys`，到 P3 再加。
 
 后台调用插件的桥：
 
@@ -619,7 +625,7 @@ export function kandoManifest() { return { /* identical to kando-plugin.json fie
 ### 5.4 外部接口
 
 - CLI 在 `cli/cli.go` 的命令表里加一行 `plugin`，子命令有 `list`、`validate <file-or-folder>`、`install <file>`，都带 `--json`。
-  - `install` 只把文件放进 `plugins/inbox/`，用户在 app 里确认后才会安装（P1.1）。
+  - `install` 先用和 `validate` 一样的检查验过文件，再用 `plugins.Drop` 复制进 `plugins/inbox/`（先写隐藏文件再改名，文件名带随机前缀），用户在 app 里确认后才会安装（P1.1 已实现）。只接受文件，文件夹报用法错误，文件夹可以拖到 设置 › 插件 页上安装。app 在 `ready` 和 `becameActive` 时用 `plugins.Inbox` 取最早的一个文件，Stage 之后、弹出确认时把它移出 inbox（装不了的也只提示一次）；确认框开着或别的安装在跑时先不取，关掉后接着取下一个。看 inbox 用自己的 `inboxBusy`，不占 `busy`，所以切回前台时插件页的开关和按钮照常可用；看的过程中用户开始了别的安装，inbox 让路，文件留到下一次。
   - `validate` 离线运行，不连 app：把包 `plugins.Stage` 进一个临时目录（和安装走同一条解压、复制和 `plugins.Validate`），打印 id、kind、版本、英文名和内容哈希，然后删掉临时目录。（P0.3 已实现）
   - `list` 也不连 app：直接 `plugins.Scan` 插件目录，按 state.json 标出开关，并在 stderr 列出不是有效包的目录。（P0.3 已实现）
   - dev root 的生成和开发者包的签名不放在 CLI，也不经过 socket（见 6.4）。原因有两个：CLI 进程没有 NSGo Scope，拿不到 `core.Secrets`；socket 对同用户的任何程序都开放，不能让它替别人签包。
@@ -696,7 +702,7 @@ export function kandoManifest() { return { /* identical to kando-plugin.json fie
 
 ### 6.5 安装与更新
 
-- 安装入口只有三个：设置 › 插件页的「从文件安装…」、把文件拖进窗口（`desktop.DroppedPaths`）、CLI inbox。三者最后都要经过宿主画的确认 sheet。开发者包另有 6.4 节的入口，同样要经过确认 sheet。
+- 安装入口只有三个：设置 › 插件页的「从文件安装…」、把文件或文件夹拖到 设置 › 插件 页上（`desktop.DroppedPaths`）、CLI inbox。三者最后都要经过宿主画的确认框。开发者包另有 6.4 节的入口，同样要经过确认框。拖进主窗口别处的文件由片库那块的 `dropFiles` 接收，要在那里分出插件包就得往别的块的函数里插调用（AGENTS.md 不允许），所以主窗口的拖放安装没有做，只有插件页本身接拖放。一次拖进多个文件时只问第一个。
 - 安装流程：
   1. `plugins.Stage`：复制或解压到 `plugins/.staging-<rand>`。zip 按实际字节计数（嵌套 zip 共用计数器），拦截 zip-slip、符号链接和绝对路径；文件夹用 Lstat 逐项复制。
   2. 对 staging 里的副本跑 `plugins.Validate`，包括 id 正则和路径检查。脚本包还要 Verify，并在预读沙箱里比对 `kandoManifest()`。
@@ -726,13 +732,18 @@ export function kandoManifest() { return { /* identical to kando-plugin.json fie
 
 ### 7.1 入口与列表
 
-- 设置里新增一节「插件」：`settings/sectionid` 加 `Plugins`；`settings/sections.go:32` 的 `var sections` 改成函数；页面写在 `settings/plugins.go`，用 `settings/form` 的 Card、Row、SwitchRow 和 `ui.Switch` 拼。
-- 列表按 kind 分组。每行有图标、名称、来源徽标、版本·作者、行内开关和状态。状态包括：需要授权 / 已更新，需要重新授权 / 已停用：出错 / 已停用：太慢 / 已停用：上次让看懂停止响应 / 已被撤回 / 离线时不可用 / 未安装（savedPlugins 引用了，但目录里没有）。
+- 设置里新增一节「插件」：`settings/sectionid` 加 `Plugins`；`settings/sections.go` 的 `var sections` 加一行（不需要改成函数，插件页一直显示）；页面写在 `settings/plugins.go`，用 `settings/form` 的 Card、Label、Badge、Button 和 `ui.Switch`、`ui.IconButton` 拼。它读自己的接口 `settings.PluginsApp`，不往 `settings.App` 里加方法，照 `Window.Account` 的先例由 `settings.Window.Plugins` 注入（`state_settings.go` 的 `settingsWindow` 里多一个字段）。
+- 列表按 kind 分组。每行有名称、来源徽标、版本·作者、行内开关，以及展开详情的按钮（P1.1 没有每行的图标）。P1.1 的状态只有开关本身和「未安装」：savedPlugins 引用了、目录里却没有的包单独列在「不在插件文件夹里」一组（包已经读不到，不知道它的 kind），带「移除」按钮。其余状态到有对应机制的那一期再加：需要授权 / 已更新，需要重新授权 / 已停用：出错 / 已停用：太慢 / 已停用：上次让看懂停止响应 / 已被撤回 / 离线时不可用。
 - 词典分组可以拖动排序，决定查词时谁先答。显示顺序和执行顺序分开管理。
-- 顶部按钮：「从文件安装…」（系统文件面板，配合 `holdModal()`），以及「在访达中显示插件文件夹」（`desktop.Reveal`）。开发者模式开着时，多一组「开发者」：生成开发者密钥、打包并安装文件夹…。
+- 顶部按钮：「从文件安装…」（系统文件面板，配合 `holdModal()`，接受 `.zip` 和 `.kandopack`），以及「在访达中显示」（按平台换成文件资源管理器、文件管理器；`desktop.Reveal`，经 `revealInFolder`，插件目录不存在时先建出来）。开发者模式开着时，多一组「开发者」：生成开发者密钥、打包并安装文件夹…。
+- 详情在行下面展开：说明、它会加什么（术语条数和语言、AI 服务的 host 等，由 app 用界面语言写好）、许可、主页、词典的 attribution、id 和哈希前 12 位，以及「卸载…」。卸载的确认也在详情里展开（和手机同步「撤销…」的做法一样），确认后删除目录并从 state.json 移除。
+- state.json 读不了或是更新版本写的，在列表上方用一行红字说明所有包暂时停用。
 - 问题区列出没能载入的包，以及原因的本地化文案。
 
-### 7.2 安装确认（`pluginsOverlay` 里的 `ui.Dialog`）
+### 7.2 安装确认（`settings.PluginInstallDialog`，`ui.Dialog`）
+
+P1.1 的确认框只有数据包要显示的部分：名称（标题）、说明、它会加什么（AI 服务包写明「会把你的 API Key 和要翻译的字幕发送到 <host>」）、来源（「来自这台电脑上的文件 · 未签名」）、版本·作者、许可、id 和哈希前 12 位，以及要替换的已安装版本。取消是默认按钮，回车和 Esc 都不安装。点了「安装」之后、安装结束之前，取消按钮变灰，回车和 Esc 也不起作用：这时 `plugins.Swap` 正把暂存副本移到位，取消会把它删掉，留下一个用户取消了却装上的包，或者一个缺文件的包顶替了旧版本。文件装不了时，同一个对话框只说原因（catalog 文案）和「好」；点了「安装」之后才失败的（另一种 kind 已有这个 id、写盘失败、state.json 是更新版本写的），确认框也不关，换成同样的失败视图，等用户点「好」，因为它可能画在主窗口上、插件页根本不在眼前。确认框开着时占用 `holdModal`。它的文字在建的时候取，所以界面语言切换时整个重建（读 `i18n.Language(cx)`，和 `settings.Window` 一样）。它画在哪里：设置在自己的窗口里、并且正停在插件页时，由插件页画；其余情况（CLI inbox、设置画在主窗口上、设置开在别的页）由主窗口的 `pluginsOverlay` 画（`PluginInstallHere` 决定），免得确认框被设置窗口挡在主窗口里。下面几条是脚本插件（P3）要加的部分。
+
 
 - 显示名称、来源（例如「由 acme 发布，看懂已验证」，取自证书）、版本、大小、哈希前 12 位。
 - 「它想要」的清单：每个权限的说明来自 catalog，插件不能自定义权限说明。例如「读取正在播放的影片到当前句为止的字幕」「用你的 AI 服务回答，每天最多 5 万 token」「向 api.deepl.com 发送 POST /v2/translate」。必需权限在上，可选权限在下，默认不勾。
@@ -752,7 +763,7 @@ export function kandoManifest() { return { /* identical to kando-plugin.json fie
 
 - 设置 › 外观 › 逐词标注：注音或拼音开关、「按等级着色：JLPT」、「标出已学词」。
 - 查词卡在底部标出来源，例如「JMdict」或「AI」。学日语或中文的用户第一次点词时，卡片底部提示「装离线词典，查词更快、不耗 AI」，点了打开设置 › 插件。
-- 设置 › AI 的服务商下拉框里，插件预设单独成组，每项标出 host 和来源插件。点「获取 API Key」时先显示目标域名再打开。
+- 设置 › AI 的服务商下拉框里，插件预设排在内置预设之后，每项写成「插件 · <包名> · <host>」（`ui.Select` 还没有带标题的分组，见 E4）。点「获取 API Key」时先用系统提示框显示目标域名再打开。
 - 导出字幕的格式下拉框、学习导出的目标列表里出现插件项，后面标出插件名。
 - 插件命令出现在命令面板和菜单栏。在 macOS 上，不认识的分组会由现有逻辑放在「窗口」菜单前面，单独成一个菜单（`menu.go:20`）；在 Linux 和 Windows 上，命令面板是唯一入口。
 
@@ -800,7 +811,7 @@ export function kandoManifest() { return { /* identical to kando-plugin.json fie
 
 ### 8.2 根目录 package main 的新文件
 
-- `state_plugins.go`：pluginsState、savedPlugins、pluginsHooks、pluginKeys、pluginsOverlay、pluginTerms、PluginPresets、pluginCall。`llmPresets` 在 P0.1 已经放在 `settings_ai.go`（AI 服务那块的文件），P1.1 在那里加上 `a.PluginPresets()`。
+- `state_plugins.go`：pluginsUI、savedPlugins、pluginsHooks、pluginsOverlay、pluginTerms、pluginPresets、读目录、inbox、安装、开关、卸载；pluginKeys 和 pluginCall 到 P3。`llmPresets` 在 P0.1 已经放在 `settings_ai.go`（AI 服务那块的文件），P1.1 在那里加上 `a.pluginPresets(m)`，`openLLMKeyPage` 遇到插件预设时改调 `pluginsOpenKeyPage`。插件预设的名称要用调用方的语言，而 `locales.Messages` 原来不暴露它的语言，所以在 `locales/languages.go` 加了 `Messages.Language()`。
 - `bind_plugins.go`：settings.App 和 film.App 需要的插件 getter 和 action（`live.Func`、`live.Do`），错误到 catalog 的映射，每个插件自己的 `core.Host` 和 handler（读 app 状态、防剧透裁剪、LLM 代理、credentialFetch）。
 - `plugins_test.go`、`screenshot_plugins_test.go`。
 
@@ -811,6 +822,7 @@ export function kandoManifest() { return { /* identical to kando-plugin.json fie
 - `events.go`：`areas()`（`:54`）在 settingsHooks 之后加 `a.pluginsHooks()`。
 - `keys.go:83`：`slices.Concat` 加 `a.pluginKeys(cx)`（P3）。
 - `state_overlay.go:23`：`overlays()` 加 `a.pluginsOverlay(cx)`。
+- 另外 `state_settings.go` 的 `settingsWindow` 给 `settings.Window` 加一个 `Plugins: settings.Plugins{App: a}` 字段（照 `Account` 的先例），`bind_settings.go` 的 `Presets()` 改成 `a.llmPresets(a.messages())`。
 
 ### 8.4 各接点的最小改动
 
@@ -820,7 +832,7 @@ export function kandoManifest() { return { /* identical to kando-plugin.json fie
 - `bind_settings.go` 的 `Presets()` 绑定改成返回 `a.llmPresets(a.messages())`，设置 › AI 的下拉框按来源分组（P1.1）。
 - `packages/core/segment` 的 `Annotated`（P1.2）。
 - `film/subtitle.go:269` 的 lineWords 加 marks（P1.4），`film/subtitle` 叶子包里加 `Mark`。
-- `settings/sections.go:32` 改成函数，`settings/window.go` 的 `page()` 在 default 分支照 `Window.Account` 的先例注入，`settings/sectionid` 加 `Plugins`。
+- `settings/sections.go` 的 `var sections` 加一行，`settings/window.go` 的 `page()` 加一个 `SectionPlugins` 分支，照 `Window.Account` 的先例注入 `Window.Plugins`，`settings/sectionid` 加 `Plugins`。
 - `packages/media/translate.go` 的 `ChatWith`（P2.0）。
 - `subexport` 的格式列表（P3）。
 - `saved/targets.go`（P2）。
@@ -900,7 +912,7 @@ export function kandoManifest() { return { /* identical to kando-plugin.json fie
 
 ### P1 数据包 v1
 
-- PR 1.1：设置 › 插件页、安装确认、拖入安装、CLI inbox，加上 glossary 和 ai-service 两种 kind（接入 E3 的两处和 E4 的 `llmPresets`、https 规则、下拉框分组），以及 savedPlugins、pluginsHooks（restore/save）、五份 catalog、截图。这是第一个对用户可见、范围最窄的 PR。
+- PR 1.1：设置 › 插件页、安装确认、拖到插件页上安装、CLI inbox（`kando plugin install`），加上 glossary 和 ai-service 两种 kind（接入 E3 的两处和 E4 的 `llmPresets`、https 规则、下拉框里排在后面并写明 host），以及 savedPlugins、pluginsHooks（restore/save/ready/becameActive）、五份 catalog、截图。这是第一个对用户可见、范围最窄的 PR。
 - PR 1.2：`segment.Annotated`。先在 Ubuntu 编译机上量出 `ipa.Dict()` 相对 `DictShrink()` 的 RSS 增量和加载时间，按 12.2 第 5 条的门槛选用完整 features 词典或退到「只用词典包」的方案（见 E1），数字和选择写进第 15 节。不改 `Words` 和 `WordToken`。和 PR 1.3 同在 `feat/plugins-dictionary` 分支。
 - PR 1.3：dictionary kind，含 `plugins/dict`、`vocabResolve`、`LookUpWord` 和 `phoneStudy.LookUp` 都接入、查词卡来源标注、词典排序。
 - PR 1.4：wordlist kind，加上注音和拼音标注（E2，按 `playing` 懒算），以及设置 › 外观 的开关。
@@ -1044,7 +1056,7 @@ export function kandoManifest() { return { /* identical to kando-plugin.json fie
 | PR | 范围 | 分支 | 状态 |
 |---|---|---|---|
 | P0（0.1–0.3） | 0.1 `PresetByID`/`ProviderID` 接收预设列表；0.2 `savedLLM.clean` 保留 `pack.` 服务；0.3 `apps/kando/plugins` 骨架（Parse、Validate、Stage、Swap、Remove、Scan、最小 state.json）和 `kando plugin validate`、`list` | `feat/plugins-foundation` | 已完成 |
-| P1.1 | 设置 › 插件页、安装确认、拖入安装、CLI inbox，glossary 和 ai-service 两种 kind，savedPlugins、pluginsHooks | `feat/plugins-data-packs` | 未开始 |
+| P1.1 | 设置 › 插件页、安装确认、拖到插件页上安装、CLI inbox，glossary 和 ai-service 两种 kind，savedPlugins、pluginsHooks | `feat/plugins-data-packs` | 已完成 |
 | P1.2 + P1.3 | `segment.Annotated`（含测量和路线选择），dictionary kind、`plugins/dict`、`vocabResolve`、查词卡来源、词典排序 | `feat/plugins-dictionary` | 未开始 |
 | P1.4 | wordlist kind、`plugins/wordlist`、逐词标注（注音和等级色）、设置 › 外观 的开关 | `feat/plugins-wordlist` | 未开始 |
 | P1.5 | 官方词典包 | — | 不做（12.2 第 2 条） |
@@ -1072,3 +1084,19 @@ P1.2 的测量结果（Ubuntu 编译机，`ipa.Dict()` 相对 `DictShrink()`）�
   - `kando plugin list` 在 P0.3 一起做了，它不连 app，直接读插件目录（5.4）；P3.6 只剩 `install`。
   - CI 的 Test（Linux）加了一步 `Fuzz the plugin packs`，`FuzzParse` 和 `FuzzUnzip` 各跑 20 秒（第 9 节）。
   - `Scan` 每次都完整校验并哈希每个包，dictionary 还要把嵌套 zip 读一遍。P1.3 接入时如果启动时这一步太慢，再考虑按文件大小和修改时间缓存哈希。
+- P1.1（已完成）：设置 › 插件页（`settings/plugins.go`）、安装确认、CLI inbox、glossary 和 ai-service 接入。和正文的出入如下，各节已同步改过：
+  - app 一侧的类型叫 `pluginsUI` 而不是 `pluginsState`，这样 `main.go` 的 `app` 结构体只多一行、不让 gofmt 重排整段对齐；`savedPlugins` 只有一个 `PluginOrder`（所有见过的 id，按出现顺序，决定列表顺序和术语包之间谁先），取代 `PluginDictOrder`，P1.3 让词典组可以重排，P1.4 再加标注开关（5.2）。
+  - `PluginPresets()` 改成 `pluginPresets(m)`：名称要用调用方的语言，为此 `locales.Messages` 加了 `Language()`（8.2）。插件预设排在全部内置预设之后，下拉框行写成「插件 · 包名 · host」；`ui.Select` 没有带标题的分组，留了 `TODO(nsgo)`（E4）。
+  - 「获取 API Key」对插件预设先弹系统提示框（`base.ShowAlertDialog`）显示 host，不是画在页面里（E4）。
+  - 启动时先认出的服务商在插件目录读完后会重新认一次（`pluginsFollowLLM`），开关、安装、卸载之后也一样；当前选的服务还在就不换，「自定义」不换（`llmProviderFor`）。正在用的包服务消失后记作 gone，它的地址和 key 只存进 `pack.<id>`，不会盖掉用户的自定义服务；`llmRemember` 改用 `llmProviderFor`，`settings` 加了 `SameEndpoint`（E4）。
+  - 术语包按目标语言严格过滤、来源语言已知时才过滤，经 `plugins.AddTerms` 用 map 合并（`core.MergeTerms` 是平方复杂度）。包的条目带新加的 `core.OriginPack`，在播放器的「术语」标签里只读，说明行指向 设置 › 插件；「术语」标签仍为包的每一条建一行，没有按影片字幕过滤（E3）。
+  - `pluginsSameLanguage` 挪进 `plugins` 包，改名 `plugins.SameLanguage`，和 `AddTerms` 一起放在 `plugins/terms.go`。
+  - 点「安装」之后才失败的，确认框不关，换成失败视图等用户点「好」；确认框随界面语言重建（7.2）。看 inbox 用单独的 `inboxBusy`，不让开关在切回前台时失灵（5.4）。
+  - 拖放安装只在 设置 › 插件 页上做，主窗口的拖放仍归片库（6.5）。
+  - `settings/sections.go` 的 `sections` 不改成函数，只加一行；插件页由 `settings.Window.Plugins` 注入，读自己的 `settings.PluginsApp`，不扩大 `settings.App`（7.1、8.4）。
+  - 安装确认在设置自己的窗口里由插件页画，其余情况由主窗口的 `pluginsOverlay` 画（7.2）；卸载确认在详情里展开，不是对话框（7.1）。
+  - CLI inbox 由新加的 `plugins.Drop` 和 `plugins.Inbox` 实现，app 在 `ready` 和 `becameActive` 时检查（5.2、5.4）。
+  - Validate 已经接受 dictionary 和 wordlist（P0.3），所以这两种包现在也能装、能开关，但在 P1.3、P1.4 接入之前不起作用。
+  - state.json 损坏后第一次保存前，给每个没有条目的包补上停用条目（`pluginsNextState`），损坏前关掉的包不会被重新打开（5.1）。
+  - 反馈 issue 的翻译服务一行只认内置预设，不会写出插件包名（E4）。
+  - 截图场景 `TestScreenshotsPlugins` 有插件页（两个包）和主窗口上的安装确认两张；详情页、查词卡来源和带注音的字幕留给 P1.3、P1.4。

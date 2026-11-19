@@ -9,11 +9,12 @@ import (
 	"kando/packages/media"
 )
 
-// Preset is one translation service the AI page can select: its id, its name and what it is in the language of the messages Presets is given, its group, one of the Group values, and the endpoint and default model it fills in. Custom has neither. Every service in the cloud names a chat model of its own, as the first id a service lists is often an embedding, image or guard model; the services on this computer, whose models are the user's, leave the choice to DefaultModel once they list their models, which also replaces a preset's model the service no longer lists. KeyURL is the service's page where an API Key is made, which 获取 API Key opens; EveryAPI has none, as it signs in with the everyapi command-line program, nor have the services on this computer and custom.
+// Preset is one translation service the AI page can select: its id, its name and what it is in the language of the messages Presets is given, its group, one of the Group values, and the endpoint and default model it fills in. Custom has neither. Every service in the cloud names a chat model of its own, as the first id a service lists is often an embedding, image or guard model; the services on this computer, whose models are the user's, leave the choice to DefaultModel once they list their models, which also replaces a preset's model the service no longer lists. KeyURL is the service's page where an API Key is made, which 获取 API Key opens; EveryAPI has none, as it signs in with the everyapi command-line program, nor have the services on this computer and custom. Plugin is the id of the ai-service plugin pack that adds the service, "" for Kando's own: such a service's name and addresses are the pack's, so the drop-down shows it with its host after Kando's own, and 获取 API Key says where it goes before it opens.
 type Preset struct {
 	ID, Name, Blurb, Group string
 	BaseURL, Model         string
 	KeyURL                 string
+	Plugin                 string
 }
 
 // The groups of the presets: services in the cloud, services running on this Mac, which the drop-down names after their group, and any other endpoint.
@@ -95,6 +96,20 @@ func ProviderID(presets []Preset, base string) string {
 // SameHost reports whether two endpoints are on the same scheme and host, so that a key for one may go to the other.
 func SameHost(a, b string) bool {
 	return host(a) == host(b)
+}
+
+// SameEndpoint reports whether a and b are the same endpoint, as ProviderID compares them: the same address, whatever the spaces around it and a slash at its end.
+func SameEndpoint(a, b string) bool {
+	return strings.TrimRight(strings.TrimSpace(a), "/") == strings.TrimRight(strings.TrimSpace(b), "/")
+}
+
+// Host is the host of the address base, as the drop-down and the confirmation before a plugin's key page name it, "" for an address without one.
+func Host(base string) string {
+	parsed, err := url.Parse(strings.TrimSpace(base))
+	if err != nil {
+		return ""
+	}
+	return strings.ToLower(parsed.Hostname())
 }
 
 func host(base string) string {

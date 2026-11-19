@@ -296,9 +296,9 @@ func (a *app) settingsView(cx *core.Scope) core.Node {
 	return a.settingsWindow(chrome.Close(cx))
 }
 
-// settingsWindow is the settings, with the 账号与上传 page of package account, in the settings window or over the main window. closeButton is the settings window's own close button where the system draws none, nil over the main window, whose dialog closes as dialogs do.
+// settingsWindow is the settings, with the 账号与上传 page of package account and the 插件 page, which reads the plugins' state (bind_plugins.go), in the settings window or over the main window. closeButton is the settings window's own close button where the system draws none, nil over the main window, whose dialog closes as dialogs do.
 func (a *app) settingsWindow(closeButton core.Node) core.Node {
-	return settings.Window{App: a, Version: appVersion, Account: account.View{App: a}, Close: closeButton}
+	return settings.Window{App: a, Version: appVersion, Account: account.View{App: a}, Plugins: settings.Plugins{App: a}, Close: closeButton}
 }
 
 // showSettingsWindow brings the settings window to the front, opening it the first time. It opens from a post under the app's scope, which owns it, rather than under the handler that asked, whose part of the window may go first, as the sidebar's gear goes when a film fills the window. Where the platform opens no windows of the app's, the settings show over the main window instead (settingsOverlay). Without the app's scope, as in tests that start no app, there is nothing to open.

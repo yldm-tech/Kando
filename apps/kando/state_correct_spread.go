@@ -162,7 +162,7 @@ func (a *app) SpreadAll() {
 	}
 }
 
-// correctSpreadTerm is the open film's glossary term whose translation the fix changes, before and after it: a fix of a translation that a term wrote is the user's word on that term, which the change locks. A term wrote the words only if its source is in the original of the line edited or of one the fix changes, so a series or global term that translates other words the same way is left alone. It reports false for a fix of an original, one that takes the words out, or one no term wrote.
+// correctSpreadTerm is the open film's glossary term whose translation the fix changes, before and after it: a fix of a translation that a term wrote is the user's word on that term, which the change locks. A term wrote the words only if its source is in the original of the line edited or of one the fix changes, so a series or global term that translates other words the same way is left alone. It reports false for a fix of an original, one that takes the words out, or one no term wrote. For a glossary pack's term (core.OriginPack) before has no target, so undoing the fix removes the user's term rather than storing the pack's.
 func (a *app) correctSpreadTerm(s *correctSpread) (before, after core.Term, ok bool) {
 	if s.original || s.fix.To == "" || !a.TermsWritable() {
 		return core.Term{}, core.Term{}, false
@@ -178,6 +178,10 @@ func (a *app) correctSpreadTerm(s *correctSpread) (before, after core.Term, ok b
 		if t.Target == s.fix.From && slices.ContainsFunc(originals, func(o string) bool { return core.TermIn(o, t.Source) }) {
 			after = t
 			after.Target, after.Locked, after.Origin = s.fix.To, true, core.OriginUser
+			// A glossary pack's term is not the user's to put back: undoing takes the user's term out again, and the pack's shows through.
+			if t.Origin == core.OriginPack {
+				t.Target = ""
+			}
 			return t, after, true
 		}
 	}

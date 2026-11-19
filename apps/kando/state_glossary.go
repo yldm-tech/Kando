@@ -11,6 +11,7 @@ import (
 	"kando/apps/kando/films"
 	"kando/apps/kando/glossary"
 	"kando/apps/kando/playlist"
+	"kando/apps/kando/plugins"
 	"kando/apps/kando/subscribe"
 	"kando/packages/core"
 	"kando/packages/media"
@@ -100,7 +101,7 @@ func (a *app) glossaryFollow() bool {
 	return true
 }
 
-// glossaryStart is job as it starts to run and the glossary it translates with: its film's own terms, read from beside its video, its series' and the global ones (core.MergeTerms). A job that has not downloaded its video yet, of a link a subscription that is a series found (subscribe.Rules.Series), joins that series first, which library.json keeps.
+// glossaryStart is job as it starts to run and the glossary it translates with: its film's own terms, read from beside its video, its series' and the global ones (core.MergeTerms), then the glossary packs' for its languages (pluginTerms, plugins.AddTerms). A job that has not downloaded its video yet, of a link a subscription that is a series found (subscribe.Rules.Series), joins that series first, which library.json keeps.
 func (a *app) glossaryStart(job core.Job) (core.Job, []core.Term) {
 	if job.Series == "" && job.VideoPath == "" {
 		if sub, ok := a.glossarySubscriptionOf(job); ok {
@@ -121,7 +122,7 @@ func (a *app) glossaryStart(job core.Job) (core.Job, []core.Term) {
 		own, _ = media.LoadTerms(media.TermsPath(job.VideoPath))
 	}
 	series, global := a.gloss.store.Terms(job.Series)
-	return job, core.MergeTerms(own, series, global)
+	return job, plugins.AddTerms(core.MergeTerms(own, series, global), a.pluginTerms(job))
 }
 
 // glossarySubscriptionOf is the subscription that is a series whose checks found the link of job, in job's library.
@@ -152,11 +153,11 @@ func (a *app) glossaryJob() (core.Job, bool) {
 	return core.Job{}, false
 }
 
-// FilmTerms is the open film's glossary as its translation uses it: its own terms, its series' and the global ones, a narrower scope's taking the place of a wider one's for the same words.
+// FilmTerms is the open film's glossary as its translation uses it: its own terms, its series' and the global ones, a narrower scope's taking the place of a wider one's for the same words, then the glossary packs' for its languages (pluginTerms), which the 术语 tab shows as the packs', not to be changed there (core.OriginPack). The packs' thousands of terms are added through a map (plugins.AddTerms), as this is a binding of the 术语 tab.
 func (a *app) FilmTerms() []core.Term {
 	job, _ := a.glossaryJob()
 	series, global := a.gloss.store.Terms(job.Series)
-	return core.MergeTerms(a.gloss.film, series, global)
+	return plugins.AddTerms(core.MergeTerms(a.gloss.film, series, global), a.pluginTerms(job))
 }
 
 // TermsWritable reports whether the open film's own terms can be changed: it has a video to keep them beside, and they were read.
@@ -203,7 +204,7 @@ func (a *app) LeaveSeries() {
 	}
 }
 
-// NewTermSource and NewTermTarget are the fields a new term is typed in; AddTerm adds what they hold as one of the open film's own terms, or changes the term for the same words to that translation in the scope it has, and empties them.
+// NewTermSource and NewTermTarget are the fields a new term is typed in; AddTerm adds what they hold as one of the open film's own terms, or changes the term for the same words to that translation in the scope it has, and empties them. A glossary pack's term for the same words is not changed: the film gets a term of its own, which comes first.
 func (a *app) NewTermSource() *string { return &a.gloss.source }
 func (a *app) NewTermTarget() *string { return &a.gloss.target }
 
@@ -212,9 +213,9 @@ func (a *app) AddTerm() {
 	if !t.Valid() || !a.TermsWritable() {
 		return
 	}
-	if i := slices.IndexFunc(a.FilmTerms(), func(o core.Term) bool { return core.SameTerm(o.Source, t.Source) }); i >= 0 {
-		old := a.FilmTerms()[i]
-		t.Scope, t.Locked = old.Scope, old.Locked
+	terms := a.FilmTerms()
+	if i := slices.IndexFunc(terms, func(o core.Term) bool { return core.SameTerm(o.Source, t.Source) }); i >= 0 && terms[i].Origin != core.OriginPack {
+		t.Scope, t.Locked = terms[i].Scope, terms[i].Locked
 	}
 	if a.glossaryChange(correctKindTermAdd, t) {
 		a.gloss.source, a.gloss.target = "", ""
@@ -261,11 +262,11 @@ func (a *app) RemoveTerm(source string) {
 	a.glossaryChange(correctKindTermRemove, t)
 }
 
-// glossaryTerm is the open film's term for source, as FilmTerms lists it.
+// glossaryTerm is the open film's term for source, as FilmTerms lists it, which the 术语 tab's scope, lock and removal change. A glossary pack's term is not found, as those are the pack's (core.OriginPack): the tab offers no change of one.
 func (a *app) glossaryTerm(source string) (core.Term, bool) {
 	terms := a.FilmTerms()
 	i := slices.IndexFunc(terms, func(t core.Term) bool { return core.SameTerm(t.Source, source) })
-	if i < 0 {
+	if i < 0 || terms[i].Origin == core.OriginPack {
 		return core.Term{}, false
 	}
 	return terms[i], true

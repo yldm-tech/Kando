@@ -223,12 +223,16 @@ func (s *screen) seriesGuessCard(cx *ns.Scope, names func() []string) ns.Node {
 		}}
 }
 
-// termRow is a term of the 术语 tab: the words and their translation over where the term applies and whether it is locked, its scope's pill, its lock and its removal.
+// termRow is a term of the 术语 tab: the words and their translation over where the term applies and whether it is locked, its scope's pill, its lock and its removal. A glossary plugin pack's term (core.OriginPack) says it is the plugin's, which is turned off in the settings, and offers none of the three.
 func (s *screen) termRow(cx *ns.Scope, term func() core.Term, index func() int, series func() bool) ns.Node {
 	a := s.a
 	source := func() string { return term().Source }
+	fixed := live.Func(a, func() bool { return !a.TermsWritable() || term().Origin == core.OriginPack })
 	meta := func() string {
 		t := term()
+		if t.Origin == core.OriginPack {
+			return locales.GlossaryMetaPack(cx, scopeName(cx, t.Scope))
+		}
 		if t.Locked {
 			return locales.GlossaryMetaLocked(cx, scopeName(cx, t.Scope))
 		}
@@ -258,7 +262,7 @@ func (s *screen) termRow(cx *ns.Scope, term func() core.Term, index func() int, 
 				ns.Text{TestID: "film-term-meta", ContentFunc: meta, Style: ns.Style{FontSize: 11, LineHeight: 14, Color: onGlass, Opacity: ns.Alpha(0.6)}},
 			}},
 			pillButton(cx, pill{id: "film-term-scope", label: func() string { return scopeName(cx, term().Scope) }, name: scopeLabel, color: func() ns.Color { return scopeColor(cx, term().Scope) },
-				disabled: live.Func(a, func() bool { return !a.TermsWritable() }), press: live.Do(a, func() { a.CycleTermScope(source()) })}),
+				disabled: fixed, press: live.Do(a, func() { a.CycleTermScope(source()) })}),
 			// A locked term's lock sits on a lighter disc, as the prototype marks it (template 978).
 			ns.View{Style: ns.Style{CornerRadius: 14, FlexShrink: 0},
 				StyleFunc: func() ns.Style {
@@ -276,11 +280,11 @@ func (s *screen) termRow(cx *ns.Scope, term func() core.Term, index func() int, 
 					},
 					Selected: func() bool { return term().Locked },
 					Tint:     func() ns.Color { return onGlass },
-					Disabled: live.Func(a, func() bool { return !a.TermsWritable() }),
+					Disabled: fixed,
 					OnPress:  live.Do(a, func() { a.ToggleTermLock(source()) })}}},
 			ui.IconButton{TestID: "film-term-remove", LabelFunc: func() string { return locales.GlossaryRemove(cx, term().Source) }, Size: 28, IconSize: 14,
 				Icon: lucide.X, Tint: func() ns.Color { return ns.RGBA(0xFFFFFF, 0.7) },
-				Disabled: live.Func(a, func() bool { return !a.TermsWritable() }),
+				Disabled: fixed,
 				OnPress:  live.Do(a, func() { a.RemoveTerm(source()) })},
 		}}
 }

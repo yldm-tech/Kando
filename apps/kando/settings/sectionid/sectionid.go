@@ -11,4 +11,5 @@ const (
 	Shortcuts = "shortcuts"
 	Account   = "account"
 	Phone     = "phone"
+	Plugins   = "plugins"
 )

@@ -150,19 +150,37 @@ func everyAPIRow(cx *core.Scope, a App) core.Node {
 	return form.Row{Title: locales.SettingsAIEveryAPICLI(cx), SubtitleFunc: note, Trailing: []core.Node{get, redetect}}
 }
 
-// providerSelect chooses the service among the presets. The drop-down shows their names, the ones on this Mac after their group, as 本机 · Ollama; the setting keeps the id.
+// providerSelect chooses the service among the presets. The drop-down shows their names, the ones on this Mac after their group, as 本机 · Ollama, and those plugin packs add after Kando's own, each with the host it talks to, as 插件 · Company gateway · llm.example.com; the setting keeps the id. The list follows the presets as packs are turned on, off, installed or removed.
 func providerSelect(cx *core.Scope, a App) core.Node {
-	presets := a.Presets()
-	options := make([]ui.Option[string], len(presets))
-	for i, preset := range presets {
-		label := preset.Name
-		if preset.Group == GroupLocal {
-			label = locales.SettingsAILocalService(cx, preset.Name)
+	// labels is the options, joined, so the drop-down is built again only when the list changes.
+	labels := core.NewMemo(cx, live.Func(a, func() string {
+		var out []string
+		for _, preset := range a.Presets() {
+			out = append(out, preset.ID+"\x00"+presetLabel(cx, preset))
 		}
-		options[i] = ui.Option[string]{Value: preset.ID, Label: label}
+		return strings.Join(out, "\x01")
+	}))
+	return core.Dynamic(func(cx *core.Scope) core.Node {
+		// TODO(nsgo): give ui.Select headed groups of options, so the services of plugin packs show under a heading of their own rather than only after Kando's, each marked in its label
+		var options []ui.Option[string]
+		for _, item := range strings.Split(labels.Get(), "\x01") {
+			id, label, _ := strings.Cut(item, "\x00")
+			options = append(options, ui.Option[string]{Value: id, Label: label})
+		}
+		return ui.Select[string]{Options: options, Label: locales.SettingsAIChooseService(cx), TestID: "settings-llm-provider",
+			Value: live.Func(a, a.LLMProvider), OnChange: live.On(a, a.SelectLLM), Style: core.Style{Width: core.Pt(220)}}
+	})
+}
+
+// presetLabel is what the drop-down calls preset in the language shown under cx.
+func presetLabel(cx *core.Scope, preset Preset) string {
+	switch {
+	case preset.Plugin != "":
+		return locales.SettingsAIPluginService(cx, preset.Name, Host(preset.BaseURL))
+	case preset.Group == GroupLocal:
+		return locales.SettingsAILocalService(cx, preset.Name)
 	}
-	return ui.Select[string]{Options: options, Label: locales.SettingsAIChooseService(cx), TestID: "settings-llm-provider",
-		Value: live.Func(a, a.LLMProvider), OnChange: live.On(a, a.SelectLLM), Style: core.Style{Width: core.Pt(220)}}
+	return preset.Name
 }
 
 // modelSelect chooses the model among those the service lists, which the app fetches once the service, its Base URL and its key are known (the endpoint's GET /models). A model chosen before stays on top of the list when the service no longer lists it, so it is not changed behind the user's back. The drop-down is searched by typing part of a model's ID, as a gateway such as OpenRouter lists hundreds. While the list loads the row says so; when it could not be fetched or the service lists none, as a proxy without GET /models, the model's ID is typed into a field instead, with 重试 to fetch the list again.
