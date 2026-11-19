@@ -14,7 +14,7 @@ import (
 	"github.com/nsgo-dev/nsgo/nsgotest"
 )
 
-// TestScreenshotsPhoneSync renders what the desktop shows of the paired phones (screenshot_helpers_test.go): the library offering to continue The Tide Pools of Monterey (j8) where an iPhone left it at 2:05 ten minutes ago, the hero naming the iPhone (phone-handoff); Ocean Currents Explained (j6) paused on the iPhone, with 在这台电脑上继续 (queue-paused-on-phone); and Settings › 手机同步 with an iPhone online, and an iPad made read-only (settings-phone-devices), and further down the learning records synced, a translation and a note in conflict, and what the phones did (settings-phone-conflicts); and the storage relay on through an R2 bucket that answers (settings-phone-relay). No server starts: the scenes set what a running server and the ledger of the open library would hold.
+// TestScreenshotsPhoneSync renders what the desktop shows of the paired phones (screenshot_helpers_test.go): the library offering to continue The Tide Pools of Monterey (j8) where an iPhone left it at 2:05 ten minutes ago, the hero naming the iPhone (phone-handoff); Ocean Currents Explained (j6) paused on the iPhone, with 在这台电脑上继续 (queue-paused-on-phone); and Settings › 手机同步 with an iPhone online, and an iPad made read-only (settings-phone-devices), and further down the learning records synced, a translation and a note in conflict, and what the phones did (settings-phone-conflicts); and the storage relay on through an R2 bucket that answers (settings-phone-relay), with what the films take there, a video going up, two watched ones to clean up and an S3 bucket to move to (settings-phone-storage). No server starts: the scenes set what a running server and the ledger of the open library would hold.
 func TestScreenshotsPhoneSync(t *testing.T) {
 	f := newScreenshotFixture(t)
 	f.shoot(t, "phone-handoff", func(t *testing.T, a *app, tt *nsgotest.App, _ chan func()) {
@@ -49,6 +49,23 @@ func TestScreenshotsPhoneSync(t *testing.T) {
 		a.cloud.r2Endpoint, a.cloud.r2Bucket = "https://0123456789abcdef.r2.cloudflarestorage.com", "kando-films"
 		a.cloud.r2AccessKey, a.cloud.r2Secret = "access-key", "secret"
 		a.phone.relay, a.phone.relayOK = true, true
+	})
+	// 存储用量 under it: the films in the bucket, one video going up, two watched films to clean up after a month, and an S3 bucket set up to move to.
+	shootSettingsScrolled(t, f, settings.SectionPhone, "settings-phone-storage", shown, models, turbo, func(a *app) {
+		shotPhoneSync(a)
+		a.cloud.storage = cloud.KindR2
+		a.cloud.r2Endpoint, a.cloud.r2Bucket = "https://0123456789abcdef.r2.cloudflarestorage.com", "kando-films"
+		a.cloud.r2AccessKey, a.cloud.r2Secret = "access-key", "secret"
+		a.cloud.s3Region, a.cloud.s3Bucket, a.cloud.s3AccessKey, a.cloud.s3Secret = "ap-northeast-1", "kando-films", "access-key", "secret"
+		a.phone.relay, a.phone.relayOK = true, true
+		now := time.Now()
+		a.phone.films.cleanDays = 30
+		a.phone.films.status = phonesync.FilmsStatus{Measured: true, Videos: 6890 << 20, Lines: 3400 << 10, Mail: 20 << 10, Films: 14, WithVideo: 9,
+			Uploading: "Ocean Currents Explained", Sent: 180 << 20, Size: 412 << 20, Waiting: 2,
+			Watched: []phonesync.WatchedFilm{
+				{Library: "lib", ID: "j1", Title: "How Rivers Shape Landscapes", Size: 412 << 20, At: now.Add(-12 * 24 * time.Hour)},
+				{Library: "lib", ID: "j8", Title: "The Tide Pools of Monterey", Size: 286 << 20, At: now.Add(-33 * 24 * time.Hour)},
+			}}
 	})
 }
 

@@ -2,134 +2,191 @@ package main
 
 import (
 	"context"
+	"encoding/xml"
+	"fmt"
+	"io"
 	"net/http"
+	"net/http/httptest"
 	"os"
 	"path/filepath"
 	"slices"
 	"strings"
+	"sync"
 	"testing"
 	"time"
 
+	"kando/apps/kando/cloud"
+	"kando/apps/kando/phonesync"
 	"kando/apps/kando/settings"
-	"kando/apps/kando/shelf"
-	"kando/packages/core"
 	psync "kando/packages/sync"
-
-	ns "github.com/nsgo-dev/nsgo/core"
 )
 
-// A phone takes a film's subtitles as a file, as the export dialog writes them; has a film translated again and the video of a film that keeps none downloaded, each answered with the job, which waits in the queue; and deletes a film, whose folder goes to the Trash. A film Kando did not make the subtitles of has none to translate again, a film with its video none to download, A read-only phone exports but changes nothing, and a locked library's films are not found. The page's list of what the phones did says what each phone changed.
-func TestPhoneSyncActsOnAFilm(t *testing.T) {
-	a, tt, updates, dir, c := phonePaired(t)
-	// The library's queued clip would run once the jobs the phone queues are stopped as the test ends, and block the queue in its turn.
-	a.library.Jobs = slices.DeleteFunc(a.library.Jobs, func(j core.Job) bool { return j.ID == "clip" })
-	a.prefs.language = "简体中文"
-	// A film that keeps no video: its subtitles, and nothing where its sound was.
-	lines := filepath.Join(dir, "Lines", "lines.webm")
-	remoteWriteFile(t, filepath.Join(dir, "Lines", "lines.bilingual.srt"), "1\n00:00:01,000 --> 00:00:02,000\n早\nMorning\n\n")
-	a.library.Jobs = append(a.library.Jobs, core.Job{ID: "lines", Source: "https://www.youtube.com/watch?v=lines00", Title: "Lines", Language: "简体中文", Stage: core.StageComplete,
-		VideoPath: lines, SubtitlePath: filepath.Join(dir, "Lines", "lines.bilingual.srt"), SubtitlesOnly: true, LibraryDir: dir, CompletedAt: time.Now()})
+// filmStore is an S3-compatible store in memory, path style on plain http, that keeps what it is given: a PUT stores, a GET or HEAD reads, a listing lists by prefix, and a DELETE deletes, which is all the relay and the films ask of a store whose files are small.
+type filmStore struct {
+	url string
+
+	mu      sync.Mutex
+	objects map[string][]byte
+}
+
+func newFilmStore(t *testing.T) *filmStore {
+	t.Helper()
+	s := &filmStore{objects: map[string][]byte{}}
+	srv := httptest.NewServer(s)
+	t.Cleanup(srv.Close)
+	s.url = srv.URL
+	return s
+}
+
+func (s *filmStore) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	_, key, _ := strings.Cut(strings.TrimPrefix(r.URL.Path, "/"), "/")
+	type entry struct {
+		Key  string
+		Size int
+	}
+	switch {
+	case r.Method == http.MethodGet && key == "":
+		var out struct {
+			XMLName  xml.Name `xml:"ListBucketResult"`
+			Contents []entry
+		}
+		for k, body := range s.objects {
+			if strings.HasPrefix(k, r.URL.Query().Get("prefix")) {
+				out.Contents = append(out.Contents, entry{Key: k, Size: len(body)})
+			}
+		}
+		slices.SortFunc(out.Contents, func(a, b entry) int { return strings.Compare(a.Key, b.Key) })
+		w.Header().Set("Content-Type", "application/xml")
+		_ = xml.NewEncoder(w).Encode(out)
+	case r.Method == http.MethodPut:
+		body, _ := io.ReadAll(r.Body)
+		s.objects[key] = body
+		w.Header().Set("ETag", fmt.Sprintf(`"%d"`, len(body)))
+	case r.Method == http.MethodDelete:
+		delete(s.objects, key)
+		w.WriteHeader(http.StatusNoContent)
+	default:
+		body, ok := s.objects[key]
+		if !ok {
+			w.Header().Set("Content-Type", "application/xml")
+			w.WriteHeader(http.StatusNotFound)
+			if r.Method == http.MethodGet {
+				_, _ = io.WriteString(w, `<Error><Code>NoSuchKey</Code><Message>none</Message></Error>`)
+			}
+			return
+		}
+		w.Header().Set("Content-Length", fmt.Sprint(len(body)))
+		if r.Method == http.MethodGet {
+			_, _ = w.Write(body)
+		}
+	}
+}
+
+// films are the names of the films' objects the store holds, below the relay's folder.
+func (s *filmStore) films() []string {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	var out []string
+	for k := range s.objects {
+		if _, name, ok := strings.Cut(k, "/"+psync.RelayFilmsFolder); ok {
+			out = append(out, name)
+		}
+	}
+	slices.Sort(out)
+	return out
+}
+
+// With the relay on, Phone Sync puts the library's films in the storage, their videos too, and 存储用量 says what they take; 只同步字幕 is kept in settings.json, and so is the cleanup. 换一个存储 moves to another storage set up in 账号与上传, which becomes the one in use, and the films go up there.
+func TestPhoneFilmsGoToTheStorageAndMove(t *testing.T) {
+	a, tt, updates, _, _ := phoneSyncApp(t)
+	first := newFilmStore(t)
+	a.cloud.storage = cloud.KindCompat
+	a.cloud.compatEndpoint, a.cloud.compatRegion, a.cloud.compatBucket = first.url, "us-east-1", "films"
+	a.cloud.compatAccessKey, a.cloud.compatSecret, a.cloud.compatPath = "key", "secret-value", true
+	a.phone.relay = true
+	phoneSyncOn(t, a, tt, updates)
+	waitUntil(t, tt, a, updates, func() bool {
+		st := a.PhoneSync().Relay.Storage
+		return st.Measured && st.Films == 2 && st.WithVideo == 2
+	})
+	videos := 0
+	for _, name := range first.films() {
+		if strings.HasSuffix(name, "/video.mp4") {
+			videos++
+		}
+	}
+	if videos != 2 || !tt.Exists("id:settings-phone-storage-total") {
+		t.Fatalf("the storage holds %q; texts %q", first.films(), tt.Texts())
+	}
+	if st := a.PhoneSync().Relay.Storage; st.Videos != int64(2*len("video")) || len(st.Targets) != 0 {
+		t.Fatalf("storage %+v", st)
+	}
+
+	tt.Press("settings-phone-relay-subtitles-only")
+	a.SetPhoneRelayClean(7)
+	a.SetPhoneRelayClean(5)
+	data, err := os.ReadFile(a.settingsPath)
+	if err != nil || !strings.Contains(string(data), `"phoneRelaySubtitlesOnly": true`) || !strings.Contains(string(data), `"phoneRelayCleanDays": 7`) {
+		t.Fatalf("settings.json: %s, %v", data, err)
+	}
+	if st := a.PhoneSync().Relay; !st.SubtitlesOnly || st.Storage.CleanDays != 7 {
+		t.Fatalf("relay %+v", st)
+	}
+	tt.Press("settings-phone-relay-subtitles-only")
+
+	second := newFilmStore(t)
+	a.cloud.r2Endpoint, a.cloud.r2Bucket, a.cloud.r2AccessKey, a.cloud.r2Secret = second.url, "films-2", "key-2", "secret-2"
 	refresh(tt, a)
-	var trashed []string
-	prev := trashItem
-	trashItem = func(_ *ns.Scope, path string) error {
-		trashed = append(trashed, path)
-		return os.RemoveAll(path)
+	if targets := a.PhoneSync().Relay.Storage.Targets; !slices.Equal(targets, []settings.PhoneStore{{Kind: cloud.KindR2, Name: "R2"}}) {
+		t.Fatalf("targets %+v", targets)
 	}
-	t.Cleanup(func() { trashItem = prev })
+	running := a.phone.server
+	a.MovePhoneStorage(cloud.KindR2)
+	waitUntil(t, tt, a, updates, func() bool {
+		return a.phone.server != nil && a.phone.server != running && a.PhoneSync().Relay.Storage.Moved
+	})
+	if a.cloud.storage != cloud.KindR2 || a.phone.relaySig != a.phoneRelaySig() {
+		t.Fatalf("after the move the storage in use is %q", a.cloud.storage)
+	}
+	if got := len(second.films()); got != len(first.films()) {
+		t.Fatalf("the new storage holds %q, the old %q", second.films(), first.films())
+	}
+	m := a.messages()
+	if st := a.PhoneSync().Relay.Storage; st.MoveTo != "R2" || st.MoveFrom != m.SettingsPhoneRelayStoreName(m.AccountStoreCompat(), "films") || !tt.Exists("id:settings-phone-storage-move-status") {
+		t.Fatalf("storage after the move %+v", st)
+	}
+	// The old storage keeps its files for the user to delete.
+	if len(first.films()) == 0 {
+		t.Fatal("the move deleted the old storage's files")
+	}
+}
 
-	h, err := phoneCall(t, a, tt, updates, c.Hello)
-	for _, op := range []string{psync.OpFilmRetranslate, psync.OpFilmExport, psync.OpFilmDelete, psync.OpFilmVideo} {
-		if err != nil || !slices.Contains(h.Ops, op) {
-			t.Fatalf("hello %+v, %v; want %s among the operations", h, err, op)
+// A film watched to its end on this computer is one the films through the storage may clean up, as of when it last played.
+func TestPhoneSourceSaysWhichFilmsWereWatched(t *testing.T) {
+	a, tt, updates, dir, _ := phoneSyncApp(t)
+	talk := filepath.Join(dir, "Rust Talk", "talk.mp4")
+	played := time.Date(2026, 11, 1, 20, 0, 0, 0, time.UTC)
+	if a.lib.durations == nil {
+		a.lib.durations = map[string]time.Duration{}
+	}
+	a.lib.durations[talk] = time.Minute
+	a.palette.furthest = map[string]time.Duration{talk: time.Minute}
+	a.player.played = map[string]time.Time{talk: played}
+	list, err := phoneCall(t, a, tt, updates, func(ctx context.Context) ([]phonesync.Film, error) {
+		libs, err := phoneSource{a}.Libraries(ctx)
+		if err != nil || len(libs) == 0 {
+			return nil, fmt.Errorf("libraries %v, %v", libs, err)
 		}
+		return phoneSource{a}.Films(ctx, libs[0])
+	})
+	if err != nil || len(list) == 0 {
+		t.Fatalf("films %v, %v", list, err)
 	}
-	lib := phoneLibraryID(dir)
-	list, err := phoneCall(t, a, tt, updates, func(ctx context.Context) ([]psync.Film, error) { return c.Films(ctx, lib) })
-	if err != nil {
-		t.Fatal(err)
-	}
-	var interview string
 	for _, f := range list {
-		if strings.Contains(strings.ToLower(f.Title), "interview") {
-			interview = f.ID
-		}
-		if f.ID == "lines" && (!f.SubtitlesOnly || f.VideoSize != 0) {
-			t.Fatalf("the film that keeps no video is listed as %+v", f)
+		if want := f.Video == talk; f.Watched != want || (want && !f.WatchedAt.Equal(played)) {
+			t.Errorf("%s watched %v at %v", f.Title, f.Watched, f.WatchedAt)
 		}
 	}
-	if interview == "" || !slices.ContainsFunc(list, func(f psync.Film) bool { return f.ID == "lines" }) {
-		t.Fatalf("films %+v", list)
-	}
-
-	file, err := phoneCall(t, a, tt, updates, func(ctx context.Context) (psync.SubtitleFile, error) { return c.ExportFilm(ctx, "yt") })
-	if err != nil || file.Name != a.export.choice.FileName(filepath.Join(dir, "Rust Talk", "talk.mp4")) || !strings.Contains(string(file.Data), "你好") || !strings.Contains(string(file.Data), "Hello there") {
-		t.Fatalf("export %q %q, %v", file.Name, file.Data, err)
-	}
-
-	_, err = phoneCall(t, a, tt, updates, func(ctx context.Context) (psync.Job, error) { return c.RetranslateFilm(ctx, interview) })
-	phoneWantCode(t, err, http.StatusConflict, psync.CodeConflict)
-	job, err := phoneCall(t, a, tt, updates, func(ctx context.Context) (psync.Job, error) { return c.RetranslateFilm(ctx, "yt") })
-	// The job translates alone, neither downloading nor transcribing the film again.
-	if err != nil || job.ID != "yt" || (job.State != psync.JobWaiting && job.State != psync.JobRunning) || len(job.Steps) != 3 || job.Steps[0].State != psync.StepSkipped || job.Steps[1].State != psync.StepSkipped {
-		t.Fatalf("retranslate %+v, %v", job, err)
-	}
-	if act := a.phone.activity[0]; act.Kind != settings.ActivityRetranslated || act.Title != "Rust Talk" {
-		t.Fatalf("activity %+v", act)
-	}
-
-	_, err = phoneCall(t, a, tt, updates, func(ctx context.Context) (psync.Job, error) { return c.DownloadFilmVideo(ctx, interview) })
-	phoneWantCode(t, err, http.StatusConflict, psync.CodeConflict)
-	video, err := phoneCall(t, a, tt, updates, func(ctx context.Context) (psync.Job, error) { return c.DownloadFilmVideo(ctx, "lines") })
-	if err != nil || video.ID != "lines" || (video.State != psync.JobWaiting && video.State != psync.JobRunning) {
-		t.Fatalf("download the video %+v, %v", video, err)
-	}
-	if got, _ := a.library.Find("lines"); got.Redo != core.RedoVideo || got.Quality == core.QualitySubtitles {
-		t.Fatalf("the film's job %+v does not download its video", got)
-	}
-	if act := a.phone.activity[0]; act.Kind != settings.ActivityVideo || act.Title != "Lines" {
-		t.Fatalf("activity %+v", act)
-	}
-	// Stopped, the download puts the film back as it was, which keeps the queue from running it once the translation is stopped as the test ends.
-	if _, err := phoneCall(t, a, tt, updates, func(ctx context.Context) (psync.Job, error) { return c.ActOnJob(ctx, psync.OpJobCancel, "lines") }); err != nil {
-		t.Fatal(err)
-	}
-
-	// Read-only, the phone exports but deletes nothing.
-	dev := a.phone.devices[0].ID
-	if err := a.phone.server.SetReadOnly(dev, true); err != nil {
-		t.Fatal(err)
-	}
-	_, err = phoneCall(t, a, tt, updates, func(ctx context.Context) (struct{}, error) { return struct{}{}, c.DeleteFilm(ctx, interview) })
-	phoneWantCode(t, err, http.StatusForbidden, psync.CodeReadOnly)
-	if _, err := phoneCall(t, a, tt, updates, func(ctx context.Context) (psync.SubtitleFile, error) { return c.ExportFilm(ctx, interview) }); err != nil {
-		t.Fatal(err)
-	}
-	if err := a.phone.server.SetReadOnly(dev, false); err != nil {
-		t.Fatal(err)
-	}
-
-	if _, err := phoneCall(t, a, tt, updates, func(ctx context.Context) (struct{}, error) { return struct{}{}, c.DeleteFilm(ctx, interview) }); err != nil {
-		t.Fatal(err)
-	}
-	if want := []string{filepath.Join(dir, "Interview")}; !slices.Equal(trashed, want) {
-		t.Fatalf("moved %q to the Trash, want %q", trashed, want)
-	}
-	if act := a.phone.activity[0]; act.Kind != settings.ActivityDeleted || !strings.Contains(strings.ToLower(act.Title), "interview") {
-		t.Fatalf("activity %+v", act)
-	}
-	list, err = phoneCall(t, a, tt, updates, func(ctx context.Context) ([]psync.Film, error) { return c.Films(ctx, lib) })
-	if err != nil || slices.ContainsFunc(list, func(f psync.Film) bool { return f.ID == interview }) {
-		t.Fatalf("films once one was deleted %+v, %v", list, err)
-	}
-
-	// Locked, the library's films are not there for a phone.
-	l, err := shelf.NewLock("pw")
-	if err != nil {
-		t.Fatal(err)
-	}
-	onEngine(a, func() { a.library.SetLock(dir, l) })
-	_, err = phoneCall(t, a, tt, updates, func(ctx context.Context) (psync.SubtitleFile, error) { return c.ExportFilm(ctx, "lines") })
-	phoneWantCode(t, err, http.StatusNotFound, psync.CodeNotFound)
-	onEngine(a, func() { a.library.SetLock(dir, shelf.Lock{}) })
 }

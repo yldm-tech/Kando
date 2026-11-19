@@ -112,11 +112,15 @@ func view(cx *core.Scope, l *Layer, key string) core.Node {
 	// The keyboard's shortcuts act on the player while it shows over the app, not on the film playing on in the mini player.
 	keys(cx, p, w, shown)
 
-	// A film kept by its lines alone, as its computer keeps no video of it, shows in the picture's place what can be done to have the video (film.VideoPrompt), and plays it once it is on the phone.
+	// A film kept by its lines alone, as its computer keeps no video of it, shows in the picture's place what can be done to have the video (film.VideoPrompt), and plays it once it is on the phone. A film kept to stream plays from its computer's storage, and shows its lines alone when the storage holds no video of it (session.Stream).
 	video := func(cx *core.Scope) core.Node {
 		k, _ := s.Film(key)
+		source := filepath.Join(s.Store().FilmDir(k.Desktop, k.Film.ID), k.Video)
+		if p.streamed() {
+			source = s.StreamLink(key)
+		}
 		return core.Video{TestID: "player-video", Ref: p.ref, Label: f.Film.Title,
-			Source:           filepath.Join(s.Store().FilmDir(k.Desktop, k.Film.ID), k.Video),
+			Source:           source,
 			PausedFunc:       func() bool { return !p.playing.Get() },
 			RateFunc:         p.speed,
 			ProgressInterval: 100 * time.Millisecond,
@@ -146,6 +150,11 @@ func view(cx *core.Scope, l *Layer, key string) core.Node {
 		}
 	}
 	picture := core.Show{When: p.hasVideo, Then: video, Else: func(cx *core.Scope) core.Node {
+		if p.streamed() {
+			return core.View{Style: fill.Merge(core.Style{AlignItems: core.AlignCenter, JustifyContent: core.JustifyCenter, Padding: core.All(24)}), Children: []core.Node{
+				core.Text{TestID: "player-no-video", ContentFunc: func() string { return locales.PlayerNoVideo(cx) }, Style: look.Body.Merge(core.Style{TextAlign: core.TextAlignCenter, Color: core.RGB(0xFFFFFF)})},
+			}}
+		}
 		return core.View{Style: fill.Merge(core.Style{JustifyContent: core.JustifyCenter, Background: core.RGB(0x0B0B0D)}), Children: []core.Node{
 			film.VideoPrompt(cx, s, f.Desktop, f.Film, "player-no-video"),
 		}}

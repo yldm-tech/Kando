@@ -871,6 +871,9 @@ const (
 	textFilmNoSpace
 	textFilmPause
 	textFilmPlay
+	textFilmLines
+	textFilmLinesOnly
+	textFilmStorageFailed
 	textFilmResume
 	textFilmStopped
 	textFilmUnpaired
@@ -1039,6 +1042,7 @@ const (
 	textPlayerAudioOnlyNote
 	textPlayerCannotSave
 	textPlayerCantPlay
+	textPlayerNoVideo
 	textPlayerClose
 	textPlayerDelay
 	textPlayerDelayEarlier
@@ -1290,6 +1294,9 @@ var keyOfText = [numTexts]string{
 	"filmNoSpace",
 	"filmPause",
 	"filmPlay",
+	"filmLines",
+	"filmLinesOnly",
+	"filmStorageFailed",
 	"filmResume",
 	"filmStopped",
 	"filmUnpaired",
@@ -1458,6 +1465,7 @@ var keyOfText = [numTexts]string{
 	"playerAudioOnlyNote",
 	"playerCannotSave",
 	"playerCantPlay",
+	"playerNoVideo",
 	"playerClose",
 	"playerDelay",
 	"playerDelayEarlier",
@@ -1707,6 +1715,9 @@ var textsEn = i18n.NewTexts(""+
 	"There isn't enough space on this phone."+
 	"Pause"+
 	"Play"+
+	"Read the Lines"+
+	"Only this film's subtitles are in your storage. Its video is on the computer: watch it there, or download it there first."+
+	"Couldn't read it from your storage. Try again in a moment."+
 	"Resume"+
 	"The download stopped. Resume it when the computer can be reached."+
 	"Pair with the computer again to download."+
@@ -1875,6 +1886,7 @@ var textsEn = i18n.NewTexts(""+
 	"Hides the picture, to listen as you would to a podcast."+
 	"Open this film once while its computer is reachable to save its lines."+
 	"This video can't play on this phone."+
+	"Only the subtitles are here. Watch the video on the computer, or download it there first."+
 	"Close"+
 	"Subtitle Timing"+
 	"Earlier"+
@@ -2121,6 +2133,9 @@ var textsEn = i18n.NewTexts(""+
 		39,
 		5,
 		4,
+		14,
+		121,
+		58,
 		6,
 		65,
 		41,
@@ -2289,6 +2304,7 @@ var textsEn = i18n.NewTexts(""+
 		55,
 		70,
 		36,
+		89,
 		5,
 		15,
 		7,
@@ -2538,6 +2554,9 @@ var textsJa = i18n.NewTexts(""+
 	"スマートフォンの空き容量が足りません。"+
 	"一時停止"+
 	"再生"+
+	"セリフを見る"+
+	"ストレージにあるのはこの作品の字幕だけです。動画はコンピュータにあります。そちらで観るか、先にコンピュータでダウンロードしてください。"+
+	"ストレージから読み込めませんでした。少し待ってからもう一度お試しください。"+
 	"ダウンロードを再開"+
 	"ダウンロードが中断しました。コンピュータに接続できるときに再開してください。"+
 	"ダウンロードするには、もう一度コンピュータとペアリングしてください。"+
@@ -2706,6 +2725,7 @@ var textsJa = i18n.NewTexts(""+
 	"画面を隠して、ポッドキャストのように聞けます。"+
 	"パソコンにつながる場所で一度この映像を開くと、文を保存できるようになります。"+
 	"この動画はこのスマートフォンでは再生できません。"+
+	"ここにあるのは字幕だけです。動画はコンピュータで観るか、先にそちらでダウンロードしてください。"+
 	"閉じる"+
 	"字幕のタイミング"+
 	"早める"+
@@ -2952,6 +2972,9 @@ var textsJa = i18n.NewTexts(""+
 		57,
 		12,
 		6,
+		18,
+		201,
+		111,
 		27,
 		114,
 		102,
@@ -3120,6 +3143,7 @@ var textsJa = i18n.NewTexts(""+
 		69,
 		114,
 		72,
+		141,
 		9,
 		24,
 		9,
@@ -3369,6 +3393,9 @@ var textsKo = i18n.NewTexts(""+
 	"휴대폰 저장 공간이 부족합니다."+
 	"일시 정지"+
 	"재생"+
+	"대사 보기"+
+	"스토리지에는 이 작품의 자막만 있습니다. 동영상은 컴퓨터에 있으니 거기서 보거나 먼저 컴퓨터에서 내려받으세요."+
+	"스토리지에서 읽지 못했습니다. 잠시 후 다시 시도하세요."+
 	"다운로드 재개"+
 	"다운로드가 중단되었습니다. 컴퓨터에 연결할 수 있을 때 다시 시작하세요."+
 	"다운로드하려면 컴퓨터와 다시 페어링하세요."+
@@ -3537,6 +3564,7 @@ var textsKo = i18n.NewTexts(""+
 	"화면을 숨기고 팟캐스트처럼 들을 수 있습니다."+
 	"컴퓨터에 연결된 상태에서 이 영상을 한 번 열면 문장을 저장할 수 있습니다."+
 	"이 영상은 이 휴대폰에서 재생할 수 없습니다."+
+	"여기에는 자막만 있습니다. 동영상은 컴퓨터에서 보거나 먼저 거기서 내려받으세요."+
 	"닫기"+
 	"자막 타이밍"+
 	"앞당기기"+
@@ -3783,6 +3811,9 @@ var textsKo = i18n.NewTexts(""+
 		43,
 		13,
 		6,
+		13,
+		155,
+		77,
 		19,
 		100,
 		61,
@@ -3951,6 +3982,7 @@ var textsKo = i18n.NewTexts(""+
 		63,
 		102,
 		61,
+		112,
 		6,
 		16,
 		12,
@@ -4200,6 +4232,9 @@ var textsZhHans = i18n.NewTexts(""+
 	"手机空间不足。"+
 	"暂停"+
 	"播放"+
+	"看台词"+
+	"存储里只有这部片的字幕，视频在电脑上：到电脑上看，或者先在电脑上下载视频。"+
+	"没能从存储里读到，过一会儿再试。"+
 	"继续下载"+
 	"下载中断了。能连上电脑时再继续。"+
 	"请重新与电脑配对后再下载。"+
@@ -4368,6 +4403,7 @@ var textsZhHans = i18n.NewTexts(""+
 	"不显示画面，适合通勤时练听力。"+
 	"在能连上电脑时打开一次这部影片，就能收藏它的句子。"+
 	"这个视频无法在这部手机上播放。"+
+	"这里只有字幕。视频请到电脑上看，或者先在电脑上下载。"+
 	"关闭"+
 	"字幕时间"+
 	"提前"+
@@ -4614,6 +4650,9 @@ var textsZhHans = i18n.NewTexts(""+
 		21,
 		6,
 		6,
+		9,
+		111,
+		48,
 		12,
 		48,
 		39,
@@ -4782,6 +4821,7 @@ var textsZhHans = i18n.NewTexts(""+
 		45,
 		75,
 		45,
+		78,
 		6,
 		12,
 		6,
@@ -5031,6 +5071,9 @@ var textsZhHant = i18n.NewTexts(""+
 	"手機空間不足。"+
 	"暫停"+
 	"播放"+
+	"看台詞"+
+	"儲存空間裡只有這部片的字幕，影片在電腦上：到電腦上看，或者先在電腦上下載影片。"+
+	"沒能從儲存空間讀到，過一會兒再試。"+
 	"繼續下載"+
 	"下載中斷了。能連上電腦時再繼續。"+
 	"請重新與電腦配對後再下載。"+
@@ -5199,6 +5242,7 @@ var textsZhHant = i18n.NewTexts(""+
 	"不顯示畫面，適合通勤時練聽力。"+
 	"在能連上電腦時打開一次這部影片，就能收藏它的句子。"+
 	"這個影片無法在這支手機上播放。"+
+	"這裡只有字幕。影片請到電腦上看，或者先在電腦上下載。"+
 	"關閉"+
 	"字幕時間"+
 	"提前"+
@@ -5445,6 +5489,9 @@ var textsZhHant = i18n.NewTexts(""+
 		21,
 		6,
 		6,
+		9,
+		117,
+		51,
 		12,
 		48,
 		39,
@@ -5613,6 +5660,7 @@ var textsZhHant = i18n.NewTexts(""+
 		45,
 		75,
 		45,
+		78,
 		6,
 		12,
 		6,
@@ -7844,6 +7892,33 @@ func FilmPlay(cx *core.Scope) string { return For(cx).FilmPlay() }
 
 // FilmPlay is the package's FilmPlay in the language of msgs.
 func (msgs Messages) FilmPlay() string { return msgs.text(textFilmPlay) }
+
+// FilmLines says "Read the Lines"
+// in the language the app shows under cx.
+//
+// Button on the page of a film whose video is not in the user's storage, away from the computer: it opens the film's lines alone.
+func FilmLines(cx *core.Scope) string { return For(cx).FilmLines() }
+
+// FilmLines is the package's FilmLines in the language of msgs.
+func (msgs Messages) FilmLines() string { return msgs.text(textFilmLines) }
+
+// FilmLinesOnly says "Only this film's subtitles are in your storage. Its video is on the computer: watch it there, or download it there first."
+// in the language the app shows under cx.
+//
+// Shown on the page of a film the computer shares through the storage without its video.
+func FilmLinesOnly(cx *core.Scope) string { return For(cx).FilmLinesOnly() }
+
+// FilmLinesOnly is the package's FilmLinesOnly in the language of msgs.
+func (msgs Messages) FilmLinesOnly() string { return msgs.text(textFilmLinesOnly) }
+
+// FilmStorageFailed says "Couldn't read it from your storage. Try again in a moment."
+// in the language the app shows under cx.
+//
+// Shown on a film's page when its lines could not be read from the user's storage, away from the computer.
+func FilmStorageFailed(cx *core.Scope) string { return For(cx).FilmStorageFailed() }
+
+// FilmStorageFailed is the package's FilmStorageFailed in the language of msgs.
+func (msgs Messages) FilmStorageFailed() string { return msgs.text(textFilmStorageFailed) }
 
 // FilmResume says "Resume"
 // in the language the app shows under cx.
@@ -12043,6 +12118,15 @@ func PlayerCantPlay(cx *core.Scope) string { return For(cx).PlayerCantPlay() }
 
 // PlayerCantPlay is the package's PlayerCantPlay in the language of msgs.
 func (msgs Messages) PlayerCantPlay() string { return msgs.text(textPlayerCantPlay) }
+
+// PlayerNoVideo says "Only the subtitles are here. Watch the video on the computer, or download it there first."
+// in the language the app shows under cx.
+//
+// Over the player of a film whose video is not in the user's storage, only its lines.
+func PlayerNoVideo(cx *core.Scope) string { return For(cx).PlayerNoVideo() }
+
+// PlayerNoVideo is the package's PlayerNoVideo in the language of msgs.
+func (msgs Messages) PlayerNoVideo() string { return msgs.text(textPlayerNoVideo) }
 
 // PlayerCardPlace says "Line {index} of {count} · {time}"
 // in the language the app shows under cx.

@@ -179,10 +179,19 @@ func newPlay(cx *core.Scope, s *session.Session, key string) *play {
 	return p
 }
 
-// hasVideo reports whether the film's video is on the phone; a film kept by its lines alone is studied line by line, holding still, until it is. Read it in a binding.
+// hasVideo reports whether the film has a video to play: on the phone, or for a film kept to stream (streamed) in its computer's storage. A film kept by its lines alone is studied line by line, holding still, until it has. Read it in a binding.
 func (p *play) hasVideo() bool {
+	if p.streamed() {
+		return p.s.StreamLink(p.key) != ""
+	}
 	f, ok := p.s.Film(p.key)
 	return ok && f.HasVideo()
+}
+
+// streamed reports whether the film is kept to play from its computer's storage, away from its network, rather than downloaded (store.Film.Streamed). Read it in a binding.
+func (p *play) streamed() bool {
+	f, ok := p.s.Film(p.key)
+	return ok && f.Streamed && !f.Done()
 }
 
 // subAt is where the playhead is in the lines' time: the picture's, less the delay.

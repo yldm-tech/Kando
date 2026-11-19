@@ -58,6 +58,8 @@ type Film struct {
 	// DelayMS moves the film's subtitles against its picture, later for more than 0, as the player's settings set it for this film alone.
 	DelayMS int64     `json:"delay_ms,omitempty"`
 	Added   time.Time `json:"added"`
+	// Streamed is a film kept to play from the user's storage, away from its desktop: its record and lines, with no download of its video asked for, which is not taken for one paused.
+	Streamed bool `json:"streamed,omitempty"`
 }
 
 // Key names a film on the phone: its desktop's ID and its own.

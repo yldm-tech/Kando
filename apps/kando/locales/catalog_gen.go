@@ -947,6 +947,25 @@ var Parameters = map[string][]string{
 	"SettingsPhoneReadOnlyLabel":               {"name"},
 	"SettingsPhoneRevokeTitle":                 {"name"},
 	"SettingsPhoneRelayStoreName":              {"kind", "bucket"},
+	"SettingsPhoneStorageFilms":                {"films", "videos"},
+	"SettingsPhoneStorageBar":                  {"videos", "lines", "mail"},
+	"SettingsPhoneStorageVideos":               {"size"},
+	"SettingsPhoneStorageLines":                {"size"},
+	"SettingsPhoneStorageMail":                 {"size"},
+	"SettingsPhoneStorageUploading":            {"title", "percent"},
+	"SettingsPhoneStorageUploadingMore":        {"title", "percent", "left"},
+	"SettingsPhoneStorageFailed":               {"error_"},
+	"SettingsPhoneStorageAfterDays":            {"days"},
+	"SettingsPhoneStorageCleanAll":             {"size"},
+	"SettingsPhoneStorageCleanLabel":           {"title"},
+	"SettingsPhoneStorageWatchedAgo":           {"ago"},
+	"SettingsPhoneStorageCleanFailed":          {"error_"},
+	"SettingsPhoneStorageMoveAsk":              {"store"},
+	"SettingsPhoneStorageMoveAskBody":          {"store", "from"},
+	"SettingsPhoneStorageMoving":               {"store"},
+	"SettingsPhoneStorageMovingCount":          {"store", "done", "total"},
+	"SettingsPhoneStorageMoved":                {"store", "from"},
+	"SettingsPhoneStorageMoveFailed":           {"error_"},
 	"SettingsPhoneSyncedCounts":                {"words", "lines", "films"},
 	"SettingsPhoneResolveFailed":               {"error_"},
 	"SettingsPhoneConflictWord":                {"word"},
@@ -1483,6 +1502,25 @@ type Translation struct {
 	SettingsPhoneReadOnlyLabel               func(name string) string
 	SettingsPhoneRevokeTitle                 func(name string) string
 	SettingsPhoneRelayStoreName              func(kind string, bucket string) string
+	SettingsPhoneStorageFilms                func(films int, videos int) string
+	SettingsPhoneStorageBar                  func(videos string, lines string, mail string) string
+	SettingsPhoneStorageVideos               func(size string) string
+	SettingsPhoneStorageLines                func(size string) string
+	SettingsPhoneStorageMail                 func(size string) string
+	SettingsPhoneStorageUploading            func(title string, percent int) string
+	SettingsPhoneStorageUploadingMore        func(title string, percent int, left int) string
+	SettingsPhoneStorageFailed               func(error_ string) string
+	SettingsPhoneStorageAfterDays            func(days int) string
+	SettingsPhoneStorageCleanAll             func(size string) string
+	SettingsPhoneStorageCleanLabel           func(title string) string
+	SettingsPhoneStorageWatchedAgo           func(ago string) string
+	SettingsPhoneStorageCleanFailed          func(error_ string) string
+	SettingsPhoneStorageMoveAsk              func(store string) string
+	SettingsPhoneStorageMoveAskBody          func(store string, from string) string
+	SettingsPhoneStorageMoving               func(store string) string
+	SettingsPhoneStorageMovingCount          func(store string, done int, total int) string
+	SettingsPhoneStorageMoved                func(store string, from string) string
+	SettingsPhoneStorageMoveFailed           func(error_ string) string
 	SettingsPhoneSyncedCounts                func(words int, lines int, films int) string
 	SettingsPhoneResolveFailed               func(error_ string) string
 	SettingsPhoneConflictWord                func(word string) string
@@ -2941,6 +2979,24 @@ const (
 	textSettingsPhoneRelayChecking
 	textSettingsPhoneRelayNeedsStore
 	textSettingsPhoneRelayOffline
+	textSettingsPhoneRelaySubtitlesOnly
+	textSettingsPhoneRelaySubtitlesOnlyHint
+	textSettingsPhoneStorage
+	textSettingsPhoneStorageMeasuring
+	textSettingsPhoneStorageAutoClean
+	textSettingsPhoneStorageAutoCleanHint
+	textSettingsPhoneStorageNever
+	textSettingsPhoneStorageWatched
+	textSettingsPhoneStorageClean
+	textSettingsPhoneStorageWatchedSome
+	textSettingsPhoneStorageNothing
+	textSettingsPhoneStorageMove
+	textSettingsPhoneStorageMoveHint
+	textSettingsPhoneStorageMoveTo
+	textSettingsPhoneStorageMoveButton
+	textSettingsPhoneStorageNoTarget
+	textSettingsPhoneStorageMoveConfirm
+	textSettingsPhoneStorageMoveCancel
 	textSettingsPhoneRevokeStorage
 	textSettingsPhoneRevokeConfirm
 	textSettingsPhoneRevokeCancel
@@ -4414,6 +4470,24 @@ var keyOfText = [numTexts]string{
 	"settingsPhoneRelayChecking",
 	"settingsPhoneRelayNeedsStore",
 	"settingsPhoneRelayOffline",
+	"settingsPhoneRelaySubtitlesOnly",
+	"settingsPhoneRelaySubtitlesOnlyHint",
+	"settingsPhoneStorage",
+	"settingsPhoneStorageMeasuring",
+	"settingsPhoneStorageAutoClean",
+	"settingsPhoneStorageAutoCleanHint",
+	"settingsPhoneStorageNever",
+	"settingsPhoneStorageWatched",
+	"settingsPhoneStorageClean",
+	"settingsPhoneStorageWatchedSome",
+	"settingsPhoneStorageNothing",
+	"settingsPhoneStorageMove",
+	"settingsPhoneStorageMoveHint",
+	"settingsPhoneStorageMoveTo",
+	"settingsPhoneStorageMoveButton",
+	"settingsPhoneStorageNoTarget",
+	"settingsPhoneStorageMoveConfirm",
+	"settingsPhoneStorageMoveCancel",
 	"settingsPhoneRevokeStorage",
 	"settingsPhoneRevokeConfirm",
 	"settingsPhoneRevokeCancel",
@@ -5885,6 +5959,24 @@ var textsEn = i18n.NewTexts(""+
 	"Checking the storage…"+
 	"Set up a storage in Account & Upload first"+
 	"Paused while Offline mode is on"+
+	"Subtitles only"+
+	"Videos stay off the storage to save room: phones show and study the lines, and the videos are watched on this computer."+
+	"Storage Use"+
+	"Measuring…"+
+	"Clean up videos in the storage"+
+	"Only the videos in the storage are deleted; subtitles, words and progress stay, and so does the video on this computer."+
+	"Never"+
+	"Watched Videos to Clean Up"+
+	"Clean Up"+
+	"Watched"+
+	"Nothing to clean up."+
+	"Move to Another Storage"+
+	"The videos and subtitles go up to the new storage again, and paired phones follow it the next time they connect, without scanning a code."+
+	"Move to"+
+	"Move…"+
+	"Set up another storage in Account & Upload first"+
+	"Move"+
+	"Cancel"+
 	"Its messages in your storage are deleted. Links it already holds keep working for up to 7 days; to cut them off now, change the storage's access key in Account & Upload."+
 	"Revoke This Phone"+
 	"Cancel"+
@@ -7353,6 +7445,24 @@ var textsEn = i18n.NewTexts(""+
 		23,
 		42,
 		31,
+		14,
+		119,
+		11,
+		12,
+		30,
+		119,
+		5,
+		26,
+		8,
+		7,
+		20,
+		23,
+		137,
+		7,
+		7,
+		48,
+		4,
+		6,
 		169,
 		17,
 		6,
@@ -8824,6 +8934,24 @@ var textsJa = i18n.NewTexts(""+
 	"ストレージを確認中…"+
 	"先に「アカウントとアップロード」でストレージを設定してください"+
 	"オフラインモード中は一時停止"+
+	"字幕だけ同期"+
+	"動画はストレージに置かず容量を節約します。スマホではセリフを見て学習でき、動画はこのコンピュータで観ます。"+
+	"ストレージ使用量"+
+	"計測中…"+
+	"ストレージの動画を自動で整理"+
+	"削除するのはストレージの動画だけです。字幕、単語、進み具合は残り、このコンピュータの動画もそのままです"+
+	"しない"+
+	"観終わって整理できる動画"+
+	"整理"+
+	"視聴済み"+
+	"整理できるものはありません。"+
+	"別のストレージに移す"+
+	"動画と字幕を新しいストレージにアップロードし直します。ペアリング済みのスマホは次に接続したとき自動で切り替わり、コードを読み取り直す必要はありません"+
+	"移行先"+
+	"移行…"+
+	"先に「アカウントとアップロード」で別のストレージを設定してください"+
+	"移行"+
+	"キャンセル"+
 	"ストレージにあるこのデバイスのメッセージは削除されます。すでに渡したリンクは最長 7 日間使えます。すぐに無効にするには、「アカウントとアップロード」でストレージのアクセスキーを変更してください。"+
 	"このデバイスを取り消す"+
 	"キャンセル"+
@@ -10292,6 +10420,24 @@ var textsJa = i18n.NewTexts(""+
 		30,
 		93,
 		42,
+		18,
+		159,
+		24,
+		12,
+		42,
+		153,
+		9,
+		36,
+		6,
+		12,
+		42,
+		30,
+		222,
+		9,
+		9,
+		99,
+		6,
+		15,
 		288,
 		33,
 		15,
@@ -11763,6 +11909,24 @@ var textsKo = i18n.NewTexts(""+
 	"스토리지 확인 중…"+
 	"먼저 ‘계정 및 업로드’에서 스토리지를 설정하세요"+
 	"오프라인 모드에서는 일시 중지"+
+	"자막만 동기화"+
+	"동영상은 스토리지에 올리지 않아 공간을 아낍니다. 휴대폰에서는 대사를 보고 학습하고, 동영상은 이 컴퓨터에서 봅니다."+
+	"스토리지 사용량"+
+	"측정 중…"+
+	"스토리지의 동영상 자동 정리"+
+	"스토리지의 동영상만 지웁니다. 자막, 단어, 진도는 남고 이 컴퓨터의 동영상도 그대로입니다"+
+	"안 함"+
+	"다 봐서 정리할 수 있는 동영상"+
+	"정리"+
+	"시청 완료"+
+	"정리할 것이 없습니다."+
+	"다른 스토리지로 옮기기"+
+	"동영상과 자막을 새 스토리지에 다시 올립니다. 페어링한 휴대폰은 다음에 연결될 때 자동으로 따라오며 코드를 다시 스캔할 필요가 없습니다"+
+	"옮길 곳"+
+	"옮기기…"+
+	"먼저 계정 및 업로드에서 다른 스토리지를 설정하세요"+
+	"옮기기"+
+	"취소"+
 	"스토리지에 있는 이 기기의 메시지가 삭제됩니다. 이미 받은 링크는 최대 7일 동안 작동합니다. 바로 끊으려면 ‘계정 및 업로드’에서 스토리지 액세스 키를 바꾸세요."+
 	"이 기기 해제"+
 	"취소"+
@@ -13231,6 +13395,24 @@ var textsKo = i18n.NewTexts(""+
 		26,
 		71,
 		42,
+		19,
+		163,
+		22,
+		13,
+		39,
+		124,
+		7,
+		41,
+		6,
+		13,
+		30,
+		32,
+		189,
+		10,
+		12,
+		72,
+		9,
+		6,
 		223,
 		17,
 		6,
@@ -14702,6 +14884,24 @@ var textsZhHans = i18n.NewTexts(""+
 	"正在检查存储…"+
 	"先在「账号与上传」里设置存储"+
 	"离线模式下暂停"+
+	"只同步字幕"+
+	"不传视频，省存储空间；手机上能看台词、学习，视频在这台电脑上看。"+
+	"存储用量"+
+	"正在统计…"+
+	"自动清理存储里的视频"+
+	"只删存储里的视频；字幕、生词和进度都留着，这台电脑上的视频也不动"+
+	"从不"+
+	"看完了、可以清理的视频"+
+	"清理"+
+	"看完了"+
+	"没有可以清理的了。"+
+	"换一个存储"+
+	"视频和字幕重新传到新的存储；配对的手机下次连上时自动跟着换，不用重新扫码"+
+	"迁移到"+
+	"迁移…"+
+	"先在「账号与上传」里设置另一个存储"+
+	"迁移"+
+	"取消"+
 	"它在你存储里的消息会删除。它已经拿到的链接最多还能用 7 天；要马上作废，到「账号与上传」换一个存储访问密钥。"+
 	"撤销这台设备"+
 	"取消"+
@@ -16170,6 +16370,24 @@ var textsZhHans = i18n.NewTexts(""+
 		21,
 		42,
 		21,
+		15,
+		96,
+		12,
+		15,
+		30,
+		96,
+		6,
+		33,
+		6,
+		9,
+		27,
+		15,
+		108,
+		9,
+		9,
+		51,
+		6,
+		6,
 		159,
 		18,
 		6,
@@ -17641,6 +17859,24 @@ var textsZhHant = i18n.NewTexts(""+
 	"正在檢查儲存空間…"+
 	"先在「帳號與上傳」裡設定儲存空間"+
 	"離線模式下暫停"+
+	"只同步字幕"+
+	"不傳影片，省儲存空間；手機上能看台詞、學習，影片在這台電腦上看。"+
+	"儲存用量"+
+	"正在統計…"+
+	"自動清理儲存空間裡的影片"+
+	"只刪儲存空間裡的影片；字幕、生詞和進度都留著，這台電腦上的影片也不動"+
+	"從不"+
+	"看完了、可以清理的影片"+
+	"清理"+
+	"看完了"+
+	"沒有可以清理的了。"+
+	"換一個儲存空間"+
+	"影片和字幕重新傳到新的儲存空間；配對的手機下次連上時自動跟著換，不用重新掃碼"+
+	"遷移到"+
+	"遷移…"+
+	"先在「帳號與上傳」裡設定另一個儲存空間"+
+	"遷移"+
+	"取消"+
 	"它在你儲存空間裡的訊息會刪除。它已經拿到的連結最多還能用 7 天；要馬上作廢，到「帳號與上傳」換一個儲存空間存取金鑰。"+
 	"撤銷這台裝置"+
 	"取消"+
@@ -19109,6 +19345,24 @@ var textsZhHant = i18n.NewTexts(""+
 		27,
 		48,
 		21,
+		15,
+		96,
+		12,
+		15,
+		36,
+		102,
+		6,
+		33,
+		6,
+		9,
+		27,
+		21,
+		114,
+		9,
+		9,
+		57,
+		6,
+		6,
 		171,
 		18,
 		6,
@@ -20685,6 +20939,63 @@ func Supply(lang string, t Translation) {
 	}
 	if t.SettingsPhoneRelayStoreName != nil {
 		s.SettingsPhoneRelayStoreName = t.SettingsPhoneRelayStoreName
+	}
+	if t.SettingsPhoneStorageFilms != nil {
+		s.SettingsPhoneStorageFilms = t.SettingsPhoneStorageFilms
+	}
+	if t.SettingsPhoneStorageBar != nil {
+		s.SettingsPhoneStorageBar = t.SettingsPhoneStorageBar
+	}
+	if t.SettingsPhoneStorageVideos != nil {
+		s.SettingsPhoneStorageVideos = t.SettingsPhoneStorageVideos
+	}
+	if t.SettingsPhoneStorageLines != nil {
+		s.SettingsPhoneStorageLines = t.SettingsPhoneStorageLines
+	}
+	if t.SettingsPhoneStorageMail != nil {
+		s.SettingsPhoneStorageMail = t.SettingsPhoneStorageMail
+	}
+	if t.SettingsPhoneStorageUploading != nil {
+		s.SettingsPhoneStorageUploading = t.SettingsPhoneStorageUploading
+	}
+	if t.SettingsPhoneStorageUploadingMore != nil {
+		s.SettingsPhoneStorageUploadingMore = t.SettingsPhoneStorageUploadingMore
+	}
+	if t.SettingsPhoneStorageFailed != nil {
+		s.SettingsPhoneStorageFailed = t.SettingsPhoneStorageFailed
+	}
+	if t.SettingsPhoneStorageAfterDays != nil {
+		s.SettingsPhoneStorageAfterDays = t.SettingsPhoneStorageAfterDays
+	}
+	if t.SettingsPhoneStorageCleanAll != nil {
+		s.SettingsPhoneStorageCleanAll = t.SettingsPhoneStorageCleanAll
+	}
+	if t.SettingsPhoneStorageCleanLabel != nil {
+		s.SettingsPhoneStorageCleanLabel = t.SettingsPhoneStorageCleanLabel
+	}
+	if t.SettingsPhoneStorageWatchedAgo != nil {
+		s.SettingsPhoneStorageWatchedAgo = t.SettingsPhoneStorageWatchedAgo
+	}
+	if t.SettingsPhoneStorageCleanFailed != nil {
+		s.SettingsPhoneStorageCleanFailed = t.SettingsPhoneStorageCleanFailed
+	}
+	if t.SettingsPhoneStorageMoveAsk != nil {
+		s.SettingsPhoneStorageMoveAsk = t.SettingsPhoneStorageMoveAsk
+	}
+	if t.SettingsPhoneStorageMoveAskBody != nil {
+		s.SettingsPhoneStorageMoveAskBody = t.SettingsPhoneStorageMoveAskBody
+	}
+	if t.SettingsPhoneStorageMoving != nil {
+		s.SettingsPhoneStorageMoving = t.SettingsPhoneStorageMoving
+	}
+	if t.SettingsPhoneStorageMovingCount != nil {
+		s.SettingsPhoneStorageMovingCount = t.SettingsPhoneStorageMovingCount
+	}
+	if t.SettingsPhoneStorageMoved != nil {
+		s.SettingsPhoneStorageMoved = t.SettingsPhoneStorageMoved
+	}
+	if t.SettingsPhoneStorageMoveFailed != nil {
+		s.SettingsPhoneStorageMoveFailed = t.SettingsPhoneStorageMoveFailed
 	}
 	if t.SettingsPhoneSyncedCounts != nil {
 		s.SettingsPhoneSyncedCounts = t.SettingsPhoneSyncedCounts
@@ -51491,6 +51802,873 @@ func SettingsPhoneRelayOffline(cx *core.Scope) string { return For(cx).SettingsP
 // SettingsPhoneRelayOffline is the package's SettingsPhoneRelayOffline in the language of msgs.
 func (msgs Messages) SettingsPhoneRelayOffline() string {
 	return msgs.text(textSettingsPhoneRelayOffline)
+}
+
+// SettingsPhoneRelaySubtitlesOnly says "Subtitles only"
+// in the language the app shows under cx.
+//
+// Switch under the storage relay on the Phone Sync settings page: films go to the storage with their subtitles and posters but without their videos.
+func SettingsPhoneRelaySubtitlesOnly(cx *core.Scope) string {
+	return For(cx).SettingsPhoneRelaySubtitlesOnly()
+}
+
+// SettingsPhoneRelaySubtitlesOnly is the package's SettingsPhoneRelaySubtitlesOnly in the language of msgs.
+func (msgs Messages) SettingsPhoneRelaySubtitlesOnly() string {
+	return msgs.text(textSettingsPhoneRelaySubtitlesOnly)
+}
+
+// SettingsPhoneRelaySubtitlesOnlyHint says "Videos stay off the storage to save room: phones show and study the lines, and the videos are watched on this computer."
+// in the language the app shows under cx.
+//
+// Subtitle of the Subtitles only switch.
+func SettingsPhoneRelaySubtitlesOnlyHint(cx *core.Scope) string {
+	return For(cx).SettingsPhoneRelaySubtitlesOnlyHint()
+}
+
+// SettingsPhoneRelaySubtitlesOnlyHint is the package's SettingsPhoneRelaySubtitlesOnlyHint in the language of msgs.
+func (msgs Messages) SettingsPhoneRelaySubtitlesOnlyHint() string {
+	return msgs.text(textSettingsPhoneRelaySubtitlesOnlyHint)
+}
+
+// SettingsPhoneStorage says "Storage Use"
+// in the language the app shows under cx.
+//
+// Heading of the card on the Phone Sync settings page that says how much the films and the phones' messages take in the storage.
+func SettingsPhoneStorage(cx *core.Scope) string { return For(cx).SettingsPhoneStorage() }
+
+// SettingsPhoneStorage is the package's SettingsPhoneStorage in the language of msgs.
+func (msgs Messages) SettingsPhoneStorage() string { return msgs.text(textSettingsPhoneStorage) }
+
+// SettingsPhoneStorageMeasuring says "Measuring…"
+// in the language the app shows under cx.
+//
+// Shown in place of the storage's total while it is being measured.
+func SettingsPhoneStorageMeasuring(cx *core.Scope) string {
+	return For(cx).SettingsPhoneStorageMeasuring()
+}
+
+// SettingsPhoneStorageMeasuring is the package's SettingsPhoneStorageMeasuring in the language of msgs.
+func (msgs Messages) SettingsPhoneStorageMeasuring() string {
+	return msgs.text(textSettingsPhoneStorageMeasuring)
+}
+
+// SettingsPhoneStorageFilms says "{films, plural, one {# film} other {# films}} · {videos, plural, one {# with its video} other {# with their videos}}"
+// in the language the app shows under cx.
+//
+// How many films are in the storage, and how many of them with their video.
+func SettingsPhoneStorageFilms(cx *core.Scope, films int, videos int) string {
+	return For(cx).SettingsPhoneStorageFilms(films, videos)
+}
+
+// SettingsPhoneStorageFilms is the package's SettingsPhoneStorageFilms in the language of msgs.
+func (msgs Messages) SettingsPhoneStorageFilms(films int, videos int) string {
+	if i18n.IsPseudo(msgs.lang) {
+		return i18n.Pseudo(msgs.lang, Messages{lang: Source, mark: true}.SettingsPhoneStorageFilms(films, videos))
+	}
+	for lang := msgs.lang; ; lang = i18n.Parent(lang) {
+		if f := supplied[lang].SettingsPhoneStorageFilms; f != nil {
+			return f(films, videos)
+		}
+		switch lang {
+		case "", "en":
+			var b strings.Builder
+			switch i18n.Cardinal("en", float64(films)) {
+			case i18n.One:
+				b.WriteString(msgs.arg(i18n.FormatNumber("en", float64(films))))
+				b.WriteString(" film")
+			default:
+				b.WriteString(msgs.arg(i18n.FormatNumber("en", float64(films))))
+				b.WriteString(" films")
+			}
+			b.WriteString(" · ")
+			switch i18n.Cardinal("en", float64(videos)) {
+			case i18n.One:
+				b.WriteString(msgs.arg(i18n.FormatNumber("en", float64(videos))))
+				b.WriteString(" with its video")
+			default:
+				b.WriteString(msgs.arg(i18n.FormatNumber("en", float64(videos))))
+				b.WriteString(" with their videos")
+			}
+			return b.String()
+		case "ja":
+			return i18n.FormatNumber("ja", float64(films)) + " 本の作品 · 動画あり " + i18n.FormatNumber("ja", float64(videos)) + " 本"
+		case "ko":
+			return "작품 " + i18n.FormatNumber("ko", float64(films)) + "편 · 동영상 있음 " + i18n.FormatNumber("ko", float64(videos)) + "편"
+		case "zh-Hans":
+			return i18n.FormatNumber("zh-Hans", float64(films)) + " 部影片 · " + i18n.FormatNumber("zh-Hans", float64(videos)) + " 部存着视频"
+		case "zh-Hant":
+			return i18n.FormatNumber("zh-Hant", float64(films)) + " 部影片 · " + i18n.FormatNumber("zh-Hant", float64(videos)) + " 部存著影片"
+		}
+	}
+}
+
+// SettingsPhoneStorageBar says "Videos {videos}, subtitles and posters {lines}, messages {mail}"
+// in the language the app shows under cx.
+//
+// Spoken name of the bar that shows what the storage holds, for assistive technology.
+func SettingsPhoneStorageBar(cx *core.Scope, videos string, lines string, mail string) string {
+	return For(cx).SettingsPhoneStorageBar(videos, lines, mail)
+}
+
+// SettingsPhoneStorageBar is the package's SettingsPhoneStorageBar in the language of msgs.
+func (msgs Messages) SettingsPhoneStorageBar(videos string, lines string, mail string) string {
+	if i18n.IsPseudo(msgs.lang) {
+		return i18n.Pseudo(msgs.lang, Messages{lang: Source, mark: true}.SettingsPhoneStorageBar(videos, lines, mail))
+	}
+	for lang := msgs.lang; ; lang = i18n.Parent(lang) {
+		if f := supplied[lang].SettingsPhoneStorageBar; f != nil {
+			return f(videos, lines, mail)
+		}
+		switch lang {
+		case "", "en":
+			return "Videos " + msgs.arg(videos) + ", subtitles and posters " + msgs.arg(lines) + ", messages " + msgs.arg(mail)
+		case "ja":
+			return "動画 " + videos + "、字幕とポスター " + lines + "、メッセージ " + mail
+		case "ko":
+			return "동영상 " + videos + ", 자막과 포스터 " + lines + ", 메시지 " + mail
+		case "zh-Hans":
+			return "视频 " + videos + "，字幕和海报 " + lines + "，信箱 " + mail
+		case "zh-Hant":
+			return "影片 " + videos + "，字幕和海報 " + lines + "，信箱 " + mail
+		}
+	}
+}
+
+// SettingsPhoneStorageVideos says "Videos {size}"
+// in the language the app shows under cx.
+//
+// Key of the storage bar: the size of the videos.
+func SettingsPhoneStorageVideos(cx *core.Scope, size string) string {
+	return For(cx).SettingsPhoneStorageVideos(size)
+}
+
+// SettingsPhoneStorageVideos is the package's SettingsPhoneStorageVideos in the language of msgs.
+func (msgs Messages) SettingsPhoneStorageVideos(size string) string {
+	if i18n.IsPseudo(msgs.lang) {
+		return i18n.Pseudo(msgs.lang, Messages{lang: Source, mark: true}.SettingsPhoneStorageVideos(size))
+	}
+	for lang := msgs.lang; ; lang = i18n.Parent(lang) {
+		if f := supplied[lang].SettingsPhoneStorageVideos; f != nil {
+			return f(size)
+		}
+		switch lang {
+		case "", "en":
+			return "Videos " + msgs.arg(size)
+		case "ja":
+			return "動画 " + size
+		case "ko":
+			return "동영상 " + size
+		case "zh-Hans":
+			return "视频 " + size
+		case "zh-Hant":
+			return "影片 " + size
+		}
+	}
+}
+
+// SettingsPhoneStorageLines says "Subtitles and posters {size}"
+// in the language the app shows under cx.
+//
+// Key of the storage bar: the size of the subtitles and posters.
+func SettingsPhoneStorageLines(cx *core.Scope, size string) string {
+	return For(cx).SettingsPhoneStorageLines(size)
+}
+
+// SettingsPhoneStorageLines is the package's SettingsPhoneStorageLines in the language of msgs.
+func (msgs Messages) SettingsPhoneStorageLines(size string) string {
+	if i18n.IsPseudo(msgs.lang) {
+		return i18n.Pseudo(msgs.lang, Messages{lang: Source, mark: true}.SettingsPhoneStorageLines(size))
+	}
+	for lang := msgs.lang; ; lang = i18n.Parent(lang) {
+		if f := supplied[lang].SettingsPhoneStorageLines; f != nil {
+			return f(size)
+		}
+		switch lang {
+		case "", "en":
+			return "Subtitles and posters " + msgs.arg(size)
+		case "ja":
+			return "字幕とポスター " + size
+		case "ko":
+			return "자막과 포스터 " + size
+		case "zh-Hans":
+			return "字幕和海报 " + size
+		case "zh-Hant":
+			return "字幕和海報 " + size
+		}
+	}
+}
+
+// SettingsPhoneStorageMail says "Messages {size}"
+// in the language the app shows under cx.
+//
+// Key of the storage bar: the size of the messages between the phones and the computer.
+func SettingsPhoneStorageMail(cx *core.Scope, size string) string {
+	return For(cx).SettingsPhoneStorageMail(size)
+}
+
+// SettingsPhoneStorageMail is the package's SettingsPhoneStorageMail in the language of msgs.
+func (msgs Messages) SettingsPhoneStorageMail(size string) string {
+	if i18n.IsPseudo(msgs.lang) {
+		return i18n.Pseudo(msgs.lang, Messages{lang: Source, mark: true}.SettingsPhoneStorageMail(size))
+	}
+	for lang := msgs.lang; ; lang = i18n.Parent(lang) {
+		if f := supplied[lang].SettingsPhoneStorageMail; f != nil {
+			return f(size)
+		}
+		switch lang {
+		case "", "en":
+			return "Messages " + msgs.arg(size)
+		case "ja":
+			return "メッセージ " + size
+		case "ko":
+			return "메시지 " + size
+		case "zh-Hans":
+			return "信箱 " + size
+		case "zh-Hant":
+			return "信箱 " + size
+		}
+	}
+}
+
+// SettingsPhoneStorageUploading says "Uploading “{title}” · {percent}%"
+// in the language the app shows under cx.
+//
+// Which film's video goes up to the storage now, and how far.
+func SettingsPhoneStorageUploading(cx *core.Scope, title string, percent int) string {
+	return For(cx).SettingsPhoneStorageUploading(title, percent)
+}
+
+// SettingsPhoneStorageUploading is the package's SettingsPhoneStorageUploading in the language of msgs.
+func (msgs Messages) SettingsPhoneStorageUploading(title string, percent int) string {
+	if i18n.IsPseudo(msgs.lang) {
+		return i18n.Pseudo(msgs.lang, Messages{lang: Source, mark: true}.SettingsPhoneStorageUploading(title, percent))
+	}
+	for lang := msgs.lang; ; lang = i18n.Parent(lang) {
+		if f := supplied[lang].SettingsPhoneStorageUploading; f != nil {
+			return f(title, percent)
+		}
+		switch lang {
+		case "", "en":
+			return "Uploading “" + msgs.arg(title) + "” · " + msgs.arg(i18n.FormatNumber("en", float64(percent))) + "%"
+		case "ja":
+			return "「" + title + "」をアップロード中 · " + i18n.FormatNumber("ja", float64(percent)) + "%"
+		case "ko":
+			return "“" + title + "” 업로드 중 · " + i18n.FormatNumber("ko", float64(percent)) + "%"
+		case "zh-Hans":
+			return "正在上传「" + title + "」· " + i18n.FormatNumber("zh-Hans", float64(percent)) + "%"
+		case "zh-Hant":
+			return "正在上傳「" + title + "」· " + i18n.FormatNumber("zh-Hant", float64(percent)) + "%"
+		}
+	}
+}
+
+// SettingsPhoneStorageUploadingMore says "Uploading “{title}” · {percent}% · {left, plural, one {# more after it} other {# more after it}}"
+// in the language the app shows under cx.
+//
+// Which film's video goes up to the storage now, how far, and how many videos wait after it.
+func SettingsPhoneStorageUploadingMore(cx *core.Scope, title string, percent int, left int) string {
+	return For(cx).SettingsPhoneStorageUploadingMore(title, percent, left)
+}
+
+// SettingsPhoneStorageUploadingMore is the package's SettingsPhoneStorageUploadingMore in the language of msgs.
+func (msgs Messages) SettingsPhoneStorageUploadingMore(title string, percent int, left int) string {
+	if i18n.IsPseudo(msgs.lang) {
+		return i18n.Pseudo(msgs.lang, Messages{lang: Source, mark: true}.SettingsPhoneStorageUploadingMore(title, percent, left))
+	}
+	for lang := msgs.lang; ; lang = i18n.Parent(lang) {
+		if f := supplied[lang].SettingsPhoneStorageUploadingMore; f != nil {
+			return f(title, percent, left)
+		}
+		switch lang {
+		case "", "en":
+			var b strings.Builder
+			b.WriteString("Uploading “")
+			b.WriteString(msgs.arg(title))
+			b.WriteString("” · ")
+			b.WriteString(msgs.arg(i18n.FormatNumber("en", float64(percent))))
+			b.WriteString("% · ")
+			switch i18n.Cardinal("en", float64(left)) {
+			case i18n.One:
+				b.WriteString(msgs.arg(i18n.FormatNumber("en", float64(left))))
+				b.WriteString(" more after it")
+			default:
+				b.WriteString(msgs.arg(i18n.FormatNumber("en", float64(left))))
+				b.WriteString(" more after it")
+			}
+			return b.String()
+		case "ja":
+			return "「" + title + "」をアップロード中 · " + i18n.FormatNumber("ja", float64(percent)) + "% · あと " + i18n.FormatNumber("ja", float64(left)) + " 本"
+		case "ko":
+			return "“" + title + "” 업로드 중 · " + i18n.FormatNumber("ko", float64(percent)) + "% · 뒤에 " + i18n.FormatNumber("ko", float64(left)) + "편 남음"
+		case "zh-Hans":
+			return "正在上传「" + title + "」· " + i18n.FormatNumber("zh-Hans", float64(percent)) + "% · 后面还有 " + i18n.FormatNumber("zh-Hans", float64(left)) + " 部"
+		case "zh-Hant":
+			return "正在上傳「" + title + "」· " + i18n.FormatNumber("zh-Hant", float64(percent)) + "% · 後面還有 " + i18n.FormatNumber("zh-Hant", float64(left)) + " 部"
+		}
+	}
+}
+
+// SettingsPhoneStorageFailed says "Couldn't upload the films: {error}"
+// in the language the app shows under cx.
+//
+// Shown in the Storage Use card when putting the films in the storage failed; error says why, as an upload's failure does.
+func SettingsPhoneStorageFailed(cx *core.Scope, error_ string) string {
+	return For(cx).SettingsPhoneStorageFailed(error_)
+}
+
+// SettingsPhoneStorageFailed is the package's SettingsPhoneStorageFailed in the language of msgs.
+func (msgs Messages) SettingsPhoneStorageFailed(error_ string) string {
+	if i18n.IsPseudo(msgs.lang) {
+		return i18n.Pseudo(msgs.lang, Messages{lang: Source, mark: true}.SettingsPhoneStorageFailed(error_))
+	}
+	for lang := msgs.lang; ; lang = i18n.Parent(lang) {
+		if f := supplied[lang].SettingsPhoneStorageFailed; f != nil {
+			return f(error_)
+		}
+		switch lang {
+		case "", "en":
+			return "Couldn't upload the films: " + msgs.arg(error_)
+		case "ja":
+			return "作品をアップロードできませんでした：" + error_
+		case "ko":
+			return "작품을 업로드하지 못했습니다: " + error_
+		case "zh-Hans":
+			return "影片没能上传：" + error_
+		case "zh-Hant":
+			return "影片沒能上傳：" + error_
+		}
+	}
+}
+
+// SettingsPhoneStorageAutoClean says "Clean up videos in the storage"
+// in the language the app shows under cx.
+//
+// Row title with a drop-down of when the videos of watched films are deleted from the storage.
+func SettingsPhoneStorageAutoClean(cx *core.Scope) string {
+	return For(cx).SettingsPhoneStorageAutoClean()
+}
+
+// SettingsPhoneStorageAutoClean is the package's SettingsPhoneStorageAutoClean in the language of msgs.
+func (msgs Messages) SettingsPhoneStorageAutoClean() string {
+	return msgs.text(textSettingsPhoneStorageAutoClean)
+}
+
+// SettingsPhoneStorageAutoCleanHint says "Only the videos in the storage are deleted; subtitles, words and progress stay, and so does the video on this computer."
+// in the language the app shows under cx.
+//
+// Subtitle of the automatic cleanup row.
+func SettingsPhoneStorageAutoCleanHint(cx *core.Scope) string {
+	return For(cx).SettingsPhoneStorageAutoCleanHint()
+}
+
+// SettingsPhoneStorageAutoCleanHint is the package's SettingsPhoneStorageAutoCleanHint in the language of msgs.
+func (msgs Messages) SettingsPhoneStorageAutoCleanHint() string {
+	return msgs.text(textSettingsPhoneStorageAutoCleanHint)
+}
+
+// SettingsPhoneStorageNever says "Never"
+// in the language the app shows under cx.
+//
+// Choice of the automatic cleanup: videos are never deleted.
+func SettingsPhoneStorageNever(cx *core.Scope) string { return For(cx).SettingsPhoneStorageNever() }
+
+// SettingsPhoneStorageNever is the package's SettingsPhoneStorageNever in the language of msgs.
+func (msgs Messages) SettingsPhoneStorageNever() string {
+	return msgs.text(textSettingsPhoneStorageNever)
+}
+
+// SettingsPhoneStorageAfterDays says "{days, plural, one {# day after watching} other {# days after watching}}"
+// in the language the app shows under cx.
+//
+// Choice of the automatic cleanup: a film's video is deleted from the storage this many days after it was watched to its end.
+func SettingsPhoneStorageAfterDays(cx *core.Scope, days int) string {
+	return For(cx).SettingsPhoneStorageAfterDays(days)
+}
+
+// SettingsPhoneStorageAfterDays is the package's SettingsPhoneStorageAfterDays in the language of msgs.
+func (msgs Messages) SettingsPhoneStorageAfterDays(days int) string {
+	if i18n.IsPseudo(msgs.lang) {
+		return i18n.Pseudo(msgs.lang, Messages{lang: Source, mark: true}.SettingsPhoneStorageAfterDays(days))
+	}
+	for lang := msgs.lang; ; lang = i18n.Parent(lang) {
+		if f := supplied[lang].SettingsPhoneStorageAfterDays; f != nil {
+			return f(days)
+		}
+		switch lang {
+		case "", "en":
+			var b strings.Builder
+			switch i18n.Cardinal("en", float64(days)) {
+			case i18n.One:
+				b.WriteString(msgs.arg(i18n.FormatNumber("en", float64(days))))
+				b.WriteString(" day after watching")
+			default:
+				b.WriteString(msgs.arg(i18n.FormatNumber("en", float64(days))))
+				b.WriteString(" days after watching")
+			}
+			return b.String()
+		case "ja":
+			return "観終わって " + i18n.FormatNumber("ja", float64(days)) + " 日後"
+		case "ko":
+			return "다 보고 " + i18n.FormatNumber("ko", float64(days)) + "일 후"
+		case "zh-Hans":
+			return "看完 " + i18n.FormatNumber("zh-Hans", float64(days)) + " 天后"
+		case "zh-Hant":
+			return "看完 " + i18n.FormatNumber("zh-Hant", float64(days)) + " 天後"
+		}
+	}
+}
+
+// SettingsPhoneStorageWatched says "Watched Videos to Clean Up"
+// in the language the app shows under cx.
+//
+// Heading of the list of films whose video is in the storage and that were watched to their end.
+func SettingsPhoneStorageWatched(cx *core.Scope) string { return For(cx).SettingsPhoneStorageWatched() }
+
+// SettingsPhoneStorageWatched is the package's SettingsPhoneStorageWatched in the language of msgs.
+func (msgs Messages) SettingsPhoneStorageWatched() string {
+	return msgs.text(textSettingsPhoneStorageWatched)
+}
+
+// SettingsPhoneStorageCleanAll says "Clean Up All ({size})"
+// in the language the app shows under cx.
+//
+// Button that deletes the videos of every watched film from the storage; size is what that frees.
+func SettingsPhoneStorageCleanAll(cx *core.Scope, size string) string {
+	return For(cx).SettingsPhoneStorageCleanAll(size)
+}
+
+// SettingsPhoneStorageCleanAll is the package's SettingsPhoneStorageCleanAll in the language of msgs.
+func (msgs Messages) SettingsPhoneStorageCleanAll(size string) string {
+	if i18n.IsPseudo(msgs.lang) {
+		return i18n.Pseudo(msgs.lang, Messages{lang: Source, mark: true}.SettingsPhoneStorageCleanAll(size))
+	}
+	for lang := msgs.lang; ; lang = i18n.Parent(lang) {
+		if f := supplied[lang].SettingsPhoneStorageCleanAll; f != nil {
+			return f(size)
+		}
+		switch lang {
+		case "", "en":
+			return "Clean Up All (" + msgs.arg(size) + ")"
+		case "ja":
+			return "すべて整理（" + size + "）"
+		case "ko":
+			return "모두 정리(" + size + ")"
+		case "zh-Hans":
+			return "全部清理（" + size + "）"
+		case "zh-Hant":
+			return "全部清理（" + size + "）"
+		}
+	}
+}
+
+// SettingsPhoneStorageClean says "Clean Up"
+// in the language the app shows under cx.
+//
+// Button that deletes one watched film's video from the storage.
+func SettingsPhoneStorageClean(cx *core.Scope) string { return For(cx).SettingsPhoneStorageClean() }
+
+// SettingsPhoneStorageClean is the package's SettingsPhoneStorageClean in the language of msgs.
+func (msgs Messages) SettingsPhoneStorageClean() string {
+	return msgs.text(textSettingsPhoneStorageClean)
+}
+
+// SettingsPhoneStorageCleanLabel says "Clean up the video of “{title}”"
+// in the language the app shows under cx.
+//
+// Spoken name of a film's Clean Up button.
+func SettingsPhoneStorageCleanLabel(cx *core.Scope, title string) string {
+	return For(cx).SettingsPhoneStorageCleanLabel(title)
+}
+
+// SettingsPhoneStorageCleanLabel is the package's SettingsPhoneStorageCleanLabel in the language of msgs.
+func (msgs Messages) SettingsPhoneStorageCleanLabel(title string) string {
+	if i18n.IsPseudo(msgs.lang) {
+		return i18n.Pseudo(msgs.lang, Messages{lang: Source, mark: true}.SettingsPhoneStorageCleanLabel(title))
+	}
+	for lang := msgs.lang; ; lang = i18n.Parent(lang) {
+		if f := supplied[lang].SettingsPhoneStorageCleanLabel; f != nil {
+			return f(title)
+		}
+		switch lang {
+		case "", "en":
+			return "Clean up the video of “" + msgs.arg(title) + "”"
+		case "ja":
+			return "「" + title + "」の動画を整理"
+		case "ko":
+			return "“" + title + "”의 동영상 정리"
+		case "zh-Hans":
+			return "清理「" + title + "」的视频"
+		case "zh-Hant":
+			return "清理「" + title + "」的影片"
+		}
+	}
+}
+
+// SettingsPhoneStorageWatchedAgo says "Watched · {ago}"
+// in the language the app shows under cx.
+//
+// When a film in the cleanup list was watched to its end; ago is a relative time such as 3 days ago.
+func SettingsPhoneStorageWatchedAgo(cx *core.Scope, ago string) string {
+	return For(cx).SettingsPhoneStorageWatchedAgo(ago)
+}
+
+// SettingsPhoneStorageWatchedAgo is the package's SettingsPhoneStorageWatchedAgo in the language of msgs.
+func (msgs Messages) SettingsPhoneStorageWatchedAgo(ago string) string {
+	if i18n.IsPseudo(msgs.lang) {
+		return i18n.Pseudo(msgs.lang, Messages{lang: Source, mark: true}.SettingsPhoneStorageWatchedAgo(ago))
+	}
+	for lang := msgs.lang; ; lang = i18n.Parent(lang) {
+		if f := supplied[lang].SettingsPhoneStorageWatchedAgo; f != nil {
+			return f(ago)
+		}
+		switch lang {
+		case "", "en":
+			return "Watched · " + msgs.arg(ago)
+		case "ja":
+			return "視聴済み · " + ago
+		case "ko":
+			return "시청 완료 · " + ago
+		case "zh-Hans":
+			return "看完 · " + ago
+		case "zh-Hant":
+			return "看完 · " + ago
+		}
+	}
+}
+
+// SettingsPhoneStorageWatchedSome says "Watched"
+// in the language the app shows under cx.
+//
+// Shown for a film in the cleanup list marked watched without a time it was watched.
+func SettingsPhoneStorageWatchedSome(cx *core.Scope) string {
+	return For(cx).SettingsPhoneStorageWatchedSome()
+}
+
+// SettingsPhoneStorageWatchedSome is the package's SettingsPhoneStorageWatchedSome in the language of msgs.
+func (msgs Messages) SettingsPhoneStorageWatchedSome() string {
+	return msgs.text(textSettingsPhoneStorageWatchedSome)
+}
+
+// SettingsPhoneStorageNothing says "Nothing to clean up."
+// in the language the app shows under cx.
+//
+// Shown when no watched film's video is in the storage.
+func SettingsPhoneStorageNothing(cx *core.Scope) string { return For(cx).SettingsPhoneStorageNothing() }
+
+// SettingsPhoneStorageNothing is the package's SettingsPhoneStorageNothing in the language of msgs.
+func (msgs Messages) SettingsPhoneStorageNothing() string {
+	return msgs.text(textSettingsPhoneStorageNothing)
+}
+
+// SettingsPhoneStorageCleanFailed says "Couldn't clean up: {error}"
+// in the language the app shows under cx.
+//
+// Shown when deleting videos from the storage failed.
+func SettingsPhoneStorageCleanFailed(cx *core.Scope, error_ string) string {
+	return For(cx).SettingsPhoneStorageCleanFailed(error_)
+}
+
+// SettingsPhoneStorageCleanFailed is the package's SettingsPhoneStorageCleanFailed in the language of msgs.
+func (msgs Messages) SettingsPhoneStorageCleanFailed(error_ string) string {
+	if i18n.IsPseudo(msgs.lang) {
+		return i18n.Pseudo(msgs.lang, Messages{lang: Source, mark: true}.SettingsPhoneStorageCleanFailed(error_))
+	}
+	for lang := msgs.lang; ; lang = i18n.Parent(lang) {
+		if f := supplied[lang].SettingsPhoneStorageCleanFailed; f != nil {
+			return f(error_)
+		}
+		switch lang {
+		case "", "en":
+			return "Couldn't clean up: " + msgs.arg(error_)
+		case "ja":
+			return "整理できませんでした：" + error_
+		case "ko":
+			return "정리하지 못했습니다: " + error_
+		case "zh-Hans":
+			return "清理失败：" + error_
+		case "zh-Hant":
+			return "清理失敗：" + error_
+		}
+	}
+}
+
+// SettingsPhoneStorageMove says "Move to Another Storage"
+// in the language the app shows under cx.
+//
+// Row title for moving the films and the phones' messages to another storage set up in Account & Upload.
+func SettingsPhoneStorageMove(cx *core.Scope) string { return For(cx).SettingsPhoneStorageMove() }
+
+// SettingsPhoneStorageMove is the package's SettingsPhoneStorageMove in the language of msgs.
+func (msgs Messages) SettingsPhoneStorageMove() string {
+	return msgs.text(textSettingsPhoneStorageMove)
+}
+
+// SettingsPhoneStorageMoveHint says "The videos and subtitles go up to the new storage again, and paired phones follow it the next time they connect, without scanning a code."
+// in the language the app shows under cx.
+//
+// Subtitle of the move row.
+func SettingsPhoneStorageMoveHint(cx *core.Scope) string {
+	return For(cx).SettingsPhoneStorageMoveHint()
+}
+
+// SettingsPhoneStorageMoveHint is the package's SettingsPhoneStorageMoveHint in the language of msgs.
+func (msgs Messages) SettingsPhoneStorageMoveHint() string {
+	return msgs.text(textSettingsPhoneStorageMoveHint)
+}
+
+// SettingsPhoneStorageMoveTo says "Move to"
+// in the language the app shows under cx.
+//
+// Spoken name of the drop-down of storages to move to.
+func SettingsPhoneStorageMoveTo(cx *core.Scope) string { return For(cx).SettingsPhoneStorageMoveTo() }
+
+// SettingsPhoneStorageMoveTo is the package's SettingsPhoneStorageMoveTo in the language of msgs.
+func (msgs Messages) SettingsPhoneStorageMoveTo() string {
+	return msgs.text(textSettingsPhoneStorageMoveTo)
+}
+
+// SettingsPhoneStorageMoveButton says "Move…"
+// in the language the app shows under cx.
+//
+// Button that asks to move the films and the phones to the storage picked.
+func SettingsPhoneStorageMoveButton(cx *core.Scope) string {
+	return For(cx).SettingsPhoneStorageMoveButton()
+}
+
+// SettingsPhoneStorageMoveButton is the package's SettingsPhoneStorageMoveButton in the language of msgs.
+func (msgs Messages) SettingsPhoneStorageMoveButton() string {
+	return msgs.text(textSettingsPhoneStorageMoveButton)
+}
+
+// SettingsPhoneStorageNoTarget says "Set up another storage in Account & Upload first"
+// in the language the app shows under cx.
+//
+// Shown in the move row when no storage other than the one in use is set up.
+func SettingsPhoneStorageNoTarget(cx *core.Scope) string {
+	return For(cx).SettingsPhoneStorageNoTarget()
+}
+
+// SettingsPhoneStorageNoTarget is the package's SettingsPhoneStorageNoTarget in the language of msgs.
+func (msgs Messages) SettingsPhoneStorageNoTarget() string {
+	return msgs.text(textSettingsPhoneStorageNoTarget)
+}
+
+// SettingsPhoneStorageMoveAsk says "Move to {store}?"
+// in the language the app shows under cx.
+//
+// Title of the confirmation of a move to another storage.
+func SettingsPhoneStorageMoveAsk(cx *core.Scope, store string) string {
+	return For(cx).SettingsPhoneStorageMoveAsk(store)
+}
+
+// SettingsPhoneStorageMoveAsk is the package's SettingsPhoneStorageMoveAsk in the language of msgs.
+func (msgs Messages) SettingsPhoneStorageMoveAsk(store string) string {
+	if i18n.IsPseudo(msgs.lang) {
+		return i18n.Pseudo(msgs.lang, Messages{lang: Source, mark: true}.SettingsPhoneStorageMoveAsk(store))
+	}
+	for lang := msgs.lang; ; lang = i18n.Parent(lang) {
+		if f := supplied[lang].SettingsPhoneStorageMoveAsk; f != nil {
+			return f(store)
+		}
+		switch lang {
+		case "", "en":
+			return "Move to " + msgs.arg(store) + "?"
+		case "ja":
+			return store + " に移しますか？"
+		case "ko":
+			return store + "(으)로 옮길까요?"
+		case "zh-Hans":
+			return "搬到 " + store + "？"
+		case "zh-Hant":
+			return "搬到 " + store + "？"
+		}
+	}
+}
+
+// SettingsPhoneStorageMoveAskBody says "Account & Upload switches to {store}. What is in {from} stays there; delete it yourself once everything works."
+// in the language the app shows under cx.
+//
+// Body of the confirmation of a move: the storage in use changes, and the files in the old one are not deleted.
+func SettingsPhoneStorageMoveAskBody(cx *core.Scope, store string, from string) string {
+	return For(cx).SettingsPhoneStorageMoveAskBody(store, from)
+}
+
+// SettingsPhoneStorageMoveAskBody is the package's SettingsPhoneStorageMoveAskBody in the language of msgs.
+func (msgs Messages) SettingsPhoneStorageMoveAskBody(store string, from string) string {
+	if i18n.IsPseudo(msgs.lang) {
+		return i18n.Pseudo(msgs.lang, Messages{lang: Source, mark: true}.SettingsPhoneStorageMoveAskBody(store, from))
+	}
+	for lang := msgs.lang; ; lang = i18n.Parent(lang) {
+		if f := supplied[lang].SettingsPhoneStorageMoveAskBody; f != nil {
+			return f(store, from)
+		}
+		switch lang {
+		case "", "en":
+			return "Account & Upload switches to " + msgs.arg(store) + ". What is in " + msgs.arg(from) + " stays there; delete it yourself once everything works."
+		case "ja":
+			return "「アカウントとアップロード」が " + store + " に切り替わります。" + from + " のファイルは残るので、問題がなければご自身で削除してください。"
+		case "ko":
+			return "계정 및 업로드가 " + store + "(으)로 바뀝니다. " + from + "의 파일은 남아 있으니 문제가 없으면 직접 지우세요."
+		case "zh-Hans":
+			return "「账号与上传」会换成 " + store + "。" + from + " 里的文件留着，确认没问题后可以自己删。"
+		case "zh-Hant":
+			return "「帳號與上傳」會換成 " + store + "。" + from + " 裡的檔案留著，確認沒問題後可以自己刪。"
+		}
+	}
+}
+
+// SettingsPhoneStorageMoveConfirm says "Move"
+// in the language the app shows under cx.
+//
+// Button of the confirmation that moves to the other storage.
+func SettingsPhoneStorageMoveConfirm(cx *core.Scope) string {
+	return For(cx).SettingsPhoneStorageMoveConfirm()
+}
+
+// SettingsPhoneStorageMoveConfirm is the package's SettingsPhoneStorageMoveConfirm in the language of msgs.
+func (msgs Messages) SettingsPhoneStorageMoveConfirm() string {
+	return msgs.text(textSettingsPhoneStorageMoveConfirm)
+}
+
+// SettingsPhoneStorageMoveCancel says "Cancel"
+// in the language the app shows under cx.
+//
+// Button of the confirmation that closes it without moving.
+func SettingsPhoneStorageMoveCancel(cx *core.Scope) string {
+	return For(cx).SettingsPhoneStorageMoveCancel()
+}
+
+// SettingsPhoneStorageMoveCancel is the package's SettingsPhoneStorageMoveCancel in the language of msgs.
+func (msgs Messages) SettingsPhoneStorageMoveCancel() string {
+	return msgs.text(textSettingsPhoneStorageMoveCancel)
+}
+
+// SettingsPhoneStorageMoving says "Moving to {store}…"
+// in the language the app shows under cx.
+//
+// Shown while the move to another storage begins.
+func SettingsPhoneStorageMoving(cx *core.Scope, store string) string {
+	return For(cx).SettingsPhoneStorageMoving(store)
+}
+
+// SettingsPhoneStorageMoving is the package's SettingsPhoneStorageMoving in the language of msgs.
+func (msgs Messages) SettingsPhoneStorageMoving(store string) string {
+	if i18n.IsPseudo(msgs.lang) {
+		return i18n.Pseudo(msgs.lang, Messages{lang: Source, mark: true}.SettingsPhoneStorageMoving(store))
+	}
+	for lang := msgs.lang; ; lang = i18n.Parent(lang) {
+		if f := supplied[lang].SettingsPhoneStorageMoving; f != nil {
+			return f(store)
+		}
+		switch lang {
+		case "", "en":
+			return "Moving to " + msgs.arg(store) + "…"
+		case "ja":
+			return store + " に移行中…"
+		case "ko":
+			return store + "(으)로 옮기는 중…"
+		case "zh-Hans":
+			return "正在搬到 " + store + "…"
+		case "zh-Hant":
+			return "正在搬到 " + store + "…"
+		}
+	}
+}
+
+// SettingsPhoneStorageMovingCount says "Moving to {store} · {done} of {total} videos"
+// in the language the app shows under cx.
+//
+// Shown while the videos go up to the new storage.
+func SettingsPhoneStorageMovingCount(cx *core.Scope, store string, done int, total int) string {
+	return For(cx).SettingsPhoneStorageMovingCount(store, done, total)
+}
+
+// SettingsPhoneStorageMovingCount is the package's SettingsPhoneStorageMovingCount in the language of msgs.
+func (msgs Messages) SettingsPhoneStorageMovingCount(store string, done int, total int) string {
+	if i18n.IsPseudo(msgs.lang) {
+		return i18n.Pseudo(msgs.lang, Messages{lang: Source, mark: true}.SettingsPhoneStorageMovingCount(store, done, total))
+	}
+	for lang := msgs.lang; ; lang = i18n.Parent(lang) {
+		if f := supplied[lang].SettingsPhoneStorageMovingCount; f != nil {
+			return f(store, done, total)
+		}
+		switch lang {
+		case "", "en":
+			return "Moving to " + msgs.arg(store) + " · " + msgs.arg(i18n.FormatNumber("en", float64(done))) + " of " + msgs.arg(i18n.FormatNumber("en", float64(total))) + " videos"
+		case "ja":
+			return store + " に移行中 · 動画 " + i18n.FormatNumber("ja", float64(done)) + " / " + i18n.FormatNumber("ja", float64(total)) + " 本"
+		case "ko":
+			return store + "(으)로 옮기는 중 · 동영상 " + i18n.FormatNumber("ko", float64(done)) + " / " + i18n.FormatNumber("ko", float64(total)) + "편"
+		case "zh-Hans":
+			return "正在搬到 " + store + " · " + i18n.FormatNumber("zh-Hans", float64(done)) + " / " + i18n.FormatNumber("zh-Hans", float64(total)) + " 部视频"
+		case "zh-Hant":
+			return "正在搬到 " + store + " · " + i18n.FormatNumber("zh-Hant", float64(done)) + " / " + i18n.FormatNumber("zh-Hant", float64(total)) + " 部影片"
+		}
+	}
+}
+
+// SettingsPhoneStorageMoved says "Moved to {store}. What is in {from} stays there; delete it yourself once everything works."
+// in the language the app shows under cx.
+//
+// Shown once the move to another storage is done.
+func SettingsPhoneStorageMoved(cx *core.Scope, store string, from string) string {
+	return For(cx).SettingsPhoneStorageMoved(store, from)
+}
+
+// SettingsPhoneStorageMoved is the package's SettingsPhoneStorageMoved in the language of msgs.
+func (msgs Messages) SettingsPhoneStorageMoved(store string, from string) string {
+	if i18n.IsPseudo(msgs.lang) {
+		return i18n.Pseudo(msgs.lang, Messages{lang: Source, mark: true}.SettingsPhoneStorageMoved(store, from))
+	}
+	for lang := msgs.lang; ; lang = i18n.Parent(lang) {
+		if f := supplied[lang].SettingsPhoneStorageMoved; f != nil {
+			return f(store, from)
+		}
+		switch lang {
+		case "", "en":
+			return "Moved to " + msgs.arg(store) + ". What is in " + msgs.arg(from) + " stays there; delete it yourself once everything works."
+		case "ja":
+			return store + " に移しました。" + from + " のファイルは残っているので、問題がなければご自身で削除してください"
+		case "ko":
+			return store + "(으)로 옮겼습니다. " + from + "의 파일은 남아 있으니 문제가 없으면 직접 지우세요"
+		case "zh-Hans":
+			return "已搬到 " + store + "，" + from + " 里的文件留着，确认没问题后可以自己删"
+		case "zh-Hant":
+			return "已搬到 " + store + "，" + from + " 裡的檔案留著，確認沒問題後可以自己刪"
+		}
+	}
+}
+
+// SettingsPhoneStorageMoveFailed says "Couldn't move: {error}"
+// in the language the app shows under cx.
+//
+// Shown when the move to another storage failed.
+func SettingsPhoneStorageMoveFailed(cx *core.Scope, error_ string) string {
+	return For(cx).SettingsPhoneStorageMoveFailed(error_)
+}
+
+// SettingsPhoneStorageMoveFailed is the package's SettingsPhoneStorageMoveFailed in the language of msgs.
+func (msgs Messages) SettingsPhoneStorageMoveFailed(error_ string) string {
+	if i18n.IsPseudo(msgs.lang) {
+		return i18n.Pseudo(msgs.lang, Messages{lang: Source, mark: true}.SettingsPhoneStorageMoveFailed(error_))
+	}
+	for lang := msgs.lang; ; lang = i18n.Parent(lang) {
+		if f := supplied[lang].SettingsPhoneStorageMoveFailed; f != nil {
+			return f(error_)
+		}
+		switch lang {
+		case "", "en":
+			return "Couldn't move: " + msgs.arg(error_)
+		case "ja":
+			return "移行できませんでした：" + error_
+		case "ko":
+			return "옮기지 못했습니다: " + error_
+		case "zh-Hans":
+			return "迁移失败：" + error_
+		case "zh-Hant":
+			return "遷移失敗：" + error_
+		}
+	}
 }
 
 // SettingsPhoneRevokeStorage says "Its messages in your storage are deleted. Links it already holds keep working for up to 7 days; to cut them off now, change the storage's access key in Account & Upload."

@@ -131,6 +131,7 @@ func (rl *relayLink) forget(s *Session, desktop string) {
 func (s *Session) forgetRelay(id string) {
 	rl, ok := s.remote.relays[id]
 	delete(s.remote.relays, id)
+	s.forgetShelfFilms(id)
 	if !ok {
 		rl = &relayLink{loaded: true}
 	}
@@ -202,6 +203,9 @@ func (s *Session) followRelay(ctx context.Context, desktop, device string, rl *r
 			}
 			return q
 		})
+		if written && state.Shelf != nil {
+			s.takeShelf(desktop, *state.Shelf)
+		}
 		s.relayReplies(desktop, replies, waiting, gen)
 		s.sendWaiting(desktop)
 	})
@@ -288,6 +292,7 @@ func (s *Session) relayAct(desktop, key, op string, args any) {
 
 // relayLanded lets go of the calls left in desktop's storage as its computer answers on its network again: its queue is as it lists it there now, and the links left in the storage go to it directly, under the same IDs (sendWaiting), so it takes each once. Engine goroutine only.
 func (s *Session) relayLanded(desktop string) {
+	s.shelfLanded(desktop)
 	for id, rc := range s.remote.relayCalls {
 		if rc.desktop == desktop {
 			delete(s.remote.relayCalls, id)

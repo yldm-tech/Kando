@@ -271,6 +271,12 @@ func New(cx *core.Scope, cfg Config) *Session {
 				parts[f.Key()] = partSize(s.st, f)
 			}
 		}
+		for _, f := range films {
+			// A film kept to stream whose download was never asked for is not one paused.
+			if f.Streamed && parts[f.Key()] == 0 {
+				delete(parts, f.Key())
+			}
+		}
 		cx.Post(func() {
 			s.desktops.Set(desktops)
 			s.films.Set(films)
@@ -484,6 +490,10 @@ func (s *Session) Download(desktop, library string, f sync.Film) {
 		return
 	}
 	rec := store.Film{Desktop: desktop, Library: library, Film: f, Added: s.cfg.Now()}
+	if listed, ok := s.remote.shelf.GetUntracked()[desktop].films.Films[f.ID]; ok && s.remote.queues.GetUntracked()[desktop].Relayed {
+		// Its library's ID comes with it from the storage, so its learning state is known without asking the computer.
+		rec.LibraryID = listed.Library
+	}
 	s.films.Set(append([]store.Film{rec}, s.films.Get()...))
 	s.start(rec)
 }
@@ -678,7 +688,13 @@ func (s *Session) Poster(ctx context.Context, c *sync.Client, desktop, id string
 	if ok {
 		return data, nil
 	}
-	data, _, err := c.Poster(ctx, id)
+	var err error
+	// Away from its computer's network, the poster comes from the user's storage.
+	if films, ok := s.relayPoster(desktop, id); ok {
+		data, _, err = films.Poster(ctx, id)
+	} else {
+		data, _, err = c.Poster(ctx, id)
+	}
 	if err != nil {
 		return nil, err
 	}
@@ -698,6 +714,11 @@ func (s *Session) KnownPoster(key string) []byte {
 // start downloads f, or goes on with its download. A film kept by its lines (store.Film.LinesOnly) whose computer lists it with its video now (Download) downloads that video as any film does, and is kept by its lines again should the download stop, fail or be cancelled (job.lines, finished).
 func (s *Session) start(f store.Film) {
 	key := f.Key()
+	if f.Streamed && !f.Done() {
+		// Its download is asked for now: it is a film being downloaded from here on, which stops as one paused.
+		f.Streamed = false
+		s.replace(f)
+	}
 	lines := f.LinesOnly && !f.HasVideo() && !f.Film.SubtitlesOnly
 	if j, running := s.jobs[key]; running || (f.Done() && !lines) {
 		if running && j.paused && !j.remove.Load() {
@@ -707,10 +728,15 @@ func (s *Session) start(f store.Film) {
 		}
 		return
 	}
-	c := s.Client(f.Desktop)
-	if c == nil {
-		s.setTransfer(key, func(t Transfer) Transfer { t.State, t.Problem = Failed, Unpaired; return t })
-		return
+	// Away from its computer's network, the film comes from the user's storage, by the links its computer listed there.
+	src, ok := s.relaySource(f.Desktop, f.Film.ID)
+	if !ok {
+		c := s.Client(f.Desktop)
+		if c == nil {
+			s.setTransfer(key, func(t Transfer) Transfer { t.State, t.Problem = Failed, Unpaired; return t })
+			return
+		}
+		src = c
 	}
 	if lines {
 		f.LinesOnly = false
@@ -733,7 +759,7 @@ func (s *Session) start(f store.Film) {
 		}
 	}
 	s.work.Go(func() {
-		got, err := download.Film(ctx, c, s.st, f, func(d, n int64) {
+		got, err := download.Film(ctx, src, s.st, f, func(d, n int64) {
 			done.Store(d)
 			total.Store(n)
 			if posted.CompareAndSwap(false, true) {
