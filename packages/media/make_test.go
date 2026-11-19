@@ -851,3 +851,65 @@ func TestMakeReturnsOnceItsWorkHasStopped(t *testing.T) {
 		t.Fatalf("stopped %+v; the translation had returned: %v", done.Stage, returned.Load())
 	}
 }
+
+// Lines written out as the document last wrote them, to files that still hold them, are not written again: a film made a part at a time is written out every few seconds, and its log would otherwise grow by two records each time.
+func TestProjectingTheSameLinesWritesNothing(t *testing.T) {
+	job, video := makeJob(t)
+	job.SpeechLanguage = "ja"
+	if done, _ := makeFilmOf(t, &makeFilm{length: 60 * time.Second, language: "ja"}, job, 0); done.Stage != core.StageComplete {
+		t.Fatalf("job ended %s: %v", done.Stage, done.Err)
+	}
+	doc, _ := track.Read(video)
+	transcript, bilingual := TranscriptOf(video), strings.TrimSuffix(video, ".mkv")+".bilingual.srt"
+	if files, err := projectTrack(doc, doc.View(), transcript, bilingual); err != nil || len(files) != 0 {
+		t.Fatalf("the same lines wrote %+v, %v", files, err)
+	}
+	// A file changed since is written again.
+	if err := os.WriteFile(bilingual, []byte("edited elsewhere"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if files, err := projectTrack(doc, doc.View(), transcript, bilingual); err != nil || len(files) != 2 {
+		t.Fatalf("a changed file wrote %+v, %v", files, err)
+	}
+	if data, _ := os.ReadFile(bilingual); string(data) == "edited elsewhere" {
+		t.Fatal("the changed file was not written again")
+	}
+}
+
+// A film's subtitles edited in another editor while it is made keep the edit: it is taken into the document before the lines are written out again.
+func TestAnEditOutsideKandoWhileAFilmIsMadeIsKept(t *testing.T) {
+	job, video := makeJob(t)
+	job.SpeechLanguage = "ja"
+	transcript, bilingual := TranscriptOf(video), strings.TrimSuffix(video, ".mkv")+".bilingual.srt"
+	edited := false
+	f := &makeFilm{length: 150 * time.Second, language: "ja"}
+	f.translate = func(s string) (string, error) {
+		// Once the first lines are written out, the user corrects the first one in both files.
+		if !edited && s == "line 2m0s" && fileExists(bilingual) {
+			edited = true
+			for _, path := range []string{transcript, bilingual} {
+				data, err := os.ReadFile(path)
+				if err != nil {
+					return "", err
+				}
+				if err := os.WriteFile(path, []byte(strings.ReplaceAll(string(data), "line 0s", "line zero")), 0o644); err != nil {
+					return "", err
+				}
+			}
+		}
+		return "译:" + s, nil
+	}
+	if done, _ := makeFilmOf(t, f, job, 0); done.Stage != core.StageComplete {
+		t.Fatalf("job ended %s: %v", done.Stage, done.Err)
+	}
+	if !edited {
+		t.Fatal("the film was not written out before its last cell was drafted")
+	}
+	doc, _ := track.Read(video)
+	if got := doc.View()[0].Original.Text; got != "line zero" {
+		t.Fatalf("the first line reads %q, want the edit", got)
+	}
+	if data, _ := os.ReadFile(transcript); !strings.Contains(string(data), "line zero") {
+		t.Fatalf("the transcript was written over: %s", data)
+	}
+}

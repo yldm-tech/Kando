@@ -34,34 +34,43 @@ func ReadTrack(videoPath, subtitles, transcript string) (track.Doc, error) {
 
 // trackFiles is the records that take into doc what subtitles, the file a film shows, holds that doc did not last write out or take in of it, its cues split by transcript as ReadTrack splits them; none when the file is not there or holds nothing new.
 func trackFiles(doc track.Doc, subtitles, transcript string) ([]track.Event, error) {
+	paired, file, err := trackFileLines(doc, subtitles, transcript)
+	if err != nil || file.Kind == "" {
+		return nil, err
+	}
+	return append(trackTakeIn(doc.View(), paired), file), nil
+}
+
+// trackFileLines is the lines subtitles, the file a film shows, holds, its cues split by transcript as ReadTrack splits them, with the record (track.KindFile) of what it holds, when that is not what doc last wrote out or took in of it; no lines and the zero record when the file is not there or holds nothing new.
+func trackFileLines(doc track.Doc, subtitles, transcript string) ([]core.Line, track.Event, error) {
 	if subtitles == "" {
 		subtitles = transcript
 	}
 	if subtitles == "" {
-		return nil, nil
+		return nil, track.Event{}, nil
 	}
 	// The film shows its transcript, the speech alone, while it is translated: each cue is an original line, whatever rows it holds.
 	speechOnly := transcript != "" && filepath.Clean(transcript) == filepath.Clean(subtitles)
 	data, err := os.ReadFile(subtitles)
 	if errors.Is(err, fs.ErrNotExist) {
-		return nil, nil
+		return nil, track.Event{}, nil
 	}
 	if err != nil {
-		return nil, err
+		return nil, track.Event{}, err
 	}
 	var speech []byte
 	if transcript != "" && !speechOnly {
 		if speech, err = os.ReadFile(transcript); err != nil && !errors.Is(err, fs.ErrNotExist) {
-			return nil, err
+			return nil, track.Event{}, err
 		}
 	}
 	hash, name := trackFileHash(data, speech), filepath.Base(subtitles)
 	if last, ok := doc.File(name); ok && last.Key == hash {
-		return nil, nil
+		return nil, track.Event{}, nil
 	}
 	cues, err := ParseSRT(data)
 	if err != nil {
-		return nil, err
+		return nil, track.Event{}, err
 	}
 	var original []core.Segment
 	switch {
@@ -69,10 +78,10 @@ func trackFiles(doc track.Doc, subtitles, transcript string) ([]track.Event, err
 		original = cues
 	case speech != nil:
 		if original, err = ParseSRT(speech); err != nil {
-			return nil, err
+			return nil, track.Event{}, err
 		}
 	}
-	return append(trackTakeIn(doc.View(), PairCues(original, cues)), track.Event{Kind: track.KindFile, Source: name, Key: hash}), nil
+	return PairCues(original, cues), track.Event{Kind: track.KindFile, Source: name, Key: hash}, nil
 }
 
 // trackFileHash is what a subtitle file and the transcript it was paired with held, as a KindFile record keeps it.

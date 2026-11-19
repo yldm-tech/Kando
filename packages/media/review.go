@@ -364,7 +364,7 @@ func decideTrackProofs(video, subtitles, device string, before, after []core.Pro
 		return err
 	}
 	doc.Events = append(doc.Events, written...)
-	projected, err := projectTrack(doc.View(), TranscriptOf(video), subtitles)
+	projected, err := projectTrack(doc, doc.View(), TranscriptOf(video), subtitles)
 	if err != nil {
 		return err
 	}
