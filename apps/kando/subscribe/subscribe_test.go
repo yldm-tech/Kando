@@ -282,3 +282,24 @@ func TestStoreFindsAndMoves(t *testing.T) {
 		t.Fatal("the other subscription went too")
 	}
 }
+
+// A list's link is followed as it is, a bilibili video's page as its whole upload, and any other link not at all.
+func TestSource(t *testing.T) {
+	cases := []struct {
+		typed, want string
+		ok          bool
+	}{
+		{" https://space.bilibili.com/946974/channel/collectiondetail?sid=1 ", "https://space.bilibili.com/946974/channel/collectiondetail?sid=1", true},
+		{"https://www.youtube.com/@veritasium", "https://www.youtube.com/@veritasium", true},
+		{"https://www.bilibili.com/video/BV1Eb4u6bEsd", "https://www.bilibili.com/video/BV1Eb4u6bEsd", true},
+		{"https://www.bilibili.com/video/BV1Eb4u6bEsd?p=4&spm_id_from=333", "https://www.bilibili.com/video/BV1Eb4u6bEsd", true},
+		{"https://www.youtube.com/watch?v=aaaaaaaaaaa", "", false},
+		{"https://b23.tv/abc123", "", false},
+		{"not a link", "", false},
+	}
+	for _, c := range cases {
+		if got, ok := Source(c.typed); got != c.want || ok != c.ok {
+			t.Errorf("Source(%q) = %q, %v; want %q, %v", c.typed, got, ok, c.want, c.ok)
+		}
+	}
+}

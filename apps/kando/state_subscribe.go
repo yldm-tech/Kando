@@ -453,8 +453,8 @@ func (a *app) subscribeAskSubmit() {
 		return
 	}
 	m := a.messages()
-	source := strings.TrimSpace(ask.link)
-	if link, ok := kcore.ParseLink(source); !ok || !link.IsList() {
+	source, ok := subscribe.Source(ask.link)
+	if !ok {
 		ask.err = m.SubscribeAddNotList()
 		return
 	}
@@ -495,7 +495,7 @@ func (a *app) subscribeAskRead(run int, source, dir string, listing media.Listin
 		return
 	}
 	if err != nil {
-		ask.reading, ask.cancel, ask.err = false, nil, playlistError(a.messages(), err)
+		ask.reading, ask.cancel, ask.err = false, nil, subscribeReadError(a.messages(), err)
 		return
 	}
 	// The control socket may have subscribed to it while yt-dlp read it (remoteSubscribe).
@@ -511,4 +511,12 @@ func (a *app) subscribeAskRead(run int, source, dir string, listing media.Listin
 	a.subscribeAskClose()
 	a.subscribeShow(sub.ID)
 	a.subs.notes[sub.ID] = subscribeNote{Note: subscribe.Note{Kind: subscribe.NoteSubscribed, Text: sub.Name}}
+}
+
+// subscribeReadError says in the language of m why a link to subscribe to could not be read: a bilibili video's page whose upload is one part is no list (subscribe.Source), and anything else as a list's reading says it (playlistError).
+func subscribeReadError(m locales.Messages, err error) string {
+	if errors.Is(err, media.ErrOneVideo) {
+		return m.SubscribeAddNotList()
+	}
+	return playlistError(m, err)
 }

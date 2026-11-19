@@ -364,9 +364,6 @@ filmPlay:
 filmLines:
   message: "Read the Lines"
   description: "Button on the page of a film whose video is not in the user's storage, away from the computer: it opens the film's lines alone."
-filmLinesOnly:
-  message: "Only this film's subtitles are in your storage. Its video is on the computer: watch it there, or download it there first."
-  description: "Shown on the page of a film the computer shares through the storage without its video."
 filmStorageFailed:
   message: "Couldn't read it from your storage. Try again in a moment."
   description: "Shown on a film's page when its lines could not be read from the user's storage, away from the computer."
@@ -647,6 +644,11 @@ filmNoVideo:
 filmVideoComing:
   message: "{computer} is downloading the video."
   description: "Under “Subtitles only” while the computer downloads the film’s video."
+  placeholders:
+    computer: { type: "String", example: "Studio" }
+filmVideoAtHome:
+  message: "The video is on {computer}. On the same network as it, you can download it to this phone."
+  description: "Under “Subtitles only” where the video of a film streamed from the user's storage would play, and on its page: the storage holds only its lines, the computer has its video."
   placeholders:
     computer: { type: "String", example: "Studio" }
 filmVideoReady:
@@ -1318,9 +1320,6 @@ playerCannotSave:
 playerCantPlay:
   message: "This video can't play on this phone."
   description: "Over the player when the system's player cannot open the video, as one in a format the phone does not play."
-playerNoVideo:
-  message: "Only the subtitles are here. Watch the video on the computer, or download it there first."
-  description: "Over the player of a film whose video is not in the user's storage, only its lines."
 playerCardPlace:
   message: "Line {index} of {count} · {time}"
   description: "At the top of the player's card: which line of the film it shows, and when it starts."

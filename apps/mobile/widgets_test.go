@@ -38,9 +38,8 @@ func TestSettingsShowsTheWidgetsAsTheyAre(t *testing.T) {
 	if got, want := p.app.Find("id:settings-widgets-how").Text, msgs.SettingsWidgetsHow(msgs.AppName()); got != want {
 		t.Fatalf("the page says %q, want %q", got, want)
 	}
-	if got := p.app.Find("id:settings-widget-streak-days").Text; got != "3" {
-		t.Fatalf("the streak widget shows %q days, want 3", got)
-	}
+	// The time watched is read off disk as the phone starts, and the widgets count the streak once it is.
+	p.app.WaitUntil(wait, func() bool { return p.app.Find("id:settings-widget-streak-days").Text == "3" })
 	if got := p.app.Find("id:settings-widget-streak-due").Text; got != msgs.WidgetDue(0) {
 		t.Fatalf("the streak widget says %q due, want nothing", got)
 	}

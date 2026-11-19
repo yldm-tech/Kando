@@ -186,7 +186,7 @@ func SubscriptionSheet(cx *core.Scope, s *session.Session, open *core.Signal[str
 		return s.Subscription(key)
 	}
 	// A subscription gone from its computer's list, as one unsubscribed on the computer and read again, closes its sheet: the key is cleared after this turn, which the sheet follows.
-	// TODO(nsgo): in nsgotest a ui.Dialog shown as a sheet (base.Sheet) stayed shown when its Open turned false in the same turn as this Effect's own Set, or in the turn after a cx.ShowAlert over it was answered; clearing the key a turn later, once the list changed, closes it. Set it directly once that closes the sheet
+	// TODO(nsgo#782): headless nsgotest takes no frames after Answer, so a sheet (base.Sheet) closed in the turn an alert over it was answered stays in the tree until the test advances the clock; clearing the key a turn later, once the list changed, closes it there. Set it directly once Answer takes them. https://github.com/nsgo-dev/nsgo/issues/782
 	cx.Effect(func() {
 		if _, ok := shown(); !ok && open.Get() != "" {
 			cx.Post(func() { open.Set("") })

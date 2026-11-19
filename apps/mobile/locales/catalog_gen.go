@@ -514,6 +514,7 @@ var Parameters = map[string][]string{
 	"FilmsUnsubscribeTitle":          {"title"},
 	"FilmNoVideo":                    {"computer"},
 	"FilmVideoComing":                {"computer"},
+	"FilmVideoAtHome":                {"computer"},
 	"FilmVideoReady":                 {"computer"},
 	"FilmVideoOnComputer":            {"computer"},
 	"FilmVideoAsked":                 {"title", "computer"},
@@ -686,6 +687,7 @@ type Translation struct {
 	FilmsUnsubscribeTitle          func(title string) string
 	FilmNoVideo                    func(computer string) string
 	FilmVideoComing                func(computer string) string
+	FilmVideoAtHome                func(computer string) string
 	FilmVideoReady                 func(computer string) string
 	FilmVideoOnComputer            func(computer string) string
 	FilmVideoAsked                 func(title string, computer string) string
@@ -882,7 +884,6 @@ const (
 	textFilmPause
 	textFilmPlay
 	textFilmLines
-	textFilmLinesOnly
 	textFilmStorageFailed
 	textFilmResume
 	textFilmStopped
@@ -1054,7 +1055,6 @@ const (
 	textPlayerAudioOnlyNote
 	textPlayerCannotSave
 	textPlayerCantPlay
-	textPlayerNoVideo
 	textPlayerClose
 	textPlayerDelay
 	textPlayerDelayEarlier
@@ -1307,7 +1307,6 @@ var keyOfText = [numTexts]string{
 	"filmPause",
 	"filmPlay",
 	"filmLines",
-	"filmLinesOnly",
 	"filmStorageFailed",
 	"filmResume",
 	"filmStopped",
@@ -1479,7 +1478,6 @@ var keyOfText = [numTexts]string{
 	"playerAudioOnlyNote",
 	"playerCannotSave",
 	"playerCantPlay",
-	"playerNoVideo",
 	"playerClose",
 	"playerDelay",
 	"playerDelayEarlier",
@@ -1730,7 +1728,6 @@ var textsEn = i18n.NewTexts(""+
 	"Pause"+
 	"Play"+
 	"Read the Lines"+
-	"Only this film's subtitles are in your storage. Its video is on the computer: watch it there, or download it there first."+
 	"Couldn't read it from your storage. Try again in a moment."+
 	"Resume"+
 	"The download stopped. Resume it when the computer can be reached."+
@@ -1902,7 +1899,6 @@ var textsEn = i18n.NewTexts(""+
 	"Hides the picture, to listen as you would to a podcast."+
 	"Open this film once while its computer is reachable to save its lines."+
 	"This video can't play on this phone."+
-	"Only the subtitles are here. Watch the video on the computer, or download it there first."+
 	"Close"+
 	"Subtitle Timing"+
 	"Earlier"+
@@ -2150,7 +2146,6 @@ var textsEn = i18n.NewTexts(""+
 		5,
 		4,
 		14,
-		121,
 		58,
 		6,
 		65,
@@ -2322,7 +2317,6 @@ var textsEn = i18n.NewTexts(""+
 		55,
 		70,
 		36,
-		89,
 		5,
 		15,
 		7,
@@ -2573,7 +2567,6 @@ var textsJa = i18n.NewTexts(""+
 	"一時停止"+
 	"再生"+
 	"セリフを見る"+
-	"ストレージにあるのはこの作品の字幕だけです。動画はコンピュータにあります。そちらで観るか、先にコンピュータでダウンロードしてください。"+
 	"ストレージから読み込めませんでした。少し待ってからもう一度お試しください。"+
 	"ダウンロードを再開"+
 	"ダウンロードが中断しました。コンピュータに接続できるときに再開してください。"+
@@ -2745,7 +2738,6 @@ var textsJa = i18n.NewTexts(""+
 	"画面を隠して、ポッドキャストのように聞けます。"+
 	"パソコンにつながる場所で一度この映像を開くと、文を保存できるようになります。"+
 	"この動画はこのスマートフォンでは再生できません。"+
-	"ここにあるのは字幕だけです。動画はコンピュータで観るか、先にそちらでダウンロードしてください。"+
 	"閉じる"+
 	"字幕のタイミング"+
 	"早める"+
@@ -2993,7 +2985,6 @@ var textsJa = i18n.NewTexts(""+
 		12,
 		6,
 		18,
-		201,
 		111,
 		27,
 		114,
@@ -3165,7 +3156,6 @@ var textsJa = i18n.NewTexts(""+
 		69,
 		114,
 		72,
-		141,
 		9,
 		24,
 		9,
@@ -3416,7 +3406,6 @@ var textsKo = i18n.NewTexts(""+
 	"일시 정지"+
 	"재생"+
 	"대사 보기"+
-	"스토리지에는 이 작품의 자막만 있습니다. 동영상은 컴퓨터에 있으니 거기서 보거나 먼저 컴퓨터에서 내려받으세요."+
 	"스토리지에서 읽지 못했습니다. 잠시 후 다시 시도하세요."+
 	"다운로드 재개"+
 	"다운로드가 중단되었습니다. 컴퓨터에 연결할 수 있을 때 다시 시작하세요."+
@@ -3588,7 +3577,6 @@ var textsKo = i18n.NewTexts(""+
 	"화면을 숨기고 팟캐스트처럼 들을 수 있습니다."+
 	"컴퓨터에 연결된 상태에서 이 영상을 한 번 열면 문장을 저장할 수 있습니다."+
 	"이 영상은 이 휴대폰에서 재생할 수 없습니다."+
-	"여기에는 자막만 있습니다. 동영상은 컴퓨터에서 보거나 먼저 거기서 내려받으세요."+
 	"닫기"+
 	"자막 타이밍"+
 	"앞당기기"+
@@ -3836,7 +3824,6 @@ var textsKo = i18n.NewTexts(""+
 		13,
 		6,
 		13,
-		155,
 		77,
 		19,
 		100,
@@ -4008,7 +3995,6 @@ var textsKo = i18n.NewTexts(""+
 		63,
 		102,
 		61,
-		112,
 		6,
 		16,
 		12,
@@ -4259,7 +4245,6 @@ var textsZhHans = i18n.NewTexts(""+
 	"暂停"+
 	"播放"+
 	"看台词"+
-	"存储里只有这部片的字幕，视频在电脑上：到电脑上看，或者先在电脑上下载视频。"+
 	"没能从存储里读到，过一会儿再试。"+
 	"继续下载"+
 	"下载中断了。能连上电脑时再继续。"+
@@ -4431,7 +4416,6 @@ var textsZhHans = i18n.NewTexts(""+
 	"不显示画面，适合通勤时练听力。"+
 	"在能连上电脑时打开一次这部影片，就能收藏它的句子。"+
 	"这个视频无法在这部手机上播放。"+
-	"这里只有字幕。视频请到电脑上看，或者先在电脑上下载。"+
 	"关闭"+
 	"字幕时间"+
 	"提前"+
@@ -4679,7 +4663,6 @@ var textsZhHans = i18n.NewTexts(""+
 		6,
 		6,
 		9,
-		111,
 		48,
 		12,
 		48,
@@ -4851,7 +4834,6 @@ var textsZhHans = i18n.NewTexts(""+
 		45,
 		75,
 		45,
-		78,
 		6,
 		12,
 		6,
@@ -5102,7 +5084,6 @@ var textsZhHant = i18n.NewTexts(""+
 	"暫停"+
 	"播放"+
 	"看台詞"+
-	"儲存空間裡只有這部片的字幕，影片在電腦上：到電腦上看，或者先在電腦上下載影片。"+
 	"沒能從儲存空間讀到，過一會兒再試。"+
 	"繼續下載"+
 	"下載中斷了。能連上電腦時再繼續。"+
@@ -5274,7 +5255,6 @@ var textsZhHant = i18n.NewTexts(""+
 	"不顯示畫面，適合通勤時練聽力。"+
 	"在能連上電腦時打開一次這部影片，就能收藏它的句子。"+
 	"這個影片無法在這支手機上播放。"+
-	"這裡只有字幕。影片請到電腦上看，或者先在電腦上下載。"+
 	"關閉"+
 	"字幕時間"+
 	"提前"+
@@ -5522,7 +5502,6 @@ var textsZhHant = i18n.NewTexts(""+
 		6,
 		6,
 		9,
-		117,
 		51,
 		12,
 		48,
@@ -5694,7 +5673,6 @@ var textsZhHant = i18n.NewTexts(""+
 		45,
 		75,
 		45,
-		78,
 		6,
 		12,
 		6,
@@ -6082,6 +6060,9 @@ func Supply(lang string, t Translation) {
 	}
 	if t.FilmVideoComing != nil {
 		s.FilmVideoComing = t.FilmVideoComing
+	}
+	if t.FilmVideoAtHome != nil {
+		s.FilmVideoAtHome = t.FilmVideoAtHome
 	}
 	if t.FilmVideoReady != nil {
 		s.FilmVideoReady = t.FilmVideoReady
@@ -7951,15 +7932,6 @@ func FilmLines(cx *core.Scope) string { return For(cx).FilmLines() }
 // FilmLines is the package's FilmLines in the language of msgs.
 func (msgs Messages) FilmLines() string { return msgs.text(textFilmLines) }
 
-// FilmLinesOnly says "Only this film's subtitles are in your storage. Its video is on the computer: watch it there, or download it there first."
-// in the language the app shows under cx.
-//
-// Shown on the page of a film the computer shares through the storage without its video.
-func FilmLinesOnly(cx *core.Scope) string { return For(cx).FilmLinesOnly() }
-
-// FilmLinesOnly is the package's FilmLinesOnly in the language of msgs.
-func (msgs Messages) FilmLinesOnly() string { return msgs.text(textFilmLinesOnly) }
-
 // FilmStorageFailed says "Couldn't read it from your storage. Try again in a moment."
 // in the language the app shows under cx.
 //
@@ -9380,6 +9352,38 @@ func (msgs Messages) FilmVideoComing(computer string) string {
 			return computer + " 正在下载视频。"
 		case "zh-Hant":
 			return computer + " 正在下載影片。"
+		}
+	}
+}
+
+// FilmVideoAtHome says "The video is on {computer}. On the same network as it, you can download it to this phone."
+// in the language the app shows under cx.
+//
+// Under “Subtitles only” where the video of a film streamed from the user's storage would play, and on its page: the storage holds only its lines, the computer has its video.
+func FilmVideoAtHome(cx *core.Scope, computer string) string {
+	return For(cx).FilmVideoAtHome(computer)
+}
+
+// FilmVideoAtHome is the package's FilmVideoAtHome in the language of msgs.
+func (msgs Messages) FilmVideoAtHome(computer string) string {
+	if i18n.IsPseudo(msgs.lang) {
+		return i18n.Pseudo(msgs.lang, Messages{lang: Source, mark: true}.FilmVideoAtHome(computer))
+	}
+	for lang := msgs.lang; ; lang = i18n.Parent(lang) {
+		if f := supplied[lang].FilmVideoAtHome; f != nil {
+			return f(computer)
+		}
+		switch lang {
+		case "", "en":
+			return "The video is on " + msgs.arg(computer) + ". On the same network as it, you can download it to this phone."
+		case "ja":
+			return "動画は " + computer + " にあります。同じネットワークにつながっていれば、このスマートフォンにダウンロードできます。"
+		case "ko":
+			return "동영상은 " + computer + "에 있습니다. 같은 네트워크에 연결되어 있으면 이 휴대폰에 내려받을 수 있습니다."
+		case "zh-Hans":
+			return "视频在 " + computer + " 上。和它连上同一网络时，可以下载到这台手机。"
+		case "zh-Hant":
+			return "影片在 " + computer + " 上。和它連上同一網路時，可以下載到這支手機。"
 		}
 	}
 }
@@ -12337,15 +12341,6 @@ func PlayerCantPlay(cx *core.Scope) string { return For(cx).PlayerCantPlay() }
 
 // PlayerCantPlay is the package's PlayerCantPlay in the language of msgs.
 func (msgs Messages) PlayerCantPlay() string { return msgs.text(textPlayerCantPlay) }
-
-// PlayerNoVideo says "Only the subtitles are here. Watch the video on the computer, or download it there first."
-// in the language the app shows under cx.
-//
-// Over the player of a film whose video is not in the user's storage, only its lines.
-func PlayerNoVideo(cx *core.Scope) string { return For(cx).PlayerNoVideo() }
-
-// PlayerNoVideo is the package's PlayerNoVideo in the language of msgs.
-func (msgs Messages) PlayerNoVideo() string { return msgs.text(textPlayerNoVideo) }
 
 // PlayerCardPlace says "Line {index} of {count} · {time}"
 // in the language the app shows under cx.

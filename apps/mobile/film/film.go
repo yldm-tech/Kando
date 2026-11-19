@@ -171,8 +171,8 @@ func Page(cx *core.Scope, s *session.Session, desktop, library string, f sync.Fi
 			Children: []core.Node{VideoPrompt(cx, s, desktop, f, "film-no-video")}}
 	}}
 	// What the storage holds of a film whose video stays on the computer, and why it could not be read from there.
-	storageNote := core.Show{When: func() bool { return stored.Get() == linesStored && phase.Get() != whole }, Then: func(cx *core.Scope) core.Node {
-		return core.Text{TestID: "film-lines-only", Content: locales.FilmLinesOnly(cx), Style: look.Subhead, StyleFunc: ui.Colored(colors.Muted)}
+	storageNote := core.Show{When: func() bool { return stored.Get() == linesStored && phase.Get() != whole && !noVideo() }, Then: func(cx *core.Scope) core.Node {
+		return core.Text{TestID: "film-lines-only", ContentFunc: func() string { d, _ := s.Desktop(desktop); return locales.FilmVideoAtHome(cx, d.Name) }, Style: look.Subhead, StyleFunc: ui.Colored(colors.Muted)}
 	}}
 	storageFailed := core.Show{When: func() bool { return streamErr.Get() != nil }, Then: func(cx *core.Scope) core.Node {
 		return core.Text{TestID: "film-storage-failed", Content: locales.FilmStorageFailed(cx), LiveRegion: core.LiveRegionPolite, Style: look.Subhead, StyleFunc: ui.Colored(colors.Danger)}
