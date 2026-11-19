@@ -108,6 +108,7 @@ func DecodeKey(text string) (ed25519.PublicKey, error) {
 }
 
 // framed is what the signature of body signs: the context, a zero byte and body's SHA-256, as tsx/pkg frames its own signatures.
+// TODO(nsgo#868): tsx/pkg's signed envelope (signed, signBody, framed) is not exported; sign and verify the index with it under a context of Kando's once it is, and drop this copy and signedFile's own signature fields https://github.com/nsgo-dev/nsgo/issues/868
 func framed(body []byte) []byte {
 	sum := sha256.Sum256(body)
 	return append(append([]byte(signContext), 0), sum[:]...)

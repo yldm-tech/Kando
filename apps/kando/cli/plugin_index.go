@@ -33,6 +33,22 @@ var indexNow = time.Now
 // errNoIndexKey is `kando plugin index` run without the index key in IndexKeyEnv.
 var errNoIndexKey = errors.New(IndexKeyEnv + " is not set: put the index key's secret (go tool nsgo keygen) in it")
 
+// runPluginIndex is `kando plugin index`, args being what follows plugin without the word index: its flags, --base and --out, which no other subcommand of plugin takes, and --json, and one folder.
+func runPluginIndex(e *env, args []string) error {
+	fs := e.flags()
+	fs.BoolVar(&e.json, "json", false, "print the result as JSON")
+	base := fs.String("base", "", "the https address the pack files are published under")
+	out := fs.String("out", "index.json", "the index file to write")
+	positional, err := e.parse(fs, args)
+	if err != nil {
+		return err
+	}
+	if len(positional) != 1 {
+		return usagef("index takes one folder of pack files, got %d arguments", len(positional))
+	}
+	return pluginIndex(e, positional[0], *base, *out)
+}
+
 // pluginIndex is `kando plugin index <folder> --base <url> [--out <file>]`: it reads every pack file of folder (.zip, .kandopack, .kandoplugin; nothing else, and no folder), checks each as the app installs it (plugins.Stage, and for a script plugin its signature against Kando's official root, script.Verify, which only a plugin certified by that root passes, official or verified), and writes to out the community index listing them (index.Entry), each downloaded from base followed by its file's name, signed with the key in IndexKeyEnv. One pack that does not pass stops it, naming the file, so an index never leaves out a pack its publisher meant to list without saying so; so does an id listed twice. The pack files and the index are then published together, the files under base and the index at the address Kando reads (index.DefaultURL), docs/plugin-system.md 15.
 func pluginIndex(e *env, folder, base, out string) error {
 	secret := os.Getenv(IndexKeyEnv)

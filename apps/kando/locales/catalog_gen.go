@@ -3038,6 +3038,8 @@ const (
 	textSettingsPrivacyStepAI
 	textSettingsPrivacyStepBrowse
 	textSettingsPrivacyStepBrowseDetail
+	textSettingsPrivacyStepPlugins
+	textSettingsPrivacyStepPluginsDetail
 	textSettingsPrivacyStepDownload
 	textSettingsPrivacyStepDownloadDetail
 	textSettingsPrivacyStepPhone
@@ -4800,6 +4802,8 @@ var keyOfText = [numTexts]string{
 	"settingsPrivacyStepAI",
 	"settingsPrivacyStepBrowse",
 	"settingsPrivacyStepBrowseDetail",
+	"settingsPrivacyStepPlugins",
+	"settingsPrivacyStepPluginsDetail",
 	"settingsPrivacyStepDownload",
 	"settingsPrivacyStepDownloadDetail",
 	"settingsPrivacyStepPhone",
@@ -6560,6 +6564,8 @@ var textsEn = i18n.NewTexts(""+
 	"Translation, proofreading, explanations, recaps and word lookups"+
 	"Browse"+
 	"Web pages you open in Kando"+
+	"Plugin directory"+
+	"The plugin list, when you open Browse Plugins, at most once a day, and the plugins you install from it"+
 	"Download from a link"+
 	"yt-dlp, only when you add a link"+
 	"Phone Sync"+
@@ -8317,6 +8323,8 @@ var textsEn = i18n.NewTexts(""+
 		64,
 		6,
 		27,
+		16,
+		102,
 		20,
 		32,
 		10,
@@ -10077,6 +10085,8 @@ var textsJa = i18n.NewTexts(""+
 	"翻訳・校正・解説・あらすじ・単語検索"+
 	"ブラウズ"+
 	"Kando で開いたウェブページ"+
+	"プラグイン一覧"+
+	"「プラグインを探す」を開いたときの一覧（多くても 1 日 1 回）と、そこからインストールするプラグイン"+
 	"リンクからダウンロード"+
 	"yt-dlp。リンクを追加したときだけ"+
 	"スマートフォン同期"+
@@ -11834,6 +11844,8 @@ var textsJa = i18n.NewTexts(""+
 		54,
 		12,
 		36,
+		21,
+		144,
 		33,
 		45,
 		27,
@@ -13594,6 +13606,8 @@ var textsKo = i18n.NewTexts(""+
 	"번역, 교정, 해설, 지난 이야기 요약, 단어 찾기"+
 	"탐색"+
 	"Kando에서 연 웹 페이지"+
+	"플러그인 목록"+
+	"‘플러그인 둘러보기’를 열 때 받는 목록(하루에 한 번까지)과 거기서 설치하는 플러그인"+
 	"링크에서 다운로드"+
 	"yt-dlp. 링크를 추가할 때만"+
 	"휴대폰 동기화"+
@@ -15351,6 +15365,8 @@ var textsKo = i18n.NewTexts(""+
 		62,
 		6,
 		29,
+		19,
+		120,
 		25,
 		34,
 		19,
@@ -17111,6 +17127,8 @@ var textsZhHans = i18n.NewTexts(""+
 	"翻译、校对、讲解、前情提要和查词"+
 	"浏览"+
 	"在看懂里打开的网页"+
+	"插件目录"+
+	"打开「浏览插件」时取插件列表（最多一天一次），以及从中安装的插件"+
 	"下载在线视频"+
 	"yt-dlp，只在你添加链接时"+
 	"手机同步"+
@@ -18868,6 +18886,8 @@ var textsZhHans = i18n.NewTexts(""+
 		48,
 		6,
 		27,
+		12,
+		96,
 		18,
 		33,
 		12,
@@ -20628,6 +20648,8 @@ var textsZhHant = i18n.NewTexts(""+
 	"翻譯、校對、講解、前情提要和查詞"+
 	"瀏覽"+
 	"在看懂裡開啟的網頁"+
+	"外掛目錄"+
+	"開啟「瀏覽外掛」時取得外掛清單（最多一天一次），以及從中安裝的外掛"+
 	"下載線上影片"+
 	"yt-dlp，只在你加入連結時"+
 	"手機同步"+
@@ -22385,6 +22407,8 @@ var textsZhHant = i18n.NewTexts(""+
 		48,
 		6,
 		27,
+		12,
+		99,
 		18,
 		33,
 		12,
@@ -50986,6 +51010,30 @@ func SettingsPrivacyStepBrowseDetail(cx *core.Scope) string {
 // SettingsPrivacyStepBrowseDetail is the package's SettingsPrivacyStepBrowseDetail in the language of msgs.
 func (msgs Messages) SettingsPrivacyStepBrowseDetail() string {
 	return msgs.text(textSettingsPrivacyStepBrowseDetail)
+}
+
+// SettingsPrivacyStepPlugins says "Plugin directory"
+// in the language the app shows under cx.
+//
+// Row of the network table in Settings › Privacy: the list of plugins in Settings › Plugins › Browse Plugins and the plugins downloaded from it.
+func SettingsPrivacyStepPlugins(cx *core.Scope) string { return For(cx).SettingsPrivacyStepPlugins() }
+
+// SettingsPrivacyStepPlugins is the package's SettingsPrivacyStepPlugins in the language of msgs.
+func (msgs Messages) SettingsPrivacyStepPlugins() string {
+	return msgs.text(textSettingsPrivacyStepPlugins)
+}
+
+// SettingsPrivacyStepPluginsDetail says "The plugin list, when you open Browse Plugins, at most once a day, and the plugins you install from it"
+// in the language the app shows under cx.
+//
+// Under the Plugin directory row of the network table.
+func SettingsPrivacyStepPluginsDetail(cx *core.Scope) string {
+	return For(cx).SettingsPrivacyStepPluginsDetail()
+}
+
+// SettingsPrivacyStepPluginsDetail is the package's SettingsPrivacyStepPluginsDetail in the language of msgs.
+func (msgs Messages) SettingsPrivacyStepPluginsDetail() string {
+	return msgs.text(textSettingsPrivacyStepPluginsDetail)
 }
 
 // SettingsPrivacyStepDownload says "Download from a link"

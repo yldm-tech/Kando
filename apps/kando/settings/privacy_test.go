@@ -26,7 +26,7 @@ func TestPrivacyPageSaysWhatUsesTheNetwork(t *testing.T) {
 	}
 	app.Settle()
 	// Offline: every step over the internet is off, the update row says the daily check goes on, and Phone Sync stays on the local network.
-	for _, id := range []string{"download", "ai", "upload", "stream", "tools", "browse"} {
+	for _, id := range []string{"download", "ai", "upload", "stream", "tools", "browse", "plugins"} {
 		if tag(id) != msgs.SettingsPrivacyTagOff() {
 			t.Errorf("tag of %s offline = %q", id, tag(id))
 		}

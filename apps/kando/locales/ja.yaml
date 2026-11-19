@@ -1626,6 +1626,8 @@ settingsPrivacyStepAICloud: "{service}。字幕のテキストをサービスに
 settingsPrivacyStepAILocal: "{service}。このコンピュータで動きます"
 settingsPrivacyStepBrowse: "ブラウズ"
 settingsPrivacyStepBrowseDetail: "Kando で開いたウェブページ"
+settingsPrivacyStepPlugins: "プラグイン一覧"
+settingsPrivacyStepPluginsDetail: "「プラグインを探す」を開いたときの一覧（多くても 1 日 1 回）と、そこからインストールするプラグイン"
 settingsPrivacyStepDownload: "リンクからダウンロード"
 settingsPrivacyStepDownloadDetail: "yt-dlp。リンクを追加したときだけ"
 settingsPrivacyStepPhone: "スマートフォン同期"

@@ -467,3 +467,17 @@ func certified(t *testing.T, s signer, apps ...string) signer {
 	}
 	return signer{root: s.root, release: release, cert: cert}
 }
+
+// TestScriptIndexKeyIsItsOwn checks that the community index is checked with a key of its own, a valid Ed25519 public key that is not the offline root's, so the root's secret never has to sign an index.
+func TestScriptIndexKeyIsItsOwn(t *testing.T) {
+	if IndexKey == OfficialRoot {
+		t.Fatal("IndexKey is OfficialRoot")
+	}
+	index, err := pkg.DecodePublicKey(IndexKey)
+	if err != nil {
+		t.Fatalf("IndexKey: %v", err)
+	}
+	if pkg.KeyID(index) == pkg.KeyID(officialRoot) {
+		t.Fatal("IndexKey has the official root's key ID")
+	}
+}

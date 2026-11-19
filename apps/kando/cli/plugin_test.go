@@ -91,7 +91,7 @@ func TestPluginValidate(t *testing.T) {
 func TestPluginUsage(t *testing.T) {
 	shortSocket(t)
 	noLaunch(t)
-	for _, args := range [][]string{{"plugin"}, {"plugin", "validate"}, {"plugin", "validate", "a", "b"}, {"plugin", "list", "extra"}, {"plugin", "install"}, {"plugin", "install", "a.zip", "b.zip"}, {"plugin", "install", t.TempDir()}, {"plugin", "enable", "a"}} {
+	for _, args := range [][]string{{"plugin"}, {"plugin", "validate"}, {"plugin", "validate", "a", "b"}, {"plugin", "list", "extra"}, {"plugin", "install"}, {"plugin", "install", "a.zip", "b.zip"}, {"plugin", "install", t.TempDir()}, {"plugin", "enable", "a"}, {"plugin", "list", "--base", "https://example.org"}, {"plugin", "validate", "--out", "x.json", "a.zip"}} {
 		if code, _, stderr := run(args...); code != 2 || !strings.Contains(stderr, "Usage: kando plugin (validate <file-or-folder> | list | install <file> | index <folder> --base <url> [--out <file>]) [--json]") {
 			t.Errorf("%q = %d, %q", args, code, stderr)
 		}

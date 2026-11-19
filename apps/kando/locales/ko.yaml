@@ -1626,6 +1626,8 @@ settingsPrivacyStepAICloud: "{service}. 자막 텍스트를 서비스에 보냅�
 settingsPrivacyStepAILocal: "{service}. 이 컴퓨터에서 실행됩니다"
 settingsPrivacyStepBrowse: "탐색"
 settingsPrivacyStepBrowseDetail: "Kando에서 연 웹 페이지"
+settingsPrivacyStepPlugins: "플러그인 목록"
+settingsPrivacyStepPluginsDetail: "‘플러그인 둘러보기’를 열 때 받는 목록(하루에 한 번까지)과 거기서 설치하는 플러그인"
 settingsPrivacyStepDownload: "링크에서 다운로드"
 settingsPrivacyStepDownloadDetail: "yt-dlp. 링크를 추가할 때만"
 settingsPrivacyStepPhone: "휴대폰 동기화"

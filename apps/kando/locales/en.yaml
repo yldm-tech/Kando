@@ -5813,6 +5813,12 @@ settingsPrivacyStepBrowse:
 settingsPrivacyStepBrowseDetail:
   message: "Web pages you open in Kando"
   description: "Under the Browse row of the network table."
+settingsPrivacyStepPlugins:
+  message: "Plugin directory"
+  description: "Row of the network table in Settings › Privacy: the list of plugins in Settings › Plugins › Browse Plugins and the plugins downloaded from it."
+settingsPrivacyStepPluginsDetail:
+  message: "The plugin list, when you open Browse Plugins, at most once a day, and the plugins you install from it"
+  description: "Under the Plugin directory row of the network table."
 settingsPrivacyStepDownload:
   message: "Download from a link"
   description: "Row of the network table in Settings › Privacy: yt-dlp downloading a video."
