@@ -120,7 +120,7 @@ func (a *app) PluginInstall() settings.PluginInstall {
 	if p.err != nil {
 		return settings.PluginInstall{Open: true, Err: pluginsErrorText(m, p.err)}
 	}
-	in := settings.PluginInstall{Open: true, Pack: p.pack, Detail: settings.PluginDetail(m, p.pack), Budget: a.plugins.state.Budget(p.pack.ID)}
+	in := settings.PluginInstall{Open: true, Pack: p.pack, Detail: settings.PluginDetail(m, p.pack), Budget: a.plugins.state.Budget(p.pack.ID), Listed: p.listed}
 	if p.pack.Kind == plugins.KindScript {
 		in.Script = a.pluginsScriptView(m, p.pack, true)
 	}
@@ -170,6 +170,9 @@ func pluginsErrorText(m locales.Messages, err error) string {
 // pluginsKnownErrorText is the message of m for err when it is one of the errors the app knows, false for an error of the system.
 func pluginsKnownErrorText(m locales.Messages, err error) (string, bool) {
 	if text, ok := pluginsScriptErrorText(m, err); ok {
+		return text, true
+	}
+	if text, ok := pluginsIndexErrorText(m, err); ok {
 		return text, true
 	}
 	for _, e := range []struct {

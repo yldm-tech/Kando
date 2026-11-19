@@ -46,12 +46,15 @@ type PluginInstall struct {
 	Script *PluginScript
 	// Budget is a task pack's daily budget of tokens: the one the pack it replaces keeps, else plugins.DefaultBudget.
 	Budget int
+	// Listed is set for a pack downloaded from the community index (PluginIndexApp), which the confirmation says it comes from.
+	Listed bool
 }
 
 // PluginsApp is what the 插件 page reads and the edits it reports. The page reads the getters in its bindings and calls the actions from its handlers, which tell the revision (package live), so none of the actions calls Changed itself. Installing, removing and reading the plugins folder run off the UI thread and report back.
 type PluginsApp interface {
 	live.State
 	PluginScriptsApp
+	PluginIndexApp
 
 	// PluginRows are the packs, installed ones and those the settings remember that are missing, in the order the settings keep them; PluginIssues the folders that are not valid packs. PluginsNote says what is wrong with the plugins' state file (state.json), "" when nothing is; PluginsErr why the last install, removal or switch failed. PluginsBusy is set while one runs.
 	PluginRows() []PluginRow
@@ -146,7 +149,8 @@ func (p Plugins) Render(cx *core.Scope) core.Node {
 	dragOver := core.NewSignal(cx, false)
 	k := theme.Of(cx)
 	page := form.Page(
-		form.Label(locales.SettingsPluginsInstalled(cx), 6, core.View{Style: core.Style{Direction: core.Row, Gap: 8}, Children: []core.Node{reveal, install}}),
+		pluginIndex{a: a},
+		form.Label(locales.SettingsPluginsInstalled(cx), 6, core.View{Style: core.Style{Direction: core.Row, Gap: 8}, Children: []core.Node{reveal, pluginIndexButton(cx, a), install}}),
 		note,
 		pluginList{a: a},
 		pluginIssues{a: a},
@@ -504,9 +508,15 @@ func pluginInstallDialog(cx *core.Scope, a PluginsApp, in PluginInstall, cancel 
 	if in.Detail != "" {
 		children = append(children, core.Text{Content: in.Detail, Style: core.Style{FontSize: 13, LineHeight: 18}, StyleFunc: ui.Colored(colors.Text)})
 	}
-	if in.Script != nil {
+	switch {
+	case in.Script != nil:
 		children = append(children, pluginScriptInstall(cx, *in.Script)...)
-	} else {
+		if in.Listed {
+			children = append(children, facts(locales.SettingsPluginsInstallFromIndex(cx)))
+		}
+	case in.Listed:
+		children = append(children, facts(locales.SettingsPluginsInstallSourceIndex(cx)))
+	default:
 		children = append(children, facts(locales.SettingsPluginsInstallSource(cx)))
 	}
 	version := locales.SettingsPluginsVersion(cx, p.Version)

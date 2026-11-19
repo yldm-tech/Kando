@@ -7471,6 +7471,140 @@ settingsPluginsInstallReplaces:
 settingsPluginsInstallSource:
   message: "From a file on this computer · not signed"
   description: "Install confirmation: where the pack comes from; data packs are not signed."
+settingsPluginsIndexBrowse:
+  message: "Browse Plugins…"
+  description: "Plugins page: button that shows the plugin directory, the list of plugins Kando's signed index offers, above the installed ones."
+settingsPluginsIndexHide:
+  message: "Hide Directory"
+  description: "Plugins page: the Browse Plugins button while the plugin directory shows; it hides the directory."
+settingsPluginsIndexTitle:
+  message: "Plugin Directory"
+  description: "Plugins page: heading of the plugin directory, the plugins Kando's signed index lists, which can be installed from there."
+settingsPluginsIndexRefresh:
+  message: "Refresh"
+  description: "Plugin directory: button that downloads the latest list of plugins now."
+settingsPluginsIndexSearch:
+  message: "Search plugins"
+  description: "Plugin directory: placeholder and accessibility label of the search field, which matches names, descriptions, ids and publishers."
+settingsPluginsIndexKind:
+  message: "Kind"
+  description: "Plugin directory: accessibility label of the menu that shows only plugins of one kind."
+settingsPluginsIndexAllKinds:
+  message: "All kinds"
+  description: "Plugin directory: the choice of the kind menu that shows plugins of every kind."
+settingsPluginsIndexMore:
+  message: "Showing {shown} of {total, plural, one {# plugin} other {# plugins}}. Search to narrow the list."
+  description: "Plugin directory: under the list, when more plugins match than it shows."
+  placeholders:
+    shown: { type: "int", example: "50" }
+    total: { type: "int", example: "212" }
+settingsPluginsIndexEmpty:
+  message: "No plugins to show"
+  description: "Plugin directory: the list when no plugin matches the search and the kind, or the list has not been downloaded."
+settingsPluginsIndexFacts:
+  message: "{publisher} · version {version} · {size} · {license}"
+  description: "Plugin directory: under a plugin's name, the publisher (the first part of its id), its version, the size of its file and its license."
+  placeholders:
+    publisher: { type: "String", example: "example" }
+    version: { type: "String", example: "1.2.0" }
+    size: { type: "String", example: "1.4 MB" }
+    license: { type: "String", example: "CC-BY-4.0" }
+settingsPluginsIndexInstall:
+  message: "Install"
+  description: "Plugin directory: button that downloads a plugin and asks to install it."
+settingsPluginsIndexInstallLabel:
+  message: "Install {name}"
+  description: "Plugin directory: accessibility label of a plugin's Install button."
+  placeholders:
+    name: { type: "String", example: "Anime terms" }
+settingsPluginsIndexUpdate:
+  message: "Update"
+  description: "Plugin directory: button that downloads the newer version of an installed plugin and asks to install it."
+settingsPluginsIndexUpdateLabel:
+  message: "Update {name} to version {version}"
+  description: "Plugin directory: accessibility label of a plugin's Update button."
+  placeholders:
+    name: { type: "String", example: "Anime terms" }
+    version: { type: "String", example: "1.3.0" }
+settingsPluginsIndexInstalledVersion:
+  message: "{version} installed"
+  description: "Plugin directory: beside Update, the version installed now."
+  placeholders:
+    version: { type: "String", example: "1.2.0" }
+settingsPluginsIndexInstalled:
+  message: "Installed"
+  description: "Plugin directory: in place of Install, for a plugin installed at this version or a newer one."
+settingsPluginsIndexNeedsKando:
+  message: "Needs Kando {version}"
+  description: "Plugin directory: in place of Install, for a plugin that runs only on a newer version of Kando."
+  placeholders:
+    version: { type: "String", example: "0.40.0" }
+settingsPluginsIndexDownloading:
+  message: "Downloading…"
+  description: "Plugin directory: in place of Install while the plugin's file downloads."
+settingsPluginsIndexNotConfigured:
+  message: "This version of Kando has no plugin directory."
+  description: "Plugin directory: status line when this build has no key to check the directory's list with, so it never downloads it."
+settingsPluginsIndexLoading:
+  message: "Loading the list…"
+  description: "Plugin directory: status line while the list kept on this computer is read."
+settingsPluginsIndexUpdating:
+  message: "Updating the list…"
+  description: "Plugin directory: status line while the latest list downloads."
+settingsPluginsIndexFailed:
+  message: "Couldn't update the list: {reason}"
+  description: "Plugin directory: status line when the latest list could not be downloaded or was refused; the list downloaded before still shows."
+  placeholders:
+    reason: { type: "String", example: "The plugin list is not signed by Kando, so it was not used." }
+settingsPluginsIndexOffline:
+  message: "Offline mode is on. This is the list from {date}."
+  description: "Plugin directory: status line in offline mode, which downloads nothing, with when the list shown was downloaded."
+  placeholders:
+    date: { type: "String", example: "2026-11-19 10:30" }
+settingsPluginsIndexOfflineNone:
+  message: "Offline mode is on, and the list has not been downloaded yet."
+  description: "Plugin directory: status line in offline mode before the list was ever downloaded."
+settingsPluginsIndexUpdated:
+  message: "Updated {date}"
+  description: "Plugin directory: status line with when the list was last checked for a newer one."
+  placeholders:
+    date: { type: "String", example: "2026-11-19 10:30" }
+settingsPluginsInstallSourceIndex:
+  message: "From Kando's plugin directory · not signed"
+  description: "Install confirmation: where a data pack downloaded from the plugin directory comes from; the directory's list is signed, the pack itself is not."
+settingsPluginsInstallFromIndex:
+  message: "Downloaded from Kando's plugin directory"
+  description: "Install confirmation: a line under a script plugin's source when it was downloaded from the plugin directory."
+pluginsErrIndexSignature:
+  message: "The plugin list is not signed by Kando, so it was not used."
+  description: "Why the plugin directory's list was refused: its signature is missing or wrong."
+pluginsErrIndexFormat:
+  message: "The plugin list cannot be read."
+  description: "Why the plugin directory's list was refused: it is not in the format Kando reads."
+pluginsErrIndexVersion:
+  message: "The plugin list is for a newer version of Kando."
+  description: "Why the plugin directory's list was refused: a newer version of its format."
+pluginsErrIndexTooLarge:
+  message: "The plugin list or the plugin's file is larger than it should be."
+  description: "Why the plugin directory's list or a plugin's download was refused: over its size limit, or over the size the list gives."
+pluginsErrIndexBadEntry:
+  message: "A plugin in the list is not valid, so the list was not used."
+  description: "Why the plugin directory's list was refused: one of its entries breaks the rules a plugin's manifest follows."
+pluginsErrIndexRollback:
+  message: "The server sent an older plugin list than the one Kando has."
+  description: "Why the plugin directory's list was refused: it was made before the list Kando already has."
+pluginsErrIndexChecksum:
+  message: "The downloaded file is not the one the plugin list names."
+  description: "Why a plugin's download was refused: its size or SHA-256 differs from the list's."
+pluginsErrIndexHTTP:
+  message: "The server did not send the file."
+  description: "Why the plugin directory's list or a plugin's file could not be downloaded: the server answered with an error."
+pluginsErrIndexRedirect:
+  message: "The server sent Kando to another site, so nothing was downloaded."
+  description: "Why a download from the plugin directory stopped: it was redirected to another host or away from https."
+pluginsErrIndexNotListed:
+  message: "The downloaded plugin is not the one the plugin list names."
+  description: "Why a plugin from the plugin directory cannot be installed: its id, kind, version or signature differs from the list's."
 settingsPluginsInstallTitle:
   message: "Install {name}?"
   description: "Install confirmation: title; {name} is the pack's name."

@@ -69,21 +69,24 @@ type pluginsUI struct {
 	export *pluginsExport
 	// exportTarget is the export-template pack the saved lines are exported with, "" for Kando's own Anki notes (savedPlugins.PluginExportTarget).
 	exportTarget string
+	// index is the community plugin index 浏览插件 shows (state_plugins_index.go).
+	index pluginsIndex
 }
 
 // pluginsGone is the AI service of a pack that is not offered now, though the endpoint in use is still its own: id is its preset id (pack.<id>) and base its endpoint. The service settings.json saved, when it was a pack's, starts as one, as the packs are read only once the window is ready.
 type pluginsGone struct{ id, base string }
 
-// pluginsPending is the install confirmation: the pack staged in staged (plugins.Stage), a script plugin verified and its code's word on what it is checked (pluginsStagedCheck), or why the file could not be staged (err). release gives back the modal flag it holds (holdModal). sites are the domains of a site pack the user ticked, which it is installed allowing (state_plugins_sites.go).
+// pluginsPending is the install confirmation: the pack staged in staged (plugins.Stage), a script plugin verified and its code's word on what it is checked (pluginsStagedCheck), or why the file could not be staged (err). release gives back the modal flag it holds (holdModal). sites are the domains of a site pack the user ticked, which it is installed allowing (state_plugins_sites.go). listed is set for a pack downloaded from the community index (state_plugins_index.go), which the confirmation says it comes from.
 type pluginsPending struct {
 	pack    plugins.Pack
 	staged  string
 	err     error
 	release func()
 	sites   []string
+	listed  bool
 }
 
-func newPluginsUI() pluginsUI { return pluginsUI{} }
+func newPluginsUI() pluginsUI { return pluginsUI{index: newPluginsIndex()} }
 
 // savedPlugins is the plugins' part of settings.json: preferences alone, never what is installed or turned on, which the plugins folder and its state.json keep. PluginOrder is every pack id seen, in the order it came; an id whose pack is not in the plugins folder now is kept, and the page lists it as missing until the user forgets it. PluginReadings, PluginWordlist and PluginKnownWords are how 字幕外观's 逐词标注 marks the words of the originals (pluginsMarkPrefs): readings, the id of the word list whose levels draw a line under them, kept while that pack is missing, and a dashed line under the words in the vocabulary. PluginDictHintShown is set once the lookup card showed the hint to install an offline dictionary, which shows once (pluginsDictHint). PluginDeveloper is developer mode, which trusts the developer key of this computer, kept in the system's secure store, never here.
 type savedPlugins struct {

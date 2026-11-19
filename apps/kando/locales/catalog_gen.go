@@ -1003,6 +1003,15 @@ var Parameters = map[string][]string{
 	"SettingsPluginsGlossaryDetail":            {"count", "from", "to"},
 	"SettingsPluginsIdentity":                  {"id", "hash"},
 	"SettingsPluginsInstallReplaces":           {"version"},
+	"SettingsPluginsIndexMore":                 {"shown", "total"},
+	"SettingsPluginsIndexFacts":                {"publisher", "version", "size", "license"},
+	"SettingsPluginsIndexInstallLabel":         {"name"},
+	"SettingsPluginsIndexUpdateLabel":          {"name", "version"},
+	"SettingsPluginsIndexInstalledVersion":     {"version"},
+	"SettingsPluginsIndexNeedsKando":           {"version"},
+	"SettingsPluginsIndexFailed":               {"reason"},
+	"SettingsPluginsIndexOffline":              {"date"},
+	"SettingsPluginsIndexUpdated":              {"date"},
 	"SettingsPluginsInstallTitle":              {"name"},
 	"SettingsPluginsLicense":                   {"license"},
 	"SettingsPluginsMoveDownLabel":             {"name"},
@@ -1676,6 +1685,15 @@ type Translation struct {
 	SettingsPluginsGlossaryDetail            func(count int, from string, to string) string
 	SettingsPluginsIdentity                  func(id string, hash string) string
 	SettingsPluginsInstallReplaces           func(version string) string
+	SettingsPluginsIndexMore                 func(shown int, total int) string
+	SettingsPluginsIndexFacts                func(publisher string, version string, size string, license string) string
+	SettingsPluginsIndexInstallLabel         func(name string) string
+	SettingsPluginsIndexUpdateLabel          func(name string, version string) string
+	SettingsPluginsIndexInstalledVersion     func(version string) string
+	SettingsPluginsIndexNeedsKando           func(version string) string
+	SettingsPluginsIndexFailed               func(reason string) string
+	SettingsPluginsIndexOffline              func(date string) string
+	SettingsPluginsIndexUpdated              func(date string) string
 	SettingsPluginsInstallTitle              func(name string) string
 	SettingsPluginsLicense                   func(license string) string
 	SettingsPluginsMoveDownLabel             func(name string) string
@@ -3345,6 +3363,34 @@ const (
 	textSettingsPluginsInstallConfirm
 	textSettingsPluginsInstallFailed
 	textSettingsPluginsInstallSource
+	textSettingsPluginsIndexBrowse
+	textSettingsPluginsIndexHide
+	textSettingsPluginsIndexTitle
+	textSettingsPluginsIndexRefresh
+	textSettingsPluginsIndexSearch
+	textSettingsPluginsIndexKind
+	textSettingsPluginsIndexAllKinds
+	textSettingsPluginsIndexEmpty
+	textSettingsPluginsIndexInstall
+	textSettingsPluginsIndexUpdate
+	textSettingsPluginsIndexInstalled
+	textSettingsPluginsIndexDownloading
+	textSettingsPluginsIndexNotConfigured
+	textSettingsPluginsIndexLoading
+	textSettingsPluginsIndexUpdating
+	textSettingsPluginsIndexOfflineNone
+	textSettingsPluginsInstallSourceIndex
+	textSettingsPluginsInstallFromIndex
+	textPluginsErrIndexSignature
+	textPluginsErrIndexFormat
+	textPluginsErrIndexVersion
+	textPluginsErrIndexTooLarge
+	textPluginsErrIndexBadEntry
+	textPluginsErrIndexRollback
+	textPluginsErrIndexChecksum
+	textPluginsErrIndexHTTP
+	textPluginsErrIndexRedirect
+	textPluginsErrIndexNotListed
 	textSettingsPluginsInstalled
 	textSettingsPluginsIssues
 	textSettingsPluginsKindAIService
@@ -5079,6 +5125,34 @@ var keyOfText = [numTexts]string{
 	"settingsPluginsInstallConfirm",
 	"settingsPluginsInstallFailed",
 	"settingsPluginsInstallSource",
+	"settingsPluginsIndexBrowse",
+	"settingsPluginsIndexHide",
+	"settingsPluginsIndexTitle",
+	"settingsPluginsIndexRefresh",
+	"settingsPluginsIndexSearch",
+	"settingsPluginsIndexKind",
+	"settingsPluginsIndexAllKinds",
+	"settingsPluginsIndexEmpty",
+	"settingsPluginsIndexInstall",
+	"settingsPluginsIndexUpdate",
+	"settingsPluginsIndexInstalled",
+	"settingsPluginsIndexDownloading",
+	"settingsPluginsIndexNotConfigured",
+	"settingsPluginsIndexLoading",
+	"settingsPluginsIndexUpdating",
+	"settingsPluginsIndexOfflineNone",
+	"settingsPluginsInstallSourceIndex",
+	"settingsPluginsInstallFromIndex",
+	"pluginsErrIndexSignature",
+	"pluginsErrIndexFormat",
+	"pluginsErrIndexVersion",
+	"pluginsErrIndexTooLarge",
+	"pluginsErrIndexBadEntry",
+	"pluginsErrIndexRollback",
+	"pluginsErrIndexChecksum",
+	"pluginsErrIndexHTTP",
+	"pluginsErrIndexRedirect",
+	"pluginsErrIndexNotListed",
 	"settingsPluginsInstalled",
 	"settingsPluginsIssues",
 	"settingsPluginsKindAIService",
@@ -6811,6 +6885,34 @@ var textsEn = i18n.NewTexts(""+
 	"Install"+
 	"Can't Install This Pack"+
 	"From a file on this computer · not signed"+
+	"Browse Plugins…"+
+	"Hide Directory"+
+	"Plugin Directory"+
+	"Refresh"+
+	"Search plugins"+
+	"Kind"+
+	"All kinds"+
+	"No plugins to show"+
+	"Install"+
+	"Update"+
+	"Installed"+
+	"Downloading…"+
+	"This version of Kando has no plugin directory."+
+	"Loading the list…"+
+	"Updating the list…"+
+	"Offline mode is on, and the list has not been downloaded yet."+
+	"From Kando's plugin directory · not signed"+
+	"Downloaded from Kando's plugin directory"+
+	"The plugin list is not signed by Kando, so it was not used."+
+	"The plugin list cannot be read."+
+	"The plugin list is for a newer version of Kando."+
+	"The plugin list or the plugin's file is larger than it should be."+
+	"A plugin in the list is not valid, so the list was not used."+
+	"The server sent an older plugin list than the one Kando has."+
+	"The downloaded file is not the one the plugin list names."+
+	"The server did not send the file."+
+	"The server sent Kando to another site, so nothing was downloaded."+
+	"The downloaded plugin is not the one the plugin list names."+
 	"Installed"+
 	"Couldn't Load"+
 	"AI Services"+
@@ -8540,6 +8642,34 @@ var textsEn = i18n.NewTexts(""+
 		7,
 		23,
 		42,
+		17,
+		14,
+		16,
+		7,
+		14,
+		4,
+		9,
+		18,
+		7,
+		6,
+		9,
+		14,
+		46,
+		19,
+		20,
+		61,
+		43,
+		40,
+		59,
+		31,
+		48,
+		65,
+		60,
+		60,
+		57,
+		33,
+		65,
+		59,
 		9,
 		13,
 		11,
@@ -10272,6 +10402,34 @@ var textsJa = i18n.NewTexts(""+
 	"インストール"+
 	"このパックはインストールできません"+
 	"このコンピューター上のファイル · 署名なし"+
+	"プラグインを探す…"+
+	"プラグイン一覧を閉じる"+
+	"プラグイン一覧"+
+	"更新"+
+	"プラグインを検索"+
+	"種類"+
+	"すべての種類"+
+	"表示できるプラグインはありません"+
+	"インストール"+
+	"アップデート"+
+	"インストール済み"+
+	"ダウンロード中…"+
+	"このバージョンの Kando にはプラグイン一覧がありません。"+
+	"一覧を読み込んでいます…"+
+	"一覧を更新しています…"+
+	"オフラインモードがオンで、一覧はまだダウンロードされていません。"+
+	"Kando のプラグイン一覧から · 署名なし"+
+	"Kando のプラグイン一覧からダウンロード"+
+	"プラグイン一覧に Kando の署名がないため、使いませんでした。"+
+	"プラグイン一覧を読み込めません。"+
+	"プラグイン一覧は新しいバージョンの Kando 向けです。"+
+	"プラグイン一覧またはプラグインのファイルが大きすぎます。"+
+	"一覧に正しくないプラグインがあるため、一覧を使いませんでした。"+
+	"サーバーから届いたプラグイン一覧が、Kando にあるものより古いです。"+
+	"ダウンロードしたファイルが、プラグイン一覧にあるものと違います。"+
+	"サーバーがファイルを送りませんでした。"+
+	"サーバーが別のサイトに転送したため、何もダウンロードしませんでした。"+
+	"ダウンロードしたプラグインが、プラグイン一覧にあるものと違います。"+
 	"インストール済み"+
 	"読み込めませんでした"+
 	"AI サービス"+
@@ -12001,6 +12159,34 @@ var textsJa = i18n.NewTexts(""+
 		18,
 		51,
 		61,
+		27,
+		33,
+		21,
+		6,
+		24,
+		6,
+		18,
+		48,
+		18,
+		18,
+		24,
+		24,
+		79,
+		36,
+		33,
+		96,
+		52,
+		54,
+		85,
+		48,
+		73,
+		84,
+		93,
+		96,
+		96,
+		57,
+		102,
+		99,
 		24,
 		30,
 		15,
@@ -13733,6 +13919,34 @@ var textsKo = i18n.NewTexts(""+
 	"설치"+
 	"이 팩을 설치할 수 없습니다"+
 	"이 컴퓨터의 파일 · 서명 없음"+
+	"플러그인 둘러보기…"+
+	"플러그인 목록 닫기"+
+	"플러그인 목록"+
+	"새로 고침"+
+	"플러그인 검색"+
+	"종류"+
+	"모든 종류"+
+	"표시할 플러그인이 없습니다"+
+	"설치"+
+	"업데이트"+
+	"설치됨"+
+	"다운로드 중…"+
+	"이 버전의 Kando에는 플러그인 목록이 없습니다."+
+	"목록을 읽는 중…"+
+	"목록을 업데이트하는 중…"+
+	"오프라인 모드가 켜져 있고, 목록을 아직 내려받지 않았습니다."+
+	"Kando 플러그인 목록에서 · 서명 없음"+
+	"Kando 플러그인 목록에서 다운로드함"+
+	"플러그인 목록에 Kando의 서명이 없어 사용하지 않았습니다."+
+	"플러그인 목록을 읽을 수 없습니다."+
+	"플러그인 목록은 더 새로운 버전의 Kando용입니다."+
+	"플러그인 목록이나 플러그인 파일이 너무 큽니다."+
+	"목록에 올바르지 않은 플러그인이 있어 목록을 사용하지 않았습니다."+
+	"서버가 보낸 플러그인 목록이 Kando에 있는 것보다 오래되었습니다."+
+	"다운로드한 파일이 플러그인 목록에 있는 것과 다릅니다."+
+	"서버가 파일을 보내지 않았습니다."+
+	"서버가 다른 사이트로 보내서 아무것도 다운로드하지 않았습니다."+
+	"다운로드한 플러그인이 플러그인 목록에 있는 것과 다릅니다."+
 	"설치됨"+
 	"불러올 수 없음"+
 	"AI 서비스"+
@@ -15462,6 +15676,34 @@ var textsKo = i18n.NewTexts(""+
 		6,
 		37,
 		40,
+		28,
+		26,
+		19,
+		13,
+		19,
+		6,
+		13,
+		38,
+		6,
+		12,
+		9,
+		19,
+		62,
+		23,
+		35,
+		84,
+		48,
+		47,
+		78,
+		47,
+		65,
+		66,
+		92,
+		88,
+		76,
+		46,
+		88,
+		82,
 		9,
 		20,
 		12,
@@ -17194,6 +17436,34 @@ var textsZhHans = i18n.NewTexts(""+
 	"安装"+
 	"无法安装这个插件包"+
 	"来自这台电脑上的文件 · 未签名"+
+	"浏览插件…"+
+	"收起插件目录"+
+	"插件目录"+
+	"刷新"+
+	"搜索插件"+
+	"种类"+
+	"全部种类"+
+	"没有可显示的插件"+
+	"安装"+
+	"更新"+
+	"已安装"+
+	"正在下载…"+
+	"这个版本的看懂没有插件目录。"+
+	"正在读取列表…"+
+	"正在更新列表…"+
+	"离线模式已开启，列表还没有下载过。"+
+	"来自看懂的插件目录 · 未签名"+
+	"从看懂的插件目录下载"+
+	"插件列表没有看懂的签名，没有使用。"+
+	"无法读取插件列表。"+
+	"插件列表是给更新版本的看懂用的。"+
+	"插件列表或插件文件比应有的大。"+
+	"列表里有一个插件不符合规则，列表没有使用。"+
+	"服务器发来的插件列表比看懂已有的旧。"+
+	"下载的文件不是插件列表里写的那一个。"+
+	"服务器没有发来文件。"+
+	"服务器把看懂转到了别的网站，没有下载任何东西。"+
+	"下载的插件不是插件列表里写的那一个。"+
 	"已安装"+
 	"无法载入"+
 	"AI 服务"+
@@ -18923,6 +19193,34 @@ var textsZhHans = i18n.NewTexts(""+
 		6,
 		27,
 		43,
+		15,
+		18,
+		12,
+		6,
+		12,
+		6,
+		12,
+		24,
+		6,
+		6,
+		9,
+		15,
+		42,
+		21,
+		21,
+		51,
+		40,
+		30,
+		51,
+		27,
+		48,
+		45,
+		63,
+		54,
+		54,
+		30,
+		69,
+		54,
 		9,
 		12,
 		9,
@@ -20655,6 +20953,34 @@ var textsZhHant = i18n.NewTexts(""+
 	"安裝"+
 	"無法安裝這個外掛包"+
 	"來自這台電腦上的檔案 · 未簽署"+
+	"瀏覽外掛…"+
+	"收起外掛目錄"+
+	"外掛目錄"+
+	"重新整理"+
+	"搜尋外掛"+
+	"種類"+
+	"全部種類"+
+	"沒有可顯示的外掛"+
+	"安裝"+
+	"更新"+
+	"已安裝"+
+	"正在下載…"+
+	"這個版本的看懂沒有外掛目錄。"+
+	"正在讀取清單…"+
+	"正在更新清單…"+
+	"離線模式已開啟，清單還沒有下載過。"+
+	"來自看懂的外掛目錄 · 未簽署"+
+	"從看懂的外掛目錄下載"+
+	"外掛清單沒有看懂的簽章，未使用。"+
+	"無法讀取外掛清單。"+
+	"外掛清單是給較新版本的看懂使用的。"+
+	"外掛清單或外掛檔案比應有的大。"+
+	"清單裡有一個外掛不符合規則，清單未使用。"+
+	"伺服器傳來的外掛清單比看懂已有的舊。"+
+	"下載的檔案不是外掛清單裡寫的那一個。"+
+	"伺服器沒有傳來檔案。"+
+	"伺服器把看懂轉到了別的網站，沒有下載任何東西。"+
+	"下載的外掛不是外掛清單裡寫的那一個。"+
 	"已安裝"+
 	"無法載入"+
 	"AI 服務"+
@@ -22384,6 +22710,34 @@ var textsZhHant = i18n.NewTexts(""+
 		6,
 		27,
 		43,
+		15,
+		18,
+		12,
+		12,
+		12,
+		6,
+		12,
+		24,
+		6,
+		6,
+		9,
+		15,
+		42,
+		21,
+		21,
+		51,
+		40,
+		30,
+		48,
+		27,
+		51,
+		45,
+		60,
+		54,
+		54,
+		30,
+		69,
+		54,
 		9,
 		12,
 		9,
@@ -24259,6 +24613,33 @@ func Supply(lang string, t Translation) {
 	}
 	if t.SettingsPluginsInstallReplaces != nil {
 		s.SettingsPluginsInstallReplaces = t.SettingsPluginsInstallReplaces
+	}
+	if t.SettingsPluginsIndexMore != nil {
+		s.SettingsPluginsIndexMore = t.SettingsPluginsIndexMore
+	}
+	if t.SettingsPluginsIndexFacts != nil {
+		s.SettingsPluginsIndexFacts = t.SettingsPluginsIndexFacts
+	}
+	if t.SettingsPluginsIndexInstallLabel != nil {
+		s.SettingsPluginsIndexInstallLabel = t.SettingsPluginsIndexInstallLabel
+	}
+	if t.SettingsPluginsIndexUpdateLabel != nil {
+		s.SettingsPluginsIndexUpdateLabel = t.SettingsPluginsIndexUpdateLabel
+	}
+	if t.SettingsPluginsIndexInstalledVersion != nil {
+		s.SettingsPluginsIndexInstalledVersion = t.SettingsPluginsIndexInstalledVersion
+	}
+	if t.SettingsPluginsIndexNeedsKando != nil {
+		s.SettingsPluginsIndexNeedsKando = t.SettingsPluginsIndexNeedsKando
+	}
+	if t.SettingsPluginsIndexFailed != nil {
+		s.SettingsPluginsIndexFailed = t.SettingsPluginsIndexFailed
+	}
+	if t.SettingsPluginsIndexOffline != nil {
+		s.SettingsPluginsIndexOffline = t.SettingsPluginsIndexOffline
+	}
+	if t.SettingsPluginsIndexUpdated != nil {
+		s.SettingsPluginsIndexUpdated = t.SettingsPluginsIndexUpdated
 	}
 	if t.SettingsPluginsInstallTitle != nil {
 		s.SettingsPluginsInstallTitle = t.SettingsPluginsInstallTitle
@@ -58509,6 +58890,653 @@ func SettingsPluginsInstallSource(cx *core.Scope) string {
 // SettingsPluginsInstallSource is the package's SettingsPluginsInstallSource in the language of msgs.
 func (msgs Messages) SettingsPluginsInstallSource() string {
 	return msgs.text(textSettingsPluginsInstallSource)
+}
+
+// SettingsPluginsIndexBrowse says "Browse Plugins…"
+// in the language the app shows under cx.
+//
+// Plugins page: button that shows the plugin directory, the list of plugins Kando's signed index offers, above the installed ones.
+func SettingsPluginsIndexBrowse(cx *core.Scope) string { return For(cx).SettingsPluginsIndexBrowse() }
+
+// SettingsPluginsIndexBrowse is the package's SettingsPluginsIndexBrowse in the language of msgs.
+func (msgs Messages) SettingsPluginsIndexBrowse() string {
+	return msgs.text(textSettingsPluginsIndexBrowse)
+}
+
+// SettingsPluginsIndexHide says "Hide Directory"
+// in the language the app shows under cx.
+//
+// Plugins page: the Browse Plugins button while the plugin directory shows; it hides the directory.
+func SettingsPluginsIndexHide(cx *core.Scope) string { return For(cx).SettingsPluginsIndexHide() }
+
+// SettingsPluginsIndexHide is the package's SettingsPluginsIndexHide in the language of msgs.
+func (msgs Messages) SettingsPluginsIndexHide() string {
+	return msgs.text(textSettingsPluginsIndexHide)
+}
+
+// SettingsPluginsIndexTitle says "Plugin Directory"
+// in the language the app shows under cx.
+//
+// Plugins page: heading of the plugin directory, the plugins Kando's signed index lists, which can be installed from there.
+func SettingsPluginsIndexTitle(cx *core.Scope) string { return For(cx).SettingsPluginsIndexTitle() }
+
+// SettingsPluginsIndexTitle is the package's SettingsPluginsIndexTitle in the language of msgs.
+func (msgs Messages) SettingsPluginsIndexTitle() string {
+	return msgs.text(textSettingsPluginsIndexTitle)
+}
+
+// SettingsPluginsIndexRefresh says "Refresh"
+// in the language the app shows under cx.
+//
+// Plugin directory: button that downloads the latest list of plugins now.
+func SettingsPluginsIndexRefresh(cx *core.Scope) string { return For(cx).SettingsPluginsIndexRefresh() }
+
+// SettingsPluginsIndexRefresh is the package's SettingsPluginsIndexRefresh in the language of msgs.
+func (msgs Messages) SettingsPluginsIndexRefresh() string {
+	return msgs.text(textSettingsPluginsIndexRefresh)
+}
+
+// SettingsPluginsIndexSearch says "Search plugins"
+// in the language the app shows under cx.
+//
+// Plugin directory: placeholder and accessibility label of the search field, which matches names, descriptions, ids and publishers.
+func SettingsPluginsIndexSearch(cx *core.Scope) string { return For(cx).SettingsPluginsIndexSearch() }
+
+// SettingsPluginsIndexSearch is the package's SettingsPluginsIndexSearch in the language of msgs.
+func (msgs Messages) SettingsPluginsIndexSearch() string {
+	return msgs.text(textSettingsPluginsIndexSearch)
+}
+
+// SettingsPluginsIndexKind says "Kind"
+// in the language the app shows under cx.
+//
+// Plugin directory: accessibility label of the menu that shows only plugins of one kind.
+func SettingsPluginsIndexKind(cx *core.Scope) string { return For(cx).SettingsPluginsIndexKind() }
+
+// SettingsPluginsIndexKind is the package's SettingsPluginsIndexKind in the language of msgs.
+func (msgs Messages) SettingsPluginsIndexKind() string {
+	return msgs.text(textSettingsPluginsIndexKind)
+}
+
+// SettingsPluginsIndexAllKinds says "All kinds"
+// in the language the app shows under cx.
+//
+// Plugin directory: the choice of the kind menu that shows plugins of every kind.
+func SettingsPluginsIndexAllKinds(cx *core.Scope) string {
+	return For(cx).SettingsPluginsIndexAllKinds()
+}
+
+// SettingsPluginsIndexAllKinds is the package's SettingsPluginsIndexAllKinds in the language of msgs.
+func (msgs Messages) SettingsPluginsIndexAllKinds() string {
+	return msgs.text(textSettingsPluginsIndexAllKinds)
+}
+
+// SettingsPluginsIndexMore says "Showing {shown} of {total, plural, one {# plugin} other {# plugins}}. Search to narrow the list."
+// in the language the app shows under cx.
+//
+// Plugin directory: under the list, when more plugins match than it shows.
+func SettingsPluginsIndexMore(cx *core.Scope, shown int, total int) string {
+	return For(cx).SettingsPluginsIndexMore(shown, total)
+}
+
+// SettingsPluginsIndexMore is the package's SettingsPluginsIndexMore in the language of msgs.
+func (msgs Messages) SettingsPluginsIndexMore(shown int, total int) string {
+	if i18n.IsPseudo(msgs.lang) {
+		return i18n.Pseudo(msgs.lang, Messages{lang: Source, mark: true}.SettingsPluginsIndexMore(shown, total))
+	}
+	for lang := msgs.lang; ; lang = i18n.Parent(lang) {
+		if f := supplied[lang].SettingsPluginsIndexMore; f != nil {
+			return f(shown, total)
+		}
+		switch lang {
+		case "", "en":
+			var b strings.Builder
+			b.WriteString("Showing ")
+			b.WriteString(msgs.arg(i18n.FormatNumber("en", float64(shown))))
+			b.WriteString(" of ")
+			switch i18n.Cardinal("en", float64(total)) {
+			case i18n.One:
+				b.WriteString(msgs.arg(i18n.FormatNumber("en", float64(total))))
+				b.WriteString(" plugin")
+			default:
+				b.WriteString(msgs.arg(i18n.FormatNumber("en", float64(total))))
+				b.WriteString(" plugins")
+			}
+			b.WriteString(". Search to narrow the list.")
+			return b.String()
+		case "ja":
+			var b strings.Builder
+			switch i18n.Cardinal("ja", float64(total)) {
+			default:
+				b.WriteString(i18n.FormatNumber("ja", float64(total)))
+				b.WriteString(" 件")
+			}
+			b.WriteString("中 ")
+			b.WriteString(i18n.FormatNumber("ja", float64(shown)))
+			b.WriteString(" 件を表示しています。検索で絞り込めます。")
+			return b.String()
+		case "ko":
+			var b strings.Builder
+			switch i18n.Cardinal("ko", float64(total)) {
+			default:
+				b.WriteString(i18n.FormatNumber("ko", float64(total)))
+				b.WriteString("개")
+			}
+			b.WriteString(" 중 ")
+			b.WriteString(i18n.FormatNumber("ko", float64(shown)))
+			b.WriteString("개를 표시합니다. 검색으로 범위를 좁힐 수 있습니다.")
+			return b.String()
+		case "zh-Hans":
+			var b strings.Builder
+			b.WriteString("显示了 ")
+			switch i18n.Cardinal("zh-Hans", float64(total)) {
+			default:
+				b.WriteString(i18n.FormatNumber("zh-Hans", float64(total)))
+				b.WriteString(" 个插件")
+			}
+			b.WriteString("中的 ")
+			b.WriteString(i18n.FormatNumber("zh-Hans", float64(shown)))
+			b.WriteString(" 个，搜索可以缩小范围。")
+			return b.String()
+		case "zh-Hant":
+			var b strings.Builder
+			b.WriteString("顯示了 ")
+			switch i18n.Cardinal("zh-Hant", float64(total)) {
+			default:
+				b.WriteString(i18n.FormatNumber("zh-Hant", float64(total)))
+				b.WriteString(" 個外掛")
+			}
+			b.WriteString("中的 ")
+			b.WriteString(i18n.FormatNumber("zh-Hant", float64(shown)))
+			b.WriteString(" 個，搜尋可以縮小範圍。")
+			return b.String()
+		}
+	}
+}
+
+// SettingsPluginsIndexEmpty says "No plugins to show"
+// in the language the app shows under cx.
+//
+// Plugin directory: the list when no plugin matches the search and the kind, or the list has not been downloaded.
+func SettingsPluginsIndexEmpty(cx *core.Scope) string { return For(cx).SettingsPluginsIndexEmpty() }
+
+// SettingsPluginsIndexEmpty is the package's SettingsPluginsIndexEmpty in the language of msgs.
+func (msgs Messages) SettingsPluginsIndexEmpty() string {
+	return msgs.text(textSettingsPluginsIndexEmpty)
+}
+
+// SettingsPluginsIndexFacts says "{publisher} · version {version} · {size} · {license}"
+// in the language the app shows under cx.
+//
+// Plugin directory: under a plugin's name, the publisher (the first part of its id), its version, the size of its file and its license.
+func SettingsPluginsIndexFacts(cx *core.Scope, publisher string, version string, size string, license string) string {
+	return For(cx).SettingsPluginsIndexFacts(publisher, version, size, license)
+}
+
+// SettingsPluginsIndexFacts is the package's SettingsPluginsIndexFacts in the language of msgs.
+func (msgs Messages) SettingsPluginsIndexFacts(publisher string, version string, size string, license string) string {
+	if i18n.IsPseudo(msgs.lang) {
+		return i18n.Pseudo(msgs.lang, Messages{lang: Source, mark: true}.SettingsPluginsIndexFacts(publisher, version, size, license))
+	}
+	for lang := msgs.lang; ; lang = i18n.Parent(lang) {
+		if f := supplied[lang].SettingsPluginsIndexFacts; f != nil {
+			return f(publisher, version, size, license)
+		}
+		switch lang {
+		case "", "en":
+			return msgs.arg(publisher) + " · version " + msgs.arg(version) + " · " + msgs.arg(size) + " · " + msgs.arg(license)
+		case "ja":
+			return publisher + " · バージョン " + version + " · " + size + " · " + license
+		case "ko":
+			return publisher + " · 버전 " + version + " · " + size + " · " + license
+		case "zh-Hans":
+			return publisher + " · 版本 " + version + " · " + size + " · " + license
+		case "zh-Hant":
+			return publisher + " · 版本 " + version + " · " + size + " · " + license
+		}
+	}
+}
+
+// SettingsPluginsIndexInstall says "Install"
+// in the language the app shows under cx.
+//
+// Plugin directory: button that downloads a plugin and asks to install it.
+func SettingsPluginsIndexInstall(cx *core.Scope) string { return For(cx).SettingsPluginsIndexInstall() }
+
+// SettingsPluginsIndexInstall is the package's SettingsPluginsIndexInstall in the language of msgs.
+func (msgs Messages) SettingsPluginsIndexInstall() string {
+	return msgs.text(textSettingsPluginsIndexInstall)
+}
+
+// SettingsPluginsIndexInstallLabel says "Install {name}"
+// in the language the app shows under cx.
+//
+// Plugin directory: accessibility label of a plugin's Install button.
+func SettingsPluginsIndexInstallLabel(cx *core.Scope, name string) string {
+	return For(cx).SettingsPluginsIndexInstallLabel(name)
+}
+
+// SettingsPluginsIndexInstallLabel is the package's SettingsPluginsIndexInstallLabel in the language of msgs.
+func (msgs Messages) SettingsPluginsIndexInstallLabel(name string) string {
+	if i18n.IsPseudo(msgs.lang) {
+		return i18n.Pseudo(msgs.lang, Messages{lang: Source, mark: true}.SettingsPluginsIndexInstallLabel(name))
+	}
+	for lang := msgs.lang; ; lang = i18n.Parent(lang) {
+		if f := supplied[lang].SettingsPluginsIndexInstallLabel; f != nil {
+			return f(name)
+		}
+		switch lang {
+		case "", "en":
+			return "Install " + msgs.arg(name)
+		case "ja":
+			return "「" + name + "」をインストール"
+		case "ko":
+			return "‘" + name + "’ 설치"
+		case "zh-Hans":
+			return "安装“" + name + "”"
+		case "zh-Hant":
+			return "安裝「" + name + "」"
+		}
+	}
+}
+
+// SettingsPluginsIndexUpdate says "Update"
+// in the language the app shows under cx.
+//
+// Plugin directory: button that downloads the newer version of an installed plugin and asks to install it.
+func SettingsPluginsIndexUpdate(cx *core.Scope) string { return For(cx).SettingsPluginsIndexUpdate() }
+
+// SettingsPluginsIndexUpdate is the package's SettingsPluginsIndexUpdate in the language of msgs.
+func (msgs Messages) SettingsPluginsIndexUpdate() string {
+	return msgs.text(textSettingsPluginsIndexUpdate)
+}
+
+// SettingsPluginsIndexUpdateLabel says "Update {name} to version {version}"
+// in the language the app shows under cx.
+//
+// Plugin directory: accessibility label of a plugin's Update button.
+func SettingsPluginsIndexUpdateLabel(cx *core.Scope, name string, version string) string {
+	return For(cx).SettingsPluginsIndexUpdateLabel(name, version)
+}
+
+// SettingsPluginsIndexUpdateLabel is the package's SettingsPluginsIndexUpdateLabel in the language of msgs.
+func (msgs Messages) SettingsPluginsIndexUpdateLabel(name string, version string) string {
+	if i18n.IsPseudo(msgs.lang) {
+		return i18n.Pseudo(msgs.lang, Messages{lang: Source, mark: true}.SettingsPluginsIndexUpdateLabel(name, version))
+	}
+	for lang := msgs.lang; ; lang = i18n.Parent(lang) {
+		if f := supplied[lang].SettingsPluginsIndexUpdateLabel; f != nil {
+			return f(name, version)
+		}
+		switch lang {
+		case "", "en":
+			return "Update " + msgs.arg(name) + " to version " + msgs.arg(version)
+		case "ja":
+			return "「" + name + "」をバージョン " + version + " にアップデート"
+		case "ko":
+			return "‘" + name + "’을(를) 버전 " + version + "(으)로 업데이트"
+		case "zh-Hans":
+			return "把“" + name + "”更新到版本 " + version
+		case "zh-Hant":
+			return "將「" + name + "」更新到版本 " + version
+		}
+	}
+}
+
+// SettingsPluginsIndexInstalledVersion says "{version} installed"
+// in the language the app shows under cx.
+//
+// Plugin directory: beside Update, the version installed now.
+func SettingsPluginsIndexInstalledVersion(cx *core.Scope, version string) string {
+	return For(cx).SettingsPluginsIndexInstalledVersion(version)
+}
+
+// SettingsPluginsIndexInstalledVersion is the package's SettingsPluginsIndexInstalledVersion in the language of msgs.
+func (msgs Messages) SettingsPluginsIndexInstalledVersion(version string) string {
+	if i18n.IsPseudo(msgs.lang) {
+		return i18n.Pseudo(msgs.lang, Messages{lang: Source, mark: true}.SettingsPluginsIndexInstalledVersion(version))
+	}
+	for lang := msgs.lang; ; lang = i18n.Parent(lang) {
+		if f := supplied[lang].SettingsPluginsIndexInstalledVersion; f != nil {
+			return f(version)
+		}
+		switch lang {
+		case "", "en":
+			return msgs.arg(version) + " installed"
+		case "ja":
+			return version + " をインストール済み"
+		case "ko":
+			return version + " 설치됨"
+		case "zh-Hans":
+			return "已装 " + version
+		case "zh-Hant":
+			return "已裝 " + version
+		}
+	}
+}
+
+// SettingsPluginsIndexInstalled says "Installed"
+// in the language the app shows under cx.
+//
+// Plugin directory: in place of Install, for a plugin installed at this version or a newer one.
+func SettingsPluginsIndexInstalled(cx *core.Scope) string {
+	return For(cx).SettingsPluginsIndexInstalled()
+}
+
+// SettingsPluginsIndexInstalled is the package's SettingsPluginsIndexInstalled in the language of msgs.
+func (msgs Messages) SettingsPluginsIndexInstalled() string {
+	return msgs.text(textSettingsPluginsIndexInstalled)
+}
+
+// SettingsPluginsIndexNeedsKando says "Needs Kando {version}"
+// in the language the app shows under cx.
+//
+// Plugin directory: in place of Install, for a plugin that runs only on a newer version of Kando.
+func SettingsPluginsIndexNeedsKando(cx *core.Scope, version string) string {
+	return For(cx).SettingsPluginsIndexNeedsKando(version)
+}
+
+// SettingsPluginsIndexNeedsKando is the package's SettingsPluginsIndexNeedsKando in the language of msgs.
+func (msgs Messages) SettingsPluginsIndexNeedsKando(version string) string {
+	if i18n.IsPseudo(msgs.lang) {
+		return i18n.Pseudo(msgs.lang, Messages{lang: Source, mark: true}.SettingsPluginsIndexNeedsKando(version))
+	}
+	for lang := msgs.lang; ; lang = i18n.Parent(lang) {
+		if f := supplied[lang].SettingsPluginsIndexNeedsKando; f != nil {
+			return f(version)
+		}
+		switch lang {
+		case "", "en":
+			return "Needs Kando " + msgs.arg(version)
+		case "ja":
+			return "Kando " + version + " が必要"
+		case "ko":
+			return "Kando " + version + " 필요"
+		case "zh-Hans":
+			return "需要看懂 " + version
+		case "zh-Hant":
+			return "需要看懂 " + version
+		}
+	}
+}
+
+// SettingsPluginsIndexDownloading says "Downloading…"
+// in the language the app shows under cx.
+//
+// Plugin directory: in place of Install while the plugin's file downloads.
+func SettingsPluginsIndexDownloading(cx *core.Scope) string {
+	return For(cx).SettingsPluginsIndexDownloading()
+}
+
+// SettingsPluginsIndexDownloading is the package's SettingsPluginsIndexDownloading in the language of msgs.
+func (msgs Messages) SettingsPluginsIndexDownloading() string {
+	return msgs.text(textSettingsPluginsIndexDownloading)
+}
+
+// SettingsPluginsIndexNotConfigured says "This version of Kando has no plugin directory."
+// in the language the app shows under cx.
+//
+// Plugin directory: status line when this build has no key to check the directory's list with, so it never downloads it.
+func SettingsPluginsIndexNotConfigured(cx *core.Scope) string {
+	return For(cx).SettingsPluginsIndexNotConfigured()
+}
+
+// SettingsPluginsIndexNotConfigured is the package's SettingsPluginsIndexNotConfigured in the language of msgs.
+func (msgs Messages) SettingsPluginsIndexNotConfigured() string {
+	return msgs.text(textSettingsPluginsIndexNotConfigured)
+}
+
+// SettingsPluginsIndexLoading says "Loading the list…"
+// in the language the app shows under cx.
+//
+// Plugin directory: status line while the list kept on this computer is read.
+func SettingsPluginsIndexLoading(cx *core.Scope) string { return For(cx).SettingsPluginsIndexLoading() }
+
+// SettingsPluginsIndexLoading is the package's SettingsPluginsIndexLoading in the language of msgs.
+func (msgs Messages) SettingsPluginsIndexLoading() string {
+	return msgs.text(textSettingsPluginsIndexLoading)
+}
+
+// SettingsPluginsIndexUpdating says "Updating the list…"
+// in the language the app shows under cx.
+//
+// Plugin directory: status line while the latest list downloads.
+func SettingsPluginsIndexUpdating(cx *core.Scope) string {
+	return For(cx).SettingsPluginsIndexUpdating()
+}
+
+// SettingsPluginsIndexUpdating is the package's SettingsPluginsIndexUpdating in the language of msgs.
+func (msgs Messages) SettingsPluginsIndexUpdating() string {
+	return msgs.text(textSettingsPluginsIndexUpdating)
+}
+
+// SettingsPluginsIndexFailed says "Couldn't update the list: {reason}"
+// in the language the app shows under cx.
+//
+// Plugin directory: status line when the latest list could not be downloaded or was refused; the list downloaded before still shows.
+func SettingsPluginsIndexFailed(cx *core.Scope, reason string) string {
+	return For(cx).SettingsPluginsIndexFailed(reason)
+}
+
+// SettingsPluginsIndexFailed is the package's SettingsPluginsIndexFailed in the language of msgs.
+func (msgs Messages) SettingsPluginsIndexFailed(reason string) string {
+	if i18n.IsPseudo(msgs.lang) {
+		return i18n.Pseudo(msgs.lang, Messages{lang: Source, mark: true}.SettingsPluginsIndexFailed(reason))
+	}
+	for lang := msgs.lang; ; lang = i18n.Parent(lang) {
+		if f := supplied[lang].SettingsPluginsIndexFailed; f != nil {
+			return f(reason)
+		}
+		switch lang {
+		case "", "en":
+			return "Couldn't update the list: " + msgs.arg(reason)
+		case "ja":
+			return "一覧を更新できませんでした：" + reason
+		case "ko":
+			return "목록을 업데이트하지 못했습니다: " + reason
+		case "zh-Hans":
+			return "没能更新列表：" + reason
+		case "zh-Hant":
+			return "無法更新清單：" + reason
+		}
+	}
+}
+
+// SettingsPluginsIndexOffline says "Offline mode is on. This is the list from {date}."
+// in the language the app shows under cx.
+//
+// Plugin directory: status line in offline mode, which downloads nothing, with when the list shown was downloaded.
+func SettingsPluginsIndexOffline(cx *core.Scope, date string) string {
+	return For(cx).SettingsPluginsIndexOffline(date)
+}
+
+// SettingsPluginsIndexOffline is the package's SettingsPluginsIndexOffline in the language of msgs.
+func (msgs Messages) SettingsPluginsIndexOffline(date string) string {
+	if i18n.IsPseudo(msgs.lang) {
+		return i18n.Pseudo(msgs.lang, Messages{lang: Source, mark: true}.SettingsPluginsIndexOffline(date))
+	}
+	for lang := msgs.lang; ; lang = i18n.Parent(lang) {
+		if f := supplied[lang].SettingsPluginsIndexOffline; f != nil {
+			return f(date)
+		}
+		switch lang {
+		case "", "en":
+			return "Offline mode is on. This is the list from " + msgs.arg(date) + "."
+		case "ja":
+			return "オフラインモードがオンです。" + date + " の一覧を表示しています。"
+		case "ko":
+			return "오프라인 모드가 켜져 있습니다. " + date + "의 목록입니다."
+		case "zh-Hans":
+			return "离线模式已开启，显示的是 " + date + " 的列表。"
+		case "zh-Hant":
+			return "離線模式已開啟，顯示的是 " + date + " 的清單。"
+		}
+	}
+}
+
+// SettingsPluginsIndexOfflineNone says "Offline mode is on, and the list has not been downloaded yet."
+// in the language the app shows under cx.
+//
+// Plugin directory: status line in offline mode before the list was ever downloaded.
+func SettingsPluginsIndexOfflineNone(cx *core.Scope) string {
+	return For(cx).SettingsPluginsIndexOfflineNone()
+}
+
+// SettingsPluginsIndexOfflineNone is the package's SettingsPluginsIndexOfflineNone in the language of msgs.
+func (msgs Messages) SettingsPluginsIndexOfflineNone() string {
+	return msgs.text(textSettingsPluginsIndexOfflineNone)
+}
+
+// SettingsPluginsIndexUpdated says "Updated {date}"
+// in the language the app shows under cx.
+//
+// Plugin directory: status line with when the list was last checked for a newer one.
+func SettingsPluginsIndexUpdated(cx *core.Scope, date string) string {
+	return For(cx).SettingsPluginsIndexUpdated(date)
+}
+
+// SettingsPluginsIndexUpdated is the package's SettingsPluginsIndexUpdated in the language of msgs.
+func (msgs Messages) SettingsPluginsIndexUpdated(date string) string {
+	if i18n.IsPseudo(msgs.lang) {
+		return i18n.Pseudo(msgs.lang, Messages{lang: Source, mark: true}.SettingsPluginsIndexUpdated(date))
+	}
+	for lang := msgs.lang; ; lang = i18n.Parent(lang) {
+		if f := supplied[lang].SettingsPluginsIndexUpdated; f != nil {
+			return f(date)
+		}
+		switch lang {
+		case "", "en":
+			return "Updated " + msgs.arg(date)
+		case "ja":
+			return date + " に更新"
+		case "ko":
+			return date + "에 업데이트됨"
+		case "zh-Hans":
+			return "更新于 " + date
+		case "zh-Hant":
+			return "更新於 " + date
+		}
+	}
+}
+
+// SettingsPluginsInstallSourceIndex says "From Kando's plugin directory · not signed"
+// in the language the app shows under cx.
+//
+// Install confirmation: where a data pack downloaded from the plugin directory comes from; the directory's list is signed, the pack itself is not.
+func SettingsPluginsInstallSourceIndex(cx *core.Scope) string {
+	return For(cx).SettingsPluginsInstallSourceIndex()
+}
+
+// SettingsPluginsInstallSourceIndex is the package's SettingsPluginsInstallSourceIndex in the language of msgs.
+func (msgs Messages) SettingsPluginsInstallSourceIndex() string {
+	return msgs.text(textSettingsPluginsInstallSourceIndex)
+}
+
+// SettingsPluginsInstallFromIndex says "Downloaded from Kando's plugin directory"
+// in the language the app shows under cx.
+//
+// Install confirmation: a line under a script plugin's source when it was downloaded from the plugin directory.
+func SettingsPluginsInstallFromIndex(cx *core.Scope) string {
+	return For(cx).SettingsPluginsInstallFromIndex()
+}
+
+// SettingsPluginsInstallFromIndex is the package's SettingsPluginsInstallFromIndex in the language of msgs.
+func (msgs Messages) SettingsPluginsInstallFromIndex() string {
+	return msgs.text(textSettingsPluginsInstallFromIndex)
+}
+
+// PluginsErrIndexSignature says "The plugin list is not signed by Kando, so it was not used."
+// in the language the app shows under cx.
+//
+// Why the plugin directory's list was refused: its signature is missing or wrong.
+func PluginsErrIndexSignature(cx *core.Scope) string { return For(cx).PluginsErrIndexSignature() }
+
+// PluginsErrIndexSignature is the package's PluginsErrIndexSignature in the language of msgs.
+func (msgs Messages) PluginsErrIndexSignature() string {
+	return msgs.text(textPluginsErrIndexSignature)
+}
+
+// PluginsErrIndexFormat says "The plugin list cannot be read."
+// in the language the app shows under cx.
+//
+// Why the plugin directory's list was refused: it is not in the format Kando reads.
+func PluginsErrIndexFormat(cx *core.Scope) string { return For(cx).PluginsErrIndexFormat() }
+
+// PluginsErrIndexFormat is the package's PluginsErrIndexFormat in the language of msgs.
+func (msgs Messages) PluginsErrIndexFormat() string { return msgs.text(textPluginsErrIndexFormat) }
+
+// PluginsErrIndexVersion says "The plugin list is for a newer version of Kando."
+// in the language the app shows under cx.
+//
+// Why the plugin directory's list was refused: a newer version of its format.
+func PluginsErrIndexVersion(cx *core.Scope) string { return For(cx).PluginsErrIndexVersion() }
+
+// PluginsErrIndexVersion is the package's PluginsErrIndexVersion in the language of msgs.
+func (msgs Messages) PluginsErrIndexVersion() string { return msgs.text(textPluginsErrIndexVersion) }
+
+// PluginsErrIndexTooLarge says "The plugin list or the plugin's file is larger than it should be."
+// in the language the app shows under cx.
+//
+// Why the plugin directory's list or a plugin's download was refused: over its size limit, or over the size the list gives.
+func PluginsErrIndexTooLarge(cx *core.Scope) string { return For(cx).PluginsErrIndexTooLarge() }
+
+// PluginsErrIndexTooLarge is the package's PluginsErrIndexTooLarge in the language of msgs.
+func (msgs Messages) PluginsErrIndexTooLarge() string { return msgs.text(textPluginsErrIndexTooLarge) }
+
+// PluginsErrIndexBadEntry says "A plugin in the list is not valid, so the list was not used."
+// in the language the app shows under cx.
+//
+// Why the plugin directory's list was refused: one of its entries breaks the rules a plugin's manifest follows.
+func PluginsErrIndexBadEntry(cx *core.Scope) string { return For(cx).PluginsErrIndexBadEntry() }
+
+// PluginsErrIndexBadEntry is the package's PluginsErrIndexBadEntry in the language of msgs.
+func (msgs Messages) PluginsErrIndexBadEntry() string { return msgs.text(textPluginsErrIndexBadEntry) }
+
+// PluginsErrIndexRollback says "The server sent an older plugin list than the one Kando has."
+// in the language the app shows under cx.
+//
+// Why the plugin directory's list was refused: it was made before the list Kando already has.
+func PluginsErrIndexRollback(cx *core.Scope) string { return For(cx).PluginsErrIndexRollback() }
+
+// PluginsErrIndexRollback is the package's PluginsErrIndexRollback in the language of msgs.
+func (msgs Messages) PluginsErrIndexRollback() string { return msgs.text(textPluginsErrIndexRollback) }
+
+// PluginsErrIndexChecksum says "The downloaded file is not the one the plugin list names."
+// in the language the app shows under cx.
+//
+// Why a plugin's download was refused: its size or SHA-256 differs from the list's.
+func PluginsErrIndexChecksum(cx *core.Scope) string { return For(cx).PluginsErrIndexChecksum() }
+
+// PluginsErrIndexChecksum is the package's PluginsErrIndexChecksum in the language of msgs.
+func (msgs Messages) PluginsErrIndexChecksum() string { return msgs.text(textPluginsErrIndexChecksum) }
+
+// PluginsErrIndexHTTP says "The server did not send the file."
+// in the language the app shows under cx.
+//
+// Why the plugin directory's list or a plugin's file could not be downloaded: the server answered with an error.
+func PluginsErrIndexHTTP(cx *core.Scope) string { return For(cx).PluginsErrIndexHTTP() }
+
+// PluginsErrIndexHTTP is the package's PluginsErrIndexHTTP in the language of msgs.
+func (msgs Messages) PluginsErrIndexHTTP() string { return msgs.text(textPluginsErrIndexHTTP) }
+
+// PluginsErrIndexRedirect says "The server sent Kando to another site, so nothing was downloaded."
+// in the language the app shows under cx.
+//
+// Why a download from the plugin directory stopped: it was redirected to another host or away from https.
+func PluginsErrIndexRedirect(cx *core.Scope) string { return For(cx).PluginsErrIndexRedirect() }
+
+// PluginsErrIndexRedirect is the package's PluginsErrIndexRedirect in the language of msgs.
+func (msgs Messages) PluginsErrIndexRedirect() string { return msgs.text(textPluginsErrIndexRedirect) }
+
+// PluginsErrIndexNotListed says "The downloaded plugin is not the one the plugin list names."
+// in the language the app shows under cx.
+//
+// Why a plugin from the plugin directory cannot be installed: its id, kind, version or signature differs from the list's.
+func PluginsErrIndexNotListed(cx *core.Scope) string { return For(cx).PluginsErrIndexNotListed() }
+
+// PluginsErrIndexNotListed is the package's PluginsErrIndexNotListed in the language of msgs.
+func (msgs Messages) PluginsErrIndexNotListed() string {
+	return msgs.text(textPluginsErrIndexNotListed)
 }
 
 // SettingsPluginsInstallTitle says "Install {name}?"
