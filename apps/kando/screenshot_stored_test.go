@@ -123,7 +123,7 @@ func TestScreenshotsStoredVideos(t *testing.T) {
 	})
 }
 
-// TestScreenshotsStoredSeveral renders what this file's earlier scenes do not: the menu of three posters selected, with 移动视频到 and the locations (library-video-move-several-menu; the menu is the system's, which the tester lists rather than draws), the message bar while the second of their videos is copied (library-video-moving-several), the film page while the video of a film on Home NAS, which the system's player cannot open, is copied for it from there (film-video-remux-stored), and the confirmation of removing Home NAS while three films' videos are on it (settings-account-location-remove-stored). The locations are names in the scene, never reached. It is skipped when KANDO_SCREENSHOTS is unset.
+// TestScreenshotsStoredSeveral renders what this file's earlier scenes do not: the menu of three posters selected, with 移动视频到 and the locations (library-video-move-several-menu; the menu is the system's, which the tester lists rather than draws), the message bar while the second of their videos is copied (library-video-moving-several), the film page while the video of a film on Home NAS, which the system's player cannot open, is copied for it from there (film-video-remux-stored), and of one in the library's folder (film-video-remux-local), and the confirmation of removing Home NAS while three films' videos are on it (settings-account-location-remove-stored). The locations are names in the scene, never reached. It is skipped when KANDO_SCREENSHOTS is unset.
 func TestScreenshotsStoredSeveral(t *testing.T) {
 	f := newScreenshotFixture(t)
 	locations := func(a *app) {
@@ -209,6 +209,17 @@ func TestScreenshotsStoredSeveral(t *testing.T) {
 		})
 		screenshotWait(t, tt, a, updates, "the film's lines", func() bool { return a.player.subs.ready })
 		wantText(t, tt, testlocale.Messages().PlayerRemuxingFrom("Home NAS", 42))
+	})
+	// The same for a video in the library's folder the system's player cannot open, copied for it from the file.
+	f.shoot(t, "film-video-remux-local", func(t *testing.T, a *app, tt *nsgotest.App, updates chan func()) {
+		screenshotOpen(t, a, tt, updates, "j3", 0)
+		onEngine(a, func() {
+			p := a.player.play
+			p.remux, p.source, p.loaded = film.RemuxCopy, "", false
+			p.remuxLength, p.remuxAt = 3*time.Minute, 3*time.Minute*42/100
+		})
+		refresh(tt, a)
+		wantText(t, tt, testlocale.Messages().PlayerRemuxing(42))
 	})
 	shown, models, turbo := settingsShotFolders(t, f)
 	shootSettings(t, f, settings.SectionAccount, "settings-account-location-remove-stored", shown, models, turbo, func(a *app) {

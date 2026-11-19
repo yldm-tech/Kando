@@ -246,8 +246,9 @@ func (s *screen) stage() core.Node {
 							return n.detail
 						},
 						Style: core.Style{TextAlign: core.TextAlignCenter, FontSize: 13, LineHeight: 18},
+						// A note that says something of the video, why it does not play or how far the copy the player can open has got, is in the text's own ink, as it shows over the poster; the opening one alone is muted.
 						StyleFunc: func() core.Style {
-							if note().err != "" {
+							if n := note(); n.err != "" || (n.opening && opening() != "") {
 								return core.Style{Color: colors.Text()}
 							}
 							return core.Style{Color: colors.Muted()}
