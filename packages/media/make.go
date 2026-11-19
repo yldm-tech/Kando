@@ -1000,7 +1000,12 @@ func translateAgain(ctx context.Context, p Pipeline, job *core.Job, language, de
 		watch = From(job.ResumeAt)
 	}
 	m := &making{ctx: ctx, p: p, job: job, video: job.VideoPath, hearFrom: job.VideoPath, redo: true, copied: true, siteState: siteNone, reference: referenceKept, device: device, doc: doc, report: report}
-	return m.run(lines[len(lines)-1].End, language, watch)
+	// The film is as long as its lines reach: the line that ends last, which need not be the one that starts last.
+	var length time.Duration
+	for _, l := range lines {
+		length = max(length, l.End)
+	}
+	return m.run(length, language, watch)
 }
 
 // fillMissing translates the lines of job's film that the film shows without a translation (core.RedoMissing) into language, a batch at a time, with the lines said before each as context, and keeps the rest as they are. It writes each batch into the lines the film shows and out beside the video as it is translated, as filling in what is missing cannot make the film worse: one that fails or is stopped keeps the lines it filled, and job.Untranslated says how many are left. It neither downloads nor hears the film. A film whose subtitles were edited outside Kando so they no longer match its transcript line for line fails with ErrSubtitlesChanged, sending nothing, as which lines are missing cannot be told; one whose bilingual subtitles are gone has every line its document does not translate translated.

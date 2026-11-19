@@ -574,3 +574,29 @@ func TestMakeDoesNotGoOnWithAStoppedTranslationAgain(t *testing.T) {
 		}
 	}
 }
+
+// A film translated again is as long as its lines reach: a long line that starts before the last one and ends after it is translated too.
+func TestMakeTranslatesAgainALineThatEndsLast(t *testing.T) {
+	video := filepath.Join(t.TempDir(), "video.mp4")
+	if err := os.WriteFile(video, []byte("v"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	lines := []core.Segment{
+		{Start: 20 * time.Second, End: 100 * time.Second, Text: "A long line."},
+		{Start: 30 * time.Second, End: 32 * time.Second, Text: "Short."},
+	}
+	if _, err := track.Append(video, "mac", track.Generation(track.Made{Source: "import", Original: track.LayerFinal, Translation: track.LayerFinal}, lines, nil)...); err != nil {
+		t.Fatal(err)
+	}
+	job := core.Job{ID: "long", Source: core.FileURL(video), Language: "简体中文", Stage: core.StageQueued, VideoPath: video, Redo: core.RedoTranslation, RedoLanguage: "日本語"}
+	final, _ := remake(&redoPipeline{t: t}, job, "日本語")
+	if final.Stage != core.StageComplete || final.Untranslated != 0 {
+		t.Fatalf("final %+v", final)
+	}
+	doc, _ := track.Read(video)
+	for _, l := range doc.View() {
+		if l.Translation.Text != "日本語:"+l.Original.Text {
+			t.Fatalf("lines %+v", doc.View())
+		}
+	}
+}
