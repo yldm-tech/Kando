@@ -215,6 +215,35 @@ jobs:
           .github/scripts/browser-extension.sh ../dist
           cd ../dist
           sha256sum kando-browser-extension-*.zip >>checksums.txt
+      # The script plugins' revocation list, which Kando fetches once a day from the latest release (script.RevocationsURL in apps/kando/plugins/script): the owner signs it offline with the plugin root (.github/scripts/plugin-revocations.sh) and commits it, as the root's key never reaches CI, and each release attaches the committed file, with its checksum, beside the packages. A list that does not verify against Kando's root, has expired, or is older than the one the latest release published stops the release, as Kando would refuse it or pause plugins over it. With no list committed yet the release goes without one, which Kando reads as no list, its address answering 404.
+      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
+        with:
+          go-version-file: source/go.work
+          cache: false
+      - name: Plugin revocation list
+        working-directory: source
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          list=apps/kando/plugins/revocations/kando-plugin-revocations.json
+          if [ ! -f "$list" ]; then
+            echo "::notice::No plugin revocation list is committed ($list), so this release publishes none, which Kando reads as no list."
+            exit 0
+          fi
+          # The latest release published, which this one, still a draft, is not yet.
+          if ! assets=$(gh release view --repo "$GITHUB_REPOSITORY" --json assets --jq '.assets[].name'); then
+            echo "::error::Could not list the latest release's files to compare the revocation list with."
+            exit 1
+          fi
+          previous=()
+          if grep -qx kando-plugin-revocations.json <<<"$assets"; then
+            gh release download --repo "$GITHUB_REPOSITORY" --pattern kando-plugin-revocations.json --dir "$RUNNER_TEMP/previous"
+            previous=(-previous "$RUNNER_TEMP/previous/kando-plugin-revocations.json")
+          fi
+          go run ./apps/kando/plugins/official/cmd/official revocations -list "$list" ${previous[@]+"${previous[@]}"}
+          cp "$list" ../dist/kando-plugin-revocations.json
+          cd ../dist
+          sha256sum kando-plugin-revocations.json >>checksums.txt
       - uses: actions/attest-build-provenance@4d101475d8b20a2381f78447822ac1eab6504dd8 # v4.2.2
         with:
           subject-checksums: dist/checksums.txt

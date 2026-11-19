@@ -69,6 +69,11 @@ jobs:
           KANDO_REQUIRE_FFMPEG: ${{ matrix.ffmpeg }}
           TEST_PKGS: ${{ matrix.pkgs || env.PKGS }}
         run: go test -timeout 5m $TEST_PKGS
+      # The script plugins' runtime (apps/kando/plugins/script, the official plugins and the app's TestPlugin* end to end) once more on Windows, uncached: its time budgets, watchdog and in-flight marks were measured on Linux and macOS only (docs/plugin-system.md 15, P3.0), and the Test step above may answer them from the test cache, so a pass here is always a run on Windows.
+      - name: Plugin runtime
+        if: runner.os == 'Windows'
+        shell: bash
+        run: go test -count=1 -timeout 10m -run 'TestPlugin|TestScript' ./apps/kando/ ./apps/kando/plugins/...
       # The plugin packs' manifest parser and unzip (apps/kando/plugins) fuzzed for a while, past the seed inputs the Test step runs, as what they read comes from anyone.
       - name: Fuzz the plugin packs
         if: runner.os == 'Linux'
