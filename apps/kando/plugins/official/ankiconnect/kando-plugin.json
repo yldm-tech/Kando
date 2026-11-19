@@ -1,0 +1,35 @@
+{
+  "schema": 2,
+  "id": "kando.ankiconnect",
+  "kind": "script",
+  "version": "1.0.0",
+  "kando": ">=0.34.0",
+  "license": "FSL-1.1-ALv2",
+  "author": "Kando",
+  "homepage": "https://github.com/yldm-tech/Kando/tree/main/apps/kando/plugins/official/ankiconnect",
+  "name": {"en": "AnkiConnect", "zh-Hans": "推送到 Anki", "zh-Hant": "推送到 Anki", "ja": "Anki に送る", "ko": "Anki로 보내기"},
+  "description": {
+    "en": "Sends your saved lines and vocabulary as notes to Anki on this computer, through the AnkiConnect add-on.",
+    "zh-Hans": "通过 AnkiConnect 插件，把收藏的句子和生词作为笔记发到这台电脑上的 Anki。",
+    "zh-Hant": "透過 AnkiConnect 外掛，把收藏的句子和生詞作為筆記傳到這台電腦上的 Anki。",
+    "ja": "AnkiConnect アドオンを通じて、保存したセリフと単語をこのコンピュータの Anki にノートとして送ります。",
+    "ko": "AnkiConnect 애드온을 통해 저장한 대사와 단어를 이 컴퓨터의 Anki에 노트로 보냅니다."
+  },
+  "capabilities": {
+    "network": {"http": [{"host": "127.0.0.1", "port": 8765, "schemes": ["http"], "methods": ["POST"], "paths": ["/"]}]}
+  },
+  "optional": ["kando.sound.read"],
+  "contributes": {
+    "exporters": [{"id": "notes", "takes": ["lines", "words"], "export": "exportNotes", "label": {"en": "Anki (AnkiConnect)", "zh-Hans": "Anki（AnkiConnect）", "zh-Hant": "Anki（AnkiConnect）", "ja": "Anki（AnkiConnect）", "ko": "Anki (AnkiConnect)"}}]
+  },
+  "settings": [
+    {"key": "deck", "type": "text", "default": "Kando", "max": 100, "title": {"en": "Deck", "zh-Hans": "牌组", "zh-Hant": "牌組", "ja": "デッキ", "ko": "덱"}},
+    {"key": "noteType", "type": "choice", "default": "kando", "title": {"en": "Note type", "zh-Hans": "笔记类型", "zh-Hant": "筆記類型", "ja": "ノートタイプ", "ko": "노트 유형"}, "choices": [
+      {"id": "kando", "label": {"en": "Kando (made if missing)", "zh-Hans": "Kando（没有时新建）", "zh-Hant": "Kando（沒有時新建）", "ja": "Kando（なければ作成）", "ko": "Kando (없으면 생성)"}},
+      {"id": "basic", "label": {"en": "Basic", "zh-Hans": "Basic", "zh-Hant": "Basic", "ja": "Basic", "ko": "Basic"}},
+      {"id": "basic-reversed", "label": {"en": "Basic (and reversed card)", "zh-Hans": "Basic (and reversed card)", "zh-Hant": "Basic (and reversed card)", "ja": "Basic (and reversed card)", "ko": "Basic (and reversed card)"}}
+    ]},
+    {"key": "sound", "type": "bool", "default": true, "title": {"en": "Attach the line's sound", "zh-Hans": "附上句子的声音", "zh-Hant": "附上句子的聲音", "ja": "セリフの音声を添付", "ko": "대사 음성 첨부"}},
+    {"key": "tags", "type": "text", "default": "kando", "max": 200, "title": {"en": "Tags (separated by spaces)", "zh-Hans": "标签（用空格分开）", "zh-Hant": "標籤（用空格分開）", "ja": "タグ（スペース区切り）", "ko": "태그 (공백으로 구분)"}}
+  ]
+}

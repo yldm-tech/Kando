@@ -1,0 +1,9 @@
+# What go tool nsgo publish signs of Kando's official AnkiConnect plugin (.github/scripts/official-plugins.sh). The id is ai.yldm.kando.plugin. and the plugin's id, the version is kando-plugin.json's, and the capabilities are exactly what kando-plugin.json declares, capabilities and optional together, in nsgo.yaml's snake_case: Kando refuses a package that signed anything else, and TestPluginAnkiConnectPublishes checks that they agree.
+name: AnkiConnect
+id: ai.yldm.kando.plugin.kando.ankiconnect
+version: 1.0.0
+capabilities:
+  host: [kando.sound.read]
+  network:
+    http:
+      - { host: 127.0.0.1, port: 8765, schemes: [http], methods: [POST], paths: ["/"] }
