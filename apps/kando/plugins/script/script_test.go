@@ -233,8 +233,8 @@ func TestScriptWatchdogStopsGrowingMemory(t *testing.T) {
 	watch.Stall = time.Hour
 	stopped := make(chan string, 4)
 	r := &Runner{Post: e.post, Watch: watch, Stopped: func(id, hash, reason string) { stopped <- reason }}
-	// Each piece makes fewer objects under the race detector, which slows it down past the call budget otherwise.
-	piece := 100000
+	// A piece has to stay well under the call budget (tsx's half second), or tsx cuts it and the call fails before the watchdog sees the heap: a slow Windows runner took more than that for 100000 objects. Fewer still under the race detector, which slows each one down.
+	piece := 20000
 	if raceOn {
 		piece = 10000
 	}
