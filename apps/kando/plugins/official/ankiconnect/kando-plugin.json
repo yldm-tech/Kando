@@ -3,7 +3,7 @@
   "id": "kando.ankiconnect",
   "kind": "script",
   "version": "1.0.0",
-  "kando": ">=0.34.0",
+  "kando": ">=0.36.0",
   "license": "FSL-1.1-ALv2",
   "author": "Kando",
   "homepage": "https://github.com/yldm-tech/Kando/tree/main/apps/kando/plugins/official/ankiconnect",
