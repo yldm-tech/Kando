@@ -5,12 +5,17 @@ import (
 	"errors"
 	"io"
 	"os"
+	"path/filepath"
+	"strconv"
 	"testing"
+	"time"
 
 	"kando/apps/kando/account"
 	"kando/apps/kando/cloud"
+	"kando/apps/kando/film"
 	"kando/apps/kando/films"
 	"kando/apps/kando/locales/testlocale"
+	"kando/apps/kando/settings"
 	"kando/apps/kando/shelf"
 	"kando/apps/kando/storage"
 
@@ -115,6 +120,104 @@ func TestScreenshotsStoredVideos(t *testing.T) {
 		if a.player.playErr != playerErrStoredUnreachable {
 			t.Fatalf("the player says %q", a.player.playErr)
 		}
+	})
+}
+
+// TestScreenshotsStoredSeveral renders what this file's earlier scenes do not: the menu of three posters selected, with 移动视频到 and the locations (library-video-move-several-menu; the menu is the system's, which the tester lists rather than draws), the message bar while the second of their videos is copied (library-video-moving-several), the film page while the video of a film on Home NAS, which the system's player cannot open, is copied for it from there (film-video-remux-stored), and the confirmation of removing Home NAS while three films' videos are on it (settings-account-location-remove-stored). The locations are names in the scene, never reached. It is skipped when KANDO_SCREENSHOTS is unset.
+func TestScreenshotsStoredSeveral(t *testing.T) {
+	f := newScreenshotFixture(t)
+	locations := func(a *app) {
+		a.locations.list = []account.Location{
+			{ID: "nas", Name: "Home NAS", Remote: storage.Remote{Kind: storage.KindSMB, Host: "nas.local", Share: "media", Root: "films", User: "reader", Password: "secret"}},
+			{ID: "dav", Name: "Nextcloud", Remote: storage.Remote{Kind: storage.KindWebDAV, URL: "https://cloud.example.com/remote.php/dav/files/reader", User: "reader", Password: "secret"}},
+		}
+		a.stored.pool = storage.NewPool(func(context.Context, storage.Target) (storage.Provider, io.Closer, error) {
+			return nil, nil, errors.New("dial tcp: connection refused")
+		})
+	}
+	// The first three posters selected, as library-selected-grid shows them, the grid scrolled up so they show whole when scroll is set.
+	selectThree := func(t *testing.T, a *app, tt *nsgotest.App, scroll bool) []films.Film {
+		shown := a.libraryShownFilms()
+		if len(shown) < 3 {
+			t.Fatalf("%d films shown", len(shown))
+		}
+		a.lib.selection.All(films.Keys(shown)[:3])
+		refresh(tt, a)
+		sel := whole(testlocale.Messages().FilmsGridCount(len(shown)))
+		if d := pageFrame(tt.Find(sel)).Origin.Y - 315; scroll && d*d >= 0.25 {
+			tt.Scroll(sel, d)
+			refresh(tt, a)
+		}
+		return shown[:3]
+	}
+	f.shoot(t, "library-video-move-several-menu", func(t *testing.T, a *app, tt *nsgotest.App, _ chan func()) {
+		locations(a)
+		refresh(tt, a)
+		selectThree(t, a, tt, true)
+		tt.Press("id:film-more >> nth=0")
+		m := testlocale.Messages()
+		for _, it := range tt.PopupMenu {
+			if it.Label == m.StoredMoveTo() && len(it.Items) == 2 && it.Items[0].Label == "Home NAS" && it.Items[1].Label == "Nextcloud" {
+				if it := tt.PopupMenu[0]; it.Label != m.FilmsSelectedCount(3) {
+					t.Fatalf("the menu is not the selection's: %+v", tt.PopupMenu)
+				}
+				return
+			}
+		}
+		t.Fatalf("the selection's menu has no 移动视频到 with the locations: %+v", tt.PopupMenu)
+	})
+	f.shoot(t, "library-video-moving-several", func(t *testing.T, a *app, tt *nsgotest.App, _ chan func()) {
+		locations(a)
+		refresh(tt, a)
+		three := selectThree(t, a, tt, false)
+		b := &storedBatch{items: three[2:], place: "nas", at: 2, total: 3, moved: 1}
+		a.stored.run = &storedRun{video: three[1].VideoPath, name: films.Name(three[1]), place: "nas", cancel: func() {}, batch: b}
+		a.storedShow()
+		a.stored.run.percent = 42
+		a.storedShow()
+		refresh(tt, a)
+		if want := testlocale.Messages().StoredMovingToMany(2, 3, "Home NAS", 42); a.lib.notice.Text != want || !a.lib.notice.Stop {
+			t.Fatalf("the message bar says %+v", a.lib.notice)
+		}
+		wantText(t, tt, testlocale.Messages().StoredMovingToMany(2, 3, "Home NAS", 42))
+	})
+	f.shoot(t, "film-video-remux-stored", func(t *testing.T, a *app, tt *nsgotest.App, updates chan func()) {
+		locations(a)
+		item := f.film(t, a, "j3")
+		// The video is moved aside for the scene, as it is not on disk once moved, and put back as it ends.
+		aside := item.VideoPath + ".aside"
+		if err := os.Rename(item.VideoPath, aside); err != nil {
+			t.Fatal(err)
+		}
+		t.Cleanup(func() {
+			if err := os.Rename(aside, item.VideoPath); err != nil {
+				t.Errorf("the scene's video was not put back: %v", err)
+			}
+		})
+		if a.library.Stored == nil {
+			a.library.Stored = map[string]shelf.Stored{}
+		}
+		a.library.Stored[item.VideoPath] = shelf.Stored{Location: "nas", Path: "Kando/films/video.mp4", Size: 1, Duration: 3 * time.Minute}
+		onEngine(a, func() { a.Open(must(films.Find(a.films(), "j3"))) })
+		screenshotWait(t, tt, a, updates, "the location's answer", func() bool { return a.player.playErr != "" })
+		// The location is never reached in the scene: the page is set as it is while ffmpeg copies the video from there, 42% of its length done.
+		onEngine(a, func() {
+			p := a.player.play
+			a.player.playErr = ""
+			p.storedURL, p.remux, p.source = "http://127.0.0.1:1/v", film.RemuxCopy, ""
+			p.remuxLength, p.remuxAt = 3*time.Minute, 3*time.Minute*42/100
+		})
+		screenshotWait(t, tt, a, updates, "the film's lines", func() bool { return a.player.subs.ready })
+		wantText(t, tt, testlocale.Messages().PlayerRemuxingFrom("Home NAS", 42))
+	})
+	shown, models, turbo := settingsShotFolders(t, f)
+	shootSettings(t, f, settings.SectionAccount, "settings-account-location-remove-stored", shown, models, turbo, func(a *app) {
+		shotLocations(a)
+		a.library.Stored = map[string]shelf.Stored{}
+		for i := range 3 {
+			a.library.Stored[filepath.Join(shown, "Film", "video"+strconv.Itoa(i)+".mp4")] = shelf.Stored{Location: "nas", Path: "video.mp4", Size: 1}
+		}
+		a.askLocation(locationAlert{kind: account.AlertRemove, target: "nas"})
 	})
 }
 
