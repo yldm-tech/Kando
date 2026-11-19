@@ -193,23 +193,31 @@ func TestScriptRegexpIsBounded(t *testing.T) {
 	}
 }
 
-// TestScriptWatchdogStopsASlicedLoop checks that a call that keeps the engine busy in pieces under the call budget, awaiting a timer between them, which tsx never cuts, is stopped by the watchdog within two seconds, and reported slow.
+// TestScriptWatchdogStopsASlicedLoop checks that a call that keeps the engine busy in pieces under the call budget, awaiting a timer between them, which tsx never cuts, is stopped by the watchdog's heartbeats within the pieces they take, long before its Deadline, and reported slow.
 func TestScriptWatchdogStopsASlicedLoop(t *testing.T) {
+	// piece is how long the loop keeps the engine busy at a time: under tsx's call budget of half a second, and longer than Stall and a Beat, so the heartbeat posted at most a Beat into each piece waits past Stall and counts.
+	const piece = 430 * time.Millisecond
+	w := DefaultWatch
+	if piece-w.Beat <= w.Stall {
+		t.Fatalf("a piece of %v does not hold a heartbeat past Stall %v", piece, w.Stall)
+	}
+	// Each heartbeat that counts takes a piece, and Stalls in a row stop the loop as the piece the last one waited in ends. A heartbeat that falls due just as a piece ends can be posted after the one before it ran, find the engine between two pieces and start the count again, as it should, the window having answered it; a busy runner that delivers the tick late makes that likelier. The bound allows one such restart, at worst just before the last stall would have counted, so 2*Stalls-1 pieces, each with a Beat for the gaps between pieces and a late tick. The pieces end 30, 60, 90, 20 and 50 ms past a tick (430 ms where the 450 ms of docs/plugin-system.md ended the second piece on one), so a restart takes a tick at least 20 ms late.
+	bound := time.Duration(2*w.Stalls-1) * (piece + w.Beat)
 	s := newSigner(t, AppIDPrefix+"acme.*")
 	roots := s.roots()
 	e := newEngine(t)
-	pl := e.load(t, trustOf(t, roots), roots, s.pack(t, fixture{id: "acme.spin", code: `export async function spin() {
-  for (;;) { const t = Date.now(); while (Date.now() - t < 450) {} await new Promise(r => setTimeout(r, 0)) }
-}`}), plugins.Grant{})
+	pl := e.load(t, trustOf(t, roots), roots, s.pack(t, fixture{id: "acme.spin", code: fmt.Sprintf(`export async function spin() {
+  for (;;) { const t = Date.now(); while (Date.now() - t < %d) {} await new Promise(r => setTimeout(r, 0)) }
+}`, piece.Milliseconds())}), plugins.Grant{})
 	stopped := make(chan string, 1)
-	r := &Runner{Post: e.post, Watch: DefaultWatch, Stopped: func(id, hash, reason string) { stopped <- reason }}
+	r := &Runner{Post: e.post, Watch: w, Stopped: func(id, hash, reason string) { stopped <- reason }}
 	start := time.Now()
 	got := wait(t, e.call(r, pl, "spin"), 30*time.Second)
 	if !errors.Is(got.err, ErrStopped) {
 		t.Fatalf("the call ended with %v, %v", got.v, got.err)
 	}
-	if d := got.at.Sub(start); d > slow(2*time.Second) {
-		t.Errorf("stopped after %v", d)
+	if d := got.at.Sub(start); d > slow(bound) {
+		t.Errorf("stopped after %v, past %v", d, slow(bound))
 	}
 	if reason := <-stopped; reason != plugins.ReasonSlow {
 		t.Errorf("reported %q", reason)
