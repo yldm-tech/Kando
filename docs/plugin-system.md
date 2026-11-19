@@ -320,6 +320,8 @@ kind 是封闭枚举：`dictionary`、`wordlist`、`glossary`、`ai-service`、`
 
 AnkiConnect 的所有动作（包括删除牌组）都走同一个端点，动作名写在请求体里，`methods`/`paths` 管不到它。所以这个参考插件刻意不申请 `lines.seen` 和 `llm.chat`：它的行为由签过名的代码决定，不会被字幕内容左右。这条残余风险写在审核规范里（见 6.2）。
 
+上面是展示完整形态的示例。实际发布的官方插件在 `apps/kando/plugins/official/ankiconnect/`，只有导出目标，申请得更少（没有命令和事件，`optional` 只有 `kando.sound.read`），见第 15 节 P3c。
+
 带凭据的插件（DeepL 候选来源）只多出下面这段。`methods` 和 `pathPrefixes` 是必填项，宿主据此限制 `credentialFetch`：
 
 ```json
@@ -739,7 +741,7 @@ export function kandoManifest() { return { /* identical to kando-plugin.json fie
 - 脚本包只接受能链到受信根的 `.nsgopkg`（`pkg.Trust.Verify`，Trust 目录为 `<UserConfigDir>/Kando/plugins/trust`）。
 - **根密钥每次启动都要重新加入**：`Trust.AddRoot`（`tsx/pkg/trust.go:66-72`）只在内存里追加，`OpenTrust` 只恢复吊销列表和已接受的 build。所以 app 每次启动都要先 AddRoot 内嵌的官方插件根公钥；开发者模式开着时，再加入存在 `core.Secrets` 里的 dev root 公钥。dev root 公钥不放普通文件，这样同用户的程序没法悄悄塞进一把自己的根。
 - Kando 新建一把离线的插件根密钥，和应用更新用的 `NSGO_UPDATES_KEY`（`nsgo.yaml:31-33`）分开。用 `go tool nsgo certify` 给发布密钥签证书，限定 app-ID 前缀：官方是 `ai.yldm.kando.plugin.kando.*`，第三方是 `ai.yldm.kando.plugin.<publisher>.*`，和 id 的发布者段对齐（第 4 节）。证书有效期不超过一年。注意证书有效期是拿包头里签名者自己写的 `CreatedAt` 去比的（`tsx/pkg/package.go:428`），不是验证时的时间：过期前签的包过期后照样能装，发布密钥被偷时小偷也能把 `CreatedAt` 写进有效期内。所以有效期只限制正常的发布节奏，发布密钥泄露只能靠吊销（`revoke -keys`）。生成、签证书、签包和吊销的具体命令见第 15 节的 P3.0 测量。
-- 吊销列表用 `go tool nsgo revoke` 生成，随 appcast 一起发布。`Trust.Accept` 持久化已接受的最高 build，用来防回滚。
+- 吊销列表用 `go tool nsgo revoke` 生成，由 owner 在保管根密钥的机器上签好、提交进仓库（`apps/kando/plugins/revocations/kando-plugin-revocations.json`），每次发布由 Release 工作流检查后作为 `kando-plugin-revocations.json` 附在发布里，和 appcast 放在一起（P3c，命令见第 15 节）。`Trust.Accept` 持久化已接受的最高 build，用来防回滚。
 - 联网时每天拉一次吊销列表（P3b 已实现，`state_plugins_revoke.go`）：地址是 `script.RevocationsURL`，即最新发布版里和 appcast 放在一起的 `kando-plugin-revocations.json`（`nsgo.yaml` 的 `updates` 旁有一行注释指向它）；还没发布时这个地址回 404，按「没有列表」处理，插件照常运行。拉取时间记在插件目录的 `.revocations-checked`，失败一小时后再试。列表过期时，只暂停申请了网络或凭据的非官方插件（依据 `Package.ExpiredRevocations`），不在全局调用 `RequireFreshRevocations`，免得长期离线的用户连纯本地插件都用不了。被吊销的插件立刻 Close，并显示「已被撤回」。
 - 可选的加固：把每个根已见过的最高吊销序号，以及每个插件已接受的最高 build，额外存一份摘要到 `core.Secrets`。启动时和 `plugins/trust/trust.json` 比对，发现回退就停用所有非官方脚本插件。是否做由 owner 决定（见 12.3 第 2 条）。
 - 来源徽标（官方、已验证、开发者、本地数据包）由证书链推出，不读清单。插件名去掉 Bidi 控制符和零宽字符，最长 40 个字符。保留名单是「Kando」「看懂」「Official」「官方」「公式」「공식」，再加上所有内置 AI 服务商的名称（取自 `settings.Presets` 的显示名），比较时忽略大小写、全半角和空白。`plugins` 包不能导入界面包，所以名单以静态列表 `plugins.ReservedNames` 存在包里（含五种界面语言下的服务商名称），根目录的 `plugins_test.go` 断言 `settings.Presets` 在每种界面语言下的每个名称和 `appName` 都在名单里，内置服务商改名或新增时测试会失败。
@@ -1117,7 +1119,7 @@ P0–P2 不新增任何 module。P3a 起 `github.com/dlclark/regexp2/v2 v2.11.0`
 | P3.0 | spike：体积、引擎阻塞、in-flight 开销、ReDoS 和大分配、缓解手段、签名命令 | `feat/plugins-script-spike`（只提交本文档） | 已测完，结果见下 |
 | P3a | 脚本插件的运行时和安装路径：`plugins/script`（Trust、Verify、预读沙箱、Limits、Sandbox、看门狗、熔断、in-flight 自愈）、script kind 的清单和校验、state.json 的授权、每个插件自己的 host 和 handler、命令贡献、安装确认和详情页的授权、声明式设置、审计日志、开发者模式、`kando plugin validate` 认脚本插件 | `feat/plugins-script` | 已完成，出入见下 |
 | P3b | 其余贡献点（查词来源、导出格式、学习导出目标、标注器）、`kando.llm.chat`、`kando.sound.read`、`credentialFetch` 和 `credentials`、吊销列表的每日拉取 | `feat/plugins-script-contrib` | 已完成，出入见下 |
-| P3c | 官方参考插件 `kando.ankiconnect`，吊销列表随 appcast 发布（客户端拉取已在 P3b） | — | 未开始 |
+| P3c | 官方参考插件 `kando.ankiconnect`，官方插件的签名和打包工具，吊销列表随每次发布附上（客户端拉取已在 P3b），Windows 上单独跑插件测试 | `feat/plugins-official-anki` | 已完成，出入见下 |
 | P4.0 | `core.ValidateVideoSite`、`ValidateVideoSites`、`VideoMatcher` | `feat/plugins-sites` | 已完成 |
 | P4.1 | site kind、`pluginSites`（工具栏的「下载视频」和网页按钮）、逐域名同意、站点包任务不借用登录 | `feat/plugins-sites` | 已完成 |
 | P5 底座（E14） | `*media.StageError`（失败带步骤和来源，library.json 加 `errorStage`、`errorSource`）、`media.Tools.Engine`/`EngineName`、`Tools.Candidates`，失败卡片说出是哪个翻译来源失败的 | `refactor/media-stage-error` | 已完成，出入见下 |
@@ -1331,6 +1333,38 @@ KANDO_PLUGINS_INDEX_KEY=<index secret> go run ./apps/kando/cmd/kando-plugin inde
 - 上架规则按 10 节 P5：数据包过了限速就能上架，脚本插件要先审核，上架之后安装仍然不授予任何能力。从索引里撤下一个包只是不再列出，已经装了的不受影响；真正要停掉一个脚本插件要靠吊销列表（6.4）。
 - 每次重新生成的索引 `generated` 都更新，看懂拒收比缓存旧的索引，所以不要重新部署旧的 `index.json`（例如回滚 kando-plugins 的提交时，要重新签一份）。
 - 退路（CI 或 Worker 不可用时，owner 在自己的机器上）：用同一个命令在本机签（`kando plugin index ./packs --base https://kando.yldm.ai/plugin/packs/ --out index.json`，或上面的 `go run`），把 `index.json` 和包文件手工发布到 kando-plugins 的 GitHub Pages（例如推到它的 Pages 分支）。私钥仍只经环境变量，用完不留在 shell 历史里。
+
+- P3c（已完成）：官方参考插件、官方插件的签名和打包、吊销列表的发布、Windows 上的插件测试。和正文的出入如下，4.2、6.4 已同步改过：
+  - 位置：插件的源码在 `apps/kando/plugins/official/ankiconnect/`（`kando-plugin.json` 不写 `script`、入口 `plugin.tsx`、给 `nsgo publish` 读的 `nsgo.yaml`），和它的 Go 测试放在一起。放在 `apps/kando` 模块里是因为测试要用 `plugins`、`plugins/script` 在真沙箱里跑它；仓库根目录不是模块（`go.work`），放在根目录测试就要跨模块读文件。它不会进 app：没有任何包导入它，`.tsx` 也不被嵌入；NSGo 遍历 `apps/kando` 时遇到带 `nsgo.yaml` 的子目录会跳过（`ownsTree`）。非界面包 `plugins/official`（只导入 tsx/pkg）放打包和吊销列表的检查：`Wrap`（把 `nsgo publish` 签好的 `.nsgopkg` 和清单打成 `.kandoplugin`，清单的 `script` 按包的 SHA-256 填上，包的 App ID 和版本必须是清单写的，同一个包每次打出的字节相同）、`VerifyPackage`、`CheckRevocations`、`FileName`（`<id>-<version>.kandoplugin`）；`cmd/official` 是脚本和 Release 调用的命令行。官方根公钥只写一次，在 `official.Root`，`script.OfficialRoot` 就是它，这样 Release 检查吊销列表时不用编译插件运行时。
+  - 插件：贡献一个学习导出目标「Anki (AnkiConnect)」（`exportNotes`，收句子和生词），只申请一条网络规则（`POST http://127.0.0.1:8765/`）和可选的 `kando.sound.read`，不申请 `saved.read`、`words.read`（导出目标直接收到条目，P3b）、`settings.get`（设置随调用传入）、`lines.seen`、`llm.chat`，也没有命令。和 4.2 的示例相比少了 `run` 命令和事件，`optional` 只有声音。设置是牌组（默认 `Kando`）、笔记类型（`kando`、`basic`、`basic-reversed`，默认 `kando`）、附上声音（默认开）、标签（默认 `kando`，空格或逗号分开）。默认用 `Kando` 笔记类型，因为 Anki 按建库时的语言给自带的笔记类型起名，中文 Anki 里不一定有叫 Basic 的类型；`Kando` 没有时用 `createModel` 建（字段 Text、Meaning、Reading、Context、Sound、Source），已有但字段不对时报错，不改用户的类型。选 Basic 时按 `modelFieldNames` 取前两个字段当正面和背面，不管它们叫什么名字。
+  - 流程：`requestPermission`（Anki 不认识调用方时会弹窗问用户；没有这个动作的旧版按「太旧」报）→ `version` 不低于 6 → `createDeck` → 笔记类型 → 每 100 条一批：先在本次导出内按正面文字去重（空的跳过），`canAddNotes` 判重（牌组内按第一个字段），只给要加的句子读声音（`kando.sound.read`）并 `storeMediaFile`（文件名 `kando-<收藏 id>.m4a`，同一句重发不会堆副本），再 `addNotes`。新版 AnkiConnect 只要有一条加不了就整批报错，这时改为逐条 `addNote`，加不了的算跳过；旧版对加不了的回 null，也算跳过。Basic 类型把声音放在背面，所以带不带声音不影响 Anki 的判重。字段内容按 HTML 转义，换行变成 `<br>`。
+  - 声音：没授权 `kando.sound.read`、没有 ffmpeg、或者被宿主的每分钟 60 次限额拒绝（`quota`）后，剩下的句子不再要声音，照样发送；一次导出最多给 60 句左右附上声音，这是 6.2 的限额决定的，没有为它放宽。
+  - 错误：用户能处理的失败都在 async 函数里以带 `code` 的 Error 拒绝（同步 throw 会丢掉 code，nsgo#847），熔断不计：`anki-unreachable`（Anki 没开或没装 AnkiConnect）、`no-network`（用户没授权联网，请求在发出前就被拒绝）、`anki-denied`、`anki-api-key`（AnkiConnect 设了 apiKey，本插件不发 key）、`anki-version`、`anki-note-type`、`anki-bad-reply`（端口上不是 AnkiConnect）、`anki-error`（AnkiConnect 自己报的错）。原来收藏句子面板对插件导出的失败只说「<名称> 没能接收这些句子」，看不出原因；现在插件带 code 拒绝时，面板说「<名称> 没能接收这些句子：<原因>」（`savedExportPluginFailedReason`），原因是插件自己的文字（通常是英文），经 `plugins.Reason` 去掉换行、控制符和 Bidi 字符，最多 200 字；不带 code 的错误（看懂或运行时的）照旧不显示原文。插件本来就能用 `kando.toast` 在自己名下显示任意文字，所以这不扩大 T4 的风险。
+  - 清单和代码一致：`plugin.tsx` 直接 `import manifest from "./kando-plugin.json"`，`kandoManifest()` 返回其中签名覆盖的那几个键，清单被编译进签名的 bundle，两者不会走样（4.3）。`nsgo.yaml` 的 id、版本和能力由测试 `TestPluginAnkiConnectPublishes` 对着清单检查，能力必须恰好是清单的 `capabilities` 加 `optional`。
+  - 测试（`TestPluginAnkiConnect*`，CI 的三个系统和 Race 都跑）：用测试现场生成的密钥按开发者打包的方式签这个文件夹（`script.PackFolder` 给发布者 `kando` 签证书，测试把这把钥当官方根），再用 `official.Wrap` 打成 `.kandoplugin`、`plugins.Stage` 安装、`script.Verify` 验出来源是「官方」、`script.Probe` 比对清单，最后在看懂的沙箱（`script.Load`、`script.Runner`）里调 `exportNotes`。插件的 `fetch` 经 `tsx.WithFetcher` 换成测试的网络：网络规则的检查照常在发出前做，过了检查的请求交给一个 httptest 服务器上的假 AnkiConnect（不管请求写的是哪个主机和端口），所以不占 8765 端口，也不用改签名的规则；P3b 的 `credentialFetch` 测试也是这样换掉拨号的。覆盖：建笔记类型和牌组、句子带声音、生词、HTML 转义、标签、本次导出内的重复和空文字、再导出全部跳过且不再读声音、Basic 的字段映射和缺少 Basic 时报错、每批最多 100 条、整批失败后逐条添加、Anki 没开和五种 AnkiConnect 的拒绝各自的 code、没授权联网时一个请求都不发、没授权声音时不读声音、超出限额后不再要声音、关掉声音设置；每个用例都断言所有请求都是 `POST http://127.0.0.1:8765/`。`plugins/official` 的测试覆盖 `Wrap` 和吊销列表的检查，app 层 `TestPluginContribExporter` 加了带 code 失败时面板显示原因。
+  - Windows：CI 的 Test（Windows）一行本来就跑全部模块，插件测试也在里面，但结果可能来自测试缓存；新增的「Plugin runtime」一步在 Windows 上用 `-count=1` 再跑一遍 `TestPlugin|TestScript`（`./apps/kando/` 和 `./apps/kando/plugins/...`），保证每次都是在 Windows 上真的跑过。
+  - 官方插件的签名和打包：`.github/scripts/official-plugins.sh`（`make official-plugins`）在 owner 自己的机器上运行，不进 CI。它对 `apps/kando/plugins/official/` 下每个带 `nsgo.yaml` 的文件夹（或参数给的文件夹）跑 `go tool nsgo publish`，用 `NSGO_RELEASE_KEY` 里的官方发布密钥和 `KANDO_OFFICIAL_CERT` 指向的证书（`kando-official.cert`，放在仓库外，放在仓库里会直接拒绝），再用 `cmd/official wrap` 检查包链到官方根、是清单说的那个插件，写成 `apps/site/public/plugin/packs/<id>-<version>.kandoplugin`（`KANDO_PLUGIN_PACKS` 可改）。已有同名文件时拒绝覆盖：缓存了旧索引的看懂按 SHA-256 校验文件，新版本必须换文件名。这个目录就是 P5 社区索引（上面的 `kando plugin index`）列出的包所在的目录，签好后照那里的步骤重新生成并提交索引。
+  - 吊销列表的发布：`.github/scripts/plugin-revocations.sh`（`make plugin-revocations REVOKE='-keys <key ID>'`）在保管根密钥的机器上运行，用 `NSGO_ROOT_KEY` 跑 `go tool nsgo revoke`：序号是已提交列表的加一（第一次是 1），吊销内容是已提交列表的全部再加上这次给的（看懂对每个根只保留最新的一份列表，新列表不带上旧的条目就等于撤销吊销），默认 180 天过期（`-days`），写到 `apps/kando/plugins/revocations/kando-plugin-revocations.json`，写之前先按 Release 的规则检查一遍；owner 提交这个文件。Release 工作流的 Publish 作业在附上 browser extension 之后：没有提交列表时只记一条 notice、不附（看懂把 404 当作没有列表）；有列表时用 `cmd/official revocations` 检查它由官方根签名、没有过期、不比最新已发布版本附的那份旧（序号更小，或序号相同但内容不同，都算旧；序号相同、内容相同是正常情况，大多数发布都会原样再附一次），不通过就让整次发布失败，通过后作为 `kando-plugin-revocations.json` 附上并写进 `checksums.txt`（随包一起做来源证明）。剩不到 30 天过期时检查打出 warning。根密钥从不进 CI。
+  - 代价：一旦发布过列表，owner 就要在它过期前续签（不吊销新东西也要续，`make plugin-revocations`），否则 Release 会失败；而已经拿到这份列表的看懂在它过期后会暂停申请了网络或凭据的非官方插件（6.4）。还没发布列表时这些都不发生。
+  - 本 PR 没有生成任何真实的包或列表：仓库里没有 `kando.ankiconnect` 的 `.kandoplugin`，也没有 `kando-plugin-revocations.json`，要由 owner 用上面的命令签好后提交。签名流程用测试现场生成的根、发布密钥和证书在 Ubuntu 编译机上手工跑通过一次（`nsgo certify`、`publish`、`cmd/official wrap`、`Stage`、`Verify`、`Probe`，以及 `revoke` 和三种检查结果），没有提交这些产物。
+  - 没有提交 NSGo issue：这一期用到的 `tsx.WithFetcher`、`pkg.Inspect`、`pkg.NewTrust`、`UpdateRevocations` 都按文档工作。
+
+**签名和发布官方插件、吊销列表**（第 4 条的根密钥命令之外，owner 用到的全部命令）：
+
+```sh
+# Once a year, on the offline machine: the plugin root certifies the official release key (kept outside the repository).
+NSGO_ROOT_KEY=<root secret> go tool nsgo certify -key <release public> -apps 'ai.yldm.kando.plugin.kando.*' -days 365 -out ~/keys/kando-official.cert
+# Sign every official plugin (apps/kando/plugins/official/*) into apps/site/public/plugin/packs/<id>-<version>.kandoplugin; PLUGINS=<folder> signs one.
+NSGO_RELEASE_KEY=<release secret> KANDO_OFFICIAL_CERT=~/keys/kando-official.cert make official-plugins
+# Check a file the way Kando installs it.
+kando plugin validate apps/site/public/plugin/packs/kando.ankiconnect-1.0.0.kandoplugin
+# Revoke a release key or a package, or renew the list before it expires (no REVOKE); then commit apps/kando/plugins/revocations/kando-plugin-revocations.json.
+NSGO_ROOT_KEY=<root secret> make plugin-revocations REVOKE='-keys <key ID> -packages <sha256 or .nsgopkg>'
+NSGO_ROOT_KEY=<root secret> make plugin-revocations
+```
+
+- 发新版本的插件：改代码后把 `kando-plugin.json` 和 `nsgo.yaml` 的 `version` 一起改大（`nsgo publish` 按版本推算 build，build 必须变大，否则看懂按防回滚拒收），再跑 `make official-plugins`；旧版本的文件留着。
+- 吊销列表提交后，下一次发布才会附上；需要马上生效时手动触发一次 Release（`workflow_dispatch`）。
 
 ### P3.0 spike 的测量结果
 
