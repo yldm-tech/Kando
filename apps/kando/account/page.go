@@ -1,4 +1,4 @@
-// Package account draws the 账号与上传 category of the settings window: the Google account uploads are filed under, and the object storage they go to.
+// Package account draws the 账号与上传 category of the settings window: the Google account uploads are filed under, the object storage they go to, and the folders on a NAS or a server films can be kept in (存储位置).
 package account
 
 import (
@@ -16,6 +16,7 @@ import (
 // App is the 账号与上传 category of the settings window. It draws and reports edits. It does not sign in or upload by itself. The page reads it inside its bindings through live.Func and calls its actions through live.Do and live.On, so what they change shows at once (package live).
 type App interface {
 	live.State
+	Locations
 	GoogleEmail() string
 	GoogleBusy() bool
 	// GoogleErr is why the last sign-in failed, in the interface's language, "" when nothing failed.
@@ -50,7 +51,7 @@ type App interface {
 	Save() error
 }
 
-// View is the 账号与上传 category: the Google account uploads are filed under, and the object storage they go to, laid out as the prototype's page.
+// View is the 账号与上传 category: the Google account uploads are filed under, the object storage they go to, laid out as the prototype's page, and the storage locations under them.
 type View struct {
 	App App
 }
@@ -79,6 +80,7 @@ func (v View) Render(cx *core.Scope) core.Node {
 			label(func() string { return locales.AccountSectionStorage(cx) }, 6),
 			card("account-storage", storageRow{a}, storageFields{a}),
 			note(func() string { return locales.AccountUploadNote(cx) }, 0),
+			locationsSection(cx, a),
 		},
 	}
 }

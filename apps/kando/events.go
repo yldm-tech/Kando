@@ -63,6 +63,7 @@ func (a *app) areas() []areaHooks {
 		a.queueHooks(),
 		a.settingsHooks(),
 		a.cloudHooks(),
+		a.locationsHooks(),
 		a.playerHooks(),
 		a.correctHooks(),
 		a.glossaryHooks(),
