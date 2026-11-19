@@ -106,7 +106,7 @@ func VideoLink(rawURL string) bool {
 	return video
 }
 
-// findVideo is the index of the site of sites whose domain rawURL's host is or is under, the first one, and whether rawURL is a link to one video of it: an http or https link of at most MaxVideoURL bytes, its host not one of the site's Not, its path and parameter matching one of its shapes (compiled). The index is -1 for a link of no site of sites.
+// findVideo is the index of the site of sites whose domain rawURL's host is or is under, the first one, and whether rawURL is a link to one video of it: an http or https link of at most MaxVideoURL bytes, its path and parameter matching one of its shapes (compiled). The index is -1 for a link of no site of sites, and of a host of a site's Not.
 func findVideo(sites []VideoSite, compiled [][]compiledVideoShape, rawURL string) (int, bool) {
 	if len(rawURL) > MaxVideoURL {
 		return -1, false
@@ -121,9 +121,10 @@ func findVideo(sites []VideoSite, compiled [][]compiledVideoShape, rawURL string
 		if host != s.Domain && !strings.HasSuffix(host, "."+s.Domain) {
 			continue
 		}
+		// A host of Not is no page of the site, as the page script's siteOf says.
 		for _, not := range s.Not {
 			if bare == not {
-				return i, false
+				return -1, false
 			}
 		}
 		for _, v := range compiled[i] {
@@ -154,7 +155,7 @@ func NewVideoMatcher(sites []VideoSite) (*VideoMatcher, error) {
 	return &VideoMatcher{sites: sites, compiled: compiled}, nil
 }
 
-// Find is the domain of the site of m whose domain rawURL's host is or is under, "" for none, and whether rawURL is a link to one video of it, as VideoLink decides it for Kando's sites.
+// Find is the domain of the site of m whose domain rawURL's host is or is under, "" for none and for a host of the site's Not, and whether rawURL is a link to one video of it, as VideoLink decides it for Kando's sites.
 func (m *VideoMatcher) Find(rawURL string) (domain string, video bool) {
 	i, video := findVideo(m.sites, m.compiled, rawURL)
 	if i < 0 {

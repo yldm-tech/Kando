@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"regexp"
 	"regexp/syntax"
+	"strconv"
 	"strings"
 )
 
@@ -25,6 +26,9 @@ const videoEscapes = `wWdD\^$/|()[]{}+*?.,@-`
 
 // maxUnbounded is how many unbounded quantifiers (*, +, {n,}) a pattern may have. Two side by side that match the same characters already make a backtracking engine, as JavaScript's, try every way of sharing a link between them, the square of its length; three would try its cube, billions of steps for a link of MaxVideoURL.
 const maxUnbounded = 2
+
+// maxBounded is the largest upper bound of a count ({n,m}) that is not counted among the unbounded quantifiers.
+const maxBounded = 16
 
 // ValidateVideoSites checks sites as ValidateVideoSite checks each, and that no two of them have the same domain, or one a domain under another's, as VideoLink would only ever look at the first.
 func ValidateVideoSites(sites []VideoSite) error {
@@ -107,7 +111,7 @@ func videoHost(host string) bool {
 	return strings.Trim(labels[len(labels)-1], "0123456789") != ""
 }
 
-// videoPattern checks that p is a regular expression Go and JavaScript read alike, and that a backtracking engine, as JavaScript's, reads in time on any link: at most MaxVideoPattern bytes of videoPatternChars; no flags, named groups or lookaround ((?); a backslash only before videoEscapes, so no backreference; braces only as a count after what they repeat ({n}, {n,}, {n,m}), and no class that starts with ], which the two read differently; then, as Go parses it, no repetition of anything that itself repeats, is optional or has alternatives, as (a+)+ or (a|aa)*, which takes such an engine exponential time on a link that almost matches, and at most maxUnbounded unbounded quantifiers.
+// videoPattern checks that p is a regular expression Go and JavaScript read alike, and that a backtracking engine, as JavaScript's, reads in time on any link: at most MaxVideoPattern bytes of videoPatternChars; no flags, named groups or lookaround ((?); then, as written (videoPatternTokens), no escape, brace, class or quantifier the two read apart, and no repeated group that holds a quantifier or a |; then, as Go parses it, no repetition of anything that itself repeats, is optional or has alternatives, as (a+)+, which takes such an engine exponential time on a link that almost matches, and at most maxUnbounded unbounded quantifiers, a count over maxBounded among them.
 func videoPattern(p string) error {
 	if p == "" || len(p) > MaxVideoPattern {
 		return fmt.Errorf("%w: a pattern is empty or over %d bytes", ErrVideoSite, MaxVideoPattern)
@@ -132,11 +136,21 @@ func videoPattern(p string) error {
 }
 
 // countBraces is a count in braces as videoPatternTokens takes it: {n}, {n,} or {n,m}, of at most three digits each.
-var countBraces = regexp.MustCompile(`^\{[0-9]{1,3}(,[0-9]{0,3})?\}`)
+var countBraces = regexp.MustCompile(`^\{([0-9]{1,3})(,([0-9]{0,3}))?\}`)
 
-// videoPatternTokens reads p a character at a time for what videoPatternChars lets through but the two languages read apart: a backslash before anything but videoEscapes, a brace that is not a count after what it repeats, and a class that starts with ] (Go reads []a] as the class of ] and a, JavaScript as an empty class and a).
+// videoPatternTokens reads p a character at a time, as written rather than as Go simplifies it (Go reads (a|a)+ as a+ and (\w|\d)+ as [\w\d]+, which JavaScript's engine still backtracks through exponentially), for what videoPatternChars lets through but the two languages read apart or a backtracking engine reads slowly: a backslash before anything but videoEscapes; a brace that is not a count ({n}, {n,} or {n,m}); a class that starts with ] (Go reads []a] as the class of ] and a, JavaScript as an empty class and a); a quantifier with nothing to repeat, at the start or after ^, $, ( or |, which JavaScript refuses (^*, a$+) and Go takes; a group that does not close or closes none; and a group a repeating quantifier repeats (*, +, a count of more than one) that holds a quantifier or a |, at any depth.
 func videoPatternTokens(p string) error {
+	type group struct{ alt, quant bool }
+	var stack []group
 	inClass := false
+	// prev is what came before: 0 nothing, 'a' something a quantifier may repeat, 'q' a quantifier, 'l' a lazy one, and '^', '$', '(' or '|' themselves.
+	prev := byte(0)
+	mark := func(alt, quant bool) {
+		if len(stack) > 0 {
+			stack[len(stack)-1].alt = stack[len(stack)-1].alt || alt
+			stack[len(stack)-1].quant = stack[len(stack)-1].quant || quant
+		}
+	}
 	for i := 0; i < len(p); i++ {
 		c := p[i]
 		switch {
@@ -145,9 +159,12 @@ func videoPatternTokens(p string) error {
 				return fmt.Errorf("%w: %q escapes what JavaScript reads otherwise", ErrVideoSite, p)
 			}
 			i++
+			if !inClass {
+				prev = 'a'
+			}
 		case inClass:
 			if c == ']' {
-				inClass = false
+				inClass, prev = false, 'a'
 			}
 		case c == '[':
 			inClass = true
@@ -157,20 +174,82 @@ func videoPatternTokens(p string) error {
 			if strings.HasPrefix(p[i+1:], "]") {
 				return fmt.Errorf("%w: %q has a class that starts with ]", ErrVideoSite, p)
 			}
-		case c == '{':
-			count := countBraces.FindString(p[i:])
-			if count == "" || i == 0 || strings.ContainsRune("(|^{", rune(p[i-1])) {
+		case c == '(':
+			stack = append(stack, group{})
+			prev = '('
+		case c == ')':
+			if len(stack) == 0 {
+				return fmt.Errorf("%w: %q closes a group it did not open", ErrVideoSite, p)
+			}
+			g := stack[len(stack)-1]
+			stack = stack[:len(stack)-1]
+			if n, repeating := quantifierAt(p[i+1:]); n > 0 && repeating && (g.alt || g.quant) {
+				return fmt.Errorf("%w: %q repeats a group that repeats, is optional or has alternatives", ErrVideoSite, p)
+			}
+			mark(g.alt, g.quant)
+			prev = 'a'
+		case c == '|':
+			mark(true, false)
+			prev = '|'
+		case c == '^' || c == '$':
+			prev = c
+		case c == '*' || c == '+' || c == '?' || c == '{':
+			// A ? after a quantifier makes it lazy, which both read alike; nothing may follow that.
+			if c == '?' && prev == 'q' {
+				prev = 'l'
+				continue
+			}
+			if prev != 'a' {
+				return fmt.Errorf("%w: %q has a quantifier with nothing to repeat", ErrVideoSite, p)
+			}
+			n, _ := quantifierAt(p[i:])
+			if n == 0 {
 				return fmt.Errorf("%w: %q has a brace that is not a count", ErrVideoSite, p)
 			}
-			i += len(count) - 1
+			i += n - 1
+			mark(false, true)
+			prev = 'q'
 		case c == '}':
 			return fmt.Errorf("%w: %q has a brace that is not a count", ErrVideoSite, p)
+		default:
+			prev = 'a'
 		}
 	}
 	if inClass {
 		return fmt.Errorf("%w: %q has a class it does not close", ErrVideoSite, p)
 	}
+	if len(stack) > 0 {
+		return fmt.Errorf("%w: %q has a group it does not close", ErrVideoSite, p)
+	}
 	return nil
+}
+
+// quantifierAt is the length of the quantifier p starts with, 0 for none (a brace that is no count is none), and whether it repeats what it follows more than once: *, +, {n,}, {n,m} with m over 1 and {n} with n over 1; ? and {0,1} do not.
+func quantifierAt(p string) (int, bool) {
+	if p == "" {
+		return 0, false
+	}
+	switch p[0] {
+	case '*', '+':
+		return 1, true
+	case '?':
+		return 1, false
+	case '{':
+		count := countBraces.FindStringSubmatch(p)
+		if count == nil {
+			return 0, false
+		}
+		low, _ := strconv.Atoi(count[1])
+		if count[2] == "" {
+			return len(count[0]), low > 1
+		}
+		if count[3] == "" {
+			return len(count[0]), true
+		}
+		high, _ := strconv.Atoi(count[3])
+		return len(count[0]), high > 1
+	}
+	return 0, false
 }
 
 // repeats reports whether re matches what it holds more than once: *, +, or a count of more than one.
@@ -201,11 +280,11 @@ func nestedRepeat(re *syntax.Regexp, inside bool) bool {
 	return false
 }
 
-// unbounded counts the quantifiers of re without an upper bound: *, + and {n,}.
+// unbounded counts the quantifiers of re without an upper bound, *, + and {n,}, and those whose bound is over maxBounded, as \w{0,999}, which backtrack as much on a link of MaxVideoURL.
 func unbounded(re *syntax.Regexp) int {
 	n := 0
 	switch {
-	case re.Op == syntax.OpStar, re.Op == syntax.OpPlus, re.Op == syntax.OpRepeat && re.Max == -1:
+	case re.Op == syntax.OpStar, re.Op == syntax.OpPlus, re.Op == syntax.OpRepeat && (re.Max == -1 || re.Max > maxBounded):
 		n++
 	}
 	for _, sub := range re.Sub {

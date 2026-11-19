@@ -3,10 +3,17 @@
   const ASK = "kando-ask:", ADD = "kando-add:", STATE = "kando-state:";
   const MAX_URL = 2048, MAX_ASK = 100, KEEP = 500;
   const MARK = "data-kando-add", PILL = "data-kando-video";
-  const sites = ([{"domain":"youtube.com","videos":[{"path":"^/watch/?$","param":"v","value":"^[\\w-]{6,}$","menu":["/watch?*","/watch/?*"]},{"path":"^/(shorts|live)/[\\w-]{6,}/?$","menu":["/shorts/*","/live/*"]}],"rows":[{"selector":"ytd-watch-metadata #top-level-buttons-computed"}],"titles":["ytd-watch-metadata h1","ytd-reel-video-renderer[is-active] h2"],"cut":[" - YouTube"]},{"domain":"youtu.be","videos":[{"path":"^/[\\w-]{6,}/?$","menu":["/*"]}]},{"domain":"bilibili.com","not":["space.bilibili.com","search.bilibili.com","live.bilibili.com"],"videos":[{"path":"^/([a-z]{2}(-[A-Za-z]{2,4})?/)?video/(BV[0-9A-Za-z]{10}|av[0-9]+)/?$","menu":["/video/*","/*/video/*"]}],"rows":[{"selector":".video-toolbar-left-main","end":true},{"selector":".video-toolbar-left","end":true}],"titles":["h1.video-title",".video-info-title h1",".video-title"],"cut":["_哔哩哔哩_bilibili"]},{"domain":"vimeo.com","not":["player.vimeo.com"],"videos":[{"path":"^/[0-9]+/?$","menu":["/0*","/1*","/2*","/3*","/4*","/5*","/6*","/7*","/8*","/9*"]}]},{"domain":"ted.com","videos":[{"path":"^/talks/[\\w-]+/?$","menu":["/talks/*"]}]},{"domain":"nicovideo.jp","videos":[{"path":"^/watch/(sm|nm|so)[0-9]+/?$","menu":["/watch/sm*","/watch/nm*","/watch/so*"]}]},{"domain":"dailymotion.com","videos":[{"path":"^/video/[0-9A-Za-z]+/?$","menu":["/video/*"]}]},{"domain":"tiktok.com","videos":[{"path":"^/@[^/]+/video/[0-9]+/?$","menu":["/@*/video/*"]}]}]).map((s) => ({
-    domain: s.domain, not: s.not || [], rows: s.rows || [], titles: s.titles || [], cut: s.cut || [],
-    videos: s.videos.map((v) => ({ path: new RegExp(v.path), param: v.param || "", value: v.param ? new RegExp(v.value) : null })),
-  }));
+  // Each site is read on its own, and one whose patterns this engine refuses is left out, so no site can keep the others' buttons from working.
+  const sites = ([{"domain":"youtube.com","videos":[{"path":"^/watch/?$","param":"v","value":"^[\\w-]{6,}$","menu":["/watch?*","/watch/?*"]},{"path":"^/(shorts|live)/[\\w-]{6,}/?$","menu":["/shorts/*","/live/*"]}],"rows":[{"selector":"ytd-watch-metadata #top-level-buttons-computed"}],"titles":["ytd-watch-metadata h1","ytd-reel-video-renderer[is-active] h2"],"cut":[" - YouTube"]},{"domain":"youtu.be","videos":[{"path":"^/[\\w-]{6,}/?$","menu":["/*"]}]},{"domain":"bilibili.com","not":["space.bilibili.com","search.bilibili.com","live.bilibili.com"],"videos":[{"path":"^/([a-z]{2}(-[A-Za-z]{2,4})?/)?video/(BV[0-9A-Za-z]{10}|av[0-9]+)/?$","menu":["/video/*","/*/video/*"]}],"rows":[{"selector":".video-toolbar-left-main","end":true},{"selector":".video-toolbar-left","end":true}],"titles":["h1.video-title",".video-info-title h1",".video-title"],"cut":["_哔哩哔哩_bilibili"]},{"domain":"vimeo.com","not":["player.vimeo.com"],"videos":[{"path":"^/[0-9]+/?$","menu":["/0*","/1*","/2*","/3*","/4*","/5*","/6*","/7*","/8*","/9*"]}]},{"domain":"ted.com","videos":[{"path":"^/talks/[\\w-]+/?$","menu":["/talks/*"]}]},{"domain":"nicovideo.jp","videos":[{"path":"^/watch/(sm|nm|so)[0-9]+/?$","menu":["/watch/sm*","/watch/nm*","/watch/so*"]}]},{"domain":"dailymotion.com","videos":[{"path":"^/video/[0-9A-Za-z]+/?$","menu":["/video/*"]}]},{"domain":"tiktok.com","videos":[{"path":"^/@[^/]+/video/[0-9]+/?$","menu":["/@*/video/*"]}]}]).flatMap((s) => {
+    try {
+      return [{
+        domain: s.domain, not: s.not || [], rows: s.rows || [], titles: s.titles || [], cut: s.cut || [],
+        videos: s.videos.map((v) => ({ path: new RegExp(v.path), param: v.param || "", value: v.param ? new RegExp(v.value) : null })),
+      }];
+    } catch (e) {
+      return [];
+    }
+  });
   const siteOf = (hostname) => {
     const host = hostname.toLowerCase().replace(/\.$/, "");
     const bare = host.replace(/^www\./, "").replace(/^m\./, "");

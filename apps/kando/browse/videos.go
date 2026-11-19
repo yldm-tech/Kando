@@ -17,15 +17,22 @@ const MaxVideoURL = kcore.MaxVideoURL
 // VideoLink reports whether rawURL is a link to one video of a site the page's buttons know (videoSites), as the page's script decides it too.
 func VideoLink(rawURL string) bool { return kcore.VideoLink(rawURL) }
 
-// sitesScript is the JavaScript that reads videoSites as VideoLink does: sites, siteOf(hostname), the site of a host or null, and videoOf(raw), the link raw resolves to against base, a JavaScript expression, when it is one video's, and "" otherwise. It expects MAX_URL to be declared before it. The page's buttons (buttonsScript) and the browser extension's background and popup (ExtensionFiles' sites.js) share it.
+// sitesScript is the JavaScript that reads videoSites as VideoLink does, each site in a try of its own, leaving out one whose patterns the engine refuses: sites, siteOf(hostname), the site of a host or null, and videoOf(raw), the link raw resolves to against base, a JavaScript expression, when it is one video's, and "" otherwise. It expects MAX_URL to be declared before it. The page's buttons (buttonsScript) and the browser extension's background and popup (ExtensionFiles' sites.js) share it.
 func sitesScript(base string) string { return sitesScriptOf(base, videoSitesJSON()) }
 
 // sitesScriptOf is sitesScript reading the sites of sitesJSON (sitesJSON) rather than videoSites alone, as the built-in browser's pages read the sites of the site packs the user allowed after Kando's own (ScriptWith).
 func sitesScriptOf(base, sitesJSON string) string {
-	return `  const sites = (` + sitesJSON + `).map((s) => ({
-    domain: s.domain, not: s.not || [], rows: s.rows || [], titles: s.titles || [], cut: s.cut || [],
-    videos: s.videos.map((v) => ({ path: new RegExp(v.path), param: v.param || "", value: v.param ? new RegExp(v.value) : null })),
-  }));
+	return `  // Each site is read on its own, and one whose patterns this engine refuses is left out, so no site can keep the others' buttons from working.
+  const sites = (` + sitesJSON + `).flatMap((s) => {
+    try {
+      return [{
+        domain: s.domain, not: s.not || [], rows: s.rows || [], titles: s.titles || [], cut: s.cut || [],
+        videos: s.videos.map((v) => ({ path: new RegExp(v.path), param: v.param || "", value: v.param ? new RegExp(v.value) : null })),
+      }];
+    } catch (e) {
+      return [];
+    }
+  });
   const siteOf = (hostname) => {
     const host = hostname.toLowerCase().replace(/\.$/, "");
     const bare = host.replace(/^www\./, "").replace(/^m\./, "");

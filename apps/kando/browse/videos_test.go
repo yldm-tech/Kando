@@ -176,6 +176,10 @@ func TestScriptWithKnowsTheSitesGiven(t *testing.T) {
 	if !strings.Contains(script, "const sites = ("+sitesJSON(append(slices.Clone(videoSites), good))+")") || strings.Contains(script, "bad.example.net") {
 		t.Fatal("ScriptWith does not know exactly the valid site given after Kando's own")
 	}
+	// Each site's patterns are compiled in a try of its own, so a site the page's engine refuses leaves the others' buttons working.
+	if !strings.Contains(script, ").flatMap((s) => {\n    try {\n      return [{") || !strings.Contains(script, "} catch (e) {\n      return [];\n    }") {
+		t.Fatal("the page script does not read each site on its own")
+	}
 	if Script() != ScriptWith(nil) || strings.Contains(Script(), "example.org") {
 		t.Fatal("Script knows another site")
 	}

@@ -52,6 +52,23 @@ func TestValidateVideoSiteRefusesPatterns(t *testing.T) {
 		`^/vidéo$`,
 		`^/a b$`,
 		`^/a#b$`,
+		`^/(\w|\d)+$`,
+		`^/(a|a)+$`,
+		`^/(a|b)+$`,
+		`^/(ab|ab)+$`,
+		`^/((a|b)c)+$`,
+		`^/(x(a)?)*$`,
+		`^/\w{0,999}\w{0,999}\w{0,999}x$`,
+		`^/[a-z]{0,100}[a-z]{0,100}[a-z]+x$`,
+		`^*/$`,
+		`^/$*`,
+		`^/a$+`,
+		`^/(*a)$`,
+		`^/(a|*b)$`,
+		`^/a**$`,
+		`^/a+??$`,
+		`^/(a$`,
+		`^/a)$`,
 	} {
 		err := ValidateVideoSite(site(p))
 		if !errors.Is(err, ErrVideoSite) {
@@ -69,8 +86,9 @@ func TestValidateVideoSiteTakesPatterns(t *testing.T) {
 		`^/@[^/]+/video/[0-9]+/?$`,
 		`^/talks/[\w-]+/?$`,
 		`^/v/[0-9a-f]{8}-[0-9a-f]{4}$`,
-		`^/(a|b)+$`,
 		`^/watch/\d+\.html$`,
+		`^/v/[0-9]+?/?$`,
+		`^/(v|video)/[0-9]{1,16}$`,
 	} {
 		if err := ValidateVideoSite(site(p)); err != nil {
 			t.Errorf("%q: %v", p, err)
@@ -140,7 +158,7 @@ func TestVideoMatcherFindsItsSites(t *testing.T) {
 		"http://videos.example.org/watch?id=7&t=3":                              {"videos.example.org", true},
 		"https://videos.example.org/watch?id=x":                                 {"videos.example.org", false},
 		"https://videos.example.org/":                                           {"videos.example.org", false},
-		"https://live.videos.example.org/v/42":                                  {"videos.example.org", false},
+		"https://live.videos.example.org/v/42":                                  {"", false},
 		"https://videos.example.org.evil.test/v/42":                             {"", false},
 		"https://example.org/v/42":                                              {"", false},
 		"ftp://videos.example.org/v/42":                                         {"", false},
