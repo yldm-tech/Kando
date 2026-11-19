@@ -313,4 +313,4 @@ The [CI](https://github.com/yldm-tech/Kando/actions/workflows/ci.yml) workflow b
 
 ## License
 
-[FSL-1.1-ALv2](LICENSE.md): free to use, change and run for any purpose except a competing product; each version becomes Apache 2.0 two years after its release. Versions up to 2026-11-19 were released under MIT ([NOTICE.md](NOTICE.md)).
+[FSL-1.1-ALv2](LICENSE.md): free to use, change and run for any purpose except a competing product; each version becomes Apache 2.0 two years after its release.

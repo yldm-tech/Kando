@@ -325,4 +325,4 @@ go tool nsgo test -target macos -run TestScreenshots -env KANDO_SCREENSHOTS=1 ap
 
 ## 许可证
 
-[FSL-1.1-ALv2](LICENSE.md)：除了做竞品，可以随意使用、修改和运行；每个版本发布两年后转为 Apache 2.0。2026-11-19 及之前的版本按 MIT 发布（[NOTICE.md](NOTICE.md)）。
+[FSL-1.1-ALv2](LICENSE.md)：除了做竞品，可以随意使用、修改和运行；每个版本发布两年后转为 Apache 2.0。
