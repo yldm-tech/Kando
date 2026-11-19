@@ -36,33 +36,25 @@ type Exported struct {
 	File          string
 }
 
-// Export writes the lines of b into dir for Anki: ExportFile, a note per line, and in ExportAudio the sound of each line, cut out of its video with ffmpeg, which the line's note plays. delay is how far the subtitles of the video at a path were moved against its picture, so the sound is where the line is heard. A line whose video is gone, or every line when ffmpeg is "", is written without its sound, as is a line ffmpeg could not cut, which the log says; Exported.Sounds counts the lines with one. progress, when set, is told after each line. A stopped ctx stops it, leaving what it wrote.
+// Export writes the lines of b into dir for Anki: ExportFile, a note per line, and in ExportAudio the sound of each line, cut out of its video with ffmpeg, which the line's note plays. delay is how far the subtitles of the video at a path were moved against its picture, so the sound is where the line is heard. A line whose video is gone, or every line when ffmpeg is "", takes the sound kept when it was saved (StoredSound), and one that has none either is written without its sound, which the log says when ffmpeg was at hand; Exported.Sounds counts the lines with one. progress, when set, is told after each line. A stopped ctx stops it, leaving what it wrote.
 func Export(ctx context.Context, ffmpeg string, b Book, delay func(video string) time.Duration, dir string, progress func(done, total int)) (Exported, error) {
 	out := Exported{File: filepath.Join(dir, ExportFile)}
 	audio := filepath.Join(dir, ExportAudio)
-	if ffmpeg != "" && len(b.Lines) > 0 {
-		if err := os.MkdirAll(audio, 0o755); err != nil {
-			return out, err
-		}
-	}
 	rows := make([]Row, len(b.Lines))
 	for i, l := range b.Lines {
 		if err := ctx.Err(); err != nil {
 			return out, err
 		}
 		rows[i] = Row{Line: l}
-		video := b.Abs(l)
-		if _, err := os.Stat(video); ffmpeg != "" && err == nil {
-			from, to := ClipSpan(l, delay(video))
-			name := SoundName(l)
-			if err := CutClip(ctx, ffmpeg, video, from, to, filepath.Join(audio, name)); err == nil {
-				rows[i].Sound = name
-				out.Sounds++
-			} else if ctx.Err() != nil {
-				return out, ctx.Err()
-			} else {
-				log.Printf("saved: no sound for the line at %s of %s: %v", Clock(l.Start), filepath.Base(video), err)
-			}
+		name, err := soundFor(ctx, ffmpeg, b, l, delay, audio)
+		if err != nil {
+			return out, err
+		}
+		if name != "" {
+			rows[i].Sound = name
+			out.Sounds++
+		} else if ffmpeg != "" {
+			log.Printf("saved: no sound for the line at %s of %s", Clock(l.Start), filepath.Base(l.Video))
 		}
 		if progress != nil {
 			progress(i+1, len(b.Lines))

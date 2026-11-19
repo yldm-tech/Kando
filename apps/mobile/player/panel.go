@@ -18,6 +18,7 @@ type tab uint8
 
 const (
 	linesTab tab = iota
+	wordsTab
 	notesTab
 	partsTab
 	infoTab
@@ -26,12 +27,18 @@ const (
 // partCount is how many equal parts the Parts tab cuts the film's lines into.
 const partCount = 4
 
-// panel is the tabs under the card, or beside it on a tablet on its side: the film's lines, the notes on the lines saved, the film in equal parts, and what the film is. Each tab is built when first shown and kept while others show, so the lines keep where they were scrolled to.
+// panel is the tabs under the card, or beside it on a tablet on its side: the film's lines, its words looked up or in the vocabulary, the notes on the lines saved, the film in equal parts, and what the film is. Each tab is built when first shown and kept while others show, so the lines keep where they were scrolled to.
 func panel(cx *core.Scope, p *play, w *words) core.Node {
 	colors := ui.ColorsOf(cx)
 	selected := core.NewSignal(cx, linesTab)
 	option := func(t tab, id string, text func() string) ui.Option[tab] {
 		return ui.Option[tab]{Value: t, TestID: id, Content: core.Text{ContentFunc: text, MaxLines: 1}}
+	}
+	wordCount := func() string {
+		if n := len(p.filmWords()); n > 0 {
+			return locales.PlayerTabWordsCount(cx, n)
+		}
+		return locales.PlayerTabWords(cx)
 	}
 	notes := func() string {
 		if n := len(p.s.Saved(p.key)); n > 0 {
@@ -43,6 +50,7 @@ func panel(cx *core.Scope, p *play, w *words) core.Node {
 	bar := ui.Tabs[tab]{TestID: "player-tabs", Variant: ui.TabsUnderline, Equal: true, Label: locales.PlayerPanel(cx), Value: selected.Get, OnChange: selected.Set,
 		Options: []ui.Option[tab]{
 			option(linesTab, "player-tab-lines", func() string { return locales.PlayerTabLines(cx) }),
+			option(wordsTab, "player-tab-words", wordCount),
 			option(notesTab, "player-tab-notes", notes),
 			option(partsTab, "player-tab-parts", func() string { return locales.PlayerTabParts(cx) }),
 			option(infoTab, "player-tab-info", func() string { return locales.PlayerTabInfo(cx) }),
@@ -63,6 +71,7 @@ func panel(cx *core.Scope, p *play, w *words) core.Node {
 			return core.Style{BorderColors: core.EdgeColors{Bottom: colors.Line()}}
 		}, Children: []core.Node{bar}},
 		page(linesTab, func(cx *core.Scope) core.Node { return lines(cx, p) }),
+		page(wordsTab, func(cx *core.Scope) core.Node { return wordsPage(cx, p, w) }),
 		page(notesTab, func(cx *core.Scope) core.Node { return notesPage(cx, p) }),
 		page(partsTab, func(cx *core.Scope) core.Node { return partsPage(cx, p) }),
 		page(infoTab, func(cx *core.Scope) core.Node { return infoPage(cx, p) }),

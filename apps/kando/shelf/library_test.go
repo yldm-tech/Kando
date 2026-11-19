@@ -564,6 +564,20 @@ func TestLibraryKeepsTheSeriesOfAJob(t *testing.T) {
 	}
 }
 
+// Where the user was in the browser and the chapters they chose on the Add sheet stay with a waiting job across a restart, so the film still opens there and is cut that way once done.
+func TestLibraryKeepsTheAddSheetsChoices(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "library.json")
+	lib, _ := Load(path)
+	lib.Upsert(core.Job{ID: "a", Source: "https://www.youtube.com/watch?v=jNQXAC9IVRw", Stage: core.StageQueued, ResumeAt: 84 * time.Second, ChapterUse: core.ChaptersEven})
+	if err := lib.Save(); err != nil {
+		t.Fatal(err)
+	}
+	loaded, _ := Load(path)
+	if a, _ := loaded.Find("a"); a.ResumeAt != 84*time.Second || a.ChapterUse != core.ChaptersEven {
+		t.Fatalf("job %+v", a)
+	}
+}
+
 // TestRenameKeepsTheTitleGivenInKando checks that a title the user gives a video is kept trimmed, read back from library.json, dropped by an empty one, and that Rename says whether anything changed.
 func TestRenameKeepsTheTitleGivenInKando(t *testing.T) {
 	path := filepath.Join(t.TempDir(), "library.json")
@@ -661,6 +675,8 @@ func TestStoredJobKeepsEveryField(t *testing.T) {
 			value.SetInt(int64(i + 1))
 		case field.Type == reflect.TypeFor[time.Time]():
 			value.Set(reflect.ValueOf(time.Date(2026, 3, 4, 5, 6, 7, 0, time.UTC)))
+		case field.Type == reflect.TypeFor[time.Duration]():
+			value.SetInt(int64(time.Duration(i+1) * time.Second))
 		default:
 			t.Fatalf("core.Job.%s is a %s, which this test does not fill; give it a value here", field.Name, field.Type)
 		}

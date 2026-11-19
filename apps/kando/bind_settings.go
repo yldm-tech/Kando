@@ -6,6 +6,7 @@ import (
 	"kando/apps/kando/locales"
 	"kando/apps/kando/settings"
 	"kando/apps/kando/toolhealth"
+	kcore "kando/packages/core"
 	"kando/packages/media"
 
 	"github.com/nsgo-dev/nsgo/core"
@@ -36,6 +37,14 @@ func (a *app) SetInterfaceLanguage(tag string) {
 func (a *app) TranslateContext() *bool { return &a.prefs.translateContext }
 
 func (a *app) TranslatePrompt() *string { return &a.prefs.translatePrompt }
+
+func (a *app) Review() *bool { return &a.prefs.review }
+
+func (a *app) ReviewAuto() string { return string(a.prefs.reviewAuto) }
+
+func (a *app) SetReviewAuto(auto string) {
+	a.prefs.reviewAuto = kcore.CleanProofAuto(kcore.ProofAuto(auto))
+}
 
 func (a *app) TranslateContextLines() int {
 	if a.prefs.translateContextLines > 0 {

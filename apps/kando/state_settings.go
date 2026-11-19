@@ -10,6 +10,7 @@ import (
 	"kando/apps/kando/locales"
 	"kando/apps/kando/settings"
 	"kando/apps/kando/theme"
+	kcore "kando/packages/core"
 	"kando/packages/media"
 
 	"kando/apps/kando/live"
@@ -28,6 +29,9 @@ type settingsUI struct {
 	translateContext  bool
 	// translateContextLines is how many earlier lines go with a batch while translateContext is on, 0 for media.DefaultContextLines.
 	translateContextLines int
+	// review is whether a job proofreads the translation as a whole once it is made (the final proofread, media.WithReview), and reviewAuto which of its changes apply without the user.
+	review     bool
+	reviewAuto kcore.ProofAuto
 	// shortcutPreset is the preset of Settings › 快捷键 the player's keys follow, one of hotkey.Presets.
 	shortcutPreset string
 	// appearance is the one the windows show: settings.AppearanceLight or AppearanceDark, or "" to follow the system's.
@@ -87,7 +91,7 @@ type settingsUI struct {
 }
 
 func newSettingsUI() settingsUI {
-	return settingsUI{interfaceLanguage: locales.Default, language: "简体中文", translatePrompt: media.DefaultSubtitlePrompt, translateContext: true, listModels: func(ctx context.Context, t media.ChatTranslator) ([]string, error) { return t.Models(ctx) }, pingLLM: func(ctx context.Context, t media.ChatTranslator) error { return t.Ping(ctx) }}
+	return settingsUI{interfaceLanguage: locales.Default, language: "简体中文", translatePrompt: media.DefaultSubtitlePrompt, translateContext: true, review: true, reviewAuto: kcore.ProofAutoConsistency, listModels: func(ctx context.Context, t media.ChatTranslator) ([]string, error) { return t.Models(ctx) }, pingLLM: func(ctx context.Context, t media.ChatTranslator) error { return t.Ping(ctx) }}
 }
 
 // savedInterface is the settings window's own part of settings.json: the interface language, kept separate from savedTranslate, whose language is the target language of generated subtitles, and where the window was, which MyGo's StateKey used to keep in a file of its own.
@@ -155,11 +159,17 @@ type savedTranslate struct {
 	TranslateContext *bool  `json:"translateContext,omitempty"`
 	// TranslateContextLines is how many earlier lines go with a batch, 0 for media.DefaultContextLines.
 	TranslateContextLines int `json:"translateContextLines,omitempty"`
+	// Review is whether the final proofread runs, nil for on; ReviewAuto which of its changes apply without the user, "" for the default (core.ProofAutoConsistency).
+	Review     *bool  `json:"review,omitempty"`
+	ReviewAuto string `json:"reviewAuto,omitempty"`
 }
 
 func (s *savedTranslate) clean() {
 	s.Language = strings.TrimSpace(s.Language)
 	s.TranslatePrompt = strings.TrimSpace(s.TranslatePrompt)
+	if s.ReviewAuto != "" {
+		s.ReviewAuto = string(kcore.CleanProofAuto(kcore.ProofAuto(s.ReviewAuto)))
+	}
 	if s.TranslateContextLines != 0 {
 		s.TranslateContextLines = min(max(s.TranslateContextLines, settings.MinContextLines), media.MaxContextLines)
 	}
@@ -177,6 +187,11 @@ func (a *app) saveTranslate(saved *savedSettings) {
 		TranslatePrompt:  prompt,
 		TranslateContext: &contextOn,
 	}
+	review := a.prefs.review
+	saved.Review = &review
+	if a.prefs.reviewAuto != kcore.ProofAutoConsistency {
+		saved.ReviewAuto = string(a.prefs.reviewAuto)
+	}
 	if lines := a.prefs.translateContextLines; lines != media.DefaultContextLines {
 		saved.TranslateContextLines = lines
 	}
@@ -193,6 +208,10 @@ func (a *app) restoreTranslate(saved savedSettings) {
 		a.prefs.translateContext = *saved.TranslateContext
 	}
 	a.prefs.translateContextLines = saved.TranslateContextLines
+	if saved.Review != nil {
+		a.prefs.review = *saved.Review
+	}
+	a.prefs.reviewAuto = kcore.CleanProofAuto(kcore.ProofAuto(saved.ReviewAuto))
 }
 
 // settingsHooks: the settings window saves the speech model, the AI service and the translation, shows the interface in its saved language and appearance once the main window exists, looks for the whisper models on disk again when the tools change, and after every change opens for a settings page chosen in the main sidebar, gives back the trash confirmation's modal flag once it closed and fetches the AI service's models when its settings changed.

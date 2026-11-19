@@ -19,6 +19,19 @@ type Tab struct {
 	// Content is the section, a stack of pages, built when first shown and kept while others show.
 	Content func(cx *core.Scope) core.Node
 	TestID  string
+	// Badge, when set, is a count a tablet's sidebar and tab bar show on the section while it is not 0, in warning's color while BadgeWarn reports true.
+	// The count is not in the section's spoken name yet: base.Tab.Label is a fixed string (nsgo#145, above), so a screen reader on a tablet does not hear it.
+	// TODO(nsgo): ui.ShellTab has no badge (ui/tabshell.go:10-20), so a phone's tab bar, iOS's system one too (UITabBarItem.badgeValue), shows no count; a phone shows Jobs' count on the Library's Jobs button instead.
+	Badge     func() int
+	BadgeWarn func() bool
+}
+
+// badge is t's count where it has one.
+func (t Tab) badge(testID string, st core.Style) []core.Node {
+	if t.Badge == nil {
+		return nil
+	}
+	return []core.Node{look.Count{TestID: testID, Count: t.Badge, Warn: t.BadgeWarn, Style: st}}
 }
 
 // Shell is the sections and the bar or sidebar between them. Selected is the app's, set from OnChange, which a press on the section shown reports too. Footer ends a tablet's sidebar.
@@ -128,10 +141,10 @@ func (s Shell) sidebar(cx *core.Scope) core.Node {
 				}
 				return st
 			},
-			Children: []core.Node{
+			Children: append([]core.Node{
 				ui.IconOf(tab.Icon, 20, ink),
-				core.Text{ContentFunc: tab.Text, MaxLines: 1, Style: look.Body.Merge(core.Style{FontWeight: core.FontWeightSemibold, FlexShrink: 1})},
-			}})
+				core.Text{ContentFunc: tab.Text, MaxLines: 1, Style: look.Body.Merge(core.Style{FontWeight: core.FontWeightSemibold, FlexShrink: 1, FlexGrow: 1})},
+			}, tab.badge("sidebar-badge-"+tab.TestID, core.Style{})...)})
 	}
 	return core.View{TestID: "sidebar", Style: core.Style{Width: core.Pt(270), FlexGrow: 1, Gap: 16, Borders: core.Edges{Right: 0.5}, Padding: core.Edges{Top: 12, Right: 12, Bottom: 12, Left: 12},
 		PaddingEnv: core.EnvEdges{Top: core.EnvSafeArea, Bottom: core.EnvSafeArea, Left: core.EnvSafeArea}},
@@ -164,7 +177,8 @@ func (s Shell) bar(cx *core.Scope) core.Node {
 				return core.Style{Color: colors.Muted(), Active: &core.Style{Background: colors.Pressed()}, Selected: &core.Style{Color: colors.Accent()}, FocusVisible: ui.FocusRing(cx, -2)}
 			},
 			Children: []core.Node{
-				ui.IconOf(tab.Icon, 24, ui.Inherited),
+				core.View{Children: append([]core.Node{ui.IconOf(tab.Icon, 24, ui.Inherited)},
+					tab.badge("bar-badge-"+tab.TestID, core.Style{Position: core.Absolute, Top: core.Pt(-4), Left: core.Pt(16)})...)},
 				core.Text{ContentFunc: tab.Text, MaxLines: 1, Style: look.Caption.Merge(core.Style{FontWeight: core.FontWeightMedium})},
 			}})
 	}

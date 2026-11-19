@@ -14,7 +14,7 @@ import (
 	"github.com/nsgo-dev/nsgo/nsgotest"
 )
 
-// TestScreenshotsVocab renders the prototype's film, How Rivers Shape Landscapes (j1), held on its first line with "trickle" clicked on the picture and its card over it, looked up before so the AI service is not asked (vocab-lookup); and the study stats dialog over the library, a week of watching on this computer and a phone, three words and two saved lines in the study record, at its two tabs (vocab-stats, vocab-export), which counts the fixture's other libraries too, whose study records are empty.
+// TestScreenshotsVocab renders the prototype's film, How Rivers Shape Landscapes (j1), held on its first line with "trickle" clicked on the picture and its card over it, looked up before so the AI service is not asked (vocab-lookup); the film's 笔记 tab with two saved lines and a word, at its lines and its words (vocab-notes, vocab-notes-words), and the review on that word, revealed (vocab-review-word); and the study stats dialog over the library, a week of watching on this computer and a phone, three words and two saved lines in the study record, at its two tabs (vocab-stats, vocab-export), which counts the fixture's other libraries too, whose study records are empty.
 func TestScreenshotsVocab(t *testing.T) {
 	f := newScreenshotFixture(t)
 	now := time.Date(2026, 11, 18, 21, 0, 0, 0, time.Local)
@@ -32,6 +32,43 @@ func TestScreenshotsVocab(t *testing.T) {
 			t.Fatalf("no card: %q", tt.Texts())
 		}
 	})
+	f.shoot(t, "vocab-notes", func(t *testing.T, a *app, tt *nsgotest.App, updates chan func()) {
+		screenshotOpen(t, a, tt, updates, "j1", protoCues[0].Start)
+		screenshotLoad(tt, a)
+		screenshotFilmNotes(t, f, a, now)
+		onEngine(a, func() { a.SetFilmSide(film.SideNotes) })
+		refresh(tt, a)
+		if !tt.Exists("id:film-notes-list") {
+			t.Fatalf("no notes: %q", tt.Texts())
+		}
+	})
+	f.shoot(t, "vocab-notes-words", func(t *testing.T, a *app, tt *nsgotest.App, updates chan func()) {
+		screenshotOpen(t, a, tt, updates, "j1", protoCues[0].Start)
+		screenshotLoad(tt, a)
+		screenshotFilmNotes(t, f, a, now)
+		onEngine(a, func() {
+			a.SetFilmSide(film.SideNotes)
+			a.saved.notesWords = true
+		})
+		refresh(tt, a)
+	})
+	f.shoot(t, "vocab-review-word", func(t *testing.T, a *app, tt *nsgotest.App, updates chan func()) {
+		screenshotOpen(t, a, tt, updates, "j1", protoCues[0].Start)
+		screenshotLoad(tt, a)
+		screenshotFilmNotes(t, f, a, now)
+		onEngine(a, func() {
+			a.StartReview()
+			dir := a.saved.review.dir
+			t.Cleanup(func() { _ = os.RemoveAll(dir) })
+			a.ReviewGrade(true)
+			a.ReviewGrade(true)
+			a.ReviewReveal()
+		})
+		refresh(tt, a)
+		if !a.ReviewCard().Word {
+			t.Fatalf("the review shows %+v", a.ReviewCard())
+		}
+	})
 	f.shoot(t, "vocab-stats", func(t *testing.T, a *app, tt *nsgotest.App, updates chan func()) {
 		screenshotStudyRecord(t, f, a, now)
 		refresh(tt, a)
@@ -43,6 +80,30 @@ func TestScreenshotsVocab(t *testing.T) {
 		refresh(tt, a)
 		onEngine(a, func() { a.OpenStats(vocabTabExport) })
 		screenshotStatsRead(t, a, tt, updates)
+	})
+}
+
+// screenshotFilmNotes makes the library's study record afresh with, in the open film, the prototype's j1, two of its lines, the first with a note, and the word "trickle" of its first line, all due now.
+func screenshotFilmNotes(t *testing.T, f *screenshotFixture, a *app, now time.Time) {
+	t.Helper()
+	onEngine(a, func() {
+		if err := os.Remove(filepath.Join(f.lib, saved.FileName)); err != nil && !os.IsNotExist(err) {
+			t.Fatal(err)
+		}
+		a.saved.now = func() time.Time { return now }
+		a.saved.book = saved.Book{}
+		a.savedSync()
+		book := &a.saved.book
+		key := book.Key(a.player.film.video)
+		cues := a.playerCues()
+		for _, i := range []int{1, 3} {
+			translation, original := film.SplitCue(cues[i].Text)
+			book.Toggle(saved.Line{Video: key, Start: cues[i].Start, End: cues[i].End, Original: original, Translation: translation, Film: "How Rivers Shape Landscapes"})
+		}
+		book.SetNote(book.Lines[0].ID, "picks up = 一路裹挟带走")
+		translation, original := film.SplitCue(cues[0].Text)
+		book.AddWord(saved.Word{Text: "trickle", Reading: "/ˈtrɪk(ə)l/", Meaning: "n. 细流", Context: original, ContextTranslation: translation, Video: key, Start: cues[0].Start, End: cues[0].End, Film: "How Rivers Shape Landscapes"})
+		a.savedWrite()
 	})
 }
 

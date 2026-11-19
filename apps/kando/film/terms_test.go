@@ -21,15 +21,27 @@ type fakeGlossary struct {
 	seriesFilms    int
 	source, target string
 	left           bool
+	guess          []string
+	guessAnswer    string
 }
 
 func (f *fakeGlossary) FilmTerms() []core.Term    { return f.terms }
 func (f *fakeGlossary) TermsWritable() bool       { return f.writable }
 func (f *fakeGlossary) FilmSeries() (string, int) { return f.series, f.seriesFilms }
 func (f *fakeGlossary) LeaveSeries()              { f.left, f.series, f.seriesFilms = true, "", 0 }
-func (f *fakeGlossary) NewTermSource() *string    { return &f.source }
-func (f *fakeGlossary) NewTermTarget() *string    { return &f.target }
-func (f *fakeGlossary) RemoveTerm(source string)  { f.terms = core.RemoveTerm(f.terms, source) }
+func (f *fakeGlossary) SeriesGuess() (string, []string) {
+	if len(f.guess) == 0 {
+		return "", nil
+	}
+	return "地理课", f.guess
+}
+func (f *fakeGlossary) ConfirmSeries() {
+	f.guessAnswer, f.series, f.seriesFilms, f.guess = "yes", "地理课", len(f.guess), nil
+}
+func (f *fakeGlossary) DismissSeries()           { f.guessAnswer, f.guess = "no", nil }
+func (f *fakeGlossary) NewTermSource() *string   { return &f.source }
+func (f *fakeGlossary) NewTermTarget() *string   { return &f.target }
+func (f *fakeGlossary) RemoveTerm(source string) { f.terms = core.RemoveTerm(f.terms, source) }
 func (f *fakeGlossary) CycleTermScope(source string) {
 	f.edit(source, func(t *core.Term) { t.Scope = nextScope(t.Scope, f.seriesFilms > 0) })
 }
@@ -139,5 +151,26 @@ func TestTermScopePillReadsTheTheme(t *testing.T) {
 			t.Fatalf("the %s pill is %#x, want %#x", a.terms[0].Scope, uint32(got), uint32(want))
 		}
 		app.Press("id:film-term-scope")
+	}
+}
+
+// The 术语 tab asks whether the films the open film looks like a series with are one, naming them; Same Series puts them in one, which the tab then names, and Not a Series takes the question away.
+func TestTermsTabAsksAboutAGuessedSeries(t *testing.T) {
+	a := newFakeApp()
+	a.side, a.writable = "terms", true
+	a.guess = []string{"地理课 第1集", "地理课 第2集"}
+	app := start(t, a)
+	msgs := testlocale.Messages()
+	if !app.Exists(whole(msgs.GlossaryGuessTitle())) || !app.Exists(whole("地理课 第1集 · 地理课 第2集")) {
+		t.Fatalf("the question: %q", app.Texts())
+	}
+	app.Press("id:film-terms-guess-yes")
+	if a.guessAnswer != "yes" || app.Exists("id:film-terms-guess") || !app.Exists(whole(msgs.GlossarySeriesLine("地理课", 2))) {
+		t.Fatalf("after yes: answer %q, texts %q", a.guessAnswer, app.Texts())
+	}
+	change(app, a, func() { a.guess, a.series, a.seriesFilms = []string{"a 1", "a 2"}, "", 0 })
+	app.Press("id:film-terms-guess-no")
+	if a.guessAnswer != "no" || app.Exists("id:film-terms-guess") {
+		t.Fatalf("after no: answer %q", a.guessAnswer)
 	}
 }

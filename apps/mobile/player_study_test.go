@@ -161,12 +161,188 @@ func TestExplainAsksTheComputer(t *testing.T) {
 	if got := p.app.Find("id:player-explain-text").Text; got != "A greeting for the morning." {
 		t.Fatalf("the explanation reads %q", got)
 	}
-	if got := p.app.Find("id:player-explain-by").Text; got != msgs.PlayerExplainBy("test-model", "Studio") {
+	// A computer that does not say its model runs on it is taken to ask a cloud service.
+	if got := p.app.Find("id:player-explain-by").Text; got != msgs.PlayerExplainVia("test-model", "Studio") {
 		t.Fatalf("the byline reads %q", got)
 	}
 	x := d.Explains()
 	if len(x) != 1 || x[0].Index != 1 || len(x[0].Lines) != 3 || x[0].Lines[1].Original != "How are you?" || x[0].Lines[1].StartMS != 3000 {
 		t.Fatalf("the computer was asked %+v", x)
+	}
+}
+
+// The explanation shows the computer's sections under their headings, its tone and related expressions after More; a follow-up question goes to the computer with the line, the lines around it and what was explained and answered before, and its answer shows under it; Save Line to Notes saves the line with what it means as its note.
+func TestExplainShowsSectionsAnswersFollowUpsAndSavesToNotes(t *testing.T) {
+	d := newDesktop(t)
+	d.SetExplanationSections(
+		sync.ExplainSection{Kind: sync.ExplainMeaning, Text: "Asks how someone is."},
+		sync.ExplainSection{Kind: sync.ExplainBreakdown, Text: "how · 怎样"},
+		sync.ExplainSection{Kind: sync.ExplainTone, Text: "Friendly."},
+	)
+	p, _ := studyPlayer(t, d)
+	p.at(3200 * time.Millisecond)
+	p.app.Press("id:player-explain-line")
+	p.app.WaitFor("id:player-explain-note", wait)
+	got := p.texts("id:player-explain-sections")
+	for _, want := range []string{msgs.PlayerExplainMeaning(), "Asks how someone is.", msgs.PlayerExplainBreakdown(), "how · 怎样"} {
+		if !strings.Contains(got, want) {
+			t.Fatalf("the sections read %q, want %q in them", got, want)
+		}
+	}
+	if strings.Contains(got, "Friendly.") || p.app.Exists("id:player-explain-text") {
+		t.Fatalf("before More the sheet reads %q", p.texts("id:player-explain"))
+	}
+	if got := p.app.Find("id:player-explain-note").Text; got != msgs.PlayerExplainOnlyBefore() {
+		t.Fatalf("the footnote reads %q", got)
+	}
+	p.app.Press("id:player-explain-more")
+	p.app.WaitUntil(wait, func() bool { return strings.Contains(p.texts("id:player-explain-sections"), "Friendly.") })
+	if !strings.Contains(p.texts("id:player-explain-sections"), msgs.PlayerExplainTone()) || p.app.Exists("id:player-explain-more") {
+		t.Fatalf("after More the sections read %q", p.texts("id:player-explain-sections"))
+	}
+
+	p.app.Type("id:player-explain-ask", "Why how?")
+	p.app.Press("id:player-explain-send")
+	p.app.WaitUntil(wait, func() bool {
+		return p.app.Exists("id:player-explain-answer") && p.app.Find("id:player-explain-answer").Text == "Answered: Why how?"
+	})
+	if got := p.app.Find("id:player-explain-ask").Text; got != "" {
+		t.Fatalf("after asking the field reads %q", got)
+	}
+	p.app.Type("id:player-explain-ask", "And the reply?")
+	p.app.Submit("id:player-explain-ask")
+	p.app.WaitUntil(wait, func() bool { return len(d.Asks()) == 2 })
+	asks := d.Asks()
+	first, second := asks[0], asks[1]
+	if first.Question != "Why how?" || first.Index != 1 || first.Lines[1].Original != "How are you?" || first.Film != "f1" || first.Library != "lib" ||
+		len(first.Explained) != 3 || first.Explained[0].Text != "Asks how someone is." || len(first.Asked) != 0 {
+		t.Fatalf("the computer was asked %+v", first)
+	}
+	if second.Question != "And the reply?" || len(second.Asked) != 1 || second.Asked[0] != (sync.ExplainQA{Question: "Why how?", Answer: "Answered: Why how?"}) {
+		t.Fatalf("the second question carried %+v", second)
+	}
+
+	p.app.Press("id:player-explain-save")
+	p.app.WaitUntil(wait, func() bool {
+		for _, r := range d.Records("lib", sync.KindLine) {
+			if r.Removed == nil && string(r.Fields[sync.FieldStartMS].Value) == "3000" {
+				return fieldText(r, sync.FieldNote) == "Asks how someone is."
+			}
+		}
+		return false
+	})
+	if got := p.app.Find("id:player-explain-save").Props.Label; got != msgs.PlayerExplainSaved() {
+		t.Fatalf("once saved the button reads %q", got)
+	}
+}
+
+// Without an AI service on the computer, a follow-up question says so under it.
+func TestAFollowUpWithoutAnAIServiceSaysWhere(t *testing.T) {
+	d := newDesktop(t)
+	p, _ := studyPlayer(t, d)
+	p.app.Press("id:player-explain-line")
+	p.app.WaitFor("id:player-explain-text", wait)
+	d.SetNoAI(true)
+	p.app.Type("id:player-explain-ask", "Why?")
+	p.app.Press("id:player-explain-send")
+	p.app.WaitUntil(wait, func() bool {
+		return p.app.Exists("id:player-explain-answer") && p.app.Find("id:player-explain-answer").Text == msgs.PlayerStudyNoAI("Studio")
+	})
+}
+
+// openStudyAt opens the talk from its page, as openStudy does, left at at on the phone before: the player holds there.
+func openStudyAt(t *testing.T, d *synctest.Desktop, at time.Duration) *phone {
+	t.Helper()
+	dir := t.TempDir()
+	f := keepTalkFrom(t, dir, store.DesktopID(d.Fingerprint))
+	f.PositionMS = at.Milliseconds()
+	if err := store.Open(dir).SaveFilm(f); err != nil {
+		t.Fatal(err)
+	}
+	p := startPhone(t, dir, pairedWith(t, d, dir))
+	p.app.WaitFor(talkRow(f.Desktop), wait)
+	p.app.Press(talkRow(f.Desktop))
+	p.app.WaitFor("id:film-play", wait)
+	p.app.Press("id:film-play")
+	p.app.WaitFor("id:player-video", wait)
+	return p
+}
+
+// A film opened from its page where it was left holds there and shows the recap of the part watched: the computer is sent the lines up to where it was left, never a later one, and its moments show, each playing the film from its line; Continue plays on from where it was left.
+func TestAFilmLeftPartwayOpensWithARecapOfWhatWasWatched(t *testing.T) {
+	d := newDesktop(t)
+	p := openStudyAt(t, d, 6*sec)
+	p.app.WaitFor("id:player-recap-note", wait)
+	if !p.app.Find("id:player-video").Video.Paused {
+		t.Fatal("the film plays under the recap")
+	}
+	if got := p.app.Find("id:player-recap-at").Text; got != msgs.PlayerRecapStoppedAt("0:06") {
+		t.Fatalf("the recap says %q", got)
+	}
+	recaps := d.Recaps()
+	if len(recaps) != 1 || len(recaps[0].Lines) != 3 || recaps[0].Lines[2].Original != "Fine, thanks." || recaps[0].Film != "f1" {
+		t.Fatalf("the computer was asked %+v", recaps)
+	}
+	if got := p.texts("id:player-recap-items"); got != "0:01\nBegan: Good morning.\n0:05\nThen: Fine, thanks." {
+		t.Fatalf("the recap reads %q", got)
+	}
+	if got := p.app.Find("id:player-recap-note").Text; got != msgs.PlayerRecapNote("test-model") {
+		t.Fatalf("the footnote reads %q", got)
+	}
+	p.app.Press("id:player-recap-continue")
+	p.app.WaitUntil(wait, func() bool { return !p.app.Exists("id:player-recap") })
+	if s := p.seeks(); len(s) == 0 || s[len(s)-1] != 6*sec || p.app.Find("id:player-video").Video.Paused {
+		t.Fatalf("continue went to %v", s)
+	}
+}
+
+// A moment of the recap plays the film from its line, with the film's subtitle delay; the recap closed with × leaves the film held.
+func TestARecapMomentPlaysFromItsLine(t *testing.T) {
+	d := newDesktop(t)
+	d.SetRecap(sync.RecapItem{StartMS: 3000, Text: "They greet."})
+	p := openStudyAt(t, d, 6*sec)
+	p.app.WaitFor("id:player-recap-item", wait)
+	p.app.Press("id:player-recap-item")
+	p.app.WaitUntil(wait, func() bool { return !p.app.Exists("id:player-recap") })
+	if s := p.seeks(); len(s) == 0 || s[len(s)-1] != 3*sec || p.app.Find("id:player-video").Video.Paused {
+		t.Fatalf("the moment went to %v", s)
+	}
+
+	p = openStudyAt(t, newDesktop(t), 6*sec)
+	p.app.WaitFor("id:player-recap-note", wait)
+	p.app.Press("id:player-recap-close")
+	p.app.WaitUntil(wait, func() bool { return !p.app.Exists("id:player-recap") })
+	if !p.app.Find("id:player-video").Video.Paused {
+		t.Fatal("closing the recap played the film")
+	}
+}
+
+// Without an AI service on the computer the recap shows the lines watched, saying they are not summed up and why; Start Over plays from the start.
+func TestARecapWithoutAnAIServiceShowsTheLinesWatched(t *testing.T) {
+	d := newDesktop(t)
+	d.SetNoAI(true)
+	p := openStudyAt(t, d, 6*sec)
+	p.app.WaitFor("id:player-recap-note", wait)
+	if got := p.app.Find("id:player-recap-note").Text; got != msgs.PlayerRecapExcerptsNoAI("Studio") {
+		t.Fatalf("the footnote reads %q", got)
+	}
+	if got := p.texts("id:player-recap-items"); got != "0:01\n早上好。\n0:03\n你好吗？\n0:05\nFine, thanks." {
+		t.Fatalf("the recap reads %q", got)
+	}
+	p.app.Press("id:player-recap-start-over")
+	p.app.WaitUntil(wait, func() bool { return !p.app.Exists("id:player-recap") })
+	if s := p.seeks(); len(s) == 0 || s[len(s)-1] != 0 || p.app.Find("id:player-video").Video.Paused {
+		t.Fatalf("start over went to %v", s)
+	}
+}
+
+// A film left before its first line plays at once, without a recap: nothing of it was watched.
+func TestAFilmLeftBeforeItsFirstLinePlaysWithoutARecap(t *testing.T) {
+	d := newDesktop(t)
+	p := openStudyAt(t, d, 500*time.Millisecond)
+	p.app.WaitUntil(wait, func() bool { return p.app.Exists("id:player-line") && !p.app.Find("id:player-video").Video.Paused })
+	if p.app.Exists("id:player-recap") || len(d.Recaps()) != 0 {
+		t.Fatal("a film nothing of which was watched opened with a recap")
 	}
 }
 
@@ -235,7 +411,7 @@ func TestALineSavedInThePlayerShowsInLearn(t *testing.T) {
 	d.SetOff(true)
 	p.app.Press("id:player-save")
 	p.app.WaitFor("id:player-toasts >> text:"+msgs.PlayerSavedToast(), wait)
-	p.app.Press("id:player-back")
+	p.app.Press("id:player-minimize")
 	p.openTab(learnTab, msgs.LearnTitle())
 	p.app.WaitFor("id:learn-lines", wait)
 	p.app.Press("id:learn-lines")
@@ -461,4 +637,194 @@ func TestANoteBeingWrittenStaysWithItsLineAndCanBeCleared(t *testing.T) {
 	p.app.Press("id:player-note-save")
 	p.app.WaitFor("id:player-toasts >> text:"+msgs.PlayerNoteCleared(), wait)
 	p.app.WaitUntil(wait, func() bool { r, ok := line(); return ok && fieldText(r, sync.FieldNote) == "" })
+}
+
+// words are the computer's word records of library "lib" not removed.
+func words(d *synctest.Desktop) []sync.Record {
+	return slices.DeleteFunc(d.Records("lib", sync.KindWord), func(r sync.Record) bool { return r.Removed != nil })
+}
+
+// A word looked up goes in the vocabulary from its card, with the line it was looked up in, and the computer gets it; the Words tab lists it with how many times the film says it, and its star takes it out again, on the computer too.
+func TestAWordLookedUpGoesInTheVocabularyFromItsCardAndTheWordsTab(t *testing.T) {
+	d := newDesktop(t)
+	d.SetEntry("morning", sync.WordEntry{Word: "morning", Reading: "/ˈmɔːnɪŋ/", Meaning: "n. 早晨", Language: "简体中文"})
+	p, _ := studyPlayer(t, d)
+	p.app.Press("id:player-tab-words")
+	p.app.WaitFor("id:player-words-empty", wait)
+
+	p.app.Press(`id:player-card >> text:"morning"`)
+	p.app.WaitFor("id:player-word-vocab", wait)
+	if !p.app.Exists("id:player-word-vocab >> text:" + msgs.PlayerWordAdd()) {
+		t.Fatalf("the word card offers %q", p.texts("id:player-word-vocab"))
+	}
+	p.app.Press("id:player-word-vocab")
+	p.app.WaitFor("id:player-toasts >> text:"+msgs.PlayerWordAdded("morning"), wait)
+	p.app.WaitUntil(wait, func() bool { return len(words(d)) == 1 })
+	w := words(d)[0]
+	if w.Film != "f1" || fieldText(w, sync.FieldWord) != "morning" || fieldText(w, sync.FieldMeaning) != "n. 早晨" || fieldText(w, sync.FieldContext) != "Good morning." ||
+		fieldText(w, sync.FieldContextTranslation) != "早上好。" || fieldText(w, sync.FieldSpoken) != "ja" || fieldText(w, sync.FieldTitle) != "Morning Talk" {
+		t.Fatalf("the computer has %+v", w)
+	}
+	if !p.app.Exists("id:player-word-vocab >> text:" + msgs.PlayerWordInVocabulary()) {
+		t.Fatalf("once added the word card offers %q", p.texts("id:player-word-vocab"))
+	}
+	p.app.Press("id:player-word-close")
+
+	if got := p.texts("id:player-words"); !strings.Contains(got, "morning\n/ˈmɔːnɪŋ/\nn. 早晨\n"+msgs.PlayerWordTimes(1)) {
+		t.Fatalf("the Words tab reads %q", got)
+	}
+	if !p.app.Exists("id:player-tab-words >> text:" + msgs.PlayerTabWordsCount(1)) {
+		t.Fatal("the Words tab does not count the word")
+	}
+	p.app.Press(`label:"` + msgs.PlayerWordRemoveNamed("morning") + `"`)
+	p.app.WaitFor("id:player-toasts >> text:"+msgs.PlayerWordRemoved("morning"), wait)
+	p.app.WaitUntil(wait, func() bool { return len(words(d)) == 0 && len(d.Records("lib", sync.KindWord)) == 1 })
+	// Looked up, it stays in the tab, to add again.
+	if !p.app.Exists(`label:"` + msgs.PlayerWordAddNamed("morning") + `"`) {
+		t.Fatalf("the Words tab reads %q", p.texts("id:player-words"))
+	}
+}
+
+// A word the computer has in the vocabulary from the film shows in the Words tab, starred; a tap shows its card.
+func TestTheComputersWordsOfTheFilmShowInTheWordsTab(t *testing.T) {
+	d := newDesktop(t)
+	at := now().Add(-time.Hour)
+	field := func(v any) sync.Field { return sync.Field{Value: sync.Value(v)} }
+	d.SetState("lib", at, sync.Record{Kind: sync.KindWord, ID: "deskword", Film: "f1", Fields: map[string]sync.Field{
+		sync.FieldWord: field("see"), sync.FieldSpoken: field("ja"), sync.FieldMeaning: field("v. 看见"), sync.FieldContext: field("See you."),
+		sync.FieldTitle: field("Morning Talk"), sync.FieldStartMS: field(7000), sync.FieldSavedAt: field(at), sync.FieldReview: field(sync.Review{Due: at}),
+	}})
+	p, _ := studyPlayer(t, d)
+	p.app.Press("id:player-tab-words")
+	p.app.WaitUntil(wait, func() bool { return p.app.Exists(`label:"` + msgs.PlayerWordRemoveNamed("see") + `"`) })
+	if got := p.texts("id:player-words"); !strings.Contains(got, "see\nv. 看见\n"+msgs.PlayerWordTimes(1)) {
+		t.Fatalf("the Words tab reads %q", got)
+	}
+	p.app.Press("id:player-film-word")
+	p.app.WaitUntil(wait, func() bool { return p.app.Exists("id:player-word-line") })
+	if got := p.app.Find("id:player-word-line").Text; got != "See you." {
+		t.Fatalf("the word's card shows the line %q", got)
+	}
+}
+
+// Minimized, the player leaves a bar over the tabs while the film plays on: it shows the line playing, holds and plays the film, plays the next line, and opens the same player again, where the film is.
+func TestTheMiniPlayerPlaysOnOverTheTabs(t *testing.T) {
+	p, f := openPlayer(t)
+	p.at(3200 * time.Millisecond)
+	p.app.Press("id:player-minimize")
+	p.app.WaitFor("id:player-mini", wait)
+	if p.app.Exists("id:player-card") || p.app.Exists("id:player-tabs") {
+		t.Fatal("minimized, the player still shows")
+	}
+	if !p.app.Exists("id:film-page") && !p.app.Exists("id:film-play") {
+		t.Fatal("minimized, the film's page does not show under the mini player")
+	}
+	p.app.WaitUntil(wait, func() bool {
+		films, _ := store.Open(p.dir).Films()
+		return len(films) == 1 && films[0].PositionMS == 3200
+	})
+	if p.app.Find("id:player-video").Video.Paused {
+		t.Fatal("minimized, the film stopped")
+	}
+	if got := p.app.Find("id:player-mini-line").Text; got != "你好吗？" {
+		t.Fatalf("the mini player shows %q", got)
+	}
+	if got := p.app.Find("id:player-mini-original").Text; got != "How are you?" {
+		t.Fatalf("the mini player's original reads %q", got)
+	}
+	p.at(5200 * time.Millisecond)
+	if got := p.app.Find("id:player-mini-line").Text; got != "Fine, thanks." {
+		t.Fatalf("an untranslated line shows %q", got)
+	}
+	if got := p.app.Find("id:player-mini-original").Text; got != f.Film.Title {
+		t.Fatalf("under an untranslated line the mini player shows %q", got)
+	}
+	p.app.Press("id:player-mini-play")
+	if !p.app.Find("id:player-video").Video.Paused {
+		t.Fatal("the mini player's button did not hold the film")
+	}
+	p.app.Press("id:player-mini-next")
+	if s := p.seeks(); s[len(s)-1] != 7*sec || p.app.Find("id:player-video").Video.Paused {
+		t.Fatalf("next line went to %v", s)
+	}
+	loads := len(p.seeks())
+	p.app.Press("id:player-mini-open")
+	p.app.WaitFor("id:player-card", wait)
+	if p.app.Exists("id:player-mini") {
+		t.Fatal("the mini player shows over the player")
+	}
+	if len(p.seeks()) != loads || p.app.Find("id:player-video").Video.Paused {
+		t.Fatalf("the player opened again went to %v", p.seeks()[loads:])
+	}
+	// Played again from its page, the film opens the same player.
+	p.app.Press("id:player-minimize")
+	p.app.WaitFor("id:player-mini", wait)
+	p.app.Press("id:film-play")
+	p.app.WaitFor("id:player-card", wait)
+	if len(p.seeks()) != loads {
+		t.Fatalf("played from its page, the film went to %v", p.seeks()[loads:])
+	}
+}
+
+// A film played from a line a search found while it plays in the mini player plays from that line, in the same player.
+func TestAFilmPlayedFromALineWhileMinimizedGoesThere(t *testing.T) {
+	p, f := openPlayer(t)
+	p.at(7500 * time.Millisecond)
+	p.app.Press("id:player-minimize")
+	p.app.WaitFor("id:player-mini", wait)
+	p.openTab(filmsTab, msgs.FilmsTitle())
+	p.app.WaitFor("id:films-search", wait)
+	p.app.Type("id:films-search", "HOW ARE")
+	p.app.WaitFor("id:films-hit-"+f.Desktop+"-f1", wait)
+	p.app.Press(talkRow(f.Desktop))
+	p.app.WaitFor("id:player-card", wait)
+	if s := p.seeks(); s[len(s)-1] != 3*sec {
+		t.Fatalf("the player went to %v", s)
+	}
+	p.app.WaitUntil(wait, func() bool { return p.keptPosition() == 3000 })
+}
+
+// A film deleted from the phone while it plays in the mini player stops, and the mini player goes.
+func TestDeletingTheFilmPlayingMinimizedStopsIt(t *testing.T) {
+	p, _ := openPlayer(t)
+	p.app.Press("id:player-minimize")
+	p.app.WaitFor("id:player-mini", wait)
+	p.app.Press("id:film-delete")
+	p.app.Answer(1)
+	p.app.WaitForGone("id:player-mini", wait)
+	if p.app.Exists("id:player-video") {
+		t.Fatal("the deleted film still plays")
+	}
+}
+
+// Back, as Android's button or Escape, closes the word card over the player first, then minimizes the player, and only then goes back in the tab under it, the film staying in the mini player as it was.
+func TestBackMinimizesThePlayerBeforeItLeavesThePageUnderIt(t *testing.T) {
+	d := newDesktop(t)
+	d.SetEntry("morning", sync.WordEntry{Word: "morning", Meaning: "n. 早晨", Language: "简体中文"})
+	p, f := studyPlayer(t, d)
+	p.app.Press(`id:player-card >> text:"morning"`)
+	p.app.WaitFor("id:player-word-vocab", wait)
+	p.app.Back()
+	p.app.WaitForGone("id:player-word-vocab", wait)
+	if !p.app.Exists("id:player-card") || p.app.Exists("id:player-mini") {
+		t.Fatal("back closed more than the word card")
+	}
+	p.app.Back()
+	p.app.WaitFor("id:player-mini", wait)
+	if p.app.Exists("id:player-card") || !p.app.Exists("id:film-play") {
+		t.Fatal("back did not minimize the player over the film's page")
+	}
+	// The film page's actions keep clear of the mini player.
+	if play, mini := p.app.Find("id:film-play").Bounds(), p.app.Find("id:player-mini").Bounds(); play.Origin.Y+play.Size.Height > mini.Origin.Y {
+		t.Fatalf("the mini player %+v covers the film's Play button %+v", mini, play)
+	}
+	paused := p.app.Find("id:player-video").Video.Paused
+	p.app.Back()
+	p.app.WaitFor(talkRow(f.Desktop), wait)
+	if !p.app.Exists("id:player-mini") {
+		t.Fatal("going back in the tab closed the mini player")
+	}
+	if p.app.Find("id:player-video").Video.Paused != paused {
+		t.Fatal("going back in the tab played or held the film in the mini player")
+	}
 }

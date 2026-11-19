@@ -98,6 +98,13 @@ func LookupKey(word, spoken, line string) string {
 	return strings.ToLower(strings.TrimSpace(word)) + "\x00" + strings.ToLower(strings.TrimSpace(spoken)) + "\x00" + strings.TrimSpace(line)
 }
 
+// SplitLookupKey is the word, the language spoken and the line LookupKey named with k, as it keeps them; ok is false for a key it did not make.
+func SplitLookupKey(k string) (word, spoken, line string, ok bool) {
+	word, rest, ok1 := strings.Cut(k, "\x00")
+	spoken, line, ok2 := strings.Cut(rest, "\x00")
+	return word, spoken, line, ok1 && ok2
+}
+
 // Lookups are the words looked up, by LookupKey, none before any were kept.
 func (s *Store) Lookups() (map[string]Lookup, error) {
 	out := map[string]Lookup{}

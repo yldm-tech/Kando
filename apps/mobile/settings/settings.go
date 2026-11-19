@@ -1,4 +1,4 @@
-// Package settings is the Settings tab: the computers the phone is paired with, each with its page of the AI service it translates with and its context switch, and each of which it can unpair, and the way to pair another; the language subtitles are translated into, which the computers translate into too, and how the player draws them; the phone's own daily goal and review reminder; and where Kando's source is, with the introduction to see again. It has the page the phone shows once a computer no longer takes it too (revoked.go).
+// Package settings is the Settings tab: the computers the phone is paired with, each with its page of the AI service it translates with and its context switch, and each of which it can unpair, and the way to pair another; the language subtitles are translated into, which the computers translate into too, and how the player draws them; the phone's own daily goal and review reminder; the sync conflicts to settle (conflicts.go); and where Kando's source is, with the introduction to see again. It has the page the phone shows once a computer no longer takes it too (revoked.go).
 package settings
 
 import (
@@ -20,8 +20,8 @@ import (
 
 // Actions are where the tab leads; Computer opens computer id's page, and Unpaired runs once the user unpaired computer id, for the pages of it to go.
 type Actions struct {
-	Pair, Target, Style, Goal, Introduction func()
-	Computer, Unpaired                      func(id string)
+	Pair, Target, Style, Goal, Conflicts, Introduction func()
+	Computer, Unpaired                                 func(id string)
 }
 
 // Page is the tab's root page.
@@ -71,6 +71,23 @@ func Page(cx *core.Scope, s *session.Session, act Actions) base.NavPage {
 						Detail:  func() string { return locales.SettingsRemindDetail(cx, learning.ReminderHour) },
 						Trailing: ui.Switch{TestID: "settings-remind-switch", Label: locales.SettingsRemind(cx), Variant: ui.SwitchSystem,
 							Checked: func() bool { return s.Prefs().Remind }, OnChange: s.SetRemind}}),
+				section(cx, func() string { return locales.SettingsSync(cx) },
+					look.Row{TestID: "settings-conflicts", Inset: 56, Chevron: true,
+						Leading: look.IconTile(cx, lucide.ArrowLeftRight, look.ToneWarn),
+						Title:   func() string { return locales.SettingsConflicts(cx) },
+						Detail: func() string {
+							if len(s.Conflicts()) == 0 {
+								return ""
+							}
+							return locales.SettingsConflictsDetail(cx)
+						},
+						Value: func() string {
+							if n := len(s.Conflicts()); n > 0 {
+								return locales.SettingsConflictsCount(cx, n)
+							}
+							return locales.SettingsConflictsNone(cx)
+						},
+						OnPress: act.Conflicts}),
 				section(cx, func() string { return locales.SettingsAbout(cx) },
 					look.Row{TestID: "settings-source", Inset: 56,
 						Leading: look.IconTile(cx, lucide.Code, look.ToneAccent),

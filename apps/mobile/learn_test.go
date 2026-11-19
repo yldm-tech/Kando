@@ -596,8 +596,9 @@ func TestTheTimeWatchedIsEveryDevices(t *testing.T) {
 	for at := 500 * time.Millisecond; at <= 6*time.Second; at += 500 * time.Millisecond {
 		p.at(at)
 	}
+	// Back minimizes the player, which keeps where the film is and its time watched.
 	p.app.Back()
-	p.app.WaitForGone("id:player-video", wait)
+	p.app.WaitFor("id:player-mini", wait)
 	p.openTab(learnTab, msgs.LearnTitle())
 	p.app.PullToRefresh("id:learn-scroll")
 	desktops, err := store.Open(dir).Desktops()
@@ -647,8 +648,9 @@ func TestTheTimeWatchedOfflineReachesTheComputer(t *testing.T) {
 	for at := 500 * time.Millisecond; at <= 6*time.Second; at += 500 * time.Millisecond {
 		p.at(at)
 	}
+	// Back minimizes the player, which keeps where the film is and its time watched.
 	p.app.Back()
-	p.app.WaitForGone("id:player-video", wait)
+	p.app.WaitFor("id:player-mini", wait)
 	desktops, err := store.Open(dir).Desktops()
 	if err != nil || len(desktops) != 1 {
 		t.Fatalf("desktops %+v, %v", desktops, err)

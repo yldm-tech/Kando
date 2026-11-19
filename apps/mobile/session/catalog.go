@@ -55,7 +55,7 @@ func (s *Session) Refresh() {
 	}
 }
 
-// RefreshDesktop reads computer id's shelf again, in place of a read under way, keeping what it last listed until the answer comes.
+// RefreshDesktop reads computer id's shelf and its subscriptions again, in place of a read under way, keeping what it last listed until the answer comes.
 func (s *Session) RefreshDesktop(id string) {
 	d, ok := s.Desktop(id)
 	c := s.Client(id)
@@ -70,6 +70,7 @@ func (s *Session) RefreshDesktop(id string) {
 	ctx, cancel := context.WithTimeout(context.Background(), listFor)
 	s.listings[id] = listing{cancel: cancel, gen: gen}
 	s.setShelf(id, func(sh Shelf) Shelf { sh.Loading = true; return sh })
+	s.readSubscriptions(id)
 	s.work.Go(func() {
 		defer cancel()
 		l, err := catalog.Load(ctx, c, d.DeviceID)
@@ -87,8 +88,9 @@ func (s *Session) RefreshDesktop(id string) {
 	})
 }
 
-// forgetShelf stops reading computer id's shelf and drops it, as the computer is unpaired or paired again.
+// forgetShelf stops reading computer id's shelf and its subscriptions and drops them, as the computer is unpaired or paired again.
 func (s *Session) forgetShelf(id string) {
+	s.forgetSubscriptions(id)
 	if l, running := s.listings[id]; running {
 		l.cancel()
 		delete(s.listings, id)
