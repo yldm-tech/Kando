@@ -171,13 +171,19 @@ kind 是封闭枚举：`dictionary`、`wordlist`、`glossary`、`ai-service`、`
 
 通用规则：
 
+- **id 在所有 kind 之间唯一**：state.json 和 `Remove` 只按 id 认包，所以一个 id 只能是一个包。`Swap` 遇到别的 kind 下已经装了同一个 id 时返回 `ErrIDTaken`，什么都不改，要先卸载那个包；手工拷进插件目录造成的重复，`Scan` 按 kind 的读取顺序保留第一个，后面的报成 `ErrIDTaken` 的 Issue。
 - **id 的格式是 `<publisher>.<name>`**，必须匹配 `^[a-z0-9]+(?:[.-][a-z0-9]+)*$`，至少含一个 `.`，不超过 64 字节。这个正则排除了 `.`、`..`、`a..b`、以点或连字符开头和结尾的写法。第一段是发布者：`kando.` 保留给官方包；签名脚本包的发布者段必须和证书覆盖的 app-ID 模式一致（`ai.yldm.kando.plugin.<publisher>.*`），由 `plugins.Validate` 检查。未签名的数据包也用这个格式，但发布者段未经验证，来源徽标一律是「本地」，而且不能用 `kando.`。
 - **路径安全**：所有按 id 拼出来的路径（`root/<kind>/<id>`、staging、Remove）在拼完之后都要过两道检查：`filepath.IsLocal(id)`，以及 `filepath.Rel(root/<kind>, 结果)` 不以 `..` 开头，确认结果确实位于 `root/<kind>/` 下面。
 - `name`、`description` 以及所有 label 都是多语言 map，`en` 必填。
 - `schema` 只在旧版 Kando 必须拒收时才升：数据包为 1，script 为 2，这样不支持脚本的旧版和手机会在版本检查时就拒绝。新功能通过新增键表达，旧版遇到不认识的键会整包拒收，自然安全地拒绝。
 - **数据包的包形状**：平铺目录，最多 16 个文件，manifest 不超过 256 KiB，zip 文件不超过 32 MiB（dictionary 放宽到 200 MiB、64 个条目）。解压后的总字节数也设上限：数据包 64 MiB，dictionary 1 GiB。计数按实际读出的字节累加，不信任 `UncompressedSize64`；dictionary 里嵌套的 yomitan-zip 共用同一个计数器和条目上限，嵌套只允许一层。不允许符号链接，文件名只能是 ASCII，拦截 zip-slip 和绝对路径。每个文件都必须在 manifest 里被引用，`.md`、`.txt` 说明文件除外。
-- **从文件夹安装**：用 `Lstat` 逐项检查，遇到符号链接或特殊文件就拒绝，再把普通文件复制进 staging，最后校验的是 staging 里的副本。不能先校验原目录再复制，那样有 TOCTOU 问题。
-- **内容哈希**：对排序后的「路径、长度、字节」序列做 SHA-256，授权绑定在这个哈希上。
+  - 文件名只能由 ASCII 字母、数字和 `.`、`-`、`_` 组成，不以 `.` 开头或结尾，不超过 100 字节，也不能是 Windows 的设备名（`con`、`nul`、`com1` 之类，看第一个点之前的部分）。最后一条在所有平台上都查，同一个包在三个平台上的结果一致。
+  - zip 里的 manifest 必须在顶层，不能有目录条目，所以「把整个文件夹压缩」得到的 `<文件夹>/kando-plugin.json` 会被拒收。zip 里两个名字只差大小写也拒收，因为在不分大小写的盘上它们是同一个文件。
+  - yomitan-zip 内部只检查不解压：条目名可以带子路径，但不能有 `..`、绝对路径或反斜杠，不能是符号链接，不能再套 zip。条目数（目录条目也算）和 manifest、外层文件共用 64 的上限，P1.3 接真实词典时如果发现大型 Yomitan 词典超出，再调这个上限。里面的文件校验和不符或解压出错，算 `ErrBadArchive`。
+  - `archive/zip` 打开 zip 时会先把中央目录的每一条记录都读进内存，不管记录数是多少，所以一个由几百万条空记录组成的 zip 会在任何上限生效之前就分配几 GB。外层 zip 和嵌套 zip 都经 `openZip` 打开：它在 `zip.NewReader` 读目录期间最多放行 1 MiB 的读取，超出就是 `ErrTooLarge`；64 个条目的目录加上最长 64 KiB 的注释远小于这个数。
+- **从文件夹安装**：用 `Lstat` 逐项检查，遇到符号链接或特殊文件就拒绝，再把普通文件复制进 staging，最后校验的是 staging 里的副本。不能先校验原目录再复制，那样有 TOCTOU 问题。打开每个文件后再用 `os.SameFile` 比对 Lstat 的结果，检查和打开之间被换成链接的文件也会被拒绝。文件管理器写进文件夹的文件（访达的 `.DS_Store`，资源管理器的 `Thumbs.db`、`desktop.ini`，后两个不分大小写）在复制时跳过，`Validate` 列文件时也跳过：不检查、不计数、不算进哈希，也从不读取。所以用户在访达里打开已安装包的目录后，下次 `Scan` 这个包照样有效、哈希不变。zip 里的这些文件仍按普通文件名规则处理（`.DS_Store` 以点开头，被拒收）。
+- **内容哈希**：对排序后的「路径、长度、字节」序列做 SHA-256，授权绑定在这个哈希上。路径和内容的长度都写成 8 字节大端整数，字节在名字和内容之间、或在相邻文件之间挪动都会改变哈希。
+- **字段规则**（`plugins.Validate`）：`version` 由字母、数字和 `.`、`+`、`-` 组成，不超过 32 字节；`license` 必填，不超过 64 个字符；`author` 可选，不超过 80 个字符；`homepage` 可选，规则同 https 地址；`Text` 的键必须是规范写法的语言标签（`zh-Hans`，不是 `zh-hans`），这样 `Text.In` 能用 app 的语言直接找到；名称和 label 不超过 40 个字符，`description` 和 `attribution` 不超过 500 个字符，都先清洗再计长度。glossary 的 `from`、`to` 是语言标签，1 到 5000 条，每条原文和译文各不超过 200 个字符；ai-service 的 `group` 只能是 `cloud` 或 `local`，`model` 不超过 200 个字符，地址不能带用户名和密码；dictionary 的 `format` 是 `yomitan-zip`、`cc-cedict` 或 `tsv`，只有 yomitan-zip 的文件以 `.zip` 结尾；wordlist 有 1 到 32 个 tier，tier 的 id 匹配 `^[a-z0-9][a-z0-9-]{0,31}$` 且不重复，`tone` 是 `accent`、`warn`、`success`、`muted` 之一。清单里只能有自己那个 kind 的字段。
 
 ### 4.1 数据包示例
 
@@ -375,14 +381,21 @@ func Parse(data []byte) (Manifest, error)
 func Validate(src string) (Pack, error)      // same code for app scan, `kando plugin validate` and a future Go server
 func Scan(root string) ([]Pack, []Issue)
 func Stage(root, src string) (staged string, p Pack, err error) // copy (Lstat, byte-counted) into root/.staging-<rand>, Validate the copy
-func Swap(root, staged string, p Pack) error // old → .old-<rand>, staged → root/<kind>/<id>; caller closes open handles first
+func Swap(root, staged string, p *Pack) error // old → .old-<rand>, staged → root/<kind>/<id>, p.Dir = the new folder; ErrIDTaken when another kind has the id; caller closes open handles first
 func Remove(root, id string) error           // id checked with IsLocal + Rel before any path is built
+func DefaultRoot() string                    // <UserConfigDir>/Kando/plugins
+
+var ReservedNames []string // see 6.4
 
 // State is plugins/state.json: single writer, tmp+rename, never synced, never in settings.json.
 type State struct {
-	Format  int           `json:"format"`
-	Plugins []PluginState `json:"plugins"`
+	Format   int           `json:"format"`
+	Revision int           `json:"revision"` // one higher on each Save
+	Plugins  []PluginState `json:"plugins"`
 }
+func LoadState(root string) (State, error) // a newer (ErrStateFormat) or unreadable file, or one without a format (ErrBadState): every pack off
+func (s *State) Save(root string) error    // refuses to write over a newer format; after a bad file it writes only the entries s has
+func (s State) Enabled(id string) bool     // the entry's Enabled; a pack with no entry is on (6.2)
 type PluginState struct {
 	ID      string `json:"id"`
 	Hash    string `json:"hash"`
@@ -391,6 +404,8 @@ type PluginState struct {
 ```
 
 P1 的数据包没有授权：glossary、ai-service、dictionary、wordlist 装好就启用（6.2 节），`Hash` 只用来认出「同一个 id 换了内容」，好在列表里标出「已更新」。
+
+state.json 读不了、不是 JSON 或没有 format（format 为 0，比如被截成 `{}` 或手工改过）时是 `ErrBadState`，format 比本版新时是 `ErrStateFormat`，两种情况下所有包都按停用处理。这个「全部停用」只维持到下一次 `Save`：`Save` 只写 `Plugins` 里已有的条目，写完后没有条目的包又按启用处理。所以 P1.1 的 app 在发现 state.json 损坏后第一次保存之前，要先给 `Scan` 到的每个包补一条 `enabled: false`，否则用户拨一次开关，损坏前关掉的包就全被重新打开了。格式更新的文件 `Save` 不覆盖；没有 format 的文件按损坏处理，会被覆盖。
 
 P3 起追加的部分（脚本插件；本轮不写）：
 
@@ -466,7 +481,7 @@ type Mark struct {
 }
 ```
 
-替换同 id 包的顺序：先在引擎 goroutine 上关掉这个包的词典句柄并 Close 它的脚本，然后把旧目录重命名为 `.old-<rand>`，再把 staging 重命名为目标目录，最后重新打开。对已存在的非空目录直接 rename 在任何平台上都会失败，所以必须先挪走旧目录。Windows 上如果碰到共享冲突，先重试几次；还不行就记一个待替换标记，下次启动、还没打开任何句柄时再换。
+替换同 id 包的顺序：先在引擎 goroutine 上关掉这个包的词典句柄并 Close 它的脚本，然后把旧目录重命名为 `.old-<rand>`，再把 staging 重命名为目标目录，最后重新打开。对已存在的非空目录直接 rename 在任何平台上都会失败，所以必须先挪走旧目录。Windows 上如果碰到共享冲突，先重试几次；还不行就记一个待替换标记，下次启动、还没打开任何句柄时再换。P0.3 的 `Swap` 还没有这层重试和待替换标记，因为那时 app 还不打开包里的任何文件；P1.3 有了词典句柄时再加。旧目录换下来后 `Swap` 立刻删掉它，删不掉（比如文件还被占用）就留给下一次 `Stage` 按 24 小时规则清理，安装照样算成功。
 
 ### 5.2 app 一侧（package main）
 
@@ -603,9 +618,10 @@ export function kandoManifest() { return { /* identical to kando-plugin.json fie
 
 ### 5.4 外部接口
 
-- CLI 在 `cli/cli.go:148-165` 的命令表里加一行 `plugin`，子命令有 `list`、`validate <file|dir>`、`install <file>`。
-  - `install` 只把文件放进 `plugins/inbox/`，用户在 app 里确认后才会安装。
-  - `validate` 离线运行，和 app 用同一个 `plugins.Validate`。
+- CLI 在 `cli/cli.go` 的命令表里加一行 `plugin`，子命令有 `list`、`validate <file-or-folder>`、`install <file>`，都带 `--json`。
+  - `install` 只把文件放进 `plugins/inbox/`，用户在 app 里确认后才会安装（P1.1）。
+  - `validate` 离线运行，不连 app：把包 `plugins.Stage` 进一个临时目录（和安装走同一条解压、复制和 `plugins.Validate`），打印 id、kind、版本、英文名和内容哈希，然后删掉临时目录。（P0.3 已实现）
+  - `list` 也不连 app：直接 `plugins.Scan` 插件目录，按 state.json 标出开关，并在 stderr 列出不是有效包的目录。（P0.3 已实现）
   - dev root 的生成和开发者包的签名不放在 CLI，也不经过 socket（见 6.4）。原因有两个：CLI 进程没有 NSGo Scope，拿不到 `core.Secrets`；socket 对同用户的任何程序都开放，不能让它替别人签包。
 - 控制 socket 只加只读的 `plugins.list`，经过 `lockRemoteGate`。不加 install、enable、grant。
 - `kando://`、浏览器扩展、MCP 都不能触发安装或授权。
@@ -674,7 +690,7 @@ export function kandoManifest() { return { /* identical to kando-plugin.json fie
 - 吊销列表用 `go tool nsgo revoke` 生成，随 appcast 一起发布。`Trust.Accept` 持久化已接受的最高 build，用来防回滚。
 - 联网时每天拉一次吊销列表。列表过期时，只暂停申请了网络或凭据的非官方插件（依据 `Package.ExpiredRevocations`），不在全局调用 `RequireFreshRevocations`，免得长期离线的用户连纯本地插件都用不了。被吊销的插件立刻 Close，并显示「已被撤回」。
 - 可选的加固：把每个根已见过的最高吊销序号，以及每个插件已接受的最高 build，额外存一份摘要到 `core.Secrets`。启动时和 `plugins/trust/trust.json` 比对，发现回退就停用所有非官方脚本插件。是否做由 owner 决定（见 12.3 第 2 条）。
-- 来源徽标（官方、已验证、开发者、本地数据包）由证书链推出，不读清单。插件名去掉 Bidi 控制符和零宽字符，最长 40 个字符。保留名单是「Kando」「看懂」「Official」「官方」，再加上所有内置 AI 服务商的名称（取自 `settings.Presets` 的显示名），比较时忽略大小写和全半角。
+- 来源徽标（官方、已验证、开发者、本地数据包）由证书链推出，不读清单。插件名去掉 Bidi 控制符和零宽字符，最长 40 个字符。保留名单是「Kando」「看懂」「Official」「官方」，再加上所有内置 AI 服务商的名称（取自 `settings.Presets` 的显示名），比较时忽略大小写、全半角和空白。`plugins` 包不能导入界面包，所以名单以静态列表 `plugins.ReservedNames` 存在包里（含五种界面语言下的服务商名称），根目录的 `plugins_test.go` 断言 `settings.Presets` 在每种界面语言下的每个名称和 `appName` 都在名单里，内置服务商改名或新增时测试会失败。
 - **开发者模式**是设置里的显式开关。dev root 的生成和签名都在 app 里完成，位置是设置 › 插件 › 开发者：「生成开发者密钥」把私钥和公钥都存进 `core.Secrets`；「打包并安装文件夹…」由用户在系统文件面板里选一个源码文件夹，app 用 dev key 签名，然后走和正式包同一条 Stage → Verify → 比对 kandoManifest → 确认 sheet 的路径。不允许用 `tsx.Sandboxed` 直接跑源码，CLI 和 socket 都不能签。开发者包一直带着徽标，不参与更新，不能分享安装，也不允许占用已安装的非开发者包的 id。
 - 数据包可以不签名。将来如果支持签名数据包，site 包的高风险能力只对官方和已验证来源开放。
 
@@ -686,7 +702,7 @@ export function kandoManifest() { return { /* identical to kando-plugin.json fie
   2. 对 staging 里的副本跑 `plugins.Validate`，包括 id 正则和路径检查。脚本包还要 Verify，并在预读沙箱里比对 `kandoManifest()`。
   3. 静态检查：声明的 host 权限都在已知 handler 表里；签名 Capabilities 里除了 Host 和 Network 没有别的字段。
   4. 用户在确认 sheet 上点「安装」后，在引擎 goroutine 上关掉同 id 包的句柄，再 `plugins.Swap`（5.1 节的顺序）。
-  5. 残留的 `.staging-`、`.old-` 目录超过 24 小时才清理。
+  5. 残留的 `.staging-`、`.old-` 目录超过 24 小时才清理。清理由每次 `Stage` 开始时顺带做，不另设入口。
 - 每次启动 Scan 时，用同一个校验器再校验一遍。
 - 第一版不做在线更新：更新就是安装一个新文件，走同样的确认流程，授权按 6.2 节的子集规则处理。将来做社区索引时，只从签名索引里列出的条目自动更新；能力扩大的版本必须由用户确认；离线模式下不检查。
 - 插件文件永远不写进 `.app` 包，只放在 `<UserConfigDir>/Kando/plugins/`。
@@ -908,7 +924,7 @@ export function kandoManifest() { return { /* identical to kando-plugin.json fie
 - PR 3.3：命令贡献（`keys.go:83`），加运行时按键去重。
 - PR 3.4：查词来源、导出格式（`Export.Cues`）、学习导出目标、标注器。
 - PR 3.5：`credentialFetch`（methods 和 paths 限制、`pluginhost.` 分区、host 表警示），加上 secret 字段的设置渲染。
-- PR 3.6：签名运维：插件根密钥、`go tool nsgo certify/revoke` 的发布流程、吊销列表随 appcast 发布、app 内的开发者模式（生成密钥、打包并安装文件夹）、CLI 的 `kando plugin list|validate|install`。
+- PR 3.6：签名运维：插件根密钥、`go tool nsgo certify/revoke` 的发布流程、吊销列表随 appcast 发布、app 内的开发者模式（生成密钥、打包并安装文件夹）、CLI 的 `kando plugin install`（`list` 和 `validate` 在 P0.3 已经有了）。
 - PR 3.7：官方参考插件 `kando.ankiconnect`，同时作为示例和 CI 夹具。
 
 ### P4 站点包
@@ -1027,7 +1043,7 @@ export function kandoManifest() { return { /* identical to kando-plugin.json fie
 
 | PR | 范围 | 分支 | 状态 |
 |---|---|---|---|
-| P0（0.1–0.3） | 0.1 `PresetByID`/`ProviderID` 接收预设列表；0.2 `savedLLM.clean` 保留 `pack.` 服务；0.3 `apps/kando/plugins` 骨架（Parse、Validate、Stage、Swap、Remove、Scan、最小 state.json）和 `kando plugin validate` | `feat/plugins-foundation` | 进行中 |
+| P0（0.1–0.3） | 0.1 `PresetByID`/`ProviderID` 接收预设列表；0.2 `savedLLM.clean` 保留 `pack.` 服务；0.3 `apps/kando/plugins` 骨架（Parse、Validate、Stage、Swap、Remove、Scan、最小 state.json）和 `kando plugin validate`、`list` | `feat/plugins-foundation` | 已完成 |
 | P1.1 | 设置 › 插件页、安装确认、拖入安装、CLI inbox，glossary 和 ai-service 两种 kind，savedPlugins、pluginsHooks | `feat/plugins-data-packs` | 未开始 |
 | P1.2 + P1.3 | `segment.Annotated`（含测量和路线选择），dictionary kind、`plugins/dict`、`vocabResolve`、查词卡来源、词典排序 | `feat/plugins-dictionary` | 未开始 |
 | P1.4 | wordlist kind、`plugins/wordlist`、逐词标注（注音和等级色）、设置 › 外观 的开关 | `feat/plugins-wordlist` | 未开始 |
@@ -1043,3 +1059,16 @@ P1.2 的测量结果（Ubuntu 编译机，`ipa.Dict()` 相对 `DictShrink()`）�
 
 - P0.1（已完成）：`llmPresets` 带一个语言参数 `m`，因为引导页（`locales.For(cx)`）和反馈 issue（固定简体中文）读预设名称用的语言和 `a.messages()` 不同，不带参数就会改变它们显示的名称；`llmPresets` 放在 `settings_ai.go` 而不是 `state_plugins.go`，因为 P0.1 时还没有插件块；`feedbackTranslator` 改成接收预设列表。见 E4 和 8.2 节。
 - P0.2（已完成）：`savedLLM.clean` 保留 id 以 `llmPackPrefix`（`"pack."`）开头的服务，没有地址的仍丢掉。P0.2 时还没有插件预设，测试只锁住 clean 本身；「插件在场时存进 `pack.<id>`、拿掉后 clean」的端到端测试推到 P1.1。见 E4。
+- P0.3（已完成）：`apps/kando/plugins` 按 8.1 节分成 `manifest.go`、`validate.go`、`names.go`、`install.go`、`hash.go`、`state.go`、`errors.go`，CLI 是 `cli/plugin.go`。和正文的出入如下，各节已同步改过：
+  - 保留名单是包里的静态列表 `plugins.ReservedNames`，不是从 `settings.Presets` 现取，因为 `plugins` 不能导入界面包；由根目录的 `plugins_test.go` 锁住它和 `settings.Presets`、`appName` 一致（6.4）。
+  - `health.go` 和 `audit.go` 没有写，按 12.2 第 4 条推到 P3.1。届时注意：`feedback` 是界面包（反馈对话框在里面），`plugins` 不能导入它，audit.log 要经 `feedback.Scrubber` 清洗，就得由调用方传入清洗函数，或者把 Scrubber 挪进一个非界面包。
+  - 清理残留的 `.staging-`、`.old-` 不另设入口，由每次 `Stage` 开始时顺带做；`Swap` 换下的旧目录当场删除，删不掉才留给后面的 `Stage`（5.1、6.5）。
+  - `Swap` 在 Windows 上的重试和待替换标记推到 P1.3，P0.3 时还没有任何打开的句柄（5.1）。
+  - 从文件夹安装和 `Validate` 都跳过文件管理器写的 `.DS_Store`、`Thumbs.db`、`desktop.ini`，已安装包的目录被访达打开过也照样有效；zip 不能有目录条目，manifest 必须在顶层；文件名的字符集、设备名和其他字段规则补进了第 4 节。
+  - id 在所有 kind 之间唯一：`Swap` 遇到别的 kind 已有同一个 id 就返回 `ErrIDTaken`，`Scan` 把重复的报成 Issue（第 4 节）。
+  - `Swap` 接收 `*Pack`，成功后把 `p.Dir` 改成安装好的目录，`Stage` 返回的 staging 路径那时已经不存在（5.1）。
+  - zip 的中央目录在 `zip.NewReader` 读取时限 1 MiB，嵌套 zip 的目录条目也计入 64 个条目的上限，嵌套 zip 里损坏的文件算 `ErrBadArchive`（第 4 节）。
+  - `State` 多了 `Revision`（每次 `Save` 加一）；state.json 读不了、没有 format 或格式比本版新时所有包按停用处理，格式更新的文件不覆盖；没有条目的包按启用处理。损坏后的第一次 `Save` 会让没有条目的包重新启用，P1.1 要在保存前给每个包补上停用条目（5.1、6.2）。
+  - `kando plugin list` 在 P0.3 一起做了，它不连 app，直接读插件目录（5.4）；P3.6 只剩 `install`。
+  - CI 的 Test（Linux）加了一步 `Fuzz the plugin packs`，`FuzzParse` 和 `FuzzUnzip` 各跑 20 秒（第 9 节）。
+  - `Scan` 每次都完整校验并哈希每个包，dictionary 还要把嵌套 zip 读一遍。P1.3 接入时如果启动时这一步太慢，再考虑按文件大小和修改时间缓存哈希。

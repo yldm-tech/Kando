@@ -160,6 +160,7 @@ func init() {
 		{name: "subscriptions", synopsis: "[list | add <link> | check <subscription-id>]", summary: "List the library's subscriptions, subscribe to a channel or playlist, or check one for new videos now", app: true, run: runSubscriptions},
 		{name: "sites", synopsis: "[query] [--limit N]", summary: "Search the websites Kando downloads from", app: true, run: runSites},
 		{name: "open", synopsis: "[film-id] [--at T]", summary: "Bring Kando to the front, showing a film or the library", app: true, run: runOpen},
+		{name: "plugin", synopsis: "(validate <file-or-folder> | list) [--json]", summary: "Check a plugin pack with the checks Kando installs it with, or list the installed packs; neither needs the app", run: runPlugin},
 		{name: "mcp", summary: "Serve MCP on standard input and output for AI agents", run: runMCP},
 		{name: "version", summary: "Print the version", run: runVersion},
 		{name: "help", synopsis: "[command]", summary: "Show this help, or a command's", run: runHelp},
