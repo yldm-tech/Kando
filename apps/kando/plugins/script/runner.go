@@ -275,7 +275,6 @@ func (r *Runner) Close(p *Plugin) {
 		return
 	}
 	p.closed = true
-	p.p.Close()
 	if c := r.running; c != nil && c.p == p {
 		r.end(c, nil, ErrStopped)
 	}
@@ -288,6 +287,8 @@ func (r *Runner) Close(p *Plugin) {
 		keep = append(keep, c)
 	}
 	r.queue = keep
+	// tsx fails the calls still waiting on the plugin as it closes it, saying it was closed; they have ended with ErrStopped already, so what tsx says is dropped.
+	p.p.Close()
 }
 
 // stop closes p for reason and reports it.
