@@ -41,21 +41,22 @@ func panel(cx *core.Scope, p *play, w *words) core.Node {
 	// TODO(nsgo): ui.Tabs takes no style for its indicator (color, width) nor a trailing count on a tab; draw the panel's tabs with ui.Tabs once it does.
 	item := func(t tab, id string, text func() string, count func() int) core.Node {
 		on := func() bool { return selected.Get() == t }
+		// The tab is the bar's 38 tall whatever its count: its name 14 high from 10 down, and its underline 3 tall at its foot (the design draws it at 36, over the hairline, which the scroll clips), as the design's.
 		return base.Tab{TestID: id, Selected: on, OnPress: func(core.PressEvent) { selected.Set(t) },
-			Style: core.Style{Direction: core.Column, Height: core.Pt(38), JustifyContent: core.JustifyEnd},
+			Style: core.Style{Direction: core.Column, Height: core.Pt(38), MinHeight: core.Pt(38), MaxHeight: core.Pt(38), Padding: core.Edges{Top: 10}},
 			Children: []core.Node{
-				core.View{Style: core.Style{Direction: core.Row, AlignItems: core.AlignBaseline, Gap: 3, FlexGrow: 1}, Children: []core.Node{
-					core.Text{ContentFunc: text, MaxLines: 1, Style: core.Style{FontSize: 14, LineHeight: 30}, StyleFunc: func() core.Style {
+				core.View{Style: core.Style{Direction: core.Row, AlignItems: core.AlignBaseline, Gap: 3, Height: core.Pt(25)}, Children: []core.Node{
+					core.Text{ContentFunc: text, MaxLines: 1, Style: core.Style{FontSize: 14, LineHeight: 17}, StyleFunc: func() core.Style {
 						if on() {
 							return core.Style{FontWeight: core.FontWeightBold, Color: theme.PlayerInk}
 						}
 						return core.Style{FontWeight: core.FontWeightMedium, Color: theme.PlayerInk.Faded(0.55)}
 					}},
 					core.Show{When: func() bool { return count() > 0 }, Then: func(cx *core.Scope) core.Node {
-						return core.Text{ContentFunc: func() string { return strconv.Itoa(count()) }, MaxLines: 1, Style: core.Style{FontSize: 11, LineHeight: 30, Color: theme.PlayerInk.Faded(0.5)}}
+						return core.Text{ContentFunc: func() string { return strconv.Itoa(count()) }, MaxLines: 1, Style: core.Style{FontSize: 11, LineHeight: 14, FontWeight: core.FontWeightMedium, Color: theme.PlayerInk.Faded(0.5)}}
 					}},
 				}},
-				core.View{Style: core.Style{Height: core.Pt(3), CornerRadius: 2}, StyleFunc: func() core.Style {
+				core.View{Style: core.Style{Height: core.Pt(3), MinHeight: core.Pt(3), AlignSelf: core.AlignStretch, CornerRadius: 2}, StyleFunc: func() core.Style {
 					if on() {
 						return core.Style{Background: theme.PlayerInk}
 					}
@@ -65,7 +66,7 @@ func panel(cx *core.Scope, p *play, w *words) core.Node {
 	}
 	none := func() int { return 0 }
 	// TODO(nsgo#145): base.Tabs' Label is a string only, so the tab list's spoken name keeps the language it was built in; pass a LabelFunc once Tabs has one https://github.com/nsgo-dev/nsgo/issues/145
-	bar := base.Tabs{TestID: "player-tabs", Label: locales.PlayerPanel(cx), Style: core.Style{Direction: core.Row, Gap: 20}, Children: []core.Node{
+	bar := base.Tabs{TestID: "player-tabs", Label: locales.PlayerPanel(cx), Style: core.Style{Direction: core.Row, Gap: 20, Height: core.Pt(38)}, Children: []core.Node{
 		item(linesTab, "player-tab-lines", func() string { return locales.PlayerTabLines(cx) }, none),
 		item(wordsTab, "player-tab-words", func() string { return locales.PlayerTabWords(cx) }, func() int { return len(p.filmWords()) }),
 		item(notesTab, "player-tab-notes", func() string { return locales.PlayerTabNotes(cx) }, func() int { return len(p.s.Saved(p.key)) }),
@@ -84,8 +85,9 @@ func panel(cx *core.Scope, p *play, w *words) core.Node {
 			Children: []core.Node{core.Show{When: func() bool { seen = seen || selected.Get() == t; return seen }, Then: build}}}
 	}
 	return core.View{TestID: "player-panel", Style: core.Style{FlexGrow: 1, FlexShrink: 1, MinHeight: core.Pt(0)}, Children: []core.Node{
-		core.Scroll{Horizontal: true, HideIndicator: true, Style: core.Style{FlexGrow: 0, FlexShrink: 0, Height: core.Pt(38.5), Margin: core.Edges{Top: 10}, Borders: core.Edges{Bottom: 0.5}, BorderColors: core.EdgeColors{Bottom: theme.PlayerInk.Faded(0.14)}},
-			Children: []core.Node{core.View{Style: core.Style{Padding: core.Symmetric(0, 20)}, Children: []core.Node{bar}}}},
+		// TODO(nsgo): a Scroll shrinks to fit its parent (core/tree.go:2083) and a Style cannot say FlexShrink 0, its zero being unset (core/style.go:35, Merge), so the bar's height is held by MinHeight; drop it once a Scroll's shrink can be turned off.
+		core.Scroll{Horizontal: true, HideIndicator: true, Style: core.Style{Height: core.Pt(38.5), MinHeight: core.Pt(38.5), Margin: core.Edges{Top: 10}, Borders: core.Edges{Bottom: 0.5}, BorderColors: core.EdgeColors{Bottom: theme.PlayerInk.Faded(0.14)}},
+			Children: []core.Node{core.View{Style: core.Style{Height: core.Pt(38), Padding: core.Symmetric(0, 20)}, Children: []core.Node{bar}}}},
 		page(linesTab, func(cx *core.Scope) core.Node { return lines(cx, p, false) }),
 		page(wordsTab, func(cx *core.Scope) core.Node { return wordsPage(cx, p, w) }),
 		page(notesTab, func(cx *core.Scope) core.Node { return notesPage(cx, p) }),
@@ -156,6 +158,7 @@ func notesPage(cx *core.Scope, p *play) core.Node {
 		p.say("note", locales.PlayerNoteSaved(cx))
 	}
 	saved := func() []study.Line { return p.s.Saved(p.key) }
+	noteFocused := core.NewSignal(cx, false)
 	heading := func() string {
 		i := target()
 		return locales.PlayerNoteHeading(cx, i+1, len(p.list()), clock(p.line(i).Start))
@@ -167,7 +170,9 @@ func notesPage(cx *core.Scope, p *play) core.Node {
 				core.View{Style: core.Style{Direction: core.Row, Gap: 8, AlignItems: core.AlignCenter}, Children: []core.Node{
 					ui.Input{TestID: "player-note", LabelFunc: func() string { return locales.PlayerNoteFor(cx, target()+1) }, Value: draft.Get, OnChange: write, OnSubmit: func(string) { save() },
 						PlaceholderFunc: func() string { return locales.PlayerNotePlaceholder(cx) }, ReturnKeyType: core.ReturnKeyDone, Disabled: func() bool { return target() < 0 },
-						Style: core.Style{FlexGrow: 1, FlexShrink: 1, Height: core.Pt(38), FontSize: 14, CornerRadius: 10, Padding: core.Symmetric(0, 12), BorderWidth: 0, Background: faint(0.1)}},
+						OnFocus: func() { noteFocused.Set(true) }, OnBlur: func() { noteFocused.Set(false) },
+						Style:     core.Style{FlexGrow: 1, FlexShrink: 1, Height: core.Pt(38), FontSize: 14, CornerRadius: 10, Padding: core.Symmetric(0, 12)},
+						StyleFunc: func() core.Style { return rimless(faint(0.1), noteFocused.Get(), theme.PlayerBlue) }},
 					base.Button{TestID: "player-note-save", LabelFunc: func() string { return locales.PlayerNoteSave(cx) }, OnPress: func(core.PressEvent) { save() },
 						Style: core.Style{Height: core.Pt(38), Padding: core.Symmetric(0, 16), CornerRadius: 10, JustifyContent: core.JustifyCenter, Background: theme.PlayerBlue,
 							Active: &core.Style{Opacity: core.Alpha(0.7)}},
@@ -306,7 +311,7 @@ func infoPage(cx *core.Scope, p *play) core.Node {
 			return core.Style{}
 		},
 			Children: []core.Node{
-				core.Text{ContentFunc: name, Style: core.Style{FontSize: 13, LineHeight: 20, Width: core.Pt(96), FlexShrink: 0, Color: faint(0.55)}},
+				core.Text{ContentFunc: name, Style: core.Style{FontSize: 14, LineHeight: 20, Width: core.Pt(96), FlexShrink: 0, Color: faint(0.55)}},
 				core.Text{ContentFunc: value, Style: core.Style{FontSize: 14, LineHeight: 20, FlexGrow: 1, FlexShrink: 1, Color: theme.PlayerInk}},
 			}}
 	}

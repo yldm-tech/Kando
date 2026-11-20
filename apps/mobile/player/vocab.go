@@ -221,7 +221,7 @@ func wordsPage(cx *core.Scope, p *play, w *words) core.Node {
 								return lucide.Plus()
 							}, 18, func() core.Color {
 								if fw().saved {
-									return core.RGB(0x000000)
+									return theme.PlayerOnLight
 								}
 								return theme.PlayerInk
 							})}},

@@ -140,6 +140,12 @@ var (
 	PlayerBG = core.RGB(0x0B0B0D)
 	// PlayerBlue is what is on in the player, as the line looped and the button that saves a note, and the progress of a film on its picture, as the continue cards' and the film rows' bars.
 	PlayerBlue = core.RGB(0x0A84FF)
+	// PlayerSheet is a surface raised over the player's picture: the lines beside the picture of a phone on its side.
+	PlayerSheet = core.RGB(0x1C1C1E)
+	// PlayerGlass is the fill of the frosted controls over the picture of a phone on its side, faded so the picture shows through.
+	PlayerGlass = core.RGB(0x1E1E20)
+	// PlayerOnLight is the player's ink on its light fills: on PlayerInk, as the play button's glyph, and on SubtitleYellow, as a word marked.
+	PlayerOnLight = core.RGB(0x000000)
 	// FixedInk is the text of the chip that says the learner fixed a line's translation, on StatusOK's tint.
 	FixedInk = core.RGB(0x6EE7A0)
 	// NoteInk is a note's text on the yellow box under a saved line.

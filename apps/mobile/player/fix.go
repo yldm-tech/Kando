@@ -181,13 +181,16 @@ func fixSheet(cx *core.Scope, p *play, f *fixer) core.Node {
 func fixBody(cx *core.Scope, p *play, f *fixer) core.Node {
 	colors := ui.ColorsOf(cx)
 	x := func() fixing { return f.state.Get() }
-	// The fields are the cards' white on the sheet's grey, as the design's.
+	// The fields are the cards' white on the sheet's grey without a rim, as the design's; the accent rims the one being typed in.
 	field := func(id string, label, placeholder func() string, value func() string, set func(string), multiline bool) core.Node {
 		st := core.Style{FontSize: 16, CornerRadius: 12, Padding: core.Symmetric(0, 14), Height: core.Pt(44)}
 		if multiline {
 			st = core.Style{FontSize: 16, LineHeight: 23, CornerRadius: 14, MinHeight: core.Pt(93), Padding: core.Symmetric(12, 14)}
 		}
-		return ui.Input{TestID: id, LabelFunc: label, PlaceholderFunc: placeholder, Value: value, OnChange: set, Multiline: multiline, Style: st}
+		focused := core.NewSignal(cx, false)
+		return ui.Input{TestID: id, LabelFunc: label, PlaceholderFunc: placeholder, Value: value, OnChange: set, Multiline: multiline, Style: st,
+			OnFocus: func() { focused.Set(true) }, OnBlur: func() { focused.Set(false) },
+			StyleFunc: func() core.Style { return rimless(colors.Surface(), focused.Get(), colors.Accent()) }}
 	}
 	cardStyle := sheetCard(colors)
 	card := func(children ...core.Node) core.Node {
@@ -214,7 +217,7 @@ func fixBody(cx *core.Scope, p *play, f *fixer) core.Node {
 				func() string { return x().target }, func(v string) { s := f.state.GetUntracked(); s.target, s.typedTarget = v, true; f.state.Set(s) }, false),
 		}}
 	}}
-	return core.Scroll{TestID: "player-fix", Style: core.Style{MaxHeight: core.Pct(85)}, Children: []core.Node{
+	return core.Scroll{TestID: "player-fix", Style: core.Style{FlexShrink: 1, MinHeight: core.Pt(0)}, Children: []core.Node{
 		core.View{Style: core.Style{Gap: 14, Padding: core.Edges{Bottom: 8}}, Children: []core.Node{
 			core.View{Style: core.Style{Direction: core.Row, AlignItems: core.AlignCenter, Gap: 8}, Children: []core.Node{
 				barButton("player-fix-cancel", func() string { return locales.PlayerFixCancel(cx) }, false, nil, f.close),
@@ -245,4 +248,13 @@ func fixBody(cx *core.Scope, p *play, f *fixer) core.Node {
 			caption(func() string { return locales.PlayerFixNote(cx) }),
 		}},
 	}}
+}
+
+// rimless is the look of a field filled with fill and drawn without the rim ui.Input draws (ui/input.go:38-41), as the design's fields: the rim is clear, and accent while the field is focused.
+func rimless(fill core.Color, focused bool, accent core.Color) core.Style {
+	rim := core.Transparent
+	if focused {
+		rim = accent
+	}
+	return core.Style{Background: fill, BorderColor: rim, Hover: &core.Style{BorderColor: rim}}
 }

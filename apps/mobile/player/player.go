@@ -294,7 +294,7 @@ func view(cx *core.Scope, l *Layer, key string) core.Node {
 				return core.Style{Display: core.DisplayNone}
 			}
 			return core.Style{Position: core.Absolute, Top: core.Pt(0), Right: core.Pt(0), Bottom: core.Pt(0), Width: core.Pt(300), ZIndex: 3, Padding: core.Edges{Top: 8, Bottom: 8},
-				Background: core.RGBA(0x1C1C1E, 0.96), Borders: core.Edges{Left: 0.5}, BorderColors: core.EdgeColors{Left: theme.PlayerInk.Faded(0.12)},
+				Background: theme.PlayerSheet.Faded(0.96), Borders: core.Edges{Left: 0.5}, BorderColors: core.EdgeColors{Left: theme.PlayerInk.Faded(0.12)},
 				PaddingEnv: core.EnvEdges{Top: core.EnvSafeArea, Right: core.EnvSafeArea, Bottom: core.EnvSafeArea}}
 		case side:
 			return core.Style{Width: core.Pt(sidePanelWidth), PaddingEnv: core.EnvEdges{Right: core.EnvSafeArea, Bottom: core.EnvSafeArea},
@@ -374,10 +374,10 @@ func landscapeTop(cx *core.Scope, p *play, title string, minimize, settings func
 			Tint: func() core.Color { return theme.PlayerInk }, OnPress: minimize},
 		core.Text{Content: title, Role: core.RoleHeader, MaxLines: 1, Style: overPicture.Merge(core.Style{FontSize: 16, LineHeight: 21, FontWeight: core.FontWeightBold, FlexShrink: 1, MinWidth: core.Pt(0)})},
 		core.View{Style: core.Style{FlexGrow: 1}},
-		base.Button{TestID: "player-mode-pill", LabelFunc: func() string { return locales.PlayerModePill(cx, modeName(cx, p.mode.Get())) }, OnPress: func(core.PressEvent) { p.nextMode() },
+		base.Button{TestID: "player-mode-pill", LabelFunc: func() string { return locales.PlayerModePill(cx, modeShort(cx, p.mode.Get())) }, OnPress: func(core.PressEvent) { p.nextMode() },
 			Style: core.Style{Height: core.Pt(32), Padding: core.Symmetric(0, 14), CornerRadius: 16, JustifyContent: core.JustifyCenter, Background: theme.PlayerInk.Faded(0.16),
 				BackdropFilters: []core.Filter{core.Blur(10)}, Active: &core.Style{Opacity: core.Alpha(0.7)}},
-			Children: []core.Node{core.Text{ContentFunc: func() string { return locales.PlayerModePill(cx, modeName(cx, p.mode.Get())) }, MaxLines: 1,
+			Children: []core.Node{core.Text{ContentFunc: func() string { return locales.PlayerModePill(cx, modeShort(cx, p.mode.Get())) }, MaxLines: 1,
 				Style: core.Style{FontSize: 13, LineHeight: 18, FontWeight: core.FontWeightBold, Color: theme.PlayerInk}}}},
 		roundButton("player-panel-toggle", lucide.PanelRight, 40, 20, func() string { return locales.PlayerLines(cx) }, func() core.Color {
 			if panelOn.Get() {

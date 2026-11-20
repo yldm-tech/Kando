@@ -43,7 +43,7 @@ func card(cx *core.Scope, p *play, w *words) core.Node {
 			}
 			line := i()
 			ink := markInk{style: core.Style{FontSize: 20, FontWeight: core.FontWeightSemibold, Color: colors.Text()}, look: func(word string) { w.look(line, word) }, tone: tone,
-				word: core.Style{TextDecoration: core.TextDecorationUnderline, TextDecorationColor: theme.SubtitleYellow.Faded(0.55)}, picked: w.picked(line)}
+				picked: w.picked(line), band: true}
 			return markSpans(text, p.tokens(text), p.lineMarks(line), ink)
 		},
 		LabelFunc: func() string {
@@ -78,9 +78,9 @@ func card(cx *core.Scope, p *play, w *words) core.Node {
 				core.View{Style: core.Style{Direction: core.Row, AlignItems: core.AlignStart, Gap: 12}, Children: []core.Node{
 					core.Text{TestID: "player-card-place", ContentFunc: func() string {
 						return locales.PlayerCardPlace(cx, i()+1, len(p.list()), clock(p.line(i()).Start))
-					}, MaxLines: 2, Style: mono.Merge(core.Style{FontSize: 12, LineHeight: 16, FlexShrink: 1}), StyleFunc: faint},
-					core.View{Style: core.Style{FlexGrow: 1}},
-					core.Text{ContentFunc: hint, MaxLines: 2, Style: core.Style{FontSize: 12, LineHeight: 16, FlexShrink: 1, TextAlign: core.TextAlignEnd}, StyleFunc: faint},
+					}, MaxLines: 2, Style: mono.Merge(core.Style{FontSize: 12, LineHeight: 16, MaxWidth: core.Pct(45)}), StyleFunc: faint},
+					// The hint is a column of its own after the place, its lines flush left, as the design's.
+					core.Text{ContentFunc: hint, MaxLines: 2, Style: core.Style{FontSize: 12, LineHeight: 16, FlexGrow: 1, FlexShrink: 1, MinWidth: core.Pt(0)}, StyleFunc: faint},
 				}},
 				original,
 				core.Show{When: func() bool { return p.line(i()).Translation != "" }, Then: func(cx *core.Scope) core.Node {
@@ -155,7 +155,7 @@ func actions(cx *core.Scope, p *play, w *words) core.Node {
 			}
 			return plain()
 		}, p.toggleSave),
-		action("player-explain-line", lucide.Sparkles, func() string { return locales.PlayerExplain(cx) }, nil, func() (core.Color, core.Color) { return theme.AI.Faded(0.35), white() },
+		action("player-explain-line", sparkleFilled, func() string { return locales.PlayerExplain(cx) }, nil, func() (core.Color, core.Color) { return theme.AI.Faded(0.35), white() },
 			func() { w.explainLine(p.shown.GetUntracked()) }),
 	}}
 }

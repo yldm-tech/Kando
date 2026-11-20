@@ -17,7 +17,6 @@ import (
 	"github.com/nsgo-dev/nsgo/nsgotest"
 )
 
-// studyPlayer opens the talk in the player, kept on the phone as downloaded from d, which is paired and serves it in its library "lib", and plays it to the middle of its first line.
 // closeWordSheet closes the word's sheet as Back does, the sheet having no × of its own.
 func closeWordSheet(p *phone) {
 	p.t.Helper()
@@ -25,6 +24,7 @@ func closeWordSheet(p *phone) {
 	p.app.WaitForGone("id:player-word-sheet", wait)
 }
 
+// studyPlayer opens the talk in the player, kept on the phone as downloaded from d, which is paired and serves it in its library "lib", and plays it to the middle of its first line.
 func studyPlayer(t *testing.T, d *synctest.Desktop) (*phone, store.Film) {
 	t.Helper()
 	p, f := openStudy(t, d)
@@ -771,7 +771,7 @@ func TestAWordLookedUpGoesInTheVocabularyFromItsCardAndTheWordsTab(t *testing.T)
 	if !p.app.Exists("id:player-word-vocab >> text:" + msgs.PlayerWordInVocabulary()) {
 		t.Fatalf("once added the word card offers %q", p.texts("id:player-word-vocab"))
 	}
-	// Replay This Line closes the card as it plays the line; Back would first go to the toast that said the word was added.
+	// Replay This Line closes the card as it plays the line; Back would first go to the toast that said the word was added, which takes Back while it shows (TestBackAfterAddingAWordGoesToItsToastFirst).
 	p.app.Press("id:player-word-replay")
 	p.app.WaitForGone("id:player-word-sheet", wait)
 

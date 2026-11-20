@@ -378,7 +378,7 @@ func wordSheetBody(cx *core.Scope, p *play, w *words) core.Node {
 	}
 	poster := func() core.ImageSource { k, _ := p.s.Film(p.key); return look.LocalPoster(p.s, k) }
 	children := []core.Node{
-		core.View{Style: core.Style{Direction: core.Row, AlignItems: core.AlignCenter, Gap: 10, Padding: core.Edges{Left: 4}}, Children: []core.Node{
+		core.View{Style: core.Style{Direction: core.Row, AlignItems: core.AlignCenter, Gap: 10}, Children: []core.Node{
 			core.View{Style: core.Style{FlexGrow: 1, FlexShrink: 1, MinWidth: core.Pt(0), Gap: 2}, Children: []core.Node{
 				core.Text{TestID: "player-word", ContentFunc: func() string { return cmp.Or(l().entry.Word, l().word) }, Role: core.RoleHeader, MaxLines: 1,
 					Style: core.Style{FontSize: 30, LineHeight: 36, FontWeight: look.Heavy, LetterSpacing: -0.4}, StyleFunc: ui.Colored(colors.Text)},
@@ -390,7 +390,7 @@ func wordSheetBody(cx *core.Scope, p *play, w *words) core.Node {
 				return base.Button{TestID: "player-word-speak", LabelFunc: func() string { return locales.PlayerWordSpeak(cx) }, OnPress: func(core.PressEvent) { speak() },
 					Style:     core.Style{Width: core.Pt(44), Height: core.Pt(44), CornerRadius: 22, AlignItems: core.AlignCenter, JustifyContent: core.JustifyCenter, Active: &core.Style{Opacity: core.Alpha(0.7)}},
 					StyleFunc: func() core.Style { return core.Style{Background: colors.Accent().Faded(0.1)} },
-					Children:  []core.Node{ui.IconOf(lucide.Volume2, 20, colors.Accent)}}
+					Children:  []core.Node{ui.IconOf(speakerFilled, 20, colors.Accent)}}
 			}},
 		}},
 	}
@@ -401,7 +401,7 @@ func wordSheetBody(cx *core.Scope, p *play, w *words) core.Node {
 				core.Show{When: func() bool { return l().entry.Source.Kind == sync.SourceAI }, Then: func(cx *core.Scope) core.Node {
 					return core.View{Style: core.Style{Height: core.Pt(22), Padding: core.Symmetric(0, 7), CornerRadius: 6, JustifyContent: core.JustifyCenter},
 						StyleFunc: func() core.Style { return core.Style{Background: colors.Accent().Faded(0.1)} },
-						Children:  []core.Node{core.Text{Content: "AI", MaxLines: 1, Style: core.Style{FontSize: 12, LineHeight: 16, FontWeight: core.FontWeightBold}, StyleFunc: ui.Colored(colors.Accent)}}}
+						Children:  []core.Node{core.Text{ContentFunc: func() string { return locales.PlayerWordAIBadge(cx) }, MaxLines: 1, Style: core.Style{FontSize: 12, LineHeight: 16, FontWeight: core.FontWeightBold}, StyleFunc: ui.Colored(colors.Accent)}}}
 				}},
 				core.Text{TestID: "player-word-meaning", ContentFunc: func() string { return l().entry.Meaning }, LiveRegion: core.LiveRegionPolite,
 					Style: core.Style{FontSize: 18, LineHeight: 24, FontWeight: core.FontWeightBold, FlexGrow: 1, FlexShrink: 1}, StyleFunc: ui.Colored(colors.Text)},
@@ -424,6 +424,7 @@ func wordSheetBody(cx *core.Scope, p *play, w *words) core.Node {
 				}},
 			}},
 		}},
+		// Replay and the vocabulary share the row as the design's 151 and 197.
 		core.View{Style: core.Style{Direction: core.Row, Gap: 10, Margin: core.Edges{Top: 4}}, Children: []core.Node{
 			base.Button{TestID: "player-word-replay", LabelFunc: func() string { return locales.PlayerReplayLine(cx) },
 				OnPress: func(core.PressEvent) {
@@ -431,7 +432,7 @@ func wordSheetBody(cx *core.Scope, p *play, w *words) core.Node {
 					w.closeLookup()
 					p.step(i)
 				},
-				Style: core.Style{FlexShrink: 1, MinWidth: core.Pt(0), Height: core.Pt(50), Padding: core.Symmetric(0, 20), CornerRadius: 14, BorderCurve: core.BorderCurveContinuous, AlignItems: core.AlignCenter, JustifyContent: core.JustifyCenter,
+				Style: core.Style{FlexGrow: 151.0 / 197, FlexShrink: 1, FlexBasis: core.Pt(0), MinWidth: core.Pt(0), Height: core.Pt(50), Padding: core.Symmetric(0, 20), CornerRadius: 14, BorderCurve: core.BorderCurveContinuous, AlignItems: core.AlignCenter, JustifyContent: core.JustifyCenter,
 					Active: &core.Style{Opacity: core.Alpha(0.7)}},
 				StyleFunc: func() core.Style { return core.Style{Background: colors.Surface(), Color: colors.Accent()} },
 				Children:  []core.Node{core.Text{ContentFunc: func() string { return locales.PlayerReplayLine(cx) }, MaxLines: 1, Style: core.Style{FontSize: 16, LineHeight: 21, FontWeight: core.FontWeightBold}}}},
@@ -623,12 +624,12 @@ func explainBody(cx *core.Scope, p *play, w *words, fx *fixer) core.Node {
 		return core.View{Style: core.Style{Height: core.Pt(14), Width: core.Pct(width), CornerRadius: 7, Animation: core.KeyframeAnimation{Keyframes: core.KeyframesPulse}},
 			StyleFunc: func() core.Style { return core.Style{Background: colors.Inset()} }}
 	}
-	return core.Scroll{TestID: "player-explain", Style: core.Style{MaxHeight: core.Pct(80)}, Children: []core.Node{
+	return core.Scroll{TestID: "player-explain", Style: core.Style{FlexShrink: 1, MinHeight: core.Pt(0)}, Children: []core.Node{
 		core.View{Style: core.Style{Gap: 14, Padding: core.Edges{Bottom: 8}}, Children: []core.Node{
 			core.View{Style: core.Style{Direction: core.Row, AlignItems: core.AlignCenter, Gap: 10}, Children: []core.Node{
 				core.View{Style: core.Style{Width: core.Pt(34), Height: core.Pt(34), CornerRadius: 10, BorderCurve: core.BorderCurveContinuous, AlignItems: core.AlignCenter, JustifyContent: core.JustifyCenter,
 					Gradients: []core.Gradient{{Kind: core.GradientLinear, Angle: 135, Stops: []core.ColorStop{{Color: theme.AI}, {Color: theme.PlayerBlue}}}}},
-					Children: []core.Node{ui.IconOf(lucide.Sparkles, 18, func() core.Color { return theme.PlayerInk })}},
+					Children: []core.Node{ui.IconOf(sparkleFilled, 18, func() core.Color { return theme.PlayerInk })}},
 				core.View{Style: core.Style{FlexGrow: 1, FlexShrink: 1, MinWidth: core.Pt(0)}, Children: []core.Node{
 					core.Text{ContentFunc: func() string { return locales.PlayerExplainTitle(cx) }, Role: core.RoleHeader, Style: look.Title.Merge(core.Style{FontWeight: look.Heavy}), StyleFunc: ui.Colored(colors.Text)},
 					core.Show{When: func() bool { return e().answer.Model != "" }, Then: func(cx *core.Scope) core.Node {

@@ -24,9 +24,6 @@ type Layer struct {
 	OpenStyle func()
 }
 
-// miniRoom is how much of a tab page's foot the mini player covers: its bar and the gap under it.
-const miniRoom = miniHeight + miniGap
-
 // NewLayer is the app's player, with nothing playing yet.
 func NewLayer(cx *core.Scope, s *session.Session) *Layer {
 	l := &Layer{s: s, key: core.NewSignal(cx, ""), full: core.NewSignal(cx, false), cur: core.NewSignal[*play](cx, nil)}
@@ -84,12 +81,15 @@ func (l *Layer) Mini() bool {
 	return l.key.Get() != "" && !l.full.Get() && p != nil && !p.pip.Get().Active
 }
 
-// Room is how much of a tab page's foot the mini player covers, 0 while it does not show, for look.ProvideMini. Read it in a binding.
-func (l *Layer) Room() core.Points {
-	if l.Mini() {
-		return miniRoom
+// Room is how much of a tab page's foot the mini player covers, 0 while it does not show, for look.ProvideMini: its bar and the gap under it, over a tab bar (overTabBar) or beside a tablet's sidebar. Read it in a binding.
+func (l *Layer) Room(overTabBar bool) core.Points {
+	switch {
+	case !l.Mini():
+		return 0
+	case overTabBar:
+		return miniHeight + miniGap
 	}
-	return 0
+	return miniHeight + miniSideGap
 }
 
 // StatusBar is the status bar while the player shows over the app, light over its dark, hidden while a phone on its side hides the controls; nothing while it does not show, so the pages' own settings hold. Read it in a binding.

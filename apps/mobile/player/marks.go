@@ -43,18 +43,25 @@ func toneOf(colors ui.Colors) func(tone string) (core.Color, bool) {
 	}
 }
 
-// markInk is how markSpans draws a line: style is the line's text style, which a reading's view repeats, as an attachment does not take its text's; look looks up a word tapped; tone is the color of a mark's tone; word is how a word without a line of a mark under it is drawn, as the card's faint line under each word that says it can be tapped; picked is the word looked up in the line, "" for none, which is marked as a word of the vocabulary is.
+// markInk is how markSpans draws a line: style is the line's text style, which a reading's view repeats, as an attachment does not take its text's; look looks up a word tapped; tone is the color of a mark's tone; word is how a word without a mark is drawn; picked is the word looked up in the line, "" for none, which is marked as a word of the vocabulary is; band draws a run the computer marked as a highlighter would, a faint box in its tone's color (the subtitles' yellow without one), as the card does, rather than a line under it.
 type markInk struct {
 	style  core.Style
 	look   func(word string)
 	tone   func(tone string) (core.Color, bool)
 	word   core.Style
 	picked string
+	band   bool
+}
+
+// markBand is the faint box of a run marked in band, in color.
+// TODO(nsgo): a span's Background fills its whole line box (core/element.go:357-358, Span.Style) and takes no gradient, so the design's highlighter band over the lower third of a word (linear-gradient(transparent 62%, yellow .38 62%)) is a faint full box here.
+func markBand(color core.Color) core.Style {
+	return core.Style{Background: color.Faded(0.25), CornerRadius: 3}
 }
 
 // pickedWord is how a word of the vocabulary, and the word looked up, is marked: black on the subtitles' yellow, as a highlighter would.
 // TODO(nsgo): a span's Background fills its whole line box (core/element.go:357-358, Span.Style) and takes no gradient, so the design's highlighter band over the lower third of a word (linear-gradient(transparent 62%, yellow 62%)) is a full yellow box here.
-var pickedWord = core.Style{Background: theme.SubtitleYellow, Color: core.RGB(0x000000), CornerRadius: 3}
+var pickedWord = core.Style{Background: theme.SubtitleYellow, Color: theme.PlayerOnLight, CornerRadius: 3}
 
 // rubyScale is the size of a reading over a word, a share of the word's.
 const rubyScale = 0.5
@@ -133,6 +140,12 @@ func markSpans(text string, tokens []kcore.WordToken, marks []sync.Mark, ink mar
 		switch {
 		case word != "" && strings.EqualFold(word, ink.picked), vocab:
 			st = pickedWord
+		case marked && ink.band:
+			c := theme.SubtitleYellow
+			if color != nil {
+				c = *color
+			}
+			st = markBand(c)
 		case marked:
 			st.TextDecoration, st.TextDecorationThickness, st.TextUnderlineOffset = core.TextDecorationUnderline, markThickness, markOffset
 			if color != nil {

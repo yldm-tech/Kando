@@ -6,9 +6,10 @@ import (
 	"github.com/nsgo-dev/nsgo/ui"
 )
 
-// appSheet is a sheet over the player in the app's own appearance rather than the player's dark, as the design draws the word, the explanation and the fix: the page's grey under white cards, rounder at its top than ui.Sheet. Label names it for screen readers.
+// appSheet is a sheet over the player in the app's own appearance rather than the player's dark, as the design draws the word, the explanation and the fix: the page's grey under white cards, rounder at its top than ui.Sheet. Dark keeps the player's dark on the surface's color instead, as the playback settings. Label names it for screen readers. It is at most 86% of the screen tall, as the design's tallest; a Scroll among its children shrinks to fit it (give it FlexShrink 1 and MinHeight 0, with no MaxHeight of its own), so its foot is reached by scrolling rather than cut.
 // TODO(nsgo): ui.Sheet takes no style for its surface (ui/sheet.go:29-32), which is Surface, white in the light, where the design's sheet is the grouped page's grey under white cards; it is base.Sheet with ui.Sheet's grabber and padding meanwhile.
 type appSheet struct {
+	Dark     bool
 	Open     func() bool
 	OnClose  func()
 	Label    func() string
@@ -18,7 +19,9 @@ type appSheet struct {
 
 // Render implements core.Node.
 func (s appSheet) Render(cx *core.Scope) core.Node {
-	appAppearance(cx)
+	if !s.Dark {
+		appAppearance(cx)
+	}
 	colors := ui.ColorsOf(cx)
 	env := cx.Env()
 	grabber := core.View{Style: core.Style{Width: core.Pt(36), Height: core.Pt(5), CornerRadius: 3, AlignSelf: core.AlignCenter}, StyleFunc: ui.Filled(colors.Border)}
@@ -30,8 +33,12 @@ func (s appSheet) Render(cx *core.Scope) core.Node {
 		},
 		BackdropStyle: core.Style{Background: ui.Black(0.4)},
 		PopupStyleFunc: func() core.Style {
-			return core.Style{Gap: 12, Padding: core.Edges{Top: 8, Right: 16, Bottom: env.SafeArea().Bottom + 16, Left: 16},
-				CornerRadii: core.Corners{TopLeft: 26, TopRight: 26}, Background: colors.Background(), Color: colors.Text()}
+			fill := colors.Background()
+			if s.Dark {
+				fill = colors.Surface()
+			}
+			return core.Style{Gap: 12, Padding: core.Edges{Top: 8, Right: 16, Bottom: env.SafeArea().Bottom + 16, Left: 16}, MaxHeight: core.Pct(86),
+				CornerRadii: core.Corners{TopLeft: 26, TopRight: 26}, Background: fill, Color: colors.Text()}
 		},
 		Children: append([]core.Node{grabber}, s.Children...)}
 }

@@ -23,13 +23,13 @@ func settingsSheet(cx *core.Scope, p *play, l *Layer, open *core.Signal[bool]) c
 		return core.View{Style: core.Style{CornerRadius: 14, BorderCurve: core.BorderCurveContinuous, Overflow: core.Hidden, Background: faint(0.08)}, Children: children}
 	}
 	hairline := core.Style{Borders: core.Edges{Top: 0.5}, BorderColors: core.EdgeColors{Top: faint(0.1)}}
-	var speeds []ui.Option[float32]
+	var speeds []choice[float32]
 	for _, r := range Speeds {
-		speeds = append(speeds, ui.Option[float32]{Value: r, Label: speedText(r), TestID: "player-settings-speed-" + speedText(r)})
+		speeds = append(speeds, choice[float32]{value: r, testID: "player-settings-speed-" + speedText(r), text: func() string { return speedText(r) }})
 	}
-	var sleeps []ui.Option[sleepMode]
+	var sleeps []choice[sleepMode]
 	for _, m := range sleepModes {
-		sleeps = append(sleeps, ui.Option[sleepMode]{Value: m, TestID: "player-settings-sleep-" + sleepID(m), Content: core.Text{ContentFunc: func() string { return sleepName(cx, m) }, MaxLines: 2, Style: core.Style{TextAlign: core.TextAlignCenter}}})
+		sleeps = append(sleeps, choice[sleepMode]{value: m, testID: "player-settings-sleep-" + sleepID(m), text: func() string { return sleepName(cx, m) }})
 	}
 	toggle := func(id string, first bool, title, detail func() string, on func() bool, set func(bool)) core.Node {
 		st := core.Style{Direction: core.Row, AlignItems: core.AlignCenter, Gap: 12, MinHeight: core.Pt(58), Padding: core.Symmetric(8, 16)}
@@ -61,20 +61,17 @@ func settingsSheet(cx *core.Scope, p *play, l *Layer, open *core.Signal[bool]) c
 			Children: []core.Node{ui.IconOf(icon, 18, func() core.Color { return theme.PlayerInk })}}
 	}
 	pip := func() bool { return p.pip.Get().Supported }
-	return ui.Sheet{Open: open.Get, OnClose: func() { open.Set(false) }, Children: []core.Node{
-		core.Scroll{TestID: "player-settings", Style: core.Style{MaxHeight: core.Pct(85)}, Children: []core.Node{
+	return appSheet{Dark: true, Open: open.Get, OnClose: func() { open.Set(false) }, Label: func() string { return locales.PlayerSettings(cx) }, Children: []core.Node{
+		core.Scroll{TestID: "player-settings", Style: core.Style{FlexShrink: 1, MinHeight: core.Pt(0)}, Children: []core.Node{
 			core.View{Style: core.Style{Gap: 16, Padding: core.Edges{Top: 4, Bottom: 8}}, Children: []core.Node{
 				core.Text{ContentFunc: func() string { return locales.PlayerSettings(cx) }, Role: core.RoleHeader, Style: look.Title.Merge(core.Style{FontWeight: look.Heavy, Padding: core.Edges{Left: 4}, Color: theme.PlayerInk})},
-				// TODO(nsgo#145): ui.Tabs' Label is a string only (ui/tabs.go:40), so the speed and sleep tabs' spoken names keep the language they were built in; pass a LabelFunc once Tabs has one https://github.com/nsgo-dev/nsgo/issues/145
 				core.View{Style: core.Style{Gap: 8}, Children: []core.Node{
 					label(func() string { return locales.PlayerSpeed(cx) }),
-					ui.Tabs[float32]{TestID: "player-settings-speed", Label: locales.PlayerSpeed(cx), Equal: true, Options: speeds, Value: p.speed, OnChange: func(r float32) { _ = p.rate.Set(r) },
-						Style: core.Style{Background: faint(0.1)}},
+					segmented("player-settings-speed", locales.PlayerSpeed(cx), 14, speeds, p.speed, func(r float32) { _ = p.rate.Set(r) }),
 				}},
 				core.View{Style: core.Style{Gap: 8}, Children: []core.Node{
 					label(func() string { return locales.PlayerSleep(cx) }),
-					ui.Tabs[sleepMode]{TestID: "player-settings-sleep", Label: locales.PlayerSleep(cx), Equal: true, Options: sleeps, Value: p.sleep.Get, OnChange: p.setSleep,
-						Style: core.Style{Background: faint(0.1)}},
+					segmented("player-settings-sleep", locales.PlayerSleep(cx), 13, sleeps, p.sleep.Get, p.setSleep),
 				}},
 				core.View{Style: core.Style{Gap: 8, Padding: core.Symmetric(12, 14), CornerRadius: 14, BorderCurve: core.BorderCurveContinuous, Background: faint(0.08)}, Children: []core.Node{
 					core.View{Style: core.Style{Direction: core.Row, AlignItems: core.AlignCenter, Gap: 10}, Children: []core.Node{
@@ -135,6 +132,41 @@ func settingsSheet(cx *core.Scope, p *play, l *Layer, open *core.Signal[bool]) c
 			}},
 		}},
 	}}
+}
+
+// choice is an option of a segmented control of the playback settings: its value, its test ID and its name.
+type choice[T comparable] struct {
+	value  T
+	testID string
+	text   func() string
+}
+
+// segmented is a choice among options in a segmented control, as the design's: a faint track 38 tall, the option chosen on a lighter thumb in bold, the others in white of weight 500, size big; a press on another option sets it. label names it for screen readers.
+// TODO(nsgo): ui.Tabs takes no style for its thumb, which is FinOf's pill (ui/tabs.go:111), nor its labels, the text's .6 (ui/tabs.go:115), where the design's thumb is white .24 over a white .1 track under white labels; the control is base.Tabs meanwhile.
+// TODO(nsgo#145): base.Tabs' Label is a string only, so the control's spoken name keeps the language it was built in; pass a LabelFunc once Tabs has one https://github.com/nsgo-dev/nsgo/issues/145
+func segmented[T comparable](id, label string, size core.Points, options []choice[T], value func() T, set func(T)) core.Node {
+	var tabs []core.Node
+	for _, o := range options {
+		on := func() bool { return value() == o.value }
+		tabs = append(tabs, base.Tab{TestID: o.testID, Selected: on, OnPress: func(core.PressEvent) {
+			if !on() {
+				set(o.value)
+			}
+		},
+			Style: core.Style{FlexGrow: 1, FlexShrink: 1, FlexBasis: core.Pt(0), MinWidth: core.Pt(0), AlignItems: core.AlignCenter, JustifyContent: core.JustifyCenter, Padding: core.Symmetric(0, 4),
+				Active: &core.Style{Opacity: core.Alpha(0.7)}},
+			Children: []core.Node{core.Text{ContentFunc: o.text, MaxLines: 2, Style: core.Style{FontSize: size, LineHeight: size + 3, TextAlign: core.TextAlignCenter, Color: theme.PlayerInk},
+				StyleFunc: func() core.Style {
+					if on() {
+						return core.Style{FontWeight: core.FontWeightBold}
+					}
+					return core.Style{FontWeight: core.FontWeightMedium}
+				}}}})
+	}
+	return base.Tabs{TestID: id, Label: label,
+		Style:          core.Style{Direction: core.Row, Height: core.Pt(38), Padding: core.All(2), CornerRadius: 10, BorderCurve: core.BorderCurveContinuous, Background: faint(0.1)},
+		IndicatorStyle: core.Style{Top: core.Pt(2), Bottom: core.Pt(2), CornerRadius: 8, BorderCurve: core.BorderCurveContinuous, Background: faint(0.24)},
+		Children:       tabs}
 }
 
 // sleepID names a sleep mode in test IDs.

@@ -1190,6 +1190,7 @@ const (
 	textPlayerAudioOnlyNote
 	textPlayerCannotSave
 	textPlayerCantPlay
+	textPlayerCapsuleLoop
 	textPlayerClose
 	textPlayerDelay
 	textPlayerDelayEarlier
@@ -1230,6 +1231,10 @@ const (
 	textPlayerModeBilingual
 	textPlayerModeHidden
 	textPlayerModeOriginal
+	textPlayerModeShortBilingual
+	textPlayerModeShortHidden
+	textPlayerModeShortOriginal
+	textPlayerModeShortTranslation
 	textPlayerModeTranslation
 	textPlayerNextLine
 	textPlayerNoLines
@@ -1268,6 +1273,7 @@ const (
 	textPlayerSpeed
 	textPlayerStudyUnpaired
 	textPlayerSubtitles
+	textPlayerWordAIBadge
 	textPlayerWordSpeak
 	textPlayerWordsIntro
 	textReviewAgain
@@ -1722,6 +1728,7 @@ var keyOfText = [numTexts]string{
 	"playerAudioOnlyNote",
 	"playerCannotSave",
 	"playerCantPlay",
+	"playerCapsuleLoop",
 	"playerClose",
 	"playerDelay",
 	"playerDelayEarlier",
@@ -1762,6 +1769,10 @@ var keyOfText = [numTexts]string{
 	"playerModeBilingual",
 	"playerModeHidden",
 	"playerModeOriginal",
+	"playerModeShortBilingual",
+	"playerModeShortHidden",
+	"playerModeShortOriginal",
+	"playerModeShortTranslation",
 	"playerModeTranslation",
 	"playerNextLine",
 	"playerNoLines",
@@ -1800,6 +1811,7 @@ var keyOfText = [numTexts]string{
 	"playerSpeed",
 	"playerStudyUnpaired",
 	"playerSubtitles",
+	"playerWordAIBadge",
 	"playerWordSpeak",
 	"playerWordsIntro",
 	"reviewAgain",
@@ -2252,6 +2264,7 @@ var textsEn = i18n.NewTexts(""+
 	"Hides the picture, to listen as you would to a podcast."+
 	"Open this film once while its computer is reachable to save its lines."+
 	"This video can't play on this phone."+
+	"Loop Line"+
 	"Close"+
 	"Subtitle Timing"+
 	"Earlier"+
@@ -2292,6 +2305,10 @@ var textsEn = i18n.NewTexts(""+
 	"Bilingual"+
 	"Hidden"+
 	"Original Only"+
+	"Both"+
+	"Hidden"+
+	"Original"+
+	"Translation"+
 	"Translation Only"+
 	"Next Line"+
 	"This film has no subtitles."+
@@ -2327,9 +2344,10 @@ var textsEn = i18n.NewTexts(""+
 	"Sleep timer: paused"+
 	"Stops after this film"+
 	"Stops after this line"+
-	"Speed"+
+	"Playback Speed"+
 	"This film's computer is no longer paired with this phone."+
 	"Subtitles"+
+	"AI"+
 	"Pronunciation"+
 	"Words looked up in this film. Tap + to add one to your vocabulary."+
 	"Not yet · tomorrow"+
@@ -2341,7 +2359,7 @@ var textsEn = i18n.NewTexts(""+
 	"The films saved on this device stay, and still play offline."+
 	"Not Now"+
 	"Info"+
-	"Lines"+
+	"Subtitles"+
 	"Notes"+
 	"Parts"+
 	"Line removed from saved"+
@@ -2445,7 +2463,7 @@ var textsEn = i18n.NewTexts(""+
 	"Open this film once while its computer is reachable to add its words to the vocabulary."+
 	"Now Playing"+
 	"Minimize Player"+
-	"Words"+
+	"New Words"+
 	"Add to Vocabulary"+
 	"In Vocabulary · Remove"+
 	"Words you tap in the lines show here, to add to your vocabulary."+
@@ -2779,6 +2797,7 @@ var textsEn = i18n.NewTexts(""+
 		55,
 		70,
 		36,
+		9,
 		5,
 		15,
 		7,
@@ -2819,6 +2838,10 @@ var textsEn = i18n.NewTexts(""+
 		9,
 		6,
 		13,
+		4,
+		6,
+		8,
+		11,
 		16,
 		9,
 		27,
@@ -2854,9 +2877,10 @@ var textsEn = i18n.NewTexts(""+
 		19,
 		21,
 		21,
-		5,
+		14,
 		57,
 		9,
+		2,
 		13,
 		66,
 		19,
@@ -2868,7 +2892,7 @@ var textsEn = i18n.NewTexts(""+
 		60,
 		7,
 		4,
-		5,
+		9,
 		5,
 		5,
 		23,
@@ -2972,7 +2996,7 @@ var textsEn = i18n.NewTexts(""+
 		87,
 		11,
 		15,
-		5,
+		9,
 		17,
 		23,
 		64,
@@ -3309,6 +3333,7 @@ var textsJa = i18n.NewTexts(""+
 	"画面を隠して、ポッドキャストのように聞けます。"+
 	"パソコンにつながる場所で一度この映像を開くと、文を保存できるようになります。"+
 	"この動画はこのスマートフォンでは再生できません。"+
+	"セリフをリピート"+
 	"閉じる"+
 	"字幕のタイミング"+
 	"早める"+
@@ -3349,6 +3374,10 @@ var textsJa = i18n.NewTexts(""+
 	"二言語"+
 	"非表示"+
 	"原文のみ"+
+	"二言語"+
+	"非表示"+
+	"原文"+
+	"訳文"+
 	"訳文のみ"+
 	"次のセリフ"+
 	"この動画には字幕がありません。"+
@@ -3387,6 +3416,7 @@ var textsJa = i18n.NewTexts(""+
 	"再生速度"+
 	"この映像のパソコンとはもうペアリングされていません。"+
 	"字幕"+
+	"AI"+
 	"発音"+
 	"この映像で調べた単語です。＋で単語帳に追加します。"+
 	"まだ · 明日"+
@@ -3836,6 +3866,7 @@ var textsJa = i18n.NewTexts(""+
 		69,
 		114,
 		72,
+		24,
 		9,
 		24,
 		9,
@@ -3876,6 +3907,10 @@ var textsJa = i18n.NewTexts(""+
 		9,
 		9,
 		12,
+		9,
+		9,
+		6,
+		6,
 		12,
 		15,
 		45,
@@ -3914,6 +3949,7 @@ var textsJa = i18n.NewTexts(""+
 		12,
 		78,
 		6,
+		2,
 		6,
 		75,
 		16,
@@ -4366,6 +4402,7 @@ var textsKo = i18n.NewTexts(""+
 	"화면을 숨기고 팟캐스트처럼 들을 수 있습니다."+
 	"컴퓨터에 연결된 상태에서 이 영상을 한 번 열면 문장을 저장할 수 있습니다."+
 	"이 영상은 이 휴대폰에서 재생할 수 없습니다."+
+	"대사 반복"+
 	"닫기"+
 	"자막 타이밍"+
 	"앞당기기"+
@@ -4406,6 +4443,10 @@ var textsKo = i18n.NewTexts(""+
 	"이중 언어"+
 	"가리기"+
 	"원문만"+
+	"이중 언어"+
+	"가리기"+
+	"원문"+
+	"번역"+
 	"번역만"+
 	"다음 대사"+
 	"이 영상에는 자막이 없습니다."+
@@ -4444,6 +4485,7 @@ var textsKo = i18n.NewTexts(""+
 	"재생 속도"+
 	"이 영상의 컴퓨터와 더 이상 페어링되어 있지 않습니다."+
 	"자막"+
+	"AI"+
 	"발음"+
 	"이 영상에서 찾아본 단어예요. +를 눌러 단어장에 추가하세요."+
 	"아직 · 내일"+
@@ -4893,6 +4935,7 @@ var textsKo = i18n.NewTexts(""+
 		63,
 		102,
 		61,
+		13,
 		6,
 		16,
 		12,
@@ -4933,6 +4976,10 @@ var textsKo = i18n.NewTexts(""+
 		13,
 		9,
 		9,
+		13,
+		9,
+		6,
+		6,
 		9,
 		13,
 		40,
@@ -4971,6 +5018,7 @@ var textsKo = i18n.NewTexts(""+
 		13,
 		74,
 		6,
+		2,
 		6,
 		82,
 		16,
@@ -5423,6 +5471,7 @@ var textsZhHans = i18n.NewTexts(""+
 	"不显示画面，适合通勤时练听力。"+
 	"在能连上电脑时打开一次这部影片，就能收藏它的句子。"+
 	"这个视频无法在这部手机上播放。"+
+	"单句循环"+
 	"关闭"+
 	"字幕时间"+
 	"提前"+
@@ -5463,6 +5512,10 @@ var textsZhHans = i18n.NewTexts(""+
 	"双语"+
 	"遮挡"+
 	"仅原文"+
+	"双语"+
+	"遮挡"+
+	"原文"+
+	"译文"+
 	"仅译文"+
 	"下一句"+
 	"这部影片没有字幕。"+
@@ -5501,6 +5554,7 @@ var textsZhHans = i18n.NewTexts(""+
 	"播放速度"+
 	"这部影片的电脑已不再与这部手机配对。"+
 	"字幕"+
+	"AI"+
 	"发音"+
 	"这部片里查过的词。点 + 加进生词本。"+
 	"没记住 · 明天"+
@@ -5950,6 +6004,7 @@ var textsZhHans = i18n.NewTexts(""+
 		45,
 		75,
 		45,
+		12,
 		6,
 		12,
 		6,
@@ -5990,6 +6045,10 @@ var textsZhHans = i18n.NewTexts(""+
 		6,
 		6,
 		9,
+		6,
+		6,
+		6,
+		6,
 		9,
 		9,
 		27,
@@ -6028,6 +6087,7 @@ var textsZhHans = i18n.NewTexts(""+
 		12,
 		54,
 		6,
+		2,
 		6,
 		51,
 		19,
@@ -6480,6 +6540,7 @@ var textsZhHant = i18n.NewTexts(""+
 	"不顯示畫面，適合通勤時練聽力。"+
 	"在能連上電腦時打開一次這部影片，就能收藏它的句子。"+
 	"這個影片無法在這支手機上播放。"+
+	"單句循環"+
 	"關閉"+
 	"字幕時間"+
 	"提前"+
@@ -6520,6 +6581,10 @@ var textsZhHant = i18n.NewTexts(""+
 	"雙語"+
 	"遮擋"+
 	"僅原文"+
+	"雙語"+
+	"遮擋"+
+	"原文"+
+	"譯文"+
 	"僅譯文"+
 	"下一句"+
 	"這部影片沒有字幕。"+
@@ -6558,6 +6623,7 @@ var textsZhHant = i18n.NewTexts(""+
 	"播放速度"+
 	"這部影片的電腦已不再與這支手機配對。"+
 	"字幕"+
+	"AI"+
 	"發音"+
 	"這部片裡查過的詞。點 + 加進生詞本。"+
 	"沒記住 · 明天"+
@@ -7007,6 +7073,7 @@ var textsZhHant = i18n.NewTexts(""+
 		45,
 		75,
 		45,
+		12,
 		6,
 		12,
 		6,
@@ -7047,6 +7114,10 @@ var textsZhHant = i18n.NewTexts(""+
 		6,
 		6,
 		9,
+		6,
+		6,
+		6,
+		6,
 		9,
 		9,
 		27,
@@ -7085,6 +7156,7 @@ var textsZhHant = i18n.NewTexts(""+
 		12,
 		54,
 		6,
+		2,
 		6,
 		51,
 		19,
@@ -15568,6 +15640,15 @@ func PlayerCantPlay(cx *core.Scope) string { return For(cx).PlayerCantPlay() }
 // PlayerCantPlay is the package's PlayerCantPlay in the language of msgs.
 func (msgs Messages) PlayerCantPlay() string { return msgs.text(textPlayerCantPlay) }
 
+// PlayerCapsuleLoop says "Loop Line"
+// in the language the app shows under cx.
+//
+// Button in the controls over the picture of a phone on its side that plays the line playing over and over.
+func PlayerCapsuleLoop(cx *core.Scope) string { return For(cx).PlayerCapsuleLoop() }
+
+// PlayerCapsuleLoop is the package's PlayerCapsuleLoop in the language of msgs.
+func (msgs Messages) PlayerCapsuleLoop() string { return msgs.text(textPlayerCapsuleLoop) }
+
 // PlayerCardPlace says "Line {index} / {count} · {time}"
 // in the language the app shows under cx.
 //
@@ -15603,7 +15684,7 @@ func (msgs Messages) PlayerCardPlace(index int, count int, time_ string) string 
 // PlayerClose says "Close"
 // in the language the app shows under cx.
 //
-// Spoken name of the × that closes the word card or the explanation.
+// Spoken name of the × that closes the word card over the picture of a phone on its side.
 func PlayerClose(cx *core.Scope) string { return For(cx).PlayerClose() }
 
 // PlayerClose is the package's PlayerClose in the language of msgs.
@@ -16225,6 +16306,46 @@ func (msgs Messages) PlayerModePill(mode string) string {
 			return "字幕 · " + mode
 		}
 	}
+}
+
+// PlayerModeShortBilingual says "Both"
+// in the language the app shows under cx.
+//
+// Short name of the Bilingual subtitle mode, on the player's mode button: the translation and the original.
+func PlayerModeShortBilingual(cx *core.Scope) string { return For(cx).PlayerModeShortBilingual() }
+
+// PlayerModeShortBilingual is the package's PlayerModeShortBilingual in the language of msgs.
+func (msgs Messages) PlayerModeShortBilingual() string {
+	return msgs.text(textPlayerModeShortBilingual)
+}
+
+// PlayerModeShortHidden says "Hidden"
+// in the language the app shows under cx.
+//
+// Short name of the Hidden subtitle mode, on the player's mode button: neither line shows.
+func PlayerModeShortHidden(cx *core.Scope) string { return For(cx).PlayerModeShortHidden() }
+
+// PlayerModeShortHidden is the package's PlayerModeShortHidden in the language of msgs.
+func (msgs Messages) PlayerModeShortHidden() string { return msgs.text(textPlayerModeShortHidden) }
+
+// PlayerModeShortOriginal says "Original"
+// in the language the app shows under cx.
+//
+// Short name of the Original Only subtitle mode, on the player's mode button: the original line alone.
+func PlayerModeShortOriginal(cx *core.Scope) string { return For(cx).PlayerModeShortOriginal() }
+
+// PlayerModeShortOriginal is the package's PlayerModeShortOriginal in the language of msgs.
+func (msgs Messages) PlayerModeShortOriginal() string { return msgs.text(textPlayerModeShortOriginal) }
+
+// PlayerModeShortTranslation says "Translation"
+// in the language the app shows under cx.
+//
+// Short name of the Translation Only subtitle mode, on the player's mode button: the translation alone.
+func PlayerModeShortTranslation(cx *core.Scope) string { return For(cx).PlayerModeShortTranslation() }
+
+// PlayerModeShortTranslation is the package's PlayerModeShortTranslation in the language of msgs.
+func (msgs Messages) PlayerModeShortTranslation() string {
+	return msgs.text(textPlayerModeShortTranslation)
 }
 
 // PlayerModeTranslation says "Translation Only"
@@ -16982,10 +17103,10 @@ func PlayerSleepPillLine(cx *core.Scope) string { return For(cx).PlayerSleepPill
 // PlayerSleepPillLine is the package's PlayerSleepPillLine in the language of msgs.
 func (msgs Messages) PlayerSleepPillLine() string { return msgs.text(textPlayerSleepPillLine) }
 
-// PlayerSpeed says "Speed"
+// PlayerSpeed says "Playback Speed"
 // in the language the app shows under cx.
 //
-// Spoken name of the player's menu of playback speeds.
+// Spoken name of the player's menu of playback speeds, and heading of the speeds in the playback settings.
 func PlayerSpeed(cx *core.Scope) string { return For(cx).PlayerSpeed() }
 
 // PlayerSpeed is the package's PlayerSpeed in the language of msgs.
@@ -17104,6 +17225,15 @@ func PlayerSubtitles(cx *core.Scope) string { return For(cx).PlayerSubtitles() }
 
 // PlayerSubtitles is the package's PlayerSubtitles in the language of msgs.
 func (msgs Messages) PlayerSubtitles() string { return msgs.text(textPlayerSubtitles) }
+
+// PlayerWordAIBadge says "AI"
+// in the language the app shows under cx.
+//
+// Small badge before a word's meaning in the word card when an AI service wrote the meaning rather than a dictionary.
+func PlayerWordAIBadge(cx *core.Scope) string { return For(cx).PlayerWordAIBadge() }
+
+// PlayerWordAIBadge is the package's PlayerWordAIBadge in the language of msgs.
+func (msgs Messages) PlayerWordAIBadge() string { return msgs.text(textPlayerWordAIBadge) }
 
 // PlayerWordAppears says "{count, plural, one {Appears # time} other {Appears # times}}"
 // in the language the app shows under cx.
@@ -17583,7 +17713,7 @@ func PlayerTabInfo(cx *core.Scope) string { return For(cx).PlayerTabInfo() }
 // PlayerTabInfo is the package's PlayerTabInfo in the language of msgs.
 func (msgs Messages) PlayerTabInfo() string { return msgs.text(textPlayerTabInfo) }
 
-// PlayerTabLines says "Lines"
+// PlayerTabLines says "Subtitles"
 // in the language the app shows under cx.
 //
 // Tab of the player's panel: the film's lines.
@@ -17595,7 +17725,7 @@ func (msgs Messages) PlayerTabLines() string { return msgs.text(textPlayerTabLin
 // PlayerTabNotes says "Notes"
 // in the language the app shows under cx.
 //
-// Tab of the player's panel: the lines saved and their notes, while none is saved.
+// Tab of the player's panel: the lines saved and their notes. Their number shows beside it.
 func PlayerTabNotes(cx *core.Scope) string { return For(cx).PlayerTabNotes() }
 
 // PlayerTabNotes is the package's PlayerTabNotes in the language of msgs.
@@ -19514,10 +19644,10 @@ func PlayerMinimize(cx *core.Scope) string { return For(cx).PlayerMinimize() }
 // PlayerMinimize is the package's PlayerMinimize in the language of msgs.
 func (msgs Messages) PlayerMinimize() string { return msgs.text(textPlayerMinimize) }
 
-// PlayerTabWords says "Words"
+// PlayerTabWords says "New Words"
 // in the language the app shows under cx.
 //
-// Tab of the player's panel: the film's words looked up or in the vocabulary, while there are none.
+// Tab of the player's panel: the film's words looked up or in the vocabulary. Their number shows beside it.
 func PlayerTabWords(cx *core.Scope) string { return For(cx).PlayerTabWords() }
 
 // PlayerTabWords is the package's PlayerTabWords in the language of msgs.

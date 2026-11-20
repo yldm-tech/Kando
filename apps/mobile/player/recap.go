@@ -209,8 +209,8 @@ func recapSheet(cx *core.Scope, p *play, r *recapper) core.Node {
 			}}
 	})
 	at := func() string { return clock(c().at) }
-	return ui.Sheet{Open: func() bool { return c().open }, OnClose: r.close, Children: []core.Node{
-		core.Scroll{TestID: "player-recap", Style: core.Style{MaxHeight: core.Pct(80)}, Children: []core.Node{
+	return appSheet{Dark: true, Open: func() bool { return c().open }, OnClose: r.close, Label: func() string { return locales.PlayerRecapTitle(cx) }, Children: []core.Node{
+		core.Scroll{TestID: "player-recap", Style: core.Style{FlexShrink: 1, MinHeight: core.Pt(0)}, Children: []core.Node{
 			core.View{Style: core.Style{Gap: 14, Padding: core.Edges{Bottom: 8}}, Children: []core.Node{
 				core.View{Style: core.Style{Direction: core.Row, AlignItems: core.AlignCenter, Gap: 10}, Children: []core.Node{
 					core.View{Style: core.Style{Width: core.Pt(32), Height: core.Pt(32), CornerRadius: 9, AlignItems: core.AlignCenter, JustifyContent: core.JustifyCenter, Background: theme.AI.Faded(0.18)},

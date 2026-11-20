@@ -175,8 +175,9 @@ func App(cx *core.Scope, cfg session.Config) core.Node {
 	})
 	tabStack := func(n *base.Nav[route]) func(cx *core.Scope) core.Node {
 		return func(cx *core.Scope) core.Node {
-			look.InTab(cx, shell.OverTabBar(cx))
-			look.ProvideMini(cx, layer.Room)
+			over := shell.OverTabBar(cx)
+			look.InTab(cx, over)
+			look.ProvideMini(cx, func() core.Points { return layer.Room(over()) })
 			stack := n.Stack(core.Style{FlexGrow: 1}, func(cx *core.Scope, r route, depth func() int) base.NavPage {
 				back := func() { n.Pop(1) }
 				openFilm := func(desktop string, lib sync.Library, f sync.Film) {

@@ -89,10 +89,14 @@ func subtitles(cx *core.Scope, p *play, w *words, shape func() layout, controlsO
 		Children: []core.Node{body}}
 }
 
-// positionSlider is where the film is, which a drag moves: a thin white line on a faint track under a white knob, without the step marks ui.Slider draws (ui/slider.go:113-128). The design cuts the track at the film's chapters, which the phone does not have (sync.Film has none), so it is one.
-func positionSlider(cx *core.Scope, p *play) core.Node {
+// positionSlider is where the film is, which a drag moves: a thin white line on a faint track under a white knob, without the step marks ui.Slider draws (ui/slider.go:113-128). The design cuts the track at the film's chapters, which the phone does not have (sync.Film has none), so it is one. inset keeps the knob inside the slider's ends, as between the capsule's times; without it the track runs the slider's whole width, as over the upright transport's times, and the knob's half overhangs its ends.
+func positionSlider(cx *core.Scope, p *play, inset bool) core.Node {
 	seconds := core.NewMemo(cx, func() float64 { return float64(int64(p.length.Get().Seconds())) })
 	const height, track, knob = 18, 4, 14
+	ends := core.Points(0)
+	if inset {
+		ends = knob / 2
+	}
 	return base.Slider{TestID: "player-position", ThumbTestID: "player-position-thumb", Label: locales.PlayerPosition(cx),
 		Min:      func() float64 { return 0 },
 		Max:      func() float64 { return max(seconds.Get(), 1) },
@@ -104,7 +108,7 @@ func positionSlider(cx *core.Scope, p *play) core.Node {
 		},
 		Style:          core.Style{Height: core.Pt(height), MinWidth: core.Pt(80), FlexGrow: 1, FlexShrink: 1},
 		TrackStyle:     core.Style{Height: core.Pct(100)},
-		IndicatorStyle: core.Style{Height: core.Pt(track), CornerRadius: track / 2, Margin: core.Edges{Top: (height - track) / 2, Left: knob / 2, Right: knob / 2}, Background: theme.PlayerInk.Faded(0.2)},
+		IndicatorStyle: core.Style{Height: core.Pt(track), CornerRadius: track / 2, Margin: core.Edges{Top: (height - track) / 2, Left: ends, Right: ends}, Background: theme.PlayerInk.Faded(0.2)},
 		RangeStyle:     core.Style{CornerRadius: track / 2, Background: theme.PlayerInk},
 		ThumbStyle: core.Style{Width: core.Pt(knob), Height: core.Pt(knob), CornerRadius: knob / 2, Background: theme.PlayerInk,
 			Shadows: []core.BoxShadow{{Offset: core.Point{Y: 1}, Blur: 4, Color: core.RGBA(0x000000, 0.5)}}},
@@ -141,9 +145,9 @@ func speedMenu(cx *core.Scope, p *play, height core.Points) core.Node {
 		}()}
 }
 
-// glyphButton is a white glyph of the transport in a round target, as the line before and after.
-func glyphButton(id string, label func() string, glyph func() *core.SVG, target, size core.Points, press func()) core.Node {
-	return base.Button{TestID: id, LabelFunc: label, OnPress: func(core.PressEvent) { press() },
+// glyphButton is a white glyph of the transport in a round target, as the line before and after; disabled, nil for never, dims it and takes its presses.
+func glyphButton(id string, label func() string, glyph func() *core.SVG, target, size core.Points, disabled func() bool, press func()) core.Node {
+	return base.Button{TestID: id, LabelFunc: label, Disabled: disabled, OnPress: func(core.PressEvent) { press() },
 		Style: core.Style{Width: core.Pt(target), Height: core.Pt(target), CornerRadius: target / 2, AlignItems: core.AlignCenter, JustifyContent: core.JustifyCenter,
 			Active: &core.Style{Opacity: core.Alpha(0.6)}, Disabled: &core.Style{Opacity: core.Alpha(0.35)}},
 		Children: []core.Node{ui.IconOf(glyph, size, func() core.Color { return theme.PlayerInk })}}
@@ -174,10 +178,10 @@ func transport(cx *core.Scope, p *play) core.Node {
 	playButton := base.Button{TestID: "player-play", LabelFunc: playLabel(cx, p), Disabled: func() bool { return !p.hasVideo() }, OnPress: func(core.PressEvent) { p.toggle() },
 		Style: core.Style{Width: core.Pt(66), Height: core.Pt(66), CornerRadius: 33, AlignItems: core.AlignCenter, JustifyContent: core.JustifyCenter, Background: theme.PlayerInk,
 			Active: &core.Style{Opacity: core.Alpha(0.8)}, Disabled: &core.Style{Opacity: core.Alpha(0.4)}},
-		Children: []core.Node{ui.IconOf(playGlyphOf(p), 30, func() core.Color { return core.RGB(0x000000) })}}
+		Children: []core.Node{ui.IconOf(playGlyphOf(p), 30, func() core.Color { return theme.PlayerOnLight })}}
 	mode := ui.Menu{TestID: "player-mode", Label: locales.PlayerSubtitles(cx), Presentation: base.PresentSheet,
 		Trigger: ui.Button{Variant: ui.ButtonGhost},
-		Face:    pillFace(func() string { return modeName(cx, p.mode.Get()) }, 52, 30),
+		Face:    pillFace(func() string { return modeShort(cx, p.mode.Get()) }, 52, 30),
 		Children: func() []core.Node {
 			var items []core.Node
 			for _, m := range Modes {
@@ -187,17 +191,22 @@ func transport(cx *core.Scope, p *play) core.Node {
 		}()}
 	return core.View{TestID: "player-transport", Style: core.Style{Padding: core.Edges{Top: 12, Right: 18, Bottom: 4, Left: 18}, Gap: 6}, Children: []core.Node{
 		// The slider's range follows the video's length, which it tells once it has loaded.
-		core.View{Style: core.Style{Direction: core.Row}, Children: []core.Node{positionSlider(cx, p)}},
+		core.View{Style: core.Style{Direction: core.Row}, Children: []core.Node{positionSlider(cx, p, false)}},
 		core.View{Style: core.Style{Direction: core.Row, JustifyContent: core.JustifySpaceBetween}, Children: []core.Node{
 			timeText("player-at", 11, func() string { return clock(p.at.Get()) }),
 			timeText("player-left", 11, func() string { return left(p) }),
 		}},
-		core.View{Style: core.Style{Direction: core.Row, AlignItems: core.AlignCenter, JustifyContent: core.JustifySpaceBetween, Padding: core.Edges{Top: 2}}, Children: []core.Node{
-			speedMenu(cx, p, 30),
-			glyphButton("player-prev", func() string { return locales.PlayerPrevLine(cx) }, skipBackGlyph, 52, 26, p.prev),
+		// Play stays in the middle however wide the pills' words are: each side is half of what play leaves, the pill at its outer end and the skip 20 from play, as the design's row of 52, 52, 66, 52 and 52 spread over 354.
+		core.View{Style: core.Style{Direction: core.Row, AlignItems: core.AlignCenter, Padding: core.Edges{Top: 2}}, Children: []core.Node{
+			core.View{Style: core.Style{Direction: core.Row, AlignItems: core.AlignCenter, JustifyContent: core.JustifySpaceBetween, Gap: 8, FlexGrow: 1, FlexShrink: 1, FlexBasis: core.Pt(0), MinWidth: core.Pt(0), Padding: core.Edges{Right: 20}}, Children: []core.Node{
+				speedMenu(cx, p, 30),
+				glyphButton("player-prev", func() string { return locales.PlayerPrevLine(cx) }, skipBackGlyph, 52, 26, nil, p.prev),
+			}},
 			playButton,
-			glyphButton("player-next", func() string { return locales.PlayerNextLine(cx) }, skipNextGlyph, 52, 26, p.next),
-			mode,
+			core.View{Style: core.Style{Direction: core.Row, AlignItems: core.AlignCenter, JustifyContent: core.JustifySpaceBetween, Gap: 8, FlexGrow: 1, FlexShrink: 1, FlexBasis: core.Pt(0), MinWidth: core.Pt(0), Padding: core.Edges{Left: 20}}, Children: []core.Node{
+				glyphButton("player-next", func() string { return locales.PlayerNextLine(cx) }, skipNextGlyph, 52, 26, nil, p.next),
+				mode,
+			}},
 		}},
 	}}
 }
@@ -206,7 +215,7 @@ func transport(cx *core.Scope, p *play) core.Node {
 // The frost is the platform's: Android and Linux draw no backdrop filters (core/style.go:144), so there the capsule is its fill alone.
 func capsule(cx *core.Scope, p *play) core.Node {
 	looped := func() bool { return p.loop.Get() >= 0 }
-	loop := base.Button{TestID: "player-loop", LabelFunc: func() string { return locales.PlayerLoopLine(cx) }, Selected: looped, OnPress: func(core.PressEvent) { p.toggleLoop() },
+	loop := base.Button{TestID: "player-loop", LabelFunc: func() string { return locales.PlayerCapsuleLoop(cx) }, Selected: looped, OnPress: func(core.PressEvent) { p.toggleLoop() },
 		Style: core.Style{Height: core.Pt(30), Padding: core.Symmetric(0, 12), CornerRadius: 15, JustifyContent: core.JustifyCenter, Active: &core.Style{Opacity: core.Alpha(0.7)}},
 		StyleFunc: func() core.Style {
 			if looped() {
@@ -214,21 +223,34 @@ func capsule(cx *core.Scope, p *play) core.Node {
 			}
 			return core.Style{Background: theme.PlayerInk.Faded(0.14)}
 		},
-		Children: []core.Node{core.Text{ContentFunc: func() string { return locales.PlayerLoopLine(cx) }, MaxLines: 1, Style: core.Style{FontSize: 13, LineHeight: 18, FontWeight: core.FontWeightBold, Color: theme.PlayerInk}}}}
+		Children: []core.Node{core.Text{ContentFunc: func() string { return locales.PlayerCapsuleLoop(cx) }, MaxLines: 1, Style: core.Style{FontSize: 13, LineHeight: 18, FontWeight: core.FontWeightBold, Color: theme.PlayerInk}}}}
 	return core.View{TestID: "player-transport",
 		Style: core.Style{Direction: core.Row, AlignItems: core.AlignCenter, Gap: 8, Height: core.Pt(50), Padding: core.Symmetric(0, 10), CornerRadius: 25, BorderCurve: core.BorderCurveContinuous,
-			Background: core.RGBA(0x1E1E20, 0.55), BackdropFilters: []core.Filter{core.Blur(20), core.Saturate(1.6)},
+			Background: theme.PlayerGlass.Faded(0.55), BackdropFilters: []core.Filter{core.Blur(20), core.Saturate(1.6)},
 			Shadows: []core.BoxShadow{{Spread: 0.5, Color: theme.PlayerInk.Faded(0.15), Inset: true}}},
 		Children: []core.Node{
-			glyphButton("player-prev", func() string { return locales.PlayerPrevLine(cx) }, skipBackGlyph, 36, 20, p.prev),
-			glyphButton("player-play", playLabel(cx, p), playGlyphOf(p), 38, 24, p.toggle),
-			glyphButton("player-next", func() string { return locales.PlayerNextLine(cx) }, skipNextGlyph, 36, 20, p.next),
+			glyphButton("player-prev", func() string { return locales.PlayerPrevLine(cx) }, skipBackGlyph, 36, 20, nil, p.prev),
+			glyphButton("player-play", playLabel(cx, p), playGlyphOf(p), 38, 24, func() bool { return !p.hasVideo() }, p.toggle),
+			glyphButton("player-next", func() string { return locales.PlayerNextLine(cx) }, skipNextGlyph, 36, 20, nil, p.next),
 			timeText("player-at", 12, func() string { return clock(p.at.Get()) }),
-			positionSlider(cx, p),
+			positionSlider(cx, p, true),
 			timeText("player-left", 12, func() string { return left(p) }),
 			loop,
 			speedMenu(cx, p, 30),
 		}}
+}
+
+// modeShort is a subtitle mode's short name, on the buttons that show the mode: the transport's pill and the pill over the picture of a phone on its side.
+func modeShort(cx *core.Scope, mode string) string {
+	switch mode {
+	case kcore.SubOriginal:
+		return locales.PlayerModeShortOriginal(cx)
+	case kcore.SubTranslation:
+		return locales.PlayerModeShortTranslation(cx)
+	case kcore.SubOff:
+		return locales.PlayerModeShortHidden(cx)
+	}
+	return locales.PlayerModeShortBilingual(cx)
 }
 
 // modeName is what the player calls a subtitle mode.

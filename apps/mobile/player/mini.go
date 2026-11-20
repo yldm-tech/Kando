@@ -14,6 +14,8 @@ import (
 const (
 	miniHeight core.Points = 64
 	miniGap    core.Points = 8
+	// miniSideGap is the gap under the bar beside a tablet's sidebar, over the screen's foot.
+	miniSideGap core.Points = 16
 )
 
 // MiniBar is the mini player over a tab's pages while the player is minimized: the film's poster, the line playing, its translation over its original, the button that plays or holds it, the one that plays the next line, and how far it has played along its foot. A tap opens the player again. Put it last in the tab's content, over the pages, whose foot keeps clear of it through look.ProvideMini.
@@ -120,7 +122,7 @@ func miniBar(cx *core.Scope, l *Layer, p *play) core.Node {
 		StyleFunc: func() core.Style {
 			st := core.Style{Padding: core.Edges{Right: 8, Left: 8, Bottom: miniGap + ui.TabBarInset(cx)}, PaddingEnv: core.EnvEdges{Right: core.EnvSafeArea, Left: core.EnvSafeArea}}
 			if !over() {
-				st.Padding = core.Edges{Right: 20, Left: 20, Bottom: 16}
+				st.Padding = core.Edges{Right: 20, Left: 20, Bottom: miniSideGap}
 				st.PaddingEnv.Bottom = core.EnvSafeArea
 			}
 			return st

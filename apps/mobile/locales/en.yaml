@@ -1641,6 +1641,9 @@ playerCannotSave:
 playerCantPlay:
   message: "This video can't play on this phone."
   description: "Over the player when the system's player cannot open the video, as one in a format the phone does not play."
+playerCapsuleLoop:
+  message: "Loop Line"
+  description: "Button in the controls over the picture of a phone on its side that plays the line playing over and over."
 playerCardPlace:
   message: "Line {index} / {count} · {time}"
   description: "At the top of the player's card: which line of the film it shows, and when it starts."
@@ -1650,7 +1653,7 @@ playerCardPlace:
     time: { type: "String", example: "0:20" }
 playerClose:
   message: "Close"
-  description: "Spoken name of the × that closes the word card or the explanation."
+  description: "Spoken name of the × that closes the word card over the picture of a phone on its side."
 playerDelay:
   message: "Subtitle Timing"
   description: "Heading in the playback settings of the control that moves the film's lines against its sound."
@@ -1806,6 +1809,18 @@ playerModePill:
   description: "Button over the picture of a phone on its side: the subtitle mode, which a tap changes to the next."
   placeholders:
     mode: { type: "String", example: "Both" }
+playerModeShortBilingual:
+  message: "Both"
+  description: "Short name of the Bilingual subtitle mode, on the player's mode button: the translation and the original."
+playerModeShortHidden:
+  message: "Hidden"
+  description: "Short name of the Hidden subtitle mode, on the player's mode button: neither line shows."
+playerModeShortOriginal:
+  message: "Original"
+  description: "Short name of the Original Only subtitle mode, on the player's mode button: the original line alone."
+playerModeShortTranslation:
+  message: "Translation"
+  description: "Short name of the Translation Only subtitle mode, on the player's mode button: the translation alone."
 playerModeTranslation:
   message: "Translation Only"
   description: "Subtitle mode: the translation alone, the original where a line is not translated."
@@ -1988,8 +2003,8 @@ playerSleepPillLine:
   message: "Stops after this line"
   description: "Pill over the picture while the sleep timer is set to the end of the line."
 playerSpeed:
-  message: "Speed"
-  description: "Spoken name of the player's menu of playback speeds."
+  message: "Playback Speed"
+  description: "Spoken name of the player's menu of playback speeds, and heading of the speeds in the playback settings."
 playerStudyFailed:
   message: "The AI service on {computer} didn't answer. Try again."
   description: "In the word card or the explanation when the computer's AI service failed."
@@ -2011,6 +2026,9 @@ playerStudyUnreachable:
 playerSubtitles:
   message: "Subtitles"
   description: "Spoken name of the player's menu of subtitle modes."
+playerWordAIBadge:
+  message: "AI"
+  description: "Small badge before a word's meaning in the word card when an AI service wrote the meaning rather than a dictionary."
 playerWordAppears:
   message: "{count, plural, one {Appears # time} other {Appears # times}}"
   description: "Beside a word in the Words tab: how many times the film's lines say it."
@@ -2082,11 +2100,11 @@ playerTabInfo:
   message: "Info"
   description: "Tab of the player's panel: what the film is."
 playerTabLines:
-  message: "Lines"
+  message: "Subtitles"
   description: "Tab of the player's panel: the film's lines."
 playerTabNotes:
   message: "Notes"
-  description: "Tab of the player's panel: the lines saved and their notes, while none is saved."
+  description: "Tab of the player's panel: the lines saved and their notes. Their number shows beside it."
 playerTabParts:
   message: "Parts"
   description: "Tab of the player's panel: the film in equal parts."
@@ -2534,8 +2552,8 @@ playerMinimize:
   message: "Minimize Player"
   description: "Spoken name of the player's button that minimizes it to a bar over the tabs while the film plays on."
 playerTabWords:
-  message: "Words"
-  description: "Tab of the player's panel: the film's words looked up or in the vocabulary, while there are none."
+  message: "New Words"
+  description: "Tab of the player's panel: the film's words looked up or in the vocabulary. Their number shows beside it."
 playerWordAdd:
   message: "Add to Vocabulary"
   description: "Button of the word card that puts the word in the vocabulary."
