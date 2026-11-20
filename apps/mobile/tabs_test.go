@@ -300,11 +300,13 @@ func TestATabletShowsASidebarOnItsSideAndATabBarUpright(t *testing.T) {
 		t.Fatalf("the sidebar's head names %q, want every library", got)
 	}
 	p.app.Press("id:sidebar-header")
-	if got, want := p.alertLabels(), []string{msgs.FilmsAllLibraries(), msgs.FilmsLibraryOn("Japanese Class", "Studio"), msgs.CommonCancel()}; !slices.Equal(got, want) {
-		t.Fatalf("the sidebar's head offers %q, want %q", got, want)
+	p.app.WaitFor("id:films-libraries", wait)
+	if !p.app.Exists("id:films-library-all") {
+		t.Fatal("the sidebar's head offers no way back to every library")
 	}
-	p.app.Answer(1)
-	p.app.WaitUntil(wait, func() bool { return p.texts("id:sidebar-library") == msgs.FilmsLibraryOn("Japanese Class", "Studio") })
+	p.app.Press("id:films-library-" + store.DesktopID(d.Fingerprint) + "-lib")
+	p.app.WaitForGone("id:films-libraries", wait)
+	p.app.WaitUntil(wait, func() bool { return p.texts("id:sidebar-library") == "Japanese Class" })
 	p.app.Press("id:sidebar-tab-settings")
 	p.app.WaitFor("id:settings-page", wait)
 	p.app.Press("id:settings-target")

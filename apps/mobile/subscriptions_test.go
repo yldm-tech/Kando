@@ -153,3 +153,14 @@ func TestAComputerWithoutSubscriptionsTakesAChannelAsALink(t *testing.T) {
 		t.Fatal("a computer without subscriptions shows them or was subscribed")
 	}
 }
+
+// closeSubscription closes the subscription's sheet: by its Done where it has one, a computer's dialog, else by swiping it away, as a touch screen's sheet is.
+func (p *phone) closeSubscription() {
+	p.t.Helper()
+	if p.app.Exists("id:films-subscription-done") {
+		p.app.Press("id:films-subscription-done")
+	} else {
+		p.app.SwipeClose("id:films-subscription-sheet")
+	}
+	p.app.WaitForGone("id:films-subscription-sheet", wait)
+}

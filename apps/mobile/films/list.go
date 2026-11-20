@@ -237,16 +237,21 @@ func (v *view) more(cx *core.Scope, r func() catalog.Result, id string, size cor
 		LabelFunc: func() string { return locales.FilmsOptions(cx, r().Film.Title) }, OnPress: func() { v.options(r().Entry) }}
 }
 
-// open plays the film of r, from the line the search found in it where there is one, once it is on the phone, and opens its page while it is not, where it is downloaded.
+// open plays the film of r once its video is on the phone, from the line the search found in it where there is one, else from where it was left; a film not on the phone, kept by its lines alone or with its video on the way opens its page, where it is downloaded and what can be done to have its video shows.
 func (v *view) open(r catalog.Result) {
-	if k, ok := v.s.Film(r.Key()); ok && k.Done() && r.Hit != nil {
+	k, ok := v.s.Film(r.Key())
+	_, moving := v.s.Transfer(r.Key())
+	switch {
+	case !ok || !k.Done() || !k.HasVideo() || moving:
+		v.act.Film(r.Entry)
+	case r.Hit != nil:
 		v.playAt(r.Key(), r.Hit.At)
-		return
+	default:
+		v.resume(r.Entry)
 	}
-	v.resume(r.Entry)
 }
 
-// row is a film of the list: its poster, its title, its source's mark with what it says of it, the line a search found in it, and its options. Pressed, it plays the film once it is on the phone, else opens its page.
+// row is a film of the list: its poster, its title, its source's mark with what it says of it, the line a search found in it, and its options. Pressed, it plays the film once its video is on the phone, else opens its page (open).
 func (v *view) row(cx *core.Scope, r func() catalog.Result, i func() int) core.Node {
 	id := r().Desktop + "-" + r().Film.ID
 	return look.Row{TestID: "films-film-" + id, Index: i, Padding: &rowPadding, TitleLines: 2,

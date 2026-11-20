@@ -84,17 +84,27 @@ func TestChipsAndTheSwitcherNarrowTheList(t *testing.T) {
 	p.app.WaitFor(talkRow(id), wait)
 
 	p.app.Press("id:films-library")
-	want := []string{msgs.FilmsAllLibraries(), msgs.FilmsLibraryOn("Japanese Class", "Studio"), msgs.FilmsLibraryOn("Movies", "Studio"), msgs.CommonCancel()}
-	if got := p.alertLabels(); !slices.Equal(got, want) {
-		t.Fatalf("the switcher offers %q, want %q", got, want)
+	p.app.WaitFor("id:films-libraries", wait)
+	for sel, want := range map[string]string{"id:films-library-all": msgs.FilmsAllLibraries(), "id:films-library-" + id + "-lib": "Japanese Class\nStudio", "id:films-library-" + id + "-movies": "Movies\nStudio"} {
+		if got := p.texts(sel); got != want {
+			t.Fatalf("the sheet's %s says %q, want %q", sel, got, want)
+		}
 	}
-	p.app.Answer(2)
+	if !p.app.Find("id:films-library-all").Props.Checked {
+		t.Fatal("every library is not the one checked")
+	}
+	p.app.Press("id:films-library-" + id + "-movies")
+	p.app.WaitForGone("id:films-libraries", wait)
 	p.app.WaitForGone(talkRow(id), wait)
-	if got := p.texts("id:films-library"); got != msgs.FilmsLibraryOn("Movies", "Studio") {
+	if got := p.texts("id:films-library"); got != "Movies" {
 		t.Fatalf("the switcher says %q", got)
 	}
 	p.app.Press("id:films-library")
-	p.app.Answer(0)
+	p.app.WaitFor("id:films-libraries", wait)
+	if !p.app.Find("id:films-library-" + id + "-movies").Props.Checked {
+		t.Fatal("the library shown is not the one checked")
+	}
+	p.app.Press("id:films-library-all")
 	p.app.WaitFor(talkRow(id), wait)
 }
 
@@ -166,21 +176,26 @@ func TestAFilmsOptionsDownloadAndDeleteIt(t *testing.T) {
 	options := "id:films-options-" + id + "-f1"
 	p.app.WaitFor(options, wait)
 	p.app.Press(options)
-	if got, want := p.alertLabels(), []string{msgs.FilmsDownloadSize("977 KB"), msgs.FilmsDetails(), msgs.CommonCancel()}; !slices.Equal(got, want) {
+	p.app.WaitFor("id:films-options", wait)
+	if got, want := p.sheetOptions(), []string{msgs.FilmDownload()}; !slices.Equal(got, want) {
 		t.Fatalf("the options of a film not on the phone are %q, want %q", got, want)
 	}
-	if !p.app.Alerts()[0].Sheet {
-		t.Fatal("a phone shows a film's options in something other than an action sheet")
+	if got := p.texts("id:films-options-title"); got != "Morning Talk" {
+		t.Fatalf("the options are headed %q", got)
 	}
-	p.app.Answer(0)
+	p.option(msgs.FilmDownload())
 	folder := filepath.Join("films", id, "f1")
 	p.waitFile(filepath.Join(folder, "video.mp4"), int64(len(talkVideo)))
 	p.app.WaitFor(talkRow(id)+" >> text:YouTube · 0:10 · "+msgs.FilmDownloaded(), wait)
 	p.app.Press(options)
-	if got, want := p.alertLabels(), []string{msgs.FilmPlay(), msgs.FilmDelete(), msgs.FilmsDetails(), msgs.CommonCancel()}; !slices.Equal(got, want) {
+	p.app.WaitFor("id:films-options", wait)
+	if got, want := p.sheetOptions(), []string{msgs.FilmPlay(), msgs.FilmDelete()}; !slices.Equal(got, want) {
 		t.Fatalf("the options of a film on the phone are %q, want %q", got, want)
 	}
-	p.app.Answer(1)
+	if got := p.texts("id:films-option-delete"); got != msgs.FilmDelete()+"\n"+msgs.FilmsAboutSize("977 KB") {
+		t.Fatalf("deleting its offline files says %q", got)
+	}
+	p.option(msgs.FilmDelete())
 	if got := p.app.Alerts(); len(got) != 1 || got[0].Title != msgs.FilmDeleteTitle("Morning Talk") {
 		t.Fatalf("deleting from the options asks %+v", got)
 	}
@@ -266,19 +281,21 @@ func TestAFailedRefreshKeepsTheLibraryChosen(t *testing.T) {
 	p := startPhone(t, dir, secrets)
 	p.app.WaitFor(filmRow(id, "f2"), wait)
 	p.app.Press("id:films-library")
-	p.app.Answer(2)
+	p.app.WaitFor("id:films-libraries", wait)
+	p.app.Press("id:films-library-" + id + "-movies")
 	p.app.WaitForGone(talkRow(id), wait)
 	d.Close()
 	p.app.PullToRefresh("id:films-scroll")
 	p.app.WaitFor("id:computers-retry-"+id, wait)
-	if got, want := p.texts("id:films-library"), msgs.FilmsLibraryOn("Movies", "Studio"); got != want {
+	if got, want := p.texts("id:films-library"), "Movies"; got != want {
 		t.Fatalf("after a failed refresh the switcher says %q, want %q", got, want)
 	}
 	if p.app.Exists(talkRow(id)) {
 		t.Fatal("after a failed refresh the list shows the films of every library")
 	}
 	p.app.Press("id:films-library")
-	p.app.Answer(0)
+	p.app.WaitFor("id:films-libraries", wait)
+	p.app.Press("id:films-library-all")
 	p.app.WaitFor(talkRow(id), wait)
 }
 
@@ -294,24 +311,28 @@ func TestAFilmsOptionsPauseResumeAndCancelItsDownload(t *testing.T) {
 	p.app.WaitFor(options, wait)
 	d.Stall(300_000)
 	p.app.Press(options)
-	p.app.Answer(0)
+	p.app.WaitFor("id:films-options", wait)
+	p.option(msgs.FilmDownload())
 	p.app.WaitFor(talkRow(id)+" >> text:YouTube · 0:10 · "+msgs.FilmDownloading(30), wait)
 	p.app.Press(options)
-	if got, want := p.alertLabels(), []string{msgs.FilmPause(), msgs.FilmCancel(), msgs.FilmsDetails(), msgs.CommonCancel()}; !slices.Equal(got, want) {
+	p.app.WaitFor("id:films-options", wait)
+	if got, want := p.sheetOptions(), []string{msgs.FilmPause(), msgs.FilmCancel()}; !slices.Equal(got, want) {
 		t.Fatalf("the options of a film downloading are %q, want %q", got, want)
 	}
-	p.app.Answer(0)
+	p.option(msgs.FilmPause())
 	p.app.WaitFor(talkRow(id)+" >> text:YouTube · 0:10 · "+msgs.FilmPaused(30), wait)
 	folder := filepath.Join("films", id, "f1")
 	p.waitFile(filepath.Join(folder, store.PartFile), 300_000)
 	p.app.Press(options)
-	if got, want := p.alertLabels(), []string{msgs.FilmResume(), msgs.FilmCancel(), msgs.FilmsDetails(), msgs.CommonCancel()}; !slices.Equal(got, want) {
+	p.app.WaitFor("id:films-options", wait)
+	if got, want := p.sheetOptions(), []string{msgs.FilmResume(), msgs.FilmCancel()}; !slices.Equal(got, want) {
 		t.Fatalf("the options of a film paused are %q, want %q", got, want)
 	}
-	p.app.Answer(0)
+	p.option(msgs.FilmResume())
 	p.app.WaitFor(talkRow(id)+" >> text:YouTube · 0:10 · "+msgs.FilmDownloading(60), wait)
 	p.app.Press(options)
-	p.app.Answer(1)
+	p.app.WaitFor("id:films-options", wait)
+	p.option(msgs.FilmCancel())
 	p.waitFile(folder, -1)
 	p.app.WaitFor(talkRow(id)+" >> text:YouTube · 0:10", wait)
 }
@@ -331,10 +352,11 @@ func TestPlayFromTheBeginningOutdatesTheComputersPosition(t *testing.T) {
 	card := "id:films-continue-" + id + "-f1"
 	p.app.WaitFor(card, wait)
 	p.app.Press("id:films-options-" + id + "-f1")
-	if got, want := p.alertLabels(), []string{msgs.FilmPlay(), msgs.FilmsPlayFromStart(), msgs.FilmDelete(), msgs.FilmsDetails(), msgs.CommonCancel()}; !slices.Equal(got, want) {
+	p.app.WaitFor("id:films-options", wait)
+	if got, want := p.sheetOptions(), []string{msgs.FilmPlay(), msgs.FilmsPlayFromStart(), msgs.FilmDelete()}; !slices.Equal(got, want) {
 		t.Fatalf("the options of a film left partway are %q, want %q", got, want)
 	}
-	p.app.Answer(1)
+	p.option(msgs.FilmsPlayFromStart())
 	p.app.WaitFor("id:player-video", wait)
 	p.app.WaitUntil(wait, func() bool {
 		films, err := store.Open(dir).Films()
@@ -347,7 +369,7 @@ func TestPlayFromTheBeginningOutdatesTheComputersPosition(t *testing.T) {
 	}
 }
 
-// A tablet shows a film's options in a dialog in the middle of the screen, not an action sheet.
+// A tablet shows a film's options in a card in the middle of the screen, not a sheet from its bottom.
 func TestATabletShowsAFilmsOptionsInADialog(t *testing.T) {
 	if nsgotest.Target() != "" {
 		t.Skip("the idiom is the platform's on a target")
@@ -358,8 +380,9 @@ func TestATabletShowsAFilmsOptionsInADialog(t *testing.T) {
 	options := "id:films-options-" + store.DesktopID(d.Fingerprint) + "-f1"
 	p.app.WaitFor(options, wait)
 	p.app.Press(options)
-	if alerts := p.app.Alerts(); len(alerts) == 0 || alerts[len(alerts)-1].Sheet {
-		t.Fatal("a tablet shows a film's options as an action sheet")
+	f := p.app.WaitFor("id:films-options", wait).Frame
+	if f.Size.Width > 560 || f.Origin.X <= 0 || f.Origin.Y+f.Size.Height >= 820 {
+		t.Fatalf("a tablet shows a film's options at %+v, not in the middle of the screen", f)
 	}
 }
 

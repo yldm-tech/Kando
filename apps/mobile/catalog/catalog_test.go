@@ -169,7 +169,7 @@ func TestLibrariesAndFilters(t *testing.T) {
 	}
 }
 
-// A search finds titles and the lines kept on the phone, in either language and any case, with the first line that matched.
+// A search finds titles and the lines kept on the phone, in either language and any case, with the first line that matched and its translation.
 func TestSearchFindsTitlesAndKeptLines(t *testing.T) {
 	entries := []Entry{
 		{Desktop: "d", Film: film("f1", "Morning Talk", "youtube", day)},
@@ -181,7 +181,7 @@ func TestSearchFindsTitlesAndKeptLines(t *testing.T) {
 		"d/f3": {{StartMS: 2000, Original: "Waves.", Translation: "海浪。"}},
 	}
 	got := Search(entries, lines, " talk")
-	if len(got) != 2 || got[0].Film.ID != "f1" || got[0].Hit != nil || got[1].Film.ID != "f2" || got[1].Hit == nil || got[1].Hit.At != 4*time.Second || got[1].Hit.Text != "The river TALKS." {
+	if len(got) != 2 || got[0].Film.ID != "f1" || got[0].Hit != nil || got[1].Film.ID != "f2" || got[1].Hit == nil || got[1].Hit.At != 4*time.Second || got[1].Hit.Text != "The river TALKS." || got[1].Hit.Translation != "河在说话。" {
 		t.Fatalf("searching talk found %+v", got)
 	}
 	got = Search(entries, lines, "海浪")

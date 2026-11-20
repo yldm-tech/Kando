@@ -164,6 +164,35 @@ func TestScreenshotsLibrary(t *testing.T) {
 	shot(p, "films-search")
 }
 
+func TestScreenshotsLibrarySheets(t *testing.T) {
+	shot := screenshots(t)
+	d := newDesktopWithMovies(t)
+	d.SetState("lib", now().Add(time.Hour), sync.Record{Kind: sync.KindPosition, ID: "f1", Film: "f1",
+		Fields: map[string]sync.Field{sync.FieldPositionMS: {Value: sync.Value(4000)}}})
+	dir := t.TempDir()
+	secrets := pairedWith(t, d, dir)
+	id := store.DesktopID(d.Fingerprint)
+	keepTalkFrom(t, dir, id)
+	p := startPhone(t, dir, secrets)
+	p.app.WaitFor(filmRow(id, "f2"), wait)
+	p.app.Press("id:films-library")
+	p.app.WaitFor("id:films-library-"+id+"-movies", wait)
+	shot(p, "films-libraries")
+	p.app.Press("id:films-library-all")
+	p.app.WaitForGone("id:films-libraries", wait)
+	p.app.Press("id:films-options-" + id + "-f1")
+	p.app.WaitFor("id:films-option-remove", wait)
+	shot(p, "films-options")
+	p.closeOptions()
+	p.app.Press("id:films-options-" + id + "-f2")
+	p.app.WaitFor("id:films-option-remove", wait)
+	shot(p, "films-options-not-offline")
+	p.closeOptions()
+	p.app.Press("id:films-source-local")
+	p.app.WaitFor("id:films-empty", wait)
+	shot(p, "films-filter-empty")
+}
+
 func TestScreenshotsLibrarySubscriptions(t *testing.T) {
 	shot := screenshots(t)
 	d := newDesktopWithMovies(t)
@@ -179,6 +208,10 @@ func TestScreenshotsLibrarySubscriptions(t *testing.T) {
 	p.app.Press("id:films-subscription-" + id + "-s1")
 	p.app.WaitFor("id:films-subscription-auto-switch", wait)
 	shot(p, "films-subscription-sheet")
+	p.closeSubscription()
+	p.app.Press("id:films-subscription-" + id + "-s3")
+	p.app.WaitFor("id:films-subscription-none", wait)
+	shot(p, "films-subscription-warn")
 }
 
 func TestScreenshotsLibraryLoading(t *testing.T) {

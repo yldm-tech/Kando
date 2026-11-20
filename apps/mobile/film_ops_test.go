@@ -21,20 +21,65 @@ func linesFilm() synctest.Film {
 		Film: sync.Film{ID: "f3", Title: "Lines Only", Source: "youtube", DurationMS: 10_000, Spoken: "ja", Translation: "简体中文", SubtitlesOnly: true, Updated: now()}}
 }
 
-// options opens the options of the film behind the button options once its computer's operations are known, as they are once its queue is followed, which runs beside the listing: until want is among them, it closes them and opens them again. It returns their labels, the options left open.
+// options opens the options of the film behind the button options and waits for want among them, as it is once its computer's operations are known, which the phone reads beside the listing; the sheet follows them while open. It returns their labels, the sheet left open.
 func (p *phone) options(options, want string) []string {
 	p.t.Helper()
 	p.app.WaitFor(options, wait)
-	p.app.WaitUntil(wait, func() bool {
-		p.app.Press(options)
-		labels := p.alertLabels()
-		if slices.Contains(labels, want) {
-			return true
+	p.app.Press(options)
+	p.app.WaitFor("id:films-options", wait)
+	p.app.WaitUntil(wait, func() bool { return slices.Contains(p.sheetOptions(), want) })
+	return p.sheetOptions()
+}
+
+// sheetOptions are the labels of the options the film's sheet shows, in order: each row's title, the first of its texts; nil while it is closed.
+func (p *phone) sheetOptions() []string {
+	p.t.Helper()
+	if !p.app.Exists("id:films-options") {
+		return nil
+	}
+	var out []string
+	var walk func(v *nsgotest.View)
+	walk = func(v *nsgotest.View) {
+		if strings.HasPrefix(v.Props.TestID, "films-option-") {
+			out = append(out, strings.SplitN(p.texts("id:"+v.Props.TestID), "\n", 2)[0])
+			return
 		}
-		p.app.Answer(len(labels) - 1)
-		return false
-	})
-	return p.alertLabels()
+		for _, c := range v.Children {
+			walk(c)
+		}
+	}
+	walk(p.app.Find("id:films-options"))
+	return out
+}
+
+// option presses the option label of the film's sheet, which closes it and acts.
+func (p *phone) option(label string) {
+	p.t.Helper()
+	labels := p.sheetOptions()
+	if !slices.Contains(labels, label) {
+		p.t.Fatalf("the film's options are %q, not %q", labels, label)
+	}
+	var found string
+	var walk func(v *nsgotest.View)
+	walk = func(v *nsgotest.View) {
+		if strings.HasPrefix(v.Props.TestID, "films-option-") && strings.SplitN(p.texts("id:"+v.Props.TestID), "\n", 2)[0] == label {
+			found = v.Props.TestID
+			return
+		}
+		for _, c := range v.Children {
+			walk(c)
+		}
+	}
+	walk(p.app.Find("id:films-options"))
+	p.app.Press("id:" + found)
+	p.app.WaitForGone("id:films-options", wait)
+}
+
+// closeOptions swipes the film's sheet away.
+func (p *phone) closeOptions() {
+	p.t.Helper()
+	p.app.SwipeClose("id:films-options")
+	p.app.WaitForGone("id:films-options", wait)
 }
 
 // answer presses the button label of the alert shown last.
@@ -56,10 +101,16 @@ func TestAFilmsOptionsActOnItThroughTheComputer(t *testing.T) {
 	id := store.DesktopID(d.Fingerprint)
 	options := "id:films-options-" + id + "-f1"
 	labels := p.options(options, msgs.FilmsExportSubtitles())
-	if want := []string{msgs.FilmsDownloadSize("977 KB"), msgs.FilmsExportSubtitles(), msgs.FilmsRetranslate(), msgs.FilmsDeleteFromLibrary(), msgs.FilmsDetails(), msgs.CommonCancel()}; !slices.Equal(labels, want) {
+	if want := []string{msgs.FilmDownload(), msgs.FilmsExportSubtitles(), msgs.FilmsRetranslate(), msgs.FilmsDeleteFromLibrary()}; !slices.Equal(labels, want) {
 		t.Fatalf("the options are %q, want %q", labels, want)
 	}
-	p.answer(msgs.FilmsExportSubtitles())
+	if got := p.texts("id:films-option-download"); got != msgs.FilmDownload()+"\n"+msgs.FilmsAboutSize("977 KB") {
+		t.Fatalf("saving it for offline says %q", got)
+	}
+	if got := p.texts("id:films-option-export"); got != msgs.FilmsExportSubtitles()+"\n.srt" {
+		t.Fatalf("exporting its subtitles says %q", got)
+	}
+	p.option(msgs.FilmsExportSubtitles())
 	p.app.WaitUntil(wait, func() bool { return len(p.app.Shares) == 1 })
 	files := p.app.Shares[0].Files
 	if len(files) != 1 || filepath.Base(files[0].Path) != "Morning Talk.dual.srt" {
@@ -73,14 +124,16 @@ func TestAFilmsOptionsActOnItThroughTheComputer(t *testing.T) {
 	}
 
 	p.app.Press(options)
-	p.answer(msgs.FilmsRetranslate())
+	p.app.WaitFor("id:films-options", wait)
+	p.option(msgs.FilmsRetranslate())
 	p.app.WaitUntil(wait, func() bool { return slices.Equal(d.Retranslated(), []string{"f1"}) })
 	p.app.WaitUntil(wait, func() bool {
 		return p.app.Exists("id:toasts") && strings.Contains(p.texts("id:toasts"), msgs.FilmsRetranslating("Morning Talk", "Studio"))
 	})
 
 	p.app.Press(options)
-	p.answer(msgs.FilmsDeleteFromLibrary())
+	p.app.WaitFor("id:films-options", wait)
+	p.option(msgs.FilmsDeleteFromLibrary())
 	if got := p.app.Alerts(); got[len(got)-1].Title != msgs.FilmsDeleteFromLibraryTitle("Morning Talk") || got[len(got)-1].Message != msgs.FilmsDeleteFromLibraryMessage("Studio") {
 		t.Fatalf("deleting from the library asks %+v", got[len(got)-1])
 	}
@@ -96,7 +149,7 @@ func TestAReadOnlyPhoneOnlyExportsAFilm(t *testing.T) {
 	dir := t.TempDir()
 	p := startPhone(t, dir, pairedWith(t, d, dir))
 	labels := p.options("id:films-options-"+store.DesktopID(d.Fingerprint)+"-f1", msgs.FilmsExportSubtitles())
-	if want := []string{msgs.FilmsDownloadSize("977 KB"), msgs.FilmsExportSubtitles(), msgs.FilmsDetails(), msgs.CommonCancel()}; !slices.Equal(labels, want) {
+	if want := []string{msgs.FilmDownload(), msgs.FilmsExportSubtitles()}; !slices.Equal(labels, want) {
 		t.Fatalf("a read-only phone's options are %q, want %q", labels, want)
 	}
 }
@@ -111,10 +164,10 @@ func TestAFilmWithoutAVideoIsStudiedByItsLines(t *testing.T) {
 	row := filmRow(id, "f3")
 	p.app.WaitFor(row+" >> text:YouTube · 0:10 · "+msgs.FilmSubtitlesOnly(), wait)
 	labels := p.options("id:films-options-"+id+"-f3", msgs.FilmVideoOnComputer("Studio"))
-	if want := []string{msgs.FilmSaveLines(), msgs.FilmVideoOnComputer("Studio"), msgs.FilmsExportSubtitles(), msgs.FilmsRetranslate(), msgs.FilmsDeleteFromLibrary(), msgs.FilmsDetails(), msgs.CommonCancel()}; !slices.Equal(labels, want) {
+	if want := []string{msgs.FilmSaveLines(), msgs.FilmVideoOnComputer("Studio"), msgs.FilmsExportSubtitles(), msgs.FilmsRetranslate(), msgs.FilmsDeleteFromLibrary()}; !slices.Equal(labels, want) {
 		t.Fatalf("the options of a film without a video are %q, want %q", labels, want)
 	}
-	p.answer(msgs.FilmSaveLines())
+	p.option(msgs.FilmSaveLines())
 	p.app.WaitFor(row+" >> text:YouTube · 0:10 · "+msgs.FilmSubtitlesOnly()+" · "+msgs.FilmLinesSaved(), wait)
 	folder := filepath.Join("films", id, "f3")
 	p.app.WaitUntil(wait, func() bool { _, err := os.Stat(filepath.Join(p.dir, folder, "subtitles.json")); return err == nil })
@@ -173,7 +226,7 @@ func TestCancellingTheVideoOfAFilmKeptByItsLinesKeepsThem(t *testing.T) {
 	id := store.DesktopID(d.Fingerprint)
 	row := filmRow(id, "f3")
 	p.options("id:films-options-"+id+"-f3", msgs.FilmSaveLines())
-	p.answer(msgs.FilmSaveLines())
+	p.option(msgs.FilmSaveLines())
 	p.app.WaitFor(row+" >> text:YouTube · 0:10 · "+msgs.FilmSubtitlesOnly()+" · "+msgs.FilmLinesSaved(), wait)
 
 	// The computer has the video now, which the Library reads again.
@@ -217,8 +270,7 @@ func TestATabletsSidebarListsTheSubscriptions(t *testing.T) {
 	p.app.Press("id:sidebar-tab-learn")
 	p.app.Press(row)
 	p.app.WaitFor("id:films-subscription-sheet >> text:How Rivers Shape Landscapes", wait)
-	p.app.Press("id:films-subscription-done")
-	p.app.WaitForGone("id:films-subscription-sheet", wait)
+	p.closeSubscription()
 
 	p.app.WaitFor("id:sidebar-subscriptions-add", wait)
 	p.app.Press("id:sidebar-subscriptions-add")
