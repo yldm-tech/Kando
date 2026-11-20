@@ -1,6 +1,8 @@
 package look
 
 import (
+	"slices"
+
 	"kando/apps/mobile/theme"
 
 	"github.com/nsgo-dev/nsgo/base"
@@ -136,8 +138,17 @@ func NavPage(cx *core.Scope, p base.NavPage, header ui.NavHeader) base.NavPage {
 				p.HeaderRight = headerItems(header.Trailing)
 			}
 			ends := len(header.Leading) + len(header.Trailing)
+			// The toolbar is the page's, as wide as the page, which beside a tablet's sidebar is narrower than the window: the title is bounded by the page's width once it is laid out, by the window's before.
+			width := core.NewSignal(cx, core.Points(0))
+			p.Children = append(slices.Clip(p.Children), core.View{PointerEvents: core.PointerEventsNone,
+				Style:    core.Style{Position: core.Absolute, Top: core.Pt(0), Right: core.Pt(0), Left: core.Pt(0), Height: core.Pt(0)},
+				OnLayout: func(b core.Bounds) { width.Set(b.Size.Width) }})
 			p.Header = core.Text{ContentFunc: title, Role: core.RoleHeader, MaxLines: 1, Style: SubPageTitle, StyleFunc: func() core.Style {
-				return core.Style{Color: colors.Text(), MaxWidth: core.Pt(SubPageTitleWidth(cx.Env().Window().Width, ends))}
+				page := width.Get()
+				if page <= 0 {
+					page = cx.Env().Window().Width
+				}
+				return core.Style{Color: colors.Text(), MaxWidth: core.Pt(SubPageTitleWidth(page, ends))}
 			}}
 		}
 	}
@@ -149,9 +160,9 @@ func NavPage(cx *core.Scope, p base.NavPage, header ui.NavHeader) base.NavPage {
 	return p
 }
 
-// SubPageTitleWidth is the most a sub-page's title can take of Android's toolbar in a window window wide with buttons buttons in its ends: the toolbar is laid out at the title's own size (ui.NavPage), so without a bound a long title, as a computer's name, would run under the buttons rather than end in an ellipsis. The toolbar starts a title 72 after its back arrow's edge (Material's inset with a navigation icon) and holds each button in a 48pt target, the end's 12 from the edge (Header.java); 16 is left after the title. At least 48.
-func SubPageTitleWidth(window core.Points, buttons int) core.Points {
-	w := window - 72 - 16
+// SubPageTitleWidth is the most a sub-page's title can take of Android's toolbar on a page page wide with buttons buttons in its ends: the toolbar is laid out at the title's own size (ui.NavPage), so without a bound a long title, as a computer's name, would run under the buttons rather than end in an ellipsis. The toolbar starts a title 72 after its back arrow's edge (Material's inset with a navigation icon) and holds each button in a 48pt target, the end's 12 from the edge (Header.java); 16 is left after the title. At least 48.
+func SubPageTitleWidth(page core.Points, buttons int) core.Points {
+	w := page - 72 - 16
 	if buttons > 0 {
 		w -= core.Points(48*buttons + 12)
 	}
