@@ -41,3 +41,23 @@ func buttonStrokes(v *nsgotest.View) []core.Color {
 	}
 	return out
 }
+
+// A tall button is the introduction's call to action: 56 points tall, 16 round, and a primary one lifted by a shadow in the accent.
+func TestTallPrimaryIsTheIntroductionsButton(t *testing.T) {
+	var colors ui.Colors
+	app := nsgotest.Start(t, func(cx *core.Scope) core.Node {
+		colors = ui.ColorsOf(cx)
+		return core.View{Children: []core.Node{Button{TestID: "go", Text: func() string { return "Go" }, Kind: Primary, Tall: true, OnPress: func() {}}}}
+	}, nsgotest.Environment(core.Environment{OS: core.OSIOS, Idiom: core.IdiomPhone}))
+	button := app.Find("id:go")
+	if got := button.Frame.Size.Height; got != 56 {
+		t.Fatalf("the tall button is %v points tall, want 56", got)
+	}
+	if got := button.Style.CornerRadius; got != 16 {
+		t.Fatalf("the tall button is %v round, want 16", got)
+	}
+	fx := button.Style.Effects
+	if fx == nil || len(fx.Shadows) != 1 || fx.Shadows[0].Color != ui.Alpha(colors.Accent(), 0.3) || fx.Shadows[0].Offset.Y != 10 {
+		t.Fatalf("the tall primary button casts %+v, want one shadow in the accent at 30%% 10 points down", fx)
+	}
+}

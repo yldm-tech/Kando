@@ -20,7 +20,7 @@ const (
 	Plain
 )
 
-// Button is a phone's full-width button, 50 points tall and 14 round (44 Plain), with an optional leading icon. While Busy it shows a spinner in the icon's place, in the button's text color, and takes no presses, and BusyLabel, when set, is what assistive technology reads meanwhile.
+// Button is a phone's full-width button, 50 points tall and 14 round (44 Plain), with an optional leading icon. A Tall one is the introduction's call to action at a screen's foot: 56 points tall, 16 round, its text bold, and a Primary one lifted by a shadow in the accent. While Busy it shows a spinner in the icon's place, in the button's text color, and takes no presses, and BusyLabel, when set, is what assistive technology reads meanwhile.
 // TODO(nsgo#482): ui.Button is 32pt tall at most (size.go:10-15,31) and takes no Style (button.go:28-50), so a phone's large or full-width button is base.Button with the app's own style; use ui.Button once it has a size or style for that https://github.com/nsgo-dev/nsgo/issues/482
 type Button struct {
 	Text      func() string
@@ -31,6 +31,7 @@ type Button struct {
 	Disabled  func() bool
 	// Flex shares a row with the buttons beside it in proportion.
 	Flex    float32
+	Tall    bool
 	OnPress func()
 	TestID  string
 }
@@ -45,6 +46,9 @@ func (b Button) Render(cx *core.Scope) core.Node {
 	if b.Kind == Plain {
 		shape.Height = core.Pt(44)
 	}
+	if b.Tall {
+		shape.Height, shape.CornerRadius = core.Pt(56), 16
+	}
 	if b.Flex > 0 {
 		shape.FlexGrow, shape.FlexShrink, shape.FlexBasis, shape.MinWidth = b.Flex, 1, core.Pt(0), core.Pt(0)
 	}
@@ -57,7 +61,11 @@ func (b Button) Render(cx *core.Scope) core.Node {
 		case Plain:
 			return core.Style{Color: colors.Accent()}
 		}
-		return core.Style{Background: colors.Accent(), Color: colors.OnAccent()}
+		st := core.Style{Background: colors.Accent(), Color: colors.OnAccent()}
+		if b.Tall {
+			st.Shadows = []core.BoxShadow{{Offset: core.Point{Y: 10}, Blur: 24, Color: ui.Alpha(colors.Accent(), 0.3)}}
+		}
+		return st
 	}
 	look := func() core.Style {
 		st := kindStyle()
@@ -81,6 +89,10 @@ func (b Button) Render(cx *core.Scope) core.Node {
 	if b.Icon != nil {
 		lead = ui.Icon(b.Icon, 20, ui.Inherited)
 	}
+	weight := core.FontWeightSemibold
+	if b.Tall {
+		weight = core.FontWeightBold
+	}
 	label := b.Text
 	if b.BusyLabel != nil {
 		label = func() string {
@@ -95,7 +107,7 @@ func (b Button) Render(cx *core.Scope) core.Node {
 		Disabled: func() bool { return busy() || (b.Disabled != nil && b.Disabled()) },
 		Children: []core.Node{
 			core.Show{When: busy, Then: func(*core.Scope) core.Node { return ui.Spinner{Size: 20, Tint: ink} }, Else: func(*core.Scope) core.Node { return lead }},
-			core.Text{ContentFunc: b.Text, MaxLines: 1, Style: core.Style{FontSize: 17, LineHeight: 22, FontWeight: core.FontWeightSemibold, FlexShrink: 1}},
+			core.Text{ContentFunc: b.Text, MaxLines: 1, Style: core.Style{FontSize: 17, LineHeight: 22, FontWeight: weight, FlexShrink: 1}},
 		}}
 }
 
