@@ -2,6 +2,7 @@ package main
 
 import (
 	"bytes"
+	"errors"
 	"image"
 	"image/color"
 	"image/draw"
@@ -252,5 +253,44 @@ func TestNoCameraNoScanning(t *testing.T) {
 	p.app.WaitFor("id:pair-address", wait)
 	if p.app.Exists("id:pair-scan") {
 		t.Fatal("the pairing page offers scanning without a camera")
+	}
+}
+
+// A camera that fails says so, and pairs with nothing.
+func TestScanningWithAFailingCameraSaysSo(t *testing.T) {
+	d := newDesktop(t)
+	p := startPhone(t, "", nsgotest.Environment(core.Environment{Locale: lang, Camera: true}))
+	p.app.TakePhoto = func(core.PickRequest) (*core.PickedFile, error) { return nil, errors.New("denied") }
+	p.startPairing()
+	p.app.WaitFor("id:pair-scan", wait)
+	p.app.Press("id:pair-scan")
+	if got := p.app.WaitFor("id:pair-problem", wait).Text; got != msgs.PairErrCamera() {
+		t.Fatalf("problem %q, want %q", got, msgs.PairErrCamera())
+	}
+	if d.Paired() != 0 {
+		t.Fatal("the phone paired though the camera failed")
+	}
+}
+
+// Cancelling the photo leaves the pairing page as it was, ready to scan again.
+func TestCancellingTheScanChangesNothing(t *testing.T) {
+	d := newDesktop(t)
+	p := startPhone(t, "", nsgotest.Environment(core.Environment{Locale: lang, Camera: true}))
+	p.app.TakePhoto = func(core.PickRequest) (*core.PickedFile, error) { return nil, nil }
+	p.startPairing()
+	p.app.WaitFor("id:pair-scan", wait)
+	p.app.Press("id:pair-scan")
+	p.app.Settle()
+	if len(p.app.Photos) != 1 {
+		t.Fatalf("%d photos asked for, want 1", len(p.app.Photos))
+	}
+	if p.app.Exists("id:pair-problem") {
+		t.Fatalf("a cancelled photo shows a problem: %q", p.app.Find("id:pair-problem").Text)
+	}
+	if p.app.Find("id:pair-scan").Props.Disabled {
+		t.Fatal("scanning stays busy after the photo was cancelled")
+	}
+	if d.Paired() != 0 {
+		t.Fatal("the phone paired from a cancelled photo")
 	}
 }
