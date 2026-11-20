@@ -1,11 +1,9 @@
 package main
 
 import (
-	"strings"
 	"testing"
 
 	"kando/apps/mobile/look"
-	"kando/apps/mobile/store"
 	"kando/packages/sync/synctest"
 
 	"github.com/nsgo-dev/nsgo/core"
@@ -87,30 +85,28 @@ func TestAnAndroidTabletNamesThisTablet(t *testing.T) {
 	}
 }
 
-// On an Android tablet on its side a computer's page sits beside the sidebar, and its toolbar with it, so a long name in the toolbar is bounded by the page's width, not the window's, and ends in an ellipsis rather than run past the toolbar's end.
-func TestALongTitleBesideAnAndroidTabletsSidebarKeepsToItsToolbar(t *testing.T) {
+// On an Android tablet on its side a settings page sits beside the sidebar, and its toolbar with it, so the toolbar's title is bounded by the page's width, not the window's (look.SubPageTitleWidth, whose ellipsis for a long title TestSubPageTitleWidth covers).
+func TestASubPageBesideAnAndroidTabletsSidebarKeepsToItsToolbar(t *testing.T) {
 	if nsgotest.Target() != "" {
 		t.Skip("the platform is the target's")
 	}
-	name := strings.Repeat("Studio ", 24) + "End"
-	d := synctest.New(t, name)
+	d := synctest.New(t, "Studio")
 	d.Offer("123456")
 	dir := t.TempDir()
 	p := startPhone(t, dir, pairedWith(t, d, dir), nsgotest.Size(1280, 800), nsgotest.Environment(core.Environment{Locale: lang, OS: core.OSAndroid, Idiom: core.IdiomTablet}))
-	id := store.DesktopID(d.Fingerprint)
 	p.app.WaitFor("id:sidebar", wait)
 	p.app.Press("id:sidebar-tab-settings")
-	p.app.WaitFor("id:settings-computer-"+id, wait)
-	p.app.Press("id:settings-computer-" + id)
+	p.app.WaitFor("id:settings-computer", wait)
+	p.app.Press("id:settings-computer")
 	p.app.WaitFor("id:computer-page", wait)
 	page := p.app.Find("id:computer-page").Frame.Size.Width
 	if page >= 1280 {
 		t.Fatalf("the computer's page is %v wide, the whole window, not beside the sidebar", page)
 	}
 	most := look.SubPageTitleWidth(page, 0)
-	// The Settings row naming the computer stays mounted under the page; the toolbar's title is the one in the title's font.
+	// The toolbar's title is the one in the title's font.
 	p.app.WaitUntil(wait, func() bool {
-		for _, v := range p.app.QueryMounted("text:" + name) {
+		for _, v := range p.app.QueryMounted("text:" + msgs.SettingsComputer()) {
 			if v.TextStyle.Font.Size == look.SubPageTitle.FontSize {
 				return v.Frame.Size.Width > 0 && v.Frame.Size.Width <= most
 			}
