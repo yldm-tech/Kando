@@ -626,9 +626,8 @@ func TestTheTimeWatchedBeforeTheLibraryIsKnownReachesTheComputer(t *testing.T) {
 	release := d.Hold()
 	t.Cleanup(release)
 	p.app.WaitFor(talkRow(f.Desktop), wait)
+	// A film on the phone plays from its row.
 	p.app.Press(talkRow(f.Desktop))
-	p.app.WaitFor("id:film-play", wait)
-	p.app.Press("id:film-play")
 	p.app.WaitFor("id:player-video", wait)
 	p.app.Play("id:player-video", core.VideoInfo{Duration: 10 * time.Second, Size: core.Size{Width: 1920, Height: 1080}})
 	for at := 500 * time.Millisecond; at <= 6*time.Second; at += 500 * time.Millisecond {
