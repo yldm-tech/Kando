@@ -225,10 +225,11 @@ func TestTheExportGoesThroughTheShareSheet(t *testing.T) {
 	if err != nil || !strings.HasPrefix(string(data), "\ufeffWord,Reading,Meaning,Sentence,Translation,Film") || strings.Contains(string(data), "Fine, thanks.") {
 		t.Fatalf("the table reads %q, %v", data, err)
 	}
-	prefs, err := store.Open(dir).Prefs()
-	if err != nil || prefs.Export.Format != study.VocabCSV || !prefs.Export.NoLines {
-		t.Fatalf("kept %+v, %v; want the CSV without the lines", prefs.Export, err)
-	}
+	// The session saves its prefs off the engine's goroutine (Session.SetPrefs), so wait for the disk to catch up.
+	p.app.WaitUntil(wait, func() bool {
+		prefs, err := store.Open(dir).Prefs()
+		return err == nil && prefs.Export.Format == study.VocabCSV && prefs.Export.NoLines
+	})
 }
 
 // Learn shows how long films played on the phone today against the daily goal, which Settings changes.
