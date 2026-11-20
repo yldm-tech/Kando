@@ -40,6 +40,8 @@ type learn struct {
 	watchedKind map[string]bool
 	// settingsPuts counts, for each computer, the changes of its settings the phone began and finished this run (SetDesktopContext), so a sync that asked for its settings before one or while one ran does not put back what the computer answered then.
 	settingsPuts map[string]int
+	// unplaced is the time watched of each film, by its key, that Watch could not put into its library's learning state yet, as the phone did not know the library or had not read its state, a span a day, the latest last (placeWatched).
+	unplaced map[string][]watchedSpan
 	// again is set when a sync was asked for while one ran, which runs once it is done, so a change made meanwhile is not left until the next.
 	again bool
 	// waiting is how many libraries' syncs the sync running waits for (syncStudy).
@@ -47,6 +49,12 @@ type learn struct {
 	// saveMu orders the saves of the time watched, as prefsMu does the preferences': saving is the generation last given out, saved the one last written.
 	saveMu        gosync.Mutex
 	saving, saved uint64
+}
+
+// watchedSpan is time a film played on the day of at, which ended at at.
+type watchedSpan struct {
+	at time.Time
+	d  time.Duration
 }
 
 // learnSyncFor is how long a sync waits for a computer, which may be off or out of reach.
@@ -66,6 +74,7 @@ func newLearn(s *Session) *learn {
 		dismissed:    map[string]bool{},
 		settings:     core.NewSignalFunc[map[string]DesktopSettings](s.cx, nil, nil),
 		watchedKind:  map[string]bool{},
+		unplaced:     map[string][]watchedSpan{},
 		settingsPuts: map[string]int{},
 	}
 	s.work.Go(func() {
@@ -82,6 +91,7 @@ func newLearn(s *Session) *learn {
 			}
 			s.studies.Set(m)
 			l.watched.Set(watched)
+			s.placeAllWatched()
 			l.ready.Set(true)
 		})
 	})
@@ -138,7 +148,7 @@ func (s *Session) Watched() learning.Watched {
 	return w
 }
 
-// Watch adds d, time the film under key played on the phone, to today's: the phone's own, and its time in the learning state of the film's library, which the computer takes at the next sync and adds to its stats, when the computer syncs the time watched (sync.KindWatched) and the phone keeps that library's state.
+// Watch adds d, time the film under key played on the phone, to today's: the phone's own, and its time in the learning state of the film's library, which the computer takes at the next sync and adds to its stats, when the computer syncs the time watched (sync.KindWatched). A film whose library the phone does not know yet, as one opened for the first time while its computer has not answered which library holds it (findLibrary), or whose library's state is not read yet (loadStudy), keeps the time for that library until it is: placeWatched puts it there then.
 func (s *Session) Watch(key string, d time.Duration) {
 	if d <= 0 {
 		return
@@ -151,15 +161,47 @@ func (s *Session) Watch(key string, d time.Duration) {
 	w.Add(now, d)
 	s.learn.watched.Set(w)
 	s.learnSave(func() error { return s.learn.disk.SaveWatched(w) })
+	spans := s.learn.unplaced[key]
+	if n := len(spans); n > 0 && kstudy.Day(spans[n-1].at) == kstudy.Day(now) {
+		spans[n-1] = watchedSpan{at: now, d: spans[n-1].d + d}
+	} else {
+		spans = append(spans, watchedSpan{at: now, d: d})
+	}
+	s.learn.unplaced[key] = spans
+	s.placeWatched(key)
+}
+
+// placeAllWatched places the time watched kept for every film's library (placeWatched), as the phone has just come to know a library or read its state.
+func (s *Session) placeAllWatched() {
+	for key := range s.learn.unplaced {
+		s.placeWatched(key)
+	}
+}
+
+// placeWatched puts the time watched of the film under key that Watch kept for its library into that library's learning state, once the phone knows the library and has read its state; until then it stays kept. Time of a film no longer on the phone, of a computer no longer paired, or of a computer that does not sync the time watched goes.
+func (s *Session) placeWatched(key string) {
+	spans := s.learn.unplaced[key]
+	if len(spans) == 0 {
+		return
+	}
 	f, ok := s.Film(key)
-	if !ok || f.LibraryID == "" {
+	if !ok {
+		delete(s.learn.unplaced, key)
 		return
 	}
-	desktop, ok := s.Desktop(f.Desktop)
+	desktop, paired := s.Desktop(f.Desktop)
+	if !paired || desktop.DeviceID == "" {
+		delete(s.learn.unplaced, key)
+		return
+	}
+	if f.LibraryID == "" {
+		return
+	}
 	l, kept := s.studies.GetUntracked()[studyKey(f.Desktop, f.LibraryID)]
-	if !ok || !kept || desktop.DeviceID == "" {
+	if !kept {
 		return
 	}
+	delete(s.learn.unplaced, key)
 	// Before a sync reached the computer this run, as for a film watched with the computer out of reach, the library's state says whether it syncs the time watched: one that does serves its own time there. A sync that finds it does not after all, as for a read-only phone, takes the change back (learnAsked).
 	syncs, known := s.learn.watchedKind[f.Desktop]
 	if !known {
@@ -168,7 +210,10 @@ func (s *Session) Watch(key string, d time.Duration) {
 	if !syncs {
 		return
 	}
-	s.setStudy(f.Desktop, f.LibraryID, study.Change(l, learning.WatchedChange(l, desktop.DeviceID, now, d)))
+	for _, sp := range spans {
+		l = study.Change(l, learning.WatchedChange(l, desktop.DeviceID, sp.at, sp.d))
+	}
+	s.setStudy(f.Desktop, f.LibraryID, l)
 }
 
 // Goal is the daily goal in minutes of films played.

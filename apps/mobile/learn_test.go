@@ -617,6 +617,45 @@ func TestTheTimeWatchedIsEveryDevices(t *testing.T) {
 	})
 }
 
+// A film played for the first time before its computer has answered which of its libraries holds it still gives its time to the computer: the phone keeps the time for the library and puts it there once the computer answers.
+func TestTheTimeWatchedBeforeTheLibraryIsKnownReachesTheComputer(t *testing.T) {
+	d := studyDesktop(t)
+	d.SetState("lib", now().Add(-time.Hour), sync.Record{Kind: sync.KindWatched, ID: sync.WatchedID("studio-device", study.Day(now())), Fields: map[string]sync.Field{
+		sync.FieldWatchedMS: {Value: sync.Value(10 * 60_000), Stamp: sync.Stamp{At: now().Add(-time.Hour), Device: "studio-device"}}}})
+	dir, f := keptFrom(t, d)
+	p := startPhone(t, dir, pairedWith(t, d, dir))
+	p.waitLearned(f.Desktop)
+	release := d.Hold()
+	t.Cleanup(release)
+	p.app.WaitFor(talkRow(f.Desktop), wait)
+	p.app.Press(talkRow(f.Desktop))
+	p.app.WaitFor("id:film-play", wait)
+	p.app.Press("id:film-play")
+	p.app.WaitFor("id:player-video", wait)
+	p.app.Play("id:player-video", core.VideoInfo{Duration: 10 * time.Second, Size: core.Size{Width: 1920, Height: 1080}})
+	for at := 500 * time.Millisecond; at <= 6*time.Second; at += 500 * time.Millisecond {
+		p.at(at)
+	}
+	p.app.Back()
+	p.app.WaitFor("id:player-mini", wait)
+	if films, err := store.Open(dir).Films(); err != nil || len(films) != 1 || films[0].LibraryID != "" {
+		t.Fatalf("the film's library is known before the computer answered: %+v, %v", films, err)
+	}
+	release()
+	desktops, err := store.Open(dir).Desktops()
+	if err != nil || len(desktops) != 1 {
+		t.Fatalf("desktops %+v, %v", desktops, err)
+	}
+	p.app.WaitUntil(wait, func() bool {
+		r, ok := d.State("lib", sync.KindWatched, sync.WatchedID(desktops[0].DeviceID, study.Day(now())))
+		if !ok {
+			return false
+		}
+		var ms float64
+		return json.Unmarshal(r.Fields[sync.FieldWatchedMS].Value, &ms) == nil && ms >= 6000
+	})
+}
+
 // A film watched while the computer is out of reach, before any sync reached it this run, still gives its time to the computer: the library's state, which holds the computer's time, says the computer takes it, and the next sync puts it.
 func TestTheTimeWatchedOfflineReachesTheComputer(t *testing.T) {
 	d := studyDesktop(t)
