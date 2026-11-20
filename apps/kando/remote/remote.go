@@ -44,7 +44,7 @@ const (
 	MethodSites = "sites.search"
 	// MethodSubscriptions takes no params and answers []Subscription, the open library's subscriptions in the order the window's sidebar lists them.
 	MethodSubscriptions = "subscriptions.list"
-	// MethodSubscribe takes SubscribeParams, a channel, an uploader's space, a collection or a playlist link, subscribes the open library to it as the window's 添加订阅 does, the videos the list holds now counting as seen so only those that come after are new, and answers Subscribed. A link the open library follows already answers that subscription, as it is. It may take minutes, as yt-dlp reads the list (ListTimeout).
+	// MethodSubscribe takes SubscribeParams, a channel, an uploader's space, a collection or a playlist link, subscribes the open library to it as the window's 添加订阅 does, queuing in order the videos a collection or a playlist holds now while a channel's count as seen, so only those that come after are new, and answers Subscribed; its Added says how many were queued. A link the open library follows already answers that subscription, as it is. It may take minutes, as yt-dlp reads the list (ListTimeout).
 	MethodSubscribe = "subscriptions.add"
 	// MethodSubscriptionCheck takes IDParams, a Subscription's ID, lists its videos now as the window's 立即检查 does, and answers SubscriptionChecked: the new ones that fit its rules are queued, at most the subscribe package's AddPerCheck of them for one that adds by itself, or wait for the user, as its rules say. A paused subscription, or one kept after its site deleted the list, is refused. It may take minutes, as yt-dlp reads the list (ListTimeout).
 	MethodSubscriptionCheck = "subscriptions.check"

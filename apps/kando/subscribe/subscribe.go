@@ -134,6 +134,8 @@ type Sub struct {
 	Seen    []string `json:"seen,omitempty"`
 	Pending []Video  `json:"pending,omitempty"`
 	Added   []Video  `json:"added,omitempty"`
+	// Offered is set once the videos the list held when it was subscribed were queued or offered to the user (Start). A subscription made before Kando did that counted them as seen and added none; the first check of one that follows a collection or a playlist offers them (Take).
+	Offered bool `json:"offered,omitempty"`
 }
 
 // Source is the link a subscription follows for one typed or sent to subscribe to: a playlist or a channel (core.Link.IsList) as it is, and a bilibili video's page as its whole upload (core.Link.Parts), which may hold several parts; reading it says whether it does, as an upload of one part lists as one video (media.ErrOneVideo). It reports false for any other link.
@@ -151,16 +153,29 @@ func Source(typed string) (string, bool) {
 	return "", false
 }
 
-// New is a subscription to source for the library at library, which listing, what a first check found, seeds: its name is the list's, and the videos the list holds now count as seen, so only the ones that come after are new.
+// New is a subscription to source for the library at library, which listing, what a first check found, seeds: its name is the list's, and the videos the list holds now count as seen, so only the ones that come after are new. Which of them are added now is the caller's: Start says which.
 func New(source, library string, listing media.Listing, now time.Time) Sub {
-	s := Sub{ID: newID(), Source: strings.TrimSpace(source), Library: library, Name: listing.Title, Title: listing.Title, Rules: DefaultRules(), Checked: now}
-	if s.Name == "" {
-		s.Name = fallbackName(s.Source)
-	}
+	s := Sub{ID: newID(), Source: strings.TrimSpace(source), Library: library, Name: NameOf(source, listing), Title: listing.Title, Rules: DefaultRules(), Checked: now, Offered: true}
 	for _, v := range listing.Videos {
 		s.see(v.URL)
 	}
 	return s
+}
+
+// Start is the videos listing holds that a new subscription adds now, in the list's order: for a collection or a playlist every one that fits the rules, as the user subscribed for the episodes it has; for a channel or an uploader's space the recent most recent ones (listed first) that fit, as the subscribe dialog asks how many.
+func (s Sub) Start(listing media.Listing, recent int) []Video {
+	listed := listing.Videos
+	if s.Channel() {
+		listed = listed[:min(max(recent, 0), len(listed))]
+	}
+	var out []Video
+	for _, lv := range listed {
+		v := Video{URL: strings.TrimSpace(lv.URL), Title: lv.Title, Duration: lv.Duration}
+		if v.URL != "" && s.Fits(v) && !slices.ContainsFunc(out, func(o Video) bool { return o.URL == v.URL }) {
+			out = append(out, v)
+		}
+	}
+	return out
 }
 
 // newID is a random ID, which names a subscription in the sidebar and in subscriptions.json.
@@ -168,6 +183,14 @@ func newID() string {
 	b := make([]byte, 8)
 	_, _ = rand.Read(b)
 	return hex.EncodeToString(b)
+}
+
+// NameOf is what a subscription to the list at source that listing was read of is called: the list's name, or its link without the scheme when the site gives none.
+func NameOf(source string, listing media.Listing) string {
+	if listing.Title != "" {
+		return listing.Title
+	}
+	return fallbackName(strings.TrimSpace(source))
 }
 
 // fallbackName is the name of a list whose site gives none: its link without the scheme.
@@ -215,10 +238,11 @@ func (s Sub) Due(now, opened time.Time) bool {
 	return s.Checked.Before(opened)
 }
 
-// Found is what Take found: the new videos that fit the rules, in the list's order, and how many new ones did not and were skipped.
+// Found is what Take found: the new videos that fit the rules, in the list's order, and how many new ones did not and were skipped. Earlier is, for a collection or a playlist subscribed before its videos were offered (Sub.Offered), the ones it held then that fit the rules and were neither added nor waiting, in the list's order, which the caller offers to the user.
 type Found struct {
 	Fresh   []Video
 	Skipped int
+	Earlier []Video
 }
 
 // AddPerCheck is how many new videos a check of a subscription that adds them by itself (ModeAuto) queues at most, so a channel that uploads a season at once, or a first check after a long time, does not fill the queue; the others wait for the user as ModeAsk's do (Cap).
@@ -232,7 +256,7 @@ func Cap(fresh []Video) (queue, hold []Video) {
 	return fresh[:AddPerCheck:AddPerCheck], fresh[AddPerCheck:]
 }
 
-// Take folds a check's listing into the subscription at now: every video not seen yet is new once, kept in Fresh when it fits the rules and skipped otherwise; a name the site gives the list that is not the one it gave before is kept in Renamed, and the site going back to the old one forgets it. A check that lists the videos also shows that the list is still there, so Gone and Err are cleared. What to do with Fresh is the caller's: Queue them, or Hold them for the user.
+// Take folds a check's listing into the subscription at now: every video not seen yet is new once, kept in Fresh when it fits the rules and skipped otherwise; a name the site gives the list that is not the one it gave before is kept in Renamed, and the site going back to the old one forgets it. A check that lists the videos also shows that the list is still there, so Gone and Err are cleared. A collection or a playlist subscribed before its videos were offered finds them in Earlier once, and is then Offered. What to do with Fresh and Earlier is the caller's: Queue them, or Hold them for the user.
 func (s *Sub) Take(listing media.Listing, now time.Time) Found {
 	s.Checked, s.Err, s.TimedOut, s.Missing, s.Gone = now, "", false, 0, false
 	switch title := strings.TrimSpace(listing.Title); {
@@ -245,8 +269,13 @@ func (s *Sub) Take(listing media.Listing, now time.Time) Found {
 		s.Renamed = title
 	}
 	var found Found
+	earlier := !s.Offered && !s.Channel()
+	s.Offered = true
 	for _, lv := range listing.Videos {
 		if !s.see(lv.URL) {
+			if v := (Video{URL: strings.TrimSpace(lv.URL), Title: lv.Title, Duration: lv.Duration}); earlier && v.URL != "" && s.Fits(v) && !s.has(v.URL) && !slices.ContainsFunc(found.Earlier, func(e Video) bool { return e.URL == v.URL }) {
+				found.Earlier = append(found.Earlier, v)
+			}
 			continue
 		}
 		v := Video{URL: lv.URL, Title: lv.Title, Duration: lv.Duration}
@@ -257,6 +286,26 @@ func (s *Sub) Take(listing media.Listing, now time.Time) Found {
 		}
 	}
 	return found
+}
+
+// has reports whether the video at link was added or waits for the user.
+func (s Sub) has(link string) bool {
+	same := func(v Video) bool { return v.URL == link }
+	return slices.ContainsFunc(s.Added, same) || slices.ContainsFunc(s.Pending, same)
+}
+
+// Earlier is how many videos a check would offer as Found.Earlier, as far as the subscription knows: those it counted as seen when it was subscribed that were neither added nor waiting, for a collection or a playlist whose videos were not offered yet (Offered); 0 otherwise.
+func (s Sub) Earlier() int {
+	if s.Offered || s.Channel() {
+		return 0
+	}
+	n := 0
+	for _, link := range s.Seen {
+		if !s.has(link) {
+			n++
+		}
+	}
+	return n
 }
 
 // see marks the video at link as seen and reports whether it was not seen before.

@@ -16,7 +16,7 @@ import (
 	"github.com/nsgo-dev/nsgo/ui"
 )
 
-// Page is a subscription's page, beside the sidebar: its site's mark, its kind, name and status, with 立即检查, 暂停 or 恢复 and 取消订阅; the banner of a rename or a deletion on its site; the message about the last thing done to it; the new videos waiting for the user, to add or skip; its rules; and the videos it added with where each is now. It is built again for another subscription and when the interface's language changes, as the words its choices take are plain strings; within it what changes follows in bindings, so the keyword field keeps the focus as it is typed in.
+// Page is a subscription's page, beside the sidebar, as the design lays it out: a card with its site's mark, its site and kind, name and status, with 立即检查, 暂停 or 恢复 and 取消订阅; the banner of a rename or a deletion on its site; the message about the last thing done to it; for a collection or a playlist subscribed before Kando added a list's videos, the ones it left out, which 列出来 offers; the new videos waiting for the user, to add or skip; its rules; and the videos it added with where each is now. It is built again for another subscription and when the interface's language changes, as the words its choices take are plain strings; within it what changes follows in bindings, so the keyword field keeps the focus as it is typed in.
 type Page struct{ App App }
 
 // Render implements ns.Node.
@@ -34,26 +34,26 @@ type page struct{ a App }
 func (p page) build(cx *ns.Scope) ns.Node {
 	a := p.a
 	head := live.Memo(cx, a, a.SubscriptionHead)
-	content := ns.View{Style: ns.Style{Width: ns.Pct(100), MaxWidth: ns.Pt(760), Gap: 6, AlignItems: ns.AlignStretch, Padding: ns.Edges{Bottom: 28}},
-		Children: []ns.Node{p.header(cx, head), p.lines(cx, head), p.banner(cx, head), p.waiting(cx), p.rules(cx), p.added(cx, head)}}
+	content := ns.View{Style: ns.Style{Width: ns.Pct(100), MaxWidth: ns.Pt(760), Gap: 14, AlignItems: ns.AlignStretch, Padding: ns.Edges{Bottom: 28}},
+		Children: []ns.Node{p.header(cx, head), p.lines(cx, head), p.banner(cx, head), p.earlier(cx, head), p.waiting(cx), p.rules(cx), p.added(cx, head)}}
 	return ns.Scroll{TestID: "subscription-page", Style: ns.Style{FlexGrow: 1, FlexShrink: 1, MinHeight: ns.Pt(0)}, Children: []ns.Node{content}}
 }
 
-// header is the mark, the kicker with 已暂停, the name and the status line, and the page's three buttons.
+// header is the design's card at the top: the mark, the site and kind tag with 已暂停, the name and the status line, and the page's three buttons, 立即检查 filled with the accent.
 func (p page) header(cx *ns.Scope, head func() Head) ns.Node {
 	a := p.a
-	colors := ui.ColorsOf(cx)
+	colors, k := ui.ColorsOf(cx), theme.Of(cx)
 	h := head()
-	paused := ns.Show{When: func() bool { return head().Paused }, Then: func(*ns.Scope) ns.Node { return form.Badge(locales.SubscribePausedTag(cx)) }}
-	kicker := ns.View{Style: ns.Style{Direction: ns.Row, Gap: 6, AlignItems: ns.AlignCenter}, Children: []ns.Node{
-		ns.Text{TestID: "subscription-kicker", ContentFunc: func() string { return kickerOf(cx, head()) }, MaxLines: 1, Style: ns.Style{FontSize: 11, LineHeight: 16, FontWeight: ui.Semibold}, StyleFunc: ui.Colored(colors.Muted)},
-		paused,
+	paused := ns.Show{When: func() bool { return head().Paused }, Then: func(*ns.Scope) ns.Node {
+		return ns.Text{Content: locales.SubscribePausedTag(cx), MaxLines: 1, Style: ns.Style{FontSize: 10, LineHeight: 17, FontWeight: ui.Bold, Padding: ns.Symmetric(0, 7), CornerRadius: 7, FlexShrink: 0},
+			StyleFunc: func() ns.Style { return ns.Style{Background: k.Shade(0.08), Color: colors.Muted()} }}
 	}}
-	name := ns.Text{TestID: "subscription-name", Role: ns.RoleHeader, ContentFunc: func() string { return head().Name }, MaxLines: 2, Style: ns.Style{FontSize: 20, LineHeight: 26, FontWeight: ui.Bold}, StyleFunc: ui.Colored(colors.Text)}
-	status := ns.Text{TestID: "subscription-status", ContentFunc: func() string { return statusOf(cx, head(), time.Now()) }, Style: ns.Style{FontSize: 12, LineHeight: 17}, StyleFunc: ui.Colored(colors.Muted)}
-	titles := ns.View{Style: ns.Style{FlexGrow: 1, FlexShrink: 1, MinWidth: ns.Pt(0), Gap: 2}, Children: []ns.Node{kicker, name, status}}
-	check := form.Button{TestID: "subscription-check",
-		TextFunc: func() string {
+	kicker := ns.View{TestID: "subscription-kicker", Label: kickerOf(cx, h), Style: ns.Style{Direction: ns.Row, Gap: 6, AlignItems: ns.AlignCenter}, Children: []ns.Node{SiteBadge(kickerOf(cx, h), h.Platform), paused}}
+	name := ns.Text{TestID: "subscription-name", Role: ns.RoleHeader, ContentFunc: func() string { return head().Name }, MaxLines: 2, Style: ns.Style{FontSize: 18, LineHeight: 24, FontWeight: ui.Bold, Margin: ns.Edges{Top: 4}}, StyleFunc: ui.Colored(colors.Text)}
+	status := ns.Text{TestID: "subscription-status", ContentFunc: func() string { return statusOf(cx, head(), time.Now()) }, Style: ns.Style{FontSize: 12, LineHeight: 17, Margin: ns.Edges{Top: 2}}, StyleFunc: ui.Colored(colors.Muted)}
+	titles := ns.View{Style: ns.Style{FlexGrow: 1, FlexShrink: 1, FlexBasis: ns.Pt(220), MinWidth: ns.Pt(0)}, Children: []ns.Node{kicker, name, status}}
+	check := pageButton{TestID: "subscription-check", Variant: ui.ButtonPrimary,
+		Text: func() string {
 			if head().Checking {
 				return locales.SubscribeChecking(cx)
 			}
@@ -61,8 +61,8 @@ func (p page) header(cx *ns.Scope, head func() Head) ns.Node {
 		},
 		Disabled: func() bool { h := head(); return h.Checking || h.Paused || h.Stopped },
 		OnPress:  live.Do(a, a.CheckSubscription)}
-	pause := form.Button{TestID: "subscription-pause",
-		TextFunc: func() string {
+	pause := pageButton{TestID: "subscription-pause", Variant: ui.ButtonSecondary,
+		Text: func() string {
 			if head().Paused {
 				return locales.SubscribeResume(cx)
 			}
@@ -70,10 +70,44 @@ func (p page) header(cx *ns.Scope, head func() Head) ns.Node {
 		},
 		Disabled: func() bool { return head().Stopped },
 		OnPress:  live.Do(a, func() { a.PauseSubscription(!head().Paused) })}
-	remove := form.Button{TestID: "subscription-unsubscribe", Text: locales.SubscribeUnsubscribe(cx), OnPress: live.Do(a, a.Unsubscribe)}
-	buttons := ns.View{Style: ns.Style{Direction: ns.Row, Gap: 8, AlignItems: ns.AlignCenter, FlexShrink: 0}, Children: []ns.Node{check, pause, remove}}
-	return ns.View{Style: ns.Style{Direction: ns.Row, Gap: 14, AlignItems: ns.AlignCenter, Wrap: ns.Wrap, Padding: ns.Edges{Bottom: 10}},
-		Children: []ns.Node{Mark(h.Platform, 44), titles, buttons}}
+	// TODO(nsgo): give ui.Button a text color, so 取消订阅 reads in the danger ink as the design draws it on the secondary fill
+	remove := ui.Button{TestID: "subscription-unsubscribe", Text: locales.SubscribeUnsubscribe(cx), Variant: ui.ButtonSecondary, Size: ui.SizeSmall, OnPress: live.Do(a, a.Unsubscribe)}
+	buttons := ns.View{Style: ns.Style{Direction: ns.Row, Gap: 8, AlignItems: ns.AlignCenter, FlexShrink: 0, Wrap: ns.Wrap}, Children: []ns.Node{check, pause, remove}}
+	return ns.View{Style: ns.Style{Direction: ns.Row, Gap: 14, AlignItems: ns.AlignCenter, Wrap: ns.Wrap, Padding: ns.All(16), CornerRadius: 16},
+		StyleFunc: func() ns.Style {
+			return ns.Style{Background: k.Card(), Shadows: []ns.BoxShadow{{Spread: 0.5, Color: k.Shade(0.08)}, {Offset: ns.Point{Y: 6}, Blur: 18, Color: k.Shade(0.06)}}}
+		},
+		Children: []ns.Node{Mark(h.Platform, 52), titles, buttons}}
+}
+
+// pageButton is a button of the page at the size of the design's, whose label may change with the app's state.
+type pageButton struct {
+	Text     func() string
+	Variant  ui.ButtonVariant
+	Disabled func() bool
+	OnPress  func()
+	TestID   string
+}
+
+// Render implements ns.Node.
+func (b pageButton) Render(cx *ns.Scope) ns.Node {
+	text := ns.NewMemo(cx, b.Text)
+	// TODO(nsgo#145): give ui.Button a TextFunc twin, so a label that changes with the app's state does not build the button again https://github.com/nsgo-dev/nsgo/issues/145
+	return ns.Dynamic(func(*ns.Scope) ns.Node {
+		return ui.Button{Text: text.Get(), Variant: b.Variant, Size: ui.SizeSmall, Disabled: b.Disabled, OnPress: b.OnPress, TestID: b.TestID}
+	})
+}
+
+// heading is a section's heading, as the design's 新视频 and 已加入: 15-point bold, then a count or a note in the secondary color, and the section's buttons at the end of its line.
+func heading(cx *ns.Scope, title string, note func() string, noteID string, buttons ...ns.Node) ns.Node {
+	colors := ui.ColorsOf(cx)
+	children := []ns.Node{ns.Text{Content: title, Role: ns.RoleHeader, MaxLines: 1, Style: ns.Style{FontSize: 15, LineHeight: 20, FontWeight: ui.Bold, FlexShrink: 0}, StyleFunc: ui.Colored(colors.Text)}}
+	if note != nil {
+		children = append(children, ns.Text{TestID: noteID, ContentFunc: note, MaxLines: 1, Style: ns.Style{FontSize: 12, LineHeight: 17, FlexShrink: 1}, StyleFunc: ui.Colored(colors.Muted)})
+	}
+	children = append(children, ns.View{Style: ns.Style{FlexGrow: 1}})
+	children = append(children, buttons...)
+	return ns.View{Style: ns.Style{Direction: ns.Row, Gap: 8, AlignItems: ns.AlignCenter, Padding: ns.Edges{Top: 4, Right: 4, Left: 4}}, Children: children}
 }
 
 // kickerOf is the line above the name: the site and the kind.
@@ -179,6 +213,9 @@ func noteWarns(kind NoteKind) bool {
 func noteOf(cx *ns.Scope, n Note) string {
 	switch n.Kind {
 	case NoteSubscribed:
+		if n.Count > 0 {
+			return locales.SubscribeNoteSubscribedAdded(cx, n.Text, n.Count)
+		}
 		return locales.SubscribeNoteSubscribed(cx, n.Text)
 	case NoteAlready:
 		return locales.SubscribeNoteAlready(cx)
@@ -194,6 +231,9 @@ func noteOf(cx *ns.Scope, n Note) string {
 		}
 		if n.Skipped > 0 {
 			text += " " + locales.SubscribeNoteSkipped(cx, n.Skipped)
+		}
+		if n.Earlier > 0 {
+			text += " " + locales.SubscribeNoteEarlier(cx, n.Earlier)
 		}
 		return text
 	case NoteNotQueued:
@@ -223,30 +263,53 @@ func (p page) banner(cx *ns.Scope, head func() Head) ns.Node {
 		return WarnOf(Sub{Gone: h.Gone, Stopped: h.Stopped, Renamed: h.Renamed})
 	})
 	box := func(title, body func() string, buttons ...ns.Node) ns.Node {
-		buttons = append(buttons, form.Button{TestID: "subscription-banner-unsubscribe", Text: locales.SubscribeUnsubscribe(cx), OnPress: live.Do(a, a.Unsubscribe)})
+		buttons = append(buttons, ui.Button{TestID: "subscription-banner-unsubscribe", Text: locales.SubscribeUnsubscribe(cx), Variant: ui.ButtonSecondary, Size: ui.SizeSmall, OnPress: live.Do(a, a.Unsubscribe)})
+		bang := ns.Text{Content: "!", Role: ns.RoleNone, MaxLines: 1,
+			Style:     ns.Style{Width: ns.Pt(22), Height: ns.Pt(22), CornerRadius: 11, FontSize: 13, LineHeight: 22, FontWeight: ui.Bold, TextAlign: ns.TextAlignCenter, FlexShrink: 0},
+			StyleFunc: func() ns.Style { return ns.Style{Background: k.WarnInk(), Color: k.OnWarn()} }}
+		texts := ns.View{Style: ns.Style{FlexGrow: 1, FlexShrink: 1, FlexBasis: ns.Pt(260), MinWidth: ns.Pt(0), Gap: 2}, Children: []ns.Node{
+			ns.Text{ContentFunc: title, Style: ns.Style{FontSize: 13, LineHeight: 18, FontWeight: ui.Bold}, StyleFunc: ui.Colored(k.WarnText)},
+			ns.Text{ContentFunc: body, Style: ns.Style{FontSize: 12, LineHeight: 17}, StyleFunc: ui.Colored(k.WarnText)},
+		}}
 		return ns.View{TestID: "subscription-banner", Role: ns.RoleStatus,
-			Style: ns.Style{Gap: 8, Padding: ns.Symmetric(10, 12), CornerRadius: 10, AlignItems: ns.AlignStretch},
+			Style: ns.Style{Direction: ns.Row, Wrap: ns.Wrap, Gap: 12, Padding: ns.Symmetric(14, 16), CornerRadius: 14, AlignItems: ns.AlignCenter},
 			StyleFunc: func() ns.Style {
 				return ns.Style{Background: k.WarnFill(), Shadows: []ns.BoxShadow{{Spread: 0.5, Color: k.WarnRing()}}}
 			},
-			Children: []ns.Node{
-				ns.Text{ContentFunc: title, Style: ns.Style{FontSize: 13, LineHeight: 18, FontWeight: ui.Semibold}, StyleFunc: ui.Colored(k.WarnText)},
-				ns.Text{ContentFunc: body, Style: ns.Style{FontSize: 12, LineHeight: 17}, StyleFunc: ui.Colored(k.WarnText)},
-				ns.View{Style: ns.Style{Direction: ns.Row, Gap: 8, Wrap: ns.Wrap}, Children: buttons},
-			}}
+			Children: []ns.Node{bang, texts, ns.View{Style: ns.Style{Direction: ns.Row, Gap: 8, Wrap: ns.Wrap, AlignItems: ns.AlignCenter}, Children: buttons}}}
 	}
 	return ns.Dynamic(func(cx *ns.Scope) ns.Node {
 		switch warn() {
 		case WarnRenamed:
 			return box(func() string { return locales.SubscribeRenamedTitle(cx, head().Name) }, func() string { return locales.SubscribeRenamedBody(cx, head().Renamed) },
-				form.Button{TestID: "subscription-use-new-name", Text: locales.SubscribeUseNewName(cx), OnPress: live.Do(a, func() { a.KeepSubscriptionName(true) })},
-				form.Button{TestID: "subscription-keep-old-name", Text: locales.SubscribeKeepOldName(cx), OnPress: live.Do(a, func() { a.KeepSubscriptionName(false) })})
+				ui.Button{TestID: "subscription-use-new-name", Text: locales.SubscribeUseNewName(cx), Size: ui.SizeSmall, OnPress: live.Do(a, func() { a.KeepSubscriptionName(true) })},
+				ui.Button{TestID: "subscription-keep-old-name", Text: locales.SubscribeKeepOldName(cx), Variant: ui.ButtonSecondary, Size: ui.SizeSmall, OnPress: live.Do(a, func() { a.KeepSubscriptionName(false) })})
 		case WarnGone:
 			return box(func() string { return locales.SubscribeGoneTitle(cx, head().Name) }, func() string { return locales.SubscribeGoneBody(cx, head().Added) },
-				form.Button{TestID: "subscription-stop", Text: locales.SubscribeStopChecking(cx), OnPress: live.Do(a, a.StopSubscription)})
+				ui.Button{TestID: "subscription-stop", Text: locales.SubscribeStopChecking(cx), Size: ui.SizeSmall, OnPress: live.Do(a, a.StopSubscription)})
 		}
 		return nil
 	})
+}
+
+// earlier is, on a subscription to a collection or a playlist made before Kando added a list's videos as it was subscribed to, the videos the list held then, which it counted as seen and did not add (Head.Earlier): how many, and 列出来, which checks the list so they wait below to be added or skipped.
+func (p page) earlier(cx *ns.Scope, head func() Head) ns.Node {
+	a := p.a
+	return ns.Show{When: func() bool { return head().Earlier > 0 }, Then: func(cx *ns.Scope) ns.Node {
+		colors := ui.ColorsOf(cx)
+		list := pageButton{TestID: "subscription-earlier-list", Variant: ui.ButtonPrimary,
+			Text: func() string {
+				if head().Checking {
+					return locales.SubscribeChecking(cx)
+				}
+				return locales.SubscribeEarlierList(cx)
+			},
+			Disabled: func() bool { h := head(); return h.Checking || h.Paused || h.Stopped },
+			OnPress:  live.Do(a, a.CheckSubscription)}
+		label := heading(cx, locales.SubscribeEarlierTitle(cx), func() string { return locales.SubscribeEarlierCount(cx, head().Earlier) }, "subscription-earlier-count", list)
+		note := ns.Text{Content: locales.SubscribeEarlierNote(cx), Style: ns.Style{FontSize: 12, LineHeight: 17, Padding: ns.Symmetric(0, 4)}, StyleFunc: ui.Colored(colors.Muted)}
+		return ns.View{TestID: "subscription-earlier", Style: ns.Style{Gap: 4, AlignItems: ns.AlignStretch}, Children: []ns.Node{label, note}}
+	}}
 }
 
 // waiting is the new videos waiting for the user, under a heading with their count and 全部加入 and 全部跳过: each with its title, its length, whether it fits the rules as they are now, and its own 加入 and 跳过.
@@ -255,12 +318,9 @@ func (p page) waiting(cx *ns.Scope) ns.Node {
 	colors := ui.ColorsOf(cx)
 	items := live.Func(a, a.SubscriptionWaiting)
 	return ns.Show{When: func() bool { return len(items()) > 0 }, Then: func(cx *ns.Scope) ns.Node {
-		count := ns.Text{TestID: "subscription-waiting-count", ContentFunc: func() string { return locales.SubscribePendingCount(cx, len(items())) }, Style: ns.Style{FontSize: 11, LineHeight: 16, Margin: ns.Edges{Right: 10}}, StyleFunc: ui.Colored(colors.Muted)}
-		label := form.Label(locales.SubscribePendingTitle(cx), 6,
-			count,
-			form.Button{TestID: "subscription-add-all", Text: locales.SubscribeAddAll(cx), OnPress: live.Do(a, func() { a.AddWaiting(nil) })},
-			ns.View{Style: ns.Style{Width: ns.Pt(6)}},
-			form.Button{TestID: "subscription-skip-all", Text: locales.SubscribeSkipAll(cx), OnPress: live.Do(a, func() { a.SkipWaiting(nil) })})
+		label := heading(cx, locales.SubscribePendingTitle(cx), func() string { return locales.SubscribePendingCount(cx, len(items())) }, "subscription-waiting-count",
+			ui.Button{TestID: "subscription-add-all", Text: locales.SubscribeAddAll(cx), Size: ui.SizeSmall, OnPress: live.Do(a, func() { a.AddWaiting(nil) })},
+			ui.Button{TestID: "subscription-skip-all", Text: locales.SubscribeSkipAll(cx), Variant: ui.ButtonSecondary, Size: ui.SizeSmall, OnPress: live.Do(a, func() { a.SkipWaiting(nil) })})
 		rows := ns.Each(items, func(w Waiting) string { return w.URL }, func(cx *ns.Scope, item func() Waiting, index func() int) ns.Node {
 			w := item()
 			meta := func() string {
@@ -277,19 +337,24 @@ func (p page) waiting(cx *ns.Scope) ns.Node {
 				}
 				return text
 			}
-			titles := form.Titles{Title: w.Title, SubtitleFunc: meta}
+			titles := ns.View{Style: ns.Style{FlexGrow: 1, FlexShrink: 1, MinWidth: ns.Pt(0)}, Children: []ns.Node{
+				ns.Text{Content: w.Title, MaxLines: 1, Style: ns.Style{FontSize: 13, LineHeight: 18, FontWeight: ui.Semibold}, StyleFunc: ui.Colored(colors.Text)},
+				ns.Show{When: func() bool { return meta() != "" }, Then: func(*ns.Scope) ns.Node {
+					return ns.Text{ContentFunc: meta, MaxLines: 1, Style: ns.Style{FontSize: 11, LineHeight: 16}, StyleFunc: ui.Colored(colors.Muted)}
+				}},
+			}}
 			add := ui.Button{Text: locales.SubscribeAddOne(cx), Label: locales.SubscribeAddOneLabel(cx, w.Title), Variant: ui.ButtonSecondary, Size: ui.SizeSmall, TestID: "subscription-add-" + w.URL,
 				OnPress: live.Do(a, func() { a.AddWaiting([]string{item().URL}) })}
 			skip := ui.Button{Text: locales.SubscribeSkipOne(cx), Label: locales.SubscribeSkipOneLabel(cx, w.Title), Variant: ui.ButtonGhost, Size: ui.SizeSmall, TestID: "subscription-skip-" + w.URL,
 				OnPress: live.Do(a, func() { a.SkipWaiting([]string{item().URL}) })}
-			row := ns.View{Style: ns.Style{Direction: ns.Row, MinHeight: ns.Pt(46), Padding: ns.Symmetric(6, 14), Gap: 8, AlignItems: ns.AlignCenter},
+			row := ns.View{Style: ns.Style{Direction: ns.Row, MinHeight: ns.Pt(52), Padding: ns.Symmetric(7, 14), Gap: 8, AlignItems: ns.AlignCenter},
 				Children: []ns.Node{titles, add, skip}}
 			return ns.View{Children: []ns.Node{
 				ns.Show{When: func() bool { return index() > 0 }, Then: func(*ns.Scope) ns.Node { return form.Separator(false) }},
 				row,
 			}}
 		})
-		return ns.View{Style: ns.Style{Gap: 6, AlignItems: ns.AlignStretch, Padding: ns.Edges{Bottom: 6}}, Children: []ns.Node{label, form.Card(rows)}}
+		return ns.View{Style: ns.Style{Gap: 10, AlignItems: ns.AlignStretch}, Children: []ns.Node{label, form.Card(rows)}}
 	}}
 }
 
@@ -338,8 +403,8 @@ func (p page) rules(cx *ns.Scope) ns.Node {
 		}
 		return locales.SubscribeWhenNewAuto(cx, AddPerCheck)
 	}
-	return ns.View{Style: ns.Style{Gap: 6, AlignItems: ns.AlignStretch}, Children: []ns.Node{
-		form.Label(locales.SubscribeRules(cx), 6),
+	return ns.View{Style: ns.Style{Gap: 10, AlignItems: ns.AlignStretch}, Children: []ns.Node{
+		heading(cx, locales.SubscribeRules(cx), nil, ""),
 		form.Card(
 			form.Row{Title: locales.SubscribeWhenNew(cx), SubtitleFunc: modeNote, Trailing: []ns.Node{mode}},
 			form.Separator(true),
@@ -371,7 +436,6 @@ func (p page) added(cx *ns.Scope, head func() Head) ns.Node {
 		}
 		return out
 	})
-	count := ns.Text{TestID: "subscription-added-count", ContentFunc: func() string { return strconv.Itoa(head().Added) }, Style: ns.Style{FontSize: 11, LineHeight: 16}, StyleFunc: ui.Colored(colors.Muted)}
 	rows := ns.Each(items, func(v Added) string { return v.URL }, func(cx *ns.Scope, item func() Added, index func() int) ns.Node {
 		title := ns.Text{ContentFunc: func() string { return item().Title }, MaxLines: 1, Style: ns.Style{FontSize: 13, LineHeight: 18, FlexGrow: 1, FlexShrink: 1, MinWidth: ns.Pt(0)}, StyleFunc: ui.Colored(colors.Text)}
 		stage := ns.Text{ContentFunc: func() string { return stageName(cx, item().Stage) }, MaxLines: 1, Style: ns.Style{FontSize: 12, LineHeight: 17, FlexShrink: 0},
@@ -388,15 +452,16 @@ func (p page) added(cx *ns.Scope, head func() Head) ns.Node {
 			}}
 		return ns.View{Children: []ns.Node{
 			ns.Show{When: func() bool { return index() > 0 }, Then: func(*ns.Scope) ns.Node { return form.Separator(false) }},
-			ns.View{Style: ns.Style{Direction: ns.Row, MinHeight: ns.Pt(36), Padding: ns.Symmetric(6, 14), Gap: 10, AlignItems: ns.AlignCenter}, Children: []ns.Node{title, stage}},
+			ns.View{Style: ns.Style{Direction: ns.Row, MinHeight: ns.Pt(46), Padding: ns.Symmetric(6, 14), Gap: 12, AlignItems: ns.AlignCenter}, Children: []ns.Node{title, stage}},
 		}}
 	})
 	list := ns.Show{When: func() bool { return len(items()) > 0 },
 		Then: func(*ns.Scope) ns.Node { return form.Card(rows) },
 		Else: func(cx *ns.Scope) ns.Node {
-			return ns.Text{TestID: "subscription-added-none", Content: locales.SubscribeAddedNone(cx), Style: ns.Style{FontSize: 12, LineHeight: 17, Padding: ns.Symmetric(4, 12)}, StyleFunc: ui.Colored(colors.Muted)}
+			return form.Card(ns.Text{TestID: "subscription-added-none", Content: locales.SubscribeAddedNone(cx), Style: ns.Style{FontSize: 12, LineHeight: 17, Padding: ns.All(14)}, StyleFunc: ui.Colored(colors.Muted)})
 		}}
-	return ns.View{Style: ns.Style{Gap: 6, AlignItems: ns.AlignStretch}, Children: []ns.Node{form.Label(locales.SubscribeAddedTitle(cx), 12, count), list}}
+	count := func() string { return strconv.Itoa(head().Added) }
+	return ns.View{Style: ns.Style{Gap: 10, AlignItems: ns.AlignStretch}, Children: []ns.Node{heading(cx, locales.SubscribeAddedTitle(cx), count, "subscription-added-count"), list}}
 }
 
 // stageName names a Stage.

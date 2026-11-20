@@ -107,8 +107,9 @@ type Head struct {
 	Err           string
 	Checked       time.Time
 	Cadence       Cadence
-	// Added is how many videos it added.
-	Added int
+	// Added is how many videos it added; Earlier how many the list held when it was subscribed that it counted as seen without adding or offering them (Sub.Earlier), which a check offers.
+	Added   int
+	Earlier int
 	// Note is the message about the last thing done to it.
 	Note Note
 }
@@ -117,10 +118,11 @@ type Head struct {
 type NoteKind string
 
 const (
-	NoteNone       NoteKind = ""
+	NoteNone NoteKind = ""
+	// NoteSubscribed is a new subscription, Text its name, which queued Count of the videos the list holds.
 	NoteSubscribed NoteKind = "subscribed"
 	NoteAlready    NoteKind = "already"
-	// NoteChecked is a check that worked: Count new videos, queued or held as Held says, of which Over were held past AddPerCheck though the rest were queued, and Skipped that the rules skipped.
+	// NoteChecked is a check that worked: Count new videos, queued or held as Held says, of which Over were held past AddPerCheck though the rest were queued, and Skipped that the rules skipped; Earlier videos the list held when it was subscribed now wait for the user (Found.Earlier).
 	NoteChecked NoteKind = "checked"
 	// NoteNotQueued is new videos that could not be queued and are held instead, Text saying why; a check's keeps its counts, as NoteChecked has them.
 	NoteNotQueued NoteKind = "notQueued"
@@ -138,6 +140,7 @@ type Note struct {
 	Kind           NoteKind
 	Count, Skipped int
 	Over           int
+	Earlier        int
 	Held           bool
 	Text           string
 }

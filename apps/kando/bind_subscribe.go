@@ -51,7 +51,7 @@ func (a *app) SubscriptionHead() subscribe.Head {
 	}
 	link := sub.Link()
 	return subscribe.Head{ID: sub.ID, Name: sub.Name, Platform: link.Platform, Kind: subscribe.KindOf(link), Paused: sub.Paused, Checking: sub.ID == a.subs.checking,
-		Gone: sub.Gone, Stopped: sub.Stopped, Renamed: sub.Renamed, TimedOut: sub.TimedOut, Err: sub.Err, Checked: sub.Checked, Cadence: sub.Cadence, Added: len(sub.Added), Note: a.subscribeNoteOf(sub.ID)}
+		Gone: sub.Gone, Stopped: sub.Stopped, Renamed: sub.Renamed, TimedOut: sub.TimedOut, Err: sub.Err, Checked: sub.Checked, Cadence: sub.Cadence, Added: len(sub.Added), Earlier: sub.Earlier(), Note: a.subscribeNoteOf(sub.ID)}
 }
 
 // subscribeNoteOf is the note of the subscription with id as its page shows it: why something did not work is worded now, in the interface's language, which the page follows as it changes.

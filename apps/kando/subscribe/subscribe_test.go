@@ -303,3 +303,47 @@ func TestSource(t *testing.T) {
 		}
 	}
 }
+
+// Start is what a new subscription adds now: a playlist's or a collection's every video that fits the rules, in the list's order, and a channel's as many of its most recent, listed first, as asked.
+func TestStartAddsAListWholeAndAChannelsLatest(t *testing.T) {
+	list := New("https://www.youtube.com/playlist?list=PLx", "/videos", listing, t0)
+	if got := urls(list.Start(listing, 0)); !slices.Equal(got, []string{listing.Videos[0].URL, listing.Videos[1].URL}) {
+		t.Fatalf("a playlist adds %q, want every video in order", got)
+	}
+	list.Filter = FilterLong
+	if got := urls(list.Start(listing, 0)); !slices.Equal(got, []string{listing.Videos[0].URL}) {
+		t.Fatalf("a playlist that takes long videos adds %q", got)
+	}
+	channel := New("https://www.youtube.com/@earthscience", "/videos", listing, t0)
+	for recent, want := range map[int]int{0: 0, 1: 1, 3: 2} {
+		if got := channel.Start(listing, recent); len(got) != want || (want > 0 && got[0].URL != listing.Videos[0].URL) {
+			t.Fatalf("a channel asked for its %d latest adds %+v", recent, got)
+		}
+	}
+}
+
+// A subscription to a collection made before Kando added a list's videos counted them as seen; its next check offers those it neither added nor holds, once, in the list's order, while a channel's and a new subscription's offer none.
+func TestTakeOffersTheVideosAnOldSubscriptionLeftOut(t *testing.T) {
+	const collection = "https://space.bilibili.com/12345/channel/collectiondetail?sid=67890"
+	old := New(collection, "/videos", listing, t0)
+	old.Offered = false
+	old.Queued([]Video{{URL: listing.Videos[1].URL}})
+	if old.Earlier() != 1 {
+		t.Fatalf("earlier %d, want the one not added", old.Earlier())
+	}
+	found := old.Take(listing, t0.Add(time.Hour))
+	if len(found.Earlier) != 1 || found.Earlier[0].URL != listing.Videos[0].URL || found.Earlier[0].Title != "Rivers" || len(found.Fresh) != 0 || !old.Offered || old.Earlier() != 0 {
+		t.Fatalf("found %+v, offered %v", found, old.Offered)
+	}
+	if again := old.Take(listing, t0.Add(2*time.Hour)); len(again.Earlier) != 0 {
+		t.Fatalf("offered twice: %+v", again)
+	}
+	if fresh := New(collection, "/videos", listing, t0); fresh.Earlier() != 0 || len(fresh.Take(listing, t0).Earlier) != 0 {
+		t.Fatal("a new subscription offers its videos again")
+	}
+	channel := New("https://www.youtube.com/@earthscience", "/videos", listing, t0)
+	channel.Offered = false
+	if channel.Earlier() != 0 || len(channel.Take(listing, t0).Earlier) != 0 {
+		t.Fatal("a channel offers the videos it had")
+	}
+}

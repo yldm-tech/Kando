@@ -30,7 +30,7 @@ var (
 	testSubShort = media.ListedVideo{URL: "https://www.youtube.com/watch?v=sssssssssss", Title: "Tides in 40 Seconds", Duration: 40 * time.Second}
 )
 
-// subscribeTo subscribes to testSubChannel through the sidebar's + and the dialog, the channel holding testSubOld, and returns the subscription once its page shows.
+// subscribeTo subscribes to testSubChannel through the sidebar's + and the dialog, the channel holding testSubOld, adding none of its videos now (不加), and returns the subscription once its page shows.
 func subscribeTo(t *testing.T, tt *nsgotest.App, a *app, p *listingPipeline, updates chan func()) *subscribe.Sub {
 	t.Helper()
 	p.lists[testSubChannel] = media.Listing{Title: "Earth Science", Videos: []media.ListedVideo{testSubOld}}
@@ -44,6 +44,11 @@ func subscribeTo(t *testing.T, tt *nsgotest.App, a *app, p *listingPipeline, upd
 		t.Fatalf("listed %+v, want the channel's most recent", got)
 	}
 	waitUntil(t, tt, a, updates, func() bool { return !a.subs.ask.reading })
+	if !tt.Exists("id:subscribe-recent") || len(a.subs.store.Subs) != 0 {
+		t.Fatalf("the dialog does not ask how many to add now: %q, dialog error %q", tt.Texts(), a.subs.ask.err)
+	}
+	tt.Press("id:subscribe-recent-0")
+	tt.Press("id:subscribe-submit")
 	if len(a.subs.store.Subs) != 1 {
 		t.Fatalf("subscriptions %+v, dialog error %q", a.subs.store.Subs, a.subs.ask.err)
 	}
@@ -165,11 +170,13 @@ func TestSubscribeToABilibiliUploadOfParts(t *testing.T) {
 		t.Fatalf("listed %+v, want the whole upload", got)
 	}
 	waitUntil(t, tt, a, updates, func() bool { return !a.subs.ask.reading })
+	tt.Press("id:subscribe-submit")
 	if len(a.subs.store.Subs) != 1 {
 		t.Fatalf("subscriptions %+v, dialog error %q", a.subs.store.Subs, a.subs.ask.err)
 	}
-	if sub := a.subs.store.Subs[0]; sub.Source != parts || sub.Name != "英语动画短片" || len(sub.Seen) != 2 {
-		t.Fatalf("subscription %+v", sub)
+	// Its parts are queued, as the user subscribed for them.
+	if sub := a.subs.store.Subs[0]; sub.Source != parts || sub.Name != "英语动画短片" || len(sub.Seen) != 2 || len(sub.Added) != 2 || len(a.library.Jobs) != 2 {
+		t.Fatalf("subscription %+v, jobs %+v", sub, a.library.Jobs)
 	}
 }
 
@@ -825,5 +832,156 @@ func TestRemoteSubscriptionCheckNotQueuedOverTheCap(t *testing.T) {
 	}
 	if note := a.subs.notes[got.Subscription.ID]; note.Kind != subscribe.NoteNotQueued || note.Count != 5 || note.Over != 2 {
 		t.Fatalf("note %+v", note)
+	}
+}
+
+// The bilibili collection the collection tests follow, and its three episodes.
+const testSubCollection = "https://space.bilibili.com/12345/channel/collectiondetail?sid=67890"
+
+var testSubEpisodes = media.Listing{Title: "线性代数的几何意义", Videos: []media.ListedVideo{
+	{URL: "https://www.bilibili.com/video/BV1xx411c7m1", Title: "P1 向量", Duration: 12 * time.Minute},
+	{URL: "https://www.bilibili.com/video/BV1xx411c7m2", Title: "P2 向量与基", Duration: 11 * time.Minute},
+	{URL: "https://www.bilibili.com/video/BV1xx411c7m3", Title: "P3 线性变换", Duration: 14 * time.Minute},
+}}
+
+// subscribeRead pastes source in the subscribe dialog and waits for the card that shows what was read.
+func subscribeRead(t *testing.T, tt *nsgotest.App, a *app, p *listingPipeline, updates chan func(), source string) {
+	t.Helper()
+	tt.Press("id:subscribe-add")
+	tt.Type("id:subscribe-link", source)
+	tt.Press("id:subscribe-submit")
+	nextCall(t, p)
+	waitUntil(t, tt, a, updates, func() bool { return !a.subs.ask.reading })
+	if !a.subs.ask.read || len(a.subs.store.Subs) != 0 {
+		t.Fatalf("the dialog did not show what it read: %q, error %q", tt.Texts(), a.subs.ask.err)
+	}
+}
+
+// Subscribing to a collection from the dialog queues all its episodes, in the list's order, as one series: the card says how many it holds, the button that it adds them, and the page lists them as added.
+func TestSubscribeToACollectionAddsItsEpisodes(t *testing.T) {
+	p := newListingPipeline(map[string]media.Listing{testSubCollection: testSubEpisodes})
+	a, tt, updates := newTestApp(t, p)
+	msgs := testlocale.Messages()
+	subscribeRead(t, tt, a, p, updates, testSubCollection)
+	for _, want := range []string{"线性代数的几何意义", msgs.SubscribeAddWholeCollection(3), msgs.SubscribeAddConfirmList(3)} {
+		wantText(t, tt, want)
+	}
+	if tt.Exists("id:subscribe-recent") || !tt.Exists("id:subscribe-series") {
+		t.Fatalf("a collection's card: %q", tt.Texts())
+	}
+	tt.Press("id:subscribe-submit")
+	if len(a.subs.store.Subs) != 1 || tt.Exists("id:subscribe-ask") {
+		t.Fatalf("subscriptions %+v, error %q", a.subs.store.Subs, a.subs.ask.err)
+	}
+	sub := a.subs.store.Subs[0]
+	want := []string{testSubEpisodes.Videos[0].URL, testSubEpisodes.Videos[1].URL, testSubEpisodes.Videos[2].URL}
+	if got := playlistJobSources(a); !slices.Equal(got, want) {
+		t.Fatalf("queued %q, want the episodes in order", got)
+	}
+	if !sub.Series || len(sub.Added) != 3 || sub.Added[0].Title != "P1 向量" || len(sub.Pending) != 0 || !sub.Offered {
+		t.Fatalf("subscription %+v", sub)
+	}
+	for _, job := range a.library.Jobs {
+		if job.Series != glossarySeriesOf(sub) {
+			t.Fatalf("job %q is not in the subscription's series: %q", job.Source, job.Series)
+		}
+	}
+	refresh(tt, a)
+	wantText(t, tt, msgs.SubscribeNoteSubscribedAdded("线性代数的几何意义", 3))
+	if hasText(tt, msgs.SubscribeAddedNone()) {
+		t.Fatalf("the page lists none added: %q", tt.Texts())
+	}
+}
+
+// Subscribing to a channel asks how many of its videos to add now: its latest 3 unless the user chooses otherwise, the rest counting as seen.
+func TestSubscribeToAChannelAddsItsLatest(t *testing.T) {
+	var videos []media.ListedVideo
+	for _, id := range []string{"aaaaaaaaaaa", "bbbbbbbbbbb", "ccccccccccc", "ddddddddddd", "eeeeeeeeeee"} {
+		videos = append(videos, media.ListedVideo{URL: "https://www.youtube.com/watch?v=" + id, Title: "Video " + id[:1], Duration: 8 * time.Minute})
+	}
+	p := newListingPipeline(map[string]media.Listing{testSubChannel: {Title: "Earth Science", Videos: videos}})
+	a, tt, updates := newTestApp(t, p)
+	msgs := testlocale.Messages()
+	subscribeRead(t, tt, a, p, updates, testSubChannel)
+	if a.subs.ask.recent != subscribe.RecentDefault || !tt.Exists("id:subscribe-recent") || tt.Exists("id:subscribe-series") {
+		t.Fatalf("a channel's card: recent %d, %q", a.subs.ask.recent, tt.Texts())
+	}
+	wantText(t, tt, msgs.SubscribeAddConfirmChannel(3))
+	tt.Press("id:subscribe-submit")
+	if len(a.subs.store.Subs) != 1 {
+		t.Fatalf("subscriptions %+v, error %q", a.subs.store.Subs, a.subs.ask.err)
+	}
+	sub := a.subs.store.Subs[0]
+	if got := playlistJobSources(a); !slices.Equal(got, []string{videos[0].URL, videos[1].URL, videos[2].URL}) {
+		t.Fatalf("queued %q, want the latest 3", got)
+	}
+	if len(sub.Seen) != 5 || len(sub.Added) != 3 || sub.Series {
+		t.Fatalf("subscription %+v", sub)
+	}
+}
+
+// Episodes that cannot be queued as the collection is subscribed to, as while no language to translate into is chosen, wait on the page, which says why.
+func TestSubscribeHoldsEpisodesItCannotQueue(t *testing.T) {
+	p := newListingPipeline(map[string]media.Listing{testSubCollection: testSubEpisodes})
+	a, tt, updates := newTestApp(t, p)
+	a.prefs.language = ""
+	subscribeRead(t, tt, a, p, updates, testSubCollection)
+	tt.Press("id:subscribe-submit")
+	if len(a.subs.store.Subs) != 1 {
+		t.Fatalf("subscriptions %+v, error %q", a.subs.store.Subs, a.subs.ask.err)
+	}
+	sub := a.subs.store.Subs[0]
+	if len(a.library.Jobs) != 0 || len(sub.Pending) != 3 || sub.Pending[0].URL != testSubEpisodes.Videos[0].URL || len(sub.Added) != 0 {
+		t.Fatalf("subscription %+v, jobs %+v", sub, a.library.Jobs)
+	}
+	refresh(tt, a)
+	wantText(t, tt, testlocale.Messages().SubscribeNoteNotQueued(testlocale.Messages().QueueNoLanguage()))
+	if !tt.Exists("id:subscription-waiting-count") {
+		t.Fatalf("the page does not list them: %q", tt.Texts())
+	}
+}
+
+// A collection subscribed to before Kando added a list's episodes counted them as seen and added none: its page offers them, 列出来 reads the list again, and they wait to be added, even for a subscription that adds new videos by itself; 全部加入 then queues them in order.
+func TestSubscribeOffersTheEpisodesAnOldSubscriptionLeftOut(t *testing.T) {
+	p := newListingPipeline(map[string]media.Listing{testSubCollection: testSubEpisodes})
+	a, tt, updates := newTestApp(t, p)
+	msgs := testlocale.Messages()
+	old := subscribe.New(testSubCollection, testVideos, testSubEpisodes, time.Now().Add(-time.Hour))
+	old.Offered = false
+	a.subs.store.Subs = []subscribe.Sub{old}
+	refresh(tt, a)
+	tt.Press("id:subscription-" + old.ID)
+	if !tt.Exists("id:subscription-earlier") {
+		t.Fatalf("the page does not offer the episodes: %q", tt.Texts())
+	}
+	wantText(t, tt, msgs.SubscribeEarlierCount(3))
+	tt.Press("id:subscription-earlier-list")
+	nextCall(t, p)
+	waitUntil(t, tt, a, updates, func() bool { return a.subs.checking == "" })
+	sub := &a.subs.store.Subs[0]
+	if len(sub.Pending) != 3 || sub.Pending[2].Title != "P3 线性变换" || len(a.library.Jobs) != 0 || !sub.Offered || tt.Exists("id:subscription-earlier") {
+		t.Fatalf("subscription %+v, jobs %+v", sub, a.library.Jobs)
+	}
+	wantText(t, tt, msgs.SubscribeNoteNone()+" "+msgs.SubscribeNoteEarlier(3))
+	tt.Press("id:subscription-add-all")
+	want := []string{testSubEpisodes.Videos[0].URL, testSubEpisodes.Videos[1].URL, testSubEpisodes.Videos[2].URL}
+	if got := playlistJobSources(a); !slices.Equal(got, want) || len(sub.Pending) != 0 || len(sub.Added) != 3 {
+		t.Fatalf("queued %q, subscription %+v", got, sub)
+	}
+}
+
+// The control socket, and so a phone, subscribing to a collection queues its episodes in order, as the window's dialog does; a channel's videos there now count as seen, as neither says how many it wants.
+func TestRemoteSubscribeAddsACollectionsEpisodes(t *testing.T) {
+	p := newListingPipeline(map[string]media.Listing{testSubCollection: testSubEpisodes})
+	a, _, updates := newTestApp(t, p)
+	remoteServe(t, a)
+	got, err := remoteCall[remote.Subscribed](t, updates, remote.MethodSubscribe, remote.SubscribeParams{Source: testSubCollection})
+	if err != nil {
+		t.Fatal(err)
+	}
+	nextCall(t, p)
+	want := []string{testSubEpisodes.Videos[0].URL, testSubEpisodes.Videos[1].URL, testSubEpisodes.Videos[2].URL}
+	if got.Subscription.Added != 3 || !slices.Equal(playlistJobSources(a), want) {
+		t.Fatalf("subscribed %+v, queued %q", got, playlistJobSources(a))
 	}
 }

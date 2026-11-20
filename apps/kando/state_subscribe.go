@@ -53,7 +53,7 @@ type subscribeNote struct {
 // subscribeReason says why something did not work in the language of m. It keeps the data it needs, not words.
 type subscribeReason func(m locales.Messages) string
 
-// subscribeAsk is the dialog a link to subscribe to is pasted in: whether it is open, release, which gives back the window's modal flag it holds (holdModal), and the link typed; while the list is read, reading is set, cancel stops it and run tells its report from that of a dialog closed before it; err says why the link could not be subscribed to.
+// subscribeAsk is the dialog a link to subscribe to is pasted in: whether it is open, release, which gives back the window's modal flag it holds (holdModal), and the link typed; while the list is read, reading is set, cancel stops it and run tells its report from that of a dialog closed before it; err says why the link could not be subscribed to. Once the list was read, read is set and the dialog shows it, the list at source of the library at dir, with how many of a channel's most recent videos to add now (recent) and whether a collection's or a playlist's are one series (series).
 type subscribeAsk struct {
 	open    bool
 	release func()
@@ -62,6 +62,12 @@ type subscribeAsk struct {
 	cancel  context.CancelFunc
 	run     int
 	err     string
+	read    bool
+	source  string
+	dir     string
+	listing media.Listing
+	recent  int
+	series  bool
 }
 
 func newSubscribeUI() subscribeUI { return subscribeUI{notes: map[string]subscribeNote{}} }
@@ -98,6 +104,12 @@ func (a *app) subscribeOverlay(*core.Scope) core.Node {
 		OnLink:   live.On(a, func(text string) { a.subs.ask.link, a.subs.ask.err = text, "" }),
 		Reading:  live.Func(a, func() bool { return a.subs.ask.reading }),
 		Err:      live.Func(a, func() string { return a.subs.ask.err }),
+		Preview:  live.Func(a, a.subscribeAskPreview),
+		Recent:   live.Func(a, func() int { return a.subs.ask.recent }),
+		OnRecent: live.On(a, func(n int) { a.subs.ask.recent = n }),
+		Series:   live.Func(a, func() bool { return a.subs.ask.series }),
+		OnSeries: live.On(a, func(on bool) { a.subs.ask.series = on }),
+		Adding:   live.Func(a, func() int { return len(a.subscribeAskAdding()) }),
 		OnSubmit: live.Do(a, a.subscribeAskSubmit),
 		OnCancel: live.Do(a, a.subscribeAskClose),
 	}
@@ -320,6 +332,20 @@ func (a *app) subscribeTook(id string, listing media.Listing, err error) (*subsc
 	}
 	found := sub.Take(listing, now)
 	note := subscribeNote{Note: subscribe.Note{Kind: subscribe.NoteChecked, Count: len(found.Fresh), Skipped: found.Skipped}}
+	// The videos a list held when it was subscribed, before Kando added them (Found.Earlier), wait for the user whatever the mode, as it did not ask for them; those the library has already are recorded as added.
+	if len(found.Earlier) > 0 {
+		var had, offer []subscribe.Video
+		for _, v := range found.Earlier {
+			if a.subscribeHas(sub.Library, v.URL) {
+				had = append(had, v)
+			} else {
+				offer = append(offer, v)
+			}
+		}
+		sub.Queued(had)
+		sub.Hold(offer)
+		note.Earlier = len(offer)
+	}
 	switch {
 	case len(found.Fresh) == 0:
 	case sub.Mode == subscribe.ModeAsk:
@@ -399,6 +425,37 @@ func (a *app) subscribeEnqueue(sub *subscribe.Sub, videos []subscribe.Video) (fa
 	return failed, why
 }
 
+// subscribeHas reports whether the library at dir has a job for the video at source that did not fail.
+func (a *app) subscribeHas(dir, source string) bool {
+	key := queueSourceKey(source)
+	return slices.ContainsFunc(a.library.Jobs, func(job kcore.Job) bool {
+		return job.Stage != kcore.StageFailed && films.InLibrary(dir, job) && queueSourceKey(job.Source) == key
+	})
+}
+
+// subscribeCreate subscribes the library at dir to the list at source, which listing is what was read of it, with series as its rules' Series, and adds the videos it holds now (subscribe.Sub.Start): a collection's or a playlist's every one that fits the rules, a channel's recent most recent. Those that could not be queued, as when the library is locked or a tool is missing, wait on its page, which says why. It returns the subscription, whose note says what it added.
+func (a *app) subscribeCreate(source, dir string, listing media.Listing, recent int, series bool) *subscribe.Sub {
+	made := subscribe.New(source, dir, listing, time.Now())
+	made.Series = series
+	a.subs.store.Subs = append(a.subs.store.Subs, made)
+	sub, _ := a.subs.store.Find(made.ID)
+	note := subscribeNote{Note: subscribe.Note{Kind: subscribe.NoteSubscribed, Text: sub.Name}}
+	if videos := sub.Start(listing, recent); len(videos) > 0 {
+		failed, why := a.subscribeEnqueue(sub, videos)
+		sub.Hold(failed)
+		note.Count = len(videos) - len(failed)
+		if len(failed) > 0 {
+			note = subscribeNote{Note: subscribe.Note{Kind: subscribe.NoteNotQueued}, why: why}
+		}
+	}
+	if series {
+		a.glossarySubscriptionSeries(*sub)
+	}
+	a.subs.notes[sub.ID] = note
+	a.subscribeSave()
+	return sub
+}
+
 // subscribeQueueIn queues the video at source in the library at dir, which is not the open one, as newJob and queueTake do in the open library: a video that library has a job for already, but for one that failed, is not queued again.
 func (a *app) subscribeQueueIn(dir, source string) error {
 	job, err := kcore.NewJob(source)
@@ -420,20 +477,40 @@ func (a *app) subscribeQueueIn(dir, source string) error {
 	return nil
 }
 
-// subscribeFollow has the open library subscribe to the list at source, whose videos listing holds now count as seen, as the playlist dialog's switch asks when it adds them; a list the library follows already, a library that is locked or none open, is left as it is. It reports whether it subscribed.
-func (a *app) subscribeFollow(source string, listing media.Listing) bool {
+// subscribeFollow has the open library subscribe to the list at source, whose videos listing holds now count as seen, as the playlist dialog's switch asks when it adds them, and returns its ID; the dialog queues the videos itself, and then records them on it (subscribeAdopt). A list the library follows already, a library that is locked or none open, is left as it is, and the ID is "".
+func (a *app) subscribeFollow(source string, listing media.Listing) string {
 	dir := a.snap().LibraryDir
 	if strings.TrimSpace(dir) == "" || a.lockShut() {
-		return false
+		return ""
 	}
 	if _, ok := a.subs.store.Following(source, dir); ok {
-		return false
+		return ""
 	}
 	sub := subscribe.New(source, dir, listing, time.Now())
 	a.subs.store.Subs = append(a.subs.store.Subs, sub)
 	a.subscribeSave()
 	a.subs.notes[sub.ID] = subscribeNote{Note: subscribe.Note{Kind: subscribe.NoteSubscribed, Text: sub.Name}}
-	return true
+	return sub.ID
+}
+
+// subscribeAdopt records on the subscription with id the videos of listing its library has a job for, as the playlist dialog queued them, so its page lists them as added and they are not queued again.
+func (a *app) subscribeAdopt(id string, listing media.Listing) {
+	sub, ok := a.subscribeFind(id)
+	if !ok {
+		return
+	}
+	var have []subscribe.Video
+	for _, lv := range listing.Videos {
+		if a.subscribeHas(sub.Library, lv.URL) {
+			have = append(have, subscribe.Video{URL: lv.URL, Title: lv.Title, Duration: lv.Duration})
+		}
+	}
+	if len(have) == 0 {
+		return
+	}
+	sub.Queued(have)
+	a.subs.notes[id] = subscribeNote{Note: subscribe.Note{Kind: subscribe.NoteSubscribed, Text: sub.Name, Count: len(have)}}
+	a.subscribeSave()
 }
 
 // subscribeAskClose closes the dialog a link is pasted in, stops its reading and gives back the window's modal flag.
@@ -448,10 +525,33 @@ func (a *app) subscribeAskClose() {
 	a.subs.ask = subscribeAsk{run: ask.run}
 }
 
-// subscribeAskSubmit subscribes to the link typed in the dialog: one that is not a channel, a collection or a playlist, or one with no library to add to, is refused with why; one already followed in the open library shows its page; any other is read off the engine's goroutine (subscribeAskRead).
+// subscribeAskPreview is what the dialog shows of the list read, not Ready before it was.
+func (a *app) subscribeAskPreview() subscribe.Preview {
+	ask := a.subs.ask
+	if !ask.read {
+		return subscribe.Preview{}
+	}
+	link, _ := kcore.ParseLink(ask.source)
+	return subscribe.Preview{Ready: true, Name: subscribe.NameOf(ask.source, ask.listing), Platform: link.Platform, Kind: subscribe.KindOf(link), Videos: len(ask.listing.Videos)}
+}
+
+// subscribeAskAdding is the videos subscribing to the list read adds now (subscribe.Sub.Start), with the rules a new subscription starts with.
+func (a *app) subscribeAskAdding() []subscribe.Video {
+	ask := a.subs.ask
+	if !ask.read {
+		return nil
+	}
+	return subscribe.Sub{Source: ask.source, Rules: subscribe.DefaultRules()}.Start(ask.listing, ask.recent)
+}
+
+// subscribeAskSubmit subscribes to the link typed in the dialog: one that is not a channel, a collection or a playlist, or one with no library to add to, is refused with why; one already followed in the open library shows its page; any other is read off the engine's goroutine (subscribeAskRead). Once it was read, it subscribes as the dialog's card chose (subscribeAskConfirm).
 func (a *app) subscribeAskSubmit() {
 	ask := &a.subs.ask
 	if !ask.open || ask.reading {
+		return
+	}
+	if ask.read {
+		a.subscribeAskConfirm()
 		return
 	}
 	m := a.messages()
@@ -490,7 +590,7 @@ func (a *app) subscribeAskSubmit() {
 	}()
 }
 
-// subscribeAskRead takes what the dialog's reading found: why the list could not be read, which the dialog says, or the list, which becomes a subscription of the library at dir whose page then shows, the videos the list holds now counting as seen; if the library follows it already by then, that subscription's page shows instead.
+// subscribeAskRead takes what the dialog's reading found: why the list could not be read, which the dialog says, or the list, which the dialog then shows to ask what to add now (subscribeAskConfirm); if the library follows it already by then, that subscription's page shows instead.
 func (a *app) subscribeAskRead(run int, source, dir string, listing media.Listing, err error) {
 	ask := &a.subs.ask
 	if ask.run != run || !ask.open {
@@ -507,12 +607,35 @@ func (a *app) subscribeAskRead(run int, source, dir string, listing media.Listin
 		a.subs.notes[have.ID] = subscribeNote{Note: subscribe.Note{Kind: subscribe.NoteAlready}}
 		return
 	}
-	sub := subscribe.New(source, dir, listing, time.Now())
-	a.subs.store.Subs = append(a.subs.store.Subs, sub)
-	a.subscribeSave()
+	ask.reading, ask.cancel = false, nil
+	ask.read, ask.source, ask.dir, ask.listing = true, source, dir, listing
+	ask.recent, ask.series = subscribe.RecentDefault, true
+}
+
+// subscribeAskConfirm subscribes the library the list was read for to it, adding what the dialog's card chose (subscribeCreate), closes the dialog and shows the subscription's page. The library may have changed while the card showed: one no longer open, or locked, is refused with why; one that follows the list already by then shows that subscription's page.
+func (a *app) subscribeAskConfirm() {
+	ask := &a.subs.ask
+	m := a.messages()
+	switch {
+	case filepath.Clean(a.snap().LibraryDir) != filepath.Clean(ask.dir):
+		ask.err = m.PrecheckNoLibrary()
+		return
+	case a.lockShut():
+		ask.err = m.LockLibraryIsLocked(sidebar.Title(ask.dir))
+		return
+	}
+	if have, ok := a.subs.store.Following(ask.source, ask.dir); ok {
+		a.subscribeAskClose()
+		a.subscribeShow(have.ID)
+		a.subs.notes[have.ID] = subscribeNote{Note: subscribe.Note{Kind: subscribe.NoteAlready}}
+		return
+	}
+	link, _ := kcore.ParseLink(ask.source)
+	series := ask.series && link.Kind != kcore.LinkChannel
+	sub := a.subscribeCreate(ask.source, ask.dir, ask.listing, ask.recent, series)
+	id := sub.ID
 	a.subscribeAskClose()
-	a.subscribeShow(sub.ID)
-	a.subs.notes[sub.ID] = subscribeNote{Note: subscribe.Note{Kind: subscribe.NoteSubscribed, Text: sub.Name}}
+	a.subscribeShow(id)
 }
 
 // subscribeReadError says in the language of m why a link to subscribe to could not be read: a bilibili video's page whose upload is one part is no list (subscribe.Source), and anything else as a list's reading says it (playlistError).

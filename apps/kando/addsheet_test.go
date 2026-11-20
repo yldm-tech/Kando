@@ -243,7 +243,7 @@ func TestAddSheetStartAtOnceIsSaved(t *testing.T) {
 	}
 }
 
-// The playlist dialog subscribes to the one list it read as it adds its videos, when its switch is on, so the videos it holds now count as seen.
+// The playlist dialog subscribes to the one list it read as it adds its videos, when its switch is on: the videos it holds now count as seen, and the subscription lists those the dialog queued as added, without queuing them again.
 func TestPlaylistDialogSubscribes(t *testing.T) {
 	p := newListingPipeline(map[string]media.Listing{testPlaylist: testListing})
 	a, tt, updates := newTestApp(t, p)
@@ -256,6 +256,9 @@ func TestPlaylistDialogSubscribes(t *testing.T) {
 	tt.Press("id:playlist-add")
 	if len(a.subs.store.Subs) != 1 || a.subs.store.Subs[0].Source != testPlaylist || len(a.library.Jobs) != 3 {
 		t.Fatalf("subscriptions %+v, jobs %d", a.subs.store.Subs, len(a.library.Jobs))
+	}
+	if sub := a.subs.store.Subs[0]; len(sub.Added) != 3 || sub.Added[0].URL != testListing.Videos[0].URL || len(sub.Pending) != 0 || sub.Earlier() != 0 {
+		t.Fatalf("subscription %+v", sub)
 	}
 }
 

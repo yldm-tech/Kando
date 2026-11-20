@@ -6765,10 +6765,21 @@ subscribeStageGone:
   message: "Removed"
   description: "State of a video a subscription added that is no longer in the library."
 subscribeNoteSubscribed:
-  message: "Subscribed to “{name}”. The videos already there are left out; new ones follow the rules below."
-  description: "Message on a new subscription's page."
+  message: "Subscribed to “{name}”. New videos follow the rules below."
+  description: "Message on a new subscription's page that added no video yet."
   placeholders:
     name: { type: "String", example: "Earth Science" }
+subscribeNoteSubscribedAdded:
+  message: "Subscribed to “{name}” and added {count, plural, one {# video} other {# videos}} to the queue."
+  description: "Message on a new subscription's page that queued the videos its list holds."
+  placeholders:
+    name: { type: "String", example: "线性代数的几何意义" }
+    count: { type: "int", example: "16" }
+subscribeNoteEarlier:
+  message: "{count, plural, one {# video already in the list is waiting for you below.} other {# videos already in the list are waiting for you below.}}"
+  description: "Sentence of a check's message on a subscription made before Kando added a list's videos: the ones the list held then now wait to be added or skipped."
+  placeholders:
+    count: { type: "int", example: "16" }
 subscribeNoteAlready:
   message: "You're already subscribed to this."
   description: "Message on a subscription's page when its link was pasted again to subscribe."
@@ -6834,7 +6845,7 @@ subscribeUnsubscribed:
   placeholders:
     name: { type: "String", example: "Earth Science" }
 subscribeAddDescription:
-  message: "Paste a link to a YouTube channel or playlist, or a bilibili uploader's space or collection. The videos already there are left out; new ones are added by the rules you set."
+  message: "Paste a link to a YouTube channel or playlist, or a bilibili uploader's space or collection. New videos are added by the rules you set."
   description: "Text of the Add Subscription dialog."
 subscribeAddLink:
   message: "Link"
@@ -6848,6 +6859,54 @@ subscribeAddSubmit:
 subscribeAddCancel:
   message: "Cancel"
   description: "Button of the Add Subscription dialog."
+subscribeAddConfirmChannel:
+  message: "{count, plural, =0 {Subscribe} one {Subscribe and Add # Video} other {Subscribe and Add # Videos}}"
+  description: "Button of the Add Subscription dialog once a channel or an uploader's space was read: it subscribes and adds that many of its most recent videos now; with none it only subscribes."
+  placeholders:
+    count: { type: "int", example: "3" }
+subscribeAddConfirmList:
+  message: "{count, plural, =0 {Subscribe} one {Subscribe and Add # Video} other {Subscribe and Add # Videos}}"
+  description: "Button of the Add Subscription dialog once a collection or a playlist was read: it subscribes and queues its videos in order; with none it only subscribes."
+  placeholders:
+    count: { type: "int", example: "16" }
+subscribeAddRecent:
+  message: "Add Now"
+  description: "Row of the Add Subscription dialog for a channel: how many of its videos are added as it is subscribed to (None, Latest 3, Latest 10)."
+subscribeAddRecentHint:
+  message: "Videos already on the channel"
+  description: "Line under Add Now in the Add Subscription dialog."
+subscribeAddVideos:
+  message: "{count, plural, one {# video} other {# videos}}"
+  description: "Line under a list's name in the Add Subscription dialog: how many videos it holds."
+  placeholders:
+    count: { type: "int", example: "16" }
+subscribeAddWholeCollection:
+  message: "{count, plural, one {A collection of # episode} other {A collection of # episodes}}"
+  description: "Row of the Add Subscription dialog for a bilibili collection: all its episodes are added as it is subscribed to."
+  placeholders:
+    count: { type: "int", example: "16" }
+subscribeAddWholeHint:
+  message: "Queued in order, starting with the first"
+  description: "Line under the collection or playlist row of the Add Subscription dialog."
+subscribeAddWholePlaylist:
+  message: "{count, plural, one {A playlist of # video} other {A playlist of # videos}}"
+  description: "Row of the Add Subscription dialog for a playlist: all its videos are added as it is subscribed to."
+  placeholders:
+    count: { type: "int", example: "8" }
+subscribeEarlierCount:
+  message: "{count, plural, one {# not added} other {# not added}}"
+  description: "After the heading of a subscription's page for the videos its list held when it was subscribed, which were not added."
+  placeholders:
+    count: { type: "int", example: "16" }
+subscribeEarlierList:
+  message: "List Them"
+  description: "Button of a subscription's page that reads its list again, so the videos it held when it was subscribed wait to be added or skipped."
+subscribeEarlierNote:
+  message: "When you subscribed, these were counted as seen and left out."
+  description: "Line of a subscription's page made before Kando added a list's videos as it was subscribed to."
+subscribeEarlierTitle:
+  message: "Already in the List"
+  description: "Heading of a subscription's page for the videos its collection or playlist held when it was subscribed, which were not added."
 subscribeAddReading:
   message: "Reading the list…"
   description: "Shown in the Add Subscription dialog while yt-dlp lists the videos of the link."
