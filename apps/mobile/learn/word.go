@@ -39,15 +39,15 @@ func wordSheet(cx *core.Scope, s *session.Session, items func() []learning.Item,
 	closeSheet := func() { key.Set("") }
 	button := func(id string, text func() string, accent bool, press func()) core.Node {
 		return base.Button{TestID: id, LabelFunc: text, OnPress: func(core.PressEvent) { press() },
-			Style: core.Style{Height: core.Pt(50), CornerRadius: 14, BorderCurve: core.BorderCurveContinuous, FlexGrow: 1, FlexShrink: 1, MinWidth: core.Pt(0),
-				AlignItems: core.AlignCenter, JustifyContent: core.JustifyCenter, Padding: core.Symmetric(0, 16), Active: &core.Style{Opacity: core.Alpha(0.7)}},
+			Style: core.Style{Height: core.Pt(50), CornerRadius: 14, BorderCurve: core.BorderCurveContinuous, FlexGrow: 1, FlexShrink: 0,
+				AlignItems: core.AlignCenter, JustifyContent: core.JustifyCenter, Padding: core.Symmetric(0, 14), Active: &core.Style{Opacity: core.Alpha(0.7)}},
 			StyleFunc: func() core.Style {
 				if accent {
 					return core.Style{Background: colors.Surface(), Color: colors.Accent(), FocusVisible: ui.FocusRing(cx, -2)}
 				}
 				return core.Style{Background: colors.Inset(), Color: colors.Text(), FocusVisible: ui.FocusRing(cx, -2)}
 			},
-			Children: []core.Node{core.Text{ContentFunc: text, MaxLines: 1, AdjustsFontSizeToFit: true, MinimumFontScale: 0.8, Style: core.Style{FontSize: 17, LineHeight: 22, FontWeight: core.FontWeightBold, FlexShrink: 1}}}}
+			Children: []core.Node{core.Text{ContentFunc: text, MaxLines: 1, Style: core.Style{FontSize: 17, LineHeight: 22, FontWeight: core.FontWeightBold, FlexShrink: 1}}}}
 	}
 	buttons := []core.Node{
 		// The way back to the film shows while the film is whole on the phone.
@@ -112,8 +112,8 @@ func wordSheet(cx *core.Scope, s *session.Session, items func() []learning.Item,
 				}}
 			}},
 			line,
-			// The buttons share a row, shrinking their text where it is long.
-			core.View{Style: core.Style{Direction: core.Row, Gap: 12, Margin: core.Edges{Top: 4}}, Children: buttons},
+			// The buttons share a row where both fit, as on a phone's sheet, else each takes one rather than cutting its text short.
+			core.View{Style: core.Style{Direction: core.Row, Wrap: core.Wrap, Gap: 12, Margin: core.Edges{Top: 4}}, Children: buttons},
 		}}
 	}
 	return look.Dialog{TestID: "word-dialog", Open: open, OnClose: closeSheet, TitleHidden: true, Title: func() string { return it().Text }, Children: []core.Node{content()}}

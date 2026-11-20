@@ -182,7 +182,7 @@ func gradeButton(cx *core.Scope, testID string, text func() string, good bool, r
 	colors := ui.ColorsOf(cx)
 	return base.Button{TestID: testID, LabelFunc: text, OnPress: func(core.PressEvent) { press() }, Disabled: func() bool { return !ready() },
 		Style: core.Style{Height: core.Pt(56), CornerRadius: 16, BorderCurve: core.BorderCurveContinuous, FlexGrow: 1, FlexShrink: 1, FlexBasis: core.Pt(0), MinWidth: core.Pt(0),
-			AlignItems: core.AlignCenter, JustifyContent: core.JustifyCenter, Padding: core.Symmetric(0, 10),
+			AlignItems: core.AlignCenter, JustifyContent: core.JustifyCenter, Padding: core.Symmetric(0, 6),
 			Active: &core.Style{Opacity: core.Alpha(0.7)}, Disabled: &core.Style{Opacity: core.Alpha(0.35)}},
 		StyleFunc: func() core.Style {
 			if good {
