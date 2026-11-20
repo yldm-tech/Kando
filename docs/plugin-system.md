@@ -211,7 +211,7 @@ kind 是封闭枚举：`dictionary`、`wordlist`、`glossary`、`ai-service`、`
 - **数据包的包形状**：平铺目录，最多 16 个文件，manifest 不超过 256 KiB，zip 文件不超过 32 MiB（dictionary 放宽到 200 MiB、64 个条目）。解压后的总字节数也设上限：数据包 64 MiB，dictionary 1 GiB。计数按实际读出的字节累加，不信任 `UncompressedSize64`；dictionary 里嵌套的 yomitan-zip 共用同一个计数器和条目上限，嵌套只允许一层；计入的是嵌套 zip 解压出的字节，zip 文件本身为算哈希读出的字节不重复计入，只受一个同样大小的独立上限约束。不允许符号链接，文件名只能是 ASCII，拦截 zip-slip 和绝对路径。每个文件都必须在 manifest 里被引用，`.md`、`.txt` 说明文件除外。
   - 文件名只能由 ASCII 字母、数字和 `.`、`-`、`_` 组成，不以 `.` 开头或结尾，不超过 100 字节，也不能是 Windows 的设备名（`con`、`nul`、`com1` 之类，看第一个点之前的部分）。最后一条在所有平台上都查，同一个包在三个平台上的结果一致。
   - zip 里的 manifest 必须在顶层，不能有目录条目，所以「把整个文件夹压缩」得到的 `<文件夹>/kando-plugin.json` 会被拒收。zip 里两个名字只差大小写也拒收，因为在不分大小写的盘上它们是同一个文件。
-  - yomitan-zip 内部只检查不解压：条目名可以带子路径，但不能有 `..`、绝对路径或反斜杠，不能是符号链接，不能再套 zip。条目数（目录条目也算）和 manifest、外层文件共用 64 的上限，P1.3 接真实词典时如果发现大型 Yomitan 词典超出，再调这个上限。里面的文件校验和不符或解压出错，算 `ErrBadArchive`。
+  - yomitan-zip 内部只检查不解压：条目名可以带子路径，但不能有 `..`、绝对路径或反斜杠，不能是符号链接，不能再套 zip。条目数（目录条目也算）和 manifest、外层文件共用 64 的上限。拿真实词典量过（第 15 节「P1.3 真实词典的测量结果」）：JMdict 英文版 55 个条目、Yomitan 版 CC-CEDICT 22 个，装得下；Jitendex 有 475 个条目（219 个 term bank 加上 251 个 SVG 图），整包 477 个，被拒收（`ErrTooLarge`）。上限改成多少由 owner 定（12.3 第 8 条）。里面的文件校验和不符或解压出错，算 `ErrBadArchive`。
   - `archive/zip` 打开 zip 时会先把中央目录的每一条记录都读进内存，不管记录数是多少，所以一个由几百万条空记录组成的 zip 会在任何上限生效之前就分配几 GB。外层 zip 和嵌套 zip 都经 `openZip` 打开：它在 `zip.NewReader` 读目录期间最多放行 1 MiB 的读取，超出就是 `ErrTooLarge`；64 个条目的目录加上最长 64 KiB 的注释远小于这个数。
 - **从文件夹安装**：用 `Lstat` 逐项检查，遇到符号链接或特殊文件就拒绝，再把普通文件复制进 staging，最后校验的是 staging 里的副本。不能先校验原目录再复制，那样有 TOCTOU 问题。打开每个文件后再用 `os.SameFile` 比对 Lstat 的结果，检查和打开之间被换成链接的文件也会被拒绝。文件管理器写进文件夹的文件（访达的 `.DS_Store`，资源管理器的 `Thumbs.db`、`desktop.ini`，后两个不分大小写）在复制时跳过，`Validate` 列文件时也跳过：不检查、不计数、不算进哈希，也从不读取。所以用户在访达里打开已安装包的目录后，下次 `Scan` 这个包照样有效、哈希不变。zip 里的这些文件仍按普通文件名规则处理（`.DS_Store` 以点开头，被拒收）。
 - **内容哈希**：对排序后的「路径、长度、字节」序列做 SHA-256，授权绑定在这个哈希上。路径和内容的长度都写成 8 字节大端整数，字节在名字和内容之间、或在相邻文件之间挪动都会改变哈希。
@@ -920,7 +920,7 @@ P1.1 的确认框只有数据包要显示的部分：名称（标题）、说明
   - 九种 kind 现在都已实现（`Kind.implemented`），没有被拒收的。`ErrUnsupportedKind` 的路径留给以后新加的 kind：解析器认得、这个版本还不装的 kind 被 `Validate` 拒收，不报未知键；眼下没有这样的 kind，所以没有对应的测试。
   - Grant 子集比较（P3）：只扩 credential 的 hosts、只改 header 或 format、只加一条 network 规则，都应判为扩大能力；换签名者时授权作废。
 - **对解析器做模糊测试**：`go test -fuzz` 覆盖 `Parse` 和 zip 解包，跑在 CI 里，带 `-fuzztime` 上限。
-- **`dict` 和 `wordlist`**：用小型样例词典验证索引构建、二分查找、原形查询、CC-CEDICT 的拼音，以及 Close 之后 Swap 能成功；词表的注释、未知 tier、大小写、重复词和空词表。
+- **`dict` 和 `wordlist`**：用小型样例词典验证索引构建、二分查找、原形查询、CC-CEDICT 的拼音，以及 Close 之后 Swap 能成功；词表的注释、未知 tier、大小写、重复词和空词表。真实词典的测量（`dict.TestRealDictionary`）只在设了 `KANDO_DICT_BENCH`（词典文件的路径）时跑，CI 不下载词典，结果见第 15 节。
 - **`annotate`**（P1.4）：假名注音去掉前后相同的假名；日语按原形查词表和生词本；没有大词典时只按表层形；中文拼音取第一个有读音的词典；别的语言的词表不画线。`film` 包的 `lineSpans` 测读音 view、等级的彩色实线（字的颜色不变）、已学词的虚线、越界标注被丢弃和描边副本只带读音，以及标注的边界落在词中间时只在标注自己的字下面画线。app 层测换词（词数不变）后下划线跟着换，键回到原值时丢掉过期的计算，以及译文写进来（字幕文件改写、重读）时标注一直在、不重算，原文改了才重算、新标注到之前原文没变的行照旧显示旧的、改了的那行不显示；新的一份计算会停下前一份。
 - **`segment.Annotated`**：`行った` 得到原形 `行く`；`Words` 的输出与改动前逐字相同。
 - **`core.ValidateVideoSite`**：拒绝嵌套量词、反向引用、环视。
@@ -1078,6 +1078,7 @@ P0–P2 不新增任何 module。P3a 起 `github.com/dlclark/regexp2/v2 v2.11.0`
 5. **（已定大部分）社区索引**（P5）：客户端、签名格式和 `kando plugin index` 已做（第 15 节）；索引有自己的密钥（`script.IndexKey`，私钥由 owner 保管）。owner 已定托管方式：社区插件放在公开仓库 `yldm-tech/kando-plugins`，官网的 `/plugin` 页列出目录。建成的流程（第 15 节「发布社区索引」）：作者开 PR，Validate 检查（布局、发布者归属、许可证、大小、版本号变大，再用看懂自己的校验器检查打好的包），bot 把预览贴成 PR 里的一条评论；维护者（`publishers.json` 的 `maintainers`，即 CODEOWNERS 里的 houko 和 Session500）审核后合并：main 的规则集要求每次改动走 PR、「Validate packs」通过、至少一位审核通过，`packs/` 和 `scripts/` 之外的改动还必须经 code owner 审核；合并到 main 后 Publish 签名并发布。所以代码包审核由这两位维护者负责，数据包也一样要审核后才上架，和 10 节 P5 原定的「数据包限速后即时上架」不同。仍待 owner 决定的只有**限速**：要不要让数据包过了 CI 就自动合并、按发布者限速（那样要把限速写进 `validate.yml`），还是一直都人工审核。
 6. **是否把看懂自己的 LLM key 迁进 `core.Secrets`**：与插件无关的加固，作为独立 PR，Linux 上需要保留明文退路。
 7. **外部原生工具或 MCP 子进程插件**：本设计否决了。如果以后识别（faster-whisper）、下载器确有需求，需要单独立项，前提是先给 `media.Command` 补上进程组或 Job Object、WaitDelay 和整棵进程树的 kill。顺带一提，这三项的缺失本身就是一个与插件无关的现有风险：任务取消时，yt-dlp 启动的 ffmpeg 孙进程不会被一起杀掉，`runFollowing` 可能卡在 `cmd.Wait`。这一点是读代码推断的，没有复现，建议单独开 issue。
+8. **dictionary 包的条目上限**：现在是 64 个（第 4 节，`limitsOf`），Jitendex（2026.10.03.0）整包 477 个条目，装不上；JMdict 和 CC-CEDICT 装得下。数字见第 15 节「P1.3 真实词典的测量结果」。建议改成 1024：给 Jitendex 留一倍余量，1024 条中央目录记录（Jitendex 的 475 条是 37 KiB）也远小于 `openZip` 读目录时的 1 MiB 上限，所以那个上限不用动，只改它旁边说「最多 64 个条目」的注释。解压后的 1 GiB 和 zip 的 200 MiB 都够（Jitendex 519 MiB、37 MiB）。
 
 ## 13. 评审记录
 
@@ -1151,6 +1152,23 @@ P1.2 的测量结果（Ubuntu 编译机，x86_64，Go 1.27.4，kagome-dict/ipa v
 
 `ipa.Dict()` 在 `DictShrink()` 之后读时是另读一份（`DictShrink` 只在完整词典先读的情况下复用它），所以增量按第三行算：常驻约 92 MiB、峰值约 109 MiB，加载约 0.6 s，都在 12.2 第 5 条的门槛（200 MiB、3 s）以内。选择：用完整 features 词典，只在桌面、只在查词用到已启用的日语词典包时（P1.4 起还有日语词表包）由 `segment.Annotated` 第一次调用时读入；手机不调 Annotated，分词照旧只用 `DictShrink`。
 
+P1.3 真实词典的测量结果（2026-11-20，Ubuntu 编译机，x86_64，24 核，NVMe，Go 1.27.4，GOGC 默认；用 `apps/kando/plugins/dict/real_test.go` 的 `TestRealDictionary`，它只在设了 `KANDO_DICT_BENCH` 时跑，每本词典在一个新进程里量；词典按 4.1 节的样子打成包：manifest 加一个词典文件；建索引之前先 `runtime.GC()`、`debug.FreeOSMemory()`，再往 `/proc/self/clear_refs` 写 5 把 VmHWM 清回当前值，所以峰值是建索引这一段的；查词是 10 个词（9 个查得到、1 个查不到，日语含按原形查的 `食べた`、`行った`）各查 1000 次，页缓存是热的；词典数据量完就删了，没有提交）：
+
+| 词典（版本） | 文件 | zip 条目（整包） | 解压后 | `Validate` | 建索引 | 键数 | 索引 | 建索引的峰值（VmHWM 增量） | 查词 平均 / p99 / 最慢 |
+|---|---|---|---|---|---|---|---|---|---|
+| JMdict 英文（yomidevs 2026-11-19，`JMdict_english.zip`） | 14.9 MiB | 55（57） | 164 MiB | 通过，0.35 s | 10.9 s | 897,354 | 61.9 MiB | 107 MiB | 47 µs / 74 µs / 0.4 ms |
+| JMdict 英文带例句（同上，`JMdict_english_with_examples.zip`） | 17.3 MiB | 55（57） | 179 MiB | 通过，0.43 s | 13.9 s | 897,354 | 67.4 MiB | 108 MiB | 53 µs / 92 µs / 8.9 ms |
+| Jitendex（2026.10.03.0，`jitendex-yomitan.zip`） | 37.0 MiB | 475（477） | 519 MiB | **拒收**：`ErrTooLarge`（too many files） | 40.6 s | 662,355 | 68.4 MiB | 80 MiB | 51 µs / 120 µs / 9.6 ms |
+| CC-CEDICT，Yomitan 版（MarvNC 2026-11-19，`CC-CEDICT.zip`） | 7.4 MiB | 22（24） | 125 MiB | 通过，0.16 s | 10.2 s | 406,944 | 26.2 MiB | 48 MiB | 34 µs / 50 µs / 0.2 ms |
+| CC-CEDICT 原文（MDBG，`cedict_ts.u8`，`cc-cedict` 格式） | 9.4 MiB | — | — | 通过，6 ms | 0.53 s | 203,497 | 17.2 MiB | 38 MiB | 32 µs / 48 µs / 0.2 ms |
+
+Jitendex 那一行的索引是跳过 `Validate`、直接 `dict.Open` 建的，现在的 app 装不上它。结论：
+
+- 64 个条目的上限：JMdict 和 CC-CEDICT 够，Jitendex 不够（219 个 term bank、251 个 SVG 图、3 个目录条目、2 个 JSON）。至少要 477，改成多少由 owner 定（12.3 第 8 条，建议 1024）。中央目录最大的是 Jitendex 的 37 KiB，`openZip` 的 1 MiB 不用动。zip 的 200 MiB 和解压后的 1 GiB 都够。
+- 峰值内存最多约 108 MiB（JMdict），没到要改成外排序的程度；键数离 `keysMax`（约 839 万）很远。打开已经建好的索引约 10 µs，查词平均约 50 µs，最慢的一次不到 10 ms，不用改。
+- 建索引慢：Yomitan 格式要 10–41 s，同一份 CC-CEDICT 的原文只要 0.5 s。CPU profile（Jitendex）里 67% 的时间在 `glossText` 和 `contentText`：structured-content 每深一层就把那一层的 `json.RawMessage` 再 `json.Unmarshal` 一遍，同一段 JSON 被反复解析，嵌套越深越慢。建索引在后台、每份内容只建一次，所以不影响查词，但装好 Jitendex 后要等约 40 s 才查得到。没有改，留作后续：把一条释义只解码一次（比如解成 `any` 再遍历）。
+- Jitendex 的释义文字有两处不对：`ruby` 里的 `rt`（注音）被当成正文连在汉字后面（`果くだ物もの`），行内的标签之间没有空格（`1-dantransitiveto eat`）。JMdict 的 structured-content 没有这两种情况，读出来是对的。没有改，留作后续：`contentText` 跳过 `rt`、`rp`，并在 `span` 这类行内元素之间补分隔。
+
 与正文的偏差：实现过程中某个接点挪了位置或做了简化，就同时改正文对应的一节和这一段，写明改了什么、为什么。
 
 - P0.1（已完成）：`llmPresets` 带一个语言参数 `m`，因为引导页（`locales.For(cx)`）和反馈 issue（固定简体中文）读预设名称用的语言和 `a.messages()` 不同，不带参数就会改变它们显示的名称；`llmPresets` 放在 `settings_ai.go` 而不是 `state_plugins.go`，因为 P0.1 时还没有插件块；`feedbackTranslator` 改成接收预设列表。见 E4 和 8.2 节。
@@ -1200,7 +1218,7 @@ P1.2 的测量结果（Ubuntu 编译机，x86_64，Go 1.27.4，kagome-dict/ipa v
   - 查词卡的来源只在桌面显示；手机同步协议没有来源字段，手机端暂不显示，JMdict 这类 CC-BY-SA 词典在手机上的署名要等协议加字段（E1）。P1 收尾时加了 `psync.WordSource`，手机也显示了。
   - 查词卡没有 AI、词典也没查到时的提示（`vocabLookupNoAI`）改成同时指向「AI 服务」和「插件」里安装词典（12.2 第 2 条）。
   - 截图场景 `TestScreenshotsPlugins` 加了 `plugins-lookup`（词典回答的查词卡）；插件页里的词典分组和详情页还没有截图场景。P1 收尾时加了 `settings-plugins-dictionaries`（两个词典包、上移下移按钮、展开的详情），截图辅助 `shootSettingsPressed` 在截图前按下给定的控件。
-  - 没有拿真实的 JMdict、Jitendex、CC-CEDICT 全量文件测过（测试用小样例）。第 4 节 64 个条目的上限对条目多的 Yomitan 词典（带图片的 Jitendex 之类）可能不够，建索引的耗时和峰值内存（所有键先放在内存里排序）也还没量；有人装了大词典报上来再调。
+  - 实现时没有拿真实的 JMdict、Jitendex、CC-CEDICT 全量文件测过（测试用小样例）。2026-11-20 补测了，数字和结论见上面「P1.3 真实词典的测量结果」：JMdict 和 CC-CEDICT 装得下，Jitendex 的 477 个条目超过 64 个的上限，装不上，上限由 owner 定（12.3 第 8 条）；建索引的峰值内存最多约 108 MiB，不用改；Yomitan 格式建索引要 10–41 s，Jitendex 的释义里混进了注音，这两处留作后续。
 - P1.4（已完成）：wordlist kind 和逐词标注。和正文的出入如下，E2、第 4 节、5.1、5.2、7.4、7.6、8.1–8.4、第 9 节已同步改过：
   - `Mark` 去掉了 `Tip` 和 `Tier`：`core.Span` 没有悬停提示，也没有别的地方读 tier 的 id；加了 `ToneAccent` 等四个常量。计算放在新的非界面包 `plugins/annotate`，它的 `Mark` 和 `subtitle.Mark` 字段相同，app 用类型转换，`film` 照旧不导入插件包。
   - 缓存只留当前影片一份，不是按键的 map；键除了「视频 + 字幕哈希」，还包括说话语言、三个开关、选中词表和中文词典的内容、是否读日语大词典和生词本的内容指纹（不是词数，换一个词也重算），任何一项变了都重算一次；键回到已有标注的键时丢掉正在算的那一份。字幕哈希只含每行的起止时间和原文，不含译文，只在播放器换了字幕切片时重算。重算期间 `CueMarks` 照旧给出旧标注（视频和行数相同、这一行原文没变时），不再核对切片身份；除了 `playing`，`afterChange` 也调 `pluginsMarksFollow`，暂停时改字幕或生词本也会重算。
@@ -1217,7 +1235,7 @@ P1.2 的测量结果（Ubuntu 编译机，x86_64，Go 1.27.4，kagome-dict/ipa v
   - 卸载遇到更新版本的 state.json 时在删除之前就拒绝；目录删掉后 state.json 没存上的，插件页说「已完成，但……」，不说失败。安装后没存上也改用这一句（新的 `pluginsErrStateUnsaved`），原来说的是「无法读写这个插件包」，和实际不符（7.1、7.2）。
   - `Scan` 的哈希缓存放在插件目录的 `.hashes.json`，按 `<kind>/<id>` 存每个文件的名称、大小、修改时间（纳秒）和哈希；`Validate` 本身不变，`Scan` 走内部的 `validate(dir, cache)`（6.5）。
   - 手机查词卡的来源：协议的 `WordEntry` 加了可选的 `Source`，不升版本；名称和 attribution 用桌面的界面语言，因为桌面不知道手机的界面语言；手机缓存的旧查词结果没有来源，照旧不显示（E1）。手机截图场景 `player-word` 带了「由 AI 服务解释」一行。
-  - 没做的 P1 缺口：手机端没有逐词标注（P1.6 已补上，见 E2）；真实的 JMdict、Jitendex、CC-CEDICT 全量文件和 64 个条目的上限没有测（要真实数据和 owner 定上限）；读音 view 的对齐和描边、彩色下划线的实际画面要在 macOS 截图任务里看；`ui.Select` 没有分组（`TODO(nsgo#906)`，等上游）。
+  - 没做的 P1 缺口：手机端没有逐词标注（P1.6 已补上，见 E2）；真实的 JMdict、Jitendex、CC-CEDICT 全量文件和 64 个条目的上限没有测（2026-11-20 已测，Jitendex 超出上限，等 owner 定上限，见 12.3 第 8 条）；读音 view 的对齐和描边、彩色下划线的实际画面要在 macOS 截图任务里看；`ui.Select` 没有分组（`TODO(nsgo#906)`，等上游）。
   - 离线词典的提示只看装没装这种语言的词典包，不看开没开：装了却关掉是用户自己的选择，提示「去装一个」不对。插件目录还没读完时不提示，免得把已装的词典当成没装。提示作为卡片底部单独的一行加一个「打开插件设置」按钮，按了先关卡片再打开设置 › 插件（`LookupDictionaries`）。
   - 评审后的修正：「词典没有这个词」不再算上查词出错的词典；手机查词卡的「由 … 上的 AI 服务解释」改用回答时桌面发来的名字（`WordSource.Desktop`，可选字段，不升协议版本）；`State.Save` 写之前重读磁盘上的格式；拒绝卸载时的提示和 state.json 的说明不再重复；`StateUnsaved` 挪进 `plugins` 包。
 - P1.6（已完成）：手机端逐词标注。和正文的出入如下，E2、7.6 已同步改过：
