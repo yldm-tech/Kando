@@ -13,10 +13,10 @@ import (
 // SignedKeys are the keys of a script plugin's manifest the signature must cover, as kando-plugin.json sits outside it (docs/plugin-system.md 4.3): what the plugin may reach and adds. A package holds them in its signed metadata (pkg.Contents.Extra, SignedManifest), or its code returns them from kandoManifest.
 var SignedKeys = []string{"capabilities", "optional", "contributes", "credentials", "settings", "events"}
 
-// ManifestEntrySince is the oldest Kando that takes a package holding its signed manifest (pkg.Contents.Extra): an older one's NSGo does not know the entry, lists it in Info.Ignored, and Verify refuses the package for it (checkSigned).
+// ManifestEntrySince is the oldest Kando that does not refuse a package holding its signed manifest (pkg.Contents.Extra): 0.37.0 and older are built with NSGo ec272782be28, which does not know the entry, lists it in Info.Ignored, and Verify refuses the package for it (checkSigned); every release after 0.37.0 is built from a main that pins NSGo 729f238f5678 or newer, which knows it. It is not the oldest Kando that compares the entry in place of kandoManifest: a release built before Verify compared Info.Extra takes the package but still runs its code to ask it (script.Probe), so a package that signs its manifest keeps exporting kandoManifest until its manifest's oldest Kando is one that compares the entry, which is known only once that release ships.
 const ManifestEntrySince = "0.38.0"
 
-// SignsManifest reports whether the package of the script plugin m is to hold its signed manifest (SignedManifest): only when every Kando m runs on takes it, its oldest (Manifest.Kando) ManifestEntrySince or newer, so no Kando it says it runs on refuses it.
+// SignsManifest reports whether the package of the script plugin m may hold its signed manifest (SignedManifest): only when no Kando m runs on refuses it, its oldest (Manifest.Kando) ManifestEntrySince or newer. Whether its code may leave out kandoManifest is another matter (ManifestEntrySince).
 func SignsManifest(m plugins.Manifest) bool {
 	oldest, ok := strings.CutPrefix(m.Kando, ">=")
 	return ok && plugins.Manifest{Kando: ">=" + ManifestEntrySince}.RunsOn(oldest)

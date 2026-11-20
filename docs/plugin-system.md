@@ -370,8 +370,9 @@ s := tsx.Sandbox{Grant: &pkg.Capabilities{}, Host: nil, Limits: &l, Storage: pro
 兼容：两种包看懂都认，已经发布、已经安装的包不受影响。
 
 - 没签清单的包走的还是原来的 `kandoManifest()` 比对，验签和比对的结果和以前一样；线上 `kando.ankiconnect`、`kando.deepl` 1.0.0 的两个文件只有 `bundle.js` 一个条目，用新代码按官方根验签、预读都通过。
-- 签了清单的包，看懂 0.37.0 及以前（NSGo `ec272782be28`）不认 `extra` 这种文件，把它列进 `Info.Ignored`，`checkSigned` 因此按 `ErrBadCapabilities` 拒装，提示的还是「权限不对」。所以只有清单的 `kando` 下限不低于 `signature.ManifestEntrySince`（0.38.0，第一个带认得它的 NSGo 的版本，假定本改动随它发布）的插件才能签它（`signature.SignsManifest`）；`official.Wrap` 拒绝不满足这一条的包（`ErrSignedManifest`），也拒绝签的内容和清单不一致的包（`ErrMismatch`）。
-- 现在还没有签发方会写这个条目：`nsgo publish` 没有参数能把 `Contents.Extra` 签进去（`cmd/nsgo/publish.go:130-137` 只填 `App`、`Source`、`MinRuntime` 和 `nsgo.yaml` 的能力，没有 `Extra`），官方插件和第三方插件都由它签名，所以 `official-plugins.sh` 照旧，插件仍要导出 `kandoManifest()`。`script.PackFolder` 也不签：开发者包要和它发布后一样被检查，否则漏写 `kandoManifest()` 的插件在开发时发现不了。两处都留了 `TODO(nsgo)`：等 `nsgo publish` 能签以后，对 `SignsManifest` 接受的清单签上 `SignedManifest`。
+- 签了清单的包，看懂 0.37.0 及以前（NSGo `ec272782be28`）不认 `extra` 这种文件，把它列进 `Info.Ignored`，`checkSigned` 因此按 `ErrBadCapabilities` 拒装，提示的还是「权限不对」。0.37.0 之后的每个版本都从已经固定 NSGo `729f238f5678` 或更新版本的 main 发布，认得这个条目，所以只有清单的 `kando` 下限不低于 `signature.ManifestEntrySince`（0.38.0）的插件才能签它（`signature.SignsManifest`）；`official.Wrap` 拒绝不满足这一条的包（`ErrSignedManifest`），也拒绝签的内容和清单不一致的包（`ErrMismatch`）。
+- 认得这个条目不等于拿它来比对：在本改动之前发布的版本（main 上的 0.38.0 很可能就是，release 工作流在 main 每次 CI 通过后自动发版）认得条目，不拒装，但不比对它，仍在预读沙箱里调用 `kandoManifest()`。所以签了清单的插件在它的 `kando` 下限达到第一个比对签名清单的版本之前，仍要导出 `kandoManifest()`；那个版本要等本改动随某个版本发布后才知道（对本改动的提交跑 `git tag --contains`），接上签发端时再定。
+- 现在还没有签发方会写这个条目：`nsgo publish` 没有参数能把 `Contents.Extra` 签进去（`cmd/nsgo/publish.go:130-137` 只填 `App`、`Source`、`MinRuntime` 和 `nsgo.yaml` 的能力，没有 `Extra`），官方插件和第三方插件都由它签名，所以 `official-plugins.sh` 照旧，插件仍要导出 `kandoManifest()`。`script.PackFolder` 也不签：开发者包要和它发布后一样被检查，否则漏写 `kandoManifest()` 的插件在开发时发现不了。两处都留了 `TODO(nsgo)`：等 `nsgo publish` 能签以后，对 `SignsManifest` 接受的清单签上 `SignedManifest`，并按上一条继续要求 `kandoManifest()`，直到清单的下限达到第一个比对签名清单的版本。
 
 ## 5. 宿主协议与 API
 
@@ -1432,7 +1433,7 @@ NSGO_ROOT_KEY=<root secret> make plugin-revocations
 
 - nsgo#761 跟进（`refactor/plugins-signed-contents`）：上游给包加了 app 自己签的元数据（`pkg.Contents.Extra`、`Info.Extra`）。和正文的出入如下，4.3、12.1 已同步改过：
   - 消费端：`signature.Verify` 在包签了清单时直接比对（`signature.CheckManifest`，比对规则从 `script` 挪进 `signature`，`kando plugin validate` 和插件目录的 CI 工具因此也会比对签了清单的包），`script.Probe` 对这种包不再跑代码，导出函数的检查同时加进 `script.Load`（对两种包都查，没签清单的包在 `Probe` 里已经查过一次）。没签清单的包照旧走 `kandoManifest()`，原来的 `TODO(nsgo#761)` 删掉了：这条路要一直留着给已经发布的包用，不是绕行。
-  - 签发端：`nsgo publish` 签不了 `Contents.Extra`，所以 `official-plugins.sh` 和 `script.PackFolder` 都还不签清单，留了 `TODO(nsgo)`（还没有上游 issue）；`official.Wrap` 已经会检查签了清单的包（`ErrSignedManifest`、`ErrMismatch`）。签了清单的包在看懂 0.37.0 及以前会被拒装，所以只有清单写 `"kando": ">=0.38.0"` 或更高的插件才签（`signature.SignsManifest`）。
+  - 签发端：`nsgo publish` 签不了 `Contents.Extra`，所以 `official-plugins.sh` 和 `script.PackFolder` 都还不签清单，留了 `TODO(nsgo)`（还没有上游 issue）；`official.Wrap` 已经会检查签了清单的包（`ErrSignedManifest`、`ErrMismatch`）。签了清单的包在看懂 0.37.0 及以前会被拒装，所以只有清单写 `"kando": ">=0.38.0"` 或更高的插件才签（`signature.SignsManifest`）。0.38.0 只保证不拒装：比对签名清单的第一个版本要等本改动发布后才知道，在清单下限达到它之前，签了清单的插件仍要导出 `kandoManifest()`（4.3）。
   - 测试：`TestScriptSignedManifest`（签了清单的包：顶层代码会抛错、也没有 `kandoManifest` 时照样通过验签和预读；缺导出时 `Load` 拒绝；清单比签的多、签了别的键、签的不是对象都按 `ErrTampered` 拒绝；签好后改一个字节按 `ErrUntrusted` 拒绝），`TestPluginOfficialWrapSignedManifest`（`Wrap` 收下下限够新且一致的包，拒绝不一致的和下限太旧、没写下限的）；没签清单的一路仍由 `TestScriptProbe` 等原有测试覆盖。线上两个 1.0.0 文件用新代码验签、预读通过，只做了一次，没有提交成测试（文件不在仓库里）。
 - P5 E15（已完成）：播放器侧栏的「扩展」标签。和正文的出入如下，2.1、2.3、5.3、8.4、第 9 节已同步改过：
   - 代码位置：非界面包 `plugins` 加了 `Panel`、`PanelIcons`（`contrib.go`）和 `EventLineChanged`（`perm.go`）；`plugins/script/panel.go` 是 `Runner.Panel`（唯一的 `tsx.View`）和 `Runner.Failed`；界面是 `film/extensions.go`（`film.Extender`、`SideExtensions`、标签正文），`film/panel.go` 的 `panelTabs` 改成 `screen.panelTabs`；app 一侧是 `state_plugins_panels.go`。共享文件只动了插件块自己的：`pluginsScript` 加 `panel`、`run` 两个字段，`pluginsGuard` 也认面板视图的 Host，`pluginsSend` 同时发给面板视图，`savedPlugins` 加 `PluginPanel`，`pluginsHooks` 的 `playing`、`afterChange` 各加一行 `pluginsPanelsLine`；`settings.PluginAdds` 加一行面板。
