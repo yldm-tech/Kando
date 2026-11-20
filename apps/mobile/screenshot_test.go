@@ -42,6 +42,13 @@ func TestScreenshotsOnboarding(t *testing.T) {
 	p.app.WaitFor("id:onboarding-languages", wait)
 	p.app.Press("id:onboarding-spoken-ja")
 	p.app.Press("id:onboarding-spoken-en")
+	p.app.Press("id:onboarding-target")
+	p.app.WaitFor("id:onboarding-target-zh-Hans", wait)
+	shot(p, "onboarding-target")
+	p.app.Press("id:onboarding-target-zh-Hans")
+	// The sheet's exit runs on the test's clock.
+	p.app.Advance(500 * time.Millisecond)
+	p.app.WaitForGone("id:onboarding-target-sheet", wait)
 	shot(p, "onboarding-languages")
 	p.app.Press("id:onboarding-continue")
 	p.app.WaitFor("id:onboarding-pairing", wait)
@@ -51,7 +58,7 @@ func TestScreenshotsOnboarding(t *testing.T) {
 	p.app.WaitFor("id:pair-fingerprint", wait)
 	shot(p, "onboarding-pair-compare")
 	p.app.Press("id:pair-confirm")
-	p.app.WaitFor("id:onboarding-paired", wait)
+	p.app.WaitFor("id:onboarding-paired-films", wait)
 	shot(p, "onboarding-paired")
 }
 

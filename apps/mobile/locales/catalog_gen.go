@@ -589,6 +589,7 @@ var Parameters = map[string][]string{
 	"LearnWeekBars":                  {"count"},
 	"LearnWordCount":                 {"count"},
 	"OnboardingPaired":               {"name"},
+	"OnboardingPairedFilms":          {"count"},
 	"OnboardingStep":                 {"step", "count"},
 	"PairErrUnreachable":             {"address"},
 	"PlayerAsking":                   {"computer"},
@@ -793,6 +794,7 @@ type Translation struct {
 	LearnWeekBars                  func(count int) string
 	LearnWordCount                 func(count int) string
 	OnboardingPaired               func(name string) string
+	OnboardingPairedFilms          func(count int) string
 	OnboardingStep                 func(step int, count int) string
 	PairErrUnreachable             func(address string) string
 	PlayerAsking                   func(computer string) string
@@ -1104,8 +1106,22 @@ const (
 	textNSCameraUsageDescription
 	textNSLocalNetworkUsageDescription
 	textOnboardingContinue
+	textOnboardingCue1
+	textOnboardingCue2
+	textOnboardingCue3
+	textOnboardingCue4
+	textOnboardingCue5
+	textOnboardingCue6
+	textOnboardingCue7
+	textOnboardingCue8
 	textOnboardingIntroBody
 	textOnboardingIntroTitle
+	textOnboardingLanguageDe
+	textOnboardingLanguageEn
+	textOnboardingLanguageEs
+	textOnboardingLanguageFr
+	textOnboardingLanguageJa
+	textOnboardingLanguageKo
 	textOnboardingLanguagesBody
 	textOnboardingLanguagesTitle
 	textOnboardingNoDesktop
@@ -1133,10 +1149,12 @@ const (
 	textPairErrNotPairQR
 	textPairErrTooMany
 	textPairErrWrongCode
-	textPairHint
-	textPairHintScan
 	textPairScan
 	textPairScanning
+	textPairStepEnter
+	textPairStepOpen
+	textPairStepSettings
+	textPairSteps
 	textPairTitle
 	textPlayerAudioOnly
 	textPlayerAudioOnlyNote
@@ -1602,8 +1620,22 @@ var keyOfText = [numTexts]string{
 	"NSCameraUsageDescription",
 	"NSLocalNetworkUsageDescription",
 	"onboardingContinue",
+	"onboardingCue1",
+	"onboardingCue2",
+	"onboardingCue3",
+	"onboardingCue4",
+	"onboardingCue5",
+	"onboardingCue6",
+	"onboardingCue7",
+	"onboardingCue8",
 	"onboardingIntroBody",
 	"onboardingIntroTitle",
+	"onboardingLanguageDe",
+	"onboardingLanguageEn",
+	"onboardingLanguageEs",
+	"onboardingLanguageFr",
+	"onboardingLanguageJa",
+	"onboardingLanguageKo",
 	"onboardingLanguagesBody",
 	"onboardingLanguagesTitle",
 	"onboardingNoDesktop",
@@ -1631,10 +1663,12 @@ var keyOfText = [numTexts]string{
 	"pairErrNotPairQR",
 	"pairErrTooMany",
 	"pairErrWrongCode",
-	"pairHint",
-	"pairHintScan",
 	"pairScan",
 	"pairScanning",
+	"pairStepEnter",
+	"pairStepOpen",
+	"pairStepSettings",
+	"pairSteps",
 	"pairTitle",
 	"playerAudioOnly",
 	"playerAudioOnlyNote",
@@ -2098,9 +2132,23 @@ var textsEn = i18n.NewTexts(""+
 	"Kando uses the camera to read the QR code your computer shows, to pair with it."+
 	"Kando connects to Kando on your computer over your local network to list and download your films."+
 	"Continue"+
-	"Paste a link and Kando on your computer downloads the video, recognizes the speech and translates it line by line. Your phone plays the films with both lines, and replays any line you didn't catch."+
+	"每条河都始于高山上的一股细流。"+
+	"水往低处流，沿途裹挟起泥沙和石块。"+
+	"这些颗粒就像砂纸一样打磨着河床。"+
+	"数千年间，河道被切割得越来越深。"+
+	"陡峭的 V 形谷就是这样形成的。"+
+	"到了下游，地势变缓，河流也慢了下来。"+
+	"它不再向下切割，而是开始左右摆动。"+
+	"这些大幅度的弯道被称为河曲。"+
+	"Paste a link and Kando downloads the video, recognizes the speech and translates it line by line. Tap any word in the subtitles to look it up, and replay any line you didn’t catch."+
 	"Watch the original, with subtitles in your language."+
-	"Languages you don't pick are still recognized."+
+	"German"+
+	"English"+
+	"Spanish"+
+	"French"+
+	"Japanese"+
+	"Korean"+
+	"Languages you don’t pick are still detected automatically; the first time just takes a bit longer."+
 	"Which languages do you watch?"+
 	"No desktop app yet? Download it from github.com/yldm-tech/Kando for macOS, Linux and Windows."+
 	"Kando on your computer does the downloading, recognition and translation; your phone is for watching and learning."+
@@ -2127,10 +2175,12 @@ var textsEn = i18n.NewTexts(""+
 	"That QR code isn't a Kando pairing code."+
 	"Too many tries. Wait a minute, then try again."+
 	"That isn't the code your computer shows."+
-	"On your computer, open Kando's Settings › Phone Sync, then enter the address and code it shows."+
-	"On your computer, open Kando's Settings › Phone Sync, then scan the QR code it shows, or enter its address and code."+
 	"Scan QR Code"+
 	"Reading the QR code…"+
+	"Enter the address and code it shows"+
+	"Open Kando on your computer"+
+	"Settings › Phone Sync"+
+	"How to pair"+
 	"Pair with a Computer"+
 	"Audio Only"+
 	"Hides the picture, to listen as you would to a podcast."+
@@ -2591,9 +2641,23 @@ var textsEn = i18n.NewTexts(""+
 		79,
 		97,
 		8,
-		197,
+		45,
+		51,
+		48,
+		48,
+		42,
+		54,
+		51,
+		42,
+		182,
 		52,
-		46,
+		6,
+		7,
+		7,
+		6,
+		8,
+		6,
+		100,
 		29,
 		93,
 		114,
@@ -2620,10 +2684,12 @@ var textsEn = i18n.NewTexts(""+
 		40,
 		46,
 		40,
-		97,
-		118,
 		12,
 		22,
+		35,
+		27,
+		23,
+		11,
 		20,
 		10,
 		55,
@@ -3087,9 +3153,23 @@ var textsJa = i18n.NewTexts(""+
 	"Kando はコンピュータに表示された QR コードをカメラで読み取り、ペアリングします。"+
 	"Kando はローカルネットワーク経由でコンピュータの Kando に接続し、映画の一覧を表示してダウンロードします。"+
 	"続ける"+
-	"リンクを貼り付けると、コンピュータの Kando が動画をダウンロードし、音声を認識して 1 行ずつ翻訳します。スマートフォンでは原文と訳文を一緒に表示し、聞き取れなかったセリフはすぐに聞き直せます。"+
+	"すべての川は、山の高いところの細い流れから始まります。"+
+	"水は下りながら、砂や石を運んでいきます。"+
+	"その粒が紙やすりのように川底を削ります。"+
+	"何千年もかけて、川筋はより深く刻まれていきます。"+
+	"こうして険しい V 字谷ができるのです。"+
+	"下流では土地がなだらかになり、流れもゆっくりになります。"+
+	"下へ削る代わりに、左右に揺れ始めます。"+
+	"この大きく曲がった流れを蛇行と呼びます。"+
+	"リンクを貼り付けると、Kando が動画をダウンロードし、音声を認識して 1 行ずつ翻訳します。字幕の単語をタップすれば意味を調べられ、聞き取れなかったセリフはすぐに聞き直せます。"+
 	"原語のまま、あなたの言語の字幕で観よう。"+
-	"選ばなかった言語も自動で認識されます。"+
+	"ドイツ語"+
+	"英語"+
+	"スペイン語"+
+	"フランス語"+
+	"日本語"+
+	"韓国語"+
+	"選ばなかった言語も自動で認識されます。初回だけ少し時間がかかります。"+
 	"よく観るのはどの言語ですか？"+
 	"デスクトップ版をお持ちでない場合は github.com/yldm-tech/Kando からダウンロードできます（macOS、Linux、Windows）。"+
 	"ダウンロード、認識、翻訳はコンピュータの Kando に任せて、スマートフォンは観ることと学ぶことに使います。"+
@@ -3116,10 +3196,12 @@ var textsJa = i18n.NewTexts(""+
 	"この QR コードは Kando のペアリングコードではありません。"+
 	"試行回数が多すぎます。1 分ほど待ってからもう一度お試しください。"+
 	"コンピュータに表示されているコードと違います。"+
-	"コンピュータで Kando の「設定 › スマートフォン同期」を開き、表示されたアドレスとペアリングコードを入力してください。"+
-	"コンピュータで Kando の「設定 › スマートフォン同期」を開き、表示された QR コードをスキャンするか、アドレスとペアリングコードを入力してください。"+
 	"QR コードをスキャン"+
 	"QR コードを読み取り中…"+
+	"表示されたアドレスとペアリングコードを入力"+
+	"コンピュータで Kando を開く"+
+	"設定 › スマートフォン同期"+
+	"ペアリングの手順"+
 	"コンピュータとペアリング"+
 	"音声のみ"+
 	"画面を隠して、ポッドキャストのように聞けます。"+
@@ -3580,9 +3662,23 @@ var textsJa = i18n.NewTexts(""+
 		115,
 		151,
 		9,
-		280,
+		81,
 		60,
+		60,
+		72,
+		54,
+		84,
 		57,
+		60,
+		252,
+		60,
+		12,
+		6,
+		15,
+		15,
+		9,
+		9,
+		102,
 		42,
 		147,
 		151,
@@ -3609,10 +3705,12 @@ var textsJa = i18n.NewTexts(""+
 		80,
 		95,
 		69,
-		171,
-		211,
 		27,
 		33,
+		63,
+		37,
+		38,
+		24,
 		36,
 		12,
 		69,
@@ -4076,9 +4174,23 @@ var textsKo = i18n.NewTexts(""+
 	"Kando는 카메라로 컴퓨터에 표시된 QR 코드를 읽어 페어링합니다."+
 	"Kando는 로컬 네트워크를 통해 컴퓨터의 Kando에 연결하여 영화 목록을 보고 다운로드합니다."+
 	"계속"+
-	"링크를 붙여 넣으면 컴퓨터의 Kando가 동영상을 다운로드하고, 음성을 인식해 한 줄씩 번역합니다. 휴대폰에서는 원문과 번역을 함께 보여 주고, 놓친 대사는 바로 다시 들을 수 있습니다."+
+	"모든 강은 높은 산의 가느다란 물줄기에서 시작됩니다."+
+	"물은 아래로 흐르며 모래와 돌을 실어 나릅니다."+
+	"그 알갱이들이 사포처럼 강바닥을 깎아 냅니다."+
+	"수천 년에 걸쳐 물길은 점점 더 깊어집니다."+
+	"가파른 V자 골짜기는 이렇게 만들어집니다."+
+	"하류로 가면 땅이 평평해지고 강도 느려집니다."+
+	"아래로 깎는 대신 옆으로 휘어지기 시작합니다."+
+	"이렇게 크게 굽이치는 물길을 곡류라고 합니다."+
+	"링크를 붙여 넣으면 Kando가 동영상을 다운로드하고, 음성을 인식해 한 줄씩 번역합니다. 자막의 단어를 탭하면 바로 찾아볼 수 있고, 놓친 대사는 바로 다시 들을 수 있습니다."+
 	"원어 그대로, 내 언어 자막과 함께 보세요."+
-	"선택하지 않은 언어도 자동으로 인식됩니다."+
+	"독일어"+
+	"영어"+
+	"스페인어"+
+	"프랑스어"+
+	"일본어"+
+	"한국어"+
+	"선택하지 않은 언어도 자동으로 인식됩니다. 처음에만 조금 더 걸립니다."+
 	"주로 어떤 언어로 보시나요?"+
 	"데스크톱 앱이 없다면 github.com/yldm-tech/Kando에서 내려받으세요. macOS, Linux, Windows용이 있습니다."+
 	"다운로드, 인식, 번역은 컴퓨터의 Kando가 맡고, 휴대폰은 보고 배우는 데만 씁니다."+
@@ -4105,10 +4217,12 @@ var textsKo = i18n.NewTexts(""+
 	"Kando 페어링 QR 코드가 아닙니다."+
 	"시도 횟수가 너무 많습니다. 1분 후에 다시 시도하세요."+
 	"컴퓨터에 표시된 코드가 아닙니다."+
-	"컴퓨터에서 Kando의 ‘설정 › 휴대폰 동기화’를 열고 표시된 주소와 페어링 코드를 입력하세요."+
-	"컴퓨터에서 Kando의 ‘설정 › 휴대폰 동기화’를 열고 표시된 QR 코드를 스캔하거나 주소와 코드를 입력하세요."+
 	"QR 코드 스캔"+
 	"QR 코드 읽는 중…"+
+	"표시된 주소와 페어링 코드 입력"+
+	"컴퓨터에서 Kando 열기"+
+	"설정 › 휴대폰 동기화"+
+	"페어링 방법"+
 	"컴퓨터와 페어링"+
 	"소리만 듣기"+
 	"화면을 숨기고 팟캐스트처럼 들을 수 있습니다."+
@@ -4569,9 +4683,23 @@ var textsKo = i18n.NewTexts(""+
 		84,
 		120,
 		6,
-		246,
+		73,
+		64,
+		63,
+		58,
+		57,
+		63,
+		63,
+		63,
+		231,
 		56,
-		59,
+		9,
+		6,
+		12,
+		12,
+		9,
+		9,
+		97,
 		37,
 		124,
 		109,
@@ -4598,10 +4726,12 @@ var textsKo = i18n.NewTexts(""+
 		42,
 		73,
 		46,
-		128,
-		147,
 		16,
 		23,
+		43,
+		28,
+		30,
+		16,
 		22,
 		16,
 		63,
@@ -5065,9 +5195,23 @@ var textsZhHans = i18n.NewTexts(""+
 	"看懂用相机读取电脑上显示的二维码，与电脑配对。"+
 	"看懂通过局域网连接你电脑上的看懂，列出并下载你的影片。"+
 	"继续"+
-	"粘贴一个链接，电脑上的看懂就会下载视频、识别原声、逐句翻译。手机上看片时原文和译文一起显示，听不懂的句子一键重听。"+
+	"每条河都始于高山上的一股细流。"+
+	"水往低处流，沿途裹挟起泥沙和石块。"+
+	"这些颗粒就像砂纸一样打磨着河床。"+
+	"数千年间，河道被切割得越来越深。"+
+	"陡峭的 V 形谷就是这样形成的。"+
+	"到了下游，地势变缓，河流也慢了下来。"+
+	"它不再向下切割，而是开始左右摆动。"+
+	"这些大幅度的弯道被称为河曲。"+
+	"粘贴一个链接，看懂下载视频、识别原声、逐句翻译。点字幕里的词就能查，听不懂的句子一键重听。"+
 	"看原片，字幕跟着你的语言走。"+
-	"没选的语言也能自动识别。"+
+	"德语"+
+	"英语"+
+	"西班牙语"+
+	"法语"+
+	"日语"+
+	"韩语"+
+	"没选的语言也能自动识别，只是第一次会多花点时间。"+
 	"你常看哪些语言？"+
 	"还没装电脑版？到 github.com/yldm-tech/Kando 下载，macOS、Linux、Windows 都有。"+
 	"下载、识别、翻译都交给电脑上的看懂，手机只用来看和学。"+
@@ -5094,10 +5238,12 @@ var textsZhHans = i18n.NewTexts(""+
 	"这不是看懂的配对二维码。"+
 	"尝试次数太多，请稍等一分钟再试。"+
 	"这不是电脑上显示的配对码。"+
-	"在电脑上打开看懂的“设置 › 手机同步”，输入那里显示的地址和配对码。"+
-	"在电脑上打开看懂的“设置 › 手机同步”，扫描那里显示的二维码，或输入地址和配对码。"+
 	"扫描二维码"+
 	"正在读取二维码…"+
+	"输入那里显示的地址和配对码"+
+	"在电脑上打开看懂"+
+	"设置 › 手机同步"+
+	"配对步骤"+
 	"与电脑配对"+
 	"只听声音"+
 	"不显示画面，适合通勤时练听力。"+
@@ -5558,9 +5704,23 @@ var textsZhHans = i18n.NewTexts(""+
 		69,
 		81,
 		6,
-		171,
+		45,
+		51,
+		48,
+		48,
 		42,
-		36,
+		54,
+		51,
+		42,
+		135,
+		42,
+		6,
+		6,
+		12,
+		6,
+		6,
+		6,
+		72,
 		24,
 		94,
 		81,
@@ -5587,10 +5747,12 @@ var textsZhHans = i18n.NewTexts(""+
 		36,
 		48,
 		39,
-		101,
-		122,
 		15,
 		24,
+		39,
+		24,
+		23,
+		12,
 		15,
 		12,
 		45,
@@ -6054,9 +6216,23 @@ var textsZhHant = i18n.NewTexts(""+
 	"看懂使用相機讀取電腦上顯示的 QR 碼，與電腦配對。"+
 	"看懂透過區域網路連線到你電腦上的看懂，列出並下載你的影片。"+
 	"繼續"+
-	"貼上一個連結，電腦上的看懂就會下載影片、辨識原聲、逐句翻譯。手機上看片時原文和譯文一起顯示，聽不懂的句子一鍵重聽。"+
+	"每條河都始於高山上的一股細流。"+
+	"水往低處流，沿途裹挾起泥沙和石塊。"+
+	"這些顆粒就像砂紙一樣打磨著河床。"+
+	"數千年間，河道被切割得越來越深。"+
+	"陡峭的 V 形谷就是這樣形成的。"+
+	"到了下游，地勢變緩，河流也慢了下來。"+
+	"它不再向下切割，而是開始左右擺動。"+
+	"這些大幅度的彎道被稱為河曲。"+
+	"貼上一個連結，看懂下載影片、辨識原聲、逐句翻譯。點字幕裡的詞就能查，聽不懂的句子一鍵重聽。"+
 	"看原片，字幕跟著你的語言走。"+
-	"沒選的語言也能自動辨識。"+
+	"德語"+
+	"英語"+
+	"西班牙語"+
+	"法語"+
+	"日語"+
+	"韓語"+
+	"沒選的語言也能自動辨識，只是第一次會多花點時間。"+
 	"你常看哪些語言？"+
 	"還沒裝電腦版？到 github.com/yldm-tech/Kando 下載，macOS、Linux、Windows 都有。"+
 	"下載、辨識、翻譯都交給電腦上的看懂，手機只用來看和學。"+
@@ -6083,10 +6259,12 @@ var textsZhHant = i18n.NewTexts(""+
 	"這不是看懂的配對 QR 碼。"+
 	"嘗試次數太多，請稍等一分鐘再試。"+
 	"這不是電腦上顯示的配對碼。"+
-	"在電腦上開啟看懂的「設定 › 手機同步」，輸入那裡顯示的位址和配對碼。"+
-	"在電腦上開啟看懂的「設定 › 手機同步」，掃描那裡顯示的 QR 碼，或輸入位址和配對碼。"+
 	"掃描 QR 碼"+
 	"正在讀取 QR 碼…"+
+	"輸入那裡顯示的位址和配對碼"+
+	"在電腦上開啟看懂"+
+	"設定 › 手機同步"+
+	"配對步驟"+
 	"與電腦配對"+
 	"只聽聲音"+
 	"不顯示畫面，適合通勤時練聽力。"+
@@ -6547,9 +6725,23 @@ var textsZhHant = i18n.NewTexts(""+
 		70,
 		87,
 		6,
-		171,
+		45,
+		51,
+		48,
+		48,
 		42,
-		36,
+		54,
+		51,
+		42,
+		135,
+		42,
+		6,
+		6,
+		12,
+		6,
+		6,
+		6,
+		72,
 		24,
 		94,
 		81,
@@ -6576,10 +6768,12 @@ var textsZhHant = i18n.NewTexts(""+
 		34,
 		48,
 		39,
-		101,
-		120,
 		13,
 		22,
+		39,
+		24,
+		23,
+		12,
 		15,
 		12,
 		45,
@@ -7247,6 +7441,9 @@ func Supply(lang string, t Translation) {
 	}
 	if t.OnboardingPaired != nil {
 		s.OnboardingPaired = t.OnboardingPaired
+	}
+	if t.OnboardingPairedFilms != nil {
+		s.OnboardingPairedFilms = t.OnboardingPairedFilms
 	}
 	if t.OnboardingStep != nil {
 		s.OnboardingStep = t.OnboardingStep
@@ -14011,7 +14208,79 @@ func OnboardingContinue(cx *core.Scope) string { return For(cx).OnboardingContin
 // OnboardingContinue is the package's OnboardingContinue in the language of msgs.
 func (msgs Messages) OnboardingContinue() string { return msgs.text(textOnboardingContinue) }
 
-// OnboardingIntroBody says "Paste a link and Kando on your computer downloads the video, recognizes the speech and translates it line by line. Your phone plays the films with both lines, and replays any line you didn't catch."
+// OnboardingCue1 says "每条河都始于高山上的一股细流。"
+// in the language the app shows under cx.
+//
+// Sample subtitle over the introduction's picture: the translation of the English line 'Every river begins as a trickle high in the mountains.', which shows under it. Translate it into this language; English keeps the Simplified Chinese, as the introduction shows English as the original.
+func OnboardingCue1(cx *core.Scope) string { return For(cx).OnboardingCue1() }
+
+// OnboardingCue1 is the package's OnboardingCue1 in the language of msgs.
+func (msgs Messages) OnboardingCue1() string { return msgs.text(textOnboardingCue1) }
+
+// OnboardingCue2 says "水往低处流，沿途裹挟起泥沙和石块。"
+// in the language the app shows under cx.
+//
+// Sample subtitle over the introduction's picture: the translation of 'As water flows downhill, it picks up sand and stones.' English keeps the Simplified Chinese (see onboardingCue1).
+func OnboardingCue2(cx *core.Scope) string { return For(cx).OnboardingCue2() }
+
+// OnboardingCue2 is the package's OnboardingCue2 in the language of msgs.
+func (msgs Messages) OnboardingCue2() string { return msgs.text(textOnboardingCue2) }
+
+// OnboardingCue3 says "这些颗粒就像砂纸一样打磨着河床。"
+// in the language the app shows under cx.
+//
+// Sample subtitle over the introduction's picture: the translation of 'Those particles act like sandpaper on the riverbed.' English keeps the Simplified Chinese (see onboardingCue1).
+func OnboardingCue3(cx *core.Scope) string { return For(cx).OnboardingCue3() }
+
+// OnboardingCue3 is the package's OnboardingCue3 in the language of msgs.
+func (msgs Messages) OnboardingCue3() string { return msgs.text(textOnboardingCue3) }
+
+// OnboardingCue4 says "数千年间，河道被切割得越来越深。"
+// in the language the app shows under cx.
+//
+// Sample subtitle over the introduction's picture: the translation of 'Over thousands of years, the channel cuts deeper.' English keeps the Simplified Chinese (see onboardingCue1).
+func OnboardingCue4(cx *core.Scope) string { return For(cx).OnboardingCue4() }
+
+// OnboardingCue4 is the package's OnboardingCue4 in the language of msgs.
+func (msgs Messages) OnboardingCue4() string { return msgs.text(textOnboardingCue4) }
+
+// OnboardingCue5 says "陡峭的 V 形谷就是这样形成的。"
+// in the language the app shows under cx.
+//
+// Sample subtitle over the introduction's picture: the translation of 'That is how steep V-shaped valleys are formed.' English keeps the Simplified Chinese (see onboardingCue1).
+func OnboardingCue5(cx *core.Scope) string { return For(cx).OnboardingCue5() }
+
+// OnboardingCue5 is the package's OnboardingCue5 in the language of msgs.
+func (msgs Messages) OnboardingCue5() string { return msgs.text(textOnboardingCue5) }
+
+// OnboardingCue6 says "到了下游，地势变缓，河流也慢了下来。"
+// in the language the app shows under cx.
+//
+// Sample subtitle over the introduction's picture: the translation of 'Lower down, the land flattens and the river slows.' English keeps the Simplified Chinese (see onboardingCue1).
+func OnboardingCue6(cx *core.Scope) string { return For(cx).OnboardingCue6() }
+
+// OnboardingCue6 is the package's OnboardingCue6 in the language of msgs.
+func (msgs Messages) OnboardingCue6() string { return msgs.text(textOnboardingCue6) }
+
+// OnboardingCue7 says "它不再向下切割，而是开始左右摆动。"
+// in the language the app shows under cx.
+//
+// Sample subtitle over the introduction's picture: the translation of 'Instead of cutting down, it starts to swing sideways.' English keeps the Simplified Chinese (see onboardingCue1).
+func OnboardingCue7(cx *core.Scope) string { return For(cx).OnboardingCue7() }
+
+// OnboardingCue7 is the package's OnboardingCue7 in the language of msgs.
+func (msgs Messages) OnboardingCue7() string { return msgs.text(textOnboardingCue7) }
+
+// OnboardingCue8 says "这些大幅度的弯道被称为河曲。"
+// in the language the app shows under cx.
+//
+// Sample subtitle over the introduction's picture: the translation of 'These sweeping curves are called meanders.' English keeps the Simplified Chinese (see onboardingCue1).
+func OnboardingCue8(cx *core.Scope) string { return For(cx).OnboardingCue8() }
+
+// OnboardingCue8 is the package's OnboardingCue8 in the language of msgs.
+func (msgs Messages) OnboardingCue8() string { return msgs.text(textOnboardingCue8) }
+
+// OnboardingIntroBody says "Paste a link and Kando downloads the video, recognizes the speech and translates it line by line. Tap any word in the subtitles to look it up, and replay any line you didn’t catch."
 // in the language the app shows under cx.
 //
 // Body of the introduction's first step.
@@ -14029,7 +14298,61 @@ func OnboardingIntroTitle(cx *core.Scope) string { return For(cx).OnboardingIntr
 // OnboardingIntroTitle is the package's OnboardingIntroTitle in the language of msgs.
 func (msgs Messages) OnboardingIntroTitle() string { return msgs.text(textOnboardingIntroTitle) }
 
-// OnboardingLanguagesBody says "Languages you don't pick are still recognized."
+// OnboardingLanguageDe says "German"
+// in the language the app shows under cx.
+//
+// Name of the language under its own name (Deutsch), on the introduction's languages step.
+func OnboardingLanguageDe(cx *core.Scope) string { return For(cx).OnboardingLanguageDe() }
+
+// OnboardingLanguageDe is the package's OnboardingLanguageDe in the language of msgs.
+func (msgs Messages) OnboardingLanguageDe() string { return msgs.text(textOnboardingLanguageDe) }
+
+// OnboardingLanguageEn says "English"
+// in the language the app shows under cx.
+//
+// Name of the language under its own name (English), on the introduction's languages step.
+func OnboardingLanguageEn(cx *core.Scope) string { return For(cx).OnboardingLanguageEn() }
+
+// OnboardingLanguageEn is the package's OnboardingLanguageEn in the language of msgs.
+func (msgs Messages) OnboardingLanguageEn() string { return msgs.text(textOnboardingLanguageEn) }
+
+// OnboardingLanguageEs says "Spanish"
+// in the language the app shows under cx.
+//
+// Name of the language under its own name (Español), on the introduction's languages step.
+func OnboardingLanguageEs(cx *core.Scope) string { return For(cx).OnboardingLanguageEs() }
+
+// OnboardingLanguageEs is the package's OnboardingLanguageEs in the language of msgs.
+func (msgs Messages) OnboardingLanguageEs() string { return msgs.text(textOnboardingLanguageEs) }
+
+// OnboardingLanguageFr says "French"
+// in the language the app shows under cx.
+//
+// Name of the language under its own name (Français), on the introduction's languages step.
+func OnboardingLanguageFr(cx *core.Scope) string { return For(cx).OnboardingLanguageFr() }
+
+// OnboardingLanguageFr is the package's OnboardingLanguageFr in the language of msgs.
+func (msgs Messages) OnboardingLanguageFr() string { return msgs.text(textOnboardingLanguageFr) }
+
+// OnboardingLanguageJa says "Japanese"
+// in the language the app shows under cx.
+//
+// Name of the language under its own name (日本語), on the introduction's languages step.
+func OnboardingLanguageJa(cx *core.Scope) string { return For(cx).OnboardingLanguageJa() }
+
+// OnboardingLanguageJa is the package's OnboardingLanguageJa in the language of msgs.
+func (msgs Messages) OnboardingLanguageJa() string { return msgs.text(textOnboardingLanguageJa) }
+
+// OnboardingLanguageKo says "Korean"
+// in the language the app shows under cx.
+//
+// Name of the language under its own name (한국어), on the introduction's languages step.
+func OnboardingLanguageKo(cx *core.Scope) string { return For(cx).OnboardingLanguageKo() }
+
+// OnboardingLanguageKo is the package's OnboardingLanguageKo in the language of msgs.
+func (msgs Messages) OnboardingLanguageKo() string { return msgs.text(textOnboardingLanguageKo) }
+
+// OnboardingLanguagesBody says "Languages you don’t pick are still detected automatically; the first time just takes a bit longer."
 // in the language the app shows under cx.
 //
 // Under the title of the introduction's languages step.
@@ -14102,6 +14425,47 @@ func (msgs Messages) OnboardingPaired(name string) string {
 			return "已连上 " + name
 		case "zh-Hant":
 			return "已連上 " + name
+		}
+	}
+}
+
+// OnboardingPairedFilms says "{count, plural, one {# film in its library} other {# films in its library}}"
+// in the language the app shows under cx.
+//
+// Under 'Connected to …' on the introduction's last step, once the computer just paired has listed its library: how many films it holds.
+func OnboardingPairedFilms(cx *core.Scope, count int) string {
+	return For(cx).OnboardingPairedFilms(count)
+}
+
+// OnboardingPairedFilms is the package's OnboardingPairedFilms in the language of msgs.
+func (msgs Messages) OnboardingPairedFilms(count int) string {
+	if i18n.IsPseudo(msgs.lang) {
+		return i18n.Pseudo(msgs.lang, Messages{lang: Source, mark: true}.OnboardingPairedFilms(count))
+	}
+	for lang := msgs.lang; ; lang = i18n.Parent(lang) {
+		if f := supplied[lang].OnboardingPairedFilms; f != nil {
+			return f(count)
+		}
+		switch lang {
+		case "", "en":
+			var b strings.Builder
+			switch i18n.Cardinal("en", float64(count)) {
+			case i18n.One:
+				b.WriteString(msgs.arg(i18n.FormatNumber("en", float64(count))))
+				b.WriteString(" film in its library")
+			default:
+				b.WriteString(msgs.arg(i18n.FormatNumber("en", float64(count))))
+				b.WriteString(" films in its library")
+			}
+			return b.String()
+		case "ja":
+			return "ライブラリに " + i18n.FormatNumber("ja", float64(count)) + " 本の動画があります"
+		case "ko":
+			return "라이브러리에 영상 " + i18n.FormatNumber("ko", float64(count)) + "개가 있습니다"
+		case "zh-Hans":
+			return "片库里有 " + i18n.FormatNumber("zh-Hans", float64(count)) + " 部影片"
+		case "zh-Hant":
+			return "片庫裡有 " + i18n.FormatNumber("zh-Hant", float64(count)) + " 部影片"
 		}
 	}
 }
@@ -14368,24 +14732,6 @@ func PairErrWrongCode(cx *core.Scope) string { return For(cx).PairErrWrongCode()
 // PairErrWrongCode is the package's PairErrWrongCode in the language of msgs.
 func (msgs Messages) PairErrWrongCode() string { return msgs.text(textPairErrWrongCode) }
 
-// PairHint says "On your computer, open Kando's Settings › Phone Sync, then enter the address and code it shows."
-// in the language the app shows under cx.
-//
-// At the top of the pairing page.
-func PairHint(cx *core.Scope) string { return For(cx).PairHint() }
-
-// PairHint is the package's PairHint in the language of msgs.
-func (msgs Messages) PairHint() string { return msgs.text(textPairHint) }
-
-// PairHintScan says "On your computer, open Kando's Settings › Phone Sync, then scan the QR code it shows, or enter its address and code."
-// in the language the app shows under cx.
-//
-// At the top of the pairing page, on a phone with a camera.
-func PairHintScan(cx *core.Scope) string { return For(cx).PairHintScan() }
-
-// PairHintScan is the package's PairHintScan in the language of msgs.
-func (msgs Messages) PairHintScan() string { return msgs.text(textPairHintScan) }
-
 // PairScan says "Scan QR Code"
 // in the language the app shows under cx.
 //
@@ -14403,6 +14749,42 @@ func PairScanning(cx *core.Scope) string { return For(cx).PairScanning() }
 
 // PairScanning is the package's PairScanning in the language of msgs.
 func (msgs Messages) PairScanning() string { return msgs.text(textPairScanning) }
+
+// PairStepEnter says "Enter the address and code it shows"
+// in the language the app shows under cx.
+//
+// Third of the numbered steps over the pairing form.
+func PairStepEnter(cx *core.Scope) string { return For(cx).PairStepEnter() }
+
+// PairStepEnter is the package's PairStepEnter in the language of msgs.
+func (msgs Messages) PairStepEnter() string { return msgs.text(textPairStepEnter) }
+
+// PairStepOpen says "Open Kando on your computer"
+// in the language the app shows under cx.
+//
+// First of the numbered steps over the pairing form.
+func PairStepOpen(cx *core.Scope) string { return For(cx).PairStepOpen() }
+
+// PairStepOpen is the package's PairStepOpen in the language of msgs.
+func (msgs Messages) PairStepOpen() string { return msgs.text(textPairStepOpen) }
+
+// PairStepSettings says "Settings › Phone Sync"
+// in the language the app shows under cx.
+//
+// Second of the numbered steps over the pairing form: the page of the desktop app's settings to open.
+func PairStepSettings(cx *core.Scope) string { return For(cx).PairStepSettings() }
+
+// PairStepSettings is the package's PairStepSettings in the language of msgs.
+func (msgs Messages) PairStepSettings() string { return msgs.text(textPairStepSettings) }
+
+// PairSteps says "How to pair"
+// in the language the app shows under cx.
+//
+// Spoken name of the numbered steps over the pairing form.
+func PairSteps(cx *core.Scope) string { return For(cx).PairSteps() }
+
+// PairSteps is the package's PairSteps in the language of msgs.
+func (msgs Messages) PairSteps() string { return msgs.text(textPairSteps) }
 
 // PairTitle says "Pair with a Computer"
 // in the language the app shows under cx.

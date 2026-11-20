@@ -171,6 +171,10 @@ var (
 	PreviewBase = core.RGB(0x000000)
 	// The Home Screen wallpaper the widgets' previews sit on, top to bottom.
 	WallpaperTop, WallpaperMiddle, WallpaperBottom = core.RGB(0x3D5A80), core.RGB(0x98C1D9), core.RGB(0xE0FBFC)
+	// What the introduction draws on its picture: the black under the scenes, the white text on them and the dark glass of the Skip pill.
+	PictureBlack = core.RGB(0x000000)
+	OnPicture    = core.RGB(0xFFFFFF)
+	PictureGlass = core.RGBA(0x000000, 0.3)
 	// The laptop drawn for a computer: its body's gradient and its screen's.
 	LaptopTop, LaptopBottom = core.RGB(0x3A3A3F), core.RGB(0x1D1D1F)
 	// LaptopBase is the base tucked under the larger laptop's lid (look.LaptopFront).

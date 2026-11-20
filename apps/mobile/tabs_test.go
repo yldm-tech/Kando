@@ -4,6 +4,7 @@ import (
 	"slices"
 	"strings"
 	"testing"
+	"time"
 
 	"kando/apps/mobile/store"
 
@@ -109,6 +110,50 @@ func TestTheIntroductionCanBeSkipped(t *testing.T) {
 	}
 }
 
+// The introduction's picture plays a line of the sample film in the app's language over the original, and moves to the next line every few seconds.
+func TestTheIntroductionsPicturePlaysItsLines(t *testing.T) {
+	p := startPhone(t, "")
+	p.app.WaitFor("id:onboarding-intro", wait)
+	if got, want := p.texts("id:onboarding-cue"), msgs.OnboardingCue1()+"\nEvery river begins as a trickle high in the mountains."; got != want {
+		t.Fatalf("the picture's line is %q, want %q", got, want)
+	}
+	p.app.Advance(3500 * time.Millisecond)
+	p.app.WaitUntil(wait, func() bool {
+		return p.texts("id:onboarding-cue") == msgs.OnboardingCue2()+"\nAs water flows downhill, it picks up sand and stones."
+	})
+}
+
+// The picture's Skip stays on the pairing step, and leaves the introduction unpaired from there as from the others.
+func TestTheIntroductionCanBeSkippedAtItsPairingStep(t *testing.T) {
+	p := startPhone(t, "")
+	p.startPairing()
+	p.app.Press("id:onboarding-skip")
+	p.app.WaitFor("id:films-unpaired", wait)
+	p.app.WaitUntil(wait, func() bool { prefs, _ := store.Open(p.dir).Prefs(); return prefs.Onboarded })
+}
+
+// Paired at the introduction, the phone says which computer it paired with and, once that computer listed its library, how many films it holds, keeping the steps over them.
+func TestTheIntroductionCountsThePairedComputersFilms(t *testing.T) {
+	d := newDesktopWithMovies(t)
+	p := startPhone(t, "")
+	p.startPairing()
+	if !p.app.Exists("id:pair-steps") {
+		t.Fatal("the pairing step does not show how to pair")
+	}
+	p.fillPairing(d.Addr.String(), "123456")
+	p.app.Press("id:pair-continue")
+	p.app.WaitFor("id:pair-confirm", wait)
+	p.app.Press("id:pair-confirm")
+	p.app.WaitFor("id:onboarding-paired", wait)
+	if got, want := p.app.WaitFor("id:onboarding-paired-films", wait).Text, msgs.OnboardingPairedFilms(2); got != want {
+		t.Fatalf("the paired card says %q, want %q", got, want)
+	}
+	if !p.app.Exists("id:pair-steps") {
+		t.Fatal("the steps went once the phone paired")
+	}
+	p.finishPairing(d)
+}
+
 // Unpaired in Settings while the Library shows one of its films not on the phone, a computer takes that page off the Library's stack, and its films off the list: with no client left they could not be downloaded.
 func TestUnpairingInSettingsClosesTheComputersFilms(t *testing.T) {
 	d := newDesktop(t)
@@ -136,7 +181,7 @@ func TestTheIntroductionKeepsTheLanguagesHoweverItIsLeft(t *testing.T) {
 	p.app.Press("id:onboarding-continue")
 	p.app.WaitFor("id:onboarding-languages", wait)
 	p.app.Press("id:onboarding-spoken-ja")
-	p.app.Press("id:onboarding-target-ko")
+	p.pickTarget("ko")
 	var prefs store.Prefs
 	p.app.WaitUntil(wait, func() bool { prefs, _ = store.Open(p.dir).Prefs(); return prefs.Target == "ko" })
 	if !slices.Equal(prefs.Spoken, []string{"ja"}) || prefs.Onboarded {
@@ -152,7 +197,7 @@ func TestTheIntroductionKeepsTheLanguagesHoweverItIsLeft(t *testing.T) {
 	p.app.WaitFor("id:onboarding-intro", wait)
 	p.app.Press("id:onboarding-continue")
 	p.app.WaitFor("id:onboarding-languages", wait)
-	p.app.Press("id:onboarding-target-ko")
+	p.pickTarget("ko")
 	p.app.Back()
 	p.app.WaitForGone("id:onboarding", wait)
 	p.app.WaitUntil(wait, func() bool { prefs, _ = store.Open(p.dir).Prefs(); return prefs.Target == "ko" })
@@ -199,14 +244,23 @@ func TestTheIntroductionKeepsTheLanguages(t *testing.T) {
 	p.app.Press("id:onboarding-continue")
 	p.app.WaitFor("id:onboarding-languages", wait)
 	// The phone's own language is the target to start with.
-	if !p.app.Find("id:onboarding-target-en").Props.Checked {
-		t.Fatal("the phone's language is not the target the introduction starts with")
+	if got := p.texts("id:onboarding-target"); !strings.Contains(got, "English") {
+		t.Fatalf("the target row says %q, not the phone's language, which the introduction starts with", got)
+	}
+	p.app.Press("id:onboarding-target")
+	p.app.WaitFor("id:onboarding-target-en", wait)
+	if !p.app.Find("id:onboarding-target-en").Props.Checked || p.app.Find("id:onboarding-target-ko").Props.Checked {
+		t.Fatal("the target list does not check the phone's language alone")
+	}
+	p.app.Press("id:onboarding-target-ko")
+	p.app.WaitForGone("id:onboarding-target-sheet", wait)
+	if got := p.texts("id:onboarding-target"); !strings.Contains(got, "한국어") {
+		t.Fatalf("the target row says %q after 한국어 was picked", got)
 	}
 	p.app.Press("id:onboarding-spoken-ja")
 	p.app.Press("id:onboarding-spoken-fr")
 	p.app.Press("id:onboarding-spoken-fr")
 	p.app.Press("id:onboarding-spoken-en")
-	p.app.Press("id:onboarding-target-ko")
 	p.app.Press("id:onboarding-continue")
 	p.app.WaitFor("id:onboarding-pairing", wait)
 	p.app.Press("id:onboarding-later")

@@ -1369,14 +1369,56 @@ NSLocalNetworkUsageDescription:
 onboardingContinue:
   message: "Continue"
   description: "Button that goes to the introduction's next step."
+onboardingCue1:
+  message: "每条河都始于高山上的一股细流。"
+  description: "Sample subtitle over the introduction's picture: the translation of the English line 'Every river begins as a trickle high in the mountains.', which shows under it. Translate it into this language; English keeps the Simplified Chinese, as the introduction shows English as the original."
+onboardingCue2:
+  message: "水往低处流，沿途裹挟起泥沙和石块。"
+  description: "Sample subtitle over the introduction's picture: the translation of 'As water flows downhill, it picks up sand and stones.' English keeps the Simplified Chinese (see onboardingCue1)."
+onboardingCue3:
+  message: "这些颗粒就像砂纸一样打磨着河床。"
+  description: "Sample subtitle over the introduction's picture: the translation of 'Those particles act like sandpaper on the riverbed.' English keeps the Simplified Chinese (see onboardingCue1)."
+onboardingCue4:
+  message: "数千年间，河道被切割得越来越深。"
+  description: "Sample subtitle over the introduction's picture: the translation of 'Over thousands of years, the channel cuts deeper.' English keeps the Simplified Chinese (see onboardingCue1)."
+onboardingCue5:
+  message: "陡峭的 V 形谷就是这样形成的。"
+  description: "Sample subtitle over the introduction's picture: the translation of 'That is how steep V-shaped valleys are formed.' English keeps the Simplified Chinese (see onboardingCue1)."
+onboardingCue6:
+  message: "到了下游，地势变缓，河流也慢了下来。"
+  description: "Sample subtitle over the introduction's picture: the translation of 'Lower down, the land flattens and the river slows.' English keeps the Simplified Chinese (see onboardingCue1)."
+onboardingCue7:
+  message: "它不再向下切割，而是开始左右摆动。"
+  description: "Sample subtitle over the introduction's picture: the translation of 'Instead of cutting down, it starts to swing sideways.' English keeps the Simplified Chinese (see onboardingCue1)."
+onboardingCue8:
+  message: "这些大幅度的弯道被称为河曲。"
+  description: "Sample subtitle over the introduction's picture: the translation of 'These sweeping curves are called meanders.' English keeps the Simplified Chinese (see onboardingCue1)."
 onboardingIntroBody:
-  message: "Paste a link and Kando on your computer downloads the video, recognizes the speech and translates it line by line. Your phone plays the films with both lines, and replays any line you didn't catch."
+  message: "Paste a link and Kando downloads the video, recognizes the speech and translates it line by line. Tap any word in the subtitles to look it up, and replay any line you didn’t catch."
   description: "Body of the introduction's first step."
 onboardingIntroTitle:
   message: "Watch the original, with subtitles in your language."
   description: "Title of the introduction's first step."
+onboardingLanguageDe:
+  message: "German"
+  description: "Name of the language under its own name (Deutsch), on the introduction's languages step."
+onboardingLanguageEn:
+  message: "English"
+  description: "Name of the language under its own name (English), on the introduction's languages step."
+onboardingLanguageEs:
+  message: "Spanish"
+  description: "Name of the language under its own name (Español), on the introduction's languages step."
+onboardingLanguageFr:
+  message: "French"
+  description: "Name of the language under its own name (Français), on the introduction's languages step."
+onboardingLanguageJa:
+  message: "Japanese"
+  description: "Name of the language under its own name (日本語), on the introduction's languages step."
+onboardingLanguageKo:
+  message: "Korean"
+  description: "Name of the language under its own name (한국어), on the introduction's languages step."
 onboardingLanguagesBody:
-  message: "Languages you don't pick are still recognized."
+  message: "Languages you don’t pick are still detected automatically; the first time just takes a bit longer."
   description: "Under the title of the introduction's languages step."
 onboardingLanguagesTitle:
   message: "Which languages do you watch?"
@@ -1395,6 +1437,11 @@ onboardingPaired:
   description: "On the introduction's last step once pairing worked, by the computer's name."
   placeholders:
     name: { type: "String", example: "Studio" }
+onboardingPairedFilms:
+  message: "{count, plural, one {# film in its library} other {# films in its library}}"
+  description: "Under 'Connected to …' on the introduction's last step, once the computer just paired has listed its library: how many films it holds."
+  placeholders:
+    count: { type: "int", example: "7" }
 onboardingSkip:
   message: "Skip"
   description: "Button at the top of the introduction that leaves it."
@@ -1472,18 +1519,24 @@ pairErrUnreachable:
 pairErrWrongCode:
   message: "That isn't the code your computer shows."
   description: "Error on the pairing page: the code is not the one on offer."
-pairHint:
-  message: "On your computer, open Kando's Settings › Phone Sync, then enter the address and code it shows."
-  description: "At the top of the pairing page."
-pairHintScan:
-  message: "On your computer, open Kando's Settings › Phone Sync, then scan the QR code it shows, or enter its address and code."
-  description: "At the top of the pairing page, on a phone with a camera."
 pairScan:
   message: "Scan QR Code"
   description: "Button on the pairing page that takes a photo of the QR code the computer shows."
 pairScanning:
   message: "Reading the QR code…"
   description: "Spoken name of the scan button while the app reads the photo, which shows a spinner meanwhile."
+pairStepEnter:
+  message: "Enter the address and code it shows"
+  description: "Third of the numbered steps over the pairing form."
+pairStepOpen:
+  message: "Open Kando on your computer"
+  description: "First of the numbered steps over the pairing form."
+pairStepSettings:
+  message: "Settings › Phone Sync"
+  description: "Second of the numbered steps over the pairing form: the page of the desktop app's settings to open."
+pairSteps:
+  message: "How to pair"
+  description: "Spoken name of the numbered steps over the pairing form."
 pairTitle:
   message: "Pair with a Computer"
   description: "Title of the pairing page."

@@ -2,18 +2,15 @@
 package onboarding
 
 import (
-	"slices"
+	"time"
 
-	"kando/apps/mobile/langs"
 	"kando/apps/mobile/locales"
 	"kando/apps/mobile/look"
 	"kando/apps/mobile/pair"
 	"kando/apps/mobile/session"
 	"kando/apps/mobile/store"
-	"kando/apps/mobile/theme"
 
 	"github.com/nsgo-dev/nsgo/core"
-	"github.com/nsgo-dev/nsgo/icons/lucide"
 	"github.com/nsgo-dev/nsgo/ui"
 )
 
@@ -25,15 +22,18 @@ const (
 	steps = pairing
 )
 
+// black is the design's 900 weight of the steps' titles.
+const black core.FontWeight = 900
+
 // DownloadURL is where the desktop app is, which the last step names.
 const DownloadURL = "https://github.com/yldm-tech/Kando"
 
-// Page is the introduction; done runs once the user leaves it, finished or skipped, with the introduction marked as seen. The languages are kept as they are chosen, not as it is left.
+// Page is the introduction; done runs once the user leaves it, finished or skipped, with the introduction marked as seen. The languages are kept as they are chosen, not as it is left. On a phone it fills the screen; on a tablet it is a card in the middle of a dimmed screen, as the design's Pad artboards draw it.
 func Page(cx *core.Scope, s *session.Session, done func()) core.Node {
 	colors := ui.ColorsOf(cx)
 	step := core.NewSignal(cx, intro)
-	// paired is the name of the computer paired at the last step, "" before.
-	paired := core.NewSignal(cx, "")
+	// paired is the computer paired at the last step, none before.
+	paired := core.NewSignalFunc(cx, store.Desktop{}, func(a, b store.Desktop) bool { return a.ID == b.ID && a.Name == b.Name })
 	finish := func() {
 		p := s.Prefs()
 		p.Onboarded = true
@@ -41,11 +41,14 @@ func Page(cx *core.Scope, s *session.Session, done func()) core.Node {
 		done()
 	}
 	next := func() { step.Update(func(n int) int { return n + 1 }) }
+	// The pairing flow is the page's, as its form is in the step and its button at the page's foot.
+	flow := pair.New(cx, s, func(d store.Desktop) { paired.Set(d) }, func() core.Points { return 16 }, true)
+	isPaired := func() bool { return paired.Get().ID != "" }
 
 	dots := core.View{TestID: "onboarding-steps", Role: core.RoleImage, Accessible: true, LabelFunc: func() string { return locales.OnboardingStep(cx, step.Get(), steps) },
-		Style: core.Style{Direction: core.Row, Gap: 6, AlignItems: core.AlignCenter, FlexGrow: 1}}
+		Style: core.Style{Direction: core.Row, Gap: 6, AlignItems: core.AlignCenter}}
 	for i := intro; i <= steps; i++ {
-		dots.Children = append(dots.Children, core.View{Style: core.Style{Height: core.Pt(6), CornerRadius: 3},
+		dots.Children = append(dots.Children, core.View{Style: core.Style{Height: core.Pt(6), CornerRadius: 3, Transition: core.Transition{Duration: 300 * time.Millisecond, Easing: core.Curve{X1: 0.32, Y1: 0.72, X2: 0, Y2: 1}}},
 			StyleFunc: func() core.Style {
 				if step.Get() == i {
 					return core.Style{Width: core.Pt(22), Background: colors.Accent()}
@@ -53,128 +56,76 @@ func Page(cx *core.Scope, s *session.Session, done func()) core.Node {
 				return core.Style{Width: core.Pt(6), Background: ui.Alpha(colors.Muted(), 0.35)}
 			}})
 	}
-	top := core.View{Style: core.Style{Direction: core.Row, AlignItems: core.AlignCenter, MinHeight: core.Pt(44)}, Children: []core.Node{
-		dots,
-		core.Show{When: func() bool { return step.Get() < pairing }, Then: func(cx *core.Scope) core.Node {
-			return look.Pill(cx, "onboarding-skip", func() string { return locales.OnboardingSkip(cx) }, finish)
-		}},
-	}}
 
-	body := core.View{Style: core.Style{FlexGrow: 1, FlexShrink: 1, MinHeight: core.Pt(0)}, Children: []core.Node{
-		core.Show{When: func() bool { return step.Get() == intro }, Then: func(cx *core.Scope) core.Node { return introStep(cx) }},
+	body := core.View{Children: []core.Node{
+		core.Show{When: func() bool { return step.Get() == intro }, Then: func(cx *core.Scope) core.Node {
+			return core.View{TestID: "onboarding-intro", Children: []core.Node{
+				heading(cx, true, func() string { return locales.OnboardingIntroTitle(cx) }, func() string { return locales.OnboardingIntroBody(cx) }),
+			}}
+		}},
 		core.Show{When: func() bool { return step.Get() == languages }, Then: func(cx *core.Scope) core.Node { return languagesStep(cx, s) }},
-		core.Show{When: func() bool { return step.Get() == pairing }, Then: func(cx *core.Scope) core.Node {
-			return pairingStep(cx, s, paired, finish)
-		}},
+		core.Show{When: func() bool { return step.Get() == pairing }, Then: func(cx *core.Scope) core.Node { return pairingStep(cx, s, flow, paired) }},
 	}}
-	// The last step's buttons are its own: pairing's, then the way to start.
-	actions := core.Show{When: func() bool { return step.Get() < pairing }, Then: func(cx *core.Scope) core.Node {
-		return look.Button{Kind: look.Primary, Text: func() string { return locales.OnboardingContinue(cx) }, TestID: "onboarding-continue", OnPress: next}
+	// The steps scroll under the picture, which scrolls away with them; the button stays at the page's foot.
+	content := core.Scroll{TestID: "onboarding-scroll", Style: core.Style{FlexGrow: 1, FlexShrink: 1}, Children: []core.Node{
+		hero(cx, finish),
+		// The dots sit on the picture's faded foot.
+		core.View{Style: core.Style{Gap: 18, Margin: core.Edges{Top: -40}, Padding: core.Edges{Right: 24, Bottom: 16, Left: 24}}, Children: []core.Node{dots, body}},
 	}}
-	// The steps scroll inside the window, so the page shrinks to it rather than grow past it with a long step, as the languages', and keeps its button in view.
-	return core.View{TestID: "onboarding", Style: core.Style{FlexGrow: 1, FlexShrink: 1, MinHeight: core.Pt(0), PaddingEnv: core.EnvAll(core.EnvSafeArea), Padding: core.Edges{Right: 24, Bottom: 16, Left: 24}},
-		StyleFunc: ui.Filled(colors.Background),
+
+	cta := func(text func() string, testID string, press func()) core.Node {
+		return look.Button{Kind: look.Primary, Tall: true, Text: text, TestID: testID, OnPress: press}
+	}
+	actions := core.View{
+		// The design's button is 40 points above the screen's foot, clear of a home indicator.
+		StyleFunc: func() core.Style {
+			return core.Style{Padding: core.Edges{Top: 8, Right: 24, Bottom: max(40, cx.Env().SafeArea().Bottom+8), Left: 24}}
+		},
 		Children: []core.Node{
-			core.View{Style: core.Style{FlexGrow: 1, FlexShrink: 1, MinHeight: core.Pt(0), MaxWidth: core.Pt(560), Width: core.Pct(100), AlignSelf: core.AlignCenter, Gap: 12}, Children: []core.Node{top, body, actions}},
-		}}
-}
-
-// heading is a step's title and the line under it.
-func heading(cx *core.Scope, title, line func() string) core.Node {
-	colors := ui.ColorsOf(cx)
-	return core.View{Style: core.Style{Gap: 10}, Children: []core.Node{
-		core.Text{ContentFunc: title, Role: core.RoleHeader, Style: look.Display, StyleFunc: ui.Colored(colors.Text)},
-		core.Text{ContentFunc: line, Style: look.Body, StyleFunc: ui.Colored(colors.Muted)},
-	}}
-}
-
-// introStep says what Kando does, under its mark: a line of a film with its translation under it, as the player shows them.
-func introStep(cx *core.Scope) core.Node {
-	colors, tints := ui.ColorsOf(cx), ui.TintsOf(cx)
-	flat := func() bool { return cx.Env().Window().Height < 500 }
-	return core.View{TestID: "onboarding-intro", Style: core.Style{FlexGrow: 1, JustifyContent: core.JustifyCenter, Gap: 28}, Children: []core.Node{
-		core.Show{When: func() bool { return !flat() }, Then: func(cx *core.Scope) core.Node {
-			return core.View{Style: core.Style{Width: core.Pt(88), Height: core.Pt(88), CornerRadius: 22, BorderCurve: core.BorderCurveContinuous, AlignItems: core.AlignCenter, JustifyContent: core.JustifyCenter},
-				StyleFunc: ui.Filled(tints.Accent), Children: []core.Node{ui.Icon(lucide.Captions, 44, colors.Accent)}}
-		}},
-		heading(cx, func() string { return locales.OnboardingIntroTitle(cx) }, func() string { return locales.OnboardingIntroBody(cx) }),
-	}}
-}
-
-// languagesStep asks which languages the user watches and which one they want subtitles in, keeping each choice as it is made, so that leaving the introduction any way, even by the system's back, keeps it. The target stays unchosen ("", which follows the phone's language) until the user presses one; the phone's own shows as checked meanwhile.
-func languagesStep(cx *core.Scope, s *session.Session) core.Node {
-	colors := ui.ColorsOf(cx)
-	keep := func(change func(*store.Prefs)) {
-		p := s.Prefs()
-		change(&p)
-		s.SetPrefs(p)
-	}
-	var watched, into []core.Node
-	for _, l := range langs.Spoken {
-		watched = append(watched, look.Chip{TestID: "onboarding-spoken-" + l.Code, Text: func() string { return l.Name },
-			On: func() bool { return slices.Contains(s.Prefs().Spoken, l.Code) },
-			OnPress: func() {
-				keep(func(p *store.Prefs) {
-					if i := slices.Index(p.Spoken, l.Code); i >= 0 {
-						p.Spoken = slices.Delete(slices.Clone(p.Spoken), i, i+1)
-						return
-					}
-					p.Spoken = append(slices.Clone(p.Spoken), l.Code)
-				})
-			}})
-	}
-	for _, l := range langs.Targets {
-		into = append(into, look.Chip{TestID: "onboarding-target-" + l.Code, Radio: true, Text: func() string { return l.Name },
-			On: func() bool { return s.Target() == l.Code }, OnPress: func() { s.SetTarget(l.Code) }})
-	}
-	return core.Scroll{TestID: "onboarding-languages", Style: core.Style{FlexGrow: 1, FlexShrink: 1}, Children: []core.Node{
-		core.View{Style: core.Style{Gap: 28, Padding: core.Edges{Top: 16, Bottom: 16}}, Children: []core.Node{
-			heading(cx, func() string { return locales.OnboardingLanguagesTitle(cx) }, func() string { return locales.OnboardingLanguagesBody(cx) }),
-			core.View{Role: core.RoleGroup, LabelFunc: func() string { return locales.OnboardingLanguagesTitle(cx) }, Children: []core.Node{look.Chips(watched...)}},
-			core.View{Style: core.Style{Gap: 12}, Children: []core.Node{
-				core.Text{ContentFunc: func() string { return locales.OnboardingTarget(cx) }, Role: core.RoleHeader, Style: look.Title, StyleFunc: ui.Colored(colors.Text)},
-				core.View{Role: core.RoleRadioGroup, LabelFunc: func() string { return locales.OnboardingTarget(cx) }, Children: []core.Node{look.Chips(into...)}},
+			core.Show{When: func() bool { return step.Get() < pairing }, Then: func(cx *core.Scope) core.Node {
+				return cta(func() string { return locales.OnboardingContinue(cx) }, "onboarding-continue", next)
 			}},
-		}},
-	}}
-}
-
-// pairingStep pairs the phone with a computer, or lets the user go on without one; paired takes the name of the computer once it is.
-func pairingStep(cx *core.Scope, s *session.Session, paired *core.Signal[string], finish func()) core.Node {
-	colors := ui.ColorsOf(cx)
-	flow := pair.New(cx, s, func(d store.Desktop) { paired.Set(d.Name) }, func() core.Points { return 0 })
-	done := func() bool { return paired.Get() != "" }
-	note := core.View{TestID: "onboarding-desktop-app", Role: core.RoleLink, LabelFunc: func() string { return locales.OnboardingNoDesktop(cx) },
-		OnPress: func(core.PressEvent) { cx.OpenURL(DownloadURL, nil) }, Style: core.Style{Padding: core.Symmetric(8, 0), Active: &core.Style{Opacity: core.Alpha(0.6)}},
-		Children: []core.Node{core.Text{ContentFunc: func() string { return locales.OnboardingNoDesktop(cx) }, Style: look.Caption, StyleFunc: ui.Colored(colors.Muted)}}}
-	return core.View{TestID: "onboarding-pairing", Style: core.Style{FlexGrow: 1, FlexShrink: 1, Gap: 8}, Children: []core.Node{
-		core.View{Style: core.Style{Padding: core.Edges{Top: 16}}, Children: []core.Node{
-			heading(cx, func() string { return locales.OnboardingPairTitle(cx) }, func() string { return locales.OnboardingPairBody(cx) }),
-		}},
-		core.Show{When: done,
-			Then: func(cx *core.Scope) core.Node {
-				return core.View{TestID: "onboarding-paired", Style: core.Style{FlexGrow: 1, JustifyContent: core.JustifyCenter, AlignItems: core.AlignCenter, Gap: 16}, Children: []core.Node{
-					ui.Icon(lucide.CircleCheck, 52, func() core.Color { return theme.StatusOK }),
-					core.Text{ContentFunc: func() string { return locales.OnboardingPaired(cx, paired.Get()) }, Role: core.RoleHeader, LiveRegion: core.LiveRegionPolite,
-						Style: look.Heading.Merge(core.Style{TextAlign: core.TextAlignCenter}), StyleFunc: ui.Colored(colors.Text)},
-				}}
-			},
-			Else: func(cx *core.Scope) core.Node {
-				return core.View{Style: core.Style{FlexGrow: 1, FlexShrink: 1, Gap: 8}, Children: []core.Node{
-					// The form keeps its own column's sides.
-					core.View{Style: core.Style{FlexGrow: 1, FlexShrink: 1, Margin: core.Edges{Right: -16, Left: -16}}, Children: []core.Node{flow.Body}},
-					note,
-				}}
+			// The last step's buttons are its own: pairing's, then the way to start.
+			core.Show{When: func() bool { return step.Get() == pairing && isPaired() }, Then: func(cx *core.Scope) core.Node {
+				return cta(func() string { return locales.OnboardingStart(cx) }, "onboarding-start", finish)
 			}},
-		core.Show{When: done,
-			Then: func(cx *core.Scope) core.Node {
-				return look.Button{Kind: look.Primary, Text: func() string { return locales.OnboardingStart(cx) }, TestID: "onboarding-start", OnPress: finish}
-			},
-			Else: func(cx *core.Scope) core.Node {
+			core.Show{When: func() bool { return step.Get() == pairing && !isPaired() }, Then: func(cx *core.Scope) core.Node {
 				return core.View{Style: core.Style{Gap: 4}, Children: []core.Node{
 					flow.Actions,
 					look.Button{Kind: look.Plain, Text: func() string { return locales.OnboardingSkipPairing(cx) }, TestID: "onboarding-later", OnPress: finish},
 				}}
 			}},
+		}}
+
+	column := []core.Node{content, actions}
+	if !look.Tablet(cx) {
+		return core.View{TestID: "onboarding", Style: core.Style{FlexGrow: 1, FlexShrink: 1, MinHeight: core.Pt(0)}, StyleFunc: ui.Filled(colors.Surface), Children: column}
+	}
+	// A tablet's is the design's 480 by 780 card over the screen dimmed.
+	return core.View{TestID: "onboarding", Style: core.Style{FlexGrow: 1, FlexShrink: 1, MinHeight: core.Pt(0), AlignItems: core.AlignCenter, JustifyContent: core.JustifyCenter, Padding: core.All(24)},
+		StyleFunc: func() core.Style {
+			return core.Style{Background: colors.Background(), Gradients: []core.Gradient{core.LinearGradient(180, ui.Black(0.35), ui.Black(0.35))}}
+		},
+		Children: []core.Node{
+			core.View{TestID: "onboarding-card", Style: core.Style{Width: core.Pt(480), Height: core.Pt(780), MaxWidth: core.Pct(100), MaxHeight: core.Pct(100), CornerRadius: 28, BorderCurve: core.BorderCurveContinuous,
+				Overflow: core.Hidden, Shadows: []core.BoxShadow{{Offset: core.Point{Y: 30}, Blur: 80, Color: ui.Black(0.3)}}},
+				StyleFunc: ui.Filled(colors.Surface), Children: column},
+		}}
+}
+
+// heading is a step's title and the line under it: the first step's larger, the others' tighter to leave room for their choices.
+func heading(cx *core.Scope, first bool, title, line func() string) core.Node {
+	colors := ui.ColorsOf(cx)
+	titleStyle := core.Style{FontSize: 26, LineHeight: 34, FontWeight: black, LetterSpacing: -0.4}
+	lineStyle := core.Style{FontSize: 14, LineHeight: 20}
+	gap := core.Points(6)
+	if first {
+		titleStyle = core.Style{FontSize: 30, LineHeight: 38, FontWeight: black, LetterSpacing: -0.6}
+		lineStyle = core.Style{FontSize: 16, LineHeight: 24}
+		gap = 12
+	}
+	return core.View{Style: core.Style{Gap: gap}, Children: []core.Node{
+		core.Text{ContentFunc: title, Role: core.RoleHeader, Style: titleStyle, StyleFunc: ui.Colored(colors.Text)},
+		core.Text{ContentFunc: line, Style: lineStyle, StyleFunc: ui.Colored(colors.Muted)},
 	}}
 }

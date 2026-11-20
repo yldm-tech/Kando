@@ -124,6 +124,15 @@ func (p *phone) startPairing() {
 	p.app.WaitFor("id:onboarding-pairing", wait)
 }
 
+// pickTarget picks code as the language subtitles are translated into at the introduction's languages step: its row opens the list, which closes once one is picked.
+func (p *phone) pickTarget(code string) {
+	p.t.Helper()
+	p.app.Press("id:onboarding-target")
+	p.app.WaitFor("id:onboarding-target-"+code, wait)
+	p.app.Press("id:onboarding-target-" + code)
+	p.app.WaitForGone("id:onboarding-target-"+code, wait)
+}
+
 // finishPairing leaves the introduction once the phone paired with d, at the Library, which lists its talk.
 func (p *phone) finishPairing(d *synctest.Desktop) {
 	p.t.Helper()
