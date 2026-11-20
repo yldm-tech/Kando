@@ -10,7 +10,7 @@ import (
 	"github.com/nsgo-dev/nsgo/ui"
 )
 
-// Dialog is a form over the app, as the Add sheet: a sheet from the bottom on a phone, and on a tablet a card in the middle of the screen, as the design's Pad artboards draw it, clear of the software keyboard. Footer is its actions.
+// Dialog is a form over the app, as the Add sheet: a sheet from the bottom on a phone, and on a tablet a card in the middle of the screen, as the design's Pad artboards draw it, clear of the software keyboard. Footer is its actions. Header, when set, is drawn in the title's place, as a film's poster with its title; Title still names the sheet for assistive technology.
 // TODO(nsgo#742): ui.Dialog is a bottom sheet wherever the screen is touched (ui/dialog.go:73), a tablet's too, with no way to ask for its centred dialog; the tablet's is drawn here on base.Dialog until ui.Dialog takes a presentation. https://github.com/nsgo-dev/nsgo/issues/742
 type Dialog struct {
 	Open      func() bool
@@ -19,6 +19,7 @@ type Dialog struct {
 	Title     func() string
 	Children  []core.Node
 	Footer    []core.Node
+	Header    core.Node
 	TestID    string
 }
 
@@ -31,7 +32,10 @@ func (d Dialog) Render(cx *core.Scope) core.Node {
 	}
 	colors := ui.ColorsOf(cx)
 	// The title is the design's 17-point heavy one, ui.Dialog's own being TypeTitle (ui/dialog.go:64): the sheet draws it as its first child and is named by it through LabelFunc.
-	title := core.Text{ContentFunc: d.Title, Role: core.RoleHeader, Style: Title.Merge(core.Style{FontWeight: Heavy}), StyleFunc: ui.Colored(colors.Text)}
+	var title core.Node = core.Text{ContentFunc: d.Title, Role: core.RoleHeader, Style: Title.Merge(core.Style{FontWeight: Heavy}), StyleFunc: ui.Colored(colors.Text)}
+	if d.Header != nil {
+		title = d.Header
+	}
 	if !Tablet(cx) {
 		// A sheet is the page's grey, so the cards in it stand out as on a page, rounded more than a card at its top.
 		// TODO(nsgo#933): the touch sheet's grabber, padding, height, shadow and motion are fixed (ui/style.go:114-155, sheetPanel and sheetContent), so the sheet keeps NSGo's 36x5 grabber and 16pt padding rather than the design's 38x5 grabber and 6/16/34 padding. https://github.com/nsgo-dev/nsgo/issues/933

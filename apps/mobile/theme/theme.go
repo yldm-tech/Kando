@@ -123,6 +123,12 @@ var (
 	TileRed    = core.RGB(0xFF3B30)
 	TileSky    = core.RGB(0x0A84FF)
 	TileGrey   = core.RGB(0x8E8E93)
+	// PlayerBlue is the progress of a film on its picture: the continue cards' and the film rows' bars.
+	PlayerBlue = core.RGB(0x0A84FF)
+	// ContinueCard is a continue card's dark under its picture, in both appearances.
+	ContinueCard = core.RGB(0x1C1C1E)
+	// BadgeWarnText is the text of the orange "needs attention" pill on the jobs card, on the badges' orange at 16%.
+	BadgeWarnText = core.RGB(0xB25E00)
 	// The laptop drawn for a computer: its body's gradient and its screen's.
 	LaptopTop, LaptopBottom = core.RGB(0x3A3A3F), core.RGB(0x1D1D1F)
 	ScreenTop, ScreenBottom = core.RGB(0x2F7DF0), core.RGB(0x6AA8FF)

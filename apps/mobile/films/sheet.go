@@ -1,6 +1,8 @@
 package films
 
 import (
+	"strconv"
+	"strings"
 	"time"
 
 	"kando/apps/mobile/catalog"
@@ -10,16 +12,25 @@ import (
 	"kando/packages/sync"
 
 	"github.com/nsgo-dev/nsgo/core"
+	"github.com/nsgo-dev/nsgo/ui"
 )
 
-// option is an action of a film's options.
+// option is an action of a film's options: its label, a short value at its end (a size, a file type, the AI service), whether it takes something away, and what it does.
 type option struct {
-	label string
-	role  core.AlertRole
-	do    func()
+	label  string
+	value  string
+	danger bool
+	do     func()
 }
 
-// options shows what can be done with e's film, as an action sheet on a phone and a dialog in the middle of a tablet's screen: play it, from where it was left or from the start, once it is on the phone, and delete it from the phone; download it, or pause, resume or cancel its download; for a film its computer keeps no video of, keep its lines on the phone and have the computer download the video, and once it has, download the video to the phone; through its computer, export its subtitles to share, translate it again and delete it from the library; or open its page.
+// optionsSheet is the film whose options show, and the options; none while closed.
+type optionsSheet struct {
+	entry catalog.Entry
+	opts  []option
+	open  bool
+}
+
+// options shows what can be done with e's film, in a sheet on a phone and a dialog in the middle of a tablet's screen (optionsNode), headed by its poster, title, source and length: play it, from where it was left or from the start, once it is on the phone, and delete it from the phone; download it, or pause, resume or cancel its download; for a film its computer keeps no video of, keep its lines on the phone and have the computer download the video, and once it has, download the video to the phone; through its computer, export its subtitles to share, translate it again and delete it from the library.
 func (v *view) options(cx *core.Scope, e catalog.Entry) {
 	s, key := v.s, e.Key()
 	k, kept := s.Film(key)
@@ -42,55 +53,110 @@ func (v *view) options(cx *core.Scope, e catalog.Entry) {
 		}
 		// A film kept by its lines whose computer has its video now downloads that video.
 		if !k.HasVideo() && !e.Film.SubtitlesOnly && s.Client(e.Desktop) != nil {
-			opts = append(opts, option{label: downloadLabel(cx, e), do: func() { s.Download(e.Desktop, e.Library.Name, e.Film) }})
+			opts = append(opts, option{label: downloadLabel(cx, e), value: about(cx, downloadSize(e)), do: func() { s.Download(e.Desktop, e.Library.Name, e.Film) }})
 		}
-		opts = append(opts, option{label: locales.FilmDelete(cx), role: core.AlertDestructive, do: func() { v.confirmDelete(cx, e) }})
+		opts = append(opts, option{label: locales.FilmDelete(cx), value: about(cx, e.Film.VideoSize), do: func() { v.confirmDelete(cx, e) }})
 	case moving && t.State == session.Running:
 		opts = append(opts,
 			option{label: locales.FilmPause(cx), do: func() { s.Pause(key) }},
-			option{label: locales.FilmCancel(cx), role: core.AlertDestructive, do: func() { s.Delete(key) }})
+			option{label: locales.FilmCancel(cx), danger: true, do: func() { s.Delete(key) }})
 	case kept:
 		opts = append(opts,
 			option{label: locales.FilmResume(cx), do: func() { s.Resume(key) }},
-			option{label: locales.FilmCancel(cx), role: core.AlertDestructive, do: func() { s.Delete(key) }})
+			option{label: locales.FilmCancel(cx), danger: true, do: func() { s.Delete(key) }})
 	case s.Client(e.Desktop) != nil:
-		opts = append(opts, option{label: downloadLabel(cx, e), do: func() { s.Download(e.Desktop, e.Library.Name, e.Film) }})
+		opts = append(opts, option{label: downloadLabel(cx, e), value: about(cx, downloadSize(e)), do: func() { s.Download(e.Desktop, e.Library.Name, e.Film) }})
 	}
 	_, listed := s.Listed(key)
 	if listed && e.Film.SubtitlesOnly && q.Can(sync.OpFilmVideo) && !s.VideoComing(e.Desktop, e.Film.ID) {
 		opts = append(opts, option{label: locales.FilmVideoOnComputer(cx, computer), do: func() { s.DownloadVideoOnComputer(e.Desktop, e.Film) }})
 	}
 	if listed && q.Can(sync.OpFilmExport) {
-		opts = append(opts, option{label: locales.FilmsExportSubtitles(cx), do: func() { v.export(cx, e) }})
+		opts = append(opts, option{label: locales.FilmsExportSubtitles(cx), value: ".srt", do: func() { v.export(cx, e) }})
 	}
 	if listed && q.Can(sync.OpFilmRetranslate) {
-		opts = append(opts, option{label: locales.FilmsRetranslate(cx), do: func() { s.RetranslateFilm(e.Desktop, e.Film) }})
+		opts = append(opts, option{label: locales.FilmsRetranslate(cx), value: service(s, e.Desktop), do: func() { s.RetranslateFilm(e.Desktop, e.Film) }})
 	}
 	if listed && q.Can(sync.OpFilmDelete) {
-		opts = append(opts, option{label: locales.FilmsDeleteFromLibrary(cx), role: core.AlertDestructive, do: func() { v.confirmDeleteFromLibrary(cx, e, computer) }})
+		opts = append(opts, option{label: locales.FilmsDeleteFromLibrary(cx), danger: true, do: func() { v.confirmDeleteFromLibrary(cx, e, computer) }})
 	}
-	opts = append(opts, option{label: locales.FilmsDetails(cx), do: func() { v.act.Film(e) }})
-	actions := make([]core.AlertAction, 0, len(opts)+1)
-	for _, o := range opts {
-		actions = append(actions, core.AlertAction{Label: o.label, Role: o.role})
-	}
-	actions = append(actions, core.AlertAction{Label: locales.CommonCancel(cx), Role: core.AlertCancel})
-	cx.ShowAlert(core.AlertConfig{Title: e.Film.Title, Message: look.Facts(e.Film), Sheet: !look.Tablet(cx), Cancelable: true, Actions: actions}, func(i int) {
-		if i >= 0 && i < len(opts) {
-			opts[i].do()
-		}
-	})
+	v.sheet.Set(optionsSheet{entry: e, opts: opts, open: true})
 }
 
-// downloadLabel is what the option that downloads e's film says: its lines alone for a film its computer keeps no video of, else its video, with its size where its computer said.
-func downloadLabel(cx *core.Scope, e catalog.Entry) string {
-	switch {
-	case e.Film.SubtitlesOnly:
-		return locales.FilmSaveLines(cx)
-	case e.Film.VideoSize > 0:
-		return locales.FilmsDownloadSize(cx, look.Size(e.Film.VideoSize))
+// optionsNode is the sheet of a film's options (options): its poster, title, source and length over a card of the options, those that take something away in danger's red. An option pressed closes the sheet, then does what it says.
+func (v *view) optionsNode(cx *core.Scope) core.Node {
+	colors := ui.ColorsOf(cx)
+	entry := func() catalog.Entry { return v.sheet.Get().entry }
+	close := func() { v.sheet.Update(func(o optionsSheet) optionsSheet { o.open = false; return o }) }
+	meta := func() string {
+		e := entry()
+		parts := []string{sourceName(cx, catalog.SourceOf(e.Film))}
+		if e.Film.DurationMS > 0 {
+			parts = append(parts, look.Duration(time.Duration(e.Film.DurationMS)*time.Millisecond))
+		}
+		return strings.Join(parts, " · ")
 	}
-	return locales.FilmDownload(cx)
+	header := core.View{Style: core.Style{Direction: core.Row, AlignItems: core.AlignCenter, Gap: 12}, Children: []core.Node{
+		core.View{Style: core.Style{Width: core.Pt(96), AspectRatio: 16.0 / 9, CornerRadius: 8, BorderCurve: core.BorderCurveContinuous, Overflow: core.Hidden, FlexShrink: 0},
+			StyleFunc: ui.Filled(colors.Inset),
+			Children: []core.Node{core.Image{SourceFunc: poster(cx, v.s, entry), ResizeMode: core.Cover, ElementsHidden: true,
+				Style: core.Style{Position: core.Absolute, Left: core.Pt(0), Top: core.Pt(0), Right: core.Pt(0), Bottom: core.Pt(0)}}}},
+		core.View{Style: core.Style{FlexGrow: 1, FlexShrink: 1, MinWidth: core.Pt(0), Gap: 2}, Children: []core.Node{
+			core.Text{TestID: "films-options-title", ContentFunc: func() string { return entry().Film.Title }, Role: core.RoleHeader, MaxLines: 2,
+				Style: core.Style{FontSize: 17, LineHeight: 22, FontWeight: core.FontWeightBold}, StyleFunc: ui.Colored(colors.Text)},
+			core.Text{ContentFunc: meta, MaxLines: 1, Style: look.Caption, StyleFunc: ui.Colored(colors.Muted)},
+		}},
+	}}
+	return look.Dialog{TestID: "films-options-sheet", Open: func() bool { return v.sheet.Get().open }, OnClose: close, Title: func() string { return entry().Film.Title }, Header: header,
+		Children: []core.Node{look.Group{Children: []core.Node{
+			core.Each(func() []option { return v.sheet.Get().opts }, func(o option) string { return o.label }, func(cx *core.Scope, o func() option, i func() int) core.Node {
+				tone := look.ToneDefault
+				if o().danger {
+					tone = look.ToneDanger
+				}
+				return look.Row{TestID: "films-option-" + strconv.Itoa(i()), Index: i, Title: func() string { return o().label }, TitleTone: tone,
+					Value: func() string { return o().value },
+					OnPress: func() {
+						do := o().do
+						close()
+						// The option runs once the sheet has closed, so an alert it asks with shows over the page.
+						cx.Post(do)
+					}}
+			}),
+		}}}}
+}
+
+// about is a size as an option's value says it, "" for none.
+func about(cx *core.Scope, size int64) string {
+	if size <= 0 {
+		return ""
+	}
+	return locales.FilmsAboutSize(cx, look.Size(size))
+}
+
+// downloadSize is the size a download of e's film takes, its video's where the computer said, none for its lines alone.
+func downloadSize(e catalog.Entry) int64 {
+	if e.Film.SubtitlesOnly {
+		return 0
+	}
+	return e.Film.VideoSize
+}
+
+// service is the AI service desktop translates with, as its settings said, "" while unknown.
+func service(s *session.Session, desktop string) string {
+	st, ok := s.DesktopSettings(desktop)
+	if !ok {
+		return ""
+	}
+	return st.Service
+}
+
+// downloadLabel is what the option that downloads e's film says: its lines alone for a film its computer keeps no video of, else that it saves it for offline, its size at the row's end (downloadSize).
+func downloadLabel(cx *core.Scope, e catalog.Entry) string {
+	if e.Film.SubtitlesOnly {
+		return locales.FilmSaveLines(cx)
+	}
+	return locales.FilmsSaveOffline(cx)
 }
 
 // export takes e's subtitles from its computer as a file and shows the share sheet for it.

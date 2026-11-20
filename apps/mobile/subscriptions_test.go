@@ -30,11 +30,11 @@ func TestTheLibraryShowsTheDaysStudy(t *testing.T) {
 	d := studyDesktop(t)
 	p := startPhone(t, dir, pairedWith(t, d, dir))
 	p.app.WaitFor("id:films-stats", wait)
-	p.app.WaitUntil(wait, func() bool { return p.texts("id:films-stat-words-value") == msgs.FilmsStatWords(2) })
-	if got, want := p.texts("id:films-stat-today-value"), msgs.LearnMinutes(12); got != want {
+	p.app.WaitUntil(wait, func() bool { return p.texts("id:films-stat-words-value") == "2\n"+msgs.FilmsStatUnitWords(2) })
+	if got, want := p.texts("id:films-stat-today-value"), "12\n"+msgs.FilmsStatUnitMinutes(12); got != want {
 		t.Errorf("today's minutes read %q, want %q", got, want)
 	}
-	if got, want := p.texts("id:films-stat-streak-value"), msgs.FilmsStatDays(2); got != want {
+	if got, want := p.texts("id:films-stat-streak-value"), "2\n"+msgs.FilmsStatUnitDays(2); got != want {
 		t.Errorf("the streak reads %q, want %q", got, want)
 	}
 	if got, want := p.app.Find("id:films-stat-today").Props.Label, msgs.FilmsStatToday()+", "+msgs.LearnMinutes(12); got != want {
