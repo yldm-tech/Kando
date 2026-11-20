@@ -672,6 +672,7 @@ func TestAComputerOutOfReachSaysWhenItLastAnswered(t *testing.T) {
 	p := startPhone(t, dir, pairedWith(t, d, dir))
 	id := store.DesktopID(d.Fingerprint)
 	p.openTab(jobsTab, msgs.JobsTitle())
+	p.app.WaitFor("id:jobs-thumb-job1", wait)
 	p.app.WaitUntil(wait, func() bool { return p.app.Find("id:jobs-thumb-job1").Text == msgs.JobsPercent(47) })
 	// Two hours on, the computer still answers: the job moves on and the phone hears it over its events.
 	later.Store(int64(2 * time.Hour))
