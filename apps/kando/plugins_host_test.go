@@ -23,7 +23,7 @@ import (
 )
 
 // pluginHostFields are the fields of the test plugins acme.film and acme.twin: every permission this version has a handler for, a credential for a host no request of the tests reaches, and the events film.opened and llm.changed.
-const pluginHostFields = `"capabilities": {"host": ["kando.film.current", "kando.line.current", "kando.lines.seen", "kando.saved.read", "kando.words.read", "kando.sound.read", "kando.llm.chat", "kando.net.credentialFetch", "kando.toast", "kando.ui.openURL", "kando.settings.get"]},
+const pluginHostFields = `"capabilities": {"host": ["kando.film.current", "kando.line.current", "kando.lines.seen", "kando.saved.read", "kando.words.read", "kando.sound.read", "kando.llm.chat", "kando.net.credentialFetch", "kando.toast", "kando.ui.openURL", "kando.settings.get", "kando.glossary.suggest"]},
   "credentials": [{"id": "svc", "title": {"en": "Service key", "zh-Hans": "服务密钥"}, "header": "Authorization", "format": "Bearer {secret}", "hosts": ["api.example.com"], "methods": ["POST"], "pathPrefixes": ["/v1"]}],
   "events": ["film.opened", "llm.changed"]`
 
@@ -192,9 +192,10 @@ func TestPluginHostRepliesTellNoSecret(t *testing.T) {
 		}},
 		plugins.PermLLMChat: {map[string]any{"system": "be short", "user": "hi", "maxTokens": 50}, func(v any) bool { m, _ := v.(map[string]any); return m["text"] == "pong" }},
 		// No secret is kept for the credential, so nothing is sent.
-		plugins.PermCredFetch:   {map[string]any{"credential": "svc", "method": "POST", "url": "https://api.example.com/v1/x", "header": map[string]any{}, "body": ""}, func(v any) bool { return v == "refused no-credential" }},
-		plugins.PermToast:       {map[string]any{"text": "hello"}, func(v any) bool { return v == true }},
-		plugins.PermSettingsGet: {nil, func(v any) bool { _, ok := v.(map[string]any); return ok }},
+		plugins.PermCredFetch:       {map[string]any{"credential": "svc", "method": "POST", "url": "https://api.example.com/v1/x", "header": map[string]any{}, "body": ""}, func(v any) bool { return v == "refused no-credential" }},
+		plugins.PermToast:           {map[string]any{"text": "hello"}, func(v any) bool { return v == true }},
+		plugins.PermSettingsGet:     {nil, func(v any) bool { _, ok := v.(map[string]any); return ok }},
+		plugins.PermGlossarySuggest: {map[string]any{"terms": []any{map[string]any{"source": "Amazon", "target": "亚马孙河"}}}, func(v any) bool { m, _ := v.(map[string]any); n, _ := plugins.Number(m["added"]); return n == 1 }},
 	}
 	dir := a.snap().LibraryDir
 	secrets := []string{base, strings.TrimPrefix(base, "http://"), pluginHostKey, dir, filepath.ToSlash(dir), item.VideoPath, `"baseURL"`, `"apiKey"`, `"BaseURL"`, `"APIKey"`}
