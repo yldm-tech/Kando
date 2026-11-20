@@ -475,13 +475,14 @@ type Credential struct {
 	Signer  string `json:"signer,omitempty"`  // release key ID the grant was given to
 	Grant   Grant  `json:"grant"`
 	Budget  int    `json:"budget,omitempty"`  // daily LLM tokens, 0 = default
+// on PluginState since format 1 (P4.1), not part of Grant: a site pack's consented domains are not intersected by Effective
+	Sites   []string `json:"sites,omitempty"`
 
 // Grant is what the user agreed to, in full: an update keeps it only if what it now declares is a subset of each part.
 type Grant struct {
 	Perms       []Perm         `json:"perms,omitempty"`
 	Network     []pkg.HTTPRule `json:"network,omitempty"`
 	Credentials []Credential   `json:"credentials,omitempty"` // id, hosts, header, format, methods, paths as granted
-	Sites       []string       `json:"sites,omitempty"`       // P4
 }
 
 // Effective is grant ∩ declared ∩ the package's signed Capabilities ∩ current gates (offline, locked library).
@@ -676,18 +677,18 @@ export function kandoManifest() { return { /* identical to kando-plugin.json fie
 {"name":"line.changed","data":{"index":41}}
 ```
 
-`line.changed`（E15 起）只推给正在显示的面板视图（数据是 `{"index": 正在播放的行号}`，没有行时是 -1），并且要插件声明了这个事件、此刻有 `kando.line.current` 的授权；为函数载入的插件收不到它，需要当前行时自己调 `kando.line.current`。其余事件也同时推给面板视图。影片 id 是按插件派生的 `HMAC(pluginSecret, filmKey)`，不同插件之间关联不起来，也不泄露路径。
+`line.changed`（E15 起）只推给正在显示的面板视图（数据是 `{"index": 正在播放的行号}`，没有行时是 -1），并且要插件声明了这个事件、此刻有 `kando.line.current` 的授权；为函数载入的插件收不到它，需要当前行时自己调 `kando.line.current`。其余事件也同时推给面板视图。影片 id 是按插件派生的 `HMAC(pluginSecret, filmKey)`，不同插件之间关联不起来，也不泄露路径。同一个插件看同一部影片只有一个 id：`kando.film.current`、`film.opened`、`job.completed` 手里是视频在磁盘上的路径，`kando.saved.read`、`kando.words.read` 和学习导出手里是收藏句子存的库内相对路径，派生前都按收藏句子的写法换成库内相对路径（`study.KeyIn`，以打开的资料库为准，收藏还没读进来时也一样）。`film.opened` 的 `spoken` 和 `kando.film.current` 一样，语音识别还没听出语言时给用户指定的语言（`films.Heard`）。
 
 `kando.llm.chat` 的处理流程：先查预算 → 过 `paletteTranslator` 的门控（离线、隐私、未配置）→ 在 goroutine 里调 `ChatWith` → 经 `a.update` 回来 Resolve。现有的 `ChatTranslator.Chat`（`packages/media/translate.go:230`）只返回字符串，不读 usage，不设 `max_tokens`，请求头也只有 Content-Type 和 Authorization（`:609-611`）。所以 P2.0（已实现）先在 `packages/media` 加一个 API：`ChatWith(ctx, ChatRequest{System, User, MaxTokens, Header}) (ChatReply{Text, Usage}, error)`，`Chat` 改成调它，行为不变。服务商不返回 usage 时，按字符数估算 token。请求头带 `X-Title: Kando plugin <id>`，用户在服务商的账单里能分辨出来。
 
 ### 5.4 外部接口
 
 - CLI 在 `cli/cli.go` 的命令表里加一行 `plugin`，子命令有 `list`、`validate <file-or-folder>`、`install <file>`，都带 `--json`。
-  - `install` 先用和 `validate` 一样的检查验过文件，再用 `plugins.Drop` 复制进 `plugins/inbox/`（先写隐藏文件再改名，文件名带随机前缀），用户在 app 里确认后才会安装（P1.1 已实现）。只接受文件，文件夹报用法错误，文件夹可以拖到 设置 › 插件 页上安装。app 在 `ready` 和 `becameActive` 时用 `plugins.Inbox` 取最早的一个文件，Stage 之后、弹出确认时把它移出 inbox（装不了的也只提示一次）；确认框开着或别的安装在跑时先不取，关掉后接着取下一个。看 inbox 用自己的 `inboxBusy`，不占 `busy`，所以切回前台时插件页的开关和按钮照常可用；看的过程中用户开始了别的安装或开关，inbox 让路，文件留到下一次；开关存完 state.json 后会马上再看一次（`pluginsSetEnabled`），安装和卸载之后的重新读目录也会看。
+  - `install` 先用和 `validate` 一样的检查验过文件（`publish.Check`：Stage、`plugins.Validate`，脚本插件再按官方根验签，所以开发者插件在命令行里和 `validate` 一样以「不是由看懂信任的密钥签名」拒收，开发者插件在 app 的开发者模式里装），再用 `plugins.Drop` 复制进 `plugins/inbox/`（先写隐藏文件再改名，文件名带随机前缀），用户在 app 里确认后才会安装（P1.1 已实现）。只接受文件，文件夹报用法错误，文件夹可以拖到 设置 › 插件 页上安装。app 在 `ready` 和 `becameActive` 时用 `plugins.Inbox` 取最早的一个文件，Stage 之后、弹出确认时把它移出 inbox（装不了的也只提示一次）；确认框开着或别的安装在跑时先不取，关掉后接着取下一个。看 inbox 用自己的 `inboxBusy`，不占 `busy`，所以切回前台时插件页的开关和按钮照常可用；看的过程中用户开始了别的安装或开关，inbox 让路，文件留到下一次；开关存完 state.json 后会马上再看一次（`pluginsSetEnabled`），安装和卸载之后的重新读目录也会看。
   - `validate` 离线运行，不连 app：把包 `plugins.Stage` 进一个临时目录（和安装走同一条解压、复制和 `plugins.Validate`），打印 id、kind、版本、英文名和内容哈希，然后删掉临时目录。（P0.3 已实现）
   - `list` 也不连 app：直接 `plugins.Scan` 插件目录，按 state.json 标出开关，并在 stderr 列出不是有效包的目录。（P0.3 已实现）
   - dev root 的生成和开发者包的签名不放在 CLI，也不经过 socket（见 6.4）。原因有两个：CLI 进程没有 NSGo Scope，拿不到 `core.Secrets`；socket 对同用户的任何程序都开放，不能让它替别人签包。
-- 控制 socket 只加只读的 `plugins.list`，经过 `lockRemoteGate`。不加 install、enable、grant。
+- 控制 socket 只加只读的 `plugins.list`，经过 `lockRemoteGate`。不加 install、enable、grant。（已实现：`remote.MethodPlugins`，回 `[]remote.Plugin`，每项是 id、kind、版本、英文名、内容哈希、是否启用，脚本插件再加来源，和设置 › 插件页的列表一致，不含目录、设置和密钥；CLI 和 MCP 没有接它，`kando plugin list` 仍不连 app、直接读插件目录。）
 - 浏览器扩展、MCP 都不能触发安装或授权。`kando://plugin/install?id=<id>`（P5，第 15 节）只能为签名索引里列着的包打开安装确认：它让看懂按新索引下载那个包，之后走和「安装」同一条路径（校验大小和 SHA-256、Stage、Validate、脚本插件验签），没有用户在确认框里点「安装」就不安装，链接本身也不授予任何权限，授权只来自用户在确认框和详情页里的勾选；不在签名索引里的 id 不下载。
 
 ## 6. 权限与安全模型
@@ -1240,7 +1241,7 @@ P1.2 的测量结果（Ubuntu 编译机，x86_64，Go 1.27.4，kagome-dict/ipa v
   - 先只接了工具栏的「下载视频」，同一分支上的后续提交补上了网页按钮（视频页上的「下载视频」和缩略图上的 +），做法和限制见 E8：页面脚本在 web view 创建时读一次（nsgo#840），所以同意的网站一变就重建 web view，载入原来的页面，历史记录丢失。网页按钮的询问和加入都在 Go 一侧用同一个匹配器重新判断（`browsePageSite`、`browsePageVideo`，`browse.ParseAskWith`、`ParseAddWith`），页面说什么都不信；插件站点的视频不再要求 `kcore.ParseLink` 认为是单个视频，和工具栏一样由包的规则决定。`TestScriptWithKnowsTheSitesGiven` 锁住页面脚本只含合法、已给出的网站，`TestPluginSitePageButtons` 锁住只有已同意的域名进脚本、Go 一侧的判断和重建。浏览器扩展生成的文件没有变化（`go generate` 后无差异，`.github/scripts/browser-extension.sh` 通过）。
   - 在同意的域名上，工具栏按包的规则判断哪些页面是视频（其余页面按钮变灰、不当播放列表），这些任务不借用登录。除了内置浏览器，没有任何入口多接受一个原本不接受的链接。
   - 站点包任务的标记是新加的 `core.Job.PluginSite`（包 id，`shelf` 的 `storedJob` 存为 `pluginSite`），不是只在构造 Tools 时判断链接：加入时同意过、之后撤回同意或卸载了包，这个任务照样不借用登录；反过来，CLI、MCP 加的同一个链接不是站点包的任务。除了 `Cookies`，`SiteCookies`（内置浏览器页面的 cookie，目前因 nsgo#112 还没接上）也一起清空。
-  - 同意存在 `plugins.PluginState.Sites`，不是 5.1 节草图里 P3 才有的 `Grant.Sites`；`State.Format` 不升，旧文件照读。没有条目的包一个域名都没同意（`State.Allowed`），和「没有条目就是启用」的 `Enabled` 相反；state.json 读不了时也一个都不同意。开关包、换内容不会丢掉已同意的域名；生效的是「已同意 ∩ 当前包列出的域名」。到 P3 引入 `Grant` 时把它挪进去。
+  - 同意存在 `plugins.PluginState.Sites`，不是 5.1 节草图里 P3 才有的 `Grant.Sites`；`State.Format` 不升，旧文件照读。没有条目的包一个域名都没同意（`State.Allowed`），和「没有条目就是启用」的 `Enabled` 相反；state.json 读不了时也一个都不同意。开关包、换内容不会丢掉已同意的域名；生效的是「已同意 ∩ 当前包列出的域名」。P3 引入 `Grant` 后也没有挪进去：站点包不是脚本插件，同意的域名不经 `Effective` 求交，挪动还要升 `State.Format`，所以留在 `PluginState`，5.1 节的草图已改。
   - 安装确认框的复选框默认不勾；同 id 的旧版本已经同意、新版本仍然列出的域名预先勾上（`pluginsTickedBefore`），用户在框里看得到。
   - 校验错误多了两个：`ErrBadSite`（规则不安全、域名是公共后缀）和 `ErrSiteKnown`（看懂自己认识的网站）。站点包最多 8 个网站，每个最多 16 个链接规则、16 个 `not` 主机。
   - 设置页网站分组下的说明一行只说浏览器扩展不支持插件网站（网页按钮已经支持）。
@@ -1515,7 +1516,7 @@ NSGO_ROOT_KEY=<root secret> go tool nsgo revoke -sequence 3 -days 30 -keys <key 
   - `packages/media` 多导出了一个函数 `SpeechLanguageOf(ctx)`（原来不导出的 `speechLanguageOf`），给插件来源 `from`；除此之外没有改 media。`Make` 起草时的 ctx 里有用户给的或听出来的语言，借用站点字幕（`copied`）时没有，那时 `from` 为空，由来源自己判断。
   - DeepL 的 Free 和 Pro 主机不按密钥是否以 `:fx` 结尾来选：密钥不进 JS，插件看不到它。改成先在 `api-free.deepl.com` 上 POST `/v2/usage`，403 再试 `api.deepl.com`，记住接受这把密钥的主机，字幕只发往这一台；顺便在额度用完时直接按 `quota` 失败。DeepL 的 Free 密钥都以 `:fx` 结尾，所以 Free 密钥的请求从不到 Pro 主机；Pro 密钥第一次多一个 `/v2/usage` 的 403。换了密钥后，第一次翻译会在记住的旧主机上得到一个 403（DeepL 在处理正文前就拒绝），再重新找主机。
   - 翻译来源没有 `export` 字段，导出名固定（`translate`、`candidates`），同一个插件的多个来源靠 `context.translator` 区分。`local: true` 只给不申请网络和凭据的插件。
-  - 适配器不实现 `TranslateChecker`：要知道有没有存密钥得去系统的安全存储里读，`CheckTranslate` 没有 ctx、在任务的 goroutine 上同步调用，所以没填密钥要到翻译时才以 `no-credential` 失败（卡片说「还没有密钥，去插件里填写」）。
+  - 适配器实现了 `TranslateChecker`（`fix/plugins-host-api` 补上）：`CheckTranslate` 没有 ctx、在任务的 goroutine 上同步调用，所以不读系统的安全存储，而是回引擎的 goroutine 看看看懂为详情页读到、改过的密钥（`pluginsScripts.secrets`，`pluginsNoCredential`）。插件声明了凭据而一把密钥都没存时以 `no-credential` 失败，任务在发出任何一句前就说「还没有密钥，去插件里填写」；没有凭据、密钥还没读到、或引擎 5 s 内没回答时放行，翻译时照旧失败。`TestOfficialDeepL` 和 `TestPluginTranslatorTranslatesTheFilms` 锁住。
   - 插件来源翻译一个 cell 时进度只在 cell 之间动：`media` 的进度上报（`reportProgress`）不导出，`Engine` 报不了批次进度。没有为此再改 media。
   - ⇧E 只在按下时插件已载入、并导出了 `candidates` 时问插件，否则问 AI 服务（和没选插件时一样，没有 AI 服务就说没有）。DeepL 插件的候选是同一句在 `formality` 为 `prefer_more` 和 `prefer_less` 下的两种译法，前后几句原文作为 DeepL 的 `context` 一并发送，由看懂去掉和现在的译文相同的、重复的。
   - 评审之后的修改：启动时恢复的任务改成在翻译开始时才确定插件、等它载入（原来在 `queuePipeline` 时插件目录还没读，`Engine` 为空，会悄悄用 AI 服务翻译）；跑不起来的插件不再算在用，而是按 `not-running` 失败并在侧栏说明；状态变化时重查侧栏状态行和翻译提议；离线判断看来源的 `local`；whisper 的 `no` 换成 `nb`；等待中任务被停下不调插件；AI 服务没配好时不显示终校行；`jobfailure.SourceHint` 对离线拒绝给自己的话和隐私页；跟随移到插件块的 hooks。都有测试（`TestPluginTranslatorAtLaunch`、`TestPluginTranslatorFollowsReadinessAndOffline`、`TestOfficialDeepL` 末尾没有安全存储的部分、`TestSpokenTag`、`TestSourceHintOffline`）。
@@ -1526,3 +1527,9 @@ NSGO_ROOT_KEY=<root secret> go tool nsgo revoke -sequence 3 -days 30 -keys <key 
   - 播放器进度徽章的「翻译」一行写来源的标题，「终校」一行仍写 AI 服务的模型。
   - 官方插件的源码按 P3c 的约定放在 `apps/kando/plugins/official/deepl/`（本分支起初放在仓库根目录 `plugins/official/kando.deepl/`，P3c 合并后挪了过来），有 `nsgo.yaml`，所以 `make official-plugins` 不带参数时也签它；`deepl` 包的 `TestPluginDeepLPublishes` 检查 `nsgo.yaml` 签的 App ID、版本和权限就是清单声明的（只有 `kando.net.credentialFetch`，没有网络规则），凭据只发往 DeepL 的两台主机。清单写 `"kando": ">=0.37.0"`：`translators` 随 #329 合并时 v0.36.0 已经发布，第一个认得它的是 v0.37.0。AnkiConnect 写 `>=0.36.0`，因为导出期间读声音不占每分钟额度、表格显示插件自己的失败原因都随 #328 进了 v0.36.0，更早的版本超过 60 句会丢声音。`kandoManifest()` 用 esbuild 的 JSON import 直接返回清单里的 `capabilities`、`contributes`、`credentials`，不再手抄一份。根目录的 `TestOfficialDeepL` 和截图场景按发布的做法用临时根签名、`official.Wrap` 打包、再安装 `.kandoplugin`（`deeplRelease`），插件文件夹用 `runtime.Caller` 从测试源文件的位置找，因为 `nsgo test -target` 不在包目录里运行测试。本分支没有用官方发布密钥签名；之后 owner 用 `make official-plugins` 签好 1.0.0，放进 kando-plugins 的 `scripts/kando.deepl/`（连同 `src/`），已列在社区索引里（P3c）。
   - 测试：`plugins/translators_test.go`（清单规则、`Takes`、回答解析、错误码），`plugins/script` 的 `TestScriptProbeTranslators`，`jobfailure` 的 `TestSourceHintOfACode`（五种界面语言里每个码都有一句不同的、带来源名的话），根目录 `plugins_translate_test.go`：来源的提供、保存、任务用它翻译（120 行分 50/50/20 三批、顺序不变）、`quota`/`bad-reply`/`language`、来源不在了改用 AI 服务并说明、⇧E 问插件；`TestOfficialDeepL` 用临时根打包仓库里的 DeepL 插件，接 httptest 的假 DeepL（`credentialFetch` 的 client 换成拨到测试服务器的，和 P3b 一样）：没有密钥、Free 和 Pro 主机、语言代码（ZH-HANS、ZH-HANT、EN-US、EN-GB、PT-BR）、空行不发、行数不变、456 和额度用完是 `quota`、两台都 403 是 `auth`，并检查密钥只出现在 Authorization 头里，不在插件组的请求体和插件的回答里，插件代码不碰 `Secrets`、`Storage`。截图场景 `plugins-translate-source`（设置 › 翻译 选了插件来源）和 `plugins-translate-failed`（DeepL 不接受密钥的失败卡片）只在 Linux 上跑了无头断言，没有出图。
+- 宿主接口补漏（`fix/plugins-host-api`）：5.1、5.3、5.4 已同步改过。
+  - 控制 socket 的只读 `plugins.list`（`remote.MethodPlugins`）补上了，被锁的资料库照样拒绝（`TestLockedLibraryLeaksNothing`），回答里没有目录（`TestRemoteListsThePlugins`）。
+  - 影片 id：原来 `kando.film.current`、`film.opened`、`job.completed` 拿磁盘上的绝对路径派生，`kando.saved.read`、`kando.words.read` 拿库内相对路径派生，同一部影片在同一个插件眼里是两个 id；现在都先换成库内相对路径（`study.KeyIn`，`study.Book.Key` 也改成调它）。`film.opened` 的 `spoken` 改成和 `kando.film.current` 一样回落到用户指定的语言。
+  - `kando plugin install` 改用 `publish.Check`，和 `validate` 一样验签，开发者插件在命令行里装不了（`TestPluginValidateScript`）。
+  - 测试补上（`plugins_host_test.go`）：没有影片时 `film.current` 是 null、`lines.seen` 是空数组；有影片时 `film.current` 的形状、`film.opened` 和收藏句子、生词里的影片 id 一致，两个插件的 id 不同、Host 不同（第 9 节「每个插件拿到的 `*core.Host` 都是不同的实例」）；`lines.seen` 和 `line.current` 不越过正在播放的这一句；`sound.read` 的 `{current: true}`；被锁的资料库拒绝所有 `Perm.Library()` 的权限、`kando.toast` 照常；`llm.changed` 推到；对除 `kando.ui.openURL` 外的每个 handler 按表调用一次，回答里没有 AI 服务的地址和 key、资料库的路径、`baseURL`/`apiKey` 这样的字段（第 9 节的不变量，`kando.ui.openURL` 只回是否打开，由 `TestPluginScriptOpenURLWaitsForTheUser` 测）。`plugins/filmid_test.go` 测 `FilmID`。`llm.chat` 的 `busy`、`cut-off` 和离线时的 `unavailable` 还没有单独的测试。
+  - 没有界面文字的改动，截图场景没有变化。
