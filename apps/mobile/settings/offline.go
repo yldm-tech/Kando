@@ -18,7 +18,7 @@ import (
 func OfflinePage(cx *core.Scope, s *session.Session, back func()) base.NavPage {
 	colors := ui.ColorsOf(cx)
 	ref := &core.Ref{}
-	return ui.NavPage(cx, base.NavPage{TitleFunc: func() string { return locales.SettingsOffline(cx) }, TestID: "offline-page", Children: []core.Node{
+	return look.NavPage(cx, base.NavPage{TitleFunc: func() string { return locales.SettingsOffline(cx) }, TestID: "offline-page", Children: []core.Node{
 		core.Scroll{Ref: ref, Style: core.Style{FlexGrow: 1, FlexShrink: 1}, Children: []core.Node{
 			core.View{StyleFunc: column(cx), Children: []core.Node{
 				core.View{TestID: "offline-used", Style: core.Style{Direction: core.Row, AlignItems: core.AlignCenter, Gap: 12, Padding: core.Symmetric(14, 16)},

@@ -51,7 +51,7 @@ func ExportSheet(cx *core.Scope, s *session.Session, open func() bool, close fun
 	}
 	toggle := func(i int, id string, title func() string, get func(study.VocabOptions) bool, put func(*study.VocabOptions, bool)) core.Node {
 		return look.Row{TestID: "export-" + id, Index: func() int { return i }, TitleLines: 2, Title: title,
-			Trailing: ui.Switch{TestID: "export-" + id + "-switch", Label: title(), Variant: ui.SwitchSystem,
+			Trailing: look.Switch{TestID: "export-" + id + "-switch", Label: title(),
 				Checked: func() bool { return get(o()) }, OnChange: func(on bool) { set(func(v *study.VocabOptions) { put(v, on) }) }}}
 	}
 	anchor := &core.Ref{}

@@ -20,11 +20,12 @@ import (
 // Heavy is the weight of the design's large titles and sheet titles, between bold and black.
 const Heavy core.FontWeight = 800
 
-// Text sizes on a phone, after the design's: a page's large title (PageTitle picks Android's where it runs), a section's heading, a row's or a sheet's title, the body, the line under a title, a caption, a field's label and a note under a row.
+// Text sizes on a phone, after the design's: a page's large title (PageTitle picks Android's where it runs), a section's heading (SectionHeading picks Android's), a row's or a sheet's title, the body, the line under a title, a caption, a field's label and a note under a row.
 var (
 	Display        = core.Style{FontSize: 34, LineHeight: 41, FontWeight: Heavy, LetterSpacing: -0.6}
 	DisplayAndroid = core.Style{FontSize: 28, LineHeight: 36, FontWeight: core.FontWeightMedium}
 	Heading        = core.Style{FontSize: 22, LineHeight: 28, FontWeight: core.FontWeightBold, LetterSpacing: -0.3}
+	HeadingAndroid = core.Style{FontSize: 20, LineHeight: 28, FontWeight: core.FontWeightMedium}
 	Title          = core.Style{FontSize: 17, LineHeight: 22, FontWeight: core.FontWeightSemibold}
 	Body           = core.Style{FontSize: 16, LineHeight: 21}
 	Subhead        = core.Style{FontSize: 15, LineHeight: 20}
@@ -40,6 +41,17 @@ func PageTitle(cx *core.Scope) core.Style {
 	}
 	return Display
 }
+
+// SectionHeading is the heading of a section of a page's content: the design's 22pt bold, or Material's 20pt medium on Android.
+func SectionHeading(cx *core.Scope) core.Style {
+	if cx.Env().OS() == core.OSAndroid {
+		return HeadingAndroid
+	}
+	return Heading
+}
+
+// SubPageTitle is the title of a page a tab's page opens in Android's top app bar: Material's title large, 22pt regular.
+var SubPageTitle = core.Style{FontSize: 22, LineHeight: 28, FontWeight: core.FontWeightNormal}
 
 // Size writes a count of bytes as a phone shows it: 820 KB, 34.5 MB, 1.2 GB.
 func Size(bytes int64) string {

@@ -42,7 +42,7 @@ func WidgetsPage(cx *core.Scope, s *session.Session, back func()) base.NavPage {
 		got.Snapshot = snap.Get()
 		return got
 	}
-	return ui.NavPage(cx, base.NavPage{TitleFunc: func() string { return locales.SettingsWidgets(cx) }, TestID: "settings-widgets-page", Children: []core.Node{
+	return look.NavPage(cx, base.NavPage{TitleFunc: func() string { return locales.SettingsWidgets(cx) }, TestID: "settings-widgets-page", Children: []core.Node{
 		core.Scroll{Ref: ref, Style: core.Style{FlexGrow: 1, FlexShrink: 1}, Children: []core.Node{
 			core.View{StyleFunc: look.Column(cx), Children: []core.Node{
 				core.View{Style: core.Style{Gap: 16}, Children: []core.Node{

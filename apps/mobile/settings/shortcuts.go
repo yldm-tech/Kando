@@ -24,7 +24,7 @@ func ShortcutsPage(cx *core.Scope, sections []func() string, back func()) base.N
 				Children: []core.Node{core.Text{TestID: "settings-shortcut-keys-" + r.ID, ContentFunc: r.Keys, MaxLines: 1,
 					Style: look.Caption.Merge(core.Style{FontFamily: core.FontMonospace}), StyleFunc: ui.Colored(colors.Text)}}}})
 	}
-	return ui.NavPage(cx, base.NavPage{TitleFunc: func() string { return locales.SettingsShortcuts(cx) }, TestID: "settings-shortcuts-page", Children: []core.Node{
+	return look.NavPage(cx, base.NavPage{TitleFunc: func() string { return locales.SettingsShortcuts(cx) }, TestID: "settings-shortcuts-page", Children: []core.Node{
 		core.Scroll{Ref: ref, Style: core.Style{FlexGrow: 1, FlexShrink: 1}, Children: []core.Node{
 			core.View{StyleFunc: look.Column(cx), Children: []core.Node{
 				core.View{Style: core.Style{Gap: 7}, Children: []core.Node{

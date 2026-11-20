@@ -78,7 +78,7 @@ func contextRow(cx *core.Scope, s *session.Session, id func() string, index int)
 		Detail:  func() string { return locales.ComputerContextDetail(cx) },
 		// TODO(nsgo): ui.Switch takes its accessibility label as a string (ui/switch.go:19), with no LabelFunc, so the switch is built again as the language changes, as the reminder's is.
 		Trailing: core.Dynamic(func(cx *core.Scope) core.Node {
-			return ui.Switch{TestID: "computer-context-switch", Label: locales.ComputerContext(cx), Variant: ui.SwitchSystem,
+			return look.Switch{TestID: "computer-context-switch", Label: locales.ComputerContext(cx),
 				Checked: contextOn, OnChange: setContext,
 				Disabled: func() bool {
 					st, ok := got()
@@ -100,7 +100,7 @@ func ComputerPage(cx *core.Scope, s *session.Session, pair func(), unpaired func
 		return core.View{Style: core.Style{Gap: 7}, Children: []core.Node{look.GroupHeader(cx, title), look.Group{Children: rows}}}
 	}
 	ref := &core.Ref{}
-	return ui.NavPage(cx, base.NavPage{TitleFunc: func() string { return locales.SettingsComputer(cx) }, TestID: "computer-page", Children: []core.Node{
+	return look.NavPage(cx, base.NavPage{TitleFunc: func() string { return locales.SettingsComputer(cx) }, TestID: "computer-page", Children: []core.Node{
 		core.Scroll{Ref: ref, Style: core.Style{FlexGrow: 1, FlexShrink: 1}, Children: []core.Node{
 			core.View{StyleFunc: column(cx), Children: []core.Node{
 				core.Show{When: func() bool { return id() != "" }, Then: func(cx *core.Scope) core.Node {

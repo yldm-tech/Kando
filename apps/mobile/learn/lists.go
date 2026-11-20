@@ -38,7 +38,7 @@ func listPage(cx *core.Scope, s *session.Session, kind learning.Kind, id string,
 		return out
 	}, nil)
 	ref := &core.Ref{}
-	return ui.NavPage(cx, base.NavPage{TitleFunc: title, TestID: id + "-page", Children: []core.Node{
+	return look.NavPage(cx, base.NavPage{TitleFunc: title, TestID: id + "-page", Children: []core.Node{
 		core.Show{When: func() bool { return len(list.Get()) == 0 },
 			Then: func(cx *core.Scope) core.Node {
 				return look.Empty{TestID: id + "-empty", Icon: lucide.BookOpen, Title: empty}

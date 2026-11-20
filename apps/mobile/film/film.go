@@ -251,7 +251,7 @@ func Page(cx *core.Scope, s *session.Session, desktop, library string, f sync.Fi
 	fact("library", locales.FilmInfoLibrary, is(library))
 	info := core.View{TestID: "film-info", Style: core.Style{Gap: 7}, Children: []core.Node{look.GroupHeader(cx, text(locales.FilmInfo)), look.Group{Children: facts}}}
 	ref := &core.Ref{}
-	return ui.NavPage(cx, base.NavPage{TestID: "film-page", Children: []core.Node{
+	return look.NavPage(cx, base.NavPage{TestID: "film-page", Children: []core.Node{
 		core.View{Style: core.Style{FlexGrow: 1, FlexShrink: 1}, Children: []core.Node{
 			core.Scroll{Ref: ref, Style: core.Style{FlexGrow: 1, FlexShrink: 1}, Children: []core.Node{
 				core.View{Style: core.Style{Padding: core.Edges{Top: 8, Right: 16, Bottom: 24, Left: 16}, PaddingEnv: core.EnvEdges{Right: core.EnvSafeArea, Left: core.EnvSafeArea},

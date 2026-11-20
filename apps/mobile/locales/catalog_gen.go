@@ -1339,6 +1339,8 @@ const (
 	textSettingsTarget
 	textSettingsTargetNote
 	textSettingsThisDevice
+	textSettingsThisPhone
+	textSettingsThisTablet
 	textSettingsTileLanguage
 	textSettingsTileTarget
 	textSettingsTitle
@@ -1877,6 +1879,8 @@ var keyOfText = [numTexts]string{
 	"settingsTarget",
 	"settingsTargetNote",
 	"settingsThisDevice",
+	"settingsThisPhone",
+	"settingsThisTablet",
 	"settingsTileLanguage",
 	"settingsTileTarget",
 	"settingsTitle",
@@ -2413,6 +2417,8 @@ var textsEn = i18n.NewTexts(""+
 	"Translate Into"+
 	"Subtitles are translated into this language, by this device and by the computers it's connected to, which take your choice."+
 	"This Device"+
+	"This Phone"+
+	"This Tablet"+
 	"Aa"+
 	"A"+
 	"Settings"+
@@ -2945,6 +2951,8 @@ var textsEn = i18n.NewTexts(""+
 		4,
 		14,
 		123,
+		11,
+		10,
 		11,
 		2,
 		1,
@@ -3482,6 +3490,8 @@ var textsJa = i18n.NewTexts(""+
 	"翻訳先の言語"+
 	"字幕はこの言語に翻訳されます。変更すると、接続しているコンピュータもこの言語で翻訳します。"+
 	"この端末"+
+	"このスマートフォン"+
+	"このタブレット"+
 	"語"+
 	"文"+
 	"設定"+
@@ -4015,6 +4025,8 @@ var textsJa = i18n.NewTexts(""+
 		18,
 		135,
 		12,
+		27,
+		21,
 		3,
 		3,
 		6,
@@ -4551,6 +4563,8 @@ var textsKo = i18n.NewTexts(""+
 	"번역할 언어"+
 	"자막은 이 언어로 번역돼요. 바꾸면 연결된 컴퓨터도 이 언어로 번역해요."+
 	"이 기기"+
+	"이 휴대폰"+
+	"이 태블릿"+
 	"언"+
 	"가"+
 	"설정"+
@@ -5084,6 +5098,8 @@ var textsKo = i18n.NewTexts(""+
 		16,
 		98,
 		10,
+		13,
+		13,
 		3,
 		3,
 		6,
@@ -5620,6 +5636,8 @@ var textsZhHans = i18n.NewTexts(""+
 	"翻译成"+
 	"字幕会翻译成这种语言。改了以后，连着的电脑也会按它翻译。"+
 	"这台设备"+
+	"这台手机"+
+	"这台平板"+
 	"语"+
 	"文"+
 	"设置"+
@@ -6152,6 +6170,8 @@ var textsZhHans = i18n.NewTexts(""+
 		6,
 		9,
 		84,
+		12,
+		12,
 		12,
 		3,
 		3,
@@ -6689,6 +6709,8 @@ var textsZhHant = i18n.NewTexts(""+
 	"翻譯成"+
 	"字幕會翻譯成這種語言。改了以後，連著的電腦也會按它翻譯。"+
 	"這台裝置"+
+	"這台手機"+
+	"這台平板"+
 	"語"+
 	"文"+
 	"設定"+
@@ -7221,6 +7243,8 @@ var textsZhHant = i18n.NewTexts(""+
 		6,
 		9,
 		84,
+		12,
+		12,
 		12,
 		3,
 		3,
@@ -18894,6 +18918,24 @@ func SettingsThisDevice(cx *core.Scope) string { return For(cx).SettingsThisDevi
 
 // SettingsThisDevice is the package's SettingsThisDevice in the language of msgs.
 func (msgs Messages) SettingsThisDevice() string { return msgs.text(textSettingsThisDevice) }
+
+// SettingsThisPhone says "This Phone"
+// in the language the app shows under cx.
+//
+// Heading of Settings' section of what is set on this phone alone, on an Android phone.
+func SettingsThisPhone(cx *core.Scope) string { return For(cx).SettingsThisPhone() }
+
+// SettingsThisPhone is the package's SettingsThisPhone in the language of msgs.
+func (msgs Messages) SettingsThisPhone() string { return msgs.text(textSettingsThisPhone) }
+
+// SettingsThisTablet says "This Tablet"
+// in the language the app shows under cx.
+//
+// Heading of Settings' section of what is set on this tablet alone, on an Android tablet.
+func SettingsThisTablet(cx *core.Scope) string { return For(cx).SettingsThisTablet() }
+
+// SettingsThisTablet is the package's SettingsThisTablet in the language of msgs.
+func (msgs Messages) SettingsThisTablet() string { return msgs.text(textSettingsThisTablet) }
 
 // SettingsTileLanguage says "Aa"
 // in the language the app shows under cx.

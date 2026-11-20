@@ -33,7 +33,7 @@ func ConflictsPage(cx *core.Scope, s *session.Session, back func()) base.NavPage
 		}
 		return locales.SettingsConflictUnreachable(cx, f.Computer)
 	}
-	return ui.NavPage(cx, base.NavPage{TitleFunc: func() string { return locales.SettingsConflicts(cx) }, TestID: "conflicts-page", Children: []core.Node{
+	return look.NavPage(cx, base.NavPage{TitleFunc: func() string { return locales.SettingsConflicts(cx) }, TestID: "conflicts-page", Children: []core.Node{
 		core.Scroll{TestID: "conflicts-scroll", Ref: ref, Style: core.Style{FlexGrow: 1, FlexShrink: 1}, Children: []core.Node{
 			core.View{StyleFunc: look.Column(cx), Children: []core.Node{
 				core.Text{ContentFunc: func() string { return locales.SettingsConflictsNote(cx) }, Style: look.Caption.Merge(core.Style{Padding: core.Edges{Right: 16, Left: 16}}), StyleFunc: ui.Colored(colors.Muted)},

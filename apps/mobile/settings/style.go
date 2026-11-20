@@ -114,7 +114,7 @@ func StylePage(cx *core.Scope, s *session.Session, back func()) base.NavPage {
 			core.View{Role: core.RoleRadioGroup, LabelFunc: label, Children: []core.Node{look.Group{Children: rows}}},
 		}}
 	}
-	return ui.NavPage(cx, base.NavPage{TitleFunc: func() string { return locales.SettingsSubtitleStyle(cx) }, TestID: "style-page", Children: []core.Node{
+	return look.NavPage(cx, base.NavPage{TitleFunc: func() string { return locales.SettingsSubtitleStyle(cx) }, TestID: "style-page", Children: []core.Node{
 		core.Scroll{Ref: ref, Style: core.Style{FlexGrow: 1, FlexShrink: 1}, Children: []core.Node{
 			core.View{StyleFunc: look.Column(cx), Children: []core.Node{
 				preview(cx, style),
@@ -139,7 +139,7 @@ func StylePage(cx *core.Scope, s *session.Session, back func()) base.NavPage {
 				look.Group{Children: []core.Node{look.Row{TestID: "style-marks", TitleLines: 1,
 					Title:  func() string { return locales.StyleMarks(cx) },
 					Detail: func() string { return locales.StyleMarksDetail(cx) },
-					Trailing: ui.Switch{TestID: "style-marks-switch", Label: locales.StyleMarks(cx), Variant: ui.SwitchSystem,
+					Trailing: look.Switch{TestID: "style-marks-switch", Label: locales.StyleMarks(cx),
 						Checked: func() bool { return !style().NoMarks }, OnChange: func(on bool) { setStyle(s, func(st *store.SubStyle) { st.NoMarks = !on }) }}}}},
 			}},
 		}},
@@ -217,7 +217,7 @@ func GoalPage(cx *core.Scope, s *session.Session, back func()) base.NavPage {
 				s.SetPrefs(p)
 			}})
 	}
-	return ui.NavPage(cx, base.NavPage{TitleFunc: func() string { return locales.SettingsGoal(cx) }, TestID: "settings-goal-page", Children: []core.Node{
+	return look.NavPage(cx, base.NavPage{TitleFunc: func() string { return locales.SettingsGoal(cx) }, TestID: "settings-goal-page", Children: []core.Node{
 		core.Scroll{Ref: ref, Style: core.Style{FlexGrow: 1, FlexShrink: 1}, Children: []core.Node{
 			core.View{StyleFunc: look.Column(cx), Children: []core.Node{
 				core.View{Role: core.RoleRadioGroup, LabelFunc: func() string { return locales.SettingsGoal(cx) }, Children: []core.Node{look.Group{Children: rows}}},

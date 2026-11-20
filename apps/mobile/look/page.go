@@ -1,8 +1,11 @@
 package look
 
 import (
+	"kando/apps/mobile/theme"
+
 	"github.com/nsgo-dev/nsgo/base"
 	"github.com/nsgo-dev/nsgo/core"
+	"github.com/nsgo-dev/nsgo/mobile"
 	"github.com/nsgo-dev/nsgo/ui"
 )
 
@@ -39,7 +42,7 @@ func TabRootWith(cx *core.Scope, p base.NavPage, h Head) base.NavPage {
 		}
 		return p
 	}
-	// TODO(nsgo#485): ui.NavPage draws a 44pt desktop header on Android (navpage.go:44-50, navheader.go:50-64), with no large title or Material top app bar, so a tab's root page draws its title in its content; give it the platform's top app bar once NSGo has one https://github.com/nsgo-dev/nsgo/issues/485
+	// TODO(nsgo#485): Android's system header is a toolbar with no large title (Header.java), and a desktop's is ui.NavHeader's 44pt bar (navheader.go:50-64), so a tab's root page draws its title in its content; give it the platform's top app bar once NSGo has one https://github.com/nsgo-dev/nsgo/issues/485
 	p.HeaderHidden = true
 	head := core.Text{ContentFunc: h.Title, Role: core.RoleHeader, MaxLines: 1, Style: PageTitle(cx).Merge(core.Style{Padding: core.Edges{Top: 2, Right: 16, Bottom: 4, Left: 16}}),
 		StyleFunc: ui.Colored(colors.Text)}
@@ -115,3 +118,38 @@ func Column(cx *core.Scope) func() core.Style {
 
 // Tablet reports whether the app runs on a tablet, whose shell shows a sidebar on its side and whose sheets show in the middle of the screen.
 func Tablet(cx *core.Scope) bool { return cx.Env().Idiom() == core.IdiomTablet }
+
+// NavPage is ui.NavPage, a page a tab's page opens, under header: on Android the system's toolbar with its back arrow, titled in Material's title large (SubPageTitle) left of the bar on the bar's frosted fill, as the design's top app bar; elsewhere ui.NavPage's own.
+// TODO(nsgo#485): Android's toolbar takes only a title, its color, the arrow's tint and the bar's background (Header.java:55-99), and titles in the platform's toolbar style, so the app gives it its title as the header's view (base.NavPage.Header, which ui.NavPage makes the title view) in the design's 22pt regular; set the title's style once NSGo has Material's top app bar https://github.com/nsgo-dev/nsgo/issues/485
+func NavPage(cx *core.Scope, p base.NavPage, header ui.NavHeader) base.NavPage {
+	if cx.Env().OS() != core.OSAndroid || !mobile.IsAvailable(cx) {
+		return ui.NavPage(cx, p, header)
+	}
+	colors := ui.ColorsOf(cx)
+	if p.Header == nil {
+		if title := subPageTitle(p, header); title != nil {
+			p.Header = core.Text{ContentFunc: title, Role: core.RoleHeader, MaxLines: 1, Style: SubPageTitle, StyleFunc: ui.Colored(colors.Text)}
+		}
+	}
+	p = ui.NavPage(cx, p, header)
+	bar := theme.Of(cx).Bar
+	p.HeaderStyleFunc = func() core.Style {
+		return core.Style{Background: bar(), Color: colors.Text(), TintColor: colors.Text()}
+	}
+	return p
+}
+
+// subPageTitle is the title a page and its header give it, the header's first, nil for a page without one.
+func subPageTitle(p base.NavPage, header ui.NavHeader) func() string {
+	switch {
+	case header.TitleFunc != nil:
+		return header.TitleFunc
+	case header.Title != "":
+		return func() string { return header.Title }
+	case p.TitleFunc != nil:
+		return p.TitleFunc
+	case p.Title != "":
+		return func() string { return p.Title }
+	}
+	return nil
+}

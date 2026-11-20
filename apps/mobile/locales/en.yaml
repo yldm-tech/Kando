@@ -2365,6 +2365,12 @@ settingsTargetNote:
 settingsThisDevice:
   message: "This Device"
   description: "Heading of Settings' section of what is set on this phone or tablet alone."
+settingsThisPhone:
+  message: "This Phone"
+  description: "Heading of Settings' section of what is set on this phone alone, on an Android phone."
+settingsThisTablet:
+  message: "This Tablet"
+  description: "Heading of Settings' section of what is set on this tablet alone, on an Android tablet."
 settingsTileLanguage:
   message: "Aa"
   description: "The one or two characters on the Language row's colored tile in Settings, standing for language: Aa in English, 语 in Simplified Chinese."

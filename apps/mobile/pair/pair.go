@@ -62,7 +62,7 @@ func ParseTarget(address, code string) (Target, bool) {
 // Page is the pairing page; done runs once the phone is paired, back leaves it.
 func Page(cx *core.Scope, s *session.Session, done, back func()) base.NavPage {
 	f := New(cx, s, func(store.Desktop) { done() }, func() core.Points { return ui.NavInset(cx) }, false)
-	return ui.NavPage(cx, base.NavPage{TitleFunc: func() string { return locales.PairTitle(cx) }, TestID: "pair-page", Children: []core.Node{
+	return look.NavPage(cx, base.NavPage{TitleFunc: func() string { return locales.PairTitle(cx) }, TestID: "pair-page", Children: []core.Node{
 		core.View{Style: core.Style{FlexGrow: 1, FlexShrink: 1}, Children: []core.Node{f.Body, look.ActionBar(cx, f.Actions)}},
 	}}, ui.NavHeader{OnBack: back, Scroll: f.Scroll})
 }

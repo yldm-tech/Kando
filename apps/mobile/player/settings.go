@@ -42,7 +42,7 @@ func settingsSheet(cx *core.Scope, p *play, l *Layer, open *core.Signal[bool]) c
 				note(detail),
 			}},
 			// TODO(nsgo#145): ui.Switch's Label is a string only (ui/switch.go:19), so its spoken name keeps the language it was built in; pass a LabelFunc once Switch has one https://github.com/nsgo-dev/nsgo/issues/145
-			ui.Switch{TestID: id, Label: title(), Variant: ui.SwitchSystem, Checked: on, OnChange: set},
+			look.Switch{TestID: id, Label: title(), Checked: on, OnChange: set},
 		}}
 	}
 	// A link's hairline over it is its holder's, as the rows before it show or not.

@@ -240,7 +240,7 @@ func fixBody(cx *core.Scope, p *play, f *fixer) core.Node {
 							caption(func() string { return locales.PlayerFixAddTermDetail(cx) }),
 						}},
 						// TODO(nsgo#145): ui.Switch's Label is a string only (ui/switch.go:19), so its spoken name keeps the language it was built in; pass a LabelFunc once Switch has one https://github.com/nsgo-dev/nsgo/issues/145
-						ui.Switch{TestID: "player-fix-term-switch", Label: locales.PlayerFixAddTerm(cx), Variant: ui.SwitchSystem, Checked: func() bool { return x().term }, OnChange: f.setTerm},
+						look.Switch{TestID: "player-fix-term-switch", Label: locales.PlayerFixAddTerm(cx), Checked: func() bool { return x().term }, OnChange: f.setTerm},
 					}},
 					termFields,
 				)

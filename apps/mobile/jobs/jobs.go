@@ -57,7 +57,7 @@ func Page(cx *core.Scope, s *session.Session, act Actions) base.NavPage {
 		return look.TabRootTitleRow(cx, page, title, []core.Node{add}, symbols)
 	}
 	page.TitleFunc = title
-	return ui.NavPage(cx, page, ui.NavHeader{TitleFunc: title, OnBack: act.Back, Scroll: ref, Trailing: []core.Node{add}, Symbols: symbols})
+	return look.NavPage(cx, page, ui.NavHeader{TitleFunc: title, OnBack: act.Back, Scroll: ref, Trailing: []core.Node{add}, Symbols: symbols})
 }
 
 // section is a computer's part of the page: its card, the links waiting for it and its jobs.

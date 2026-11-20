@@ -105,7 +105,7 @@ func Page(cx *core.Scope, s *session.Session, act Actions) base.NavPage {
 						OnPress: act.Style}),
 				section(cx, func() string { return locales.SettingsAppearance(cx) }, look2...),
 				section(cx, func() string { return locales.SettingsComputers(cx) }, computerRows(cx, s, act)),
-				section(cx, func() string { return locales.SettingsThisDevice(cx) }, deviceRows(cx, s, act)...),
+				section(cx, func() string { return thisDevice(cx) }, deviceRows(cx, s, act)...),
 				section(cx, func() string { return locales.SettingsSync(cx) },
 					look.Row{TestID: "settings-conflicts", Chevron: true,
 						Leading: look.GlyphTile(cx, glyph("⇄"), fixed(theme.TileOrange)),
@@ -223,7 +223,7 @@ func LanguagePage(cx *core.Scope, s *session.Session, back func()) base.NavPage 
 			}},
 			OnPress: func() { s.SetLanguage(tag) }})
 	}
-	return ui.NavPage(cx, base.NavPage{TitleFunc: func() string { return locales.SettingsLanguage(cx) }, TestID: "settings-language-page", Children: []core.Node{
+	return look.NavPage(cx, base.NavPage{TitleFunc: func() string { return locales.SettingsLanguage(cx) }, TestID: "settings-language-page", Children: []core.Node{
 		core.Scroll{Ref: ref, Style: core.Style{FlexGrow: 1, FlexShrink: 1}, Children: []core.Node{
 			core.View{StyleFunc: look.Column(cx), Children: []core.Node{
 				core.View{Role: core.RoleRadioGroup, LabelFunc: func() string { return locales.SettingsLanguage(cx) }, Children: []core.Node{look.Group{Children: rows}}},
@@ -252,7 +252,7 @@ func deviceRows(cx *core.Scope, s *session.Session, act Actions) []core.Node {
 			Detail:  func() string { return locales.SettingsRemindDetail(cx, learning.ReminderHour) },
 			// TODO(nsgo): ui.Switch takes its accessibility label as a string (ui/switch.go:19), with no LabelFunc, so the switch is built again as the language changes; the Language page is another page, so this switch holds no focus then.
 			Trailing: core.Dynamic(func(cx *core.Scope) core.Node {
-				return ui.Switch{TestID: "settings-remind-switch", Label: locales.SettingsRemind(cx), Variant: ui.SwitchSystem,
+				return look.Switch{TestID: "settings-remind-switch", Label: locales.SettingsRemind(cx),
 					Checked: func() bool { return s.Prefs().Remind }, OnChange: s.SetRemind}
 			})},
 		look.Row{TestID: "settings-goal", Index: func() int { return 1 }, Chevron: true,
@@ -323,7 +323,7 @@ func TargetPage(cx *core.Scope, s *session.Session, back func()) base.NavPage {
 			}},
 			OnPress: func() { s.SetTarget(l.Code) }})
 	}
-	return ui.NavPage(cx, base.NavPage{TitleFunc: func() string { return locales.SettingsTarget(cx) }, TestID: "settings-target-page", Children: []core.Node{
+	return look.NavPage(cx, base.NavPage{TitleFunc: func() string { return locales.SettingsTarget(cx) }, TestID: "settings-target-page", Children: []core.Node{
 		core.Scroll{Ref: ref, Style: core.Style{FlexGrow: 1, FlexShrink: 1}, Children: []core.Node{
 			core.View{StyleFunc: look.Column(cx), Children: []core.Node{
 				core.View{Style: core.Style{Gap: 8}, Children: []core.Node{
@@ -420,4 +420,15 @@ func Computers(cx *core.Scope, s *session.Session, open func()) core.Node {
 				}},
 			}},
 		}}
+}
+
+// thisDevice heads the section of what is set on this device alone: on Android, which the design names by its kind, This Phone or This Tablet; elsewhere This Device.
+func thisDevice(cx *core.Scope) string {
+	switch {
+	case cx.Env().OS() != core.OSAndroid:
+		return locales.SettingsThisDevice(cx)
+	case look.Tablet(cx):
+		return locales.SettingsThisTablet(cx)
+	}
+	return locales.SettingsThisPhone(cx)
 }

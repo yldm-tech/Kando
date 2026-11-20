@@ -66,10 +66,10 @@ func tile(icon func() *core.SVG, fill, tint func() core.Color) core.Node {
 		Children:  []core.Node{ui.IconOf(icon, 17, tint)}}
 }
 
-// SectionTitle heads a section of a page's content, as Continue Watching: 22pt bold, named for the screen reader's headings too.
+// SectionTitle heads a section of a page's content, as Continue Watching: SectionHeading, 22pt bold or Android's 20pt medium, named for the screen reader's headings too.
 func SectionTitle(cx *core.Scope, text func() string) core.Node {
 	colors := ui.ColorsOf(cx)
-	return core.Text{ContentFunc: text, Role: core.RoleHeader, MaxLines: 1, Style: Heading, StyleFunc: ui.Colored(colors.Text)}
+	return core.Text{ContentFunc: text, Role: core.RoleHeader, MaxLines: 1, Style: SectionHeading(cx), StyleFunc: ui.Colored(colors.Text)}
 }
 
 // GroupHeader names the Group under it, as a grouped list's section header: a muted caption over the card, in line with the rows' text. It is a Text, so a caller can give it a TestID.
