@@ -80,7 +80,7 @@ func (s Shell) phone(cx *core.Scope) core.Node {
 		}
 	}
 	// TODO(nsgo#145): ui.ShellTab.Text and TabShell.Label are strings only (ui/tabshell.go:10-36), so the tab titles keep the language they were built in; pass TextFunc/LabelFunc once ShellTab has them (mobile.TabBar already takes ItemsFunc) https://github.com/nsgo-dev/nsgo/issues/145
-	// TODO(nsgo): Android's navigation bar takes only the accent (core/tabbar.go tint) and fixes its fill, its idle color and its indicator's opacity (TabBar.java:62, 173-195), so it shows Material's lavender bar with the accent for the selected tab; give it the card's fill (colors.Surface), theme.TabInactive idle, the accent at theme.M3NavIndicator behind the selected tab and theme.M3NavActive (the accent in the dark) for it once the bar takes them.
+	// TODO(nsgo#936): Android's navigation bar takes only the accent (core/tabbar.go tint) and fixes its fill, its idle color and its indicator's opacity (TabBar.java:62, 173-195), so it shows Material's lavender bar with the accent for the selected tab; give it the card's fill (colors.Surface), theme.TabInactive idle, the accent at theme.M3NavIndicator behind the selected tab and theme.M3NavActive (the accent in the dark) for it once the bar takes them. https://github.com/nsgo-dev/nsgo/issues/936
 	return ui.TabShell{Label: locales.AppName(cx), Selected: s.Selected, OnChange: s.OnChange, Tabs: tabs}
 }
 

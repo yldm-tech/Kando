@@ -12,7 +12,7 @@ import (
 	"github.com/nsgo-dev/nsgo/ui"
 )
 
-// TestScreenshotsMaterial is the Material pieces an Android phone draws, laid out on a page: the 28pt medium large title, a group of rows with Material 3's switch on and off, a 20pt medium section heading and the 22pt regular title of a sub-page's toolbar. nsgo test -target reports the target's own OS, so the app's Android screens cannot show on a Mac; this scene draws the same pieces by hand, in the light and in the dark.
+// TestScreenshotsMaterial is the Material pieces an Android phone draws, laid out on a page: the 28pt medium large title, a group of rows with Material 3's switch on and off, a 20pt medium section heading of content, as the Library's, and the 22pt regular title of a sub-page's toolbar. nsgo test -target reports the target's own OS, so the app's Android screens cannot show on a Mac; this scene draws the same pieces by hand, in the light and in the dark.
 func TestScreenshotsMaterial(t *testing.T) {
 	screenshots(t)
 	for _, dark := range []bool{false, true} {
@@ -50,7 +50,7 @@ func materialLook(cx *core.Scope) core.Node {
 					row(1, msgs.SettingsRemind(), theme.TileRed, remind),
 				}},
 			}},
-			core.Text{Content: msgs.StyleColor(), Style: look.HeadingAndroid, StyleFunc: ui.Colored(colors.Text)},
+			core.Text{Content: msgs.FilmsAll(), Style: look.HeadingAndroid, StyleFunc: ui.Colored(colors.Text)},
 		}},
 		// The toolbar of a page Settings opens, as NSGo's Header.java lays it out with the title the app gives it (look.NavPage): its 24pt arrow in a 48pt target, the title after it.
 		core.View{Style: core.Style{Direction: core.Row, AlignItems: core.AlignCenter, MinHeight: core.Pt(58), Margin: core.Edges{Top: 28}, Padding: core.Edges{Left: 8}},

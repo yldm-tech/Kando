@@ -3,11 +3,13 @@ package main
 import (
 	"testing"
 
+	"kando/apps/mobile/look"
+
 	"github.com/nsgo-dev/nsgo/core"
 	"github.com/nsgo-dev/nsgo/nsgotest"
 )
 
-// An Android phone draws the design's Material pieces: the section of what is set on it headed This Phone, Material 3's switch, its 20pt medium section headings, the 22pt regular title in the toolbar of a page Settings opens, and the plus level with the Jobs page's 28pt medium title.
+// An Android phone draws the design's Material pieces: its 20pt medium section headings in the content, as the Library's, the section of what is set on it headed This Phone, Material 3's switch, a grouped list's muted captions on a page Settings opens with the 22pt regular title in its toolbar, and the plus level with the Jobs page's 28pt medium title.
 func TestAnAndroidPhoneDrawsMaterial(t *testing.T) {
 	if nsgotest.Target() != "" {
 		t.Skip("the platform is the target's")
@@ -16,11 +18,14 @@ func TestAnAndroidPhoneDrawsMaterial(t *testing.T) {
 	keepTalk(t, dir)
 	p := startPhone(t, dir, nsgotest.Environment(core.Environment{Locale: lang, OS: core.OSAndroid}))
 	p.app.WaitFor(talkRow("gonedesk"), wait)
+	if f := p.app.Find("text:" + msgs.FilmsAll()).TextStyle.Font; f.Size != 20 || f.Weight != core.FontWeightMedium {
+		t.Fatalf("a section heading on Android is %vpt weight %v, want 20pt medium", f.Size, f.Weight)
+	}
 
 	p.openTab(settingsTab, msgs.SettingsTitle())
 	p.app.WaitFor("id:settings-goal", wait)
 	if !p.app.Exists("text:" + msgs.SettingsThisPhone()) {
-		t.Fatalf("Settings on an Android phone heads its own section %q, not %q", msgs.SettingsThisDevice(), msgs.SettingsThisPhone())
+		t.Fatalf("Settings on an Android phone heads its own section other than %q", msgs.SettingsThisPhone())
 	}
 	sw := p.app.Find("id:settings-remind-switch")
 	if len(sw.Children) != 1 {
@@ -36,9 +41,9 @@ func TestAnAndroidPhoneDrawsMaterial(t *testing.T) {
 
 	p.app.Press("id:settings-style")
 	p.app.WaitFor("id:style-page", wait)
-	heading := p.app.Find("text:" + msgs.StyleColor())
-	if f := heading.TextStyle.Font; f.Size != 20 || f.Weight != core.FontWeightMedium {
-		t.Fatalf("a section heading on Android is %vpt weight %v, want 20pt medium", f.Size, f.Weight)
+	// The page's groups are named as a grouped list's, in a muted caption, not headed as a section of content.
+	if f := p.app.Find("text:" + msgs.StyleColor()).TextStyle.Font; f.Size != look.Caption.FontSize || f.Weight == core.FontWeightMedium {
+		t.Fatalf("a group's name on the subtitle style page is %vpt weight %v, want the %vpt caption", f.Size, f.Weight, look.Caption.FontSize)
 	}
 	p.app.WaitUntil(wait, func() bool { return len(p.app.QueryMounted("text:"+msgs.SettingsSubtitleStyle())) > 0 })
 	// The Settings row that opened the page reads the same, under it.
@@ -60,6 +65,22 @@ func TestAnAndroidPhoneDrawsMaterial(t *testing.T) {
 		t.Fatal("the Jobs page's plus is not on its title's row")
 	} else if f := row.TextStyle.Font; f.Size != 28 || f.Weight != core.FontWeightMedium {
 		t.Fatalf("the Jobs page's title is %vpt weight %v, want Android's 28pt medium", f.Size, f.Weight)
+	}
+}
+
+// An Android tablet names the section by its kind too, This Tablet.
+func TestAnAndroidTabletNamesThisTablet(t *testing.T) {
+	if nsgotest.Target() != "" {
+		t.Skip("the platform is the target's")
+	}
+	dir := t.TempDir()
+	keepTalk(t, dir)
+	p := startPhone(t, dir, nsgotest.Environment(core.Environment{Locale: lang, OS: core.OSAndroid, Idiom: core.IdiomTablet}))
+	p.app.WaitFor(talkRow("gonedesk"), wait)
+	p.openTab(settingsTab, msgs.SettingsTitle())
+	p.app.WaitFor("id:settings-goal", wait)
+	if !p.app.Exists("text:"+msgs.SettingsThisTablet()) || p.app.Exists("text:"+msgs.SettingsThisPhone()) {
+		t.Fatalf("Settings on an Android tablet heads its own section other than %q", msgs.SettingsThisTablet())
 	}
 }
 

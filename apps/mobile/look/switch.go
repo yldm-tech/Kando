@@ -41,7 +41,7 @@ const (
 var m3Timing = core.TimingConfig{Duration: 200 * time.Millisecond, Easing: core.BezierEasing(core.Curve{X1: 0.2, Y1: 0, X2: 0, Y2: 1})}
 
 // M3Switch is s in Material 3's look, as the design's Android screens draw it: on, the accent's track under a white 24pt knob at its end; off, the fill's track in an outline under a 16pt knob of the outline's color at its start. The knob slides, grows and changes color as Checked changes, in place under reduced motion.
-// TODO(nsgo): core.SystemSwitch is macOS's and iOS's only (core/systemswitch.go:28-31) and ui.Switch has no Material look (ui/switch.go:49-107), so the app draws Android's switch on base.Switch; use the system's once core.SystemSwitch has Android's.
+// TODO(nsgo#937): core.SystemSwitch is macOS's and iOS's only (core/systemswitch.go:28-31) and ui.Switch has no Material look (ui/switch.go:49-107), so the app draws Android's switch on base.Switch; use the system's once core.SystemSwitch has Android's. https://github.com/nsgo-dev/nsgo/issues/937
 func M3Switch(cx *core.Scope, s Switch) core.Node {
 	colors := ui.ColorsOf(cx)
 	shown := core.Untracked(cx, s.Checked)
