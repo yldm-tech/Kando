@@ -7,14 +7,13 @@ import (
 	"kando/apps/mobile/session"
 	"kando/packages/study"
 
-	"github.com/nsgo-dev/nsgo/base"
 	"github.com/nsgo-dev/nsgo/core"
 	"github.com/nsgo-dev/nsgo/icons/lucide"
 	"github.com/nsgo-dev/nsgo/ui"
 )
 
-// ExportPage exports the vocabulary, with the saved lines when asked, from every computer's libraries, as the computer's Export Vocabulary writes a library's (learning.Export): in the format picked, Anki's notes, a CSV table or plain text, each word with the line it is from and that line's translation as asked; the choices are kept for the next export. The file goes out through the share sheet.
-func ExportPage(cx *core.Scope, s *session.Session, back func()) base.NavPage {
+// ExportSheet exports the vocabulary, with the saved lines when asked, from every computer's libraries, as the computer's Export Vocabulary writes a library's (learning.Export): in the format picked, Anki's notes, a CSV table or plain text, each word with the line it is from and that line's translation as asked; the choices are kept for the next export. The file goes out through the share sheet. It shows over Learn while open reports true; closing calls close.
+func ExportSheet(cx *core.Scope, s *session.Session, open func() bool, close func()) core.Node {
 	colors := ui.ColorsOf(cx)
 	o := func() study.VocabOptions { return s.ExportOptions() }
 	set := func(change func(*study.VocabOptions)) {
@@ -41,7 +40,7 @@ func ExportPage(cx *core.Scope, s *session.Session, back func()) base.NavPage {
 			Title: f.name, Detail: f.detail,
 			Checked: func() bool { return o().Format == f.id },
 			Trailing: core.Show{When: func() bool { return o().Format == f.id }, Then: func(*core.Scope) core.Node {
-				return ui.Icon(lucide.Check, 20, colors.Accent)
+				return ui.Icon(lucide.Check, 18, colors.Accent)
 			}},
 			OnPress: func() { set(func(v *study.VocabOptions) { v.Format = f.id }) }})
 	}
@@ -66,32 +65,31 @@ func ExportPage(cx *core.Scope, s *session.Session, back func()) base.NavPage {
 			cx.Share(core.ShareOptions{Files: []core.SharedFile{{Path: file}}, Anchor: anchor}, func(bool, error) { exporting.Set(false) })
 		})
 	}
-	section := func(title func() string, rows ...core.Node) core.Node {
-		return core.View{Style: core.Style{Gap: 8}, Children: []core.Node{look.SectionTitle(cx, title), look.Group{Children: rows}}}
+	note := func(id string, text func() string, style core.Style) core.Text {
+		return core.Text{TestID: id, ContentFunc: text, Style: style.Merge(core.Style{Padding: core.Edges{Right: 4, Left: 4}}), StyleFunc: ui.Colored(colors.Muted)}
 	}
-	ref := &core.Ref{}
-	body := core.Scroll{Ref: ref, Style: core.Style{FlexGrow: 1, FlexShrink: 1}, Children: []core.Node{
-		core.View{StyleFunc: look.Column(cx), Children: []core.Node{
-			ui.Tabular(core.Text{TestID: "export-count", ContentFunc: func() string { w, l := counts(); return locales.ExportCount(cx, w, l) },
-				Style: look.Subhead.Merge(core.Style{Padding: core.Edges{Right: 16, Left: 16}}), StyleFunc: ui.Colored(colors.Muted)}),
-			section(func() string { return locales.ExportFormat(cx) },
-				core.View{Role: core.RoleRadioGroup, LabelFunc: func() string { return locales.ExportFormat(cx) }, Children: formatRows}),
-			section(func() string { return locales.ExportInclude(cx) },
-				toggle(0, "sentence", func() string { return locales.ExportWithSentence(cx) },
-					func(v study.VocabOptions) bool { return v.Context }, func(v *study.VocabOptions, on bool) { v.Context = on }),
-				toggle(1, "translation", func() string { return locales.ExportWithTranslation(cx) },
-					func(v study.VocabOptions) bool { return v.Translation }, func(v *study.VocabOptions, on bool) { v.Translation = on }),
-				toggle(2, "lines", func() string { return locales.ExportWithLines(cx) },
-					func(v study.VocabOptions) bool { return v.Lines }, func(v *study.VocabOptions, on bool) { v.Lines = on })),
-		}},
-	}}
 	share := core.View{Ref: anchor, Children: []core.Node{
 		look.Button{TestID: "export-share", Kind: look.Primary, Text: func() string { return locales.LearnExport(cx) },
 			Busy:     exporting.Get,
 			Disabled: func() bool { w, l := counts(); return w+l == 0 },
 			OnPress:  export},
 	}}
-	return ui.NavPage(cx, base.NavPage{TitleFunc: func() string { return locales.ExportTitle(cx) }, TestID: "export-page", Children: []core.Node{
-		body, look.ActionBar(cx, share),
-	}}, ui.NavHeader{OnBack: back, Scroll: ref})
+	return look.Dialog{TestID: "export-page", Open: open, OnClose: close, TitleHidden: true, Title: func() string { return locales.ExportTitle(cx) }, Children: []core.Node{
+		core.View{Style: core.Style{Gap: 14}, Children: []core.Node{
+			ui.Tabular(note("export-count", func() string { w, l := counts(); return locales.ExportCount(cx, w, l) }, core.Style{FontSize: 13, LineHeight: 19})),
+			look.Group{Children: []core.Node{
+				core.View{Role: core.RoleRadioGroup, LabelFunc: func() string { return locales.ExportFormat(cx) }, Children: formatRows},
+			}},
+			look.Group{Children: []core.Node{
+				toggle(0, "sentence", func() string { return locales.ExportWithSentence(cx) },
+					func(v study.VocabOptions) bool { return v.Context }, func(v *study.VocabOptions, on bool) { v.Context = on }),
+				toggle(1, "translation", func() string { return locales.ExportWithTranslation(cx) },
+					func(v study.VocabOptions) bool { return v.Translation }, func(v *study.VocabOptions, on bool) { v.Translation = on }),
+				toggle(2, "lines", func() string { return locales.ExportWithLines(cx) },
+					func(v study.VocabOptions) bool { return v.Lines }, func(v *study.VocabOptions, on bool) { v.Lines = on }),
+			}},
+			share,
+			note("export-share-note", func() string { return locales.ExportShareNote(cx) }, look.Footnote),
+		}},
+	}}
 }

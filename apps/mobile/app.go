@@ -50,7 +50,6 @@ const (
 	revokedPage
 	jobsPage
 	computerPage
-	exportPage
 	conflictsPage
 	shortcutsPage
 	widgetsPage
@@ -119,6 +118,11 @@ func App(cx *core.Scope, cfg session.Config) core.Node {
 		navs[filmsTab].Push(route{page: filmPage, desktop: desktop, library: lib, film: f})
 	})
 	openPair := func() { outer.Push(route{page: pairPage}) }
+	// openSettings shows Settings at its first page.
+	openSettings := func() {
+		selected.Set(settingsTab)
+		navs[settingsTab].PopToRoot()
+	}
 	// Paired, the phone shows the Library, where the computer's libraries are, from its first page.
 	paired := func() {
 		selected.Set(filmsTab)
@@ -173,18 +177,16 @@ func App(cx *core.Scope, cfg session.Config) core.Node {
 				switch r.page {
 				case learnPage:
 					return learn.Page(cx, s, learn.Actions{Pair: openPair,
-						Review:     func() { n.Push(route{page: reviewPage}) },
+						// The review covers the whole app, tab bar and all.
+						Review:     func() { outer.Push(route{page: reviewPage}) },
 						Vocabulary: func() { n.Push(route{page: vocabularyPage}) },
 						Lines:      func() { n.Push(route{page: linesPage}) },
-						Export:     func() { n.Push(route{page: exportPage}) }})
-				case reviewPage:
-					return learn.ReviewPage(cx, s, back)
+						Settings:   openSettings,
+						Play:       layer.PlayAt})
 				case vocabularyPage:
 					return learn.VocabularyPage(cx, s, back)
 				case linesPage:
 					return learn.LinesPage(cx, s, back)
-				case exportPage:
-					return learn.ExportPage(cx, s, back)
 				case stylePage:
 					return settings.StylePage(cx, s, back)
 				case goalPage:
@@ -291,6 +293,8 @@ func App(cx *core.Scope, cfg session.Config) core.Node {
 			return base.NavPage{TestID: "introduction", HeaderHidden: true, StyleFunc: ui.Filled(colors.Background), Children: []core.Node{
 				onboarding.Page(cx, s, func() { outer.Pop(1) }),
 			}}
+		case reviewPage:
+			return learn.ReviewPage(cx, s, func() { outer.Pop(1) })
 		case revokedPage:
 			return settings.RevokedPage(cx, s, r.desktop, openPair, unpaired, func() {
 				revoked = ""

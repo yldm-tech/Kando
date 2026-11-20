@@ -503,14 +503,11 @@ func TestALineSavedInThePlayerShowsInLearn(t *testing.T) {
 	p.app.WaitFor("id:player-toasts >> text:"+msgs.PlayerSavedToast(), wait)
 	p.app.Press("id:player-minimize")
 	p.openTab(learnTab, msgs.LearnTitle())
-	p.app.WaitFor("id:learn-lines", wait)
-	p.app.Press("id:learn-lines")
 	p.app.WaitUntil(wait, func() bool {
-		return p.app.Exists("id:lines-list") && strings.Contains(p.texts("id:lines-list"), "Good morning.")
+		return p.app.Exists("id:learn-lines") && strings.Contains(p.texts("id:learn-lines"), "Good morning.")
 	})
 
 	d.SetOff(false)
-	p.app.HeaderBack("id:lines-page")
 	p.learnRefresh()
 	lines := func() []sync.Record {
 		return slices.DeleteFunc(d.Records("lib", sync.KindLine), func(r sync.Record) bool { return r.Removed != nil })

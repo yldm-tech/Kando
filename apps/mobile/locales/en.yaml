@@ -252,22 +252,22 @@ dictationCheck:
   message: "Check"
   description: "Button of the review that checks what the learner typed in a dictation."
 dictationHint:
-  message: "Listen as many times as you like, then type what you hear."
+  message: "Listen as many times as you like, then type what you hear"
   description: "Under the dictation card's heading."
 dictationLabel:
-  message: "What You Heard"
+  message: "What you heard"
   description: "Accessibility label of the dictation card's text box."
 dictationNoFilm:
   message: "Save this film to this device to hear its lines."
   description: "Under a review card in dictation mode when the film is not kept on the phone, so the line cannot be played."
 dictationPlaceholder:
-  message: "Type what you heard"
+  message: "Type what you heard here"
   description: "Placeholder of the dictation card's text box."
 dictationPlay:
-  message: "Play the Line"
+  message: "Play the line"
   description: "Accessibility label of the dictation card's play button."
 dictationScore:
-  message: "{hit} of {total, plural, one {# word} other {# words}} heard right"
+  message: "{total, plural, one {Heard {hit} / # word correctly} other {Heard {hit} / # words correctly}}"
   description: "Dictation card after the check: how many of the line's words the learner typed."
   placeholders:
     hit: { type: "int", example: 3 }
@@ -276,7 +276,7 @@ dictationStop:
   message: "Stop"
   description: "Accessibility label of the dictation card's play button while the line plays."
 dictationTitle:
-  message: "Dictate This Line"
+  message: "Dictate this line"
   description: "Heading of the dictation card in the review."
 exportAnki:
   message: "Anki"
@@ -285,13 +285,13 @@ exportAnkiDetail:
   message: "Notes for Anki's File › Import: the word on the front, the rest on the back"
   description: "Export page: what the Anki format writes."
 exportCSV:
-  message: "CSV Spreadsheet"
+  message: "CSV spreadsheet"
   description: "Export page: a CSV table, which spreadsheets open."
 exportCSVDetail:
-  message: "One word a row; opens in spreadsheet apps and Notion"
+  message: "One word per row; opens in spreadsheet apps and Notion"
   description: "Export page: what the CSV format writes."
 exportCount:
-  message: "{words, plural, one {# word} other {# words}} · {lines, plural, one {# saved line} other {# saved lines}} · from every computer"
+  message: "{words, plural, one {# word} other {# words}} · {lines, plural, one {# saved line} other {# saved lines}} · from all devices"
   description: "Export page: what the export writes, counted."
   placeholders:
     words: { type: "int", example: 12 }
@@ -299,26 +299,26 @@ exportCount:
 exportFormat:
   message: "Format"
   description: "Export page: heading of the formats."
-exportInclude:
-  message: "Include"
-  description: "Export page: heading of the switches of what the export writes."
+exportShareNote:
+  message: "The share sheet opens once the file is ready: save it to your files, or open it in another app such as Anki."
+  description: "Under the export's button."
 exportTSV:
-  message: "Plain Text (Tab-Separated)"
+  message: "Plain text (tab-separated)"
   description: "Export page: plain text with a tab between the fields."
 exportTSVDetail:
   message: "Imports into Quizlet and most flashcard apps"
   description: "Export page: what the plain text format is for."
 exportTitle:
-  message: "Export Vocabulary"
-  description: "Title of the page that exports the vocabulary, and the saved lines when asked, through the share sheet."
+  message: "Export word list"
+  description: "Spoken name of the sheet that exports the word list, and the saved lines when asked, through the share sheet."
 exportWithLines:
-  message: "Saved Lines, After the Words"
+  message: "Include saved lines"
   description: "Export page: switch that adds the saved lines after the words."
 exportWithSentence:
-  message: "The Sentence Each Word Is From"
+  message: "Include original line"
   description: "Export page: switch that writes with each word the line it was looked up in."
 exportWithTranslation:
-  message: "The Sentence's Translation"
+  message: "Include translation"
   description: "Export page: switch that writes with each word the translation of the line it was looked up in."
 filmCancel:
   message: "Cancel Download"
@@ -696,11 +696,6 @@ filmsUnpairedBody:
 filmsUnpairedTitle:
   message: "Not connected to a computer yet"
   description: "Title of the Library's card while no computer is paired."
-learnDays:
-  message: "{count, plural, one {# day} other {# days}}"
-  description: "Learn's week: the streak, in days."
-  placeholders:
-    count: { type: "int", example: 5 }
 filmsUnsubscribe:
   message: "Unsubscribe"
   description: "Subscription sheet: the row that removes the subscription, and its confirmation's button."
@@ -805,13 +800,13 @@ jobsReadOnly:
   placeholders:
     name: { type: "String", example: "Studio" }
 learnDueIn:
-  message: "{count, plural, one {Due in # day} other {Due in # days}}"
+  message: "{count, plural, one {Next in # day} other {Next in # days}}"
   description: "Under a word or a line: when it is next due for review."
   placeholders:
     count: { type: "int", example: "3" }
 learnDueNow:
-  message: "Due for review"
-  description: "Under a word or a line that is due for review now."
+  message: "Due"
+  description: "Badge of a word or a line that is due for review now."
 filmsUsed:
   message: "Films on this phone use {size}"
   description: "Under the Library's list: the space the films downloaded to the phone take."
@@ -1203,20 +1198,34 @@ jobsWaitingSuffix:
   description: "Jobs page, the line under an unfinished job's title while its computer cannot be reached, after the site and a separator, as in \"YouTube · waiting for Studio\"."
   placeholders:
     name: { type: "String", example: "Studio" }
+learnBackToFilm:
+  message: "Back to film"
+  description: "Button of a word's sheet, from the word list, that plays the film where the word was looked up."
+learnConnect:
+  message: "Connect"
+  description: "Button of Learn's review card while no computer is paired and nothing is saved, which opens pairing."
+learnDaysUnit:
+  message: "{count, plural, one {day} other {days}}"
+  description: "Learn's week: the unit after the streak's number."
+  placeholders:
+    count: { type: "int", example: 5 }
 learnEmpty:
-  message: "Words and lines you save will show here"
-  description: "Learn tab while nothing is saved."
+  message: "Tap a word in the subtitles while watching to add it here."
+  description: "Learn's word list while it has no word."
 learnExport:
-  message: "Export and Share"
-  description: "Row of Learn that opens the export of the vocabulary and the saved lines, and the button of that page that writes the file and opens the share sheet."
+  message: "Export and share"
+  description: "Button of the export sheet that writes the file and opens the share sheet."
 learnExportFailed:
   message: "Couldn't export the vocabulary"
   description: "Alert when the export could not be written."
+learnExportShort:
+  message: "Export"
+  description: "Button beside the word list's heading that opens the export of the words and the saved lines."
 learnFri:
-  message: "F"
+  message: "Fri"
   description: "Short name of Friday under its bar in the week's chart."
 learnGoalLeft:
-  message: "{count, plural, one {# more minute to reach today's goal} other {# more minutes to reach today's goal}}"
+  message: "Watch {count} more min to reach your goal"
   description: "Under the day's goal: how many minutes of films are left to reach it."
   placeholders:
     count: { type: "int", example: "8" }
@@ -1228,29 +1237,73 @@ learnGoalOf:
   description: "Spoken name of the day's goal's progress bar."
   placeholders:
     count: { type: "int", example: "20" }
+learnGoalOfShort:
+  message: "/ {count} min"
+  description: "Under today's minutes in the goal's ring: the day's goal."
+  placeholders:
+    count: { type: "int", example: 20 }
+learnHeroFacts:
+  message: "{days, plural, =0 {No streak yet} one {#-day streak} other {#-day streak}} · {week} watched this week"
+  description: "Under the day's goal: the streak in days and the time watched this week on every device."
+  placeholders:
+    days: { type: "int", example: 5 }
+    week: { type: "String", example: "1 h 42 min" }
+learnHoursMinutes:
+  message: "{hours} h {minutes} min"
+  description: "A time watched of an hour or more."
+  placeholders:
+    hours: { type: "int", example: 1 }
+    minutes: { type: "int", example: 42 }
+learnHoursUnit:
+  message: "hours"
+  description: "Learn's week: the unit after the study time when it is in hours, as 1.7 hours."
+learnInThisLine:
+  message: "In this line"
+  description: "A word's sheet: heading of the line the word was looked up in."
 learnItemOptions:
   message: "Options for {text}"
   description: "Spoken name of the … button beside a word or a line, which offers to remove it."
   placeholders:
     text: { type: "String", example: "river" }
+learnLearningCount:
+  message: "Learning {count}"
+  description: "Under the week's bar of the words by how well they are known: the words still being learned."
+  placeholders:
+    count: { type: "int", example: 3 }
 learnLineCount:
   message: "{count, plural, one {# line} other {# lines}}"
   description: "Beside Saved Lines: how many there are."
   placeholders:
     count: { type: "int", example: "8" }
+learnLinePlay:
+  message: "Play this line in the film"
+  description: "Spoken name of the play button on a saved line's card."
 learnMastered:
   message: "Mastered"
   description: "Under a word or a line known well enough."
+learnMasteredCount:
+  message: "Mastered {count}"
+  description: "Under the week's bar of the words by how well they are known: the words mastered."
+  placeholders:
+    count: { type: "int", example: 2 }
 learnMinutes:
   message: "{count} min"
   description: "Minutes of films played, today's or this week's."
   placeholders:
     count: { type: "int", example: "12" }
+learnMinutesUnit:
+  message: "min"
+  description: "Learn's week: the unit after the study time when it is in minutes."
 learnMon:
-  message: "M"
+  message: "Mon"
   description: "Short name of Monday under its bar in the week's chart."
+learnNewCount:
+  message: "New {count}"
+  description: "Under the week's bar of the words by how well they are known: the words not yet known once."
+  placeholders:
+    count: { type: "int", example: 1 }
 learnNewWords:
-  message: "New Words"
+  message: "New words"
   description: "Learn's week: label under how many words were put in the vocabulary in the last seven days."
 learnNoComputer:
   message: "Connect a computer to study the words and lines you save while you watch there."
@@ -1263,12 +1316,20 @@ learnReminderBody:
   description: "Body of the evening's review reminder."
   placeholders:
     count: { type: "int", example: "6" }
+learnReminderCaption:
+  message: "Daily review reminder at {time} · change in Settings"
+  description: "Under the review mode while the review reminder is on; pressing it opens Settings."
+  placeholders:
+    time: { type: "String", example: "21:00" }
 learnReminderTitle:
   message: "Time to review"
   description: "Title of the evening's review reminder."
 learnRemove:
   message: "Remove"
   description: "Destructive button of the alert that removes a word or a line."
+learnRemoveFromList:
+  message: "In word list · remove"
+  description: "Button of a word's sheet that removes the word from the word list."
 learnReviewCards:
   message: "Cards"
   description: "Review mode: a card that shows its answer on a press."
@@ -1281,44 +1342,52 @@ learnReviewDue:
   placeholders:
     count: { type: "int", example: "6" }
 learnReviewDueDetail:
-  message: "With the lines they came from, about {count} min"
+  message: "Review with the original lines, about {count} min"
   description: "Under the review card's title: how long the review takes."
   placeholders:
     count: { type: "int", example: "3" }
+learnReviewDueWords:
+  message: "{count, plural, one {Review # word} other {Review # words}}"
+  description: "Title of Learn's review card when only words are due."
+  placeholders:
+    count: { type: "int", example: 4 }
 learnReviewMode:
-  message: "Review Mode"
-  description: "Accessibility label of Learn's choice of how the review goes: cards or dictation."
+  message: "Review mode"
+  description: "Label beside Learn's choice of how the review goes: cards or dictation."
 learnReviewNone:
-  message: "Nothing to review today"
+  message: "No words due today"
   description: "Title of Learn's review card while nothing is due."
 learnReviewNoneDetail:
-  message: "What you saved comes back here when it's due."
+  message: "Tap words in the subtitles while watching to add them to your word list"
   description: "Under the review card's title while nothing is due."
 learnReviewStart:
-  message: "Start Review"
+  message: "Start"
   description: "Button of the review card that starts the review."
 learnSat:
-  message: "S"
+  message: "Sat"
   description: "Short name of Saturday under its bar in the week's chart."
 learnSavedLines:
-  message: "Saved Lines"
-  description: "Row of Learn, and the title of its page, listing the lines saved."
-learnStreak:
-  message: "{count, plural, =0 {No streak yet} one {# day in a row} other {# days in a row}}"
-  description: "Beside today's minutes: how many days in a row films played."
+  message: "Saved lines"
+  description: "Heading of Learn's saved lines, and the title of its page."
+learnShowAll:
+  message: "Show all {count}"
+  description: "Row at the end of the word list or the saved lines that opens the whole list."
   placeholders:
-    count: { type: "int", example: "5" }
+    count: { type: "int", example: 24 }
 learnStreakLabel:
   message: "Streak"
   description: "Learn's week: label under the streak."
 learnStudyTime:
-  message: "Study Time"
+  message: "Study time"
   description: "Learn's week: label under the minutes watched in the last seven days."
 learnSun:
-  message: "S"
+  message: "Sun"
   description: "Short name of Sunday under its bar in the week's chart."
+learnSyncNote:
+  message: "Words, saved lines and where you stopped sync automatically across your computer, phone and tablet"
+  description: "Under Learn's title."
 learnThu:
-  message: "T"
+  message: "Thu"
   description: "Short name of Thursday under its bar in the week's chart."
 learnTitle:
   message: "Learn"
@@ -1326,31 +1395,40 @@ learnTitle:
 learnToday:
   message: "Today"
   description: "Over the minutes of films played today."
+learnTodayShort:
+  message: "Today"
+  description: "Under today's bar in the week's chart, in place of its weekday."
 learnTue:
-  message: "T"
+  message: "Tue"
   description: "Short name of Tuesday under its bar in the week's chart."
 learnVocabulary:
-  message: "Vocabulary"
-  description: "Row of Learn, and the title of its page, listing the words saved."
+  message: "Word list"
+  description: "Heading of Learn's list of the words saved, and the title of its page."
 learnWed:
-  message: "W"
+  message: "Wed"
   description: "Short name of Wednesday under its bar in the week's chart."
 learnWeek:
-  message: "This Week"
+  message: "This week"
   description: "Heading of the card of the last seven days on every device: the streak, the minutes and the new words, and the chart of each day's minutes."
 learnWeekAll:
-  message: "All Devices"
+  message: "All devices"
   description: "Beside This Week on Learn: the week's figures add up every device's."
 learnWeekBars:
   message: "{count} minutes of films in the last 7 days"
   description: "Spoken name of the week's chart."
   placeholders:
     count: { type: "int", example: "84" }
-learnWordCount:
-  message: "{count, plural, one {# word} other {# words}}"
-  description: "Beside Vocabulary: how many words it has."
+learnWordsDue:
+  message: "{total} · {due} due"
+  description: "Beside the word list's heading: how many words, and how many are due for review."
   placeholders:
-    count: { type: "int", example: "24" }
+    total: { type: "int", example: 6 }
+    due: { type: "int", example: 4 }
+learnWordsUnit:
+  message: "{count, plural, one {word} other {words}}"
+  description: "Learn's week: the unit after the number of new words."
+  placeholders:
+    count: { type: "int", example: 6 }
 linesEmpty:
   message: "Lines you save while you watch show here"
   description: "Saved Lines while none is saved."
@@ -1904,41 +1982,37 @@ playerSubtitles:
   message: "Subtitles"
   description: "Spoken name of the player's menu of subtitle modes."
 reviewAgain:
-  message: "Again"
-  description: "Review button: the learner did not know it; it comes back."
-reviewDone:
-  message: "Done"
-  description: "Button that leaves the review once it is done."
-reviewDoneAgain:
-  message: "{count, plural, =0 {You knew them all.} one {You missed one once.} other {You missed # times.}}"
-  description: "At the review's end: how many times the learner did not know one."
+  message: "Not yet · tomorrow"
+  description: "Review button: the learner did not know it; it comes back in this review, then the next day."
+reviewDoneSummary:
+  message: "{total, plural, one {Reviewed # item} other {Reviewed # items}}; {again, plural, =0 {you knew them all.} one {missed 1. Missed ones come back tomorrow.} other {missed #. Missed ones come back tomorrow.}}"
+  description: "At the review's end: how many items it went through and how many times one was not known."
   placeholders:
-    count: { type: "int", example: "2" }
-reviewDoneCount:
-  message: "{count, plural, one {You reviewed # item.} other {You reviewed # items.}}"
-  description: "At the review's end: how many items it went through."
-  placeholders:
-    count: { type: "int", example: "6" }
+    total: { type: "int", example: 4 }
+    again: { type: "int", example: 1 }
 reviewDoneTitle:
-  message: "Review done"
+  message: "Today's review is done"
   description: "Title at the review's end."
-reviewFrom:
-  message: "From {title}"
-  description: "On a review card: the film it was saved from."
-  placeholders:
-    title: { type: "String", example: "Morning Talk" }
+reviewEnd:
+  message: "End review"
+  description: "Spoken name of the × at the review's top, which leaves it."
+reviewFlipHint:
+  message: "Think about what it means in this line, then tap to flip"
+  description: "At the bottom of a review card's front."
 reviewKnown:
-  message: "Got It"
-  description: "Review button: the learner knew it."
+  message: "{count, plural, =1 {Got it · tomorrow} one {Got it · in # day} other {Got it · in # days}}"
+  description: "Review button: the learner knew it; it comes back in so many days."
+  placeholders:
+    count: { type: "int", example: 4 }
 reviewProgress:
-  message: "{at} of {total}"
-  description: "Over the review card: which card of how many."
+  message: "{at} / {total}"
+  description: "At the review's top: which card of how many."
   placeholders:
     at: { type: "int", example: "3" }
     total: { type: "int", example: "6" }
 reviewShow:
-  message: "Show Answer"
-  description: "Review button that shows the meaning."
+  message: "Show the answer"
+  description: "Spoken name of a review card's front, which a press turns over to the meaning."
 reviewTitle:
   message: "Review"
   description: "Title of the review page."

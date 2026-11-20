@@ -17,9 +17,11 @@ type Dialog struct {
 	OnClose   func()
 	OnConfirm func()
 	Title     func() string
-	Children  []core.Node
-	Footer    []core.Node
-	Header    core.Node
+	// TitleHidden leaves the title out of the sheet; assistive technology still names the sheet by it.
+	TitleHidden bool
+	Children    []core.Node
+	Footer      []core.Node
+	Header      core.Node
 	// Nav, when set, heads the dialog with the design's sheet bar in place of its title: Cancel, the title in the middle and the confirming action.
 	Nav    *SheetNav
 	TestID string
@@ -77,18 +79,21 @@ func (d Dialog) Render(cx *core.Scope) core.Node {
 	}
 	colors := ui.ColorsOf(cx)
 	// The title is the design's 17-point heavy one, ui.Dialog's own being TypeTitle (ui/dialog.go:64): the sheet draws it as its first child and is named by it through LabelFunc.
-	var title core.Node = core.Text{ContentFunc: d.Title, Role: core.RoleHeader, Style: Title.Merge(core.Style{FontWeight: Heavy}), StyleFunc: ui.Colored(colors.Text)}
+	var head []core.Node
+	if !d.TitleHidden {
+		head = []core.Node{core.Text{ContentFunc: d.Title, Role: core.RoleHeader, Style: Title.Merge(core.Style{FontWeight: Heavy}), StyleFunc: ui.Colored(colors.Text)}}
+	}
 	if d.Header != nil {
-		title = d.Header
+		head = []core.Node{d.Header}
 	}
 	footer := d.Footer
 	if d.Nav != nil {
-		title, footer = d.Nav.bar(cx, d.Title), nil
+		head, footer = []core.Node{d.Nav.bar(cx, d.Title)}, nil
 	}
 	if !Tablet(cx) {
 		// A sheet is the page's grey, so the cards in it stand out as on a page, rounded more than a card at its top.
 		// TODO(nsgo#933): the touch sheet's grabber, padding, height, shadow and motion are fixed (ui/style.go:114-155, sheetPanel and sheetContent), so the sheet keeps NSGo's 36x5 grabber and 16pt padding rather than the design's 38x5 grabber and 6/16/34 padding. https://github.com/nsgo-dev/nsgo/issues/933
-		return ui.Dialog{TestID: d.TestID, Open: d.Open, LabelFunc: d.Title, OnOpenChange: change, OnConfirm: d.OnConfirm, Children: append([]core.Node{title}, d.Children...), Footer: footer,
+		return ui.Dialog{TestID: d.TestID, Open: d.Open, LabelFunc: d.Title, OnOpenChange: change, OnConfirm: d.OnConfirm, Children: append(head, d.Children...), Footer: footer,
 			StyleFunc: func() core.Style {
 				st := core.Style{Background: colors.Background()}
 				if ui.Touch(cx) {
@@ -97,7 +102,7 @@ func (d Dialog) Render(cx *core.Scope) core.Node {
 				return st
 			}}
 	}
-	body := append([]core.Node{title}, d.Children...)
+	body := append(head, d.Children...)
 	if footer != nil {
 		body = append(body, core.View{Style: core.Style{Direction: core.Row, Wrap: core.Wrap, JustifyContent: core.JustifyEnd, Gap: 8, Margin: core.Edges{Top: 4}}, Children: footer})
 	}

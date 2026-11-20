@@ -44,23 +44,17 @@ func TestAwayFromTheComputerTheLearningStateGoesThroughItsStorage(t *testing.T) 
 		sync.FieldSavedAt: field(now()), sync.FieldReview: field(sync.Review{Due: now().Add(24 * time.Hour)}),
 	}})
 	p.openTab(learnTab, msgs.LearnTitle())
-	p.app.WaitUntil(wait, func() bool { return strings.Contains(p.texts("id:learn-vocabulary"), msgs.LearnWordCount(3)) })
+	p.app.WaitUntil(wait, func() bool { return strings.Contains(p.texts("id:learn-vocabulary-section"), msgs.LearnWordsDue(3, 1)) })
 
-	p.app.Press("id:learn-vocabulary")
-	p.app.WaitFor("id:vocabulary-item-w-later", wait)
-	p.app.Press("id:vocabulary-remove-w-later")
-	p.app.Answer(1)
-	p.app.WaitForGone("id:vocabulary-item-w-later", wait)
+	p.removeWord("w-later")
 	p.app.WaitUntil(wait, func() bool { r, ok := d.State("lib", sync.KindWord, "w-later"); return ok && r.Removed != nil })
 
 	// Read-only, the phone's removal waits on it, while the computer's changes still come.
 	d.SetReadOnly(true)
 	relayTurns()
-	p.app.Press("id:vocabulary-remove-w-away")
-	p.app.Answer(1)
-	p.app.WaitForGone("id:vocabulary-item-w-away", wait)
+	p.removeWord("w-away")
 	d.SetState("lib", now(), sync.Record{Kind: sync.KindWord, ID: "w-morning", Fields: map[string]sync.Field{sync.FieldMeaning: field("早安")}})
-	p.app.WaitUntil(wait, func() bool { return strings.Contains(p.texts("id:vocabulary-item-w-morning"), "早安") })
+	p.app.WaitUntil(wait, func() bool { return strings.Contains(p.texts("id:learn-word-w-morning"), "早安") })
 	relayTurns()
 	if r, _ := d.State("lib", sync.KindWord, "w-away"); r.Removed != nil {
 		t.Fatal("the computer took a change of a read-only phone through its storage")
