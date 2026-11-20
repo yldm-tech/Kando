@@ -181,6 +181,11 @@ func (a *app) Lookup() film.Lookup {
 		return film.Lookup{}
 	}
 	out := film.Lookup{Open: true, Word: l.word, Line: l.line, Busy: l.busy, Failed: l.failed, NeedsAI: l.needsAI, Say: l.say, Term: vocabTerm(a.FilmTerms(), l.word, l.entry.Word), DictHint: l.dictHint}
+	if tier, rank, ok := a.pluginsWordLevel(lookup.WordLanguage(lookup.Query{Spoken: l.spoken, Word: l.word, Line: l.line}), l.entry.Word, l.word); ok {
+		label, id := tier.Label, tier.ID
+		out.Level = func(cx *core.Scope) string { return cmp.Or(label.In(i18n.Language(cx)), id) }
+		out.Tone, out.Rank = tier.Tone, rank
+	}
 	if !l.busy && !l.failed {
 		out.Word = cmp.Or(l.entry.Word, l.word)
 		out.Reading, out.Meaning = l.entry.Reading, l.entry.Meaning

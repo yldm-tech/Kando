@@ -1336,6 +1336,30 @@ func TestPluginWordlistMarksTheLines(t *testing.T) {
 	}
 }
 
+// TestPluginWordlistLevelOnTheCard checks the card of a word looked up: a word of the word list chosen in 逐词标注 shows its level, with its rank by frequency when the list gives one, before any meaning comes; a word the list has no rank for shows its level alone; and once no list is chosen, the card shows no level.
+func TestPluginWordlistLevelOnTheCard(t *testing.T) {
+	a, tt, updates, item := playerFilm(t, 12, nil)
+	a.library.Jobs[0].SpokenLanguage = "en"
+	pluginsDictInstalled(t, a, tt, updates, pluginWordlist("example.cefr", "en"), map[string][]byte{"words.tsv": []byte("hello\tb1\t12\nbye\tc1\n")})
+	playerOpenFilm(t, a, tt, updates, item)
+	playerLoadFilm(tt, a, 12*time.Second)
+	apply(tt, a, func() { a.SetMarkWordlist("example.cefr") })
+	waitUntil(t, tt, a, updates, func() bool { return a.plugins.marks.lines != nil })
+
+	apply(tt, a, func() { a.LookUpWord(0, "Hello") })
+	if !tt.Exists("id:film-lookup-level") || !hasText(tt, testlocale.Messages().VocabLookupLevelRank("B1", 12)) {
+		t.Fatalf("the card's level; texts %q", tt.Texts())
+	}
+	apply(tt, a, func() { a.LookUpWord(1, "bye") })
+	if !tt.Exists("id:film-lookup-level") || !hasText(tt, "C1") || hasText(tt, testlocale.Messages().VocabLookupLevelRank("C1", 12)) {
+		t.Fatalf("the card's level without a rank; texts %q", tt.Texts())
+	}
+	apply(tt, a, func() { a.SetMarkWordlist("") })
+	if tt.Exists("id:film-lookup-level") {
+		t.Fatalf("the card shows a level with no list chosen; texts %q", tt.Texts())
+	}
+}
+
 // TestPluginMarksFollowTheVocabulary checks the underline under the words of the vocabulary: a word added is underlined at the next report, and a word swapped for another, which leaves the vocabulary as long as it was, moves the underline to the new word.
 func TestPluginMarksFollowTheVocabulary(t *testing.T) {
 	a, tt, updates, item := playerFilm(t, 12, nil)

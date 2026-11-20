@@ -208,19 +208,7 @@ func (s *screen) subtitleLayer(cx *core.Scope, lines func() []styledLine, tip fu
 		return lookup.Tokens(text, loaded)
 	}
 	// The tones of the marks of a word list's tiers are the theme's roles, which color the lines drawn under the words.
-	tone := func(t string) (core.Color, bool) {
-		switch t {
-		case subtitle.ToneAccent:
-			return colors.Accent(), true
-		case subtitle.ToneWarn:
-			return colors.Warn(), true
-		case subtitle.ToneSuccess:
-			return colors.Up(), true
-		case subtitle.ToneMuted:
-			return colors.Muted(), true
-		}
-		return 0, false
-	}
+	tone := func(t string) (core.Color, bool) { return toneColor(colors, t) }
 	// A click on a word of the original looks it up, holding the film (LookUpWord); a click elsewhere on the lines is the picture's, as above. The original's words are drawn with the marks the app computed for them (CueMarks): readings over them, a thick line in the color of their tier under those of a word list, a dashed one under those in the vocabulary.
 	body := core.Dynamic(func(cx *core.Scope) core.Node {
 		l := look()
@@ -284,6 +272,21 @@ func (s *screen) subtitleLayer(cx *core.Scope, lines func() []styledLine, tip fu
 			Children: []core.Node{body},
 		}},
 	}
+}
+
+// toneColor is the color of the tone of a word list's tier (subtitle.ToneAccent and the others), a role of the theme colors read, false for none.
+func toneColor(colors ui.Colors, t string) (core.Color, bool) {
+	switch t {
+	case subtitle.ToneAccent:
+		return colors.Accent(), true
+	case subtitle.ToneWarn:
+		return colors.Warn(), true
+	case subtitle.ToneSuccess:
+		return colors.Up(), true
+	case subtitle.ToneMuted:
+		return colors.Muted(), true
+	}
+	return 0, false
 }
 
 // lineWords is what a click on a line's words does: look looks up the word clicked, and press is the click on the rest of the line; tokens cuts a line into its words, in a binding, as lookup.Tokens does. marks are the line's marks (CueMarks), read in a binding, and tone the color of a mark's tone, false for none.

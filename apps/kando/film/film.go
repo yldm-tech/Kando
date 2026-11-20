@@ -212,6 +212,10 @@ type Lookup struct {
 	Busy, Failed, NeedsAI, Saved bool
 	Say                          func(*ns.Scope) string
 	DictHint                     bool
+	// Level is the label of the word's tier in the word list chosen in 逐词标注, nil when the list has no such word or none is chosen; Tone is that tier's tone (subtitle.ToneAccent and the others) and Rank the word's rank by frequency in the list, 0 for none.
+	Level func(*ns.Scope) string
+	Tone  string
+	Rank  int
 }
 
 // Video is what the system's player plays and how. Source is "" while there is nothing to play, as while a video the system cannot open is copied into one it can (Remux).

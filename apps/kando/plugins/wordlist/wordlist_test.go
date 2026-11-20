@@ -34,6 +34,28 @@ func TestParse(t *testing.T) {
 	}
 }
 
+// TestParseRank checks the optional third column, a word's rank by frequency: a whole number from 1 to RankMax is kept, anything else leaves the word without a rank but in its tier, the columns after it are left out, and a word listed again keeps its first rank.
+func TestParseRank(t *testing.T) {
+	file := "猫\tn5\t12\n犬\tn1\t 3 \tnoun\n鳥\tn5\t0\n魚\tn5\t-4\n馬\tn5\t1000001\n牛\tn5\tmany\n羊\tn5\n虎\tn1\t1000000\n猫\tn1\t1\n"
+	l, err := Parse(strings.NewReader(file), tiers)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for word, want := range map[string]int{"猫": 12, "犬": 3, "鳥": 0, "魚": 0, "馬": 0, "牛": 0, "羊": 0, "虎": RankMax, "missing": 0} {
+		if got := l.Rank(word); got != want {
+			t.Errorf("Rank(%q) = %d; want %d", word, got, want)
+		}
+	}
+	for _, word := range []string{"鳥", "魚", "馬", "牛", "羊"} {
+		if got, ok := l.Tier(word); !ok || got.ID != "n5" {
+			t.Errorf("Tier(%q) = %+v, %v; want n5", word, got, ok)
+		}
+	}
+	if got, _ := l.Tier("猫"); got.ID != "n5" {
+		t.Errorf("a word listed again changed its tier: %+v", got)
+	}
+}
+
 // TestParseEmpty checks that a list with no word of a declared tier is refused.
 func TestParseEmpty(t *testing.T) {
 	for _, file := range []string{"", "# only a comment\n", "猫\tn9\n", "猫\n"} {

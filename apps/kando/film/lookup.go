@@ -13,7 +13,7 @@ import (
 // lookupGlass is the glass of the card of a word looked up, as the selection bar's.
 var lookupGlass = glassSpec{theme.GlassCard, 16}
 
-// lookupCard is the card of the word looked up on the picture (App.Lookup), under the title bar in the middle of the room the side panel leaves, clear of the lines it was clicked in: the word, how it is read and the × that closes it, what it means in the line, or that a dictionary or the AI service is asked, or why no meaning came, where the meaning came from, the film's glossary's term for it when it has one, and the line itself; then Add to Vocabulary, In Vocabulary once it is there, which takes it out again, and Explain Line, or Open Settings when no AI service can answer; and at its foot, once, the hint to install an offline dictionary with the button that opens Settings › 插件 (Lookup.DictHint). Escape closes it.
+// lookupCard is the card of the word looked up on the picture (App.Lookup), under the title bar in the middle of the room the side panel leaves, clear of the lines it was clicked in: the word, how it is read, its level in the word list chosen, in the color of the line under its words, with its rank by frequency when the list gives one (Lookup.Level), and the × that closes it, what it means in the line, or that a dictionary or the AI service is asked, or why no meaning came, where the meaning came from, the film's glossary's term for it when it has one, and the line itself; then Add to Vocabulary, In Vocabulary once it is there, which takes it out again, and Explain Line, or Open Settings when no AI service can answer; and at its foot, once, the hint to install an offline dictionary with the button that opens Settings › 插件 (Lookup.DictHint). Escape closes it.
 func (s *screen) lookupCard() core.Node {
 	a, cx := s.a, s.cx
 	open := live.Memo(cx, a, func() bool { return a.Lookup().Open })
@@ -38,6 +38,24 @@ func (s *screen) lookupCard() core.Node {
 					Style: core.Style{FontSize: 20, LineHeight: 26, FontWeight: core.FontWeightSemibold, Color: onGlass}},
 				core.Show{When: func() bool { return l().Reading != "" }, Then: func(*core.Scope) core.Node {
 					return core.Text{TestID: "film-lookup-reading", ContentFunc: func() string { return l().Reading }, Style: core.Style{FontSize: 13, LineHeight: 18, Color: muted}}
+				}},
+				core.Show{When: func() bool { return l().Level != nil }, Then: func(cx *core.Scope) core.Node {
+					return core.Text{TestID: "film-lookup-level", ContentFunc: func() string {
+						x := l()
+						if x.Level == nil {
+							return ""
+						}
+						if x.Rank > 0 {
+							return locales.VocabLookupLevelRank(cx, x.Level(cx), x.Rank)
+						}
+						return x.Level(cx)
+					}, Selectable: core.SelectableOn, Style: core.Style{FontSize: 12, LineHeight: 18, FontWeight: core.FontWeightMedium},
+						StyleFunc: func() core.Style {
+							if c, ok := toneColor(ui.ColorsOf(cx), l().Tone); ok {
+								return core.Style{Color: c}
+							}
+							return core.Style{Color: muted}
+						}}
 				}},
 			}},
 			barGlyph(cx, "×", func() string { return locales.VocabLookupClose(cx) }, "escape", "film-lookup-close", live.Do(a, a.CloseLookup)),

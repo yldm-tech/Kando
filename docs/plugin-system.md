@@ -6,7 +6,7 @@
 
 ### 目标
 
-- 不发新版本，也能让用户和第三方给看懂加内容。第一批是学语言的人最常用的几类：离线词典、词表（JLPT/HSK/CEFR 等级和词频）、术语表、AI 服务预设、翻译风格。之后再开放能执行逻辑的扩展：命令、查词来源、字幕导出格式、学习导出目标、逐词标注和候选译文来源。
+- 不发新版本，也能让用户和第三方给看懂加内容。第一批是学语言的人最常用的几类：离线词典、词表（JLPT/HSK/CEFR 等级，可带词频排名）、术语表、AI 服务预设、翻译风格。之后再开放能执行逻辑的扩展：命令、查词来源、字幕导出格式、学习导出目标、逐词标注和候选译文来源。
 - 整个插件系统作为一个新的块接入，遵守 `apps/kando/AGENTS.md`。纯逻辑放在非界面子包里，每个共享文件只加一行。插件状态经 `live` 层读，后台工作经 `a.update` 回到引擎 goroutine。
 - 能执行的插件只用固定版本 NSGo（`v0.1.1-0.20261118094851-ec272782be28`）自带的 `nsgo/tsx` 和 `nsgo/tsx/pkg`。不自己造 JS 引擎、沙箱、签名或吊销机制，也不新增 module。
 - 插件永远碰不到这些东西：settings.json、library.json、用户的 LLM key、浏览器 cookie、绝对路径，以及还没播到的字幕。
@@ -42,9 +42,10 @@
 - 接入位置：`apps/kando/film/subtitle.go` 的 `type lineWords struct` 加了 `marks func() []subtitle.Mark`（在 `subtitleLayer` 里为每行原文建一个 `core.NewMemoFunc`，经 `live.Func` 读 `film.App.CueMarks(cue)`，只在这行的标注变了时才让 spans 重算）。`withWords` 改成调 `lineSpans`：在词的边界和每个标注的边界处切开（画线的标注也切，因为标注和词的切分不一定一致），带读音的一段是 `core.Span.Attachment`（一个上面是小一半字号的读音、下面是原文的 view），点它照样查它所在的词；view 里那段原文量出自己的基线后挂到 view 下面，view 用 `VerticalAlignBaseline` 放在行的基线上，这样回退到 CJK 字体的字和它下面的线与旁边的字对齐（量到之前用 `VerticalAlignTextBottom`，原因见第 15 节「插件截图核对」）；其余标注不改字的颜色（字保持用户选的字幕颜色），而是在字下面画线：有 `Tone` 的画一条该等级颜色的粗实线（`TextDecorationUnderline`，`TextDecorationColor` 取 tone 的颜色，`TextDecorationThickness` 是字号的 9%，`TextUnderlineOffset` 是 14%），`Underline`（已学词）画虚线（`DecorationDashed`），两者都有时是 tone 颜色的虚线，所以等级和已学词永远不会看起来一样，彩色的线在任何字幕颜色上都看得见（owner 的决定）。NSGo 固定版本的 `core.Style` 有下划线的颜色、样式、粗细和位置（`core/style.go:220-230`），macOS、Windows、Linux 的文字后端都画得出来，不需要绕行。描边模式下原文要画十份（撑开大小的一份、九份黑色描边、最上面的一份），读音会改变行的排版，所以下面的九份和撑开大小的那一份也带上同样的读音 view（`withReadings`，不接点击，不画线），没有读音时它们照旧直接画 Content。
 - 颜色不写字面量：`accent`、`warn`、`success`、`muted` 分别取 `ui.Colors` 的 `Accent()`、`Warn()`、`Up()`、`Muted()`（播放器那棵子树用深色主题）。
 - `Mark` 定义在叶子包 `film/subtitle`（`Start, End int`、`Ruby`、`Tone`、`Underline`，字节偏移落在这一行原文里），所以 `film` 不导入插件包。计算放在非界面包 `plugins/annotate`，它有一个字段完全相同的 `annotate.Mark`，app 用类型转换 `subtitle.Mark(m)` 换过去，两边字段一旦不同就编译不过。一个词可以有两种标注：带 `Ruby` 的只盖住它的汉字部分（`食べた` 的读音 `た` 只在 `食` 上，词中间的假名在读音里只有一种对法时在那里切开，`山の上` 是 `山` 标 `やま`、`上` 标 `うえ`，对法不止一种时（`物の怪` 读 `もののけ`，`物` 可以是 `も` 也可以是 `もの`）照旧整段一个读音，前后相同的假名去掉），不带 `Ruby` 的在整词下面画线。
-- 数据来源：日语的读音来自 P1.2 的 `segment.Annotated`（IPA 词典的片假名读音换成平假名），只在启用了日语词典包、或选了日语词表时才读那份大词典，否则日语没有读音，词表和已学词也只按表层形查；不读大词典时，凡是 `segment.Annotated` 会按日语切的行（说话语言是 `ja`，或者说话语言不是 `zh` 而行里有假名，比如英语片里夹一句日语）都改用 `segment.Words` 和小词典切，免得一部非日语影片因为一行假名就读进那份约 92 MiB 的词典；假名注音去掉前后相同的假名时，长音符 `ー`（含半角 `ｰ`）和半角片假名也算假名（`ラーメン屋` 读 `らーめんや` 只在 `屋` 上标 `や`），半角浊音符号 `ﾞ` `ﾟ` 不合并，遇到时读音盖住的范围宽一些；中文的读音（拼音）取自已启用的中文词典包（`a.pluginsDictsFor("zh", "")` 的顺序，第一个有读音的），同一个词一次计算里只查一次；等级来自选中的 wordlist 包，日语先按原形再按表层形查，只给语言和词表 `language` 相同的行上色；已学词来自生词本（`savedBook().Words` 里说话语言和这部影片相同的词（`annotate.SpokenIn`），按 `wordlist.Key` 小写比较），没有用 study 的 `WordIndex`，因为要一次判断整部影片的所有词。没有词频。
+- 数据来源：日语的读音来自 P1.2 的 `segment.Annotated`（IPA 词典的片假名读音换成平假名），只在启用了日语词典包、或选了日语词表时才读那份大词典，否则日语没有读音，词表和已学词也只按表层形查；不读大词典时，凡是 `segment.Annotated` 会按日语切的行（说话语言是 `ja`，或者说话语言不是 `zh` 而行里有假名，比如英语片里夹一句日语）都改用 `segment.Words` 和小词典切，免得一部非日语影片因为一行假名就读进那份约 92 MiB 的词典；假名注音去掉前后相同的假名时，长音符 `ー`（含半角 `ｰ`）和半角片假名也算假名（`ラーメン屋` 读 `らーめんや` 只在 `屋` 上标 `や`），半角浊音符号 `ﾞ` `ﾟ` 不合并，遇到时读音盖住的范围宽一些；中文的读音（拼音）取自已启用的中文词典包（`a.pluginsDictsFor("zh", "")` 的顺序，第一个有读音的），同一个词一次计算里只查一次；等级来自选中的 wordlist 包，日语先按原形再按表层形查，只给语言和词表 `language` 相同的行上色；已学词来自生词本（`savedBook().Words` 里说话语言和这部影片相同的词（`annotate.SpokenIn`），按 `wordlist.Key` 小写比较），没有用 study 的 `WordIndex`，因为要一次判断整部影片的所有词。词频是词表文件可选的第三列（见第 4 节的字段规则），不画在字幕上，只在查词卡上和等级一起显示（见下面「查词卡」一条）。
 - 何时计算：插件块自己的 `playing` 和 `afterChange` 钩子（都是 `pluginsMarksFollow`；`afterChange` 管暂停时的改动，比如改了一行字幕、往生词本里加了词）每次只算一个可比较的键 `pluginsMarkKey`：视频、字幕哈希（`pluginsSubsHash`：只哈希每行的起止时间和原文（`film.SplitCue`），不含译文，所以翻译一批批写进来、或只改了译文时不重算；播放器换字幕时总是换一个新切片、从不原地改，所以只在切片变了时才重新哈希）、说话语言、三个开关、选中词表的 id 和内容哈希、已打开的中文词典的 id 和哈希、是否读大词典，以及生词本的内容指纹（`pluginsVocabHash`：和影片说话语言相同的词按 `wordlist.Key` 各取 `maphash.String` 哈希（本次运行的种子，不分配内存）后求和，再带上词数，与顺序无关；生词本是原地改的（`study.Book` 的 `slices.Insert`/`Delete`），改它的地方很多（生词本、收藏的句子、两种同步），没有用改动计数器，因为每处都得记得加一，漏一处下划线就不更新，所以每次报进度都扫一遍，只在下划线开着时才算；加词、删词、换词都会重算）。键和已有标注的键、正在算的键都不同时，才在后台 goroutine 里 `annotate.Lines`，算好经 `a.update` 存成不可变的切片；同一时刻只有最新的一份在算：开始新的一份、或键又回到已有标注的键时，前一份的停止标记（`pluginsUI.stop`，`annotate.Sources.Stop`）被置上，它在下一行之前停下，结果即使送回来也丢掉，免得它算完后盖掉当前的标注。它忘掉已读的词表（不再是选中的那份）时也报告有变化，因为插件页的问题区读它。开关在设置里改动时也调一次它；三个开关都关掉或影片没有字幕时丢掉标注。字幕文件被改写后播放器重读（`reloadOpenSubtitles`，字幕还没读完时 `subs.ready` 是 false）期间，它既不丢标注也不丢正在算的那一份，读回来的原文没变就直接沿用。缓存只留当前影片这一份（`pluginsUI.marks`），换回之前看过的影片会重算。不放在 `shelfChanged` 里算，因为每次任务报进度都会触发它；也不去 film 块的打开函数里插调用。绑定里只读缓存，从不调用插件，也不在里面算哈希：`CueMarks` 核对缓存的视频和行数与当前相同，再核对这一行的原文和算标注时的原文（`pluginsMarks.originals`）相同，所以字幕换了切片、新标注还在算的时候，原文没变的行照旧显示旧的标注，读音不会消失再出现、行高不会跳；原文改过的行在新标注到之前不显示标注，旧标注不会画在新文字上。
 - 开关在 设置 › 字幕外观 最后的「逐词标注」卡片（见 7.4）。
+- 查词卡：点的词在「按等级画线」选中的词表里时，卡片在读音后面写出它的等级（tier 的 `label`，按界面语言取，没有就用 id），颜色和字下面那条线一样（`film.toneColor`，同一套主题角色）；词表给了词频时写成「N3 · 词频第 1,834 位」（`vocabLookupLevelRank`，一条带 `level`、`rank` 占位符的文案），没给时只写等级。等级在释义还没回来时就显示。查法和画线一样：先按词典给的原形（`entry.Word`），再按点的词，只查语言和词表 `language` 相同的词（`lookup.WordLanguage`）。卡片只读为标注读进内存的那份词表（`pluginsWordLevel` 读 `pluginsUI.list`，id 和哈希都要和选中的包相同），不另读文件，所以没选词表、或词表还没读完时不显示等级。`film.Lookup` 加了 `Level`（`func(*Scope) string`，语言切换时跟着变）、`Tone`、`Rank`。手机的查词卡不显示等级和词频：手机只从 `films.marks` 拿到标注的 tone，没有等级名称，`psync.WordEntry` 也没有等级字段；要显示得在 `WordEntry` 加可选字段，本次没做。`kando.words.read` 读的是生词本，没有等级，所以也不带词频。
 - 手机端（P1.6）：手机不跑插件、不读那份日语大词典，标注由桌面算好经手机同步发过去。协议 v2 新增调用 `films.marks`（`psync.OpFilmMarks`，`packages/sync/marks.go`），参数是 `FilmRef`，回 `FilmMarks{Pending, Lines}`：只列有标注的行，每行是 `LineMarks{Line, Hash, Marks}`，`Line` 是这一行在 `PathSubtitles` 回的字幕里的序号，`Hash` 是算标注时这一行原文的 `psync.LineHash`（FNV-1a 64 位，36 进制），`Marks` 是 `psync.Mark`（字段和 `subtitle.Mark` 完全相同，桌面直接类型转换，tone 用同名常量 `psync.ToneAccent` 等）。手机用 `FilmMarks.Of(originals)` 按序号对齐自己的原文，哈希不同的行（手机上改过原文的行、或手机存的字幕比桌面旧）不画标注。它是 v2 里新增的调用：桌面在 `Hello.Ops` 里列出它，旧桌面回 `unsupported`（v1 桌面回 404），手机照旧不画标注；旧手机不会调它；它只读（不算 `Mutates`），只读设备也能调。所以不升协议版本，`TestFilmMarksIsAnAddition`、`TestDeskAnswersFilmMarks` 和 `synctest` 的 `TestFilmMarksOverV2` 锁住两个方向。
   - 桌面（`state_phonesync_marks.go` 的 `phoneMarks`，计算在插件块的 `state_plugins_phonemarks.go`）：找到手机要的影片（`phoneFilmFind`，任何没上锁的资料库），读手机读到的那份字幕（`phoneSource.Cues`），在引擎 goroutine 上用 `pluginsMarkKeyFor` 算键（和当前影片同一套：视频、说话语言、三个开关、词表和中文词典的内容、是否读大词典、生词本指纹；字幕哈希换成只哈希各行原文的 `annotate.LinesHash`，因为手机的行不带播放器的时间），开关全关时回空列表，手机据此丢掉存着的标注。当前影片的标注（`pluginsUI.marks`）原文和键（除字幕哈希）都相同时直接用；否则查 `pluginsUI.phone.kept`（最近 8 部影片，最新的在后），都没有就在后台 goroutine 里算（和当前影片共用 `pluginsMarkJobFor`、`pluginsMarkJob.run`，每部影片同时只算一份（`running` 按视频），同一个键的调用等同一份结果，键不同的新调用（行多了、或标法变了）先停掉旧的那份，旧的即使后算完也丢掉，不会盖掉新的；开关一改、或 app 退出，正在算的都停掉；算完存进 `kept`。插件目录还没读完（`scanned`）、或读音开着而某个启用的词典还没打开完时（`pluginsMarksReady`），什么也不算，直接回 `Pending`，免得刚启动的桌面回一份没有词表或读音的结果、手机拿它盖掉存着的标注。局域网上的调用最多等 10 秒，经存储中转的调用不等（等着会挡住后面的调用），没算完回 `Pending`，手机过后再问。一行的标注只取决于它的原文和开关，所以同一部影片、同样标法之前算过的原文（当前影片的 `byOriginal`，或 `kept` 里这部影片的那一份）不再重算（`pluginsMarksHad`）：边播边做字幕的影片（#306）每次问都多几行，只算新的行，`kept` 里每部影片、每种标法只留最新一份；手机读到的行和标注用的行都来自 `phoneSource.Cues`（字幕文档的 `View()` 加上用户的更正），所以序号和原文一致，还没做出来的行不在里面，靠每行的哈希保护。生词本只有当前资料库的（`savedBook`），所以虚线只画在当前资料库的影片上，别的资料库的影片只有读音和等级线。
   - 手机：手机没有自己的三个开关，跟桌面 设置 › 字幕外观 › 逐词标注 走；只在 设置 › 字幕样式 加了一个「逐词标注」总开关（`store.SubStyle.NoMarks`，默认开），关掉时字幕层和卡片都不画标注。打开影片时（`session.OpenMarks`）先读影片目录里的 `marks.json`，再在局域网上问桌面（桌面说过不支持 `films.marks` 的不问；`Pending` 时隔一秒再问，最多再问两次），回答写回 `marks.json`，所以离线播放照样有标注；视频下载完时也问一次；播放时 `Follow` 拿到桌面改过的字幕、原文和之前不同时（校对过的、或边播边做字幕多出来的行）再问一次，正在问的那次结束后补问。画法照桌面（`apps/mobile/player/marks.go` 的 `markSpans`）：读音是 `core.Span.Attachment`（上面是半字号的读音，`VerticalAlignTextBottom`），等级是该 tone 的粗实线，已学词是虚线，粗细和位置都按字号的比例（9%、14%）；颜色取主题角色（`Accent`、`Warn`、`Up`、`Muted`），不写字面量。画面上的字幕和竖屏的卡片都画；卡片上没有标注的词照旧是那条淡黄色的「可点」细线。截图场景 `TestScreenshotsPlayerMarks`（`player-marks`，日语原文带读音、两条等级线和一条虚线）。
@@ -215,7 +216,7 @@ kind 是封闭枚举：`dictionary`、`wordlist`、`glossary`、`ai-service`、`
   - `archive/zip` 打开 zip 时会先把中央目录的每一条记录都读进内存，不管记录数是多少，所以一个由几百万条空记录组成的 zip 会在任何上限生效之前就分配几 GB。外层 zip 和嵌套 zip 都经 `openZip` 打开：它在 `zip.NewReader` 读目录期间最多放行 1 MiB 的读取，超出就是 `ErrTooLarge`；64 个条目的目录加上最长 64 KiB 的注释远小于这个数。
 - **从文件夹安装**：用 `Lstat` 逐项检查，遇到符号链接或特殊文件就拒绝，再把普通文件复制进 staging，最后校验的是 staging 里的副本。不能先校验原目录再复制，那样有 TOCTOU 问题。打开每个文件后再用 `os.SameFile` 比对 Lstat 的结果，检查和打开之间被换成链接的文件也会被拒绝。文件管理器写进文件夹的文件（访达的 `.DS_Store`，资源管理器的 `Thumbs.db`、`desktop.ini`，后两个不分大小写）在复制时跳过，`Validate` 列文件时也跳过：不检查、不计数、不算进哈希，也从不读取。所以用户在访达里打开已安装包的目录后，下次 `Scan` 这个包照样有效、哈希不变。zip 里的这些文件仍按普通文件名规则处理（`.DS_Store` 以点开头，被拒收）。
 - **内容哈希**：对排序后的「路径、长度、字节」序列做 SHA-256，授权绑定在这个哈希上。路径和内容的长度都写成 8 字节大端整数，字节在名字和内容之间、或在相邻文件之间挪动都会改变哈希。
-- **字段规则**（`plugins.Validate`）：`version` 由字母、数字和 `.`、`+`、`-` 组成，不超过 32 字节；`license` 必填，不超过 64 个字符；`author` 可选，不超过 80 个字符；`homepage` 可选，规则同 https 地址；`Text` 的键必须是规范写法的语言标签（`zh-Hans`，不是 `zh-hans`），这样 `Text.In` 能用 app 的语言直接找到；名称和 label 不超过 40 个字符，`description` 和 `attribution` 不超过 500 个字符，都先清洗再计长度。glossary 的 `from`、`to` 是语言标签，1 到 5000 条，每条原文和译文各不超过 200 个字符；ai-service 的 `group` 只能是 `cloud` 或 `local`，`model` 不超过 200 个字符，地址不能带用户名和密码；dictionary 的 `format` 是 `yomitan-zip`、`cc-cedict` 或 `tsv`，只有 yomitan-zip 的文件以 `.zip` 结尾（yomitan-zip 是 Yomitan 导出的词典 zip，只读其中的 `term_bank_<n>.json`；cc-cedict 是 CC-CEDICT 的 UTF-8 文本；tsv 每行是 `词条<TAB>读音<TAB>释义` 或 `词条<TAB>释义`，`#` 开头的行是注释，第三列之后的列忽略）；wordlist 有 1 到 32 个 tier，tier 的 id 匹配 `^[a-z0-9][a-z0-9-]{0,31}$` 且不重复，`tone` 是 `accent`、`warn`、`success`、`muted` 之一；它的文件每行是 `词<TAB>tier 的 id`，之后的列忽略，`#` 开头的行是注释，没有 tab 的行和 tier 没声明过的行忽略，同一个词再出现时保留第一次的 tier，词按小写比较，一个词也没留下的词表打开时以 `wordlist.ErrEmpty` 拒绝（P1.4）。task、translate-style、export-template 的字段规则（P2）写在 E6、E5、E7。清单里只能有自己那个 kind 的字段（task、style、template 三个键分别对应三种 kind）。
+- **字段规则**（`plugins.Validate`）：`version` 由字母、数字和 `.`、`+`、`-` 组成，不超过 32 字节；`license` 必填，不超过 64 个字符；`author` 可选，不超过 80 个字符；`homepage` 可选，规则同 https 地址；`Text` 的键必须是规范写法的语言标签（`zh-Hans`，不是 `zh-hans`），这样 `Text.In` 能用 app 的语言直接找到；名称和 label 不超过 40 个字符，`description` 和 `attribution` 不超过 500 个字符，都先清洗再计长度。glossary 的 `from`、`to` 是语言标签，1 到 5000 条，每条原文和译文各不超过 200 个字符；ai-service 的 `group` 只能是 `cloud` 或 `local`，`model` 不超过 200 个字符，地址不能带用户名和密码；dictionary 的 `format` 是 `yomitan-zip`、`cc-cedict` 或 `tsv`，只有 yomitan-zip 的文件以 `.zip` 结尾（yomitan-zip 是 Yomitan 导出的词典 zip，只读其中的 `term_bank_<n>.json`；cc-cedict 是 CC-CEDICT 的 UTF-8 文本；tsv 每行是 `词条<TAB>读音<TAB>释义` 或 `词条<TAB>释义`，`#` 开头的行是注释，第三列之后的列忽略）；wordlist 有 1 到 32 个 tier，tier 的 id 匹配 `^[a-z0-9][a-z0-9-]{0,31}$` 且不重复，`tone` 是 `accent`、`warn`、`success`、`muted` 之一；它的文件每行是 `词<TAB>tier 的 id`，可选的第三列是这个词的词频排名（`1` 是最常用的词，1 到 `wordlist.RankMax`（一百万）的整数；不是这样的整数时忽略这一列，词照旧按 tier 收下），再之后的列忽略，`#` 开头的行是注释，没有 tab 的行和 tier 没声明过的行忽略，同一个词再出现时保留第一次的 tier 和词频，词按小写比较，一个词也没留下的词表打开时以 `wordlist.ErrEmpty` 拒绝（P1.4）。task、translate-style、export-template 的字段规则（P2）写在 E6、E5、E7。清单里只能有自己那个 kind 的字段（task、style、template 三个键分别对应三种 kind）。
 
 ### 4.1 数据包示例
 
@@ -257,6 +258,15 @@ kind 是封闭枚举：`dictionary`、`wordlist`、`glossary`、`ai-service`、`
     ]
   }
 }
+```
+
+`jlpt.tsv` 每行是一个词、它的 tier 和可选的词频排名，用 tab 隔开：
+
+```tsv
+# word	tier	rank
+川	n5	412
+流れ	n3	1834
+承る	n1
 ```
 
 ```json
@@ -846,7 +856,7 @@ P1.1 的确认框只有数据包要显示的部分：名称（标题）、说明
 ### 7.4 角色选择的位置
 
 - 设置 › 字幕外观 最后的「逐词标注」卡片（`settings.Marks`，读自己的 `settings.MarksApp`，照 `Window.Plugins` 的先例由 `settings.Window.Marks` 注入，不扩大 `settings.App`）：「注音或拼音」开关（说明写明日语假名要启用日语词典包、或在「按等级画线」里选日语词表，只装了日语词表包而没选它不会读大词典）、「按等级画线」下拉框（「关闭」加上已启用的词表包，名称取包的 `name`；说明写明会在词下面画一条该等级颜色的粗线）、「标出已学词」开关（说明写明是虚线）。三项默认都关。（看懂的 设置 › 通用 › 外观 只管明暗，所以放在字幕外观。）
-- 查词卡在底部标出来源，例如「JMdict」或「AI」。学日语或中文的用户第一次点词时，卡片底部提示「装离线词典，查词更快、不耗 AI」，点了打开设置 › 插件。条件是这个词是日语或中文（`lookup.WordLanguage`），插件目录已经读过，并且没有装这种语言的词典包（开没开都算装了）；只提示一次，提示过就记在 settings.json（`savedPlugins.PluginDictHintShown`，`pluginsDictHint`）。
+- 查词卡在读音后面写出这个词在选中词表里的等级，词表给了词频时带上排名（「N3 · 词频第 1,834 位」，见 E2）。查词卡在底部标出来源，例如「JMdict」或「AI」。学日语或中文的用户第一次点词时，卡片底部提示「装离线词典，查词更快、不耗 AI」，点了打开设置 › 插件。条件是这个词是日语或中文（`lookup.WordLanguage`），插件目录已经读过，并且没有装这种语言的词典包（开没开都算装了）；只提示一次，提示过就记在 settings.json（`savedPlugins.PluginDictHintShown`，`pluginsDictHint`）。
 - 设置 › AI 的服务商下拉框里，插件预设排在内置预设之后，每项写成「插件 · <包名> · <host>」（`ui.Select` 还没有带标题的分组，见 E4）。点「获取 API Key」时先用系统提示框显示目标域名再打开。
 - 导出字幕的格式下拉框、学习导出的目标列表里出现插件项，后面标出插件名。
 - 插件经 `kando.glossary.suggest` 提议的术语列在播放器「术语」标签的「片中找到的术语」里，排在 AI 服务的建议后面，每条下面一行写「来自插件「<插件名>」」（`film.Glossary.TermSuggestionPlugin`），「添加」「不用」和 AI 服务的建议一样。
@@ -884,7 +894,7 @@ P1.1 的确认框只有数据包要显示的部分：名称（标题）、说明
   - `names.go`：清洗、长度限制、保留名单
   - 测试跟着进包
 - `apps/kando/plugins/dict/`：解析 Yomitan（term bank 的第 1 版和第 3 版格式，含 structured-content）、CC-CEDICT（繁简两种写法都能查，词条按点的那种写法显示，拼音改成声调符号）、TSV（`词条<TAB>读音<TAB>释义`，或没有读音的两列），包装好后第一次打开时在插件目录的 `.index/` 下生成排序索引 `<id>_<哈希前 16 位>.idx`，查词时在磁盘上二分查找，不整份读进内存，用完可以 Close。建到一半中断留下的临时文件（`<索引名>.build-*`）由同一内容的下一次 Open 或这个包其他内容的 Forget 删掉。查词时读到损坏的索引，app 关掉它并立刻重建；打开失败的原因可能是暂时的（读写文件出错，`dict.Retry`）时，下一次同步再试，词典本身读不了（`dict.ErrEmpty`、格式错误）时等内容变了再试。
-- `apps/kando/plugins/wordlist/`：解析词表，word → tier（整份读进内存的 map，按小写查）。
+- `apps/kando/plugins/wordlist/`：解析词表，word → tier 和可选的词频排名（整份读进内存的 map，按小写查）。
 - `apps/kando/plugins/annotate/`（P1.4）：把一部影片的各行原文算成 `annotate.Mark`（读音、等级色、已学词下划线），只依赖 `lookup`、`plugins/wordlist` 和 `segment`。
 - `apps/kando/plugins/script/`（P3）：
   - Trust：OpenTrust，每次启动 AddRoot 内嵌根和 dev 根，吊销。
@@ -945,7 +955,7 @@ P1.1 的确认框只有数据包要显示的部分：名称（标题）、说明
   - 九种 kind 现在都已实现（`Kind.implemented`），没有被拒收的。`ErrUnsupportedKind` 的路径留给以后新加的 kind：解析器认得、这个版本还不装的 kind 被 `Validate` 拒收，不报未知键；眼下没有这样的 kind，所以没有对应的测试。
   - Grant 子集比较（P3）：只扩 credential 的 hosts、只改 header 或 format、只加一条 network 规则，都应判为扩大能力；换签名者时授权作废。
 - **对解析器做模糊测试**：`go test -fuzz` 覆盖 `Parse` 和 zip 解包，跑在 CI 里，带 `-fuzztime` 上限。
-- **`dict` 和 `wordlist`**：用小型样例词典验证索引构建、二分查找、原形查询、CC-CEDICT 的拼音，以及 Close 之后 Swap 能成功；词表的注释、未知 tier、大小写、重复词和空词表。真实词典的测量（`dict.TestRealDictionary`）只在设了 `KANDO_DICT_BENCH`（词典文件的路径）时跑，CI 不下载词典，结果见第 15 节。
+- **`dict` 和 `wordlist`**：用小型样例词典验证索引构建、二分查找、原形查询、CC-CEDICT 的拼音，以及 Close 之后 Swap 能成功；词表的注释、未知 tier、大小写、重复词和空词表，以及第三列的词频（合法的排名、0、负数、超过 `RankMax`、不是数字，和重复词保留第一次的排名）。真实词典的测量（`dict.TestRealDictionary`）只在设了 `KANDO_DICT_BENCH`（词典文件的路径）时跑，CI 不下载词典，结果见第 15 节。
 - **`annotate`**（P1.4）：假名注音去掉前后相同的假名；日语按原形查词表和生词本；没有大词典时只按表层形；中文拼音取第一个有读音的词典；别的语言的词表不画线。`film` 包的 `lineSpans` 测读音 view、等级的彩色实线（字的颜色不变）、已学词的虚线、越界标注被丢弃和描边副本只带读音，以及标注的边界落在词中间时只在标注自己的字下面画线。app 层测换词（词数不变）后下划线跟着换，键回到原值时丢掉过期的计算，以及译文写进来（字幕文件改写、重读）时标注一直在、不重算，原文改了才重算、新标注到之前原文没变的行照旧显示旧的、改了的那行不显示；新的一份计算会停下前一份。
 - **`segment.Annotated`**：`行った` 得到原形 `行く`；`Words` 的输出与改动前逐字相同。
 - **`core.ValidateVideoSite`**：拒绝嵌套量词、反向引用、环视。
@@ -982,7 +992,7 @@ P1.1 的确认框只有数据包要显示的部分：名称（标题）、说明
   - 在 CLI inbox 放一个文件，app 只弹确认，不直接安装。
   - P4：`browserExtVideo`、remote 的 `browser.*` 和 `sites` 都不认插件站点，网页按钮的两个入口只认已同意的插件站点，且用宿主的匹配器重新判断，CLI 和 MCP 的 `add` 不把它当站点包的任务；站点包任务的 Tools 不带 Cookies 和 SiteCookies；每个域名单独同意（`TestPluginSite*`）。
   - 现有的 `settings_file_test`、`locales/catalog_test` 照常要求：五份 catalog 齐全、settings 键唯一、没有自定义 Marshal。
-- **截图**：`screenshot_plugins_test.go` 的 `TestScreenshotsPlugins` 覆盖插件列表、安装确认、详情页、查词卡来源标注、带注音和等级色的字幕。样例包放在 `f.home`，路径显示成 `~/…`，不读本机环境。
+- **截图**：`screenshot_plugins_test.go` 的 `TestScreenshotsPlugins` 覆盖插件列表、安装确认、详情页、查词卡来源标注、带注音和等级色的字幕，以及带等级和词频的查词卡（`plugins-lookup-level`）。样例包放在 `f.home`，路径显示成 `~/…`，不读本机环境。
 - **P3 spike 的性能和安全门槛**：
   - 量出链接 goja 前后三平台的二进制大小差；
   - 在 CI 上跑三平台的空插件 Load 和 Call，测「引擎 goroutine 单次阻塞的最长时间」和 in-flight 写盘的开销；
@@ -1165,6 +1175,7 @@ P0–P2 不新增任何 module。P3a 起 `github.com/dlclark/regexp2/v2 v2.11.0`
 | P5 翻译来源（E14） | 贡献块 `translators`、`translate`/`candidates` 导出、设置 › 翻译 的「翻译来源」、`media.Tools.Engine` 的插件适配器、⇧E 改走 `Tools.Candidates`、带码的来源失败、官方 DeepL 插件 `kando.deepl` | `feat/plugins-translators` | 已完成，出入见下 |
 | P5 E15 | 播放器侧栏的「扩展」标签：`contributes.panels`、`script.Runner.Panel`（`tsx.View` 外包 `core.Catch`，同一个沙箱，失败计入熔断）、面板视图自己的 Host 和 `line.changed`、`film.Extender`、选择存进 `pluginPanel` | `feat/plugins-panels` | 已完成，出入见下 |
 | 授权页补齐 | 6.7 的残余风险上授权页、单端点规则的说明、详情的权限四组、安装确认的大小、列表的「需要授权」「离线时不可用」、数据包的审计记录；6.2 的权限依赖改成如实写「没有依赖」 | `feat/plugins-grant-ux` | 已完成，出入见下 |
+| P1 词频 | 词表文件可选的第三列词频排名（`wordlist.RankMax`），查词卡在读音后面写出等级和词频 | `feat/plugins-wordlist-rank` | 已完成，出入见下 |
 | P5 其余 | 按需单独立项 | — | 未开始 |
 
 P1.2 的测量结果（Ubuntu 编译机，x86_64，Go 1.27.4，kagome-dict/ipa v1.2.6；每次读 `/proc/self/status` 前先 `runtime.GC()` 和 `debug.FreeOSMemory()`，各在一个新进程里量，量完的测试没有提交）：
@@ -1438,6 +1449,11 @@ NSGO_ROOT_KEY=<root secret> make plugin-revocations
   - 消费端：`signature.Verify` 在包签了清单时直接比对（`signature.CheckManifest`，比对规则从 `script` 挪进 `signature`，`kando plugin validate` 和插件目录的 CI 工具因此也会比对签了清单的包），`script.Probe` 对这种包不再跑代码，导出函数的检查同时加进 `script.Load`（对两种包都查，没签清单的包在 `Probe` 里已经查过一次）。没签清单的包照旧走 `kandoManifest()`，原来的 `TODO(nsgo#761)` 删掉了：这条路要一直留着给已经发布的包用，不是绕行。
   - 签发端：`nsgo publish` 签不了 `Contents.Extra`，所以 `official-plugins.sh` 和 `script.PackFolder` 都还不签清单，留了 `TODO(nsgo#924)`（[nsgo-dev/nsgo#924](https://github.com/nsgo-dev/nsgo/issues/924)）；`official.Wrap` 已经会检查签了清单的包（`ErrSignedManifest`、`ErrMismatch`）。签了清单的包在看懂 0.37.0 及以前会被拒装，所以只有清单写 `"kando": ">=0.38.0"` 或更高的插件才签（`signature.SignsManifest`）。0.38.0 只保证不拒装：比对签名清单的第一个版本要等本改动发布后才知道，在清单下限达到它之前，签了清单的插件仍要导出 `kandoManifest()`（4.3）。
   - 测试：`TestScriptSignedManifest`（签了清单的包：顶层代码会抛错、也没有 `kandoManifest` 时照样通过验签和预读；缺导出时 `Load` 拒绝；清单比签的多、签了别的键、签的不是对象都按 `ErrTampered` 拒绝；签好后改一个字节按 `ErrUntrusted` 拒绝），`TestPluginOfficialWrapSignedManifest`（`Wrap` 收下下限够新且一致的包，拒绝不一致的和下限太旧、没写下限的）；没签清单的一路仍由 `TestScriptProbe` 等原有测试覆盖。线上两个 1.0.0 文件用新代码验签、预读通过，只做了一次，没有提交成测试（文件不在仓库里）。
+- P1 词频（已完成）：第 1 节的目标写了词表带词频，P1.4 只做了等级，这里补上。和正文的出入如下，第 1 节、E2、第 4 节的字段规则和 4.1 的示例、7.4、第 9 节已同步改过：
+  - 词频是每个词一个可选的排名，写在词表文件的第三列，不进清单：清单的格式不变，旧版本的看懂读带第三列的词表照旧（P1.4 起之后的列都忽略），只是不显示词频。排名的上限是一百万（`wordlist.RankMax`），不合法的排名丢掉而词留下，免得一份词频列错了一行的词表整份读不出来。
+  - 只显示在桌面的查词卡上，不画在字幕上（字幕上的线已经表示等级）。手机的查词卡不显示等级和词频：等级本来就没有经协议给手机（`films.marks` 只有 tone），加上要在 `psync.WordEntry` 加可选字段，留给以后。`kando.words.read` 读的是生词本，不带等级，也就不带词频。
+  - 卡片只读为标注读进内存的那份词表，所以没在「按等级画线」里选词表时卡片上没有等级；没有为了卡片另读一份。
+  - 截图场景 `TestScreenshotsPlugins` 加了 `plugins-lookup-level`（日语词表和日语词典包，查「流れ」，C1 · 词频第 1,834 位）。Linux 上只断言了卡片的文字，实际画面要在 macOS 的截图任务里看。
 - P5 E15（已完成）：播放器侧栏的「扩展」标签。和正文的出入如下，2.1、2.3、5.3、8.4、第 9 节已同步改过：
   - 代码位置：非界面包 `plugins` 加了 `Panel`、`PanelIcons`（`contrib.go`）和 `EventLineChanged`（`perm.go`）；`plugins/script/panel.go` 是 `Runner.Panel`（唯一的 `tsx.View`）和 `Runner.Failed`；界面是 `film/extensions.go`（`film.Extender`、`SideExtensions`、标签正文），`film/panel.go` 的 `panelTabs` 改成 `screen.panelTabs`；app 一侧是 `state_plugins_panels.go`。共享文件只动了插件块自己的：`pluginsScript` 加 `panel`、`run` 两个字段，`pluginsGuard` 也认面板视图的 Host，`pluginsSend` 同时发给面板视图，`savedPlugins` 加 `PluginPanel`，`pluginsHooks` 的 `playing`、`afterChange` 各加一行 `pluginsPanelsLine`；`settings.PluginAdds` 加一行面板。
   - 「`var panelTabs` 改成 `film.App` 上的方法」：`film.App` 是接口，标签的 id 是 film 自己的知识，所以改成 film 的 `screen.panelTabs`（`screen` 持有 `film.App`），由新的 `film.Extender.Extensions` 决定「扩展」出不出现；没有面板时 `FilmSide` 仍记着 `extensions`，侧栏照字幕显示，插件回来时直接回到「扩展」。加了「扩展」后七个等宽的标签在 340 pt 的侧栏里放不下英文、日文的标签，所以「扩展」画成只有图标的标签（Lucide `puzzle`，读屏名称和悬停提示都是 catalog 里的「扩展」，切换语言时重建这一个标签），其余标签按文字宽度（左右至少 3 pt，再一起铺满整条），七个标签在中、英、日下都放在一行里；万一哪种语言放不下，整条横向滚动，并把选中的标签滚进视野。`TestTabLabelsFit` 在中、英、日下检查每个标签都整个落在条里、条不需要滚动、每个文字完整、「扩展」的读屏名称；截图场景在 `KANDO_SCREENSHOTS_LANG` 的语言下做同样的检查。

@@ -300,6 +300,27 @@ func (a *app) pluginsMarkList() (plugins.Pack, bool) {
 	return plugins.Pack{}, false
 }
 
+// pluginsWordLevel is the tier and the rank by frequency (0 for none) of a word looked up, of the language lang, in the word list chosen in 逐词标注, as the card of the word shows them: those of the first of words, its dictionary form and then as clicked, that the list has. It only reads the list read for the marks (pluginsList), when it is of the chosen pack as it is now and of lang, so it is false while no list is chosen, the list is not read yet or could not be, or the list does not have the word.
+func (a *app) pluginsWordLevel(lang string, words ...string) (plugins.Tier, int, bool) {
+	list := a.plugins.list
+	if list == nil || list.l == nil || lang == "" {
+		return plugins.Tier{}, 0, false
+	}
+	pack, listed := a.pluginsMarkList()
+	if !listed || pack.ID != list.id || pack.Hash != list.hash || core.BaseLanguage(pack.Wordlist.Language) != lang {
+		return plugins.Tier{}, 0, false
+	}
+	for _, w := range words {
+		if w == "" {
+			continue
+		}
+		if t, ok := list.l.Tier(w); ok {
+			return t, list.l.Rank(w), true
+		}
+	}
+	return plugins.Tier{}, 0, false
+}
+
 // pluginsSubsHash is the hash of what the marks of cues, the open film's lines, depend on: each line's start, end and original (film.SplitCue), not its translation, so a translation batch landing or a translation corrected does not mark the film again. The player puts new lines in a new slice whenever they change (playerCorrectSubs) and never changes those it has, so the hash is taken again only for a slice it has not seen.
 func (a *app) pluginsSubsHash(cues []core.Segment) string {
 	seen := &a.plugins.subs

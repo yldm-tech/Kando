@@ -24,7 +24,7 @@ import (
 const pluginAnkiConnectAbout = `"author": "Kando", "name": {"en": "AnkiConnect", "zh-Hans": "推送到 Anki", "zh-Hant": "推送到 Anki", "ja": "Anki に送る", "ko": "Anki로 보내기"},
   "description": {"en": "Sends your saved lines and vocabulary as notes to Anki on this computer, through the AnkiConnect add-on.", "zh-Hans": "通过 AnkiConnect 插件，把收藏的句子和生词作为笔记发到这台电脑上的 Anki。", "zh-Hant": "透過 AnkiConnect 外掛，把收藏的句子和生詞作為筆記傳到這台電腦上的 Anki。", "ja": "AnkiConnect アドオンを通じて、保存したセリフと単語をこのコンピュータの Anki にノートとして送ります。", "ko": "AnkiConnect 애드온을 통해 저장한 대사와 단어를 이 컴퓨터의 Anki에 노트로 보냅니다."}`
 
-// TestScreenshotsPlugins renders Settings › 插件 with a glossary pack, an AI service pack and a task pack installed, the install confirmation of a third party's script plugin, verified by Kando (plugins-script-install), and of Kando's own (plugins-script-install-official) and a script plugin's details with what it was granted (plugins-script-details), the rows of a script plugin that needs permissions and of one unavailable offline (plugins-script-rows), and with two dictionary packs, which move up and down, the details of one open (settings-plugins-dictionaries), the install confirmation of a pack over the main window, as a pack from 从文件安装… or the command line's inbox shows it, and of a site pack with a checkbox for each of its sites (plugins-install-site), the card of a word on the picture that a dictionary pack answered, which names the dictionary and its credit (plugins-lookup), and a Japanese line with readings over its words, a line in the color of their level under the words of a word list and a dashed one under a word in the vocabulary (plugins-marks), the side panel with a task pack's reply as cards (plugins-task), 翻译 with a translate-style pack's style chosen (plugins-translate-style), the Saved Lines sheet with three lines saved and an export template chosen (plugins-export-template), the sheet that exports the glossary as a pack (plugins-export-glossary), what a script plugin contributes (shootPluginContributions), a script plugin's translator chosen in 翻译 and a card its failure names (shootPluginTranslators), and a script plugin's panel in the player's 扩展 tab (shootPluginPanels). The packs are in plugins folders of the fixture's home.
+// TestScreenshotsPlugins renders Settings › 插件 with a glossary pack, an AI service pack and a task pack installed, the install confirmation of a third party's script plugin, verified by Kando (plugins-script-install), and of Kando's own (plugins-script-install-official) and a script plugin's details with what it was granted (plugins-script-details), the rows of a script plugin that needs permissions and of one unavailable offline (plugins-script-rows), and with two dictionary packs, which move up and down, the details of one open (settings-plugins-dictionaries), the install confirmation of a pack over the main window, as a pack from 从文件安装… or the command line's inbox shows it, and of a site pack with a checkbox for each of its sites (plugins-install-site), the card of a word on the picture that a dictionary pack answered, which names the dictionary and its credit (plugins-lookup), and a Japanese line with readings over its words, a line in the color of their level under the words of a word list and a dashed one under a word in the vocabulary (plugins-marks), the card of a word of that list with its level and its rank by frequency (plugins-lookup-level), the side panel with a task pack's reply as cards (plugins-task), 翻译 with a translate-style pack's style chosen (plugins-translate-style), the Saved Lines sheet with three lines saved and an export template chosen (plugins-export-template), the sheet that exports the glossary as a pack (plugins-export-glossary), what a script plugin contributes (shootPluginContributions), a script plugin's translator chosen in 翻译 and a card its failure names (shootPluginTranslators), and a script plugin's panel in the player's 扩展 tab (shootPluginPanels). The packs are in plugins folders of the fixture's home.
 func TestScreenshotsPlugins(t *testing.T) {
 	f := newScreenshotFixture(t)
 	root := filepath.Join(f.home, "Library", "Application Support", "Kando", "plugins")
@@ -253,6 +253,34 @@ func TestScreenshotsPlugins(t *testing.T) {
 		refresh(tt, a)
 		if marks := a.CueMarks(0); !slices.ContainsFunc(marks, func(m subtitle.Mark) bool { return m.Ruby == "かわ" }) || !slices.ContainsFunc(marks, func(m subtitle.Mark) bool { return m.Tone == subtitle.ToneWarn }) || !slices.ContainsFunc(marks, func(m subtitle.Mark) bool { return m.Underline }) {
 			t.Fatalf("the first line's marks: %+v", marks)
+		}
+	})
+	// The card of 流れ, a word of a Japanese film's first line, looked up with a Japanese word list chosen in 逐词标注 that gives each word's rank by frequency: beside its reading, its level C1 in the color of the line drawn under it, with its rank, and what it means from a Japanese dictionary pack.
+	f.shoot(t, "plugins-lookup-level", func(t *testing.T, a *app, tt *nsgotest.App, updates chan func()) {
+		for i, job := range a.library.Jobs {
+			if job.ID == "j1" {
+				a.library.Jobs[i].SpokenLanguage = "ja"
+			}
+		}
+		screenshotOpen(t, a, tt, updates, "j1", protoCues[0].Start)
+		screenshotLoad(tt, a)
+		onEngine(a, func() {
+			subs := &a.player.subs
+			subs.machine = slices.Clone(subs.machine)
+			translation, _ := film.SplitCue(subs.machine[0].Text)
+			subs.machine[0].Text = translation + "\n" + "どの川も、山の上の小さな流れから始まります。"
+			a.playerCorrectSubs()
+		})
+		a.plugins.root = filepath.Join(f.home, "levels")
+		pluginsDictInstalled(t, a, tt, updates, pluginWordlist("example.jlpt", "ja"), map[string][]byte{"words.tsv": []byte("川\tb1\t412\n山\tb1\t388\n流れ\tc1\t1834\n始まる\tc1\t2051\n")})
+		pluginsDictInstalled(t, a, tt, updates, pluginDictionary("example.ja", "Japanese words", "ja", "zh-Hans"), map[string][]byte{"words.tsv": []byte("流れ\tながれ\t水流，流动；（事物的）趋势，进程\n")})
+		onEngine(a, func() { a.SetMarkWordlist("example.jlpt") })
+		waitUntil(t, tt, a, updates, func() bool { return a.plugins.marks.lines != nil })
+		onEngine(a, func() { a.LookUpWord(0, "流れ") })
+		waitUntil(t, tt, a, updates, func() bool { return !a.vocab.lookup.busy })
+		refresh(tt, a)
+		if !hasText(tt, testlocale.Messages().VocabLookupLevelRank("C1", 1834)) || a.vocab.lookup.source != "example.ja" {
+			t.Fatalf("no level on the card: %+v; texts %q", a.vocab.lookup, tt.Texts())
 		}
 	})
 	shootPluginContributions(t, f, key)

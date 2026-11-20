@@ -971,6 +971,7 @@ var Parameters = map[string][]string{
 	"VocabLongest":                             {"count"},
 	"VocabLookupCard":                          {"word"},
 	"VocabLookupFailed":                        {"error_"},
+	"VocabLookupLevelRank":                     {"level", "rank"},
 	"VocabLookupSourceAINotInDict":             {"dictionary"},
 	"VocabLookupSourcePlugin":                  {"plugin", "lookup"},
 	"VocabLookupSourceDict":                    {"name"},
@@ -1696,6 +1697,7 @@ type Translation struct {
 	VocabLongest                             func(count int) string
 	VocabLookupCard                          func(word string) string
 	VocabLookupFailed                        func(error_ string) string
+	VocabLookupLevelRank                     func(level string, rank int) string
 	VocabLookupSourceAINotInDict             func(dictionary string) string
 	VocabLookupSourcePlugin                  func(plugin string, lookup string) string
 	VocabLookupSourceDict                    func(name string) string
@@ -25161,6 +25163,9 @@ func Supply(lang string, t Translation) {
 	}
 	if t.VocabLookupFailed != nil {
 		s.VocabLookupFailed = t.VocabLookupFailed
+	}
+	if t.VocabLookupLevelRank != nil {
+		s.VocabLookupLevelRank = t.VocabLookupLevelRank
 	}
 	if t.VocabLookupSourceAINotInDict != nil {
 		s.VocabLookupSourceAINotInDict = t.VocabLookupSourceAINotInDict
@@ -58422,6 +58427,38 @@ func (msgs Messages) VocabLookupFailed(error_ string) string {
 			return "没有查到：" + error_
 		case "zh-Hant":
 			return "沒有查到：" + error_
+		}
+	}
+}
+
+// VocabLookupLevelRank says "{level} · Frequency #{rank, number}"
+// in the language the app shows under cx.
+//
+// Card of a word looked up, beside the word's reading: its level in the word list chosen for word marks (a label the word list pack gives, such as N3 or HSK 2) and its rank by frequency in that list, 1 being the most frequent word.
+func VocabLookupLevelRank(cx *core.Scope, level string, rank int) string {
+	return For(cx).VocabLookupLevelRank(level, rank)
+}
+
+// VocabLookupLevelRank is the package's VocabLookupLevelRank in the language of msgs.
+func (msgs Messages) VocabLookupLevelRank(level string, rank int) string {
+	if i18n.IsPseudo(msgs.lang) {
+		return i18n.Pseudo(msgs.lang, Messages{lang: Source, mark: true}.VocabLookupLevelRank(level, rank))
+	}
+	for lang := msgs.lang; ; lang = i18n.Parent(lang) {
+		if f := supplied[lang].VocabLookupLevelRank; f != nil {
+			return f(level, rank)
+		}
+		switch lang {
+		case "", "en":
+			return msgs.arg(level) + " · Frequency #" + msgs.arg(i18n.FormatNumber("en", float64(rank)))
+		case "ja":
+			return level + " · 頻度 " + i18n.FormatNumber("ja", float64(rank)) + " 位"
+		case "ko":
+			return level + " · 빈도 " + i18n.FormatNumber("ko", float64(rank)) + "위"
+		case "zh-Hans":
+			return level + " · 词频第 " + i18n.FormatNumber("zh-Hans", float64(rank)) + " 位"
+		case "zh-Hant":
+			return level + " · 詞頻第 " + i18n.FormatNumber("zh-Hant", float64(rank)) + " 位"
 		}
 	}
 }

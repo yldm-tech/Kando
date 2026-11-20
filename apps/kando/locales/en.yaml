@@ -7132,6 +7132,12 @@ vocabLookupFailed:
   description: "Card of a word looked up, when the AI service did not answer, with its reason."
   placeholders:
     error: { type: "String", example: "401 Unauthorized" }
+vocabLookupLevelRank:
+  message: "{level} · Frequency #{rank, number}"
+  description: "Card of a word looked up, beside the word's reading: its level in the word list chosen for word marks (a label the word list pack gives, such as N3 or HSK 2) and its rank by frequency in that list, 1 being the most frequent word."
+  placeholders:
+    level: { type: "String", example: "N3" }
+    rank: { type: "int", example: "1234" }
 vocabLookupNoAI:
   message: "Looking up a word asks your dictionaries, then the AI service. Set one up in AI Service, or install a dictionary in Plugins."
   description: "Card of a word looked up, when no dictionary is installed for the word's language and no AI service is set up."
