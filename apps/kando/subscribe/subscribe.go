@@ -143,6 +143,8 @@ type Sub struct {
 	Seen    []string `json:"seen,omitempty"`
 	Pending []Video  `json:"pending,omitempty"`
 	Added   []Video  `json:"added,omitempty"`
+	// Skipped is the links of the waiting videos the user skipped, so the check the page's 列出来 asks for does not offer them again (Earlier).
+	Skipped []string `json:"skipped,omitempty"`
 	// Offered is set once the videos the list held when it was subscribed were queued or offered to the user (Start). A subscription made before Kando did that counted them as seen and added none; for one that follows a collection or a playlist, the check its page's 列出来 asks for offers them (Take).
 	Offered bool `json:"offered,omitempty"`
 }
@@ -299,13 +301,13 @@ func (s *Sub) Take(listing media.Listing, now time.Time, offer bool) Found {
 	return found
 }
 
-// has reports whether the video at link was added or waits for the user.
+// has reports whether the video at link was added, waits for the user or was skipped by them.
 func (s Sub) has(link string) bool {
 	same := func(v Video) bool { return v.URL == link }
-	return slices.ContainsFunc(s.Added, same) || slices.ContainsFunc(s.Pending, same)
+	return slices.ContainsFunc(s.Added, same) || slices.ContainsFunc(s.Pending, same) || slices.Contains(s.Skipped, link)
 }
 
-// Earlier is the links of the videos a check the user asks for would offer as Found.Earlier, as far as the subscription knows: those it counted as seen when it was subscribed that were neither added nor waiting, for a collection or a playlist whose videos were not offered yet (Offered); none otherwise. It cannot apply the rules, as Seen keeps no title or length, nor know which the list still holds, so it is at most what the check offers; the caller leaves out those its library has.
+// Earlier is the links of the videos a check the user asks for would offer as Found.Earlier, as far as the subscription knows: those it counted as seen when it was subscribed that were neither added, waiting nor skipped, for a collection or a playlist whose videos were not offered yet (Offered); none otherwise. It cannot apply the rules, as Seen keeps no title or length, nor know which the list still holds, so it is at most what the check offers; the caller leaves out those its library has.
 func (s Sub) Earlier() []string {
 	if s.Offered || s.Channel() {
 		return nil
@@ -364,7 +366,7 @@ func (s *Sub) Hold(videos []Video) {
 
 // Queued records that videos were added to the queue: they leave the waiting ones and join Added, each once.
 func (s *Sub) Queued(videos []Video) {
-	s.Skip(urls(videos))
+	s.unwait(urls(videos))
 	for _, v := range videos {
 		if !slices.ContainsFunc(s.Added, func(a Video) bool { return a.URL == v.URL }) {
 			s.Added = append(s.Added, v)
@@ -372,8 +374,18 @@ func (s *Sub) Queued(videos []Video) {
 	}
 }
 
-// Skip drops the waiting videos at links, which stay seen and are not added.
+// Skip drops the waiting videos at links, which stay seen and are not added, and records them in Skipped, so they are not offered again.
 func (s *Sub) Skip(links []string) {
+	for _, v := range s.Pending {
+		if slices.Contains(links, v.URL) && !slices.Contains(s.Skipped, v.URL) {
+			s.Skipped = append(s.Skipped, v.URL)
+		}
+	}
+	s.unwait(links)
+}
+
+// unwait drops the waiting videos at links.
+func (s *Sub) unwait(links []string) {
 	s.Pending = slices.DeleteFunc(s.Pending, func(v Video) bool { return slices.Contains(links, v.URL) })
 }
 

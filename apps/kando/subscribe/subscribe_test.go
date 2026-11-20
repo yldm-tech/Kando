@@ -350,3 +350,23 @@ func TestTakeOffersTheVideosAnOldSubscriptionLeftOut(t *testing.T) {
 		t.Fatal("a channel offers the videos it had")
 	}
 }
+
+// A video an old subscription's user skipped is not offered again by the check its page's 列出来 asks for, nor counted among those it would offer; one queued is not recorded as skipped.
+func TestTakeDoesNotOfferAgainTheVideosTheUserSkipped(t *testing.T) {
+	const collection = "https://space.bilibili.com/12345/channel/collectiondetail?sid=67890"
+	old := New(collection, "/videos", listing, t0)
+	old.Offered = false
+	rivers, tides := Video{URL: listing.Videos[0].URL}, Video{URL: listing.Videos[1].URL}
+	old.Hold([]Video{rivers, tides})
+	old.Queued([]Video{tides})
+	old.Skip([]string{rivers.URL})
+	if !slices.Equal(old.Skipped, []string{rivers.URL}) || len(old.Pending) != 0 {
+		t.Fatalf("skipped %q, pending %+v", old.Skipped, old.Pending)
+	}
+	if got := old.Earlier(); len(got) != 0 {
+		t.Fatalf("earlier %q, want none: one was skipped and the other added", got)
+	}
+	if found := old.Take(listing, t0.Add(time.Hour), true); len(found.Earlier) != 0 || len(found.Fresh) != 0 {
+		t.Fatalf("found %+v, want the skipped video left out", found)
+	}
+}

@@ -1030,16 +1030,27 @@ func TestSubscribeDialogRefusesALibraryLockedOrChangedMeanwhile(t *testing.T) {
 	}
 }
 
-// The card's choices go on the subscription and its videos: the picture and the source of lines become its rules, which the videos it adds later take too, and only the one episode the link named is added when 只要这一集 is chosen.
+// The card's choices go on the subscription and its videos: the picture and the source of lines become its rules, which the videos it adds later take too, and the sign-in and the chapters it chose, which differ from the settings', go on the videos it adds now.
 func TestSubscribeDialogChoicesGoOnTheJobs(t *testing.T) {
 	p := newListingPipeline(map[string]media.Listing{testSubCollection: testSubEpisodes})
 	a, tt, updates := newTestApp(t, p)
+	withBrowsers(t, a, "chrome", "firefox")
 	subscribeRead(t, tt, a, p, updates, testSubCollection)
 	if tt.Exists("id:subscribe-only") {
 		t.Fatal("a link to the list offers only one episode")
 	}
+	if c := a.subs.ask.choice; c.Browser != "" || !c.Chapters {
+		t.Fatalf("the card does not start from the settings: %+v", c)
+	}
 	tt.Press("id:quality-720")
 	tt.Press("id:subscribe-source-local")
+	firefox := slices.IndexFunc(a.SignIn().Browsers, func(b media.Browser) bool { return b.ID == "firefox" })
+	tt.Press("id:subscribe-signin")
+	tt.Press(fmt.Sprintf("id:subscribe-signin-%d", firefox+1))
+	tt.Press("id:subscribe-chapters")
+	if c := a.subs.ask.choice; c.Browser != "firefox" || c.Chapters {
+		t.Fatalf("the card's choice %+v", c)
+	}
 	tt.Press("id:subscribe-submit")
 	if len(a.subs.store.Subs) != 1 || len(a.library.Jobs) != 3 {
 		t.Fatalf("subscriptions %+v, jobs %d", a.subs.store.Subs, len(a.library.Jobs))
@@ -1049,14 +1060,64 @@ func TestSubscribeDialogChoicesGoOnTheJobs(t *testing.T) {
 		t.Fatalf("rules %+v", sub.Rules)
 	}
 	for _, job := range a.library.Jobs {
-		if job.Quality != kcore.Quality720 || job.SubtitleSource != kcore.SubtitlesLocal {
-			t.Fatalf("job %q: quality %q, source %q", job.Source, job.Quality, job.SubtitleSource)
+		if job.Quality != kcore.Quality720 || job.SubtitleSource != kcore.SubtitlesLocal || job.Cookies != "firefox" || job.ChapterUse != kcore.ChaptersEven {
+			t.Fatalf("job %q: quality %q, source %q, cookies %q, chapters %q", job.Source, job.Quality, job.SubtitleSource, job.Cookies, job.ChapterUse)
 		}
 	}
 	later := subscribe.Video{URL: "https://www.bilibili.com/video/BV1xx411c7m4", Title: "P4 矩阵乘法"}
 	onEngine(a, func() { a.subscribeEnqueue(sub, []subscribe.Video{later}, nil) })
 	if job, ok := a.queueFindSource(later.URL); !ok || job.Quality != kcore.Quality720 || job.SubtitleSource != kcore.SubtitlesLocal {
 		t.Fatalf("a later video's job %+v", job)
+	}
+}
+
+// The card's 未登录 makes the videos it adds now borrow no sign-in when the settings name a browser, and chapters it leaves as the settings have them are not written on the jobs.
+func TestSubscribeDialogSignInNoneGoesOnTheJobs(t *testing.T) {
+	p := newListingPipeline(map[string]media.Listing{testSubCollection: testSubEpisodes})
+	a, tt, updates := newTestApp(t, p)
+	withBrowsers(t, a, "chrome")
+	a.signin.browser = "chrome"
+	subscribeRead(t, tt, a, p, updates, testSubCollection)
+	if c := a.subs.ask.choice; c.Browser != "chrome" {
+		t.Fatalf("the card does not start from the settings: %+v", c)
+	}
+	tt.Press("id:subscribe-signin")
+	tt.Press("id:subscribe-signin-0")
+	tt.Press("id:subscribe-submit")
+	if len(a.library.Jobs) != 3 {
+		t.Fatalf("jobs %d", len(a.library.Jobs))
+	}
+	for _, job := range a.library.Jobs {
+		if job.Cookies != kcore.CookiesNone || job.ChapterUse != "" {
+			t.Fatalf("job %q: cookies %q, chapters %q", job.Source, job.Cookies, job.ChapterUse)
+		}
+	}
+}
+
+// The page's 下载 and 优先用平台字幕 change the subscription's rules, which the videos it adds next take.
+func TestSubscriptionPageQualityAndSubtitlesGoOnTheNextJobs(t *testing.T) {
+	p := newListingPipeline(map[string]media.Listing{testSubCollection: testSubEpisodes})
+	a, tt, updates := newTestApp(t, p)
+	subscribeRead(t, tt, a, p, updates, testSubCollection)
+	tt.Press("id:subscribe-submit")
+	if len(a.subs.store.Subs) != 1 {
+		t.Fatalf("subscriptions %+v", a.subs.store.Subs)
+	}
+	sub := &a.subs.store.Subs[0]
+	platform := a.PlatformSubtitles()
+	tt.Press("id:quality-720")
+	tt.Press("id:subscription-platform-subtitles")
+	want := kcore.SubtitlesPlatform
+	if platform {
+		want = kcore.SubtitlesLocal
+	}
+	if sub.Quality != kcore.Quality720 || sub.Subtitles != want {
+		t.Fatalf("rules %+v, want 720p and %q", sub.Rules, want)
+	}
+	later := subscribe.Video{URL: "https://www.bilibili.com/video/BV1xx411c7m4", Title: "P4 矩阵乘法"}
+	onEngine(a, func() { a.subscribeEnqueue(sub, []subscribe.Video{later}, nil) })
+	if job, ok := a.queueFindSource(later.URL); !ok || job.Quality != kcore.Quality720 || job.SubtitleSource != want {
+		t.Fatalf("the next video's job %+v", job)
 	}
 }
 

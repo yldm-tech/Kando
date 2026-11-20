@@ -56,9 +56,20 @@ func (a *app) SubscriptionHead() subscribe.Head {
 
 // subscribeEarlier is how many videos, at most, ListEarlier would offer on sub: those its list held when it was subscribed that it left out (subscribe.Sub.Earlier), but for those its library has, which the check records as added instead.
 func (a *app) subscribeEarlier(sub subscribe.Sub) int {
+	earlier := sub.Earlier()
+	if len(earlier) == 0 {
+		return 0
+	}
+	// The library's keys are read once, not once per link, as this getter runs each time the page's head is recomputed.
+	has := map[string]bool{}
+	for _, job := range a.library.Jobs {
+		if job.Stage != kcore.StageFailed && films.InLibrary(sub.Library, job) {
+			has[queueSourceKey(job.Source)] = true
+		}
+	}
 	n := 0
-	for _, link := range sub.Earlier() {
-		if !a.subscribeHas(sub.Library, link) {
+	for _, link := range earlier {
+		if !has[queueSourceKey(link)] {
 			n++
 		}
 	}
