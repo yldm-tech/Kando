@@ -88,11 +88,11 @@ func dictationCard(cx *core.Scope, clip learning.Clip, checked func() bool, chec
 	input := ui.Input{TestID: "dictation-input", Multiline: true, LabelFunc: func() string { return locales.DictationLabel(cx) },
 		PlaceholderFunc: func() string { return locales.DictationPlaceholder(cx) },
 		Value:           typed.Get, OnChange: typed.Set, Disabled: checked,
-		// The field is the fill's grey with no rim, as the design draws it; the caret and the placeholder stay ui.Input's.
+		// The field is the fill's grey with no rim and a placeholder in the muted grey, as the design draws it; the caret stays ui.Input's.
 		Style: core.Style{FontSize: 17, LineHeight: 24, CornerRadius: 14, Height: core.Pt(96), Padding: core.Symmetric(12, 14)},
 		StyleFunc: func() core.Style {
 			none := ui.Alpha(colors.Inset(), 0)
-			return core.Style{Background: colors.Inset(), BorderColor: none, Hover: &core.Style{BorderColor: none}}
+			return core.Style{Background: colors.Inset(), BorderColor: none, Hover: &core.Style{BorderColor: none}, PlaceholderColor: colors.Muted()}
 		}}
 	checkButton := core.Show{When: func() bool { return !checked() }, Then: func(cx *core.Scope) core.Node {
 		text := func() string { return locales.DictationCheck(cx) }
@@ -107,7 +107,7 @@ func dictationCard(cx *core.Scope, clip learning.Clip, checked func() bool, chec
 	marked := core.Show{When: checked, Then: func(cx *core.Scope) core.Node {
 		var words []core.Node
 		for _, w := range result.GetUntracked().words {
-			st := core.Style{Padding: core.Symmetric(1, 3), CornerRadius: 5, FontSize: 18, LineHeight: 30}
+			st := core.Style{Padding: core.Symmetric(1, 3), CornerRadius: 5, FontSize: 18, LineHeight: 23}
 			switch {
 			case !w.Counted:
 				st.Color = colors.Text()
@@ -122,7 +122,8 @@ func dictationCard(cx *core.Scope, clip learning.Clip, checked func() bool, chec
 			ui.Tabular(core.Text{TestID: "dictation-score", LiveRegion: core.LiveRegionPolite,
 				ContentFunc: func() string { r := result.Get(); return locales.DictationScore(cx, r.hit, r.total) },
 				Style:       look.Caption.Merge(core.Style{FontWeight: core.FontWeightBold}), StyleFunc: ui.Colored(colors.Muted)}),
-			core.View{TestID: "dictation-line", Style: core.Style{Direction: core.Row, Wrap: core.Wrap, Gap: 4}, Children: words},
+			// The marked words sit close, on lines 30 apart, as the design sets them inline.
+			core.View{TestID: "dictation-line", Style: core.Style{Direction: core.Row, Wrap: core.Wrap, ColumnGap: 2, RowGap: 5}, Children: words},
 			core.Show{When: func() bool { return strings.TrimSpace(clip.Translation) != "" }, Then: func(cx *core.Scope) core.Node {
 				return core.Text{TestID: "dictation-translation", Content: clip.Translation, Style: core.Style{FontSize: 14, LineHeight: 20}, StyleFunc: ui.Colored(colors.Muted)}
 			}},

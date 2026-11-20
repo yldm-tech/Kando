@@ -1418,6 +1418,9 @@ learnWeekBars:
   description: "Spoken name of the week's chart."
   placeholders:
     count: { type: "int", example: "84" }
+learnWordSay:
+  message: "Say the word"
+  description: "Spoken name of the speaker button on a word's sheet, which says the word aloud."
 learnWordsDue:
   message: "{total} · {due} due"
   description: "Beside the word list's heading: how many words, and how many are due for review."
@@ -1991,7 +1994,7 @@ reviewDoneSummary:
     total: { type: "int", example: 4 }
     again: { type: "int", example: 1 }
 reviewDoneTitle:
-  message: "Today's review is done"
+  message: "Today’s review is done"
   description: "Title at the review's end."
 reviewEnd:
   message: "End review"

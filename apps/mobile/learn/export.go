@@ -36,8 +36,13 @@ func ExportSheet(cx *core.Scope, s *session.Session, open func() bool, close fun
 	}
 	var formatRows []core.Node
 	for i, f := range formats {
+		// The format's name is in the design's heavier type, which look.Row's title does not take, so the row draws its texts below.
+		texts := core.View{Style: core.Style{Gap: 2}, Children: []core.Node{
+			core.Text{ContentFunc: f.name, MaxLines: 2, Style: core.Style{FontSize: 16, LineHeight: 21, FontWeight: core.FontWeightSemibold}, StyleFunc: ui.Colored(colors.Text)},
+			core.Text{ContentFunc: f.detail, MaxLines: 2, Style: look.Footnote, StyleFunc: ui.Colored(colors.Muted)},
+		}}
 		formatRows = append(formatRows, look.Row{TestID: "export-format-" + f.id, Index: func() int { return i },
-			Title: f.name, Detail: f.detail,
+			Below:   texts,
 			Checked: func() bool { return o().Format == f.id },
 			Trailing: core.Show{When: func() bool { return o().Format == f.id }, Then: func(*core.Scope) core.Node {
 				return ui.Icon(lucide.Check, 18, colors.Accent)

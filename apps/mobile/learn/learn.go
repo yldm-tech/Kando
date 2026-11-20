@@ -57,7 +57,7 @@ func Page(cx *core.Scope, s *session.Session, act Actions) base.NavPage {
 			core.View{Style: core.Style{Gap: 14}, Children: []core.Node{
 				status(cx, s),
 				goal(cx, s),
-				core.View{Style: core.Style{Gap: 20}, Children: []core.Node{
+				core.View{Style: core.Style{Gap: 10}, Children: []core.Node{
 					review(cx, s, items.Get, due.Get, act),
 					mode(cx, s, act.Settings),
 				}},
@@ -100,9 +100,10 @@ func status(cx *core.Scope, s *session.Session) core.Node {
 	colors := ui.ColorsOf(cx)
 	offline := func() bool { p := s.LearnProblem(); return p != session.NoProblem && len(s.Desktops()) > 0 }
 	line := func(id string, icon func() *core.SVG, text func() string) core.Node {
-		return core.View{TestID: id, Style: core.Style{Direction: core.Row, AlignItems: core.AlignCenter, Gap: 6}, Children: []core.Node{
-			ui.Icon(icon, 14, colors.Muted),
-			core.Text{ContentFunc: text, Style: look.Caption.Merge(core.Style{FlexShrink: 1}), StyleFunc: ui.Colored(colors.Muted)},
+		// The icon stays by the first line of a note that wraps, as the design pins it.
+		return core.View{TestID: id, Style: core.Style{Direction: core.Row, AlignItems: core.AlignStart, Gap: 6}, Children: []core.Node{
+			core.View{Style: core.Style{Margin: core.Edges{Top: 2}, FlexShrink: 0}, Children: []core.Node{ui.Icon(icon, 14, colors.Muted)}},
+			core.Text{ContentFunc: text, Style: look.Caption.Merge(core.Style{LineHeight: 18, FlexShrink: 1}), StyleFunc: ui.Colored(colors.Muted)},
 		}}
 	}
 	return core.Show{When: offline,
@@ -252,7 +253,8 @@ func review(cx *core.Scope, s *session.Session, items, due func() []learning.Ite
 }
 
 // mode is the way the review goes, cards or the lines dictated, and under it when the reminder comes, which leads to Settings, while it is on.
-// TODO(nsgo): shadowing, the design's third way (reading the line along with the film, recorded and compared), needs an audio recorder with levels, which NSGo lacks (audio/audio.go has only Player; core/speech.go only recognizes speech), so the review offers cards and dictation.
+// Shadowing, the design's third way (reading the line along with the film, recorded and compared), is left for later: NSGo's microphone package records it (microphone.Capture streams samples on iOS, microphone.RecordWAV writes a file with levels on Android), but the comparison of the learner's take with the film's line, and the page that shows it, are still to be designed and built, so the review offers cards and dictation.
+// TODO(nsgo): ui.Tabs' segmented look has no way to set its corner radii (the design's 10 for the track, 8 for the thumb, where NSGo draws capsules), the selected label's weight (the design's 700) or the unselected label's color (the design's ink at 500, where NSGo draws it muted), so the mode keeps NSGo's segmented look.
 func mode(cx *core.Scope, s *session.Session, settings func()) core.Node {
 	colors := ui.ColorsOf(cx)
 	row := core.View{Style: core.Style{Direction: core.Row, AlignItems: core.AlignCenter, Gap: 10}, Children: []core.Node{
@@ -279,7 +281,8 @@ func mode(cx *core.Scope, s *session.Session, settings func()) core.Node {
 // week is the last seven days on every device: the streak, the time watched and the words put in the vocabulary, the minutes of each day as bars, today's in the accent, and the words by how well they are known.
 func week(cx *core.Scope, s *session.Session, words func() []learning.Item) core.Node {
 	colors := ui.ColorsOf(cx)
-	const height = 64
+	// height is the bars' own: the chart is 64 with the 5 between a bar and its day and the day's 12 under it, as the design draws it.
+	const height = 64 - 5 - 12
 	days := func() [7]time.Duration { return s.Watched().Week(s.Now()) }
 	total := func() int {
 		var sum time.Duration
@@ -491,7 +494,8 @@ func wordList(cx *core.Scope, s *session.Session, words, due func() []learning.I
 // wordRow is a word of the list: the word and how it is said, its meaning, and at its end the film it is from and when it is next due.
 func wordRow(cx *core.Scope, s *session.Session, it func() learning.Item, i func() int, open func()) core.Node {
 	colors := ui.ColorsOf(cx)
-	left := core.View{Style: core.Style{FlexGrow: 1, FlexShrink: 1, MinWidth: core.Pt(0), Gap: 2}, Children: []core.Node{
+	// The 2 above and below make the row the design's 62 over look.Row's padding.
+	left := core.View{Style: core.Style{FlexGrow: 1, FlexShrink: 1, MinWidth: core.Pt(0), Gap: 2, Padding: core.Symmetric(2, 0)}, Children: []core.Node{
 		core.View{Style: core.Style{Direction: core.Row, AlignItems: core.AlignBaseline, Wrap: core.Wrap, ColumnGap: 8}, Children: []core.Node{
 			core.Text{ContentFunc: func() string { return it().Text }, Style: core.Style{FontSize: 17, LineHeight: 22, FontWeight: core.FontWeightBold}, StyleFunc: ui.Colored(colors.Text)},
 			core.Show{When: func() bool { return it().Reading != "" }, Then: func(cx *core.Scope) core.Node {
@@ -513,10 +517,10 @@ func wordRow(cx *core.Scope, s *session.Session, it func() learning.Item, i func
 
 // dueBadge marks a word due for review.
 func dueBadge(cx *core.Scope) core.Node {
-	warn := theme.Of(cx).WarnText
+	due := theme.Of(cx).DueText
 	return core.Text{ContentFunc: func() string { return locales.LearnDueNow(cx) }, MaxLines: 1,
 		Style:     core.Style{FontSize: 11, LineHeight: 18, FontWeight: core.FontWeightBold, Padding: core.Symmetric(0, 6), CornerRadius: 9, Background: ui.Alpha(theme.BadgeOrange, 0.15)},
-		StyleFunc: func() core.Style { return core.Style{Color: warn()} }}
+		StyleFunc: func() core.Style { return core.Style{Color: due()} }}
 }
 
 // schedule is when an item not due comes back: mastered, or in so many days.
@@ -527,8 +531,12 @@ func schedule(cx *core.Scope, it learning.Item, now time.Time) string {
 	return locales.LearnDueIn(cx, max(1, int((it.Due.Sub(now)+23*time.Hour)/(24*time.Hour))))
 }
 
-// savedLines are the lines saved, the latest first, each on its card.
+// savedLines are the lines saved, the latest first, each on its card; the section shows once a line is saved.
 func savedLines(cx *core.Scope, s *session.Session, lines func() []learning.Item, act Actions) core.Node {
+	return core.Show{When: func() bool { return len(lines()) > 0 }, Then: func(cx *core.Scope) core.Node { return savedLinesSection(cx, s, lines, act) }}
+}
+
+func savedLinesSection(cx *core.Scope, s *session.Session, lines func() []learning.Item, act Actions) core.Node {
 	return core.View{TestID: "learn-lines", Style: core.Style{Gap: 12}, Children: []core.Node{
 		sectionHead(cx, func() string { return locales.LearnSavedLines(cx) }, func() string { return locales.LearnLineCount(cx, len(lines())) }),
 		core.Each(func() []learning.Item { return first(lines()) }, func(it learning.Item) string { return it.Key() }, func(cx *core.Scope, it func() learning.Item, _ func() int) core.Node {

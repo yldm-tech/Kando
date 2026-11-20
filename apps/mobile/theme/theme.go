@@ -16,6 +16,7 @@ const (
 	roleTileInk  = "tileInk"
 	roleWarnText = "warnText"
 	roleSubtext  = "subtext"
+	roleDueText  = "dueText"
 	roleOkText   = "okText"
 	roleWarnBox  = "warnBox"
 	roleWarnBody = "warnBody"
@@ -45,6 +46,7 @@ func Kando() *core.Theme {
 	l.SetColor(roleTileInk, core.RGB(0x1D1D1F))
 	l.SetColor(roleWarnText, core.RGB(0x8A4B00))
 	l.SetColor(roleSubtext, core.RGB(0x3A3A3F))
+	l.SetColor(roleDueText, core.RGB(0xB25E00))
 	l.SetColor(roleOkText, core.RGB(0x1E7B34))
 	l.SetColor(roleWarnBox, core.RGB(0xFFF4E5))
 	l.SetColor(roleWarnBody, core.RGB(0x6B4A1F))
@@ -63,6 +65,7 @@ func Kando() *core.Theme {
 	d.SetColor(roleWarnText, core.RGB(0xFFB340))
 	// The design's #3A3A3F would be lost on the dark page, so the dark keeps the ink.
 	d.SetColor(roleSubtext, d.Text)
+	d.SetColor(roleDueText, core.RGB(0xFFB340))
 	// The design draws the warning box and the green text in the light alone: in the dark they are the system's dark green and a warm tint of the orange on the card.
 	d.SetColor(roleOkText, core.RGB(0x30D158))
 	d.SetColor(roleWarnBox, core.RGBA(0xFF9500, 0.16))
@@ -100,6 +103,9 @@ func (c Colors) WarnText() core.Color { return c.role(roleWarnText) }
 
 // Subtext is the ink a step softer than the text's, as the Library switcher's name: #3A3A3F in the light, the ink in the dark.
 func (c Colors) Subtext() core.Color { return c.role(roleSubtext) }
+
+// DueText is the text of the Due badge on its orange tint: a brighter orange than WarnText in the light, as the design draws the badge, and WarnText's in the dark.
+func (c Colors) DueText() core.Color { return c.role(roleDueText) }
 
 // OkText is the green of text that says something went well, as a step done or a computer online, darker than the status dot's so it reads on a card.
 func (c Colors) OkText() core.Color { return c.role(roleOkText) }

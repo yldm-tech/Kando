@@ -13,7 +13,6 @@ import (
 
 	"github.com/nsgo-dev/nsgo/base"
 	"github.com/nsgo-dev/nsgo/core"
-	"github.com/nsgo-dev/nsgo/icons/lucide"
 	"github.com/nsgo-dev/nsgo/ui"
 )
 
@@ -122,7 +121,7 @@ func ReviewPage(cx *core.Scope, s *session.Session, back func()) base.NavPage {
 		box := min(item().Box+1, len(study.Intervals))
 		return int(study.Intervals[box-1] / (24 * time.Hour))
 	}
-	actions := core.View{Style: core.Style{Direction: core.Row, Gap: 12, Padding: core.Edges{Top: 12, Right: 16, Bottom: 16, Left: 16}, PaddingEnv: core.EnvEdges{Right: core.EnvSafeArea, Bottom: core.EnvSafeArea, Left: core.EnvSafeArea},
+	actions := core.View{Style: core.Style{Direction: core.Row, Gap: 12, Padding: core.Edges{Top: 12, Right: 20, Bottom: 6, Left: 20}, PaddingEnv: core.EnvEdges{Right: core.EnvSafeArea, Bottom: core.EnvSafeArea, Left: core.EnvSafeArea},
 		MaxWidth: core.Pt(560), Width: core.Pct(100), AlignSelf: core.AlignCenter}, Children: []core.Node{
 		gradeButton(cx, "review-again", func() string { return locales.ReviewAgain(cx) }, false, shown, func() { grade(false) }),
 		gradeButton(cx, "review-known", func() string { return locales.ReviewKnown(cx, days()) }, true, shown, func() { grade(true) }),
@@ -148,9 +147,18 @@ func progressRow(cx *core.Scope, run func() reviewRun, leave func()) core.Node {
 	colors := ui.ColorsOf(cx)
 	total := func() int { return len(run().queue) }
 	through := func() int { return min(run().at, total()) }
+	// The counter counts the items, as the summary at the end does: an item put back keeps its number when it comes again.
+	counter := func() int {
+		r := run()
+		seen := map[string]bool{}
+		for _, it := range r.queue[:min(r.at+1, len(r.queue))] {
+			seen[it.Key()] = true
+		}
+		return min(len(seen), r.total)
+	}
 	return core.View{Style: core.Style{Direction: core.Row, AlignItems: core.AlignCenter, Gap: 12, Padding: core.Edges{Top: 8, Right: 16, Left: 8},
 		PaddingEnv: core.EnvEdges{Top: core.EnvSafeArea, Right: core.EnvSafeArea, Left: core.EnvSafeArea}}, Children: []core.Node{
-		ui.IconButton{TestID: "review-end", Icon: lucide.X, Variant: ui.IconButtonGhost, Size: 44, IconSize: 22,
+		ui.IconButton{TestID: "review-end", Icon: closeIcon, Variant: ui.IconButtonGhost, Size: 44, IconSize: 14,
 			LabelFunc: func() string { return locales.ReviewEnd(cx) }, OnPress: leave},
 		core.View{Style: core.Style{FlexGrow: 1, FlexShrink: 1}, Children: []core.Node{core.Dynamic(func(cx *core.Scope) core.Node {
 			// base.Progress's label is a string, so the bar is built again as the language changes.
@@ -164,7 +172,7 @@ func progressRow(cx *core.Scope, run func() reviewRun, leave func()) core.Node {
 				}}
 		})}},
 		ui.Tabular(core.Text{TestID: "review-progress", ContentFunc: func() string {
-			return locales.ReviewProgress(cx, min(through()+1, total()), total())
+			return locales.ReviewProgress(cx, counter(), run().total)
 		}, MaxLines: 1, Style: look.Caption.Merge(core.Style{FontFamily: core.FontMonospace}), StyleFunc: ui.Colored(colors.Muted)}),
 	}}
 }
@@ -229,6 +237,8 @@ func flipCard(cx *core.Scope, s *session.Session, item func() learning.Item, sho
 	}}
 	front := core.View{TestID: "review-show", Role: core.RoleButton, LabelFunc: func() string { return locales.ReviewShow(cx) }, OnPress: func(core.PressEvent) { show() },
 		Style: face.Merge(core.Style{Gap: 10, AlignItems: core.AlignCenter}),
+		// Turned over, the front is behind the back for the screen reader too, which would otherwise read both faces.
+		AccessibilityElementsHidden: shown,
 		StyleFunc: func() core.Style {
 			st := turn(false)
 			st.Background = colors.Surface()
@@ -259,7 +269,7 @@ func flipCard(cx *core.Scope, s *session.Session, item func() learning.Item, sho
 		}}
 	}
 	// The back is drawn in the dark palette, whatever the app's.
-	back := core.View{TestID: "review-back", Style: face, StyleFunc: func() core.Style { return turn(true) }, Children: []core.Node{
+	back := core.View{TestID: "review-back", Style: face, AccessibilityElementsHidden: func() bool { return !shown() }, StyleFunc: func() core.Style { return turn(true) }, Children: []core.Node{
 		core.Show{When: shown, Then: func(cx *core.Scope) core.Node {
 			theme.Dark(cx)
 			colors := ui.ColorsOf(cx)
@@ -288,17 +298,25 @@ func flipCard(cx *core.Scope, s *session.Session, item func() learning.Item, sho
 func finished(cx *core.Scope, run func() reviewRun, leave func()) core.Node {
 	colors := ui.ColorsOf(cx)
 	center := core.Style{TextAlign: core.TextAlignCenter}
+	ok := func() string { return locales.CommonOK(cx) }
 	check := core.View{Style: core.Style{Width: core.Pt(96), Height: core.Pt(96), CornerRadius: 48, AlignItems: core.AlignCenter, JustifyContent: core.JustifyCenter, Margin: core.Edges{Bottom: 16},
 		Gradients: []core.Gradient{core.LinearGradient(135, theme.DoneFrom, theme.DoneTo)},
 		Shadows:   []core.BoxShadow{{Offset: core.Point{Y: 16}, Blur: 36, Color: theme.DoneShadow}}},
-		Children: []core.Node{ui.Icon(lucide.Check, 48, colors.OnAccent)}}
+		Children: []core.Node{ui.Icon(doneIcon, 44, colors.OnAccent)}}
 	return core.View{TestID: "review-done", Style: core.Style{FlexGrow: 1, JustifyContent: core.JustifyCenter, AlignItems: core.AlignCenter, Gap: 8, Padding: core.Symmetric(32, 32)}, Children: []core.Node{
 		check,
 		core.Text{ContentFunc: func() string { return locales.ReviewDoneTitle(cx) }, Role: core.RoleHeader, Style: core.Style{FontSize: 26, LineHeight: 32, FontWeight: look.Heavy}.Merge(center), StyleFunc: ui.Colored(colors.Text)},
 		core.Text{TestID: "review-done-summary", ContentFunc: func() string { return locales.ReviewDoneSummary(cx, run().total, run().again) },
 			Style: core.Style{FontSize: 15, LineHeight: 22, MaxWidth: core.Pt(340)}.Merge(center), StyleFunc: ui.Colored(colors.Muted)},
 		core.View{Style: core.Style{Width: core.Pt(220), Margin: core.Edges{Top: 24}}, Children: []core.Node{
-			look.Button{TestID: "review-finish", Kind: look.Primary, Text: func() string { return locales.CommonOK(cx) }, OnPress: leave},
+			// The design's OK is taller and rounder than look.Button, in heavier type.
+			base.Button{TestID: "review-finish", LabelFunc: ok, OnPress: func(core.PressEvent) { leave() },
+				Style: core.Style{Height: core.Pt(52), CornerRadius: 16, BorderCurve: core.BorderCurveContinuous, AlignItems: core.AlignCenter, JustifyContent: core.JustifyCenter,
+					Active: &core.Style{Opacity: core.Alpha(0.7)}},
+				StyleFunc: func() core.Style {
+					return core.Style{Background: colors.Accent(), Color: colors.OnAccent(), FocusVisible: ui.FocusRing(cx, -2)}
+				},
+				Children: []core.Node{core.Text{ContentFunc: ok, MaxLines: 1, Style: core.Style{FontSize: 17, LineHeight: 22, FontWeight: core.FontWeightBold}}}},
 		}},
 	}}
 }

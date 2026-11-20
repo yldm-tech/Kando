@@ -125,6 +125,12 @@ func kept(s *session.Session, it learning.Item) (store.Film, bool) {
 	return s.Film(store.Key(it.Desktop, it.Film))
 }
 
+// playable reports whether the film it is from is whole on the phone, so its player can show the place: one still downloading, or waiting to, is not.
+func playable(s *session.Session, it learning.Item) bool {
+	f, ok := kept(s, it)
+	return ok && f.Done()
+}
+
 // posterOf is the poster of the film it is from: the one kept on the phone, or one the Library fetched this session; none otherwise.
 func posterOf(s *session.Session, it learning.Item) core.ImageSource {
 	if f, ok := kept(s, it); ok && f.Poster != "" {
@@ -173,29 +179,34 @@ func lineCard(cx *core.Scope, s *session.Session, it func() learning.Item, play 
 			core.Text{ContentFunc: func() string { return it().Note }, Style: look.Caption, StyleFunc: ui.Colored(own.NoteText)},
 		}}
 	}}
-	_, onPhone := kept(s, it())
 	footer := []core.Node{
 		thumb(cx, s, it),
 		core.Text{ContentFunc: func() string { return it().Title }, MaxLines: 1, Style: look.Footnote.Merge(core.Style{FlexGrow: 1, FlexShrink: 1}), StyleFunc: ui.Colored(colors.Muted)},
 		core.Text{ContentFunc: func() string { return look.Duration(it().Start) }, MaxLines: 1, Style: look.Footnote.Merge(core.Style{FontFamily: core.FontMonospace}), StyleFunc: ui.Colored(colors.Muted)},
+		// The play button shows while the film is whole on the phone, following it as it finishes downloading or is deleted; it keeps a 28-point target over the footer's 18.
+		core.Show{When: func() bool { return playable(s, it()) }, Then: func(cx *core.Scope) core.Node {
+			return base.Button{TestID: "learn-line-play-" + it().ID, LabelFunc: func() string { return locales.LearnLinePlay(cx) },
+				OnPress:  func(core.PressEvent) { play(store.Key(it().Desktop, it().Film), it().Start) },
+				Style:    core.Style{Width: core.Pt(18), Height: core.Pt(18), AlignItems: core.AlignCenter, JustifyContent: core.JustifyCenter, Active: &core.Style{Opacity: core.Alpha(0.6)}},
+				HitSlop:  core.All(13),
+				Children: []core.Node{ui.Icon(playIcon, 14, colors.Accent)}}
+		}},
 	}
-	if onPhone {
-		footer = append(footer, base.Button{TestID: "learn-line-play-" + it().ID, LabelFunc: func() string { return locales.LearnLinePlay(cx) },
-			OnPress:  func(core.PressEvent) { play(store.Key(it().Desktop, it().Film), it().Start) },
-			Style:    core.Style{Width: core.Pt(28), Height: core.Pt(28), AlignItems: core.AlignCenter, JustifyContent: core.JustifyCenter, Active: &core.Style{Opacity: core.Alpha(0.6)}},
-			HitSlop:  core.All(8),
-			Children: []core.Node{ui.Icon(playIcon, 14, colors.Accent)}})
-	}
-	return core.View{TestID: "learn-line-" + it().ID, Style: core.Style{Padding: core.Symmetric(14, 16), Gap: 8}, StyleFunc: func() core.Style { return look.Card(cx) },
-		OnLongPress:           func(core.PressEvent) { remove() },
-		AccessibilityActions:  []core.AccessibilityAction{{Name: "remove", Label: locales.LearnRemove(cx)}},
-		OnAccessibilityAction: func(string) { remove() },
-		Children: []core.Node{
-			core.Text{ContentFunc: func() string { return it().Text }, Style: core.Style{FontSize: 16, LineHeight: 22, FontWeight: core.FontWeightSemibold}, StyleFunc: ui.Colored(colors.Text)},
-			core.Show{When: func() bool { return it().Meaning != "" }, Then: func(cx *core.Scope) core.Node {
-				return core.Text{ContentFunc: func() string { return it().Meaning }, Style: core.Style{FontSize: 14, LineHeight: 19}, StyleFunc: ui.Colored(colors.Muted)}
-			}},
-			note,
-			core.View{Style: core.Style{Direction: core.Row, AlignItems: core.AlignCenter, Gap: 8, Margin: core.Edges{Top: 2}}, Children: footer},
-		}}
+	// TODO(nsgo): core.AccessibilityAction's Label is a string, with no LabelFunc, so the card that names its remove action is built again as the language changes.
+	id := "learn-line-" + it().ID
+	return core.Dynamic(func(cx *core.Scope) core.Node {
+		return core.View{TestID: id, Style: core.Style{Padding: core.Symmetric(14, 16), Gap: 6}, StyleFunc: func() core.Style { return look.Card(cx) },
+			OnLongPress:           func(core.PressEvent) { remove() },
+			AccessibilityActions:  []core.AccessibilityAction{{Name: "remove", Label: locales.LearnRemove(cx)}},
+			OnAccessibilityAction: func(string) { remove() },
+			Children: []core.Node{
+				core.Text{ContentFunc: func() string { return it().Text }, Style: core.Style{FontSize: 16, LineHeight: 22, FontWeight: core.FontWeightSemibold}, StyleFunc: ui.Colored(colors.Text)},
+				core.Show{When: func() bool { return it().Meaning != "" }, Then: func(cx *core.Scope) core.Node {
+					// The translation is the ink a little lighter, as a word's meaning is, rather than the muted grey.
+					return core.Text{ContentFunc: func() string { return it().Meaning }, Style: core.Style{FontSize: 14, LineHeight: 20}, StyleFunc: func() core.Style { return core.Style{Color: ui.Alpha(colors.Text(), 0.85)} }}
+				}},
+				note,
+				core.View{Style: core.Style{Direction: core.Row, AlignItems: core.AlignCenter, Gap: 8, Margin: core.Edges{Top: 6}}, Children: footer},
+			}}
+	})
 }

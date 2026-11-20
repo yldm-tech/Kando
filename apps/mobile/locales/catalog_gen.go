@@ -1126,6 +1126,7 @@ const (
 	textLearnWed
 	textLearnWeek
 	textLearnWeekAll
+	textLearnWordSay
 	textLinesEmpty
 	textLinesRemoveMessage
 	textLinesRemoveTitle
@@ -1650,6 +1651,7 @@ var keyOfText = [numTexts]string{
 	"learnWed",
 	"learnWeek",
 	"learnWeekAll",
+	"learnWordSay",
 	"linesEmpty",
 	"linesRemoveMessage",
 	"linesRemoveTitle",
@@ -2172,6 +2174,7 @@ var textsEn = i18n.NewTexts(""+
 	"Wed"+
 	"This week"+
 	"All devices"+
+	"Say the word"+
 	"Lines you save while you watch show here"+
 	"It leaves your saved lines on every device."+
 	"Remove this line?"+
@@ -2307,7 +2310,7 @@ var textsEn = i18n.NewTexts(""+
 	"This film's computer is no longer paired with this phone."+
 	"Subtitles"+
 	"Not yet · tomorrow"+
-	"Today's review is done"+
+	"Today’s review is done"+
 	"End review"+
 	"Think about what it means in this line, then tap to flip"+
 	"Show the answer"+
@@ -2691,6 +2694,7 @@ var textsEn = i18n.NewTexts(""+
 		3,
 		9,
 		11,
+		12,
 		40,
 		43,
 		17,
@@ -2826,7 +2830,7 @@ var textsEn = i18n.NewTexts(""+
 		57,
 		9,
 		19,
-		22,
+		24,
 		10,
 		56,
 		15,
@@ -3213,6 +3217,7 @@ var textsJa = i18n.NewTexts(""+
 	"水"+
 	"今週"+
 	"すべての端末"+
+	"単語を読み上げる"+
 	"視聴中に保存した文がここに表示されます"+
 	"すべての端末の保存した文から削除されます。"+
 	"この文を削除しますか？"+
@@ -3732,6 +3737,7 @@ var textsJa = i18n.NewTexts(""+
 		3,
 		6,
 		18,
+		24,
 		57,
 		63,
 		33,
@@ -4254,6 +4260,7 @@ var textsKo = i18n.NewTexts(""+
 	"수"+
 	"이번 주"+
 	"모든 기기"+
+	"단어 읽어 주기"+
 	"보면서 저장한 문장이 여기에 표시돼요"+
 	"모든 기기의 저장한 문장에서 삭제됩니다."+
 	"이 문장을 삭제할까요?"+
@@ -4773,6 +4780,7 @@ var textsKo = i18n.NewTexts(""+
 		3,
 		10,
 		13,
+		20,
 		52,
 		56,
 		30,
@@ -5295,6 +5303,7 @@ var textsZhHans = i18n.NewTexts(""+
 	"三"+
 	"这周"+
 	"所有设备合计"+
+	"朗读单词"+
 	"看片时收藏的句子会出现在这里"+
 	"它会从所有设备的收藏里移除。"+
 	"移除这句？"+
@@ -5814,6 +5823,7 @@ var textsZhHans = i18n.NewTexts(""+
 		3,
 		6,
 		18,
+		12,
 		42,
 		42,
 		15,
@@ -6336,6 +6346,7 @@ var textsZhHant = i18n.NewTexts(""+
 	"三"+
 	"這週"+
 	"所有裝置合計"+
+	"朗讀單字"+
 	"看片時收藏的句子會出現在這裡"+
 	"它會從所有裝置的收藏裡移除。"+
 	"移除這句？"+
@@ -6855,6 +6866,7 @@ var textsZhHant = i18n.NewTexts(""+
 		3,
 		6,
 		18,
+		12,
 		42,
 		42,
 		15,
@@ -14667,6 +14679,15 @@ func (msgs Messages) LearnWeekBars(count int) string {
 	}
 }
 
+// LearnWordSay says "Say the word"
+// in the language the app shows under cx.
+//
+// Spoken name of the speaker button on a word's sheet, which says the word aloud.
+func LearnWordSay(cx *core.Scope) string { return For(cx).LearnWordSay() }
+
+// LearnWordSay is the package's LearnWordSay in the language of msgs.
+func (msgs Messages) LearnWordSay() string { return msgs.text(textLearnWordSay) }
+
 // LearnWordsDue says "{total} · {due} due"
 // in the language the app shows under cx.
 //
@@ -17010,7 +17031,7 @@ func (msgs Messages) ReviewDoneSummary(total int, again int) string {
 	}
 }
 
-// ReviewDoneTitle says "Today's review is done"
+// ReviewDoneTitle says "Today’s review is done"
 // in the language the app shows under cx.
 //
 // Title at the review's end.
