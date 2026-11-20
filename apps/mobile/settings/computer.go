@@ -61,11 +61,11 @@ func ComputerPage(cx *core.Scope, s *session.Session, id string, unpaired func(i
 				core.View{Style: core.Style{Gap: 8}, Children: []core.Node{
 					look.SectionTitle(cx, func() string { return locales.ComputerTranslation(cx) }),
 					look.Group{Children: []core.Node{
-						look.Row{TestID: "computer-service", Inset: 56,
+						look.Row{TestID: "computer-service",
 							Leading: look.IconTile(cx, lucide.Sparkles, look.ToneAccent),
 							Title:   func() string { return locales.ComputerService(cx) },
 							Value:   service},
-						look.Row{TestID: "computer-context", Index: func() int { return 1 }, Inset: 56, TitleLines: 2,
+						look.Row{TestID: "computer-context", Index: func() int { return 1 }, TitleLines: 2,
 							Leading: look.IconTile(cx, lucide.TextQuote, look.ToneAccent),
 							Title:   func() string { return locales.ComputerContext(cx) },
 							Detail:  func() string { return locales.ComputerContextDetail(cx) },

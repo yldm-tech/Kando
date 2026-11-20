@@ -17,16 +17,29 @@ import (
 	"github.com/nsgo-dev/nsgo/ui"
 )
 
-// Text sizes on a phone, after the system's: a page's own title in its content, a section's heading, a row's title, the body, the line under a title, a caption and a field's label.
+// Heavy is the weight of the design's large titles and sheet titles, between bold and black.
+const Heavy core.FontWeight = 800
+
+// Text sizes on a phone, after the design's: a page's large title (PageTitle picks Android's where it runs), a section's heading, a row's or a sheet's title, the body, the line under a title, a caption, a field's label and a note under a row.
 var (
-	Display = core.Style{FontSize: 28, LineHeight: 34, FontWeight: core.FontWeightBold}
-	Heading = core.Style{FontSize: 20, LineHeight: 25, FontWeight: core.FontWeightSemibold}
-	Title   = core.Style{FontSize: 17, LineHeight: 22, FontWeight: core.FontWeightSemibold}
-	Body    = core.Style{FontSize: 16, LineHeight: 21}
-	Subhead = core.Style{FontSize: 15, LineHeight: 20}
-	Caption = core.Style{FontSize: 13, LineHeight: 18}
-	Section = core.Style{FontSize: 13, LineHeight: 18, FontWeight: core.FontWeightSemibold}
+	Display        = core.Style{FontSize: 34, LineHeight: 41, FontWeight: Heavy, LetterSpacing: -0.6}
+	DisplayAndroid = core.Style{FontSize: 28, LineHeight: 36, FontWeight: core.FontWeightMedium}
+	Heading        = core.Style{FontSize: 22, LineHeight: 28, FontWeight: core.FontWeightBold, LetterSpacing: -0.3}
+	Title          = core.Style{FontSize: 17, LineHeight: 22, FontWeight: core.FontWeightSemibold}
+	Body           = core.Style{FontSize: 16, LineHeight: 21}
+	Subhead        = core.Style{FontSize: 15, LineHeight: 20}
+	Caption        = core.Style{FontSize: 13, LineHeight: 18}
+	Section        = core.Style{FontSize: 13, LineHeight: 18, FontWeight: core.FontWeightSemibold}
+	Footnote       = core.Style{FontSize: 12, LineHeight: 16}
 )
+
+// PageTitle is the large title of a tab's page: the design's 34pt heavy title, or Material's 28pt medium one on Android.
+func PageTitle(cx *core.Scope) core.Style {
+	if cx.Env().OS() == core.OSAndroid {
+		return DisplayAndroid
+	}
+	return Display
+}
 
 // Size writes a count of bytes as a phone shows it: 820 KB, 34.5 MB, 1.2 GB.
 func Size(bytes int64) string {

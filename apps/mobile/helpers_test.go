@@ -5,7 +5,6 @@ import (
 	"context"
 	"os"
 	"path/filepath"
-	"slices"
 	"strings"
 	"sync/atomic"
 	"testing"
@@ -62,6 +61,10 @@ func startPhone(t *testing.T, dir string, opts ...nsgotest.Option) *phone {
 		dir = t.TempDir()
 	}
 	opts = append([]nsgotest.Option{nsgotest.Environment(core.Environment{Locale: lang})}, opts...)
+	// A scene is a phone's screen, 390 by 844, on a computer's window too, which nsgo test -target macos opens at 480 by 640; a tablet's scene sizes its own.
+	if os.Getenv("KANDO_SCREENSHOTS") != "" {
+		opts = append([]nsgotest.Option{nsgotest.Size(390, 844)}, opts...)
+	}
 	app := nsgotest.Start(t, func(cx *core.Scope) core.Node {
 		return App(cx, session.Config{Dir: dir, Device: "Test Phone", Platform: sync.PlatformIOS, Now: sessionNow, RelayEvery: relayEvery})
 	}, opts...)
@@ -90,7 +93,7 @@ func newDesktop(t *testing.T) *synctest.Desktop {
 	return d
 }
 
-// openTab shows tab i (filmsTab, browseTab, learnTab, settingsTab), named name, pressing the drawn bar's tab, which headless always shows. Where the system's bar shows in its place, on an iOS target, it reports the change as the platform would, which nsgotest allows headless only: there it skips the test, so a screenshot scene must not depend on it.
+// openTab shows tab i (filmsTab, jobsTab, learnTab, settingsTab), named name, pressing the drawn bar's tab, which headless always shows. Where the system's bar shows in its place, on an iOS target, it reports the change as the platform would, which nsgotest allows headless only: there it skips the test, so a screenshot scene must not depend on it.
 func (p *phone) openTab(i int, name string) {
 	p.t.Helper()
 	// The system's bar is mounted but takes no room in the tree, so WaitFor, which sees only visible views, would never find it.
@@ -99,8 +102,7 @@ func (p *phone) openTab(i int, name string) {
 		p.app.Press("id:tab-bar >> label:" + name)
 		return
 	}
-	// A phone's bar shows no Jobs, so a tab's place on it is not its number.
-	p.app.Emit("id:tab-bar", "change", float64(slices.Index(shownTabs(false), i)))
+	p.app.Emit("id:tab-bar", "change", float64(i))
 }
 
 // startPairing goes through a new phone's introduction to its pairing step.

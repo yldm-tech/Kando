@@ -26,7 +26,7 @@ func RevokedPage(cx *core.Scope, s *session.Session, id string, pair func(), unp
 	}
 	pending := func() int { return s.PendingChanges(id) }
 	fact := func(testID string, icon func() *core.SVG, tone look.Tone, text func() string) core.Node {
-		return look.Row{TestID: testID, Inset: 56, TitleLines: 3, Leading: look.IconTile(cx, icon, tone), Title: text}
+		return look.Row{TestID: testID, TitleLines: 3, Leading: look.IconTile(cx, icon, tone), Title: text}
 	}
 	unpair := func() {
 		n := name()

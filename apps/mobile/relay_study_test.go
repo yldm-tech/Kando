@@ -14,15 +14,14 @@ import (
 	"github.com/nsgo-dev/nsgo/nsgotest"
 )
 
-// awayFrom turns d off on its network and waits, on the Jobs page, until the phone follows it through its storage, then leaves the page for the Library.
+// awayFrom turns d off on its network and waits, on the Jobs tab, until the phone follows it through its storage, then goes to the Library.
 func (p *phone) awayFrom(d *synctest.Desktop) {
 	p.t.Helper()
 	id := store.DesktopID(d.Fingerprint)
 	d.SetOff(true)
-	p.openTab(filmsTab, msgs.FilmsTitle())
 	p.openJobs()
 	p.app.WaitUntil(reconnect, func() bool { return p.reach(id) == msgs.JobsViaStorage() })
-	p.app.HeaderBack("id:jobs-page")
+	p.openTab(filmsTab, msgs.FilmsTitle())
 	p.app.WaitForGone("id:jobs-page", wait)
 }
 

@@ -20,7 +20,7 @@ const (
 	Plain
 )
 
-// Button is a phone's full-width capsule button, 50 points tall (44 Plain), with an optional leading icon. While Busy it shows a spinner in the icon's place, in the button's text color, and takes no presses, and BusyLabel, when set, is what assistive technology reads meanwhile.
+// Button is a phone's full-width button, 50 points tall and 14 round (44 Plain), with an optional leading icon. While Busy it shows a spinner in the icon's place, in the button's text color, and takes no presses, and BusyLabel, when set, is what assistive technology reads meanwhile.
 // TODO(nsgo#482): ui.Button is 32pt tall at most (size.go:10-15,31) and takes no Style (button.go:28-50), so a phone's large or full-width button is base.Button with the app's own style; use ui.Button once it has a size or style for that https://github.com/nsgo-dev/nsgo/issues/482
 type Button struct {
 	Text      func() string
@@ -39,7 +39,7 @@ type Button struct {
 func (b Button) Render(cx *core.Scope) core.Node {
 	colors, tints := ui.ColorsOf(cx), ui.TintsOf(cx)
 	busy := func() bool { return b.Busy != nil && b.Busy() }
-	shape := core.Style{Height: core.Pt(50), CornerRadius: 25, BorderCurve: core.BorderCurveContinuous, Direction: core.Row, Gap: 8,
+	shape := core.Style{Height: core.Pt(50), CornerRadius: 14, BorderCurve: core.BorderCurveContinuous, Direction: core.Row, Gap: 8,
 		AlignItems: core.AlignCenter, JustifyContent: core.JustifyCenter, Padding: core.Symmetric(0, 20),
 		Active: &core.Style{Opacity: core.Alpha(0.7)}}
 	if b.Kind == Plain {
@@ -105,6 +105,37 @@ func Pill(cx *core.Scope, testID string, text func() string, press func()) core.
 	return base.Button{TestID: testID, LabelFunc: text, OnPress: func(core.PressEvent) { press() },
 		Style: core.Style{MinHeight: core.Pt(32), Padding: core.Symmetric(0, 14), CornerRadius: 16, AlignItems: core.AlignCenter, JustifyContent: core.JustifyCenter,
 			Active: &core.Style{Opacity: core.Alpha(0.7)}},
-		StyleFunc: func() core.Style { return core.Style{Background: ui.Alpha(colors.Text(), 0.07), Color: colors.Text()} },
+		StyleFunc: func() core.Style { return core.Style{Background: colors.Inset(), Color: colors.Text()} },
 		Children:  []core.Node{core.Text{ContentFunc: text, MaxLines: 1, Style: Subhead.Merge(core.Style{FontWeight: core.FontWeightSemibold})}}}
+}
+
+// CircleButton is a round button of a page's header, 34 points in a 44-point target: the accent's icon on a card ringed by a hairline, or with Primary a white icon on the accent, lifted by its shadow, for the page's main action. Badge, when set, sits at its top corner, as Count.
+type CircleButton struct {
+	Icon    func() *core.SVG
+	Label   func() string
+	Primary bool
+	Badge   core.Node
+	OnPress func()
+	TestID  string
+}
+
+// Render implements core.Node.
+func (b CircleButton) Render(cx *core.Scope) core.Node {
+	colors := ui.ColorsOf(cx)
+	face := core.View{Style: core.Style{Width: core.Pt(34), Height: core.Pt(34), CornerRadius: 17, AlignItems: core.AlignCenter, JustifyContent: core.JustifyCenter},
+		StyleFunc: func() core.Style {
+			if b.Primary {
+				return core.Style{Background: colors.Accent(), Color: colors.OnAccent(), Shadows: []core.BoxShadow{{Offset: core.Point{Y: 4}, Blur: 12, Color: ui.Alpha(colors.Accent(), 0.35)}}}
+			}
+			return core.Style{Background: colors.Surface(), Color: colors.Accent(), Shadows: []core.BoxShadow{core.Ring(0.5, ui.Alpha(colors.Text(), 0.08))}}
+		},
+		Children: []core.Node{ui.Icon(b.Icon, 17, ui.Inherited)}}
+	children := []core.Node{face}
+	if b.Badge != nil {
+		children = append(children, b.Badge)
+	}
+	return base.Button{TestID: b.TestID, LabelFunc: b.Label, OnPress: func(core.PressEvent) { b.OnPress() },
+		Style:     core.Style{Width: core.Pt(44), Height: core.Pt(44), AlignItems: core.AlignCenter, JustifyContent: core.JustifyCenter, Active: &core.Style{Opacity: core.Alpha(0.7)}},
+		StyleFunc: func() core.Style { return core.Style{FocusVisible: ui.FocusRing(cx, -2)} },
+		Children:  children}
 }

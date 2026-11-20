@@ -9,6 +9,7 @@ import (
 	"kando/apps/mobile/locales"
 	"kando/apps/mobile/look"
 	"kando/apps/mobile/session"
+	"kando/apps/mobile/theme"
 	"kando/packages/sync"
 
 	"github.com/nsgo-dev/nsgo/base"
@@ -229,7 +230,7 @@ func SubscriptionSheet(cx *core.Scope, s *session.Session, open *core.Signal[str
 					return locales.FilmsSubscriptionPaused(cx, computer())
 				}, Style: look.Subhead, StyleFunc: func() core.Style {
 					if trouble(sub()) {
-						return core.Style{Color: colors.Warn()}
+						return core.Style{Color: theme.Of(cx).WarnText()}
 					}
 					return core.Style{Color: colors.Muted()}
 				}}

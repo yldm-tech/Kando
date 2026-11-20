@@ -4,12 +4,12 @@ import (
 	"slices"
 
 	"kando/apps/mobile/add"
-	"kando/apps/mobile/browse"
 	"kando/apps/mobile/catalog"
 	"kando/apps/mobile/film"
 	"kando/apps/mobile/films"
 	"kando/apps/mobile/jobs"
 	"kando/apps/mobile/learn"
+	"kando/apps/mobile/learning"
 	"kando/apps/mobile/locales"
 	"kando/apps/mobile/look"
 	"kando/apps/mobile/onboarding"
@@ -54,15 +54,13 @@ const (
 	conflictsPage
 	shortcutsPage
 	widgetsPage
-	browsePage
 )
 
-// The tabs, in the order the tab bar shows them. Jobs is a section of its own on a tablet only; on a phone it opens from the Library. Browse is left out of store builds (browse.Available).
+// The tabs, in the order the tab bar and a tablet's sidebar show them.
 const (
 	filmsTab = iota
-	browseTab
-	learnTab
 	jobsTab
+	learnTab
 	settingsTab
 	tabs
 )
@@ -80,32 +78,34 @@ func App(cx *core.Scope, cfg session.Config) core.Node {
 	theme.Apply(cx)
 	colors := ui.ColorsOf(cx)
 	s := session.New(cx, cfg)
+	// The app's look is the one the user chose in Settings, or the system's.
+	cx.Effect(func() {
+		switch s.Prefs().Appearance {
+		case store.AppearanceLight:
+			cx.SetAppearance(core.AppearanceLight)
+		case store.AppearanceDark:
+			cx.SetAppearance(core.AppearanceDark)
+		default:
+			cx.SetAppearance(core.AppearanceSystem)
+		}
+	})
 	if widget.Available() {
 		widgets.Keep(cx, s, widget.Update)
 	}
 	outer := base.NewNav(cx, route{page: rootPage})
-	navs := [tabs]*base.Nav[route]{base.NewNav(cx, route{page: filmsPage}), base.NewNav(cx, route{page: browsePage}), base.NewNav(cx, route{page: learnPage}), base.NewNav(cx, route{page: jobsPage}),
+	navs := [tabs]*base.Nav[route]{base.NewNav(cx, route{page: filmsPage}), base.NewNav(cx, route{page: jobsPage}), base.NewNav(cx, route{page: learnPage}),
 		base.NewNav(cx, route{page: settingsPage})}
 	selected := core.NewSignal(cx, filmsTab)
-	// shown are the tabs the shell shows, in order: the shell knows a tab by its place among them.
-	shown := shownTabs(look.Tablet(cx))
 	adding := core.NewSignal(cx, false)
 	openAdd := func() { adding.Set(true) }
 	// subscription is the subscription whose sheet shows over the app, by its key, "" for none: the Library's row and a tablet's sidebar open it.
 	subscription := core.NewSignal(cx, "")
 	// searches counts the times the user asked for the Library's search from the keyboard (shortcuts.Search), which the Library's page focuses each time.
 	searches := core.NewSignal(cx, 0)
-	// openJobs shows the Jobs page: a tablet's section, or a page of the Library's stack on a phone, which goes to the Library.
-	openJobs := func() {
-		if look.Tablet(cx) {
-			selected.Set(jobsTab)
-			return
-		}
-		selected.Set(filmsTab)
-		if routes := navs[filmsTab].Routes(); routes[len(routes)-1].page != jobsPage {
-			navs[filmsTab].Push(route{page: jobsPage})
-		}
-	}
+	// library is the library the Library shows, none for all, which a tablet's sidebar names and picks too.
+	library := core.NewSignal(cx, catalog.Scope{})
+	// openJobs shows the Jobs tab.
+	openJobs := func() { selected.Set(jobsTab) }
 	toaster := ui.NewToaster(cx)
 	queueToasts(cx, s, toaster, func(desktop string, lib sync.Library, f sync.Film) {
 		selected.Set(filmsTab)
@@ -118,7 +118,7 @@ func App(cx *core.Scope, cfg session.Config) core.Node {
 		navs[filmsTab].PopToRoot()
 		outer.Pop(1)
 	}
-	// Unpaired, a computer's films not on the phone go from the Library's stack, and from a tablet's Jobs, with the pages opened from them: with no client left they could not be downloaded. A film's page of one on the phone stays. Its page in Settings goes.
+	// Unpaired, a computer's films not on the phone go from the Library's stack, and from Jobs', with the pages opened from them: with no client left they could not be downloaded. A film's page of one on the phone stays. Its page in Settings goes.
 	unpaired := func(id string) {
 		for _, n := range []*base.Nav[route]{navs[filmsTab], navs[jobsTab]} {
 			routes := n.Routes()
@@ -199,7 +199,7 @@ func App(cx *core.Scope, cfg session.Config) core.Node {
 				case computerPage:
 					return settings.ComputerPage(cx, s, r.desktop, unpaired, back)
 				case shortcutsPage:
-					return settings.ShortcutsPage(cx, sectionNames(cx, shown), back)
+					return settings.ShortcutsPage(cx, sectionNames(cx), back)
 				case widgetsPage:
 					return settings.WidgetsPage(cx, s, back)
 				case targetPage:
@@ -208,8 +208,6 @@ func App(cx *core.Scope, cfg session.Config) core.Node {
 					return settings.ConflictsPage(cx, s, back)
 				case filmPage:
 					return film.Page(cx, s, r.desktop, r.library.Name, r.film, playHeld, back)
-				case browsePage:
-					return browse.Page(cx, s, browse.Actions{Pair: openPair, Shown: func() bool { return selected.Get() == browseTab && outer.Depth() == 0 && !layer.Full() }})
 				case jobsPage:
 					act := jobs.Actions{Add: openAdd, Pair: openPair, Film: openFilm, Back: back}
 					if depth() == 0 {
@@ -217,14 +215,13 @@ func App(cx *core.Scope, cfg session.Config) core.Node {
 					}
 					return jobs.Page(cx, s, act)
 				}
-				return films.Page(cx, s, films.Actions{Pair: openPair, Play: play, PlayAt: layer.PlayAt, Add: openAdd, Jobs: openJobs, Searches: searches.Get,
+				return films.Page(cx, s, films.Actions{Pair: openPair, Play: play, PlayAt: layer.PlayAt, Add: openAdd, Searches: searches.Get, Library: library,
 					Subscription: subscription.Set, Film: func(e catalog.Entry) { openFilm(e.Desktop, e.Library, e.Film) }})
 			})
 			return core.View{Style: core.Style{FlexGrow: 1}, Children: []core.Node{stack, player.MiniBar(cx, layer)}}
 		}
 	}
 	change := func(i int) {
-		i = shown[i]
 		// The tab shown, pressed again, goes back to its first page.
 		if i == selected.Get() {
 			navs[i].PopToRoot()
@@ -232,29 +229,32 @@ func App(cx *core.Scope, cfg session.Config) core.Node {
 		}
 		selected.Set(i)
 	}
+	// unfinished is the jobs the computers have yet to finish, and failed those of them that need the user: the Jobs tab's badge, in the badges' orange while any failed.
+	unfinished := func() int { active, failed := s.Unfinished(); return active + failed }
+	failed := func() bool { _, failed := s.Unfinished(); return failed > 0 }
+	// due is how many saved words and lines are due for review: the Learn tab's badge. The session's clock is read again as the items change, as the Learn page reads it.
+	items := core.NewMemoFunc(cx, s.LearnItems, nil)
+	due := core.NewMemo(cx, func() int { return len(learning.Due(items.Get(), s.Now())) })
 	sh := func(cx *core.Scope) core.Node {
-		all := [tabs]shell.Tab{
-			filmsTab:  {Text: func() string { return locales.FilmsTitle(cx) }, Icon: lucide.SquarePlay, SystemIcon: "play.rectangle.on.rectangle", TestID: "tab-films", Content: tabStack(navs[filmsTab])},
-			browseTab: {Text: func() string { return locales.BrowseTitle(cx) }, Icon: lucide.Globe, SystemIcon: "globe", TestID: "tab-browse", Content: tabStack(navs[browseTab])},
-			learnTab:  {Text: func() string { return locales.LearnTitle(cx) }, Icon: lucide.GraduationCap, SystemIcon: "rectangle.stack", TestID: "tab-learn", Content: tabStack(navs[learnTab])},
-			jobsTab: {Text: func() string { return locales.JobsTitle(cx) }, Icon: lucide.ListChecks, SystemIcon: "checklist", TestID: "tab-jobs", Content: tabStack(navs[jobsTab]),
-				Badge:     func() int { active, failed := s.Unfinished(); return active + failed },
-				BadgeWarn: func() bool { _, failed := s.Unfinished(); return failed > 0 }},
-			settingsTab: {Text: func() string { return locales.SettingsTitle(cx) }, Icon: lucide.Settings, SystemIcon: "gearshape", TestID: "tab-settings", Content: tabStack(navs[settingsTab])},
+		list := []shell.Tab{
+			filmsTab: {Text: func() string { return locales.FilmsTitle(cx) }, Icon: lucide.SquarePlay, SystemIcon: "play.rectangle", TestID: "tab-films", Content: tabStack(navs[filmsTab])},
+			jobsTab: {Text: func() string { return locales.JobsTitle(cx) }, Icon: lucide.Download, SystemIcon: "arrow.down.circle", TestID: "tab-jobs", Content: tabStack(navs[jobsTab]),
+				Badge: unfinished, BadgeWarn: failed},
+			learnTab: {Text: func() string { return locales.LearnTitle(cx) }, Icon: learn.Icon, SystemIcon: "rectangle.stack", TestID: "tab-learn", Content: tabStack(navs[learnTab]),
+				Badge: due.Get},
+			settingsTab: {Text: func() string { return locales.SettingsTitle(cx) }, Icon: lucide.Sun, SystemIcon: "gearshape", TestID: "tab-settings", Content: tabStack(navs[settingsTab])},
 		}
-		list := make([]shell.Tab, len(shown))
-		for i, t := range shown {
-			list[i] = all[t]
-		}
-		shellKeys(cx, len(shown), layer.Full, change, openAdd, func() {
+		shellKeys(cx, len(list), layer.Full, change, openAdd, func() {
 			selected.Set(filmsTab)
 			navs[filmsTab].PopToRoot()
 			searches.Update(func(n int) int { return n + 1 })
 		})
-		return shell.Shell{Selected: func() int { return slices.Index(shown, selected.Get()) }, OnChange: change,
-			Aside:  films.Sidebar(cx, s, subscription.Set, openAdd),
-			Footer: settings.Computers(cx, s, func() { change(slices.Index(shown, settingsTab)) }),
-			Tabs:   list}
+		return shell.Shell{Selected: selected.Get, OnChange: change,
+			Library:   func() string { return films.LibraryName(cx, library) },
+			OnLibrary: func() { films.PickLibrary(cx, s, library) },
+			Aside:     films.Sidebar(cx, s, subscription.Set, openAdd),
+			Footer:    settings.Computers(cx, s, openJobs),
+			Tabs:      list}
 	}
 	// Before the store is read the page stays blank: reading it is quick.
 	root := core.Show{When: s.Loaded, Then: func(cx *core.Scope) core.Node {
@@ -285,17 +285,4 @@ func App(cx *core.Scope, cfg session.Config) core.Node {
 			layer.Node(cx),
 		}}
 	})
-}
-
-// shownTabs are the tabs the shell shows, in order, on a tablet or a phone: Browse where the build has it, and Jobs on a tablet.
-func shownTabs(tablet bool) []int {
-	shown := []int{filmsTab}
-	if browse.Available {
-		shown = append(shown, browseTab)
-	}
-	shown = append(shown, learnTab)
-	if tablet {
-		shown = append(shown, jobsTab)
-	}
-	return append(shown, settingsTab)
 }

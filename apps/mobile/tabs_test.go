@@ -295,6 +295,16 @@ func TestATabletShowsASidebarOnItsSideAndATabBarUpright(t *testing.T) {
 	if got := p.texts("id:sidebar-computers"); got != "Studio" {
 		t.Fatalf("the sidebar's foot shows %q, want the computer paired", got)
 	}
+	// The sidebar's head names the library the Library shows and picks another, as the Library's switcher does.
+	if got := p.texts("id:sidebar-library"); got != msgs.FilmsAllLibraries() {
+		t.Fatalf("the sidebar's head names %q, want every library", got)
+	}
+	p.app.Press("id:sidebar-header")
+	if got, want := p.alertLabels(), []string{msgs.FilmsAllLibraries(), msgs.FilmsLibraryOn("Japanese Class", "Studio"), msgs.CommonCancel()}; !slices.Equal(got, want) {
+		t.Fatalf("the sidebar's head offers %q, want %q", got, want)
+	}
+	p.app.Answer(1)
+	p.app.WaitUntil(wait, func() bool { return p.texts("id:sidebar-library") == msgs.FilmsLibraryOn("Japanese Class", "Studio") })
 	p.app.Press("id:sidebar-tab-settings")
 	p.app.WaitFor("id:settings-page", wait)
 	p.app.Press("id:settings-target")
@@ -316,7 +326,10 @@ func TestATabletShowsASidebarOnItsSideAndATabBarUpright(t *testing.T) {
 	p.app.WaitFor(talkRow(store.DesktopID(d.Fingerprint)), wait)
 	p.app.Resize(1180, 820)
 	p.app.WaitFor("id:sidebar", wait)
+	// The computers' card at the sidebar's foot shows their jobs.
 	p.app.Press("id:sidebar-computers")
+	p.app.WaitFor("id:jobs-page", wait)
+	p.app.Press("id:sidebar-tab-settings")
 	p.app.WaitFor("id:settings-target-page", wait)
 	p.app.Press("id:sidebar-tab-settings")
 	p.app.WaitFor("id:settings-page", wait)
@@ -347,4 +360,27 @@ func TestUnpairingInSettingsKeepsThePageOfAFilmOnThePhone(t *testing.T) {
 	p.app.HeaderBack("id:film-page")
 	p.app.WaitFor("id:films-unpaired", wait)
 	p.app.Find(talkRow(id))
+}
+
+// Settings' Appearance steps from the system's look to light, dark and back, keeping the choice for the next launch.
+func TestTheAppearanceIsTheOneChosenInSettings(t *testing.T) {
+	dir := t.TempDir()
+	keepTalk(t, dir)
+	p := startPhone(t, dir)
+	p.app.WaitFor(talkRow("gonedesk"), wait)
+	p.openTab(settingsTab, msgs.SettingsTitle())
+	p.app.WaitFor("id:settings-appearance", wait)
+	for _, want := range []struct{ value, saved string }{
+		{msgs.SettingsAppearanceLight(), store.AppearanceLight},
+		{msgs.SettingsAppearanceDark(), store.AppearanceDark},
+		{msgs.SettingsAppearanceSystem(), ""},
+	} {
+		p.app.Press("id:settings-appearance")
+		p.app.WaitUntil(wait, func() bool { return strings.Contains(p.texts("id:settings-appearance"), want.value) })
+		p.app.WaitUntil(wait, func() bool { prefs, _ := store.Open(p.dir).Prefs(); return prefs.Appearance == want.saved })
+		if want.saved == store.AppearanceDark {
+			// Dark, the page is the design's black under its cards.
+			p.app.WaitUntil(wait, func() bool { return p.app.Find("id:settings-page").Style.Background == core.RGB(0x000000) })
+		}
+	}
 }

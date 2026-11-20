@@ -29,8 +29,10 @@ type Actions struct {
 	// Play plays the film kept on the phone under key, from where it was left on the phone, and PlayAt from at.
 	Play   func(key string)
 	PlayAt func(key string, at time.Duration)
-	// Add opens the Add sheet, and Jobs the Jobs page, which a tablet shows as a section of its own instead.
-	Add, Jobs func()
+	// Add opens the Add sheet.
+	Add func()
+	// Library is the library the list shows, none for all, which a tablet's sidebar names and picks too; nil for the page's own.
+	Library *core.Signal[catalog.Scope]
 	// Searches counts the times the user asked for the search from the keyboard (shortcuts.Search): the tab focuses its search field each time it grows. Nil for none.
 	Searches func() int
 	// Subscription opens the sheet of the subscription with that key (SubscriptionSheet), which the app shows over every section.
@@ -56,9 +58,12 @@ func Page(cx *core.Scope, s *session.Session, act Actions) base.NavPage {
 	v := &view{cx: cx, s: s, act: act,
 		query:   core.NewSignal(cx, ""),
 		source:  core.NewSignal(cx, ""),
-		library: core.NewSignal(cx, catalog.Scope{}),
+		library: act.Library,
 		entries: core.NewMemoFunc(cx, s.Entries, nil),
 		field:   &core.Ref{},
+	}
+	if v.library == nil {
+		v.library = core.NewSignal(cx, catalog.Scope{})
 	}
 	// The lines kept on the phone are read for a search once there is one, and again as the films on the phone change. Both inputs are memos, so typing on or a saved position, which change neither, does not read them again: the resource loads afresh whenever its source reruns.
 	searching := core.NewMemo(cx, func() bool { return v.query.Get() != "" })
@@ -107,38 +112,18 @@ func Page(cx *core.Scope, s *session.Session, act Actions) base.NavPage {
 			core.Show{When: func() bool { return v.query.Get() == "" && len(v.subscriptions()) > 0 }, Then: v.subscriptionRow},
 			v.list(cx),
 		}}}}
-	unfinished := func() int { active, failed := s.Unfinished(); return active + failed }
-	jobsLabel := func() string {
-		if n := unfinished(); n > 0 {
-			return locales.JobsBadgeLabel(cx, n)
-		}
-		return locales.JobsTitle(cx)
-	}
 	addLabel := func() string { return locales.AddTitle(cx) }
-	trailing := []core.Node{ui.IconButton{TestID: "films-add", Icon: lucide.Plus, LabelFunc: addLabel, Size: 44, OnPress: act.Add}}
-	tablet := look.Tablet(cx)
-	if !tablet {
-		// TODO(nsgo#741): core.HeaderSymbol is a name and a label only (core/platformprops.go:57), so iOS's native header shows no count on the Jobs button; its label says the count, and the drawn header elsewhere shows the badge. Pass the count once a header symbol takes a badge (UIBarButtonItem.badge). https://github.com/nsgo-dev/nsgo/issues/741
-		jobs := core.View{Children: []core.Node{
-			ui.IconButton{TestID: "films-jobs", Icon: lucide.ListChecks, LabelFunc: jobsLabel, Size: 44, OnPress: act.Jobs},
-			look.Count{TestID: "films-jobs-badge", Count: unfinished, Warn: func() bool { _, failed := s.Unfinished(); return failed > 0 },
-				Style: core.Style{Position: core.Absolute, Top: core.Pt(2), Right: core.Pt(0)}},
-		}}
-		trailing = append([]core.Node{jobs}, trailing...)
-	}
-	// Jobs and Add matter once a computer is paired; before, the card that asks to pair is the page's one action.
+	trailing := []core.Node{look.CircleButton{TestID: "films-add", Icon: lucide.Plus, Label: addLabel, Primary: true, OnPress: act.Add}}
+	// Add matters once a computer is paired; before, the card that asks to pair is the page's one action.
 	paired := func() bool { return len(s.Desktops()) > 0 }
 	shown := []core.Node{core.Show{When: paired, Then: func(*core.Scope) core.Node {
 		return core.View{Style: core.Style{Direction: core.Row, AlignItems: core.AlignCenter}, Children: trailing}
 	}}}
 	return look.TabRoot(cx, base.NavPage{TestID: "films-page", Children: []core.Node{body}}, title, shown, func() []core.HeaderSymbol {
-		switch {
-		case !paired():
+		if !paired() {
 			return nil
-		case tablet:
-			return []core.HeaderSymbol{{Name: "plus", Label: addLabel()}}
 		}
-		return []core.HeaderSymbol{{Name: "checklist", Label: jobsLabel()}, {Name: "plus", Label: addLabel()}}
+		return []core.HeaderSymbol{{Name: "plus", Label: addLabel()}}
 	})
 }
 
@@ -182,7 +167,7 @@ func (v *view) search(cx *core.Scope) core.Node {
 			ReturnKeyType: core.ReturnKeySearch, AutoCapitalize: core.AutoCapitalizeNone, NoAutoCorrect: true,
 			Style: core.Style{Height: core.Pt(40), FontSize: 16, CornerRadius: 11, BorderWidth: 0, Padding: core.Edges{Left: 36, Right: 12}},
 			StyleFunc: func() core.Style {
-				return core.Style{Background: ui.Alpha(colors.Text(), 0.06), BorderColor: ui.Alpha(colors.Text(), 0)}
+				return core.Style{Background: colors.Inset(), BorderColor: ui.Alpha(colors.Text(), 0)}
 			}},
 		core.View{Style: core.Style{Position: core.Absolute, Left: core.Pt(12), Top: core.Pt(0), Bottom: core.Pt(0), JustifyContent: core.JustifyCenter, PointerEvents: core.PointerEventsNone},
 			Children: []core.Node{ui.Icon(lucide.Search, 17, colors.Faint)}},
@@ -193,7 +178,7 @@ func (v *view) search(cx *core.Scope) core.Node {
 func unpaired(cx *core.Scope, pair func()) core.Node {
 	colors, tints := ui.ColorsOf(cx), ui.TintsOf(cx)
 	return core.View{TestID: "films-unpaired", Style: core.Style{CornerRadius: ui.RadiusCard, BorderCurve: core.BorderCurveContinuous, Padding: core.Edges{Top: 28, Right: 20, Bottom: 12, Left: 20}, AlignItems: core.AlignCenter, Gap: 12},
-		StyleFunc: func() core.Style { return core.Style{Background: ui.Alpha(colors.Text(), 0.045)} },
+		StyleFunc: func() core.Style { return core.Style{Background: colors.Surface()} },
 		Children: []core.Node{
 			core.View{Style: core.Style{Width: core.Pt(64), Height: core.Pt(64), CornerRadius: 16, BorderCurve: core.BorderCurveContinuous, AlignItems: core.AlignCenter, JustifyContent: core.JustifyCenter},
 				StyleFunc: ui.Filled(tints.Accent), Children: []core.Node{ui.Icon(lucide.Laptop, 32, colors.Accent)}},

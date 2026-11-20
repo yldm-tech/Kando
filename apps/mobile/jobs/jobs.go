@@ -10,6 +10,7 @@ import (
 	"kando/apps/mobile/look"
 	"kando/apps/mobile/session"
 	"kando/apps/mobile/store"
+	"kando/apps/mobile/theme"
 	"kando/packages/sync"
 
 	"github.com/nsgo-dev/nsgo/base"
@@ -100,7 +101,7 @@ func computerCard(cx *core.Scope, s *session.Session, desktop string) core.Node 
 	queue := func() session.Queue { return s.Queue(desktop) }
 	online := func() bool { return reached(queue()) }
 	return core.View{TestID: "jobs-computer-" + desktop, Style: core.Style{Direction: core.Row, AlignItems: core.AlignCenter, Gap: 12, Padding: core.Symmetric(12, 14), CornerRadius: ui.RadiusCard, BorderCurve: core.BorderCurveContinuous},
-		StyleFunc: func() core.Style { return core.Style{Background: ui.Alpha(colors.Text(), 0.045)} },
+		StyleFunc: func() core.Style { return core.Style{Background: colors.Surface()} },
 		Children: []core.Node{
 			ui.Icon(lucide.Laptop, 26, colors.Muted),
 			core.View{Style: core.Style{FlexGrow: 1, FlexShrink: 1, Gap: 2}, Children: []core.Node{
@@ -211,7 +212,7 @@ func card(cx *core.Scope, testID string, warn func() bool, children ...core.Node
 	colors := ui.ColorsOf(cx)
 	return core.View{TestID: testID, Style: core.Style{Padding: core.All(14), Gap: 12, CornerRadius: ui.RadiusCard, BorderCurve: core.BorderCurveContinuous, BorderWidth: 1.5},
 		StyleFunc: func() core.Style {
-			st := core.Style{Background: ui.Alpha(colors.Text(), 0.045), BorderColor: ui.Alpha(colors.Warn(), 0)}
+			st := core.Style{Background: colors.Surface(), BorderColor: ui.Alpha(colors.Warn(), 0)}
 			if warn() {
 				st.BorderColor = ui.Alpha(colors.Warn(), 0.6)
 			}
@@ -239,7 +240,7 @@ func linkCard(cx *core.Scope, s *session.Session, desktop string, o func() sessi
 					return locales.JobsWaitingFor(cx, name(s, desktop))
 				}, Style: look.Caption, StyleFunc: func() core.Style {
 					if refused() {
-						return core.Style{Color: colors.Warn()}
+						return core.Style{Color: theme.Of(cx).WarnText()}
 					}
 					return core.Style{Color: colors.Muted()}
 				}},
@@ -488,7 +489,7 @@ func remedy(cx *core.Scope, s *session.Session, desktop string, j func() sync.Jo
 	return core.View{TestID: "jobs-remedy-" + id, Style: core.Style{Gap: 6, Padding: core.All(12), CornerRadius: 12, BorderCurve: core.BorderCurveContinuous},
 		StyleFunc: func() core.Style {
 			if canceled() {
-				return core.Style{Background: ui.Alpha(colors.Text(), 0.045)}
+				return core.Style{Background: colors.Inset()}
 			}
 			return core.Style{Background: tints.Warn()}
 		},

@@ -1,6 +1,8 @@
 package look
 
 import (
+	"kando/apps/mobile/theme"
+
 	"github.com/nsgo-dev/nsgo/core"
 	"github.com/nsgo-dev/nsgo/icons/lucide"
 	"github.com/nsgo-dev/nsgo/ui"
@@ -18,7 +20,7 @@ const (
 )
 
 // color is t's color, fallback for ToneDefault.
-func (t Tone) color(colors ui.Colors, fallback func() core.Color) core.Color {
+func (t Tone) color(colors ui.Colors, warnText, fallback func() core.Color) core.Color {
 	switch t {
 	case ToneAccent:
 		return colors.Accent()
@@ -27,12 +29,12 @@ func (t Tone) color(colors ui.Colors, fallback func() core.Color) core.Color {
 	case ToneMuted:
 		return colors.Muted()
 	case ToneWarn:
-		return colors.Warn()
+		return warnText()
 	}
 	return fallback()
 }
 
-// Row is a row of a list in a Group: a press target the width of the card with a leading view, a title, a line under it and a view below them, a value and a trailing view at its end, and a chevron where it leads to a page; each is optional. A row after the first draws the hairline over it, starting Inset from the card's leading edge.
+// Row is a row of a list in a Group: a press target the width of the card with a leading view, a title, a note under it and a view below them, a value and a trailing view at its end, and a chevron where it leads to a page; each is optional. A row after the first draws the hairline over it, the card's width unless Inset says where it starts.
 type Row struct {
 	Leading   core.Node
 	Title     func() string
@@ -49,7 +51,7 @@ type Row struct {
 	Chevron  bool
 	// Index is the row's place in its group: rows after the first draw the hairline over them.
 	Index func() int
-	// Inset is where the hairline starts, 16 when 0.
+	// Inset is where the hairline starts from the card's leading edge, at the edge when 0.
 	Inset core.Points
 	// Checked makes the row a radio button of its group, checked while it reports true.
 	Checked func() bool
@@ -60,23 +62,24 @@ type Row struct {
 // Render implements core.Node.
 func (r Row) Render(cx *core.Scope) core.Node {
 	colors := ui.ColorsOf(cx)
+	warnText := theme.Of(cx).WarnText
 	var texts []core.Node
 	if r.Title != nil {
 		lines := r.TitleLines
 		if lines == 0 {
 			lines = 2
 		}
-		texts = append(texts, core.Text{ContentFunc: r.Title, MaxLines: lines, Style: Title,
-			StyleFunc: func() core.Style { return core.Style{Color: r.TitleTone.color(colors, colors.Text)} }})
+		texts = append(texts, core.Text{ContentFunc: r.Title, MaxLines: lines, Style: Body,
+			StyleFunc: func() core.Style { return core.Style{Color: r.TitleTone.color(colors, warnText, colors.Text)} }})
 	}
 	if r.Detail != nil {
 		texts = append(texts, core.Show{When: func() bool { return r.Detail() != "" }, Then: func(cx *core.Scope) core.Node {
-			return core.Text{ContentFunc: r.Detail, MaxLines: 2, Style: Subhead, StyleFunc: func() core.Style {
+			return core.Text{ContentFunc: r.Detail, MaxLines: 2, Style: Footnote, StyleFunc: func() core.Style {
 				tone := ToneDefault
 				if r.DetailTone != nil {
 					tone = r.DetailTone()
 				}
-				return core.Style{Color: tone.color(colors, colors.Muted)}
+				return core.Style{Color: tone.color(colors, warnText, colors.Muted)}
 			}}
 		}})
 	}
@@ -85,11 +88,7 @@ func (r Row) Render(cx *core.Scope) core.Node {
 	}
 	var children []core.Node
 	if r.Index != nil {
-		inset := r.Inset
-		if inset == 0 {
-			inset = 16
-		}
-		children = append(children, core.View{Style: core.Style{Position: core.Absolute, Top: core.Pt(0), Left: core.Pt(inset), Right: core.Pt(0), Height: core.Pt(0.5)},
+		children = append(children, core.View{Style: core.Style{Position: core.Absolute, Top: core.Pt(0), Left: core.Pt(r.Inset), Right: core.Pt(0), Height: core.Pt(0.5)},
 			StyleFunc: func() core.Style {
 				s := core.Style{Background: colors.Line()}
 				if r.Index() <= 0 {
@@ -109,10 +108,10 @@ func (r Row) Render(cx *core.Scope) core.Node {
 		children = append(children, r.Trailing)
 	}
 	if r.Chevron {
-		children = append(children, ui.Icon(lucide.ChevronRight, 14, colors.Faint))
+		children = append(children, ui.Icon(lucide.ChevronRight, 20, colors.Faint))
 	}
 	v := core.View{TestID: r.TestID, Children: children,
-		Style:     core.Style{Direction: core.Row, AlignItems: core.AlignCenter, Gap: 12, Padding: core.Symmetric(10, 16), MinHeight: core.Pt(52)},
+		Style:     core.Style{Direction: core.Row, AlignItems: core.AlignCenter, Gap: 12, Padding: core.Symmetric(8, 16), MinHeight: core.Pt(52)},
 		StyleFunc: func() core.Style { return core.Style{Active: &core.Style{Background: colors.Pressed()}} }}
 	if r.OnPress != nil {
 		v.Role = core.RoleButton

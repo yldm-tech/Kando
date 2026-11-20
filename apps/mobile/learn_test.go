@@ -84,6 +84,8 @@ func TestLearnReviewsTheComputersWordsAndLines(t *testing.T) {
 	dir := t.TempDir()
 	p := startPhone(t, dir, pairedWith(t, d, dir))
 	p.waitLearned(store.DesktopID(d.Fingerprint))
+	// The Learn tab counts what is due before it is opened.
+	p.app.WaitUntil(wait, func() bool { return p.app.Exists("id:bar-badge-tab-learn") && p.texts("id:bar-badge-tab-learn") == "2" })
 	p.openTab(learnTab, msgs.LearnTitle())
 	p.app.WaitUntil(wait, func() bool { return p.texts("id:learn-review-title") == msgs.LearnReviewDue(2) })
 	if got, want := p.texts("id:learn-vocabulary"), msgs.LearnWordCount(2); !strings.Contains(got, want) {

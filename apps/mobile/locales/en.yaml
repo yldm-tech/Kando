@@ -108,64 +108,6 @@ addTitle:
 appName:
   message: "Kando"
   description: "The app's name in this language, which the home screen and the system show."
-browseAddress:
-  message: "Search or Type a URL"
-  description: "Browse: placeholder and spoken name of the address field in the bar at the foot of the page."
-browseBack:
-  message: "Back"
-  description: "Browse: spoken name of the button that goes back a page."
-browseFailed:
-  message: "This page didn't open."
-  description: "Browse: over the bar at the foot when the page did not load."
-browseHome:
-  message: "Start Page"
-  description: "Browse: spoken name of the button that shows the start, with the sites and the videos last looked at."
-browseIntro:
-  message: "Find a video you want to learn from and tap Send to Computer. Kando on your computer downloads, transcribes and translates it, then it shows in your library."
-  description: "Browse: under the title of the start, what the tab is for. 'Send to Computer' is the button browseSend."
-browseNote:
-  message: "Signing in to a site here is for browsing on this phone. For a video that needs a sign-in to download, Kando on your computer needs to sign in once too."
-  description: "Browse: at the foot of the start, what signing in to a site in the phone's browser is for."
-browsePair:
-  message: "Pair"
-  description: "Browse: button on the bar over a page's video, when no computer is paired, that pairs one."
-browseRecent:
-  message: "Recently Viewed"
-  description: "Browse: heading of the videos last looked at, on the start."
-browseReload:
-  message: "Reload"
-  description: "Browse: spoken name of the button that loads a page that did not open again."
-browseSend:
-  message: "Send to Computer"
-  description: "Browse: button on the bar over a page's video that sends it to the computer to download, transcribe and translate."
-browseSent:
-  message: "Sent"
-  description: "Browse: the send button once the page's video was sent."
-browseSiteBilibili:
-  message: "Bilibili"
-  description: "Browse: the video site bilibili's name on its tile."
-browseSiteNiconico:
-  message: "Niconico"
-  description: "Browse: the Japanese video site niconico's name (nicovideo.jp) on its tile."
-browseSites:
-  message: "Popular Sites"
-  description: "Browse: heading of the sites' tiles on the start."
-browseTitle:
-  message: "Browse"
-  description: "Title of the Browse tab, where the user looks for videos on the sites' own pages and sends them to the computer."
-browseVideo:
-  message: "Video on this page · for {name}"
-  description: "Browse: on the bar over a page of one video, which computer it would go to."
-  placeholders:
-    name: { type: "String", example: "Studio" }
-browseVideoSent:
-  message: "Sent to {name}. Follow it in Jobs."
-  description: "Browse: on the bar over a page of one video once it was sent. Jobs is the page that lists the computer's jobs."
-  placeholders:
-    name: { type: "String", example: "Studio" }
-browseVideoUnpaired:
-  message: "Video on this page · pair with a computer to send it"
-  description: "Browse: on the bar over a page of one video while no computer is paired."
 commonCancel:
   message: "Cancel"
   description: "Button that closes a dialog or a step without doing anything."
@@ -701,11 +643,6 @@ filmsDeletedFromLibrary:
   placeholders:
     title: { type: "String", example: "Rust Talk" }
     computer: { type: "String", example: "Studio" }
-jobsBadgeLabel:
-  message: "Jobs, {count} unfinished"
-  description: "Spoken name of the Jobs button and section while jobs run, wait or failed, or links wait to be sent."
-  placeholders:
-    count: { type: "int", example: "2" }
 jobsEmpty:
   message: "No jobs. Tap + to send a video's link."
   description: "Jobs page, under a computer's card when it has no jobs and no links wait for it."
@@ -1783,6 +1720,18 @@ sessionDownloading:
 settingsAbout:
   message: "About"
   description: "Heading of Settings' section about the app."
+settingsAppearance:
+  message: "Appearance"
+  description: "Row in Settings that picks the app's light or dark look, or the system's; pressed, it steps to the next."
+settingsAppearanceDark:
+  message: "Dark"
+  description: "Value of the Appearance row: the app is always dark."
+settingsAppearanceLight:
+  message: "Light"
+  description: "Value of the Appearance row: the app is always light."
+settingsAppearanceSystem:
+  message: "Automatic"
+  description: "Value of the Appearance row: the app follows the system's light or dark appearance."
 settingsComputers:
   message: "Computers"
   description: "Heading of Settings' section of the paired computers."

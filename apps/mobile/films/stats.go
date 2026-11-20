@@ -40,7 +40,7 @@ func statTile(cx *core.Scope, testID string, value, label func() string, tone fu
 	colors := ui.ColorsOf(cx)
 	return core.View{TestID: testID, Role: core.RoleText, LabelFunc: func() string { return label() + ", " + value() },
 		Style:     core.Style{FlexGrow: 1, FlexBasis: core.Pt(0), MinWidth: core.Pt(0), Padding: core.Symmetric(10, 12), CornerRadius: 12, BorderCurve: core.BorderCurveContinuous},
-		StyleFunc: func() core.Style { return core.Style{Background: ui.Alpha(colors.Text(), 0.045)} },
+		StyleFunc: func() core.Style { return core.Style{Background: colors.Surface()} },
 		Children: []core.Node{core.View{AccessibilityElementsHidden: func() bool { return true }, Style: core.Style{Gap: 2}, Children: []core.Node{
 			ui.Tabular(core.Text{TestID: testID + "-value", ContentFunc: value, MaxLines: 1, Style: look.Heading.Merge(core.Style{FontWeight: core.FontWeightBold}), StyleFunc: ui.Colored(tone)}),
 			core.Text{ContentFunc: label, MaxLines: 1, Style: look.Caption, StyleFunc: ui.Colored(colors.Muted)},

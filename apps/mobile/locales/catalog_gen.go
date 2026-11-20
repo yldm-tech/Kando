@@ -473,8 +473,6 @@ var Parameters = map[string][]string{
 	"AddSubscribed":                  {"title", "name"},
 	"AddSubscribedExisting":          {"title", "name"},
 	"AddSubtitlesRecognizeNote":      {"name"},
-	"BrowseVideo":                    {"name"},
-	"BrowseVideoSent":                {"name"},
 	"ComputerContextFailed":          {"computer"},
 	"ComputersCertificate":           {"name"},
 	"ComputersOptions":               {"name"},
@@ -522,7 +520,6 @@ var Parameters = map[string][]string{
 	"FilmsDeleteFromLibraryTitle":    {"title"},
 	"FilmsDeleteFromLibraryMessage":  {"computer"},
 	"FilmsDeletedFromLibrary":        {"title", "computer"},
-	"JobsBadgeLabel":                 {"count"},
 	"JobsReadOnly":                   {"name"},
 	"LearnDueIn":                     {"count"},
 	"FilmsUsed":                      {"size"},
@@ -651,8 +648,6 @@ type Translation struct {
 	AddSubscribed                  func(title string, name string) string
 	AddSubscribedExisting          func(title string, name string) string
 	AddSubtitlesRecognizeNote      func(name string) string
-	BrowseVideo                    func(name string) string
-	BrowseVideoSent                func(name string) string
 	ComputerContextFailed          func(computer string) string
 	ComputersCertificate           func(name string) string
 	ComputersOptions               func(name string) string
@@ -700,7 +695,6 @@ type Translation struct {
 	FilmsDeleteFromLibraryTitle    func(title string) string
 	FilmsDeleteFromLibraryMessage  func(computer string) string
 	FilmsDeletedFromLibrary        func(title string, computer string) string
-	JobsBadgeLabel                 func(count int) string
 	JobsReadOnly                   func(name string) string
 	LearnDueIn                     func(count int) string
 	FilmsUsed                      func(size string) string
@@ -831,22 +825,6 @@ const (
 	textAddSubtitlesRecognize
 	textAddTitle
 	textAppName
-	textBrowseAddress
-	textBrowseBack
-	textBrowseFailed
-	textBrowseHome
-	textBrowseIntro
-	textBrowseNote
-	textBrowsePair
-	textBrowseRecent
-	textBrowseReload
-	textBrowseSend
-	textBrowseSent
-	textBrowseSiteBilibili
-	textBrowseSiteNiconico
-	textBrowseSites
-	textBrowseTitle
-	textBrowseVideoUnpaired
 	textCommonCancel
 	textCommonOK
 	textCommonRetry
@@ -1157,6 +1135,10 @@ const (
 	textPlayerWordSourceAIUnnamed
 	textSessionDownloading
 	textSettingsAbout
+	textSettingsAppearance
+	textSettingsAppearanceDark
+	textSettingsAppearanceLight
+	textSettingsAppearanceSystem
 	textSettingsComputers
 	textSettingsConflictBoth
 	textSettingsConflictMeaning
@@ -1284,22 +1266,6 @@ var keyOfText = [numTexts]string{
 	"addSubtitlesRecognize",
 	"addTitle",
 	"appName",
-	"browseAddress",
-	"browseBack",
-	"browseFailed",
-	"browseHome",
-	"browseIntro",
-	"browseNote",
-	"browsePair",
-	"browseRecent",
-	"browseReload",
-	"browseSend",
-	"browseSent",
-	"browseSiteBilibili",
-	"browseSiteNiconico",
-	"browseSites",
-	"browseTitle",
-	"browseVideoUnpaired",
 	"commonCancel",
 	"commonOK",
 	"commonRetry",
@@ -1610,6 +1576,10 @@ var keyOfText = [numTexts]string{
 	"playerWordSourceAIUnnamed",
 	"sessionDownloading",
 	"settingsAbout",
+	"settingsAppearance",
+	"settingsAppearanceDark",
+	"settingsAppearanceLight",
+	"settingsAppearanceSystem",
 	"settingsComputers",
 	"settingsConflictBoth",
 	"settingsConflictMeaning",
@@ -1735,22 +1705,6 @@ var textsEn = i18n.NewTexts(""+
 	"Recognized on the Computer"+
 	"Add Video"+
 	"Kando"+
-	"Search or Type a URL"+
-	"Back"+
-	"This page didn't open."+
-	"Start Page"+
-	"Find a video you want to learn from and tap Send to Computer. Kando on your computer downloads, transcribes and translates it, then it shows in your library."+
-	"Signing in to a site here is for browsing on this phone. For a video that needs a sign-in to download, Kando on your computer needs to sign in once too."+
-	"Pair"+
-	"Recently Viewed"+
-	"Reload"+
-	"Send to Computer"+
-	"Sent"+
-	"Bilibili"+
-	"Niconico"+
-	"Popular Sites"+
-	"Browse"+
-	"Video on this page · pair with a computer to send it"+
 	"Cancel"+
 	"OK"+
 	"Try Again"+
@@ -2061,6 +2015,10 @@ var textsEn = i18n.NewTexts(""+
 	"Explained by your computer's AI service"+
 	"Downloading films"+
 	"About"+
+	"Appearance"+
+	"Dark"+
+	"Light"+
+	"Automatic"+
 	"Computers"+
 	"Keep Both"+
 	"Meaning"+
@@ -2183,22 +2141,6 @@ var textsEn = i18n.NewTexts(""+
 		26,
 		9,
 		5,
-		20,
-		4,
-		22,
-		10,
-		157,
-		152,
-		4,
-		15,
-		6,
-		16,
-		4,
-		8,
-		8,
-		13,
-		6,
-		53,
 		6,
 		2,
 		9,
@@ -2509,6 +2451,10 @@ var textsEn = i18n.NewTexts(""+
 		39,
 		17,
 		5,
+		10,
+		4,
+		5,
+		9,
 		9,
 		9,
 		7,
@@ -2634,22 +2580,6 @@ var textsJa = i18n.NewTexts(""+
 	"パソコンで認識"+
 	"動画を追加"+
 	"Kando"+
-	"検索または URL を入力"+
-	"戻る"+
-	"このページを開けませんでした。"+
-	"スタートページ"+
-	"学びたい動画を見つけたら「パソコンに送る」をタップ。パソコンの Kando がダウンロード・文字起こし・翻訳し、ライブラリに表示します。"+
-	"ここでのサイトへのログインは、このスマートフォンでの閲覧用です。ダウンロードにログインが必要な動画は、パソコンの Kando でも一度ログインしてください。"+
-	"ペアリング"+
-	"最近見た動画"+
-	"再読み込み"+
-	"パソコンに送る"+
-	"送信済み"+
-	"bilibili"+
-	"ニコニコ動画"+
-	"よく使うサイト"+
-	"ブラウズ"+
-	"このページに動画があります · 送るにはパソコンとペアリングしてください"+
 	"キャンセル"+
 	"OK"+
 	"再試行"+
@@ -2960,6 +2890,10 @@ var textsJa = i18n.NewTexts(""+
 	"パソコンの AI サービスによる説明"+
 	"動画をダウンロード中"+
 	"このアプリについて"+
+	"外観"+
+	"ダーク"+
+	"ライト"+
+	"自動"+
 	"コンピュータ"+
 	"両方残す"+
 	"意味"+
@@ -3082,22 +3016,6 @@ var textsJa = i18n.NewTexts(""+
 		21,
 		15,
 		5,
-		29,
-		6,
-		45,
-		21,
-		190,
-		220,
-		15,
-		18,
-		15,
-		21,
-		12,
-		8,
-		18,
-		21,
-		12,
-		103,
 		15,
 		2,
 		9,
@@ -3408,6 +3326,10 @@ var textsJa = i18n.NewTexts(""+
 		46,
 		30,
 		27,
+		6,
+		9,
+		9,
+		6,
 		18,
 		12,
 		6,
@@ -3533,22 +3455,6 @@ var textsKo = i18n.NewTexts(""+
 	"컴퓨터에서 인식"+
 	"동영상 추가"+
 	"Kando"+
-	"검색 또는 URL 입력"+
-	"뒤로"+
-	"이 페이지를 열지 못했습니다."+
-	"시작 페이지"+
-	"배우고 싶은 동영상을 찾으면 [컴퓨터로 보내기]를 탭하세요. 컴퓨터의 Kando가 다운로드하고 받아쓰고 번역해 보관함에 보여 줍니다."+
-	"여기서 사이트에 로그인하는 것은 이 휴대폰에서 둘러보기 위한 것입니다. 다운로드에 로그인이 필요한 동영상은 컴퓨터의 Kando에서도 한 번 로그인해야 합니다."+
-	"페어링"+
-	"최근 본 동영상"+
-	"새로고침"+
-	"컴퓨터로 보내기"+
-	"보냄"+
-	"빌리빌리"+
-	"니코니코 동화"+
-	"자주 가는 사이트"+
-	"둘러보기"+
-	"이 페이지에 동영상이 있습니다 · 보내려면 컴퓨터와 페어링하세요"+
 	"취소"+
 	"확인"+
 	"다시 시도"+
@@ -3859,6 +3765,10 @@ var textsKo = i18n.NewTexts(""+
 	"컴퓨터에 있는 AI 서비스의 설명"+
 	"영상 다운로드 중"+
 	"정보"+
+	"화면 모드"+
+	"다크"+
+	"라이트"+
+	"자동"+
 	"컴퓨터"+
 	"둘 다 남기기"+
 	"뜻"+
@@ -3981,22 +3891,6 @@ var textsKo = i18n.NewTexts(""+
 		22,
 		16,
 		5,
-		24,
-		6,
-		40,
-		16,
-		176,
-		214,
-		9,
-		20,
-		12,
-		22,
-		6,
-		12,
-		19,
-		23,
-		12,
-		90,
 		6,
 		6,
 		13,
@@ -4307,6 +4201,10 @@ var textsKo = i18n.NewTexts(""+
 		42,
 		23,
 		6,
+		13,
+		6,
+		9,
+		6,
 		9,
 		17,
 		3,
@@ -4432,22 +4330,6 @@ var textsZhHans = i18n.NewTexts(""+
 	"电脑识别"+
 	"添加视频"+
 	"看懂"+
-	"搜索或输入网址"+
-	"后退"+
-	"这个页面没有打开。"+
-	"起始页"+
-	"逛到想学的视频，点「发到电脑」，电脑上的看懂会下载、转录、翻译，好了出现在片库里。"+
-	"在这里登录网站只用于在这台手机上浏览。需要登录才能下载的视频，电脑上的看懂也要登录一次。"+
-	"连接"+
-	"最近看过"+
-	"重新加载"+
-	"发到电脑"+
-	"已发送"+
-	"哔哩哔哩"+
-	"ニコニコ動画"+
-	"常用网站"+
-	"浏览"+
-	"这一页有视频 · 先连接一台电脑才能发送"+
 	"取消"+
 	"好"+
 	"重试"+
@@ -4758,6 +4640,10 @@ var textsZhHans = i18n.NewTexts(""+
 	"由电脑上的 AI 服务解释"+
 	"正在下载影片"+
 	"关于"+
+	"外观"+
+	"深色"+
+	"浅色"+
+	"跟随系统"+
 	"电脑"+
 	"两条都留"+
 	"释义"+
@@ -4880,22 +4766,6 @@ var textsZhHans = i18n.NewTexts(""+
 		12,
 		12,
 		6,
-		21,
-		6,
-		27,
-		9,
-		123,
-		132,
-		6,
-		12,
-		12,
-		12,
-		9,
-		12,
-		18,
-		12,
-		6,
-		55,
 		6,
 		3,
 		6,
@@ -5207,6 +5077,10 @@ var textsZhHans = i18n.NewTexts(""+
 		18,
 		6,
 		6,
+		6,
+		6,
+		12,
+		6,
 		12,
 		6,
 		6,
@@ -5331,22 +5205,6 @@ var textsZhHant = i18n.NewTexts(""+
 	"電腦辨識"+
 	"新增影片"+
 	"看懂"+
-	"搜尋或輸入網址"+
-	"上一頁"+
-	"這個頁面沒有打開。"+
-	"起始頁"+
-	"逛到想學的影片，點「傳到電腦」，電腦上的看懂會下載、轉錄、翻譯，完成後出現在片庫裡。"+
-	"在這裡登入網站只用於在這支手機上瀏覽。需要登入才能下載的影片，電腦上的看懂也要登入一次。"+
-	"連接"+
-	"最近看過"+
-	"重新載入"+
-	"傳到電腦"+
-	"已傳送"+
-	"嗶哩嗶哩"+
-	"ニコニコ動画"+
-	"常用網站"+
-	"瀏覽"+
-	"這一頁有影片 · 先連接一台電腦才能傳送"+
 	"取消"+
 	"好"+
 	"重試"+
@@ -5657,6 +5515,10 @@ var textsZhHant = i18n.NewTexts(""+
 	"由電腦上的 AI 服務解釋"+
 	"正在下載影片"+
 	"關於"+
+	"外觀"+
+	"深色"+
+	"淺色"+
+	"跟隨系統"+
 	"電腦"+
 	"兩條都留"+
 	"釋義"+
@@ -5779,22 +5641,6 @@ var textsZhHant = i18n.NewTexts(""+
 		12,
 		12,
 		6,
-		21,
-		9,
-		27,
-		9,
-		126,
-		132,
-		6,
-		12,
-		12,
-		12,
-		9,
-		12,
-		18,
-		12,
-		6,
-		55,
 		6,
 		3,
 		6,
@@ -6106,6 +5952,10 @@ var textsZhHant = i18n.NewTexts(""+
 		18,
 		6,
 		6,
+		6,
+		6,
+		12,
+		6,
 		12,
 		6,
 		6,
@@ -6308,12 +6158,6 @@ func Supply(lang string, t Translation) {
 	if t.AddSubtitlesRecognizeNote != nil {
 		s.AddSubtitlesRecognizeNote = t.AddSubtitlesRecognizeNote
 	}
-	if t.BrowseVideo != nil {
-		s.BrowseVideo = t.BrowseVideo
-	}
-	if t.BrowseVideoSent != nil {
-		s.BrowseVideoSent = t.BrowseVideoSent
-	}
 	if t.ComputerContextFailed != nil {
 		s.ComputerContextFailed = t.ComputerContextFailed
 	}
@@ -6454,9 +6298,6 @@ func Supply(lang string, t Translation) {
 	}
 	if t.FilmsDeletedFromLibrary != nil {
 		s.FilmsDeletedFromLibrary = t.FilmsDeletedFromLibrary
-	}
-	if t.JobsBadgeLabel != nil {
-		s.JobsBadgeLabel = t.JobsBadgeLabel
 	}
 	if t.JobsReadOnly != nil {
 		s.JobsReadOnly = t.JobsReadOnly
@@ -7312,210 +7153,6 @@ func AppName(cx *core.Scope) string { return For(cx).AppName() }
 
 // AppName is the package's AppName in the language of msgs.
 func (msgs Messages) AppName() string { return msgs.text(textAppName) }
-
-// BrowseAddress says "Search or Type a URL"
-// in the language the app shows under cx.
-//
-// Browse: placeholder and spoken name of the address field in the bar at the foot of the page.
-func BrowseAddress(cx *core.Scope) string { return For(cx).BrowseAddress() }
-
-// BrowseAddress is the package's BrowseAddress in the language of msgs.
-func (msgs Messages) BrowseAddress() string { return msgs.text(textBrowseAddress) }
-
-// BrowseBack says "Back"
-// in the language the app shows under cx.
-//
-// Browse: spoken name of the button that goes back a page.
-func BrowseBack(cx *core.Scope) string { return For(cx).BrowseBack() }
-
-// BrowseBack is the package's BrowseBack in the language of msgs.
-func (msgs Messages) BrowseBack() string { return msgs.text(textBrowseBack) }
-
-// BrowseFailed says "This page didn't open."
-// in the language the app shows under cx.
-//
-// Browse: over the bar at the foot when the page did not load.
-func BrowseFailed(cx *core.Scope) string { return For(cx).BrowseFailed() }
-
-// BrowseFailed is the package's BrowseFailed in the language of msgs.
-func (msgs Messages) BrowseFailed() string { return msgs.text(textBrowseFailed) }
-
-// BrowseHome says "Start Page"
-// in the language the app shows under cx.
-//
-// Browse: spoken name of the button that shows the start, with the sites and the videos last looked at.
-func BrowseHome(cx *core.Scope) string { return For(cx).BrowseHome() }
-
-// BrowseHome is the package's BrowseHome in the language of msgs.
-func (msgs Messages) BrowseHome() string { return msgs.text(textBrowseHome) }
-
-// BrowseIntro says "Find a video you want to learn from and tap Send to Computer. Kando on your computer downloads, transcribes and translates it, then it shows in your library."
-// in the language the app shows under cx.
-//
-// Browse: under the title of the start, what the tab is for. 'Send to Computer' is the button browseSend.
-func BrowseIntro(cx *core.Scope) string { return For(cx).BrowseIntro() }
-
-// BrowseIntro is the package's BrowseIntro in the language of msgs.
-func (msgs Messages) BrowseIntro() string { return msgs.text(textBrowseIntro) }
-
-// BrowseNote says "Signing in to a site here is for browsing on this phone. For a video that needs a sign-in to download, Kando on your computer needs to sign in once too."
-// in the language the app shows under cx.
-//
-// Browse: at the foot of the start, what signing in to a site in the phone's browser is for.
-func BrowseNote(cx *core.Scope) string { return For(cx).BrowseNote() }
-
-// BrowseNote is the package's BrowseNote in the language of msgs.
-func (msgs Messages) BrowseNote() string { return msgs.text(textBrowseNote) }
-
-// BrowsePair says "Pair"
-// in the language the app shows under cx.
-//
-// Browse: button on the bar over a page's video, when no computer is paired, that pairs one.
-func BrowsePair(cx *core.Scope) string { return For(cx).BrowsePair() }
-
-// BrowsePair is the package's BrowsePair in the language of msgs.
-func (msgs Messages) BrowsePair() string { return msgs.text(textBrowsePair) }
-
-// BrowseRecent says "Recently Viewed"
-// in the language the app shows under cx.
-//
-// Browse: heading of the videos last looked at, on the start.
-func BrowseRecent(cx *core.Scope) string { return For(cx).BrowseRecent() }
-
-// BrowseRecent is the package's BrowseRecent in the language of msgs.
-func (msgs Messages) BrowseRecent() string { return msgs.text(textBrowseRecent) }
-
-// BrowseReload says "Reload"
-// in the language the app shows under cx.
-//
-// Browse: spoken name of the button that loads a page that did not open again.
-func BrowseReload(cx *core.Scope) string { return For(cx).BrowseReload() }
-
-// BrowseReload is the package's BrowseReload in the language of msgs.
-func (msgs Messages) BrowseReload() string { return msgs.text(textBrowseReload) }
-
-// BrowseSend says "Send to Computer"
-// in the language the app shows under cx.
-//
-// Browse: button on the bar over a page's video that sends it to the computer to download, transcribe and translate.
-func BrowseSend(cx *core.Scope) string { return For(cx).BrowseSend() }
-
-// BrowseSend is the package's BrowseSend in the language of msgs.
-func (msgs Messages) BrowseSend() string { return msgs.text(textBrowseSend) }
-
-// BrowseSent says "Sent"
-// in the language the app shows under cx.
-//
-// Browse: the send button once the page's video was sent.
-func BrowseSent(cx *core.Scope) string { return For(cx).BrowseSent() }
-
-// BrowseSent is the package's BrowseSent in the language of msgs.
-func (msgs Messages) BrowseSent() string { return msgs.text(textBrowseSent) }
-
-// BrowseSiteBilibili says "Bilibili"
-// in the language the app shows under cx.
-//
-// Browse: the video site bilibili's name on its tile.
-func BrowseSiteBilibili(cx *core.Scope) string { return For(cx).BrowseSiteBilibili() }
-
-// BrowseSiteBilibili is the package's BrowseSiteBilibili in the language of msgs.
-func (msgs Messages) BrowseSiteBilibili() string { return msgs.text(textBrowseSiteBilibili) }
-
-// BrowseSiteNiconico says "Niconico"
-// in the language the app shows under cx.
-//
-// Browse: the Japanese video site niconico's name (nicovideo.jp) on its tile.
-func BrowseSiteNiconico(cx *core.Scope) string { return For(cx).BrowseSiteNiconico() }
-
-// BrowseSiteNiconico is the package's BrowseSiteNiconico in the language of msgs.
-func (msgs Messages) BrowseSiteNiconico() string { return msgs.text(textBrowseSiteNiconico) }
-
-// BrowseSites says "Popular Sites"
-// in the language the app shows under cx.
-//
-// Browse: heading of the sites' tiles on the start.
-func BrowseSites(cx *core.Scope) string { return For(cx).BrowseSites() }
-
-// BrowseSites is the package's BrowseSites in the language of msgs.
-func (msgs Messages) BrowseSites() string { return msgs.text(textBrowseSites) }
-
-// BrowseTitle says "Browse"
-// in the language the app shows under cx.
-//
-// Title of the Browse tab, where the user looks for videos on the sites' own pages and sends them to the computer.
-func BrowseTitle(cx *core.Scope) string { return For(cx).BrowseTitle() }
-
-// BrowseTitle is the package's BrowseTitle in the language of msgs.
-func (msgs Messages) BrowseTitle() string { return msgs.text(textBrowseTitle) }
-
-// BrowseVideo says "Video on this page · for {name}"
-// in the language the app shows under cx.
-//
-// Browse: on the bar over a page of one video, which computer it would go to.
-func BrowseVideo(cx *core.Scope, name string) string { return For(cx).BrowseVideo(name) }
-
-// BrowseVideo is the package's BrowseVideo in the language of msgs.
-func (msgs Messages) BrowseVideo(name string) string {
-	if i18n.IsPseudo(msgs.lang) {
-		return i18n.Pseudo(msgs.lang, Messages{lang: Source, mark: true}.BrowseVideo(name))
-	}
-	for lang := msgs.lang; ; lang = i18n.Parent(lang) {
-		if f := supplied[lang].BrowseVideo; f != nil {
-			return f(name)
-		}
-		switch lang {
-		case "", "en":
-			return "Video on this page · for " + msgs.arg(name)
-		case "ja":
-			return "このページに動画があります · " + name + " へ"
-		case "ko":
-			return "이 페이지에 동영상이 있습니다 · " + name + "에 보내기"
-		case "zh-Hans":
-			return "这一页有视频 · 交给 " + name
-		case "zh-Hant":
-			return "這一頁有影片 · 交給 " + name
-		}
-	}
-}
-
-// BrowseVideoSent says "Sent to {name}. Follow it in Jobs."
-// in the language the app shows under cx.
-//
-// Browse: on the bar over a page of one video once it was sent. Jobs is the page that lists the computer's jobs.
-func BrowseVideoSent(cx *core.Scope, name string) string { return For(cx).BrowseVideoSent(name) }
-
-// BrowseVideoSent is the package's BrowseVideoSent in the language of msgs.
-func (msgs Messages) BrowseVideoSent(name string) string {
-	if i18n.IsPseudo(msgs.lang) {
-		return i18n.Pseudo(msgs.lang, Messages{lang: Source, mark: true}.BrowseVideoSent(name))
-	}
-	for lang := msgs.lang; ; lang = i18n.Parent(lang) {
-		if f := supplied[lang].BrowseVideoSent; f != nil {
-			return f(name)
-		}
-		switch lang {
-		case "", "en":
-			return "Sent to " + msgs.arg(name) + ". Follow it in Jobs."
-		case "ja":
-			return name + " に送りました。進み具合は「ジョブ」で確認できます。"
-		case "ko":
-			return name + "에 보냈습니다. 진행 상황은 [작업]에서 볼 수 있습니다."
-		case "zh-Hans":
-			return "已发给 " + name + "，可在「任务」里查看进度。"
-		case "zh-Hant":
-			return "已傳給 " + name + "，可在「任務」裡查看進度。"
-		}
-	}
-}
-
-// BrowseVideoUnpaired says "Video on this page · pair with a computer to send it"
-// in the language the app shows under cx.
-//
-// Browse: on the bar over a page of one video while no computer is paired.
-func BrowseVideoUnpaired(cx *core.Scope) string { return For(cx).BrowseVideoUnpaired() }
-
-// BrowseVideoUnpaired is the package's BrowseVideoUnpaired in the language of msgs.
-func (msgs Messages) BrowseVideoUnpaired() string { return msgs.text(textBrowseVideoUnpaired) }
 
 // CommonCancel says "Cancel"
 // in the language the app shows under cx.
@@ -10027,36 +9664,6 @@ func (msgs Messages) FilmsDeletedFromLibrary(title string, computer string) stri
 			return "已从 " + computer + " 删除「" + title + "」"
 		case "zh-Hant":
 			return "已從 " + computer + " 刪除「" + title + "」"
-		}
-	}
-}
-
-// JobsBadgeLabel says "Jobs, {count} unfinished"
-// in the language the app shows under cx.
-//
-// Spoken name of the Jobs button and section while jobs run, wait or failed, or links wait to be sent.
-func JobsBadgeLabel(cx *core.Scope, count int) string { return For(cx).JobsBadgeLabel(count) }
-
-// JobsBadgeLabel is the package's JobsBadgeLabel in the language of msgs.
-func (msgs Messages) JobsBadgeLabel(count int) string {
-	if i18n.IsPseudo(msgs.lang) {
-		return i18n.Pseudo(msgs.lang, Messages{lang: Source, mark: true}.JobsBadgeLabel(count))
-	}
-	for lang := msgs.lang; ; lang = i18n.Parent(lang) {
-		if f := supplied[lang].JobsBadgeLabel; f != nil {
-			return f(count)
-		}
-		switch lang {
-		case "", "en":
-			return "Jobs, " + msgs.arg(i18n.FormatNumber("en", float64(count))) + " unfinished"
-		case "ja":
-			return "ジョブ、未完了 " + i18n.FormatNumber("ja", float64(count)) + " 件"
-		case "ko":
-			return "작업, 완료되지 않음 " + i18n.FormatNumber("ko", float64(count)) + "개"
-		case "zh-Hans":
-			return "任务，" + i18n.FormatNumber("zh-Hans", float64(count)) + " 个未完成"
-		case "zh-Hant":
-			return "任務，" + i18n.FormatNumber("zh-Hant", float64(count)) + " 個未完成"
 		}
 	}
 }
@@ -14783,6 +14390,44 @@ func SettingsAbout(cx *core.Scope) string { return For(cx).SettingsAbout() }
 
 // SettingsAbout is the package's SettingsAbout in the language of msgs.
 func (msgs Messages) SettingsAbout() string { return msgs.text(textSettingsAbout) }
+
+// SettingsAppearance says "Appearance"
+// in the language the app shows under cx.
+//
+// Row in Settings that picks the app's light or dark look, or the system's; pressed, it steps to the next.
+func SettingsAppearance(cx *core.Scope) string { return For(cx).SettingsAppearance() }
+
+// SettingsAppearance is the package's SettingsAppearance in the language of msgs.
+func (msgs Messages) SettingsAppearance() string { return msgs.text(textSettingsAppearance) }
+
+// SettingsAppearanceDark says "Dark"
+// in the language the app shows under cx.
+//
+// Value of the Appearance row: the app is always dark.
+func SettingsAppearanceDark(cx *core.Scope) string { return For(cx).SettingsAppearanceDark() }
+
+// SettingsAppearanceDark is the package's SettingsAppearanceDark in the language of msgs.
+func (msgs Messages) SettingsAppearanceDark() string { return msgs.text(textSettingsAppearanceDark) }
+
+// SettingsAppearanceLight says "Light"
+// in the language the app shows under cx.
+//
+// Value of the Appearance row: the app is always light.
+func SettingsAppearanceLight(cx *core.Scope) string { return For(cx).SettingsAppearanceLight() }
+
+// SettingsAppearanceLight is the package's SettingsAppearanceLight in the language of msgs.
+func (msgs Messages) SettingsAppearanceLight() string { return msgs.text(textSettingsAppearanceLight) }
+
+// SettingsAppearanceSystem says "Automatic"
+// in the language the app shows under cx.
+//
+// Value of the Appearance row: the app follows the system's light or dark appearance.
+func SettingsAppearanceSystem(cx *core.Scope) string { return For(cx).SettingsAppearanceSystem() }
+
+// SettingsAppearanceSystem is the package's SettingsAppearanceSystem in the language of msgs.
+func (msgs Messages) SettingsAppearanceSystem() string {
+	return msgs.text(textSettingsAppearanceSystem)
+}
 
 // SettingsComputers says "Computers"
 // in the language the app shows under cx.

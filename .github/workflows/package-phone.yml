@@ -94,10 +94,8 @@ jobs:
           (umask 077 && printf '%s' "$KEYSTORE_BASE64" | base64 --decode > "$keystore")
           echo "keystore=$keystore" >> "$GITHUB_OUTPUT"
       # Each target is built into a folder of its own. The App Bundle is Google Play's package, which the store channel makes in place of an APK. The IPA is the App Store's whatever the channel, so its build takes none: on the store channel the app would also ask the App Store for a newer version, which it does not do today.
-      # The store tag leaves Browse out of the store packages (browse.Available; nsgo.yaml says why), as every build for the App Store or Google Play does.
       - name: Build
         env:
-          GOFLAGS: -tags=store
           BUILD_NUMBER: ${{ github.run_number }}
           KEYSTORE: ${{ steps.upload-key.outputs.keystore }}
           KEYSTORE_PASSWORD: ${{ secrets.ANDROID_UPLOAD_KEYSTORE_PASSWORD }}
@@ -255,7 +253,6 @@ jobs:
           cache: false
       - name: Build
         env:
-          GOFLAGS: -tags=store
           BUILD_NUMBER: ${{ github.run_number }}
         run: |
           xcodebuild -version

@@ -372,11 +372,9 @@ func TestTheLibraryShowsTheFilmAJobAdded(t *testing.T) {
 	p.app.WaitFor(talkRow(id), wait)
 	// The phone has to have seen the job running: one it first hears of already done is an old one, not one that just finished.
 	moved(d, "job1", "https://youtu.be/night000001", sync.JobRunning, 0, 0.5)
-	p.app.WaitFor("id:films-jobs", wait)
-	p.app.Press("id:films-jobs")
+	p.openTab(jobsTab, msgs.JobsTitle())
 	p.app.WaitFor("id:jobs-job-job1", wait)
-	p.app.HeaderBack("id:jobs-page")
-	p.app.WaitForGone("id:jobs-page", wait)
+	p.openTab(filmsTab, msgs.FilmsTitle())
 	d.AddFilm(synctest.Film{Library: "lib", Video: []byte("v"), Film: sync.Film{ID: "f3", Title: "Night Talk", Spoken: "ja", Updated: now()}})
 	done := moved(d, "job1", "https://youtu.be/night000001", sync.JobDone, 3, 0)
 	done.Film = "f3"
