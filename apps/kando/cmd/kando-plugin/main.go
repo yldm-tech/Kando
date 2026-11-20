@@ -170,7 +170,11 @@ func (t tool) revocations(src string) (*pkg.Revocations, error) {
 	if src == "" {
 		return nil, nil
 	}
-	return publish.Revocations(src, t.client)
+	list, err := publish.Revocations(src, t.client)
+	if err != nil {
+		return nil, fmt.Errorf("--revocations %s: %w", src, err)
+	}
+	return list, nil
 }
 
 // check checks each of paths as Kando installs it (publish.Check), a script plugin's signature against the tool's roots and the revocation list list (nil for none): one trust for all of them, in a folder of its own removed afterwards. A list none of the roots signed fails it before any pack is checked.

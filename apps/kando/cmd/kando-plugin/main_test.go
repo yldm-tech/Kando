@@ -486,7 +486,7 @@ func TestRevocations(t *testing.T) {
 	if code, out, errOut := f.run("validate", "--json", "--revocations", forged, terms); code != exitFailed || out != "" || !strings.Contains(errOut, "the revocation list") {
 		t.Errorf("a list of another root = %d, %q, %q", code, out, errOut)
 	}
-	if code, _, errOut := f.run("validate", "--revocations", "http://example.com/list.json", terms); code != exitFailed || !strings.Contains(errOut, "not https") {
+	if code, _, errOut := f.run("validate", "--revocations", "http://example.com/list.json", terms); code != exitFailed || !strings.Contains(errOut, "--revocations http://example.com/list.json") || !strings.Contains(errOut, "not https") {
 		t.Errorf("an http list = %d, %q", code, errOut)
 	}
 
@@ -517,7 +517,9 @@ func TestRevocations(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		os.WriteFile(filepath.Join(packsDir, filepath.Base(src)), data, 0o644)
+		if err := os.WriteFile(filepath.Join(packsDir, filepath.Base(src)), data, 0o644); err != nil {
+			t.Fatal(err)
+		}
 	}
 	indexKey, _ := pkg.GenerateKey()
 	f.indexPublicKey = pkg.EncodePublicKey(indexKey.Public().(ed25519.PublicKey))

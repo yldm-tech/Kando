@@ -66,7 +66,7 @@ func Trust(root string, roots signature.Roots, list *pkg.Revocations) func() (*p
 func Revocations(src string, client *http.Client) (*pkg.Revocations, error) {
 	if strings.Contains(src, "://") {
 		if err := plugins.CheckHTTPS(src); err != nil {
-			return nil, fmt.Errorf("--revocations %s: %w", src, err)
+			return nil, err
 		}
 		return signature.FetchRevocations(client, src)
 	}
