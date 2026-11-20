@@ -3,11 +3,14 @@ addAsComputer:
   description: "Add sheet: the choice that leaves the quality, or where the original subtitles come from, to the computer's own setting."
   placeholders:
     name: { type: "String", example: "Studio" }
+addChannel:
+  message: "Channel"
+  description: "Add sheet: the chip in the link field for a link to a channel or a playlist, which becomes a subscription."
 addComputer:
   message: "Send To"
   description: "Add sheet: label over the computers to send the link to, when several are paired."
 addLinkLabel:
-  message: "Link to a Video"
+  message: "Link to a video, channel or playlist"
   description: "Add sheet: label of the field for the video's link."
 addLinkPlaceholder:
   message: "Paste a YouTube, Bilibili or other link"
@@ -21,7 +24,7 @@ addNotALink:
   message: "This isn't a link to a video on the web."
   description: "Add sheet: what is in the field is not a web link."
 addNote:
-  message: "{name} downloads, transcribes and translates it."
+  message: "The link goes to {name}, which downloads, transcribes and translates it, then syncs it back to your phone. Channel or playlist links become subscriptions."
   description: "Add sheet: under the form, what the computer does with the link."
   placeholders:
     name: { type: "String", example: "Studio" }
@@ -44,20 +47,17 @@ addPaste:
   message: "Paste"
   description: "Add sheet: button that puts the clipboard's link in the field."
 addQuality:
-  message: "Quality"
+  message: "Save"
   description: "Add sheet: label over the choices of the picture the computer downloads."
 addQuality720:
-  message: "720p"
+  message: "720P"
   description: "Add sheet: the computer downloads the best picture no taller than 720 lines."
 addQualityBest:
-  message: "Best"
+  message: "Best quality"
   description: "Add sheet: the computer downloads the best picture the site has."
 addSend:
   message: "Send"
   description: "Add sheet: button that sends the link to the computer."
-addSubscribe:
-  message: "Subscribe"
-  description: "Add sheet: the button that subscribes the computer to a channel or playlist link, in place of Send."
 addSubscribeNote:
   message: "{name} follows this list and adds its new videos as they come."
   description: "Add sheet: under the form, for a channel or playlist link, what the computer does with it."
@@ -89,16 +89,16 @@ addSubtitles:
   message: "Original Subtitles"
   description: "Add sheet: label over the choices of where the video's original lines come from."
 addSubtitlesPlatform:
-  message: "The Uploader's Subtitles"
+  message: "Use the uploader's subtitles"
   description: "Add sheet: the original lines are the subtitles the uploader put on the site, where they match the speech."
 addSubtitlesPlatformNote:
-  message: "Most accurate when someone wrote them. The lines that match the speech are translated as they are."
+  message: "Most accurate when human-made; translated directly"
   description: "Add sheet: under The Uploader's Subtitles."
 addSubtitlesRecognize:
-  message: "Recognized on the Computer"
+  message: "Recognize on computer"
   description: "Add sheet: the original lines are what the computer's speech recognition hears."
 addSubtitlesRecognizeNote:
-  message: "Whisper on {name} transcribes the speech."
+  message: "Whisper on {name} transcribes the audio"
   description: "Add sheet: under Recognized on the Computer."
   placeholders:
     name: { type: "String", example: "Studio" }
@@ -774,11 +774,26 @@ jobsActive:
   placeholders:
     count: { type: "int", example: "2" }
 jobsActiveFailed:
-  message: "Processing {active}, {failed, plural, one {# needs you} other {# need you}}"
+  message: "{active, plural, one {Processing # video} other {Processing # videos}}, {failed, plural, one {# needs you} other {# need you}}"
   description: "Jobs page, a computer's card: how many jobs run or wait, and how many failed."
   placeholders:
     active: { type: "int", example: "2" }
     failed: { type: "int", example: "1" }
+jobsAgoDays:
+  message: "{count, plural, one {# day ago} other {# days ago}}"
+  description: "Jobs page, a computer's card while it is offline: how long ago it last answered, in days."
+  placeholders:
+    count: { type: "int", example: "2" }
+jobsAgoHours:
+  message: "{count, plural, one {# hr ago} other {# hrs ago}}"
+  description: "Jobs page, a computer's card while it is offline: how long ago it last answered, in hours."
+  placeholders:
+    count: { type: "int", example: "3" }
+jobsAgoMinutes:
+  message: "{count} min ago"
+  description: "Jobs page, a computer's card while it is offline: how long ago it last answered, in minutes."
+  placeholders:
+    count: { type: "int", example: "20" }
 jobsCancel:
   message: "Cancel Job"
   description: "Spoken name of a job's × button, which cancels it on the computer."
@@ -837,8 +852,13 @@ jobsFailLogin:
   message: "The site asks you to sign in"
   description: "Why a job failed."
 jobsFailLoginExpired:
-  message: "The sign-in on the computer has expired"
+  message: "The sign-in on your computer expired"
   description: "Why a job failed."
+jobsFailLoginExpiredSite:
+  message: "{site} sign-in on your computer expired"
+  description: "Why a job failed: the computer's sign-in to the named site expired."
+  placeholders:
+    site: { type: "String", example: "Bilibili" }
 jobsFailMembers:
   message: "This video is for members only"
   description: "Why a job failed."
@@ -852,8 +872,13 @@ jobsFailOther:
   message: "Processing failed"
   description: "Why a job failed, when the phone does not know the reason."
 jobsFailOutdated:
-  message: "The computer's downloader needs an update"
+  message: "The site changed; the downloader on your computer needs an update"
   description: "Why a job failed."
+jobsFailOutdatedSite:
+  message: "{site} changed; the downloader on your computer needs an update"
+  description: "Why a job failed: the named site changed and the computer's downloader is too old for it."
+  placeholders:
+    site: { type: "String", example: "YouTube" }
 jobsFailPrivate:
   message: "This video is private"
   description: "Why a job failed."
@@ -861,7 +886,7 @@ jobsFailRateLimited:
   message: "The site is limiting downloads for now"
   description: "Why a job failed."
 jobsFailRegion:
-  message: "This video isn't available where the computer is"
+  message: "Uploader restricted this by region"
   description: "Why a job failed."
 jobsFailSetup:
   message: "Kando on the computer needs setting up"
@@ -886,7 +911,7 @@ jobsFilmGone:
   placeholders:
     name: { type: "String", example: "Studio" }
 jobsFixedRetry:
-  message: "Fixed It, Try Again"
+  message: "Fixed on computer — retry"
   description: "Button of a job that failed for something fixed on the computer."
 jobsForget:
   message: "Remove"
@@ -898,7 +923,7 @@ jobsFrom:
     status: { type: "String", example: "Waiting" }
     device: { type: "String", example: "iPhone" }
 jobsIdle:
-  message: "Nothing in the queue"
+  message: "Idle"
   description: "Jobs page, a computer's card: no job runs or waits."
 jobsKeep:
   message: "Keep Job"
@@ -908,6 +933,11 @@ jobsLinksOff:
   description: "Why a link was refused: the computer's setting is off."
   placeholders:
     name: { type: "String", example: "Studio" }
+jobsLockPhone:
+  message: "{summary}. You can lock your phone."
+  description: "Jobs page, a computer's card while jobs run on it: what its queue does, then that the phone need not stay awake for it."
+  placeholders:
+    summary: { type: "String", example: "Processing 6 videos, 1 needs you" }
 jobsNotAVideo:
   message: "The computer couldn't read this link as a video."
   description: "Why a link was refused: not a video link."
@@ -920,8 +950,13 @@ jobsNotReady:
 jobsOffline:
   message: "Offline"
   description: "Jobs page, a computer's card: it cannot be reached."
+jobsOfflineSeen:
+  message: "Computer offline (last online {ago}). New links wait here and start when it's back."
+  description: "Jobs page, a computer's card while it cannot be reached, with when it last answered (jobsAgoMinutes and the like)."
+  placeholders:
+    ago: { type: "String", example: "20 min ago" }
 jobsOfflineSummary:
-  message: "Offline. Links you send wait on this phone and go once it's back."
+  message: "Computer offline. New links wait here and start when it's back."
   description: "Jobs page, a computer's card while it cannot be reached."
 jobsOfflineRelay:
   message: "Offline. Links you send wait in your storage and start once it's back."
@@ -931,11 +966,41 @@ jobsInStorage:
   description: "Where a link stands once it was left in the user's storage for the computer to take, away from its network."
   placeholders:
     name: { type: "String", example: "Studio" }
+jobsOfflineWaiting:
+  message: "{count, plural, one {Offline · # waiting} other {Offline · # waiting}}"
+  description: "Tablet sidebar, the computers card while they cannot be reached: how many jobs wait for them."
+  placeholders:
+    count: { type: "int", example: "6" }
+jobsOtherLink:
+  message: "Use another link"
+  description: "Button of a job that failed in a way trying again cannot fix, as a video restricted by region: opens the Add sheet."
 jobsRelayed:
   message: "{summary} · through your storage"
   description: "Jobs page, a computer's card while it is reached through the user's storage away from its network: what its queue does, then how it is reached."
   placeholders:
     summary: { type: "String", example: "Processing 2 videos" }
+jobsRemedyRegion:
+  message: "This video isn't available in {name}'s region. Use another link."
+  description: "What to do about a video the uploader restricted by region, where the computer is."
+  placeholders:
+    name: { type: "String", example: "Studio" }
+jobsRemedySignIn:
+  message: "Sign in to {site} again in the browser on {name}, then come back and retry."
+  description: "What to do about a sign-in to the named site that expired on the computer."
+  placeholders:
+    site: { type: "String", example: "Bilibili" }
+    name: { type: "String", example: "Studio" }
+jobsSignedInRetry:
+  message: "Signed in again on computer — retry"
+  description: "Button of a job that failed for a sign-in on the computer, once the user signed in again there."
+jobsStepRunning:
+  message: "{step}…"
+  description: "A job's step while it runs, as Translate… (in Chinese 翻译中)."
+  placeholders:
+    step: { type: "String", example: "Translate" }
+jobsThumbWaiting:
+  message: "Waiting for computer"
+  description: "Over a job's picture while its computer cannot be reached."
 jobsViaStorage:
   message: "Via storage"
   description: "Jobs page, a computer's card: it answers through the user's storage, away from its network."
@@ -1011,7 +1076,7 @@ jobsRemedySetup:
     name: { type: "String", example: "Studio" }
     message: { type: "String", example: "Choose a speech model" }
 jobsRemedyUpdate:
-  message: "Have {name} update its downloader; the download then starts again."
+  message: "Let {name} update its downloader, then it retries automatically."
   description: "What to do about a downloader too old for the site."
   placeholders:
     name: { type: "String", example: "Studio" }
@@ -1022,7 +1087,7 @@ jobsRunning:
   message: "Processing"
   description: "Where a job stands: running, before a step says how far."
 jobsSent:
-  message: "Sent to {name}"
+  message: "Sent to {name}; processing started"
   description: "Toast: the computer queued the link."
   placeholders:
     name: { type: "String", example: "Studio" }
@@ -1064,7 +1129,7 @@ jobsUnpaired:
   message: "Pair a computer to send it links"
   description: "Jobs page while no computer is paired."
 jobsUpdateRetry:
-  message: "Update and Try Again"
+  message: "Update on computer and retry"
   description: "Button of a job that failed for a downloader too old for the site."
 jobsWaiting:
   message: "Waiting"

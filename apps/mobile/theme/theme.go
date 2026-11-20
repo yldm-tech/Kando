@@ -16,6 +16,9 @@ const (
 	roleTileInk  = "tileInk"
 	roleWarnText = "warnText"
 	roleSubtext  = "subtext"
+	roleOkText   = "okText"
+	roleWarnBox  = "warnBox"
+	roleWarnBody = "warnBody"
 )
 
 // Kando is NSGo's default theme in the design's palette: the page is the grouped list's grey and a card (Surface) is white, black under #1C1C1E in the dark; ink, muted text, hairlines and fills are the system's; danger is the destructive red and warning the system's orange, with warnText the orange that reads as text.
@@ -40,6 +43,9 @@ func Kando() *core.Theme {
 	l.SetColor(roleTileInk, core.RGB(0x1D1D1F))
 	l.SetColor(roleWarnText, core.RGB(0x8A4B00))
 	l.SetColor(roleSubtext, core.RGB(0x3A3A3F))
+	l.SetColor(roleOkText, core.RGB(0x1E7B34))
+	l.SetColor(roleWarnBox, core.RGB(0xFFF4E5))
+	l.SetColor(roleWarnBody, core.RGB(0x6B4A1F))
 	d.Background, d.Surface, d.Text, d.TextMuted = core.RGB(0x000000), core.RGB(0x1C1C1E), core.RGB(0xF5F5F7), core.RGB(0xA1A1A6)
 	d.SurfacePressed, d.Border = core.RGBA(0x767680, 0.32), core.RGBA(0x545458, 0.65)
 	d.SetColor("line", core.RGBA(0x545458, 0.65))
@@ -53,6 +59,10 @@ func Kando() *core.Theme {
 	d.SetColor(roleWarnText, core.RGB(0xFFB340))
 	// The design's #3A3A3F would be lost on the dark page, so the dark keeps the ink.
 	d.SetColor(roleSubtext, d.Text)
+	// The design draws the warning box and the green text in the light alone: in the dark they are the system's dark green and a warm tint of the orange on the card.
+	d.SetColor(roleOkText, core.RGB(0x30D158))
+	d.SetColor(roleWarnBox, core.RGBA(0xFF9500, 0.16))
+	d.SetColor(roleWarnBody, core.RGB(0xE3C9A3))
 	return t
 }
 
@@ -85,6 +95,13 @@ func (c Colors) WarnText() core.Color { return c.role(roleWarnText) }
 // Subtext is the ink a step softer than the text's, as the Library switcher's name: #3A3A3F in the light, the ink in the dark.
 func (c Colors) Subtext() core.Color { return c.role(roleSubtext) }
 
+// OkText is the green of text that says something went well, as a step done or a computer online, darker than the status dot's so it reads on a card.
+func (c Colors) OkText() core.Color { return c.role(roleOkText) }
+
+// WarnBox is the fill of the box that says why a job failed, and WarnBody its text under the title (WarnText).
+func (c Colors) WarnBox() core.Color  { return c.role(roleWarnBox) }
+func (c Colors) WarnBody() core.Color { return c.role(roleWarnBody) }
+
 // BarBlur is what a bar's fill frosts behind it.
 var BarBlur = []core.Filter{core.Blur(24), core.Saturate(1.8)}
 
@@ -95,6 +112,8 @@ var (
 	SourceBilibili = core.RGB(0x00A1D6)
 	SourceOther    = core.RGB(0x5E5CE6)
 	SourceLocal    = core.RGB(0x8E8E93)
+	// SourceChannel is the mark of a link to a channel or a playlist, whichever site it is on.
+	SourceChannel = core.RGB(0xAF52DE)
 	// SubtitleYellow is the original line's color under the translation.
 	SubtitleYellow = core.RGB(0xFFD60A)
 	// AI is the accent of what an AI service does.
@@ -113,10 +132,16 @@ var (
 	// A sheet's grabber and the shadow it casts upward.
 	Grabber     = core.RGBA(0x808080, 0.4)
 	SheetShadow = core.RGBA(0x000000, 0.2)
+	// SegmentShadow is the shadow under a segmented control's thumb.
+	SegmentShadow = core.RGBA(0x000000, 0.12)
 	// TabInactive is a tab's icon and name while another is selected.
 	TabInactive = core.RGB(0x8E8E93)
 	// Chevron is the arrow at the end of a row that leads to a page, and a disabled bar button's text.
 	Chevron = core.RGB(0xC7C7CC)
+	// OnMark is the white of text on a fixed color, as a source chip's, the failure box's button and the veil over a job's picture.
+	OnMark = core.RGB(0xFFFFFF)
+	// NavDisabled is a sheet's bar button while it cannot be pressed, as Send before the link is valid.
+	NavDisabled = core.RGB(0xAEAEB2)
 	// Offline is the dot of a computer that is not reachable.
 	Offline = core.RGB(0xC7C7CC)
 	// The settings rows' icon tiles, each row's own color.

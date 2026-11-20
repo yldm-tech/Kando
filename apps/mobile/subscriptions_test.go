@@ -114,7 +114,7 @@ func TestAReadOnlyPhoneOnlyLooksAtTheSubscriptions(t *testing.T) {
 	}
 }
 
-// A channel's link in the Add sheet subscribes the computer to it rather than queueing it, and the toast says so; a computer that does not share its subscriptions takes it as a link.
+// A channel's link in the Add sheet, marked as one in its field, subscribes the computer to it rather than queueing it, and the toast says so; a computer that does not share its subscriptions takes it as a link.
 func TestTheAddSheetSubscribesToAChannel(t *testing.T) {
 	d := newDesktop(t)
 	dir := t.TempDir()
@@ -124,8 +124,8 @@ func TestTheAddSheetSubscribesToAChannel(t *testing.T) {
 	p.app.WaitFor("id:add-link", wait)
 	p.app.Type("id:add-link", "https://www.youtube.com/@earthscience")
 	p.app.WaitUntil(wait, func() bool { return p.texts("id:add-note") == msgs.AddSubscribeNote("Studio") })
-	if got := p.texts("id:add-send"); got != msgs.AddSubscribe() {
-		t.Fatalf("the sheet's button reads %q", got)
+	if got := p.texts("id:add-site"); got != msgs.AddChannel() {
+		t.Fatalf("the link's chip reads %q", got)
 	}
 	p.app.Press("id:add-send")
 	p.app.WaitUntil(wait, func() bool { return len(d.Subscriptions()) == 1 })

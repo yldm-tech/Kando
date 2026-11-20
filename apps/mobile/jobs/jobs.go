@@ -1,8 +1,9 @@
-// Package jobs is the Jobs page, the queues of the paired computers as the phone follows them over protocol v2: under each computer how it stands, the links sent from this phone it has not taken yet, and its jobs with each step's progress, the actions on them and, for one that failed, what can be done about it. On a phone the page opens from the Library; on a tablet it is a section of its own.
+// Package jobs is the Jobs page, the queues of the paired computers as the phone follows them over protocol v2: under each computer how it stands, the links sent from this phone it has not taken yet, and its jobs with each step's progress, the actions on them and, for one that failed, what can be done about it. It is a tab of its own, its root page, and a page pushed on a tab's stack where another page opens it.
 package jobs
 
 import (
 	"context"
+	"math"
 	"strconv"
 	"time"
 
@@ -11,6 +12,7 @@ import (
 	"kando/apps/mobile/session"
 	"kando/apps/mobile/store"
 	"kando/apps/mobile/theme"
+	kcore "kando/packages/core"
 	"kando/packages/sync"
 
 	"github.com/nsgo-dev/nsgo/base"
@@ -27,7 +29,7 @@ type Actions struct {
 	Pair func()
 	// Film opens the page of a film a job made.
 	Film func(desktop string, lib sync.Library, f sync.Film)
-	// Back leaves the page, nil where it is a section's root, as on a tablet.
+	// Back leaves the page, nil where it is a tab's root.
 	Back func()
 }
 
@@ -47,12 +49,12 @@ func Page(cx *core.Scope, s *session.Session, act Actions) base.NavPage {
 		}},
 	}}
 	addLabel := func() string { return locales.AddTitle(cx) }
-	// The design draws the plus in the accent.
+	// The design draws the plus in the accent, level with the large title.
 	add := ui.IconButton{TestID: "jobs-add", Icon: lucide.Plus, LabelFunc: addLabel, Size: 44, Tint: ui.ColorsOf(cx).Accent, OnPress: act.Add}
 	symbols := func() []core.HeaderSymbol { return []core.HeaderSymbol{{Name: "plus", Label: addLabel()}} }
 	page := base.NavPage{TestID: "jobs-page", Children: []core.Node{body}}
 	if act.Back == nil {
-		return look.TabRoot(cx, page, title, []core.Node{add}, symbols)
+		return look.TabRootTitleRow(cx, page, title, []core.Node{add}, symbols)
 	}
 	page.TitleFunc = title
 	return ui.NavPage(cx, page, ui.NavHeader{TitleFunc: title, OnBack: act.Back, Scroll: ref, Trailing: []core.Node{add}, Symbols: symbols})
@@ -79,7 +81,7 @@ func section(cx *core.Scope, s *session.Session, desktop string, act Actions) co
 			return core.Text{TestID: "jobs-read-only-" + desktop, ContentFunc: func() string { return locales.JobsReadOnly(cx, name(s, desktop)) }, Style: look.Caption.Merge(core.Style{Padding: core.Symmetric(0, 4)}), StyleFunc: ui.Colored(colors.Muted)}
 		}},
 		core.Show{When: func() bool { return online() && !queue().ReadOnly && len(queue().Jobs) == 0 && len(links()) == 0 }, Then: func(cx *core.Scope) core.Node {
-			return core.Text{TestID: "jobs-empty-" + desktop, ContentFunc: func() string { return locales.JobsEmpty(cx) }, Style: look.Caption.Merge(core.Style{Padding: core.Symmetric(0, 4)}), StyleFunc: ui.Colored(colors.Muted)}
+			return empty(cx, desktop)
 		}},
 		core.Each(links, func(o session.Outgoing) string { return o.ID }, func(cx *core.Scope, o func() session.Outgoing, _ func() int) core.Node {
 			return linkCard(cx, s, desktop, o)
@@ -87,6 +89,15 @@ func section(cx *core.Scope, s *session.Session, desktop string, act Actions) co
 		core.Each(func() []sync.Job { return queue().Jobs }, func(j sync.Job) string { return j.ID }, func(cx *core.Scope, j func() sync.Job, _ func() int) core.Node {
 			return jobCard(cx, s, desktop, j, act)
 		}),
+	}}
+}
+
+// empty is what a computer with no jobs and no links waiting for it shows under its card: the design's tray, 50 points down, over a line saying how to add one.
+func empty(cx *core.Scope, desktop string) core.Node {
+	colors := ui.ColorsOf(cx)
+	return core.View{Style: core.Style{AlignItems: core.AlignCenter, Gap: 12, Padding: core.Edges{Top: 38, Right: 8, Left: 8}}, Children: []core.Node{
+		ui.Icon(lucide.ArrowDownToLine, 44, colors.Faint),
+		core.Text{TestID: "jobs-empty-" + desktop, ContentFunc: func() string { return locales.JobsEmpty(cx) }, Style: core.Style{FontSize: 14, LineHeight: 18, TextAlign: core.TextAlignCenter}, StyleFunc: ui.Colored(colors.Muted)},
 	}}
 }
 
@@ -98,24 +109,24 @@ func name(s *session.Session, desktop string) string {
 
 // computerCard is a computer's name, whether it answers and what its queue is doing.
 func computerCard(cx *core.Scope, s *session.Session, desktop string) core.Node {
-	colors := ui.ColorsOf(cx)
+	colors, own := ui.ColorsOf(cx), theme.Of(cx)
 	queue := func() session.Queue { return s.Queue(desktop) }
 	online := func() bool { return reached(queue()) }
-	return core.View{TestID: "jobs-computer-" + desktop, Style: core.Style{Direction: core.Row, AlignItems: core.AlignCenter, Gap: 12, Padding: core.Symmetric(12, 14), CornerRadius: ui.RadiusCard, BorderCurve: core.BorderCurveContinuous},
-		StyleFunc: func() core.Style { return core.Style{Background: colors.Surface()} },
+	return core.View{TestID: "jobs-computer-" + desktop, Style: core.Style{Direction: core.Row, AlignItems: core.AlignCenter, Gap: 12, Padding: core.Symmetric(12, 14)},
+		StyleFunc: func() core.Style { return look.Card(cx) },
 		Children: []core.Node{
-			ui.Icon(lucide.Laptop, 26, colors.Muted),
-			core.View{Style: core.Style{FlexGrow: 1, FlexShrink: 1, Gap: 2}, Children: []core.Node{
-				core.Text{ContentFunc: func() string { return name(s, desktop) }, Role: core.RoleHeader, MaxLines: 1, Style: look.Title, StyleFunc: ui.Colored(colors.Text)},
-				core.Text{TestID: "jobs-summary-" + desktop, ContentFunc: func() string { return summary(cx, s, desktop) }, LiveRegion: core.LiveRegionPolite, Style: look.Caption, StyleFunc: ui.Colored(colors.Muted)},
+			look.Laptop(44),
+			core.View{Style: core.Style{FlexGrow: 1, FlexShrink: 1, Gap: 1}, Children: []core.Node{
+				core.Text{ContentFunc: func() string { return name(s, desktop) }, Role: core.RoleHeader, MaxLines: 1, Style: core.Style{FontSize: 15, LineHeight: 20, FontWeight: core.FontWeightBold}, StyleFunc: ui.Colored(colors.Text)},
+				core.Text{TestID: "jobs-summary-" + desktop, ContentFunc: func() string { return summary(cx, s, desktop) }, LiveRegion: core.LiveRegionPolite, Style: core.Style{FontSize: 12, LineHeight: 17}, StyleFunc: ui.Colored(colors.Muted)},
 			}},
 			core.View{Style: core.Style{Direction: core.Row, AlignItems: core.AlignCenter, Gap: 5}, Children: []core.Node{
-				core.View{Style: core.Style{Width: core.Pt(8), Height: core.Pt(8), CornerRadius: 4},
+				core.View{Style: core.Style{Width: core.Pt(7), Height: core.Pt(7), CornerRadius: 3.5},
 					StyleFunc: func() core.Style {
 						if online() {
-							return core.Style{Background: colors.Up()}
+							return core.Style{Background: theme.StatusOK}
 						}
-						return core.Style{Background: colors.Faint()}
+						return core.Style{Background: theme.Offline}
 					}},
 				core.Text{TestID: "jobs-reach-" + desktop, ContentFunc: func() string {
 					switch {
@@ -125,9 +136,9 @@ func computerCard(cx *core.Scope, s *session.Session, desktop string) core.Node 
 						return locales.JobsOnline(cx)
 					}
 					return locales.JobsOffline(cx)
-				}, MaxLines: 1, Style: look.Caption.Merge(core.Style{FontWeight: core.FontWeightSemibold}), StyleFunc: func() core.Style {
+				}, MaxLines: 1, Style: core.Style{FontSize: 12, LineHeight: 16, FontWeight: core.FontWeightBold}, StyleFunc: func() core.Style {
 					if online() {
-						return core.Style{Color: colors.Up()}
+						return core.Style{Color: own.OkText()}
 					}
 					return core.Style{Color: colors.Muted()}
 				}},
@@ -140,7 +151,7 @@ func reached(q session.Queue) bool {
 	return q.Reach == session.Online && !(q.Relayed && q.Storage != sync.RelayNoFailure)
 }
 
-// summary is what a computer's queue is doing, as its card says it, and that it is reached through the user's storage when it is, or why that storage failed the phone.
+// summary is what a computer's queue is doing, as its card says it, and that it is reached through the user's storage when it is, or why that storage failed the phone; when it is offline, how long ago it last answered.
 func summary(cx *core.Scope, s *session.Session, desktop string) string {
 	q := s.Queue(desktop)
 	if q.Relayed && q.Storage != sync.RelayNoFailure && q.Reach != session.Revoked {
@@ -153,6 +164,9 @@ func summary(cx *core.Scope, s *session.Session, desktop string) string {
 		if q.Relayed {
 			return locales.JobsOfflineRelay(cx)
 		}
+		if !q.Seen.IsZero() {
+			return locales.JobsOfflineSeen(cx, ago(cx, s.Now().Sub(q.Seen)))
+		}
 		return locales.JobsOfflineSummary(cx)
 	case session.Older:
 		return locales.JobsOlder(cx)
@@ -162,7 +176,22 @@ func summary(cx *core.Scope, s *session.Session, desktop string) string {
 	if q.Relayed {
 		return locales.JobsRelayed(cx, queueSummary(cx, q))
 	}
+	// The computer does the work, so the phone need not stay awake while it does.
+	if active, _ := counts(q); active > 0 {
+		return locales.JobsLockPhone(cx, queueSummary(cx, q))
+	}
 	return queueSummary(cx, q)
+}
+
+// ago is how long ago d was, in whole minutes under an hour, hours under a day, else days.
+func ago(cx *core.Scope, d time.Duration) string {
+	switch {
+	case d < time.Hour:
+		return locales.JobsAgoMinutes(cx, max(1, int(d/time.Minute)))
+	case d < 24*time.Hour:
+		return locales.JobsAgoHours(cx, int(d/time.Hour))
+	}
+	return locales.JobsAgoDays(cx, int(d/(24*time.Hour)))
 }
 
 // StorageFailure is why the user's storage failed the phone as it follows desktop, the computer's name, through it (sync.RelayFailure), in the words the computer's Phone Sync page uses for the same failure; "" for none.
@@ -186,9 +215,8 @@ func StorageFailure(cx *core.Scope, f sync.RelayFailure, desktop string) string 
 	return ""
 }
 
-// queueSummary is what a computer's queue is doing: how many jobs run or wait, and how many failed.
-func queueSummary(cx *core.Scope, q session.Queue) string {
-	active, failed := 0, 0
+// counts is how many of q's jobs run, wait or are paused, and how many failed.
+func counts(q session.Queue) (active, failed int) {
 	for _, j := range q.Jobs {
 		switch j.State {
 		case sync.JobRunning, sync.JobWaiting, sync.JobPaused:
@@ -197,6 +225,12 @@ func queueSummary(cx *core.Scope, q session.Queue) string {
 			failed++
 		}
 	}
+	return active, failed
+}
+
+// queueSummary is what a computer's queue is doing: how many jobs run or wait, and how many failed.
+func queueSummary(cx *core.Scope, q session.Queue) string {
+	active, failed := counts(q)
 	switch {
 	case active > 0 && failed > 0:
 		return locales.JobsActiveFailed(cx, active, failed)
@@ -211,14 +245,30 @@ func queueSummary(cx *core.Scope, q session.Queue) string {
 // card is the look of a job's or a link's card, ringed in warning's color while warn reports true.
 func card(cx *core.Scope, testID string, warn func() bool, children ...core.Node) core.Node {
 	colors := ui.ColorsOf(cx)
-	return core.View{TestID: testID, Style: core.Style{Padding: core.All(14), Gap: 12, CornerRadius: ui.RadiusCard, BorderCurve: core.BorderCurveContinuous, BorderWidth: 1.5},
+	return core.View{TestID: testID, Style: core.Style{Padding: core.All(14), Gap: 12, BorderWidth: 1.5},
 		StyleFunc: func() core.Style {
-			st := core.Style{Background: colors.Surface(), BorderColor: ui.Alpha(colors.Warn(), 0)}
+			st := look.Card(cx)
+			st.BorderColor = ui.Alpha(colors.Warn(), 0)
 			if warn() {
 				st.BorderColor = ui.Alpha(colors.Warn(), 0.6)
 			}
 			return st
 		}, Children: children}
+}
+
+// header is the top row of a job's or a link's card: its picture, its title over a line under it, and its buttons.
+func header(cx *core.Scope, picture core.Node, title, meta core.Node, buttons ...core.Node) core.Node {
+	return core.View{Style: core.Style{Direction: core.Row, AlignItems: core.AlignCenter, Gap: 12}, Children: []core.Node{
+		picture,
+		core.View{Style: core.Style{FlexGrow: 1, FlexShrink: 1, MinWidth: core.Pt(0), Gap: 2}, Children: []core.Node{title, meta}},
+		// The buttons' targets reach past the card's padding, so the circles in them end at it.
+		core.View{Style: core.Style{Direction: core.Row, AlignItems: core.AlignCenter, Margin: core.Edges{Right: -5}}, Children: buttons},
+	}}
+}
+
+// titleText is a card's title, one bold line.
+func titleText(cx *core.Scope, testID string, text func() string) core.Node {
+	return core.Text{TestID: testID, ContentFunc: text, MaxLines: 1, Style: core.Style{FontSize: 15, LineHeight: 20, FontWeight: core.FontWeightBold}, StyleFunc: ui.Colored(ui.ColorsOf(cx).Text)}
 }
 
 // linkCard is a link sent from this phone that its computer has not taken yet: waiting for it, or refused and why, with the way to send it again or drop it.
@@ -227,31 +277,56 @@ func linkCard(cx *core.Scope, s *session.Session, desktop string, o func() sessi
 	id := o().ID
 	refused := func() bool { return o().Refusal != nil }
 	return card(cx, "jobs-link-"+id, refused,
-		core.View{Style: core.Style{Direction: core.Row, AlignItems: core.AlignCenter, Gap: 12}, Children: []core.Node{
-			thumb(cx, func() core.ImageSource { return core.ImageSource{} }),
-			core.View{Style: core.Style{FlexGrow: 1, FlexShrink: 1, Gap: 2}, Children: []core.Node{
-				core.Text{ContentFunc: func() string { return o().URL }, MaxLines: 2, Style: look.Subhead.Merge(core.Style{FontWeight: core.FontWeightSemibold}), StyleFunc: ui.Colored(colors.Text)},
-				core.Text{TestID: "jobs-link-status-" + id, ContentFunc: func() string {
-					if r := o().Refusal; r != nil {
-						return refusal(cx, *r, name(s, desktop))
-					}
-					if o().Relayed {
-						return locales.JobsInStorage(cx, name(s, desktop))
-					}
-					return locales.JobsWaitingFor(cx, name(s, desktop))
-				}, Style: look.Caption, StyleFunc: func() core.Style {
-					if refused() {
-						return core.Style{Color: theme.Of(cx).WarnText()}
-					}
-					return core.Style{Color: colors.Muted()}
-				}},
+		header(cx, thumb(cx, func() core.ImageSource { return core.ImageSource{} }, func() string { return "" }),
+			titleText(cx, "", func() string { return linkName(cx, o().URL) }),
+			core.Text{TestID: "jobs-link-status-" + id, ContentFunc: func() string {
+				if r := o().Refusal; r != nil {
+					return refusal(cx, *r, name(s, desktop))
+				}
+				if o().Relayed {
+					return locales.JobsInStorage(cx, name(s, desktop))
+				}
+				return locales.JobsWaitingFor(cx, name(s, desktop))
+			}, MaxLines: 3, Style: look.Footnote, StyleFunc: func() core.Style {
+				if refused() {
+					return core.Style{Color: theme.Of(cx).WarnText()}
+				}
+				return core.Style{Color: colors.Muted()}
 			}},
-			ui.IconButton{TestID: "jobs-link-forget-" + id, Icon: lucide.X, LabelFunc: func() string { return locales.JobsForget(cx) }, Size: 34, OnPress: func() { s.Forget(id) }},
-		}},
+			round(cx, "jobs-link-forget-"+id, closeIcon, func() string { return locales.JobsForget(cx) }, nil, func() { s.Forget(id) }),
+		),
 		core.Show{When: refused, Then: func(cx *core.Scope) core.Node {
 			return pills(pill(cx, "jobs-link-resend-"+id, true, func() string { return locales.CommonRetry(cx) }, func() { s.Resend(id) }))
 		}},
 	)
+}
+
+// linkName is what a link's card calls it before its computer took it: the site it is on, else the link itself.
+func linkName(cx *core.Scope, link string) string {
+	if src := source(cx, link); src != "" {
+		return src
+	}
+	return link
+}
+
+// source is the site a job's link is on, as its card names it: YouTube and Bilibili by the names the Library gives them, another site by its domain; "" for a link Kando cannot read.
+func source(cx *core.Scope, link string) string {
+	l, ok := kcore.ParseLink(link)
+	if !ok {
+		return ""
+	}
+	switch l.Platform {
+	case kcore.PlatformYouTube:
+		return locales.FilmsSourceYoutube(cx)
+	case kcore.PlatformBilibili:
+		return locales.FilmsSourceBilibili(cx)
+	case kcore.PlatformLocal:
+		return locales.FilmsSourceLocal(cx)
+	}
+	if l.Site != "" {
+		return l.Site
+	}
+	return l.Host
 }
 
 // refusal is why a computer refused a link.
@@ -271,7 +346,12 @@ func refusal(cx *core.Scope, r sync.ErrorBody, desktop string) string {
 	return locales.JobsRefused(cx, desktop, r.Message)
 }
 
-// jobCard is a job: its poster once it made a film, its title and where it stands, the buttons that pause, resume, cancel or open it, its steps while it runs or waits, and what can be done about it once it failed or was canceled.
+// unfinished reports whether a job in state still runs, waits or is paused.
+func unfinished(state string) bool {
+	return state == sync.JobRunning || state == sync.JobWaiting || state == sync.JobPaused
+}
+
+// jobCard is a job: its poster once it made a film, with how far it is over it, its title and where it is from, the buttons that pause, resume, cancel or open it, its steps while it runs or waits, and what can be done about it once it failed or was canceled.
 func jobCard(cx *core.Scope, s *session.Session, desktop string, j func() sync.Job, act Actions) core.Node {
 	colors := ui.ColorsOf(cx)
 	id := j().ID
@@ -280,10 +360,7 @@ func jobCard(cx *core.Scope, s *session.Session, desktop string, j func() sync.J
 	state := func() string { return j().State }
 	busy := func() bool { return s.Busy(desktop, id) || !reached() }
 	stopped := func() bool { return state() == sync.JobFailed || state() == sync.JobCanceled }
-	unfinished := func() bool {
-		st := state()
-		return st == sync.JobRunning || st == sync.JobWaiting || st == sync.JobPaused
-	}
+	going := func() bool { return unfinished(state()) }
 	type posterSource struct {
 		c    *sync.Client
 		film string
@@ -294,11 +371,28 @@ func jobCard(cx *core.Scope, s *session.Session, desktop string, j func() sync.J
 	}, func(ctx context.Context, src posterSource, _ core.ResourceInfo) ([]byte, error) {
 		return s.Poster(ctx, src.c, desktop, src.film)
 	})
-	source := func() core.ImageSource {
+	picture := func() core.ImageSource {
 		if data, ok := poster.Get(); ok && len(data) > 0 {
 			return core.ImageSource{Data: data}
 		}
 		return core.ImageSource{}
+	}
+	// over is what the picture says over it: that the computer is out of reach, that the job is paused, or how far it has gone.
+	over := func() string {
+		switch {
+		case !going():
+			return ""
+		case !reached():
+			return locales.JobsThumbWaiting(cx)
+		case state() == sync.JobPaused:
+			return locales.JobsPaused(cx)
+		case state() == sync.JobRunning:
+			if p, ok := overall(j()); ok {
+				return locales.JobsPercent(cx, int(math.Round(p*100)))
+			}
+			return locales.JobsRunning(cx)
+		}
+		return ""
 	}
 	open := func() { s.JobFilm(desktop, j(), func(lib sync.Library, f sync.Film) { act.Film(desktop, lib, f) }) }
 	confirmCancel := func() {
@@ -312,40 +406,56 @@ func jobCard(cx *core.Scope, s *session.Session, desktop string, j func() sync.J
 			}
 		})
 	}
-	controls := core.View{Style: core.Style{Direction: core.Row, AlignItems: core.AlignCenter, Gap: 8}, Children: []core.Node{
-		core.Show{When: func() bool { return unfinished() && state() != sync.JobPaused && q().Can(sync.OpJobPause) }, Then: func(cx *core.Scope) core.Node {
-			return ui.IconButton{TestID: "jobs-pause-" + id, Icon: lucide.Pause, LabelFunc: func() string { return locales.JobsPause(cx) }, Size: 34, Disabled: busy,
-				OnPress: func() { s.Act(desktop, sync.OpJobPause, id) }}
+	buttons := []core.Node{
+		core.Show{When: func() bool { return going() && state() != sync.JobPaused && q().Can(sync.OpJobPause) }, Then: func(cx *core.Scope) core.Node {
+			return round(cx, "jobs-pause-"+id, pauseIcon, func() string { return locales.JobsPause(cx) }, busy, func() { s.Act(desktop, sync.OpJobPause, id) })
 		}},
 		core.Show{When: func() bool { return state() == sync.JobPaused && q().Can(sync.OpJobResume) }, Then: func(cx *core.Scope) core.Node {
-			return ui.IconButton{TestID: "jobs-resume-" + id, Icon: lucide.Play, LabelFunc: func() string { return locales.JobsResume(cx) }, Size: 34, Disabled: busy,
-				OnPress: func() { s.Act(desktop, sync.OpJobResume, id) }}
+			return round(cx, "jobs-resume-"+id, playIcon, func() string { return locales.JobsResume(cx) }, busy, func() { s.Act(desktop, sync.OpJobResume, id) })
 		}},
-		core.Show{When: func() bool { return unfinished() && q().Can(sync.OpJobCancel) }, Then: func(cx *core.Scope) core.Node {
-			return ui.IconButton{TestID: "jobs-cancel-" + id, Icon: lucide.X, LabelFunc: func() string { return locales.JobsCancel(cx) }, Size: 34, Disabled: busy, OnPress: confirmCancel}
+		core.Show{When: func() bool { return going() && q().Can(sync.OpJobCancel) }, Then: func(cx *core.Scope) core.Node {
+			return round(cx, "jobs-cancel-"+id, closeIcon, func() string { return locales.JobsCancel(cx) }, busy, confirmCancel)
 		}},
 		core.Show{When: func() bool { return state() == sync.JobDone && j().Film != "" }, Then: func(cx *core.Scope) core.Node {
-			return pillBusy(cx, "jobs-open-"+id, true, func() string { return locales.JobsOpen(cx) }, open, func() bool { return s.Busy(desktop, id) })
+			return core.View{Style: core.Style{Margin: core.Edges{Right: 5}}, Children: []core.Node{
+				pillBusy(cx, "jobs-open-"+id, true, func() string { return locales.JobsOpen(cx) }, open, func() bool { return s.Busy(desktop, id) }),
+			}}
 		}},
-	}}
+	}
 	return card(cx, "jobs-job-"+id, func() bool { return state() == sync.JobFailed },
-		core.View{Style: core.Style{Direction: core.Row, AlignItems: core.AlignCenter, Gap: 12}, Children: []core.Node{
-			thumb(cx, source),
-			core.View{Style: core.Style{FlexGrow: 1, FlexShrink: 1, Gap: 2}, Children: []core.Node{
-				core.Text{TestID: "jobs-title-" + id, ContentFunc: func() string { return title(j()) }, MaxLines: 2, Style: look.Subhead.Merge(core.Style{FontWeight: core.FontWeightSemibold}), StyleFunc: ui.Colored(colors.Text)},
-				core.Text{TestID: "jobs-status-" + id, ContentFunc: func() string { return status(cx, s, desktop, j()) }, MaxLines: 2, Style: look.Caption, StyleFunc: ui.Colored(colors.Muted)},
-			}},
-			controls,
-		}},
-		core.Show{When: stopped, Then: func(cx *core.Scope) core.Node { return remedy(cx, s, desktop, j) }},
-		core.Show{When: unfinished, Then: func(cx *core.Scope) core.Node {
-			return core.View{Style: core.Style{Gap: 10}, Children: []core.Node{
+		header(cx, thumb(cx, picture, over),
+			titleText(cx, "jobs-title-"+id, func() string { return title(j()) }),
+			core.Text{TestID: "jobs-status-" + id, ContentFunc: func() string { return meta(cx, s, desktop, j()) }, MaxLines: 1, Style: look.Footnote, StyleFunc: ui.Colored(colors.Muted)},
+			buttons...),
+		core.Show{When: stopped, Then: func(cx *core.Scope) core.Node { return remedy(cx, s, desktop, j, act) }},
+		core.Show{When: going, Then: func(cx *core.Scope) core.Node {
+			return core.View{Style: core.Style{Gap: 6}, Children: []core.Node{
 				core.Each(func() []sync.Step { return j().Steps }, func(st sync.Step) string { return st.Name }, func(cx *core.Scope, st func() sync.Step, i func() int) core.Node {
 					return stepRow(cx, id, st, i, func() bool { return state() == sync.JobRunning && reached() })
 				}),
 			}}
 		}},
 	)
+}
+
+// overall is how far a job has gone across its steps, from 0 to 1: a step done or skipped whole, the running one by its share; false while the running step's share is not known.
+func overall(j sync.Job) (float64, bool) {
+	if len(j.Steps) == 0 {
+		return 0, false
+	}
+	var sum float64
+	for _, st := range j.Steps {
+		switch st.State {
+		case sync.StepDone, sync.StepSkipped:
+			sum++
+		case sync.StepRunning:
+			if st.Progress < 0 {
+				return 0, false
+			}
+			sum += st.Progress
+		}
+	}
+	return sum / float64(len(j.Steps)), true
 }
 
 // title is what a job is called: its title, else its link.
@@ -356,32 +466,36 @@ func title(j sync.Job) string {
 	return j.Link
 }
 
-// status is where a job stands, as the line under its title says it, with the phone that sent it.
-func status(cx *core.Scope, s *session.Session, desktop string, j sync.Job) string {
-	var text string
+// meta is the line under a job's title: the site it is from, then where it stands where its picture and steps do not say it, and the phone that sent it when that is another.
+// The design names the uploader after the site, which the protocol does not carry (sync.Job).
+func meta(cx *core.Scope, s *session.Session, desktop string, j sync.Job) string {
+	var parts []string
+	if src := source(cx, j.Link); src != "" {
+		parts = append(parts, src)
+	}
 	q := s.Queue(desktop)
 	switch {
-	case q.Reach != session.Online && (j.State == sync.JobRunning || j.State == sync.JobWaiting || j.State == sync.JobPaused):
-		text = locales.JobsWaitingFor(cx, name(s, desktop))
-	case j.State == sync.JobRunning:
-		text = locales.JobsRunning(cx)
-		for _, st := range j.Steps {
-			if st.State == sync.StepRunning {
-				text = StepText(cx, st)
-			}
-		}
+	case q.Reach != session.Online && unfinished(j.State):
+		parts = append(parts, locales.JobsWaitingFor(cx, name(s, desktop)))
 	case j.State == sync.JobWaiting:
-		text = locales.JobsWaiting(cx)
+		parts = append(parts, locales.JobsWaiting(cx))
 	case j.State == sync.JobPaused:
-		text = locales.JobsPaused(cx)
+		parts = append(parts, locales.JobsPaused(cx))
 	case j.State == sync.JobDone:
-		text = locales.JobsDone(cx)
-	case j.State == sync.JobFailed:
-		text = locales.JobsFailed(cx)
+		parts = append(parts, locales.JobsDone(cx))
 	case j.State == sync.JobCanceled:
-		text = locales.JobsCanceled(cx)
+		parts = append(parts, locales.JobsCanceled(cx))
+	case j.State == sync.JobFailed && len(parts) == 0:
+		parts = append(parts, locales.JobsFailed(cx))
 	}
-	if j.Device != "" {
+	text := ""
+	for i, p := range parts {
+		if i > 0 {
+			text += " · "
+		}
+		text += p
+	}
+	if j.Device != "" && j.Device != s.Device() {
 		return locales.JobsFrom(cx, text, j.Device)
 	}
 	return text
@@ -408,9 +522,9 @@ func StepName(cx *core.Scope, name string) string {
 	return name
 }
 
-// stepRow is a step of a job: its number, or a check once done, its name and where it stands, and its bar, sweeping while it runs without a known share and moving is true.
+// stepRow is a step of a job: its number, or a check once done, its name and where it stands, and its bar, green once done, pulsing while it runs without a known share and moving is true.
 func stepRow(cx *core.Scope, job string, st func() sync.Step, i func() int, moving func() bool) core.Node {
-	colors := ui.ColorsOf(cx)
+	colors, own := ui.ColorsOf(cx), theme.Of(cx)
 	is := func(state string) func() bool { return func() bool { return st().State == state } }
 	done, running := is(sync.StepDone), is(sync.StepRunning)
 	detail := func() string {
@@ -429,38 +543,45 @@ func stepRow(cx *core.Scope, job string, st func() sync.Step, i func() int, movi
 		}
 		return locales.JobsWaiting(cx)
 	}
-	return core.View{TestID: "jobs-step-" + job + "-" + st().Name, Style: core.Style{Direction: core.Row, AlignItems: core.AlignCenter, Gap: 10}, Children: []core.Node{
+	pulse := func() bool { return running() && st().Progress < 0 && moving() }
+	return core.View{TestID: "jobs-step-" + job + "-" + st().Name, Style: core.Style{Direction: core.Row, AlignItems: core.AlignCenter, Gap: 10, MinHeight: core.Pt(28)}, Children: []core.Node{
 		// The mark repeats the step's name and state, which the texts beside it say.
 		core.View{AccessibilityElementsHidden: func() bool { return true }, Style: core.Style{Width: core.Pt(22), Height: core.Pt(22), CornerRadius: 11, AlignItems: core.AlignCenter, JustifyContent: core.JustifyCenter, FlexShrink: 0},
 			StyleFunc: func() core.Style {
 				switch {
 				case done():
-					return core.Style{Background: colors.Up(), Color: colors.OnAccent()}
+					return core.Style{Background: theme.StatusOK, Color: colors.OnAccent()}
 				case running():
 					return core.Style{Background: colors.Accent(), Color: colors.OnAccent()}
 				}
-				return core.Style{Background: colors.Track(), Color: colors.Muted()}
+				return core.Style{Background: colors.Inset(), Color: colors.Muted()}
 			},
 			Children: []core.Node{core.Show{When: done,
 				Then: func(*core.Scope) core.Node { return ui.Icon(lucide.Check, 13, ui.Inherited) },
 				Else: func(cx *core.Scope) core.Node {
 					return core.Text{ContentFunc: func() string { return strconv.Itoa(i() + 1) }, Style: core.Style{FontSize: 11, FontWeight: core.FontWeightBold}}
 				}}}},
-		core.View{Style: core.Style{FlexGrow: 1, FlexShrink: 1, Gap: 5}, Children: []core.Node{
-			core.View{Style: core.Style{Direction: core.Row, JustifyContent: core.JustifySpaceBetween, Gap: 8}, Children: []core.Node{
-				core.Text{ContentFunc: func() string { return StepName(cx, st().Name) }, MaxLines: 1, Style: look.Caption, StyleFunc: func() core.Style {
+		core.View{Style: core.Style{FlexGrow: 1, FlexShrink: 1, Gap: 4}, Children: []core.Node{
+			core.View{Style: core.Style{Direction: core.Row, AlignItems: core.AlignCenter, JustifyContent: core.JustifySpaceBetween, Gap: 8}, Children: []core.Node{
+				core.Text{ContentFunc: func() string {
+					if running() {
+						return locales.JobsStepRunning(cx, StepName(cx, st().Name))
+					}
+					return StepName(cx, st().Name)
+				}, MaxLines: 1, Style: core.Style{FontSize: 13, LineHeight: 18}, StyleFunc: func() core.Style {
 					switch {
 					case running():
-						return core.Style{Color: colors.Accent(), FontWeight: core.FontWeightSemibold}
+						return core.Style{Color: colors.Accent(), FontWeight: core.FontWeightBold}
 					case done():
-						return core.Style{Color: colors.Text()}
+						return core.Style{Color: own.OkText(), FontWeight: core.FontWeightMedium}
 					}
-					return core.Style{Color: colors.Muted()}
+					return core.Style{Color: colors.Muted(), FontWeight: core.FontWeightMedium}
 				}},
-				core.Text{TestID: "jobs-step-detail-" + job + "-" + st().Name, ContentFunc: detail, MaxLines: 1, Style: look.Caption, StyleFunc: ui.Colored(colors.Muted)},
+				core.Text{TestID: "jobs-step-detail-" + job + "-" + st().Name, ContentFunc: detail, MaxLines: 1, Style: look.Footnote, StyleFunc: ui.Colored(colors.Muted)},
 			}},
-			// TODO(nsgo#145): ui.Progress.Label is a string only (ui/progress.go:12-19), so the bar's spoken name keeps the language it was built in; pass a LabelFunc once Progress has one https://github.com/nsgo-dev/nsgo/issues/145
-			ui.Progress{Label: StepName(cx, st().Name),
+			// The bar is drawn on base.Progress: ui.Progress's is 6 points and always the accent (ui/progress.go:24-27), the design's 4 and green once the step is done.
+			// TODO(nsgo#145): base.Progress.Label is a string only (base/progress.go:31), so the bar's spoken name keeps the language it was built in; pass a LabelFunc once Progress has one https://github.com/nsgo-dev/nsgo/issues/145
+			base.Progress{Label: StepName(cx, st().Name),
 				Value: func() float32 {
 					switch st().State {
 					case sync.StepDone:
@@ -470,14 +591,28 @@ func stepRow(cx *core.Scope, job string, st func() sync.Step, i func() int, movi
 					}
 					return 0
 				},
-				Indeterminate: func() bool { return running() && st().Progress < 0 && moving() }},
+				Indeterminate:  pulse,
+				TrackStyle:     core.Style{Height: core.Pt(4), CornerRadius: 2, Overflow: core.Hidden},
+				TrackStyleFunc: ui.Filled(colors.Inset),
+				IndicatorStyleFunc: func() core.Style {
+					s := core.Style{Height: core.Pt(4), CornerRadius: 2, Background: colors.Accent()}
+					if done() {
+						s.Background = theme.StatusOK
+					}
+					if pulse() {
+						s.Width, s.Animation = core.Pct(100), core.KeyframeAnimation{Keyframes: core.KeyframesPulse}
+					} else {
+						s.Transition = core.Transition{Duration: 200 * time.Millisecond, Easing: core.EaseOut, Properties: core.TransitionLayout}
+					}
+					return s
+				}},
 		}},
 	}}
 }
 
-// remedy is what a job that failed or was canceled says of it, and what can be done: its computer updating its downloader, trying again, or the way to fix it on the computer first.
-func remedy(cx *core.Scope, s *session.Session, desktop string, j func() sync.Job) core.Node {
-	colors, tints := ui.ColorsOf(cx), ui.TintsOf(cx)
+// remedy is what a job that failed or was canceled says of it, and what can be done: its computer updating its downloader, trying again, the way to fix it on the computer first, or another link.
+func remedy(cx *core.Scope, s *session.Session, desktop string, j func() sync.Job, act Actions) core.Node {
+	colors, own := ui.ColorsOf(cx), theme.Of(cx)
 	id := j().ID
 	q := func() session.Queue { return s.Queue(desktop) }
 	failure := func() sync.Failure {
@@ -486,50 +621,92 @@ func remedy(cx *core.Scope, s *session.Session, desktop string, j func() sync.Jo
 		}
 		return sync.Failure{}
 	}
+	site := func() string { return source(cx, j().Link) }
 	canceled := func() bool { return j().State == sync.JobCanceled }
 	update := func() bool {
 		return !canceled() && failure().Remedy == sync.RemedyUpdateYTDLP && q().Can(sync.OpUpdateYTDLP)
 	}
-	retry := func() bool { return q().Can(sync.OpJobRetry) }
+	// another is a failure trying again cannot fix, so the box offers another link in its place.
+	another := func() bool {
+		return !canceled() && act.Add != nil && hopeless(failure().Code) && q().Can(sync.OpJobCreate)
+	}
+	retry := func() bool { return q().Can(sync.OpJobRetry) && !another() }
 	busy := func() bool { return s.Busy(desktop, id) || s.Updating(desktop) || q().Reach != session.Online }
-	return core.View{TestID: "jobs-remedy-" + id, Style: core.Style{Gap: 6, Padding: core.All(12), CornerRadius: 12, BorderCurve: core.BorderCurveContinuous},
+	body := func() string { return failureBody(cx, failure(), name(s, desktop), site()) }
+	return core.View{TestID: "jobs-remedy-" + id, Style: core.Style{Gap: 4, Padding: core.All(12), CornerRadius: 12, BorderCurve: core.BorderCurveContinuous},
 		StyleFunc: func() core.Style {
 			if canceled() {
 				return core.Style{Background: colors.Inset()}
 			}
-			return core.Style{Background: tints.Warn()}
+			return core.Style{Background: own.WarnBox()}
 		},
 		Children: []core.Node{
-			core.View{Style: core.Style{Direction: core.Row, Gap: 8, AlignItems: core.AlignCenter}, Children: []core.Node{
-				core.Show{When: func() bool { return !canceled() }, Then: func(*core.Scope) core.Node { return ui.Icon(lucide.TriangleAlert, 16, colors.Warn) }},
+			core.View{Style: core.Style{Direction: core.Row, Gap: 8, AlignItems: core.AlignStart}, Children: []core.Node{
+				core.Show{When: func() bool { return !canceled() }, Then: func(*core.Scope) core.Node {
+					return core.Icon{SVG: warnIcon(), Style: core.Style{Width: core.Pt(16), Height: core.Pt(16), FlexShrink: 0, Margin: core.Edges{Top: 1}}}
+				}},
 				core.Text{TestID: "jobs-failure-" + id, ContentFunc: func() string {
 					if canceled() {
 						return locales.JobsCanceledTitle(cx, name(s, desktop))
 					}
-					return failureTitle(cx, failure())
-				}, Style: look.Subhead.Merge(core.Style{FontWeight: core.FontWeightSemibold, FlexShrink: 1}), StyleFunc: ui.Colored(colors.Text)},
+					return failureTitle(cx, failure(), site())
+				}, Style: core.Style{FontSize: 14, LineHeight: 19, FontWeight: core.FontWeightBold, FlexShrink: 1}, StyleFunc: func() core.Style {
+					if canceled() {
+						return core.Style{Color: colors.Text()}
+					}
+					return core.Style{Color: own.WarnText()}
+				}},
 			}},
-			core.Show{When: func() bool { return !canceled() && failureBody(cx, failure(), name(s, desktop)) != "" }, Then: func(cx *core.Scope) core.Node {
-				return core.Text{TestID: "jobs-failure-body-" + id, ContentFunc: func() string { return failureBody(cx, failure(), name(s, desktop)) }, Style: look.Caption, StyleFunc: ui.Colored(colors.Muted)}
+			core.Show{When: func() bool { return !canceled() && body() != "" }, Then: func(cx *core.Scope) core.Node {
+				return core.Text{TestID: "jobs-failure-body-" + id, ContentFunc: body, Style: look.Caption.Merge(core.Style{Padding: core.Edges{Left: 24}}), StyleFunc: ui.Colored(own.WarnBody)}
 			}},
-			pills(
+			// The buttons line up with the text under the triangle, or with the title where there is none.
+			core.View{Style: core.Style{Direction: core.Row, Wrap: core.Wrap, Gap: 8}, StyleFunc: func() core.Style {
+				if canceled() {
+					return core.Style{Padding: core.Edges{Top: 6}}
+				}
+				return core.Style{Padding: core.Edges{Top: 6, Left: 24}}
+			}, Children: []core.Node{
 				core.Show{When: update, Then: func(cx *core.Scope) core.Node {
-					return pillBusy(cx, "jobs-update-"+id, true, func() string { return locales.JobsUpdateRetry(cx) }, func() { s.UpdateYTDLP(desktop) }, busy)
+					return warnPill(cx, "jobs-update-"+id, func() string { return locales.JobsUpdateRetry(cx) }, func() { s.UpdateYTDLP(desktop) }, busy)
+				}},
+				core.Show{When: another, Then: func(cx *core.Scope) core.Node {
+					return warnPill(cx, "jobs-another-"+id, func() string { return locales.JobsOtherLink(cx) }, act.Add, func() bool { return false })
 				}},
 				core.Show{When: func() bool { return retry() && !update() }, Then: func(cx *core.Scope) core.Node {
-					return pillBusy(cx, "jobs-retry-"+id, true, func() string {
-						if failure().Remedy == sync.RemedyDesktop {
-							return locales.JobsFixedRetry(cx)
+					text := func() string {
+						f := failure()
+						switch {
+						case canceled() || f.Remedy != sync.RemedyDesktop:
+							return locales.CommonRetry(cx)
+						case f.Code == sync.FailLogin || f.Code == sync.FailLoginExpired:
+							return locales.JobsSignedInRetry(cx)
 						}
-						return locales.CommonRetry(cx)
-					}, func() { s.Act(desktop, sync.OpJobRetry, id) }, busy)
+						return locales.JobsFixedRetry(cx)
+					}
+					return core.Show{When: canceled,
+						Then: func(cx *core.Scope) core.Node {
+							return pillBusy(cx, "jobs-retry-"+id, true, text, func() { s.Act(desktop, sync.OpJobRetry, id) }, busy)
+						},
+						Else: func(cx *core.Scope) core.Node {
+							return warnPill(cx, "jobs-retry-"+id, text, func() { s.Act(desktop, sync.OpJobRetry, id) }, busy)
+						}}
 				}},
-			),
+			}},
 		}}
 }
 
-// failureTitle is what went wrong, by the failure's code; the computer's own words for a code the phone does not know.
-func failureTitle(cx *core.Scope, f sync.Failure) string {
+// hopeless reports whether a failure of code comes back however often the job is tried again: the video is not there for the computer, so only another link helps.
+func hopeless(code string) bool {
+	switch code {
+	case sync.FailRegion, sync.FailPrivate, sync.FailBadLink, sync.FailDRM, sync.FailUnsupported:
+		return true
+	}
+	return false
+}
+
+// failureTitle is what went wrong, by the failure's code, naming site, the site of the job's link, where the design does; the computer's own words for a code the phone does not know.
+func failureTitle(cx *core.Scope, f sync.Failure, site string) string {
 	switch f.Code {
 	case sync.FailNetwork:
 		return locales.JobsFailNetwork(cx)
@@ -542,10 +719,16 @@ func failureTitle(cx *core.Scope, f sync.Failure) string {
 	case sync.FailUnsupported:
 		return locales.JobsFailUnsupported(cx)
 	case sync.FailOutdated:
+		if site != "" {
+			return locales.JobsFailOutdatedSite(cx, site)
+		}
 		return locales.JobsFailOutdated(cx)
 	case sync.FailLogin:
 		return locales.JobsFailLogin(cx)
 	case sync.FailLoginExpired:
+		if site != "" {
+			return locales.JobsFailLoginExpiredSite(cx, site)
+		}
 		return locales.JobsFailLoginExpired(cx)
 	case sync.FailCookies:
 		return locales.JobsFailCookies(cx)
@@ -576,24 +759,30 @@ func failureTitle(cx *core.Scope, f sync.Failure) string {
 	return locales.JobsFailOther(cx)
 }
 
-// failureBody is what can be done about a failure, by its remedy, with the computer's own words where they say what to set up.
-func failureBody(cx *core.Scope, f sync.Failure, desktop string) string {
+// failureBody is what can be done about a failure, by its remedy, with the computer's own words where they say what to set up, and the site to sign in to again where a sign-in on the computer expired.
+func failureBody(cx *core.Scope, f sync.Failure, desktop, site string) string {
+	if f.Code == sync.FailRegion {
+		return locales.JobsRemedyRegion(cx, desktop)
+	}
 	switch f.Remedy {
 	case sync.RemedyUpdateYTDLP:
 		return locales.JobsRemedyUpdate(cx, desktop)
 	case sync.RemedyRetry:
 		return locales.JobsRemedyRetry(cx)
 	case sync.RemedyDesktop:
-		if f.Code == sync.FailDesktopSetup && f.Message != "" {
+		switch {
+		case f.Code == sync.FailDesktopSetup && f.Message != "":
 			return locales.JobsRemedySetup(cx, desktop, f.Message)
+		case (f.Code == sync.FailLogin || f.Code == sync.FailLoginExpired) && site != "":
+			return locales.JobsRemedySignIn(cx, site, desktop)
 		}
 		return locales.JobsRemedyDesktop(cx, desktop)
 	}
 	return ""
 }
 
-// thumb is a job's poster, in the 16:9 of a video, a film's mark until it has one.
-func thumb(cx *core.Scope, source func() core.ImageSource) core.Node {
+// thumb is a job's poster, in the 16:9 of a video, a film's mark until it has one, with over, when it says something, in bold white on a dark veil across it.
+func thumb(cx *core.Scope, source func() core.ImageSource, over func() string) core.Node {
 	colors := ui.ColorsOf(cx)
 	return core.View{Style: core.Style{Width: core.Pt(80), AspectRatio: 16.0 / 9, CornerRadius: 8, BorderCurve: core.BorderCurveContinuous, Overflow: core.Hidden, FlexShrink: 0,
 		AlignItems: core.AlignCenter, JustifyContent: core.JustifyCenter},
@@ -602,7 +791,25 @@ func thumb(cx *core.Scope, source func() core.ImageSource) core.Node {
 			ui.Icon(lucide.Film, 20, colors.Faint),
 			core.Image{SourceFunc: source, ResizeMode: core.Cover, FadeDuration: 150 * time.Millisecond, ElementsHidden: true,
 				Style: core.Style{Position: core.Absolute, Left: core.Pt(0), Top: core.Pt(0), Right: core.Pt(0), Bottom: core.Pt(0)}},
+			core.Show{When: func() bool { return over() != "" }, Then: func(cx *core.Scope) core.Node {
+				return core.View{Style: core.Style{Position: core.Absolute, Left: core.Pt(0), Top: core.Pt(0), Right: core.Pt(0), Bottom: core.Pt(0), AlignItems: core.AlignCenter, JustifyContent: core.JustifyCenter,
+					Padding: core.Symmetric(0, 4), Background: ui.Black(0.35)}, Children: []core.Node{
+					core.Text{TestID: "", ContentFunc: over, MaxLines: 2, Style: core.Style{FontSize: 13, LineHeight: 16, FontWeight: look.Heavy, TextAlign: core.TextAlignCenter, Color: theme.OnMark}},
+				}}
+			}},
 		}}
+}
+
+// round is a card's round button: an icon on the fill, 34 points in a 44-point target.
+func round(cx *core.Scope, testID string, icon func() *core.SVG, label func() string, disabled func() bool, press func()) core.Node {
+	colors := ui.ColorsOf(cx)
+	return base.Button{TestID: testID, LabelFunc: label, Disabled: disabled, OnPress: func(core.PressEvent) { press() },
+		Style: core.Style{Width: core.Pt(44), Height: core.Pt(44), AlignItems: core.AlignCenter, JustifyContent: core.JustifyCenter,
+			Active: &core.Style{Opacity: core.Alpha(0.6)}, Disabled: &core.Style{Opacity: core.Alpha(0.4)}},
+		StyleFunc: func() core.Style { return core.Style{FocusVisible: ui.FocusRing(cx, -2)} },
+		Children: []core.Node{core.View{Style: core.Style{Width: core.Pt(34), Height: core.Pt(34), CornerRadius: 17, AlignItems: core.AlignCenter, JustifyContent: core.JustifyCenter},
+			StyleFunc: func() core.Style { return core.Style{Background: colors.Inset(), Color: colors.Text()} },
+			Children:  []core.Node{ui.Icon(icon, 12, ui.Inherited)}}}}
 }
 
 // pills lays small buttons out in a row that wraps.
@@ -619,7 +826,7 @@ func pill(cx *core.Scope, testID string, main bool, text func() string, press fu
 func pillBusy(cx *core.Scope, testID string, main bool, text func() string, press func(), busy func() bool) core.Node {
 	colors, tints := ui.ColorsOf(cx), ui.TintsOf(cx)
 	return base.Button{TestID: testID, LabelFunc: text, OnPress: func(core.PressEvent) { press() }, Disabled: busy,
-		Style: core.Style{MinHeight: core.Pt(34), Padding: core.Symmetric(0, 14), CornerRadius: 17, BorderCurve: core.BorderCurveContinuous, AlignItems: core.AlignCenter, JustifyContent: core.JustifyCenter,
+		Style: core.Style{MinHeight: core.Pt(32), Padding: core.Symmetric(0, 14), CornerRadius: 16, BorderCurve: core.BorderCurveContinuous, AlignItems: core.AlignCenter, JustifyContent: core.JustifyCenter,
 			Active: &core.Style{Opacity: core.Alpha(0.7)}, Disabled: &core.Style{Opacity: core.Alpha(0.4)}},
 		StyleFunc: func() core.Style {
 			if main {
@@ -627,5 +834,13 @@ func pillBusy(cx *core.Scope, testID string, main bool, text func() string, pres
 			}
 			return core.Style{Background: tints.Accent(), Color: colors.Accent()}
 		},
-		Children: []core.Node{core.Text{ContentFunc: text, MaxLines: 1, Style: look.Subhead.Merge(core.Style{FontWeight: core.FontWeightSemibold})}}}
+		Children: []core.Node{core.Text{ContentFunc: text, MaxLines: 1, Style: core.Style{FontSize: 13, LineHeight: 18, FontWeight: core.FontWeightBold}}}}
+}
+
+// warnPill is the failure box's main button: white on the warning's orange, 32 points tall, its text on up to two lines.
+func warnPill(cx *core.Scope, testID string, text func() string, press func(), busy func() bool) core.Node {
+	return base.Button{TestID: testID, LabelFunc: text, OnPress: func(core.PressEvent) { press() }, Disabled: busy,
+		Style: core.Style{MinHeight: core.Pt(32), Padding: core.Symmetric(4, 14), CornerRadius: 16, BorderCurve: core.BorderCurveContinuous, AlignItems: core.AlignCenter, JustifyContent: core.JustifyCenter, FlexShrink: 1,
+			Background: theme.BadgeOrange, Color: theme.OnMark, Active: &core.Style{Opacity: core.Alpha(0.7)}, Disabled: &core.Style{Opacity: core.Alpha(0.4)}},
+		Children: []core.Node{core.Text{ContentFunc: text, MaxLines: 2, Style: core.Style{FontSize: 13, LineHeight: 16, FontWeight: core.FontWeightBold}}}}
 }

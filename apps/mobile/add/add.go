@@ -9,6 +9,7 @@ import (
 	"kando/apps/mobile/look"
 	"kando/apps/mobile/session"
 	"kando/apps/mobile/store"
+	"kando/apps/mobile/theme"
 	kcore "kando/packages/core"
 	"kando/packages/sync"
 
@@ -18,7 +19,7 @@ import (
 	"github.com/nsgo-dev/nsgo/ui"
 )
 
-// Sheet is the Add sheet while open reports true; close closes it, and sent follows a link sent.
+// Sheet is the Add sheet while open reports true, headed by the design's bar of Cancel and Send; close closes it, and sent follows a link sent.
 // TODO(nsgo#655): take the links other apps share to Kando (an iOS share extension, Android's SEND intent) into this sheet; NSGo apps cannot receive a share yet, so a link comes by paste alone https://github.com/nsgo-dev/nsgo/issues/655
 func Sheet(cx *core.Scope, s *session.Session, open func() bool, close func(), sent func()) core.Node {
 	colors := ui.ColorsOf(cx)
@@ -80,21 +81,30 @@ func Sheet(cx *core.Scope, s *session.Session, open func() bool, close func(), s
 	paste := func() { cx.ReadClipboard(func(clip string) { text.Set(firstLink(clip)) }) }
 	return look.Dialog{TestID: "add-sheet", Open: open, Title: func() string { return locales.AddTitle(cx) }, OnClose: close,
 		OnConfirm: send,
+		// A list link is sent too, as the note under the form says it becomes a subscription.
+		Nav: &look.SheetNav{Cancel: func() string { return locales.CommonCancel(cx) }, Confirm: func() string { return locales.AddSend(cx) }, CancelID: "add-cancel", ConfirmID: "add-send",
+			Busy: func() bool { return s.Subscribing(desktop()) }, Disabled: func() bool { return !ready(desktop()) }, OnCancel: close, OnConfirm: send},
 		Children: []core.Node{
 			core.View{Style: core.Style{Gap: 8}, Children: []core.Node{
-				core.Text{ContentFunc: func() string { return locales.AddLinkLabel(cx) }, Style: look.Section.Merge(core.Style{Padding: core.Edges{Left: 4}}), StyleFunc: ui.Colored(colors.Muted)},
-				core.View{Style: core.Style{Direction: core.Row, AlignItems: core.AlignCenter, Gap: 8}, Children: []core.Node{
+				label(cx, func() string { return locales.AddLinkLabel(cx) }),
+				core.View{Children: []core.Node{
 					ui.Input{TestID: "add-link", LabelFunc: func() string { return locales.AddLinkLabel(cx) }, Value: text.Get, OnChange: text.Set,
 						PlaceholderFunc: func() string { return locales.AddLinkPlaceholder(cx) }, KeyboardType: core.KeyboardURL, AutoCapitalize: core.AutoCapitalizeNone, NoAutoCorrect: true,
-						Style: core.Style{Height: core.Pt(50), FontSize: 17, CornerRadius: 12, Padding: core.Symmetric(0, 14), FlexGrow: 1, FlexShrink: 1}},
+						Style: core.Style{Height: core.Pt(50), FontSize: 16, CornerRadius: 13, Padding: core.Edges{Right: 100, Left: 14}},
+						// The field is a card with no rim, as the design draws it; its rim is the card's color, so focus does not show one either.
+						StyleFunc: func() core.Style {
+							return core.Style{Background: colors.Surface(), BorderColor: colors.Surface(), Hover: &core.Style{BorderColor: colors.Surface()}}
+						}},
+					core.Show{When: valid, Then: func(cx *core.Scope) core.Node {
+						return core.View{Style: core.Style{Position: core.Absolute, Top: core.Pt(0), Bottom: core.Pt(0), Right: core.Pt(10), JustifyContent: core.JustifyCenter}, PointerEvents: core.PointerEventsNone, Children: []core.Node{
+							core.Text{TestID: "add-site", ContentFunc: func() string { l, _ := link(); return site(cx, l) }, MaxLines: 1,
+								Style:     core.Style{FontSize: 11, LineHeight: 14, FontWeight: core.FontWeightBold, Padding: core.Symmetric(3, 9), CornerRadius: 10, MaxWidth: core.Pt(90), Color: theme.OnMark},
+								StyleFunc: func() core.Style { l, _ := link(); return core.Style{Background: mark(l)} }},
+						}}
+					}},
 				}},
 				core.View{Style: core.Style{Direction: core.Row, AlignItems: core.AlignCenter, Gap: 8, MinHeight: core.Pt(36)}, Children: []core.Node{
 					pasteButton(cx, paste),
-					core.Show{When: valid, Then: func(cx *core.Scope) core.Node {
-						return core.Text{TestID: "add-site", ContentFunc: func() string { l, _ := link(); return site(l) }, MaxLines: 1,
-							Style:     look.Caption.Merge(core.Style{FontWeight: core.FontWeightSemibold, Padding: core.Symmetric(2, 10), CornerRadius: 10}),
-							StyleFunc: func() core.Style { return core.Style{Background: ui.TintsOf(cx).Accent(), Color: colors.Accent()} }}
-					}},
 					core.Show{When: func() bool { return strings.TrimSpace(text.Get()) != "" && !valid() }, Then: func(cx *core.Scope) core.Node {
 						return core.Text{TestID: "add-invalid", ContentFunc: func() string { return locales.AddNotALink(cx) }, LiveRegion: core.LiveRegionPolite, MaxLines: 2,
 							Style: look.Caption.Merge(core.Style{FlexShrink: 1}), StyleFunc: ui.Colored(colors.Danger)}
@@ -103,7 +113,7 @@ func Sheet(cx *core.Scope, s *session.Session, open func() bool, close func(), s
 			}},
 			core.Show{When: func() bool { return len(s.Desktops()) > 1 }, Then: func(cx *core.Scope) core.Node {
 				return core.View{Style: core.Style{Gap: 8}, Children: []core.Node{
-					core.Text{ContentFunc: func() string { return locales.AddComputer(cx) }, Style: look.Section.Merge(core.Style{Padding: core.Edges{Left: 4}}), StyleFunc: ui.Colored(colors.Muted)},
+					label(cx, func() string { return locales.AddComputer(cx) }),
 					core.View{Role: core.RoleRadioGroup, LabelFunc: func() string { return locales.AddComputer(cx) }, Children: []core.Node{look.Chips(
 						core.Each(s.Desktops, func(d store.Desktop) string { return d.ID }, func(cx *core.Scope, d func() store.Desktop, _ func() int) core.Node {
 							return look.Chip{TestID: "add-computer-" + d().ID, Radio: true, Text: func() string { return d().Name },
@@ -112,11 +122,11 @@ func Sheet(cx *core.Scope, s *session.Session, open func() bool, close func(), s
 					)}},
 				}}
 			}},
-			core.Show{When: func() bool { return !list(desktop()) && s.Queue(desktop()).Offers(sync.OptionQuality) }, Then: func(cx *core.Scope) core.Node {
-				return qualityChoice(cx, desktopName, quality)
-			}},
 			core.Show{When: func() bool { return !list(desktop()) && s.Queue(desktop()).Offers(sync.OptionSubtitles) }, Then: func(cx *core.Scope) core.Node {
 				return subtitlesChoice(cx, desktopName, subtitles)
+			}},
+			core.Show{When: func() bool { return !list(desktop()) && s.Queue(desktop()).Offers(sync.OptionQuality) }, Then: func(cx *core.Scope) core.Node {
+				return qualityChoice(cx, desktopName, quality)
 			}},
 			core.Text{TestID: "add-note", ContentFunc: func() string {
 				q := s.Queue(desktop())
@@ -146,58 +156,40 @@ func Sheet(cx *core.Scope, s *session.Session, open func() bool, close func(), s
 					return locales.AddNoteOfflineRelay(cx, desktopName())
 				}
 				return locales.AddNoteOffline(cx, desktopName())
-			}, Style: look.Caption, StyleFunc: ui.Colored(colors.Muted)},
-		},
-		Footer: []core.Node{
-			look.Button{Kind: look.Plain, Text: func() string { return locales.CommonCancel(cx) }, TestID: "add-cancel", OnPress: close},
-			look.Button{Kind: look.Primary, TestID: "add-send",
-				Text: func() string {
-					if list(desktop()) {
-						return locales.AddSubscribe(cx)
-					}
-					return locales.AddSend(cx)
-				},
-				Icon: func() *core.SVG {
-					if list(desktop()) {
-						return lucide.Rss()
-					}
-					return lucide.Send()
-				},
-				Busy:     func() bool { return s.Subscribing(desktop()) },
-				Disabled: func() bool { return !ready(desktop()) }, OnPress: send},
+			}, Style: core.Style{FontSize: 12, LineHeight: 17, Padding: core.Edges{Right: 4, Left: 4}}, StyleFunc: ui.Colored(colors.Muted)},
 		}}
 }
 
-// qualityChoice is the picture the computer downloads, as chips: its own setting, the best there is, or 720p.
+// label names a part of the form, over it: the design's 13-point muted caption, in line with the text in the cards under it.
+func label(cx *core.Scope, text func() string) core.Node {
+	return core.Text{ContentFunc: text, MaxLines: 1, Style: look.Caption.Merge(core.Style{Padding: core.Edges{Left: 4}}), StyleFunc: ui.Colored(ui.ColorsOf(cx).Muted)}
+}
+
+// qualityChoice is the picture the computer downloads, as the design's segmented control under Save: its own setting, the best there is, or 720p.
+// The design's third choice, the subtitles alone with no video, is not a job option the protocol has (sync.JobOptions.Quality).
 func qualityChoice(cx *core.Scope, computer func() string, quality *core.Signal[string]) core.Node {
-	colors := ui.ColorsOf(cx)
-	label := func() string { return locales.AddQuality(cx) }
-	chip := func(value, id string, text func() string) core.Node {
-		return look.Chip{TestID: "add-quality-" + id, Radio: true, Text: text, On: func() bool { return quality.Get() == value }, OnPress: func() { quality.Set(value) }}
-	}
+	text := func() string { return locales.AddQuality(cx) }
 	return core.View{Style: core.Style{Gap: 8}, Children: []core.Node{
-		core.Text{ContentFunc: label, Style: look.Section.Merge(core.Style{Padding: core.Edges{Left: 4}}), StyleFunc: ui.Colored(colors.Muted)},
-		core.View{Role: core.RoleRadioGroup, LabelFunc: label, Children: []core.Node{look.Chips(
-			chip("", "computer", func() string { return locales.AddAsComputer(cx, computer()) }),
-			chip(sync.QualityBest, "best", func() string { return locales.AddQualityBest(cx) }),
-			chip(sync.Quality720, "720", func() string { return locales.AddQuality720(cx) }),
-		)}},
+		label(cx, text),
+		look.Segmented{Label: text, Value: quality.Get, OnChange: quality.Set, Segments: []look.Segment{
+			{Value: "", TestID: "add-quality-computer", Text: func() string { return locales.AddAsComputer(cx, computer()) }},
+			{Value: sync.QualityBest, TestID: "add-quality-best", Text: func() string { return locales.AddQualityBest(cx) }},
+			{Value: sync.Quality720, TestID: "add-quality-720", Text: func() string { return locales.AddQuality720(cx) }},
+		}},
 	}}
 }
 
-// subtitlesChoice is where the original lines come from, as a group of rows: the computer's own setting, the subtitles the uploader put on the site, or the computer's speech recognition.
+// subtitlesChoice is where the original lines come from, as a card of rows each with a radio circle at its end: the computer's own setting, the subtitles the uploader put on the site, or the computer's speech recognition.
 func subtitlesChoice(cx *core.Scope, computer func() string, subtitles *core.Signal[string]) core.Node {
-	colors := ui.ColorsOf(cx)
-	label := func() string { return locales.AddSubtitles(cx) }
+	text := func() string { return locales.AddSubtitles(cx) }
 	row := func(i int, value, id string, title, detail func() string) core.Node {
 		on := func() bool { return subtitles.Get() == value }
 		return look.Row{TestID: "add-subtitles-" + id, Index: func() int { return i }, Title: title, Detail: detail, Checked: on,
-			Trailing: core.Show{When: on, Then: func(*core.Scope) core.Node { return ui.Icon(lucide.Check, 20, colors.Accent) }},
-			OnPress:  func() { subtitles.Set(value) }}
+			Trailing: look.RadioMark(cx, on), OnPress: func() { subtitles.Set(value) }}
 	}
 	return core.View{Style: core.Style{Gap: 8}, Children: []core.Node{
-		core.Text{ContentFunc: label, Style: look.Section.Merge(core.Style{Padding: core.Edges{Left: 4}}), StyleFunc: ui.Colored(colors.Muted)},
-		core.View{Role: core.RoleRadioGroup, LabelFunc: label, Children: []core.Node{look.Group{Children: []core.Node{
+		label(cx, text),
+		core.View{Role: core.RoleRadioGroup, LabelFunc: text, Children: []core.Node{look.Group{Children: []core.Node{
 			row(0, "", "computer", func() string { return locales.AddAsComputer(cx, computer()) }, nil),
 			row(1, sync.SubtitlesPlatform, "platform", func() string { return locales.AddSubtitlesPlatform(cx) }, func() string { return locales.AddSubtitlesPlatformNote(cx) }),
 			row(2, sync.SubtitlesRecognize, "recognize", func() string { return locales.AddSubtitlesRecognize(cx) }, func() string { return locales.AddSubtitlesRecognizeNote(cx, computer()) }),
@@ -205,17 +197,17 @@ func subtitlesChoice(cx *core.Scope, computer func() string, subtitles *core.Sig
 	}}
 }
 
-// pasteButton puts the clipboard's link in the field.
+// pasteButton puts the clipboard's link in the field: the design's white pill with the accent's text.
 func pasteButton(cx *core.Scope, paste func()) core.Node {
-	colors, tints := ui.ColorsOf(cx), ui.TintsOf(cx)
+	colors := ui.ColorsOf(cx)
 	text := func() string { return locales.AddPaste(cx) }
 	return base.Button{TestID: "add-paste", LabelFunc: text, OnPress: func(core.PressEvent) { paste() },
-		Style: core.Style{Direction: core.Row, Gap: 6, MinHeight: core.Pt(36), Padding: core.Symmetric(0, 14), CornerRadius: 18, BorderCurve: core.BorderCurveContinuous,
+		Style: core.Style{Direction: core.Row, Gap: 6, MinHeight: core.Pt(36), Padding: core.Symmetric(0, 16), CornerRadius: 18, BorderCurve: core.BorderCurveContinuous,
 			AlignItems: core.AlignCenter, Active: &core.Style{Opacity: core.Alpha(0.7)}},
-		StyleFunc: func() core.Style { return core.Style{Background: tints.Accent(), Color: colors.Accent()} },
+		StyleFunc: func() core.Style { return core.Style{Background: colors.Surface(), Color: colors.Accent()} },
 		Children: []core.Node{
-			ui.Icon(lucide.ClipboardPaste, 16, ui.Inherited),
-			core.Text{ContentFunc: text, MaxLines: 1, Style: look.Subhead.Merge(core.Style{FontWeight: core.FontWeightSemibold})},
+			ui.Icon(lucide.Clipboard, 14, ui.Inherited),
+			core.Text{ContentFunc: text, MaxLines: 1, Style: core.Style{FontSize: 14, LineHeight: 18, FontWeight: core.FontWeightSemibold}},
 		}}
 }
 
@@ -254,12 +246,32 @@ func Destination(s *session.Session, chosen string) string {
 	return ""
 }
 
-// site is the site a link is on, as its chip names it: the site Kando knows it as, else its host.
-func site(l kcore.Link) string {
-	if l.Site != "" {
+// site is the site a link is on, as its chip names it: YouTube and Bilibili by the names the Library gives them, a channel or a playlist as one whatever its site, else the site Kando knows it as, else its host.
+func site(cx *core.Scope, l kcore.Link) string {
+	switch {
+	case l.IsList():
+		return locales.AddChannel(cx)
+	case l.Platform == kcore.PlatformYouTube:
+		return locales.FilmsSourceYoutube(cx)
+	case l.Platform == kcore.PlatformBilibili:
+		return locales.FilmsSourceBilibili(cx)
+	case l.Site != "":
 		return l.Site
 	}
 	return l.Host
+}
+
+// mark is the color of a link's chip: the site's own for YouTube and Bilibili, purple for a channel or a playlist, indigo for another site.
+func mark(l kcore.Link) core.Color {
+	switch {
+	case l.IsList():
+		return theme.SourceChannel
+	case l.Platform == kcore.PlatformYouTube:
+		return theme.SourceYouTube
+	case l.Platform == kcore.PlatformBilibili:
+		return theme.SourceBilibili
+	}
+	return theme.SourceOther
 }
 
 // firstLink is the first link to a video on the web in text, as a share sheet's text that holds a title before its link; text trimmed when it holds none.

@@ -78,6 +78,23 @@ func TabRootWith(cx *core.Scope, p base.NavPage, h Head) base.NavPage {
 	return p
 }
 
+// TabRootTitleRow is TabRoot with trailing at the end of the large title's own row rather than in a row over it, as the design's Jobs draws its plus level with its title; on iOS, where the system draws the header, it is TabRoot.
+func TabRootTitleRow(cx *core.Scope, p base.NavPage, title func() string, trailing []core.Node, symbols func() []core.HeaderSymbol) base.NavPage {
+	if cx.Env().OS() == core.OSIOS || len(trailing) == 0 {
+		return TabRoot(cx, p, title, trailing, symbols)
+	}
+	colors := ui.ColorsOf(cx)
+	p.StyleFunc = ui.Filled(colors.Background)
+	p.HeaderHidden = true
+	head := core.Text{ContentFunc: title, Role: core.RoleHeader, MaxLines: 1, Style: PageTitle(cx).Merge(core.Style{FlexGrow: 1, FlexShrink: 1, Padding: core.Edges{Top: 2, Bottom: 4, Left: 16}}),
+		StyleFunc: ui.Colored(colors.Text)}
+	// The title starts 56 down as on a page without buttons, and its buttons' 44-point targets end 10 from the edge, so a 34-point circle in one ends 15 from it.
+	row := core.View{Style: core.Style{Direction: core.Row, AlignItems: core.AlignCenter, Gap: 8, Padding: core.Edges{Top: 54, Right: 10}, PaddingEnv: core.EnvEdges{Top: core.EnvSafeArea, Right: core.EnvSafeArea, Left: core.EnvSafeArea}},
+		Children: append([]core.Node{head}, trailing...)}
+	p.Children = append([]core.Node{row}, p.Children...)
+	return p
+}
+
 // ContentStyle is the column of a tab's page and the pages it opens: inset from the screen's sides and their safe area, no wider than a reading column on a tablet.
 func ContentStyle(*core.Scope) core.Style {
 	return core.Style{Padding: core.Edges{Top: 8, Right: 16, Left: 16}, PaddingEnv: core.EnvEdges{Right: core.EnvSafeArea, Left: core.EnvSafeArea},

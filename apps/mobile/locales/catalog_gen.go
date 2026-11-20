@@ -538,17 +538,28 @@ var Parameters = map[string][]string{
 	"JobsActionFailed":               {"name"},
 	"JobsActive":                     {"count"},
 	"JobsActiveFailed":               {"active", "failed"},
+	"JobsAgoDays":                    {"count"},
+	"JobsAgoHours":                   {"count"},
+	"JobsAgoMinutes":                 {"count"},
 	"JobsCancelTitle":                {"title", "name"},
 	"JobsCanceledTitle":              {"name"},
 	"JobsDoneBody":                   {"title"},
 	"JobsDoneTitle":                  {"name"},
+	"JobsFailLoginExpiredSite":       {"site"},
+	"JobsFailOutdatedSite":           {"site"},
 	"JobsFailedCount":                {"count"},
 	"JobsFilmGone":                   {"name"},
 	"JobsFrom":                       {"status", "device"},
 	"JobsLinksOff":                   {"name"},
+	"JobsLockPhone":                  {"summary"},
 	"JobsNotReady":                   {"name", "message"},
+	"JobsOfflineSeen":                {"ago"},
 	"JobsInStorage":                  {"name"},
+	"JobsOfflineWaiting":             {"count"},
 	"JobsRelayed":                    {"summary"},
+	"JobsRemedyRegion":               {"name"},
+	"JobsRemedySignIn":               {"site", "name"},
+	"JobsStepRunning":                {"step"},
 	"JobsStorageLapsed":              {"name"},
 	"JobsStorageKeys":                {"name"},
 	"JobsStorageDenied":              {"name"},
@@ -724,17 +735,28 @@ type Translation struct {
 	JobsActionFailed               func(name string) string
 	JobsActive                     func(count int) string
 	JobsActiveFailed               func(active int, failed int) string
+	JobsAgoDays                    func(count int) string
+	JobsAgoHours                   func(count int) string
+	JobsAgoMinutes                 func(count int) string
 	JobsCancelTitle                func(title string, name string) string
 	JobsCanceledTitle              func(name string) string
 	JobsDoneBody                   func(title string) string
 	JobsDoneTitle                  func(name string) string
+	JobsFailLoginExpiredSite       func(site string) string
+	JobsFailOutdatedSite           func(site string) string
 	JobsFailedCount                func(count int) string
 	JobsFilmGone                   func(name string) string
 	JobsFrom                       func(status string, device string) string
 	JobsLinksOff                   func(name string) string
+	JobsLockPhone                  func(summary string) string
 	JobsNotReady                   func(name string, message string) string
+	JobsOfflineSeen                func(ago string) string
 	JobsInStorage                  func(name string) string
+	JobsOfflineWaiting             func(count int) string
 	JobsRelayed                    func(summary string) string
+	JobsRemedyRegion               func(name string) string
+	JobsRemedySignIn               func(site string, name string) string
+	JobsStepRunning                func(step string) string
 	JobsStorageLapsed              func(name string) string
 	JobsStorageKeys                func(name string) string
 	JobsStorageDenied              func(name string) string
@@ -831,7 +853,8 @@ var supplied = map[string]Translation{}
 
 // The indexes of the messages without arguments in the tables.
 const (
-	textAddComputer = iota
+	textAddChannel = iota
+	textAddComputer
 	textAddLinkLabel
 	textAddLinkPlaceholder
 	textAddNotALink
@@ -840,7 +863,6 @@ const (
 	textAddQuality720
 	textAddQualityBest
 	textAddSend
-	textAddSubscribe
 	textAddSubtitles
 	textAddSubtitlesPlatform
 	textAddSubtitlesPlatformNote
@@ -990,6 +1012,9 @@ const (
 	textJobsOffline
 	textJobsOfflineSummary
 	textJobsOfflineRelay
+	textJobsOtherLink
+	textJobsSignedInRetry
+	textJobsThumbWaiting
 	textJobsViaStorage
 	textJobsStorageUnreachable
 	textJobsStorageFailed
@@ -1291,6 +1316,7 @@ const (
 // keyOfText is the key of the message without arguments at each
 // index, by which Supply reads a Translation's Texts.
 var keyOfText = [numTexts]string{
+	"addChannel",
 	"addComputer",
 	"addLinkLabel",
 	"addLinkPlaceholder",
@@ -1300,7 +1326,6 @@ var keyOfText = [numTexts]string{
 	"addQuality720",
 	"addQualityBest",
 	"addSend",
-	"addSubscribe",
 	"addSubtitles",
 	"addSubtitlesPlatform",
 	"addSubtitlesPlatformNote",
@@ -1450,6 +1475,9 @@ var keyOfText = [numTexts]string{
 	"jobsOffline",
 	"jobsOfflineSummary",
 	"jobsOfflineRelay",
+	"jobsOtherLink",
+	"jobsSignedInRetry",
+	"jobsThumbWaiting",
 	"jobsViaStorage",
 	"jobsStorageUnreachable",
 	"jobsStorageFailed",
@@ -1749,20 +1777,20 @@ var keyOfText = [numTexts]string{
 
 // textsEn are the messages without arguments in en.
 var textsEn = i18n.NewTexts(""+
+	"Channel"+
 	"Send To"+
-	"Link to a Video"+
+	"Link to a video, channel or playlist"+
 	"Paste a YouTube, Bilibili or other link"+
 	"This isn't a link to a video on the web."+
 	"Paste"+
-	"Quality"+
-	"720p"+
-	"Best"+
+	"Save"+
+	"720P"+
+	"Best quality"+
 	"Send"+
-	"Subscribe"+
 	"Original Subtitles"+
-	"The Uploader's Subtitles"+
-	"Most accurate when someone wrote them. The lines that match the speech are translated as they are."+
-	"Recognized on the Computer"+
+	"Use the uploader's subtitles"+
+	"Most accurate when human-made; translated directly"+
+	"Recognize on computer"+
 	"Add Video"+
 	"Kando"+
 	"Cancel"+
@@ -1887,27 +1915,30 @@ var textsEn = i18n.NewTexts(""+
 	"The site shows this video only after you sign in"+
 	"The site can't be reached"+
 	"The site asks you to sign in"+
-	"The sign-in on the computer has expired"+
+	"The sign-in on your computer expired"+
 	"This video is for members only"+
 	"The network dropped"+
 	"No speech was heard in this video"+
 	"Processing failed"+
-	"The computer's downloader needs an update"+
+	"The site changed; the downloader on your computer needs an update"+
 	"This video is private"+
 	"The site is limiting downloads for now"+
-	"This video isn't available where the computer is"+
+	"Uploader restricted this by region"+
 	"Kando on the computer needs setting up"+
 	"The translation failed"+
 	"Kando can't download from this site"+
 	"Failed"+
-	"Fixed It, Try Again"+
+	"Fixed on computer — retry"+
 	"Remove"+
-	"Nothing in the queue"+
+	"Idle"+
 	"Keep Job"+
 	"The computer couldn't read this link as a video."+
 	"Offline"+
-	"Offline. Links you send wait on this phone and go once it's back."+
+	"Computer offline. New links wait here and start when it's back."+
 	"Offline. Links you send wait in your storage and start once it's back."+
+	"Use another link"+
+	"Signed in again on computer — retry"+
+	"Waiting for computer"+
 	"Via storage"+
 	"Couldn't connect to your storage. Check the network."+
 	"Your storage didn't answer properly. The phone tries again shortly."+
@@ -1926,7 +1957,7 @@ var textsEn = i18n.NewTexts(""+
 	"Translate"+
 	"Jobs"+
 	"Pair a computer to send it links"+
-	"Update and Try Again"+
+	"Update on computer and retry"+
 	"Waiting"+
 	"Words and lines you save will show here"+
 	"Export and Share"+
@@ -2205,19 +2236,19 @@ var textsEn = i18n.NewTexts(""+
 	"When a film ends, plays the next one of its course or playlist that's on this phone.",
 	[]uint16{
 		7,
-		15,
+		7,
+		36,
 		39,
 		40,
 		5,
-		7,
 		4,
 		4,
+		12,
 		4,
-		9,
 		18,
-		24,
-		98,
-		26,
+		28,
+		50,
+		21,
 		9,
 		5,
 		6,
@@ -2342,27 +2373,30 @@ var textsEn = i18n.NewTexts(""+
 		48,
 		25,
 		28,
-		39,
+		36,
 		30,
 		19,
 		33,
 		17,
-		41,
+		65,
 		21,
 		38,
-		48,
+		34,
 		38,
 		22,
 		35,
 		6,
-		19,
+		27,
 		6,
-		20,
+		4,
 		8,
 		48,
 		7,
-		65,
+		63,
 		70,
+		16,
+		37,
+		20,
 		11,
 		52,
 		67,
@@ -2381,7 +2415,7 @@ var textsEn = i18n.NewTexts(""+
 		9,
 		4,
 		32,
-		20,
+		28,
 		7,
 		39,
 		16,
@@ -2662,19 +2696,19 @@ var textsEn = i18n.NewTexts(""+
 
 // textsJa are the messages without arguments in ja.
 var textsJa = i18n.NewTexts(""+
+	"チャンネル"+
 	"送信先"+
-	"動画のリンク"+
+	"動画、チャンネル、再生リストのリンク"+
 	"YouTube や bilibili などのリンクを貼り付け"+
 	"Web 上の動画のリンクではありません。"+
 	"貼り付け"+
-	"画質"+
-	"720p"+
+	"保存"+
+	"720P"+
 	"最高画質"+
 	"送信"+
-	"購読"+
 	"元の字幕"+
 	"投稿者の字幕"+
-	"人が付けた字幕があれば最も正確です。音声と合う行はそのまま翻訳します。"+
+	"人が付けた字幕なら最も正確。そのまま翻訳します"+
 	"パソコンで認識"+
 	"動画を追加"+
 	"Kando"+
@@ -2805,22 +2839,25 @@ var textsJa = i18n.NewTexts(""+
 	"ネットワークが切断されました"+
 	"この動画から音声が聞き取れませんでした"+
 	"処理に失敗しました"+
-	"パソコンのダウンローダーの更新が必要です"+
+	"サイトの仕様が変わりました。パソコンのダウンローダーの更新が必要です"+
 	"この動画は非公開です"+
 	"サイトが一時的にダウンロードを制限しています"+
-	"パソコンのある地域ではこの動画を見られません"+
+	"投稿者が地域を制限しています"+
 	"パソコンの Kando の設定が必要です"+
 	"翻訳に失敗しました"+
 	"Kando はこのサイトからダウンロードできません"+
 	"失敗"+
-	"対応済み、再試行"+
+	"パソコンで対応済み、再試行"+
 	"削除"+
-	"キューは空です"+
+	"待機中"+
 	"キャンセルしない"+
 	"パソコンはこのリンクを動画として読み取れませんでした。"+
 	"オフライン"+
-	"オフラインです。送ったリンクはこのスマートフォンで待機し、オンラインになると送信されます。"+
+	"パソコンはオフラインです。新しいリンクはここで待機し、オンラインになると始まります。"+
 	"オフラインです。送ったリンクはストレージで待機し、オンラインになると開始されます。"+
+	"別のリンクを使う"+
+	"パソコンで再ログインした、再試行"+
+	"パソコン待ち"+
 	"ストレージ経由"+
 	"ストレージに接続できませんでした。ネットワークを確認してください。"+
 	"ストレージが正常に応答しませんでした。しばらくしてからもう一度試します。"+
@@ -2839,7 +2876,7 @@ var textsJa = i18n.NewTexts(""+
 	"翻訳"+
 	"ジョブ"+
 	"パソコンとペアリングするとリンクを送れます"+
-	"更新して再試行"+
+	"パソコンで更新して再試行"+
 	"待機中"+
 	"保存した単語やセリフがここに表示されます"+
 	"書き出して共有"+
@@ -3117,8 +3154,9 @@ var textsJa = i18n.NewTexts(""+
 	"次の作品を自動再生"+
 	"作品が終わると、同じコースやリストでこの端末にある次の作品を再生します。",
 	[]uint16{
+		15,
 		9,
-		18,
+		54,
 		54,
 		52,
 		12,
@@ -3126,10 +3164,9 @@ var textsJa = i18n.NewTexts(""+
 		4,
 		12,
 		6,
-		6,
 		12,
 		18,
-		105,
+		69,
 		21,
 		15,
 		5,
@@ -3260,22 +3297,25 @@ var textsJa = i18n.NewTexts(""+
 		42,
 		57,
 		27,
-		60,
+		102,
 		30,
 		66,
-		66,
+		42,
 		46,
 		27,
 		63,
 		6,
-		24,
+		39,
 		6,
-		21,
+		9,
 		24,
 		81,
 		15,
-		135,
+		126,
 		123,
+		24,
+		48,
+		18,
 		21,
 		99,
 		108,
@@ -3294,7 +3334,7 @@ var textsJa = i18n.NewTexts(""+
 		6,
 		9,
 		63,
-		21,
+		36,
 		9,
 		60,
 		21,
@@ -3575,19 +3615,19 @@ var textsJa = i18n.NewTexts(""+
 
 // textsKo are the messages without arguments in ko.
 var textsKo = i18n.NewTexts(""+
+	"채널"+
 	"보낼 곳"+
-	"동영상 링크"+
+	"동영상, 채널 또는 재생목록 링크"+
 	"YouTube, bilibili 등의 링크 붙여넣기"+
 	"웹 동영상 링크가 아닙니다."+
 	"붙여넣기"+
-	"화질"+
-	"720p"+
+	"저장"+
+	"720P"+
 	"최고 화질"+
 	"보내기"+
-	"구독"+
 	"원문 자막"+
 	"업로더 자막"+
-	"사람이 만든 자막이 있으면 가장 정확합니다. 음성과 맞는 줄은 그대로 번역합니다."+
+	"사람이 만든 자막이면 가장 정확하며 그대로 번역합니다"+
 	"컴퓨터에서 인식"+
 	"동영상 추가"+
 	"Kando"+
@@ -3718,22 +3758,25 @@ var textsKo = i18n.NewTexts(""+
 	"네트워크 연결이 끊겼습니다"+
 	"이 동영상에서 음성이 들리지 않았습니다"+
 	"처리하지 못했습니다"+
-	"컴퓨터의 다운로더를 업데이트해야 합니다"+
+	"사이트가 바뀌어 컴퓨터의 다운로더를 업데이트해야 합니다"+
 	"비공개 동영상입니다"+
 	"사이트가 일시적으로 다운로드를 제한하고 있습니다"+
-	"컴퓨터가 있는 지역에서는 볼 수 없는 동영상입니다"+
+	"업로더가 지역을 제한했습니다"+
 	"컴퓨터의 Kando 설정이 필요합니다"+
 	"번역하지 못했습니다"+
 	"Kando는 이 사이트에서 다운로드할 수 없습니다"+
 	"실패"+
-	"해결함, 다시 시도"+
+	"컴퓨터에서 해결함, 다시 시도"+
 	"삭제"+
-	"대기열이 비어 있습니다"+
+	"대기 중"+
 	"취소 안 함"+
 	"컴퓨터가 이 링크를 동영상으로 인식하지 못했습니다."+
 	"오프라인"+
-	"오프라인입니다. 보낸 링크는 이 휴대폰에서 기다렸다가 다시 연결되면 보내집니다."+
+	"컴퓨터가 오프라인입니다. 새 링크는 여기서 기다렸다가 다시 연결되면 시작됩니다."+
 	"오프라인입니다. 보낸 링크는 스토리지에서 기다렸다가 다시 연결되면 시작됩니다."+
+	"다른 링크 사용"+
+	"컴퓨터에서 다시 로그인함, 다시 시도"+
+	"컴퓨터 대기 중"+
 	"스토리지 경유"+
 	"스토리지에 연결할 수 없습니다. 네트워크를 확인하십시오."+
 	"스토리지가 제대로 응답하지 않았습니다. 잠시 후 다시 시도합니다."+
@@ -3752,7 +3795,7 @@ var textsKo = i18n.NewTexts(""+
 	"번역"+
 	"작업"+
 	"컴퓨터와 페어링하면 링크를 보낼 수 있습니다"+
-	"업데이트 후 다시 시도"+
+	"컴퓨터에서 업데이트 후 다시 시도"+
 	"대기 중"+
 	"저장한 단어와 대사가 여기에 표시됩니다"+
 	"내보내고 공유"+
@@ -4030,8 +4073,9 @@ var textsKo = i18n.NewTexts(""+
 	"다음 작품 자동 재생"+
 	"작품이 끝나면 같은 강좌나 목록에서 이 휴대폰에 있는 다음 작품을 재생합니다.",
 	[]uint16{
+		6,
 		10,
-		16,
+		44,
 		44,
 		37,
 		12,
@@ -4039,10 +4083,9 @@ var textsKo = i18n.NewTexts(""+
 		4,
 		13,
 		9,
-		6,
 		13,
 		16,
-		111,
+		75,
 		22,
 		16,
 		5,
@@ -4173,22 +4216,25 @@ var textsKo = i18n.NewTexts(""+
 		38,
 		55,
 		28,
-		57,
+		80,
 		28,
 		70,
-		69,
+		41,
 		44,
 		28,
 		61,
 		6,
-		24,
+		40,
 		6,
-		32,
+		10,
 		14,
 		72,
 		12,
 		112,
 		111,
+		20,
+		50,
+		20,
 		19,
 		79,
 		90,
@@ -4207,7 +4253,7 @@ var textsKo = i18n.NewTexts(""+
 		6,
 		6,
 		62,
-		30,
+		46,
 		10,
 		55,
 		19,
@@ -4488,19 +4534,19 @@ var textsKo = i18n.NewTexts(""+
 
 // textsZhHans are the messages without arguments in zh-Hans.
 var textsZhHans = i18n.NewTexts(""+
+	"频道"+
 	"发到"+
-	"视频链接"+
+	"视频、频道或播放列表的链接"+
 	"粘贴 YouTube、哔哩哔哩等链接"+
 	"这不是网上视频的链接。"+
 	"粘贴"+
-	"画质"+
-	"720p"+
+	"保存"+
+	"720P"+
 	"最高画质"+
 	"发送"+
-	"订阅"+
 	"原文字幕"+
 	"用上传者的字幕"+
-	"有人工字幕时最准，和原声对得上的句子直接拿来翻译。"+
+	"人工字幕最准，直接拿来翻译"+
 	"电脑识别"+
 	"添加视频"+
 	"看懂"+
@@ -4631,22 +4677,25 @@ var textsZhHans = i18n.NewTexts(""+
 	"网络断了"+
 	"视频里没听到人声"+
 	"处理失败"+
-	"电脑上的下载组件要更新"+
+	"网站改版了，电脑上的下载组件要更新"+
 	"这是私密视频"+
 	"网站暂时限制了下载"+
-	"电脑所在的地区不能看这个视频"+
+	"上传者限制了地区"+
 	"电脑上的看懂还有设置没做"+
 	"翻译失败"+
 	"看懂不能从这个网站下载"+
 	"失败"+
-	"已处理，重试"+
+	"已在电脑上处理，重试"+
 	"移除"+
-	"空闲中"+
+	"空闲"+
 	"不取消"+
 	"电脑认不出这是视频链接。"+
 	"离线"+
-	"电脑离线。新链接先排在这台手机上，电脑上线后自动处理。"+
+	"电脑离线。新链接会先排在这里，电脑上线后自动处理。"+
 	"电脑离线。新链接先存在你的存储里，电脑上线后自动开始。"+
+	"换个链接"+
+	"已在电脑上重新登录，重试"+
+	"等电脑"+
 	"经存储"+
 	"连不上你的存储。检查网络。"+
 	"你的存储没有正常响应，手机稍后会再试。"+
@@ -4665,7 +4714,7 @@ var textsZhHans = i18n.NewTexts(""+
 	"翻译"+
 	"任务"+
 	"连上电脑后就能把链接发给它"+
-	"让电脑更新并重试"+
+	"在电脑上更新并重试"+
 	"排队中"+
 	"收藏的生词和句子会出现在这里"+
 	"导出并分享"+
@@ -4944,7 +4993,8 @@ var textsZhHans = i18n.NewTexts(""+
 	"一部播完后，接着播放同一课程或列表里已在手机上的下一部。",
 	[]uint16{
 		6,
-		12,
+		6,
+		39,
 		38,
 		33,
 		6,
@@ -4952,10 +5002,9 @@ var textsZhHans = i18n.NewTexts(""+
 		4,
 		12,
 		6,
-		6,
 		12,
 		21,
-		75,
+		39,
 		12,
 		12,
 		6,
@@ -5086,22 +5135,25 @@ var textsZhHans = i18n.NewTexts(""+
 		12,
 		24,
 		12,
-		33,
+		51,
 		18,
 		27,
-		42,
+		24,
 		36,
 		12,
 		33,
 		6,
-		18,
+		30,
 		6,
-		9,
+		6,
 		9,
 		36,
 		6,
+		75,
 		81,
-		81,
+		12,
+		36,
+		9,
 		9,
 		39,
 		57,
@@ -5120,7 +5172,7 @@ var textsZhHans = i18n.NewTexts(""+
 		6,
 		6,
 		39,
-		24,
+		27,
 		9,
 		42,
 		15,
@@ -5401,19 +5453,19 @@ var textsZhHans = i18n.NewTexts(""+
 
 // textsZhHant are the messages without arguments in zh-Hant.
 var textsZhHant = i18n.NewTexts(""+
+	"頻道"+
 	"傳到"+
-	"影片連結"+
+	"影片、頻道或播放清單的連結"+
 	"貼上 YouTube、嗶哩嗶哩等連結"+
 	"這不是網路影片的連結。"+
 	"貼上"+
-	"畫質"+
-	"720p"+
+	"儲存"+
+	"720P"+
 	"最高畫質"+
 	"傳送"+
-	"訂閱"+
 	"原文字幕"+
 	"用上傳者的字幕"+
-	"有人工字幕時最準，和原聲對得上的句子直接拿來翻譯。"+
+	"人工字幕最準，直接拿來翻譯"+
 	"電腦辨識"+
 	"新增影片"+
 	"看懂"+
@@ -5544,22 +5596,25 @@ var textsZhHant = i18n.NewTexts(""+
 	"網路中斷了"+
 	"影片裡沒聽到人聲"+
 	"處理失敗"+
-	"電腦上的下載元件需要更新"+
+	"網站改版了，電腦上的下載元件需要更新"+
 	"這是私人影片"+
 	"網站暫時限制了下載"+
-	"電腦所在的地區無法觀看這部影片"+
+	"上傳者限制了地區"+
 	"電腦上的看懂還有設定沒完成"+
 	"翻譯失敗"+
 	"看懂無法從這個網站下載"+
 	"失敗"+
-	"已處理，重試"+
+	"已在電腦上處理，重試"+
 	"移除"+
-	"閒置中"+
+	"閒置"+
 	"不取消"+
 	"電腦認不出這是影片連結。"+
 	"離線"+
-	"電腦離線。新連結先排在這支手機上，電腦上線後自動處理。"+
+	"電腦離線。新連結會先排在這裡，電腦上線後自動處理。"+
 	"電腦離線。新連結先存在你的儲存空間裡，電腦上線後自動開始。"+
+	"換個連結"+
+	"已在電腦上重新登入，重試"+
+	"等電腦"+
 	"經儲存空間"+
 	"無法連線到你的儲存空間。檢查網路。"+
 	"你的儲存空間沒有正常回應，手機稍後會再試。"+
@@ -5578,7 +5633,7 @@ var textsZhHant = i18n.NewTexts(""+
 	"翻譯"+
 	"任務"+
 	"連上電腦後就能把連結傳給它"+
-	"讓電腦更新並重試"+
+	"在電腦上更新並重試"+
 	"排隊中"+
 	"收藏的生詞和句子會出現在這裡"+
 	"匯出並分享"+
@@ -5857,7 +5912,8 @@ var textsZhHant = i18n.NewTexts(""+
 	"一部播完後，接著播放同一課程或清單裡已在手機上的下一部。",
 	[]uint16{
 		6,
-		12,
+		6,
+		39,
 		38,
 		33,
 		6,
@@ -5865,10 +5921,9 @@ var textsZhHant = i18n.NewTexts(""+
 		4,
 		12,
 		6,
-		6,
 		12,
 		21,
-		75,
+		39,
 		12,
 		12,
 		6,
@@ -5999,22 +6054,25 @@ var textsZhHant = i18n.NewTexts(""+
 		15,
 		24,
 		12,
-		36,
+		54,
 		18,
 		27,
-		45,
+		24,
 		39,
 		12,
 		33,
 		6,
-		18,
+		30,
 		6,
-		9,
+		6,
 		9,
 		36,
 		6,
-		81,
+		75,
 		87,
+		12,
+		36,
+		9,
 		15,
 		51,
 		63,
@@ -6033,7 +6091,7 @@ var textsZhHant = i18n.NewTexts(""+
 		6,
 		6,
 		39,
-		24,
+		27,
 		9,
 		42,
 		15,
@@ -6603,6 +6661,15 @@ func Supply(lang string, t Translation) {
 	if t.JobsActiveFailed != nil {
 		s.JobsActiveFailed = t.JobsActiveFailed
 	}
+	if t.JobsAgoDays != nil {
+		s.JobsAgoDays = t.JobsAgoDays
+	}
+	if t.JobsAgoHours != nil {
+		s.JobsAgoHours = t.JobsAgoHours
+	}
+	if t.JobsAgoMinutes != nil {
+		s.JobsAgoMinutes = t.JobsAgoMinutes
+	}
 	if t.JobsCancelTitle != nil {
 		s.JobsCancelTitle = t.JobsCancelTitle
 	}
@@ -6614,6 +6681,12 @@ func Supply(lang string, t Translation) {
 	}
 	if t.JobsDoneTitle != nil {
 		s.JobsDoneTitle = t.JobsDoneTitle
+	}
+	if t.JobsFailLoginExpiredSite != nil {
+		s.JobsFailLoginExpiredSite = t.JobsFailLoginExpiredSite
+	}
+	if t.JobsFailOutdatedSite != nil {
+		s.JobsFailOutdatedSite = t.JobsFailOutdatedSite
 	}
 	if t.JobsFailedCount != nil {
 		s.JobsFailedCount = t.JobsFailedCount
@@ -6627,14 +6700,32 @@ func Supply(lang string, t Translation) {
 	if t.JobsLinksOff != nil {
 		s.JobsLinksOff = t.JobsLinksOff
 	}
+	if t.JobsLockPhone != nil {
+		s.JobsLockPhone = t.JobsLockPhone
+	}
 	if t.JobsNotReady != nil {
 		s.JobsNotReady = t.JobsNotReady
+	}
+	if t.JobsOfflineSeen != nil {
+		s.JobsOfflineSeen = t.JobsOfflineSeen
 	}
 	if t.JobsInStorage != nil {
 		s.JobsInStorage = t.JobsInStorage
 	}
+	if t.JobsOfflineWaiting != nil {
+		s.JobsOfflineWaiting = t.JobsOfflineWaiting
+	}
 	if t.JobsRelayed != nil {
 		s.JobsRelayed = t.JobsRelayed
+	}
+	if t.JobsRemedyRegion != nil {
+		s.JobsRemedyRegion = t.JobsRemedyRegion
+	}
+	if t.JobsRemedySignIn != nil {
+		s.JobsRemedySignIn = t.JobsRemedySignIn
+	}
+	if t.JobsStepRunning != nil {
+		s.JobsStepRunning = t.JobsStepRunning
 	}
 	if t.JobsStorageLapsed != nil {
 		s.JobsStorageLapsed = t.JobsStorageLapsed
@@ -6949,6 +7040,15 @@ func (msgs Messages) AddAsComputer(name string) string {
 	}
 }
 
+// AddChannel says "Channel"
+// in the language the app shows under cx.
+//
+// Add sheet: the chip in the link field for a link to a channel or a playlist, which becomes a subscription.
+func AddChannel(cx *core.Scope) string { return For(cx).AddChannel() }
+
+// AddChannel is the package's AddChannel in the language of msgs.
+func (msgs Messages) AddChannel() string { return msgs.text(textAddChannel) }
+
 // AddComputer says "Send To"
 // in the language the app shows under cx.
 //
@@ -6958,7 +7058,7 @@ func AddComputer(cx *core.Scope) string { return For(cx).AddComputer() }
 // AddComputer is the package's AddComputer in the language of msgs.
 func (msgs Messages) AddComputer() string { return msgs.text(textAddComputer) }
 
-// AddLinkLabel says "Link to a Video"
+// AddLinkLabel says "Link to a video, channel or playlist"
 // in the language the app shows under cx.
 //
 // Add sheet: label of the field for the video's link.
@@ -7015,7 +7115,7 @@ func AddNotALink(cx *core.Scope) string { return For(cx).AddNotALink() }
 // AddNotALink is the package's AddNotALink in the language of msgs.
 func (msgs Messages) AddNotALink() string { return msgs.text(textAddNotALink) }
 
-// AddNote says "{name} downloads, transcribes and translates it."
+// AddNote says "The link goes to {name}, which downloads, transcribes and translates it, then syncs it back to your phone. Channel or playlist links become subscriptions."
 // in the language the app shows under cx.
 //
 // Add sheet: under the form, what the computer does with the link.
@@ -7032,15 +7132,15 @@ func (msgs Messages) AddNote(name string) string {
 		}
 		switch lang {
 		case "", "en":
-			return msgs.arg(name) + " downloads, transcribes and translates it."
+			return "The link goes to " + msgs.arg(name) + ", which downloads, transcribes and translates it, then syncs it back to your phone. Channel or playlist links become subscriptions."
 		case "ja":
-			return name + " がダウンロード、文字起こし、翻訳します。"
+			return "リンクは " + name + " に送られ、ダウンロード、文字起こし、翻訳のあとスマートフォンに同期されます。チャンネルや再生リストのリンクは購読になります。"
 		case "ko":
-			return name + "에서 다운로드, 받아쓰기, 번역을 합니다."
+			return "링크는 " + name + "(으)로 가서 다운로드, 받아쓰기, 번역을 거친 뒤 휴대폰으로 동기화됩니다. 채널이나 재생목록 링크는 구독이 됩니다."
 		case "zh-Hans":
-			return "由 " + name + " 下载、转录和翻译。"
+			return "链接会发到 " + name + "，由它下载、转录和翻译，再同步回手机。频道或播放列表链接会变成订阅。"
 		case "zh-Hant":
-			return "由 " + name + " 下載、轉錄和翻譯。"
+			return "連結會傳到 " + name + "，由它下載、轉錄和翻譯，再同步回手機。頻道或播放清單連結會變成訂閱。"
 		}
 	}
 }
@@ -7146,7 +7246,7 @@ func AddPaste(cx *core.Scope) string { return For(cx).AddPaste() }
 // AddPaste is the package's AddPaste in the language of msgs.
 func (msgs Messages) AddPaste() string { return msgs.text(textAddPaste) }
 
-// AddQuality says "Quality"
+// AddQuality says "Save"
 // in the language the app shows under cx.
 //
 // Add sheet: label over the choices of the picture the computer downloads.
@@ -7155,7 +7255,7 @@ func AddQuality(cx *core.Scope) string { return For(cx).AddQuality() }
 // AddQuality is the package's AddQuality in the language of msgs.
 func (msgs Messages) AddQuality() string { return msgs.text(textAddQuality) }
 
-// AddQuality720 says "720p"
+// AddQuality720 says "720P"
 // in the language the app shows under cx.
 //
 // Add sheet: the computer downloads the best picture no taller than 720 lines.
@@ -7164,7 +7264,7 @@ func AddQuality720(cx *core.Scope) string { return For(cx).AddQuality720() }
 // AddQuality720 is the package's AddQuality720 in the language of msgs.
 func (msgs Messages) AddQuality720() string { return msgs.text(textAddQuality720) }
 
-// AddQualityBest says "Best"
+// AddQualityBest says "Best quality"
 // in the language the app shows under cx.
 //
 // Add sheet: the computer downloads the best picture the site has.
@@ -7181,15 +7281,6 @@ func AddSend(cx *core.Scope) string { return For(cx).AddSend() }
 
 // AddSend is the package's AddSend in the language of msgs.
 func (msgs Messages) AddSend() string { return msgs.text(textAddSend) }
-
-// AddSubscribe says "Subscribe"
-// in the language the app shows under cx.
-//
-// Add sheet: the button that subscribes the computer to a channel or playlist link, in place of Send.
-func AddSubscribe(cx *core.Scope) string { return For(cx).AddSubscribe() }
-
-// AddSubscribe is the package's AddSubscribe in the language of msgs.
-func (msgs Messages) AddSubscribe() string { return msgs.text(textAddSubscribe) }
 
 // AddSubscribeNote says "{name} follows this list and adds its new videos as they come."
 // in the language the app shows under cx.
@@ -7358,7 +7449,7 @@ func AddSubtitles(cx *core.Scope) string { return For(cx).AddSubtitles() }
 // AddSubtitles is the package's AddSubtitles in the language of msgs.
 func (msgs Messages) AddSubtitles() string { return msgs.text(textAddSubtitles) }
 
-// AddSubtitlesPlatform says "The Uploader's Subtitles"
+// AddSubtitlesPlatform says "Use the uploader's subtitles"
 // in the language the app shows under cx.
 //
 // Add sheet: the original lines are the subtitles the uploader put on the site, where they match the speech.
@@ -7367,7 +7458,7 @@ func AddSubtitlesPlatform(cx *core.Scope) string { return For(cx).AddSubtitlesPl
 // AddSubtitlesPlatform is the package's AddSubtitlesPlatform in the language of msgs.
 func (msgs Messages) AddSubtitlesPlatform() string { return msgs.text(textAddSubtitlesPlatform) }
 
-// AddSubtitlesPlatformNote says "Most accurate when someone wrote them. The lines that match the speech are translated as they are."
+// AddSubtitlesPlatformNote says "Most accurate when human-made; translated directly"
 // in the language the app shows under cx.
 //
 // Add sheet: under The Uploader's Subtitles.
@@ -7378,7 +7469,7 @@ func (msgs Messages) AddSubtitlesPlatformNote() string {
 	return msgs.text(textAddSubtitlesPlatformNote)
 }
 
-// AddSubtitlesRecognize says "Recognized on the Computer"
+// AddSubtitlesRecognize says "Recognize on computer"
 // in the language the app shows under cx.
 //
 // Add sheet: the original lines are what the computer's speech recognition hears.
@@ -7387,7 +7478,7 @@ func AddSubtitlesRecognize(cx *core.Scope) string { return For(cx).AddSubtitlesR
 // AddSubtitlesRecognize is the package's AddSubtitlesRecognize in the language of msgs.
 func (msgs Messages) AddSubtitlesRecognize() string { return msgs.text(textAddSubtitlesRecognize) }
 
-// AddSubtitlesRecognizeNote says "Whisper on {name} transcribes the speech."
+// AddSubtitlesRecognizeNote says "Whisper on {name} transcribes the audio"
 // in the language the app shows under cx.
 //
 // Add sheet: under Recognized on the Computer.
@@ -7406,7 +7497,7 @@ func (msgs Messages) AddSubtitlesRecognizeNote(name string) string {
 		}
 		switch lang {
 		case "", "en":
-			return "Whisper on " + msgs.arg(name) + " transcribes the speech."
+			return "Whisper on " + msgs.arg(name) + " transcribes the audio"
 		case "ja":
 			return name + " の whisper が音声を書き起こします。"
 		case "ko":
@@ -10681,7 +10772,7 @@ func (msgs Messages) JobsActive(count int) string {
 	}
 }
 
-// JobsActiveFailed says "Processing {active}, {failed, plural, one {# needs you} other {# need you}}"
+// JobsActiveFailed says "{active, plural, one {Processing # video} other {Processing # videos}}, {failed, plural, one {# needs you} other {# need you}}"
 // in the language the app shows under cx.
 //
 // Jobs page, a computer's card: how many jobs run or wait, and how many failed.
@@ -10701,8 +10792,16 @@ func (msgs Messages) JobsActiveFailed(active int, failed int) string {
 		switch lang {
 		case "", "en":
 			var b strings.Builder
-			b.WriteString("Processing ")
-			b.WriteString(msgs.arg(i18n.FormatNumber("en", float64(active))))
+			switch i18n.Cardinal("en", float64(active)) {
+			case i18n.One:
+				b.WriteString("Processing ")
+				b.WriteString(msgs.arg(i18n.FormatNumber("en", float64(active))))
+				b.WriteString(" video")
+			default:
+				b.WriteString("Processing ")
+				b.WriteString(msgs.arg(i18n.FormatNumber("en", float64(active))))
+				b.WriteString(" videos")
+			}
 			b.WriteString(", ")
 			switch i18n.Cardinal("en", float64(failed)) {
 			case i18n.One:
@@ -10721,6 +10820,114 @@ func (msgs Messages) JobsActiveFailed(active int, failed int) string {
 			return "正在处理 " + i18n.FormatNumber("zh-Hans", float64(active)) + " 个，" + i18n.FormatNumber("zh-Hans", float64(failed)) + " 个要你处理"
 		case "zh-Hant":
 			return "正在處理 " + i18n.FormatNumber("zh-Hant", float64(active)) + " 部，" + i18n.FormatNumber("zh-Hant", float64(failed)) + " 部需要你處理"
+		}
+	}
+}
+
+// JobsAgoDays says "{count, plural, one {# day ago} other {# days ago}}"
+// in the language the app shows under cx.
+//
+// Jobs page, a computer's card while it is offline: how long ago it last answered, in days.
+func JobsAgoDays(cx *core.Scope, count int) string { return For(cx).JobsAgoDays(count) }
+
+// JobsAgoDays is the package's JobsAgoDays in the language of msgs.
+func (msgs Messages) JobsAgoDays(count int) string {
+	if i18n.IsPseudo(msgs.lang) {
+		return i18n.Pseudo(msgs.lang, Messages{lang: Source, mark: true}.JobsAgoDays(count))
+	}
+	for lang := msgs.lang; ; lang = i18n.Parent(lang) {
+		if f := supplied[lang].JobsAgoDays; f != nil {
+			return f(count)
+		}
+		switch lang {
+		case "", "en":
+			var b strings.Builder
+			switch i18n.Cardinal("en", float64(count)) {
+			case i18n.One:
+				b.WriteString(msgs.arg(i18n.FormatNumber("en", float64(count))))
+				b.WriteString(" day ago")
+			default:
+				b.WriteString(msgs.arg(i18n.FormatNumber("en", float64(count))))
+				b.WriteString(" days ago")
+			}
+			return b.String()
+		case "ja":
+			return i18n.FormatNumber("ja", float64(count)) + " 日前"
+		case "ko":
+			return i18n.FormatNumber("ko", float64(count)) + "일 전"
+		case "zh-Hans":
+			return i18n.FormatNumber("zh-Hans", float64(count)) + " 天前"
+		case "zh-Hant":
+			return i18n.FormatNumber("zh-Hant", float64(count)) + " 天前"
+		}
+	}
+}
+
+// JobsAgoHours says "{count, plural, one {# hr ago} other {# hrs ago}}"
+// in the language the app shows under cx.
+//
+// Jobs page, a computer's card while it is offline: how long ago it last answered, in hours.
+func JobsAgoHours(cx *core.Scope, count int) string { return For(cx).JobsAgoHours(count) }
+
+// JobsAgoHours is the package's JobsAgoHours in the language of msgs.
+func (msgs Messages) JobsAgoHours(count int) string {
+	if i18n.IsPseudo(msgs.lang) {
+		return i18n.Pseudo(msgs.lang, Messages{lang: Source, mark: true}.JobsAgoHours(count))
+	}
+	for lang := msgs.lang; ; lang = i18n.Parent(lang) {
+		if f := supplied[lang].JobsAgoHours; f != nil {
+			return f(count)
+		}
+		switch lang {
+		case "", "en":
+			var b strings.Builder
+			switch i18n.Cardinal("en", float64(count)) {
+			case i18n.One:
+				b.WriteString(msgs.arg(i18n.FormatNumber("en", float64(count))))
+				b.WriteString(" hr ago")
+			default:
+				b.WriteString(msgs.arg(i18n.FormatNumber("en", float64(count))))
+				b.WriteString(" hrs ago")
+			}
+			return b.String()
+		case "ja":
+			return i18n.FormatNumber("ja", float64(count)) + " 時間前"
+		case "ko":
+			return i18n.FormatNumber("ko", float64(count)) + "시간 전"
+		case "zh-Hans":
+			return i18n.FormatNumber("zh-Hans", float64(count)) + " 小时前"
+		case "zh-Hant":
+			return i18n.FormatNumber("zh-Hant", float64(count)) + " 小時前"
+		}
+	}
+}
+
+// JobsAgoMinutes says "{count} min ago"
+// in the language the app shows under cx.
+//
+// Jobs page, a computer's card while it is offline: how long ago it last answered, in minutes.
+func JobsAgoMinutes(cx *core.Scope, count int) string { return For(cx).JobsAgoMinutes(count) }
+
+// JobsAgoMinutes is the package's JobsAgoMinutes in the language of msgs.
+func (msgs Messages) JobsAgoMinutes(count int) string {
+	if i18n.IsPseudo(msgs.lang) {
+		return i18n.Pseudo(msgs.lang, Messages{lang: Source, mark: true}.JobsAgoMinutes(count))
+	}
+	for lang := msgs.lang; ; lang = i18n.Parent(lang) {
+		if f := supplied[lang].JobsAgoMinutes; f != nil {
+			return f(count)
+		}
+		switch lang {
+		case "", "en":
+			return msgs.arg(i18n.FormatNumber("en", float64(count))) + " min ago"
+		case "ja":
+			return i18n.FormatNumber("ja", float64(count)) + " 分前"
+		case "ko":
+			return i18n.FormatNumber("ko", float64(count)) + "분 전"
+		case "zh-Hans":
+			return i18n.FormatNumber("zh-Hans", float64(count)) + " 分钟前"
+		case "zh-Hant":
+			return i18n.FormatNumber("zh-Hant", float64(count)) + " 分鐘前"
 		}
 	}
 }
@@ -10955,7 +11162,7 @@ func JobsFailLogin(cx *core.Scope) string { return For(cx).JobsFailLogin() }
 // JobsFailLogin is the package's JobsFailLogin in the language of msgs.
 func (msgs Messages) JobsFailLogin() string { return msgs.text(textJobsFailLogin) }
 
-// JobsFailLoginExpired says "The sign-in on the computer has expired"
+// JobsFailLoginExpired says "The sign-in on your computer expired"
 // in the language the app shows under cx.
 //
 // Why a job failed.
@@ -10963,6 +11170,38 @@ func JobsFailLoginExpired(cx *core.Scope) string { return For(cx).JobsFailLoginE
 
 // JobsFailLoginExpired is the package's JobsFailLoginExpired in the language of msgs.
 func (msgs Messages) JobsFailLoginExpired() string { return msgs.text(textJobsFailLoginExpired) }
+
+// JobsFailLoginExpiredSite says "{site} sign-in on your computer expired"
+// in the language the app shows under cx.
+//
+// Why a job failed: the computer's sign-in to the named site expired.
+func JobsFailLoginExpiredSite(cx *core.Scope, site string) string {
+	return For(cx).JobsFailLoginExpiredSite(site)
+}
+
+// JobsFailLoginExpiredSite is the package's JobsFailLoginExpiredSite in the language of msgs.
+func (msgs Messages) JobsFailLoginExpiredSite(site string) string {
+	if i18n.IsPseudo(msgs.lang) {
+		return i18n.Pseudo(msgs.lang, Messages{lang: Source, mark: true}.JobsFailLoginExpiredSite(site))
+	}
+	for lang := msgs.lang; ; lang = i18n.Parent(lang) {
+		if f := supplied[lang].JobsFailLoginExpiredSite; f != nil {
+			return f(site)
+		}
+		switch lang {
+		case "", "en":
+			return msgs.arg(site) + " sign-in on your computer expired"
+		case "ja":
+			return "パソコンの" + site + "のログインが期限切れです"
+		case "ko":
+			return "컴퓨터의 " + site + " 로그인이 만료되었습니다"
+		case "zh-Hans":
+			return "电脑上的" + site + "登录过期了"
+		case "zh-Hant":
+			return "電腦上的" + site + "登入已過期"
+		}
+	}
+}
 
 // JobsFailMembers says "This video is for members only"
 // in the language the app shows under cx.
@@ -11000,7 +11239,7 @@ func JobsFailOther(cx *core.Scope) string { return For(cx).JobsFailOther() }
 // JobsFailOther is the package's JobsFailOther in the language of msgs.
 func (msgs Messages) JobsFailOther() string { return msgs.text(textJobsFailOther) }
 
-// JobsFailOutdated says "The computer's downloader needs an update"
+// JobsFailOutdated says "The site changed; the downloader on your computer needs an update"
 // in the language the app shows under cx.
 //
 // Why a job failed.
@@ -11008,6 +11247,38 @@ func JobsFailOutdated(cx *core.Scope) string { return For(cx).JobsFailOutdated()
 
 // JobsFailOutdated is the package's JobsFailOutdated in the language of msgs.
 func (msgs Messages) JobsFailOutdated() string { return msgs.text(textJobsFailOutdated) }
+
+// JobsFailOutdatedSite says "{site} changed; the downloader on your computer needs an update"
+// in the language the app shows under cx.
+//
+// Why a job failed: the named site changed and the computer's downloader is too old for it.
+func JobsFailOutdatedSite(cx *core.Scope, site string) string {
+	return For(cx).JobsFailOutdatedSite(site)
+}
+
+// JobsFailOutdatedSite is the package's JobsFailOutdatedSite in the language of msgs.
+func (msgs Messages) JobsFailOutdatedSite(site string) string {
+	if i18n.IsPseudo(msgs.lang) {
+		return i18n.Pseudo(msgs.lang, Messages{lang: Source, mark: true}.JobsFailOutdatedSite(site))
+	}
+	for lang := msgs.lang; ; lang = i18n.Parent(lang) {
+		if f := supplied[lang].JobsFailOutdatedSite; f != nil {
+			return f(site)
+		}
+		switch lang {
+		case "", "en":
+			return msgs.arg(site) + " changed; the downloader on your computer needs an update"
+		case "ja":
+			return site + "の仕様が変わりました。パソコンのダウンローダーの更新が必要です"
+		case "ko":
+			return site + "이(가) 바뀌어 컴퓨터의 다운로더를 업데이트해야 합니다"
+		case "zh-Hans":
+			return site + "改版了，电脑上的下载组件要更新"
+		case "zh-Hant":
+			return site + "改版了，電腦上的下載元件需要更新"
+		}
+	}
+}
 
 // JobsFailPrivate says "This video is private"
 // in the language the app shows under cx.
@@ -11027,7 +11298,7 @@ func JobsFailRateLimited(cx *core.Scope) string { return For(cx).JobsFailRateLim
 // JobsFailRateLimited is the package's JobsFailRateLimited in the language of msgs.
 func (msgs Messages) JobsFailRateLimited() string { return msgs.text(textJobsFailRateLimited) }
 
-// JobsFailRegion says "This video isn't available where the computer is"
+// JobsFailRegion says "Uploader restricted this by region"
 // in the language the app shows under cx.
 //
 // Why a job failed.
@@ -11141,7 +11412,7 @@ func (msgs Messages) JobsFilmGone(name string) string {
 	}
 }
 
-// JobsFixedRetry says "Fixed It, Try Again"
+// JobsFixedRetry says "Fixed on computer — retry"
 // in the language the app shows under cx.
 //
 // Button of a job that failed for something fixed on the computer.
@@ -11191,7 +11462,7 @@ func (msgs Messages) JobsFrom(status string, device string) string {
 	}
 }
 
-// JobsIdle says "Nothing in the queue"
+// JobsIdle says "Idle"
 // in the language the app shows under cx.
 //
 // Jobs page, a computer's card: no job runs or waits.
@@ -11235,6 +11506,36 @@ func (msgs Messages) JobsLinksOff(name string) string {
 			return name + " 没开「接收手机发来的链接」。到电脑的「设置 › 手机同步」里打开。"
 		case "zh-Hant":
 			return name + " 沒開「接收手機傳來的連結」。到電腦的「設定 › 手機同步」裡打開。"
+		}
+	}
+}
+
+// JobsLockPhone says "{summary}. You can lock your phone."
+// in the language the app shows under cx.
+//
+// Jobs page, a computer's card while jobs run on it: what its queue does, then that the phone need not stay awake for it.
+func JobsLockPhone(cx *core.Scope, summary string) string { return For(cx).JobsLockPhone(summary) }
+
+// JobsLockPhone is the package's JobsLockPhone in the language of msgs.
+func (msgs Messages) JobsLockPhone(summary string) string {
+	if i18n.IsPseudo(msgs.lang) {
+		return i18n.Pseudo(msgs.lang, Messages{lang: Source, mark: true}.JobsLockPhone(summary))
+	}
+	for lang := msgs.lang; ; lang = i18n.Parent(lang) {
+		if f := supplied[lang].JobsLockPhone; f != nil {
+			return f(summary)
+		}
+		switch lang {
+		case "", "en":
+			return msgs.arg(summary) + ". You can lock your phone."
+		case "ja":
+			return summary + "。スマートフォンはロックして大丈夫です。"
+		case "ko":
+			return summary + ". 휴대폰을 잠가도 됩니다."
+		case "zh-Hans":
+			return summary + "，可以锁屏了。"
+		case "zh-Hant":
+			return summary + "，可以鎖定螢幕了。"
 		}
 	}
 }
@@ -11289,7 +11590,37 @@ func JobsOffline(cx *core.Scope) string { return For(cx).JobsOffline() }
 // JobsOffline is the package's JobsOffline in the language of msgs.
 func (msgs Messages) JobsOffline() string { return msgs.text(textJobsOffline) }
 
-// JobsOfflineSummary says "Offline. Links you send wait on this phone and go once it's back."
+// JobsOfflineSeen says "Computer offline (last online {ago}). New links wait here and start when it's back."
+// in the language the app shows under cx.
+//
+// Jobs page, a computer's card while it cannot be reached, with when it last answered (jobsAgoMinutes and the like).
+func JobsOfflineSeen(cx *core.Scope, ago string) string { return For(cx).JobsOfflineSeen(ago) }
+
+// JobsOfflineSeen is the package's JobsOfflineSeen in the language of msgs.
+func (msgs Messages) JobsOfflineSeen(ago string) string {
+	if i18n.IsPseudo(msgs.lang) {
+		return i18n.Pseudo(msgs.lang, Messages{lang: Source, mark: true}.JobsOfflineSeen(ago))
+	}
+	for lang := msgs.lang; ; lang = i18n.Parent(lang) {
+		if f := supplied[lang].JobsOfflineSeen; f != nil {
+			return f(ago)
+		}
+		switch lang {
+		case "", "en":
+			return "Computer offline (last online " + msgs.arg(ago) + "). New links wait here and start when it's back."
+		case "ja":
+			return "パソコンはオフラインです（最終オンライン: " + ago + "）。新しいリンクはここで待機し、オンラインになると始まります。"
+		case "ko":
+			return "컴퓨터가 오프라인입니다(마지막 연결: " + ago + "). 새 링크는 여기서 기다렸다가 다시 연결되면 시작됩니다."
+		case "zh-Hans":
+			return "电脑离线（" + ago + "在线）。新链接会先排在这里，电脑上线后自动处理。"
+		case "zh-Hant":
+			return "電腦離線（" + ago + "在線）。新連結會先排在這裡，電腦上線後自動處理。"
+		}
+	}
+}
+
+// JobsOfflineSummary says "Computer offline. New links wait here and start when it's back."
 // in the language the app shows under cx.
 //
 // Jobs page, a computer's card while it cannot be reached.
@@ -11337,6 +11668,56 @@ func (msgs Messages) JobsInStorage(name string) string {
 	}
 }
 
+// JobsOfflineWaiting says "{count, plural, one {Offline · # waiting} other {Offline · # waiting}}"
+// in the language the app shows under cx.
+//
+// Tablet sidebar, the computers card while they cannot be reached: how many jobs wait for them.
+func JobsOfflineWaiting(cx *core.Scope, count int) string { return For(cx).JobsOfflineWaiting(count) }
+
+// JobsOfflineWaiting is the package's JobsOfflineWaiting in the language of msgs.
+func (msgs Messages) JobsOfflineWaiting(count int) string {
+	if i18n.IsPseudo(msgs.lang) {
+		return i18n.Pseudo(msgs.lang, Messages{lang: Source, mark: true}.JobsOfflineWaiting(count))
+	}
+	for lang := msgs.lang; ; lang = i18n.Parent(lang) {
+		if f := supplied[lang].JobsOfflineWaiting; f != nil {
+			return f(count)
+		}
+		switch lang {
+		case "", "en":
+			var b strings.Builder
+			switch i18n.Cardinal("en", float64(count)) {
+			case i18n.One:
+				b.WriteString("Offline · ")
+				b.WriteString(msgs.arg(i18n.FormatNumber("en", float64(count))))
+				b.WriteString(" waiting")
+			default:
+				b.WriteString("Offline · ")
+				b.WriteString(msgs.arg(i18n.FormatNumber("en", float64(count))))
+				b.WriteString(" waiting")
+			}
+			return b.String()
+		case "ja":
+			return "オフライン · " + i18n.FormatNumber("ja", float64(count)) + " 本待機中"
+		case "ko":
+			return "오프라인 · " + i18n.FormatNumber("ko", float64(count)) + "개 대기 중"
+		case "zh-Hans":
+			return "离线 · " + i18n.FormatNumber("zh-Hans", float64(count)) + " 个在等"
+		case "zh-Hant":
+			return "離線 · " + i18n.FormatNumber("zh-Hant", float64(count)) + " 個在等"
+		}
+	}
+}
+
+// JobsOtherLink says "Use another link"
+// in the language the app shows under cx.
+//
+// Button of a job that failed in a way trying again cannot fix, as a video restricted by region: opens the Add sheet.
+func JobsOtherLink(cx *core.Scope) string { return For(cx).JobsOtherLink() }
+
+// JobsOtherLink is the package's JobsOtherLink in the language of msgs.
+func (msgs Messages) JobsOtherLink() string { return msgs.text(textJobsOtherLink) }
+
 // JobsRelayed says "{summary} · through your storage"
 // in the language the app shows under cx.
 //
@@ -11366,6 +11747,116 @@ func (msgs Messages) JobsRelayed(summary string) string {
 		}
 	}
 }
+
+// JobsRemedyRegion says "This video isn't available in {name}'s region. Use another link."
+// in the language the app shows under cx.
+//
+// What to do about a video the uploader restricted by region, where the computer is.
+func JobsRemedyRegion(cx *core.Scope, name string) string { return For(cx).JobsRemedyRegion(name) }
+
+// JobsRemedyRegion is the package's JobsRemedyRegion in the language of msgs.
+func (msgs Messages) JobsRemedyRegion(name string) string {
+	if i18n.IsPseudo(msgs.lang) {
+		return i18n.Pseudo(msgs.lang, Messages{lang: Source, mark: true}.JobsRemedyRegion(name))
+	}
+	for lang := msgs.lang; ; lang = i18n.Parent(lang) {
+		if f := supplied[lang].JobsRemedyRegion; f != nil {
+			return f(name)
+		}
+		switch lang {
+		case "", "en":
+			return "This video isn't available in " + msgs.arg(name) + "'s region. Use another link."
+		case "ja":
+			return name + " のある地域ではこの動画を見られません。別のリンクを使ってください。"
+		case "ko":
+			return name + "이(가) 있는 지역에서는 볼 수 없는 동영상입니다. 다른 링크를 사용하세요."
+		case "zh-Hans":
+			return name + " 所在的地区看不了这个视频，换个链接吧。"
+		case "zh-Hant":
+			return name + " 所在的地區看不了這部影片，換個連結吧。"
+		}
+	}
+}
+
+// JobsRemedySignIn says "Sign in to {site} again in the browser on {name}, then come back and retry."
+// in the language the app shows under cx.
+//
+// What to do about a sign-in to the named site that expired on the computer.
+func JobsRemedySignIn(cx *core.Scope, site string, name string) string {
+	return For(cx).JobsRemedySignIn(site, name)
+}
+
+// JobsRemedySignIn is the package's JobsRemedySignIn in the language of msgs.
+func (msgs Messages) JobsRemedySignIn(site string, name string) string {
+	if i18n.IsPseudo(msgs.lang) {
+		return i18n.Pseudo(msgs.lang, Messages{lang: Source, mark: true}.JobsRemedySignIn(site, name))
+	}
+	for lang := msgs.lang; ; lang = i18n.Parent(lang) {
+		if f := supplied[lang].JobsRemedySignIn; f != nil {
+			return f(site, name)
+		}
+		switch lang {
+		case "", "en":
+			return "Sign in to " + msgs.arg(site) + " again in the browser on " + msgs.arg(name) + ", then come back and retry."
+		case "ja":
+			return name + " のブラウザで" + site + "にもう一度ログインしてから、戻って再試行してください。"
+		case "ko":
+			return name + "의 브라우저에서 " + site + "에 다시 로그인한 뒤 돌아와 다시 시도하세요."
+		case "zh-Hans":
+			return "在 " + name + " 的浏览器里重新登录" + site + "，再回来重试。"
+		case "zh-Hant":
+			return "在 " + name + " 的瀏覽器裡重新登入" + site + "，再回來重試。"
+		}
+	}
+}
+
+// JobsSignedInRetry says "Signed in again on computer — retry"
+// in the language the app shows under cx.
+//
+// Button of a job that failed for a sign-in on the computer, once the user signed in again there.
+func JobsSignedInRetry(cx *core.Scope) string { return For(cx).JobsSignedInRetry() }
+
+// JobsSignedInRetry is the package's JobsSignedInRetry in the language of msgs.
+func (msgs Messages) JobsSignedInRetry() string { return msgs.text(textJobsSignedInRetry) }
+
+// JobsStepRunning says "{step}…"
+// in the language the app shows under cx.
+//
+// A job's step while it runs, as Translate… (in Chinese 翻译中).
+func JobsStepRunning(cx *core.Scope, step string) string { return For(cx).JobsStepRunning(step) }
+
+// JobsStepRunning is the package's JobsStepRunning in the language of msgs.
+func (msgs Messages) JobsStepRunning(step string) string {
+	if i18n.IsPseudo(msgs.lang) {
+		return i18n.Pseudo(msgs.lang, Messages{lang: Source, mark: true}.JobsStepRunning(step))
+	}
+	for lang := msgs.lang; ; lang = i18n.Parent(lang) {
+		if f := supplied[lang].JobsStepRunning; f != nil {
+			return f(step)
+		}
+		switch lang {
+		case "", "en":
+			return msgs.arg(step) + "…"
+		case "ja":
+			return step + "中"
+		case "ko":
+			return step + " 중"
+		case "zh-Hans":
+			return step + "中"
+		case "zh-Hant":
+			return step + "中"
+		}
+	}
+}
+
+// JobsThumbWaiting says "Waiting for computer"
+// in the language the app shows under cx.
+//
+// Over a job's picture while its computer cannot be reached.
+func JobsThumbWaiting(cx *core.Scope) string { return For(cx).JobsThumbWaiting() }
+
+// JobsThumbWaiting is the package's JobsThumbWaiting in the language of msgs.
+func (msgs Messages) JobsThumbWaiting() string { return msgs.text(textJobsThumbWaiting) }
 
 // JobsViaStorage says "Via storage"
 // in the language the app shows under cx.
@@ -11724,7 +12215,7 @@ func (msgs Messages) JobsRemedySetup(name string, message string) string {
 	}
 }
 
-// JobsRemedyUpdate says "Have {name} update its downloader; the download then starts again."
+// JobsRemedyUpdate says "Let {name} update its downloader, then it retries automatically."
 // in the language the app shows under cx.
 //
 // What to do about a downloader too old for the site.
@@ -11741,15 +12232,15 @@ func (msgs Messages) JobsRemedyUpdate(name string) string {
 		}
 		switch lang {
 		case "", "en":
-			return "Have " + msgs.arg(name) + " update its downloader; the download then starts again."
+			return "Let " + msgs.arg(name) + " update its downloader, then it retries automatically."
 		case "ja":
-			return name + " のダウンローダーを更新すると、ダウンロードがやり直されます。"
+			return name + " にダウンローダーを更新させると、自動で再試行します。"
 		case "ko":
-			return name + "의 다운로더를 업데이트하면 다운로드가 다시 시작됩니다."
+			return name + "에서 다운로더를 업데이트하면 자동으로 다시 시도합니다."
 		case "zh-Hans":
-			return "让 " + name + " 更新下载组件，然后自动重新下载。"
+			return "让 " + name + " 更新下载组件，之后会自动重试。"
 		case "zh-Hant":
-			return "讓 " + name + " 更新下載元件，然後自動重新下載。"
+			return "讓 " + name + " 更新下載元件，之後會自動重試。"
 		}
 	}
 }
@@ -11772,7 +12263,7 @@ func JobsRunning(cx *core.Scope) string { return For(cx).JobsRunning() }
 // JobsRunning is the package's JobsRunning in the language of msgs.
 func (msgs Messages) JobsRunning() string { return msgs.text(textJobsRunning) }
 
-// JobsSent says "Sent to {name}"
+// JobsSent says "Sent to {name}; processing started"
 // in the language the app shows under cx.
 //
 // Toast: the computer queued the link.
@@ -11789,15 +12280,15 @@ func (msgs Messages) JobsSent(name string) string {
 		}
 		switch lang {
 		case "", "en":
-			return "Sent to " + msgs.arg(name)
+			return "Sent to " + msgs.arg(name) + "; processing started"
 		case "ja":
-			return name + " に送信しました"
+			return name + " に送信しました。処理を始めます"
 		case "ko":
-			return name + "에 보냈습니다"
+			return name + "에 보냈습니다. 처리를 시작합니다"
 		case "zh-Hans":
-			return "已发到 " + name
+			return "已发到 " + name + "，开始处理"
 		case "zh-Hant":
-			return "已傳到 " + name
+			return "已傳到 " + name + "，開始處理"
 		}
 	}
 }
@@ -11957,7 +12448,7 @@ func JobsUnpaired(cx *core.Scope) string { return For(cx).JobsUnpaired() }
 // JobsUnpaired is the package's JobsUnpaired in the language of msgs.
 func (msgs Messages) JobsUnpaired() string { return msgs.text(textJobsUnpaired) }
 
-// JobsUpdateRetry says "Update and Try Again"
+// JobsUpdateRetry says "Update on computer and retry"
 // in the language the app shows under cx.
 //
 // Button of a job that failed for a downloader too old for the site.
