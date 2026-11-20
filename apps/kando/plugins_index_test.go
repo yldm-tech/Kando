@@ -618,7 +618,7 @@ func TestPluginIndexLink(t *testing.T) {
 	}
 }
 
-// TestPluginIndexLinkFromTheSystem checks that a link the system opens Kando with reaches the plugins area through the one handler areasReady registers (areasListenLinks), the one Kando was launched with once the handler is registered and later ones as they come, as the site's 在看懂中打开 opens it on macOS and, through the scheme NSGo's installers register, on Windows and Linux, where a second launch hands it to the running copy: Settings › 插件 opens with 浏览插件 searching for the pack and its install confirmation follows; a link of another scheme in the same launch is left alone.
+// TestPluginIndexLinkFromTheSystem checks that a link the system opens Kando with reaches the plugins area through areasListenLinks, the handler areasReady registers (registered here directly, as testView runs no area's ready), the one Kando was launched with once the handler is registered and later ones as they come, as the site's 在看懂中打开 opens it on macOS and, through the scheme NSGo's installers register, on Windows and Linux, where a second launch hands it to the running copy: Settings › 插件 opens with 浏览插件 searching for the pack and its install confirmation follows; a link of another scheme in the same launch is left alone.
 func TestPluginIndexLinkFromTheSystem(t *testing.T) {
 	a, tt, updates, _ := pluginsApp(t)
 	srv := newPluginsIndexServer(t)
@@ -636,6 +636,9 @@ func TestPluginIndexLinkFromTheSystem(t *testing.T) {
 	wantSettings(t, a, settings.SectionPlugins)
 	if a.PluginIndexQuery() != "example.anime-ja-zh" || !a.PluginIndexOpen() {
 		t.Fatalf("浏览插件 is open %v searching for %q", a.PluginIndexOpen(), a.PluginIndexQuery())
+	}
+	if a.addsheet.open || a.queue.source != "" || len(a.library.Jobs) != 0 {
+		t.Fatalf("the https link was taken: sheet open %v, field %q, jobs %d", a.addsheet.open, a.queue.source, len(a.library.Jobs))
 	}
 	waitUntil(t, tt, a, updates, func() bool { return a.plugins.pending != nil && !a.plugins.busy })
 	if a.plugins.pending.err != nil || a.plugins.pending.pack.ID != "example.anime-ja-zh" || !tt.Exists("id:plugins-install-confirm") {

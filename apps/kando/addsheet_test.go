@@ -216,7 +216,7 @@ func TestAddSheetFromTheBookmarklet(t *testing.T) {
 	}
 }
 
-// The bookmarklet's link reaches the add sheet when the system opens Kando with it, through the one handler areasReady registers (areasListenLinks): on macOS, and on Windows and Linux, where a second launch hands it to the running copy.
+// The bookmarklet's link reaches the add sheet when the system opens Kando with it, through areasListenLinks, the handler areasReady registers (registered here directly, as testView runs no area's ready): on macOS, and on Windows and Linux, where a second launch hands it to the running copy.
 func TestAddSheetFromTheSystemsLink(t *testing.T) {
 	a, tt, _ := newTestApp(t, &fakePipeline{block: true})
 	page := "https://www.bilibili.com/video/BV1nx4y1x7t1"
