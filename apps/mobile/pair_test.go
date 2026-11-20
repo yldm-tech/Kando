@@ -2,6 +2,10 @@ package main
 
 import (
 	"bytes"
+	"image"
+	"image/color"
+	"image/draw"
+	"image/jpeg"
 	"net/netip"
 	"os"
 	"path/filepath"
@@ -11,6 +15,8 @@ import (
 	"kando/apps/mobile/store"
 	"kando/packages/sync"
 
+	"github.com/makiuchi-d/gozxing"
+	"github.com/makiuchi-d/gozxing/qrcode"
 	"github.com/nsgo-dev/nsgo/core"
 	"github.com/nsgo-dev/nsgo/nsgotest"
 )
@@ -171,5 +177,77 @@ func TestParseTargetTakesAnAddressOrALink(t *testing.T) {
 	got, ok = pair.ParseTarget(link, "")
 	if !ok || len(got.Addrs) != 2 || got.Code != "000111" || got.Expected == nil {
 		t.Errorf("link: %+v %v", got, ok)
+	}
+}
+
+// qrPhoto is a JPEG of text's QR code on a grey page, as the camera takes a photo of the computer's screen.
+func qrPhoto(t *testing.T, text string) []byte {
+	t.Helper()
+	code, err := qrcode.NewQRCodeWriter().Encode(text, gozxing.BarcodeFormat_QR_CODE, 300, 300, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	photo := image.NewRGBA(image.Rect(0, 0, 1200, 900))
+	draw.Draw(photo, photo.Bounds(), image.NewUniform(color.Gray{Y: 120}), image.Point{}, draw.Src)
+	draw.Draw(photo, image.Rect(450, 300, 750, 600), code, image.Point{}, draw.Src)
+	var b bytes.Buffer
+	if err := jpeg.Encode(&b, photo, &jpeg.Options{Quality: 85}); err != nil {
+		t.Fatal(err)
+	}
+	return b.Bytes()
+}
+
+// startCameraPhone starts a new phone with a camera whose photos are those photos gives, at its pairing step.
+func startCameraPhone(t *testing.T, photos func() []byte) *phone {
+	t.Helper()
+	p := startPhone(t, "", nsgotest.Environment(core.Environment{Locale: lang, Camera: true}))
+	p.app.TakePhoto = func(core.PickRequest) (*core.PickedFile, error) {
+		return &core.PickedFile{Name: "IMG_0001.jpg", MIME: "image/jpeg", Data: photos()}, nil
+	}
+	p.startPairing()
+	return p
+}
+
+// A photo of the QR code the desktop shows pairs as its link does, checking the fingerprint the code names without asking.
+func TestScanningTheDesktopsQRCodePairs(t *testing.T) {
+	d := newDesktop(t)
+	link := sync.PairURL{Addrs: []netip.AddrPort{d.Addr}, Code: "123456", Fingerprint: d.Fingerprint, Name: "Studio"}.String()
+	p := startCameraPhone(t, func() []byte { return qrPhoto(t, link) })
+	p.app.WaitFor("id:pair-scan", wait)
+	p.app.Press("id:pair-scan")
+	p.finishPairing(d)
+	if len(p.app.Photos) != 1 {
+		t.Fatalf("%d photos taken, want 1", len(p.app.Photos))
+	}
+	if d.Paired() != 1 {
+		t.Fatalf("%d devices paired, want 1", d.Paired())
+	}
+}
+
+// A photo with no QR code, or with one that is not a pairing code, says so and pairs with nothing.
+func TestScanningAnotherPhotoSaysSo(t *testing.T) {
+	d := newDesktop(t)
+	photo := qrPhoto(t, "https://example.com")
+	p := startCameraPhone(t, func() []byte { return photo })
+	p.app.WaitFor("id:pair-scan", wait)
+	p.app.Press("id:pair-scan")
+	if got := p.app.WaitFor("id:pair-problem", wait).Text; got != msgs.PairErrNotPairQR() {
+		t.Fatalf("problem %q, want %q", got, msgs.PairErrNotPairQR())
+	}
+	photo = []byte("not a photo")
+	p.app.Press("id:pair-scan")
+	p.app.WaitUntil(wait, func() bool { vs := p.app.Query("id:pair-problem"); return len(vs) == 1 && vs[0].Text == msgs.PairErrNoQR() })
+	if d.Paired() != 0 {
+		t.Fatal("the phone paired from a photo of no pairing code")
+	}
+}
+
+// Where the phone has no camera the pairing page offers no scanning.
+func TestNoCameraNoScanning(t *testing.T) {
+	p := startPhone(t, "")
+	p.startPairing()
+	p.app.WaitFor("id:pair-address", wait)
+	if p.app.Exists("id:pair-scan") {
+		t.Fatal("the pairing page offers scanning without a camera")
 	}
 }

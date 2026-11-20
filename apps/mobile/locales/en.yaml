@@ -1142,6 +1142,9 @@ linesRemoveMessage:
 linesRemoveTitle:
   message: "Remove this line?"
   description: "Title of the alert that removes a saved line."
+NSCameraUsageDescription:
+  message: "Kando uses the camera to read the QR code your computer shows, to pair with it."
+  description: "iOS: the reason the system shows as it asks to let the app use the camera (the Info.plist's NSCameraUsageDescription, which nsgo.yaml's apple.info gives in English); the pairing page takes a photo of the computer's pairing QR code."
 NSLocalNetworkUsageDescription:
   message: "Kando connects to Kando on your computer over your local network to list and download your films."
   description: "iOS: the reason the system shows as it asks to let the app reach devices on the local network (the Info.plist's NSLocalNetworkUsageDescription, which nsgo.yaml's apple.info gives in English); the app reaches the computers it is paired with that way."
@@ -1216,6 +1219,9 @@ pairContinue:
 pairErrAddress:
   message: "Enter the address as your computer shows it, such as 192.168.1.20:47123."
   description: "Error on the pairing page: the address is not an IP address with a port."
+pairErrCamera:
+  message: "Can't open the camera. Allow Kando to use it in Settings, or enter the address and code."
+  description: "Error on the pairing page: the camera could not take a photo, as when the user refused it."
 pairErrCodeExpired:
   message: "That code has expired. Show a new one on your computer."
   description: "Error on the pairing page: the code is past its 5 minutes or was tried wrongly too often."
@@ -1231,6 +1237,12 @@ pairErrFingerprint:
 pairErrNoCode:
   message: "Open Settings › Phone Sync on your computer: it takes a code only while that page is open."
   description: "Error on the pairing page: the computer offers no code because its Phone Sync settings are not open."
+pairErrNoQR:
+  message: "Couldn't find a QR code in that photo. Take it closer, with the whole code in view."
+  description: "Error on the pairing page: the photo taken to scan holds no QR code the app can read."
+pairErrNotPairQR:
+  message: "That QR code isn't a Kando pairing code."
+  description: "Error on the pairing page: the photo's QR code is not the one the computer's Phone Sync settings show."
 pairErrTooMany:
   message: "Too many tries. Wait a minute, then try again."
   description: "Error on the pairing page: the computer refuses pairings for a while after many."
@@ -1245,6 +1257,15 @@ pairErrWrongCode:
 pairHint:
   message: "On your computer, open Kando's Settings › Phone Sync, then enter the address and code it shows."
   description: "At the top of the pairing page."
+pairHintScan:
+  message: "On your computer, open Kando's Settings › Phone Sync, then scan the QR code it shows, or enter its address and code."
+  description: "At the top of the pairing page, on a phone with a camera."
+pairScan:
+  message: "Scan QR Code"
+  description: "Button on the pairing page that takes a photo of the QR code the computer shows."
+pairScanning:
+  message: "Reading the QR code…"
+  description: "Spoken name of the scan button while the app reads the photo, which shows a spinner meanwhile."
 pairTitle:
   message: "Pair with a Computer"
   description: "Title of the pairing page."

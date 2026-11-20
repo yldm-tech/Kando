@@ -1012,6 +1012,7 @@ const (
 	textLinesEmpty
 	textLinesRemoveMessage
 	textLinesRemoveTitle
+	textNSCameraUsageDescription
 	textNSLocalNetworkUsageDescription
 	textOnboardingContinue
 	textOnboardingIntroBody
@@ -1033,14 +1034,20 @@ const (
 	textPairConnecting
 	textPairContinue
 	textPairErrAddress
+	textPairErrCamera
 	textPairErrCodeExpired
 	textPairErrCodeUsed
 	textPairErrFailed
 	textPairErrFingerprint
 	textPairErrNoCode
+	textPairErrNoQR
+	textPairErrNotPairQR
 	textPairErrTooMany
 	textPairErrWrongCode
 	textPairHint
+	textPairHintScan
+	textPairScan
+	textPairScanning
 	textPairTitle
 	textPlayerAudioOnly
 	textPlayerAudioOnlyNote
@@ -1453,6 +1460,7 @@ var keyOfText = [numTexts]string{
 	"linesEmpty",
 	"linesRemoveMessage",
 	"linesRemoveTitle",
+	"NSCameraUsageDescription",
 	"NSLocalNetworkUsageDescription",
 	"onboardingContinue",
 	"onboardingIntroBody",
@@ -1474,14 +1482,20 @@ var keyOfText = [numTexts]string{
 	"pairConnecting",
 	"pairContinue",
 	"pairErrAddress",
+	"pairErrCamera",
 	"pairErrCodeExpired",
 	"pairErrCodeUsed",
 	"pairErrFailed",
 	"pairErrFingerprint",
 	"pairErrNoCode",
+	"pairErrNoQR",
+	"pairErrNotPairQR",
 	"pairErrTooMany",
 	"pairErrWrongCode",
 	"pairHint",
+	"pairHintScan",
+	"pairScan",
+	"pairScanning",
 	"pairTitle",
 	"playerAudioOnly",
 	"playerAudioOnlyNote",
@@ -1892,6 +1906,7 @@ var textsEn = i18n.NewTexts(""+
 	"Lines you save while you watch show here"+
 	"It leaves your saved lines on every device."+
 	"Remove this line?"+
+	"Kando uses the camera to read the QR code your computer shows, to pair with it."+
 	"Kando connects to Kando on your computer over your local network to list and download your films."+
 	"Continue"+
 	"Paste a link and Kando on your computer downloads the video, recognizes the speech and translates it line by line. Your phone plays the films with both lines, and replays any line you didn't catch."+
@@ -1913,14 +1928,20 @@ var textsEn = i18n.NewTexts(""+
 	"Connecting…"+
 	"Continue"+
 	"Enter the address as your computer shows it, such as 192.168.1.20:47123."+
+	"Can't open the camera. Allow Kando to use it in Settings, or enter the address and code."+
 	"That code has expired. Show a new one on your computer."+
 	"That code was used already. Show a new one on your computer."+
 	"Pairing didn't finish. Try again."+
 	"This computer's certificate isn't the one in the pairing link."+
 	"Open Settings › Phone Sync on your computer: it takes a code only while that page is open."+
+	"Couldn't find a QR code in that photo. Take it closer, with the whole code in view."+
+	"That QR code isn't a Kando pairing code."+
 	"Too many tries. Wait a minute, then try again."+
 	"That isn't the code your computer shows."+
 	"On your computer, open Kando's Settings › Phone Sync, then enter the address and code it shows."+
+	"On your computer, open Kando's Settings › Phone Sync, then scan the QR code it shows, or enter its address and code."+
+	"Scan QR Code"+
+	"Reading the QR code…"+
 	"Pair with a Computer"+
 	"Audio Only"+
 	"Hides the picture, to listen as you would to a podcast."+
@@ -2328,6 +2349,7 @@ var textsEn = i18n.NewTexts(""+
 		40,
 		43,
 		17,
+		79,
 		97,
 		8,
 		197,
@@ -2349,14 +2371,20 @@ var textsEn = i18n.NewTexts(""+
 		13,
 		8,
 		72,
+		88,
 		55,
 		60,
 		33,
 		62,
 		92,
+		83,
+		40,
 		46,
 		40,
 		97,
+		118,
+		12,
+		22,
 		20,
 		10,
 		55,
@@ -2767,6 +2795,7 @@ var textsJa = i18n.NewTexts(""+
 	"視聴中に保存した文がここに表示されます"+
 	"すべての端末の保存した文から削除されます。"+
 	"この文を削除しますか？"+
+	"Kando はコンピュータに表示された QR コードをカメラで読み取り、ペアリングします。"+
 	"Kando はローカルネットワーク経由でコンピュータの Kando に接続し、映画の一覧を表示してダウンロードします。"+
 	"続ける"+
 	"リンクを貼り付けると、コンピュータの Kando が動画をダウンロードし、音声を認識して 1 行ずつ翻訳します。スマートフォンでは原文と訳文を一緒に表示し、聞き取れなかったセリフはすぐに聞き直せます。"+
@@ -2788,14 +2817,20 @@ var textsJa = i18n.NewTexts(""+
 	"接続しています…"+
 	"続ける"+
 	"コンピュータに表示されたとおりにアドレスを入力してください（例: 192.168.1.20:47123）。"+
+	"カメラを開けません。「設定」で Kando にカメラの使用を許可するか、アドレスとコードを入力してください。"+
 	"このコードは期限切れです。コンピュータで新しいコードを表示してください。"+
 	"このコードは使用済みです。コンピュータで新しいコードを表示してください。"+
 	"ペアリングが完了しませんでした。もう一度お試しください。"+
 	"このコンピュータの証明書がペアリングリンクのものと一致しません。"+
 	"コンピュータで「設定 › スマートフォン同期」を開いてください。このページを開いている間だけペアリングできます。"+
+	"写真に QR コードが見つかりません。コード全体が写るように近づいて撮影してください。"+
+	"この QR コードは Kando のペアリングコードではありません。"+
 	"試行回数が多すぎます。1 分ほど待ってからもう一度お試しください。"+
 	"コンピュータに表示されているコードと違います。"+
 	"コンピュータで Kando の「設定 › スマートフォン同期」を開き、表示されたアドレスとペアリングコードを入力してください。"+
+	"コンピュータで Kando の「設定 › スマートフォン同期」を開き、表示された QR コードをスキャンするか、アドレスとペアリングコードを入力してください。"+
+	"QR コードをスキャン"+
+	"QR コードを読み取り中…"+
 	"コンピュータとペアリング"+
 	"音声のみ"+
 	"画面を隠して、ポッドキャストのように聞けます。"+
@@ -3203,6 +3238,7 @@ var textsJa = i18n.NewTexts(""+
 		57,
 		63,
 		33,
+		115,
 		151,
 		9,
 		280,
@@ -3224,14 +3260,20 @@ var textsJa = i18n.NewTexts(""+
 		24,
 		9,
 		119,
+		148,
 		108,
 		108,
 		84,
 		96,
 		164,
+		121,
+		80,
 		95,
 		69,
 		171,
+		211,
+		27,
+		33,
 		36,
 		12,
 		69,
@@ -3642,6 +3684,7 @@ var textsKo = i18n.NewTexts(""+
 	"보면서 저장한 문장이 여기에 표시돼요"+
 	"모든 기기의 저장한 문장에서 삭제됩니다."+
 	"이 문장을 삭제할까요?"+
+	"Kando는 카메라로 컴퓨터에 표시된 QR 코드를 읽어 페어링합니다."+
 	"Kando는 로컬 네트워크를 통해 컴퓨터의 Kando에 연결하여 영화 목록을 보고 다운로드합니다."+
 	"계속"+
 	"링크를 붙여 넣으면 컴퓨터의 Kando가 동영상을 다운로드하고, 음성을 인식해 한 줄씩 번역합니다. 휴대폰에서는 원문과 번역을 함께 보여 주고, 놓친 대사는 바로 다시 들을 수 있습니다."+
@@ -3663,14 +3706,20 @@ var textsKo = i18n.NewTexts(""+
 	"연결 중…"+
 	"계속"+
 	"컴퓨터에 표시된 대로 주소를 입력하세요(예: 192.168.1.20:47123)."+
+	"카메라를 열 수 없습니다. 설정에서 Kando의 카메라 사용을 허용하거나 주소와 코드를 입력하세요."+
 	"만료된 코드입니다. 컴퓨터에서 새 코드를 표시하세요."+
 	"이미 사용된 코드입니다. 컴퓨터에서 새 코드를 표시하세요."+
 	"페어링을 완료하지 못했습니다. 다시 시도하세요."+
 	"이 컴퓨터의 인증서가 페어링 링크의 인증서와 다릅니다."+
 	"컴퓨터에서 ‘설정 › 휴대폰 동기화’를 여세요. 이 페이지가 열려 있을 때만 페어링할 수 있습니다."+
+	"사진에서 QR 코드를 찾을 수 없습니다. 코드 전체가 보이도록 더 가까이에서 찍어 주세요."+
+	"Kando 페어링 QR 코드가 아닙니다."+
 	"시도 횟수가 너무 많습니다. 1분 후에 다시 시도하세요."+
 	"컴퓨터에 표시된 코드가 아닙니다."+
 	"컴퓨터에서 Kando의 ‘설정 › 휴대폰 동기화’를 열고 표시된 주소와 페어링 코드를 입력하세요."+
+	"컴퓨터에서 Kando의 ‘설정 › 휴대폰 동기화’를 열고 표시된 QR 코드를 스캔하거나 주소와 코드를 입력하세요."+
+	"QR 코드 스캔"+
+	"QR 코드 읽는 중…"+
 	"컴퓨터와 페어링"+
 	"소리만 듣기"+
 	"화면을 숨기고 팟캐스트처럼 들을 수 있습니다."+
@@ -4078,6 +4127,7 @@ var textsKo = i18n.NewTexts(""+
 		52,
 		56,
 		30,
+		84,
 		120,
 		6,
 		246,
@@ -4099,14 +4149,20 @@ var textsKo = i18n.NewTexts(""+
 		13,
 		6,
 		81,
+		129,
 		73,
 		80,
 		66,
 		76,
 		135,
+		118,
+		42,
 		73,
 		46,
 		128,
+		147,
+		16,
+		23,
 		22,
 		16,
 		63,
@@ -4517,6 +4573,7 @@ var textsZhHans = i18n.NewTexts(""+
 	"看片时收藏的句子会出现在这里"+
 	"它会从所有设备的收藏里移除。"+
 	"移除这句？"+
+	"看懂用相机读取电脑上显示的二维码，与电脑配对。"+
 	"看懂通过局域网连接你电脑上的看懂，列出并下载你的影片。"+
 	"继续"+
 	"粘贴一个链接，电脑上的看懂就会下载视频、识别原声、逐句翻译。手机上看片时原文和译文一起显示，听不懂的句子一键重听。"+
@@ -4538,14 +4595,20 @@ var textsZhHans = i18n.NewTexts(""+
 	"正在连接…"+
 	"继续"+
 	"请按电脑上显示的格式输入地址，例如 192.168.1.20:47123。"+
+	"无法打开相机。请在“设置”中允许看懂使用相机，或手动输入地址和配对码。"+
 	"这个配对码已过期，请在电脑上换一个新的。"+
 	"这个配对码已经用过了，请在电脑上换一个新的。"+
 	"配对没有完成，请重试。"+
 	"这台电脑的证书与配对链接中的不一致。"+
 	"请在电脑上打开“设置 › 手机同步”：只有这一页开着时才能配对。"+
+	"照片里没找到二维码。请靠近一点，把整个二维码拍进去。"+
+	"这不是看懂的配对二维码。"+
 	"尝试次数太多，请稍等一分钟再试。"+
 	"这不是电脑上显示的配对码。"+
 	"在电脑上打开看懂的“设置 › 手机同步”，输入那里显示的地址和配对码。"+
+	"在电脑上打开看懂的“设置 › 手机同步”，扫描那里显示的二维码，或输入地址和配对码。"+
+	"扫描二维码"+
+	"正在读取二维码…"+
 	"与电脑配对"+
 	"只听声音"+
 	"不显示画面，适合通勤时练听力。"+
@@ -4953,6 +5016,7 @@ var textsZhHans = i18n.NewTexts(""+
 		42,
 		42,
 		15,
+		69,
 		81,
 		6,
 		171,
@@ -4974,14 +5038,20 @@ var textsZhHans = i18n.NewTexts(""+
 		15,
 		6,
 		73,
+		105,
 		60,
 		66,
 		33,
 		54,
 		92,
+		78,
+		36,
 		48,
 		39,
 		101,
+		122,
+		15,
+		24,
 		15,
 		12,
 		45,
@@ -5392,6 +5462,7 @@ var textsZhHant = i18n.NewTexts(""+
 	"看片時收藏的句子會出現在這裡"+
 	"它會從所有裝置的收藏裡移除。"+
 	"移除這句？"+
+	"看懂使用相機讀取電腦上顯示的 QR 碼，與電腦配對。"+
 	"看懂透過區域網路連線到你電腦上的看懂，列出並下載你的影片。"+
 	"繼續"+
 	"貼上一個連結，電腦上的看懂就會下載影片、辨識原聲、逐句翻譯。手機上看片時原文和譯文一起顯示，聽不懂的句子一鍵重聽。"+
@@ -5413,14 +5484,20 @@ var textsZhHant = i18n.NewTexts(""+
 	"正在連線…"+
 	"繼續"+
 	"請依電腦上顯示的格式輸入位址，例如 192.168.1.20:47123。"+
+	"無法開啟相機。請在「設定」中允許看懂使用相機，或手動輸入位址和配對碼。"+
 	"這個配對碼已過期，請在電腦上換一個新的。"+
 	"這個配對碼已經用過了，請在電腦上換一個新的。"+
 	"配對沒有完成，請重試。"+
 	"這台電腦的憑證與配對連結中的不一致。"+
 	"請在電腦上開啟「設定 › 手機同步」：只有這一頁開著時才能配對。"+
+	"照片中找不到 QR 碼。請靠近一點，把整個 QR 碼拍進去。"+
+	"這不是看懂的配對 QR 碼。"+
 	"嘗試次數太多，請稍等一分鐘再試。"+
 	"這不是電腦上顯示的配對碼。"+
 	"在電腦上開啟看懂的「設定 › 手機同步」，輸入那裡顯示的位址和配對碼。"+
+	"在電腦上開啟看懂的「設定 › 手機同步」，掃描那裡顯示的 QR 碼，或輸入位址和配對碼。"+
+	"掃描 QR 碼"+
+	"正在讀取 QR 碼…"+
 	"與電腦配對"+
 	"只聽聲音"+
 	"不顯示畫面，適合通勤時練聽力。"+
@@ -5828,6 +5905,7 @@ var textsZhHant = i18n.NewTexts(""+
 		42,
 		42,
 		15,
+		70,
 		87,
 		6,
 		171,
@@ -5849,14 +5927,20 @@ var textsZhHant = i18n.NewTexts(""+
 		15,
 		6,
 		73,
+		105,
 		60,
 		66,
 		33,
 		54,
 		92,
+		74,
+		34,
 		48,
 		39,
 		101,
+		120,
+		13,
+		22,
 		15,
 		12,
 		45,
@@ -11946,6 +12030,17 @@ func LinesRemoveTitle(cx *core.Scope) string { return For(cx).LinesRemoveTitle()
 // LinesRemoveTitle is the package's LinesRemoveTitle in the language of msgs.
 func (msgs Messages) LinesRemoveTitle() string { return msgs.text(textLinesRemoveTitle) }
 
+// NSCameraUsageDescription says "Kando uses the camera to read the QR code your computer shows, to pair with it."
+// in the language the app shows under cx.
+//
+// iOS: the reason the system shows as it asks to let the app use the camera (the Info.plist's NSCameraUsageDescription, which nsgo.yaml's apple.info gives in English); the pairing page takes a photo of the computer's pairing QR code.
+func NSCameraUsageDescription(cx *core.Scope) string { return For(cx).NSCameraUsageDescription() }
+
+// NSCameraUsageDescription is the package's NSCameraUsageDescription in the language of msgs.
+func (msgs Messages) NSCameraUsageDescription() string {
+	return msgs.text(textNSCameraUsageDescription)
+}
+
 // NSLocalNetworkUsageDescription says "Kando connects to Kando on your computer over your local network to list and download your films."
 // in the language the app shows under cx.
 //
@@ -12203,6 +12298,15 @@ func PairErrAddress(cx *core.Scope) string { return For(cx).PairErrAddress() }
 // PairErrAddress is the package's PairErrAddress in the language of msgs.
 func (msgs Messages) PairErrAddress() string { return msgs.text(textPairErrAddress) }
 
+// PairErrCamera says "Can't open the camera. Allow Kando to use it in Settings, or enter the address and code."
+// in the language the app shows under cx.
+//
+// Error on the pairing page: the camera could not take a photo, as when the user refused it.
+func PairErrCamera(cx *core.Scope) string { return For(cx).PairErrCamera() }
+
+// PairErrCamera is the package's PairErrCamera in the language of msgs.
+func (msgs Messages) PairErrCamera() string { return msgs.text(textPairErrCamera) }
+
 // PairErrCodeExpired says "That code has expired. Show a new one on your computer."
 // in the language the app shows under cx.
 //
@@ -12247,6 +12351,24 @@ func PairErrNoCode(cx *core.Scope) string { return For(cx).PairErrNoCode() }
 
 // PairErrNoCode is the package's PairErrNoCode in the language of msgs.
 func (msgs Messages) PairErrNoCode() string { return msgs.text(textPairErrNoCode) }
+
+// PairErrNoQR says "Couldn't find a QR code in that photo. Take it closer, with the whole code in view."
+// in the language the app shows under cx.
+//
+// Error on the pairing page: the photo taken to scan holds no QR code the app can read.
+func PairErrNoQR(cx *core.Scope) string { return For(cx).PairErrNoQR() }
+
+// PairErrNoQR is the package's PairErrNoQR in the language of msgs.
+func (msgs Messages) PairErrNoQR() string { return msgs.text(textPairErrNoQR) }
+
+// PairErrNotPairQR says "That QR code isn't a Kando pairing code."
+// in the language the app shows under cx.
+//
+// Error on the pairing page: the photo's QR code is not the one the computer's Phone Sync settings show.
+func PairErrNotPairQR(cx *core.Scope) string { return For(cx).PairErrNotPairQR() }
+
+// PairErrNotPairQR is the package's PairErrNotPairQR in the language of msgs.
+func (msgs Messages) PairErrNotPairQR() string { return msgs.text(textPairErrNotPairQR) }
 
 // PairErrTooMany says "Too many tries. Wait a minute, then try again."
 // in the language the app shows under cx.
@@ -12306,6 +12428,33 @@ func PairHint(cx *core.Scope) string { return For(cx).PairHint() }
 
 // PairHint is the package's PairHint in the language of msgs.
 func (msgs Messages) PairHint() string { return msgs.text(textPairHint) }
+
+// PairHintScan says "On your computer, open Kando's Settings › Phone Sync, then scan the QR code it shows, or enter its address and code."
+// in the language the app shows under cx.
+//
+// At the top of the pairing page, on a phone with a camera.
+func PairHintScan(cx *core.Scope) string { return For(cx).PairHintScan() }
+
+// PairHintScan is the package's PairHintScan in the language of msgs.
+func (msgs Messages) PairHintScan() string { return msgs.text(textPairHintScan) }
+
+// PairScan says "Scan QR Code"
+// in the language the app shows under cx.
+//
+// Button on the pairing page that takes a photo of the QR code the computer shows.
+func PairScan(cx *core.Scope) string { return For(cx).PairScan() }
+
+// PairScan is the package's PairScan in the language of msgs.
+func (msgs Messages) PairScan() string { return msgs.text(textPairScan) }
+
+// PairScanning says "Reading the QR code…"
+// in the language the app shows under cx.
+//
+// Spoken name of the scan button while the app reads the photo, which shows a spinner meanwhile.
+func PairScanning(cx *core.Scope) string { return For(cx).PairScanning() }
+
+// PairScanning is the package's PairScanning in the language of msgs.
+func (msgs Messages) PairScanning() string { return msgs.text(textPairScanning) }
 
 // PairTitle says "Pair with a Computer"
 // in the language the app shows under cx.
