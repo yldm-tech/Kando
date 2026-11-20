@@ -61122,7 +61122,7 @@ func (msgs Messages) SettingsPluginsOptional() string { return msgs.text(textSet
 // SettingsPluginsSecretSaved says "Saved"
 // in the language the app shows under cx.
 //
-// Plugin details: badge of a secret setting kept in the system's secure store.
+// Plugin details: badge of a credential's secret kept in the system's secure store.
 func SettingsPluginsSecretSaved(cx *core.Scope) string { return For(cx).SettingsPluginsSecretSaved() }
 
 // SettingsPluginsSecretSaved is the package's SettingsPluginsSecretSaved in the language of msgs.
@@ -61133,7 +61133,7 @@ func (msgs Messages) SettingsPluginsSecretSaved() string {
 // SettingsPluginsSecretClear says "Clear"
 // in the language the app shows under cx.
 //
-// Plugin details: button that removes a secret setting from the system's secure store.
+// Plugin details: button that removes a credential's secret from the system's secure store.
 func SettingsPluginsSecretClear(cx *core.Scope) string { return For(cx).SettingsPluginsSecretClear() }
 
 // SettingsPluginsSecretClear is the package's SettingsPluginsSecretClear in the language of msgs.
@@ -61144,7 +61144,7 @@ func (msgs Messages) SettingsPluginsSecretClear() string {
 // SettingsPluginsSecretSave says "Save"
 // in the language the app shows under cx.
 //
-// Plugin details: button that keeps a secret setting in the system's secure store.
+// Plugin details: button that keeps a credential's secret in the system's secure store.
 func SettingsPluginsSecretSave(cx *core.Scope) string { return For(cx).SettingsPluginsSecretSave() }
 
 // SettingsPluginsSecretSave is the package's SettingsPluginsSecretSave in the language of msgs.

@@ -15,7 +15,7 @@ import (
 // previewTextMax is the most characters of one text of a pack the preview writes, so a pack cannot make the comment longer than a pull request takes.
 const previewTextMax = 300
 
-// writePreview writes each pack of results as Markdown for a comment on a pull request: a heading with its id and whether it passed, a table of what it is (kind, name and summary in each of its languages, version, size, license, the languages it is for, its signature), what it adds to Kando and, for a script plugin, what it asks for and a line flagging that it runs code, with the combination the install confirmation flags too (plugins.Risky). Everything a pack says, and the path it came from, is written inside code spans, so its text cannot add links, images, HTML, mentions or references to the comment.
+// writePreview writes each pack of results as Markdown for a comment on a pull request: a heading with its id and whether it passed, a table of what it is (kind, name and summary in each of its languages, version, size, license, the languages it is for, its signature), what it adds to Kando and, for a script plugin, what it asks for, the notes on its host calls (hostNotes) and a line flagging that it runs code, with the combination the install confirmation flags too (plugins.Risky). Everything a pack says, and the path it came from, is written inside code spans, so its text cannot add links, images, HTML, mentions or references to the comment.
 func writePreview(w io.Writer, results []checked) error {
 	var b strings.Builder
 	passed := 0
@@ -94,6 +94,12 @@ func previewPack(b *strings.Builder, c checked) {
 	}
 	for _, a := range asks {
 		fmt.Fprintf(b, "- %s\n", a)
+	}
+	if notes := hostNotes(p.Manifest, c.Bundle); len(notes) > 0 {
+		b.WriteString("\n**Host calls** (read from the code's text, for the reviewer to check; they do not fail the pack)\n\n")
+		for _, n := range notes {
+			fmt.Fprintf(b, "- %s\n", n)
+		}
 	}
 	b.WriteString("\n> [!WARNING]\n> A script plugin runs code in Kando's sandbox: review what it asks for, and its network rules, before merging.")
 	if plugins.Risky(p.Manifest, p.Declared()) {

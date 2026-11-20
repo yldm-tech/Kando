@@ -50,7 +50,7 @@ type PluginPerm struct {
 type PluginScriptsApp interface {
 	// SetPluginGrant grants the script plugin id the permission perm ("network" for its network) or takes it back.
 	SetPluginGrant(id, perm string, on bool)
-	// PluginValue is the value of the plugin id's setting key, its default while the user never set it; SetPluginValue sets it. PluginSecretKept reports whether its secret setting key is kept, which SetPluginSecret keeps, or removes for "".
+	// PluginValue is the value of the plugin id's setting key, its default while the user never set it; SetPluginValue sets it. PluginSecretKept reports whether the secret of its credential under key (plugins.SecretKey) is kept, which SetPluginSecret keeps, or removes for "".
 	PluginValue(id, key string) any
 	SetPluginValue(id, key string, value any)
 	PluginSecretKept(id, key string) bool
@@ -214,7 +214,7 @@ func pluginPermRow(cx *core.Scope, a PluginsApp, id string, p PluginPerm) core.N
 	return core.View{Role: core.RoleGroup, Label: p.Text, Style: core.Style{Direction: core.Row, Gap: 10, MinHeight: core.Pt(28), AlignItems: core.AlignCenter}, Children: children}
 }
 
-// pluginSettingRow is the field of the plugin id's declared setting s: a switch, a menu of its choices, a field for a number or a text, or, for a secret, a masked field kept in the system's secure store with 已保存 and 清除 once one is kept.
+// pluginSettingRow is the field of the plugin id's declared setting s: a switch, a menu of its choices, a field for a number or a text.
 func pluginSettingRow(cx *core.Scope, a PluginsApp, id string, s plugins.Setting) core.Node {
 	colors := ui.ColorsOf(cx)
 	lang := i18n.Language(cx)
@@ -249,8 +249,6 @@ func pluginSettingRow(cx *core.Scope, a PluginsApp, id string, s plugins.Setting
 		field = ui.Input{TestID: testID, Label: title, Style: core.Style{Width: core.Pt(220)},
 			Value:    live.Func(a, func() string { v, _ := a.PluginValue(id, s.Key).(string); return v }),
 			OnChange: live.On(a, func(text string) { a.SetPluginValue(id, s.Key, text) })}
-	case plugins.SettingSecret:
-		field = pluginSecretField(cx, a, id, s.Key, title, testID)
 	}
 	return core.View{Role: core.RoleGroup, Label: title, Style: core.Style{Direction: core.Row, Gap: 10, MinHeight: core.Pt(32), AlignItems: core.AlignCenter}, Children: []core.Node{
 		core.Text{Content: title, Style: core.Style{FontSize: 12, LineHeight: 17, FlexGrow: 1, FlexShrink: 1}, StyleFunc: ui.Colored(colors.Text)},
@@ -258,7 +256,7 @@ func pluginSettingRow(cx *core.Scope, a PluginsApp, id string, s plugins.Setting
 	}}
 }
 
-// pluginCredentialRow is the field of the plugin id's credential c, which Kando keeps in the system's secure store as it keeps a secret setting, with the hosts it is only sent to written over it, and the warning of hosts that are not the service's, if any.
+// pluginCredentialRow is the field of the plugin id's credential c, which Kando keeps in the system's secure store, with the hosts it is only sent to written over it, and the warning of hosts that are not the service's, if any.
 func pluginCredentialRow(cx *core.Scope, a PluginsApp, id string, c PluginCredential) []core.Node {
 	colors := ui.ColorsOf(cx)
 	testID := "settings-plugins-credential-" + id + "-" + strings.TrimPrefix(c.Key, "credential.")
@@ -275,7 +273,7 @@ func pluginCredentialRow(cx *core.Scope, a PluginsApp, id string, c PluginCreden
 	return out
 }
 
-// pluginSecretField is a secret setting's field: while none is kept, a masked field and 保存, which keeps what it holds in the system's secure store, out of the plugin's reach; once one is kept, 已保存 and 清除.
+// pluginSecretField is a credential's field: while none is kept, a masked field and 保存, which keeps what it holds in the system's secure store, out of the plugin's reach; once one is kept, 已保存 and 清除.
 func pluginSecretField(cx *core.Scope, a PluginsApp, id, key, title, testID string) core.Node {
 	text := core.NewSignal(cx, "")
 	kept := live.Func(a, func() bool { return a.PluginSecretKept(id, key) })

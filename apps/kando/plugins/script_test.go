@@ -38,8 +38,7 @@ func scriptManifest() string {
     {"key": "deck", "type": "text", "default": "Kando", "max": 100, "title": {"en": "Deck"}},
     {"key": "audio", "type": "bool", "default": true, "title": {"en": "Attach the sound"}},
     {"key": "model", "type": "choice", "choices": [{"id": "basic", "label": {"en": "Basic"}}, {"id": "cloze", "label": {"en": "Cloze"}}], "title": {"en": "Note type"}},
-    {"key": "limit", "type": "number", "min": 1, "max": 50, "default": 20, "title": {"en": "Lines at once"}},
-    {"key": "token", "type": "secret", "title": {"en": "Token"}}
+    {"key": "limit", "type": "number", "min": 1, "max": 50, "default": 20, "title": {"en": "Lines at once"}}
   ],
   "events": ["film.opened", "job.completed"]
 }`
@@ -86,7 +85,7 @@ func TestValidateScript(t *testing.T) {
 		{"a default of another type", `"default": true`, `"default": "yes"`, ErrBadField},
 		{"a choice not there", `"title": {"en": "Note type"}`, `"default": "other", "title": {"en": "Note type"}`, ErrBadField},
 		{"a number out of bounds", `"default": 20`, `"default": 51`, ErrBadField},
-		{"a secret's default", `"type": "secret"`, `"type": "secret", "default": "x"`, ErrBadField},
+		{"a secret setting", `"type": "bool"`, `"type": "secret"`, ErrBadField},
 		{"an event", `"job.completed"`, `"line.played"`, ErrBadField},
 		{"a data pack's field", `"events"`, `"glossary": {"from": "ja", "to": "en", "terms": [{"source": "a", "target": "b"}]}, "events"`, ErrBadField},
 	} {
@@ -101,6 +100,11 @@ func TestValidateScript(t *testing.T) {
 	dir := writePack(t, map[string]string{ManifestName: scriptManifest(), "anki.nsgopkg": "another package"})
 	_, err = Validate(dir)
 	wantErr(t, "another package", err, ErrTampered)
+	// A secret setting is refused with a reason that tells the author to declare a credential instead.
+	_, err = Validate(writeScript(t, strings.Replace(scriptManifest(), `"type": "bool", "default": true`, `"type": "secret"`, 1)))
+	if err == nil || !strings.Contains(err.Error(), "credentials") || !strings.Contains(err.Error(), "kando.net.credentialFetch") {
+		t.Errorf("a secret setting: %v", err)
+	}
 	// A data pack has none of a script plugin's fields.
 	_, err = Validate(writePack(t, map[string]string{ManifestName: strings.Replace(glossaryManifest, `"schema": 1,`, `"schema": 1, "events": ["film.opened"],`, 1)}))
 	wantErr(t, "a glossary with events", err, ErrBadField)
@@ -110,7 +114,7 @@ func TestValidateScript(t *testing.T) {
 	}
 }
 
-// TestScriptSettingsResolve checks what kando.settings.get answers: the values set, the defaults of those not set or not valid, and never a secret.
+// TestScriptSettingsResolve checks what kando.settings.get answers: the values set, the defaults of those not set or not valid, and nothing that is not a declared setting.
 func TestScriptSettingsResolve(t *testing.T) {
 	p, err := Validate(writeScript(t, scriptManifest()))
 	if err != nil {

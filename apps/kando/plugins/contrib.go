@@ -142,21 +142,16 @@ func (c GrantedCredential) Value(secret string) string {
 	return strings.Replace(c.Format, SecretMark, secret, 1)
 }
 
-// SecretKeys are the keys of what Kando keeps for the script plugin m in its host partition: its secret settings' and its credentials' (SecretKey).
+// SecretKeys are the keys of what Kando keeps for the script plugin m in its host partition: its credentials' (SecretKey).
 func (m Manifest) SecretKeys() []string {
 	var keys []string
-	for _, st := range m.Settings {
-		if st.Type == SettingSecret {
-			keys = append(keys, st.Key)
-		}
-	}
 	for _, c := range m.Credentials {
 		keys = append(keys, SecretKey(c.ID))
 	}
 	return keys
 }
 
-// SecretKey is the key Kando keeps the secret of the credential id under, in the plugin's host partition, apart from its secret settings' keys.
+// SecretKey is the key Kando keeps the secret of the credential id under, in the plugin's host partition.
 func SecretKey(id string) string { return "credential." + id }
 
 var (

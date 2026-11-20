@@ -33,11 +33,12 @@ var (
 	ErrNoPacks = errors.New("no pack files")
 )
 
-// Checked is a pack checked as Kando installs it: the pack, where a script plugin's signature comes from (Source, official or verified; developer for a developer key's, which Index refuses) and the release key that signed it (Signer); for a pack file, its size and SHA-256, those of the bytes the checks read.
+// Checked is a pack checked as Kando installs it: the pack, where a script plugin's signature comes from (Source, official or verified; developer for a developer key's, which Index refuses), the release key that signed it (Signer) and its code as signed (Bundle, the package's bundle, which the directory's preview reads the host calls of); for a pack file, its size and SHA-256, those of the bytes the checks read.
 type Checked struct {
 	Pack   plugins.Pack
 	Source plugins.Source
 	Signer string
+	Bundle string
 	File   bool
 	Size   int64
 	SHA256 [sha256.Size]byte
@@ -88,7 +89,7 @@ func Check(src, work string, trust func() (*pkg.Trust, error), roots signature.R
 		if err != nil {
 			return Checked{}, err
 		}
-		c.Source, c.Signer = v.Source, v.Signer
+		c.Source, c.Signer, c.Bundle = v.Source, v.Signer, v.Package.Source()
 	}
 	return c, nil
 }
