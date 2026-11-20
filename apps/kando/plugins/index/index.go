@@ -117,7 +117,7 @@ func DecodeKey(text string) (ed25519.PublicKey, error) {
 	return pkg.DecodePublicKey(text)
 }
 
-// framed is what the signature of body signs: the context, a zero byte and body's SHA-256, as tsx/pkg frames its own signatures. It stays a copy of Kando's although tsx/pkg now exports its envelope (pkg.SignDocument, pkg.Signed.Open, nsgo-dev/nsgo#868): those take only contexts starting with app:, so they refuse signContext, and under app:kando-plugins-index-v1 they sign another message, which the index published at kando.yldm.ai and the Kando versions released to read it do not verify (TestIndexSignatureIsStable). Moving to them means a new context and a new Version of the index, which released versions refuse (ErrVersion) until they update.
+// framed is what the signature of body signs: the context, a zero byte and body's SHA-256, as tsx/pkg frames its own signatures. Kando keeps its own copy of this framing although tsx/pkg now exports its envelope (pkg.SignDocument, pkg.Signed.Open, nsgo-dev/nsgo#868): those take only contexts starting with app:, so they refuse signContext, and under app:kando-plugins-index-v1 they sign another message, which the index published at kando.yldm.ai and the Kando versions released to read it do not verify (TestIndexSignatureIsStable). Moving to them means a new context and a new Version of the index, which released versions refuse (ErrVersion) until they update.
 func framed(body []byte) []byte {
 	sum := sha256.Sum256(body)
 	return append(append([]byte(signContext), 0), sum[:]...)
