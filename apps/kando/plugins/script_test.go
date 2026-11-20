@@ -67,7 +67,7 @@ func TestValidateScript(t *testing.T) {
 		{"schema 1", `"schema": 2`, `"schema": 1`, ErrSchema},
 		{"kando", `">=0.30.0"`, `"0.30"`, ErrBadField},
 		{"sha256", `"sha256": "`, `"sha256": "0`, ErrBadField},
-		{"unknown permission", `"kando.saved.read"`, `"kando.glossary.suggest"`, ErrUnknownPerm},
+		{"unknown permission", `"kando.saved.read"`, `"kando.candidates.offer"`, ErrUnknownPerm},
 		{"another capability", `"capabilities": {`, `"capabilities": {"clipboard": true,`, ErrBadCapabilities},
 		{"open url", `"capabilities": {`, `"capabilities": {"openUrl": {"schemes": ["https"]},`, ErrBadCapabilities},
 		{"any request", `"network": {"http"`, `"network": {"hosts": ["*"], "http"`, ErrBadCapabilities},

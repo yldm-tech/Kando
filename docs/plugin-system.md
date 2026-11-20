@@ -628,7 +628,9 @@ const (
 
 `kando.settings.get` 不需要权限，只返回这个插件在 `settings` 里声明的那些值。
 
-`kando.glossary.suggest` 和 `kando.candidates.offer` 没有实现（第 15 节 P3b）：看懂里没有「提议一个术语、由用户取舍」的地方，`core.Proof` 是终审对字幕行的改动，不管术语表。改错的候选由翻译来源的 `candidates` 导出提供（E14），不需要这个权限。申请它们的插件照旧以 `ErrUnknownPerm` 拒收。
+`kando.candidates.offer` 没有实现（第 15 节 P3b）：改错的候选由翻译来源的 `candidates` 导出提供（E14），不需要这个权限。申请它的插件照旧以 `ErrUnknownPerm` 拒收。
+
+`kando.glossary.suggest`（第 15 节「术语建议」）：`{film, terms: [{source, target}]}`，`film` 是这个插件知道的影片 id（`film.opened` 事件和 `kando.film.current` 给的那个），可以不写，写了就必须是正在打开的影片，否则回 `not-found`；没有打开的影片也回 `not-found`，影片自己的术语改不了（`TermsWritable`，例如还没读完）时回 `unavailable`。一次最多 `plugins.SuggestMax`（20）条，原文和译文清洗后（去掉看不见的字符和控制字符、合并空白，`plugins.Suggested`）各 1–`plugins.SuggestLongest`（60）字，和 AI 服务自己的术语建议同一个上限；超出、缺字段或类型不对时整次以 `bad-request` 拒绝。插件提议的术语不进术语表，只在内存里接在 AI 服务的建议后面（`a.gloss.suggest.plugin`），列在播放器「术语」标签的「片中找到的术语」里，下面一行写「来自插件「<插件名>」」（`glossarySuggestFromPlugin`）；换一部影片就清空，一部影片打开期间所有插件的提议合计最多 `plugins.SuggestHeld`（60）条。术语表（这部影片自己的、系列的、全局的和术语包的，锁定与否）已有的词、AI 服务已经建议的词、用户已经「不用」的词、同一插件或别的插件已经提议的词都不收，所以插件永远改不了已有的条目，也不会顶掉锁定的条目。回 `{added}`，即这次新列出的条数。只有用户点「添加」时才写进术语表，存成这部影片自己的、`OriginAuto`、不锁定的条目，和 AI 服务的建议同一步（`AcceptSuggestion`，撤销后重新出现在建议里）；点「不用」时写进影片旁建议文件的 `dismissed`（`media.DismissSuggestion`），之后 AI 服务和插件都不会再建议它。
 
 P3b 实现的几个 handler 的形状（都在后台跑，等待期间暂停这次调用的看门狗，失败只回错误码）：
 
@@ -731,7 +733,7 @@ export function kandoManifest() { return { /* identical to kando-plugin.json fie
   - 安装页和详情页把「读你的字幕或用你的 AI」与「联网或 credentialFetch」同时勾选的组合单独标成高风险，单独一行说明。
   - network 规则必须写死 Methods 和 Paths/PathPrefixes（4.2 节，由 Validate 强制）。审核规范要求插件用最窄的规则；像 AnkiConnect 这种所有动作共用一个端点的服务，规则缩不到动作这一级，在审核规范和详情页如实写出来。
   - `credentialFetch` 只允许授权凭据里列出的 methods 和 pathPrefixes。
-  - 真正只有宿主能拦住的副作用，才做成「每次确认」（`openURL`）或「只出建议」（`glossary.suggest`、`candidates.offer`，复用 `core.Proof` 的接受和回滚模型）。
+  - 真正只有宿主能拦住的副作用，才做成「每次确认」（`openURL`）或「只出建议」（`glossary.suggest`：复用 AI 服务术语建议的「添加」「不用」和撤销，见 5.3；`candidates.offer` 没有做）。
 
 ### 6.3 密钥隔离
 
@@ -825,6 +827,7 @@ P1.1 的确认框只有数据包要显示的部分：名称（标题）、说明
 - 查词卡在底部标出来源，例如「JMdict」或「AI」。学日语或中文的用户第一次点词时，卡片底部提示「装离线词典，查词更快、不耗 AI」，点了打开设置 › 插件。条件是这个词是日语或中文（`lookup.WordLanguage`），插件目录已经读过，并且没有装这种语言的词典包（开没开都算装了）；只提示一次，提示过就记在 settings.json（`savedPlugins.PluginDictHintShown`，`pluginsDictHint`）。
 - 设置 › AI 的服务商下拉框里，插件预设排在内置预设之后，每项写成「插件 · <包名> · <host>」（`ui.Select` 还没有带标题的分组，见 E4）。点「获取 API Key」时先用系统提示框显示目标域名再打开。
 - 导出字幕的格式下拉框、学习导出的目标列表里出现插件项，后面标出插件名。
+- 插件经 `kando.glossary.suggest` 提议的术语列在播放器「术语」标签的「片中找到的术语」里，排在 AI 服务的建议后面，每条下面一行写「来自插件「<插件名>」」（`film.Glossary.TermSuggestionPlugin`），「添加」「不用」和 AI 服务的建议一样。
 - 插件命令出现在命令面板和菜单栏。在 macOS 上，不认识的分组会由现有逻辑放在「窗口」菜单前面，单独成一个菜单（`menu.go:20`）；在 Linux 和 Windows 上，命令面板是唯一入口。
 
 ### 7.5 错误
@@ -1287,12 +1290,19 @@ P1.2 的测量结果（Ubuntu 编译机，x86_64，Go 1.27.4，kagome-dict/ipa v
   - `checkSigned` 比较签名能力时不看凭据：凭据是看懂代发的，不是包的能力；`kandoManifest()` 的比对（`signedKeys`）加了 `credentials`，`Probe` 检查所有贡献点的导出函数（`Manifest.ExportsNeeded`）。
   - 插件函数的返回值（`Plugin.Call` 的结果）不经 JSON 往返，tsx 把 JS 的整数给成 `int64`；host call 的参数经 `core.hostValue` 的 JSON 往返，是 `float64`。读返回值的地方（`Exported`、标注的偏移）用 `plugins.Number` 两种都认。
   - 吊销列表：`RevocationsURL` 是 Go 常量（`nsgo.yaml` 没有放自定义键的地方，只在 `updates` 旁加了注释）；测试把根换成测试密钥时（`pluginsScripts.official`）不去拉正式地址，只拉测试给的地址。列表还没有发布，发布流程留在 P3c。
-  - `kando.glossary.suggest`、`kando.candidates.offer` 没有做，原因见 5.3。
+  - `kando.glossary.suggest`、`kando.candidates.offer` 没有做，原因见 5.3。后来 `kando.glossary.suggest` 在「术语建议」一条里补上了（`feat/plugins-glossary-suggest`），`kando.candidates.offer` 仍然没有做。
   - 导出格式的标签页：`ui.Tabs` 的选项是切片，不能绑定（NSGo `ui/tabs.go:30`），选项变了只能重建、丢掉焦点；没有插件格式时看懂自己的三个格式不进 `core.Dynamic`，有插件格式时才按格式集合重建，代码里留了 `TODO(nsgo#848)`（和 `ui.Select` 是同类但不同控件，记在同一个 issue 下）。
   - 详情页里插件和看懂写好的文字（权限、添加的功能、密钥发往哪里）在一个按界面语言重建的区域里，切换语言后跟着变，平时不重建，输入到一半的密钥不丢。
   - 一个插件格式的导出在插件没在运行时按 SRT 显示，但改别的选项时不会把记住的插件格式改成 SRT，插件回来后还是它。收藏导出到插件时按「取消」显示「已停止」，插件之后的回答丢掉。
   - 纯函数放进了非界面包：`script.FetchRevocations`、`RevocationsChecked`、`SetRevocationsChecked`、`plugins.Manifest.SecretKeys`；「添加的功能」的文字是 `settings.PluginAdds`，和 `settings.PluginDetail` 放在一起（要用 catalog，`plugins` 不导入 `locales`）。
   - 测试：`plugins` 的清单和凭据规则（`contrib_test.go`）、`plugins/script` 的 Probe 和 host 超时、`annotate`/`lookup` 的回答解析，app 层 `plugins_contrib_test.go`：四个贡献点各一个端到端测试；`llm.chat` 的回答不含地址和 key、用量计入预算和 audit.log、超预算拒绝、超时不熔断；`sound.read` 用假 ffmpeg 切、没有 ffmpeg 拒绝；`credentialFetch` 没存密钥拒绝、只在授权的 host/method/path 注入、响应头只留 Content-Type、不跟随重定向、插件的 `Secrets` 读不到密钥、插件不能自己设凭据的头或 Cookie、离线拒绝；详情页的密钥字段和「只会发送到」一行；没有安全存储时停用并说明；吊销列表 404 照常、吊销后关闭并显示「已被撤回」、过期只暂停联网的非官方插件。截图场景 `plugins-script-lookup`、`plugins-script-subtitle-format`、`plugins-script-exporter`、`plugins-script-credential`、`plugins-script-marks` 只在 Linux 上跑了无头断言，没有出图。
+
+- 术语建议（`feat/plugins-glossary-suggest`，已完成）：`kando.glossary.suggest`。#287 之后播放器的「术语」标签已经有「提议一个术语、由用户取舍」的地方（`state_glossary_suggest.go`），所以按 5.3、6.2、7.4 接上了。和正文的出入如下，5.3、6.2、7.4 已同步改过：
+  - 没有复用 `core.Proof`：它是终审对字幕行的改动，不管术语表。复用的是 AI 服务术语建议的那一套：「添加」是 `glossaryChange(correctKindTermAccept, …)`，撤销后重新建议；「不用」写进影片旁建议文件的 `dismissed`。
+  - 插件的提议只在内存里，换影片就清空，不写建议文件；只有「不用」会写文件，这样插件下次再提同一个词也不会列出来。
+  - 上限是每次 20 条、每条原文和译文各 60 字（和 `media.SuggestMax`、`suggestLongest` 一样）、一部影片打开期间合计 60 条；纯函数在 `plugins/suggest.go`（`plugins.Suggested`），handler 在 `state_plugins_host.go`（`pluginsGlossarySuggest`），状态在 `state_glossary_suggest.go`。`film.Glossary` 加了 `TermSuggestionPlugin(cx, source)`，返回提议这一条的插件名（界面语言），AI 服务的建议返回空串。
+  - 授权页和详情页的说明是「为正在播放的影片建议术语，由你决定加不加进术语表」（`settingsPluginsPermGlossarySuggest`）；它不读片库、不联网，所以不影响 `plugins.Risky`。
+  - 测试：`plugins/suggest_test.go`（形状和上限）、`film/terms_test.go`（插件名那一行）、根目录 `plugins_glossary_test.go`（没授权时被沙箱以 `ERR_ACCESS_DENIED` 拒绝；授权后锁定的、全局的、AI 已建议的和重复的都不收；列出插件名；添加、撤销、不用写进 `dismissed` 后再提不收；超出上限、缺译文、不是列表整次 `bad-request`；别的影片 `not-found`；合计 60 条后不再收）。截图场景 `player-terms-plugin`（「术语」标签里一条 AI 建议、一条插件建议）只在 Linux 上跑了无头断言，没有出图。
 
 - P5 社区索引（客户端和工具）：目录的页面、上架和限速、代码包审核不在这个 PR 里（官网上的页面另做），本 PR 没有建任何仓库，也没有上传任何东西。和正文（10 节 P5、6.5）的出入和细节如下：
   - 格式（`plugins/index`，非界面包）：索引文件是 `{"format": "kando-plugins-index", "version": 1, "signer", "signature", "body"}`，`body` 是索引 JSON 的 base64，里面是 `format`、`version`、`generated`（生成时间）和 `entries`。签名是 Ed25519 对 `kando-plugins-index-v1`、一个 0 字节和 body 的 SHA-256 签的，做法和 tsx/pkg 给包、证书、吊销列表签名一样，但上下文不同，所以同一把键签的别的东西不会被当成索引。tsx/pkg 的签名封装（`keys.go` 的 `signed`、`signBody`、`framed`）和上下文常量都没有导出，只能复用它的键编码：`pkg.DecodePublicKey`、`DecodeSecretKey`、`EncodeSecretKey`、`KeyID`、`GenerateKey`；这个缺口已提交为 [nsgo-dev/nsgo#868](https://github.com/nsgo-dev/nsgo/issues/868)，`plugins/index` 里自己那份 framing 处写了 `TODO(nsgo#868)`，上游导出后换回 tsx/pkg 的封装。格式和版本在签名外也写一份，好让旧版在验签前就认出新格式（`ErrVersion`）。验签之后用 `DisallowUnknownFields` 严格解码，再逐条校验。

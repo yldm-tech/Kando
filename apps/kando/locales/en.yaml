@@ -7926,6 +7926,9 @@ settingsPluginsConflicts:
 settingsPluginsPermSoundRead:
   message: "Read the sound of a saved line or of the line playing"
   description: "Permission of a script plugin: the audio clip of a line, cut with ffmpeg."
+settingsPluginsPermGlossarySuggest:
+  message: "Suggest terms for the glossary of the film playing, which you add or dismiss"
+  description: "Permission of a script plugin: it proposes terms that the player's Terms tab lists; nothing is added to the glossary until the user adds it."
 settingsPluginsPermLLMChat:
   message: "Ask your AI service, within its daily budget of tokens"
   description: "Permission of a script plugin: it asks the user's AI service through Kando, which counts the tokens against the plugin's daily budget."
@@ -8767,6 +8770,11 @@ glossarySuggestDismissLabel:
   description: "Accessible name and tooltip of the button that drops a term the AI service found, so it is not suggested again."
   placeholders:
     term: { type: "String", example: "Nile" }
+glossarySuggestFromPlugin:
+  message: "Suggested by the plugin {plugin}"
+  description: "Terms tab: small line under a suggested term that a script plugin proposed rather than the AI service; {plugin} is the plugin's name."
+  placeholders:
+    plugin: { type: "String", example: "Place Names" }
 filmsRemoveStored:
   message: "Its subtitles and the other files Kando keeps beside its video will be moved to the Trash, and its video will be deleted from {place}."
   description: "What removing a film does when its video was moved out of the library folder to a storage location (a NAS folder or object storage): its subtitles go to the Trash and the video's copy on the location is deleted. place is the location's name."

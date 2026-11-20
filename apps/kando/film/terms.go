@@ -37,8 +37,9 @@ type Glossary interface {
 	NewTermSource() *string
 	NewTermTarget() *string
 	AddTerm()
-	// TermSuggestions are the terms the AI service found in the film once it was translated that its glossary does not hold yet, the most frequent first; AcceptSuggestion adds the one for source to the film's own terms, DismissSuggestion drops it for good.
+	// TermSuggestions are the terms the AI service found in the film once it was translated that its glossary does not hold yet, the most frequent first, then those script plugins proposed for it; TermSuggestionPlugin is the name of the plugin that proposed the one for source, in the language the interface shows under cx, "" for one the AI service found; AcceptSuggestion adds the one for source to the film's own terms, DismissSuggestion drops it for good.
 	TermSuggestions() []core.Term
+	TermSuggestionPlugin(cx *ns.Scope, source string) string
 	AcceptSuggestion(source string)
 	DismissSuggestion(source string)
 	// EditLog is what the last changes Undo can take back were, the latest first; CanUndoEdit reports whether one can be taken back now, and UndoEdit takes back the latest, as Edit › Undo does.
@@ -123,13 +124,14 @@ func (s *screen) termsTab(cx *ns.Scope) ns.Node {
 	}}
 }
 
-// termSuggestions is the terms the AI service found in the film that its glossary does not hold yet, each with the buttons that add it to the film's own terms and dismiss it; nothing while there are none.
+// termSuggestions is the terms the AI service found in the film and those script plugins proposed for it that its glossary does not hold yet, a plugin's with its name under it, each with the buttons that add it to the film's own terms and dismiss it; nothing while there are none.
 func (s *screen) termSuggestions(cx *ns.Scope) ns.Node {
 	a := s.a
 	terms := ns.NewMemoFunc(cx, live.Func(a, a.TermSuggestions), slices.Equal[[]core.Term]).Get
 	return ns.Show{When: func() bool { return len(terms()) > 0 }, Then: func(cx *ns.Scope) ns.Node {
 		rows := ns.Each(terms, func(t core.Term) string { return strings.ToLower(t.Source) }, func(cx *ns.Scope, term func() core.Term, index func() int) ns.Node {
 			source := func() string { return term().Source }
+			plugin := live.Func(a, func() string { return a.TermSuggestionPlugin(cx, source()) })
 			return ns.View{TestID: "film-term-suggestion", Style: ns.Style{Direction: ns.Row, AlignItems: ns.AlignCenter, Gap: 6, MinHeight: ns.Pt(40), Padding: ns.Symmetric(6, 12)},
 				StyleFunc: func() ns.Style {
 					if index() > 0 {
@@ -138,8 +140,14 @@ func (s *screen) termSuggestions(cx *ns.Scope) ns.Node {
 					return ns.Style{Borders: ns.Edges{}}
 				},
 				Children: []ns.Node{
-					ns.Text{TestID: "film-term-suggestion-pair", Selectable: ns.SelectableOn, ContentFunc: func() string { t := term(); return t.Source + " → " + t.Target },
-						Style: ns.Style{FlexGrow: 1, FlexShrink: 1, MinWidth: ns.Pt(0), FontSize: 13, LineHeight: 17, Color: onGlass}},
+					ns.View{Style: ns.Style{FlexGrow: 1, FlexShrink: 1, MinWidth: ns.Pt(0), Gap: 2}, Children: []ns.Node{
+						ns.Text{TestID: "film-term-suggestion-pair", Selectable: ns.SelectableOn, ContentFunc: func() string { t := term(); return t.Source + " → " + t.Target },
+							Style: ns.Style{FontSize: 13, LineHeight: 17, Color: onGlass}},
+						ns.Show{When: func() bool { return plugin() != "" }, Then: func(cx *ns.Scope) ns.Node {
+							return ns.Text{TestID: "film-term-suggestion-plugin", ContentFunc: func() string { return locales.GlossarySuggestFromPlugin(cx, plugin()) },
+								Style: ns.Style{FontSize: 11, LineHeight: 14, Color: onGlass, Opacity: ns.Alpha(0.6)}}
+						}},
+					}},
 					pillButton(cx, pill{id: "film-term-suggestion-add", label: func() string { return locales.GlossaryAdd(cx) }, name: func() string { return locales.GlossarySuggestAdd(cx, source()) },
 						color: func() ns.Color { return ui.Alpha(theme.Of(cx).AccentInk(), 0.45) }, press: live.Do(a, func() { a.AcceptSuggestion(source()) })}),
 					pillButton(cx, pill{id: "film-term-suggestion-dismiss", label: func() string { return locales.GlossarySuggestDismiss(cx) }, name: func() string { return locales.GlossarySuggestDismissLabel(cx, source()) },

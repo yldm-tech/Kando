@@ -119,6 +119,8 @@ func pluginsPermText(m locales.Messages, perm plugins.Perm) string {
 		return m.SettingsPluginsPermOpenURL()
 	case plugins.PermSoundRead:
 		return m.SettingsPluginsPermSoundRead()
+	case plugins.PermGlossarySuggest:
+		return m.SettingsPluginsPermGlossarySuggest()
 	case plugins.PermLLMChat:
 		return m.SettingsPluginsPermLLMChat()
 	case plugins.PermCredFetch:

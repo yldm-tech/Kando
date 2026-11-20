@@ -1127,6 +1127,7 @@ var Parameters = map[string][]string{
 	"GlossaryStepAccept":                       {"term"},
 	"GlossarySuggestAdd":                       {"term"},
 	"GlossarySuggestDismissLabel":              {"term"},
+	"GlossarySuggestFromPlugin":                {"plugin"},
 	"FilmsRemoveStored":                        {"place"},
 	"FilmsStoredOn":                            {"place"},
 	"StoredObjectStore":                        {"store"},
@@ -1831,6 +1832,7 @@ type Translation struct {
 	GlossaryStepAccept                       func(term string) string
 	GlossarySuggestAdd                       func(term string) string
 	GlossarySuggestDismissLabel              func(term string) string
+	GlossarySuggestFromPlugin                func(plugin string) string
 	FilmsRemoveStored                        func(place string) string
 	FilmsStoredOn                            func(place string) string
 	StoredObjectStore                        func(store string) string
@@ -3503,6 +3505,7 @@ const (
 	textSettingsPluginsPermOpenURL
 	textSettingsPluginsPermSettingsGet
 	textSettingsPluginsPermSoundRead
+	textSettingsPluginsPermGlossarySuggest
 	textSettingsPluginsPermLLMChat
 	textSettingsPluginsPermCredFetch
 	textSettingsPluginsNoSecretStore
@@ -5285,6 +5288,7 @@ var keyOfText = [numTexts]string{
 	"settingsPluginsPermOpenURL",
 	"settingsPluginsPermSettingsGet",
 	"settingsPluginsPermSoundRead",
+	"settingsPluginsPermGlossarySuggest",
 	"settingsPluginsPermLLMChat",
 	"settingsPluginsPermCredFetch",
 	"settingsPluginsNoSecretStore",
@@ -7065,6 +7069,7 @@ var textsEn = i18n.NewTexts(""+
 	"Open web pages in your browser, after you agree to each"+
 	"Read its own settings"+
 	"Read the sound of a saved line or of the line playing"+
+	"Suggest terms for the glossary of the film playing, which you add or dismiss"+
 	"Ask your AI service, within its daily budget of tokens"+
 	"Send requests with the keys you enter below, only to the hosts listed with them"+
 	"Turned off: this computer has no secure store for the plugin's keys"+
@@ -8842,6 +8847,7 @@ var textsEn = i18n.NewTexts(""+
 		55,
 		21,
 		53,
+		76,
 		54,
 		79,
 		67,
@@ -10622,6 +10628,7 @@ var textsJa = i18n.NewTexts(""+
 	"ブラウザで Web ページを開く（毎回あなたの許可が必要）"+
 	"自分の設定を読み取る"+
 	"保存したセリフや再生中のセリフの音声を読む"+
+	"再生中の動画の用語を提案する（用語集に追加するかはあなたが決めます）"+
 	"1 日のトークン予算の範囲で AI サービスに質問する"+
 	"下に入力したキーを付けてリクエストを送る（それぞれに示されたホストだけ）"+
 	"オフ：このコンピュータにはプラグインのキーを安全に保存する場所がありません"+
@@ -12399,6 +12406,7 @@ var textsJa = i18n.NewTexts(""+
 		77,
 		30,
 		63,
+		102,
 		69,
 		108,
 		111,
@@ -14179,6 +14187,7 @@ var textsKo = i18n.NewTexts(""+
 	"브라우저에서 웹 페이지 열기(매번 동의 필요)"+
 	"자신의 설정 읽기"+
 	"저장한 대사나 재생 중인 대사의 소리 읽기"+
+	"재생 중인 영상의 용어 제안(용어집에 추가할지는 직접 결정)"+
 	"하루 토큰 예산 안에서 AI 서비스에 질문하기"+
 	"아래에 입력한 키로 요청 보내기(각각 표시된 호스트로만)"+
 	"꺼짐: 이 컴퓨터에는 플러그인 키를 안전하게 보관할 곳이 없습니다"+
@@ -15956,6 +15965,7 @@ var textsKo = i18n.NewTexts(""+
 		61,
 		23,
 		57,
+		81,
 		59,
 		77,
 		90,
@@ -17736,6 +17746,7 @@ var textsZhHans = i18n.NewTexts(""+
 	"在浏览器中打开网页，每次都要你同意"+
 	"读取它自己的设置"+
 	"读取收藏句子或正在播放的句子的声音"+
+	"为正在播放的影片建议术语，由你决定加不加进术语表"+
 	"在每日 token 预算内询问你的 AI 服务"+
 	"用你在下面填写的密钥发送请求，只发往各自列出的主机"+
 	"已停用：这台电脑没有可以安全保存插件密钥的地方"+
@@ -19513,6 +19524,7 @@ var textsZhHans = i18n.NewTexts(""+
 		51,
 		24,
 		51,
+		72,
 		47,
 		75,
 		69,
@@ -21293,6 +21305,7 @@ var textsZhHant = i18n.NewTexts(""+
 	"在瀏覽器中開啟網頁，每次都要你同意"+
 	"讀取它自己的設定"+
 	"讀取收藏句子或正在播放的句子的聲音"+
+	"為正在播放的影片建議術語，由你決定加不加進術語表"+
 	"在每日 token 預算內詢問你的 AI 服務"+
 	"用你在下面填寫的金鑰傳送請求，只傳往各自列出的主機"+
 	"已停用：這台電腦沒有可以安全保存外掛金鑰的地方"+
@@ -23070,6 +23083,7 @@ var textsZhHant = i18n.NewTexts(""+
 		51,
 		24,
 		51,
+		72,
 		47,
 		75,
 		69,
@@ -25269,6 +25283,9 @@ func Supply(lang string, t Translation) {
 	}
 	if t.GlossarySuggestDismissLabel != nil {
 		s.GlossarySuggestDismissLabel = t.GlossarySuggestDismissLabel
+	}
+	if t.GlossarySuggestFromPlugin != nil {
+		s.GlossarySuggestFromPlugin = t.GlossarySuggestFromPlugin
 	}
 	if t.FilmsRemoveStored != nil {
 		s.FilmsRemoveStored = t.FilmsRemoveStored
@@ -61534,6 +61551,19 @@ func (msgs Messages) SettingsPluginsPermSoundRead() string {
 	return msgs.text(textSettingsPluginsPermSoundRead)
 }
 
+// SettingsPluginsPermGlossarySuggest says "Suggest terms for the glossary of the film playing, which you add or dismiss"
+// in the language the app shows under cx.
+//
+// Permission of a script plugin: it proposes terms that the player's Terms tab lists; nothing is added to the glossary until the user adds it.
+func SettingsPluginsPermGlossarySuggest(cx *core.Scope) string {
+	return For(cx).SettingsPluginsPermGlossarySuggest()
+}
+
+// SettingsPluginsPermGlossarySuggest is the package's SettingsPluginsPermGlossarySuggest in the language of msgs.
+func (msgs Messages) SettingsPluginsPermGlossarySuggest() string {
+	return msgs.text(textSettingsPluginsPermGlossarySuggest)
+}
+
 // SettingsPluginsPermLLMChat says "Ask your AI service, within its daily budget of tokens"
 // in the language the app shows under cx.
 //
@@ -65886,6 +65916,38 @@ func (msgs Messages) GlossarySuggestDismissLabel(term string) string {
 			return "不用「" + term + "」"
 		case "zh-Hant":
 			return "不用「" + term + "」"
+		}
+	}
+}
+
+// GlossarySuggestFromPlugin says "Suggested by the plugin {plugin}"
+// in the language the app shows under cx.
+//
+// Terms tab: small line under a suggested term that a script plugin proposed rather than the AI service; {plugin} is the plugin's name.
+func GlossarySuggestFromPlugin(cx *core.Scope, plugin string) string {
+	return For(cx).GlossarySuggestFromPlugin(plugin)
+}
+
+// GlossarySuggestFromPlugin is the package's GlossarySuggestFromPlugin in the language of msgs.
+func (msgs Messages) GlossarySuggestFromPlugin(plugin string) string {
+	if i18n.IsPseudo(msgs.lang) {
+		return i18n.Pseudo(msgs.lang, Messages{lang: Source, mark: true}.GlossarySuggestFromPlugin(plugin))
+	}
+	for lang := msgs.lang; ; lang = i18n.Parent(lang) {
+		if f := supplied[lang].GlossarySuggestFromPlugin; f != nil {
+			return f(plugin)
+		}
+		switch lang {
+		case "", "en":
+			return "Suggested by the plugin " + msgs.arg(plugin)
+		case "ja":
+			return "プラグイン「" + plugin + "」の提案"
+		case "ko":
+			return "플러그인 「" + plugin + "」의 제안"
+		case "zh-Hans":
+			return "来自插件「" + plugin + "」"
+		case "zh-Hant":
+			return "來自外掛「" + plugin + "」"
 		}
 	}
 }
