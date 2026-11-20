@@ -10,6 +10,7 @@ import (
 	"path/filepath"
 	"slices"
 	"strings"
+	gosync "sync"
 	"time"
 
 	"kando/packages/sync"
@@ -139,23 +140,15 @@ func (s *Store) SaveFilm(f Film) error {
 	return writeJSON(filepath.Join(dir, filmFile), f)
 }
 
-// DeleteFilm removes the film's folder and everything in it. A file written into the folder while it is being removed, as the marks of a film deleted just as its computer answered them (SaveMarks), leaves it not empty, so the removal goes on until the folder is gone or nothing more can be removed.
+// DeleteFilm removes the film's folder and everything in it. It holds filmFolders, so marks being saved into the folder (SaveMarks) are either in it before it goes, and go with it, or find it gone after.
 func (s *Store) DeleteFilm(desktop, id string) error {
-	dir := s.FilmDir(desktop, id)
-	var err error
-	for range deleteAttempts {
-		if err = os.RemoveAll(dir); err == nil {
-			return nil
-		}
-		if _, serr := os.Stat(dir); errors.Is(serr, fs.ErrNotExist) {
-			return nil
-		}
-	}
-	return err
+	filmFolders.Lock()
+	defer filmFolders.Unlock()
+	return os.RemoveAll(s.FilmDir(desktop, id))
 }
 
-// deleteAttempts is how many times DeleteFilm removes a folder that writes racing it keep from being removed.
-const deleteAttempts = 5
+// filmFolders keeps a film's folder from being removed (DeleteFilm) while marks are written into it (SaveMarks), across every Store of the process: a file being written into a folder keeps it from being removed, for good on Windows, where an open file cannot be deleted, and for a moment elsewhere.
+var filmFolders gosync.Mutex
 
 // SaveCues keeps the film's subtitles.
 func (s *Store) SaveCues(desktop, id string, cues []sync.Cue) error {
@@ -176,16 +169,13 @@ func (s *Store) Cues(desktop, id string) ([]sync.Cue, bool, error) {
 	return cues, err == nil, err
 }
 
-// SaveMarks keeps the word marks of the film's lines, as its computer answered them, so the film shows them offline. A film no longer kept, whose folder is gone, keeps nothing: the marks are written only into the folder as it is, never making it, so marks that came after the film was deleted, or while it was, do not make its folder again.
+// SaveMarks keeps the word marks of the film's lines, as its computer answered them, so the film shows them offline. A film no longer kept, whose folder is gone, keeps nothing: the marks are written only into the folder as it is, never making it, so marks that come after the film was deleted do not make its folder again; filmFolders keeps the deletion from running while they are written.
 func (s *Store) SaveMarks(desktop, id string, m sync.FilmMarks) error {
-	dir := s.FilmDir(desktop, id)
-	err := writeJSONIn(filepath.Join(dir, marksFile), m)
-	if err == nil || errors.Is(err, fs.ErrNotExist) {
-		// Gone, the folder or the file being written in it, as the film is being deleted.
-		return nil
-	}
-	// A folder removed under the write can fail it otherwise too, as with an invalid argument on macOS, which the folder being gone tells apart from a failed write.
-	if _, serr := os.Stat(dir); errors.Is(serr, fs.ErrNotExist) {
+	filmFolders.Lock()
+	defer filmFolders.Unlock()
+	err := writeJSONIn(filepath.Join(s.FilmDir(desktop, id), marksFile), m)
+	if errors.Is(err, fs.ErrNotExist) {
+		// The film was deleted before its marks came.
 		return nil
 	}
 	return err
