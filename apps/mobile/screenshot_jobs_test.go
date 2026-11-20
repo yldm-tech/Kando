@@ -46,6 +46,7 @@ func TestScreenshotsJobsAway(t *testing.T) {
 	p := startPhone(t, dir, pairedWith(t, d, dir))
 	id := store.DesktopID(d.Fingerprint)
 	p.app.WaitUntil(wait, func() bool { return d.RelayJoins() == 1 })
+	p.waitRelayJoined(id)
 	p.openJobs()
 	d.SetOff(true)
 	p.app.WaitUntil(reconnect, func() bool { return p.reach(id) == msgs.JobsViaStorage() })

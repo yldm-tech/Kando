@@ -13,10 +13,12 @@ import (
 	"github.com/nsgo-dev/nsgo/tsx"
 )
 
-// Runner calls the plugins' functions one call at a time, all plugins together, so a window slow to answer, or memory that grows, is the call's that is running (docs/plugin-system.md 6.6). tsx cuts each piece of synchronous JS at Limits' half second, but not a call that awaits between pieces, which can keep the window busy and its memory growing for ever; nor does a cut stop the plugin, whose module keeps what it holds. While a call runs, a watchdog posts a heartbeat to the engine's goroutine every Beat and reads the Go heap: when Stalls heartbeats in a row waited more than Stall, the call ran past Deadline, or the heap grew past Heap during the call, the runner closes the plugin on the engine's goroutine, which tsx does between two pieces, ends the call with ErrStopped and reports it (Stopped). The heap is the whole app's, so growth is only taken as the plugin's once a collection confirms it is live (runtime.GC, run only then): during a call, growth past Heap since the call started; across calls, a plugin whose own calls grew the heap by more than Heap in all, while the heap after a collection is still more than Heap over what it was as the plugin loaded, which a module that keeps what each short call makes reaches and a plugin that runs while the app itself grows does not. That check runs as a call ends, never before one, so a plugin is not stopped for what others did before it ran. While the app waits for the user on a plugin's behalf, or does work of its own for the plugins, as loading one, it pauses the watchdog of the call running (Pause): the deadline does not run, and the window's pauses are not the call's. It also stops a plugin whose calls failed too often: breakerFails of the last breakerCalls, a failure being an error that is not a core.Error with a code, which a plugin throws or rejects with on purpose, as for a service that does not answer. Each call is marked in flight in the plugins folder (plugins.MarkInFlight) until it ends, so a call that hung or crashed Kando turns its plugin off as Kando starts again.
+// Runner calls the plugins' functions one call at a time, all plugins together, so a window slow to answer, or memory that grows, is the call's that is running (docs/plugin-system.md 6.6). tsx cuts each piece of synchronous JS at Limits' half second, but not a call that awaits between pieces, which can keep the window busy and its memory growing for ever; nor does a cut stop the plugin, whose module keeps what it holds. While a call runs, a watchdog posts a heartbeat to the engine's goroutine every Beat and reads the Go heap: when Stalls heartbeats in a row waited more than Stall, the call ran past Deadline, or the heap grew past Heap during the call, the watchdog interrupts the plugin from its own goroutine (tsx.Plugin.Interrupt), which cuts the piece of JS running at once and drops its timers, then the runner closes it on the engine's goroutine, ends the call with ErrStopped and reports it (Stopped). The heap is the whole app's, so growth is only taken as the plugin's once a collection confirms it is live (runtime.GC, run only then): during a call, growth past Heap since the call started; across calls, a plugin whose own calls grew the heap by more than Heap in all, while the heap after a collection is still more than Heap over what it was as the plugin loaded, which a module that keeps what each short call makes reaches and a plugin that runs while the app itself grows does not. That check runs as a call ends, never before one, so a plugin is not stopped for what others did before it ran. While the app waits for the user on a plugin's behalf, or does work of its own for the plugins, as loading one, it pauses the watchdog of the call running (Pause): the deadline does not run, and the window's pauses are not the call's. It also stops a plugin whose calls failed too often: breakerFails of the last breakerCalls, a failure being an error that is not a core.Error with a code, which a plugin throws or rejects with on purpose, as for a service that does not answer; and a plugin tsx itself stopped, as at its node quota, whose every call after fails at once with the quota's coded error (halted). Each call is marked in flight in the plugins folder (plugins.MarkInFlight) until it ends, so a call that hung or crashed Kando turns its plugin off as Kando starts again.
 //
-// TODO(nsgo#836): tsx has no total time per call nor a way for the host to interrupt a plugin; stop it from inside tsx then https://github.com/nsgo-dev/nsgo/issues/836
-// TODO(nsgo#760): tsx.Limits bounds no memory; the watchdog's heap threshold stands in for it https://github.com/nsgo-dev/nsgo/issues/760
+// The runner does not set tsx's Limits.CallTotal: it is wall time from Plugin.Call, which the host cannot pause while it serves the plugin, as Deadline is paused (Pause, PauseFor) for a sound read or an LLM answer of up to two minutes; and it would also drop what the entry module sets going once Limits.Load has passed, a second, which plugins may rely on.
+//
+// TODO(nsgo#925): tsx's CallTotal cannot be paused or extended while the host serves the plugin, and tsx says no time a runtime's JS ran, so the runner keeps its own Deadline and Paused and measures the window's load by heartbeats; use a pausable call deadline and the runtime's own time once tsx has them https://github.com/nsgo-dev/nsgo/issues/925
+// TODO(nsgo#760): tsx.Limits.Memory counts only what the built-ins that allocate by a size hold, not the rest of a bundle's JS, so Limits leaves it unset and the watchdog's heap threshold stands in for a memory bound https://github.com/nsgo-dev/nsgo/issues/760
 type Runner struct {
 	// Post runs fn on the engine's goroutine later, from any goroutine, without blocking.
 	Post func(fn func())
@@ -139,7 +141,7 @@ func (r *Runner) next() {
 	}
 }
 
-// end ends the call c with what it returned or why it failed, unless it ended already, as when the plugin was stopped; it then counts it for the breaker and starts the next call.
+// end ends the call c with what it returned or why it failed, unless it ended already, as when the plugin was stopped; it then counts it for the breaker, stops a plugin tsx stopped (halted), and starts the next call.
 func (r *Runner) end(c *call, v any, err error) {
 	if c.ended {
 		return
@@ -152,10 +154,14 @@ func (r *Runner) end(c *call, v any, err error) {
 	if r.running == c {
 		r.running = nil
 	}
-	tripped := !errors.Is(err, ErrStopped) && c.p.count(err)
-	kept := !errors.Is(err, ErrStopped) && r.keeps(c)
+	ours := errors.Is(err, ErrStopped)
+	halted := halted(err)
+	tripped := !ours && c.p.count(err)
+	kept := !ours && r.keeps(c)
 	c.done(v, err)
 	switch {
+	case halted != "" && !c.p.closed:
+		r.stop(c.p, halted)
 	case tripped && !c.p.closed:
 		r.stop(c.p, plugins.ReasonFailed)
 	case kept && !c.p.closed:
@@ -232,6 +238,20 @@ func (r *Runner) pause(c *call) (resume func()) {
 	}
 }
 
+// halted is why tsx stopped the runtime of a plugin whose call failed with err, as a reason of plugins, "" when err does not say it stopped: a runtime tsx stopped at its node quota (Limits.Nodes) or its memory quota (Limits.Memory) fails the call that ran into it, and every call after at once, with that quota's core.Error, whose code the breaker does not count, so without this the plugin would stay on, each call failing. That error names the quota's resource, which an error a plugin throws or rejects with never does: tsx keeps only its code and message (tsx/view.go rejection), so a plugin that reports a quota of its own is not taken for one tsx stopped (tsx/view.go:232-245). Its memory quota is ReasonMemory, any other ReasonFailed; Limits sets no Limits.Memory yet (TODO(nsgo#760) on Runner), so today only the node quota stops a plugin here, and the memory case is for when it does. It reads err alone and calls nothing of the plugin: the plugin can put a getter on any name of its exports object, which tsx reads on the engine's goroutine outside any budget, and the call's watchdog has ended.
+//
+// TODO(nsgo#925): tsx.Plugin says neither whether tsx stopped its runtime nor why, but through a Call's error (tsx/view.go:131-139 Plugin.Call), and looking up a name a Call has not been given runs the plugin's getters unbounded (tsx/view.go:141-143 exports.Get); ask the plugin directly once tsx says it https://github.com/nsgo-dev/nsgo/issues/925
+func halted(err error) string {
+	var coded *core.Error
+	if !errors.As(err, &coded) || coded.Code != core.CodeQuotaExceeded || coded.Resource == "" {
+		return ""
+	}
+	if coded.Resource == "memory" {
+		return plugins.ReasonMemory
+	}
+	return plugins.ReasonFailed
+}
+
 // count counts the outcome of a call of p, err nil for one that succeeded, and reports whether the breaker trips.
 func (p *Plugin) count(err error) bool {
 	var coded *core.Error
@@ -288,12 +308,15 @@ func (r *Runner) watch(c *call, start time.Time) {
 	defer tick.Stop()
 	var posted time.Time
 	waiting, counted, stalls, postedEpoch := false, false, 0, 0
+	// trip interrupts the plugin unless the call ended meanwhile, which cuts the JS running at once rather than between two pieces, its timers dropped and its call failed with ErrStopped, then closes and reports it on the engine's goroutine.
 	trip := func(reason string) {
-		r.Post(func() {
-			if !c.ended {
-				r.stop(c.p, reason)
-			}
-		})
+		select {
+		case <-c.stop:
+			return
+		default:
+		}
+		c.p.p.Interrupt(ErrStopped)
+		r.Post(func() { r.stop(c.p, reason) })
 	}
 	for {
 		select {

@@ -58,11 +58,11 @@ func (p phoneMarks) FilmMarks(ctx context.Context, caller psync.Caller, ref psyn
 		return psync.FilmMarks{Pending: true}, nil
 	}
 	if w := got.wait; w != nil {
-		wait := phoneMarksWait
+		// Through the relay the answer is what the engine had at the ask: marks still being computed then are pending. A timer of 0 raced against w.done would not do, as select picks at random between the two once the run ends before it, so the same ask would answer either way.
 		if caller.Relay {
-			wait = 0
+			return psync.FilmMarks{Pending: true}, nil
 		}
-		t := time.NewTimer(wait)
+		t := time.NewTimer(phoneMarksWait)
 		defer t.Stop()
 		select {
 		case <-w.done:

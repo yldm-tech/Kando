@@ -235,7 +235,7 @@ func exportStatus(cx *core.Scope, export func() Export) core.Node {
 	}}
 }
 
-// exportPicker is the drop-down of the ways the lines can be exported, beside 导出, while an export-template plugin is turned on; nothing otherwise. It is built again only when the ways change.
+// exportPicker is the drop-down of the ways the lines can be exported, beside 导出, while an export-template plugin is turned on; nothing otherwise. Its options are bound, so a way added or gone updates it in place and keeps its focus.
 func exportPicker(cx *core.Scope, a App) core.Node {
 	targets := core.NewMemo(cx, live.Func(a, func() string {
 		var out []string
@@ -244,23 +244,22 @@ func exportPicker(cx *core.Scope, a App) core.Node {
 		}
 		return strings.Join(out, "\x01")
 	}))
-	return core.Show{When: func() bool { return strings.Contains(targets.Get(), "\x01") }, Then: func(cx *core.Scope) core.Node {
-		// TODO(nsgo#848): give ui.Select its options as a binding, so a list that changes does not build the drop-down again and take its focus; it is built again only when the plugins turned on change, which is done elsewhere https://github.com/nsgo-dev/nsgo/issues/848
-		return core.Dynamic(func(cx *core.Scope) core.Node { return exportSelect(cx, a, targets.Get()) })
-	}}
-}
-
-// exportSelect is the drop-down of the ways joined lists, each its id and label.
-func exportSelect(cx *core.Scope, a App, joined string) core.Node {
-	var options []ui.Option[string]
-	for _, item := range strings.Split(joined, "\x01") {
-		id, label, _ := strings.Cut(item, "\x00")
-		options = append(options, ui.Option[string]{Value: id, Label: label})
+	options := func() []ui.Option[string] {
+		var options []ui.Option[string]
+		for _, item := range strings.Split(targets.Get(), "\x01") {
+			id, label, _ := strings.Cut(item, "\x00")
+			options = append(options, ui.Option[string]{Value: id, Label: label})
+		}
+		return options
 	}
-	return ui.Select[string]{Options: options, Label: locales.SavedExportTarget(cx), TestID: "saved-export-target",
-		Value: live.Func(a, a.ExportTarget), OnChange: live.On(a, a.SetExportTarget), Disabled: live.Func(a, func() bool { return a.ExportState().Busy }),
-		Style: core.Style{Width: core.Pt(150)}}
-
+	return core.Show{When: func() bool { return strings.Contains(targets.Get(), "\x01") }, Then: func(cx *core.Scope) core.Node {
+		// TODO(nsgo#145): give ui.Select a LabelFunc twin for its name, so it follows the interface language without building the drop-down again, then drop this Dynamic, which reads only the language https://github.com/nsgo-dev/nsgo/issues/145
+		return core.Dynamic(func(cx *core.Scope) core.Node {
+			return ui.Select[string]{OptionsFunc: options, Label: locales.SavedExportTarget(cx), TestID: "saved-export-target",
+				Value: live.Func(a, a.ExportTarget), OnChange: live.On(a, a.SetExportTarget), Disabled: live.Func(a, func() bool { return a.ExportState().Busy }),
+				Style: core.Style{Width: core.Pt(150)}}
+		})
+	}}
 }
 
 // entryRow is a saved line of the sheet: its film and time over its original, its translation and the learner's note, which a click plays from, the pencil that opens the note's field under the line, and the × that removes it. A line whose video is gone does not play and says so.

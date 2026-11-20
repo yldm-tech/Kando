@@ -90,6 +90,39 @@ func TestThePanelShowsTheExtensions(t *testing.T) {
 	}
 }
 
+// TestThePanelsDropDownKeepsItsFocus checks that the drop-down of the panels is not built again as the panels change: a panel added and one gone update it in place, it keeps the keyboard focus, and its open list offers the panels as they are.
+func TestThePanelsDropDownKeepsItsFocus(t *testing.T) {
+	a := newFakeApp()
+	app := start(t, a)
+	deck := Extension{ID: "plugin:acme.deck:deck", Title: "Deck", Plugin: "Acme Deck", Run: 1}
+	cards := Extension{ID: "plugin:acme.cards:cards", Title: "Cards", Plugin: "Acme Cards", Run: 2}
+	change(app, a, func() { a.extensions = []Extension{deck, cards} })
+	app.Press("id:film-tab-extensions")
+	app.Focus("id:film-extension-pick")
+	pick := app.Find("id:film-extension-pick")
+	if pick == nil || !pick.Focused {
+		t.Fatal("the drop-down did not take the focus")
+	}
+	atlas := Extension{ID: "plugin:acme.atlas:atlas", Title: "Atlas", Plugin: "Acme Atlas", Run: 3}
+	change(app, a, func() { a.extensions = []Extension{deck, cards, atlas} })
+	change(app, a, func() { a.extensions = []Extension{deck, atlas} })
+	got := app.Find("id:film-extension-pick")
+	if got == nil {
+		t.Fatalf("the drop-down went as the panels changed: %q", app.Texts())
+	}
+	if got.ID != pick.ID || !got.Focused {
+		t.Fatalf("after the panels changed the drop-down is view %d, focused %v; it was view %d with the focus", got.ID, got.Focused, pick.ID)
+	}
+	app.Press("id:film-extension-pick")
+	if !app.Exists("role:option Atlas") || !app.Exists("role:option Deck") || app.Exists("role:option Cards") {
+		t.Fatalf("the open list does not offer the panels as they are: %q", app.Texts())
+	}
+	app.Press("role:option Atlas")
+	if a.chosen != atlas.ID {
+		t.Fatalf("chose %q", a.chosen)
+	}
+}
+
 // TestEveryPanelIconIsDrawn checks that each icon a panel may name (plugins.PanelIcons) has one the tab draws, and no other.
 func TestEveryPanelIconIsDrawn(t *testing.T) {
 	for _, name := range plugins.PanelIcons {

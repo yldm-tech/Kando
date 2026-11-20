@@ -29,7 +29,7 @@ type Styles struct{ App StylesApp }
 // Render implements core.Node.
 func (s Styles) Render(cx *core.Scope) core.Node {
 	a := s.App
-	// packs is the packs' ids and names, joined, so the drop-down is built again only when they change; the names are in the language shown.
+	// packs is the packs' ids and names, joined, so the drop-down's options are read again only when they change; the names are in the language shown.
 	packs := core.NewMemo(cx, live.Func(a, func() string {
 		var out []string
 		for _, p := range a.TranslateStyles() {
@@ -42,14 +42,18 @@ func (s Styles) Render(cx *core.Scope) core.Node {
 		return strings.Join(out, "\x01")
 	}))
 	return core.Show{When: func() bool { return packs.Get() != "" }, Then: func(cx *core.Scope) core.Node {
-		// TODO(nsgo#848): give ui.Select its options as a binding, so a list that changes does not build the drop-down again and take its focus; it is built again only when the style packs turned on change, which is done on another page https://github.com/nsgo-dev/nsgo/issues/848
+		// The options are bound, so a style pack turned on or off updates the drop-down in place and keeps its focus.
+		// TODO(nsgo#145): give ui.Select a LabelFunc twin for its name, so it follows the interface language without building the drop-down again, then drop this Dynamic, which reads only the language https://github.com/nsgo-dev/nsgo/issues/145
 		choose := core.Dynamic(func(cx *core.Scope) core.Node {
-			options := []ui.Option[string]{{Value: "", Label: locales.SettingsTranslateStyleNone(cx)}}
-			for _, item := range strings.Split(packs.Get(), "\x01") {
-				id, name, _ := strings.Cut(item, "\x00")
-				options = append(options, ui.Option[string]{Value: id, Label: name})
+			options := func() []ui.Option[string] {
+				options := []ui.Option[string]{{Value: "", Label: locales.SettingsTranslateStyleNone(cx)}}
+				for _, item := range strings.Split(packs.Get(), "\x01") {
+					id, name, _ := strings.Cut(item, "\x00")
+					options = append(options, ui.Option[string]{Value: id, Label: name})
+				}
+				return options
 			}
-			return ui.Select[string]{Options: options, Label: locales.SettingsTranslateStyle(cx), TestID: "settings-translate-style",
+			return ui.Select[string]{OptionsFunc: options, Label: locales.SettingsTranslateStyle(cx), TestID: "settings-translate-style",
 				Value: live.Func(a, a.TranslateStyle), OnChange: live.On(a, a.SetTranslateStyle), Style: core.Style{Width: core.Pt(180)}}
 		})
 		return core.Group{

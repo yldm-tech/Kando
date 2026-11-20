@@ -225,10 +225,11 @@ func TestTheExportGoesThroughTheShareSheet(t *testing.T) {
 	if err != nil || !strings.HasPrefix(string(data), "\ufeffWord,Reading,Meaning,Sentence,Translation,Film") || strings.Contains(string(data), "Fine, thanks.") {
 		t.Fatalf("the table reads %q, %v", data, err)
 	}
-	prefs, err := store.Open(dir).Prefs()
-	if err != nil || prefs.Export.Format != study.VocabCSV || !prefs.Export.NoLines {
-		t.Fatalf("kept %+v, %v; want the CSV without the lines", prefs.Export, err)
-	}
+	// The session saves its prefs off the engine's goroutine (Session.SetPrefs), so wait for the disk to catch up.
+	p.app.WaitUntil(wait, func() bool {
+		prefs, err := store.Open(dir).Prefs()
+		return err == nil && prefs.Export.Format == study.VocabCSV && prefs.Export.NoLines
+	})
 }
 
 // Learn shows how long films played on the phone today against the daily goal, which Settings changes.
@@ -614,6 +615,45 @@ func TestTheTimeWatchedIsEveryDevices(t *testing.T) {
 		}
 		var ms float64
 		return json.Unmarshal(r.Fields[sync.FieldWatchedMS].Value, &ms) == nil && ms >= 5000
+	})
+}
+
+// A film played for the first time before its computer has answered which of its libraries holds it still gives its time to the computer: the phone keeps the time for the library and puts it there once the computer answers.
+func TestTheTimeWatchedBeforeTheLibraryIsKnownReachesTheComputer(t *testing.T) {
+	d := studyDesktop(t)
+	d.SetState("lib", now().Add(-time.Hour), sync.Record{Kind: sync.KindWatched, ID: sync.WatchedID("studio-device", study.Day(now())), Fields: map[string]sync.Field{
+		sync.FieldWatchedMS: {Value: sync.Value(10 * 60_000), Stamp: sync.Stamp{At: now().Add(-time.Hour), Device: "studio-device"}}}})
+	dir, f := keptFrom(t, d)
+	p := startPhone(t, dir, pairedWith(t, d, dir))
+	p.waitLearned(f.Desktop)
+	release := d.Hold()
+	t.Cleanup(release)
+	p.app.WaitFor(talkRow(f.Desktop), wait)
+	p.app.Press(talkRow(f.Desktop))
+	p.app.WaitFor("id:film-play", wait)
+	p.app.Press("id:film-play")
+	p.app.WaitFor("id:player-video", wait)
+	p.app.Play("id:player-video", core.VideoInfo{Duration: 10 * time.Second, Size: core.Size{Width: 1920, Height: 1080}})
+	for at := 500 * time.Millisecond; at <= 6*time.Second; at += 500 * time.Millisecond {
+		p.at(at)
+	}
+	p.app.Back()
+	p.app.WaitFor("id:player-mini", wait)
+	if films, err := store.Open(dir).Films(); err != nil || len(films) != 1 || films[0].LibraryID != "" {
+		t.Fatalf("the film's library is known before the computer answered: %+v, %v", films, err)
+	}
+	release()
+	desktops, err := store.Open(dir).Desktops()
+	if err != nil || len(desktops) != 1 {
+		t.Fatalf("desktops %+v, %v", desktops, err)
+	}
+	p.app.WaitUntil(wait, func() bool {
+		r, ok := d.State("lib", sync.KindWatched, sync.WatchedID(desktops[0].DeviceID, study.Day(now())))
+		if !ok {
+			return false
+		}
+		var ms float64
+		return json.Unmarshal(r.Fields[sync.FieldWatchedMS].Value, &ms) == nil && ms >= 6000
 	})
 }
 

@@ -12,6 +12,7 @@ import (
 	"time"
 
 	"kando/apps/kando/plugins"
+	"kando/apps/kando/plugins/script/signature"
 
 	"github.com/nsgo-dev/nsgo/core"
 	"github.com/nsgo-dev/nsgo/tsx/bundler"
@@ -70,6 +71,9 @@ type fixture struct {
 	said        string
 	// signed are the capabilities the package signs, the manifest's when nil.
 	signed *pkg.Capabilities
+	// signManifest has the package sign its manifest (pkg.Contents.Extra) as signature.SignedManifest makes it, or entry when that is not "".
+	signManifest bool
+	entry        string
 }
 
 // manifestFields is the fixture's manifest fields that kandoManifest repeats, as JSON object members.
@@ -102,12 +106,21 @@ func (s signer) pack(t testing.TB, f fixture) plugins.Pack {
 	if err != nil {
 		t.Fatal(err)
 	}
-	caps := f.signed
-	if caps == nil {
-		m, err := plugins.Parse([]byte(`{"schema": 2, "id": "a.b", "kind": "script", "script": {"package": "p.nsgopkg", "sha256": ""}, ` + f.manifestFields() + `}`))
-		if err != nil {
+	m, err := plugins.Parse([]byte(`{"schema": 2, "id": "a.b", "kind": "script", "script": {"package": "p.nsgopkg", "sha256": ""}, ` + f.manifestFields() + `}`))
+	if err != nil {
+		t.Fatal(err)
+	}
+	var entry []byte
+	switch {
+	case f.entry != "":
+		entry = []byte(f.entry)
+	case f.signManifest:
+		if entry, err = signature.SignedManifest(m); err != nil {
 			t.Fatal(err)
 		}
+	}
+	caps := f.signed
+	if caps == nil {
 		d := m.Declared()
 		caps = &pkg.Capabilities{}
 		for _, p := range d.Perms {
@@ -117,7 +130,7 @@ func (s signer) pack(t testing.TB, f fixture) plugins.Pack {
 			caps.Network = &pkg.Network{HTTP: d.Network}
 		}
 	}
-	data, err := pkg.Build(pkg.Contents{App: pkg.App{ID: AppIDPrefix + f.id, Name: "Fixture", Version: f.version, Build: f.build}, Source: code, Capabilities: *caps}, s.release, s.cert)
+	data, err := pkg.Build(pkg.Contents{App: pkg.App{ID: AppIDPrefix + f.id, Name: "Fixture", Version: f.version, Build: f.build}, Source: code, Capabilities: *caps, Extra: entry}, s.release, s.cert)
 	if err != nil {
 		t.Fatal(err)
 	}

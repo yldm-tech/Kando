@@ -2590,6 +2590,7 @@ github.com/nsgo-dev/nsgo/desktop/locales:
   permissionDeveloperTools: "개발자 도구"
   permissionBluetooth: "Bluetooth"
   permissionMediaLibrary: "미디어 및 Apple Music"
+  checkForUpdates: "업데이트 확인…"
 github.com/nsgo-dev/nsgo/updater/locales:
   updateAvailable: "{app}의 새 버전을 사용할 수 있습니다"
   updateAvailableMessage: "{app} {version}을(를) 사용할 수 있습니다. 현재 버전은 {current}입니다."
