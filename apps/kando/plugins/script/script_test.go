@@ -400,6 +400,31 @@ export function ping() { return 1 }`}), plugins.Grant{})
 	}
 }
 
+// TestScriptRunnerRunsNoJSOnAFailure checks that the runner, as it tells whether tsx stopped a plugin whose call failed, runs none of the plugin's JS: a plugin can put a getter on its own exports object, which reading a name of it runs on the engine's goroutine, outside any call's budget or watchdog, where a throw would take the engine down and a loop would hang it.
+func TestScriptRunnerRunsNoJSOnAFailure(t *testing.T) {
+	s := newSigner(t, AppIDPrefix+"acme.*")
+	roots := s.roots()
+	e := newEngine(t)
+	pl := e.load(t, trustOf(t, roots), roots, s.pack(t, fixture{id: "acme.trap", code: `export async function trap() {
+  for (const k of ["\u0000kando.halted", "trap2"]) Object.defineProperty(globalThis.__nsgo_exports, k, { get() { throw new Error("ran") }, enumerable: k === "trap2" })
+  throw new Error("broken")
+}
+export function ping() { return 1 }`}), plugins.Grant{})
+	stopped := make(chan string, 1)
+	r := &Runner{Post: e.post, Watch: DefaultWatch, Stopped: func(id, hash, reason string) { stopped <- reason }}
+	if got := wait(t, e.call(r, pl, "trap"), time.Second); !contains(got.err, "broken") {
+		t.Fatalf("the call ended with %v", got.err)
+	}
+	if got := wait(t, e.call(r, pl, "ping"), time.Second); got.err != nil {
+		t.Errorf("a call after: %v", got.err)
+	}
+	select {
+	case reason := <-stopped:
+		t.Fatalf("stopped for %s", reason)
+	default:
+	}
+}
+
 // TestScriptPackFolder checks that a developer's folder is compiled and signed with the developer key into a plugin that Stage, Verify and Probe take, as a developer plugin.
 func TestScriptPackFolder(t *testing.T) {
 	secret, public, err := NewDevKey()

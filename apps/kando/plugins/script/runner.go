@@ -4,7 +4,6 @@ import (
 	"errors"
 	"runtime"
 	"runtime/metrics"
-	"slices"
 	"sync"
 	"time"
 
@@ -156,10 +155,7 @@ func (r *Runner) end(c *call, v any, err error) {
 		r.running = nil
 	}
 	ours := errors.Is(err, ErrStopped)
-	var halted string
-	if err != nil && !ours {
-		halted = c.p.halted()
-	}
+	halted := halted(err)
 	tripped := !ours && c.p.count(err)
 	kept := !ours && r.keeps(c)
 	c.done(v, err)
@@ -242,23 +238,15 @@ func (r *Runner) pause(c *call) (resume func()) {
 	}
 }
 
-// haltProbe is the name halted calls, which no plugin exports: a call of it runs no JS, and fails with tsx.ErrNoExport while the runtime runs.
-const haltProbe = "\x00kando.halted"
-
-// halted is why tsx stopped p's runtime, as a reason of plugins, "" while it runs: a runtime tsx stopped, as at its node quota (Limits.Nodes) or its memory quota, fails every call after at once with that quota's core.Error, whose code the breaker does not count, so without this the plugin would stay on, each call failing. Its memory quota is ReasonMemory, any other ReasonFailed. A runtime closed is not halted: the runner closes its plugins itself. Call it on the engine's goroutine.
+// halted is why tsx stopped the runtime of a plugin whose call failed with err, as a reason of plugins, "" when err does not say it stopped: a runtime tsx stopped at its node quota (Limits.Nodes) or its memory quota (Limits.Memory) fails the call that ran into it, and every call after at once, with that quota's core.Error, whose code the breaker does not count, so without this the plugin would stay on, each call failing. That error names the quota's resource, which an error a plugin throws or rejects with never does: tsx keeps only its code and message (tsx/view.go rejection), so a plugin that reports a quota of its own is not taken for one tsx stopped (tsx/view.go:232-245). Its memory quota is ReasonMemory, any other ReasonFailed. It reads err alone and calls nothing of the plugin: the plugin can put a getter on any name of its exports object, which tsx reads on the engine's goroutine outside any budget, and the call's watchdog has ended.
 //
-// TODO(nsgo): tsx.Plugin says neither whether tsx stopped its runtime nor why, but through the next Call's error (tsx/view.go Plugin.Call); ask it directly once tsx says it
-func (p *Plugin) halted() string {
-	if p.closed || slices.Contains(p.p.Exports(), haltProbe) {
-		return ""
-	}
-	var why error
-	p.p.Call(haltProbe, nil, func(_ any, err error) { why = err })
+// TODO(nsgo): tsx.Plugin says neither whether tsx stopped its runtime nor why, but through a Call's error (tsx/view.go:131-139 Plugin.Call), and looking up a name a Call has not been given runs the plugin's getters unbounded (tsx/view.go:141-143 exports.Get); ask the plugin directly once tsx says it
+func halted(err error) string {
 	var coded *core.Error
-	if errors.Is(why, tsx.ErrNoExport) || !errors.As(why, &coded) || coded.Code == "" {
+	if !errors.As(err, &coded) || coded.Code != core.CodeQuotaExceeded || coded.Resource == "" {
 		return ""
 	}
-	if coded.Code == core.CodeQuotaExceeded && coded.Resource == "memory" {
+	if coded.Resource == "memory" {
 		return plugins.ReasonMemory
 	}
 	return plugins.ReasonFailed
