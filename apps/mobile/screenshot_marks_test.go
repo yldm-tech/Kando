@@ -3,6 +3,7 @@ package main
 import (
 	"testing"
 
+	"kando/apps/mobile/theme"
 	"kando/packages/sync"
 
 	"github.com/nsgo-dev/nsgo/core"
@@ -18,18 +19,19 @@ var japaneseMarks = sync.FilmMarks{Lines: []sync.LineMarks{{Line: 0, Hash: sync.
 	{Start: 18, End: 21, Ruby: "い"},
 }}}}
 
-// TestScreenshotsPlayerMarks renders the card of a line of Japanese with the word marks its computer computed (player-marks): readings over its words, a level's line in its tone under two of them and a dashed line under a word of the vocabulary. Without reporting the video's progress, which a target cannot, the card shows the first line.
+// TestScreenshotsPlayerMarks renders the card of a line of Japanese with the word marks its computer computed (player-marks): readings over its words, a level's faint box in its tone under two of them and a word of the vocabulary black on yellow. Without reporting the video's progress, which a target cannot, the card shows the first line.
 func TestScreenshotsPlayerMarks(t *testing.T) {
 	shot := screenshots(t)
 	p, _ := openJapaneseMarked(t, &japaneseMarks)
 	for _, ruby := range []string{"きょう", "がっこう", "い"} {
 		p.app.WaitFor("id:player-card >> id:player-ruby >> text:"+ruby, wait)
 	}
-	if st := p.app.SpanStyle("id:player-card >> text:に"); st.DecorationThickness != 0 {
-		t.Fatalf("に, unmarked, has a mark's line: %+v", st)
+	if sp := p.app.Span("id:player-card >> text:に"); sp.Background.Color != 0 || sp.Style.Decoration != 0 {
+		t.Fatalf("に, unmarked, has a mark: %+v", sp)
 	}
-	if st := p.app.SpanStyle("id:player-card >> text:った"); st.DecorationStyle != core.DecorationDashed || st.DecorationThickness == 0 {
-		t.Fatalf("った, of a word of the vocabulary: %+v", st)
+	// A word of the vocabulary is black on the subtitles' yellow.
+	if sp := p.app.Span("id:player-card >> text:った"); sp.Background.Color != theme.SubtitleYellow || sp.Style.Color != core.RGB(0x000000) {
+		t.Fatalf("った, of a word of the vocabulary: %+v", sp)
 	}
 	shot(p, "player-marks")
 }

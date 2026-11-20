@@ -54,13 +54,13 @@ type markInk struct {
 }
 
 // markBand is the faint box of a run marked in band, in color.
-// TODO(nsgo): a span's Background fills its whole line box (core/element.go:357-358, Span.Style) and takes no gradient, so the design's highlighter band over the lower third of a word (linear-gradient(transparent 62%, yellow .38 62%)) is a faint full box here.
+// TODO(nsgo#966): a span's Background fills its whole line box (core/element.go:357-358, Span.Style) and takes no gradient, so the design's highlighter band over the lower third of a word (linear-gradient(transparent 62%, yellow .38 62%)) is a faint full box here; draw the band once a span can. https://github.com/nsgo-dev/nsgo/issues/966
 func markBand(color core.Color) core.Style {
 	return core.Style{Background: color.Faded(0.25), CornerRadius: 3}
 }
 
 // pickedWord is how a word of the vocabulary, and the word looked up, is marked: black on the subtitles' yellow, as a highlighter would.
-// TODO(nsgo): a span's Background fills its whole line box (core/element.go:357-358, Span.Style) and takes no gradient, so the design's highlighter band over the lower third of a word (linear-gradient(transparent 62%, yellow 62%)) is a full yellow box here.
+// TODO(nsgo#966): a span's Background fills its whole line box (core/element.go:357-358, Span.Style) and takes no gradient, so the design's highlighter band over the lower third of a word (linear-gradient(transparent 62%, yellow 62%)) is a full yellow box here; draw the band once a span can. https://github.com/nsgo-dev/nsgo/issues/966
 var pickedWord = core.Style{Background: theme.SubtitleYellow, Color: theme.PlayerOnLight, CornerRadius: 3}
 
 // rubyScale is the size of a reading over a word, a share of the word's.
