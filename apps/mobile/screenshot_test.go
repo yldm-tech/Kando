@@ -65,7 +65,7 @@ func TestScreenshotsSettings(t *testing.T) {
 	p.app.WaitFor("id:settings-computer", wait)
 	p.app.WaitFor("text:"+msgs.SettingsComputerOnline(), wait)
 	shot(p, "settings")
-	p.app.Scroll("id:settings-scroll", 2000)
+	p.app.Scroll("id:settings-scroll", 5000)
 	shot(p, "settings-bottom")
 	p.app.Scroll("id:settings-scroll", -3000)
 	// Light, then dark, as Settings' Appearance steps from the system's look.

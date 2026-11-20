@@ -125,8 +125,11 @@ func Page(cx *core.Scope, s *session.Session, act Actions) base.NavPage {
 						OnPress: act.Conflicts}),
 				section(cx, func() string { return locales.SettingsAbout(cx) }, about...),
 				core.Show{When: func() bool { return version != "" }, Then: func(cx *core.Scope) core.Node {
-					return core.Text{TestID: "settings-footer", ContentFunc: func() string { return locales.SettingsFooter(cx, locales.AppName(cx), version) },
-						Style: look.Footnote.Merge(core.Style{LineHeight: 17, TextAlign: core.TextAlignCenter, Padding: core.Symmetric(0, 16)}), StyleFunc: ui.Colored(colors.Muted)}
+					// The footer sits clear of the column's end, about 35 points over the tab bar at the end of the scroll, as the design leaves it.
+					return core.View{Style: core.Style{Padding: core.Edges{Right: 16, Bottom: 11, Left: 16}}, Children: []core.Node{
+						core.Text{TestID: "settings-footer", ContentFunc: func() string { return locales.SettingsFooter(cx, locales.AppName(cx), version) },
+							Style: look.Footnote.Merge(core.Style{LineHeight: 17, TextAlign: core.TextAlignCenter}), StyleFunc: ui.Colored(colors.Muted)},
+					}}
 				}},
 			}},
 		}},
