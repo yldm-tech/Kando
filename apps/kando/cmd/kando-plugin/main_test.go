@@ -428,7 +428,7 @@ func TestHostNotesBounds(t *testing.T) {
 	}
 }
 
-// TestRevocations checks --revocations: validate refuses, with the code revoked, a script plugin whose package or release key the list, a file or an https address, revokes, and passes the data packs beside it; index refuses to list it and writes no index. No list, a file that does not exist or an address that answers 404, keeps the packs as they are; a list another root signed and an http address fail the command.
+// TestRevocations checks --revocations: validate refuses, with the code revoked, a script plugin whose package or release key the list, a file or an https address, revokes, and passes the data packs beside it; index refuses to list it and writes no index. No list, an address that answers 404, keeps the packs as they are; a file that does not exist, a list another root signed and an http address fail the command.
 func TestRevocations(t *testing.T) {
 	dir := t.TempDir()
 	terms := zipFolder(t, folder(t, glossary), filepath.Join(dir, "terms.zip"))
@@ -451,9 +451,9 @@ func TestRevocations(t *testing.T) {
 		return code, got.Packs, errOut
 	}
 
-	// A file that does not exist is no list.
-	if code, packs, errOut := validate("--revocations", filepath.Join(dir, "none.json"), terms, hello); code != exitOK || len(packs) != 2 || errOut != "" {
-		t.Fatalf("no list = %d, %+v, %q", code, packs, errOut)
+	// A file that does not exist fails the command before any pack is checked, so a wrong path never turns the check off.
+	if code, packs, errOut := validate("--revocations", filepath.Join(dir, "none.json"), terms, hello); code != exitFailed || len(packs) != 0 || !strings.Contains(errOut, "none.json") {
+		t.Fatalf("missing list = %d, %+v, %q", code, packs, errOut)
 	}
 	code, packs, _ := validate(terms, hello)
 	if code != exitOK {

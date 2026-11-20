@@ -4,7 +4,7 @@
 //	go run ./apps/kando/cmd/kando-plugin preview [--markdown] <pack>...
 //	KANDO_PLUGINS_INDEX_KEY=<secret> go run ./apps/kando/cmd/kando-plugin index <folder> --base <url> [--out <file>] [--revocations <file or https url>] [--json]
 //
-// validate checks each pack, a pack file or a folder, as Kando installs it, a script plugin's signature against Kando's official root (publish.Check, the same code `kando plugin validate` runs); with --revocations, also against that revocation list of the root, as Kando checks it once it fetched the list (script.RevocationsURL), so a pack whose package or release key it revokes fails with the code revoked, and index refuses to list it. A file that does not exist or an address that answers 404 is no list, as Kando takes it; without the flag nothing is fetched. preview writes what each pack is and asks for as Markdown, for a comment on the pull request; index builds and signs the community index (publish.Index, the same code as `kando plugin index`). It builds without cgo and imports no interface package, so it runs on any CI machine without a desktop's libraries.
+// validate checks each pack, a pack file or a folder, as Kando installs it, a script plugin's signature against Kando's official root (publish.Check, the same code `kando plugin validate` runs); with --revocations, also against that revocation list of the root, as Kando checks it once it fetched the list (script.RevocationsURL), so a pack whose package or release key it revokes fails with the code revoked, and index refuses to list it. An address that answers 404 is no list, as Kando takes it, but a file that does not exist fails the command; without the flag nothing is fetched. preview writes what each pack is and asks for as Markdown, for a comment on the pull request; index builds and signs the community index (publish.Index, the same code as `kando plugin index`). It builds without cgo and imports no interface package, so it runs on any CI machine without a desktop's libraries.
 //
 // Exit codes: 0 when every pack passed, 1 when one did not or the command failed, 2 for a usage error.
 package main
@@ -165,7 +165,7 @@ type checked struct {
 	err error
 }
 
-// revocations is the revocation list of --revocations src (publish.Revocations): nil for none given, a file that does not exist or an address that answers 404.
+// revocations is the revocation list of --revocations src (publish.Revocations): nil for none given or an address that answers 404.
 func (t tool) revocations(src string) (*pkg.Revocations, error) {
 	if src == "" {
 		return nil, nil

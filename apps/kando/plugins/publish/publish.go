@@ -62,7 +62,7 @@ func Trust(root string, roots signature.Roots, list *pkg.Revocations) func() (*p
 	}
 }
 
-// Revocations reads the revocation list at src, a file or an https address (signature.FetchRevocations, with client), for checking packs against it (Trust): nil and no error when there is none, a file that does not exist or an address that answers 404, as Kando takes no list published.
+// Revocations reads the revocation list at src, a file or an https address (signature.FetchRevocations, with client), for checking packs against it (Trust): nil and no error when an address answers 404, as Kando takes no list published. A file that does not exist is an error, not no list: the caller named it, so a wrong path never quietly turns the check off.
 func Revocations(src string, client *http.Client) (*pkg.Revocations, error) {
 	if strings.Contains(src, "://") {
 		if err := plugins.CheckHTTPS(src); err != nil {
@@ -71,9 +71,6 @@ func Revocations(src string, client *http.Client) (*pkg.Revocations, error) {
 		return signature.FetchRevocations(client, src)
 	}
 	f, err := os.Open(src)
-	if errors.Is(err, os.ErrNotExist) {
-		return nil, nil
-	}
 	if err != nil {
 		return nil, err
 	}
