@@ -73,7 +73,7 @@ Windows에서는 PowerShell에서 `irm https://github.com/yldm-tech/Kando/releas
 
 ### 업데이트
 
-Kando는 GitHub에 있는 서명된 릴리스로 스스로 업데이트합니다. macOS와 Windows에서는 Kando에 포함된 업데이터(macOS는 Sparkle, Windows는 WinSparkle)가 백그라운드에서 대략 하루에 한 번 확인합니다. 새 버전이 나오면 그 창에서 업데이트 설치, 나중에 알림, 이 버전 건너뛰기 중에서 고를 수 있고, 업데이트 설치는 새 버전을 내려받아 서명을 확인한 뒤 설치하고 Kando를 다시 시작합니다. 이 창에는 아직 릴리스 노트가 표시되지 않습니다([nsgo-dev/nsgo#32](https://github.com/nsgo-dev/nsgo/issues/32)). 릴리스 노트는 해당 릴리스 페이지에 있습니다.
+Kando는 GitHub에 있는 서명된 릴리스로 스스로 업데이트합니다. macOS와 Windows에서는 Kando에 포함된 업데이터(macOS는 Sparkle, Windows는 WinSparkle)가 백그라운드에서 대략 하루에 한 번 확인합니다. 새 버전이 나오면 그 창에 새 버전의 릴리스 노트([CHANGELOG.md](apps/kando/CHANGELOG.md)에 있는 그 버전의 절)가 표시되고, 업데이트 설치, 나중에 알림, 이 버전 건너뛰기 중에서 고를 수 있으며, 업데이트 설치는 새 버전을 내려받아 서명을 확인한 뒤 설치하고 Kando를 다시 시작합니다. macOS에서는 이 창에 앞으로의 업데이트를 자동으로 내려받아 설치하게 하는 Sparkle의 체크박스도 있습니다.
 
 바로 확인하려면 macOS에서는 메뉴 막대의 Kando › 업데이트 확인…을 선택합니다. 메뉴 막대가 없는 Linux와 Windows에서는 명령 팔레트(Ctrl+K)에서 업데이트 확인…을 선택합니다. 설정 › 일반의 버전 옆에도 업데이트 확인… 버튼이 있습니다.
 

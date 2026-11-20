@@ -74,7 +74,7 @@ curl -fsSL https://github.com/yldm-tech/Kando/releases/latest/download/install.s
 
 ### 更新
 
-看懂会从 GitHub 上已签名的版本自动更新。在 macOS 和 Windows 上，看懂内置的更新组件（macOS 上是 Sparkle，Windows 上是 WinSparkle）在后台大约每天检查一次；有新版本时，它的窗口提供“安装更新”“稍后提醒我”和“跳过这个版本”，“安装更新”会下载新版本、校验签名、安装并重新启动看懂。这个窗口暂时不显示更新说明（[nsgo-dev/nsgo#32](https://github.com/nsgo-dev/nsgo/issues/32)），更新说明请看该版本的发布页面。
+看懂会从 GitHub 上已签名的版本自动更新。在 macOS 和 Windows 上，看懂内置的更新组件（macOS 上是 Sparkle，Windows 上是 WinSparkle）在后台大约每天检查一次；有新版本时，它的窗口显示新版本的更新说明（[CHANGELOG.md](apps/kando/CHANGELOG.md) 里该版本的一节），并提供“安装更新”“稍后提醒我”和“跳过这个版本”，“安装更新”会下载新版本、校验签名、安装并重新启动看懂。在 macOS 上，这个窗口还有 Sparkle 的一个复选框，勾选后以后的更新会自动下载并安装。
 
 要立即检查，在 macOS 上选择菜单栏中的“看懂 › 检查更新…”；Linux 和 Windows 没有菜单栏，请在命令面板（Ctrl+K）中选择“检查更新…”。“设置 › 通用”中“版本”旁边也有“检查更新…”按钮。
 
