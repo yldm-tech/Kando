@@ -18,6 +18,13 @@ import (
 )
 
 // studyPlayer opens the talk in the player, kept on the phone as downloaded from d, which is paired and serves it in its library "lib", and plays it to the middle of its first line.
+// closeWordSheet closes the word's sheet as Back does, the sheet having no × of its own.
+func closeWordSheet(p *phone) {
+	p.t.Helper()
+	p.app.Back()
+	p.app.WaitForGone("id:player-word-sheet", wait)
+}
+
 func studyPlayer(t *testing.T, d *synctest.Desktop) (*phone, store.Film) {
 	t.Helper()
 	p, f := openStudy(t, d)
@@ -145,7 +152,7 @@ func TestTheWordCardSaysWhereTheMeaningCameFrom(t *testing.T) {
 	source := func(word string) (string, bool) {
 		p.app.Press(`id:player-card >> text:"` + word + `"`)
 		p.app.WaitFor("id:player-word-meaning", wait)
-		defer p.app.Press("id:player-word-close")
+		defer closeWordSheet(p)
 		if !p.app.Exists("id:player-word-source") {
 			return "", false
 		}
@@ -225,7 +232,8 @@ func TestExplainShowsSectionsAnswersFollowUpsAndSavesToNotes(t *testing.T) {
 	p.app.Press("id:player-explain-line")
 	p.app.WaitFor("id:player-explain-note", wait)
 	got := p.texts("id:player-explain-sections")
-	for _, want := range []string{msgs.PlayerExplainMeaning(), "Asks how someone is.", msgs.PlayerExplainBreakdown(), "how · 怎样"} {
+	// The breakdown's words are rows of their own, the word and what it means, which look the word up.
+	for _, want := range []string{msgs.PlayerExplainMeaning(), "Asks how someone is.", "how\n怎样"} {
 		if !strings.Contains(got, want) {
 			t.Fatalf("the sections read %q, want %q in them", got, want)
 		}
@@ -763,12 +771,14 @@ func TestAWordLookedUpGoesInTheVocabularyFromItsCardAndTheWordsTab(t *testing.T)
 	if !p.app.Exists("id:player-word-vocab >> text:" + msgs.PlayerWordInVocabulary()) {
 		t.Fatalf("once added the word card offers %q", p.texts("id:player-word-vocab"))
 	}
-	p.app.Press("id:player-word-close")
+	// Replay This Line closes the card as it plays the line; Back would first go to the toast that said the word was added.
+	p.app.Press("id:player-word-replay")
+	p.app.WaitForGone("id:player-word-sheet", wait)
 
-	if got := p.texts("id:player-words"); !strings.Contains(got, "morning\n/ˈmɔːnɪŋ/\nn. 早晨\n"+msgs.PlayerWordTimes(1)) {
+	if got := p.texts("id:player-words"); !strings.Contains(got, "morning\n/ˈmɔːnɪŋ/\nn. 早晨\n"+msgs.PlayerWordAppears(1)) {
 		t.Fatalf("the Words tab reads %q", got)
 	}
-	if !p.app.Exists("id:player-tab-words >> text:" + msgs.PlayerTabWordsCount(1)) {
+	if !p.app.Exists("id:player-tab-words >> text:1") {
 		t.Fatal("the Words tab does not count the word")
 	}
 	p.app.Press(`label:"` + msgs.PlayerWordRemoveNamed("morning") + `"`)
@@ -792,7 +802,7 @@ func TestTheComputersWordsOfTheFilmShowInTheWordsTab(t *testing.T) {
 	p, _ := studyPlayer(t, d)
 	p.app.Press("id:player-tab-words")
 	p.app.WaitUntil(wait, func() bool { return p.app.Exists(`label:"` + msgs.PlayerWordRemoveNamed("see") + `"`) })
-	if got := p.texts("id:player-words"); !strings.Contains(got, "see\nv. 看见\n"+msgs.PlayerWordTimes(1)) {
+	if got := p.texts("id:player-words"); !strings.Contains(got, "see\nv. 看见\n"+msgs.PlayerWordAppears(1)) {
 		t.Fatalf("the Words tab reads %q", got)
 	}
 	p.app.Press("id:player-film-word")

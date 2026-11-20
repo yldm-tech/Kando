@@ -80,7 +80,7 @@ func TestThePlayerDrawsTheLinePlayingAsTheModePicks(t *testing.T) {
 func TestThePlayerLoopsALineAndStepsBetweenLines(t *testing.T) {
 	p, _ := openPlayer(t)
 	p.at(3200 * time.Millisecond)
-	p.app.Press("id:player-loop")
+	p.app.Press("id:player-card-loop")
 	before := len(p.seeks())
 	p.at(4000 * time.Millisecond)
 	if len(p.seeks()) != before {
@@ -103,7 +103,7 @@ func TestThePlayerLoopsALineAndStepsBetweenLines(t *testing.T) {
 	if s := p.seeks(); s[len(s)-1] != 3*sec {
 		t.Fatalf("the line before went to %v, want 3s", s)
 	}
-	p.app.Press("id:player-loop")
+	p.app.Press("id:player-card-loop")
 	n := len(p.seeks())
 	p.at(4600 * time.Millisecond)
 	if len(p.seeks()) != n {
