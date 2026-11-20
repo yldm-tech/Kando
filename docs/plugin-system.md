@@ -122,7 +122,7 @@
 - 设置 › 翻译 的第一张卡片顶上多一行「翻译来源」（`settings.Sources`，有插件提供翻译来源、或选中的来源不在了时才出现）：「AI 服务」（默认）或已启用插件的各个翻译来源。选了插件的来源时，任务的 `media.Tools.Engine` 是一个 Go 适配器（`state_plugins_translate.go` 的 `pluginsTranslator`），经 runner 调插件，受插件自己的看门狗、预算和熔断约束，插件等宿主（`credentialFetch`、`llm.chat`）时照旧 `PauseFor`；`EngineName` 是来源的标题（界面语言）。选择存在 settings.json 翻译那一部分的 `translateSource`（`{plugin, translator, title}`）。选中的来源有五种状态（`pluginsSourceState`）：没选；待定（启动时插件目录还没读，或插件已打开、还在验签或载入）；在运行；坏了（插件已打开并提供这个来源，但跑不起来：验签没过、被看懂停用、吊销列表过期而暂停、有凭据而系统没有安全存储，即 `pluginsRunnable` 为假）；不在了（插件被关闭、卸载或不再提供这个来源）。前三种都用插件翻译：用哪个插件在每次翻译开始时才定（`pluginsTranslator.ready`），所以启动时恢复的任务会等插件载入（最多 60 s），不会悄悄改用 AI 服务；等的时候任务被停下就直接返回，不调插件。坏了的来源让翻译按 `not-running` 失败，侧栏状态行说「翻译来源「X」没有在运行」并指向插件页。只有不在了才改用 AI 服务，设置页那一行写「翻译来源「X」已不可用……改用 AI 服务翻译」，消息栏每次运行说一次；插件重新打开后又用回它。状态一变（选了来源、插件载入或关闭），侧栏状态行重新检查，资料库重新提议翻译没翻译的影片（`pluginsTranslateFollow`，在插件块自己的 afterChange 里）。离线模式下问的是选中来源的 `local`，不是 AI 服务：云端来源被拒（状态行和卡片说「翻译来源「X」不在这台电脑上，而离线模式开着」，指向隐私页），本机来源照常；选来源时把 `local` 一起存下，插件目录读到之前用它。来源翻译时，whisper 的语言代码先换成翻译来源用的标签（`plugins.SpokenTag`：`no` → `nb`，`jw` → `jv`）。选了插件来源而 AI 服务没配好时，播放器进度徽章不显示「终校」一行，和任务跳过终校一致。
 - 离线模式拒绝了不在本机的来源时（`media.ErrOffline`），卡片说离线模式开着、指向隐私页，而不是照抄错误文字。
 - 插件的失败带码：插件以 `{code, message}` reject（必须是 async 导出），看懂认得 `quota`、`auth`、`no-credential`、`language`、`rate-limit`、`unavailable`，自己再给 `not-running`、`bad-reply`（`plugins.TranslateError`，文字是「<code>: <插件说的话>」，library.json 存的就是它，读回来照样认得）。失败卡片（`jobfailure.SourceHint`）对这几种码各有一句以来源名开头的话，`auth`、`no-credential`、`not-running` 带「打开设置」到插件页，`language` 到翻译页；其他码和没有码的失败照旧「翻译来源「X」失败：…」。
-- 官方 DeepL 插件 `kando.deepl` 的源码在 `apps/kando/plugins/official/deepl/`（`kando-plugin.json`、`plugin.tsx`、给 `nsgo publish` 读的 `nsgo.yaml`，`kandoManifest()` 直接 import 这份清单），和 P3c 的 AnkiConnect 一样由 `make official-plugins` 签名、`official.Wrap` 打成 `.kandoplugin`。它只签 `kando.net.credentialFetch` 一项权限，不签任何网络规则：DeepL 的密钥和请求都由看懂按清单里的凭据代发。
+- 官方 DeepL 插件 `kando.deepl` 的源码在 `apps/kando/plugins/official/deepl/`（`kando-plugin.json`、`plugin.tsx`、给 `nsgo publish` 读的 `nsgo.yaml`，`kandoManifest()` 直接 import 这份清单），和 P3c 的 AnkiConnect 一样由 `make official-plugins` 签名、`official.Wrap` 打成 `.kandoplugin`，从 kando-plugins 的 `scripts/kando.deepl/` 发布。它只签 `kando.net.credentialFetch` 一项权限，不签任何网络规则：DeepL 的密钥和请求都由看懂按清单里的凭据代发。
 - 底座已做（`refactor/media-stage-error`，见第 15 节）：`media.Tools` 有可选字段 `Engine media.SegmentTranslator` 和 `EngineName`。设了 `Engine`，`Tools.Translate` 就委托过去，`Tools.CheckTranslate` 只查它（它实现 `TranslateChecker` 时问它自己，不再要求 AI 服务的模型和登录）；没设就走 `ChatTranslator`，和以前完全一样。离线模式下，`Engine` 不说自己在本机（`Local() bool`，`ChatTranslator` 也有这个方法）就在发送前返回 `media.ErrOffline`（算 `Engine` 的失败，卡片会说出来源名）。校对、终校和术语建议仍走 `Translator`，`Engine` 只管翻译；设了 `Engine` 而 `Translator` 没配好（没有模型、地址、key 或登录，或离线模式下不在本机，`Tools.chats`，不联网判断）时，`Make` 不做这三步，而不是在它们上面失败。`EngineName` 留空是调用方的错，失败时用 engine 的 Go 类型名（例如 `*plugins.translator`）代替，不会被当成 AI 服务的失败。没有改动任何一处 `media.Tools` 字面量或断言。
 - 改错的候选：`Tools.Candidates(ctx, req)` 在 `Engine` 也有 `Candidates(ctx, media.CandidateRequest) ([]string, error)` 方法时问它（接口 `candidater` 不导出，插件那边的类型实现同名方法即可），结果和 `ChatTranslator.Candidates` 一样过滤（去掉当前译文、空白和重复，最多 `CandidatesMax` 条）；没有这个方法就交给 `ChatTranslator`。改错流程（`state_correct_candidates.go`）调 `Tools.Candidates`：选中的插件来源在运行、并导出了 `candidates` 时问它（这时不需要 AI 服务），否则问 AI 服务；来源的失败用和卡片一样的话说出来，不给「打开 AI 服务设置」。`kando.candidates.offer` 不再需要，由 `candidates` 导出代替。
 - 插件带凭据访问网络必须走 `kando.net.credentialFetch`，key 不进 JS（见第 6 节）。
@@ -135,7 +135,7 @@
 - 面板的视图是同一个包在另一个运行时里再跑一次入口模块：沙箱和插件函数的完全一样（`script.Sandbox`：`Limits`、从零建的 Grant、同一个 Storage 分区），Grant 用插件载入时的那份；Host 是这个视图自己的（`core.Host` 同一时刻只服务一个 app），每次构建（包括「重试」）都新建一个，handler 和插件的一样，`pluginsGuard` 只在它是当前显示的视图时认它，配额和插件共用；视图处在出错状态时没有 Host 是它的，事件不发给它。宿主参数 `host.params` 写着 `panel` 和 `export`，入口模块据此自己 `mount`：`if (host.params.panel === "deck") mount(Deck)`；插件为函数载入或预读时参数是空的，什么都不挂。
 - 面板的视图抛错（载入、渲染、之后处理事件时）、某一段超过 `Limits` 的预算或超了配额，`core.Catch` 在标签里显示「插件「X」的面板出错了」和「重试」，播放器不受影响；每次失败都像一次失败的调用一样计入插件的熔断，没出错就被撤下的视图算一次成功，最近 50 次里 3 次失败就停用插件并记进 health.json。视图开着时有自己的看门狗（`script.PanelWatch`）：引擎连续 3 个 5 s 窗口忙于 60% 以上，或活堆比视图建好时多出 512 MiB，就先把视图撤下 2 s；撤下后引擎闲了（忙不到 30%）或堆回落，才按 `slow`、`memory` 停用插件，否则重建视图，连续 3 次冤枉后不再怀疑它。每次构建写 in-flight 标记（在单独的 goroutine 上写，不在建树时读写磁盘；这个插件正有调用在跑时不写，免得清掉调用的标记）。
 - 正文只在换了面板或插件重新载入时重建（`Extension.Run`），播放、换句、别的状态变化都不重建，面板里的焦点和滚动位置保住。
-- 插件设置页以声明式 schema 为主（见 7.3），`tsx.View` 只作退路。
+- 插件设置页只有声明式 schema（见 7.3），没有 `tsx.View` 的退路：清单里没有设置页视图的字段，`tsx.View` 只用在播放器「扩展」标签的面板上。
 
 **E16 TTS、Transcriber**
 - 不在本设计里承诺。
@@ -688,7 +688,7 @@ export function kandoManifest() { return { /* identical to kando-plugin.json fie
   - `list` 也不连 app：直接 `plugins.Scan` 插件目录，按 state.json 标出开关，并在 stderr 列出不是有效包的目录。（P0.3 已实现）
   - dev root 的生成和开发者包的签名不放在 CLI，也不经过 socket（见 6.4）。原因有两个：CLI 进程没有 NSGo Scope，拿不到 `core.Secrets`；socket 对同用户的任何程序都开放，不能让它替别人签包。
 - 控制 socket 只加只读的 `plugins.list`，经过 `lockRemoteGate`。不加 install、enable、grant。
-- `kando://`、浏览器扩展、MCP 都不能触发安装或授权。
+- 浏览器扩展、MCP 都不能触发安装或授权。`kando://plugin/install?id=<id>`（P5，第 15 节）只能为签名索引里列着的包打开安装确认：它让看懂按新索引下载那个包，之后走和「安装」同一条路径（校验大小和 SHA-256、Stage、Validate、脚本插件验签），没有用户在确认框里点「安装」就不安装，链接本身也不授予任何权限，授权只来自用户在确认框和详情页里的勾选；不在签名索引里的 id 不下载。
 
 ## 6. 权限与安全模型
 
@@ -917,7 +917,7 @@ P1.1 的确认框只有数据包要显示的部分：名称（标题）、说明
   - 清洗和哈希：Bidi 和零宽字符清洗、哈希稳定性。
   - 安装事务：staging 中途失败不留下半个包；同 id 替换遵循 5.1 节的顺序。
   - state.json：遇到未知 format 时视为「全部未启用」。
-  - 未实现的 kind（`script`、`site` 等）被 `Validate` 以 `ErrUnsupportedKind` 拒收，不报未知键。
+  - 九种 kind 现在都已实现（`Kind.implemented`），没有被拒收的。`ErrUnsupportedKind` 的路径留给以后新加的 kind：解析器认得、这个版本还不装的 kind 被 `Validate` 拒收，不报未知键；眼下没有这样的 kind，所以没有对应的测试。
   - Grant 子集比较（P3）：只扩 credential 的 hosts、只改 header 或 format、只加一条 network 规则，都应判为扩大能力；换签名者时授权作废。
 - **对解析器做模糊测试**：`go test -fuzz` 覆盖 `Parse` 和 zip 解包，跑在 CI 里，带 `-fuzztime` 上限。
 - **`dict` 和 `wordlist`**：用小型样例词典验证索引构建、二分查找、原形查询、CC-CEDICT 的拼音，以及 Close 之后 Swap 能成功；词表的注释、未知 tier、大小写、重复词和空词表。
@@ -1014,7 +1014,7 @@ P1.1 的确认框只有数据包要显示的部分：名称（标题）、说明
 
 - 候选译文和机器翻译来源（`media.StageError` 加 `Tools.Engine`）；
 - 播放器侧栏的「扩展」标签和 `tsx.View`（已实现，第 15 节 E15）；
-- 社区索引（数据包限速后即时上架，代码包审核后上架，安装仍然不授予任何能力；客户端和打包工具已做，放在官网上而不是原定的 R2，见第 15 节）；
+- 社区索引（原定数据包限速后即时上架、代码包审核后上架；建成的 `yldm-tech/kando-plugins` 里数据包和脚本插件都要维护者审核、合并后才上架，限速没有做，见 12.3 第 5 条；安装仍然不授予任何能力；客户端、打包工具和发布都已做，放在官网的域名下而不是原定的 R2，见第 15 节）；
 - TTS。
 
 ## 11. 新依赖
@@ -1042,11 +1042,11 @@ P0–P2 不新增任何 module。P3a 起 `github.com/dlclark/regexp2/v2 v2.11.0`
 
 ### 12.1 风险
 
-1. **tsx 和 goja 在看懂里还没跑过**：P3.0 已量过二进制体积（三平台 +19–21 MiB，约 +37%）、Linux 和 macOS 上的引擎阻塞和内存（第 15 节）；Windows 只量了体积，运行时没有跑过。缓解：数据包两期不依赖它；P3 的 CI 在 Windows 上跑插件测试。
-2. **插件跑在引擎 goroutine 上，而且卡死不一定能打断**：await 不计入预算（`sandbox.go:311` 的 `within`），同步片段有 500ms 预算；但 regexp2 的回溯匹配不响应中断，Limits 也没有内存上限，ErrBudget 不停掉插件，用 setTimeout 分片的调用永远不被切断（3.3、6.7 节）。缓解：进程级 `regexp2.DefaultMatchTimeout`、6.6 节的看门狗（全局串行、心跳和堆阈值、在片段之间 Close）、in-flight 记录加下次启动自动停用，签名问责，重计算（分词、注音）留在 Go 原生实现，Load 逐个 tick 进行；上游已有 [nsgo-dev/nsgo#759](https://github.com/nsgo-dev/nsgo/issues/759)（正则不可中断）和 [nsgo-dev/nsgo#760](https://github.com/nsgo-dev/nsgo/issues/760)（没有内存上限）。让插件跑在自己的 goroutine 上（独立的 `core.NewRoot`）P3.0 试过可行，但插件的 Storage 只能留在内存里（第 15 节），所以不作为默认做法。
-3. **签名元数据缺口**：靠比对 `kandoManifest()` 绕行，上游是 [nsgo-dev/nsgo#761](https://github.com/nsgo-dev/nsgo/issues/761)（见 4.3）。
+1. **tsx 和 goja 在 Windows 上只测了功能，没量性能**：P3.0 已量过二进制体积（三平台 +19–21 MiB，约 +37%）、Linux 和 macOS 上的引擎阻塞和内存（第 15 节）。P3c 起 CI 的 Test（Windows）之后有一步「Plugin runtime」，每次不走测试缓存地在 Windows 上跑 `TestPlugin|TestScript`（`./apps/kando/` 和 `./apps/kando/plugins/...`：运行时、预算、看门狗、in-flight 标记、官方插件），并且通过；Windows 上引擎单次阻塞的时间和内存仍没有量过。缓解：数据包两期不依赖它。
+2. **插件跑在引擎 goroutine 上，而且卡死不一定能打断**：await 不计入预算（`sandbox.go:311` 的 `within`），同步片段有 500ms 预算；但 Limits 没有内存上限，ErrBudget 不停掉插件，用 setTimeout 分片的调用永远不被切断（3.3、6.7 节）。回溯正则原来不响应中断，[nsgo-dev/nsgo#759](https://github.com/nsgo-dev/nsgo/issues/759) 已在上游修好，固定的 NSGo 版本里 tsx 把调用的预算（`Limits.Call`）设成正则的匹配超时，看懂不再设进程级的 `regexp2.DefaultMatchTimeout`（`TestScriptRegexpIsBounded`）。缓解：6.6 节的看门狗（全局串行、心跳和堆阈值、在片段之间 Close）、in-flight 记录加下次启动自动停用，签名问责，重计算（分词、注音）留在 Go 原生实现，Load 逐个 tick 进行；上游 [nsgo-dev/nsgo#760](https://github.com/nsgo-dev/nsgo/issues/760)（没有内存上限）仍开着；[nsgo-dev/nsgo#836](https://github.com/nsgo-dev/nsgo/issues/836)（单次调用没有总时长、宿主不能打断插件）已在上游关闭，看懂还没改用，看门狗照旧（`plugins/script/runner.go`、`panel.go` 的 `TODO(nsgo#836)`）。让插件跑在自己的 goroutine 上（独立的 `core.NewRoot`）P3.0 试过可行，但插件的 Storage 只能留在内存里（第 15 节），所以不作为默认做法。
+3. **签名元数据缺口**：靠比对 `kandoManifest()` 绕行（见 4.3）。上游 [nsgo-dev/nsgo#761](https://github.com/nsgo-dev/nsgo/issues/761) 已在 2026-11-19 关闭，看懂还没改用 app 自定义的签名条目，绕行照旧（`plugins/script/sandbox.go` 的 `TODO(nsgo#761)`）。
 4. **`tsx.Sandboxed` 和共享 Host 才是绕开权限的入口**：`tsx.Sandboxed` 在 Capabilities 和 Grant 都为 nil 时拿到宿主的全部权限，连 `file://` 都能读；Load 路径上的 nil Grant 会让包声明的能力绕过用户勾选生效；handler 只要用 `a.cx` 调 NSGo 服务，就带着 app 的权限。缓解：AST 测试全仓禁止 `tsx.Sandboxed`；Grant 由唯一构造函数从零构造，并测试零值字段；每个插件独立的 Host；每个 handler 都查 `Effective`。
-5. **site 包**：已经改成独立的 `pluginSites`，不放宽全局闸门；剩下的风险是 JS 正则的校验漏了嵌套量词时会让页面卡顿，以及用户对「浏览器扩展不覆盖插件站点」的预期要讲清楚。插件正则现在也写进内置浏览器的页面脚本，在网页的 JS（回溯引擎）里跑，所以这条风险是真实的；缓解全靠 P4.0 的规则：不允许重复里套量词或多选、每条最多两个无上限量词、不超过 256 字节，链接最长 2048 字节，最坏是平方级，约几百万步。规则只在 Go 里校验，`ScriptWith` 写进页面前再校验一次。浏览器扩展不认插件站点（扩展的文件由 `go generate` 生成、随版本发布，装不进用户的包），设置页的说明写的是「浏览器扩展不支持插件网站，请在看懂内置的浏览器里使用」。另一个代价：同意的网站一变，内置浏览器的 web view 就重建，后退历史没了（nsgo#840）。
+5. **site 包**：已经改成独立的 `pluginSites`，不放宽全局闸门；剩下的风险是 JS 正则的校验漏了嵌套量词时会让页面卡顿，以及用户对「浏览器扩展不覆盖插件站点」的预期要讲清楚。插件正则现在也写进内置浏览器的页面脚本，在网页的 JS（回溯引擎）里跑，所以这条风险是真实的；缓解全靠 P4.0 的规则：不允许重复里套量词或多选、每条最多两个无上限量词、不超过 256 字节，链接最长 2048 字节，最坏是平方级，约几百万步。规则只在 Go 里校验，`ScriptWith` 写进页面前再校验一次。浏览器扩展不认插件站点（扩展的文件由 `go generate` 生成、随版本发布，装不进用户的包），设置页的说明写的是「浏览器扩展不支持插件网站，请在看懂内置的浏览器里使用」。另一个代价：同意的网站一变，内置浏览器的 web view 就重建，后退历史没了（nsgo#840；上游已在 2026-11-19 关闭，看懂还没改用，`browse/browse.go` 的 `TODO(nsgo#840)` 还在）。
 6. **clean 丢数据**：`savedLLM.clean` 和 `savedPlugins.clean` 一旦写错，插件暂时缺席时就会丢用户的 key 或选择。P0.1、P0.2 和 P1 都有测试锁住。
 7. **token 费用**：task 和 `llm.chat` 花的是用户的钱，默认预算必须保守，用量必须可见；服务商不返回 usage 时只能估算。
 8. **离线用户收不到吊销列表**：长期离线时，已被吊销的纯本地插件可能继续运行，这是有意的折中。本机程序还可以通过删改 trust.json 清掉吊销和防回滚（6.7 节）。
@@ -1062,20 +1062,20 @@ P0–P2 不新增任何 module。P3a 起 `github.com/dlclark/regexp2/v2 v2.11.0`
 
 1. **本轮只做 P0（0.1、0.2、0.3）和 P1 的 1.1–1.4**：1.1 是设置 › 插件页、安装和 glossary、ai-service 两种 kind；1.2 是 `segment.Annotated`；1.3 是 dictionary；1.4 是 wordlist 和逐词标注。理由：这几项不执行第三方代码，对学习者价值最高，能单独发布，也不依赖还没决定的根密钥保管。P2、P3、P4、P5 推迟。（之后 P2 的 2.0–2.5 在 `feat/plugins-tasks` 做了，见第 15 节。）
 2. **P1.5（随 app 分发官方词典包）跳过，词典包由用户自己安装**。理由：JMdict、CC-CEDICT 是 CC-BY-SA，随包分发要先过法务；官方包还会让安装包明显变大。设置 › 插件页和查词卡的提示引导用户「从文件安装…」。
-3. **本轮实现的 kind 只有 glossary、ai-service、dictionary、wordlist**。其余 kind 解析器认得，`Validate` 用 `ErrUnsupportedKind` 拒收，到各自那一期再放开（第 3.1、4 节）。理由：不给还没做的阶段留死代码；旧版本遇到新 kind 时也有明确、可本地化的报错。（P2 之后又放开了 task、translate-style、export-template，现在只有 script 仍被拒收。）
+3. **本轮实现的 kind 只有 glossary、ai-service、dictionary、wordlist**。其余 kind 解析器认得，`Validate` 用 `ErrUnsupportedKind` 拒收，到各自那一期再放开（第 3.1、4 节）。理由：不给还没做的阶段留死代码；旧版本遇到新 kind 时也有明确、可本地化的报错。（P2 之后又放开了 task、translate-style、export-template，P3a 放开了 script，P4 放开了 site，现在九种 kind 都能安装，没有被拒收的；`ErrUnsupportedKind` 留给以后新加的 kind，见第 9 节。）
 4. **P3 才有的东西本轮一律不写**：不导入 `nsgo/tsx`，不定义 `Grant`、`Perm`、`Credential`，不做 health.json、in-flight 标记和 audit.log。`state.json` 的每一项只有 `{id, hash, enabled}`，`Grant`、`Signer`、`OldHash`、`Budget` 到 P3 再加（5.1 节）。理由：同上，避免没有调用方的代码；`State.Format` 保留，P3 升格式时旧文件按 6.2 节的规则处理。
 5. **P1.2 的选择按测量结果定**：在 Ubuntu 编译机上（`ubuild`）量完整 features 的 `ipa.Dict()` 相对 `DictShrink()` 的常驻内存增量（RSS）和首次加载时间。增量不超过 200 MiB、加载不超过 3 s，就在桌面上、只在启用了日语的词典包或词表包时按需加载完整词典；否则用 E1 的退路：Annotated 不出 Base 和 Reading，读音只取自词典包。理由：原形和读音对查词命中率帮助很大，但不能让所有用户为它付内存；手机的分词始终不变。测量数字和最终选择写在第 15 节。
 6. **看懂自己的 LLM key 留在 settings.json 原处**，本轮不迁进 `core.Secrets`。理由：与插件系统无关，本轮的数据包也碰不到它；以后是否迁移见 12.3。
 7. **不新增任何 Go module**。确实需要时停下来报告，不自行加入 go.mod。（P3a 起由 owner 放开 regexp2 和 pprof 两项，见第 11 节。）
-8. **NSGo 的问题已提交上游**：[nsgo-dev/nsgo#759](https://github.com/nsgo-dev/nsgo/issues/759)（tsx 的回溯正则不响应 Interrupt，已复现：200ms 发 Interrupt，10s 后仍在跑）、[nsgo-dev/nsgo#760](https://github.com/nsgo-dev/nsgo/issues/760)（`tsx.Limits` 没有内存上限）、[nsgo-dev/nsgo#761](https://github.com/nsgo-dev/nsgo/issues/761)（`pkg.Contents` 不支持 app 自定义的签名条目）。三者都只影响 P3，本轮不需要绕行。
+8. **NSGo 的问题已提交上游**：[nsgo-dev/nsgo#759](https://github.com/nsgo-dev/nsgo/issues/759)（tsx 的回溯正则不响应 Interrupt，已复现：200ms 发 Interrupt，10s 后仍在跑）、[nsgo-dev/nsgo#760](https://github.com/nsgo-dev/nsgo/issues/760)（`tsx.Limits` 没有内存上限）、[nsgo-dev/nsgo#761](https://github.com/nsgo-dev/nsgo/issues/761)（`pkg.Contents` 不支持 app 自定义的签名条目）。三者都只影响 P3，本轮不需要绕行。之后：#759、#761 都已在上游关闭，#759 的修复看懂已经在用，#761 看懂还在用比对 `kandoManifest()` 的绕行；#760 仍开着（12.1 第 2、3 条）。
 
 ### 12.3 仍待 owner 决定
 
-1. **（P3a 已定一部分）** 官方根公钥已定，写在 `script.OfficialRoot`；第三方脚本插件暂时只走开发者模式，不发「已验证」证书。仍待决定的：**插件根密钥由谁保管，是否开放第三方证书**：离线介质、备份份数、轮换策略；是否开放第三方「已验证」证书，审核门槛（含 network 规则必须最窄）是什么。这是 P3 的前置条件；决定之前，P3 只跑官方插件和开发者模式插件。
-2. **开发者模式的细节**：是否允许用户本机 dev root 侧载（默认建议允许，开着时一直显示徽标）；dev 包能否覆盖、何时过期；是否做 trust.json 的回退检测（6.4 节的可选加固）。
+1. **（已定大部分）** 官方根公钥已定，写在 `script.OfficialRoot`（P3a）。是否开放第三方证书按建成的 `yldm-tech/kando-plugins` 定了：发布者开「New publisher」issue 并勾选脚本插件，owner 审一次代码后用离线的插件根给对方的发布密钥签证书，只覆盖 `ai.yldm.kando.plugin.<发布者>.*`，最长 365 天，到期再开 issue 续；`publishers.json` 给这样的发布者记 `"scripts": true`，CI 拒收别的发布者的脚本插件；看懂把它们显示为「已验证」；每个版本的源码（`scripts/<id>/src/`）在 PR 里审核，审核要点含 network 规则必须最窄。目前只有 `kando` 一个发布者能发脚本插件。仍待决定的只有**插件根密钥的保管**：离线介质、备份份数、轮换策略。
+2. **（已定一部分）开发者模式的细节**：本机侧载按建议做了（P3a，第 15 节）：设置 › 插件 › 开发者 打开开发者模式后用本机的开发者密钥打包安装，开发者插件带「开发者」徽标，只在这台电脑上运行，不能用 `kando.` 发布者，也不能替换已安装的非开发者插件。仍待决定的：dev 包何时过期；是否做 trust.json 的回退检测（6.4 节的可选加固）。
 3. **（已定，P3a 按此实现）P3.0 spike 的放行门槛**：owner 接受约 +20 MiB 的体积和 regexp2、pprof 两个依赖；默认 token 预算随 `llm.chat` 到 P3b 再定。原文：测量已做完（第 15 节），建议是有条件放行，要 owner 拍板的是：能否接受安装包里的可执行文件大 19–21 MiB（约 +37%，削不掉，原因见第 15 节）；能否接受最坏卡一个 500ms 片段、多占约 0.5 GB，再由看门狗停掉插件；P3 要在 `apps/kando/go.mod` 加 `github.com/dlclark/regexp2/v2`（变成直接依赖，用来设 `DefaultMatchTimeout`）和 `github.com/google/pprof`（indirect），这与 12.2 第 7 条「不新增任何 Go module」字面上冲突，版本都是 NSGo 已经选定的；默认每日 token 预算（建议每个插件 50k）。
 4. ~~**是否做站点包（P4）**~~：owner 决定做，P4.0、P4.1 已完成（第 15 节）。
-5. **社区索引**（P5）：客户端、签名格式和 `kando plugin index` 已做（第 15 节）；索引有自己的密钥（`script.IndexKey`，私钥由 owner 保管）。owner 已定托管方式：社区插件放在公开仓库 `yldm-tech/kando-plugins`，它的 CI 检查 PR、合并后签名并发布（第 15 节「发布社区索引」），官网的 `/plugin` 页列出目录。仍待决定的是限速的具体做法、代码包审核由谁负责。
+5. **（已定大部分）社区索引**（P5）：客户端、签名格式和 `kando plugin index` 已做（第 15 节）；索引有自己的密钥（`script.IndexKey`，私钥由 owner 保管）。owner 已定托管方式：社区插件放在公开仓库 `yldm-tech/kando-plugins`，官网的 `/plugin` 页列出目录。建成的流程（第 15 节「发布社区索引」）：作者开 PR，Validate 检查（布局、发布者归属、许可证、大小、版本号变大，再用看懂自己的校验器检查打好的包），bot 把预览贴成 PR 里的一条评论；维护者（`publishers.json` 的 `maintainers`，即 CODEOWNERS 里的 houko 和 Session500）审核后合并：main 的规则集要求每次改动走 PR、「Validate packs」通过、至少一位审核通过，`packs/` 和 `scripts/` 之外的改动还必须经 code owner 审核；合并到 main 后 Publish 签名并发布。所以代码包审核由这两位维护者负责，数据包也一样要审核后才上架，和 10 节 P5 原定的「数据包限速后即时上架」不同。仍待 owner 决定的只有**限速**：要不要让数据包过了 CI 就自动合并、按发布者限速（那样要把限速写进 `validate.yml`），还是一直都人工审核。
 6. **是否把看懂自己的 LLM key 迁进 `core.Secrets`**：与插件无关的加固，作为独立 PR，Linux 上需要保留明文退路。
 7. **外部原生工具或 MCP 子进程插件**：本设计否决了。如果以后识别（faster-whisper）、下载器确有需求，需要单独立项，前提是先给 `media.Command` 补上进程组或 Job Object、WaitDelay 和整棵进程树的 kill。顺带一提，这三项的缺失本身就是一个与插件无关的现有风险：任务取消时，yt-dlp 启动的 ffmpeg 孙进程不会被一起杀掉，`runFollowing` 可能卡在 `cmd.Wait`。这一点是读代码推断的，没有复现，建议单独开 issue。
 
@@ -1311,7 +1311,7 @@ P1.2 的测量结果（Ubuntu 编译机，x86_64，Go 1.27.4，kagome-dict/ipa v
   - CI 工具 `apps/kando/cmd/kando-plugin`：`validate [--json] <包…>`、`preview [--markdown] <包…>`、`index <文件夹> --base <url> [--out <文件>] [--json]`。模块路径是 `kando/apps/kando`，别的仓库不能 `go install`，所以 kando-plugins 的 CI 检出本仓库后在根目录 `go run ./apps/kando/cmd/kando-plugin …`（`go.work` 在根目录）。退出码：0 全部通过，1 有包没通过或命令失败（validate 和 preview 先检查完所有包再失败），2 用法错误。`validate --json` 输出 `{"ok", "packs": [{"path", "ok", "id", "kind", "version", "name", "hash", "source", "signer", "size", "sha256", "code", "error"}]}`，`code` 是稳定的错误类别（`reserved-id`、`untrusted`、`tampered`、`bad-manifest`、`not-found` 等，见 `errorCodes`），给 bot 判断用。`preview` 给 PR 评论写 Markdown：每个包的 id、kind、各语言的名称和说明、版本、大小和 SHA-256、许可证、作者、主页、语言、需要的看懂版本、签名来源、校验结果、添加的功能；脚本插件另列权限（必需和可选）、网络规则（`plugins.RulesText`）、凭据和发往的主机，并用一段 `[!WARNING]` 提醒它运行代码，`plugins.Risky` 成立时再说明它读别人写的文字又能往外发。包里的所有文字和路径都写在代码片段里（反引号数量按内容里最长的一串加一，表格里转义竖线，去掉控制字符，每段最多 300 字），所以名称和说明里的 @提及、#引用、链接、图片和 HTML 都不起作用。`index` 和 `kando plugin index` 一样：私钥只从 `KANDO_PLUGINS_INDEX_KEY` 读，不是 `signature.IndexKey`（即 `script.IndexKey`）的键直接拒绝。validate 和 preview 用一个临时的 trust，只信任官方根，不读吊销列表；index 也不读（和上一条一样）。
   - 同一份代码：检查和建索引搬进了非界面包 `plugins/publish`（`Check`：文件先复制一份、边复制边算 SHA-256，再对副本 `plugins.Stage`，脚本插件 `signature.Verify`；`IndexKey`；`Index`、`IndexFiles`），`kando plugin validate`、`kando plugin index` 和 CI 工具都调它，不会各写一套。`kando plugin validate` 因此也先复制再检查，行为不变；trust 只在遇到脚本插件时才打开（`publish.Trust`），只检查数据包时不读插件文件夹的 trust。工具的参数里第一个 `--` 之后全部当作路径。
   - 不依赖 cgo 和界面：`plugins/script` 经 `tsx` 引入了 NSGo 的 `base`、`desktop`、`mobile` 和 `tsx/bundler`。验签只要 `tsx/pkg`，所以把它（`OfficialRoot`、`IndexKey`、`AppIDPrefix`、`Roots`、`DefaultRoots`、`TrustDir`、`OpenTrust`、`Verified`、`Verify`、`Publisher` 和五个错误）原样搬进了 `plugins/script/signature`，`script` 以同名常量、类型别名、变量和转发函数重新导出，app 和测试的调用处一行没改；`cli` 和 `publish` 直接用 `signature`。`CGO_ENABLED=0 go build ./apps/kando/cmd/kando-plugin` 能编，`go list -deps` 里没有 cgo 包，也没有 `tsx`、`base`、`ui`、`desktop`、`mobile` 和任何 platform 包；还剩 `nsgo/core`（纯 Go），是 `plugins.Text.In` 用的 `nsgo/i18n` 带进来的：`i18n` 的 `Language`、`Regional` 等函数收 `*core.Scope`（`i18n/i18n.go:13`、`i18n/format.go:10` 导入 `core`），只用 `i18n.Parent` 的包也得编进整个 core。没有绕开，在报告里交给主会话决定是否提 NSGo issue。
-  - 链接 `kando://plugin/install?id=<id>`（`index.InstallLink`、`ReadInstallLink`，id 只按 `plugins.CheckID` 的语法查）：打开 设置 › 插件，「插件目录」展开并搜索这个 id。不管缓存是否到期，都先问一次新索引（一分钟内刚问过的除外，`pluginsIndexLinkFresh`），因为缓存里可能是旧版本，它的文件目录已经不再提供，也可能还没有这个包；拿到这份新索引、包目录读完、没有别的下载时（`pluginsIndexWanted`，在 `pluginsIndexFollow` 里跑），列着的包能装或能更新就按新索引的版本和文件开始下载，之后走和「安装」同一条路径（下载校验大小和 SHA-256、Stage、Validate、脚本插件验签、安装确认）；已装或需要更新版本看懂的只显示那一行。离线、或者那次询问失败时，链接一直等着，状态行说明原因（离线或失败），不说「没有」；按「刷新」或重新联网后再问，问到了再处理。新索引里没有这个 id 时在状态行下面用红字写「插件目录里没有 {id}」；id 不合语法写「这个链接没有指明插件」。这两句收起目录、点「查看更新」或下一个链接时消失。任何网页都能打开这种链接，所以它只指明一个包：不在签名索引里的东西不下载，没有确认就不安装。
+  - 链接 `kando://plugin/install?id=<id>`（`index.InstallLink`、`ReadInstallLink`，id 只按 `plugins.CheckID` 的语法查）：打开 设置 › 插件，「插件目录」展开并搜索这个 id。不管缓存是否到期，都先问一次新索引（一分钟内刚问过的除外，`pluginsIndexLinkFresh`），因为缓存里可能是旧版本，它的文件目录已经不再提供，也可能还没有这个包；拿到这份新索引、包目录读完、没有别的下载时（`pluginsIndexWanted`，在 `pluginsIndexFollow` 里跑），列着的包能装或能更新就按新索引的版本和文件开始下载，之后走和「安装」同一条路径（下载校验大小和 SHA-256、Stage、Validate、脚本插件验签、安装确认）；已装或需要更新版本看懂的只显示那一行。离线、或者那次询问失败时，链接一直等着，状态行说明原因（离线或失败），不说「没有」；按「刷新」或重新联网后再问，问到了再处理。新索引里没有这个 id 时在状态行下面用红字写「插件目录里没有 {id}」；id 不合语法写「这个链接没有指明插件」。这两句收起目录、点「查看更新」或下一个链接时消失。任何网页都能打开这种链接，所以它只指明一个包：不在签名索引里的东西不下载，没有确认就不安装。5.4 原说 `kando://` 不能触发安装，已按这条改写：链接最多打开签名索引里那个包的安装确认，自己不安装也不授权；浏览器扩展和 MCP 仍然不能触发安装或授权。
   - 链接的分发：NSGo 把在任何 handler 注册之前到达的链接（例如启动看懂的那个链接）只交给第一个注册的 handler（`core.Scope.OnOpenLinks`，`core/window.go:818`），各块各自注册的话冷启动时的链接会丢给别的块。所以 `areaHooks` 加了 `openLinks`，`areasReady` 只注册一个 handler（`areasOpenLinks`）分给每块；书签小工具的 `kando://add` 从 `browserExtHooks` 的 ready 挪到了这个钩子。Windows 和 Linux 还没有注册 URL scheme（nsgo#262），链接目前只在 macOS 上能打开，所以官网只在 macOS 的浏览器上显示「在看懂中打开」，别的系统上改成写出在看懂里的路径（设置 › 插件 › 浏览插件）和可以复制的 id（`installAction`，留了 `TODO(nsgo#262)`）。
   - 更新提示：启动时（插件块的 ready）在后台读一次插件文件夹里缓存的索引（`pluginsIndexPeek`，只读盘、不联网，读不出来就不管，留给「浏览插件」去说），不算「浏览插件」的那次读取，所以打开目录时仍按每日规则决定要不要问。之后每次读到或问到新索引都重算：已装的包在索引里有更新、而且能在这个版本上运行的（`pluginsIndexUpdatable`），数量显示在设置侧栏「插件」旁边（强调色的小圆角数字，读屏读「N 个更新」），插件页顶部显示「有可用更新（N）」和「查看更新」；点了打开目录，只列有更新的包（搜索和种类过滤清空），上面写「只显示有更新的插件」和「显示全部」。目录正以更新过滤打开时顶部那行不显示。除了原有的「打开目录时、每天最多一次」之外没有任何后台请求，离线照旧。共享文件只动了 `events.go`（`openLinks` 字段和分发）、`state_browserext.go`（挪钩子）、`state_plugins.go`（ready 多读一次缓存、`openLinks`）、`settings/window.go`（`App.PluginIndexUpdates` 和侧栏的数字）、`settings/plugins.go`（顶部那行）。
   - 官网 `/plugin`（`apps/site`，五种语言各一页，预渲染的是加载中的外壳）：水合之后从同源的 `/plugin/index.json` 取索引，在浏览器里不验签（看懂安装前自己验，代码注释里写明），只把各字段当不可信的文字显示：逐字段查类型、形状和长度，不合规则的条目和重复的 id 跳过，主页只认 https，从不用 `dangerouslySetInnerHTML`。有搜索、种类过滤、计数，每张卡片有名称、种类、说明、发布者、版本、大小、许可证、语言、脚本插件的签名来源、主页和「在看懂中打开」（`kando://plugin/install?id=`，只在 macOS 上，见上）；加载中、出错（可重试）、离线（联网后自动重试）、空列表各有状态；「如何贡献」一节链接 `yldm-tech/kando-plugins` 和它的 `CONTRIBUTING.md`。页脚加了链接，sitemap、hreflang、结构化数据和 `llms.txt` 都包含这一页。
@@ -1319,7 +1319,7 @@ P1.2 的测量结果（Ubuntu 编译机，x86_64，Go 1.27.4，kagome-dict/ipa v
 
 **发布社区索引**（社区插件仓库 `yldm-tech/kando-plugins`）：
 
-1. 作者在 kando-plugins 开 PR，加入或更新包文件（数据包的 zip，或官方根认证过的脚本插件）。
+1. 作者在 kando-plugins 开 PR：数据包是 `packs/<kind>/<id>/` 文件夹（Publish 打成包文件），脚本插件是 `scripts/<id>/` 里签好的 `<id>-<version>.kandoplugin`（每个文件夹只放要列出的那一个版本）和签它用的源码 `src/`，发布者要先由官方根认证（12.3 第 1 条）；官方插件也这样提交，见 P3c 的「签名和发布官方插件」。
 2. 那边的 CI 检出本仓库，在本仓库根目录跑：
 
 ```sh
@@ -1329,7 +1329,7 @@ go run ./apps/kando/cmd/kando-plugin validate --json <pack files…>
 go run ./apps/kando/cmd/kando-plugin preview --markdown <pack files…>
 ```
 
-3. 维护者看过评论（脚本插件要审核，含 network 规则是否最窄）后合并。
+3. bot 把 Validate 的结果和预览贴成 PR 里的一条评论，每次推送都更新；维护者（houko、Session500）看过评论审核后合并，脚本插件还要审源码，含 network 规则是否最窄。main 的规则集要求「Validate packs」通过、至少一位审核通过，`packs/` 和 `scripts/` 之外的改动必须经 code owner 审核（12.3 第 5 条）。
 4. 合并到 main 后，CI 在受保护的 environment 里拿到 `KANDO_PLUGINS_INDEX_KEY`，签名并部署：
 
 ```sh
@@ -1343,7 +1343,7 @@ KANDO_PLUGINS_INDEX_KEY=<index secret> go run ./apps/kando/cmd/kando-plugin inde
 - 私钥只从环境变量 `KANDO_PLUGINS_INDEX_KEY` 读（`go tool nsgo keygen` 打印的 secret），不接受 flag 或文件参数，和 nsgo 的 `NSGO_ROOT_KEY`、`NSGO_RELEASE_KEY` 一样；只给 main 上的部署 job，PR 的 CI 拿不到。
 - 文件夹里任何一个包没通过检查、有别的文件、或者同一个 id 出现在两个文件里，命令就失败并指出是哪个文件，不写索引，免得发布者以为列上了的包被悄悄漏掉。脚本插件必须由官方根签的证书覆盖（来源是 official 或 verified），开发者密钥签的插件拒收。
 - 每个包的 URL 是 `--base` 加上文件名（按 URL 转义），所以文件名必须保持不变。已经发布的包文件不要原地替换：新版本用新文件名（例如带上版本号），因为还缓存着旧索引的看懂会按旧的 SHA-256 校验它；旧版本的文件留到不再有人缓存旧索引为止。Cloudflare 上 `plugin/index.json` 的缓存时间设短一些（例如 5 分钟），包文件可以长期缓存。
-- 上架规则按 10 节 P5：数据包过了限速就能上架，脚本插件要先审核，上架之后安装仍然不授予任何能力。从索引里撤下一个包只是不再列出，已经装了的不受影响；真正要停掉一个脚本插件要靠吊销列表（6.4）。
+- 上架规则和 10 节 P5 原定的不同：数据包和脚本插件都要维护者审核、合并后才上架，没有限速（要不要改成数据包限速后自动上架仍待 owner 决定，12.3 第 5 条）；上架之后安装仍然不授予任何能力。从索引里撤下一个包只是不再列出，已经装了的不受影响；真正要停掉一个脚本插件要靠吊销列表（6.4）。
 - 每次重新生成的索引 `generated` 都更新，看懂拒收比缓存旧的索引，所以不要重新部署旧的 `index.json`（例如回滚 kando-plugins 的提交时，要重新签一份）。
 - 退路（CI 或 Worker 不可用时，owner 在自己的机器上）：用同一个命令在本机签（`kando plugin index ./packs --base https://kando.yldm.ai/plugin/packs/ --out index.json`，或上面的 `go run`），把 `index.json` 和包文件手工发布到 kando-plugins 的 GitHub Pages（例如推到它的 Pages 分支）。私钥仍只经环境变量，用完不留在 shell 历史里。
 
@@ -1357,10 +1357,10 @@ KANDO_PLUGINS_INDEX_KEY=<index secret> go run ./apps/kando/cmd/kando-plugin inde
   - 清单和代码一致：`plugin.tsx` 直接 `import manifest from "./kando-plugin.json"`，`kandoManifest()` 返回其中签名覆盖的那几个键，清单被编译进签名的 bundle，两者不会走样（4.3）。`nsgo.yaml` 的 id、版本和能力由测试 `TestPluginAnkiConnectPublishes` 对着清单检查，能力必须恰好是清单的 `capabilities` 加 `optional`。
   - 测试（`TestPluginAnkiConnect*`，CI 的三个系统和 Race 都跑）：用测试现场生成的密钥按开发者打包的方式签这个文件夹（`script.PackFolder` 给发布者 `kando` 签证书，测试把这把钥当官方根），再用 `official.Wrap` 打成 `.kandoplugin`、`plugins.Stage` 安装、`script.Verify` 验出来源是「官方」、`script.Probe` 比对清单，最后在看懂的沙箱（`script.Load`、`script.Runner`）里调 `exportNotes`。插件的 `fetch` 经 `tsx.WithFetcher` 换成测试的网络：网络规则的检查照常在发出前做，过了检查的请求交给一个 httptest 服务器上的假 AnkiConnect（不管请求写的是哪个主机和端口），所以不占 8765 端口，也不用改签名的规则；P3b 的 `credentialFetch` 测试也是这样换掉拨号的。覆盖：建笔记类型和牌组、句子带声音、生词、HTML 转义、标签（留空时用 `kando`）、本次导出内的重复和空文字、再导出全部跳过且不再读声音、Basic 的字段映射和缺少 Basic 时报错、每批最多 100 条、整批失败后逐条添加、Anki 没开和五种 AnkiConnect 的拒绝各自的 code、没授权联网时一个请求都不发、没授权声音时不读声音且计入 `soundless`、200 句全部带上声音（插件一侧）、Anki 每个请求要 12 s 时在 runner 的期限之内以 `anki-timeout` 结束且插件没被停用（约 45 s，`-short` 时跳过）、关掉声音设置；runner 用的是看懂的 `DefaultWatch`（只放宽心跳），测试结束时断言 runner 没有停用过插件；每个用例都断言所有请求都是 `POST http://127.0.0.1:8765/`。`plugins/official` 的测试覆盖 `Wrap` 和吊销列表的检查，app 层 `TestPluginContribExporter` 加了带 code 失败时面板显示原因、转抛看懂的 `quota` 时不显示、`soundless` 的那句话，`TestPluginExportReasonIsThePluginsOwn` 逐个检查哪些 code 显示原因；`TestPluginExportReadsEverySound` 在真宿主上导出 200 句、每句都读到声音（没有这项改动时只有 60 句），调用结束后额度不再存在，之后插件自己的读声音第 61 次仍被以 `quota` 拒绝。
   - Windows：CI 的 Test（Windows）一行本来就跑全部模块，插件测试也在里面，但结果可能来自测试缓存；新增的「Plugin runtime」一步在 Windows 上用 `-count=1` 再跑一遍 `TestPlugin|TestScript`（`./apps/kando/` 和 `./apps/kando/plugins/...`），保证每次都是在 Windows 上真的跑过。
-  - 官方插件的签名和打包：`.github/scripts/official-plugins.sh`（`make official-plugins`）在 owner 自己的机器上运行，不进 CI。它对 `apps/kando/plugins/official/` 下每个带 `nsgo.yaml` 的文件夹（或参数给的文件夹）跑 `go tool nsgo publish`，用 `NSGO_RELEASE_KEY` 里的官方发布密钥和 `KANDO_OFFICIAL_CERT` 指向的证书（`kando-official.cert`，放在仓库外，放在仓库里会直接拒绝），再用 `cmd/official wrap` 检查包链到官方根、是清单说的那个插件，写成 `apps/site/public/plugin/packs/<id>-<version>.kandoplugin`（`KANDO_PLUGIN_PACKS` 可改）。已有同名文件时拒绝覆盖：缓存了旧索引的看懂按 SHA-256 校验文件，新版本必须换文件名。这个目录就是 P5 社区索引（上面的 `kando plugin index`）列出的包所在的目录，签好后照那里的步骤重新生成并提交索引。
+  - 官方插件的签名和打包：`.github/scripts/official-plugins.sh`（`make official-plugins`）在 owner 自己的机器上运行，不进 CI。它对 `apps/kando/plugins/official/` 下每个带 `nsgo.yaml` 的文件夹（或参数给的文件夹）跑 `go tool nsgo publish`，用 `NSGO_RELEASE_KEY` 里的官方发布密钥和 `KANDO_OFFICIAL_CERT` 指向的证书（`kando-official.cert`，放在仓库外，放在仓库里会直接拒绝），再用 `cmd/official wrap` 检查包链到官方根、是清单说的那个插件，然后按 kando-plugins 收脚本插件的布局写出：`scripts/<id>/<id>-<version>.kandoplugin`，以及签它用的源码 `scripts/<id>/src/`（插件文件夹里除 Go 测试以外的文件，kando-plugins 的 CI 检查 `src/kando-plugin.json` 和包里的清单除 `script` 外一致）。写到 `KANDO_PLUGINS_OUT` 指的文件夹，没设时新建一个临时文件夹，脚本最后打印它的位置；`KANDO_PLUGINS_OUT` 指向 kando-plugins 的本地克隆时直接写进去，指向本仓库里会直接拒绝（包不再从本仓库发布）。已有同名文件时拒绝覆盖：缓存了旧索引的看懂按 SHA-256 校验文件，新版本必须换文件名；同一个 `scripts/<id>/` 里还有旧版本的文件时，脚本提示在同一个 PR 里删掉它（kando-plugins 每个文件夹只列一个版本，它的 Publish 会把下架的旧文件再保留一周）。之后在 kando-plugins 开 PR 提交 `scripts/<id>/`，照上面「发布社区索引」的步骤审核、合并、签索引。原先（P3c 合并时）脚本写到 `apps/site/public/plugin/packs`，由 owner 在本仓库提交，P5 目录发布之后改成了现在的做法，那个目录已经不存在。
   - 吊销列表的发布：`.github/scripts/plugin-revocations.sh`（`make plugin-revocations REVOKE='-keys <key ID>'`）在保管根密钥的机器上运行，用 `NSGO_ROOT_KEY` 跑 `go tool nsgo revoke`：序号是已提交列表的加一（第一次是 1），吊销内容是已提交列表的全部再加上这次给的（看懂对每个根只保留最新的一份列表，新列表不带上旧的条目就等于撤销吊销），默认 180 天过期（`-days`），写到 `apps/kando/plugins/revocations/kando-plugin-revocations.json`，写之前先按 Release 的规则检查一遍；owner 提交这个文件。Release 工作流的 Publish 作业在附上 browser extension 之后：没有提交列表时只记一条 notice、不附（看懂把 404 当作没有列表）；有列表时用 `cmd/official revocations` 检查它由官方根签名、没有过期、不比最新已发布版本附的那份旧（序号更小，或序号相同但内容不同，都算旧；序号相同、内容相同是正常情况，大多数发布都会原样再附一次），不通过就让整次发布失败，通过后作为 `kando-plugin-revocations.json` 附上并写进 `checksums.txt`（随包一起做来源证明）。剩不到 30 天过期时检查打出 warning。根密钥从不进 CI。
   - 代价：一旦发布过列表，owner 就要在它过期前续签（不吊销新东西也要续，`make plugin-revocations`），否则 Release 会失败；而已经拿到这份列表的看懂在它过期后会暂停申请了网络或凭据的非官方插件（6.4）。还没发布列表时这些都不发生。
-  - 本 PR 没有生成任何真实的包或列表：仓库里没有 `kando.ankiconnect` 的 `.kandoplugin`，也没有 `kando-plugin-revocations.json`，要由 owner 用上面的命令签好后提交。签名流程用测试现场生成的根、发布密钥和证书在 Ubuntu 编译机上手工跑通过一次（`nsgo certify`、`publish`、`cmd/official wrap`、`Stage`、`Verify`、`Probe`，以及 `revoke` 和三种检查结果），没有提交这些产物。
+  - 本 PR 没有生成任何真实的包或列表，要由 owner 用上面的命令签好后发布。之后 owner 已用官方发布密钥签好 `kando.ankiconnect` 1.0.0 和 `kando.deepl` 1.0.0，连同 `src/` 放进了 kando-plugins 的 `scripts/kando.ankiconnect/`、`scripts/kando.deepl/`，两者都以来源 `official` 列在 `https://kando.yldm.ai/plugin/index.json` 里；吊销列表 `kando-plugin-revocations.json` 还没有发布过。签名流程用测试现场生成的根、发布密钥和证书在 Ubuntu 编译机上手工跑通过一次（`nsgo certify`、`publish`、`cmd/official wrap`、`Stage`、`Verify`、`Probe`，以及 `revoke` 和三种检查结果），没有提交这些产物。
   - 没有提交 NSGo issue：这一期用到的 `tsx.WithFetcher`、`pkg.Inspect`、`pkg.NewTrust`、`UpdateRevocations` 都按文档工作。
 
 **签名和发布官方插件、吊销列表**（第 4 条的根密钥命令之外，owner 用到的全部命令）：
@@ -1368,16 +1368,17 @@ KANDO_PLUGINS_INDEX_KEY=<index secret> go run ./apps/kando/cmd/kando-plugin inde
 ```sh
 # Once a year, on the offline machine: the plugin root certifies the official release key (kept outside the repository).
 NSGO_ROOT_KEY=<root secret> go tool nsgo certify -key <release public> -apps 'ai.yldm.kando.plugin.kando.*' -days 365 -out ~/keys/kando-official.cert
-# Sign every official plugin (apps/kando/plugins/official/*) into apps/site/public/plugin/packs/<id>-<version>.kandoplugin; PLUGINS=<folder> signs one.
-NSGO_RELEASE_KEY=<release secret> KANDO_OFFICIAL_CERT=~/keys/kando-official.cert make official-plugins
-# Check a file the way Kando installs it.
-kando plugin validate apps/site/public/plugin/packs/kando.ankiconnect-1.0.0.kandoplugin
+# Sign every official plugin (apps/kando/plugins/official/*) into a kando-plugins checkout, as scripts/<id>/<id>-<version>.kandoplugin with its source in scripts/<id>/src/; PLUGINS=<folder> signs one, and without KANDO_PLUGINS_OUT it writes into a new temporary folder and prints where.
+NSGO_RELEASE_KEY=<release secret> KANDO_OFFICIAL_CERT=~/keys/kando-official.cert KANDO_PLUGINS_OUT=~/src/kando-plugins make official-plugins
+# Check a file the way Kando installs it: it must report source official.
+kando plugin validate ~/src/kando-plugins/scripts/kando.ankiconnect/kando.ankiconnect-1.0.0.kandoplugin
+# Then, in the kando-plugins checkout, commit scripts/<id>/ on a branch and open a pull request; its Publish signs the index on merge.
 # Revoke a release key or a package, or renew the list before it expires (no REVOKE); then commit apps/kando/plugins/revocations/kando-plugin-revocations.json.
 NSGO_ROOT_KEY=<root secret> make plugin-revocations REVOKE='-keys <key ID> -packages <sha256 or .nsgopkg>'
 NSGO_ROOT_KEY=<root secret> make plugin-revocations
 ```
 
-- 发新版本的插件：改代码后把 `kando-plugin.json` 和 `nsgo.yaml` 的 `version` 一起改大（`nsgo publish` 按版本推算 build，build 必须变大，否则看懂按防回滚拒收），再跑 `make official-plugins`；旧版本的文件留着。
+- 发新版本的插件：改代码后把 `kando-plugin.json` 和 `nsgo.yaml` 的 `version` 一起改大（`nsgo publish` 按版本推算 build，build 必须变大，否则看懂按防回滚拒收），再跑 `make official-plugins`，在 kando-plugins 的 PR 里删掉 `scripts/<id>/` 里的旧版本文件、加上新的（kando-plugins 的 Publish 把下架的旧文件再保留一周，缓存了旧索引的看懂照样下得到）。
 - 吊销列表提交后，下一次发布才会附上；需要马上生效时手动触发一次 Release（`workflow_dispatch`）。
 
 - P5 E15（已完成）：播放器侧栏的「扩展」标签。和正文的出入如下，2.1、2.3、5.3、8.4、第 9 节已同步改过：
@@ -1393,6 +1394,7 @@ NSGO_ROOT_KEY=<root secret> make plugin-revocations
   - 正文只在换了面板或插件重新载入时重建；但侧栏本身收起再打开（`ns.Presence`）、换到别的标签再回来都会重建面板视图，入口模块会再跑一次，面板自己的内存状态要放进 Storage 才能留住。
   - E5 说 task 包的结果也可以放进这个标签：没有做。task 的结果已经有自己的侧栏视图（`SideTask`，⋯ 菜单和命令面板进入，带返回按钮），搬进「扩展」要么让 task 包也出现在面板选择器里（但它没有视图、只在运行后才有内容），要么在标签里混两种来源，选择器的语义会变复杂；保持原样。
   - 下拉框的 `ui.Select` 的 `Label` 只读一次，所以下拉框的重建键里带上了这个标签的译文，切换语言时重建。
+  - 2.3 原说插件设置页以声明式 schema 为主、`tsx.View` 作退路：没有做退路。清单没有设置页视图的字段，详情页只画 7.3 的声明式设置，`tsx.View` 只用在这个标签的面板上；2.3 已改成这样。
   - 测试：`plugins` 的贡献校验（`contrib_test.go`，含图标不在列表里、图片当图标）；`plugins/script` 的 `TestScriptPanel`（按参数挂对应的导出、函数载入不挂、抛错显示 Fallback、每次构建一个新 Host、三次失败停用）、`TestScriptPanelPastItsBudget`、`TestScriptPanelWatchdogStopsABusyPanel`（setInterval 让引擎忙的面板按 `slow` 停）、`TestScriptPanelWatchdogStopsAGrowingPanel`（一直留着字符串的面板按 `memory` 停）和 `TestScriptPanelWatchdogSparesAQuietPanel`（app 自己忙时安静的面板不被停）；不变量测试改成 `tsx.View` 只能在 `plugins/script` 的非测试代码里、`Sandbox` 字段是 `Sandbox(...)` 的字面量、并且写成 `tsx.View{…}.Render` 当场渲染（不能先放进变量再改字段），并要求至少有一处；`film` 的 `TestThePanelShowsTheExtensions`、`TestTabLabelsFit` 和 `TestEveryPanelIconIsDrawn`；app 的 `TestPluginPanels`（打开播放器、出现「扩展」、面板经授权读当前行、播放换句时收到 `line.changed` 且不重建、一轮里的多次换句合成一个事件、换到会抛错的面板显示出错而播放器还在、出错时没有 Host 收事件、重试也算失败、三次失败停用插件并记 health、选择存进 settings.json、标签消失）和 `TestPluginPanelsGoWithThePlugin`。截图场景 `plugins-script-panel` 在 Linux 上按中、英、日跑了无头断言（含标签宽度），协调方在 macOS 上出了中文的图。
 
 ### P3.0 spike 的测量结果
@@ -1522,5 +1524,5 @@ NSGO_ROOT_KEY=<root secret> go tool nsgo revoke -sequence 3 -days 30 -keys <key 
   - 来源不在了不清掉存着的选择：插件重新打开后又用回它；在那之前任务用 AI 服务，设置页说明，消息栏每次运行说一次（`prefs.sourceGoneSaid`）。设置页的下拉框列出已启用（不一定已载入）的插件来源，免得启动验签期间选项闪烁。
   - 失败卡片：P5 底座定的是来源失败一律不给「打开设置」；带码的失败现在给：`auth`、`no-credential`、`not-running` 到插件页，`language` 到翻译页，因为那就是能修好它的地方。没有码的失败照旧不给。
   - 播放器进度徽章的「翻译」一行写来源的标题，「终校」一行仍写 AI 服务的模型。
-  - 官方插件的源码按 P3c 的约定放在 `apps/kando/plugins/official/deepl/`（本分支起初放在仓库根目录 `plugins/official/kando.deepl/`，P3c 合并后挪了过来），有 `nsgo.yaml`，所以 `make official-plugins` 不带参数时也签它；`deepl` 包的 `TestPluginDeepLPublishes` 检查 `nsgo.yaml` 签的 App ID、版本和权限就是清单声明的（只有 `kando.net.credentialFetch`，没有网络规则），凭据只发往 DeepL 的两台主机。清单写 `"kando": ">=0.37.0"`：`translators` 随 #329 合并时 v0.36.0 已经发布，第一个认得它的是 v0.37.0。AnkiConnect 写 `>=0.36.0`，因为导出期间读声音不占每分钟额度、表格显示插件自己的失败原因都随 #328 进了 v0.36.0，更早的版本超过 60 句会丢声音。`kandoManifest()` 用 esbuild 的 JSON import 直接返回清单里的 `capabilities`、`contributes`、`credentials`，不再手抄一份。根目录的 `TestOfficialDeepL` 和截图场景按发布的做法用临时根签名、`official.Wrap` 打包、再安装 `.kandoplugin`（`deeplRelease`），插件文件夹用 `runtime.Caller` 从测试源文件的位置找，因为 `nsgo test -target` 不在包目录里运行测试。还没有用官方发布密钥签名、也没有放进 `apps/site/public/plugin/packs`，那是 owner 发布时跑 `make official-plugins` 的事。
+  - 官方插件的源码按 P3c 的约定放在 `apps/kando/plugins/official/deepl/`（本分支起初放在仓库根目录 `plugins/official/kando.deepl/`，P3c 合并后挪了过来），有 `nsgo.yaml`，所以 `make official-plugins` 不带参数时也签它；`deepl` 包的 `TestPluginDeepLPublishes` 检查 `nsgo.yaml` 签的 App ID、版本和权限就是清单声明的（只有 `kando.net.credentialFetch`，没有网络规则），凭据只发往 DeepL 的两台主机。清单写 `"kando": ">=0.37.0"`：`translators` 随 #329 合并时 v0.36.0 已经发布，第一个认得它的是 v0.37.0。AnkiConnect 写 `>=0.36.0`，因为导出期间读声音不占每分钟额度、表格显示插件自己的失败原因都随 #328 进了 v0.36.0，更早的版本超过 60 句会丢声音。`kandoManifest()` 用 esbuild 的 JSON import 直接返回清单里的 `capabilities`、`contributes`、`credentials`，不再手抄一份。根目录的 `TestOfficialDeepL` 和截图场景按发布的做法用临时根签名、`official.Wrap` 打包、再安装 `.kandoplugin`（`deeplRelease`），插件文件夹用 `runtime.Caller` 从测试源文件的位置找，因为 `nsgo test -target` 不在包目录里运行测试。本分支没有用官方发布密钥签名；之后 owner 用 `make official-plugins` 签好 1.0.0，放进 kando-plugins 的 `scripts/kando.deepl/`（连同 `src/`），已列在社区索引里（P3c）。
   - 测试：`plugins/translators_test.go`（清单规则、`Takes`、回答解析、错误码），`plugins/script` 的 `TestScriptProbeTranslators`，`jobfailure` 的 `TestSourceHintOfACode`（五种界面语言里每个码都有一句不同的、带来源名的话），根目录 `plugins_translate_test.go`：来源的提供、保存、任务用它翻译（120 行分 50/50/20 三批、顺序不变）、`quota`/`bad-reply`/`language`、来源不在了改用 AI 服务并说明、⇧E 问插件；`TestOfficialDeepL` 用临时根打包仓库里的 DeepL 插件，接 httptest 的假 DeepL（`credentialFetch` 的 client 换成拨到测试服务器的，和 P3b 一样）：没有密钥、Free 和 Pro 主机、语言代码（ZH-HANS、ZH-HANT、EN-US、EN-GB、PT-BR）、空行不发、行数不变、456 和额度用完是 `quota`、两台都 403 是 `auth`，并检查密钥只出现在 Authorization 头里，不在插件组的请求体和插件的回答里，插件代码不碰 `Secrets`、`Storage`。截图场景 `plugins-translate-source`（设置 › 翻译 选了插件来源）和 `plugins-translate-failed`（DeepL 不接受密钥的失败卡片）只在 Linux 上跑了无头断言，没有出图。

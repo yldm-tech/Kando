@@ -18,7 +18,7 @@ dev:
 build:
 	go tool nsgo build -target $(TARGET) apps/kando
 
-# Kando's official script plugins, signed with the official release key and wrapped into the .kandoplugin files under apps/site/public/plugin/packs (.github/scripts/official-plugins.sh): NSGO_RELEASE_KEY holds the release key's secret and KANDO_OFFICIAL_CERT names its certificate, kept outside the repository. PLUGINS names plugin folders, every one under apps/kando/plugins/official when empty.
+# Kando's official script plugins, signed with the official release key and laid out as the community plugin repository, yldm-tech/kando-plugins, takes them, scripts/<id>/<id>-<version>.kandoplugin with the source in scripts/<id>/src/ (.github/scripts/official-plugins.sh): NSGO_RELEASE_KEY holds the release key's secret and KANDO_OFFICIAL_CERT names its certificate, kept outside the repository. KANDO_PLUGINS_OUT names where the layout goes, a kando-plugins checkout to write into it directly, a new temporary folder when empty; the plugins are then published by a pull request to kando-plugins. PLUGINS names plugin folders, every one under apps/kando/plugins/official when empty.
 official-plugins:
 	.github/scripts/official-plugins.sh $(PLUGINS)
 
