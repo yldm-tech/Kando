@@ -125,7 +125,7 @@ func App(cx *core.Scope, cfg session.Config) core.Node {
 		navs[filmsTab].PopToRoot()
 		outer.Pop(1)
 	}
-	// Unpaired, a computer's films not on the phone go from the Library's stack, and from Jobs', with the pages opened from them: with no client left they could not be downloaded. A film's page of one on the phone stays. Its page in Settings goes.
+	// Unpaired, a computer's films not on the phone go from the Library's stack, and from Jobs', with the pages opened from them: with no client left they could not be downloaded. A film's page of one on the phone stays. The computer page in Settings goes with the last computer.
 	unpaired := func(id string) {
 		for _, n := range []*base.Nav[route]{navs[filmsTab], navs[jobsTab]} {
 			routes := n.Routes()
@@ -136,9 +136,12 @@ func App(cx *core.Scope, cfg session.Config) core.Node {
 				n.Pop(len(routes) - i)
 			}
 		}
-		// The computer's page in Settings goes too.
+		// The computer's page in Settings shows whichever computer processes new links, so it goes once no computer is left to show.
+		if len(s.Desktops()) > 0 {
+			return
+		}
 		routes := navs[settingsTab].Routes()
-		if i := slices.IndexFunc(routes, func(r route) bool { return r.page == computerPage && r.desktop == id }); i >= 0 {
+		if i := slices.IndexFunc(routes, func(r route) bool { return r.page == computerPage }); i >= 0 {
 			navs[settingsTab].Pop(len(routes) - i)
 		}
 	}

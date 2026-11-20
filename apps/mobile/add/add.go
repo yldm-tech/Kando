@@ -2,7 +2,6 @@
 package add
 
 import (
-	"cmp"
 	"slices"
 	"strings"
 
@@ -25,7 +24,7 @@ import (
 func Sheet(cx *core.Scope, s *session.Session, open func() bool, close func(), sent func()) core.Node {
 	colors := ui.ColorsOf(cx)
 	text := core.NewSignal(cx, "")
-	// chosen is the computer the user picked, "" for the one Settings sends new links to, else the first one that answers.
+	// chosen is the computer the user picked in the sheet, "" for the one that processes new links (session.Session.SendTo).
 	chosen := core.NewSignal(cx, "")
 	// quality and subtitles are the job options the user picked (sync.JobOptions), "" for the computer's own setting.
 	quality := core.NewSignal(cx, "")
@@ -51,7 +50,7 @@ func Sheet(cx *core.Scope, s *session.Session, open func() bool, close func(), s
 		}
 		return Takes(s.Queue(to))
 	}
-	desktop := func() string { return Destination(s, cmp.Or(chosen.Get(), s.Prefs().SendTo)) }
+	desktop := func() string { return Destination(s, chosen.Get()) }
 	desktopName := func() string { d, _ := s.Desktop(desktop()); return d.Name }
 	send := func() {
 		l, _ := link()
@@ -218,39 +217,17 @@ func pasteButton(cx *core.Scope, paste func()) core.Node {
 		}}
 }
 
-// Takes reports whether a computer's queue may take a link: not one too old for links or that revoked the phone, nor one that answers without listing sync.OpJobCreate. One not reached yet may, and the link waits on the phone until it answers.
-func Takes(q session.Queue) bool {
-	switch q.Reach {
-	case session.Older, session.Revoked:
-		return false
-	case session.Online:
-		return q.Can(sync.OpJobCreate)
-	}
-	return true
-}
+// Takes reports whether a computer's queue may take a link (session.Queue.Takes).
+func Takes(q session.Queue) bool { return q.Takes() }
 
-// Destination is the paired computer a link goes to: chosen, the one the user picked, while it is paired; else the first that answers and takes links, else the first that may take them once it answers, else the first paired; "" with none paired.
+// Destination is the paired computer a link goes to: chosen, the one the user picked in the sheet, while it is paired; else the one Settings shows as processing new links (session.Session.SendTo), so the sheet and Settings name the same computer.
 func Destination(s *session.Session, chosen string) string {
-	list := s.Desktops()
-	for _, d := range list {
+	for _, d := range s.Desktops() {
 		if d.ID == chosen {
 			return d.ID
 		}
 	}
-	for _, d := range list {
-		if q := s.Queue(d.ID); q.Reach == session.Online && Takes(q) {
-			return d.ID
-		}
-	}
-	for _, d := range list {
-		if Takes(s.Queue(d.ID)) {
-			return d.ID
-		}
-	}
-	if len(list) > 0 {
-		return list[0].ID
-	}
-	return ""
+	return s.SendTo()
 }
 
 // site is the site a link is on, as its chip names it: YouTube and Bilibili by the names the Library gives them, a channel or a playlist as one whatever its site, else the site Kando knows it as, else its host.

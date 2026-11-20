@@ -57,6 +57,17 @@ func (q Queue) Can(op string) bool {
 	return slices.Contains(q.Ops, op) && !(q.ReadOnly && sync.Mutates(op))
 }
 
+// Takes reports whether the computer whose queue stands as q may take a link: not one too old for links or that revoked the phone, nor one that answers without listing sync.OpJobCreate. One not reached yet may, and the link waits on the phone until it answers.
+func (q Queue) Takes() bool {
+	switch q.Reach {
+	case Older, Revoked:
+		return false
+	case Online:
+		return q.Can(sync.OpJobCreate)
+	}
+	return true
+}
+
 // Offers reports whether the phone offers job option name (sync.OptionQuality, OptionSubtitles) with a link to the computer: one it takes, while it queues links at once, as one that asks its user first starts them with its own settings.
 func (q Queue) Offers(name string) bool {
 	return q.Reach == Online && q.Can(sync.OpJobCreate) && q.Receive == sync.ReceiveQueue && slices.Contains(q.Options, name)

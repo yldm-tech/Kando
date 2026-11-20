@@ -53,7 +53,10 @@ func offlineFilm(cx *core.Scope, s *session.Session, f func() store.Film, i func
 		if n := f().Film.VideoSize; n > 0 {
 			parts = append(parts, look.Size(n))
 		}
-		if st := look.Status(cx, s, key); st != "" {
+		// A film kept whole says it is saved, as the design's list does; one on its way or stopped says where it stands.
+		if fl := f(); fl.Done() && fl.HasVideo() {
+			parts = append(parts, locales.SettingsOfflineFilmSaved(cx))
+		} else if st := look.Status(cx, s, key); st != "" {
 			parts = append(parts, st)
 		}
 		return strings.Join(parts, " · ")
@@ -68,15 +71,18 @@ func offlineFilm(cx *core.Scope, s *session.Session, f func() store.Film, i func
 			}
 		})
 	}
-	return look.Row{TestID: "offline-film-" + key, Index: i, TitleLines: 1,
-		Leading: look.Poster(cx, func() core.ImageSource { return look.LocalPoster(s, f()) }, 72, ""),
-		Title:   func() string { return f().Film.Title },
-		Detail:  detail,
-		Trailing: core.View{TestID: "offline-delete-" + key, Role: core.RoleButton, LabelFunc: func() string { return locales.FilmDeleteTitle(cx, f().Film.Title) },
+	// The rows are the design's 64 points with a 15/600 title, as the films lists' rows with a poster are.
+	return look.Row{TestID: "offline-film-" + key, Index: i, TitleLines: 1, MinHeight: 64,
+		TitleStyle: core.Style{FontSize: 15, LineHeight: 20, FontWeight: core.FontWeightSemibold},
+		Leading:    look.Poster(cx, func() core.ImageSource { return look.LocalPoster(s, f()) }, 72, ""),
+		Title:      func() string { return f().Film.Title },
+		Detail:     detail,
+		// Delete is a capsule in danger's color on its tint; ui.Button takes its text as a string, which would not follow the language, and has no danger look, so it is base.Button in the design's style.
+		Trailing: base.Button{TestID: "offline-delete-" + key, LabelFunc: func() string { return locales.SettingsOfflineDelete(cx, f().Film.Title) },
 			OnPress: func(core.PressEvent) { remove() },
-			Style:   core.Style{Height: core.Pt(30), Padding: core.Symmetric(0, 14), CornerRadius: 15, JustifyContent: core.JustifyCenter, FlexShrink: 0},
+			Style:   core.Style{Height: core.Pt(30), Padding: core.Symmetric(0, 12), CornerRadius: 15, AlignItems: core.AlignCenter, JustifyContent: core.JustifyCenter, FlexShrink: 0},
 			StyleFunc: func() core.Style {
-				return core.Style{Background: tints.Danger(), Active: &core.Style{Opacity: core.Alpha(0.6)}}
+				return core.Style{Background: tints.Danger(), Active: &core.Style{Opacity: core.Alpha(0.6)}, FocusVisible: ui.FocusRing(cx, 2)}
 			},
 			Children: []core.Node{core.Text{ContentFunc: func() string { return locales.FilmDeleteConfirm(cx) }, MaxLines: 1,
 				Style: core.Style{FontSize: 13, LineHeight: 18, FontWeight: core.FontWeightBold}, StyleFunc: ui.Colored(colors.Danger)}}}}

@@ -1,6 +1,8 @@
 package settings
 
 import (
+	"slices"
+
 	"kando/apps/mobile/locales"
 	"kando/apps/mobile/look"
 	"kando/apps/mobile/session"
@@ -71,24 +73,28 @@ func contextRow(cx *core.Scope, s *session.Session, id func() string, index int)
 		})
 	}
 	return look.Row{TestID: "computer-context", Index: func() int { return index }, TitleLines: 2,
-		Leading: look.ColorTile(cx, lucide.RotateCcw, fixed(theme.TileOrange)),
+		Leading: look.GlyphTile(cx, glyph("↺"), fixed(theme.TileOrange)),
 		Title:   func() string { return locales.ComputerContext(cx) },
 		Detail:  func() string { return locales.ComputerContextDetail(cx) },
-		Trailing: ui.Switch{TestID: "computer-context-switch", Label: locales.ComputerContext(cx), Variant: ui.SwitchSystem,
-			Checked: contextOn, OnChange: setContext,
-			Disabled: func() bool {
-				st, ok := got()
-				return !ok || st.Context == nil || st.ReadOnly || pending.Get() != nil
-			}}}
+		// TODO(nsgo): ui.Switch takes its accessibility label as a string (ui/switch.go:19), with no LabelFunc, so the switch is built again as the language changes, as the reminder's is.
+		Trailing: core.Dynamic(func(cx *core.Scope) core.Node {
+			return ui.Switch{TestID: "computer-context-switch", Label: locales.ComputerContext(cx), Variant: ui.SwitchSystem,
+				Checked: contextOn, OnChange: setContext,
+				Disabled: func() bool {
+					st, ok := got()
+					return !ok || st.Context == nil || st.ReadOnly || pending.Get() != nil
+				}}
+		})}
 }
 
-// ComputerPage is the page of the computer that processes the links the phone sends (session.SendTo): its card, with whether it answers and how many videos it is processing; the paired computers to send new links to, each of which can be unpaired; how the phone reaches it; the AI service it translates with, which only the computer changes, as it keeps the service's key; the films it lists and how the user's storage serves the phone away from it; and the ways to pair another computer and to unpair this one. What the computer answered at the last sync this run is what it shows; before one reached it, or when its Kando is too old to share them, it says so. unpaired runs once the user unpaired a computer, which takes the page away when it was the one it opened on.
+// ComputerPage is the page of the computer that processes the links the phone sends (session.SendTo): its card, with whether it answers and how many videos it is processing; the paired computers to send new links to; how the phone reaches it; the AI service it translates with, which only the computer changes, as it keeps the service's key; the films it lists and how the user's storage serves the phone away from it; and the ways to pair another computer and to unpair this one. What the computer answered at the last sync this run is what it shows; before one reached it, or when its Kando is too old to share them, it says so. unpaired runs once the user unpaired the computer it shows; the page then shows the next one, and goes with the last.
 func ComputerPage(cx *core.Scope, s *session.Session, pair func(), unpaired func(id string), back func()) base.NavPage {
 	colors := ui.ColorsOf(cx)
 	id := s.SendTo
 	d := func() store.Desktop { d, _ := s.Desktop(id()); return d }
+	// note is a note under a card, 12 on 17, as the design sets the ones under the service and the storage; the one under the computer's card is 13 on 19.
 	note := func(testID string, text func() string) core.Node {
-		return core.Text{TestID: testID, ContentFunc: text, Style: core.Style{FontSize: 13, LineHeight: 19, Padding: core.Edges{Right: 16, Left: 16}}, StyleFunc: ui.Colored(colors.Muted)}
+		return core.Text{TestID: testID, ContentFunc: text, Style: core.Style{FontSize: 12, LineHeight: 17, Padding: core.Edges{Right: 16, Left: 16}}, StyleFunc: ui.Colored(colors.Muted)}
 	}
 	group := func(title func() string, rows ...core.Node) core.Node {
 		return core.View{Style: core.Style{Gap: 7}, Children: []core.Node{look.GroupHeader(cx, title), look.Group{Children: rows}}}
@@ -101,18 +107,20 @@ func ComputerPage(cx *core.Scope, s *session.Session, pair func(), unpaired func
 					return core.View{Style: core.Style{Gap: 23}, Children: []core.Node{
 						core.View{Style: core.Style{Gap: 12}, Children: []core.Node{
 							computerCard(cx, s, id, d),
-							note("computer-note", func() string { return locales.ComputerNote(cx) }),
+							core.Text{TestID: "computer-note", ContentFunc: func() string { return locales.ComputerNote(cx) }, Style: core.Style{FontSize: 13, LineHeight: 19, Padding: core.Edges{Right: 16, Left: 16}}, StyleFunc: ui.Colored(colors.Muted)},
 						}},
 						group(func() string { return locales.ComputerSendTo(cx) },
-							core.Each(s.Desktops, func(d store.Desktop) string { return d.ID }, func(cx *core.Scope, d func() store.Desktop, i func() int) core.Node {
-								return computerChoice(cx, s, d, i, unpaired)
-							})),
-						// The connection's card: its value beside its name, and the note across the card under them.
-						core.View{TestID: "computer-connection", Style: core.Style{Gap: 8, Padding: core.Symmetric(14, 16)}, StyleFunc: func() core.Style { return look.Card(cx) }, Children: []core.Node{
+							core.View{Role: core.RoleRadioGroup, LabelFunc: func() string { return locales.ComputerSendTo(cx) }, Children: []core.Node{
+								core.Each(s.Desktops, func(d store.Desktop) string { return d.ID }, func(cx *core.Scope, d func() store.Desktop, i func() int) core.Node {
+									return computerChoice(cx, s, d, i)
+								}),
+							}}),
+						// The connection's card, 12 under the list as the design sets it: its value beside its name, and the note across the card under them.
+						core.View{TestID: "computer-connection", Style: core.Style{Gap: 8, Padding: core.Symmetric(14, 16), Margin: core.Edges{Top: -11}}, StyleFunc: func() core.Style { return look.Card(cx) }, Children: []core.Node{
 							core.View{Style: core.Style{Direction: core.Row, AlignItems: core.AlignCenter, Gap: 12}, Children: []core.Node{
 								core.Text{ContentFunc: func() string { return locales.ComputerConnection(cx) }, MaxLines: 1, Style: look.Body.Merge(core.Style{FlexShrink: 0}), StyleFunc: ui.Colored(colors.Text)},
 								core.Text{TestID: "computer-connection-value", ContentFunc: func() string { return connection(cx, s.Queue(id())) }, MaxLines: 2,
-									Style: look.Subhead.Merge(core.Style{FlexGrow: 1, FlexShrink: 1, TextAlign: core.TextAlignEnd}), StyleFunc: ui.Colored(colors.Muted)},
+									Style: core.Style{FontSize: 14, LineHeight: 20, FlexGrow: 1, FlexShrink: 1, TextAlign: core.TextAlignEnd}, StyleFunc: ui.Colored(colors.Muted)},
 							}},
 							core.Text{ContentFunc: func() string { return locales.ComputerConnectionNote(cx) }, Style: core.Style{FontSize: 12, LineHeight: 17}, StyleFunc: ui.Colored(colors.Muted)},
 						}},
@@ -139,13 +147,15 @@ func ComputerPage(cx *core.Scope, s *session.Session, pair func(), unpaired func
 						computerSync(cx, s, id),
 					}}
 				}},
-				look.Group{Children: []core.Node{
-					core.View{TestID: "computer-pair", Role: core.RoleButton, LabelFunc: func() string { return locales.SettingsPairAnother(cx) }, OnPress: func(core.PressEvent) { pair() },
-						Style:     core.Style{Height: core.Pt(48), AlignItems: core.AlignCenter, JustifyContent: core.JustifyCenter, Padding: core.Symmetric(0, 16)},
-						StyleFunc: func() core.Style { return core.Style{Active: &core.Style{Background: colors.Pressed()}} },
-						Children: []core.Node{core.Text{ContentFunc: func() string { return locales.SettingsPairAnother(cx) }, MaxLines: 1,
-							Style: core.Style{FontSize: 16, LineHeight: 21, FontWeight: core.FontWeightSemibold}, StyleFunc: ui.Colored(colors.Accent)}}},
-				}},
+				// Connect Another Computer is a card of its own with its name in the accent in the middle, as the design draws it. ui.Button takes its text as a string, which would not follow the language, so it is base.Button in the card's style.
+				base.Button{TestID: "computer-pair", LabelFunc: func() string { return locales.SettingsPairAnother(cx) }, OnPress: func(core.PressEvent) { pair() },
+					Style: core.Style{Height: core.Pt(48), AlignItems: core.AlignCenter, JustifyContent: core.JustifyCenter, Padding: core.Symmetric(0, 16),
+						CornerRadius: look.CardRadius, BorderCurve: core.BorderCurveContinuous},
+					StyleFunc: func() core.Style {
+						return core.Style{Background: colors.Surface(), Active: &core.Style{Background: colors.Pressed()}, FocusVisible: ui.FocusRing(cx, -2)}
+					},
+					Children: []core.Node{core.Text{ContentFunc: func() string { return locales.SettingsPairAnother(cx) }, MaxLines: 1,
+						Style: core.Style{FontSize: 16, LineHeight: 21, FontWeight: core.FontWeightSemibold}, StyleFunc: ui.Colored(colors.Accent)}}},
 				core.Show{When: func() bool { return id() != "" }, Then: func(cx *core.Scope) core.Node {
 					return look.Group{Children: []core.Node{
 						look.Row{TestID: "computer-unpair", TitleTone: look.ToneDanger,
@@ -205,8 +215,8 @@ func statusDot(online func() bool) core.Node {
 		}}
 }
 
-// computerChoice is paired computer d's row among those to send new links to: whether it answers, its name, checked while it is the one they go to, which pressing it makes it, with its options, which unpair it; unpaired runs once they did.
-func computerChoice(cx *core.Scope, s *session.Session, d func() store.Desktop, i func() int, unpaired func(id string)) core.Node {
+// computerChoice is paired computer d's row among those to send new links to: whether it answers, its name, and a check while it is the one they go to, which pressing it makes it. The page's Unpair takes away the one chosen.
+func computerChoice(cx *core.Scope, s *session.Session, d func() store.Desktop, i func() int) core.Node {
 	colors := ui.ColorsOf(cx)
 	chosen := func() bool { return s.SendTo() == d().ID }
 	return look.Row{TestID: "settings-computer-" + d().ID, Index: i,
@@ -223,11 +233,7 @@ func computerChoice(cx *core.Scope, s *session.Session, d func() store.Desktop, 
 		},
 		Checked: chosen,
 		OnPress: func() { s.SetSendTo(d().ID) },
-		Trailing: core.View{Style: core.Style{Direction: core.Row, AlignItems: core.AlignCenter, Gap: 2}, Children: []core.Node{
-			core.Show{When: chosen, Then: func(*core.Scope) core.Node { return ui.Icon(lucide.Check, 20, colors.Accent) }},
-			ui.IconButton{TestID: "settings-computer-options-" + d().ID, Icon: lucide.Ellipsis, Variant: ui.IconButtonGhost, Size: 44, IconSize: 20,
-				LabelFunc: func() string { return locales.ComputersOptions(cx, d().Name) }, OnPress: func() { confirmUnpair(cx, s, d().ID, d().Name, unpaired) }},
-		}}}
+		Trailing: core.Show{When: chosen, Then: func(*core.Scope) core.Node { return ui.Icon(lucide.Check, 20, colors.Accent) }}}
 }
 
 // connection is how the phone reaches a computer whose queue stands as q: directly on its network, through the user's storage away from it, or not at all.
@@ -253,7 +259,11 @@ func computerSync(cx *core.Scope, s *session.Session, id func() string) core.Nod
 		}
 		return n
 	}
-	storage := func() bool { q := s.Queue(id()); return q.Relayed || q.Storage != sync.RelayNoFailure }
+	// storage is whether the computer has the user's storage set up for the phone: its relay is on, as it says when it answers (sync.OpRelayJoin), or the phone follows it there, or the storage failed it.
+	storage := func() bool {
+		q := s.Queue(id())
+		return q.Relayed || q.Storage != sync.RelayNoFailure || slices.Contains(q.Ops, sync.OpRelayJoin)
+	}
 	return core.Show{When: func() bool { return s.Shelf(id()).Listed || storage() }, Then: func(cx *core.Scope) core.Node {
 		return core.View{Style: core.Style{Gap: 7}, Children: []core.Node{
 			look.GroupHeader(cx, func() string { return locales.SettingsSync(cx) }),
@@ -281,16 +291,20 @@ func computerSync(cx *core.Scope, s *session.Session, id func() string) core.Nod
 							}}}
 				}},
 			}},
-			core.Text{ContentFunc: func() string { return locales.ComputerStorageNote(cx) }, Style: core.Style{FontSize: 13, LineHeight: 19, Padding: core.Edges{Right: 16, Left: 16}}, StyleFunc: ui.Colored(colors.Muted)},
+			core.Text{ContentFunc: func() string { return locales.ComputerStorageNote(cx) }, Style: core.Style{FontSize: 12, LineHeight: 17, Padding: core.Edges{Right: 16, Left: 16}}, StyleFunc: ui.Colored(colors.Muted)},
 		}}
 	}}
 }
 
-// storageState is how the user's storage serves the phone, as its row says it: OK, a key it no longer takes, full, or out of reach.
+// storageState is how the user's storage serves the phone, as its row says it: OK, a key it no longer takes, a bucket that is gone or that the key may not reach, full, or out of reach.
 func storageState(cx *core.Scope, f sync.RelayFailure) string {
 	switch f {
 	case sync.RelayNoFailure:
 		return locales.ComputerStorageOK(cx)
+	case sync.RelayNoBucket:
+		return locales.ComputerStorageNoBucket(cx)
+	case sync.RelayDenied:
+		return locales.ComputerStorageDenied(cx)
 	case sync.RelayFull:
 		return locales.ComputerStorageFull(cx)
 	case sync.RelayUnreachable, sync.RelayFailed:

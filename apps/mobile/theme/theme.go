@@ -56,8 +56,8 @@ func Kando() *core.Theme {
 	d.SetColor("raised", core.RGB(0x2C2C2E))
 	d.SetColor(roleBar, core.RGBA(0x1C1C1E, 0.92))
 	d.SetColor(roleBarLine, core.RGBA(0x545458, 0.65))
-	// The ink tile is a lighter grey in the dark, where the ink's black would be lost on the card.
-	d.SetColor(roleTileInk, core.RGB(0x636366))
+	// The ink tile stays the light appearance's ink in the dark, as the design keeps it: its white mark is what shows on the card.
+	d.SetColor(roleTileInk, core.RGB(0x1D1D1F))
 	d.SetColor(roleWarnText, core.RGB(0xFFB340))
 	// The design's #3A3A3F would be lost on the dark page, so the dark keeps the ink.
 	d.SetColor(roleSubtext, d.Text)
@@ -89,7 +89,7 @@ func (c Colors) Bar() core.Color { return c.role(roleBar) }
 // BarLine is the hairline over a drawn tab bar.
 func (c Colors) BarLine() core.Color { return c.role(roleBarLine) }
 
-// TileInk is the settings rows' ink tile: the ink in the light, a grey that stands out on the card in the dark.
+// TileInk is the settings rows' ink tile, the light appearance's ink in both.
 func (c Colors) TileInk() core.Color { return c.role(roleTileInk) }
 
 // WarnText is warning's orange where it is text, dark enough to read on the page and on a card.
@@ -167,9 +167,8 @@ var (
 	ContinueCard = core.RGB(0x1C1C1E)
 	// BadgeWarnText is the text of the orange "needs attention" pill on the jobs card, on the badges' orange at 16%.
 	BadgeWarnText = core.RGB(0xB25E00)
-	// The picture under the Subtitle Style page's preview: a sky, the hills under it and the sun.
-	PreviewSkyTop, PreviewSkyBottom = core.RGB(0x7BA4BC), core.RGB(0xB4B8A6)
-	PreviewHills, PreviewSun        = core.RGB(0x3E6A55), core.RGB(0xEADBB0)
+	// PreviewBase is the black the Subtitle Style page's picture is laid over, at 0.9, as the player's picture is.
+	PreviewBase = core.RGB(0x000000)
 	// The Home Screen wallpaper the widgets' previews sit on, top to bottom.
 	WallpaperTop, WallpaperMiddle, WallpaperBottom = core.RGB(0x3D5A80), core.RGB(0x98C1D9), core.RGB(0xE0FBFC)
 	// The laptop drawn for a computer: its body's gradient and its screen's.

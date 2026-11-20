@@ -40,6 +40,9 @@ func column(cx *core.Scope) func() core.Style {
 // fixed is a tile's color that is the same in both appearances.
 func fixed(c core.Color) func() core.Color { return func() core.Color { return c } }
 
+// glyph is a tile's mark that is the same in every language: a symbol, or the letters of a name, as the design's K for Kando and AI.
+func glyph(g string) func() string { return func() string { return g } }
+
 // Page is the tab's root page: the app's card, then the subtitles, the app's look, the computer that processes the links, this device's own settings, the sync conflicts and what the app is, over its version and license.
 func Page(cx *core.Scope, s *session.Session, act Actions) base.NavPage {
 	colors := ui.ColorsOf(cx)
@@ -49,34 +52,36 @@ func Page(cx *core.Scope, s *session.Session, act Actions) base.NavPage {
 	about := []core.Node{}
 	if version != "" {
 		about = append(about, look.Row{TestID: "settings-version",
-			Leading: look.ColorTile(cx, lucide.Info, theme.Of(cx).TileInk),
+			Leading: look.GlyphTile(cx, glyph("K"), theme.Of(cx).TileInk),
 			Title:   func() string { return locales.SettingsVersion(cx) },
-			Value:   func() string { return version }})
+			Value:   func() string { return version },
+			Chevron: true,
+			OnPress: func() { cx.OpenURL(onboarding.DownloadURL+"/releases", nil) }})
 	}
 	source := len(about)
 	about = append(about,
 		look.Row{TestID: "settings-source", Index: func() int { return source }, Chevron: true,
-			Leading: look.ColorTile(cx, lucide.Braces, theme.Of(cx).TileInk),
+			Leading: look.GlyphTile(cx, glyph("{ }"), theme.Of(cx).TileInk),
 			Title:   func() string { return locales.SettingsSource(cx) },
 			Value:   func() string { return "GitHub" },
 			OnPress: func() { cx.OpenURL(onboarding.DownloadURL, nil) }})
 	intro := len(about)
 	about = append(about, look.Row{TestID: "settings-introduction", Index: func() int { return intro }, Chevron: true,
-		Leading: look.ColorTile(cx, lucide.CircleQuestionMark, fixed(theme.TileBlue)),
+		Leading: look.GlyphTile(cx, glyph("?"), fixed(theme.TileBlue)),
 		Title:   func() string { return locales.SettingsIntroduction(cx) },
 		OnPress: act.Introduction})
 	look2 := []core.Node{}
 	// A tablet leaves the language to the system's settings, as the design's iPad has no row of it.
 	if !look.Tablet(cx) && act.Language != nil {
 		look2 = append(look2, look.Row{TestID: "settings-language", Chevron: true,
-			Leading: look.ColorTile(cx, lucide.Globe, fixed(theme.TilePurple)),
+			Leading: look.GlyphTile(cx, func() string { return locales.SettingsTileLanguage(cx) }, fixed(theme.TilePurple)),
 			Title:   func() string { return locales.SettingsLanguage(cx) },
 			Value:   func() string { return languageName(cx, s.Prefs().Language) },
 			OnPress: act.Language})
 	}
 	appearance := len(look2)
 	look2 = append(look2, look.Row{TestID: "settings-appearance", Index: func() int { return appearance }, Chevron: true,
-		Leading: look.ColorTile(cx, lucide.Contrast, theme.Of(cx).TileInk),
+		Leading: look.GlyphTile(cx, glyph("◐"), theme.Of(cx).TileInk),
 		Title:   func() string { return locales.SettingsAppearance(cx) },
 		Value:   func() string { return appearanceName(cx, s.Prefs().Appearance) },
 		OnPress: func() { s.SetAppearance(session.NextAppearance(s.Prefs().Appearance)) }})
@@ -86,16 +91,16 @@ func Page(cx *core.Scope, s *session.Session, act Actions) base.NavPage {
 				profile(cx, s),
 				section(cx, func() string { return locales.SettingsSubtitles(cx) },
 					look.Row{TestID: "settings-target", Chevron: true,
-						Leading: look.ColorTile(cx, lucide.Languages, fixed(theme.TileBlue)),
+						Leading: look.GlyphTile(cx, func() string { return locales.SettingsTileTarget(cx) }, fixed(theme.TileBlue)),
 						Title:   func() string { return locales.SettingsTarget(cx) },
 						Value:   func() string { return langs.TargetName(s.Target()) },
 						OnPress: act.Target},
 					look.Row{TestID: "settings-style", Index: func() int { return 1 }, Chevron: true,
-						Leading: look.ColorTile(cx, lucide.Type, fixed(theme.TileIndigo)),
+						Leading: look.GlyphTile(cx, glyph("Aa"), fixed(theme.TileIndigo)),
 						Title:   func() string { return locales.SettingsSubtitleStyle(cx) },
 						Value: func() string {
 							st := s.Prefs().Subtitles
-							return sizeName(cx, st.Size) + " · " + colorName(cx, st.Color)
+							return sizeShortName(cx, st.Size) + " · " + colorName(cx, st.Color)
 						},
 						OnPress: act.Style}),
 				section(cx, func() string { return locales.SettingsAppearance(cx) }, look2...),
@@ -103,7 +108,7 @@ func Page(cx *core.Scope, s *session.Session, act Actions) base.NavPage {
 				section(cx, func() string { return locales.SettingsThisDevice(cx) }, deviceRows(cx, s, act)...),
 				section(cx, func() string { return locales.SettingsSync(cx) },
 					look.Row{TestID: "settings-conflicts", Chevron: true,
-						Leading: look.ColorTile(cx, lucide.ArrowLeftRight, fixed(theme.TileOrange)),
+						Leading: look.GlyphTile(cx, glyph("⇄"), fixed(theme.TileOrange)),
 						Title:   func() string { return locales.SettingsConflicts(cx) },
 						Detail: func() string {
 							if len(s.Conflicts()) == 0 {
@@ -159,7 +164,7 @@ func computerRows(cx *core.Scope, s *session.Session, act Actions) core.Node {
 			name := func() string { d, _ := s.Desktop(id()); return d.Name }
 			return core.View{Children: []core.Node{
 				look.Row{TestID: "settings-computer", Chevron: true, TitleLines: 2,
-					Leading: look.ColorTile(cx, lucide.Command, fixed(theme.TileTeal)),
+					Leading: look.GlyphTile(cx, glyph("⌘"), fixed(theme.TileTeal)),
 					Title:   func() string { return locales.SettingsComputer(cx) },
 					Detail: func() string {
 						switch reach(s, id()) {
@@ -173,7 +178,7 @@ func computerRows(cx *core.Scope, s *session.Session, act Actions) core.Node {
 					Value:   name,
 					OnPress: func() { act.Computer(id()) }},
 				look.Row{TestID: "settings-service", Index: func() int { return 1 }, Chevron: true,
-					Leading: look.ColorTile(cx, lucide.Sparkles, fixed(theme.TileViolet)),
+					Leading: look.GlyphTile(cx, glyph("AI"), fixed(theme.TileViolet)),
 					Title:   func() string { return locales.ComputerService(cx) },
 					Value:   func() string { return serviceName(cx, s, id()) },
 					OnPress: func() { act.Computer(id()) }},
@@ -182,7 +187,7 @@ func computerRows(cx *core.Scope, s *session.Session, act Actions) core.Node {
 		},
 		Else: func(cx *core.Scope) core.Node {
 			return look.Row{TestID: "settings-pair", TitleTone: look.ToneAccent,
-				Leading: look.ColorTile(cx, lucide.Plus, fixed(theme.TileTeal)),
+				Leading: look.GlyphTile(cx, glyph("+"), fixed(theme.TileTeal)),
 				Title:   func() string { return locales.SettingsPair(cx) },
 				OnPress: act.Pair}
 		}}
@@ -239,13 +244,16 @@ func appearanceName(cx *core.Scope, a string) string {
 func deviceRows(cx *core.Scope, s *session.Session, act Actions) []core.Node {
 	rows := []core.Node{
 		look.Row{TestID: "settings-remind", TitleLines: 1,
-			Leading: look.ColorTile(cx, lucide.Bell, fixed(theme.TileOrange)),
+			Leading: look.GlyphTile(cx, glyph("✎"), fixed(theme.TileOrange)),
 			Title:   func() string { return locales.SettingsRemind(cx) },
 			Detail:  func() string { return locales.SettingsRemindDetail(cx, learning.ReminderHour) },
-			Trailing: ui.Switch{TestID: "settings-remind-switch", Label: locales.SettingsRemind(cx), Variant: ui.SwitchSystem,
-				Checked: func() bool { return s.Prefs().Remind }, OnChange: s.SetRemind}},
+			// TODO(nsgo): ui.Switch takes its accessibility label as a string (ui/switch.go:19), with no LabelFunc, so the switch is built again as the language changes; the Language page is another page, so this switch holds no focus then.
+			Trailing: core.Dynamic(func(cx *core.Scope) core.Node {
+				return ui.Switch{TestID: "settings-remind-switch", Label: locales.SettingsRemind(cx), Variant: ui.SwitchSystem,
+					Checked: func() bool { return s.Prefs().Remind }, OnChange: s.SetRemind}
+			})},
 		look.Row{TestID: "settings-goal", Index: func() int { return 1 }, Chevron: true,
-			Leading: look.ColorTile(cx, lucide.Target, fixed(theme.TileGreen)),
+			Leading: look.GlyphTile(cx, glyph("◎"), fixed(theme.TileGreen)),
 			Title:   func() string { return locales.SettingsGoal(cx) },
 			Value:   func() string { return locales.SettingsGoalValue(cx, s.Goal()) },
 			OnPress: act.Goal},
@@ -257,20 +265,20 @@ func deviceRows(cx *core.Scope, s *session.Session, act Actions) []core.Node {
 	}
 	if act.Offline != nil {
 		add(look.Row{TestID: "settings-offline", Chevron: true,
-			Leading: look.ColorTile(cx, lucide.ArrowDownToLine, fixed(theme.TileSky)),
+			Leading: look.GlyphTile(cx, glyph("↓"), fixed(theme.TileSky)),
 			Title:   func() string { return locales.SettingsOffline(cx) },
 			Value:   func() string { return locales.SettingsOfflineCount(cx, len(s.Films())) },
 			OnPress: act.Offline})
 	}
 	if cx.Env().OS() == core.OSIOS && act.Widgets != nil {
 		add(look.Row{TestID: "settings-widgets", Chevron: true,
-			Leading: look.ColorTile(cx, lucide.LayoutGrid, fixed(theme.TileIndigo)),
+			Leading: look.GlyphTile(cx, glyph("▦"), fixed(theme.TileIndigo)),
 			Title:   func() string { return locales.SettingsWidgets(cx) },
 			OnPress: act.Widgets})
 	}
 	if look.Tablet(cx) && act.Shortcuts != nil {
 		add(look.Row{TestID: "settings-shortcuts", Chevron: true,
-			Leading: look.ColorTile(cx, lucide.Keyboard, fixed(theme.TileGrey)),
+			Leading: look.GlyphTile(cx, glyph("⌨"), fixed(theme.TileGrey)),
 			Title:   func() string { return locales.SettingsShortcuts(cx) },
 			Value:   func() string { return locales.SettingsShortcutsValue(cx) },
 			OnPress: act.Shortcuts})

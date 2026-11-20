@@ -136,7 +136,7 @@ computerContext:
   message: "Use Context When Translating"
   description: "Switch on a computer's page: whether its translation sends the lines before each batch to the AI service."
 computerContextDetail:
-  message: "Lets the AI see the lines before each batch, for smoother translations."
+  message: "Lets the model see the previous lines, for smoother translations."
   description: "Detail under the Use Context When Translating switch."
 computerContextFailed:
   message: "Couldn't Change the Setting on {computer}"
@@ -181,12 +181,18 @@ computerStatusOnline:
 computerStorage:
   message: "Storage Status"
   description: "Row on the Processing Computer page: whether the user's storage serves the phone."
+computerStorageDenied:
+  message: "No Access to Bucket"
+  description: "Value of Storage Status: the storage refused the computer's key access to the bucket."
 computerStorageFull:
   message: "Full"
   description: "Value of Storage Status: the storage takes nothing more."
 computerStorageKeys:
   message: "Key No Longer Valid"
   description: "Value of Storage Status: the storage refused the phone's links, as its key changed or they lapsed."
+computerStorageNoBucket:
+  message: "Bucket Gone"
+  description: "Value of Storage Status: the bucket the computer set up for phones no longer exists."
 computerStorageNote:
   message: "Videos and subtitles processed on the computer are uploaded to your own storage, and the phone reads them from there when it's away from the computer's network."
   description: "Note under the Sync group on the Processing Computer page."
@@ -2092,7 +2098,7 @@ settingsGoalValue:
   placeholders:
     count: { type: "int", example: "20" }
 settingsIntroduction:
-  message: "Show the Introduction Again"
+  message: "Show Onboarding Again"
   description: "Row in Settings that shows the introduction again."
 settingsLanguage:
   message: "Language"
@@ -2111,9 +2117,17 @@ settingsOfflineCount:
   description: "Beside Offline Films in Settings: how many films are saved on this device."
   placeholders:
     count: { type: "int", example: "3" }
+settingsOfflineDelete:
+  message: "Delete {title}"
+  description: "Spoken name of the Delete button on a row of Settings › Offline Films, which deletes that film from the device after asking."
+  placeholders:
+    title: { type: "String", example: "Talk at the café" }
 settingsOfflineEmpty:
   message: "No films saved on this device yet."
   description: "The Offline Films page when no film is saved on this device."
+settingsOfflineFilmSaved:
+  message: "Saved"
+  description: "On a row of Settings › Offline Films, after the film's size: the film is kept whole on the device."
 settingsOfflineSaved:
   message: "Saved on This Device"
   description: "Heading on the Offline Films page over the films saved on this device."
@@ -2141,7 +2155,7 @@ settingsRemind:
   message: "Review Reminder"
   description: "Switch in Settings that reminds the learner to review every evening."
 settingsRemindDetail:
-  message: "At {hour}:00, only when something is due"
+  message: "{hour}:00 · only when something is due"
   description: "Under the review reminder's switch: when it shows."
   placeholders:
     hour: { type: "int", example: "21" }
@@ -2175,6 +2189,12 @@ settingsTargetNote:
 settingsThisDevice:
   message: "This Device"
   description: "Heading of Settings' section of what is set on this phone or tablet alone."
+settingsTileLanguage:
+  message: "Aa"
+  description: "The one or two characters on the Language row's colored tile in Settings, standing for language: Aa in English, 语 in Simplified Chinese."
+settingsTileTarget:
+  message: "A"
+  description: "The one character on the Translate Into row's colored tile in Settings, standing for writing: A in English, 文 in Chinese."
 settingsTitle:
   message: "Settings"
   description: "Tab and title of Settings."
@@ -2226,10 +2246,10 @@ shortcutsSubtitles:
   message: "Switch Subtitles: Bilingual / Original / Translation / Hidden"
   description: "A keyboard shortcut: the next subtitle mode, in this order."
 styleBottom:
-  message: "Bottom of the Picture"
+  message: "Bottom of Video"
   description: "Subtitle position: at the foot of the picture."
 styleColor:
-  message: "Original Line Color"
+  message: "Original Text Color"
   description: "Heading of the subtitle colors."
 styleCyan:
   message: "Cyan"
@@ -2265,7 +2285,7 @@ stylePreviewTranslation:
   message: "The river carved this valley over a million years."
   description: "The preview's translated line, in the interface's language."
 styleSize:
-  message: "Size"
+  message: "Text Size"
   description: "Heading of the subtitle sizes."
 styleSizeShortHuge:
   message: "XL"
@@ -2283,7 +2303,7 @@ styleSmall:
   message: "Small"
   description: "A subtitle size."
 styleTop:
-  message: "Top of the Picture"
+  message: "Top of Video"
   description: "Subtitle position: at the top of the picture."
 styleWhite:
   message: "White"

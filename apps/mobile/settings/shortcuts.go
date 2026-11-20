@@ -16,7 +16,8 @@ func ShortcutsPage(cx *core.Scope, sections []func() string, back func()) base.N
 	ref := &core.Ref{}
 	var rows []core.Node
 	for i, r := range shortcuts.List(cx, sections) {
-		rows = append(rows, look.Row{TestID: "settings-shortcut-" + r.ID, Index: func() int { return i },
+		// The rows are denser than a settings row, 46 points with the action at 15, as the design lists them.
+		rows = append(rows, look.Row{TestID: "settings-shortcut-" + r.ID, Index: func() int { return i }, MinHeight: 46, TitleStyle: look.Subhead,
 			Title: r.What,
 			Trailing: core.View{Style: core.Style{Height: core.Pt(26), Padding: core.Symmetric(0, 9), CornerRadius: 7, BorderCurve: core.BorderCurveContinuous, JustifyContent: core.JustifyCenter, FlexShrink: 0},
 				StyleFunc: func() core.Style { return core.Style{Background: colors.Inset()} },

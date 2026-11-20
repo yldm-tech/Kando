@@ -61,8 +61,9 @@ func RevokedPage(cx *core.Scope, s *session.Session, id string, pair func(), unp
 			core.View{Style: core.Style{FlexGrow: 1, JustifyContent: core.JustifyCenter, Padding: core.Symmetric(40, 32), PaddingEnv: core.EnvEdges{Top: core.EnvSafeArea, Right: core.EnvSafeArea, Bottom: core.EnvSafeArea, Left: core.EnvSafeArea},
 				MinHeight: core.Pct(100)}, Children: []core.Node{
 				core.View{Style: core.Style{MaxWidth: core.Pt(340), Width: core.Pct(100), AlignSelf: core.AlignCenter, Gap: 16}, Children: []core.Node{
-					core.View{Style: core.Style{Width: core.Pt(72), Height: core.Pt(72), CornerRadius: 36, AlignSelf: core.AlignCenter, AlignItems: core.AlignCenter, JustifyContent: core.JustifyCenter, Margin: core.Edges{Bottom: 4}},
-						StyleFunc: ui.Filled(tints.Danger), Children: []core.Node{ui.Icon(lucide.Lock, 34, colors.Danger)}},
+					// The lock is the design's glyph of about 24 points in the 72-point circle, 18 over the title.
+					core.View{Style: core.Style{Width: core.Pt(72), Height: core.Pt(72), CornerRadius: 36, AlignSelf: core.AlignCenter, AlignItems: core.AlignCenter, JustifyContent: core.JustifyCenter, Margin: core.Edges{Bottom: 2}},
+						StyleFunc: ui.Filled(tints.Danger), Children: []core.Node{ui.Icon(lucide.Lock, 26, colors.Danger)}},
 					core.Text{TestID: "revoked-title", ContentFunc: func() string { return locales.RevokedTitle(cx, name()) }, Role: core.RoleHeader,
 						Style: core.Style{FontSize: 24, LineHeight: 30, FontWeight: look.Heavy, TextAlign: core.TextAlignCenter}, StyleFunc: ui.Colored(colors.Text)},
 					core.Text{ContentFunc: func() string { return locales.RevokedBody(cx, name()) }, Style: core.Style{FontSize: 15, LineHeight: 22, TextAlign: core.TextAlignCenter}, StyleFunc: ui.Colored(colors.Muted)},
@@ -78,7 +79,12 @@ func RevokedPage(cx *core.Scope, s *session.Session, id string, pair func(), unp
 					core.View{Style: core.Style{Gap: 8, Margin: core.Edges{Top: 8}}, Children: []core.Node{
 						look.Button{TestID: "revoked-pair", Kind: look.Primary, Text: func() string { return locales.ComputersPairAgain(cx) }, OnPress: func() { leave(); pair() }},
 						look.Button{TestID: "revoked-unpair", Kind: look.Danger, Text: func() string { return locales.ComputersUnpair(cx) }, OnPress: unpair},
-						look.Button{TestID: "revoked-later", Kind: look.Plain, Text: func() string { return locales.RevokedLater(cx) }, OnPress: leave},
+						// Not Now is a link in the accent at 15 and 400, 40 tall, quieter than the buttons over it, as the design sets it.
+						base.Button{TestID: "revoked-later", LabelFunc: func() string { return locales.RevokedLater(cx) }, OnPress: func(core.PressEvent) { leave() },
+							Style: core.Style{Height: core.Pt(40), Padding: core.Symmetric(0, 16), AlignSelf: core.AlignCenter, AlignItems: core.AlignCenter, JustifyContent: core.JustifyCenter,
+								Active: &core.Style{Opacity: core.Alpha(0.6)}},
+							StyleFunc: func() core.Style { return core.Style{FocusVisible: ui.FocusRing(cx, 2)} },
+							Children: []core.Node{core.Text{ContentFunc: func() string { return locales.RevokedLater(cx) }, MaxLines: 1, Style: look.Subhead, StyleFunc: ui.Colored(colors.Accent)}}},
 					}},
 				}},
 			}},

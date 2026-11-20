@@ -47,6 +47,17 @@ func ColorTile(cx *core.Scope, icon func() *core.SVG, fill func() core.Color) co
 	return tile(icon, fill, ui.ColorsOf(cx).OnAccent)
 }
 
+// GlyphTile is a settings row's leading mark as the design draws it: a character or two, white at 13 points and 800, on a 30pt tile of the row's own color (theme.Tile…, or theme.Of(cx).TileInk); glyph and fill are read in bindings, as a glyph can follow the interface's language. The row's title names it, so assistive technology skips it.
+func GlyphTile(cx *core.Scope, glyph func() string, fill func() core.Color) core.Node {
+	colors := ui.ColorsOf(cx)
+	return core.View{AccessibilityElementsHidden: func() bool { return true },
+		Style: core.Style{Width: core.Pt(30), Height: core.Pt(30), CornerRadius: 8, BorderCurve: core.BorderCurveContinuous, FlexShrink: 0,
+			AlignItems: core.AlignCenter, JustifyContent: core.JustifyCenter},
+		StyleFunc: ui.Filled(fill),
+		Children: []core.Node{core.Text{ContentFunc: glyph, MaxLines: 1, Style: core.Style{FontSize: 13, LineHeight: 16, FontWeight: Heavy, TextAlign: core.TextAlignCenter},
+			StyleFunc: ui.Colored(colors.OnAccent)}}}
+}
+
 // tile is a 30pt tile, 8 round, filled with fill, with icon in tint.
 func tile(icon func() *core.SVG, fill, tint func() core.Color) core.Node {
 	return core.View{Style: core.Style{Width: core.Pt(30), Height: core.Pt(30), CornerRadius: 8, BorderCurve: core.BorderCurveContinuous, FlexShrink: 0,

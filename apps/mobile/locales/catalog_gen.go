@@ -640,6 +640,7 @@ var Parameters = map[string][]string{
 	"SettingsFooter":                 {"app", "version"},
 	"SettingsGoalValue":              {"count"},
 	"SettingsOfflineCount":           {"count"},
+	"SettingsOfflineDelete":          {"title"},
 	"SettingsProfileDetail":          {"name", "target"},
 	"SettingsProfileUnpaired":        {"target"},
 	"SettingsRemindDetail":           {"hour"},
@@ -844,6 +845,7 @@ type Translation struct {
 	SettingsFooter                 func(app string, version string) string
 	SettingsGoalValue              func(count int) string
 	SettingsOfflineCount           func(count int) string
+	SettingsOfflineDelete          func(title string) string
 	SettingsProfileDetail          func(name string, target string) string
 	SettingsProfileUnpaired        func(target string) string
 	SettingsRemindDetail           func(hour int) string
@@ -904,8 +906,10 @@ const (
 	textComputerServiceNone
 	textComputerServiceNote
 	textComputerStorage
+	textComputerStorageDenied
 	textComputerStorageFull
 	textComputerStorageKeys
+	textComputerStorageNoBucket
 	textComputerStorageNote
 	textComputerStorageOK
 	textComputerStorageUnreachable
@@ -1261,6 +1265,7 @@ const (
 	textSettingsNoComputer
 	textSettingsOffline
 	textSettingsOfflineEmpty
+	textSettingsOfflineFilmSaved
 	textSettingsOfflineSaved
 	textSettingsOfflineUse
 	textSettingsPair
@@ -1276,6 +1281,8 @@ const (
 	textSettingsTarget
 	textSettingsTargetNote
 	textSettingsThisDevice
+	textSettingsTileLanguage
+	textSettingsTileTarget
 	textSettingsTitle
 	textSettingsVersion
 	textSettingsWidgets
@@ -1397,8 +1404,10 @@ var keyOfText = [numTexts]string{
 	"computerServiceNone",
 	"computerServiceNote",
 	"computerStorage",
+	"computerStorageDenied",
 	"computerStorageFull",
 	"computerStorageKeys",
+	"computerStorageNoBucket",
 	"computerStorageNote",
 	"computerStorageOK",
 	"computerStorageUnreachable",
@@ -1754,6 +1763,7 @@ var keyOfText = [numTexts]string{
 	"settingsNoComputer",
 	"settingsOffline",
 	"settingsOfflineEmpty",
+	"settingsOfflineFilmSaved",
 	"settingsOfflineSaved",
 	"settingsOfflineUse",
 	"settingsPair",
@@ -1769,6 +1779,8 @@ var keyOfText = [numTexts]string{
 	"settingsTarget",
 	"settingsTargetNote",
 	"settingsThisDevice",
+	"settingsTileLanguage",
+	"settingsTileTarget",
 	"settingsTitle",
 	"settingsVersion",
 	"settingsWidgets",
@@ -1876,7 +1888,7 @@ var textsEn = i18n.NewTexts(""+
 	"Offline · links wait on this device"+
 	"Through your storage · every minute or two"+
 	"Use Context When Translating"+
-	"Lets the AI see the lines before each batch, for smoother translations."+
+	"Lets the model see the previous lines, for smoother translations."+
 	"Make sure the computer is on and Phone Sync is on, then try again."+
 	"Downloading, transcription and translation all happen in Kando on your computer. The phone just sends links, plays and helps you learn — no models to download, no battery drain."+
 	"Offline"+
@@ -1888,8 +1900,10 @@ var textsEn = i18n.NewTexts(""+
 	"Not Set Up"+
 	"The computer keeps its AI service and key. Change them in Kando on the computer."+
 	"Storage Status"+
+	"No Access to Bucket"+
 	"Full"+
 	"Key No Longer Valid"+
+	"Bucket Gone"+
 	"Videos and subtitles processed on the computer are uploaded to your own storage, and the phone reads them from there when it's away from the computer's network."+
 	"OK"+
 	"Can't Connect"+
@@ -2239,12 +2253,13 @@ var textsEn = i18n.NewTexts(""+
 	"None"+
 	"When two devices change the same translated line or the same note, choose which to keep here. Words, saved lines and progress merge on their own."+
 	"Daily Goal"+
-	"Show the Introduction Again"+
+	"Show Onboarding Again"+
 	"Language"+
 	"Automatic"+
 	"Not connected"+
 	"Offline Films"+
 	"No films saved on this device yet."+
+	"Saved"+
 	"Saved on This Device"+
 	"Offline Films Use"+
 	"Connect a Computer"+
@@ -2260,6 +2275,8 @@ var textsEn = i18n.NewTexts(""+
 	"Translate Into"+
 	"Subtitles are translated into this language, by this device and by the computers it's connected to, which take your choice."+
 	"This Device"+
+	"Aa"+
+	"A"+
 	"Settings"+
 	"Version"+
 	"Widgets"+
@@ -2275,8 +2292,8 @@ var textsEn = i18n.NewTexts(""+
 	"Search Films and Lines"+
 	"Space"+
 	"Switch Subtitles: Bilingual / Original / Translation / Hidden"+
-	"Bottom of the Picture"+
-	"Original Line Color"+
+	"Bottom of Video"+
+	"Original Text Color"+
 	"Cyan"+
 	"Extra Large"+
 	"Large"+
@@ -2288,13 +2305,13 @@ var textsEn = i18n.NewTexts(""+
 	"Preview of the subtitles"+
 	"この川は百万年かけて谷を削りました。"+
 	"The river carved this valley over a million years."+
-	"Size"+
+	"Text Size"+
 	"XL"+
 	"L"+
 	"M"+
 	"S"+
 	"Small"+
-	"Top of the Picture"+
+	"Top of Video"+
 	"White"+
 	"Yellow"+
 	"Words you look up and save while you watch show here"+
@@ -2364,7 +2381,7 @@ var textsEn = i18n.NewTexts(""+
 		36,
 		43,
 		28,
-		71,
+		65,
 		66,
 		179,
 		7,
@@ -2376,8 +2393,10 @@ var textsEn = i18n.NewTexts(""+
 		10,
 		80,
 		14,
+		19,
 		4,
 		19,
+		11,
 		160,
 		2,
 		13,
@@ -2727,12 +2746,13 @@ var textsEn = i18n.NewTexts(""+
 		4,
 		145,
 		10,
-		27,
+		21,
 		8,
 		9,
 		13,
 		13,
 		34,
+		5,
 		20,
 		17,
 		18,
@@ -2748,6 +2768,8 @@ var textsEn = i18n.NewTexts(""+
 		14,
 		123,
 		11,
+		2,
+		1,
 		8,
 		7,
 		7,
@@ -2763,7 +2785,7 @@ var textsEn = i18n.NewTexts(""+
 		22,
 		5,
 		61,
-		21,
+		15,
 		19,
 		4,
 		11,
@@ -2776,13 +2798,13 @@ var textsEn = i18n.NewTexts(""+
 		24,
 		54,
 		50,
-		4,
+		9,
 		2,
 		1,
 		1,
 		1,
 		5,
-		18,
+		12,
 		5,
 		6,
 		52,
@@ -2855,7 +2877,7 @@ var textsJa = i18n.NewTexts(""+
 	"オフライン · リンクはこの端末で待機"+
 	"ストレージ経由 · 1〜2 分ごとに更新"+
 	"翻訳で前後の文脈を使う"+
-	"各バッチの前の台詞も AI に渡し、より自然な翻訳にします。"+
+	"前の数行をモデルに渡し、より自然に訳します"+
 	"コンピュータの電源とスマホ同期がオンになっていることを確認して、もう一度お試しください。"+
 	"ダウンロード、文字起こし、翻訳はすべてコンピュータの Kando で行います。スマートフォンはリンクを送り、再生し、学習するだけ。モデルのダウンロードもバッテリーの消耗もありません。"+
 	"オフライン"+
@@ -2867,8 +2889,10 @@ var textsJa = i18n.NewTexts(""+
 	"未設定"+
 	"AI サービスとキーはコンピュータに保存されています。コンピュータの Kando で変更してください。"+
 	"ストレージの状態"+
+	"バケットにアクセスできない"+
 	"容量不足"+
 	"アクセスキーが無効"+
+	"バケットがない"+
 	"コンピュータで処理した動画と字幕はあなた自身のストレージにアップロードされ、コンピュータのネットワーク外ではスマートフォンがそこから読み込みます。"+
 	"正常"+
 	"接続できません"+
@@ -3224,6 +3248,7 @@ var textsJa = i18n.NewTexts(""+
 	"未接続"+
 	"オフラインの動画"+
 	"この端末に保存した動画はまだありません。"+
+	"保存済み"+
 	"この端末に保存済み"+
 	"オフラインの動画の使用量"+
 	"コンピュータに接続"+
@@ -3239,6 +3264,8 @@ var textsJa = i18n.NewTexts(""+
 	"翻訳先の言語"+
 	"字幕はこの言語に翻訳されます。変更すると、接続しているコンピュータもこの言語で翻訳します。"+
 	"この端末"+
+	"語"+
+	"文"+
 	"設定"+
 	"バージョン"+
 	"ウィジェット"+
@@ -3267,7 +3294,7 @@ var textsJa = i18n.NewTexts(""+
 	"字幕のプレビュー"+
 	"The river carved this valley over a million years."+
 	"この川は百万年かけて谷を削りました。"+
-	"サイズ"+
+	"文字サイズ"+
 	"特大"+
 	"大"+
 	"中"+
@@ -3343,7 +3370,7 @@ var textsJa = i18n.NewTexts(""+
 		52,
 		49,
 		33,
-		82,
+		63,
 		132,
 		259,
 		15,
@@ -3355,8 +3382,10 @@ var textsJa = i18n.NewTexts(""+
 		9,
 		133,
 		24,
+		39,
 		12,
 		27,
+		21,
 		219,
 		6,
 		21,
@@ -3712,6 +3741,7 @@ var textsJa = i18n.NewTexts(""+
 		9,
 		24,
 		60,
+		12,
 		27,
 		36,
 		27,
@@ -3727,6 +3757,8 @@ var textsJa = i18n.NewTexts(""+
 		18,
 		135,
 		12,
+		3,
+		3,
 		6,
 		15,
 		18,
@@ -3755,7 +3787,7 @@ var textsJa = i18n.NewTexts(""+
 		24,
 		50,
 		54,
-		9,
+		15,
 		6,
 		3,
 		3,
@@ -3834,7 +3866,7 @@ var textsKo = i18n.NewTexts(""+
 	"오프라인 · 링크는 이 기기에서 대기"+
 	"내 저장소 경유 · 1~2분마다 업데이트"+
 	"번역할 때 문맥 사용"+
-	"각 묶음 앞의 대사도 AI에 보내 더 자연스럽게 번역합니다."+
+	"앞의 몇 줄을 모델이 참고해 더 자연스럽게 번역합니다"+
 	"컴퓨터가 켜져 있고 휴대폰 동기화가 켜져 있는지 확인한 후 다시 시도하세요."+
 	"다운로드, 받아쓰기, 번역은 모두 컴퓨터의 Kando에서 이루어집니다. 휴대폰은 링크를 보내고, 재생하고, 학습을 도울 뿐이라 모델을 내려받거나 배터리를 소모하지 않습니다."+
 	"오프라인"+
@@ -3846,8 +3878,10 @@ var textsKo = i18n.NewTexts(""+
 	"설정 안 됨"+
 	"AI 서비스와 키는 컴퓨터에 저장됩니다. 컴퓨터의 Kando에서 변경하세요."+
 	"저장소 상태"+
+	"버킷에 접근할 수 없음"+
 	"용량 가득 참"+
 	"액세스 키가 유효하지 않음"+
+	"버킷 없음"+
 	"컴퓨터에서 처리한 동영상과 자막은 내 저장소에 업로드되고, 휴대폰이 컴퓨터의 네트워크 밖에 있을 때는 그곳에서 읽어 옵니다."+
 	"정상"+
 	"연결할 수 없음"+
@@ -4203,6 +4237,7 @@ var textsKo = i18n.NewTexts(""+
 	"연결 안 됨"+
 	"오프라인 영화"+
 	"이 기기에 저장한 영화가 아직 없습니다."+
+	"저장됨"+
 	"이 기기에 저장됨"+
 	"오프라인 영화 사용량"+
 	"컴퓨터 연결"+
@@ -4218,6 +4253,8 @@ var textsKo = i18n.NewTexts(""+
 	"번역할 언어"+
 	"자막은 이 언어로 번역돼요. 바꾸면 연결된 컴퓨터도 이 언어로 번역해요."+
 	"이 기기"+
+	"언"+
+	"가"+
 	"설정"+
 	"버전"+
 	"위젯"+
@@ -4246,7 +4283,7 @@ var textsKo = i18n.NewTexts(""+
 	"자막 미리 보기"+
 	"The river carved this valley over a million years."+
 	"이 강은 백만 년에 걸쳐 이 계곡을 깎았어요."+
-	"크기"+
+	"글자 크기"+
 	"아주 크게"+
 	"크게"+
 	"보통"+
@@ -4322,7 +4359,7 @@ var textsKo = i18n.NewTexts(""+
 		49,
 		49,
 		27,
-		77,
+		73,
 		104,
 		230,
 		12,
@@ -4334,8 +4371,10 @@ var textsKo = i18n.NewTexts(""+
 		14,
 		94,
 		16,
+		30,
 		17,
 		36,
+		13,
 		173,
 		6,
 		20,
@@ -4691,6 +4730,7 @@ var textsKo = i18n.NewTexts(""+
 		14,
 		19,
 		54,
+		9,
 		23,
 		29,
 		16,
@@ -4706,6 +4746,8 @@ var textsKo = i18n.NewTexts(""+
 		16,
 		98,
 		10,
+		3,
+		3,
 		6,
 		6,
 		6,
@@ -4734,7 +4776,7 @@ var textsKo = i18n.NewTexts(""+
 		20,
 		50,
 		59,
-		6,
+		13,
 		13,
 		6,
 		6,
@@ -4813,7 +4855,7 @@ var textsZhHans = i18n.NewTexts(""+
 	"离线 · 链接先在手机上排队"+
 	"经你的存储 · 一两分钟更新一次"+
 	"翻译时参考上下文"+
-	"让 AI 看到每批之前的台词，译文更连贯。"+
+	"让模型参考前面几句，译得更连贯"+
 	"请确认电脑已开机并打开了手机同步，然后再试一次。"+
 	"下载、转录、翻译都在电脑上的看懂里完成。手机只负责发链接、看片和学习——不用下载模型，也不费电。"+
 	"离线"+
@@ -4825,8 +4867,10 @@ var textsZhHans = i18n.NewTexts(""+
 	"未设置"+
 	"AI 服务和密钥保存在电脑上，请在电脑上的看懂里更改。"+
 	"存储状态"+
+	"无法访问存储桶"+
 	"空间已满"+
 	"访问密钥失效"+
+	"存储桶不存在"+
 	"电脑处理好的视频和字幕会上传到你自己的存储，手机不在电脑的网络里时从那里读取。"+
 	"正常"+
 	"连不上"+
@@ -5182,6 +5226,7 @@ var textsZhHans = i18n.NewTexts(""+
 	"未连接电脑"+
 	"离线影片"+
 	"还没有存到本机的影片。"+
+	"已存好"+
 	"已存到本机"+
 	"离线影片占用"+
 	"连接电脑"+
@@ -5197,6 +5242,8 @@ var textsZhHans = i18n.NewTexts(""+
 	"翻译成"+
 	"字幕会翻译成这种语言。改了以后，连着的电脑也会按它翻译。"+
 	"这台设备"+
+	"语"+
+	"文"+
 	"设置"+
 	"版本"+
 	"桌面小组件"+
@@ -5225,7 +5272,7 @@ var textsZhHans = i18n.NewTexts(""+
 	"字幕预览"+
 	"The river carved this valley over a million years."+
 	"这条河用了一百万年刻出这道山谷。"+
-	"大小"+
+	"字号"+
 	"特大"+
 	"大"+
 	"中"+
@@ -5301,7 +5348,7 @@ var textsZhHans = i18n.NewTexts(""+
 		37,
 		43,
 		24,
-		55,
+		45,
 		72,
 		144,
 		6,
@@ -5313,7 +5360,9 @@ var textsZhHans = i18n.NewTexts(""+
 		9,
 		75,
 		12,
+		21,
 		12,
+		18,
 		18,
 		117,
 		6,
@@ -5670,6 +5719,7 @@ var textsZhHans = i18n.NewTexts(""+
 		15,
 		12,
 		33,
+		9,
 		15,
 		18,
 		12,
@@ -5685,6 +5735,8 @@ var textsZhHans = i18n.NewTexts(""+
 		9,
 		84,
 		12,
+		3,
+		3,
 		6,
 		6,
 		15,
@@ -5792,7 +5844,7 @@ var textsZhHant = i18n.NewTexts(""+
 	"離線 · 連結先在手機上排隊"+
 	"經你的儲存空間 · 一兩分鐘更新一次"+
 	"翻譯時參考上下文"+
-	"讓 AI 看到每批之前的台詞，譯文更連貫。"+
+	"讓模型參考前面幾句，譯得更連貫"+
 	"請確認電腦已開機並開啟了手機同步，然後再試一次。"+
 	"下載、轉錄、翻譯都在電腦上的看懂裡完成。手機只負責傳連結、看片和學習——不用下載模型，也不耗電。"+
 	"離線"+
@@ -5804,8 +5856,10 @@ var textsZhHant = i18n.NewTexts(""+
 	"未設定"+
 	"AI 服務和金鑰保存在電腦上，請在電腦上的看懂裡更改。"+
 	"儲存空間狀態"+
+	"無法存取儲存桶"+
 	"空間已滿"+
 	"存取金鑰失效"+
+	"儲存桶不存在"+
 	"電腦處理好的影片和字幕會上傳到你自己的儲存空間，手機不在電腦的網路裡時從那裡讀取。"+
 	"正常"+
 	"連不上"+
@@ -6161,6 +6215,7 @@ var textsZhHant = i18n.NewTexts(""+
 	"未連接電腦"+
 	"離線影片"+
 	"還沒有存到本機的影片。"+
+	"已存好"+
 	"已存到本機"+
 	"離線影片佔用"+
 	"連接電腦"+
@@ -6176,6 +6231,8 @@ var textsZhHant = i18n.NewTexts(""+
 	"翻譯成"+
 	"字幕會翻譯成這種語言。改了以後，連著的電腦也會按它翻譯。"+
 	"這台裝置"+
+	"語"+
+	"文"+
 	"設定"+
 	"版本"+
 	"桌面小工具"+
@@ -6204,7 +6261,7 @@ var textsZhHant = i18n.NewTexts(""+
 	"字幕預覽"+
 	"The river carved this valley over a million years."+
 	"這條河用了一百萬年刻出這道山谷。"+
-	"大小"+
+	"字號"+
 	"特大"+
 	"大"+
 	"中"+
@@ -6280,7 +6337,7 @@ var textsZhHant = i18n.NewTexts(""+
 		37,
 		49,
 		24,
-		55,
+		45,
 		72,
 		144,
 		6,
@@ -6292,7 +6349,9 @@ var textsZhHant = i18n.NewTexts(""+
 		9,
 		75,
 		18,
+		21,
 		12,
+		18,
 		18,
 		123,
 		6,
@@ -6649,6 +6708,7 @@ var textsZhHant = i18n.NewTexts(""+
 		15,
 		12,
 		33,
+		9,
 		15,
 		18,
 		12,
@@ -6664,6 +6724,8 @@ var textsZhHant = i18n.NewTexts(""+
 		9,
 		84,
 		12,
+		3,
+		3,
 		6,
 		6,
 		15,
@@ -7341,6 +7403,9 @@ func Supply(lang string, t Translation) {
 	if t.SettingsOfflineCount != nil {
 		s.SettingsOfflineCount = t.SettingsOfflineCount
 	}
+	if t.SettingsOfflineDelete != nil {
+		s.SettingsOfflineDelete = t.SettingsOfflineDelete
+	}
 	if t.SettingsProfileDetail != nil {
 		s.SettingsProfileDetail = t.SettingsProfileDetail
 	}
@@ -8008,7 +8073,7 @@ func ComputerContext(cx *core.Scope) string { return For(cx).ComputerContext() }
 // ComputerContext is the package's ComputerContext in the language of msgs.
 func (msgs Messages) ComputerContext() string { return msgs.text(textComputerContext) }
 
-// ComputerContextDetail says "Lets the AI see the lines before each batch, for smoother translations."
+// ComputerContextDetail says "Lets the model see the previous lines, for smoother translations."
 // in the language the app shows under cx.
 //
 // Detail under the Use Context When Translating switch.
@@ -8248,6 +8313,15 @@ func ComputerStorage(cx *core.Scope) string { return For(cx).ComputerStorage() }
 // ComputerStorage is the package's ComputerStorage in the language of msgs.
 func (msgs Messages) ComputerStorage() string { return msgs.text(textComputerStorage) }
 
+// ComputerStorageDenied says "No Access to Bucket"
+// in the language the app shows under cx.
+//
+// Value of Storage Status: the storage refused the computer's key access to the bucket.
+func ComputerStorageDenied(cx *core.Scope) string { return For(cx).ComputerStorageDenied() }
+
+// ComputerStorageDenied is the package's ComputerStorageDenied in the language of msgs.
+func (msgs Messages) ComputerStorageDenied() string { return msgs.text(textComputerStorageDenied) }
+
 // ComputerStorageFull says "Full"
 // in the language the app shows under cx.
 //
@@ -8265,6 +8339,15 @@ func ComputerStorageKeys(cx *core.Scope) string { return For(cx).ComputerStorage
 
 // ComputerStorageKeys is the package's ComputerStorageKeys in the language of msgs.
 func (msgs Messages) ComputerStorageKeys() string { return msgs.text(textComputerStorageKeys) }
+
+// ComputerStorageNoBucket says "Bucket Gone"
+// in the language the app shows under cx.
+//
+// Value of Storage Status: the bucket the computer set up for phones no longer exists.
+func ComputerStorageNoBucket(cx *core.Scope) string { return For(cx).ComputerStorageNoBucket() }
+
+// ComputerStorageNoBucket is the package's ComputerStorageNoBucket in the language of msgs.
+func (msgs Messages) ComputerStorageNoBucket() string { return msgs.text(textComputerStorageNoBucket) }
 
 // ComputerStorageNote says "Videos and subtitles processed on the computer are uploaded to your own storage, and the phone reads them from there when it's away from the computer's network."
 // in the language the app shows under cx.
@@ -17064,7 +17147,7 @@ func (msgs Messages) SettingsGoalValue(count int) string {
 	}
 }
 
-// SettingsIntroduction says "Show the Introduction Again"
+// SettingsIntroduction says "Show Onboarding Again"
 // in the language the app shows under cx.
 //
 // Row in Settings that shows the introduction again.
@@ -17174,6 +17257,38 @@ func (msgs Messages) SettingsOfflineCount(count int) string {
 	}
 }
 
+// SettingsOfflineDelete says "Delete {title}"
+// in the language the app shows under cx.
+//
+// Spoken name of the Delete button on a row of Settings › Offline Films, which deletes that film from the device after asking.
+func SettingsOfflineDelete(cx *core.Scope, title string) string {
+	return For(cx).SettingsOfflineDelete(title)
+}
+
+// SettingsOfflineDelete is the package's SettingsOfflineDelete in the language of msgs.
+func (msgs Messages) SettingsOfflineDelete(title string) string {
+	if i18n.IsPseudo(msgs.lang) {
+		return i18n.Pseudo(msgs.lang, Messages{lang: Source, mark: true}.SettingsOfflineDelete(title))
+	}
+	for lang := msgs.lang; ; lang = i18n.Parent(lang) {
+		if f := supplied[lang].SettingsOfflineDelete; f != nil {
+			return f(title)
+		}
+		switch lang {
+		case "", "en":
+			return "Delete " + msgs.arg(title)
+		case "ja":
+			return title + " を削除"
+		case "ko":
+			return title + " 삭제"
+		case "zh-Hans":
+			return "删除 " + title
+		case "zh-Hant":
+			return "刪除 " + title
+		}
+	}
+}
+
 // SettingsOfflineEmpty says "No films saved on this device yet."
 // in the language the app shows under cx.
 //
@@ -17182,6 +17297,17 @@ func SettingsOfflineEmpty(cx *core.Scope) string { return For(cx).SettingsOfflin
 
 // SettingsOfflineEmpty is the package's SettingsOfflineEmpty in the language of msgs.
 func (msgs Messages) SettingsOfflineEmpty() string { return msgs.text(textSettingsOfflineEmpty) }
+
+// SettingsOfflineFilmSaved says "Saved"
+// in the language the app shows under cx.
+//
+// On a row of Settings › Offline Films, after the film's size: the film is kept whole on the device.
+func SettingsOfflineFilmSaved(cx *core.Scope) string { return For(cx).SettingsOfflineFilmSaved() }
+
+// SettingsOfflineFilmSaved is the package's SettingsOfflineFilmSaved in the language of msgs.
+func (msgs Messages) SettingsOfflineFilmSaved() string {
+	return msgs.text(textSettingsOfflineFilmSaved)
+}
 
 // SettingsOfflineSaved says "Saved on This Device"
 // in the language the app shows under cx.
@@ -17292,7 +17418,7 @@ func SettingsRemind(cx *core.Scope) string { return For(cx).SettingsRemind() }
 // SettingsRemind is the package's SettingsRemind in the language of msgs.
 func (msgs Messages) SettingsRemind() string { return msgs.text(textSettingsRemind) }
 
-// SettingsRemindDetail says "At {hour}:00, only when something is due"
+// SettingsRemindDetail says "{hour}:00 · only when something is due"
 // in the language the app shows under cx.
 //
 // Under the review reminder's switch: when it shows.
@@ -17309,15 +17435,15 @@ func (msgs Messages) SettingsRemindDetail(hour int) string {
 		}
 		switch lang {
 		case "", "en":
-			return "At " + msgs.arg(i18n.FormatNumber("en", float64(hour))) + ":00, only when something is due"
+			return msgs.arg(i18n.FormatNumber("en", float64(hour))) + ":00 · only when something is due"
 		case "ja":
-			return i18n.FormatNumber("ja", float64(hour)) + ":00、復習するものがあるときだけ"
+			return i18n.FormatNumber("ja", float64(hour)) + ":00 · 復習するものがあるときだけ"
 		case "ko":
-			return i18n.FormatNumber("ko", float64(hour)) + ":00, 복습할 항목이 있을 때만"
+			return i18n.FormatNumber("ko", float64(hour)) + ":00 · 복습할 항목이 있을 때만"
 		case "zh-Hans":
-			return i18n.FormatNumber("zh-Hans", float64(hour)) + ":00，有待复习的内容时才提醒"
+			return i18n.FormatNumber("zh-Hans", float64(hour)) + ":00 · 有待复习的内容时才提醒"
 		case "zh-Hant":
-			return i18n.FormatNumber("zh-Hant", float64(hour)) + ":00，有待複習的內容時才提醒"
+			return i18n.FormatNumber("zh-Hant", float64(hour)) + ":00 · 有待複習的內容時才提醒"
 		}
 	}
 }
@@ -17411,6 +17537,24 @@ func SettingsThisDevice(cx *core.Scope) string { return For(cx).SettingsThisDevi
 
 // SettingsThisDevice is the package's SettingsThisDevice in the language of msgs.
 func (msgs Messages) SettingsThisDevice() string { return msgs.text(textSettingsThisDevice) }
+
+// SettingsTileLanguage says "Aa"
+// in the language the app shows under cx.
+//
+// The one or two characters on the Language row's colored tile in Settings, standing for language: Aa in English, 语 in Simplified Chinese.
+func SettingsTileLanguage(cx *core.Scope) string { return For(cx).SettingsTileLanguage() }
+
+// SettingsTileLanguage is the package's SettingsTileLanguage in the language of msgs.
+func (msgs Messages) SettingsTileLanguage() string { return msgs.text(textSettingsTileLanguage) }
+
+// SettingsTileTarget says "A"
+// in the language the app shows under cx.
+//
+// The one character on the Translate Into row's colored tile in Settings, standing for writing: A in English, 文 in Chinese.
+func SettingsTileTarget(cx *core.Scope) string { return For(cx).SettingsTileTarget() }
+
+// SettingsTileTarget is the package's SettingsTileTarget in the language of msgs.
+func (msgs Messages) SettingsTileTarget() string { return msgs.text(textSettingsTileTarget) }
 
 // SettingsTitle says "Settings"
 // in the language the app shows under cx.
@@ -17579,7 +17723,7 @@ func ShortcutsSubtitles(cx *core.Scope) string { return For(cx).ShortcutsSubtitl
 // ShortcutsSubtitles is the package's ShortcutsSubtitles in the language of msgs.
 func (msgs Messages) ShortcutsSubtitles() string { return msgs.text(textShortcutsSubtitles) }
 
-// StyleBottom says "Bottom of the Picture"
+// StyleBottom says "Bottom of Video"
 // in the language the app shows under cx.
 //
 // Subtitle position: at the foot of the picture.
@@ -17588,7 +17732,7 @@ func StyleBottom(cx *core.Scope) string { return For(cx).StyleBottom() }
 // StyleBottom is the package's StyleBottom in the language of msgs.
 func (msgs Messages) StyleBottom() string { return msgs.text(textStyleBottom) }
 
-// StyleColor says "Original Line Color"
+// StyleColor says "Original Text Color"
 // in the language the app shows under cx.
 //
 // Heading of the subtitle colors.
@@ -17696,7 +17840,7 @@ func StylePreviewTranslation(cx *core.Scope) string { return For(cx).StylePrevie
 // StylePreviewTranslation is the package's StylePreviewTranslation in the language of msgs.
 func (msgs Messages) StylePreviewTranslation() string { return msgs.text(textStylePreviewTranslation) }
 
-// StyleSize says "Size"
+// StyleSize says "Text Size"
 // in the language the app shows under cx.
 //
 // Heading of the subtitle sizes.
@@ -17750,7 +17894,7 @@ func StyleSmall(cx *core.Scope) string { return For(cx).StyleSmall() }
 // StyleSmall is the package's StyleSmall in the language of msgs.
 func (msgs Messages) StyleSmall() string { return msgs.text(textStyleSmall) }
 
-// StyleTop says "Top of the Picture"
+// StyleTop says "Top of Video"
 // in the language the app shows under cx.
 //
 // Subtitle position: at the top of the picture.

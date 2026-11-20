@@ -68,9 +68,20 @@ func StylePage(cx *core.Scope, s *session.Session, back func()) base.NavPage {
 	colors := ui.ColorsOf(cx)
 	style := func() store.SubStyle { return s.Prefs().Subtitles }
 	ref := &core.Ref{}
-	var sizes []ui.Option[store.SubSize]
-	for _, z := range store.SubSizes {
-		sizes = append(sizes, ui.Option[store.SubSize]{Value: z, Label: sizeShortName(cx, z), TestID: "style-size-" + sizeTestID(z)})
+	// sizes are the size control's options: the short name shows, in the ink, bold while chosen, and the full name is what assistive technology reads.
+	sizes := func(cx *core.Scope) []ui.Option[store.SubSize] {
+		var out []ui.Option[store.SubSize]
+		for _, z := range store.SubSizes {
+			out = append(out, ui.Option[store.SubSize]{Value: z, Label: sizeName(cx, z), TestID: "style-size-" + sizeTestID(z),
+				Content: core.Text{ContentFunc: func() string { return sizeShortName(cx, z) }, MaxLines: 1, StyleFunc: func() core.Style {
+					st := core.Style{FontSize: 13, LineHeight: 16, FontWeight: core.FontWeightMedium, Color: colors.Text()}
+					if style().Size == z {
+						st.FontWeight = core.FontWeightBold
+					}
+					return st
+				}}})
+		}
+		return out
 	}
 	// A swatch is 36 points across; the chosen one is ringed in the accent, 3 points out from it, as the design draws it.
 	var swatches []core.Node
@@ -109,9 +120,12 @@ func StylePage(cx *core.Scope, s *session.Session, back func()) base.NavPage {
 				preview(cx, style),
 				core.View{Style: core.Style{Gap: 7}, Children: []core.Node{
 					look.GroupHeader(cx, func() string { return locales.StyleSize(cx) }),
-					// TODO(nsgo): ui.Tabs' segmented control is a capsule with a regular-weight label (ui/tabs.go:66-67, 113-116) and takes no radius for its track or thumb, nor a weight for the selected label; the design's is a 10-round track under an 8-round thumb with the selected label bold.
-					ui.Tabs[store.SubSize]{TestID: "style-size", Variant: ui.TabsSegmented, Equal: true, Size: ui.SizeLarge, Label: locales.StyleSize(cx), Options: sizes,
-						Value: func() store.SubSize { return style().Size }, OnChange: func(z store.SubSize) { setStyle(s, func(st *store.SubStyle) { st.Size = z }) }},
+					// TODO(nsgo): ui.Tabs' segmented control is a capsule (ui/tabs.go:66-67, 106-110) and takes no radius for its track or thumb nor a shadow for its thumb, and its own labels are regular and muted while not chosen (ui/tabs.go:64, 115); the design's is a 10-round track under an 8-round thumb lifted by a 0 1 3 shadow of 0.12 black, its labels in the ink at 500, 700 while chosen. The labels are drawn here as each option's Content; the radius and the shadow wait on NSGo.
+					// ui.Tabs' and its options' labels are strings, so the control is built again as the language changes, as Learn's modes are.
+					core.Dynamic(func(cx *core.Scope) core.Node {
+						return ui.Tabs[store.SubSize]{TestID: "style-size", Variant: ui.TabsSegmented, Equal: true, Size: ui.SizeLarge, Label: locales.StyleSize(cx), Options: sizes(cx),
+							Value: func() store.SubSize { return style().Size }, OnChange: func(z store.SubSize) { setStyle(s, func(st *store.SubStyle) { st.Size = z }) }}
+					}),
 				}},
 				core.View{Style: core.Style{Gap: 7}, Children: []core.Node{
 					look.GroupHeader(cx, func() string { return locales.StyleColor(cx) }),
@@ -145,8 +159,8 @@ func preview(cx *core.Scope, style func() store.SubStyle) core.Node {
 			}}
 	}
 	return core.View{TestID: "style-preview", Role: core.RoleImage, LabelFunc: func() string { return locales.StylePreview(cx) },
-		Style: core.Style{Width: core.Pct(100), AspectRatio: 16.0 / 9, CornerRadius: look.CardRadius, BorderCurve: core.BorderCurveContinuous, Overflow: core.Hidden,
-			Gradients: []core.Gradient{core.LinearGradient(180, theme.PreviewSkyTop, theme.PreviewSkyBottom)}, AlignItems: core.AlignCenter, Gap: 2, Padding: core.Symmetric(10, 12)},
+		Style: core.Style{Width: core.Pct(100), AspectRatio: 358.0 / 200, CornerRadius: look.CardRadius, BorderCurve: core.BorderCurveContinuous, Overflow: core.Hidden,
+			Background: theme.PreviewBase, AlignItems: core.AlignCenter, Gap: 2, Padding: core.Symmetric(10, 12)},
 		StyleFunc: func() core.Style {
 			if style().Top {
 				return core.Style{JustifyContent: core.JustifyStart}
@@ -154,9 +168,8 @@ func preview(cx *core.Scope, style func() store.SubStyle) core.Node {
 			return core.Style{JustifyContent: core.JustifyEnd}
 		},
 		Children: []core.Node{
-			// The picture: a sun over hills, so the lines show on something as they do over a film.
-			core.View{Style: core.Style{Position: core.Absolute, Left: core.Pt(0), Right: core.Pt(0), Bottom: core.Pt(0), Height: core.Pct(42), Background: theme.PreviewHills}},
-			core.View{Style: core.Style{Position: core.Absolute, Right: core.Pct(18), Top: core.Pct(18), Width: core.Pt(36), Height: core.Pt(36), CornerRadius: 18, Background: theme.PreviewSun}},
+			// The picture, the design's river under mountains at 0.9 over black, so the lines show on something as they do over a film; the box takes the picture's proportions, so it fills it.
+			core.SVGView{SVG: riverScene, Style: core.Style{Position: core.Absolute, Left: core.Pt(0), Top: core.Pt(0), Right: core.Pt(0), Bottom: core.Pt(0), Opacity: core.Alpha(0.9)}},
 			line("style-preview-translation", func() string { return locales.StylePreviewTranslation(cx) }, false),
 			line("style-preview-original", func() string { return locales.StylePreviewOriginal(cx) }, true),
 		}}

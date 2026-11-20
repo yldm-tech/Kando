@@ -105,7 +105,7 @@ func (p *phone) openTab(i int, name string) {
 	p.app.Emit("id:tab-bar", "change", float64(i))
 }
 
-// openComputers opens Settings › Processing Computer, which lists the paired computers, each with its options.
+// openComputers opens Settings › Processing Computer, which lists the paired computers and unpairs the one it shows.
 func (p *phone) openComputers() {
 	p.t.Helper()
 	p.openTab(settingsTab, msgs.SettingsTitle())
@@ -208,7 +208,11 @@ func (p *phone) texts(selector string) string {
 	}
 	var out []string
 	var walk func(v *nsgotest.View)
+	// What assistive technology skips, as a settings row's glyph tile, is not read.
 	walk = func(v *nsgotest.View) {
+		if v.Props.ElementsHidden {
+			return
+		}
 		if v.Text != "" {
 			out = append(out, v.Text)
 		}

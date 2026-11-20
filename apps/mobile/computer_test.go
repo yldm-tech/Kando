@@ -102,3 +102,48 @@ func TestTheComputerPagePicksWhereNewLinksGo(t *testing.T) {
 	}
 	p.app.WaitUntil(wait, func() bool { prefs, _ := store.Open(dir).Prefs(); return prefs.SendTo == "laptop" })
 }
+
+// With nothing picked in Settings and the computer paired first out of reach, new links go to the one that answers: Settings checks it and the Add sheet starts on it.
+func TestSettingsAndTheAddSheetSendToTheSameComputer(t *testing.T) {
+	d, e := newDesktop(t), newDesktop(t)
+	d.SetOff(true)
+	dir := t.TempDir()
+	p := startPhone(t, dir, pairedWithBoth(t, d, e, dir))
+	first := store.DesktopID(d.Fingerprint)
+	p.openComputers()
+	p.app.WaitFor("id:settings-computer-laptop", wait)
+	p.app.WaitUntil(reconnect, func() bool { return p.app.Find("id:settings-computer-laptop").Props.Checked })
+	if p.app.Find("id:settings-computer-" + first).Props.Checked {
+		t.Fatal("two computers are checked")
+	}
+	p.app.Back()
+	p.openTab(filmsTab, msgs.FilmsTitle())
+	p.app.Press("id:films-add")
+	p.app.WaitFor("id:add-computer-laptop", wait)
+	if !p.app.Find("id:add-computer-laptop").Props.Checked || p.app.Find("id:add-computer-"+first).Props.Checked {
+		t.Fatal("the Add sheet starts on another computer than the one Settings shows")
+	}
+}
+
+// The computer page shows the computer new links go to; unpairing it there shows the next one, and the page goes with the last.
+func TestUnpairingTheComputerShownShowsTheNext(t *testing.T) {
+	d, e := newDesktop(t), newDesktop(t)
+	dir := t.TempDir()
+	p := startPhone(t, dir, pairedWithBoth(t, d, e, dir))
+	first := store.DesktopID(d.Fingerprint)
+	p.openComputers()
+	p.app.WaitFor("id:settings-computer-laptop", wait)
+	p.app.Press("id:settings-computer-" + first)
+	p.app.WaitUntil(wait, func() bool { return p.app.Find("id:settings-computer-" + first).Props.Checked })
+	p.app.Press("id:computer-unpair")
+	p.app.Answer(1)
+	p.app.WaitForGone("id:settings-computer-"+first, wait)
+	p.app.WaitUntil(wait, func() bool { return p.app.Find("id:settings-computer-laptop").Props.Checked })
+	if len(p.app.QueryMounted("id:computer-page")) != 1 {
+		t.Fatal("the computer page went with a computer left to show")
+	}
+	p.app.Press("id:computer-unpair")
+	p.app.Answer(1)
+	p.app.WaitUntil(wait, func() bool { return len(p.app.QueryMounted("id:computer-page")) == 0 })
+	p.app.WaitFor("id:settings-pair", wait)
+}

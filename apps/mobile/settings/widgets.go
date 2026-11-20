@@ -50,7 +50,7 @@ func WidgetsPage(cx *core.Scope, s *session.Session, back func()) base.NavPage {
 						Style: look.Caption.Merge(core.Style{Padding: core.Edges{Right: 16, Left: 16}}), StyleFunc: ui.Colored(colors.Muted)},
 					// The widgets sit on a picture of a Home Screen's wallpaper, as they show on one.
 					core.View{TestID: "settings-widgets-wallpaper", Style: core.Style{AlignItems: core.AlignCenter, Gap: 16, Padding: core.Symmetric(22, 18), CornerRadius: 22, BorderCurve: core.BorderCurveContinuous,
-						Gradients: []core.Gradient{core.LinearGradient(160, theme.WallpaperTop, theme.WallpaperMiddle, theme.WallpaperBottom)}}, Children: []core.Node{
+						Gradients: []core.Gradient{wallpaper()}}, Children: []core.Node{
 						streakPreview(cx, w),
 						filmPreview(cx, w),
 						widePreview(cx, w),
@@ -133,9 +133,9 @@ func filmPreview(cx *core.Scope, w func() widgets.Shown) core.Node {
 				Children: []core.Node{
 					core.Image{SourceFunc: func() core.ImageSource { return posterSource(w()) }, ResizeMode: core.Cover, ElementsHidden: true,
 						Style: core.Style{Position: core.Absolute, Left: core.Pt(0), Top: core.Pt(0), Right: core.Pt(0), Bottom: core.Pt(0)}},
-					// A scrim darkens the poster's foot, where the line is written, as the widget's does.
-					core.View{Style: core.Style{Gap: 4, Padding: core.Edges{Top: 40, Right: 14, Bottom: 14, Left: 14},
-						Gradients: []core.Gradient{core.LinearGradient(180, core.RGBA(0x000000, 0), core.RGBA(0x000000, 0.45), core.RGBA(0x000000, 0.75))}}, Children: []core.Node{
+					// A scrim darkens the poster from 30% of the way down to its foot, where the line is written, as the widget's does.
+					core.View{Style: core.Style{Position: core.Absolute, Left: core.Pt(0), Top: core.Pt(0), Right: core.Pt(0), Bottom: core.Pt(0), Gradients: []core.Gradient{scrim()}}},
+					core.View{Style: core.Style{Gap: 4, Padding: core.All(14)}, Children: []core.Node{
 						core.Text{ContentFunc: func() string { return locales.WidgetContinue(cx) }, MaxLines: 1, Style: core.Style{FontSize: 11, LineHeight: 14, FontWeight: core.FontWeightBold, Color: white.Faded(0.85)}},
 						core.Text{TestID: "settings-widget-film-text", ContentFunc: text, MaxLines: 2, Style: core.Style{FontSize: 13, LineHeight: 17, FontWeight: core.FontWeightBold, Color: white}},
 						progress(func() float32 { return float32(w().Film.Percent()) / 100 }, white),
@@ -167,7 +167,7 @@ func widePreview(cx *core.Scope, w func() widgets.Shown) core.Node {
 				core.View{Style: core.Style{FlexGrow: 1, FlexShrink: 1, MinWidth: core.Pt(0), Gap: 2}, Children: []core.Node{
 					core.Text{ContentFunc: func() string { return locales.WidgetContinuePercent(cx, w().Film.Percent()) }, MaxLines: 1,
 						Style: core.Style{FontSize: 11, LineHeight: 14, FontWeight: core.FontWeightBold}, StyleFunc: ui.Colored(colors.Accent)},
-					core.Text{ContentFunc: func() string { return w().Film.Title }, MaxLines: 2, Style: core.Style{FontSize: 14, LineHeight: 18, FontWeight: core.FontWeightBold}, StyleFunc: ui.Colored(colors.Text)},
+					core.Text{ContentFunc: func() string { return w().Film.Title }, MaxLines: 2, Style: core.Style{FontSize: 14, LineHeight: 18, FontWeight: look.Heavy}, StyleFunc: ui.Colored(colors.Text)},
 					core.Show{When: func() bool { return w().Line != "" }, Then: func(cx *core.Scope) core.Node {
 						return core.Text{ContentFunc: func() string { return w().Line }, MaxLines: 2, Style: core.Style{FontSize: 12, LineHeight: 16, Padding: core.Edges{Top: 4}},
 							StyleFunc: func() core.Style { return core.Style{Color: ui.Alpha(colors.Text(), 0.8)} }}
@@ -190,11 +190,25 @@ func lockPreview(cx *core.Scope, w func() widgets.Shown) core.Node {
 				Style: core.Style{Width: core.Pt(72), Height: core.Pt(72), CornerRadius: 36, AlignItems: core.AlignCenter, JustifyContent: core.JustifyCenter, Background: core.RGBA(0xFFFFFF, 0.35),
 					BackdropFilters: []core.Filter{core.Blur(10)}},
 				Children: []core.Node{
-					core.Text{TestID: "settings-widget-lock-due", ContentFunc: due, MaxLines: 1, Style: core.Style{FontSize: 24, LineHeight: 26, FontWeight: core.FontWeightBold, Color: white, FontVariant: core.FontTabularNums}},
+					core.Text{TestID: "settings-widget-lock-due", ContentFunc: due, MaxLines: 1, Style: core.Style{FontSize: 24, LineHeight: 26, FontWeight: look.Heavy, Color: white, FontVariant: core.FontTabularNums}},
 					core.Text{ContentFunc: func() string { return locales.WidgetDueShort(cx) }, MaxLines: 1, Style: core.Style{FontSize: 10, LineHeight: 12, FontWeight: core.FontWeightBold, Color: white}},
 				}},
 			core.Text{ContentFunc: func() string { return locales.SettingsWidgetsLockScreen(cx) }, MaxLines: 1, Style: core.Style{FontSize: 12, LineHeight: 16, FontWeight: core.FontWeightSemibold, Color: white}},
 		}}
+}
+
+// scrim is the Continue widget's shade over its poster: clear down to 30% of its height, then darkening to 0.75 black at its foot.
+func scrim() core.Gradient {
+	g := core.LinearGradient(180, core.RGBA(0x000000, 0), core.RGBA(0x000000, 0.75))
+	g.Stops[0].At = core.Pct(30)
+	return g
+}
+
+// wallpaper is the Home Screen wallpaper the previews sit on, its middle color 60% of the way down, as the design's.
+func wallpaper() core.Gradient {
+	g := core.LinearGradient(160, theme.WallpaperTop, theme.WallpaperMiddle, theme.WallpaperBottom)
+	g.Stops[1].At = core.Pct(60)
+	return g
 }
 
 // progress is a thin bar filled to the share value reports, in ink.

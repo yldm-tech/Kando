@@ -10,19 +10,29 @@ func (s *Session) SetLanguage(lang string) {
 	s.SetPrefs(p)
 }
 
-// SendTo is the paired computer Settings shows as the one that processes new links: the one the user chose while it is paired, else the first paired; "" with none paired.
+// SendTo is the paired computer that processes new links, as Settings shows it and the Add sheet starts on it: the one the user chose in Settings while it is paired; else the first that answers and takes links, else the first that may take them once it answers (Queue.Takes), else the first paired; "" with none paired.
 func (s *Session) SendTo() string {
 	ds := s.Desktops()
-	if len(ds) == 0 {
-		return ""
-	}
 	want := s.Prefs().SendTo
 	for _, d := range ds {
 		if d.ID == want {
 			return d.ID
 		}
 	}
-	return ds[0].ID
+	for _, d := range ds {
+		if q := s.Queue(d.ID); q.Reach == Online && q.Takes() {
+			return d.ID
+		}
+	}
+	for _, d := range ds {
+		if s.Queue(d.ID).Takes() {
+			return d.ID
+		}
+	}
+	if len(ds) > 0 {
+		return ds[0].ID
+	}
+	return ""
 }
 
 // SetSendTo keeps computer id as the one new links go to.
