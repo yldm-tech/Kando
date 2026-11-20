@@ -13,6 +13,7 @@ import (
 	"path"
 	"time"
 
+	"kando/apps/kando/plugins"
 	"kando/apps/kando/plugins/script/signature"
 
 	"github.com/nsgo-dev/nsgo/tsx/pkg"
@@ -33,7 +34,7 @@ const Ext = ".kandoplugin"
 // FileName is the name of the .kandoplugin of the plugin id at version: id-version.kandoplugin. A published file is never replaced in place, as a Kando that cached an older index checks it by its SHA-256, so each version has a name of its own.
 func FileName(id, version string) string { return id + "-" + version + Ext }
 
-// Wrap makes the .kandoplugin of a plugin from manifest, its source kando-plugin.json, and the package nsgo publish signed of it, data, named pkgName in the file: a zip of the manifest with its script naming the package by name and SHA-256, and the package, as plugins.Stage takes it. The package must be the manifest's plugin: its app ID ai.yldm.kando.plugin.<id> and its version. What the package signed it may reach is checked as Kando installs it (script.Verify), not here. It also returns the plugin's id and version.
+// Wrap makes the .kandoplugin of a plugin from manifest, its source kando-plugin.json, and the package nsgo publish signed of it, data, named pkgName in the file: a zip of the manifest with its script naming the package by name and SHA-256, and the package, as plugins.Stage takes it. The package must be the manifest's plugin: its app ID ai.yldm.kando.plugin.<id> and its version; and if it signed its manifest (pkg.Contents.Extra), what it signed must be the manifest's (signature.CheckManifest) and every Kando the manifest says it runs on must take it (signature.SignsManifest). What the package signed it may reach is checked as Kando installs it (script.Verify), not here. It also returns the plugin's id and version.
 func Wrap(manifest []byte, pkgName string, data []byte) (out []byte, id, version string, err error) {
 	var raw map[string]json.RawMessage
 	if err := json.Unmarshal(manifest, &raw); err != nil {
@@ -59,6 +60,11 @@ func Wrap(manifest []byte, pkgName string, data []byte) (out []byte, id, version
 	}
 	if info.App.ID != signature.AppIDPrefix+m.ID || info.App.Version != m.Version {
 		return nil, "", "", fmt.Errorf("%w: %s %s, where the manifest is %s%s %s", ErrMismatch, info.App.ID, info.App.Version, signature.AppIDPrefix, m.ID, m.Version)
+	}
+	if info.Extra != nil {
+		if err := checkSignedManifest(manifest, info.Extra); err != nil {
+			return nil, "", "", err
+		}
 	}
 	sum := sha256.Sum256(data)
 	raw["script"], err = json.Marshal(map[string]string{"package": pkgName, "sha256": hex.EncodeToString(sum[:])})
@@ -88,6 +94,24 @@ func Wrap(manifest []byte, pkgName string, data []byte) (out []byte, id, version
 		return nil, "", "", err
 	}
 	return buf.Bytes(), m.ID, m.Version, nil
+}
+
+// ErrSignedManifest is a package that signed its manifest (pkg.Contents.Extra) for a plugin whose manifest says it runs on a Kando older than signature.ManifestEntrySince, which refuses such a package.
+var ErrSignedManifest = errors.New("the package signs its manifest, which a Kando the manifest says it runs on refuses")
+
+// checkSignedManifest checks the manifest a package signed, signed, against manifest, the plugin's source kando-plugin.json: ErrSignedManifest when a Kando it says it runs on refuses a package that signed it, ErrMismatch when it is not what it signed.
+func checkSignedManifest(manifest, signed []byte) error {
+	m, err := plugins.Parse(manifest)
+	if err != nil {
+		return fmt.Errorf("%s: %w", manifestName, err)
+	}
+	if !signature.SignsManifest(m) {
+		return fmt.Errorf("%w: kando %q, where it takes %s or newer", ErrSignedManifest, m.Kando, signature.ManifestEntrySince)
+	}
+	if err := signature.CheckManifest(signed, m); err != nil {
+		return fmt.Errorf("%w: %w", ErrMismatch, err)
+	}
+	return nil
 }
 
 // VerifyPackage checks that the package data chains to root, as Kando's trust does before anything else (pkg.Trust.Verify), with no revocation list.

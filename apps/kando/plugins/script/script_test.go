@@ -136,6 +136,84 @@ func TestScriptProbe(t *testing.T) {
 	}
 }
 
+// TestScriptSignedManifest checks a package that signed its manifest (pkg.Contents.Extra): Verify compares what it signed with the manifest, so Probe runs none of its code, which need not say what it is (kandoManifest), and Load checks the functions its contributions call; a manifest that is not what it signed, a signed entry with another key or that is no object, and a signed entry changed after signing are refused. A package that did not sign it, as every one published, is the kandoManifest's of TestScriptProbe.
+func TestScriptSignedManifest(t *testing.T) {
+	s := newSigner(t, AppIDPrefix+"acme.*")
+	roots := s.roots()
+	trust := trustOf(t, roots)
+	e := newEngine(t)
+	commands := `"contributes": {"commands": [{"id": "sync", "export": "run", "title": {"en": "Sync"}}]}, "optional": ["kando.saved.read"]`
+	verify := func(f fixture) (Verified, error) {
+		t.Helper()
+		return Verify(trust, roots, s.pack(t, f))
+	}
+
+	// Its code throws as it loads and says nothing of itself: Probe never runs it.
+	v, err := verify(fixture{id: "acme.tool", extra: commands, signManifest: true, said: "undefined", code: `throw new Error("ran before the user agreed")`})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if v.Package.Extra == nil {
+		t.Fatal("the package signed no manifest")
+	}
+	e.do(func() { err = Probe(e.root, v) })
+	if err != nil {
+		t.Errorf("a package that signed its manifest: %v", err)
+	}
+	v, err = verify(fixture{id: "acme.tool", extra: commands, signManifest: true, said: "undefined", code: "export function run() { return 1 }"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	var pl *Plugin
+	e.do(func() {
+		if err = Probe(e.root, v); err == nil {
+			pl, err = Load(e.root, v, plugins.Grant{}, core.NewHost())
+		}
+	})
+	if err != nil || pl == nil {
+		t.Fatalf("a package that signed its manifest without kandoManifest: %v", err)
+	}
+	e.do(func() { pl.p.Close() })
+
+	// A command whose function it does not export is refused as it loads, as Probe did not run it.
+	v, err = verify(fixture{id: "acme.tool", extra: commands, signManifest: true})
+	if err != nil {
+		t.Fatal(err)
+	}
+	e.do(func() {
+		if err = Probe(e.root, v); err == nil {
+			_, err = Load(e.root, v, plugins.Grant{}, core.NewHost())
+		}
+	})
+	wantErr(t, "no export", err, plugins.ErrTampered)
+
+	// The manifest says more than the package signed of it, or the package signed another key or no object.
+	_, err = verify(fixture{id: "acme.tool", extra: commands, entry: `{"capabilities": {"host": ["kando.toast"]}}`, code: "export function run() {}"})
+	wantErr(t, "a manifest that is not the one signed", err, plugins.ErrTampered)
+	_, err = verify(fixture{id: "acme.tool", entry: `{"capabilities": {"host": ["kando.toast"]}, "panels": [{"id": "x"}]}`})
+	wantErr(t, "another key signed", err, plugins.ErrTampered)
+	_, err = verify(fixture{id: "acme.tool", entry: `["capabilities"]`})
+	wantErr(t, "no object signed", err, plugins.ErrTampered)
+
+	// A byte of the signed manifest changed after signing breaks the signature, as a byte of the code does.
+	p := s.pack(t, fixture{id: "acme.tool", signManifest: true})
+	path := filepath.Join(p.Dir, p.Script.Package)
+	data, err := os.ReadFile(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	i := strings.LastIndex(string(data), "kando.toast")
+	if i < 0 {
+		t.Fatal("the package holds no signed manifest")
+	}
+	copy(data[i:], "kando.saved")
+	if err := os.WriteFile(path, data, 0o644); err != nil {
+		t.Fatal(err)
+	}
+	_, err = Verify(trust, roots, p)
+	wantErr(t, "a signed manifest changed", err, ErrUntrusted)
+}
+
 // TestScriptLimitsAreBounded checks that every Limits Kando runs a plugin under is hardened and bounds the stack, nodes, timers, requests, bodies and storage: a zero field would be no limit at all.
 func TestScriptLimitsAreBounded(t *testing.T) {
 	for name, l := range map[string]any{"run": *Limits(), "probe": *probeLimits(), "sandbox": *Sandbox("a.b", "k", plugins.Grant{}, nil).Limits, "probe sandbox": *probeSandbox("p").Limits} {

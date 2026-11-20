@@ -343,9 +343,12 @@ AnkiConnect 的所有动作（包括删除牌组）都走同一个端点，动�
 
 ### 4.3 让贡献声明也受签名保护
 
-`pkg.Contents`（`tsx/pkg/package.go:28`）只签 `App`、`Source`、`MinRuntime` 和 `Capabilities`，`kando-plugin.json` 在签名之外。所以 TSX 包必须导出 `kandoManifest()`，返回的对象要和清单的 `capabilities`、`optional`、`contributes`、`credentials`、`settings`、`events` 完全一致（`script.Probe` 按 `signedKeys` 逐键比对，这六个键以外的键返回时不能有值）。`kandoManifest` 必须是普通函数，不能是 async：预读只收同步返回的对象，返回 promise 的以 `ErrNoManifest` 拒装。
+`kando-plugin.json` 在签名之外，所以清单里的 `capabilities`、`optional`、`contributes`、`credentials`、`settings`、`events`（`signature.SignedKeys`）必须由签名覆盖的东西再说一遍，宿主逐键比对（`signature.CheckManifest`，这六个键以外的键不能有值），任何不一致都拒装，提示「这个文件被改动过」。签名覆盖的说法有两种来源：
 
-宿主验签之后，在一个零授权的预读沙箱里调用它。注意：插件的模块顶层代码在用户同意之前就会在这里执行，这正是沙箱必须收紧的原因：
+- **包签了清单**：`pkg.Contents.Extra`（`tsx/pkg/package.go:38`，[nsgo-dev/nsgo#761](https://github.com/nsgo-dev/nsgo/issues/761) 在 `f377daba0a2a` 已修）是 app 自己签进包里的元数据，验签后原样出现在 `Info.Extra`，改一个字节签名就验不过。看懂把上面几个键写成一个 JSON 对象签进去（`signature.SignedManifest`），`signature.Verify` 验签之后直接和清单比，不跑插件的代码；`script.Probe` 对这种包什么也不做，贡献点要的导出函数改在 `script.Load`（用户同意之后）检查，缺了就按 `ErrTampered` 载入失败。
+- **包没签清单**：已经发布的包（`kando.ankiconnect`、`kando.deepl` 1.0.0）和 `nsgo publish` 签的所有包都是这种。TSX 包必须导出 `kandoManifest()`，返回的对象要和清单的这几个键完全一致。`kandoManifest` 必须是普通函数，不能是 async：预读只收同步返回的对象，返回 promise 的以 `ErrNoManifest` 拒装。
+
+没签清单的包，宿主验签之后在一个零授权的预读沙箱里调用 `kandoManifest()`。注意：插件的模块顶层代码在用户同意之前就会在这里执行，这正是沙箱必须收紧的原因：
 
 ```go
 l := tsx.DefaultLimits // keeps Harden, Stack, Body
@@ -357,14 +360,18 @@ s := tsx.Sandbox{Grant: &pkg.Capabilities{}, Host: nil, Limits: &l, Storage: pro
 
 `Call("kandoManifest")` 一返回就 `Close()`，然后删掉 `probe` 分区。如果不设 `Storage`，`Sandbox.of` 会用 `App.ID` 作分区名（`view.go:37-39`），插件就能在安装前往一个卸载时不会被清理的分区里写数据。
 
-然后逐字段比对，任何不一致都拒装，提示「这个文件被改动过」。此外还要满足：
+然后把返回值和清单逐键比对（同一个 `signature.CheckManifest`）。此外还要满足：
 
 - 包的 `Capabilities.Host` 必须等于清单 `capabilities.host` 加上 `optional`，包的 `Capabilities.Network` 必须等于清单的 `capabilities.network`，其他能力字段必须全部为零值。
 - 包的 `App.ID` 必须是 `ai.yldm.kando.plugin.<id>`，并且被签名证书的 `Apps` 模式覆盖（`tsx/pkg/certificate.go:121-125`）。
 - 清单声明的每个导出函数都必须出现在 `Plugin.Exports()` 里。
 - 用到的 host handler 和声明的是否一致，宿主不检查，也不因此拒装：代码调哪些 handler 不能静态确定，没声明的调用本来就被 Grant 和 handler 的 `Effective` 检查以 `denied` 挡住。目录的 CI 工具 `kando-plugin preview` 读签名包里的代码文本，在 PR 评论里给审核者写提醒（不让包失败）：代码里 `host.call("kando.…")` 写出了名字、清单却没声明的权限，声明了、代码里却从没这样调过的权限，以及调 5.3 那三个要等的 handler 却没传选项（`timeout`）的地方。声明了 `line.changed` 事件的插件不会因为没调 `kando.line.current` 被提醒：这个事件只在它有这项授权时才推。经变量或运行时拼出来的名字看不到，所以只是提醒。它最多读 1000 个调用、每个调用的参数最多读 64 KiB、每行最多列 16 个名字，超过 1000 个调用时写明只读了前面的，并且不再说哪些权限没调过，所以包撑不长评论，也拖不慢 CI（`hostCallsMax`、`hostCallArgsMax`、`noteNamesMax`）。
 
-这个缺口已提交为 [nsgo-dev/nsgo#761](https://github.com/nsgo-dev/nsgo/issues/761)：请求 `pkg.Build`/`pkg.Contents` 支持 app 自定义的签名文件条目（`doc.go` 的 Format evolution 一节说格式本身能容纳）。P3 的绕行代码处写 `// TODO(nsgo#761): pkg.Contents has no app-defined signed entries; compare kandoManifest() instead https://github.com/nsgo-dev/nsgo/issues/761`。
+兼容：两种包看懂都认，已经发布、已经安装的包不受影响。
+
+- 没签清单的包走的还是原来的 `kandoManifest()` 比对，验签和比对的结果和以前一样；线上 `kando.ankiconnect`、`kando.deepl` 1.0.0 的两个文件只有 `bundle.js` 一个条目，用新代码按官方根验签、预读都通过。
+- 签了清单的包，看懂 0.37.0 及以前（NSGo `ec272782be28`）不认 `extra` 这种文件，把它列进 `Info.Ignored`，`checkSigned` 因此按 `ErrBadCapabilities` 拒装，提示的还是「权限不对」。所以只有清单的 `kando` 下限不低于 `signature.ManifestEntrySince`（0.38.0，第一个带认得它的 NSGo 的版本，假定本改动随它发布）的插件才能签它（`signature.SignsManifest`）；`official.Wrap` 拒绝不满足这一条的包（`ErrSignedManifest`），也拒绝签的内容和清单不一致的包（`ErrMismatch`）。
+- 现在还没有签发方会写这个条目：`nsgo publish` 没有参数能把 `Contents.Extra` 签进去（`cmd/nsgo/publish.go:130-137` 只填 `App`、`Source`、`MinRuntime` 和 `nsgo.yaml` 的能力，没有 `Extra`），官方插件和第三方插件都由它签名，所以 `official-plugins.sh` 照旧，插件仍要导出 `kandoManifest()`。`script.PackFolder` 也不签：开发者包要和它发布后一样被检查，否则漏写 `kandoManifest()` 的插件在开发时发现不了。两处都留了 `TODO(nsgo)`：等 `nsgo publish` 能签以后，对 `SignsManifest` 接受的清单签上 `SignedManifest`。
 
 ## 5. 宿主协议与 API
 
@@ -1059,7 +1066,7 @@ P0–P2 不新增任何 module。P3a 起 `github.com/dlclark/regexp2/v2 v2.11.0`
 
 1. **tsx 和 goja 在 Windows 上只测了功能，没量性能**：P3.0 已量过二进制体积（三平台 +19–21 MiB，约 +37%）、Linux 和 macOS 上的引擎阻塞和内存（第 15 节）。P3c 起 CI 的 Test（Windows）之后有一步「Plugin runtime」，每次不走测试缓存地在 Windows 上跑 `TestPlugin|TestScript`（`./apps/kando/` 和 `./apps/kando/plugins/...`：运行时、预算、看门狗、in-flight 标记、官方插件），并且通过；Windows 上引擎单次阻塞的时间和内存仍没有量过。缓解：数据包两期不依赖它。
 2. **插件跑在引擎 goroutine 上，而且卡死不一定能打断**：await 不计入预算（`sandbox.go:311` 的 `within`），同步片段有 500ms 预算；但 Limits 没有内存上限，ErrBudget 不停掉插件，用 setTimeout 分片的调用永远不被切断（3.3、6.7 节）。回溯正则原来不响应中断，[nsgo-dev/nsgo#759](https://github.com/nsgo-dev/nsgo/issues/759) 已在上游修好，固定的 NSGo 版本里 tsx 把调用的预算（`Limits.Call`）设成正则的匹配超时，看懂不再设进程级的 `regexp2.DefaultMatchTimeout`（`TestScriptRegexpIsBounded`）。缓解：6.6 节的看门狗（全局串行、心跳和堆阈值、在片段之间 Close）、in-flight 记录加下次启动自动停用，签名问责，重计算（分词、注音）留在 Go 原生实现，Load 逐个 tick 进行；上游 [nsgo-dev/nsgo#760](https://github.com/nsgo-dev/nsgo/issues/760)（没有内存上限）仍开着；[nsgo-dev/nsgo#836](https://github.com/nsgo-dev/nsgo/issues/836)（单次调用没有总时长、宿主不能打断插件）已在上游关闭，看懂还没改用，看门狗照旧（`plugins/script/runner.go`、`panel.go` 的 `TODO(nsgo#836)`）。让插件跑在自己的 goroutine 上（独立的 `core.NewRoot`）P3.0 试过可行，但插件的 Storage 只能留在内存里（第 15 节），所以不作为默认做法。
-3. **签名元数据缺口**：靠比对 `kandoManifest()` 绕行（见 4.3）。上游 [nsgo-dev/nsgo#761](https://github.com/nsgo-dev/nsgo/issues/761) 已在 2026-11-19 关闭，看懂还没改用 app 自定义的签名条目，绕行照旧（`plugins/script/sandbox.go` 的 `TODO(nsgo#761)`）。
+3. **签名元数据缺口**：[nsgo-dev/nsgo#761](https://github.com/nsgo-dev/nsgo/issues/761) 已在 2026-11-19 关闭、在 `f377daba0a2a` 修好，看懂认包里签的清单，不跑代码就能比对（4.3）；但 `nsgo publish` 还签不了它，已发布和新发布的包仍靠预读沙箱里比对 `kandoManifest()`，插件的顶层代码仍在用户同意前运行。
 4. **`tsx.Sandboxed` 和共享 Host 才是绕开权限的入口**：`tsx.Sandboxed` 在 Capabilities 和 Grant 都为 nil 时拿到宿主的全部权限，连 `file://` 都能读；Load 路径上的 nil Grant 会让包声明的能力绕过用户勾选生效；handler 只要用 `a.cx` 调 NSGo 服务，就带着 app 的权限。缓解：AST 测试全仓禁止 `tsx.Sandboxed`；Grant 由唯一构造函数从零构造，并测试零值字段；每个插件独立的 Host；每个 handler 都查 `Effective`。
 5. **site 包**：已经改成独立的 `pluginSites`，不放宽全局闸门；剩下的风险是 JS 正则的校验漏了嵌套量词时会让页面卡顿，以及用户对「浏览器扩展不覆盖插件站点」的预期要讲清楚。插件正则现在也写进内置浏览器的页面脚本，在网页的 JS（回溯引擎）里跑，所以这条风险是真实的；缓解全靠 P4.0 的规则：不允许重复里套量词或多选、每条最多两个无上限量词、不超过 256 字节，链接最长 2048 字节，最坏是平方级，约几百万步。规则只在 Go 里校验，`ScriptWith` 写进页面前再校验一次。浏览器扩展不认插件站点（扩展的文件由 `go generate` 生成、随版本发布，装不进用户的包），设置页的说明写的是「浏览器扩展不支持插件网站，请在看懂内置的浏览器里使用」。同意的网站一变，内置浏览器会用新脚本重新载入当前页面（浏览器页在后台时等它再显示；nsgo#840 之后不再重建 web view，后退的历史保留），页面里没保存的状态（比如播放进度、填了一半的表单）会丢。
 6. **clean 丢数据**：`savedLLM.clean` 和 `savedPlugins.clean` 一旦写错，插件暂时缺席时就会丢用户的 key 或选择。P0.1、P0.2 和 P1 都有测试锁住。
@@ -1082,7 +1089,7 @@ P0–P2 不新增任何 module。P3a 起 `github.com/dlclark/regexp2/v2 v2.11.0`
 5. **P1.2 的选择按测量结果定**：在 Ubuntu 编译机上（`ubuild`）量完整 features 的 `ipa.Dict()` 相对 `DictShrink()` 的常驻内存增量（RSS）和首次加载时间。增量不超过 200 MiB、加载不超过 3 s，就在桌面上、只在启用了日语的词典包或词表包时按需加载完整词典；否则用 E1 的退路：Annotated 不出 Base 和 Reading，读音只取自词典包。理由：原形和读音对查词命中率帮助很大，但不能让所有用户为它付内存；手机的分词始终不变。测量数字和最终选择写在第 15 节。
 6. **看懂自己的 LLM key 留在 settings.json 原处**，本轮不迁进 `core.Secrets`。理由：与插件系统无关，本轮的数据包也碰不到它；以后是否迁移见 12.3。
 7. **不新增任何 Go module**。确实需要时停下来报告，不自行加入 go.mod。（P3a 起由 owner 放开 regexp2 和 pprof 两项，见第 11 节。）
-8. **NSGo 的问题已提交上游**：[nsgo-dev/nsgo#759](https://github.com/nsgo-dev/nsgo/issues/759)（tsx 的回溯正则不响应 Interrupt，已复现：200ms 发 Interrupt，10s 后仍在跑）、[nsgo-dev/nsgo#760](https://github.com/nsgo-dev/nsgo/issues/760)（`tsx.Limits` 没有内存上限）、[nsgo-dev/nsgo#761](https://github.com/nsgo-dev/nsgo/issues/761)（`pkg.Contents` 不支持 app 自定义的签名条目）。三者都只影响 P3，本轮不需要绕行。之后：#759、#761 都已在上游关闭，#759 的修复看懂已经在用，#761 看懂还在用比对 `kandoManifest()` 的绕行；#760 仍开着（12.1 第 2、3 条）。
+8. **NSGo 的问题已提交上游**：[nsgo-dev/nsgo#759](https://github.com/nsgo-dev/nsgo/issues/759)（tsx 的回溯正则不响应 Interrupt，已复现：200ms 发 Interrupt，10s 后仍在跑）、[nsgo-dev/nsgo#760](https://github.com/nsgo-dev/nsgo/issues/760)（`tsx.Limits` 没有内存上限）、[nsgo-dev/nsgo#761](https://github.com/nsgo-dev/nsgo/issues/761)（`pkg.Contents` 不支持 app 自定义的签名条目）。三者都只影响 P3，本轮不需要绕行。之后：#759、#761 都已在上游关闭，#759 的修复看懂已经在用，#761 看懂已经认包里签的清单（4.3），但 `nsgo publish` 还签不了它，已发布的包仍靠比对 `kandoManifest()`；#760 仍开着（12.1 第 2、3 条）。
 
 ### 12.3 仍待 owner 决定
 
@@ -1423,6 +1430,10 @@ NSGO_ROOT_KEY=<root secret> make plugin-revocations
 - 发新版本的插件：改代码后把 `kando-plugin.json` 和 `nsgo.yaml` 的 `version` 一起改大（`nsgo publish` 按版本推算 build，build 必须变大，否则看懂按防回滚拒收），再跑 `make official-plugins`，在 kando-plugins 的 PR 里删掉 `scripts/<id>/` 里的旧版本文件、加上新的（kando-plugins 的 Publish 把下架的旧文件再保留一周，缓存了旧索引的看懂照样下得到）。
 - 吊销列表提交后，下一次发布才会附上；需要马上生效时手动触发一次 Release（`workflow_dispatch`）。
 
+- nsgo#761 跟进（`refactor/plugins-signed-contents`）：上游给包加了 app 自己签的元数据（`pkg.Contents.Extra`、`Info.Extra`）。和正文的出入如下，4.3、12.1 已同步改过：
+  - 消费端：`signature.Verify` 在包签了清单时直接比对（`signature.CheckManifest`，比对规则从 `script` 挪进 `signature`，`kando plugin validate` 和插件目录的 CI 工具因此也会比对签了清单的包），`script.Probe` 对这种包不再跑代码，导出函数的检查同时加进 `script.Load`（对两种包都查，没签清单的包在 `Probe` 里已经查过一次）。没签清单的包照旧走 `kandoManifest()`，原来的 `TODO(nsgo#761)` 删掉了：这条路要一直留着给已经发布的包用，不是绕行。
+  - 签发端：`nsgo publish` 签不了 `Contents.Extra`，所以 `official-plugins.sh` 和 `script.PackFolder` 都还不签清单，留了 `TODO(nsgo)`（还没有上游 issue）；`official.Wrap` 已经会检查签了清单的包（`ErrSignedManifest`、`ErrMismatch`）。签了清单的包在看懂 0.37.0 及以前会被拒装，所以只有清单写 `"kando": ">=0.38.0"` 或更高的插件才签（`signature.SignsManifest`）。
+  - 测试：`TestScriptSignedManifest`（签了清单的包：顶层代码会抛错、也没有 `kandoManifest` 时照样通过验签和预读；缺导出时 `Load` 拒绝；清单比签的多、签了别的键、签的不是对象都按 `ErrTampered` 拒绝；签好后改一个字节按 `ErrUntrusted` 拒绝），`TestPluginOfficialWrapSignedManifest`（`Wrap` 收下下限够新且一致的包，拒绝不一致的和下限太旧、没写下限的）；没签清单的一路仍由 `TestScriptProbe` 等原有测试覆盖。线上两个 1.0.0 文件用新代码验签、预读通过，只做了一次，没有提交成测试（文件不在仓库里）。
 - P5 E15（已完成）：播放器侧栏的「扩展」标签。和正文的出入如下，2.1、2.3、5.3、8.4、第 9 节已同步改过：
   - 代码位置：非界面包 `plugins` 加了 `Panel`、`PanelIcons`（`contrib.go`）和 `EventLineChanged`（`perm.go`）；`plugins/script/panel.go` 是 `Runner.Panel`（唯一的 `tsx.View`）和 `Runner.Failed`；界面是 `film/extensions.go`（`film.Extender`、`SideExtensions`、标签正文），`film/panel.go` 的 `panelTabs` 改成 `screen.panelTabs`；app 一侧是 `state_plugins_panels.go`。共享文件只动了插件块自己的：`pluginsScript` 加 `panel`、`run` 两个字段，`pluginsGuard` 也认面板视图的 Host，`pluginsSend` 同时发给面板视图，`savedPlugins` 加 `PluginPanel`，`pluginsHooks` 的 `playing`、`afterChange` 各加一行 `pluginsPanelsLine`；`settings.PluginAdds` 加一行面板。
   - 「`var panelTabs` 改成 `film.App` 上的方法」：`film.App` 是接口，标签的 id 是 film 自己的知识，所以改成 film 的 `screen.panelTabs`（`screen` 持有 `film.App`），由新的 `film.Extender.Extensions` 决定「扩展」出不出现；没有面板时 `FilmSide` 仍记着 `extensions`，侧栏照字幕显示，插件回来时直接回到「扩展」。加了「扩展」后七个等宽的标签在 340 pt 的侧栏里放不下英文、日文的标签，所以「扩展」画成只有图标的标签（Lucide `puzzle`，读屏名称和悬停提示都是 catalog 里的「扩展」，切换语言时重建这一个标签），其余标签按文字宽度（左右至少 3 pt，再一起铺满整条），七个标签在中、英、日下都放在一行里；万一哪种语言放不下，整条横向滚动，并把选中的标签滚进视野。`TestTabLabelsFit` 在中、英、日下检查每个标签都整个落在条里、条不需要滚动、每个文字完整、「扩展」的读屏名称；截图场景在 `KANDO_SCREENSHOTS_LANG` 的语言下做同样的检查。

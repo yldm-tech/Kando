@@ -85,7 +85,7 @@ type Verified struct {
 	Signer   string
 }
 
-// Verify verifies the package of the script plugin p, read from its folder (docs/plugin-system.md 4.3, 6.4): it chains to one of roots and trust neither revokes it nor accepted a newer build of it (pkg.Trust.Verify); it is the package p's manifest names by SHA-256; it is the app ai.yldm.kando.plugin.<id> at the manifest's version; its certificate covers the publisher of its id, and only the official root's covers kando.; and what it signed it may reach is exactly what the manifest declares, permissions and HTTP rules, and nothing else. Call it off the engine's goroutine: it hashes the package.
+// Verify verifies the package of the script plugin p, read from its folder (docs/plugin-system.md 4.3, 6.4): it chains to one of roots and trust neither revokes it nor accepted a newer build of it (pkg.Trust.Verify); it is the package p's manifest names by SHA-256; it is the app ai.yldm.kando.plugin.<id> at the manifest's version; its certificate covers the publisher of its id, and only the official root's covers kando.; and what it signed it may reach is exactly what the manifest declares, permissions and HTTP rules, and nothing else; and, when it signed its manifest (pkg.Contents.Extra, SignedManifest), that what it signed is the manifest's (CheckManifest). Call it off the engine's goroutine: it hashes the package.
 func Verify(trust *pkg.Trust, roots Roots, p plugins.Pack) (Verified, error) {
 	if p.Script == nil {
 		return Verified{}, fmt.Errorf("%w: not a script plugin", plugins.ErrBadField)
@@ -126,6 +126,12 @@ func Verify(trust *pkg.Trust, roots Roots, p plugins.Pack) (Verified, error) {
 	}
 	if err := checkSigned(signed.Info, raw); err != nil {
 		return Verified{}, err
+	}
+	// A package that signed its manifest (pkg.Contents.Extra) is compared with it here, without running its code; one that did not, as no package nsgo publish signs does, says it from its code instead (script.Probe).
+	if signed.Extra != nil {
+		if err := CheckManifest(signed.Extra, raw); err != nil {
+			return Verified{}, err
+		}
 	}
 	return Verified{ID: p.ID, Hash: p.Hash, Manifest: raw, Package: signed, Source: source, Signer: signed.KeyID}, nil
 }

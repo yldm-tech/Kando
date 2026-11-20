@@ -81,6 +81,7 @@ func PackFolder(src, dst string, key ed25519.PrivateKey) error {
 		caps.Network = &pkg.Network{HTTP: declared.Network}
 	}
 	app := pkg.App{ID: AppIDPrefix + m.ID, Name: m.Name["en"], Version: m.Version, Build: uint64(now.Unix())}
+	// TODO(nsgo): nsgo publish cannot sign pkg.Contents.Extra, so no release signs a plugin's manifest and its code must say it (kandoManifest); a developer's package signs none either, so it is checked as the plugin will be once published. Once nsgo publish can, sign signature.SignedManifest here and in .github/scripts/official-plugins.sh for a manifest signature.SignsManifest takes.
 	signed, err := pkg.Build(pkg.Contents{App: app, Source: source, Capabilities: caps}, key, cert)
 	if err != nil {
 		return err
