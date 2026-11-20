@@ -22,6 +22,12 @@ func (p *phone) openJobs() {
 	p.app.WaitFor("id:jobs-page", wait)
 }
 
+// waitRelayJoined waits until the phone keeps links to desktop's relay that the storage did not refuse, which it does once the computer's answer to its join arrives. The computer counts a join (RelayJoins) before it answers, so turning it off (SetOff) as soon as it counted one can hang up on the answer, and the phone, holding no relay, never follows it through its storage.
+func (p *phone) waitRelayJoined(desktop string) {
+	p.t.Helper()
+	p.app.WaitUntil(wait, func() bool { r, ok, _ := store.Open(p.dir).Relay(desktop); return ok && !r.Lapsed })
+}
+
 // reach is what desktop's card on the Jobs page says of how it is reached.
 func (p *phone) reach(desktop string) string {
 	sel := "id:jobs-reach-" + desktop

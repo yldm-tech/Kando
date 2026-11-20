@@ -11,8 +11,10 @@ import (
 	"testing"
 	"time"
 
+	"kando/apps/kando/plugins"
 	"kando/apps/kando/plugins/official"
 	"kando/apps/kando/plugins/script"
+	"kando/apps/kando/plugins/script/signature"
 
 	"github.com/nsgo-dev/nsgo/tsx/pkg"
 )
@@ -99,6 +101,44 @@ func TestPluginOfficialWrap(t *testing.T) {
 	}
 	if _, _, _, err := official.Wrap(manifest, "../demo.nsgopkg", data); err == nil {
 		t.Error("a package name with a folder")
+	}
+}
+
+// TestPluginOfficialWrapSignedManifest checks a package that signed its manifest (pkg.Contents.Extra): Wrap takes it when what it signed is the manifest's and every Kando the manifest says it runs on takes it, and refuses it for a manifest that says more than it signed or that runs on a Kando older than signature.ManifestEntrySince.
+func TestPluginOfficialWrapSignedManifest(t *testing.T) {
+	root := key(t)
+	cert, err := pkg.Certify(root, root.Public().(ed25519.PublicKey), []string{"ai.yldm.kando.plugin.kando.*"}, time.Now().Add(-time.Hour), time.Now().Add(time.Hour))
+	if err != nil {
+		t.Fatal(err)
+	}
+	manifest := func(kando, fields string) []byte {
+		return []byte(`{"schema": 2, "id": "kando.demo", "kind": "script", "version": "1.2.0", "kando": "` + kando + `", "name": {"en": "Demo"}, "capabilities": {"host": ["kando.toast"]}` + fields + `}`)
+	}
+	m, err := plugins.Parse(manifest(">="+signature.ManifestEntrySince, ""))
+	if err != nil {
+		t.Fatal(err)
+	}
+	entry, err := signature.SignedManifest(m)
+	if err != nil {
+		t.Fatal(err)
+	}
+	data, err := pkg.Build(pkg.Contents{App: pkg.App{ID: "ai.yldm.kando.plugin.kando.demo", Name: "Demo", Version: "1.2.0", Build: 3}, Source: "1", Capabilities: pkg.Capabilities{Host: []string{"kando.toast"}}, Extra: entry}, root, cert)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, _, _, err := official.Wrap(manifest(">="+signature.ManifestEntrySince, ""), "demo.nsgopkg", data); err != nil {
+		t.Errorf("a package that signed its manifest: %v", err)
+	}
+	if _, _, _, err := official.Wrap(manifest(">=1.0.0", ""), "demo.nsgopkg", data); err != nil {
+		t.Errorf("a manifest of a newer Kando: %v", err)
+	}
+	if _, _, _, err := official.Wrap(manifest(">="+signature.ManifestEntrySince, `, "optional": ["kando.saved.read"]`), "demo.nsgopkg", data); !errors.Is(err, official.ErrMismatch) {
+		t.Errorf("a manifest that says more than the package signed: %v", err)
+	}
+	for _, kando := range []string{">=0.37.0", ""} {
+		if _, _, _, err := official.Wrap(manifest(kando, ""), "demo.nsgopkg", data); !errors.Is(err, official.ErrSignedManifest) {
+			t.Errorf("a manifest of Kando %q: %v", kando, err)
+		}
 	}
 }
 

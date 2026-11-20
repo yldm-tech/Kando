@@ -50,7 +50,7 @@ func TestSettingsChecksForUpdates(t *testing.T) {
 	}
 }
 
-// TestChangelogHasTheVersion checks that CHANGELOG.md has notes for the version in nsgo.yaml: the lines under the first "## " heading whose first word is the version, with or without a v and in brackets or not, up to the next "## " heading. A release build signs the update manifests with those notes, which the update window shows, and fails when they are missing, so a version bumped without them fails here rather than in the Release workflow. The Release workflow writes them with .github/scripts/changelog.sh.
+// TestChangelogHasTheVersion checks that CHANGELOG.md has notes for the version in nsgo.yaml: the lines under the first "## " heading whose first word is the version, with or without a v and in brackets or not, up to the next "## " heading. Every package build (the Package workflow) puts those notes into the appcasts with nsgo build -release-notes, as the release notes the update dialogs show, and a release build signs them into the MyGo builds' update manifests too, and both fail when they are missing, so a version bumped without them fails here rather than in the Release workflow. The Release workflow writes them with .github/scripts/changelog.sh.
 func TestChangelogHasTheVersion(t *testing.T) {
 	data, err := os.ReadFile("nsgo.yaml")
 	if err != nil {

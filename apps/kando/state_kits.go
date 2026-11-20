@@ -95,7 +95,7 @@ func (a *app) kitsStart(program string, quiet bool) {
 	a.kits.running[program] = job
 	delete(a.kits.errs, program)
 	dir, install, update := media.OwnToolsDir, a.kits.install, a.update
-	go func() {
+	a.tools.work.Go(func() {
 		var last time.Time
 		_, err := install(ctx, kit, dir, func(written, total int64) {
 			if time.Since(last) < 200*time.Millisecond && written != total {
@@ -133,7 +133,7 @@ func (a *app) kitsStart(program string, quiet bool) {
 				a.redetectTools()
 			}
 		})
-	}()
+	})
 }
 
 // kitsCancel stops every download under way.

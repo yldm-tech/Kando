@@ -18,6 +18,7 @@ import (
 func (p *phone) awayFrom(d *synctest.Desktop) {
 	p.t.Helper()
 	id := store.DesktopID(d.Fingerprint)
+	p.waitRelayJoined(id)
 	d.SetOff(true)
 	p.openJobs()
 	p.app.WaitUntil(reconnect, func() bool { return p.reach(id) == msgs.JobsViaStorage() })
@@ -178,6 +179,7 @@ func TestTheJobsPageSaysWhyTheStorageFailed(t *testing.T) {
 	d.SetOff(false)
 	p.app.WaitUntil(reconnect, func() bool { return p.reach(id) == msgs.JobsOnline() })
 	p.app.WaitUntil(wait, func() bool { return d.RelayJoins() == 2 })
+	p.waitRelayJoined(id)
 
 	d.SetOff(true)
 	p.app.WaitUntil(reconnect, func() bool { return p.reach(id) == msgs.JobsViaStorage() })

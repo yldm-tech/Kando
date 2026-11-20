@@ -164,9 +164,10 @@ func TestAJobIsCanceledAfterAskingAndStartedAgain(t *testing.T) {
 	p := startPhone(t, dir, pairedWith(t, d, dir))
 	p.openTab(jobsTab, msgs.JobsTitle())
 	p.app.WaitFor("id:jobs-job-job1", wait)
-	p.app.WaitFor("id:jobs-pause-job1", wait)
+	p.app.WaitUntil(wait, func() bool { return p.app.Exists("id:jobs-pause-job1") && p.app.Enabled("id:jobs-pause-job1") })
 	p.app.Press("id:jobs-pause-job1")
-	p.app.WaitFor("id:jobs-resume-job1", wait)
+	// The paused job's event can reach the phone before the computer's reply to Pause, so Resume shows while the row is still busy and takes its press only once the reply arrived.
+	p.app.WaitUntil(wait, func() bool { return p.app.Exists("id:jobs-resume-job1") && p.app.Enabled("id:jobs-resume-job1") })
 	p.app.Press("id:jobs-resume-job1")
 	p.app.WaitUntil(wait, func() bool { return d.Jobs()[0].State == sync.JobWaiting })
 

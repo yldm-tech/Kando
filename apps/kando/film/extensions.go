@@ -65,16 +65,16 @@ func (s *screen) extensionsTab(cx *ns.Scope) ns.Node {
 		e := chosen()
 		return Extension{ID: e.ID, Run: e.Run}
 	}).Get
-	// options are the drop-down's label and the panels for it, each its id, title and icon, joined, so the drop-down is built again only when they change, or the language does, as ui.Select's Label is read once.
-	options := ns.NewMemo(cx, func() string {
-		out := []string{locales.FilmExtensionPick(cx)}
+	// panels are the panels for the drop-down, each its id, title and icon, joined, so its options are read again only when they change.
+	panels := ns.NewMemo(cx, func() string {
+		var out []string
 		for _, e := range list() {
 			out = append(out, e.ID+"\x00"+e.Title+"\x00"+e.Icon)
 		}
 		return strings.Join(out, "\x01")
 	}).Get
 	muted := ns.RGBA(0xFFFFFF, 0.6)
-	heading := ns.Show{When: func() bool { return strings.Count(options(), "\x01") < 2 }, Then: func(cx *ns.Scope) ns.Node {
+	heading := ns.Show{When: func() bool { return !strings.Contains(panels(), "\x01") }, Then: func(cx *ns.Scope) ns.Node {
 		return ns.View{Style: ns.Style{Direction: ns.Row, AlignItems: ns.AlignCenter, Gap: 6}, Children: []ns.Node{
 			ns.Show{When: func() bool { return extensionIcons[chosen().Icon] != nil }, Then: func(cx *ns.Scope) ns.Node {
 				return ns.Icon{SVGFunc: func() *ns.SVG {
@@ -88,8 +88,8 @@ func (s *screen) extensionsTab(cx *ns.Scope) ns.Node {
 				Style: ns.Style{FontSize: 15, LineHeight: 21, FontWeight: ns.FontWeightBold, Color: onGlass, FlexShrink: 1}},
 		}}
 	}, Else: func(cx *ns.Scope) ns.Node {
-		// TODO(nsgo#848): give ui.Select its options as a binding, so a list that changes does not build the drop-down again and take its focus; it is built again only when the panels of the plugins running change, which is done on another page https://github.com/nsgo-dev/nsgo/issues/848
-		return ns.Dynamic(func(cx *ns.Scope) ns.Node { return s.extensionSelect(cx, options()) })
+		// TODO(nsgo#145): give ui.Select a LabelFunc twin for its name, so it follows the interface language without building the drop-down again, then drop this Dynamic, which reads only the language https://github.com/nsgo-dev/nsgo/issues/145
+		return ns.Dynamic(func(cx *ns.Scope) ns.Node { return s.extensionSelect(cx, panels) })
 	}}
 	head := ns.View{Style: ns.Style{Padding: ns.Edges{Right: 14, Bottom: 10, Left: 14}, Gap: 4, Borders: ns.Edges{Bottom: 0.5}, BorderColor: panelLine}, Children: []ns.Node{
 		heading,
@@ -113,23 +113,25 @@ func (s *screen) extensionsTab(cx *ns.Scope) ns.Node {
 		Children: []ns.Node{head, ns.View{TestID: "film-extension-body", Style: ns.Style{FlexGrow: 1, FlexShrink: 1, MinHeight: ns.Pt(0)}, Children: []ns.Node{body}}}}
 }
 
-// extensionSelect is the drop-down of the panels joined lists after its label, each its id, title and icon.
-func (s *screen) extensionSelect(cx *ns.Scope, joined string) ns.Node {
+// extensionSelect is the drop-down of the panels joined lists, each its id, title and icon. Its options are bound, so a plugin's panel added or gone updates it in place and keeps its focus.
+func (s *screen) extensionSelect(cx *ns.Scope, joined func() string) ns.Node {
 	a := s.a
-	items := strings.Split(joined, "\x01")
-	var options []ui.Option[string]
-	for _, item := range items[1:] {
-		parts := strings.SplitN(item, "\x00", 3)
-		if len(parts) < 3 {
-			continue
+	options := func() []ui.Option[string] {
+		var options []ui.Option[string]
+		for _, item := range strings.Split(joined(), "\x01") {
+			parts := strings.SplitN(item, "\x00", 3)
+			if len(parts) < 3 {
+				continue
+			}
+			o := ui.Option[string]{Value: parts[0], Label: parts[1], TestID: "film-extension-option-" + parts[0]}
+			if icon := extensionIcons[parts[2]]; icon != nil {
+				o.Icon = icon
+			}
+			options = append(options, o)
 		}
-		o := ui.Option[string]{Value: parts[0], Label: parts[1], TestID: "film-extension-option-" + parts[0]}
-		if icon := extensionIcons[parts[2]]; icon != nil {
-			o.Icon = icon
-		}
-		options = append(options, o)
+		return options
 	}
-	return ui.Select[string]{Options: options, Label: items[0], TestID: "film-extension-pick",
+	return ui.Select[string]{OptionsFunc: options, Label: locales.FilmExtensionPick(cx), TestID: "film-extension-pick",
 		Value:    live.Func(a, func() string { return extensionChosen(a.Extensions(cx), a.Extension()).ID }),
 		OnChange: live.On(a, a.SetExtension), Style: ns.Style{AlignSelf: ns.AlignStretch}}
 }

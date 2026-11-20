@@ -1,6 +1,6 @@
 name: Package
 
-# Builds the app's packages for macOS, Windows and Linux with nsgo build (go tool nsgo, the version apps/kando/go.mod pins), each platform on a runner of its own, and keeps each platform's files from nsgo build's releases folder, with a checksums-<platform>.txt of their SHA-256, as the run's artifact kando-<platform>: per target the installer (disk image, NSIS installer, or the Debian and Arch packages and the AppImage) with the .sha256 beside it that the install scripts check, and from the Linux row the install.sh and install.ps1 that install the latest release. A release build also signs the installers for the app's updates with the updates key and keeps each target's appcast-<target>.xml, the feed installed apps read from the latest release (updates in apps/kando/nsgo.yaml, NSGo's docs/public/en/building.md). On macOS and Windows it also makes the update that copies of Kando's MyGo builds install, update-<target>.json with the archive it names, so they move to the NSGo build (.github/scripts/mygo-bridge.go). CI calls it to check that every package builds; Release calls it with the tag it made, and its Publish job checks the checksums and uploads the files to that tag's draft release. NSGo's desktop builds need no cgo, so Ubuntu makes the Windows installers (with NSIS) as well as the Linux packages; the macOS disk images need a macOS runner.
+# Builds the app's packages for macOS, Windows and Linux with nsgo build (go tool nsgo, the version apps/kando/go.mod pins), each platform on a runner of its own, and keeps each platform's files from nsgo build's releases folder, with a checksums-<platform>.txt of their SHA-256, as the run's artifact kando-<platform>: per target the installer (disk image, NSIS installer, or the Debian and Arch packages and the AppImage) with the .sha256 beside it that the install scripts check, and from the Linux row the install.sh and install.ps1 that install the latest release. A release build also signs the installers for the app's updates with the updates key and keeps each target's appcast-<target>.xml, the feed installed apps read from the latest release (updates in apps/kando/nsgo.yaml, NSGo's docs/public/en/building.md), which carries the version's section of apps/kando/CHANGELOG.md as the release notes the update dialogs show. On macOS and Windows it also makes the update that copies of Kando's MyGo builds install, update-<target>.json with the archive it names, so they move to the NSGo build (.github/scripts/mygo-bridge.go). CI calls it to check that every package builds; Release calls it with the tag it made, and its Publish job checks the checksums and uploads the files to that tag's draft release. NSGo's desktop builds need no cgo, so Ubuntu makes the Windows installers (with NSIS) as well as the Linux packages; the macOS disk images need a macOS runner.
 #
 # The packages are built with the nodra_nomygo tag (build.tags in apps/kando/nsgo.yaml), which leaves nodra's MyGo helpers, and MyGo with them, out of the app.
 #
@@ -148,7 +148,18 @@ jobs:
           chmod 600 "$key"
           echo "keychain=$keychain" >> "$GITHUB_OUTPUT"
           echo "notary-key=$key" >> "$GITHUB_OUTPUT"
-      # Only a release build gets the updates key: CI's builds make no appcasts for macOS and Windows, which would only be thrown away. The key is NSGO_UPDATES_KEY, else the seed of MYGO_UPDATER_PRIVATE_KEY, the 64-byte key the MyGo builds signed with, whose public key nsgo.yaml's updates.key is; nsgo build refuses a key of another public key. A signed build passes the Developer ID identity to -sign and the notary key in NSGO_NOTARY_KEY*, so nsgo build signs with the hardened runtime, notarizes the disk images and staples their tickets; on Windows it passes ssign to -sign-command, which nsgo build runs for the executable, every unsigned library and program among its resources, the uninstaller and the installer.
+      # The version's section of apps/kando/CHANGELOG.md (.github/scripts/changelog.sh), which nsgo build -release-notes renders into each appcast as the release notes that Sparkle's and WinSparkle's update dialogs show above Install Update (and NSGo's prompt on Linux shows as text), and which the MyGo builds' update window shows from the manifests mygo-bridge.go signs. Every build writes it, CI's too, whose Linux appcasts nsgo build makes in every build: nsgo.yaml's version always has a section, as the Release workflow writes it in the commit that bumps the version and the app's tests (TestChangelogHasTheVersion) fail without one, so a section that the script cannot read fails CI rather than the release.
+      - name: Write the release notes
+        env:
+          TAG: ${{ inputs.tag }}
+        run: |
+          version=${TAG#v}
+          if [ -z "$version" ]; then
+            version=$(sed -nE 's/^version: *"?([0-9.]+)"? *$/\1/p' apps/kando/nsgo.yaml)
+          fi
+          .github/scripts/changelog.sh notes "v$version" > "$RUNNER_TEMP/notes.md"
+          cat "$RUNNER_TEMP/notes.md"
+      # Only a release build gets the updates key: CI's builds make no appcasts for macOS and Windows, which would only be thrown away. The key is NSGO_UPDATES_KEY, else the seed of MYGO_UPDATER_PRIVATE_KEY, the 64-byte key the MyGo builds signed with, whose public key nsgo.yaml's updates.key is; nsgo build refuses a key of another public key. Every build passes the release notes the step before wrote to -release-notes, which goes into the appcasts only. A signed build passes the Developer ID identity to -sign and the notary key in NSGO_NOTARY_KEY*, so nsgo build signs with the hardened runtime, notarizes the disk images and staples their tickets; on Windows it passes ssign to -sign-command, which nsgo build runs for the executable, every unsigned library and program among its resources, the uninstaller and the installer.
       - name: Build
         env:
           WINDOWS_SIGN: ${{ matrix.name == 'Windows' && (inputs.tag != '' || inputs.sign) && 'true' || '' }}
@@ -187,7 +198,7 @@ jobs:
             sign=(-sign "$MACOS_SIGNING_IDENTITY")
             export NSGO_NOTARY_KEY=$NOTARY_KEY NSGO_NOTARY_KEY_ID=$NOTARY_KEY_ID NSGO_NOTARY_ISSUER=$NOTARY_ISSUER
           fi
-          go tool nsgo build -target "$TARGETS" -output "$RUNNER_TEMP/packages" "${sign[@]}" apps/kando
+          go tool nsgo build -target "$TARGETS" -output "$RUNNER_TEMP/packages" -release-notes "$RUNNER_TEMP/notes.md" "${sign[@]}" apps/kando
       # Gatekeeper's own check of what users download: the app is signed with the Developer ID and the hardened runtime, and each disk image carries its notarization ticket.
       - name: Check the signatures
         if: steps.signing.outcome == 'success'
@@ -243,7 +254,7 @@ jobs:
               exit 1
             fi
           done
-      # Kando's MyGo builds (0.12.0 and older) update from update-<target>.json in the latest release, which nsgo build does not make, so a release build makes it for them (.github/scripts/mygo-bridge.go): the NSGo app as MyGo's updater unpacks it, with a manifest signed by MYGO_UPDATER_PRIVATE_KEY. An installed MyGo build then updates to this release once, and the NSGo build updates itself from its appcast after that. Every release makes it, so a copy left on 0.12.0 for a while still finds the latest release; a signed run by hand makes it too, as the run's artifacts, to check it before a release. On macOS each app gets its notarization ticket stapled first, as nsgo build staples only the disk images, so the updated app opens offline too. Linux has none: see mygo-bridge.go.
+      # Kando's MyGo builds (0.12.0 and older) update from update-<target>.json in the latest release, which nsgo build does not make, so a release build makes it for them (.github/scripts/mygo-bridge.go): the NSGo app as MyGo's updater unpacks it, with a manifest signed by MYGO_UPDATER_PRIVATE_KEY that carries the same release notes as the appcasts. An installed MyGo build then updates to this release once, and the NSGo build updates itself from its appcast after that. Every release makes it, so a copy left on 0.12.0 for a while still finds the latest release; a signed run by hand makes it too, as the run's artifacts, to check it before a release. On macOS each app gets its notarization ticket stapled first, as nsgo build staples only the disk images, so the updated app opens offline too. Linux has none: see mygo-bridge.go.
       - name: Make the updates of the MyGo builds
         if: matrix.bridge && (inputs.tag != '' || inputs.sign)
         env:
@@ -275,7 +286,6 @@ jobs:
             done
           fi
           public=$(sed -nE 's/^ *key: *([A-Za-z0-9+\/=]+) *$/\1/p' apps/kando/nsgo.yaml)
-          .github/scripts/changelog.sh notes "v$version" > "$RUNNER_TEMP/notes.md"
           go run .github/scripts/mygo-bridge.go make -version "$version" -repo "$GITHUB_REPOSITORY" -packages "$RUNNER_TEMP/packages" -targets "$TARGETS" -notes "$RUNNER_TEMP/notes.md" -public "$public"
           go run .github/scripts/mygo-bridge.go verify -dir "$RUNNER_TEMP/packages/releases" -public "$public"
       # The files of nsgo build's releases folder, which a release holds side by side: each target's installers with their .sha256, its appcast in a release build (on Linux in every build), and on the Linux row the install scripts. Every installer the row's targets should make must be there, once, as must a release build's appcasts. Their SHA-256 is taken here from the files nsgo build made.

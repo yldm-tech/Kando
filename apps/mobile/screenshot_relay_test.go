@@ -19,6 +19,7 @@ func TestScreenshotsFilmsAway(t *testing.T) {
 	p := startPhone(t, dir, pairedWith(t, d, dir))
 	id := store.DesktopID(d.Fingerprint)
 	p.app.WaitUntil(wait, func() bool { return d.RelayJoins() == 1 })
+	p.waitRelayJoined(id)
 	p.app.WaitFor(talkRow(id), wait)
 	d.SetOff(true)
 	p.app.Press(talkRow(id))

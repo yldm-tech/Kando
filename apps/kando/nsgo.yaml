@@ -38,9 +38,9 @@ release: { github: yldm-tech/Kando }
 
 # The same Ed25519 key as Kando's MyGo builds verified their updates with: NSGO_UPDATES_KEY is the first 32 bytes, the seed, of the MYGO_UPDATER_PRIVATE_KEY secret's 64, which the Package workflow takes from it.
 # The script plugins' revocation list is published beside the appcasts, as kando-plugin-revocations.json of the latest release (script.RevocationsURL in plugins/script/script.go).
+# Each appcast carries the version's section of CHANGELOG.md as its release notes: the Package workflow writes it with .github/scripts/changelog.sh and passes it to nsgo build -release-notes, which renders the Markdown as the HTML that Sparkle's and WinSparkle's update dialogs show and NSGo's prompt on Linux shows as text.
 updates:
   key: Ixbkzk6yM6p8gK3hgwK8IdnorQCJp9vpRlWUbsZs3LQ=
-# TODO(nsgo#32): put CHANGELOG.md's section of the version into the appcast's release notes, as Kando's MyGo builds signed them into the update manifests for its update window https://github.com/nsgo-dev/nsgo/issues/32
 
 # The Linux packages also depend on GTK's GStreamer media backend and GStreamer's good, bad and libav plugins, so that Kando's videos play through GtkMediaFile.
 linux:

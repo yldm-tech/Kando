@@ -136,6 +136,84 @@ func TestScriptProbe(t *testing.T) {
 	}
 }
 
+// TestScriptSignedManifest checks a package that signed its manifest (pkg.Contents.Extra): Verify compares what it signed with the manifest, so Probe runs none of its code, whose kandoManifest need not say what it is, and Load checks the functions its contributions call; a manifest that is not what it signed, a signed entry with another key or that is no object, and a signed entry changed after signing are refused. A package that did not sign it, as every one published, is the kandoManifest's of TestScriptProbe.
+func TestScriptSignedManifest(t *testing.T) {
+	s := newSigner(t, AppIDPrefix+"acme.*")
+	roots := s.roots()
+	trust := trustOf(t, roots)
+	e := newEngine(t)
+	commands := `"contributes": {"commands": [{"id": "sync", "export": "run", "title": {"en": "Sync"}}]}, "optional": ["kando.saved.read"]`
+	verify := func(f fixture) (Verified, error) {
+		t.Helper()
+		return Verify(trust, roots, s.pack(t, f))
+	}
+
+	// Its code throws as it loads and says nothing of itself: Probe never runs it.
+	v, err := verify(fixture{id: "acme.tool", extra: commands, signManifest: true, said: "undefined", code: `throw new Error("ran before the user agreed")`})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if v.Package.Extra == nil {
+		t.Fatal("the package signed no manifest")
+	}
+	e.do(func() { err = Probe(e.root, v) })
+	if err != nil {
+		t.Errorf("a package that signed its manifest: %v", err)
+	}
+	v, err = verify(fixture{id: "acme.tool", extra: commands, signManifest: true, said: "undefined", code: "export function run() { return 1 }"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	var pl *Plugin
+	e.do(func() {
+		if err = Probe(e.root, v); err == nil {
+			pl, err = Load(e.root, v, plugins.Grant{}, core.NewHost())
+		}
+	})
+	if err != nil || pl == nil {
+		t.Fatalf("a package that signed its manifest whose kandoManifest says nothing: %v", err)
+	}
+	e.do(func() { pl.p.Close() })
+
+	// A command whose function it does not export is refused as it loads, as Probe did not run it.
+	v, err = verify(fixture{id: "acme.tool", extra: commands, signManifest: true})
+	if err != nil {
+		t.Fatal(err)
+	}
+	e.do(func() {
+		if err = Probe(e.root, v); err == nil {
+			_, err = Load(e.root, v, plugins.Grant{}, core.NewHost())
+		}
+	})
+	wantErr(t, "no export", err, plugins.ErrTampered)
+
+	// The manifest says more than the package signed of it, or the package signed another key or no object.
+	_, err = verify(fixture{id: "acme.tool", extra: commands, entry: `{"capabilities": {"host": ["kando.toast"]}}`, code: "export function run() {}"})
+	wantErr(t, "a manifest that is not the one signed", err, plugins.ErrTampered)
+	_, err = verify(fixture{id: "acme.tool", entry: `{"capabilities": {"host": ["kando.toast"]}, "panels": [{"id": "x"}]}`})
+	wantErr(t, "another key signed", err, plugins.ErrTampered)
+	_, err = verify(fixture{id: "acme.tool", entry: `["capabilities"]`})
+	wantErr(t, "no object signed", err, plugins.ErrTampered)
+
+	// A byte of the signed manifest changed after signing breaks the signature, as a byte of the code does.
+	p := s.pack(t, fixture{id: "acme.tool", signManifest: true})
+	path := filepath.Join(p.Dir, p.Script.Package)
+	data, err := os.ReadFile(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	i := strings.LastIndex(string(data), "kando.toast")
+	if i < 0 {
+		t.Fatal("the package holds no signed manifest")
+	}
+	copy(data[i:], "kando.saved")
+	if err := os.WriteFile(path, data, 0o644); err != nil {
+		t.Fatal(err)
+	}
+	_, err = Verify(trust, roots, p)
+	wantErr(t, "a signed manifest changed", err, ErrUntrusted)
+}
+
 // TestScriptLimitsAreBounded checks that every Limits Kando runs a plugin under is hardened and bounds the stack, nodes, timers, requests, bodies and storage: a zero field would be no limit at all.
 func TestScriptLimitsAreBounded(t *testing.T) {
 	for name, l := range map[string]any{"run": *Limits(), "probe": *probeLimits(), "sandbox": *Sandbox("a.b", "k", plugins.Grant{}, nil).Limits, "probe sandbox": *probeSandbox("p").Limits} {
@@ -201,7 +279,7 @@ func TestScriptWatchdogStopsASlicedLoop(t *testing.T) {
 	if piece-w.Beat <= w.Stall {
 		t.Fatalf("a piece of %v does not hold a heartbeat past Stall %v", piece, w.Stall)
 	}
-	// Each heartbeat that counts takes a piece, and Stalls in a row stop the loop as the piece the last one waited in ends. A heartbeat that falls due just as a piece ends can be posted after the one before it ran, find the engine between two pieces and start the count again, as it should, the window having answered it; a busy runner that delivers the tick late makes that likelier. The bound allows one such restart, at worst just before the last stall would have counted, so 2*Stalls-1 pieces, each with a Beat for the gaps between pieces and a late tick. The pieces end 30, 60, 90, 20 and 50 ms past a tick (430 ms where the 450 ms of docs/plugin-system.md ended the second piece on one), so a restart takes a tick at least 20 ms late.
+	// Each heartbeat that counts takes a piece, and Stalls in a row stop the loop once the last one is past Stall, the watchdog interrupting the piece it waits in (tsx.Plugin.Interrupt) rather than waiting for its end. A heartbeat that falls due just as a piece ends can be posted after the one before it ran, find the engine between two pieces and start the count again, as it should, the window having answered it; a busy runner that delivers the tick late makes that likelier. The bound allows one such restart, at worst just before the last stall would have counted, so 2*Stalls-1 pieces, each with a Beat for the gaps between pieces and a late tick. The pieces end 30, 60, 90, 20 and 50 ms past a tick (430 ms where the 450 ms of docs/plugin-system.md ended the second piece on one), so a restart takes a tick at least 20 ms late.
 	bound := time.Duration(2*w.Stalls-1) * (piece + w.Beat)
 	s := newSigner(t, AppIDPrefix+"acme.*")
 	roots := s.roots()
@@ -226,6 +304,28 @@ func TestScriptWatchdogStopsASlicedLoop(t *testing.T) {
 	e.do(func() { closed = pl.Closed() })
 	if !closed {
 		t.Error("not closed")
+	}
+}
+
+// TestScriptWatchdogCutsTheRunningPiece checks that the watchdog, once it trips inside one long piece of synchronous JS, cuts that piece at once (tsx.Plugin.Interrupt) rather than waiting for it to end, as closing the plugin between two pieces would: the call ends with ErrStopped, reported slow, well before the piece's 450 ms. The piece runs on the wall clock and stays under tsx's half second call budget, so tsx does not cut it first; the bound is not widened under the race detector, which slows neither the piece nor the interrupt that ends it.
+func TestScriptWatchdogCutsTheRunningPiece(t *testing.T) {
+	const piece = 450 * time.Millisecond
+	s := newSigner(t, AppIDPrefix+"acme.*")
+	roots := s.roots()
+	e := newEngine(t)
+	pl := e.load(t, trustOf(t, roots), roots, s.pack(t, fixture{id: "acme.spin", code: fmt.Sprintf(`export async function spin() { const t = Date.now(); while (Date.now() - t < %d) {} }`, piece.Milliseconds())}), plugins.Grant{})
+	stopped := make(chan string, 1)
+	r := &Runner{Post: e.post, Watch: Watch{Beat: 20 * time.Millisecond, Stall: time.Hour, Stalls: 3, Heap: DefaultWatch.Heap, Deadline: 100 * time.Millisecond}, Stopped: func(id, hash, reason string) { stopped <- reason }}
+	start := time.Now()
+	got := wait(t, e.call(r, pl, "spin"), 10*time.Second)
+	if !errors.Is(got.err, ErrStopped) {
+		t.Fatalf("the call ended with %v, %v", got.v, got.err)
+	}
+	if d := got.at.Sub(start); d >= 300*time.Millisecond {
+		t.Errorf("the call ended after %v, not before its %v piece", d, piece)
+	}
+	if reason := <-stopped; reason != plugins.ReasonSlow {
+		t.Errorf("reported %q", reason)
 	}
 }
 
@@ -334,6 +434,96 @@ export function busyNow() { const e = new Error("Anki is not open"); e.code = "u
 	}
 	if got := wait(t, e.call(r, pl, "busy"), time.Second); !errors.Is(got.err, ErrStopped) {
 		t.Errorf("a call after it was stopped: %v", got.err)
+	}
+}
+
+// TestScriptRunnerStopsAPluginTsxStopped checks that a plugin tsx stopped at its node quota, whose every call after fails at once with the quota's coded error, which the breaker does not count, is stopped and reported as failed by the call that ran into the quota, and that the calls after it end with ErrStopped.
+func TestScriptRunnerStopsAPluginTsxStopped(t *testing.T) {
+	s := newSigner(t, AppIDPrefix+"acme.*")
+	roots := s.roots()
+	e := newEngine(t)
+	// The elements stay counted for as long as the plugin runs, so pieces well under the call budget reach the quota (tsx.DefaultLimits.Nodes, which Limits keeps).
+	pl := e.load(t, trustOf(t, roots), roots, s.pack(t, fixture{id: "acme.flood", code: `import { View } from "nsgo"
+const keep = []
+export async function flood() {
+  for (;;) { for (let i = 0; i < 1000; i++) keep.push(<View />); await new Promise(r => setTimeout(r, 0)) }
+}
+export function ping() { return 1 }`}), plugins.Grant{})
+	stopped := make(chan string, 1)
+	watch := DefaultWatch
+	// The quota is what this test is about: the watchdog must not stop it first, as slow on a runner under the race detector, or for the heap its elements take, past 512 MiB before the quota.
+	watch.Stall, watch.Heap = time.Hour, 0
+	r := &Runner{Post: e.post, Watch: watch, Stopped: func(id, hash, reason string) { stopped <- reason }}
+	got := wait(t, e.call(r, pl, "flood"), 60*time.Second)
+	if core.ErrorCode(got.err) != core.CodeQuotaExceeded {
+		t.Fatalf("the call ended with %v, %v", got.v, got.err)
+	}
+	select {
+	case reason := <-stopped:
+		if reason != plugins.ReasonFailed {
+			t.Errorf("reported %q", reason)
+		}
+	case <-time.After(5 * time.Second):
+		t.Fatal("the plugin tsx stopped was not stopped")
+	}
+	var closed bool
+	e.do(func() { closed = pl.Closed() })
+	if !closed {
+		t.Error("not closed")
+	}
+	if got := wait(t, e.call(r, pl, "ping"), time.Second); !errors.Is(got.err, ErrStopped) {
+		t.Errorf("a call after it was stopped: %v", got.err)
+	}
+}
+
+// TestScriptRunnerSparesAPluginThatReportsAQuota checks that a plugin that rejects with a quota code of its own, as for a host's quota, is not taken for one tsx stopped.
+func TestScriptRunnerSparesAPluginThatReportsAQuota(t *testing.T) {
+	s := newSigner(t, AppIDPrefix+"acme.*")
+	roots := s.roots()
+	e := newEngine(t)
+	pl := e.load(t, trustOf(t, roots), roots, s.pack(t, fixture{id: "acme.quota", code: `export async function full() { const e = new Error("used up"); e.code = "ERR_NSH_QUOTA_EXCEEDED"; throw e }
+export function ping() { return 1 }`}), plugins.Grant{})
+	stopped := make(chan string, 1)
+	r := &Runner{Post: e.post, Watch: DefaultWatch, Stopped: func(id, hash, reason string) { stopped <- reason }}
+	for range 5 {
+		if got := wait(t, e.call(r, pl, "full"), time.Second); core.ErrorCode(got.err) != core.CodeQuotaExceeded {
+			t.Fatalf("a coded failure: %v", got.err)
+		}
+	}
+	if got := wait(t, e.call(r, pl, "ping"), time.Second); got.err != nil {
+		t.Errorf("a call after: %v", got.err)
+	}
+	select {
+	case reason := <-stopped:
+		t.Fatalf("stopped for %s", reason)
+	default:
+	}
+}
+
+// TestScriptRunnerRunsNoJSOnAFailure checks that the runner, as it tells whether tsx stopped a plugin whose call failed, runs none of the plugin's JS: a plugin can put a getter on its own exports object, which reading a name of it runs on the engine's goroutine, outside any call's budget or watchdog, where a throw would take the engine down and a loop would hang it. The plugin makes its exports object's prototype a Proxy that throws on any name it does not own, so a lookup of any name it does not export runs its JS, and puts a throwing enumerable getter on it, so an enumeration of its exports does too.
+func TestScriptRunnerRunsNoJSOnAFailure(t *testing.T) {
+	s := newSigner(t, AppIDPrefix+"acme.*")
+	roots := s.roots()
+	e := newEngine(t)
+	pl := e.load(t, trustOf(t, roots), roots, s.pack(t, fixture{id: "acme.trap", code: `export async function trap() {
+  const exports = globalThis.__nsgo_exports
+  Object.defineProperty(exports, "trap2", { get() { throw new Error("ran") }, enumerable: true })
+  Object.setPrototypeOf(exports, new Proxy(Object.getPrototypeOf(exports) ?? Object.create(null), { get(target, k, receiver) { if (typeof k === "string") throw new Error("ran " + k); return Reflect.get(target, k, receiver) } }))
+  throw new Error("broken")
+}
+export function ping() { return 1 }`}), plugins.Grant{})
+	stopped := make(chan string, 1)
+	r := &Runner{Post: e.post, Watch: DefaultWatch, Stopped: func(id, hash, reason string) { stopped <- reason }}
+	if got := wait(t, e.call(r, pl, "trap"), time.Second); !contains(got.err, "broken") {
+		t.Fatalf("the call ended with %v", got.err)
+	}
+	if got := wait(t, e.call(r, pl, "ping"), time.Second); got.err != nil {
+		t.Errorf("a call after: %v", got.err)
+	}
+	select {
+	case reason := <-stopped:
+		t.Fatalf("stopped for %s", reason)
+	default:
 	}
 }
 

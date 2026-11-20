@@ -71,6 +71,7 @@ for dir in "${folders[@]}"; do
   name=$(basename "$dir")
   # The package's file name is what kando-plugin.json's script names in the .kandoplugin.
   package=$work/$name.nsgopkg
+  # TODO(nsgo#924): nsgo publish cannot sign pkg.Contents.Extra, so the package does not sign its manifest and plugin.tsx must say it (kandoManifest); once it can, sign signature.SignedManifest for a manifest signature.SignsManifest takes, as script.PackFolder will, and keep kandoManifest in plugin.tsx until the manifest's oldest Kando compares the signed entry (signature.ManifestEntrySince). https://github.com/nsgo-dev/nsgo/issues/924
   go tool nsgo publish -cert "$cert" -entry plugin.tsx -out "$package" "$dir"
   # wrap writes into a folder of its own and prints the file's path; the file is <id>-<version>.kandoplugin, and wrap has checked the id against the signed package.
   file=$(go run ./apps/kando/plugins/official/cmd/official wrap -src "$dir" -package "$package" -dir "$work/$name.wrapped")

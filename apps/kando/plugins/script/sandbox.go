@@ -5,11 +5,11 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
-	"reflect"
 	"slices"
 	"time"
 
 	"kando/apps/kando/plugins"
+	"kando/apps/kando/plugins/script/signature"
 
 	"github.com/nsgo-dev/nsgo/core"
 	"github.com/nsgo-dev/nsgo/tsx"
@@ -60,26 +60,28 @@ func probeSandbox(partition string) tsx.Sandbox {
 	return tsx.Sandbox{Limits: probeLimits(), Grant: &pkg.Capabilities{}, Storage: partition}
 }
 
-// Load runs the plugin v under cx with what grant allows, through its own host, which must be no other plugin's (Sandbox), for a Runner to call. It notes what the Go heap held before, which the watchdog measures the plugin's growth from. Call it on the engine's goroutine; it runs the plugin's entry module, a second at most.
+// Load runs the plugin v under cx with what grant allows, through its own host, which must be no other plugin's (Sandbox), for a Runner to call, and checks that it exports every function its contributions call (Manifest.ExportsNeeded), which Probe did not for a package that signed its manifest: plugins.ErrTampered otherwise. It notes what the Go heap held before, which the watchdog measures the plugin's growth from. Call it on the engine's goroutine; it runs the plugin's entry module, a second at most.
 func Load(cx *core.Scope, v Verified, grant plugins.Grant, host *core.Host) (*Plugin, error) {
 	heap := HeapBytes()
 	p, err := tsx.Load(cx, v.Package, Sandbox(v.ID, v.Signer, grant, host))
 	if err != nil {
 		return nil, err
 	}
+	if err := checkExports(p, v.Manifest); err != nil {
+		p.Close()
+		return nil, err
+	}
 	return &Plugin{ID: v.ID, Hash: v.Hash, p: p, heap: heap}, nil
 }
 
-// manifestExport is the function a plugin's code says what it is with.
+// manifestExport is the function a plugin's code says what it is with, when its package did not sign its manifest (signature.SignedManifest).
 const manifestExport = "kandoManifest"
 
-// signedKeys are the keys of the manifest whose values kandoManifest returns, as the package's signature does not cover kando-plugin.json.
-var signedKeys = []string{"capabilities", "optional", "contributes", "credentials", "settings", "events"}
-
-// Probe runs the plugin v under cx in a sandbox that grants nothing (probeSandbox), calls its kandoManifest and closes it, and checks that what it returned is what its manifest, as its file says it (Verified.Manifest), says of what it may reach and adds: capabilities, optional, contributes, credentials, settings and events, key for key, and nothing else; and that it exports every function its contributions call (Manifest.ExportsNeeded). Its entry module runs here before the user agreed to anything, which is why the sandbox grants nothing and its partition is thrown away. A plugin that does not export kandoManifest, or fails as it loads or says it, is ErrNoManifest; one that says something else plugins.ErrTampered. Call it on the engine's goroutine.
-//
-// TODO(nsgo#761): pkg.Contents has no app-defined signed entries; compare kandoManifest() instead https://github.com/nsgo-dev/nsgo/issues/761
+// Probe checks, before the plugin v runs with what the user granted, that what it may reach and adds is what its manifest, as its file says it (Verified.Manifest), says: capabilities, optional, contributes, credentials, settings and events, key for key, and nothing else (signature.CheckManifest). A package that signed its manifest (pkg.Contents.Extra) had it compared as it verified (Verify), so its code does not run here and nothing is left to check: the functions its contributions call are checked as it loads (Load). For one that did not, as every package nsgo publish signs, the signature does not cover kando-plugin.json, so Probe runs it under cx in a sandbox that grants nothing (probeSandbox), calls its kandoManifest, compares what it returns with the manifest and closes it, and checks that it exports every function its contributions call (Manifest.ExportsNeeded). Its entry module runs there before the user agreed to anything, which is why the sandbox grants nothing and its partition is thrown away. A plugin that does not export kandoManifest, or fails as it loads or says it, is ErrNoManifest; one that says something else plugins.ErrTampered. Call it on the engine's goroutine.
 func Probe(cx *core.Scope, v Verified) error {
+	if v.Package.Extra != nil {
+		return nil
+	}
 	m := v.Manifest
 	partition := probePartition()
 	defer clearStorage(cx, partition)
@@ -88,11 +90,8 @@ func Probe(cx *core.Scope, v Verified) error {
 		return fmt.Errorf("%w: %w", ErrNoManifest, err)
 	}
 	defer p.Close()
-	exports := p.Exports()
-	for _, e := range m.ExportsNeeded() {
-		if !slices.Contains(exports, e) {
-			return fmt.Errorf("%w: it does not export %s", plugins.ErrTampered, e)
-		}
+	if err := checkExports(p, m); err != nil {
+		return err
 	}
 	var said any
 	called := false
@@ -107,12 +106,27 @@ func Probe(cx *core.Scope, v Verified) error {
 	case error:
 		return fmt.Errorf("%w: %w", ErrNoManifest, r)
 	case map[string]any:
-		return compareManifest(r, m)
+		data, err := json.Marshal(r)
+		if err != nil {
+			return fmt.Errorf("%w: %w", plugins.ErrTampered, err)
+		}
+		return signature.CheckManifest(data, m)
 	}
 	if !called {
 		return fmt.Errorf("%w: kandoManifest does not return at once", ErrNoManifest)
 	}
 	return fmt.Errorf("%w: kandoManifest returns no object", ErrNoManifest)
+}
+
+// checkExports checks that the plugin p exports every function the contributions of its manifest m call (Manifest.ExportsNeeded): plugins.ErrTampered otherwise.
+func checkExports(p *tsx.Plugin, m plugins.Manifest) error {
+	exports := p.Exports()
+	for _, e := range m.ExportsNeeded() {
+		if !slices.Contains(exports, e) {
+			return fmt.Errorf("%w: it does not export %s", plugins.ErrTampered, e)
+		}
+	}
+	return nil
 }
 
 // probePartition names the partition of a probe: pluginprobe. and 16 random hex digits.
@@ -134,57 +148,3 @@ func clearStorage(cx *core.Scope, name string) {
 
 // ClearStorage clears the plugin id's storage partition of signer, as it is uninstalled or another key signs it. Call it on the engine's goroutine.
 func ClearStorage(cx *core.Scope, id, signer string) { clearStorage(cx, Partition(id, signer)) }
-
-// compareManifest checks that said, what kandoManifest returned, holds the signed keys of m, alike once both are read as JSON reads them and what is empty is left out, and no other key.
-func compareManifest(said map[string]any, m plugins.Manifest) error {
-	data, err := json.Marshal(m)
-	if err != nil {
-		return err
-	}
-	var all map[string]any
-	if err := json.Unmarshal(data, &all); err != nil {
-		return err
-	}
-	for k := range said {
-		if !slices.Contains(signedKeys, k) && normalize(said[k]) != nil {
-			return fmt.Errorf("%w: kandoManifest says %s", plugins.ErrTampered, k)
-		}
-	}
-	for _, k := range signedKeys {
-		if !reflect.DeepEqual(normalize(said[k]), normalize(all[k])) {
-			return fmt.Errorf("%w: kandoManifest's %s is not the manifest's", plugins.ErrTampered, k)
-		}
-	}
-	return nil
-}
-
-// normalize is v as JSON decodes it, with empty arrays, empty objects and null left out of what holds them, so a key left out and one written empty are alike.
-func normalize(v any) any {
-	switch x := v.(type) {
-	case map[string]any:
-		out := map[string]any{}
-		for k, e := range x {
-			if n := normalize(e); n != nil {
-				out[k] = n
-			}
-		}
-		if len(out) == 0 {
-			return nil
-		}
-		return out
-	case []any:
-		if len(x) == 0 {
-			return nil
-		}
-		out := make([]any, len(x))
-		for i, e := range x {
-			out[i] = normalize(e)
-		}
-		return out
-	case int:
-		return float64(x)
-	case int64:
-		return float64(x)
-	}
-	return v
-}

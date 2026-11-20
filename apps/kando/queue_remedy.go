@@ -69,7 +69,7 @@ func (a *app) queueReadYTDLP() {
 	}
 	tools, _ := a.pipeline.(media.Tools)
 	path, update := tools.YTDLP, a.update
-	go func() {
+	a.tools.work.Go(func() {
 		browsers := installedBrowsers()
 		var version string
 		var install media.YTDLPInstall
@@ -86,7 +86,7 @@ func (a *app) queueReadYTDLP() {
 			}
 			a.queue.ytdlp.path, a.queue.ytdlp.version, a.queue.ytdlp.install = path, version, install
 		})
-	}()
+	})
 }
 
 // queueFindBrowsers looks for the browsers again off the UI thread, for 重新查找浏览器; the message bar says when there is still none.
@@ -432,7 +432,7 @@ func (a *app) queueUpdateYTDLP() {
 	}
 	a.queue.ytdlp.updating = true
 	path, update := tools.YTDLP, a.update
-	go func() {
+	a.tools.work.Go(func() {
 		version, err := media.UpdateYTDLP(context.Background(), path)
 		// How it was installed is read again whatever came of it: a yt-dlp Kando cannot update is named by it, from which the message bar says how to update it, and after 下载 yt-dlp 并重试 the pipeline downloads with Kando's own yt-dlp, which queueReadYTDLP did not record while this ran. A failed update leaves the version it has.
 		install := media.FindYTDLPInstall(path)
@@ -464,7 +464,7 @@ func (a *app) queueUpdateYTDLP() {
 			a.queue.ytdlp.latest = ""
 			a.tell(a.messages().QueueYtdlpUpdated(version, a.queueRetryOutdated()))
 		})
-	}()
+	})
 }
 
 // queueFreshenYTDLP updates Kando's own yt-dlp with -U in the background, quietly, at most once a day: the sites change what yt-dlp must understand every few weeks, and Kando's own is the release this Kando pins until updated, which only the card of a download it was too old for did before, and some of what it says when too old reads as another reason (classify.go); a yt-dlp the computer installed is its package manager's to update. It runs when the window is ready, when the app comes to the front and when the tools changed, as when Kando's own yt-dlp has just landed; not in offline mode, not while an update runs, and not within an hour of one that failed.
@@ -480,7 +480,7 @@ func (a *app) queueFreshenYTDLP() {
 	}
 	a.queue.ytdlp.freshenTried, a.queue.ytdlp.updating = now, true
 	update := a.update
-	go func() {
+	a.tools.work.Go(func() {
 		version, err := media.UpdateYTDLP(context.Background(), own)
 		update(func() {
 			a.queue.ytdlp.updating = false
@@ -493,7 +493,7 @@ func (a *app) queueFreshenYTDLP() {
 				a.queue.ytdlp.version, a.queue.ytdlp.latest = version, ""
 			}
 		})
-	}()
+	})
 }
 
 // queueRetryOutdated queues again, oldest first, every download of the open library that failed because yt-dlp was too old, and returns how many.

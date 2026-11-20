@@ -34,7 +34,7 @@ type Sources struct{ App SourcesApp }
 // Render implements core.Node.
 func (s Sources) Render(cx *core.Scope) core.Node {
 	a := s.App
-	// sources is the sources' values and names, joined, so the drop-down is built again only when they change; the names are in the language shown.
+	// sources is the sources' values and names, joined, so the drop-down's options are read again only when they change; the names are in the language shown.
 	sources := core.NewMemo(cx, live.Func(a, func() string {
 		var out []string
 		for _, src := range a.TranslateSources(i18n.Language(cx)) {
@@ -44,16 +44,20 @@ func (s Sources) Render(cx *core.Scope) core.Node {
 	}))
 	shown := live.Func(a, func() bool { return sources.Get() != "" || a.TranslateSourceGone() != "" })
 	return core.Show{When: shown, Then: func(cx *core.Scope) core.Node {
-		// TODO(nsgo#848): give ui.Select its options as a binding, so a list that changes does not build the drop-down again and take its focus; it is built again only when the plugins' sources change, which is done on another page https://github.com/nsgo-dev/nsgo/issues/848
+		// The options are bound, so a plugin's source added or gone updates the drop-down in place and keeps its focus.
+		// TODO(nsgo#145): give ui.Select a LabelFunc twin for its name, so it follows the interface language without building the drop-down again, then drop this Dynamic, which reads only the language https://github.com/nsgo-dev/nsgo/issues/145
 		choose := core.Dynamic(func(cx *core.Scope) core.Node {
-			options := []ui.Option[string]{{Value: "", Label: locales.SettingsTranslateSourceAI(cx)}}
-			if all := sources.Get(); all != "" {
-				for _, item := range strings.Split(all, "\x01") {
-					value, name, _ := strings.Cut(item, "\x00")
-					options = append(options, ui.Option[string]{Value: value, Label: name})
+			options := func() []ui.Option[string] {
+				options := []ui.Option[string]{{Value: "", Label: locales.SettingsTranslateSourceAI(cx)}}
+				if all := sources.Get(); all != "" {
+					for _, item := range strings.Split(all, "\x01") {
+						value, name, _ := strings.Cut(item, "\x00")
+						options = append(options, ui.Option[string]{Value: value, Label: name})
+					}
 				}
+				return options
 			}
-			return ui.Select[string]{Options: options, Label: locales.SettingsTranslateSource(cx), TestID: "settings-translate-source",
+			return ui.Select[string]{OptionsFunc: options, Label: locales.SettingsTranslateSource(cx), TestID: "settings-translate-source",
 				Value: live.Func(a, a.TranslateSource), OnChange: live.On(a, a.SetTranslateSource), Style: core.Style{Width: core.Pt(180)}}
 		})
 		subtitle := live.Func(a, func() string {
