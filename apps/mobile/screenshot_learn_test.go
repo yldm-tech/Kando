@@ -9,6 +9,7 @@ import (
 
 	"kando/apps/mobile/store"
 	"kando/packages/study"
+	"kando/packages/sync/synctest"
 
 	"github.com/nsgo-dev/nsgo/core"
 	"github.com/nsgo-dev/nsgo/nsgotest"
@@ -154,6 +155,8 @@ func TestScreenshotsComputer(t *testing.T) {
 	shot := screenshots(t)
 	d := newDesktop(t)
 	d.SetService("OpenAI", "gpt-4.1-mini")
+	// The computer has the user's storage set up, so its page says how the storage serves the phone.
+	d.StartRelay(t, synctest.NewBucket(t, now), now, relayTurn)
 	dir := t.TempDir()
 	p := startPhone(t, dir, pairedWith(t, d, dir))
 	// On a target the app keeps its files apart from the test's, so the scene waits for what it shows rather than for the sync's files.

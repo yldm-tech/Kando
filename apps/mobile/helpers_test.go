@@ -208,9 +208,10 @@ func (p *phone) texts(selector string) string {
 	}
 	var out []string
 	var walk func(v *nsgotest.View)
-	// What assistive technology skips, as a settings row's glyph tile, is not read.
+	root := p.app.Find(selector)
+	// What assistive technology skips inside the view, as a settings row's glyph tile, is not read; a view asked for itself, as a badge, is.
 	walk = func(v *nsgotest.View) {
-		if v.Props.ElementsHidden {
+		if v != root && v.Props.ElementsHidden {
 			return
 		}
 		if v.Text != "" {
@@ -220,7 +221,7 @@ func (p *phone) texts(selector string) string {
 			walk(c)
 		}
 	}
-	walk(p.app.Find(selector))
+	walk(root)
 	return strings.Join(out, "\n")
 }
 

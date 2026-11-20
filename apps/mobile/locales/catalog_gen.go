@@ -477,7 +477,6 @@ var Parameters = map[string][]string{
 	"ComputerStatusOnline":           {"count"},
 	"ComputerSyncedCount":            {"count"},
 	"ComputersCertificate":           {"name"},
-	"ComputersOptions":               {"name"},
 	"ComputersUnpairTitle":           {"name"},
 	"ComputersUnpaired":              {"name"},
 	"ComputersUnreachable":           {"name"},
@@ -682,7 +681,6 @@ type Translation struct {
 	ComputerStatusOnline           func(count int) string
 	ComputerSyncedCount            func(count int) string
 	ComputersCertificate           func(name string) string
-	ComputersOptions               func(name string) string
 	ComputersUnpairTitle           func(name string) string
 	ComputersUnpaired              func(name string) string
 	ComputersUnreachable           func(name string) string
@@ -6914,9 +6912,6 @@ func Supply(lang string, t Translation) {
 	if t.ComputersCertificate != nil {
 		s.ComputersCertificate = t.ComputersCertificate
 	}
-	if t.ComputersOptions != nil {
-		s.ComputersOptions = t.ComputersOptions
-	}
 	if t.ComputersUnpairTitle != nil {
 		s.ComputersUnpairTitle = t.ComputersUnpairTitle
 	}
@@ -8497,36 +8492,6 @@ func (msgs Messages) ComputersCertificate(name string) string {
 			return name + " 返回的证书和配对时的不同，请重新配对。"
 		case "zh-Hant":
 			return name + " 傳回的憑證和配對時的不同，請重新配對。"
-		}
-	}
-}
-
-// ComputersOptions says "{name} Options"
-// in the language the app shows under cx.
-//
-// Spoken name of the … button beside a computer's name, which offers to unpair it.
-func ComputersOptions(cx *core.Scope, name string) string { return For(cx).ComputersOptions(name) }
-
-// ComputersOptions is the package's ComputersOptions in the language of msgs.
-func (msgs Messages) ComputersOptions(name string) string {
-	if i18n.IsPseudo(msgs.lang) {
-		return i18n.Pseudo(msgs.lang, Messages{lang: Source, mark: true}.ComputersOptions(name))
-	}
-	for lang := msgs.lang; ; lang = i18n.Parent(lang) {
-		if f := supplied[lang].ComputersOptions; f != nil {
-			return f(name)
-		}
-		switch lang {
-		case "", "en":
-			return msgs.arg(name) + " Options"
-		case "ja":
-			return name + " のオプション"
-		case "ko":
-			return name + " 옵션"
-		case "zh-Hans":
-			return name + " 选项"
-		case "zh-Hant":
-			return name + " 選項"
 		}
 	}
 }

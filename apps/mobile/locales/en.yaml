@@ -221,11 +221,6 @@ computersCertificate:
   description: "In a computer's section: it answered with another certificate."
   placeholders:
     name: { type: "String", example: "Studio" }
-computersOptions:
-  message: "{name} Options"
-  description: "Spoken name of the … button beside a computer's name, which offers to unpair it."
-  placeholders:
-    name: { type: "String", example: "Studio" }
 computersPairAgain:
   message: "Pair Again"
   description: "Row under a computer that no longer takes this phone: opens pairing."

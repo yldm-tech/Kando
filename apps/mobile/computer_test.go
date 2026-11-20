@@ -4,6 +4,7 @@ import (
 	"testing"
 
 	"kando/apps/mobile/store"
+	"kando/packages/sync/synctest"
 
 	"github.com/nsgo-dev/nsgo/nsgotest"
 )
@@ -106,9 +107,10 @@ func TestTheComputerPagePicksWhereNewLinksGo(t *testing.T) {
 // With nothing picked in Settings and the computer paired first out of reach, new links go to the one that answers: Settings checks it and the Add sheet starts on it.
 func TestSettingsAndTheAddSheetSendToTheSameComputer(t *testing.T) {
 	d, e := newDesktop(t), newDesktop(t)
-	d.SetOff(true)
 	dir := t.TempDir()
-	p := startPhone(t, dir, pairedWithBoth(t, d, e, dir))
+	secrets := pairedWithBoth(t, d, e, dir)
+	d.SetOff(true)
+	p := startPhone(t, dir, secrets)
 	first := store.DesktopID(d.Fingerprint)
 	p.openComputers()
 	p.app.WaitFor("id:settings-computer-laptop", wait)
@@ -146,4 +148,15 @@ func TestUnpairingTheComputerShownShowsTheNext(t *testing.T) {
 	p.app.Answer(1)
 	p.app.WaitUntil(wait, func() bool { return len(p.app.QueryMounted("id:computer-page")) == 0 })
 	p.app.WaitFor("id:settings-pair", wait)
+}
+
+// A computer with the user's storage set up says on its page that the storage serves the phone, while the phone talks to it directly too.
+func TestTheComputerPageShowsItsStorageWhileReachedDirectly(t *testing.T) {
+	d := newDesktop(t)
+	d.StartRelay(t, synctest.NewBucket(t, now), now, relayTurn)
+	dir := t.TempDir()
+	p := startPhone(t, dir, pairedWith(t, d, dir))
+	p.app.WaitUntil(wait, func() bool { return d.RelayJoins() == 1 })
+	p.openComputers()
+	p.app.WaitUntil(wait, func() bool { return p.texts("id:computer-storage-value") == msgs.ComputerStorageOK() })
 }
