@@ -788,13 +788,15 @@ func thumb(cx *core.Scope, source func() core.ImageSource, over func() string) c
 		AlignItems: core.AlignCenter, JustifyContent: core.JustifyCenter},
 		StyleFunc: ui.Filled(colors.Inset),
 		Children: []core.Node{
-			ui.Icon(lucide.Film, 20, colors.Faint),
+			// The film's mark gives way to the words over the picture, which it would show through.
+			core.Show{When: func() bool { return over() == "" }, Then: func(*core.Scope) core.Node { return ui.Icon(lucide.Film, 20, colors.Faint) }},
 			core.Image{SourceFunc: source, ResizeMode: core.Cover, FadeDuration: 150 * time.Millisecond, ElementsHidden: true,
 				Style: core.Style{Position: core.Absolute, Left: core.Pt(0), Top: core.Pt(0), Right: core.Pt(0), Bottom: core.Pt(0)}},
 			core.Show{When: func() bool { return over() != "" }, Then: func(cx *core.Scope) core.Node {
 				return core.View{Style: core.Style{Position: core.Absolute, Left: core.Pt(0), Top: core.Pt(0), Right: core.Pt(0), Bottom: core.Pt(0), AlignItems: core.AlignCenter, JustifyContent: core.JustifyCenter,
 					Padding: core.Symmetric(0, 4), Background: ui.Black(0.35)}, Children: []core.Node{
-					core.Text{TestID: "", ContentFunc: over, MaxLines: 2, Style: core.Style{FontSize: 13, LineHeight: 16, FontWeight: look.Heavy, TextAlign: core.TextAlignCenter, Color: theme.OnMark}},
+					// TODO(nsgo): on macOS a text in the design's 800 weight wraps by a narrower measure than it draws, so a two-line one is cut at its end; it is bold until its measure matches.
+					core.Text{ContentFunc: over, MaxLines: 2, Style: core.Style{Width: core.Pct(100), FontSize: 13, LineHeight: 16, FontWeight: core.FontWeightBold, TextAlign: core.TextAlignCenter, Color: theme.OnMark}},
 				}}
 			}},
 		}}

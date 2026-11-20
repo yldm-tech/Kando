@@ -35,6 +35,35 @@ func TestScreenshotsJobs(t *testing.T) {
 	shot(p, "jobs-add")
 }
 
+// TestScreenshotsJobsOffline renders the Jobs page once the computer dropped out of reach, with a running and a paused job waiting for it.
+func TestScreenshotsJobsOffline(t *testing.T) {
+	shot := screenshots(t)
+	d := newDesktop(t)
+	moved(d, "job1", "https://youtu.be/dQw4w9WgXcQ", sync.JobRunning, 2, 0.52)
+	paused := moved(d, "job2", "https://www.bilibili.com/video/BV1GJ411x7h7", sync.JobPaused, 0, 0)
+	paused.Title = "How Rivers Shape Landscapes"
+	d.SetJob(paused)
+	dir := t.TempDir()
+	p := startPhone(t, dir, pairedWith(t, d, dir))
+	id := store.DesktopID(d.Fingerprint)
+	p.openTab(jobsTab, msgs.JobsTitle())
+	p.app.WaitFor("id:jobs-resume-job2", wait)
+	d.SetOff(true)
+	p.app.WaitUntil(reconnect, func() bool { return p.reach(id) == msgs.JobsOffline() })
+	shot(p, "jobs-offline")
+}
+
+// TestScreenshotsJobsEmpty renders the Jobs page of a computer with nothing in its queue.
+func TestScreenshotsJobsEmpty(t *testing.T) {
+	shot := screenshots(t)
+	d := newDesktop(t)
+	dir := t.TempDir()
+	p := startPhone(t, dir, pairedWith(t, d, dir))
+	p.openTab(jobsTab, msgs.JobsTitle())
+	p.app.WaitFor("id:jobs-empty-"+store.DesktopID(d.Fingerprint), wait)
+	shot(p, "jobs-empty")
+}
+
 // TestScreenshotsJobsAway renders the Jobs page away from the computer's network, following its queue through the storage relay (jobs-relay), with a link left in the storage that the computer, gone to sleep, has not taken yet (jobs-relay-off), and once the storage no longer takes the computer's key (jobs-relay-storage).
 func TestScreenshotsJobsAway(t *testing.T) {
 	shot := screenshots(t)
