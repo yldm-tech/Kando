@@ -613,7 +613,7 @@ func (a *app) pluginsSetEnabled(id string, on bool) {
 	a.pluginsApplyState(next)
 }
 
-// pluginsApplyState takes next as state.json, a pack turned on or off or a site allowed, saving it off the UI thread; what follows the packs turned on (the AI services offered, the dictionaries open) follows at once, and goes back when the file could not be saved; the sites the browser knows follow once it is saved, as a change of them makes the browser's web view again (browseSitesChanged), which a failed save would do twice. Once the save ends, the inbox is looked at again, as a look at it gives way while the save runs (pluginsCheckInbox).
+// pluginsApplyState takes next as state.json, a pack turned on or off or a site allowed, saving it off the UI thread; what follows the packs turned on (the AI services offered, the dictionaries open) follows at once, and goes back when the file could not be saved; the sites the browser knows follow once it is saved, as a change of them has the browser's web view load its page again (browseSitesChanged), which a failed save would do twice. Once the save ends, the inbox is looked at again, as a look at it gives way while the save runs (pluginsCheckInbox).
 func (a *app) pluginsApplyState(next plugins.State) {
 	root := a.pluginsRoot()
 	before := a.plugins.state

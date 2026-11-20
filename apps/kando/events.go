@@ -122,12 +122,17 @@ func (a *app) areasRestore(saved savedSettings) {
 }
 
 func (a *app) areasReady() {
-	nsdesktop.OnOpenLinks(a.cx, live.On(a, a.areasOpenLinks))
+	a.areasListenLinks()
 	for _, h := range a.areas() {
 		if h.ready != nil {
 			h.ready()
 		}
 	}
+}
+
+// areasListenLinks registers the one handler of the links the system opens Kando with (areaHooks.openLinks): those a launch names, which NSGo keeps for the first handler, and those that reach the running app, as a second launch on Windows and Linux hands them over.
+func (a *app) areasListenLinks() {
+	nsdesktop.OnOpenLinks(a.cx, live.On(a, a.areasOpenLinks))
 }
 
 // areasOpenLinks gives the links the system opened Kando with to every area's openLinks.
