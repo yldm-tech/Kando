@@ -254,6 +254,7 @@ func init() {
 			"permissionDeveloperTools":       "デベロッパツール",
 			"permissionBluetooth":            "Bluetooth",
 			"permissionMediaLibrary":         "メディアとApple Music",
+			"checkForUpdates":                "アップデートを確認…",
 		},
 		AboutApp: func(app string) string {
 			return app + "について"
@@ -301,6 +302,7 @@ func init() {
 			"permissionDeveloperTools":       "개발자 도구",
 			"permissionBluetooth":            "Bluetooth",
 			"permissionMediaLibrary":         "미디어 및 Apple Music",
+			"checkForUpdates":                "업데이트 확인…",
 		},
 		AboutApp: func(app string) string {
 			return app + "에 관하여"
@@ -348,6 +350,7 @@ func init() {
 			"permissionDeveloperTools":       "開發者工具",
 			"permissionBluetooth":            "藍牙",
 			"permissionMediaLibrary":         "媒體與 Apple Music",
+			"checkForUpdates":                "檢查更新…",
 		},
 		AboutApp: func(app string) string {
 			return "關於" + app

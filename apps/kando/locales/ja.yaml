@@ -2554,6 +2554,7 @@ github.com/nsgo-dev/nsgo/desktop/locales:
   permissionDeveloperTools: "デベロッパツール"
   permissionBluetooth: "Bluetooth"
   permissionMediaLibrary: "メディアとApple Music"
+  checkForUpdates: "アップデートを確認…"
 github.com/nsgo-dev/nsgo/updater/locales:
   updateAvailable: "{app} の新しいバージョンがあります"
   updateAvailableMessage: "{app} {version} が利用可能です。現在のバージョンは {current} です。"

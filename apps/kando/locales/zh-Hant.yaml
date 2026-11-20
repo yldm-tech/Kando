@@ -2554,6 +2554,7 @@ github.com/nsgo-dev/nsgo/desktop/locales:
   permissionDeveloperTools: "開發者工具"
   permissionBluetooth: "藍牙"
   permissionMediaLibrary: "媒體與 Apple Music"
+  checkForUpdates: "檢查更新…"
 github.com/nsgo-dev/nsgo/updater/locales:
   updateAvailable: "{app} 有新版本可用"
   updateAvailableMessage: "{app} {version} 現已推出，你的版本是 {current}。"
