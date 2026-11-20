@@ -6,6 +6,7 @@ import (
 	"strings"
 
 	"kando/apps/kando/film"
+	"kando/apps/kando/films"
 	"kando/apps/kando/lines"
 	"kando/apps/kando/plugins"
 	"kando/apps/kando/saved"
@@ -135,7 +136,7 @@ func (a *app) pluginsFilmCurrent(l *pluginsScript, c *ns.HostCall) {
 	c.Resolve(map[string]any{
 		"film":       a.pluginsFilmID(l, cmp.Or(f.VideoPath, f.Key)),
 		"title":      f.Title,
-		"spoken":     cmp.Or(f.Spoken, f.SpeechLanguage),
+		"spoken":     films.Heard(f),
 		"language":   core.TargetTag(f.Language),
 		"positionMs": a.PlayHead().Milliseconds(),
 	})

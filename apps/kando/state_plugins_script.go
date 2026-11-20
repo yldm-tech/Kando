@@ -13,10 +13,12 @@ import (
 	"sync"
 	"time"
 
+	"kando/apps/kando/films"
 	"kando/apps/kando/live"
 	"kando/apps/kando/locales"
 	"kando/apps/kando/plugins"
 	"kando/apps/kando/plugins/script"
+	"kando/packages/study"
 
 	ns "github.com/nsgo-dev/nsgo/core"
 	"github.com/nsgo-dev/nsgo/i18n"
@@ -737,9 +739,9 @@ func (a *app) pluginsSetSecret(id, key, value string) {
 	}()
 }
 
-// pluginsFilmID is the id the plugin l knows the film of video by (plugins.FilmID).
+// pluginsFilmID is the id the plugin l knows the film of video by (plugins.FilmID): video is a path on disk, as the player and the jobs have it, or a path under the library as the saved lines and the vocabulary keep it, both taken as the saved lines of the open library name it (study.KeyIn), so one film has one id for a plugin whichever handler or event names it, also before the saved lines are read.
 func (a *app) pluginsFilmID(l *pluginsScript, video string) string {
-	return plugins.FilmID(a.plugins.script.filmKey, l.pack.ID, l.pack.Signer, video)
+	return plugins.FilmID(a.plugins.script.filmKey, l.pack.ID, l.pack.Signer, study.KeyIn(a.snap().LibraryDir, video))
 }
 
 // pluginsSend sends each plugin running that hears event (its manifest's events) the event, with what data gives it for that plugin: scalars alone (docs/plugin-system.md 5.3); and the view of its panel shown now, which runs apart from it.
@@ -768,7 +770,7 @@ func (a *app) pluginsFilmOpened() bool {
 		return false
 	}
 	a.pluginsSend("film.opened", func(l *pluginsScript) map[string]any {
-		return map[string]any{"film": a.pluginsFilmID(l, cmp.Or(f.VideoPath, f.Key)), "spoken": f.Spoken}
+		return map[string]any{"film": a.pluginsFilmID(l, cmp.Or(f.VideoPath, f.Key)), "spoken": films.Heard(f)}
 	})
 	return false
 }
