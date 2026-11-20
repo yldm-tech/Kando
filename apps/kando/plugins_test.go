@@ -2367,18 +2367,33 @@ func pluginsEntryOf(s plugins.State, id string) plugins.PluginState {
 	return e
 }
 
-// pluginsAuditHas waits until the audit log of the plugins folder root holds each of lines, failing t after the wait waitUntil allows.
+// pluginsAuditHas waits until the audit log of the plugins folder root holds each of lines, applying background updates meanwhile, and fails t with the lines it lacks after five seconds. It reads the file on a clock rather than after each update, as waitUntil does, because a line is written on a goroutine of its own (pluginsWrite) that sends no update, and may land after the last one.
 func pluginsAuditHas(t *testing.T, a *app, tt *nsgotest.App, updates chan func(), root string, lines ...string) {
 	t.Helper()
-	waitUntil(t, tt, a, updates, func() bool {
+	deadline := time.After(5 * time.Second)
+	for {
 		data, _ := os.ReadFile(plugins.AuditPath(root))
+		var missing []string
 		for _, l := range lines {
 			if !strings.Contains(string(data), l) {
-				return false
+				missing = append(missing, l)
 			}
 		}
-		return true
-	})
+		if len(missing) == 0 {
+			refresh(tt, a)
+			return
+		}
+		select {
+		case fn := <-updates:
+			onEngine(a, func() {
+				fn()
+				a.Changed()
+			})
+		case <-time.After(10 * time.Millisecond):
+		case <-deadline:
+			t.Fatalf("the audit log lacks %q; it holds:\n%s", missing, data)
+		}
+	}
 }
 
 // TestPluginsAuditLog checks that the audit log keeps what the user decided of the data packs too (docs/plugin-system.md 6.6): a confirmation cancelled, an install with the domains of a site pack allowed in it, a domain allowed or no longer on the pack's details, and an uninstall.
