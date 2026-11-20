@@ -3,6 +3,7 @@ package main
 import (
 	"slices"
 	"strings"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -656,25 +657,33 @@ func TestAFailedJobSaysWhatCanBeDoneAboutIt(t *testing.T) {
 	p.app.WaitFor("id:add-link", wait)
 }
 
-// A computer that drops out of reach says when it last answered, and its unfinished jobs say they wait for it, over their pictures and under their titles.
+// A computer that drops out of reach says when it last answered, not when its jobs were listed, though it was followed over its events for hours after; its unfinished jobs say they wait for it, over their pictures and under their titles, and one with no site to name says so as a sentence.
 func TestAComputerOutOfReachSaysWhenItLastAnswered(t *testing.T) {
+	var later atomic.Int64
+	sessionNow = func() time.Time { return now().Add(time.Duration(later.Load())) }
+	t.Cleanup(func() { sessionNow = now })
 	d := newDesktop(t)
 	// The job is 47% through its three steps, its running one at 40%, so the picture's share is not the step's.
 	moved(d, "job1", "https://youtu.be/dQw4w9WgXcQ", sync.JobRunning, 1, 0.4)
+	moved(d, "job2", "not a link", sync.JobWaiting, 0, 0)
 	dir := t.TempDir()
 	p := startPhone(t, dir, pairedWith(t, d, dir))
 	id := store.DesktopID(d.Fingerprint)
 	p.openTab(jobsTab, msgs.JobsTitle())
-	p.app.WaitUntil(wait, func() bool { return p.texts("id:jobs-summary-"+id) == msgs.JobsLockPhone(msgs.JobsActive(1)) })
-	if got, want := p.app.Find("id:jobs-thumb-job1").Text, msgs.JobsPercent(47); got != want {
-		t.Fatalf("the running job's picture says %q, want %q", got, want)
-	}
+	p.app.WaitUntil(wait, func() bool { return p.app.Find("id:jobs-thumb-job1").Text == msgs.JobsPercent(47) })
+	// Two hours on, the computer still answers: the job moves on and the phone hears it over its events.
+	later.Store(int64(2 * time.Hour))
+	moved(d, "job1", "https://youtu.be/dQw4w9WgXcQ", sync.JobRunning, 2, 0.4)
+	p.app.WaitUntil(wait, func() bool { return p.app.Find("id:jobs-thumb-job1").Text == msgs.JobsPercent(80) })
 	d.SetOff(true)
-	p.app.WaitUntil(reconnect, func() bool { return p.texts("id:jobs-summary-"+id) == msgs.JobsOfflineSeen(msgs.JobsAgoMinutes(1)) })
-	if got, want := p.app.Find("id:jobs-thumb-job1").Text, msgs.JobsThumbWaiting(); got != want {
-		t.Fatalf("the job's picture says %q, want %q", got, want)
+	p.app.WaitUntil(reconnect, func() bool { return p.app.Find("id:jobs-thumb-job1").Text == msgs.JobsThumbWaiting() })
+	if got, want := p.texts("id:jobs-summary-"+id), msgs.JobsOfflineSeen(msgs.JobsAgoMinutes(1)); got != want {
+		t.Fatalf("the computer out of reach says %q, want %q", got, want)
 	}
 	if got, want := p.app.Find("id:jobs-status-job1").Text, msgs.FilmsSourceYoutube()+" · "+msgs.JobsWaitingSuffix("Studio"); got != want {
 		t.Fatalf("the job says %q, want %q", got, want)
+	}
+	if got, want := p.app.Find("id:jobs-status-job2").Text, msgs.JobsWaitingFor("Studio"); got != want {
+		t.Fatalf("the job with no site says %q, want %q", got, want)
 	}
 }

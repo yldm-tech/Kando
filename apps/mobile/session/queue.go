@@ -381,12 +381,23 @@ func (s *Session) followQueue(ctx context.Context, id, device string, c *sync.Cl
 			return true
 		}
 	}
+	// seen is when the computer last answered on its network: the queue's Seen is dated by the listing only, as posting every event wait would draw the page again, so a queue out of reach takes it then.
+	var seen time.Time
 	unreachable := func(err error) {
 		reach := Offline
 		if ProblemOf(err) == Unpaired {
 			reach = Revoked
 		}
-		post(func() { s.setQueue(id, func(q Queue) Queue { q.Reach = reach; return q }) })
+		at := seen
+		post(func() {
+			s.setQueue(id, func(q Queue) Queue {
+				q.Reach = reach
+				if at.After(q.Seen) {
+					q.Seen = at
+				}
+				return q
+			})
+		})
 	}
 	wait := reachFirst
 	backOff := func() bool {
@@ -428,6 +439,7 @@ func (s *Session) followQueue(ctx context.Context, id, device string, c *sync.Cl
 			}
 			continue
 		}
+		seen = s.cfg.Now()
 		s.relayJoin(ctx, id, device, c, hello, rl)
 		if ctx.Err() != nil {
 			return
@@ -443,10 +455,12 @@ func (s *Session) followQueue(ctx context.Context, id, device string, c *sync.Cl
 			}
 			continue
 		}
+		seen = s.cfg.Now()
+		listed := seen
 		post(func() {
 			was := s.remote.queues.GetUntracked()[id].Relayed
 			s.setQueue(id, func(Queue) Queue {
-				return Queue{Reach: Online, Ops: hello.Ops, Options: hello.Options, Receive: hello.Receive, ReadOnly: hello.ReadOnly, Jobs: list.Jobs, Seen: s.cfg.Now()}
+				return Queue{Reach: Online, Ops: hello.Ops, Options: hello.Options, Receive: hello.Receive, ReadOnly: hello.ReadOnly, Jobs: list.Jobs, Seen: listed}
 			})
 			s.relayLanded(id)
 			s.sendWaiting(id)
@@ -477,6 +491,7 @@ func (s *Session) followQueue(ctx context.Context, id, device string, c *sync.Cl
 				}
 				break
 			}
+			seen = s.cfg.Now()
 			wait = reachFirst
 			if ev.Reset {
 				break

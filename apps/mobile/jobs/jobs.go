@@ -474,6 +474,9 @@ func meta(cx *core.Scope, s *session.Session, desktop string, j sync.Job) string
 	}
 	q := s.Queue(desktop)
 	switch {
+	case q.Reach != session.Online && unfinished(j.State) && len(parts) == 0:
+		// With no site to follow, the line starts with the sentence rather than its lowercase suffix.
+		parts = append(parts, locales.JobsWaitingFor(cx, name(s, desktop)))
 	case q.Reach != session.Online && unfinished(j.State):
 		parts = append(parts, locales.JobsWaitingSuffix(cx, name(s, desktop)))
 	case j.State == sync.JobWaiting:
@@ -805,6 +808,8 @@ func thumb(cx *core.Scope, testID string, source func() core.ImageSource, over f
 }
 
 // round is a card's round button: a glyph in the design's softer ink on the fill, 34 points in a 44-point target.
+//
+// TODO(nsgo): ui.IconButton has no fill style for a round inset button (ui/iconbutton.go:68-97), so this is a base.Button drawing its own fill; use ui.IconButton once it has one.
 func round(cx *core.Scope, testID string, g glyph, label func() string, disabled func() bool, press func()) core.Node {
 	colors, own := ui.ColorsOf(cx), theme.Of(cx)
 	return base.Button{TestID: testID, LabelFunc: label, Disabled: disabled, OnPress: func(core.PressEvent) { press() },
