@@ -19,6 +19,7 @@ const (
 	roleOkText   = "okText"
 	roleWarnBox  = "warnBox"
 	roleWarnBody = "warnBody"
+	roleGlyph    = "glyph"
 )
 
 // Kando is NSGo's default theme in the design's palette: the page is the grouped list's grey and a card (Surface) is white, black under #1C1C1E in the dark; ink, muted text, hairlines and fills are the system's; danger is the destructive red and warning the system's orange, with warnText the orange that reads as text.
@@ -46,6 +47,7 @@ func Kando() *core.Theme {
 	l.SetColor(roleOkText, core.RGB(0x1E7B34))
 	l.SetColor(roleWarnBox, core.RGB(0xFFF4E5))
 	l.SetColor(roleWarnBody, core.RGB(0x6B4A1F))
+	l.SetColor(roleGlyph, core.RGB(0x3A3A3F))
 	d.Background, d.Surface, d.Text, d.TextMuted = core.RGB(0x000000), core.RGB(0x1C1C1E), core.RGB(0xF5F5F7), core.RGB(0xA1A1A6)
 	d.SurfacePressed, d.Border = core.RGBA(0x767680, 0.32), core.RGBA(0x545458, 0.65)
 	d.SetColor("line", core.RGBA(0x545458, 0.65))
@@ -63,6 +65,7 @@ func Kando() *core.Theme {
 	d.SetColor(roleOkText, core.RGB(0x30D158))
 	d.SetColor(roleWarnBox, core.RGBA(0xFF9500, 0.16))
 	d.SetColor(roleWarnBody, core.RGB(0xE3C9A3))
+	d.SetColor(roleGlyph, core.RGB(0xD1D1D6))
 	return t
 }
 
@@ -101,6 +104,9 @@ func (c Colors) OkText() core.Color { return c.role(roleOkText) }
 // WarnBox is the fill of the box that says why a job failed, and WarnBody its text under the title (WarnText).
 func (c Colors) WarnBox() core.Color  { return c.role(roleWarnBox) }
 func (c Colors) WarnBody() core.Color { return c.role(roleWarnBody) }
+
+// Glyph is the ink of a glyph on a round button on the fill, as a job's pause and cancel: a step softer than the text's.
+func (c Colors) Glyph() core.Color { return c.role(roleGlyph) }
 
 // BarBlur is what a bar's fill frosts behind it.
 var BarBlur = []core.Filter{core.Blur(24), core.Saturate(1.8)}

@@ -59,6 +59,8 @@ type Row struct {
 	MinHeight core.Points
 	// Checked makes the row a radio button of its group, checked while it reports true.
 	Checked func() bool
+	// Compact is the design's form row, as the Add sheet's choices: a 15-point title and 56 points tall at least, in place of a list row's 16-point title and 52 points.
+	Compact bool
 	OnPress func()
 	TestID  string
 }
@@ -73,7 +75,11 @@ func (r Row) Render(cx *core.Scope) core.Node {
 		if lines == 0 {
 			lines = 2
 		}
-		texts = append(texts, core.Text{ContentFunc: r.Title, MaxLines: lines, Style: Body.Merge(r.TitleStyle),
+		title := Body
+		if r.Compact {
+			title = Subhead
+		}
+		texts = append(texts, core.Text{ContentFunc: r.Title, MaxLines: lines, Style: title.Merge(r.TitleStyle),
 			StyleFunc: func() core.Style { return core.Style{Color: r.TitleTone.color(colors, warnText, colors.Text)} }})
 	}
 	if r.Detail != nil {
@@ -118,6 +124,9 @@ func (r Row) Render(cx *core.Scope) core.Node {
 	minHeight := r.MinHeight
 	if minHeight == 0 {
 		minHeight = 52
+		if r.Compact {
+			minHeight = 56
+		}
 	}
 	v := core.View{TestID: r.TestID, Children: children,
 		Style:     core.Style{Direction: core.Row, AlignItems: core.AlignCenter, Gap: 12, Padding: core.Symmetric(8, 16), MinHeight: core.Pt(minHeight)},

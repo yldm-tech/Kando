@@ -1139,6 +1139,11 @@ jobsWaitingFor:
   description: "Where a link or a job stands while its computer cannot be reached."
   placeholders:
     name: { type: "String", example: "Studio" }
+jobsWaitingSuffix:
+  message: "waiting for {name}"
+  description: "Jobs page, the line under an unfinished job's title while its computer cannot be reached, after the site and a separator, as in \"YouTube · waiting for Studio\"."
+  placeholders:
+    name: { type: "String", example: "Studio" }
 learnEmpty:
   message: "Words and lines you save will show here"
   description: "Learn tab while nothing is saved."

@@ -35,6 +35,25 @@ func TestScreenshotsJobs(t *testing.T) {
 	shot(p, "jobs-add")
 }
 
+// TestScreenshotsJobsFailed renders the Jobs page with the failures the design draws a box for: a downloader too old for its site, a sign-in on the computer that expired, and a video restricted by region, each with its button.
+func TestScreenshotsJobsFailed(t *testing.T) {
+	shot := screenshots(t)
+	d := newDesktop(t)
+	fail := func(id, link, title string, f sync.Failure) {
+		j := moved(d, id, link, sync.JobFailed, 3, 0)
+		j.Title, j.Steps[0].State, j.Failure = title, sync.StepFailed, &f
+		d.SetJob(j)
+	}
+	fail("job1", "https://youtu.be/ScMzIvxBSi4", "Street Food in Osaka", sync.Failure{Step: sync.StepDownload, Code: sync.FailOutdated, Remedy: sync.RemedyUpdateYTDLP})
+	fail("job2", "https://www.bilibili.com/video/BV1GJ411x7h7", "How Rivers Shape Landscapes", sync.Failure{Step: sync.StepDownload, Code: sync.FailLoginExpired, Remedy: sync.RemedyDesktop})
+	fail("job3", "https://youtu.be/dQw4w9WgXcQ", "Morning Talk", sync.Failure{Step: sync.StepDownload, Code: sync.FailRegion})
+	dir := t.TempDir()
+	p := startPhone(t, dir, pairedWith(t, d, dir))
+	p.openTab(jobsTab, msgs.JobsTitle())
+	p.app.WaitFor("id:jobs-another-job3", wait)
+	shot(p, "jobs-failed")
+}
+
 // TestScreenshotsJobsOffline renders the Jobs page once the computer dropped out of reach, with a running and a paused job waiting for it.
 func TestScreenshotsJobsOffline(t *testing.T) {
 	shot := screenshots(t)

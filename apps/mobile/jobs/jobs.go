@@ -92,10 +92,10 @@ func section(cx *core.Scope, s *session.Session, desktop string, act Actions) co
 	}}
 }
 
-// empty is what a computer with no jobs and no links waiting for it shows under its card: the design's tray, 50 points down, over a line saying how to add one.
+// empty is what a computer with no jobs and no links waiting for it shows under its card: the design's tray, 64 points under the card, over a line saying how to add one.
 func empty(cx *core.Scope, desktop string) core.Node {
 	colors := ui.ColorsOf(cx)
-	return core.View{Style: core.Style{AlignItems: core.AlignCenter, Gap: 12, Padding: core.Edges{Top: 38, Right: 8, Left: 8}}, Children: []core.Node{
+	return core.View{Style: core.Style{AlignItems: core.AlignCenter, Gap: 12, Padding: core.Edges{Top: 53, Right: 8, Left: 8}}, Children: []core.Node{
 		ui.Icon(lucide.ArrowDownToLine, 44, colors.Faint),
 		core.Text{TestID: "jobs-empty-" + desktop, ContentFunc: func() string { return locales.JobsEmpty(cx) }, Style: core.Style{FontSize: 14, LineHeight: 18, TextAlign: core.TextAlignCenter}, StyleFunc: ui.Colored(colors.Muted)},
 	}}
@@ -242,15 +242,14 @@ func queueSummary(cx *core.Scope, q session.Queue) string {
 	return locales.JobsIdle(cx)
 }
 
-// card is the look of a job's or a link's card, ringed in warning's color while warn reports true.
+// card is the look of a job's or a link's card, ringed in warning's color while warn reports true. The ring is a shadow outside the card, as the design's, so it does not move what the card holds.
 func card(cx *core.Scope, testID string, warn func() bool, children ...core.Node) core.Node {
 	colors := ui.ColorsOf(cx)
-	return core.View{TestID: testID, Style: core.Style{Padding: core.All(14), Gap: 12, BorderWidth: 1.5},
+	return core.View{TestID: testID, Style: core.Style{Padding: core.All(14), Gap: 12},
 		StyleFunc: func() core.Style {
 			st := look.Card(cx)
-			st.BorderColor = ui.Alpha(colors.Warn(), 0)
 			if warn() {
-				st.BorderColor = ui.Alpha(colors.Warn(), 0.6)
+				st.Shadows = []core.BoxShadow{core.Ring(1.5, ui.Alpha(colors.Warn(), 0.6))}
 			}
 			return st
 		}, Children: children}
@@ -277,7 +276,7 @@ func linkCard(cx *core.Scope, s *session.Session, desktop string, o func() sessi
 	id := o().ID
 	refused := func() bool { return o().Refusal != nil }
 	return card(cx, "jobs-link-"+id, refused,
-		header(cx, thumb(cx, func() core.ImageSource { return core.ImageSource{} }, func() string { return "" }),
+		header(cx, thumb(cx, "", func() core.ImageSource { return core.ImageSource{} }, func() string { return "" }),
 			titleText(cx, "", func() string { return linkName(cx, o().URL) }),
 			core.Text{TestID: "jobs-link-status-" + id, ContentFunc: func() string {
 				if r := o().Refusal; r != nil {
@@ -293,7 +292,7 @@ func linkCard(cx *core.Scope, s *session.Session, desktop string, o func() sessi
 				}
 				return core.Style{Color: colors.Muted()}
 			}},
-			round(cx, "jobs-link-forget-"+id, closeIcon, func() string { return locales.JobsForget(cx) }, nil, func() { s.Forget(id) }),
+			round(cx, "jobs-link-forget-"+id, closeGlyph, func() string { return locales.JobsForget(cx) }, nil, func() { s.Forget(id) }),
 		),
 		core.Show{When: refused, Then: func(cx *core.Scope) core.Node {
 			return pills(pill(cx, "jobs-link-resend-"+id, true, func() string { return locales.CommonRetry(cx) }, func() { s.Resend(id) }))
@@ -408,13 +407,13 @@ func jobCard(cx *core.Scope, s *session.Session, desktop string, j func() sync.J
 	}
 	buttons := []core.Node{
 		core.Show{When: func() bool { return going() && state() != sync.JobPaused && q().Can(sync.OpJobPause) }, Then: func(cx *core.Scope) core.Node {
-			return round(cx, "jobs-pause-"+id, pauseIcon, func() string { return locales.JobsPause(cx) }, busy, func() { s.Act(desktop, sync.OpJobPause, id) })
+			return round(cx, "jobs-pause-"+id, pauseGlyph, func() string { return locales.JobsPause(cx) }, busy, func() { s.Act(desktop, sync.OpJobPause, id) })
 		}},
 		core.Show{When: func() bool { return state() == sync.JobPaused && q().Can(sync.OpJobResume) }, Then: func(cx *core.Scope) core.Node {
-			return round(cx, "jobs-resume-"+id, playIcon, func() string { return locales.JobsResume(cx) }, busy, func() { s.Act(desktop, sync.OpJobResume, id) })
+			return round(cx, "jobs-resume-"+id, playGlyph, func() string { return locales.JobsResume(cx) }, busy, func() { s.Act(desktop, sync.OpJobResume, id) })
 		}},
 		core.Show{When: func() bool { return going() && q().Can(sync.OpJobCancel) }, Then: func(cx *core.Scope) core.Node {
-			return round(cx, "jobs-cancel-"+id, closeIcon, func() string { return locales.JobsCancel(cx) }, busy, confirmCancel)
+			return round(cx, "jobs-cancel-"+id, closeGlyph, func() string { return locales.JobsCancel(cx) }, busy, confirmCancel)
 		}},
 		core.Show{When: func() bool { return state() == sync.JobDone && j().Film != "" }, Then: func(cx *core.Scope) core.Node {
 			return core.View{Style: core.Style{Margin: core.Edges{Right: 5}}, Children: []core.Node{
@@ -423,13 +422,13 @@ func jobCard(cx *core.Scope, s *session.Session, desktop string, j func() sync.J
 		}},
 	}
 	return card(cx, "jobs-job-"+id, func() bool { return state() == sync.JobFailed },
-		header(cx, thumb(cx, picture, over),
+		header(cx, thumb(cx, "jobs-thumb-"+id, picture, over),
 			titleText(cx, "jobs-title-"+id, func() string { return title(j()) }),
 			core.Text{TestID: "jobs-status-" + id, ContentFunc: func() string { return meta(cx, s, desktop, j()) }, MaxLines: 1, Style: look.Footnote, StyleFunc: ui.Colored(colors.Muted)},
 			buttons...),
 		core.Show{When: stopped, Then: func(cx *core.Scope) core.Node { return remedy(cx, s, desktop, j, act) }},
 		core.Show{When: going, Then: func(cx *core.Scope) core.Node {
-			return core.View{Style: core.Style{Gap: 6}, Children: []core.Node{
+			return core.View{Style: core.Style{Gap: 8}, Children: []core.Node{
 				core.Each(func() []sync.Step { return j().Steps }, func(st sync.Step) string { return st.Name }, func(cx *core.Scope, st func() sync.Step, i func() int) core.Node {
 					return stepRow(cx, id, st, i, func() bool { return state() == sync.JobRunning && reached() })
 				}),
@@ -476,7 +475,7 @@ func meta(cx *core.Scope, s *session.Session, desktop string, j sync.Job) string
 	q := s.Queue(desktop)
 	switch {
 	case q.Reach != session.Online && unfinished(j.State):
-		parts = append(parts, locales.JobsWaitingFor(cx, name(s, desktop)))
+		parts = append(parts, locales.JobsWaitingSuffix(cx, name(s, desktop)))
 	case j.State == sync.JobWaiting:
 		parts = append(parts, locales.JobsWaiting(cx))
 	case j.State == sync.JobPaused:
@@ -487,6 +486,9 @@ func meta(cx *core.Scope, s *session.Session, desktop string, j sync.Job) string
 		parts = append(parts, locales.JobsCanceled(cx))
 	case j.State == sync.JobFailed && len(parts) == 0:
 		parts = append(parts, locales.JobsFailed(cx))
+	case j.State == sync.JobRunning && len(parts) == 0:
+		// With no site to name, the line says the job runs rather than start with the phone that sent it.
+		parts = append(parts, locales.JobsRunning(cx))
 	}
 	text := ""
 	for i, p := range parts {
@@ -781,8 +783,8 @@ func failureBody(cx *core.Scope, f sync.Failure, desktop, site string) string {
 	return ""
 }
 
-// thumb is a job's poster, in the 16:9 of a video, a film's mark until it has one, with over, when it says something, in bold white on a dark veil across it.
-func thumb(cx *core.Scope, source func() core.ImageSource, over func() string) core.Node {
+// thumb is a job's poster, in the 16:9 of a video, a film's mark until it has one, with over, when it says something, in bold white on a dark veil across it; testID names the text over it.
+func thumb(cx *core.Scope, testID string, source func() core.ImageSource, over func() string) core.Node {
 	colors := ui.ColorsOf(cx)
 	return core.View{Style: core.Style{Width: core.Pt(80), AspectRatio: 16.0 / 9, CornerRadius: 8, BorderCurve: core.BorderCurveContinuous, Overflow: core.Hidden, FlexShrink: 0,
 		AlignItems: core.AlignCenter, JustifyContent: core.JustifyCenter},
@@ -796,22 +798,22 @@ func thumb(cx *core.Scope, source func() core.ImageSource, over func() string) c
 				return core.View{Style: core.Style{Position: core.Absolute, Left: core.Pt(0), Top: core.Pt(0), Right: core.Pt(0), Bottom: core.Pt(0), AlignItems: core.AlignCenter, JustifyContent: core.JustifyCenter,
 					Padding: core.Symmetric(0, 4), Background: ui.Black(0.35)}, Children: []core.Node{
 					// TODO(nsgo): on macOS a text in the design's 800 weight wraps by a narrower measure than it draws, so a two-line one is cut at its end; it is bold until its measure matches.
-					core.Text{ContentFunc: over, MaxLines: 2, Style: core.Style{Width: core.Pct(100), FontSize: 13, LineHeight: 16, FontWeight: core.FontWeightBold, TextAlign: core.TextAlignCenter, Color: theme.OnMark}},
+					core.Text{TestID: testID, ContentFunc: over, MaxLines: 2, Style: core.Style{Width: core.Pct(100), FontSize: 13, LineHeight: 16, FontWeight: core.FontWeightBold, TextAlign: core.TextAlignCenter, Color: theme.OnMark}},
 				}}
 			}},
 		}}
 }
 
-// round is a card's round button: an icon on the fill, 34 points in a 44-point target.
-func round(cx *core.Scope, testID string, icon func() *core.SVG, label func() string, disabled func() bool, press func()) core.Node {
-	colors := ui.ColorsOf(cx)
+// round is a card's round button: a glyph in the design's softer ink on the fill, 34 points in a 44-point target.
+func round(cx *core.Scope, testID string, g glyph, label func() string, disabled func() bool, press func()) core.Node {
+	colors, own := ui.ColorsOf(cx), theme.Of(cx)
 	return base.Button{TestID: testID, LabelFunc: label, Disabled: disabled, OnPress: func(core.PressEvent) { press() },
 		Style: core.Style{Width: core.Pt(44), Height: core.Pt(44), AlignItems: core.AlignCenter, JustifyContent: core.JustifyCenter,
 			Active: &core.Style{Opacity: core.Alpha(0.6)}, Disabled: &core.Style{Opacity: core.Alpha(0.4)}},
 		StyleFunc: func() core.Style { return core.Style{FocusVisible: ui.FocusRing(cx, -2)} },
 		Children: []core.Node{core.View{Style: core.Style{Width: core.Pt(34), Height: core.Pt(34), CornerRadius: 17, AlignItems: core.AlignCenter, JustifyContent: core.JustifyCenter},
-			StyleFunc: func() core.Style { return core.Style{Background: colors.Inset(), Color: colors.Text()} },
-			Children:  []core.Node{ui.Icon(icon, 12, ui.Inherited)}}}}
+			StyleFunc: func() core.Style { return core.Style{Background: colors.Inset(), Color: own.Glyph()} },
+			Children:  []core.Node{core.Icon{SVG: g.svg, Style: core.Style{Width: core.Pt(g.w), Height: core.Pt(g.h), FlexShrink: 0}}}}}}
 }
 
 // pills lays small buttons out in a row that wraps.

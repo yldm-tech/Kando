@@ -79,6 +79,7 @@ func Sheet(cx *core.Scope, s *session.Session, open func() bool, close func(), s
 		sent()
 	}
 	paste := func() { cx.ReadClipboard(func(clip string) { text.Set(firstLink(clip)) }) }
+	focused := core.NewSignal(cx, false)
 	return look.Dialog{TestID: "add-sheet", Open: open, Title: func() string { return locales.AddTitle(cx) }, OnClose: close,
 		OnConfirm: send,
 		// A list link is sent too, as the note under the form says it becomes a subscription.
@@ -89,16 +90,21 @@ func Sheet(cx *core.Scope, s *session.Session, open func() bool, close func(), s
 				label(cx, func() string { return locales.AddLinkLabel(cx) }),
 				core.View{Children: []core.Node{
 					ui.Input{TestID: "add-link", LabelFunc: func() string { return locales.AddLinkLabel(cx) }, Value: text.Get, OnChange: text.Set,
+						OnFocus: func() { focused.Set(true) }, OnBlur: func() { focused.Set(false) },
 						PlaceholderFunc: func() string { return locales.AddLinkPlaceholder(cx) }, KeyboardType: core.KeyboardURL, AutoCapitalize: core.AutoCapitalizeNone, NoAutoCorrect: true,
 						Style: core.Style{Height: core.Pt(50), FontSize: 16, CornerRadius: 13, Padding: core.Edges{Right: 100, Left: 14}},
-						// The field is a card with no rim, as the design draws it; its rim is the card's color, so focus does not show one either.
+						// The field is a card with no rim, as the design draws it, until it takes focus, when it shows the accent's rim as ui.Input's own does: setting the rim's color turns ui.Input's focus rim off (ui/input.go:8), so the sheet draws it.
 						StyleFunc: func() core.Style {
-							return core.Style{Background: colors.Surface(), BorderColor: colors.Surface(), Hover: &core.Style{BorderColor: colors.Surface()}}
+							rim := colors.Surface()
+							if focused.Get() {
+								rim = colors.Accent()
+							}
+							return core.Style{Background: colors.Surface(), BorderColor: rim, Hover: &core.Style{BorderColor: rim}}
 						}},
 					core.Show{When: valid, Then: func(cx *core.Scope) core.Node {
 						return core.View{Style: core.Style{Position: core.Absolute, Top: core.Pt(0), Bottom: core.Pt(0), Right: core.Pt(10), JustifyContent: core.JustifyCenter}, PointerEvents: core.PointerEventsNone, Children: []core.Node{
 							core.Text{TestID: "add-site", ContentFunc: func() string { l, _ := link(); return site(cx, l) }, MaxLines: 1,
-								Style:     core.Style{FontSize: 11, LineHeight: 14, FontWeight: core.FontWeightBold, Padding: core.Symmetric(3, 9), CornerRadius: 10, MaxWidth: core.Pt(90), Color: theme.OnMark},
+								Style:     core.Style{FontSize: 11, LineHeight: 14, FontWeight: core.FontWeightBold, Padding: core.Symmetric(3, 8), CornerRadius: 10, MaxWidth: core.Pt(90), Color: theme.OnMark},
 								StyleFunc: func() core.Style { l, _ := link(); return core.Style{Background: mark(l)} }},
 						}}
 					}},
@@ -184,7 +190,7 @@ func subtitlesChoice(cx *core.Scope, computer func() string, subtitles *core.Sig
 	text := func() string { return locales.AddSubtitles(cx) }
 	row := func(i int, value, id string, title, detail func() string) core.Node {
 		on := func() bool { return subtitles.Get() == value }
-		return look.Row{TestID: "add-subtitles-" + id, Index: func() int { return i }, Title: title, Detail: detail, Checked: on,
+		return look.Row{TestID: "add-subtitles-" + id, Index: func() int { return i }, Title: title, Detail: detail, Checked: on, Compact: true,
 			Trailing: look.RadioMark(cx, on), OnPress: func() { subtitles.Set(value) }}
 	}
 	return core.View{Style: core.Style{Gap: 8}, Children: []core.Node{
@@ -202,7 +208,7 @@ func pasteButton(cx *core.Scope, paste func()) core.Node {
 	colors := ui.ColorsOf(cx)
 	text := func() string { return locales.AddPaste(cx) }
 	return base.Button{TestID: "add-paste", LabelFunc: text, OnPress: func(core.PressEvent) { paste() },
-		Style: core.Style{Direction: core.Row, Gap: 6, MinHeight: core.Pt(36), Padding: core.Symmetric(0, 16), CornerRadius: 18, BorderCurve: core.BorderCurveContinuous,
+		Style: core.Style{Direction: core.Row, Gap: 6, MinHeight: core.Pt(36), Padding: core.Symmetric(0, 14), CornerRadius: 18, BorderCurve: core.BorderCurveContinuous,
 			AlignItems: core.AlignCenter, Active: &core.Style{Opacity: core.Alpha(0.7)}},
 		StyleFunc: func() core.Style { return core.Style{Background: colors.Surface(), Color: colors.Accent()} },
 		Children: []core.Node{

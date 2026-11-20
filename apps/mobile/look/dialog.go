@@ -25,7 +25,7 @@ type Dialog struct {
 	TestID string
 }
 
-// SheetNav is the bar at the top of a sheet, as the design's Add sheet: Cancel at its start, the sheet's title in the middle and the action that confirms it at its end, 17 points, the action bold and grey while Disabled. While Busy the action shows a spinner and takes no presses.
+// SheetNav is the bar at the top of a sheet, as the design's Add sheet: Cancel at its start, the sheet's title in the middle and the action that confirms it at its end, 17 points, the action bold and grey while Disabled. While Busy the action shows a spinner and takes no presses. Both buttons show the focus ring look.Button does while the keyboard is on them.
 // TODO(nsgo): ui.Dialog has no slots in its title row for a leading and a trailing action (ui/dialog.go:61-70), so the bar is drawn as the sheet's first child, and on iOS it is not the system's sheet navigation bar.
 type SheetNav struct {
 	Cancel    func() string
@@ -49,14 +49,16 @@ func (n SheetNav) bar(cx *core.Scope, title func() string) core.Node {
 		core.Text{ContentFunc: title, Role: core.RoleHeader, MaxLines: 1, PointerEvents: core.PointerEventsNone,
 			Style:     text.Merge(core.Style{FontWeight: core.FontWeightBold, TextAlign: core.TextAlignCenter, Position: core.Absolute, Left: core.Pt(80), Right: core.Pt(80)}),
 			StyleFunc: ui.Colored(colors.Text)},
-		base.Button{TestID: n.CancelID, LabelFunc: n.Cancel, OnPress: func(core.PressEvent) { n.OnCancel() }, Style: button, StyleFunc: ui.Colored(colors.Accent),
-			Children: []core.Node{core.Text{ContentFunc: n.Cancel, MaxLines: 1, Style: text}}},
+		base.Button{TestID: n.CancelID, LabelFunc: n.Cancel, OnPress: func(core.PressEvent) { n.OnCancel() }, Style: button,
+			StyleFunc: func() core.Style { return core.Style{Color: colors.Accent(), FocusVisible: ui.FocusRing(cx, -2)} },
+			Children:  []core.Node{core.Text{ContentFunc: n.Cancel, MaxLines: 1, Style: text}}},
 		base.Button{TestID: n.ConfirmID, LabelFunc: n.Confirm, OnPress: func(core.PressEvent) { n.OnConfirm() }, Disabled: off, Style: button,
 			StyleFunc: func() core.Style {
+				st := core.Style{Color: colors.Accent(), FocusVisible: ui.FocusRing(cx, -2)}
 				if n.Disabled != nil && n.Disabled() {
-					return core.Style{Color: theme.NavDisabled}
+					st.Color = theme.NavDisabled
 				}
-				return core.Style{Color: colors.Accent()}
+				return st
 			},
 			Children: []core.Node{core.Show{When: func() bool { return n.Busy != nil && n.Busy() },
 				Then: func(*core.Scope) core.Node { return ui.Spinner{Size: 20, Tint: colors.Accent} },

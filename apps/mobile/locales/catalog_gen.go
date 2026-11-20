@@ -575,6 +575,7 @@ var Parameters = map[string][]string{
 	"JobsSentPending":                {"name"},
 	"JobsStepPercent":                {"step", "percent"},
 	"JobsWaitingFor":                 {"name"},
+	"JobsWaitingSuffix":              {"name"},
 	"LearnGoalLeft":                  {"count"},
 	"LearnGoalOf":                    {"count"},
 	"LearnItemOptions":               {"text"},
@@ -772,6 +773,7 @@ type Translation struct {
 	JobsSentPending                func(name string) string
 	JobsStepPercent                func(step string, percent int) string
 	JobsWaitingFor                 func(name string) string
+	JobsWaitingSuffix              func(name string) string
 	LearnGoalLeft                  func(count int) string
 	LearnGoalOf                    func(count int) string
 	LearnItemOptions               func(text string) string
@@ -6772,6 +6774,9 @@ func Supply(lang string, t Translation) {
 	if t.JobsWaitingFor != nil {
 		s.JobsWaitingFor = t.JobsWaitingFor
 	}
+	if t.JobsWaitingSuffix != nil {
+		s.JobsWaitingSuffix = t.JobsWaitingSuffix
+	}
 	if t.LearnGoalLeft != nil {
 		s.LearnGoalLeft = t.LearnGoalLeft
 	}
@@ -12484,6 +12489,36 @@ func (msgs Messages) JobsWaitingFor(name string) string {
 		switch lang {
 		case "", "en":
 			return "Waiting for " + msgs.arg(name)
+		case "ja":
+			return name + " を待っています"
+		case "ko":
+			return name + " 연결 대기 중"
+		case "zh-Hans":
+			return "等 " + name + " 上线"
+		case "zh-Hant":
+			return "等 " + name + " 上線"
+		}
+	}
+}
+
+// JobsWaitingSuffix says "waiting for {name}"
+// in the language the app shows under cx.
+//
+// Jobs page, the line under an unfinished job's title while its computer cannot be reached, after the site and a separator, as in "YouTube · waiting for Studio".
+func JobsWaitingSuffix(cx *core.Scope, name string) string { return For(cx).JobsWaitingSuffix(name) }
+
+// JobsWaitingSuffix is the package's JobsWaitingSuffix in the language of msgs.
+func (msgs Messages) JobsWaitingSuffix(name string) string {
+	if i18n.IsPseudo(msgs.lang) {
+		return i18n.Pseudo(msgs.lang, Messages{lang: Source, mark: true}.JobsWaitingSuffix(name))
+	}
+	for lang := msgs.lang; ; lang = i18n.Parent(lang) {
+		if f := supplied[lang].JobsWaitingSuffix; f != nil {
+			return f(name)
+		}
+		switch lang {
+		case "", "en":
+			return "waiting for " + msgs.arg(name)
 		case "ja":
 			return name + " を待っています"
 		case "ko":
