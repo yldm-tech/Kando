@@ -27,7 +27,7 @@ func at(line, word string, want Mark) Mark {
 	return want
 }
 
-// TestFurigana checks where a Japanese word's reading goes: over its Han characters, the kana it begins and ends with left out, the long vowel mark and halfwidth katakana among them, and the kana between them where the reading has it, and nowhere for a word read as written; a word whose kana the reading does not have keeps one reading over its Han characters and the kana between them.
+// TestFurigana checks where a Japanese word's reading goes: over its Han characters, the kana it begins and ends with left out, the long vowel mark and halfwidth katakana among them, and the kana between them where the reading has it, and nowhere for a word read as written; a word whose kana the reading does not have, or has in more than one place, keeps one reading over its Han characters and the kana between them.
 func TestFurigana(t *testing.T) {
 	for _, c := range []struct{ word, reading, want string }{
 		{"食べた", "たべた", "食:た"},
@@ -37,6 +37,7 @@ func TestFurigana(t *testing.T) {
 		{"山の上", "やまのうえ", "山:やま 上:うえ"},
 		{"引っ越し", "ひっこし", "引:ひ 越:こ"},
 		{"山の上", "さんじょう", "山の上:さんじょう"},
+		{"物の怪", "もののけ", "物の怪:もののけ"},
 		{"ラーメン屋", "らーめんや", "屋:や"},
 		{"ﾗｰﾒﾝ屋", "らーめんや", "屋:や"},
 		{"屋ーメン", "やーめん", "屋:や"},

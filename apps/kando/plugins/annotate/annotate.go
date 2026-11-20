@@ -133,7 +133,7 @@ type rubyRun struct {
 	ruby     string
 }
 
-// furigana is where the reading of word goes and what it is: the runs of word in Han characters and the parts of reading, in hiragana, they are read as. The kana word and reading begin and end with alike are left out, as 食べた read たべた gives 食 read た and ラーメン屋 read らーめんや gives 屋 read や (the long vowel mark and halfwidth katakana count as kana, kanaFold), and so is kana between them where reading has it too, as 山の上 read やまのうえ gives 山 read やま and 上 read うえ, which are found the first way the kana of the word between them matches the reading, each run read as one kana or more (kanaRuns); a word whose kana the reading does not have keeps one reading over all of it but the kana it begins and ends with. None when there is nothing to put over it: no reading, a word read as it is written, or a run left without Han characters.
+// furigana is where the reading of word goes and what it is: the runs of word in Han characters and the parts of reading, in hiragana, they are read as. The kana word and reading begin and end with alike are left out, as 食べた read たべた gives 食 read た and ラーメン屋 read らーめんや gives 屋 read や (the long vowel mark and halfwidth katakana count as kana, kanaFold), and so is kana between them where reading has it too, as 山の上 read やまのうえ gives 山 read やま and 上 read うえ, where the kana of the word between them match the reading one way only, each run read as one kana or more (kanaRuns); a word whose kana the reading does not have, or has in more than one place, as 物の怪 read もののけ, which could be 物 read も and 怪 read のけ as well as 物 read もの and 怪 read け, keeps one reading over all of it but the kana it begins and ends with. None when there is nothing to put over it: no reading, a word read as it is written, or a run left without Han characters.
 func furigana(word, reading string) []rubyRun {
 	from, to, ruby := furiganaEnds(word, reading)
 	if ruby == "" {
@@ -149,7 +149,7 @@ func furigana(word, reading string) []rubyRun {
 	return []rubyRun{{from, to, ruby}}
 }
 
-// kanaRuns is the runs of word in characters other than kana (kanaFold), with Han characters among them, and the parts of reading they are read as, where word has kana between them that reading has where the runs leave it: the first way, each run read as the fewest kana that let the rest match. Nil when word has no kana or reading does not match it.
+// kanaRuns is the runs of word in characters other than kana (kanaFold), with Han characters among them, and the parts of reading they are read as, where word has kana between them that reading has where the runs leave it, each run read as one kana or more. Nil when word has no kana between such runs, or reading matches it no way or more than one way, as the reading alone cannot tell which kana of it a run is read as.
 func kanaRuns(word, reading string) []rubyRun {
 	type part struct {
 		from, to int
@@ -176,25 +176,35 @@ func kanaRuns(word, reading string) []rubyRun {
 	}
 	read := []rune(reading)
 	cut := make([]int, len(parts)+1) // where in read each part starts
-	var match func(k, at int) bool
-	match = func(k, at int) bool {
+	var found []int                  // cut of the first way that matches
+	ways := 0
+	var match func(k, at int)
+	match = func(k, at int) {
 		cut[k] = at
 		if k == len(parts) {
-			return at == len(read)
+			if at == len(read) {
+				ways++
+				if ways == 1 {
+					found = slices.Clone(cut)
+				}
+			}
+			return
 		}
 		if kana := parts[k].kana; kana != nil {
-			return at+len(kana) <= len(read) && slices.Equal(read[at:at+len(kana)], kana) && match(k+1, at+len(kana))
-		}
-		for end := at + 1; end <= len(read); end++ {
-			if match(k+1, end) {
-				return true
+			if at+len(kana) <= len(read) && slices.Equal(read[at:at+len(kana)], kana) {
+				match(k+1, at+len(kana))
 			}
+			return
 		}
-		return false
+		for end := at + 1; end <= len(read) && ways < 2; end++ {
+			match(k+1, end)
+		}
 	}
-	if !match(0, 0) {
+	match(0, 0)
+	if ways != 1 {
 		return nil
 	}
+	cut = found
 	var out []rubyRun
 	for k, p := range parts {
 		if p.kana == nil && hasHan(word[p.from:p.to]) {
