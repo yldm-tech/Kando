@@ -2,6 +2,9 @@ package main
 
 import (
 	"encoding/json"
+	"image"
+	"image/color"
+	"image/png"
 	"os"
 	"path/filepath"
 	"testing"
@@ -36,10 +39,24 @@ func watchedFor(t *testing.T, dir string, minutes ...int) {
 	}
 }
 
-// learnSample keeps on the phone, in dir, the talk downloaded from a computer no longer around and the learning state of its library: the study records and a few more words and a line, as the phone has them after a sync. The scenes start from it rather than from a sync, which does not finish under nsgo test -target macos.
+// learnSample keeps on the phone, in dir, the talk downloaded from a computer no longer around, with a poster, and the learning state of its library: the study records and a few more words and a line, as the phone has them after a sync; and the daily reminder on. The scenes start from it rather than from a sync, which does not finish under nsgo test -target macos.
 func learnSample(t *testing.T, dir string) {
 	t.Helper()
-	keepTalk(t, dir)
+	f := keepTalk(t, dir)
+	st := store.Open(dir)
+	f.Poster = "poster.png"
+	writePoster(t, filepath.Join(st.FilmDir(f.Desktop, f.Film.ID), f.Poster))
+	if err := st.SaveFilm(f); err != nil {
+		t.Fatal(err)
+	}
+	prefs, err := st.Prefs()
+	if err != nil {
+		t.Fatal(err)
+	}
+	prefs.Remind = true
+	if err := st.SavePrefs(prefs); err != nil {
+		t.Fatal(err)
+	}
 	word := func(id, text, reading, meaning, context string, box int, due, saved time.Duration) sync.Record {
 		return sync.Record{Kind: sync.KindWord, ID: id, Film: "f1", Fields: map[string]sync.Field{
 			sync.FieldWord: field(text), sync.FieldReading: field(reading), sync.FieldMeaning: field(meaning), sync.FieldSpoken: field("ja"),
@@ -56,6 +73,28 @@ func learnSample(t *testing.T, dir string) {
 			sync.FieldStartMS: field(7000), sync.FieldEndMS: field(9000), sync.FieldSavedAt: field(now().Add(-2 * time.Hour)), sync.FieldReview: field(sync.Review{Box: 1, Due: now().Add(24 * time.Hour)}),
 		}})
 	if err := store.Open(dir).SaveLearning("gonedesk", "lib", phonestudy.Library{Records: records}); err != nil {
+		t.Fatal(err)
+	}
+}
+
+// writePoster writes a placeholder poster at path: a 16:9 picture, warm at its top and dusk blue at its bottom.
+func writePoster(t *testing.T, path string) {
+	t.Helper()
+	const w, h = 480, 270
+	img := image.NewRGBA(image.Rect(0, 0, w, h))
+	for y := range h {
+		f := float64(y) / h
+		c := color.RGBA{uint8(240 - 190*f), uint8(170 - 110*f), uint8(110 + 40*f), 255}
+		for x := range w {
+			img.Set(x, y, c)
+		}
+	}
+	out, err := os.Create(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer out.Close()
+	if err := png.Encode(out, img); err != nil {
 		t.Fatal(err)
 	}
 }
@@ -88,6 +127,19 @@ func TestScreenshotsLearnStudy(t *testing.T) {
 	// The sheet slides up over its transition.
 	p.app.Advance(600 * time.Millisecond)
 	shot(p, "learn-word")
+}
+
+// Paired with a computer whose library has nothing saved yet: the review card says so with OK, and the word list is its empty card.
+func TestScreenshotsLearnEmpty(t *testing.T) {
+	shot := screenshots(t)
+	d := newDesktop(t)
+	dir := t.TempDir()
+	p := startPhone(t, dir, pairedWith(t, d, dir))
+	p.waitLearned(store.DesktopID(d.Fingerprint))
+	p.openTab(learnTab, msgs.LearnTitle())
+	p.app.WaitFor("id:learn-review-ok", wait)
+	p.app.WaitFor("id:learn-empty", wait)
+	shot(p, "learn-empty")
 }
 
 func TestScreenshotsReview(t *testing.T) {

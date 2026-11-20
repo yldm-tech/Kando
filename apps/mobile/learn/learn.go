@@ -531,14 +531,15 @@ func schedule(cx *core.Scope, it learning.Item, now time.Time) string {
 	return locales.LearnDueIn(cx, max(1, int((it.Due.Sub(now)+23*time.Hour)/(24*time.Hour))))
 }
 
-// savedLines are the lines saved, the latest first, each on its card; the section shows once a line is saved.
+// savedLines are the lines saved, the latest first, each on its card, or a card that says where they come from while none is.
 func savedLines(cx *core.Scope, s *session.Session, lines func() []learning.Item, act Actions) core.Node {
-	return core.Show{When: func() bool { return len(lines()) > 0 }, Then: func(cx *core.Scope) core.Node { return savedLinesSection(cx, s, lines, act) }}
-}
-
-func savedLinesSection(cx *core.Scope, s *session.Session, lines func() []learning.Item, act Actions) core.Node {
+	colors := ui.ColorsOf(cx)
 	return core.View{TestID: "learn-lines", Style: core.Style{Gap: 12}, Children: []core.Node{
 		sectionHead(cx, func() string { return locales.LearnSavedLines(cx) }, func() string { return locales.LearnLineCount(cx, len(lines())) }),
+		core.Show{When: func() bool { return len(lines()) == 0 }, Then: func(cx *core.Scope) core.Node {
+			return card(cx, "learn-lines-empty", core.Style{Padding: core.Symmetric(24, 16)},
+				core.Text{ContentFunc: func() string { return locales.LinesEmpty(cx) }, Style: core.Style{FontSize: 14, LineHeight: 19, TextAlign: core.TextAlignCenter}, StyleFunc: ui.Colored(colors.Muted)})
+		}},
 		core.Each(func() []learning.Item { return first(lines()) }, func(it learning.Item) string { return it.Key() }, func(cx *core.Scope, it func() learning.Item, _ func() int) core.Node {
 			return lineCard(cx, s, it, act.Play)
 		}),

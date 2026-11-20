@@ -128,6 +128,10 @@ func TestLearnReviewsTheComputersWordsAndLines(t *testing.T) {
 	if got := p.texts("id:review-text"); got != "おはよう" {
 		t.Fatalf("the word not known did not come back: %q", got)
 	}
+	// The counter counts the items, as the summary does: the word come back keeps its number.
+	if got, want := p.texts("id:review-progress"), msgs.ReviewProgress(2, 2); got != want {
+		t.Errorf("the review's counter says %q on the word come back, want %q", got, want)
+	}
 	p.app.Press("id:review-show")
 	p.app.Press("id:review-known")
 	p.app.WaitFor("id:review-done", wait)
@@ -783,6 +787,10 @@ func TestOKPutsAwayTheReviewCardWithNothingDue(t *testing.T) {
 	if p.app.Exists("id:learn-review-start") {
 		t.Fatal("the review can start with nothing due")
 	}
+	// With no line saved, the saved lines' section says where they come from rather than showing its heading over nothing.
+	if got := p.texts("id:learn-lines-empty"); got != msgs.LinesEmpty() {
+		t.Errorf("the saved lines' section says %q with no line saved, want %q", got, msgs.LinesEmpty())
+	}
 	p.app.Press("id:learn-review-ok")
 	p.app.WaitForGone("id:learn-review", wait)
 	if !p.app.Exists("id:learn-word-w-later") {
@@ -810,4 +818,81 @@ func TestLearnSaysWhenTheReminderComes(t *testing.T) {
 	}
 	p.app.Press("id:learn-reminder")
 	p.app.WaitFor("id:settings-page", wait)
+}
+
+// Turned over, a review card's front is hidden from the screen reader, which reads the back alone; before, the back is.
+func TestTheReviewCardHidesTheFaceTurnedAway(t *testing.T) {
+	d := studyDesktop(t)
+	dir := t.TempDir()
+	p := startPhone(t, dir, pairedWith(t, d, dir))
+	p.waitLearned(store.DesktopID(d.Fingerprint))
+	p.openTab(learnTab, msgs.LearnTitle())
+	p.app.WaitFor("id:learn-review-start", wait)
+	p.app.Press("id:learn-review-start")
+	p.app.WaitFor("id:review-card", wait)
+	if p.app.Find("id:review-show").Props.ElementsHidden || !p.app.Find("id:review-back").Props.ElementsHidden {
+		t.Fatal("before it turns over, the card does not show its front alone to the screen reader")
+	}
+	p.app.Press("id:review-show")
+	p.app.WaitFor("id:review-answer", wait)
+	if !p.app.Find("id:review-show").Props.ElementsHidden || p.app.Find("id:review-back").Props.ElementsHidden {
+		t.Fatal("turned over, the card does not show its back alone to the screen reader")
+	}
+}
+
+// A saved line plays its film, and a word's sheet leads back to it, only once the film is whole on the phone: one still downloading has no video to play.
+func TestLearnPlaysOnlyAWholeFilm(t *testing.T) {
+	dir := t.TempDir()
+	learnSample(t, dir)
+	st := store.Open(dir)
+	films, err := st.Films()
+	if err != nil || len(films) != 1 {
+		t.Fatalf("the sample keeps %d films: %v", len(films), err)
+	}
+	f := films[0]
+	f.Video = ""
+	if err := st.SaveFilm(f); err != nil {
+		t.Fatal(err)
+	}
+	p := startPhone(t, dir)
+	p.openTab(learnTab, msgs.LearnTitle())
+	p.app.WaitFor("id:learn-line-l-see", wait)
+	if p.app.Exists("id:learn-line-play-l-see") {
+		t.Error("a line plays a film still downloading")
+	}
+	p.app.Press("id:learn-word-w-station")
+	p.app.WaitFor("id:word-sheet", wait)
+	if p.app.Exists("id:word-back-to-film") {
+		t.Error("a word's sheet leads back to a film still downloading")
+	}
+}
+
+// Where the platform speaks text, a word's sheet says the word in its film's language.
+func TestTheWordSheetSaysTheWord(t *testing.T) {
+	p := wordSheetOf(t, true)
+	p.app.Press("id:word-say")
+	if len(p.app.Spoken) != 1 || p.app.Spoken[0].Text != "駅" || p.app.Spoken[0].Lang != "ja" {
+		t.Errorf("the speaker said %+v, want 駅 in ja", p.app.Spoken)
+	}
+}
+
+// Where the platform speaks no text, a word's sheet has no speaker.
+func TestTheWordSheetHasNoSpeakerWithoutSpeech(t *testing.T) {
+	p := wordSheetOf(t, false)
+	if p.app.Exists("id:word-say") {
+		t.Error("the word's sheet offers to say the word where the platform speaks no text")
+	}
+}
+
+// wordSheetOf opens the sheet of a word of the sample, on a platform that speaks text or not.
+func wordSheetOf(t *testing.T, speaks bool) *phone {
+	t.Helper()
+	dir := t.TempDir()
+	learnSample(t, dir)
+	p := startPhone(t, dir, nsgotest.Environment(core.Environment{Locale: lang, Speak: speaks}))
+	p.openTab(learnTab, msgs.LearnTitle())
+	p.app.WaitFor("id:learn-word-w-station", wait)
+	p.app.Press("id:learn-word-w-station")
+	p.app.WaitFor("id:word-sheet", wait)
+	return p
 }
