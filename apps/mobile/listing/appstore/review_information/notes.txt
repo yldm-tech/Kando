@@ -7,4 +7,4 @@ To try it with a computer:
 
 The computer's films then show in the Library tab: play one, replay a line, save words and lines, and review them in the Learn tab. Without a paired computer the app shows how to connect one; Skip at the top of the introduction, or Skip for Now on its last step, opens it without pairing.
 
-The app asks for local network access to reach the paired computer, and for notifications only when the user turns on the daily review reminder in Settings. It collects no data.
+The app asks for local network access to reach the paired computer, for the camera only when the user taps the button that reads the QR code the computer shows on its Phone Sync page, and for notifications only when the user turns on the daily review reminder in Settings. It collects no data.
