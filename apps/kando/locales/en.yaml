@@ -6484,6 +6484,86 @@ trayTooltipJob:
 trayTooltipPaused:
   message: "Kando: queue paused"
   description: "Tooltip of the tray icon while the queue is paused."
+subscribeAddAllEpisodes:
+  message: "{kind, select, collection {{count, plural, one {The # Episode} other {All # Episodes}}} other {{count, plural, one {The # Video} other {All # Videos}}}}"
+  description: "Choice of the Add Subscription dialog, for a collection or a playlist whose video the link named: add all of its videos now, rather than only that one."
+  placeholders:
+    kind: { type: "String", example: "collection" }
+    count: { type: "int", example: "9" }
+subscribeAddEpisodes:
+  message: "{count, plural, one {# episode} other {# episodes}}"
+  description: "Line under a collection's name in the Add Subscription dialog: how many episodes it holds."
+  placeholders:
+    count: { type: "int", example: "9" }
+subscribeAddFollow:
+  message: "{kind, select, collection {Subscribe to this collection and add new episodes} channel {Subscribe to this channel} space {Subscribe to this uploader} other {Subscribe to this playlist and add new videos}}"
+  description: "Switch of the Add Subscription dialog: subscribe to the list, so its new videos are added as they come out; off, its videos are only added now."
+  placeholders:
+    kind: { type: "String", example: "collection" }
+subscribeAddFollowHint:
+  message: "New videos are added to the queue as they come out; change the rules any time under Subscriptions in the sidebar"
+  description: "Line under the subscribe switch of the Add Subscription dialog."
+subscribeAddFootnote:
+  message: "Downloads are done by the built-in yt-dlp; recognition and translation happen on this computer."
+  description: "Note at the foot of the Add Subscription dialog's card."
+subscribeAddJustAdd:
+  message: "{kind, select, collection {{count, plural, one {Add # Episode and Start} other {Add # Episodes and Start}}} other {{count, plural, one {Add # Video and Start} other {Add # Videos and Start}}}}"
+  description: "Button of the Add Subscription dialog while its subscribe switch is off: it only adds the videos now, without subscribing."
+  placeholders:
+    kind: { type: "String", example: "collection" }
+    count: { type: "int", example: "9" }
+subscribeAddOnlyThis:
+  message: "Only This One"
+  description: "Choice of the Add Subscription dialog, for a collection or a playlist whose video the link named: add only that video now."
+subscribeAddRecentLatest:
+  message: "Latest {count}"
+  description: "Choice of Add Now in the Add Subscription dialog: add the channel's most recent videos."
+  placeholders:
+    count: { type: "int", example: "3" }
+subscribeAddRecentNone:
+  message: "None"
+  description: "Choice of Add Now in the Add Subscription dialog: add none of the channel's videos now."
+subscribeAddSave:
+  message: "Keep"
+  description: "Row of the Add Subscription dialog: the picture the videos download, or the subtitles alone."
+subscribeAddSaveHint:
+  message: "Videos are kept in the films folder, so you can watch them offline"
+  description: "Line under Keep in the Add Subscription dialog while a picture is chosen."
+subscribeAddSeriesNote:
+  message: "The episodes share a glossary: fix a name or a term in one and the others follow"
+  description: "Line under As One Series in the Add Subscription dialog."
+subscribeAddSignIn:
+  message: "{site} Sign-in"
+  description: "Row of the Add Subscription dialog: the browser whose sign-in to the site the downloads borrow."
+  placeholders:
+    site: { type: "String", example: "哔哩哔哩" }
+subscribeAddSignInHint:
+  message: "1080p and above, and members-only videos, need a sign-in; only the browser's sign-in is borrowed, and no password is saved"
+  description: "Line under the sign-in row of the Add Subscription dialog."
+subscribeAddSource:
+  message: "Original Lines From"
+  description: "Heading of the Add Subscription dialog's choice of where the films' original lines come from."
+subscribeAddSourceLocalHint:
+  message: "Heard on this computer, whether or not the site has subtitles"
+  description: "Line under Recognize on This Computer in the Add Subscription dialog."
+subscribeNoteClose:
+  message: "Close"
+  description: "Accessible name of the × that puts away the message on a subscription's page."
+subscribeNoteSomeQueued:
+  message: "Added {count, plural, one {# video} other {# videos}} to the queue. The rest could not be: {reason} They're listed below."
+  description: "Message on a new subscription's page that queued some of its list's videos but not the rest."
+  placeholders:
+    count: { type: "int", example: "15" }
+    reason: { type: "String", example: "先在设置里选好翻译语言。" }
+subscribePlatformSubtitles:
+  message: "Prefer the Site's Subtitles"
+  description: "Switch of a subscription's rules: its videos take the uploader's subtitles as their original lines where there are some."
+subscribePlatformSubtitlesNote:
+  message: "Where the uploader added subtitles, they become the original lines once checked against the speech"
+  description: "Line under Prefer the Site's Subtitles in a subscription's rules."
+subscribeQuality:
+  message: "Download"
+  description: "Row of a subscription's rules: the picture its videos download, or the subtitles alone."
 subscribeSection:
   message: "Subscriptions"
   description: "Title of the sidebar's list of subscriptions: channels, uploaders' spaces, collections and playlists whose new videos Kando adds."
@@ -6499,6 +6579,12 @@ subscribeEmpty:
 subscribeChecking:
   message: "Checking…"
   description: "Shown at the end of a subscription's sidebar row, and on its page's check button, while Kando lists its videos."
+subscribeStatusPair:
+  message: "{state} · {added}"
+  description: "Status line of a paused or deleted subscription: its state, then how many videos it added."
+  placeholders:
+    state: { type: "String", example: "已暂停，不检查更新" }
+    added: { type: "String", example: "已加入 1 个" }
 subscribeWarnRenamed:
   message: "Renamed on the site"
   description: "Tooltip of the orange ! on a subscription's sidebar row: the channel or list now has another name on its site."
@@ -6536,8 +6622,10 @@ subscribeStatusPaused:
   message: "Paused, not checked for new videos"
   description: "Status line of a paused subscription's page."
 subscribeStatusGone:
-  message: "Deleted on the site, no longer checked"
+  message: "{kind, select, collection {Collection deleted by its author} channel {Channel deleted on the site} space {Uploader's space deleted} other {Playlist deleted on the site}} · No longer checked"
   description: "Status line of the page of a subscription whose list was deleted on its site."
+  placeholders:
+    kind: { type: "String", example: "collection" }
 subscribeStatusNever:
   message: "Not checked yet"
   description: "Status line part of a subscription that was never checked."
@@ -6603,10 +6691,10 @@ subscribeUnsubscribe:
   message: "Unsubscribe"
   description: "Button of a subscription's page, and of its banner, that removes the subscription; the videos it added stay."
 subscribeRenamedTitle:
-  message: "“{name}” has a new name"
+  message: "{kind, select, collection {This collection has a new name} channel {This channel has a new name} space {This uploader has a new name} other {This playlist has a new name}}"
   description: "Title of the banner on a subscription's page when its site renamed the channel or list."
   placeholders:
-    name: { type: "String", example: "Earth Science" }
+    kind: { type: "String", example: "collection" }
 subscribeRenamedBody:
   message: "It's now called “{renamed}”. The link is the same, so it is checked as before, and the videos added stay as they are."
   description: "Text of the banner on a subscription's page when its site renamed the channel or list."
@@ -6619,10 +6707,10 @@ subscribeKeepOldName:
   message: "Keep Subscribed with the Old Name"
   description: "Button of the rename banner: the subscription keeps the name it had."
 subscribeGoneTitle:
-  message: "“{name}” was deleted on the site"
+  message: "{kind, select, collection {This collection was deleted by its author} channel {This channel was deleted on the site} space {This uploader's space was deleted} other {This playlist was deleted on the site}}"
   description: "Title of the banner on a subscription's page when its channel or list no longer exists on its site."
   placeholders:
-    name: { type: "String", example: "日语听力每日一练" }
+    kind: { type: "String", example: "collection" }
 subscribeGoneBody:
   message: "No new videos can be found any more. {count, plural, one {The # video added and its subtitles stay} other {The # videos added and their subtitles stay}} on this computer, even if you unsubscribe."
   description: "Text of the banner on a subscription's page when its list was deleted on its site."

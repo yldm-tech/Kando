@@ -12,6 +12,7 @@ import (
 	"slices"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -1509,12 +1510,14 @@ func TestFilmLanguages(t *testing.T) {
 func TestSubscriptions(t *testing.T) {
 	sub := remote.Subscription{ID: "s1", Name: "Earth Science", Source: "https://www.youtube.com/@earthscience", Kind: "channel", Mode: "auto", Filter: "all", Cadence: "open", AddPerCheck: 3, Waiting: []remote.ListVideo{{URL: "https://youtu.be/d"}, {URL: "https://youtu.be/e"}}, Added: 3}
 	paused := remote.Subscription{ID: "s2", Name: "Talks", Kind: "playlist", Mode: "ask", Paused: true, Waiting: []remote.ListVideo{}}
+	var already atomic.Bool
+	already.Store(true)
 	f := startFake(t, func(method string, params json.RawMessage) (any, error) {
 		switch method {
 		case remote.MethodSubscriptions:
 			return []remote.Subscription{sub, paused}, nil
 		case remote.MethodSubscribe:
-			return remote.Subscribed{Subscription: sub, Already: true}, nil
+			return remote.Subscribed{Subscription: sub, Already: already.Load()}, nil
 		case remote.MethodSubscriptionCheck:
 			return remote.SubscriptionChecked{Subscription: sub, New: 5, Queued: 3, Held: 2, Skipped: 1}, nil
 		}
@@ -1535,6 +1538,12 @@ func TestSubscriptions(t *testing.T) {
 	f.lastParams(t, remote.MethodSubscribe, &added)
 	if added.Source != "https://www.youtube.com/@earthscience" {
 		t.Errorf("add sent %+v", added)
+	}
+	// A new subscription says how many of the list's videos it queued.
+	already.Store(false)
+	code, stdout, stderr = run("subscriptions", "add", "https://www.youtube.com/@earthscience")
+	if code != 0 || stdout != "s1\tEarth Science\n" || stderr != "Queued 3 of its videos.\n" {
+		t.Errorf("add of a new one = %d, %q, %q", code, stdout, stderr)
 	}
 	code, stdout, stderr = run("subscriptions", "check", "s1")
 	if code != 0 || stderr != "" || stdout != "Found 5 new videos: 3 queued, 2 waiting in Kando. Skipped 1 that don't fit the rules.\n" {

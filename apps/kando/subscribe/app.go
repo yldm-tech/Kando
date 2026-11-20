@@ -34,6 +34,13 @@ type App interface {
 	// AddWaiting queues the waiting videos at links, SkipWaiting drops them; nil is all of them.
 	AddWaiting(links []string)
 	SkipWaiting(links []string)
+	// ListEarlier checks the subscription now, offering the videos its list held when it was subscribed that it left out (Head.Earlier), which then wait to be added or skipped.
+	ListEarlier()
+	// DismissSubscriptionNote puts away the message about the last thing done to the subscription.
+	DismissSubscriptionNote()
+	// DownloadQuality and PlatformSubtitles are Settings › 通用 › 在线视频's picture and whether a link takes its uploader's subtitles, which a subscription whose rules name neither follows.
+	DownloadQuality() core.Quality
+	PlatformSubtitles() bool
 }
 
 // Kind is what a subscription follows, as its link says (KindOf).
@@ -107,7 +114,7 @@ type Head struct {
 	Err           string
 	Checked       time.Time
 	Cadence       Cadence
-	// Added is how many videos it added; Earlier how many the list held when it was subscribed that it counted as seen without adding or offering them (Sub.Earlier), which a check offers.
+	// Added is how many videos it added; Earlier how many, at most, the list held when it was subscribed that it counted as seen without adding or offering them and its library does not have (Sub.Earlier), which ListEarlier offers.
 	Added   int
 	Earlier int
 	// Note is the message about the last thing done to it.
@@ -143,6 +150,8 @@ type Note struct {
 	Earlier        int
 	Held           bool
 	Text           string
+	// Queued is, for a new subscription's NoteNotQueued, how many of the list's videos were queued before the rest could not be.
+	Queued int
 }
 
 // Waiting is one new video waiting for the user, and whether it fits the rules as they are now.

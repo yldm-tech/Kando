@@ -134,7 +134,7 @@ func (a *app) remoteSubscribe(ctx context.Context, p remote.SubscribeParams) (re
 			return remote.Subscribed{Subscription: remoteSubscription(*sub), Already: true}, nil
 		}
 		// A collection's or a playlist's videos are queued in order, as the window's dialog does; a channel adds none of those it has now, as neither the socket nor a phone says how many it wants.
-		sub := a.subscribeCreate(source, got.dir, list.Listing, 0, false)
+		sub := a.subscribeCreate(source, got.dir, list.Listing, subscribeStart{})
 		return remote.Subscribed{Subscription: remoteSubscription(*sub)}, nil
 	})
 }

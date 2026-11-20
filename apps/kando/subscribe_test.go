@@ -15,7 +15,9 @@ import (
 	"kando/apps/kando/playlist"
 	"kando/apps/kando/remote"
 	"kando/apps/kando/shelf"
+	"kando/apps/kando/sidebar"
 	"kando/apps/kando/subscribe"
+	kcore "kando/packages/core"
 	"kando/packages/media"
 
 	"github.com/nsgo-dev/nsgo/nsgotest"
@@ -321,8 +323,11 @@ func TestSubscribeGone(t *testing.T) {
 	if !sub.Gone || !tt.Exists("id:subscription-warn-"+sub.ID) {
 		t.Fatalf("not gone: %+v", sub)
 	}
-	wantText(t, tt, msgs.SubscribeGoneTitle("Earth Science"))
-	wantText(t, tt, msgs.SubscribeStatusGone())
+	wantText(t, tt, msgs.SubscribeGoneTitle("channel"))
+	wantText(t, tt, msgs.SubscribeStatusPair(msgs.SubscribeStatusGone("channel"), msgs.SubscribeAddedCount(len(sub.Added))))
+	if !tt.Find("id:subscription-check").Props.Disabled {
+		t.Fatal("立即检查 is on for a list its site deleted")
+	}
 	tt.Press("id:subscription-stop")
 	if !sub.Stopped || tt.Exists("id:subscription-banner") || !tt.Find("id:subscription-check").Props.Disabled {
 		t.Fatalf("after stopping: %+v", sub)
@@ -655,7 +660,7 @@ func TestSubscribeEnqueueAsksForTheTools(t *testing.T) {
 	for _, open := range []string{testVideos, ""} {
 		a.edit(func(s *session) { s.Libraries, s.LibraryDir = []string{testVideos, "/other.kando"}, open })
 		sub := subscribe.New(testSubChannel, "/other.kando", media.Listing{Title: "Earth Science"}, time.Now())
-		failed, why := a.subscribeEnqueue(&sub, []subscribe.Video{{URL: testSubLong.URL}})
+		failed, why := a.subscribeEnqueue(&sub, []subscribe.Video{{URL: testSubLong.URL}}, nil)
 		said := ""
 		if why != nil {
 			said = why(m)
@@ -903,8 +908,8 @@ func TestSubscribeToAChannelAddsItsLatest(t *testing.T) {
 	a, tt, updates := newTestApp(t, p)
 	msgs := testlocale.Messages()
 	subscribeRead(t, tt, a, p, updates, testSubChannel)
-	if a.subs.ask.recent != subscribe.RecentDefault || !tt.Exists("id:subscribe-recent") || tt.Exists("id:subscribe-series") {
-		t.Fatalf("a channel's card: recent %d, %q", a.subs.ask.recent, tt.Texts())
+	if a.subs.ask.choice.Recent != subscribe.RecentDefault || !tt.Exists("id:subscribe-recent") || tt.Exists("id:subscribe-series") {
+		t.Fatalf("a channel's card: recent %d, %q", a.subs.ask.choice.Recent, tt.Texts())
 	}
 	wantText(t, tt, msgs.SubscribeAddConfirmChannel(3))
 	tt.Press("id:subscribe-submit")
@@ -983,5 +988,160 @@ func TestRemoteSubscribeAddsACollectionsEpisodes(t *testing.T) {
 	want := []string{testSubEpisodes.Videos[0].URL, testSubEpisodes.Videos[1].URL, testSubEpisodes.Videos[2].URL}
 	if got.Subscription.Added != 3 || !slices.Equal(playlistJobSources(a), want) {
 		t.Fatalf("subscribed %+v, queued %q", got, playlistJobSources(a))
+	}
+}
+
+// The library locked, or another one opened, while the dialog's card shows is refused with why: nothing is subscribed to or queued.
+func TestSubscribeDialogRefusesALibraryLockedOrChangedMeanwhile(t *testing.T) {
+	p := newListingPipeline(map[string]media.Listing{testSubCollection: testSubEpisodes})
+	a, tt, updates := newTestApp(t, p)
+	msgs := testlocale.Messages()
+	a.library.SetLock(testVideos, shelf.Lock{Algorithm: "test", Iterations: 1, Salt: []byte("salt"), Key: []byte("key")})
+	a.lock.unlocked = filepath.Clean(testVideos)
+	subscribeRead(t, tt, a, p, updates, testSubCollection)
+	onEngine(a, func() { a.lock.unlocked = "" })
+	refresh(tt, a)
+	tt.Press("id:subscribe-submit")
+	if len(a.subs.store.Subs) != 0 || len(a.library.Jobs) != 0 || a.subs.ask.err != msgs.LockLibraryIsLocked(sidebar.Title(testVideos)) {
+		t.Fatalf("subscriptions %+v, jobs %d, error %q", a.subs.store.Subs, len(a.library.Jobs), a.subs.ask.err)
+	}
+	onEngine(a, func() {
+		a.lock.unlocked = filepath.Clean(testVideos)
+		a.edit(func(s *session) { s.Libraries, s.LibraryDir = []string{testVideos, "/other.kando"}, "/other.kando" })
+	})
+	// The window under the dialog changes as another library opens, so its button's action is run directly.
+	onEngine(a, a.subscribeAskSubmit)
+	if len(a.subs.store.Subs) != 0 || len(a.library.Jobs) != 0 || a.subs.ask.err != msgs.PrecheckNoLibrary() {
+		t.Fatalf("subscriptions %+v, jobs %d, error %q", a.subs.store.Subs, len(a.library.Jobs), a.subs.ask.err)
+	}
+}
+
+// The card's choices go on the subscription and its videos: the picture and the source of lines become its rules, which the videos it adds later take too, and only the one episode the link named is added when 只要这一集 is chosen.
+func TestSubscribeDialogChoicesGoOnTheJobs(t *testing.T) {
+	p := newListingPipeline(map[string]media.Listing{testSubCollection: testSubEpisodes})
+	a, tt, updates := newTestApp(t, p)
+	subscribeRead(t, tt, a, p, updates, testSubCollection)
+	if tt.Exists("id:subscribe-only") {
+		t.Fatal("a link to the list offers only one episode")
+	}
+	tt.Press("id:quality-720")
+	tt.Press("id:subscribe-source-local")
+	tt.Press("id:subscribe-submit")
+	if len(a.subs.store.Subs) != 1 || len(a.library.Jobs) != 3 {
+		t.Fatalf("subscriptions %+v, jobs %d", a.subs.store.Subs, len(a.library.Jobs))
+	}
+	sub := &a.subs.store.Subs[0]
+	if sub.Quality != kcore.Quality720 || sub.Subtitles != kcore.SubtitlesLocal {
+		t.Fatalf("rules %+v", sub.Rules)
+	}
+	for _, job := range a.library.Jobs {
+		if job.Quality != kcore.Quality720 || job.SubtitleSource != kcore.SubtitlesLocal {
+			t.Fatalf("job %q: quality %q, source %q", job.Source, job.Quality, job.SubtitleSource)
+		}
+	}
+	later := subscribe.Video{URL: "https://www.bilibili.com/video/BV1xx411c7m4", Title: "P4 矩阵乘法"}
+	onEngine(a, func() { a.subscribeEnqueue(sub, []subscribe.Video{later}, nil) })
+	if job, ok := a.queueFindSource(later.URL); !ok || job.Quality != kcore.Quality720 || job.SubtitleSource != kcore.SubtitlesLocal {
+		t.Fatalf("a later video's job %+v", job)
+	}
+}
+
+// A link to one episode of a collection offers to add only it; with 只要这一集, the subscription adds that one now and counts the others as seen.
+func TestSubscribeDialogAddsOnlyTheEpisodeTheLinkNamed(t *testing.T) {
+	episode := testSubEpisodes.Videos[1].URL
+	p := newListingPipeline(map[string]media.Listing{testSubCollection: testSubEpisodes})
+	a, tt, updates := newTestApp(t, p)
+	onEngine(a, func() {
+		a.subs.ask = subscribeAsk{open: true, release: a.holdModal(), read: true, source: testSubCollection, dir: testVideos, listing: testSubEpisodes,
+			episode: subscribeAskEpisode(episode, testSubEpisodes), choice: subscribe.Choice{Subscribe: true, Series: true}}
+	})
+	refresh(tt, a)
+	_ = updates
+	if !tt.Exists("id:subscribe-only") {
+		t.Fatalf("no choice of the one episode: %q", tt.Texts())
+	}
+	tt.Press("id:subscribe-only-this")
+	wantText(t, tt, testlocale.Messages().SubscribeAddConfirmList(1))
+	tt.Press("id:subscribe-submit")
+	if got := playlistJobSources(a); !slices.Equal(got, []string{episode}) || len(a.subs.store.Subs) != 1 || len(a.subs.store.Subs[0].Seen) != 3 {
+		t.Fatalf("queued %q, subscriptions %+v", got, a.subs.store.Subs)
+	}
+}
+
+// With the card's subscribe switch off, the button only adds the videos, as the playlist dialog does: nothing is subscribed to.
+func TestSubscribeDialogSwitchOffOnlyAdds(t *testing.T) {
+	p := newListingPipeline(map[string]media.Listing{testSubCollection: testSubEpisodes})
+	a, tt, updates := newTestApp(t, p)
+	msgs := testlocale.Messages()
+	subscribeRead(t, tt, a, p, updates, testSubCollection)
+	tt.Press("id:subscribe-follow")
+	wantText(t, tt, msgs.SubscribeAddJustAdd("collection", 3))
+	tt.Press("id:subscribe-submit")
+	want := []string{testSubEpisodes.Videos[0].URL, testSubEpisodes.Videos[1].URL, testSubEpisodes.Videos[2].URL}
+	if got := playlistJobSources(a); !slices.Equal(got, want) || len(a.subs.store.Subs) != 0 || a.subs.ask.open {
+		t.Fatalf("queued %q, subscriptions %+v, open %v", got, a.subs.store.Subs, a.subs.ask.open)
+	}
+}
+
+// An old subscription's left-out episodes are offered only when the user asks: a scheduled check, as at launch, leaves them; 列出来 records the one the library has as added and offers the others.
+func TestSubscribeOffersEarlierOnlyWhenAsked(t *testing.T) {
+	p := newListingPipeline(map[string]media.Listing{testSubCollection: testSubEpisodes})
+	a, tt, updates := newTestApp(t, p)
+	old := subscribe.New(testSubCollection, testVideos, testSubEpisodes, time.Now().Add(-48*time.Hour))
+	old.Offered, old.Cadence = false, subscribe.CadenceOpen
+	a.subs.store.Subs = []subscribe.Sub{old}
+	onEngine(a, func() { a.libraryEnqueue(testSubEpisodes.Videos[0].URL) })
+	if len(a.library.Jobs) != 1 {
+		t.Fatalf("jobs %+v", a.library.Jobs)
+	}
+	onEngine(a, func() { subscribeLaunch(a) })
+	nextCall(t, p)
+	waitUntil(t, tt, a, updates, func() bool { return a.subs.checking == "" })
+	sub := &a.subs.store.Subs[0]
+	if len(sub.Pending) != 0 || sub.Offered || len(a.library.Jobs) != 1 {
+		t.Fatalf("the launch check offered the back catalogue: %+v", sub)
+	}
+	refresh(tt, a)
+	tt.Press("id:subscription-" + old.ID)
+	wantText(t, tt, testlocale.Messages().SubscribeEarlierCount(2))
+	tt.Press("id:subscription-earlier-list")
+	nextCall(t, p)
+	waitUntil(t, tt, a, updates, func() bool { return a.subs.checking == "" })
+	if len(sub.Added) != 1 || sub.Added[0].URL != testSubEpisodes.Videos[0].URL || len(sub.Pending) != 2 || sub.Pending[0].URL != testSubEpisodes.Videos[1].URL || !sub.Offered {
+		t.Fatalf("subscription %+v", sub)
+	}
+}
+
+// The playlist dialog's subscribe switch keeps waiting on the subscription's page the videos the queue refused, as for want of a language, so the collection is not left with nothing added and nothing waiting.
+func TestPlaylistDialogSubscribeHoldsWhatItCouldNotQueue(t *testing.T) {
+	p := newListingPipeline(map[string]media.Listing{testPlaylist: testListing})
+	a, tt, updates := newTestApp(t, p)
+	a.prefs.language = ""
+	onEngine(a, func() { a.playlistAsk([]string{testPlaylist}, playlistFromLibrary) })
+	<-p.calls
+	waitUntil(t, tt, a, updates, func() bool { return a.playlist.open && !a.playlist.loading })
+	tt.Press("id:playlist-subscribe")
+	tt.Press("id:playlist-add")
+	if len(a.subs.store.Subs) != 1 || len(a.library.Jobs) != 0 {
+		t.Fatalf("subscriptions %+v, jobs %d", a.subs.store.Subs, len(a.library.Jobs))
+	}
+	if sub := a.subs.store.Subs[0]; len(sub.Pending) != len(testListing.Videos) || sub.Pending[0].URL != testListing.Videos[0].URL || len(sub.Added) != 0 {
+		t.Fatalf("subscription %+v", sub)
+	}
+}
+
+// The control socket subscribing to a channel adds none of its videos, which count as seen.
+func TestRemoteSubscribeToAChannelAddsNone(t *testing.T) {
+	videos := []media.ListedVideo{testSubLong, testSubOld}
+	p := newListingPipeline(map[string]media.Listing{testSubChannel: {Title: "Earth Science", Videos: videos}})
+	a, _, updates := newTestApp(t, p)
+	remoteServe(t, a)
+	got, err := remoteCall[remote.Subscribed](t, updates, remote.MethodSubscribe, remote.SubscribeParams{Source: testSubChannel})
+	if err != nil {
+		t.Fatal(err)
+	}
+	nextCall(t, p)
+	if got.Subscription.Added != 0 || len(a.library.Jobs) != 0 || len(a.subs.store.Subs[0].Seen) != len(videos) {
+		t.Fatalf("subscribed %+v, jobs %d", got, len(a.library.Jobs))
 	}
 }

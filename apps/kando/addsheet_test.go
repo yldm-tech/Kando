@@ -257,7 +257,7 @@ func TestPlaylistDialogSubscribes(t *testing.T) {
 	if len(a.subs.store.Subs) != 1 || a.subs.store.Subs[0].Source != testPlaylist || len(a.library.Jobs) != 3 {
 		t.Fatalf("subscriptions %+v, jobs %d", a.subs.store.Subs, len(a.library.Jobs))
 	}
-	if sub := a.subs.store.Subs[0]; len(sub.Added) != 3 || sub.Added[0].URL != testListing.Videos[0].URL || len(sub.Pending) != 0 || sub.Earlier() != 0 {
+	if sub := a.subs.store.Subs[0]; len(sub.Added) != 3 || sub.Added[0].URL != testListing.Videos[0].URL || len(sub.Pending) != 0 || len(sub.Earlier()) != 0 {
 		t.Fatalf("subscription %+v", sub)
 	}
 }

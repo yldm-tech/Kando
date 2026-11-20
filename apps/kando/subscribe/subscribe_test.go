@@ -30,7 +30,7 @@ func TestNewSeedsTheVideosThereNow(t *testing.T) {
 	if s.Rules != DefaultRules() || !s.Checked.Equal(t0) {
 		t.Fatalf("rules %+v, checked %v", s.Rules, s.Checked)
 	}
-	found := s.Take(listing, t0.Add(time.Hour))
+	found := s.Take(listing, t0.Add(time.Hour), false)
 	if len(found.Fresh) != 0 || found.Skipped != 0 {
 		t.Fatalf("the videos there when subscribed came back as new: %+v", found)
 	}
@@ -46,11 +46,11 @@ func TestNewSeedsTheVideosThereNow(t *testing.T) {
 func TestTakeFindsEachNewVideoOnce(t *testing.T) {
 	s := New("https://www.youtube.com/@earthscience", "/videos", media.Listing{Title: "Earth Science"}, t0)
 	s.Filter = FilterLong
-	found := s.Take(listing, t0.Add(time.Minute))
+	found := s.Take(listing, t0.Add(time.Minute), false)
 	if len(found.Fresh) != 1 || found.Fresh[0].Title != "Rivers" || found.Fresh[0].Duration != 12*time.Minute || found.Skipped != 1 {
 		t.Fatalf("found %+v", found)
 	}
-	again := s.Take(listing, t0.Add(2*time.Minute))
+	again := s.Take(listing, t0.Add(2*time.Minute), false)
 	if len(again.Fresh) != 0 || again.Skipped != 0 || !s.Checked.Equal(t0.Add(2*time.Minute)) {
 		t.Fatalf("again: %+v, checked %v", again, s.Checked)
 	}
@@ -80,15 +80,15 @@ func TestRulesFit(t *testing.T) {
 // A new name the site gives the list is kept until the user answers, and the site going back to the old one forgets it; answering takes the new name as the subscription's or keeps the old one, and later checks compare with the new.
 func TestTakeNoticesARename(t *testing.T) {
 	s := New("https://www.youtube.com/@earthscience", "/videos", listing, t0)
-	s.Take(media.Listing{Title: "Earth Science Lab"}, t0)
+	s.Take(media.Listing{Title: "Earth Science Lab"}, t0, false)
 	if s.Renamed != "Earth Science Lab" || s.Name != "Earth Science" {
 		t.Fatalf("after a rename: %+v", s)
 	}
-	s.Take(media.Listing{Title: "Earth Science"}, t0)
+	s.Take(media.Listing{Title: "Earth Science"}, t0, false)
 	if s.Renamed != "" {
 		t.Fatalf("renamed back, still %q", s.Renamed)
 	}
-	s.Take(media.Listing{Title: "Earth Science Lab"}, t0)
+	s.Take(media.Listing{Title: "Earth Science Lab"}, t0, false)
 	kept := s
 	kept.KeepName(false)
 	if kept.Name != "Earth Science" || kept.Title != "Earth Science Lab" || kept.Renamed != "" {
@@ -98,7 +98,7 @@ func TestTakeNoticesARename(t *testing.T) {
 	if s.Name != "Earth Science Lab" || s.Title != "Earth Science Lab" || s.Renamed != "" {
 		t.Fatalf("using the new name: %+v", s)
 	}
-	s.Take(media.Listing{Title: "Earth Science Lab"}, t0)
+	s.Take(media.Listing{Title: "Earth Science Lab"}, t0, false)
 	if s.Renamed != "" {
 		t.Fatalf("the name answered for came back as a rename: %q", s.Renamed)
 	}
@@ -123,7 +123,7 @@ func TestFailTellsGoneFromUnreachable(t *testing.T) {
 	if !s.Gone || s.Err != "" || s.Due(t0.Add(23*time.Hour), t0) || !s.Due(t0.Add(24*time.Hour), t0) {
 		t.Fatalf("gone: %+v", s)
 	}
-	s.Take(listing, t0)
+	s.Take(listing, t0, false)
 	if s.Gone || s.Missing != 0 {
 		t.Fatalf("listed again, still gone: %+v", s)
 	}
@@ -135,7 +135,7 @@ func TestFailTellsGoneFromUnreachable(t *testing.T) {
 	if s.Err != "" || !s.TimedOut {
 		t.Fatalf("timed out: %+v", s)
 	}
-	s.Take(listing, t0)
+	s.Take(listing, t0, false)
 	if s.TimedOut || s.Err != "" {
 		t.Fatalf("a check that worked kept the failure: %+v", s)
 	}
@@ -322,28 +322,31 @@ func TestStartAddsAListWholeAndAChannelsLatest(t *testing.T) {
 	}
 }
 
-// A subscription to a collection made before Kando added a list's videos counted them as seen; its next check offers those it neither added nor holds, once, in the list's order, while a channel's and a new subscription's offer none.
+// A subscription to a collection made before Kando added a list's videos counted them as seen; the check the user asks for offers those it neither added nor holds, once, in the list's order, while a scheduled check, a channel's and a new subscription's offer none.
 func TestTakeOffersTheVideosAnOldSubscriptionLeftOut(t *testing.T) {
 	const collection = "https://space.bilibili.com/12345/channel/collectiondetail?sid=67890"
 	old := New(collection, "/videos", listing, t0)
 	old.Offered = false
 	old.Queued([]Video{{URL: listing.Videos[1].URL}})
-	if old.Earlier() != 1 {
-		t.Fatalf("earlier %d, want the one not added", old.Earlier())
+	if got := old.Earlier(); !slices.Equal(got, []string{listing.Videos[0].URL}) {
+		t.Fatalf("earlier %q, want the one not added", got)
 	}
-	found := old.Take(listing, t0.Add(time.Hour))
-	if len(found.Earlier) != 1 || found.Earlier[0].URL != listing.Videos[0].URL || found.Earlier[0].Title != "Rivers" || len(found.Fresh) != 0 || !old.Offered || old.Earlier() != 0 {
+	if scheduled := old.Take(listing, t0.Add(time.Minute), false); len(scheduled.Earlier) != 0 || old.Offered || len(old.Earlier()) != 1 {
+		t.Fatalf("a scheduled check offered %+v, offered %v", scheduled, old.Offered)
+	}
+	found := old.Take(listing, t0.Add(time.Hour), true)
+	if len(found.Earlier) != 1 || found.Earlier[0].URL != listing.Videos[0].URL || found.Earlier[0].Title != "Rivers" || len(found.Fresh) != 0 || !old.Offered || len(old.Earlier()) != 0 {
 		t.Fatalf("found %+v, offered %v", found, old.Offered)
 	}
-	if again := old.Take(listing, t0.Add(2*time.Hour)); len(again.Earlier) != 0 {
+	if again := old.Take(listing, t0.Add(2*time.Hour), true); len(again.Earlier) != 0 {
 		t.Fatalf("offered twice: %+v", again)
 	}
-	if fresh := New(collection, "/videos", listing, t0); fresh.Earlier() != 0 || len(fresh.Take(listing, t0).Earlier) != 0 {
+	if fresh := New(collection, "/videos", listing, t0); len(fresh.Earlier()) != 0 || len(fresh.Take(listing, t0, true).Earlier) != 0 {
 		t.Fatal("a new subscription offers its videos again")
 	}
 	channel := New("https://www.youtube.com/@earthscience", "/videos", listing, t0)
 	channel.Offered = false
-	if channel.Earlier() != 0 || len(channel.Take(listing, t0).Earlier) != 0 {
+	if len(channel.Earlier()) != 0 || len(channel.Take(listing, t0, true).Earlier) != 0 {
 		t.Fatal("a channel offers the videos it had")
 	}
 }

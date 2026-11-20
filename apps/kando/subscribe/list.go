@@ -73,7 +73,7 @@ func rowContent(cx *ns.Scope, it Item) ns.Node {
 		}
 		bang := ns.Text{Content: "!", Label: tip, TestID: "subscription-warn-" + it.ID, MaxLines: 1,
 			Style:     ns.Style{Width: ns.Pt(16), Height: ns.Pt(16), CornerRadius: 8, FontSize: 11, LineHeight: 16, FontWeight: ui.Bold, TextAlign: ns.TextAlignCenter, FlexShrink: 0},
-			StyleFunc: func() ns.Style { return ns.Style{Background: k.WarnInk(), Color: k.OnWarn()} }}
+			StyleFunc: func() ns.Style { return ns.Style{Background: k.WarnMark(), Color: colors.OnAccent()} }}
 		children = append(children, ui.Tooltip{Text: tip, Trigger: bang, Style: ns.Style{FlexShrink: 0}})
 	case it.Checking:
 		children = append(children, ns.Text{Content: locales.SubscribeChecking(cx), MaxLines: 1, Style: ns.Style{FontSize: 11, FlexShrink: 0}, StyleFunc: ui.Colored(colors.Muted)})

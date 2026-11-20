@@ -55,6 +55,9 @@ type Rules struct {
 	Cadence  Cadence `json:"cadence"`
 	// Series makes the videos it adds a series, which share a glossary (core.Job.Series).
 	Series bool `json:"series,omitempty"`
+	// Quality is the picture its jobs download (core.Job.Quality), and Subtitles where they take their original lines from (core.Job.SubtitleSource); "" leaves each to Settings › 通用 › 在线视频, as a subscription made before it had them does.
+	Quality   core.Quality        `json:"quality,omitempty"`
+	Subtitles core.SubtitleSource `json:"subtitles,omitempty"`
 }
 
 // DefaultRules are a new subscription's: every new video is queued, and the list is checked each time the app opens.
@@ -73,6 +76,12 @@ func (r Rules) clean() Rules {
 	}
 	if r.Cadence != CadenceOpen && r.Cadence != CadenceHourly && r.Cadence != CadenceDaily {
 		r.Cadence = d.Cadence
+	}
+	if r.Quality != "" && !r.Quality.Known() {
+		r.Quality = ""
+	}
+	if r.Subtitles != "" && !r.Subtitles.Known() {
+		r.Subtitles = ""
 	}
 	return r
 }
@@ -134,7 +143,7 @@ type Sub struct {
 	Seen    []string `json:"seen,omitempty"`
 	Pending []Video  `json:"pending,omitempty"`
 	Added   []Video  `json:"added,omitempty"`
-	// Offered is set once the videos the list held when it was subscribed were queued or offered to the user (Start). A subscription made before Kando did that counted them as seen and added none; the first check of one that follows a collection or a playlist offers them (Take).
+	// Offered is set once the videos the list held when it was subscribed were queued or offered to the user (Start). A subscription made before Kando did that counted them as seen and added none; for one that follows a collection or a playlist, the check its page's 列出来 asks for offers them (Take).
 	Offered bool `json:"offered,omitempty"`
 }
 
@@ -256,8 +265,8 @@ func Cap(fresh []Video) (queue, hold []Video) {
 	return fresh[:AddPerCheck:AddPerCheck], fresh[AddPerCheck:]
 }
 
-// Take folds a check's listing into the subscription at now: every video not seen yet is new once, kept in Fresh when it fits the rules and skipped otherwise; a name the site gives the list that is not the one it gave before is kept in Renamed, and the site going back to the old one forgets it. A check that lists the videos also shows that the list is still there, so Gone and Err are cleared. A collection or a playlist subscribed before its videos were offered finds them in Earlier once, and is then Offered. What to do with Fresh and Earlier is the caller's: Queue them, or Hold them for the user.
-func (s *Sub) Take(listing media.Listing, now time.Time) Found {
+// Take folds a check's listing into the subscription at now: every video not seen yet is new once, kept in Fresh when it fits the rules and skipped otherwise; a name the site gives the list that is not the one it gave before is kept in Renamed, and the site going back to the old one forgets it. A check that lists the videos also shows that the list is still there, so Gone and Err are cleared. With offer, the check the user asked for to list the videos a collection or a playlist subscribed before its videos were offered left out (the page's 列出来), it finds them in Earlier, and the subscription is then Offered; any other check leaves them, so a scheduled one never fills the page with a list's back catalogue unasked. What to do with Fresh and Earlier is the caller's: Queue them, or Hold them for the user.
+func (s *Sub) Take(listing media.Listing, now time.Time, offer bool) Found {
 	s.Checked, s.Err, s.TimedOut, s.Missing, s.Gone = now, "", false, 0, false
 	switch title := strings.TrimSpace(listing.Title); {
 	case title == "":
@@ -269,8 +278,10 @@ func (s *Sub) Take(listing media.Listing, now time.Time) Found {
 		s.Renamed = title
 	}
 	var found Found
-	earlier := !s.Offered && !s.Channel()
-	s.Offered = true
+	earlier := offer && !s.Offered && !s.Channel()
+	if earlier {
+		s.Offered = true
+	}
 	for _, lv := range listing.Videos {
 		if !s.see(lv.URL) {
 			if v := (Video{URL: strings.TrimSpace(lv.URL), Title: lv.Title, Duration: lv.Duration}); earlier && v.URL != "" && s.Fits(v) && !s.has(v.URL) && !slices.ContainsFunc(found.Earlier, func(e Video) bool { return e.URL == v.URL }) {
@@ -294,18 +305,18 @@ func (s Sub) has(link string) bool {
 	return slices.ContainsFunc(s.Added, same) || slices.ContainsFunc(s.Pending, same)
 }
 
-// Earlier is how many videos a check would offer as Found.Earlier, as far as the subscription knows: those it counted as seen when it was subscribed that were neither added nor waiting, for a collection or a playlist whose videos were not offered yet (Offered); 0 otherwise.
-func (s Sub) Earlier() int {
+// Earlier is the links of the videos a check the user asks for would offer as Found.Earlier, as far as the subscription knows: those it counted as seen when it was subscribed that were neither added nor waiting, for a collection or a playlist whose videos were not offered yet (Offered); none otherwise. It cannot apply the rules, as Seen keeps no title or length, nor know which the list still holds, so it is at most what the check offers; the caller leaves out those its library has.
+func (s Sub) Earlier() []string {
 	if s.Offered || s.Channel() {
-		return 0
+		return nil
 	}
-	n := 0
+	var out []string
 	for _, link := range s.Seen {
 		if !s.has(link) {
-			n++
+			out = append(out, link)
 		}
 	}
-	return n
+	return out
 }
 
 // see marks the video at link as seen and reports whether it was not seen before.
