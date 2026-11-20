@@ -800,7 +800,7 @@ func thumb(cx *core.Scope, testID string, source func() core.ImageSource, over f
 			core.Show{When: func() bool { return over() != "" }, Then: func(cx *core.Scope) core.Node {
 				return core.View{Style: core.Style{Position: core.Absolute, Left: core.Pt(0), Top: core.Pt(0), Right: core.Pt(0), Bottom: core.Pt(0), AlignItems: core.AlignCenter, JustifyContent: core.JustifyCenter,
 					Padding: core.Symmetric(0, 4), Background: ui.Black(0.35)}, Children: []core.Node{
-					// TODO(nsgo): on macOS a text in the design's 800 weight wraps by a narrower measure than it draws, so a two-line one is cut at its end; it is bold until its measure matches.
+					// Bold, not the design's 800: at 800 "Waiting for" is wider than the 72pt the thumbnail leaves inside its padding, so the words would take three lines and the third be cut.
 					core.Text{TestID: testID, ContentFunc: over, MaxLines: 2, Style: core.Style{Width: core.Pct(100), FontSize: 13, LineHeight: 16, FontWeight: core.FontWeightBold, TextAlign: core.TextAlignCenter, Color: theme.OnMark}},
 				}}
 			}},
@@ -809,7 +809,7 @@ func thumb(cx *core.Scope, testID string, source func() core.ImageSource, over f
 
 // round is a card's round button: a glyph in the design's softer ink on the fill, 34 points in a 44-point target.
 //
-// TODO(nsgo): ui.IconButton has no fill style for a round inset button (ui/iconbutton.go:68-97), so this is a base.Button drawing its own fill; use ui.IconButton once it has one.
+// TODO(nsgo#959): ui.IconButton has no fill style for a round inset button (ui/iconbutton.go:68-97), so this is a base.Button drawing its own fill; use ui.IconButton once it has one. https://github.com/nsgo-dev/nsgo/issues/959
 func round(cx *core.Scope, testID string, g glyph, label func() string, disabled func() bool, press func()) core.Node {
 	colors, own := ui.ColorsOf(cx), theme.Of(cx)
 	return base.Button{TestID: testID, LabelFunc: label, Disabled: disabled, OnPress: func(core.PressEvent) { press() },

@@ -15,7 +15,7 @@ type Segment struct {
 }
 
 // Segmented is a choice of one among a few, as the Add sheet's Save: the design's segmented control, 36 points tall on the fill, 10 round, with the chosen segment on a white thumb 8 round and in bold. Each segment is a radio button of the group Label names.
-// TODO(nsgo): ui.Tabs' segmented look is a capsule with a capsule thumb (ui/tabs.go:65-68, 101-103), keeps the chosen tab's weight and takes static labels (ui/option.go:11-20), so the design's 10-round track and bold choice are drawn here.
+// TODO(nsgo#958): ui.Tabs' segmented look has a capsule thumb and capsule tabs (ui/tabs.go:65-68, 109-111) and keeps the chosen tab's weight, and its labels are static (nsgo#145), so the design's 8-round thumb and bold choice are drawn here. https://github.com/nsgo-dev/nsgo/issues/958
 type Segmented struct {
 	Segments []Segment
 	Value    func() string

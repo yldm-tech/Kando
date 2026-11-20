@@ -11,7 +11,7 @@ import (
 )
 
 // Dialog is a form over the app, as the Add sheet: a sheet from the bottom on a phone, and on a tablet a card in the middle of the screen, as the design's Pad artboards draw it, clear of the software keyboard. Footer is its actions, or with Nav its bar at the top holds them instead and Footer is not drawn. Header, when set, is drawn in the title's place, as a film's poster with its title; Title still names the sheet for assistive technology.
-// TODO(nsgo#742): ui.Dialog is a bottom sheet wherever the screen is touched (ui/dialog.go:73), a tablet's too, with no way to ask for its centred dialog; the tablet's is drawn here on base.Dialog until ui.Dialog takes a presentation. https://github.com/nsgo-dev/nsgo/issues/742
+// ui.Dialog is a bottom sheet wherever the screen is touched (ui/dialog.go:73), a tablet's too, with no way to ask for its centred dialog, so the tablet's is drawn here on base.Dialog. NSGo declined a presentation option for now (nsgo#742, closed).
 type Dialog struct {
 	Open      func() bool
 	OnClose   func()
@@ -26,7 +26,7 @@ type Dialog struct {
 }
 
 // SheetNav is the bar at the top of a sheet, as the design's Add sheet: Cancel at its start, the sheet's title in the middle and the action that confirms it at its end, 17 points, the action bold and grey while Disabled. While Busy the action shows a spinner and takes no presses. Both buttons show the focus ring look.Button does while the keyboard is on them.
-// TODO(nsgo): ui.Dialog has no slots in its title row for a leading and a trailing action (ui/dialog.go:61-70), so the bar is drawn as the sheet's first child, and on iOS it is not the system's sheet navigation bar.
+// TODO(nsgo#957): ui.Dialog has no slots in its title row for a leading and a trailing action (ui/dialog.go:61-70), so the bar is drawn as the sheet's first child, and on iOS it is not the system's sheet navigation bar. https://github.com/nsgo-dev/nsgo/issues/957
 type SheetNav struct {
 	Cancel    func() string
 	Confirm   func() string
