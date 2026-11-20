@@ -136,7 +136,7 @@ func TestScriptProbe(t *testing.T) {
 	}
 }
 
-// TestScriptSignedManifest checks a package that signed its manifest (pkg.Contents.Extra): Verify compares what it signed with the manifest, so Probe runs none of its code, which need not say what it is (kandoManifest), and Load checks the functions its contributions call; a manifest that is not what it signed, a signed entry with another key or that is no object, and a signed entry changed after signing are refused. A package that did not sign it, as every one published, is the kandoManifest's of TestScriptProbe.
+// TestScriptSignedManifest checks a package that signed its manifest (pkg.Contents.Extra): Verify compares what it signed with the manifest, so Probe runs none of its code, whose kandoManifest need not say what it is, and Load checks the functions its contributions call; a manifest that is not what it signed, a signed entry with another key or that is no object, and a signed entry changed after signing are refused. A package that did not sign it, as every one published, is the kandoManifest's of TestScriptProbe.
 func TestScriptSignedManifest(t *testing.T) {
 	s := newSigner(t, AppIDPrefix+"acme.*")
 	roots := s.roots()
@@ -171,7 +171,7 @@ func TestScriptSignedManifest(t *testing.T) {
 		}
 	})
 	if err != nil || pl == nil {
-		t.Fatalf("a package that signed its manifest without kandoManifest: %v", err)
+		t.Fatalf("a package that signed its manifest whose kandoManifest says nothing: %v", err)
 	}
 	e.do(func() { pl.p.Close() })
 
