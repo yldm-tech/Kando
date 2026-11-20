@@ -1350,9 +1350,15 @@ func TestPluginWordlistLevelOnTheCard(t *testing.T) {
 	if !tt.Exists("id:film-lookup-level") || !hasText(tt, testlocale.Messages().VocabLookupLevelRank("B1", 12)) {
 		t.Fatalf("the card's level; texts %q", tt.Texts())
 	}
+	if l := a.Lookup(); l.Tone != subtitle.ToneAccent || l.Rank != 12 {
+		t.Fatalf("the card's level is not in its tier's tone with its rank: %+v", l)
+	}
 	apply(tt, a, func() { a.LookUpWord(1, "bye") })
 	if !tt.Exists("id:film-lookup-level") || !hasText(tt, "C1") || hasText(tt, testlocale.Messages().VocabLookupLevelRank("C1", 12)) {
 		t.Fatalf("the card's level without a rank; texts %q", tt.Texts())
+	}
+	if l := a.Lookup(); l.Tone != subtitle.ToneWarn || l.Rank != 0 {
+		t.Fatalf("the card's level without a rank: %+v", l)
 	}
 	apply(tt, a, func() { a.SetMarkWordlist("") })
 	if tt.Exists("id:film-lookup-level") {
