@@ -201,7 +201,7 @@ func TestScriptWatchdogStopsASlicedLoop(t *testing.T) {
 	if piece-w.Beat <= w.Stall {
 		t.Fatalf("a piece of %v does not hold a heartbeat past Stall %v", piece, w.Stall)
 	}
-	// Each heartbeat that counts takes a piece, and Stalls in a row stop the loop as the piece the last one waited in ends. A heartbeat that falls due just as a piece ends can be posted after the one before it ran, find the engine between two pieces and start the count again, as it should, the window having answered it; a busy runner that delivers the tick late makes that likelier. The bound allows one such restart, at worst just before the last stall would have counted, so 2*Stalls-1 pieces, each with a Beat for the gaps between pieces and a late tick. The pieces end 30, 60, 90, 20 and 50 ms past a tick (430 ms where the 450 ms of docs/plugin-system.md ended the second piece on one), so a restart takes a tick at least 20 ms late.
+	// Each heartbeat that counts takes a piece, and Stalls in a row stop the loop once the last one is past Stall, the watchdog interrupting the piece it waits in (tsx.Plugin.Interrupt) rather than waiting for its end. A heartbeat that falls due just as a piece ends can be posted after the one before it ran, find the engine between two pieces and start the count again, as it should, the window having answered it; a busy runner that delivers the tick late makes that likelier. The bound allows one such restart, at worst just before the last stall would have counted, so 2*Stalls-1 pieces, each with a Beat for the gaps between pieces and a late tick. The pieces end 30, 60, 90, 20 and 50 ms past a tick (430 ms where the 450 ms of docs/plugin-system.md ended the second piece on one), so a restart takes a tick at least 20 ms late.
 	bound := time.Duration(2*w.Stalls-1) * (piece + w.Beat)
 	s := newSigner(t, AppIDPrefix+"acme.*")
 	roots := s.roots()
@@ -334,6 +334,69 @@ export function busyNow() { const e = new Error("Anki is not open"); e.code = "u
 	}
 	if got := wait(t, e.call(r, pl, "busy"), time.Second); !errors.Is(got.err, ErrStopped) {
 		t.Errorf("a call after it was stopped: %v", got.err)
+	}
+}
+
+// TestScriptRunnerStopsAPluginTsxStopped checks that a plugin tsx stopped at its node quota, whose every call after fails at once with the quota's coded error, which the breaker does not count, is stopped and reported as failed by the call that ran into the quota, and that the calls after it end with ErrStopped.
+func TestScriptRunnerStopsAPluginTsxStopped(t *testing.T) {
+	s := newSigner(t, AppIDPrefix+"acme.*")
+	roots := s.roots()
+	e := newEngine(t)
+	// The elements stay counted for as long as the plugin runs, so pieces well under the call budget reach the quota (tsx.DefaultLimits.Nodes, which Limits keeps).
+	pl := e.load(t, trustOf(t, roots), roots, s.pack(t, fixture{id: "acme.flood", code: `import { View } from "nsgo"
+const keep = []
+export async function flood() {
+  for (;;) { for (let i = 0; i < 1000; i++) keep.push(<View />); await new Promise(r => setTimeout(r, 0)) }
+}
+export function ping() { return 1 }`}), plugins.Grant{})
+	stopped := make(chan string, 1)
+	watch := DefaultWatch
+	// The quota is what this test is about: the watchdog must not stop it first, as slow on a runner under the race detector, or for the heap its elements take, past 512 MiB before the quota.
+	watch.Stall, watch.Heap = time.Hour, 0
+	r := &Runner{Post: e.post, Watch: watch, Stopped: func(id, hash, reason string) { stopped <- reason }}
+	got := wait(t, e.call(r, pl, "flood"), 60*time.Second)
+	if core.ErrorCode(got.err) != core.CodeQuotaExceeded {
+		t.Fatalf("the call ended with %v, %v", got.v, got.err)
+	}
+	select {
+	case reason := <-stopped:
+		if reason != plugins.ReasonFailed {
+			t.Errorf("reported %q", reason)
+		}
+	case <-time.After(5 * time.Second):
+		t.Fatal("the plugin tsx stopped was not stopped")
+	}
+	var closed bool
+	e.do(func() { closed = pl.Closed() })
+	if !closed {
+		t.Error("not closed")
+	}
+	if got := wait(t, e.call(r, pl, "ping"), time.Second); !errors.Is(got.err, ErrStopped) {
+		t.Errorf("a call after it was stopped: %v", got.err)
+	}
+}
+
+// TestScriptRunnerSparesAPluginThatReportsAQuota checks that a plugin that rejects with a quota code of its own, as for a host's quota, is not taken for one tsx stopped.
+func TestScriptRunnerSparesAPluginThatReportsAQuota(t *testing.T) {
+	s := newSigner(t, AppIDPrefix+"acme.*")
+	roots := s.roots()
+	e := newEngine(t)
+	pl := e.load(t, trustOf(t, roots), roots, s.pack(t, fixture{id: "acme.quota", code: `export async function full() { const e = new Error("used up"); e.code = "ERR_NSH_QUOTA_EXCEEDED"; throw e }
+export function ping() { return 1 }`}), plugins.Grant{})
+	stopped := make(chan string, 1)
+	r := &Runner{Post: e.post, Watch: DefaultWatch, Stopped: func(id, hash, reason string) { stopped <- reason }}
+	for range 5 {
+		if got := wait(t, e.call(r, pl, "full"), time.Second); core.ErrorCode(got.err) != core.CodeQuotaExceeded {
+			t.Fatalf("a coded failure: %v", got.err)
+		}
+	}
+	if got := wait(t, e.call(r, pl, "ping"), time.Second); got.err != nil {
+		t.Errorf("a call after: %v", got.err)
+	}
+	select {
+	case reason := <-stopped:
+		t.Fatalf("stopped for %s", reason)
+	default:
 	}
 }
 
