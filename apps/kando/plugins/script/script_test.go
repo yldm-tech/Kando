@@ -13,6 +13,7 @@ import (
 	"kando/apps/kando/plugins"
 
 	"github.com/nsgo-dev/nsgo/core"
+	"github.com/nsgo-dev/nsgo/tsx"
 	"github.com/nsgo-dev/nsgo/tsx/pkg"
 )
 
@@ -442,7 +443,14 @@ func TestScriptRunnerStopsAPluginTsxStopped(t *testing.T) {
 	s := newSigner(t, AppIDPrefix+"acme.*")
 	roots := s.roots()
 	e := newEngine(t)
-	// The elements stay counted for as long as the plugin runs, so pieces well under the call budget reach the quota (tsx.DefaultLimits.Nodes, which Limits keeps).
+	if nodeQuota != tsx.DefaultLimits.Nodes || Limits().Nodes != nodeQuota {
+		t.Fatalf("plugins run under a quota of %d nodes, Limits gives %d, not tsx.DefaultLimits' %d", nodeQuota, Limits().Nodes, tsx.DefaultLimits.Nodes)
+	}
+	// The plugin is held to 2000 nodes rather than tsx.DefaultLimits' 200 000: making that many elements took the engine about a second, and up to a minute on a shared CI runner, where some piece of the 200 ran past Limits' half second, and tsx cuts a piece of an awaiting call without ending the call, which then waited for the watchdog's Deadline, a minute. Here the third piece runs into the quota.
+	quota := nodeQuota
+	nodeQuota = 2000
+	t.Cleanup(func() { nodeQuota = quota })
+	// The elements stay counted for as long as the plugin runs, so pieces well under the call budget reach the quota.
 	pl := e.load(t, trustOf(t, roots), roots, s.pack(t, fixture{id: "acme.flood", code: `import { View } from "nsgo"
 const keep = []
 export async function flood() {
@@ -451,7 +459,7 @@ export async function flood() {
 export function ping() { return 1 }`}), plugins.Grant{})
 	stopped := make(chan string, 1)
 	watch := DefaultWatch
-	// The quota is what this test is about: the watchdog must not stop it first, as slow on a runner under the race detector, or for the heap its elements take, past 512 MiB before the quota.
+	// The quota is what this test is about: the watchdog must not stop it first, as slow on a busy runner or one under the race detector, or for the heap the plugin takes.
 	watch.Stall, watch.Heap = time.Hour, 0
 	r := &Runner{Post: e.post, Watch: watch, Stopped: func(id, hash, reason string) { stopped <- reason }}
 	got := wait(t, e.call(r, pl, "flood"), 60*time.Second)

@@ -25,8 +25,12 @@ func Limits() *tsx.Limits {
 	l.Requests = 4
 	l.Body = 4 << 20
 	l.Storage = 1 << 20
+	l.Nodes = nodeQuota
 	return &l
 }
+
+// nodeQuota is Limits' Nodes, tsx.DefaultLimits', which only the test of a plugin stopped at its quota lowers: reaching 200 000 elements takes the engine about a second, and on a busy machine some piece of it can run past Limits' half second, which tsx cuts without ending the call (see that test).
+var nodeQuota = tsx.DefaultLimits.Nodes
 
 // probeLimits are what a plugin runs under while Kando reads what it says of itself, before the user agreed to anything: tighter still, a node, a timer and a request at most (Nodes 1 rather than 0, which would be no limit) and 4 KiB of storage.
 func probeLimits() *tsx.Limits {
