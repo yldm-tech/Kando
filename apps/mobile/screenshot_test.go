@@ -63,6 +63,12 @@ func TestScreenshotsSettings(t *testing.T) {
 	p.openTab(settingsTab, msgs.SettingsTitle())
 	p.app.WaitFor("id:settings-computer-"+store.DesktopID(d.Fingerprint), wait)
 	shot(p, "settings")
+	// Light, then dark, as Settings' Appearance steps from the system's look.
+	p.app.Press("id:settings-appearance")
+	p.app.Press("id:settings-appearance")
+	p.app.WaitUntil(wait, func() bool { return p.app.Find("id:settings-page").Style.Background == core.RGB(0x000000) })
+	shot(p, "settings-dark")
+	p.app.Press("id:settings-appearance")
 	p.app.Press("id:settings-target")
 	p.app.WaitFor("id:settings-target-page", wait)
 	shot(p, "settings-target")

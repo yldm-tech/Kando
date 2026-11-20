@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"os"
@@ -1234,5 +1235,34 @@ func TestRemoteListsAFolder(t *testing.T) {
 	}
 	if len(added.Jobs) != 0 || len(added.Skipped) != 1 || !strings.Contains(added.Skipped[0].Reason, "lists.expand") {
 		t.Fatalf("added a folder %+v", added)
+	}
+}
+
+// TestRemoteListsThePlugins checks plugins.list: the packs of the plugins folder, each with its id, kind, version, English name, content hash and whether it is on, as Settings › 插件 shows it, a pack turned off too; and nothing of where they are nor of what a pack's service is.
+func TestRemoteListsThePlugins(t *testing.T) {
+	a, tt, updates, root := pluginsApp(t, pluginGlossary, pluginService)
+	remoteServe(t, a)
+	onEngine(a, func() { a.SetPluginEnabled("acme.corp-gateway", false) })
+	waitUntil(t, tt, a, updates, func() bool { return !a.plugins.busy && !a.plugins.saving })
+	got, err := remoteCall[[]remote.Plugin](t, updates, remote.MethodPlugins, nil)
+	if err != nil || len(got) != 2 {
+		t.Fatalf("plugins.list = %+v, %v", got, err)
+	}
+	byID := map[string]remote.Plugin{}
+	for _, p := range got {
+		byID[p.ID] = p
+	}
+	glossary, service := byID["example.anime-ja-zh"], byID["acme.corp-gateway"]
+	if glossary.Kind != "glossary" || glossary.Version != "1.2.0" || glossary.Name != "Anime terms" || len(glossary.Hash) != 64 || !glossary.Enabled || glossary.Source != "" {
+		t.Errorf("the glossary pack %+v", glossary)
+	}
+	if service.Kind != "ai-service" || service.Name != "Company gateway" || service.Enabled {
+		t.Errorf("the service pack turned off %+v", service)
+	}
+	data, _ := json.Marshal(got)
+	for _, s := range []string{root, filepath.ToSlash(root), "llm.example.com", `"dir"`} {
+		if strings.Contains(string(data), s) {
+			t.Errorf("plugins.list tells %q: %s", s, data)
+		}
 	}
 }

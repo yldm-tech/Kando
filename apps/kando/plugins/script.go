@@ -66,10 +66,9 @@ const (
 	SettingChoice = "choice"
 	SettingNumber = "number"
 	SettingText   = "text"
-	SettingSecret = "secret"
 )
 
-// Setting is a setting a script plugin declares, which Kando draws on its details and keeps for it: a switch (bool), one of Choices (choice), a number between Min and Max (number), a text of at most Max characters (text), or a secret kept in the system's secure store (secret), which kando.settings.get never returns, as only the host may use one (credentialFetch, docs/plugin-system.md 6.3). Default is its value until the user changes it, of the setting's type.
+// Setting is a setting a script plugin declares, which Kando draws on its details and keeps for it: a switch (bool), one of Choices (choice), a number between Min and Max (number) or a text of at most Max characters (text). Default is its value until the user changes it, of the setting's type. A secret is not a setting: it is a credential (Manifest.Credentials), which Kando keeps in the system's secure store and only the host uses (kando.net.credentialFetch, docs/plugin-system.md 6.3).
 type Setting struct {
 	Key     string   `json:"key"`
 	Type    string   `json:"type"`
@@ -257,9 +256,15 @@ func checkSettings(settings []Setting) error {
 	return nil
 }
 
+// settingSecret is the type of a setting the first script plugins could declare, which no host call ever used, as a credential (Manifest.Credentials) does what it was for: Validate refuses it with a reason that names credentials.
+const settingSecret = "secret"
+
 // checkSetting checks the setting s of its type: what bounds it, that only its type's fields are set, and that its default is a value of it.
 func checkSetting(s *Setting) error {
 	bad := func(what string) error { return fmt.Errorf("%w: %s", ErrBadField, what) }
+	if s.Type == settingSecret {
+		return bad("a secret is not a setting: declare it under credentials and ask for kando.net.credentialFetch, so Kando keeps it and sends it only to the hosts the credential names")
+	}
 	if s.Type != SettingChoice && s.Choices != nil {
 		return bad("choices of a setting that is not a choice")
 	}
@@ -267,10 +272,7 @@ func checkSetting(s *Setting) error {
 		return bad("bounds of a setting that is not a number or a text")
 	}
 	switch s.Type {
-	case SettingBool, SettingSecret:
-		if s.Type == SettingSecret && s.Default != nil {
-			return bad("a secret has no default")
-		}
+	case SettingBool:
 	case SettingChoice:
 		if len(s.Choices) == 0 || len(s.Choices) > choicesMax {
 			return bad(fmt.Sprintf("a choice has 1 to %d choices", choicesMax))
@@ -310,7 +312,7 @@ func checkSetting(s *Setting) error {
 	return nil
 }
 
-// Value is v as a value of the setting s, and whether it is one: a bool of a switch, the id of one of a choice's choices, a number within a number's bounds, a text of at most a text's characters, its line breaks and invisible characters taken out (cleanText). A secret has no value here: it is the host's alone.
+// Value is v as a value of the setting s, and whether it is one: a bool of a switch, the id of one of a choice's choices, a number within a number's bounds, a text of at most a text's characters, its line breaks and invisible characters taken out (cleanText).
 func (s Setting) Value(v any) (any, bool) {
 	switch s.Type {
 	case SettingBool:

@@ -30,8 +30,8 @@ github.com/ikawaha/kagome/v2 v2.11.1 h1:7NQ2QyzNcbKD3/3EVA959fcvo1PhXx8CpUChqjYm
 github.com/ikawaha/kagome/v2 v2.11.1/go.mod h1:6mYPezBou+iNVnX9uNa00Sfu6S6t2zcM8Nv1EW9Y9so=
 github.com/modelcontextprotocol/go-sdk v1.8.0 h1:KIvahhYqwtbeniWVPs3TcXEA7b8jEtwfBpOTAI+Urx4=
 github.com/modelcontextprotocol/go-sdk v1.8.0/go.mod h1:dL7u98E/zjJTGzEq+j30jQ8K2k1mb6LeAH4inEcSGts=
-github.com/nsgo-dev/nsgo v0.2.1-0.20261119193104-729f238f5678 h1:uMaXHpVlKMtnTAfKQSygMGdyQ2p/rJmu0s47SQTpegE=
-github.com/nsgo-dev/nsgo v0.2.1-0.20261119193104-729f238f5678/go.mod h1:QoRryB/Z7jd6aU54ScwNzCFHBKuc5SIuGPHVu95Szv4=
+github.com/nsgo-dev/nsgo v0.2.1-0.20261120000346-f377daba0a2a h1:/h5s5eE4XpSeJzuj1n36w26EulZigWTq/5hQxJYtrC8=
+github.com/nsgo-dev/nsgo v0.2.1-0.20261120000346-f377daba0a2a/go.mod h1:QoRryB/Z7jd6aU54ScwNzCFHBKuc5SIuGPHVu95Szv4=
 github.com/segmentio/asm v1.1.3 h1:WM03sfUOENvvKexOLp+pCqgb/WDjsi7EK8gIsICtzhc=
 github.com/segmentio/asm v1.1.3/go.mod h1:Ld3L4ZXGNcSLRg4JBsZ3//1+f/TjYl0Mzen/DQy1EJg=
 github.com/segmentio/encoding v0.5.4 h1:OW1VRern8Nw6ITAtwSZ7Idrl3MXCFwXHPgqESYfvNt0=

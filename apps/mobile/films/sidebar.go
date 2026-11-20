@@ -4,6 +4,7 @@ import (
 	"kando/apps/mobile/locales"
 	"kando/apps/mobile/look"
 	"kando/apps/mobile/session"
+	"kando/apps/mobile/theme"
 
 	"github.com/nsgo-dev/nsgo/core"
 	"github.com/nsgo-dev/nsgo/icons/lucide"
@@ -15,11 +16,11 @@ func Sidebar(cx *core.Scope, s *session.Session, open func(key string), add func
 	colors := ui.ColorsOf(cx)
 	return core.Show{When: func() bool { return len(s.Subscriptions()) > 0 || canSubscribe(s) }, Then: func(cx *core.Scope) core.Node {
 		return core.View{TestID: "sidebar-subscriptions", Style: core.Style{FlexGrow: 1, FlexShrink: 1, MinHeight: core.Pt(0)}, Children: []core.Node{
-			core.View{Style: core.Style{Direction: core.Row, AlignItems: core.AlignCenter, Padding: core.Edges{Top: 16, Right: 4, Bottom: 4, Left: 12}}, Children: []core.Node{
+			core.View{Style: core.Style{Direction: core.Row, AlignItems: core.AlignCenter, Padding: core.Edges{Top: 24, Right: 4, Bottom: 6, Left: 12}}, Children: []core.Node{
 				core.Text{ContentFunc: func() string { return locales.FilmsSubscriptions(cx) }, Role: core.RoleHeader, MaxLines: 1,
 					Style: look.Caption.Merge(core.Style{FontWeight: core.FontWeightBold, FlexGrow: 1, FlexShrink: 1}), StyleFunc: ui.Colored(colors.Muted)},
 				core.Show{When: func() bool { return canSubscribe(s) }, Then: func(cx *core.Scope) core.Node {
-					return ui.IconButton{TestID: "sidebar-subscriptions-add", Icon: lucide.Plus, Variant: ui.IconButtonGhost, Size: 32, IconSize: 16,
+					return ui.IconButton{TestID: "sidebar-subscriptions-add", Icon: lucide.Plus, Variant: ui.IconButtonGhost, Size: 28, IconSize: 13,
 						LabelFunc: func() string { return locales.FilmsSubscriptionsAddLabel(cx) }, OnPress: add}
 				}},
 			}},
@@ -41,7 +42,7 @@ func sidebarRow(cx *core.Scope, sub func() session.Subscription, open func(key s
 	id := sub().Desktop + "-" + sub().ID
 	return core.View{TestID: "sidebar-subscription-" + id, Role: core.RoleButton, LabelFunc: func() string { return subscriptionLabel(cx, sub()) },
 		OnPress: func(core.PressEvent) { open(sub().Key()) },
-		Style: core.Style{Direction: core.Row, AlignItems: core.AlignCenter, Gap: 10, MinHeight: core.Pt(44), Padding: core.Symmetric(0, 12), CornerRadius: 10, BorderCurve: core.BorderCurveContinuous,
+		Style: core.Style{Direction: core.Row, AlignItems: core.AlignCenter, Gap: 10, MinHeight: core.Pt(40), Padding: core.Symmetric(0, 12), CornerRadius: 10, BorderCurve: core.BorderCurveContinuous,
 			FocusVisible: ui.FocusRing(cx, -2)},
 		StyleFunc: func() core.Style {
 			st := core.Style{Active: &core.Style{Background: colors.Pressed()}, Opacity: core.Alpha(1)}
@@ -55,10 +56,10 @@ func sidebarRow(cx *core.Scope, sub func() session.Subscription, open func(key s
 				StyleFunc: func() core.Style { return core.Style{Background: markFill(cx, sub())} },
 				Children: []core.Node{core.Text{ContentFunc: func() string { return initial(sub().Name) }, MaxLines: 1,
 					Style: core.Style{FontSize: 11, FontWeight: core.FontWeightBold, Color: core.RGB(0xFFFFFF)}}}},
-			core.Text{ContentFunc: func() string { return sub().Name }, MaxLines: 1, Style: look.Body.Merge(core.Style{FlexGrow: 1, FlexShrink: 1, MinWidth: core.Pt(0)}),
+			core.Text{ContentFunc: func() string { return sub().Name }, MaxLines: 1, Style: look.Subhead.Merge(core.Style{FlexGrow: 1, FlexShrink: 1, MinWidth: core.Pt(0)}),
 				StyleFunc: func() core.Style {
 					if trouble(sub()) {
-						return core.Style{Color: colors.Warn()}
+						return core.Style{Color: theme.Of(cx).WarnText()}
 					}
 					return core.Style{Color: colors.Text()}
 				}},

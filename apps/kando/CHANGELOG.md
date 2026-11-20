@@ -2,6 +2,16 @@
 
 What changed in each version of Kando, newest first. The app shows the section of a new version when it offers the update.
 
+## 0.38.0 - 2026-11-20
+
+### Features
+
+- Take audio files, as mp3 and m4a, as films (#332)
+- Ask for the local network in the phone's language (#336)
+- Open kando:// links on Windows and Linux (#335)
+- Take the chapters a local file marks in itself (#333)
+- Play the next film of a course, disc, season or playlist, on the desktop and the phone (#334)
+
 ## 0.37.0 - 2026-11-20
 
 ### Features

@@ -23,18 +23,12 @@ func shellKeys(cx *core.Scope, sections int, covered func() bool, change func(in
 	cx.OnKey(shortcuts.Search, on(search))
 }
 
-// sectionNames are the names of the tabs shown, in their order, as Settings › Keyboard Shortcuts lists the sections ⌘1 and on show.
-func sectionNames(cx *core.Scope, shown []int) []func() string {
-	names := [tabs]func() string{
+// sectionNames are the names of the tabs, in their order, as Settings › Keyboard Shortcuts lists the sections ⌘1 and on show.
+func sectionNames(cx *core.Scope) []func() string {
+	return []func() string{
 		filmsTab:    func() string { return locales.FilmsTitle(cx) },
-		browseTab:   func() string { return locales.BrowseTitle(cx) },
-		learnTab:    func() string { return locales.LearnTitle(cx) },
 		jobsTab:     func() string { return locales.JobsTitle(cx) },
+		learnTab:    func() string { return locales.LearnTitle(cx) },
 		settingsTab: func() string { return locales.SettingsTitle(cx) },
 	}
-	out := make([]func() string, len(shown))
-	for i, t := range shown {
-		out[i] = names[t]
-	}
-	return out
 }

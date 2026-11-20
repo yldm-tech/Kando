@@ -17,6 +17,7 @@ import (
 	"kando/apps/kando/lines"
 	"kando/apps/kando/locales"
 	"kando/apps/kando/playlist"
+	"kando/apps/kando/plugins"
 	"kando/apps/kando/remote"
 	"kando/apps/kando/sidebar"
 	"kando/apps/kando/sites/catalog"
@@ -148,8 +149,29 @@ func (a *app) remoteHandle(method string, params json.RawMessage) (any, error) {
 			return nil, err
 		}
 		return a.remoteBrowserShow(ctx, p)
+	case remote.MethodPlugins:
+		return a.remotePlugins(ctx)
 	}
 	return nil, remote.Errorf(remote.CodeUnknownMethod, "unknown method %q", method)
+}
+
+// remotePlugins is the packs of the plugins folder as Settings › 插件 lists them (PluginRows, without the missing ones), read on the UI thread; a pack's folder is not told.
+func (a *app) remotePlugins(ctx context.Context) ([]remote.Plugin, error) {
+	return remote.OnUI(ctx, a.update, func() ([]remote.Plugin, error) {
+		out := []remote.Plugin{}
+		for _, row := range a.PluginRows() {
+			if row.Missing {
+				continue
+			}
+			p := row.Pack
+			plugin := remote.Plugin{ID: p.ID, Kind: string(p.Kind), Version: p.Version, Name: p.Name.In(remote.Language), Hash: p.Hash, Enabled: row.Enabled}
+			if p.Kind == plugins.KindScript {
+				plugin.Source = string(p.Source)
+			}
+			out = append(out, plugin)
+		}
+		return out, nil
+	})
 }
 
 // remoteStatus is what the app is and whether a job can start: the sidebar's status line, the tools the pipeline runs, the queue as the open library's 处理中 shows it (remoteQueue), and the libraries the app knows, with how many films each holds, read off the UI thread for those that are not open (remoteCountLibraries), but for a locked one, which says only that it is.

@@ -121,7 +121,7 @@ func ReviewPage(cx *core.Scope, s *session.Session, back func()) base.NavPage {
 		return core.Text{TestID: "review-no-film", ContentFunc: func() string { return locales.DictationNoFilm(cx) }, Style: look.Caption.Merge(core.Style{TextAlign: core.TextAlignCenter}), StyleFunc: ui.Colored(colors.Muted)}
 	}}
 	cardView := core.View{TestID: "review-card", Style: core.Style{FlexGrow: 1, JustifyContent: core.JustifyCenter, Padding: core.All(24), Gap: 8, CornerRadius: ui.RadiusCard, BorderCurve: core.BorderCurveContinuous},
-		StyleFunc: func() core.Style { return core.Style{Background: ui.Alpha(colors.Text(), 0.045)} },
+		StyleFunc: func() core.Style { return core.Style{Background: colors.Surface()} },
 		Children:  []core.Node{front, answer, from}}
 	// shownAsk is the item's own card: the dictation of its line, built anew for each card (the key of the card is its place in the review), or the card with its answer.
 	type at struct {

@@ -89,6 +89,48 @@ func TestScriptPanel(t *testing.T) {
 	}
 }
 
+// flipFixture is a plugin whose panel's root is a function, which a timer of the panel's makes render again as two nodes in place of one.
+var flipFixture = fixture{id: "acme.flip", extra: `"contributes": {"panels": [{"id": "flip", "export": "Flip", "title": {"en": "Flip"}}]}`,
+	code: `import { host, mount, signal, Text } from "nsgo"
+export function Flip() {
+  const n = signal(0)
+  setTimeout(() => n.set(1), 10)
+  return () => n() === 0 ? <Text testID="flip">zero</Text> : [<Text testID="flip">one</Text>, <Text testID="flip">two</Text>]
+}
+if (host.params.panel === "flip") mount(Flip)
+`}
+
+// TestScriptPanelShowsWhatItsModuleMounts checks that a panel's view shows what the entry module mounts once, even after a root that is a function renders again: a view that also rendered the export (tsx.View.Export) would show the mounted copy next to it then, as tsx leaves what the entry mounted running.
+func TestScriptPanelShowsWhatItsModuleMounts(t *testing.T) {
+	s := newSigner(t, AppIDPrefix+"acme.*")
+	roots := s.roots()
+	p := s.pack(t, flipFixture)
+	v, err := Verify(trustOf(t, roots), roots, p)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var failed []error
+	app := nsgotest.Start(t, func(cx *core.Scope) core.Node {
+		r := &Runner{Post: cx.Post, Watch: DefaultWatch}
+		pl, err := Load(cx, v, plugins.Grant{}, core.NewHost())
+		if err != nil {
+			t.Fatal(err)
+		}
+		return r.Panel(pl, v, plugins.Grant{}, p.Contributes.Panels[0], core.NewHost, func(cx *core.Scope, err error, _ func()) core.Node {
+			failed = append(failed, err)
+			return core.Text{TestID: "failed", Content: "failed"}
+		})
+	})
+	if n := len(app.QueryMounted("id:flip")); n != 1 || len(failed) > 0 {
+		t.Fatalf("%d nodes before the timer, failed %v\n%s", n, failed, app.Dump())
+	}
+	app.Advance(50 * time.Millisecond)
+	app.Settle()
+	if n := len(app.QueryMounted("id:flip")); n != 2 {
+		t.Fatalf("%d nodes after the timer, not the two it renders\n%s", n, app.Dump())
+	}
+}
+
 // TestScriptPanelPastItsBudget checks that a panel whose render runs past Limits' budget is cut there and shows the fallback, the window's goroutine held no longer than that.
 func TestScriptPanelPastItsBudget(t *testing.T) {
 	s := newSigner(t, AppIDPrefix+"acme.*")

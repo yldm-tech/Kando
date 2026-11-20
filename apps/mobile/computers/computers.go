@@ -18,7 +18,7 @@ func Problem(cx *core.Scope, s *session.Session, d func() store.Desktop, pair fu
 	unpairable := func() bool { p := problem(); return p == session.Unpaired || p == session.Certificate }
 	return core.Show{When: func() bool { return shelf().Failed() }, Then: func(cx *core.Scope) core.Node {
 		return look.Group{TestID: "computers-desktop-" + d().ID, Children: []core.Node{
-			look.Row{TestID: "computers-problem-" + d().ID, Inset: 56, TitleLines: 3,
+			look.Row{TestID: "computers-problem-" + d().ID, TitleLines: 3,
 				Leading: look.IconTile(cx, func() *core.SVG {
 					if problem() == session.Unreachable {
 						return lucide.WifiOff()

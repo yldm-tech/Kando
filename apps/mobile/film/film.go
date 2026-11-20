@@ -167,7 +167,7 @@ func Page(cx *core.Scope, s *session.Session, desktop, library string, f sync.Fi
 		return download
 	})
 	prompt := core.Show{When: noVideo, Then: func(cx *core.Scope) core.Node {
-		return core.View{Style: core.Style{CornerRadius: ui.RadiusCard, BorderCurve: core.BorderCurveContinuous}, StyleFunc: func() core.Style { return core.Style{Background: ui.Alpha(colors.Text(), 0.045)} },
+		return core.View{Style: core.Style{CornerRadius: ui.RadiusCard, BorderCurve: core.BorderCurveContinuous}, StyleFunc: func() core.Style { return core.Style{Background: colors.Surface()} },
 			Children: []core.Node{VideoPrompt(cx, s, desktop, f, "film-no-video")}}
 	}}
 	// What the storage holds of a film whose video stays on the computer, and why it could not be read from there.

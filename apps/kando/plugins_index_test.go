@@ -618,6 +618,42 @@ func TestPluginIndexLink(t *testing.T) {
 	}
 }
 
+// TestPluginIndexLinkFromTheSystem checks that a link the system opens Kando with reaches the plugins area through the one handler areasReady registers (areasListenLinks), the one Kando was launched with once the handler is registered and later ones as they come, as the site's 在看懂中打开 opens it on macOS and, through the scheme NSGo's installers register, on Windows and Linux, where a second launch hands it to the running copy: Settings › 插件 opens with 浏览插件 searching for the pack and its install confirmation follows; a link of another scheme in the same launch is left alone.
+func TestPluginIndexLinkFromTheSystem(t *testing.T) {
+	a, tt, updates, _ := pluginsApp(t)
+	srv := newPluginsIndexServer(t)
+	srv.point(a)
+	srv.list(t, srv.entry(t, "anime.zip", pluginZip(t, pluginGlossary), ""))
+
+	// The link Kando is launched with comes before the handler, which areasReady registers once the window is ready.
+	tt.OpenLinks("https://kando.yldm.ai/plugin/", index.InstallLink("example.anime-ja-zh"))
+	refresh(tt, a)
+	if a.prefs.open {
+		t.Fatal("the link was taken before any handler")
+	}
+	onEngine(a, a.areasListenLinks)
+	refresh(tt, a)
+	wantSettings(t, a, settings.SectionPlugins)
+	if a.PluginIndexQuery() != "example.anime-ja-zh" || !a.PluginIndexOpen() {
+		t.Fatalf("浏览插件 is open %v searching for %q", a.PluginIndexOpen(), a.PluginIndexQuery())
+	}
+	waitUntil(t, tt, a, updates, func() bool { return a.plugins.pending != nil && !a.plugins.busy })
+	if a.plugins.pending.err != nil || a.plugins.pending.pack.ID != "example.anime-ja-zh" || !tt.Exists("id:plugins-install-confirm") {
+		t.Fatalf("the confirmation: %v; texts %q", a.plugins.pending.err, tt.Texts())
+	}
+	tt.Press("id:plugins-install-cancel")
+	waitUntil(t, tt, a, updates, func() bool { return a.plugins.pending == nil && !a.plugins.busy })
+
+	// Once Kando runs, a link reaches it as it comes, as from a second launch.
+	apply(tt, a, func() { a.SetPluginIndexOpen(false) })
+	tt.OpenLinks(index.InstallLink("example.unknown"))
+	refresh(tt, a)
+	if a.PluginIndexQuery() != "example.unknown" || !a.PluginIndexOpen() {
+		t.Fatalf("a link while running: 浏览插件 is open %v searching for %q", a.PluginIndexOpen(), a.PluginIndexQuery())
+	}
+	waitUntil(t, tt, a, updates, func() bool { return a.plugins.index.wanted == "" && pluginsIndexReady(a)() && !a.plugins.busy })
+}
+
 // TestPluginIndexLinkWaits checks that a link waits for a newer index rather than taking the copy kept: offline it shows the pack and downloads nothing, nor says it is missing, until Kando is back online; when the ask fails the status says why, until 刷新 brings the index; and the version installed is the one the newer index lists, whose file is the one served, not the copy kept's.
 func TestPluginIndexLinkWaits(t *testing.T) {
 	a, tt, updates, _ := pluginsApp(t)

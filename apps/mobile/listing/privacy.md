@@ -7,7 +7,7 @@ What the phone app (apps/mobile) sends anywhere, and the answers it gives to the
 - To the computers the user paired the phone with, and nothing else: the libraries, films, subtitles, playback positions, saved words and lines, notes, reviews and links the user sends there (session/, packages/sync). The connection is HTTPS over the local network, pinned to the computer's certificate fingerprint taken at pairing (packages/sync), so only that computer can read it. Kando's developers run no server the app talks to.
 - Away from the computer's network, when the user turned on the storage relay on the computer: the same calls and replies, sealed with a key the computer hands the phone over the local network only, through the user's own S3-compatible bucket set up on the computer, by links the computer presigns for it (session/relay.go, packages/sync/relay.go). The phone holds no key of the bucket, and the bucket is the user's, not the developer's.
 - Look-ups and Explain go to the paired computer, which asks the AI service the user set up in Kando there; the phone itself reaches no AI service.
-- The only internet address the app opens is the desktop app's page on GitHub (onboarding.DownloadURL), in the system's browser. The Browse tab, which opens video sites in a web view, is left out of store builds (the store tag, browse.Available).
+- The only internet address the app opens is the desktop app's page on GitHub (onboarding.DownloadURL), in the system's browser. The app has no in-app browser.
 - No account, no analytics, no crash reporting, no advertising and no third-party SDK: the app imports only NSGo and Kando's own packages.
 
 ## Privacy policy

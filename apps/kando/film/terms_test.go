@@ -1,6 +1,7 @@
 package film
 
 import (
+	"strings"
 	"testing"
 
 	"kando/apps/kando/live"
@@ -24,12 +25,16 @@ type fakeGlossary struct {
 	guess          []string
 	guessAnswer    string
 	suggestions    []core.Term
+	suggestedBy    map[string]string
 	dismissed      []string
 	log            []string
 	undone         int
 }
 
 func (f *fakeGlossary) TermSuggestions() []core.Term { return f.suggestions }
+func (f *fakeGlossary) TermSuggestionPlugin(_ *ns.Scope, source string) string {
+	return f.suggestedBy[strings.ToLower(source)]
+}
 func (f *fakeGlossary) AcceptSuggestion(source string) {
 	for _, t := range f.suggestions {
 		if core.SameTerm(t.Source, source) {
@@ -205,10 +210,15 @@ func TestTermsTabSuggestionsAndEditLog(t *testing.T) {
 	a := newFakeApp()
 	a.side, a.writable = "terms", true
 	a.suggestions = []core.Term{{Source: "Nile", Target: "尼罗河", Scope: core.ScopeFilm, Origin: core.OriginAuto}, {Source: "delta", Target: "三角洲", Scope: core.ScopeFilm, Origin: core.OriginAuto}}
+	a.suggestedBy = map[string]string{"delta": "地名词典"}
 	app := start(t, a)
 	msgs := testlocale.Messages()
 	if !app.Exists(whole(msgs.GlossarySuggested())) || !app.Exists(whole("Nile → 尼罗河")) || app.Exists("id:film-edit-log") {
 		t.Fatalf("the suggestions: %q", app.Texts())
+	}
+	// A term a plugin proposed says which one did; one the AI service found says nothing more.
+	if names := app.Query("id:film-term-suggestion-plugin"); len(names) != 1 || !app.Exists(whole(msgs.GlossarySuggestFromPlugin("地名词典"))) {
+		t.Fatalf("the plugin's name: %q", app.Texts())
 	}
 	if got := app.Find("id:film-term-suggestion-add >> nth=0").Props.Label; got != msgs.GlossarySuggestAdd("Nile") {
 		t.Fatalf("Add is named %q", got)

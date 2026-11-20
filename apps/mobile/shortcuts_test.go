@@ -104,7 +104,7 @@ func TestThePlayerSavesAndExplainsFromTheKeyboard(t *testing.T) {
 	}
 }
 
-// On a tablet ⌘1 and on show the sections, Browse among them, ⌘N the Add sheet and ⌘K the Library's search from any section; Settings lists them all with their keys.
+// On a tablet ⌘1 and on show the sections, ⌘N the Add sheet and ⌘K the Library's search from any section; Settings lists them all with their keys.
 func TestATabletTakesTheShellsKeysAndListsThem(t *testing.T) {
 	if nsgotest.Target() != "" {
 		t.Skip("the idiom is the platform's on a target")
@@ -114,11 +114,9 @@ func TestATabletTakesTheShellsKeysAndListsThem(t *testing.T) {
 	p := startPhone(t, dir, pairedWith(t, d, dir), nsgotest.Size(1180, 820), nsgotest.Environment(core.Environment{Locale: lang, Idiom: core.IdiomTablet, OS: core.OSIOS}))
 	p.app.WaitFor(talkRow(store.DesktopID(d.Fingerprint)), wait)
 	p.app.Key("mod+2")
-	p.app.WaitFor("id:browse-page", wait)
+	p.app.WaitFor("id:jobs-page", wait)
 	p.app.Key("mod+3")
 	p.app.WaitFor("id:learn-page", wait)
-	p.app.Key("mod+4")
-	p.app.WaitFor("id:jobs-page", wait)
 	p.app.Key("mod+k")
 	p.app.WaitUntil(wait, func() bool { return p.app.Exists("id:films-search") && p.app.Find("id:films-search").Focused })
 	p.app.Key("mod+n")
@@ -126,7 +124,7 @@ func TestATabletTakesTheShellsKeysAndListsThem(t *testing.T) {
 	p.app.Key("escape")
 	p.app.WaitForGone("id:add-link", wait)
 
-	p.app.Key("mod+5")
+	p.app.Key("mod+4")
 	p.app.WaitFor("id:settings-shortcuts", wait)
 	if got := p.texts("id:settings-shortcuts"); !strings.Contains(got, msgs.SettingsShortcutsValue()) {
 		t.Fatalf("the shortcuts' row reads %q", got)
@@ -138,15 +136,15 @@ func TestATabletTakesTheShellsKeysAndListsThem(t *testing.T) {
 		"lines":    "← / →",
 		"explain":  "E",
 		"search":   "⌘K",
-		"sections": "⌘1 – ⌘5",
+		"sections": "⌘1 – ⌘4",
 	} {
 		if got := p.app.Find("id:settings-shortcut-keys-" + id).Text; got != want {
 			t.Errorf("the keys of %s read %q, want %q", id, got, want)
 		}
 	}
-	names := strings.Join([]string{msgs.FilmsTitle(), msgs.BrowseTitle(), msgs.LearnTitle(), msgs.JobsTitle(), msgs.SettingsTitle()}, msgs.ShortcutsJoin())
+	names := strings.Join([]string{msgs.FilmsTitle(), msgs.JobsTitle(), msgs.LearnTitle(), msgs.SettingsTitle()}, msgs.ShortcutsJoin())
 	if got := p.texts("id:settings-shortcut-sections"); !strings.HasPrefix(got, names) {
-		t.Errorf("the row of ⌘1 – ⌘5 reads %q, want the sections %q", got, names)
+		t.Errorf("the row of ⌘1 – ⌘4 reads %q, want the sections %q", got, names)
 	}
 }
 

@@ -4,13 +4,14 @@ import (
 	"os"
 	"testing"
 
+	"kando/apps/kando/plugins"
 	"kando/packages/core"
 	"kando/packages/media"
 
 	"github.com/nsgo-dev/nsgo/nsgotest"
 )
 
-// TestScreenshotsGlossary renders the prototype's film, How Rivers Shape Landscapes (j1), held at its start with the side panel on 术语: the design's terms of the film (prototype script 2290), one locked, one its series' and one every film's, the film in the series Earth Science with two other films (player-terms); then the same tab once the translation found terms the glossary does not hold and two terms were changed, with the edit log under it (player-terms-log).
+// TestScreenshotsGlossary renders the prototype's film, How Rivers Shape Landscapes (j1), held at its start with the side panel on 术语: the design's terms of the film (prototype script 2290), one locked, one its series' and one every film's, the film in the series Earth Science with two other films (player-terms); then the same tab once the translation found terms the glossary does not hold and two terms were changed, with the edit log under it (player-terms-log); and the tab with a term the AI service found and one a script plugin proposed, named under it (player-terms-plugin).
 func TestScreenshotsGlossary(t *testing.T) {
 	f := newScreenshotFixture(t)
 	f.shoot(t, "player-terms", func(t *testing.T, a *app, tt *nsgotest.App, updates chan func()) {
@@ -31,6 +32,22 @@ func TestScreenshotsGlossary(t *testing.T) {
 		})
 		if len(a.EditLog()) != 2 || !tt.Exists("id:film-edit-log") || !tt.Exists("id:film-terms-suggestions") {
 			t.Fatalf("edit log %q; texts %q", a.EditLog(), tt.Texts())
+		}
+	})
+	f.shoot(t, "player-terms-plugin", func(t *testing.T, a *app, tt *nsgotest.App, updates chan func()) {
+		j1 := f.job(t, "j1")
+		found := media.SuggestionsPath(j1.VideoPath)
+		if err := media.SaveSuggestions(found, media.Suggestions{Terms: []core.Term{{Source: "floodplain", Target: "泛滥平原"}}}); err != nil {
+			t.Fatal(err)
+		}
+		t.Cleanup(func() { _ = os.Remove(found) })
+		glossaryScene(t, f, a, tt, updates)
+		screenshotWait(t, tt, a, updates, "the suggested term", func() bool { return len(a.TermSuggestions()) == 1 })
+		apply(tt, a, func() {
+			a.glossarySuggestFromPlugin("acme.rivers", plugins.Text{"en": "River Names", "zh-Hans": "河流名称"}, []core.Term{{Source: "Mississippi", Target: "密西西比河", Scope: core.ScopeFilm, Origin: core.OriginAuto}})
+		})
+		if len(a.TermSuggestions()) != 2 || !tt.Exists("id:film-term-suggestion-plugin") {
+			t.Fatalf("suggestions %+v; texts %q", a.TermSuggestions(), tt.Texts())
 		}
 	})
 }

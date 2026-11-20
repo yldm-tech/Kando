@@ -302,14 +302,15 @@ func TestLockedLibraryLeaksNothing(t *testing.T) {
 	remoteServe(t, a)
 	locked := remoteMessages().LockLibraryIsLocked("Private")
 	for method, params := range map[string]any{
-		remote.MethodFilms:  remote.FilmsParams{},
-		remote.MethodFilm:   remote.IDParams{ID: "secret"},
-		remote.MethodSearch: remote.SearchParams{Query: "Hello"},
-		remote.MethodJobs:   nil,
-		remote.MethodJob:    remote.IDParams{ID: "waiting"},
-		remote.MethodAdd:    remote.AddParams{Sources: []string{"https://www.youtube.com/watch?v=another"}},
-		remote.MethodShow:   remote.ShowParams{ID: "secret"},
-		remote.MethodRemove: remote.IDParams{ID: "secret"},
+		remote.MethodFilms:   remote.FilmsParams{},
+		remote.MethodFilm:    remote.IDParams{ID: "secret"},
+		remote.MethodSearch:  remote.SearchParams{Query: "Hello"},
+		remote.MethodJobs:    nil,
+		remote.MethodJob:     remote.IDParams{ID: "waiting"},
+		remote.MethodAdd:     remote.AddParams{Sources: []string{"https://www.youtube.com/watch?v=another"}},
+		remote.MethodShow:    remote.ShowParams{ID: "secret"},
+		remote.MethodRemove:  remote.IDParams{ID: "secret"},
+		remote.MethodPlugins: nil,
 	} {
 		_, err := remoteCall[any](t, updates, method, params)
 		remoteWantCode(t, err, remote.CodeNotReady)

@@ -3,9 +3,11 @@ package main
 import (
 	"cmp"
 	"net/url"
+	"path/filepath"
 	"strings"
 
 	"kando/apps/kando/film"
+	"kando/apps/kando/films"
 	"kando/apps/kando/lines"
 	"kando/apps/kando/plugins"
 	"kando/apps/kando/saved"
@@ -79,17 +81,18 @@ func pluginsRefuse(c *ns.HostCall, code string) {
 // pluginsHost gives the host of the plugin id its handlers: a handler for each permission this version has, which the plugin reaches only as far as its sandbox's grant and the handler's own check let it.
 func (a *app) pluginsHost(id string, host *ns.Host) {
 	handlers := map[plugins.Perm]func(l *pluginsScript, c *ns.HostCall){
-		plugins.PermFilmCurrent: a.pluginsFilmCurrent,
-		plugins.PermLineCurrent: a.pluginsLineCurrent,
-		plugins.PermLinesSeen:   a.pluginsLinesSeen,
-		plugins.PermSavedRead:   a.pluginsSavedRead,
-		plugins.PermWordsRead:   a.pluginsWordsRead,
-		plugins.PermSoundRead:   a.pluginsSoundRead,
-		plugins.PermLLMChat:     a.pluginsLLMChat,
-		plugins.PermCredFetch:   a.pluginsCredentialFetch,
-		plugins.PermToast:       a.pluginsToastCall,
-		plugins.PermOpenURL:     a.pluginsOpenURLCall,
-		plugins.PermSettingsGet: a.pluginsSettingsGet,
+		plugins.PermFilmCurrent:     a.pluginsFilmCurrent,
+		plugins.PermLineCurrent:     a.pluginsLineCurrent,
+		plugins.PermLinesSeen:       a.pluginsLinesSeen,
+		plugins.PermSavedRead:       a.pluginsSavedRead,
+		plugins.PermWordsRead:       a.pluginsWordsRead,
+		plugins.PermSoundRead:       a.pluginsSoundRead,
+		plugins.PermGlossarySuggest: a.pluginsGlossarySuggest,
+		plugins.PermLLMChat:         a.pluginsLLMChat,
+		plugins.PermCredFetch:       a.pluginsCredentialFetch,
+		plugins.PermToast:           a.pluginsToastCall,
+		plugins.PermOpenURL:         a.pluginsOpenURLCall,
+		plugins.PermSettingsGet:     a.pluginsSettingsGet,
 	}
 	for perm, fn := range handlers {
 		host.Handle(string(perm), a.pluginsGuard(id, host, perm, fn))
@@ -135,7 +138,7 @@ func (a *app) pluginsFilmCurrent(l *pluginsScript, c *ns.HostCall) {
 	c.Resolve(map[string]any{
 		"film":       a.pluginsFilmID(l, cmp.Or(f.VideoPath, f.Key)),
 		"title":      f.Title,
-		"spoken":     cmp.Or(f.Spoken, f.SpeechLanguage),
+		"spoken":     films.Heard(f),
 		"language":   core.TargetTag(f.Language),
 		"positionMs": a.PlayHead().Milliseconds(),
 	})
@@ -241,6 +244,31 @@ func (a *app) pluginsToastCall(l *pluginsScript, c *ns.HostCall) {
 	}
 	a.pluginsToast(l.pack, text)
 	c.Resolve(true)
+}
+
+// pluginsGlossarySuggest answers kando.glossary.suggest: the terms sent ({film, terms: [{source, target}]}, plugins.Suggested) are proposed for the open film's glossary, which the player's 术语 tab lists under the plugin's name for the user to add or dismiss (glossarySuggestFromPlugin); the call answers {added}, how many it lists that it did not before. It is refused as a bad request for terms past the limits, with not-found while no film is open or one other than the film sent, and as unavailable while the open film has no video its glossary follows; terms sent before the film's own terms are read are kept, and those the glossary holds are left out of the list once they are.
+func (a *app) pluginsGlossarySuggest(l *pluginsScript, c *ns.HostCall) {
+	film, terms, ok := plugins.Suggested(c.Data)
+	if !ok {
+		pluginsRefuse(c, pluginsBad)
+		return
+	}
+	f, open := a.openFilm()
+	if !open || film != "" && film != a.pluginsFilmID(l, cmp.Or(f.VideoPath, f.Key)) {
+		pluginsRefuse(c, pluginsNotFound)
+		return
+	}
+	// The glossary follows the player's video, which a film just opened may not have moved to yet; terms sent then would land on the film before.
+	if a.gloss.video == "" || filepath.Clean(f.VideoPath) != filepath.Clean(a.gloss.video) {
+		pluginsRefuse(c, pluginsUnavailable)
+		return
+	}
+	added, ok := a.glossarySuggestFromPlugin(l.pack.ID, l.pack.Name, terms)
+	if !ok {
+		pluginsRefuse(c, pluginsUnavailable)
+		return
+	}
+	c.Resolve(map[string]any{"added": added})
 }
 
 // pluginsOpenURLCall answers kando.ui.openURL: an https page, sent as a string or {url}, opens in the browser once the user agreed in a system alert that names its host and the plugin, each time; the call answers whether it opened. One page waits for an answer at a time.

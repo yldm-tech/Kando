@@ -55,7 +55,7 @@ func Page(cx *core.Scope, s *session.Session, act Actions) base.NavPage {
 func card(cx *core.Scope, testID string, gap core.Points, children ...core.Node) core.Node {
 	colors := ui.ColorsOf(cx)
 	return core.View{TestID: testID, Style: core.Style{CornerRadius: ui.RadiusCard, BorderCurve: core.BorderCurveContinuous, Padding: core.All(16), Gap: gap},
-		StyleFunc: func() core.Style { return core.Style{Background: ui.Alpha(colors.Text(), 0.045)} },
+		StyleFunc: func() core.Style { return core.Style{Background: colors.Surface()} },
 		Children:  children}
 }
 
@@ -252,17 +252,17 @@ func lists(cx *core.Scope, items func() []learning.Item, act Actions) core.Node 
 	}
 	words, lines := count(learning.Word), count(learning.Line)
 	return look.Group{TestID: "learn-lists", Children: []core.Node{
-		look.Row{TestID: "learn-vocabulary", Inset: 56, Chevron: true,
+		look.Row{TestID: "learn-vocabulary", Chevron: true,
 			Leading: look.IconTile(cx, lucide.BookOpen, look.ToneAccent),
 			Title:   func() string { return locales.LearnVocabulary(cx) },
 			Value:   func() string { return locales.LearnWordCount(cx, words()) },
 			OnPress: act.Vocabulary},
-		look.Row{TestID: "learn-lines", Index: func() int { return 1 }, Inset: 56, Chevron: true,
+		look.Row{TestID: "learn-lines", Index: func() int { return 1 }, Chevron: true,
 			Leading: look.IconTile(cx, lucide.Bookmark, look.ToneAccent),
 			Title:   func() string { return locales.LearnSavedLines(cx) },
 			Value:   func() string { return locales.LearnLineCount(cx, lines()) },
 			OnPress: act.Lines},
-		look.Row{TestID: "learn-export", Index: func() int { return 2 }, Inset: 56, Chevron: true,
+		look.Row{TestID: "learn-export", Index: func() int { return 2 }, Chevron: true,
 			Leading: look.IconTile(cx, lucide.Share, look.ToneAccent),
 			Title:   func() string { return locales.LearnExport(cx) },
 			OnPress: act.Export},

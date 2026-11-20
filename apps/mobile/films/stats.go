@@ -6,6 +6,7 @@ import (
 	"kando/apps/mobile/learning"
 	"kando/apps/mobile/locales"
 	"kando/apps/mobile/look"
+	"kando/apps/mobile/theme"
 
 	"github.com/nsgo-dev/nsgo/core"
 	"github.com/nsgo-dev/nsgo/ui"
@@ -27,11 +28,11 @@ func (v *view) stats(cx *core.Scope) core.Node {
 		}
 		return n
 	})
-	// The minutes and the days take the colors the Learn tab gives them, the words the color of something gained.
+	// The minutes are in the accent, the days in the streak's orange and the words in the stats' green, the design's colors for them.
 	return core.View{TestID: "films-stats", Style: core.Style{Direction: core.Row, Gap: 8}, Children: []core.Node{
 		statTile(cx, "films-stat-today", func() string { return locales.LearnMinutes(cx, minutes()) }, func() string { return locales.FilmsStatToday(cx) }, colors.Accent),
-		statTile(cx, "films-stat-streak", func() string { return locales.FilmsStatDays(cx, streak()) }, func() string { return locales.FilmsStatStreak(cx) }, colors.Warn),
-		statTile(cx, "films-stat-words", func() string { return locales.FilmsStatWords(cx, words.Get()) }, func() string { return locales.FilmsStatVocabulary(cx) }, colors.Up),
+		statTile(cx, "films-stat-streak", func() string { return locales.FilmsStatDays(cx, streak()) }, func() string { return locales.FilmsStatStreak(cx) }, fixed(theme.Streak)),
+		statTile(cx, "films-stat-words", func() string { return locales.FilmsStatWords(cx, words.Get()) }, func() string { return locales.FilmsStatVocabulary(cx) }, fixed(theme.StatGreen)),
 	}}
 }
 
@@ -40,9 +41,12 @@ func statTile(cx *core.Scope, testID string, value, label func() string, tone fu
 	colors := ui.ColorsOf(cx)
 	return core.View{TestID: testID, Role: core.RoleText, LabelFunc: func() string { return label() + ", " + value() },
 		Style:     core.Style{FlexGrow: 1, FlexBasis: core.Pt(0), MinWidth: core.Pt(0), Padding: core.Symmetric(10, 12), CornerRadius: 12, BorderCurve: core.BorderCurveContinuous},
-		StyleFunc: func() core.Style { return core.Style{Background: ui.Alpha(colors.Text(), 0.045)} },
+		StyleFunc: func() core.Style { return core.Style{Background: colors.Surface()} },
 		Children: []core.Node{core.View{AccessibilityElementsHidden: func() bool { return true }, Style: core.Style{Gap: 2}, Children: []core.Node{
 			ui.Tabular(core.Text{TestID: testID + "-value", ContentFunc: value, MaxLines: 1, Style: look.Heading.Merge(core.Style{FontWeight: core.FontWeightBold}), StyleFunc: ui.Colored(tone)}),
 			core.Text{ContentFunc: label, MaxLines: 1, Style: look.Caption, StyleFunc: ui.Colored(colors.Muted)},
 		}}}}
 }
+
+// fixed is c as a color binding, for a color the same in both appearances.
+func fixed(c core.Color) func() core.Color { return func() core.Color { return c } }

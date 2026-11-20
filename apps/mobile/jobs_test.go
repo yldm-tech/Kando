@@ -1,13 +1,18 @@
 package main
 
 import (
+	"slices"
 	"strings"
 	"testing"
 	"time"
 
+	"kando/apps/mobile/films"
+	"kando/apps/mobile/session"
 	"kando/apps/mobile/store"
+	"kando/apps/mobile/theme"
 	"kando/packages/sync"
 
+	"github.com/nsgo-dev/nsgo/base"
 	"github.com/nsgo-dev/nsgo/core"
 	"github.com/nsgo-dev/nsgo/nsgotest"
 )
@@ -157,8 +162,7 @@ func TestAJobIsCanceledAfterAskingAndStartedAgain(t *testing.T) {
 	dir := t.TempDir()
 	moved(d, "job1", "https://youtu.be/dQw4w9WgXcQ", sync.JobRunning, 1, -1)
 	p := startPhone(t, dir, pairedWith(t, d, dir))
-	p.app.WaitFor("id:films-jobs", wait)
-	p.app.Press("id:films-jobs")
+	p.openTab(jobsTab, msgs.JobsTitle())
 	p.app.WaitFor("id:jobs-job-job1", wait)
 	p.app.WaitFor("id:jobs-pause-job1", wait)
 	p.app.Press("id:jobs-pause-job1")
@@ -185,7 +189,7 @@ func TestAJobIsCanceledAfterAskingAndStartedAgain(t *testing.T) {
 	p.app.WaitForGone("id:jobs-retry-job1", wait)
 }
 
-// On a tablet the Jobs page is a section of the sidebar rather than a page the Library opens.
+// On a tablet Jobs is a section of the sidebar, as it is a tab of a phone's bar, with no button of its own on the Library.
 func TestATabletShowsJobsInItsSidebar(t *testing.T) {
 	if nsgotest.Target() != "" {
 		t.Skip("the idiom is the platform's on a target")
@@ -224,8 +228,7 @@ func TestALinkWhoseCallDroppedGoesAgainWhileTheComputerAnswers(t *testing.T) {
 	dir := t.TempDir()
 	p := startPhone(t, dir, pairedWith(t, d, dir))
 	id := store.DesktopID(d.Fingerprint)
-	p.app.WaitFor("id:films-jobs", wait)
-	p.app.Press("id:films-jobs")
+	p.openTab(jobsTab, msgs.JobsTitle())
 	p.app.WaitUntil(wait, func() bool { return p.app.Find("id:jobs-summary-"+id).Text == msgs.JobsIdle() })
 	d.DropCreates(1)
 	p.app.Press("id:jobs-add")
@@ -262,8 +265,7 @@ func TestLinksWaitAndKeepTheirRefusalsAcrossARestart(t *testing.T) {
 	})
 
 	p := startPhone(t, dir, secrets)
-	p.app.WaitFor("id:films-jobs", wait)
-	p.app.Press("id:films-jobs")
+	p.openTab(jobsTab, msgs.JobsTitle())
 	p.app.WaitFor("id:jobs-link-"+waiting, wait)
 	if got := p.app.Find("id:jobs-link-status-" + refused).Text; got != msgs.JobsLinksOff("Studio") {
 		t.Fatalf("the refused link says %q after a restart, want %q", got, msgs.JobsLinksOff("Studio"))
@@ -350,8 +352,7 @@ func TestOpeningADoneJobWaitsForItsFilmAndSaysWhenItIsGone(t *testing.T) {
 	gone.Film = "removed"
 	d.SetJob(gone)
 	p := startPhone(t, dir, pairedWith(t, d, dir))
-	p.app.WaitFor("id:films-jobs", wait)
-	p.app.Press("id:films-jobs")
+	p.openTab(jobsTab, msgs.JobsTitle())
 	p.app.WaitFor("id:jobs-open-job1", wait)
 
 	release := d.Hold()
@@ -385,8 +386,7 @@ func TestTheAppEndsWithoutWaitingForACallUnderWay(t *testing.T) {
 	var ended time.Time
 	t.Run("app", func(t *testing.T) {
 		p := startPhone(t, dir, secrets)
-		p.app.WaitFor("id:films-jobs", wait)
-		p.app.Press("id:films-jobs")
+		p.openTab(jobsTab, msgs.JobsTitle())
 		p.app.WaitFor("id:jobs-open-job1", wait)
 		p.app.Press("id:jobs-open-job1")
 		p.app.WaitUntil(wait, func() bool { return !p.app.Enabled("id:jobs-open-job1") })
@@ -404,8 +404,7 @@ func TestTheAddSheetSendsTheOptionsTheComputerTakes(t *testing.T) {
 	secrets := pairedWith(t, d, dir)
 	t.Run("none", func(t *testing.T) {
 		p := startPhone(t, dir, secrets)
-		p.app.WaitFor("id:films-jobs", wait)
-		p.app.Press("id:films-jobs")
+		p.openTab(jobsTab, msgs.JobsTitle())
 		p.app.WaitUntil(wait, func() bool {
 			return p.app.Find("id:jobs-summary-"+store.DesktopID(d.Fingerprint)).Text == msgs.JobsIdle()
 		})
@@ -456,8 +455,7 @@ func TestAReadOnlyPhoneFollowsJobsWithoutChangingThem(t *testing.T) {
 	d.SetReadOnly(true)
 	t.Run("read-only", func(t *testing.T) {
 		p := startPhone(t, dir, secrets)
-		p.app.WaitFor("id:films-jobs", wait)
-		p.app.Press("id:films-jobs")
+		p.openTab(jobsTab, msgs.JobsTitle())
 		p.app.WaitFor("id:jobs-read-only-"+id, wait)
 		if got := p.app.Find("id:jobs-read-only-" + id).Text; got != msgs.JobsReadOnly("Studio") {
 			t.Fatalf("the page says %q, want %q", got, msgs.JobsReadOnly("Studio"))
@@ -481,8 +479,7 @@ func TestAReadOnlyPhoneFollowsJobsWithoutChangingThem(t *testing.T) {
 
 	d.SetReadOnly(false)
 	p := startPhone(t, dir, secrets)
-	p.app.WaitFor("id:films-jobs", wait)
-	p.app.Press("id:films-jobs")
+	p.openTab(jobsTab, msgs.JobsTitle())
 	p.app.WaitFor("id:jobs-pause-job1", wait)
 	if p.app.Exists("id:jobs-read-only-" + id) {
 		t.Fatal("a phone that may change the jobs is told it is read-only")
@@ -499,28 +496,75 @@ func TestAReadOnlyPhoneFollowsJobsWithoutChangingThem(t *testing.T) {
 	}
 }
 
-// The Library's Jobs button counts what is not done, the links waiting on the phone among it, in warning's color once something needs the user, and shows nothing once all is done.
-func TestTheJobsButtonCountsWhatIsUnfinished(t *testing.T) {
+// The tab bar's Jobs tab, the second, counts what is not done, the links waiting on the phone among it, in the badges' orange once something needs the user, and shows nothing once all is done. It covers the drawn tab bar, which the headless tests show: the system bar of an iPhone or an Android phone shows no badge, and the Library's header counts there instead (TestTheLibraryCountsJobsWhereTheTabBarIsTheSystems).
+func TestTheJobsTabCountsWhatIsUnfinished(t *testing.T) {
 	d := newDesktop(t)
 	dir := t.TempDir()
 	p := startPhone(t, dir, pairedWith(t, d, dir))
-	p.app.WaitFor("id:films-jobs", wait)
-	p.app.WaitUntil(wait, func() bool { return p.app.Find("id:films-jobs").Props.Label == msgs.JobsTitle() })
-	if p.app.Exists("id:films-jobs-badge") {
-		t.Fatal("the Jobs button counts with nothing to do")
+	p.app.WaitFor(talkRow(store.DesktopID(d.Fingerprint)), wait)
+	var names []string
+	for _, tab := range p.app.QueryMounted("id:tab-bar >> role:tab") {
+		names = append(names, tab.Props.Label)
+	}
+	if want := []string{msgs.FilmsTitle(), msgs.JobsTitle(), msgs.LearnTitle(), msgs.SettingsTitle()}; !slices.Equal(names, want) {
+		t.Fatalf("the tab bar shows %q, want %q", names, want)
+	}
+	if p.app.Exists("id:films-jobs") {
+		t.Fatal("the Library still has a Jobs button beside the Jobs tab")
+	}
+	if p.app.Exists("id:bar-badge-tab-jobs") {
+		t.Fatal("the Jobs tab counts with nothing to do")
 	}
 	moved(d, "job1", "https://youtu.be/dQw4w9WgXcQ", sync.JobRunning, 0, 0.1)
+	p.app.WaitUntil(wait, func() bool { return p.app.Exists("id:bar-badge-tab-jobs") && p.texts("id:bar-badge-tab-jobs") == "1" })
+	if got := p.app.Find("id:bar-badge-tab-jobs").Style.Background; got != theme.BadgeRed {
+		t.Errorf("the badge of a job running is %v, want the badges' red", got)
+	}
 	failed := moved(d, "job2", "https://youtu.be/M7lc1UVf-VE", sync.JobFailed, 3, 0)
 	failed.Failure = &sync.Failure{Step: sync.StepDownload, Code: sync.FailNetwork, Remedy: sync.RemedyRetry}
 	d.SetJob(failed)
-	p.app.WaitUntil(wait, func() bool { return p.app.Exists("id:films-jobs-badge") && p.texts("id:films-jobs-badge") == "2" })
-	if got := p.app.Find("id:films-jobs").Props.Label; got != msgs.JobsBadgeLabel(2) {
-		t.Fatalf("the Jobs button is called %q, want %q", got, msgs.JobsBadgeLabel(2))
+	p.app.WaitUntil(wait, func() bool { return p.app.Exists("id:bar-badge-tab-jobs") && p.texts("id:bar-badge-tab-jobs") == "2" })
+	if got := p.app.Find("id:bar-badge-tab-jobs").Style.Background; got != theme.BadgeOrange {
+		t.Errorf("the badge of a failed job is %v, want the badges' orange", got)
 	}
 
 	for _, id := range []string{"job1", "job2"} {
 		done := moved(d, id, "https://youtu.be/"+id, sync.JobDone, 3, 0)
 		d.SetJob(done)
 	}
-	p.app.WaitForGone("id:films-jobs-badge", wait)
+	p.app.WaitForGone("id:bar-badge-tab-jobs", wait)
+	p.openTab(jobsTab, msgs.JobsTitle())
+	p.app.WaitFor("id:jobs-page", wait)
+}
+
+// TestTheLibraryCountsJobsWhereTheTabBarIsTheSystems mounts the Library as the app does where the tab bar is the system's (shell.SystemBar), which shows no badge: the page's header then has a Jobs button with the unfinished count, said in its label, that opens Jobs. The headless tests run simulated, where the app draws its own bar, so App does not take this path here and the page is mounted on its own.
+func TestTheLibraryCountsJobsWhereTheTabBarIsTheSystems(t *testing.T) {
+	d := newDesktop(t)
+	dir := t.TempDir()
+	opened := 0
+	app := nsgotest.Start(t, func(cx *core.Scope) core.Node {
+		theme.Apply(cx)
+		s := session.New(cx, session.Config{Dir: dir, Device: "Test Phone", Platform: sync.PlatformIOS, Now: sessionNow, RelayEvery: relayEvery})
+		nav := base.NewNav(cx, 0)
+		return core.Show{When: s.Loaded, Then: func(cx *core.Scope) core.Node {
+			return nav.Stack(core.Style{FlexGrow: 1}, func(cx *core.Scope, _ int, _ func() int) base.NavPage {
+				return films.Page(cx, s, films.Actions{Add: func() {}, Pair: func() {}, Jobs: func() { opened++ }})
+			})
+		}}
+	}, nsgotest.Environment(core.Environment{Locale: lang}), pairedWith(t, d, dir))
+	app.WaitFor("id:films-jobs", wait)
+	if got := app.Find("id:films-jobs").Props.Label; got != msgs.JobsTitle() {
+		t.Fatalf("the Jobs button with nothing to do is named %q, want %q", got, msgs.JobsTitle())
+	}
+	moved(d, "job1", "https://youtu.be/dQw4w9WgXcQ", sync.JobRunning, 0, 0.1)
+	app.WaitUntil(wait, func() bool {
+		return app.Find("id:films-jobs").Props.Label == msgs.JobsBadgeLabel(1) && (&phone{t: t, app: app}).texts("id:films-jobs-badge") == "1"
+	})
+	if got := app.Find("id:films-jobs-badge").Style.Background; got != theme.BadgeRed {
+		t.Errorf("the badge of a job running is %v, want the badges' red", got)
+	}
+	app.Press("id:films-jobs")
+	if opened != 1 {
+		t.Fatalf("pressing Jobs opened it %d times, want once", opened)
+	}
 }

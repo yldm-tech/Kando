@@ -6,7 +6,7 @@ import (
 	"github.com/nsgo-dev/nsgo/ui"
 )
 
-// TabRoot is p as the root page of a tab's stack, titled title, with trailing in the header's end: on iOS the system's large title, which collapses as the page scrolls, with symbols as the system's own buttons for trailing; elsewhere a large title of its own at the top of the page, trailing beside it.
+// TabRoot is p as the root page of a tab's stack, titled title, with trailing in the header's end: on iOS the system's large title, which collapses as the page scrolls, with symbols as the system's own buttons for trailing; elsewhere a large title of its own at the top of the page (PageTitle), trailing in a row of its own over it.
 func TabRoot(cx *core.Scope, p base.NavPage, title func() string, trailing []core.Node, symbols func() []core.HeaderSymbol) base.NavPage {
 	colors := ui.ColorsOf(cx)
 	p.StyleFunc = ui.Filled(colors.Background)
@@ -24,12 +24,19 @@ func TabRoot(cx *core.Scope, p base.NavPage, title func() string, trailing []cor
 	}
 	// TODO(nsgo#485): ui.NavPage draws a 44pt desktop header on Android (navpage.go:44-50, navheader.go:50-64), with no large title or Material top app bar, so a tab's root page draws its title in its content; give it the platform's top app bar once NSGo has one https://github.com/nsgo-dev/nsgo/issues/485
 	p.HeaderHidden = true
-	bar := core.View{Style: core.Style{Direction: core.Row, AlignItems: core.AlignCenter, Padding: core.Edges{Top: 12, Right: 16, Bottom: 8, Left: 16},
-		PaddingEnv: core.EnvEdges{Top: core.EnvSafeArea, Right: core.EnvSafeArea, Left: core.EnvSafeArea}},
-		Children: append([]core.Node{
-			core.Text{ContentFunc: title, Role: core.RoleHeader, MaxLines: 1, Style: Display.Merge(core.Style{FlexGrow: 1, FlexShrink: 1}), StyleFunc: ui.Colored(colors.Text)},
-		}, trailing...)}
-	p.Children = append([]core.Node{bar}, p.Children...)
+	head := core.Text{ContentFunc: title, Role: core.RoleHeader, MaxLines: 1, Style: PageTitle(cx).Merge(core.Style{Padding: core.Edges{Top: 2, Right: 16, Bottom: 4, Left: 16}}),
+		StyleFunc: ui.Colored(colors.Text)}
+	bar := core.View{Style: core.Style{PaddingEnv: core.EnvEdges{Right: core.EnvSafeArea, Left: core.EnvSafeArea}}, Children: []core.Node{head}}
+	if len(trailing) == 0 {
+		// A page without buttons starts its title 56 points down, as the design's Settings does.
+		bar.Style.Padding.Top, bar.Style.PaddingEnv.Top = 54, core.EnvSafeArea
+		p.Children = append([]core.Node{bar}, p.Children...)
+		return p
+	}
+	// The header's buttons sit in a row of their own over the title, at its end, as the system's do over a large title: a 44-point row 16 down, its targets 10 from the edge, so a 34-point circle in one ends 15 from it and the title starts 62 down.
+	actions := core.View{Style: core.Style{Direction: core.Row, AlignItems: core.AlignCenter, JustifyContent: core.JustifyEnd, Gap: 8, MinHeight: core.Pt(44), Padding: core.Edges{Top: 16, Right: 10, Left: 16},
+		PaddingEnv: core.EnvEdges{Top: core.EnvSafeArea, Right: core.EnvSafeArea, Left: core.EnvSafeArea}}, Children: trailing}
+	p.Children = append([]core.Node{actions, bar}, p.Children...)
 	return p
 }
 

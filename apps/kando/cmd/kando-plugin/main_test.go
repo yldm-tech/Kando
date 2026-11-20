@@ -5,6 +5,7 @@ import (
 	"bytes"
 	"crypto/ed25519"
 	"encoding/json"
+	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
@@ -100,6 +101,12 @@ func zipFolder(t *testing.T, dir, path string) string {
 // scriptPlugin builds the script plugin acme.hello, which reads the lines and reaches the network, signed by a release key the root key certifies for acme.*, into the pack file path, and returns the root's public key.
 func scriptPlugin(t *testing.T, path string) ed25519.PublicKey {
 	t.Helper()
+	return scriptPluginCode(t, path, "")
+}
+
+// scriptPluginCode is scriptPlugin with code after kandoManifest in the plugin's entry.
+func scriptPluginCode(t *testing.T, path, code string) ed25519.PublicKey {
+	t.Helper()
 	secret, root, err := script.NewDevKey()
 	if err != nil {
 		t.Fatal(err)
@@ -108,7 +115,7 @@ func scriptPlugin(t *testing.T, path string) ed25519.PublicKey {
 	src, built := t.TempDir(), t.TempDir()
 	fields := `"capabilities": {"host": ["kando.line.current"], "network": {"http": [{"host": "api.example.com", "methods": ["POST"], "pathPrefixes": ["/v1/"]}]}}`
 	os.WriteFile(filepath.Join(src, plugins.ManifestName), []byte(`{"schema": 2, "id": "acme.hello", "kind": "script", "version": "0.1.0", "kando": ">=0.30.0", "license": "MIT", "name": {"en": "Hello", "ja": "こんにちは"}, `+fields+`, "optional": ["kando.toast"]}`), 0o644)
-	os.WriteFile(filepath.Join(src, script.Entry), []byte("export function kandoManifest() { return {"+fields+`, "optional": ["kando.toast"]} }`+"\n"), 0o644)
+	os.WriteFile(filepath.Join(src, script.Entry), []byte("export function kandoManifest() { return {"+fields+`, "optional": ["kando.toast"]} }`+"\n"+code), 0o644)
 	if err := script.PackFolder(src, built, key); err != nil {
 		t.Fatal(err)
 	}
@@ -206,6 +213,7 @@ func TestPreview(t *testing.T) {
 		"the combination Kando flags in its install confirmation",
 		"### Failed: ",
 		"**failed** (reserved-id)",
+		"declares ` kando.line.current `, ` kando.toast ` but its code never calls it",
 	} {
 		if !strings.Contains(out, want) {
 			t.Errorf("no %q in\n%s", want, out)
@@ -291,5 +299,95 @@ func TestIndex(t *testing.T) {
 	}
 	if !idx.Generated.Equal(f.now()) {
 		t.Errorf("made %v", idx.Generated)
+	}
+}
+
+// TestPreviewHostCalls checks the notes the preview writes on a script plugin's host calls, read from its signed bundle as the bundler wrote it: a call of a permission it does not declare, a declared one it never calls and a call that waits outside the engine without host.call's options; and that they do not fail the pack.
+func TestPreviewHostCalls(t *testing.T) {
+	hello := filepath.Join(t.TempDir(), "hello.kandoplugin")
+	root := scriptPluginCode(t, hello, `import { host } from "nsgo"
+export async function run() {
+  const line = await host.call("kando.line.current", {})
+  // host.call("kando.toast", {}) in a comment is not a call
+  return await host.call("kando.llm.chat", { user: String(line), maxTokens: 10 })
+}
+`)
+	f := newFixture(t, root, nil)
+	code, out, _ := f.run("preview", "--markdown", hello)
+	if code != exitOK {
+		t.Errorf("notes failed the pack, exit %d:\n%s", code, out)
+	}
+	for _, want := range []string{
+		"**Host calls**",
+		"calls ` kando.llm.chat ` without declaring it: Kando refuses the call with denied",
+		"declares ` kando.toast ` but its code never calls it",
+		"calls ` kando.llm.chat ` without host.call's options: it gives up after 30 s",
+	} {
+		if !strings.Contains(out, want) {
+			t.Errorf("no %q in\n%s", want, out)
+		}
+	}
+	if strings.Contains(out, "` kando.line.current ` but") {
+		t.Errorf("a called permission is noted as never called:\n%s", out)
+	}
+}
+
+// TestHostNotes checks what hostNotes reads of a bundle: the calls with the permission's name written out, how many arguments each has whatever brackets, literals and comments its arguments hold, and the permissions declared, needed or optional.
+func TestHostNotes(t *testing.T) {
+	m := plugins.Manifest{Capabilities: &pkg.Capabilities{Host: []string{"kando.net.credentialFetch", "kando.sound.read"}}, Optional: []plugins.Perm{plugins.PermToast}}
+	bundle := `var WAIT = { timeout: 150000 };
+async function send(body) {
+  return await import_nsgo.host.call("kando.net.credentialFetch", { url: "https://a/(", header: { "X": [1, 2] }, body: ` + "`a,${body})`" + ` /* , */ }, WAIT);
+}
+async function sound(id) { return await import_nsgo.host.call( 'kando.sound.read' , { saved: id }) }
+const note = "kando.toast";
+`
+	got := hostNotes(m, bundle)
+	want := []string{
+		"declares ` kando.toast ` but its code never calls it: the user is asked for a permission the plugin may not need",
+		"calls ` kando.sound.read ` without host.call's options: it gives up after 30 s, before Kando's own 120 s; pass {timeout: 150000}",
+	}
+	if strings.Join(got, "\n") != strings.Join(want, "\n") {
+		t.Errorf("notes\n%s\nwant\n%s", strings.Join(got, "\n"), strings.Join(want, "\n"))
+	}
+	if notes := hostNotes(m, strings.ReplaceAll(bundle, "{ saved: id })", "{ saved: id }, WAIT)")+`host.call("kando.toast", {})`); len(notes) != 0 {
+		t.Errorf("a plugin calling what it declares, each with options: %v", notes)
+	}
+}
+
+// TestHostNotesBounds checks that hostNotes stays short and quick whatever the bundle holds: it names at most noteNamesMax permissions a line, reads at most hostCallsMax calls and then says so without claiming a declared permission is never called, takes a call whose arguments run past hostCallArgsMax to pass options, and does not note kando.line.current as unused for a plugin that hears line.changed, which Kando sends only while it is granted.
+func TestHostNotesBounds(t *testing.T) {
+	var b strings.Builder
+	for i := range noteNamesMax + 3 {
+		b.WriteString(`host.call("kando.x` + strings.Repeat("y", i) + `", {}, W);`)
+	}
+	notes := hostNotes(plugins.Manifest{}, b.String())
+	if len(notes) != 1 || !strings.HasSuffix(notes[0], " and 3 more without declaring it: Kando refuses the call with denied") || strings.Count(notes[0], "kando.") != noteNamesMax {
+		t.Errorf("names past noteNamesMax: %v", notes)
+	}
+
+	m := plugins.Manifest{Capabilities: &pkg.Capabilities{Host: []string{"kando.toast"}}}
+	flood := strings.Repeat(`host.call("kando.x", (`, hostCallsMax+1) + `host.call("kando.toast", {}, W)`
+	notes = hostNotes(m, flood)
+	want := []string{
+		"calls ` kando.x ` without declaring it: Kando refuses the call with denied",
+		fmt.Sprintf("names more than %d host calls: only the first %d were read", hostCallsMax, hostCallsMax),
+	}
+	if strings.Join(notes, "\n") != strings.Join(want, "\n") {
+		t.Errorf("past hostCallsMax:\n%s\nwant\n%s", strings.Join(notes, "\n"), strings.Join(want, "\n"))
+	}
+
+	long := `host.call("kando.llm.chat", {user: "` + strings.Repeat("a", hostCallArgsMax) + `"})`
+	if notes := hostNotes(plugins.Manifest{Optional: []plugins.Perm{plugins.PermLLMChat}}, long); len(notes) != 0 {
+		t.Errorf("a call cut off at hostCallArgsMax: %v", notes)
+	}
+
+	panel := plugins.Manifest{Capabilities: &pkg.Capabilities{Host: []string{"kando.line.current"}}}
+	if notes := hostNotes(panel, ""); len(notes) != 1 {
+		t.Errorf("kando.line.current never called nor heard: %v", notes)
+	}
+	panel.Events = []string{plugins.EventLineChanged}
+	if notes := hostNotes(panel, ""); len(notes) != 0 {
+		t.Errorf("kando.line.current of a plugin hearing line.changed: %v", notes)
 	}
 }

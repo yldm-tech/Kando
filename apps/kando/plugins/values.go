@@ -69,13 +69,10 @@ func RemoveValues(root, id string) error {
 	return nil
 }
 
-// Resolve is the value of each of the settings of m but its secrets, by key: the one in v when it is a value of the setting (Setting.Value), else its Zero. It is what kando.settings.get answers.
+// Resolve is the value of each of the settings of m, by key: the one in v when it is a value of the setting (Setting.Value), else its Zero. It is what kando.settings.get answers.
 func (m Manifest) Resolve(v Values) map[string]any {
 	out := map[string]any{}
 	for _, s := range m.Settings {
-		if s.Type == SettingSecret {
-			continue
-		}
 		val, ok := s.Value(v[s.Key])
 		if !ok {
 			val = s.Zero()

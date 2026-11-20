@@ -194,12 +194,15 @@ func (b Book) stamp() Stamp {
 }
 
 // Key is how a Line names the video at path: its path under the book's library folder, with forward slashes, or for a video kept outside the library its full path as it is. A relative path, as a book with no folder is given, is a path under the library too, so it also takes forward slashes, as Abs reads it.
-func (b Book) Key(path string) string {
+func (b Book) Key(path string) string { return KeyIn(b.dir, path) }
+
+// KeyIn is how a Line of the book of the library folder dir names the video at path (Book.Key), for a caller that has the folder but not its book, as before the book is read.
+func KeyIn(dir, path string) string {
 	if path == "" {
 		return ""
 	}
-	if b.dir != "" {
-		rel, err := filepath.Rel(filepath.Clean(b.dir), filepath.Clean(path))
+	if dir != "" {
+		rel, err := filepath.Rel(filepath.Clean(dir), filepath.Clean(path))
 		if err == nil && rel != "." && rel != ".." && !strings.HasPrefix(rel, ".."+string(filepath.Separator)) && !filepath.IsAbs(rel) {
 			return filepath.ToSlash(rel)
 		}

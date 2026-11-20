@@ -132,28 +132,8 @@ func sourceName(cx *core.Scope, source string) string {
 // switcher is the button that picks the library the list shows, or every library: one of a computer, or one only the phone still knows of.
 func (v *view) switcher(cx *core.Scope) core.Node {
 	colors := ui.ColorsOf(cx)
-	name := func() string {
-		if lib := v.library.Get(); lib.Desktop != "" {
-			return libraryName(cx, lib)
-		}
-		return locales.FilmsAllLibraries(cx)
-	}
-	pick := func() {
-		libs := catalog.Libraries(v.s.Computers(), v.entries.GetUntracked())
-		actions := []core.AlertAction{{Label: locales.FilmsAllLibraries(cx)}}
-		for _, l := range libs {
-			actions = append(actions, core.AlertAction{Label: libraryName(cx, l)})
-		}
-		actions = append(actions, core.AlertAction{Label: locales.CommonCancel(cx), Role: core.AlertCancel})
-		cx.ShowAlert(core.AlertConfig{Title: locales.FilmsLibraries(cx), Sheet: !look.Tablet(cx), Cancelable: true, Actions: actions}, func(i int) {
-			switch {
-			case i == 0:
-				v.library.Set(catalog.Scope{})
-			case i > 0 && i <= len(libs):
-				v.library.Set(libs[i-1])
-			}
-		})
-	}
+	name := func() string { return LibraryName(cx, v.library) }
+	pick := func() { PickLibrary(cx, v.s, v.library) }
 	return core.View{Style: core.Style{Direction: core.Row}, Children: []core.Node{
 		core.View{TestID: "films-library", Role: core.RoleButton, LabelFunc: func() string { return locales.FilmsLibrary(cx, name()) }, OnPress: func(core.PressEvent) { pick() },
 			Style: core.Style{Direction: core.Row, AlignItems: core.AlignCenter, Gap: 6, MinHeight: core.Pt(44), Padding: core.Symmetric(0, 4), FlexShrink: 1},
@@ -166,6 +146,32 @@ func (v *view) switcher(cx *core.Scope) core.Node {
 				ui.Icon(lucide.ChevronDown, 16, colors.Accent),
 			}},
 	}}
+}
+
+// PickLibrary asks which library the Library shows, or every library, into library: the switcher's question, which a tablet's sidebar asks too.
+func PickLibrary(cx *core.Scope, s *session.Session, library *core.Signal[catalog.Scope]) {
+	libs := catalog.Libraries(s.Computers(), s.Entries())
+	actions := []core.AlertAction{{Label: locales.FilmsAllLibraries(cx)}}
+	for _, l := range libs {
+		actions = append(actions, core.AlertAction{Label: libraryName(cx, l)})
+	}
+	actions = append(actions, core.AlertAction{Label: locales.CommonCancel(cx), Role: core.AlertCancel})
+	cx.ShowAlert(core.AlertConfig{Title: locales.FilmsLibraries(cx), Sheet: !look.Tablet(cx), Cancelable: true, Actions: actions}, func(i int) {
+		switch {
+		case i == 0:
+			library.Set(catalog.Scope{})
+		case i > 0 && i <= len(libs):
+			library.Set(libs[i-1])
+		}
+	})
+}
+
+// LibraryName is the library the Library shows, as the switcher names it, or all of them; read it in a binding.
+func LibraryName(cx *core.Scope, library *core.Signal[catalog.Scope]) string {
+	if lib := library.Get(); lib.Desktop != "" {
+		return libraryName(cx, lib)
+	}
+	return locales.FilmsAllLibraries(cx)
 }
 
 // libraryName is a library as the switcher names it: with its computer's name, which a library only the phone still knows of may not have.

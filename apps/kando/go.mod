@@ -11,7 +11,7 @@ require (
 	github.com/aws/smithy-go v1.28.9
 	github.com/cloudsoda/go-smb2 v0.0.0-20261105190815-95be04a983b8
 	github.com/modelcontextprotocol/go-sdk v1.8.0
-	github.com/nsgo-dev/nsgo v0.2.1-0.20261119193104-729f238f5678
+	github.com/nsgo-dev/nsgo v0.2.1-0.20261120000346-f377daba0a2a
 	github.com/pkg/sftp v1.13.12
 	github.com/studio-b12/gowebdav v0.13.0
 	github.com/yldm-tech/ai-logo/nsgo v1.22.0

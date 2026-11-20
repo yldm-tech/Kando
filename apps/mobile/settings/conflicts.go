@@ -8,6 +8,7 @@ import (
 	"kando/apps/mobile/look"
 	"kando/apps/mobile/session"
 	"kando/apps/mobile/study"
+	"kando/apps/mobile/theme"
 	"kando/packages/sync"
 
 	"github.com/nsgo-dev/nsgo/base"
@@ -57,7 +58,7 @@ func conflictCard(cx *core.Scope, s *session.Session, c func() session.SyncConfl
 		core.View{Style: core.Style{Direction: core.Row, AlignItems: core.AlignCenter, Gap: 6}, Children: []core.Node{
 			core.Text{TestID: "conflict-kind-" + id, ContentFunc: func() string { return conflictKind(cx, c().Field) }, MaxLines: 1,
 				Style:     core.Style{FontSize: 12, FontWeight: ui.Bold, LineHeight: 20, Padding: core.Symmetric(0, 7), CornerRadius: 5, FlexShrink: 0},
-				StyleFunc: func() core.Style { return core.Style{Background: tints.Warn(), Color: colors.Warn()} }},
+				StyleFunc: func() core.Style { return core.Style{Background: tints.Warn(), Color: theme.Of(cx).WarnText()} }},
 			core.Text{TestID: "conflict-film-" + id, ContentFunc: func() string { return c().Title }, MaxLines: 1, EllipsizeMode: core.EllipsizeTail,
 				Style: look.Subhead.Merge(core.Style{FontWeight: ui.Semibold, FlexShrink: 1}), StyleFunc: ui.Colored(colors.Text)},
 		}},
@@ -79,7 +80,7 @@ func conflictCard(cx *core.Scope, s *session.Session, c func() session.SyncConfl
 	}
 	return core.View{TestID: "conflict-" + id, Style: core.Style{Gap: 4, Padding: core.Symmetric(14, 16), CornerRadius: ui.RadiusCard, BorderCurve: core.BorderCurveContinuous},
 		StyleFunc: func() core.Style {
-			st := core.Style{Background: ui.Alpha(colors.Text(), 0.045)}
+			st := core.Style{Background: colors.Surface()}
 			if busy() {
 				st.Opacity = core.Alpha(0.6)
 			}
@@ -113,7 +114,7 @@ func conflictVersion(cx *core.Scope, s *session.Session, c func() session.SyncCo
 func conflictsDone(cx *core.Scope) core.Node {
 	colors := ui.ColorsOf(cx)
 	return core.View{TestID: "conflicts-done", Style: core.Style{AlignItems: core.AlignCenter, Gap: 6, Padding: core.Symmetric(28, 16), CornerRadius: ui.RadiusCard, BorderCurve: core.BorderCurveContinuous},
-		StyleFunc: func() core.Style { return core.Style{Background: ui.Alpha(colors.Text(), 0.045)} },
+		StyleFunc: func() core.Style { return core.Style{Background: colors.Surface()} },
 		Children: []core.Node{
 			ui.Icon(lucide.CircleCheck, 30, colors.Up),
 			core.Text{ContentFunc: func() string { return locales.SettingsConflictsDone(cx) }, Role: core.RoleHeader, Style: look.Title.Merge(core.Style{FontWeight: ui.Bold, TextAlign: core.TextAlignCenter}), StyleFunc: ui.Colored(colors.Text)},

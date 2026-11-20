@@ -5,7 +5,7 @@ import "slices"
 // Perm is a permission a script plugin asks for: the name of the host handler it calls (core.Host), which is the name it has in the package's signed capabilities (pkg.Capabilities.Host) and in the grant the user gave (Grant.Perms). docs/plugin-system.md 5.3.
 type Perm string
 
-// The permissions this version has a handler for. A plugin that asks for another is refused (ErrUnknownPerm): kando.glossary.suggest has no handler, as Kando has no place yet where a glossary term is proposed for the user to take or leave (docs/plugin-system.md 15, P3b), and kando.candidates.offer none either, as a translator offers other translations of a line through its candidates export instead (Translator, CandidatesExport).
+// The permissions this version has a handler for. A plugin that asks for another is refused (ErrUnknownPerm): kando.candidates.offer has no handler, as a translator offers other translations of a line through its candidates export instead (Translator, CandidatesExport).
 const (
 	// PermFilmCurrent reads the film that is open: its id for this plugin, title, spoken language, the language it is translated into and where it plays.
 	PermFilmCurrent Perm = "kando.film.current"
@@ -19,6 +19,8 @@ const (
 	PermWordsRead Perm = "kando.words.read"
 	// PermSoundRead reads the sound of a saved line or of the line playing, cut out of its video.
 	PermSoundRead Perm = "kando.sound.read"
+	// PermGlossarySuggest proposes terms for the open film's glossary, which the player's 术语 tab lists for the user to add or dismiss: a proposal alone, never a change of the glossary, nor of a term it holds.
+	PermGlossarySuggest Perm = "kando.glossary.suggest"
 	// PermLLMChat asks the user's AI service, within the plugin's daily budget of tokens.
 	PermLLMChat Perm = "kando.llm.chat"
 	// PermCredFetch sends a request with a secret the user gave Kando for the plugin (Manifest.Credentials), which Kando puts in, only to the hosts, methods and paths the credential names.
@@ -32,7 +34,7 @@ const (
 )
 
 // Perms are the permissions this version has, in the order the install confirmation and the details list them.
-var Perms = []Perm{PermFilmCurrent, PermLineCurrent, PermLinesSeen, PermSavedRead, PermWordsRead, PermSoundRead, PermLLMChat, PermCredFetch, PermToast, PermOpenURL, PermSettingsGet}
+var Perms = []Perm{PermFilmCurrent, PermLineCurrent, PermLinesSeen, PermSavedRead, PermWordsRead, PermSoundRead, PermGlossarySuggest, PermLLMChat, PermCredFetch, PermToast, PermOpenURL, PermSettingsGet}
 
 // Known reports whether p is a permission this version has.
 func (p Perm) Known() bool { return slices.Contains(Perms, p) }

@@ -2,13 +2,17 @@ package main
 
 import (
 	"errors"
+	"time"
 
+	"kando/apps/mobile/brand"
 	"kando/apps/mobile/jobs"
 	"kando/apps/mobile/locales"
 	"kando/apps/mobile/session"
+	"kando/apps/mobile/theme"
 	"kando/packages/sync"
 
 	"github.com/nsgo-dev/nsgo/core"
+	"github.com/nsgo-dev/nsgo/icons/lucide"
 	"github.com/nsgo-dev/nsgo/ui"
 )
 
@@ -18,7 +22,11 @@ func queueToasts(cx *core.Scope, s *session.Session, toaster *ui.Toaster, openFi
 	name := func(desktop string) string { d, _ := s.Desktop(desktop); return d.Name }
 	s.OnQueue(session.QueueEvents{
 		Done: func(desktop string, job sync.Job) {
-			t := ui.ToastContent{ID: "job-done-" + job.ID, Type: ui.ToastSuccess, Title: locales.JobsDoneTitle(cx, name(desktop)), Description: locales.JobsDoneBody(cx, job.Title)}
+			// The design's banner of a finished job leads with the app's icon and stays a little longer than a toast.
+			// TODO(nsgo#934): ui.ToastContent has a leading node only, no trailing one, no press over the whole toast and no style of its surface (ui/toast.go:31-41, 309-339), so the banner shows no thumbnail of the film, opens it from its Open button rather than from anywhere on it, and is NSGo's card rather than the design's frosted banner. https://github.com/nsgo-dev/nsgo/issues/934
+			t := ui.ToastContent{ID: "job-done-" + job.ID, Type: ui.ToastSuccess, Title: locales.JobsDoneTitle(cx, name(desktop)), Description: locales.JobsDoneBody(cx, job.Title),
+				Leading:  core.Image{Source: brand.Icon(), ResizeMode: core.Cover, ElementsHidden: true, Style: core.Style{Width: core.Pt(38), Height: core.Pt(38), CornerRadius: 9, BorderCurve: core.BorderCurveContinuous}},
+				Duration: 5200 * time.Millisecond}
 			if job.Film != "" {
 				t.Action = locales.JobsOpen(cx)
 				t.OnAction = func() {
@@ -35,14 +43,14 @@ func queueToasts(cx *core.Scope, s *session.Session, toaster *ui.Toaster, openFi
 			case created.Existing:
 				title = locales.JobsSentExisting(cx, name(desktop))
 			}
-			toaster.Show(ui.ToastContent{Type: ui.ToastInfo, Title: title})
+			toaster.Show(brief(ui.ToastContent{Type: ui.ToastSuccess, Title: title}))
 		},
 		Subscribed: func(desktop string, got sync.Subscribed) {
 			title := locales.AddSubscribed(cx, got.Subscription.Name, name(desktop))
 			if got.Existing {
 				title = locales.AddSubscribedExisting(cx, got.Subscription.Name, name(desktop))
 			}
-			toaster.Show(ui.ToastContent{Type: ui.ToastSuccess, Title: title})
+			toaster.Show(brief(ui.ToastContent{Type: ui.ToastSuccess, Title: title}))
 		},
 		Acted: func(desktop, op, title string) {
 			var text string
@@ -56,7 +64,7 @@ func queueToasts(cx *core.Scope, s *session.Session, toaster *ui.Toaster, openFi
 			default:
 				return
 			}
-			toaster.Show(ui.ToastContent{Type: ui.ToastSuccess, Title: text})
+			toaster.Show(brief(ui.ToastContent{Type: ui.ToastSuccess, Title: text}))
 		},
 		Failed: func(desktop string, err error) {
 			// A done job's film the computer does not serve is told as such; a computer that answered refused the action, as for a job whose state changed meanwhile; one that did not answer is out of reach.
@@ -83,4 +91,12 @@ func queueToasts(cx *core.Scope, s *session.Session, toaster *ui.Toaster, openFi
 			toaster.Show(t)
 		},
 	})
+}
+
+// brief is t as the design's toast of something done: a green check before its line, gone after 2.6 seconds.
+// TODO(nsgo#934): ui.Toasts draws every toast as its card with a close button (ui/toast.go:309-339) and takes no style, so the toast is not the design's dark pill without one. https://github.com/nsgo-dev/nsgo/issues/934
+func brief(t ui.ToastContent) ui.ToastContent {
+	t.Leading = ui.Icon(lucide.CircleCheck, 16, func() core.Color { return theme.StatusOK })
+	t.Duration = 2600 * time.Millisecond
+	return t
 }

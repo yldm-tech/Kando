@@ -109,7 +109,7 @@ func dictationCard(cx *core.Scope, clip learning.Clip, checked func() bool) core
 		}}
 	}}
 	return core.View{TestID: "dictation-card", Style: core.Style{Gap: 16, CornerRadius: ui.RadiusCard, BorderCurve: core.BorderCurveContinuous, Padding: core.All(20)},
-		StyleFunc: func() core.Style { return core.Style{Background: ui.Alpha(colors.Text(), 0.045)} },
+		StyleFunc: func() core.Style { return core.Style{Background: colors.Surface()} },
 		Children:  []core.Node{header, input, marked}}
 }
 

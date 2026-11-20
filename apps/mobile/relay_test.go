@@ -15,11 +15,10 @@ import (
 // The computer's storage relay ticks every relayTurn in the tests, so what the phone leaves there is answered within a step's wait.
 const relayTurn = 20 * time.Millisecond
 
-// openJobs opens the Jobs page from the Library.
+// openJobs opens the Jobs tab.
 func (p *phone) openJobs() {
 	p.t.Helper()
-	p.app.WaitFor("id:films-jobs", wait)
-	p.app.Press("id:films-jobs")
+	p.openTab(jobsTab, msgs.JobsTitle())
 	p.app.WaitFor("id:jobs-page", wait)
 }
 

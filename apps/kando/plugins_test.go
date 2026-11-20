@@ -1695,7 +1695,7 @@ func TestPluginSiteWidensNoGate(t *testing.T) {
 	}
 }
 
-// TestPluginSitePageButtons checks the built-in browser's own buttons on a site pack's sites: the page script knows the sites the user allowed and no other, and the web view is made again, at the page it showed, as that changes; the app answers what a page of an allowed site asks about its videos and adds the one its button posts, borrowing no sign-in, checking both with its own matcher of the sites, whatever the page says: a link of a domain not allowed, a page of a site not allowed, and a link of the site that is no video's are left alone.
+// TestPluginSitePageButtons checks the built-in browser's own buttons on a site pack's sites: the page script knows the sites the user allowed and no other, and as that changes the same web view, keeping its history, loads the page it shows again with the new script, once the browser's page shows; the app answers what a page of an allowed site asks about its videos and adds the one its button posts, borrowing no sign-in, checking both with its own matcher of the sites, whatever the page says: a link of a domain not allowed, a page of a site not allowed, and a link of the site that is no video's are left alone.
 func TestPluginSitePageButtons(t *testing.T) {
 	a, tt, updates, _ := pluginsSiteApp(t, "videos.example.org")
 	browseOpen(t, a, tt, pluginSiteHome)
@@ -1736,27 +1736,47 @@ func TestPluginSitePageButtons(t *testing.T) {
 		t.Fatalf("the job the page's button added: %+v", job)
 	}
 
-	// Allowing the second domain makes the web view again, at the page it showed, with a script that knows it.
+	// The user goes on in the page from the source to a video. Allowing the second domain then has the same web view, with its history, load the page it shows again with a script that knows it, once the browser's page shows: hidden behind another page, it keeps its page, which loaded again would play unmuted.
+	browseReport(tt, ns.WebNavigation{URL: pluginSiteVideo, CanGoBack: true})
+	before := tt.FindMounted(browsePage).ID
 	a.Select(pageFilms)
 	a.SetPluginSiteAllowed("example.videos", "clips.example.net", true)
 	waitUntil(t, tt, a, updates, func() bool { return !a.plugins.busy })
+	refresh(tt, a)
+	if web := tt.FindMounted(browsePage).Web; strings.Contains(web.InjectedJavaScriptBeforeContent, "clips.example.net") || web.Source.Src != pluginSiteHome || len(a.browse.buttons.videos) == 0 {
+		t.Fatalf("the hidden web view took the new script, loading %q", web.Source.Src)
+	}
 	a.Select(pageBrowse)
 	refresh(tt, a)
-	web := tt.FindMounted(browsePage).Web
-	if !strings.Contains(web.InjectedJavaScriptBeforeContent, "clips.example.net") || web.Source.Src != pluginSiteHome {
+	view := tt.FindMounted(browsePage)
+	if view.ID != before {
+		t.Fatal("allowing a domain made the web view again")
+	}
+	if web := view.Web; !strings.Contains(web.InjectedJavaScriptBeforeContent, "clips.example.net") || web.Source.Src != pluginSiteVideo {
 		t.Fatalf("the web view after allowing a domain loads %q", web.Source.Src)
 	}
-	browseReport(tt, ns.WebNavigation{URL: pluginSiteHome})
-	browsePagePost(tt, pluginSiteClip, browseAskData(pluginSiteClip))
-	if states := browsePageStates(t, tt); len(states) != 1 || len(states[0].Have) != 1 {
-		t.Fatalf("answers on the web view made again %+v", states)
+	if !a.browse.canBack {
+		t.Fatal("allowing a domain lost the page's history")
 	}
-	// Turning the pack off takes its sites out of the script.
+	// The page loaded again asks again; what its buttons were told before goes.
+	if len(a.browse.buttons.videos) != 0 {
+		t.Fatalf("the buttons of the page before are still told %+v", a.browse.buttons.videos)
+	}
+	browseReport(tt, ns.WebNavigation{URL: pluginSiteVideo, CanGoBack: true})
+	told := len(browsePageStates(t, tt))
+	browsePagePost(tt, pluginSiteClip, browseAskData(pluginSiteClip))
+	if states := browsePageStates(t, tt); len(states) != told+1 || len(states[told].Have) != 1 {
+		t.Fatalf("answers on the page loaded again %+v", states[told:])
+	}
+	// Turning the pack off while the browser's page shows takes its sites out of the script at once, and the page of the pack's site, no longer allowed, is told nothing more of its videos.
 	a.SetPluginEnabled("example.videos", false)
 	waitUntil(t, tt, a, updates, func() bool { return !a.plugins.busy })
 	refresh(tt, a)
-	if strings.Contains(tt.FindMounted(browsePage).Web.InjectedJavaScriptBeforeContent, "example") {
-		t.Fatal("the script knows the sites of a pack turned off")
+	if view := tt.FindMounted(browsePage); strings.Contains(view.Web.InjectedJavaScriptBeforeContent, "example") || view.ID != before {
+		t.Fatal("the script knows the sites of a pack turned off, or the web view was made again")
+	}
+	if len(a.browse.buttons.videos) != 0 {
+		t.Fatalf("the page of a pack turned off is still told of %+v", a.browse.buttons.videos)
 	}
 }
 

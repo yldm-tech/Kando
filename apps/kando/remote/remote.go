@@ -56,6 +56,8 @@ const (
 	MethodBrowserAdd = "browser.add"
 	// MethodBrowserShow takes BrowserShowParams and brings the window to the front showing the video's film, or the library when it has none, and answers BrowserShown.
 	MethodBrowserShow = "browser.show"
+	// MethodPlugins takes no params and answers []Plugin, the packs of the plugins folder, as Settings › 插件 lists them. It only reads: nothing installs, turns on or grants a plugin through the socket, which any program of the user can reach (docs/plugin-system.md 5.4).
+	MethodPlugins = "plugins.list"
 )
 
 // Language is the language the app answers in, but for the browser extension's methods (MethodBrowserState, MethodBrowserAdd), whose words the extension shows in the pages and its popup in the language the window shows, as the built-in browser's buttons do: the messages of Errors, the status lines of Films and Jobs, the Readiness of Status and the reasons of AddFailed are English, whatever language the window shows, as the command line and the MCP server say everything else in English. Machine-readable values, as codes, stages and IDs, are never translated; names that come from the user or the videos, as titles, and the target Language of Status, Film and Job, which the settings name in the user's words, are kept as they are.
@@ -485,4 +487,15 @@ func TimeoutOf(method string) time.Duration {
 		return MoveTimeout
 	}
 	return Timeout
+}
+
+// Plugin is a pack of the plugins folder, as MethodPlugins lists it: its ID, kind and version, its name in English, its content's hash, whether it is turned on, and for a script plugin verified, where it comes from (official, verified, developer). Neither its folder nor anything it keeps, as its settings or secrets, is told.
+type Plugin struct {
+	ID      string `json:"id"`
+	Kind    string `json:"kind"`
+	Version string `json:"version"`
+	Name    string `json:"name"`
+	Hash    string `json:"hash"`
+	Enabled bool   `json:"enabled"`
+	Source  string `json:"source,omitempty"`
 }

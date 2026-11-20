@@ -21,6 +21,7 @@ import (
 	"time"
 
 	"kando/apps/kando/plugins"
+	"kando/apps/kando/plugins/script/signature"
 
 	"github.com/nsgo-dev/nsgo/tsx/pkg"
 )
@@ -497,5 +498,59 @@ func TestIndexCacheIsPerAddress(t *testing.T) {
 	}
 	if second.full.Load() != 1 {
 		t.Errorf("the other address answered %d times in full", second.full.Load())
+	}
+}
+
+// TestIndexSignatureIsStable checks that the framing of an index's signature does not change, as released Kando versions verify the published index with it and the plugin directory's CI signs it with the tool of a pinned Kando commit: a fixed key still makes the same signature of the same body, the index published at kando.yldm.ai still verifies with the index key, and tsx/pkg's exported document envelope cannot stand in for it, since it refuses a context without its app: prefix and a context with it frames another message.
+func TestIndexSignatureIsStable(t *testing.T) {
+	seed := make([]byte, ed25519.SeedSize)
+	for i := range seed {
+		seed[i] = byte(i + 1)
+	}
+	key := ed25519.NewKeyFromSeed(seed)
+	public := key.Public().(ed25519.PublicKey)
+	data := mustSign(t, key, testIndex(testTime, []Entry{}...))
+	var f signedFile
+	if err := json.Unmarshal(data, &f); err != nil {
+		t.Fatal(err)
+	}
+	const wantBody = `{"format":"kando-plugins-index","version":1,"generated":"2026-11-19T10:00:00Z","entries":[]}`
+	const wantSignature = "di8wjIgEYlxcGcswJdujC6mw/xjftzALXiq/jbjMBTV6riprJxlFBCq5ZzNWB7p2SKmgXQe/BFqQ7npewzNYCw=="
+	if body, _ := base64.StdEncoding.DecodeString(f.Body); string(body) != wantBody {
+		t.Errorf("body = %s, want %s", body, wantBody)
+	}
+	if f.Signature != wantSignature || f.Signer != pkg.KeyID(public) {
+		t.Errorf("signed by %s as %s, want %s as %s", f.Signer, f.Signature, pkg.KeyID(public), wantSignature)
+	}
+
+	live, err := os.ReadFile(filepath.Join("testdata", "live-index.json"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	indexKey, err := DecodeKey(signature.IndexKey)
+	if err != nil {
+		t.Fatal(err)
+	}
+	idx, err := Parse(live, indexKey)
+	if err != nil || len(idx.Entries) == 0 || idx.Dropped != 0 {
+		t.Fatalf("the published index: %d entries, %d dropped, %v", len(idx.Entries), idx.Dropped, err)
+	}
+
+	if _, err := pkg.SignDocument(key, signContext, json.RawMessage(wantBody)); !errors.Is(err, pkg.ErrContext) {
+		t.Errorf("pkg.SignDocument in %q: %v, want pkg.ErrContext", signContext, err)
+	}
+	doc, err := pkg.SignDocument(key, "app:"+signContext, json.RawMessage(wantBody))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if doc.Body != f.Body || doc.Signer != f.Signer {
+		t.Errorf("pkg.SignDocument wrote body %s by %s, want %s by %s", doc.Body, doc.Signer, f.Body, f.Signer)
+	}
+	if doc.Signature == f.Signature {
+		t.Errorf("pkg.SignDocument in %q makes the index's signature; switch the index to it", "app:"+signContext)
+	}
+	var v signedBody
+	if err := (pkg.Signed{Body: f.Body, Signer: f.Signer, Signature: f.Signature}).Open("app:"+signContext, []ed25519.PublicKey{public}, &v); !errors.Is(err, pkg.ErrSignature) {
+		t.Errorf("pkg.Signed.Open of an index: %v, want pkg.ErrSignature", err)
 	}
 }

@@ -13,10 +13,12 @@ import (
 	"sync"
 	"time"
 
+	"kando/apps/kando/films"
 	"kando/apps/kando/live"
 	"kando/apps/kando/locales"
 	"kando/apps/kando/plugins"
 	"kando/apps/kando/plugins/script"
+	"kando/packages/study"
 
 	ns "github.com/nsgo-dev/nsgo/core"
 	"github.com/nsgo-dev/nsgo/i18n"
@@ -26,7 +28,7 @@ import (
 
 // Script plugins (docs/plugin-system.md P3): signed TSX packages, installed as the data packs are, which run sandboxed (plugins/script) once the user turned them on, with what the user granted on their details. After each read of the plugins folder their packages are verified off the UI thread against Kando's official root and, in developer mode, the developer key of this computer (pluginsVerify); then the plugins turned on are loaded one per update, each after its code said again what it is (script.Probe), each with a host of its own whose handlers check, at every call, what it may do now (State.Effective): what the user granted, while the library is not locked and, for the network, while Kando is not offline. Their calls run one at a time under a watchdog (script.Runner), which turns off a plugin that keeps the window from answering, holds too much memory or fails too often, and records why in health.json; a call still running when Kando stopped turns its plugin off at the next start (in-flight marks). What they add: commands (pluginKeys), and they hear film.opened, job.completed and llm.changed. Every install, grant, switch, stop and confirmation goes into plugins/audit.log.
 
-// pluginsScripts is the script plugins' part of the plugins' state (pluginsUI.script). trust verifies them, made once the developer key is read (devRead), with the developer root (dev) in developer mode, again when that changes; trustErr is why it could not be opened. verified are the packages verified, by id, for the content hash of each, and issues why the others were refused; verifyGen counts the verifications, so only the last one's answer is kept. loaded are the plugins running, by id, and loading the ids to load, one per update. health is health.json, which the plugins Kando turned off are in. runner calls them; watch is its watchdog's, which the tests set. calls are each plugin's host calls of the last minute, for its quota. toaster shows their toasts, and toasting is set once one showed. opened is the film film.opened was last sent for, jobs the stages of the jobs as job.completed last saw them. asking is set while a page a plugin asked to open waits for the user's answer. filmKey is the secret the films' ids for the plugins are derived from. values are the plugins' settings, by id; secrets which of their secret settings are kept, by id and key. started is set once the first verification started, which reads health.json and the in-flight marks; developer is developer mode (savedPlugins.PluginDeveloper). keying is set while pluginsConflicts reads the shortcuts without the plugins'. saves counts the saves of state.json pluginsSaveState started. official stands in for Kando's official root in the tests, which sign their plugins with roots of their own; nil otherwise. waiting are the host calls waiting outside the engine, by plugin and kind (pluginsWaiting); client is what the credentials' requests go through, which the tests set (pluginsHTTPClient); noSecrets is set once the system's secure store turned out to be missing, as on Linux without a Secret Service, which keeps the plugins with credentials off; contrib is the state of what the plugins contribute besides commands (state_plugins_contrib.go). revoking is set while the revocation list is fetched, and revokedAt is when it was last fetched (state_plugins_revoke.go). Engine's goroutine only.
+// pluginsScripts is the script plugins' part of the plugins' state (pluginsUI.script). trust verifies them, made once the developer key is read (devRead), with the developer root (dev) in developer mode, again when that changes; trustErr is why it could not be opened. verified are the packages verified, by id, for the content hash of each, and issues why the others were refused; verifyGen counts the verifications, so only the last one's answer is kept. loaded are the plugins running, by id, and loading the ids to load, one per update. health is health.json, which the plugins Kando turned off are in. runner calls them; watch is its watchdog's, which the tests set. calls are each plugin's host calls of the last minute, for its quota. toaster shows their toasts, and toasting is set once one showed. opened is the film film.opened was last sent for, jobs the stages of the jobs as job.completed last saw them. asking is set while a page a plugin asked to open waits for the user's answer. filmKey is the secret the films' ids for the plugins are derived from. values are the plugins' settings, by id; secrets which of their credentials' secrets are kept, by id and key (plugins.SecretKey). started is set once the first verification started, which reads health.json and the in-flight marks; developer is developer mode (savedPlugins.PluginDeveloper). keying is set while pluginsConflicts reads the shortcuts without the plugins'. saves counts the saves of state.json pluginsSaveState started. official stands in for Kando's official root in the tests, which sign their plugins with roots of their own; nil otherwise. waiting are the host calls waiting outside the engine, by plugin and kind (pluginsWaiting); client is what the credentials' requests go through, which the tests set (pluginsHTTPClient); noSecrets is set once the system's secure store turned out to be missing, as on Linux without a Secret Service, which keeps the plugins with credentials off; contrib is the state of what the plugins contribute besides commands (state_plugins_contrib.go). revoking is set while the revocation list is fetched, and revokedAt is when it was last fetched (state_plugins_revoke.go). Engine's goroutine only.
 type pluginsScripts struct {
 	trust     *pkg.Trust
 	trustErr  error
@@ -581,7 +583,7 @@ func (a *app) pluginsSetGrant(id, perm string, on bool) {
 // pluginsNetwork names a plugin's network, granted as a whole, among its permissions.
 const pluginsNetwork = "network"
 
-// pluginsForgetPartitions clears what the plugin id kept in its storage under the key signer, and the secrets of its settings Kando kept for it, as it is uninstalled or replaced by one another key signed (docs/plugin-system.md 6.3).
+// pluginsForgetPartitions clears what the plugin id kept in its storage under the key signer, and the secrets of its credentials Kando kept for it, as it is uninstalled or replaced by one another key signed (docs/plugin-system.md 6.3).
 func (a *app) pluginsForgetPartitions(p plugins.Pack, signer string) {
 	if a.cx == nil || signer == "" {
 		return
@@ -700,7 +702,7 @@ var (
 	pluginsValuesSaved = map[string]int{}
 )
 
-// pluginsSetSecret keeps value as the plugin id's secret setting key in the secure store, or removes it when value is "", off the UI thread.
+// pluginsSetSecret keeps value as the secret of the plugin id's credential under key (plugins.SecretKey) in the secure store, or removes it when value is "", off the UI thread.
 func (a *app) pluginsSetSecret(id, key, value string) {
 	i := slices.IndexFunc(a.plugins.packs, func(p plugins.Pack) bool { return p.ID == id })
 	if i < 0 || a.cx == nil || a.plugins.packs[i].Signer == "" {
@@ -737,9 +739,9 @@ func (a *app) pluginsSetSecret(id, key, value string) {
 	}()
 }
 
-// pluginsFilmID is the id the plugin l knows the film of video by (plugins.FilmID).
+// pluginsFilmID is the id the plugin l knows the film of video by (plugins.FilmID): video is a path on disk, as the player and the jobs have it, or a path under the library as the saved lines and the vocabulary keep it, both taken as the saved lines of the open library name it (study.KeyIn), so one film has one id for a plugin whichever handler or event names it, also before the saved lines are read.
 func (a *app) pluginsFilmID(l *pluginsScript, video string) string {
-	return plugins.FilmID(a.plugins.script.filmKey, l.pack.ID, l.pack.Signer, video)
+	return plugins.FilmID(a.plugins.script.filmKey, l.pack.ID, l.pack.Signer, study.KeyIn(a.snap().LibraryDir, video))
 }
 
 // pluginsSend sends each plugin running that hears event (its manifest's events) the event, with what data gives it for that plugin: scalars alone (docs/plugin-system.md 5.3); and the view of its panel shown now, which runs apart from it.
@@ -768,7 +770,7 @@ func (a *app) pluginsFilmOpened() bool {
 		return false
 	}
 	a.pluginsSend("film.opened", func(l *pluginsScript) map[string]any {
-		return map[string]any{"film": a.pluginsFilmID(l, cmp.Or(f.VideoPath, f.Key)), "spoken": f.Spoken}
+		return map[string]any{"film": a.pluginsFilmID(l, cmp.Or(f.VideoPath, f.Key)), "spoken": films.Heard(f)}
 	})
 	return false
 }
