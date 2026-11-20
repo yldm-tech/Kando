@@ -35,7 +35,7 @@ func (d Dialog) Render(cx *ns.Scope) ns.Node {
 				OnChange: func(v string) { set(func(c *Choice) { put(c, v) }) }}
 		}
 		// The plugins' formats come after Kando's own. Without any, Kando's own tabs are built once, as the other rows' are; with some, the tabs are built again only when they change.
-		// TODO(nsgo#848): ui.Tabs takes its Options as a slice, not a binding (ui/tabs.go:30), so tabs whose options change are built again and lose their focus; bind them once it can, as for ui.Select (nsgo#848) https://github.com/nsgo-dev/nsgo/issues/848
+		// TODO(nsgo): ui.Tabs still takes its Options as a slice only (ui/tabs.go:30), and its tab views, their frames and the column count are made once from it (ui/tabs.go:72-138), so tabs whose options change are built again and lose their focus; nsgo#848 gave ui.Select an OptionsFunc but not ui.Tabs; bind the formats once ui.Tabs has an OptionsFunc too
 		formats := ns.NewMemo(cx, live.Func(a, func() string {
 			var out []string
 			for _, f := range a.SubexportFormats() {

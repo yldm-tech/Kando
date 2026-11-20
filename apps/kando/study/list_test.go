@@ -226,6 +226,44 @@ func TestSheetSaysHowTheExportGoes(t *testing.T) {
 	}
 }
 
+// TestSheetExportPickerKeepsItsFocus checks the drop-down of the ways to export: it shows only with more than one way; a way added or gone updates it in place, so it keeps the keyboard focus, and its open list offers the ways as they are; choosing one sets the target.
+func TestSheetExportPickerKeepsItsFocus(t *testing.T) {
+	a := &fakeApp{entries: []Entry{{ID: "a", Film: "Talk", Original: "Hello."}}, targets: []ExportTarget{{ID: "", Label: "Anki"}}}
+	app := start(t, a, func(*core.Scope) core.Node { return Sheet{App: a} })
+	if app.Exists("id:saved-export-target") {
+		t.Fatal("a drop-down for one way")
+	}
+	a.targets = []ExportTarget{{ID: "", Label: "Anki"}, {ID: "example.cards", Label: "Cards"}}
+	a.Changed()
+	app.Settle()
+	app.Focus("id:saved-export-target")
+	pick := app.Find("id:saved-export-target")
+	if pick == nil || !pick.Focused {
+		t.Fatal("the drop-down did not take the focus")
+	}
+	a.targets = []ExportTarget{{ID: "", Label: "Anki"}, {ID: "example.cards", Label: "Cards"}, {ID: "example.sheet", Label: "Sheet"}}
+	a.Changed()
+	app.Settle()
+	a.targets = []ExportTarget{{ID: "", Label: "Anki"}, {ID: "example.sheet", Label: "Sheet"}}
+	a.Changed()
+	app.Settle()
+	got := app.Find("id:saved-export-target")
+	if got == nil {
+		t.Fatalf("the drop-down went as the ways changed: %q", app.Texts())
+	}
+	if got.ID != pick.ID || !got.Focused {
+		t.Fatalf("after the ways changed the drop-down is view %d, focused %v; it was view %d with the focus", got.ID, got.Focused, pick.ID)
+	}
+	app.Press("id:saved-export-target")
+	if !app.Exists("role:option Sheet") || !app.Exists("role:option Anki") || app.Exists("role:option Cards") {
+		t.Fatalf("the open list does not offer the ways as they are: %q", app.Texts())
+	}
+	app.Press("role:option Sheet")
+	if a.target != "example.sheet" {
+		t.Fatalf("chose %q", a.target)
+	}
+}
+
 // TestSheetStartsTheReview checks that Review counts the lines due, is off when none is, and starts the review.
 func TestSheetStartsTheReview(t *testing.T) {
 	a := &fakeApp{entries: []Entry{{ID: "a", Film: "Talk", Original: "Hello."}}}
