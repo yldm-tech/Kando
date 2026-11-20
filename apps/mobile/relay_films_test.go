@@ -25,6 +25,7 @@ func TestAwayFromTheComputerItsFilmsComeFromTheStorage(t *testing.T) {
 	id := store.DesktopID(d.Fingerprint)
 	folder := sync.RelayPrefix(d.Fingerprint)
 	p.app.WaitUntil(wait, func() bool { return d.RelayJoins() == 1 && len(bucket.Keys(folder+"outbox/")) > 0 })
+	p.waitRelayJoined(id)
 	p.app.WaitFor(talkRow(id), wait)
 
 	d.SetOff(true)
