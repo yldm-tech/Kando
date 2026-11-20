@@ -885,3 +885,26 @@ func TestPluginScriptKeysSharedWithOtherPrograms(t *testing.T) {
 		t.Errorf("no line says other programs read its key; texts %q", tt.Texts())
 	}
 }
+
+// TestPluginScriptInstallSaysKeysAreShared checks that the install confirmation of a plugin that keeps a key says other programs can read it where the system's secure store is open to them, and does not say so where it is not.
+func TestPluginScriptInstallSaysKeysAreShared(t *testing.T) {
+	key := newPluginsKey(t)
+	a, tt, updates, _ := scriptsApp(t, key)
+	tt = settingsOpenAt(a, tt, settings.SectionPlugins)
+	folder := pluginScriptFolder(t, key, "acme.rivers", "1.0.0", pluginRiversFields, pluginRiversCode)
+	was := pluginsKeysShared
+	t.Cleanup(func() { pluginsKeysShared = was })
+	for _, shared := range []bool{true, false} {
+		pluginsKeysShared = shared
+		onEngine(a, func() { a.InstallPlugins([]string{folder}) })
+		waitUntil(t, tt, a, updates, func() bool { return a.plugins.pending != nil && !a.plugins.busy })
+		if p := a.plugins.pending; p.err != nil {
+			t.Fatalf("staging acme.rivers: %v", p.err)
+		}
+		if got := tt.Exists("id:plugins-install-shared-keys"); got != shared {
+			t.Errorf("shared %v: the confirmation's line about other programs reading its keys shows %v; texts %q", shared, got, tt.Texts())
+		}
+		tt.Press("id:plugins-install-cancel")
+		waitUntil(t, tt, a, updates, func() bool { return a.plugins.pending == nil })
+	}
+}

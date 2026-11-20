@@ -838,7 +838,7 @@ P1.1 的确认框只有数据包要显示的部分：名称（标题）、说明
 ### 7.3 详情页
 
 - 说明和出处（词典必须显示 attribution）。
-- 权限按「读取你的内容 / 改动你的内容 / 联网 / 用你的 AI」分组，每一项都能单独撤回。分组是 `plugins.Perm.Group`：读影片、字幕、收藏、生词、声音和它自己的设置是「读取」；`kando.toast` 在窗口里显示提示，是这一版插件唯一能改的东西，归「改动」；网络规则、`credentialFetch` 和 `kando.ui.openURL`（打开的网页会收到网址里的内容）归「联网」；`llm.chat` 归「用你的 AI」。组里必需的在前、可选的在后，没有权限的组不画标题。联网一组下面写 6.2 的「规则限制不了」一行，权限之后是高风险一行、按键冲突和 6.7 的残余风险一行。
+- 权限按「读取你的内容 / 改动你的内容 / 联网 / 用你的 AI」分组，每一项都能单独撤回。分组是 `plugins.Perm.Group`：读影片、字幕、收藏、生词、声音和它自己的设置是「读取」；`kando.toast` 在窗口里显示提示、`kando.glossary.suggest` 给当前影片的术语表提议术语（由用户添加或不用），是这一版插件能改的东西，归「改动」；网络规则、`credentialFetch` 和 `kando.ui.openURL`（打开的网页会收到网址里的内容）归「联网」；`llm.chat` 归「用你的 AI」。组里必需的在前、可选的在后，没有权限的组不画标题。联网一组下面写 6.2 的「规则限制不了」一行，权限之后是高风险一行、按键冲突和 6.7 的残余风险一行。
 - 每日 token 用量和预算。
 - 插件声明的设置，类型有 bool、choice、number、text，最多 16 项，由宿主用 `settings/form` 加 `ui.Switch`、`ui.Select`、`ui.Input` 渲染。值存在 `plugins/.settings/<id>.json`，不计入哈希，改设置不需要重新授权。密钥不是设置：`Validate` 拒收 `secret` 类型的设置，原因里让作者改用 `credentials` 并申请 `kando.net.credentialFetch`。凭据在「密钥」一组里各画一个 secret 字段，输入框下写着「此密钥只会发送到：<hosts>」，密钥存在 `pluginhost.` 分区里（6.3）。
 - 按键冲突提示、「查看审计记录」、「卸载」。卸载会删除目录、`plugin.<id>.*` 和 `pluginhost.<id>.*` 两个分区，并从 state.json 移除，删除前要确认。AI 预设插件留下的服务记录会保留，key 不丢。

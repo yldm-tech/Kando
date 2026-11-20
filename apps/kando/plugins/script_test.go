@@ -344,7 +344,7 @@ func TestScriptGrantStates(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	for perm, want := range map[Perm]PermGroup{PermSavedRead: GroupRead, PermSettingsGet: GroupRead, PermToast: GroupChange, PermOpenURL: GroupNetwork, PermCredFetch: GroupNetwork, PermLLMChat: GroupAI} {
+	for perm, want := range map[Perm]PermGroup{PermSavedRead: GroupRead, PermSettingsGet: GroupRead, PermToast: GroupChange, PermGlossarySuggest: GroupChange, PermOpenURL: GroupNetwork, PermCredFetch: GroupNetwork, PermLLMChat: GroupAI} {
 		if got := perm.Group(); got != want {
 			t.Errorf("%s is in group %d, want %d", perm, got, want)
 		}

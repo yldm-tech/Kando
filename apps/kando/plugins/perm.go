@@ -71,9 +71,9 @@ const EventLineChanged = "line.changed"
 type PermGroup int
 
 const (
-	// GroupRead reads the user's content: the film, its lines, the saved lines, the words, their sound, and the plugin's own settings.
+	// GroupRead reads the user's content: the film, its lines, the saved lines, the words, their sound, and the plugin's own settings. It holds what no other group claims.
 	GroupRead PermGroup = iota
-	// GroupChange changes what the user sees: a toast in Kando's window is the one change a plugin may make in this version.
+	// GroupChange changes what the user sees: a toast in Kando's window, and terms proposed for the open film's glossary, which the user adds or dismisses.
 	GroupChange
 	// GroupNetwork reaches out of Kando: the network rules, a credential sent through Kando and a page opened in the browser, whose site hears what its address says.
 	GroupNetwork
@@ -87,7 +87,7 @@ var Groups = []PermGroup{GroupRead, GroupChange, GroupNetwork, GroupAI}
 // Group is the group p is listed under. A plugin's network rules, granted as a whole, are GroupNetwork's too.
 func (p Perm) Group() PermGroup {
 	switch p {
-	case PermToast:
+	case PermToast, PermGlossarySuggest:
 		return GroupChange
 	case PermOpenURL, PermCredFetch:
 		return GroupNetwork
