@@ -2,7 +2,7 @@
 //
 // What it may reach is what kando-plugin.json declares and the user granted: POST http://127.0.0.1:8765/, AnkiConnect's one endpoint, and the sound of a saved line (kando.sound.read, optional). AnkiConnect takes every action at that endpoint, deleting a deck included, so the rule cannot be narrowed to the actions used here; the plugin asks for nothing that reads the subtitles as they play or the AI service, so what it sends is decided by this signed code and the lines the user chose to export, never by a subtitle's text (docs/plugin-system.md 4.2, 6.2).
 //
-// A failure the user can act on (Anki not running, AnkiConnect too old or refusing Kando, a note type that does not fit) rejects with an Error carrying a code, which Kando shows under the plugin's name and does not count against the plugin. The functions Kando calls are async on purpose: a synchronous throw loses its code (nsgo#847).
+// A failure the user can act on (Anki not running, AnkiConnect too old or refusing Kando, a note type that does not fit) rejects with an Error carrying a code, which Kando shows under the plugin's name and does not count against the plugin. The functions Kando calls are async on purpose: the manifest takes Kando 0.36.0 and later, and up to 0.37.0 a synchronous throw loses its code (nsgo#847), which only a rejection keeps.
 
 import { host } from "nsgo"
 import manifest from "./kando-plugin.json"

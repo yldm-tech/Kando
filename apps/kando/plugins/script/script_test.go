@@ -304,19 +304,24 @@ export function quick() { return 2 }`}), plugins.Grant{})
 	}
 }
 
-// TestScriptBreaker checks that a plugin whose calls failed three times is stopped, and that a failure it reports on purpose, with a code, does not count.
+// TestScriptBreaker checks that a plugin whose calls failed three times is stopped, and that a failure it reports on purpose, with a code, does not count, whether an async export rejects with it or a synchronous one throws it.
 func TestScriptBreaker(t *testing.T) {
 	s := newSigner(t, AppIDPrefix+"acme.*")
 	roots := s.roots()
 	e := newEngine(t)
 	pl := e.load(t, trustOf(t, roots), roots, s.pack(t, fixture{id: "acme.fail", code: `export function fail() { throw new Error("broken") }
-export async function busy() { const e = new Error("Anki is not open"); e.code = "unreachable"; throw e }`}), plugins.Grant{})
+export async function busy() { const e = new Error("Anki is not open"); e.code = "unreachable"; throw e }
+export function busyNow() { const e = new Error("Anki is not open"); e.code = "unreachable"; throw e }`}), plugins.Grant{})
 	stopped := make(chan string, 1)
 	r := &Runner{Post: e.post, Watch: DefaultWatch, Stopped: func(id, hash, reason string) { stopped <- reason }}
-	for range 5 {
+	for i := range 6 {
+		name := "busy"
+		if i%2 == 1 {
+			name = "busyNow"
+		}
 		var coded *core.Error
-		if got := wait(t, e.call(r, pl, "busy"), time.Second); !errors.As(got.err, &coded) || coded.Code != "unreachable" {
-			t.Fatalf("a coded failure: %v", got.err)
+		if got := wait(t, e.call(r, pl, name), time.Second); !errors.As(got.err, &coded) || coded.Code != "unreachable" || coded.Message != "Anki is not open" {
+			t.Fatalf("%s: a coded failure: %v", name, got.err)
 		}
 	}
 	for i := range 3 {
