@@ -252,6 +252,40 @@ type pluginsTranslator struct {
 // Local reports whether the translator runs on this computer, which offline mode keeps (media.Tools.Engine).
 func (t pluginsTranslator) Local() bool { return t.local }
 
+// pluginsCheckWait is how long CheckTranslate waits for the engine's goroutine to answer before it lets the translation go ahead, which then fails as it would.
+const pluginsCheckWait = 5 * time.Second
+
+// CheckTranslate reports what the translator needs and is missing before a film is translated (media.TranslateChecker): a no-credential failure for a plugin with credentials none of whose secrets is kept, as Kando last read them for its details (pluginsNoCredential), so the job says so at once rather than once its lines are sent, without reading the secure store. Anything else, and an engine's goroutine that does not answer within pluginsCheckWait, passes: the translation then fails as it would.
+func (t pluginsTranslator) CheckTranslate() error {
+	got := make(chan bool, 1)
+	t.a.update(func() { got <- t.a.pluginsNoCredential(t.plugin) })
+	timer := time.NewTimer(pluginsCheckWait)
+	defer timer.Stop()
+	select {
+	case missing := <-got:
+		if missing {
+			return plugins.NewTranslateError(plugins.TranslateNoCredential, "")
+		}
+	case <-timer.C:
+	}
+	return nil
+}
+
+// pluginsNoCredential reports whether the script plugin id declares credentials and none of their secrets is kept, as Kando last read or changed them (pluginsScripts.secrets); false for a plugin without credentials, or whose secrets are not read yet.
+func (a *app) pluginsNoCredential(id string) bool {
+	p, ok := a.pluginsPack(id)
+	kept, read := a.plugins.script.secrets[id]
+	if !ok || !read || len(p.Credentials) == 0 {
+		return false
+	}
+	for _, c := range p.Credentials {
+		if kept[plugins.SecretKey(c.ID)] {
+			return false
+		}
+	}
+	return true
+}
+
 // Translate translates segments into language with the plugin's translate(lines, from, to, context), at most plugins.TranslateBatch lines a call, once the plugin runs (ready): lines the segments' texts, from the language the film is heard in (media.SpeechLanguageOf) as a language tag (plugins.SpokenTag), "" when not known, to the target's language tag, or language as it is for a target Kando has no tag for, given to a translator of any language alone; context {translator}, the translator's id. Each answer must be as many lines, in their order (plugins.TranslatedLines). A target or a spoken language the translator does not take fails as plugins.TranslateLanguage before anything is sent.
 func (t pluginsTranslator) Translate(ctx context.Context, segments []kcore.Segment, language string) ([]kcore.Segment, error) {
 	tr, err := t.ready(ctx)

@@ -92,6 +92,26 @@ func translateWith(t *testing.T, a *app, tt *nsgotest.App, updates chan func(), 
 	return out, err
 }
 
+// checkTranslateWith checks what translating with tools needs off the engine's goroutine, as a job does before it translates (media.TranslateChecker), while the engine runs what the translator posts, and returns what is missing.
+func checkTranslateWith(t *testing.T, a *app, tt *nsgotest.App, updates chan func(), tools media.Tools) error {
+	t.Helper()
+	var err error
+	done := make(chan struct{})
+	go func() {
+		err = tools.CheckTranslate()
+		close(done)
+	}()
+	scriptsSettle(t, a, tt, updates, func() bool {
+		select {
+		case <-done:
+			return true
+		default:
+			return false
+		}
+	})
+	return err
+}
+
 // jobTools are the tools a job added now runs with (queuePipeline).
 func jobTools(t *testing.T, a *app) media.Tools {
 	t.Helper()
@@ -135,6 +155,10 @@ func TestPluginTranslatorTranslatesTheFilms(t *testing.T) {
 	tools := jobTools(t, a)
 	if tools.Engine == nil || tools.EngineName != "大写翻译" {
 		t.Fatalf("the job's tools: %T %q", tools.Engine, tools.EngineName)
+	}
+	// A plugin with no credentials needs no key.
+	if err := checkTranslateWith(t, a, tt, updates, tools); err != nil {
+		t.Fatalf("checked: %v", err)
 	}
 	texts := make([]string, 120)
 	for i := range texts {
@@ -376,6 +400,11 @@ func TestOfficialDeepL(t *testing.T) {
 	if got := cardOf(err); got != m.PrecheckSourceNoCredential("DeepL") {
 		t.Fatalf("no key: %q (%v)", got, err)
 	}
+	// The job says so before it sends a line (media.TranslateChecker), from which secrets Kando read for the plugin, without asking the secure store.
+	scriptsSettle(t, a, tt, updates, func() bool { _, ok := a.plugins.script.secrets["kando.deepl"]; return ok })
+	if err := checkTranslateWith(t, a, tt, updates, tools); cardOf(err) != m.PrecheckSourceNoCredential("DeepL") {
+		t.Fatalf("checked without a key: %v", err)
+	}
 	secrets := []string{"k-free-123:fx", "k-pro-456"}
 	setKey := func(k string) {
 		onEngine(a, func() { a.SetPluginSecret("kando.deepl", plugins.SecretKey("deepl"), k) })
@@ -390,6 +419,9 @@ func TestOfficialDeepL(t *testing.T) {
 		}
 	}
 	setKey(secrets[0])
+	if err := checkTranslateWith(t, a, tt, updates, tools); err != nil {
+		t.Fatalf("checked with a key: %v", err)
+	}
 	heard()
 	texts := make([]string, 60)
 	for i := range texts {
