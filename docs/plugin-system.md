@@ -362,7 +362,7 @@ s := tsx.Sandbox{Grant: &pkg.Capabilities{}, Host: nil, Limits: &l, Storage: pro
 - 包的 `Capabilities.Host` 必须等于清单 `capabilities.host` 加上 `optional`，包的 `Capabilities.Network` 必须等于清单的 `capabilities.network`，其他能力字段必须全部为零值。
 - 包的 `App.ID` 必须是 `ai.yldm.kando.plugin.<id>`，并且被签名证书的 `Apps` 模式覆盖（`tsx/pkg/certificate.go:121-125`）。
 - 清单声明的每个导出函数都必须出现在 `Plugin.Exports()` 里。
-- 用到的 host handler 和声明的是否一致，宿主不检查，也不因此拒装：代码调哪些 handler 不能静态确定，没声明的调用本来就被 Grant 和 handler 的 `Effective` 检查以 `denied` 挡住。目录的 CI 工具 `kando-plugin preview` 读签名包里的代码文本，在 PR 评论里给审核者写提醒（不让包失败）：代码里 `host.call("kando.…")` 写出了名字、清单却没声明的权限，声明了、代码里却从没这样调过的权限，以及调 5.3 那三个要等的 handler 却没传选项（`timeout`）的地方。经变量或运行时拼出来的名字看不到，所以只是提醒。
+- 用到的 host handler 和声明的是否一致，宿主不检查，也不因此拒装：代码调哪些 handler 不能静态确定，没声明的调用本来就被 Grant 和 handler 的 `Effective` 检查以 `denied` 挡住。目录的 CI 工具 `kando-plugin preview` 读签名包里的代码文本，在 PR 评论里给审核者写提醒（不让包失败）：代码里 `host.call("kando.…")` 写出了名字、清单却没声明的权限，声明了、代码里却从没这样调过的权限，以及调 5.3 那三个要等的 handler 却没传选项（`timeout`）的地方。声明了 `line.changed` 事件的插件不会因为没调 `kando.line.current` 被提醒：这个事件只在它有这项授权时才推。经变量或运行时拼出来的名字看不到，所以只是提醒。它最多读 1000 个调用、每个调用的参数最多读 64 KiB、每行最多列 16 个名字，超过 1000 个调用时写明只读了前面的，并且不再说哪些权限没调过，所以包撑不长评论，也拖不慢 CI（`hostCallsMax`、`hostCallArgsMax`、`noteNamesMax`）。
 
 这个缺口已提交为 [nsgo-dev/nsgo#761](https://github.com/nsgo-dev/nsgo/issues/761)：请求 `pkg.Build`/`pkg.Contents` 支持 app 自定义的签名文件条目（`doc.go` 的 Format evolution 一节说格式本身能容纳）。P3 的绕行代码处写 `// TODO(nsgo#761): pkg.Contents has no app-defined signed entries; compare kandoManifest() instead https://github.com/nsgo-dev/nsgo/issues/761`。
 

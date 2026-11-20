@@ -5,6 +5,7 @@ import (
 	"bytes"
 	"crypto/ed25519"
 	"encoding/json"
+	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
@@ -351,5 +352,42 @@ const note = "kando.toast";
 	}
 	if notes := hostNotes(m, strings.ReplaceAll(bundle, "{ saved: id })", "{ saved: id }, WAIT)")+`host.call("kando.toast", {})`); len(notes) != 0 {
 		t.Errorf("a plugin calling what it declares, each with options: %v", notes)
+	}
+}
+
+// TestHostNotesBounds checks that hostNotes stays short and quick whatever the bundle holds: it names at most noteNamesMax permissions a line, reads at most hostCallsMax calls and then says so without claiming a declared permission is never called, takes a call whose arguments run past hostCallArgsMax to pass options, and does not note kando.line.current as unused for a plugin that hears line.changed, which Kando sends only while it is granted.
+func TestHostNotesBounds(t *testing.T) {
+	var b strings.Builder
+	for i := range noteNamesMax + 3 {
+		b.WriteString(`host.call("kando.x` + strings.Repeat("y", i) + `", {}, W);`)
+	}
+	notes := hostNotes(plugins.Manifest{}, b.String())
+	if len(notes) != 1 || !strings.HasSuffix(notes[0], " and 3 more without declaring it: Kando refuses the call with denied") || strings.Count(notes[0], "kando.") != noteNamesMax {
+		t.Errorf("names past noteNamesMax: %v", notes)
+	}
+
+	m := plugins.Manifest{Capabilities: &pkg.Capabilities{Host: []string{"kando.toast"}}}
+	flood := strings.Repeat(`host.call("kando.x", (`, hostCallsMax+1) + `host.call("kando.toast", {}, W)`
+	notes = hostNotes(m, flood)
+	want := []string{
+		"calls ` kando.x ` without declaring it: Kando refuses the call with denied",
+		fmt.Sprintf("names more than %d host calls: only the first %d were read", hostCallsMax, hostCallsMax),
+	}
+	if strings.Join(notes, "\n") != strings.Join(want, "\n") {
+		t.Errorf("past hostCallsMax:\n%s\nwant\n%s", strings.Join(notes, "\n"), strings.Join(want, "\n"))
+	}
+
+	long := `host.call("kando.llm.chat", {user: "` + strings.Repeat("a", hostCallArgsMax) + `"})`
+	if notes := hostNotes(plugins.Manifest{Optional: []plugins.Perm{plugins.PermLLMChat}}, long); len(notes) != 0 {
+		t.Errorf("a call cut off at hostCallArgsMax: %v", notes)
+	}
+
+	panel := plugins.Manifest{Capabilities: &pkg.Capabilities{Host: []string{"kando.line.current"}}}
+	if notes := hostNotes(panel, ""); len(notes) != 1 {
+		t.Errorf("kando.line.current never called nor heard: %v", notes)
+	}
+	panel.Events = []string{plugins.EventLineChanged}
+	if notes := hostNotes(panel, ""); len(notes) != 0 {
+		t.Errorf("kando.line.current of a plugin hearing line.changed: %v", notes)
 	}
 }
