@@ -182,9 +182,11 @@ func pluginScriptDetailIn(cx *core.Scope, a PluginsApp, r PluginRow) []core.Node
 			nodes = append(nodes, pluginCredentialRow(cx, a, id, c)...)
 		}
 	}
-	if len(r.Pack.Settings) > 0 {
+	// A secret setting a plugin was installed with has no field: no host call ever used one, and Kando only keeps its key to remove it with the plugin (plugins.Setting.LegacySecret).
+	drawn := slices.DeleteFunc(slices.Clone(r.Pack.Settings), plugins.Setting.LegacySecret)
+	if len(drawn) > 0 {
 		nodes = append(nodes, core.Text{Content: locales.SettingsPluginsSettings(cx), Role: core.RoleHeader, Style: core.Style{FontSize: 12, LineHeight: 17, FontWeight: ui.Semibold, Margin: core.Edges{Top: 6}}, StyleFunc: ui.Colored(colors.Text)})
-		for _, s := range r.Pack.Settings {
+		for _, s := range drawn {
 			nodes = append(nodes, pluginSettingRow(cx, a, id, s))
 		}
 	}

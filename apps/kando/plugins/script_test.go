@@ -6,6 +6,7 @@ import (
 	"errors"
 	"os"
 	"path/filepath"
+	"slices"
 	"strings"
 	"testing"
 	"time"
@@ -111,6 +112,36 @@ func TestValidateScript(t *testing.T) {
 	// A script plugin may be under kando.: the signature decides, not Validate.
 	if _, err := Validate(writeScript(t, strings.Replace(scriptManifest(), "example.anki", "kando.anki", 1))); err != nil {
 		t.Errorf("kando.anki: %v", err)
+	}
+}
+
+// TestScanKeepsALegacySecretSetting checks that a script plugin installed before Kando refused secret settings is still read by Scan, though Validate refuses it, with the key of its secret among SecretKeys so what the user saved under it goes with the plugin, and the secret neither a value of kando.settings.get nor allowed a default.
+func TestScanKeepsALegacySecretSetting(t *testing.T) {
+	legacy := strings.Replace(scriptManifest(), `"type": "bool", "default": true`, `"type": "secret"`, 1)
+	if _, err := Validate(writeScript(t, legacy)); !errors.Is(err, ErrBadField) {
+		t.Fatalf("Validate of a secret setting: %v", err)
+	}
+	root := t.TempDir()
+	dir := filepath.Join(root, string(KindScript), "example.anki")
+	if err := os.CopyFS(dir, os.DirFS(writeScript(t, legacy))); err != nil {
+		t.Fatal(err)
+	}
+	packs, issues := Scan(root)
+	if len(packs) != 1 || len(issues) != 0 {
+		t.Fatalf("Scan = %+v, %+v", packs, issues)
+	}
+	if got := packs[0].SecretKeys(); !slices.Equal(got, []string{"audio"}) {
+		t.Errorf("SecretKeys = %q", got)
+	}
+	if got, ok := packs[0].Resolve(Values{"audio": "s3cret"})["audio"]; ok {
+		t.Errorf("kando.settings.get answers the secret: %v", got)
+	}
+	// Installed or not, a secret has no default.
+	if err := os.WriteFile(filepath.Join(dir, ManifestName), []byte(strings.Replace(scriptManifest(), `"type": "bool"`, `"type": "secret"`, 1)), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if packs, issues := Scan(root); len(packs) != 0 || len(issues) != 1 || !errors.Is(issues[0].Err, ErrBadField) {
+		t.Errorf("Scan of a secret with a default = %+v, %+v", packs, issues)
 	}
 }
 

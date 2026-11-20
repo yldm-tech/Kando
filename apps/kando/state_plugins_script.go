@@ -589,12 +589,16 @@ func (a *app) pluginsForgetPartitions(p plugins.Pack, signer string) {
 		return
 	}
 	script.ClearStorage(a.cx, p.ID, signer)
-	keys := p.SecretKeys()
 	delete(a.plugins.script.secrets, p.ID)
-	if len(keys) == 0 {
+	a.pluginsForgetSecrets(p.ID, signer, p.SecretKeys())
+}
+
+// pluginsForgetSecrets removes the secrets Kando kept under keys for the plugin id signed by signer, off the UI thread.
+func (a *app) pluginsForgetSecrets(id, signer string, keys []string) {
+	if a.cx == nil || signer == "" || len(keys) == 0 {
 		return
 	}
-	secrets := a.pluginsHostSecrets(p.ID, signer)
+	secrets := a.pluginsHostSecrets(id, signer)
 	go func() {
 		for _, k := range keys {
 			secrets.Delete(k)

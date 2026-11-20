@@ -554,6 +554,9 @@ func (a *app) pluginsInstall() {
 			}
 			if signer != "" && signer != pack.Signer {
 				a.pluginsForgetPartitions(*old, signer)
+			} else {
+				// The same signer: the update keeps its storage and its credentials' secrets, but not those of the secret settings the one before was installed with (plugins.Setting.LegacySecret), which it cannot declare.
+				a.pluginsForgetSecrets(pack.ID, signer, slices.DeleteFunc(old.SecretKeys(), func(k string) bool { return slices.Contains(pack.SecretKeys(), k) }))
 			}
 		}
 		a.plugins.script.health = plugins.SetHealth(a.plugins.script.health, plugins.Health{ID: pack.ID})

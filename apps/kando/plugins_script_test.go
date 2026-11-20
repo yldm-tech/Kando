@@ -510,6 +510,58 @@ func TestPluginScriptUninstallForgetsItsStorage(t *testing.T) {
 	}
 }
 
+// TestPluginScriptForgetsALegacySecret checks that a script plugin installed before Kando refused secret settings is still listed and runs, without a field for its secret, and that what the user saved under that secret is removed as the plugin is uninstalled, or updated by the same signer to a version that cannot declare it.
+func TestPluginScriptForgetsALegacySecret(t *testing.T) {
+	legacy := strings.Replace(pluginAnkiFields, `"settings": [`, `"settings": [
+    {"key": "token", "type": "secret", "title": {"en": "Token", "zh-Hans": "令牌"}},`, 1)
+	for _, how := range []string{"uninstall", "update"} {
+		t.Run(how, func(t *testing.T) {
+			key := newPluginsKey(t)
+			a, tt, updates, root := scriptsApp(t, key)
+			// Stage refuses it now, so it is put in place as an install of Kando 0.38 left it.
+			if err := os.CopyFS(filepath.Join(root, string(plugins.KindScript), "acme.anki"), os.DirFS(pluginScriptFolder(t, key, "acme.anki", "1.0.0", legacy, pluginAnkiCode))); err != nil {
+				t.Fatal(err)
+			}
+			onEngine(a, a.pluginsScan)
+			scriptsSettle(t, a, tt, updates, func() bool {
+				packs := a.pluginsScriptPacks()
+				return !a.plugins.busy && !a.plugins.inboxBusy && len(packs) == 1 && packs[0].Signer != ""
+			})
+			scriptsGrant(t, a, tt, updates, "acme.anki")
+			if got, err := scriptsCall(t, a, tt, updates, "acme.anki", "settings"); err != nil || !strings.Contains(fmt.Sprint(got), "deck") || strings.Contains(fmt.Sprint(got), "token") {
+				t.Errorf("kando.settings.get answers %v, %v", got, err)
+			}
+			signer := a.pluginsScriptPacks()[0].Signer
+			onEngine(a, func() { a.SetPluginSecret("acme.anki", "token", "s3cret") })
+			scriptsSettle(t, a, tt, updates, func() bool { return a.PluginSecretKept("acme.anki", "token") })
+			tt = settingsOpenAt(a, tt, settings.SectionPlugins)
+			tt.Press("id:settings-plugins-details-acme.anki")
+			if !tt.Exists("id:settings-plugins-setting-acme.anki-deck") || tt.Exists("id:settings-plugins-setting-acme.anki-token") {
+				t.Errorf("the settings drawn; texts %q", tt.Texts())
+			}
+			var secrets ns.Secrets
+			onEngine(a, func() { secrets = a.pluginsHostSecrets("acme.anki", signer) })
+			if how == "uninstall" {
+				onEngine(a, func() { a.UninstallPlugin("acme.anki") })
+				scriptsSettle(t, a, tt, updates, func() bool { return !a.plugins.busy && len(a.pluginsScriptPacks()) == 0 && !a.plugins.inboxBusy })
+			} else {
+				update := pluginScriptFolder(t, key, "acme.anki", "1.0.1", pluginAnkiFields, pluginAnkiCode)
+				onEngine(a, func() { a.InstallPlugins([]string{update}) })
+				waitUntil(t, tt, a, updates, func() bool { return a.plugins.pending != nil && !a.plugins.busy })
+				if err := a.plugins.pending.err; err != nil {
+					t.Fatal(err)
+				}
+				onEngine(a, a.ConfirmPluginInstall)
+				scriptsSettle(t, a, tt, updates, func() bool {
+					packs := a.pluginsScriptPacks()
+					return a.plugins.pending == nil && !a.plugins.busy && !a.plugins.inboxBusy && len(packs) == 1 && packs[0].Version == "1.0.1"
+				})
+			}
+			scriptsSettle(t, a, tt, updates, func() bool { _, ok, _ := secrets.Get("token"); return !ok })
+		})
+	}
+}
+
 // TestPluginScriptsCloseAsTheAppQuits checks that the plugins running are closed by quitStarting, while the app's scope is there.
 func TestPluginScriptsCloseAsTheAppQuits(t *testing.T) {
 	key := newPluginsKey(t)

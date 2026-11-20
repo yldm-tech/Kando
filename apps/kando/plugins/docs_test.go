@@ -78,7 +78,7 @@ func TestDocManifestExamples(t *testing.T) {
 		}
 		manifest, err := Parse(data)
 		if err == nil {
-			err = checkManifest(&manifest)
+			err = checkManifest(&manifest, false)
 		}
 		if err != nil {
 			t.Errorf("block %d (%v) is refused: %v", i+1, m["id"], err)

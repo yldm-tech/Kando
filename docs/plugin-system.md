@@ -830,7 +830,7 @@ P1.1 的确认框只有数据包要显示的部分：名称（标题）、说明
 - 说明和出处（词典必须显示 attribution）。
 - 权限按「读取你的内容 / 改动你的内容 / 联网 / 用你的 AI」分组，每一项都能单独撤回。
 - 每日 token 用量和预算。
-- 插件声明的设置，类型有 bool、choice、number、text，最多 16 项，由宿主用 `settings/form` 加 `ui.Switch`、`ui.Select`、`ui.Input` 渲染。值存在 `plugins/.settings/<id>.json`，不计入哈希，改设置不需要重新授权。密钥不是设置：`Validate` 拒收 `secret` 类型的设置，原因里让作者改用 `credentials` 并申请 `kando.net.credentialFetch`。凭据在「密钥」一组里各画一个 secret 字段，输入框下写着「此密钥只会发送到：<hosts>」，密钥存在 `pluginhost.` 分区里（6.3）。
+- 插件声明的设置，类型有 bool、choice、number、text，最多 16 项，由宿主用 `settings/form` 加 `ui.Switch`、`ui.Select`、`ui.Input` 渲染。值存在 `plugins/.settings/<id>.json`，不计入哈希，改设置不需要重新授权。密钥不是设置：`Validate` 拒收 `secret` 类型的设置，原因里让作者改用 `credentials` 并申请 `kando.net.credentialFetch`。0.36–0.38 装上的插件可能还声明着它：`Scan` 读已安装的包时照样收下（不能带默认值），详情页不画它，`kando.settings.get` 不给它，它的 key 留在 `SecretKeys` 里，卸载、换签名者，或同一签名者更新到不再声明它的版本时，把用户存在 `pluginhost.` 分区里的值一起删掉（`plugins.Setting.LegacySecret`）。凭据在「密钥」一组里各画一个 secret 字段，输入框下写着「此密钥只会发送到：<hosts>」，密钥存在 `pluginhost.` 分区里（6.3）。
 - 按键冲突提示、「查看审计记录」、「卸载」。卸载会删除目录、`plugin.<id>.*` 和 `pluginhost.<id>.*` 两个分区，并从 state.json 移除，删除前要确认。AI 预设插件留下的服务记录会保留，key 不丢。
 
 ### 7.4 角色选择的位置

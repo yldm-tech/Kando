@@ -22,7 +22,7 @@ func FuzzParse(f *testing.F) {
 			t.Errorf("Parse accepted kind %q", m.Kind)
 		}
 		// Validate's checks of the fields run on whatever Parse accepts.
-		_ = checkManifest(&m)
+		_ = checkManifest(&m, false)
 	})
 }
 

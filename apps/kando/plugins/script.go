@@ -94,7 +94,7 @@ var (
 )
 
 // checkScript checks the fields of a script plugin m (docs/plugin-system.md 4.2): its package, the capabilities it asks for, which are its own permissions (host) and HTTP requests each limited to methods and paths (network) and nothing else, the permissions it can do without (optional), what it contributes, its credentials, settings and events. Its texts are cleaned in place.
-func checkScript(m *Manifest) error {
+func checkScript(m *Manifest, installed bool) error {
 	if m.Kando != "" && !kandoPattern.MatchString(m.Kando) {
 		return fmt.Errorf("%w: kando %q is not >=MAJOR.MINOR.PATCH", ErrBadField, m.Kando)
 	}
@@ -137,7 +137,7 @@ func checkScript(m *Manifest) error {
 	if err := checkCredentials(m); err != nil {
 		return err
 	}
-	if err := checkSettings(m.Settings); err != nil {
+	if err := checkSettings(m.Settings, installed); err != nil {
 		return err
 	}
 	for i, e := range m.Events {
@@ -237,7 +237,7 @@ func validKey(key string) bool {
 	return ok && slices.Contains(strings.Fields("1 2 3 4 5 6 7 8 9 10 11 12"), n)
 }
 
-func checkSettings(settings []Setting) error {
+func checkSettings(settings []Setting, installed bool) error {
 	if len(settings) > settingsMax {
 		return fmt.Errorf("%w: at most %d settings", ErrBadField, settingsMax)
 	}
@@ -249,21 +249,30 @@ func checkSettings(settings []Setting) error {
 		if err := checkText("setting title", s.Title, nameMax*2, true, false); err != nil {
 			return err
 		}
-		if err := checkSetting(s); err != nil {
+		if err := checkSetting(s, installed); err != nil {
 			return fmt.Errorf("setting %s: %w", s.Key, err)
 		}
 	}
 	return nil
 }
 
-// settingSecret is the type of a setting the first script plugins could declare, which no host call ever used, as a credential (Manifest.Credentials) does what it was for: Validate refuses it with a reason that names credentials.
+// settingSecret is the type of a setting the script plugins of Kando 0.36 to 0.38 could declare, which no host call ever used, as a credential (Manifest.Credentials) does what it was for. Validate refuses it with a reason that names credentials, while Scan still takes a plugin installed before that declares one (LegacySecret), so the plugin does not vanish from the list and what the user saved under it is still removed with it (Manifest.SecretKeys).
 const settingSecret = "secret"
 
-// checkSetting checks the setting s of its type: what bounds it, that only its type's fields are set, and that its default is a value of it.
-func checkSetting(s *Setting) error {
+// LegacySecret reports whether s is a secret setting of a plugin installed before Kando refused them (settingSecret): Kando neither draws it nor gives its value to the plugin, and keeps its key among the plugin's SecretKeys only to remove what the user saved under it.
+func (s Setting) LegacySecret() bool { return s.Type == settingSecret }
+
+// checkSetting checks the setting s of its type: what bounds it, that only its type's fields are set, and that its default is a value of it. A secret setting is refused, but of a pack already installed (installed), which only needs no default and no fields of another type.
+func checkSetting(s *Setting, installed bool) error {
 	bad := func(what string) error { return fmt.Errorf("%w: %s", ErrBadField, what) }
-	if s.Type == settingSecret {
-		return bad("a secret is not a setting: declare it under credentials and ask for kando.net.credentialFetch, so Kando keeps it and sends it only to the hosts the credential names")
+	if s.LegacySecret() {
+		if !installed {
+			return bad("a secret is not a setting: declare it under credentials and ask for kando.net.credentialFetch, so Kando keeps it and sends it only to the hosts the credential names")
+		}
+		if s.Default != nil || s.Choices != nil || s.Min != nil || s.Max != nil {
+			return bad("a secret has no default, choices or bounds")
+		}
+		return nil
 	}
 	if s.Type != SettingChoice && s.Choices != nil {
 		return bad("choices of a setting that is not a choice")

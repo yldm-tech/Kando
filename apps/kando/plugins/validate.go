@@ -145,7 +145,8 @@ func validate(dir string, cache *hashCache) (Pack, error) {
 	if err != nil {
 		return Pack{}, err
 	}
-	if err := checkManifest(&m); err != nil {
+	// A scan (cache) reads the packs already installed, which may still declare what Kando no longer installs (Setting.LegacySecret).
+	if err := checkManifest(&m, cache != nil); err != nil {
 		return Pack{}, err
 	}
 	if err := checkFiles(m, names); err != nil {
@@ -329,8 +330,8 @@ func (m Manifest) files() []string {
 	return nil
 }
 
-// checkManifest checks every field of m for its kind, cleaning its texts in place.
-func checkManifest(m *Manifest) error {
+// checkManifest checks every field of m for its kind, cleaning its texts in place; installed is set for a pack already installed, which Scan reads (checkSetting).
+func checkManifest(m *Manifest, installed bool) error {
 	if !m.Kind.implemented() {
 		return fmt.Errorf("%w: %s", ErrUnsupportedKind, m.Kind)
 	}
@@ -391,7 +392,7 @@ func checkManifest(m *Manifest) error {
 	case m.Kind == KindSite && m.Site != nil && set == 1:
 		err = checkSite(m.Site)
 	case m.Kind == KindScript && m.Script != nil && set == 1:
-		err = checkScript(m)
+		err = checkScript(m, installed)
 	case m.Kind == KindTask && m.Task != nil && set == 1:
 		err = checkTask(m.Task)
 	case m.Kind == KindStyle && m.Style != nil && set == 1:
