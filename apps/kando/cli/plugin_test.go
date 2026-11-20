@@ -191,10 +191,11 @@ func TestPluginInstall(t *testing.T) {
 	}
 }
 
-// TestPluginValidateScript checks that validate verifies a script plugin's signature as the app does, against Kando's official root: one signed with a developer key, which the command line does not read from the system's secure store, is refused as signed by a key not trusted, after the checks every pack passes.
+// TestPluginValidateScript checks that validate verifies a script plugin's signature as the app does, against Kando's official root: one signed with a developer key, which the command line does not read from the system's secure store, is refused as signed by a key not trusted, after the checks every pack passes, and install refuses it before it reaches the inbox.
 func TestPluginValidateScript(t *testing.T) {
 	shortSocket(t)
-	pluginsRoot = func() string { return filepath.Join(t.TempDir(), "plugins") }
+	root := filepath.Join(t.TempDir(), "plugins")
+	pluginsRoot = func() string { return root }
 	t.Cleanup(func() { pluginsRoot = plugins.DefaultRoot })
 	secret, _, err := script.NewDevKey()
 	if err != nil {
@@ -215,6 +216,47 @@ func TestPluginValidateScript(t *testing.T) {
 	if code != 1 || stdout != "" || !strings.Contains(stderr, "not signed by a key Kando trusts") {
 		t.Errorf("validate a developer plugin = %d, %q, %q", code, stdout, stderr)
 	}
+	// install checks a pack file as validate does, so the developer plugin never reaches the inbox.
+	code, stdout, stderr = run("plugin", "install", folderZip(t, dst))
+	if code != 1 || stdout != "" || !strings.Contains(stderr, "not signed by a key Kando trusts") {
+		t.Errorf("install a developer plugin = %d, %q, %q", code, stdout, stderr)
+	}
+	if inbox, _ := plugins.Inbox(root); len(inbox) != 0 {
+		t.Errorf("the developer plugin reached the inbox: %q", inbox)
+	}
+}
+
+// folderZip writes a zip of the files of the folder dir, a pack file as a pack folder is shared, and returns its path.
+func folderZip(t *testing.T, dir string) string {
+	t.Helper()
+	entries, err := os.ReadDir(dir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	path := filepath.Join(t.TempDir(), "pack.kandoplugin")
+	f, err := os.Create(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer f.Close()
+	w := zip.NewWriter(f)
+	for _, e := range entries {
+		data, err := os.ReadFile(filepath.Join(dir, e.Name()))
+		if err != nil {
+			t.Fatal(err)
+		}
+		entry, err := w.Create(e.Name())
+		if err == nil {
+			_, err = entry.Write(data)
+		}
+		if err != nil {
+			t.Fatal(err)
+		}
+	}
+	if err := w.Close(); err != nil {
+		t.Fatal(err)
+	}
+	return path
 }
 
 // TestPluginValidateDataPackOpensNoTrust checks that kando plugin validate opens the plugins folder's trust only for a script plugin: a data pack passes even when that trust cannot be read.

@@ -39,7 +39,7 @@ type pluginIssue struct {
 	Error string `json:"error"`
 }
 
-// runPlugin is `kando plugin`, which works without the app: validate checks a pack, a zip or a folder, with the checks the app installs it with (plugins.Stage and plugins.Validate), copying it into a folder of its own that it removes afterwards; list lists the packs in the plugins folder (plugins.Scan) and whether each is turned on (plugins.State); install checks a pack file as validate does and drops it into the plugins folder's inbox (plugins.Drop), where the app offers it in its install confirmation the next time it starts or comes to the front; index builds and signs the community index from a folder of pack files (pluginIndex). Nothing here installs a pack: only the app does, once the user confirms what it shows.
+// runPlugin is `kando plugin`, which works without the app: validate checks a pack, a zip or a folder, with the checks the app installs it with (plugins.Stage and plugins.Validate), copying it into a folder of its own that it removes afterwards; list lists the packs in the plugins folder (plugins.Scan) and whether each is turned on (plugins.State); install checks a pack file as validate does, a script plugin's signature too, and drops it into the plugins folder's inbox (plugins.Drop), where the app offers it in its install confirmation the next time it starts or comes to the front; index builds and signs the community index from a folder of pack files (pluginIndex). Nothing here installs a pack: only the app does, once the user confirms what it shows.
 func runPlugin(e *env, args []string) error {
 	// index has flags of its own, which the other subcommands do not take; the flags before a subcommand can only be --json, which takes no value, so the subcommand is the first argument that is not a flag, or the one after "--".
 	if i := pluginVerbAt(args); i >= 0 && args[i] == "index" {
@@ -115,17 +115,18 @@ func pluginValidate(e *env, src string) error {
 	return table(e.stdout, rows)
 }
 
-// pluginInstall checks the pack file src as validate does and drops it into the inbox of the plugins folder for the app to confirm. A folder is refused: the inbox holds files, and a folder is installed by dropping it on Settings › Plugins.
+// pluginInstall checks the pack file src as validate does (publish.Check, a script plugin's signature too) and drops it into the inbox of the plugins folder for the app to confirm, where the app checks it again. A folder is refused: the inbox holds files, and a folder is installed by dropping it on Settings › Plugins. A developer plugin is refused as validate refuses it, as the command line does not read the developer key, which only the app trusts, in developer mode.
 func pluginInstall(e *env, src string) error {
 	if info, err := os.Stat(src); err == nil && info.IsDir() {
 		return usagef("install takes a pack file, a .zip; %s is a folder", src)
 	}
-	tmp, err := os.MkdirTemp("", "kando-plugin-")
+	work, err := os.MkdirTemp("", "kando-plugin-")
 	if err != nil {
 		return err
 	}
-	defer os.RemoveAll(tmp)
-	_, p, err := plugins.Stage(tmp, src)
+	defer os.RemoveAll(work)
+	roots := signature.DefaultRoots(nil)
+	c, err := publish.Check(src, work, publish.Trust(pluginsRoot(), roots), roots)
 	if err != nil {
 		return fmt.Errorf("%s: %w", src, err)
 	}
@@ -133,7 +134,10 @@ func pluginInstall(e *env, src string) error {
 	if err != nil {
 		return fmt.Errorf("%s: %w", src, err)
 	}
-	info := newPluginInfo(p)
+	info := newPluginInfo(c.Pack)
+	if c.Pack.Kind == plugins.KindScript {
+		info.Source, info.Signer = string(c.Source), c.Signer
+	}
 	if e.json {
 		out := struct {
 			pluginInfo
