@@ -146,17 +146,29 @@ func (p *phone) pair(d *synctest.Desktop) {
 // pairedWith keeps d in dir as paired, pairing over the protocol rather than through the pairing page, and returns the option that starts the phone with the token in its secure store.
 func pairedWith(t *testing.T, d *synctest.Desktop, dir string) nsgotest.Option {
 	t.Helper()
-	c := sync.NewClient(d.Addr, d.Fingerprint, "")
-	defer c.Close()
-	resp, err := c.Pair(context.Background(), sync.PairRequest{Code: "123456", Device: "Test Phone", Platform: sync.PlatformIOS})
-	if err != nil {
+	return pairedWithAll(t, dir, d)
+}
+
+// pairedWithAll is pairedWith for each of ds, kept in dir in their order.
+func pairedWithAll(t *testing.T, dir string, ds ...*synctest.Desktop) nsgotest.Option {
+	t.Helper()
+	var desks []store.Desktop
+	secrets := map[string]string{}
+	for _, d := range ds {
+		c := sync.NewClient(d.Addr, d.Fingerprint, "")
+		resp, err := c.Pair(context.Background(), sync.PairRequest{Code: "123456", Device: "Test Phone", Platform: sync.PlatformIOS})
+		c.Close()
+		if err != nil {
+			t.Fatal(err)
+		}
+		desk := store.Desktop{ID: store.DesktopID(d.Fingerprint), Name: resp.Desktop, Addr: d.Addr, Fingerprint: d.Fingerprint, DeviceID: resp.DeviceID, Paired: now()}
+		desks = append(desks, desk)
+		secrets[store.TokenAccount(desk.ID)] = resp.Token
+	}
+	if err := store.Open(dir).SaveDesktops(desks); err != nil {
 		t.Fatal(err)
 	}
-	desk := store.Desktop{ID: store.DesktopID(d.Fingerprint), Name: resp.Desktop, Addr: d.Addr, Fingerprint: d.Fingerprint, DeviceID: resp.DeviceID, Paired: now()}
-	if err := store.Open(dir).SaveDesktops([]store.Desktop{desk}); err != nil {
-		t.Fatal(err)
-	}
-	return nsgotest.Secrets(map[string]string{store.TokenAccount(desk.ID): resp.Token})
+	return nsgotest.Secrets(secrets)
 }
 
 // fillPairing types the address and the code into the pairing page.

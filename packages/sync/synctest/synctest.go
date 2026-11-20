@@ -4,12 +4,17 @@ package synctest
 import (
 	"bytes"
 	"context"
+	"crypto/ecdsa"
+	"crypto/elliptic"
 	"crypto/rand"
 	"crypto/sha256"
+	"crypto/tls"
+	"crypto/x509"
 	"encoding/hex"
 	"encoding/json"
 	"io"
 	"log"
+	"math/big"
 	"net"
 	"net/http"
 	"net/http/httptest"
@@ -84,8 +89,34 @@ type Desktop struct {
 	modTime time.Time
 }
 
-// New starts a desktop named name on loopback, closed when the test ends. It offers no code until Offer.
+// New starts a desktop named name on loopback, closed when the test ends. It offers no code until Offer. Every desktop New starts has httptest's certificate, so the same fingerprint: a phone takes two of them for one computer; NewOwn starts another beside it.
 func New(t testing.TB, name string) *Desktop {
+	t.Helper()
+	return start(t, name, nil)
+}
+
+// NewOwn is New with a certificate of the desktop's own, so its fingerprint is not that of any other desktop, as a second computer paired with the same phone.
+func NewOwn(t testing.TB, name string) *Desktop {
+	t.Helper()
+	key, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
+	if err != nil {
+		t.Fatal(err)
+	}
+	serial, err := rand.Int(rand.Reader, new(big.Int).Lsh(big.NewInt(1), 62))
+	if err != nil {
+		t.Fatal(err)
+	}
+	template := &x509.Certificate{SerialNumber: serial, NotBefore: time.Unix(1_600_000_000, 0), NotAfter: time.Unix(4_000_000_000, 0),
+		IPAddresses: []net.IP{net.IPv4(127, 0, 0, 1), net.IPv6loopback}, KeyUsage: x509.KeyUsageDigitalSignature, ExtKeyUsage: []x509.ExtKeyUsage{x509.ExtKeyUsageServerAuth}}
+	der, err := x509.CreateCertificate(rand.Reader, template, template, &key.PublicKey, key)
+	if err != nil {
+		t.Fatal(err)
+	}
+	return start(t, name, &tls.Certificate{Certificate: [][]byte{der}, PrivateKey: key})
+}
+
+// start starts a desktop named name serving cert, httptest's own when nil.
+func start(t testing.TB, name string, cert *tls.Certificate) *Desktop {
 	t.Helper()
 	d := &Desktop{Name: name, tokens: map[string]bool{}, names: map[string]string{}, modTime: time.Unix(1_700_000_000, 0), target: "zh-Hans", context: true}
 	d.queue.receive = sync.ReceiveQueue
@@ -102,6 +133,9 @@ func New(t testing.TB, name string) *Desktop {
 	d.srv.Listener = offListener{d.srv.Listener, d}
 	// A phone reading the certificate alone (sync.FetchFingerprint) hangs up after the handshake, which the server would log as an error.
 	d.srv.Config.ErrorLog = log.New(io.Discard, "", 0)
+	if cert != nil {
+		d.srv.TLS = &tls.Config{Certificates: []tls.Certificate{*cert}}
+	}
 	d.srv.StartTLS()
 	t.Cleanup(d.srv.Close)
 	u, err := url.Parse(d.srv.URL)

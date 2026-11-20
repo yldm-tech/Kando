@@ -223,11 +223,25 @@ func Computers(cx *core.Scope, s *session.Session, open func()) core.Node {
 		}
 		return strings.Join(out, " · ")
 	}
-	// online is whether every paired computer answered its last read, and the queue the phone follows has not found it out of reach since.
+	// out reports whether the phone lost the computer desktop: its last read failed, or the queue the phone follows found it out of reach since.
+	out := func(desktop string) bool {
+		return s.Shelf(desktop).Err != nil || s.Queue(desktop).Reach == session.Offline
+	}
+	// online is whether every paired computer answers.
 	online := func() bool {
 		ds := s.Desktops()
 		for _, d := range ds {
-			if s.Shelf(d.ID).Err != nil || s.Queue(d.ID).Reach == session.Offline {
+			if out(d.ID) {
+				return false
+			}
+		}
+		return len(ds) > 0
+	}
+	// gone is whether every paired computer is out of reach, so every unfinished job and link waits for one.
+	gone := func() bool {
+		ds := s.Desktops()
+		for _, d := range ds {
+			if !out(d.ID) {
 				return false
 			}
 		}
@@ -236,8 +250,8 @@ func Computers(cx *core.Scope, s *session.Session, open func()) core.Node {
 	status := func() string {
 		active, failed := s.Unfinished()
 		switch {
-		case len(s.Desktops()) > 0 && !online():
-			// Out of reach, the card says so and how many jobs wait for the computer, as the design's sidebar does.
+		case gone():
+			// Out of reach, the card says so and how many jobs wait for the computers, as the design's sidebar does. While one still answers, its jobs run and the card counts them, and the failed ones, as it does with all in reach.
 			if active > 0 {
 				return locales.JobsOfflineWaiting(cx, active)
 			}

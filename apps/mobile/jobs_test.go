@@ -11,6 +11,7 @@ import (
 	"kando/apps/mobile/store"
 	"kando/apps/mobile/theme"
 	"kando/packages/sync"
+	"kando/packages/sync/synctest"
 
 	"github.com/nsgo-dev/nsgo/base"
 	"github.com/nsgo-dev/nsgo/core"
@@ -229,6 +230,34 @@ func TestATabletShowsJobsInItsSidebar(t *testing.T) {
 	if field.Size.Width > 560 || field.Origin.X < 300 {
 		t.Fatalf("the Add sheet's field is at %+v on a 1180pt-wide tablet, want it in a card in the middle", field)
 	}
+}
+
+// With two computers, a tablet's sidebar says the computers are offline only once neither answers: while one does, the card counts its running and failed jobs, not the other's as waiting.
+func TestATabletSidebarSaysOfflineOnlyWhenNoComputerAnswers(t *testing.T) {
+	if nsgotest.Target() != "" {
+		t.Skip("the idiom is the platform's on a target")
+	}
+	studio := newDesktop(t)
+	macbook := synctest.NewOwn(t, "MacBook")
+	macbook.Offer("123456")
+	moved(macbook, "job1", "https://youtu.be/dQw4w9WgXcQ", sync.JobRunning, 0, 0.1)
+	failed := moved(macbook, "job2", "https://youtu.be/ScMzIvxBSi4", sync.JobFailed, 3, 0)
+	failed.Steps[0].State, failed.Failure = sync.StepFailed, &sync.Failure{Step: sync.StepDownload, Code: sync.FailNetwork, Remedy: sync.RemedyRetry}
+	macbook.SetJob(failed)
+	dir := t.TempDir()
+	p := startPhone(t, dir, pairedWithAll(t, dir, studio, macbook), nsgotest.Size(1180, 820), nsgotest.Environment(core.Environment{Locale: lang, Idiom: core.IdiomTablet}))
+	p.app.WaitFor("id:sidebar-tab-jobs", wait)
+	p.app.Press("id:sidebar-tab-jobs")
+	p.app.WaitUntil(wait, func() bool { return p.texts("id:sidebar-computers-status") == msgs.JobsActiveFailed(1, 1) })
+	studio.SetOff(true)
+	p.app.WaitUntil(reconnect, func() bool { return p.reach(store.DesktopID(studio.Fingerprint)) == msgs.JobsOffline() })
+	if got, want := p.texts("id:sidebar-computers-status"), msgs.JobsActiveFailed(1, 1); got != want {
+		t.Fatalf("with Studio offline and the MacBook running its jobs, the sidebar says %q, want %q", got, want)
+	}
+	macbook.SetOff(true)
+	p.app.WaitUntil(reconnect, func() bool { return p.texts("id:sidebar-computers-status") == msgs.JobsOfflineWaiting(1) })
+	studio.SetOff(false)
+	macbook.SetOff(false)
 }
 
 // A link whose call drops after the computer took it, while the computer keeps answering, goes again under the same call ID rather than waiting until the computer drops off; the computer makes one job of it.
@@ -630,21 +659,22 @@ func TestAFailedJobSaysWhatCanBeDoneAboutIt(t *testing.T) {
 // A computer that drops out of reach says when it last answered, and its unfinished jobs say they wait for it, over their pictures and under their titles.
 func TestAComputerOutOfReachSaysWhenItLastAnswered(t *testing.T) {
 	d := newDesktop(t)
-	moved(d, "job1", "https://youtu.be/dQw4w9WgXcQ", sync.JobRunning, 1, 0.5)
+	// The job is 47% through its three steps, its running one at 40%, so the picture's share is not the step's.
+	moved(d, "job1", "https://youtu.be/dQw4w9WgXcQ", sync.JobRunning, 1, 0.4)
 	dir := t.TempDir()
 	p := startPhone(t, dir, pairedWith(t, d, dir))
 	id := store.DesktopID(d.Fingerprint)
 	p.openTab(jobsTab, msgs.JobsTitle())
 	p.app.WaitUntil(wait, func() bool { return p.texts("id:jobs-summary-"+id) == msgs.JobsLockPhone(msgs.JobsActive(1)) })
-	if got, want := p.texts("id:jobs-job-job1"), msgs.JobsPercent(50); !strings.Contains(got, want) {
-		t.Fatalf("the running job's card says %q, want %q over its picture", got, want)
+	if got, want := p.app.Find("id:jobs-thumb-job1").Text, msgs.JobsPercent(47); got != want {
+		t.Fatalf("the running job's picture says %q, want %q", got, want)
 	}
 	d.SetOff(true)
 	p.app.WaitUntil(reconnect, func() bool { return p.texts("id:jobs-summary-"+id) == msgs.JobsOfflineSeen(msgs.JobsAgoMinutes(1)) })
-	if got, want := p.texts("id:jobs-job-job1"), msgs.JobsThumbWaiting(); !strings.Contains(got, want) {
-		t.Fatalf("the job's card says %q, want %q over its picture", got, want)
+	if got, want := p.app.Find("id:jobs-thumb-job1").Text, msgs.JobsThumbWaiting(); got != want {
+		t.Fatalf("the job's picture says %q, want %q", got, want)
 	}
-	if got, want := p.app.Find("id:jobs-status-job1").Text, msgs.FilmsSourceYoutube()+" · "+msgs.JobsWaitingFor("Studio"); got != want {
+	if got, want := p.app.Find("id:jobs-status-job1").Text, msgs.FilmsSourceYoutube()+" · "+msgs.JobsWaitingSuffix("Studio"); got != want {
 		t.Fatalf("the job says %q, want %q", got, want)
 	}
 }
