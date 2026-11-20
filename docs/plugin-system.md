@@ -1321,7 +1321,7 @@ Jitendex 那一行的索引是跳过 `Validate`、直接 `dict.Open` 建的，�
   - 插件函数的返回值（`Plugin.Call` 的结果）不经 JSON 往返，tsx 把 JS 的整数给成 `int64`；host call 的参数经 `core.hostValue` 的 JSON 往返，是 `float64`。读返回值的地方（`Exported`、标注的偏移）用 `plugins.Number` 两种都认。
   - 吊销列表：`RevocationsURL` 是 Go 常量（`nsgo.yaml` 没有放自定义键的地方，只在 `updates` 旁加了注释）；测试把根换成测试密钥时（`pluginsScripts.official`）不去拉正式地址，只拉测试给的地址。列表还没有发布，发布流程留在 P3c。
   - `kando.glossary.suggest`、`kando.candidates.offer` 没有做，原因见 5.3。后来 `kando.glossary.suggest` 在「术语建议」一条里补上了（`feat/plugins-glossary-suggest`），`kando.candidates.offer` 仍然没有做。
-  - 导出格式的标签页：`ui.Tabs` 的选项是切片，不能绑定（NSGo `ui/tabs.go:30`，标签、位置信号和列数都在建的时候按它做好，`ui/tabs.go:72-138`），选项变了只能重建、丢掉焦点；没有插件格式时看懂自己的三个格式不进 `core.Dynamic`，有插件格式时才按格式集合重建。nsgo#848 只给 `ui.Select` 加了 `OptionsFunc`，`ui.Tabs` 在 f377daba0a2a 仍然没有绑定形式，所以这里照旧，代码里改成 `TODO(nsgo#922)`（[nsgo-dev/nsgo#922](https://github.com/nsgo-dev/nsgo/issues/922)），等上游另开 issue。
+  - 导出格式的标签页：`ui.Tabs` 的选项是切片，不能绑定（NSGo `ui/tabs.go:30`，标签、位置信号和列数都在建的时候按它做好，`ui/tabs.go:72-138`），选项变了只能重建、丢掉焦点；没有插件格式时看懂自己的三个格式不进 `core.Dynamic`，有插件格式时才按格式集合重建。nsgo#848 只给 `ui.Select` 加了 `OptionsFunc`，`ui.Tabs` 在 f377daba0a2a 仍然没有绑定形式，所以这里照旧，代码里改成 `TODO(nsgo#922)`（[nsgo-dev/nsgo#922](https://github.com/nsgo-dev/nsgo/issues/922)），等上游修好 nsgo#922 后改成绑定。
   - 详情页里插件和看懂写好的文字（权限、添加的功能、密钥发往哪里）在一个按界面语言重建的区域里，切换语言后跟着变，平时不重建，输入到一半的密钥不丢。
   - 一个插件格式的导出在插件没在运行时按 SRT 显示，但改别的选项时不会把记住的插件格式改成 SRT，插件回来后还是它。收藏导出到插件时按「取消」显示「已停止」，插件之后的回答丢掉。
   - 纯函数放进了非界面包：`script.FetchRevocations`、`RevocationsChecked`、`SetRevocationsChecked`、`plugins.Manifest.SecretKeys`；「添加的功能」的文字是 `settings.PluginAdds`，和 `settings.PluginDetail` 放在一起（要用 catalog，`plugins` 不导入 `locales`）。
