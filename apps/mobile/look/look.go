@@ -101,15 +101,17 @@ func Facts(f sync.Film) string {
 	return strings.Join(parts, " · ")
 }
 
-// Poster is a film's poster at width, in the 16:9 of a video, on a tile of the surface's color until it loads or where the film has none, rimmed so its edge shows on a dark page too.
-func Poster(cx *core.Scope, source func() core.ImageSource, width core.Points, testID string) core.Node {
+// Poster is a film's poster at width, the width it is given when 0, in the 16:9 of a video, radius round, on the inset fill until it loads or where the film has none. Overlays are drawn over it, as a film row's length and how much of it was watched.
+func Poster(cx *core.Scope, source func() core.ImageSource, width, radius core.Points, testID string, overlays ...core.Node) core.Node {
 	colors := ui.ColorsOf(cx)
-	return core.View{TestID: testID, Style: core.Style{Width: core.Pt(width), AspectRatio: 16.0 / 9, CornerRadius: 8, BorderWidth: 1, Overflow: core.Hidden, FlexShrink: 0},
-		StyleFunc: func() core.Style {
-			return core.Style{Background: colors.Inset(), BorderColor: ui.Alpha(colors.Text(), 0.08)}
-		},
-		Children: []core.Node{core.Image{SourceFunc: source, ResizeMode: core.Cover, ElementsHidden: true,
-			Style: core.Style{Position: core.Absolute, Left: core.Pt(0), Top: core.Pt(0), Right: core.Pt(0), Bottom: core.Pt(0)}}}}
+	children := append([]core.Node{core.Image{SourceFunc: source, ResizeMode: core.Cover, ElementsHidden: true,
+		Style: core.Style{Position: core.Absolute, Left: core.Pt(0), Top: core.Pt(0), Right: core.Pt(0), Bottom: core.Pt(0)}}}, overlays...)
+	w := core.Pt(width)
+	if width == 0 {
+		w = core.Pct(100)
+	}
+	return core.View{TestID: testID, Style: core.Style{Width: w, AspectRatio: 16.0 / 9, CornerRadius: radius, BorderCurve: core.BorderCurveContinuous, Overflow: core.Hidden, FlexShrink: 0},
+		StyleFunc: ui.Filled(colors.Inset), Children: children}
 }
 
 // LocalPoster is the poster of a film kept on the phone, none until it is downloaded.

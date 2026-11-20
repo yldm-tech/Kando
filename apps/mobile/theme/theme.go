@@ -103,6 +103,10 @@ var (
 	// The stats' numbers: the streak's orange and the words' green, dark enough to read on a card.
 	Streak    = core.RGB(0xE07B00)
 	StatGreen = core.RGB(0x248A3D)
+	// PlayerBlue is the bar of how much of a film was watched, on its poster and in the player.
+	PlayerBlue = core.RGB(0x0A84FF)
+	// PosterPill is the dark capsule a film's length sits on over its poster.
+	PosterPill = core.RGBA(0x000000, 0.72)
 	// A sheet's grabber and the shadow it casts upward.
 	Grabber     = core.RGBA(0x808080, 0.4)
 	SheetShadow = core.RGBA(0x000000, 0.2)

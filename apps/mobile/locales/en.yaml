@@ -265,8 +265,8 @@ filmCancel:
   message: "Cancel Download"
   description: "Button on a film's page that stops its download and deletes what was downloaded."
 filmDelete:
-  message: "Delete Download"
-  description: "Spoken name of the trash button in a downloaded film's header, which deletes it from the phone."
+  message: "Delete Offline Files"
+  description: "A film's options and its page: deletes the film's files from the phone, which its computer keeps."
 filmDeleteConfirm:
   message: "Delete"
   description: "The alert's button that confirms deleting a downloaded film."
@@ -276,13 +276,13 @@ filmDeleteTitle:
   placeholders:
     title: { type: "String", example: "Talk at the café" }
 filmDownload:
-  message: "Download"
-  description: "Button on a film's page that downloads it to the phone, and the name of its progress bar."
+  message: "Save for Offline"
+  description: "A film's options and its page: saves it to the phone to watch offline."
 filmDownloaded:
-  message: "Downloaded"
+  message: "Saved on this device"
   description: "Where a film stands: it is on the phone and plays offline."
 filmDownloading:
-  message: "Downloading {percent}%"
+  message: "Saving to this device {percent}%"
   description: "Where a film stands while it downloads, with how much of its video is done."
   placeholders:
     percent: { type: "int", example: "42" }
@@ -318,6 +318,14 @@ filmStopped:
 filmUnpaired:
   message: "Pair with the computer again to download."
   description: "Why a download stopped: the computer no longer takes this phone, or answers with another certificate."
+filmsAboutSize:
+  message: "About {size}"
+  description: "A film's options: at the end of the row that saves it to the phone or deletes it from the phone, how big its video is."
+  placeholders:
+    size: { type: "String", example: "120.5 MB" }
+filmsActions:
+  message: "Film Actions"
+  description: "Spoken name of the sheet of a film's options."
 filmsAll:
   message: "All Films"
   description: "Heading of the Library's list of every film, from every computer and the phone."
@@ -332,14 +340,6 @@ filmsCount:
   description: "Beside the Library's list heading: how many films it shows."
   placeholders:
     count: { type: "int", example: "12" }
-filmsDetails:
-  message: "Details"
-  description: "In a film's options: opens the film's page."
-filmsDownloadSize:
-  message: "Download ({size})"
-  description: "In a film's options: downloads it to the phone, with the size of its video."
-  placeholders:
-    size: { type: "String", example: "320.5 MB" }
 filmsEmpty:
   message: "No films ready yet"
   description: "The Library's list when the computers have no film done processing."
@@ -366,19 +366,19 @@ filmsLeftOn:
     device: { type: "String", example: "MacBook Pro" }
     time: { type: "String", example: "1:40" }
 filmsLibraries:
-  message: "Show Library"
-  description: "Title of the Library's switcher, which picks the library the list shows."
+  message: "Library"
+  description: "Title of the sheet that picks the library the Library shows."
+filmsLibrariesNote:
+  message: "A library is just a .kando folder, so you can keep separate ones for different purposes."
+  description: "Library sheet: under its title, what a library is."
 filmsLibrary:
   message: "Library: {name}"
   description: "Spoken name of the Library's switcher, with the library it shows."
   placeholders:
     name: { type: "String", example: "Japanese Class" }
-filmsLibraryOn:
-  message: "{library} on {computer}"
-  description: "In the Library's switcher: a library, by its name and its computer's."
-  placeholders:
-    library: { type: "String", example: "Japanese Class" }
-    computer: { type: "String", example: "Studio" }
+filmsNew:
+  message: "New"
+  description: "Badge on the poster of a film added in the last few days and not yet watched."
 filmsNoDesktop:
   message: "No Desktop App Yet?"
   description: "Button on the Library's card that opens the page where the desktop app is downloaded."
@@ -391,15 +391,15 @@ filmsNoSource:
   message: "No films from this source yet"
   description: "The Library's list when the chosen source has no film."
 filmsOptions:
-  message: "{title} Options"
-  description: "Spoken name of the … button beside a film in the Library."
+  message: "More actions: {title}"
+  description: "Spoken name of the ••• button beside a film in the Library."
   placeholders:
     title: { type: "String", example: "Morning Talk" }
 filmsPair:
   message: "Connect a Computer"
   description: "Button on the Library's card that opens pairing with a computer."
 filmsPlayFromStart:
-  message: "Play from the Beginning"
+  message: "Watch from Start"
   description: "In a film's options: plays it from its start rather than where it was left."
 filmsResults:
   message: "Search Results"
@@ -445,13 +445,8 @@ filmsStatWords:
   placeholders:
     count: { type: "int", example: "38" }
 filmsSubscriptionAuto:
-  message: "Add New Videos Automatically"
+  message: "Auto-download New Videos"
   description: "Subscription sheet: switch that has the computer queue the new videos by themselves rather than wait for the user."
-filmsSubscriptionAutoDetail:
-  message: "At most {count} each check; the rest wait here."
-  description: "Subscription sheet: under the switch, how many new videos a check queues at most."
-  placeholders:
-    count: { type: "int", example: "3" }
 filmsSubscriptionChannel:
   message: "Channel"
   description: "Subscription sheet: what a subscription follows, a channel."

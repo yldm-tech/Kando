@@ -11,6 +11,7 @@ import (
 	"kando/apps/mobile/look"
 	"kando/apps/mobile/session"
 	"kando/apps/mobile/store"
+	"kando/apps/mobile/theme"
 	"kando/packages/sync"
 
 	"github.com/nsgo-dev/nsgo/core"
@@ -29,7 +30,10 @@ func (v *view) waiting() bool {
 	return slices.ContainsFunc(v.s.Desktops(), func(d store.Desktop) bool { return v.s.Shelf(d.ID).Waiting() })
 }
 
-// list is the films under their heading, with the library switcher and the source chips, or what shows in their place: rows of placeholders while the computers are first read, or why there are none.
+// narrowed reports whether the list is narrowed to what a search finds or to a source, which can leave nothing of films there are.
+func (v *view) narrowed() bool { return v.query.Get() != "" || v.source.Get() != "" }
+
+// list is the films under their heading, with the source chips, or what shows in their place: rows of placeholders while the computers are first read, why there are none, or that the search or the source found none, in a card under the chips. A tablet shows them in a grid of three.
 func (v *view) list(cx *core.Scope) core.Node {
 	colors := ui.ColorsOf(cx)
 	hasFilms := func() bool { return len(v.entries.Get()) > 0 }
@@ -44,51 +48,48 @@ func (v *view) list(cx *core.Scope) core.Node {
 						}
 						return locales.FilmsAll(cx)
 					})}},
-					core.Text{TestID: "films-count", ContentFunc: func() string { return locales.FilmsCount(cx, len(v.results())) }, MaxLines: 1, Style: look.Subhead, StyleFunc: ui.Colored(colors.Muted)},
+					core.Text{TestID: "films-count", ContentFunc: func() string { return locales.FilmsCount(cx, len(v.results())) }, MaxLines: 1, Style: look.Caption, StyleFunc: ui.Colored(colors.Muted)},
 				}},
-				// The switcher shows while a library is chosen even where it is the only one left, as its computer did not answer, so the list can be taken back to every library.
-				core.Show{When: func() bool {
-					return v.library.Get().Desktop != "" || len(catalog.Libraries(v.s.Computers(), v.entries.Get())) > 1
-				}, Then: v.switcher},
 				v.chips(cx),
 			}}
 		}},
 		core.Show{When: func() bool { return !shown() && v.waiting() }, Then: func(cx *core.Scope) core.Node {
 			var rows []core.Node
 			for i := range 3 {
-				rows = append(rows, look.Row{Index: func() int { return i }, Inset: 140,
+				rows = append(rows, look.Row{Index: func() int { return i }, Padding: &rowPadding,
 					Leading: ui.SkeletonBlock{Width: core.Pt(112), Height: core.Pt(63), Index: i},
 					Below:   ui.Skeleton{Lines: 2}})
 			}
 			return look.Group{TestID: "films-loading", Children: rows}
 		}},
+		core.Show{When: func() bool { return !shown() && !v.waiting() && hasFilms() && v.narrowed() }, Then: func(cx *core.Scope) core.Node {
+			return look.Group{TestID: "films-empty", Children: []core.Node{
+				core.Text{ContentFunc: func() string {
+					if v.query.Get() != "" {
+						return locales.FilmsNoResults(cx, v.query.Get())
+					}
+					return locales.FilmsNoSource(cx)
+				}, Style: core.Style{FontSize: 14, LineHeight: 19, TextAlign: core.TextAlignCenter, Padding: core.Symmetric(32, 16)}, StyleFunc: ui.Colored(colors.Muted)},
+			}}
+		}},
 		core.Show{When: func() bool {
 			listed := slices.ContainsFunc(v.s.Desktops(), func(d store.Desktop) bool { return v.s.Shelf(d.ID).Listed })
-			return !shown() && !v.waiting() && (hasFilms() || listed)
+			return !shown() && !v.waiting() && !(hasFilms() && v.narrowed()) && (hasFilms() || listed)
 		}, Then: func(cx *core.Scope) core.Node {
-			return look.Empty{TestID: "films-empty",
-				Icon: func() *core.SVG {
-					if v.query.Get() != "" {
-						return lucide.Search()
-					}
-					return lucide.Film()
-				},
-				Title: func() string {
-					switch {
-					case v.query.Get() != "":
-						return locales.FilmsNoResults(cx, v.query.Get())
-					case v.source.Get() != "":
-						return locales.FilmsNoSource(cx)
-					}
-					return locales.FilmsEmpty(cx)
-				}}
+			return look.Empty{TestID: "films-empty", Icon: lucide.Film, Title: func() string { return locales.FilmsEmpty(cx) }}
 		}},
 		core.Show{When: shown, Then: func(cx *core.Scope) core.Node {
-			return look.Group{TestID: "films-rows", Children: []core.Node{
-				core.Each(v.results, func(r catalog.Result) string { return r.Key() }, func(cx *core.Scope, r func() catalog.Result, i func() int) core.Node {
-					return v.row(cx, r, i)
-				}),
-			}}
+			each := core.Each(v.results, func(r catalog.Result) string { return r.Key() }, func(cx *core.Scope, r func() catalog.Result, i func() int) core.Node {
+				if look.Tablet(cx) {
+					return v.cell(cx, r)
+				}
+				return v.row(cx, r, i)
+			})
+			if look.Tablet(cx) {
+				// Three columns 18 apart: each cell is a third of the row with 9 on either side, the row 9 wider on either side than the column.
+				return core.View{TestID: "films-rows", Style: core.Style{Direction: core.Row, Wrap: core.Wrap, RowGap: 22, Margin: core.Edges{Right: -9, Left: -9}}, Children: []core.Node{each}}
+			}
+			return look.Group{TestID: "films-rows", Children: []core.Node{each}}
 		}},
 		core.Show{When: func() bool { return len(v.s.Films()) > 0 }, Then: func(cx *core.Scope) core.Node {
 			return core.Text{TestID: "films-used", ContentFunc: func() string { return locales.FilmsUsed(cx, look.Size(v.s.Used())) },
@@ -104,7 +105,7 @@ func (v *view) chips(cx *core.Scope) core.Node {
 		if id == "" {
 			id = "all"
 		}
-		return look.Chip{TestID: "films-source-" + id, Radio: true, Text: text, On: func() bool { return v.source.Get() == source }, OnPress: func() { v.source.Set(source) }}
+		return look.Chip{TestID: "films-source-" + id, Radio: true, Filter: true, Text: text, On: func() bool { return v.source.Get() == source }, OnPress: func() { v.source.Set(source) }}
 	}
 	chips := []core.Node{chip("", func() string { return locales.FilmsSourceAll(cx) })}
 	for _, src := range catalog.Sources {
@@ -129,112 +130,153 @@ func sourceName(cx *core.Scope, source string) string {
 	return locales.FilmsSourceWeb(cx)
 }
 
-// switcher is the button that picks the library the list shows, or every library: one of a computer, or one only the phone still knows of.
-func (v *view) switcher(cx *core.Scope) core.Node {
+// sourceMark is the color and the glyph of a source's mark: a sign, not a word, so it is not translated.
+func sourceMark(source string) (core.Color, string) {
+	switch source {
+	case catalog.SourceYouTube:
+		return theme.SourceYouTube, "▶"
+	case catalog.SourceBilibili:
+		return theme.SourceBilibili, "B"
+	case catalog.SourceLocal:
+		return theme.SourceLocal, "▣"
+	}
+	return theme.SourceOther, "◎"
+}
+
+// mark is the small square of a film's source before what its row says of it, which the text names too, so the screen reader skips it.
+func mark(cx *core.Scope, source func() string) core.Node {
 	colors := ui.ColorsOf(cx)
-	name := func() string { return LibraryName(cx, v.library) }
-	pick := func() { PickLibrary(cx, v.s, v.library) }
-	return core.View{Style: core.Style{Direction: core.Row}, Children: []core.Node{
-		core.View{TestID: "films-library", Role: core.RoleButton, LabelFunc: func() string { return locales.FilmsLibrary(cx, name()) }, OnPress: func(core.PressEvent) { pick() },
-			Style: core.Style{Direction: core.Row, AlignItems: core.AlignCenter, Gap: 6, MinHeight: core.Pt(44), Padding: core.Symmetric(0, 4), FlexShrink: 1},
-			StyleFunc: func() core.Style {
-				return core.Style{Color: colors.Accent(), Active: &core.Style{Opacity: core.Alpha(0.6)}}
-			},
-			Children: []core.Node{
-				ui.Icon(lucide.Library, 18, colors.Accent),
-				core.Text{ContentFunc: name, MaxLines: 1, Style: look.Body.Merge(core.Style{FontWeight: core.FontWeightSemibold, FlexShrink: 1})},
-				ui.Icon(lucide.ChevronDown, 16, colors.Accent),
-			}},
+	return core.View{AccessibilityElementsHidden: func() bool { return true }, Style: core.Style{Width: core.Pt(14), Height: core.Pt(14), CornerRadius: 4, FlexShrink: 0, AlignItems: core.AlignCenter, JustifyContent: core.JustifyCenter},
+		StyleFunc: func() core.Style { fill, _ := sourceMark(source()); return core.Style{Background: fill} },
+		Children: []core.Node{core.Text{ContentFunc: func() string { _, glyph := sourceMark(source()); return glyph }, MaxLines: 1,
+			Style: core.Style{FontSize: 8, LineHeight: 11, FontWeight: look.Heavy}, StyleFunc: ui.Colored(colors.OnAccent)}}}
+}
+
+// rowPadding is the room around a film's row: its poster 12 in from the card's edge, its options button at the card's end.
+var rowPadding = core.Edges{Top: 10, Bottom: 10, Left: 12}
+
+// freshFor is how long a film stays new after its computer added it: one not yet watched anywhere wears the new badge on its poster until then.
+const freshFor = 72 * time.Hour
+
+// fresh reports whether e's film is new: added in the last freshFor and not watched anywhere yet.
+func (v *view) fresh(e catalog.Entry) bool {
+	return e.Position.At == 0 && !e.Added.IsZero() && v.s.Now().Sub(e.Added) < freshFor
+}
+
+// thumb is e's poster with what the design draws over it: its length at its bottom corner, how much of it was watched along its bottom, and the new badge at its top corner. A tablet's grid draws them larger.
+func (v *view) thumb(cx *core.Scope, e func() catalog.Entry, width, radius core.Points, large bool) core.Node {
+	colors := ui.ColorsOf(cx)
+	length := func() time.Duration { return time.Duration(e().Film.DurationMS) * time.Millisecond }
+	pill, text, bar := core.Points(5), core.Style{FontSize: 10, LineHeight: 16, FontWeight: core.FontWeightSemibold}, core.Points(3)
+	if large {
+		pill, text, bar = 6, core.Style{FontSize: 11, LineHeight: 18, FontWeight: core.FontWeightSemibold}, 4
+	}
+	badge := text
+	badge.FontWeight = core.FontWeightBold
+	hidden := func() bool { return true }
+	return look.Poster(cx, poster(cx, v.s, e), width, radius, "",
+		core.Show{When: func() bool { return length() > 0 }, Then: func(cx *core.Scope) core.Node {
+			return core.View{AccessibilityElementsHidden: hidden, Style: core.Style{Position: core.Absolute, Right: core.Pt(4), Bottom: core.Pt(4), Padding: core.Symmetric(0, 5), CornerRadius: pill, Background: theme.PosterPill},
+				Children: []core.Node{ui.Tabular(core.Text{ContentFunc: func() string { return look.Duration(length()) }, MaxLines: 1, Style: text, StyleFunc: ui.Colored(colors.OnAccent)})}}
+		}},
+		core.Show{When: func() bool { return e().Position.At > 0 && length() > 0 }, Then: func(cx *core.Scope) core.Node {
+			return core.View{Style: core.Style{Position: core.Absolute, Left: core.Pt(0), Bottom: core.Pt(0), Height: core.Pt(bar), Background: theme.PlayerBlue},
+				StyleFunc: func() core.Style {
+					return core.Style{Width: core.Pct(float32(min(1, float64(e().Position.At)/float64(length()))) * 100)}
+				}}
+		}},
+		core.Show{When: func() bool { return v.fresh(e()) }, Then: func(cx *core.Scope) core.Node {
+			return core.View{AccessibilityElementsHidden: hidden, Style: core.Style{Position: core.Absolute, Left: core.Pt(5), Top: core.Pt(5), Padding: core.Symmetric(0, 6), CornerRadius: pill},
+				StyleFunc: ui.Filled(colors.Accent),
+				Children:  []core.Node{core.Text{ContentFunc: func() string { return locales.FilmsNew(cx) }, MaxLines: 1, Style: badge, StyleFunc: ui.Colored(colors.OnAccent)}}}
+		}})
+}
+
+// meta is the line under a film's title: its source's mark, then its facts on one line, in the accent while it downloads and in danger's color once its download failed.
+func (v *view) meta(cx *core.Scope, r func() catalog.Result) core.Node {
+	colors := ui.ColorsOf(cx)
+	key := func() string { return r().Key() }
+	tone := func() core.Color {
+		k, ok := v.s.Film(key())
+		t, moving := v.s.Transfer(key())
+		switch {
+		case !ok || k.Done() || !moving:
+			return colors.Muted()
+		case t.State == session.Failed:
+			return colors.Danger()
+		}
+		return colors.Accent()
+	}
+	return core.View{Style: core.Style{Direction: core.Row, AlignItems: core.AlignCenter, Gap: 5, Margin: core.Edges{Top: 4}}, Children: []core.Node{
+		mark(cx, func() string { return catalog.SourceOf(r().Film) }),
+		core.Text{ContentFunc: func() string { return v.facts(cx, r().Entry) }, MaxLines: 1, Style: look.Footnote.Merge(core.Style{FlexShrink: 1}), StyleFunc: ui.Colored(tone)},
 	}}
 }
 
-// PickLibrary asks which library the Library shows, or every library, into library: the switcher's question, which a tablet's sidebar asks too.
-func PickLibrary(cx *core.Scope, s *session.Session, library *core.Signal[catalog.Scope]) {
-	libs := catalog.Libraries(s.Computers(), s.Entries())
-	actions := []core.AlertAction{{Label: locales.FilmsAllLibraries(cx)}}
-	for _, l := range libs {
-		actions = append(actions, core.AlertAction{Label: libraryName(cx, l)})
-	}
-	actions = append(actions, core.AlertAction{Label: locales.CommonCancel(cx), Role: core.AlertCancel})
-	cx.ShowAlert(core.AlertConfig{Title: locales.FilmsLibraries(cx), Sheet: !look.Tablet(cx), Cancelable: true, Actions: actions}, func(i int) {
-		switch {
-		case i == 0:
-			library.Set(catalog.Scope{})
-		case i > 0 && i <= len(libs):
-			library.Set(libs[i-1])
-		}
-	})
-}
-
-// LibraryName is the library the Library shows, as the switcher names it, or all of them; read it in a binding.
-func LibraryName(cx *core.Scope, library *core.Signal[catalog.Scope]) string {
-	if lib := library.Get(); lib.Desktop != "" {
-		return libraryName(cx, lib)
-	}
-	return locales.FilmsAllLibraries(cx)
-}
-
-// libraryName is a library as the switcher names it: with its computer's name, which a library only the phone still knows of may not have.
-func libraryName(cx *core.Scope, lib catalog.Scope) string {
-	if lib.Computer == "" {
-		return lib.Name
-	}
-	return locales.FilmsLibraryOn(cx, lib.Name, lib.Computer)
-}
-
-// row is a film of the list: its poster, its title, its source with where it was left or its length, where it stands on the phone, the line a search found in it, and its options. Pressed, it opens the film's page, or plays a film on the phone from the line the search found.
-func (v *view) row(cx *core.Scope, r func() catalog.Result, i func() int) core.Node {
+// hit is the line a search found in a film, under its facts: where it starts and its translation, or the line itself where it has none.
+func (v *view) hit(cx *core.Scope, r func() catalog.Result, id string) core.Node {
 	colors := ui.ColorsOf(cx)
-	s := v.s
-	key := func() string { return r().Key() }
-	transfer := func() (session.Transfer, bool) { return s.Transfer(key()) }
-	kept := func() (store.Film, bool) { return s.Film(key()) }
+	return core.Show{When: func() bool { return r().Hit != nil }, Then: func(cx *core.Scope) core.Node {
+		return core.Text{TestID: "films-hit-" + id, ContentFunc: func() string {
+			h := r().Hit
+			if h == nil {
+				return ""
+			}
+			text := h.Text
+			if h.Translation != "" {
+				text = h.Translation
+			}
+			return locales.FilmsHit(cx, look.Duration(h.At), text)
+		}, MaxLines: 1, Style: look.Footnote.Merge(core.Style{Margin: core.Edges{Top: 3}}), StyleFunc: ui.Colored(colors.Accent)}
+	}}
+}
+
+// more is the button of a film's options, the system's grey dots in a 44-point target.
+func (v *view) more(cx *core.Scope, r func() catalog.Result, id string, size core.Points) core.Node {
+	return ui.IconButton{TestID: "films-options-" + id, Icon: moreIcon, Variant: ui.IconButtonGhost, Size: size, IconSize: 16, Tint: func() core.Color { return theme.TabInactive },
+		LabelFunc: func() string { return locales.FilmsOptions(cx, r().Film.Title) }, OnPress: func() { v.options(r().Entry) }}
+}
+
+// open plays the film of r, from the line the search found in it where there is one, once it is on the phone, and opens its page while it is not, where it is downloaded.
+func (v *view) open(r catalog.Result) {
+	if k, ok := v.s.Film(r.Key()); ok && k.Done() && r.Hit != nil {
+		v.playAt(r.Key(), r.Hit.At)
+		return
+	}
+	v.resume(r.Entry)
+}
+
+// row is a film of the list: its poster, its title, its source's mark with what it says of it, the line a search found in it, and its options. Pressed, it plays the film once it is on the phone, else opens its page.
+func (v *view) row(cx *core.Scope, r func() catalog.Result, i func() int) core.Node {
 	id := r().Desktop + "-" + r().Film.ID
-	return look.Row{TestID: "films-film-" + id, Index: i, Inset: 140,
-		Leading: look.Poster(cx, poster(cx, s, func() catalog.Entry { return r().Entry }), 112, ""),
-		Title:   func() string { return r().Film.Title },
-		Detail:  func() string { return v.facts(cx, r().Entry) },
-		DetailTone: func() look.Tone {
-			k, ok := kept()
-			t, moving := transfer()
-			switch {
-			case !ok || k.Done() || !moving:
-				return look.ToneDefault
-			case t.State == session.Failed:
-				return look.ToneDanger
-			}
-			return look.ToneAccent
-		},
-		Below: core.View{Children: []core.Node{
-			core.Show{When: func() bool { return r().Hit != nil }, Then: func(cx *core.Scope) core.Node {
-				return core.Text{TestID: "films-hit-" + id, ContentFunc: func() string {
-					h := r().Hit
-					if h == nil {
-						return ""
-					}
-					return locales.FilmsHit(cx, look.Duration(h.At), h.Text)
-				}, MaxLines: 2, Style: look.Subhead, StyleFunc: ui.Colored(colors.Accent)}
+	return look.Row{TestID: "films-film-" + id, Index: i, Padding: &rowPadding, TitleLines: 2,
+		TitleStyle: core.Style{FontSize: 15, LineHeight: 20, FontWeight: core.FontWeightSemibold},
+		Leading:    v.thumb(cx, func() catalog.Entry { return r().Entry }, 112, 9, false),
+		Title:      func() string { return r().Film.Title },
+		Below:      core.View{Children: []core.Node{v.meta(cx, r), v.hit(cx, r, id)}},
+		Trailing:   v.more(cx, r, id, 44),
+		OnPress:    func() { v.open(r()) }}
+}
+
+// cell is a film of a tablet's grid: its poster the width of a third of the row, its title with its options at its end, and the line of its source and facts under it.
+func (v *view) cell(cx *core.Scope, r func() catalog.Result) core.Node {
+	colors := ui.ColorsOf(cx)
+	id := r().Desktop + "-" + r().Film.ID
+	return core.View{Style: core.Style{Width: core.Pct(100.0 / 3), Padding: core.Symmetric(0, 9)}, Children: []core.Node{
+		core.View{TestID: "films-film-" + id, Role: core.RoleButton, OnPress: func(core.PressEvent) { v.open(r()) }, LabelFunc: func() string { return r().Film.Title },
+			Style: core.Style{Gap: 10, Active: &core.Style{Opacity: core.Alpha(0.7)}},
+			Children: []core.Node{
+				v.thumb(cx, func() catalog.Entry { return r().Entry }, 0, 14, true),
+				core.View{Style: core.Style{Direction: core.Row, AlignItems: core.AlignStart}, Children: []core.Node{
+					core.View{Style: core.Style{FlexGrow: 1, FlexShrink: 1, MinWidth: core.Pt(0)}, Children: []core.Node{
+						core.Text{ContentFunc: func() string { return r().Film.Title }, MaxLines: 2, Style: core.Style{FontSize: 15, LineHeight: 20, FontWeight: core.FontWeightBold}, StyleFunc: ui.Colored(colors.Text)},
+						v.meta(cx, r),
+						v.hit(cx, r, id),
+					}},
+					core.View{Style: core.Style{Margin: core.Edges{Top: -10, Right: -8}}, Children: []core.Node{v.more(cx, r, id, 40)}},
+				}},
 			}},
-			core.Show{When: func() bool {
-				k, ok := kept()
-				t, moving := transfer()
-				return ok && !k.Done() && moving && t.State != session.Failed
-			}, Then: func(cx *core.Scope) core.Node {
-				// TODO(nsgo#145): ui.Progress.Label is a string only (ui/progress.go:12-19), so the bar's spoken name keeps the language it was built in; pass a LabelFunc once Progress has one https://github.com/nsgo-dev/nsgo/issues/145
-				return ui.Progress{Label: locales.FilmDownload(cx), Value: func() float32 { t, _ := transfer(); return t.Fraction() * 100 }, Style: core.Style{Margin: core.Edges{Top: 6}}}
-			}},
-		}},
-		Trailing: ui.IconButton{TestID: "films-options-" + id, Icon: lucide.Ellipsis, Variant: ui.IconButtonGhost, Size: 44, IconSize: 20,
-			LabelFunc: func() string { return locales.FilmsOptions(cx, r().Film.Title) }, OnPress: func() { v.options(cx, r().Entry) }},
-		OnPress: func() {
-			if h := r().Hit; h != nil {
-				if k, ok := kept(); ok && k.Done() {
-					v.playAt(key(), h.At)
-					return
-				}
-			}
-			v.act.Film(r().Entry)
-		}}
+	}}
 }
 
 // facts is what a row says under a film's title: its source, then where it was left or how long it plays, that its computer keeps no video of it, and where it stands on the phone.

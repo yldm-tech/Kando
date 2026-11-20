@@ -1,4 +1,4 @@
-// Package films is the Library tab: the films of every paired computer and those on the phone as one library (catalog.Merge), which pull to refresh reads again. At its top are the day's study at a glance (stats.go), and under the films to go on with, the computers' subscriptions, each with its sheet, which a tablet's sidebar lists too (subscriptions.go, sidebar.go). A search finds titles and the lines kept on the phone, the films left partway on any device come first to go on with, and chips and the library switcher narrow the list to a source or a library. A computer that cannot be reached says so with the way to try again or pair again, and before any computer is paired the tab says what pairing brings and how.
+// Package films is the Library tab: the films of every paired computer and those on the phone as one library (catalog.Merge), which pull to refresh reads again. At its top are the day's study at a glance (stats.go), and under the films to go on with, the computers' subscriptions, each with its sheet, which a tablet's sidebar lists too (subscriptions.go, sidebar.go). A search finds titles and the lines kept on the phone, the films left partway on any device come first to go on with, chips narrow the list to a source, and the switcher at the page's top, a sheet of the libraries, to a library. A computer that cannot be reached says so with the way to try again or pair again, and before any computer is paired the tab says what pairing brings and how.
 package films
 
 import (
@@ -35,6 +35,8 @@ type Actions struct {
 	Jobs func()
 	// Library is the library the list shows, none for all, which a tablet's sidebar names and picks too; nil for the page's own.
 	Library *core.Signal[catalog.Scope]
+	// Libraries opens the sheet that picks the library the list shows (LibrarySheet), which the app shows over every section; nil for no switcher.
+	Libraries func()
 	// Searches counts the times the user asked for the search from the keyboard (shortcuts.Search): the tab focuses its search field each time it grows. Nil for none.
 	Searches func() int
 	// Subscription opens the sheet of the subscription with that key (SubscriptionSheet), which the app shows over every section.
@@ -53,6 +55,8 @@ type view struct {
 	lines   *core.Resource[map[string][]sync.Cue]
 	// field is the search field's.
 	field *core.Ref
+	// sheet is the key of the film whose options show (optionsSheet), "" for none.
+	sheet *core.Signal[string]
 }
 
 // Page is the tab's root page.
@@ -63,6 +67,7 @@ func Page(cx *core.Scope, s *session.Session, act Actions) base.NavPage {
 		library: act.Library,
 		entries: core.NewMemoFunc(cx, s.Entries, nil),
 		field:   &core.Ref{},
+		sheet:   core.NewSignal(cx, ""),
 	}
 	if v.library == nil {
 		v.library = core.NewSignal(cx, catalog.Scope{})
@@ -134,7 +139,9 @@ func Page(cx *core.Scope, s *session.Session, act Actions) base.NavPage {
 	shown := []core.Node{core.Show{When: paired, Then: func(*core.Scope) core.Node {
 		return core.View{Style: core.Style{Direction: core.Row, AlignItems: core.AlignCenter}, Children: trailing}
 	}}}
-	return look.TabRoot(cx, base.NavPage{TestID: "films-page", Children: []core.Node{body}}, title, shown, func() []core.HeaderSymbol {
+	page := base.NavPage{TestID: "films-page", Children: []core.Node{body, v.optionsSheet(cx)}}
+	page.HeaderLeft = v.switcher(cx)
+	return look.TabRoot(cx, page, title, shown, func() []core.HeaderSymbol {
 		switch {
 		case !paired():
 			return nil

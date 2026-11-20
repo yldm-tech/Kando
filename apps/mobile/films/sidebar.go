@@ -53,7 +53,7 @@ func sidebarRow(cx *core.Scope, sub func() session.Subscription, open func(key s
 		},
 		Children: []core.Node{
 			core.View{Style: core.Style{Width: core.Pt(26), Height: core.Pt(26), CornerRadius: 13, AlignItems: core.AlignCenter, JustifyContent: core.JustifyCenter, FlexShrink: 0},
-				StyleFunc: func() core.Style { return core.Style{Background: markFill(cx, sub())} },
+				StyleFunc: func() core.Style { return core.Style{Background: markFill(sub())} },
 				Children: []core.Node{core.Text{ContentFunc: func() string { return initial(sub().Name) }, MaxLines: 1,
 					Style: core.Style{FontSize: 11, FontWeight: core.FontWeightBold, Color: core.RGB(0xFFFFFF)}}}},
 			core.Text{ContentFunc: func() string { return sub().Name }, MaxLines: 1, Style: look.Subhead.Merge(core.Style{FlexGrow: 1, FlexShrink: 1, MinWidth: core.Pt(0)}),

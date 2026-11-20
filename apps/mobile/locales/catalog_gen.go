@@ -484,19 +484,17 @@ var Parameters = map[string][]string{
 	"FilmDeleteTitle":                {"title"},
 	"FilmDownloading":                {"percent"},
 	"FilmPaused":                     {"percent"},
+	"FilmsAboutSize":                 {"size"},
 	"FilmsCount":                     {"count"},
-	"FilmsDownloadSize":              {"size"},
 	"FilmsHit":                       {"time_", "line"},
 	"FilmsLeft":                      {"time_"},
 	"FilmsLeftHere":                  {"device"},
 	"FilmsLeftOn":                    {"device", "time_"},
 	"FilmsLibrary":                   {"name"},
-	"FilmsLibraryOn":                 {"library", "computer"},
 	"FilmsNoResults":                 {"query"},
 	"FilmsOptions":                   {"title"},
 	"FilmsStatDays":                  {"count"},
 	"FilmsStatWords":                 {"count"},
-	"FilmsSubscriptionAutoDetail":    {"count"},
 	"FilmsSubscriptionFailed":        {"error_"},
 	"FilmsSubscriptionGone":          {"site", "computer"},
 	"FilmsSubscriptionGoneLabel":     {"name"},
@@ -660,19 +658,17 @@ type Translation struct {
 	FilmDeleteTitle                func(title string) string
 	FilmDownloading                func(percent int) string
 	FilmPaused                     func(percent int) string
+	FilmsAboutSize                 func(size string) string
 	FilmsCount                     func(count int) string
-	FilmsDownloadSize              func(size string) string
 	FilmsHit                       func(time_ string, line string) string
 	FilmsLeft                      func(time_ string) string
 	FilmsLeftHere                  func(device string) string
 	FilmsLeftOn                    func(device string, time_ string) string
 	FilmsLibrary                   func(name string) string
-	FilmsLibraryOn                 func(library string, computer string) string
 	FilmsNoResults                 func(query string) string
 	FilmsOptions                   func(title string) string
 	FilmsStatDays                  func(count int) string
 	FilmsStatWords                 func(count int) string
-	FilmsSubscriptionAutoDetail    func(count int) string
 	FilmsSubscriptionFailed        func(error_ string) string
 	FilmsSubscriptionGone          func(site string, computer string) string
 	FilmsSubscriptionGoneLabel     func(name string) string
@@ -878,12 +874,14 @@ const (
 	textFilmResume
 	textFilmStopped
 	textFilmUnpaired
+	textFilmsActions
 	textFilmsAll
 	textFilmsAllLibraries
 	textFilmsContinue
-	textFilmsDetails
 	textFilmsEmpty
 	textFilmsLibraries
+	textFilmsLibrariesNote
+	textFilmsNew
 	textFilmsNoDesktop
 	textFilmsNoSource
 	textFilmsPair
@@ -1319,12 +1317,14 @@ var keyOfText = [numTexts]string{
 	"filmResume",
 	"filmStopped",
 	"filmUnpaired",
+	"filmsActions",
 	"filmsAll",
 	"filmsAllLibraries",
 	"filmsContinue",
-	"filmsDetails",
 	"filmsEmpty",
 	"filmsLibraries",
+	"filmsLibrariesNote",
+	"filmsNew",
 	"filmsNoDesktop",
 	"filmsNoSource",
 	"filmsPair",
@@ -1745,10 +1745,10 @@ var textsEn = i18n.NewTexts(""+
 	"The Sentence Each Word Is From"+
 	"The Sentence's Translation"+
 	"Cancel Download"+
-	"Delete Download"+
+	"Delete Offline Files"+
 	"Delete"+
-	"Download"+
-	"Downloaded"+
+	"Save for Offline"+
+	"Saved on this device"+
 	"This film is no longer on the computer."+
 	"There isn't enough space on this phone."+
 	"Pause"+
@@ -1758,16 +1758,18 @@ var textsEn = i18n.NewTexts(""+
 	"Resume"+
 	"The download stopped. Resume it when the computer can be reached."+
 	"Pair with the computer again to download."+
+	"Film Actions"+
 	"All Films"+
 	"All Libraries"+
 	"Continue Watching"+
-	"Details"+
 	"No films ready yet"+
-	"Show Library"+
+	"Library"+
+	"A library is just a .kando folder, so you can keep separate ones for different purposes."+
+	"New"+
 	"No Desktop App Yet?"+
 	"No films from this source yet"+
 	"Connect a Computer"+
-	"Play from the Beginning"+
+	"Watch from Start"+
 	"Search Results"+
 	"Search films and lines"+
 	"Source"+
@@ -1779,7 +1781,7 @@ var textsEn = i18n.NewTexts(""+
 	"Streak"+
 	"Watched today"+
 	"Vocabulary"+
-	"Add New Videos Automatically"+
+	"Auto-download New Videos"+
 	"Channel"+
 	"Collection"+
 	"Done"+
@@ -2181,10 +2183,10 @@ var textsEn = i18n.NewTexts(""+
 		30,
 		26,
 		15,
-		15,
+		20,
 		6,
-		8,
-		10,
+		16,
+		20,
 		39,
 		39,
 		5,
@@ -2194,16 +2196,18 @@ var textsEn = i18n.NewTexts(""+
 		6,
 		65,
 		41,
+		12,
 		9,
 		13,
 		17,
-		7,
 		18,
-		12,
+		7,
+		88,
+		3,
 		19,
 		29,
 		18,
-		23,
+		16,
 		14,
 		22,
 		6,
@@ -2215,7 +2219,7 @@ var textsEn = i18n.NewTexts(""+
 		6,
 		13,
 		10,
-		28,
+		24,
 		7,
 		10,
 		4,
@@ -2620,10 +2624,10 @@ var textsJa = i18n.NewTexts(""+
 	"例文を含める"+
 	"例文の訳を含める"+
 	"ダウンロードをキャンセル"+
-	"ダウンロードを削除"+
+	"オフラインファイルを削除"+
 	"削除"+
-	"ダウンロード"+
-	"ダウンロード済み"+
+	"オフライン用に保存"+
+	"このデバイスに保存済み"+
 	"この動画はもうコンピュータにありません。"+
 	"スマートフォンの空き容量が足りません。"+
 	"一時停止"+
@@ -2633,16 +2637,18 @@ var textsJa = i18n.NewTexts(""+
 	"ダウンロードを再開"+
 	"ダウンロードが中断しました。コンピュータに接続できるときに再開してください。"+
 	"ダウンロードするには、もう一度コンピュータとペアリングしてください。"+
+	"動画の操作"+
 	"すべての動画"+
 	"すべてのライブラリ"+
 	"続きを見る"+
-	"詳細"+
 	"再生できる動画はまだありません"+
-	"ライブラリを表示"+
+	"ライブラリ"+
+	"ライブラリは .kando フォルダです。用途ごとに分けておけます。"+
+	"新着"+
 	"デスクトップ版をお持ちでないですか？"+
 	"このソースの動画はまだありません"+
 	"コンピュータに接続"+
-	"最初から再生"+
+	"最初から見る"+
 	"検索結果"+
 	"動画とセリフを検索"+
 	"ソース"+
@@ -2654,7 +2660,7 @@ var textsJa = i18n.NewTexts(""+
 	"連続"+
 	"今日の視聴"+
 	"単語帳"+
-	"新しい動画を自動で追加"+
+	"新しい動画を自動でダウンロード"+
 	"チャンネル"+
 	"コレクション"+
 	"完了"+
@@ -3056,10 +3062,10 @@ var textsJa = i18n.NewTexts(""+
 		18,
 		24,
 		36,
-		27,
+		36,
 		6,
-		18,
-		24,
+		27,
+		33,
 		60,
 		57,
 		12,
@@ -3069,12 +3075,14 @@ var textsJa = i18n.NewTexts(""+
 		27,
 		114,
 		102,
+		15,
 		18,
 		27,
 		15,
-		6,
 		45,
-		24,
+		15,
+		86,
+		6,
 		54,
 		48,
 		27,
@@ -3090,7 +3098,7 @@ var textsJa = i18n.NewTexts(""+
 		6,
 		15,
 		9,
-		33,
+		45,
 		15,
 		18,
 		6,
@@ -3495,10 +3503,10 @@ var textsKo = i18n.NewTexts(""+
 	"예문 포함"+
 	"예문 번역 포함"+
 	"다운로드 취소"+
-	"다운로드 삭제"+
+	"오프라인 파일 삭제"+
 	"삭제"+
-	"다운로드"+
-	"다운로드됨"+
+	"오프라인용으로 저장"+
+	"이 기기에 저장됨"+
 	"이 영상은 더 이상 컴퓨터에 없습니다."+
 	"휴대폰 저장 공간이 부족합니다."+
 	"일시 정지"+
@@ -3508,16 +3516,18 @@ var textsKo = i18n.NewTexts(""+
 	"다운로드 재개"+
 	"다운로드가 중단되었습니다. 컴퓨터에 연결할 수 있을 때 다시 시작하세요."+
 	"다운로드하려면 컴퓨터와 다시 페어링하세요."+
+	"영상 작업"+
 	"모든 영상"+
 	"모든 라이브러리"+
 	"이어 보기"+
-	"세부 정보"+
 	"아직 재생할 수 있는 영상이 없습니다"+
-	"라이브러리 보기"+
+	"라이브러리"+
+	"라이브러리는 .kando 폴더라서 용도별로 나눠 둘 수 있습니다."+
+	"새 영상"+
 	"데스크톱 앱이 아직 없나요?"+
 	"이 출처의 영상이 아직 없습니다"+
 	"컴퓨터 연결"+
-	"처음부터 재생"+
+	"처음부터 보기"+
 	"검색 결과"+
 	"영상과 대사 검색"+
 	"출처"+
@@ -3529,7 +3539,7 @@ var textsKo = i18n.NewTexts(""+
 	"연속 학습"+
 	"오늘 시청"+
 	"단어장"+
-	"새 동영상 자동 추가"+
+	"새 동영상 자동 다운로드"+
 	"채널"+
 	"컬렉션"+
 	"완료"+
@@ -3931,10 +3941,10 @@ var textsKo = i18n.NewTexts(""+
 		13,
 		20,
 		19,
-		19,
+		26,
 		6,
-		12,
-		15,
+		28,
+		23,
 		51,
 		43,
 		13,
@@ -3945,11 +3955,13 @@ var textsKo = i18n.NewTexts(""+
 		100,
 		61,
 		13,
-		22,
 		13,
+		22,
 		13,
 		50,
-		22,
+		15,
+		80,
+		10,
 		37,
 		43,
 		16,
@@ -3965,7 +3977,7 @@ var textsKo = i18n.NewTexts(""+
 		13,
 		13,
 		9,
-		27,
+		33,
 		6,
 		9,
 		6,
@@ -4370,10 +4382,10 @@ var textsZhHans = i18n.NewTexts(""+
 	"带上原句"+
 	"带上原句的译文"+
 	"取消下载"+
-	"删除下载"+
+	"从本机删除离线文件"+
 	"删除"+
-	"下载"+
-	"已下载"+
+	"存到本机离线看"+
+	"已存到本机"+
 	"电脑上已经没有这部影片了。"+
 	"手机空间不足。"+
 	"暂停"+
@@ -4383,12 +4395,14 @@ var textsZhHans = i18n.NewTexts(""+
 	"继续下载"+
 	"下载中断了。能连上电脑时再继续。"+
 	"请重新与电脑配对后再下载。"+
+	"影片操作"+
 	"全部影片"+
 	"全部资料库"+
 	"继续看"+
-	"详情"+
 	"还没有可以播放的影片"+
-	"显示资料库"+
+	"资料库"+
+	"资料库就是一个 .kando 文件夹，可以按用途分开放。"+
+	"新"+
 	"还没装电脑版？"+
 	"这个来源下还没有影片"+
 	"连接电脑"+
@@ -4404,7 +4418,7 @@ var textsZhHans = i18n.NewTexts(""+
 	"连续学习"+
 	"今天看了"+
 	"生词"+
-	"自动加入新视频"+
+	"自动下载新视频"+
 	"频道"+
 	"合集"+
 	"完成"+
@@ -4806,10 +4820,10 @@ var textsZhHans = i18n.NewTexts(""+
 		12,
 		21,
 		12,
-		12,
+		27,
 		6,
-		6,
-		9,
+		21,
+		15,
 		39,
 		21,
 		6,
@@ -4820,11 +4834,13 @@ var textsZhHans = i18n.NewTexts(""+
 		48,
 		39,
 		12,
+		12,
 		15,
 		9,
-		6,
 		30,
-		15,
+		9,
+		68,
+		3,
 		21,
 		30,
 		12,
@@ -5245,10 +5261,10 @@ var textsZhHant = i18n.NewTexts(""+
 	"帶上原句"+
 	"帶上原句的譯文"+
 	"取消下載"+
-	"刪除下載"+
+	"從本機刪除離線檔案"+
 	"刪除"+
-	"下載"+
-	"已下載"+
+	"存到本機離線看"+
+	"已存到本機"+
 	"電腦上已經沒有這部影片了。"+
 	"手機空間不足。"+
 	"暫停"+
@@ -5258,12 +5274,14 @@ var textsZhHant = i18n.NewTexts(""+
 	"繼續下載"+
 	"下載中斷了。能連上電腦時再繼續。"+
 	"請重新與電腦配對後再下載。"+
+	"影片操作"+
 	"全部影片"+
 	"全部資料庫"+
 	"繼續看"+
-	"詳細資訊"+
 	"還沒有可以播放的影片"+
-	"顯示資料庫"+
+	"資料庫"+
+	"資料庫就是一個 .kando 資料夾，可以按用途分開放。"+
+	"新"+
 	"還沒裝電腦版？"+
 	"這個來源下還沒有影片"+
 	"連接電腦"+
@@ -5279,7 +5297,7 @@ var textsZhHant = i18n.NewTexts(""+
 	"連續學習"+
 	"今天看了"+
 	"生詞"+
-	"自動加入新影片"+
+	"自動下載新影片"+
 	"頻道"+
 	"合集"+
 	"完成"+
@@ -5681,10 +5699,10 @@ var textsZhHant = i18n.NewTexts(""+
 		12,
 		21,
 		12,
-		12,
+		27,
 		6,
-		6,
-		9,
+		21,
+		15,
 		39,
 		21,
 		6,
@@ -5695,11 +5713,13 @@ var textsZhHant = i18n.NewTexts(""+
 		48,
 		39,
 		12,
+		12,
 		15,
 		9,
-		12,
 		30,
-		15,
+		9,
+		68,
+		3,
 		21,
 		30,
 		12,
@@ -6193,11 +6213,11 @@ func Supply(lang string, t Translation) {
 	if t.FilmPaused != nil {
 		s.FilmPaused = t.FilmPaused
 	}
+	if t.FilmsAboutSize != nil {
+		s.FilmsAboutSize = t.FilmsAboutSize
+	}
 	if t.FilmsCount != nil {
 		s.FilmsCount = t.FilmsCount
-	}
-	if t.FilmsDownloadSize != nil {
-		s.FilmsDownloadSize = t.FilmsDownloadSize
 	}
 	if t.FilmsHit != nil {
 		s.FilmsHit = t.FilmsHit
@@ -6214,9 +6234,6 @@ func Supply(lang string, t Translation) {
 	if t.FilmsLibrary != nil {
 		s.FilmsLibrary = t.FilmsLibrary
 	}
-	if t.FilmsLibraryOn != nil {
-		s.FilmsLibraryOn = t.FilmsLibraryOn
-	}
 	if t.FilmsNoResults != nil {
 		s.FilmsNoResults = t.FilmsNoResults
 	}
@@ -6228,9 +6245,6 @@ func Supply(lang string, t Translation) {
 	}
 	if t.FilmsStatWords != nil {
 		s.FilmsStatWords = t.FilmsStatWords
-	}
-	if t.FilmsSubscriptionAutoDetail != nil {
-		s.FilmsSubscriptionAutoDetail = t.FilmsSubscriptionAutoDetail
 	}
 	if t.FilmsSubscriptionFailed != nil {
 		s.FilmsSubscriptionFailed = t.FilmsSubscriptionFailed
@@ -7788,10 +7802,10 @@ func FilmCancel(cx *core.Scope) string { return For(cx).FilmCancel() }
 // FilmCancel is the package's FilmCancel in the language of msgs.
 func (msgs Messages) FilmCancel() string { return msgs.text(textFilmCancel) }
 
-// FilmDelete says "Delete Download"
+// FilmDelete says "Delete Offline Files"
 // in the language the app shows under cx.
 //
-// Spoken name of the trash button in a downloaded film's header, which deletes it from the phone.
+// A film's options and its page: deletes the film's files from the phone, which its computer keeps.
 func FilmDelete(cx *core.Scope) string { return For(cx).FilmDelete() }
 
 // FilmDelete is the package's FilmDelete in the language of msgs.
@@ -7836,16 +7850,16 @@ func (msgs Messages) FilmDeleteTitle(title string) string {
 	}
 }
 
-// FilmDownload says "Download"
+// FilmDownload says "Save for Offline"
 // in the language the app shows under cx.
 //
-// Button on a film's page that downloads it to the phone, and the name of its progress bar.
+// A film's options and its page: saves it to the phone to watch offline.
 func FilmDownload(cx *core.Scope) string { return For(cx).FilmDownload() }
 
 // FilmDownload is the package's FilmDownload in the language of msgs.
 func (msgs Messages) FilmDownload() string { return msgs.text(textFilmDownload) }
 
-// FilmDownloaded says "Downloaded"
+// FilmDownloaded says "Saved on this device"
 // in the language the app shows under cx.
 //
 // Where a film stands: it is on the phone and plays offline.
@@ -7854,7 +7868,7 @@ func FilmDownloaded(cx *core.Scope) string { return For(cx).FilmDownloaded() }
 // FilmDownloaded is the package's FilmDownloaded in the language of msgs.
 func (msgs Messages) FilmDownloaded() string { return msgs.text(textFilmDownloaded) }
 
-// FilmDownloading says "Downloading {percent}%"
+// FilmDownloading says "Saving to this device {percent}%"
 // in the language the app shows under cx.
 //
 // Where a film stands while it downloads, with how much of its video is done.
@@ -7871,15 +7885,15 @@ func (msgs Messages) FilmDownloading(percent int) string {
 		}
 		switch lang {
 		case "", "en":
-			return "Downloading " + msgs.arg(i18n.FormatNumber("en", float64(percent))) + "%"
+			return "Saving to this device " + msgs.arg(i18n.FormatNumber("en", float64(percent))) + "%"
 		case "ja":
-			return "ダウンロード中 " + i18n.FormatNumber("ja", float64(percent)) + "%"
+			return "このデバイスに保存中 " + i18n.FormatNumber("ja", float64(percent)) + "%"
 		case "ko":
-			return "다운로드 중 " + i18n.FormatNumber("ko", float64(percent)) + "%"
+			return "이 기기에 저장 중 " + i18n.FormatNumber("ko", float64(percent)) + "%"
 		case "zh-Hans":
-			return "正在下载 " + i18n.FormatNumber("zh-Hans", float64(percent)) + "%"
+			return "正在存到本机 " + i18n.FormatNumber("zh-Hans", float64(percent)) + "%"
 		case "zh-Hant":
-			return "正在下載 " + i18n.FormatNumber("zh-Hant", float64(percent)) + "%"
+			return "正在存到本機 " + i18n.FormatNumber("zh-Hant", float64(percent)) + "%"
 		}
 	}
 }
@@ -7995,6 +8009,45 @@ func FilmUnpaired(cx *core.Scope) string { return For(cx).FilmUnpaired() }
 // FilmUnpaired is the package's FilmUnpaired in the language of msgs.
 func (msgs Messages) FilmUnpaired() string { return msgs.text(textFilmUnpaired) }
 
+// FilmsAboutSize says "About {size}"
+// in the language the app shows under cx.
+//
+// A film's options: at the end of the row that saves it to the phone or deletes it from the phone, how big its video is.
+func FilmsAboutSize(cx *core.Scope, size string) string { return For(cx).FilmsAboutSize(size) }
+
+// FilmsAboutSize is the package's FilmsAboutSize in the language of msgs.
+func (msgs Messages) FilmsAboutSize(size string) string {
+	if i18n.IsPseudo(msgs.lang) {
+		return i18n.Pseudo(msgs.lang, Messages{lang: Source, mark: true}.FilmsAboutSize(size))
+	}
+	for lang := msgs.lang; ; lang = i18n.Parent(lang) {
+		if f := supplied[lang].FilmsAboutSize; f != nil {
+			return f(size)
+		}
+		switch lang {
+		case "", "en":
+			return "About " + msgs.arg(size)
+		case "ja":
+			return "約 " + size
+		case "ko":
+			return "약 " + size
+		case "zh-Hans":
+			return "约 " + size
+		case "zh-Hant":
+			return "約 " + size
+		}
+	}
+}
+
+// FilmsActions says "Film Actions"
+// in the language the app shows under cx.
+//
+// Spoken name of the sheet of a film's options.
+func FilmsActions(cx *core.Scope) string { return For(cx).FilmsActions() }
+
+// FilmsActions is the package's FilmsActions in the language of msgs.
+func (msgs Messages) FilmsActions() string { return msgs.text(textFilmsActions) }
+
 // FilmsAll says "All Films"
 // in the language the app shows under cx.
 //
@@ -8082,45 +8135,6 @@ func (msgs Messages) FilmsCount(count int) string {
 				b.WriteString(" 部")
 			}
 			return b.String()
-		}
-	}
-}
-
-// FilmsDetails says "Details"
-// in the language the app shows under cx.
-//
-// In a film's options: opens the film's page.
-func FilmsDetails(cx *core.Scope) string { return For(cx).FilmsDetails() }
-
-// FilmsDetails is the package's FilmsDetails in the language of msgs.
-func (msgs Messages) FilmsDetails() string { return msgs.text(textFilmsDetails) }
-
-// FilmsDownloadSize says "Download ({size})"
-// in the language the app shows under cx.
-//
-// In a film's options: downloads it to the phone, with the size of its video.
-func FilmsDownloadSize(cx *core.Scope, size string) string { return For(cx).FilmsDownloadSize(size) }
-
-// FilmsDownloadSize is the package's FilmsDownloadSize in the language of msgs.
-func (msgs Messages) FilmsDownloadSize(size string) string {
-	if i18n.IsPseudo(msgs.lang) {
-		return i18n.Pseudo(msgs.lang, Messages{lang: Source, mark: true}.FilmsDownloadSize(size))
-	}
-	for lang := msgs.lang; ; lang = i18n.Parent(lang) {
-		if f := supplied[lang].FilmsDownloadSize; f != nil {
-			return f(size)
-		}
-		switch lang {
-		case "", "en":
-			return "Download (" + msgs.arg(size) + ")"
-		case "ja":
-			return "ダウンロード（" + size + "）"
-		case "ko":
-			return "다운로드(" + size + ")"
-		case "zh-Hans":
-			return "下载（" + size + "）"
-		case "zh-Hant":
-			return "下載（" + size + "）"
 		}
 	}
 }
@@ -8256,14 +8270,23 @@ func (msgs Messages) FilmsLeftOn(device string, time_ string) string {
 	}
 }
 
-// FilmsLibraries says "Show Library"
+// FilmsLibraries says "Library"
 // in the language the app shows under cx.
 //
-// Title of the Library's switcher, which picks the library the list shows.
+// Title of the sheet that picks the library the Library shows.
 func FilmsLibraries(cx *core.Scope) string { return For(cx).FilmsLibraries() }
 
 // FilmsLibraries is the package's FilmsLibraries in the language of msgs.
 func (msgs Messages) FilmsLibraries() string { return msgs.text(textFilmsLibraries) }
+
+// FilmsLibrariesNote says "A library is just a .kando folder, so you can keep separate ones for different purposes."
+// in the language the app shows under cx.
+//
+// Library sheet: under its title, what a library is.
+func FilmsLibrariesNote(cx *core.Scope) string { return For(cx).FilmsLibrariesNote() }
+
+// FilmsLibrariesNote is the package's FilmsLibrariesNote in the language of msgs.
+func (msgs Messages) FilmsLibrariesNote() string { return msgs.text(textFilmsLibrariesNote) }
 
 // FilmsLibrary says "Library: {name}"
 // in the language the app shows under cx.
@@ -8295,37 +8318,14 @@ func (msgs Messages) FilmsLibrary(name string) string {
 	}
 }
 
-// FilmsLibraryOn says "{library} on {computer}"
+// FilmsNew says "New"
 // in the language the app shows under cx.
 //
-// In the Library's switcher: a library, by its name and its computer's.
-func FilmsLibraryOn(cx *core.Scope, library string, computer string) string {
-	return For(cx).FilmsLibraryOn(library, computer)
-}
+// Badge on the poster of a film added in the last few days and not yet watched.
+func FilmsNew(cx *core.Scope) string { return For(cx).FilmsNew() }
 
-// FilmsLibraryOn is the package's FilmsLibraryOn in the language of msgs.
-func (msgs Messages) FilmsLibraryOn(library string, computer string) string {
-	if i18n.IsPseudo(msgs.lang) {
-		return i18n.Pseudo(msgs.lang, Messages{lang: Source, mark: true}.FilmsLibraryOn(library, computer))
-	}
-	for lang := msgs.lang; ; lang = i18n.Parent(lang) {
-		if f := supplied[lang].FilmsLibraryOn; f != nil {
-			return f(library, computer)
-		}
-		switch lang {
-		case "", "en":
-			return msgs.arg(library) + " on " + msgs.arg(computer)
-		case "ja":
-			return library + "（" + computer + "）"
-		case "ko":
-			return library + "(" + computer + ")"
-		case "zh-Hans":
-			return library + " · " + computer
-		case "zh-Hant":
-			return library + " · " + computer
-		}
-	}
-}
+// FilmsNew is the package's FilmsNew in the language of msgs.
+func (msgs Messages) FilmsNew() string { return msgs.text(textFilmsNew) }
 
 // FilmsNoDesktop says "No Desktop App Yet?"
 // in the language the app shows under cx.
@@ -8375,10 +8375,10 @@ func FilmsNoSource(cx *core.Scope) string { return For(cx).FilmsNoSource() }
 // FilmsNoSource is the package's FilmsNoSource in the language of msgs.
 func (msgs Messages) FilmsNoSource() string { return msgs.text(textFilmsNoSource) }
 
-// FilmsOptions says "{title} Options"
+// FilmsOptions says "More actions: {title}"
 // in the language the app shows under cx.
 //
-// Spoken name of the … button beside a film in the Library.
+// Spoken name of the ••• button beside a film in the Library.
 func FilmsOptions(cx *core.Scope, title string) string { return For(cx).FilmsOptions(title) }
 
 // FilmsOptions is the package's FilmsOptions in the language of msgs.
@@ -8392,15 +8392,15 @@ func (msgs Messages) FilmsOptions(title string) string {
 		}
 		switch lang {
 		case "", "en":
-			return msgs.arg(title) + " Options"
+			return "More actions: " + msgs.arg(title)
 		case "ja":
-			return "「" + title + "」のオプション"
+			return "その他の操作：" + title
 		case "ko":
-			return "‘" + title + "’ 옵션"
+			return "더 보기: " + title
 		case "zh-Hans":
-			return "“" + title + "”的操作"
+			return "更多操作：" + title
 		case "zh-Hant":
-			return "「" + title + "」的操作"
+			return "更多操作：" + title
 		}
 	}
 }
@@ -8414,7 +8414,7 @@ func FilmsPair(cx *core.Scope) string { return For(cx).FilmsPair() }
 // FilmsPair is the package's FilmsPair in the language of msgs.
 func (msgs Messages) FilmsPair() string { return msgs.text(textFilmsPair) }
 
-// FilmsPlayFromStart says "Play from the Beginning"
+// FilmsPlayFromStart says "Watch from Start"
 // in the language the app shows under cx.
 //
 // In a film's options: plays it from its start rather than where it was left.
@@ -8600,7 +8600,7 @@ func (msgs Messages) FilmsStatWords(count int) string {
 	}
 }
 
-// FilmsSubscriptionAuto says "Add New Videos Automatically"
+// FilmsSubscriptionAuto says "Auto-download New Videos"
 // in the language the app shows under cx.
 //
 // Subscription sheet: switch that has the computer queue the new videos by themselves rather than wait for the user.
@@ -8608,38 +8608,6 @@ func FilmsSubscriptionAuto(cx *core.Scope) string { return For(cx).FilmsSubscrip
 
 // FilmsSubscriptionAuto is the package's FilmsSubscriptionAuto in the language of msgs.
 func (msgs Messages) FilmsSubscriptionAuto() string { return msgs.text(textFilmsSubscriptionAuto) }
-
-// FilmsSubscriptionAutoDetail says "At most {count} each check; the rest wait here."
-// in the language the app shows under cx.
-//
-// Subscription sheet: under the switch, how many new videos a check queues at most.
-func FilmsSubscriptionAutoDetail(cx *core.Scope, count int) string {
-	return For(cx).FilmsSubscriptionAutoDetail(count)
-}
-
-// FilmsSubscriptionAutoDetail is the package's FilmsSubscriptionAutoDetail in the language of msgs.
-func (msgs Messages) FilmsSubscriptionAutoDetail(count int) string {
-	if i18n.IsPseudo(msgs.lang) {
-		return i18n.Pseudo(msgs.lang, Messages{lang: Source, mark: true}.FilmsSubscriptionAutoDetail(count))
-	}
-	for lang := msgs.lang; ; lang = i18n.Parent(lang) {
-		if f := supplied[lang].FilmsSubscriptionAutoDetail; f != nil {
-			return f(count)
-		}
-		switch lang {
-		case "", "en":
-			return "At most " + msgs.arg(i18n.FormatNumber("en", float64(count))) + " each check; the rest wait here."
-		case "ja":
-			return "1 回のチェックで最大 " + i18n.FormatNumber("ja", float64(count)) + " 本、残りはここで待ちます。"
-		case "ko":
-			return "한 번 확인할 때 최대 " + i18n.FormatNumber("ko", float64(count)) + "개, 나머지는 여기서 기다립니다."
-		case "zh-Hans":
-			return "每次检查最多加入 " + i18n.FormatNumber("zh-Hans", float64(count)) + " 个，其余的在这里等你。"
-		case "zh-Hant":
-			return "每次檢查最多加入 " + i18n.FormatNumber("zh-Hant", float64(count)) + " 個，其餘的在這裡等你。"
-		}
-	}
-}
 
 // FilmsSubscriptionChannel says "Channel"
 // in the language the app shows under cx.

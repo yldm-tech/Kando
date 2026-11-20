@@ -23,7 +23,8 @@ func (c Chip) Render(cx *core.Scope) core.Node {
 		role = core.RoleRadio
 	}
 	if c.Filter {
-		return core.View{TestID: c.TestID, Role: role, LabelFunc: c.Text, Checked: c.On, OnPress: func(core.PressEvent) { c.OnPress() },
+		// The chip is 32 points tall, its target the 44 of a touch.
+		return core.View{TestID: c.TestID, Role: role, LabelFunc: c.Text, Checked: c.On, OnPress: func(core.PressEvent) { c.OnPress() }, HitSlop: core.Edges{Top: 6, Bottom: 6},
 			Style: core.Style{MinHeight: core.Pt(32), Padding: core.Symmetric(0, 14), CornerRadius: 16, AlignItems: core.AlignCenter, JustifyContent: core.JustifyCenter,
 				Active: &core.Style{Opacity: core.Alpha(0.7)}},
 			StyleFunc: func() core.Style {
@@ -32,7 +33,7 @@ func (c Chip) Render(cx *core.Scope) core.Node {
 				}
 				return core.Style{Background: colors.Surface(), Color: colors.Text()}
 			},
-			Children: []core.Node{core.Text{ContentFunc: c.Text, MaxLines: 1, Style: Subhead.Merge(core.Style{FontWeight: core.FontWeightSemibold})}}}
+			Children: []core.Node{core.Text{ContentFunc: c.Text, MaxLines: 1, Style: core.Style{FontSize: 14, LineHeight: 18, FontWeight: core.FontWeightSemibold}}}}
 	}
 	return core.View{TestID: c.TestID, Role: role, LabelFunc: c.Text, Checked: c.On, OnPress: func(core.PressEvent) { c.OnPress() },
 		Style: core.Style{MinHeight: core.Pt(44), Padding: core.Symmetric(0, 18), CornerRadius: 22, BorderCurve: core.BorderCurveContinuous, BorderWidth: 2,

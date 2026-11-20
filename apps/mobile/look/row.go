@@ -40,6 +40,8 @@ type Row struct {
 	TitleTone Tone
 	// TitleLines is how many lines the title takes at most, 2 when 0.
 	TitleLines int
+	// TitleStyle is set over the title's 16-point Body, as a film's row sets its 15-point semibold one.
+	TitleStyle core.Style
 	Detail     func() string
 	// DetailTone is the detail's color, muted when nil.
 	DetailTone func() Tone
@@ -54,6 +56,8 @@ type Row struct {
 	Inset core.Points
 	// Checked makes the row a radio button of its group, checked while it reports true.
 	Checked func() bool
+	// Padding is the room around the row's content, 8 by 16 when nil.
+	Padding *core.Edges
 	OnPress func()
 	TestID  string
 }
@@ -68,7 +72,7 @@ func (r Row) Render(cx *core.Scope) core.Node {
 		if lines == 0 {
 			lines = 2
 		}
-		texts = append(texts, core.Text{ContentFunc: r.Title, MaxLines: lines, Style: Body,
+		texts = append(texts, core.Text{ContentFunc: r.Title, MaxLines: lines, Style: Body.Merge(r.TitleStyle),
 			StyleFunc: func() core.Style { return core.Style{Color: r.TitleTone.color(colors, warnText, colors.Text)} }})
 	}
 	if r.Detail != nil {
@@ -110,8 +114,12 @@ func (r Row) Render(cx *core.Scope) core.Node {
 		// The chevron is the same light grey in both appearances, as the system's is.
 		children = append(children, core.Icon{SVG: Chevron(), Style: core.Style{Width: core.Pt(8), Height: core.Pt(13), FlexShrink: 0, Color: theme.Chevron}})
 	}
+	pad := core.Symmetric(8, 16)
+	if r.Padding != nil {
+		pad = *r.Padding
+	}
 	v := core.View{TestID: r.TestID, Children: children,
-		Style:     core.Style{Direction: core.Row, AlignItems: core.AlignCenter, Gap: 12, Padding: core.Symmetric(8, 16), MinHeight: core.Pt(52)},
+		Style:     core.Style{Direction: core.Row, AlignItems: core.AlignCenter, Gap: 12, Padding: pad, MinHeight: core.Pt(52)},
 		StyleFunc: func() core.Style { return core.Style{Active: &core.Style{Background: colors.Pressed()}} }}
 	if r.OnPress != nil {
 		v.Role = core.RoleButton

@@ -6,7 +6,7 @@ import (
 	"github.com/nsgo-dev/nsgo/ui"
 )
 
-// TabRoot is p as the root page of a tab's stack, titled title, with trailing in the header's end: on iOS the system's large title, which collapses as the page scrolls, with symbols as the system's own buttons for trailing; elsewhere a large title of its own at the top of the page (PageTitle), trailing in a row of its own over it.
+// TabRoot is p as the root page of a tab's stack, titled title, with trailing in the header's end and p.HeaderLeft, when set, at its start: on iOS the system's large title, which collapses as the page scrolls, with symbols as the system's own buttons for trailing; elsewhere a large title of its own at the top of the page (PageTitle), the header's views in a row of their own over it.
 func TabRoot(cx *core.Scope, p base.NavPage, title func() string, trailing []core.Node, symbols func() []core.HeaderSymbol) base.NavPage {
 	colors := ui.ColorsOf(cx)
 	p.StyleFunc = ui.Filled(colors.Background)
@@ -27,6 +27,11 @@ func TabRoot(cx *core.Scope, p base.NavPage, title func() string, trailing []cor
 	head := core.Text{ContentFunc: title, Role: core.RoleHeader, MaxLines: 1, Style: PageTitle(cx).Merge(core.Style{Padding: core.Edges{Top: 2, Right: 16, Bottom: 4, Left: 16}}),
 		StyleFunc: ui.Colored(colors.Text)}
 	bar := core.View{Style: core.Style{PaddingEnv: core.EnvEdges{Right: core.EnvSafeArea, Left: core.EnvSafeArea}}, Children: []core.Node{head}}
+	if p.HeaderLeft != nil {
+		// The header's start, as the Library's switcher, leads the row of its buttons, which the room between keeps at the end.
+		trailing = append([]core.Node{p.HeaderLeft, core.View{Style: core.Style{FlexGrow: 1}}}, trailing...)
+		p.HeaderLeft = nil
+	}
 	if len(trailing) == 0 {
 		// A page without buttons starts its title 56 points down, as the design's Settings does.
 		bar.Style.Padding.Top, bar.Style.PaddingEnv.Top = 54, core.EnvSafeArea

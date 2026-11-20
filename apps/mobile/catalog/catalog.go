@@ -241,10 +241,11 @@ func Filter(entries []Entry, scope *Scope, source string) []Entry {
 	return out
 }
 
-// Hit is a line a search found: where it starts, and its text that matched.
+// Hit is a line a search found: where it starts, its text that matched, and its translation, "" for a line not translated.
 type Hit struct {
-	At   time.Duration
-	Text string
+	At          time.Duration
+	Text        string
+	Translation string
 }
 
 // Result is a film a search found, with the line that matched where its title did not.
@@ -272,7 +273,7 @@ func Search(entries []Entry, lines map[string][]sync.Cue, query string) []Result
 			default:
 				continue
 			}
-			out = append(out, Result{Entry: e, Hit: &Hit{At: time.Duration(c.StartMS) * time.Millisecond, Text: text}})
+			out = append(out, Result{Entry: e, Hit: &Hit{At: time.Duration(c.StartMS) * time.Millisecond, Text: text, Translation: c.Translation}})
 			break
 		}
 	}

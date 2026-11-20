@@ -104,6 +104,9 @@ func App(cx *core.Scope, cfg session.Config) core.Node {
 	searches := core.NewSignal(cx, 0)
 	// library is the library the Library shows, none for all, which a tablet's sidebar names and picks too.
 	library := core.NewSignal(cx, catalog.Scope{})
+	// libraries is whether the sheet that picks it shows, which the Library's switcher and a tablet's sidebar open.
+	libraries := core.NewSignal(cx, false)
+	openLibraries := func() { libraries.Set(true) }
 	// openJobs shows the Jobs tab.
 	openJobs := func() { selected.Set(jobsTab) }
 	toaster := ui.NewToaster(cx)
@@ -220,7 +223,7 @@ func App(cx *core.Scope, cfg session.Config) core.Node {
 				if shell.SystemBar(cx) {
 					jobsButton = openJobs
 				}
-				return films.Page(cx, s, films.Actions{Pair: openPair, Play: play, PlayAt: layer.PlayAt, Add: openAdd, Jobs: jobsButton, Searches: searches.Get, Library: library,
+				return films.Page(cx, s, films.Actions{Pair: openPair, Play: play, PlayAt: layer.PlayAt, Add: openAdd, Jobs: jobsButton, Searches: searches.Get, Library: library, Libraries: openLibraries,
 					Subscription: subscription.Set, Film: func(e catalog.Entry) { openFilm(e.Desktop, e.Library, e.Film) }})
 			})
 			return core.View{Style: core.Style{FlexGrow: 1}, Children: []core.Node{stack, player.MiniBar(cx, layer)}}
@@ -256,7 +259,7 @@ func App(cx *core.Scope, cfg session.Config) core.Node {
 		})
 		return shell.Shell{Selected: selected.Get, OnChange: change,
 			Library:   func() string { return films.LibraryName(cx, library) },
-			OnLibrary: func() { films.PickLibrary(cx, s, library) },
+			OnLibrary: openLibraries,
 			Aside:     films.Sidebar(cx, s, subscription.Set, openAdd),
 			Footer:    settings.Computers(cx, s, openJobs),
 			Tabs:      list}
@@ -286,6 +289,7 @@ func App(cx *core.Scope, cfg session.Config) core.Node {
 			core.View{Style: core.Style{FlexGrow: 1, FlexShrink: 1, MinHeight: core.Pt(0)}, AccessibilityElementsHidden: layer.Full, Children: []core.Node{root}},
 			add.Sheet(cx, s, adding.Get, func() { adding.Set(false) }, openJobs),
 			films.SubscriptionSheet(cx, s, subscription),
+			films.LibrarySheet(cx, s, library, libraries),
 			ui.Toasts{Toaster: toaster, TestID: "toasts"},
 			layer.Node(cx),
 		}}
