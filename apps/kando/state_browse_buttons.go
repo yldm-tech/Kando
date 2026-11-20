@@ -74,7 +74,7 @@ func (a *app) browsePageTakes(origin string) func(u string) bool {
 	}
 }
 
-// browseSitesChanged gives the pages' buttons sites, the allowed sites of the site packs turned on, besides Kando's own (browse.ScriptWith). The web view reads its script once, as it is made, so when the script changes the web view is made again (browse.View), loading the page it showed, or the blank page under the start, though without the history before it, as when the browser's column goes (browseColumnGone).
+// browseSitesChanged gives the pages' buttons sites, the allowed sites of the site packs turned on, besides Kando's own (browse.ScriptWith). When the script changes, the same web view loads its source again with it at once, in place of the page it shows, keeping the history before it (core.WebView.InjectedJavaScriptBeforeContentFunc, browse/page.go), so the source becomes the page it shows, which the user may have gone on to from the source, or the blank page under the start, and a load under way says nothing of being cut short (browseCutShort).
 func (a *app) browseSitesChanged(sites []kcore.VideoSite) {
 	if reflect.DeepEqual(sites, a.browse.sites) {
 		return
@@ -85,9 +85,13 @@ func (a *app) browseSitesChanged(sites []kcore.VideoSite) {
 		return
 	}
 	a.browse.script = script
-	if a.browse.source != "" {
-		a.browseColumnGone()
+	switch {
+	case a.browseShowing():
+		a.browse.source = a.browse.url
+	case a.browse.source != "":
+		a.browse.source = browseBlank
 	}
+	a.browseCutShort()
 }
 
 // browsePageAsk answers a page of a site the catalog lists, or of an allowed site of a site pack, that asks what the library has of links, the videos it shows (browse.ParseAskWith with browsePageVideo) that its site may ask about (browsePageTakes), with the buttons' words, and follows those videos, so the page hears when that changes (browsePagePush). A page of another site, which gets no buttons, is not answered.
