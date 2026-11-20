@@ -83,6 +83,8 @@ type Desktop struct {
 	films []Film
 	stall int64
 	held  chan struct{}
+	// pairHeld holds the pairing answers (HoldPairing).
+	pairHeld chan struct{}
 	// off hangs up on every connection, as a computer asleep or with Phone Sync off (SetOff).
 	off     bool
 	ranges  []string
@@ -238,6 +240,25 @@ func (d *Desktop) Hold() (release func()) {
 	}
 }
 
+// HoldPairing makes each pairing answer begun from now on wait, before the desktop takes the code, until release is called or the phone gives up on it, as a desktop slow to answer does.
+func (d *Desktop) HoldPairing() (release func()) {
+	held := make(chan struct{})
+	d.mu.Lock()
+	d.pairHeld = held
+	d.mu.Unlock()
+	var once gosync.Once
+	return func() {
+		once.Do(func() {
+			d.mu.Lock()
+			if d.pairHeld == held {
+				d.pairHeld = nil
+			}
+			d.mu.Unlock()
+			close(held)
+		})
+	}
+}
+
 // Ranges are the video requests' Range headers, oldest first, each with its If-Range after a space when it had one.
 func (d *Desktop) Ranges() []string {
 	d.mu.Lock()
@@ -299,6 +320,16 @@ func (d *Desktop) pair(w http.ResponseWriter, r *http.Request) {
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		fail(w, http.StatusBadRequest, sync.CodeInvalid)
 		return
+	}
+	d.mu.Lock()
+	held := d.pairHeld
+	d.mu.Unlock()
+	if held != nil {
+		select {
+		case <-held:
+		case <-r.Context().Done():
+			return
+		}
 	}
 	d.mu.Lock()
 	defer d.mu.Unlock()

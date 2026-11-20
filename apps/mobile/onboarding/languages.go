@@ -22,7 +22,7 @@ var spokenNames = map[string]func(*core.Scope) string{
 
 // languagesStep asks which languages the user watches, as a grid of tiles, and which one they want subtitles in, as a row that opens the list of them, keeping each choice as it is made, so that leaving the introduction any way, even by the system's back, keeps it. The target stays unchosen ("", which follows the phone's language) until the user picks one; the phone's own shows meanwhile.
 func languagesStep(cx *core.Scope, s *session.Session) core.Node {
-	colors, tints := ui.ColorsOf(cx), ui.TintsOf(cx)
+	colors := ui.ColorsOf(cx)
 	keep := func(change func(*store.Prefs)) {
 		p := s.Prefs()
 		change(&p)
@@ -42,18 +42,21 @@ func languagesStep(cx *core.Scope, s *session.Session) core.Node {
 					p.Spoken = append(slices.Clone(p.Spoken), l.Code)
 				})
 			},
-			Style: core.Style{Height: core.Pt(58), MinWidth: core.Pt(0), Padding: core.Symmetric(0, 10), CornerRadius: 14, BorderCurve: core.BorderCurveContinuous, BorderWidth: 2,
+			Style: core.Style{Height: core.Pt(58), MinWidth: core.Pt(0), Padding: core.Symmetric(0, 8), CornerRadius: 14, BorderCurve: core.BorderCurveContinuous, BorderWidth: 2,
 				JustifyContent: core.JustifyCenter, Active: &core.Style{Opacity: core.Alpha(0.7)}},
-			// The ring is drawn inside the tile, so a tile picked keeps its size.
+			// The ring is drawn inside the tile, so a tile picked keeps its size, and the text sits the design's 10 points in, ring and padding together. The tiles are the grouped page's grey on the introduction's white page.
 			StyleFunc: func() core.Style {
 				if on() {
-					return core.Style{Background: tints.Accent(), BorderColor: colors.Accent()}
+					return core.Style{Background: ui.Alpha(colors.Accent(), 0.08), BorderColor: colors.Accent()}
 				}
-				return core.Style{Background: colors.Inset(), BorderColor: core.Transparent}
+				return core.Style{Background: colors.Background(), BorderColor: core.Transparent}
 			},
 			Children: []core.Node{
 				core.Text{Content: l.Name, MaxLines: 1, Style: core.Style{FontSize: 15, LineHeight: 20, FontWeight: core.FontWeightBold}, StyleFunc: ui.Colored(colors.Text)},
-				core.Text{ContentFunc: func() string { return name(cx) }, MaxLines: 1, Style: look.Footnote, StyleFunc: ui.Colored(colors.Muted)},
+				// The language the app shows is named once: its name in itself is its name.
+				core.Show{When: func() bool { return name(cx) != l.Name }, Then: func(cx *core.Scope) core.Node {
+					return core.Text{ContentFunc: func() string { return name(cx) }, MaxLines: 1, Style: look.Footnote, StyleFunc: ui.Colored(colors.Muted)}
+				}},
 			}})
 	}
 	picking := core.NewSignal(cx, false)
@@ -65,7 +68,7 @@ func languagesStep(cx *core.Scope, s *session.Session) core.Node {
 			OnPress: func(core.PressEvent) { picking.Set(true) },
 			Style: core.Style{Direction: core.Row, AlignItems: core.AlignCenter, Gap: 12, Height: core.Pt(50), Padding: core.Symmetric(0, 16), CornerRadius: 14, BorderCurve: core.BorderCurveContinuous,
 				Active: &core.Style{Opacity: core.Alpha(0.7)}},
-			StyleFunc: ui.Filled(colors.Inset),
+			StyleFunc: ui.Filled(colors.Background),
 			Children: []core.Node{
 				core.Text{ContentFunc: func() string { return locales.OnboardingTarget(cx) }, MaxLines: 1, Style: look.Body.Merge(core.Style{FlexGrow: 1, FlexShrink: 1}), StyleFunc: ui.Colored(colors.Text)},
 				core.Text{ContentFunc: func() string { return langs.TargetName(s.Target()) }, MaxLines: 1, Style: look.Body.Merge(core.Style{FontWeight: core.FontWeightBold}), StyleFunc: ui.Colored(colors.Accent)},

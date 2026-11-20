@@ -17,13 +17,13 @@ func pairingStep(cx *core.Scope, s *session.Session, flow pair.Flow, paired *cor
 	colors := ui.ColorsOf(cx)
 	isPaired := func() bool { return paired.Get().ID != "" }
 	note := core.View{TestID: "onboarding-desktop-app", Role: core.RoleLink, LabelFunc: func() string { return locales.OnboardingNoDesktop(cx) },
-		OnPress: func(core.PressEvent) { cx.OpenURL(DownloadURL, nil) }, Style: core.Style{Padding: core.Symmetric(4, 4), Active: &core.Style{Opacity: core.Alpha(0.6)}},
+		OnPress: func(core.PressEvent) { cx.OpenURL(DownloadURL, nil) }, Style: core.Style{Padding: core.Edges{Right: 4, Left: 4}, Active: &core.Style{Opacity: core.Alpha(0.6)}},
 		Children: []core.Node{core.Text{ContentFunc: func() string { return locales.OnboardingNoDesktop(cx) }, Style: core.Style{FontSize: 12, LineHeight: 17}, StyleFunc: ui.Colored(colors.Muted)}}}
 	return core.View{TestID: "onboarding-pairing", Style: core.Style{Gap: 10}, Children: []core.Node{
 		heading(cx, false, func() string { return locales.OnboardingPairTitle(cx) }, func() string { return locales.OnboardingPairBody(cx) }),
 		core.Show{When: isPaired,
 			Then: func(cx *core.Scope) core.Node {
-				return core.View{Style: core.Style{Gap: 10, Margin: core.Edges{Top: 4}}, Children: []core.Node{pair.Steps(cx), pairedCard(cx, s, paired)}}
+				return core.View{Style: core.Style{Gap: 10, Margin: core.Edges{Top: 4}}, Children: []core.Node{pair.Steps(cx, pair.CardFill(cx, true)), pairedCard(cx, s, paired)}}
 			},
 			Else: func(cx *core.Scope) core.Node {
 				// The form keeps its own column's sides.

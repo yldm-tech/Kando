@@ -44,6 +44,8 @@ func Page(cx *core.Scope, s *session.Session, done func()) core.Node {
 	// The pairing flow is the page's, as its form is in the step and its button at the page's foot.
 	flow := pair.New(cx, s, func(d store.Desktop) { paired.Set(d) }, func() core.Points { return 16 }, true)
 	isPaired := func() bool { return paired.Get().ID != "" }
+	phone := !look.Tablet(cx)
+	height := func() core.Points { return heroFor(cx) }
 
 	dots := core.View{TestID: "onboarding-steps", Role: core.RoleImage, Accessible: true, LabelFunc: func() string { return locales.OnboardingStep(cx, step.Get(), steps) },
 		Style: core.Style{Direction: core.Row, Gap: 6, AlignItems: core.AlignCenter}}
@@ -66,11 +68,24 @@ func Page(cx *core.Scope, s *session.Session, done func()) core.Node {
 		core.Show{When: func() bool { return step.Get() == languages }, Then: func(cx *core.Scope) core.Node { return languagesStep(cx, s) }},
 		core.Show{When: func() bool { return step.Get() == pairing }, Then: func(cx *core.Scope) core.Node { return pairingStep(cx, s, flow, paired) }},
 	}}
-	// The steps scroll under the picture, which scrolls away with them; the button stays at the page's foot.
-	content := core.Scroll{TestID: "onboarding-scroll", Style: core.Style{FlexGrow: 1, FlexShrink: 1}, Children: []core.Node{
-		hero(cx, finish),
-		// The dots sit on the picture's faded foot.
-		core.View{Style: core.Style{Gap: 18, Margin: core.Edges{Top: -40}, Padding: core.Edges{Right: 24, Bottom: 16, Left: 24}}, Children: []core.Node{dots, body}},
+	// over is whether the page has scrolled under the top bar: the picture's dark top, which the bar's white reads on, has gone from behind it.
+	over := core.NewSignal(cx, false)
+	barFoot := func() core.Points {
+		if !phone {
+			return 56
+		}
+		return cx.Env().SafeArea().Top + 56
+	}
+	// The steps scroll under the picture, which scrolls away with them under the top bar, which stays; the button stays at the page's foot.
+	content := core.View{Style: core.Style{FlexGrow: 1, FlexShrink: 1, MinHeight: core.Pt(0)}, Children: []core.Node{
+		core.Scroll{TestID: "onboarding-scroll", Style: core.Style{FlexGrow: 1, FlexShrink: 1},
+			OnScroll: func(e core.ScrollEvent) { over.Set(e.Offset.Y > height()*0.55-barFoot()) },
+			Children: []core.Node{
+				hero(cx, height, phone),
+				// The dots sit on the picture's faded foot.
+				core.View{Style: core.Style{Gap: 18, Margin: core.Edges{Top: -40}, Padding: core.Edges{Right: 24, Bottom: 16, Left: 24}, PaddingEnv: sides(phone)}, Children: []core.Node{dots, body}},
+			}},
+		topBar(cx, finish, flow.Sending, over.Get, phone),
 	}}
 
 	cta := func(text func() string, testID string, press func()) core.Node {
@@ -79,26 +94,28 @@ func Page(cx *core.Scope, s *session.Session, done func()) core.Node {
 	actions := core.View{
 		// The design's button is 40 points above the screen's foot, clear of a home indicator.
 		StyleFunc: func() core.Style {
-			return core.Style{Padding: core.Edges{Top: 8, Right: 24, Bottom: max(40, cx.Env().SafeArea().Bottom+8), Left: 24}}
+			return core.Style{Padding: core.Edges{Top: 8, Right: 24, Bottom: max(40, cx.Env().SafeArea().Bottom+8), Left: 24}, PaddingEnv: sides(phone)}
 		},
 		Children: []core.Node{
 			core.Show{When: func() bool { return step.Get() < pairing }, Then: func(cx *core.Scope) core.Node {
 				return cta(func() string { return locales.OnboardingContinue(cx) }, "onboarding-continue", next)
 			}},
-			// The last step's buttons are its own: pairing's, then the way to start.
+			// The last step's buttons are its own: pairing's, then the way to start. Going on without a computer waits while a code is out, as Cancel does, and gives way to Cancel while the fingerprint is compared.
 			core.Show{When: func() bool { return step.Get() == pairing && isPaired() }, Then: func(cx *core.Scope) core.Node {
 				return cta(func() string { return locales.OnboardingStart(cx) }, "onboarding-start", finish)
 			}},
 			core.Show{When: func() bool { return step.Get() == pairing && !isPaired() }, Then: func(cx *core.Scope) core.Node {
 				return core.View{Style: core.Style{Gap: 4}, Children: []core.Node{
 					flow.Actions,
-					look.Button{Kind: look.Plain, Text: func() string { return locales.OnboardingSkipPairing(cx) }, TestID: "onboarding-later", OnPress: finish},
+					core.Show{When: func() bool { return !flow.Comparing() }, Then: func(cx *core.Scope) core.Node {
+						return look.Button{Kind: look.Plain, Text: func() string { return locales.OnboardingSkipPairing(cx) }, TestID: "onboarding-later", Disabled: flow.Sending, OnPress: finish}
+					}},
 				}}
 			}},
 		}}
 
 	column := []core.Node{content, actions}
-	if !look.Tablet(cx) {
+	if phone {
 		return core.View{TestID: "onboarding", Style: core.Style{FlexGrow: 1, FlexShrink: 1, MinHeight: core.Pt(0)}, StyleFunc: ui.Filled(colors.Surface), Children: column}
 	}
 	// A tablet's is the design's 480 by 780 card over the screen dimmed.
