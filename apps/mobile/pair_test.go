@@ -236,7 +236,10 @@ func TestScanningAnotherPhotoSaysSo(t *testing.T) {
 	}
 	photo = []byte("not a photo")
 	p.app.Press("id:pair-scan")
-	p.app.WaitUntil(wait, func() bool { vs := p.app.Query("id:pair-problem"); return len(vs) == 1 && vs[0].Text == msgs.PairErrNoQR() })
+	p.app.WaitUntil(wait, func() bool {
+		vs := p.app.Query("id:pair-problem")
+		return len(vs) == 1 && vs[0].Text == msgs.PairErrNoQR()
+	})
 	if d.Paired() != 0 {
 		t.Fatal("the phone paired from a photo of no pairing code")
 	}

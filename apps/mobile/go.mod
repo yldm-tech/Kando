@@ -5,6 +5,7 @@ go 1.27.4
 tool github.com/nsgo-dev/nsgo/cmd/nsgo
 
 require (
+	github.com/makiuchi-d/gozxing v0.1.1
 	github.com/nsgo-dev/nsgo v0.2.1-0.20261120000346-f377daba0a2a
 	kando/packages/core v0.0.0
 	kando/packages/study v0.0.0
@@ -22,7 +23,6 @@ require (
 	github.com/ikawaha/kagome-dict v1.1.7 // indirect
 	github.com/ikawaha/kagome-dict/ipa v1.2.6 // indirect
 	github.com/ikawaha/kagome/v2 v2.11.1 // indirect
-	github.com/makiuchi-d/gozxing v0.1.1 // indirect
 	github.com/modelcontextprotocol/go-sdk v1.8.0 // indirect
 	github.com/segmentio/asm v1.1.3 // indirect
 	github.com/segmentio/encoding v0.5.4 // indirect
