@@ -18,6 +18,10 @@ const pluginStudyFields = `"capabilities": {"host": ["kando.line.current"]},
   "contributes": {"panels": [{"id": "words", "export": "Words", "icon": "book-open", "title": {"en": "Long Words", "zh-Hans": "长单词", "zh-Hant": "長單詞", "ja": "長い単語", "ko": "긴 단어"}}]},
   "events": ["line.changed"]`
 
+// pluginStudyAbout is acme.study's author, name and description, as its panel names it.
+const pluginStudyAbout = `"author": "Acme", "name": {"en": "Line Study", "zh-Hans": "台词精读", "zh-Hant": "台詞精讀", "ja": "セリフ精読", "ko": "대사 정독"},
+  "description": {"en": "Lists the long words of the line playing.", "zh-Hans": "列出正在播放的这句里的长单词。", "zh-Hant": "列出正在播放的這句裡的長單詞。", "ja": "再生中のセリフの長い単語を並べます。", "ko": "재생 중인 대사의 긴 단어를 보여 줍니다."}`
+
 // pluginStudyCode is acme.study's code: its panel shows the line playing and its words of eight letters or more, each on a card.
 const pluginStudyCode = `import { host, mount, signal, Text, View } from "nsgo"
 export function Words() {
@@ -40,7 +44,7 @@ func shootPluginPanels(t *testing.T, f *screenshotFixture, key pluginsKey) {
 		screenshotOpen(t, a, tt, updates, "j1", protoCues[2].Start)
 		screenshotLoad(tt, a)
 		root := filepath.Join(f.home, "panels")
-		pluginsScriptInstalled(t, root, pluginScriptFolder(t, key, "acme.study", "1.0.0", pluginStudyFields, pluginStudyCode))
+		pluginsScriptInstalled(t, root, pluginScriptFolderAbout(t, key, "acme.study", "1.0.0", pluginStudyAbout, pluginStudyFields, pluginStudyCode))
 		a.plugins.root = root
 		a.plugins.script.official = key.public
 		a.plugins.script.watch = script.Watch{Beat: 100 * time.Millisecond, Stall: time.Minute, Stalls: 3, Deadline: time.Minute}

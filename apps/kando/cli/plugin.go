@@ -99,7 +99,7 @@ func pluginValidate(e *env, src string) error {
 	}
 	defer os.RemoveAll(work)
 	roots := signature.DefaultRoots(nil)
-	c, err := publish.Check(src, work, publish.Trust(pluginsRoot(), roots), roots)
+	c, err := publish.Check(src, work, publish.Trust(pluginsRoot(), roots, nil), roots)
 	if err != nil {
 		return fmt.Errorf("%s: %w", src, err)
 	}
@@ -126,7 +126,7 @@ func pluginInstall(e *env, src string) error {
 	}
 	defer os.RemoveAll(work)
 	roots := signature.DefaultRoots(nil)
-	c, err := publish.Check(src, work, publish.Trust(pluginsRoot(), roots), roots)
+	c, err := publish.Check(src, work, publish.Trust(pluginsRoot(), roots, nil), roots)
 	if err != nil {
 		return fmt.Errorf("%s: %w", src, err)
 	}

@@ -300,10 +300,10 @@ func TestATabletShowsASidebarOnItsSideAndATabBarUpright(t *testing.T) {
 		t.Fatalf("the sidebar's head names %q, want every library", got)
 	}
 	p.app.Press("id:sidebar-header")
-	if got, want := p.alertLabels(), []string{msgs.FilmsAllLibraries(), msgs.FilmsLibraryOn("Japanese Class", "Studio"), msgs.CommonCancel()}; !slices.Equal(got, want) {
+	if got, want := p.libraryLabels(), []string{msgs.FilmsAllLibraries(), "Japanese Class"}; !slices.Equal(got, want) {
 		t.Fatalf("the sidebar's head offers %q, want %q", got, want)
 	}
-	p.app.Answer(1)
+	p.pickLibrary(1)
 	p.app.WaitUntil(wait, func() bool { return p.texts("id:sidebar-library") == msgs.FilmsLibraryOn("Japanese Class", "Studio") })
 	p.app.Press("id:sidebar-tab-settings")
 	p.app.WaitFor("id:settings-page", wait)

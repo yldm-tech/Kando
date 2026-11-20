@@ -128,6 +128,7 @@ func libraryOf(ctx context.Context, c *sync.Client, f store.Film) string {
 func (s *Session) loadStudy(desktop, lib string, andSync bool) {
 	k := studyKey(desktop, lib)
 	if _, ok := s.studies.GetUntracked()[k]; ok {
+		s.placeAllWatched()
 		if andSync {
 			s.syncStudy(desktop, lib)
 		}
@@ -146,6 +147,7 @@ func (s *Session) loadStudy(desktop, lib string, andSync bool) {
 				m[k] = l
 				s.studies.Set(m)
 			}
+			s.placeAllWatched()
 			if andSync {
 				s.syncStudy(desktop, lib)
 			}
@@ -232,6 +234,7 @@ func (s *Session) syncLibrary(desktop, lib string, done func(desktop, lib string
 		m := maps.Clone(s.studies.GetUntracked())
 		m[k] = study.Library{}
 		s.studies.Set(m)
+		s.placeAllWatched()
 	}
 	s.syncStudyThen(desktop, lib, func(err error) { done(desktop, lib, err) })
 }

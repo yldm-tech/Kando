@@ -3,6 +3,7 @@ package annotate
 
 import (
 	"hash/fnv"
+	"slices"
 	"strconv"
 	"strings"
 	"unicode"
@@ -84,8 +85,8 @@ func (s Sources) line(line string, pinyin map[string]string) []Mark {
 		}
 		switch lang {
 		case "ja":
-			if from, to, ruby := furigana(m.Text, hiragana(m.Reading)); ruby != "" {
-				out = append(out, Mark{Start: start + from, End: start + to, Ruby: ruby})
+			for _, r := range furigana(m.Text, hiragana(m.Reading)) {
+				out = append(out, Mark{Start: start + r.from, End: start + r.to, Ruby: r.ruby})
 			}
 		case "zh":
 			if ruby := s.pinyin(m.Text, pinyin); ruby != "" {
@@ -126,8 +127,95 @@ func (s Sources) pinyin(word string, seen map[string]string) string {
 	return r
 }
 
-// furigana is where the reading of word goes and what it is: the run of word from from to to (byte offsets) and the part of reading, in hiragana, it is read as, the kana word and reading begin and end with alike left out, as 食べた read たべた gives 食 read た and ラーメン屋 read らーめんや gives 屋 read や (the long vowel mark and halfwidth katakana count as kana, kanaFold). "" when there is nothing to put over it: no reading, a word read as it is written, or a run left without Han characters.
-func furigana(word, reading string) (from, to int, ruby string) {
+// rubyRun is a run of a word, from from to to (byte offsets), and the reading over it.
+type rubyRun struct {
+	from, to int
+	ruby     string
+}
+
+// furigana is where the reading of word goes and what it is: the runs of word in Han characters and the parts of reading, in hiragana, they are read as. The kana word and reading begin and end with alike are left out, as 食べた read たべた gives 食 read た and ラーメン屋 read らーめんや gives 屋 read や (the long vowel mark and halfwidth katakana count as kana, kanaFold), and so is kana between them where reading has it too, as 山の上 read やまのうえ gives 山 read やま and 上 read うえ, where the kana of the word between them match the reading one way only, each run read as one kana or more (kanaRuns); a word whose kana the reading does not have, or has in more than one place, as 物の怪 read もののけ, which could be 物 read も and 怪 read のけ as well as 物 read もの and 怪 read け, keeps one reading over all of it but the kana it begins and ends with. None when there is nothing to put over it: no reading, a word read as it is written, or a run left without Han characters.
+func furigana(word, reading string) []rubyRun {
+	from, to, ruby := furiganaEnds(word, reading)
+	if ruby == "" {
+		return nil
+	}
+	if runs := kanaRuns(word[from:to], ruby); runs != nil {
+		for i := range runs {
+			runs[i].from += from
+			runs[i].to += from
+		}
+		return runs
+	}
+	return []rubyRun{{from, to, ruby}}
+}
+
+// kanaRuns is the runs of word in characters other than kana (kanaFold), with Han characters among them, and the parts of reading they are read as, where word has kana between them that reading has where the runs leave it, each run read as one kana or more. Nil when word has no kana between such runs, or reading matches it no way or more than one way, as the reading alone cannot tell which kana of it a run is read as.
+func kanaRuns(word, reading string) []rubyRun {
+	type part struct {
+		from, to int
+		kana     []rune // the part's kana as a reading writes them, nil for a run of other characters
+	}
+	var parts []part
+	for i, r := range word {
+		f, kana := kanaFold(r)
+		if n := len(parts); n > 0 && (parts[n-1].kana != nil) == kana {
+			parts[n-1].to = i + utf8.RuneLen(r)
+			if kana {
+				parts[n-1].kana = append(parts[n-1].kana, f)
+			}
+			continue
+		}
+		p := part{from: i, to: i + utf8.RuneLen(r)}
+		if kana {
+			p.kana = []rune{f}
+		}
+		parts = append(parts, p)
+	}
+	if len(parts) < 3 {
+		return nil
+	}
+	read := []rune(reading)
+	cut := make([]int, len(parts)+1) // where in read each part starts
+	var found []int                  // cut of the first way that matches
+	ways := 0
+	var match func(k, at int)
+	match = func(k, at int) {
+		cut[k] = at
+		if k == len(parts) {
+			if at == len(read) {
+				ways++
+				if ways == 1 {
+					found = slices.Clone(cut)
+				}
+			}
+			return
+		}
+		if kana := parts[k].kana; kana != nil {
+			if at+len(kana) <= len(read) && slices.Equal(read[at:at+len(kana)], kana) {
+				match(k+1, at+len(kana))
+			}
+			return
+		}
+		for end := at + 1; end <= len(read) && ways < 2; end++ {
+			match(k+1, end)
+		}
+	}
+	match(0, 0)
+	if ways != 1 {
+		return nil
+	}
+	cut = found
+	var out []rubyRun
+	for k, p := range parts {
+		if p.kana == nil && hasHan(word[p.from:p.to]) {
+			out = append(out, rubyRun{p.from, p.to, string(read[cut[k]:cut[k+1]])})
+		}
+	}
+	return out
+}
+
+// furiganaEnds is the run of word from from to to (byte offsets) that its reading goes over and the part of reading, in hiragana, it is read as: word and reading without the kana they begin and end with alike. "" when there is nothing to put over it: no reading, a word read as it is written, or a run left without Han characters.
+func furiganaEnds(word, reading string) (from, to int, ruby string) {
 	if reading == "" || hiragana(word) == reading {
 		return 0, 0, ""
 	}

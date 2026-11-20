@@ -1,10 +1,10 @@
 // Command kando-plugin checks and lists the packs of Kando's community plugin directory, for the CI of the directory's repository (yldm-tech/kando-plugins), which checks out this repository and runs it with go run (docs/plugin-system.md 15):
 //
-//	go run ./apps/kando/cmd/kando-plugin validate [--json] <pack>...
+//	go run ./apps/kando/cmd/kando-plugin validate [--json] [--revocations <file or https url>] <pack>...
 //	go run ./apps/kando/cmd/kando-plugin preview [--markdown] <pack>...
-//	KANDO_PLUGINS_INDEX_KEY=<secret> go run ./apps/kando/cmd/kando-plugin index <folder> --base <url> [--out <file>] [--json]
+//	KANDO_PLUGINS_INDEX_KEY=<secret> go run ./apps/kando/cmd/kando-plugin index <folder> --base <url> [--out <file>] [--revocations <file or https url>] [--json]
 //
-// validate checks each pack, a pack file or a folder, as Kando installs it, a script plugin's signature against Kando's official root (publish.Check, the same code `kando plugin validate` runs); preview writes what each pack is and asks for as Markdown, for a comment on the pull request; index builds and signs the community index (publish.Index, the same code as `kando plugin index`). It builds without cgo and imports no interface package, so it runs on any CI machine without a desktop's libraries.
+// validate checks each pack, a pack file or a folder, as Kando installs it, a script plugin's signature against Kando's official root (publish.Check, the same code `kando plugin validate` runs); with --revocations, also against that revocation list of the root, as Kando checks it once it fetched the list (script.RevocationsURL), so a pack whose package or release key it revokes fails with the code revoked, and index refuses to list it. An address that answers 404 is no list, as Kando takes it, but a file that does not exist fails the command; without the flag nothing is fetched. preview writes what each pack is and asks for as Markdown, for a comment on the pull request; index builds and signs the community index (publish.Index, the same code as `kando plugin index`). It builds without cgo and imports no interface package, so it runs on any CI machine without a desktop's libraries.
 //
 // Exit codes: 0 when every pack passed, 1 when one did not or the command failed, 2 for a usage error.
 package main
@@ -16,6 +16,7 @@ import (
 	"flag"
 	"fmt"
 	"io"
+	"net/http"
 	"os"
 	"slices"
 	"strings"
@@ -41,12 +42,14 @@ type tool struct {
 	getenv         func(string) string
 	roots          signature.Roots
 	indexPublicKey string
+	// client fetches a revocation list given as an https address.
+	client         *http.Client
 	now            func() time.Time
 	stdout, stderr io.Writer
 }
 
 func main() {
-	t := tool{getenv: os.Getenv, roots: signature.DefaultRoots(nil), indexPublicKey: signature.IndexKey, now: time.Now, stdout: os.Stdout, stderr: os.Stderr}
+	t := tool{getenv: os.Getenv, roots: signature.DefaultRoots(nil), indexPublicKey: signature.IndexKey, client: http.DefaultClient, now: time.Now, stdout: os.Stdout, stderr: os.Stderr}
 	os.Exit(t.run(os.Args[1:]))
 }
 
@@ -58,9 +61,9 @@ func (e errUsage) Error() string { return e.msg }
 func usagef(format string, args ...any) error { return errUsage{fmt.Sprintf(format, args...)} }
 
 const usage = `usage:
-  kando-plugin validate [--json] <pack>...
+  kando-plugin validate [--json] [--revocations <file or https url>] <pack>...
   kando-plugin preview [--markdown] <pack>...
-  kando-plugin index <folder> --base <https url> [--out <file>] [--json]   (the key's secret in ` + publish.IndexKeyEnv + `)`
+  kando-plugin index <folder> --base <https url> [--out <file>] [--revocations <file or https url>] [--json]   (the key's secret in ` + publish.IndexKeyEnv + `)`
 
 // run runs the command of args and returns its exit code.
 func (t tool) run(args []string) int {
@@ -92,6 +95,7 @@ func (t tool) dispatch(args []string) error {
 	switch verb {
 	case "validate":
 		asJSON := fs.Bool("json", false, "print the result as JSON")
+		revocations := fs.String("revocations", "", "the revocation list to check against, a file or an https address")
 		paths, err := parse(fs, args)
 		if err != nil {
 			return err
@@ -99,7 +103,11 @@ func (t tool) dispatch(args []string) error {
 		if len(paths) == 0 {
 			return usagef("validate takes one or more packs, pack files or folders")
 		}
-		return t.validate(paths, *asJSON)
+		list, err := t.revocations(*revocations)
+		if err != nil {
+			return err
+		}
+		return t.validate(paths, list, *asJSON)
 	case "preview":
 		markdown := fs.Bool("markdown", true, "write Markdown (the only format)")
 		paths, err := parse(fs, args)
@@ -117,6 +125,7 @@ func (t tool) dispatch(args []string) error {
 		asJSON := fs.Bool("json", false, "print the result as JSON")
 		base := fs.String("base", "", "the https address the pack files are published under")
 		out := fs.String("out", "index.json", "the index file to write")
+		revocations := fs.String("revocations", "", "the revocation list to check against, a file or an https address")
 		folders, err := parse(fs, args)
 		if err != nil {
 			return err
@@ -124,7 +133,7 @@ func (t tool) dispatch(args []string) error {
 		if len(folders) != 1 {
 			return usagef("index takes one folder of pack files, got %d arguments", len(folders))
 		}
-		return t.index(folders[0], *base, *out, *asJSON)
+		return t.index(folders[0], *base, *out, *revocations, *asJSON)
 	}
 	return usagef("unknown command %q", verb)
 }
@@ -156,14 +165,31 @@ type checked struct {
 	err error
 }
 
-// check checks each of paths as Kando installs it (publish.Check), a script plugin's signature against the tool's roots, with no revocation list: one trust for all of them, in a folder of its own removed afterwards.
-func (t tool) check(paths []string) ([]checked, error) {
+// revocations is the revocation list of --revocations src (publish.Revocations): nil for none given or an address that answers 404.
+func (t tool) revocations(src string) (*pkg.Revocations, error) {
+	if src == "" {
+		return nil, nil
+	}
+	list, err := publish.Revocations(src, t.client)
+	if err != nil {
+		return nil, fmt.Errorf("--revocations %s: %w", src, err)
+	}
+	return list, nil
+}
+
+// check checks each of paths as Kando installs it (publish.Check), a script plugin's signature against the tool's roots and the revocation list list (nil for none): one trust for all of them, in a folder of its own removed afterwards. A list none of the roots signed fails it before any pack is checked.
+func (t tool) check(paths []string, list *pkg.Revocations) ([]checked, error) {
 	work, err := os.MkdirTemp("", "kando-plugin-")
 	if err != nil {
 		return nil, err
 	}
 	defer os.RemoveAll(work)
-	trust := publish.Trust(work+string(os.PathSeparator)+"plugins", t.roots)
+	trust := publish.Trust(work+string(os.PathSeparator)+"plugins", t.roots, list)
+	if list != nil {
+		if _, err := trust(); err != nil {
+			return nil, err
+		}
+	}
 	out := make([]checked, len(paths))
 	for i, path := range paths {
 		dir, err := os.MkdirTemp(work, "pack-")
@@ -209,8 +235,8 @@ func newValidated(c checked) validated {
 }
 
 // validate checks every pack of paths and prints a line for each, or with asJSON {"ok": …, "packs": [...]}; it fails when one did not pass, after checking them all.
-func (t tool) validate(paths []string, asJSON bool) error {
-	results, err := t.check(paths)
+func (t tool) validate(paths []string, list *pkg.Revocations, asJSON bool) error {
+	results, err := t.check(paths, list)
 	if err != nil {
 		return err
 	}
@@ -248,7 +274,7 @@ func (t tool) validate(paths []string, asJSON bool) error {
 
 // preview writes the Markdown of every pack of paths (writePreview); it fails when one did not pass, after writing them all.
 func (t tool) preview(paths []string) error {
-	results, err := t.check(paths)
+	results, err := t.check(paths, nil)
 	if err != nil {
 		return err
 	}
@@ -263,8 +289,8 @@ func (t tool) preview(paths []string) error {
 	return nil
 }
 
-// index is `kando-plugin index`, as `kando plugin index` (publish.IndexKey, publish.Index, index.Sign): the key's secret only from publish.IndexKeyEnv, refused unless it is the key Kando checks the index with.
-func (t tool) index(folder, base, out string, asJSON bool) error {
+// index is `kando-plugin index`, as `kando plugin index` (publish.IndexKey, publish.Index, index.Sign): the key's secret only from publish.IndexKeyEnv, refused unless it is the key Kando checks the index with; with the revocation list of revocations (tool.revocations), a pack it revokes stops it, as any pack that does not pass, and is never listed.
+func (t tool) index(folder, base, out, revocations string, asJSON bool) error {
 	key, err := publish.IndexKey(t.getenv(publish.IndexKeyEnv), t.indexPublicKey)
 	if err != nil {
 		return err
@@ -272,7 +298,11 @@ func (t tool) index(folder, base, out string, asJSON bool) error {
 	if base == "" {
 		return usagef("index needs --base, the https address the pack files are published under")
 	}
-	idx, err := publish.Index(folder, base, t.now(), t.roots)
+	list, err := t.revocations(revocations)
+	if err != nil {
+		return err
+	}
+	idx, err := publish.Index(folder, base, t.now(), t.roots, list)
 	if err != nil {
 		return err
 	}

@@ -725,6 +725,9 @@ func runSubscriptions(e *env, args []string) error {
 		if got.Already {
 			fmt.Fprintln(e.stderr, "The library follows it already.")
 		}
+		if !got.Already && got.Subscription.Added > 0 {
+			fmt.Fprintf(e.stderr, "Queued %d of its videos.\n", got.Subscription.Added)
+		}
 		_, err := fmt.Fprintf(e.stdout, "%s\t%s\n", printable(got.Subscription.ID), printable(got.Subscription.Name))
 		return err
 	case "check":

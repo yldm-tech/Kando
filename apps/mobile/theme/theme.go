@@ -15,6 +15,7 @@ const (
 	roleBarLine  = "barLine"
 	roleTileInk  = "tileInk"
 	roleWarnText = "warnText"
+	roleSubtext  = "subtext"
 )
 
 // Kando is NSGo's default theme in the design's palette: the page is the grouped list's grey and a card (Surface) is white, black under #1C1C1E in the dark; ink, muted text, hairlines and fills are the system's; danger is the destructive red and warning the system's orange, with warnText the orange that reads as text.
@@ -38,6 +39,7 @@ func Kando() *core.Theme {
 	l.SetColor(roleBarLine, core.RGBA(0x000000, 0.14))
 	l.SetColor(roleTileInk, core.RGB(0x1D1D1F))
 	l.SetColor(roleWarnText, core.RGB(0x8A4B00))
+	l.SetColor(roleSubtext, core.RGB(0x3A3A3F))
 	d.Background, d.Surface, d.Text, d.TextMuted = core.RGB(0x000000), core.RGB(0x1C1C1E), core.RGB(0xF5F5F7), core.RGB(0xA1A1A6)
 	d.SurfacePressed, d.Border = core.RGBA(0x767680, 0.32), core.RGBA(0x545458, 0.65)
 	d.SetColor("line", core.RGBA(0x545458, 0.65))
@@ -49,6 +51,8 @@ func Kando() *core.Theme {
 	// The ink tile is a lighter grey in the dark, where the ink's black would be lost on the card.
 	d.SetColor(roleTileInk, core.RGB(0x636366))
 	d.SetColor(roleWarnText, core.RGB(0xFFB340))
+	// The design's #3A3A3F would be lost on the dark page, so the dark keeps the ink.
+	d.SetColor(roleSubtext, d.Text)
 	return t
 }
 
@@ -77,6 +81,9 @@ func (c Colors) TileInk() core.Color { return c.role(roleTileInk) }
 
 // WarnText is warning's orange where it is text, dark enough to read on the page and on a card.
 func (c Colors) WarnText() core.Color { return c.role(roleWarnText) }
+
+// Subtext is the ink a step softer than the text's, as the Library switcher's name: #3A3A3F in the light, the ink in the dark.
+func (c Colors) Subtext() core.Color { return c.role(roleSubtext) }
 
 // BarBlur is what a bar's fill frosts behind it.
 var BarBlur = []core.Filter{core.Blur(24), core.Saturate(1.8)}
@@ -123,7 +130,15 @@ var (
 	TileRed    = core.RGB(0xFF3B30)
 	TileSky    = core.RGB(0x0A84FF)
 	TileGrey   = core.RGB(0x8E8E93)
+	// PlayerBlue is the progress of a film on its picture: the continue cards' and the film rows' bars.
+	PlayerBlue = core.RGB(0x0A84FF)
+	// ContinueCard is a continue card's dark under its picture, in both appearances.
+	ContinueCard = core.RGB(0x1C1C1E)
+	// BadgeWarnText is the text of the orange "needs attention" pill on the jobs card, on the badges' orange at 16%.
+	BadgeWarnText = core.RGB(0xB25E00)
 	// The laptop drawn for a computer: its body's gradient and its screen's.
 	LaptopTop, LaptopBottom = core.RGB(0x3A3A3F), core.RGB(0x1D1D1F)
+	// LaptopBase is the base tucked under the larger laptop's lid (look.LaptopFront).
+	LaptopBase              = core.RGB(0xB9B9BE)
 	ScreenTop, ScreenBottom = core.RGB(0x2F7DF0), core.RGB(0x6AA8FF)
 )

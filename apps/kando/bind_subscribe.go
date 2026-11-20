@@ -51,7 +51,29 @@ func (a *app) SubscriptionHead() subscribe.Head {
 	}
 	link := sub.Link()
 	return subscribe.Head{ID: sub.ID, Name: sub.Name, Platform: link.Platform, Kind: subscribe.KindOf(link), Paused: sub.Paused, Checking: sub.ID == a.subs.checking,
-		Gone: sub.Gone, Stopped: sub.Stopped, Renamed: sub.Renamed, TimedOut: sub.TimedOut, Err: sub.Err, Checked: sub.Checked, Cadence: sub.Cadence, Added: len(sub.Added), Note: a.subscribeNoteOf(sub.ID)}
+		Gone: sub.Gone, Stopped: sub.Stopped, Renamed: sub.Renamed, TimedOut: sub.TimedOut, Err: sub.Err, Checked: sub.Checked, Cadence: sub.Cadence, Added: len(sub.Added), Earlier: a.subscribeEarlier(*sub), Note: a.subscribeNoteOf(sub.ID)}
+}
+
+// subscribeEarlier is how many videos, at most, ListEarlier would offer on sub: those its list held when it was subscribed that it left out (subscribe.Sub.Earlier), but for those its library has, which the check records as added instead.
+func (a *app) subscribeEarlier(sub subscribe.Sub) int {
+	earlier := sub.Earlier()
+	if len(earlier) == 0 {
+		return 0
+	}
+	// The library's keys are read once, not once per link, as this getter runs each time the page's head is recomputed.
+	has := map[string]bool{}
+	for _, job := range a.library.Jobs {
+		if job.Stage != kcore.StageFailed && films.InLibrary(sub.Library, job) {
+			has[queueSourceKey(job.Source)] = true
+		}
+	}
+	n := 0
+	for _, link := range earlier {
+		if !has[queueSourceKey(link)] {
+			n++
+		}
+	}
+	return n
 }
 
 // subscribeNoteOf is the note of the subscription with id as its page shows it: why something did not work is worded now, in the interface's language, which the page follows as it changes.
@@ -162,6 +184,25 @@ func (a *app) CheckSubscription() {
 	a.subscribeNext()
 }
 
+// ListEarlier checks the subscription shown now, as CheckSubscription does, and has that check offer the videos its list held when it was subscribed that it left out (subscribeUI.offer).
+func (a *app) ListEarlier() {
+	sub, ok := a.subscribeShown()
+	if !ok || !sub.Checks() || sub.ID == a.subs.checking {
+		return
+	}
+	if a.subscribeLister() != nil {
+		a.subs.offer = sub.ID
+	}
+	a.CheckSubscription()
+}
+
+// DismissSubscriptionNote puts away the message the page of the subscription shown says about the last thing done to it.
+func (a *app) DismissSubscriptionNote() {
+	if sub, ok := a.subscribeShown(); ok {
+		delete(a.subs.notes, sub.ID)
+	}
+}
+
 // PauseSubscription stops or starts the checks; pausing stops the one that runs.
 func (a *app) PauseSubscription(paused bool) {
 	if sub, ok := a.subscribeShown(); ok {
@@ -175,6 +216,9 @@ func (a *app) subscribePause(sub *subscribe.Sub, paused bool) {
 		return
 	}
 	sub.Paused = paused
+	if paused && a.subs.offer == sub.ID {
+		a.subs.offer = ""
+	}
 	if paused && sub.ID == a.subs.checking {
 		a.subscribeStopCheck()
 		a.subscribeNext()
@@ -203,6 +247,9 @@ func (a *app) subscribeRemove(id string) {
 	a.subs.due = slices.DeleteFunc(a.subs.due, func(x string) bool { return x == id })
 	a.subs.store.Remove(id)
 	delete(a.subs.notes, id)
+	if a.subs.offer == id {
+		a.subs.offer = ""
+	}
 	a.subscribeSave()
 	a.subscribeNext()
 }
@@ -245,7 +292,7 @@ func (a *app) subscribeAddWaiting(sub *subscribe.Sub, links []string) subscribeR
 	if len(videos) == 0 {
 		return nil
 	}
-	failed, why := a.subscribeEnqueue(sub, videos)
+	failed, why := a.subscribeEnqueue(sub, videos, nil)
 	note := subscribeNote{Note: subscribe.Note{Kind: subscribe.NoteAdded, Count: len(videos) - len(failed)}}
 	if len(failed) > 0 {
 		note = subscribeNote{Note: subscribe.Note{Kind: subscribe.NoteNotQueued}, why: why}

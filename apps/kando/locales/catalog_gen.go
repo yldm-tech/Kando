@@ -909,8 +909,17 @@ var Parameters = map[string][]string{
 	"TrayPercent":                              {"percent"},
 	"TrayQueue":                                {"count"},
 	"TrayTooltipJob":                           {"title", "percent"},
+	"SubscribeAddAllEpisodes":                  {"kind", "count"},
+	"SubscribeAddEpisodes":                     {"count"},
+	"SubscribeAddFollow":                       {"kind"},
+	"SubscribeAddJustAdd":                      {"kind", "count"},
+	"SubscribeAddRecentLatest":                 {"count"},
+	"SubscribeAddSignIn":                       {"site"},
+	"SubscribeNoteSomeQueued":                  {"count", "reason"},
+	"SubscribeStatusPair":                      {"state", "added"},
 	"SubscribeRowNew":                          {"name", "count"},
 	"SubscribeKicker":                          {"site", "kind"},
+	"SubscribeStatusGone":                      {"kind"},
 	"SubscribeStatusChecked":                   {"when"},
 	"SubscribeAgoMinutes":                      {"count"},
 	"SubscribeAgoHours":                        {"count"},
@@ -918,9 +927,9 @@ var Parameters = map[string][]string{
 	"SubscribeAddedCount":                      {"count"},
 	"SubscribeStatusLine":                      {"checked", "cadence", "added"},
 	"SubscribeStatusFailed":                    {"error_"},
-	"SubscribeRenamedTitle":                    {"name"},
+	"SubscribeRenamedTitle":                    {"kind"},
 	"SubscribeRenamedBody":                     {"renamed"},
-	"SubscribeGoneTitle":                       {"name"},
+	"SubscribeGoneTitle":                       {"kind"},
 	"SubscribeGoneBody":                        {"count"},
 	"SubscribePendingCount":                    {"count"},
 	"SubscribeAddOneLabel":                     {"title"},
@@ -928,6 +937,8 @@ var Parameters = map[string][]string{
 	"SubscribeWhenNewAuto":                     {"count"},
 	"ToolProblemLibrary":                       {"library"},
 	"SubscribeNoteSubscribed":                  {"name"},
+	"SubscribeNoteSubscribedAdded":             {"name", "count"},
+	"SubscribeNoteEarlier":                     {"count"},
 	"SubscribeNoteQueued":                      {"count"},
 	"SubscribeNoteHeld":                        {"count"},
 	"SubscribeNoteCapped":                      {"found", "added", "held"},
@@ -938,6 +949,12 @@ var Parameters = map[string][]string{
 	"SubscribeNoteStopped":                     {"name"},
 	"SubscribeNoteFailed":                      {"error_"},
 	"SubscribeUnsubscribed":                    {"name"},
+	"SubscribeAddConfirmChannel":               {"count"},
+	"SubscribeAddConfirmList":                  {"count"},
+	"SubscribeAddVideos":                       {"count"},
+	"SubscribeAddWholeCollection":              {"count"},
+	"SubscribeAddWholePlaylist":                {"count"},
+	"SubscribeEarlierCount":                    {"count"},
 	"SubscribeLibraryMissing":                  {"name"},
 	"SubscribeLoadFailed":                      {"error_"},
 	"SubscribeSaveFailed":                      {"error_"},
@@ -1614,8 +1631,17 @@ type Translation struct {
 	TrayPercent                              func(percent int) string
 	TrayQueue                                func(count int) string
 	TrayTooltipJob                           func(title string, percent int) string
+	SubscribeAddAllEpisodes                  func(kind string, count int) string
+	SubscribeAddEpisodes                     func(count int) string
+	SubscribeAddFollow                       func(kind string) string
+	SubscribeAddJustAdd                      func(kind string, count int) string
+	SubscribeAddRecentLatest                 func(count int) string
+	SubscribeAddSignIn                       func(site string) string
+	SubscribeNoteSomeQueued                  func(count int, reason string) string
+	SubscribeStatusPair                      func(state string, added string) string
 	SubscribeRowNew                          func(name string, count int) string
 	SubscribeKicker                          func(site string, kind string) string
+	SubscribeStatusGone                      func(kind string) string
 	SubscribeStatusChecked                   func(when string) string
 	SubscribeAgoMinutes                      func(count int) string
 	SubscribeAgoHours                        func(count int) string
@@ -1623,9 +1649,9 @@ type Translation struct {
 	SubscribeAddedCount                      func(count int) string
 	SubscribeStatusLine                      func(checked string, cadence string, added string) string
 	SubscribeStatusFailed                    func(error_ string) string
-	SubscribeRenamedTitle                    func(name string) string
+	SubscribeRenamedTitle                    func(kind string) string
 	SubscribeRenamedBody                     func(renamed string) string
-	SubscribeGoneTitle                       func(name string) string
+	SubscribeGoneTitle                       func(kind string) string
 	SubscribeGoneBody                        func(count int) string
 	SubscribePendingCount                    func(count int) string
 	SubscribeAddOneLabel                     func(title string) string
@@ -1633,6 +1659,8 @@ type Translation struct {
 	SubscribeWhenNewAuto                     func(count int) string
 	ToolProblemLibrary                       func(library string) string
 	SubscribeNoteSubscribed                  func(name string) string
+	SubscribeNoteSubscribedAdded             func(name string, count int) string
+	SubscribeNoteEarlier                     func(count int) string
 	SubscribeNoteQueued                      func(count int) string
 	SubscribeNoteHeld                        func(count int) string
 	SubscribeNoteCapped                      func(found int, added int, held int) string
@@ -1643,6 +1671,12 @@ type Translation struct {
 	SubscribeNoteStopped                     func(name string) string
 	SubscribeNoteFailed                      func(error_ string) string
 	SubscribeUnsubscribed                    func(name string) string
+	SubscribeAddConfirmChannel               func(count int) string
+	SubscribeAddConfirmList                  func(count int) string
+	SubscribeAddVideos                       func(count int) string
+	SubscribeAddWholeCollection              func(count int) string
+	SubscribeAddWholePlaylist                func(count int) string
+	SubscribeEarlierCount                    func(count int) string
 	SubscribeLibraryMissing                  func(name string) string
 	SubscribeLoadFailed                      func(error_ string) string
 	SubscribeSaveFailed                      func(error_ string) string
@@ -3246,6 +3280,20 @@ const (
 	textTrayStatePaused
 	textTrayStateRunning
 	textTrayTooltipPaused
+	textSubscribeAddFollowHint
+	textSubscribeAddFootnote
+	textSubscribeAddOnlyThis
+	textSubscribeAddRecentNone
+	textSubscribeAddSave
+	textSubscribeAddSaveHint
+	textSubscribeAddSeriesNote
+	textSubscribeAddSignInHint
+	textSubscribeAddSource
+	textSubscribeAddSourceLocalHint
+	textSubscribeNoteClose
+	textSubscribePlatformSubtitles
+	textSubscribePlatformSubtitlesNote
+	textSubscribeQuality
 	textSubscribeSection
 	textSubscribeAddButton
 	textSubscribeAddTooltip
@@ -3259,7 +3307,6 @@ const (
 	textSubscribeKindCollection
 	textSubscribePausedTag
 	textSubscribeStatusPaused
-	textSubscribeStatusGone
 	textSubscribeStatusNever
 	textSubscribeAgoNow
 	textSubscribeCadenceOpenNote
@@ -3317,6 +3364,12 @@ const (
 	textSubscribeAddPlaceholder
 	textSubscribeAddSubmit
 	textSubscribeAddCancel
+	textSubscribeAddRecent
+	textSubscribeAddRecentHint
+	textSubscribeAddWholeHint
+	textSubscribeEarlierList
+	textSubscribeEarlierNote
+	textSubscribeEarlierTitle
 	textSubscribeAddReading
 	textSubscribeAddNotList
 	textSubscribeAddCannotList
@@ -5029,6 +5082,20 @@ var keyOfText = [numTexts]string{
 	"trayStatePaused",
 	"trayStateRunning",
 	"trayTooltipPaused",
+	"subscribeAddFollowHint",
+	"subscribeAddFootnote",
+	"subscribeAddOnlyThis",
+	"subscribeAddRecentNone",
+	"subscribeAddSave",
+	"subscribeAddSaveHint",
+	"subscribeAddSeriesNote",
+	"subscribeAddSignInHint",
+	"subscribeAddSource",
+	"subscribeAddSourceLocalHint",
+	"subscribeNoteClose",
+	"subscribePlatformSubtitles",
+	"subscribePlatformSubtitlesNote",
+	"subscribeQuality",
 	"subscribeSection",
 	"subscribeAddButton",
 	"subscribeAddTooltip",
@@ -5042,7 +5109,6 @@ var keyOfText = [numTexts]string{
 	"subscribeKindCollection",
 	"subscribePausedTag",
 	"subscribeStatusPaused",
-	"subscribeStatusGone",
 	"subscribeStatusNever",
 	"subscribeAgoNow",
 	"subscribeCadenceOpenNote",
@@ -5100,6 +5166,12 @@ var keyOfText = [numTexts]string{
 	"subscribeAddPlaceholder",
 	"subscribeAddSubmit",
 	"subscribeAddCancel",
+	"subscribeAddRecent",
+	"subscribeAddRecentHint",
+	"subscribeAddWholeHint",
+	"subscribeEarlierList",
+	"subscribeEarlierNote",
+	"subscribeEarlierTitle",
 	"subscribeAddReading",
 	"subscribeAddNotList",
 	"subscribeAddCannotList",
@@ -6810,6 +6882,20 @@ var textsEn = i18n.NewTexts(""+
 	"Queue paused"+
 	"Processing"+
 	"Kando: queue paused"+
+	"New videos are added to the queue as they come out; change the rules any time under Subscriptions in the sidebar"+
+	"Downloads are done by the built-in yt-dlp; recognition and translation happen on this computer."+
+	"Only This One"+
+	"None"+
+	"Keep"+
+	"Videos are kept in the films folder, so you can watch them offline"+
+	"The episodes share a glossary: fix a name or a term in one and the others follow"+
+	"1080p and above, and members-only videos, need a sign-in; only the browser's sign-in is borrowed, and no password is saved"+
+	"Original Lines From"+
+	"Heard on this computer, whether or not the site has subtitles"+
+	"Close"+
+	"Prefer the Site's Subtitles"+
+	"Where the uploader added subtitles, they become the original lines once checked against the speech"+
+	"Download"+
 	"Subscriptions"+
 	"Add Subscription"+
 	"Paste a link to a channel, collection or playlist"+
@@ -6823,7 +6909,6 @@ var textsEn = i18n.NewTexts(""+
 	"Collection"+
 	"Paused"+
 	"Paused, not checked for new videos"+
-	"Deleted on the site, no longer checked"+
 	"Not checked yet"+
 	"just now"+
 	"checked each time Kando opens"+
@@ -6876,11 +6961,17 @@ var textsEn = i18n.NewTexts(""+
 	"No new videos."+
 	"Kept the old name, still subscribed."+
 	"The site says this list no longer exists."+
-	"Paste a link to a YouTube channel or playlist, or a bilibili uploader's space or collection. The videos already there are left out; new ones are added by the rules you set."+
+	"Paste a link to a YouTube channel or playlist, or a bilibili uploader's space or collection. New videos are added by the rules you set."+
 	"Link"+
 	"youtube.com/@channel or space.bilibili.com/…"+
 	"Subscribe"+
 	"Cancel"+
+	"Add Now"+
+	"Videos already on the channel"+
+	"Queued in order, starting with the first"+
+	"List Them"+
+	"When you subscribed, these were counted as seen and left out."+
+	"Already in the List"+
 	"Reading the list…"+
 	"This isn't a link to a channel, collection or playlist."+
 	"Subscriptions need yt-dlp, which isn't installed yet."+
@@ -8588,6 +8679,20 @@ var textsEn = i18n.NewTexts(""+
 		12,
 		10,
 		19,
+		112,
+		95,
+		13,
+		4,
+		4,
+		66,
+		80,
+		122,
+		19,
+		61,
+		5,
+		27,
+		98,
+		8,
 		13,
 		16,
 		49,
@@ -8601,7 +8706,6 @@ var textsEn = i18n.NewTexts(""+
 		10,
 		6,
 		34,
-		38,
 		15,
 		8,
 		29,
@@ -8654,11 +8758,17 @@ var textsEn = i18n.NewTexts(""+
 		14,
 		36,
 		41,
-		172,
+		135,
 		4,
 		46,
 		9,
 		6,
+		7,
+		29,
+		40,
+		9,
+		61,
+		19,
 		19,
 		55,
 		53,
@@ -10369,6 +10479,20 @@ var textsJa = i18n.NewTexts(""+
 	"キューを一時停止中"+
 	"処理中"+
 	"Kando：キューを一時停止中"+
+	"新しい動画は自動でキューに追加されます。ルールはサイドバーの「購読」でいつでも変更できます"+
+	"ダウンロードは内蔵の yt-dlp が行い、認識と翻訳はこのコンピュータで行います。"+
+	"この回だけ"+
+	"追加しない"+
+	"保存"+
+	"動画は映画フォルダに保存され、オフラインでも観られます"+
+	"用語集を全話で共有します。ある回で人名や用語を直すと、ほかの回にも反映されます"+
+	"1080p 以上やメンバー限定の動画にはログインが必要です。ブラウザのログイン状態を借りるだけで、パスワードは保存しません"+
+	"原文の取得元"+
+	"このコンピュータで音声を認識し、サイトの字幕の有無に左右されません"+
+	"閉じる"+
+	"サイトの字幕を優先"+
+	"投稿者の字幕があれば、音声と照合してそのまま原文にします"+
+	"ダウンロード"+
 	"購読"+
 	"購読を追加"+
 	"チャンネル、コレクション、再生リストのリンクを貼り付け"+
@@ -10382,7 +10506,6 @@ var textsJa = i18n.NewTexts(""+
 	"コレクション"+
 	"一時停止中"+
 	"一時停止中のため確認しません"+
-	"サイトで削除されたため確認しません"+
 	"まだ確認していません"+
 	"たった今"+
 	"Kando を開くたびに確認"+
@@ -10435,11 +10558,17 @@ var textsJa = i18n.NewTexts(""+
 	"新しい動画はありません。"+
 	"元の名前のまま購読を続けます。"+
 	"サイトにこのリストはもうありません。"+
-	"YouTube のチャンネルや再生リスト、bilibili の投稿者ページやコレクションのリンクを貼り付けてください。いまある動画は追加せず、新しい動画を設定したルールで追加します。"+
+	"YouTube のチャンネルや再生リスト、bilibili の投稿者ページやコレクションのリンクを貼り付けてください。新しい動画は設定したルールで追加します。"+
 	"リンク"+
 	"youtube.com/@チャンネル名 または space.bilibili.com/…"+
 	"購読"+
 	"キャンセル"+
+	"いま追加"+
+	"チャンネルにすでにある動画"+
+	"順番に処理し、1 本目から始めます"+
+	"一覧にする"+
+	"購読したときに確認済みとして扱われ、追加されていません。"+
+	"リストに元からある動画"+
 	"リストを読み込み中…"+
 	"チャンネル、コレクション、再生リストのリンクではありません。"+
 	"購読には yt-dlp が必要ですが、まだインストールされていません。"+
@@ -12147,6 +12276,20 @@ var textsJa = i18n.NewTexts(""+
 		27,
 		9,
 		35,
+		135,
+		110,
+		15,
+		15,
+		6,
+		81,
+		117,
+		171,
+		18,
+		99,
+		9,
+		27,
+		84,
+		18,
 		6,
 		15,
 		81,
@@ -12160,7 +12303,6 @@ var textsJa = i18n.NewTexts(""+
 		18,
 		15,
 		42,
-		51,
 		30,
 		12,
 		30,
@@ -12213,11 +12355,17 @@ var textsJa = i18n.NewTexts(""+
 		36,
 		45,
 		54,
-		239,
+		203,
 		9,
 		64,
 		6,
 		15,
+		12,
+		39,
+		47,
+		15,
+		84,
+		33,
 		30,
 		90,
 		89,
@@ -13928,6 +14076,20 @@ var textsKo = i18n.NewTexts(""+
 	"대기열 일시 정지됨"+
 	"처리 중"+
 	"Kando: 대기열 일시 정지됨"+
+	"새 동영상은 자동으로 대기열에 추가되며, 규칙은 사이드바의 ‘구독’에서 언제든 바꿀 수 있습니다"+
+	"다운로드는 내장된 yt-dlp가 하고, 인식과 번역은 이 컴퓨터에서 합니다."+
+	"이 편만"+
+	"추가 안 함"+
+	"저장"+
+	"동영상을 영화 폴더에 저장해서 오프라인으로 볼 수 있어요"+
+	"용어집을 모든 편이 함께 씁니다. 한 편에서 이름이나 용어를 고치면 다른 편에도 반영돼요"+
+	"1080p 이상과 회원 전용 동영상은 로그인이 필요해요. 브라우저의 로그인 상태만 빌리고 비밀번호는 저장하지 않아요"+
+	"원문 출처"+
+	"이 컴퓨터에서 음성을 인식해서 사이트 자막 유무와 상관없어요"+
+	"닫기"+
+	"플랫폼 자막 우선"+
+	"업로더 자막이 있으면 음성과 맞춰 본 뒤 원문으로 씁니다"+
+	"다운로드"+
 	"구독"+
 	"구독 추가"+
 	"채널, 컬렉션 또는 재생목록 링크 붙여넣기"+
@@ -13941,7 +14103,6 @@ var textsKo = i18n.NewTexts(""+
 	"컬렉션"+
 	"일시정지됨"+
 	"일시정지되어 확인하지 않아요"+
-	"사이트에서 삭제되어 더 이상 확인하지 않아요"+
 	"아직 확인하지 않았어요"+
 	"방금"+
 	"Kando를 열 때마다 확인"+
@@ -13994,11 +14155,17 @@ var textsKo = i18n.NewTexts(""+
 	"새 동영상이 없어요."+
 	"원래 이름으로 계속 구독해요."+
 	"사이트에 이 목록이 더 이상 없어요."+
-	"YouTube 채널이나 재생목록, bilibili 업로더 공간이나 컬렉션 링크를 붙여넣으세요. 지금 있는 동영상은 추가하지 않고, 새 동영상을 정한 규칙대로 추가해요."+
+	"YouTube 채널이나 재생목록, bilibili 업로더 공간이나 컬렉션 링크를 붙여넣으세요. 새 동영상은 정한 규칙대로 추가해요."+
 	"링크"+
 	"youtube.com/@채널명 또는 space.bilibili.com/…"+
 	"구독"+
 	"취소"+
+	"지금 추가"+
+	"채널에 이미 있는 동영상"+
+	"순서대로 대기열에 넣고 첫 번째부터 처리해요"+
+	"목록 보기"+
+	"구독할 때 본 것으로 처리되어 추가되지 않았어요."+
+	"목록에 원래 있던 동영상"+
 	"목록을 읽는 중…"+
 	"채널, 컬렉션 또는 재생목록 링크가 아니에요."+
 	"구독하려면 yt-dlp가 필요한데 아직 설치되지 않았어요."+
@@ -15706,6 +15873,20 @@ var textsKo = i18n.NewTexts(""+
 		26,
 		10,
 		33,
+		135,
+		94,
+		10,
+		14,
+		6,
+		79,
+		121,
+		154,
+		13,
+		85,
+		6,
+		23,
+		77,
+		12,
 		6,
 		13,
 		57,
@@ -15719,7 +15900,6 @@ var textsKo = i18n.NewTexts(""+
 		9,
 		15,
 		41,
-		62,
 		32,
 		6,
 		29,
@@ -15772,11 +15952,17 @@ var textsKo = i18n.NewTexts(""+
 		27,
 		40,
 		48,
-		205,
+		157,
 		6,
 		52,
 		6,
 		6,
+		13,
+		33,
+		62,
+		13,
+		67,
+		33,
 		23,
 		61,
 		72,
@@ -17487,6 +17673,20 @@ var textsZhHans = i18n.NewTexts(""+
 	"队列已暂停"+
 	"正在处理"+
 	"看懂：队列已暂停"+
+	"以后有新视频自动加入队列，规则可以随时在侧栏「订阅」里改"+
+	"下载由内置的 yt-dlp 完成；识别和翻译都在本机。"+
+	"只要这一集"+
+	"不加"+
+	"保存"+
+	"视频存进影片文件夹，可以离线观看"+
+	"术语表整季共用：在一集里改对人名或术语，其他集一起生效"+
+	"1080P 及以上、会员视频需要登录；只借用浏览器的登录状态，不保存密码"+
+	"原文来源"+
+	"在本机识别语音，不依赖平台有没有字幕"+
+	"关闭"+
+	"优先用平台字幕"+
+	"有上传者字幕时直接用作原文，先核对时间轴"+
+	"下载"+
 	"订阅"+
 	"添加订阅"+
 	"粘贴频道、合集或播放列表链接"+
@@ -17500,7 +17700,6 @@ var textsZhHans = i18n.NewTexts(""+
 	"合集"+
 	"已暂停"+
 	"已暂停，不检查更新"+
-	"已被作者删除，不再检查"+
 	"还没检查过"+
 	"刚刚"+
 	"每次打开看懂时检查"+
@@ -17538,7 +17737,7 @@ var textsZhHans = i18n.NewTexts(""+
 	"检查更新"+
 	"只在看懂开着时检查，不常驻后台"+
 	"作为一个系列"+
-	"这个订阅里的视频共用术语表，人名和术语各集译法一致"+
+	"这个订阅里的视频共用术语表：改一处人名或术语，各集一起生效"+
 	"打开时"+
 	"每小时"+
 	"每天"+
@@ -17553,11 +17752,17 @@ var textsZhHans = i18n.NewTexts(""+
 	"没有新视频。"+
 	"已保留原名，订阅照常。"+
 	"网站上已经找不到这个列表了。"+
-	"粘贴 YouTube 频道或播放列表、哔哩哔哩 UP 主空间或合集的链接。已有的视频不会加入，以后的新视频按你设的规则加入。"+
+	"粘贴 YouTube 频道或播放列表、哔哩哔哩 UP 主空间或合集的链接。以后的新视频按你设的规则加入。"+
 	"链接"+
 	"youtube.com/@频道名 或 space.bilibili.com/数字"+
 	"订阅"+
 	"取消"+
+	"现在先加入"+
+	"频道里已有的视频"+
+	"按顺序排队处理，先处理第 1 集"+
+	"列出来"+
+	"订阅时它们算作看过了，没有加入。"+
+	"列表里原有的视频"+
 	"正在读取列表…"+
 	"这不是频道、合集或播放列表的链接。"+
 	"订阅需要 yt-dlp，还没有装好。"+
@@ -19265,6 +19470,20 @@ var textsZhHans = i18n.NewTexts(""+
 		15,
 		12,
 		24,
+		84,
+		65,
+		15,
+		6,
+		6,
+		48,
+		81,
+		96,
+		12,
+		54,
+		6,
+		21,
+		60,
+		6,
 		6,
 		12,
 		42,
@@ -19278,7 +19497,6 @@ var textsZhHans = i18n.NewTexts(""+
 		6,
 		9,
 		27,
-		33,
 		15,
 		6,
 		27,
@@ -19316,7 +19534,7 @@ var textsZhHans = i18n.NewTexts(""+
 		12,
 		45,
 		18,
-		75,
+		87,
 		9,
 		9,
 		6,
@@ -19331,11 +19549,17 @@ var textsZhHans = i18n.NewTexts(""+
 		18,
 		33,
 		42,
-		160,
+		130,
 		6,
 		52,
 		6,
 		6,
+		15,
+		24,
+		42,
+		9,
+		48,
+		24,
 		21,
 		51,
 		40,
@@ -21046,6 +21270,20 @@ var textsZhHant = i18n.NewTexts(""+
 	"佇列已暫停"+
 	"正在處理"+
 	"看懂：佇列已暫停"+
+	"之後有新影片自動加入佇列，規則可以隨時在側欄「訂閱」裡改"+
+	"下載由內建的 yt-dlp 完成；辨識和翻譯都在本機。"+
+	"只要這一集"+
+	"不加"+
+	"保存"+
+	"影片存進影片資料夾，可以離線觀看"+
+	"術語表整季共用：在一集裡改對人名或術語，其他集一起生效"+
+	"1080P 及以上、會員影片需要登入；只借用瀏覽器的登入狀態，不儲存密碼"+
+	"原文來源"+
+	"在本機辨識語音，不依賴平台有沒有字幕"+
+	"關閉"+
+	"優先用平台字幕"+
+	"有上傳者字幕時直接用作原文，先核對時間軸"+
+	"下載"+
 	"訂閱"+
 	"新增訂閱"+
 	"貼上頻道、合集或播放清單連結"+
@@ -21059,7 +21297,6 @@ var textsZhHant = i18n.NewTexts(""+
 	"合集"+
 	"已暫停"+
 	"已暫停，不檢查更新"+
-	"已被作者刪除，不再檢查"+
 	"還沒檢查過"+
 	"剛剛"+
 	"每次打開看懂時檢查"+
@@ -21097,7 +21334,7 @@ var textsZhHant = i18n.NewTexts(""+
 	"檢查更新"+
 	"只在看懂開著時檢查，不常駐背景"+
 	"作為一個系列"+
-	"這個訂閱裡的影片共用術語表，人名和術語各集譯法一致"+
+	"這個訂閱裡的影片共用術語表：改一處人名或術語，各集一起生效"+
 	"開啟時"+
 	"每小時"+
 	"每天"+
@@ -21112,11 +21349,17 @@ var textsZhHant = i18n.NewTexts(""+
 	"沒有新影片。"+
 	"已保留原名，訂閱照常。"+
 	"網站上已經找不到這個清單了。"+
-	"貼上 YouTube 頻道或播放清單、嗶哩嗶哩 UP 主空間或合集的連結。已有的影片不會加入，以後的新影片按你設的規則加入。"+
+	"貼上 YouTube 頻道或播放清單、嗶哩嗶哩 UP 主空間或合集的連結。以後的新影片按你設的規則加入。"+
 	"連結"+
 	"youtube.com/@頻道名稱 或 space.bilibili.com/數字"+
 	"訂閱"+
 	"取消"+
+	"現在先加入"+
+	"頻道裡已有的影片"+
+	"依順序排隊處理，先處理第 1 集"+
+	"列出來"+
+	"訂閱時它們算作看過了，沒有加入。"+
+	"清單裡原有的影片"+
 	"正在讀取清單…"+
 	"這不是頻道、合集或播放清單的連結。"+
 	"訂閱需要 yt-dlp，還沒有裝好。"+
@@ -22824,6 +23067,20 @@ var textsZhHant = i18n.NewTexts(""+
 		15,
 		12,
 		24,
+		84,
+		65,
+		15,
+		6,
+		6,
+		48,
+		81,
+		96,
+		12,
+		54,
+		6,
+		21,
+		60,
+		6,
 		6,
 		12,
 		42,
@@ -22837,7 +23094,6 @@ var textsZhHant = i18n.NewTexts(""+
 		6,
 		9,
 		27,
-		33,
 		15,
 		6,
 		27,
@@ -22875,7 +23131,7 @@ var textsZhHant = i18n.NewTexts(""+
 		12,
 		45,
 		18,
-		75,
+		87,
 		9,
 		9,
 		6,
@@ -22890,11 +23146,17 @@ var textsZhHant = i18n.NewTexts(""+
 		18,
 		33,
 		42,
-		160,
+		130,
 		6,
 		55,
 		6,
 		6,
+		15,
+		24,
+		42,
+		9,
+		48,
+		24,
 		21,
 		51,
 		40,
@@ -24630,11 +24892,38 @@ func Supply(lang string, t Translation) {
 	if t.TrayTooltipJob != nil {
 		s.TrayTooltipJob = t.TrayTooltipJob
 	}
+	if t.SubscribeAddAllEpisodes != nil {
+		s.SubscribeAddAllEpisodes = t.SubscribeAddAllEpisodes
+	}
+	if t.SubscribeAddEpisodes != nil {
+		s.SubscribeAddEpisodes = t.SubscribeAddEpisodes
+	}
+	if t.SubscribeAddFollow != nil {
+		s.SubscribeAddFollow = t.SubscribeAddFollow
+	}
+	if t.SubscribeAddJustAdd != nil {
+		s.SubscribeAddJustAdd = t.SubscribeAddJustAdd
+	}
+	if t.SubscribeAddRecentLatest != nil {
+		s.SubscribeAddRecentLatest = t.SubscribeAddRecentLatest
+	}
+	if t.SubscribeAddSignIn != nil {
+		s.SubscribeAddSignIn = t.SubscribeAddSignIn
+	}
+	if t.SubscribeNoteSomeQueued != nil {
+		s.SubscribeNoteSomeQueued = t.SubscribeNoteSomeQueued
+	}
+	if t.SubscribeStatusPair != nil {
+		s.SubscribeStatusPair = t.SubscribeStatusPair
+	}
 	if t.SubscribeRowNew != nil {
 		s.SubscribeRowNew = t.SubscribeRowNew
 	}
 	if t.SubscribeKicker != nil {
 		s.SubscribeKicker = t.SubscribeKicker
+	}
+	if t.SubscribeStatusGone != nil {
+		s.SubscribeStatusGone = t.SubscribeStatusGone
 	}
 	if t.SubscribeStatusChecked != nil {
 		s.SubscribeStatusChecked = t.SubscribeStatusChecked
@@ -24687,6 +24976,12 @@ func Supply(lang string, t Translation) {
 	if t.SubscribeNoteSubscribed != nil {
 		s.SubscribeNoteSubscribed = t.SubscribeNoteSubscribed
 	}
+	if t.SubscribeNoteSubscribedAdded != nil {
+		s.SubscribeNoteSubscribedAdded = t.SubscribeNoteSubscribedAdded
+	}
+	if t.SubscribeNoteEarlier != nil {
+		s.SubscribeNoteEarlier = t.SubscribeNoteEarlier
+	}
 	if t.SubscribeNoteQueued != nil {
 		s.SubscribeNoteQueued = t.SubscribeNoteQueued
 	}
@@ -24716,6 +25011,24 @@ func Supply(lang string, t Translation) {
 	}
 	if t.SubscribeUnsubscribed != nil {
 		s.SubscribeUnsubscribed = t.SubscribeUnsubscribed
+	}
+	if t.SubscribeAddConfirmChannel != nil {
+		s.SubscribeAddConfirmChannel = t.SubscribeAddConfirmChannel
+	}
+	if t.SubscribeAddConfirmList != nil {
+		s.SubscribeAddConfirmList = t.SubscribeAddConfirmList
+	}
+	if t.SubscribeAddVideos != nil {
+		s.SubscribeAddVideos = t.SubscribeAddVideos
+	}
+	if t.SubscribeAddWholeCollection != nil {
+		s.SubscribeAddWholeCollection = t.SubscribeAddWholeCollection
+	}
+	if t.SubscribeAddWholePlaylist != nil {
+		s.SubscribeAddWholePlaylist = t.SubscribeAddWholePlaylist
+	}
+	if t.SubscribeEarlierCount != nil {
+		s.SubscribeEarlierCount = t.SubscribeEarlierCount
 	}
 	if t.SubscribeLibraryMissing != nil {
 		s.SubscribeLibraryMissing = t.SubscribeLibraryMissing
@@ -54387,6 +54700,571 @@ func TrayTooltipPaused(cx *core.Scope) string { return For(cx).TrayTooltipPaused
 // TrayTooltipPaused is the package's TrayTooltipPaused in the language of msgs.
 func (msgs Messages) TrayTooltipPaused() string { return msgs.text(textTrayTooltipPaused) }
 
+// SubscribeAddAllEpisodes says "{kind, select, collection {{count, plural, one {The # Episode} other {All # Episodes}}} other {{count, plural, one {The # Video} other {All # Videos}}}}"
+// in the language the app shows under cx.
+//
+// Choice of the Add Subscription dialog, for a collection or a playlist whose video the link named: add all of its videos now, rather than only that one.
+func SubscribeAddAllEpisodes(cx *core.Scope, kind string, count int) string {
+	return For(cx).SubscribeAddAllEpisodes(kind, count)
+}
+
+// SubscribeAddAllEpisodes is the package's SubscribeAddAllEpisodes in the language of msgs.
+func (msgs Messages) SubscribeAddAllEpisodes(kind string, count int) string {
+	if i18n.IsPseudo(msgs.lang) {
+		return i18n.Pseudo(msgs.lang, Messages{lang: Source, mark: true}.SubscribeAddAllEpisodes(kind, count))
+	}
+	for lang := msgs.lang; ; lang = i18n.Parent(lang) {
+		if f := supplied[lang].SubscribeAddAllEpisodes; f != nil {
+			return f(kind, count)
+		}
+		switch lang {
+		case "", "en":
+			var b strings.Builder
+			switch kind {
+			case "collection":
+				switch i18n.Cardinal("en", float64(count)) {
+				case i18n.One:
+					b.WriteString("The ")
+					b.WriteString(msgs.arg(i18n.FormatNumber("en", float64(count))))
+					b.WriteString(" Episode")
+				default:
+					b.WriteString("All ")
+					b.WriteString(msgs.arg(i18n.FormatNumber("en", float64(count))))
+					b.WriteString(" Episodes")
+				}
+			default:
+				switch i18n.Cardinal("en", float64(count)) {
+				case i18n.One:
+					b.WriteString("The ")
+					b.WriteString(msgs.arg(i18n.FormatNumber("en", float64(count))))
+					b.WriteString(" Video")
+				default:
+					b.WriteString("All ")
+					b.WriteString(msgs.arg(i18n.FormatNumber("en", float64(count))))
+					b.WriteString(" Videos")
+				}
+			}
+			return b.String()
+		case "ja":
+			var b strings.Builder
+			switch kind {
+			case "collection":
+				b.WriteString("全 ")
+				b.WriteString(i18n.FormatNumber("ja", float64(count)))
+				b.WriteString(" 本")
+			default:
+				b.WriteString("全 ")
+				b.WriteString(i18n.FormatNumber("ja", float64(count)))
+				b.WriteString(" 本")
+			}
+			return b.String()
+		case "ko":
+			var b strings.Builder
+			switch kind {
+			case "collection":
+				b.WriteString("전체 ")
+				b.WriteString(i18n.FormatNumber("ko", float64(count)))
+				b.WriteString("편")
+			default:
+				b.WriteString("전체 ")
+				b.WriteString(i18n.FormatNumber("ko", float64(count)))
+				b.WriteString("개")
+			}
+			return b.String()
+		case "zh-Hans":
+			var b strings.Builder
+			switch kind {
+			case "collection":
+				b.WriteString("全部 ")
+				b.WriteString(i18n.FormatNumber("zh-Hans", float64(count)))
+				b.WriteString(" 集")
+			default:
+				b.WriteString("全部 ")
+				b.WriteString(i18n.FormatNumber("zh-Hans", float64(count)))
+				b.WriteString(" 个")
+			}
+			return b.String()
+		case "zh-Hant":
+			var b strings.Builder
+			switch kind {
+			case "collection":
+				b.WriteString("全部 ")
+				b.WriteString(i18n.FormatNumber("zh-Hant", float64(count)))
+				b.WriteString(" 集")
+			default:
+				b.WriteString("全部 ")
+				b.WriteString(i18n.FormatNumber("zh-Hant", float64(count)))
+				b.WriteString(" 個")
+			}
+			return b.String()
+		}
+	}
+}
+
+// SubscribeAddEpisodes says "{count, plural, one {# episode} other {# episodes}}"
+// in the language the app shows under cx.
+//
+// Line under a collection's name in the Add Subscription dialog: how many episodes it holds.
+func SubscribeAddEpisodes(cx *core.Scope, count int) string {
+	return For(cx).SubscribeAddEpisodes(count)
+}
+
+// SubscribeAddEpisodes is the package's SubscribeAddEpisodes in the language of msgs.
+func (msgs Messages) SubscribeAddEpisodes(count int) string {
+	if i18n.IsPseudo(msgs.lang) {
+		return i18n.Pseudo(msgs.lang, Messages{lang: Source, mark: true}.SubscribeAddEpisodes(count))
+	}
+	for lang := msgs.lang; ; lang = i18n.Parent(lang) {
+		if f := supplied[lang].SubscribeAddEpisodes; f != nil {
+			return f(count)
+		}
+		switch lang {
+		case "", "en":
+			var b strings.Builder
+			switch i18n.Cardinal("en", float64(count)) {
+			case i18n.One:
+				b.WriteString(msgs.arg(i18n.FormatNumber("en", float64(count))))
+				b.WriteString(" episode")
+			default:
+				b.WriteString(msgs.arg(i18n.FormatNumber("en", float64(count))))
+				b.WriteString(" episodes")
+			}
+			return b.String()
+		case "ja":
+			return "全 " + i18n.FormatNumber("ja", float64(count)) + " 本"
+		case "ko":
+			return i18n.FormatNumber("ko", float64(count)) + "편"
+		case "zh-Hans":
+			return i18n.FormatNumber("zh-Hans", float64(count)) + " 集"
+		case "zh-Hant":
+			return i18n.FormatNumber("zh-Hant", float64(count)) + " 集"
+		}
+	}
+}
+
+// SubscribeAddFollow says "{kind, select, collection {Subscribe to this collection and add new episodes} channel {Subscribe to this channel} space {Subscribe to this uploader} other {Subscribe to this playlist and add new videos}}"
+// in the language the app shows under cx.
+//
+// Switch of the Add Subscription dialog: subscribe to the list, so its new videos are added as they come out; off, its videos are only added now.
+func SubscribeAddFollow(cx *core.Scope, kind string) string { return For(cx).SubscribeAddFollow(kind) }
+
+// SubscribeAddFollow is the package's SubscribeAddFollow in the language of msgs.
+func (msgs Messages) SubscribeAddFollow(kind string) string {
+	if i18n.IsPseudo(msgs.lang) {
+		return i18n.Pseudo(msgs.lang, Messages{lang: Source, mark: true}.SubscribeAddFollow(kind))
+	}
+	for lang := msgs.lang; ; lang = i18n.Parent(lang) {
+		if f := supplied[lang].SubscribeAddFollow; f != nil {
+			return f(kind)
+		}
+		switch lang {
+		case "", "en":
+			var b strings.Builder
+			switch kind {
+			case "collection":
+				b.WriteString("Subscribe to this collection and add new episodes")
+			case "channel":
+				b.WriteString("Subscribe to this channel")
+			case "space":
+				b.WriteString("Subscribe to this uploader")
+			default:
+				b.WriteString("Subscribe to this playlist and add new videos")
+			}
+			return b.String()
+		case "ja":
+			var b strings.Builder
+			switch kind {
+			case "collection":
+				b.WriteString("このコレクションを購読し、更新時に自動で追加")
+			case "channel":
+				b.WriteString("このチャンネルを購読")
+			case "space":
+				b.WriteString("この投稿者を購読")
+			default:
+				b.WriteString("この再生リストを購読し、更新時に自動で追加")
+			}
+			return b.String()
+		case "ko":
+			var b strings.Builder
+			switch kind {
+			case "collection":
+				b.WriteString("이 컬렉션을 구독하고 업데이트되면 자동으로 추가")
+			case "channel":
+				b.WriteString("이 채널 구독")
+			case "space":
+				b.WriteString("이 업로더 구독")
+			default:
+				b.WriteString("이 재생목록을 구독하고 업데이트되면 자동으로 추가")
+			}
+			return b.String()
+		case "zh-Hans":
+			var b strings.Builder
+			switch kind {
+			case "collection":
+				b.WriteString("订阅这个合集，更新时自动加入")
+			case "channel":
+				b.WriteString("订阅这个频道")
+			case "space":
+				b.WriteString("订阅这个 UP 主")
+			default:
+				b.WriteString("订阅这个播放列表，更新时自动加入")
+			}
+			return b.String()
+		case "zh-Hant":
+			var b strings.Builder
+			switch kind {
+			case "collection":
+				b.WriteString("訂閱這個合集，更新時自動加入")
+			case "channel":
+				b.WriteString("訂閱這個頻道")
+			case "space":
+				b.WriteString("訂閱這個 UP 主")
+			default:
+				b.WriteString("訂閱這個播放清單，更新時自動加入")
+			}
+			return b.String()
+		}
+	}
+}
+
+// SubscribeAddFollowHint says "New videos are added to the queue as they come out; change the rules any time under Subscriptions in the sidebar"
+// in the language the app shows under cx.
+//
+// Line under the subscribe switch of the Add Subscription dialog.
+func SubscribeAddFollowHint(cx *core.Scope) string { return For(cx).SubscribeAddFollowHint() }
+
+// SubscribeAddFollowHint is the package's SubscribeAddFollowHint in the language of msgs.
+func (msgs Messages) SubscribeAddFollowHint() string { return msgs.text(textSubscribeAddFollowHint) }
+
+// SubscribeAddFootnote says "Downloads are done by the built-in yt-dlp; recognition and translation happen on this computer."
+// in the language the app shows under cx.
+//
+// Note at the foot of the Add Subscription dialog's card.
+func SubscribeAddFootnote(cx *core.Scope) string { return For(cx).SubscribeAddFootnote() }
+
+// SubscribeAddFootnote is the package's SubscribeAddFootnote in the language of msgs.
+func (msgs Messages) SubscribeAddFootnote() string { return msgs.text(textSubscribeAddFootnote) }
+
+// SubscribeAddJustAdd says "{kind, select, collection {{count, plural, one {Add # Episode and Start} other {Add # Episodes and Start}}} other {{count, plural, one {Add # Video and Start} other {Add # Videos and Start}}}}"
+// in the language the app shows under cx.
+//
+// Button of the Add Subscription dialog while its subscribe switch is off: it only adds the videos now, without subscribing.
+func SubscribeAddJustAdd(cx *core.Scope, kind string, count int) string {
+	return For(cx).SubscribeAddJustAdd(kind, count)
+}
+
+// SubscribeAddJustAdd is the package's SubscribeAddJustAdd in the language of msgs.
+func (msgs Messages) SubscribeAddJustAdd(kind string, count int) string {
+	if i18n.IsPseudo(msgs.lang) {
+		return i18n.Pseudo(msgs.lang, Messages{lang: Source, mark: true}.SubscribeAddJustAdd(kind, count))
+	}
+	for lang := msgs.lang; ; lang = i18n.Parent(lang) {
+		if f := supplied[lang].SubscribeAddJustAdd; f != nil {
+			return f(kind, count)
+		}
+		switch lang {
+		case "", "en":
+			var b strings.Builder
+			switch kind {
+			case "collection":
+				switch i18n.Cardinal("en", float64(count)) {
+				case i18n.One:
+					b.WriteString("Add ")
+					b.WriteString(msgs.arg(i18n.FormatNumber("en", float64(count))))
+					b.WriteString(" Episode and Start")
+				default:
+					b.WriteString("Add ")
+					b.WriteString(msgs.arg(i18n.FormatNumber("en", float64(count))))
+					b.WriteString(" Episodes and Start")
+				}
+			default:
+				switch i18n.Cardinal("en", float64(count)) {
+				case i18n.One:
+					b.WriteString("Add ")
+					b.WriteString(msgs.arg(i18n.FormatNumber("en", float64(count))))
+					b.WriteString(" Video and Start")
+				default:
+					b.WriteString("Add ")
+					b.WriteString(msgs.arg(i18n.FormatNumber("en", float64(count))))
+					b.WriteString(" Videos and Start")
+				}
+			}
+			return b.String()
+		case "ja":
+			var b strings.Builder
+			switch kind {
+			case "collection":
+				b.WriteString(i18n.FormatNumber("ja", float64(count)))
+				b.WriteString(" 本追加して開始")
+			default:
+				b.WriteString(i18n.FormatNumber("ja", float64(count)))
+				b.WriteString(" 本追加して開始")
+			}
+			return b.String()
+		case "ko":
+			var b strings.Builder
+			switch kind {
+			case "collection":
+				b.WriteString(i18n.FormatNumber("ko", float64(count)))
+				b.WriteString("편 추가해서 시작")
+			default:
+				b.WriteString(i18n.FormatNumber("ko", float64(count)))
+				b.WriteString("개 추가해서 시작")
+			}
+			return b.String()
+		case "zh-Hans":
+			var b strings.Builder
+			switch kind {
+			case "collection":
+				b.WriteString("加入 ")
+				b.WriteString(i18n.FormatNumber("zh-Hans", float64(count)))
+				b.WriteString(" 集并开始")
+			default:
+				b.WriteString("加入 ")
+				b.WriteString(i18n.FormatNumber("zh-Hans", float64(count)))
+				b.WriteString(" 个并开始")
+			}
+			return b.String()
+		case "zh-Hant":
+			var b strings.Builder
+			switch kind {
+			case "collection":
+				b.WriteString("加入 ")
+				b.WriteString(i18n.FormatNumber("zh-Hant", float64(count)))
+				b.WriteString(" 集並開始")
+			default:
+				b.WriteString("加入 ")
+				b.WriteString(i18n.FormatNumber("zh-Hant", float64(count)))
+				b.WriteString(" 個並開始")
+			}
+			return b.String()
+		}
+	}
+}
+
+// SubscribeAddOnlyThis says "Only This One"
+// in the language the app shows under cx.
+//
+// Choice of the Add Subscription dialog, for a collection or a playlist whose video the link named: add only that video now.
+func SubscribeAddOnlyThis(cx *core.Scope) string { return For(cx).SubscribeAddOnlyThis() }
+
+// SubscribeAddOnlyThis is the package's SubscribeAddOnlyThis in the language of msgs.
+func (msgs Messages) SubscribeAddOnlyThis() string { return msgs.text(textSubscribeAddOnlyThis) }
+
+// SubscribeAddRecentLatest says "Latest {count}"
+// in the language the app shows under cx.
+//
+// Choice of Add Now in the Add Subscription dialog: add the channel's most recent videos.
+func SubscribeAddRecentLatest(cx *core.Scope, count int) string {
+	return For(cx).SubscribeAddRecentLatest(count)
+}
+
+// SubscribeAddRecentLatest is the package's SubscribeAddRecentLatest in the language of msgs.
+func (msgs Messages) SubscribeAddRecentLatest(count int) string {
+	if i18n.IsPseudo(msgs.lang) {
+		return i18n.Pseudo(msgs.lang, Messages{lang: Source, mark: true}.SubscribeAddRecentLatest(count))
+	}
+	for lang := msgs.lang; ; lang = i18n.Parent(lang) {
+		if f := supplied[lang].SubscribeAddRecentLatest; f != nil {
+			return f(count)
+		}
+		switch lang {
+		case "", "en":
+			return "Latest " + msgs.arg(i18n.FormatNumber("en", float64(count)))
+		case "ja":
+			return "最新 " + i18n.FormatNumber("ja", float64(count)) + " 本"
+		case "ko":
+			return "최근 " + i18n.FormatNumber("ko", float64(count)) + "개"
+		case "zh-Hans":
+			return "最近 " + i18n.FormatNumber("zh-Hans", float64(count)) + " 个"
+		case "zh-Hant":
+			return "最近 " + i18n.FormatNumber("zh-Hant", float64(count)) + " 個"
+		}
+	}
+}
+
+// SubscribeAddRecentNone says "None"
+// in the language the app shows under cx.
+//
+// Choice of Add Now in the Add Subscription dialog: add none of the channel's videos now.
+func SubscribeAddRecentNone(cx *core.Scope) string { return For(cx).SubscribeAddRecentNone() }
+
+// SubscribeAddRecentNone is the package's SubscribeAddRecentNone in the language of msgs.
+func (msgs Messages) SubscribeAddRecentNone() string { return msgs.text(textSubscribeAddRecentNone) }
+
+// SubscribeAddSave says "Keep"
+// in the language the app shows under cx.
+//
+// Row of the Add Subscription dialog: the picture the videos download, or the subtitles alone.
+func SubscribeAddSave(cx *core.Scope) string { return For(cx).SubscribeAddSave() }
+
+// SubscribeAddSave is the package's SubscribeAddSave in the language of msgs.
+func (msgs Messages) SubscribeAddSave() string { return msgs.text(textSubscribeAddSave) }
+
+// SubscribeAddSaveHint says "Videos are kept in the films folder, so you can watch them offline"
+// in the language the app shows under cx.
+//
+// Line under Keep in the Add Subscription dialog while a picture is chosen.
+func SubscribeAddSaveHint(cx *core.Scope) string { return For(cx).SubscribeAddSaveHint() }
+
+// SubscribeAddSaveHint is the package's SubscribeAddSaveHint in the language of msgs.
+func (msgs Messages) SubscribeAddSaveHint() string { return msgs.text(textSubscribeAddSaveHint) }
+
+// SubscribeAddSeriesNote says "The episodes share a glossary: fix a name or a term in one and the others follow"
+// in the language the app shows under cx.
+//
+// Line under As One Series in the Add Subscription dialog.
+func SubscribeAddSeriesNote(cx *core.Scope) string { return For(cx).SubscribeAddSeriesNote() }
+
+// SubscribeAddSeriesNote is the package's SubscribeAddSeriesNote in the language of msgs.
+func (msgs Messages) SubscribeAddSeriesNote() string { return msgs.text(textSubscribeAddSeriesNote) }
+
+// SubscribeAddSignIn says "{site} Sign-in"
+// in the language the app shows under cx.
+//
+// Row of the Add Subscription dialog: the browser whose sign-in to the site the downloads borrow.
+func SubscribeAddSignIn(cx *core.Scope, site string) string { return For(cx).SubscribeAddSignIn(site) }
+
+// SubscribeAddSignIn is the package's SubscribeAddSignIn in the language of msgs.
+func (msgs Messages) SubscribeAddSignIn(site string) string {
+	if i18n.IsPseudo(msgs.lang) {
+		return i18n.Pseudo(msgs.lang, Messages{lang: Source, mark: true}.SubscribeAddSignIn(site))
+	}
+	for lang := msgs.lang; ; lang = i18n.Parent(lang) {
+		if f := supplied[lang].SubscribeAddSignIn; f != nil {
+			return f(site)
+		}
+		switch lang {
+		case "", "en":
+			return msgs.arg(site) + " Sign-in"
+		case "ja":
+			return site + " のログイン"
+		case "ko":
+			return site + " 로그인"
+		case "zh-Hans":
+			return site + "登录"
+		case "zh-Hant":
+			return site + "登入"
+		}
+	}
+}
+
+// SubscribeAddSignInHint says "1080p and above, and members-only videos, need a sign-in; only the browser's sign-in is borrowed, and no password is saved"
+// in the language the app shows under cx.
+//
+// Line under the sign-in row of the Add Subscription dialog.
+func SubscribeAddSignInHint(cx *core.Scope) string { return For(cx).SubscribeAddSignInHint() }
+
+// SubscribeAddSignInHint is the package's SubscribeAddSignInHint in the language of msgs.
+func (msgs Messages) SubscribeAddSignInHint() string { return msgs.text(textSubscribeAddSignInHint) }
+
+// SubscribeAddSource says "Original Lines From"
+// in the language the app shows under cx.
+//
+// Heading of the Add Subscription dialog's choice of where the films' original lines come from.
+func SubscribeAddSource(cx *core.Scope) string { return For(cx).SubscribeAddSource() }
+
+// SubscribeAddSource is the package's SubscribeAddSource in the language of msgs.
+func (msgs Messages) SubscribeAddSource() string { return msgs.text(textSubscribeAddSource) }
+
+// SubscribeAddSourceLocalHint says "Heard on this computer, whether or not the site has subtitles"
+// in the language the app shows under cx.
+//
+// Line under Recognize on This Computer in the Add Subscription dialog.
+func SubscribeAddSourceLocalHint(cx *core.Scope) string { return For(cx).SubscribeAddSourceLocalHint() }
+
+// SubscribeAddSourceLocalHint is the package's SubscribeAddSourceLocalHint in the language of msgs.
+func (msgs Messages) SubscribeAddSourceLocalHint() string {
+	return msgs.text(textSubscribeAddSourceLocalHint)
+}
+
+// SubscribeNoteClose says "Close"
+// in the language the app shows under cx.
+//
+// Accessible name of the × that puts away the message on a subscription's page.
+func SubscribeNoteClose(cx *core.Scope) string { return For(cx).SubscribeNoteClose() }
+
+// SubscribeNoteClose is the package's SubscribeNoteClose in the language of msgs.
+func (msgs Messages) SubscribeNoteClose() string { return msgs.text(textSubscribeNoteClose) }
+
+// SubscribeNoteSomeQueued says "Added {count, plural, one {# video} other {# videos}} to the queue. The rest could not be: {reason} They're listed below."
+// in the language the app shows under cx.
+//
+// Message on a new subscription's page that queued some of its list's videos but not the rest.
+func SubscribeNoteSomeQueued(cx *core.Scope, count int, reason string) string {
+	return For(cx).SubscribeNoteSomeQueued(count, reason)
+}
+
+// SubscribeNoteSomeQueued is the package's SubscribeNoteSomeQueued in the language of msgs.
+func (msgs Messages) SubscribeNoteSomeQueued(count int, reason string) string {
+	if i18n.IsPseudo(msgs.lang) {
+		return i18n.Pseudo(msgs.lang, Messages{lang: Source, mark: true}.SubscribeNoteSomeQueued(count, reason))
+	}
+	for lang := msgs.lang; ; lang = i18n.Parent(lang) {
+		if f := supplied[lang].SubscribeNoteSomeQueued; f != nil {
+			return f(count, reason)
+		}
+		switch lang {
+		case "", "en":
+			var b strings.Builder
+			b.WriteString("Added ")
+			switch i18n.Cardinal("en", float64(count)) {
+			case i18n.One:
+				b.WriteString(msgs.arg(i18n.FormatNumber("en", float64(count))))
+				b.WriteString(" video")
+			default:
+				b.WriteString(msgs.arg(i18n.FormatNumber("en", float64(count))))
+				b.WriteString(" videos")
+			}
+			b.WriteString(" to the queue. The rest could not be: ")
+			b.WriteString(msgs.arg(reason))
+			b.WriteString(" They're listed below.")
+			return b.String()
+		case "ja":
+			return i18n.FormatNumber("ja", float64(count)) + " 本をキューに追加しました。残りは追加できませんでした：" + reason + " 下に表示しています。"
+		case "ko":
+			return "동영상 " + i18n.FormatNumber("ko", float64(count)) + "개를 대기열에 추가했어요. 나머지는 추가하지 못했어요: " + reason + " 아래에 표시했어요."
+		case "zh-Hans":
+			return "已加入 " + i18n.FormatNumber("zh-Hans", float64(count)) + " 个视频；其余的没能加入队列：" + reason + " 已列在下面。"
+		case "zh-Hant":
+			return "已加入 " + i18n.FormatNumber("zh-Hant", float64(count)) + " 個影片；其餘的沒能加入佇列：" + reason + " 已列在下面。"
+		}
+	}
+}
+
+// SubscribePlatformSubtitles says "Prefer the Site's Subtitles"
+// in the language the app shows under cx.
+//
+// Switch of a subscription's rules: its videos take the uploader's subtitles as their original lines where there are some.
+func SubscribePlatformSubtitles(cx *core.Scope) string { return For(cx).SubscribePlatformSubtitles() }
+
+// SubscribePlatformSubtitles is the package's SubscribePlatformSubtitles in the language of msgs.
+func (msgs Messages) SubscribePlatformSubtitles() string {
+	return msgs.text(textSubscribePlatformSubtitles)
+}
+
+// SubscribePlatformSubtitlesNote says "Where the uploader added subtitles, they become the original lines once checked against the speech"
+// in the language the app shows under cx.
+//
+// Line under Prefer the Site's Subtitles in a subscription's rules.
+func SubscribePlatformSubtitlesNote(cx *core.Scope) string {
+	return For(cx).SubscribePlatformSubtitlesNote()
+}
+
+// SubscribePlatformSubtitlesNote is the package's SubscribePlatformSubtitlesNote in the language of msgs.
+func (msgs Messages) SubscribePlatformSubtitlesNote() string {
+	return msgs.text(textSubscribePlatformSubtitlesNote)
+}
+
+// SubscribeQuality says "Download"
+// in the language the app shows under cx.
+//
+// Row of a subscription's rules: the picture its videos download, or the subtitles alone.
+func SubscribeQuality(cx *core.Scope) string { return For(cx).SubscribeQuality() }
+
+// SubscribeQuality is the package's SubscribeQuality in the language of msgs.
+func (msgs Messages) SubscribeQuality() string { return msgs.text(textSubscribeQuality) }
+
 // SubscribeSection says "Subscriptions"
 // in the language the app shows under cx.
 //
@@ -54431,6 +55309,38 @@ func SubscribeChecking(cx *core.Scope) string { return For(cx).SubscribeChecking
 
 // SubscribeChecking is the package's SubscribeChecking in the language of msgs.
 func (msgs Messages) SubscribeChecking() string { return msgs.text(textSubscribeChecking) }
+
+// SubscribeStatusPair says "{state} · {added}"
+// in the language the app shows under cx.
+//
+// Status line of a paused or deleted subscription: its state, then how many videos it added.
+func SubscribeStatusPair(cx *core.Scope, state string, added string) string {
+	return For(cx).SubscribeStatusPair(state, added)
+}
+
+// SubscribeStatusPair is the package's SubscribeStatusPair in the language of msgs.
+func (msgs Messages) SubscribeStatusPair(state string, added string) string {
+	if i18n.IsPseudo(msgs.lang) {
+		return i18n.Pseudo(msgs.lang, Messages{lang: Source, mark: true}.SubscribeStatusPair(state, added))
+	}
+	for lang := msgs.lang; ; lang = i18n.Parent(lang) {
+		if f := supplied[lang].SubscribeStatusPair; f != nil {
+			return f(state, added)
+		}
+		switch lang {
+		case "", "en":
+			return msgs.arg(state) + " · " + msgs.arg(added)
+		case "ja":
+			return state + " · " + added
+		case "ko":
+			return state + " · " + added
+		case "zh-Hans":
+			return state + " · " + added
+		case "zh-Hant":
+			return state + " · " + added
+		}
+	}
+}
 
 // SubscribeWarnRenamed says "Renamed on the site"
 // in the language the app shows under cx.
@@ -54579,14 +55489,97 @@ func SubscribeStatusPaused(cx *core.Scope) string { return For(cx).SubscribeStat
 // SubscribeStatusPaused is the package's SubscribeStatusPaused in the language of msgs.
 func (msgs Messages) SubscribeStatusPaused() string { return msgs.text(textSubscribeStatusPaused) }
 
-// SubscribeStatusGone says "Deleted on the site, no longer checked"
+// SubscribeStatusGone says "{kind, select, collection {Collection deleted by its author} channel {Channel deleted on the site} space {Uploader's space deleted} other {Playlist deleted on the site}} · No longer checked"
 // in the language the app shows under cx.
 //
 // Status line of the page of a subscription whose list was deleted on its site.
-func SubscribeStatusGone(cx *core.Scope) string { return For(cx).SubscribeStatusGone() }
+func SubscribeStatusGone(cx *core.Scope, kind string) string {
+	return For(cx).SubscribeStatusGone(kind)
+}
 
 // SubscribeStatusGone is the package's SubscribeStatusGone in the language of msgs.
-func (msgs Messages) SubscribeStatusGone() string { return msgs.text(textSubscribeStatusGone) }
+func (msgs Messages) SubscribeStatusGone(kind string) string {
+	if i18n.IsPseudo(msgs.lang) {
+		return i18n.Pseudo(msgs.lang, Messages{lang: Source, mark: true}.SubscribeStatusGone(kind))
+	}
+	for lang := msgs.lang; ; lang = i18n.Parent(lang) {
+		if f := supplied[lang].SubscribeStatusGone; f != nil {
+			return f(kind)
+		}
+		switch lang {
+		case "", "en":
+			var b strings.Builder
+			switch kind {
+			case "collection":
+				b.WriteString("Collection deleted by its author")
+			case "channel":
+				b.WriteString("Channel deleted on the site")
+			case "space":
+				b.WriteString("Uploader's space deleted")
+			default:
+				b.WriteString("Playlist deleted on the site")
+			}
+			b.WriteString(" · No longer checked")
+			return b.String()
+		case "ja":
+			var b strings.Builder
+			switch kind {
+			case "collection":
+				b.WriteString("コレクションは作者が削除")
+			case "channel":
+				b.WriteString("チャンネルはサイトで削除")
+			case "space":
+				b.WriteString("投稿者のページは削除")
+			default:
+				b.WriteString("再生リストはサイトで削除")
+			}
+			b.WriteString(" · 確認しません")
+			return b.String()
+		case "ko":
+			var b strings.Builder
+			switch kind {
+			case "collection":
+				b.WriteString("컬렉션이 작성자에 의해 삭제됨")
+			case "channel":
+				b.WriteString("채널이 사이트에서 삭제됨")
+			case "space":
+				b.WriteString("업로더 페이지가 삭제됨")
+			default:
+				b.WriteString("재생목록이 사이트에서 삭제됨")
+			}
+			b.WriteString(" · 더 이상 확인 안 함")
+			return b.String()
+		case "zh-Hans":
+			var b strings.Builder
+			switch kind {
+			case "collection":
+				b.WriteString("合集已被作者删除")
+			case "channel":
+				b.WriteString("频道已被作者删除")
+			case "space":
+				b.WriteString("UP 主空间已被删除")
+			default:
+				b.WriteString("播放列表已被作者删除")
+			}
+			b.WriteString(" · 不再检查")
+			return b.String()
+		case "zh-Hant":
+			var b strings.Builder
+			switch kind {
+			case "collection":
+				b.WriteString("合集已被作者刪除")
+			case "channel":
+				b.WriteString("頻道已被作者刪除")
+			case "space":
+				b.WriteString("UP 主空間已被刪除")
+			default:
+				b.WriteString("播放清單已被作者刪除")
+			}
+			b.WriteString(" · 不再檢查")
+			return b.String()
+		}
+	}
+}
 
 // SubscribeStatusNever says "Not checked yet"
 // in the language the app shows under cx.
@@ -54927,34 +55920,89 @@ func SubscribeUnsubscribe(cx *core.Scope) string { return For(cx).SubscribeUnsub
 // SubscribeUnsubscribe is the package's SubscribeUnsubscribe in the language of msgs.
 func (msgs Messages) SubscribeUnsubscribe() string { return msgs.text(textSubscribeUnsubscribe) }
 
-// SubscribeRenamedTitle says "“{name}” has a new name"
+// SubscribeRenamedTitle says "{kind, select, collection {This collection has a new name} channel {This channel has a new name} space {This uploader has a new name} other {This playlist has a new name}}"
 // in the language the app shows under cx.
 //
 // Title of the banner on a subscription's page when its site renamed the channel or list.
-func SubscribeRenamedTitle(cx *core.Scope, name string) string {
-	return For(cx).SubscribeRenamedTitle(name)
+func SubscribeRenamedTitle(cx *core.Scope, kind string) string {
+	return For(cx).SubscribeRenamedTitle(kind)
 }
 
 // SubscribeRenamedTitle is the package's SubscribeRenamedTitle in the language of msgs.
-func (msgs Messages) SubscribeRenamedTitle(name string) string {
+func (msgs Messages) SubscribeRenamedTitle(kind string) string {
 	if i18n.IsPseudo(msgs.lang) {
-		return i18n.Pseudo(msgs.lang, Messages{lang: Source, mark: true}.SubscribeRenamedTitle(name))
+		return i18n.Pseudo(msgs.lang, Messages{lang: Source, mark: true}.SubscribeRenamedTitle(kind))
 	}
 	for lang := msgs.lang; ; lang = i18n.Parent(lang) {
 		if f := supplied[lang].SubscribeRenamedTitle; f != nil {
-			return f(name)
+			return f(kind)
 		}
 		switch lang {
 		case "", "en":
-			return "“" + msgs.arg(name) + "” has a new name"
+			var b strings.Builder
+			switch kind {
+			case "collection":
+				b.WriteString("This collection has a new name")
+			case "channel":
+				b.WriteString("This channel has a new name")
+			case "space":
+				b.WriteString("This uploader has a new name")
+			default:
+				b.WriteString("This playlist has a new name")
+			}
+			return b.String()
 		case "ja":
-			return "「" + name + "」の名前が変わりました"
+			var b strings.Builder
+			switch kind {
+			case "collection":
+				b.WriteString("このコレクションの名前が変わりました")
+			case "channel":
+				b.WriteString("このチャンネルの名前が変わりました")
+			case "space":
+				b.WriteString("この投稿者の名前が変わりました")
+			default:
+				b.WriteString("この再生リストの名前が変わりました")
+			}
+			return b.String()
 		case "ko":
-			return "{name}의 이름이 바뀌었어요"
+			var b strings.Builder
+			switch kind {
+			case "collection":
+				b.WriteString("이 컬렉션의 이름이 바뀌었어요")
+			case "channel":
+				b.WriteString("이 채널의 이름이 바뀌었어요")
+			case "space":
+				b.WriteString("이 업로더의 이름이 바뀌었어요")
+			default:
+				b.WriteString("이 재생목록의 이름이 바뀌었어요")
+			}
+			return b.String()
 		case "zh-Hans":
-			return "「" + name + "」改名了"
+			var b strings.Builder
+			switch kind {
+			case "collection":
+				b.WriteString("这个合集改名了")
+			case "channel":
+				b.WriteString("这个频道改名了")
+			case "space":
+				b.WriteString("这个 UP 主改名了")
+			default:
+				b.WriteString("这个播放列表改名了")
+			}
+			return b.String()
 		case "zh-Hant":
-			return "「" + name + "」改名了"
+			var b strings.Builder
+			switch kind {
+			case "collection":
+				b.WriteString("這個合集改名了")
+			case "channel":
+				b.WriteString("這個頻道改名了")
+			case "space":
+				b.WriteString("這個 UP 主改名了")
+			default:
+				b.WriteString("這個播放清單改名了")
+			}
+			return b.String()
 		}
 	}
 }
@@ -55009,32 +56057,87 @@ func SubscribeKeepOldName(cx *core.Scope) string { return For(cx).SubscribeKeepO
 // SubscribeKeepOldName is the package's SubscribeKeepOldName in the language of msgs.
 func (msgs Messages) SubscribeKeepOldName() string { return msgs.text(textSubscribeKeepOldName) }
 
-// SubscribeGoneTitle says "“{name}” was deleted on the site"
+// SubscribeGoneTitle says "{kind, select, collection {This collection was deleted by its author} channel {This channel was deleted on the site} space {This uploader's space was deleted} other {This playlist was deleted on the site}}"
 // in the language the app shows under cx.
 //
 // Title of the banner on a subscription's page when its channel or list no longer exists on its site.
-func SubscribeGoneTitle(cx *core.Scope, name string) string { return For(cx).SubscribeGoneTitle(name) }
+func SubscribeGoneTitle(cx *core.Scope, kind string) string { return For(cx).SubscribeGoneTitle(kind) }
 
 // SubscribeGoneTitle is the package's SubscribeGoneTitle in the language of msgs.
-func (msgs Messages) SubscribeGoneTitle(name string) string {
+func (msgs Messages) SubscribeGoneTitle(kind string) string {
 	if i18n.IsPseudo(msgs.lang) {
-		return i18n.Pseudo(msgs.lang, Messages{lang: Source, mark: true}.SubscribeGoneTitle(name))
+		return i18n.Pseudo(msgs.lang, Messages{lang: Source, mark: true}.SubscribeGoneTitle(kind))
 	}
 	for lang := msgs.lang; ; lang = i18n.Parent(lang) {
 		if f := supplied[lang].SubscribeGoneTitle; f != nil {
-			return f(name)
+			return f(kind)
 		}
 		switch lang {
 		case "", "en":
-			return "“" + msgs.arg(name) + "” was deleted on the site"
+			var b strings.Builder
+			switch kind {
+			case "collection":
+				b.WriteString("This collection was deleted by its author")
+			case "channel":
+				b.WriteString("This channel was deleted on the site")
+			case "space":
+				b.WriteString("This uploader's space was deleted")
+			default:
+				b.WriteString("This playlist was deleted on the site")
+			}
+			return b.String()
 		case "ja":
-			return "「" + name + "」はサイトで削除されました"
+			var b strings.Builder
+			switch kind {
+			case "collection":
+				b.WriteString("このコレクションは作者により削除されました")
+			case "channel":
+				b.WriteString("このチャンネルはサイトで削除されました")
+			case "space":
+				b.WriteString("この投稿者のページは削除されました")
+			default:
+				b.WriteString("この再生リストはサイトで削除されました")
+			}
+			return b.String()
 		case "ko":
-			return "{name}이 사이트에서 삭제되었어요"
+			var b strings.Builder
+			switch kind {
+			case "collection":
+				b.WriteString("이 컬렉션은 작성자가 삭제했어요")
+			case "channel":
+				b.WriteString("이 채널은 사이트에서 삭제되었어요")
+			case "space":
+				b.WriteString("이 업로더 페이지는 삭제되었어요")
+			default:
+				b.WriteString("이 재생목록은 사이트에서 삭제되었어요")
+			}
+			return b.String()
 		case "zh-Hans":
-			return "「" + name + "」已被作者删除"
+			var b strings.Builder
+			switch kind {
+			case "collection":
+				b.WriteString("这个合集已被作者删除")
+			case "channel":
+				b.WriteString("这个频道已被删除")
+			case "space":
+				b.WriteString("这个 UP 主空间已被删除")
+			default:
+				b.WriteString("这个播放列表已被删除")
+			}
+			return b.String()
 		case "zh-Hant":
-			return "「" + name + "」已被作者刪除"
+			var b strings.Builder
+			switch kind {
+			case "collection":
+				b.WriteString("這個合集已被作者刪除")
+			case "channel":
+				b.WriteString("這個頻道已被刪除")
+			case "space":
+				b.WriteString("這個 UP 主空間已被刪除")
+			default:
+				b.WriteString("這個播放清單已被刪除")
+			}
+			return b.String()
 		}
 	}
 }
@@ -55586,10 +56689,10 @@ func SubscribeStageGone(cx *core.Scope) string { return For(cx).SubscribeStageGo
 // SubscribeStageGone is the package's SubscribeStageGone in the language of msgs.
 func (msgs Messages) SubscribeStageGone() string { return msgs.text(textSubscribeStageGone) }
 
-// SubscribeNoteSubscribed says "Subscribed to “{name}”. The videos already there are left out; new ones follow the rules below."
+// SubscribeNoteSubscribed says "Subscribed to “{name}”. New videos follow the rules below."
 // in the language the app shows under cx.
 //
-// Message on a new subscription's page.
+// Message on a new subscription's page that added no video yet.
 func SubscribeNoteSubscribed(cx *core.Scope, name string) string {
 	return For(cx).SubscribeNoteSubscribed(name)
 }
@@ -55605,15 +56708,101 @@ func (msgs Messages) SubscribeNoteSubscribed(name string) string {
 		}
 		switch lang {
 		case "", "en":
-			return "Subscribed to “" + msgs.arg(name) + "”. The videos already there are left out; new ones follow the rules below."
+			return "Subscribed to “" + msgs.arg(name) + "”. New videos follow the rules below."
 		case "ja":
-			return "「" + name + "」を購読しました。いまある動画は追加せず、新しい動画は下のルールに従います。"
+			return "「" + name + "」を購読しました。新しい動画は下のルールに従います。"
 		case "ko":
-			return "{name}을 구독했어요. 지금 있는 동영상은 추가하지 않고, 새 동영상은 아래 규칙을 따라요."
+			return "{name}을 구독했어요. 새 동영상은 아래 규칙을 따라요."
 		case "zh-Hans":
-			return "已订阅「" + name + "」。已有的视频不会加入，以后的新视频按下面的规则处理。"
+			return "已订阅「" + name + "」。有新视频时按下面的规则处理。"
 		case "zh-Hant":
-			return "已訂閱「" + name + "」。已有的影片不會加入，以後的新影片按下面的規則處理。"
+			return "已訂閱「" + name + "」。有新影片時按下面的規則處理。"
+		}
+	}
+}
+
+// SubscribeNoteSubscribedAdded says "Subscribed to “{name}” and added {count, plural, one {# video} other {# videos}} to the queue."
+// in the language the app shows under cx.
+//
+// Message on a new subscription's page that queued the videos its list holds.
+func SubscribeNoteSubscribedAdded(cx *core.Scope, name string, count int) string {
+	return For(cx).SubscribeNoteSubscribedAdded(name, count)
+}
+
+// SubscribeNoteSubscribedAdded is the package's SubscribeNoteSubscribedAdded in the language of msgs.
+func (msgs Messages) SubscribeNoteSubscribedAdded(name string, count int) string {
+	if i18n.IsPseudo(msgs.lang) {
+		return i18n.Pseudo(msgs.lang, Messages{lang: Source, mark: true}.SubscribeNoteSubscribedAdded(name, count))
+	}
+	for lang := msgs.lang; ; lang = i18n.Parent(lang) {
+		if f := supplied[lang].SubscribeNoteSubscribedAdded; f != nil {
+			return f(name, count)
+		}
+		switch lang {
+		case "", "en":
+			var b strings.Builder
+			b.WriteString("Subscribed to “")
+			b.WriteString(msgs.arg(name))
+			b.WriteString("” and added ")
+			switch i18n.Cardinal("en", float64(count)) {
+			case i18n.One:
+				b.WriteString(msgs.arg(i18n.FormatNumber("en", float64(count))))
+				b.WriteString(" video")
+			default:
+				b.WriteString(msgs.arg(i18n.FormatNumber("en", float64(count))))
+				b.WriteString(" videos")
+			}
+			b.WriteString(" to the queue.")
+			return b.String()
+		case "ja":
+			return "「" + name + "」を購読し、動画を " + i18n.FormatNumber("ja", float64(count)) + " 本追加しました。"
+		case "ko":
+			return "{name}을 구독하고 동영상 " + i18n.FormatNumber("ko", float64(count)) + "개를 추가했어요."
+		case "zh-Hans":
+			return "已订阅「" + name + "」，先加入了 " + i18n.FormatNumber("zh-Hans", float64(count)) + " 个视频。"
+		case "zh-Hant":
+			return "已訂閱「" + name + "」，先加入了 " + i18n.FormatNumber("zh-Hant", float64(count)) + " 部影片。"
+		}
+	}
+}
+
+// SubscribeNoteEarlier says "{count, plural, one {# video already in the list is waiting for you below.} other {# videos already in the list are waiting for you below.}}"
+// in the language the app shows under cx.
+//
+// Sentence of a check's message on a subscription made before Kando added a list's videos: the ones the list held then now wait to be added or skipped.
+func SubscribeNoteEarlier(cx *core.Scope, count int) string {
+	return For(cx).SubscribeNoteEarlier(count)
+}
+
+// SubscribeNoteEarlier is the package's SubscribeNoteEarlier in the language of msgs.
+func (msgs Messages) SubscribeNoteEarlier(count int) string {
+	if i18n.IsPseudo(msgs.lang) {
+		return i18n.Pseudo(msgs.lang, Messages{lang: Source, mark: true}.SubscribeNoteEarlier(count))
+	}
+	for lang := msgs.lang; ; lang = i18n.Parent(lang) {
+		if f := supplied[lang].SubscribeNoteEarlier; f != nil {
+			return f(count)
+		}
+		switch lang {
+		case "", "en":
+			var b strings.Builder
+			switch i18n.Cardinal("en", float64(count)) {
+			case i18n.One:
+				b.WriteString(msgs.arg(i18n.FormatNumber("en", float64(count))))
+				b.WriteString(" video already in the list is waiting for you below.")
+			default:
+				b.WriteString(msgs.arg(i18n.FormatNumber("en", float64(count))))
+				b.WriteString(" videos already in the list are waiting for you below.")
+			}
+			return b.String()
+		case "ja":
+			return "リストに元からある動画 " + i18n.FormatNumber("ja", float64(count)) + " 本が確認待ちです。"
+		case "ko":
+			return "목록에 원래 있던 동영상 " + i18n.FormatNumber("ko", float64(count)) + "개가 확인을 기다려요."
+		case "zh-Hans":
+			return "列表里原有的 " + i18n.FormatNumber("zh-Hans", float64(count)) + " 个视频等你确认。"
+		case "zh-Hant":
+			return "清單裡原有的 " + i18n.FormatNumber("zh-Hant", float64(count)) + " 部影片等你確認。"
 		}
 	}
 }
@@ -56034,7 +57223,7 @@ func (msgs Messages) SubscribeUnsubscribed(name string) string {
 	}
 }
 
-// SubscribeAddDescription says "Paste a link to a YouTube channel or playlist, or a bilibili uploader's space or collection. The videos already there are left out; new ones are added by the rules you set."
+// SubscribeAddDescription says "Paste a link to a YouTube channel or playlist, or a bilibili uploader's space or collection. New videos are added by the rules you set."
 // in the language the app shows under cx.
 //
 // Text of the Add Subscription dialog.
@@ -56078,6 +57267,418 @@ func SubscribeAddCancel(cx *core.Scope) string { return For(cx).SubscribeAddCanc
 
 // SubscribeAddCancel is the package's SubscribeAddCancel in the language of msgs.
 func (msgs Messages) SubscribeAddCancel() string { return msgs.text(textSubscribeAddCancel) }
+
+// SubscribeAddConfirmChannel says "{count, plural, =0 {Subscribe} one {Subscribe and Add # Video} other {Subscribe and Add # Videos}}"
+// in the language the app shows under cx.
+//
+// Button of the Add Subscription dialog once a channel or an uploader's space was read: it subscribes and adds that many of its most recent videos now; with none it only subscribes.
+func SubscribeAddConfirmChannel(cx *core.Scope, count int) string {
+	return For(cx).SubscribeAddConfirmChannel(count)
+}
+
+// SubscribeAddConfirmChannel is the package's SubscribeAddConfirmChannel in the language of msgs.
+func (msgs Messages) SubscribeAddConfirmChannel(count int) string {
+	if i18n.IsPseudo(msgs.lang) {
+		return i18n.Pseudo(msgs.lang, Messages{lang: Source, mark: true}.SubscribeAddConfirmChannel(count))
+	}
+	for lang := msgs.lang; ; lang = i18n.Parent(lang) {
+		if f := supplied[lang].SubscribeAddConfirmChannel; f != nil {
+			return f(count)
+		}
+		switch lang {
+		case "", "en":
+			var b strings.Builder
+			switch {
+			case count == 0:
+				b.WriteString("Subscribe")
+			default:
+				switch i18n.Cardinal("en", float64(count)) {
+				case i18n.One:
+					b.WriteString("Subscribe and Add ")
+					b.WriteString(msgs.arg(i18n.FormatNumber("en", float64(count))))
+					b.WriteString(" Video")
+				default:
+					b.WriteString("Subscribe and Add ")
+					b.WriteString(msgs.arg(i18n.FormatNumber("en", float64(count))))
+					b.WriteString(" Videos")
+				}
+			}
+			return b.String()
+		case "ja":
+			var b strings.Builder
+			switch {
+			case count == 0:
+				b.WriteString("購読")
+			default:
+				switch i18n.Cardinal("ja", float64(count)) {
+				default:
+					b.WriteString("購読して ")
+					b.WriteString(i18n.FormatNumber("ja", float64(count)))
+					b.WriteString(" 本追加")
+				}
+			}
+			return b.String()
+		case "ko":
+			var b strings.Builder
+			switch {
+			case count == 0:
+				b.WriteString("구독")
+			default:
+				switch i18n.Cardinal("ko", float64(count)) {
+				default:
+					b.WriteString("구독하고 ")
+					b.WriteString(i18n.FormatNumber("ko", float64(count)))
+					b.WriteString("개 추가")
+				}
+			}
+			return b.String()
+		case "zh-Hans":
+			var b strings.Builder
+			switch {
+			case count == 0:
+				b.WriteString("订阅")
+			default:
+				switch i18n.Cardinal("zh-Hans", float64(count)) {
+				default:
+					b.WriteString("订阅并加入 ")
+					b.WriteString(i18n.FormatNumber("zh-Hans", float64(count)))
+					b.WriteString(" 个")
+				}
+			}
+			return b.String()
+		case "zh-Hant":
+			var b strings.Builder
+			switch {
+			case count == 0:
+				b.WriteString("訂閱")
+			default:
+				switch i18n.Cardinal("zh-Hant", float64(count)) {
+				default:
+					b.WriteString("訂閱並加入 ")
+					b.WriteString(i18n.FormatNumber("zh-Hant", float64(count)))
+					b.WriteString(" 部")
+				}
+			}
+			return b.String()
+		}
+	}
+}
+
+// SubscribeAddConfirmList says "{count, plural, =0 {Subscribe} one {Subscribe and Add # Video} other {Subscribe and Add # Videos}}"
+// in the language the app shows under cx.
+//
+// Button of the Add Subscription dialog once a collection or a playlist was read: it subscribes and queues its videos in order; with none it only subscribes.
+func SubscribeAddConfirmList(cx *core.Scope, count int) string {
+	return For(cx).SubscribeAddConfirmList(count)
+}
+
+// SubscribeAddConfirmList is the package's SubscribeAddConfirmList in the language of msgs.
+func (msgs Messages) SubscribeAddConfirmList(count int) string {
+	if i18n.IsPseudo(msgs.lang) {
+		return i18n.Pseudo(msgs.lang, Messages{lang: Source, mark: true}.SubscribeAddConfirmList(count))
+	}
+	for lang := msgs.lang; ; lang = i18n.Parent(lang) {
+		if f := supplied[lang].SubscribeAddConfirmList; f != nil {
+			return f(count)
+		}
+		switch lang {
+		case "", "en":
+			var b strings.Builder
+			switch {
+			case count == 0:
+				b.WriteString("Subscribe")
+			default:
+				switch i18n.Cardinal("en", float64(count)) {
+				case i18n.One:
+					b.WriteString("Subscribe and Add ")
+					b.WriteString(msgs.arg(i18n.FormatNumber("en", float64(count))))
+					b.WriteString(" Video")
+				default:
+					b.WriteString("Subscribe and Add ")
+					b.WriteString(msgs.arg(i18n.FormatNumber("en", float64(count))))
+					b.WriteString(" Videos")
+				}
+			}
+			return b.String()
+		case "ja":
+			var b strings.Builder
+			switch {
+			case count == 0:
+				b.WriteString("購読")
+			default:
+				switch i18n.Cardinal("ja", float64(count)) {
+				default:
+					b.WriteString("購読して ")
+					b.WriteString(i18n.FormatNumber("ja", float64(count)))
+					b.WriteString(" 本追加・開始")
+				}
+			}
+			return b.String()
+		case "ko":
+			var b strings.Builder
+			switch {
+			case count == 0:
+				b.WriteString("구독")
+			default:
+				switch i18n.Cardinal("ko", float64(count)) {
+				default:
+					b.WriteString("구독하고 ")
+					b.WriteString(i18n.FormatNumber("ko", float64(count)))
+					b.WriteString("개 추가해서 시작")
+				}
+			}
+			return b.String()
+		case "zh-Hans":
+			var b strings.Builder
+			switch {
+			case count == 0:
+				b.WriteString("订阅")
+			default:
+				switch i18n.Cardinal("zh-Hans", float64(count)) {
+				default:
+					b.WriteString("订阅并加入 ")
+					b.WriteString(i18n.FormatNumber("zh-Hans", float64(count)))
+					b.WriteString(" 集并开始")
+				}
+			}
+			return b.String()
+		case "zh-Hant":
+			var b strings.Builder
+			switch {
+			case count == 0:
+				b.WriteString("訂閱")
+			default:
+				switch i18n.Cardinal("zh-Hant", float64(count)) {
+				default:
+					b.WriteString("訂閱並加入 ")
+					b.WriteString(i18n.FormatNumber("zh-Hant", float64(count)))
+					b.WriteString(" 集並開始")
+				}
+			}
+			return b.String()
+		}
+	}
+}
+
+// SubscribeAddRecent says "Add Now"
+// in the language the app shows under cx.
+//
+// Row of the Add Subscription dialog for a channel: how many of its videos are added as it is subscribed to (None, Latest 3, Latest 10).
+func SubscribeAddRecent(cx *core.Scope) string { return For(cx).SubscribeAddRecent() }
+
+// SubscribeAddRecent is the package's SubscribeAddRecent in the language of msgs.
+func (msgs Messages) SubscribeAddRecent() string { return msgs.text(textSubscribeAddRecent) }
+
+// SubscribeAddRecentHint says "Videos already on the channel"
+// in the language the app shows under cx.
+//
+// Line under Add Now in the Add Subscription dialog.
+func SubscribeAddRecentHint(cx *core.Scope) string { return For(cx).SubscribeAddRecentHint() }
+
+// SubscribeAddRecentHint is the package's SubscribeAddRecentHint in the language of msgs.
+func (msgs Messages) SubscribeAddRecentHint() string { return msgs.text(textSubscribeAddRecentHint) }
+
+// SubscribeAddVideos says "{count, plural, one {# video} other {# videos}}"
+// in the language the app shows under cx.
+//
+// Line under a list's name in the Add Subscription dialog: how many videos it holds.
+func SubscribeAddVideos(cx *core.Scope, count int) string { return For(cx).SubscribeAddVideos(count) }
+
+// SubscribeAddVideos is the package's SubscribeAddVideos in the language of msgs.
+func (msgs Messages) SubscribeAddVideos(count int) string {
+	if i18n.IsPseudo(msgs.lang) {
+		return i18n.Pseudo(msgs.lang, Messages{lang: Source, mark: true}.SubscribeAddVideos(count))
+	}
+	for lang := msgs.lang; ; lang = i18n.Parent(lang) {
+		if f := supplied[lang].SubscribeAddVideos; f != nil {
+			return f(count)
+		}
+		switch lang {
+		case "", "en":
+			var b strings.Builder
+			switch i18n.Cardinal("en", float64(count)) {
+			case i18n.One:
+				b.WriteString(msgs.arg(i18n.FormatNumber("en", float64(count))))
+				b.WriteString(" video")
+			default:
+				b.WriteString(msgs.arg(i18n.FormatNumber("en", float64(count))))
+				b.WriteString(" videos")
+			}
+			return b.String()
+		case "ja":
+			return "動画 " + i18n.FormatNumber("ja", float64(count)) + " 本"
+		case "ko":
+			return "동영상 " + i18n.FormatNumber("ko", float64(count)) + "개"
+		case "zh-Hans":
+			return i18n.FormatNumber("zh-Hans", float64(count)) + " 个视频"
+		case "zh-Hant":
+			return i18n.FormatNumber("zh-Hant", float64(count)) + " 部影片"
+		}
+	}
+}
+
+// SubscribeAddWholeCollection says "{count, plural, one {A collection of # episode} other {A collection of # episodes}}"
+// in the language the app shows under cx.
+//
+// Row of the Add Subscription dialog for a bilibili collection: all its episodes are added as it is subscribed to.
+func SubscribeAddWholeCollection(cx *core.Scope, count int) string {
+	return For(cx).SubscribeAddWholeCollection(count)
+}
+
+// SubscribeAddWholeCollection is the package's SubscribeAddWholeCollection in the language of msgs.
+func (msgs Messages) SubscribeAddWholeCollection(count int) string {
+	if i18n.IsPseudo(msgs.lang) {
+		return i18n.Pseudo(msgs.lang, Messages{lang: Source, mark: true}.SubscribeAddWholeCollection(count))
+	}
+	for lang := msgs.lang; ; lang = i18n.Parent(lang) {
+		if f := supplied[lang].SubscribeAddWholeCollection; f != nil {
+			return f(count)
+		}
+		switch lang {
+		case "", "en":
+			var b strings.Builder
+			switch i18n.Cardinal("en", float64(count)) {
+			case i18n.One:
+				b.WriteString("A collection of ")
+				b.WriteString(msgs.arg(i18n.FormatNumber("en", float64(count))))
+				b.WriteString(" episode")
+			default:
+				b.WriteString("A collection of ")
+				b.WriteString(msgs.arg(i18n.FormatNumber("en", float64(count))))
+				b.WriteString(" episodes")
+			}
+			return b.String()
+		case "ja":
+			return "コレクション・全 " + i18n.FormatNumber("ja", float64(count)) + " 本"
+		case "ko":
+			return "컬렉션, 모두 " + i18n.FormatNumber("ko", float64(count)) + "개"
+		case "zh-Hans":
+			return "这是一个合集，共 " + i18n.FormatNumber("zh-Hans", float64(count)) + " 集"
+		case "zh-Hant":
+			return "這是一個合集，共 " + i18n.FormatNumber("zh-Hant", float64(count)) + " 集"
+		}
+	}
+}
+
+// SubscribeAddWholeHint says "Queued in order, starting with the first"
+// in the language the app shows under cx.
+//
+// Line under the collection or playlist row of the Add Subscription dialog.
+func SubscribeAddWholeHint(cx *core.Scope) string { return For(cx).SubscribeAddWholeHint() }
+
+// SubscribeAddWholeHint is the package's SubscribeAddWholeHint in the language of msgs.
+func (msgs Messages) SubscribeAddWholeHint() string { return msgs.text(textSubscribeAddWholeHint) }
+
+// SubscribeAddWholePlaylist says "{count, plural, one {A playlist of # video} other {A playlist of # videos}}"
+// in the language the app shows under cx.
+//
+// Row of the Add Subscription dialog for a playlist: all its videos are added as it is subscribed to.
+func SubscribeAddWholePlaylist(cx *core.Scope, count int) string {
+	return For(cx).SubscribeAddWholePlaylist(count)
+}
+
+// SubscribeAddWholePlaylist is the package's SubscribeAddWholePlaylist in the language of msgs.
+func (msgs Messages) SubscribeAddWholePlaylist(count int) string {
+	if i18n.IsPseudo(msgs.lang) {
+		return i18n.Pseudo(msgs.lang, Messages{lang: Source, mark: true}.SubscribeAddWholePlaylist(count))
+	}
+	for lang := msgs.lang; ; lang = i18n.Parent(lang) {
+		if f := supplied[lang].SubscribeAddWholePlaylist; f != nil {
+			return f(count)
+		}
+		switch lang {
+		case "", "en":
+			var b strings.Builder
+			switch i18n.Cardinal("en", float64(count)) {
+			case i18n.One:
+				b.WriteString("A playlist of ")
+				b.WriteString(msgs.arg(i18n.FormatNumber("en", float64(count))))
+				b.WriteString(" video")
+			default:
+				b.WriteString("A playlist of ")
+				b.WriteString(msgs.arg(i18n.FormatNumber("en", float64(count))))
+				b.WriteString(" videos")
+			}
+			return b.String()
+		case "ja":
+			return "再生リスト・全 " + i18n.FormatNumber("ja", float64(count)) + " 本"
+		case "ko":
+			return "재생목록, 모두 " + i18n.FormatNumber("ko", float64(count)) + "개"
+		case "zh-Hans":
+			return "这是一个播放列表，共 " + i18n.FormatNumber("zh-Hans", float64(count)) + " 个视频"
+		case "zh-Hant":
+			return "這是一個播放清單，共 " + i18n.FormatNumber("zh-Hant", float64(count)) + " 部影片"
+		}
+	}
+}
+
+// SubscribeEarlierCount says "{count, plural, one {# not added} other {# not added}}"
+// in the language the app shows under cx.
+//
+// After the heading of a subscription's page for the videos its list held when it was subscribed, which were not added.
+func SubscribeEarlierCount(cx *core.Scope, count int) string {
+	return For(cx).SubscribeEarlierCount(count)
+}
+
+// SubscribeEarlierCount is the package's SubscribeEarlierCount in the language of msgs.
+func (msgs Messages) SubscribeEarlierCount(count int) string {
+	if i18n.IsPseudo(msgs.lang) {
+		return i18n.Pseudo(msgs.lang, Messages{lang: Source, mark: true}.SubscribeEarlierCount(count))
+	}
+	for lang := msgs.lang; ; lang = i18n.Parent(lang) {
+		if f := supplied[lang].SubscribeEarlierCount; f != nil {
+			return f(count)
+		}
+		switch lang {
+		case "", "en":
+			var b strings.Builder
+			switch i18n.Cardinal("en", float64(count)) {
+			case i18n.One:
+				b.WriteString(msgs.arg(i18n.FormatNumber("en", float64(count))))
+				b.WriteString(" not added")
+			default:
+				b.WriteString(msgs.arg(i18n.FormatNumber("en", float64(count))))
+				b.WriteString(" not added")
+			}
+			return b.String()
+		case "ja":
+			return i18n.FormatNumber("ja", float64(count)) + " 本が未追加"
+		case "ko":
+			return i18n.FormatNumber("ko", float64(count)) + "개 추가 안 됨"
+		case "zh-Hans":
+			return i18n.FormatNumber("zh-Hans", float64(count)) + " 个还没加入"
+		case "zh-Hant":
+			return i18n.FormatNumber("zh-Hant", float64(count)) + " 部還沒加入"
+		}
+	}
+}
+
+// SubscribeEarlierList says "List Them"
+// in the language the app shows under cx.
+//
+// Button of a subscription's page that reads its list again, so the videos it held when it was subscribed wait to be added or skipped.
+func SubscribeEarlierList(cx *core.Scope) string { return For(cx).SubscribeEarlierList() }
+
+// SubscribeEarlierList is the package's SubscribeEarlierList in the language of msgs.
+func (msgs Messages) SubscribeEarlierList() string { return msgs.text(textSubscribeEarlierList) }
+
+// SubscribeEarlierNote says "When you subscribed, these were counted as seen and left out."
+// in the language the app shows under cx.
+//
+// Line of a subscription's page made before Kando added a list's videos as it was subscribed to.
+func SubscribeEarlierNote(cx *core.Scope) string { return For(cx).SubscribeEarlierNote() }
+
+// SubscribeEarlierNote is the package's SubscribeEarlierNote in the language of msgs.
+func (msgs Messages) SubscribeEarlierNote() string { return msgs.text(textSubscribeEarlierNote) }
+
+// SubscribeEarlierTitle says "Already in the List"
+// in the language the app shows under cx.
+//
+// Heading of a subscription's page for the videos its collection or playlist held when it was subscribed, which were not added.
+func SubscribeEarlierTitle(cx *core.Scope) string { return For(cx).SubscribeEarlierTitle() }
+
+// SubscribeEarlierTitle is the package's SubscribeEarlierTitle in the language of msgs.
+func (msgs Messages) SubscribeEarlierTitle() string { return msgs.text(textSubscribeEarlierTitle) }
 
 // SubscribeAddReading says "Reading the list…"
 // in the language the app shows under cx.

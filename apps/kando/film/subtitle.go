@@ -483,24 +483,65 @@ func (ink spanInk) span(content, ruby, word string, rs runStyle) core.Span {
 	if ruby == "" {
 		return core.Span{Content: content, Style: st, OnPress: press}
 	}
-	return core.Span{Content: content, Style: core.Style{VerticalAlign: core.VerticalAlignTextBottom}, Attachment: ink.rubyView(content, ruby, st, press)}
+	// The view sets its own place in the line (rubyView), so the span sets none.
+	return core.Span{Content: content, Attachment: core.Func(func(cx *core.Scope) core.Node {
+		return ink.rubyView(content, ruby, st, press, core.NewSignal(cx, core.Points(-1)))
+	})}
 }
 
 // rubyView is the view of a run of a line, content, with its reading ruby over it, in the line's text style with extra over it (the line under it). Without press it takes no pointer, as in the copies under the line; assistive technology reads the run, not its reading, and nothing of a hidden copy.
-func (ink spanInk) rubyView(content, ruby string, extra core.Style, press func(core.PressEvent)) core.Node {
+//
+// The run's baseline sits on the line's. drop is how far below the run's baseline its text reaches, as its layout reports it (rubyDrop), -1 until then: the run's text then hangs that far below the view, whose bottom, its baseline, the line puts on its own (VerticalAlignBaseline). Until the run is laid out the view sits on the line's text bottom (VerticalAlignTextBottom), as NSGo puts an attachment by the descent of the line's font, not of the fonts its text falls back to: a run in Han characters, drawn in the CJK font the system font falls back to, whose descent is larger, would sit above the characters around it, and its line under it above theirs.
+func (ink spanInk) rubyView(content, ruby string, extra core.Style, press func(core.PressEvent), drop *core.Signal[core.Points]) core.View {
+	// TODO(nsgo): an attachment view with VerticalAlignBaseline cannot put its first text's baseline on the line's, only an Em canvas can (core/commit.go baselineDescent); once it can, drop rubyDrop, the drop signal, the negative bottom margin and the VerticalAlignTextBottom fallback
 	base := core.Style{FontSize: ink.style.FontSize, FontFamily: ink.style.FontFamily, FontWeight: ink.style.FontWeight, Color: ink.style.Color}.Merge(extra)
 	small := core.Style{FontSize: ink.style.FontSize * rubyScale, FontFamily: ink.style.FontFamily, Color: base.Color}
-	v := core.View{Style: core.Style{AlignItems: core.AlignCenter, Cursor: extra.Cursor}, OnPress: press, Children: []core.Node{
-		core.Text{Content: ruby, MaxLines: 1, Style: small, Role: core.RoleNone},
-		core.Text{Content: content, MaxLines: 1, Style: base},
-	}}
+	// The text's height and its line, as its layout reports them, in either order.
+	var height core.Points
+	var line *core.TextLine
+	measured := func() {
+		if height > 0 && line != nil {
+			drop.Set(rubyDrop(height, *line))
+		}
+	}
+	text := core.Text{Content: content, MaxLines: 1, Style: base, TestID: "film-ruby-run",
+		OnLayout: func(b core.Bounds) { height = b.Size.Height; measured() },
+		OnTextLayout: func(lines []core.TextLine) {
+			if len(lines) > 0 {
+				l := lines[0]
+				line = &l
+				measured()
+			}
+		},
+		StyleFunc: func() core.Style {
+			if d := drop.Get(); d > 0 {
+				return core.Style{Margin: core.Edges{Bottom: -d}}
+			}
+			return core.Style{}
+		},
+	}
 	if ink.hidden {
-		v.Children[1] = core.Text{Content: content, MaxLines: 1, Style: base, Role: core.RoleNone}
+		text.Role = core.RoleNone
+	}
+	v := core.View{Style: core.Style{AlignItems: core.AlignCenter, Cursor: extra.Cursor}, OnPress: press,
+		StyleFunc: func() core.Style {
+			if drop.Get() < 0 {
+				return core.Style{VerticalAlign: core.VerticalAlignTextBottom}
+			}
+			return core.Style{VerticalAlign: core.VerticalAlignBaseline}
+		},
+		Children: []core.Node{core.Text{Content: ruby, MaxLines: 1, Style: small, Role: core.RoleNone}, text},
 	}
 	if press == nil {
 		v.PointerEvents = core.PointerEventsNone
 	}
 	return v
+}
+
+// rubyDrop is how far a text of one line, l, height high, reaches below the line's baseline. A line's box is its ascent, descent and leading high, half the leading over its ascent, as Apple's text lays it out (Linux's and Windows' have none), so its baseline is (the line's height + ascent - descent) / 2 below the line's top.
+func rubyDrop(height core.Points, l core.TextLine) core.Points {
+	baseline := l.Bounds.Origin.Y + (l.Bounds.Size.Height+l.Ascender-l.Descender)/2
+	return max(height-baseline, 0)
 }
 
 // outlineCopies are the black copies under an outlined line: a soft glow, the shadow below it, and eight hard copies a point around it, which make a stroke along the glyphs that holds over a bright picture.

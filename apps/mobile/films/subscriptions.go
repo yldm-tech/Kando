@@ -2,7 +2,6 @@ package films
 
 import (
 	"strings"
-	"time"
 	"unicode"
 	"unicode/utf8"
 
@@ -12,7 +11,6 @@ import (
 	"kando/apps/mobile/theme"
 	"kando/packages/sync"
 
-	"github.com/nsgo-dev/nsgo/base"
 	"github.com/nsgo-dev/nsgo/core"
 	"github.com/nsgo-dev/nsgo/ui"
 )
@@ -41,16 +39,18 @@ func canSubscribe(s *session.Session) bool {
 
 // subscriptionRow is the subscriptions under their heading, in a row that scrolls sideways, each its mark with the count of its new videos waiting, and the way to add one, through the Add sheet, which takes a channel's or a playlist's link. A subscription pressed opens its sheet.
 func (v *view) subscriptionRow(cx *core.Scope) core.Node {
-	return core.View{TestID: "films-subscriptions", Style: core.Style{Gap: 12}, Children: []core.Node{
+	return core.View{TestID: "films-subscriptions", Style: core.Style{Gap: 10, Margin: core.Edges{Top: 14}}, Children: []core.Node{
 		core.View{Style: core.Style{Direction: core.Row, AlignItems: core.AlignCenter, Gap: 8}, Children: []core.Node{
 			core.View{Style: core.Style{FlexGrow: 1, FlexShrink: 1}, Children: []core.Node{look.SectionTitle(cx, func() string { return locales.FilmsSubscriptions(cx) })}},
 			core.Show{When: func() bool { return v.act.Add != nil && canSubscribe(v.s) }, Then: func(cx *core.Scope) core.Node {
 				colors := ui.ColorsOf(cx)
 				return core.View{TestID: "films-subscriptions-add", Role: core.RoleButton, LabelFunc: func() string { return locales.FilmsSubscriptionsAddLabel(cx) },
 					OnPress: func(core.PressEvent) { v.act.Add() },
-					Style:   core.Style{MinHeight: core.Pt(44), JustifyContent: core.JustifyCenter, Padding: core.Symmetric(0, 4), Active: &core.Style{Opacity: core.Alpha(0.6)}},
+					// The link's target reaches 44 tall past its 20-point line, so the heading's row stays the heading's 28 (design 01).
+					HitSlop: core.Edges{Top: 12, Bottom: 12},
+					Style:   core.Style{JustifyContent: core.JustifyCenter, Padding: core.Symmetric(0, 4), Active: &core.Style{Opacity: core.Alpha(0.6)}},
 					Children: []core.Node{core.Text{ContentFunc: func() string { return locales.FilmsSubscriptionsAdd(cx) }, MaxLines: 1,
-						Style: look.Body.Merge(core.Style{FontWeight: core.FontWeightSemibold}), StyleFunc: ui.Colored(colors.Accent)}}}
+						Style: look.Subhead, StyleFunc: ui.Colored(colors.Accent)}}}
 			}},
 		}},
 		core.Scroll{Horizontal: true, HideIndicator: true, Style: core.Style{FlexGrow: 0, Margin: core.Edges{Right: -16, Left: -16}}, Children: []core.Node{
@@ -103,7 +103,7 @@ func (v *view) subscriptionMark(cx *core.Scope, sub func() session.Subscription)
 	id := sub().Desktop + "-" + sub().ID
 	return core.View{TestID: "films-subscription-" + id, Role: core.RoleButton, LabelFunc: func() string { return subscriptionLabel(cx, sub()) },
 		OnPress: func(core.PressEvent) { v.act.Subscription(sub().Key()) },
-		Style:   core.Style{Width: core.Pt(72), AlignItems: core.AlignCenter, Gap: 6, Active: &core.Style{Opacity: core.Alpha(0.7)}},
+		Style:   core.Style{Width: core.Pt(72), AlignItems: core.AlignCenter, Gap: 4, Active: &core.Style{Opacity: core.Alpha(0.7)}},
 		StyleFunc: func() core.Style {
 			if sub().Paused {
 				return core.Style{Opacity: core.Alpha(0.5)}
@@ -111,32 +111,31 @@ func (v *view) subscriptionMark(cx *core.Scope, sub func() session.Subscription)
 			return core.Style{Opacity: core.Alpha(1)}
 		},
 		Children: []core.Node{
-			core.View{AccessibilityElementsHidden: func() bool { return true }, Style: core.Style{Width: core.Pt(66), Height: core.Pt(66), CornerRadius: 33, BorderWidth: 2.5, AlignItems: core.AlignCenter, JustifyContent: core.JustifyCenter},
+			// The ring is the design's: the page's color 2.5 wide around the mark, then the ring's own 2 more, a border around a 69-point view so it draws wherever a shadow would not.
+			core.View{AccessibilityElementsHidden: func() bool { return true }, Style: core.Style{Width: core.Pt(69), Height: core.Pt(69), CornerRadius: 34.5, BorderWidth: 2, AlignItems: core.AlignCenter, JustifyContent: core.JustifyCenter},
 				StyleFunc: func() core.Style {
 					ring := ui.Alpha(colors.Text(), 0)
 					switch {
 					case waiting() > 0:
 						ring = colors.Accent()
 					case trouble(sub()):
-						ring = colors.Warn()
+						ring = theme.BadgeOrange
 					}
 					return core.Style{BorderColor: ring}
 				},
 				Children: []core.Node{
-					core.View{Style: core.Style{Width: core.Pt(56), Height: core.Pt(56), CornerRadius: 28, AlignItems: core.AlignCenter, JustifyContent: core.JustifyCenter},
+					core.View{Style: core.Style{Width: core.Pt(60), Height: core.Pt(60), CornerRadius: 30, AlignItems: core.AlignCenter, JustifyContent: core.JustifyCenter},
 						StyleFunc: func() core.Style { return core.Style{Background: markFill(cx, sub())} },
 						Children: []core.Node{core.Text{ContentFunc: func() string { return initial(sub().Name) }, MaxLines: 1,
-							Style: core.Style{FontSize: 22, FontWeight: core.FontWeightBold, Color: core.RGB(0xFFFFFF)}}}},
+							Style: core.Style{FontSize: 22, FontWeight: look.Heavy, Color: core.RGB(0xFFFFFF)}}}},
 					core.Show{When: func() bool { return waiting() > 0 }, Then: func(cx *core.Scope) core.Node {
-						return core.View{Style: core.Style{Position: core.Absolute, Right: core.Pt(-4), Top: core.Pt(-4), MinWidth: core.Pt(22), Height: core.Pt(22), Padding: core.Symmetric(0, 6), CornerRadius: 11,
-							AlignItems: core.AlignCenter, JustifyContent: core.JustifyCenter, BorderWidth: 2},
-							StyleFunc: func() core.Style { return core.Style{Background: colors.Danger(), BorderColor: colors.Background()} },
-							Children: []core.Node{ui.Tabular(core.Text{TestID: "films-subscription-new-" + id, ContentFunc: func() string { return locales.FilmsSubscriptionNew(cx, waiting()) }, MaxLines: 1,
-								Style: core.Style{FontSize: 11, FontWeight: core.FontWeightBold, Color: core.RGB(0xFFFFFF)}})}}
+						return look.Count{TestID: "films-subscription-new-" + id, Count: waiting, Size: 20,
+							Ring: true, Style: core.Style{Position: core.Absolute, Right: core.Pt(1), Top: core.Pt(-2.5)}}
 					}},
 				}},
-			core.View{AccessibilityElementsHidden: func() bool { return true }, Style: core.Style{MaxWidth: core.Pt(72)}, Children: []core.Node{
-				core.Text{ContentFunc: func() string { return sub().Name }, MaxLines: 1, Style: look.Caption.Merge(core.Style{FontWeight: core.FontWeightMedium}), StyleFunc: ui.Colored(colors.Text)},
+			// TODO(nsgo): on macOS and iOS a one-line text too long for its width wraps at a space before it is cut, so it cuts its first word alone ("Eart…" where the design has "Earth Scie…"), and centred with TextAlign it clips with no ellipsis; the name is centred by the column instead, and should cut by character once NSGo can.
+			core.View{AccessibilityElementsHidden: func() bool { return true }, Style: core.Style{MaxWidth: core.Pt(72), Margin: core.Edges{Top: 2}}, Children: []core.Node{
+				core.Text{ContentFunc: func() string { return sub().Name }, MaxLines: 1, Style: look.Footnote.Merge(core.Style{FontWeight: core.FontWeightMedium}), StyleFunc: ui.Colored(colors.Text)},
 			}},
 		}}
 }
@@ -209,16 +208,18 @@ func SubscriptionSheet(cx *core.Scope, s *session.Session, open *core.Signal[str
 			}
 		})
 	}
-	return ui.Dialog{TestID: "films-subscription-sheet", Open: func() bool { _, ok := shown(); return ok }, TitleFunc: func() string { return sub().Name },
-		DescriptionFunc: func() string {
-			return locales.FilmsSubscriptionMeta(cx, subscriptionSite(cx, sub()), subscriptionKind(cx, sub()), computer())
-		},
-		OnOpenChange: func(open bool, _ base.Reason) {
-			if !open {
-				close()
-			}
-		},
-		Children: []core.Node{
+	// The sheet's head: the subscription's mark, its name, where it is and what it follows, and how its last check went.
+	header := core.View{Style: core.Style{Direction: core.Row, AlignItems: core.AlignCenter, Gap: 14}, Children: []core.Node{
+		core.View{AccessibilityElementsHidden: func() bool { return true }, Style: core.Style{Width: core.Pt(54), Height: core.Pt(54), CornerRadius: 27, AlignItems: core.AlignCenter, JustifyContent: core.JustifyCenter, FlexShrink: 0},
+			StyleFunc: func() core.Style { return core.Style{Background: markFill(cx, sub())} },
+			Children: []core.Node{core.Text{ContentFunc: func() string { return initial(sub().Name) }, MaxLines: 1,
+				Style: core.Style{FontSize: 22, FontWeight: look.Heavy, Color: core.RGB(0xFFFFFF)}}}},
+		core.View{Style: core.Style{FlexGrow: 1, FlexShrink: 1, MinWidth: core.Pt(0), Gap: 2}, Children: []core.Node{
+			core.Text{ContentFunc: func() string { return sub().Name }, Role: core.RoleHeader, MaxLines: 2,
+				Style: core.Style{FontSize: 19, LineHeight: 24, FontWeight: look.Heavy}, StyleFunc: ui.Colored(colors.Text)},
+			core.Text{ContentFunc: func() string {
+				return locales.FilmsSubscriptionMeta(cx, subscriptionSite(cx, sub()), subscriptionKind(cx, sub()), computer())
+			}, MaxLines: 2, Style: look.Caption, StyleFunc: ui.Colored(colors.Muted)},
 			core.Show{When: func() bool { return sub().Paused || trouble(sub()) }, Then: func(cx *core.Scope) core.Node {
 				return core.Text{TestID: "films-subscription-status", LiveRegion: core.LiveRegionPolite, ContentFunc: func() string {
 					switch got := sub(); {
@@ -228,13 +229,24 @@ func SubscriptionSheet(cx *core.Scope, s *session.Session, open *core.Signal[str
 						return locales.FilmsSubscriptionFailed(cx, got.Error)
 					}
 					return locales.FilmsSubscriptionPaused(cx, computer())
-				}, Style: look.Subhead, StyleFunc: func() core.Style {
+				}, Style: look.Caption, StyleFunc: func() core.Style {
 					if trouble(sub()) {
 						return core.Style{Color: theme.Of(cx).WarnText()}
 					}
 					return core.Style{Color: colors.Muted()}
 				}}
 			}},
+		}},
+	}}
+	// A phone's sheet closes by its grabber or a swipe, so it has no Done (FP-15); a tablet's card and a computer's dialog keep it.
+	var footer []core.Node
+	if !ui.Touch(cx) || look.Tablet(cx) {
+		footer = []core.Node{look.Button{Kind: look.Plain, Text: func() string { return locales.FilmsSubscriptionDone(cx) }, TestID: "films-subscription-done", OnPress: close}}
+	}
+	return look.Dialog{TestID: "films-subscription-sheet", Open: func() bool { _, ok := shown(); return ok }, Title: func() string { return sub().Name }, Header: header,
+		OnClose: close,
+		Footer:  footer,
+		Children: []core.Node{
 			core.Show{When: func() bool { q := s.Queue(sub().Desktop); return q.Reach == session.Online && q.ReadOnly }, Then: func(cx *core.Scope) core.Node {
 				return core.Text{TestID: "films-subscription-read-only", ContentFunc: func() string { return locales.FilmsSubscriptionReadOnly(cx, computer()) },
 					Style: look.Subhead, StyleFunc: ui.Colored(colors.Muted)}
@@ -243,33 +255,32 @@ func SubscriptionSheet(cx *core.Scope, s *session.Session, open *core.Signal[str
 				func() core.Node {
 					h := look.GroupHeader(cx, func() string { return locales.FilmsSubscriptionWaiting(cx, waiting()) })
 					h.TestID = "films-subscription-waiting"
+					h.Style.Padding = core.Edges{Left: 8, Right: 8}
 					return h
 				}(),
 				core.Show{When: func() bool { return waiting() > 0 },
 					Then: func(cx *core.Scope) core.Node {
-						return core.Scroll{Style: core.Style{FlexGrow: 0, MaxHeight: core.Pt(260)}, Children: []core.Node{look.Group{Children: []core.Node{
+						// sync.SubscriptionVideo has no thumbnail (packages/sync/subscriptions.go), so the rows are the videos' titles alone where the design shows a picture beside each.
+						return core.Scroll{Style: core.Style{FlexGrow: 0, MaxHeight: core.Pt(272)}, Children: []core.Node{look.Group{Children: []core.Node{
 							core.Each(func() []sync.SubscriptionVideo { return sub().Waiting }, func(w sync.SubscriptionVideo) string { return w.URL }, func(cx *core.Scope, w func() sync.SubscriptionVideo, i func() int) core.Node {
-								return look.Row{Index: i, TitleLines: 2, Title: func() string {
+								return look.Row{Index: i, Below: core.Text{ContentFunc: func() string {
 									if w().Title != "" {
 										return w().Title
 									}
 									return w().URL
-								}, Value: func() string {
-									if w().DurationMS <= 0 {
-										return ""
-									}
-									return look.Duration(time.Duration(w().DurationMS) * time.Millisecond)
-								}}
+								}, MaxLines: 2, Style: core.Style{FontSize: 15, LineHeight: 20, FontWeight: core.FontWeightSemibold}, StyleFunc: ui.Colored(colors.Text)}}
 							}),
 						}}}}
 					},
 					Else: func(cx *core.Scope) core.Node {
-						return core.Text{TestID: "films-subscription-none", ContentFunc: func() string {
-							if sub().Auto {
-								return locales.FilmsSubscriptionNoneAuto(cx)
-							}
-							return locales.FilmsSubscriptionNone(cx)
-						}, Style: look.Subhead.Merge(core.Style{Padding: core.Edges{Left: 4, Right: 4}}), StyleFunc: ui.Colored(colors.Muted)}
+						return core.View{Style: core.Style{Padding: core.Symmetric(20, 16), AlignItems: core.AlignCenter}, StyleFunc: func() core.Style { return look.Card(cx) }, Children: []core.Node{
+							core.Text{TestID: "films-subscription-none", ContentFunc: func() string {
+								if sub().Auto {
+									return locales.FilmsSubscriptionNoneAuto(cx)
+								}
+								return locales.FilmsSubscriptionNone(cx)
+							}, Style: look.Caption.Merge(core.Style{TextAlign: core.TextAlignCenter}), StyleFunc: ui.Colored(colors.Muted)},
+						}}
 					}},
 			}},
 			core.Show{When: func() bool { return waiting() > 0 && s.Queue(sub().Desktop).Can(sync.OpSubscriptionTake) }, Then: func(cx *core.Scope) core.Node {
@@ -285,8 +296,7 @@ func SubscriptionSheet(cx *core.Scope, s *session.Session, open *core.Signal[str
 					core.Show{When: func() bool { return s.Queue(sub().Desktop).Can(sync.OpSubscriptionSet) }, Then: func(cx *core.Scope) core.Node {
 						// TODO(nsgo#145): ui.Switch's Label is a string only (ui/switch.go:19), so its spoken name keeps the language it was built in; pass a LabelFunc once Switch has one https://github.com/nsgo-dev/nsgo/issues/145
 						return look.Row{TestID: "films-subscription-auto", TitleLines: 2,
-							Title:  func() string { return locales.FilmsSubscriptionAuto(cx) },
-							Detail: func() string { return locales.FilmsSubscriptionAutoDetail(cx, max(sub().AddPerCheck, 1)) },
+							Title: func() string { return locales.FilmsSubscriptionAuto(cx) },
 							Trailing: ui.Switch{TestID: "films-subscription-auto-switch", Label: locales.FilmsSubscriptionAuto(cx), Variant: ui.SwitchSystem,
 								Checked: func() bool { return sub().Auto }, Disabled: func() bool { return !lets(sync.OpSubscriptionSet) },
 								OnChange: func(on bool) { s.SetSubscriptionAuto(sub(), on) }}}
@@ -308,8 +318,5 @@ func SubscriptionSheet(cx *core.Scope, s *session.Session, open *core.Signal[str
 					}},
 				}}
 			}},
-		},
-		Footer: []core.Node{
-			look.Button{Kind: look.Plain, Text: func() string { return locales.FilmsSubscriptionDone(cx) }, TestID: "films-subscription-done", OnPress: close},
 		}}
 }

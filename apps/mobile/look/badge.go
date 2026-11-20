@@ -9,14 +9,16 @@ import (
 	"github.com/nsgo-dev/nsgo/ui"
 )
 
-// Count is a count on a capsule in the badges' red, or their orange while Warn reports true, as the badge on a button or a section; it hides while the count is 0. Size is its height, 18 when 0 (a tab bar's 18 or 20, a sidebar row's 22), and while OnAccent reports true it sits on the accent's fill, as on a selected sidebar row, in white over a quarter of white. Place it with Style, as at a button's top corner; the screen reader hears the count in the label of what it is on, so the badge itself is hidden from it.
+// Count is a count on a capsule in the badges' red, or their orange while Warn reports true, as the badge on a button or a section; it hides while the count is 0, and Ring sets it off what it overlaps. Size is its height, 18 when 0 (a tab bar's 18 or 20, a sidebar row's 22), and while OnAccent reports true it sits on the accent's fill, as on a selected sidebar row, in white over a quarter of white. Place it with Style, as at a button's top corner; the screen reader hears the count in the label of what it is on, so the badge itself is hidden from it.
 type Count struct {
 	Count    func() int
 	Warn     func() bool
 	Size     core.Points
 	OnAccent func() bool
-	Style    core.Style
-	TestID   string
+	// Ring draws a 2-point ring of the page's color around it, as on a button or a mark it overlaps.
+	Ring   bool
+	Style  core.Style
+	TestID string
 }
 
 // Render implements core.Node.
@@ -40,6 +42,9 @@ func (c Count) Render(cx *core.Scope) core.Node {
 			}
 			if c.OnAccent != nil && c.OnAccent() {
 				st.Background = theme.BadgeOnAccent
+			}
+			if c.Ring {
+				st.Shadows = []core.BoxShadow{core.Ring(2, colors.Background())}
 			}
 			if c.Count() == 0 {
 				st.Display = core.DisplayNone

@@ -5,7 +5,6 @@ import (
 	"encoding/json"
 	"errors"
 	"strings"
-	"time"
 
 	"kando/apps/kando/playlist"
 	"kando/apps/kando/remote"
@@ -80,7 +79,7 @@ func (a *app) remoteSubscriptions(ctx context.Context) ([]remote.Subscription, e
 	})
 }
 
-// remoteSubscribe subscribes the open library to the list at p.Source, as the window's dialog does (subscribeAskSubmit): a link that is not a channel, a collection or a playlist is refused; one the library follows already answers that subscription; any other is read with yt-dlp, and the videos it holds now count as seen. The window's sidebar lists it, but the window stays on the page it shows.
+// remoteSubscribe subscribes the open library to the list at p.Source, as the window's dialog does (subscribeAskSubmit): a link that is not a channel, a collection or a playlist is refused; one the library follows already answers that subscription; any other is read with yt-dlp, and the videos a collection or a playlist holds now are queued in order, those that fit its rules (subscribeCreate), while a channel's count as seen. The window's sidebar lists it, but the window stays on the page it shows.
 func (a *app) remoteSubscribe(ctx context.Context, p remote.SubscribeParams) (remote.Subscribed, error) {
 	m := remoteMessages()
 	source, ok := subscribe.Source(p.Source)
@@ -134,11 +133,9 @@ func (a *app) remoteSubscribe(ctx context.Context, p remote.SubscribeParams) (re
 		if sub, ok := a.subs.store.Following(source, got.dir); ok {
 			return remote.Subscribed{Subscription: remoteSubscription(*sub), Already: true}, nil
 		}
-		sub := subscribe.New(source, got.dir, list.Listing, time.Now())
-		a.subs.store.Subs = append(a.subs.store.Subs, sub)
-		a.subscribeSave()
-		a.subs.notes[sub.ID] = subscribeNote{Note: subscribe.Note{Kind: subscribe.NoteSubscribed, Text: sub.Name}}
-		return remote.Subscribed{Subscription: remoteSubscription(sub)}, nil
+		// A collection's or a playlist's videos are queued in order, as the window's dialog does; a channel adds none of those it has now, as neither the socket nor a phone says how many it wants.
+		sub := a.subscribeCreate(source, got.dir, list.Listing, subscribeStart{})
+		return remote.Subscribed{Subscription: remoteSubscription(*sub)}, nil
 	})
 }
 

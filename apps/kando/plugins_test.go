@@ -1768,10 +1768,15 @@ func TestPluginSitePageButtons(t *testing.T) {
 	if states := browsePageStates(t, tt); len(states) != told+1 || len(states[told].Have) != 1 {
 		t.Fatalf("answers on the page loaded again %+v", states[told:])
 	}
-	// Turning the pack off while the browser's page shows takes its sites out of the script at once, and the page of the pack's site, no longer allowed, is told nothing more of its videos.
+	// Turning the pack off while the browser's page shows takes its sites out of the script at once, and the page of the pack's site, no longer allowed, is told nothing more of its videos. A load under way, which the page loaded again cuts short, says nothing when the platform reports it cancelled.
+	browseLoading(tt, pluginSiteClip)
 	a.SetPluginEnabled("example.videos", false)
 	waitUntil(t, tt, a, updates, func() bool { return !a.plugins.busy })
 	refresh(tt, a)
+	browseCancelled(tt, pluginSiteClip)
+	if a.browse.notice.Open {
+		t.Fatalf("the load the new script cut short said %q", a.browse.notice.Text)
+	}
 	if view := tt.FindMounted(browsePage); strings.Contains(view.Web.InjectedJavaScriptBeforeContent, "example") || view.ID != before {
 		t.Fatal("the script knows the sites of a pack turned off, or the web view was made again")
 	}

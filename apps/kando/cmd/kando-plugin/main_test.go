@@ -4,8 +4,11 @@ import (
 	"archive/zip"
 	"bytes"
 	"crypto/ed25519"
+	"crypto/sha256"
 	"encoding/json"
 	"fmt"
+	"net/http"
+	"net/http/httptest"
 	"os"
 	"path/filepath"
 	"strings"
@@ -107,7 +110,14 @@ func scriptPlugin(t *testing.T, path string) ed25519.PublicKey {
 // scriptPluginCode is scriptPlugin with code after kandoManifest in the plugin's entry.
 func scriptPluginCode(t *testing.T, path, code string) ed25519.PublicKey {
 	t.Helper()
-	secret, root, err := script.NewDevKey()
+	key, _ := signedScriptPlugin(t, path, code)
+	return key.Public().(ed25519.PublicKey)
+}
+
+// signedScriptPlugin is scriptPluginCode, returning the root's secret key, which a test signs revocation lists with, and the SHA-256 of the plugin's package, in hex, as a list revokes it.
+func signedScriptPlugin(t *testing.T, path, code string) (ed25519.PrivateKey, string) {
+	t.Helper()
+	secret, _, err := script.NewDevKey()
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -119,8 +129,34 @@ func scriptPluginCode(t *testing.T, path, code string) ed25519.PublicKey {
 	if err := script.PackFolder(src, built, key); err != nil {
 		t.Fatal(err)
 	}
+	packages, _ := filepath.Glob(filepath.Join(built, "*.nsgopkg"))
+	if len(packages) != 1 {
+		t.Fatalf("packages %q", packages)
+	}
+	data, err := os.ReadFile(packages[0])
+	if err != nil {
+		t.Fatal(err)
+	}
 	zipFolder(t, built, path)
-	return root
+	return key, fmt.Sprintf("%x", sha256.Sum256(data))
+}
+
+// revocationList writes the revocation list root signs, sequence 1, revoking the release keys keys and the packages packages, into a file of its own and returns the file and its bytes.
+func revocationList(t *testing.T, root ed25519.PrivateKey, keys, packages []string) (string, []byte) {
+	t.Helper()
+	list, err := pkg.Revoke(root, 1, time.Now().Add(24*time.Hour), keys, packages)
+	if err != nil {
+		t.Fatal(err)
+	}
+	data, err := json.Marshal(list)
+	if err != nil {
+		t.Fatal(err)
+	}
+	path := filepath.Join(t.TempDir(), "kando-plugin-revocations.json")
+	if err := os.WriteFile(path, data, 0o644); err != nil {
+		t.Fatal(err)
+	}
+	return path, data
 }
 
 // TestValidate checks validate on a pack file, a folder, a script plugin certified by the root it trusts, one it does not, and a pack that is not valid: a line each, or JSON with a stable code for each failure, and exit code 1 when one failed, after checking them all.
@@ -389,5 +425,116 @@ func TestHostNotesBounds(t *testing.T) {
 	panel.Events = []string{plugins.EventLineChanged}
 	if notes := hostNotes(panel, ""); len(notes) != 0 {
 		t.Errorf("kando.line.current of a plugin hearing line.changed: %v", notes)
+	}
+}
+
+// TestRevocations checks --revocations: validate refuses, with the code revoked, a script plugin whose package or release key the list, a file or an https address, revokes, and passes the data packs beside it; index refuses to list it and writes no index. No list, an address that answers 404, keeps the packs as they are; a file that does not exist, a list another root signed and an http address fail the command.
+func TestRevocations(t *testing.T) {
+	dir := t.TempDir()
+	terms := zipFolder(t, folder(t, glossary), filepath.Join(dir, "terms.zip"))
+	hello := filepath.Join(dir, "hello.kandoplugin")
+	rootKey, packageHash := signedScriptPlugin(t, hello, "")
+	root := rootKey.Public().(ed25519.PublicKey)
+	f := newFixture(t, root, nil)
+
+	validate := func(args ...string) (int, []validated, string) {
+		t.Helper()
+		code, out, errOut := f.run(append([]string{"validate", "--json"}, args...)...)
+		var got struct {
+			Packs []validated `json:"packs"`
+		}
+		if out != "" {
+			if err := json.Unmarshal([]byte(out), &got); err != nil {
+				t.Fatalf("validate %q = %q, %v", args, out, err)
+			}
+		}
+		return code, got.Packs, errOut
+	}
+
+	// A file that does not exist fails the command before any pack is checked, so a wrong path never turns the check off.
+	if code, packs, errOut := validate("--revocations", filepath.Join(dir, "none.json"), terms, hello); code != exitFailed || len(packs) != 0 || !strings.Contains(errOut, "none.json") {
+		t.Fatalf("missing list = %d, %+v, %q", code, packs, errOut)
+	}
+	code, packs, _ := validate(terms, hello)
+	if code != exitOK {
+		t.Fatalf("validate = %d, %+v", code, packs)
+	}
+	signer := packs[1].Signer
+
+	byPackage, byPackageData := revocationList(t, rootKey, nil, []string{packageHash})
+	byKey, _ := revocationList(t, rootKey, []string{signer}, nil)
+	empty, emptyData := revocationList(t, rootKey, nil, nil)
+	for name, list := range map[string]string{"the package": byPackage, "the release key": byKey} {
+		code, packs, errOut := validate(terms, "--revocations", list, hello)
+		if code != exitFailed || len(packs) != 2 || errOut != "" {
+			t.Fatalf("%s revoked = %d, %+v, %q", name, code, packs, errOut)
+		}
+		if !packs[0].OK {
+			t.Errorf("%s revoked: the glossary %+v", name, packs[0])
+		}
+		if p := packs[1]; p.OK || p.Code != "revoked" {
+			t.Errorf("%s revoked: the script plugin %+v", name, p)
+		}
+	}
+	if code, packs, _ := validate("--revocations", empty, hello); code != exitOK || !packs[0].OK {
+		t.Errorf("an empty list = %d, %+v", code, packs)
+	}
+
+	// A list another root signed is refused before any pack is checked.
+	other, _ := pkg.GenerateKey()
+	forged, _ := revocationList(t, other, nil, nil)
+	if code, out, errOut := f.run("validate", "--json", "--revocations", forged, terms); code != exitFailed || out != "" || !strings.Contains(errOut, "the revocation list") {
+		t.Errorf("a list of another root = %d, %q, %q", code, out, errOut)
+	}
+	if code, _, errOut := f.run("validate", "--revocations", "http://example.com/list.json", terms); code != exitFailed || !strings.Contains(errOut, "--revocations http://example.com/list.json") || !strings.Contains(errOut, "not https") {
+		t.Errorf("an http list = %d, %q", code, errOut)
+	}
+
+	// An https address: 404 is no list, a list is checked against.
+	srv := httptest.NewTLSServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch r.URL.Path {
+		case "/revoked.json":
+			w.Write(byPackageData)
+		case "/empty.json":
+			w.Write(emptyData)
+		default:
+			http.NotFound(w, r)
+		}
+	}))
+	defer srv.Close()
+	f.client = srv.Client()
+	if code, packs, errOut := validate("--revocations", srv.URL+"/missing.json", hello); code != exitOK || errOut != "" || !packs[0].OK {
+		t.Errorf("a 404 = %d, %+v, %q", code, packs, errOut)
+	}
+	if code, packs, _ := validate("--revocations", srv.URL+"/revoked.json", hello); code != exitFailed || packs[0].Code != "revoked" {
+		t.Errorf("a list fetched = %d, %+v", code, packs)
+	}
+
+	// index refuses to list a pack the list revokes, and writes nothing.
+	packsDir := t.TempDir()
+	for _, src := range []string{terms, hello} {
+		data, err := os.ReadFile(src)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if err := os.WriteFile(filepath.Join(packsDir, filepath.Base(src)), data, 0o644); err != nil {
+			t.Fatal(err)
+		}
+	}
+	indexKey, _ := pkg.GenerateKey()
+	f.indexPublicKey = pkg.EncodePublicKey(indexKey.Public().(ed25519.PublicKey))
+	f.env["KANDO_PLUGINS_INDEX_KEY"] = pkg.EncodeSecretKey(indexKey)
+	out := filepath.Join(t.TempDir(), "index.json")
+	if code, _, errOut := f.run("index", packsDir, "--base", "https://kando.yldm.ai/plugin/packs/", "--out", out, "--revocations", srv.URL+"/revoked.json"); code != exitFailed || !strings.Contains(errOut, "hello.kandoplugin") || !strings.Contains(errOut, "revoked") {
+		t.Errorf("index of a revoked pack = %d, %q", code, errOut)
+	}
+	if code, _, errOut := f.run("index", packsDir, "--base", "https://kando.yldm.ai/plugin/packs/", "--out", out, "--revocations", forged); code != exitFailed || !strings.Contains(errOut, "the revocation list") {
+		t.Errorf("index with a list of another root = %d, %q", code, errOut)
+	}
+	if _, err := os.Stat(out); err == nil {
+		t.Fatal("an index of a revoked pack was written")
+	}
+	if code, _, errOut := f.run("index", packsDir, "--base", "https://kando.yldm.ai/plugin/packs/", "--out", out, "--revocations", srv.URL+"/empty.json"); code != exitOK {
+		t.Errorf("index with an empty list = %d, %q", code, errOut)
 	}
 }
