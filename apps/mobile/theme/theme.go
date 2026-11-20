@@ -167,6 +167,11 @@ var (
 	ContinueCard = core.RGB(0x1C1C1E)
 	// BadgeWarnText is the text of the orange "needs attention" pill on the jobs card, on the badges' orange at 16%.
 	BadgeWarnText = core.RGB(0xB25E00)
+	// The picture under the Subtitle Style page's preview: a sky, the hills under it and the sun.
+	PreviewSkyTop, PreviewSkyBottom = core.RGB(0x7BA4BC), core.RGB(0xB4B8A6)
+	PreviewHills, PreviewSun        = core.RGB(0x3E6A55), core.RGB(0xEADBB0)
+	// The Home Screen wallpaper the widgets' previews sit on, top to bottom.
+	WallpaperTop, WallpaperMiddle, WallpaperBottom = core.RGB(0x3D5A80), core.RGB(0x98C1D9), core.RGB(0xE0FBFC)
 	// The laptop drawn for a computer: its body's gradient and its screen's.
 	LaptopTop, LaptopBottom = core.RGB(0x3A3A3F), core.RGB(0x1D1D1F)
 	// LaptopBase is the base tucked under the larger laptop's lid (look.LaptopFront).

@@ -8,8 +8,8 @@ import (
 	"github.com/nsgo-dev/nsgo/nsgotest"
 )
 
-// A computer's page shows the AI service it translates with, by its name and model, and turns its context switch off there; out of reach, the computer keeps it as it was and the page says it could not change it.
-func TestAComputersPageShowsItsServiceAndSetsItsContext(t *testing.T) {
+// Settings shows the computer that processes the links with the AI service it translates with, by its name and model, and turns its context switch off there; out of reach, the computer keeps it as it was and Settings says it could not change it. Its page says it answers, and unpairing it there leaves Settings offering to pair one.
+func TestSettingsShowsTheComputersServiceAndSetsItsContext(t *testing.T) {
 	d := newDesktop(t)
 	d.SetService("OpenAI", "gpt-4.1-mini")
 	dir := t.TempDir()
@@ -17,11 +17,12 @@ func TestAComputersPageShowsItsServiceAndSetsItsContext(t *testing.T) {
 	id := store.DesktopID(d.Fingerprint)
 	p.waitLearned(id)
 	p.openTab(settingsTab, msgs.SettingsTitle())
-	p.app.Press("id:settings-computer-" + id)
-	p.app.WaitFor("id:computer-page", wait)
 	p.app.WaitUntil(wait, func() bool {
-		return p.texts("id:computer-service") == msgs.ComputerService()+"\nOpenAI · gpt-4.1-mini"
+		return p.texts("id:settings-service") == msgs.ComputerService()+"\nOpenAI · gpt-4.1-mini"
 	})
+	if got, want := p.texts("id:settings-profile-detail"), msgs.SettingsProfileDetail("Studio", "简体中文"); got != want {
+		t.Errorf("the app's card says %q, want %q", got, want)
+	}
 	if !p.app.Find("id:computer-context-switch").Props.Checked {
 		t.Fatal("the context switch is off while the computer's is on")
 	}
@@ -45,10 +46,16 @@ func TestAComputersPageShowsItsServiceAndSetsItsContext(t *testing.T) {
 
 	// Unpaired from its page, the computer and its page go.
 	d.SetOff(false)
+	p.app.Press("id:settings-computer")
+	p.app.WaitFor("id:computer-page", wait)
+	p.app.WaitUntil(wait, func() bool { return p.texts("id:computer-name") == "Studio" })
 	p.app.Press("id:computer-unpair")
 	p.app.Answer(1)
 	p.app.WaitForGone("id:computer-page", wait)
-	p.app.WaitForGone("id:settings-computer-"+id, wait)
+	p.app.WaitFor("id:settings-pair", wait)
+	if p.app.Exists("id:settings-computer") {
+		t.Fatal("Settings shows a processing computer with none paired")
+	}
 }
 
 // Before a sync reached the computer its page says its settings show once it does, and the switch cannot be turned; with no service set up there, the page says so.
@@ -58,20 +65,40 @@ func TestAComputersPageBeforeItIsReached(t *testing.T) {
 	secrets := pairedWith(t, d, dir)
 	d.SetOff(true)
 	p := startPhone(t, dir, secrets)
-	id := store.DesktopID(d.Fingerprint)
 	p.openTab(settingsTab, msgs.SettingsTitle())
-	p.app.Press("id:settings-computer-" + id)
-	p.app.WaitFor("id:computer-page", wait)
-	p.app.WaitFor("text:"+msgs.ComputerUnknown(), wait)
+	p.app.WaitFor("id:computer-context-switch", wait)
 	if !p.app.Find("id:computer-context-switch").Props.Disabled {
 		t.Fatal("the context switch can be turned before the computer answered")
 	}
+	p.app.Press("id:settings-computer")
+	p.app.WaitFor("id:computer-page", wait)
+	p.app.WaitFor("text:"+msgs.ComputerUnknown(), wait)
 
 	d.SetOff(false)
 	p.app.Back()
-	p.app.Press("id:settings-computer-" + id)
+	p.app.Press("id:settings-computer")
 	p.app.WaitUntil(wait, func() bool {
 		return p.texts("id:computer-service") == msgs.ComputerService()+"\n"+msgs.ComputerServiceNone()
 	})
+	p.app.Back()
 	p.app.WaitUntil(wait, func() bool { return !p.app.Find("id:computer-context-switch").Props.Disabled })
+}
+
+// With two computers paired, the computer page lists both, the first paired checked; the one picked there is kept as where new links go.
+func TestTheComputerPagePicksWhereNewLinksGo(t *testing.T) {
+	d, e := newDesktop(t), newDesktop(t)
+	dir := t.TempDir()
+	p := startPhone(t, dir, pairedWithBoth(t, d, e, dir))
+	first := store.DesktopID(d.Fingerprint)
+	p.openComputers()
+	p.app.WaitFor("id:settings-computer-laptop", wait)
+	if !p.app.Find("id:settings-computer-"+first).Props.Checked || p.app.Find("id:settings-computer-laptop").Props.Checked {
+		t.Fatal("the first computer paired is not the one new links go to")
+	}
+	p.app.Press("id:settings-computer-laptop")
+	p.app.WaitUntil(wait, func() bool { return p.app.Find("id:settings-computer-laptop").Props.Checked })
+	if p.app.Find("id:settings-computer-" + first).Props.Checked {
+		t.Fatal("two computers are checked")
+	}
+	p.app.WaitUntil(wait, func() bool { prefs, _ := store.Open(dir).Prefs(); return prefs.SendTo == "laptop" })
 }

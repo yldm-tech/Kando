@@ -9,7 +9,7 @@ import (
 // prefsFile keeps the phone's own preferences.
 const prefsFile = "prefs.json"
 
-// Prefs are what the user chose on this phone: whether they went through the introduction, the languages they watch (whisper's codes, as "en") and the language they want the subtitles translated into (a BCP 47 tag, as "zh-Hans"; "" before they chose one), which the paired computers translate into too (TargetPending are the paired computers, by ID, still to take it: each one paired while it was set, all of them once the user chose it, and the others once one of them changed it); the daily goal in minutes of films played (0 for the default), whether to be reminded to review, how the player draws subtitles, what the Learn tab's export writes, and the app's appearance.
+// Prefs are what the user chose on this phone: whether they went through the introduction, the languages they watch (whisper's codes, as "en") and the language they want the subtitles translated into (a BCP 47 tag, as "zh-Hans"; "" before they chose one), which the paired computers translate into too (TargetPending are the paired computers, by ID, still to take it: each one paired while it was set, all of them once the user chose it, and the others once one of them changed it); the daily goal in minutes of films played (0 for the default), whether to be reminded to review, how the player draws subtitles, what the Learn tab's export writes, the app's appearance and interface language, and the computer new links go to.
 type Prefs struct {
 	Onboarded     bool     `json:"onboarded"`
 	Spoken        []string `json:"spoken,omitempty"`
@@ -23,6 +23,10 @@ type Prefs struct {
 	Review string `json:"review,omitempty"`
 	// Appearance is the app's look: AppearanceLight or AppearanceDark, or "" to follow the system's.
 	Appearance string `json:"appearance,omitempty"`
+	// Language is the language the app's interface shows, one of locales.Interface, or "" to follow the system's.
+	Language string `json:"language,omitempty"`
+	// SendTo is the paired computer new links go to and Settings shows as the one that processes them, by its ID; "" for the Add sheet's own pick.
+	SendTo string `json:"send_to,omitempty"`
 }
 
 // The appearances the user can choose over the system's.

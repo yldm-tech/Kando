@@ -9,6 +9,7 @@ import (
 	"kando/apps/mobile/session"
 	"kando/apps/mobile/store"
 	"kando/apps/mobile/substyle"
+	"kando/apps/mobile/theme"
 
 	"github.com/nsgo-dev/nsgo/base"
 	"github.com/nsgo-dev/nsgo/core"
@@ -27,6 +28,19 @@ func sizeName(cx *core.Scope, z store.SubSize) string {
 		return locales.StyleHuge(cx)
 	}
 	return locales.StyleMedium(cx)
+}
+
+// sizeShortName is a subtitle size's short name, as the size control says it.
+func sizeShortName(cx *core.Scope, z store.SubSize) string {
+	switch z {
+	case store.SubSmall:
+		return locales.StyleSizeShortSmall(cx)
+	case store.SubLarge:
+		return locales.StyleSizeShortLarge(cx)
+	case store.SubHuge:
+		return locales.StyleSizeShortHuge(cx)
+	}
+	return locales.StyleSizeShortMedium(cx)
 }
 
 // colorName is a color's name.
@@ -54,21 +68,16 @@ func StylePage(cx *core.Scope, s *session.Session, back func()) base.NavPage {
 	colors := ui.ColorsOf(cx)
 	style := func() store.SubStyle { return s.Prefs().Subtitles }
 	ref := &core.Ref{}
-	var sizes []core.Node
-	for i, z := range store.SubSizes {
-		sizes = append(sizes, look.Row{TestID: "style-size-" + sizeTestID(z), Index: func() int { return i },
-			Title:   func() string { return sizeName(cx, z) },
-			Checked: func() bool { return style().Size == z },
-			Trailing: core.Show{When: func() bool { return style().Size == z }, Then: func(*core.Scope) core.Node {
-				return ui.Icon(lucide.Check, 20, colors.Accent)
-			}},
-			OnPress: func() { setStyle(s, func(st *store.SubStyle) { st.Size = z }) }})
+	var sizes []ui.Option[store.SubSize]
+	for _, z := range store.SubSizes {
+		sizes = append(sizes, ui.Option[store.SubSize]{Value: z, Label: sizeShortName(cx, z), TestID: "style-size-" + sizeTestID(z)})
 	}
+	// A swatch is 36 points across; the chosen one is ringed in the accent, 3 points out from it, as the design draws it.
 	var swatches []core.Node
 	for _, c := range store.SubColors {
 		swatches = append(swatches, core.View{TestID: "style-color-" + colorTestID(c), Role: core.RoleRadio, LabelFunc: func() string { return colorName(cx, c) },
 			Checked: func() bool { return style().Color == c }, OnPress: func(core.PressEvent) { setStyle(s, func(st *store.SubStyle) { st.Color = c }) },
-			Style: core.Style{Width: core.Pt(44), Height: core.Pt(44), CornerRadius: 22, BorderWidth: 3, Padding: core.All(3)},
+			Style: core.Style{Width: core.Pt(46), Height: core.Pt(46), CornerRadius: 23, BorderWidth: 2, Padding: core.All(3)},
 			StyleFunc: func() core.Style {
 				ring := ui.Alpha(colors.Text(), 0)
 				if style().Color == c {
@@ -76,7 +85,7 @@ func StylePage(cx *core.Scope, s *session.Session, back func()) base.NavPage {
 				}
 				return core.Style{BorderColor: ring}
 			},
-			Children: []core.Node{core.View{Style: core.Style{FlexGrow: 1, CornerRadius: 16, BorderWidth: 0.5, Background: substyle.Color(c)},
+			Children: []core.Node{core.View{Style: core.Style{FlexGrow: 1, CornerRadius: 18, BorderWidth: 0.5, Background: substyle.Color(c)},
 				StyleFunc: func() core.Style { return core.Style{BorderColor: ui.Alpha(colors.Text(), 0.2)} }}}})
 	}
 	position := func(i int, top bool, id string, name func() string) core.Node {
@@ -89,8 +98,8 @@ func StylePage(cx *core.Scope, s *session.Session, back func()) base.NavPage {
 			OnPress: func() { setStyle(s, func(st *store.SubStyle) { st.Top = top }) }}
 	}
 	group := func(title func() string, label func() string, rows ...core.Node) core.Node {
-		return core.View{Style: core.Style{Gap: 8}, Children: []core.Node{
-			look.SectionTitle(cx, title),
+		return core.View{Style: core.Style{Gap: 7}, Children: []core.Node{
+			look.GroupHeader(cx, title),
 			core.View{Role: core.RoleRadioGroup, LabelFunc: label, Children: []core.Node{look.Group{Children: rows}}},
 		}}
 	}
@@ -98,11 +107,17 @@ func StylePage(cx *core.Scope, s *session.Session, back func()) base.NavPage {
 		core.Scroll{Ref: ref, Style: core.Style{FlexGrow: 1, FlexShrink: 1}, Children: []core.Node{
 			core.View{StyleFunc: look.Column(cx), Children: []core.Node{
 				preview(cx, style),
-				group(func() string { return locales.StyleSize(cx) }, func() string { return locales.StyleSize(cx) }, sizes...),
-				core.View{Style: core.Style{Gap: 8}, Children: []core.Node{
-					look.SectionTitle(cx, func() string { return locales.StyleColor(cx) }),
+				core.View{Style: core.Style{Gap: 7}, Children: []core.Node{
+					look.GroupHeader(cx, func() string { return locales.StyleSize(cx) }),
+					// TODO(nsgo): ui.Tabs' segmented control is a capsule with a regular-weight label (ui/tabs.go:66-67, 113-116) and takes no radius for its track or thumb, nor a weight for the selected label; the design's is a 10-round track under an 8-round thumb with the selected label bold.
+					ui.Tabs[store.SubSize]{TestID: "style-size", Variant: ui.TabsSegmented, Equal: true, Size: ui.SizeLarge, Label: locales.StyleSize(cx), Options: sizes,
+						Value: func() store.SubSize { return style().Size }, OnChange: func(z store.SubSize) { setStyle(s, func(st *store.SubStyle) { st.Size = z }) }},
+				}},
+				core.View{Style: core.Style{Gap: 7}, Children: []core.Node{
+					look.GroupHeader(cx, func() string { return locales.StyleColor(cx) }),
 					core.View{Role: core.RoleRadioGroup, LabelFunc: func() string { return locales.StyleColor(cx) },
-						Style: core.Style{Direction: core.Row, Gap: 14, Padding: core.Symmetric(4, 4)}, Children: swatches},
+						Style:     core.Style{Direction: core.Row, Gap: 4, Padding: core.Symmetric(9, 11)},
+						StyleFunc: func() core.Style { return look.Card(cx) }, Children: swatches},
 				}},
 				group(func() string { return locales.StylePosition(cx) }, func() string { return locales.StylePosition(cx) },
 					position(0, false, "bottom", func() string { return locales.StyleBottom(cx) }),
@@ -117,22 +132,21 @@ func StylePage(cx *core.Scope, s *session.Session, back func()) base.NavPage {
 	}}, ui.NavHeader{OnBack: back, Scroll: ref})
 }
 
-// preview is a picture with a line drawn on it as the player draws it with style, which follows each choice.
+// preview is a picture with a line drawn on it as the player draws it with style, which follows each choice: no box behind the lines, which a shadow sets off from the picture.
 func preview(cx *core.Scope, style func() store.SubStyle) core.Node {
 	line := func(id string, text func() string, original bool) core.Node {
-		return core.View{Style: core.Style{MaxWidth: core.Pct(100), CornerRadius: 6, Padding: core.Symmetric(2, 10), Background: core.RGBA(0x000000, 0.62)}, Children: []core.Node{
-			core.Text{TestID: id, ContentFunc: text, StyleFunc: func() core.Style {
-				tr, orig := substyle.Sizes(style(), 17, 14)
+		return core.Text{TestID: id, ContentFunc: text, Style: core.Style{MaxWidth: core.Pct(100), TextShadowColor: core.RGBA(0x000000, 0.9), TextShadowRadius: 3, TextShadowOffset: core.Point{Y: 1}},
+			StyleFunc: func() core.Style {
+				tr, orig := substyle.Sizes(style(), 17, 13)
 				if original {
 					return core.Style{FontSize: orig, LineHeightMultiple: 1.25, FontWeight: core.FontWeightMedium, Color: substyle.Color(style().Color), TextAlign: core.TextAlignCenter}
 				}
 				return core.Style{FontSize: tr, LineHeightMultiple: 1.25, FontWeight: core.FontWeightBold, Color: core.RGB(0xFFFFFF), TextAlign: core.TextAlignCenter}
-			}},
-		}}
+			}}
 	}
 	return core.View{TestID: "style-preview", Role: core.RoleImage, LabelFunc: func() string { return locales.StylePreview(cx) },
-		Style: core.Style{Width: core.Pct(100), AspectRatio: 16.0 / 9, CornerRadius: ui.RadiusCard, BorderCurve: core.BorderCurveContinuous, Overflow: core.Hidden,
-			Background: core.RGB(0x1C2A3A), AlignItems: core.AlignCenter, Gap: 4, Padding: core.All(12)},
+		Style: core.Style{Width: core.Pct(100), AspectRatio: 16.0 / 9, CornerRadius: look.CardRadius, BorderCurve: core.BorderCurveContinuous, Overflow: core.Hidden,
+			Gradients: []core.Gradient{core.LinearGradient(180, theme.PreviewSkyTop, theme.PreviewSkyBottom)}, AlignItems: core.AlignCenter, Gap: 2, Padding: core.Symmetric(10, 12)},
 		StyleFunc: func() core.Style {
 			if style().Top {
 				return core.Style{JustifyContent: core.JustifyStart}
@@ -140,9 +154,9 @@ func preview(cx *core.Scope, style func() store.SubStyle) core.Node {
 			return core.Style{JustifyContent: core.JustifyEnd}
 		},
 		Children: []core.Node{
-			// The picture: a sky over hills, so the lines show on something as they do over a film.
-			core.View{Style: core.Style{Position: core.Absolute, Left: core.Pt(0), Right: core.Pt(0), Bottom: core.Pt(0), Height: core.Pct(42), Background: core.RGB(0x2F4A3A)}},
-			core.View{Style: core.Style{Position: core.Absolute, Right: core.Pct(18), Top: core.Pct(18), Width: core.Pt(36), Height: core.Pt(36), CornerRadius: 18, Background: core.RGB(0xF3D27A)}},
+			// The picture: a sun over hills, so the lines show on something as they do over a film.
+			core.View{Style: core.Style{Position: core.Absolute, Left: core.Pt(0), Right: core.Pt(0), Bottom: core.Pt(0), Height: core.Pct(42), Background: theme.PreviewHills}},
+			core.View{Style: core.Style{Position: core.Absolute, Right: core.Pct(18), Top: core.Pct(18), Width: core.Pt(36), Height: core.Pt(36), CornerRadius: 18, Background: theme.PreviewSun}},
 			line("style-preview-translation", func() string { return locales.StylePreviewTranslation(cx) }, false),
 			line("style-preview-original", func() string { return locales.StylePreviewOriginal(cx) }, true),
 		}}

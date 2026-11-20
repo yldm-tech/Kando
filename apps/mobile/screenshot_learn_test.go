@@ -156,15 +156,14 @@ func TestScreenshotsComputer(t *testing.T) {
 	d.SetService("OpenAI", "gpt-4.1-mini")
 	dir := t.TempDir()
 	p := startPhone(t, dir, pairedWith(t, d, dir))
-	id := store.DesktopID(d.Fingerprint)
-	p.waitLearned(id)
+	// On a target the app keeps its files apart from the test's, so the scene waits for what it shows rather than for the sync's files.
 	p.app.WaitFor("id:tab-bar", wait)
 	p.openTab(settingsTab, msgs.SettingsTitle())
-	p.app.Press("id:settings-computer-" + id)
-	p.app.WaitUntil(wait, func() bool {
-		return p.texts("id:computer-service") == msgs.ComputerService()+"\nOpenAI · gpt-4.1-mini"
-	})
+	p.app.Press("id:settings-computer")
+	p.app.WaitFor("id:computer-status", wait)
 	shot(p, "computer")
+	p.app.Scroll("id:computer-note", 2000)
+	shot(p, "computer-bottom")
 }
 
 func TestScreenshotsSyncConflicts(t *testing.T) {

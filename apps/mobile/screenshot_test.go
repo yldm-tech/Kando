@@ -62,8 +62,12 @@ func TestScreenshotsSettings(t *testing.T) {
 	p := startPhone(t, dir, pairedWith(t, d, dir))
 	p.app.WaitFor(talkRow(store.DesktopID(d.Fingerprint)), wait)
 	p.openTab(settingsTab, msgs.SettingsTitle())
-	p.app.WaitFor("id:settings-computer-"+store.DesktopID(d.Fingerprint), wait)
+	p.app.WaitFor("id:settings-computer", wait)
+	p.app.WaitFor("text:"+msgs.SettingsComputerOnline(), wait)
 	shot(p, "settings")
+	p.app.Scroll("id:settings-scroll", 2000)
+	shot(p, "settings-bottom")
+	p.app.Scroll("id:settings-scroll", -3000)
 	// Light, then dark, as Settings' Appearance steps from the system's look.
 	p.app.Press("id:settings-appearance")
 	p.app.Press("id:settings-appearance")
@@ -73,6 +77,31 @@ func TestScreenshotsSettings(t *testing.T) {
 	p.app.Press("id:settings-target")
 	p.app.WaitFor("id:settings-target-page", wait)
 	shot(p, "settings-target")
+}
+
+// TestScreenshotsSettingsLanguage is Settings › Language, and TestScreenshotsOfflineFilms Settings › Offline Films with a film on the phone, each in an app of its own, as a target takes no step back.
+func TestScreenshotsSettingsLanguage(t *testing.T) {
+	shot := screenshots(t)
+	dir := t.TempDir()
+	keepTalk(t, dir)
+	p := startPhone(t, dir)
+	p.app.WaitFor("id:tab-bar", wait)
+	p.openTab(settingsTab, msgs.SettingsTitle())
+	p.app.Press("id:settings-language")
+	p.app.WaitFor("id:settings-language-page", wait)
+	shot(p, "settings-language")
+}
+
+func TestScreenshotsOfflineFilms(t *testing.T) {
+	shot := screenshots(t)
+	dir := t.TempDir()
+	f := keepTalk(t, dir)
+	p := startPhone(t, dir)
+	p.app.WaitFor("id:tab-bar", wait)
+	p.openTab(settingsTab, msgs.SettingsTitle())
+	p.app.Press("id:settings-offline")
+	p.app.WaitFor("id:offline-film-"+f.Key(), wait)
+	shot(p, "settings-offline")
 }
 
 func TestScreenshotsLearn(t *testing.T) {

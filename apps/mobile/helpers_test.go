@@ -105,6 +105,15 @@ func (p *phone) openTab(i int, name string) {
 	p.app.Emit("id:tab-bar", "change", float64(i))
 }
 
+// openComputers opens Settings › Processing Computer, which lists the paired computers, each with its options.
+func (p *phone) openComputers() {
+	p.t.Helper()
+	p.openTab(settingsTab, msgs.SettingsTitle())
+	p.app.Press("id:settings-computer")
+	// A page over the tabs, as a revoked computer's, hides it from WaitFor, which sees only visible views.
+	p.app.WaitUntil(wait, func() bool { return len(p.app.QueryMounted("id:computer-page")) == 1 })
+}
+
 // startPairing goes through a new phone's introduction to its pairing step.
 func (p *phone) startPairing() {
 	p.t.Helper()

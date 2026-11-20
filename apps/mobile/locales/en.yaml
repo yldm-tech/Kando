@@ -117,6 +117,21 @@ commonOK:
 commonRetry:
   message: "Try Again"
   description: "Row or button that asks the computer again after it could not be reached."
+computerConnection:
+  message: "Connection"
+  description: "Row on the Processing Computer page saying how the phone reaches the computer."
+computerConnectionDirect:
+  message: "Same Wi-Fi · direct, live progress"
+  description: "Value of the Connection row while the phone reaches the computer on its network."
+computerConnectionNote:
+  message: "On the same network the phone talks to the computer directly; when apart, links and progress go through your own storage and sync every few seconds to minutes."
+  description: "Under the Connection row on the Processing Computer page."
+computerConnectionOffline:
+  message: "Offline · links wait on this device"
+  description: "Value of the Connection row while the computer can't be reached."
+computerConnectionRelay:
+  message: "Through your storage · every minute or two"
+  description: "Value of the Connection row while the phone follows the computer through the user's storage, away from its network."
 computerContext:
   message: "Use Context When Translating"
   description: "Switch on a computer's page: whether its translation sends the lines before each batch to the AI service."
@@ -131,9 +146,24 @@ computerContextFailed:
 computerContextFailedMessage:
   message: "Make sure the computer is on and Phone Sync is on, then try again."
   description: "Message of the alert when the computer could not be reached to change a setting."
+computerNote:
+  message: "Downloading, transcription and translation all happen in Kando on your computer. The phone just sends links, plays and helps you learn — no models to download, no battery drain."
+  description: "Note under the computer's card on the Processing Computer page."
+computerOffline:
+  message: "Offline"
+  description: "Under a computer's name in the Send New Links To list, and on its card, while it can't be reached."
+computerOnComputer:
+  message: "Settings on the Computer"
+  description: "Heading on the Processing Computer page over the settings the computer keeps."
+computerOnline:
+  message: "Online"
+  description: "Under a computer's name in the Send New Links To list while it answers."
 computerReadOnly:
   message: "This device can only view this computer's settings."
   description: "Note on a computer's page when the computer made this device read-only."
+computerSendTo:
+  message: "Send New Links To"
+  description: "Heading on the Processing Computer page over the paired computers, to pick the one new links go to."
 computerService:
   message: "Translation Service"
   description: "Row on a computer's page naming the AI service the computer translates and explains with."
@@ -143,12 +173,40 @@ computerServiceNone:
 computerServiceNote:
   message: "The computer keeps its AI service and key. Change them in Kando on the computer."
   description: "Note under a computer's translation settings: the AI service can only be changed on the computer."
+computerStatusOnline:
+  message: "{count, plural, =0 {Online} one {Online · processing # video} other {Online · processing # videos}}"
+  description: "On the computer's card on the Processing Computer page while it answers: how many videos it is processing."
+  placeholders:
+    count: { type: "int", example: "6" }
+computerStorage:
+  message: "Storage Status"
+  description: "Row on the Processing Computer page: whether the user's storage serves the phone."
+computerStorageFull:
+  message: "Full"
+  description: "Value of Storage Status: the storage takes nothing more."
+computerStorageKeys:
+  message: "Key No Longer Valid"
+  description: "Value of Storage Status: the storage refused the phone's links, as its key changed or they lapsed."
+computerStorageNote:
+  message: "Videos and subtitles processed on the computer are uploaded to your own storage, and the phone reads them from there when it's away from the computer's network."
+  description: "Note under the Sync group on the Processing Computer page."
+computerStorageOK:
+  message: "OK"
+  description: "Value of Storage Status: the storage serves the phone."
+computerStorageUnreachable:
+  message: "Can't Connect"
+  description: "Value of Storage Status: the phone could not connect to the storage, or it failed."
+computerSynced:
+  message: "Synced"
+  description: "Row on the Processing Computer page: how many films the computer lists."
+computerSyncedCount:
+  message: "{count, plural, one {# film} other {# films}}"
+  description: "Value of the Synced row."
+  placeholders:
+    count: { type: "int", example: "7" }
 computerTooOld:
   message: "Update Kando on this computer to see and change its translation settings here."
   description: "Note on a computer's page when the computer's Kando is too old to share its AI service and context switch."
-computerTranslation:
-  message: "Translation"
-  description: "Heading of a computer's page in Settings over its translation settings."
 computerUnknown:
   message: "Shown once this device reaches the computer."
   description: "Note on a computer's page before a sync reached it, so its settings are not known yet."
@@ -1917,6 +1975,15 @@ settingsAppearanceLight:
 settingsAppearanceSystem:
   message: "Automatic"
   description: "Value of the Appearance row: the app follows the system's light or dark appearance."
+settingsComputer:
+  message: "Processing Computer"
+  description: "Row in Settings, and the title of its page: the computer that downloads, transcribes and translates the links this device sends."
+settingsComputerOffline:
+  message: "Offline · links wait on this device until it's back"
+  description: "Under Processing Computer in Settings while it can't be reached."
+settingsComputerOnline:
+  message: "Online · downloads, transcription and translation happen here"
+  description: "Under Processing Computer in Settings while it answers."
 settingsComputers:
   message: "Computers"
   description: "Heading of Settings' section of the paired computers."
@@ -2010,6 +2077,12 @@ settingsConflictsNone:
 settingsConflictsNote:
   message: "When two devices change the same translated line or the same note, choose which to keep here. Words, saved lines and progress merge on their own."
   description: "At the top of the Sync Conflicts page."
+settingsFooter:
+  message: "{app} {version} · FSL-1.1 License"
+  description: "Centered under the last group of Settings: the app's name, its version and its license."
+  placeholders:
+    app: { type: "String", example: "Kando" }
+    version: { type: "String", example: "0.5.1" }
 settingsGoal:
   message: "Daily Goal"
   description: "Row in Settings, and the title of its page, that picks the daily goal of minutes of films."
@@ -2021,15 +2094,49 @@ settingsGoalValue:
 settingsIntroduction:
   message: "Show the Introduction Again"
   description: "Row in Settings that shows the introduction again."
+settingsLanguage:
+  message: "Language"
+  description: "Row in Settings, and the title of its page, that picks the language of the app's interface."
+settingsLanguageSystem:
+  message: "Automatic"
+  description: "Value of the Language row, and the first choice on its page: the app follows the system's language."
 settingsNoComputer:
   message: "Not connected"
   description: "At the foot of a tablet's sidebar while no computer is paired."
+settingsOffline:
+  message: "Offline Films"
+  description: "Row in Settings, and the title of its page, listing the films saved on this device."
+settingsOfflineCount:
+  message: "{count, plural, one {# film} other {# films}}"
+  description: "Beside Offline Films in Settings: how many films are saved on this device."
+  placeholders:
+    count: { type: "int", example: "3" }
+settingsOfflineEmpty:
+  message: "No films saved on this device yet."
+  description: "The Offline Films page when no film is saved on this device."
+settingsOfflineSaved:
+  message: "Saved on This Device"
+  description: "Heading on the Offline Films page over the films saved on this device."
+settingsOfflineUse:
+  message: "Offline Films Use"
+  description: "On the Offline Films page, beside how much space the saved films take."
 settingsPair:
   message: "Connect a Computer"
   description: "Row in Settings that opens pairing, while no computer is paired."
 settingsPairAnother:
   message: "Connect Another Computer"
   description: "Row in Settings that opens pairing with one more computer."
+settingsProfileDetail:
+  message: "Processed by {name} · subtitles translated into {target}"
+  description: "Under the app's name at the top of Settings: the computer that processes links and the language subtitles are translated into."
+  placeholders:
+    name: { type: "String", example: "MacBook Pro" }
+    target: { type: "String", example: "简体中文" }
+settingsProfileUnpaired:
+  message: "No computer connected · subtitles translated into {target}"
+  description: "Under the app's name at the top of Settings while no computer is paired."
+  placeholders:
+    target: { type: "String", example: "简体中文" }
 settingsRemind:
   message: "Review Reminder"
   description: "Switch in Settings that reminds the learner to review every evening."
@@ -2071,6 +2178,9 @@ settingsThisDevice:
 settingsTitle:
   message: "Settings"
   description: "Tab and title of Settings."
+settingsVersion:
+  message: "Version"
+  description: "Row in Settings' About group: the app's version."
 settingsWidgets:
   message: "Widgets"
   description: "Row of Settings on an iPhone or iPad, and the title of its page: the app's Home Screen and Lock Screen widgets."
@@ -2157,6 +2267,18 @@ stylePreviewTranslation:
 styleSize:
   message: "Size"
   description: "Heading of the subtitle sizes."
+styleSizeShortHuge:
+  message: "XL"
+  description: "Short name of the extra-large subtitle size, on the Subtitle Style page's segmented control."
+styleSizeShortLarge:
+  message: "L"
+  description: "Short name of the large subtitle size, on the Subtitle Style page's segmented control."
+styleSizeShortMedium:
+  message: "M"
+  description: "Short name of the medium subtitle size, on the Subtitle Style page's segmented control."
+styleSizeShortSmall:
+  message: "S"
+  description: "Short name of the small subtitle size, on the Subtitle Style page's segmented control."
 styleSmall:
   message: "Small"
   description: "A subtitle size."

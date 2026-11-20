@@ -19,14 +19,14 @@ func ShortcutsPage(cx *core.Scope, sections []func() string, back func()) base.N
 		rows = append(rows, look.Row{TestID: "settings-shortcut-" + r.ID, Index: func() int { return i },
 			Title: r.What,
 			Trailing: core.View{Style: core.Style{Height: core.Pt(26), Padding: core.Symmetric(0, 9), CornerRadius: 7, BorderCurve: core.BorderCurveContinuous, JustifyContent: core.JustifyCenter, FlexShrink: 0},
-				StyleFunc: func() core.Style { return core.Style{Background: ui.Alpha(colors.Text(), 0.08)} },
+				StyleFunc: func() core.Style { return core.Style{Background: colors.Inset()} },
 				Children: []core.Node{core.Text{TestID: "settings-shortcut-keys-" + r.ID, ContentFunc: r.Keys, MaxLines: 1,
-					Style: look.Caption.Merge(core.Style{FontWeight: core.FontWeightMedium, FontVariant: core.FontTabularNums}), StyleFunc: ui.Colored(colors.Text)}}}})
+					Style: look.Caption.Merge(core.Style{FontFamily: core.FontMonospace}), StyleFunc: ui.Colored(colors.Text)}}}})
 	}
 	return ui.NavPage(cx, base.NavPage{TitleFunc: func() string { return locales.SettingsShortcuts(cx) }, TestID: "settings-shortcuts-page", Children: []core.Node{
 		core.Scroll{Ref: ref, Style: core.Style{FlexGrow: 1, FlexShrink: 1}, Children: []core.Node{
 			core.View{StyleFunc: look.Column(cx), Children: []core.Node{
-				core.View{Style: core.Style{Gap: 8}, Children: []core.Node{
+				core.View{Style: core.Style{Gap: 7}, Children: []core.Node{
 					core.Text{ContentFunc: func() string { return locales.SettingsShortcutsNote(cx) }, Style: look.Caption.Merge(core.Style{Padding: core.Edges{Right: 16, Left: 16}}), StyleFunc: ui.Colored(colors.Muted)},
 					look.Group{TestID: "settings-shortcuts-list", Children: rows},
 				}},

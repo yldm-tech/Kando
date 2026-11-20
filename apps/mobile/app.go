@@ -54,6 +54,8 @@ const (
 	conflictsPage
 	shortcutsPage
 	widgetsPage
+	languagePage
+	offlinePage
 )
 
 // The tabs, in the order the tab bar and a tablet's sidebar show them.
@@ -89,6 +91,8 @@ func App(cx *core.Scope, cfg session.Config) core.Node {
 			cx.SetAppearance(core.AppearanceSystem)
 		}
 	})
+	// The interface's language is the one the user chose in Settings, or the system's ("" follows it again).
+	cx.Effect(func() { cx.SetLocale(s.Prefs().Language) })
 	if widget.Available() {
 		widgets.Keep(cx, s, widget.Update)
 	}
@@ -194,13 +198,19 @@ func App(cx *core.Scope, cfg session.Config) core.Node {
 						Introduction: func() { outer.Push(route{page: introductionPage}) },
 						Shortcuts:    func() { n.Push(route{page: shortcutsPage}) },
 						Widgets:      func() { n.Push(route{page: widgetsPage}) },
+						Language:     func() { n.Push(route{page: languagePage}) },
+						Offline:      func() { n.Push(route{page: offlinePage}) },
 						Computer: func(id string) {
 							n.Push(route{page: computerPage, desktop: id})
 							s.SyncLearning()
 						},
 						Unpaired: unpaired})
 				case computerPage:
-					return settings.ComputerPage(cx, s, r.desktop, unpaired, back)
+					return settings.ComputerPage(cx, s, openPair, unpaired, back)
+				case languagePage:
+					return settings.LanguagePage(cx, s, back)
+				case offlinePage:
+					return settings.OfflinePage(cx, s, back)
 				case shortcutsPage:
 					return settings.ShortcutsPage(cx, sectionNames(cx), back)
 				case widgetsPage:

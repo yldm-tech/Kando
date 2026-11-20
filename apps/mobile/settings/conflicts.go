@@ -49,6 +49,9 @@ func ConflictsPage(cx *core.Scope, s *session.Session, back func()) base.NavPage
 	}}, ui.NavHeader{OnBack: back, Scroll: ref})
 }
 
+// actionText is the type of a conflict's choices, Use This and Keep Both.
+var actionText = core.Style{FontSize: 14, LineHeight: 20, FontWeight: core.FontWeightSemibold}
+
 // conflictCard is conflict c: what was changed twice, of which film, where in it, the line it is of, and its two versions, each with Use This, and Keep Both where both can be kept. While it is being resolved its choices take no presses.
 func conflictCard(cx *core.Scope, s *session.Session, c func() session.SyncConflict) core.Node {
 	colors, tints := ui.ColorsOf(cx), ui.TintsOf(cx)
@@ -60,13 +63,13 @@ func conflictCard(cx *core.Scope, s *session.Session, c func() session.SyncConfl
 				Style:     core.Style{FontSize: 12, FontWeight: ui.Bold, LineHeight: 20, Padding: core.Symmetric(0, 7), CornerRadius: 5, FlexShrink: 0},
 				StyleFunc: func() core.Style { return core.Style{Background: tints.Warn(), Color: theme.Of(cx).WarnText()} }},
 			core.Text{TestID: "conflict-film-" + id, ContentFunc: func() string { return c().Title }, MaxLines: 1, EllipsizeMode: core.EllipsizeTail,
-				Style: look.Subhead.Merge(core.Style{FontWeight: ui.Semibold, FlexShrink: 1}), StyleFunc: ui.Colored(colors.Text)},
+				Style: look.Section.Merge(core.Style{FlexShrink: 1}), StyleFunc: ui.Colored(colors.Text)},
 		}},
 		core.Show{When: func() bool { return conflictWhere(cx, c().Conflict) != "" }, Then: func(cx *core.Scope) core.Node {
-			return core.Text{TestID: "conflict-where-" + id, ContentFunc: func() string { return conflictWhere(cx, c().Conflict) }, Style: look.Caption, StyleFunc: ui.Colored(colors.Muted)}
+			return core.Text{TestID: "conflict-where-" + id, ContentFunc: func() string { return conflictWhere(cx, c().Conflict) }, Style: look.Footnote, StyleFunc: ui.Colored(colors.Muted)}
 		}},
 		core.Show{When: func() bool { return c().Line != "" }, Then: func(cx *core.Scope) core.Node {
-			return core.Text{TestID: "conflict-line-" + id, ContentFunc: func() string { return c().Line }, Style: look.Subhead.Merge(core.Style{Margin: core.Edges{Top: 4}}), StyleFunc: ui.Colored(colors.Text)}
+			return core.Text{TestID: "conflict-line-" + id, ContentFunc: func() string { return c().Line }, Style: core.Style{FontSize: 14, LineHeight: 20, Margin: core.Edges{Top: 4}}, StyleFunc: ui.Colored(colors.Text)}
 		}},
 		conflictVersion(cx, s, c, func(x session.SyncConflict) study.Version { return x.Kept }, session.KeepKept, "conflict-kept-"+id, busy),
 		conflictVersion(cx, s, c, func(x session.SyncConflict) study.Version { return x.Lost }, session.KeepLost, "conflict-lost-"+id, busy),
@@ -75,10 +78,10 @@ func conflictCard(cx *core.Scope, s *session.Session, c func() session.SyncConfl
 				Disabled: busy, OnPress: func(core.PressEvent) { s.ResolveConflict(c(), session.KeepBoth) },
 				Style: core.Style{Height: core.Pt(40), CornerRadius: 12, BorderCurve: core.BorderCurveContinuous, AlignItems: core.AlignCenter, JustifyContent: core.JustifyCenter,
 					Active: &core.Style{Background: colors.Pressed()}},
-				Children: []core.Node{core.Text{ContentFunc: func() string { return locales.SettingsConflictBoth(cx) }, Style: look.Subhead.Merge(core.Style{FontWeight: ui.Semibold}), StyleFunc: ui.Colored(colors.Accent)}}}
+				Children: []core.Node{core.Text{ContentFunc: func() string { return locales.SettingsConflictBoth(cx) }, Style: actionText, StyleFunc: ui.Colored(colors.Accent)}}}
 		}},
 	}
-	return core.View{TestID: "conflict-" + id, Style: core.Style{Gap: 4, Padding: core.Symmetric(14, 16), CornerRadius: ui.RadiusCard, BorderCurve: core.BorderCurveContinuous},
+	return core.View{TestID: "conflict-" + id, Style: core.Style{Gap: 4, Padding: core.Symmetric(14, 16), CornerRadius: look.CardRadius, BorderCurve: core.BorderCurveContinuous},
 		StyleFunc: func() core.Style {
 			st := core.Style{Background: colors.Surface()}
 			if busy() {
@@ -99,26 +102,26 @@ func conflictVersion(cx *core.Scope, s *session.Session, c func() session.SyncCo
 		OnPress:   func(core.PressEvent) { s.ResolveConflict(c(), keep) },
 		Style:     core.Style{Direction: core.Row, AlignItems: core.AlignCenter, Gap: 10, Margin: core.Edges{Top: 4}, Padding: core.Symmetric(10, 12), CornerRadius: 12, BorderCurve: core.BorderCurveContinuous},
 		StyleFunc: func() core.Style {
-			return core.Style{Background: ui.Alpha(colors.Text(), 0.06), Active: &core.Style{Background: colors.Pressed()}}
+			return core.Style{Background: colors.Inset(), Active: &core.Style{Background: colors.Pressed()}}
 		},
 		Children: []core.Node{
 			core.View{Style: core.Style{FlexGrow: 1, FlexShrink: 1, MinWidth: core.Pt(0), Gap: 2}, Children: []core.Node{
-				core.Text{TestID: testID + "-meta", ContentFunc: meta, MaxLines: 1, Style: look.Caption, StyleFunc: ui.Colored(colors.Muted)},
-				core.Text{TestID: testID + "-text", ContentFunc: func() string { return of(c()).Text }, Style: look.Subhead, StyleFunc: ui.Colored(colors.Text)},
+				core.Text{TestID: testID + "-meta", ContentFunc: meta, MaxLines: 1, Style: look.Footnote, StyleFunc: ui.Colored(colors.Muted)},
+				core.Text{TestID: testID + "-text", ContentFunc: func() string { return of(c()).Text }, Style: core.Style{FontSize: 15, LineHeight: 21}, StyleFunc: ui.Colored(colors.Text)},
 			}},
-			core.Text{ContentFunc: func() string { return locales.SettingsConflictUse(cx) }, MaxLines: 1, Style: look.Subhead.Merge(core.Style{FontWeight: ui.Semibold, FlexShrink: 0}), StyleFunc: ui.Colored(colors.Accent)},
+			core.Text{ContentFunc: func() string { return locales.SettingsConflictUse(cx) }, MaxLines: 1, Style: actionText.Merge(core.Style{FlexShrink: 0}), StyleFunc: ui.Colored(colors.Accent)},
 		}}
 }
 
 // conflictsDone is what the page shows once no conflict is left.
 func conflictsDone(cx *core.Scope) core.Node {
 	colors := ui.ColorsOf(cx)
-	return core.View{TestID: "conflicts-done", Style: core.Style{AlignItems: core.AlignCenter, Gap: 6, Padding: core.Symmetric(28, 16), CornerRadius: ui.RadiusCard, BorderCurve: core.BorderCurveContinuous},
+	return core.View{TestID: "conflicts-done", Style: core.Style{AlignItems: core.AlignCenter, Gap: 6, Padding: core.Symmetric(28, 16), CornerRadius: look.CardRadius, BorderCurve: core.BorderCurveContinuous},
 		StyleFunc: func() core.Style { return core.Style{Background: colors.Surface()} },
 		Children: []core.Node{
-			ui.Icon(lucide.CircleCheck, 30, colors.Up),
-			core.Text{ContentFunc: func() string { return locales.SettingsConflictsDone(cx) }, Role: core.RoleHeader, Style: look.Title.Merge(core.Style{FontWeight: ui.Bold, TextAlign: core.TextAlignCenter}), StyleFunc: ui.Colored(colors.Text)},
-			core.Text{ContentFunc: func() string { return locales.SettingsConflictsDoneDetail(cx) }, Style: look.Subhead.Merge(core.Style{TextAlign: core.TextAlignCenter}), StyleFunc: ui.Colored(colors.Muted)},
+			core.Icon{SVG: lucide.Check(), Style: core.Style{Width: core.Pt(30), Height: core.Pt(30), Color: theme.StatusOK}},
+			core.Text{ContentFunc: func() string { return locales.SettingsConflictsDone(cx) }, Role: core.RoleHeader, Style: core.Style{FontSize: 15, LineHeight: 20, FontWeight: ui.Bold, TextAlign: core.TextAlignCenter}, StyleFunc: ui.Colored(colors.Text)},
+			core.Text{ContentFunc: func() string { return locales.SettingsConflictsDoneDetail(cx) }, Style: look.Footnote.Merge(core.Style{TextAlign: core.TextAlignCenter}), StyleFunc: ui.Colored(colors.Muted)},
 		}}
 }
 

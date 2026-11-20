@@ -474,6 +474,8 @@ var Parameters = map[string][]string{
 	"AddSubscribedExisting":          {"title", "name"},
 	"AddSubtitlesRecognizeNote":      {"name"},
 	"ComputerContextFailed":          {"computer"},
+	"ComputerStatusOnline":           {"count"},
+	"ComputerSyncedCount":            {"count"},
 	"ComputersCertificate":           {"name"},
 	"ComputersOptions":               {"name"},
 	"ComputersUnpairTitle":           {"name"},
@@ -635,7 +637,11 @@ var Parameters = map[string][]string{
 	"SettingsConflictWord":           {"word"},
 	"SettingsConflictYesterday":      {"when"},
 	"SettingsConflictsCount":         {"count"},
+	"SettingsFooter":                 {"app", "version"},
 	"SettingsGoalValue":              {"count"},
+	"SettingsOfflineCount":           {"count"},
+	"SettingsProfileDetail":          {"name", "target"},
+	"SettingsProfileUnpaired":        {"target"},
 	"SettingsRemindDetail":           {"hour"},
 	"SettingsWidgetsHow":             {"app"},
 	"VocabRemoveTitle":               {"word"},
@@ -672,6 +678,8 @@ type Translation struct {
 	AddSubscribedExisting          func(title string, name string) string
 	AddSubtitlesRecognizeNote      func(name string) string
 	ComputerContextFailed          func(computer string) string
+	ComputerStatusOnline           func(count int) string
+	ComputerSyncedCount            func(count int) string
 	ComputersCertificate           func(name string) string
 	ComputersOptions               func(name string) string
 	ComputersUnpairTitle           func(name string) string
@@ -833,7 +841,11 @@ type Translation struct {
 	SettingsConflictWord           func(word string) string
 	SettingsConflictYesterday      func(hc string, when time.Time) string
 	SettingsConflictsCount         func(count int) string
+	SettingsFooter                 func(app string, version string) string
 	SettingsGoalValue              func(count int) string
+	SettingsOfflineCount           func(count int) string
+	SettingsProfileDetail          func(name string, target string) string
+	SettingsProfileUnpaired        func(target string) string
 	SettingsRemindDetail           func(hour int) string
 	SettingsWidgetsHow             func(app string) string
 	VocabRemoveTitle               func(word string) string
@@ -874,15 +886,31 @@ const (
 	textCommonCancel
 	textCommonOK
 	textCommonRetry
+	textComputerConnection
+	textComputerConnectionDirect
+	textComputerConnectionNote
+	textComputerConnectionOffline
+	textComputerConnectionRelay
 	textComputerContext
 	textComputerContextDetail
 	textComputerContextFailedMessage
+	textComputerNote
+	textComputerOffline
+	textComputerOnComputer
+	textComputerOnline
 	textComputerReadOnly
+	textComputerSendTo
 	textComputerService
 	textComputerServiceNone
 	textComputerServiceNote
+	textComputerStorage
+	textComputerStorageFull
+	textComputerStorageKeys
+	textComputerStorageNote
+	textComputerStorageOK
+	textComputerStorageUnreachable
+	textComputerSynced
 	textComputerTooOld
-	textComputerTranslation
 	textComputerUnknown
 	textComputersPairAgain
 	textComputersUnpair
@@ -1207,6 +1235,9 @@ const (
 	textSettingsAppearanceDark
 	textSettingsAppearanceLight
 	textSettingsAppearanceSystem
+	textSettingsComputer
+	textSettingsComputerOffline
+	textSettingsComputerOnline
 	textSettingsComputers
 	textSettingsConflictBoth
 	textSettingsConflictMeaning
@@ -1225,7 +1256,13 @@ const (
 	textSettingsConflictsNote
 	textSettingsGoal
 	textSettingsIntroduction
+	textSettingsLanguage
+	textSettingsLanguageSystem
 	textSettingsNoComputer
+	textSettingsOffline
+	textSettingsOfflineEmpty
+	textSettingsOfflineSaved
+	textSettingsOfflineUse
 	textSettingsPair
 	textSettingsPairAnother
 	textSettingsRemind
@@ -1240,6 +1277,7 @@ const (
 	textSettingsTargetNote
 	textSettingsThisDevice
 	textSettingsTitle
+	textSettingsVersion
 	textSettingsWidgets
 	textSettingsWidgetsLockScreen
 	textShortcutsAdd
@@ -1267,6 +1305,10 @@ const (
 	textStylePreviewOriginal
 	textStylePreviewTranslation
 	textStyleSize
+	textStyleSizeShortHuge
+	textStyleSizeShortLarge
+	textStyleSizeShortMedium
+	textStyleSizeShortSmall
 	textStyleSmall
 	textStyleTop
 	textStyleWhite
@@ -1337,15 +1379,31 @@ var keyOfText = [numTexts]string{
 	"commonCancel",
 	"commonOK",
 	"commonRetry",
+	"computerConnection",
+	"computerConnectionDirect",
+	"computerConnectionNote",
+	"computerConnectionOffline",
+	"computerConnectionRelay",
 	"computerContext",
 	"computerContextDetail",
 	"computerContextFailedMessage",
+	"computerNote",
+	"computerOffline",
+	"computerOnComputer",
+	"computerOnline",
 	"computerReadOnly",
+	"computerSendTo",
 	"computerService",
 	"computerServiceNone",
 	"computerServiceNote",
+	"computerStorage",
+	"computerStorageFull",
+	"computerStorageKeys",
+	"computerStorageNote",
+	"computerStorageOK",
+	"computerStorageUnreachable",
+	"computerSynced",
 	"computerTooOld",
-	"computerTranslation",
 	"computerUnknown",
 	"computersPairAgain",
 	"computersUnpair",
@@ -1670,6 +1728,9 @@ var keyOfText = [numTexts]string{
 	"settingsAppearanceDark",
 	"settingsAppearanceLight",
 	"settingsAppearanceSystem",
+	"settingsComputer",
+	"settingsComputerOffline",
+	"settingsComputerOnline",
 	"settingsComputers",
 	"settingsConflictBoth",
 	"settingsConflictMeaning",
@@ -1688,7 +1749,13 @@ var keyOfText = [numTexts]string{
 	"settingsConflictsNote",
 	"settingsGoal",
 	"settingsIntroduction",
+	"settingsLanguage",
+	"settingsLanguageSystem",
 	"settingsNoComputer",
+	"settingsOffline",
+	"settingsOfflineEmpty",
+	"settingsOfflineSaved",
+	"settingsOfflineUse",
 	"settingsPair",
 	"settingsPairAnother",
 	"settingsRemind",
@@ -1703,6 +1770,7 @@ var keyOfText = [numTexts]string{
 	"settingsTargetNote",
 	"settingsThisDevice",
 	"settingsTitle",
+	"settingsVersion",
 	"settingsWidgets",
 	"settingsWidgetsLockScreen",
 	"shortcutsAdd",
@@ -1730,6 +1798,10 @@ var keyOfText = [numTexts]string{
 	"stylePreviewOriginal",
 	"stylePreviewTranslation",
 	"styleSize",
+	"styleSizeShortHuge",
+	"styleSizeShortLarge",
+	"styleSizeShortMedium",
+	"styleSizeShortSmall",
 	"styleSmall",
 	"styleTop",
 	"styleWhite",
@@ -1798,15 +1870,31 @@ var textsEn = i18n.NewTexts(""+
 	"Cancel"+
 	"OK"+
 	"Try Again"+
+	"Connection"+
+	"Same Wi-Fi · direct, live progress"+
+	"On the same network the phone talks to the computer directly; when apart, links and progress go through your own storage and sync every few seconds to minutes."+
+	"Offline · links wait on this device"+
+	"Through your storage · every minute or two"+
 	"Use Context When Translating"+
 	"Lets the AI see the lines before each batch, for smoother translations."+
 	"Make sure the computer is on and Phone Sync is on, then try again."+
+	"Downloading, transcription and translation all happen in Kando on your computer. The phone just sends links, plays and helps you learn — no models to download, no battery drain."+
+	"Offline"+
+	"Settings on the Computer"+
+	"Online"+
 	"This device can only view this computer's settings."+
+	"Send New Links To"+
 	"Translation Service"+
 	"Not Set Up"+
 	"The computer keeps its AI service and key. Change them in Kando on the computer."+
+	"Storage Status"+
+	"Full"+
+	"Key No Longer Valid"+
+	"Videos and subtitles processed on the computer are uploaded to your own storage, and the phone reads them from there when it's away from the computer's network."+
+	"OK"+
+	"Can't Connect"+
+	"Synced"+
 	"Update Kando on this computer to see and change its translation settings here."+
-	"Translation"+
 	"Shown once this device reaches the computer."+
 	"Pair Again"+
 	"Unpair"+
@@ -2131,6 +2219,9 @@ var textsEn = i18n.NewTexts(""+
 	"Dark"+
 	"Light"+
 	"Automatic"+
+	"Processing Computer"+
+	"Offline · links wait on this device until it's back"+
+	"Online · downloads, transcription and translation happen here"+
 	"Computers"+
 	"Keep Both"+
 	"Meaning"+
@@ -2149,7 +2240,13 @@ var textsEn = i18n.NewTexts(""+
 	"When two devices change the same translated line or the same note, choose which to keep here. Words, saved lines and progress merge on their own."+
 	"Daily Goal"+
 	"Show the Introduction Again"+
+	"Language"+
+	"Automatic"+
 	"Not connected"+
+	"Offline Films"+
+	"No films saved on this device yet."+
+	"Saved on This Device"+
+	"Offline Films Use"+
 	"Connect a Computer"+
 	"Connect Another Computer"+
 	"Review Reminder"+
@@ -2164,6 +2261,7 @@ var textsEn = i18n.NewTexts(""+
 	"Subtitles are translated into this language, by this device and by the computers it's connected to, which take your choice."+
 	"This Device"+
 	"Settings"+
+	"Version"+
 	"Widgets"+
 	"Lock Screen"+
 	"Add a Video"+
@@ -2191,6 +2289,10 @@ var textsEn = i18n.NewTexts(""+
 	"この川は百万年かけて谷を削りました。"+
 	"The river carved this valley over a million years."+
 	"Size"+
+	"XL"+
+	"L"+
+	"M"+
+	"S"+
 	"Small"+
 	"Top of the Picture"+
 	"White"+
@@ -2256,15 +2358,31 @@ var textsEn = i18n.NewTexts(""+
 		6,
 		2,
 		9,
+		10,
+		35,
+		159,
+		36,
+		43,
 		28,
 		71,
 		66,
+		179,
+		7,
+		24,
+		6,
 		51,
+		17,
 		19,
 		10,
 		80,
+		14,
+		4,
+		19,
+		160,
+		2,
+		13,
+		6,
 		78,
-		11,
 		44,
 		10,
 		6,
@@ -2589,6 +2707,9 @@ var textsEn = i18n.NewTexts(""+
 		4,
 		5,
 		9,
+		19,
+		52,
+		62,
 		9,
 		9,
 		7,
@@ -2607,7 +2728,13 @@ var textsEn = i18n.NewTexts(""+
 		145,
 		10,
 		27,
+		8,
+		9,
 		13,
+		13,
+		34,
+		20,
+		17,
 		18,
 		24,
 		15,
@@ -2622,6 +2749,7 @@ var textsEn = i18n.NewTexts(""+
 		123,
 		11,
 		8,
+		7,
 		7,
 		11,
 		11,
@@ -2649,6 +2777,10 @@ var textsEn = i18n.NewTexts(""+
 		54,
 		50,
 		4,
+		2,
+		1,
+		1,
+		1,
 		5,
 		18,
 		5,
@@ -2717,15 +2849,31 @@ var textsJa = i18n.NewTexts(""+
 	"キャンセル"+
 	"OK"+
 	"再試行"+
+	"接続方法"+
+	"同じ Wi-Fi · 直接接続、進捗はリアルタイム"+
+	"同じネットワークではスマートフォンがコンピュータに直接つながります。離れているときは、リンクと進捗があなた自身のストレージを経由し、数秒から数分ごとに同期します。"+
+	"オフライン · リンクはこの端末で待機"+
+	"ストレージ経由 · 1〜2 分ごとに更新"+
 	"翻訳で前後の文脈を使う"+
 	"各バッチの前の台詞も AI に渡し、より自然な翻訳にします。"+
 	"コンピュータの電源とスマホ同期がオンになっていることを確認して、もう一度お試しください。"+
+	"ダウンロード、文字起こし、翻訳はすべてコンピュータの Kando で行います。スマートフォンはリンクを送り、再生し、学習するだけ。モデルのダウンロードもバッテリーの消耗もありません。"+
+	"オフライン"+
+	"コンピュータ側の設定"+
+	"オンライン"+
 	"この端末はこのコンピュータの設定を表示することしかできません。"+
+	"新しいリンクの送信先"+
 	"翻訳サービス"+
 	"未設定"+
 	"AI サービスとキーはコンピュータに保存されています。コンピュータの Kando で変更してください。"+
+	"ストレージの状態"+
+	"容量不足"+
+	"アクセスキーが無効"+
+	"コンピュータで処理した動画と字幕はあなた自身のストレージにアップロードされ、コンピュータのネットワーク外ではスマートフォンがそこから読み込みます。"+
+	"正常"+
+	"接続できません"+
+	"同期済み"+
 	"このコンピュータの Kando をアップデートすると、ここで翻訳の設定を確認・変更できます。"+
-	"翻訳"+
 	"このコンピュータに接続すると表示されます。"+
 	"もう一度ペアリング"+
 	"ペアリングを解除"+
@@ -3050,6 +3198,9 @@ var textsJa = i18n.NewTexts(""+
 	"ダーク"+
 	"ライト"+
 	"自動"+
+	"処理するコンピュータ"+
+	"オフライン · 戻るまでリンクはこの端末で待機"+
+	"オンライン · ダウンロード・文字起こし・翻訳はここで"+
 	"コンピュータ"+
 	"両方残す"+
 	"意味"+
@@ -3068,7 +3219,13 @@ var textsJa = i18n.NewTexts(""+
 	"2 台の端末が同じ訳文や同じメモを変更したときは、ここで残す方を選びます。単語、保存した文、進み具合は自動でまとめられます。"+
 	"1 日の目標"+
 	"紹介をもう一度見る"+
+	"表示言語"+
+	"自動"+
 	"未接続"+
+	"オフラインの動画"+
+	"この端末に保存した動画はまだありません。"+
+	"この端末に保存済み"+
+	"オフラインの動画の使用量"+
 	"コンピュータに接続"+
 	"別のコンピュータに接続"+
 	"復習リマインダー"+
@@ -3083,6 +3240,7 @@ var textsJa = i18n.NewTexts(""+
 	"字幕はこの言語に翻訳されます。変更すると、接続しているコンピュータもこの言語で翻訳します。"+
 	"この端末"+
 	"設定"+
+	"バージョン"+
 	"ウィジェット"+
 	"ロック画面"+
 	"動画を追加"+
@@ -3110,6 +3268,10 @@ var textsJa = i18n.NewTexts(""+
 	"The river carved this valley over a million years."+
 	"この川は百万年かけて谷を削りました。"+
 	"サイズ"+
+	"特大"+
+	"大"+
+	"中"+
+	"小"+
 	"小"+
 	"画面の上"+
 	"白"+
@@ -3175,15 +3337,31 @@ var textsJa = i18n.NewTexts(""+
 		15,
 		2,
 		9,
+		12,
+		58,
+		243,
+		52,
+		49,
 		33,
 		82,
 		132,
+		259,
+		15,
+		30,
+		15,
 		93,
+		30,
 		18,
 		9,
 		133,
-		124,
+		24,
+		12,
+		27,
+		219,
 		6,
+		21,
+		12,
+		124,
 		63,
 		27,
 		24,
@@ -3508,6 +3686,9 @@ var textsJa = i18n.NewTexts(""+
 		9,
 		9,
 		6,
+		30,
+		64,
+		76,
 		18,
 		12,
 		6,
@@ -3526,7 +3707,13 @@ var textsJa = i18n.NewTexts(""+
 		182,
 		14,
 		27,
+		12,
+		6,
 		9,
+		24,
+		60,
+		27,
+		36,
 		27,
 		33,
 		24,
@@ -3541,6 +3728,7 @@ var textsJa = i18n.NewTexts(""+
 		135,
 		12,
 		6,
+		15,
 		18,
 		15,
 		15,
@@ -3568,6 +3756,10 @@ var textsJa = i18n.NewTexts(""+
 		50,
 		54,
 		9,
+		6,
+		3,
+		3,
+		3,
 		3,
 		12,
 		3,
@@ -3636,15 +3828,31 @@ var textsKo = i18n.NewTexts(""+
 	"취소"+
 	"확인"+
 	"다시 시도"+
+	"연결 방식"+
+	"같은 Wi-Fi · 직접 연결, 진행 상황 실시간"+
+	"같은 네트워크에서는 휴대폰이 컴퓨터에 직접 연결됩니다. 떨어져 있을 때는 링크와 진행 상황이 내 저장소를 거쳐 몇 초에서 몇 분마다 동기화됩니다."+
+	"오프라인 · 링크는 이 기기에서 대기"+
+	"내 저장소 경유 · 1~2분마다 업데이트"+
 	"번역할 때 문맥 사용"+
 	"각 묶음 앞의 대사도 AI에 보내 더 자연스럽게 번역합니다."+
 	"컴퓨터가 켜져 있고 휴대폰 동기화가 켜져 있는지 확인한 후 다시 시도하세요."+
+	"다운로드, 받아쓰기, 번역은 모두 컴퓨터의 Kando에서 이루어집니다. 휴대폰은 링크를 보내고, 재생하고, 학습을 도울 뿐이라 모델을 내려받거나 배터리를 소모하지 않습니다."+
+	"오프라인"+
+	"컴퓨터의 설정"+
+	"온라인"+
 	"이 기기는 이 컴퓨터의 설정을 보기만 할 수 있습니다."+
+	"새 링크를 보낼 컴퓨터"+
 	"번역 서비스"+
 	"설정 안 됨"+
 	"AI 서비스와 키는 컴퓨터에 저장됩니다. 컴퓨터의 Kando에서 변경하세요."+
+	"저장소 상태"+
+	"용량 가득 참"+
+	"액세스 키가 유효하지 않음"+
+	"컴퓨터에서 처리한 동영상과 자막은 내 저장소에 업로드되고, 휴대폰이 컴퓨터의 네트워크 밖에 있을 때는 그곳에서 읽어 옵니다."+
+	"정상"+
+	"연결할 수 없음"+
+	"동기화됨"+
 	"이 컴퓨터의 Kando를 업데이트하면 여기에서 번역 설정을 보고 변경할 수 있습니다."+
-	"번역"+
 	"이 컴퓨터에 연결되면 표시됩니다."+
 	"다시 페어링"+
 	"페어링 해제"+
@@ -3969,6 +4177,9 @@ var textsKo = i18n.NewTexts(""+
 	"다크"+
 	"라이트"+
 	"자동"+
+	"처리하는 컴퓨터"+
+	"오프라인 · 돌아올 때까지 링크가 이 기기에서 대기"+
+	"온라인 · 다운로드, 받아쓰기, 번역이 여기서 이루어짐"+
 	"컴퓨터"+
 	"둘 다 남기기"+
 	"뜻"+
@@ -3987,7 +4198,13 @@ var textsKo = i18n.NewTexts(""+
 	"두 기기가 같은 번역이나 같은 메모를 바꾸면 여기서 남길 쪽을 고르세요. 단어, 저장한 문장, 진행 상황은 자동으로 합쳐집니다."+
 	"하루 목표"+
 	"소개 다시 보기"+
+	"언어"+
+	"자동"+
 	"연결 안 됨"+
+	"오프라인 영화"+
+	"이 기기에 저장한 영화가 아직 없습니다."+
+	"이 기기에 저장됨"+
+	"오프라인 영화 사용량"+
 	"컴퓨터 연결"+
 	"다른 컴퓨터 연결"+
 	"복습 알림"+
@@ -4002,6 +4219,7 @@ var textsKo = i18n.NewTexts(""+
 	"자막은 이 언어로 번역돼요. 바꾸면 연결된 컴퓨터도 이 언어로 번역해요."+
 	"이 기기"+
 	"설정"+
+	"버전"+
 	"위젯"+
 	"잠금 화면"+
 	"동영상 추가"+
@@ -4029,6 +4247,10 @@ var textsKo = i18n.NewTexts(""+
 	"The river carved this valley over a million years."+
 	"이 강은 백만 년에 걸쳐 이 계곡을 깎았어요."+
 	"크기"+
+	"아주 크게"+
+	"크게"+
+	"보통"+
+	"작게"+
 	"작게"+
 	"화면 위"+
 	"흰색"+
@@ -4094,15 +4316,31 @@ var textsKo = i18n.NewTexts(""+
 		6,
 		6,
 		13,
+		13,
+		54,
+		201,
+		49,
+		49,
 		27,
 		77,
 		104,
+		230,
+		12,
+		19,
+		9,
 		72,
+		30,
 		16,
 		14,
 		94,
-		109,
+		16,
+		17,
+		36,
+		173,
 		6,
+		20,
+		12,
+		109,
 		46,
 		16,
 		16,
@@ -4427,6 +4665,9 @@ var textsKo = i18n.NewTexts(""+
 		6,
 		9,
 		6,
+		22,
+		69,
+		73,
 		9,
 		17,
 		3,
@@ -4445,7 +4686,13 @@ var textsKo = i18n.NewTexts(""+
 		171,
 		13,
 		20,
+		6,
+		6,
 		14,
+		19,
+		54,
+		23,
+		29,
 		16,
 		23,
 		13,
@@ -4459,6 +4706,7 @@ var textsKo = i18n.NewTexts(""+
 		16,
 		98,
 		10,
+		6,
 		6,
 		6,
 		13,
@@ -4486,6 +4734,10 @@ var textsKo = i18n.NewTexts(""+
 		20,
 		50,
 		59,
+		6,
+		13,
+		6,
+		6,
 		6,
 		6,
 		10,
@@ -4555,15 +4807,31 @@ var textsZhHans = i18n.NewTexts(""+
 	"取消"+
 	"好"+
 	"重试"+
+	"连接方式"+
+	"同一 Wi-Fi · 直连，进度实时"+
+	"在同一网络时手机直接连电脑；不在一起时，链接和进度经你自己的存储中转，几秒到几分钟同步一次。"+
+	"离线 · 链接先在手机上排队"+
+	"经你的存储 · 一两分钟更新一次"+
 	"翻译时参考上下文"+
 	"让 AI 看到每批之前的台词，译文更连贯。"+
 	"请确认电脑已开机并打开了手机同步，然后再试一次。"+
+	"下载、转录、翻译都在电脑上的看懂里完成。手机只负责发链接、看片和学习——不用下载模型，也不费电。"+
+	"离线"+
+	"电脑上的设置"+
+	"在线"+
 	"这台设备只能查看这台电脑的设置。"+
+	"新链接发到哪台电脑"+
 	"翻译服务"+
 	"未设置"+
 	"AI 服务和密钥保存在电脑上，请在电脑上的看懂里更改。"+
+	"存储状态"+
+	"空间已满"+
+	"访问密钥失效"+
+	"电脑处理好的视频和字幕会上传到你自己的存储，手机不在电脑的网络里时从那里读取。"+
+	"正常"+
+	"连不上"+
+	"已同步"+
 	"把这台电脑上的看懂更新到新版本，就能在这里查看和更改它的翻译设置。"+
-	"翻译"+
 	"连上这台电脑后显示。"+
 	"重新配对"+
 	"取消配对"+
@@ -4888,6 +5156,9 @@ var textsZhHans = i18n.NewTexts(""+
 	"深色"+
 	"浅色"+
 	"跟随系统"+
+	"处理的电脑"+
+	"离线 · 链接先在手机上排队，等它回来"+
+	"在线 · 下载、转录、翻译都在这里"+
 	"电脑"+
 	"两条都留"+
 	"释义"+
@@ -4906,7 +5177,13 @@ var textsZhHans = i18n.NewTexts(""+
 	"两台设备改了同一句译文或同一条笔记时，在这里选择保留哪一个。单词、收藏的句子和进度会自动合并。"+
 	"每日目标"+
 	"重新查看引导"+
+	"界面语言"+
+	"跟随系统"+
 	"未连接电脑"+
+	"离线影片"+
+	"还没有存到本机的影片。"+
+	"已存到本机"+
+	"离线影片占用"+
 	"连接电脑"+
 	"连接另一台电脑"+
 	"复习提醒"+
@@ -4921,6 +5198,7 @@ var textsZhHans = i18n.NewTexts(""+
 	"字幕会翻译成这种语言。改了以后，连着的电脑也会按它翻译。"+
 	"这台设备"+
 	"设置"+
+	"版本"+
 	"桌面小组件"+
 	"锁屏小组件"+
 	"添加视频"+
@@ -4948,6 +5226,10 @@ var textsZhHans = i18n.NewTexts(""+
 	"The river carved this valley over a million years."+
 	"这条河用了一百万年刻出这道山谷。"+
 	"大小"+
+	"特大"+
+	"大"+
+	"中"+
+	"小"+
 	"小"+
 	"画面顶部"+
 	"白色"+
@@ -5013,15 +5295,31 @@ var textsZhHans = i18n.NewTexts(""+
 		6,
 		3,
 		6,
+		12,
+		37,
+		138,
+		37,
+		43,
 		24,
 		55,
 		72,
+		144,
+		6,
+		18,
+		6,
 		48,
+		27,
 		12,
 		9,
 		75,
-		99,
+		12,
+		12,
+		18,
+		117,
 		6,
+		9,
+		9,
+		99,
 		30,
 		12,
 		12,
@@ -5346,6 +5644,9 @@ var textsZhHans = i18n.NewTexts(""+
 		6,
 		6,
 		12,
+		15,
+		52,
+		46,
 		6,
 		12,
 		6,
@@ -5364,7 +5665,13 @@ var textsZhHans = i18n.NewTexts(""+
 		141,
 		12,
 		18,
+		12,
+		12,
 		15,
+		12,
+		33,
+		15,
+		18,
 		12,
 		21,
 		12,
@@ -5378,6 +5685,7 @@ var textsZhHans = i18n.NewTexts(""+
 		9,
 		84,
 		12,
+		6,
 		6,
 		15,
 		15,
@@ -5406,6 +5714,10 @@ var textsZhHans = i18n.NewTexts(""+
 		50,
 		48,
 		6,
+		6,
+		3,
+		3,
+		3,
 		3,
 		12,
 		6,
@@ -5474,15 +5786,31 @@ var textsZhHant = i18n.NewTexts(""+
 	"取消"+
 	"好"+
 	"重試"+
+	"連線方式"+
+	"同一 Wi-Fi · 直接連線，進度即時"+
+	"在同一網路時手機直接連電腦；不在一起時，連結和進度經你自己的儲存空間中轉，幾秒到幾分鐘同步一次。"+
+	"離線 · 連結先在手機上排隊"+
+	"經你的儲存空間 · 一兩分鐘更新一次"+
 	"翻譯時參考上下文"+
 	"讓 AI 看到每批之前的台詞，譯文更連貫。"+
 	"請確認電腦已開機並開啟了手機同步，然後再試一次。"+
+	"下載、轉錄、翻譯都在電腦上的看懂裡完成。手機只負責傳連結、看片和學習——不用下載模型，也不耗電。"+
+	"離線"+
+	"電腦上的設定"+
+	"在線"+
 	"這台裝置只能檢視這台電腦的設定。"+
+	"新連結傳到哪台電腦"+
 	"翻譯服務"+
 	"未設定"+
 	"AI 服務和金鑰保存在電腦上，請在電腦上的看懂裡更改。"+
+	"儲存空間狀態"+
+	"空間已滿"+
+	"存取金鑰失效"+
+	"電腦處理好的影片和字幕會上傳到你自己的儲存空間，手機不在電腦的網路裡時從那裡讀取。"+
+	"正常"+
+	"連不上"+
+	"已同步"+
 	"把這台電腦上的看懂更新到新版本，就能在這裡檢視和更改它的翻譯設定。"+
-	"翻譯"+
 	"連上這台電腦後顯示。"+
 	"重新配對"+
 	"取消配對"+
@@ -5807,6 +6135,9 @@ var textsZhHant = i18n.NewTexts(""+
 	"深色"+
 	"淺色"+
 	"跟隨系統"+
+	"處理的電腦"+
+	"離線 · 連結先在手機上排隊，等它回來"+
+	"在線 · 下載、轉錄、翻譯都在這裡"+
 	"電腦"+
 	"兩條都留"+
 	"釋義"+
@@ -5825,7 +6156,13 @@ var textsZhHant = i18n.NewTexts(""+
 	"兩台裝置改了同一句譯文或同一則筆記時，在這裡選擇保留哪一個。單字、收藏的句子和進度會自動合併。"+
 	"每日目標"+
 	"重新查看引導"+
+	"介面語言"+
+	"跟隨系統"+
 	"未連接電腦"+
+	"離線影片"+
+	"還沒有存到本機的影片。"+
+	"已存到本機"+
+	"離線影片佔用"+
 	"連接電腦"+
 	"連接另一台電腦"+
 	"複習提醒"+
@@ -5840,6 +6177,7 @@ var textsZhHant = i18n.NewTexts(""+
 	"字幕會翻譯成這種語言。改了以後，連著的電腦也會按它翻譯。"+
 	"這台裝置"+
 	"設定"+
+	"版本"+
 	"桌面小工具"+
 	"鎖定畫面小工具"+
 	"新增影片"+
@@ -5867,6 +6205,10 @@ var textsZhHant = i18n.NewTexts(""+
 	"The river carved this valley over a million years."+
 	"這條河用了一百萬年刻出這道山谷。"+
 	"大小"+
+	"特大"+
+	"大"+
+	"中"+
+	"小"+
 	"小"+
 	"畫面頂部"+
 	"白色"+
@@ -5932,15 +6274,31 @@ var textsZhHant = i18n.NewTexts(""+
 		6,
 		3,
 		6,
+		12,
+		43,
+		144,
+		37,
+		49,
 		24,
 		55,
 		72,
+		144,
+		6,
+		18,
+		6,
 		48,
+		27,
 		12,
 		9,
 		75,
-		99,
+		18,
+		12,
+		18,
+		123,
 		6,
+		9,
+		9,
+		99,
 		30,
 		12,
 		12,
@@ -6265,6 +6623,9 @@ var textsZhHant = i18n.NewTexts(""+
 		6,
 		6,
 		12,
+		15,
+		52,
+		46,
 		6,
 		12,
 		6,
@@ -6283,7 +6644,13 @@ var textsZhHant = i18n.NewTexts(""+
 		141,
 		12,
 		18,
+		12,
+		12,
 		15,
+		12,
+		33,
+		15,
+		18,
 		12,
 		21,
 		12,
@@ -6297,6 +6664,7 @@ var textsZhHant = i18n.NewTexts(""+
 		9,
 		84,
 		12,
+		6,
 		6,
 		15,
 		21,
@@ -6325,6 +6693,10 @@ var textsZhHant = i18n.NewTexts(""+
 		50,
 		48,
 		6,
+		6,
+		3,
+		3,
+		3,
 		3,
 		12,
 		6,
@@ -6470,6 +6842,12 @@ func Supply(lang string, t Translation) {
 	}
 	if t.ComputerContextFailed != nil {
 		s.ComputerContextFailed = t.ComputerContextFailed
+	}
+	if t.ComputerStatusOnline != nil {
+		s.ComputerStatusOnline = t.ComputerStatusOnline
+	}
+	if t.ComputerSyncedCount != nil {
+		s.ComputerSyncedCount = t.ComputerSyncedCount
 	}
 	if t.ComputersCertificate != nil {
 		s.ComputersCertificate = t.ComputersCertificate
@@ -6954,8 +7332,20 @@ func Supply(lang string, t Translation) {
 	if t.SettingsConflictsCount != nil {
 		s.SettingsConflictsCount = t.SettingsConflictsCount
 	}
+	if t.SettingsFooter != nil {
+		s.SettingsFooter = t.SettingsFooter
+	}
 	if t.SettingsGoalValue != nil {
 		s.SettingsGoalValue = t.SettingsGoalValue
+	}
+	if t.SettingsOfflineCount != nil {
+		s.SettingsOfflineCount = t.SettingsOfflineCount
+	}
+	if t.SettingsProfileDetail != nil {
+		s.SettingsProfileDetail = t.SettingsProfileDetail
+	}
+	if t.SettingsProfileUnpaired != nil {
+		s.SettingsProfileUnpaired = t.SettingsProfileUnpaired
 	}
 	if t.SettingsRemindDetail != nil {
 		s.SettingsRemindDetail = t.SettingsRemindDetail
@@ -7560,6 +7950,55 @@ func CommonRetry(cx *core.Scope) string { return For(cx).CommonRetry() }
 // CommonRetry is the package's CommonRetry in the language of msgs.
 func (msgs Messages) CommonRetry() string { return msgs.text(textCommonRetry) }
 
+// ComputerConnection says "Connection"
+// in the language the app shows under cx.
+//
+// Row on the Processing Computer page saying how the phone reaches the computer.
+func ComputerConnection(cx *core.Scope) string { return For(cx).ComputerConnection() }
+
+// ComputerConnection is the package's ComputerConnection in the language of msgs.
+func (msgs Messages) ComputerConnection() string { return msgs.text(textComputerConnection) }
+
+// ComputerConnectionDirect says "Same Wi-Fi · direct, live progress"
+// in the language the app shows under cx.
+//
+// Value of the Connection row while the phone reaches the computer on its network.
+func ComputerConnectionDirect(cx *core.Scope) string { return For(cx).ComputerConnectionDirect() }
+
+// ComputerConnectionDirect is the package's ComputerConnectionDirect in the language of msgs.
+func (msgs Messages) ComputerConnectionDirect() string {
+	return msgs.text(textComputerConnectionDirect)
+}
+
+// ComputerConnectionNote says "On the same network the phone talks to the computer directly; when apart, links and progress go through your own storage and sync every few seconds to minutes."
+// in the language the app shows under cx.
+//
+// Under the Connection row on the Processing Computer page.
+func ComputerConnectionNote(cx *core.Scope) string { return For(cx).ComputerConnectionNote() }
+
+// ComputerConnectionNote is the package's ComputerConnectionNote in the language of msgs.
+func (msgs Messages) ComputerConnectionNote() string { return msgs.text(textComputerConnectionNote) }
+
+// ComputerConnectionOffline says "Offline · links wait on this device"
+// in the language the app shows under cx.
+//
+// Value of the Connection row while the computer can't be reached.
+func ComputerConnectionOffline(cx *core.Scope) string { return For(cx).ComputerConnectionOffline() }
+
+// ComputerConnectionOffline is the package's ComputerConnectionOffline in the language of msgs.
+func (msgs Messages) ComputerConnectionOffline() string {
+	return msgs.text(textComputerConnectionOffline)
+}
+
+// ComputerConnectionRelay says "Through your storage · every minute or two"
+// in the language the app shows under cx.
+//
+// Value of the Connection row while the phone follows the computer through the user's storage, away from its network.
+func ComputerConnectionRelay(cx *core.Scope) string { return For(cx).ComputerConnectionRelay() }
+
+// ComputerConnectionRelay is the package's ComputerConnectionRelay in the language of msgs.
+func (msgs Messages) ComputerConnectionRelay() string { return msgs.text(textComputerConnectionRelay) }
+
 // ComputerContext says "Use Context When Translating"
 // in the language the app shows under cx.
 //
@@ -7623,6 +8062,42 @@ func (msgs Messages) ComputerContextFailedMessage() string {
 	return msgs.text(textComputerContextFailedMessage)
 }
 
+// ComputerNote says "Downloading, transcription and translation all happen in Kando on your computer. The phone just sends links, plays and helps you learn — no models to download, no battery drain."
+// in the language the app shows under cx.
+//
+// Note under the computer's card on the Processing Computer page.
+func ComputerNote(cx *core.Scope) string { return For(cx).ComputerNote() }
+
+// ComputerNote is the package's ComputerNote in the language of msgs.
+func (msgs Messages) ComputerNote() string { return msgs.text(textComputerNote) }
+
+// ComputerOffline says "Offline"
+// in the language the app shows under cx.
+//
+// Under a computer's name in the Send New Links To list, and on its card, while it can't be reached.
+func ComputerOffline(cx *core.Scope) string { return For(cx).ComputerOffline() }
+
+// ComputerOffline is the package's ComputerOffline in the language of msgs.
+func (msgs Messages) ComputerOffline() string { return msgs.text(textComputerOffline) }
+
+// ComputerOnComputer says "Settings on the Computer"
+// in the language the app shows under cx.
+//
+// Heading on the Processing Computer page over the settings the computer keeps.
+func ComputerOnComputer(cx *core.Scope) string { return For(cx).ComputerOnComputer() }
+
+// ComputerOnComputer is the package's ComputerOnComputer in the language of msgs.
+func (msgs Messages) ComputerOnComputer() string { return msgs.text(textComputerOnComputer) }
+
+// ComputerOnline says "Online"
+// in the language the app shows under cx.
+//
+// Under a computer's name in the Send New Links To list while it answers.
+func ComputerOnline(cx *core.Scope) string { return For(cx).ComputerOnline() }
+
+// ComputerOnline is the package's ComputerOnline in the language of msgs.
+func (msgs Messages) ComputerOnline() string { return msgs.text(textComputerOnline) }
+
 // ComputerReadOnly says "This device can only view this computer's settings."
 // in the language the app shows under cx.
 //
@@ -7631,6 +8106,15 @@ func ComputerReadOnly(cx *core.Scope) string { return For(cx).ComputerReadOnly()
 
 // ComputerReadOnly is the package's ComputerReadOnly in the language of msgs.
 func (msgs Messages) ComputerReadOnly() string { return msgs.text(textComputerReadOnly) }
+
+// ComputerSendTo says "Send New Links To"
+// in the language the app shows under cx.
+//
+// Heading on the Processing Computer page over the paired computers, to pick the one new links go to.
+func ComputerSendTo(cx *core.Scope) string { return For(cx).ComputerSendTo() }
+
+// ComputerSendTo is the package's ComputerSendTo in the language of msgs.
+func (msgs Messages) ComputerSendTo() string { return msgs.text(textComputerSendTo) }
 
 // ComputerService says "Translation Service"
 // in the language the app shows under cx.
@@ -7659,6 +8143,231 @@ func ComputerServiceNote(cx *core.Scope) string { return For(cx).ComputerService
 // ComputerServiceNote is the package's ComputerServiceNote in the language of msgs.
 func (msgs Messages) ComputerServiceNote() string { return msgs.text(textComputerServiceNote) }
 
+// ComputerStatusOnline says "{count, plural, =0 {Online} one {Online · processing # video} other {Online · processing # videos}}"
+// in the language the app shows under cx.
+//
+// On the computer's card on the Processing Computer page while it answers: how many videos it is processing.
+func ComputerStatusOnline(cx *core.Scope, count int) string {
+	return For(cx).ComputerStatusOnline(count)
+}
+
+// ComputerStatusOnline is the package's ComputerStatusOnline in the language of msgs.
+func (msgs Messages) ComputerStatusOnline(count int) string {
+	if i18n.IsPseudo(msgs.lang) {
+		return i18n.Pseudo(msgs.lang, Messages{lang: Source, mark: true}.ComputerStatusOnline(count))
+	}
+	for lang := msgs.lang; ; lang = i18n.Parent(lang) {
+		if f := supplied[lang].ComputerStatusOnline; f != nil {
+			return f(count)
+		}
+		switch lang {
+		case "", "en":
+			var b strings.Builder
+			switch {
+			case count == 0:
+				b.WriteString("Online")
+			default:
+				switch i18n.Cardinal("en", float64(count)) {
+				case i18n.One:
+					b.WriteString("Online · processing ")
+					b.WriteString(msgs.arg(i18n.FormatNumber("en", float64(count))))
+					b.WriteString(" video")
+				default:
+					b.WriteString("Online · processing ")
+					b.WriteString(msgs.arg(i18n.FormatNumber("en", float64(count))))
+					b.WriteString(" videos")
+				}
+			}
+			return b.String()
+		case "ja":
+			var b strings.Builder
+			switch {
+			case count == 0:
+				b.WriteString("オンライン")
+			default:
+				switch i18n.Cardinal("ja", float64(count)) {
+				default:
+					b.WriteString("オンライン · ")
+					b.WriteString(i18n.FormatNumber("ja", float64(count)))
+					b.WriteString(" 本の動画を処理中")
+				}
+			}
+			return b.String()
+		case "ko":
+			var b strings.Builder
+			switch {
+			case count == 0:
+				b.WriteString("온라인")
+			default:
+				switch i18n.Cardinal("ko", float64(count)) {
+				default:
+					b.WriteString("온라인 · 동영상 ")
+					b.WriteString(i18n.FormatNumber("ko", float64(count)))
+					b.WriteString("개 처리 중")
+				}
+			}
+			return b.String()
+		case "zh-Hans":
+			var b strings.Builder
+			switch {
+			case count == 0:
+				b.WriteString("在线")
+			default:
+				switch i18n.Cardinal("zh-Hans", float64(count)) {
+				default:
+					b.WriteString("在线 · 正在处理 ")
+					b.WriteString(i18n.FormatNumber("zh-Hans", float64(count)))
+					b.WriteString(" 个视频")
+				}
+			}
+			return b.String()
+		case "zh-Hant":
+			var b strings.Builder
+			switch {
+			case count == 0:
+				b.WriteString("在線")
+			default:
+				switch i18n.Cardinal("zh-Hant", float64(count)) {
+				default:
+					b.WriteString("在線 · 正在處理 ")
+					b.WriteString(i18n.FormatNumber("zh-Hant", float64(count)))
+					b.WriteString(" 部影片")
+				}
+			}
+			return b.String()
+		}
+	}
+}
+
+// ComputerStorage says "Storage Status"
+// in the language the app shows under cx.
+//
+// Row on the Processing Computer page: whether the user's storage serves the phone.
+func ComputerStorage(cx *core.Scope) string { return For(cx).ComputerStorage() }
+
+// ComputerStorage is the package's ComputerStorage in the language of msgs.
+func (msgs Messages) ComputerStorage() string { return msgs.text(textComputerStorage) }
+
+// ComputerStorageFull says "Full"
+// in the language the app shows under cx.
+//
+// Value of Storage Status: the storage takes nothing more.
+func ComputerStorageFull(cx *core.Scope) string { return For(cx).ComputerStorageFull() }
+
+// ComputerStorageFull is the package's ComputerStorageFull in the language of msgs.
+func (msgs Messages) ComputerStorageFull() string { return msgs.text(textComputerStorageFull) }
+
+// ComputerStorageKeys says "Key No Longer Valid"
+// in the language the app shows under cx.
+//
+// Value of Storage Status: the storage refused the phone's links, as its key changed or they lapsed.
+func ComputerStorageKeys(cx *core.Scope) string { return For(cx).ComputerStorageKeys() }
+
+// ComputerStorageKeys is the package's ComputerStorageKeys in the language of msgs.
+func (msgs Messages) ComputerStorageKeys() string { return msgs.text(textComputerStorageKeys) }
+
+// ComputerStorageNote says "Videos and subtitles processed on the computer are uploaded to your own storage, and the phone reads them from there when it's away from the computer's network."
+// in the language the app shows under cx.
+//
+// Note under the Sync group on the Processing Computer page.
+func ComputerStorageNote(cx *core.Scope) string { return For(cx).ComputerStorageNote() }
+
+// ComputerStorageNote is the package's ComputerStorageNote in the language of msgs.
+func (msgs Messages) ComputerStorageNote() string { return msgs.text(textComputerStorageNote) }
+
+// ComputerStorageOK says "OK"
+// in the language the app shows under cx.
+//
+// Value of Storage Status: the storage serves the phone.
+func ComputerStorageOK(cx *core.Scope) string { return For(cx).ComputerStorageOK() }
+
+// ComputerStorageOK is the package's ComputerStorageOK in the language of msgs.
+func (msgs Messages) ComputerStorageOK() string { return msgs.text(textComputerStorageOK) }
+
+// ComputerStorageUnreachable says "Can't Connect"
+// in the language the app shows under cx.
+//
+// Value of Storage Status: the phone could not connect to the storage, or it failed.
+func ComputerStorageUnreachable(cx *core.Scope) string { return For(cx).ComputerStorageUnreachable() }
+
+// ComputerStorageUnreachable is the package's ComputerStorageUnreachable in the language of msgs.
+func (msgs Messages) ComputerStorageUnreachable() string {
+	return msgs.text(textComputerStorageUnreachable)
+}
+
+// ComputerSynced says "Synced"
+// in the language the app shows under cx.
+//
+// Row on the Processing Computer page: how many films the computer lists.
+func ComputerSynced(cx *core.Scope) string { return For(cx).ComputerSynced() }
+
+// ComputerSynced is the package's ComputerSynced in the language of msgs.
+func (msgs Messages) ComputerSynced() string { return msgs.text(textComputerSynced) }
+
+// ComputerSyncedCount says "{count, plural, one {# film} other {# films}}"
+// in the language the app shows under cx.
+//
+// Value of the Synced row.
+func ComputerSyncedCount(cx *core.Scope, count int) string { return For(cx).ComputerSyncedCount(count) }
+
+// ComputerSyncedCount is the package's ComputerSyncedCount in the language of msgs.
+func (msgs Messages) ComputerSyncedCount(count int) string {
+	if i18n.IsPseudo(msgs.lang) {
+		return i18n.Pseudo(msgs.lang, Messages{lang: Source, mark: true}.ComputerSyncedCount(count))
+	}
+	for lang := msgs.lang; ; lang = i18n.Parent(lang) {
+		if f := supplied[lang].ComputerSyncedCount; f != nil {
+			return f(count)
+		}
+		switch lang {
+		case "", "en":
+			var b strings.Builder
+			switch i18n.Cardinal("en", float64(count)) {
+			case i18n.One:
+				b.WriteString(msgs.arg(i18n.FormatNumber("en", float64(count))))
+				b.WriteString(" film")
+			default:
+				b.WriteString(msgs.arg(i18n.FormatNumber("en", float64(count))))
+				b.WriteString(" films")
+			}
+			return b.String()
+		case "ja":
+			var b strings.Builder
+			switch i18n.Cardinal("ja", float64(count)) {
+			default:
+				b.WriteString(i18n.FormatNumber("ja", float64(count)))
+				b.WriteString(" 本")
+			}
+			return b.String()
+		case "ko":
+			var b strings.Builder
+			switch i18n.Cardinal("ko", float64(count)) {
+			default:
+				b.WriteString("영화 ")
+				b.WriteString(i18n.FormatNumber("ko", float64(count)))
+				b.WriteString("편")
+			}
+			return b.String()
+		case "zh-Hans":
+			var b strings.Builder
+			switch i18n.Cardinal("zh-Hans", float64(count)) {
+			default:
+				b.WriteString(i18n.FormatNumber("zh-Hans", float64(count)))
+				b.WriteString(" 部影片")
+			}
+			return b.String()
+		case "zh-Hant":
+			var b strings.Builder
+			switch i18n.Cardinal("zh-Hant", float64(count)) {
+			default:
+				b.WriteString(i18n.FormatNumber("zh-Hant", float64(count)))
+				b.WriteString(" 部影片")
+			}
+			return b.String()
+		}
+	}
+}
+
 // ComputerTooOld says "Update Kando on this computer to see and change its translation settings here."
 // in the language the app shows under cx.
 //
@@ -7667,15 +8376,6 @@ func ComputerTooOld(cx *core.Scope) string { return For(cx).ComputerTooOld() }
 
 // ComputerTooOld is the package's ComputerTooOld in the language of msgs.
 func (msgs Messages) ComputerTooOld() string { return msgs.text(textComputerTooOld) }
-
-// ComputerTranslation says "Translation"
-// in the language the app shows under cx.
-//
-// Heading of a computer's page in Settings over its translation settings.
-func ComputerTranslation(cx *core.Scope) string { return For(cx).ComputerTranslation() }
-
-// ComputerTranslation is the package's ComputerTranslation in the language of msgs.
-func (msgs Messages) ComputerTranslation() string { return msgs.text(textComputerTranslation) }
 
 // ComputerUnknown says "Shown once this device reaches the computer."
 // in the language the app shows under cx.
@@ -15813,6 +16513,33 @@ func (msgs Messages) SettingsAppearanceSystem() string {
 	return msgs.text(textSettingsAppearanceSystem)
 }
 
+// SettingsComputer says "Processing Computer"
+// in the language the app shows under cx.
+//
+// Row in Settings, and the title of its page: the computer that downloads, transcribes and translates the links this device sends.
+func SettingsComputer(cx *core.Scope) string { return For(cx).SettingsComputer() }
+
+// SettingsComputer is the package's SettingsComputer in the language of msgs.
+func (msgs Messages) SettingsComputer() string { return msgs.text(textSettingsComputer) }
+
+// SettingsComputerOffline says "Offline · links wait on this device until it's back"
+// in the language the app shows under cx.
+//
+// Under Processing Computer in Settings while it can't be reached.
+func SettingsComputerOffline(cx *core.Scope) string { return For(cx).SettingsComputerOffline() }
+
+// SettingsComputerOffline is the package's SettingsComputerOffline in the language of msgs.
+func (msgs Messages) SettingsComputerOffline() string { return msgs.text(textSettingsComputerOffline) }
+
+// SettingsComputerOnline says "Online · downloads, transcription and translation happen here"
+// in the language the app shows under cx.
+//
+// Under Processing Computer in Settings while it answers.
+func SettingsComputerOnline(cx *core.Scope) string { return For(cx).SettingsComputerOnline() }
+
+// SettingsComputerOnline is the package's SettingsComputerOnline in the language of msgs.
+func (msgs Messages) SettingsComputerOnline() string { return msgs.text(textSettingsComputerOnline) }
+
 // SettingsComputers says "Computers"
 // in the language the app shows under cx.
 //
@@ -16266,6 +16993,38 @@ func SettingsConflictsNote(cx *core.Scope) string { return For(cx).SettingsConfl
 // SettingsConflictsNote is the package's SettingsConflictsNote in the language of msgs.
 func (msgs Messages) SettingsConflictsNote() string { return msgs.text(textSettingsConflictsNote) }
 
+// SettingsFooter says "{app} {version} · FSL-1.1 License"
+// in the language the app shows under cx.
+//
+// Centered under the last group of Settings: the app's name, its version and its license.
+func SettingsFooter(cx *core.Scope, app string, version string) string {
+	return For(cx).SettingsFooter(app, version)
+}
+
+// SettingsFooter is the package's SettingsFooter in the language of msgs.
+func (msgs Messages) SettingsFooter(app string, version string) string {
+	if i18n.IsPseudo(msgs.lang) {
+		return i18n.Pseudo(msgs.lang, Messages{lang: Source, mark: true}.SettingsFooter(app, version))
+	}
+	for lang := msgs.lang; ; lang = i18n.Parent(lang) {
+		if f := supplied[lang].SettingsFooter; f != nil {
+			return f(app, version)
+		}
+		switch lang {
+		case "", "en":
+			return msgs.arg(app) + " " + msgs.arg(version) + " · FSL-1.1 License"
+		case "ja":
+			return app + " " + version + " · FSL-1.1 ライセンス"
+		case "ko":
+			return app + " " + version + " · FSL-1.1 라이선스"
+		case "zh-Hans":
+			return app + " " + version + " · FSL-1.1 许可"
+		case "zh-Hant":
+			return app + " " + version + " · FSL-1.1 授權"
+		}
+	}
+}
+
 // SettingsGoal says "Daily Goal"
 // in the language the app shows under cx.
 //
@@ -16314,6 +17073,24 @@ func SettingsIntroduction(cx *core.Scope) string { return For(cx).SettingsIntrod
 // SettingsIntroduction is the package's SettingsIntroduction in the language of msgs.
 func (msgs Messages) SettingsIntroduction() string { return msgs.text(textSettingsIntroduction) }
 
+// SettingsLanguage says "Language"
+// in the language the app shows under cx.
+//
+// Row in Settings, and the title of its page, that picks the language of the app's interface.
+func SettingsLanguage(cx *core.Scope) string { return For(cx).SettingsLanguage() }
+
+// SettingsLanguage is the package's SettingsLanguage in the language of msgs.
+func (msgs Messages) SettingsLanguage() string { return msgs.text(textSettingsLanguage) }
+
+// SettingsLanguageSystem says "Automatic"
+// in the language the app shows under cx.
+//
+// Value of the Language row, and the first choice on its page: the app follows the system's language.
+func SettingsLanguageSystem(cx *core.Scope) string { return For(cx).SettingsLanguageSystem() }
+
+// SettingsLanguageSystem is the package's SettingsLanguageSystem in the language of msgs.
+func (msgs Messages) SettingsLanguageSystem() string { return msgs.text(textSettingsLanguageSystem) }
+
 // SettingsNoComputer says "Not connected"
 // in the language the app shows under cx.
 //
@@ -16322,6 +17099,107 @@ func SettingsNoComputer(cx *core.Scope) string { return For(cx).SettingsNoComput
 
 // SettingsNoComputer is the package's SettingsNoComputer in the language of msgs.
 func (msgs Messages) SettingsNoComputer() string { return msgs.text(textSettingsNoComputer) }
+
+// SettingsOffline says "Offline Films"
+// in the language the app shows under cx.
+//
+// Row in Settings, and the title of its page, listing the films saved on this device.
+func SettingsOffline(cx *core.Scope) string { return For(cx).SettingsOffline() }
+
+// SettingsOffline is the package's SettingsOffline in the language of msgs.
+func (msgs Messages) SettingsOffline() string { return msgs.text(textSettingsOffline) }
+
+// SettingsOfflineCount says "{count, plural, one {# film} other {# films}}"
+// in the language the app shows under cx.
+//
+// Beside Offline Films in Settings: how many films are saved on this device.
+func SettingsOfflineCount(cx *core.Scope, count int) string {
+	return For(cx).SettingsOfflineCount(count)
+}
+
+// SettingsOfflineCount is the package's SettingsOfflineCount in the language of msgs.
+func (msgs Messages) SettingsOfflineCount(count int) string {
+	if i18n.IsPseudo(msgs.lang) {
+		return i18n.Pseudo(msgs.lang, Messages{lang: Source, mark: true}.SettingsOfflineCount(count))
+	}
+	for lang := msgs.lang; ; lang = i18n.Parent(lang) {
+		if f := supplied[lang].SettingsOfflineCount; f != nil {
+			return f(count)
+		}
+		switch lang {
+		case "", "en":
+			var b strings.Builder
+			switch i18n.Cardinal("en", float64(count)) {
+			case i18n.One:
+				b.WriteString(msgs.arg(i18n.FormatNumber("en", float64(count))))
+				b.WriteString(" film")
+			default:
+				b.WriteString(msgs.arg(i18n.FormatNumber("en", float64(count))))
+				b.WriteString(" films")
+			}
+			return b.String()
+		case "ja":
+			var b strings.Builder
+			switch i18n.Cardinal("ja", float64(count)) {
+			default:
+				b.WriteString(i18n.FormatNumber("ja", float64(count)))
+				b.WriteString(" 本")
+			}
+			return b.String()
+		case "ko":
+			var b strings.Builder
+			switch i18n.Cardinal("ko", float64(count)) {
+			default:
+				b.WriteString(i18n.FormatNumber("ko", float64(count)))
+				b.WriteString("편")
+			}
+			return b.String()
+		case "zh-Hans":
+			var b strings.Builder
+			switch i18n.Cardinal("zh-Hans", float64(count)) {
+			default:
+				b.WriteString(i18n.FormatNumber("zh-Hans", float64(count)))
+				b.WriteString(" 部")
+			}
+			return b.String()
+		case "zh-Hant":
+			var b strings.Builder
+			switch i18n.Cardinal("zh-Hant", float64(count)) {
+			default:
+				b.WriteString(i18n.FormatNumber("zh-Hant", float64(count)))
+				b.WriteString(" 部")
+			}
+			return b.String()
+		}
+	}
+}
+
+// SettingsOfflineEmpty says "No films saved on this device yet."
+// in the language the app shows under cx.
+//
+// The Offline Films page when no film is saved on this device.
+func SettingsOfflineEmpty(cx *core.Scope) string { return For(cx).SettingsOfflineEmpty() }
+
+// SettingsOfflineEmpty is the package's SettingsOfflineEmpty in the language of msgs.
+func (msgs Messages) SettingsOfflineEmpty() string { return msgs.text(textSettingsOfflineEmpty) }
+
+// SettingsOfflineSaved says "Saved on This Device"
+// in the language the app shows under cx.
+//
+// Heading on the Offline Films page over the films saved on this device.
+func SettingsOfflineSaved(cx *core.Scope) string { return For(cx).SettingsOfflineSaved() }
+
+// SettingsOfflineSaved is the package's SettingsOfflineSaved in the language of msgs.
+func (msgs Messages) SettingsOfflineSaved() string { return msgs.text(textSettingsOfflineSaved) }
+
+// SettingsOfflineUse says "Offline Films Use"
+// in the language the app shows under cx.
+//
+// On the Offline Films page, beside how much space the saved films take.
+func SettingsOfflineUse(cx *core.Scope) string { return For(cx).SettingsOfflineUse() }
+
+// SettingsOfflineUse is the package's SettingsOfflineUse in the language of msgs.
+func (msgs Messages) SettingsOfflineUse() string { return msgs.text(textSettingsOfflineUse) }
 
 // SettingsPair says "Connect a Computer"
 // in the language the app shows under cx.
@@ -16340,6 +17218,70 @@ func SettingsPairAnother(cx *core.Scope) string { return For(cx).SettingsPairAno
 
 // SettingsPairAnother is the package's SettingsPairAnother in the language of msgs.
 func (msgs Messages) SettingsPairAnother() string { return msgs.text(textSettingsPairAnother) }
+
+// SettingsProfileDetail says "Processed by {name} · subtitles translated into {target}"
+// in the language the app shows under cx.
+//
+// Under the app's name at the top of Settings: the computer that processes links and the language subtitles are translated into.
+func SettingsProfileDetail(cx *core.Scope, name string, target string) string {
+	return For(cx).SettingsProfileDetail(name, target)
+}
+
+// SettingsProfileDetail is the package's SettingsProfileDetail in the language of msgs.
+func (msgs Messages) SettingsProfileDetail(name string, target string) string {
+	if i18n.IsPseudo(msgs.lang) {
+		return i18n.Pseudo(msgs.lang, Messages{lang: Source, mark: true}.SettingsProfileDetail(name, target))
+	}
+	for lang := msgs.lang; ; lang = i18n.Parent(lang) {
+		if f := supplied[lang].SettingsProfileDetail; f != nil {
+			return f(name, target)
+		}
+		switch lang {
+		case "", "en":
+			return "Processed by " + msgs.arg(name) + " · subtitles translated into " + msgs.arg(target)
+		case "ja":
+			return name + " で処理 · 字幕は" + target + "に翻訳"
+		case "ko":
+			return name + "에서 처리 · 자막은 " + target + "(으)로 번역"
+		case "zh-Hans":
+			return "由 " + name + " 处理 · 字幕翻译成" + target
+		case "zh-Hant":
+			return "由 " + name + " 處理 · 字幕翻譯成" + target
+		}
+	}
+}
+
+// SettingsProfileUnpaired says "No computer connected · subtitles translated into {target}"
+// in the language the app shows under cx.
+//
+// Under the app's name at the top of Settings while no computer is paired.
+func SettingsProfileUnpaired(cx *core.Scope, target string) string {
+	return For(cx).SettingsProfileUnpaired(target)
+}
+
+// SettingsProfileUnpaired is the package's SettingsProfileUnpaired in the language of msgs.
+func (msgs Messages) SettingsProfileUnpaired(target string) string {
+	if i18n.IsPseudo(msgs.lang) {
+		return i18n.Pseudo(msgs.lang, Messages{lang: Source, mark: true}.SettingsProfileUnpaired(target))
+	}
+	for lang := msgs.lang; ; lang = i18n.Parent(lang) {
+		if f := supplied[lang].SettingsProfileUnpaired; f != nil {
+			return f(target)
+		}
+		switch lang {
+		case "", "en":
+			return "No computer connected · subtitles translated into " + msgs.arg(target)
+		case "ja":
+			return "コンピュータ未接続 · 字幕は" + target + "に翻訳"
+		case "ko":
+			return "연결된 컴퓨터 없음 · 자막은 " + target + "(으)로 번역"
+		case "zh-Hans":
+			return "还没连接电脑 · 字幕翻译成" + target
+		case "zh-Hant":
+			return "還沒連接電腦 · 字幕翻譯成" + target
+		}
+	}
+}
 
 // SettingsRemind says "Review Reminder"
 // in the language the app shows under cx.
@@ -16478,6 +17420,15 @@ func SettingsTitle(cx *core.Scope) string { return For(cx).SettingsTitle() }
 
 // SettingsTitle is the package's SettingsTitle in the language of msgs.
 func (msgs Messages) SettingsTitle() string { return msgs.text(textSettingsTitle) }
+
+// SettingsVersion says "Version"
+// in the language the app shows under cx.
+//
+// Row in Settings' About group: the app's version.
+func SettingsVersion(cx *core.Scope) string { return For(cx).SettingsVersion() }
+
+// SettingsVersion is the package's SettingsVersion in the language of msgs.
+func (msgs Messages) SettingsVersion() string { return msgs.text(textSettingsVersion) }
 
 // SettingsWidgets says "Widgets"
 // in the language the app shows under cx.
@@ -16753,6 +17704,42 @@ func StyleSize(cx *core.Scope) string { return For(cx).StyleSize() }
 
 // StyleSize is the package's StyleSize in the language of msgs.
 func (msgs Messages) StyleSize() string { return msgs.text(textStyleSize) }
+
+// StyleSizeShortHuge says "XL"
+// in the language the app shows under cx.
+//
+// Short name of the extra-large subtitle size, on the Subtitle Style page's segmented control.
+func StyleSizeShortHuge(cx *core.Scope) string { return For(cx).StyleSizeShortHuge() }
+
+// StyleSizeShortHuge is the package's StyleSizeShortHuge in the language of msgs.
+func (msgs Messages) StyleSizeShortHuge() string { return msgs.text(textStyleSizeShortHuge) }
+
+// StyleSizeShortLarge says "L"
+// in the language the app shows under cx.
+//
+// Short name of the large subtitle size, on the Subtitle Style page's segmented control.
+func StyleSizeShortLarge(cx *core.Scope) string { return For(cx).StyleSizeShortLarge() }
+
+// StyleSizeShortLarge is the package's StyleSizeShortLarge in the language of msgs.
+func (msgs Messages) StyleSizeShortLarge() string { return msgs.text(textStyleSizeShortLarge) }
+
+// StyleSizeShortMedium says "M"
+// in the language the app shows under cx.
+//
+// Short name of the medium subtitle size, on the Subtitle Style page's segmented control.
+func StyleSizeShortMedium(cx *core.Scope) string { return For(cx).StyleSizeShortMedium() }
+
+// StyleSizeShortMedium is the package's StyleSizeShortMedium in the language of msgs.
+func (msgs Messages) StyleSizeShortMedium() string { return msgs.text(textStyleSizeShortMedium) }
+
+// StyleSizeShortSmall says "S"
+// in the language the app shows under cx.
+//
+// Short name of the small subtitle size, on the Subtitle Style page's segmented control.
+func StyleSizeShortSmall(cx *core.Scope) string { return For(cx).StyleSizeShortSmall() }
+
+// StyleSizeShortSmall is the package's StyleSizeShortSmall in the language of msgs.
+func (msgs Messages) StyleSizeShortSmall() string { return msgs.text(textStyleSizeShortSmall) }
 
 // StyleSmall says "Small"
 // in the language the app shows under cx.

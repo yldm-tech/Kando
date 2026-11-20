@@ -29,7 +29,7 @@ func TestTheTabsKeepTheirPagesAndGoBackWhenPressedAgain(t *testing.T) {
 	}
 
 	p.openTab(settingsTab, msgs.SettingsTitle())
-	p.app.WaitFor("id:settings-computer-"+store.DesktopID(d.Fingerprint), wait)
+	p.app.WaitFor("id:settings-computer", wait)
 	p.openTab(learnTab, msgs.LearnTitle())
 	p.app.WaitFor("id:learn-empty", wait)
 	p.openTab(filmsTab, msgs.FilmsTitle())
@@ -57,11 +57,11 @@ func TestPairingFromTheLibraryAndSettings(t *testing.T) {
 	if !p.app.Exists(talkRow("gonedesk")) {
 		t.Fatal("pairing hid the films on the phone")
 	}
-	p.openTab(settingsTab, msgs.SettingsTitle())
-	if got := p.texts("id:settings-pair"); got != msgs.SettingsPairAnother() {
-		t.Fatalf("the row that pairs says %q with a computer paired, want %q", got, msgs.SettingsPairAnother())
+	p.openComputers()
+	if got := p.texts("id:computer-pair"); got != msgs.SettingsPairAnother() {
+		t.Fatalf("the button that pairs says %q with a computer paired, want %q", got, msgs.SettingsPairAnother())
 	}
-	p.app.Press("id:settings-pair")
+	p.app.Press("id:computer-pair")
 	p.app.WaitFor("id:pair-page", wait)
 }
 
@@ -73,7 +73,7 @@ func TestUnpairingInSettingsKeepsTheDownloads(t *testing.T) {
 	keepTalkFrom(t, dir, store.DesktopID(d.Fingerprint))
 	p := startPhone(t, dir, secrets)
 	p.app.WaitFor(talkRow(store.DesktopID(d.Fingerprint)), wait)
-	p.openTab(settingsTab, msgs.SettingsTitle())
+	p.openComputers()
 	id := store.DesktopID(d.Fingerprint)
 	p.app.Press("id:settings-computer-options-" + id)
 	if alerts := p.app.Alerts(); len(alerts) == 0 || !alerts[len(alerts)-1].Sheet {
@@ -81,6 +81,7 @@ func TestUnpairingInSettingsKeepsTheDownloads(t *testing.T) {
 	}
 	p.app.Answer(1)
 	p.app.WaitForGone("id:settings-computer-"+id, wait)
+	p.app.WaitForGone("id:computer-page", wait)
 	if got := p.texts("id:settings-pair"); got != msgs.SettingsPair() {
 		t.Fatalf("the row that pairs says %q with nothing paired, want %q", got, msgs.SettingsPair())
 	}
@@ -117,7 +118,7 @@ func TestUnpairingInSettingsClosesTheComputersFilms(t *testing.T) {
 	p.app.WaitFor(talkRow(id), wait)
 	p.app.Press(talkRow(id))
 	p.app.WaitFor("id:film-download", wait)
-	p.openTab(settingsTab, msgs.SettingsTitle())
+	p.openComputers()
 	p.app.Press("id:settings-computer-options-" + id)
 	p.app.Answer(1)
 	p.app.WaitForGone("id:settings-computer-"+id, wait)
@@ -257,8 +258,8 @@ func TestTheIOSHeaders(t *testing.T) {
 	p.app.WaitFor("id:film-download", wait)
 	p.app.HeaderBack("id:film-page")
 	p.app.WaitForGone("id:film-page", wait)
-	p.openTab(settingsTab, msgs.SettingsTitle())
-	p.app.Press("id:settings-pair")
+	p.openComputers()
+	p.app.Press("id:computer-pair")
 	p.app.WaitFor("id:pair-page", wait)
 }
 
@@ -334,6 +335,8 @@ func TestATabletShowsASidebarOnItsSideAndATabBarUpright(t *testing.T) {
 	p.app.WaitFor("id:settings-target-page", wait)
 	p.app.Press("id:sidebar-tab-settings")
 	p.app.WaitFor("id:settings-page", wait)
+	p.app.Press("id:settings-computer")
+	p.app.WaitFor("id:computer-page", wait)
 	p.app.Press("id:settings-computer-options-" + store.DesktopID(d.Fingerprint))
 	if alerts := p.app.Alerts(); len(alerts) == 0 || alerts[len(alerts)-1].Sheet {
 		t.Fatal("a tablet asks to unpair in an action sheet, not a dialog")
@@ -353,7 +356,7 @@ func TestUnpairingInSettingsKeepsThePageOfAFilmOnThePhone(t *testing.T) {
 	p.app.WaitFor("id:film-download", wait)
 	p.app.Press("id:film-download")
 	p.app.WaitFor("id:film-play", wait)
-	p.openTab(settingsTab, msgs.SettingsTitle())
+	p.openComputers()
 	p.app.Press("id:settings-computer-options-" + id)
 	p.app.Answer(1)
 	p.app.WaitForGone("id:settings-computer-"+id, wait)

@@ -7,6 +7,7 @@ import (
 	"kando/apps/mobile/locales"
 	"kando/apps/mobile/look"
 	"kando/apps/mobile/session"
+	"kando/apps/mobile/theme"
 	"kando/apps/mobile/widgets"
 	kcore "kando/packages/core"
 
@@ -19,7 +20,7 @@ import (
 // widgetSize is the side of a small widget on an iPhone, and widgetWide the width of a medium one.
 const (
 	widgetSize = 158
-	widgetWide = 2*widgetSize + 16
+	widgetWide = 322
 )
 
 // flame is the color of the streak's flame, as the widget draws it.
@@ -44,10 +45,12 @@ func WidgetsPage(cx *core.Scope, s *session.Session, back func()) base.NavPage {
 	return ui.NavPage(cx, base.NavPage{TitleFunc: func() string { return locales.SettingsWidgets(cx) }, TestID: "settings-widgets-page", Children: []core.Node{
 		core.Scroll{Ref: ref, Style: core.Style{FlexGrow: 1, FlexShrink: 1}, Children: []core.Node{
 			core.View{StyleFunc: look.Column(cx), Children: []core.Node{
-				core.View{Style: core.Style{Gap: 20}, Children: []core.Node{
+				core.View{Style: core.Style{Gap: 16}, Children: []core.Node{
 					core.Text{TestID: "settings-widgets-how", ContentFunc: func() string { return locales.SettingsWidgetsHow(cx, locales.AppName(cx)) },
-						Style: look.Subhead.Merge(core.Style{Padding: core.Edges{Right: 4, Left: 4}}), StyleFunc: ui.Colored(colors.Muted)},
-					core.View{Style: core.Style{Direction: core.Row, Wrap: core.Wrap, Gap: 16, MaxWidth: core.Pt(widgetWide)}, Children: []core.Node{
+						Style: look.Caption.Merge(core.Style{Padding: core.Edges{Right: 16, Left: 16}}), StyleFunc: ui.Colored(colors.Muted)},
+					// The widgets sit on a picture of a Home Screen's wallpaper, as they show on one.
+					core.View{TestID: "settings-widgets-wallpaper", Style: core.Style{AlignItems: core.AlignCenter, Gap: 16, Padding: core.Symmetric(22, 18), CornerRadius: 22, BorderCurve: core.BorderCurveContinuous,
+						Gradients: []core.Gradient{core.LinearGradient(160, theme.WallpaperTop, theme.WallpaperMiddle, theme.WallpaperBottom)}}, Children: []core.Node{
 						streakPreview(cx, w),
 						filmPreview(cx, w),
 						widePreview(cx, w),
@@ -65,7 +68,7 @@ func tile(cx *core.Scope, id string, width core.Points, label func() string, chi
 	return core.View{TestID: id, Role: core.RoleImage, LabelFunc: label,
 		Style: core.Style{Width: core.Pt(width), Height: core.Pt(widgetSize), CornerRadius: 22, BorderCurve: core.BorderCurveContinuous, Overflow: core.Hidden, Padding: core.All(14)},
 		StyleFunc: func() core.Style {
-			return core.Style{Background: colors.Surface(), BorderWidth: 0.5, BorderColor: colors.Line()}
+			return core.Style{Background: colors.Surface(), Shadows: []core.BoxShadow{{Offset: core.Point{Y: 8}, Blur: 22, Color: core.RGBA(0x000000, 0.18)}}}
 		},
 		Children: children}
 }
@@ -91,11 +94,11 @@ func streakPreview(cx *core.Scope, w func() widgets.Shown) core.Node {
 	return tile(cx, "settings-widget-streak", widgetSize, label,
 		core.View{Style: core.Style{Direction: core.Row, AlignItems: core.AlignCenter, Gap: 4}, Children: []core.Node{
 			ui.IconOf(lucide.Flame, 14, func() core.Color { return flame }),
-			core.Text{ContentFunc: func() string { return locales.WidgetStreak(cx) }, MaxLines: 1, Style: look.Caption.Merge(core.Style{FontWeight: core.FontWeightBold}), StyleFunc: ui.Colored(colors.Muted)},
+			core.Text{ContentFunc: func() string { return locales.WidgetStreak(cx) }, MaxLines: 1, Style: core.Style{FontSize: 12, LineHeight: 16, FontWeight: core.FontWeightBold, Color: theme.Streak}},
 		}},
 		core.View{Style: core.Style{Direction: core.Row, AlignItems: core.AlignEnd, Gap: 3}, Children: []core.Node{
 			core.Text{TestID: "settings-widget-streak-days", ContentFunc: func() string { return strconv.Itoa(today().Streak) }, MaxLines: 1,
-				Style: core.Style{FontSize: 40, LineHeight: 44, FontWeight: core.FontWeightBold, FontVariant: core.FontTabularNums}, StyleFunc: ui.Colored(colors.Text)},
+				Style: core.Style{FontSize: 40, LineHeight: 44, FontWeight: 900, FontVariant: core.FontTabularNums}, StyleFunc: ui.Colored(colors.Text)},
 			core.Text{ContentFunc: func() string { return locales.WidgetDays(cx, today().Streak) }, MaxLines: 1,
 				Style: core.Style{FontSize: 15, LineHeight: 20, FontWeight: core.FontWeightBold, Padding: core.Edges{Bottom: 6}}, StyleFunc: ui.Colored(colors.Text)},
 		}},
@@ -125,13 +128,15 @@ func filmPreview(cx *core.Scope, w func() widgets.Shown) core.Node {
 	white := core.RGB(0xFFFFFF)
 	return tile(cx, "settings-widget-film", widgetSize, label, core.Show{When: has,
 		Then: func(cx *core.Scope) core.Node {
-			return core.View{Style: core.Style{Position: core.Absolute, Left: core.Pt(0), Top: core.Pt(0), Right: core.Pt(0), Bottom: core.Pt(0), JustifyContent: core.JustifyEnd, Padding: core.All(10)},
+			return core.View{Style: core.Style{Position: core.Absolute, Left: core.Pt(0), Top: core.Pt(0), Right: core.Pt(0), Bottom: core.Pt(0), JustifyContent: core.JustifyEnd},
 				StyleFunc: func() core.Style { return core.Style{Background: colors.Inset()} },
 				Children: []core.Node{
 					core.Image{SourceFunc: func() core.ImageSource { return posterSource(w()) }, ResizeMode: core.Cover, ElementsHidden: true,
 						Style: core.Style{Position: core.Absolute, Left: core.Pt(0), Top: core.Pt(0), Right: core.Pt(0), Bottom: core.Pt(0)}},
-					core.View{Style: core.Style{Gap: 4, Padding: core.All(8), CornerRadius: 10, Background: core.RGBA(0x000000, 0.55)}, Children: []core.Node{
-						core.Text{ContentFunc: func() string { return locales.WidgetContinue(cx) }, MaxLines: 1, Style: core.Style{FontSize: 11, LineHeight: 14, FontWeight: core.FontWeightBold, Color: white}},
+					// A scrim darkens the poster's foot, where the line is written, as the widget's does.
+					core.View{Style: core.Style{Gap: 4, Padding: core.Edges{Top: 40, Right: 14, Bottom: 14, Left: 14},
+						Gradients: []core.Gradient{core.LinearGradient(180, core.RGBA(0x000000, 0), core.RGBA(0x000000, 0.45), core.RGBA(0x000000, 0.75))}}, Children: []core.Node{
+						core.Text{ContentFunc: func() string { return locales.WidgetContinue(cx) }, MaxLines: 1, Style: core.Style{FontSize: 11, LineHeight: 14, FontWeight: core.FontWeightBold, Color: white.Faded(0.85)}},
 						core.Text{TestID: "settings-widget-film-text", ContentFunc: text, MaxLines: 2, Style: core.Style{FontSize: 13, LineHeight: 17, FontWeight: core.FontWeightBold, Color: white}},
 						progress(func() float32 { return float32(w().Film.Percent()) / 100 }, white),
 					}},
@@ -164,7 +169,8 @@ func widePreview(cx *core.Scope, w func() widgets.Shown) core.Node {
 						Style: core.Style{FontSize: 11, LineHeight: 14, FontWeight: core.FontWeightBold}, StyleFunc: ui.Colored(colors.Accent)},
 					core.Text{ContentFunc: func() string { return w().Film.Title }, MaxLines: 2, Style: core.Style{FontSize: 14, LineHeight: 18, FontWeight: core.FontWeightBold}, StyleFunc: ui.Colored(colors.Text)},
 					core.Show{When: func() bool { return w().Line != "" }, Then: func(cx *core.Scope) core.Node {
-						return core.Text{ContentFunc: func() string { return w().Line }, MaxLines: 2, Style: core.Style{FontSize: 12, LineHeight: 16, Padding: core.Edges{Top: 4}}, StyleFunc: ui.Colored(colors.Muted)}
+						return core.Text{ContentFunc: func() string { return w().Line }, MaxLines: 2, Style: core.Style{FontSize: 12, LineHeight: 16, Padding: core.Edges{Top: 4}},
+							StyleFunc: func() core.Style { return core.Style{Color: ui.Alpha(colors.Text(), 0.8)} }}
 					}},
 					core.View{Style: core.Style{FlexGrow: 1}},
 					core.Text{TestID: "settings-widget-wide-foot", ContentFunc: func() string { return locales.WidgetFoot(cx, w().Days[0].Due, w().Days[0].Streak) }, MaxLines: 1,
@@ -174,21 +180,20 @@ func widePreview(cx *core.Scope, w func() widgets.Shown) core.Node {
 	}}
 }
 
-// lockPreview is the Lock Screen's ring, how many words and lines are due, on the accent as a Lock Screen's picture shows behind it.
+// lockPreview is the Lock Screen's ring, how many words and lines are due, frosted over the wallpaper as a Lock Screen shows it.
 func lockPreview(cx *core.Scope, w func() widgets.Shown) core.Node {
-	colors := ui.ColorsOf(cx)
 	white := core.RGB(0xFFFFFF)
 	due := func() string { return strconv.Itoa(w().Days[0].Due) }
-	return core.View{TestID: "settings-widget-lock", Style: core.Style{Width: core.Pt(widgetWide), Direction: core.Row, AlignItems: core.AlignCenter, Gap: 14, Padding: core.All(14), CornerRadius: 22, BorderCurve: core.BorderCurveContinuous},
-		StyleFunc: ui.Filled(colors.Accent),
+	return core.View{TestID: "settings-widget-lock", Style: core.Style{Direction: core.Row, AlignItems: core.AlignCenter, JustifyContent: core.JustifyCenter, Gap: 28},
 		Children: []core.Node{
 			core.View{Role: core.RoleImage, LabelFunc: func() string { return locales.WidgetDue(cx, w().Days[0].Due) },
-				Style: core.Style{Width: core.Pt(72), Height: core.Pt(72), CornerRadius: 36, AlignItems: core.AlignCenter, JustifyContent: core.JustifyCenter, Background: core.RGBA(0xFFFFFF, 0.3)},
+				Style: core.Style{Width: core.Pt(72), Height: core.Pt(72), CornerRadius: 36, AlignItems: core.AlignCenter, JustifyContent: core.JustifyCenter, Background: core.RGBA(0xFFFFFF, 0.35),
+					BackdropFilters: []core.Filter{core.Blur(10)}},
 				Children: []core.Node{
 					core.Text{TestID: "settings-widget-lock-due", ContentFunc: due, MaxLines: 1, Style: core.Style{FontSize: 24, LineHeight: 26, FontWeight: core.FontWeightBold, Color: white, FontVariant: core.FontTabularNums}},
 					core.Text{ContentFunc: func() string { return locales.WidgetDueShort(cx) }, MaxLines: 1, Style: core.Style{FontSize: 10, LineHeight: 12, FontWeight: core.FontWeightBold, Color: white}},
 				}},
-			core.Text{ContentFunc: func() string { return locales.SettingsWidgetsLockScreen(cx) }, MaxLines: 1, Style: core.Style{FontSize: 13, LineHeight: 18, FontWeight: core.FontWeightSemibold, Color: white}},
+			core.Text{ContentFunc: func() string { return locales.SettingsWidgetsLockScreen(cx) }, MaxLines: 1, Style: core.Style{FontSize: 12, LineHeight: 16, FontWeight: core.FontWeightSemibold, Color: white}},
 		}}
 }
 

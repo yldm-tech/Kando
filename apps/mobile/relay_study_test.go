@@ -100,8 +100,6 @@ func TestAwayFromTheComputerConflictsAndItsSettingsGoThroughItsStorage(t *testin
 	}
 	p.app.HeaderBack("id:conflicts-page")
 
-	p.app.Press("id:settings-computer-" + id)
-	p.app.WaitFor("id:computer-page", wait)
 	p.app.WaitUntil(wait, func() bool { return p.app.Find("id:computer-context-switch").Props.Checked })
 	p.app.Press("id:computer-context-switch")
 	p.app.WaitUntil(wait, func() bool { return !d.Context() })

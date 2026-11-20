@@ -76,7 +76,7 @@ func TestTheTokenIsKeptInTheSecureStore(t *testing.T) {
 	p = startPhone(t, p.dir, nsgotest.Secrets(map[string]string{account: token}))
 	p.app.WaitFor(talkRow(store.DesktopID(d.Fingerprint)), wait)
 	id := store.DesktopID(d.Fingerprint)
-	p.openTab(settingsTab, msgs.SettingsTitle())
+	p.openComputers()
 	// The options' Cancel keeps the computer.
 	p.app.Press("id:settings-computer-options-" + id)
 	p.app.Answer(0)

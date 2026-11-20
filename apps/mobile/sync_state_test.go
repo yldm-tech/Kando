@@ -49,8 +49,9 @@ func openConflicts(t *testing.T, d *synctest.Desktop) *phone {
 	t.Helper()
 	dir := t.TempDir()
 	p := startPhone(t, dir, pairedWith(t, d, dir))
-	p.waitLearned(store.DesktopID(d.Fingerprint))
 	p.openTab(settingsTab, msgs.SettingsTitle())
+	// What Settings shows, not the sync's files, which a target keeps apart from the test's.
+	p.app.WaitFor("text:"+msgs.SettingsConflictsDetail(), wait)
 	p.app.Press("id:settings-conflicts")
 	p.app.WaitFor("id:conflicts-page", wait)
 	return p

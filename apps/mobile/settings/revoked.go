@@ -4,6 +4,7 @@ import (
 	"kando/apps/mobile/locales"
 	"kando/apps/mobile/look"
 	"kando/apps/mobile/session"
+	"kando/apps/mobile/theme"
 
 	"github.com/nsgo-dev/nsgo/base"
 	"github.com/nsgo-dev/nsgo/core"
@@ -25,8 +26,20 @@ func RevokedPage(cx *core.Scope, s *session.Session, id string, pair func(), unp
 		done()
 	}
 	pending := func() int { return s.PendingChanges(id) }
-	fact := func(testID string, icon func() *core.SVG, tone look.Tone, text func() string) core.Node {
-		return look.Row{TestID: testID, TitleLines: 3, Leading: look.IconTile(cx, icon, tone), Title: text}
+	// A fact is a line of what the revocation did, after a bare mark: a green check for what is done, the warning's ! for what could not be.
+	fact := func(testID string, icon func() *core.SVG, done bool, text func() string) core.Node {
+		return core.View{TestID: testID, Style: core.Style{Direction: core.Row, AlignItems: core.AlignCenter, Gap: 12, Padding: core.Symmetric(12, 16), MinHeight: core.Pt(46)}, Children: []core.Node{
+			core.Icon{SVG: icon(), StyleFunc: func() core.Style {
+				st := core.Style{Width: core.Pt(16), Height: core.Pt(16), FlexShrink: 0}
+				if done {
+					st.Color = theme.StatusOK
+				} else {
+					st.Color = theme.Of(cx).WarnText()
+				}
+				return st
+			}},
+			core.Text{ContentFunc: text, Style: core.Style{FontSize: 14, LineHeight: 20, FlexShrink: 1}, StyleFunc: ui.Colored(colors.Text)},
+		}}
 	}
 	unpair := func() {
 		n := name()
@@ -44,27 +57,31 @@ func RevokedPage(cx *core.Scope, s *session.Session, id string, pair func(), unp
 	}
 	return base.NavPage{TestID: "revoked-page", HeaderHidden: true, StyleFunc: ui.Filled(colors.Background), Children: []core.Node{
 		core.Scroll{Style: core.Style{FlexGrow: 1, FlexShrink: 1}, Children: []core.Node{
-			core.View{Style: core.Style{Padding: core.Edges{Top: 48, Right: 20, Left: 20, Bottom: 24}, PaddingEnv: core.EnvEdges{Top: core.EnvSafeArea, Right: core.EnvSafeArea, Left: core.EnvSafeArea},
-				MaxWidth: core.Pt(560), Width: core.Pct(100), AlignSelf: core.AlignCenter, Gap: 20}, Children: []core.Node{
-				core.View{Style: core.Style{Width: core.Pt(64), Height: core.Pt(64), CornerRadius: 16, BorderCurve: core.BorderCurveContinuous, AlignSelf: core.AlignCenter, AlignItems: core.AlignCenter, JustifyContent: core.JustifyCenter},
-					StyleFunc: ui.Filled(tints.Danger), Children: []core.Node{ui.Icon(lucide.ShieldOff, 32, colors.Danger)}},
-				core.Text{TestID: "revoked-title", ContentFunc: func() string { return locales.RevokedTitle(cx, name()) }, Role: core.RoleHeader, Style: look.Heading.Merge(core.Style{TextAlign: core.TextAlignCenter}), StyleFunc: ui.Colored(colors.Text)},
-				core.Text{ContentFunc: func() string { return locales.RevokedBody(cx, name()) }, Style: look.Subhead.Merge(core.Style{TextAlign: core.TextAlignCenter}), StyleFunc: ui.Colored(colors.Muted)},
-				look.Group{Children: []core.Node{
-					fact("revoked-films", lucide.CircleCheck, look.ToneAccent, func() string { return locales.RevokedFilmsStay(cx) }),
-					core.Show{When: func() bool { return pending() > 0 }, Then: func(cx *core.Scope) core.Node {
-						return core.View{Children: []core.Node{
-							core.View{Style: core.Style{Height: core.Pt(0.5), Margin: core.Edges{Left: 56}}, StyleFunc: ui.Filled(colors.Line)},
-							fact("revoked-pending", lucide.CircleAlert, look.ToneDanger, func() string { return locales.RevokedPending(cx, pending()) }),
-						}}
+			// The content sits in the middle of the screen while it fits, as the design centers it.
+			core.View{Style: core.Style{FlexGrow: 1, JustifyContent: core.JustifyCenter, Padding: core.Symmetric(40, 32), PaddingEnv: core.EnvEdges{Top: core.EnvSafeArea, Right: core.EnvSafeArea, Bottom: core.EnvSafeArea, Left: core.EnvSafeArea},
+				MinHeight: core.Pct(100)}, Children: []core.Node{
+				core.View{Style: core.Style{MaxWidth: core.Pt(340), Width: core.Pct(100), AlignSelf: core.AlignCenter, Gap: 16}, Children: []core.Node{
+					core.View{Style: core.Style{Width: core.Pt(72), Height: core.Pt(72), CornerRadius: 36, AlignSelf: core.AlignCenter, AlignItems: core.AlignCenter, JustifyContent: core.JustifyCenter, Margin: core.Edges{Bottom: 4}},
+						StyleFunc: ui.Filled(tints.Danger), Children: []core.Node{ui.Icon(lucide.Lock, 34, colors.Danger)}},
+					core.Text{TestID: "revoked-title", ContentFunc: func() string { return locales.RevokedTitle(cx, name()) }, Role: core.RoleHeader,
+						Style: core.Style{FontSize: 24, LineHeight: 30, FontWeight: look.Heavy, TextAlign: core.TextAlignCenter}, StyleFunc: ui.Colored(colors.Text)},
+					core.Text{ContentFunc: func() string { return locales.RevokedBody(cx, name()) }, Style: core.Style{FontSize: 15, LineHeight: 22, TextAlign: core.TextAlignCenter}, StyleFunc: ui.Colored(colors.Muted)},
+					core.View{Style: core.Style{Margin: core.Edges{Top: 4}}, Children: []core.Node{look.Group{Children: []core.Node{
+						fact("revoked-films", lucide.Check, true, func() string { return locales.RevokedFilmsStay(cx) }),
+						core.Show{When: func() bool { return pending() > 0 }, Then: func(cx *core.Scope) core.Node {
+							return core.View{Children: []core.Node{
+								core.View{Style: core.Style{Height: core.Pt(0.5)}, StyleFunc: ui.Filled(colors.Line)},
+								fact("revoked-pending", lucide.CircleAlert, false, func() string { return locales.RevokedPending(cx, pending()) }),
+							}}
+						}},
+					}}}},
+					core.View{Style: core.Style{Gap: 8, Margin: core.Edges{Top: 8}}, Children: []core.Node{
+						look.Button{TestID: "revoked-pair", Kind: look.Primary, Text: func() string { return locales.ComputersPairAgain(cx) }, OnPress: func() { leave(); pair() }},
+						look.Button{TestID: "revoked-unpair", Kind: look.Danger, Text: func() string { return locales.ComputersUnpair(cx) }, OnPress: unpair},
+						look.Button{TestID: "revoked-later", Kind: look.Plain, Text: func() string { return locales.RevokedLater(cx) }, OnPress: leave},
 					}},
 				}},
 			}},
 		}},
-		look.ActionBar(cx,
-			look.Button{TestID: "revoked-pair", Kind: look.Primary, Text: func() string { return locales.ComputersPairAgain(cx) }, OnPress: func() { leave(); pair() }},
-			look.Button{TestID: "revoked-unpair", Kind: look.Danger, Text: func() string { return locales.ComputersUnpair(cx) }, OnPress: unpair},
-			look.Button{TestID: "revoked-later", Kind: look.Plain, Text: func() string { return locales.RevokedLater(cx) }, OnPress: leave},
-		),
 	}}
 }

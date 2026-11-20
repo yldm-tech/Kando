@@ -2,6 +2,7 @@
 package add
 
 import (
+	"cmp"
 	"slices"
 	"strings"
 
@@ -24,7 +25,7 @@ import (
 func Sheet(cx *core.Scope, s *session.Session, open func() bool, close func(), sent func()) core.Node {
 	colors := ui.ColorsOf(cx)
 	text := core.NewSignal(cx, "")
-	// chosen is the computer the user picked, "" for the first one that answers.
+	// chosen is the computer the user picked, "" for the one Settings sends new links to, else the first one that answers.
 	chosen := core.NewSignal(cx, "")
 	// quality and subtitles are the job options the user picked (sync.JobOptions), "" for the computer's own setting.
 	quality := core.NewSignal(cx, "")
@@ -50,7 +51,7 @@ func Sheet(cx *core.Scope, s *session.Session, open func() bool, close func(), s
 		}
 		return Takes(s.Queue(to))
 	}
-	desktop := func() string { return Destination(s, chosen.Get()) }
+	desktop := func() string { return Destination(s, cmp.Or(chosen.Get(), s.Prefs().SendTo)) }
 	desktopName := func() string { d, _ := s.Desktop(desktop()); return d.Name }
 	send := func() {
 		l, _ := link()
