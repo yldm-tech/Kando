@@ -447,6 +447,7 @@ func TestScriptRunnerStopsAPluginTsxStopped(t *testing.T) {
 		t.Fatalf("plugins run under a quota of %d nodes, Limits gives %d, not tsx.DefaultLimits' %d", nodeQuota, Limits().Nodes, tsx.DefaultLimits.Nodes)
 	}
 	// The plugin is held to 2000 nodes rather than tsx.DefaultLimits' 200 000: making that many elements took the engine about a second, and up to a minute on a shared CI runner, where some piece of the 200 ran past Limits' half second, and tsx cuts a piece of an awaiting call without ending the call, which then waited for the watchdog's Deadline, a minute. Here the third piece runs into the quota.
+	// TODO(nsgo#1018): tsx should end an awaiting call whose later piece it cuts with ErrBudget; once it does, the call fails at once instead of waiting a minute, and the test can go back to tsx.DefaultLimits' quota https://github.com/nsgo-dev/nsgo/issues/1018
 	quota := nodeQuota
 	nodeQuota = 2000
 	t.Cleanup(func() { nodeQuota = quota })
