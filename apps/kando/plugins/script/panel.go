@@ -11,11 +11,16 @@ import (
 	"github.com/nsgo-dev/nsgo/tsx"
 )
 
-// The host parameters a panel's view reads (core.Scope.HostParams, host.params in TSX): the id of the panel it is to show and the export that draws it (plugins.Panel). The plugin's entry module mounts that export when they are set, which they are only in a panel's view, never as the plugin is loaded for its functions or read by Probe:
+// The host parameters a panel's view reads (core.Scope.HostParams, host.params in TSX): the id of the panel it shows and the export that draws it (plugins.Panel). They are set only in a panel's view, never as the plugin is loaded for its functions or read by Probe. The view renders the export itself (tsx.View.Export), so a plugin only exports the component; one export may read them to tell apart the panels it draws:
 //
-//	import { host, mount } from "nsgo"
+//	import { Text } from "nsgo"
 //	export function Deck() { return <Text>…</Text> }
+//
+// A plugin written for the hosts that rendered only what the entry module mounts mounts the export itself when they name its panel, which still shows the panel once: the view replaces what the entry module mounted with the export it renders.
+//
 //	if (host.params.panel === "deck") mount(Deck)
+//
+// TODO(nsgo): tsx replaces what the entry module mounted with View.Export's component by taking its nodes out of the root, not by disposing the scope mount ran it under (tsx/sandbox.go:222-224 removeChild, tsx/dom.go:241 "it stays until its owner goes", tsx/dom.go:728 mount's owner), so in the view of a plugin that still mounts its export a hidden copy of it keeps its effects and timers until the view goes; nothing to change here once tsx disposes it
 const (
 	PanelParam  = "panel"
 	ExportParam = "export"
@@ -36,9 +41,7 @@ type PanelWatch struct {
 // DefaultPanelWatch is a panel's watchdog: busy more than 60% of three windows of 5 s in a row, confirmed by a probe of 2 s busy less than 30%, three suspicions in vain at most.
 var DefaultPanelWatch = PanelWatch{Window: 5 * time.Second, Share: 0.6, Windows: 3, Probe: 2 * time.Second, Idle: 0.3, Retries: 3}
 
-// Panel is the view of the panel of the plugin p, whose package v loaded it with grant: its package run anew in a runtime of its own, in the same sandbox its functions run in (Sandbox: Limits, the grant made from nothing, the partition of its id and signer), with a host host makes for each build, whose parameters it sets to name the panel (PanelParam, ExportParam). Each build has a new host, a retry's too, as a core.Host serves one app at a time and keeps the events sent to a view gone for the next; the host p was loaded with is never one, as p would stop hearing its events. The view is under a core.Catch: what the module throws as it loads, as it renders or as it handles an event later, a piece of it cut at Limits' budget, or a quota it runs past, shows fallback in its place, retry building the view again, and counts for p's breaker as a failed call does, a view taken down without failing as a call that succeeded, so a panel that keeps failing turns its plugin off (Stopped); it never reaches what holds the view. While it shows, its watchdog (PanelWatch) stops the plugin for a view that keeps the window busy (plugins.ReasonSlow) or holds memory (plugins.ReasonMemory). Each build is marked in flight (plugins.MarkInFlight) unless a call of p's is under way, which is marked already, written off the engine's goroutine, so a panel that crashed Kando as it loaded turns its plugin off at the next start. Build it on the engine's goroutine.
-//
-// TODO(nsgo#883): tsx.View shows what the entry module mounts and tsx.Plugin draws nothing, so the host cannot render a named export of a package; the module mounts the panel itself from host.params. Render Panel.Export directly once tsx can, and drop the parameters https://github.com/nsgo-dev/nsgo/issues/883
+// Panel is the view of the panel of the plugin p, whose package v loaded it with grant: its package run anew in a runtime of its own, in the same sandbox its functions run in (Sandbox: Limits, the grant made from nothing, the partition of its id and signer), with a host host makes for each build, whose parameters it sets to name the panel (PanelParam, ExportParam), and the export the panel names rendered as its view (tsx.View.Export): one the package does not export as a component fails as a throw does. Each build has a new host, a retry's too, as a core.Host serves one app at a time and keeps the events sent to a view gone for the next; the host p was loaded with is never one, as p would stop hearing its events. The view is under a core.Catch: what the module throws as it loads, as it renders or as it handles an event later, a piece of it cut at Limits' budget, or a quota it runs past, shows fallback in its place, retry building the view again, and counts for p's breaker as a failed call does, a view taken down without failing as a call that succeeded, so a panel that keeps failing turns its plugin off (Stopped); it never reaches what holds the view. While it shows, its watchdog (PanelWatch) stops the plugin for a view that keeps the window busy (plugins.ReasonSlow) or holds memory (plugins.ReasonMemory). Each build is marked in flight (plugins.MarkInFlight) unless a call of p's is under way, which is marked already, written off the engine's goroutine, so a panel that crashed Kando as it loaded turns its plugin off at the next start. Build it on the engine's goroutine.
 func (r *Runner) Panel(p *Plugin, v Verified, grant plugins.Grant, panel plugins.Panel, host func() *core.Host, fallback func(cx *core.Scope, err error, retry func()) core.Node) core.Node {
 	return panelView{r: r, p: p, v: v, grant: grant, panel: panel, host: host, fallback: fallback}
 }
@@ -87,7 +90,7 @@ func (pv panelView) catch(*core.Scope) core.Node {
 					}
 				})
 			})
-			node := tsx.View{Package: pv.v.Package, Sandbox: Sandbox(pv.v.ID, pv.v.Signer, pv.grant, host)}.Render(cx)
+			node := tsx.View{Package: pv.v.Package, Export: pv.panel.Export, Sandbox: Sandbox(pv.v.ID, pv.v.Signer, pv.grant, host)}.Render(cx)
 			if b.marked {
 				b.marked = false
 				r.mark(p, false)

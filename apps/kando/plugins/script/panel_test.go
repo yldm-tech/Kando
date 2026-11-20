@@ -14,18 +14,24 @@ import (
 	"github.com/nsgo-dev/nsgo/tsx"
 )
 
-// panelFixture is a plugin with three panels: deck, which shows the parameters its view was given, broken, which throws as it renders, and spin, which never returns.
+// panelFixture is a plugin with three panels, whose entry module mounts nothing: deck, which shows the parameters its view was given, broken, which throws as it renders, and spin, which never returns.
 var panelFixture = fixture{id: "acme.panel", extra: `"contributes": {"panels": [{"id": "deck", "export": "Deck", "title": {"en": "Deck"}}, {"id": "broken", "export": "Broken", "title": {"en": "Broken"}}, {"id": "spin", "export": "Spin", "title": {"en": "Spin"}}]}`,
-	code: `import { host, mount, Text } from "nsgo"
+	code: `import { host, Text } from "nsgo"
 export function Deck() { return <Text testID="deck">{"deck " + host.params.panel + " " + host.params.export}</Text> }
 export function Broken() { throw new Error("broken panel") }
 export function Spin() { for (;;) {} }
-if (host.params.panel === "deck") mount(Deck)
-if (host.params.panel === "broken") mount(Broken)
-if (host.params.panel === "spin") mount(Spin)
 `}
 
-// TestScriptPanel checks a panel's view (Runner.Panel): it shows the export its parameters name, apart from the plugin loaded for its functions, which mounts nothing; one that throws shows the fallback in its place, with what it threw; each build, a retry's too, has a host of its own; and each failure, a retry's too, counts for the plugin's breaker, which turns it off at the third.
+// mountedPanelFixture is panelFixture's deck as a plugin written for the hosts that rendered only what the entry module mounts: it mounts the export its view's parameters name.
+var mountedPanelFixture = fixture{id: "acme.mounted", extra: `"contributes": {"panels": [{"id": "deck", "export": "Deck", "title": {"en": "Deck"}}, {"id": "other", "export": "Other", "title": {"en": "Other"}}]}`,
+	code: `import { host, mount, Text } from "nsgo"
+export function Deck() { return <Text testID="deck">{"deck " + host.params.panel + " " + host.params.export}</Text> }
+export function Other() { return <Text testID="other">other</Text> }
+if (host.params.panel === "deck") mount(Deck)
+if (host.params.panel === "other") mount(Other)
+`}
+
+// TestScriptPanel checks a panel's view (Runner.Panel): it renders the export the panel names, with the parameters naming it, though the entry module mounts nothing; one that throws shows the fallback in its place, with what it threw; each build, a retry's too, has a host of its own; and each failure, a retry's too, counts for the plugin's breaker, which turns it off at the third.
 func TestScriptPanel(t *testing.T) {
 	s := newSigner(t, AppIDPrefix+"acme.*")
 	roots := s.roots()
@@ -64,6 +70,9 @@ func TestScriptPanel(t *testing.T) {
 	if len(failed) > 0 || app.Find("id:host").Text != "host" {
 		t.Fatalf("failed %v", failed)
 	}
+	if app.Exists("id:broken") || app.Exists("id:spin") {
+		t.Fatalf("another export is shown\n%s", app.Dump())
+	}
 	hosts = 0
 	app = start("broken")
 	if !app.Exists("id:retry") || len(failed) != 1 || !strings.Contains(failed[0].Error(), "broken panel") {
@@ -86,6 +95,44 @@ func TestScriptPanel(t *testing.T) {
 		}
 	default:
 		t.Fatalf("not stopped after %d failures", len(failed))
+	}
+}
+
+// TestScriptPanelMountedByItsModule checks that a panel's view of a plugin whose entry module mounts the export its parameters name shows that export once, and each panel its own.
+func TestScriptPanelMountedByItsModule(t *testing.T) {
+	s := newSigner(t, AppIDPrefix+"acme.*")
+	roots := s.roots()
+	p := s.pack(t, mountedPanelFixture)
+	v, err := Verify(trustOf(t, roots), roots, p)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for i, want := range []string{"id:deck", "id:other"} {
+		var failed []error
+		app := nsgotest.Start(t, func(cx *core.Scope) core.Node {
+			r := &Runner{Post: cx.Post, Watch: DefaultWatch}
+			pl, err := Load(cx, v, plugins.Grant{}, core.NewHost())
+			if err != nil {
+				t.Fatal(err)
+			}
+			return r.Panel(pl, v, plugins.Grant{}, p.Contributes.Panels[i], core.NewHost, func(cx *core.Scope, err error, _ func()) core.Node {
+				failed = append(failed, err)
+				return core.Text{TestID: "failed", Content: "failed"}
+			})
+		})
+		if len(failed) > 0 {
+			t.Fatalf("panel %s failed: %v", want, failed)
+		}
+		if n := len(app.QueryMounted(want)); n != 1 {
+			t.Fatalf("panel %s is mounted %d times\n%s", want, n, app.Dump())
+		}
+		if i == 0 && app.Find(want).Text != "deck deck Deck" {
+			t.Fatalf("the panel shows %q", app.Find(want).Text)
+		}
+		other := []string{"id:other", "id:deck"}[i]
+		if len(app.QueryMounted(other)) > 0 {
+			t.Fatalf("panel %s shows %s too\n%s", want, other, app.Dump())
+		}
 	}
 }
 
@@ -121,14 +168,11 @@ func TestScriptPanelPastItsBudget(t *testing.T) {
 
 // watchFixture is a plugin with three panels for the watchdog: busy, which keeps the engine busy from a timer, 80 ms of every 90; grow, which keeps what a timer makes, a string of 1 MiB every 20 ms, the engine idle in between; and quiet, which does nothing.
 var watchFixture = fixture{id: "acme.watch", extra: `"contributes": {"panels": [{"id": "busy", "export": "Busy", "title": {"en": "Busy"}}, {"id": "grow", "export": "Grow", "title": {"en": "Grow"}}, {"id": "quiet", "export": "Quiet", "title": {"en": "Quiet"}}]}`,
-	code: `import { host, mount, View } from "nsgo"
+	code: `import { View } from "nsgo"
 const kept = []
 export function Busy() { setInterval(() => { const t = Date.now(); while (Date.now() - t < 80) {} }, 10); return <View /> }
 export function Grow() { let n = 0; setInterval(() => { kept.push("x".repeat(1 << 20) + n++) }, 20); return <View /> }
 export function Quiet() { return <View /> }
-if (host.params.panel === "busy") mount(Busy)
-if (host.params.panel === "grow") mount(Grow)
-if (host.params.panel === "quiet") mount(Quiet)
 `}
 
 // testPanelWatch is a panel's watchdog on the scale of a test: windows of 300 ms.
