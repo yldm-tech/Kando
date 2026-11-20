@@ -26,8 +26,8 @@ const pluginPanelsFields = `"capabilities": {"host": ["kando.line.current"]},
   ]},
   "events": ["line.changed"]`
 
-// pluginPanelsCode is acme.panels' code: two panels, each an export the view renders.
-const pluginPanelsCode = `import { host, signal, Text, View } from "nsgo"
+// pluginPanelsCode is acme.panels' code: its entry module mounts the panel its view's parameters name, and nothing as it is loaded for its functions.
+const pluginPanelsCode = `import { host, mount, signal, Text, View } from "nsgo"
 export function Lines() {
   const said = signal("…")
   const heard = signal(0)
@@ -39,6 +39,8 @@ export function Lines() {
   return <View><Text testID="panel-line">{said()}</Text><Text testID="panel-heard">{"heard " + heard()}</Text></View>
 }
 export function Broken() { throw new Error("broken panel") }
+if (host.params.panel === "lines") mount(Lines)
+if (host.params.panel === "broken") mount(Broken)
 `
 
 // panelsApp is playerFilm's library with the film talk open and loaded, the plugins of folders installed in a plugins folder of its own, key standing in for Kando's official root, and a watchdog that does not count the test's own pauses.

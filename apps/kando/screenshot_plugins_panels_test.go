@@ -19,7 +19,7 @@ const pluginStudyFields = `"capabilities": {"host": ["kando.line.current"]},
   "events": ["line.changed"]`
 
 // pluginStudyCode is acme.study's code: its panel shows the line playing and its words of eight letters or more, each on a card.
-const pluginStudyCode = `import { host, signal, Text, View } from "nsgo"
+const pluginStudyCode = `import { host, mount, signal, Text, View } from "nsgo"
 export function Words() {
   const line = signal(null)
   async function read() { try { line.set(await host.call("kando.line.current", {})) } catch (e) { line.set(null) } }
@@ -31,6 +31,7 @@ export function Words() {
     {words().map((w) => <View style={{ padding: 10, borderRadius: 10, backgroundColor: "rgba(255,255,255,0.08)" }}><Text testID="study-word" style={{ color: "#ffffff", fontSize: 14 }}>{w}</Text></View>)}
   </View>
 }
+if (host.params.panel === "words") mount(Words)
 `
 
 // shootPluginPanels renders the player's 扩展 tab with acme.study's panel showing (plugins-script-panel), the seven tabs on one row of the bar, every label whole, in the language of the run (KANDO_SCREENSHOTS_LANG).
