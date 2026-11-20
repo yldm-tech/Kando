@@ -69,6 +69,8 @@ func TestTheLibraryListsTheComputersSubscriptions(t *testing.T) {
 	p.app.WaitFor("id:films-subscription-auto-switch", wait)
 	p.app.Press("id:films-subscription-auto-switch")
 	p.app.WaitUntil(wait, func() bool { subs := d.Subscriptions(); return len(subs) == 1 && subs[0].Auto })
+	// The computer makes the change before the phone reads its answer, and the subscription takes no other action until then.
+	p.app.WaitUntil(wait, func() bool { return !p.app.Find("id:films-subscription-take").Props.Disabled })
 
 	p.app.Press("id:films-subscription-take")
 	p.app.WaitUntil(wait, func() bool { return len(d.Jobs()) == 2 })
