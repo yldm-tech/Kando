@@ -27,7 +27,7 @@ type Actions struct {
 	Pair func()
 	// Film opens a film's page.
 	Film func(catalog.Entry)
-	// PlayHeld opens the player of the film kept on the phone under key held where it was left, with the recap of the part watched, as the film's page's Play does: a film's row plays it so.
+	// PlayHeld opens the player of the film kept on the phone under key held where it was left, with the recap of the part watched, as the film's page's Play does; a film's row opens a film on the phone with it (openFilm).
 	PlayHeld func(key string)
 	// Play plays the film kept on the phone under key, from where it was left on the phone, and PlayAt from at.
 	Play   func(key string)
