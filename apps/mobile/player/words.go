@@ -424,7 +424,7 @@ func wordSheetBody(cx *core.Scope, p *play, w *words) core.Node {
 				}},
 			}},
 		}},
-		// Replay and the vocabulary share the row as the design's 151 and 197.
+		// Replay takes its words' width and the vocabulary the rest: its English (In Vocabulary · Remove) is too long for the design's 197.
 		core.View{Style: core.Style{Direction: core.Row, Gap: 10, Margin: core.Edges{Top: 4}}, Children: []core.Node{
 			base.Button{TestID: "player-word-replay", LabelFunc: func() string { return locales.PlayerReplayLine(cx) },
 				OnPress: func(core.PressEvent) {
@@ -432,7 +432,7 @@ func wordSheetBody(cx *core.Scope, p *play, w *words) core.Node {
 					w.closeLookup()
 					p.step(i)
 				},
-				Style: core.Style{FlexGrow: 151.0 / 197, FlexShrink: 1, FlexBasis: core.Pt(0), MinWidth: core.Pt(0), Height: core.Pt(50), Padding: core.Symmetric(0, 20), CornerRadius: 14, BorderCurve: core.BorderCurveContinuous, AlignItems: core.AlignCenter, JustifyContent: core.JustifyCenter,
+				Style: core.Style{FlexShrink: 1, MinWidth: core.Pt(0), Height: core.Pt(50), Padding: core.Symmetric(0, 20), CornerRadius: 14, BorderCurve: core.BorderCurveContinuous, AlignItems: core.AlignCenter, JustifyContent: core.JustifyCenter,
 					Active: &core.Style{Opacity: core.Alpha(0.7)}},
 				StyleFunc: func() core.Style { return core.Style{Background: colors.Surface(), Color: colors.Accent()} },
 				Children:  []core.Node{core.Text{ContentFunc: func() string { return locales.PlayerReplayLine(cx) }, MaxLines: 1, Style: core.Style{FontSize: 16, LineHeight: 21, FontWeight: core.FontWeightBold}}}},
