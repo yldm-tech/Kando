@@ -25,7 +25,7 @@ type Tab struct {
 	TestID  string
 	// Badge, when set, is a count the drawn tab bar and a tablet's sidebar show on the section while it is not 0, in the badges' orange while BadgeWarn reports true, red otherwise.
 	// The count is not in the section's spoken name yet: base.Tab.Label is a fixed string (nsgo#145, above), so a screen reader does not hear it.
-	// TODO(nsgo): ui.ShellTab and mobile.TabBarItem have no badge (ui/tabshell.go:10-20, core/tabbar.go:20-28), so the system's tab bar of an iPhone or an Android phone (UITabBarItem.badgeValue, BottomNavigationView's badge) shows no count, and the app shows the jobs' count on the Library's header there instead (SystemBar); pass Badge through once they take one, and drop that button.
+	// TODO(nsgo#741): ui.ShellTab and mobile.TabBarItem have no badge (ui/tabshell.go:10-20, core/tabbar.go:20-28), so the system's tab bar of an iPhone or an Android phone (UITabBarItem.badgeValue, BottomNavigationView's badge) shows no count, and the app shows the jobs' count on the Library's header there instead (SystemBar); pass Badge through once they take one, and drop that button. https://github.com/nsgo-dev/nsgo/issues/741
 	Badge     func() int
 	BadgeWarn func() bool
 }
@@ -216,7 +216,7 @@ func barStyle(cx *core.Scope) func() core.Style {
 }
 
 // barLine is the hairline over a drawn tab bar: a view of its own, as a border on the bar's frosted view does not show on macOS.
-// TODO(nsgo): on Apple a border on some sides only is a shape sublayer under the view's children (internal/platform/apple/border.go:12-16), and a view with BackdropFilters adds its blur and the tint that draws its Background as a subview (internal/platform/macos/material.go:191-221), which covers it, so the bar draws its hairline as a child view; use Borders on the bar once the border draws over the backdrop.
+// TODO(nsgo#935): on Apple a border on some sides only is a shape sublayer under the view's children (internal/platform/apple/border.go:12-16), and a view with BackdropFilters adds its blur and the tint that draws its Background as a subview (internal/platform/macos/material.go:191-221), which covers it, so the bar draws its hairline as a child view; use Borders on the bar once the border draws over the backdrop. https://github.com/nsgo-dev/nsgo/issues/935
 func barLine(cx *core.Scope) core.Node {
 	return core.View{Style: core.Style{Position: core.Absolute, Top: core.Pt(0), Left: core.Pt(0), Right: core.Pt(0), Height: core.Pt(0.5), PointerEvents: core.PointerEventsNone},
 		StyleFunc: ui.Filled(theme.Of(cx).BarLine)}

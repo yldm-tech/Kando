@@ -124,7 +124,7 @@ func Page(cx *core.Scope, s *session.Session, act Actions) base.NavPage {
 		return locales.JobsTitle(cx)
 	}
 	if act.Jobs != nil {
-		// TODO(nsgo): core.HeaderSymbol is a name and a label only (core/platformprops.go:57), so iOS's native header shows no count on the Jobs button; its label says the count, and the drawn header elsewhere shows the badge. Pass the count once a header symbol takes a badge (UIBarButtonItem.badge), and drop the button once the system's tab bar shows the Jobs tab's (shell.Tab.Badge).
+		// TODO(nsgo#741): core.HeaderSymbol is a name and a label only (core/platformprops.go:57), so iOS's native header shows no count on the Jobs button; its label says the count, and the drawn header elsewhere shows the badge. Pass the count once a header symbol takes a badge (UIBarButtonItem.badge), and drop the button once the system's tab bar shows the Jobs tab's (shell.Tab.Badge). https://github.com/nsgo-dev/nsgo/issues/741
 		trailing = append([]core.Node{look.CircleButton{TestID: "films-jobs", Icon: lucide.ListChecks, Label: jobsLabel, OnPress: act.Jobs,
 			Badge: look.Count{TestID: "films-jobs-badge", Count: unfinished, Warn: func() bool { _, failed := s.Unfinished(); return failed > 0 },
 				Style: core.Style{Position: core.Absolute, Top: core.Pt(0), Right: core.Pt(0)}}}}, trailing...)

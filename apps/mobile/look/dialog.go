@@ -34,7 +34,7 @@ func (d Dialog) Render(cx *core.Scope) core.Node {
 	title := core.Text{ContentFunc: d.Title, Role: core.RoleHeader, Style: Title.Merge(core.Style{FontWeight: Heavy}), StyleFunc: ui.Colored(colors.Text)}
 	if !Tablet(cx) {
 		// A sheet is the page's grey, so the cards in it stand out as on a page, rounded more than a card at its top.
-		// TODO(nsgo): the touch sheet's grabber, padding, height, shadow and motion are fixed (ui/style.go:114-155, sheetPanel and sheetContent), so the sheet keeps NSGo's 36x5 grabber and 16pt padding rather than the design's 38x5 grabber and 6/16/34 padding.
+		// TODO(nsgo#933): the touch sheet's grabber, padding, height, shadow and motion are fixed (ui/style.go:114-155, sheetPanel and sheetContent), so the sheet keeps NSGo's 36x5 grabber and 16pt padding rather than the design's 38x5 grabber and 6/16/34 padding. https://github.com/nsgo-dev/nsgo/issues/933
 		return ui.Dialog{TestID: d.TestID, Open: d.Open, LabelFunc: d.Title, OnOpenChange: change, OnConfirm: d.OnConfirm, Children: append([]core.Node{title}, d.Children...), Footer: d.Footer,
 			StyleFunc: func() core.Style {
 				st := core.Style{Background: colors.Background()}
