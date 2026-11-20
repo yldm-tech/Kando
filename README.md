@@ -14,6 +14,8 @@ English · [简体中文](README.zh-CN.md) · [日本語](README.ja.md) · [繁�
 
 Kando is a desktop app for learning a language from videos in that language. Paste a YouTube or Bilibili link, or drop a video file or a folder of videos on the window: Kando downloads the video with yt-dlp, transcribes the speech on your own computer with whisper.cpp, translates each line through an OpenAI-compatible model, and plays the original video with the original line and its translation on screen together. It is written in Go and draws its native interface with [NSGo](https://github.com/nsgo-dev/nsgo); there is no web view.
 
+![Kando in 20 seconds: paste a YouTube link, Kando transcribes and translates it, and the film plays with each line and its translation together](docs/assets/en/promo.webp)
+
 ![The library: the most recent film, the jobs in progress and the films in the library](docs/assets/en/library.png)
 
 The interface is in English, Simplified Chinese, Traditional Chinese, Japanese and Korean. Kando starts in Simplified Chinese; choose another language in Settings › General › Interface language, and the window changes at once. The labels quoted below are those of the English interface.
