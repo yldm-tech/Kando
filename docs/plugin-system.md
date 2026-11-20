@@ -761,7 +761,7 @@ export function kandoManifest() { return { /* identical to kando-plugin.json fie
 
 ### 6.5 安装与更新
 
-- 安装入口只有三个：设置 › 插件页的「从文件安装…」、把文件或文件夹拖到 设置 › 插件 页上（`desktop.DroppedPaths`）、CLI inbox。三者最后都要经过宿主画的确认框。开发者包另有 6.4 节的入口，同样要经过确认框。拖进主窗口别处的文件由片库那块的 `dropFiles` 接收，要在那里分出插件包就得往别的块的函数里插调用（AGENTS.md 不允许），所以主窗口的拖放安装没有做，只有插件页本身接拖放。一次拖进多个文件时只问第一个。
+- 安装入口有四个：设置 › 插件页的「从文件安装…」、把文件或文件夹拖到 设置 › 插件 页上（`desktop.DroppedPaths`）、CLI inbox，以及 P5 的「插件目录」（目录里的「安装」「更新」，和 `kando://plugin/install?id=<id>` 链接，链接只是替用户在目录里点了这一行，见 5.4 和第 15 节）。目录按签名索引下载、校验大小和 SHA-256 后，走和选中文件同一条路径（`pluginsIndexFollow`：Stage、脚本插件验签、`pluginsAskStaged`）。四者最后都要经过宿主画的确认框。开发者包另有 6.4 节的入口，同样要经过确认框。拖进主窗口别处的文件由片库那块的 `dropFiles` 接收，要在那里分出插件包就得往别的块的函数里插调用（AGENTS.md 不允许），所以主窗口的拖放安装没有做，只有插件页本身接拖放。一次拖进多个文件时只问第一个。
 - 安装流程：
   1. `plugins.Stage`：复制或解压到 `plugins/.staging-<rand>`。zip 按实际字节计数（嵌套 zip 共用计数器），拦截 zip-slip、符号链接和绝对路径；文件夹用 Lstat 逐项复制。
   2. 对 staging 里的副本跑 `plugins.Validate`，包括 id 正则和路径检查。脚本包还要 Verify，并在预读沙箱里比对 `kandoManifest()`。
@@ -1320,7 +1320,7 @@ P1.2 的测量结果（Ubuntu 编译机，x86_64，Go 1.27.4，kagome-dict/ipa v
 **发布社区索引**（社区插件仓库 `yldm-tech/kando-plugins`）：
 
 1. 作者在 kando-plugins 开 PR：数据包是 `packs/<kind>/<id>/` 文件夹（Publish 打成包文件），脚本插件是 `scripts/<id>/` 里签好的 `<id>-<version>.kandoplugin`（每个文件夹只放要列出的那一个版本）和签它用的源码 `src/`，发布者要先由官方根认证（12.3 第 1 条）；官方插件也这样提交，见 P3c 的「签名和发布官方插件」。
-2. 那边的 CI 检出本仓库，在本仓库根目录跑：
+2. 那边的 Validate 先用基线分支上的 `tools/packs.py pr` 查仓库自己的规则（布局、发布者归属、许可证、大小、版本号变大；维护者加了 `maintainer-override` 标签时不查 `packs/`、`scripts/` 之外的改动和发布者归属），基线分支上的 `tools/packs.py build` 把 `packs/` 的文件夹打成包文件；再检出本仓库，把 `./apps/kando/cmd/kando-plugin` 编成一个可执行文件，对打好的包跑下面两条（这里写成在本仓库根目录 `go run` 的等价形式）：
 
 ```sh
 # Checks every pack as Kando installs it (plugins.Stage, a script plugin's signature against Kando's official root); --json for the bot, exit code 1 when one fails.
@@ -1330,7 +1330,7 @@ go run ./apps/kando/cmd/kando-plugin preview --markdown <pack files…>
 ```
 
 3. bot 把 Validate 的结果和预览贴成 PR 里的一条评论，每次推送都更新；维护者（houko、Session500）看过评论审核后合并，脚本插件还要审源码，含 network 规则是否最窄。main 的规则集要求「Validate packs」通过、至少一位审核通过，`packs/` 和 `scripts/` 之外的改动必须经 code owner 审核（12.3 第 5 条）。
-4. 合并到 main 后，CI 在受保护的 environment 里拿到 `KANDO_PLUGINS_INDEX_KEY`，签名并部署：
+4. 合并到 main 后，Publish 在受保护的 environment 里拿到 `KANDO_PLUGINS_INDEX_KEY`：同样先 `tools/packs.py check`、`build`，再 `tools/packs.py carry`（线上已有的同名文件内容相同就沿用线上的字节，内容不同就停下；已不在新索引里的旧文件再保留 7 天，记在 `carried.json`），用 `kando-plugin validate` 逐个检查，然后签名并部署：
 
 ```sh
 # The key's secret only in the environment; any key other than script.IndexKey is refused.
@@ -1342,7 +1342,7 @@ KANDO_PLUGINS_INDEX_KEY=<index secret> go run ./apps/kando/cmd/kando-plugin inde
 
 - 私钥只从环境变量 `KANDO_PLUGINS_INDEX_KEY` 读（`go tool nsgo keygen` 打印的 secret），不接受 flag 或文件参数，和 nsgo 的 `NSGO_ROOT_KEY`、`NSGO_RELEASE_KEY` 一样；只给 main 上的部署 job，PR 的 CI 拿不到。
 - 文件夹里任何一个包没通过检查、有别的文件、或者同一个 id 出现在两个文件里，命令就失败并指出是哪个文件，不写索引，免得发布者以为列上了的包被悄悄漏掉。脚本插件必须由官方根签的证书覆盖（来源是 official 或 verified），开发者密钥签的插件拒收。
-- 每个包的 URL 是 `--base` 加上文件名（按 URL 转义），所以文件名必须保持不变。已经发布的包文件不要原地替换：新版本用新文件名（例如带上版本号），因为还缓存着旧索引的看懂会按旧的 SHA-256 校验它；旧版本的文件留到不再有人缓存旧索引为止。Cloudflare 上 `plugin/index.json` 的缓存时间设短一些（例如 5 分钟），包文件可以长期缓存。
+- 每个包的 URL 是 `--base` 加上文件名（按 URL 转义），所以文件名必须保持不变。已经发布的包文件不要原地替换：新版本用新文件名（例如带上版本号），因为还缓存着旧索引的看懂会按旧的 SHA-256 校验它；旧版本的文件由 Publish 的 `carry` 在下架后再保留 7 天，够缓存了旧索引的看懂在每天的刷新之前下载。Cloudflare 上 `plugin/index.json` 的缓存时间设短一些（例如 5 分钟），包文件可以长期缓存。
 - 上架规则和 10 节 P5 原定的不同：数据包和脚本插件都要维护者审核、合并后才上架，没有限速（要不要改成数据包限速后自动上架仍待 owner 决定，12.3 第 5 条）；上架之后安装仍然不授予任何能力。从索引里撤下一个包只是不再列出，已经装了的不受影响；真正要停掉一个脚本插件要靠吊销列表（6.4）。
 - 每次重新生成的索引 `generated` 都更新，看懂拒收比缓存旧的索引，所以不要重新部署旧的 `index.json`（例如回滚 kando-plugins 的提交时，要重新签一份）。
 - 退路（CI 或 Worker 不可用时，owner 在自己的机器上）：用同一个命令在本机签（`kando plugin index ./packs --base https://kando.yldm.ai/plugin/packs/ --out index.json`，或上面的 `go run`），把 `index.json` 和包文件手工发布到 kando-plugins 的 GitHub Pages（例如推到它的 Pages 分支）。私钥仍只经环境变量，用完不留在 shell 历史里。

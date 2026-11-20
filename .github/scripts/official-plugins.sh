@@ -12,10 +12,18 @@ fail() {
 }
 
 root=$(git rev-parse --show-toplevel)
+root=$(cd "$root" && pwd -P)
+
+# outside fails when the folder $1 is in this repository: the packs are published from kando-plugins.
+outside() {
+  case $1/ in
+    "$root"/*) fail "$1 is inside this repository; the packs are published from kando-plugins, so give a folder outside it" ;;
+  esac
+}
 [ -n "${NSGO_RELEASE_KEY:-}" ] || fail "NSGO_RELEASE_KEY is not set: give the official release key's secret (go tool nsgo keygen) in it"
 [ -n "${KANDO_OFFICIAL_CERT:-}" ] || fail "KANDO_OFFICIAL_CERT is not set: name the release key's certificate file, kando-official.cert"
 [ -f "$KANDO_OFFICIAL_CERT" ] || fail "$KANDO_OFFICIAL_CERT is not a file"
-cert=$(cd "$(dirname "$KANDO_OFFICIAL_CERT")" && pwd)/$(basename "$KANDO_OFFICIAL_CERT")
+cert=$(cd "$(dirname "$KANDO_OFFICIAL_CERT")" && pwd -P)/$(basename "$KANDO_OFFICIAL_CERT")
 case $cert in
   "$root"/*) fail "the certificate is inside the repository; keep it outside, with the keys" ;;
 esac
@@ -25,13 +33,20 @@ if [ -n "${KANDO_PLUGINS_OUT:-}" ]; then
     /*) out=$KANDO_PLUGINS_OUT ;;
     *) out=$PWD/$KANDO_PLUGINS_OUT ;;
   esac
-  case $out/ in
-    "$root"/*) fail "$out is inside this repository; the packs are published from kando-plugins, so give a folder outside it" ;;
-  esac
+  # The folder is checked with .. and symbolic links resolved, which the path as given may hide: before it is made, as far as it exists, and once more after.
+  existing=$out
+  rest=
+  while [ ! -d "$existing" ]; do
+    rest=/$(basename "$existing")$rest
+    existing=$(dirname "$existing")
+  done
+  outside "$(cd "$existing" && pwd -P)$rest"
   mkdir -p "$out"
-  out=$(cd "$out" && pwd)
+  out=$(cd "$out" && pwd -P)
+  outside "$out"
 else
-  out=$(mktemp -d "${TMPDIR:-/tmp}/kando-official-plugins.XXXXXX")
+  tmp=${TMPDIR:-/tmp}
+  out=$(mktemp -d "${tmp%/}/kando-official-plugins.XXXXXX")
 fi
 
 folders=()
