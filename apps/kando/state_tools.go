@@ -4,6 +4,7 @@ import (
 	"context"
 	"maps"
 	"slices"
+	"sync"
 
 	"kando/apps/kando/jobfailure"
 	"kando/apps/kando/toolhealth"
@@ -29,6 +30,8 @@ type toolsUI struct {
 	// candidates and probe find the copies of a program and run one; tests replace them, as the copies on the machine running them are not the test's.
 	candidates func(program string) []string
 	probe      func(ctx context.Context, program, path string) media.Health
+	// work counts the goroutines that run the programs or write beside them: the check here, the reads and updates of yt-dlp (queue_remedy.go) and the downloads of Kando's own copies (state_kits.go). Reading how yt-dlp was installed writes a probe file into its folder (media.FindYTDLPInstall), its update writes the new build there and a download unpacks into Kando's own folder, so a test waits for them as it ends (newTestApp) before its folders are removed.
+	work sync.WaitGroup
 }
 
 func newToolsUI() toolsUI {
@@ -131,7 +134,7 @@ func (a *app) toolsCheck() {
 		}
 		found[program], own[program] = list, media.OwnTool(program)
 	}
-	go func() {
+	a.tools.work.Go(func() {
 		health := map[string]media.Health{}
 		for _, program := range toolhealth.Programs {
 			for _, path := range found[program] {
@@ -160,7 +163,7 @@ func (a *app) toolsCheck() {
 			a.kitsInstallWanted()
 			a.toolsRetryWhenFixed()
 		})
-	}()
+	})
 }
 
 // toolHealth is how the copy of program the pipeline runs answered, with its path; a zero Health when it has not been run yet, and an empty path when there is none.

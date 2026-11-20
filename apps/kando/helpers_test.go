@@ -209,6 +209,26 @@ func newTestApp(t *testing.T, p media.Pipeline, opts ...nsgotest.Option) (*app, 
 			t.Error("the job running when the test ended did not stop")
 		}
 	})
+	// The work on the programs still under way when the test ends (toolsUI.work), as reading how yt-dlp was installed, which writes a probe file into its folder, or a download of Kando's own copy, which is stopped first, is waited for, so it writes nothing more into the test's folders once they go. What it reports is dropped meanwhile, so a report waiting for room in updates does not keep it from ending.
+	t.Cleanup(func() {
+		a.kitsCancel()
+		idle := make(chan struct{})
+		go func() {
+			a.tools.work.Wait()
+			close(idle)
+		}()
+		limit := time.After(10 * time.Second)
+		for {
+			select {
+			case <-idle:
+				return
+			case <-updates:
+			case <-limit:
+				t.Error("the work on the programs did not end")
+				return
+			}
+		}
+	})
 	return a, nsgotest.Start(t, a.testView, opts...), updates
 }
 
