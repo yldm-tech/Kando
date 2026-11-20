@@ -44,8 +44,6 @@ func openNextTalk(t *testing.T) (*phone, store.Film, store.Film) {
 	p := startPhone(t, dir)
 	p.app.WaitFor(talkRow(first.Desktop), wait)
 	p.app.Press(talkRow(first.Desktop))
-	p.app.WaitFor("id:film-play", wait)
-	p.app.Press("id:film-play")
 	p.app.WaitFor("id:player-video", wait)
 	p.app.WaitUntil(wait, func() bool { return p.app.Exists("id:player-line") })
 	p.app.Play("id:player-video", core.VideoInfo{Duration: 10 * sec, Size: core.Size{Width: 1920, Height: 1080}})

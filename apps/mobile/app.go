@@ -141,7 +141,7 @@ func App(cx *core.Scope, cfg session.Config) core.Node {
 	// The film playing shows over the tabs, or in the mini player over them.
 	layer := player.NewLayer(cx, s)
 	play := layer.Play
-	// A film's page opens the player held where the film was left, with the recap of the part watched, as a poster does on the computer; Continue Watching and a line found play at once.
+	// A film's page and a film's row in the Library open the player held where the film was left, with the recap of the part watched, as a poster does on the computer; Continue Watching and a line found play at once.
 	playHeld := layer.PlayHeld
 	// A computer that no longer takes the phone shows the page that says so over everything, one computer at a time; revoked is the one it shows.
 	revoked := ""
@@ -223,7 +223,7 @@ func App(cx *core.Scope, cfg session.Config) core.Node {
 				if shell.SystemBar(cx) {
 					jobsButton = openJobs
 				}
-				return films.Page(cx, s, films.Actions{Pair: openPair, Play: play, PlayAt: layer.PlayAt, Add: openAdd, Jobs: jobsButton, OpenJobs: openJobs, PickLibrary: pickLibrary, Searches: searches.Get, Library: library,
+				return films.Page(cx, s, films.Actions{Pair: openPair, Play: play, PlayHeld: playHeld, PlayAt: layer.PlayAt, Add: openAdd, Jobs: jobsButton, OpenJobs: openJobs, PickLibrary: pickLibrary, Searches: searches.Get, Library: library,
 					Subscription: subscription.Set, Film: func(e catalog.Entry) { openFilm(e.Desktop, e.Library, e.Film) }})
 			})
 			return core.View{Style: core.Style{FlexGrow: 1}, Children: []core.Node{stack, player.MiniBar(cx, layer)}}

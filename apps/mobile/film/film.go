@@ -1,10 +1,11 @@
-// Package film is a film's page: its poster where it has one, its title, facts and library, and its download, whose actions sit at the page's foot: it starts, pauses, resumes, cancels and, once whole, plays, or is deleted from the phone from the header. A film its computer keeps no video of is kept by its lines, which play without the picture, and says what can be done to have the video (VideoPrompt), as the player does in the picture's place.
+// Package film is a film's page: its poster where it has one, its title, what the phone keeps of it and its facts, each a group under its own header, and its main action at the page's foot. Its download starts, pauses, resumes and, once whole, plays from that action; the offline group says where it stands and cancels it, or once whole deletes it from the phone. A film its computer keeps no video of is kept by its lines, which play without the picture, and says what can be done to have the video (VideoPrompt), as the player does in the picture's place.
 package film
 
 import (
 	"context"
 	"time"
 
+	"kando/apps/mobile/catalog"
 	"kando/apps/mobile/locales"
 	"kando/apps/mobile/look"
 	"kando/apps/mobile/session"
@@ -133,9 +134,6 @@ func Page(cx *core.Scope, s *session.Session, desktop, library string, f sync.Fi
 	text := func(say func(*core.Scope) string) func() string { return func() string { return say(cx) } }
 	cancel := func() { s.Delete(key) }
 	actions := core.Dynamic(func(cx *core.Scope) core.Node {
-		pair := func(children ...core.Node) core.Node {
-			return core.View{Style: core.Style{Direction: core.Row, Gap: 10}, Children: children}
-		}
 		switch phase.Get() {
 		case whole:
 			if noVideo() {
@@ -143,13 +141,9 @@ func Page(cx *core.Scope, s *session.Session, desktop, library string, f sync.Fi
 			}
 			return look.Button{Kind: look.Primary, Text: text(locales.FilmPlay), Icon: lucide.Play, TestID: "film-play", OnPress: func() { play(key) }}
 		case downloading:
-			return pair(
-				look.Button{Kind: look.Tinted, Text: text(locales.FilmPause), Icon: lucide.Pause, Flex: 1, TestID: "film-pause", OnPress: func() { s.Pause(key) }},
-				look.Button{Kind: look.Danger, Text: text(locales.FilmCancel), Flex: 1, TestID: "film-cancel", OnPress: cancel})
+			return look.Button{Kind: look.Tinted, Text: text(locales.FilmPause), Icon: lucide.Pause, TestID: "film-pause", OnPress: func() { s.Pause(key) }}
 		case halted:
-			return pair(
-				look.Button{Kind: look.Primary, Text: text(locales.FilmResume), Flex: 2, TestID: "film-resume", OnPress: func() { s.Resume(key) }},
-				look.Button{Kind: look.Danger, Text: text(locales.FilmCancel), Flex: 1, TestID: "film-cancel", OnPress: cancel})
+			return look.Button{Kind: look.Primary, Text: text(locales.FilmResume), TestID: "film-resume", OnPress: func() { s.Resume(key) }}
 		}
 		download := look.Button{Kind: look.Primary, Text: text(locales.FilmDownload), Icon: lucide.Download, TestID: "film-download", OnPress: func() { s.Download(desktop, library, f) }}
 		if f.SubtitlesOnly {
@@ -159,16 +153,17 @@ func Page(cx *core.Scope, s *session.Session, desktop, library string, f sync.Fi
 		// Away from its computer's network, the film plays from the user's storage, or opens for its lines alone when the storage holds no video of it.
 		switch stored.Get() {
 		case videoStored:
-			download.Kind, download.Flex = look.Tinted, 1
-			return pair(look.Button{Kind: look.Primary, Text: text(locales.FilmPlay), Icon: lucide.Play, Flex: 1, TestID: "film-stream", Busy: streaming.Get, OnPress: stream}, download)
+			// The two stack, as the sheet's rows do: side by side, the download's label does not fit a phone's half.
+			download.Kind = look.Tinted
+			return core.View{Style: core.Style{Gap: 8}, Children: []core.Node{
+				look.Button{Kind: look.Primary, Text: text(locales.FilmPlay), Icon: lucide.Play, TestID: "film-stream", Busy: streaming.Get, OnPress: stream}, download}}
 		case linesStored:
 			return look.Button{Kind: look.Primary, Text: text(locales.FilmLines), Icon: lucide.Captions, TestID: "film-lines", Busy: streaming.Get, OnPress: stream}
 		}
 		return download
 	})
 	prompt := core.Show{When: noVideo, Then: func(cx *core.Scope) core.Node {
-		return core.View{Style: core.Style{CornerRadius: ui.RadiusCard, BorderCurve: core.BorderCurveContinuous}, StyleFunc: func() core.Style { return core.Style{Background: colors.Surface()} },
-			Children: []core.Node{VideoPrompt(cx, s, desktop, f, "film-no-video")}}
+		return core.View{StyleFunc: func() core.Style { return look.Card(cx) }, Children: []core.Node{VideoPrompt(cx, s, desktop, f, "film-no-video")}}
 	}}
 	// What the storage holds of a film whose video stays on the computer, and why it could not be read from there.
 	storageNote := core.Show{When: func() bool { return stored.Get() == linesStored && phase.Get() != whole && !noVideo() }, Then: func(cx *core.Scope) core.Node {
@@ -177,21 +172,52 @@ func Page(cx *core.Scope, s *session.Session, desktop, library string, f sync.Fi
 	storageFailed := core.Show{When: func() bool { return streamErr.Get() != nil }, Then: func(cx *core.Scope) core.Node {
 		return core.Text{TestID: "film-storage-failed", Content: locales.FilmStorageFailed(cx), LiveRegion: core.LiveRegionPolite, Style: look.Subhead, StyleFunc: ui.Colored(colors.Danger)}
 	}}
-	progress := core.Show{When: func() bool { _, ok := transfer(); return ok }, Then: func(cx *core.Scope) core.Node {
-		return core.View{Style: core.Style{Gap: 8}, Children: []core.Node{
-			// TODO(nsgo#145): ui.Progress.Label is a string only (ui/progress.go:12-19), so the bar's spoken name keeps the language it was built in; pass a LabelFunc once Progress has one https://github.com/nsgo-dev/nsgo/issues/145
-			ui.Progress{TestID: "film-progress", Label: locales.FilmDownload(cx), Value: func() float32 { t, _ := transfer(); return t.Fraction() * 100 }},
-			core.Text{TestID: "film-status", ContentFunc: func() string { return look.Status(cx, s, key) }, LiveRegion: core.LiveRegionPolite, Style: look.Subhead,
+	// offline is what the phone keeps of the film, a group under its own header: where its download stands, with its bar while it moves, over the row that cancels it, or once it is whole the row that deletes it from the phone with the room that frees.
+	const (
+		noRow = iota
+		cancelRow
+		deleteRow
+	)
+	last := core.NewMemo(cx, func() int {
+		if _, ok := transfer(); ok {
+			return cancelRow
+		}
+		if done() {
+			return deleteRow
+		}
+		return noRow
+	})
+	second := func() int { return 1 }
+	offline := core.Show{When: func() bool { return last.Get() != noRow }, Then: func(cx *core.Scope) core.Node {
+		status := core.View{Style: core.Style{Gap: 10, Padding: core.Symmetric(15, 16)}, Children: []core.Node{
+			core.Text{TestID: "film-status", ContentFunc: func() string { return look.Status(cx, s, key) }, LiveRegion: core.LiveRegionPolite, MaxLines: 2, Style: look.Body,
 				StyleFunc: func() core.Style {
 					if st, ok := state(); ok && st == session.Failed {
 						return core.Style{Color: colors.Danger()}
 					}
-					return core.Style{Color: colors.Muted()}
+					return core.Style{Color: colors.Text()}
 				}},
+			core.Show{When: func() bool { _, ok := transfer(); return ok }, Then: func(cx *core.Scope) core.Node {
+				// TODO(nsgo#145): ui.Progress.Label is a string only (ui/progress.go:12-19), so the bar's spoken name keeps the language it was built in; pass a LabelFunc once Progress has one https://github.com/nsgo-dev/nsgo/issues/145
+				return ui.Progress{TestID: "film-progress", Label: locales.FilmDownload(cx), Value: func() float32 { t, _ := transfer(); return t.Fraction() * 100 }}
+			}},
 		}}
+		row := core.Dynamic(func(cx *core.Scope) core.Node {
+			if last.Get() == cancelRow {
+				return look.Row{TestID: "film-cancel", Index: second, TitleTone: look.ToneDanger, Title: text(locales.FilmCancel), OnPress: cancel}
+			}
+			return look.Row{TestID: "film-delete", Index: second, TitleTone: look.ToneDanger, Title: text(locales.FilmDelete), OnPress: confirmDelete,
+				Value: func() string {
+					if k, ok := kept(); ok && k.HasVideo() && k.Film.VideoSize > 0 {
+						return look.Size(k.Film.VideoSize)
+					}
+					return ""
+				}}
+		})
+		return core.View{Style: core.Style{Gap: 7}, Children: []core.Node{look.GroupHeader(cx, text(locales.FilmOffline)), look.Group{Children: []core.Node{status, row}}}}
 	}}
 	art := core.Show{When: hasPoster, Then: func(cx *core.Scope) core.Node {
-		return core.View{TestID: "film-poster", Style: core.Style{Width: core.Pct(100), AspectRatio: 16.0 / 9, CornerRadius: 12, BorderCurve: core.BorderCurveContinuous, Overflow: core.Hidden},
+		return core.View{TestID: "film-poster", Style: core.Style{Width: core.Pct(100), AspectRatio: 16.0 / 9, CornerRadius: look.CardRadius, BorderCurve: core.BorderCurveContinuous, Overflow: core.Hidden},
 			StyleFunc: func() core.Style {
 				s := core.Style{Background: colors.Inset()}
 				// A phone on its side keeps the poster to about a third of the screen's height, so the title shows under it above the action bar.
@@ -204,40 +230,55 @@ func Page(cx *core.Scope, s *session.Session, desktop, library string, f sync.Fi
 				OnError: func(error) { failed.Set(true) },
 				Style:   core.Style{Position: core.Absolute, Left: core.Pt(0), Top: core.Pt(0), Right: core.Pt(0), Bottom: core.Pt(0)}}}}
 	}}
-	about := []core.Node{
-		core.Text{TestID: "film-title", Content: f.Title, Role: core.RoleHeader, MaxLines: 3, Style: look.Display, StyleFunc: ui.Colored(colors.Text)},
-		core.Text{TestID: "film-facts", Content: look.Facts(f), Style: look.Subhead, StyleFunc: ui.Colored(colors.Muted)},
+	// info is the film's facts as rows of a group under its own header, as the player's Info tab lists them: its source, languages, length and size, and the library it is in; a fact the film lacks takes no row.
+	var facts []core.Node
+	fact := func(id string, label func(*core.Scope) string, value func() string) {
+		if value() == "" {
+			return
+		}
+		i := len(facts)
+		facts = append(facts, look.Row{TestID: "film-info-" + id, Index: func() int { return i }, Title: text(label), TitleLines: 1, Value: value})
 	}
-	if library != "" {
-		about = append(about, core.View{TestID: "film-library", Style: core.Style{Direction: core.Row, Gap: 6, AlignItems: core.AlignCenter}, Children: []core.Node{
-			ui.Icon(lucide.Library, 14, colors.Faint),
-			core.Text{Content: library, Style: look.Caption, StyleFunc: ui.Colored(colors.Muted)},
-		}})
+	is := func(v string) func() string { return func() string { return v } }
+	fact("source", locales.FilmInfoSource, func() string { return sourceName(cx, catalog.SourceOf(f)) })
+	fact("languages", locales.FilmInfoLanguages, is(look.Languages(f)))
+	if f.DurationMS > 0 {
+		fact("length", locales.FilmInfoLength, is(look.Duration(time.Duration(f.DurationMS)*time.Millisecond)))
 	}
+	if f.VideoSize > 0 {
+		fact("size", locales.FilmInfoSize, is(look.Size(f.VideoSize)))
+	}
+	fact("library", locales.FilmInfoLibrary, is(library))
+	info := core.View{TestID: "film-info", Style: core.Style{Gap: 7}, Children: []core.Node{look.GroupHeader(cx, text(locales.FilmInfo)), look.Group{Children: facts}}}
 	ref := &core.Ref{}
-	remove := ui.IconButton{TestID: "film-delete", Icon: lucide.Trash, LabelFunc: text(locales.FilmDelete), Size: 44, OnPress: confirmDelete}
-	header := ui.NavHeader{OnBack: back, Scroll: ref,
-		Trailing: []core.Node{core.Show{When: done, Then: func(*core.Scope) core.Node { return remove }}},
-		Symbols: func() []core.HeaderSymbol {
-			if done() {
-				return []core.HeaderSymbol{{Name: "trash", Label: locales.FilmDelete(cx)}}
-			}
-			return nil
-		}}
 	return ui.NavPage(cx, base.NavPage{TestID: "film-page", Children: []core.Node{
 		core.View{Style: core.Style{FlexGrow: 1, FlexShrink: 1}, Children: []core.Node{
 			core.Scroll{Ref: ref, Style: core.Style{FlexGrow: 1, FlexShrink: 1}, Children: []core.Node{
 				core.View{Style: core.Style{Padding: core.Edges{Top: 8, Right: 16, Bottom: 24, Left: 16}, PaddingEnv: core.EnvEdges{Right: core.EnvSafeArea, Left: core.EnvSafeArea},
 					Gap: 20, MaxWidth: core.Pt(560), Width: core.Pct(100), AlignSelf: core.AlignCenter}, Children: []core.Node{
 					art,
-					core.View{Style: core.Style{Gap: 6}, Children: about},
+					core.Text{TestID: "film-title", Content: f.Title, Role: core.RoleHeader, MaxLines: 3, Style: look.Heading, StyleFunc: ui.Colored(colors.Text)},
 					prompt,
-					progress,
 					storageNote,
 					storageFailed,
+					offline,
+					info,
 				}},
 			}},
 			look.ActionBar(cx, actions),
 		}},
-	}}, header)
+	}}, ui.NavHeader{OnBack: back, Scroll: ref})
+}
+
+// sourceName is the name of the site a film came from, as the Library's source chips say it.
+func sourceName(cx *core.Scope, source string) string {
+	switch source {
+	case catalog.SourceYouTube:
+		return locales.FilmsSourceYoutube(cx)
+	case catalog.SourceBilibili:
+		return locales.FilmsSourceBilibili(cx)
+	case catalog.SourceLocal:
+		return locales.FilmsSourceLocal(cx)
+	}
+	return locales.FilmsSourceWeb(cx)
 }

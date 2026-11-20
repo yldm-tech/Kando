@@ -254,7 +254,7 @@ func TestOfflineTheDownloadsStillShow(t *testing.T) {
 		t.Fatal("an unreachable desktop offers to pair again")
 	}
 	p.app.Press(talkRow("gonedesk"))
-	p.app.WaitFor("id:film-play", wait)
+	p.app.WaitFor("id:player-video", wait)
 }
 
 // A desktop that revoked the phone asks to pair again, and its films go from the list.

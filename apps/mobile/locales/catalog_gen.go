@@ -890,7 +890,14 @@ const (
 	textFilmDownload
 	textFilmDownloaded
 	textFilmGone
+	textFilmInfo
+	textFilmInfoLanguages
+	textFilmInfoLength
+	textFilmInfoLibrary
+	textFilmInfoSize
+	textFilmInfoSource
 	textFilmNoSpace
+	textFilmOffline
 	textFilmPause
 	textFilmPlay
 	textFilmLines
@@ -1343,7 +1350,14 @@ var keyOfText = [numTexts]string{
 	"filmDownload",
 	"filmDownloaded",
 	"filmGone",
+	"filmInfo",
+	"filmInfoLanguages",
+	"filmInfoLength",
+	"filmInfoLibrary",
+	"filmInfoSize",
+	"filmInfoSource",
 	"filmNoSpace",
+	"filmOffline",
 	"filmPause",
 	"filmPlay",
 	"filmLines",
@@ -1791,10 +1805,17 @@ var textsEn = i18n.NewTexts(""+
 	"Cancel Download"+
 	"Delete offline files from this device"+
 	"Delete"+
-	"Download"+
+	"Save for offline"+
 	"Saved on this device"+
 	"This film is no longer on the computer."+
+	"Info"+
+	"Languages"+
+	"Length"+
+	"Library"+
+	"Size"+
+	"Source"+
 	"There isn't enough space on this phone."+
+	"Offline"+
 	"Pause"+
 	"Play"+
 	"Read the Lines"+
@@ -2239,10 +2260,17 @@ var textsEn = i18n.NewTexts(""+
 		15,
 		37,
 		6,
-		8,
+		16,
 		20,
 		39,
+		4,
+		9,
+		6,
+		7,
+		4,
+		6,
 		39,
+		7,
 		5,
 		4,
 		14,
@@ -2690,10 +2718,17 @@ var textsJa = i18n.NewTexts(""+
 	"ダウンロードをキャンセル"+
 	"この端末からオフラインファイルを削除"+
 	"削除"+
-	"ダウンロード"+
+	"オフライン用に保存"+
 	"この端末に保存済み"+
 	"この動画はもうコンピュータにありません。"+
+	"情報"+
+	"言語"+
+	"長さ"+
+	"ライブラリ"+
+	"サイズ"+
+	"ソース"+
 	"スマートフォンの空き容量が足りません。"+
+	"オフライン"+
 	"一時停止"+
 	"再生"+
 	"セリフを見る"+
@@ -3138,10 +3173,17 @@ var textsJa = i18n.NewTexts(""+
 		36,
 		54,
 		6,
-		18,
+		27,
 		27,
 		60,
+		6,
+		6,
+		6,
+		15,
+		9,
+		9,
 		57,
+		15,
 		12,
 		6,
 		18,
@@ -3589,10 +3631,17 @@ var textsKo = i18n.NewTexts(""+
 	"다운로드 취소"+
 	"이 기기에서 오프라인 파일 삭제"+
 	"삭제"+
-	"다운로드"+
+	"오프라인용으로 저장"+
 	"이 기기에 저장됨"+
 	"이 영상은 더 이상 컴퓨터에 없습니다."+
+	"정보"+
+	"언어"+
+	"길이"+
+	"보관함"+
+	"크기"+
+	"출처"+
 	"휴대폰 저장 공간이 부족합니다."+
+	"오프라인"+
 	"일시 정지"+
 	"재생"+
 	"대사 보기"+
@@ -4037,10 +4086,17 @@ var textsKo = i18n.NewTexts(""+
 		19,
 		43,
 		6,
-		12,
+		28,
 		23,
 		51,
+		6,
+		6,
+		6,
+		9,
+		6,
+		6,
 		43,
+		12,
 		13,
 		6,
 		13,
@@ -4488,10 +4544,17 @@ var textsZhHans = i18n.NewTexts(""+
 	"取消下载"+
 	"从本机删除离线文件"+
 	"删除"+
-	"下载"+
+	"存到本机离线看"+
 	"已存到本机"+
 	"电脑上已经没有这部影片了。"+
+	"信息"+
+	"语言"+
+	"时长"+
+	"资料库"+
+	"大小"+
+	"来源"+
 	"手机空间不足。"+
+	"离线"+
 	"暂停"+
 	"播放"+
 	"看台词"+
@@ -4936,10 +4999,17 @@ var textsZhHans = i18n.NewTexts(""+
 		12,
 		27,
 		6,
-		6,
+		21,
 		15,
 		39,
+		6,
+		6,
+		6,
+		9,
+		6,
+		6,
 		21,
+		6,
 		6,
 		6,
 		9,
@@ -5387,10 +5457,17 @@ var textsZhHant = i18n.NewTexts(""+
 	"取消下載"+
 	"從本機刪除離線檔案"+
 	"刪除"+
-	"下載"+
+	"存到本機離線看"+
 	"已存到本機"+
 	"電腦上已經沒有這部影片了。"+
+	"資訊"+
+	"語言"+
+	"時長"+
+	"資料庫"+
+	"大小"+
+	"來源"+
 	"手機空間不足。"+
+	"離線"+
 	"暫停"+
 	"播放"+
 	"看台詞"+
@@ -5835,10 +5912,17 @@ var textsZhHant = i18n.NewTexts(""+
 		12,
 		27,
 		6,
-		6,
+		21,
 		15,
 		39,
+		6,
+		6,
+		6,
+		9,
+		6,
+		6,
 		21,
+		6,
 		6,
 		6,
 		9,
@@ -7976,7 +8060,7 @@ func (msgs Messages) ExportWithTranslation() string { return msgs.text(textExpor
 // FilmCancel says "Cancel Download"
 // in the language the app shows under cx.
 //
-// Button on a film's page that stops its download and deletes what was downloaded.
+// Row in the Offline group of a film's page that stops its download and deletes what was downloaded.
 func FilmCancel(cx *core.Scope) string { return For(cx).FilmCancel() }
 
 // FilmCancel is the package's FilmCancel in the language of msgs.
@@ -7985,7 +8069,7 @@ func (msgs Messages) FilmCancel() string { return msgs.text(textFilmCancel) }
 // FilmDelete says "Delete offline files from this device"
 // in the language the app shows under cx.
 //
-// Spoken name of the trash button in a downloaded film's header, and the label of the row in the Library's film options sheet that does the same: deletes the film's files from the phone, keeping it in the computer's library.
+// Label of the row in the Offline group of a downloaded film's page, and of the row in the Library's film options sheet: deletes the film's files from the phone after asking, keeping it in the computer's library; the page's row shows the space it frees at its end.
 func FilmDelete(cx *core.Scope) string { return For(cx).FilmDelete() }
 
 // FilmDelete is the package's FilmDelete in the language of msgs.
@@ -8030,10 +8114,10 @@ func (msgs Messages) FilmDeleteTitle(title string) string {
 	}
 }
 
-// FilmDownload says "Download"
+// FilmDownload says "Save for offline"
 // in the language the app shows under cx.
 //
-// Button on a film's page that downloads it to the phone, and the name of its progress bar.
+// Button on a film's page that downloads it to the phone to watch offline, and the name of its progress bar.
 func FilmDownload(cx *core.Scope) string { return For(cx).FilmDownload() }
 
 // FilmDownload is the package's FilmDownload in the language of msgs.
@@ -8087,6 +8171,60 @@ func FilmGone(cx *core.Scope) string { return For(cx).FilmGone() }
 // FilmGone is the package's FilmGone in the language of msgs.
 func (msgs Messages) FilmGone() string { return msgs.text(textFilmGone) }
 
+// FilmInfo says "Info"
+// in the language the app shows under cx.
+//
+// Header of the group of a film's facts on its page (source, languages, length, size, library), as the player's Info tab.
+func FilmInfo(cx *core.Scope) string { return For(cx).FilmInfo() }
+
+// FilmInfo is the package's FilmInfo in the language of msgs.
+func (msgs Messages) FilmInfo() string { return msgs.text(textFilmInfo) }
+
+// FilmInfoLanguages says "Languages"
+// in the language the app shows under cx.
+//
+// Film page, Info group: the row of the film's spoken language and the language it is translated into, as 日本語 → 简体中文.
+func FilmInfoLanguages(cx *core.Scope) string { return For(cx).FilmInfoLanguages() }
+
+// FilmInfoLanguages is the package's FilmInfoLanguages in the language of msgs.
+func (msgs Messages) FilmInfoLanguages() string { return msgs.text(textFilmInfoLanguages) }
+
+// FilmInfoLength says "Length"
+// in the language the app shows under cx.
+//
+// Film page, Info group: the row of how long the film plays.
+func FilmInfoLength(cx *core.Scope) string { return For(cx).FilmInfoLength() }
+
+// FilmInfoLength is the package's FilmInfoLength in the language of msgs.
+func (msgs Messages) FilmInfoLength() string { return msgs.text(textFilmInfoLength) }
+
+// FilmInfoLibrary says "Library"
+// in the language the app shows under cx.
+//
+// Film page, Info group: the row of the library on the computer the film is in.
+func FilmInfoLibrary(cx *core.Scope) string { return For(cx).FilmInfoLibrary() }
+
+// FilmInfoLibrary is the package's FilmInfoLibrary in the language of msgs.
+func (msgs Messages) FilmInfoLibrary() string { return msgs.text(textFilmInfoLibrary) }
+
+// FilmInfoSize says "Size"
+// in the language the app shows under cx.
+//
+// Film page, Info group: the row of how much space the film's video takes.
+func FilmInfoSize(cx *core.Scope) string { return For(cx).FilmInfoSize() }
+
+// FilmInfoSize is the package's FilmInfoSize in the language of msgs.
+func (msgs Messages) FilmInfoSize() string { return msgs.text(textFilmInfoSize) }
+
+// FilmInfoSource says "Source"
+// in the language the app shows under cx.
+//
+// Film page, Info group: the row of the site the film came from (YouTube, Bilibili, another site, a file on the computer).
+func FilmInfoSource(cx *core.Scope) string { return For(cx).FilmInfoSource() }
+
+// FilmInfoSource is the package's FilmInfoSource in the language of msgs.
+func (msgs Messages) FilmInfoSource() string { return msgs.text(textFilmInfoSource) }
+
 // FilmNoSpace says "There isn't enough space on this phone."
 // in the language the app shows under cx.
 //
@@ -8095,6 +8233,15 @@ func FilmNoSpace(cx *core.Scope) string { return For(cx).FilmNoSpace() }
 
 // FilmNoSpace is the package's FilmNoSpace in the language of msgs.
 func (msgs Messages) FilmNoSpace() string { return msgs.text(textFilmNoSpace) }
+
+// FilmOffline says "Offline"
+// in the language the app shows under cx.
+//
+// Header of the group on a film's page about what the phone keeps of it to watch offline: where its download stands, and the row that cancels it or deletes it from the phone.
+func FilmOffline(cx *core.Scope) string { return For(cx).FilmOffline() }
+
+// FilmOffline is the package's FilmOffline in the language of msgs.
+func (msgs Messages) FilmOffline() string { return msgs.text(textFilmOffline) }
 
 // FilmPause says "Pause"
 // in the language the app shows under cx.

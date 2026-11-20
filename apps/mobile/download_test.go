@@ -8,6 +8,7 @@ import (
 	"testing"
 
 	"kando/apps/mobile/store"
+	"kando/packages/sync"
 	"kando/packages/sync/synctest"
 )
 
@@ -73,21 +74,29 @@ func TestCancellingADownloadDeletesIt(t *testing.T) {
 	p.waitFile(dir, -1)
 }
 
-// A downloaded film deleted from its page is gone from the phone.
+// A film downloaded on its page and deleted from there is gone from the phone, and its page closes.
 func TestDeletingADownloadedFilm(t *testing.T) {
+	d := newDesktop(t)
+	// A film without a poster, whose page shows no empty frame for one.
+	d.AddFilm(synctest.Film{Library: "lib", Video: talkVideo, Cues: talkCues, Film: sync.Film{ID: "f2", Title: "Evening Notes", Source: "youtube", DurationMS: 10_000, Updated: now()}})
 	p := startPhone(t, "")
-	f := keepTalk(t, p.dir)
-	p = startPhone(t, p.dir)
-	p.app.WaitFor(talkRow(f.Desktop), wait)
-	p.app.Press(talkRow(f.Desktop))
+	p.pair(d)
+	id := store.DesktopID(d.Fingerprint)
+	p.app.WaitFor(filmRow(id, "f2"), wait)
+	p.app.Press(filmRow(id, "f2"))
+	p.app.WaitFor("id:film-download", wait)
+	p.app.Press("id:film-download")
 	p.app.WaitFor("id:film-delete", wait)
 	if p.app.Exists("id:film-poster") {
 		t.Fatal("a film with no poster shows an empty poster frame")
 	}
 	p.app.Press("id:film-delete")
 	p.app.Answer(1)
-	p.app.WaitForGone(talkRow(f.Desktop), wait)
-	p.waitFile(filepath.Join("films", f.Desktop, f.Film.ID), -1)
+	p.app.WaitForGone("id:film-page", wait)
+	p.waitFile(filepath.Join("films", id, "f2"), -1)
+	if p.app.Exists(filmRow(id, "f2") + " >> text:" + msgs.FilmDownloaded()) {
+		t.Fatal("the deleted film's row still says it is on the phone")
+	}
 }
 
 // A download is done once its last byte is kept, without waiting on the desktop to say which library the film is in, which the phone asks for after.
@@ -107,4 +116,49 @@ func TestADownloadEndsWithoutWaitingForItsLibrary(t *testing.T) {
 		films, _ := store.Open(p.dir).Films()
 		return len(films) == 1 && films[0].LibraryID == "lib"
 	})
+}
+
+// A film's page lists its facts in the Info group, and once the film is on the phone, the Offline group says so over the row that deletes it, with the space that frees.
+func TestAFilmsPageGroupsItsFactsAndWhatThePhoneKeeps(t *testing.T) {
+	d := newDesktop(t)
+	p := startPhone(t, "")
+	p.openTalk(d)
+	for id, want := range map[string]string{
+		"source":    msgs.FilmInfoSource() + "\nYouTube",
+		"languages": msgs.FilmInfoLanguages() + "\n日本語 → 简体中文",
+		"length":    msgs.FilmInfoLength() + "\n0:10",
+		"size":      msgs.FilmInfoSize() + "\n977 KB",
+		"library":   msgs.FilmInfoLibrary() + "\nJapanese Class",
+	} {
+		if got := p.texts("id:film-info-" + id); got != want {
+			t.Errorf("the Info group's %s row reads %q, want %q", id, got, want)
+		}
+	}
+	if p.app.Exists("id:film-status") || p.app.Exists("id:film-delete") {
+		t.Fatal("a film not on the phone shows the Offline group")
+	}
+	p.app.Press("id:film-download")
+	p.app.WaitFor("id:film-delete", wait)
+	if got := p.texts("id:film-status"); got != msgs.FilmDownloaded() {
+		t.Errorf("the Offline group says %q", got)
+	}
+	if got, want := p.texts("id:film-delete"), msgs.FilmDelete()+"\n977 KB"; got != want {
+		t.Errorf("the delete row reads %q, want %q", got, want)
+	}
+}
+
+// A film's row plays a film whose video is on the phone, held where it was left as its page's Play does, without opening its page; a film not on the phone opens its page.
+func TestAFilmsRowPlaysItOnceItIsOnThePhone(t *testing.T) {
+	d := newDesktop(t)
+	p := startPhone(t, "")
+	p.openTalk(d)
+	p.app.Press("id:film-download")
+	p.app.WaitFor("id:film-play", wait)
+	p.app.HeaderBack("id:film-page")
+	p.app.WaitForGone("id:film-page", wait)
+	p.app.Press(talkRow(store.DesktopID(d.Fingerprint)))
+	p.app.WaitFor("id:player-video", wait)
+	if p.app.Exists("id:film-page") {
+		t.Fatal("the row of a film on the phone opened its page under the player")
+	}
 }

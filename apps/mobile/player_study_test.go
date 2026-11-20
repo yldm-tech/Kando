@@ -39,8 +39,6 @@ func openStudyIn(t *testing.T, d *synctest.Desktop, dir string) (*phone, store.F
 	p := startPhone(t, dir, pairedWith(t, d, dir))
 	p.app.WaitFor(talkRow(f.Desktop), wait)
 	p.app.Press(talkRow(f.Desktop))
-	p.app.WaitFor("id:film-play", wait)
-	p.app.Press("id:film-play")
 	p.app.WaitFor("id:player-video", wait)
 	p.app.WaitUntil(wait, func() bool { return p.app.Exists("id:player-line") })
 	// The film's library is asked for as it opens, as the talk was kept without it.
@@ -305,8 +303,6 @@ func openStudyAt(t *testing.T, d *synctest.Desktop, at time.Duration) *phone {
 	p := startPhone(t, dir, pairedWith(t, d, dir))
 	p.app.WaitFor(talkRow(f.Desktop), wait)
 	p.app.Press(talkRow(f.Desktop))
-	p.app.WaitFor("id:film-play", wait)
-	p.app.Press("id:film-play")
 	p.app.WaitFor("id:player-video", wait)
 	return p
 }
@@ -427,8 +423,6 @@ func openJapaneseMarked(t *testing.T, marks *sync.FilmMarks) (*phone, *synctest.
 	p := startPhone(t, dir, pairedWith(t, d, dir))
 	p.app.WaitFor(talkRow(f.Desktop), wait)
 	p.app.Press(talkRow(f.Desktop))
-	p.app.WaitFor("id:film-play", wait)
-	p.app.Press("id:film-play")
 	p.app.WaitFor("id:player-video", wait)
 	p.app.WaitUntil(time.Minute, func() bool { return p.app.Exists(`id:player-card >> text:"` + japaneseWord + `"`) })
 	return p, d
@@ -820,8 +814,8 @@ func TestTheMiniPlayerPlaysOnOverTheTabs(t *testing.T) {
 	if p.app.Exists("id:player-card") || p.app.Exists("id:player-tabs") {
 		t.Fatal("minimized, the player still shows")
 	}
-	if !p.app.Exists("id:film-page") && !p.app.Exists("id:film-play") {
-		t.Fatal("minimized, the film's page does not show under the mini player")
+	if !p.app.Exists(talkRow(f.Desktop)) {
+		t.Fatal("minimized, the Library does not show under the mini player")
 	}
 	p.app.WaitUntil(wait, func() bool {
 		films, _ := store.Open(p.dir).Films()
@@ -860,13 +854,13 @@ func TestTheMiniPlayerPlaysOnOverTheTabs(t *testing.T) {
 	if len(p.seeks()) != loads || p.app.Find("id:player-video").Video.Paused {
 		t.Fatalf("the player opened again went to %v", p.seeks()[loads:])
 	}
-	// Played again from its page, the film opens the same player.
+	// Played again from its row, the film opens the same player.
 	p.app.Press("id:player-minimize")
 	p.app.WaitFor("id:player-mini", wait)
-	p.app.Press("id:film-play")
+	p.app.Press(talkRow(f.Desktop))
 	p.app.WaitFor("id:player-card", wait)
 	if len(p.seeks()) != loads {
-		t.Fatalf("played from its page, the film went to %v", p.seeks()[loads:])
+		t.Fatalf("played from its row, the film went to %v", p.seeks()[loads:])
 	}
 }
 
@@ -888,11 +882,20 @@ func TestAFilmPlayedFromALineWhileMinimizedGoesThere(t *testing.T) {
 	p.app.WaitUntil(wait, func() bool { return p.keptPosition() == 3000 })
 }
 
-// A film deleted from the phone while it plays in the mini player stops, and the mini player goes.
+// A film deleted from the phone while it plays in the mini player stops, and the mini player goes. The film's page, where it was downloaded and played, keeps its actions clear of the mini player.
 func TestDeletingTheFilmPlayingMinimizedStopsIt(t *testing.T) {
-	p, _ := openPlayer(t)
+	d := newDesktop(t)
+	p := startPhone(t, "")
+	p.openTalk(d)
+	p.app.Press("id:film-download")
+	p.app.WaitFor("id:film-play", wait)
+	p.app.Press("id:film-play")
+	p.app.WaitFor("id:player-video", wait)
 	p.app.Press("id:player-minimize")
 	p.app.WaitFor("id:player-mini", wait)
+	if play, mini := p.app.Find("id:film-play").Bounds(), p.app.Find("id:player-mini").Bounds(); play.Origin.Y+play.Size.Height > mini.Origin.Y {
+		t.Fatalf("the mini player %+v covers the film's Play button %+v", mini, play)
+	}
 	p.app.Press("id:film-delete")
 	p.app.Answer(1)
 	p.app.WaitForGone("id:player-mini", wait)
@@ -915,16 +918,16 @@ func TestBackMinimizesThePlayerBeforeItLeavesThePageUnderIt(t *testing.T) {
 	}
 	p.app.Back()
 	p.app.WaitFor("id:player-mini", wait)
-	if p.app.Exists("id:player-card") || !p.app.Exists("id:film-play") {
-		t.Fatal("back did not minimize the player over the film's page")
+	if p.app.Exists("id:player-card") || !p.app.Exists(talkRow(f.Desktop)) {
+		t.Fatal("back did not minimize the player over the Library")
 	}
-	// The film page's actions keep clear of the mini player.
-	if play, mini := p.app.Find("id:film-play").Bounds(), p.app.Find("id:player-mini").Bounds(); play.Origin.Y+play.Size.Height > mini.Origin.Y {
-		t.Fatalf("the mini player %+v covers the film's Play button %+v", mini, play)
-	}
+	// A page opened in a tab under the mini player goes back as before.
 	paused := p.app.Find("id:player-video").Video.Paused
+	p.openTab(settingsTab, msgs.SettingsTitle())
+	p.app.Press("id:settings-computer-" + f.Desktop)
+	p.app.WaitFor("id:computer-page", wait)
 	p.app.Back()
-	p.app.WaitFor(talkRow(f.Desktop), wait)
+	p.app.WaitForGone("id:computer-page", wait)
 	if !p.app.Exists("id:player-mini") {
 		t.Fatal("going back in the tab closed the mini player")
 	}

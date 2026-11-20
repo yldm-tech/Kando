@@ -246,15 +246,15 @@ func TestSettingsShowsTheIntroductionAgain(t *testing.T) {
 	p.app.WaitFor("id:settings-page", wait)
 }
 
-// On iOS a downloaded film's page puts its delete button in the system header, and Settings opens pairing.
+// On iOS a film's page goes back through the system header, and Settings opens pairing.
 func TestTheIOSHeaders(t *testing.T) {
 	d := newDesktop(t)
 	dir := t.TempDir()
-	keepTalk(t, dir)
 	p := startPhone(t, dir, pairedWith(t, d, dir), nsgotest.Environment(core.Environment{Locale: lang, OS: core.OSIOS}))
-	p.app.WaitFor(talkRow("gonedesk"), wait)
-	p.app.Press(talkRow("gonedesk"))
-	p.app.WaitFor("id:film-delete", wait)
+	id := store.DesktopID(d.Fingerprint)
+	p.app.WaitFor(talkRow(id), wait)
+	p.app.Press(talkRow(id))
+	p.app.WaitFor("id:film-download", wait)
 	p.app.HeaderBack("id:film-page")
 	p.app.WaitForGone("id:film-page", wait)
 	p.openTab(settingsTab, msgs.SettingsTitle())
@@ -268,12 +268,13 @@ func TestTheActionBarSitsOnTheTabBar(t *testing.T) {
 		t.Skip("the safe area is the platform's on a target")
 	}
 	const bottom = 34
+	d := newDesktop(t)
 	dir := t.TempDir()
-	keepTalk(t, dir)
-	p := startPhone(t, dir, nsgotest.Environment(core.Environment{Locale: lang, SafeArea: core.Edges{Bottom: bottom}}))
-	p.app.WaitFor(talkRow("gonedesk"), wait)
-	p.app.Press(talkRow("gonedesk"))
-	play := p.app.WaitFor("id:film-play", wait).Bounds()
+	p := startPhone(t, dir, pairedWith(t, d, dir), nsgotest.Environment(core.Environment{Locale: lang, SafeArea: core.Edges{Bottom: bottom}}))
+	id := store.DesktopID(d.Fingerprint)
+	p.app.WaitFor(talkRow(id), wait)
+	p.app.Press(talkRow(id))
+	play := p.app.WaitFor("id:film-download", wait).Bounds()
 	bar := p.app.Find("id:tab-bar").Bounds()
 	if gap := bar.Origin.Y - (play.Origin.Y + play.Size.Height); gap < 0 || gap >= bottom {
 		t.Fatalf("the action bar's button ends %v above the tab bar, want less than the %v of the safe area the bar keeps clear of", gap, core.Points(bottom))
@@ -340,16 +341,17 @@ func TestATabletShowsASidebarOnItsSideAndATabBarUpright(t *testing.T) {
 	p.app.Answer(0)
 }
 
-// Unpaired in Settings while the Library shows the page of one of its films kept on the phone, a computer leaves that page open: the film still plays from the phone.
+// Unpaired in Settings while the Library shows the page of one of its films downloaded there, a computer leaves that page open: the film still plays from the phone.
 func TestUnpairingInSettingsKeepsThePageOfAFilmOnThePhone(t *testing.T) {
 	d := newDesktop(t)
 	dir := t.TempDir()
 	secrets := pairedWith(t, d, dir)
 	id := store.DesktopID(d.Fingerprint)
-	keepTalkFrom(t, dir, id)
 	p := startPhone(t, dir, secrets)
 	p.app.WaitFor(talkRow(id), wait)
 	p.app.Press(talkRow(id))
+	p.app.WaitFor("id:film-download", wait)
+	p.app.Press("id:film-download")
 	p.app.WaitFor("id:film-play", wait)
 	p.openTab(settingsTab, msgs.SettingsTitle())
 	p.app.Press("id:settings-computer-options-" + id)

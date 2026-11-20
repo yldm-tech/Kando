@@ -25,8 +25,6 @@ func openPlayer(t *testing.T, opts ...nsgotest.Option) (*phone, store.Film) {
 	p := startPhone(t, dir, opts...)
 	p.app.WaitFor(talkRow(f.Desktop), wait)
 	p.app.Press(talkRow(f.Desktop))
-	p.app.WaitFor("id:film-play", wait)
-	p.app.Press("id:film-play")
 	p.app.WaitFor("id:player-video", wait)
 	p.app.WaitUntil(wait, func() bool { return p.app.Exists("id:player-line") })
 	p.app.Play("id:player-video", core.VideoInfo{Duration: 10 * sec, Size: core.Size{Width: 1920, Height: 1080}})
@@ -188,8 +186,6 @@ func TestThePlayerKeepsWhereTheFilmWasLeft(t *testing.T) {
 		p := startPhone(t, dir)
 		p.app.WaitFor(talkRow(f.Desktop), wait)
 		p.app.Press(talkRow(f.Desktop))
-		p.app.WaitFor("id:film-play", wait)
-		p.app.Press("id:film-play")
 		p.app.WaitFor("id:player-video", wait)
 		p.app.Play("id:player-video", core.VideoInfo{Duration: 10 * sec})
 		return p

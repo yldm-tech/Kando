@@ -284,7 +284,7 @@ func (v *view) detailTone(cx *core.Scope, key func() string) func() core.Color {
 	}
 }
 
-// open is what pressing a film does: plays a film on the phone from the line the search found, else opens the film's page.
+// open is what pressing a film does: plays a film on the phone from the line the search found, or where it was left (openFilm), else opens the film's page.
 func (v *view) open(r catalog.Result) {
 	if h := r.Hit; h != nil {
 		if k, ok := v.s.Film(r.Key()); ok && k.Done() {
@@ -292,7 +292,7 @@ func (v *view) open(r catalog.Result) {
 			return
 		}
 	}
-	v.act.Film(r.Entry)
+	v.openFilm(r.Entry)
 }
 
 // row is a film of the list: its poster with its length and how far it was watched, its title, its source's mark with its source, where it was left or its length and where it stands on the phone, the line a search found in it, its download's bar, and its options. Pressed, it opens the film's page, or plays a film on the phone from the line the search found. While the user's storage fails the phone, a film not on it fades.

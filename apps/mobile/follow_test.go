@@ -57,8 +57,6 @@ func playKept(t *testing.T, d *synctest.Desktop, dir string) *phone {
 	p := startPhone(t, dir, pairedWith(t, d, dir))
 	p.app.WaitFor(talkRow(store.DesktopID(d.Fingerprint)), wait)
 	p.app.Press(talkRow(store.DesktopID(d.Fingerprint)))
-	p.app.WaitFor("id:film-play", wait)
-	p.app.Press("id:film-play")
 	p.app.WaitFor("id:player-video", wait)
 	p.app.WaitUntil(wait, func() bool { return p.app.Exists("id:player-line") })
 	p.app.Play("id:player-video", core.VideoInfo{Duration: 10 * sec, Size: core.Size{Width: 1920, Height: 1080}})

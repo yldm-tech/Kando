@@ -119,9 +119,13 @@ func TestScreenshotsBrowse(t *testing.T) {
 	// The bar eases to its value over 200ms (ui.Progress).
 	p.app.Advance(300 * time.Millisecond)
 	shot(p, "film-downloading")
-	// Paused, so the stalled answer ends before the desktop closes: on a phone the app outlives the test's cleanups.
+	// Paused, so the stalled answer ends before the desktop closes: on a phone the app outlives the test's cleanups; then resumed to the end, where the page stays.
 	p.app.Press("id:film-pause")
 	p.app.WaitFor("id:film-resume", wait)
+	d.Stall(0)
+	p.app.Press("id:film-resume")
+	p.app.WaitFor("id:film-play", wait)
+	shot(p, "film-downloaded")
 }
 
 func TestScreenshotsDownloads(t *testing.T) {
@@ -131,9 +135,6 @@ func TestScreenshotsDownloads(t *testing.T) {
 	p := startPhone(t, dir)
 	p.app.WaitFor(talkRow("gonedesk"), wait)
 	shot(p, "films-unpaired")
-	p.app.Press(talkRow("gonedesk"))
-	p.app.WaitFor("id:film-play", wait)
-	shot(p, "film-downloaded")
 }
 
 func TestScreenshotsComputersProblem(t *testing.T) {

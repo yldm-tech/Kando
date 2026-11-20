@@ -263,10 +263,10 @@ exportWithTranslation:
   description: "Export page: switch that writes with each word the translation of the line it was looked up in."
 filmCancel:
   message: "Cancel Download"
-  description: "Button on a film's page that stops its download and deletes what was downloaded."
+  description: "Row in the Offline group of a film's page that stops its download and deletes what was downloaded."
 filmDelete:
   message: "Delete offline files from this device"
-  description: "Spoken name of the trash button in a downloaded film's header, and the label of the row in the Library's film options sheet that does the same: deletes the film's files from the phone, keeping it in the computer's library."
+  description: "Label of the row in the Offline group of a downloaded film's page, and of the row in the Library's film options sheet: deletes the film's files from the phone after asking, keeping it in the computer's library; the page's row shows the space it frees at its end."
 filmDeleteConfirm:
   message: "Delete"
   description: "The alert's button that confirms deleting a downloaded film."
@@ -276,8 +276,8 @@ filmDeleteTitle:
   placeholders:
     title: { type: "String", example: "Talk at the café" }
 filmDownload:
-  message: "Download"
-  description: "Button on a film's page that downloads it to the phone, and the name of its progress bar."
+  message: "Save for offline"
+  description: "Button on a film's page that downloads it to the phone to watch offline, and the name of its progress bar."
 filmDownloaded:
   message: "Saved on this device"
   description: "Where a film stands: it is on the phone and plays offline."
@@ -289,9 +289,30 @@ filmDownloading:
 filmGone:
   message: "This film is no longer on the computer."
   description: "Why a download stopped: the computer no longer serves the film."
+filmInfo:
+  message: "Info"
+  description: "Header of the group of a film's facts on its page (source, languages, length, size, library), as the player's Info tab."
+filmInfoLanguages:
+  message: "Languages"
+  description: "Film page, Info group: the row of the film's spoken language and the language it is translated into, as 日本語 → 简体中文."
+filmInfoLength:
+  message: "Length"
+  description: "Film page, Info group: the row of how long the film plays."
+filmInfoLibrary:
+  message: "Library"
+  description: "Film page, Info group: the row of the library on the computer the film is in."
+filmInfoSize:
+  message: "Size"
+  description: "Film page, Info group: the row of how much space the film's video takes."
+filmInfoSource:
+  message: "Source"
+  description: "Film page, Info group: the row of the site the film came from (YouTube, Bilibili, another site, a file on the computer)."
 filmNoSpace:
   message: "There isn't enough space on this phone."
   description: "Why a download stopped: the phone's storage is full."
+filmOffline:
+  message: "Offline"
+  description: "Header of the group on a film's page about what the phone keeps of it to watch offline: where its download stands, and the row that cancels it or deletes it from the phone."
 filmPause:
   message: "Pause"
   description: "Button on a film's page that pauses its download."
