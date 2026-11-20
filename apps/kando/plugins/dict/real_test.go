@@ -20,7 +20,7 @@ import (
 	"kando/apps/kando/plugins"
 )
 
-// TestRealDictionary measures a real dictionary file, as JMdict, Jitendex or CC-CEDICT, packed as Kando packs it (docs/plugin-system.md, section 4.1): the entries and bytes of the pack against the limits plugins.Validate keeps, how long Validate and building the index (Open) take, the process's peak memory while the index is built, and how long a lookup takes. It runs only when KANDO_DICT_BENCH names the file (a Yomitan zip, or CC-CEDICT text), so CI never downloads a dictionary; KANDO_DICT_BENCH_LANG is its language, ja or zh (ja by default). Run it once a process, as the peak memory is the process's: KANDO_DICT_BENCH=JMdict_english.zip go test ./plugins/dict -run TestRealDictionary -v. It needs Linux for the memory (/proc/self/status).
+// TestRealDictionary measures a real dictionary file, as JMdict, Jitendex or CC-CEDICT, packed as Kando packs it (docs/plugin-system.md, section 4.1): the entries and bytes of the pack against the limits plugins.Validate keeps, how long Validate and building the index (Open) take, the process's peak memory while the index is built, and how long a lookup takes. It runs only when KANDO_DICT_BENCH names the file (a Yomitan zip, or CC-CEDICT text), so CI never downloads a dictionary; KANDO_DICT_BENCH_LANG is its language, ja or zh (ja by default). Run it once a process, as the peak memory is the process's: KANDO_DICT_BENCH=JMdict_english.zip go test ./plugins/dict -run TestRealDictionary -v. The memory is read from /proc/self/status, so it is measured on Linux only; elsewhere the rest is.
 func TestRealDictionary(t *testing.T) {
 	src := os.Getenv("KANDO_DICT_BENCH")
 	if src == "" {
@@ -48,21 +48,28 @@ func TestRealDictionary(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	t.Logf("file %s: %.1f MiB (a dictionary's zip may be 200 MiB)", name, mib(info.Size()))
+	t.Logf("file %s: %.1f MiB (a dictionary's zip may be %d MiB)", name, mib(info.Size()), plugins.ZipMax(plugins.KindDictionary)>>20)
 	if format == plugins.FormatYomitan {
 		zipShape(t, src)
 	}
 
 	start := time.Now()
-	_, verr := plugins.Validate(dir)
+	p, verr := plugins.Validate(dir)
 	t.Logf("plugins.Validate: %v (nil is ok) in %v", verr, time.Since(start).Round(time.Millisecond))
+	if verr != nil {
+		// The app cannot install this pack; the index is built from the folder as it is, to measure it all the same.
+		p = plugins.Pack{Manifest: plugins.Manifest{ID: "bench.dict", Kind: plugins.KindDictionary, Dictionary: &plugins.Dictionary{Format: format, Files: []string{name}}}, Dir: dir, Hash: "0123456789abcdef"}
+	}
 
 	runtime.GC()
 	debug.FreeOSMemory()
-	before := memory(t)
-	// Writing 5 to clear_refs sets the peak (VmHWM) back to what is resident now, so the peak below is the build's.
-	os.WriteFile("/proc/self/clear_refs", []byte("5"), 0)
-	p := plugins.Pack{Manifest: plugins.Manifest{ID: "bench.dict", Kind: plugins.KindDictionary, Dictionary: &plugins.Dictionary{Format: format, Files: []string{name}}}, Dir: dir, Hash: "0123456789abcdef"}
+	before, measured := memory()
+	if measured {
+		// Writing 5 to clear_refs sets the peak (VmHWM) back to what is resident now, so the peak below is the build's, not that of copying and validating the pack.
+		if err := os.WriteFile("/proc/self/clear_refs", []byte("5"), 0); err != nil {
+			t.Fatalf("reset the peak memory: %v", err)
+		}
+	}
 	cache := filepath.Join(t.TempDir(), ".index")
 	start = time.Now()
 	d, err := Open(p, cache)
@@ -70,11 +77,17 @@ func TestRealDictionary(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	defer d.Close()
-	peak := memory(t)
-	idx, _ := os.Stat(filepath.Join(cache, IndexName(p.ID, p.Hash)))
+	peak, _ := memory()
+	idx, err := os.Stat(filepath.Join(cache, IndexName(p.ID, p.Hash)))
+	if err != nil {
+		t.Fatal(err)
+	}
 	t.Logf("Open (build the index): %v, %d keys, index %.1f MiB", took.Round(time.Millisecond), d.count, mib(idx.Size()))
-	t.Logf("memory before: VmRSS %.1f MiB; during the build: VmHWM %.1f MiB (+%.1f MiB)", mib(before.rss), mib(peak.hwm), mib(peak.hwm-before.rss))
+	if measured {
+		t.Logf("memory before: VmRSS %.1f MiB; during the build: VmHWM %.1f MiB (+%.1f MiB)", mib(before.rss), mib(peak.hwm), mib(peak.hwm-before.rss))
+	} else {
+		t.Log("memory: not measured, as there is no /proc/self/status")
+	}
 
 	d.Close()
 	start = time.Now()
@@ -82,6 +95,7 @@ func TestRealDictionary(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	defer d.Close()
 	t.Logf("Open (index already built): %v", time.Since(start).Round(time.Microsecond))
 
 	words := map[string][][3]string{
@@ -112,8 +126,8 @@ func TestRealDictionary(t *testing.T) {
 	}
 	slices.Sort(times)
 	var sum time.Duration
-	for _, d := range times {
-		sum += d
+	for _, took := range times {
+		sum += took
 	}
 	t.Logf("LookUp x%d (%d found, page cache warm): mean %v, p50 %v, p99 %v, max %v", len(times), hits, sum/time.Duration(len(times)), times[len(times)/2], times[len(times)*99/100], times[len(times)-1])
 }
@@ -172,11 +186,11 @@ func directorySize(t *testing.T, name string) int64 {
 
 type usage struct{ rss, hwm int64 }
 
-// memory is the process's resident memory now (VmRSS) and its peak (VmHWM), from /proc/self/status.
-func memory(t *testing.T) usage {
+// memory is the process's resident memory now (VmRSS) and its peak (VmHWM), from /proc/self/status, and whether there is one to read them from (Linux).
+func memory() (usage, bool) {
 	f, err := os.Open("/proc/self/status")
 	if err != nil {
-		t.Skipf("no /proc/self/status: %v", err)
+		return usage{}, false
 	}
 	defer f.Close()
 	var u usage
@@ -190,7 +204,7 @@ func memory(t *testing.T) usage {
 			u.hwm = kb << 10
 		}
 	}
-	return u
+	return u, true
 }
 
 func mib(n int64) float64 { return float64(n) / (1 << 20) }

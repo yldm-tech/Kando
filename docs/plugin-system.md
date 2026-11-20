@@ -1078,7 +1078,7 @@ P0–P2 不新增任何 module。P3a 起 `github.com/dlclark/regexp2/v2 v2.11.0`
 5. **（已定大部分）社区索引**（P5）：客户端、签名格式和 `kando plugin index` 已做（第 15 节）；索引有自己的密钥（`script.IndexKey`，私钥由 owner 保管）。owner 已定托管方式：社区插件放在公开仓库 `yldm-tech/kando-plugins`，官网的 `/plugin` 页列出目录。建成的流程（第 15 节「发布社区索引」）：作者开 PR，Validate 检查（布局、发布者归属、许可证、大小、版本号变大，再用看懂自己的校验器检查打好的包），bot 把预览贴成 PR 里的一条评论；维护者（`publishers.json` 的 `maintainers`，即 CODEOWNERS 里的 houko 和 Session500）审核后合并：main 的规则集要求每次改动走 PR、「Validate packs」通过、至少一位审核通过，`packs/` 和 `scripts/` 之外的改动还必须经 code owner 审核；合并到 main 后 Publish 签名并发布。所以代码包审核由这两位维护者负责，数据包也一样要审核后才上架，和 10 节 P5 原定的「数据包限速后即时上架」不同。仍待 owner 决定的只有**限速**：要不要让数据包过了 CI 就自动合并、按发布者限速（那样要把限速写进 `validate.yml`），还是一直都人工审核。
 6. **是否把看懂自己的 LLM key 迁进 `core.Secrets`**：与插件无关的加固，作为独立 PR，Linux 上需要保留明文退路。
 7. **外部原生工具或 MCP 子进程插件**：本设计否决了。如果以后识别（faster-whisper）、下载器确有需求，需要单独立项，前提是先给 `media.Command` 补上进程组或 Job Object、WaitDelay 和整棵进程树的 kill。顺带一提，这三项的缺失本身就是一个与插件无关的现有风险：任务取消时，yt-dlp 启动的 ffmpeg 孙进程不会被一起杀掉，`runFollowing` 可能卡在 `cmd.Wait`。这一点是读代码推断的，没有复现，建议单独开 issue。
-8. **dictionary 包的条目上限**：现在是 64 个（第 4 节，`limitsOf`），Jitendex（2026.10.03.0）整包 477 个条目，装不上；JMdict 和 CC-CEDICT 装得下。数字见第 15 节「P1.3 真实词典的测量结果」。建议改成 1024：给 Jitendex 留一倍余量，1024 条中央目录记录（Jitendex 的 475 条是 37 KiB）也远小于 `openZip` 读目录时的 1 MiB 上限，所以那个上限不用动，只改它旁边说「最多 64 个条目」的注释。解压后的 1 GiB 和 zip 的 200 MiB 都够（Jitendex 519 MiB、37 MiB）。
+8. **dictionary 包的条目上限**：现在是 64 个（第 4 节，`limitsOf`），Jitendex（2026.10.03.0）整包 477 个条目，装不上；JMdict 和 CC-CEDICT 装得下。数字见第 15 节「P1.3 真实词典的测量结果」。建议改成 1024：给 Jitendex 留一倍余量，1024 条中央目录记录（Jitendex 的 475 条是 37 KiB）也远小于 `openZip` 读目录时的 1 MiB 上限，所以那个上限不用动，只改 `zipHeadersMax` 注释里「最多 64 个条目」的说法和第 4 节讲 `openZip` 的那句。解压后的 1 GiB 和 zip 的 200 MiB 都够（Jitendex 519 MiB、37 MiB）。
 
 ## 13. 评审记录
 
