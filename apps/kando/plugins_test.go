@@ -1336,7 +1336,7 @@ func TestPluginWordlistMarksTheLines(t *testing.T) {
 	}
 }
 
-// TestPluginWordlistLevelOnTheCard checks the card of a word looked up: a word of the word list chosen in 逐词标注 shows its level, with its rank by frequency when the list gives one, before any meaning comes; a word the list has no rank for shows its level alone; and once no list is chosen, the card shows no level.
+// TestPluginWordlistLevelOnTheCard checks the card of a word looked up: a word of the word list chosen in 逐词标注 shows its level, with its rank by frequency when the list gives one, before any meaning comes; a word the list has no rank for shows its level alone; the level of the dictionary form wins over that of the word as clicked; a list of another language than the film's shows no level; and once no list is chosen, the card shows no level.
 func TestPluginWordlistLevelOnTheCard(t *testing.T) {
 	a, tt, updates, item := playerFilm(t, 12, nil)
 	a.library.Jobs[0].SpokenLanguage = "en"
@@ -1359,6 +1359,23 @@ func TestPluginWordlistLevelOnTheCard(t *testing.T) {
 	}
 	if l := a.Lookup(); l.Tone != subtitle.ToneWarn || l.Rank != 0 {
 		t.Fatalf("the card's level without a rank: %+v", l)
+	}
+	// A dictionary that answers the word clicked with its dictionary form, as 流れた with 流れ: both are in the list, and the card shows the level of the dictionary form.
+	apply(tt, a, func() { a.vocab.lookup.entry.Word = "hello" })
+	if l := a.Lookup(); l.Tone != subtitle.ToneAccent || l.Rank != 12 || !hasText(tt, testlocale.Messages().VocabLookupLevelRank("B1", 12)) {
+		t.Fatalf("the card does not show the level of the dictionary form: %+v; texts %q", l, tt.Texts())
+	}
+
+	// A list of another language than the film's shows no level on the card, though it has the word.
+	pluginInstalledWith(t, a.plugins.root, pluginWordlist("example.jlpt", "ja"), map[string][]byte{"words.tsv": []byte("hello\tb1\nbye\tc1\n")})
+	pluginsReadAgain(t, a, tt, updates)
+	apply(tt, a, func() { a.SetMarkWordlist("example.jlpt") })
+	waitUntil(t, tt, a, updates, func() bool {
+		return a.plugins.list != nil && a.plugins.list.id == "example.jlpt" && a.plugins.list.l != nil && a.plugins.marking == (pluginsMarkKey{})
+	})
+	apply(tt, a, func() { a.LookUpWord(1, "bye") })
+	if l := a.Lookup(); tt.Exists("id:film-lookup-level") || l.Level != nil {
+		t.Fatalf("the card shows the level of a Japanese list on an English film; texts %q", tt.Texts())
 	}
 	apply(tt, a, func() { a.SetMarkWordlist("") })
 	if tt.Exists("id:film-lookup-level") {
