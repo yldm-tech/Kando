@@ -42,9 +42,9 @@ func IconTile(cx *core.Scope, icon func() *core.SVG, tone Tone) core.Node {
 	return tile(icon, fill, tint)
 }
 
-// ColorTile is a row's leading icon, white on a tile of the row's own color, as the design gives each settings row one (theme.Tile…).
-func ColorTile(icon func() *core.SVG, fill core.Color) core.Node {
-	return tile(icon, func() core.Color { return fill }, func() core.Color { return core.RGB(0xFFFFFF) })
+// ColorTile is a row's leading icon, white on a tile of the row's own color, as the design gives each settings row one (theme.Tile…, or theme.Of(cx).TileInk, which follows the appearance); fill is read in a binding.
+func ColorTile(cx *core.Scope, icon func() *core.SVG, fill func() core.Color) core.Node {
+	return tile(icon, fill, ui.ColorsOf(cx).OnAccent)
 }
 
 // tile is a 30pt tile, 8 round, filled with fill, with icon in tint.
@@ -61,8 +61,8 @@ func SectionTitle(cx *core.Scope, text func() string) core.Node {
 	return core.Text{ContentFunc: text, Role: core.RoleHeader, MaxLines: 1, Style: Heading, StyleFunc: ui.Colored(colors.Text)}
 }
 
-// GroupHeader names the Group under it, as a grouped list's section header: a muted caption over the card, in line with the rows' text.
-func GroupHeader(cx *core.Scope, text func() string) core.Node {
+// GroupHeader names the Group under it, as a grouped list's section header: a muted caption over the card, in line with the rows' text. It is a Text, so a caller can give it a TestID.
+func GroupHeader(cx *core.Scope, text func() string) core.Text {
 	colors := ui.ColorsOf(cx)
 	return core.Text{ContentFunc: text, Role: core.RoleHeader, MaxLines: 1, Style: Caption.Merge(core.Style{Padding: core.Edges{Left: 16, Right: 16}}),
 		StyleFunc: ui.Colored(colors.Muted)}

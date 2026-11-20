@@ -240,8 +240,11 @@ func SubscriptionSheet(cx *core.Scope, s *session.Session, open *core.Signal[str
 					Style: look.Subhead, StyleFunc: ui.Colored(colors.Muted)}
 			}},
 			core.View{Style: core.Style{Gap: 8}, Children: []core.Node{
-				core.Text{TestID: "films-subscription-waiting", ContentFunc: func() string { return locales.FilmsSubscriptionWaiting(cx, waiting()) },
-					Role: core.RoleHeader, Style: look.Section.Merge(core.Style{Padding: core.Edges{Left: 4}}), StyleFunc: ui.Colored(colors.Muted)},
+				func() core.Node {
+					h := look.GroupHeader(cx, func() string { return locales.FilmsSubscriptionWaiting(cx, waiting()) })
+					h.TestID = "films-subscription-waiting"
+					return h
+				}(),
 				core.Show{When: func() bool { return waiting() > 0 },
 					Then: func(cx *core.Scope) core.Node {
 						return core.Scroll{Style: core.Style{FlexGrow: 0, MaxHeight: core.Pt(260)}, Children: []core.Node{look.Group{Children: []core.Node{

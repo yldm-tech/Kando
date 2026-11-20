@@ -39,7 +39,7 @@ func (c Count) Render(cx *core.Scope) core.Node {
 				st.Background = theme.BadgeOrange
 			}
 			if c.OnAccent != nil && c.OnAccent() {
-				st.Background = core.RGBA(0xFFFFFF, 0.25)
+				st.Background = theme.BadgeOnAccent
 			}
 			if c.Count() == 0 {
 				st.Display = core.DisplayNone

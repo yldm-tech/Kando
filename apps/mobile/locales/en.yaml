@@ -643,6 +643,11 @@ filmsDeletedFromLibrary:
   placeholders:
     title: { type: "String", example: "Rust Talk" }
     computer: { type: "String", example: "Studio" }
+jobsBadgeLabel:
+  message: "Jobs, {count} unfinished"
+  description: "Spoken name of the Library's Jobs button on a phone while jobs run, wait or failed, or links wait to be sent."
+  placeholders:
+    count: { type: "int", example: "2" }
 jobsEmpty:
   message: "No jobs. Tap + to send a video's link."
   description: "Jobs page, under a computer's card when it has no jobs and no links wait for it."

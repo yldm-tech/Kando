@@ -20,7 +20,7 @@ func Sidebar(cx *core.Scope, s *session.Session, open func(key string), add func
 				core.Text{ContentFunc: func() string { return locales.FilmsSubscriptions(cx) }, Role: core.RoleHeader, MaxLines: 1,
 					Style: look.Caption.Merge(core.Style{FontWeight: core.FontWeightBold, FlexGrow: 1, FlexShrink: 1}), StyleFunc: ui.Colored(colors.Muted)},
 				core.Show{When: func() bool { return canSubscribe(s) }, Then: func(cx *core.Scope) core.Node {
-					return ui.IconButton{TestID: "sidebar-subscriptions-add", Icon: lucide.Plus, Variant: ui.IconButtonGhost, Size: 28, IconSize: 16,
+					return ui.IconButton{TestID: "sidebar-subscriptions-add", Icon: lucide.Plus, Variant: ui.IconButtonGhost, Size: 28, IconSize: 13,
 						LabelFunc: func() string { return locales.FilmsSubscriptionsAddLabel(cx) }, OnPress: add}
 				}},
 			}},

@@ -25,7 +25,7 @@ type Tab struct {
 	TestID  string
 	// Badge, when set, is a count the drawn tab bar and a tablet's sidebar show on the section while it is not 0, in the badges' orange while BadgeWarn reports true, red otherwise.
 	// The count is not in the section's spoken name yet: base.Tab.Label is a fixed string (nsgo#145, above), so a screen reader does not hear it.
-	// TODO(nsgo#741): ui.ShellTab and mobile.TabBarItem have no badge (ui/tabshell.go:10-20, core/tabbar.go:20-28), so the system's tab bar of an iPhone or an Android phone (UITabBarItem.badgeValue, BottomNavigationView's badge) shows no count; pass Badge through once they take one. The issue was closed without them. https://github.com/nsgo-dev/nsgo/issues/741
+	// TODO(nsgo): ui.ShellTab and mobile.TabBarItem have no badge (ui/tabshell.go:10-20, core/tabbar.go:20-28), so the system's tab bar of an iPhone or an Android phone (UITabBarItem.badgeValue, BottomNavigationView's badge) shows no count, and the app shows the jobs' count on the Library's header there instead (SystemBar); pass Badge through once they take one, and drop that button.
 	Badge     func() int
 	BadgeWarn func() bool
 }
@@ -58,9 +58,12 @@ func Sidebar(cx *core.Scope) bool {
 // OverTabBar reports whether a section's pages sit over the tab bar, not beside a sidebar, for look.InTab.
 func OverTabBar(cx *core.Scope) func() bool { return func() bool { return !Sidebar(cx) } }
 
+// SystemBar reports whether the shell under cx is the system's tab bar, an iPhone's or an Android phone's, which shows no Badge.
+func SystemBar(cx *core.Scope) bool { return !look.Tablet(cx) && mobile.IsAvailable(cx) }
+
 // Render implements core.Node.
 func (s Shell) Render(cx *core.Scope) core.Node {
-	if !look.Tablet(cx) && mobile.IsAvailable(cx) {
+	if SystemBar(cx) {
 		return s.phone(cx)
 	}
 	return s.drawn(cx)
@@ -188,7 +191,7 @@ func (s Shell) header(cx *core.Scope) core.Node {
 	if s.OnLibrary == nil {
 		return core.View{TestID: "sidebar-header", Style: st, Children: children}
 	}
-	children = append(children, ui.Icon(lucide.ChevronDown, 16, colors.Muted))
+	children = append(children, ui.Icon(lucide.ChevronDown, 10, colors.Muted))
 	label := func() string { return locales.FilmsLibrary(cx, s.Library()) }
 	return base.Button{TestID: "sidebar-header", LabelFunc: label, OnPress: func(core.PressEvent) { s.OnLibrary() }, Style: st,
 		StyleFunc: func() core.Style {
@@ -205,12 +208,18 @@ func (s Shell) aside() core.Node {
 	return s.Aside
 }
 
-// barStyle is the drawn tab bars' frosted fill and the hairline over it.
+// barStyle is the drawn tab bars' frosted fill.
 func barStyle(cx *core.Scope) func() core.Style {
-	colors := ui.ColorsOf(cx)
 	return func() core.Style {
-		return core.Style{Background: theme.Of(cx).Bar(), BackdropFilters: theme.BarBlur, BorderColors: core.EdgeColors{Top: colors.Line()}}
+		return core.Style{Background: theme.Of(cx).Bar(), BackdropFilters: theme.BarBlur}
 	}
+}
+
+// barLine is the hairline over a drawn tab bar: a view of its own, as a border on the bar's frosted view does not show on macOS.
+// TODO(nsgo): on Apple a border on some sides only is a shape sublayer under the view's children (internal/platform/apple/border.go:12-16), and a view with BackdropFilters adds its blur and the tint that draws its Background as a subview (internal/platform/macos/material.go:191-221), which covers it, so the bar draws its hairline as a child view; use Borders on the bar once the border draws over the backdrop.
+func barLine(cx *core.Scope) core.Node {
+	return core.View{Style: core.Style{Position: core.Absolute, Top: core.Pt(0), Left: core.Pt(0), Right: core.Pt(0), Height: core.Pt(0.5), PointerEvents: core.PointerEventsNone},
+		StyleFunc: ui.Filled(theme.Of(cx).BarLine)}
 }
 
 // tabStyle is a drawn tab's color: the accent while selected, the tab bar's grey otherwise.
@@ -233,13 +242,24 @@ func (s Shell) bar(cx *core.Scope) core.Node {
 			StyleFunc: tabStyle(cx),
 			Children: []core.Node{
 				core.View{Children: append([]core.Node{ui.IconOf(tab.Icon, 25, ui.Inherited)},
-					tab.badge("bar-badge-"+tab.TestID, 18, nil, core.Style{Position: core.Absolute, Top: core.Pt(-6), Left: core.Pt(16)})...)},
+					tab.badge("bar-badge-"+tab.TestID, 18, nil, core.Style{Position: core.Absolute, Top: core.Pt(-3), Left: core.Pt(19)})...)},
 				core.Text{ContentFunc: tab.Text, MaxLines: 1, Style: core.Style{FontSize: 10, LineHeight: 12, FontWeight: core.FontWeightSemibold}},
 			}})
 	}
-	return core.View{Style: core.Style{Direction: core.Row, Padding: core.Edges{Top: 4, Right: 8, Left: 8, Bottom: 4}, Borders: core.Edges{Top: 0.5},
-		PaddingEnv: core.EnvEdges{Right: core.EnvSafeArea, Bottom: core.EnvSafeArea, Left: core.EnvSafeArea}},
-		StyleFunc: barStyle(cx), Children: []core.Node{
+	// Where the screen has no safe area at its foot, as a window on a Mac, the bar keeps the design's 84 points, the home indicator's room included.
+	env := cx.Env()
+	fill := barStyle(cx)
+	return core.View{Style: core.Style{Direction: core.Row, PaddingEnv: core.EnvEdges{Right: core.EnvSafeArea, Bottom: core.EnvSafeArea, Left: core.EnvSafeArea}},
+		StyleFunc: func() core.Style {
+			st := fill()
+			st.Padding = core.Edges{Top: 4, Right: 8, Left: 8, Bottom: 4}
+			if env.SafeArea().Bottom == 0 {
+				st.Padding.Bottom = 26
+			}
+			return st
+		},
+		Children: []core.Node{
+			barLine(cx),
 			base.Tabs{Label: locales.AppName(cx), TestID: "tab-bar", Style: core.Style{Direction: core.Row, FlexGrow: 1}, Children: tabs},
 		}}
 }
@@ -259,9 +279,10 @@ func (s Shell) wideBar(cx *core.Scope) core.Node {
 				core.Text{ContentFunc: tab.Text, MaxLines: 1, Style: core.Style{FontSize: 14, LineHeight: 18, FontWeight: core.FontWeightSemibold, FlexShrink: 1}},
 			}, tab.badge("bar-badge-"+tab.TestID, 20, nil, core.Style{})...)})
 	}
-	return core.View{Style: core.Style{Direction: core.Row, Padding: core.Edges{Right: 40, Bottom: 14, Left: 40}, Borders: core.Edges{Top: 0.5},
+	return core.View{Style: core.Style{Direction: core.Row, Padding: core.Edges{Right: 40, Bottom: 14, Left: 40},
 		PaddingEnv: core.EnvEdges{Right: core.EnvSafeArea, Bottom: core.EnvSafeArea, Left: core.EnvSafeArea}},
 		StyleFunc: barStyle(cx), Children: []core.Node{
+			barLine(cx),
 			base.Tabs{Label: locales.AppName(cx), TestID: "tab-bar", Style: core.Style{Direction: core.Row, FlexGrow: 1, Gap: 4}, Children: tabs},
 		}}
 }

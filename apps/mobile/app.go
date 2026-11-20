@@ -215,7 +215,12 @@ func App(cx *core.Scope, cfg session.Config) core.Node {
 					}
 					return jobs.Page(cx, s, act)
 				}
-				return films.Page(cx, s, films.Actions{Pair: openPair, Play: play, PlayAt: layer.PlayAt, Add: openAdd, Searches: searches.Get, Library: library,
+				// Where the tab bar is the system's, which shows no count, the Library's header carries the Jobs tab's.
+				var jobsButton func()
+				if shell.SystemBar(cx) {
+					jobsButton = openJobs
+				}
+				return films.Page(cx, s, films.Actions{Pair: openPair, Play: play, PlayAt: layer.PlayAt, Add: openAdd, Jobs: jobsButton, Searches: searches.Get, Library: library,
 					Subscription: subscription.Set, Film: func(e catalog.Entry) { openFilm(e.Desktop, e.Library, e.Film) }})
 			})
 			return core.View{Style: core.Style{FlexGrow: 1}, Children: []core.Node{stack, player.MiniBar(cx, layer)}}

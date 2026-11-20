@@ -4,7 +4,6 @@ import (
 	"kando/apps/mobile/theme"
 
 	"github.com/nsgo-dev/nsgo/core"
-	"github.com/nsgo-dev/nsgo/icons/lucide"
 	"github.com/nsgo-dev/nsgo/ui"
 )
 
@@ -108,7 +107,8 @@ func (r Row) Render(cx *core.Scope) core.Node {
 		children = append(children, r.Trailing)
 	}
 	if r.Chevron {
-		children = append(children, ui.Icon(lucide.ChevronRight, 20, colors.Faint))
+		// The chevron is the same light grey in both appearances, as the system's is.
+		children = append(children, core.Icon{SVG: Chevron(), Style: core.Style{Width: core.Pt(8), Height: core.Pt(13), FlexShrink: 0, Color: theme.Chevron}})
 	}
 	v := core.View{TestID: r.TestID, Children: children,
 		Style:     core.Style{Direction: core.Row, AlignItems: core.AlignCenter, Gap: 12, Padding: core.Symmetric(8, 16), MinHeight: core.Pt(52)},

@@ -26,6 +26,16 @@ type Actions struct {
 	Computer, Unpaired                                 func(id string)
 }
 
+// column is the page's column, its groups closer together than a library's sections, as the design's grouped list sets them.
+func column(cx *core.Scope) func() core.Style {
+	col := look.Column(cx)
+	return func() core.Style {
+		st := col()
+		st.Gap = 23
+		return st
+	}
+}
+
 // Page is the tab's root page.
 func Page(cx *core.Scope, s *session.Session, act Actions) base.NavPage {
 	title := func() string { return locales.SettingsTitle(cx) }
@@ -33,7 +43,7 @@ func Page(cx *core.Scope, s *session.Session, act Actions) base.NavPage {
 	pairRow := func() int { return len(s.Desktops()) }
 	return look.TabRoot(cx, base.NavPage{TestID: "settings-page", Children: []core.Node{
 		core.Scroll{TestID: "settings-scroll", Ref: ref, Style: core.Style{FlexGrow: 1, FlexShrink: 1}, Children: []core.Node{
-			core.View{StyleFunc: look.Column(cx), Children: []core.Node{
+			core.View{StyleFunc: column(cx), Children: []core.Node{
 				section(cx, func() string { return locales.SettingsComputers(cx) },
 					core.Each(s.Desktops, func(d store.Desktop) string { return d.ID }, func(cx *core.Scope, d func() store.Desktop, i func() int) core.Node {
 						return computer(cx, s, d, i, act.Computer, act.Unpaired)
@@ -120,7 +130,7 @@ func deviceRows(cx *core.Scope, s *session.Session, act Actions) []core.Node {
 			Trailing: ui.Switch{TestID: "settings-remind-switch", Label: locales.SettingsRemind(cx), Variant: ui.SwitchSystem,
 				Checked: func() bool { return s.Prefs().Remind }, OnChange: s.SetRemind}},
 		look.Row{TestID: "settings-appearance", Index: func() int { return 2 }, Chevron: true,
-			Leading: look.ColorTile(lucide.Contrast, theme.TileInk),
+			Leading: look.ColorTile(cx, lucide.Contrast, theme.Of(cx).TileInk),
 			Title:   func() string { return locales.SettingsAppearance(cx) },
 			Value:   func() string { return appearanceName(cx, s.Prefs().Appearance) },
 			OnPress: func() { s.SetAppearance(session.NextAppearance(s.Prefs().Appearance)) }},

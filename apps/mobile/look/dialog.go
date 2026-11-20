@@ -3,6 +3,8 @@ package look
 import (
 	"time"
 
+	"kando/apps/mobile/theme"
+
 	"github.com/nsgo-dev/nsgo/base"
 	"github.com/nsgo-dev/nsgo/core"
 	"github.com/nsgo-dev/nsgo/ui"
@@ -28,10 +30,12 @@ func (d Dialog) Render(cx *core.Scope) core.Node {
 		}
 	}
 	colors := ui.ColorsOf(cx)
+	// The title is the design's 17-point heavy one, ui.Dialog's own being TypeTitle (ui/dialog.go:64): the sheet draws it as its first child and is named by it through LabelFunc.
+	title := core.Text{ContentFunc: d.Title, Role: core.RoleHeader, Style: Title.Merge(core.Style{FontWeight: Heavy}), StyleFunc: ui.Colored(colors.Text)}
 	if !Tablet(cx) {
 		// A sheet is the page's grey, so the cards in it stand out as on a page, rounded more than a card at its top.
-		// TODO(nsgo): the touch sheet's grabber, padding, height, shadow and motion are fixed (ui/style.go:114-155, sheetPanel and sheetContent) and its title is TypeTitle (ui/dialog.go:64), so the sheet keeps NSGo's 36x5 grabber, 16pt padding and 600 title rather than the design's 38x5 grabber, 6/16/34 padding and 17pt heavy title.
-		return ui.Dialog{TestID: d.TestID, Open: d.Open, TitleFunc: d.Title, OnOpenChange: change, OnConfirm: d.OnConfirm, Children: d.Children, Footer: d.Footer,
+		// TODO(nsgo): the touch sheet's grabber, padding, height, shadow and motion are fixed (ui/style.go:114-155, sheetPanel and sheetContent), so the sheet keeps NSGo's 36x5 grabber and 16pt padding rather than the design's 38x5 grabber and 6/16/34 padding.
+		return ui.Dialog{TestID: d.TestID, Open: d.Open, LabelFunc: d.Title, OnOpenChange: change, OnConfirm: d.OnConfirm, Children: append([]core.Node{title}, d.Children...), Footer: d.Footer,
 			StyleFunc: func() core.Style {
 				st := core.Style{Background: colors.Background()}
 				if ui.Touch(cx) {
@@ -40,19 +44,19 @@ func (d Dialog) Render(cx *core.Scope) core.Node {
 				return st
 			}}
 	}
-	body := append([]core.Node{core.Text{ContentFunc: d.Title, Role: core.RoleHeader, Style: Title.Merge(core.Style{FontWeight: Heavy}), StyleFunc: ui.Colored(colors.Text)}}, d.Children...)
+	body := append([]core.Node{title}, d.Children...)
 	body = append(body, core.View{Style: core.Style{Direction: core.Row, Wrap: core.Wrap, JustifyContent: core.JustifyEnd, Gap: 8, Margin: core.Edges{Top: 4}}, Children: d.Footer})
 	// The design's sheet curve, which the card pops in on.
 	curve := core.Curve{X1: 0.32, Y1: 0.72, X2: 0, Y2: 1}
 	fade := core.Transition{Duration: 300 * time.Millisecond, Easing: curve, Properties: core.TransitionOpacity}
 	pop := core.Transition{Duration: 300 * time.Millisecond, Easing: curve}
-	grabber := core.View{Style: core.Style{Width: core.Pt(38), Height: core.Pt(5), CornerRadius: 3, AlignSelf: core.AlignCenter, Margin: core.Edges{Top: 8}, Background: core.RGBA(0x808080, 0.4)}}
+	grabber := core.View{Style: core.Style{Width: core.Pt(38), Height: core.Pt(5), CornerRadius: 3, AlignSelf: core.AlignCenter, Margin: core.Edges{Top: 8}, Background: theme.Grabber}}
 	return base.Dialog{TestID: d.TestID, Open: d.Open, OnOpenChange: change, OnConfirm: d.OnConfirm, Animation: core.ModalNone, Role: core.RoleDialog, LabelFunc: d.Title,
 		BackdropStyle: core.Style{Background: ui.Black(0.4), Transition: fade}, BackdropStartingStyle: core.Style{Opacity: core.Alpha(0)}, BackdropEndingStyle: core.Style{Opacity: core.Alpha(0)},
 		StartingStyle: core.Style{Opacity: core.Alpha(0), Transform: core.Transform{Scale: 0.94}}, EndingStyle: core.Style{Opacity: core.Alpha(0), Transform: core.Transform{Scale: 0.98}},
 		LayerStyle: core.Style{Padding: core.All(24), PaddingEnv: core.EnvEdges{Top: core.EnvSafeArea, Bottom: core.EnvKeyboard}},
 		PopupStyle: core.Style{Width: core.Pt(560), MaxWidth: core.Pct(100), MaxHeight: core.Pct(88), Overflow: core.Hidden, CornerRadius: 24, BorderCurve: core.BorderCurveContinuous, Transition: pop,
-			Shadows: []core.BoxShadow{{Offset: core.Point{Y: -10}, Blur: 30, Color: core.RGBA(0x000000, 0.2)}}},
+			Shadows: []core.BoxShadow{{Offset: core.Point{Y: -10}, Blur: 30, Color: theme.SheetShadow}}},
 		PopupStyleFunc: func() core.Style {
 			return core.Style{Background: colors.Background(), Color: colors.Text()}
 		},

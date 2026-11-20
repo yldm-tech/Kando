@@ -12,6 +12,8 @@ var Accent = core.RGB(0x0A66D8)
 // The roles the design adds to NSGo's palette, read through Of.
 const (
 	roleBar      = "bar"
+	roleBarLine  = "barLine"
+	roleTileInk  = "tileInk"
 	roleWarnText = "warnText"
 )
 
@@ -33,6 +35,8 @@ func Kando() *core.Theme {
 	l.SetColor("faint", Chevron)
 	l.SetColor("raised", core.RGB(0xFFFFFF))
 	l.SetColor(roleBar, core.RGBA(0xF9F9FB, 0.92))
+	l.SetColor(roleBarLine, core.RGBA(0x000000, 0.14))
+	l.SetColor(roleTileInk, core.RGB(0x1D1D1F))
 	l.SetColor(roleWarnText, core.RGB(0x8A4B00))
 	d.Background, d.Surface, d.Text, d.TextMuted = core.RGB(0x000000), core.RGB(0x1C1C1E), core.RGB(0xF5F5F7), core.RGB(0xA1A1A6)
 	d.SurfacePressed, d.Border = core.RGBA(0x767680, 0.32), core.RGBA(0x545458, 0.65)
@@ -41,6 +45,9 @@ func Kando() *core.Theme {
 	d.SetColor("faint", core.RGBA(0xEBEBF5, 0.45))
 	d.SetColor("raised", core.RGB(0x2C2C2E))
 	d.SetColor(roleBar, core.RGBA(0x1C1C1E, 0.92))
+	d.SetColor(roleBarLine, core.RGBA(0x545458, 0.65))
+	// The ink tile is a lighter grey in the dark, where the ink's black would be lost on the card.
+	d.SetColor(roleTileInk, core.RGB(0x636366))
 	d.SetColor(roleWarnText, core.RGB(0xFFB340))
 	return t
 }
@@ -61,6 +68,12 @@ func (c Colors) role(name string) core.Color { return c.cx.Palette().Colors[name
 
 // Bar is the frosted fill of the tab bar and the bars over a page, drawn over BarBlur.
 func (c Colors) Bar() core.Color { return c.role(roleBar) }
+
+// BarLine is the hairline over a drawn tab bar.
+func (c Colors) BarLine() core.Color { return c.role(roleBarLine) }
+
+// TileInk is the settings rows' ink tile: the ink in the light, a grey that stands out on the card in the dark.
+func (c Colors) TileInk() core.Color { return c.role(roleTileInk) }
 
 // WarnText is warning's orange where it is text, dark enough to read on the page and on a card.
 func (c Colors) WarnText() core.Color { return c.role(roleWarnText) }
@@ -83,9 +96,16 @@ var (
 	StatusOK     = core.RGB(0x30D158)
 	StatusWarn   = core.RGB(0xFF9F0A)
 	StatusFailed = core.RGB(0xFF453A)
-	// The count badges: red, or orange where a job failed.
-	BadgeRed    = core.RGB(0xFF3B30)
-	BadgeOrange = core.RGB(0xFF9500)
+	// The count badges: red, or orange where a job failed. BadgeOnAccent is a badge's fill on the accent, as on a selected sidebar row.
+	BadgeRed      = core.RGB(0xFF3B30)
+	BadgeOrange   = core.RGB(0xFF9500)
+	BadgeOnAccent = core.RGBA(0xFFFFFF, 0.25)
+	// The stats' numbers: the streak's orange and the words' green, dark enough to read on a card.
+	Streak    = core.RGB(0xE07B00)
+	StatGreen = core.RGB(0x248A3D)
+	// A sheet's grabber and the shadow it casts upward.
+	Grabber     = core.RGBA(0x808080, 0.4)
+	SheetShadow = core.RGBA(0x000000, 0.2)
 	// TabInactive is a tab's icon and name while another is selected.
 	TabInactive = core.RGB(0x8E8E93)
 	// Chevron is the arrow at the end of a row that leads to a page, and a disabled bar button's text.
@@ -96,7 +116,6 @@ var (
 	TileBlue   = core.RGB(0x0A66D8)
 	TileIndigo = core.RGB(0x5E5CE6)
 	TilePurple = core.RGB(0x5856D6)
-	TileInk    = core.RGB(0x1D1D1F)
 	TileTeal   = core.RGB(0x30B0C7)
 	TileViolet = core.RGB(0xAF52DE)
 	TileOrange = core.RGB(0xFF9500)

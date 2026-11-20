@@ -31,6 +31,8 @@ type Actions struct {
 	PlayAt func(key string, at time.Duration)
 	// Add opens the Add sheet.
 	Add func()
+	// Jobs, when set, puts a Jobs button with the unfinished jobs' count on the page's header, which opens the Jobs tab: the app sets it where the tab bar is the system's, which shows no count (shell.SystemBar).
+	Jobs func()
 	// Library is the library the list shows, none for all, which a tablet's sidebar names and picks too; nil for the page's own.
 	Library *core.Signal[catalog.Scope]
 	// Searches counts the times the user asked for the search from the keyboard (shortcuts.Search): the tab focuses its search field each time it grows. Nil for none.
@@ -113,15 +115,31 @@ func Page(cx *core.Scope, s *session.Session, act Actions) base.NavPage {
 			v.list(cx),
 		}}}}
 	addLabel := func() string { return locales.AddTitle(cx) }
-	trailing := []core.Node{look.CircleButton{TestID: "films-add", Icon: lucide.Plus, Label: addLabel, Primary: true, OnPress: act.Add}}
-	// Add matters once a computer is paired; before, the card that asks to pair is the page's one action.
+	trailing := []core.Node{look.CircleButton{TestID: "films-add", Icon: look.Plus, Label: addLabel, Primary: true, OnPress: act.Add}}
+	unfinished := func() int { active, failed := s.Unfinished(); return active + failed }
+	jobsLabel := func() string {
+		if n := unfinished(); n > 0 {
+			return locales.JobsBadgeLabel(cx, n)
+		}
+		return locales.JobsTitle(cx)
+	}
+	if act.Jobs != nil {
+		// TODO(nsgo): core.HeaderSymbol is a name and a label only (core/platformprops.go:57), so iOS's native header shows no count on the Jobs button; its label says the count, and the drawn header elsewhere shows the badge. Pass the count once a header symbol takes a badge (UIBarButtonItem.badge), and drop the button once the system's tab bar shows the Jobs tab's (shell.Tab.Badge).
+		trailing = append([]core.Node{look.CircleButton{TestID: "films-jobs", Icon: lucide.ListChecks, Label: jobsLabel, OnPress: act.Jobs,
+			Badge: look.Count{TestID: "films-jobs-badge", Count: unfinished, Warn: func() bool { _, failed := s.Unfinished(); return failed > 0 },
+				Style: core.Style{Position: core.Absolute, Top: core.Pt(0), Right: core.Pt(0)}}}}, trailing...)
+	}
+	// Jobs and Add matter once a computer is paired; before, the card that asks to pair is the page's one action.
 	paired := func() bool { return len(s.Desktops()) > 0 }
 	shown := []core.Node{core.Show{When: paired, Then: func(*core.Scope) core.Node {
 		return core.View{Style: core.Style{Direction: core.Row, AlignItems: core.AlignCenter}, Children: trailing}
 	}}}
 	return look.TabRoot(cx, base.NavPage{TestID: "films-page", Children: []core.Node{body}}, title, shown, func() []core.HeaderSymbol {
-		if !paired() {
+		switch {
+		case !paired():
 			return nil
+		case act.Jobs != nil:
+			return []core.HeaderSymbol{{Name: "checklist", Label: jobsLabel()}, {Name: "plus", Label: addLabel()}}
 		}
 		return []core.HeaderSymbol{{Name: "plus", Label: addLabel()}}
 	})

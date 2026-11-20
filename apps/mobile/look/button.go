@@ -109,7 +109,7 @@ func Pill(cx *core.Scope, testID string, text func() string, press func()) core.
 		Children:  []core.Node{core.Text{ContentFunc: text, MaxLines: 1, Style: Subhead.Merge(core.Style{FontWeight: core.FontWeightSemibold})}}}
 }
 
-// CircleButton is a round button of a page's header, 34 points in a 44-point target: the accent's icon on a card ringed by a hairline, or with Primary a white icon on the accent, lifted by its shadow, for the page's main action. Badge, when set, sits at its top corner, as Count.
+// CircleButton is a round button of a page's header, 34 points in a 44-point target: the accent's icon on a card ringed by a hairline, or with Primary a white 14-point icon (Plus) on the accent, lifted by its shadow, for the page's main action. Badge, when set, sits at its top corner, as Count.
 type CircleButton struct {
 	Icon    func() *core.SVG
 	Label   func() string
@@ -122,6 +122,11 @@ type CircleButton struct {
 // Render implements core.Node.
 func (b CircleButton) Render(cx *core.Scope) core.Node {
 	colors := ui.ColorsOf(cx)
+	// The primary circle's glyph is the design's 14-point one (Plus); the card's is 17.
+	size := core.Points(17)
+	if b.Primary {
+		size = 14
+	}
 	face := core.View{Style: core.Style{Width: core.Pt(34), Height: core.Pt(34), CornerRadius: 17, AlignItems: core.AlignCenter, JustifyContent: core.JustifyCenter},
 		StyleFunc: func() core.Style {
 			if b.Primary {
@@ -129,7 +134,7 @@ func (b CircleButton) Render(cx *core.Scope) core.Node {
 			}
 			return core.Style{Background: colors.Surface(), Color: colors.Accent(), Shadows: []core.BoxShadow{core.Ring(0.5, ui.Alpha(colors.Text(), 0.08))}}
 		},
-		Children: []core.Node{ui.Icon(b.Icon, 17, ui.Inherited)}}
+		Children: []core.Node{ui.Icon(b.Icon, size, ui.Inherited)}}
 	children := []core.Node{face}
 	if b.Badge != nil {
 		children = append(children, b.Badge)

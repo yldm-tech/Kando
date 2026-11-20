@@ -47,7 +47,8 @@ func Page(cx *core.Scope, s *session.Session, act Actions) base.NavPage {
 		}},
 	}}
 	addLabel := func() string { return locales.AddTitle(cx) }
-	add := ui.IconButton{TestID: "jobs-add", Icon: lucide.Plus, LabelFunc: addLabel, Size: 44, OnPress: act.Add}
+	// The design draws the plus in the accent.
+	add := ui.IconButton{TestID: "jobs-add", Icon: lucide.Plus, LabelFunc: addLabel, Size: 44, Tint: ui.ColorsOf(cx).Accent, OnPress: act.Add}
 	symbols := func() []core.HeaderSymbol { return []core.HeaderSymbol{{Name: "plus", Label: addLabel()}} }
 	page := base.NavPage{TestID: "jobs-page", Children: []core.Node{body}}
 	if act.Back == nil {
