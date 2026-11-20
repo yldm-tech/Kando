@@ -302,7 +302,7 @@ func newEngine(t *testing.T) *engine {
 	ready := make(chan struct{})
 	go func() {
 		e.root = core.NewRoot(core.RootOptions{Post: e.post})
-		// TODO(nsgo#838): tsx.Load fails with a nil pointer on a graph without a tree, which its documentation does not say; drop the tree once Load needs none https://github.com/nsgo-dev/nsgo/issues/838
+		// tsx.Load needs a tree: on a scope without one it fails with tsx.ErrNoTree.
 		core.NewTree(e.root, nil)
 		close(ready)
 		for fn := range e.posts {

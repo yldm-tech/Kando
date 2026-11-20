@@ -74,20 +74,33 @@ func (a *app) browsePageTakes(origin string) func(u string) bool {
 	}
 }
 
-// browseSitesChanged gives the pages' buttons sites, the allowed sites of the site packs turned on, besides Kando's own (browse.ScriptWith). The web view reads its script once, as it is made, so when the script changes the web view is made again (browse.View), loading the page it showed, or the blank page under the start, though without the history before it, as when the browser's column goes (browseColumnGone).
+// browseSitesChanged gives the pages' buttons sites, the allowed sites of the site packs turned on, besides Kando's own (browse.ScriptWith), as the web view takes their script (browseTakeScript).
 func (a *app) browseSitesChanged(sites []kcore.VideoSite) {
 	if reflect.DeepEqual(sites, a.browse.sites) {
 		return
 	}
 	a.browse.sites = sites
-	script := browse.ScriptWith(sites)
-	if script == a.browse.script {
-		return
+	a.browse.next = browse.ScriptWith(sites)
+	a.browseTakeScript()
+}
+
+// browseTakeScript gives the web view the page script of the sites the user allowed (browseSitesChanged) and reports whether it did. A changed script has the same web view load its source again with it at once, in place of the page it shows, keeping the history before it (core.WebView.InjectedJavaScriptBeforeContentFunc, browse/page.go), so the source becomes the page it shows, which the user may have gone on to from the source, or the blank page under the start; a load under way says nothing of being cut short (browseCutShort), and what the buttons were told goes, as the page loaded again asks again. A web view hidden behind another page of the window, as while the user allows a site in the settings, takes the script once the browser's page shows again (browseAfterChange): the page it loads again would play its videos unpaused and with sound (browse.QuietScript).
+func (a *app) browseTakeScript() bool {
+	if a.browse.next == a.browse.script || a.browse.source != "" && a.page != pageBrowse {
+		return false
 	}
-	a.browse.script = script
-	if a.browse.source != "" {
-		a.browseColumnGone()
+	a.browse.script = a.browse.next
+	if a.browse.source == "" {
+		return true
 	}
+	if a.browseShowing() {
+		a.browse.source = a.browse.url
+	} else {
+		a.browse.source = browseBlank
+	}
+	a.browse.buttons = browseButtons{}
+	a.browseCutShort()
+	return true
 }
 
 // browsePageAsk answers a page of a site the catalog lists, or of an allowed site of a site pack, that asks what the library has of links, the videos it shows (browse.ParseAskWith with browsePageVideo) that its site may ask about (browsePageTakes), with the buttons' words, and follows those videos, so the page hears when that changes (browsePagePush). A page of another site, which gets no buttons, is not answered.

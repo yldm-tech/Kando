@@ -55,15 +55,16 @@ type browseUI struct {
 	buttons browseButtons
 	// signin is what the browser knows of its pages' sign-in (state_browse_signin.go).
 	signin browseSignInState
-	// script is the script the pages run before their own (BrowseScript); sites are the sites of the site packs its buttons know besides Kando's own (browseSitesChanged).
-	script string
-	sites  []kcore.VideoSite
+	// script is the script the pages run before their own (BrowseScript); sites are the sites of the site packs its buttons know besides Kando's own, and next the script that knows them, which the web view takes as browseTakeScript lets it (browseSitesChanged).
+	script, next string
+	sites        []kcore.VideoSite
 }
 
 func newBrowseUI() browseUI {
 	agent := &browseAgent{}
 	agent.set(browse.UserAgent())
-	return browseUI{view: &core.Ref{}, agent: agent, script: browse.Script()}
+	script := browse.Script()
+	return browseUI{view: &core.Ref{}, agent: agent, script: script, next: script}
 }
 
 // browseAgent is the user agent of the browser's pages, which a download sends with their cookies so the site sees the same browser that signed in. It is "" where the pages keep the platform's own, which the app does not know.
@@ -190,9 +191,12 @@ func (a *app) browseNavigate(rawURL string) {
 	a.browse.view.Load(core.WebSrc(rawURL))
 }
 
-// browseAfterChange closes the confirmation, giving back the window's modal flag, when the window went to another page, which no longer draws it, pauses the page's videos and turns its sound off while another page shows, and turns the sound on again without playing them once the browser's shows, as the hidden web view keeps its page and a video in it plays on, keeps the message bar about what is still so (browseFollowNotice), tells the page's own buttons what changed for them (browsePagePush) and reads the chosen browser's sign-in into the pages the first time the browser's page shows (browseSignInOnOpen). It reports whether it closed the confirmation, changed the bar or started reading the sign-in.
+// browseAfterChange closes the confirmation, giving back the window's modal flag, when the window went to another page, which no longer draws it, pauses the page's videos and turns its sound off while another page shows, and turns the sound on again without playing them once the browser's shows, as the hidden web view keeps its page and a video in it plays on, keeps the message bar about what is still so (browseFollowNotice), tells the page's own buttons what changed for them (browsePagePush) reads the chosen browser's sign-in into the pages the first time the browser's page shows (browseSignInOnOpen) and gives the web view the page script of the sites the user allowed meanwhile once it shows (browseTakeScript). It reports whether it closed the confirmation, changed the bar, started reading the sign-in or changed the script.
 func (a *app) browseAfterChange() bool {
 	changed := a.browseFollowNotice()
+	if a.browseTakeScript() {
+		changed = true
+	}
 	if a.browseSignInOnOpen() {
 		changed = true
 	}
