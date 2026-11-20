@@ -15407,7 +15407,7 @@ func (msgs Messages) PairErrAddress() string { return msgs.text(textPairErrAddre
 // PairErrCamera says "Can't open the camera. Allow Kando to use it in Settings, or enter the address and code."
 // in the language the app shows under cx.
 //
-// Error on the pairing page: the camera could not take a photo, as when the user refused it.
+// Error on the pairing page: the camera could not scan the QR code or take a photo of it, as when the user refused it.
 func PairErrCamera(cx *core.Scope) string { return For(cx).PairErrCamera() }
 
 // PairErrCamera is the package's PairErrCamera in the language of msgs.
@@ -15470,7 +15470,7 @@ func (msgs Messages) PairErrNoQR() string { return msgs.text(textPairErrNoQR) }
 // PairErrNotPairQR says "That QR code isn't a Kando pairing code."
 // in the language the app shows under cx.
 //
-// Error on the pairing page: the photo's QR code is not the one the computer's Phone Sync settings show.
+// Error on the pairing page: the QR code scanned is not the one the computer's Phone Sync settings show.
 func PairErrNotPairQR(cx *core.Scope) string { return For(cx).PairErrNotPairQR() }
 
 // PairErrNotPairQR is the package's PairErrNotPairQR in the language of msgs.
@@ -15529,7 +15529,7 @@ func (msgs Messages) PairErrWrongCode() string { return msgs.text(textPairErrWro
 // PairScan says "Scan QR Code"
 // in the language the app shows under cx.
 //
-// Button on the pairing page that takes a photo of the QR code the computer shows.
+// Button on the pairing page that opens the camera to read the QR code the computer shows.
 func PairScan(cx *core.Scope) string { return For(cx).PairScan() }
 
 // PairScan is the package's PairScan in the language of msgs.

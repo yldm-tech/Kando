@@ -15,13 +15,13 @@ apple:
   info:
     # iOS asks before an app reaches devices on the local network, as the computers the app pairs with and downloads from are. Go's net/http on iOS goes through no URLSession, so App Transport Security does not apply to the computer's self-signed certificate, which the app pins by its fingerprint (kando/packages/sync). The catalogs' NSLocalNetworkUsageDescription message says it in each language (InfoPlist.strings); this English one is the Info.plist's.
     NSLocalNetworkUsageDescription: Kando connects to Kando on your computer over your local network to list and download your films.
-    # The pairing page photographs the QR code the computer shows (package pair), which iOS lets an app do only with a reason it shows as it asks; the catalogs' NSCameraUsageDescription message says it in each language (InfoPlist.strings). Android's camera app takes the photo, so the manifest asks for no CAMERA.
+    # The pairing page reads the QR code the computer shows from the camera's live picture (package pair, NSGo's Scope.ScanCode), which iOS lets an app do only with a reason it shows as it asks; the catalogs' NSCameraUsageDescription message says it in each language (InfoPlist.strings).
     NSCameraUsageDescription: Kando uses the camera to read the QR code your computer shows, to pair with it.
     # App Store Connect asks every upload whether the app uses encryption that export rules restrict; until it is answered, TestFlight testers cannot install the build. The app encrypts only with standard HTTPS/TLS (Go's crypto/tls, to the computers it pairs with), which is exempt, so the answer is no, given here once for every build.
     ITSAppUsesNonExemptEncryption: false
-# Android: the runtime's manifest asks for INTERNET, which the app reaches the computer with; HTTPS to the computer needs no cleartext exception. POST_NOTIFICATIONS lets the daily review reminder (session/learning.go) ask to show notifications from Android 13, where the system refuses an app whose manifest does not list it. target_sdk is the API level Google Play requires of new apps and updates, above the runtime's 34.
+# Android: the runtime's manifest asks for INTERNET, which the app reaches the computer with; HTTPS to the computer needs no cleartext exception. CAMERA lets the pairing page read the computer's QR code from the camera's live picture (Scope.ScanCode, which NSGo offers on Android only to an app whose manifest lists it); Android asks the user for it the first time the page scans. POST_NOTIFICATIONS lets the daily review reminder (session/learning.go) ask to show notifications from Android 13, where the system refuses an app whose manifest does not list it. target_sdk is the API level Google Play requires of new apps and updates, above the runtime's 34.
 android:
-  permissions: [POST_NOTIFICATIONS]
+  permissions: [CAMERA, POST_NOTIFICATIONS]
   target_sdk: 35
 
 # The widgets of iPhones and iPads (package widgets, yldm-tech/Kando#225): the streak with what is due for review, on the Home Screen and as a ring on the Lock Screen, and the film to go on with. Android has none of NSGo's yet (nsgo#657).

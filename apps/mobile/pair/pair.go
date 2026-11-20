@@ -153,10 +153,32 @@ func New(cx *core.Scope, s *session.Session, done func(store.Desktop), top func(
 		confirmed.Set(true)
 		send(answer.Get(), target)
 	}
-	// scan takes a photo of the QR code the computer shows and goes on with the link it holds as with one pasted.
-	// TODO(nsgo#429): a photo stands in for scanning, which NSGo cannot do from the camera's live picture yet; scan as the camera sees the code once it can https://github.com/nsgo-dev/nsgo/issues/429
+	// canScan is whether the phone can read the computer's QR code: from the camera's live picture, or else from a photo of it.
+	canScan := func() bool { return cx.Env().CanScanCode() || cx.Env().CanTakePhoto() }
+	// read goes on with the text of a QR code as with a link pasted, when it is a pairing link.
+	read := func(text string) {
+		if _, err := sync.ParsePairURL(text); err != nil {
+			problem.Set(locales.PairErrNotPairQR(cx))
+			return
+		}
+		address.Set(text)
+		check()
+	}
+	// scan reads the QR code the computer shows as the camera sees it, or, on a phone that can only take a photo, from a photo of it.
 	scan := func() {
 		problem.Set("")
+		if cx.Env().CanScanCode() {
+			cx.ScanCode(core.ScanOptions{Kinds: []core.CodeKind{core.CodeQR}}, func(c *core.ScannedCode, err error) {
+				if err != nil {
+					problem.Set(locales.PairErrCamera(cx))
+					return
+				}
+				if c != nil {
+					read(c.Text)
+				}
+			})
+			return
+		}
 		cx.TakePhoto(core.PhotoOptions{MaxDimension: photoSize}, func(photo *core.PickedFile, err error) {
 			if err != nil {
 				problem.Set(locales.PairErrCamera(cx))
@@ -175,12 +197,7 @@ func New(cx *core.Scope, s *session.Session, done func(store.Desktop), top func(
 						problem.Set(locales.PairErrNoQR(cx))
 						return
 					}
-					if _, err := sync.ParsePairURL(text); err != nil {
-						problem.Set(locales.PairErrNotPairQR(cx))
-						return
-					}
-					address.Set(text)
-					check()
+					read(text)
 				})
 			}()
 		})
@@ -188,7 +205,7 @@ func New(cx *core.Scope, s *session.Session, done func(store.Desktop), top func(
 	scroll := &core.Ref{}
 	fields := core.View{Style: core.Style{Padding: core.All(16), Gap: 24, MaxWidth: core.Pt(480), Width: core.Pct(100), AlignSelf: core.AlignCenter}, Children: []core.Node{
 		Steps(cx, fill),
-		core.Show{When: cx.Env().CanTakePhoto, Then: func(cx *core.Scope) core.Node {
+		core.Show{When: canScan, Then: func(cx *core.Scope) core.Node {
 			return look.Button{Kind: look.Tinted, Icon: lucide.ScanQrCode, Text: func() string { return locales.PairScan(cx) }, TestID: "pair-scan",
 				Busy: scanning.Get, BusyLabel: func() string { return locales.PairScanning(cx) }, Disabled: busy, OnPress: scan}
 		}},

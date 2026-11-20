@@ -11,7 +11,7 @@ require (
 	github.com/aws/smithy-go v1.28.9
 	github.com/cloudsoda/go-smb2 v0.0.0-20261105190815-95be04a983b8
 	github.com/modelcontextprotocol/go-sdk v1.8.0
-	github.com/nsgo-dev/nsgo v0.2.1-0.20261120090921-bdee391eda17
+	github.com/nsgo-dev/nsgo v0.2.1-0.20261120114311-c94810a93e92
 	github.com/pkg/sftp v1.13.12
 	github.com/studio-b12/gowebdav v0.13.0
 	github.com/yldm-tech/ai-logo/nsgo v1.22.0
@@ -72,6 +72,7 @@ require (
 	github.com/jcmturner/gokrb5/v8 v8.4.4 // indirect
 	github.com/jcmturner/rpc/v2 v2.0.3 // indirect
 	github.com/kr/fs v0.1.0 // indirect
+	github.com/makiuchi-d/gozxing v0.1.1 // indirect
 	github.com/segmentio/asm v1.1.3 // indirect
 	github.com/segmentio/encoding v0.5.4 // indirect
 	github.com/vcaesar/cedar v0.50.1 // indirect
@@ -79,4 +80,5 @@ require (
 	github.com/yuin/goldmark v1.8.7 // indirect
 	golang.org/x/sync v0.25.0 // indirect
 	golang.org/x/time v0.15.0 // indirect
+	golang.org/x/xerrors v0.0.0-20200804184101-5ec99f83aff1 // indirect
 )

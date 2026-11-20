@@ -31,11 +31,11 @@ func screenshots(t *testing.T) func(p *phone, scene string) {
 	}
 }
 
-// TODO(nsgo#948): onboarding-pair shows no Scan QR Code: a target reports its own camera, none on macOS or a simulator, whatever the test's Environment says; add a scene of the pairing step with Environment{Camera: true} once a target takes it https://github.com/nsgo-dev/nsgo/issues/948
+// The pairing step is a phone whose camera reads codes, so it offers Scan QR Code.
 func TestScreenshotsOnboarding(t *testing.T) {
 	shot := screenshots(t)
 	d := newDesktop(t)
-	p := startPhone(t, "")
+	p := startPhone(t, "", nsgotest.Environment(core.Environment{Locale: lang, Camera: true, ScanCode: true}))
 	p.app.WaitFor("id:onboarding-intro", wait)
 	shot(p, "onboarding-intro")
 	p.app.Press("id:onboarding-continue")

@@ -1567,7 +1567,7 @@ pairErrAddress:
   description: "Error on the pairing page: the address is not an IP address with a port."
 pairErrCamera:
   message: "Can't open the camera. Allow Kando to use it in Settings, or enter the address and code."
-  description: "Error on the pairing page: the camera could not take a photo, as when the user refused it."
+  description: "Error on the pairing page: the camera could not scan the QR code or take a photo of it, as when the user refused it."
 pairErrCodeExpired:
   message: "That code has expired. Show a new one on your computer."
   description: "Error on the pairing page: the code is past its 5 minutes or was tried wrongly too often."
@@ -1588,7 +1588,7 @@ pairErrNoQR:
   description: "Error on the pairing page: the photo taken to scan holds no QR code the app can read."
 pairErrNotPairQR:
   message: "That QR code isn't a Kando pairing code."
-  description: "Error on the pairing page: the photo's QR code is not the one the computer's Phone Sync settings show."
+  description: "Error on the pairing page: the QR code scanned is not the one the computer's Phone Sync settings show."
 pairErrTooMany:
   message: "Too many tries. Wait a minute, then try again."
   description: "Error on the pairing page: the computer refuses pairings for a while after many."
@@ -1602,7 +1602,7 @@ pairErrWrongCode:
   description: "Error on the pairing page: the code is not the one on offer."
 pairScan:
   message: "Scan QR Code"
-  description: "Button on the pairing page that takes a photo of the QR code the computer shows."
+  description: "Button on the pairing page that opens the camera to read the QR code the computer shows."
 pairScanning:
   message: "Reading the QR code…"
   description: "Spoken name of the scan button while the app reads the photo, which shows a spinner meanwhile."

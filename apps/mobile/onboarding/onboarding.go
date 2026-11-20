@@ -1,4 +1,4 @@
-// Package onboarding is the introduction the phone shows before anything else, and again from Settings: what Kando does, the languages the user watches and the one they want subtitles in, and pairing with the computer (the pairing form, until QR scanning, nsgo-dev/nsgo#429). Each step can be skipped; what was chosen is kept as the user leaves it.
+// Package onboarding is the introduction the phone shows before anything else, and again from Settings: what Kando does, the languages the user watches and the one they want subtitles in, and pairing with the computer (package pair: scanning the computer's QR code, or typing its address and code). Each step can be skipped; what was chosen is kept as the user leaves it.
 package onboarding
 
 import (

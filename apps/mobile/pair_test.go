@@ -198,7 +198,72 @@ func qrPhoto(t *testing.T, text string) []byte {
 	return b.Bytes()
 }
 
-// startCameraPhone starts a new phone with a camera whose photos are those photos gives, at its pairing step.
+// startScanningPhone starts a new phone whose camera reads codes as scan answers, at its pairing step.
+func startScanningPhone(t *testing.T, scan func(core.ScanRequest) (*core.ScannedCode, error)) *phone {
+	t.Helper()
+	p := startPhone(t, "", nsgotest.Environment(core.Environment{Locale: lang, Camera: true, ScanCode: true}))
+	p.app.ScanCode = scan
+	p.startPairing()
+	return p
+}
+
+// Scanning the QR code the desktop shows pairs as its link does, checking the fingerprint the code names without asking, and asks the camera for QR codes alone, taking no photo.
+func TestScanningTheDesktopsQRCodeLivePairs(t *testing.T) {
+	d := newDesktop(t)
+	link := sync.PairURL{Addrs: []netip.AddrPort{d.Addr}, Code: "123456", Fingerprint: d.Fingerprint, Name: "Studio"}.String()
+	p := startScanningPhone(t, func(core.ScanRequest) (*core.ScannedCode, error) {
+		return &core.ScannedCode{Kind: core.CodeQR, Text: link}, nil
+	})
+	p.app.WaitFor("id:pair-scan", wait)
+	p.app.Press("id:pair-scan")
+	p.finishPairing(d)
+	if len(p.app.Scans) != 1 || len(p.app.Photos) != 0 {
+		t.Fatalf("%d scans and %d photos, want 1 scan and no photo", len(p.app.Scans), len(p.app.Photos))
+	}
+	if r := p.app.Scans[0]; !r.Wants(core.CodeQR) || r.Wants(core.CodeEAN13) {
+		t.Fatalf("the scan asks for %v, want QR codes alone", r.Kinds)
+	}
+	if d.Paired() != 1 {
+		t.Fatalf("%d devices paired, want 1", d.Paired())
+	}
+}
+
+// A scanned code that is not a pairing code says so; a scanner that fails says the camera could not open; closing the scanner changes nothing. None of them pairs.
+func TestScanningSomethingElseSaysSo(t *testing.T) {
+	d := newDesktop(t)
+	answer := func(core.ScanRequest) (*core.ScannedCode, error) {
+		return &core.ScannedCode{Kind: core.CodeQR, Text: "https://example.com"}, nil
+	}
+	p := startScanningPhone(t, func(r core.ScanRequest) (*core.ScannedCode, error) { return answer(r) })
+	p.app.WaitFor("id:pair-scan", wait)
+	p.app.Press("id:pair-scan")
+	if got := p.app.WaitFor("id:pair-problem", wait).Text; got != msgs.PairErrNotPairQR() {
+		t.Fatalf("problem %q, want %q", got, msgs.PairErrNotPairQR())
+	}
+	answer = func(core.ScanRequest) (*core.ScannedCode, error) { return nil, errors.New("denied") }
+	p.app.Press("id:pair-scan")
+	p.app.WaitUntil(wait, func() bool {
+		vs := p.app.Query("id:pair-problem")
+		return len(vs) == 1 && vs[0].Text == msgs.PairErrCamera()
+	})
+	answer = func(core.ScanRequest) (*core.ScannedCode, error) { return nil, nil }
+	p.app.Press("id:pair-scan")
+	p.app.Settle()
+	if len(p.app.Scans) != 3 {
+		t.Fatalf("%d scans asked for, want 3", len(p.app.Scans))
+	}
+	if p.app.Exists("id:pair-problem") {
+		t.Fatalf("a closed scanner shows a problem: %q", p.app.Find("id:pair-problem").Text)
+	}
+	if p.app.Find("id:pair-scan").Props.Disabled {
+		t.Fatal("scanning stays busy after the scanner was closed")
+	}
+	if d.Paired() != 0 {
+		t.Fatal("the phone paired from no pairing code")
+	}
+}
+
+// startCameraPhone starts a new phone with a camera that takes photos but reads no codes, as those photos gives, at its pairing step.
 func startCameraPhone(t *testing.T, photos func() []byte) *phone {
 	t.Helper()
 	p := startPhone(t, "", nsgotest.Environment(core.Environment{Locale: lang, Camera: true}))
@@ -209,7 +274,7 @@ func startCameraPhone(t *testing.T, photos func() []byte) *phone {
 	return p
 }
 
-// A photo of the QR code the desktop shows pairs as its link does, checking the fingerprint the code names without asking.
+// On a phone whose camera only takes photos, a photo of the QR code the desktop shows pairs as its link does, checking the fingerprint the code names without asking.
 func TestScanningTheDesktopsQRCodePairs(t *testing.T) {
 	d := newDesktop(t)
 	link := sync.PairURL{Addrs: []netip.AddrPort{d.Addr}, Code: "123456", Fingerprint: d.Fingerprint, Name: "Studio"}.String()
