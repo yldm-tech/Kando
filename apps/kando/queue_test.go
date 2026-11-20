@@ -1506,7 +1506,8 @@ func TestUpdateThatFindsTheNewestRunsNothingAgain(t *testing.T) {
 
 // A read of the yt-dlp the pipeline used to download with can land after the pipeline moved on to another, as when Kando's own yt-dlp came in and was updated while it ran: it is stale, and what the queue knows of the newer yt-dlp stays.
 func TestAStaleYTDLPReadKeepsTheNewerOne(t *testing.T) {
-	old := recordingYTDLP(t, filepath.Join(t.TempDir(), "old-args"), "")
+	// The old yt-dlp is gone by the time the read runs, as one Kando's own replaced may be, so its version is read as "" at once: what is tested is the read landing after the tools moved on, not how long running a yt-dlp takes, which on Windows, where a fake yt-dlp is a copy of this test binary starting Git for Windows' sh, ran past the wait on a busy runner.
+	old := filepath.Join(t.TempDir(), "yt-dlp")
 	a, _, updates := newTestApp(t, toolsForRemedies(t, old))
 	a.queueReadYTDLP()
 	var read func()
