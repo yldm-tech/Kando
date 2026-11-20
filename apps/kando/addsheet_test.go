@@ -216,6 +216,20 @@ func TestAddSheetFromTheBookmarklet(t *testing.T) {
 	}
 }
 
+// The bookmarklet's link reaches the add sheet when the system opens Kando with it, through the one handler areasReady registers (areasListenLinks): on macOS, and on Windows and Linux, where a second launch hands it to the running copy.
+func TestAddSheetFromTheSystemsLink(t *testing.T) {
+	a, tt, _ := newTestApp(t, &fakePipeline{block: true})
+	page := "https://www.bilibili.com/video/BV1nx4y1x7t1"
+	onEngine(a, a.areasListenLinks)
+	tt.OpenLinks("kando://add?url=" + url.QueryEscape(page) + "&title=" + url.QueryEscape("爆旋陀螺"))
+	refresh(tt, a)
+	if !a.addsheet.open || a.addsheet.source != page || len(a.library.Jobs) != 0 {
+		t.Fatalf("sheet open %v for %q, jobs %d", a.addsheet.open, a.addsheet.source, len(a.library.Jobs))
+	}
+	wantText(t, tt, "爆旋陀螺")
+	tt.Press("id:addsheet-cancel")
+}
+
 // 链接到达后立即开始 is off until it is turned on in Settings › 通用, which saves it in settings.json, and takes it back at startup.
 func TestAddSheetStartAtOnceIsSaved(t *testing.T) {
 	a, tt, _ := newTestApp(t, &fakePipeline{})

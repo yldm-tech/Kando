@@ -31,7 +31,7 @@ file_types:
   - { name: Windows Media Audio, extensions: [wma], id: com.microsoft.windows-media-wma, role: viewer, conforms: [public.audio], mime: [audio/x-ms-wma] }
 # The NSIS installer adds Kando to these types' Open With, and the Linux desktop entry lists their MIME types.
 
-# Kando's own links: the bookmarklet of Settings › 通用 › 浏览器扩展 opens kando://add?url=… on a video's page (browserext.ReadLink). Only the macOS package registers them with the system.
+# Kando's own links: the bookmarklet of Settings › 通用 › 浏览器扩展 opens kando://add?url=… on a video's page (browserext.ReadLink), and the site's plugin directory kando://plugin/install?id=… (index.ReadInstallLink). Every package registers the scheme with the system: the macOS bundle's Info.plist, the Windows installer's HKCU\Software\Classes\kando (started as "<exe>" -- "%1", cli.OpensWindow), the Linux desktop entry's x-scheme-handler/kando with %U.
 url_schemes: [kando]
 
 release: { github: yldm-tech/Kando }
