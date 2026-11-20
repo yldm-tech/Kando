@@ -41,7 +41,10 @@ type PluginCredential struct {
 	Key, Title, Hosts, Warning string
 }
 
-// PluginPerm is a permission a script plugin asks for, or its network as a whole (ID "network"): what it lets the plugin do (Text), whether the plugin can do without it (Optional), whether it is granted, and whether it needs no grant (Free), which has no switch, and the group the details list it under (Group).
+// PluginNetworkPerm is the ID of a script plugin's network, granted as a whole, among its permissions (PluginPerm, SetPluginGrant).
+const PluginNetworkPerm = "network"
+
+// PluginPerm is a permission a script plugin asks for, or its network as a whole (ID PluginNetworkPerm): what it lets the plugin do (Text), whether the plugin can do without it (Optional), whether it is granted, and whether it needs no grant (Free), which has no switch, and the group the details list it under (Group).
 type PluginPerm struct {
 	ID       string
 	Text     string
@@ -164,8 +167,13 @@ func pluginScriptDetailIn(cx *core.Scope, a PluginsApp, r PluginRow) []core.Node
 		var rows []core.Node
 		for _, optional := range []bool{false, true} {
 			for _, p := range r.Script.Perms {
-				if p.Group == group && p.Optional == optional {
-					rows = append(rows, pluginPermRow(cx, a, id, p))
+				if p.Group != group || p.Optional != optional {
+					continue
+				}
+				rows = append(rows, pluginPermRow(cx, a, id, p))
+				// What the network's rules cannot narrow is said right under them.
+				if p.ID == PluginNetworkPerm && r.Script.Unscoped != "" {
+					rows = append(rows, core.Text{Content: locales.SettingsPluginsUnscoped(cx, r.Script.Unscoped), TestID: "settings-plugins-unscoped-" + id, Style: core.Style{FontSize: 12, LineHeight: 17}, StyleFunc: ui.Colored(colors.Warn)})
 				}
 			}
 		}
@@ -174,9 +182,6 @@ func pluginScriptDetailIn(cx *core.Scope, a PluginsApp, r PluginRow) []core.Node
 		}
 		nodes = append(nodes, core.Text{Content: pluginPermGroupTitle(cx, group), TestID: "settings-plugins-group-" + id + "-" + strconv.Itoa(int(group)), Role: core.RoleHeader, Style: core.Style{FontSize: 12, LineHeight: 17, FontWeight: ui.Semibold, Margin: core.Edges{Top: 6}}, StyleFunc: ui.Colored(colors.Text)})
 		nodes = append(nodes, rows...)
-		if group == plugins.GroupNetwork && r.Script.Unscoped != "" {
-			nodes = append(nodes, core.Text{Content: locales.SettingsPluginsUnscoped(cx, r.Script.Unscoped), TestID: "settings-plugins-unscoped-" + id, Style: core.Style{FontSize: 12, LineHeight: 17}, StyleFunc: ui.Colored(colors.Warn)})
-		}
 	}
 	nodes = append(nodes,
 		note(live.Func(a, func() string {
@@ -352,8 +357,12 @@ func pluginScriptInstall(cx *core.Scope, s PluginScript) []core.Node {
 	for _, optional := range []bool{false, true} {
 		var lines []core.Node
 		for _, p := range s.Perms {
-			if p.Optional == optional {
-				lines = append(lines, line("· "+p.Text, colors.Text))
+			if p.Optional != optional {
+				continue
+			}
+			lines = append(lines, line("· "+p.Text, colors.Text))
+			if p.ID == PluginNetworkPerm && s.Unscoped != "" {
+				lines = append(lines, core.Text{Content: locales.SettingsPluginsUnscoped(cx, s.Unscoped), TestID: "plugins-install-unscoped", Style: core.Style{FontSize: 12, LineHeight: 17}, StyleFunc: ui.Colored(colors.Warn)})
 			}
 		}
 		if len(lines) == 0 {
@@ -365,9 +374,6 @@ func pluginScriptInstall(cx *core.Scope, s PluginScript) []core.Node {
 		}
 		nodes = append(nodes, core.Text{Content: heading, Role: core.RoleHeader, Style: core.Style{FontSize: 12, LineHeight: 17, FontWeight: ui.Semibold, Margin: core.Edges{Top: 4}}, StyleFunc: ui.Colored(colors.Text)})
 		nodes = append(nodes, lines...)
-	}
-	if s.Unscoped != "" {
-		nodes = append(nodes, core.Text{Content: locales.SettingsPluginsUnscoped(cx, s.Unscoped), TestID: "plugins-install-unscoped", Style: core.Style{FontSize: 12, LineHeight: 17}, StyleFunc: ui.Colored(colors.Warn)})
 	}
 	if len(s.Adds) > 0 {
 		nodes = append(nodes, core.Text{Content: locales.SettingsPluginsAdds(cx), Role: core.RoleHeader, Style: core.Style{FontSize: 12, LineHeight: 17, FontWeight: ui.Semibold, Margin: core.Edges{Top: 4}}, StyleFunc: ui.Colored(colors.Text)})

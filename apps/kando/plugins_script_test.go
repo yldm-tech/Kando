@@ -795,6 +795,10 @@ func TestPluginScriptGrantPage(t *testing.T) {
 			t.Errorf("the confirmation does not say %q; texts %q", s, tt.Texts())
 		}
 	}
+	// The single address line is under the network it asks for, before what it asks for optionally.
+	if texts := tt.Texts(); !(slices.Index(texts, "· "+m.SettingsPluginsPermNetwork(`POST http://127.0.0.1:8765 /`))+1 == slices.Index(texts, m.SettingsPluginsUnscoped("127.0.0.1:8765")) && slices.Index(texts, m.SettingsPluginsUnscoped("127.0.0.1:8765")) < slices.Index(texts, m.SettingsPluginsWantsOptional())) {
+		t.Errorf("the single address line is not under the network; texts %q", texts)
+	}
 	// It keeps no key, so no line says other programs can read its keys.
 	if tt.Exists("id:plugins-install-shared-keys") {
 		t.Error("a plugin without keys says other programs read them")
@@ -824,6 +828,10 @@ func TestPluginScriptGrantPage(t *testing.T) {
 	at := func(s string) int { return slices.Index(texts, s) }
 	if r, n, s, w := at(m.SettingsPluginsGroupRead()), at(m.SettingsPluginsGroupNetwork()), at(m.SettingsPluginsPermSavedRead()), at(m.SettingsPluginsPermNetwork(`POST http://127.0.0.1:8765 /`)); r < 0 || !(r < s && s < n && n < w) {
 		t.Errorf("headings and permissions out of order (%d %d %d %d): %q", r, s, n, w, texts)
+	}
+	// What the rule cannot narrow is under the network's switch, before the optional page it may open.
+	if w, u, o := at(m.SettingsPluginsPermNetwork(`POST http://127.0.0.1:8765 /`)), at(m.SettingsPluginsUnscoped("127.0.0.1:8765")), at(m.SettingsPluginsPermOpenURL()); !(w < u && u < o) {
+		t.Errorf("the single address line is not under the network (%d %d %d): %q", w, u, o, texts)
 	}
 	for _, perm := range []string{string(plugins.PermSavedRead), string(plugins.PermLineCurrent)} {
 		tt.Press("id:settings-plugins-grant-acme.anki-" + perm)

@@ -522,12 +522,16 @@ func pluginInstallDialog(cx *core.Scope, a PluginsApp, in PluginInstall, cancel 
 	default:
 		children = append(children, facts(locales.SettingsPluginsInstallSource(cx)))
 	}
-	version := locales.SettingsPluginsVersion(cx, p.Version)
-	if p.Author != "" {
+	var version string
+	switch sized := in.Script != nil && in.Size > 0; {
+	case sized && p.Author != "":
+		version = locales.SettingsPluginsVersionAuthorSize(cx, p.Version, p.Author, byteSize(in.Size))
+	case sized:
+		version = locales.SettingsPluginsVersionSize(cx, p.Version, byteSize(in.Size))
+	case p.Author != "":
 		version = locales.SettingsPluginsVersionAuthor(cx, p.Version, p.Author)
-	}
-	if in.Script != nil && in.Size > 0 {
-		version += " · " + byteSize(in.Size)
+	default:
+		version = locales.SettingsPluginsVersion(cx, p.Version)
 	}
 	if p.Kind == plugins.KindTask {
 		children = append(children, core.Text{Content: locales.SettingsPluginsTaskInstallNote(cx, in.Budget), Style: core.Style{FontSize: 12, LineHeight: 17}, StyleFunc: ui.Colored(colors.Text)})

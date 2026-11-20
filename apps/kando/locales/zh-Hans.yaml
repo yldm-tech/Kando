@@ -2203,6 +2203,8 @@ settingsPluginsUninstallMessage: "它的文件会被删除。你为它添加的�
 settingsPluginsUninstallTitle: "卸载“{name}”？"
 settingsPluginsVersion: "版本 {version}"
 settingsPluginsVersionAuthor: "版本 {version} · {author}"
+settingsPluginsVersionSize: "版本 {version} · {size}"
+settingsPluginsVersionAuthorSize: "版本 {version} · {author} · {size}"
 settingsPluginsWordlistDetail: "{language}词汇，分 {count} 级"
 settingsPluginsKindScript: "脚本插件"
 settingsPluginsSourceOfficial: "官方"

@@ -7941,6 +7941,19 @@ settingsPluginsVersionAuthor:
   placeholders:
     version: { type: "String", example: "1.2.0" }
     author: { type: "String", example: "Example" }
+settingsPluginsVersionSize:
+  message: "Version {version} · {size}"
+  description: "Install confirmation of a script plugin: its version and the size of its files."
+  placeholders:
+    version: { type: "String", example: "1.2.0" }
+    size: { type: "String", example: "12 KB" }
+settingsPluginsVersionAuthorSize:
+  message: "Version {version} · {author} · {size}"
+  description: "Install confirmation of a script plugin: its version, who made it, as the pack says, and the size of its files."
+  placeholders:
+    version: { type: "String", example: "1.2.0" }
+    author: { type: "String", example: "Example" }
+    size: { type: "String", example: "12 KB" }
 settingsPluginsWordlistDetail:
   message: "{language} words in {count, plural, one {# level} other {# levels}}"
   description: "Plugins page and install confirmation: what a word list pack adds; {language} is a language tag."

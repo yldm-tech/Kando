@@ -2205,6 +2205,8 @@ settingsPluginsUninstallMessage: "파일이 삭제됩니다. 추가된 서비스
 settingsPluginsUninstallTitle: "‘{name}’을(를) 제거할까요?"
 settingsPluginsVersion: "버전 {version}"
 settingsPluginsVersionAuthor: "버전 {version} · {author}"
+settingsPluginsVersionSize: "버전 {version} · {size}"
+settingsPluginsVersionAuthorSize: "버전 {version} · {author} · {size}"
 settingsPluginsWordlistDetail: "{language} 단어, {count}단계"
 settingsPluginsKindScript: "스크립트 플러그인"
 settingsPluginsSourceOfficial: "공식"

@@ -1051,6 +1051,8 @@ var Parameters = map[string][]string{
 	"SettingsPluginsUninstallTitle":            {"name"},
 	"SettingsPluginsVersion":                   {"version"},
 	"SettingsPluginsVersionAuthor":             {"version", "author"},
+	"SettingsPluginsVersionSize":               {"version", "size"},
+	"SettingsPluginsVersionAuthorSize":         {"version", "author", "size"},
 	"SettingsPluginsWordlistDetail":            {"language", "count"},
 	"SettingsPluginsUnscoped":                  {"hosts"},
 	"SettingsPluginsInstallSourceVerified":     {"publisher"},
@@ -1774,6 +1776,8 @@ type Translation struct {
 	SettingsPluginsUninstallTitle            func(name string) string
 	SettingsPluginsVersion                   func(version string) string
 	SettingsPluginsVersionAuthor             func(version string, author string) string
+	SettingsPluginsVersionSize               func(version string, size string) string
+	SettingsPluginsVersionAuthorSize         func(version string, author string, size string) string
 	SettingsPluginsWordlistDetail            func(language string, count int) string
 	SettingsPluginsUnscoped                  func(hosts string) string
 	SettingsPluginsInstallSourceVerified     func(publisher string) string
@@ -25397,6 +25401,12 @@ func Supply(lang string, t Translation) {
 	}
 	if t.SettingsPluginsVersionAuthor != nil {
 		s.SettingsPluginsVersionAuthor = t.SettingsPluginsVersionAuthor
+	}
+	if t.SettingsPluginsVersionSize != nil {
+		s.SettingsPluginsVersionSize = t.SettingsPluginsVersionSize
+	}
+	if t.SettingsPluginsVersionAuthorSize != nil {
+		s.SettingsPluginsVersionAuthorSize = t.SettingsPluginsVersionAuthorSize
 	}
 	if t.SettingsPluginsWordlistDetail != nil {
 		s.SettingsPluginsWordlistDetail = t.SettingsPluginsWordlistDetail
@@ -62676,6 +62686,70 @@ func (msgs Messages) SettingsPluginsVersionAuthor(version string, author string)
 			return "版本 " + version + " · " + author
 		case "zh-Hant":
 			return "版本 " + version + " · " + author
+		}
+	}
+}
+
+// SettingsPluginsVersionSize says "Version {version} · {size}"
+// in the language the app shows under cx.
+//
+// Install confirmation of a script plugin: its version and the size of its files.
+func SettingsPluginsVersionSize(cx *core.Scope, version string, size string) string {
+	return For(cx).SettingsPluginsVersionSize(version, size)
+}
+
+// SettingsPluginsVersionSize is the package's SettingsPluginsVersionSize in the language of msgs.
+func (msgs Messages) SettingsPluginsVersionSize(version string, size string) string {
+	if i18n.IsPseudo(msgs.lang) {
+		return i18n.Pseudo(msgs.lang, Messages{lang: Source, mark: true}.SettingsPluginsVersionSize(version, size))
+	}
+	for lang := msgs.lang; ; lang = i18n.Parent(lang) {
+		if f := supplied[lang].SettingsPluginsVersionSize; f != nil {
+			return f(version, size)
+		}
+		switch lang {
+		case "", "en":
+			return "Version " + msgs.arg(version) + " · " + msgs.arg(size)
+		case "ja":
+			return "バージョン " + version + " · " + size
+		case "ko":
+			return "버전 " + version + " · " + size
+		case "zh-Hans":
+			return "版本 " + version + " · " + size
+		case "zh-Hant":
+			return "版本 " + version + " · " + size
+		}
+	}
+}
+
+// SettingsPluginsVersionAuthorSize says "Version {version} · {author} · {size}"
+// in the language the app shows under cx.
+//
+// Install confirmation of a script plugin: its version, who made it, as the pack says, and the size of its files.
+func SettingsPluginsVersionAuthorSize(cx *core.Scope, version string, author string, size string) string {
+	return For(cx).SettingsPluginsVersionAuthorSize(version, author, size)
+}
+
+// SettingsPluginsVersionAuthorSize is the package's SettingsPluginsVersionAuthorSize in the language of msgs.
+func (msgs Messages) SettingsPluginsVersionAuthorSize(version string, author string, size string) string {
+	if i18n.IsPseudo(msgs.lang) {
+		return i18n.Pseudo(msgs.lang, Messages{lang: Source, mark: true}.SettingsPluginsVersionAuthorSize(version, author, size))
+	}
+	for lang := msgs.lang; ; lang = i18n.Parent(lang) {
+		if f := supplied[lang].SettingsPluginsVersionAuthorSize; f != nil {
+			return f(version, author, size)
+		}
+		switch lang {
+		case "", "en":
+			return "Version " + msgs.arg(version) + " · " + msgs.arg(author) + " · " + msgs.arg(size)
+		case "ja":
+			return "バージョン " + version + " · " + author + " · " + size
+		case "ko":
+			return "버전 " + version + " · " + author + " · " + size
+		case "zh-Hans":
+			return "版本 " + version + " · " + author + " · " + size
+		case "zh-Hant":
+			return "版本 " + version + " · " + author + " · " + size
 		}
 	}
 }

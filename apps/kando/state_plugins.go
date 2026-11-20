@@ -677,7 +677,7 @@ func (a *app) pluginsApplyState(next plugins.State) {
 	})
 }
 
-// pluginsUninstall removes the pack id from the plugins folder and from state.json off the UI thread (plugins.Remove), with a dictionary's index, closed first, and reads the folder again. The service an ai-service pack added keeps its key in settings.json under the pack's id (pluginsKeepLLM, savedLLM.clean), so installing it again brings it back. As with an install, a state.json a newer Kando wrote, which this one does not write over (plugins.ErrStateFormat), refuses the removal before anything is removed; once the folder is gone the pack is uninstalled, and a state.json that could not be saved after is said on the page apart from it (plugins.StateUnsaved).
+// pluginsUninstall removes the pack id from the plugins folder and from state.json off the UI thread (plugins.Remove), with a dictionary's index, closed first, writes the uninstall to the audit log once the folder is gone, and reads the folder again. The service an ai-service pack added keeps its key in settings.json under the pack's id (pluginsKeepLLM, savedLLM.clean), so installing it again brings it back. As with an install, a state.json a newer Kando wrote, which this one does not write over (plugins.ErrStateFormat), refuses the removal before anything is removed; once the folder is gone the pack is uninstalled, and a state.json that could not be saved after is said on the page apart from it (plugins.StateUnsaved).
 func (a *app) pluginsUninstall(id string) {
 	root := a.pluginsRoot()
 	if root == "" || a.plugins.busy {
@@ -703,7 +703,6 @@ func (a *app) pluginsUninstall(id string) {
 		a.pluginsSaveHealth()
 		pluginsWriteValues(id, func() { plugins.RemoveValues(root, id) })
 	}
-	a.pluginsAudit(plugins.AuditUninstall, id, "")
 	state := a.pluginsNextState(func(s *plugins.State) {
 		s.Plugins = slices.DeleteFunc(s.Plugins, func(e plugins.PluginState) bool { return e.ID == id })
 	})
@@ -724,9 +723,13 @@ func (a *app) pluginsUninstall(id string) {
 			if err != nil {
 				a.plugins.err = err
 			}
-			// What a task pack spent goes with it once its folder is gone, so installing it again starts from its budget.
+			// Once its folder is gone the pack is uninstalled, which the audit log keeps; a removal that failed is not one. What a task pack spent goes with it then, so installing it again starts from its budget.
 			var unsaved plugins.StateUnsaved
-			if _, ok := a.plugins.usage.Tokens[id]; ok && (err == nil || errors.As(err, &unsaved)) {
+			gone := err == nil || errors.As(err, &unsaved)
+			if gone {
+				a.pluginsAudit(plugins.AuditUninstall, id, "")
+			}
+			if _, ok := a.plugins.usage.Tokens[id]; ok && gone {
 				a.plugins.usage.Forget(id)
 				if err := a.plugins.usage.Save(root); err != nil {
 					a.plugins.err = err

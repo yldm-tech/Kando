@@ -18,6 +18,7 @@ import (
 	"kando/apps/kando/locales"
 	"kando/apps/kando/plugins"
 	"kando/apps/kando/plugins/script"
+	"kando/apps/kando/settings"
 	"kando/packages/study"
 
 	ns "github.com/nsgo-dev/nsgo/core"
@@ -581,7 +582,7 @@ func (a *app) pluginsSetGrant(id, perm string, on bool) {
 }
 
 // pluginsNetwork names a plugin's network, granted as a whole, among its permissions.
-const pluginsNetwork = "network"
+const pluginsNetwork = settings.PluginNetworkPerm
 
 // pluginsForgetPartitions clears what the plugin id kept in its storage under the key signer, and the secrets of its credentials Kando kept for it, as it is uninstalled or replaced by one another key signed (docs/plugin-system.md 6.3).
 func (a *app) pluginsForgetPartitions(p plugins.Pack, signer string) {

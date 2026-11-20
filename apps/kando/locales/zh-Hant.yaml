@@ -2205,6 +2205,8 @@ settingsPluginsUninstallMessage: "它的檔案會被刪除。你為它新增的�
 settingsPluginsUninstallTitle: "解除安裝「{name}」？"
 settingsPluginsVersion: "版本 {version}"
 settingsPluginsVersionAuthor: "版本 {version} · {author}"
+settingsPluginsVersionSize: "版本 {version} · {size}"
+settingsPluginsVersionAuthorSize: "版本 {version} · {author} · {size}"
 settingsPluginsWordlistDetail: "{language}詞彙，分 {count} 級"
 settingsPluginsKindScript: "腳本外掛"
 settingsPluginsSourceOfficial: "官方"

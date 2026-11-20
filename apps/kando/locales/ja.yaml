@@ -2205,6 +2205,8 @@ settingsPluginsUninstallMessage: "ファイルは削除されます。追加さ�
 settingsPluginsUninstallTitle: "「{name}」をアンインストールしますか？"
 settingsPluginsVersion: "バージョン {version}"
 settingsPluginsVersionAuthor: "バージョン {version} · {author}"
+settingsPluginsVersionSize: "バージョン {version} · {size}"
+settingsPluginsVersionAuthorSize: "バージョン {version} · {author} · {size}"
 settingsPluginsWordlistDetail: "{language}の単語、{count} 段階"
 settingsPluginsKindScript: "スクリプトプラグイン"
 settingsPluginsSourceOfficial: "公式"

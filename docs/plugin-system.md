@@ -800,7 +800,7 @@ export function kandoManifest() { return { /* identical to kando-plugin.json fie
 - 熔断按 (id, hash) 计：init 失败立即停用；最近 50 次调用里有 3 次出错或超出 `ErrBudget`，也停用；`llm.chat` 上的 `ErrHostTimeout` 不计入。tsx 自己停掉的运行时（超了节点或内存配额）之后的每次调用都立即以那个配额的带码错误失败，熔断不计带码的错误，所以调用以这种错误结束时马上停用插件：内存配额记 `memory`，其他记 `failed`。Kando 目前不设 `Limits.Memory`（`TODO(nsgo#760)`），所以现在只有节点配额会走到这里，记 `failed`；`memory` 留给以后设了内存配额的时候。认法是错误带着配额的资源名（`Resource`）：tsx 把插件 throw 或 reject 的错误只留码和消息，插件自己报同样的码不会被当成停了（`runner.go` 的 `halted`）。只看错误、不调插件的任何东西：插件可以在自己的导出对象上挂 getter，tsx 在引擎上读名字时会不限时地跑它。结果写进 `plugins/health.json`，只存类别。
 - **卡死和崩溃后自愈**：每次 Call 之前先把 (id, hash) 写成 in-flight 记录，回调时清掉（5.2 节）。下次启动时如果发现残留的记录，就把那个插件标为 `hung` 并自动停用，详情页说明「上次运行时让看懂停止响应」。这一条覆盖了 Limits 拦不住的卡死和 OOM（见 6.7）。
 - **看门狗**（P3.0 加的，Limits 管不到的部分）：所有脚本插件的 Call 全局串行，同一时刻只有一个在跑，引擎变慢和内存上涨都能归到它头上。一个 goroutine 定时往引擎投心跳，并用 `runtime/metrics` 读 Go 堆；有调用在跑时，心跳连续几次等待超过 250ms，或者堆比 Load 前的基线多出 512 MiB，看门狗就在自己的 goroutine 上 `Plugin.Interrupt` 这个插件（nsgo#836 加的，任何 goroutine 都能调），正在跑的片段当场被切断、定时器丢掉，再在引擎上 `Plugin.Close()`，记一次熔断并停用。以前只能 Close，要等到两个片段之间才生效（实测 0.05–0.4 s）；现在不用等当前片段跑完（goja 执行时检查中断标志；原生的正则匹配不检查，由匹配超时兜住）。tsx 的 `Limits.CallTotal` 不用：它是从 `Plugin.Call` 起算的墙钟时间，宿主替插件等（`Pause`、`PauseFor`，读声音、`llm.chat` 最长 120 s）时停不下来，而看门狗的 1 分钟期限不算这段；它还会让入口模块排下的定时器在 `Limits.Load`（1 s）后被丢掉，插件作者可能依赖这一点。正则由 tsx 兜住：沙箱里的调用编译的正则以这次调用的预算（500ms）为匹配超时（nsgo#759 修好后，Kando 不再设进程级的 `regexp2.DefaultMatchTimeout`，6.7）。
-- `plugins/audit.log` 记录安装、授权、吊销、熔断、确认框结果，以及每次 `llm.chat` 的 token 数，不记录内容。写盘前先经过 `feedback.Scrubber`。数据包也记：每种包的安装（`install`，带版本和 kind，site 包带安装时同意的域名）和卸载（`uninstall`）；安装确认没装就关掉（`cancel`，打不开的文件不算，它没问过用户）；site 包在详情里逐个域名的同意和撤回（`site`）；task 包的开关（`enable`、`disable`，打开它就是授予 token）和每次运行花掉的 token（`llm-chat`）。其余数据包的开关不是授权，不记。
+- `plugins/audit.log` 记录安装、授权、吊销、熔断、确认框结果，以及每次 `llm.chat` 的 token 数，不记录内容。写盘前先经过 `feedback.Scrubber`。数据包也记：每种包的安装（`install`，带版本和 kind，site 包带安装时同意的域名）和卸载（`uninstall`），都在包放到位或目录删掉之后才记，没装上、没删掉的不记；安装确认没装就关掉（`cancel`，打不开的文件不算，它没问过用户）；site 包在详情里逐个域名的同意和撤回（`site`）；task 包的开关（`enable`、`disable`，打开它就是授予 token）和每次运行花掉的 token（`llm-chat`）。其余数据包的开关不是授权，不记。
 
 ### 6.7 残余风险（在授权页如实写出）
 
@@ -1459,7 +1459,8 @@ NSGO_ROOT_KEY=<root secret> make plugin-revocations
   - 6.7 的五条里上授权页的是三条（见 6.7 最后一条）。凭据库那一条按 `runtime.GOOS` 判断（`pluginsKeysShared`，macOS 以外都写），所以在 macOS 上出的截图里没有这一行。
   - 「需要授权」「离线时不可用」放在 `PluginScript.Problem` 里，和其余停用原因共用行内和详情顶上的位置，排在它们后面。「需要授权」对刚装好的插件也显示，因为这时下一步正是授权；它不灰掉开关，插件照样能按已授予的部分运行。
   - 详情原来的标题「权限」（`settingsPluginsPermissions`）换成了四组的标题，旧键从五份 catalog 里删掉了。
-  - 脚本插件的安装记录原来在 `plugins.Swap` 之前写，现在和数据包一起在包放到位之后写，装失败的不再记成安装。
+  - 脚本插件的安装记录原来在 `plugins.Swap` 之前写，卸载记录原来在 `plugins.Remove` 之前写，现在和数据包一起在包放到位、目录删掉之后写，装失败、删失败的不再记成安装、卸载。
+  - 安装确认上的大小和版本、作者写成一条带占位符的文案（`settingsPluginsVersionSize`、`settingsPluginsVersionAuthorSize`），不在代码里拼分隔符。「规则限制不了」一行在确认框和详情里都紧跟在联网那一项后面，不排到可选权限之后。
   - 截图场景：`plugins-script-install`、`plugins-script-install-official`（大小、规则限制不了、残余风险）、`plugins-script-details`（四组标题、需要授权、规则限制不了、残余风险）、`plugins-script-credential`（「联网」组标题、残余风险）变了，新增 `plugins-script-rows`（一行需要授权、一行离线时不可用）。
   - 测试：`plugins` 的 `TestScriptGrantStates`（分组、`Missing`、`Online`、`Unscoped`、`Size`）；根目录的 `TestPluginScriptGrantPage`（确认框的大小和两行、详情的分组和顺序、行内的两种状态、取消、安装和授权的审计记录）、`TestPluginScriptKeysSharedWithOtherPrograms`、`TestPluginsAuditLog`（取消、site 包安装带域名、逐域名同意和撤回、卸载），`TestPluginTaskRunsOnTheFilmSoFar` 加了 task 包开关和 token 的审计记录。
 
