@@ -28,7 +28,7 @@ import (
 
 // Script plugins (docs/plugin-system.md P3): signed TSX packages, installed as the data packs are, which run sandboxed (plugins/script) once the user turned them on, with what the user granted on their details. After each read of the plugins folder their packages are verified off the UI thread against Kando's official root and, in developer mode, the developer key of this computer (pluginsVerify); then the plugins turned on are loaded one per update, each after its code said again what it is (script.Probe), each with a host of its own whose handlers check, at every call, what it may do now (State.Effective): what the user granted, while the library is not locked and, for the network, while Kando is not offline. Their calls run one at a time under a watchdog (script.Runner), which turns off a plugin that keeps the window from answering, holds too much memory or fails too often, and records why in health.json; a call still running when Kando stopped turns its plugin off at the next start (in-flight marks). What they add: commands (pluginKeys), and they hear film.opened, job.completed and llm.changed. Every install, grant, switch, stop and confirmation goes into plugins/audit.log.
 
-// pluginsScripts is the script plugins' part of the plugins' state (pluginsUI.script). trust verifies them, made once the developer key is read (devRead), with the developer root (dev) in developer mode, again when that changes; trustErr is why it could not be opened. verified are the packages verified, by id, for the content hash of each, and issues why the others were refused; verifyGen counts the verifications, so only the last one's answer is kept. loaded are the plugins running, by id, and loading the ids to load, one per update. health is health.json, which the plugins Kando turned off are in. runner calls them; watch is its watchdog's, which the tests set. calls are each plugin's host calls of the last minute, for its quota. toaster shows their toasts, and toasting is set once one showed. opened is the film film.opened was last sent for, jobs the stages of the jobs as job.completed last saw them. asking is set while a page a plugin asked to open waits for the user's answer. filmKey is the secret the films' ids for the plugins are derived from. values are the plugins' settings, by id; secrets which of their credentials' secrets are kept, by id and key (plugins.SecretKey). started is set once the first verification started, which reads health.json and the in-flight marks; developer is developer mode (savedPlugins.PluginDeveloper). keying is set while pluginsConflicts reads the shortcuts without the plugins'. saves counts the saves of state.json pluginsSaveState started. official stands in for Kando's official root in the tests, which sign their plugins with roots of their own; nil otherwise. waiting are the host calls waiting outside the engine, by plugin and kind (pluginsWaiting); client is what the credentials' requests go through, which the tests set (pluginsHTTPClient); noSecrets is set once the system's secure store turned out to be missing, as on Linux without a Secret Service, which keeps the plugins with credentials off; contrib is the state of what the plugins contribute besides commands (state_plugins_contrib.go). revoking is set while the revocation list is fetched, and revokedAt is when it was last fetched (state_plugins_revoke.go). Engine's goroutine only.
+// pluginsScripts is the script plugins' part of the plugins' state (pluginsUI.script). trust verifies them, made once the developer key is read (devRead), with the developer root (dev) in developer mode, again when that changes; trustErr is why it could not be opened. verified are the packages verified, by id, for the content hash of each, and issues why the others were refused; verifyGen counts the verifications, so only the last one's answer is kept. loaded are the plugins running, by id, and loading the ids to load, one per update. health is health.json, which the plugins Kando turned off are in. runner calls them; watch is its watchdog's, which the tests set. calls are each plugin's host calls of the last minute, for its quota. toaster shows their toasts, and toasting is set once one showed. opened is the film film.opened was last sent for, jobs the stages of the jobs as job.completed last saw them. asking is set while a page a plugin asked to open waits for the user's answer. filmKey is the secret the films' ids for the plugins are derived from. values are the plugins' settings, by id; secrets which of their credentials' secrets are kept, by id and key (plugins.SecretKey), without a key the secure store failed to read (pluginsReadKept). started is set once the first verification started, which reads health.json and the in-flight marks; developer is developer mode (savedPlugins.PluginDeveloper). keying is set while pluginsConflicts reads the shortcuts without the plugins'. saves counts the saves of state.json pluginsSaveState started. official stands in for Kando's official root in the tests, which sign their plugins with roots of their own; nil otherwise. waiting are the host calls waiting outside the engine, by plugin and kind (pluginsWaiting); client is what the credentials' requests go through, which the tests set (pluginsHTTPClient); noSecrets is set once the system's secure store turned out to be missing, as on Linux without a Secret Service, which keeps the plugins with credentials off; contrib is the state of what the plugins contribute besides commands (state_plugins_contrib.go). revoking is set while the revocation list is fetched, and revokedAt is when it was last fetched (state_plugins_revoke.go). Engine's goroutine only.
 type pluginsScripts struct {
 	trust     *pkg.Trust
 	trustErr  error
@@ -625,13 +625,7 @@ func (a *app) pluginsLoadValues(p plugins.Pack) {
 	secrets, update := a.pluginsHostSecrets(id, p.Signer), a.update
 	go func() {
 		values, _ := plugins.LoadValues(root, id)
-		kept := map[string]bool{}
-		missing := false
-		for _, k := range secretKeys {
-			_, ok, err := secrets.Get(k)
-			kept[k] = ok
-			missing = missing || errors.Is(err, ns.ErrSecretsUnavailable)
-		}
+		kept, missing := pluginsReadKept(secrets.Get, secretKeys)
 		update(func() {
 			s := &a.plugins.script
 			if missing && !s.noSecrets {
@@ -651,6 +645,20 @@ func (a *app) pluginsLoadValues(p plugins.Pack) {
 			s.secrets[id] = kept
 		})
 	}()
+}
+
+// pluginsReadKept reads which of keys are kept with get (ns.Secrets.Get), for pluginsScripts.secrets: true for a key kept, false for one get answered is not, and none for a key get failed to read, as a keychain the user did not allow to read, or that is locked, fails, so a failed read is never taken for a missing key; missing is set when the platform has no secure store (ns.ErrSecretsUnavailable).
+func pluginsReadKept(get func(string) (string, bool, error), keys []string) (kept map[string]bool, missing bool) {
+	kept = map[string]bool{}
+	for _, k := range keys {
+		_, ok, err := get(k)
+		if err != nil {
+			missing = missing || errors.Is(err, ns.ErrSecretsUnavailable)
+			continue
+		}
+		kept[k] = ok
+	}
+	return kept, missing
 }
 
 // pluginsSetValue sets the plugin id's setting key to value, as a value of it (plugins.Setting.Value), and saves its settings off the UI thread; a value that is not one is dropped.

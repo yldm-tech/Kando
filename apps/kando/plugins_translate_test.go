@@ -28,6 +28,7 @@ import (
 	"kando/packages/core"
 	"kando/packages/media"
 
+	ns "github.com/nsgo-dev/nsgo/core"
 	"github.com/nsgo-dev/nsgo/nsgotest"
 )
 
@@ -411,6 +412,14 @@ func TestOfficialDeepL(t *testing.T) {
 		t.Fatalf("checked without a secure store: %v", err)
 	}
 	onEngine(a, func() { a.plugins.script.noSecrets = false })
+	// A key the secure store failed to read, as a keychain the user did not allow to read fails, may well be kept, so the check does not ask for it either: the plugin's own fetch finds out.
+	onEngine(a, func() {
+		a.plugins.script.secrets["kando.deepl"], _ = pluginsReadKept(func(string) (string, bool, error) { return "", false, errors.New("the user did not allow the read") }, []string{plugins.SecretKey("deepl")})
+	})
+	if err := checkTranslateWith(t, a, tt, updates, tools); err != nil {
+		t.Fatalf("checked with a key that could not be read: %v", err)
+	}
+	onEngine(a, func() { a.plugins.script.secrets["kando.deepl"] = map[string]bool{plugins.SecretKey("deepl"): false} })
 	secrets := []string{"k-free-123:fx", "k-pro-456"}
 	setKey := func(k string) {
 		onEngine(a, func() { a.SetPluginSecret("kando.deepl", plugins.SecretKey("deepl"), k) })
@@ -606,5 +615,26 @@ func TestPluginTranslatorFollowsReadinessAndOffline(t *testing.T) {
 	}
 	if engine, ok := jobTools(t, a).Engine.(interface{ Local() bool }); !ok || !engine.Local() {
 		t.Fatal("the local source's engine is not local")
+	}
+}
+
+// TestPluginsReadKeptLeavesOutAFailedRead checks that a key the secure store failed to read is not taken for one not kept, so the precheck never asks for a key that may be kept (pluginsNoCredential), and that only a missing store sets missing.
+func TestPluginsReadKeptLeavesOutAFailedRead(t *testing.T) {
+	store := map[string]error{"kept": nil, "absent": nil, "denied": errors.New("the user did not allow the read"), "none": ns.ErrSecretsUnavailable}
+	get := func(k string) (string, bool, error) {
+		if err := store[k]; err != nil {
+			return "", false, err
+		}
+		return "v", k == "kept", nil
+	}
+	kept, missing := pluginsReadKept(get, []string{"kept", "absent", "denied"})
+	if missing || len(kept) != 2 || !kept["kept"] || kept["absent"] {
+		t.Fatalf("read %v, missing %v", kept, missing)
+	}
+	if _, read := kept["denied"]; read {
+		t.Fatal("a failed read was taken for a key not kept")
+	}
+	if kept, missing := pluginsReadKept(get, []string{"none"}); !missing || len(kept) != 0 {
+		t.Fatalf("without a store: %v, missing %v", kept, missing)
 	}
 }
