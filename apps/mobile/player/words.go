@@ -13,6 +13,7 @@ import (
 	"kando/packages/core/segment"
 	"kando/packages/sync"
 
+	"github.com/nsgo-dev/nsgo/base"
 	"github.com/nsgo-dev/nsgo/core"
 	"github.com/nsgo-dev/nsgo/icons/lucide"
 	"github.com/nsgo-dev/nsgo/ui"
@@ -213,11 +214,22 @@ func (w *words) saveExplained() {
 	p.s.SetNote(p.key, cue, note)
 }
 
+// picked is the word looked up in line i, "" for none. Read it in a binding.
+func (w *words) picked(i int) string {
+	if l := w.lookup.Get(); l.open && l.line == i {
+		return l.word
+	}
+	return ""
+}
+
 // tappable is t, the text of line i, with each of its words a span a tap looks up, and the line's word marks drawn on it (markSpans) in the colors of tone.
 func (w *words) tappable(t core.Text, i int, text string, tone func(string) (core.Color, bool)) core.Text {
 	ink := markInk{style: t.Style, look: func(word string) { w.look(i, word) }, tone: tone}
 	t.Spans, t.Content = nil, ""
-	t.SpansFunc = func() []core.Span { return markSpans(text, w.p.tokens(text), w.p.lineMarks(i), ink) }
+	t.SpansFunc = func() []core.Span {
+		ink.picked = w.picked(i)
+		return markSpans(text, w.p.tokens(text), w.p.lineMarks(i), ink)
+	}
 	return t
 }
 
@@ -286,34 +298,11 @@ func sourceText(cx *core.Scope, src sync.WordSource) string {
 	return ""
 }
 
-// wordBody is the card of the word looked up: the word as a dictionary lists it, its reading and its meaning with where it came from (sourceText), or that the computer is asked, or why it could not answer; the line it was tapped in, with its translation.
-func wordBody(cx *core.Scope, p *play, w *words, compact bool) []core.Node {
+// wordStatus is what shows of the word looked up while the computer is asked, or why it could not answer.
+func wordStatus(cx *core.Scope, p *play, w *words) []core.Node {
 	colors := ui.ColorsOf(cx)
 	l := func() lookup { return w.lookup.Get() }
-	wordSize := core.Points(30)
-	if compact {
-		wordSize = 22
-	}
-	// source is where the meaning shown came from, "" while none shows.
-	source := func() string {
-		x := l()
-		if x.busy || x.failed || x.entry.Meaning == "" {
-			return ""
-		}
-		return sourceText(cx, x.entry.Source)
-	}
 	return []core.Node{
-		core.View{Style: core.Style{Direction: core.Row, AlignItems: core.AlignCenter, Gap: 10}, Children: []core.Node{
-			core.View{Style: core.Style{FlexGrow: 1, FlexShrink: 1, MinWidth: core.Pt(0), Gap: 2}, Children: []core.Node{
-				core.Text{TestID: "player-word", ContentFunc: func() string { return cmp.Or(l().entry.Word, l().word) }, Role: core.RoleHeader, MaxLines: 1,
-					Style: core.Style{FontSize: wordSize, FontWeight: core.FontWeightBold}, StyleFunc: ui.Colored(colors.Text)},
-				core.Show{When: func() bool { return l().entry.Reading != "" }, Then: func(cx *core.Scope) core.Node {
-					return core.Text{TestID: "player-word-reading", ContentFunc: func() string { return l().entry.Reading }, Style: look.Subhead, StyleFunc: ui.Colored(colors.Muted)}
-				}},
-			}},
-			core.Show{When: func() bool { return compact }, Then: func(cx *core.Scope) core.Node { return vocabStar(cx, p, w) }},
-			ui.IconButton{TestID: "player-word-close", Icon: lucide.X, LabelFunc: func() string { return locales.PlayerClose(cx) }, Variant: ui.IconButtonGhost, Size: 36, OnPress: w.closeLookup},
-		}},
 		core.Show{When: func() bool { return l().busy }, Then: func(cx *core.Scope) core.Node {
 			return core.View{Style: core.Style{Direction: core.Row, AlignItems: core.AlignCenter, Gap: 8}, Children: []core.Node{
 				ui.Spinner{Size: 16},
@@ -323,51 +312,200 @@ func wordBody(cx *core.Scope, p *play, w *words, compact bool) []core.Node {
 		core.Show{When: func() bool { return l().failed }, Then: func(cx *core.Scope) core.Node {
 			return core.Text{TestID: "player-word-problem", ContentFunc: func() string { return problemText(cx, p, l().problem) }, LiveRegion: core.LiveRegionPolite, Style: look.Subhead, StyleFunc: ui.Colored(colors.Danger)}
 		}},
-		core.Show{When: func() bool { return !l().busy && !l().failed && l().entry.Meaning != "" }, Then: func(cx *core.Scope) core.Node {
-			return core.View{Style: core.Style{Padding: core.All(12), CornerRadius: 12, BorderCurve: core.BorderCurveContinuous}, StyleFunc: func() core.Style { return core.Style{Background: ui.Alpha(colors.Text(), 0.06)} },
-				Children: []core.Node{core.Text{TestID: "player-word-meaning", ContentFunc: func() string { return l().entry.Meaning }, LiveRegion: core.LiveRegionPolite, Style: look.Body, StyleFunc: ui.Colored(colors.Text)}}}
-		}},
-		core.Show{When: func() bool { return source() != "" }, Then: func(cx *core.Scope) core.Node {
-			return core.Text{TestID: "player-word-source", ContentFunc: source, Style: look.Caption, StyleFunc: ui.Colored(colors.Muted)}
-		}},
-		core.Show{When: func() bool { return !compact }, Then: func(cx *core.Scope) core.Node {
-			return core.View{Style: core.Style{Gap: 4}, Children: []core.Node{
-				core.Text{ContentFunc: func() string { return locales.PlayerWordInLine(cx) }, Style: look.Section, StyleFunc: ui.Colored(colors.Muted)},
-				core.Text{TestID: "player-word-line", ContentFunc: func() string { return p.line(l().line).Original }, Style: look.Body, StyleFunc: ui.Colored(colors.Text)},
-				core.Text{ContentFunc: func() string { return p.line(l().line).Translation }, Style: look.Subhead, StyleFunc: ui.Colored(colors.Muted)},
-			}}
-		}},
 	}
 }
 
-// wordSheet is the word looked up in a sheet over the player, upright and on a tablet, with the buttons that put it in the vocabulary, or take it out, and play its line again.
+// answered reports whether the computer told the meaning of the word looked up. Read it in a binding.
+func (w *words) answered() bool {
+	l := w.lookup.Get()
+	return !l.busy && !l.failed && l.entry.Meaning != ""
+}
+
+// wordSource is where the meaning of the word looked up came from (sourceText), "" while none shows.
+func wordSource(cx *core.Scope, w *words) func() string {
+	return func() string {
+		if !w.answered() {
+			return ""
+		}
+		return sourceText(cx, w.lookup.Get().entry.Source)
+	}
+}
+
+// lineWithWord is line's text in spans, word in it marked as the design's highlighter does, bold on yellow; the whole line plain when word is not one of its words.
+func lineWithWord(p *play, text, word string) []core.Span {
+	var spans []core.Span
+	plain := ""
+	for _, t := range p.tokens(text) {
+		if t.Word && word != "" && strings.EqualFold(t.Text, word) {
+			if plain != "" {
+				spans = append(spans, core.Span{Content: plain})
+				plain = ""
+			}
+			spans = append(spans, core.Span{Content: t.Text, Style: core.Style{FontWeight: look.Heavy, Background: theme.SubtitleYellow.Faded(0.45), CornerRadius: 3}})
+			continue
+		}
+		plain += t.Text
+	}
+	if plain != "" {
+		spans = append(spans, core.Span{Content: plain})
+	}
+	return spans
+}
+
+// wordSheet is the word looked up in a sheet over the player, upright and on a tablet, in the app's appearance: the word as a dictionary lists it, its reading and a button that says it, its meaning on a card, marked AI's where an AI service gave it, where it came from, the line it was tapped in with the word marked, the film and how many times the film says it; then the buttons that play the line again and put the word in the vocabulary, or take it out. The sheet closes by its grabber, a tap beside it or Back.
+// The design's part of speech before the meaning, and the word's base form, are left out: sync.WordEntry has neither.
 func wordSheet(cx *core.Scope, p *play, w *words, when func() bool) core.Node {
-	body := wordBody(cx, p, w, false)
-	body = append(body, vocabButton(cx, p, w), look.Button{TestID: "player-word-replay", Kind: look.Tinted, Icon: lucide.RotateCcw, Text: func() string { return locales.PlayerReplayLine(cx) },
-		OnPress: func() {
-			i := w.lookup.GetUntracked().line
-			w.closeLookup()
-			p.step(i)
-		}})
-	return ui.Sheet{Open: func() bool { return w.lookup.Get().open && when() }, OnClose: w.closeLookup, Children: []core.Node{
-		core.View{TestID: "player-word-sheet", Style: core.Style{Gap: 14, Padding: core.Edges{Bottom: 8}}, Children: body},
-	}}
+	return appSheet{Open: func() bool { return w.lookup.Get().open && when() }, OnClose: w.closeLookup, Label: func() string { return w.lookup.Get().word },
+		Children: []core.Node{core.Func(func(cx *core.Scope) core.Node { return wordSheetBody(cx, p, w) })}}
 }
 
-// wordPopover is the word looked up in a card at the corner of the picture, on a phone on its side, where a sheet would cover the line, with a star that puts it in the vocabulary or takes it out.
-func wordPopover(cx *core.Scope, p *play, w *words, when func() bool) core.Node {
+func wordSheetBody(cx *core.Scope, p *play, w *words) core.Node {
 	colors := ui.ColorsOf(cx)
+	l := func() lookup { return w.lookup.Get() }
+	card := sheetCard(colors)
+	f, _ := p.s.Film(p.key)
+	count := func() int {
+		x := l()
+		cut := make([][]kcore.WordToken, 0, len(p.list()))
+		for _, c := range p.list() {
+			cut = append(cut, p.tokens(c.Original))
+		}
+		return timesSaid(cut, x.word, x.entry.Word)
+	}
+	speak := func() {
+		x := l()
+		_ = cx.Speak(cmp.Or(x.entry.Word, x.word), core.Voice{Lang: f.Film.Spoken}, nil)
+	}
+	poster := func() core.ImageSource { k, _ := p.s.Film(p.key); return look.LocalPoster(p.s, k) }
+	children := []core.Node{
+		core.View{Style: core.Style{Direction: core.Row, AlignItems: core.AlignCenter, Gap: 10, Padding: core.Edges{Left: 4}}, Children: []core.Node{
+			core.View{Style: core.Style{FlexGrow: 1, FlexShrink: 1, MinWidth: core.Pt(0), Gap: 2}, Children: []core.Node{
+				core.Text{TestID: "player-word", ContentFunc: func() string { return cmp.Or(l().entry.Word, l().word) }, Role: core.RoleHeader, MaxLines: 1,
+					Style: core.Style{FontSize: 30, LineHeight: 36, FontWeight: look.Heavy, LetterSpacing: -0.4}, StyleFunc: ui.Colored(colors.Text)},
+				core.Show{When: func() bool { return l().entry.Reading != "" }, Then: func(cx *core.Scope) core.Node {
+					return core.Text{TestID: "player-word-reading", ContentFunc: func() string { return l().entry.Reading }, Style: look.Subhead, StyleFunc: ui.Colored(colors.Muted)}
+				}},
+			}},
+			core.Show{When: func() bool { return cx.Env().CanSpeak() }, Then: func(cx *core.Scope) core.Node {
+				return base.Button{TestID: "player-word-speak", LabelFunc: func() string { return locales.PlayerWordSpeak(cx) }, OnPress: func(core.PressEvent) { speak() },
+					Style:     core.Style{Width: core.Pt(44), Height: core.Pt(44), CornerRadius: 22, AlignItems: core.AlignCenter, JustifyContent: core.JustifyCenter, Active: &core.Style{Opacity: core.Alpha(0.7)}},
+					StyleFunc: func() core.Style { return core.Style{Background: colors.Accent().Faded(0.1)} },
+					Children:  []core.Node{ui.IconOf(lucide.Volume2, 20, colors.Accent)}}
+			}},
+		}},
+	}
+	children = append(children, wordStatus(cx, p, w)...)
+	children = append(children,
+		core.Show{When: w.answered, Then: func(cx *core.Scope) core.Node {
+			return core.View{Style: core.Style{Direction: core.Row, AlignItems: core.AlignCenter, Gap: 10, Padding: core.All(14)}, StyleFunc: card, Children: []core.Node{
+				core.Show{When: func() bool { return l().entry.Source.Kind == sync.SourceAI }, Then: func(cx *core.Scope) core.Node {
+					return core.View{Style: core.Style{Height: core.Pt(22), Padding: core.Symmetric(0, 7), CornerRadius: 6, JustifyContent: core.JustifyCenter},
+						StyleFunc: func() core.Style { return core.Style{Background: colors.Accent().Faded(0.1)} },
+						Children:  []core.Node{core.Text{Content: "AI", MaxLines: 1, Style: core.Style{FontSize: 12, LineHeight: 16, FontWeight: core.FontWeightBold}, StyleFunc: ui.Colored(colors.Accent)}}}
+				}},
+				core.Text{TestID: "player-word-meaning", ContentFunc: func() string { return l().entry.Meaning }, LiveRegion: core.LiveRegionPolite,
+					Style: core.Style{FontSize: 18, LineHeight: 24, FontWeight: core.FontWeightBold, FlexGrow: 1, FlexShrink: 1}, StyleFunc: ui.Colored(colors.Text)},
+			}}
+		}},
+		core.Show{When: func() bool { return wordSource(cx, w)() != "" }, Then: func(cx *core.Scope) core.Node {
+			return core.Text{TestID: "player-word-source", ContentFunc: wordSource(cx, w), Style: look.Footnote.Merge(core.Style{Padding: core.Edges{Left: 4}}), StyleFunc: ui.Colored(colors.Muted)}
+		}},
+		core.View{Style: core.Style{Gap: 6}, Children: []core.Node{
+			core.Text{ContentFunc: func() string { return locales.PlayerWordInLine(cx) }, Style: look.Caption.Merge(core.Style{Padding: core.Edges{Left: 4}}), StyleFunc: ui.Colored(colors.Muted)},
+			core.View{Style: core.Style{Gap: 6, Padding: core.All(14)}, StyleFunc: card, Children: []core.Node{
+				core.Text{TestID: "player-word-line", Style: core.Style{FontSize: 16, LineHeight: 23}, StyleFunc: ui.Colored(colors.Text),
+					SpansFunc: func() []core.Span { x := l(); return lineWithWord(p, p.line(x.line).Original, x.word) }},
+				core.Text{ContentFunc: func() string { return p.line(l().line).Translation }, Style: core.Style{FontSize: 14, LineHeight: 20}, StyleFunc: ui.Colored(colors.Muted)},
+				core.View{Style: core.Style{Direction: core.Row, AlignItems: core.AlignCenter, Gap: 8, Margin: core.Edges{Top: 4}}, Children: []core.Node{
+					core.View{Style: core.Style{Width: core.Pt(32), Height: core.Pt(18), CornerRadius: 3, Overflow: core.Hidden}, StyleFunc: func() core.Style { return core.Style{Background: colors.Inset()} },
+						Children: []core.Node{core.Image{SourceFunc: poster, ResizeMode: core.Cover, ElementsHidden: true, Style: fill}}},
+					core.Text{Content: f.Film.Title, MaxLines: 1, Style: look.Footnote.Merge(core.Style{FlexGrow: 1, FlexShrink: 1}), StyleFunc: ui.Colored(colors.Muted)},
+					core.Text{TestID: "player-word-times", ContentFunc: func() string { return locales.PlayerWordTimes(cx, count()) }, MaxLines: 1, Style: look.Footnote, StyleFunc: ui.Colored(colors.Muted)},
+				}},
+			}},
+		}},
+		core.View{Style: core.Style{Direction: core.Row, Gap: 10, Margin: core.Edges{Top: 4}}, Children: []core.Node{
+			base.Button{TestID: "player-word-replay", LabelFunc: func() string { return locales.PlayerReplayLine(cx) },
+				OnPress: func(core.PressEvent) {
+					i := w.lookup.GetUntracked().line
+					w.closeLookup()
+					p.step(i)
+				},
+				Style: core.Style{FlexShrink: 1, MinWidth: core.Pt(0), Height: core.Pt(50), Padding: core.Symmetric(0, 20), CornerRadius: 14, BorderCurve: core.BorderCurveContinuous, AlignItems: core.AlignCenter, JustifyContent: core.JustifyCenter,
+					Active: &core.Style{Opacity: core.Alpha(0.7)}},
+				StyleFunc: func() core.Style { return core.Style{Background: colors.Surface(), Color: colors.Accent()} },
+				Children:  []core.Node{core.Text{ContentFunc: func() string { return locales.PlayerReplayLine(cx) }, MaxLines: 1, Style: core.Style{FontSize: 16, LineHeight: 21, FontWeight: core.FontWeightBold}}}},
+			vocabButton(cx, p, w, 50, 14, 16),
+		}},
+	)
+	return core.View{TestID: "player-word-sheet", Style: core.Style{Gap: 12, Padding: core.Edges{Bottom: 8}}, Children: children}
+}
+
+// wordPopover is the word looked up in a light card at the corner of the picture, on a phone on its side, where a sheet would cover the line: the word, its reading and ×, its meaning, and the button that puts it in the vocabulary or takes it out.
+func wordPopover(cx *core.Scope, p *play, w *words, when func() bool) core.Node {
 	return core.Show{When: func() bool { return w.lookup.Get().open && when() }, Then: func(cx *core.Scope) core.Node {
+		cx.SetSubtreeAppearance(core.AppearanceLight)
+		colors := ui.ColorsOf(cx)
+		l := func() lookup { return w.lookup.Get() }
+		children := []core.Node{
+			core.View{Style: core.Style{Direction: core.Row, AlignItems: core.AlignBaseline, Gap: 8}, Children: []core.Node{
+				core.Text{TestID: "player-word", ContentFunc: func() string { return cmp.Or(l().entry.Word, l().word) }, Role: core.RoleHeader, MaxLines: 1,
+					Style: core.Style{FontSize: 20, LineHeight: 25, FontWeight: look.Heavy, FlexShrink: 1}, StyleFunc: ui.Colored(colors.Text)},
+				core.Show{When: func() bool { return l().entry.Reading != "" }, Then: func(cx *core.Scope) core.Node {
+					return core.Text{TestID: "player-word-reading", ContentFunc: func() string { return l().entry.Reading }, MaxLines: 1, Style: core.Style{FontSize: 13, LineHeight: 17, FlexShrink: 1}, StyleFunc: ui.Colored(colors.Muted)}
+				}},
+				core.View{Style: core.Style{FlexGrow: 1}},
+				ui.IconButton{TestID: "player-word-close", Icon: lucide.X, LabelFunc: func() string { return locales.PlayerClose(cx) }, Variant: ui.IconButtonGhost, Size: 28, OnPress: w.closeLookup},
+			}},
+		}
+		children = append(children, wordStatus(cx, p, w)...)
+		children = append(children,
+			core.Show{When: w.answered, Then: func(cx *core.Scope) core.Node {
+				return core.Text{TestID: "player-word-meaning", ContentFunc: func() string { return l().entry.Meaning }, LiveRegion: core.LiveRegionPolite, MaxLines: 4,
+					Style: core.Style{FontSize: 14, LineHeight: 19}, StyleFunc: ui.Colored(colors.Text)}
+			}},
+			core.Show{When: func() bool { return wordSource(cx, w)() != "" }, Then: func(cx *core.Scope) core.Node {
+				return core.Text{TestID: "player-word-source", ContentFunc: wordSource(cx, w), MaxLines: 2, Style: look.Footnote, StyleFunc: ui.Colored(colors.Muted)}
+			}},
+			core.View{Style: core.Style{Margin: core.Edges{Top: 2}}, Children: []core.Node{vocabButton(cx, p, w, 36, 10, 14)}},
+		)
 		return core.View{TestID: "player-word-popover", Role: core.RoleDialog, LabelFunc: func() string { return w.lookup.Get().word },
-			Style: core.Style{Position: core.Absolute, Top: core.Pt(56), Left: core.Pt(16), Width: core.Pt(280), ZIndex: 4, Gap: 10, Padding: core.All(14),
-				CornerRadius: 16, BorderCurve: core.BorderCurveContinuous, PaddingEnv: core.EnvEdges{Left: core.EnvSafeArea}},
-			StyleFunc: func() core.Style { return core.Style{Background: colors.Surface()} },
-			Children:  wordBody(cx, p, w, true)}
+			Style: core.Style{Position: core.Absolute, Top: core.Pt(64), Left: core.Pt(16), Width: core.Pt(260), ZIndex: 4, Gap: 8, Padding: core.Symmetric(14, 16),
+				CornerRadius: 18, BorderCurve: core.BorderCurveContinuous, PaddingEnv: core.EnvEdges{Left: core.EnvSafeArea},
+				Shadows: []core.BoxShadow{{Offset: core.Point{Y: 16}, Blur: 40, Color: core.RGBA(0x000000, 0.35)}}},
+			StyleFunc: func() core.Style { return core.Style{Background: ui.Alpha(colors.Surface(), 0.96)} },
+			Children:  children}
 	}}
 }
 
-// explainSheet is the line explained, in a sheet over the player: the line with its translation, then what the computer's AI service said of it in sections, each under its heading, with More for its tone and related expressions, which model said it and where it ran, or that it is asked, or why it could not answer; the follow-up questions asked and the field that asks one, Save Line to Notes, and the button that fixes the line's translation (fixSheet).
+// breakdownItem is a word of an explanation's breakdown, as the computer writes it on a line of its own: the words and what they mean.
+type breakdownItem struct{ word, meaning string }
+
+// breakdownItems are the words of a breakdown section written a line each as "word · meaning", nil when a line of it is written otherwise, which then shows as it is.
+func breakdownItems(text string) []breakdownItem {
+	var out []breakdownItem
+	for _, line := range strings.Split(strings.TrimSpace(text), "\n") {
+		line = strings.TrimSpace(line)
+		if line == "" {
+			continue
+		}
+		word, meaning, ok := strings.Cut(line, " · ")
+		if !ok || strings.TrimSpace(word) == "" || strings.TrimSpace(meaning) == "" {
+			return nil
+		}
+		out = append(out, breakdownItem{strings.TrimSpace(word), strings.TrimSpace(meaning)})
+	}
+	return out
+}
+
+// explainSheet is the line explained, in a sheet over the player in the app's appearance: the line with its translation, then what the computer's AI service said of it in sections, each under its heading, the breakdown's words as rows that look each up, with More for its tone and related expressions, which model said it and where it ran, or that it is asked, or why it could not answer; the follow-up questions asked and the field that asks one, Save Line to Notes, and the button that fixes the line's translation (fixSheet).
 func explainSheet(cx *core.Scope, p *play, w *words, fx *fixer) core.Node {
+	e := func() explanation { return w.explain.Get() }
+	return appSheet{Open: func() bool { return e().open }, OnClose: w.closeExplain, Label: func() string { return locales.PlayerExplainTitle(cx) },
+		Children: []core.Node{core.Func(func(cx *core.Scope) core.Node { return explainBody(cx, p, w, fx) })}}
+}
+
+func explainBody(cx *core.Scope, p *play, w *words, fx *fixer) core.Node {
 	colors := ui.ColorsOf(cx)
 	e := func() explanation { return w.explain.Get() }
 	ai := func() core.Color { return theme.AI }
@@ -397,17 +535,51 @@ func explainSheet(cx *core.Scope, p *play, w *words, fx *fixer) core.Node {
 		x := e()
 		return !x.more && slices.ContainsFunc(x.answer.Sections, func(sec sync.ExplainSection) bool { return explainKept(sec.Kind) && strings.TrimSpace(sec.Text) != "" })
 	}
+	cardStyle := sheetCard(colors)
 	card := func(children ...core.Node) core.View {
-		return core.View{Style: core.Style{Padding: core.All(12), CornerRadius: 12, BorderCurve: core.BorderCurveContinuous, Gap: 4}, StyleFunc: func() core.Style { return core.Style{Background: ui.Alpha(colors.Text(), 0.06)} },
-			Children: children}
+		return core.View{Style: core.Style{Padding: core.All(14), Gap: 4}, StyleFunc: cardStyle, Children: children}
+	}
+	// lookUp looks a word of the breakdown up in the line explained, the sheet giving way to the word's.
+	lookUp := func(word string) {
+		i := w.explain.GetUntracked().line
+		w.closeExplain()
+		w.look(i, word)
 	}
 	sections := core.Each(shown.Get, func(sec sync.ExplainSection) string { return sec.Kind }, func(cx *core.Scope, sec func() sync.ExplainSection, _ func() int) core.Node {
-		return card(
-			core.Show{When: func() bool { return explainHeading(cx, sec().Kind) != "" }, Then: func(cx *core.Scope) core.Node {
-				return core.Text{ContentFunc: func() string { return explainHeading(cx, sec().Kind) }, Role: core.RoleHeader, Style: look.Section, StyleFunc: ui.Colored(ai)}
-			}},
-			core.Text{TestID: "player-explain-section", ContentFunc: func() string { return sec().Text }, Style: look.Body, StyleFunc: ui.Colored(colors.Text)},
-		)
+		items := func() []breakdownItem {
+			if sec().Kind != sync.ExplainBreakdown {
+				return nil
+			}
+			return breakdownItems(sec().Text)
+		}
+		return core.Show{When: func() bool { return len(items()) > 0 },
+			Then: func(cx *core.Scope) core.Node {
+				rows := core.Each(items, func(it breakdownItem) string { return it.word }, func(cx *core.Scope, it func() breakdownItem, i func() int) core.Node {
+					return base.Button{TestID: "player-explain-word", LabelFunc: func() string { return it().word + ", " + it().meaning }, OnPress: func(core.PressEvent) { lookUp(it().word) },
+						Style: core.Style{Direction: core.Row, AlignItems: core.AlignCenter, Gap: 12, MinHeight: core.Pt(46), Padding: core.Symmetric(6, 16)},
+						StyleFunc: func() core.Style {
+							st := core.Style{Active: &core.Style{Background: colors.Pressed()}}
+							if i() > 0 {
+								st.Borders, st.BorderColors = core.Edges{Top: 0.5}, core.EdgeColors{Top: colors.Line()}
+							}
+							return st
+						},
+						Children: []core.Node{
+							core.Text{ContentFunc: func() string { return it().word }, MaxLines: 1, Style: core.Style{FontSize: 15, LineHeight: 20, FontWeight: core.FontWeightBold}, StyleFunc: ui.Colored(colors.Text)},
+							core.Text{ContentFunc: func() string { return it().meaning }, MaxLines: 2, Style: core.Style{FontSize: 14, LineHeight: 19, FlexGrow: 1, FlexShrink: 1}, StyleFunc: ui.Colored(colors.Muted)},
+							ui.IconOf(look.Chevron, 13, func() core.Color { return theme.Chevron }),
+						}}
+				})
+				return core.View{TestID: "player-explain-section", Style: core.Style{Overflow: core.Hidden}, StyleFunc: cardStyle, Children: []core.Node{rows}}
+			},
+			Else: func(cx *core.Scope) core.Node {
+				return card(
+					core.Show{When: func() bool { return explainHeading(cx, sec().Kind) != "" }, Then: func(cx *core.Scope) core.Node {
+						return core.Text{ContentFunc: func() string { return explainHeading(cx, sec().Kind) }, Role: core.RoleHeader, Style: core.Style{FontSize: 13, LineHeight: 18, FontWeight: core.FontWeightBold}, StyleFunc: ui.Colored(ai)}
+					}},
+					core.Text{TestID: "player-explain-section", ContentFunc: func() string { return sec().Text }, Style: core.Style{FontSize: 15, LineHeight: 22}, StyleFunc: ui.Colored(colors.Text)},
+				)
+			}}
 	})
 	question := core.NewSignal(cx, "")
 	send := func() {
@@ -447,62 +619,68 @@ func explainSheet(cx *core.Scope, p *play, w *words, fx *fixer) core.Node {
 		}
 		return locales.PlayerExplainSave(cx)
 	}
-	return ui.Sheet{Open: func() bool { return e().open }, OnClose: w.closeExplain, Children: []core.Node{
-		core.Scroll{TestID: "player-explain", Style: core.Style{MaxHeight: core.Pct(80)}, Children: []core.Node{
-			core.View{Style: core.Style{Gap: 14, Padding: core.Edges{Bottom: 8}}, Children: []core.Node{
-				core.View{Style: core.Style{Direction: core.Row, AlignItems: core.AlignCenter, Gap: 10}, Children: []core.Node{
-					core.View{Style: core.Style{Width: core.Pt(32), Height: core.Pt(32), CornerRadius: 9, AlignItems: core.AlignCenter, JustifyContent: core.JustifyCenter, Background: theme.AI.Faded(0.18)},
-						Children: []core.Node{ui.IconOf(lucide.Sparkles, 18, ai)}},
-					core.View{Style: core.Style{FlexGrow: 1, FlexShrink: 1, MinWidth: core.Pt(0)}, Children: []core.Node{
-						core.Text{ContentFunc: func() string { return locales.PlayerExplainTitle(cx) }, Role: core.RoleHeader, Style: look.Title, StyleFunc: ui.Colored(colors.Text)},
-						core.Show{When: func() bool { return e().answer.Model != "" }, Then: func(cx *core.Scope) core.Node {
-							return core.Text{TestID: "player-explain-by", ContentFunc: by, Style: look.Caption, StyleFunc: ui.Colored(colors.Muted)}
-						}},
+	skeleton := func(width float32) core.Node {
+		return core.View{Style: core.Style{Height: core.Pt(14), Width: core.Pct(width), CornerRadius: 7, Animation: core.KeyframeAnimation{Keyframes: core.KeyframesPulse}},
+			StyleFunc: func() core.Style { return core.Style{Background: colors.Inset()} }}
+	}
+	return core.Scroll{TestID: "player-explain", Style: core.Style{MaxHeight: core.Pct(80)}, Children: []core.Node{
+		core.View{Style: core.Style{Gap: 14, Padding: core.Edges{Bottom: 8}}, Children: []core.Node{
+			core.View{Style: core.Style{Direction: core.Row, AlignItems: core.AlignCenter, Gap: 10}, Children: []core.Node{
+				core.View{Style: core.Style{Width: core.Pt(34), Height: core.Pt(34), CornerRadius: 10, BorderCurve: core.BorderCurveContinuous, AlignItems: core.AlignCenter, JustifyContent: core.JustifyCenter,
+					Gradients: []core.Gradient{{Kind: core.GradientLinear, Angle: 135, Stops: []core.ColorStop{{Color: theme.AI}, {Color: theme.PlayerBlue}}}}},
+					Children: []core.Node{ui.IconOf(lucide.Sparkles, 18, func() core.Color { return theme.PlayerInk })}},
+				core.View{Style: core.Style{FlexGrow: 1, FlexShrink: 1, MinWidth: core.Pt(0)}, Children: []core.Node{
+					core.Text{ContentFunc: func() string { return locales.PlayerExplainTitle(cx) }, Role: core.RoleHeader, Style: look.Title.Merge(core.Style{FontWeight: look.Heavy}), StyleFunc: ui.Colored(colors.Text)},
+					core.Show{When: func() bool { return e().answer.Model != "" }, Then: func(cx *core.Scope) core.Node {
+						return core.Text{TestID: "player-explain-by", ContentFunc: by, Style: look.Footnote, StyleFunc: ui.Colored(colors.Muted)}
 					}},
-					ui.IconButton{TestID: "player-explain-close", Icon: lucide.X, LabelFunc: func() string { return locales.PlayerClose(cx) }, Variant: ui.IconButtonGhost, Size: 36, OnPress: w.closeExplain},
 				}},
-				card(
-					core.Text{TestID: "player-explain-line", ContentFunc: func() string { return p.line(e().line).Original }, Style: look.Body.Merge(core.Style{FontWeight: core.FontWeightMedium}), StyleFunc: ui.Colored(colors.Text)},
-					core.Text{ContentFunc: func() string { return p.line(e().line).Translation }, Style: look.Subhead, StyleFunc: ui.Colored(colors.Muted)},
-				),
-				core.Show{When: func() bool { return e().busy }, Then: func(cx *core.Scope) core.Node {
-					return core.View{Style: core.Style{Gap: 8}, Children: []core.Node{
-						core.Text{TestID: "player-explain-busy", ContentFunc: func() string { return locales.PlayerAsking(cx, computer(p)) }, Style: look.Subhead, StyleFunc: ui.Colored(colors.Muted)},
-						ui.Skeleton{Lines: 3},
-					}}
-				}},
-				core.Show{When: func() bool { return e().failed }, Then: func(cx *core.Scope) core.Node {
-					return core.Text{TestID: "player-explain-problem", ContentFunc: func() string { return problemText(cx, p, e().problem) }, LiveRegion: core.LiveRegionPolite, Style: look.Subhead, StyleFunc: ui.Colored(colors.Danger)}
-				}},
-				core.Show{When: func() bool { x := e(); return ready() && len(x.answer.Sections) == 0 }, Then: func(cx *core.Scope) core.Node {
-					return core.Text{TestID: "player-explain-text", ContentFunc: func() string { return e().answer.Text }, LiveRegion: core.LiveRegionPolite, Style: look.Body, StyleFunc: ui.Colored(colors.Text)}
-				}},
-				core.Show{When: ready, Then: func(cx *core.Scope) core.Node {
-					return core.View{Style: core.Style{Gap: 10}, Children: []core.Node{
-						core.View{TestID: "player-explain-sections", Style: core.Style{Gap: 10}, Children: []core.Node{sections}},
-						core.Show{When: hasMore, Then: func(cx *core.Scope) core.Node {
-							return core.View{Style: core.Style{AlignItems: core.AlignStart}, Children: []core.Node{
-								look.Pill(cx, "player-explain-more", func() string { return locales.PlayerExplainMore(cx) }, w.expandExplain),
-							}}
-						}},
-						core.Text{TestID: "player-explain-note", ContentFunc: func() string { return locales.PlayerExplainOnlyBefore(cx) }, Style: look.Caption, StyleFunc: ui.Colored(colors.Faint)},
-						core.View{TestID: "player-explain-asked", Style: core.Style{Gap: 8}, Children: []core.Node{followUps}},
-						core.View{Style: core.Style{Direction: core.Row, Gap: 8, AlignItems: core.AlignCenter}, Children: []core.Node{
-							ui.Input{TestID: "player-explain-ask", LabelFunc: func() string { return locales.PlayerExplainAskLabel(cx) }, Value: question.Get, OnChange: question.Set, OnSubmit: func(string) { send() },
-								PlaceholderFunc: func() string { return locales.PlayerExplainAskPlaceholder(cx) }, ReturnKeyType: core.ReturnKeySend,
-								Style: core.Style{FlexGrow: 1, FlexShrink: 1, Height: core.Pt(44), FontSize: 16, CornerRadius: 12, Padding: core.Symmetric(0, 12)}},
-							look.Pill(cx, "player-explain-send", func() string { return locales.PlayerExplainAsk(cx) }, send),
-						}},
-						look.Button{TestID: "player-explain-save", Kind: look.Tinted, Icon: lucide.Star, Text: saveText, OnPress: w.saveExplained},
-					}}
-				}},
-				core.Show{When: func() bool { return fx.canFix(e().line) }, Then: func(cx *core.Scope) core.Node {
-					return look.Button{TestID: "player-explain-fix", Kind: look.Plain, Icon: lucide.PenLine, Text: func() string { return locales.PlayerFixOpen(cx) }, OnPress: func() {
+			}},
+			card(
+				core.Text{TestID: "player-explain-line", ContentFunc: func() string { return p.line(e().line).Original }, Style: core.Style{FontSize: 17, LineHeight: 24, FontWeight: core.FontWeightBold}, StyleFunc: ui.Colored(colors.Text)},
+				core.Text{ContentFunc: func() string { return p.line(e().line).Translation }, Style: core.Style{FontSize: 14, LineHeight: 20}, StyleFunc: ui.Colored(colors.Muted)},
+			),
+			core.Show{When: func() bool { return e().busy }, Then: func(cx *core.Scope) core.Node {
+				return core.View{Style: core.Style{Gap: 10, Padding: core.Symmetric(4, 4)}, Children: []core.Node{
+					core.Text{TestID: "player-explain-busy", ContentFunc: func() string { return locales.PlayerAsking(cx, computer(p)) }, Style: look.Footnote, StyleFunc: ui.Colored(colors.Muted)},
+					skeleton(80), skeleton(95), skeleton(60),
+				}}
+			}},
+			core.Show{When: func() bool { return e().failed }, Then: func(cx *core.Scope) core.Node {
+				return core.Text{TestID: "player-explain-problem", ContentFunc: func() string { return problemText(cx, p, e().problem) }, LiveRegion: core.LiveRegionPolite, Style: look.Subhead, StyleFunc: ui.Colored(colors.Danger)}
+			}},
+			core.Show{When: func() bool { x := e(); return ready() && len(x.answer.Sections) == 0 }, Then: func(cx *core.Scope) core.Node {
+				return card(core.Text{TestID: "player-explain-text", ContentFunc: func() string { return e().answer.Text }, LiveRegion: core.LiveRegionPolite, Style: core.Style{FontSize: 15, LineHeight: 22}, StyleFunc: ui.Colored(colors.Text)})
+			}},
+			core.Show{When: ready, Then: func(cx *core.Scope) core.Node {
+				return core.View{Style: core.Style{Gap: 12}, Children: []core.Node{
+					core.View{TestID: "player-explain-sections", Style: core.Style{Gap: 12}, Children: []core.Node{sections}},
+					core.Show{When: hasMore, Then: func(cx *core.Scope) core.Node {
+						return core.View{Style: core.Style{AlignItems: core.AlignStart}, Children: []core.Node{
+							look.Pill(cx, "player-explain-more", func() string { return locales.PlayerExplainMore(cx) }, w.expandExplain),
+						}}
+					}},
+					core.Text{TestID: "player-explain-note", ContentFunc: func() string { return locales.PlayerExplainOnlyBefore(cx) }, Style: look.Footnote.Merge(core.Style{Padding: core.Edges{Left: 4}}), StyleFunc: ui.Colored(colors.Muted)},
+					core.View{TestID: "player-explain-asked", Style: core.Style{Gap: 8}, Children: []core.Node{followUps}},
+					core.View{Style: core.Style{Direction: core.Row, Gap: 8, AlignItems: core.AlignCenter}, Children: []core.Node{
+						ui.Input{TestID: "player-explain-ask", LabelFunc: func() string { return locales.PlayerExplainAskLabel(cx) }, Value: question.Get, OnChange: question.Set, OnSubmit: func(string) { send() },
+							PlaceholderFunc: func() string { return locales.PlayerExplainAskPlaceholder(cx) }, ReturnKeyType: core.ReturnKeySend,
+							Style: core.Style{FlexGrow: 1, FlexShrink: 1, Height: core.Pt(44), FontSize: 16, CornerRadius: 12, Padding: core.Symmetric(0, 12)}},
+						look.Pill(cx, "player-explain-send", func() string { return locales.PlayerExplainAsk(cx) }, send),
+					}},
+					look.Button{TestID: "player-explain-save", Kind: look.Tinted, Icon: lucide.Star, Text: saveText, OnPress: w.saveExplained},
+				}}
+			}},
+			core.Show{When: func() bool { return fx.canFix(e().line) }, Then: func(cx *core.Scope) core.Node {
+				return base.Button{TestID: "player-explain-fix", LabelFunc: func() string { return locales.PlayerFixOpen(cx) },
+					OnPress: func(core.PressEvent) {
 						i := w.explain.GetUntracked().line
 						w.closeExplain()
 						fx.start(i)
-					}}
-				}},
+					},
+					Style:     core.Style{Height: core.Pt(46), CornerRadius: 14, BorderCurve: core.BorderCurveContinuous, AlignItems: core.AlignCenter, JustifyContent: core.JustifyCenter, Active: &core.Style{Opacity: core.Alpha(0.7)}},
+					StyleFunc: func() core.Style { return core.Style{Background: colors.Surface(), Color: colors.Accent()} },
+					Children:  []core.Node{core.Text{ContentFunc: func() string { return locales.PlayerFixOpen(cx) }, MaxLines: 1, Style: core.Style{FontSize: 15, LineHeight: 20, FontWeight: core.FontWeightBold}}}}
 			}},
 		}},
 	}}

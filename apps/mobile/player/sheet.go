@@ -1,0 +1,56 @@
+package player
+
+import (
+	"github.com/nsgo-dev/nsgo/base"
+	"github.com/nsgo-dev/nsgo/core"
+	"github.com/nsgo-dev/nsgo/ui"
+)
+
+// appSheet is a sheet over the player in the app's own appearance rather than the player's dark, as the design draws the word, the explanation and the fix: the page's grey under white cards, rounder at its top than ui.Sheet. Label names it for screen readers.
+// TODO(nsgo): ui.Sheet takes no style for its surface (ui/sheet.go:29-32), which is Surface, white in the light, where the design's sheet is the grouped page's grey under white cards; it is base.Sheet with ui.Sheet's grabber and padding meanwhile.
+type appSheet struct {
+	Open     func() bool
+	OnClose  func()
+	Label    func() string
+	TestID   string
+	Children []core.Node
+}
+
+// Render implements core.Node.
+func (s appSheet) Render(cx *core.Scope) core.Node {
+	appAppearance(cx)
+	colors := ui.ColorsOf(cx)
+	env := cx.Env()
+	grabber := core.View{Style: core.Style{Width: core.Pt(36), Height: core.Pt(5), CornerRadius: 3, AlignSelf: core.AlignCenter}, StyleFunc: ui.Filled(colors.Border)}
+	return base.Sheet{TestID: s.TestID, Open: s.Open, LabelFunc: s.Label, CloseOnSwipe: true,
+		OnOpenChange: func(open bool, _ base.Reason) {
+			if !open {
+				s.OnClose()
+			}
+		},
+		BackdropStyle: core.Style{Background: ui.Black(0.4)},
+		PopupStyleFunc: func() core.Style {
+			return core.Style{Gap: 12, Padding: core.Edges{Top: 8, Right: 16, Bottom: env.SafeArea().Bottom + 16, Left: 16},
+				CornerRadii: core.Corners{TopLeft: 26, TopRight: 26}, Background: colors.Background(), Color: colors.Text()}
+		},
+		Children: append([]core.Node{grabber}, s.Children...)}
+}
+
+// appAppearance shows cx's subtree in the app's appearance, light or dark as the app is, under the player's dark (theme.Dark).
+func appAppearance(cx *core.Scope) {
+	pick := func() core.Appearance {
+		if cx.Env().Dark() {
+			return core.AppearanceDark
+		}
+		return core.AppearanceLight
+	}
+	cx.SetSubtreeAppearance(core.Untracked(cx, pick))
+	cx.Effect(func() { cx.SetSubtreeAppearance(pick()) })
+}
+
+// sheetCard is the style of a card in an appSheet: the surface, 14 round.
+func sheetCard(colors ui.Colors) func() core.Style {
+	return func() core.Style {
+		return core.Style{Background: colors.Surface(), CornerRadius: 14, BorderCurve: core.BorderCurveContinuous}
+	}
+}

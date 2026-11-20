@@ -103,6 +103,8 @@ type play struct {
 	// said is the toast last shown of each kind (say), and toasts how many were.
 	said   map[string]string
 	toasts int
+	// pip is the system's picture in picture of the video, as it last reported it: whether it is offered and whether its window shows.
+	pip *core.Signal[core.PictureInPictureState]
 	// status is the status bar while the player shows (Layer.StatusBar).
 	status func() core.StatusBarSetting
 	// cut counts the dictionaries that cut Japanese and Chinese lines into words read since the player opened, so the lines' words are cut again once one is (tokens).
@@ -142,6 +144,7 @@ func newPlay(cx *core.Scope, s *session.Session, key string) *play {
 		card:         core.NewSignal(cx, upNext{}),
 		revealed:     core.NewSignal(cx, -1),
 		cut:          core.NewSignal(cx, 0),
+		pip:          core.NewSignal(cx, core.PictureInPictureState{}),
 		saved:        time.Duration(f.PositionMS) * time.Millisecond,
 		untranslated: f.Film.Translation == "",
 		heard:        -1,

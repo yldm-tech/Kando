@@ -158,33 +158,50 @@ func corrected(list []cues.Cue, fixes []study.Correction) []cues.Cue {
 	return out
 }
 
+// fixed reports whether line i's translation is the learner's own fix (session.Corrections). Read it in a binding.
+func (p *play) fixed(i int) bool {
+	if i < 0 || i >= len(p.list()) {
+		return false
+	}
+	l := p.list()[i]
+	return slices.ContainsFunc(p.s.Corrections(p.key), func(c study.Correction) bool {
+		return c.Translation != nil && near(l.Start, c.Start) && near(l.End, c.End)
+	})
+}
+
 // near reports whether two times are one line's, as the learning state takes them (study.SameStart).
 func near(a, b time.Duration) bool { d := a - b; return d < study.SameStart && d > -study.SameStart }
 
-// fixSheet is the fix of a line's translation, in a sheet over the player: Cancel, the title and Save, the original line, the field the translation is typed in, the switch that adds a term with the fix and, while it is on, the term's fields.
+// fixSheet is the fix of a line's translation, in a sheet over the player in the app's appearance: Cancel, the title and Save, the original line, the field the translation is typed in, the switch that adds a term with the fix and, while it is on, the term's fields.
 func fixSheet(cx *core.Scope, p *play, f *fixer) core.Node {
+	return appSheet{Open: func() bool { return f.state.Get().open }, OnClose: f.close, Label: func() string { return locales.PlayerFixTitle(cx) },
+		Children: []core.Node{core.Func(func(cx *core.Scope) core.Node { return fixBody(cx, p, f) })}}
+}
+
+func fixBody(cx *core.Scope, p *play, f *fixer) core.Node {
 	colors := ui.ColorsOf(cx)
 	x := func() fixing { return f.state.Get() }
+	// The fields are the cards' white on the sheet's grey, as the design's.
 	field := func(id string, label, placeholder func() string, value func() string, set func(string), multiline bool) core.Node {
-		st := core.Style{FontSize: 16, CornerRadius: 12, Padding: core.Symmetric(0, 12), Height: core.Pt(44)}
+		st := core.Style{FontSize: 16, CornerRadius: 12, Padding: core.Symmetric(0, 14), Height: core.Pt(44)}
 		if multiline {
-			st = core.Style{FontSize: 17, CornerRadius: 12, MinHeight: core.Pt(88)}
+			st = core.Style{FontSize: 16, LineHeight: 23, CornerRadius: 14, MinHeight: core.Pt(93), Padding: core.Symmetric(12, 14)}
 		}
 		return ui.Input{TestID: id, LabelFunc: label, PlaceholderFunc: placeholder, Value: value, OnChange: set, Multiline: multiline, Style: st}
 	}
+	cardStyle := sheetCard(colors)
 	card := func(children ...core.Node) core.Node {
-		return core.View{Style: core.Style{Padding: core.All(12), CornerRadius: 12, BorderCurve: core.BorderCurveContinuous, Gap: 6}, StyleFunc: func() core.Style { return core.Style{Background: ui.Alpha(colors.Text(), 0.06)} },
-			Children: children}
+		return core.View{Style: core.Style{Padding: core.Symmetric(12, 14), Gap: 6}, StyleFunc: cardStyle, Children: children}
 	}
 	// The bar's buttons are its text alone, in the accent, as a sheet's Cancel and Save are; Save is bold and dims until there is something to save.
 	barButton := func(id string, text func() string, bold bool, disabled func() bool, press func()) core.Node {
 		weight := core.FontWeightNormal
 		if bold {
-			weight = core.FontWeightSemibold
+			weight = core.FontWeightBold
 		}
 		return base.Button{TestID: id, LabelFunc: text, Disabled: disabled, OnPress: func(core.PressEvent) { press() },
 			Style:    core.Style{MinHeight: core.Pt(44), MinWidth: core.Pt(44), JustifyContent: core.JustifyCenter, Disabled: &core.Style{Opacity: core.Alpha(0.35)}},
-			Children: []core.Node{core.Text{ContentFunc: text, PointerEvents: core.PointerEventsNone, MaxLines: 1, Style: look.Body.Merge(core.Style{FontWeight: weight}), StyleFunc: ui.Colored(colors.Accent)}}}
+			Children: []core.Node{core.Text{ContentFunc: text, PointerEvents: core.PointerEventsNone, MaxLines: 1, Style: core.Style{FontSize: 17, LineHeight: 22, FontWeight: weight}, StyleFunc: ui.Colored(colors.Accent)}}}
 	}
 	caption := func(text func() string) core.Node {
 		return core.Text{ContentFunc: text, Style: look.Caption, StyleFunc: ui.Colored(colors.Muted)}
@@ -197,37 +214,35 @@ func fixSheet(cx *core.Scope, p *play, f *fixer) core.Node {
 				func() string { return x().target }, func(v string) { s := f.state.GetUntracked(); s.target, s.typedTarget = v, true; f.state.Set(s) }, false),
 		}}
 	}}
-	return ui.Sheet{Open: func() bool { return x().open }, OnClose: f.close, Children: []core.Node{
-		core.Scroll{TestID: "player-fix", Style: core.Style{MaxHeight: core.Pct(85)}, Children: []core.Node{
-			core.View{Style: core.Style{Gap: 14, Padding: core.Edges{Bottom: 8}}, Children: []core.Node{
-				core.View{Style: core.Style{Direction: core.Row, AlignItems: core.AlignCenter, Gap: 8}, Children: []core.Node{
-					barButton("player-fix-cancel", func() string { return locales.PlayerFixCancel(cx) }, false, nil, f.close),
-					core.Text{ContentFunc: func() string { return locales.PlayerFixTitle(cx) }, Role: core.RoleHeader, Style: look.Title.Merge(core.Style{FlexGrow: 1, TextAlign: core.TextAlignCenter}), StyleFunc: ui.Colored(colors.Text)},
-					barButton("player-fix-save", func() string { return locales.PlayerFixSave(cx) }, true, func() bool { return !f.ready() }, f.save),
-				}},
-				card(
-					caption(func() string { return locales.PlayerFixOriginal(cx) }),
-					core.Text{TestID: "player-fix-original", ContentFunc: func() string { return p.line(x().line).Original }, Style: look.Body, StyleFunc: ui.Colored(colors.Text)},
-				),
-				core.View{Style: core.Style{Gap: 6}, Children: []core.Node{
-					caption(func() string { return locales.PlayerFixYours(cx) }),
-					field("player-fix-draft", func() string { return locales.PlayerFixYours(cx) }, nil, func() string { return x().draft }, f.edit, true),
-				}},
-				core.Show{When: func() bool { return p.s.CanAddTerm(p.key) }, Then: func(cx *core.Scope) core.Node {
-					return card(
-						core.View{Style: core.Style{Direction: core.Row, AlignItems: core.AlignCenter, Gap: 12, MinHeight: core.Pt(44)}, Children: []core.Node{
-							core.View{Style: core.Style{FlexGrow: 1, FlexShrink: 1, MinWidth: core.Pt(0), Gap: 2}, Children: []core.Node{
-								core.Text{ContentFunc: func() string { return locales.PlayerFixAddTerm(cx) }, Style: look.Body, StyleFunc: ui.Colored(colors.Text)},
-								caption(func() string { return locales.PlayerFixAddTermDetail(cx) }),
-							}},
-							// TODO(nsgo#145): ui.Switch's Label is a string only (ui/switch.go:19), so its spoken name keeps the language it was built in; pass a LabelFunc once Switch has one https://github.com/nsgo-dev/nsgo/issues/145
-							ui.Switch{TestID: "player-fix-term-switch", Label: locales.PlayerFixAddTerm(cx), Variant: ui.SwitchSystem, Checked: func() bool { return x().term }, OnChange: f.setTerm},
-						}},
-						termFields,
-					)
-				}},
-				caption(func() string { return locales.PlayerFixNote(cx) }),
+	return core.Scroll{TestID: "player-fix", Style: core.Style{MaxHeight: core.Pct(85)}, Children: []core.Node{
+		core.View{Style: core.Style{Gap: 14, Padding: core.Edges{Bottom: 8}}, Children: []core.Node{
+			core.View{Style: core.Style{Direction: core.Row, AlignItems: core.AlignCenter, Gap: 8}, Children: []core.Node{
+				barButton("player-fix-cancel", func() string { return locales.PlayerFixCancel(cx) }, false, nil, f.close),
+				core.Text{ContentFunc: func() string { return locales.PlayerFixTitle(cx) }, Role: core.RoleHeader, Style: look.Title.Merge(core.Style{FontWeight: core.FontWeightBold, FlexGrow: 1, TextAlign: core.TextAlignCenter}), StyleFunc: ui.Colored(colors.Text)},
+				barButton("player-fix-save", func() string { return locales.PlayerFixSave(cx) }, true, func() bool { return !f.ready() }, f.save),
 			}},
+			card(
+				caption(func() string { return locales.PlayerFixOriginal(cx) }),
+				core.Text{TestID: "player-fix-original", ContentFunc: func() string { return p.line(x().line).Original }, Style: core.Style{FontSize: 16, LineHeight: 22, FontWeight: core.FontWeightSemibold}, StyleFunc: ui.Colored(colors.Text)},
+			),
+			core.View{Style: core.Style{Gap: 6}, Children: []core.Node{
+				caption(func() string { return locales.PlayerFixYours(cx) }),
+				field("player-fix-draft", func() string { return locales.PlayerFixYours(cx) }, nil, func() string { return x().draft }, f.edit, true),
+			}},
+			core.Show{When: func() bool { return p.s.CanAddTerm(p.key) }, Then: func(cx *core.Scope) core.Node {
+				return card(
+					core.View{Style: core.Style{Direction: core.Row, AlignItems: core.AlignCenter, Gap: 12, MinHeight: core.Pt(44)}, Children: []core.Node{
+						core.View{Style: core.Style{FlexGrow: 1, FlexShrink: 1, MinWidth: core.Pt(0), Gap: 2}, Children: []core.Node{
+							core.Text{ContentFunc: func() string { return locales.PlayerFixAddTerm(cx) }, Style: look.Body, StyleFunc: ui.Colored(colors.Text)},
+							caption(func() string { return locales.PlayerFixAddTermDetail(cx) }),
+						}},
+						// TODO(nsgo#145): ui.Switch's Label is a string only (ui/switch.go:19), so its spoken name keeps the language it was built in; pass a LabelFunc once Switch has one https://github.com/nsgo-dev/nsgo/issues/145
+						ui.Switch{TestID: "player-fix-term-switch", Label: locales.PlayerFixAddTerm(cx), Variant: ui.SwitchSystem, Checked: func() bool { return x().term }, OnChange: f.setTerm},
+					}},
+					termFields,
+				)
+			}},
+			caption(func() string { return locales.PlayerFixNote(cx) }),
 		}},
 	}}
 }

@@ -2,8 +2,10 @@ package player
 
 import (
 	"slices"
+	"strings"
 	"unicode/utf8"
 
+	"kando/apps/mobile/theme"
 	kcore "kando/packages/core"
 	"kando/packages/sync"
 
@@ -11,7 +13,7 @@ import (
 	"github.com/nsgo-dev/nsgo/ui"
 )
 
-// The word marks of the lines' originals, as the computer draws them (docs/plugin-system.md, E2): readings over the words written in Han characters, a thick line in a level's tone under the words of the word list chosen there, and a dashed one under the words in the vocabulary. The computer computes them from its plugins and the phone draws them (session.FilmMarks), on the line over the picture and on the card; a line whose original is not the one they were computed for, as one fixed on the phone, shows none (sync.FilmMarks.Of). Settings › Subtitle Style turns them off (store.SubStyle.NoMarks).
+// The word marks of the lines' originals, as the computer draws them (docs/plugin-system.md, E2): readings over the words written in Han characters, a thick line in a level's tone under the words of the word list chosen there, and the words in the vocabulary black on yellow. The computer computes them from its plugins and the phone draws them (session.FilmMarks), on the line over the picture and on the card; a line whose original is not the one they were computed for, as one fixed on the phone, shows none (sync.FilmMarks.Of). Settings › Subtitle Style turns them off (store.SubStyle.NoMarks).
 
 // lineMarks are the marks of line i's original, nil for none. Read it in a binding.
 func (p *play) lineMarks(i int) []sync.Mark {
@@ -41,13 +43,18 @@ func toneOf(colors ui.Colors) func(tone string) (core.Color, bool) {
 	}
 }
 
-// markInk is how markSpans draws a line: style is the line's text style, which a reading's view repeats, as an attachment does not take its text's; look looks up a word tapped; tone is the color of a mark's tone; word is how a word without a line of a mark under it is drawn, as the card's faint line under each word that says it can be tapped.
+// markInk is how markSpans draws a line: style is the line's text style, which a reading's view repeats, as an attachment does not take its text's; look looks up a word tapped; tone is the color of a mark's tone; word is how a word without a line of a mark under it is drawn, as the card's faint line under each word that says it can be tapped; picked is the word looked up in the line, "" for none, which is marked as a word of the vocabulary is.
 type markInk struct {
-	style core.Style
-	look  func(word string)
-	tone  func(tone string) (core.Color, bool)
-	word  core.Style
+	style  core.Style
+	look   func(word string)
+	tone   func(tone string) (core.Color, bool)
+	word   core.Style
+	picked string
 }
+
+// pickedWord is how a word of the vocabulary, and the word looked up, is marked: black on the subtitles' yellow, as a highlighter would.
+// TODO(nsgo): a span's Background fills its whole line box (core/element.go:357-358, Span.Style) and takes no gradient, so the design's highlighter band over the lower third of a word (linear-gradient(transparent 62%, yellow 62%)) is a full yellow box here.
+var pickedWord = core.Style{Background: theme.SubtitleYellow, Color: core.RGB(0x000000), CornerRadius: 3}
 
 // rubyScale is the size of a reading over a word, a share of the word's.
 const rubyScale = 0.5
@@ -58,7 +65,7 @@ var (
 	markOffset    = core.Pct(14)
 )
 
-// markSpans is text cut into spans at each of tokens, its words and what lies between them, a tap on a word looking it up, and at the ends of each of marks: a mark with a reading is a view of its reading over its characters, the others draw a line under their runs, solid in a tone's color, dashed for a word in the vocabulary. A mark outside text, off a character's start, or overlapping a reading before it is left out; tokens of another text are too, as while a line changes.
+// markSpans is text cut into spans at each of tokens, its words and what lies between them, a tap on a word looking it up, and at the ends of each of marks: a mark with a reading is a view of its reading over its characters, the others draw a line under their runs in a tone's color, and a word in the vocabulary, and the word looked up, is black on yellow (pickedWord). A mark outside text, off a character's start, or overlapping a reading before it is left out; tokens of another text are too, as while a line changes.
 func markSpans(text string, tokens []kcore.WordToken, marks []sync.Mark, ink markInk) []core.Span {
 	inText := func(m sync.Mark) bool {
 		return m.Start >= 0 && m.Start < m.End && m.End <= len(text) && utf8.RuneStart(text[m.Start]) && (m.End == len(text) || utf8.RuneStart(text[m.End]))
@@ -112,25 +119,24 @@ func markSpans(text string, tokens []kcore.WordToken, marks []sync.Mark, ink mar
 			word = words[i].word
 		}
 		var color *core.Color
-		dashed, marked := false, false
+		vocab, marked := false, false
 		for _, m := range lines {
 			if m.Start <= start && start < m.End {
 				if c, ok := ink.tone(m.Tone); ok && color == nil {
 					color = &c
 				}
-				dashed = dashed || m.Underline
+				vocab = vocab || m.Underline
 				marked = marked || color != nil || m.Underline
 			}
 		}
 		var st core.Style
 		switch {
+		case word != "" && strings.EqualFold(word, ink.picked), vocab:
+			st = pickedWord
 		case marked:
 			st.TextDecoration, st.TextDecorationThickness, st.TextUnderlineOffset = core.TextDecorationUnderline, markThickness, markOffset
 			if color != nil {
 				st.TextDecorationColor = *color
-			}
-			if dashed {
-				st.TextDecorationStyle = core.DecorationDashed
 			}
 		case word != "":
 			st = ink.word

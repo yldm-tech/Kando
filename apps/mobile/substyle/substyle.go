@@ -26,3 +26,20 @@ func Sizes(st store.SubStyle, tr, orig core.Points) (core.Points, core.Points) {
 	k := core.Points(st.Size.Scale())
 	return tr * k, orig * k
 }
+
+// OnPicture are the sizes of the translation and the original over the player's picture at the size st sets, from the design's tables: on a phone held upright, or wide, on a phone on its side or a tablet's larger picture.
+func OnPicture(st store.SubStyle, wide bool) (tr, orig core.Points) {
+	i := 1
+	switch st.Size {
+	case store.SubSmall:
+		i = 0
+	case store.SubLarge:
+		i = 2
+	case store.SubHuge:
+		i = 3
+	}
+	if wide {
+		return [4]core.Points{18, 22, 26, 30}[i], [4]core.Points{14, 16, 19, 22}[i]
+	}
+	return [4]core.Points{13, 15, 17, 20}[i], [4]core.Points{10, 12, 13, 15}[i]
+}

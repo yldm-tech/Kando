@@ -151,6 +151,14 @@ func App(cx *core.Scope, cfg session.Config) core.Node {
 	}
 	// The film playing shows over the tabs, or in the mini player over them.
 	layer := player.NewLayer(cx, s)
+	// Subtitle Style, from the player's settings, opens in Settings, the film playing on in the mini player over it.
+	layer.OpenStyle = func() {
+		layer.Minimize()
+		selected.Set(settingsTab)
+		if routes := navs[settingsTab].Routes(); routes[len(routes)-1].page != stylePage {
+			navs[settingsTab].Push(route{page: stylePage})
+		}
+	}
 	play := layer.Play
 	// A film's page and a film's row in the Library open the player held where the film was left, with the recap of the part watched, as a poster does on the computer; Continue Watching and a line found play at once.
 	playHeld := layer.PlayHeld

@@ -8,12 +8,12 @@ import (
 	"kando/apps/mobile/cues"
 	"kando/apps/mobile/learning"
 	"kando/apps/mobile/locales"
-	"kando/apps/mobile/look"
 	"kando/apps/mobile/theme"
 	kcore "kando/packages/core"
 	kstudy "kando/packages/study"
 	"kando/packages/sync"
 
+	"github.com/nsgo-dev/nsgo/base"
 	"github.com/nsgo-dev/nsgo/core"
 	"github.com/nsgo-dev/nsgo/icons/lucide"
 	"github.com/nsgo-dev/nsgo/ui"
@@ -135,62 +135,47 @@ func (p *play) toggleWord(word string, e sync.WordEntry, i int) {
 	p.say("word", locales.PlayerWordRemoved(p.cx, shown))
 }
 
-// vocabButton is the button of the word card that puts the word looked up in the vocabulary, or takes it out, once the computer has answered.
-func vocabButton(cx *core.Scope, p *play, w *words) core.Node {
-	press := func() {
+// vocabButton is the button of the word card that puts the word looked up in the vocabulary, on the accent, or, once it is in, takes it out, on the fill, once the computer has answered: height tall, radius round, its text size big.
+func vocabButton(cx *core.Scope, p *play, w *words, height, radius, size core.Points) core.Node {
+	colors := ui.ColorsOf(cx)
+	press := func(core.PressEvent) {
 		l := w.lookup.GetUntracked()
 		p.toggleWord(l.word, l.entry, l.line)
 	}
-	return core.Show{When: func() bool { l := w.lookup.Get(); return !l.busy && !l.failed && l.entry.Meaning != "" }, Then: func(cx *core.Scope) core.Node {
-		return core.Show{When: w.inVocabulary,
-			Then: func(cx *core.Scope) core.Node {
-				return look.Button{TestID: "player-word-vocab", Kind: look.Tinted, Icon: lucide.Check, Text: func() string { return locales.PlayerWordInVocabulary(cx) }, OnPress: press}
-			},
-			Else: func(cx *core.Scope) core.Node {
-				return look.Button{TestID: "player-word-vocab", Kind: look.Primary, Icon: lucide.Plus, Text: func() string { return locales.PlayerWordAdd(cx) }, OnPress: press}
-			}}
-	}}
-}
-
-// vocabStar is the star of the word card at the corner of the picture that puts the word looked up in the vocabulary, or takes it out, once the computer has answered.
-func vocabStar(cx *core.Scope, p *play, w *words) core.Node {
-	return core.Show{When: func() bool { l := w.lookup.Get(); return !l.busy && !l.failed && l.entry.Meaning != "" }, Then: func(cx *core.Scope) core.Node {
-		colors := ui.ColorsOf(cx)
-		return ui.IconButton{TestID: "player-word-vocab", Icon: lucide.Star, Variant: ui.IconButtonGhost, Size: 36, Selected: w.inVocabulary,
-			Tint: func() core.Color { return starTint(colors, w.inVocabulary()) },
-			LabelFunc: func() string {
-				if w.inVocabulary() {
-					return locales.PlayerWordInVocabulary(cx)
-				}
-				return locales.PlayerWordAdd(cx)
-			},
-			OnPress: func() {
-				l := w.lookup.GetUntracked()
-				p.toggleWord(l.word, l.entry, l.line)
-			}}
-	}}
-}
-
-// starTint is the color of a word's star: the yellow of the saved while it is in the vocabulary.
-func starTint(colors ui.Colors, saved bool) core.Color {
-	if saved {
-		return theme.SubtitleYellow
+	text := func() string {
+		if w.inVocabulary() {
+			return locales.PlayerWordInVocabulary(cx)
+		}
+		return locales.PlayerWordAdd(cx)
 	}
-	return colors.Muted()
+	return core.Show{When: w.answered, Then: func(cx *core.Scope) core.Node {
+		return base.Button{TestID: "player-word-vocab", LabelFunc: text, Selected: w.inVocabulary, OnPress: press,
+			Style: core.Style{FlexGrow: 1, FlexBasis: core.Pt(0), MinWidth: core.Pt(0), Height: core.Pt(height), Padding: core.Symmetric(0, 12), CornerRadius: radius, BorderCurve: core.BorderCurveContinuous,
+				AlignItems: core.AlignCenter, JustifyContent: core.JustifyCenter, Active: &core.Style{Opacity: core.Alpha(0.7)}},
+			StyleFunc: func() core.Style {
+				if w.inVocabulary() {
+					return core.Style{Background: colors.Inset(), Color: colors.Text()}
+				}
+				return core.Style{Background: colors.Accent(), Color: colors.OnAccent()}
+			},
+			Children: []core.Node{core.Text{ContentFunc: text, MaxLines: 1, Style: core.Style{FontSize: size, LineHeight: size + 5, FontWeight: core.FontWeightBold}}}}
+	}}
 }
 
-// wordsPage is the Words tab: the words of the film looked up or in the vocabulary, each with its reading, its meaning and how many times the film says it, and a star that puts it in the vocabulary or takes it out; a tap shows its card.
+// wordsPage is the Words tab: the words of the film looked up or in the vocabulary, each with its reading, its meaning and how many times the film says it, and a round button that puts it in the vocabulary or takes it out; a tap shows its card.
 func wordsPage(cx *core.Scope, p *play, w *words) core.Node {
-	colors := ui.ColorsOf(cx)
 	all := func() []filmWord { return p.filmWords() }
 	return core.Scroll{TestID: "player-words", Style: core.Style{FlexGrow: 1, FlexShrink: 1}, Children: []core.Node{
-		core.View{Style: core.Style{Padding: core.All(16), Gap: 10}, Children: []core.Node{
-			core.Show{When: func() bool { return len(all()) == 0 }, Then: func(cx *core.Scope) core.Node {
-				return core.Text{TestID: "player-words-empty", ContentFunc: func() string { return locales.PlayerWordsEmpty(cx) }, Style: look.Subhead, StyleFunc: ui.Colored(colors.Muted)}
-			}},
+		core.View{Style: core.Style{Padding: core.Edges{Top: 12, Right: 8, Bottom: 16, Left: 8}}, Children: []core.Node{
+			core.Show{When: func() bool { return len(all()) == 0 },
+				Then: func(cx *core.Scope) core.Node {
+					return core.Text{TestID: "player-words-empty", ContentFunc: func() string { return locales.PlayerWordsEmpty(cx) }, Style: core.Style{FontSize: 13, LineHeight: 18, Padding: core.Symmetric(0, 10), Color: faint(0.55)}}
+				},
+				Else: func(cx *core.Scope) core.Node {
+					return core.Text{TestID: "player-words-intro", ContentFunc: func() string { return locales.PlayerWordsIntro(cx) }, Style: core.Style{FontSize: 12, LineHeight: 16, Padding: core.Edges{Left: 10, Right: 10, Bottom: 4}, Color: faint(0.55)}}
+				}},
 			core.Each(all, func(fw filmWord) string { return kstudy.WordKey(fw.word) }, func(cx *core.Scope, fw func() filmWord, _ func() int) core.Node {
-				return core.View{Style: core.Style{Direction: core.Row, AlignItems: core.AlignCenter, Gap: 10, Padding: core.Edges{Top: 10, Right: 6, Bottom: 10, Left: 12}, CornerRadius: 12, BorderCurve: core.BorderCurveContinuous},
-					StyleFunc: func() core.Style { return core.Style{Background: ui.Alpha(colors.Text(), 0.05)} },
+				return core.View{Style: core.Style{Direction: core.Row, AlignItems: core.AlignCenter, Gap: 10, MinHeight: core.Pt(58), Padding: core.Symmetric(9, 10)},
 					Children: []core.Node{
 						core.View{TestID: "player-film-word", Role: core.RoleButton, LabelFunc: func() string { return fw().word },
 							OnPress: func(core.PressEvent) {
@@ -198,32 +183,48 @@ func wordsPage(cx *core.Scope, p *play, w *words) core.Node {
 									w.look(x.line, x.tapped)
 								}
 							},
-							Style: core.Style{FlexGrow: 1, FlexShrink: 1, MinWidth: core.Pt(0), Gap: 2},
+							Style: core.Style{FlexGrow: 1, FlexShrink: 1, MinWidth: core.Pt(0), Gap: 2, Active: &core.Style{Opacity: core.Alpha(0.7)}},
 							Children: []core.Node{
 								core.View{Style: core.Style{Direction: core.Row, AlignItems: core.AlignBaseline, Gap: 8}, Children: []core.Node{
-									core.Text{ContentFunc: func() string { return fw().word }, MaxLines: 1, Style: look.Body.Merge(core.Style{FontWeight: core.FontWeightBold, FlexShrink: 1}), StyleFunc: ui.Colored(colors.Text)},
-									core.Text{ContentFunc: func() string { return fw().entry.Reading }, MaxLines: 1, Style: look.Caption.Merge(core.Style{FlexShrink: 1}), StyleFunc: ui.Colored(colors.Muted)},
+									core.Text{ContentFunc: func() string { return fw().word }, MaxLines: 1, Style: core.Style{FontSize: 16, LineHeight: 21, FontWeight: core.FontWeightBold, FlexShrink: 1, Color: theme.PlayerInk}},
+									core.Text{ContentFunc: func() string { return fw().entry.Reading }, MaxLines: 1, Style: core.Style{FontSize: 12, LineHeight: 16, FlexShrink: 1, Color: faint(0.5)}},
 								}},
 								core.Show{When: func() bool { return fw().entry.Meaning != "" }, Then: func(cx *core.Scope) core.Node {
-									return core.Text{ContentFunc: func() string { return fw().entry.Meaning }, MaxLines: 2, Style: look.Subhead, StyleFunc: ui.Colored(colors.Text)}
-								}},
-								core.Show{When: func() bool { return fw().count > 0 }, Then: func(cx *core.Scope) core.Node {
-									return core.Text{ContentFunc: func() string { return locales.PlayerWordTimes(cx, fw().count) }, Style: look.Caption, StyleFunc: ui.Colored(colors.Muted)}
+									return core.Text{ContentFunc: func() string { return fw().entry.Meaning }, MaxLines: 2, Style: core.Style{FontSize: 13, LineHeight: 18, Color: faint(0.7)}}
 								}},
 							}},
-						ui.IconButton{TestID: "player-film-word-star", Icon: lucide.Star, Variant: ui.IconButtonGhost, Size: 40,
-							Selected: func() bool { return fw().saved },
-							Tint:     func() core.Color { return starTint(colors, fw().saved) },
+						core.Show{When: func() bool { return fw().count > 0 }, Then: func(cx *core.Scope) core.Node {
+							return core.Text{ContentFunc: func() string { return locales.PlayerWordAppears(cx, fw().count) }, MaxLines: 1, Style: core.Style{FontSize: 11, LineHeight: 14, Color: faint(0.5)}}
+						}},
+						base.Button{TestID: "player-film-word-star", Selected: func() bool { return fw().saved },
 							LabelFunc: func() string {
 								if fw().saved {
 									return locales.PlayerWordRemoveNamed(cx, fw().word)
 								}
 								return locales.PlayerWordAddNamed(cx, fw().word)
 							},
-							OnPress: func() {
+							OnPress: func(core.PressEvent) {
 								x := fw()
 								p.toggleWord(x.tapped, x.entry, x.line)
-							}},
+							},
+							Style: core.Style{Width: core.Pt(34), Height: core.Pt(34), CornerRadius: 17, FlexShrink: 0, AlignItems: core.AlignCenter, JustifyContent: core.JustifyCenter, Active: &core.Style{Opacity: core.Alpha(0.7)}},
+							StyleFunc: func() core.Style {
+								if fw().saved {
+									return core.Style{Background: theme.SubtitleYellow}
+								}
+								return core.Style{Background: faint(0.14)}
+							},
+							Children: []core.Node{ui.IconOf(func() *core.SVG {
+								if fw().saved {
+									return lucide.Check()
+								}
+								return lucide.Plus()
+							}, 18, func() core.Color {
+								if fw().saved {
+									return core.RGB(0x000000)
+								}
+								return theme.PlayerInk
+							})}},
 					}}
 			}),
 		}},

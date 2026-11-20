@@ -134,6 +134,16 @@ var (
 	SourceChannel = core.RGB(0xAF52DE)
 	// SubtitleYellow is the original line's color under the translation.
 	SubtitleYellow = core.RGB(0xFFD60A)
+	// PlayerInk is the player's text and glyphs, white on its dark, faded for what matters less.
+	PlayerInk = core.RGB(0xFFFFFF)
+	// PlayerBG is the player's page, darker than the dark palette's, under the film's blurred poster.
+	PlayerBG = core.RGB(0x0B0B0D)
+	// PlayerBlue is what is on in the player, as the line looped and the button that saves a note, and the progress of a film on its picture, as the continue cards' and the film rows' bars.
+	PlayerBlue = core.RGB(0x0A84FF)
+	// FixedInk is the text of the chip that says the learner fixed a line's translation, on StatusOK's tint.
+	FixedInk = core.RGB(0x6EE7A0)
+	// NoteInk is a note's text on the yellow box under a saved line.
+	NoteInk = core.RGB(0xFFE680)
 	// AI is the accent of what an AI service does.
 	AI = core.RGB(0x5E5CE6)
 	// The status dots: ready or done, something missing or waiting, failed.
@@ -173,8 +183,6 @@ var (
 	TileRed    = core.RGB(0xFF3B30)
 	TileSky    = core.RGB(0x0A84FF)
 	TileGrey   = core.RGB(0x8E8E93)
-	// PlayerBlue is the progress of a film on its picture: the continue cards' and the film rows' bars.
-	PlayerBlue = core.RGB(0x0A84FF)
 	// ContinueCard is a continue card's dark under its picture, in both appearances.
 	ContinueCard = core.RGB(0x1C1C1E)
 	// BadgeWarnText is the text of the orange "needs attention" pill on the jobs card, on the badges' orange at 16%.

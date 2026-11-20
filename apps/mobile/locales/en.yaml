@@ -1629,6 +1629,9 @@ playerAsking:
 playerAudioOnly:
   message: "Audio Only"
   description: "Playback setting, and the words over the covered picture: the picture is hidden and only the sound plays."
+playerAudioOnlyCover:
+  message: "Video off; keeps playing when the phone is locked"
+  description: "Under Audio Only on the covered picture: the picture is hidden and the sound plays on with the screen locked."
 playerAudioOnlyNote:
   message: "Hides the picture, to listen as you would to a podcast."
   description: "Under the Audio Only switch in the playback settings."
@@ -1639,12 +1642,12 @@ playerCantPlay:
   message: "This video can't play on this phone."
   description: "Over the player when the system's player cannot open the video, as one in a format the phone does not play."
 playerCardPlace:
-  message: "Line {index} of {count} · {time}"
+  message: "Line {index} / {count} · {time}"
   description: "At the top of the player's card: which line of the film it shows, and when it starts."
   placeholders:
     index: { type: "int", example: "3" }
     count: { type: "int", example: "18" }
-    time: { type: "String", example: "0:42" }
+    time: { type: "String", example: "0:20" }
 playerClose:
   message: "Close"
   description: "Spoken name of the × that closes the word card or the explanation."
@@ -1732,6 +1735,12 @@ playerExplainVia:
   placeholders:
     model: { type: "String", example: "gpt-4o-mini" }
     computer: { type: "String", example: "Studio" }
+playerExportSubtitles:
+  message: "Export Subtitles"
+  description: "Button in the player's Info tab and row in its playback settings: shares the film's subtitles as a file."
+playerFixedChip:
+  message: "Edited"
+  description: "Small chip after a line's translation in the player's card: the learner fixed this translation."
 playerFollow:
   message: "Shadowing"
   description: "Playback setting, and the pill over the picture while it is on: the film holds after each line for the learner to say it."
@@ -1748,14 +1757,14 @@ playerHintReveal:
   message: "Tap the blurred line to show it"
   description: "Hint at the top of the player's card while the subtitle mode blurs a line."
 playerHintWords:
-  message: "Tap a word to look it up"
-  description: "Hint at the top of the player's card."
+  message: "Tap a yellow word for its meaning"
+  description: "Hint at the top of the player's card: the words underlined in yellow are tapped to look them up."
+playerInfoAudio:
+  message: "Original Audio"
+  description: "Row of the player's Info tab: the language spoken in the film."
 playerInfoComputer:
   message: "Computer"
   description: "Row of the player's Info tab: the computer the film is from."
-playerInfoLanguages:
-  message: "Languages"
-  description: "Row of the player's Info tab: the language spoken and the one the subtitles are translated into."
 playerInfoLength:
   message: "Length"
   description: "Row of the player's Info tab: how long the film plays and how many lines it has."
@@ -1768,9 +1777,12 @@ playerInfoLengthValue:
 playerInfoLibrary:
   message: "Library"
   description: "Row of the player's Info tab: the library on the computer the film is in."
-playerInfoTitle:
-  message: "Title"
-  description: "Row of the player's Info tab: the film's title."
+playerInfoSource:
+  message: "Source"
+  description: "Row of the player's Info tab: where the film comes from, as YouTube."
+playerInfoTranslation:
+  message: "Translation"
+  description: "Row of the player's Info tab: the language the subtitles are translated into."
 playerKeepAwake:
   message: "Playing a film"
   description: "Why the app keeps the screen on while a film plays, where the system lists it."
@@ -1789,6 +1801,11 @@ playerModeHidden:
 playerModeOriginal:
   message: "Original Only"
   description: "Subtitle mode: the original line alone."
+playerModePill:
+  message: "Subtitles · {mode}"
+  description: "Button over the picture of a phone on its side: the subtitle mode, which a tap changes to the next."
+  placeholders:
+    mode: { type: "String", example: "Both" }
 playerModeTranslation:
   message: "Translation Only"
   description: "Subtitle mode: the translation alone, the original where a line is not translated."
@@ -1809,6 +1826,13 @@ playerNoteFor:
   description: "Heading and spoken name of the note field in the player's Notes tab."
   placeholders:
     index: { type: "int", example: "3" }
+playerNoteHeading:
+  message: "Note on this line · Line {index} / {count} · {time}"
+  description: "Over the note field in the player's Notes tab: which line the note is for, and when it starts."
+  placeholders:
+    index: { type: "int", example: "3" }
+    count: { type: "int", example: "18" }
+    time: { type: "String", example: "0:20" }
 playerNotePlaceholder:
   message: "Like: “picks up” here isn't “lifts”"
   description: "Placeholder of the note field in the player's Notes tab."
@@ -1843,6 +1867,9 @@ playerPartsHint:
 playerPause:
   message: "Pause"
   description: "Spoken name of the player's button while the film plays."
+playerPictureInPicture:
+  message: "Picture in Picture"
+  description: "Row of the playback settings: plays the video in the system's small window over other apps."
 playerPlay:
   message: "Play"
   description: "Spoken name of the player's button while the film is held."
@@ -1984,6 +2011,17 @@ playerStudyUnreachable:
 playerSubtitles:
   message: "Subtitles"
   description: "Spoken name of the player's menu of subtitle modes."
+playerWordAppears:
+  message: "{count, plural, one {Appears # time} other {Appears # times}}"
+  description: "Beside a word in the Words tab: how many times the film's lines say it."
+  placeholders:
+    count: { type: "int", example: "3" }
+playerWordSpeak:
+  message: "Pronunciation"
+  description: "Spoken name of the speaker button in the word card: says the word aloud."
+playerWordsIntro:
+  message: "Words looked up in this film. Tap + to add one to your vocabulary."
+  description: "At the top of the player's Words tab."
 reviewAgain:
   message: "Not yet · tomorrow"
   description: "Review button: the learner did not know it; it comes back in this review, then the next day."
@@ -2049,11 +2087,6 @@ playerTabLines:
 playerTabNotes:
   message: "Notes"
   description: "Tab of the player's panel: the lines saved and their notes, while none is saved."
-playerTabNotesCount:
-  message: "Notes {count}"
-  description: "Tab of the player's panel with how many of the film's lines are saved."
-  placeholders:
-    count: { type: "int", example: "3" }
 playerTabParts:
   message: "Parts"
   description: "Tab of the player's panel: the film in equal parts."
@@ -2503,11 +2536,6 @@ playerMinimize:
 playerTabWords:
   message: "Words"
   description: "Tab of the player's panel: the film's words looked up or in the vocabulary, while there are none."
-playerTabWordsCount:
-  message: "Words {count}"
-  description: "Tab of the player's panel with how many of the film's words were looked up or are in the vocabulary."
-  placeholders:
-    count: { type: "int", example: "5" }
 playerWordAdd:
   message: "Add to Vocabulary"
   description: "Button of the word card that puts the word in the vocabulary."
@@ -2546,7 +2574,7 @@ playerFixOpen:
   message: "Translation Wrong? Fix It"
   description: "Button at the bottom of the explained line's sheet that opens the sheet fixing the line's translation."
 playerFixTitle:
-  message: "Fix Translation"
+  message: "Edit Translation"
   description: "Title of the sheet where the learner types their own translation of a line."
 playerFixCancel:
   message: "Cancel"
