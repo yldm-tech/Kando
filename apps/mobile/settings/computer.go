@@ -231,8 +231,8 @@ func computerChoice(cx *core.Scope, s *session.Session, d func() store.Desktop, 
 			}
 			return ""
 		},
-		Checked: chosen,
-		OnPress: func() { s.SetSendTo(d().ID) },
+		Checked:  chosen,
+		OnPress:  func() { s.SetSendTo(d().ID) },
 		Trailing: core.Show{When: chosen, Then: func(*core.Scope) core.Node { return ui.Icon(lucide.Check, 20, colors.Accent) }}}
 }
 

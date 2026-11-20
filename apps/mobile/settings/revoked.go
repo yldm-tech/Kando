@@ -84,7 +84,7 @@ func RevokedPage(cx *core.Scope, s *session.Session, id string, pair func(), unp
 							Style: core.Style{Height: core.Pt(40), Padding: core.Symmetric(0, 16), AlignSelf: core.AlignCenter, AlignItems: core.AlignCenter, JustifyContent: core.JustifyCenter,
 								Active: &core.Style{Opacity: core.Alpha(0.6)}},
 							StyleFunc: func() core.Style { return core.Style{FocusVisible: ui.FocusRing(cx, 2)} },
-							Children: []core.Node{core.Text{ContentFunc: func() string { return locales.RevokedLater(cx) }, MaxLines: 1, Style: look.Subhead, StyleFunc: ui.Colored(colors.Accent)}}},
+							Children:  []core.Node{core.Text{ContentFunc: func() string { return locales.RevokedLater(cx) }, MaxLines: 1, Style: look.Subhead, StyleFunc: ui.Colored(colors.Accent)}}},
 					}},
 				}},
 			}},
