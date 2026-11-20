@@ -740,7 +740,7 @@ export function kandoManifest() { return { /* identical to kando-plugin.json fie
 
 - 安装不等于授权。
   - 数据包：glossary、dictionary、wordlist、ai-service、translate-style、export-template 安装后默认启用。`task` 要消耗 token，必须先授 `kando.llm.chat`（P2.2 的做法：task 包装好后默认关，用户打开开关就是授权，确认框和详情里写明每日预算）。`site` 必须逐个域名同意。
-  - 脚本：安装后处于停用状态，详情页的能力一项都不勾，用户勾选并打开开关才算授权。勾一项时，它依赖的能力一起勾上（例如 `llm.chat` 依赖 `lines.seen`）。
+  - 脚本：安装后处于停用状态，详情页的能力一项都不勾，用户勾选并打开开关才算授权。能力之间没有依赖，每一项单独勾：每个 handler 只查它自己那一项（`llm.chat` 不读字幕，插件要把字幕交给 AI 就得另外申请 `lines.seen`，各自授权），所以勾一项不会连带勾上别的。
 - 授权记录是完整的 `Grant`：权限名、network 规则的完整集合、每个凭据的 (id, hosts, header, format, methods, pathPrefixes)，以及站点域名。不再只存权限名。
 - 实际生效的能力 = 包签名里的 `Capabilities` ∩ 清单声明 ∩ 用户授予的 `Grant` ∩ 当前状态。
   - 离线时 `Grant.Network` 为 nil，`llm.chat` 和 `credentialFetch` 拒绝。
@@ -751,7 +751,7 @@ export function kandoManifest() { return { /* identical to kando-plugin.json fie
 - 每个插件的配额：每分钟最多 60 次 `host.call`（用户按下的导出期间读句子的声音另计，见 5.3）；`llm.chat` 默认每天 50k token，可以调整，用量在详情页可见；同时启用的脚本插件最多 12 个。
 - **网络能力本身就是副作用通道**。有了 `lines.seen`（字幕内容可能来自攻击者）和 `llm.chat`，插件就能按 LLM 的输出发出有副作用的网络请求，不经过任何确认。所以 T6 防不住，只能缩小它的影响：
   - 安装页和详情页把「读你的字幕或用你的 AI」与「联网或 credentialFetch」同时勾选的组合单独标成高风险，单独一行说明。
-  - network 规则必须写死 Methods 和 Paths/PathPrefixes（4.2 节，由 Validate 强制）。审核规范要求插件用最窄的规则；像 AnkiConnect 这种所有动作共用一个端点的服务，规则缩不到动作这一级，在审核规范和详情页如实写出来。
+  - network 规则必须写死 Methods 和 Paths/PathPrefixes（4.2 节，由 Validate 强制）。审核规范要求插件用最窄的规则；像 AnkiConnect 这种所有动作共用一个端点的服务，规则缩不到动作这一级，在审核规范和详情页如实写出来：规则的路径是 `/` 或路径前缀是 `/` 时（`plugins.Unscoped`），安装确认和详情页在联网那一项下面写一行「<host> 的所有操作都走同一个地址，这条规则限制不了插件做哪些操作」。
   - `credentialFetch` 只允许授权凭据里列出的 methods 和 pathPrefixes。
   - 真正只有宿主能拦住的副作用，才做成「每次确认」（`openURL`）或「只出建议」（`glossary.suggest`：复用 AI 服务术语建议的「添加」「不用」和撤销，见 5.3；`candidates.offer` 没有做）。
 
@@ -800,7 +800,7 @@ export function kandoManifest() { return { /* identical to kando-plugin.json fie
 - 熔断按 (id, hash) 计：init 失败立即停用；最近 50 次调用里有 3 次出错或超出 `ErrBudget`，也停用；`llm.chat` 上的 `ErrHostTimeout` 不计入。tsx 自己停掉的运行时（超了节点或内存配额）之后的每次调用都立即以那个配额的带码错误失败，熔断不计带码的错误，所以调用以这种错误结束时马上停用插件：内存配额记 `memory`，其他记 `failed`。Kando 目前不设 `Limits.Memory`（`TODO(nsgo#760)`），所以现在只有节点配额会走到这里，记 `failed`；`memory` 留给以后设了内存配额的时候。认法是错误带着配额的资源名（`Resource`）：tsx 把插件 throw 或 reject 的错误只留码和消息，插件自己报同样的码不会被当成停了（`runner.go` 的 `halted`）。只看错误、不调插件的任何东西：插件可以在自己的导出对象上挂 getter，tsx 在引擎上读名字时会不限时地跑它。结果写进 `plugins/health.json`，只存类别。
 - **卡死和崩溃后自愈**：每次 Call 之前先把 (id, hash) 写成 in-flight 记录，回调时清掉（5.2 节）。下次启动时如果发现残留的记录，就把那个插件标为 `hung` 并自动停用，详情页说明「上次运行时让看懂停止响应」。这一条覆盖了 Limits 拦不住的卡死和 OOM（见 6.7）。
 - **看门狗**（P3.0 加的，Limits 管不到的部分）：所有脚本插件的 Call 全局串行，同一时刻只有一个在跑，引擎变慢和内存上涨都能归到它头上。一个 goroutine 定时往引擎投心跳，并用 `runtime/metrics` 读 Go 堆；有调用在跑时，心跳连续几次等待超过 250ms，或者堆比 Load 前的基线多出 512 MiB，看门狗就在自己的 goroutine 上 `Plugin.Interrupt` 这个插件（nsgo#836 加的，任何 goroutine 都能调），正在跑的片段当场被切断、定时器丢掉，再在引擎上 `Plugin.Close()`，记一次熔断并停用。以前只能 Close，要等到两个片段之间才生效（实测 0.05–0.4 s）；现在不用等当前片段跑完（goja 执行时检查中断标志；原生的正则匹配不检查，由匹配超时兜住）。tsx 的 `Limits.CallTotal` 不用：它是从 `Plugin.Call` 起算的墙钟时间，宿主替插件等（`Pause`、`PauseFor`，读声音、`llm.chat` 最长 120 s）时停不下来，而看门狗的 1 分钟期限不算这段；它还会让入口模块排下的定时器在 `Limits.Load`（1 s）后被丢掉，插件作者可能依赖这一点。正则由 tsx 兜住：沙箱里的调用编译的正则以这次调用的预算（500ms）为匹配超时（nsgo#759 修好后，Kando 不再设进程级的 `regexp2.DefaultMatchTimeout`，6.7）。
-- `plugins/audit.log` 记录安装、授权、吊销、熔断、确认框结果，以及每次 `llm.chat` 的 token 数，不记录内容。写盘前先经过 `feedback.Scrubber`。
+- `plugins/audit.log` 记录安装、授权、吊销、熔断、确认框结果，以及每次 `llm.chat` 的 token 数，不记录内容。写盘前先经过 `feedback.Scrubber`。数据包也记：每种包的安装（`install`，带版本和 kind，site 包带安装时同意的域名）和卸载（`uninstall`）；安装确认没装就关掉（`cancel`，打不开的文件不算，它没问过用户）；site 包在详情里逐个域名的同意和撤回（`site`）；task 包的开关（`enable`、`disable`，打开它就是授予 token）和每次运行花掉的 token（`llm-chat`）。其余数据包的开关不是授权，不记。
 
 ### 6.7 残余风险（在授权页如实写出）
 
@@ -809,13 +809,14 @@ export function kandoManifest() { return { /* identical to kando-plugin.json fie
 - **凭据库按平台不同**：macOS 钥匙串条目的 ACL 信任写入它的那个二进制，其他同用户进程读不到插件的凭据。本设计让分区带上签名者、dev root 公钥也存进钥匙串，就是为了不让同用户程序借「同 id 换包」或「塞一把自己的根」拿到这些凭据。Windows 凭据管理器和 Linux Secret Service 对同用户进程本来就开放，在这两个平台上，同用户的恶意程序能直接读出插件凭据，插件系统不额外放大也无法缩小这个风险。
 - **网络是副作用通道**：获准联网的插件，可能被字幕内容诱导着，发出它声明范围内的任何请求（6.2 节）。
 - goja 本身也可能有其他漏洞，不是零风险。
+- 授权页写出的是用户在授权时能据此决定的几条：第一条在每个脚本插件的安装确认和详情里各一行（「插件卡住或占用太多内存时，看懂会停用它，但在那之前窗口可能停顿片刻」）；凭据库一条在 Windows 和 Linux 上、插件声明了凭据时，写在安装确认的凭据下面和详情的「密钥」一组里；网络一条就是 6.2 的高风险一行。本机状态文件和 goja 自身漏洞这两条与具体插件无关，授权时也没有可选的做法，只写在这里，不上授权页。
 
 ## 7. UX
 
 ### 7.1 入口与列表
 
 - 设置里新增一节「插件」：`settings/sectionid` 加 `Plugins`；`settings/sections.go` 的 `var sections` 加一行（不需要改成函数，插件页一直显示）；页面写在 `settings/plugins.go`，用 `settings/form` 的 Card、Label、Badge、Button 和 `ui.Switch`、`ui.IconButton` 拼。它读自己的接口 `settings.PluginsApp`，不往 `settings.App` 里加方法，照 `Window.Account` 的先例由 `settings.Window.Plugins` 注入（`state_settings.go` 的 `settingsWindow` 里多一个字段）。
-- 列表按 kind 分组。每行有名称、来源徽标、版本·作者、行内开关，以及展开详情的按钮（P1.1 没有每行的图标）。P1.1 的状态只有开关本身和「未安装」：savedPlugins 引用了、目录里却没有的包单独列在「不在插件文件夹里」一组（包已经读不到，不知道它的 kind），带「移除」按钮。其余状态到有对应机制的那一期再加：需要授权 / 已更新，需要重新授权 / 已停用：出错 / 已停用：太慢 / 已停用：上次让看懂停止响应 / 已被撤回 / 离线时不可用。
+- 列表按 kind 分组。每行有名称、来源徽标、版本·作者、行内开关，以及展开详情的按钮（P1.1 没有每行的图标）。P1.1 的状态只有开关本身和「未安装」：savedPlugins 引用了、目录里却没有的包单独列在「不在插件文件夹里」一组（包已经读不到，不知道它的 kind），带「移除」按钮。其余状态到有对应机制的那一期再加：需要授权 / 已更新，需要重新授权 / 已停用：出错 / 已停用：太慢 / 已停用：上次让看懂停止响应 / 已被撤回 / 离线时不可用。脚本插件的这些状态都代替版本号写在行内，详情顶上再写一遍：验签没过、已停用的原因、已被撤回、吊销列表过期，然后是「需要授权」（有一项不是可选、需要授予的权限没授予，或者网络规则没授予，`plugins.Missing`，刚装好什么都没授予时也是它）和「离线时不可用」（离线模式开着，插件必需的有网络规则、`credentialFetch` 或 `llm.chat`，`plugins.Online`），同一时刻只写排在最前的一条。「已更新，需要重新授权」写在详情里。
 - 词典分组里每行有上移、下移两个按钮（`lucide.ArrowUp`/`ArrowDown`，在第一行、最后一行时禁用），决定查词时谁先答，顺序存在 `savedPlugins.PluginOrder`。NSGo 固定版本没有可拖动排序的列表控件，所以不做拖动。移动只改顺序，行按包 id 保留并移动（`core.Each`），不重建，按下的按钮保住键盘焦点，可以连按几次。
 - 顶部按钮：「从文件安装…」（系统文件面板，配合 `holdModal()`，接受 `.zip` 和 `.kandopack`），以及「在访达中显示」（按平台换成文件资源管理器、文件管理器；`desktop.Reveal`，经 `revealInFolder`，插件目录不存在时先建出来）。开发者模式开着时，多一组「开发者」：生成开发者密钥、打包并安装文件夹…。
 - 详情在行下面展开：说明、它会加什么（术语条数和语言、AI 服务的 host 等，由 app 用界面语言写好）、许可、主页、词典的 attribution、id 和哈希前 12 位，以及「卸载…」。卸载的确认也在详情里展开（和手机同步「撤销…」的做法一样），确认后删除目录并从 state.json 移除。state.json 是更新版本写的时，和安装一样在删之前就拒绝，插件页另写一句「没有卸载」（`plugins.ErrUninstallRefused`，和列表上方说明 state.json 的那句不重复）；目录已经删掉、之后 state.json 没存上的，算卸载好了，插件页另写一句「已完成，但没能保存哪些插件是启用的」（`plugins.StateUnsaved`，安装后没存上也是这一句；原因是插件页认得的错误时用它自己的文案），不说卸载失败。
@@ -827,16 +828,17 @@ export function kandoManifest() { return { /* identical to kando-plugin.json fie
 P1.1 的确认框只有数据包要显示的部分：名称（标题）、说明、它会加什么（AI 服务包写明「会把你的 API Key 和要翻译的字幕发送到 <host>」）、来源（「来自这台电脑上的文件 · 未签名」）、版本·作者、许可、id 和哈希前 12 位，以及要替换的已安装版本。取消是默认按钮，回车和 Esc 都不安装。点了「安装」之后、安装结束之前，取消按钮变灰，回车和 Esc 也不起作用：这时 `plugins.Swap` 正把暂存副本移到位，取消会把它删掉，留下一个用户取消了却装上的包，或者一个缺文件的包顶替了旧版本。文件装不了时，同一个对话框只说原因（catalog 文案）和「好」；点了「安装」之后才失败的（另一种 kind 已有这个 id、写盘失败），确认框也不关，换成同样的失败视图；state.json 是更新版本写的时，在 `plugins.Swap` 之前就拒绝，什么都不替换。包已经放到位、之后 state.json 没存上的，算装好了：确认框照常关掉，存不上的原因单独显示在插件页上（`plugins.err`，「已完成，但没能保存哪些插件是启用的：<原因>」）。失败视图等用户点「好」，因为它可能画在主窗口上、插件页根本不在眼前。确认框开着时占用 `holdModal`。它的文字在建的时候取，所以界面语言切换时整个重建（读 `i18n.Language(cx)`，和 `settings.Window` 一样）。它画在哪里：设置在自己的窗口里、并且正停在插件页时，由插件页画；其余情况（CLI inbox、设置画在主窗口上、设置开在别的页）由主窗口的 `pluginsOverlay` 画（`PluginInstallHere` 决定），免得确认框被设置窗口挡在主窗口里。下面几条是脚本插件（P3）要加的部分。
 
 
-- 显示名称、来源（例如「由 acme 发布，看懂已验证」，取自证书）、版本、大小、哈希前 12 位。
+- 显示名称、来源（例如「由 acme 发布，看懂已验证」，取自证书）、版本、大小、哈希前 12 位。大小是暂存副本里所有文件的字节数（`plugins.Size`，在后台和验签一起算），写在版本和作者后面（「版本 1.2.0 · Acme · 12 KB」），只有脚本插件写。
 - 「它想要」的清单：每个权限的说明来自 catalog，插件不能自定义权限说明。例如「读取正在播放的影片到当前句为止的字幕」「用你的 AI 服务回答，每天最多 5 万 token」「向 api.deepl.com 发送 POST /v2/translate」。必需权限在上，可选权限在下，默认不勾。
-- 「读你的字幕或用你的 AI」与「联网」同时出现时，单独一行标为高风险。凭据一行写明它会发往哪些主机；主机不在内置服务表里时额外警示。
+- 「读你的字幕或用你的 AI」与「联网」同时出现时，单独一行标为高风险。凭据一行写明它会发往哪些主机；主机不在内置服务表里时额外警示。网络规则缩不到动作时写一行（6.2），高风险一行之后写 6.7 的残余风险，凭据下面在 Windows 和 Linux 上写其他程序也能读到密钥（6.7）。
+- 确认框里的权限仍按必需、可选两组列出，不按 7.3 的四组：安装时还没有开关，用户要看的是装了之后它缺哪些就不能用。
 - 开发者来源加一条警示。site 包每个域名一行复选框，默认不勾；重装同 id 的新版本时，旧版本已经同意、新版本仍然列出的域名预先勾上（P4.1）。
 - 点「安装」后，脚本插件仍处于停用状态，回到列表打开开关才算授权。
 
 ### 7.3 详情页
 
 - 说明和出处（词典必须显示 attribution）。
-- 权限按「读取你的内容 / 改动你的内容 / 联网 / 用你的 AI」分组，每一项都能单独撤回。
+- 权限按「读取你的内容 / 改动你的内容 / 联网 / 用你的 AI」分组，每一项都能单独撤回。分组是 `plugins.Perm.Group`：读影片、字幕、收藏、生词、声音和它自己的设置是「读取」；`kando.toast` 在窗口里显示提示，是这一版插件唯一能改的东西，归「改动」；网络规则、`credentialFetch` 和 `kando.ui.openURL`（打开的网页会收到网址里的内容）归「联网」；`llm.chat` 归「用你的 AI」。组里必需的在前、可选的在后，没有权限的组不画标题。联网一组下面写 6.2 的「规则限制不了」一行，权限之后是高风险一行、按键冲突和 6.7 的残余风险一行。
 - 每日 token 用量和预算。
 - 插件声明的设置，类型有 bool、choice、number、text，最多 16 项，由宿主用 `settings/form` 加 `ui.Switch`、`ui.Select`、`ui.Input` 渲染。值存在 `plugins/.settings/<id>.json`，不计入哈希，改设置不需要重新授权。密钥不是设置：`Validate` 拒收 `secret` 类型的设置，原因里让作者改用 `credentials` 并申请 `kando.net.credentialFetch`。凭据在「密钥」一组里各画一个 secret 字段，输入框下写着「此密钥只会发送到：<hosts>」，密钥存在 `pluginhost.` 分区里（6.3）。
 - 按键冲突提示、「查看审计记录」、「卸载」。卸载会删除目录、`plugin.<id>.*` 和 `pluginhost.<id>.*` 两个分区，并从 state.json 移除，删除前要确认。AI 预设插件留下的服务记录会保留，key 不丢。
@@ -1162,6 +1164,7 @@ P0–P2 不新增任何 module。P3a 起 `github.com/dlclark/regexp2/v2 v2.11.0`
 | P5 目录发布 | `cmd/kando-plugin`（kando-plugins 仓库 CI 用的 validate、preview、index，不依赖 cgo）、`plugins/publish` 和 `plugins/script/signature`、`kando://plugin/install?id=` 链接、目录的更新提示、官网 `/plugin` 页 | `feat/plugins-directory-site` | 已完成，出入见下 |
 | P5 翻译来源（E14） | 贡献块 `translators`、`translate`/`candidates` 导出、设置 › 翻译 的「翻译来源」、`media.Tools.Engine` 的插件适配器、⇧E 改走 `Tools.Candidates`、带码的来源失败、官方 DeepL 插件 `kando.deepl` | `feat/plugins-translators` | 已完成，出入见下 |
 | P5 E15 | 播放器侧栏的「扩展」标签：`contributes.panels`、`script.Runner.Panel`（`tsx.View` 外包 `core.Catch`，同一个沙箱，失败计入熔断）、面板视图自己的 Host 和 `line.changed`、`film.Extender`、选择存进 `pluginPanel` | `feat/plugins-panels` | 已完成，出入见下 |
+| 授权页补齐 | 6.7 的残余风险上授权页、单端点规则的说明、详情的权限四组、安装确认的大小、列表的「需要授权」「离线时不可用」、数据包的审计记录；6.2 的权限依赖改成如实写「没有依赖」 | `feat/plugins-grant-ux` | 已完成，出入见下 |
 | P5 其余 | 按需单独立项 | — | 未开始 |
 
 P1.2 的测量结果（Ubuntu 编译机，x86_64，Go 1.27.4，kagome-dict/ipa v1.2.6；每次读 `/proc/self/status` 前先 `runtime.GC()` 和 `debug.FreeOSMemory()`，各在一个新进程里量，量完的测试没有提交）：
@@ -1450,6 +1453,15 @@ NSGO_ROOT_KEY=<root secret> make plugin-revocations
   - 下拉框的选项绑定在 `ui.Select` 的 `OptionsFunc` 上（nsgo#848），面板增减时原地更新；`Label` 只读一次，所以下拉框放在一个只读界面语言的 `core.Dynamic` 里，切换语言时重建（`TODO(nsgo#145)`）。
   - 2.3 原说插件设置页以声明式 schema 为主、`tsx.View` 作退路：没有做退路。清单没有设置页视图的字段，详情页只画 7.3 的声明式设置，`tsx.View` 只用在这个标签的面板上；2.3 已改成这样。
   - 测试：`plugins` 的贡献校验（`contrib_test.go`，含图标不在列表里、图片当图标）；`plugins/script` 的 `TestScriptPanel`（按参数挂对应的导出、函数载入不挂、抛错显示 Fallback、每次构建一个新 Host、三次失败停用）、`TestScriptPanelShowsWhatItsModuleMounts`（入口模块挂上的根是函数、重新渲染成两个节点后仍只出现一份；换成 `tsx.View.Export` 渲染时这个测试会失败，见上面的 NSGo 缺口）、`TestScriptPanelPastItsBudget`、`TestScriptPanelWatchdogStopsABusyPanel`（setInterval 让引擎忙的面板按 `slow` 停）、`TestScriptPanelWatchdogStopsAGrowingPanel`（一直留着字符串的面板按 `memory` 停）和 `TestScriptPanelWatchdogSparesAQuietPanel`（app 自己忙时安静的面板不被停）；不变量测试改成 `tsx.View` 只能在 `plugins/script` 的非测试代码里、`Sandbox` 字段是 `Sandbox(...)` 的字面量、并且写成 `tsx.View{…}.Render` 当场渲染（不能先放进变量再改字段），并要求至少有一处；`film` 的 `TestThePanelShowsTheExtensions`、`TestTabLabelsFit` 和 `TestEveryPanelIconIsDrawn`；app 的 `TestPluginPanels`（打开播放器、出现「扩展」、面板经授权读当前行、播放换句时收到 `line.changed` 且不重建、一轮里的多次换句合成一个事件、换到会抛错的面板显示出错而播放器还在、出错时没有 Host 收事件、重试也算失败、三次失败停用插件并记 health、选择存进 settings.json、标签消失）和 `TestPluginPanelsGoWithThePlugin`。截图场景 `plugins-script-panel` 在 Linux 上按中、英、日跑了无头断言（含标签宽度），协调方在 macOS 上出了中文的图。
+- 授权页补齐（已完成）：6.2、6.6、6.7、7.1、7.2、7.3 已同步改过。和正文、和审计时的提议的出入如下：
+  - 6.2 原来写「勾一项时，它依赖的能力一起勾上（例如 `llm.chat` 依赖 `lines.seen`）」。实际上没有任何 handler 依赖另一项权限，`llm.chat` 也不读字幕，所以没有做自动勾选，改成如实写「没有依赖」；将来真有依赖时再在 `plugins/perm.go` 加。
+  - 「规则限制不了」只看网络规则（路径是 `/` 或前缀是 `/`），不看凭据的 pathPrefixes。kando-plugins 仓库 CONTRIBUTING 里的同一句不在本仓库，没有改。
+  - 6.7 的五条里上授权页的是三条（见 6.7 最后一条）。凭据库那一条按 `runtime.GOOS` 判断（`pluginsKeysShared`，macOS 以外都写），所以在 macOS 上出的截图里没有这一行。
+  - 「需要授权」「离线时不可用」放在 `PluginScript.Problem` 里，和其余停用原因共用行内和详情顶上的位置，排在它们后面。「需要授权」对刚装好的插件也显示，因为这时下一步正是授权；它不灰掉开关，插件照样能按已授予的部分运行。
+  - 详情原来的标题「权限」（`settingsPluginsPermissions`）换成了四组的标题，旧键从五份 catalog 里删掉了。
+  - 脚本插件的安装记录原来在 `plugins.Swap` 之前写，现在和数据包一起在包放到位之后写，装失败的不再记成安装。
+  - 截图场景：`plugins-script-install`、`plugins-script-install-official`（大小、规则限制不了、残余风险）、`plugins-script-details`（四组标题、需要授权、规则限制不了、残余风险）、`plugins-script-credential`（「联网」组标题、残余风险）变了，新增 `plugins-script-rows`（一行需要授权、一行离线时不可用）。
+  - 测试：`plugins` 的 `TestScriptGrantStates`（分组、`Missing`、`Online`、`Unscoped`、`Size`）；根目录的 `TestPluginScriptGrantPage`（确认框的大小和两行、详情的分组和顺序、行内的两种状态、取消、安装和授权的审计记录）、`TestPluginScriptKeysSharedWithOtherPrograms`、`TestPluginsAuditLog`（取消、site 包安装带域名、逐域名同意和撤回、卸载），`TestPluginTaskRunsOnTheFilmSoFar` 加了 task 包开关和 token 的审计记录。
 
 ### P3.0 spike 的测量结果
 

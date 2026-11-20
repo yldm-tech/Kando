@@ -17,8 +17,10 @@ const (
 // The events of the audit log (Audit).
 const (
 	AuditInstall     = "install"
+	AuditCancel      = "cancel"
 	AuditUninstall   = "uninstall"
 	AuditGrant       = "grant"
+	AuditSite        = "site"
 	AuditEnable      = "enable"
 	AuditDisable     = "disable"
 	AuditStopped     = "stopped"

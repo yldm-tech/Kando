@@ -7962,9 +7962,35 @@ settingsPluginsSourceVerified:
 settingsPluginsUpdated:
   message: "This update asks for more than before. Look over its permissions again."
   description: "Plugin details: note when an update of a script plugin asks for permissions the version before did not."
-settingsPluginsPermissions:
-  message: "Permissions"
-  description: "Plugin details: heading of what a script plugin may do, each with a switch that grants it."
+settingsPluginsGroupRead:
+  message: "Read Your Content"
+  description: "Plugin details: heading of the permissions that let a script plugin read the film, its subtitles, the saved lines or the words, each with a switch that grants it."
+settingsPluginsGroupChange:
+  message: "Change Your Content"
+  description: "Plugin details: heading of the permissions that let a script plugin change what the user sees, such as showing a message in the window, each with a switch that grants it."
+settingsPluginsGroupNetwork:
+  message: "Network"
+  description: "Plugin details: heading of the permissions that let a script plugin reach out of Kando: the network, a key sent through Kando, a page opened in the browser."
+settingsPluginsGroupAI:
+  message: "Use Your AI"
+  description: "Plugin details: heading of the permission that lets a script plugin ask the user's AI service, which spends the user's tokens."
+settingsPluginsUnscoped:
+  message: "Every action of {hosts} goes through one address, so this rule cannot limit which ones the plugin performs."
+  description: "Install confirmation and plugin details: under a script plugin's network permission, when a rule reaches a service whose actions all share one address, as AnkiConnect's."
+  placeholders:
+    hosts: { type: "String", example: "127.0.0.1:8765" }
+settingsPluginsResidual:
+  message: "Kando turns off a plugin that hangs or takes too much memory, but the window may freeze for a moment before it does."
+  description: "Install confirmation and plugin details: a risk of every script plugin that Kando's limits cannot remove."
+settingsPluginsSharedKeys:
+  message: "Other programs you run on this computer can read the keys you save for it."
+  description: "Install confirmation and plugin details: on Windows and Linux, whose secure store is open to the user's other programs, under the keys a script plugin asks for."
+settingsPluginsNeedsGrant:
+  message: "Needs permissions"
+  description: "Plugins page: in place of a script plugin's version, when the user has not granted a permission it needs."
+settingsPluginsOfflineUnavailable:
+  message: "Unavailable offline"
+  description: "Plugins page: in place of a script plugin's version, when offline mode is on and the plugin needs the network or the user's AI service."
 settingsPluginsRisky:
   message: "It can read your subtitles and reach the network: what the subtitles say could lead it to send what it reads. Grant both only if you trust it."
   description: "Install confirmation and plugin details: warning when a script plugin asks to read subtitle lines and to reach the network."

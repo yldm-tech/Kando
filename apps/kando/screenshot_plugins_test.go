@@ -24,7 +24,7 @@ import (
 const pluginAnkiConnectAbout = `"author": "Kando", "name": {"en": "AnkiConnect", "zh-Hans": "推送到 Anki", "zh-Hant": "推送到 Anki", "ja": "Anki に送る", "ko": "Anki로 보내기"},
   "description": {"en": "Sends your saved lines and vocabulary as notes to Anki on this computer, through the AnkiConnect add-on.", "zh-Hans": "通过 AnkiConnect 插件，把收藏的句子和生词作为笔记发到这台电脑上的 Anki。", "zh-Hant": "透過 AnkiConnect 外掛，把收藏的句子和生詞作為筆記傳到這台電腦上的 Anki。", "ja": "AnkiConnect アドオンを通じて、保存したセリフと単語をこのコンピュータの Anki にノートとして送ります。", "ko": "AnkiConnect 애드온을 통해 저장한 대사와 단어를 이 컴퓨터의 Anki에 노트로 보냅니다."}`
 
-// TestScreenshotsPlugins renders Settings › 插件 with a glossary pack, an AI service pack and a task pack installed, the install confirmation of a third party's script plugin, verified by Kando (plugins-script-install), and of Kando's own (plugins-script-install-official) and a script plugin's details with what it was granted (plugins-script-details), and with two dictionary packs, which move up and down, the details of one open (settings-plugins-dictionaries), the install confirmation of a pack over the main window, as a pack from 从文件安装… or the command line's inbox shows it, and of a site pack with a checkbox for each of its sites (plugins-install-site), the card of a word on the picture that a dictionary pack answered, which names the dictionary and its credit (plugins-lookup), and a Japanese line with readings over its words, a line in the color of their level under the words of a word list and a dashed one under a word in the vocabulary (plugins-marks), the side panel with a task pack's reply as cards (plugins-task), 翻译 with a translate-style pack's style chosen (plugins-translate-style), the Saved Lines sheet with three lines saved and an export template chosen (plugins-export-template), the sheet that exports the glossary as a pack (plugins-export-glossary), what a script plugin contributes (shootPluginContributions), a script plugin's translator chosen in 翻译 and a card its failure names (shootPluginTranslators), and a script plugin's panel in the player's 扩展 tab (shootPluginPanels). The packs are in plugins folders of the fixture's home.
+// TestScreenshotsPlugins renders Settings › 插件 with a glossary pack, an AI service pack and a task pack installed, the install confirmation of a third party's script plugin, verified by Kando (plugins-script-install), and of Kando's own (plugins-script-install-official) and a script plugin's details with what it was granted (plugins-script-details), the rows of a script plugin that needs permissions and of one unavailable offline (plugins-script-rows), and with two dictionary packs, which move up and down, the details of one open (settings-plugins-dictionaries), the install confirmation of a pack over the main window, as a pack from 从文件安装… or the command line's inbox shows it, and of a site pack with a checkbox for each of its sites (plugins-install-site), the card of a word on the picture that a dictionary pack answered, which names the dictionary and its credit (plugins-lookup), and a Japanese line with readings over its words, a line in the color of their level under the words of a word list and a dashed one under a word in the vocabulary (plugins-marks), the side panel with a task pack's reply as cards (plugins-task), 翻译 with a translate-style pack's style chosen (plugins-translate-style), the Saved Lines sheet with three lines saved and an export template chosen (plugins-export-template), the sheet that exports the glossary as a pack (plugins-export-glossary), what a script plugin contributes (shootPluginContributions), a script plugin's translator chosen in 翻译 and a card its failure names (shootPluginTranslators), and a script plugin's panel in the player's 扩展 tab (shootPluginPanels). The packs are in plugins folders of the fixture's home.
 func TestScreenshotsPlugins(t *testing.T) {
 	f := newScreenshotFixture(t)
 	root := filepath.Join(f.home, "Library", "Application Support", "Kando", "plugins")
@@ -103,7 +103,7 @@ func TestScreenshotsPlugins(t *testing.T) {
 			t.Fatalf("no dictionary's answer: %+v; texts %q", a.vocab.lookup, tt.Texts())
 		}
 	})
-	// A third party's script plugin, acme.anki, as the install confirmation shows it, certified by a key standing in for Kando's official root: published by acme and verified by Kando, what it asks for, needed and optional, the lines read together with the network flagged, and that it stays off once installed.
+	// A third party's script plugin, acme.anki, as the install confirmation shows it, certified by a key standing in for Kando's official root: published by acme and verified by Kando, what it asks for, needed and optional, that AnkiConnect's one address cannot be narrowed to an action, the lines read together with the network flagged, what Kando cannot keep a plugin from, that it stays off once installed, and its size by its version.
 	key := newPluginsKey(t)
 	f.shoot(t, "plugins-script-install", func(t *testing.T, a *app, tt *nsgotest.App, updates chan func()) {
 		a.plugins.root = filepath.Join(f.home, "scripts")
@@ -111,10 +111,10 @@ func TestScreenshotsPlugins(t *testing.T) {
 		onEngine(a, func() {
 			staged, pack, err := plugins.Stage(a.plugins.root, pluginScriptFolder(t, key, "acme.anki", "1.2.0", pluginAnkiFields, pluginAnkiCode))
 			v, err := pluginsVerifyStaged(a.pluginsStagedVerifier(), pack, err)
-			a.pluginsAskStaged(pack, staged, v, err)
+			a.pluginsAskStaged(pack, staged, v, pluginsStagedSize(pack, staged, err), err)
 		})
 		refresh(tt, a)
-		if !tt.Exists("id:plugins-install-confirm") || !tt.Exists("id:plugins-install-risky") || !hasText(tt, testlocale.Messages().SettingsPluginsInstallSourceVerified("acme")) {
+		if !tt.Exists("id:plugins-install-confirm") || !tt.Exists("id:plugins-install-risky") || !tt.Exists("id:plugins-install-unscoped") || !tt.Exists("id:plugins-install-residual") || a.plugins.pending.size <= 0 || !hasText(tt, testlocale.Messages().SettingsPluginsInstallSourceVerified("acme")) {
 			t.Fatalf("no confirmation of the script plugin: %v; texts %q", a.plugins.pending.err, tt.Texts())
 		}
 	})
@@ -125,14 +125,14 @@ func TestScreenshotsPlugins(t *testing.T) {
 		onEngine(a, func() {
 			staged, pack, err := plugins.Stage(a.plugins.root, pluginScriptFolderAbout(t, key, "kando.ankiconnect", "1.2.0", pluginAnkiConnectAbout, pluginAnkiFields, pluginAnkiCode))
 			v, err := pluginsVerifyStaged(a.pluginsStagedVerifier(), pack, err)
-			a.pluginsAskStaged(pack, staged, v, err)
+			a.pluginsAskStaged(pack, staged, v, pluginsStagedSize(pack, staged, err), err)
 		})
 		refresh(tt, a)
 		if p := a.plugins.pending; p.err != nil || p.pack.Source != plugins.SourceOfficial || !hasText(tt, testlocale.Messages().SettingsPluginsInstallSourceOfficial()) {
 			t.Fatalf("Kando's own plugin: %+v; texts %q", p.err, tt.Texts())
 		}
 	})
-	// The same plugin installed, its details open on 插件: its permissions with the saved lines and the network granted, its commands' key conflict and its settings.
+	// The same plugin installed, its details open on 插件: its permissions under the headings of their groups with the saved lines and the network granted, which leaves out the line playing it needs, as its row says, what its rule cannot narrow, its commands' key conflict, what Kando cannot keep a plugin from, and its settings.
 	f.shoot(t, "plugins-script-details", func(t *testing.T, a *app, tt *nsgotest.App, updates chan func()) {
 		root := filepath.Join(f.home, "installed")
 		pluginsScriptInstalled(t, root, pluginScriptFolder(t, key, "acme.anki", "1.2.0", pluginAnkiFields, pluginAnkiCode))
@@ -145,8 +145,22 @@ func TestScreenshotsPlugins(t *testing.T) {
 		scriptsGrant(t, a, tt, updates, "acme.anki", string(plugins.PermSavedRead), pluginsNetwork)
 		tt = settingsOpenAt(a, tt, settings.SectionPlugins)
 		tt.Press("id:settings-plugins-details-acme.anki")
-		if !tt.Exists("id:settings-plugins-grant-acme.anki-network") {
+		m := testlocale.Messages()
+		if !tt.Exists("id:settings-plugins-grant-acme.anki-network") || !tt.Exists("id:settings-plugins-unscoped-acme.anki") || !hasText(tt, m.SettingsPluginsGroupRead()) || !hasText(tt, m.SettingsPluginsGroupNetwork()) || !hasText(tt, m.SettingsPluginsNeedsGrant()) {
 			t.Fatalf("no details; texts %q", tt.Texts())
+		}
+	})
+	// The rows of two script plugins: acme.anki, granted nothing yet, needs permissions; acme.rivers, granted its key and on, is unavailable while Kando is offline.
+	f.shoot(t, "plugins-script-rows", func(t *testing.T, a *app, tt *nsgotest.App, updates chan func()) {
+		root := filepath.Join(f.home, "rows")
+		pluginsScriptInstalled(t, root, pluginScriptFolder(t, key, "acme.anki", "1.2.0", pluginAnkiFields, pluginAnkiCode))
+		screenshotRivers(t, f, a, tt, updates, key, "rows")
+		a.prefs.overMain = true
+		apply(tt, a, func() { a.privacy.offline = true })
+		tt = settingsOpenAt(a, tt, settings.SectionPlugins)
+		m := testlocale.Messages()
+		if !hasText(tt, m.SettingsPluginsNeedsGrant()) || !hasText(tt, m.SettingsPluginsOfflineUnavailable()) {
+			t.Fatalf("the rows say nothing of their states; texts %q", tt.Texts())
 		}
 	})
 	// A word task's reply on the first line's word, as the side panel shows it once the AI service answered.

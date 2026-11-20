@@ -247,7 +247,7 @@ func (a *app) pluginsIndexFollow() bool {
 	if d.err != nil {
 		pluginsIndexDiscard(d)
 		p.downloading = ""
-		a.pluginsIndexAsk(plugins.Pack{}, "", script.Verified{}, d.err)
+		a.pluginsIndexAsk(plugins.Pack{}, "", script.Verified{}, 0, d.err)
 		return true
 	}
 	gen := p.dlGen
@@ -255,6 +255,7 @@ func (a *app) pluginsIndexFollow() bool {
 	update, verify := a.update, a.pluginsStagedVerifier()
 	go func() {
 		staged, pack, v, err := pluginsIndexStage(d.entry, d.file, root, verify)
+		size := pluginsStagedSize(pack, staged, err)
 		os.RemoveAll(d.dir)
 		update(func() {
 			a.plugins.busy = false
@@ -265,15 +266,15 @@ func (a *app) pluginsIndexFollow() bool {
 				return
 			}
 			p.downloading = ""
-			a.pluginsIndexAsk(pack, staged, v, err)
+			a.pluginsIndexAsk(pack, staged, v, size, err)
 		})
 	}()
 	return true
 }
 
 // pluginsIndexAsk opens the install confirmation of a pack from the index, which says where it comes from, or says why it cannot be installed.
-func (a *app) pluginsIndexAsk(pack plugins.Pack, staged string, v script.Verified, err error) {
-	a.pluginsAskStaged(pack, staged, v, err)
+func (a *app) pluginsIndexAsk(pack plugins.Pack, staged string, v script.Verified, size int64, err error) {
+	a.pluginsAskStaged(pack, staged, v, size, err)
 	if a.plugins.pending != nil {
 		a.plugins.pending.listed = true
 	}

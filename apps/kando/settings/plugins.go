@@ -46,6 +46,8 @@ type PluginInstall struct {
 	Script *PluginScript
 	// Budget is a task pack's daily budget of tokens: the one the pack it replaces keeps, else plugins.DefaultBudget.
 	Budget int
+	// Size is how many bytes the staged pack holds, which the confirmation of a script plugin says by its version.
+	Size int64
 	// Listed is set for a pack downloaded from the community index (PluginIndexApp), which the confirmation says it comes from.
 	Listed bool
 }
@@ -458,7 +460,7 @@ func (p pluginIssues) Render(cx *core.Scope) core.Node {
 	})
 }
 
-// PluginInstallDialog is the install confirmation while Open and the app's PluginInstall say it is open: the pack's name, what it is and adds, for a task that it stays off until it is turned on and what it may spend, its version, author, license, id and the start of its hash, that it comes from a file on this computer and is not signed, and the version it replaces, for a site pack a checkbox for each of its domains, unticked unless the user allowed it for the version installed now, with 安装 and 取消; or, for a file that cannot be installed, why, with 好. 取消 is the default, so Enter and Escape install nothing. The 插件 page draws it when the settings are in a window of their own, the app's pluginsOverlay over the main window otherwise.
+// PluginInstallDialog is the install confirmation while Open and the app's PluginInstall say it is open: the pack's name, what it is and adds, for a task that it stays off until it is turned on and what it may spend, its version, author, for a script plugin its size, license, id and the start of its hash, that it comes from a file on this computer and is not signed, and the version it replaces, for a site pack a checkbox for each of its domains, unticked unless the user allowed it for the version installed now, with 安装 and 取消; or, for a file that cannot be installed, why, with 好. 取消 is the default, so Enter and Escape install nothing. The 插件 page draws it when the settings are in a window of their own, the app's pluginsOverlay over the main window otherwise.
 type PluginInstallDialog struct {
 	App  PluginsApp
 	Open func() bool
@@ -523,6 +525,9 @@ func pluginInstallDialog(cx *core.Scope, a PluginsApp, in PluginInstall, cancel 
 	version := locales.SettingsPluginsVersion(cx, p.Version)
 	if p.Author != "" {
 		version = locales.SettingsPluginsVersionAuthor(cx, p.Version, p.Author)
+	}
+	if in.Script != nil && in.Size > 0 {
+		version += " · " + byteSize(in.Size)
 	}
 	if p.Kind == plugins.KindTask {
 		children = append(children, core.Text{Content: locales.SettingsPluginsTaskInstallNote(cx, in.Budget), Style: core.Style{FontSize: 12, LineHeight: 17}, StyleFunc: ui.Colored(colors.Text)})

@@ -66,3 +66,63 @@ var Events = []string{"film.opened", "job.completed", "llm.changed", EventLineCh
 
 // EventLineChanged is the event a panel hears as the line playing changes, with the index of the line now playing, -1 for none; the line itself is kando.line.current's to give.
 const EventLineChanged = "line.changed"
+
+// PermGroup is the group a permission is listed under on a script plugin's details (docs/plugin-system.md 7.3), in the order Groups gives.
+type PermGroup int
+
+const (
+	// GroupRead reads the user's content: the film, its lines, the saved lines, the words, their sound, and the plugin's own settings.
+	GroupRead PermGroup = iota
+	// GroupChange changes what the user sees: a toast in Kando's window is the one change a plugin may make in this version.
+	GroupChange
+	// GroupNetwork reaches out of Kando: the network rules, a credential sent through Kando and a page opened in the browser, whose site hears what its address says.
+	GroupNetwork
+	// GroupAI uses the user's AI service and its tokens.
+	GroupAI
+)
+
+// Groups are the groups of permissions in the order the details list them.
+var Groups = []PermGroup{GroupRead, GroupChange, GroupNetwork, GroupAI}
+
+// Group is the group p is listed under. A plugin's network rules, granted as a whole, are GroupNetwork's too.
+func (p Perm) Group() PermGroup {
+	switch p {
+	case PermToast:
+		return GroupChange
+	case PermOpenURL, PermCredFetch:
+		return GroupNetwork
+	case PermLLMChat:
+		return GroupAI
+	}
+	return GroupRead
+}
+
+// Missing reports whether g, what the user granted the script plugin m, leaves out something m needs: a permission it does not list as optional and that needs a grant, or its network rules. The list's row says so (docs/plugin-system.md 7.1).
+func Missing(m Manifest, g Grant) bool {
+	if m.Capabilities == nil {
+		return false
+	}
+	g = g.Intersect(m.Declared())
+	for _, p := range perms(m.Capabilities.Host) {
+		if !p.Free() && !slices.Contains(m.Optional, p) && !g.Has(p) {
+			return true
+		}
+	}
+	return m.Capabilities.Network != nil && len(m.Capabilities.Network.HTTP) > 0 && len(g.Network) == 0
+}
+
+// Online reports whether the script plugin m needs what offline mode takes away (State.Effective): its network rules, a credential or the user's AI service, among what it does not list as optional.
+func Online(m Manifest) bool {
+	if m.Capabilities == nil {
+		return false
+	}
+	if m.Capabilities.Network != nil && len(m.Capabilities.Network.HTTP) > 0 {
+		return true
+	}
+	for _, p := range perms(m.Capabilities.Host) {
+		if (p == PermCredFetch || p == PermLLMChat) && !slices.Contains(m.Optional, p) {
+			return true
+		}
+	}
+	return false
+}

@@ -6,6 +6,7 @@ import (
 	"errors"
 	"net/http"
 	"slices"
+	"strconv"
 	"strings"
 	"time"
 
@@ -188,7 +189,10 @@ func (a *app) pluginsRunTask(id string) {
 		// The tokens are the user's however the reply reads, whether or not the panel still waits for it, and for a request that failed once it reached the service too (media.ChatWith counts it), so they are counted apart from the reply.
 		tokens := reply.Usage.Total()
 		if tokens > 0 {
-			update(func() { a.pluginsSpend(id, tokens) })
+			update(func() {
+				a.pluginsSpend(id, tokens)
+				a.pluginsAudit(plugins.AuditLLM, id, "tokens "+strconv.Itoa(tokens))
+			})
 		}
 		if err != nil {
 			return answered{tokens: tokens}, err

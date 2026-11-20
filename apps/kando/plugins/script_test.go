@@ -336,3 +336,59 @@ func TestScriptScanCachesAndRechecks(t *testing.T) {
 		t.Errorf("a changed package: %+v, %+v", packs, issues)
 	}
 }
+
+// TestScriptGrantStates checks what the details and the list say of a script plugin's grant: the group of each permission, whether what the user granted leaves out something it needs, whether offline mode takes away what it needs, which of its rules reach a whole service through one address, and the size of its folder.
+func TestScriptGrantStates(t *testing.T) {
+	dir := writeScript(t, scriptManifest())
+	p, err := Validate(dir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for perm, want := range map[Perm]PermGroup{PermSavedRead: GroupRead, PermSettingsGet: GroupRead, PermToast: GroupChange, PermOpenURL: GroupNetwork, PermCredFetch: GroupNetwork, PermLLMChat: GroupAI} {
+		if got := perm.Group(); got != want {
+			t.Errorf("%s is in group %d, want %d", perm, got, want)
+		}
+	}
+	declared := p.Declared()
+	// It needs saved.read, words.read and its network; settings.get needs no grant and toast is optional.
+	for _, c := range []struct {
+		g       Grant
+		missing bool
+	}{
+		{Grant{}, true},
+		{Grant{Perms: []Perm{PermSavedRead, PermWordsRead}}, true},
+		{Grant{Perms: []Perm{PermSavedRead}, Network: declared.Network}, true},
+		{Grant{Perms: []Perm{PermSavedRead, PermWordsRead}, Network: declared.Network}, false},
+		// A rule it no longer declares grants nothing.
+		{Grant{Perms: []Perm{PermSavedRead, PermWordsRead}, Network: []pkg.HTTPRule{{Host: "example.com", Methods: []string{"GET"}, Paths: []string{"/"}}}}, true},
+	} {
+		if got := Missing(p.Manifest, c.g); got != c.missing {
+			t.Errorf("Missing(%+v) = %v", c.g, got)
+		}
+	}
+	if !Online(p.Manifest) {
+		t.Error("a plugin that needs its network works offline")
+	}
+	local := p.Manifest
+	local.Capabilities = &pkg.Capabilities{Host: []string{string(PermSavedRead)}}
+	local.Optional = []Perm{PermLLMChat}
+	if Online(local) || Missing(local, Grant{Perms: []Perm{PermSavedRead}}) {
+		t.Error("a plugin that needs nothing online, with its needed permission granted")
+	}
+	local.Capabilities.Host = append(local.Capabilities.Host, string(PermLLMChat))
+	local.Optional = nil
+	if !Online(local) {
+		t.Error("a plugin that needs the AI service works offline")
+	}
+	if got := Unscoped(declared.Network); len(got) != 1 || got[0] != "127.0.0.1:8765" {
+		t.Errorf("AnkiConnect's rule reads as narrowed: %q", got)
+	}
+	narrow := []pkg.HTTPRule{{Host: "api.deepl.com", Methods: []string{"POST"}, Paths: []string{"/v2/translate"}}, {Host: "example.com", Methods: []string{"GET"}, PathPrefixes: []string{"/"}}, {Host: "example.com", Methods: []string{"POST"}, Paths: []string{"/"}}}
+	if got := Unscoped(narrow); len(got) != 1 || got[0] != "example.com" {
+		t.Errorf("unscoped %q", got)
+	}
+	n, err := Size(dir)
+	if want := int64(len(scriptManifest()) + len(scriptPackage)); err != nil || n != want {
+		t.Errorf("size %d, %v; want %d", n, err, want)
+	}
+}

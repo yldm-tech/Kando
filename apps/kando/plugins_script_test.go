@@ -9,6 +9,7 @@ import (
 	"os"
 	"path/filepath"
 	"slices"
+	"strconv"
 	"strings"
 	"testing"
 	"time"
@@ -765,5 +766,114 @@ func TestPluginsArgIsClamped(t *testing.T) {
 		if got := pluginsArg(c, "limit", 20, 500); got != tt.want {
 			t.Errorf("%v gave %d, want %d", tt.v, got, tt.want)
 		}
+	}
+}
+
+// TestPluginScriptGrantPage checks what the install confirmation and the details say of a script plugin's grant (docs/plugin-system.md 6.7, 7.1–7.3): the confirmation gives its size by its version, that AnkiConnect's one address cannot be narrowed to an action, and what Kando cannot keep a plugin from; the details list its permissions under the headings of their groups, the same two lines with them; its row says it needs permissions until what it needs is granted, and that it is unavailable offline while it needs the network; and the audit log keeps the install, the grants and a confirmation cancelled.
+func TestPluginScriptGrantPage(t *testing.T) {
+	key := newPluginsKey(t)
+	a, tt, updates, root := scriptsApp(t, key)
+	m := testlocale.Messages()
+	tt = settingsOpenAt(a, tt, settings.SectionPlugins)
+	folder := pluginScriptFolder(t, key, "acme.anki", "1.0.0", pluginAnkiFields, pluginAnkiCode)
+	// A confirmation cancelled is its answer, which the audit log keeps.
+	onEngine(a, func() { a.InstallPlugins([]string{folder}) })
+	waitUntil(t, tt, a, updates, func() bool { return a.plugins.pending != nil && !a.plugins.busy })
+	tt.Press("id:plugins-install-cancel")
+	waitUntil(t, tt, a, updates, func() bool { return a.plugins.pending == nil })
+	onEngine(a, func() { a.InstallPlugins([]string{folder}) })
+	waitUntil(t, tt, a, updates, func() bool { return a.plugins.pending != nil && !a.plugins.busy })
+	if p := a.plugins.pending; p.err != nil || p.size <= 0 {
+		t.Fatalf("staged %d bytes, %v", p.size, p.err)
+	}
+	version := m.SettingsPluginsVersionAuthor("1.0.0", "Acme") + " · "
+	if !slices.ContainsFunc(tt.Texts(), func(s string) bool { return strings.HasPrefix(s, version) && strings.HasSuffix(s, "KB") }) {
+		t.Errorf("the confirmation gives no size by the version; texts %q", tt.Texts())
+	}
+	for _, s := range []string{m.SettingsPluginsUnscoped("127.0.0.1:8765"), m.SettingsPluginsResidual()} {
+		if !hasText(tt, s) {
+			t.Errorf("the confirmation does not say %q; texts %q", s, tt.Texts())
+		}
+	}
+	// It keeps no key, so no line says other programs can read its keys.
+	if tt.Exists("id:plugins-install-shared-keys") {
+		t.Error("a plugin without keys says other programs read them")
+	}
+	tt.Press("id:plugins-install-ok")
+	waitUntil(t, tt, a, updates, func() bool {
+		return a.plugins.pending == nil && !a.plugins.busy && !a.plugins.saving && len(a.pluginsScriptPacks()) == 1 && a.pluginsScriptPacks()[0].Signer != ""
+	})
+	refresh(tt, a)
+	if !hasText(tt, m.SettingsPluginsNeedsGrant()) {
+		t.Errorf("the row of a plugin granted nothing does not say it needs permissions; texts %q", tt.Texts())
+	}
+	tt.Press("id:settings-plugins-details-acme.anki")
+	// It reads the saved lines and the line playing, may show a toast and reaches the network and opens pages; it never asks the AI service.
+	for group, want := range map[plugins.PermGroup]bool{plugins.GroupRead: true, plugins.GroupChange: true, plugins.GroupNetwork: true, plugins.GroupAI: false} {
+		if got := tt.Exists("id:settings-plugins-group-acme.anki-" + strconv.Itoa(int(group))); got != want {
+			t.Errorf("the heading of group %d shows %v", group, got)
+		}
+	}
+	for _, id := range []string{"settings-plugins-unscoped-acme.anki", "settings-plugins-residual-acme.anki"} {
+		if !tt.Exists("id:" + id) {
+			t.Errorf("the details have no %s; texts %q", id, tt.Texts())
+		}
+	}
+	// The network's switch is under the network's heading, after the saved lines' under the reading one.
+	texts := tt.Texts()
+	at := func(s string) int { return slices.Index(texts, s) }
+	if r, n, s, w := at(m.SettingsPluginsGroupRead()), at(m.SettingsPluginsGroupNetwork()), at(m.SettingsPluginsPermSavedRead()), at(m.SettingsPluginsPermNetwork(`POST http://127.0.0.1:8765 /`)); r < 0 || !(r < s && s < n && n < w) {
+		t.Errorf("headings and permissions out of order (%d %d %d %d): %q", r, s, n, w, texts)
+	}
+	for _, perm := range []string{string(plugins.PermSavedRead), string(plugins.PermLineCurrent)} {
+		tt.Press("id:settings-plugins-grant-acme.anki-" + perm)
+		waitUntil(t, tt, a, updates, func() bool { return !a.plugins.saving })
+	}
+	if !hasText(tt, m.SettingsPluginsNeedsGrant()) {
+		t.Error("the row of a plugin not granted its network does not say it needs permissions")
+	}
+	tt.Press("id:settings-plugins-grant-acme.anki-" + pluginsNetwork)
+	waitUntil(t, tt, a, updates, func() bool { return !a.plugins.saving })
+	if hasText(tt, m.SettingsPluginsNeedsGrant()) || !hasText(tt, m.SettingsPluginsVersionAuthor("1.0.0", "Acme")) {
+		t.Errorf("granted what it needs, the row still says it needs permissions; texts %q", tt.Texts())
+	}
+	tt.Press("id:settings-plugins-switch-acme.anki")
+	scriptsSettle(t, a, tt, updates, func() bool { return a.plugins.script.loaded["acme.anki"] != nil && !a.plugins.saving })
+	apply(tt, a, func() { a.privacy.offline = true })
+	if !hasText(tt, m.SettingsPluginsOfflineUnavailable()) {
+		t.Errorf("offline, the row of a plugin that needs the network says nothing; texts %q", tt.Texts())
+	}
+	apply(tt, a, func() { a.privacy.offline = false })
+	if hasText(tt, m.SettingsPluginsOfflineUnavailable()) {
+		t.Error("back online, the row still says it is unavailable")
+	}
+	scriptsSettle(t, a, tt, updates, func() bool {
+		data, _ := os.ReadFile(plugins.AuditPath(root))
+		log := string(data)
+		return strings.Contains(log, "cancel acme.anki 1.0.0") && strings.Contains(log, "install acme.anki 1.0.0 script verified") && strings.Contains(log, "grant acme.anki kando.saved.read kando.line.current network:127.0.0.1")
+	})
+}
+
+// TestPluginScriptKeysSharedWithOtherPrograms checks that the details of a plugin that keeps a key say other programs can read it where the system's secure store is open to them, as on Windows and Linux, and nowhere else.
+func TestPluginScriptKeysSharedWithOtherPrograms(t *testing.T) {
+	key := newPluginsKey(t)
+	a, tt, _, _ := scriptsApp(t, key, pluginScriptFolder(t, key, "acme.rivers", "1.0.0", pluginRiversFields, pluginRiversCode))
+	m := testlocale.Messages()
+	tt = settingsOpenAt(a, tt, settings.SectionPlugins)
+	for _, shared := range []bool{true, false} {
+		was := pluginsKeysShared
+		pluginsKeysShared = shared
+		t.Cleanup(func() { pluginsKeysShared = was })
+		var view *settings.PluginScript
+		onEngine(a, func() { view = a.pluginsScriptView(m, a.pluginsScriptPacks()[0], false) })
+		if view.SharedKeys != shared {
+			t.Errorf("shared %v: the view says %v", shared, view.SharedKeys)
+		}
+	}
+	pluginsKeysShared = true
+	refresh(tt, a)
+	tt.Press("id:settings-plugins-details-acme.rivers")
+	if !tt.Exists("id:settings-plugins-shared-keys-acme.rivers") || !hasText(tt, m.SettingsPluginsSharedKeys()) {
+		t.Errorf("no line says other programs read its key; texts %q", tt.Texts())
 	}
 }

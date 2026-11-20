@@ -30,6 +30,23 @@ func systemMetadata(name string) bool {
 	return name == finderMetadata || strings.EqualFold(name, "Thumbs.db") || strings.EqualFold(name, "desktop.ini")
 }
 
+// Size is how many bytes the files of the folder dir hold, those of its folders included, as the install confirmation of a script plugin says it (docs/plugin-system.md 7.2). Call it off the engine's goroutine.
+func Size(dir string) (int64, error) {
+	var n int64
+	err := filepath.WalkDir(dir, func(_ string, d os.DirEntry, err error) error {
+		if err != nil || !d.Type().IsRegular() {
+			return err
+		}
+		info, err := d.Info()
+		if err != nil {
+			return err
+		}
+		n += info.Size()
+		return nil
+	})
+	return n, err
+}
+
 // DefaultRoot is the plugins folder: plugins in Kando's folder of the user's configuration, beside settings.json and library.json. Packs are in <root>/<kind>/<id>, and state.json is in root.
 func DefaultRoot() string {
 	dir, err := os.UserConfigDir()

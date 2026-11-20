@@ -118,6 +118,11 @@ func (a *app) pluginsAllowSite(id, domain string, on bool) {
 		s.Set(e)
 	})
 	a.pluginsApplyState(next)
+	state := "off"
+	if on {
+		state = "on"
+	}
+	a.pluginsAudit(plugins.AuditSite, id, domain+" "+state)
 }
 
 // pluginsInstallSites are the domains of the pack of the confirmation p the user ticked, in the pack's order; none for another kind.

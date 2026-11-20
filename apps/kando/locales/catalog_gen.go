@@ -1052,6 +1052,7 @@ var Parameters = map[string][]string{
 	"SettingsPluginsVersion":                   {"version"},
 	"SettingsPluginsVersionAuthor":             {"version", "author"},
 	"SettingsPluginsWordlistDetail":            {"language", "count"},
+	"SettingsPluginsUnscoped":                  {"hosts"},
 	"SettingsPluginsInstallSourceVerified":     {"publisher"},
 	"SettingsPluginsPermNetwork":               {"rules"},
 	"SettingsPluginsConflicts":                 {"commands"},
@@ -1774,6 +1775,7 @@ type Translation struct {
 	SettingsPluginsVersion                   func(version string) string
 	SettingsPluginsVersionAuthor             func(version string, author string) string
 	SettingsPluginsWordlistDetail            func(language string, count int) string
+	SettingsPluginsUnscoped                  func(hosts string) string
 	SettingsPluginsInstallSourceVerified     func(publisher string) string
 	SettingsPluginsPermNetwork               func(rules string) string
 	SettingsPluginsConflicts                 func(commands string) string
@@ -3529,7 +3531,14 @@ const (
 	textSettingsPluginsSourceDeveloper
 	textSettingsPluginsSourceVerified
 	textSettingsPluginsUpdated
-	textSettingsPluginsPermissions
+	textSettingsPluginsGroupRead
+	textSettingsPluginsGroupChange
+	textSettingsPluginsGroupNetwork
+	textSettingsPluginsGroupAI
+	textSettingsPluginsResidual
+	textSettingsPluginsSharedKeys
+	textSettingsPluginsNeedsGrant
+	textSettingsPluginsOfflineUnavailable
 	textSettingsPluginsRisky
 	textSettingsPluginsSettings
 	textSettingsPluginsAudit
@@ -5331,7 +5340,14 @@ var keyOfText = [numTexts]string{
 	"settingsPluginsSourceDeveloper",
 	"settingsPluginsSourceVerified",
 	"settingsPluginsUpdated",
-	"settingsPluginsPermissions",
+	"settingsPluginsGroupRead",
+	"settingsPluginsGroupChange",
+	"settingsPluginsGroupNetwork",
+	"settingsPluginsGroupAI",
+	"settingsPluginsResidual",
+	"settingsPluginsSharedKeys",
+	"settingsPluginsNeedsGrant",
+	"settingsPluginsOfflineUnavailable",
 	"settingsPluginsRisky",
 	"settingsPluginsSettings",
 	"settingsPluginsAudit",
@@ -7131,7 +7147,14 @@ var textsEn = i18n.NewTexts(""+
 	"Developer"+
 	"Verified"+
 	"This update asks for more than before. Look over its permissions again."+
-	"Permissions"+
+	"Read Your Content"+
+	"Change Your Content"+
+	"Network"+
+	"Use Your AI"+
+	"Kando turns off a plugin that hangs or takes too much memory, but the window may freeze for a moment before it does."+
+	"Other programs you run on this computer can read the keys you save for it."+
+	"Needs permissions"+
+	"Unavailable offline"+
 	"It can read your subtitles and reach the network: what the subtitles say could lead it to send what it reads. Grant both only if you trust it."+
 	"Settings"+
 	"Show Audit Log"+
@@ -8928,7 +8951,14 @@ var textsEn = i18n.NewTexts(""+
 		9,
 		8,
 		71,
+		17,
+		19,
+		7,
 		11,
+		116,
+		74,
+		17,
+		19,
 		142,
 		8,
 		14,
@@ -10728,7 +10758,14 @@ var textsJa = i18n.NewTexts(""+
 	"開発者"+
 	"検証済み"+
 	"このアップデートは以前より多くの権限を求めています。権限をもう一度確認してください。"+
-	"権限"+
+	"あなたのコンテンツを読み取る"+
+	"あなたのコンテンツを変更する"+
+	"ネットワーク"+
+	"あなたの AI を使う"+
+	"プラグインが応答しなくなったりメモリを使いすぎたりすると Kando はオフにしますが、その前にウインドウが一瞬止まることがあります。"+
+	"このコンピュータで実行しているほかのプログラムも、このプラグイン用に保存したキーを読み取れます。"+
+	"権限の許可が必要"+
+	"オフラインでは使えません"+
 	"字幕を読み取ることもネットワークに接続することもできます。字幕の内容に誘導されて、読み取ったものを送信するおそれがあります。信頼できる場合だけ両方を許可してください。"+
 	"設定"+
 	"監査ログを表示"+
@@ -12525,7 +12562,14 @@ var textsJa = i18n.NewTexts(""+
 		9,
 		12,
 		126,
-		6,
+		42,
+		42,
+		18,
+		25,
+		187,
+		144,
+		24,
+		36,
 		249,
 		6,
 		21,
@@ -14325,7 +14369,14 @@ var textsKo = i18n.NewTexts(""+
 	"개발자"+
 	"확인됨"+
 	"이번 업데이트는 이전보다 많은 권한을 요청합니다. 권한을 다시 확인하세요."+
-	"권한"+
+	"내 콘텐츠 읽기"+
+	"내 콘텐츠 변경"+
+	"네트워크"+
+	"내 AI 사용"+
+	"플러그인이 멈추거나 메모리를 너무 많이 쓰면 Kando가 끄지만, 그 전에 창이 잠시 멈출 수 있습니다."+
+	"이 컴퓨터에서 실행하는 다른 프로그램도 이 플러그인을 위해 저장한 키를 읽을 수 있습니다."+
+	"권한 허용 필요"+
+	"오프라인에서는 사용할 수 없음"+
 	"자막을 읽을 수도 있고 네트워크에 연결할 수도 있습니다. 자막 내용에 유도되어 읽은 내용을 보낼 수 있습니다. 신뢰할 때만 둘 다 허용하세요."+
 	"설정"+
 	"감사 기록 보기"+
@@ -16122,7 +16173,14 @@ var textsKo = i18n.NewTexts(""+
 		9,
 		9,
 		103,
-		6,
+		20,
+		20,
+		12,
+		13,
+		132,
+		124,
+		20,
+		42,
 		191,
 		6,
 		20,
@@ -17922,7 +17980,14 @@ var textsZhHans = i18n.NewTexts(""+
 	"开发者"+
 	"已验证"+
 	"这次更新申请了比之前更多的权限，请重新查看授权。"+
-	"权限"+
+	"读取你的内容"+
+	"改动你的内容"+
+	"联网"+
+	"用你的 AI"+
+	"插件卡住或占用太多内存时，看懂会停用它，但在那之前窗口可能停顿片刻。"+
+	"这台电脑上你运行的其他程序也能读到你为它保存的密钥。"+
+	"需要授权"+
+	"离线时不可用"+
 	"它既能读取你的字幕，又能联网：字幕内容可能诱导它把读到的东西发出去。只有在信任它时才同时授予这两项。"+
 	"设置"+
 	"查看审计记录"+
@@ -19719,7 +19784,14 @@ var textsZhHans = i18n.NewTexts(""+
 		9,
 		9,
 		72,
+		18,
+		18,
 		6,
+		12,
+		102,
+		78,
+		12,
+		18,
 		150,
 		6,
 		18,
@@ -21519,7 +21591,14 @@ var textsZhHant = i18n.NewTexts(""+
 	"開發者"+
 	"已驗證"+
 	"這次更新申請了比之前更多的權限，請重新查看授權。"+
-	"權限"+
+	"讀取你的內容"+
+	"改動你的內容"+
+	"連網"+
+	"用你的 AI"+
+	"外掛卡住或占用太多記憶體時，看懂會停用它，但在那之前視窗可能停頓片刻。"+
+	"這台電腦上你執行的其他程式也能讀到你為它儲存的金鑰。"+
+	"需要授權"+
+	"離線時無法使用"+
 	"它既能讀取你的字幕，又能連網：字幕內容可能誘導它把讀到的東西傳出去。只有在信任它時才同時授予這兩項。"+
 	"設定"+
 	"查看稽核記錄"+
@@ -23316,7 +23395,14 @@ var textsZhHant = i18n.NewTexts(""+
 		9,
 		9,
 		72,
+		18,
+		18,
 		6,
+		12,
+		105,
+		78,
+		12,
+		21,
 		150,
 		6,
 		18,
@@ -25314,6 +25400,9 @@ func Supply(lang string, t Translation) {
 	}
 	if t.SettingsPluginsWordlistDetail != nil {
 		s.SettingsPluginsWordlistDetail = t.SettingsPluginsWordlistDetail
+	}
+	if t.SettingsPluginsUnscoped != nil {
+		s.SettingsPluginsUnscoped = t.SettingsPluginsUnscoped
 	}
 	if t.SettingsPluginsInstallSourceVerified != nil {
 		s.SettingsPluginsInstallSourceVerified = t.SettingsPluginsInstallSourceVerified
@@ -62693,15 +62782,122 @@ func SettingsPluginsUpdated(cx *core.Scope) string { return For(cx).SettingsPlug
 // SettingsPluginsUpdated is the package's SettingsPluginsUpdated in the language of msgs.
 func (msgs Messages) SettingsPluginsUpdated() string { return msgs.text(textSettingsPluginsUpdated) }
 
-// SettingsPluginsPermissions says "Permissions"
+// SettingsPluginsGroupRead says "Read Your Content"
 // in the language the app shows under cx.
 //
-// Plugin details: heading of what a script plugin may do, each with a switch that grants it.
-func SettingsPluginsPermissions(cx *core.Scope) string { return For(cx).SettingsPluginsPermissions() }
+// Plugin details: heading of the permissions that let a script plugin read the film, its subtitles, the saved lines or the words, each with a switch that grants it.
+func SettingsPluginsGroupRead(cx *core.Scope) string { return For(cx).SettingsPluginsGroupRead() }
 
-// SettingsPluginsPermissions is the package's SettingsPluginsPermissions in the language of msgs.
-func (msgs Messages) SettingsPluginsPermissions() string {
-	return msgs.text(textSettingsPluginsPermissions)
+// SettingsPluginsGroupRead is the package's SettingsPluginsGroupRead in the language of msgs.
+func (msgs Messages) SettingsPluginsGroupRead() string {
+	return msgs.text(textSettingsPluginsGroupRead)
+}
+
+// SettingsPluginsGroupChange says "Change Your Content"
+// in the language the app shows under cx.
+//
+// Plugin details: heading of the permissions that let a script plugin change what the user sees, such as showing a message in the window, each with a switch that grants it.
+func SettingsPluginsGroupChange(cx *core.Scope) string { return For(cx).SettingsPluginsGroupChange() }
+
+// SettingsPluginsGroupChange is the package's SettingsPluginsGroupChange in the language of msgs.
+func (msgs Messages) SettingsPluginsGroupChange() string {
+	return msgs.text(textSettingsPluginsGroupChange)
+}
+
+// SettingsPluginsGroupNetwork says "Network"
+// in the language the app shows under cx.
+//
+// Plugin details: heading of the permissions that let a script plugin reach out of Kando: the network, a key sent through Kando, a page opened in the browser.
+func SettingsPluginsGroupNetwork(cx *core.Scope) string { return For(cx).SettingsPluginsGroupNetwork() }
+
+// SettingsPluginsGroupNetwork is the package's SettingsPluginsGroupNetwork in the language of msgs.
+func (msgs Messages) SettingsPluginsGroupNetwork() string {
+	return msgs.text(textSettingsPluginsGroupNetwork)
+}
+
+// SettingsPluginsGroupAI says "Use Your AI"
+// in the language the app shows under cx.
+//
+// Plugin details: heading of the permission that lets a script plugin ask the user's AI service, which spends the user's tokens.
+func SettingsPluginsGroupAI(cx *core.Scope) string { return For(cx).SettingsPluginsGroupAI() }
+
+// SettingsPluginsGroupAI is the package's SettingsPluginsGroupAI in the language of msgs.
+func (msgs Messages) SettingsPluginsGroupAI() string { return msgs.text(textSettingsPluginsGroupAI) }
+
+// SettingsPluginsUnscoped says "Every action of {hosts} goes through one address, so this rule cannot limit which ones the plugin performs."
+// in the language the app shows under cx.
+//
+// Install confirmation and plugin details: under a script plugin's network permission, when a rule reaches a service whose actions all share one address, as AnkiConnect's.
+func SettingsPluginsUnscoped(cx *core.Scope, hosts string) string {
+	return For(cx).SettingsPluginsUnscoped(hosts)
+}
+
+// SettingsPluginsUnscoped is the package's SettingsPluginsUnscoped in the language of msgs.
+func (msgs Messages) SettingsPluginsUnscoped(hosts string) string {
+	if i18n.IsPseudo(msgs.lang) {
+		return i18n.Pseudo(msgs.lang, Messages{lang: Source, mark: true}.SettingsPluginsUnscoped(hosts))
+	}
+	for lang := msgs.lang; ; lang = i18n.Parent(lang) {
+		if f := supplied[lang].SettingsPluginsUnscoped; f != nil {
+			return f(hosts)
+		}
+		switch lang {
+		case "", "en":
+			return "Every action of " + msgs.arg(hosts) + " goes through one address, so this rule cannot limit which ones the plugin performs."
+		case "ja":
+			return hosts + " の操作はすべて同じアドレスを通るため、このルールではプラグインが行う操作を制限できません。"
+		case "ko":
+			return hosts + "의 모든 작업이 같은 주소를 거치므로 이 규칙으로는 플러그인이 하는 작업을 제한할 수 없습니다."
+		case "zh-Hans":
+			return hosts + " 的所有操作都走同一个地址，这条规则限制不了插件做哪些操作。"
+		case "zh-Hant":
+			return hosts + " 的所有操作都走同一個位址，這條規則限制不了外掛做哪些操作。"
+		}
+	}
+}
+
+// SettingsPluginsResidual says "Kando turns off a plugin that hangs or takes too much memory, but the window may freeze for a moment before it does."
+// in the language the app shows under cx.
+//
+// Install confirmation and plugin details: a risk of every script plugin that Kando's limits cannot remove.
+func SettingsPluginsResidual(cx *core.Scope) string { return For(cx).SettingsPluginsResidual() }
+
+// SettingsPluginsResidual is the package's SettingsPluginsResidual in the language of msgs.
+func (msgs Messages) SettingsPluginsResidual() string { return msgs.text(textSettingsPluginsResidual) }
+
+// SettingsPluginsSharedKeys says "Other programs you run on this computer can read the keys you save for it."
+// in the language the app shows under cx.
+//
+// Install confirmation and plugin details: on Windows and Linux, whose secure store is open to the user's other programs, under the keys a script plugin asks for.
+func SettingsPluginsSharedKeys(cx *core.Scope) string { return For(cx).SettingsPluginsSharedKeys() }
+
+// SettingsPluginsSharedKeys is the package's SettingsPluginsSharedKeys in the language of msgs.
+func (msgs Messages) SettingsPluginsSharedKeys() string {
+	return msgs.text(textSettingsPluginsSharedKeys)
+}
+
+// SettingsPluginsNeedsGrant says "Needs permissions"
+// in the language the app shows under cx.
+//
+// Plugins page: in place of a script plugin's version, when the user has not granted a permission it needs.
+func SettingsPluginsNeedsGrant(cx *core.Scope) string { return For(cx).SettingsPluginsNeedsGrant() }
+
+// SettingsPluginsNeedsGrant is the package's SettingsPluginsNeedsGrant in the language of msgs.
+func (msgs Messages) SettingsPluginsNeedsGrant() string {
+	return msgs.text(textSettingsPluginsNeedsGrant)
+}
+
+// SettingsPluginsOfflineUnavailable says "Unavailable offline"
+// in the language the app shows under cx.
+//
+// Plugins page: in place of a script plugin's version, when offline mode is on and the plugin needs the network or the user's AI service.
+func SettingsPluginsOfflineUnavailable(cx *core.Scope) string {
+	return For(cx).SettingsPluginsOfflineUnavailable()
+}
+
+// SettingsPluginsOfflineUnavailable is the package's SettingsPluginsOfflineUnavailable in the language of msgs.
+func (msgs Messages) SettingsPluginsOfflineUnavailable() string {
+	return msgs.text(textSettingsPluginsOfflineUnavailable)
 }
 
 // SettingsPluginsRisky says "It can read your subtitles and reach the network: what the subtitles say could lead it to send what it reads. Grant both only if you trust it."

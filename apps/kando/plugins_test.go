@@ -1932,6 +1932,8 @@ func TestPluginTaskRunsOnTheFilmSoFar(t *testing.T) {
 	if got := plugins.LoadUsage(root, a.pluginsDay()).Spent(a.pluginsDay(), id); got != 120 {
 		t.Fatalf("usage.json has %d tokens", got)
 	}
+	// Turning it on granted it the AI service, and what it spent is in the audit log.
+	pluginsAuditHas(t, a, tt, updates, root, "enable "+id, "llm-chat "+id+" tokens 120")
 
 	// Past its budget the pack does not ask, and says why.
 	apply(tt, a, func() {
@@ -2363,4 +2365,41 @@ func TestPluginTaskUninstallForgetsWhatItSpent(t *testing.T) {
 func pluginsEntryOf(s plugins.State, id string) plugins.PluginState {
 	e, _ := s.Entry(id)
 	return e
+}
+
+// pluginsAuditHas waits until the audit log of the plugins folder root holds each of lines, failing t after the wait waitUntil allows.
+func pluginsAuditHas(t *testing.T, a *app, tt *nsgotest.App, updates chan func(), root string, lines ...string) {
+	t.Helper()
+	waitUntil(t, tt, a, updates, func() bool {
+		data, _ := os.ReadFile(plugins.AuditPath(root))
+		for _, l := range lines {
+			if !strings.Contains(string(data), l) {
+				return false
+			}
+		}
+		return true
+	})
+}
+
+// TestPluginsAuditLog checks that the audit log keeps what the user decided of the data packs too (docs/plugin-system.md 6.6): a confirmation cancelled, an install with the domains of a site pack allowed in it, a domain allowed or no longer on the pack's details, and an uninstall.
+func TestPluginsAuditLog(t *testing.T) {
+	a, tt, updates, root := pluginsApp(t)
+	tt = settingsOpenAt(a, tt, settings.SectionPlugins)
+	tt.DropFiles("id:settings-plugins", fileURLs(pluginFolder(t, pluginGlossary))...)
+	waitUntil(t, tt, a, updates, func() bool { return a.plugins.pending != nil })
+	tt.Press("id:plugins-install-cancel")
+	waitUntil(t, tt, a, updates, func() bool { return a.plugins.pending == nil })
+	tt.DropFiles("id:settings-plugins", fileURLs(pluginFolder(t, pluginSite))...)
+	waitUntil(t, tt, a, updates, func() bool { return a.plugins.pending != nil })
+	refresh(tt, a)
+	tt.Press("id:plugins-install-site-videos.example.org")
+	tt.Press("id:plugins-install-ok")
+	waitUntil(t, tt, a, updates, func() bool { return !a.plugins.busy && len(a.plugins.packs) == 1 })
+	onEngine(a, func() { a.SetPluginSiteAllowed("example.videos", "clips.example.net", true) })
+	waitUntil(t, tt, a, updates, func() bool { return !a.plugins.busy })
+	onEngine(a, func() { a.SetPluginSiteAllowed("example.videos", "videos.example.org", false) })
+	waitUntil(t, tt, a, updates, func() bool { return !a.plugins.busy })
+	onEngine(a, func() { a.UninstallPlugin("example.videos") })
+	waitUntil(t, tt, a, updates, func() bool { return !a.plugins.busy && len(a.plugins.packs) == 0 })
+	pluginsAuditHas(t, a, tt, updates, root, "cancel example.anime-ja-zh 1.2.0", "install example.videos 1.0.0 site sites:videos.example.org", "site example.videos clips.example.net on", "site example.videos videos.example.org off", "uninstall example.videos")
 }

@@ -15,7 +15,7 @@ import (
 	"github.com/nsgo-dev/nsgo/ui"
 )
 
-// PluginScript is what the 插件 page and the install confirmation show of a script plugin, worded by the app in the interface's language: where it comes from (Source), whether its signature was verified for its content (Verified), why it does not run when Kando turned it off or refused it (Problem), that an update asked for more than the version before (Updated), the permissions it asks for with whether each is granted, the combination of reading the lines and the network flagged (Risky), and the commands whose keys were taken by Kando's own (Conflicts).
+// PluginScript is what the 插件 page and the install confirmation show of a script plugin, worded by the app in the interface's language: where it comes from (Source), whether its signature was verified for its content (Verified), why it does not run when Kando turned it off or refused it (Problem), that an update asked for more than the version before (Updated), the permissions it asks for with whether each is granted, the combination of reading the lines and the network flagged (Risky), the hosts its rules cannot narrow to an action (Unscoped), and the commands whose keys were taken by Kando's own (Conflicts).
 type PluginScript struct {
 	Source plugins.Source
 	// Publisher is the publisher its certificate covers, the segment of its id before the first dot, which a verified plugin is said to come from.
@@ -26,6 +26,10 @@ type PluginScript struct {
 	Perms     []PluginPerm
 	Risky     bool
 	Conflicts string
+	// Unscoped are the hosts of its network rules that reach every action of their service through one address (plugins.Unscoped), written out, "" for none: the rule cannot narrow what the plugin does there.
+	Unscoped string
+	// SharedKeys is set when it declares credentials on a system whose secure store other programs of the user can read, as on Windows and Linux (docs/plugin-system.md 6.7).
+	SharedKeys bool
 	// Adds are what it adds besides commands, each worded on a line: a lookup source, a subtitle format, an export target, an annotator.
 	Adds []string
 	// Credentials are the secrets of other services it sends through Kando.
@@ -37,13 +41,15 @@ type PluginCredential struct {
 	Key, Title, Hosts, Warning string
 }
 
-// PluginPerm is a permission a script plugin asks for, or its network as a whole (ID "network"): what it lets the plugin do (Text), whether the plugin can do without it (Optional), whether it is granted, and whether it needs no grant (Free), which has no switch.
+// PluginPerm is a permission a script plugin asks for, or its network as a whole (ID "network"): what it lets the plugin do (Text), whether the plugin can do without it (Optional), whether it is granted, and whether it needs no grant (Free), which has no switch, and the group the details list it under (Group).
 type PluginPerm struct {
 	ID       string
 	Text     string
 	Optional bool
 	Granted  bool
 	Free     bool
+	// Group is the group the details list it under.
+	Group plugins.PermGroup
 }
 
 // PluginScriptsApp is what the 插件 page reads and edits of the script plugins: the grants, their declared settings, developer mode and the audit log.
@@ -117,7 +123,7 @@ func pluginScriptRow(a PluginsApp, id string) (PluginScript, bool) {
 	return PluginScript{}, false
 }
 
-// pluginScriptDetail is what the details of the script plugin in r add: why it does not run, that an update asks for more, the permissions it asks for, each with a switch that grants it, needed ones first, the risky combination on a line of its own, the commands whose keys were taken, its settings, and 查看审计记录.
+// pluginScriptDetail is what the details of the script plugin in r add: why it does not run, that an update asks for more, the permissions it asks for under the headings of their groups (plugins.Groups), each with a switch that grants it, needed ones first, with what its network rules cannot narrow under them, the risky combination on a line of its own, the commands whose keys were taken, what Kando cannot keep a plugin from (docs/plugin-system.md 6.7), its keys with a line for a system that shares them with other programs, its settings, and 查看审计记录.
 //
 // Its words, the app's (the permissions, what it adds, where its keys go) and the page's own, are put in place as the region is built, which is built again when the interface's language changes, and only then, so a key half typed keeps its field otherwise.
 func pluginScriptDetail(cx *core.Scope, a PluginsApp, r PluginRow) []core.Node {
@@ -154,12 +160,23 @@ func pluginScriptDetailIn(cx *core.Scope, a PluginsApp, r PluginRow) []core.Node
 			return ""
 		}), colors.Warn, "settings-plugins-updated-"+id),
 	}
-	perms := r.Script.Perms
-	if len(perms) > 0 {
-		nodes = append(nodes, core.Text{Content: locales.SettingsPluginsPermissions(cx), Role: core.RoleHeader, Style: core.Style{FontSize: 12, LineHeight: 17, FontWeight: ui.Semibold, Margin: core.Edges{Top: 6}}, StyleFunc: ui.Colored(colors.Text)})
-	}
-	for _, p := range perms {
-		nodes = append(nodes, pluginPermRow(cx, a, id, p))
+	for _, group := range plugins.Groups {
+		var rows []core.Node
+		for _, optional := range []bool{false, true} {
+			for _, p := range r.Script.Perms {
+				if p.Group == group && p.Optional == optional {
+					rows = append(rows, pluginPermRow(cx, a, id, p))
+				}
+			}
+		}
+		if len(rows) == 0 {
+			continue
+		}
+		nodes = append(nodes, core.Text{Content: pluginPermGroupTitle(cx, group), TestID: "settings-plugins-group-" + id + "-" + strconv.Itoa(int(group)), Role: core.RoleHeader, Style: core.Style{FontSize: 12, LineHeight: 17, FontWeight: ui.Semibold, Margin: core.Edges{Top: 6}}, StyleFunc: ui.Colored(colors.Text)})
+		nodes = append(nodes, rows...)
+		if group == plugins.GroupNetwork && r.Script.Unscoped != "" {
+			nodes = append(nodes, core.Text{Content: locales.SettingsPluginsUnscoped(cx, r.Script.Unscoped), TestID: "settings-plugins-unscoped-" + id, Style: core.Style{FontSize: 12, LineHeight: 17}, StyleFunc: ui.Colored(colors.Warn)})
+		}
 	}
 	nodes = append(nodes,
 		note(live.Func(a, func() string {
@@ -169,6 +186,7 @@ func pluginScriptDetailIn(cx *core.Scope, a PluginsApp, r PluginRow) []core.Node
 			return ""
 		}), colors.Danger, "settings-plugins-risky-"+id),
 		note(live.Func(a, func() string { return row().Conflicts }), colors.Warn, "settings-plugins-conflicts-"+id),
+		core.Text{Content: locales.SettingsPluginsResidual(cx), TestID: "settings-plugins-residual-" + id, Style: core.Style{FontSize: 12, LineHeight: 17}, StyleFunc: ui.Colored(colors.Muted)},
 	)
 	if len(r.Script.Adds) > 0 {
 		nodes = append(nodes, core.Text{Content: locales.SettingsPluginsAdds(cx), Role: core.RoleHeader, Style: core.Style{FontSize: 12, LineHeight: 17, FontWeight: ui.Semibold, Margin: core.Edges{Top: 6}}, StyleFunc: ui.Colored(colors.Text)})
@@ -181,6 +199,9 @@ func pluginScriptDetailIn(cx *core.Scope, a PluginsApp, r PluginRow) []core.Node
 		for _, c := range r.Script.Credentials {
 			nodes = append(nodes, pluginCredentialRow(cx, a, id, c)...)
 		}
+		if r.Script.SharedKeys {
+			nodes = append(nodes, core.Text{Content: locales.SettingsPluginsSharedKeys(cx), TestID: "settings-plugins-shared-keys-" + id, Style: core.Style{FontSize: 12, LineHeight: 17}, StyleFunc: ui.Colored(colors.Warn)})
+		}
 	}
 	if len(r.Pack.Settings) > 0 {
 		nodes = append(nodes, core.Text{Content: locales.SettingsPluginsSettings(cx), Role: core.RoleHeader, Style: core.Style{FontSize: 12, LineHeight: 17, FontWeight: ui.Semibold, Margin: core.Edges{Top: 6}}, StyleFunc: ui.Colored(colors.Text)})
@@ -192,6 +213,19 @@ func pluginScriptDetailIn(cx *core.Scope, a PluginsApp, r PluginRow) []core.Node
 		form.Button{Text: locales.SettingsPluginsAudit(cx), TestID: "settings-plugins-audit-" + id, OnPress: live.Do(a, a.ShowPluginAudit)},
 	}})
 	return nodes
+}
+
+// pluginPermGroupTitle is the heading of the permissions of group on a script plugin's details, in the language shown under cx.
+func pluginPermGroupTitle(cx *core.Scope, group plugins.PermGroup) string {
+	switch group {
+	case plugins.GroupChange:
+		return locales.SettingsPluginsGroupChange(cx)
+	case plugins.GroupNetwork:
+		return locales.SettingsPluginsGroupNetwork(cx)
+	case plugins.GroupAI:
+		return locales.SettingsPluginsGroupAI(cx)
+	}
+	return locales.SettingsPluginsGroupRead(cx)
 }
 
 // pluginPermRow is the line of the permission p of the plugin id: what it lets the plugin do, 可选 for one it can do without, and the switch that grants it, which reads whether it is granted now; a permission that needs no grant has none.
@@ -296,7 +330,7 @@ func pluginSecretField(cx *core.Scope, a PluginsApp, id, key, title, testID stri
 	})
 }
 
-// pluginScriptInstall is what the install confirmation adds for a script plugin: where it comes from, a warning for a developer plugin, what it asks for, needed and then optional, nothing granted yet, the risky combination on a line of its own, and that it stays off until the user grants it and turns it on.
+// pluginScriptInstall is what the install confirmation adds for a script plugin: where it comes from, a warning for a developer plugin, what it asks for, needed and then optional, nothing granted yet, with what its network rules cannot narrow, its keys and whether other programs can read them, the risky combination on a line of its own, what Kando cannot keep a plugin from (docs/plugin-system.md 6.7), and that it stays off until the user grants it and turns it on.
 func pluginScriptInstall(cx *core.Scope, s PluginScript) []core.Node {
 	colors := ui.ColorsOf(cx)
 	line := func(text string, color func() core.Color) core.Node {
@@ -332,6 +366,9 @@ func pluginScriptInstall(cx *core.Scope, s PluginScript) []core.Node {
 		nodes = append(nodes, core.Text{Content: heading, Role: core.RoleHeader, Style: core.Style{FontSize: 12, LineHeight: 17, FontWeight: ui.Semibold, Margin: core.Edges{Top: 4}}, StyleFunc: ui.Colored(colors.Text)})
 		nodes = append(nodes, lines...)
 	}
+	if s.Unscoped != "" {
+		nodes = append(nodes, core.Text{Content: locales.SettingsPluginsUnscoped(cx, s.Unscoped), TestID: "plugins-install-unscoped", Style: core.Style{FontSize: 12, LineHeight: 17}, StyleFunc: ui.Colored(colors.Warn)})
+	}
 	if len(s.Adds) > 0 {
 		nodes = append(nodes, core.Text{Content: locales.SettingsPluginsAdds(cx), Role: core.RoleHeader, Style: core.Style{FontSize: 12, LineHeight: 17, FontWeight: ui.Semibold, Margin: core.Edges{Top: 4}}, StyleFunc: ui.Colored(colors.Text)})
 		for _, add := range s.Adds {
@@ -344,9 +381,13 @@ func pluginScriptInstall(cx *core.Scope, s PluginScript) []core.Node {
 			nodes = append(nodes, line(c.Warning, colors.Danger))
 		}
 	}
+	if s.SharedKeys {
+		nodes = append(nodes, core.Text{Content: locales.SettingsPluginsSharedKeys(cx), TestID: "plugins-install-shared-keys", Style: core.Style{FontSize: 12, LineHeight: 17}, StyleFunc: ui.Colored(colors.Warn)})
+	}
 	if s.Risky {
 		nodes = append(nodes, core.Text{Content: locales.SettingsPluginsRisky(cx), TestID: "plugins-install-risky", Style: core.Style{FontSize: 12, LineHeight: 17, Margin: core.Edges{Top: 4}}, StyleFunc: ui.Colored(colors.Danger)})
 	}
+	nodes = append(nodes, core.Text{Content: locales.SettingsPluginsResidual(cx), TestID: "plugins-install-residual", Style: core.Style{FontSize: 12, LineHeight: 17, Margin: core.Edges{Top: 4}}, StyleFunc: ui.Colored(colors.Muted)})
 	nodes = append(nodes, line(locales.SettingsPluginsScriptStaysOff(cx), colors.Muted))
 	return nodes
 }

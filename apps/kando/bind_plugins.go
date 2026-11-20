@@ -120,7 +120,7 @@ func (a *app) PluginInstall() settings.PluginInstall {
 	if p.err != nil {
 		return settings.PluginInstall{Open: true, Err: pluginsErrorText(m, p.err)}
 	}
-	in := settings.PluginInstall{Open: true, Pack: p.pack, Detail: settings.PluginDetail(m, p.pack), Budget: a.plugins.state.Budget(p.pack.ID), Listed: p.listed}
+	in := settings.PluginInstall{Open: true, Pack: p.pack, Detail: settings.PluginDetail(m, p.pack), Budget: a.plugins.state.Budget(p.pack.ID), Listed: p.listed, Size: p.size}
 	if p.pack.Kind == plugins.KindScript {
 		in.Script = a.pluginsScriptView(m, p.pack, true)
 	}

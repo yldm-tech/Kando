@@ -185,6 +185,24 @@ func RulesText(rules []pkg.HTTPRule) string {
 	return strings.Join(out, "; ")
 }
 
+// Unscoped are the hosts, each with its port when it names one, of the rules among rules that reach their host's root, "/", or every path under it: a service whose actions all share one address, as AnkiConnect's, which no rule can narrow to an action (docs/plugin-system.md 6.2). Each host comes once, in the rules' order.
+func Unscoped(rules []pkg.HTTPRule) []string {
+	var out []string
+	for _, r := range rules {
+		if !slices.Contains(r.Paths, "/") && !slices.Contains(r.PathPrefixes, "/") {
+			continue
+		}
+		host := r.Host
+		if r.Port != 0 {
+			host += ":" + strconv.Itoa(r.Port)
+		}
+		if !slices.Contains(out, host) {
+			out = append(out, host)
+		}
+	}
+	return out
+}
+
 // GrantEntry is the entry of the script plugin p a change of its grant starts from: its entry when the same signer's, with p's content hash, kept on only while that is the content the user turned on; else a new one, off and granted nothing, as what the user granted another signer's plugin is not this one's.
 func (s State) GrantEntry(p Pack) PluginState {
 	e, ok := s.entry(p.ID)

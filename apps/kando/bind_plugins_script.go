@@ -3,6 +3,7 @@ package main
 import (
 	"errors"
 	"os"
+	"runtime"
 	"slices"
 	"strings"
 
@@ -30,12 +31,14 @@ func (a *app) pluginsScriptView(m locales.Messages, p plugins.Pack, installing b
 	declared := p.Declared()
 	optional := func(perm plugins.Perm) bool { return slices.Contains(p.Optional, perm) }
 	for _, perm := range declared.Perms {
-		out.Perms = append(out.Perms, settings.PluginPerm{ID: string(perm), Text: pluginsPermText(m, perm), Optional: optional(perm), Granted: perm.Free() || granted.Has(perm), Free: perm.Free()})
+		out.Perms = append(out.Perms, settings.PluginPerm{ID: string(perm), Text: pluginsPermText(m, perm), Optional: optional(perm), Granted: perm.Free() || granted.Has(perm), Free: perm.Free(), Group: perm.Group()})
 	}
 	if len(declared.Network) > 0 {
-		out.Perms = append(out.Perms, settings.PluginPerm{ID: pluginsNetwork, Text: m.SettingsPluginsPermNetwork(plugins.RulesText(declared.Network)), Granted: len(granted.Network) > 0})
+		out.Perms = append(out.Perms, settings.PluginPerm{ID: pluginsNetwork, Text: m.SettingsPluginsPermNetwork(plugins.RulesText(declared.Network)), Granted: len(granted.Network) > 0, Group: plugins.GroupNetwork})
 	}
 	out.Risky = plugins.Risky(p.Manifest, declared)
+	out.Unscoped = strings.Join(plugins.Unscoped(declared.Network), ", ")
+	out.SharedKeys = pluginsKeysShared && len(p.Credentials) > 0
 	out.Adds = settings.PluginAdds(m, p.Manifest)
 	for _, c := range p.Credentials {
 		pc := settings.PluginCredential{Key: plugins.SecretKey(c.ID), Title: c.Title.In(m.Language()), Hosts: strings.Join(c.Hosts, ", ")}
@@ -47,7 +50,7 @@ func (a *app) pluginsScriptView(m locales.Messages, p plugins.Pack, installing b
 		out.Credentials = append(out.Credentials, pc)
 	}
 	if !installing {
-		out.Problem = a.pluginsScriptProblem(m, p)
+		out.Problem = a.pluginsScriptProblem(m, p, granted)
 		if a.cx != nil && s.loaded[p.ID] != nil {
 			if ids := a.pluginsConflicts(a.cx)[p.ID]; len(ids) > 0 {
 				var titles []string
@@ -63,8 +66,11 @@ func (a *app) pluginsScriptView(m locales.Messages, p plugins.Pack, installing b
 	return out
 }
 
-// pluginsScriptProblem is why the script plugin p does not run, in the words of m: why its package was refused, or why Kando turned it off (health.json); "" when nothing keeps it from running.
-func (a *app) pluginsScriptProblem(m locales.Messages, p plugins.Pack) string {
+// pluginsKeysShared reports whether this system's secure store is open to the user's other programs, as Windows' Credential Manager and Linux's Secret Service are, while macOS's keychain keeps an item to the program that wrote it (docs/plugin-system.md 6.7).
+var pluginsKeysShared = runtime.GOOS != "darwin"
+
+// pluginsScriptProblem is why the script plugin p, granted granted for its content, does not run, or not wholly, in the words of m: why its package was refused, why Kando turned it off (health.json), that it lacks a permission it needs (plugins.Missing), or that offline mode takes away what it needs (plugins.Online); "" when nothing keeps it from running.
+func (a *app) pluginsScriptProblem(m locales.Messages, p plugins.Pack, granted plugins.Grant) string {
 	s := &a.plugins.script
 	for _, issue := range s.issues {
 		if issue.Dir == p.Dir {
@@ -79,6 +85,12 @@ func (a *app) pluginsScriptProblem(m locales.Messages, p plugins.Pack) string {
 	}
 	if a.pluginsStale(p) {
 		return m.SettingsPluginsRevocationsStale()
+	}
+	if plugins.Missing(p.Manifest, granted) {
+		return m.SettingsPluginsNeedsGrant()
+	}
+	if a.privacy.offline && plugins.Online(p.Manifest) {
+		return m.SettingsPluginsOfflineUnavailable()
 	}
 	return ""
 }
