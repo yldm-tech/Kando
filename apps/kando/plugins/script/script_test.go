@@ -229,6 +229,28 @@ func TestScriptWatchdogStopsASlicedLoop(t *testing.T) {
 	}
 }
 
+// TestScriptWatchdogCutsTheRunningPiece checks that the watchdog, once it trips inside one long piece of synchronous JS, cuts that piece at once (tsx.Plugin.Interrupt) rather than waiting for it to end, as closing the plugin between two pieces would: the call ends with ErrStopped, reported slow, well before the piece's 450 ms. The piece runs on the wall clock and stays under tsx's half second call budget, so tsx does not cut it first; the bound is not widened under the race detector, which slows neither the piece nor the interrupt that ends it.
+func TestScriptWatchdogCutsTheRunningPiece(t *testing.T) {
+	const piece = 450 * time.Millisecond
+	s := newSigner(t, AppIDPrefix+"acme.*")
+	roots := s.roots()
+	e := newEngine(t)
+	pl := e.load(t, trustOf(t, roots), roots, s.pack(t, fixture{id: "acme.spin", code: fmt.Sprintf(`export async function spin() { const t = Date.now(); while (Date.now() - t < %d) {} }`, piece.Milliseconds())}), plugins.Grant{})
+	stopped := make(chan string, 1)
+	r := &Runner{Post: e.post, Watch: Watch{Beat: 20 * time.Millisecond, Stall: time.Hour, Stalls: 3, Heap: DefaultWatch.Heap, Deadline: 100 * time.Millisecond}, Stopped: func(id, hash, reason string) { stopped <- reason }}
+	start := time.Now()
+	got := wait(t, e.call(r, pl, "spin"), 10*time.Second)
+	if !errors.Is(got.err, ErrStopped) {
+		t.Fatalf("the call ended with %v, %v", got.v, got.err)
+	}
+	if d := got.at.Sub(start); d >= 300*time.Millisecond {
+		t.Errorf("the call ended after %v, not before its %v piece", d, piece)
+	}
+	if reason := <-stopped; reason != plugins.ReasonSlow {
+		t.Errorf("reported %q", reason)
+	}
+}
+
 // TestScriptWatchdogStopsGrowingMemory checks that a call that keeps what it makes, in pieces under the budget, is stopped once the heap grew past the threshold, within two seconds, and reported for its memory; and that a plugin whose module grows a little at each short call is stopped before its next call once it is past it.
 func TestScriptWatchdogStopsGrowingMemory(t *testing.T) {
 	s := newSigner(t, AppIDPrefix+"acme.*")
@@ -400,13 +422,15 @@ export function ping() { return 1 }`}), plugins.Grant{})
 	}
 }
 
-// TestScriptRunnerRunsNoJSOnAFailure checks that the runner, as it tells whether tsx stopped a plugin whose call failed, runs none of the plugin's JS: a plugin can put a getter on its own exports object, which reading a name of it runs on the engine's goroutine, outside any call's budget or watchdog, where a throw would take the engine down and a loop would hang it.
+// TestScriptRunnerRunsNoJSOnAFailure checks that the runner, as it tells whether tsx stopped a plugin whose call failed, runs none of the plugin's JS: a plugin can put a getter on its own exports object, which reading a name of it runs on the engine's goroutine, outside any call's budget or watchdog, where a throw would take the engine down and a loop would hang it. The plugin makes its exports object's prototype a Proxy that throws on any name it does not own, so a lookup of any name it does not export runs its JS, and puts a throwing enumerable getter on it, so an enumeration of its exports does too.
 func TestScriptRunnerRunsNoJSOnAFailure(t *testing.T) {
 	s := newSigner(t, AppIDPrefix+"acme.*")
 	roots := s.roots()
 	e := newEngine(t)
 	pl := e.load(t, trustOf(t, roots), roots, s.pack(t, fixture{id: "acme.trap", code: `export async function trap() {
-  for (const k of ["\u0000kando.halted", "trap2"]) Object.defineProperty(globalThis.__nsgo_exports, k, { get() { throw new Error("ran") }, enumerable: k === "trap2" })
+  const exports = globalThis.__nsgo_exports
+  Object.defineProperty(exports, "trap2", { get() { throw new Error("ran") }, enumerable: true })
+  Object.setPrototypeOf(exports, new Proxy(Object.getPrototypeOf(exports) ?? Object.create(null), { get(target, k, receiver) { if (typeof k === "string") throw new Error("ran " + k); return Reflect.get(target, k, receiver) } }))
   throw new Error("broken")
 }
 export function ping() { return 1 }`}), plugins.Grant{})
