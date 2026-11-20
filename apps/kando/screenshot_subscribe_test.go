@@ -12,20 +12,22 @@ import (
 	"github.com/nsgo-dev/nsgo/nsgotest"
 )
 
-// screenshotSubscriptions are the design's three subscriptions of 我的影片: a YouTube channel its site renamed, a bilibili collection that asks first with two new videos waiting, one too short for its rules, and a collection deleted on bilibili.
+// screenshotSubscriptions are the design's three subscriptions of 我的影片: a YouTube channel its site renamed, a bilibili collection that asks first with two new videos waiting, one too short for its rules, and a collection deleted on bilibili; the two collections are series, as the dialog makes them, and each added one video.
 func screenshotSubscriptions(f *screenshotFixture) []subscribe.Sub {
 	checked := time.Now().Add(-25 * time.Minute)
 	channel := subscribe.New("https://www.youtube.com/@earthscience", f.lib, media.Listing{Title: "Earth Science"}, checked)
 	channel.Renamed = "Earth Science Lab"
 	channel.Queued([]subscribe.Video{{URL: "https://www.youtube.com/watch?v=ooooooooooo", Title: "How Rivers Shape Landscapes"}})
 	course := subscribe.New("https://space.bilibili.com/12345/channel/collectiondetail?sid=67890", f.lib, media.Listing{Title: "线性代数的几何意义"}, checked)
-	course.Mode, course.Filter, course.Cadence = subscribe.ModeAsk, subscribe.FilterLong, subscribe.CadenceDaily
+	course.Mode, course.Filter, course.Cadence, course.Series = subscribe.ModeAsk, subscribe.FilterLong, subscribe.CadenceDaily, true
+	course.Queued([]subscribe.Video{{URL: "https://www.bilibili.com/video/BV1xx411c7mA", Title: "线性代数的几何意义 · P1 向量"}})
 	course.Hold([]subscribe.Video{
 		{URL: "https://www.bilibili.com/video/BV1xx411c7mD", Title: "线性代数的几何意义 · P3 线性变换", Duration: 14*time.Minute + 20*time.Second},
 		{URL: "https://www.bilibili.com/video/BV1xx411c7mE", Title: "线性代数的几何意义 · 预告", Duration: 48 * time.Second},
 	})
 	gone := subscribe.New("https://space.bilibili.com/24680/channel/collectiondetail?sid=13579", f.lib, media.Listing{Title: "日语听力每日一练"}, checked)
-	gone.Gone = true
+	gone.Gone, gone.Series = true, true
+	gone.Queued([]subscribe.Video{{URL: "https://www.bilibili.com/video/BV1xx411c7mB", Title: "日语听力每日一练 · 第 1 天"}})
 	return []subscribe.Sub{channel, course, gone}
 }
 
@@ -36,7 +38,9 @@ func screenshotSubscriptions(f *screenshotFixture) []subscribe.Sub {
 //   - subscribe-ask: the dialog a link is pasted in, a channel's link typed in it
 //   - subscribe-capped: the page of the channel, which adds by itself, after a check found five new videos: three joined the queue and two wait below
 //   - subscribe-card-collection: the dialog's card once a collection of 16 episodes was read, which adds them all as one series
+//   - subscribe-card-collection-off: the same card with its subscribe switch off, which only adds the episodes
 //   - subscribe-card-channel: the dialog's card once a channel was read, which asks how many of its videos to add now
+//   - subscribe-added: the page of the collection just subscribed to from the card, with the message that its 16 episodes joined the queue
 //   - subscribe-earlier: the page of a collection subscribed to before Kando added a list's episodes, which offers the 16 it left out
 //   - subscribe-paused: the page of the collection that asks first, paused
 func TestScreenshotsSubscribe(t *testing.T) {
@@ -104,6 +108,21 @@ func TestScreenshotsSubscribe(t *testing.T) {
 	}
 	f.shoot(t, "subscribe-card-collection", func(t *testing.T, a *app, tt *nsgotest.App, _ chan func()) {
 		card(t, a, tt, "https://space.bilibili.com/12345/channel/collectiondetail?sid=24680", episodes(16))
+	})
+	f.shoot(t, "subscribe-card-collection-off", func(t *testing.T, a *app, tt *nsgotest.App, _ chan func()) {
+		card(t, a, tt, "https://space.bilibili.com/12345/channel/collectiondetail?sid=24680", episodes(16))
+		tt.Press("id:subscribe-follow")
+		if a.subs.ask.choice.Subscribe {
+			t.Fatal("the switch did not turn off")
+		}
+	})
+	f.shoot(t, "subscribe-added", func(t *testing.T, a *app, tt *nsgotest.App, _ chan func()) {
+		card(t, a, tt, "https://space.bilibili.com/12345/channel/collectiondetail?sid=24680", episodes(16))
+		tt.Press("id:subscribe-submit")
+		tt.HoverOut()
+		if !tt.Exists("id:subscription-note") {
+			t.Fatalf("no message: %q", tt.Texts())
+		}
 	})
 	f.shoot(t, "subscribe-card-channel", func(t *testing.T, a *app, tt *nsgotest.App, _ chan func()) {
 		var videos []media.ListedVideo

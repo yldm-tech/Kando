@@ -188,7 +188,7 @@ func (d Ask) card(cx *ns.Scope, p Preview) ns.Node {
 		},
 		// Without the switch there is nothing to do but add, which needs a video to add.
 		Disabled: func() bool { return d.Reading() || (!following.Get() && adding.Get() == 0) }}
-	body := ns.View{Style: ns.Style{Gap: 12, AlignItems: ns.AlignStretch}, Children: children}
+	body := ns.View{Style: ns.Style{Gap: 10, AlignItems: ns.AlignStretch}, Children: children}
 	return d.dialog(cx, nil, nil, func() string { return p.Name }, []ns.Node{body}, submit, 560)
 }
 
@@ -207,7 +207,7 @@ func (d Ask) head(cx *ns.Scope, p Preview) ns.Node {
 		ns.Text{TestID: "subscribe-name", Content: p.Name, Role: ns.RoleHeader, MaxLines: 2, Style: ns.Style{FontSize: 17, LineHeight: 22, FontWeight: ui.Bold}, StyleFunc: ui.Colored(colors.Text)},
 		ns.Text{TestID: "subscribe-count", Content: count, MaxLines: 1, Style: ns.Style{FontSize: 13, LineHeight: 18}, StyleFunc: ui.Colored(colors.Muted)},
 	}}
-	return ns.View{Style: ns.Style{Direction: ns.Row, Gap: 16, AlignItems: ns.AlignCenter}, Children: []ns.Node{Thumb(p.Platform, 112, 64), titles}}
+	return ns.View{Style: ns.Style{Direction: ns.Row, Gap: 16, AlignItems: ns.AlignCenter}, Children: []ns.Node{Thumb(p.Platform, 104, 58), titles}}
 }
 
 // wholeRow says that the collection or playlist holds its count of videos, which are queued in order, with, when the link named one of them, the choice of all of them or only that one.
@@ -276,10 +276,10 @@ func (d Ask) sourceRadios(cx *ns.Scope, p Preview) ns.Node {
 			ns.View{Style: ns.Style{Direction: ns.Row, Gap: 6, AlignItems: ns.AlignCenter}, Children: line},
 			ns.Text{Content: hint, Style: ns.Style{FontSize: 11, LineHeight: 15}, StyleFunc: ui.Colored(colors.Muted)},
 		}}
-		return ui.Radio{TestID: id, Label: title, Hint: hint, Children: []ns.Node{texts}, Style: ns.Style{Padding: ns.Symmetric(8, 14)},
+		return ui.Radio{TestID: id, Label: title, Hint: hint, Children: []ns.Node{texts}, Style: ns.Style{Padding: ns.Symmetric(5, 14)},
 			Checked: func() bool { return source() == value }, OnChange: func(bool) { d.pick(func(c *Choice) { c.Source = value }) }}
 	}
-	return ui.RadioGroup{Label: locales.SubscribeAddSource(cx), TestID: "subscribe-source", Style: ns.Style{Padding: ns.Symmetric(4, 0)}, Children: []ns.Node{
+	return ui.RadioGroup{Label: locales.SubscribeAddSource(cx), TestID: "subscribe-source", Style: ns.Style{Padding: ns.Symmetric(2, 0)}, Children: []ns.Node{
 		option(core.SubtitlesPlatform, locales.AddSheetSourcePlatform(cx), locales.AddSheetSourcePlatformHint(cx), "subscribe-source-platform"),
 		option(core.SubtitlesAuto, auto, locales.AddSheetSourceAutoHint(cx), "subscribe-source-auto"),
 		option(core.SubtitlesLocal, locales.AddSheetSourceLocal(cx), locales.SubscribeAddSourceLocalHint(cx), "subscribe-source-local"),
