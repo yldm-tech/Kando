@@ -27,7 +27,7 @@ func stylePack(id, name string) plugins.Pack {
 // TestStylesDropDownKeepsItsFocus checks that the 风格预设 drop-down is not built again as the style packs turned on change: a pack turned on and one turned off update it in place, it keeps the keyboard focus, and its open list offers 不用预设 and the packs as they are.
 func TestStylesDropDownKeepsItsFocus(t *testing.T) {
 	a := &fakeStyles{packs: []plugins.Pack{stylePack("example.casual", "Casual")}}
-	app := startPluginRow(t, a, Styles{App: a})
+	app, _ := startPluginRow(t, a, Styles{App: a})
 	msgs := testlocale.Messages()
 	app.Focus("id:settings-translate-style")
 	pick := app.Find("id:settings-translate-style")
