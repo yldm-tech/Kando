@@ -20,6 +20,10 @@ import (
 	"github.com/nsgo-dev/nsgo/nsgotest"
 )
 
+// pluginAnkiConnectAbout is the author, name and description of Kando's own kando.ankiconnect (plugins/official/ankiconnect), which its install confirmation shows published by Kando.
+const pluginAnkiConnectAbout = `"author": "Kando", "name": {"en": "AnkiConnect", "zh-Hans": "推送到 Anki", "zh-Hant": "推送到 Anki", "ja": "Anki に送る", "ko": "Anki로 보내기"},
+  "description": {"en": "Sends your saved lines and vocabulary as notes to Anki on this computer, through the AnkiConnect add-on.", "zh-Hans": "通过 AnkiConnect 插件，把收藏的句子和生词作为笔记发到这台电脑上的 Anki。", "zh-Hant": "透過 AnkiConnect 外掛，把收藏的句子和生詞作為筆記傳到這台電腦上的 Anki。", "ja": "AnkiConnect アドオンを通じて、保存したセリフと単語をこのコンピュータの Anki にノートとして送ります。", "ko": "AnkiConnect 애드온을 통해 저장한 대사와 단어를 이 컴퓨터의 Anki에 노트로 보냅니다."}`
+
 // TestScreenshotsPlugins renders Settings › 插件 with a glossary pack, an AI service pack and a task pack installed, the install confirmation of a third party's script plugin, verified by Kando (plugins-script-install), and of Kando's own (plugins-script-install-official) and a script plugin's details with what it was granted (plugins-script-details), and with two dictionary packs, which move up and down, the details of one open (settings-plugins-dictionaries), the install confirmation of a pack over the main window, as a pack from 从文件安装… or the command line's inbox shows it, and of a site pack with a checkbox for each of its sites (plugins-install-site), the card of a word on the picture that a dictionary pack answered, which names the dictionary and its credit (plugins-lookup), and a Japanese line with readings over its words, a line in the color of their level under the words of a word list and a dashed one under a word in the vocabulary (plugins-marks), the side panel with a task pack's reply as cards (plugins-task), 翻译 with a translate-style pack's style chosen (plugins-translate-style), the Saved Lines sheet with three lines saved and an export template chosen (plugins-export-template), the sheet that exports the glossary as a pack (plugins-export-glossary), what a script plugin contributes (shootPluginContributions), a script plugin's translator chosen in 翻译 and a card its failure names (shootPluginTranslators), and a script plugin's panel in the player's 扩展 tab (shootPluginPanels). The packs are in plugins folders of the fixture's home.
 func TestScreenshotsPlugins(t *testing.T) {
 	f := newScreenshotFixture(t)
@@ -119,7 +123,7 @@ func TestScreenshotsPlugins(t *testing.T) {
 		a.plugins.root = filepath.Join(f.home, "official")
 		a.plugins.script.official = key.public
 		onEngine(a, func() {
-			staged, pack, err := plugins.Stage(a.plugins.root, pluginScriptFolder(t, key, "kando.ankiconnect", "1.2.0", pluginAnkiFields, pluginAnkiCode))
+			staged, pack, err := plugins.Stage(a.plugins.root, pluginScriptFolderAbout(t, key, "kando.ankiconnect", "1.2.0", pluginAnkiConnectAbout, pluginAnkiFields, pluginAnkiCode))
 			v, err := pluginsVerifyStaged(a.pluginsStagedVerifier(), pack, err)
 			a.pluginsAskStaged(pack, staged, v, err)
 		})

@@ -85,12 +85,21 @@ export async function flood() {
 }
 `
 
-// pluginScriptFolder packs the plugin id at version, of the manifest fields and code, with key, as a plugin folder ready to install.
+// pluginAnkiAbout is the author, name and description in the manifest of the script plugins of the tests, as pluginScriptFolder writes them.
+const pluginAnkiAbout = `"author": "Acme", "name": {"en": "Anki Sender", "zh-Hans": "Anki 发送器"},
+  "description": {"en": "Sends saved lines to Anki.", "zh-Hans": "把收藏的句子发到 Anki。"}`
+
+// pluginScriptFolder packs the plugin id at version, of the manifest fields and code, with key, as a plugin folder ready to install, named as pluginAnkiAbout says.
 func pluginScriptFolder(t *testing.T, key pluginsKey, id, version, fields, code string) string {
 	t.Helper()
+	return pluginScriptFolderAbout(t, key, id, version, pluginAnkiAbout, fields, code)
+}
+
+// pluginScriptFolderAbout is pluginScriptFolder with the manifest's author, name and description about, members of its object, as the screenshots name each plugin for what it does.
+func pluginScriptFolderAbout(t *testing.T, key pluginsKey, id, version, about, fields, code string) string {
+	t.Helper()
 	src := t.TempDir()
-	manifest := `{"schema": 2, "id": "` + id + `", "kind": "script", "version": "` + version + `", "license": "MIT", "author": "Acme", "name": {"en": "Anki Sender", "zh-Hans": "Anki 发送器"},
-  "description": {"en": "Sends saved lines to Anki.", "zh-Hans": "把收藏的句子发到 Anki。"}, ` + fields + `}`
+	manifest := `{"schema": 2, "id": "` + id + `", "kind": "script", "version": "` + version + `", "license": "MIT", ` + about + `, ` + fields + `}`
 	code = "export function kandoManifest() { return {" + fields + "} }\n" + code
 	if err := os.WriteFile(filepath.Join(src, plugins.ManifestName), []byte(manifest), 0o644); err != nil {
 		t.Fatal(err)
