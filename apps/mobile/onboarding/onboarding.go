@@ -85,7 +85,8 @@ func Page(cx *core.Scope, s *session.Session, done func()) core.Node {
 				// The dots sit on the picture's faded foot.
 				core.View{Style: core.Style{Gap: 18, Margin: core.Edges{Top: -40}, Padding: core.Edges{Right: 24, Bottom: 16, Left: 24}, PaddingEnv: sides(phone)}, Children: []core.Node{dots, body}},
 			}},
-		topBar(cx, finish, flow.Sending, over.Get, phone),
+		// The flow stays at its last stage once paired, which is no longer a code out.
+		topBar(cx, finish, func() bool { return flow.Sending() && !isPaired() }, over.Get, phone),
 	}}
 
 	cta := func(text func() string, testID string, press func()) core.Node {

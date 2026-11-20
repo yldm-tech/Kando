@@ -74,6 +74,8 @@ func TestScreenshotsOnboardingConnecting(t *testing.T) {
 	p.app.Type("id:pair-address", sync.PairURL{Addrs: []netip.AddrPort{d.Addr}, Code: "123456", Fingerprint: d.Fingerprint, Name: "Studio"}.String())
 	p.app.Press("id:pair-continue")
 	p.app.WaitFor("id:pair-connecting", wait)
+	// The card is under the form, the picture scrolled away under the top bar.
+	p.app.Scroll("id:onboarding-scroll", 400)
 	shot(p, "onboarding-connecting")
 }
 

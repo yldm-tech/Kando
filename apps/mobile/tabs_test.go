@@ -156,6 +156,20 @@ func TestTheIntroductionWaitsWhileItsPairingCodeIsOut(t *testing.T) {
 	p.finishPairing(d)
 }
 
+// The introduction's icon, name and Skip stay over the page as the picture scrolls away under them, on the page once the picture has gone from behind them.
+func TestTheIntroductionsTopBarStaysAsThePictureScrollsAway(t *testing.T) {
+	p := startPhone(t, "", nsgotest.Size(390, 600))
+	p.startPairing()
+	if bg := p.app.Find("id:onboarding-top").Style.Background; bg&0xff != 0 {
+		t.Fatalf("the top bar is filled %08x over the picture", bg)
+	}
+	p.app.Scroll("id:onboarding-scroll", 300)
+	p.app.WaitUntil(wait, func() bool { return p.app.Find("id:onboarding-top").Style.Background&0xff != 0 })
+	if !p.app.Exists("id:onboarding-skip") {
+		t.Fatal("Skip scrolled away with the picture")
+	}
+}
+
 // Paired at the introduction, the phone says which computer it paired with and, once that computer listed its library, how many films it holds, keeping the steps over them.
 func TestTheIntroductionCountsThePairedComputersFilms(t *testing.T) {
 	d := newDesktopWithMovies(t)
@@ -178,6 +192,9 @@ func TestTheIntroductionCountsThePairedComputersFilms(t *testing.T) {
 	}
 	if !p.app.Exists("id:pair-steps") {
 		t.Fatal("the steps went once the phone paired")
+	}
+	if p.app.Find("id:onboarding-skip").Props.Disabled {
+		t.Fatal("Skip still waits once the phone paired")
 	}
 	p.finishPairing(d)
 }
