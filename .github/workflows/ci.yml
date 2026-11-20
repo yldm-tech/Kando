@@ -47,11 +47,22 @@ jobs:
           key: go-${{ runner.os }}-${{ github.job }}-${{ matrix.name }}-${{ hashFiles('go.work.sum', '**/go.sum') }}
           restore-keys: go-${{ runner.os }}-${{ github.job }}-${{ matrix.name }}-
       # NSGo's tester (nsgotest) runs the app headless, with no window or display and an approximate text engine, so the tests need none of the system's GTK, Pango or fonts. ffmpeg runs in packages/media's tests of frames and posters, which fail without it where the row sets KANDO_REQUIRE_FFMPEG.
+      # The installs below fetch from the package mirrors (security.ubuntu.com, community.chocolatey.org), which now and then drop a connection; each tries three times and then checks that ffmpeg runs, so a failed fetch fails this step instead of leaving the tests to report ffmpeg missing.
       - name: Install ffmpeg
         if: runner.os == 'Linux'
         run: |
-          sudo apt-get update
-          sudo apt-get install -y --no-install-recommends ffmpeg
+          for attempt in 1 2 3; do
+            if sudo apt-get -o Acquire::Retries=3 update && sudo apt-get -o Acquire::Retries=3 install -y --no-install-recommends ffmpeg; then
+              break
+            fi
+            if [ "$attempt" = 3 ]; then
+              echo "::error::apt-get could not install ffmpeg"
+              exit 1
+            fi
+            echo "::warning::apt-get could not install ffmpeg (attempt $attempt), trying again"
+            sleep $((attempt * 15))
+          done
+          ffmpeg -version
       - name: Install ffmpeg
         if: runner.os == 'macOS'
         env:
@@ -61,7 +72,19 @@ jobs:
       # Chocolatey puts ffmpeg's shim in its bin folder, which the runner's PATH already holds.
       - name: Install ffmpeg
         if: runner.os == 'Windows'
-        run: choco install ffmpeg -y --no-progress
+        shell: pwsh
+        run: |
+          for ($attempt = 1; $attempt -le 3; $attempt++) {
+            choco install ffmpeg -y --no-progress
+            if ($LASTEXITCODE -eq 0 -and (Get-Command ffmpeg -ErrorAction SilentlyContinue)) {
+              ffmpeg -version
+              exit 0
+            }
+            Write-Output "::warning::choco could not install ffmpeg (attempt $attempt)"
+            if ($attempt -lt 3) { Start-Sleep -Seconds ($attempt * 15) }
+          }
+          Write-Output "::error::choco could not install ffmpeg"
+          exit 1
       # -timeout stops a test that hangs with the stacks of every goroutine, well before the job's own limit would cancel it without them.
       - name: Test
         shell: bash
