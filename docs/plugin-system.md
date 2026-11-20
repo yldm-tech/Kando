@@ -1167,7 +1167,7 @@ P1.2 的测量结果（Ubuntu 编译机，x86_64，Go 1.27.4，kagome-dict/ipa v
 
 `ipa.Dict()` 在 `DictShrink()` 之后读时是另读一份（`DictShrink` 只在完整词典先读的情况下复用它），所以增量按第三行算：常驻约 92 MiB、峰值约 109 MiB，加载约 0.6 s，都在 12.2 第 5 条的门槛（200 MiB、3 s）以内。选择：用完整 features 词典，只在桌面、只在查词用到已启用的日语词典包时（P1.4 起还有日语词表包）由 `segment.Annotated` 第一次调用时读入；手机不调 Annotated，分词照旧只用 `DictShrink`。
 
-P1.3 真实词典的测量结果（2026-11-20，Ubuntu 编译机，x86_64，24 核，NVMe，Go 1.27.4，GOGC 默认；用 `apps/kando/plugins/dict/real_test.go` 的 `TestRealDictionary`，它只在设了 `KANDO_DICT_BENCH` 时跑，每本词典在一个新进程里量；词典按 4.1 节的样子打成包：manifest 加一个词典文件；建索引之前先 `runtime.GC()`、`debug.FreeOSMemory()`，再往 `/proc/self/clear_refs` 写 5 把 VmHWM 清回当前值，所以峰值是建索引这一段的；查词是 10 个词（9 个查得到、1 个查不到，日语含按原形查的 `食べた`、`行った`）各查 1000 次，页缓存是热的；词典数据量完就删了，没有提交）：
+P1.3 真实词典的测量结果（2026-11-20，Ubuntu 编译机，x86_64，24 核，NVMe，Go 1.27.4，GOGC 默认；用 `apps/kando/plugins/dict/real_test.go` 的 `TestRealDictionary`，它只在设了 `KANDO_DICT_BENCH` 时跑，每本词典在一个新进程里量，例如在 `apps/kando` 下跑 `KANDO_DICT_BENCH=$PWD/JMdict_english.zip go test ./plugins/dict -run TestRealDictionary -v`；`go test` 在包目录里跑测试，所以路径要写绝对路径，或者相对 `apps/kando/plugins/dict` 的路径；词典按 4.1 节的样子打成包：manifest 加一个词典文件；建索引之前先 `runtime.GC()`、`debug.FreeOSMemory()`，再往 `/proc/self/clear_refs` 写 5 把 VmHWM 清回当前值，所以峰值是建索引这一段的；查词是 10 个词（9 个查得到、1 个查不到，日语含按原形查的 `食べた`、`行った`）各查 1000 次，页缓存是热的；词典数据量完就删了，没有提交）：
 
 | 词典（版本） | 文件 | zip 条目（整包） | 解压后 | `Validate` | 建索引 | 键数 | 索引 | 建索引的峰值（VmHWM 增量） | 查词 平均 / p99 / 最慢 |
 |---|---|---|---|---|---|---|---|---|---|
