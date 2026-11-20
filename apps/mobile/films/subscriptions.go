@@ -46,7 +46,9 @@ func (v *view) subscriptionRow(cx *core.Scope) core.Node {
 				colors := ui.ColorsOf(cx)
 				return core.View{TestID: "films-subscriptions-add", Role: core.RoleButton, LabelFunc: func() string { return locales.FilmsSubscriptionsAddLabel(cx) },
 					OnPress: func(core.PressEvent) { v.act.Add() },
-					Style:   core.Style{MinHeight: core.Pt(44), JustifyContent: core.JustifyCenter, Padding: core.Symmetric(0, 4), Active: &core.Style{Opacity: core.Alpha(0.6)}},
+					// The link's target reaches 44 tall past its 20-point line, so the heading's row stays the heading's 28 (design 01).
+					HitSlop: core.Edges{Top: 12, Bottom: 12},
+					Style:   core.Style{JustifyContent: core.JustifyCenter, Padding: core.Symmetric(0, 4), Active: &core.Style{Opacity: core.Alpha(0.6)}},
 					Children: []core.Node{core.Text{ContentFunc: func() string { return locales.FilmsSubscriptionsAdd(cx) }, MaxLines: 1,
 						Style: look.Subhead, StyleFunc: ui.Colored(colors.Accent)}}}
 			}},
@@ -128,11 +130,11 @@ func (v *view) subscriptionMark(cx *core.Scope, sub func() session.Subscription)
 							Style: core.Style{FontSize: 22, FontWeight: look.Heavy, Color: core.RGB(0xFFFFFF)}}}},
 					core.Show{When: func() bool { return waiting() > 0 }, Then: func(cx *core.Scope) core.Node {
 						return look.Count{TestID: "films-subscription-new-" + id, Count: waiting, Size: 20,
-							Ring: true, Style: core.Style{Position: core.Absolute, Right: core.Pt(-4), Top: core.Pt(-5)}}
+							Ring: true, Style: core.Style{Position: core.Absolute, Right: core.Pt(1), Top: core.Pt(-2.5)}}
 					}},
 				}},
-			core.View{AccessibilityElementsHidden: func() bool { return true }, Style: core.Style{Width: core.Pt(72), Margin: core.Edges{Top: 2}}, Children: []core.Node{
-				core.Text{ContentFunc: func() string { return sub().Name }, MaxLines: 1, Style: look.Footnote.Merge(core.Style{FontWeight: core.FontWeightMedium, TextAlign: core.TextAlignCenter, Width: core.Pct(100)}), StyleFunc: ui.Colored(colors.Text)},
+			core.View{AccessibilityElementsHidden: func() bool { return true }, Style: core.Style{MaxWidth: core.Pt(72), Margin: core.Edges{Top: 2}}, Children: []core.Node{
+				core.Text{ContentFunc: func() string { return sub().Name }, MaxLines: 1, Style: look.Footnote.Merge(core.Style{FontWeight: core.FontWeightMedium}), StyleFunc: ui.Colored(colors.Text)},
 			}},
 		}}
 }

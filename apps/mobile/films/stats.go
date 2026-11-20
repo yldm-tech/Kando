@@ -53,7 +53,7 @@ func statTile(cx *core.Scope, testID string, number func() int, unit, spoken, la
 		Style:     core.Style{FlexGrow: 1, FlexBasis: core.Pt(0), MinWidth: core.Pt(0), Padding: core.Symmetric(10, 12)},
 		StyleFunc: func() core.Style { return look.Card(cx) },
 		Children: []core.Node{core.View{AccessibilityElementsHidden: func() bool { return true }, Style: core.Style{Gap: 1}, Children: []core.Node{
-			core.View{TestID: testID + "-value", Style: core.Style{Direction: core.Row, AlignItems: core.AlignEnd, Gap: 2}, Children: []core.Node{
+			core.View{TestID: testID + "-value", Style: core.Style{Direction: core.Row, AlignItems: core.AlignBaseline, Gap: 2}, Children: []core.Node{
 				ui.Tabular(core.Text{ContentFunc: func() string { return strconv.Itoa(number()) }, MaxLines: 1, Style: core.Style{FontSize: 20, LineHeight: 24, FontWeight: look.Heavy, LetterSpacing: -0.4}, StyleFunc: ui.Colored(tone)}),
 				core.Text{ContentFunc: unit, MaxLines: 1, Style: core.Style{FontSize: 12, LineHeight: 15, FontWeight: core.FontWeightSemibold, FlexShrink: 1}, StyleFunc: ui.Colored(tone)},
 			}},

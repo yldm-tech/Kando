@@ -367,10 +367,7 @@ func status(cx *core.Scope, s *session.Session, desktop string, j sync.Job) stri
 		text = locales.JobsRunning(cx)
 		for _, st := range j.Steps {
 			if st.State == sync.StepRunning {
-				text = stepName(cx, st.Name)
-				if st.Progress >= 0 {
-					text = locales.JobsStepPercent(cx, text, int(st.Progress*100))
-				}
+				text = StepText(cx, st)
 			}
 		}
 	case j.State == sync.JobWaiting:
@@ -390,8 +387,16 @@ func status(cx *core.Scope, s *session.Session, desktop string, j sync.Job) stri
 	return text
 }
 
-// stepName is what a step is called.
-func stepName(cx *core.Scope, name string) string {
+// StepText is a running step as a job's line says it: its name, with how far it has gone where that is known. The Library's jobs card says it so too.
+func StepText(cx *core.Scope, st sync.Step) string {
+	if st.Progress >= 0 {
+		return locales.JobsStepPercent(cx, StepName(cx, st.Name), int(st.Progress*100))
+	}
+	return StepName(cx, st.Name)
+}
+
+// StepName is what a step is called.
+func StepName(cx *core.Scope, name string) string {
 	switch name {
 	case sync.StepDownload:
 		return locales.JobsStepDownload(cx)
@@ -443,7 +448,7 @@ func stepRow(cx *core.Scope, job string, st func() sync.Step, i func() int, movi
 				}}}},
 		core.View{Style: core.Style{FlexGrow: 1, FlexShrink: 1, Gap: 5}, Children: []core.Node{
 			core.View{Style: core.Style{Direction: core.Row, JustifyContent: core.JustifySpaceBetween, Gap: 8}, Children: []core.Node{
-				core.Text{ContentFunc: func() string { return stepName(cx, st().Name) }, MaxLines: 1, Style: look.Caption, StyleFunc: func() core.Style {
+				core.Text{ContentFunc: func() string { return StepName(cx, st().Name) }, MaxLines: 1, Style: look.Caption, StyleFunc: func() core.Style {
 					switch {
 					case running():
 						return core.Style{Color: colors.Accent(), FontWeight: core.FontWeightSemibold}
@@ -455,7 +460,7 @@ func stepRow(cx *core.Scope, job string, st func() sync.Step, i func() int, movi
 				core.Text{TestID: "jobs-step-detail-" + job + "-" + st().Name, ContentFunc: detail, MaxLines: 1, Style: look.Caption, StyleFunc: ui.Colored(colors.Muted)},
 			}},
 			// TODO(nsgo#145): ui.Progress.Label is a string only (ui/progress.go:12-19), so the bar's spoken name keeps the language it was built in; pass a LabelFunc once Progress has one https://github.com/nsgo-dev/nsgo/issues/145
-			ui.Progress{Label: stepName(cx, st().Name),
+			ui.Progress{Label: StepName(cx, st().Name),
 				Value: func() float32 {
 					switch st().State {
 					case sync.StepDone:

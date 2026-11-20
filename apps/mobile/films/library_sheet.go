@@ -27,11 +27,11 @@ func LibrarySheet(cx *core.Scope, s *session.Session, library *core.Signal[catal
 	}
 	same := func(a, b catalog.Scope) bool { return a.Desktop == b.Desktop && a.ID == b.ID && a.Name == b.Name }
 	check := func(on func() bool) core.Node {
-		return core.Show{When: on, Then: func(cx *core.Scope) core.Node { return ui.Icon(lucide.Check, 20, colors.Accent) }}
+		return core.Show{When: on, Then: func(cx *core.Scope) core.Node { return ui.Icon(lucide.Check, 16, colors.Accent) }}
 	}
-	all := look.Row{TestID: "films-library-option-0", Index: func() int { return 0 },
-		Leading: look.ColorTile(cx, lucide.Library, colors.Accent),
-		Title:   func() string { return locales.FilmsAllLibraries(cx) },
+	all := look.Row{TestID: "films-library-option-0", Index: func() int { return 0 }, MinHeight: 56,
+		Leading: libraryTile(lucide.Library, colors.Accent, colors.OnAccent),
+		Title:   func() string { return locales.FilmsAllLibraries(cx) }, TitleStyle: core.Style{FontWeight: core.FontWeightSemibold},
 		Checked: func() bool { return library.Get().Desktop == "" }, Trailing: check(func() bool { return library.Get().Desktop == "" }),
 		OnPress: func() { pick(catalog.Scope{}) }}
 	return look.Dialog{TestID: "films-library-sheet", Open: open.Get, OnClose: func() { open.Set(false) }, Title: func() string { return locales.FilmsLibraries(cx) },
@@ -41,9 +41,9 @@ func LibrarySheet(cx *core.Scope, s *session.Session, library *core.Signal[catal
 				all,
 				core.Each(libs.Get, func(l catalog.Scope) string { return l.Desktop + "/" + l.ID + "/" + l.Name }, func(cx *core.Scope, l func() catalog.Scope, i func() int) core.Node {
 					on := func() bool { return same(library.Get(), l()) }
-					return look.Row{TestID: "films-library-option-" + strconv.Itoa(i()+1), Index: func() int { return i() + 1 },
-						Leading: look.ColorTile(cx, lucide.Folder, func() core.Color { return folderFills[i()%len(folderFills)] }),
-						Title:   func() string { return l().Name }, TitleLines: 1,
+					return look.Row{TestID: "films-library-option-" + strconv.Itoa(i()+1), Index: func() int { return i() + 1 }, MinHeight: 56,
+						Leading: libraryTile(lucide.Folder, func() core.Color { return folderFills[i()%len(folderFills)] }, colors.OnAccent),
+						Title:   func() string { return l().Name }, TitleLines: 1, TitleStyle: core.Style{FontWeight: core.FontWeightSemibold},
 						// sync.Library carries no folder path (packages/sync/protocol.go:80-84), so the row says the library's computer where the design shows its folder.
 						Detail:  func() string { return l().Computer },
 						Checked: on, Trailing: check(on),
@@ -51,4 +51,12 @@ func LibrarySheet(cx *core.Scope, s *session.Session, library *core.Signal[catal
 				}),
 			}},
 		}}
+}
+
+// libraryTile is a library's tile in the sheet: a 32-point tile, 8 round, filled with fill, with icon at 16 in tint (design 16).
+func libraryTile(icon func() *core.SVG, fill, tint func() core.Color) core.Node {
+	return core.View{Style: core.Style{Width: core.Pt(32), Height: core.Pt(32), CornerRadius: 8, BorderCurve: core.BorderCurveContinuous, FlexShrink: 0,
+		AlignItems: core.AlignCenter, JustifyContent: core.JustifyCenter},
+		StyleFunc: ui.Filled(fill),
+		Children:  []core.Node{ui.IconOf(icon, 16, tint)}}
 }

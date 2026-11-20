@@ -83,9 +83,15 @@ func (v *view) card(cx *core.Scope, e func() catalog.Entry) core.Node {
 		}
 		return locales.FilmsWatchedTo(cx, at)
 	}
-	// The line it was left at, from the lines kept on the phone; a film only on its computer shows none.
+	// The line it was left at, from the lines kept on the phone; a film only on its computer shows none. The lines are read behind a memo of the film's key, so a saved position, which changes the entry every few seconds while the film plays, does not read them again: the resource loads afresh whenever its source reruns.
 	kept := func() bool { k, ok := v.s.Film(e().Key()); return ok && k.Done() }
-	lines := core.NewResource(cx, func() (string, bool) { return e().Key(), kept() }, func(ctx context.Context, key string, _ core.ResourceInfo) ([]sync.Cue, error) {
+	src := core.NewMemo(cx, func() string {
+		if kept() {
+			return e().Key()
+		}
+		return ""
+	})
+	lines := core.NewResource(cx, func() (string, bool) { k := src.Get(); return k, k != "" }, func(ctx context.Context, key string, _ core.ResourceInfo) ([]sync.Cue, error) {
 		return v.s.Lines(ctx, key)[key], nil
 	})
 	line := func() (sync.Cue, bool) {
@@ -122,10 +128,19 @@ func (v *view) card(cx *core.Scope, e func() catalog.Entry) core.Node {
 						return core.View{TestID: "films-continue-line-" + id, AccessibilityElementsHidden: func() bool { return true },
 							Style: core.Style{Position: core.Absolute, Left: core.Pt(14), Right: core.Pt(14), Bottom: core.Pt(12), AlignItems: core.AlignCenter, Gap: 2},
 							Children: []core.Node{
-								core.Text{ContentFunc: func() string { c, _ := line(); return c.Translation }, MaxLines: 1,
+								// A line not translated shows its original as the large line, alone.
+								core.Text{ContentFunc: func() string {
+									c, _ := line()
+									if c.Translation != "" {
+										return c.Translation
+									}
+									return c.Original
+								}, MaxLines: 1,
 									Style: shadow.Merge(core.Style{FontSize: 15, LineHeight: 20, FontWeight: core.FontWeightBold, Color: core.RGB(0xFFFFFF), TextAlign: core.TextAlignCenter})},
-								core.Text{ContentFunc: func() string { c, _ := line(); return c.Original }, MaxLines: 1,
-									Style: shadow.Merge(core.Style{FontSize: 12, LineHeight: 15, Color: theme.SubtitleYellow, TextAlign: core.TextAlignCenter})},
+								core.Show{When: func() bool { c, _ := line(); return c.Translation != "" }, Then: func(cx *core.Scope) core.Node {
+									return core.Text{ContentFunc: func() string { c, _ := line(); return c.Original }, MaxLines: 1,
+										Style: shadow.Merge(core.Style{FontSize: 12, LineHeight: 15, Color: theme.SubtitleYellow, TextAlign: core.TextAlignCenter})}
+								}},
 							}}
 					}},
 				}},

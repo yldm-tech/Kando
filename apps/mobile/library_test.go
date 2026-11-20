@@ -407,6 +407,50 @@ func TestATabletShowsAFilmsOptionsInADialog(t *testing.T) {
 	}
 }
 
+// A tablet upright has no sidebar, so its one-row header starts with the library switcher, beside the search and the Add pill; the films lie in a grid of cards, each with its options under its poster, and the jobs under way are the stats' fourth tile.
+func TestAnUprightTabletHeadsTheLibraryWithTheSwitcher(t *testing.T) {
+	if nsgotest.Target() != "" {
+		t.Skip("the idiom is the platform's on a target")
+	}
+	d := newDesktopWithMovies(t)
+	dir := t.TempDir()
+	p := startPhone(t, dir, pairedWith(t, d, dir), nsgotest.Size(820, 1180), nsgotest.Environment(core.Environment{Locale: lang, Idiom: core.IdiomTablet, OS: core.OSAndroid}))
+	id := store.DesktopID(d.Fingerprint)
+	p.app.WaitFor(talkRow(id), wait)
+	if p.app.Exists("id:sidebar") {
+		t.Fatal("an upright tablet shows the sidebar")
+	}
+	// The header is one row: the switcher, the title, the search and the Add pill.
+	sw, search, add := p.app.Find("id:films-library").Bounds(), p.app.Find("id:films-search").Bounds(), p.app.Find("id:films-add").Bounds()
+	mid := func(b core.Bounds) core.Points { return b.Origin.Y + b.Size.Height/2 }
+	if d := mid(sw) - mid(search); d > 4 || d < -4 || mid(add)-mid(search) > 4 || mid(add)-mid(search) < -4 {
+		t.Fatalf("the switcher %v, the search %v and Add %v are not one row", sw, search, add)
+	}
+	if !(sw.Origin.X < search.Origin.X && search.Origin.X < add.Origin.X) {
+		t.Fatalf("the header runs switcher %v, search %v, Add %v, want them in that order", sw, search, add)
+	}
+	p.app.Press("id:films-library")
+	if got, want := p.libraryLabels(), []string{msgs.FilmsAllLibraries(), "Japanese Class", "Movies"}; !slices.Equal(got, want) {
+		t.Fatalf("the switcher offers %q, want %q", got, want)
+	}
+	p.pickLibrary(0)
+
+	// The grid: three cards a row, each one's options just under its poster, at the card's end.
+	rows := p.app.Find("id:films-rows").Bounds()
+	talk, evening := p.app.Find(talkRow(id)).Bounds(), p.app.Find(filmRow(id, "f2")).Bounds()
+	if talk.Size.Width > rows.Size.Width/3 || evening.Size.Width > rows.Size.Width/3 {
+		t.Fatalf("the cards are %v and %v wide in a grid %v, want a third of it", talk, evening, rows)
+	}
+	poster := talk.Size.Width * 9 / 16
+	if opts := p.app.Find("id:films-options-" + id + "-f1").Bounds(); opts.Origin.Y < talk.Origin.Y+poster-4 || opts.Origin.Y > talk.Origin.Y+poster+2 || opts.Origin.X+opts.Size.Width < talk.Origin.X+talk.Size.Width {
+		t.Fatalf("a card's options lie at %v, want under its poster at the end of the card %v", opts, talk)
+	}
+
+	// A job under way shows as the stats' fourth tile, not a card under them.
+	moved(d, "job1", "https://youtu.be/night000001", sync.JobRunning, 0, 0.5)
+	p.app.WaitFor("id:films-stats >> id:films-jobs-card", wait)
+}
+
 // A film a job on the computer added shows in the Library once the phone hears the job finish, without pulling to refresh.
 func TestTheLibraryShowsTheFilmAJobAdded(t *testing.T) {
 	d := newDesktop(t)
@@ -479,15 +523,26 @@ func TestTheLibrarySaysWhenTheStorageFails(t *testing.T) {
 	}
 }
 
-// Before a computer is paired the Library's Add leads to pairing, which a link needs first, and the switcher does not show.
+// Before a computer is paired the Library's Add leads to pairing, which a link needs first; the switcher shows only while the phone keeps films, offering their libraries (design 08).
 func TestTheLibrarysAddPairsFirst(t *testing.T) {
+	empty := startPhone(t, t.TempDir())
+	empty.app.WaitFor("id:onboarding-skip", wait)
+	empty.app.Press("id:onboarding-skip")
+	empty.app.WaitFor("id:films-unpaired", wait)
+	if empty.app.Exists("id:films-library") {
+		t.Fatal("the switcher shows with no computer paired and no film on the phone")
+	}
+
 	dir := t.TempDir()
 	keepTalk(t, dir)
 	p := startPhone(t, dir)
 	p.app.WaitFor("id:films-unpaired", wait)
-	if p.app.Exists("id:films-library") {
-		t.Fatal("the switcher shows with no computer paired")
+	p.app.WaitFor("id:films-library", wait)
+	p.app.Press("id:films-library")
+	if got, want := p.libraryLabels(), []string{msgs.FilmsAllLibraries(), "Japanese Class"}; !slices.Equal(got, want) {
+		t.Fatalf("the switcher offers %q unpaired, want %q", got, want)
 	}
+	p.pickLibrary(0)
 	p.app.Press("id:films-add")
 	p.app.WaitFor("id:pair-page", wait)
 }

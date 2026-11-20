@@ -1808,7 +1808,7 @@ var textsEn = i18n.NewTexts(""+
 	"Other sites"+
 	"YouTube"+
 	"Streak"+
-	"Watched today"+
+	"watched today"+
 	"New words"+
 	"New films the computer processes can’t upload. Make room in your storage, or delete old films on the computer."+
 	"Your storage is full"+
@@ -7901,7 +7901,7 @@ func (msgs Messages) FilmCancel() string { return msgs.text(textFilmCancel) }
 // FilmDelete says "Delete offline files from this device"
 // in the language the app shows under cx.
 //
-// Spoken name of the trash button in a downloaded film's header, which deletes it from the phone.
+// Spoken name of the trash button in a downloaded film's header, and the label of the row in the Library's film options sheet that does the same: deletes the film's files from the phone, keeping it in the computer's library.
 func FilmDelete(cx *core.Scope) string { return For(cx).FilmDelete() }
 
 // FilmDelete is the package's FilmDelete in the language of msgs.
@@ -8953,10 +8953,10 @@ func FilmsStatStreak(cx *core.Scope) string { return For(cx).FilmsStatStreak() }
 // FilmsStatStreak is the package's FilmsStatStreak in the language of msgs.
 func (msgs Messages) FilmsStatStreak() string { return msgs.text(textFilmsStatStreak) }
 
-// FilmsStatToday says "Watched today"
+// FilmsStatToday says "watched today"
 // in the language the app shows under cx.
 //
-// Library stats tile: label under the minutes of films played today.
+// Library stats tile: label under the minutes of films played today, read on from the number and its unit ("12 min watched today"), so lower case in English.
 func FilmsStatToday(cx *core.Scope) string { return For(cx).FilmsStatToday() }
 
 // FilmsStatToday is the package's FilmsStatToday in the language of msgs.

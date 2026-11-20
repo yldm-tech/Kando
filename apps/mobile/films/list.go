@@ -189,12 +189,12 @@ func (v *view) switcher(cx *core.Scope) core.Node {
 	}
 	return base.Button{TestID: "films-library", LabelFunc: func() string { return locales.FilmsLibrary(cx, LibraryName(cx, v.library)) }, OnPress: func(core.PressEvent) { v.act.PickLibrary() },
 		Style: core.Style{Direction: core.Row, AlignItems: core.AlignCenter, Gap: 6, Height: core.Pt(32), Padding: core.Edges{Left: 4, Right: 10}, CornerRadius: 16, FlexShrink: 1, MinWidth: core.Pt(0),
-			Margin: core.Edges{Left: -4}, Active: &core.Style{Opacity: core.Alpha(0.6)}},
+			Active: &core.Style{Opacity: core.Alpha(0.6)}},
 		StyleFunc: func() core.Style { return core.Style{FocusVisible: ui.FocusRing(cx, -2)} },
 		Children: []core.Node{
 			core.Image{Source: brand.Icon(), ResizeMode: core.Cover, ElementsHidden: true, Style: core.Style{Width: core.Pt(26), Height: core.Pt(26), CornerRadius: 6, BorderCurve: core.BorderCurveContinuous, FlexShrink: 0}},
-			core.Text{ContentFunc: name, MaxLines: 1, Style: core.Style{FontSize: 13, LineHeight: 18, FontWeight: core.FontWeightSemibold, FlexShrink: 1}, StyleFunc: ui.Colored(colors.Text)},
-			ui.Icon(lucide.ChevronDown, 11, colors.Muted),
+			core.Text{ContentFunc: name, MaxLines: 1, Style: core.Style{FontSize: 13, LineHeight: 18, FontWeight: core.FontWeightSemibold, FlexShrink: 1}, StyleFunc: ui.Colored(theme.Of(cx).Subtext)},
+			ui.Icon(lucide.ChevronDown, 9, colors.Muted),
 		}}
 }
 
@@ -336,13 +336,13 @@ func (v *view) row(cx *core.Scope, r func() catalog.Result, i func() int) core.N
 					return ui.Progress{Label: locales.FilmDownload(cx), Value: func() float32 { t, _ := transfer(); return t.Fraction() * 100 }, Style: core.Style{Margin: core.Edges{Top: 2}}}
 				}},
 			}},
-			v.more(cx, r, id),
+			v.more(cx, r, id, 44),
 		}}
 }
 
-// more is a film's options button: the design's grey dots in a 44-point target.
-func (v *view) more(cx *core.Scope, r func() catalog.Result, id string) core.Node {
-	return ui.IconButton{TestID: "films-options-" + id, Icon: dotsIcon, Variant: ui.IconButtonGhost, Size: 44, IconSize: 16, Tint: func() core.Color { return theme.TabInactive },
+// more is a film's options button: the design's grey dots in a target size points square.
+func (v *view) more(cx *core.Scope, r func() catalog.Result, id string, size core.Points) core.Node {
+	return ui.IconButton{TestID: "films-options-" + id, Icon: dotsIcon, Variant: ui.IconButtonGhost, Size: size, IconSize: 16, Tint: func() core.Color { return theme.TabInactive },
 		LabelFunc: func() string { return locales.FilmsOptions(cx, r().Film.Title) }, OnPress: func() { v.options(cx, r().Entry) }}
 }
 
@@ -351,7 +351,7 @@ func dotsIcon() *core.SVG { return dots }
 
 var dots = core.MustParseSVG([]byte(`<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 16 16" fill="currentColor"><circle cx="2" cy="8" r="2"/><circle cx="8" cy="8" r="2"/><circle cx="14" cy="8" r="2"/></svg>`))
 
-// cell is a film of a tablet's grid: its poster with its length and how far it was watched, its title, its meta and the line a search found, and its options at the poster's foot. Pressed, it does what a row does.
+// cell is a film of a tablet's grid: its poster with its length and how far it was watched, its title, its meta and the line a search found, and its options beside the title, at the poster's foot. Pressed, it does what a row does.
 func (v *view) cell(cx *core.Scope, r func() catalog.Result) core.Node {
 	colors := ui.ColorsOf(cx)
 	key := func() string { return r().Key() }
@@ -369,12 +369,14 @@ func (v *view) cell(cx *core.Scope, r func() catalog.Result) core.Node {
 			Children: []core.Node{
 				v.thumb(cx, func() catalog.Entry { return r().Entry }, 0, 14),
 				core.View{Style: core.Style{Gap: 4}, Children: []core.Node{
-					core.Text{ContentFunc: func() string { return r().Film.Title }, MaxLines: 2, Style: core.Style{FontSize: 17, LineHeight: 22, FontWeight: core.FontWeightBold}, StyleFunc: ui.Colored(colors.Text)},
+					core.Text{ContentFunc: func() string { return r().Film.Title }, MaxLines: 2, Style: core.Style{FontSize: 15, LineHeight: 20, FontWeight: core.FontWeightBold, Padding: core.Edges{Right: 30}}, StyleFunc: ui.Colored(colors.Text)},
 					v.meta(cx, r, v.detailTone(cx, key)),
 					v.hit(cx, r, id),
 				}},
 			}},
-		core.View{Style: core.Style{Position: core.Absolute, Right: core.Pt(8), Top: core.Pt(0)}, Children: []core.Node{v.more(cx, r, id)}},
+		// The options sit beside the title, just under the poster (FP-23: a 40-point button 8 past the card's end, 2 over the poster's foot): a box the poster's size, over it and letting presses through, holds them at its foot. They stay out of the card's button, which assistive technology reads as one.
+		core.View{PointerEvents: core.PointerEventsBoxNone, Style: core.Style{Position: core.Absolute, Left: core.Pt(8), Right: core.Pt(8), Top: core.Pt(0), AspectRatio: 16.0 / 9},
+			Children: []core.Node{core.View{Style: core.Style{Position: core.Absolute, Right: core.Pt(-8), Bottom: core.Pt(-38)}, Children: []core.Node{v.more(cx, r, id, 40)}}}},
 	}}
 }
 

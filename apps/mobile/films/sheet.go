@@ -103,8 +103,8 @@ func (v *view) optionsNode(cx *core.Scope) core.Node {
 				Style: core.Style{Position: core.Absolute, Left: core.Pt(0), Top: core.Pt(0), Right: core.Pt(0), Bottom: core.Pt(0)}}}},
 		core.View{Style: core.Style{FlexGrow: 1, FlexShrink: 1, MinWidth: core.Pt(0), Gap: 2}, Children: []core.Node{
 			core.Text{TestID: "films-options-title", ContentFunc: func() string { return entry().Film.Title }, Role: core.RoleHeader, MaxLines: 2,
-				Style: core.Style{FontSize: 17, LineHeight: 22, FontWeight: core.FontWeightBold}, StyleFunc: ui.Colored(colors.Text)},
-			core.Text{ContentFunc: meta, MaxLines: 1, Style: look.Caption, StyleFunc: ui.Colored(colors.Muted)},
+				Style: core.Style{FontSize: 16, LineHeight: 21, FontWeight: core.FontWeightBold}, StyleFunc: ui.Colored(colors.Text)},
+			core.Text{ContentFunc: meta, MaxLines: 1, Style: look.Footnote, StyleFunc: ui.Colored(colors.Muted)},
 		}},
 	}}
 	return look.Dialog{TestID: "films-options-sheet", Open: func() bool { return v.sheet.Get().open }, OnClose: close, Title: func() string { return entry().Film.Title }, Header: header,
@@ -115,7 +115,7 @@ func (v *view) optionsNode(cx *core.Scope) core.Node {
 					tone = look.ToneDanger
 				}
 				return look.Row{TestID: "films-option-" + strconv.Itoa(i()), Index: i, Title: func() string { return o().label }, TitleTone: tone,
-					Value: func() string { return o().value },
+					Value: func() string { return o().value }, ValueStyle: look.Caption,
 					OnPress: func() {
 						do := o().do
 						close()

@@ -170,9 +170,9 @@ func Page(cx *core.Scope, s *session.Session, act Actions) base.NavPage {
 		}
 		return []core.HeaderSymbol{{Name: "plus", Label: addLabel()}}
 	}}
-	// The switcher heads the page over the title where no sidebar names the library (critic U6: a tablet upright has none), once a computer is paired.
+	// The switcher heads the page over the title where no sidebar names the library (critic U6: a tablet upright has none), once a computer is paired or while films kept on the phone list without one, as their libraries are still the phone's to pick (design 08).
 	if act.PickLibrary != nil {
-		head.Leading = core.Show{When: func() bool { return paired() && !shell.Sidebar(cx) }, Then: v.switcher}
+		head.Leading = core.Show{When: func() bool { return (paired() || len(v.entries.Get()) > 0) && !shell.Sidebar(cx) }, Then: v.switcher}
 	}
 	return look.TabRootWith(cx, base.NavPage{TestID: "films-page", Children: []core.Node{body, v.optionsNode(cx)}}, head)
 }
@@ -235,7 +235,7 @@ func (v *view) scoped() []catalog.Entry {
 // resumable are the films to go on with, of the library the switcher shows.
 func (v *view) resumable() []catalog.Entry { return catalog.Continue(v.scoped(), continueMax) }
 
-// search is the search field over the films' titles and the lines kept on the phone: 38 tall on the fill, its magnifier in the muted ink.
+// search is the search field over the films' titles and the lines kept on the phone: 38 tall on the fill, its magnifier and placeholder in the muted ink.
 func (v *view) search(cx *core.Scope) core.Node {
 	colors := ui.ColorsOf(cx)
 	return core.View{Children: []core.Node{
@@ -244,7 +244,7 @@ func (v *view) search(cx *core.Scope) core.Node {
 			ReturnKeyType: core.ReturnKeySearch, AutoCapitalize: core.AutoCapitalizeNone, NoAutoCorrect: true,
 			Style: core.Style{Height: core.Pt(38), FontSize: 15, CornerRadius: 11, BorderWidth: 0, Padding: core.Edges{Left: 33, Right: 12}},
 			StyleFunc: func() core.Style {
-				return core.Style{Background: colors.Inset(), BorderColor: ui.Alpha(colors.Text(), 0)}
+				return core.Style{Background: colors.Inset(), BorderColor: ui.Alpha(colors.Text(), 0), PlaceholderColor: colors.Muted()}
 			}},
 		core.View{Style: core.Style{Position: core.Absolute, Left: core.Pt(11), Top: core.Pt(0), Bottom: core.Pt(0), JustifyContent: core.JustifyCenter, PointerEvents: core.PointerEventsNone},
 			Children: []core.Node{ui.Icon(lucide.Search, 15, colors.Muted)}},
@@ -257,7 +257,7 @@ func unpaired(cx *core.Scope, pair func()) core.Node {
 	return core.View{TestID: "films-unpaired", Style: core.Style{Padding: core.All(18), AlignItems: core.AlignCenter, Gap: 8},
 		StyleFunc: func() core.Style { return look.Card(cx) },
 		Children: []core.Node{
-			look.Laptop(74),
+			look.LaptopFront(74),
 			core.Text{ContentFunc: func() string { return locales.FilmsUnpairedTitle(cx) }, Role: core.RoleHeader,
 				Style: core.Style{FontSize: 18, LineHeight: 24, FontWeight: look.Heavy, TextAlign: core.TextAlignCenter, Margin: core.Edges{Top: 6}}, StyleFunc: ui.Colored(colors.Text)},
 			core.Text{ContentFunc: func() string { return locales.FilmsUnpairedBody(cx) }, Style: core.Style{FontSize: 14, LineHeight: 20, TextAlign: core.TextAlignCenter}, StyleFunc: ui.Colored(colors.Muted)},

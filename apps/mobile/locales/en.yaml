@@ -266,7 +266,7 @@ filmCancel:
   description: "Button on a film's page that stops its download and deletes what was downloaded."
 filmDelete:
   message: "Delete offline files from this device"
-  description: "Spoken name of the trash button in a downloaded film's header, which deletes it from the phone."
+  description: "Spoken name of the trash button in a downloaded film's header, and the label of the row in the Library's film options sheet that does the same: deletes the film's files from the phone, keeping it in the computer's library."
 filmDeleteConfirm:
   message: "Delete"
   description: "The alert's button that confirms deleting a downloaded film."
@@ -480,8 +480,8 @@ filmsStatStreak:
   message: "Streak"
   description: "Library stats tile: label under the days in a row."
 filmsStatToday:
-  message: "Watched today"
-  description: "Library stats tile: label under the minutes of films played today."
+  message: "watched today"
+  description: "Library stats tile: label under the minutes of films played today, read on from the number and its unit (\"12 min watched today\"), so lower case in English."
 filmsStatUnitDays:
   message: "{count, plural, one {day} other {days}}"
   description: "Library stats tile: the unit drawn small after the streak number."

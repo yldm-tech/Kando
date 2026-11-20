@@ -6,7 +6,6 @@ import (
 	"kando/packages/sync"
 
 	"github.com/nsgo-dev/nsgo/core"
-	"github.com/nsgo-dev/nsgo/icons/lucide"
 	"github.com/nsgo-dev/nsgo/ui"
 )
 
@@ -63,10 +62,13 @@ func (v *view) storageBanner(cx *core.Scope) core.Node {
 			Background: theme.BadgeOrange.Faded(0.14)},
 		Children: []core.Node{
 			core.View{AccessibilityElementsHidden: func() bool { return true }, Style: core.Style{Padding: core.Edges{Top: 1}}, Children: []core.Node{
-				ui.Icon(lucide.TriangleAlert, 18, func() core.Color { return theme.BadgeOrange })}},
+				core.Icon{SVG: warnIcon, Style: core.Style{Width: core.Pt(18), Height: core.Pt(18)}}}},
 			core.View{AccessibilityElementsHidden: func() bool { return true }, Style: core.Style{FlexGrow: 1, FlexShrink: 1, Gap: 2}, Children: []core.Node{
 				core.Text{TestID: "films-storage-title", ContentFunc: title, Style: core.Style{FontSize: 14, LineHeight: 18, FontWeight: core.FontWeightBold}, StyleFunc: ui.Colored(warn)},
 				core.Text{ContentFunc: body, Style: core.Style{FontSize: 13, LineHeight: 18}, StyleFunc: ui.Colored(warn)},
 			}},
 		}}
 }
+
+// warnIcon is the design's warning: a solid orange triangle with a white exclamation mark, the same in either appearance.
+var warnIcon = core.MustParseSVG([]byte(`<svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 18 18"><path d="M7.7 2.3a1.5 1.5 0 0 1 2.6 0l6.6 11.9a1.5 1.5 0 0 1-1.3 2.2H2.4a1.5 1.5 0 0 1-1.3-2.2z" fill="#FF9500"/><path d="M9 6.6v4" stroke="#FFFFFF" stroke-width="2" stroke-linecap="round"/><circle cx="9" cy="13.4" r="1.1" fill="#FFFFFF"/></svg>`))

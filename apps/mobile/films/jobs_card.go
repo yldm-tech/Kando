@@ -1,8 +1,10 @@
 package films
 
 import (
+	"math"
 	"strings"
 
+	"kando/apps/mobile/jobs"
 	"kando/apps/mobile/locales"
 	"kando/apps/mobile/look"
 	"kando/apps/mobile/session"
@@ -10,7 +12,6 @@ import (
 	"kando/packages/sync"
 
 	"github.com/nsgo-dev/nsgo/core"
-	"github.com/nsgo-dev/nsgo/icons/lucide"
 	"github.com/nsgo-dev/nsgo/ui"
 )
 
@@ -121,47 +122,51 @@ func jobsLine(cx *core.Scope, w work) string {
 		if st.State != sync.StepRunning {
 			continue
 		}
-		step := stepName(cx, st.Name)
-		if st.Progress >= 0 {
-			step = locales.JobsStepPercent(cx, step, int(st.Progress*100))
-		}
-		parts = append(parts, step)
+		parts = append(parts, jobs.StepText(cx, st))
 	}
 	return strings.Join(parts, " · ")
 }
 
-// stepName is what a job's step is called, as the Jobs page names it.
-func stepName(cx *core.Scope, name string) string {
-	switch name {
-	case sync.StepDownload:
-		return locales.JobsStepDownload(cx)
-	case sync.StepTranscribe:
-		return locales.JobsStepTranscribe(cx)
-	case sync.StepTranslate:
-		return locales.JobsStepTranslate(cx)
-	}
-	return name
-}
-
-// jobsRing is the ring of how far the running jobs have gone, around a disc with the jobs' arrow.
+// jobsRing is the ring of how far the running jobs have gone, around a disc with the jobs' arrow: the design's 4-point ring, the accent over the accent at 14%, with the disc filling its inside. It is drawn rather than a ui.ProgressRing, whose line is at most 3 points (ui/progressring.go:59); the card's label says what it shows.
 func jobsRing(cx *core.Scope, w func() work, size core.Points) core.Node {
 	colors := ui.ColorsOf(cx)
-	disc := size - 8
+	const line = 4
+	disc := size - 2*line
+	fraction := func() float32 {
+		got := w()
+		if got.progressedJobs == 0 {
+			return 0
+		}
+		return min(max(got.progress/float32(got.progressedJobs), 0), 1)
+	}
+	draw := func(d *core.Drawing, s core.Size) {
+		dia := float32(min(s.Width, s.Height))
+		if dia <= 0 {
+			return
+		}
+		r := (dia - line) / 2
+		x, y := float32(s.Width)/2, float32(s.Height)/2
+		accent := colors.Accent()
+		d.SetLineWidth(line)
+		d.BeginPath().Arc(x, y, r, 0, 2*math.Pi, false).SetStrokeColor(ui.Alpha(accent, 0.14)).Stroke()
+		if f := fraction(); f > 0 {
+			start := float32(-math.Pi / 2)
+			d.BeginPath().Arc(x, y, r, start, start+f*2*math.Pi, false).SetStrokeColor(accent).Stroke()
+		}
+	}
 	return core.View{AccessibilityElementsHidden: func() bool { return true }, Style: core.Style{Width: core.Pt(size), Height: core.Pt(size), AlignItems: core.AlignCenter, JustifyContent: core.JustifyCenter, FlexShrink: 0},
 		Children: []core.Node{
-			// TODO(nsgo): ui.ProgressRing's line is a tenth of its size, at most 3pt (ui/progressring.go:59), so the ring is thinner than the design's 4pt one around the disc.
-			ui.ProgressRing{Size: size, Tint: colors.Accent, Value: func() float32 {
-				got := w()
-				if got.progressedJobs == 0 {
-					return 0
-				}
-				return got.progress / float32(got.progressedJobs) * 100
-			}, Style: core.Style{Position: core.Absolute, Left: core.Pt(0), Top: core.Pt(0)}},
+			core.Canvas{Draw: draw, Style: core.Style{Position: core.Absolute, Left: core.Pt(0), Top: core.Pt(0), Right: core.Pt(0), Bottom: core.Pt(0)}},
 			core.View{Style: core.Style{Width: core.Pt(disc), Height: core.Pt(disc), CornerRadius: disc / 2, AlignItems: core.AlignCenter, JustifyContent: core.JustifyCenter},
 				StyleFunc: ui.Filled(colors.Surface),
-				Children:  []core.Node{ui.Icon(lucide.ArrowDown, disc*10/22, colors.Accent)}},
+				Children: []core.Node{core.Icon{SVG: arrowIcon, StyleFunc: func() core.Style {
+					return core.Style{Width: core.Pt(disc * 10 / 22), Height: core.Pt(disc * 10 / 22), Color: colors.Accent()}
+				}}}},
 		}}
 }
+
+// arrowIcon is the design's jobs arrow: a down arrow, stroked heavier than lucide's.
+var arrowIcon = core.MustParseSVG([]byte(`<svg xmlns="http://www.w3.org/2000/svg" width="10" height="10" viewBox="0 0 10 10" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 1.2v7M2 5.4l3 3 3-3"/></svg>`))
 
 // jobsCard is the card under the search while the computers have jobs under way: the ring of how far they have gone, which computer processes how many videos, the job running now and its step, and how many need the user. Pressed, it opens Jobs.
 func (v *view) jobsCard(cx *core.Scope) core.Node {
@@ -226,7 +231,12 @@ func (v *view) jobsTile(cx *core.Scope) core.Node {
 		}
 		return ""
 	}
-	return core.View{TestID: "films-jobs-card", Role: core.RoleButton, LabelFunc: func() string { return title() + " " + where() },
+	return core.View{TestID: "films-jobs-card", Role: core.RoleButton, LabelFunc: func() string {
+		if w := where(); w != "" {
+			return title() + ", " + w
+		}
+		return title()
+	},
 		OnPress: func(core.PressEvent) {
 			if v.act.OpenJobs != nil {
 				v.act.OpenJobs()

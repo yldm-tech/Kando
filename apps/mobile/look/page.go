@@ -20,7 +20,7 @@ type Head struct {
 	Inline   bool
 }
 
-// TabRootWith is TabRoot with h's leading view and layout: on iOS Leading is the system header's start (HeaderLeft); elsewhere it starts the row of buttons over the title, or with Inline the title's row is the title, then the buttons at its end.
+// TabRootWith is TabRoot with h's leading view and layout: on iOS Leading is the system header's start (HeaderLeft); elsewhere it starts the row of buttons over the title, or with Inline the title's row is the leading view, the title, then the buttons at its end.
 func TabRootWith(cx *core.Scope, p base.NavPage, h Head) base.NavPage {
 	colors := ui.ColorsOf(cx)
 	p.StyleFunc = ui.Filled(colors.Background)
@@ -44,10 +44,14 @@ func TabRootWith(cx *core.Scope, p base.NavPage, h Head) base.NavPage {
 	head := core.Text{ContentFunc: h.Title, Role: core.RoleHeader, MaxLines: 1, Style: PageTitle(cx).Merge(core.Style{Padding: core.Edges{Top: 2, Right: 16, Bottom: 4, Left: 16}}),
 		StyleFunc: ui.Colored(colors.Text)}
 	if h.Inline {
-		// One row: the title, then the buttons at its end, the design's tablet header (padding 28 32 over the content's 32).
+		// One row: the leading view, the title, then the buttons at its end, the design's tablet header (padding 28 32 over the content's 32).
 		head.Style.Padding = core.Edges{}
 		head.Style.FlexShrink, head.Style.MinWidth = 1, core.Pt(0)
-		row := []core.Node{head, core.View{Style: core.Style{FlexGrow: 1}}}
+		var row []core.Node
+		if h.Leading != nil {
+			row = append(row, h.Leading)
+		}
+		row = append(row, head, core.View{Style: core.Style{FlexGrow: 1}})
 		row = append(row, h.Trailing...)
 		bar := core.View{Style: core.Style{Direction: core.Row, AlignItems: core.AlignCenter, Gap: 12, Padding: core.Edges{Top: 28, Right: 32, Bottom: 4, Left: 32},
 			PaddingEnv: core.EnvEdges{Top: core.EnvSafeArea, Right: core.EnvSafeArea, Left: core.EnvSafeArea}}, Children: row}
