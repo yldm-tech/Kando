@@ -15,7 +15,9 @@ func docExamples(t *testing.T) []string {
 	if err != nil {
 		t.Fatal(err)
 	}
-	_, section, ok := strings.Cut(string(data), "\n## 4. ")
+	// A Windows checkout may have CRLF line endings, which the markers below would not match.
+	doc := strings.ReplaceAll(string(data), "\r\n", "\n")
+	_, section, ok := strings.Cut(doc, "\n## 4. ")
 	if !ok {
 		t.Fatal("no section 4 in docs/plugin-system.md")
 	}
