@@ -7,6 +7,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"net/http"
 	"net/url"
 	"os"
 	"path/filepath"
@@ -44,16 +45,41 @@ type Checked struct {
 	SHA256 [sha256.Size]byte
 }
 
-// Trust opens the trust a script plugin's signature is verified with the first time it is called (signature.OpenTrust on the plugins folder root, trusting roots) and gives the same one after, so checking data packs alone opens none. One goroutine at a time.
-func Trust(root string, roots signature.Roots) func() (*pkg.Trust, error) {
+// Trust opens the trust a script plugin's signature is verified with the first time it is called (signature.OpenTrust on the plugins folder root, trusting roots) and gives the same one after, so checking data packs alone opens none. With a revocation list (Revocations; nil for none) it gives the list to the trust it opened (pkg.Trust.UpdateRevocations), which saves it in root, so a package or a release key the list revokes is refused as Kando refuses it (signature.ErrRevoked); a list none of roots signed fails it. One goroutine at a time.
+func Trust(root string, roots signature.Roots, list *pkg.Revocations) func() (*pkg.Trust, error) {
 	var t *pkg.Trust
 	var err error
 	return func() (*pkg.Trust, error) {
 		if t == nil && err == nil {
 			t, err = signature.OpenTrust(root, roots)
+			if err == nil && list != nil {
+				if uerr := t.UpdateRevocations(list); uerr != nil {
+					t, err = nil, fmt.Errorf("the revocation list: %w", uerr)
+				}
+			}
 		}
 		return t, err
 	}
+}
+
+// Revocations reads the revocation list at src, a file or an https address (signature.FetchRevocations, with client), for checking packs against it (Trust): nil and no error when an address answers 404, as Kando takes no list published. A file that does not exist is an error, not no list: the caller named it, so a wrong path never quietly turns the check off.
+func Revocations(src string, client *http.Client) (*pkg.Revocations, error) {
+	if strings.Contains(src, "://") {
+		if err := plugins.CheckHTTPS(src); err != nil {
+			return nil, err
+		}
+		return signature.FetchRevocations(client, src)
+	}
+	f, err := os.Open(src)
+	if err != nil {
+		return nil, err
+	}
+	defer f.Close()
+	data, err := io.ReadAll(io.LimitReader(f, signature.RevocationsMax+1))
+	if err != nil {
+		return nil, err
+	}
+	return signature.ParseRevocations(data)
 }
 
 // Check checks the pack at src, a pack file (a zip, whatever its extension) or a folder, as Kando installs it: a file is copied once into work, hashed as it is copied, and the copy is staged (plugins.Stage, which runs plugins.Validate) in a folder of work, so a file changing while it is read cannot be listed with another's hash; a script plugin's signature is then verified against roots with the trust trust opens (Trust), which only a script plugin opens. work is a folder the caller removes; Check leaves its copies there.
@@ -171,8 +197,8 @@ func IndexFiles(folder string) ([]string, error) {
 	return out, nil
 }
 
-// Index is the community index of the pack files in folder (IndexFiles), made at generated: each file checked as Kando installs it (Check), a script plugin against roots, which only a plugin certified by the official root passes (official or verified; a developer key's is refused), and listed (index.Entry) as downloaded from base, an https address, followed by its file's name. One pack that does not pass stops it, naming the file, so an index never leaves out a pack its publisher meant to list without saying so; so does an id listed twice. The entries are sorted by id; the caller signs the index (index.Sign).
-func Index(folder, base string, generated time.Time, roots signature.Roots) (index.Index, error) {
+// Index is the community index of the pack files in folder (IndexFiles), made at generated: each file checked as Kando installs it (Check), a script plugin against roots, which only a plugin certified by the official root passes (official or verified; a developer key's is refused), and against the revocation list list (Revocations; nil for none), so a pack it revokes is never listed, and listed (index.Entry) as downloaded from base, an https address, followed by its file's name. One pack that does not pass stops it, naming the file, so an index never leaves out a pack its publisher meant to list without saying so; so does an id listed twice. The entries are sorted by id; the caller signs the index (index.Sign).
+func Index(folder, base string, generated time.Time, roots signature.Roots, list *pkg.Revocations) (index.Index, error) {
 	if base == "" {
 		return index.Index{}, errors.New("no base address: give the https address the pack files are published under")
 	}
@@ -188,7 +214,13 @@ func Index(folder, base string, generated time.Time, roots signature.Roots) (ind
 		return index.Index{}, err
 	}
 	defer os.RemoveAll(work)
-	trust := Trust(filepath.Join(work, "plugins"), roots)
+	trust := Trust(filepath.Join(work, "plugins"), roots, list)
+	// A list given is checked before any pack, so one no root signed fails even a folder of data packs alone.
+	if list != nil {
+		if _, err := trust(); err != nil {
+			return index.Index{}, err
+		}
+	}
 	idx := index.Index{Format: index.Format, Version: index.Version, Generated: generated.UTC().Truncate(time.Second)}
 	for _, name := range files {
 		c, err := Check(filepath.Join(folder, name), work, trust, roots)

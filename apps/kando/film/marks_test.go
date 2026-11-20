@@ -18,6 +18,32 @@ func mark(line, word string, m subtitle.Mark) subtitle.Mark {
 	return m
 }
 
+// rubyOf is the view of the reading a span of lineSpans is, made in a scope of its own.
+func rubyOf(sp ns.Span) ns.View {
+	return sp.Attachment.(ns.Func)(ns.NewRoot(ns.RootOptions{})).(ns.View)
+}
+
+// TestRubyDrop checks where a run's baseline is in its text: its descent above the text's bottom where the line has no leading, as on Linux and Windows, and its descent and half its leading where it has some, as Apple's text lays out a CJK font, and the text's own room under its line counts too.
+func TestRubyDrop(t *testing.T) {
+	line := func(top, height, ascent, descent ns.Points) ns.TextLine {
+		return ns.TextLine{Bounds: ns.Bounds{Origin: ns.Point{Y: top}, Size: ns.Size{Height: height}}, Ascender: ascent, Descender: descent}
+	}
+	for _, c := range []struct {
+		height ns.Points
+		line   ns.TextLine
+		want   ns.Points
+	}{
+		{30, line(0, 30, 24, 6), 6},
+		{32, line(0, 32, 24, 6), 7},
+		{31, line(0, 30, 24, 6), 7},
+		{30, line(0, 30, 30, 0), 0},
+	} {
+		if got := rubyDrop(c.height, c.line); got != c.want {
+			t.Errorf("rubyDrop(%v, %+v) = %v; want %v", c.height, c.line, got, c.want)
+		}
+	}
+}
+
 // TestLineSpansDrawTheMarks checks the spans of a line with marks: a reading is a view over its characters, which a click looks up as the word it is in; a tone draws a thick solid line in its color under its run, which keeps the line's color, and a word in the vocabulary a dashed one, so the two never look alike; a mark off a character's start or outside the line is left out; and a copy under the line, without look, has the readings alone, which take no click.
 func TestLineSpansDrawTheMarks(t *testing.T) {
 	line := "猫が行った。"
@@ -55,7 +81,7 @@ func TestLineSpansDrawTheMarks(t *testing.T) {
 		t.Fatal("the punctuation looks something up")
 	}
 	spans[2].OnPress(ns.PressEvent{})
-	ruby := spans[0].Attachment.(ns.View)
+	ruby := rubyOf(spans[0])
 	ruby.OnPress(ns.PressEvent{})
 	if strings.Join(looked, "|") != "行った|猫" {
 		t.Fatalf("the clicks looked up %q", looked)
@@ -68,7 +94,7 @@ func TestLineSpansDrawTheMarks(t *testing.T) {
 	if len(copied) != 2 || copied[0].Attachment == nil || copied[1].Content != "が行った。" || copied[1].Style.TextDecoration != 0 || copied[1].OnPress != nil {
 		t.Fatalf("the copy's spans: %+v", copied)
 	}
-	if v := copied[0].Attachment.(ns.View); v.OnPress != nil || v.PointerEvents != ns.PointerEventsNone {
+	if v := rubyOf(copied[0]); v.OnPress != nil || v.PointerEvents != ns.PointerEventsNone {
 		t.Fatalf("the copy's reading takes clicks: %+v", v)
 	}
 }

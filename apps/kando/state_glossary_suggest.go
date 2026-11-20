@@ -140,7 +140,7 @@ func (a *app) AcceptSuggestion(source string) {
 	a.glossaryChange(correctKindTermAccept, list[i])
 }
 
-// DismissSuggestion takes the term suggested for source off the open film's suggestions for good: translating the film again does not suggest it again, nor does a plugin while the film is open. One a plugin proposed is kept with the film's dismissed suggestions as well (media.DismissSuggestion), so no plugin proposes it again once the film is opened again.
+// DismissSuggestion takes the term suggested for source off the open film's suggestions for good: translating the film again does not suggest it again, nor does a plugin while the film is open. One a plugin proposed is kept with the film's dismissed suggestions as well (media.DismissSuggestion), so no plugin proposes it again once the film is opened again; when that file cannot be written, it still leaves the list until the film is opened again.
 func (a *app) DismissSuggestion(source string) {
 	g := &a.gloss.suggest
 	same := func(t core.Term) bool { return core.SameTerm(t.Source, source) }
@@ -156,6 +156,8 @@ func (a *app) DismissSuggestion(source string) {
 		} else {
 			a.flash(a.messages().GlossarySaveFailed())
 		}
+		// One a plugin proposed still leaves the list while the film is open, so a suggestions file that cannot be read or written does not keep it there for good.
+		g.plugin = slices.DeleteFunc(g.plugin, func(p glossaryPluginTerm) bool { return same(p.term) })
 		return
 	}
 	// What the file holds now is newer than a read still on its way (glossarySuggestFollow), which would bring the term back.

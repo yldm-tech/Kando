@@ -40,18 +40,23 @@ type Row struct {
 	TitleTone Tone
 	// TitleLines is how many lines the title takes at most, 2 when 0.
 	TitleLines int
+	// TitleStyle goes over the title's Body, as a heavier name.
+	TitleStyle core.Style
 	Detail     func() string
 	// DetailTone is the detail's color, muted when nil.
 	DetailTone func() Tone
 	Below      core.Node
-	// Value is a short value at the row's end, as a count.
-	Value    func() string
-	Trailing core.Node
-	Chevron  bool
+	// Value is a short value at the row's end, as a count; ValueStyle goes over its Subhead.
+	Value      func() string
+	ValueStyle core.Style
+	Trailing   core.Node
+	Chevron    bool
 	// Index is the row's place in its group: rows after the first draw the hairline over them.
 	Index func() int
 	// Inset is where the hairline starts from the card's leading edge, at the edge when 0.
 	Inset core.Points
+	// MinHeight is the row's least height, 52 when 0.
+	MinHeight core.Points
 	// Checked makes the row a radio button of its group, checked while it reports true.
 	Checked func() bool
 	OnPress func()
@@ -68,7 +73,7 @@ func (r Row) Render(cx *core.Scope) core.Node {
 		if lines == 0 {
 			lines = 2
 		}
-		texts = append(texts, core.Text{ContentFunc: r.Title, MaxLines: lines, Style: Body,
+		texts = append(texts, core.Text{ContentFunc: r.Title, MaxLines: lines, Style: Body.Merge(r.TitleStyle),
 			StyleFunc: func() core.Style { return core.Style{Color: r.TitleTone.color(colors, warnText, colors.Text)} }})
 	}
 	if r.Detail != nil {
@@ -101,7 +106,7 @@ func (r Row) Render(cx *core.Scope) core.Node {
 	}
 	children = append(children, core.View{Style: core.Style{FlexGrow: 1, FlexShrink: 1, MinWidth: core.Pt(0), Gap: 2}, Children: texts})
 	if r.Value != nil {
-		children = append(children, core.Text{ContentFunc: r.Value, MaxLines: 1, Style: Subhead, StyleFunc: ui.Colored(colors.Muted)})
+		children = append(children, core.Text{ContentFunc: r.Value, MaxLines: 1, Style: Subhead.Merge(r.ValueStyle), StyleFunc: ui.Colored(colors.Muted)})
 	}
 	if r.Trailing != nil {
 		children = append(children, r.Trailing)
@@ -110,8 +115,12 @@ func (r Row) Render(cx *core.Scope) core.Node {
 		// The chevron is the same light grey in both appearances, as the system's is.
 		children = append(children, core.Icon{SVG: Chevron(), Style: core.Style{Width: core.Pt(8), Height: core.Pt(13), FlexShrink: 0, Color: theme.Chevron}})
 	}
+	minHeight := r.MinHeight
+	if minHeight == 0 {
+		minHeight = 52
+	}
 	v := core.View{TestID: r.TestID, Children: children,
-		Style:     core.Style{Direction: core.Row, AlignItems: core.AlignCenter, Gap: 12, Padding: core.Symmetric(8, 16), MinHeight: core.Pt(52)},
+		Style:     core.Style{Direction: core.Row, AlignItems: core.AlignCenter, Gap: 12, Padding: core.Symmetric(8, 16), MinHeight: core.Pt(minHeight)},
 		StyleFunc: func() core.Style { return core.Style{Active: &core.Style{Background: colors.Pressed()}} }}
 	if r.OnPress != nil {
 		v.Role = core.RoleButton

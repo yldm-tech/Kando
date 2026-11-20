@@ -31,6 +31,7 @@ func screenshots(t *testing.T) func(p *phone, scene string) {
 	}
 }
 
+// TODO(nsgo#948): onboarding-pair shows no Scan QR Code: a target reports its own camera, none on macOS or a simulator, whatever the test's Environment says; add a scene of the pairing step with Environment{Camera: true} once a target takes it https://github.com/nsgo-dev/nsgo/issues/948
 func TestScreenshotsOnboarding(t *testing.T) {
 	shot := screenshots(t)
 	d := newDesktop(t)
@@ -149,6 +150,10 @@ func TestScreenshotsComputersProblem(t *testing.T) {
 func TestScreenshotsLibrary(t *testing.T) {
 	shot := screenshots(t)
 	d := newDesktopWithMovies(t)
+	running := moved(d, "job1", "https://youtu.be/dQw4w9WgXcQ", sync.JobRunning, 2, 0.84)
+	running.Title, running.Device = "Morning Market in Kyoto", ""
+	d.SetJob(running)
+	moved(d, "job2", "https://youtu.be/ScMzIvxBSi4", sync.JobFailed, 0, 0)
 	d.SetState("lib", now().Add(time.Hour), sync.Record{Kind: sync.KindPosition, ID: "f1", Film: "f1",
 		Fields: map[string]sync.Field{sync.FieldPositionMS: {Value: sync.Value(4000)}}})
 	dir := t.TempDir()

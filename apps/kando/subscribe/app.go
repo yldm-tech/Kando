@@ -34,6 +34,13 @@ type App interface {
 	// AddWaiting queues the waiting videos at links, SkipWaiting drops them; nil is all of them.
 	AddWaiting(links []string)
 	SkipWaiting(links []string)
+	// ListEarlier checks the subscription now, offering the videos its list held when it was subscribed that it left out (Head.Earlier), which then wait to be added or skipped.
+	ListEarlier()
+	// DismissSubscriptionNote puts away the message about the last thing done to the subscription.
+	DismissSubscriptionNote()
+	// DownloadQuality and PlatformSubtitles are Settings › 通用 › 在线视频's picture and whether a link takes its uploader's subtitles, which a subscription whose rules name neither follows.
+	DownloadQuality() core.Quality
+	PlatformSubtitles() bool
 }
 
 // Kind is what a subscription follows, as its link says (KindOf).
@@ -107,8 +114,9 @@ type Head struct {
 	Err           string
 	Checked       time.Time
 	Cadence       Cadence
-	// Added is how many videos it added.
-	Added int
+	// Added is how many videos it added; Earlier how many, at most, the list held when it was subscribed that it counted as seen without adding or offering them and its library does not have (Sub.Earlier), which ListEarlier offers.
+	Added   int
+	Earlier int
 	// Note is the message about the last thing done to it.
 	Note Note
 }
@@ -117,10 +125,11 @@ type Head struct {
 type NoteKind string
 
 const (
-	NoteNone       NoteKind = ""
+	NoteNone NoteKind = ""
+	// NoteSubscribed is a new subscription, Text its name, which queued Count of the videos the list holds.
 	NoteSubscribed NoteKind = "subscribed"
 	NoteAlready    NoteKind = "already"
-	// NoteChecked is a check that worked: Count new videos, queued or held as Held says, of which Over were held past AddPerCheck though the rest were queued, and Skipped that the rules skipped.
+	// NoteChecked is a check that worked: Count new videos, queued or held as Held says, of which Over were held past AddPerCheck though the rest were queued, and Skipped that the rules skipped; Earlier videos the list held when it was subscribed now wait for the user (Found.Earlier).
 	NoteChecked NoteKind = "checked"
 	// NoteNotQueued is new videos that could not be queued and are held instead, Text saying why; a check's keeps its counts, as NoteChecked has them.
 	NoteNotQueued NoteKind = "notQueued"
@@ -138,8 +147,11 @@ type Note struct {
 	Kind           NoteKind
 	Count, Skipped int
 	Over           int
+	Earlier        int
 	Held           bool
 	Text           string
+	// Queued is, for a new subscription's NoteNotQueued, how many of the list's videos were queued before the rest could not be.
+	Queued int
 }
 
 // Waiting is one new video waiting for the user, and whether it fits the rules as they are now.

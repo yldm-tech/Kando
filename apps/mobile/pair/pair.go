@@ -1,4 +1,4 @@
-// Package pair is the page that pairs the phone with Kando on a computer: the address and the one-time code Settings › Phone Sync shows there, then, for an address typed by hand, the certificate's fingerprint in short to compare with the computer's before the phone trusts it. A kando://pair link pasted into the address field brings its code and fingerprint, which the phone checks without asking. QR scanning waits for NSGo (nsgo-dev/nsgo#429).
+// Package pair is the page that pairs the phone with Kando on a computer: the address and the one-time code Settings › Phone Sync shows there, then, for an address typed by hand, the certificate's fingerprint in short to compare with the computer's before the phone trusts it. A kando://pair link, scanned from the QR code the computer shows or pasted into the address field, brings its code and fingerprint, which the phone checks without asking.
 package pair
 
 import (
@@ -140,7 +140,9 @@ func New(cx *core.Scope, s *session.Session, done func(store.Desktop), top func(
 		}()
 	}
 
-	busy := func() bool { return at.Get() == checking || at.Get() == pairing }
+	// scanning is a photo of the computer's QR code being read.
+	scanning := core.NewSignal(cx, false)
+	busy := func() bool { return scanning.Get() || at.Get() == checking || at.Get() == pairing }
 	// comparingNow is the fingerprint on show: while the user compares it, and while the code goes out after they confirmed it.
 	comparingNow := func() bool { return at.Get() == comparing || (at.Get() == pairing && confirmed.Get()) }
 	confirm := func() {
@@ -148,10 +150,51 @@ func New(cx *core.Scope, s *session.Session, done func(store.Desktop), top func(
 		confirmed.Set(true)
 		send(answer.Get(), target)
 	}
+	// scan takes a photo of the QR code the computer shows and goes on with the link it holds as with one pasted.
+	// TODO(nsgo#429): a photo stands in for scanning, which NSGo cannot do from the camera's live picture yet; scan as the camera sees the code once it can https://github.com/nsgo-dev/nsgo/issues/429
+	scan := func() {
+		problem.Set("")
+		cx.TakePhoto(core.PhotoOptions{MaxDimension: photoSize}, func(photo *core.PickedFile, err error) {
+			if err != nil {
+				problem.Set(locales.PairErrCamera(cx))
+				return
+			}
+			if photo == nil {
+				return
+			}
+			scanning.Set(true)
+			data := photo.Data
+			go func() {
+				text, err := ReadCode(data)
+				cx.Post(func() {
+					scanning.Set(false)
+					if err != nil {
+						problem.Set(locales.PairErrNoQR(cx))
+						return
+					}
+					if _, err := sync.ParsePairURL(text); err != nil {
+						problem.Set(locales.PairErrNotPairQR(cx))
+						return
+					}
+					address.Set(text)
+					check()
+				})
+			}()
+		})
+	}
 	scroll := &core.Ref{}
 	form := core.Scroll{Ref: scroll, Style: core.Style{FlexGrow: 1, FlexShrink: 1}, Children: []core.Node{
 		core.View{Style: core.Style{Padding: core.All(16), Gap: 24, MaxWidth: core.Pt(480), Width: core.Pct(100), AlignSelf: core.AlignCenter}, Children: []core.Node{
-			core.Text{ContentFunc: func() string { return locales.PairHint(cx) }, Style: look.Subhead, StyleFunc: ui.Colored(colors.Muted)},
+			core.Text{ContentFunc: func() string {
+				if cx.Env().CanTakePhoto() {
+					return locales.PairHintScan(cx)
+				}
+				return locales.PairHint(cx)
+			}, Style: look.Subhead, StyleFunc: ui.Colored(colors.Muted)},
+			core.Show{When: cx.Env().CanTakePhoto, Then: func(cx *core.Scope) core.Node {
+				return look.Button{Kind: look.Tinted, Icon: lucide.ScanQrCode, Text: func() string { return locales.PairScan(cx) }, TestID: "pair-scan",
+					Busy: scanning.Get, BusyLabel: func() string { return locales.PairScanning(cx) }, Disabled: busy, OnPress: scan}
+			}},
 			field(cx, locales.PairAddress(cx), ui.Input{TestID: "pair-address", Label: locales.PairAddress(cx), Value: address.Get, OnChange: func(v string) { address.Set(v); problem.Set("") },
 				Placeholder: locales.PairAddressExample(cx), KeyboardType: core.KeyboardURL, AutoCapitalize: core.AutoCapitalizeNone, NoAutoCorrect: true, Disabled: busy,
 				Style: core.Style{Height: core.Pt(50), FontSize: 17, CornerRadius: 12, Padding: core.Symmetric(0, 14)}}),

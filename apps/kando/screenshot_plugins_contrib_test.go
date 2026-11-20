@@ -27,6 +27,10 @@ const pluginRiversFields = `"capabilities": {"host": ["kando.net.credentialFetch
   },
   "credentials": [{"id": "deepl", "title": {"en": "DeepL API key", "zh-Hans": "DeepL API 密钥", "zh-Hant": "DeepL API 金鑰", "ja": "DeepL API キー", "ko": "DeepL API 키"}, "header": "Authorization", "format": "DeepL-Auth-Key {secret}", "hosts": ["api-free.deepl.com", "api.deepl.com"], "methods": ["POST"], "pathPrefixes": ["/v2/translate"]}]`
 
+// pluginRiversAbout is acme.rivers' author, name and description, as its details, the lookup card and the Saved Lines sheet name it.
+const pluginRiversAbout = `"author": "Acme", "name": {"en": "River Study Kit", "zh-Hans": "河流学习包", "zh-Hant": "河流學習包", "ja": "川の学習キット", "ko": "강 학습 키트"},
+  "description": {"en": "River words, LRC subtitles and cards of saved lines.", "zh-Hans": "河流词汇、LRC 字幕和收藏句子的卡片。", "zh-Hant": "河流詞彙、LRC 字幕和收藏句子的卡片。", "ja": "川の単語、LRC 字幕、保存したセリフのカード。", "ko": "강 단어, LRC 자막, 저장한 대사 카드."}`
+
 // pluginRiversCode is acme.rivers' code.
 const pluginRiversCode = `const words = { trickle: { reading: "/ˈtrɪk(ə)l/", meaning: "n. 细流，涓涓细水；v. 慢慢地流，淌" } }
 export async function lookUp(q) {
@@ -52,7 +56,7 @@ export async function annotate(lang, lines) {
 func screenshotRivers(t *testing.T, f *screenshotFixture, a *app, tt *nsgotest.App, updates chan func(), key pluginsKey, folder string) {
 	t.Helper()
 	root := filepath.Join(f.home, folder)
-	pluginsScriptInstalled(t, root, pluginScriptFolder(t, key, "acme.rivers", "1.0.0", pluginRiversFields, pluginRiversCode))
+	pluginsScriptInstalled(t, root, pluginScriptFolderAbout(t, key, "acme.rivers", "1.0.0", pluginRiversAbout, pluginRiversFields, pluginRiversCode))
 	a.plugins.root = root
 	a.plugins.script.official = key.public
 	a.plugins.script.watch = script.Watch{Beat: 100 * time.Millisecond, Stall: time.Minute, Stalls: 3, Deadline: time.Minute}

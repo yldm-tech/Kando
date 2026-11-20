@@ -40,6 +40,8 @@ func TestScriptPanel(t *testing.T) {
 	start := func(id string) *nsgotest.App {
 		return nsgotest.Start(t, func(cx *core.Scope) core.Node {
 			r := &Runner{Post: cx.Post, Root: t.TempDir(), Watch: DefaultWatch, Stopped: func(_, _, reason string) { stopped <- reason }}
+			// The panel's marks are written off the engine's goroutine; wait for the writer before the TempDir's removal, which runs after this cleanup, or a mark written or cleared meanwhile leaves .inflight not empty on Windows.
+			t.Cleanup(r.Drain)
 			pl, err := Load(cx, v, plugins.Grant{}, core.NewHost())
 			if err != nil {
 				t.Fatal(err)

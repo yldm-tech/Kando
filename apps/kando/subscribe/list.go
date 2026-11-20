@@ -73,7 +73,7 @@ func rowContent(cx *ns.Scope, it Item) ns.Node {
 		}
 		bang := ns.Text{Content: "!", Label: tip, TestID: "subscription-warn-" + it.ID, MaxLines: 1,
 			Style:     ns.Style{Width: ns.Pt(16), Height: ns.Pt(16), CornerRadius: 8, FontSize: 11, LineHeight: 16, FontWeight: ui.Bold, TextAlign: ns.TextAlignCenter, FlexShrink: 0},
-			StyleFunc: func() ns.Style { return ns.Style{Background: k.WarnInk(), Color: k.OnWarn()} }}
+			StyleFunc: func() ns.Style { return ns.Style{Background: k.WarnMark(), Color: colors.OnAccent()} }}
 		children = append(children, ui.Tooltip{Text: tip, Trigger: bang, Style: ns.Style{FlexShrink: 0}})
 	case it.Checking:
 		children = append(children, ns.Text{Content: locales.SubscribeChecking(cx), MaxLines: 1, Style: ns.Style{FontSize: 11, FlexShrink: 0}, StyleFunc: ui.Colored(colors.Muted)})
@@ -88,13 +88,32 @@ func rowContent(cx *ns.Scope, it Item) ns.Node {
 
 // Mark is a site's mark, size points square: YouTube's red with a ▶, bilibili's blue with a B, any other site's grey with a ◎, the white glyph on the site's own color (theme's source marks) as the sidebar of the design draws them.
 func Mark(platform core.Platform, size ns.Points) ns.Node {
-	glyph, fill := "◎", theme.SourceLocal
-	switch platform {
-	case core.PlatformYouTube:
-		glyph, fill = "▶", theme.SourceYouTube
-	case core.PlatformBilibili:
-		glyph, fill = "B", theme.SourceBilibili
-	}
+	glyph, fill := siteMark(platform)
 	return ns.View{Role: ns.RoleNone, Style: ns.Style{Width: ns.Pt(size), Height: ns.Pt(size), CornerRadius: size * 5 / 18, Background: fill, AlignItems: ns.AlignCenter, JustifyContent: ns.JustifyCenter, FlexShrink: 0},
 		Children: []ns.Node{ns.Text{Content: glyph, Role: ns.RoleNone, MaxLines: 1, Style: ns.Style{FontSize: size * 10 / 18, FontWeight: ui.Bold, Color: ns.RGB(0xFFFFFF)}}}}
+}
+
+// Thumb is a site's mark as wide as width and as high as height, as the design's card draws a list it has no picture of.
+func Thumb(platform core.Platform, width, height ns.Points) ns.Node {
+	glyph, fill := siteMark(platform)
+	return ns.View{Role: ns.RoleNone, Style: ns.Style{Width: ns.Pt(width), Height: ns.Pt(height), CornerRadius: 10, Background: fill, AlignItems: ns.AlignCenter, JustifyContent: ns.JustifyCenter, FlexShrink: 0},
+		Children: []ns.Node{ns.Text{Content: glyph, Role: ns.RoleNone, MaxLines: 1, Style: ns.Style{FontSize: 18, FontWeight: ui.Bold, Color: ns.RGB(0xFFFFFF)}}}}
+}
+
+// SiteBadge is text on the site's own color, as the design tags a list with its site and kind.
+func SiteBadge(text string, platform core.Platform) ns.Node {
+	_, fill := siteMark(platform)
+	return ns.Text{Content: text, MaxLines: 1, Role: ns.RoleNone,
+		Style: ns.Style{FontSize: 10, LineHeight: 17, FontWeight: ui.Bold, Padding: ns.Symmetric(0, 7), CornerRadius: 7, Background: fill, Color: ns.RGB(0xFFFFFF), FlexShrink: 0}}
+}
+
+// siteMark is a site's glyph and color: YouTube's ▶ on its red, bilibili's B on its blue, ◎ on grey for any other.
+func siteMark(platform core.Platform) (string, ns.Color) {
+	switch platform {
+	case core.PlatformYouTube:
+		return "▶", theme.SourceYouTube
+	case core.PlatformBilibili:
+		return "B", theme.SourceBilibili
+	}
+	return "◎", theme.SourceLocal
 }

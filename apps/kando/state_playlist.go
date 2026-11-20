@@ -154,12 +154,13 @@ func (a *app) playlistAdding() []string {
 	return out
 }
 
-// playlistAdd queues the videos read that the library does not have yet, in their order, a channel's as many of its most recent as the dialog chose (playlistAdding), and closes the dialog; the message bar of the page that opened it says what became of them. With the dialog's switch on, the open library subscribes to the one list read first (subscribeFollow), the videos it holds now counting as seen, so only those that come out later are added by the subscription. A playlist's films, those queued and those the library had, join a series named after it, unless the dialog's 作为剧集处理 was turned off.
+// playlistAdd queues the videos read that the library does not have yet, in their order, a channel's as many of its most recent as the dialog chose (playlistAdding), and closes the dialog; the message bar of the page that opened it says what became of them. With the dialog's switch on, the open library subscribes to the one list read first (subscribeFollow), the videos it holds now counting as seen, so only those that come out later are added by the subscription; the ones the dialog queued are listed on the subscription as added, and those it could not queue, as for want of a language or a tool, wait on its page (subscribeAdopt). A playlist's films, those queued and those the library had, join a series named after it, unless the dialog's 作为剧集处理 was turned off.
 func (a *app) playlistAdd() {
 	fresh := a.playlistAdding()
 	from, lists, series := a.playlist.from, a.playlist.lists, a.playlist.series
+	followed := ""
 	if a.playlist.subscribe && len(lists) == 1 {
-		a.subscribeFollow(lists[0].Source, lists[0].Listing)
+		followed = a.subscribeFollow(lists[0].Source, lists[0].Listing)
 	}
 	a.playlistClose()
 	switch {
@@ -168,6 +169,10 @@ func (a *app) playlistAdd() {
 		a.browseEnqueueAll(fresh)
 	default:
 		a.libraryEnqueue(fresh...)
+	}
+	// The subscription lists the videos the dialog queued, which it does not queue again, and keeps waiting on its page those the queue refused.
+	if followed != "" {
+		a.subscribeAdopt(followed, lists[0].Listing, fresh)
 	}
 	// The films go on one after another in their lists' order (nextKeepLists).
 	a.nextKeepLists(lists)

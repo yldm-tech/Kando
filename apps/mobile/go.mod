@@ -5,6 +5,7 @@ go 1.27.4
 tool github.com/nsgo-dev/nsgo/cmd/nsgo
 
 require (
+	github.com/makiuchi-d/gozxing v0.1.1
 	github.com/nsgo-dev/nsgo v0.2.1-0.20261120000346-f377daba0a2a
 	kando/packages/core v0.0.0
 	kando/packages/study v0.0.0
@@ -36,6 +37,7 @@ require (
 	golang.org/x/sys v0.50.0 // indirect
 	golang.org/x/text v0.44.0 // indirect
 	golang.org/x/time v0.15.0 // indirect
+	golang.org/x/xerrors v0.0.0-20200804184101-5ec99f83aff1 // indirect
 	rsc.io/qr v0.2.0 // indirect
 )
 

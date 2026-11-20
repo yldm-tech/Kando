@@ -1,8 +1,10 @@
 package main
 
 import (
+	"net/http"
 	"path/filepath"
 	"slices"
+	"strconv"
 	"strings"
 	"testing"
 	"time"
@@ -39,6 +41,43 @@ func (p *phone) alertLabels() []string {
 	return out
 }
 
+// sheetLabels are the titles of the rows of the sheet whose rows are id'd prefix0, prefix1, …, once it shows.
+func (p *phone) sheetLabels(prefix string) []string {
+	p.t.Helper()
+	p.app.WaitFor("id:"+prefix+"0", wait)
+	var out []string
+	for i := 0; p.app.Exists("id:" + prefix + strconv.Itoa(i)); i++ {
+		out = append(out, strings.Split(p.texts("id:"+prefix+strconv.Itoa(i)), "\n")[0])
+	}
+	return out
+}
+
+// optionLabels are the options of the film whose options sheet shows.
+func (p *phone) optionLabels() []string { p.t.Helper(); return p.sheetLabels("films-option-") }
+
+// choose presses the option label of the film's options sheet, which closes it.
+func (p *phone) choose(label string) {
+	p.t.Helper()
+	labels := p.optionLabels()
+	i := slices.Index(labels, label)
+	if i < 0 {
+		p.t.Fatalf("the options are %q, not %q", labels, label)
+	}
+	p.app.Press("id:films-option-" + strconv.Itoa(i))
+	p.app.WaitForGone("id:films-options-sheet", wait)
+}
+
+// libraryLabels are the libraries the library sheet offers.
+func (p *phone) libraryLabels() []string { p.t.Helper(); return p.sheetLabels("films-library-option-") }
+
+// pickLibrary presses the library sheet's row i, which closes it.
+func (p *phone) pickLibrary(i int) {
+	p.t.Helper()
+	p.app.WaitFor("id:films-library-option-"+strconv.Itoa(i), wait)
+	p.app.Press("id:films-library-option-" + strconv.Itoa(i))
+	p.app.WaitForGone("id:films-library-sheet", wait)
+}
+
 // The Library lists the films of every library of the paired computer with those the phone keeps from another, the latest first, each with its source and length; pull to refresh reads them again.
 func TestTheLibraryMergesTheComputersFilms(t *testing.T) {
 	d := newDesktopWithMovies(t)
@@ -54,7 +93,7 @@ func TestTheLibraryMergesTheComputersFilms(t *testing.T) {
 	if got := p.texts(filmRow(id, "f2")); !strings.Contains(got, "Bilibili · 1:05") {
 		t.Fatalf("the Movies film's row shows %q", got)
 	}
-	if got := p.texts(talkRow("gonedesk")); !strings.Contains(got, "Other Sites · 0:10 · "+msgs.FilmDownloaded()) {
+	if got := p.texts(talkRow("gonedesk")); !strings.Contains(got, msgs.FilmsSourceWeb()+" · 0:10 · "+msgs.FilmDownloaded()) {
 		t.Fatalf("the film kept from a computer gone shows %q", got)
 	}
 	if got := p.texts("id:films-count"); got != msgs.FilmsCount(3) {
@@ -84,17 +123,20 @@ func TestChipsAndTheSwitcherNarrowTheList(t *testing.T) {
 	p.app.WaitFor(talkRow(id), wait)
 
 	p.app.Press("id:films-library")
-	want := []string{msgs.FilmsAllLibraries(), msgs.FilmsLibraryOn("Japanese Class", "Studio"), msgs.FilmsLibraryOn("Movies", "Studio"), msgs.CommonCancel()}
-	if got := p.alertLabels(); !slices.Equal(got, want) {
+	want := []string{msgs.FilmsAllLibraries(), "Japanese Class", "Movies"}
+	if got := p.libraryLabels(); !slices.Equal(got, want) {
 		t.Fatalf("the switcher offers %q, want %q", got, want)
 	}
-	p.app.Answer(2)
+	p.pickLibrary(2)
 	p.app.WaitForGone(talkRow(id), wait)
-	if got := p.texts("id:films-library"); got != msgs.FilmsLibraryOn("Movies", "Studio") {
+	if got := p.texts("id:films-library"); got != "Movies" {
 		t.Fatalf("the switcher says %q", got)
 	}
+	if got := p.app.Find("id:films-library").Props.Label; got != msgs.FilmsLibrary(msgs.FilmsLibraryOn("Movies", "Studio")) {
+		t.Fatalf("the switcher is named %q", got)
+	}
 	p.app.Press("id:films-library")
-	p.app.Answer(0)
+	p.pickLibrary(0)
 	p.app.WaitFor(talkRow(id), wait)
 }
 
@@ -166,21 +208,22 @@ func TestAFilmsOptionsDownloadAndDeleteIt(t *testing.T) {
 	options := "id:films-options-" + id + "-f1"
 	p.app.WaitFor(options, wait)
 	p.app.Press(options)
-	if got, want := p.alertLabels(), []string{msgs.FilmsDownloadSize("977 KB"), msgs.FilmsDetails(), msgs.CommonCancel()}; !slices.Equal(got, want) {
+	if got, want := p.optionLabels(), []string{msgs.FilmsSaveOffline()}; !slices.Equal(got, want) {
 		t.Fatalf("the options of a film not on the phone are %q, want %q", got, want)
 	}
-	if !p.app.Alerts()[0].Sheet {
-		t.Fatal("a phone shows a film's options in something other than an action sheet")
+	if got, want := p.texts("id:films-option-0"), msgs.FilmsSaveOffline()+"\n"+msgs.FilmsAboutSize("977 KB"); got != want {
+		t.Fatalf("the download option reads %q, want %q", got, want)
 	}
-	p.app.Answer(0)
+	p.choose(msgs.FilmsSaveOffline())
 	folder := filepath.Join("films", id, "f1")
 	p.waitFile(filepath.Join(folder, "video.mp4"), int64(len(talkVideo)))
 	p.app.WaitFor(talkRow(id)+" >> text:YouTube · 0:10 · "+msgs.FilmDownloaded(), wait)
 	p.app.Press(options)
-	if got, want := p.alertLabels(), []string{msgs.FilmPlay(), msgs.FilmDelete(), msgs.FilmsDetails(), msgs.CommonCancel()}; !slices.Equal(got, want) {
+	if got, want := p.optionLabels(), []string{msgs.FilmPlay(), msgs.FilmDelete()}; !slices.Equal(got, want) {
 		t.Fatalf("the options of a film on the phone are %q, want %q", got, want)
 	}
-	p.app.Answer(1)
+	p.choose(msgs.FilmDelete())
+	p.app.WaitUntil(wait, func() bool { return len(p.app.Alerts()) == 1 })
 	if got := p.app.Alerts(); len(got) != 1 || got[0].Title != msgs.FilmDeleteTitle("Morning Talk") {
 		t.Fatalf("deleting from the options asks %+v", got)
 	}
@@ -266,19 +309,19 @@ func TestAFailedRefreshKeepsTheLibraryChosen(t *testing.T) {
 	p := startPhone(t, dir, secrets)
 	p.app.WaitFor(filmRow(id, "f2"), wait)
 	p.app.Press("id:films-library")
-	p.app.Answer(2)
+	p.pickLibrary(2)
 	p.app.WaitForGone(talkRow(id), wait)
 	d.Close()
 	p.app.PullToRefresh("id:films-scroll")
 	p.app.WaitFor("id:computers-retry-"+id, wait)
-	if got, want := p.texts("id:films-library"), msgs.FilmsLibraryOn("Movies", "Studio"); got != want {
+	if got, want := p.texts("id:films-library"), "Movies"; got != want {
 		t.Fatalf("after a failed refresh the switcher says %q, want %q", got, want)
 	}
 	if p.app.Exists(talkRow(id)) {
 		t.Fatal("after a failed refresh the list shows the films of every library")
 	}
 	p.app.Press("id:films-library")
-	p.app.Answer(0)
+	p.pickLibrary(0)
 	p.app.WaitFor(talkRow(id), wait)
 }
 
@@ -294,24 +337,24 @@ func TestAFilmsOptionsPauseResumeAndCancelItsDownload(t *testing.T) {
 	p.app.WaitFor(options, wait)
 	d.Stall(300_000)
 	p.app.Press(options)
-	p.app.Answer(0)
+	p.choose(msgs.FilmsSaveOffline())
 	p.app.WaitFor(talkRow(id)+" >> text:YouTube · 0:10 · "+msgs.FilmDownloading(30), wait)
 	p.app.Press(options)
-	if got, want := p.alertLabels(), []string{msgs.FilmPause(), msgs.FilmCancel(), msgs.FilmsDetails(), msgs.CommonCancel()}; !slices.Equal(got, want) {
+	if got, want := p.optionLabels(), []string{msgs.FilmPause(), msgs.FilmCancel()}; !slices.Equal(got, want) {
 		t.Fatalf("the options of a film downloading are %q, want %q", got, want)
 	}
-	p.app.Answer(0)
+	p.choose(msgs.FilmPause())
 	p.app.WaitFor(talkRow(id)+" >> text:YouTube · 0:10 · "+msgs.FilmPaused(30), wait)
 	folder := filepath.Join("films", id, "f1")
 	p.waitFile(filepath.Join(folder, store.PartFile), 300_000)
 	p.app.Press(options)
-	if got, want := p.alertLabels(), []string{msgs.FilmResume(), msgs.FilmCancel(), msgs.FilmsDetails(), msgs.CommonCancel()}; !slices.Equal(got, want) {
+	if got, want := p.optionLabels(), []string{msgs.FilmResume(), msgs.FilmCancel()}; !slices.Equal(got, want) {
 		t.Fatalf("the options of a film paused are %q, want %q", got, want)
 	}
-	p.app.Answer(0)
+	p.choose(msgs.FilmResume())
 	p.app.WaitFor(talkRow(id)+" >> text:YouTube · 0:10 · "+msgs.FilmDownloading(60), wait)
 	p.app.Press(options)
-	p.app.Answer(1)
+	p.choose(msgs.FilmCancel())
 	p.waitFile(folder, -1)
 	p.app.WaitFor(talkRow(id)+" >> text:YouTube · 0:10", wait)
 }
@@ -331,10 +374,10 @@ func TestPlayFromTheBeginningOutdatesTheComputersPosition(t *testing.T) {
 	card := "id:films-continue-" + id + "-f1"
 	p.app.WaitFor(card, wait)
 	p.app.Press("id:films-options-" + id + "-f1")
-	if got, want := p.alertLabels(), []string{msgs.FilmPlay(), msgs.FilmsPlayFromStart(), msgs.FilmDelete(), msgs.FilmsDetails(), msgs.CommonCancel()}; !slices.Equal(got, want) {
+	if got, want := p.optionLabels(), []string{msgs.FilmPlay(), msgs.FilmsPlayFromStart(), msgs.FilmDelete()}; !slices.Equal(got, want) {
 		t.Fatalf("the options of a film left partway are %q, want %q", got, want)
 	}
-	p.app.Answer(1)
+	p.choose(msgs.FilmsPlayFromStart())
 	p.app.WaitFor("id:player-video", wait)
 	p.app.WaitUntil(wait, func() bool {
 		films, err := store.Open(dir).Films()
@@ -347,7 +390,7 @@ func TestPlayFromTheBeginningOutdatesTheComputersPosition(t *testing.T) {
 	}
 }
 
-// A tablet shows a film's options in a dialog in the middle of the screen, not an action sheet.
+// A tablet shows a film's options in a dialog in the middle of the screen, not a sheet from the bottom.
 func TestATabletShowsAFilmsOptionsInADialog(t *testing.T) {
 	if nsgotest.Target() != "" {
 		t.Skip("the idiom is the platform's on a target")
@@ -358,9 +401,54 @@ func TestATabletShowsAFilmsOptionsInADialog(t *testing.T) {
 	options := "id:films-options-" + store.DesktopID(d.Fingerprint) + "-f1"
 	p.app.WaitFor(options, wait)
 	p.app.Press(options)
-	if alerts := p.app.Alerts(); len(alerts) == 0 || alerts[len(alerts)-1].Sheet {
-		t.Fatal("a tablet shows a film's options as an action sheet")
+	p.app.WaitFor("id:films-option-0", wait)
+	if f := p.app.Find("id:films-options-sheet").Bounds(); f.Size.Width > 600 || f.Origin.Y+f.Size.Height > 800 {
+		t.Fatalf("a tablet shows a film's options at %v, not in the middle of the screen", f)
 	}
+}
+
+// A tablet upright has no sidebar, so its one-row header starts with the library switcher, beside the search and the Add pill; the films lie in a grid of cards, each with its options under its poster, and the jobs under way are the stats' fourth tile.
+func TestAnUprightTabletHeadsTheLibraryWithTheSwitcher(t *testing.T) {
+	if nsgotest.Target() != "" {
+		t.Skip("the idiom is the platform's on a target")
+	}
+	d := newDesktopWithMovies(t)
+	dir := t.TempDir()
+	p := startPhone(t, dir, pairedWith(t, d, dir), nsgotest.Size(820, 1180), nsgotest.Environment(core.Environment{Locale: lang, Idiom: core.IdiomTablet, OS: core.OSAndroid}))
+	id := store.DesktopID(d.Fingerprint)
+	p.app.WaitFor(talkRow(id), wait)
+	if p.app.Exists("id:sidebar") {
+		t.Fatal("an upright tablet shows the sidebar")
+	}
+	// The header is one row: the switcher, the title, the search and the Add pill.
+	sw, search, add := p.app.Find("id:films-library").Bounds(), p.app.Find("id:films-search").Bounds(), p.app.Find("id:films-add").Bounds()
+	mid := func(b core.Bounds) core.Points { return b.Origin.Y + b.Size.Height/2 }
+	if d := mid(sw) - mid(search); d > 4 || d < -4 || mid(add)-mid(search) > 4 || mid(add)-mid(search) < -4 {
+		t.Fatalf("the switcher %v, the search %v and Add %v are not one row", sw, search, add)
+	}
+	if !(sw.Origin.X < search.Origin.X && search.Origin.X < add.Origin.X) {
+		t.Fatalf("the header runs switcher %v, search %v, Add %v, want them in that order", sw, search, add)
+	}
+	p.app.Press("id:films-library")
+	if got, want := p.libraryLabels(), []string{msgs.FilmsAllLibraries(), "Japanese Class", "Movies"}; !slices.Equal(got, want) {
+		t.Fatalf("the switcher offers %q, want %q", got, want)
+	}
+	p.pickLibrary(0)
+
+	// The grid: three cards a row, each one's options just under its poster, at the card's end.
+	rows := p.app.Find("id:films-rows").Bounds()
+	talk, evening := p.app.Find(talkRow(id)).Bounds(), p.app.Find(filmRow(id, "f2")).Bounds()
+	if talk.Size.Width > rows.Size.Width/3 || evening.Size.Width > rows.Size.Width/3 {
+		t.Fatalf("the cards are %v and %v wide in a grid %v, want a third of it", talk, evening, rows)
+	}
+	poster := talk.Size.Width * 9 / 16
+	if opts := p.app.Find("id:films-options-" + id + "-f1").Bounds(); opts.Origin.Y < talk.Origin.Y+poster-4 || opts.Origin.Y > talk.Origin.Y+poster+2 || opts.Origin.X+opts.Size.Width < talk.Origin.X+talk.Size.Width {
+		t.Fatalf("a card's options lie at %v, want under its poster at the end of the card %v", opts, talk)
+	}
+
+	// A job under way shows as the stats' fourth tile, not a card under them.
+	moved(d, "job1", "https://youtu.be/night000001", sync.JobRunning, 0, 0.5)
+	p.app.WaitFor("id:films-stats >> id:films-jobs-card", wait)
 }
 
 // A film a job on the computer added shows in the Library once the phone hears the job finish, without pulling to refresh.
@@ -380,4 +468,81 @@ func TestTheLibraryShowsTheFilmAJobAdded(t *testing.T) {
 	done.Film = "f3"
 	d.SetJob(done)
 	p.app.WaitFor(filmRow(id, "f3"), wait)
+}
+
+// While a computer has jobs under way the Library shows a card under the search: which computer processes how many videos, the one running now and its step, and how many need the user; pressed, it opens Jobs. It stays while searching.
+func TestTheJobsCardSaysWhatTheComputerIsDoing(t *testing.T) {
+	d := newDesktop(t)
+	running := moved(d, "job1", "https://youtu.be/dQw4w9WgXcQ", sync.JobRunning, 2, 0.84)
+	running.Title = "Morning Market in Kyoto"
+	d.SetJob(running)
+	moved(d, "job2", "https://youtu.be/ScMzIvxBSi4", sync.JobFailed, 0, 0)
+	dir := t.TempDir()
+	p := startPhone(t, dir, pairedWith(t, d, dir))
+	p.app.WaitFor(talkRow(store.DesktopID(d.Fingerprint)), wait)
+	p.app.WaitFor("id:films-jobs-card-needs", wait)
+	if got, want := p.texts("id:films-jobs-card-title"), msgs.FilmsJobsCardTitle("Studio", 1); got != want {
+		t.Fatalf("the jobs card's title is %q, want %q", got, want)
+	}
+	if got, want := p.texts("id:films-jobs-card-line"), "Morning Market in Kyoto · "+msgs.JobsStepPercent(msgs.JobsStepTranslate(), 84); got != want {
+		t.Fatalf("the jobs card's line is %q, want %q", got, want)
+	}
+	if got, want := p.texts("id:films-jobs-card-needs"), msgs.FilmsJobsCardNeedsYou(1); got != want {
+		t.Fatalf("the jobs card's pill is %q, want %q", got, want)
+	}
+	p.app.Type("id:films-search", "zzz")
+	p.app.WaitFor("id:films-empty", wait)
+	if !p.app.Exists("id:films-jobs-card") {
+		t.Fatal("a search hides the jobs card")
+	}
+	p.app.Press("id:films-jobs-card")
+	p.app.WaitFor("id:jobs-page", wait)
+}
+
+// A storage that no longer takes the computer's key says so on the Library, and the films not on the phone, which come from it away from the computer, fade.
+func TestTheLibrarySaysWhenTheStorageFails(t *testing.T) {
+	d := newDesktop(t)
+	bucket := synctest.NewBucket(t, now)
+	d.StartRelay(t, bucket, now, relayTurn)
+	dir := t.TempDir()
+	p := startPhone(t, dir, pairedWith(t, d, dir))
+	id := store.DesktopID(d.Fingerprint)
+	p.app.WaitUntil(wait, func() bool { return d.RelayJoins() == 1 })
+	p.app.WaitFor(talkRow(id), wait)
+	if p.app.Exists("id:films-storage") {
+		t.Fatal("the Library warns of a storage that works")
+	}
+	d.SetOff(true)
+	bucket.Refuse(http.StatusForbidden, "SignatureDoesNotMatch")
+	p.app.WaitFor("id:films-storage", reconnect)
+	if got, want := p.texts("id:films-storage-title"), msgs.FilmsStorageKeysTitle(); got != want {
+		t.Fatalf("the storage banner says %q, want %q", got, want)
+	}
+	if got := p.app.Find(talkRow(id)).Style.Opacity; got > 0.46 || got < 0.44 {
+		t.Fatalf("a film not on the phone shows at opacity %v while the storage fails", got)
+	}
+}
+
+// Before a computer is paired the Library's Add leads to pairing, which a link needs first; the switcher shows only while the phone keeps films, offering their libraries (design 08).
+func TestTheLibrarysAddPairsFirst(t *testing.T) {
+	empty := startPhone(t, t.TempDir())
+	empty.app.WaitFor("id:onboarding-skip", wait)
+	empty.app.Press("id:onboarding-skip")
+	empty.app.WaitFor("id:films-unpaired", wait)
+	if empty.app.Exists("id:films-library") {
+		t.Fatal("the switcher shows with no computer paired and no film on the phone")
+	}
+
+	dir := t.TempDir()
+	keepTalk(t, dir)
+	p := startPhone(t, dir)
+	p.app.WaitFor("id:films-unpaired", wait)
+	p.app.WaitFor("id:films-library", wait)
+	p.app.Press("id:films-library")
+	if got, want := p.libraryLabels(), []string{msgs.FilmsAllLibraries(), "Japanese Class"}; !slices.Equal(got, want) {
+		t.Fatalf("the switcher offers %q unpaired, want %q", got, want)
+	}
+	p.pickLibrary(0)
+	p.app.Press("id:films-add")
+	p.app.WaitFor("id:pair-page", wait)
 }

@@ -324,6 +324,10 @@ func TestARevokedComputerSaysSoAndUnpairingDropsItsLinks(t *testing.T) {
 	secrets := pairedWith(t, d, dir)
 	d.SetOff(true)
 	p := startPhone(t, dir, secrets)
+	// The learning state syncs as the phone starts: one that reached the computer after it revoked the phone would show the page that says so over every tab, so it is to have found the computer asleep first.
+	p.openTab(learnTab, msgs.LearnTitle())
+	p.app.WaitFor("id:learn-offline", wait)
+	p.openTab(filmsTab, msgs.FilmsTitle())
 	p.sendLink("https://youtu.be/dQw4w9WgXcQ")
 	p.app.WaitUntil(wait, func() bool { links, _ := store.Open(dir).Links(); return len(links) == 1 })
 	d.RevokeAll()

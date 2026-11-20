@@ -51,7 +51,7 @@ func pluginIndex(e *env, folder, base, out string) error {
 	if base == "" {
 		return usagef("index needs --base, the https address the pack files are published under")
 	}
-	idx, err := publish.Index(folder, base, indexNow(), indexRoots())
+	idx, err := publish.Index(folder, base, indexNow(), indexRoots(), nil)
 	if err != nil {
 		return err
 	}

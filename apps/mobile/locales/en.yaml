@@ -265,8 +265,8 @@ filmCancel:
   message: "Cancel Download"
   description: "Button on a film's page that stops its download and deletes what was downloaded."
 filmDelete:
-  message: "Delete Download"
-  description: "Spoken name of the trash button in a downloaded film's header, which deletes it from the phone."
+  message: "Delete offline files from this device"
+  description: "Spoken name of the trash button in a downloaded film's header, and the label of the row in the Library's film options sheet that does the same: deletes the film's files from the phone, keeping it in the computer's library."
 filmDeleteConfirm:
   message: "Delete"
   description: "The alert's button that confirms deleting a downloaded film."
@@ -279,7 +279,7 @@ filmDownload:
   message: "Download"
   description: "Button on a film's page that downloads it to the phone, and the name of its progress bar."
 filmDownloaded:
-  message: "Downloaded"
+  message: "Saved on this device"
   description: "Where a film stands: it is on the phone and plays offline."
 filmDownloading:
   message: "Downloading {percent}%"
@@ -318,28 +318,25 @@ filmStopped:
 filmUnpaired:
   message: "Pair with the computer again to download."
   description: "Why a download stopped: the computer no longer takes this phone, or answers with another certificate."
+filmsAboutSize:
+  message: "About {size}"
+  description: "Film options sheet: the value at the end of an option, about how much space the film takes, as About 120 MB."
+  placeholders:
+    size: { type: "String", example: "120 MB" }
 filmsAll:
-  message: "All Films"
+  message: "All films"
   description: "Heading of the Library's list of every film, from every computer and the phone."
 filmsAllLibraries:
-  message: "All Libraries"
+  message: "All libraries"
   description: "In the Library's switcher: the films of every library of every computer."
 filmsContinue:
-  message: "Continue Watching"
+  message: "Continue watching"
   description: "Heading of the Library's row of films left partway, on this phone or another device."
 filmsCount:
   message: "{count, plural, one {# film} other {# films}}"
   description: "Beside the Library's list heading: how many films it shows."
   placeholders:
     count: { type: "int", example: "12" }
-filmsDetails:
-  message: "Details"
-  description: "In a film's options: opens the film's page."
-filmsDownloadSize:
-  message: "Download ({size})"
-  description: "In a film's options: downloads it to the phone, with the size of its video."
-  placeholders:
-    size: { type: "String", example: "320.5 MB" }
 filmsEmpty:
   message: "No films ready yet"
   description: "The Library's list when the computers have no film done processing."
@@ -349,13 +346,56 @@ filmsHit:
   placeholders:
     time: { type: "String", example: "1:40" }
     line: { type: "String", example: "The tide comes in twice a day." }
+filmsJobsCardFailed:
+  message: "{count, plural, one {# job needs attention} other {# jobs need attention}}"
+  description: "Library jobs card title when no job is under way and some failed: how many need the user."
+  placeholders:
+    count: { type: "int", example: "1" }
+filmsJobsCardNeedsYou:
+  message: "{count, plural, one {# needs attention} other {# need attention}}"
+  description: "Library jobs card: small orange pill, how many failed jobs need the user."
+  placeholders:
+    count: { type: "int", example: "1" }
+filmsJobsCardOffline:
+  message: "{computer} is offline · {count} waiting"
+  description: "Library jobs card title while the computer is out of reach: its name and how many jobs wait for it."
+  placeholders:
+    computer: { type: "String", example: "MacBook Pro" }
+    count: { type: "int", example: "6" }
+filmsJobsCardTitle:
+  message: "{computer} is processing {count, plural, one {# video} other {# videos}}"
+  description: "Library jobs card title: the computer and how many videos it is downloading, transcribing or translating."
+  placeholders:
+    computer: { type: "String", example: "MacBook Pro" }
+    count: { type: "int", example: "6" }
+filmsJobsCardTitleAll:
+  message: "Processing {count, plural, one {# video} other {# videos}}"
+  description: "Library jobs card title when more than one computer has jobs: how many videos they process."
+  placeholders:
+    count: { type: "int", example: "6" }
+filmsJobsTile:
+  message: "Processing {count}"
+  description: "Tablet Library: the fourth stats tile, how many jobs are under way."
+  placeholders:
+    count: { type: "int", example: "6" }
+filmsJobsTileNeeds:
+  message: "Processing {active} · {failed} need attention"
+  description: "Tablet Library: the fourth stats tile, how many jobs are under way and how many failed and need the user."
+  placeholders:
+    active: { type: "int", example: "6" }
+    failed: { type: "int", example: "1" }
+filmsJobsTileOn:
+  message: "On {computer}"
+  description: "Tablet Library: under the fourth stats tile title, the computer processing the jobs."
+  placeholders:
+    computer: { type: "String", example: "MacBook Pro" }
 filmsLeft:
   message: "{time} left"
   description: "Under a film to go on with, left on this phone: how long it still plays."
   placeholders:
     time: { type: "String", example: "8:20" }
 filmsLeftHere:
-  message: "Left off on {device}"
+  message: "{device} — stopped here"
   description: "Badge on the poster of a film to go on with, left on another device, by the device's name."
   placeholders:
     device: { type: "String", example: "MacBook Pro" }
@@ -366,8 +406,11 @@ filmsLeftOn:
     device: { type: "String", example: "MacBook Pro" }
     time: { type: "String", example: "1:40" }
 filmsLibraries:
-  message: "Show Library"
+  message: "Library"
   description: "Title of the Library's switcher, which picks the library the list shows."
+filmsLibrariesNote:
+  message: "A library is just a .kando folder, so you can keep separate ones for different purposes."
+  description: "Library switcher sheet: note under its title on what a library is."
 filmsLibrary:
   message: "Library: {name}"
   description: "Spoken name of the Library's switcher, with the library it shows."
@@ -380,7 +423,7 @@ filmsLibraryOn:
     library: { type: "String", example: "Japanese Class" }
     computer: { type: "String", example: "Studio" }
 filmsNoDesktop:
-  message: "No Desktop App Yet?"
+  message: "Don’t have the desktop app yet?"
   description: "Button on the Library's card that opens the page where the desktop app is downloaded."
 filmsNoResults:
   message: "Nothing found for “{query}”"
@@ -399,11 +442,14 @@ filmsPair:
   message: "Connect a Computer"
   description: "Button on the Library's card that opens pairing with a computer."
 filmsPlayFromStart:
-  message: "Play from the Beginning"
+  message: "Watch from start"
   description: "In a film's options: plays it from its start rather than where it was left."
 filmsResults:
-  message: "Search Results"
+  message: "Search results"
   description: "Heading of the Library's list while a search is typed."
+filmsSaveOffline:
+  message: "Save for offline"
+  description: "Film options sheet: downloads the film to the phone to watch offline; its size is shown at the row end."
 filmsSearch:
   message: "Search films and lines"
   description: "Placeholder and spoken name of the Library's search field, which finds titles and the lines of the films on the phone."
@@ -417,10 +463,10 @@ filmsSourceBilibili:
   message: "Bilibili"
   description: "Library chip and a film's source: films from Bilibili."
 filmsSourceLocal:
-  message: "Local Files"
+  message: "Local files"
   description: "Library chip and a film's source: films added from files on the computer."
 filmsSourceWeb:
-  message: "Other Sites"
+  message: "Other sites"
   description: "Library chip and a film's source: films from sites other than YouTube and Bilibili."
 filmsSourceYoutube:
   message: "YouTube"
@@ -434,24 +480,46 @@ filmsStatStreak:
   message: "Streak"
   description: "Library stats tile: label under the days in a row."
 filmsStatToday:
-  message: "Watched today"
-  description: "Library stats tile: label under the minutes of films played today."
+  message: "watched today"
+  description: "Library stats tile: label under the minutes of films played today, read on from the number and its unit (\"12 min watched today\"), so lower case in English."
+filmsStatUnitDays:
+  message: "{count, plural, one {day} other {days}}"
+  description: "Library stats tile: the unit drawn small after the streak number."
+  placeholders:
+    count: { type: "int", example: "5" }
+filmsStatUnitMinutes:
+  message: "{count, plural, one {min} other {min}}"
+  description: "Library stats tile: the unit drawn small after the minutes watched today."
+  placeholders:
+    count: { type: "int", example: "12" }
+filmsStatUnitWords:
+  message: "{count, plural, one {word} other {words}}"
+  description: "Library stats tile: the unit drawn small after the count of new words."
+  placeholders:
+    count: { type: "int", example: "6" }
 filmsStatVocabulary:
-  message: "Vocabulary"
+  message: "New words"
   description: "Library stats tile: label under the count of words saved to the vocabulary."
 filmsStatWords:
   message: "{count, plural, one {# word} other {# words}}"
   description: "Library stats tile: how many words the vocabulary holds."
   placeholders:
     count: { type: "int", example: "38" }
+filmsStorageFullBody:
+  message: "New films the computer processes can’t upload. Make room in your storage, or delete old films on the computer."
+  description: "Library warning banner while the user's storage is full: what that means and what to do."
+filmsStorageFullTitle:
+  message: "Your storage is full"
+  description: "Library warning banner title: the user's storage takes nothing more."
+filmsStorageKeysBody:
+  message: "Re-enter the key on the computer in Settings › Account & Upload. Films already saved on this device still play."
+  description: "Library warning banner while the storage refuses the computer's key: what to do. Account & Upload is the computer's settings section of that name."
+filmsStorageKeysTitle:
+  message: "Can’t read your storage: the access key is invalid"
+  description: "Library warning banner title: the user's storage refuses the computer's key."
 filmsSubscriptionAuto:
-  message: "Add New Videos Automatically"
+  message: "Auto-download new videos"
   description: "Subscription sheet: switch that has the computer queue the new videos by themselves rather than wait for the user."
-filmsSubscriptionAutoDetail:
-  message: "At most {count} each check; the rest wait here."
-  description: "Subscription sheet: under the switch, how many new videos a check queues at most."
-  placeholders:
-    count: { type: "int", example: "3" }
 filmsSubscriptionChannel:
   message: "Channel"
   description: "Subscription sheet: what a subscription follows, a channel."
@@ -523,10 +591,10 @@ filmsSubscriptionSpace:
   message: "Uploader"
   description: "Subscription sheet: what a subscription follows, a Bilibili uploader's space."
 filmsSubscriptionTake:
-  message: "Add All to Jobs"
+  message: "Add all to Jobs"
   description: "Subscription sheet: button that sends every new video waiting on it to the computer's queue."
 filmsSubscriptionWaiting:
-  message: "{count, plural, =0 {New Videos} one {# New Video} other {# New Videos}}"
+  message: "{count, plural, =0 {New videos} one {# new video} other {# new videos}}"
   description: "Subscription sheet: heading of the new videos waiting for the user."
   placeholders:
     count: { type: "int", example: "2" }
@@ -543,7 +611,7 @@ filmsTitle:
   message: "Library"
   description: "Tab and title of the Library: the films on the phone and the computers' libraries."
 filmsUnpairedBody:
-  message: "Downloading, transcription and translation all happen in Kando on your computer. Once connected, its libraries show up here."
+  message: "Downloading, transcription and translation all happen in Kando on your computer. Once connected, its library shows up here, and links you send from your phone go to it."
   description: "Body of the Library's card while no computer is paired."
 filmsUnpairedTitle:
   message: "Not connected to a computer yet"
@@ -613,10 +681,10 @@ filmVideoAsked:
     title: { type: "String", example: "Rust Talk" }
     computer: { type: "String", example: "Studio" }
 filmsExportSubtitles:
-  message: "Export Subtitles"
+  message: "Export subtitles"
   description: "In a film’s options: takes its subtitles from the computer as a file and shares it."
 filmsRetranslate:
-  message: "Translate Again"
+  message: "Translate again"
   description: "In a film’s options: has the computer translate every line of the film again."
 filmsRetranslating:
   message: "Translating “{title}” again on {computer}"
@@ -625,7 +693,7 @@ filmsRetranslating:
     title: { type: "String", example: "Rust Talk" }
     computer: { type: "String", example: "Studio" }
 filmsDeleteFromLibrary:
-  message: "Delete from Library"
+  message: "Delete from library"
   description: "In a film’s options: deletes it from the computer’s library."
 filmsDeleteFromLibraryTitle:
   message: "Delete “{title}” from the library?"
@@ -1142,6 +1210,9 @@ linesRemoveMessage:
 linesRemoveTitle:
   message: "Remove this line?"
   description: "Title of the alert that removes a saved line."
+NSCameraUsageDescription:
+  message: "Kando uses the camera to read the QR code your computer shows, to pair with it."
+  description: "iOS: the reason the system shows as it asks to let the app use the camera (the Info.plist's NSCameraUsageDescription, which nsgo.yaml's apple.info gives in English); the pairing page takes a photo of the computer's pairing QR code."
 NSLocalNetworkUsageDescription:
   message: "Kando connects to Kando on your computer over your local network to list and download your films."
   description: "iOS: the reason the system shows as it asks to let the app reach devices on the local network (the Info.plist's NSLocalNetworkUsageDescription, which nsgo.yaml's apple.info gives in English); the app reaches the computers it is paired with that way."
@@ -1216,6 +1287,9 @@ pairContinue:
 pairErrAddress:
   message: "Enter the address as your computer shows it, such as 192.168.1.20:47123."
   description: "Error on the pairing page: the address is not an IP address with a port."
+pairErrCamera:
+  message: "Can't open the camera. Allow Kando to use it in Settings, or enter the address and code."
+  description: "Error on the pairing page: the camera could not take a photo, as when the user refused it."
 pairErrCodeExpired:
   message: "That code has expired. Show a new one on your computer."
   description: "Error on the pairing page: the code is past its 5 minutes or was tried wrongly too often."
@@ -1231,6 +1305,12 @@ pairErrFingerprint:
 pairErrNoCode:
   message: "Open Settings › Phone Sync on your computer: it takes a code only while that page is open."
   description: "Error on the pairing page: the computer offers no code because its Phone Sync settings are not open."
+pairErrNoQR:
+  message: "Couldn't find a QR code in that photo. Take it closer, with the whole code in view."
+  description: "Error on the pairing page: the photo taken to scan holds no QR code the app can read."
+pairErrNotPairQR:
+  message: "That QR code isn't a Kando pairing code."
+  description: "Error on the pairing page: the photo's QR code is not the one the computer's Phone Sync settings show."
 pairErrTooMany:
   message: "Too many tries. Wait a minute, then try again."
   description: "Error on the pairing page: the computer refuses pairings for a while after many."
@@ -1245,6 +1325,15 @@ pairErrWrongCode:
 pairHint:
   message: "On your computer, open Kando's Settings › Phone Sync, then enter the address and code it shows."
   description: "At the top of the pairing page."
+pairHintScan:
+  message: "On your computer, open Kando's Settings › Phone Sync, then scan the QR code it shows, or enter its address and code."
+  description: "At the top of the pairing page, on a phone with a camera."
+pairScan:
+  message: "Scan QR Code"
+  description: "Button on the pairing page that takes a photo of the QR code the computer shows."
+pairScanning:
+  message: "Reading the QR code…"
+  description: "Spoken name of the scan button while the app reads the photo, which shows a spinner meanwhile."
 pairTitle:
   message: "Pair with a Computer"
   description: "Title of the pairing page."

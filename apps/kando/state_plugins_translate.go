@@ -271,7 +271,7 @@ func (t pluginsTranslator) CheckTranslate() error {
 	return nil
 }
 
-// pluginsNoCredential reports whether the script plugin id declares credentials and none of their secrets is kept, as Kando last read or changed them (pluginsScripts.secrets); false for a plugin without credentials, or whose secrets are not read yet, and without a secure store (pluginsScripts.noSecrets), where no key can be kept and the plugin stays off, which its translation then says (not-running) rather than ask for a key the user cannot fill in.
+// pluginsNoCredential reports whether the script plugin id declares credentials and none of their secrets is kept, as Kando last read or changed them (pluginsScripts.secrets); false for a plugin without credentials, or whose secrets are not read yet, or one of whose secrets the secure store failed to read (pluginsReadKept), where the key may well be kept and the plugin's own fetch is left to find out, and without a secure store (pluginsScripts.noSecrets), where no key can be kept and the plugin stays off, which its translation then says (not-running) rather than ask for a key the user cannot fill in.
 func (a *app) pluginsNoCredential(id string) bool {
 	p, ok := a.pluginsPack(id)
 	kept, read := a.plugins.script.secrets[id]
@@ -279,7 +279,7 @@ func (a *app) pluginsNoCredential(id string) bool {
 		return false
 	}
 	for _, c := range p.Credentials {
-		if kept[plugins.SecretKey(c.ID)] {
+		if isKept, read := kept[plugins.SecretKey(c.ID)]; isKept || !read {
 			return false
 		}
 	}
