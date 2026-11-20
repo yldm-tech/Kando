@@ -149,6 +149,18 @@ func TestPluginGlossarySuggest(t *testing.T) {
 		t.Fatalf("refused calls suggested %+v", a.TermSuggestions())
 	}
 
+	// Sent before the film's own terms are read, as a plugin hearing film.opened may, the terms are kept, and listed once they are read, but for the one the film holds.
+	own := a.gloss.film
+	apply(tt, a, func() { a.gloss.film, a.gloss.filmRead = nil, false })
+	if got := suggest("current", term("Congo", "刚果河"), term("NILE", "Nile River")); got != 2 || len(a.TermSuggestions()) != 0 {
+		t.Fatalf("before the terms are read, the call answered %v and the suggestions are %+v", got, a.TermSuggestions())
+	}
+	apply(tt, a, func() { a.gloss.film, a.gloss.filmRead = own, true })
+	if got := a.TermSuggestions(); len(got) != 2 || got[1].Source != "Congo" {
+		t.Fatalf("once the terms are read, suggested %+v", got)
+	}
+	apply(tt, a, func() { a.gloss.suggest.plugin = nil })
+
 	// However often a plugin proposes, a film holds at most plugins.SuggestHeld of the plugins' terms; Amazon, dismissed, holds none.
 	held := 0
 	for round := 0; held < plugins.SuggestHeld; round++ {

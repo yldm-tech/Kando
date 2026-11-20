@@ -8756,18 +8756,18 @@ glossaryUndoLast:
   description: "Terms tab: button under the edit log that takes back the latest change, as Edit › Undo does. Its shortcut is shown beside it."
 glossarySuggested:
   message: "Found in This Film"
-  description: "Terms tab: heading over the names and terms the AI service found in the film after translating it, which the user adds to the glossary or dismisses."
+  description: "Terms tab: heading over the names and terms the AI service found in the film after translating it and those a script plugin proposed for it, which the user adds to the glossary or dismisses."
 glossarySuggestAdd:
   message: "Add “{term}” to the Glossary"
-  description: "Accessible name and tooltip of the button that adds a term the AI service found to the film's glossary; its visible label is Add."
+  description: "Accessible name and tooltip of the button that adds a suggested term (found by the AI service or proposed by a script plugin) to the film's glossary; its visible label is Add."
   placeholders:
     term: { type: "String", example: "Nile" }
 glossarySuggestDismiss:
   message: "Dismiss"
-  description: "Terms tab: button beside a term the AI service found that drops it for good."
+  description: "Terms tab: button beside a suggested term (found by the AI service or proposed by a script plugin) that drops it for good."
 glossarySuggestDismissLabel:
   message: "Dismiss “{term}”"
-  description: "Accessible name and tooltip of the button that drops a term the AI service found, so it is not suggested again."
+  description: "Accessible name and tooltip of the button that drops a suggested term (found by the AI service or proposed by a script plugin), so it is not suggested again."
   placeholders:
     term: { type: "String", example: "Nile" }
 glossarySuggestFromPlugin:

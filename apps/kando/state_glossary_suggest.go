@@ -40,7 +40,7 @@ func (a *app) glossarySuggestFollow() bool {
 	video := a.gloss.video
 	dropped := false
 	if video != g.video {
-		dropped = len(g.list.Terms) > 0
+		dropped = len(g.list.Terms) > 0 || len(g.plugin) > 0
 		*g = glossarySuggest{video: video, gen: g.gen + 1}
 	}
 	if video == "" {
@@ -106,9 +106,9 @@ func (a *app) TermSuggestionPlugin(cx *ns.Scope, source string) string {
 	return cmp.Or(g.plugin[i].name.In(i18n.Language(cx)), g.plugin[i].id)
 }
 
-// glossarySuggestFromPlugin keeps the terms the script plugin id, named name, proposed for the open film, to list them with its suggestions, and returns how many it took: none the glossary holds, another suggestion has or the user dismissed, and none past plugins.SuggestHeld; false while its own terms cannot be changed. The glossary itself is changed only when the user adds one (AcceptSuggestion), so a plugin never writes over a term, locked or not.
+// glossarySuggestFromPlugin keeps the terms the script plugin id, named name, proposed for the open film, to list them with its suggestions, and returns how many it took: none the glossary holds, another suggestion has or the user dismissed, and none past plugins.SuggestHeld; false while no film with a video is open. Terms sent before the film's own terms or its suggestions file are read are kept all the same, as a plugin hearing film.opened calls before they are, and TermSuggestions leaves out those the glossary turns out to hold. The glossary itself is changed only when the user adds one (AcceptSuggestion), so a plugin never writes over a term, locked or not.
 func (a *app) glossarySuggestFromPlugin(id string, name plugins.Text, terms []core.Term) (int, bool) {
-	if !a.TermsWritable() {
+	if a.gloss.video == "" {
 		return 0, false
 	}
 	g := &a.gloss.suggest
@@ -148,7 +148,6 @@ func (a *app) DismissSuggestion(source string) {
 	if !fromPlugin && (!g.ok || !slices.ContainsFunc(g.list.Terms, same)) {
 		return
 	}
-	g.plugin = slices.DeleteFunc(g.plugin, func(p glossaryPluginTerm) bool { return same(p.term) })
 	// Read again as the file holds them, which a job translating the film again may have just written.
 	next, err := media.DismissSuggestion(g.video, source)
 	if err != nil {
@@ -159,5 +158,8 @@ func (a *app) DismissSuggestion(source string) {
 		}
 		return
 	}
+	// What the file holds now is newer than a read still on its way (glossarySuggestFollow), which would bring the term back.
 	g.list, g.ok = next, true
+	g.gen++
+	g.plugin = slices.DeleteFunc(g.plugin, func(p glossaryPluginTerm) bool { return same(p.term) })
 }

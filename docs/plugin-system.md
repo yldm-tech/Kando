@@ -630,7 +630,7 @@ const (
 
 `kando.candidates.offer` 没有实现（第 15 节 P3b）：改错的候选由翻译来源的 `candidates` 导出提供（E14），不需要这个权限。申请它的插件照旧以 `ErrUnknownPerm` 拒收。
 
-`kando.glossary.suggest`（第 15 节「术语建议」）：`{film, terms: [{source, target}]}`，`film` 是这个插件知道的影片 id（`film.opened` 事件和 `kando.film.current` 给的那个），可以不写，写了就必须是正在打开的影片，否则回 `not-found`；没有打开的影片也回 `not-found`，影片自己的术语改不了（`TermsWritable`，例如还没读完）时回 `unavailable`。一次最多 `plugins.SuggestMax`（20）条，原文和译文清洗后（去掉看不见的字符和控制字符、合并空白，`plugins.Suggested`）各 1–`plugins.SuggestLongest`（60）字，和 AI 服务自己的术语建议同一个上限；超出、缺字段或类型不对时整次以 `bad-request` 拒绝。插件提议的术语不进术语表，只在内存里接在 AI 服务的建议后面（`a.gloss.suggest.plugin`），列在播放器「术语」标签的「片中找到的术语」里，下面一行写「来自插件「<插件名>」」（`glossarySuggestFromPlugin`）；换一部影片就清空，一部影片打开期间所有插件的提议合计最多 `plugins.SuggestHeld`（60）条。术语表（这部影片自己的、系列的、全局的和术语包的，锁定与否）已有的词、AI 服务已经建议的词、用户已经「不用」的词、同一插件或别的插件已经提议的词都不收，所以插件永远改不了已有的条目，也不会顶掉锁定的条目。回 `{added}`，即这次新列出的条数。只有用户点「添加」时才写进术语表，存成这部影片自己的、`OriginAuto`、不锁定的条目，和 AI 服务的建议同一步（`AcceptSuggestion`，撤销后重新出现在建议里）；点「不用」时写进影片旁建议文件的 `dismissed`（`media.DismissSuggestion`），之后 AI 服务和插件都不会再建议它。
+`kando.glossary.suggest`（第 15 节「术语建议」）：`{film, terms: [{source, target}]}`，`film` 是这个插件知道的影片 id（`film.opened` 事件和 `kando.film.current` 给的那个），可以不写，写了就必须是正在打开的影片，否则回 `not-found`；没有打开的影片也回 `not-found`；打开的影片没有视频，或术语表还没跟上刚打开的影片（`a.gloss.video` 和影片的视频不同）时回 `unavailable`。影片自己的术语和建议文件还没读完时照收（插件听到 `film.opened` 就调用时多半还没读完），读完后术语表已有的词不列出。一次最多 `plugins.SuggestMax`（20）条，原文和译文清洗后（去掉看不见的字符和控制字符、合并空白，`plugins.Suggested`）各 1–`plugins.SuggestLongest`（60）字，和 AI 服务自己的术语建议同一个上限；超出、缺字段或类型不对时整次以 `bad-request` 拒绝。插件提议的术语不进术语表，只在内存里接在 AI 服务的建议后面（`a.gloss.suggest.plugin`），列在播放器「术语」标签的「片中找到的术语」里，下面一行写「来自插件「<插件名>」」（`glossarySuggestFromPlugin`）；换一部影片就清空，一部影片打开期间所有插件的提议合计最多 `plugins.SuggestHeld`（60）条。术语表（这部影片自己的、系列的、全局的和术语包的，锁定与否）已有的词、AI 服务已经建议的词、用户已经「不用」的词、同一插件或别的插件已经提议的词都不收，所以插件永远改不了已有的条目，也不会顶掉锁定的条目。回 `{added}`，即这次新列出的条数。只有用户点「添加」时才写进术语表，存成这部影片自己的、`OriginAuto`、不锁定的条目，和 AI 服务的建议同一步（`AcceptSuggestion`，撤销后重新出现在建议里）；点「不用」时写进影片旁建议文件的 `dismissed`（`media.DismissSuggestion`），之后 AI 服务和插件都不会再建议它。
 
 P3b 实现的几个 handler 的形状（都在后台跑，等待期间暂停这次调用的看门狗，失败只回错误码）：
 
@@ -1299,10 +1299,12 @@ P1.2 的测量结果（Ubuntu 编译机，x86_64，Go 1.27.4，kagome-dict/ipa v
 
 - 术语建议（`feat/plugins-glossary-suggest`，已完成）：`kando.glossary.suggest`。#287 之后播放器的「术语」标签已经有「提议一个术语、由用户取舍」的地方（`state_glossary_suggest.go`），所以按 5.3、6.2、7.4 接上了。和正文的出入如下，5.3、6.2、7.4 已同步改过：
   - 没有复用 `core.Proof`：它是终审对字幕行的改动，不管术语表。复用的是 AI 服务术语建议的那一套：「添加」是 `glossaryChange(correctKindTermAccept, …)`，撤销后重新建议；「不用」写进影片旁建议文件的 `dismissed`。
-  - 插件的提议只在内存里，换影片就清空，不写建议文件；只有「不用」会写文件，这样插件下次再提同一个词也不会列出来。
+  - 插件的提议只在内存里，换影片就清空，不写建议文件；只有「不用」会写文件，这样插件下次再提同一个词也不会列出来。「不用」写成功后才从内存里去掉，并让还在路上的那次读建议文件作废，免得旧内容把它带回来。
+  - 影片的术语还没读完时提议照收，不回 `unavailable`：插件听到 `film.opened` 就调用是最常见的用法，那时术语多半还没读完，插件也没有「读完了」的事件可等。术语表已有的词由 `TermSuggestions` 在显示时滤掉。
+  - 插件被关闭、撤销授权或卸载后，它已经提的词仍留在列表里，直到换影片；只是提议，要用户点「添加」才会进术语表。
   - 上限是每次 20 条、每条原文和译文各 60 字（和 `media.SuggestMax`、`suggestLongest` 一样）、一部影片打开期间合计 60 条；纯函数在 `plugins/suggest.go`（`plugins.Suggested`），handler 在 `state_plugins_host.go`（`pluginsGlossarySuggest`），状态在 `state_glossary_suggest.go`。`film.Glossary` 加了 `TermSuggestionPlugin(cx, source)`，返回提议这一条的插件名（界面语言），AI 服务的建议返回空串。
   - 授权页和详情页的说明是「为正在播放的影片建议术语，由你决定加不加进术语表」（`settingsPluginsPermGlossarySuggest`）；它不读片库、不联网，所以不影响 `plugins.Risky`。
-  - 测试：`plugins/suggest_test.go`（形状和上限）、`film/terms_test.go`（插件名那一行）、根目录 `plugins_glossary_test.go`（没授权时被沙箱以 `ERR_ACCESS_DENIED` 拒绝；授权后锁定的、全局的、AI 已建议的和重复的都不收；列出插件名；添加、撤销、不用写进 `dismissed` 后再提不收；超出上限、缺译文、不是列表整次 `bad-request`；别的影片 `not-found`；合计 60 条后不再收）。截图场景 `player-terms-plugin`（「术语」标签里一条 AI 建议、一条插件建议）只在 Linux 上跑了无头断言，没有出图。
+  - 测试：`plugins/suggest_test.go`（形状和上限）、`film/terms_test.go`（插件名那一行）、根目录 `plugins_glossary_test.go`（没授权时被沙箱以 `ERR_ACCESS_DENIED` 拒绝；授权后锁定的、全局的、AI 已建议的和重复的都不收；术语还没读完时照收，读完后影片已有的词不列出；列出插件名；添加、撤销、不用写进 `dismissed` 后再提不收；超出上限、缺译文、不是列表整次 `bad-request`；别的影片 `not-found`；合计 60 条后不再收）。截图场景 `player-terms-plugin`（「术语」标签里一条 AI 建议、一条插件建议）只在 Linux 上跑了无头断言，没有出图。
 
 - P5 社区索引（客户端和工具）：目录的页面、上架和限速、代码包审核不在这个 PR 里（官网上的页面另做），本 PR 没有建任何仓库，也没有上传任何东西。和正文（10 节 P5、6.5）的出入和细节如下：
   - 格式（`plugins/index`，非界面包）：索引文件是 `{"format": "kando-plugins-index", "version": 1, "signer", "signature", "body"}`，`body` 是索引 JSON 的 base64，里面是 `format`、`version`、`generated`（生成时间）和 `entries`。签名是 Ed25519 对 `kando-plugins-index-v1`、一个 0 字节和 body 的 SHA-256 签的，做法和 tsx/pkg 给包、证书、吊销列表签名一样，但上下文不同，所以同一把键签的别的东西不会被当成索引。tsx/pkg 的签名封装（`keys.go` 的 `signed`、`signBody`、`framed`）和上下文常量都没有导出，只能复用它的键编码：`pkg.DecodePublicKey`、`DecodeSecretKey`、`EncodeSecretKey`、`KeyID`、`GenerateKey`；这个缺口已提交为 [nsgo-dev/nsgo#868](https://github.com/nsgo-dev/nsgo/issues/868)，`plugins/index` 里自己那份 framing 处写了 `TODO(nsgo#868)`，上游导出后换回 tsx/pkg 的封装。格式和版本在签名外也写一份，好让旧版在验签前就认出新格式（`ErrVersion`）。验签之后用 `DisallowUnknownFields` 严格解码，再逐条校验。

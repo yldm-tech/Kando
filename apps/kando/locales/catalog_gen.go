@@ -65843,7 +65843,7 @@ func (msgs Messages) GlossaryUndoLast() string { return msgs.text(textGlossaryUn
 // GlossarySuggested says "Found in This Film"
 // in the language the app shows under cx.
 //
-// Terms tab: heading over the names and terms the AI service found in the film after translating it, which the user adds to the glossary or dismisses.
+// Terms tab: heading over the names and terms the AI service found in the film after translating it and those a script plugin proposed for it, which the user adds to the glossary or dismisses.
 func GlossarySuggested(cx *core.Scope) string { return For(cx).GlossarySuggested() }
 
 // GlossarySuggested is the package's GlossarySuggested in the language of msgs.
@@ -65852,7 +65852,7 @@ func (msgs Messages) GlossarySuggested() string { return msgs.text(textGlossaryS
 // GlossarySuggestAdd says "Add “{term}” to the Glossary"
 // in the language the app shows under cx.
 //
-// Accessible name and tooltip of the button that adds a term the AI service found to the film's glossary; its visible label is Add.
+// Accessible name and tooltip of the button that adds a suggested term (found by the AI service or proposed by a script plugin) to the film's glossary; its visible label is Add.
 func GlossarySuggestAdd(cx *core.Scope, term string) string { return For(cx).GlossarySuggestAdd(term) }
 
 // GlossarySuggestAdd is the package's GlossarySuggestAdd in the language of msgs.
@@ -65882,7 +65882,7 @@ func (msgs Messages) GlossarySuggestAdd(term string) string {
 // GlossarySuggestDismiss says "Dismiss"
 // in the language the app shows under cx.
 //
-// Terms tab: button beside a term the AI service found that drops it for good.
+// Terms tab: button beside a suggested term (found by the AI service or proposed by a script plugin) that drops it for good.
 func GlossarySuggestDismiss(cx *core.Scope) string { return For(cx).GlossarySuggestDismiss() }
 
 // GlossarySuggestDismiss is the package's GlossarySuggestDismiss in the language of msgs.
@@ -65891,7 +65891,7 @@ func (msgs Messages) GlossarySuggestDismiss() string { return msgs.text(textGlos
 // GlossarySuggestDismissLabel says "Dismiss “{term}”"
 // in the language the app shows under cx.
 //
-// Accessible name and tooltip of the button that drops a term the AI service found, so it is not suggested again.
+// Accessible name and tooltip of the button that drops a suggested term (found by the AI service or proposed by a script plugin), so it is not suggested again.
 func GlossarySuggestDismissLabel(cx *core.Scope, term string) string {
 	return For(cx).GlossarySuggestDismissLabel(term)
 }

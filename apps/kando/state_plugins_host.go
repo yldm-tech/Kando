@@ -3,6 +3,7 @@ package main
 import (
 	"cmp"
 	"net/url"
+	"path/filepath"
 	"strings"
 
 	"kando/apps/kando/film"
@@ -244,7 +245,7 @@ func (a *app) pluginsToastCall(l *pluginsScript, c *ns.HostCall) {
 	c.Resolve(true)
 }
 
-// pluginsGlossarySuggest answers kando.glossary.suggest: the terms sent ({film, terms: [{source, target}]}, plugins.Suggested) are proposed for the open film's glossary, which the player's 术语 tab lists under the plugin's name for the user to add or dismiss (glossarySuggestFromPlugin); the call answers {added}, how many it lists that it did not before. It is refused as a bad request for terms past the limits, with not-found while no film is open or one other than the film sent, and as unavailable while the film's own terms cannot be changed.
+// pluginsGlossarySuggest answers kando.glossary.suggest: the terms sent ({film, terms: [{source, target}]}, plugins.Suggested) are proposed for the open film's glossary, which the player's 术语 tab lists under the plugin's name for the user to add or dismiss (glossarySuggestFromPlugin); the call answers {added}, how many it lists that it did not before. It is refused as a bad request for terms past the limits, with not-found while no film is open or one other than the film sent, and as unavailable while the open film has no video its glossary follows; terms sent before the film's own terms are read are kept, and those the glossary holds are left out of the list once they are.
 func (a *app) pluginsGlossarySuggest(l *pluginsScript, c *ns.HostCall) {
 	film, terms, ok := plugins.Suggested(c.Data)
 	if !ok {
@@ -254,6 +255,11 @@ func (a *app) pluginsGlossarySuggest(l *pluginsScript, c *ns.HostCall) {
 	f, open := a.openFilm()
 	if !open || film != "" && film != a.pluginsFilmID(l, cmp.Or(f.VideoPath, f.Key)) {
 		pluginsRefuse(c, pluginsNotFound)
+		return
+	}
+	// The glossary follows the player's video, which a film just opened may not have moved to yet; terms sent then would land on the film before.
+	if a.gloss.video == "" || filepath.Clean(f.VideoPath) != filepath.Clean(a.gloss.video) {
+		pluginsRefuse(c, pluginsUnavailable)
 		return
 	}
 	added, ok := a.glossarySuggestFromPlugin(l.pack.ID, l.pack.Name, terms)
