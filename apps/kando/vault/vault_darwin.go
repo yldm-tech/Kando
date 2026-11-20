@@ -70,8 +70,7 @@ func Create(ctx context.Context, dir, password string, progress Progress) (err e
 	if err := clearLeftovers(ctx, staging, mount); err != nil {
 		return err
 	}
-	name := strings.TrimSuffix(filepath.Base(dir), filepath.Ext(dir))
-	if _, err := hdiutil(ctx, password, "create", "-quiet", "-size", maxSize, "-type", "SPARSE", "-fs", "APFS", "-volname", name, "-encryption", "AES-256", "-stdinpass", strings.TrimSuffix(staging, ".sparseimage")); err != nil {
+	if err := makeImage(ctx, staging, strings.TrimSuffix(filepath.Base(dir), filepath.Ext(dir)), password); err != nil {
 		return fmt.Errorf("vault: make the image: %w", err)
 	}
 	defer func() {
@@ -352,6 +351,27 @@ func treeSize(path string) int64 {
 	return n
 }
 
+// makeImage makes the encrypted sparse image staging, its volume named name. hdiutil create now and then fails with exit status 1 and not a word, as it did on GitHub's macOS runners while the same create went through a moment before and after; a failure like that is tried again, up to createTries times, busyRetry apart, removing what it left first. A failure hdiutil explains, as a full disk, is returned at once.
+func makeImage(ctx context.Context, staging, name, password string) error {
+	for try := 1; ; try++ {
+		out, err := hdiutil(ctx, password, "create", "-quiet", "-size", maxSize, "-type", "SPARSE", "-fs", "APFS", "-volname", name, "-encryption", "AES-256", "-stdinpass", strings.TrimSuffix(staging, ".sparseimage"))
+		if err == nil || try == createTries || ctx.Err() != nil || strings.TrimSpace(deprecations(string(out))) != "" {
+			return err
+		}
+		if err := os.Remove(staging); err != nil && !errors.Is(err, fs.ErrNotExist) {
+			return err
+		}
+		select {
+		case <-ctx.Done():
+			return err
+		case <-time.After(busyRetry):
+		}
+	}
+}
+
+// createTries is how often makeImage tries an hdiutil create that fails without a word.
+const createTries = 3
+
 // clearLeftovers removes what a Create, Open or Remove cut short may have left: the staging image, when one is named, and the mount folder, detached first if the image is still attached there.
 func clearLeftovers(ctx context.Context, staging, mount string) error {
 	if otherDevice(mount, filepath.Dir(mount)) {
@@ -382,15 +402,29 @@ func attach(ctx context.Context, image, mount, password string) error {
 }
 
 // detach detaches the image attached at mount. Without force, a detach that fails is tried again every busyRetry for up to busyWait: Spotlight and fseventsd keep a volume just attached busy for some seconds, a minute on GitHub's macOS runners, though nothing of Kando's is open in it, and hdiutil says so with exit status 16 or 1 and words in the system's language, so the failures are not told apart.
+//
+// A detach hdiutil says failed may still go through after it gave up, the volume leaving mount a moment later; mount is then a plain folder, which hdiutil answers with "No such file or directory" however often it is tried. So once the volume is gone from mount, its disk, read before the first try, is what is detached, and a disk that is gone too means the image is detached.
 func detach(ctx context.Context, mount string, force bool) error {
-	args := []string{"detach", mount}
-	if force {
-		args = append(args, "-force")
-	}
+	disk := volumeDisk(mount)
+	target := mount
 	deadline := time.Now().Add(busyWait)
 	for {
+		if target == disk && !exists(disk) {
+			return nil
+		}
+		args := []string{"detach", target}
+		if force {
+			args = append(args, "-force")
+		}
 		_, err := hdiutil(ctx, "", args...)
-		if err == nil || force || time.Now().After(deadline) {
+		if err == nil {
+			return nil
+		}
+		if target == mount && disk != "" && !otherDevice(mount, filepath.Dir(mount)) {
+			target = disk
+			continue
+		}
+		if force || time.Now().After(deadline) {
 			return err
 		}
 		select {
@@ -399,6 +433,43 @@ func detach(ctx context.Context, mount string, force bool) error {
 		case <-time.After(busyRetry):
 		}
 	}
+}
+
+// volumeDisk is the whole disk, as /dev/disk9, of the volume mounted at mount, or "" when none is: for an image's APFS volume, the container disk, whose detach detaches the image.
+func volumeDisk(mount string) string {
+	if !otherDevice(mount, filepath.Dir(mount)) {
+		return ""
+	}
+	var st syscall.Statfs_t
+	if syscall.Statfs(mount, &st) != nil {
+		return ""
+	}
+	b := make([]byte, 0, len(st.Mntfromname))
+	for _, c := range st.Mntfromname {
+		if c == 0 {
+			break
+		}
+		b = append(b, byte(c))
+	}
+	return wholeDisk(string(b))
+}
+
+// wholeDisk is the whole disk of dev, /dev/disk9 for /dev/disk9s1, or "" when dev is not a disk's.
+func wholeDisk(dev string) string {
+	name, ok := strings.CutPrefix(dev, "/dev/disk")
+	if !ok || name == "" {
+		return ""
+	}
+	n, _, _ := strings.Cut(name, "s")
+	if n == "" || strings.Trim(n, "0123456789") != "" {
+		return ""
+	}
+	return "/dev/disk" + n
+}
+
+func exists(path string) bool {
+	_, err := os.Stat(path)
+	return err == nil
 }
 
 // busyWait and busyRetry are how long detach goes on trying an image the system says is busy, and how often.

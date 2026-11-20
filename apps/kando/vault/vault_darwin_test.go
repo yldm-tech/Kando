@@ -221,3 +221,12 @@ func TestInfoDeviceFindsTheImagesWholeDisk(t *testing.T) {
 		t.Fatalf("an image not attached has device %q", dev)
 	}
 }
+
+// wholeDisk takes a volume's device to its whole disk, which detach detaches once the volume has left its mount point.
+func TestWholeDiskOfAVolume(t *testing.T) {
+	for dev, want := range map[string]string{"/dev/disk9s1": "/dev/disk9", "/dev/disk12": "/dev/disk12", "/dev/disk3s1s1": "/dev/disk3", "map auto_home": "", "/dev/disk": "", "/dev/diskXs1": ""} {
+		if got := wholeDisk(dev); got != want {
+			t.Errorf("wholeDisk(%q) = %q, want %q", dev, got, want)
+		}
+	}
+}
