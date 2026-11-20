@@ -17,7 +17,7 @@ import (
 //
 // The runner does not set tsx's Limits.CallTotal: it is wall time from Plugin.Call, which the host cannot pause while it serves the plugin, as Deadline is paused (Pause, PauseFor) for a sound read or an LLM answer of up to two minutes; and it would also drop what the entry module sets going once Limits.Load has passed, a second, which plugins may rely on.
 //
-// TODO(nsgo): tsx's CallTotal cannot be paused or extended while the host serves the plugin, and tsx says no time a runtime's JS ran, so the runner keeps its own Deadline and Paused and measures the window's load by heartbeats; use a pausable call deadline and the runtime's own time once tsx has them
+// TODO(nsgo#925): tsx's CallTotal cannot be paused or extended while the host serves the plugin, and tsx says no time a runtime's JS ran, so the runner keeps its own Deadline and Paused and measures the window's load by heartbeats; use a pausable call deadline and the runtime's own time once tsx has them https://github.com/nsgo-dev/nsgo/issues/925
 // TODO(nsgo#760): tsx.Limits bounds no memory; the watchdog's heap threshold stands in for it https://github.com/nsgo-dev/nsgo/issues/760
 type Runner struct {
 	// Post runs fn on the engine's goroutine later, from any goroutine, without blocking.
@@ -240,7 +240,7 @@ func (r *Runner) pause(c *call) (resume func()) {
 
 // halted is why tsx stopped the runtime of a plugin whose call failed with err, as a reason of plugins, "" when err does not say it stopped: a runtime tsx stopped at its node quota (Limits.Nodes) or its memory quota (Limits.Memory) fails the call that ran into it, and every call after at once, with that quota's core.Error, whose code the breaker does not count, so without this the plugin would stay on, each call failing. That error names the quota's resource, which an error a plugin throws or rejects with never does: tsx keeps only its code and message (tsx/view.go rejection), so a plugin that reports a quota of its own is not taken for one tsx stopped (tsx/view.go:232-245). Its memory quota is ReasonMemory, any other ReasonFailed. It reads err alone and calls nothing of the plugin: the plugin can put a getter on any name of its exports object, which tsx reads on the engine's goroutine outside any budget, and the call's watchdog has ended.
 //
-// TODO(nsgo): tsx.Plugin says neither whether tsx stopped its runtime nor why, but through a Call's error (tsx/view.go:131-139 Plugin.Call), and looking up a name a Call has not been given runs the plugin's getters unbounded (tsx/view.go:141-143 exports.Get); ask the plugin directly once tsx says it
+// TODO(nsgo#925): tsx.Plugin says neither whether tsx stopped its runtime nor why, but through a Call's error (tsx/view.go:131-139 Plugin.Call), and looking up a name a Call has not been given runs the plugin's getters unbounded (tsx/view.go:141-143 exports.Get); ask the plugin directly once tsx says it https://github.com/nsgo-dev/nsgo/issues/925
 func halted(err error) string {
 	var coded *core.Error
 	if !errors.As(err, &coded) || coded.Code != core.CodeQuotaExceeded || coded.Resource == "" {
