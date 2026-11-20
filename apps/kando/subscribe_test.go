@@ -898,6 +898,20 @@ func TestSubscribeToACollectionAddsItsEpisodes(t *testing.T) {
 	}
 }
 
+// In a window shorter than the collection's card, the card scrolls inside the dialog and its buttons stay on screen, so it can still be subscribed to.
+func TestSubscribeCardFitsAShortWindow(t *testing.T) {
+	p := newListingPipeline(map[string]media.Listing{testSubCollection: testSubEpisodes})
+	a, tt, updates := newTestApp(t, p, nsgotest.Size(1024, 560))
+	subscribeRead(t, tt, a, p, updates, testSubCollection)
+	if !tt.Exists("id:subscribe-submit") || !tt.Exists("id:subscribe-cancel") {
+		t.Fatalf("the buttons are off screen: %q", tt.Texts())
+	}
+	tt.Press("id:subscribe-submit")
+	if len(a.subs.store.Subs) != 1 || len(a.library.Jobs) != 3 {
+		t.Fatalf("subscriptions %+v, jobs %d", a.subs.store.Subs, len(a.library.Jobs))
+	}
+}
+
 // Subscribing to a channel asks how many of its videos to add now: its latest 3 unless the user chooses otherwise, the rest counting as seen.
 func TestSubscribeToAChannelAddsItsLatest(t *testing.T) {
 	var videos []media.ListedVideo

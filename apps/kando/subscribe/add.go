@@ -188,7 +188,9 @@ func (d Ask) card(cx *ns.Scope, p Preview) ns.Node {
 		},
 		// Without the switch there is nothing to do but add, which needs a video to add.
 		Disabled: func() bool { return d.Reading() || (!following.Get() && adding.Get() == 0) }}
-	body := ns.View{Style: ns.Style{Gap: 10, AlignItems: ns.AlignStretch}, Children: children}
+	// The card can be taller than a short window; its body scrolls inside the dialog so 取消 and the button stay on screen.
+	body := ns.Scroll{TestID: "subscribe-card-scroll", Style: ns.Style{FlexShrink: 1, MinHeight: ns.Pt(0)}, Children: []ns.Node{
+		ns.View{Style: ns.Style{Gap: 10, AlignItems: ns.AlignStretch}, Children: children}}}
 	return d.dialog(cx, nil, nil, func() string { return p.Name }, []ns.Node{body}, submit, 560)
 }
 
