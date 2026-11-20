@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"os"
 	"path/filepath"
 	"reflect"
 	"slices"
@@ -31,7 +32,7 @@ export async function suggest(terms, film) {
 }
 `
 
-// TestPluginGlossarySuggest checks kando.glossary.suggest: refused until granted; granted, the terms a plugin proposes for the film open are listed with the AI service's suggestions under the plugin's name, none the glossary holds, locked or not, nor one suggested already, and nothing goes into the glossary until the user adds one; adding is a step Undo takes back, dismissing keeps it from being proposed again; past the limits the call is refused whole, a film other than the one open is not found, and the plugins' proposals for a film stop at plugins.SuggestHeld.
+// TestPluginGlossarySuggest checks kando.glossary.suggest: refused until granted; granted, the terms a plugin proposes for the film open are listed with the AI service's suggestions under the plugin's name, none the glossary holds, locked or not, nor one suggested already, and nothing goes into the glossary until the user adds one; adding is a step Undo takes back, dismissing keeps it from being proposed again; past the limits the call is refused whole, a film other than the one open is not found, the plugins' proposals for a film stop at plugins.SuggestHeld, a plugin's term dismissed leaves the list though the suggestions file cannot be read, and the call is unavailable while the glossary is still on the film before and not found with no film open.
 func TestPluginGlossarySuggest(t *testing.T) {
 	key := newPluginsKey(t)
 	dir := pluginScriptFolder(t, key, "acme.places", "1.0.0", pluginSuggestFields, pluginSuggestCode)
@@ -161,6 +162,27 @@ func TestPluginGlossarySuggest(t *testing.T) {
 	}
 	apply(tt, a, func() { a.gloss.suggest.plugin = nil })
 
+	// While the film's suggestions file cannot be read, a plugin's term dismissed leaves the list all the same, though the file keeps nothing.
+	good, err := os.ReadFile(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(path, []byte("{"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	apply(tt, a, func() { a.gloss.suggest.ok = false })
+	if got := suggest("current", term("Congo", "刚果河")); got != 1 || len(a.TermSuggestions()) != 1 || a.TermSuggestions()[0].Source != "Congo" {
+		t.Fatalf("with the file unreadable, the call answered %v and the suggestions are %+v", got, a.TermSuggestions())
+	}
+	apply(tt, a, func() { a.DismissSuggestion("Congo") })
+	if got := a.TermSuggestions(); len(got) != 0 {
+		t.Fatalf("dismissed with the file unreadable, suggested %+v", got)
+	}
+	if err := os.WriteFile(path, good, 0o644); err != nil {
+		t.Fatal(err)
+	}
+	apply(tt, a, func() { a.gloss.suggest.ok, a.gloss.suggest.plugin = true, nil })
+
 	// However often a plugin proposes, a film holds at most plugins.SuggestHeld of the plugins' terms; Amazon, dismissed, holds none.
 	held := 0
 	for round := 0; held < plugins.SuggestHeld; round++ {
@@ -177,5 +199,15 @@ func TestPluginGlossarySuggest(t *testing.T) {
 	}
 	if got := suggest("current", term("Congo", "刚果河")); got != 0 || len(a.TermSuggestions()) != 1+plugins.SuggestHeld {
 		t.Fatalf("past the limit, the call answered %v and %d are suggested", got, len(a.TermSuggestions()))
+	}
+
+	// A film just opened whose glossary is still the film's before, as the player has not moved to its video yet, is unavailable, and nothing sent lands on the film before; with no film open the call is not found.
+	apply(tt, a, func() { a.player.film.video = filepath.Join(filepath.Dir(item.VideoPath), "before.mp4") })
+	if got := suggest("current", term("Congo", "刚果河")); got != "refused unavailable" || len(a.gloss.suggest.plugin) != 0 {
+		t.Fatalf("with the glossary on another video, the call answered %v and the plugins' terms are %+v", got, a.gloss.suggest.plugin)
+	}
+	apply(tt, a, a.closeFilm)
+	if got := suggest("", term("Congo", "刚果河")); got != "refused not-found" || len(a.gloss.suggest.plugin) != 0 {
+		t.Fatalf("with no film open, the call answered %v and the plugins' terms are %+v", got, a.gloss.suggest.plugin)
 	}
 }
