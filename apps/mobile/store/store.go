@@ -139,10 +139,23 @@ func (s *Store) SaveFilm(f Film) error {
 	return writeJSON(filepath.Join(dir, filmFile), f)
 }
 
-// DeleteFilm removes the film's folder and everything in it.
+// DeleteFilm removes the film's folder and everything in it. A file written into the folder while it is being removed, as the marks of a film deleted just as its computer answered them (SaveMarks), leaves it not empty, so the removal goes on until the folder is gone or nothing more can be removed.
 func (s *Store) DeleteFilm(desktop, id string) error {
-	return os.RemoveAll(s.FilmDir(desktop, id))
+	dir := s.FilmDir(desktop, id)
+	var err error
+	for range deleteAttempts {
+		if err = os.RemoveAll(dir); err == nil {
+			return nil
+		}
+		if _, serr := os.Stat(dir); errors.Is(serr, fs.ErrNotExist) {
+			return nil
+		}
+	}
+	return err
 }
+
+// deleteAttempts is how many times DeleteFilm removes a folder that writes racing it keep from being removed.
+const deleteAttempts = 5
 
 // SaveCues keeps the film's subtitles.
 func (s *Store) SaveCues(desktop, id string, cues []sync.Cue) error {
@@ -163,13 +176,19 @@ func (s *Store) Cues(desktop, id string) ([]sync.Cue, bool, error) {
 	return cues, err == nil, err
 }
 
-// SaveMarks keeps the word marks of the film's lines, as its computer answered them, so the film shows them offline. A film no longer kept, whose folder is gone, keeps nothing, so marks that came after it was deleted do not make its folder again.
+// SaveMarks keeps the word marks of the film's lines, as its computer answered them, so the film shows them offline. A film no longer kept, whose folder is gone, keeps nothing: the marks are written only into the folder as it is, never making it, so marks that came after the film was deleted, or while it was, do not make its folder again.
 func (s *Store) SaveMarks(desktop, id string, m sync.FilmMarks) error {
 	dir := s.FilmDir(desktop, id)
-	if _, err := os.Stat(dir); errors.Is(err, fs.ErrNotExist) {
+	err := writeJSONIn(filepath.Join(dir, marksFile), m)
+	if err == nil || errors.Is(err, fs.ErrNotExist) {
+		// Gone, the folder or the file being written in it, as the film is being deleted.
 		return nil
 	}
-	return writeJSON(filepath.Join(dir, marksFile), m)
+	// A folder removed under the write can fail it otherwise too, as with an invalid argument on macOS, which the folder being gone tells apart from a failed write.
+	if _, serr := os.Stat(dir); errors.Is(serr, fs.ErrNotExist) {
+		return nil
+	}
+	return err
 }
 
 // Marks are the word marks of the film's lines as last kept, and false when none are kept.
@@ -214,11 +233,16 @@ func readJSON(path string, v any) error {
 
 // writeJSON writes v to path through a file beside it, so a record is never left half written. Each write has a file of its own, so two goroutines saving the same record at once do not write into or move each other's; which of them lands last is the caller's to order, as the session does with a film's saves.
 func writeJSON(path string, v any) error {
-	data, err := json.MarshalIndent(v, "", "  ")
-	if err != nil {
+	if err := os.MkdirAll(filepath.Dir(path), 0o700); err != nil {
 		return err
 	}
-	if err := os.MkdirAll(filepath.Dir(path), 0o700); err != nil {
+	return writeJSONIn(path, v)
+}
+
+// writeJSONIn is writeJSON into a folder that is there already: it fails with fs.ErrNotExist when the folder is gone, and does not make it.
+func writeJSONIn(path string, v any) error {
+	data, err := json.MarshalIndent(v, "", "  ")
+	if err != nil {
 		return err
 	}
 	tmp, err := os.CreateTemp(filepath.Dir(path), filepath.Base(path)+".*.tmp")

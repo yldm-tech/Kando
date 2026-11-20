@@ -183,3 +183,25 @@ func TestTheRelayIsKeptPerComputer(t *testing.T) {
 		t.Fatalf("deleting a relay not kept: %v", err)
 	}
 }
+
+// Marks saved while their film is deleted, as a computer's answer arriving just as the film is deleted from its page, never leave the film's folder behind: the folder is gone once both are done, whichever runs first.
+func TestMarksSavedWhileTheirFilmIsDeletedLeaveNoFolder(t *testing.T) {
+	st := Open(t.TempDir())
+	marks := sync.FilmMarks{}
+	for i := range 200 {
+		if err := st.SaveFilm(Film{Desktop: "d", Film: sync.Film{ID: "f", Title: "Film"}}); err != nil {
+			t.Fatal(err)
+		}
+		saved := make(chan error, 1)
+		go func() { saved <- st.SaveMarks("d", "f", marks) }()
+		if err := st.DeleteFilm("d", "f"); err != nil {
+			t.Fatalf("round %d: deleting: %v", i, err)
+		}
+		if err := <-saved; err != nil {
+			t.Fatalf("round %d: saving the marks: %v", i, err)
+		}
+		if _, err := os.Stat(st.FilmDir("d", "f")); !os.IsNotExist(err) {
+			t.Fatalf("round %d: the deleted film's folder is still there (%v)", i, err)
+		}
+	}
+}
