@@ -38,7 +38,7 @@ const partCount = 4
 func panel(cx *core.Scope, p *play, w *words) core.Node {
 	selected := core.NewSignal(cx, linesTab)
 	// The tab bar is drawn on base.Tabs: ui.Tabs' underline is the accent's and as wide as its tab (ui/tabs.go:97-102), where the design's is white and as wide as the tab's text, and its tabs take no count beside their name.
-	// TODO(nsgo): ui.Tabs takes no style for its indicator (color, width) nor a trailing count on a tab; draw the panel's tabs with ui.Tabs once it does.
+	// TODO(nsgo#1037): ui.Tabs takes no colour or width for its underline (ui/tabs.go:120-124); draw the panel's tabs with ui.Tabs, their counts in each option's Trailing, once it does. https://github.com/nsgo-dev/nsgo/issues/1037
 	item := func(t tab, id string, text func() string, count func() int) core.Node {
 		on := func() bool { return selected.Get() == t }
 		// The tab is the bar's 38 tall whatever its count: its name 14 high from 10 down, and its underline 3 tall at its foot (the design draws it at 36, over the hairline, which the scroll clips), as the design's.
@@ -85,7 +85,7 @@ func panel(cx *core.Scope, p *play, w *words) core.Node {
 			Children: []core.Node{core.Show{When: func() bool { seen = seen || selected.Get() == t; return seen }, Then: build}}}
 	}
 	return core.View{TestID: "player-panel", Style: core.Style{FlexGrow: 1, FlexShrink: 1, MinHeight: core.Pt(0)}, Children: []core.Node{
-		// TODO(nsgo): a Scroll shrinks to fit its parent (core/tree.go:2083) and a Style cannot say FlexShrink 0, its zero being unset (core/style.go:35, Merge), so the bar's height is held by MinHeight; drop it once a Scroll's shrink can be turned off.
+		// TODO(nsgo#967): a Scroll shrinks to fit its parent (core/tree.go:2083) and a Style cannot say FlexShrink 0, its zero being unset (core/style.go:35, Merge), so the bar's height is held by MinHeight; drop it once a Scroll's shrink can be turned off. https://github.com/nsgo-dev/nsgo/issues/967
 		core.Scroll{Horizontal: true, HideIndicator: true, Style: core.Style{Height: core.Pt(38.5), MinHeight: core.Pt(38.5), Margin: core.Edges{Top: 10}, Borders: core.Edges{Bottom: 0.5}, BorderColors: core.EdgeColors{Bottom: theme.PlayerInk.Faded(0.14)}},
 			Children: []core.Node{core.View{Style: core.Style{Height: core.Pt(38), Padding: core.Symmetric(0, 20)}, Children: []core.Node{bar}}}},
 		page(linesTab, func(cx *core.Scope) core.Node { return lines(cx, p, false) }),

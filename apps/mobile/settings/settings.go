@@ -250,7 +250,7 @@ func deviceRows(cx *core.Scope, s *session.Session, act Actions) []core.Node {
 			Leading: look.GlyphTile(cx, glyph("✎"), fixed(theme.TileOrange)),
 			Title:   func() string { return locales.SettingsRemind(cx) },
 			Detail:  func() string { return locales.SettingsRemindDetail(cx, learning.ReminderHour) },
-			// TODO(nsgo): ui.Switch takes its accessibility label as a string (ui/switch.go:19), with no LabelFunc, so the switch is built again as the language changes; the Language page is another page, so this switch holds no focus then.
+			// TODO(nsgo#145): ui.Switch takes its accessibility label as a string (ui/switch.go:19), with no LabelFunc, so the switch is built again as the language changes; the Language page is another page, so this switch holds no focus then. https://github.com/nsgo-dev/nsgo/issues/145
 			Trailing: core.Dynamic(func(cx *core.Scope) core.Node {
 				return look.Switch{TestID: "settings-remind-switch", Label: locales.SettingsRemind(cx),
 					Checked: func() bool { return s.Prefs().Remind }, OnChange: s.SetRemind}

@@ -142,7 +142,7 @@ type choice[T comparable] struct {
 }
 
 // segmented is a choice among options in a segmented control, as the design's: a faint track 38 tall, the option chosen on a lighter thumb in bold, the others in white of weight 500, size big; a press on another option sets it. label names it for screen readers.
-// TODO(nsgo): ui.Tabs takes no style for its thumb, which is FinOf's pill (ui/tabs.go:111), nor its labels, the text's .6 (ui/tabs.go:115), where the design's thumb is white .24 over a white .1 track under white labels; the control is base.Tabs meanwhile.
+// TODO(nsgo#958): ui.Tabs takes no style for its thumb, which is FinOf's pill (ui/tabs.go:111), nor its labels, the text's .6 (ui/tabs.go:115), where the design's thumb is white .24 over a white .1 track under white labels; the control is base.Tabs meanwhile. https://github.com/nsgo-dev/nsgo/issues/958
 // TODO(nsgo#145): base.Tabs' Label is a string only, so the control's spoken name keeps the language it was built in; pass a LabelFunc once Tabs has one https://github.com/nsgo-dev/nsgo/issues/145
 func segmented[T comparable](id, label string, size core.Points, options []choice[T], value func() T, set func(T)) core.Node {
 	var tabs []core.Node

@@ -76,7 +76,7 @@ func contextRow(cx *core.Scope, s *session.Session, id func() string, index int)
 		Leading: look.GlyphTile(cx, glyph("↺"), fixed(theme.TileOrange)),
 		Title:   func() string { return locales.ComputerContext(cx) },
 		Detail:  func() string { return locales.ComputerContextDetail(cx) },
-		// TODO(nsgo): ui.Switch takes its accessibility label as a string (ui/switch.go:19), with no LabelFunc, so the switch is built again as the language changes, as the reminder's is.
+		// TODO(nsgo#145): ui.Switch takes its accessibility label as a string (ui/switch.go:19), with no LabelFunc, so the switch is built again as the language changes, as the reminder's is. https://github.com/nsgo-dev/nsgo/issues/145
 		Trailing: core.Dynamic(func(cx *core.Scope) core.Node {
 			return look.Switch{TestID: "computer-context-switch", Label: locales.ComputerContext(cx),
 				Checked: contextOn, OnChange: setContext,

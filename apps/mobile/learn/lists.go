@@ -192,7 +192,7 @@ func lineCard(cx *core.Scope, s *session.Session, it func() learning.Item, play 
 				Children: []core.Node{ui.Icon(playIcon, 14, colors.Accent)}}
 		}},
 	}
-	// TODO(nsgo): core.AccessibilityAction's Label is a string, with no LabelFunc, so the card that names its remove action is built again as the language changes.
+	// TODO(nsgo#145): core.AccessibilityAction's Label is a string, with no LabelFunc, so the card that names its remove action is built again as the language changes. https://github.com/nsgo-dev/nsgo/issues/145
 	id := "learn-line-" + it().ID
 	return core.Dynamic(func(cx *core.Scope) core.Node {
 		return core.View{TestID: id, Style: core.Style{Padding: core.Symmetric(14, 16), Gap: 6}, StyleFunc: func() core.Style { return look.Card(cx) },

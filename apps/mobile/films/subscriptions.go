@@ -133,7 +133,7 @@ func (v *view) subscriptionMark(cx *core.Scope, sub func() session.Subscription)
 							Ring: true, Style: core.Style{Position: core.Absolute, Right: core.Pt(1), Top: core.Pt(-2.5)}}
 					}},
 				}},
-			// TODO(nsgo): on macOS and iOS a one-line text too long for its width wraps at a space before it is cut, so it cuts its first word alone ("Eart…" where the design has "Earth Scie…"), and centred with TextAlign it clips with no ellipsis; the name is centred by the column instead, and should cut by character once NSGo can.
+			// TODO(nsgo#965): on macOS and iOS a one-line text too long for its width wraps at a space before it is cut, so it cuts its first word alone ("Eart…" where the design has "Earth Scie…"), and centred with TextAlign it clips with no ellipsis; the name is centred by the column instead, and should cut by character once NSGo can. https://github.com/nsgo-dev/nsgo/issues/965
 			core.View{AccessibilityElementsHidden: func() bool { return true }, Style: core.Style{MaxWidth: core.Pt(72), Margin: core.Edges{Top: 2}}, Children: []core.Node{
 				core.Text{ContentFunc: func() string { return sub().Name }, MaxLines: 1, Style: look.Footnote.Merge(core.Style{FontWeight: core.FontWeightMedium}), StyleFunc: ui.Colored(colors.Text)},
 			}},

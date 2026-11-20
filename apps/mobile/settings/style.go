@@ -120,7 +120,7 @@ func StylePage(cx *core.Scope, s *session.Session, back func()) base.NavPage {
 				preview(cx, style),
 				core.View{Style: core.Style{Gap: 7}, Children: []core.Node{
 					look.GroupHeader(cx, func() string { return locales.StyleSize(cx) }),
-					// TODO(nsgo): ui.Tabs' segmented control is a capsule (ui/tabs.go:66-67, 106-110) and takes no radius for its track or thumb nor a shadow for its thumb, and its own labels are regular and muted while not chosen (ui/tabs.go:64, 115); the design's is a 10-round track under an 8-round thumb lifted by a 0 1 3 shadow of 0.12 black, its labels in the ink at 500, 700 while chosen. The labels are drawn here as each option's Content; the radius and the shadow wait on NSGo.
+					// TODO(nsgo#958): ui.Tabs' segmented control is a capsule (ui/tabs.go:66-67, 106-110) and takes no radius for its track or thumb nor a shadow for its thumb, and its own labels are regular and muted while not chosen (ui/tabs.go:64, 115); the design's is a 10-round track under an 8-round thumb lifted by a 0 1 3 shadow of 0.12 black, its labels in the ink at 500, 700 while chosen. The labels are drawn here as each option's Content; the radius and the shadow wait on NSGo. https://github.com/nsgo-dev/nsgo/issues/958
 					// ui.Tabs' and its options' labels are strings, so the control is built again as the language changes, as Learn's modes are.
 					core.Dynamic(func(cx *core.Scope) core.Node {
 						return ui.Tabs[store.SubSize]{TestID: "style-size", Variant: ui.TabsSegmented, Equal: true, Size: ui.SizeLarge, Label: locales.StyleSize(cx), Options: sizes(cx),
