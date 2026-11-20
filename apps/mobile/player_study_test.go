@@ -924,7 +924,7 @@ func TestBackMinimizesThePlayerBeforeItLeavesThePageUnderIt(t *testing.T) {
 	// A page opened in a tab under the mini player goes back as before.
 	paused := p.app.Find("id:player-video").Video.Paused
 	p.openTab(settingsTab, msgs.SettingsTitle())
-	p.app.Press("id:settings-computer-" + f.Desktop)
+	p.app.Press("id:settings-computer")
 	p.app.WaitFor("id:computer-page", wait)
 	p.app.Back()
 	p.app.WaitForGone("id:computer-page", wait)
