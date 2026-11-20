@@ -405,6 +405,12 @@ func TestOfficialDeepL(t *testing.T) {
 	if err := checkTranslateWith(t, a, tt, updates, tools); cardOf(err) != m.PrecheckSourceNoCredential("DeepL") {
 		t.Fatalf("checked without a key: %v", err)
 	}
+	// Without a secure store no key can be kept, so the check does not ask for one: the plugin stays off, which its translation says.
+	onEngine(a, func() { a.plugins.script.noSecrets = true })
+	if err := checkTranslateWith(t, a, tt, updates, tools); err != nil {
+		t.Fatalf("checked without a secure store: %v", err)
+	}
+	onEngine(a, func() { a.plugins.script.noSecrets = false })
 	secrets := []string{"k-free-123:fx", "k-pro-456"}
 	setKey := func(k string) {
 		onEngine(a, func() { a.SetPluginSecret("kando.deepl", plugins.SecretKey("deepl"), k) })

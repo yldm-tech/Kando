@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"net/http/httptest"
 	"path/filepath"
 	"slices"
 	"strings"
@@ -26,7 +27,7 @@ const pluginHostFields = `"capabilities": {"host": ["kando.film.current", "kando
   "credentials": [{"id": "svc", "title": {"en": "Service key", "zh-Hans": "服务密钥"}, "header": "Authorization", "format": "Bearer {secret}", "hosts": ["api.example.com"], "methods": ["POST"], "pathPrefixes": ["/v1"]}],
   "events": ["film.opened", "llm.changed"]`
 
-// pluginHostCode is their code: call calls the host handler name with data and answers what it answered or the code it was refused with; events is what the plugin heard.
+// pluginHostCode is their code: call calls the host handler name with data and answers what it answered or the code it was refused with; events is what the plugin heard; twice calls name a second time while the first call still waits, and answers what the second answered.
 const pluginHostCode = `import { host } from "nsgo"
 const heard = []
 host.on("film.opened", (e) => { heard.push(["film.opened", e]) })
@@ -35,6 +36,10 @@ export async function call(name, data) {
   try { return await host.call(name, data || {}, { timeout: 150000 }) } catch (e) { return "refused " + e.code }
 }
 export function events() { return heard }
+export async function twice(name, data) {
+  call(name, data)
+  return await call(name, data)
+}
 `
 
 // pluginHostKey is the AI service's key in the tests of the host handlers, which no handler may answer with.
@@ -258,5 +263,40 @@ func TestPluginHostHearsLLMChanged(t *testing.T) {
 		if !slices.ContainsFunc(list, func(e any) bool { return fmt.Sprint(e) == "[llm.changed map[]]" }) {
 			t.Errorf("%s heard %v", id, heard)
 		}
+	}
+}
+
+// TestPluginHostLLMChatRefusals checks the codes kando.llm.chat refuses with past its grant: unavailable without an AI service, cut-off for a reply the model stopped at its token limit, and busy for a second request while the plugin's first one still waits.
+func TestPluginHostLLMChatRefusals(t *testing.T) {
+	a, tt, updates, _, _ := hostApp(t)
+	ask := map[string]any{"system": "be short", "user": "hi", "maxTokens": 50}
+	ffmpeg := a.pipeline.(media.Tools).FFmpeg
+	serve := func(translator media.ChatTranslator) {
+		onEngine(a, func() { a.pipeline = media.Tools{FFmpeg: ffmpeg, Translator: translator} })
+	}
+
+	serve(media.ChatTranslator{})
+	if got := hostCall(t, a, tt, updates, "acme.film", plugins.PermLLMChat, ask); got != "refused unavailable" {
+		t.Errorf("without an AI service: %v", got)
+	}
+
+	cut := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		_, _ = w.Write([]byte(`{"choices":[{"message":{"role":"assistant","content":"po"},"finish_reason":"length"}]}`))
+	}))
+	t.Cleanup(cut.Close)
+	serve(media.ChatTranslator{BaseURL: cut.URL + "/v1", APIKey: pluginHostKey, Model: "m1"})
+	if got := hostCall(t, a, tt, updates, "acme.film", plugins.PermLLMChat, ask); got != "refused cut-off" {
+		t.Errorf("a reply cut off: %v", got)
+	}
+
+	hold := make(chan struct{})
+	slow := chatServer(t, func() (int, string) { return http.StatusOK, "" }, hold)
+	// Registered after the server's Close, so it runs first and lets the waiting request end.
+	t.Cleanup(func() { close(hold) })
+	serve(media.ChatTranslator{BaseURL: slow.URL + "/v1", APIKey: pluginHostKey, Model: "m1"})
+	got, err := scriptsCall(t, a, tt, updates, "acme.film", "twice", string(plugins.PermLLMChat), ask)
+	if err != nil || got != "refused busy" {
+		t.Errorf("a second request while the first waits: %v, %v", got, err)
 	}
 }
