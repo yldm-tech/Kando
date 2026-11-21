@@ -12,6 +12,7 @@ import (
 	"kando/apps/kando/locales/testlocale"
 	"kando/packages/core"
 	"kando/packages/media"
+	"kando/packages/track"
 
 	ns "github.com/nsgo-dev/nsgo/core"
 	"github.com/nsgo-dev/nsgo/nsgotest"
@@ -23,7 +24,7 @@ func srtClock(d time.Duration) string {
 	return fmt.Sprintf("%02d:%02d:%02d,%03d", ms/3600000, ms/60000%60, ms/1000%60, ms%1000)
 }
 
-// TestScreenshotsPlayer renders the prototype's film, How Rivers Shape Landscapes (j1), from the library every scene starts from (screenshot_helpers_test.go), in the states the prototype's player screenshots show: opened and held at the start with the side panel on 字幕 (01), playing on the first line with the controls showing (02), the 片段 and 信息 tabs (04, 08), the 信息 tab with another spoken language named than the one heard, the subtitle mode menu (09), the film's reference layer with the menu that hides it, the style view (10), playing with the controls faded (11), playing with the subtitles dragged up, playing muted, the speed menu, playing at 1.5× and playing with its line looped, and, beyond the prototype, a line of the subtitle list right-clicked for its menu, the picture saying ⇧⌘C copied the playing line, the lines under the pointer showing they can be taken hold of, and the once-only tip that they can be dragged. It also renders the film on its first line (film), the film opened from the YouTube page, the film whose video the system's player cannot play, and a video no job has processed playing with the subtitles exported beside it.
+// TestScreenshotsPlayer renders the prototype's film, How Rivers Shape Landscapes (j1), from the library every scene starts from (screenshot_helpers_test.go), in the states the prototype's player screenshots show: opened and held at the start with the side panel on 字幕 (01), playing on the first line with the controls showing (02), the 片段 and 信息 tabs (04, 08), the 信息 tab with another spoken language named than the one heard, the subtitle mode menu (09), the film's reference layer with the menu that hides it, the style view (10), playing with the controls faded (11), playing with the subtitles dragged up, playing muted, the speed menu, playing at 1.5× and playing with its line looped, and, beyond the prototype, a line of the subtitle list right-clicked for its menu, the picture saying ⇧⌘C copied the playing line, the lines under the pointer showing they can be taken hold of, and the once-only tip that they can be dragged, and the film being made with the parts that have no lines yet listed as rows of their own. It also renders the film on its first line (film), the film opened from the YouTube page, the film whose video the system's player cannot play, and a video no job has processed playing with the subtitles exported beside it.
 func TestScreenshotsPlayer(t *testing.T) {
 	f := newScreenshotFixture(t)
 	// open opens film id at at and has the system's player report it loaded, held there.
@@ -277,6 +278,42 @@ func TestScreenshotsPlayer(t *testing.T) {
 		tt.Key("mod+shift+c")
 		if !hasText(tt, "已拷贝") {
 			t.Fatalf("⇧⌘C did not say it copied: %q", tt.Texts())
+		}
+	})
+	// j1 being made while it plays, opened at 0:40: its speech heard in its first, third and last half minutes, given up on in its fifth, and the rest not heard yet. The subtitle list shows the parts with no lines as rows of their own where they come: the one the film plays in lit and saying it is being made, the one not heard yet after it, and the one the speech recognition gave up on.
+	f.shoot(t, "player-gaps", func(t *testing.T, a *app, tt *nsgotest.App, updates chan func()) {
+		open(t, a, tt, updates, "j1", 40*time.Second)
+		apply(tt, a, func() {
+			for i, job := range a.library.Jobs {
+				if job.ID == "j1" {
+					a.library.Jobs[i].Stage = core.StageTranscribing
+				}
+			}
+			// The player found the film three minutes long, as its video is, rather than the five the scenes report for a film whose length they do not know (screenshotLoad).
+			if p := a.player.play; p != nil {
+				p.duration = 3 * time.Minute
+			}
+			subs := &a.player.subs
+			heard := map[int]bool{0: true, 2: true, 5: true}
+			var lines []core.Segment
+			for _, l := range subs.machine {
+				if heard[int((l.Start+l.End)/2/track.Cell)] {
+					lines = append(lines, l)
+				}
+			}
+			subs.machine, subs.held = lines, nil
+			subs.heard, subs.givenUp = heard, map[int]bool{4: true}
+			a.playerCorrectSubs()
+		})
+		want := []film.Gap{{Start: 30 * time.Second, End: 60 * time.Second}, {Start: 90 * time.Second, End: 120 * time.Second}, {Start: 120 * time.Second, End: 150 * time.Second, Failed: true}}
+		if got := a.Subs().Gaps; !slices.Equal(got, want) || !a.Subs().Making {
+			t.Fatalf("the film being made has gaps %+v, making %v, want %+v, making", got, a.Subs().Making, want)
+		}
+		msgs := testlocale.Messages()
+		for _, label := range []string{msgs.FilmGapMaking("0:30", "1:00"), msgs.FilmGapNotMade("1:30", "2:00"), msgs.FilmGapFailed("2:00", "2:30")} {
+			if !tt.Exists(`label:"` + label + `"`) {
+				t.Fatalf("the subtitle list does not show %q: %q", label, tt.Texts())
+			}
 		}
 	})
 	// A video the system's player cannot play, which the app cannot copy for it either: the stage says so, and the side panel lists the film's lines.
