@@ -274,13 +274,17 @@ func TestScriptRegexpIsBounded(t *testing.T) {
 
 // TestScriptWatchdogStopsASlicedLoop checks that a call that keeps the engine busy in pieces under the call budget, awaiting a timer between them, which tsx never cuts, is stopped by the watchdog's heartbeats within the pieces they take, long before its Deadline, and reported slow.
 func TestScriptWatchdogStopsASlicedLoop(t *testing.T) {
-	// piece is how long the loop keeps the engine busy at a time: under tsx's call budget of half a second, and longer than Stall and a Beat, so the heartbeat posted at most a Beat into each piece waits past Stall and counts.
-	const piece = 430 * time.Millisecond
+	// piece is how long the loop keeps the engine busy at a time: well under tsx's call budget of half a second, and longer than Stall and a Beat, so the heartbeat posted at most a Beat into each piece waits past Stall and counts. The budget is wall time (tsx/sandbox.go within, a time.AfterFunc), and a piece that a loaded runner holds past it is cut by tsx, which after the first await does not end the call (nsgo#1018): the engine then sits idle, no heartbeat stalls, and the call waits for Deadline, a minute, as a macOS runner once did with pieces of 430 ms of DefaultWatch's Beat of 100 ms and Stall of 250 ms. So the watchdog here runs at half that scale, with the same Stalls, Heap and Deadline: a heartbeat every 50 ms that counts past 125 ms, which pieces of 265 ms hold with 90 ms to spare for a late tick (DefaultWatch's 430 ms pieces had 80) while staying 235 ms under the budget rather than 70.
+	const piece = 265 * time.Millisecond
 	w := DefaultWatch
+	w.Beat, w.Stall = 50*time.Millisecond, 125*time.Millisecond
 	if piece-w.Beat <= w.Stall {
 		t.Fatalf("a piece of %v does not hold a heartbeat past Stall %v", piece, w.Stall)
 	}
-	// Each heartbeat that counts takes a piece, and Stalls in a row stop the loop once the last one is past Stall, the watchdog interrupting the piece it waits in (tsx.Plugin.Interrupt) rather than waiting for its end. A heartbeat that falls due just as a piece ends can be posted after the one before it ran, find the engine between two pieces and start the count again, as it should, the window having answered it; a busy runner that delivers the tick late makes that likelier. The bound allows one such restart, at worst just before the last stall would have counted, so 2*Stalls-1 pieces, each with a Beat for the gaps between pieces and a late tick. The pieces end 30, 60, 90, 20 and 50 ms past a tick (430 ms where the 450 ms of docs/plugin-system.md ended the second piece on one), so a restart takes a tick at least 20 ms late.
+	if budget := Limits().Call; budget-piece < 200*time.Millisecond {
+		t.Fatalf("a piece of %v is not well under the call budget of %v", piece, budget)
+	}
+	// Each heartbeat that counts takes a piece, and Stalls in a row stop the loop once the last one is past Stall, the watchdog interrupting the piece it waits in (tsx.Plugin.Interrupt) rather than waiting for its end. A heartbeat that falls due just as a piece ends can be posted after the one before it ran, find the engine between two pieces and start the count again, as it should, the window having answered it; a busy runner that delivers the tick late makes that likelier. The bound allows one such restart, at worst just before the last stall would have counted, so 2*Stalls-1 pieces, each with a Beat for the gaps between pieces and a late tick. The pieces end 15, 30, 45, 10 and 25 ms past a tick (265 ms rather than a multiple of 10, which would end the fifth piece on one), so a restart takes a tick at least 10 ms late.
 	bound := time.Duration(2*w.Stalls-1) * (piece + w.Beat)
 	s := newSigner(t, AppIDPrefix+"acme.*")
 	roots := s.roots()
