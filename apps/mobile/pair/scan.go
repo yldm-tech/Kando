@@ -22,14 +22,23 @@ func ReadCode(photo []byte) (string, error) {
 	if err != nil {
 		return "", err
 	}
-	bmp, err := gozxing.NewBinaryBitmapFromImage(img)
-	if err != nil {
-		return "", err
-	}
 	// TRY_HARDER looks past a photo's glare, tilt and the screen's own pixels, which a code printed flat on paper does not need.
-	result, err := qrcode.NewQRCodeReader().Decode(bmp, map[gozxing.DecodeHintType]interface{}{gozxing.DecodeHintType_TRY_HARDER: true})
-	if err != nil {
-		return "", ErrNoCode
+	hints := map[gozxing.DecodeHintType]interface{}{gozxing.DecodeHintType_TRY_HARDER: true}
+	// gozxing misses about one code in fifty as it lies, even a flawless one: for some layouts of the modules it finds no finder patterns, or samples the grid wrong and fails the checksum. The same code a quarter turn round reads, so a code that does not read is tried again at each quarter turn; without that, about one pairing in fifty could not be scanned however good the photo.
+	src := gozxing.NewLuminanceSourceFromImage(img)
+	for turn := 0; ; turn++ {
+		bmp, err := gozxing.NewBinaryBitmap(gozxing.NewHybridBinarizer(src))
+		if err != nil {
+			return "", err
+		}
+		if result, err := qrcode.NewQRCodeReader().Decode(bmp, hints); err == nil {
+			return result.GetText(), nil
+		}
+		if turn == 3 {
+			return "", ErrNoCode
+		}
+		if src, err = src.RotateCounterClockwise(); err != nil {
+			return "", err
+		}
 	}
-	return result.GetText(), nil
 }
