@@ -12,7 +12,7 @@ func TestScreenshotsCorrect(t *testing.T) {
 	selected := func(edit bool) func(t *testing.T, a *app, tt *nsgotest.App, updates chan func()) {
 		return func(t *testing.T, a *app, tt *nsgotest.App, updates chan func()) {
 			screenshotOpen(t, a, tt, updates, "j1", protoCues[0].Start)
-			// TODO(nsgo): show the film's own picture, its frames decoded by the fake ffmpeg as MyGo's player showed them, once Kando plays what ffmpeg decodes (playerRemux in playback.go), which waits on an NSGo audio output fed decoded sound; the system's player plays no fake clip headless, so the stage shows the film's poster behind the report of a load
+			// TODO(nsgo#1057): show the film's own picture, its frames decoded by the fake ffmpeg as MyGo's player showed them, once Kando plays what ffmpeg decodes (playerRemux in playback.go), which waits on an NSGo audio output fed decoded sound; the system's player plays no fake clip headless, so the stage shows the film's poster behind the report of a load https://github.com/nsgo-dev/nsgo/issues/1057
 			screenshotLoad(tt, a)
 			tt.Key("e")
 			if !tt.Exists("id:film-correct-bar") {
