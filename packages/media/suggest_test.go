@@ -26,7 +26,7 @@ type suggestingRedo struct {
 
 func (p *suggestingRedo) SuggestTerms(_ context.Context, original, translated []core.Segment, title, language string) ([]core.Term, error) {
 	p.asked++
-	if len(original) != len(translated) || title != "video" || language != "日本語" {
+	if len(original) != len(translated) || title != "Talk" || language != "日本語" {
 		p.t.Errorf("asked about %d lines for %d, %q in %q", len(translated), len(original), title, language)
 	}
 	return p.terms, p.err

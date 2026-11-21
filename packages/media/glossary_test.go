@@ -44,7 +44,7 @@ func TestTranslateSendsEachBatchTheTermsItsLinesHold(t *testing.T) {
 	if !strings.Contains(second, `{"term":"sediment","translation":"泥沙"}`) || strings.Contains(second, "exactly as given") || strings.Contains(second, "河曲") {
 		t.Fatalf("second batch's instruction:\n%s", second)
 	}
-	if !strings.HasSuffix(first, subtitleReplyRule) || !strings.HasSuffix(second, subtitleReplyRule) {
+	if !strings.HasSuffix(first, replyRule("简体中文")) || !strings.HasSuffix(second, replyRule("简体中文")) {
 		t.Fatal("the reply rule is no longer last")
 	}
 

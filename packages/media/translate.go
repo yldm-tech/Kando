@@ -7,8 +7,10 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"net"
 	"net/http"
 	"net/http/httptrace"
+	"net/url"
 	"regexp"
 	"slices"
 	"strconv"
@@ -129,8 +131,9 @@ func (t ChatTranslator) Translate(ctx context.Context, segments []core.Segment, 
 	}
 	renewed := false
 	out := make([]core.Segment, 0, len(segments))
-	// The lines said before segments, as a film translated a part at a time gives them (WithEarlier), go with the first batch as context, as the batches before it would.
+	// The lines said before segments, as a film translated a part at a time gives them (WithEarlier), go with the first batch as context, as the batches before it would, and each batch goes on to the next with its translations.
 	earlier := slices.Clone(earlierOf(ctx))
+	title := titleOf(ctx)
 	// untranslated counts the lines of batches left untranslated, failedRun the batches in a row that failed, and lastErr why the last of them did.
 	var untranslated, failedRun int
 	var lastErr error
@@ -146,19 +149,18 @@ func (t ChatTranslator) Translate(ctx context.Context, segments []core.Segment, 
 			texts[i] = s.Text
 		}
 		reportProgress(ctx, progress)
-		var contextSoFar []string
+		var contextSoFar []Earlier
 		if n := t.contextLines(); n > 0 {
 			contextSoFar = earlier[max(0, len(earlier)-n):]
 		}
-		lines, err := t.translateTexts(ctx, endpoint, texts, language, contextSoFar, progress)
-		earlier = append(earlier, texts...)
+		lines, err := t.translateTexts(ctx, endpoint, texts, language, title, contextSoFar, progress)
 		var status *statusError
 		if t.Credential != nil && !renewed && errors.As(err, &status) && status.code == http.StatusUnauthorized {
 			renewed = true
 			if endpoint, err = t.Credential(ctx, true); err != nil {
 				return nil, err
 			}
-			lines, err = t.translateTexts(ctx, endpoint, texts, language, contextSoFar, progress)
+			lines, err = t.translateTexts(ctx, endpoint, texts, language, title, contextSoFar, progress)
 		}
 		if err != nil {
 			if ctxErr := ctx.Err(); ctxErr != nil {
@@ -176,6 +178,7 @@ func (t ChatTranslator) Translate(ctx context.Context, segments []core.Segment, 
 			failedRun = 0
 		}
 		for i, s := range batch {
+			earlier = append(earlier, Earlier{Line: s.Text, Translation: strings.TrimSpace(lines[i])})
 			s.Text = lines[i]
 			out = append(out, s)
 		}
@@ -188,6 +191,23 @@ func (t ChatTranslator) Translate(ctx context.Context, segments []core.Segment, 
 		return out, &UntranslatedError{Lines: untranslated, Total: len(segments), Err: lastErr}
 	}
 	return out, nil
+}
+
+// transient reports whether err is a request that failed as a service does for a while: a rate limit that does not say the account is out of credit, a server error or a timeout the API answered with, or a request that timed out or lost its connection. A reply that could not be read, a key, model or address the API rejects and a source of the user's own (Tools.Engine) are not, nor lines left untranslated or unproofread while the rest came back (UntranslatedError, UnproofreadError), which are kept as they are.
+func transient(err error) bool {
+	var engine *engineError
+	var untranslated *UntranslatedError
+	var unproofread *UnproofreadError
+	if err == nil || errors.As(err, &engine) || errors.Is(err, ErrOffline) || errors.As(err, &untranslated) || errors.As(err, &unproofread) {
+		return false
+	}
+	var status *statusError
+	if errors.As(err, &status) {
+		return !outOfCredit(status.code, status.detail) && (status.code == http.StatusTooManyRequests || status.code == http.StatusRequestTimeout || status.code >= 500)
+	}
+	var urlErr *url.Error
+	var netErr net.Error
+	return errors.As(err, &urlErr) || errors.As(err, &netErr)
 }
 
 // maxFailedBatches is how many batches in a row may fail before the translation stops: that many are the service's trouble, not their lines'.
@@ -371,16 +391,34 @@ func (e *statusError) Error() string {
 	return fmt.Sprintf("translation API returned %s: %s", e.status, e.detail)
 }
 
-func subtitlePrompt(custom, language string, earlier []string, terms []core.Term) string {
+// subtitlePrompt is the system instruction a batch is sent with: the style instruction custom names, the video's title, the glossary terms its lines hold, then the lines said before it, each with its translation so far when it has one, which the batch writes names, terms and forms of address as, and the reply rule, which asks for every line in language: a small model sent lines of a script close to the target's, as Japanese for Chinese, otherwise sends whole batches back as they are, more so when the earlier lines it is shown are originals alone. The glossary goes before the earlier lines, and says what they cannot: a term it locks or prefers is written as it says even where an earlier translation wrote it otherwise.
+func subtitlePrompt(custom, language, title string, earlier []Earlier, terms []core.Term) string {
 	prompt := stylePrompt(custom, language)
+	if title = strings.TrimSpace(title); title != "" {
+		encoded, _ := json.Marshal(title)
+		prompt += "\n\nThe video is titled " + string(encoded) + " (its title or its file name), for context."
+	}
 	if glossary := glossaryPrompt(terms); glossary != "" {
 		prompt += "\n\n" + glossary
 	}
 	if len(earlier) > 0 {
-		encoded, _ := json.Marshal(earlier)
-		prompt += "\n\nEarlier lines from the same video, for context only. Do not translate them again:\n" + string(encoded)
+		// Each earlier line is [line] or [line, translation], which takes about half the tokens of an object with named fields.
+		pairs := make([][]string, len(earlier))
+		for i, e := range earlier {
+			pairs[i] = []string{e.Line}
+			if e.Translation != "" {
+				pairs[i] = append(pairs[i], e.Translation)
+			}
+		}
+		encoded, _ := json.Marshal(pairs)
+		prompt += "\n\nEarlier lines from the same video, each with its translation so far when it has one, for context only. Do not translate them again. Write names, terms and forms of address as these translations do, unless the glossary says otherwise:\n" + string(encoded)
 	}
-	return prompt + "\n\n" + subtitleReplyRule
+	return prompt + "\n\n" + replyRule(language)
+}
+
+// replyRule is the reply rule a batch translated into language ends with.
+func replyRule(language string) string {
+	return subtitleReplyRule + " Write every element in " + language + ", even a line that is short or a name; never send a line back as it is."
 }
 
 // stylePrompt is the style instruction custom, or DefaultSubtitlePrompt for none, naming language as the one to translate into.
@@ -402,7 +440,7 @@ func stylePrompt(custom, language string) string {
 const maxBatchSends = 3
 
 // translateTexts sends one batch, again while the reply is not its lines, up to maxBatchSends times. progress is where the translation stands while it is sent, which a retry's wait is reported with.
-func (t ChatTranslator) translateTexts(ctx context.Context, endpoint Endpoint, texts []string, language string, earlier []string, progress core.Progress) ([]string, error) {
+func (t ChatTranslator) translateTexts(ctx context.Context, endpoint Endpoint, texts []string, language, title string, earlier []Earlier, progress core.Progress) ([]string, error) {
 	// A batch sent again in halves takes the first half as context for the second, which keeps to the lines context allows when it is on.
 	if n := t.contextLines(); n > 0 && len(earlier) > n {
 		earlier = earlier[len(earlier)-n:]
@@ -411,13 +449,14 @@ func (t ChatTranslator) translateTexts(ctx context.Context, endpoint Endpoint, t
 	if err != nil {
 		return nil, err
 	}
-	body, err := json.Marshal(chatRequest{
-		Model: t.Model,
-		Messages: []chatMessage{
-			{Role: "system", Content: subtitlePrompt(t.Prompt, language, earlier, core.TermsIn(glossaryOf(ctx), texts))},
-			{Role: "user", Content: string(input)},
-		},
-	})
+	system := subtitlePrompt(t.Prompt, language, title, earlier, core.TermsIn(glossaryOf(ctx), texts))
+	request := func(system string) ([]byte, error) {
+		return json.Marshal(chatRequest{
+			Model:    t.Model,
+			Messages: []chatMessage{{Role: "system", Content: system}, {Role: "user", Content: string(input)}},
+		})
+	}
+	body, err := request(system)
 	if err != nil {
 		return nil, err
 	}
@@ -427,7 +466,14 @@ func (t ChatTranslator) translateTexts(ctx context.Context, endpoint Endpoint, t
 		if err != nil {
 			return nil, err
 		}
-		lines, err := replyLines(reply, len(texts))
+		lines, err := replyLines(reply, texts)
+		// A reply that sends most of its lines back in the language they are in is sent again, saying so; the last one is taken as it is, as a line the model keeps so, as a name, is not one it cannot translate.
+		if err == nil && send < maxBatchSends && ctx.Err() == nil && sentBack(texts, lines, language) {
+			if body, err = request(system + "\n\n" + fmt.Sprintf(sentBackAgain, language)); err != nil {
+				return nil, err
+			}
+			continue
+		}
 		if err == nil {
 			return lines, nil
 		}
@@ -438,12 +484,15 @@ func (t ChatTranslator) translateTexts(ctx context.Context, endpoint Endpoint, t
 			var countErr *lineCountError
 			if errors.As(err, &countErr) && recoverableLineCount(countErr.got, countErr.want) {
 				mid := len(texts) / 2
-				left, leftErr := t.translateTexts(ctx, endpoint, texts[:mid], language, earlier, progress)
+				left, leftErr := t.translateTexts(ctx, endpoint, texts[:mid], language, title, earlier, progress)
 				if leftErr != nil {
 					return nil, leftErr
 				}
-				rightEarlier := append(append([]string(nil), earlier...), texts[:mid]...)
-				right, rightErr := t.translateTexts(ctx, endpoint, texts[mid:], language, rightEarlier, progress)
+				rightEarlier := slices.Clone(earlier)
+				for i, text := range texts[:mid] {
+					rightEarlier = append(rightEarlier, Earlier{Line: text, Translation: strings.TrimSpace(left[i])})
+				}
+				right, rightErr := t.translateTexts(ctx, endpoint, texts[mid:], language, title, rightEarlier, progress)
 				if rightErr != nil {
 					return nil, rightErr
 				}
@@ -454,6 +503,54 @@ func (t ChatTranslator) translateTexts(ctx context.Context, endpoint Endpoint, t
 	}
 }
 
+// sentBackAgain is what a batch sent again after its reply sent its lines back untranslated (sentBack) adds to its instruction; %s is the language it is translated into.
+const sentBackAgain = "Your last reply sent these lines back in their own language. Translate each of them into %s."
+
+// sentBack reports whether the translations of texts into language, lines, are most of them the lines themselves sent back: of the lines written in a script only their language writes, kana for Japanese, Hangul for Korean, more than half came back mostly in it, while language, a target Kando knows (core.TargetTag), writes none of it. A small model shown lines of a script close to the target's, as Japanese for Chinese, sends whole batches back so, retouched more often than not. A script two languages share, as Latin or Chinese characters, tells nothing, so a name or a line two scripts write alike is never taken for one sent back.
+func sentBack(texts, lines []string, language string) bool {
+	base := core.BaseLanguage(core.TargetTag(language))
+	if base == "" {
+		return false
+	}
+	for _, script := range ownScripts {
+		if script.language == base {
+			continue
+		}
+		written, back := 0, 0
+		for i, text := range texts {
+			if !strings.ContainsFunc(text, script.in) {
+				continue
+			}
+			written++
+			in, letters := 0, 0
+			for _, r := range lines[i] {
+				if unicode.IsLetter(r) {
+					letters++
+					if script.in(r) {
+						in++
+					}
+				}
+			}
+			if in*2 > letters {
+				back++
+			}
+		}
+		if back > 0 && back*2 > written {
+			return true
+		}
+	}
+	return false
+}
+
+// ownScripts are the scripts only one language writes, by that language's code: a translation into another language that is mostly in one is its line sent back (sentBack).
+var ownScripts = []struct {
+	language string
+	in       func(rune) bool
+}{
+	{"ja", func(r rune) bool { return unicode.In(r, unicode.Hiragana, unicode.Katakana) }},
+	{"ko", func(r rune) bool { return unicode.Is(unicode.Hangul, r) }},
+}
+
 // recoverableLineCount identifies a nearly complete response worth retrying as
 // smaller requests. A one-line reply for a two-line batch is usually an
 // instruction failure, and splitting it would duplicate an unknown translation.
@@ -461,8 +558,9 @@ func recoverableLineCount(got, want int) bool {
 	return want > 2 && got > 1 && got*2 >= want
 }
 
-// replyLines reads the n translated lines of a batch from the model's reply: a JSON array of n strings, maybe in a code fence. An element that is an array of strings, as a model writes for a half sentence split across two lines, is that line's translation in parts, which are joined.
-func replyLines(reply chatResponse, n int) ([]string, error) {
+// replyLines reads the translations of a batch's lines, texts, from the model's reply: a JSON array of as many strings, maybe in a code fence. An element that is an array of strings, as a model writes for a half sentence split across two lines, is that line's translation in parts, which are joined; but one that starts with the line itself is the [line, translation] of the earlier lines the batch was sent with (subtitlePrompt), copied, which is not a translation.
+func replyLines(reply chatResponse, texts []string) ([]string, error) {
+	n := len(texts)
 	if len(reply.Choices) == 0 {
 		return nil, fmt.Errorf("translation API returned no choices")
 	}
@@ -479,7 +577,7 @@ func replyLines(reply chatResponse, n int) ([]string, error) {
 			continue
 		}
 		var parts []string
-		if err := json.Unmarshal(element, &parts); err != nil {
+		if err := json.Unmarshal(element, &parts); err != nil || len(parts) > 1 && strings.TrimSpace(parts[0]) == strings.TrimSpace(texts[i]) {
 			return nil, fmt.Errorf("translation is not a JSON array of strings: line %d is %s", i+1, element)
 		}
 		lines[i] = joinParts(parts)
@@ -748,15 +846,33 @@ func stripCodeFence(s string) string {
 	return strings.TrimSpace(strings.TrimSuffix(strings.TrimSpace(s), "```"))
 }
 
+// Earlier is a line said before the ones a translation is given (WithEarlier): its original text, and its translation as the film shows it now, "" while it has none.
+type Earlier struct {
+	Line, Translation string
+}
+
 type earlierKey struct{}
 
-// WithEarlier returns ctx carrying lines, the original lines said before the ones a translation is given, which a translator that reads the lines before (ChatTranslator with context on) sends with them, as a film translated a part at a time does.
-func WithEarlier(ctx context.Context, lines []string) context.Context {
+// WithEarlier returns ctx carrying lines, the lines said before the ones a translation is given, with their translations so far, which a translator that reads the lines before (ChatTranslator with context on) sends with them, as a film translated a part at a time does, so the lines it translates write names and forms of address as the film has.
+func WithEarlier(ctx context.Context, lines []Earlier) context.Context {
 	return context.WithValue(ctx, earlierKey{}, lines)
 }
 
 // earlierOf is the lines WithEarlier put in ctx, none when it put none.
-func earlierOf(ctx context.Context) []string {
-	lines, _ := ctx.Value(earlierKey{}).([]string)
+func earlierOf(ctx context.Context) []Earlier {
+	lines, _ := ctx.Value(earlierKey{}).([]Earlier)
 	return lines
+}
+
+type titleKey struct{}
+
+// WithTitle returns ctx carrying title, what the video a translation is given lines of is called (filmTitle), which ChatTranslator sends with them, as the proofreading has it, so names it holds are written as it writes them.
+func WithTitle(ctx context.Context, title string) context.Context {
+	return context.WithValue(ctx, titleKey{}, title)
+}
+
+// titleOf is the title WithTitle put in ctx, "" when it put none.
+func titleOf(ctx context.Context) string {
+	title, _ := ctx.Value(titleKey{}).(string)
+	return title
 }

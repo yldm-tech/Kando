@@ -324,3 +324,20 @@ var heard = []core.Segment{
 	{End: 1500 * time.Millisecond, Text: "Hello there."},
 	{Start: 1500 * time.Millisecond, End: 3250 * time.Millisecond, Text: "Nice to meet you."},
 }
+
+// A video the library keeps in a folder of its own is named video.<ext>: the folder's name is what it is called.
+func TestFilmTitleOfAVideoInAFolderOfItsOwn(t *testing.T) {
+	for _, c := range []struct {
+		job  core.Job
+		want string
+	}{
+		{core.Job{Title: " The Site's Title ", VideoPath: "/films/Night Walk/video.mp4"}, "The Site's Title"},
+		{core.Job{VideoPath: "/films/Night Walk/video.mp4"}, "Night Walk"},
+		{core.Job{VideoPath: "/films/Night Walk.mkv"}, "Night Walk"},
+		{core.Job{}, ""},
+	} {
+		if got := filmTitle(c.job); got != c.want {
+			t.Fatalf("filmTitle(%+v) = %q, want %q", c.job, got, c.want)
+		}
+	}
+}

@@ -8,6 +8,7 @@ import (
 	"io"
 	"net/http"
 	"net/http/httptest"
+	"net/url"
 	"reflect"
 	"slices"
 	"strings"
@@ -806,14 +807,15 @@ func TestRateLimitIsNotOutOfCredit(t *testing.T) {
 
 // A custom prompt that does not write {{language}} still names the target language, so a prompt that only asks for a tone does not leave the lines in the language they are in.
 func TestCustomPromptWithoutTheLanguageStillNamesIt(t *testing.T) {
-	prompt := subtitlePrompt("Use a casual tone.", "日本語", nil, nil)
-	if !strings.HasPrefix(prompt, "Use a casual tone.") || !strings.Contains(prompt, "日本語") || !strings.HasSuffix(prompt, subtitleReplyRule) {
+	prompt := subtitlePrompt("Use a casual tone.", "日本語", "", nil, nil)
+	if !strings.HasPrefix(prompt, "Use a casual tone.") || !strings.Contains(prompt, "日本語") || !strings.HasSuffix(prompt, replyRule("日本語")) {
 		t.Fatalf("prompt = %q", prompt)
 	}
-	if prompt := subtitlePrompt("Translate into {{language}}, casually.", "日本語", nil, nil); strings.Count(prompt, "日本語") != 1 {
+	// The reply rule names it once more, last.
+	if prompt := subtitlePrompt("Translate into {{language}}, casually.", "日本語", "", nil, nil); strings.Count(prompt, "日本語") != 2 {
 		t.Fatalf("a prompt naming the language named it again: %q", prompt)
 	}
-	if prompt := subtitlePrompt("", "日本語", nil, nil); strings.Count(prompt, "日本語") != 1 {
+	if prompt := subtitlePrompt("", "日本語", "", nil, nil); strings.Count(prompt, "日本語") != 2 {
 		t.Fatalf("the default prompt: %q", prompt)
 	}
 }
@@ -871,8 +873,8 @@ func TestChatTranslatorSendsTheContextLinesAsked(t *testing.T) {
 		t.Fatal(err)
 	}
 	last := (*seen)[2].Messages[0].Content
-	if !strings.Contains(last, `"line 15","line 16","line 17","line 18","line 19"]`) || strings.Contains(last, `"line 14"`) {
-		t.Fatalf("the third batch's context is not the five lines before it:\n%s", last)
+	if !strings.Contains(last, `[["line 15","LINE 15"],["line 16","LINE 16"],["line 17","LINE 17"],["line 18","LINE 18"],["line 19","LINE 19"]]`) || strings.Contains(last, `"line 14"`) {
+		t.Fatalf("the third batch's context is not the five lines before it with their translations:\n%s", last)
 	}
 	tr.Context = false
 	*seen = nil
@@ -881,5 +883,155 @@ func TestChatTranslatorSendsTheContextLinesAsked(t *testing.T) {
 	}
 	if strings.Contains((*seen)[2].Messages[0].Content, "Earlier lines") {
 		t.Fatal("context off still sends earlier lines")
+	}
+}
+
+// A batch goes with the video's title and the lines said before it, each with its translation so far, the glossary before them, so a name is written as the film wrote it, or as the glossary says.
+func TestChatTranslatorSendsTheEarlierTranslationsAndTheTitle(t *testing.T) {
+	srv, seen := fakeChat(t, upper)
+	tr := ChatTranslator{BaseURL: srv.URL + "/v1", APIKey: "secret", Model: "m", Context: true}
+	ctx := WithTitle(WithEarlier(context.Background(), []Earlier{{Line: "Mira waved.", Translation: "米拉挥了挥手。"}, {Line: "Not translated yet."}}), "Night Walk")
+	ctx = WithGlossary(ctx, []core.Term{{Source: "Mira", Target: "米菈"}})
+	if _, err := tr.Translate(ctx, []core.Segment{{Text: "Mira laughs."}}, "简体中文"); err != nil {
+		t.Fatal(err)
+	}
+	system := (*seen)[0].Messages[0].Content
+	title := strings.Index(system, `The video is titled "Night Walk"`)
+	glossary := strings.Index(system, "米菈")
+	earlier := strings.Index(system, `[["Mira waved.","米拉挥了挥手。"],["Not translated yet."]]`)
+	if title < 0 || glossary < 0 || earlier < 0 || !(title < glossary && glossary < earlier) || !strings.Contains(system, "unless the glossary says otherwise") {
+		t.Fatalf("system prompt:\n%s", system)
+	}
+	// Without context the title still goes, and no earlier line.
+	tr.Context = false
+	*seen = nil
+	if _, err := tr.Translate(ctx, []core.Segment{{Text: "Mira laughs."}}, "简体中文"); err != nil {
+		t.Fatal(err)
+	}
+	if system := (*seen)[0].Messages[0].Content; !strings.Contains(system, "Night Walk") || strings.Contains(system, "Mira waved.") {
+		t.Fatalf("system prompt without context:\n%s", system)
+	}
+}
+
+// A batch sent again in halves gives the second half the first half's translations, as the batches before it would.
+func TestChatTranslatorGivesTheSecondHalfTheFirstHalfsTranslations(t *testing.T) {
+	srv, seen := fakeChat(t, func(lines []string) string {
+		if len(lines) == 8 {
+			return upper(lines[:7])
+		}
+		return upper(lines)
+	})
+	segments := make([]core.Segment, 8)
+	for i := range segments {
+		segments[i] = core.Segment{Text: fmt.Sprintf("line %d", i)}
+	}
+	tr := ChatTranslator{BaseURL: srv.URL + "/v1", APIKey: "secret", Model: "m", Context: true}
+	if _, err := tr.Translate(context.Background(), segments, "English"); err != nil {
+		t.Fatal(err)
+	}
+	last := (*seen)[len(*seen)-1].Messages[0].Content
+	if !strings.Contains(last, `[["line 0","LINE 0"],["line 1","LINE 1"],["line 2","LINE 2"],["line 3","LINE 3"]]`) {
+		t.Fatalf("the second half's context:\n%s", last)
+	}
+}
+
+// A reply that copies the [line, translation] shape of the earlier lines is not the batch's translation: joined, it would put the line itself in its translation.
+func TestChatTranslatorDoesNotTakeACopiedPairForATranslation(t *testing.T) {
+	sends := 0
+	srv, _ := fakeChat(t, func(lines []string) string {
+		sends++
+		if sends == 1 {
+			out, _ := json.Marshal([][]string{{lines[0], "米拉笑了。"}})
+			return string(out)
+		}
+		return `["米拉笑了。"]`
+	})
+	tr := ChatTranslator{BaseURL: srv.URL + "/v1", APIKey: "secret", Model: "m"}
+	got, err := tr.Translate(context.Background(), []core.Segment{{Text: "Mira laughs."}}, "简体中文")
+	if err != nil || sends != 2 || got[0].Text != "米拉笑了。" {
+		t.Fatalf("got %+v, %v after %d sends", got, err, sends)
+	}
+}
+
+// A reply that sends a batch's lines back in the script only their language writes is sent again, saying so; the last reply is taken as it is. Lines two scripts write alike, as Simplified and Traditional Chinese, or a name kept in kana, are not taken for lines sent back.
+func TestChatTranslatorSendsAgainLinesSentBackUntranslated(t *testing.T) {
+	lines := []string{"おはようございます", "ちょっと待ってください", "ありがとう"}
+	for _, c := range []struct {
+		name     string
+		texts    []string
+		reply    func(sends int, lines []string) string
+		language string
+		sends    int
+		want     string
+	}{
+		{"sent back, then translated", lines, func(sends int, lines []string) string {
+			if sends == 1 {
+				out, _ := json.Marshal([]string{"おはようございます。", "ちょっと待って下さい", "ありがとう"})
+				return string(out)
+			}
+			return `["早上好","请稍等","谢谢"]`
+		}, "简体中文", 2, "早上好"},
+		{"sent back every time", lines, func(int, []string) string {
+			out, _ := json.Marshal(lines)
+			return string(out)
+		}, "简体中文", maxBatchSends, "おはようございます"},
+		{"a name kept in kana", []string{"ねえ、てる子！", "てる子が来た"}, func(int, []string) string {
+			return `["喂，てる子！","てる子来了"]`
+		}, "简体中文", 1, "喂，てる子！"},
+		{"two scripts writing a line alike", []string{"好的。", "我知道了。"}, func(int, []string) string {
+			return `["好的。","我知道了。"]`
+		}, "繁體中文", 1, "好的。"},
+		{"into Japanese", lines, func(int, []string) string {
+			out, _ := json.Marshal(lines)
+			return string(out)
+		}, "日本語", 1, "おはようございます"},
+	} {
+		sends := 0
+		var systems []string
+		srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			sends++
+			var req chatRequest
+			json.NewDecoder(r.Body).Decode(&req)
+			systems = append(systems, req.Messages[0].Content)
+			var got []string
+			json.Unmarshal([]byte(req.Messages[1].Content), &got)
+			json.NewEncoder(w).Encode(map[string]any{"choices": []map[string]any{{"message": map[string]string{"role": "assistant", "content": c.reply(sends, got)}}}})
+		}))
+		segments := make([]core.Segment, len(c.texts))
+		for i, text := range c.texts {
+			segments[i] = core.Segment{Text: text}
+		}
+		got, err := ChatTranslator{BaseURL: srv.URL, Model: "m"}.Translate(context.Background(), segments, c.language)
+		srv.Close()
+		if err != nil || sends != c.sends || got[0].Text != c.want {
+			t.Fatalf("%s: %d sends, got %+v, %v", c.name, sends, got, err)
+		}
+		if sends > 1 && !strings.Contains(systems[1], "sent these lines back in their own language") {
+			t.Fatalf("%s: sent again without saying why:\n%s", c.name, systems[1])
+		}
+	}
+}
+
+// A request that failed as a service does for a while is transient; lines left untranslated while the rest came back, a rejected request and a source of the user's own are not.
+func TestTransientFailures(t *testing.T) {
+	busy := &statusError{code: 503, status: "503 Service Unavailable"}
+	for _, c := range []struct {
+		err  error
+		want bool
+	}{
+		{busy, true},
+		{&statusError{code: 429, status: "429 Too Many Requests"}, true},
+		{&statusError{code: 429, status: "429 Too Many Requests", detail: "insufficient_quota"}, false},
+		{&statusError{code: 400, status: "400 Bad Request", detail: "content_filter"}, false},
+		{&url.Error{Op: "Post", URL: "https://example.com", Err: errors.New("connection refused")}, true},
+		{&UntranslatedError{Lines: 3, Total: 40, Err: busy}, false},
+		{&lineCountError{got: 1, want: 3}, false},
+		{ErrOffline, false},
+		{&engineError{name: "plugin", err: busy}, false},
+		{nil, false},
+	} {
+		if got := transient(c.err); got != c.want {
+			t.Fatalf("transient(%v) = %v", c.err, got)
+		}
 	}
 }

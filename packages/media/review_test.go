@@ -28,7 +28,7 @@ func (p *reviewingRedo) Review(_ context.Context, original, translated []core.Se
 	if p.err != nil {
 		return nil, p.err
 	}
-	if title != "video" || language != "日本語" {
+	if title != "Talk" || language != "日本語" {
 		p.t.Errorf("reviewed %q in %q", title, language)
 	}
 	first, last := translated[0], translated[len(translated)-1]

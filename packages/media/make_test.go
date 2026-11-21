@@ -49,7 +49,8 @@ type makeFilm struct {
 	runs       [][2]time.Duration
 	langs      []string
 	translated [][]string
-	earlier    [][]string
+	earlier    [][]Earlier
+	titles     []string
 }
 
 func (f *makeFilm) Check() error { return nil }
@@ -178,6 +179,7 @@ func (f *makeFilm) Translate(ctx context.Context, segments []core.Segment, _ str
 	}
 	f.translated = append(f.translated, texts)
 	f.earlier = append(f.earlier, slices.Clone(earlierOf(ctx)))
+	f.titles = append(f.titles, titleOf(ctx))
 	f.mu.Unlock()
 	out := make([]core.Segment, len(segments))
 	for i, s := range segments {
@@ -245,9 +247,9 @@ func TestMakeMakesAFilmAPartAtATime(t *testing.T) {
 	if f.runs[1] != [2]time.Duration{15 * time.Second, 135 * time.Second} || f.langs[1] != "ja" {
 		t.Fatalf("second run %v in %q, want the rest of the film in ja", f.runs[1], f.langs[1])
 	}
-	// Each cell's draft goes with the lines said before it.
-	if len(f.translated) != 4 || !slices.Equal(f.translated[1], []string{"line 30s", "line 40s", "line 50s"}) || !slices.Equal(f.earlier[1], []string{"line 0s", "line 10s", "line 20s"}) {
-		t.Fatalf("drafts %q with %q", f.translated, f.earlier)
+	// Each cell's draft goes with the lines said before it and their translations, and the film's title.
+	if len(f.translated) != 4 || !slices.Equal(f.translated[1], []string{"line 30s", "line 40s", "line 50s"}) || !slices.Equal(f.earlier[1], []Earlier{{"line 0s", "译:line 0s"}, {"line 10s", "译:line 10s"}, {"line 20s", "译:line 20s"}}) || f.titles[1] != "Episode 1" {
+		t.Fatalf("drafts %q with %q, titled %q", f.translated, f.earlier, f.titles)
 	}
 	// The film shows its bilingual subtitles before it is done.
 	if !slices.ContainsFunc(reports, func(j core.Job) bool { return j.SubtitlePath == bilingual && j.Stage != core.StageComplete }) {
@@ -1216,5 +1218,150 @@ func TestAFilmHeardByItsSpeechGoesOnInItsLanguage(t *testing.T) {
 	}
 	if len(f.runs) != 1 || f.runs[0][0] != 15*time.Second || f.langs[0] != "ja" {
 		t.Fatalf("runs %v in %q, want only the second cell heard, in ja", f.runs, f.langs)
+	}
+}
+
+// A line said before a batch goes with its translation, unless its original was rewritten above the translation since, which then translates what the line said before.
+func TestAnEarlierLineGoesWithATranslationOfWhatItSays(t *testing.T) {
+	heard := track.Line{Original: track.Text{Text: "Mira waved.", Layer: track.LayerHeard}, Translation: track.Text{Text: " 米拉挥手。 ", Layer: track.LayerDraft}}
+	if got := earlierOfLine(heard); got != (Earlier{Line: "Mira waved.", Translation: "米拉挥手。"}) {
+		t.Fatalf("earlierOfLine(heard) = %+v", got)
+	}
+	rewritten := track.Line{Original: track.Text{Text: "Nora waved.", Layer: track.LayerFinal}, Translation: track.Text{Text: "米拉挥手。", Layer: track.LayerDraft}}
+	if got := earlierOfLine(rewritten); got != (Earlier{Line: "Nora waved."}) {
+		t.Fatalf("earlierOfLine(rewritten) = %+v", got)
+	}
+}
+
+// A cell whose draft fails whatever is sent is given up on its own, after its attempts, and the rest of the film is translated: the service answers for the other cells.
+func TestMakeGivesUpACellThatAlwaysFailsAlone(t *testing.T) {
+	job, _ := makeJob(t)
+	job.SpeechLanguage = "ja"
+	f := &makeFilm{length: 150 * time.Second, language: "ja", translate: func(s string) (string, error) {
+		if s == "line 40s" {
+			return "", &lineCountError{got: 1, want: 3}
+		}
+		return "译:" + s, nil
+	}}
+	done, _ := makeFilmOf(t, f, job, 0)
+	if done.Stage != core.StageComplete || done.TranslationErr != "" || done.Untranslated != 3 {
+		t.Fatalf("job = %s %q untranslated %d", done.Stage, done.TranslationErr, done.Untranslated)
+	}
+	// It is tried its attempts, and between them the cells after it are drafted.
+	tries := 0
+	for _, texts := range f.translated {
+		if slices.Contains(texts, "line 40s") {
+			tries++
+		}
+	}
+	if tries != track.Attempts || !slices.Contains(f.translated[1], "line 40s") || slices.Contains(f.translated[2], "line 40s") {
+		t.Fatalf("drafts %q", f.translated)
+	}
+}
+
+// A film translated again that gave up a cell fails, leaving the film as it was; translated again once the service translates it, it begins anew rather than go on with what gave up, which would fail at once.
+func TestTranslatingAgainAfterACellWasGivenUp(t *testing.T) {
+	job, _ := makeJob(t)
+	job.SpeechLanguage = "ja"
+	f := &makeFilm{length: 95 * time.Second, language: "ja"}
+	film, _ := makeFilmOf(t, f, job, 0)
+	poison := true
+	f.translate = func(s string) (string, error) {
+		if poison && s == "line 40s" {
+			return "", &lineCountError{got: 1, want: 3}
+		}
+		return "又:" + s, nil
+	}
+	again := film
+	again.Redo, again.RedoLanguage, again.Stage = core.RedoTranslation, "日本語", core.StageQueued
+	if done, _ := makeFilmOf(t, f, again, 0); done.Stage != core.StageFailed {
+		t.Fatalf("with a cell given up: %s", done.Stage)
+	}
+	poison = false
+	before := len(f.translated)
+	done, _ := makeFilmOf(t, f, again, 0)
+	if done.Stage != core.StageComplete || done.Untranslated != 0 || len(f.translated) == before {
+		t.Fatalf("translated again: %s, untranslated %d, %d drafts", done.Stage, done.Untranslated, len(f.translated)-before)
+	}
+}
+
+// partlyFilm is a makeFilm whose first translation leaves its first line untranslated, as one batch of a draft failing after its retries does.
+type partlyFilm struct {
+	*makeFilm
+	failed bool
+}
+
+func (p *partlyFilm) Translate(ctx context.Context, segments []core.Segment, language string) ([]core.Segment, error) {
+	out, err := p.makeFilm.Translate(ctx, segments, language)
+	if err != nil || p.failed {
+		return out, err
+	}
+	p.failed = true
+	out[0].Text = ""
+	return out, &UntranslatedError{Lines: 1, Total: len(out), Err: errors.New("translation returned 1 lines for 3")}
+}
+
+// The lines a draft's translation left untranslated are sent again once, with the lines before them and their translations.
+func TestADraftTranslatesTheLinesItLeftAgain(t *testing.T) {
+	job, _ := makeJob(t)
+	job.SpeechLanguage = "ja"
+	f := &makeFilm{length: 30 * time.Second, language: "ja"}
+	done, _ := makeFilmOf(t, &partlyFilm{makeFilm: f}, job, 0)
+	if done.Stage != core.StageComplete || done.Untranslated != 0 {
+		t.Fatalf("job = %s untranslated %d", done.Stage, done.Untranslated)
+	}
+	if len(f.translated) != 2 || !slices.Equal(f.translated[1], []string{"line 0s"}) {
+		t.Fatalf("drafts %q", f.translated)
+	}
+}
+
+// A request that fails as a service does for a while is tried again patiently, once the service has answered the making, and not before: one that never answered is more likely set up wrong.
+func TestADraftWaitsForAServiceGoneForAWhile(t *testing.T) {
+	first, most := patienceFirst, patienceMost
+	patienceFirst, patienceMost = time.Millisecond, 4*time.Millisecond
+	t.Cleanup(func() { patienceFirst, patienceMost = first, most })
+	busy := &statusError{code: 503, status: "503 Service Unavailable"}
+	m := &making{}
+	calls := 0
+	ask := func() error {
+		if calls++; calls < 4 {
+			return busy
+		}
+		return nil
+	}
+	if err := m.patiently(context.Background(), ask); err != busy || calls != 1 {
+		t.Fatalf("before the service answered: %v after %d calls", err, calls)
+	}
+	m.served.Store(true)
+	calls = 0
+	if err := m.patiently(context.Background(), ask); err != nil || calls != 4 {
+		t.Fatalf("after: %v after %d calls", err, calls)
+	}
+	calls = 0
+	rejected := &statusError{code: 400, status: "400 Bad Request", detail: "content_filter"}
+	if err := m.patiently(context.Background(), func() error { calls++; return rejected }); err != rejected || calls != 1 {
+		t.Fatalf("a rejected request: %v after %d calls", err, calls)
+	}
+}
+
+// A service gone for a while once it has answered the making is waited for: the film goes on being translated once it is back.
+func TestMakeWaitsForTheServiceToComeBack(t *testing.T) {
+	first, most := patienceFirst, patienceMost
+	patienceFirst, patienceMost = time.Millisecond, 4*time.Millisecond
+	t.Cleanup(func() { patienceFirst, patienceMost = first, most })
+	job, _ := makeJob(t)
+	job.SpeechLanguage = "ja"
+	gone := 0
+	f := &makeFilm{length: 150 * time.Second, language: "ja"}
+	f.translate = func(s string) (string, error) {
+		if s == "line 30s" && gone < 4 {
+			gone++
+			return "", &statusError{code: 503, status: "503 Service Unavailable"}
+		}
+		return "译:" + s, nil
+	}
+	done, _ := makeFilmOf(t, f, job, 0)
+	if done.Stage != core.StageComplete || done.TranslationErr != "" || done.Untranslated != 0 || gone != 4 {
+		t.Fatalf("job = %s %q untranslated %d after %d failures", done.Stage, done.TranslationErr, done.Untranslated, gone)
 	}
 }

@@ -7,12 +7,14 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"maps"
 	"os"
 	"path/filepath"
 	"regexp"
 	"slices"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"kando/packages/core"
@@ -66,8 +68,8 @@ func (From) Jumped() <-chan struct{}   { return nil }
 // Making a film a part at a time: how much of it one run of the speech recognition hears, and how much sound before and after that run hears too, so a line cut by the run's ends is heard whole by one of the runs on either side, which keeps it where its middle falls (track.Cell).
 const (
 	runPad = 15 * time.Second
-	// draftContext is how many lines said before a cell go with its draft, as the translation sends the lines before a batch (contextLines).
-	draftContext = 80
+	// draftContext is how many lines said before a cell go with its draft at most: as many as the translation may send before a batch (MaxContextLines), which sends as many of them as its settings ask (ChatTranslator.ContextLines).
+	draftContext = MaxContextLines
 	// projectEvery is how often the subtitle files beside the video are written out while the film is made, at most.
 	projectEvery = 3 * time.Second
 )
@@ -311,6 +313,8 @@ type downloaded struct {
 // making is a film being made by Make.
 type making struct {
 	ctx context.Context
+	// served is whether the AI service has answered a draft or a final proofread of this making, after which one that fails as a service does for a while is tried again patiently (patiently): a service that never answered is more likely set up wrong than gone for a moment.
+	served atomic.Bool
 	// workers is the work run beside the making, a run of the speech recognition, a draft, a fetch, which it waits for before it returns (spawn).
 	workers sync.WaitGroup
 	p       Pipeline
@@ -497,7 +501,9 @@ func (m *making) run(length time.Duration, language string, watch Watcher) core.
 	// pending are the cells the first run heard while the language was not known yet, kept until it is, so they are kept as heard in it.
 	var pending []heardCell
 	drafting := false
-	draftFailures := 0
+	// failing are the units of the translation's line of work that failed one after another, none made since, and failures how many times they failed. The next draft or final proofread passes over them while another is needed: a cell that fails whatever is sent is then given up on its own (track.Attempts), while a service that fails whatever cell is sent fails maxFailedBatches different ones, or as many times the only ones left, and the film is made without it.
+	failing := map[track.Unit]bool{}
+	failures := 0
 	// last is the work left when the making last looked, which once it is done says which blocks' final proofread holds (keepProofs).
 	var last track.Plan
 	defer func() {
@@ -550,6 +556,7 @@ func (m *making) run(length time.Duration, language string, watch Watcher) core.
 				ctx, language := m.ctx, plan.Language
 				m.spawn(func() { m.draft(ctx, in, language, draftCh) })
 			case len(p.Draft) > 0:
+				p.Draft = failingLast(p.Draft, failing)
 				if group, ready := m.draftGroup(gen, p, plan.Playhead); ready {
 					drafting = true
 					ctx, in, language := m.ctx, m.draftOf(gen, group), plan.Language
@@ -558,7 +565,7 @@ func (m *making) run(length time.Duration, language string, watch Watcher) core.
 			}
 			if !drafting && len(p.Final) > 0 {
 				drafting = true
-				ctx, in, language := m.ctx, m.finalOf(gen, p.Final[0]), plan.Language
+				ctx, in, language := m.ctx, m.finalOf(gen, failingLast(p.Final, failing)[0]), plan.Language
 				m.spawn(func() { m.final(ctx, in, language, auto, draftCh) })
 			}
 		}
@@ -615,34 +622,46 @@ func (m *making) run(length time.Duration, language string, watch Watcher) core.
 			}
 		case d := <-draftCh:
 			drafting = false
+			// given is whether the service is given up on with this failure: maxFailedBatches different units failed one after another, or as many failures of the only units left to send.
+			given := false
+			if d.err != nil && len(d.in.units) > 0 {
+				failed := maps.Clone(failing)
+				failed[d.in.units[0]] = true
+				others := slices.ContainsFunc(append(slices.Clone(p.Draft), p.Final...), func(u track.Unit) bool { return !failed[u] })
+				given = len(failed) >= maxFailedBatches || failures+1 >= maxFailedBatches && !others
+			}
+			if d.err == nil {
+				clear(failing)
+				failures = 0
+				m.served.Store(true)
+			}
 			switch {
 			case d.err == nil && d.in.final:
-				draftFailures = 0
 				m.commitFinal(d)
 			case d.err == nil:
-				draftFailures = 0
 				m.commitDraft(gen, d, plan.Playhead)
 			case d.in.redraft:
 				// A line made again for a term keeps its draft when that fails; the final proofread makes it with the term.
 			case m.ctx.Err() != nil:
-			case d.in.final && (errors.Is(d.err, ErrOffline) || draftFailures+1 >= maxFailedBatches):
+			case d.in.final && (errors.Is(d.err, ErrOffline) || given):
 				// The service is gone, or fails block after block: the film stays a draft where it is not proofread yet, as one done with blocks the final proofread did not get to.
 				finals = false
 				relanguage()
-			case (errors.Is(d.err, ErrOffline) || draftFailures+1 >= maxFailedBatches) && m.redo:
+			case (errors.Is(d.err, ErrOffline) || given) && m.redo:
 				// A redo without its translation, or its proofreading, would replace the film's subtitles with lesser ones: it fails, leaving the film as it was.
 				return m.fail(StageTranslate, d.err)
-			case (errors.Is(d.err, ErrOffline) || draftFailures+1 >= maxFailedBatches) && !d.in.final && d.language == "":
+			case (errors.Is(d.err, ErrOffline) || given) && !d.in.final && d.language == "":
 				// The service is not there, or fails cell after cell: the film, in its own language, is made with the lines of the cells left as heard. It is not translated, so it has no translation that failed (TranslationErr).
 				proofreadOff = true
 				relanguage()
-			case errors.Is(d.err, ErrOffline) || draftFailures+1 >= maxFailedBatches:
+			case errors.Is(d.err, ErrOffline) || given:
 				// The service is not there, or fails cell after cell: the film is made without the translation of the cells left, as it is without a translator.
 				notTranslated = d.err.Error()
 				notTranslatedBy, _ = EngineOf(d.err)
 				relanguage()
 			default:
-				draftFailures++
+				failing[d.in.units[0]] = true
+				failures++
 				for _, u := range d.in.units {
 					m.append(u.Failed(d.err.Error()))
 				}
@@ -1159,11 +1178,11 @@ func fillMissing(ctx context.Context, p Pipeline, job *core.Job, language, devic
 		for k, i := range batch {
 			segments[k] = core.Segment{Start: lines[i].Start, End: lines[i].End, Text: lines[i].Original.Text}
 		}
-		var earlier []string
+		var earlier []Earlier
 		for _, l := range lines[max(batch[0]-draftContext, 0):batch[0]] {
-			earlier = append(earlier, l.Original.Text)
+			earlier = append(earlier, earlierOfLine(l))
 		}
-		translated, err := p.Translate(WithEarlier(ctx, earlier), segments, language)
+		translated, err := p.Translate(WithTitle(WithEarlier(ctx, earlier), filmTitle(*job)), segments, language)
 		var partial *UntranslatedError
 		if errors.As(err, &partial) && len(translated) == len(segments) {
 			err = nil
@@ -1218,12 +1237,12 @@ func fillMissing(ctx context.Context, p Pipeline, job *core.Job, language, devic
 // copyHearing is how the cells of a film translated again are heard (track.Making.Hearing): not at all, their lines copied from the film as it shows them.
 const copyHearing = "copy"
 
-// copyGeneration is the generation a film translated again makes, of length: the one an earlier run began from the lines the film shows now and did not finish, or a new one holding a copy of each of them, as it reads, heard already in every cell, so only their translation and the final proofread are left to make.
+// copyGeneration is the generation a film translated again makes, of length: the one an earlier run began from the lines the film shows now and did not finish, unless it gave up a part of the film, as a redo that does fails for it (run) and would fail again at once without sending anything, or a new one holding a copy of each of them, as it reads, heard already in every cell, so only their translation and the final proofread are left to make.
 func (m *making) copyGeneration(length time.Duration) (string, error) {
 	from := m.doc.Shown()
 	key := copyHearing + " " + from
 	for _, e := range m.doc.Events {
-		if e.Kind == track.KindGen && e.Source == makeSource && e.Key == key && !m.doc.Done(e.Gen) && m.mayResume(e) {
+		if e.Kind == track.KindGen && e.Source == makeSource && e.Key == key && !m.doc.Done(e.Gen) && m.mayResume(e) && !m.doc.GivenUp(e.Gen, track.WorkDraft) {
 			return e.Gen, nil
 		}
 	}
@@ -1392,10 +1411,11 @@ func (m *making) firstUnheard(gen, hearing string, cells []int) int {
 
 // draftInput is what a draft makes: the cells it drafts (none for a redraft), its lines by id as they read now, the lines said before them, and the film's terms.
 type draftInput struct {
-	units   []track.Unit
-	ids     []string
-	lines   []core.Segment
-	earlier []string
+	units []track.Unit
+	ids   []string
+	lines []core.Segment
+	// earlier are the lines said before them, with their translations as the film shows them (WithEarlier).
+	earlier []Earlier
 	terms   []Fix
 	// site says, line for line, which lines are the uploader's (siteSource), which neither terms nor the proofreading change.
 	site []bool
@@ -1406,6 +1426,21 @@ type draftInput struct {
 	// final is the final proofread of a block (its one unit), its lines' translations as they are now in translations.
 	final        bool
 	translations []core.Segment
+}
+
+// failingLast is units, the work of one kind the plan needs, with those failing one after another (making.run) moved after the others, so the next to send is one not failing while there is one.
+func failingLast(units []track.Unit, failing map[track.Unit]bool) []track.Unit {
+	out := slices.Clone(units)
+	slices.SortStableFunc(out, func(a, b track.Unit) int {
+		switch {
+		case failing[a] == failing[b]:
+			return 0
+		case failing[b]:
+			return -1
+		}
+		return 1
+	})
+	return out
 }
 
 // draftGroup is the cells the next draft makes, from the plan's cells needing one, and whether to make it now: the first alone while it is near the playhead, so its lines come at once; past that, as many of the cells after it as fit in a batch, so a draft far from where the film is watched sends the lines before it once for a batch rather than for every cell. A batch that is not full waits while the cell after it is still to be heard, as the run hearing it hands it on soon.
@@ -1449,7 +1484,7 @@ func (m *making) draftOf(gen string, units []track.Unit) draftInput {
 		mid := (l.Start + l.End) / 2
 		switch {
 		case mid < start:
-			in.earlier = append(in.earlier, l.Original.Text)
+			in.earlier = append(in.earlier, earlierOfLine(l))
 		case mid < end:
 			in.ids = append(in.ids, l.ID)
 			in.lines = append(in.lines, core.Segment{Start: l.Start, End: l.End, Text: l.Original.Text})
@@ -1458,6 +1493,15 @@ func (m *making) draftOf(gen string, units []track.Unit) draftInput {
 	}
 	in.earlier = in.earlier[max(len(in.earlier)-draftContext, 0):]
 	return in
+}
+
+// earlierOfLine is l as a line said before those a translation is given (Earlier): its original, and its translation unless the original was rewritten above it since, as by an editor outside Kando, which leaves the translation of what the line said before.
+func earlierOfLine(l track.Line) Earlier {
+	e := Earlier{Line: l.Original.Text}
+	if l.Translation.Layer >= l.Original.Layer {
+		e.Translation = strings.TrimSpace(l.Translation.Text)
+	}
+	return e
 }
 
 // terms are the film's terms as the proofreading makes them.
@@ -1477,7 +1521,11 @@ func (m *making) draft(ctx context.Context, in draftInput, language string, out 
 	ApplyRecurring(heard, in.terms)
 	var fixes []Fix
 	if pr, ok := m.p.(Proofreader); ok && chats(m.p) && !in.redraft && !m.copied && len(heard) > 0 {
-		fixed, err := pr.Proofread(ctx, heard, in.title)
+		var fixed []core.Segment
+		err := m.patiently(ctx, func() (err error) {
+			fixed, err = pr.Proofread(ctx, heard, in.title)
+			return err
+		})
 		var partly *UnproofreadError
 		if err == nil && len(fixed) != len(heard) {
 			err = fmt.Errorf("%d proofread lines for %d lines", len(fixed), len(heard))
@@ -1501,15 +1549,76 @@ func (m *making) draft(ctx context.Context, in draftInput, language string, out 
 		out <- drafted{in: in, language: language, original: lines, translated: make([]core.Segment, len(lines)), fixes: fixes}
 		return
 	}
-	translated, err := m.p.Translate(WithEarlier(ctx, in.earlier), lines, language)
+	var translated []core.Segment
+	err := m.patiently(ctx, func() (err error) {
+		translated, err = m.p.Translate(WithTitle(WithEarlier(ctx, in.earlier), in.title), lines, language)
+		return err
+	})
 	var partial *UntranslatedError
 	if errors.As(err, &partial) && len(translated) == len(lines) {
+		m.translateLeft(ctx, in, lines, translated, language)
 		err = nil
 	}
 	if err == nil && len(translated) != len(lines) {
 		err = fmt.Errorf("%d translated lines for %d lines", len(translated), len(lines))
 	}
 	out <- drafted{in: in, language: language, original: lines, translated: translated, fixes: fixes, err: err}
+}
+
+// translateLeft translates again, once, the lines of a draft its translation left untranslated, translated (a batch of them failed after its retries, UntranslatedError), with the lines of the draft before the first of them and their translations as context, as one batch failing alone is more often the reply than the service; what it translates goes into translated. Lines it leaves untranslated again stay so: the draft is made with them, as the user can translate the lines left (core.RedoMissing).
+func (m *making) translateLeft(ctx context.Context, in draftInput, lines, translated []core.Segment, language string) {
+	var left []int
+	for i := range translated {
+		if strings.TrimSpace(translated[i].Text) == "" {
+			left = append(left, i)
+		}
+	}
+	if len(left) == 0 {
+		return
+	}
+	earlier := slices.Clone(in.earlier)
+	for i := range left[0] {
+		earlier = append(earlier, Earlier{Line: lines[i].Text, Translation: strings.TrimSpace(translated[i].Text)})
+	}
+	segments := make([]core.Segment, len(left))
+	for k, i := range left {
+		segments[k] = lines[i]
+	}
+	again, err := m.p.Translate(WithTitle(WithEarlier(ctx, earlier), in.title), segments, language)
+	var partial *UntranslatedError
+	if (err != nil && !errors.As(err, &partial)) || len(again) != len(segments) {
+		return
+	}
+	for k, i := range left {
+		if text := strings.TrimSpace(again[k].Text); text != "" {
+			translated[i].Text = text
+		}
+	}
+}
+
+// patience is how long a draft or a final proofread goes on trying the AI service again while it fails as a service does for a while (transient), once it has answered this making (making.served): a network gone for some minutes, or a service over its capacity, so the film goes on being translated once it is back rather than without it. patienceFirst is the first wait, which doubles up to patienceMost.
+var (
+	patience      = 10 * time.Minute
+	patienceFirst = 10 * time.Second
+	patienceMost  = 2 * time.Minute
+)
+
+// patiently calls ask, and again after a wait while it fails as a service does for a while (transient) and the service has answered this making, until patience has passed since it first failed or ctx is done. It returns ask's last error. It waits in the draft's own goroutine, so the making's loop goes on hearing the film meanwhile and sends the service nothing else.
+func (m *making) patiently(ctx context.Context, ask func() error) error {
+	err := ask()
+	start, wait := time.Now(), patienceFirst
+	for transient(err) && m.served.Load() && time.Since(start)+wait <= patience {
+		timer := time.NewTimer(wait)
+		select {
+		case <-ctx.Done():
+			timer.Stop()
+			return err
+		case <-timer.C:
+		}
+		wait = min(wait*2, patienceMost)
+		err = ask()
+	}
+	return err
 }
 
 // commitDraft writes a draft: each line it corrected and each translation, the corrections it made, then that its cells are drafted. A correction that becomes a term with it is put at once in the lines near the playhead drafted before (redrafts); the rest of the film takes it in the final proofread. A film in its own language takes it in all its lines at once (spreadTerms).
@@ -1573,8 +1682,8 @@ func (m *making) commitDraft(gen string, d drafted, playhead time.Duration) {
 		m.spreadTerms(gen, fresh, drafted)
 		return
 	}
-	in := draftInput{redraft: true, terms: fresh}
-	var earlier []string
+	in := draftInput{redraft: true, terms: fresh, title: filmTitle(*m.job)}
+	var earlier []Earlier
 	for _, l := range m.doc.Lines(gen) {
 		mid := (l.Start + l.End) / 2
 		near := mid >= playhead-track.Behind && mid < playhead+track.Ahead
@@ -1588,7 +1697,7 @@ func (m *making) commitDraft(gen string, d drafted, playhead time.Duration) {
 				}
 			}
 		}
-		earlier = append(earlier, l.Original.Text)
+		earlier = append(earlier, earlierOfLine(l))
 	}
 	if len(in.ids) > 0 {
 		m.redrafts = append(m.redrafts, in)
@@ -1674,7 +1783,7 @@ func (m *making) finalOf(gen string, unit track.Unit) draftInput {
 		mid := (l.Start + l.End) / 2
 		switch {
 		case mid < start:
-			in.earlier = append(in.earlier, l.Original.Text)
+			in.earlier = append(in.earlier, earlierOfLine(l))
 		case mid < end:
 			in.ids = append(in.ids, l.ID)
 			in.lines = append(in.lines, core.Segment{Start: l.Start, End: l.End, Text: l.Original.Text})
@@ -1706,7 +1815,11 @@ func (m *making) final(ctx context.Context, in draftInput, language string, auto
 		for k, i := range again {
 			segments[k] = lines[i]
 		}
-		redone, err := m.p.Translate(WithEarlier(ctx, in.earlier), segments, language)
+		var redone []core.Segment
+		err := m.patiently(ctx, func() (err error) {
+			redone, err = m.p.Translate(WithTitle(WithEarlier(ctx, in.earlier), in.title), segments, language)
+			return err
+		})
 		var partial *UntranslatedError
 		if errors.As(err, &partial) && len(redone) == len(segments) {
 			err = nil
@@ -1724,7 +1837,11 @@ func (m *making) final(ctx context.Context, in draftInput, language string, auto
 			}
 		}
 	}
-	found, err := m.p.(Reviewer).Review(ctx, lines, translated, in.title, language)
+	var found []core.Proof
+	err := m.patiently(ctx, func() (err error) {
+		found, err = m.p.(Reviewer).Review(ctx, lines, translated, in.title, language)
+		return err
+	})
 	if err != nil {
 		out <- drafted{in: in, err: err}
 		return

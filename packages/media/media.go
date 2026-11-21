@@ -62,7 +62,7 @@ func downloadFailKind(job core.Job, err error) core.FailKind {
 	return kind
 }
 
-// filmTitle is what a job's video is called, for the proofreader to judge its words by: the title the site gave it, or a local video's file name.
+// filmTitle is what a job's video is called, for the proofreading and the translation to judge its words by: the title the site gave it, or a local video's file name, or, for one the library keeps in a folder of its own as video.<ext> (GatherVideos), the folder's name.
 func filmTitle(job core.Job) string {
 	if title := strings.TrimSpace(job.Title); title != "" {
 		return title
@@ -70,7 +70,8 @@ func filmTitle(job core.Job) string {
 	if job.VideoPath == "" {
 		return ""
 	}
-	return strings.TrimSuffix(filepath.Base(job.VideoPath), filepath.Ext(job.VideoPath))
+	dir, name := filepath.Split(job.VideoPath)
+	return strings.TrimSuffix(displayName(filepath.Clean(dir), name), filepath.Ext(name))
 }
 
 // Downloaded reports whether a link's job already downloaded its video to path in an earlier run: the file is there, holds something, and no partial download lies beside it, which would mean it never merged and Download has to fetch it again.
