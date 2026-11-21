@@ -201,3 +201,36 @@ func TestALinkBeingMadePlaysItsSoundOnAPhone(t *testing.T) {
 		t.Fatalf("a paused queue ran the link watched: %+v", stageOf(t, a, "talk"))
 	}
 }
+
+// A line a phone saves from a film being made is kept on the desktop as one saved from that film, by where its video will be, as the desktop's player saves it, and is told to the phones as that film's.
+func TestALineSavedFromAFilmBeingMadeIsKept(t *testing.T) {
+	a, p, dir, _, c, clock := phoneStateLibrary(t)
+	sound := filepath.Join(dir, "walk", ".walk.sound.m4a")
+	writeFiles(t, map[string]string{sound: "the sound"})
+	apply(p.tt, a, func() {
+		a.queue.paused = true
+		a.library.Jobs = append(a.library.Jobs, core.Job{ID: "walk", Source: "https://example.com/walk", Language: "简体中文", Stage: core.StageQueued, SoundPath: sound})
+	})
+	lib := phoneLibraryID(dir)
+	clock.Add(time.Minute)
+	now := clock.Now()
+	field := func(v any) psync.Field { return psync.Field{Value: psync.Value(v), Stamp: psync.Stamp{At: now}} }
+	put := []psync.Record{{Kind: psync.KindLine, ID: "walkline", Film: "walk", Fields: map[string]psync.Field{
+		psync.FieldStartMS: field(500), psync.FieldEndMS: field(1500), psync.FieldOriginal: field("Watch your step"), psync.FieldTranslation: field("小心脚下"),
+		psync.FieldTitle: field("Walk"), psync.FieldSavedAt: field(now), psync.FieldNote: field(""), psync.FieldReview: field(psync.Review{Due: now}),
+	}}}
+	if _, err := phoneAsk(t, p, func(ctx context.Context) (psync.StatePutResult, error) { return c.PutState(ctx, lib, put) }); err != nil {
+		t.Fatal(err)
+	}
+	i := a.saved.book.Index("walkline")
+	if i < 0 || a.saved.book.Lines[i].Video != a.saved.book.Key(filepath.Join(dir, "walk", "walk.m4a")) || a.saved.book.Lines[i].Original != "Watch your step" {
+		t.Fatalf("the desktop keeps the phone's line as %+v", a.saved.book.Lines)
+	}
+	got, err := phoneAsk(t, p, func(ctx context.Context) (psync.StateChanges, error) { return c.State(ctx, lib, "", 0) })
+	if err != nil {
+		t.Fatal(err)
+	}
+	if line := phoneStateFind(t, got.Records, psync.KindLine, "walkline"); line.Film != "walk" {
+		t.Fatalf("the phones are told the line is of %q", line.Film)
+	}
+}
