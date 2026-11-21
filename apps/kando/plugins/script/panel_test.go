@@ -163,23 +163,33 @@ func TestScriptPanelPastItsBudget(t *testing.T) {
 	}
 }
 
-// watchFixture is a plugin with three panels for the watchdog: busy, which keeps the engine busy from a timer, 80 ms of every 90; grow, which keeps what a timer makes, a string of 1 MiB every 20 ms, the engine idle in between; and quiet, which does nothing.
-var watchFixture = fixture{id: "acme.watch", extra: `"contributes": {"panels": [{"id": "busy", "export": "Busy", "title": {"en": "Busy"}}, {"id": "grow", "export": "Grow", "title": {"en": "Grow"}}, {"id": "quiet", "export": "Quiet", "title": {"en": "Quiet"}}]}`,
+// watchFixture is a plugin with four panels for the watchdog: busy, which keeps the engine busy from a timer, 80 ms of every 90; grow, which keeps what a timer makes, an array of 64 Ki numbers every 20 ms, copied with concat, which tsx's memory quota (Limits.Memory) does not count, the engine idle in between; quiet, which does nothing; and big, which keeps a string of 1 MiB every 20 ms, made with repeat, which the quota counts.
+var watchFixture = fixture{id: "acme.watch", extra: `"contributes": {"panels": [{"id": "busy", "export": "Busy", "title": {"en": "Busy"}}, {"id": "grow", "export": "Grow", "title": {"en": "Grow"}}, {"id": "quiet", "export": "Quiet", "title": {"en": "Quiet"}}, {"id": "big", "export": "Big", "title": {"en": "Big"}}]}`,
 	code: `import { host, mount, View } from "nsgo"
 const kept = []
+const half = []
+for (let i = 0; i < 1 << 15; i++) half.push(i)
 export function Busy() { setInterval(() => { const t = Date.now(); while (Date.now() - t < 80) {} }, 10); return <View /> }
-export function Grow() { let n = 0; setInterval(() => { kept.push("x".repeat(1 << 20) + n++) }, 20); return <View /> }
+export function Grow() { setInterval(() => { kept.push(half.concat(half)) }, 20); return <View /> }
 export function Quiet() { return <View /> }
+export function Big() { let n = 0; setInterval(() => { kept.push("x".repeat(1 << 20) + n++) }, 20); return <View /> }
 if (host.params.panel === "busy") mount(Busy)
 if (host.params.panel === "grow") mount(Grow)
 if (host.params.panel === "quiet") mount(Quiet)
+if (host.params.panel === "big") mount(Big)
 `}
 
 // testPanelWatch is a panel's watchdog on the scale of a test: windows of 300 ms.
 var testPanelWatch = PanelWatch{Window: 300 * time.Millisecond, Share: 0.6, Windows: 3, Probe: 300 * time.Millisecond, Idle: 0.3, Retries: 3}
 
-// showPanel shows the panel i of watchFixture on an engine of its own, under a runner with watch and a heap threshold of heap, and returns the engine and what the runner reports it stopped the plugin for.
+// showPanel shows the panel i of watchFixture on an engine of its own, under a runner with watch and a heap threshold of heap, and returns the engine and what the runner reports it stopped the plugin for. The panel failing fails the test.
 func showPanel(t *testing.T, i int, heap uint64, watch PanelWatch) (*engine, <-chan string) {
+	t.Helper()
+	return showPanelFailing(t, i, heap, watch, func(err error) { t.Errorf("the panel failed: %v", err) })
+}
+
+// showPanelFailing is showPanel with failed hearing what the panel fails with.
+func showPanelFailing(t *testing.T, i int, heap uint64, watch PanelWatch, failed func(error)) (*engine, <-chan string) {
 	t.Helper()
 	s := newSigner(t, AppIDPrefix+"acme.*")
 	roots := s.roots()
@@ -200,7 +210,7 @@ func showPanel(t *testing.T, i int, heap uint64, watch PanelWatch) (*engine, <-c
 		}
 		e.tree.Mount(func(cx *core.Scope) core.Node {
 			return r.Panel(pl, v, plugins.Grant{}, p.Contributes.Panels[i], core.NewHost, func(cx *core.Scope, err error, _ func()) core.Node {
-				t.Errorf("the panel failed: %v", err)
+				failed(err)
 				return core.View{}
 			})
 		})
@@ -235,6 +245,28 @@ func TestScriptPanelWatchdogStopsAGrowingPanel(t *testing.T) {
 	case <-time.After(slow(10 * time.Second)):
 		t.Fatal("a growing panel was not stopped")
 	}
+}
+
+// TestScriptPanelStopsAtItsMemoryQuota checks that a panel tsx stopped at its memory quota (Limits.Memory) shows the fallback and stops its plugin for its memory at once, as a call that ran into it does, though the quota's error has a code the breaker does not count.
+func TestScriptPanelStopsAtItsMemoryQuota(t *testing.T) {
+	var failed []error
+	// Neither the engine's load nor the heap is watched: the quota is what this test is about.
+	watch := testPanelWatch
+	watch.Windows = 1000
+	e, stopped := showPanelFailing(t, 3, 0, watch, func(err error) { failed = append(failed, err) })
+	select {
+	case reason := <-stopped:
+		if reason != plugins.ReasonMemory {
+			t.Errorf("stopped as %q", reason)
+		}
+	case <-time.After(slow(10 * time.Second)):
+		t.Fatal("a panel past its memory quota was not stopped")
+	}
+	e.do(func() {
+		if len(failed) != 1 || !contains(failed[0], "memory") {
+			t.Errorf("the panel failed with %v", failed)
+		}
+	})
 }
 
 // TestScriptPanelWatchdogSparesAQuietPanel checks that a quiet panel is not stopped while the engine is busy with work of the app's own: taking it down for the probe leaves the load where it was, so it is built again and left alone.

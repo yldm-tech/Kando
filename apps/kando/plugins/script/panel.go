@@ -115,9 +115,13 @@ type panelBuild struct {
 	failed bool
 }
 
-// Failed counts err, a failure of the plugin p outside its calls, as its panel's view failing, for its breaker as a failed call is counted (a core.Error with a code is not a failure), and stops it when the breaker trips. Call it on the engine's goroutine.
+// Failed counts err, a failure of the plugin p outside its calls, as its panel's view failing, for its breaker as a failed call is counted (a core.Error with a code is not a failure), and stops it when the breaker trips, or at once, as a call is ended, when tsx stopped the view's runtime at a quota (halted): its memory quota as plugins.ReasonMemory. Call it on the engine's goroutine.
 func (r *Runner) Failed(p *Plugin, err error) {
 	if p.closed {
+		return
+	}
+	if reason := halted(err); reason != "" {
+		r.stop(p, reason)
 		return
 	}
 	if p.count(err) {
