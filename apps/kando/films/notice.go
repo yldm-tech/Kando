@@ -112,11 +112,10 @@ func noticeBar(cx *core.Scope, a App, look func() noticeLook) core.Node {
 		StyleFunc: func() core.Style { return core.Style{Hover: &core.Style{Background: k.Shade(0.06)}} },
 		Children:  []core.Node{core.Text{Content: "×", Style: core.Style{FontSize: 15}, StyleFunc: func() core.Style { return core.Style{Color: ink()} }}}}
 	// The bar is 42 points high with one line of text, its hairline included.
-	// TODO(nsgo#144): give the bar the status role, so assistive technology reads it as MyGo's RoleStatus did; NSGo's roles have none, and a polite live region announces what it says instead https://github.com/nsgo-dev/nsgo/issues/144
 	return core.View{
-		TestID:     "films-notice",
-		LiveRegion: core.LiveRegionPolite,
-		LabelFunc:  func() string { return look().text },
+		TestID:    "films-notice",
+		Role:      core.RoleStatus,
+		LabelFunc: func() string { return look().text },
 		Style: core.Style{Direction: core.Row, MinHeight: core.Pt(42), Margin: core.Edges{Bottom: 14}, Padding: core.Edges{Top: 8.5, Right: 10, Bottom: 8.5, Left: 14}, Gap: 10,
 			AlignItems: core.AlignCenter, CornerRadius: 14, BorderWidth: 0.5},
 		StyleFunc: func() core.Style {

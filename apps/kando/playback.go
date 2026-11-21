@@ -272,7 +272,7 @@ func (a *app) playerRemux(p *filmPlay, step film.RemuxStep) bool {
 	if err != nil {
 		return false
 	}
-	// TODO(nsgo#107): play every video ffmpeg decodes in the app's own player, as MyGo's VideoPlayer drew the frames ffmpeg decoded, rather than a copy the system's player can open https://github.com/nsgo-dev/nsgo/issues/107
+	// TODO(nsgo): play every video ffmpeg decodes in the app's own player, as MyGo's VideoPlayer drew the frames ffmpeg decoded and mygo/audio played its sound, rather than a copy the system's player can open; NSGo can show the frames now (core.ImageSource.Pixels, nsgo#107), but its audio has no output an app feeds the sound ffmpeg decodes to, as mygo/audio played Kando's PCM (nsgo#559 was closed without one), so the sound and the clock the picture follows still come from the system's player
 	p.source, p.remux, p.loaded = "", step, false
 	p.remuxAt, p.remuxLength = 0, a.lib.durations[p.path]
 	a.playerStopRemux()

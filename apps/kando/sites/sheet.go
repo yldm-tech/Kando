@@ -139,9 +139,9 @@ func (s search) Render(cx *core.Scope) core.Node {
 		return nil
 	}}
 	// TODO(nsgo#145): give core.Input (base.Input, ui.Input) LabelFunc and AccessibilityDescriptionFunc twins, so the field's accessible name follows the interface language as it changes; it is read once here, and a Dynamic would take the focus and the typed text with it https://github.com/nsgo-dev/nsgo/issues/145
-	// TODO(nsgo#144): give core.Input a search role, so assistive technology reads the field as a search field as MyGo's SearchField was https://github.com/nsgo-dev/nsgo/issues/144
 	input := base.Input{
 		TestID:          "sites-search",
+		Role:            core.RoleSearchField,
 		Label:           locales.SitesSearchLabel(cx),
 		AutoFocus:       true,
 		Value:           s.query,

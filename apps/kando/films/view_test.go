@@ -669,6 +669,9 @@ func TestNoticeOffersItsButtons(t *testing.T) {
 	if !app.Exists(whole(a.notice.Text)) {
 		t.Fatalf("no notice: %q", app.Texts())
 	}
+	if app.Find("id:films-notice").Props.Role != ns.RoleStatus {
+		t.Fatal("the notice is not a status to assistive technology")
+	}
 	app.Press("id:notice-settings")
 	app.Press("id:notice-film")
 	wantCalls(t, a, "settings translate", "open done")

@@ -57,10 +57,9 @@ func noticeBar(cx *core.Scope, a App) core.Node {
 	}}
 	closer := ui.IconButton{Icon: lucide.X, LabelFunc: func() string { return locales.BrowseNoticeClose(cx) }, Size: 22, TestID: "browse-notice-close",
 		OnPress: live.Do(a, func() { a.BrowseNotice().Open = false })}
-	// TODO(nsgo#144): give core.Role a status role, so assistive technology reads the bar as a status as MyGo's InfoBar was (RoleStatus); a polite live region, which reads its text as it changes, stands in for it https://github.com/nsgo-dev/nsgo/issues/144
 	bar := core.View{
-		TestID:     "browse-notice",
-		LiveRegion: core.LiveRegionPolite,
+		TestID: "browse-notice",
+		Role:   core.RoleStatus,
 		Style: core.Style{Direction: core.Row, AlignItems: core.AlignCenter, Gap: 10, MinHeight: core.Pt(36), CornerRadius: 8,
 			Padding: core.Edges{Top: 6, Right: 6, Bottom: 6, Left: 14}},
 		StyleFunc: func() core.Style {

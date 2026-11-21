@@ -340,6 +340,9 @@ func TestSearchShowsWithFilmsAndTakesTheFocus(t *testing.T) {
 		t.Fatal("the focus request outlived the hidden field")
 	}
 	change(app, a, func() { a.films = 4 })
+	if app.Find("id:sidebar-search").Props.Role != core.RoleSearchField {
+		t.Fatal("the library search is not a search field to assistive technology")
+	}
 	if app.Find("id:sidebar-search").Focused {
 		t.Fatal("the field took a focus asked for while it was hidden")
 	}

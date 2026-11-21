@@ -48,9 +48,8 @@ func searchField(cx *core.Scope, a App, field *core.Ref) core.Node {
 		return nil
 	}}
 	// TODO(nsgo#145): give core.Input (base.Input, ui.Input) LabelFunc and AccessibilityDescriptionFunc twins, so the field's accessible name follows the interface language as it changes; it is read once here, and a Dynamic would take the focus and the typed text with it https://github.com/nsgo-dev/nsgo/issues/145
-	// TODO(nsgo#144): give core.Input a search role, so assistive technology reads the field as a search field as MyGo's SearchField was https://github.com/nsgo-dev/nsgo/issues/144
 	input := base.Input{
-		Ref: field, TestID: "sidebar-search",
+		Ref: field, TestID: "sidebar-search", Role: core.RoleSearchField,
 		Label:           locales.SidebarSearchLabel(cx),
 		Value:           query,
 		PlaceholderFunc: func() string { return locales.SidebarSearchPlaceholder(cx) + "  " + cx.KeyLabel("mod+f") },

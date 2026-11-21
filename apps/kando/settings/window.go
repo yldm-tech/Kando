@@ -414,8 +414,7 @@ func (s search) Render(cx *core.Scope) core.Node {
 		cx.OnKeyWith("escape", core.KeyOptions{When: core.KeyAlways}, clear)
 		return nil
 	}}
-	// TODO(nsgo#144): give core.Input a search role, so assistive technology reads the field as a search field as MyGo's SearchField was https://github.com/nsgo-dev/nsgo/issues/144
-	input := base.Input{Ref: field, TestID: "settings-search",
+	input := base.Input{Ref: field, TestID: "settings-search", Role: core.RoleSearchField,
 		Label:       locales.SettingsSearchLabel(cx),
 		Placeholder: locales.SettingsSearchPlaceholder(cx),
 		Value:       query,

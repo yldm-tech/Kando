@@ -299,7 +299,7 @@ func screenshotOpen(t *testing.T, a *app, tt *nsgotest.App, updates chan func(),
 			p.head = at
 		}
 		if p := a.player.play; p != nil && nsgotest.Target() != "" {
-			// TODO(nsgo#107): hand the system's player the film's video once Kando plays what ffmpeg decodes; the system's player on a platform cannot open the fake ffmpeg's placeholder and would say so a moment later, after the remuxes the fake ffmpeg cannot make, leaving the scene to show whichever of opening or 无法播放 it caught, so on a platform the scenes give it nothing to play and report its load and progress themselves (screenshotLoad, screenshotProgress) https://github.com/nsgo-dev/nsgo/issues/107
+			// TODO(nsgo): hand the system's player the film's video once Kando plays what ffmpeg decodes (playerRemux in playback.go), which waits on an NSGo audio output fed decoded sound; the system's player on a platform cannot open the fake ffmpeg's placeholder and would say so a moment later, after the remuxes the fake ffmpeg cannot make, leaving the scene to show whichever of opening or 无法播放 it caught, so on a platform the scenes give it nothing to play and report its load and progress themselves (screenshotLoad, screenshotProgress)
 			p.source = ""
 		}
 	})

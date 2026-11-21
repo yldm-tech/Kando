@@ -225,7 +225,7 @@ func (s *screen) stage() core.Node {
 		}),
 		Children: []core.Node{
 			core.Show{When: func() bool { return poster() != "" }, Then: func(*core.Scope) core.Node {
-				// TODO(nsgo#107): show the film's own frames as they decode, as MyGo's VideoPlayer did, in place of its poster while the system's player opens it; the screenshots show this poster in place of the picture, which no system player plays headless https://github.com/nsgo-dev/nsgo/issues/107
+				// TODO(nsgo): show the film's own frames as they decode, as MyGo's VideoPlayer did, in place of its poster while the system's player opens it, once Kando plays what ffmpeg decodes (playerRemux in playback.go); NSGo can show the frames now (core.ImageSource.Pixels, nsgo#107), but its audio has no output an app feeds the sound ffmpeg decodes to, as mygo/audio played Kando's PCM (nsgo#559 was closed without one); the screenshots show this poster in place of the picture, which no system player plays headless
 				return core.Image{TestID: "film-poster", ResizeMode: core.Contain, Style: fillStyle,
 					SourceFunc: func() core.ImageSource { return core.ImageSource{URI: fileURL(poster())} }}
 			}},

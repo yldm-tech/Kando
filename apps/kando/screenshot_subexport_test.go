@@ -11,7 +11,7 @@ func TestScreenshotsSubexport(t *testing.T) {
 	f := newScreenshotFixture(t)
 	f.shoot(t, "subexport-dialog", func(t *testing.T, a *app, tt *nsgotest.App, updates chan func()) {
 		screenshotOpen(t, a, tt, updates, "j1", protoCues[0].Start)
-		// TODO(nsgo#107): show the film's own picture, its frames decoded by the fake ffmpeg as MyGo's player showed them; the system's player plays no fake clip headless, so the stage shows the film's poster behind the report of a load https://github.com/nsgo-dev/nsgo/issues/107
+		// TODO(nsgo): show the film's own picture, its frames decoded by the fake ffmpeg as MyGo's player showed them, once Kando plays what ffmpeg decodes (playerRemux in playback.go), which waits on an NSGo audio output fed decoded sound; the system's player plays no fake clip headless, so the stage shows the film's poster behind the report of a load
 		screenshotLoad(tt, a)
 		a.OpenSubexport()
 		refresh(tt, a)

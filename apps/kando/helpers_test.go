@@ -291,7 +291,7 @@ func typeFocused(t *testing.T, tt *nsgotest.App, s string) {
 	t.Helper()
 	deadline := time.Now().Add(2 * time.Second)
 	for {
-		for _, v := range tt.Query("role:textbox") {
+		for _, v := range append(tt.Query("role:textbox"), tt.Query("role:searchbox")...) {
 			if v.Focused {
 				tt.Type("view:"+strconv.FormatUint(uint64(v.ID), 10), s)
 				return
