@@ -138,7 +138,7 @@ func (a *app) libraryTrashIn(root string, items []films.Film, m locales.Messages
 				gone = append(gone, unit.Items...)
 			case reason == "":
 				name := films.Name(unit.Items[0])
-				// desktop.Trash fails with errors.ErrUnsupported where there is no Trash it can use, and with desktop.ErrNotTrashed when the item could not go there; it logs what the system said, so the bar says each in a sentence of its own.
+				// desktop.Trash fails with desktop.ErrNotTrashed when the item could not go there, and with errors.ErrUnsupported after desktop.Headless; it logs what the system said, so the bar says each in a sentence of its own.
 				reason = m.LibraryTrashFailed(name)
 				if errors.Is(err, errors.ErrUnsupported) {
 					reason = m.LibraryTrashUnsupported(name)

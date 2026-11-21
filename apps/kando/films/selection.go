@@ -60,27 +60,6 @@ func (s *Selection) Extend(order []string, key string) {
 	s.Keys, s.lead = keys, key
 }
 
-// Step moves the lead by one film in order, down when by is 1 and up when it is -1, and selects the films from the anchor to it, as ⇧↓ and ⇧↑ do in Finder's list. With nothing selected it selects the first film, or the last going up. It reports the key the lead is on now, "" when there are no films.
-func (s *Selection) Step(order []string, by int) string {
-	if len(order) == 0 {
-		return ""
-	}
-	at := slices.Index(order, s.Lead())
-	if at < 0 || slices.Index(order, s.Anchor) < 0 {
-		key := order[0]
-		if by < 0 {
-			key = order[len(order)-1]
-		}
-		s.Only(key)
-		return key
-	}
-	next := order[max(0, min(len(order)-1, at+by))]
-	from, to := slices.Index(order, s.Anchor), slices.Index(order, next)
-	s.Keys = slices.Clone(order[min(from, to) : max(from, to)+1])
-	s.lead = next
-	return next
-}
-
 // All selects every film of order, the keys of the films the page shows, as ⌘A does.
 func (s *Selection) All(order []string) {
 	s.Keys = slices.Clone(order)

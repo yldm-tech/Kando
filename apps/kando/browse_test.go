@@ -79,7 +79,6 @@ func browseScripts(tt *nsgotest.App) []string {
 	return out
 }
 
-// Enter in the address field opens what it holds: the first address makes the web view, later ones load in it, and words are searched for on the engine of the interface's language, read when Enter is pressed.
 // A download gets the cookies the pages' store holds for its video's whole site, HttpOnly ones included, with the pages' user agent, and none of another site's.
 func TestBrowseDownloadsGetThePagesCookies(t *testing.T) {
 	a, tt, updates := newTestApp(t, media.Tools{})
@@ -117,6 +116,7 @@ func TestBrowseDownloadsGetThePagesCookies(t *testing.T) {
 	}
 }
 
+// Enter in the address field opens what it holds: the first address makes the web view, later ones load in it, and words are searched for on the engine of the interface's language, read when Enter is pressed.
 func TestBrowseEnterLoadsTheAddress(t *testing.T) {
 	a, tt, _, _ := browseApp(t, &fakePipeline{})
 	if tt.Exists(browsePage) {

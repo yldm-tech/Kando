@@ -15,6 +15,7 @@ import (
 	"kando/packages/media"
 
 	ns "github.com/nsgo-dev/nsgo/core"
+	nsdesktop "github.com/nsgo-dev/nsgo/desktop"
 )
 
 // writeFiles writes each file of files, by path, with its body, making its folder.
@@ -143,6 +144,24 @@ func TestMoveSeveralFilmsOneAfterAnotherAcrossVolumes(t *testing.T) {
 	}
 	if n := a.lib.notice; n.Kind != "warning" || !n.Undo || n.Text != m.LibraryMovedSome(1, 2, "英语听力", m.LibraryMoveProcessing(moveName)) {
 		t.Fatalf("after a move of which one film stayed the bar says %+v", n)
+	}
+}
+
+// TestEditSelectAllSelectsTheFilms checks Edit › 全选 while the library's films show: it keeps its role and ⌘A, so a focused field or selected text takes it first, and chosen when none does it selects every film the page shows, as Finder's does (films.SelectAll).
+func TestEditSelectAllSelectsTheFilms(t *testing.T) {
+	f, _, _ := newSeriesFixture(t)
+	a, tt := f.a, f.tt
+	item := findMenuItem(t, a.menuBar(a.cx), "编辑", testlocale.Messages().MenuSelectAll())
+	if item.Role != nsdesktop.MenuSelectAll || item.Shortcut != "mod+a" || item.OnSelect == nil {
+		t.Fatalf("编辑 › 全选 is %+v, want the Select All role with ⌘A and the films' action", item)
+	}
+	if n := len(a.librarySelected()); n != 0 {
+		t.Fatalf("%d films are selected before 全选", n)
+	}
+	item.OnSelect()
+	refresh(tt, a)
+	if got, want := len(a.librarySelected()), len(a.libraryShownFilms()); got != want || want == 0 {
+		t.Fatalf("全选 selected %d of the %d films the page shows", got, want)
 	}
 }
 

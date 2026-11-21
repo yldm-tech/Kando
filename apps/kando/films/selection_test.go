@@ -37,35 +37,6 @@ func TestSelectionClicks(t *testing.T) {
 	}
 }
 
-// TestSelectionStep checks ⇧↓ and ⇧↑: the films from the anchor to the lead, which grow and shrink as the lead moves past the anchor, and stop at the ends.
-func TestSelectionStep(t *testing.T) {
-	order := []string{"a", "b", "c", "d"}
-	var s Selection
-	if key := s.Step(order, 1); key != "a" || !slices.Equal(s.Keys, []string{"a"}) {
-		t.Fatalf("⇧↓ with nothing selected selects the first: %q %v", key, s.Keys)
-	}
-	s.Only("b")
-	s.Step(order, 1)
-	s.Step(order, 1)
-	if want := []string{"b", "c", "d"}; !slices.Equal(s.Keys, want) || s.Lead() != "d" {
-		t.Fatalf("⇧↓ twice: %v, lead %q", s.Keys, s.Lead())
-	}
-	s.Step(order, 1)
-	if s.Lead() != "d" || len(s.Keys) != 3 {
-		t.Fatalf("⇧↓ at the end stays: %v, lead %q", s.Keys, s.Lead())
-	}
-	for range 3 {
-		s.Step(order, -1)
-	}
-	if want := []string{"a", "b"}; !slices.Equal(s.Keys, want) || s.Lead() != "a" || s.Anchor != "b" {
-		t.Fatalf("⇧↑ past the anchor: %v, lead %q", s.Keys, s.Lead())
-	}
-	var up Selection
-	if key := up.Step(order, -1); key != "d" {
-		t.Fatalf("⇧↑ with nothing selected selects the last: %q", key)
-	}
-}
-
 // TestSelectionAllKeepAndOf checks ⌘A, the films the page stops showing leaving the selection, and the selected films read in the page's order.
 func TestSelectionAllKeepAndOf(t *testing.T) {
 	var s Selection
