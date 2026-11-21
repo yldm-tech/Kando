@@ -232,3 +232,30 @@ func TestSubtitlesOfAndHost(t *testing.T) {
 		t.Fatalf("endpoint host %q", h)
 	}
 }
+
+// A video at the root of a share is copied into a folder of its own as video.<ext>, as the library keeps a film: copied loose into its source's folder, it would be that folder's one video, which the library's watcher renames to video.<ext> while the job that copied it goes on making the film from the name it was copied to (media.GatherVideos).
+func TestCopierGivesAVideoAtTheRootAFolderOfItsOwn(t *testing.T) {
+	d := &memDriver{files: map[string]string{"Heat.mkv": "heat", "Heat.en.srt": "1\n00:00:01,000 --> 00:00:02,000\nhi\n"}}
+	var p Pool
+	s := Source{ID: "0123456789abcdef", Kind: "test", Name: "NAS"}
+	p.Set([]Source{s}, func(string) (Kind, bool) { return testKind(nil), true }, func(context.Context, Kind, Source) (Driver, error) { return d, nil })
+	dir := t.TempDir()
+	ref := Ref{Source: s.ID, Path: "Heat.mkv"}.String()
+	got, err := Copier{Pool: &p}.Copy(context.Background(), ref, dir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if want := filepath.Join(dir, "NAS", "Heat", "video.mkv"); got != want {
+		t.Fatalf("copied to %q, want %q", got, want)
+	}
+	if _, err := os.Stat(filepath.Join(dir, "NAS", "Heat", "video.en.srt")); err != nil {
+		t.Errorf("subtitles: %v", err)
+	}
+	if moved, err := media.GatherVideos(dir, nil); err != nil || len(moved) != 0 {
+		t.Fatalf("the library moved the copy: %v, %v", moved, err)
+	}
+	again, err := Copier{Pool: &p}.Copy(context.Background(), ref, dir)
+	if want := filepath.Join(dir, "NAS", "Heat (2)", "video.mkv"); err != nil || again != want {
+		t.Fatalf("again %q, %v; want %q", again, err, want)
+	}
+}

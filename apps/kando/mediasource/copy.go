@@ -67,7 +67,7 @@ type Copier struct {
 	LocalHost func(ctx context.Context, host string) (bool, error)
 }
 
-// Copy copies the video at source, a source's address (Ref), into dir, the library's folder, where the source's films go (Placeholder: <dir>/<source name>/<path on the source>, numbered when that is taken), with the subtitle files beside it on the source (SubtitlesOf) named after the copy, and returns its path. It reports how far it got to ctx's Trace (media.ReportProgress) with how fast. A source on the internet is refused in offline mode with media.ErrOffline. A copy that fails leaves nothing in the library (storage.Get).
+// Copy copies the video at source, a source's address (Ref), into dir, the library's folder, where the source's films go (Placeholder: <dir>/<source name>/<path on the source>, numbered when that is taken, and a video at the root of the source in a folder of its own, ownFolder), with the subtitle files beside it on the source (SubtitlesOf) named after the copy, and returns its path. It reports how far it got to ctx's Trace (media.ReportProgress) with how fast. A source on the internet is refused in offline mode with media.ErrOffline. A copy that fails leaves nothing in the library (storage.Get).
 func (c Copier) Copy(ctx context.Context, source, dir string) (string, error) {
 	ref, err := ParseRef(source)
 	if err != nil {
@@ -90,13 +90,18 @@ func (c Copier) Copy(ctx context.Context, source, dir string) (string, error) {
 	if err != nil {
 		return "", err
 	}
-	dest, err := Placeholder(dir, s.Name, ref.Path, func(p string) bool {
+	placeholder, err := Placeholder(dir, s.Name, ref.Path, func(p string) bool {
+		if own := ownFolder(dir, p); own != p {
+			_, err := os.Lstat(filepath.Dir(own))
+			return err == nil
+		}
 		_, err := os.Lstat(p)
 		return err == nil
 	})
 	if err != nil {
 		return "", err
 	}
+	dest := ownFolder(dir, placeholder)
 	start, last := time.Now(), time.Time{}
 	progress := func(done, total int64) {
 		now := time.Now()
@@ -119,6 +124,20 @@ func (c Copier) Copy(ctx context.Context, source, dir string) (string, error) {
 	}
 	c.copySubtitles(ctx, d, ref.Path, dest)
 	return dest, nil
+}
+
+// ownFolder is where Copy puts the video Placeholder places at p in the library dir: a video at the root of its source, which Placeholder places loose in the source's folder, goes in a folder of its own named as the video, as video.<ext>, as the library keeps a film. Loose there it may be the folder's one video, which the library's watcher renames to video.<ext> (media.GatherVideos) while the job that copied it is still making the film from the name it was copied to. A video deeper on the source is where Placeholder places it, in a folder the watcher does not look into.
+func ownFolder(dir, p string) string {
+	folder := filepath.Dir(p)
+	if filepath.Dir(folder) != filepath.Clean(dir) {
+		return p
+	}
+	name := filepath.Base(p)
+	ext := filepath.Ext(name)
+	if ext == name {
+		ext = ""
+	}
+	return filepath.Join(folder, strings.TrimSuffix(name, ext), "video"+ext)
 }
 
 // copySubtitles copies the subtitle files beside p on the source next to the copy at dest, each named as the copy is, with its own language and extension after it. One that cannot be read or is already there is left out: the film is made all the same.
