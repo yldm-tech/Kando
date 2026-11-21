@@ -12,4 +12,6 @@ const (
 	Account   = "account"
 	Phone     = "phone"
 	Plugins   = "plugins"
+	// MediaSources is 媒体来源: the NAS shares and servers films are imported from.
+	MediaSources = "sources"
 )

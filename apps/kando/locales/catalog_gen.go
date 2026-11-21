@@ -1183,6 +1183,8 @@ var Parameters = map[string][]string{
 	"PlayerRemuxing":                           {"percent"},
 	"PlayerRemuxingFrom":                       {"place", "percent"},
 	"FilmNextIn":                               {"seconds"},
+	"SettingsSourcesShares":                    {"names"},
+	"SettingsSourcesRemoveConfirm":             {"count"},
 }
 
 // Translation is a language's messages another package supplies:
@@ -1910,6 +1912,8 @@ type Translation struct {
 	PlayerRemuxing                           func(percent int) string
 	PlayerRemuxingFrom                       func(place string, percent int) string
 	FilmNextIn                               func(seconds int) string
+	SettingsSourcesShares                    func(names string) string
+	SettingsSourcesRemoveConfirm             func(count int) string
 }
 
 var supplied = map[string]Translation{}
@@ -3719,6 +3723,28 @@ const (
 	textPlayerKeyPreviousFilm
 	textPlayerKeyAutoNext
 	textCheatsheetPrevNextFilm
+	textSettingsSectionMediaSources
+	textSettingsKeywordsMediaSources
+	textSettingsSourcesLabel
+	textSettingsSourcesEmpty
+	textSettingsSourcesAdd
+	textSettingsSourcesNote
+	textSettingsSourcesAddTitle
+	textSettingsSourcesEditTitle
+	textSettingsSourcesKindSMB
+	textSettingsSourcesShareHint
+	textSettingsSourcesNoSigning
+	textSettingsSourcesNoSigningHint
+	textSettingsSourcesNoSigningRisk
+	textSettingsSourcesSMBWarning
+	textSettingsSourcesNoSecretStore
+	textSettingsSourcesSecretKept
+	textSettingsSourcesNoShares
+	textSettingsSourcesSaveFailed
+	textSettingsSourcesSecretFailed
+	textSettingsSourcesSaving
+	textSettingsSourcesFailSigning
+	textSettingsSourcesNeedsShare
 	numTexts
 )
 
@@ -5528,6 +5554,28 @@ var keyOfText = [numTexts]string{
 	"playerKeyPreviousFilm",
 	"playerKeyAutoNext",
 	"cheatsheetPrevNextFilm",
+	"settingsSectionMediaSources",
+	"settingsKeywordsMediaSources",
+	"settingsSourcesLabel",
+	"settingsSourcesEmpty",
+	"settingsSourcesAdd",
+	"settingsSourcesNote",
+	"settingsSourcesAddTitle",
+	"settingsSourcesEditTitle",
+	"settingsSourcesKindSMB",
+	"settingsSourcesShareHint",
+	"settingsSourcesNoSigning",
+	"settingsSourcesNoSigningHint",
+	"settingsSourcesNoSigningRisk",
+	"settingsSourcesSMBWarning",
+	"settingsSourcesNoSecretStore",
+	"settingsSourcesSecretKept",
+	"settingsSourcesNoShares",
+	"settingsSourcesSaveFailed",
+	"settingsSourcesSecretFailed",
+	"settingsSourcesSaving",
+	"settingsSourcesFailSigning",
+	"settingsSourcesNeedsShare",
 }
 
 // textsEn are the messages without arguments in en.
@@ -7334,7 +7382,29 @@ var textsEn = i18n.NewTexts(""+
 	"Next Film"+
 	"Previous Film"+
 	"Play Next Automatically"+
-	"Previous / Next Film",
+	"Previous / Next Film"+
+	"Media Sources"+
+	"NAS SMB share server network import Windows sharing"+
+	"Sources"+
+	"No media sources yet"+
+	"Add…"+
+	"Kando only reads your media sources: it never writes, moves or deletes anything on them. Their passwords are kept in the system's keychain, not in Kando's settings file."+
+	"Add a Media Source"+
+	"Edit Media Source"+
+	"SMB"+
+	"Empty to choose among the server's shares"+
+	"This NAS doesn't support signing"+
+	"For an older NAS, or a share open to guests"+
+	"Without signing, a device on the network between this computer and the NAS can change what Kando reads from it. Leave this off unless the NAS refuses signed connections."+
+	"SMB can't prove which server it reached, so add SMB sources only on a network you trust, and don't use this password for other accounts."+
+	"This system has no secure store for passwords (on Linux, a Secret Service such as GNOME Keyring), so Kando can't keep this password. Only a share open to guests can be added."+
+	"Saved; leave empty to keep it"+
+	"Connected, but the server shows this user no shares."+
+	"The media source couldn't be saved"+
+	"The password couldn't be kept in the system's keychain."+
+	"Saving…"+
+	"The server didn't sign its messages, which Kando requires. If this NAS doesn't support signing, or the share is open to guests, turn on This NAS doesn't support signing."+
+	"A folder is inside a share: fill in the share, or leave the folder empty.",
 	[]uint16{
 		5,
 		19,
@@ -9139,6 +9209,28 @@ var textsEn = i18n.NewTexts(""+
 		13,
 		23,
 		20,
+		13,
+		51,
+		7,
+		20,
+		6,
+		169,
+		18,
+		17,
+		3,
+		41,
+		32,
+		43,
+		169,
+		136,
+		174,
+		29,
+		52,
+		34,
+		55,
+		9,
+		169,
+		73,
 	})
 
 // textsJa are the messages without arguments in ja.
@@ -10945,7 +11037,29 @@ var textsJa = i18n.NewTexts(""+
 	"次の作品"+
 	"前の作品"+
 	"次の作品を自動再生"+
-	"前 / 次の作品",
+	"前 / 次の作品"+
+	"メディアソース"+
+	"NAS SMB 共有 サーバー ネットワーク 読み込み Windows 共有"+
+	"ソース"+
+	"メディアソースはまだありません"+
+	"追加…"+
+	"Kando はメディアソースを読み取るだけで、書き込み・移動・削除は一切しません。パスワードは Kando の設定ファイルではなく、システムのキーチェーンに保存されます。"+
+	"メディアソースを追加"+
+	"メディアソースを編集"+
+	"SMB"+
+	"空欄にするとサーバーの共有から選べます"+
+	"この NAS は署名に対応していない"+
+	"古い NAS や、ゲストに公開された共有向け"+
+	"署名がないと、このコンピュータと NAS の間のネットワーク上の機器が、Kando が読み取る内容を改ざんできます。NAS が署名付きの接続を拒否する場合を除き、オフのままにしてください。"+
+	"SMB は接続先のサーバーが本物か確認できません。SMB ソースは信頼できるネットワークでのみ追加し、このパスワードを他のアカウントと共用しないでください。"+
+	"このシステムにはパスワードを保存する安全な場所（Linux では GNOME キーリングなどの Secret Service）がないため、Kando はこのパスワードを保存できません。追加できるのはゲストに公開された共有だけです。"+
+	"保存済み。空欄のままなら変更しません"+
+	"接続しましたが、サーバーはこのユーザーに共有を表示していません。"+
+	"メディアソースを保存できませんでした"+
+	"パスワードをシステムのキーチェーンに保存できませんでした。"+
+	"保存中…"+
+	"サーバーがメッセージに署名しませんでしたが、Kando は署名を必要とします。この NAS が署名に対応していない場合や、共有がゲストに公開されている場合は「この NAS は署名に対応していない」をオンにしてください。"+
+	"フォルダは共有の中にあります。共有を入力するか、フォルダを空欄にしてください。",
 	[]uint16{
 		5,
 		30,
@@ -12750,6 +12864,28 @@ var textsJa = i18n.NewTexts(""+
 		12,
 		27,
 		18,
+		21,
+		74,
+		9,
+		45,
+		9,
+		229,
+		30,
+		30,
+		3,
+		57,
+		44,
+		56,
+		252,
+		218,
+		277,
+		54,
+		96,
+		54,
+		87,
+		12,
+		295,
+		117,
 	})
 
 // textsKo are the messages without arguments in ko.
@@ -14556,7 +14692,29 @@ var textsKo = i18n.NewTexts(""+
 	"다음 작품"+
 	"이전 작품"+
 	"다음 작품 자동 재생"+
-	"이전 / 다음 작품",
+	"이전 / 다음 작품"+
+	"미디어 소스"+
+	"NAS SMB 공유 서버 네트워크 가져오기 Windows 공유"+
+	"소스"+
+	"아직 미디어 소스가 없습니다"+
+	"추가…"+
+	"Kando는 미디어 소스를 읽기만 하며, 그 위의 파일을 쓰거나 옮기거나 삭제하지 않습니다. 소스의 암호는 Kando의 설정 파일이 아니라 시스템 키체인에 보관됩니다."+
+	"미디어 소스 추가"+
+	"미디어 소스 편집"+
+	"SMB"+
+	"비워 두면 서버의 공유 중에서 고릅니다"+
+	"이 NAS는 서명을 지원하지 않음"+
+	"오래된 NAS나 게스트에게 열린 공유용"+
+	"서명하지 않으면 이 컴퓨터와 NAS 사이 네트워크의 기기가 Kando가 읽는 내용을 바꿀 수 있습니다. NAS가 서명된 연결을 거부하는 경우가 아니면 끄세요."+
+	"SMB는 연결한 서버가 진짜인지 확인할 수 없으므로, SMB 소스는 신뢰하는 네트워크에서만 추가하고 이 암호를 다른 계정과 함께 쓰지 마세요."+
+	"이 시스템에는 암호를 보관할 보안 저장소(Linux에서는 GNOME 키링 같은 Secret Service)가 없어 Kando가 이 암호를 보관할 수 없습니다. 게스트에게 열린 공유만 추가할 수 있습니다."+
+	"저장됨. 비워 두면 그대로 둡니다"+
+	"연결되었지만 서버가 이 사용자에게 공유를 보여 주지 않습니다."+
+	"미디어 소스를 저장할 수 없습니다"+
+	"암호를 시스템 키체인에 보관할 수 없습니다."+
+	"저장하는 중…"+
+	"서버가 메시지에 서명하지 않았지만 Kando는 서명을 요구합니다. 이 NAS가 서명을 지원하지 않거나 공유가 게스트에게 열려 있다면 '이 NAS는 서명을 지원하지 않음'을 켜세요."+
+	"폴더는 공유 안에 있습니다. 공유를 입력하거나 폴더를 비워 두세요.",
 	[]uint16{
 		5,
 		28,
@@ -16361,6 +16519,28 @@ var textsKo = i18n.NewTexts(""+
 		13,
 		27,
 		22,
+		16,
+		62,
+		6,
+		39,
+		9,
+		213,
+		23,
+		23,
+		3,
+		53,
+		40,
+		49,
+		198,
+		185,
+		229,
+		44,
+		86,
+		46,
+		60,
+		19,
+		228,
+		91,
 	})
 
 // textsZhHans are the messages without arguments in zh-Hans.
@@ -18167,7 +18347,29 @@ var textsZhHans = i18n.NewTexts(""+
 	"下一部"+
 	"上一部"+
 	"自动播放下一部"+
-	"上一部 / 下一部",
+	"上一部 / 下一部"+
+	"媒体来源"+
+	"NAS SMB 共享 服务器 网络 导入 局域网 Windows 共享"+
+	"来源"+
+	"还没有媒体来源"+
+	"添加…"+
+	"看懂只读取你的媒体来源，从不在上面写入、移动或删除文件。来源的密码保存在系统的钥匙串里，不写进看懂的设置文件。"+
+	"添加媒体来源"+
+	"编辑媒体来源"+
+	"SMB"+
+	"留空则从服务器的共享里选"+
+	"这台 NAS 不支持签名"+
+	"用于较老的 NAS，或对访客开放的共享"+
+	"不签名时，这台电脑和 NAS 之间网络上的设备可以篡改看懂读到的内容。除非 NAS 拒绝签名的连接，否则不要打开。"+
+	"SMB 无法证明连上的是哪台服务器，所以只在你信任的网络里添加 SMB 来源，也不要和别的账号共用这个密码。"+
+	"这个系统没有保存密码的安全存储（Linux 上是 GNOME 钥匙环这类 Secret Service），看懂无法保存这个密码，只能添加对访客开放的共享。"+
+	"已保存，留空则不变"+
+	"已连接，但服务器没有给这个用户列出任何共享。"+
+	"无法保存媒体来源"+
+	"无法把密码保存到系统的钥匙串。"+
+	"正在保存…"+
+	"服务器没有给消息签名，而看懂要求签名。如果这台 NAS 不支持签名，或者共享对访客开放，请打开「这台 NAS 不支持签名」。"+
+	"文件夹在共享里面：请填写共享，或者把文件夹留空。",
 	[]uint16{
 		6,
 		15,
@@ -19972,6 +20174,28 @@ var textsZhHans = i18n.NewTexts(""+
 		9,
 		21,
 		21,
+		12,
+		63,
+		6,
+		21,
+		9,
+		165,
+		18,
+		18,
+		3,
+		36,
+		26,
+		49,
+		151,
+		144,
+		175,
+		27,
+		66,
+		24,
+		45,
+		15,
+		166,
+		72,
 	})
 
 // textsZhHant are the messages without arguments in zh-Hant.
@@ -21778,7 +22002,29 @@ var textsZhHant = i18n.NewTexts(""+
 	"下一部"+
 	"上一部"+
 	"自動播放下一部"+
-	"上一部 / 下一部",
+	"上一部 / 下一部"+
+	"媒體來源"+
+	"NAS SMB 共用 伺服器 網路 匯入 區域網路 Windows 共用"+
+	"來源"+
+	"還沒有媒體來源"+
+	"新增…"+
+	"看懂只讀取你的媒體來源，從不在上面寫入、移動或刪除檔案。來源的密碼儲存在系統的鑰匙圈裡，不寫進看懂的設定檔。"+
+	"新增媒體來源"+
+	"編輯媒體來源"+
+	"SMB"+
+	"留空則從伺服器的共用資料夾裡選"+
+	"這台 NAS 不支援簽署"+
+	"用於較舊的 NAS，或對訪客開放的共用資料夾"+
+	"不簽署時，這台電腦和 NAS 之間網路上的裝置可以竄改看懂讀到的內容。除非 NAS 拒絕簽署的連線，否則不要開啟。"+
+	"SMB 無法證明連上的是哪台伺服器，所以只在你信任的網路裡新增 SMB 來源，也不要和別的帳號共用這個密碼。"+
+	"這個系統沒有儲存密碼的安全存放區（Linux 上是 GNOME 鑰匙圈這類 Secret Service），看懂無法儲存這個密碼，只能新增對訪客開放的共用資料夾。"+
+	"已儲存，留空則不變"+
+	"已連線，但伺服器沒有為這個使用者列出任何共用資料夾。"+
+	"無法儲存媒體來源"+
+	"無法把密碼儲存到系統的鑰匙圈。"+
+	"正在儲存…"+
+	"伺服器沒有為訊息簽署，而看懂要求簽署。如果這台 NAS 不支援簽署，或者共用資料夾對訪客開放，請開啟「這台 NAS 不支援簽署」。"+
+	"資料夾在共用資料夾裡面：請填寫共用資料夾，或者把資料夾留空。",
 	[]uint16{
 		6,
 		15,
@@ -23583,6 +23829,28 @@ var textsZhHant = i18n.NewTexts(""+
 		9,
 		21,
 		21,
+		12,
+		66,
+		6,
+		21,
+		9,
+		162,
+		18,
+		18,
+		3,
+		45,
+		26,
+		58,
+		151,
+		144,
+		187,
+		27,
+		78,
+		24,
+		45,
+		15,
+		175,
+		90,
 	})
 
 // texts returns the messages without arguments in lang, nil for a
@@ -25801,6 +26069,12 @@ func Supply(lang string, t Translation) {
 	}
 	if t.FilmNextIn != nil {
 		s.FilmNextIn = t.FilmNextIn
+	}
+	if t.SettingsSourcesShares != nil {
+		s.SettingsSourcesShares = t.SettingsSourcesShares
+	}
+	if t.SettingsSourcesRemoveConfirm != nil {
+		s.SettingsSourcesRemoveConfirm = t.SettingsSourcesRemoveConfirm
 	}
 	supplied[lang] = s
 	Catalog.Add(lang)
@@ -69167,6 +69441,365 @@ func CheatsheetPrevNextFilm(cx *core.Scope) string { return For(cx).CheatsheetPr
 
 // CheatsheetPrevNextFilm is the package's CheatsheetPrevNextFilm in the language of msgs.
 func (msgs Messages) CheatsheetPrevNextFilm() string { return msgs.text(textCheatsheetPrevNextFilm) }
+
+// SettingsSectionMediaSources says "Media Sources"
+// in the language the app shows under cx.
+//
+// Title of the settings category listing the NAS shares and servers whose videos Kando can browse and import (media sources), in the settings window's sidebar and over its page.
+func SettingsSectionMediaSources(cx *core.Scope) string { return For(cx).SettingsSectionMediaSources() }
+
+// SettingsSectionMediaSources is the package's SettingsSectionMediaSources in the language of msgs.
+func (msgs Messages) SettingsSectionMediaSources() string {
+	return msgs.text(textSettingsSectionMediaSources)
+}
+
+// SettingsKeywordsMediaSources says "NAS SMB share server network import Windows sharing"
+// in the language the app shows under cx.
+//
+// Words, separated by spaces, that the settings search finds the Media Sources category by besides its title.
+func SettingsKeywordsMediaSources(cx *core.Scope) string {
+	return For(cx).SettingsKeywordsMediaSources()
+}
+
+// SettingsKeywordsMediaSources is the package's SettingsKeywordsMediaSources in the language of msgs.
+func (msgs Messages) SettingsKeywordsMediaSources() string {
+	return msgs.text(textSettingsKeywordsMediaSources)
+}
+
+// SettingsSourcesLabel says "Sources"
+// in the language the app shows under cx.
+//
+// Label above the card listing the media sources on the Media Sources settings page.
+func SettingsSourcesLabel(cx *core.Scope) string { return For(cx).SettingsSourcesLabel() }
+
+// SettingsSourcesLabel is the package's SettingsSourcesLabel in the language of msgs.
+func (msgs Messages) SettingsSourcesLabel() string { return msgs.text(textSettingsSourcesLabel) }
+
+// SettingsSourcesEmpty says "No media sources yet"
+// in the language the app shows under cx.
+//
+// Row of the Media Sources card while no source was added.
+func SettingsSourcesEmpty(cx *core.Scope) string { return For(cx).SettingsSourcesEmpty() }
+
+// SettingsSourcesEmpty is the package's SettingsSourcesEmpty in the language of msgs.
+func (msgs Messages) SettingsSourcesEmpty() string { return msgs.text(textSettingsSourcesEmpty) }
+
+// SettingsSourcesAdd says "Add…"
+// in the language the app shows under cx.
+//
+// Button at the end of the Media Sources card, opening the dialog that adds a NAS share or a server to browse and import videos from.
+func SettingsSourcesAdd(cx *core.Scope) string { return For(cx).SettingsSourcesAdd() }
+
+// SettingsSourcesAdd is the package's SettingsSourcesAdd in the language of msgs.
+func (msgs Messages) SettingsSourcesAdd() string { return msgs.text(textSettingsSourcesAdd) }
+
+// SettingsSourcesNote says "Kando only reads your media sources: it never writes, moves or deletes anything on them. Their passwords are kept in the system's keychain, not in Kando's settings file."
+// in the language the app shows under cx.
+//
+// Footnote under the Media Sources card. On Windows the keychain is the Credential Manager, on Linux the Secret Service; keep it general.
+func SettingsSourcesNote(cx *core.Scope) string { return For(cx).SettingsSourcesNote() }
+
+// SettingsSourcesNote is the package's SettingsSourcesNote in the language of msgs.
+func (msgs Messages) SettingsSourcesNote() string { return msgs.text(textSettingsSourcesNote) }
+
+// SettingsSourcesAddTitle says "Add a Media Source"
+// in the language the app shows under cx.
+//
+// Title of the dialog adding a media source (a NAS share or a server Kando imports videos from).
+func SettingsSourcesAddTitle(cx *core.Scope) string { return For(cx).SettingsSourcesAddTitle() }
+
+// SettingsSourcesAddTitle is the package's SettingsSourcesAddTitle in the language of msgs.
+func (msgs Messages) SettingsSourcesAddTitle() string { return msgs.text(textSettingsSourcesAddTitle) }
+
+// SettingsSourcesEditTitle says "Edit Media Source"
+// in the language the app shows under cx.
+//
+// Title of the dialog editing a media source.
+func SettingsSourcesEditTitle(cx *core.Scope) string { return For(cx).SettingsSourcesEditTitle() }
+
+// SettingsSourcesEditTitle is the package's SettingsSourcesEditTitle in the language of msgs.
+func (msgs Messages) SettingsSourcesEditTitle() string {
+	return msgs.text(textSettingsSourcesEditTitle)
+}
+
+// SettingsSourcesKindSMB says "SMB"
+// in the language the app shows under cx.
+//
+// Name of the kind of media source that is a shared folder of a NAS or a Windows computer, reached over SMB. A protocol's name, which most languages keep.
+func SettingsSourcesKindSMB(cx *core.Scope) string { return For(cx).SettingsSourcesKindSMB() }
+
+// SettingsSourcesKindSMB is the package's SettingsSourcesKindSMB in the language of msgs.
+func (msgs Messages) SettingsSourcesKindSMB() string { return msgs.text(textSettingsSourcesKindSMB) }
+
+// SettingsSourcesShareHint says "Empty to choose among the server's shares"
+// in the language the app shows under cx.
+//
+// Hint under the Share field of an SMB media source: left empty, the source is the whole server and browsing it starts with its shares.
+func SettingsSourcesShareHint(cx *core.Scope) string { return For(cx).SettingsSourcesShareHint() }
+
+// SettingsSourcesShareHint is the package's SettingsSourcesShareHint in the language of msgs.
+func (msgs Messages) SettingsSourcesShareHint() string {
+	return msgs.text(textSettingsSourcesShareHint)
+}
+
+// SettingsSourcesNoSigning says "This NAS doesn't support signing"
+// in the language the app shows under cx.
+//
+// Switch of an SMB media source that lets Kando connect without SMB message signing, which Kando otherwise requires.
+func SettingsSourcesNoSigning(cx *core.Scope) string { return For(cx).SettingsSourcesNoSigning() }
+
+// SettingsSourcesNoSigning is the package's SettingsSourcesNoSigning in the language of msgs.
+func (msgs Messages) SettingsSourcesNoSigning() string {
+	return msgs.text(textSettingsSourcesNoSigning)
+}
+
+// SettingsSourcesNoSigningHint says "For an older NAS, or a share open to guests"
+// in the language the app shows under cx.
+//
+// Hint under the switch This NAS doesn't support signing.
+func SettingsSourcesNoSigningHint(cx *core.Scope) string {
+	return For(cx).SettingsSourcesNoSigningHint()
+}
+
+// SettingsSourcesNoSigningHint is the package's SettingsSourcesNoSigningHint in the language of msgs.
+func (msgs Messages) SettingsSourcesNoSigningHint() string {
+	return msgs.text(textSettingsSourcesNoSigningHint)
+}
+
+// SettingsSourcesNoSigningRisk says "Without signing, a device on the network between this computer and the NAS can change what Kando reads from it. Leave this off unless the NAS refuses signed connections."
+// in the language the app shows under cx.
+//
+// Warning in the media source dialog while This NAS doesn't support signing is on.
+func SettingsSourcesNoSigningRisk(cx *core.Scope) string {
+	return For(cx).SettingsSourcesNoSigningRisk()
+}
+
+// SettingsSourcesNoSigningRisk is the package's SettingsSourcesNoSigningRisk in the language of msgs.
+func (msgs Messages) SettingsSourcesNoSigningRisk() string {
+	return msgs.text(textSettingsSourcesNoSigningRisk)
+}
+
+// SettingsSourcesSMBWarning says "SMB can't prove which server it reached, so add SMB sources only on a network you trust, and don't use this password for other accounts."
+// in the language the app shows under cx.
+//
+// Note in the dialog of an SMB media source: a server pretending to be the NAS could see the sign-in and guess the password offline.
+func SettingsSourcesSMBWarning(cx *core.Scope) string { return For(cx).SettingsSourcesSMBWarning() }
+
+// SettingsSourcesSMBWarning is the package's SettingsSourcesSMBWarning in the language of msgs.
+func (msgs Messages) SettingsSourcesSMBWarning() string {
+	return msgs.text(textSettingsSourcesSMBWarning)
+}
+
+// SettingsSourcesNoSecretStore says "This system has no secure store for passwords (on Linux, a Secret Service such as GNOME Keyring), so Kando can't keep this password. Only a share open to guests can be added."
+// in the language the app shows under cx.
+//
+// Shown in the media source dialog when Save could not keep the password because the system has no secure store. Kando never keeps the password elsewhere.
+func SettingsSourcesNoSecretStore(cx *core.Scope) string {
+	return For(cx).SettingsSourcesNoSecretStore()
+}
+
+// SettingsSourcesNoSecretStore is the package's SettingsSourcesNoSecretStore in the language of msgs.
+func (msgs Messages) SettingsSourcesNoSecretStore() string {
+	return msgs.text(textSettingsSourcesNoSecretStore)
+}
+
+// SettingsSourcesSecretKept says "Saved; leave empty to keep it"
+// in the language the app shows under cx.
+//
+// Placeholder of the password field when editing a media source whose password is kept in the system's keychain.
+func SettingsSourcesSecretKept(cx *core.Scope) string { return For(cx).SettingsSourcesSecretKept() }
+
+// SettingsSourcesSecretKept is the package's SettingsSourcesSecretKept in the language of msgs.
+func (msgs Messages) SettingsSourcesSecretKept() string {
+	return msgs.text(textSettingsSourcesSecretKept)
+}
+
+// SettingsSourcesShares says "Connected. Shares: {names}"
+// in the language the app shows under cx.
+//
+// Status after testing an SMB media source without a share: the shares the server offers, joined with commas.
+func SettingsSourcesShares(cx *core.Scope, names string) string {
+	return For(cx).SettingsSourcesShares(names)
+}
+
+// SettingsSourcesShares is the package's SettingsSourcesShares in the language of msgs.
+func (msgs Messages) SettingsSourcesShares(names string) string {
+	if i18n.IsPseudo(msgs.lang) {
+		return i18n.Pseudo(msgs.lang, Messages{lang: Source, mark: true}.SettingsSourcesShares(names))
+	}
+	for lang := msgs.lang; ; lang = i18n.Parent(lang) {
+		if f := supplied[lang].SettingsSourcesShares; f != nil {
+			return f(names)
+		}
+		switch lang {
+		case "", "en":
+			return "Connected. Shares: " + msgs.arg(names)
+		case "ja":
+			return "接続しました。共有：" + names
+		case "ko":
+			return "연결됨. 공유: " + names
+		case "zh-Hans":
+			return "已连接。共享：" + names
+		case "zh-Hant":
+			return "已連線。共用資料夾：" + names
+		}
+	}
+}
+
+// SettingsSourcesNoShares says "Connected, but the server shows this user no shares."
+// in the language the app shows under cx.
+//
+// Status after testing an SMB media source without a share when the server listed none.
+func SettingsSourcesNoShares(cx *core.Scope) string { return For(cx).SettingsSourcesNoShares() }
+
+// SettingsSourcesNoShares is the package's SettingsSourcesNoShares in the language of msgs.
+func (msgs Messages) SettingsSourcesNoShares() string { return msgs.text(textSettingsSourcesNoShares) }
+
+// SettingsSourcesSaveFailed says "The media source couldn't be saved"
+// in the language the app shows under cx.
+//
+// Shown in the media source dialog when the settings file could not be written.
+func SettingsSourcesSaveFailed(cx *core.Scope) string { return For(cx).SettingsSourcesSaveFailed() }
+
+// SettingsSourcesSaveFailed is the package's SettingsSourcesSaveFailed in the language of msgs.
+func (msgs Messages) SettingsSourcesSaveFailed() string {
+	return msgs.text(textSettingsSourcesSaveFailed)
+}
+
+// SettingsSourcesSecretFailed says "The password couldn't be kept in the system's keychain."
+// in the language the app shows under cx.
+//
+// Shown in the media source dialog when the system's secure store refused the password, for a reason other than having none.
+func SettingsSourcesSecretFailed(cx *core.Scope) string { return For(cx).SettingsSourcesSecretFailed() }
+
+// SettingsSourcesSecretFailed is the package's SettingsSourcesSecretFailed in the language of msgs.
+func (msgs Messages) SettingsSourcesSecretFailed() string {
+	return msgs.text(textSettingsSourcesSecretFailed)
+}
+
+// SettingsSourcesSaving says "Saving…"
+// in the language the app shows under cx.
+//
+// Status in the media source dialog while its password is being kept in the system's keychain.
+func SettingsSourcesSaving(cx *core.Scope) string { return For(cx).SettingsSourcesSaving() }
+
+// SettingsSourcesSaving is the package's SettingsSourcesSaving in the language of msgs.
+func (msgs Messages) SettingsSourcesSaving() string { return msgs.text(textSettingsSourcesSaving) }
+
+// SettingsSourcesRemoveConfirm says "{count, plural, =0 {Films already copied into the library stay. Its password is forgotten; nothing on the source is deleted.} one {# film was only indexed from this source and will keep just its subtitles. Its password is forgotten; nothing on the source is deleted.} other {# films were only indexed from this source and will keep just their subtitles. Its password is forgotten; nothing on the source is deleted.}}"
+// in the language the app shows under cx.
+//
+// Message of the alert confirming that a media source is removed: how many films were imported from it without copying their videos, which then have no video.
+func SettingsSourcesRemoveConfirm(cx *core.Scope, count int) string {
+	return For(cx).SettingsSourcesRemoveConfirm(count)
+}
+
+// SettingsSourcesRemoveConfirm is the package's SettingsSourcesRemoveConfirm in the language of msgs.
+func (msgs Messages) SettingsSourcesRemoveConfirm(count int) string {
+	if i18n.IsPseudo(msgs.lang) {
+		return i18n.Pseudo(msgs.lang, Messages{lang: Source, mark: true}.SettingsSourcesRemoveConfirm(count))
+	}
+	for lang := msgs.lang; ; lang = i18n.Parent(lang) {
+		if f := supplied[lang].SettingsSourcesRemoveConfirm; f != nil {
+			return f(count)
+		}
+		switch lang {
+		case "", "en":
+			var b strings.Builder
+			switch {
+			case count == 0:
+				b.WriteString("Films already copied into the library stay. Its password is forgotten; nothing on the source is deleted.")
+			default:
+				switch i18n.Cardinal("en", float64(count)) {
+				case i18n.One:
+					b.WriteString(msgs.arg(i18n.FormatNumber("en", float64(count))))
+					b.WriteString(" film was only indexed from this source and will keep just its subtitles. Its password is forgotten; nothing on the source is deleted.")
+				default:
+					b.WriteString(msgs.arg(i18n.FormatNumber("en", float64(count))))
+					b.WriteString(" films were only indexed from this source and will keep just their subtitles. Its password is forgotten; nothing on the source is deleted.")
+				}
+			}
+			return b.String()
+		case "ja":
+			var b strings.Builder
+			switch {
+			case count == 0:
+				b.WriteString("ライブラリにコピー済みの作品はそのまま残ります。パスワードも削除されますが、ソース上のファイルは削除されません。")
+			default:
+				switch i18n.Cardinal("ja", float64(count)) {
+				default:
+					b.WriteString(i18n.FormatNumber("ja", float64(count)))
+					b.WriteString(" 本の作品はこのソースからインデックスのみ作成されており、削除後は字幕だけが残ります。パスワードも削除されますが、ソース上のファイルは削除されません。")
+				}
+			}
+			return b.String()
+		case "ko":
+			var b strings.Builder
+			switch {
+			case count == 0:
+				b.WriteString("라이브러리에 이미 복사한 영화는 그대로 남습니다. 암호도 삭제되며, 소스의 파일은 삭제되지 않습니다.")
+			default:
+				switch i18n.Cardinal("ko", float64(count)) {
+				default:
+					b.WriteString("영화 ")
+					b.WriteString(i18n.FormatNumber("ko", float64(count)))
+					b.WriteString("편은 이 소스에서 색인만 만들어져 삭제 후에는 자막만 남습니다. 암호도 삭제되며, 소스의 파일은 삭제되지 않습니다.")
+				}
+			}
+			return b.String()
+		case "zh-Hans":
+			var b strings.Builder
+			switch {
+			case count == 0:
+				b.WriteString("已复制进资料库的影片不受影响。它的密码会一并删除，来源上的文件不会被删除。")
+			default:
+				switch i18n.Cardinal("zh-Hans", float64(count)) {
+				default:
+					b.WriteString("有 ")
+					b.WriteString(i18n.FormatNumber("zh-Hans", float64(count)))
+					b.WriteString(" 部影片只建了索引，删除后它们只剩字幕。它的密码会一并删除，来源上的文件不会被删除。")
+				}
+			}
+			return b.String()
+		case "zh-Hant":
+			var b strings.Builder
+			switch {
+			case count == 0:
+				b.WriteString("已複製進資料庫的影片不受影響。它的密碼會一併刪除，來源上的檔案不會被刪除。")
+			default:
+				switch i18n.Cardinal("zh-Hant", float64(count)) {
+				default:
+					b.WriteString("有 ")
+					b.WriteString(i18n.FormatNumber("zh-Hant", float64(count)))
+					b.WriteString(" 部影片只建立了索引，刪除後它們只剩字幕。它的密碼會一併刪除，來源上的檔案不會被刪除。")
+				}
+			}
+			return b.String()
+		}
+	}
+}
+
+// SettingsSourcesFailSigning says "The server didn't sign its messages, which Kando requires. If this NAS doesn't support signing, or the share is open to guests, turn on This NAS doesn't support signing."
+// in the language the app shows under cx.
+//
+// Status after testing an SMB media source whose server did not sign, or signed in a guest, which cannot sign. This NAS doesn't support signing is the switch settingsSourcesNoSigning; keep its wording.
+func SettingsSourcesFailSigning(cx *core.Scope) string { return For(cx).SettingsSourcesFailSigning() }
+
+// SettingsSourcesFailSigning is the package's SettingsSourcesFailSigning in the language of msgs.
+func (msgs Messages) SettingsSourcesFailSigning() string {
+	return msgs.text(textSettingsSourcesFailSigning)
+}
+
+// SettingsSourcesNeedsShare says "A folder is inside a share: fill in the share, or leave the folder empty."
+// in the language the app shows under cx.
+//
+// Shown in the media source dialog when a folder is filled in without a share.
+func SettingsSourcesNeedsShare(cx *core.Scope) string { return For(cx).SettingsSourcesNeedsShare() }
+
+// SettingsSourcesNeedsShare is the package's SettingsSourcesNeedsShare in the language of msgs.
+func (msgs Messages) SettingsSourcesNeedsShare() string {
+	return msgs.text(textSettingsSourcesNeedsShare)
+}
 
 // dated is lang with the hour cycle the user set, which times take.
 func (msgs Messages) dated(lang string) string {

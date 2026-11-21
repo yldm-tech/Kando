@@ -52,11 +52,12 @@ const (
 // EndpointKey is the key of the one FieldURL field a plugin's kind has: the server the user fills in, the only one Kando sends the plugin's requests and secrets to.
 const EndpointKey = "endpoint"
 
-// Field is a field of a kind's form, which Kando draws the same for every kind. Key names its value in Source.Config, or in the secrets; Title is its label in a language; Default is the value it starts with, as 445 for an SMB port. Auth says, for a secret field of a plugin's kind, how Kando puts the secret into the plugin's requests, which never see its value; a built-in kind's secrets are used by Kando's own code and have none.
+// Field is a field of a kind's form, which Kando draws the same for every kind. Key names its value in Source.Config, or in the secrets; Title is its label in a language, and Hint, when set, the line under it, as what an empty field means; Default is the value it stands for while it is empty, as 445 for an SMB port. Auth says, for a secret field of a plugin's kind, how Kando puts the secret into the plugin's requests, which never see its value; a built-in kind's secrets are used by Kando's own code and have none.
 type Field struct {
 	Key     string
 	Type    FieldType
 	Title   func(locale string) string
+	Hint    func(locale string) string
 	Default string
 	Auth    *Auth
 }

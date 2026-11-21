@@ -9,6 +9,7 @@ import (
 	"io/fs"
 	"net"
 	"os"
+	"slices"
 	"strconv"
 	"strings"
 	"time"
@@ -62,7 +63,7 @@ func openSMB(ctx context.Context, cfg Remote) (*smbStore, error) {
 	st := &smbStore{root: root}
 	st.s.broken = smbBroken
 	st.s.dial = func(ctx context.Context) (*smb2.Share, io.Closer, error) {
-		c, err := dialSMB(ctx, host, addr, share, cfg.User, cfg.Password, cfg.Domain)
+		c, err := dialSMB(ctx, host, addr, share, cfg)
 		if err != nil {
 			return nil, nil, err
 		}
@@ -75,21 +76,15 @@ func openSMB(ctx context.Context, cfg Remote) (*smbStore, error) {
 	return st, nil
 }
 
-// dialSMB connects to host at addr; the share is named on the server as \\host\share.
-func dialSMB(ctx context.Context, host, addr, share, user, password, domain string) (*smbConn, error) {
+// dialSMB connects to host at addr, signed in as cfg says (dialSMBSession); the share is named on the server as \\host\share.
+func dialSMB(ctx context.Context, host, addr, share string, cfg Remote) (*smbConn, error) {
 	if _, ok := ctx.Deadline(); !ok {
 		var cancel context.CancelFunc
 		ctx, cancel = context.WithTimeout(ctx, smbDialTimeout)
 		defer cancel()
 	}
-	tcp, err := (&net.Dialer{}).DialContext(ctx, "tcp", addr)
+	tcp, session, err := dialSMBSession(ctx, host, addr, cfg)
 	if err != nil {
-		return nil, err
-	}
-	d := &smb2.Dialer{Initiator: &smb2.NTLMInitiator{User: user, Password: password, Domain: domain}}
-	session, err := d.DialConn(ctx, tcp, host)
-	if err != nil {
-		tcp.Close()
 		return nil, err
 	}
 	mounted, err := session.WithContext(ctx).Mount(share)
@@ -99,6 +94,62 @@ func dialSMB(ctx context.Context, host, addr, share, user, password, domain stri
 		return nil, err
 	}
 	return &smbConn{tcp: tcp, session: session, share: mounted}, nil
+}
+
+// dialSMBSession connects to host at addr and signs in with cfg's user, password and domain over NTLM, asking the server to sign every message when cfg.RequireSigning is set.
+func dialSMBSession(ctx context.Context, host, addr string, cfg Remote) (net.Conn, *smb2.Session, error) {
+	tcp, err := (&net.Dialer{}).DialContext(ctx, "tcp", addr)
+	if err != nil {
+		return nil, nil, err
+	}
+	d := &smb2.Dialer{
+		Negotiator: smb2.Negotiator{RequireMessageSigning: cfg.RequireSigning},
+		Initiator:  &smb2.NTLMInitiator{User: cfg.User, Password: cfg.Password, Domain: cfg.Domain},
+	}
+	session, err := d.DialConn(ctx, tcp, host)
+	if err != nil {
+		tcp.Close()
+		return nil, nil, err
+	}
+	return tcp, session, nil
+}
+
+// ListSMBShares are the names of the shares of the SMB server cfg reaches, signed in as cfg says, in the order of their names, leaving out the hidden ones (a name that ends in $, as IPC$ and C$), which hold no films. cfg's Share and Root are not used.
+func ListSMBShares(ctx context.Context, cfg Remote) ([]string, error) {
+	host := strings.TrimSpace(cfg.Host)
+	switch {
+	case host == "":
+		return nil, errors.New("storage: SMB needs a host")
+	case cfg.User == "":
+		return nil, errors.New("storage: SMB needs a user (guest for a share open to anyone)")
+	}
+	port := cfg.Port
+	if port == 0 {
+		port = 445
+	}
+	if _, ok := ctx.Deadline(); !ok {
+		var cancel context.CancelFunc
+		ctx, cancel = context.WithTimeout(ctx, smbDialTimeout)
+		defer cancel()
+	}
+	tcp, session, err := dialSMBSession(ctx, host, net.JoinHostPort(host, strconv.Itoa(port)), cfg)
+	if err != nil {
+		return nil, err
+	}
+	defer tcp.Close()
+	defer func() { _ = session.Logoff() }()
+	names, err := session.WithContext(ctx).ListSharenames()
+	if err != nil {
+		return nil, err
+	}
+	out := names[:0]
+	for _, name := range names {
+		if name != "" && !strings.HasSuffix(name, "$") {
+			out = append(out, name)
+		}
+	}
+	slices.Sort(out)
+	return out, nil
 }
 
 // smbBroken is whether err says the connection is gone.

@@ -70,6 +70,7 @@ func (a *app) areas() []areaHooks {
 		a.pluginsHooks(),
 		a.cloudHooks(),
 		a.locationsHooks(),
+		a.mediaSourceHooks(),
 		a.storedHooks(),
 		a.playerHooks(),
 		a.correctHooks(),

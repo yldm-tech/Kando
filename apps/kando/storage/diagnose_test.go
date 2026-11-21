@@ -93,6 +93,15 @@ func TestDiagnoseReadsSMBStatus(t *testing.T) {
 	if got := Diagnose(errors.New("something else")); got != FailOther {
 		t.Errorf("other = %d", got)
 	}
+	// A server that does not sign, or a guest, which cannot, while signing is required (Remote.RequireSigning).
+	for _, message := range []string{"guest account doesn't support signing", "packet failed signature verification"} {
+		if got := Diagnose(fmt.Errorf("dial: %w", &smb2.InvalidResponseError{Message: message})); got != FailSigning {
+			t.Errorf("%q = %d, want FailSigning", message, got)
+		}
+	}
+	if got := Diagnose(&smb2.InvalidResponseError{Message: "broken negotiate response format"}); got != FailOther {
+		t.Errorf("a broken answer = %d", got)
+	}
 }
 
 // Fingerprint gives the form HostKeyError.Fingerprint has.

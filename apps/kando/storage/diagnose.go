@@ -41,6 +41,8 @@ const (
 	FailCertificate
 	// FailPrivateKey is an SFTP private key that cannot be read (ErrPrivateKey).
 	FailPrivateKey
+	// FailSigning is an SMB server that did not sign its messages, or signed in a guest, which cannot sign, while Remote.RequireSigning asked for signing.
+	FailSigning
 )
 
 // NTSTATUS codes an SMB server answers a sign-in, a mount or an open with (MS-ERREF 2.3.1).
@@ -63,6 +65,7 @@ func Diagnose(err error) Failure {
 	var (
 		hk   *HostKeyError
 		smb  *smb2.ResponseError
+		bad  *smb2.InvalidResponseError
 		dav  gowebdav.StatusError
 		dns  *net.DNSError
 		op   *net.OpError
@@ -75,6 +78,9 @@ func Diagnose(err error) Failure {
 		return FailPrivateKey
 	case errors.Is(err, ErrInvalidPath):
 		return FailBadRoot
+	case errors.As(err, &bad) && strings.Contains(bad.Message, "sign"):
+		// go-smb2 says so only in words: "guest account doesn't support signing", "packet failed signature verification".
+		return FailSigning
 	case errors.As(err, &smb):
 		switch smb.Code {
 		case smbLogonFailure, smbAccountRestrict, smbPasswordExpired, smbAccountDisabled, smbPasswordMustSet, smbAccountLockedOut:

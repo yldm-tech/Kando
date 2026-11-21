@@ -6,6 +6,7 @@ import (
 	"net/netip"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 	"time"
 
@@ -203,7 +204,7 @@ func shootSettingsScrolled(t *testing.T, f *screenshotFixture, section, name, sh
 	shootSettingsAt(t, f, section, name, shown, models, turbo, true, nil, setup...)
 }
 
-// shootSettingsPressed is shootSettings with the controls of press pressed, in order, before the shot, as a row's details opened on Settings › 插件; each must be on the page.
+// shootSettingsPressed is shootSettings with the controls of press pressed, in order, before the shot, as a row's details opened on Settings › 插件; each must be on the page. An entry "scroll-end:<selector>" scrolls that scroll view to its end instead.
 func shootSettingsPressed(t *testing.T, f *screenshotFixture, section, name, shown, models, turbo string, press []string, setup ...func(*app)) {
 	t.Helper()
 	shootSettingsAt(t, f, section, name, shown, models, turbo, false, press, setup...)
@@ -244,6 +245,12 @@ func shootSettingsAt(t *testing.T, f *screenshotFixture, section, name, shown, m
 			return a.settingsView(cx)
 		}, nsgotest.Size(880, 640), nsgotest.Environment(env))
 		for _, selector := range press {
+			// "scroll-end:<selector>" scrolls that scroll view to its end rather than pressing it, as a dialog whose fields run past the window.
+			if scroll, ok := strings.CutPrefix(selector, "scroll-end:"); ok {
+				tt.Scroll(scroll, 4000)
+				refresh(tt, a)
+				continue
+			}
 			if !tt.Exists(selector) {
 				t.Fatalf("nothing to press at %s; texts %q", selector, tt.Texts())
 			}

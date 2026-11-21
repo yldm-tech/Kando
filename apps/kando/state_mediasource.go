@@ -1,0 +1,542 @@
+package main
+
+import (
+	"context"
+	"errors"
+	"log"
+	"maps"
+	"slices"
+	"strconv"
+	"strings"
+	"time"
+
+	"kando/apps/kando/account"
+	"kando/apps/kando/feedback"
+	"kando/apps/kando/locales"
+	"kando/apps/kando/mediasource"
+	"kando/apps/kando/settings"
+	"kando/apps/kando/storage"
+
+	ns "github.com/nsgo-dev/nsgo/core"
+)
+
+// mediaSourceUI is the state of the media sources (docs/media-sources.md): the kinds Kando knows (kinds, SMB alone for now), the sources added (list, saved in settings.json without their secrets, which the system's secure store keeps, mediaSourceSecrets), the dialog of 设置 › 媒体来源 that adds or edits one (editing, editID "" for a new one, draft as typed, problem why Save refused it, saving while Save keeps the secrets), how the last Test of each went (tests, by ID, the draft's under ""), and the confirmation of removing one (removing, the source's ID). gen numbers the Tests and the saves, so the answer of one started before another, or before the dialog closed, is dropped. editRelease and removeRelease give back the modal flags the dialog and the confirmation hold (holdModal). open connects to a source of a kind with its secrets, the kind's own Open unless a test sets another.
+type mediaSourceUI struct {
+	kinds         *mediasource.Registry
+	list          []mediasource.Source
+	editing       bool
+	editID        string
+	draft         settings.MediaSourceDraft
+	problem       func(locales.Messages) string
+	saving        bool
+	tests         map[string]mediaSourceTest
+	removing      string
+	gen           int
+	editRelease   func()
+	removeRelease func()
+	open          func(ctx context.Context, k mediasource.Kind, s mediasource.Source, secrets map[string]string) (mediasource.Driver, error)
+}
+
+// mediaSourceTest is how a Test of a source went: running (gen is its number), connected, with the shares a server without a share offers (shares, listed is whether it listed them), or why not, as a function of the messages so it reads in the language shown.
+type mediaSourceTest struct {
+	busy   bool
+	ok     bool
+	gen    int
+	listed bool
+	shares []string
+	err    func(locales.Messages) string
+}
+
+func newMediaSourceUI() mediaSourceUI {
+	kinds := &mediasource.Registry{}
+	if err := kinds.Register(mediasource.SMB()); err != nil {
+		panic(err)
+	}
+	return mediaSourceUI{kinds: kinds, tests: map[string]mediaSourceTest{}, open: mediaSourceOpen}
+}
+
+// mediaSourceOpen connects to s, a source of kind k, with its secrets by key, as the kind does.
+func mediaSourceOpen(ctx context.Context, k mediasource.Kind, s mediasource.Source, secrets map[string]string) (mediasource.Driver, error) {
+	return k.Open(ctx, s, secrets)
+}
+
+// mediaSourceTestTimeout bounds a Test: connecting, signing in and listing the root.
+const mediaSourceTestTimeout = 30 * time.Second
+
+// mediaSourceSecretsPartition is the partition of the system's secure store the sources' secrets are kept in (core.Scope.ProvideSecrets), each under the account <source ID>.<field key> (mediaSourceSecretAccount).
+const mediaSourceSecretsPartition = "mediasource"
+
+// mediaSourceSecretAccount is the account of the secure store a source's secret field key is kept under.
+func mediaSourceSecretAccount(id, key string) string { return id + "." + key }
+
+// savedMediaSources is the media sources' part of settings.json: each source's ID, kind, name and the values of its fields that are not secret. A secret is never here: the system's secure store keeps it (mediaSourceSecrets).
+type savedMediaSources struct {
+	MediaSources []savedMediaSource `json:"mediaSources,omitempty"`
+}
+
+// savedMediaSource is one media source in settings.json.
+type savedMediaSource struct {
+	ID     string            `json:"id"`
+	Kind   string            `json:"kind"`
+	Name   string            `json:"name"`
+	Config map[string]string `json:"config,omitempty"`
+}
+
+// clean drops a source without an ID of NewID's shape, a kind or a name, and the second of two with the same ID, and trims the rest. A built-in kind's source keeps only the values of its fields that are not secret, so a secret written here by hand is not kept; a source of a kind this version does not know, as a plugin's that is not loaded, keeps its values as they are, so the films imported from it keep their source.
+func (s *savedMediaSources) clean() {
+	seen := map[string]bool{}
+	kept := s.MediaSources[:0]
+	for _, m := range s.MediaSources {
+		m.ID, m.Kind, m.Name = strings.TrimSpace(m.ID), strings.TrimSpace(m.Kind), strings.TrimSpace(m.Name)
+		if !mediasource.ValidID(m.ID) || m.Kind == "" || m.Name == "" || seen[m.ID] {
+			continue
+		}
+		seen[m.ID] = true
+		if k, ok := mediasource.Builtin(m.Kind); ok {
+			m.Config = mediaSourceConfig(k, m.Config)
+		}
+		kept = append(kept, m)
+	}
+	if len(kept) == 0 {
+		kept = nil
+	}
+	s.MediaSources = kept
+}
+
+// mediaSourceConfig is values kept to the fields of k that are not secret, each trimmed, without the empty ones; nil for none.
+func mediaSourceConfig(k mediasource.Kind, values map[string]string) map[string]string {
+	var out map[string]string
+	for _, f := range k.Fields {
+		v := strings.TrimSpace(values[f.Key])
+		if f.Type == mediasource.FieldSecret || v == "" {
+			continue
+		}
+		if f.Type == mediasource.FieldBool && v != "true" {
+			continue
+		}
+		if out == nil {
+			out = map[string]string{}
+		}
+		out[f.Key] = v
+	}
+	return out
+}
+
+func (a *app) saveMediaSources(saved *savedSettings) {
+	var out []savedMediaSource
+	for _, s := range a.sources.list {
+		out = append(out, savedMediaSource{ID: s.ID, Kind: s.Kind, Name: s.Name, Config: maps.Clone(s.Config)})
+	}
+	saved.savedMediaSources = savedMediaSources{MediaSources: out}
+}
+
+func (a *app) restoreMediaSources(saved savedSettings) {
+	a.sources.list = nil
+	for _, s := range saved.MediaSources {
+		a.sources.list = append(a.sources.list, mediasource.Source{ID: s.ID, Kind: s.Kind, Name: s.Name, Config: maps.Clone(s.Config)})
+	}
+}
+
+// mediaSourceSecrets are what of the media sources must not leave the machine, as in the log or a feedback issue: each one's server, share, folder, user and domain, and what the dialog holds, its secrets among them. The secrets of the sources saved are in the system's secure store, never in the app, so they cannot leak from here.
+func (m mediaSourceUI) mediaSourceSecrets() []string {
+	var out []string
+	for _, s := range m.list {
+		c := s.Config
+		out = append(out, c[mediasource.SMBHost], c[mediasource.SMBShare], c[mediasource.SMBRoot], c[mediasource.SMBUser], c[mediasource.SMBDomain])
+	}
+	for _, key := range slices.Sorted(maps.Keys(m.draft.Values)) {
+		if key != mediasource.SMBPort && key != mediasource.SMBNoSigning {
+			out = append(out, m.draft.Values[key])
+		}
+	}
+	return out
+}
+
+// mediaSourceHooks: the sources are saved in settings.json and taken back at startup; after each change, the dialog and the confirmation close when the page that draws them went away (mediaSourceModals).
+func (a *app) mediaSourceHooks() areaHooks {
+	return areaHooks{
+		save:        a.saveMediaSources,
+		restore:     a.restoreMediaSources,
+		afterChange: a.mediaSourceModals,
+	}
+}
+
+// mediaSourceModals closes the dialog and the confirmation once the settings closed or show another section, as 媒体来源 draws them, and gives back the modal flags they held. It reports whether it changed anything.
+func (a *app) mediaSourceModals() bool {
+	m := &a.sources
+	changed := false
+	if (m.editing || m.removing != "") && (!a.prefs.open || a.SettingsSection() != settings.SectionMediaSources) {
+		m.editing, m.removing, m.saving = false, "", false
+		changed = true
+	}
+	if !m.editing && m.editRelease != nil {
+		m.editRelease()
+		m.editRelease = nil
+		changed = true
+	}
+	if m.removing == "" && m.removeRelease != nil {
+		m.removeRelease()
+		m.removeRelease = nil
+		changed = true
+	}
+	return changed
+}
+
+// mediaSourceIndex is where the source id is in the list, -1 when it is not.
+func (a *app) mediaSourceIndex(id string) int {
+	return slices.IndexFunc(a.sources.list, func(s mediasource.Source) bool { return s.ID == id })
+}
+
+// mediaSourceSecretStore is the partition of the system's secure store the sources' secrets are kept in; without the app's scope, as in a test that starts no app, one that fails with core.ErrSecretsUnavailable.
+func (a *app) mediaSourceSecretStore() ns.Secrets {
+	if a.cx == nil {
+		return ns.Secrets{}
+	}
+	inner := a.cx.Child()
+	var secrets ns.Secrets
+	inner.Run(func() {
+		inner.ProvideSecrets(mediaSourceSecretsPartition)
+		secrets = inner.Secrets()
+	})
+	inner.Dispose()
+	return secrets
+}
+
+// openMediaSourceDialog opens the dialog on draft, for the source id or, with id "", a new one.
+func (a *app) openMediaSourceDialog(id string, draft settings.MediaSourceDraft) {
+	m := &a.sources
+	m.editing, m.editID, m.draft, m.problem, m.saving = true, id, draft, nil, false
+	delete(m.tests, "")
+	if m.editRelease == nil {
+		m.editRelease = a.holdModal()
+	}
+}
+
+// closeMediaSourceDialog closes the dialog without saving, forgetting the draft and what it held, and gives back its modal flag.
+func (a *app) closeMediaSourceDialog() {
+	m := &a.sources
+	m.editing, m.draft, m.problem, m.saving = false, settings.MediaSourceDraft{}, nil, false
+	m.gen++
+	delete(m.tests, "")
+	if m.editRelease != nil {
+		m.editRelease()
+		m.editRelease = nil
+	}
+}
+
+// mediaSourceDraftOf is the dialog's draft of s: its name, kind and values, a secret field empty, as its secret stays in the secure store until a new one is typed.
+func mediaSourceDraftOf(s mediasource.Source) settings.MediaSourceDraft {
+	values := maps.Clone(s.Config)
+	if values == nil {
+		values = map[string]string{}
+	}
+	return settings.MediaSourceDraft{Name: s.Name, Kind: s.Kind, Values: values}
+}
+
+// mediaSourceDraftSource is the source the draft describes: the one edited, or a new one without an ID, and the secrets typed in it, by key.
+func (a *app) mediaSourceDraftSource() (mediasource.Source, mediasource.Kind, map[string]string, bool) {
+	m := &a.sources
+	k, ok := m.kinds.Kind(m.draft.Kind)
+	if !ok {
+		return mediasource.Source{}, mediasource.Kind{}, nil, false
+	}
+	s := mediasource.Source{ID: m.editID, Kind: k.ID, Name: strings.TrimSpace(m.draft.Name), Config: mediaSourceConfig(k, m.draft.Values)}
+	secrets := map[string]string{}
+	for _, key := range k.SecretKeys() {
+		if v := m.draft.Values[key]; v != "" {
+			secrets[key] = v
+		}
+	}
+	return s, k, secrets, true
+}
+
+// mediaSourceProblem is what keeps s, a source of kind k, from being tried or saved, nil when nothing does: an SMB source needs a server, a port that is a number, a share of one name, a share for a folder, and a user (guest for a share open to anyone).
+func mediaSourceProblem(k mediasource.Kind, s mediasource.Source) func(locales.Messages) string {
+	if k.ID != mediasource.KindSMB {
+		return nil
+	}
+	c := s.Config
+	if c[mediasource.SMBHost] == "" {
+		return locales.Messages.AccountLocationNeedsHost
+	}
+	if port := c[mediasource.SMBPort]; port != "" {
+		if n, err := strconv.Atoi(port); err != nil || n < 1 || n > 65535 {
+			return locales.Messages.AccountLocationNeedsPort
+		}
+	}
+	share := strings.Trim(c[mediasource.SMBShare], `/\`)
+	if strings.ContainsAny(share, `/\`) {
+		return locales.Messages.AccountLocationNeedsShare
+	}
+	if share == "" && strings.Trim(c[mediasource.SMBRoot], "/") != "" {
+		return locales.Messages.SettingsSourcesNeedsShare
+	}
+	if c[mediasource.SMBUser] == "" {
+		return locales.Messages.AccountLocationNeedsUser
+	}
+	return nil
+}
+
+// saveMediaSourceDraft keeps the dialog's draft as a new source or in place of the one edited, saves settings.json and closes the dialog. A source without a name is named after its server. The secrets typed are kept in the secure store first, off the engine's goroutine, as the system may ask the user; a secret left empty keeps the one stored. A draft that misses something, a secure store that is not there or refused, or a settings.json that cannot be written keeps the dialog open and says why.
+func (a *app) saveMediaSourceDraft() {
+	m := &a.sources
+	if m.saving {
+		return
+	}
+	s, k, secrets, ok := a.mediaSourceDraftSource()
+	if !ok {
+		return
+	}
+	if p := mediaSourceProblem(k, s); p != nil {
+		m.problem = p
+		return
+	}
+	if s.Name == "" {
+		s.Name = s.Config[mediasource.SMBHost]
+	}
+	if s.ID == "" {
+		s.ID = mediasource.NewID()
+	}
+	m.problem = nil
+	if len(secrets) == 0 {
+		a.mediaSourceCommit(s)
+		return
+	}
+	m.gen++
+	gen := m.gen
+	m.saving = true
+	store, update := a.mediaSourceSecretStore(), a.update
+	go func() {
+		var err error
+		for _, key := range slices.Sorted(maps.Keys(secrets)) {
+			if err = store.Set(mediaSourceSecretAccount(s.ID, key), secrets[key]); err != nil {
+				break
+			}
+		}
+		update(func() { a.mediaSourceSecretsKept(gen, s, err) })
+	}()
+}
+
+// mediaSourceSecretsKept finishes the save gen of s once its secrets were kept, or says why they were not, unless the dialog closed or another save took its place.
+func (a *app) mediaSourceSecretsKept(gen int, s mediasource.Source, err error) {
+	m := &a.sources
+	if !m.editing || m.gen != gen {
+		return
+	}
+	m.saving = false
+	switch {
+	case errors.Is(err, ns.ErrSecretsUnavailable):
+		m.problem = locales.Messages.SettingsSourcesNoSecretStore
+	case err != nil:
+		log.Printf("media source: keeping a secret failed: %s", feedback.Scrubber{Secrets: a.feedbackSecrets()}.NoSecrets(err.Error()))
+		m.problem = locales.Messages.SettingsSourcesSecretFailed
+	default:
+		a.mediaSourceCommit(s)
+	}
+}
+
+// mediaSourceCommit puts s in the list, in place of the source of its ID or after the others, saves settings.json and closes the dialog, or keeps it open and says the settings could not be written.
+func (a *app) mediaSourceCommit(s mediasource.Source) {
+	m := &a.sources
+	before := slices.Clone(m.list)
+	if i := a.mediaSourceIndex(s.ID); i >= 0 {
+		m.list[i] = s
+	} else {
+		m.list = append(m.list, s)
+	}
+	if err := a.saveSettings(); err != nil {
+		m.list = before
+		m.problem = locales.Messages.SettingsSourcesSaveFailed
+		return
+	}
+	// How a Test of the old settings went says nothing of the new ones.
+	delete(m.tests, s.ID)
+	a.closeMediaSourceDialog()
+}
+
+// askRemoveMediaSource opens the confirmation of removing the source id, holding the window's modal flag until it is answered.
+func (a *app) askRemoveMediaSource(id string) {
+	if a.mediaSourceIndex(id) < 0 {
+		return
+	}
+	a.sources.removing = id
+	if a.sources.removeRelease == nil {
+		a.sources.removeRelease = a.holdModal()
+	}
+}
+
+// answerRemoveMediaSource answers the confirmation and gives back its modal flag: yes removes the source, saves settings.json and forgets its secrets off the engine's goroutine. Nothing on the source is touched, and the films copied from it stay as they are.
+func (a *app) answerRemoveMediaSource(yes bool) {
+	m := &a.sources
+	id := m.removing
+	m.removing = ""
+	if m.removeRelease != nil {
+		m.removeRelease()
+		m.removeRelease = nil
+	}
+	i := a.mediaSourceIndex(id)
+	if !yes || i < 0 {
+		return
+	}
+	gone := m.list[i]
+	m.list = slices.Delete(m.list, i, i+1)
+	delete(m.tests, id)
+	if err := a.saveSettings(); err != nil {
+		a.saveErr = a.messages().SettingsSourcesSaveFailed()
+	}
+	var keys []string
+	if k, ok := mediasource.Builtin(gone.Kind); ok {
+		keys = k.SecretKeys()
+	} else if k, ok := m.kinds.Kind(gone.Kind); ok {
+		keys = k.SecretKeys()
+	}
+	if len(keys) == 0 {
+		return
+	}
+	store := a.mediaSourceSecretStore()
+	go func() {
+		for _, key := range keys {
+			_ = store.Delete(mediaSourceSecretAccount(id, key))
+		}
+	}()
+}
+
+// mediaSourceTestable is how to reach target: the source of that ID, or with "" the dialog's draft, the secrets typed in the draft, and why it cannot be tried, nil when it can. ok is false for a source that is gone, a draft whose dialog closed, or a kind not registered.
+func (a *app) mediaSourceTestable(target string) (s mediasource.Source, k mediasource.Kind, typed map[string]string, problem func(locales.Messages) string, ok bool) {
+	m := &a.sources
+	if target == "" {
+		if !m.editing {
+			return s, k, nil, nil, false
+		}
+		s, k, typed, ok = a.mediaSourceDraftSource()
+		if !ok {
+			return s, k, nil, nil, false
+		}
+		return s, k, typed, mediaSourceProblem(k, s), true
+	}
+	i := a.mediaSourceIndex(target)
+	if i < 0 {
+		return s, k, nil, nil, false
+	}
+	s = m.list[i]
+	if k, ok = m.kinds.Kind(s.Kind); !ok {
+		return s, k, nil, nil, false
+	}
+	return s, k, nil, nil, true
+}
+
+// testMediaSource connects to target (mediaSourceTestable) off the engine's goroutine, as the person asked with Test, lists its root, closes the connection again and records how it went. The secrets come from the draft as typed, else from the secure store, read there too.
+func (a *app) testMediaSource(target string) {
+	m := &a.sources
+	s, k, typed, problem, ok := a.mediaSourceTestable(target)
+	if !ok || m.tests[target].busy {
+		return
+	}
+	// What kept Save from saving is said again by the Test of the draft, or is gone.
+	if target == "" {
+		m.problem = nil
+	}
+	if problem != nil {
+		m.tests[target] = mediaSourceTest{err: problem}
+		return
+	}
+	m.gen++
+	gen := m.gen
+	m.tests[target] = mediaSourceTest{busy: true, gen: gen}
+	open, store, update := m.open, a.mediaSourceSecretStore(), a.update
+	go func() {
+		secrets := mediaSourceReadSecrets(store, k, s.ID, typed)
+		ctx, cancel := context.WithTimeout(context.Background(), mediaSourceTestTimeout)
+		defer cancel()
+		var entries []mediasource.Entry
+		d, err := open(ctx, k, s, secrets)
+		if err == nil {
+			entries, err = d.List(ctx, "")
+			_ = d.Close()
+		}
+		update(func() { a.mediaSourceTested(target, gen, s, secrets[mediasource.SMBPassword], entries, err) })
+	}()
+}
+
+// mediaSourceReadSecrets are the secrets of the source id of kind k: those typed, else those the secure store keeps. It reads the store, which may make it wait, so it runs off the engine's goroutine; a secret it cannot read is left out, so the connection fails at signing in and says so.
+func mediaSourceReadSecrets(store ns.Secrets, k mediasource.Kind, id string, typed map[string]string) map[string]string {
+	secrets := maps.Clone(typed)
+	if secrets == nil {
+		secrets = map[string]string{}
+	}
+	for _, key := range k.SecretKeys() {
+		if secrets[key] != "" || id == "" {
+			continue
+		}
+		if v, ok, err := store.Get(mediaSourceSecretAccount(id, key)); err == nil && ok {
+			secrets[key] = v
+		}
+	}
+	return secrets
+}
+
+// mediaSourceTested records how the Test gen of target went, unless another Test took its place or its source or dialog went away. A server without a share lists its shares, which the status names.
+func (a *app) mediaSourceTested(target string, gen int, s mediasource.Source, password string, entries []mediasource.Entry, err error) {
+	m := &a.sources
+	if t := m.tests[target]; !t.busy || t.gen != gen {
+		return
+	}
+	if _, _, _, _, ok := a.mediaSourceTestable(target); !ok {
+		delete(m.tests, target)
+		return
+	}
+	if err == nil {
+		t := mediaSourceTest{ok: true}
+		if s.Kind == mediasource.KindSMB && mediasource.SMBRemote(s, "").Share == "" {
+			t.listed = true
+			for _, e := range entries {
+				t.shares = append(t.shares, e.Name)
+			}
+		}
+		m.tests[target] = t
+		return
+	}
+	r := mediasource.SMBRemote(s, password)
+	// The row says what to do in the interface's language; the whole error goes to the log file, without the secrets and addresses the app holds.
+	log.Printf("media source: %s test failed: %s", s.Kind, feedback.Scrubber{Secrets: append(a.feedbackSecrets(), password)}.NoSecrets(err.Error()))
+	m.tests[target] = mediaSourceTest{err: func(msg locales.Messages) string { return mediaSourceFailure(msg, r, err) }}
+}
+
+// mediaSourceFailure says why reaching r failed with err, in m's language: as a storage location's failure does (account.Failure), and that the server did not sign, which a source requires unless told otherwise.
+func mediaSourceFailure(m locales.Messages, r storage.Remote, err error) string {
+	if storage.Diagnose(err) == storage.FailSigning {
+		return m.SettingsSourcesFailSigning()
+	}
+	return account.Failure(m, r, err)
+}
+
+// mediaSourceWarnings are what the dialog says under the fields of the draft: that SMB cannot prove which server it reached, and while the draft does without signing, what that risks.
+func (a *app) mediaSourceWarnings() []string {
+	m := &a.sources
+	if !m.editing || m.draft.Kind != mediasource.KindSMB {
+		return nil
+	}
+	msg := a.messages()
+	out := []string{msg.SettingsSourcesSMBWarning()}
+	if m.draft.Values[mediasource.SMBNoSigning] == "true" {
+		out = append(out, msg.SettingsSourcesNoSigningRisk())
+	}
+	return out
+}
+
+// mediaSourceSummary is a source's row's subtitle: its kind's name and where it is, as "SMB · nas.local/media/films", or the kind's ID while no kind of that ID is registered.
+func (a *app) mediaSourceSummary(s mediasource.Source) string {
+	msg := a.messages()
+	kind := s.Kind
+	if k, ok := a.sources.kinds.Kind(s.Kind); ok {
+		kind = k.Title(a.prefs.interfaceLanguage)
+	}
+	place := s.Config[mediasource.SMBHost]
+	if s.Kind == mediasource.KindSMB {
+		r := mediasource.SMBRemote(s, "")
+		if r.Share != "" {
+			place = account.Place(r)
+		}
+	}
+	return msg.AccountLocationSummary(kind, place)
+}

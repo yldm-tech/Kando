@@ -39,47 +39,48 @@ type app struct {
 	// update runs fn on the engine's goroutine and lets the bindings follow what it changed; background jobs report through it, from any goroutine.
 	update func(fn func())
 
-	side      sidebarUI   // state_sidebar.go
-	lib       libraryUI   // state_library.go
-	queue     jobQueue    // queue.go
-	player    playerUI    // state_player.go
-	correct   correctUI   // state_correct.go
-	gloss     glossaryUI  // state_glossary.go
-	review    reviewUI    // state_review.go
-	prefs     settingsUI  // state_settings.go
-	cloud     cloudUI     // state_cloud.go
-	locations locationsUI // state_locations.go
-	stored    storedUI    // state_stored.go
-	overlay   overlayUI   // state_overlay.go
-	menu      menuUI      // state_menu.go
-	feedback  feedbackUI  // state_feedback.go
-	palette   paletteUI   // state_palette.go
-	onb       onboardUI   // state_onboarding.go
-	sites     sitesUI     // state_sites.go
-	kits      kitsUI      // state_kits.go
-	tools     toolsUI     // state_tools.go
-	remote    remoteUI    // state_remote.go
-	cliTool   cliToolUI   // state_cli.go
-	ext       extUI       // state_browserext.go
-	updates   updatesUI   // state_updates.go
-	window    windowUI    // state_window.go
-	logs      logsUI      // state_logs.go
-	browse    browseUI    // state_browse.go
-	playlist  playlistUI  // state_playlist.go
-	addsheet  addSheetUI  // state_addsheet.go
-	online    onlineUI    // state_online.go
-	saved     savedUI     // state_saved.go
-	signin    signinUI    // state_signin.go
-	phone     phoneUI     // state_phonesync.go
-	lock      lockUI      // state_lock.go
-	tray      trayUI      // state_tray.go
-	privacy   privacyUI   // state_privacy.go
-	subs      subscribeUI // state_subscribe.go
-	vocab     vocabUI     // state_vocab.go
-	export    subexportUI // state_subexport.go
-	explain   explainUI   // state_explain.go
-	recap     recapUI     // state_recap.go
-	plugins   pluginsUI   // state_plugins.go
+	side      sidebarUI     // state_sidebar.go
+	lib       libraryUI     // state_library.go
+	queue     jobQueue      // queue.go
+	player    playerUI      // state_player.go
+	correct   correctUI     // state_correct.go
+	gloss     glossaryUI    // state_glossary.go
+	review    reviewUI      // state_review.go
+	prefs     settingsUI    // state_settings.go
+	cloud     cloudUI       // state_cloud.go
+	locations locationsUI   // state_locations.go
+	sources   mediaSourceUI // state_mediasource.go
+	stored    storedUI      // state_stored.go
+	overlay   overlayUI     // state_overlay.go
+	menu      menuUI        // state_menu.go
+	feedback  feedbackUI    // state_feedback.go
+	palette   paletteUI     // state_palette.go
+	onb       onboardUI     // state_onboarding.go
+	sites     sitesUI       // state_sites.go
+	kits      kitsUI        // state_kits.go
+	tools     toolsUI       // state_tools.go
+	remote    remoteUI      // state_remote.go
+	cliTool   cliToolUI     // state_cli.go
+	ext       extUI         // state_browserext.go
+	updates   updatesUI     // state_updates.go
+	window    windowUI      // state_window.go
+	logs      logsUI        // state_logs.go
+	browse    browseUI      // state_browse.go
+	playlist  playlistUI    // state_playlist.go
+	addsheet  addSheetUI    // state_addsheet.go
+	online    onlineUI      // state_online.go
+	saved     savedUI       // state_saved.go
+	signin    signinUI      // state_signin.go
+	phone     phoneUI       // state_phonesync.go
+	lock      lockUI        // state_lock.go
+	tray      trayUI        // state_tray.go
+	privacy   privacyUI     // state_privacy.go
+	subs      subscribeUI   // state_subscribe.go
+	vocab     vocabUI       // state_vocab.go
+	export    subexportUI   // state_subexport.go
+	explain   explainUI     // state_explain.go
+	recap     recapUI       // state_recap.go
+	plugins   pluginsUI     // state_plugins.go
 }
 
 // newApp makes the app's state. update is how background jobs report; nil reports through the revision (appUpdate), as main and the tests that start the app with nsgotest do, while a test that runs no app passes its own to apply the reports itself.
@@ -98,6 +99,7 @@ func newApp(pipeline media.Pipeline, update func(fn func())) *app {
 		prefs:     newSettingsUI(),
 		cloud:     newCloudUI(),
 		locations: newLocationsUI(),
+		sources:   newMediaSourceUI(),
 		stored:    newStoredUI(),
 		overlay:   newOverlayUI(),
 		menu:      newMenuUI(),

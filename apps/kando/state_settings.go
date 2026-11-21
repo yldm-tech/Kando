@@ -311,7 +311,7 @@ func (a *app) settingsView(cx *core.Scope) core.Node {
 
 // settingsWindow is the settings, with the 账号与上传 page of package account, the 插件 page, which reads the plugins' state (bind_plugins.go), 字幕外观's 逐词标注 card, which reads how the lines are marked (state_plugins_marks.go), and 翻译's 风格预设 row, which reads the translate-style packs (state_plugins_styles.go), in the settings window or over the main window. closeButton is the settings window's own close button where the system draws none, nil over the main window, whose dialog closes as dialogs do.
 func (a *app) settingsWindow(closeButton core.Node) core.Node {
-	return settings.Window{App: a, Version: appVersion, Account: account.View{App: a}, Plugins: settings.Plugins{App: a}, Marks: settings.Marks{App: a}, Styles: settings.Styles{App: a}, Sources: settings.Sources{App: a}, Close: closeButton}
+	return settings.Window{App: a, Version: appVersion, Account: account.View{App: a}, Plugins: settings.Plugins{App: a}, Marks: settings.Marks{App: a}, Styles: settings.Styles{App: a}, Sources: settings.Sources{App: a}, MediaSources: settings.MediaSources{App: a}, Close: closeButton}
 }
 
 // showSettingsWindow brings the settings window to the front, opening it the first time. It opens from a post under the app's scope, which owns it, rather than under the handler that asked, whose part of the window may go first, as the sidebar's gear goes when a film fills the window. Where the platform opens no windows of the app's, the settings show over the main window instead (settingsOverlay). Without the app's scope, as in tests that start no app, there is nothing to open.

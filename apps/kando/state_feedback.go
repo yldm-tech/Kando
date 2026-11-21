@@ -307,7 +307,7 @@ func (a *app) feedbackScrubber() feedback.Scrubber {
 	return s
 }
 
-// feedbackSecrets are the credentials the app holds, trimmed, without the empty ones: the AI service's key and address and those of the services used before, the account's and the storage's (cloudSecrets), the storage locations' (locationSecrets), and the values of the KANDO_ and EVERYAPI_ environment variables. The issue and the log file (state_logs.go) leave them out.
+// feedbackSecrets are the credentials the app holds, trimmed, without the empty ones: the AI service's key and address and those of the services used before, the account's and the storage's (cloudSecrets), the storage locations' (locationSecrets), the media sources' (mediaSourceSecrets), and the values of the KANDO_ and EVERYAPI_ environment variables. The issue and the log file (state_logs.go) leave them out.
 func (a *app) feedbackSecrets() []string {
 	tools, _ := a.pipeline.(media.Tools)
 	secrets := []string{a.prefs.llmKey, a.prefs.llmBase, tools.Translator.APIKey, tools.Translator.BaseURL}
@@ -316,6 +316,7 @@ func (a *app) feedbackSecrets() []string {
 	}
 	secrets = append(secrets, a.cloud.cloudSecrets()...)
 	secrets = append(secrets, a.locations.locationSecrets()...)
+	secrets = append(secrets, a.sources.mediaSourceSecrets()...)
 	for _, kv := range os.Environ() {
 		name, value, _ := strings.Cut(kv, "=")
 		if strings.HasPrefix(name, "KANDO_") || strings.HasPrefix(name, "EVERYAPI_") {

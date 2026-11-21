@@ -9210,3 +9210,79 @@ playerKeyAutoNext:
 cheatsheetPrevNextFilm:
   message: "Previous / Next Film"
   description: "Line of the keyboard shortcuts sheet for the keys that play the film before or after the open one in its course, disc, season or playlist."
+settingsSectionMediaSources:
+  message: "Media Sources"
+  description: "Title of the settings category listing the NAS shares and servers whose videos Kando can browse and import (media sources), in the settings window's sidebar and over its page."
+settingsKeywordsMediaSources:
+  message: "NAS SMB share server network import Windows sharing"
+  description: "Words, separated by spaces, that the settings search finds the Media Sources category by besides its title."
+settingsSourcesLabel:
+  message: "Sources"
+  description: "Label above the card listing the media sources on the Media Sources settings page."
+settingsSourcesEmpty:
+  message: "No media sources yet"
+  description: "Row of the Media Sources card while no source was added."
+settingsSourcesAdd:
+  message: "Add…"
+  description: "Button at the end of the Media Sources card, opening the dialog that adds a NAS share or a server to browse and import videos from."
+settingsSourcesNote:
+  message: "Kando only reads your media sources: it never writes, moves or deletes anything on them. Their passwords are kept in the system's keychain, not in Kando's settings file."
+  description: "Footnote under the Media Sources card. On Windows the keychain is the Credential Manager, on Linux the Secret Service; keep it general."
+settingsSourcesAddTitle:
+  message: "Add a Media Source"
+  description: "Title of the dialog adding a media source (a NAS share or a server Kando imports videos from)."
+settingsSourcesEditTitle:
+  message: "Edit Media Source"
+  description: "Title of the dialog editing a media source."
+settingsSourcesKindSMB:
+  message: "SMB"
+  description: "Name of the kind of media source that is a shared folder of a NAS or a Windows computer, reached over SMB. A protocol's name, which most languages keep."
+settingsSourcesShareHint:
+  message: "Empty to choose among the server's shares"
+  description: "Hint under the Share field of an SMB media source: left empty, the source is the whole server and browsing it starts with its shares."
+settingsSourcesNoSigning:
+  message: "This NAS doesn't support signing"
+  description: "Switch of an SMB media source that lets Kando connect without SMB message signing, which Kando otherwise requires."
+settingsSourcesNoSigningHint:
+  message: "For an older NAS, or a share open to guests"
+  description: "Hint under the switch This NAS doesn't support signing."
+settingsSourcesNoSigningRisk:
+  message: "Without signing, a device on the network between this computer and the NAS can change what Kando reads from it. Leave this off unless the NAS refuses signed connections."
+  description: "Warning in the media source dialog while This NAS doesn't support signing is on."
+settingsSourcesSMBWarning:
+  message: "SMB can't prove which server it reached, so add SMB sources only on a network you trust, and don't use this password for other accounts."
+  description: "Note in the dialog of an SMB media source: a server pretending to be the NAS could see the sign-in and guess the password offline."
+settingsSourcesNoSecretStore:
+  message: "This system has no secure store for passwords (on Linux, a Secret Service such as GNOME Keyring), so Kando can't keep this password. Only a share open to guests can be added."
+  description: "Shown in the media source dialog when Save could not keep the password because the system has no secure store. Kando never keeps the password elsewhere."
+settingsSourcesSecretKept:
+  message: "Saved; leave empty to keep it"
+  description: "Placeholder of the password field when editing a media source whose password is kept in the system's keychain."
+settingsSourcesShares:
+  message: "Connected. Shares: {names}"
+  description: "Status after testing an SMB media source without a share: the shares the server offers, joined with commas."
+  placeholders:
+    names: { type: "String", example: "media, backup, photos" }
+settingsSourcesNoShares:
+  message: "Connected, but the server shows this user no shares."
+  description: "Status after testing an SMB media source without a share when the server listed none."
+settingsSourcesSaveFailed:
+  message: "The media source couldn't be saved"
+  description: "Shown in the media source dialog when the settings file could not be written."
+settingsSourcesSecretFailed:
+  message: "The password couldn't be kept in the system's keychain."
+  description: "Shown in the media source dialog when the system's secure store refused the password, for a reason other than having none."
+settingsSourcesSaving:
+  message: "Saving…"
+  description: "Status in the media source dialog while its password is being kept in the system's keychain."
+settingsSourcesRemoveConfirm:
+  message: "{count, plural, =0 {Films already copied into the library stay. Its password is forgotten; nothing on the source is deleted.} one {# film was only indexed from this source and will keep just its subtitles. Its password is forgotten; nothing on the source is deleted.} other {# films were only indexed from this source and will keep just their subtitles. Its password is forgotten; nothing on the source is deleted.}}"
+  description: "Message of the alert confirming that a media source is removed: how many films were imported from it without copying their videos, which then have no video."
+  placeholders:
+    count: { type: "int", example: "0" }
+settingsSourcesFailSigning:
+  message: "The server didn't sign its messages, which Kando requires. If this NAS doesn't support signing, or the share is open to guests, turn on This NAS doesn't support signing."
+  description: "Status after testing an SMB media source whose server did not sign, or signed in a guest, which cannot sign. This NAS doesn't support signing is the switch settingsSourcesNoSigning; keep its wording."
+settingsSourcesNeedsShare:
+  message: "A folder is inside a share: fill in the share, or leave the folder empty."
+  description: "Shown in the media source dialog when a folder is filled in without a share."

@@ -21,6 +21,8 @@ const (
 	SectionAccount   = sectionid.Account
 	SectionPhone     = sectionid.Phone
 	SectionPlugins   = sectionid.Plugins
+	// SectionMediaSources is 媒体来源; SectionSources would read as the translation sources of 翻译 (Sources).
+	SectionMediaSources = sectionid.MediaSources
 )
 
 // section is one category of the settings window: its title, its tile in the sidebar and the words the search field finds it by besides its title. The title and the keywords are read in the language the app shows under the scope they are given.
@@ -39,6 +41,7 @@ var sections = []section{
 	{SectionPrivacy, locales.SettingsSectionPrivacy, locales.SettingsKeywordsPrivacy, iconPrivacy},
 	{SectionShortcuts, locales.SettingsSectionShortcuts, locales.SettingsKeywordsShortcuts, iconShortcuts},
 	{SectionAccount, locales.SettingsSectionAccount, locales.SettingsKeywordsAccount, iconAccount},
+	{SectionMediaSources, locales.SettingsSectionMediaSources, locales.SettingsKeywordsMediaSources, iconMediaSources},
 	{SectionPhone, locales.SettingsSectionPhone, locales.SettingsKeywordsPhone, iconPhone},
 	{SectionPlugins, locales.SettingsSectionPlugins, locales.SettingsKeywordsPlugins, iconPlugins},
 }
