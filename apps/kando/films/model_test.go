@@ -363,3 +363,28 @@ func TestListShowsTheTitlesGivenInKando(t *testing.T) {
 		t.Fatalf("d = %+v", d)
 	}
 }
+
+// A film is refilled by itself only when the AI service left it untranslated as a service gone for a while does.
+func TestRefillable(t *testing.T) {
+	done := Film{JobID: "j", Stage: core.StageComplete}
+	for _, c := range []struct {
+		err, source string
+		same        bool
+		want        bool
+	}{
+		{`Post "https://api.example.com/v1/chat/completions": dial tcp: connection refused`, "", false, true},
+		{"translation API returned 503 Service Unavailable: busy", "", false, true},
+		{"Post \"https://api.example.com\": context deadline exceeded (Client.Timeout exceeded while awaiting headers)", "", false, true},
+		{"translation API returned 401 Unauthorized: invalid key", "", false, false},
+		{"translation API returned 402 Payment Required: no credit", "", false, false},
+		{"translation API returned 503 Service Unavailable: busy", "my-plugin", false, false},
+		{"", "", false, false},
+		{"dial tcp: connection refused", "", true, false},
+	} {
+		item := done
+		item.TranslationErr, item.TranslationSource, item.SameLanguage = c.err, c.source, c.same
+		if got := Refillable(item); got != c.want {
+			t.Fatalf("Refillable(%q from %q) = %v", c.err, c.source, got)
+		}
+	}
+}

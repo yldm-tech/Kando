@@ -428,6 +428,18 @@ func NotTranslated(items []Film) []Film {
 	return out
 }
 
+// Refillable reports whether item is a done film the AI service left untranslated as a service gone for a while does, rate-limited, failing on its side, timing out or out of reach (media.ClassifyTranslate), so its lines left can be translated once the service answers again. A film a translation source of the user's own left untranslated (Film.TranslationSource) is not, as Kando cannot tell why it failed; nor one the service refused, as one whose key or credit ran out, which waits for the user.
+func Refillable(item Film) bool {
+	if item.JobID == "" || item.Stage != core.StageComplete || item.TranslationErr == "" || item.TranslationSource != "" || item.SameLanguage {
+		return false
+	}
+	switch media.ClassifyTranslate(item.TranslationErr) {
+	case media.TranslateBusy, media.TranslateTimeout, media.TranslateNetwork:
+		return true
+	}
+	return false
+}
+
 // Running reports whether the film's job is at work on a stage.
 func Running(item Film) bool {
 	return item.JobID != "" && item.Stage != core.StageQueued && !item.Stage.Done()

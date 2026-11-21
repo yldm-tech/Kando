@@ -39,6 +39,8 @@ type jobQueue struct {
 	whisperModel string
 	// redoEnded is the jobs that were processing or translating a done film again (core.Job.Redo) and failed or were stopped since they were last queued, as they ended, by ID. Each film is the done film it was (queueRedoEnded), so it is not said to be done anew (queueEndedElsewhere), and the film page says why its redo failed (RedoFailure), as it draws no message bar.
 	redoEnded map[string]core.Job
+	// refills is the jobs translating the lines a film left untranslated that the queue added by itself (queueRefill), by ID, while they wait or run: they end quietly. refilled is the films it added once since launch, so a film whose service fails again is not added again and again.
+	refills, refilled map[string]bool
 	// folderEnded is the jobs that were processing a video found in the library's folder (core.Job.FromFolder) and failed or were stopped since launch, as they ended, by ID. They left the shelf, the video back as it was (queueFolderEnded), so the control socket still answers how each ended to a client that follows it (remoteJob), rather than that it is gone.
 	folderEnded map[string]core.Job
 	// ran is the IDs of the jobs the queue has run to the end since launch, whichever library they saved into. jobs.list keeps listing them after they end even when another library is open (remoteQueue), so a client waiting on one sees how it ended rather than losing it.
@@ -135,6 +137,11 @@ func (a *app) queueHooks() areaHooks {
 			a.queueFreshenYTDLP()
 		},
 		libraryChanged: a.pump,
+		llmTested: func(err error, _ bool) {
+			if err == nil {
+				a.queueRefill()
+			}
+		},
 		shelfLoaded: func() {
 			a.setResumePositions(maps.Clone(a.library.Positions))
 			a.setPlayedTimes(maps.Clone(a.library.Played))
@@ -607,7 +614,12 @@ func (a *app) queueRedoEnded(job core.Job) core.Job {
 		a.queue.redoEnded = map[string]core.Job{}
 	}
 	a.queue.redoEnded[job.ID] = job
-	if !errors.Is(job.Err, context.Canceled) && !errors.Is(job.Err, core.ErrLibrarySwitched) {
+	if a.queue.refills[job.ID] {
+		// One the queue added by itself says nothing: the film is as it was, and the user can still translate its lines left.
+		quiet := job
+		quiet.Err = nil
+		a.queue.redoEnded[job.ID] = quiet
+	} else if !errors.Is(job.Err, context.Canceled) && !errors.Is(job.Err, core.ErrLibrarySwitched) {
 		m := a.messages()
 		reason, section := jobfailure.Hint(m, statusText(m, job), jobfailure.Of(job))
 		switch job.Redo {
@@ -1063,6 +1075,10 @@ func (a *app) show(job core.Job) {
 	if job.Stage == core.StageFailed && job.Redo != "" {
 		job = a.queueRedoEnded(job)
 	}
+	quiet := a.queue.refills[job.ID]
+	if job.Stage.Done() {
+		delete(a.queue.refills, job.ID)
+	}
 	// A job that has completed is a film of its own, no longer a video of the folder's to put back.
 	if job.Stage == core.StageComplete {
 		job.FromFolder = false
@@ -1093,7 +1109,13 @@ func (a *app) show(job core.Job) {
 		}
 	}
 	a.areasShelfChanged()
-	a.queueNotifyEnded(was.Stage, ended)
+	if !quiet {
+		a.queueNotifyEnded(was.Stage, ended)
+	}
+	// A film just translated says the AI service answers again.
+	if rewritten && job.TranslationErr == "" && !job.SameLanguage {
+		a.queueRefill()
+	}
 	a.queueTellSystem()
 }
 

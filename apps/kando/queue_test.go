@@ -3859,3 +3859,58 @@ func TestTheFilmOpenedIsMadeFirst(t *testing.T) {
 		t.Fatalf("the first film shows %d lines (%v), want each once", len(doc.View()), err)
 	}
 }
+
+// A film left untranslated from where the AI service was out of reach has its lines left translated by itself once the service is seen answering again, quietly; one the service refused waits for the user.
+func TestAFilmLeftUntranslatedByAServiceGoneIsTranslatedOnceItAnswers(t *testing.T) {
+	p := &retranslatePipeline{}
+	a, tt, updates := retranslateLibrary(t, p)
+	gone := stageOf(t, a, "talk")
+	gone.TranslationErr = `Post "https://api.example.com/v1/chat/completions": dial tcp: connection refused`
+	refused := gone
+	refused.ID, refused.TranslationErr = "walk", "translation API returned 401 Unauthorized: invalid key"
+	a.library.Upsert(gone)
+	a.library.Upsert(refused)
+	refresh(tt, a)
+	a.areasLLMTested(nil, false)
+	settle(t, a, tt, updates)
+	if !slices.Equal(p.sent, []string{"How are you?"}) {
+		t.Fatalf("sent %q", p.sent)
+	}
+	if job := stageOf(t, a, "talk"); job.Stage != core.StageComplete || job.TranslationErr != "" || job.Untranslated != 0 || job.Redo != "" {
+		t.Fatalf("talk %+v", job)
+	}
+	if job := stageOf(t, a, "walk"); job.TranslationErr == "" || job.Redo != "" {
+		t.Fatalf("walk, which the service refused, %+v", job)
+	}
+	// It moves neither the page nor the selected card.
+	if a.queue.selectedID == "talk" {
+		t.Fatal("the refill selected its card")
+	}
+}
+
+// A refill that fails again says nothing, its film as it was, and is not tried again until the app starts anew.
+func TestARefillThatFailsAgainSaysNothing(t *testing.T) {
+	p := &retranslatePipeline{translateErr: errors.New(`Post "https://api.example.com/v1/chat/completions": dial tcp: i/o timeout`)}
+	a, tt, updates := retranslateLibrary(t, p)
+	job := stageOf(t, a, "talk")
+	job.TranslationErr = p.translateErr.Error()
+	a.library.Upsert(job)
+	refresh(tt, a)
+	a.areasLLMTested(nil, false)
+	settle(t, a, tt, updates)
+	if job := stageOf(t, a, "talk"); job.Stage != core.StageComplete || job.Redo != "" || job.Untranslated != 1 {
+		t.Fatalf("job %+v", job)
+	}
+	if a.lib.notice.Open {
+		t.Fatalf("the message bar says %q", a.lib.notice.Text)
+	}
+	if text, _ := a.RedoFailure(a.cx); text != "" {
+		t.Fatalf("the film page says %q", text)
+	}
+	p.language = ""
+	a.areasLLMTested(nil, false)
+	settle(t, a, tt, updates)
+	if p.language != "" {
+		t.Fatal("the film was tried again")
+	}
+}
