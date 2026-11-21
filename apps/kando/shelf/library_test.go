@@ -498,6 +498,27 @@ func TestLibraryKeepsSubtitlesOnlyFilms(t *testing.T) {
 	}
 }
 
+// A film indexed from a media source is kept as one; a job without the field, as every job written before it, reads back as a film whose video is in the library.
+func TestLibraryKeepsLinkedFilms(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "library.json")
+	lib, _ := Load(path)
+	lib.Upsert(core.Job{ID: "a", Source: "kando-source://0123456789abcdef/Movies/Heat.mkv", Stage: core.StageComplete, Linked: true})
+	lib.Upsert(core.Job{ID: "b", Source: "file:///tmp/b.mp4", Stage: core.StageComplete})
+	if err := lib.Save(); err != nil {
+		t.Fatal(err)
+	}
+	data, _ := os.ReadFile(path)
+	if strings.Count(string(data), `"linked": true`) != 1 {
+		t.Fatalf("library.json %s", data)
+	}
+	loaded, _ := Load(path)
+	for _, job := range loaded.Jobs {
+		if job.Linked != (job.ID == "a") {
+			t.Fatalf("job %+v", job)
+		}
+	}
+}
+
 // The quality and the source of the original lines a job was given, and whether its film took its site's subtitles, are kept with it; a library written before them reads back without them.
 func TestLibraryKeepsTheDownloadChoices(t *testing.T) {
 	path := filepath.Join(t.TempDir(), "library.json")

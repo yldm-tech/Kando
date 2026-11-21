@@ -45,6 +45,9 @@ func TestParseLink(t *testing.T) {
 		{"www.ted.com/talks/some_talk", Link{URL: "https://www.ted.com/talks/some_talk", Platform: PlatformWeb, Kind: LinkVideo, Host: "ted.com", Site: "ted.com"}},
 		{"file:///Users/me/Movies/clip.mp4", Link{URL: "file:///Users/me/Movies/clip.mp4", Platform: PlatformLocal, Kind: LinkVideo, ID: filepath.FromSlash("/Users/me/Movies/clip.mp4")}},
 		{"  https://youtu.be/TRWgBxVAb1M  ", Link{URL: "https://youtu.be/TRWgBxVAb1M", Platform: PlatformYouTube, Kind: LinkVideo, ID: "TRWgBxVAb1M", Host: "youtu.be", Site: "youtube.com"}},
+		// A video on a media source is named by the source's ID and its path there, unescaped; the address says no host.
+		{"kando-source://0123456789abcdef/Movies/Heat%20(1995)/%E7%83%AD.mkv", Link{URL: "kando-source://0123456789abcdef/Movies/Heat%20(1995)/%E7%83%AD.mkv", Platform: PlatformSource, Kind: LinkVideo, ID: "0123456789abcdef/Movies/Heat (1995)/热.mkv"}},
+		{"KANDO-SOURCE://0123456789abcdef/a.mp4", Link{URL: "KANDO-SOURCE://0123456789abcdef/a.mp4", Platform: PlatformSource, Kind: LinkVideo, ID: "0123456789abcdef/a.mp4"}},
 	}
 	for _, c := range cases {
 		got, ok := ParseLink(c.raw)
@@ -59,7 +62,7 @@ func TestParseLink(t *testing.T) {
 }
 
 func TestParseLinkRejects(t *testing.T) {
-	for _, raw := range []string{"", "   ", "not a link", "example", "a b.com", "ftp://example.com/v", "file://", "file://other-machine/clip.mp4", "https://", "mailto:a@b.c"} {
+	for _, raw := range []string{"", "   ", "not a link", "example", "a b.com", "ftp://example.com/v", "file://", "file://other-machine/clip.mp4", "https://", "mailto:a@b.c", "kando-source://", "kando-source://0123456789abcdef", "kando-source://0123456789abcdef/", "kando-source:///a.mp4", "kando-source://0123456789abcdef:445/a.mp4", "kando-source://me@0123456789abcdef/a.mp4"} {
 		if got, ok := ParseLink(raw); ok {
 			t.Errorf("ParseLink(%q) = %+v, want false", raw, got)
 		}
@@ -85,9 +88,9 @@ func TestWithScheme(t *testing.T) {
 	}
 }
 
-// TestParseLinkAcceptsJobSources checks that every source NewJob accepts for a video on the web or on disk has a platform.
+// TestParseLinkAcceptsJobSources checks that every source NewJob accepts for a video on the web, on disk or on a media source has a platform.
 func TestParseLinkAcceptsJobSources(t *testing.T) {
-	for _, raw := range []string{"https://www.youtube.com/watch?v=Rv3Hn7Qm2Ts", "https://example.com/v", "file:///tmp/a.mp4"} {
+	for _, raw := range []string{"https://www.youtube.com/watch?v=Rv3Hn7Qm2Ts", "https://example.com/v", "file:///tmp/a.mp4", "kando-source://0123456789abcdef/a.mp4"} {
 		if _, err := NewJob(raw); err != nil {
 			t.Fatalf("NewJob(%q): %v", raw, err)
 		}

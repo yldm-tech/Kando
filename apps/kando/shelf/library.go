@@ -383,6 +383,8 @@ type storedJob struct {
 	LocalLines        int  `json:"localLines,omitempty"`
 	// SubtitlesOnly is whether the film keeps no video (core.Job.SubtitlesOnly).
 	SubtitlesOnly bool `json:"subtitlesOnly,omitempty"`
+	// Linked is whether the film's video stays on the media source it was indexed from (core.Job.Linked).
+	Linked bool `json:"linked,omitempty"`
 	// Device is the paired phone that sent the job's link (core.Job.Device).
 	Device string `json:"device,omitempty"`
 	// Series is the series the film is part of (core.Job.Series).
@@ -409,7 +411,7 @@ func storeJob(job core.Job) storedJob {
 	}
 	stored.Quality, stored.SubtitleSource = job.Quality, job.SubtitleSource
 	stored.PlatformSubtitles, stored.LocalLines = job.PlatformSubtitles, job.LocalLines
-	stored.SubtitlesOnly = job.SubtitlesOnly
+	stored.SubtitlesOnly, stored.Linked = job.SubtitlesOnly, job.Linked
 	stored.Series, stored.PausedBy = job.Series, job.PausedBy
 	stored.List, stored.ListIndex = job.List, job.ListIndex
 	stored.ResumeAtMs, stored.ChapterUse = job.ResumeAt.Milliseconds(), job.ChapterUse
@@ -452,7 +454,7 @@ func (s storedJob) job() core.Job {
 	}
 	job.Quality, job.SubtitleSource = s.Quality, s.SubtitleSource
 	job.PlatformSubtitles, job.LocalLines = s.PlatformSubtitles, s.LocalLines
-	job.SubtitlesOnly = s.SubtitlesOnly
+	job.SubtitlesOnly, job.Linked = s.SubtitlesOnly, s.Linked
 	job.Series, job.PausedBy = s.Series, s.PausedBy
 	job.List, job.ListIndex = s.List, s.ListIndex
 	job.ResumeAt, job.ChapterUse = time.Duration(max(s.ResumeAtMs, 0))*time.Millisecond, s.ChapterUse

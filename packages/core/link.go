@@ -18,7 +18,12 @@ const (
 	PlatformBilibili Platform = "bilibili"
 	PlatformWeb      Platform = "web"
 	PlatformLocal    Platform = "local"
+	// PlatformSource is a video on one of the user's media sources, a NAS share or a server Kando reads (SourceScheme), not a site.
+	PlatformSource Platform = "source"
 )
+
+// SourceScheme is the scheme of a video's address on a media source, kando-source://<source ID>/<path>, the path relative to the source's root with each segment escaped (apps/kando/mediasource.Ref writes and reads it). It is an address only Kando knows, not one anything opens, and holds no host name or user, so it says nothing of where the NAS is.
+const SourceScheme = "kando-source"
 
 // LinkKind is what a link points at: one video, a list that holds several (a playlist, a collection, a multi-part upload), a channel, or a page that lists videos (LinkPage).
 type LinkKind string
@@ -159,13 +164,16 @@ var knownSites = map[string]string{
 	"netflix.com": "netflix.com", "disneyplus.com": "disneyplus.com", "primevideo.com": "primevideo.com", "hulu.com": "hulu.com", "max.com": "max.com", "iq.com": "iqiyi.com", "iqiyi.com": "iqiyi.com", "v.qq.com": "v.qq.com", "mgtv.com": "mgtv.com", "u-next.jp": "u-next.jp",
 }
 
-// ParseLink reads which platform, video, list or channel a link names. It accepts http and https links, web addresses typed without a scheme (LooksLikeHost), read as https, and file:// URLs of local videos. It reports false for anything else, including an empty string.
+// ParseLink reads which platform, video, list or channel a link names. It accepts http and https links, web addresses typed without a scheme (LooksLikeHost), read as https, file:// URLs of local videos, and the kando-source:// addresses of videos on a media source (PlatformSource). It reports false for anything else, including an empty string.
 func ParseLink(raw string) (Link, bool) {
 	raw = strings.TrimSpace(raw)
 	if raw == "" {
 		return Link{}, false
 	}
 	lower := strings.ToLower(raw)
+	if strings.HasPrefix(lower, SourceScheme+"://") {
+		return sourceLink(raw)
+	}
 	if !strings.HasPrefix(lower, "http://") && !strings.HasPrefix(lower, "https://") && !strings.HasPrefix(lower, "file:") {
 		if !LooksLikeHost(raw) {
 			return Link{}, false
@@ -198,6 +206,19 @@ func ParseLink(raw string) (Link, bool) {
 		bilibiliLink(&link, u)
 	}
 	return link, true
+}
+
+// sourceLink is the Link of a video's address on a media source (SourceScheme): PlatformSource, its ID the source's ID and the path, unescaped, as <source ID>/<path>. It reports false for an address without a source ID, with a port or a user, or without a path.
+func sourceLink(raw string) (Link, bool) {
+	u, err := url.Parse(raw)
+	if err != nil || u.Host == "" || u.Port() != "" || u.User != nil || u.Opaque != "" {
+		return Link{}, false
+	}
+	p := strings.TrimPrefix(u.Path, "/")
+	if p == "" {
+		return Link{}, false
+	}
+	return Link{URL: raw, Platform: PlatformSource, Kind: LinkVideo, ID: u.Host + "/" + p}, true
 }
 
 // FileURL is the file:// URL of the file at path, an absolute path on this machine, as a local video's job source: file:///Users/me/clip.mp4 for /Users/me/clip.mp4, and file:///C:/Users/me/clip.mp4 for C:\Users\me\clip.mp4 on Windows. Characters a URL cannot hold, such as spaces, are escaped. FilePath reads it back.
