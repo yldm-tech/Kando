@@ -109,7 +109,7 @@ jobs:
         shell: bash
         run: KANDO_SCREENSHOTS="$RUNNER_TEMP/screenshots" go test -count=1 -timeout 5m -run TestScreenshot ./apps/kando/ ./apps/kando/films/ ./apps/mobile/
 
-  # The tests that make real encrypted images with hdiutil (apps/kando/vault, and the app's TestLockEncryptsTheLibraryOnDisk), which run only where KANDO_VAULT_TESTS is set: on GitHub's macOS runners an image takes a minute or more to make, attach and detach, too long for the Test job's five minutes a package, so they run here alone with time to spare.
+  # The tests that make real encrypted images with hdiutil (apps/kando/vault, and the app's TestLockEncryptsTheLibraryOnDisk), which run only where KANDO_VAULT_TESTS is set: on GitHub's macOS runners an image takes a minute or more to make, attach and detach, too long for the Test job's five minutes a package, so they run here alone with time to spare. The two packages run one after the other (-p=1): run side by side, the vault's tests made and detached images while the app's test binary was being built and while the app's test attached images of its own, and the system then kept a detached volume's disk busy past what the vault waits for, which failed them now and then (#395); one at a time they are no slower.
   vault:
     name: Vault (macOS)
     runs-on: macos-latest
@@ -130,7 +130,7 @@ jobs:
       - name: Test
         env:
           KANDO_VAULT_TESTS: "1"
-        run: go test -count=1 -timeout 35m -run 'TestALibraryLocksIntoItsImageAndOpensAgain|TestOpenTakesInWhatWasLeftBesideTheImage|TestLockEncryptsTheLibraryOnDisk' ./apps/kando/vault/ ./apps/kando/
+        run: go test -p=1 -count=1 -timeout 35m -run 'TestALibraryLocksIntoItsImageAndOpensAgain|TestOpenTakesInWhatWasLeftBesideTheImage|TestLockEncryptsTheLibraryOnDisk' ./apps/kando/vault/ ./apps/kando/
 
   # The tests under the race detector. The app's root package takes about 15 minutes with it on a 10-core Mac, so it runs on pushes to main only; a pull request runs every other package with it, a few minutes.
   race:

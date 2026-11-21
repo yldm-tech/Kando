@@ -404,6 +404,8 @@ func attach(ctx context.Context, image, mount, password string) error {
 // detach detaches the image attached at mount. Without force, a detach that fails is tried again every busyRetry for up to busyWait: Spotlight and fseventsd keep a volume just attached busy for some seconds, a minute on GitHub's macOS runners, though nothing of Kando's is open in it, and hdiutil says so with exit status 16 or 1 and words in the system's language, so the failures are not told apart.
 //
 // A detach hdiutil says failed may still go through after it gave up, the volume leaving mount a moment later; mount is then a plain folder, which hdiutil answers with "No such file or directory" however often it is tried. So once the volume is gone from mount, its disk, read before the first try, is what is detached, and a disk that is gone too means the image is detached.
+//
+// Once the volume is gone, no file of the library is open or readable any more, and what is left is ejecting the image's disk, which the system can keep busy for longer still: on a Mac hard at work, as a GitHub runner building the app while the vault's tests ran, or with another image being attached meanwhile, the eject failed with "Resource busy" for seconds after the volume had left, and on GitHub's runners for long enough that what was left of busyWait ran out (#395). A busy eject is therefore tried again for up to ejectWait of its own, counted from when the volume left.
 func detach(ctx context.Context, mount string, force bool) error {
 	disk := volumeDisk(mount)
 	target := mount
@@ -422,6 +424,7 @@ func detach(ctx context.Context, mount string, force bool) error {
 		}
 		if target == mount && disk != "" && !otherDevice(mount, filepath.Dir(mount)) {
 			target = disk
+			deadline = time.Now().Add(ejectWait)
 			continue
 		}
 		if force || time.Now().After(deadline) {
@@ -472,9 +475,10 @@ func exists(path string) bool {
 	return err == nil
 }
 
-// busyWait and busyRetry are how long detach goes on trying an image the system says is busy, and how often.
+// busyWait and busyRetry are how long detach goes on trying an image the system says is busy, and how often; ejectWait is how long it goes on trying to eject the disk of one whose volume has already left its mount point.
 const (
 	busyWait  = 30 * time.Second
+	ejectWait = 2 * time.Minute
 	busyRetry = 2 * time.Second
 )
 
