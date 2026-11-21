@@ -3,6 +3,7 @@ package media
 import (
 	"context"
 	"errors"
+	"fmt"
 	"os"
 	"path/filepath"
 	"reflect"
@@ -618,5 +619,65 @@ func TestMakeTranslatingAgainNamesItsGeneration(t *testing.T) {
 		if g != gens[0] {
 			t.Fatalf("reports named generations %q, want one", gens)
 		}
+	}
+}
+
+// batchFailing is a redoPipeline whose translation of a batch starting with first fails, as one batch whose reply cannot be read does.
+type batchFailing struct {
+	*redoPipeline
+	first string
+	err   error
+}
+
+func (p batchFailing) Translate(ctx context.Context, segments []core.Segment, language string) ([]core.Segment, error) {
+	if segments[0].Text == p.first {
+		return nil, p.err
+	}
+	return p.redoPipeline.Translate(ctx, segments, language)
+}
+
+// manyMissing is a done film of n lines, "line 0" on, none of them translated.
+func manyMissing(t *testing.T, n int) core.Job {
+	t.Helper()
+	video := filepath.Join(t.TempDir(), "Talk", "video.mp4")
+	if err := os.MkdirAll(filepath.Dir(video), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(video, []byte("v"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	original := make([]core.Segment, n)
+	for i := range original {
+		original[i] = core.Segment{Start: time.Duration(i) * time.Second, End: time.Duration(i+1)*time.Second - time.Millisecond, Text: fmt.Sprintf("line %d", i)}
+	}
+	subtitles, err := exportSubtitles(video, original, make([]core.Segment, n))
+	if err != nil {
+		t.Fatal(err)
+	}
+	return core.Job{ID: "done", Source: "https://www.youtube.com/watch?v=jNQXAC9IVRw", Language: "简体中文", Stage: core.StageQueued, VideoPath: video, SubtitlePath: subtitles, Untranslated: n, Redo: core.RedoMissing}
+}
+
+// A batch of missing lines that fails is left untranslated, and the batches after it are translated; the job completes saying how many are left.
+func TestMakeGoesOnPastAMissingBatchThatFails(t *testing.T) {
+	job := manyMissing(t, DefaultBatchSize+5)
+	p := batchFailing{redoPipeline: &redoPipeline{t: t}, first: "line 0", err: errors.New("translation is not a JSON array of strings: unexpected end of JSON input")}
+	final, _ := remake(p, job, "简体中文")
+	if final.Stage != core.StageComplete || final.Untranslated != DefaultBatchSize || final.Redo != "" {
+		t.Fatalf("final %s %v, untranslated %d", final.Stage, final.Err, final.Untranslated)
+	}
+	if want := []string{"line 40", "line 41", "line 42", "line 43", "line 44"}; !reflect.DeepEqual(p.sent, want) {
+		t.Fatalf("sent %q", p.sent)
+	}
+	// A key the service refuses fails every batch: the job fails at once, as before.
+	job = manyMissing(t, DefaultBatchSize+5)
+	refused := batchFailing{redoPipeline: &redoPipeline{t: t}, first: "line 0", err: &statusError{code: 401, status: "401 Unauthorized"}}
+	if final, _ := remake(refused, job, "简体中文"); final.Stage != core.StageFailed || len(refused.sent) != 0 {
+		t.Fatalf("with a refused key: %s, sent %q", final.Stage, refused.sent)
+	}
+	// Every batch failing is a translation that failed.
+	job = manyMissing(t, DefaultBatchSize+5)
+	gone := &redoPipeline{t: t, translateErr: errors.New("translation is not a JSON array of strings")}
+	if final, _ := remake(gone, job, "简体中文"); final.Stage != core.StageFailed {
+		t.Fatalf("with every batch failing: %s", final.Stage)
 	}
 }

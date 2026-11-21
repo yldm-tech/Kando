@@ -1111,7 +1111,7 @@ func translateAgain(ctx context.Context, p Pipeline, job *core.Job, language, de
 	return m.run(length, language, watch)
 }
 
-// fillMissing translates the lines of job's film that the film shows without a translation (core.RedoMissing) into language, a batch at a time, with the lines said before each as context, and keeps the rest as they are. It writes each batch into the lines the film shows and out beside the video as it is translated, as filling in what is missing cannot make the film worse: one that fails or is stopped keeps the lines it filled, and job.Untranslated says how many are left. It neither downloads nor hears the film. A film whose subtitles were edited outside Kando so they no longer match its transcript line for line fails with ErrSubtitlesChanged, sending nothing, as which lines are missing cannot be told; one whose bilingual subtitles are gone has every line its document does not translate translated.
+// fillMissing translates the lines of job's film that the film shows without a translation (core.RedoMissing) into language, a batch at a time, with the lines said before each as context, and keeps the rest as they are. It writes each batch into the lines the film shows and out beside the video as it is translated, as filling in what is missing cannot make the film worse: a batch that fails is left untranslated and the batches after it are translated, until maxFailedBatches fail in a row or the service refuses one as it would every one, as a key or an account out of credit; one that fails or is stopped keeps the lines it filled, and job.Untranslated says how many are left. It neither downloads nor hears the film. A film whose subtitles were edited outside Kando so they no longer match its transcript line for line fails with ErrSubtitlesChanged, sending nothing, as which lines are missing cannot be told; one whose bilingual subtitles are gone has every line its document does not translate translated.
 func fillMissing(ctx context.Context, p Pipeline, job *core.Job, language, device string, report func(core.Job)) core.Job {
 	failed := func(step Stage, err error) core.Job {
 		job.Err, job.Stage, job.Progress = failedAt(step, err), core.StageFailed, core.Progress{}
@@ -1181,6 +1181,9 @@ func fillMissing(ctx context.Context, p Pipeline, job *core.Job, language, devic
 	}
 	left := len(missing)
 	started := time.Now()
+	// failedRun is how many batches in a row failed, and lastErr why the last of them did: a batch that fails is left untranslated and the batches after it go on, as one batch failing is more often its reply than the service, until maxFailedBatches fail in a row.
+	failedRun := 0
+	var lastErr error
 	for at := 0; at < len(missing); at += DefaultBatchSize {
 		batch := missing[at:min(at+DefaultBatchSize, len(missing))]
 		segments := make([]core.Segment, len(batch))
@@ -1200,8 +1203,13 @@ func fillMissing(ctx context.Context, p Pipeline, job *core.Job, language, devic
 			err = fmt.Errorf("%d translated lines for %d untranslated lines", len(translated), len(segments))
 		}
 		if err != nil {
-			return failed(StageTranslate, err)
+			if ctx.Err() != nil || errors.Is(err, ErrOffline) || !skippableBatch(err) || failedRun+1 >= maxFailedBatches {
+				return failed(StageTranslate, err)
+			}
+			failedRun, lastErr = failedRun+1, err
+			continue
 		}
+		failedRun = 0
 		var revs []track.Event
 		for k, i := range batch {
 			text := strings.TrimSpace(translated[k].Text)
@@ -1225,6 +1233,10 @@ func fillMissing(ctx context.Context, p Pipeline, job *core.Job, language, devic
 		progress.Started = started
 		job.Progress = progress
 		report(*job)
+	}
+	// Lines left only by batches that failed, every one of them, are a translation that failed.
+	if lastErr != nil && left == len(missing) {
+		return failed(StageTranslate, lastErr)
 	}
 	if len(missing) == 0 {
 		if err := project(); err != nil {

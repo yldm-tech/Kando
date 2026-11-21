@@ -162,6 +162,12 @@ func (t ChatTranslator) Translate(ctx context.Context, segments []core.Segment, 
 			}
 			lines, err = t.translateTexts(ctx, endpoint, texts, language, title, contextSoFar, progress)
 		}
+		var unfinished *unfinishedError
+		if errors.As(err, &unfinished) {
+			// Sent again in halves, part of the batch came back: its lines are kept and those of the part that failed left untranslated.
+			untranslated += unfinished.lines
+			lastErr, err = unfinished.err, nil
+		}
 		if err != nil {
 			if ctxErr := ctx.Err(); ctxErr != nil {
 				return nil, ctxErr
@@ -441,6 +447,11 @@ const maxBatchSends = 3
 
 // translateTexts sends one batch, again while the reply is not its lines, up to maxBatchSends times. progress is where the translation stands while it is sent, which a retry's wait is reported with.
 func (t ChatTranslator) translateTexts(ctx context.Context, endpoint Endpoint, texts []string, language, title string, earlier []Earlier, progress core.Progress) ([]string, error) {
+	return t.translateBatch(ctx, endpoint, texts, language, title, earlier, progress, false)
+}
+
+// translateBatch is translateTexts, of a half of a batch sent again in halves (translateHalves) when half is set: a half whose reply is still not its lines is not sent again in halves itself, but for a reply cut off or a few lines short, so a model that writes every reply wrong is sent the batch a bounded number of times.
+func (t ChatTranslator) translateBatch(ctx context.Context, endpoint Endpoint, texts []string, language, title string, earlier []Earlier, progress core.Progress, half bool) ([]string, error) {
 	// A batch sent again in halves takes the first half as context for the second, which keeps to the lines context allows when it is on.
 	if n := t.contextLines(); n > 0 && len(earlier) > n {
 		earlier = earlier[len(earlier)-n:]
@@ -477,30 +488,94 @@ func (t ChatTranslator) translateTexts(ctx context.Context, endpoint Endpoint, t
 		if err == nil {
 			return lines, nil
 		}
+		// A reply that stopped before its end, at the model's token limit or where a gateway ended it, is the batch sent again in halves at once: each half's reply is half as long, and the same batch sent whole is most often cut off again.
+		if len(texts) > 1 && ctx.Err() == nil && cutOff(reply) {
+			return t.translateHalves(ctx, endpoint, texts, language, title, earlier, progress)
+		}
 		if send == maxBatchSends || ctx.Err() != nil {
 			// Models occasionally omit only a few lines from a large response.
 			// Retry those responses as smaller batches so one malformed reply does
 			// not discard an otherwise usable translation.
 			var countErr *lineCountError
 			if errors.As(err, &countErr) && recoverableLineCount(countErr.got, countErr.want) {
-				mid := len(texts) / 2
-				left, leftErr := t.translateTexts(ctx, endpoint, texts[:mid], language, title, earlier, progress)
-				if leftErr != nil {
-					return nil, leftErr
-				}
-				rightEarlier := slices.Clone(earlier)
-				for i, text := range texts[:mid] {
-					rightEarlier = append(rightEarlier, Earlier{Line: text, Translation: strings.TrimSpace(left[i])})
-				}
-				right, rightErr := t.translateTexts(ctx, endpoint, texts[mid:], language, title, rightEarlier, progress)
-				if rightErr != nil {
-					return nil, rightErr
-				}
-				return append(left, right...), nil
+				return t.translateHalves(ctx, endpoint, texts, language, title, earlier, progress)
+			}
+			// Any other reply that set out to be the batch's lines and is not, as an array a model wrote wrong or with two lines merged into one, is the batch sent once in halves, each a shorter reply the model may write right. A reply that is no array at all, as a refusal, is the model's answer to any batch, and is not.
+			if !half && len(texts) > 1 && ctx.Err() == nil && len(reply.Choices) > 0 && strings.HasPrefix(stripCodeFence(reply.Choices[0].Message.Content), "[") {
+				return t.translateHalves(ctx, endpoint, texts, language, title, earlier, progress)
 			}
 			return lines, err
 		}
 	}
+}
+
+// translateHalves translates texts as two batches, its first half then its second, which takes the first half's translations as context, as the batches before it would. A half that fails as a batch may (skippableBatch) is left untranslated while the other is kept, which it says with an *unfinishedError; both failing is the batch failing.
+func (t ChatTranslator) translateHalves(ctx context.Context, endpoint Endpoint, texts []string, language, title string, earlier []Earlier, progress core.Progress) ([]string, error) {
+	mid := len(texts) / 2
+	left := 0
+	var lastErr error
+	half := func(texts []string, earlier []Earlier) ([]string, error) {
+		lines, err := t.translateBatch(ctx, endpoint, texts, language, title, earlier, progress, true)
+		var unfinished *unfinishedError
+		switch {
+		case err == nil:
+			return lines, nil
+		case errors.As(err, &unfinished):
+			left, lastErr = left+unfinished.lines, unfinished.err
+			return lines, nil
+		case ctx.Err() != nil || !skippableBatch(err):
+			return nil, err
+		}
+		left, lastErr = left+len(texts), err
+		return make([]string, len(texts)), nil
+	}
+	first, err := half(texts[:mid], earlier)
+	if err != nil {
+		return nil, err
+	}
+	rightEarlier := slices.Clone(earlier)
+	for i, text := range texts[:mid] {
+		rightEarlier = append(rightEarlier, Earlier{Line: text, Translation: strings.TrimSpace(first[i])})
+	}
+	second, err := half(texts[mid:], rightEarlier)
+	switch {
+	case err != nil:
+		return nil, err
+	case left == len(texts):
+		return nil, lastErr
+	case left > 0:
+		return append(first, second...), &unfinishedError{lines: left, err: lastErr}
+	}
+	return append(first, second...), nil
+}
+
+// unfinishedError is a batch sent again in halves (translateHalves) whose translations came back but for lines of a part that failed, left empty; err is why the last such part failed.
+type unfinishedError struct {
+	lines int
+	err   error
+}
+
+func (e *unfinishedError) Error() string {
+	return fmt.Sprintf("%d lines were left untranslated: %v", e.lines, e.err)
+}
+
+func (e *unfinishedError) Unwrap() error { return e.err }
+
+// cutOff reports whether reply stopped before its end: the model reached its token limit (finish_reason "length"), or the reply is a JSON array that ends before it is closed, as a gateway that ends a long reply early leaves it.
+func cutOff(reply chatResponse) bool {
+	if len(reply.Choices) == 0 {
+		return false
+	}
+	if reply.Choices[0].FinishReason == "length" {
+		return true
+	}
+	text := stripCodeFence(reply.Choices[0].Message.Content)
+	if !strings.HasPrefix(text, "[") {
+		return false
+	}
+	var raw []json.RawMessage
+	var syntax *json.SyntaxError
+	return errors.As(json.Unmarshal([]byte(text), &raw), &syntax) && syntax.Offset >= int64(len(text))
 }
 
 // sentBackAgain is what a batch sent again after its reply sent its lines back untranslated (sentBack) adds to its instruction; %s is the language it is translated into.

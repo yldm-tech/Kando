@@ -84,11 +84,22 @@ func TestChatTranslatorBatchesAndKeepsTiming(t *testing.T) {
 	}
 }
 
+// A reply with too few lines is not taken for the batch's: a batch whose two lines come back as one is sent once in halves, a line each, and fails when a line alone comes back wrong too.
 func TestChatTranslatorRejectsWrongLineCount(t *testing.T) {
-	srv, _ := fakeChat(t, func([]string) string { return `["only one"]` })
+	srv, seen := fakeChat(t, func(lines []string) string {
+		if len(lines) == 2 {
+			return `["A B"]`
+		}
+		return upper(lines)
+	})
 	tr := ChatTranslator{BaseURL: srv.URL + "/v1", APIKey: "secret", Model: "m"}
-	_, err := tr.Translate(context.Background(), []core.Segment{{Text: "a"}, {Text: "b"}}, "English")
-	if err == nil || !strings.Contains(err.Error(), "1 lines for 2") {
+	got, err := tr.Translate(context.Background(), []core.Segment{{Text: "a"}, {Text: "b"}}, "English")
+	if err != nil || got[0].Text != "A" || got[1].Text != "B" || len(*seen) != maxBatchSends+2 {
+		t.Fatalf("got %+v, %v after %d requests", got, err, len(*seen))
+	}
+	srv, _ = fakeChat(t, func([]string) string { return `["one", "two", "three"]` })
+	tr.BaseURL = srv.URL + "/v1"
+	if _, err := tr.Translate(context.Background(), []core.Segment{{Text: "a"}, {Text: "b"}}, "English"); err == nil || !strings.Contains(err.Error(), "lines for") {
 		t.Fatalf("err = %v", err)
 	}
 }
@@ -634,7 +645,7 @@ func TestChatTranslatorSplitsANearlyCompleteBatch(t *testing.T) {
 	}
 }
 
-// A batch that still fails after it was sent again stays untranslated, the rest of the film is translated, and the error says how many lines were left.
+// A batch that still fails after it was sent again, and in halves, stays untranslated where it fails, the rest of the film is translated, and the error says how many lines were left.
 func TestChatTranslatorLeavesAFailedBatchUntranslated(t *testing.T) {
 	var calls int
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -659,13 +670,15 @@ func TestChatTranslatorLeavesAFailedBatchUntranslated(t *testing.T) {
 	tr := ChatTranslator{BaseURL: srv.URL, Model: "m"}
 	got, err := tr.Translate(context.Background(), segments, "English")
 	var partial *UntranslatedError
-	if !errors.As(err, &partial) || partial.Lines != translateBatch || partial.Total != len(segments) {
+	// The batch's first half, which starts with line 0, fails again; its second half comes back.
+	half := translateBatch / 2
+	if !errors.As(err, &partial) || partial.Lines != half || partial.Total != len(segments) {
 		t.Fatalf("err = %v", err)
 	}
-	if calls != maxBatchSends+1 || len(got) != len(segments) {
+	if calls != 2*maxBatchSends+2 || len(got) != len(segments) {
 		t.Fatalf("calls = %d, %d segments", calls, len(got))
 	}
-	if got[0].Text != "" || got[translateBatch-1].Text != "" || got[translateBatch].Text != fmt.Sprintf("LINE %d", translateBatch) || got[translateBatch].Start != segments[translateBatch].Start {
+	if got[0].Text != "" || got[half-1].Text != "" || got[half].Text != fmt.Sprintf("LINE %d", half) || got[translateBatch].Text != fmt.Sprintf("LINE %d", translateBatch) || got[translateBatch].Start != segments[translateBatch].Start {
 		t.Fatalf("got %#v", got)
 	}
 }
@@ -1033,5 +1046,68 @@ func TestTransientFailures(t *testing.T) {
 		if got := transient(c.err); got != c.want {
 			t.Fatalf("transient(%v) = %v", c.err, got)
 		}
+	}
+}
+
+// A reply cut off before its end, where a gateway ended it or at the model's token limit, is the batch sent again in halves at once, rather than whole again: each half's reply is half as long.
+func TestChatTranslatorSplitsABatchWhoseReplyWasCutOff(t *testing.T) {
+	for _, c := range []struct {
+		name string
+		cut  func(full string) (string, string)
+	}{
+		{"ended early", func(full string) (string, string) { return full[:len(full)/2], "stop" }},
+		{"at the token limit", func(full string) (string, string) { return "```json\n" + full[:len(full)-5], "length" }},
+	} {
+		sends := map[int]int{}
+		srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			var req chatRequest
+			json.NewDecoder(r.Body).Decode(&req)
+			var lines []string
+			json.Unmarshal([]byte(req.Messages[1].Content), &lines)
+			sends[len(lines)]++
+			content, finish := upper(lines), "stop"
+			if len(lines) == 8 {
+				content, finish = c.cut(content)
+			}
+			json.NewEncoder(w).Encode(map[string]any{"choices": []map[string]any{{"message": map[string]string{"role": "assistant", "content": content}, "finish_reason": finish}}})
+		}))
+		segments := make([]core.Segment, 8)
+		for i := range segments {
+			segments[i] = core.Segment{Text: fmt.Sprintf("line %d", i)}
+		}
+		got, err := ChatTranslator{BaseURL: srv.URL, Model: "m"}.Translate(context.Background(), segments, "English")
+		srv.Close()
+		if err != nil || got[7].Text != "LINE 7" || sends[8] != 1 || sends[4] != 2 {
+			t.Fatalf("%s: got %+v, %v after sends %v", c.name, got, err, sends)
+		}
+	}
+	// A reply that is not an array at all is no cut-off: it is sent again whole, as before.
+	if cutOff(chatResponse{Choices: []struct {
+		Message      chatMessage `json:"message"`
+		FinishReason string      `json:"finish_reason"`
+	}{{Message: chatMessage{Content: "Sorry, I can't help with that."}}}}) {
+		t.Fatal("prose taken for a cut-off reply")
+	}
+}
+
+// A batch sent again in halves keeps the half that came back when the other fails every time, as a model that merges two lines into one does: those lines alone are left untranslated.
+func TestChatTranslatorKeepsTheHalfThatCameBack(t *testing.T) {
+	srv, _ := fakeChat(t, func(lines []string) string {
+		switch {
+		case len(lines) == 8:
+			return upper(lines[:7])
+		case lines[0] == "line 4":
+			return `["LINE 4 AND 5 AND 6 AND 7"]`
+		}
+		return upper(lines)
+	})
+	segments := make([]core.Segment, 8)
+	for i := range segments {
+		segments[i] = core.Segment{Text: fmt.Sprintf("line %d", i)}
+	}
+	got, err := ChatTranslator{BaseURL: srv.URL + "/v1", APIKey: "secret", Model: "m"}.Translate(context.Background(), segments, "English")
+	var partial *UntranslatedError
+	if !errors.As(err, &partial) || partial.Lines != 4 || len(got) != 8 || got[3].Text != "LINE 3" || got[4].Text != "" {
+		t.Fatalf("got %+v, %v", got, err)
 	}
 }
