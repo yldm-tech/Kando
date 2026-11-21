@@ -147,6 +147,8 @@ func TestScreenshotsStorePlayer(t *testing.T) {
 	p.app.WaitFor("id:player-card >> id:player-ruby >> text:げんき", time.Minute)
 	storeCloseRecap(p)
 	shot(p, "store-player")
+	// 元気 shows under its reading before the dictionary that cuts Japanese is read in the background, but a tap looks it up only once it is: the line is cut into its words then, です among them.
+	p.app.WaitUntil(time.Minute, func() bool { return p.app.Exists(`id:player-card >> text:"です"`) })
 	p.app.Press("id:player-card >> text:元気")
 	p.app.WaitFor("id:player-word-meaning", wait)
 	// The sheet slides up over its transition.
