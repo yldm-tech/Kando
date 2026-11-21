@@ -504,6 +504,8 @@ func (m *making) run(length time.Duration, language string, watch Watcher) core.
 	// failing are the units of the translation's line of work that failed one after another, none made since, and failures how many times they failed. The next draft or final proofread passes over them while another is needed: a cell that fails whatever is sent is then given up on its own (track.Attempts), while a service that fails whatever cell is sent fails maxFailedBatches different ones, or as many times the only ones left, and the film is made without it.
 	failing := map[track.Unit]bool{}
 	failures := 0
+	// refusing is whether the last of those failures was the service refusing the account (a key it rejects, or no credit left, TranslateAuth and TranslateQuota), which no cell mends: those are counted one after another whatever was sent, and the next draft does not wait for another cell to send.
+	refusing := false
 	// last is the work left when the making last looked, which once it is done says which blocks' final proofread holds (keepProofs).
 	var last track.Plan
 	defer func() {
@@ -557,6 +559,10 @@ func (m *making) run(length time.Duration, language string, watch Watcher) core.
 				m.spawn(func() { m.draft(ctx, in, language, draftCh) })
 			case len(p.Draft) > 0:
 				p.Draft = failingLast(p.Draft, failing)
+				// Every cell to draft failing, while a run hears the cells after them, the next draft waits for one of those, so a cell that fails whatever is sent is not tried again at once, its attempts gone before the service had another cell to answer.
+				if failing[p.Draft[0]] && !refusing && hearStop != nil && len(p.Hear) > 0 {
+					break
+				}
 				if group, ready := m.draftGroup(gen, p, plan.Playhead); ready {
 					drafting = true
 					ctx, in, language := m.ctx, m.draftOf(gen, group), plan.Language
@@ -622,17 +628,19 @@ func (m *making) run(length time.Duration, language string, watch Watcher) core.
 			}
 		case d := <-draftCh:
 			drafting = false
-			// given is whether the service is given up on with this failure: maxFailedBatches different units failed one after another, or as many failures of the only units left to send.
+			// given is whether the service is given up on with this failure: maxFailedBatches different units failed one after another, or as many failures of the only units left to send. Cells still to hear are units left to send too, as their drafts come once they are heard.
 			given := false
 			if d.err != nil && len(d.in.units) > 0 {
 				failed := maps.Clone(failing)
 				failed[d.in.units[0]] = true
-				others := slices.ContainsFunc(append(slices.Clone(p.Draft), p.Final...), func(u track.Unit) bool { return !failed[u] })
-				given = len(failed) >= maxFailedBatches || failures+1 >= maxFailedBatches && !others
+				others := len(p.Hear) > 0 || slices.ContainsFunc(append(slices.Clone(p.Draft), p.Final...), func(u track.Unit) bool { return !failed[u] })
+				refused := refusesAccount(d.err)
+				given = len(failed) >= maxFailedBatches || failures+1 >= maxFailedBatches && (!others || refused)
 			}
 			if d.err == nil {
 				clear(failing)
 				failures = 0
+				refusing = false
 				m.served.Store(true)
 			}
 			switch {
@@ -662,6 +670,7 @@ func (m *making) run(length time.Duration, language string, watch Watcher) core.
 			default:
 				failing[d.in.units[0]] = true
 				failures++
+				refusing = refusesAccount(d.err)
 				for _, u := range d.in.units {
 					m.append(u.Failed(d.err.Error()))
 				}
@@ -1426,6 +1435,12 @@ type draftInput struct {
 	// final is the final proofread of a block (its one unit), its lines' translations as they are now in translations.
 	final        bool
 	translations []core.Segment
+}
+
+// refusesAccount reports whether err is the AI service refusing the account rather than the request: a key it rejects, or an account out of credit (TranslateAuth, TranslateQuota), which fails whatever is sent.
+func refusesAccount(err error) bool {
+	kind := ClassifyTranslate(err.Error())
+	return kind == TranslateAuth || kind == TranslateQuota
 }
 
 // failingLast is units, the work of one kind the plan needs, with those failing one after another (making.run) moved after the others, so the next to send is one not failing while there is one.

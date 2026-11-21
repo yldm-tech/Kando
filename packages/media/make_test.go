@@ -1259,6 +1259,81 @@ func TestMakeGivesUpACellThatAlwaysFailsAlone(t *testing.T) {
 	}
 }
 
+// slowHearFilm is a makeFilm whose Hear takes a while over each line, longer than a draft that fails takes to come back.
+type slowHearFilm struct{ *makeFilm }
+
+func (f slowHearFilm) Hear(ctx context.Context, video string, from, to time.Duration, heard func(core.Segment)) (string, error) {
+	return f.makeFilm.Hear(ctx, video, from, to, func(s core.Segment) {
+		select {
+		case <-ctx.Done():
+		case <-time.After(20 * time.Millisecond):
+		}
+		heard(s)
+	})
+}
+
+// The first cell's draft failing whatever is sent, before the cell after it is heard, is given up on its own and the rest of the film is translated, rather than tried again at once until the service is given up for the whole film.
+func TestMakeGivesUpAFirstCellThatFailsBeforeTheNextIsHeard(t *testing.T) {
+	job, _ := makeJob(t)
+	job.SpeechLanguage = "ja"
+	f := &makeFilm{length: 150 * time.Second, language: "ja", translate: func(s string) (string, error) {
+		if s == "line 0s" {
+			return "", &statusError{code: 400, status: "400 Bad Request", detail: "content_filter"}
+		}
+		return "译:" + s, nil
+	}}
+	done, _ := makeFilmOf(t, slowHearFilm{f}, job, 0)
+	if done.Stage != core.StageComplete || done.TranslationErr != "" || done.Untranslated != 3 {
+		t.Fatalf("job = %s %q untranslated %d, drafts %q", done.Stage, done.TranslationErr, done.Untranslated, f.translated)
+	}
+	tries := 0
+	for _, texts := range f.translated {
+		if slices.Contains(texts, "line 0s") {
+			tries++
+		}
+	}
+	if tries != track.Attempts {
+		t.Fatalf("the first cell tried %d times, want %d: drafts %q", tries, track.Attempts, f.translated)
+	}
+}
+
+// A service failing every cell is still given up after maxFailedBatches drafts while the film is heard slower than a draft fails.
+func TestMakeGivesUpAServiceThatFailsEveryCellWhileItIsHeard(t *testing.T) {
+	job, _ := makeJob(t)
+	job.SpeechLanguage = "ja"
+	f := &makeFilm{length: 150 * time.Second, language: "ja", translate: func(string) (string, error) {
+		return "", &statusError{code: 400, status: "400 Bad Request", detail: "model not found"}
+	}}
+	done, _ := makeFilmOf(t, slowHearFilm{f}, job, 0)
+	if done.Stage != core.StageComplete || done.TranslationErr == "" || done.Untranslated != 15 {
+		t.Fatalf("job = %s %q untranslated %d", done.Stage, done.TranslationErr, done.Untranslated)
+	}
+	if len(f.translated) != maxFailedBatches {
+		t.Fatalf("%d drafts sent, want %d: %q", len(f.translated), maxFailedBatches, f.translated)
+	}
+}
+
+// A key the service rejects is given up after maxFailedBatches drafts one after another, without waiting for more of the film to be heard: no cell mends it.
+func TestMakeGivesUpARejectedKeyWithoutWaitingForCells(t *testing.T) {
+	job, _ := makeJob(t)
+	job.SpeechLanguage = "ja"
+	f := &makeFilm{length: 150 * time.Second, language: "ja", translate: func(string) (string, error) {
+		return "", &statusError{code: 401, status: "401 Unauthorized", detail: "invalid key"}
+	}}
+	done, _ := makeFilmOf(t, slowHearFilm{f}, job, 0)
+	if done.Stage != core.StageComplete || done.TranslationErr == "" {
+		t.Fatalf("job = %s %q", done.Stage, done.TranslationErr)
+	}
+	for i, texts := range f.translated {
+		if !slices.Equal(texts, []string{"line 0s", "line 10s", "line 20s"}) {
+			t.Fatalf("draft %d sent %q, want the first cell each time", i, texts)
+		}
+	}
+	if len(f.translated) != maxFailedBatches {
+		t.Fatalf("%d drafts sent, want %d", len(f.translated), maxFailedBatches)
+	}
+}
+
 // A film translated again that gave up a cell fails, leaving the film as it was; translated again once the service translates it, it begins anew rather than go on with what gave up, which would fail at once.
 func TestTranslatingAgainAfterACellWasGivenUp(t *testing.T) {
 	job, _ := makeJob(t)
