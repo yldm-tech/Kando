@@ -28,9 +28,15 @@ func closeWordSheet(p *phone) {
 func studyPlayer(t *testing.T, d *synctest.Desktop) (*phone, store.Film) {
 	t.Helper()
 	p, f := openStudy(t, d)
+	playStudy(p)
+	return p, f
+}
+
+// playStudy reports the talk opened in p's player playing, as studyPlayer does, to the middle of its first line.
+func playStudy(p *phone) {
+	p.t.Helper()
 	p.app.Play("id:player-video", core.VideoInfo{Duration: 10 * sec, Size: core.Size{Width: 1920, Height: 1080}})
 	p.at(1500 * time.Millisecond)
-	return p, f
 }
 
 // openStudy opens the talk in the player as studyPlayer does, once its library is known, without reporting the video's playing, which only headless tests can: on a target its card shows the first line.
@@ -44,16 +50,22 @@ func openStudyIn(t *testing.T, d *synctest.Desktop, dir string) (*phone, store.F
 	t.Helper()
 	f := keepTalkFrom(t, dir, store.DesktopID(d.Fingerprint))
 	p := startPhone(t, dir, pairedWith(t, d, dir))
+	openKeptStudy(p, f)
+	return p, f
+}
+
+// openKeptStudy opens f, the talk kept on p, in the player as openStudy does, once its library is known.
+func openKeptStudy(p *phone, f store.Film) {
+	p.t.Helper()
 	p.app.WaitFor(talkRow(f.Desktop), wait)
 	p.app.Press(talkRow(f.Desktop))
 	p.app.WaitFor("id:player-video", wait)
 	p.app.WaitUntil(wait, func() bool { return p.app.Exists("id:player-line") })
 	// The film's library is asked for as it opens, as the talk was kept without it.
 	p.app.WaitUntil(wait, func() bool {
-		films, _ := store.Open(dir).Films()
+		films, _ := store.Open(p.dir).Films()
 		return len(films) == 1 && films[0].LibraryID == "lib"
 	})
-	return p, f
 }
 
 // The card shows the line playing with its place among the film's lines; Hidden blurs both its lines, and a tap shows the one tapped until the next line plays.

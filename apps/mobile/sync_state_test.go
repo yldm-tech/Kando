@@ -121,11 +121,16 @@ func TestUseThisKeepsTheVersionPicked(t *testing.T) {
 // The player sends where the film was left to its computer as it is held, minimized or left, not every few seconds while it plays on, so the computer and the other devices go on from there.
 func TestWhereAFilmWasLeftGoesToTheComputer(t *testing.T) {
 	d := newDesktop(t)
-	p, _ := studyPlayer(t, d)
-	puts := d.Puts()
+	dir := t.TempDir()
+	f := keepTalkFrom(t, dir, store.DesktopID(d.Fingerprint))
+	p := startPhone(t, dir, pairedWith(t, d, dir))
+	// The film opens once the sync the phone starts with is done: opened while it runs, the film's own sync of the library would wait for it and run after it, at any time after the film plays on, and carry the position kept meanwhile as a sync is meant to, which is no call of the player's.
+	p.waitLearned(f.Desktop)
+	openKeptStudy(p, f)
+	playStudy(p)
 	p.at(6 * sec)
 	time.Sleep(300 * time.Millisecond)
-	if d.Puts() != puts {
+	if _, ok := d.State("lib", sync.KindPosition, "f1"); ok {
 		t.Fatal("the position went to the computer while the film played on")
 	}
 	p.app.Press("id:player-minimize")
