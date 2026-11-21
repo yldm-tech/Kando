@@ -200,6 +200,7 @@ func (a *app) Subs() film.Subs {
 	if a.player.subs.showDrafts {
 		subs.Drafts = a.player.subs.drafts
 	}
+	subs.Gaps, subs.Making = a.player.subs.gaps, a.player.subs.making
 	return subs
 }
 

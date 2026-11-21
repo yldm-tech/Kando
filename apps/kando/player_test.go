@@ -2,6 +2,7 @@ package main
 
 import (
 	"errors"
+	"fmt"
 	"math"
 	"os"
 	"path/filepath"
@@ -2815,5 +2816,44 @@ func TestPlayerShowsThePosterOfSound(t *testing.T) {
 	refresh(bt, b)
 	if b.PlaySound() {
 		t.Fatal("a stream was taken for sound before its picture came")
+	}
+}
+
+// TestAFilmBeingMadeListsThePartsNotHeardYet opens a film while it is made, its speech heard for its first minute and the rest waiting: once the player knows the film's length, the subtitle list shows the last half minute as a part not made yet, and none once the film is done.
+func TestAFilmBeingMadeListsThePartsNotHeardYet(t *testing.T) {
+	p := &makerPipeline{length: 90 * time.Second, released: make(chan struct{})}
+	a, tt, updates := newTestApp(t, p)
+	video := filepath.Join(t.TempDir(), "talk", "talk.mp4")
+	writeFakeClip(t, video, 90, "202020", "101010")
+	if err := a.Enqueue(core.FileURL(video)); err != nil {
+		t.Fatal(err)
+	}
+	refresh(tt, a)
+	id := a.library.Jobs[0].ID
+	queueUntilState(t, updates, func() bool { return stageOf(t, a, id).SubtitlePath != "" })
+	item, ok := films.Find(a.films(), id)
+	if !ok {
+		t.Fatalf("no film for %s", id)
+	}
+	playerOpenFilm(t, a, tt, updates, item)
+	tt.Play("id:film-video", ns.VideoInfo{Duration: 90 * time.Second})
+	refresh(tt, a)
+	// The part not made yet starts with the half minute after the last line shown, and goes to the end.
+	lines := a.player.subs.machine
+	last := lines[len(lines)-1]
+	from := ((last.Start+last.End)/2/(30*time.Second) + 1) * 30 * time.Second
+	want := []film.Gap{{Start: from, End: 90 * time.Second}}
+	if got := a.Subs().Gaps; from >= 90*time.Second || !slices.Equal(got, want) {
+		t.Fatalf("while the film is made, its lines up to %v, its gaps are %+v, want %+v", last.End, got, want)
+	}
+	if !tt.Exists(`label:"` + testlocale.Messages().FilmGapNotMade(fmt.Sprintf("%d:%02d", int(from.Minutes()), int(from.Seconds())%60), "1:30") + `"`) {
+		t.Fatalf("the subtitle list does not show the part not made yet: %q", tt.Texts())
+	}
+	close(p.released)
+	settle(t, a, tt, updates)
+	waitUntil(t, tt, a, updates, func() bool { return a.player.subs.ready && len(a.player.subs.machine) == 9 })
+	refresh(tt, a)
+	if got := a.Subs().Gaps; len(got) != 0 || tt.Exists("id:film-cue-gap") {
+		t.Fatalf("done, the film has gaps %+v", got)
 	}
 }

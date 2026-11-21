@@ -291,7 +291,7 @@ func (s *screen) subsTab(cx *ns.Scope) ns.Node {
 		if proofs() {
 			return s.proofView(cx)
 		}
-		return s.cueList(cx, cues, shown, func() bool { return savedOnly() && query() == "" })
+		return s.cueList(cx, cues, shown, func() bool { return savedOnly() && query() == "" }, func() bool { return !savedOnly() && query() == "" })
 	})
 	// Return in the search plays from the next line that holds it, Shift+Return from the one before.
 	step := func(back bool) {
@@ -530,8 +530,8 @@ func (s *screen) searchField(cx *ns.Scope, step func(back bool)) ns.Node {
 	}}
 }
 
-// cueList is the subtitle list, narrowed to shown, the indexes of the cues that hold the search, the playing one lit and scrolled into view as it changes. savedOnly reports that it shows the saved lines alone, without a search, so an empty list says none is saved rather than that nothing matches.
-func (s *screen) cueList(cx *ns.Scope, cues func() []core.Segment, shown func() []int, savedOnly func() bool) ns.Node {
+// cueList is the subtitle list, narrowed to shown, the indexes of the cues that hold the search, the playing one lit and scrolled into view as it changes. savedOnly reports that it shows the saved lines alone, without a search, so an empty list says none is saved rather than that nothing matches; whole that it shows every line, neither searched nor the saved alone, when it shows the parts of a film being made that have no lines yet (Subs.Gaps) as rows of their own, in their places, the one the film plays in lit and followed as a line is.
+func (s *screen) cueList(cx *ns.Scope, cues func() []core.Segment, shown func() []int, savedOnly, whole func() bool) ns.Node {
 	a := s.a
 	current := ns.NewMemo(cx, func() int {
 		a.Track()
@@ -540,46 +540,71 @@ func (s *screen) cueList(cx *ns.Scope, cues func() []core.Segment, shown func() 
 		}
 		return s.playingCue(cues())
 	}).Get
+	gaps := ns.NewMemoFunc(cx, live.Func(a, func() []Gap {
+		if !whole() {
+			return nil
+		}
+		return a.Subs().Gaps
+	}), slices.Equal[[]Gap]).Get
+	making := live.Memo(cx, a, func() bool { return a.Subs().Making })
+	// playingGap is the gap the film plays in while no line plays, -1 otherwise.
+	playingGap := ns.NewMemo(cx, func() int {
+		a.Track()
+		if a.Play() == nil || current() >= 0 {
+			return -1
+		}
+		return gapAt(gaps(), s.playhead()-a.Delay())
+	}).Get
+	rows := ns.NewMemoFunc(cx, func() []listRow { return listRows(cues(), shown(), gaps()) }, slices.Equal[[]listRow]).Get
 	clockWidth := cueClockWidth(cx, a, cues)
 	list := &ns.Ref{}
-	// The list knows its cues by cueKeyOf, not by index, as lines that come in before them move them on.
-	keyOf := func(i int) cueKey { return cueKeyOf(ns.Untracked(cx, cues), i) }
-	// seen is the first and the last cue in view, as the list reports its viewable rows, the zero cueKey before it has.
+	// The list knows its rows by rowKeyOf, not by index, as lines that come in before them move them on.
+	keyOf := func(r listRow) cueKey { return rowKeyOf(ns.Untracked(cx, cues), ns.Untracked(cx, gaps), r) }
+	// target is the row the list follows: the line playing, or the gap the film plays in; the zero cueKey for none.
+	target := func() cueKey {
+		if cur := current(); cur >= 0 {
+			return keyOf(listRow{cue: cur, gap: -1})
+		}
+		if g := playingGap(); g >= 0 {
+			return keyOf(listRow{cue: -1, gap: g})
+		}
+		return cueKey{}
+	}
+	// seen is the first and the last row in view, as the list reports its viewable rows, the zero cueKey before it has.
 	seen := ns.NewSignal(cx, [2]cueKey{})
 	inView := func(k cueKey) bool {
 		r := ns.Untracked(cx, seen.Get)
 		return k.ok && r[0].ok && !k.before(r[0]) && !r[1].before(k)
 	}
-	// anchor is the cue the list last scrolled to; away is set while the list was left scrolled off it, the user reading elsewhere in it, so it does not follow the film until the pill brings it back, the user scrolls the playing cue into view, or moves the picture.
+	// anchor is the row the list last scrolled to; away is set while the list was left scrolled off it, the user reading elsewhere in it, so it does not follow the film until the pill brings it back, the user scrolls the playing row into view, or moves the picture.
 	var anchor cueKey
 	away := ns.NewSignal(cx, false)
-	follow := func(cur int) {
-		for row, i := range ns.Untracked(cx, shown) {
-			if i == cur {
+	follow := func(k cueKey) {
+		for row, r := range ns.Untracked(cx, rows) {
+			if keyOf(r) == k {
 				list.ScrollToIndex(row, true)
-				anchor = keyOf(cur)
+				anchor = k
 				away.Set(false)
 				return
 			}
 		}
 	}
 	jumps := live.Memo(cx, a, a.Jumps)
-	// The list follows the playing cue as it changes, or as the user moves the picture (Jumps), not as it is scrolled by hand, narrowed by the search, or as lines come in before it.
+	// The list follows the playing row as it changes, or as the user moves the picture (Jumps), not as it is scrolled by hand, narrowed by the search, or as lines come in before it.
 	followed, started, jumped := cueKey{}, false, ns.Untracked(cx, jumps)
 	cx.Effect(func() {
-		cur, j := current(), jumps()
-		shown()
+		k, j := target(), jumps()
+		rows()
 		moved := j != jumped
 		jumped = j
-		k := keyOf(cur)
 		if started && k == followed && !moved {
 			return
 		}
 		followed, started = k, true
 		switch {
-		case cur < 0:
+		case !k.ok:
 		case moved || !anchor.ok || inView(anchor):
-			follow(cur)
+			follow(k)
 		default:
 			away.Set(true)
 		}
@@ -594,17 +619,17 @@ func (s *screen) cueList(cx *ns.Scope, cues func() []core.Segment, shown func() 
 			}
 		}
 		seen.Set(r)
-		// The user scrolled the playing cue back into view: the list follows it again from there.
-		if k := keyOf(current()); away.Get() && inView(k) {
+		// The user scrolled the playing row back into view: the list follows it again from there.
+		if k := target(); away.Get() && inView(k) {
 			anchor = k
 			away.Set(false)
 		}
 	}
-	pill := ns.Show{When: func() bool { return away.Get() && current() >= 0 }, Then: func(cx *ns.Scope) ns.Node {
+	pill := ns.Show{When: func() bool { return away.Get() && target().ok }, Then: func(cx *ns.Scope) ns.Node {
 		label := func() string { return locales.FilmBackToCurrentLine(cx) }
 		return ns.View{PointerEvents: ns.PointerEventsBoxNone, Style: ns.Style{Position: ns.Absolute, Left: ns.Pt(0), Right: ns.Pt(0), Bottom: ns.Pt(10), AlignItems: ns.AlignCenter},
 			Children: []ns.Node{base.Button{TestID: "film-cues-current", LabelFunc: label,
-				OnPress: func(ns.PressEvent) { follow(current()) },
+				OnPress: func(ns.PressEvent) { follow(target()) },
 				Style: ns.Style{Height: ns.Pt(28), Padding: ns.Symmetric(0, 12), CornerRadius: 14, JustifyContent: ns.JustifyCenter, Background: ns.RGBA(0x3A3A40, 0.95),
 					Shadows: []ns.BoxShadow{theme.GlassTip.Rim(), theme.ShadowHUD},
 					Hover:   &ns.Style{Background: ns.RGBA(0x4A4A52, 0.95)}, FocusVisible: ui.FocusRing(cx, -2)},
@@ -612,9 +637,9 @@ func (s *screen) cueList(cx *ns.Scope, cues func() []core.Segment, shown func() 
 			}}}
 	}}
 	return ns.Show{
-		When: func() bool { return len(shown()) > 0 },
+		When: func() bool { return len(rows()) > 0 },
 		Then: func(cx *ns.Scope) ns.Node {
-			return ns.View{Style: ns.Style{FlexGrow: 1, FlexShrink: 1, MinHeight: ns.Pt(0)}, Children: []ns.Node{s.cueRows(cx, list, cues, shown, current, clockWidth, viewable), pill}}
+			return ns.View{Style: ns.Style{FlexGrow: 1, FlexShrink: 1, MinHeight: ns.Pt(0)}, Children: []ns.Node{s.cueRows(cx, list, cues, rows, gaps, current, playingGap, making, clockWidth, viewable), pill}}
 		},
 		Else: func(cx *ns.Scope) ns.Node {
 			return panelNote(func() string {
@@ -627,7 +652,29 @@ func (s *screen) cueList(cx *ns.Scope, cues func() []core.Segment, shown func() 
 	}
 }
 
-// cueKey is a line's identity in the subtitle list: when it starts, and which of the lines that start then it is. A line keeps it as lines come in before it, as they do for a film made while it plays, which reaches the part before where it was opened last, so the rows read stay in place and the list follows the line playing, not its index. The saved lines know a line by its start too. ok is false for no line.
+// listRow is a row of the subtitle list: a line, by its index in the cues, or a gap of the film with no lines yet, by its index in the gaps; the other is -1.
+type listRow struct{ cue, gap int }
+
+// listRows are the rows of the subtitle list: the cues of shown, in their order, and the gaps among them where they come, a gap before the line that starts where it does.
+func listRows(cues []core.Segment, shown []int, gaps []Gap) []listRow {
+	out := make([]listRow, 0, len(shown)+len(gaps))
+	g := 0
+	for _, i := range shown {
+		if i < 0 || i >= len(cues) {
+			continue
+		}
+		for ; g < len(gaps) && gaps[g].Start <= cues[i].Start; g++ {
+			out = append(out, listRow{cue: -1, gap: g})
+		}
+		out = append(out, listRow{cue: i, gap: -1})
+	}
+	for ; g < len(gaps); g++ {
+		out = append(out, listRow{cue: -1, gap: g})
+	}
+	return out
+}
+
+// cueKey is a row's identity in the subtitle list: when its line starts, and which of the lines that start then it is, or, nth -1, the gap that starts then. A line keeps it as lines come in before it, as they do for a film made while it plays, which reaches the part before where it was opened last, so the rows read stay in place and the list follows the line playing, not its index. The saved lines know a line by its start too. ok is false for no row.
 type cueKey struct {
 	start time.Duration
 	nth   int
@@ -646,44 +693,101 @@ func cueKeyOf(cues []core.Segment, i int) cueKey {
 	return cueKey{start: cues[i].Start, nth: nth, ok: true}
 }
 
-// before reports whether k is a line that shows before o.
+// rowKeyOf is the key of row r of the list: its line's (cueKeyOf), or its gap's, which shows before a line that starts where it does.
+func rowKeyOf(cues []core.Segment, gaps []Gap, r listRow) cueKey {
+	if r.gap >= 0 {
+		if r.gap >= len(gaps) {
+			return cueKey{}
+		}
+		return cueKey{start: gaps[r.gap].Start, nth: -1, ok: true}
+	}
+	return cueKeyOf(cues, r.cue)
+}
+
+// before reports whether k is a row that shows before o.
 func (k cueKey) before(o cueKey) bool {
 	return k.start < o.start || k.start == o.start && k.nth < o.nth
 }
 
-// cueRows is the list of the cues of shown, the current one lit, which reports the cues in view to viewable.
-func (s *screen) cueRows(cx *ns.Scope, list *ns.Ref, cues func() []core.Segment, shown func() []int, current func() int, clockWidth func() ns.Points, viewable func(ns.ViewableItems)) ns.Node {
+// cueRows is the list of rows, the playing line or gap lit, which reports the rows in view to viewable.
+func (s *screen) cueRows(cx *ns.Scope, list *ns.Ref, cues func() []core.Segment, rows func() []listRow, gaps func() []Gap, current, playingGap func() int, making func() bool, clockWidth func() ns.Points, viewable func(ns.ViewableItems)) ns.Node {
 	return ns.List{TestID: "film-cues", Ref: list, Style: ns.Style{FlexGrow: 1, MinHeight: ns.Pt(0)}, EstimatedSize: 56,
 		OnViewableItemsChange: viewable,
-		Count:                 func() int { return len(shown()) },
+		Count:                 func() int { return len(rows()) },
 		Key: func(i int) any {
-			if rows := shown(); i < len(rows) {
-				return cueKeyOf(cues(), rows[i])
+			if rs := rows(); i < len(rs) {
+				return rowKeyOf(cues(), gaps(), rs[i])
 			}
 			return i
 		},
 		Row: func(cx *ns.Scope, row ns.ListRow) ns.Node {
-			cue := func() core.Segment {
-				rows := shown()
-				if i := row.Index(); i < len(rows) && rows[i] < len(cues()) {
-					return cues()[rows[i]]
+			at := func() listRow {
+				if rs, i := rows(), row.Index(); i < len(rs) {
+					return rs[i]
 				}
-				return core.Segment{}
+				return listRow{cue: -1, gap: -1}
 			}
-			on := func() bool {
-				rows := shown()
-				i := row.Index()
-				return i < len(rows) && rows[i] == current()
-			}
-			index := func() int {
-				if rows, i := shown(), row.Index(); i < len(rows) {
-					return rows[i]
+			return ns.Show{When: func() bool { return at().gap >= 0 }, Then: func(cx *ns.Scope) ns.Node {
+				gap := func() Gap {
+					if g, list := at().gap, gaps(); g >= 0 && g < len(list) {
+						return list[g]
+					}
+					return Gap{}
 				}
-				return -1
-			}
-			return s.cueRow(cx, cue, index, on, clockWidth)
+				on := func() bool { g := at().gap; return g >= 0 && g == playingGap() }
+				return s.gapRow(cx, gap, on, making)
+			}, Else: func(cx *ns.Scope) ns.Node {
+				cue := func() core.Segment {
+					if i := at().cue; i >= 0 && i < len(cues()) {
+						return cues()[i]
+					}
+					return core.Segment{}
+				}
+				on := func() bool { i := at().cue; return i >= 0 && i == current() }
+				index := func() int { return at().cue }
+				return s.cueRow(cx, cue, index, on, clockWidth)
+			}}
 		}}
 }
+
+// gapRow is the row of the subtitle list for a part of a film being made that has no lines yet: where it starts and ends, and that it is not made yet, being made, while the film plays in it and its job works on it, or that its speech could not be recognized. It is lit while the film plays in it, and a click plays from its start, which has the film made there next, as a line's row plays its line.
+func (s *screen) gapRow(cx *ns.Scope, gap func() Gap, on, making func() bool) ns.Node {
+	a := s.a
+	text := func() string {
+		g := gap()
+		from, to := cueClock(g.Start), cueClock(g.End)
+		switch {
+		case g.Failed:
+			return locales.FilmGapFailed(cx, from, to)
+		case on() && making():
+			return locales.FilmGapMaking(cx, from, to)
+		}
+		return locales.FilmGapNotMade(cx, from, to)
+	}
+	return base.Button{TestID: "film-cue-gap", LabelFunc: text, Selected: on,
+		OnPress: live.On(a, func(ns.PressEvent) { a.Seek(gap().Start + a.Delay()) }),
+		Style: ns.Style{Padding: ns.Symmetric(9, 10), Margin: ns.Edges{Top: 3, Bottom: 3}, CornerRadius: 10, BorderWidth: 1, BorderStyle: ns.BorderDashed, BorderColor: cueGapBorder,
+			Hover: &ns.Style{Background: panelLine}, FocusVisible: ui.FocusRing(cx, -2)},
+		StyleFunc: func() ns.Style {
+			if on() {
+				return ns.Style{Background: panelCurrent, BorderStyle: ns.BorderSolid}
+			}
+			return ns.Style{}
+		},
+		Children: []ns.Node{ns.Text{ContentFunc: text, Style: ns.Style{FontSize: 12, LineHeight: 16, Color: onGlass}, StyleFunc: func() ns.Style {
+			switch {
+			case gap().Failed:
+				return ns.Style{Color: scrubMissing}
+			case on():
+				return ns.Style{}
+			}
+			return ns.Style{Opacity: ns.Alpha(0.6)}
+		}}},
+	}
+}
+
+// cueGapBorder is the dashed edge of a row of the subtitle list for a part with no lines yet.
+var cueGapBorder = ns.RGBA(0xFFFFFF, 0.2)
 
 // cueClockStyle is the style of a line's start in the subtitle list.
 var cueClockStyle = ns.Style{FontSize: 11, LineHeight: 15, FontVariant: ns.FontTabularNums, Color: onGlass, Opacity: ns.Alpha(0.7), FlexShrink: 0, Margin: ns.Edges{Top: 2}}

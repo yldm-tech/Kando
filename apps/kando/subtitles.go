@@ -77,6 +77,10 @@ type subtitleView struct {
 	// reading is a read of the same film's lines again under way (reloadOpenSubtitles), as after a job writes them out: the lines read before go on showing, with the line selected and a correction being typed, until it lands and they are swapped in place. Nothing writes the corrections meanwhile (correctLoaded), as the read would bring back what they held before. readGen tells the read that lands from one begun before it.
 	reading bool
 	readGen int
+	// heard and givenUp are the cells of the film's lines the speech recognition heard and gave up on (track.Doc.Heard), as read with them; gaps are the parts of a film being made with no lines yet that they leave (film.Gaps), and making whether its job works on it now, told after each change (playerGapsFollow).
+	heard, givenUp map[int]bool
+	gaps           []film.Gap
+	making         bool
 }
 
 // loadSubtitles reads the lines of the film whose video is at video off the engine's goroutine: its subtitle document, with path, the subtitle file it shows, taken in where it changed (media.ReadTrack), and the user's corrections of the film (media.LoadCorrections), and the frames of the 片段 its lines cut the film into once read (loadClipFrames). An empty path means this film has no subtitle yet; a file that is gone or cannot be read says so, as the film's lines come from that file until its subtitles are made into the document itself.
@@ -121,6 +125,7 @@ func (a *app) subtitlesRead() {
 		edits, editsErr := media.LoadCorrections(media.CorrectionsPath(path))
 		var cues []core.Segment
 		var drafts map[core.Span]bool
+		var heard, givenUp map[int]bool
 		msg := ""
 		if statErr != nil {
 			if errors.Is(statErr, os.ErrNotExist) {
@@ -133,6 +138,7 @@ func (a *app) subtitlesRead() {
 		} else {
 			cues = track.Bilingual(doc.View())
 			drafts = media.DraftSpans(doc, language)
+			heard, givenUp = doc.Heard(doc.Shown())
 		}
 		update(func() {
 			subs := &a.player.subs
@@ -144,6 +150,7 @@ func (a *app) subtitlesRead() {
 				subs.held = subtitlesHold(was, cues, a.playerLineAt())
 			}
 			subs.machine, subs.machineDrafts = cues, drafts
+			subs.heard, subs.givenUp = heard, givenUp
 			subs.edits, subs.editsErr = edits, editsErr != nil
 			a.playerCorrectSubs()
 			subs.err = msg
@@ -156,6 +163,22 @@ func (a *app) subtitlesRead() {
 			a.loadClipFrames()
 		})
 	}()
+}
+
+// playerGapsFollow tells which parts of the open film have no lines yet as it is made (film.Gaps), from the cells its lines were read with and the length the player found, and whether its job works on it now, and reports whether that changed. Only a film being made for the first time has them: a film done is heard whole, and one made again shows its own lines where the redo has not.
+func (a *app) playerGapsFollow() bool {
+	subs := &a.player.subs
+	var gaps []film.Gap
+	making := false
+	if item, ok := a.openFilm(); ok && item.Key == subs.key && subs.ready && subs.err == "" && item.Stage != "" && !item.Stage.Done() && !a.filmRedoing(item.JobID) {
+		gaps = film.Gaps(subs.heard, subs.givenUp, subs.machine, a.PlayLength())
+		making = item.Stage != core.StageQueued
+	}
+	if slices.Equal(gaps, subs.gaps) && making == subs.making {
+		return false
+	}
+	subs.gaps, subs.making = gaps, making
+	return true
 }
 
 // heldCue is a line kept as it showed while it is on screen: its span, and the text it showed, which it shows until the playhead leaves it.

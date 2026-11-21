@@ -572,6 +572,9 @@ var Parameters = map[string][]string{
 	"FilmFaceBold":                             {"line"},
 	"FilmFaceColor":                            {"line", "color"},
 	"FilmFaceSize":                             {"line"},
+	"FilmGapFailed":                            {"from", "to"},
+	"FilmGapMaking":                            {"from", "to"},
+	"FilmGapNotMade":                           {"from", "to"},
 	"FilmInfoLanguages":                        {"spoken", "target"},
 	"FilmLineOf":                               {"line", "total"},
 	"FilmLoopLines":                            {"from", "to"},
@@ -1306,6 +1309,9 @@ type Translation struct {
 	FilmFaceBold                             func(line string) string
 	FilmFaceColor                            func(line string, color string) string
 	FilmFaceSize                             func(line string) string
+	FilmGapFailed                            func(from string, to string) string
+	FilmGapMaking                            func(from string, to string) string
+	FilmGapNotMade                           func(from string, to string) string
 	FilmInfoLanguages                        func(spoken string, target string) string
 	FilmLineOf                               func(line int, total int) string
 	FilmLoopLines                            func(from int, to int) string
@@ -24403,6 +24409,15 @@ func Supply(lang string, t Translation) {
 	if t.FilmFaceSize != nil {
 		s.FilmFaceSize = t.FilmFaceSize
 	}
+	if t.FilmGapFailed != nil {
+		s.FilmGapFailed = t.FilmGapFailed
+	}
+	if t.FilmGapMaking != nil {
+		s.FilmGapMaking = t.FilmGapMaking
+	}
+	if t.FilmGapNotMade != nil {
+		s.FilmGapNotMade = t.FilmGapNotMade
+	}
 	if t.FilmInfoLanguages != nil {
 		s.FilmInfoLanguages = t.FilmInfoLanguages
 	}
@@ -33397,6 +33412,102 @@ func FilmFullScreen(cx *core.Scope) string { return For(cx).FilmFullScreen() }
 
 // FilmFullScreen is the package's FilmFullScreen in the language of msgs.
 func (msgs Messages) FilmFullScreen() string { return msgs.text(textFilmFullScreen) }
+
+// FilmGapFailed says "{from}–{to} · Couldn't recognize the speech here"
+// in the language the app shows under cx.
+//
+// Row of the subtitle list of a film made while it plays, for a part whose speech the speech recognition gave up on, so it has no lines. from and to are where the part starts and ends, as the list writes a line's start (0:30, 1:05:00).
+func FilmGapFailed(cx *core.Scope, from string, to string) string {
+	return For(cx).FilmGapFailed(from, to)
+}
+
+// FilmGapFailed is the package's FilmGapFailed in the language of msgs.
+func (msgs Messages) FilmGapFailed(from string, to string) string {
+	if i18n.IsPseudo(msgs.lang) {
+		return i18n.Pseudo(msgs.lang, Messages{lang: Source, mark: true}.FilmGapFailed(from, to))
+	}
+	for lang := msgs.lang; ; lang = i18n.Parent(lang) {
+		if f := supplied[lang].FilmGapFailed; f != nil {
+			return f(from, to)
+		}
+		switch lang {
+		case "", "en":
+			return msgs.arg(from) + "–" + msgs.arg(to) + " · Couldn't recognize the speech here"
+		case "ja":
+			return from + "–" + to + " · ここは音声を認識できませんでした"
+		case "ko":
+			return from + "–" + to + " · 이 부분은 음성을 인식하지 못했습니다"
+		case "zh-Hans":
+			return from + "–" + to + " · 这段没能识别"
+		case "zh-Hant":
+			return from + "–" + to + " · 這段沒能辨識"
+		}
+	}
+}
+
+// FilmGapMaking says "{from}–{to} · Making this part…"
+// in the language the app shows under cx.
+//
+// Row of the subtitle list of a film made while it plays, for the part with no lines yet that the film plays in, while its job makes it. from and to are where the part starts and ends, as the list writes a line's start (0:30, 1:05:00).
+func FilmGapMaking(cx *core.Scope, from string, to string) string {
+	return For(cx).FilmGapMaking(from, to)
+}
+
+// FilmGapMaking is the package's FilmGapMaking in the language of msgs.
+func (msgs Messages) FilmGapMaking(from string, to string) string {
+	if i18n.IsPseudo(msgs.lang) {
+		return i18n.Pseudo(msgs.lang, Messages{lang: Source, mark: true}.FilmGapMaking(from, to))
+	}
+	for lang := msgs.lang; ; lang = i18n.Parent(lang) {
+		if f := supplied[lang].FilmGapMaking; f != nil {
+			return f(from, to)
+		}
+		switch lang {
+		case "", "en":
+			return msgs.arg(from) + "–" + msgs.arg(to) + " · Making this part…"
+		case "ja":
+			return from + "–" + to + " · この部分を作成中…"
+		case "ko":
+			return from + "–" + to + " · 이 부분을 만드는 중…"
+		case "zh-Hans":
+			return from + "–" + to + " · 正在生成这一段…"
+		case "zh-Hant":
+			return from + "–" + to + " · 正在產生這一段…"
+		}
+	}
+}
+
+// FilmGapNotMade says "{from}–{to} · Not made yet"
+// in the language the app shows under cx.
+//
+// Row of the subtitle list of a film made while it plays, for a part whose lines are not made yet, as the film was opened further on; pressing it plays from there, which makes it next. from and to are where the part starts and ends, as the list writes a line's start (0:30, 1:05:00).
+func FilmGapNotMade(cx *core.Scope, from string, to string) string {
+	return For(cx).FilmGapNotMade(from, to)
+}
+
+// FilmGapNotMade is the package's FilmGapNotMade in the language of msgs.
+func (msgs Messages) FilmGapNotMade(from string, to string) string {
+	if i18n.IsPseudo(msgs.lang) {
+		return i18n.Pseudo(msgs.lang, Messages{lang: Source, mark: true}.FilmGapNotMade(from, to))
+	}
+	for lang := msgs.lang; ; lang = i18n.Parent(lang) {
+		if f := supplied[lang].FilmGapNotMade; f != nil {
+			return f(from, to)
+		}
+		switch lang {
+		case "", "en":
+			return msgs.arg(from) + "–" + msgs.arg(to) + " · Not made yet"
+		case "ja":
+			return from + "–" + to + " · まだ作成していません"
+		case "ko":
+			return from + "–" + to + " · 아직 만들지 않음"
+		case "zh-Hans":
+			return from + "–" + to + " · 尚未生成"
+		case "zh-Hant":
+			return from + "–" + to + " · 尚未產生"
+		}
+	}
+}
 
 // FilmInfoLanguages says "{spoken} → {target}"
 // in the language the app shows under cx.

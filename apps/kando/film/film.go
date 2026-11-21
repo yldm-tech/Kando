@@ -269,6 +269,9 @@ type Subs struct {
 	Cues  []core.Segment
 	// Drafts says, cue for cue, which lines are drafts of a film made while it plays, not proofread as a whole yet; nil when none is, as for a film made before or a user who turned the final proofread off.
 	Drafts []bool
+	// Gaps are the parts of a film being made that have no lines yet (Gaps), in the order they come, which the subtitle list shows as rows of their own; none for a film done or made again, which shows its own lines there. Making is true while its job works on it rather than waiting, so the gap the film plays in says it is being made.
+	Gaps   []Gap
+	Making bool
 }
 
 // Draft reports whether cue i is a draft.

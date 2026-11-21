@@ -681,6 +681,47 @@ func TestCueListKeepsItsRowsAsLinesComeBefore(t *testing.T) {
 	}
 }
 
+// TestCueListShowsTheGapsOfAFilmBeingMade lists a film made from where it was opened, its lines heard at its start and from 40:00, the part between not yet and the half minute after 41:00 given up on: each part shows as a row of its own where it comes, the one the film plays in lit and, while the job works on the film, saying it is being made; a click on a gap plays from its start. A search lists the lines alone.
+func TestCueListShowsTheGapsOfAFilmBeingMade(t *testing.T) {
+	a := newFakeApp()
+	m := func(n int) time.Duration { return time.Duration(n) * time.Minute }
+	a.subs.Cues = []core.Segment{
+		{Start: 10 * time.Second, End: 12 * time.Second, Text: "你好。\nHello."},
+		{Start: m(40) + 5*time.Second, End: m(40) + 7*time.Second, Text: "再见。\nBye."},
+	}
+	a.subs.Gaps = []Gap{{Start: 30 * time.Second, End: m(40)}, {Start: m(41), End: m(41) + 30*time.Second, Failed: true}}
+	a.play = &fakePlay{head: m(20), length: m(45)}
+	app := start(t, a)
+	msgs := testlocale.Messages()
+	var rows []string
+	for _, v := range app.Query("id:film-cues >> role:button") {
+		rows = append(rows, v.Props.Label)
+	}
+	notMade, failed := msgs.FilmGapNotMade("0:30", "40:00"), msgs.FilmGapFailed("41:00", "41:30")
+	if want := []string{"0:10 你好。 Hello.", notMade, "40:05 再见。 Bye.", failed}; !slices.Equal(rows, want) {
+		t.Fatalf("rows %q, want %q", rows, want)
+	}
+	// The film plays in the first gap: it is lit, and says it is being made once the job works on the film.
+	gap := app.Find(`label:"` + notMade + `"`)
+	if !gap.Props.Selected {
+		t.Fatal("the gap the film plays in is not lit")
+	}
+	making := msgs.FilmGapMaking("0:30", "40:00")
+	change(app, a, func() { a.subs.Making = true })
+	if !app.Exists(`label:"`+making+`"`) || !app.Find(`label:"`+making+`"`).Props.Selected {
+		t.Fatalf("the gap the film plays in while it is made reads %q", app.Texts())
+	}
+	app.Press(`label:"` + failed + `"`)
+	if got := a.calls[len(a.calls)-1]; got != "seek 41m0s" {
+		t.Fatalf("a click on a gap did %q, want it to play from its start", got)
+	}
+	app.Type("id:film-search", "bye")
+	app.Advance(time.Second)
+	if app.Exists("id:film-cue-gap") {
+		t.Fatal("a search lists the gaps")
+	}
+}
+
 // TestCueRowsFollowTheMode lists a bilingual line in each subtitle mode: the list shows the lines the picture shows, in the order the settings put them, and the line the mode hides stays under them blurred until the pointer rests on the row or the keyboard focus comes to it, so the list can be read as a transcript without giving the answer away. The row is named by both lines in their order, and the playing one is selected.
 func TestCueRowsFollowTheMode(t *testing.T) {
 	a := newFakeApp()

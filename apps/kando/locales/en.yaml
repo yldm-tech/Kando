@@ -1681,6 +1681,24 @@ filmFontSerif:
 filmFullScreen:
   message: "Full Screen"
   description: "Full screen button, and its shortcut row."
+filmGapFailed:
+  message: "{from}–{to} · Couldn't recognize the speech here"
+  description: "Row of the subtitle list of a film made while it plays, for a part whose speech the speech recognition gave up on, so it has no lines. from and to are where the part starts and ends, as the list writes a line's start (0:30, 1:05:00)."
+  placeholders:
+    from: { type: "String", example: "5:30" }
+    to: { type: "String", example: "6:00" }
+filmGapMaking:
+  message: "{from}–{to} · Making this part…"
+  description: "Row of the subtitle list of a film made while it plays, for the part with no lines yet that the film plays in, while its job makes it. from and to are where the part starts and ends, as the list writes a line's start (0:30, 1:05:00)."
+  placeholders:
+    from: { type: "String", example: "40:00" }
+    to: { type: "String", example: "45:00" }
+filmGapNotMade:
+  message: "{from}–{to} · Not made yet"
+  description: "Row of the subtitle list of a film made while it plays, for a part whose lines are not made yet, as the film was opened further on; pressing it plays from there, which makes it next. from and to are where the part starts and ends, as the list writes a line's start (0:30, 1:05:00)."
+  placeholders:
+    from: { type: "String", example: "5:30" }
+    to: { type: "String", example: "40:00" }
 filmInfoLanguages:
   message: "{spoken} → {target}"
   description: "Tag in the film's Info tab: the language heard in the video and the language its subtitles were translated into."

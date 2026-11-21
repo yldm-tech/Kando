@@ -293,8 +293,9 @@ func (a *app) playerAfterChange() bool {
 	tip := a.playerSubTip()
 	stream := a.playerStreamFollow()
 	drafts := a.playerDraftsFollow()
+	gaps := a.playerGapsFollow()
 	next := a.playerNextFollow()
-	return changed || tip || stream || drafts || next
+	return changed || tip || stream || drafts || gaps || next
 }
 
 // playerTipFor is how long the tip that the subtitles can be dragged shows.
