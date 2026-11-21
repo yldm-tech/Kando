@@ -286,9 +286,9 @@ func fakeTrash(t *testing.T) *[]string {
 	bin := t.TempDir()
 	var trashed []string
 	prev := trashItem
-	trashItem = func(_ *ns.Scope, path string) error {
+	trashItem = func(_ *ns.Scope, path string, done func(error)) {
 		trashed = append(trashed, path)
-		return os.Rename(path, filepath.Join(bin, filepath.Base(path)))
+		done(os.Rename(path, filepath.Join(bin, filepath.Base(path))))
 	}
 	t.Cleanup(func() { trashItem = prev })
 	return &trashed
@@ -1115,7 +1115,7 @@ func TestHeroShadowReachesPastTheShelf(t *testing.T) {
 	if tt.Find("id:films-hero").Style.Clip {
 		t.Fatal("the hero clips its children, which takes its shadow off on a Mac")
 	}
-	// TODO(nsgo#311): read the pixels of tt.Capture() beside the hero's sides under nsgo test -target, darker than the page under it, as MyGo's Tester.Image let the test do, once a macOS capture shows layer shadows: nsgotest's macOS screenshot draws the window with NSView's cacheDisplayInRect, which leaves out Core Animation shadows, so the capture shows no shadow under any view. Until then the test checks that the page's padding leaves the shadow room inside the scroll view, which clips it https://github.com/nsgo-dev/nsgo/issues/311
+	// The scroll view clips the shadow, so the page's padding must leave it room inside it; headless that is all the test can check, as it has no pixels.
 	var scroll *nsgotest.View
 	for v := tt.Find("id:films-hero").Parent; v != nil; v = v.Parent {
 		if v.Kind.String() == "scroll" {
@@ -1129,6 +1129,17 @@ func TestHeroShadowReachesPastTheShelf(t *testing.T) {
 	edges := pageFrame(scroll)
 	if left, right := hero.Origin.X-edges.Origin.X, edges.Origin.X+edges.Size.Width-(hero.Origin.X+hero.Size.Width); left < films.PagePadX || right < films.PagePadX {
 		t.Fatalf("the hero is %v and %v from the scroll view's sides, want at least %v, the page's padding the shadow spreads into", left, right, films.PagePadX)
+	}
+	// Under nsgo test -target the capture shows the shadow, as MyGo's Tester.Image did: just below the hero, beside each of its sides, the page is darker than it is further down.
+	if nsgotest.Target() == "" {
+		return
+	}
+	img := tt.Capture()
+	bg := capturedColor(img, 1100, hero.Origin.X+hero.Size.Width/2, hero.Origin.Y+hero.Size.Height+60)
+	for _, x := range []ns.Points{hero.Origin.X - 4, hero.Origin.X + hero.Size.Width + 3} {
+		if at := capturedColor(img, 1100, x, hero.Origin.Y+hero.Size.Height+4); at[0] >= bg[0] {
+			t.Fatalf("at x=%v just below the hero %v the page is rgb%v, as light as the background rgb%v: the shadow stops at the hero's side", x, hero, at, bg)
+		}
 	}
 }
 

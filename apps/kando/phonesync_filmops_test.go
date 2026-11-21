@@ -32,9 +32,9 @@ func TestPhoneSyncActsOnAFilm(t *testing.T) {
 	refresh(tt, a)
 	var trashed []string
 	prev := trashItem
-	trashItem = func(_ *ns.Scope, path string) error {
+	trashItem = func(_ *ns.Scope, path string, done func(error)) {
 		trashed = append(trashed, path)
-		return os.RemoveAll(path)
+		done(os.RemoveAll(path))
 	}
 	t.Cleanup(func() { trashItem = prev })
 

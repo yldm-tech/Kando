@@ -136,6 +136,10 @@ func (a *app) menuBar(cx *core.Scope) []nsdesktop.MenuItem {
 	}
 	role := func(label string, r nsdesktop.MenuRole) nsdesktop.MenuItem {
 		if it, ok := standIn[r]; ok {
+			// Select All keeps its role, so the focused field or the selected text takes it first and the row's OnSelect runs only when none does; the other rows replace the system's item outright.
+			if r == nsdesktop.MenuSelectAll {
+				it.Role = r
+			}
 			return it
 		}
 		return nsdesktop.MenuItem{Label: label, Role: r}

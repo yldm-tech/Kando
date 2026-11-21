@@ -334,12 +334,15 @@ func (a *app) trashSpeechModel(id string) {
 		a.prefs.downloadErr = settings.TrashError{ID: id}
 		return
 	}
-	if err := trashItem(a.cx, path); err != nil {
-		a.prefs.downloadErr = settings.TrashError{ID: id, Err: err}
-		return
-	}
-	a.prefs.downloadErr = nil
-	a.findSpeechModels()
+	trashItem(a.cx, path, func(err error) {
+		defer a.Changed()
+		if err != nil {
+			a.prefs.downloadErr = settings.TrashError{ID: id, Err: err}
+			return
+		}
+		a.prefs.downloadErr = nil
+		a.findSpeechModels()
+	})
 }
 
 func (a *app) cancelDownload() {

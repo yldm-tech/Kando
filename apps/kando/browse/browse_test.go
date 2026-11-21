@@ -398,7 +398,7 @@ func TestCookieSource(t *testing.T) {
 	var filters []CookieFilter
 	expires := time.Date(2030, 1, 1, 0, 0, 0, 0, time.UTC)
 	want := media.Cookie{Domain: ".bilibili.com", Path: "/", Secure: true, HTTPOnly: true, Expires: expires, Name: "SESSDATA", Value: "v"}
-	list := func(f CookieFilter) ([]media.Cookie, error) {
+	list := func(_ context.Context, f CookieFilter) ([]media.Cookie, error) {
 		filters = append(filters, f)
 		return []media.Cookie{want}, nil
 	}
@@ -417,7 +417,7 @@ func TestCookieSource(t *testing.T) {
 	if !slices.Equal(filters, wantFilters) {
 		t.Fatalf("filters %+v", filters)
 	}
-	failing := CookieSource(func(CookieFilter) ([]media.Cookie, error) { return nil, errors.New("no web view") }, agent)
+	failing := CookieSource(func(context.Context, CookieFilter) ([]media.Cookie, error) { return nil, errors.New("no web view") }, agent)
 	if cookies, _, err := failing(context.Background(), "https://example.com/v"); err == nil || cookies != nil {
 		t.Fatalf("cookies %v, err %v", cookies, err)
 	}

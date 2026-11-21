@@ -63,7 +63,7 @@ func (a *app) areas() []areaHooks {
 		a.logsHooks(),
 		a.sidebarHooks(),
 		a.libraryHooks(),
-		// The browser comes before the queue, as its ready sweeps the cookie folders of downloads that never finished (media.SweepCookieDirs) before the queue's ready starts the first job left waiting, which would make one of its own; giving the pipeline the pages' cookies (media.Tools.SiteCookies) there too, which that job then takes, comes back with nsgo#112.
+		// The browser comes before the queue, as its ready sweeps the cookie folders of downloads that never finished (media.SweepCookieDirs) before the queue's ready starts the first job left waiting, which would make one of its own, and gives the pipeline the pages' cookies (media.Tools.SiteCookies) there too, which that job then takes.
 		a.browseHooks(),
 		a.queueHooks(),
 		a.settingsHooks(),
@@ -330,7 +330,7 @@ func (a *app) requestQuit() {
 
 // quitHeard runs as the app quits however it does (core.Scope.OnQuit). A quit requestQuit let through has told the areas already; any other, as the Dock's Quit, the system's at a logout or the updater's relaunch, tells them now with SessionEnding set, as the app is ending and cannot ask.
 func (a *app) quitHeard(context.Context) {
-	// TODO(nsgo#86): hold back the Dock's Quit, a logout, restart or shutdown and the updater's relaunch so a running job can ask first, as MyGo's OnBeforeQuit let the queue do; NSGo's OnQuit cannot keep the app running, so only ⌘Q and the app menu's Quit, which are the app's own items, ask https://github.com/nsgo-dev/nsgo/issues/86
+	// TODO(nsgo): hold back the Dock's Quit, a logout, restart or shutdown and the updater's relaunch so a running job can ask first, as MyGo's OnBeforeQuit let the queue do. NSGo's OnQuitRequest (core/quit.go) runs on macOS alone, and neither says whether a quit is forced by a logout, restart or shutdown, which must not ask, nor answers one without the userCanceledErr that may cancel the logout (internal/platform/macos/macos.go applicationShouldTerminate:); Windows and Linux have no quit request. Until both are there, only ⌘Q and the app menu's Quit, which are the app's own items, ask
 	if a.window.quitting {
 		return
 	}

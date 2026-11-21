@@ -45,7 +45,6 @@ func RadiiOf(cx *core.Scope) Radii { return RadiiFor(cx.Env().OS()) }
 func FontFor(os core.OS, lang string) string {
 	switch os {
 	case core.OSWindows:
-		// TODO(nsgo#668): DirectWrite is asked for the first family of the list that is installed (internal/platform/windows/text.go firstInstalled), not each in turn for the characters those before it lack as core.Style.FontFamily says, so the CJK family here is used only where Segoe UI is missing; the system's fallback for Language picks the CJK font meanwhile https://github.com/nsgo-dev/nsgo/issues/668
 		return "Segoe UI Variable Text, Segoe UI, " + windowsCJK(lang) + ", sans-serif"
 	case core.OSLinux:
 		cjk := linuxCJK(lang)

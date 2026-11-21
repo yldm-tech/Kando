@@ -2188,8 +2188,8 @@ func TestSessionEndDoesNotAsk(t *testing.T) {
 
 			ce := &ns.WindowClosing{}
 			a.windowClosing(ce)
-			if windowClosingCanceled(ce) || tt.Quits != 0 || a.window.hidden != !asked {
-				t.Fatalf("hides %v, asked %v: closing at the session's end prevented %v, quits %d, window hidden %v", hides, asked, windowClosingCanceled(ce), tt.Quits, a.window.hidden)
+			if ce.Canceled() || tt.Quits != 0 || a.window.hidden != !asked {
+				t.Fatalf("hides %v, asked %v: closing at the session's end prevented %v, quits %d, window hidden %v", hides, asked, ce.Canceled(), tt.Quits, a.window.hidden)
 			}
 
 			done := a.queue.done
@@ -2316,6 +2316,26 @@ type fakeDesktop struct {
 }
 
 type fakeNote struct{ id, title, body string }
+
+// TestQueueProgressReachesTheAppIcon checks that the running job's progress goes to the app's icon through NSGo: as far as its stage has gone, indeterminate while the stage has not said, and none once nothing runs.
+func TestQueueProgressReachesTheAppIcon(t *testing.T) {
+	a, tt, _ := newTestApp(t, &fakePipeline{})
+	d := a.queueSystemDesktop(a.cx)
+	for _, c := range []struct {
+		bar  queueBar
+		want ns.TaskProgress
+	}{
+		{queueBar{Shown: true, Value: 0.4}, ns.TaskProgress{State: ns.TaskProgressNormal, Value: 0.4}},
+		{queueBar{Shown: true, Indeterminate: true}, ns.TaskProgress{State: ns.TaskProgressIndeterminate}},
+		{queueBar{}, ns.TaskProgress{}},
+	} {
+		d.progress(c.bar)
+		tt.Settle()
+		if tt.TaskProgress != c.want {
+			t.Fatalf("the bar %+v shows %+v on the icon, want %+v", c.bar, tt.TaskProgress, c.want)
+		}
+	}
+}
 
 // useFakeDesktop has the queue of a tell f what it would tell the system.
 func useFakeDesktop(a *app) *fakeDesktop {

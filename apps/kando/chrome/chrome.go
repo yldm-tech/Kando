@@ -154,7 +154,6 @@ func (b Bar) linux(cx *core.Scope) core.Node {
 		StyleFunc: func() core.Style {
 			return core.Style{Background: k.Gutter(), BorderColors: core.EdgeColors{Bottom: k.Shade(0.1)}}
 		},
-		// TODO(nsgo#678): a double click on the header bar should maximize the window as GTK's does; NSGo's window drag on Linux begins a move on the press (internal/platform/linux/input.go beginWindowDrag) and a press handler on the bar would take the drag away https://github.com/nsgo-dev/nsgo/issues/678
 		Children: []core.Node{title, search{a: b.App, height: 30, radius: 6}, spacer, buttons},
 	}
 }

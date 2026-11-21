@@ -338,7 +338,7 @@ func TestPaletteQuitAndCloseAskWhileAJobRuns(t *testing.T) {
 	e := &ns.WindowClosing{}
 	a.windowClosing(e)
 	refresh(tt, a)
-	if !windowClosingCanceled(e) {
+	if !e.Canceled() {
 		t.Fatal("the window closed while a job runs")
 	}
 	asked("closing the window")

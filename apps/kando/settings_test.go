@@ -683,7 +683,7 @@ func TestTrashSpeechModel(t *testing.T) {
 
 	// A file the Trash refuses stays listed, and the page says so. desktop.Trash fails with its sentinel and logs the system's reason, so the page no longer quotes it.
 	prevTrash := trashItem
-	trashItem = func(*ns.Scope, string) error { return desktop.ErrNotTrashed }
+	trashItem = func(_ *ns.Scope, _ string, done func(error)) { done(desktop.ErrNotTrashed) }
 	t.Cleanup(func() { trashItem = prevTrash })
 	a.TrashSpeechModel("large-v3")
 	refresh(tt, a)

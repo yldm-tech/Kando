@@ -415,14 +415,21 @@ func (l listPage) Render(cx *core.Scope) core.Node {
 	}}
 }
 
-// selectionKeys binds the selection's keys while the page shows, under cx, and is the node that binds Escape: ⌘A selects every done film the page shows, in the posters or the list, and Escape, while some are selected, selects none, as in Finder. A text field with the keyboard keeps both (core.KeyNotEditing), so ⌘A selects its text through Edit › 全选 and Escape empties a search; NSGo matches a binding before the menu bar's key equivalents, so ⌘A reaches it rather than the menu.
-// TODO(nsgo#651): let a menu role item run the app's own action while no text has the keyboard, so choosing Edit › 全选 with the pointer selects the films too; it only selects text (selectAll:), and the films only by ⌘A https://github.com/nsgo-dev/nsgo/issues/651
+// selectionKeys binds the selection's keys while the page shows, under cx, and is the node that binds Escape: ⌘A selects every done film the page shows, in the posters or the list, and Escape, while some are selected, selects none, as in Finder. A text field with the keyboard keeps both (core.KeyNotEditing), so ⌘A selects its text through Edit › 全选 and Escape empties a search; NSGo matches a binding before the menu bar's key equivalents, so ⌘A reaches it rather than the menu. Edit › 全选 chosen with the pointer selects the films through the app's row (SelectAll).
 func selectionKeys(cx *core.Scope, a App, done func() []Film) core.Node {
 	cx.OnKeyWith("mod+a", core.KeyOptions{When: core.KeyNotEditing}, live.Do(a, func() { a.Selection().All(Keys(core.Untracked(cx, done))) }))
 	return core.Show{When: live.Func(a, func() bool { return a.Selection().Len() > 0 }), Then: func(cx *core.Scope) core.Node {
 		cx.OnKeyWith("escape", core.KeyOptions{When: core.KeyNotEditing}, live.Do(a, func() { a.Selection().Clear() }))
 		return core.Group{}
 	}}
+}
+
+// SelectAll selects every done film the library page shows, in the page's order, as ⌘A does there; cx says the language the titles sort in. Edit › 全选 runs it while no text takes it.
+func SelectAll(cx *core.Scope, a App) {
+	if a.LibraryDir() == "" {
+		return
+	}
+	a.Selection().All(Keys(newShelfModel(a, pageSource(a), i18n.Language(cx)).done))
 }
 
 // heroFits reports whether the whole hero (heroHeight), top down the content column, leaves room in a page height high for 处理中 under it, queue high with its margin, and the first row of posters under that, whose pictures are as high as the grid's columns make them: cards is the posters' frame in the grid, below its heading, and as wide as the grid.

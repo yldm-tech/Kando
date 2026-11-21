@@ -55,7 +55,7 @@ func (a *app) signinFor(source string) string {
 	return a.signin.browser
 }
 
-// signinChoose makes id, one of media.Browsers or "" for none, the browser the pages and downloads borrow the sign-in of, and checks it at once, which puts it into the pages; a check under way of another browser is dropped. 关闭 leaves the sign-in the pages took (browse/start.go, nsgo#112).
+// signinChoose makes id, one of media.Browsers or "" for none, the browser the pages and downloads borrow the sign-in of, and checks it at once, which puts it into the pages; a check under way of another browser is dropped. 关闭 leaves the sign-in the pages took, which 清除登录信息… on the browser's start clears (a.browse.clear).
 func (a *app) signinChoose(id string) {
 	if id != "" && !media.KnownBrowser(id) {
 		return

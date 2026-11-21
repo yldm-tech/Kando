@@ -314,8 +314,8 @@ func TestClosingTheWindowOnMacKeepsKandoRunning(t *testing.T) {
 	e := &ns.WindowClosing{}
 	a.windowClosing(e)
 	tt.Settle()
-	if !windowClosingCanceled(e) || !a.window.hidden || tt.Quits != 0 || !a.running() {
-		t.Fatalf("close button: canceled %v, hidden %v, quits %d, job running %v", windowClosingCanceled(e), a.window.hidden, tt.Quits, a.running())
+	if !e.Canceled() || !a.window.hidden || tt.Quits != 0 || !a.running() {
+		t.Fatalf("close button: canceled %v, hidden %v, quits %d, job running %v", e.Canceled(), a.window.hidden, tt.Quits, a.running())
 	}
 	if !row().When() {
 		t.Fatal("主窗口 is disabled while the window is put away")
@@ -337,8 +337,8 @@ func TestClosingTheWindowOnMacKeepsKandoRunning(t *testing.T) {
 	q = &quitEvent{}
 	a.areasBeforeQuit(q)
 	a.windowClosing(e)
-	if q.DefaultPrevented() || windowClosingCanceled(e) || a.window.hidden {
-		t.Fatalf("confirmed quit: quit prevented %v, close canceled %v, hidden %v", q.DefaultPrevented(), windowClosingCanceled(e), a.window.hidden)
+	if q.DefaultPrevented() || e.Canceled() || a.window.hidden {
+		t.Fatalf("confirmed quit: quit prevented %v, close canceled %v, hidden %v", q.DefaultPrevented(), e.Canceled(), a.window.hidden)
 	}
 }
 
@@ -350,8 +350,8 @@ func TestClosingTheWindowElsewhereQuits(t *testing.T) {
 	e := &ns.WindowClosing{}
 	a.windowClosing(e)
 	tt.Settle()
-	if !windowClosingCanceled(e) || a.window.hidden || tt.Quits != 1 {
-		t.Fatalf("close button: canceled %v, hidden %v, quits %d", windowClosingCanceled(e), a.window.hidden, tt.Quits)
+	if !e.Canceled() || a.window.hidden || tt.Quits != 1 {
+		t.Fatalf("close button: canceled %v, hidden %v, quits %d", e.Canceled(), a.window.hidden, tt.Quits)
 	}
 	if s := a.windowKeys(a.cx)[0]; s.When() {
 		t.Fatal("主窗口 is offered where closing the window quits")
@@ -360,8 +360,8 @@ func TestClosingTheWindowElsewhereQuits(t *testing.T) {
 	e = &ns.WindowClosing{}
 	a.windowClosing(e)
 	tt.Settle()
-	if windowClosingCanceled(e) || tt.Quits != 1 {
-		t.Fatalf("the quit's own close: canceled %v, quits %d", windowClosingCanceled(e), tt.Quits)
+	if e.Canceled() || tt.Quits != 1 {
+		t.Fatalf("the quit's own close: canceled %v, quits %d", e.Canceled(), tt.Quits)
 	}
 }
 

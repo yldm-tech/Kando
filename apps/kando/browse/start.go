@@ -131,7 +131,6 @@ func signInLine(cx *core.Scope, a App, state func() State) core.Node {
 		if !on.Get() {
 			return ui.Button{Text: locales.BrowseSignInChoose(cx), Variant: ui.ButtonGhost, Size: ui.SizeSmall, TestID: "browse-signin", OnPress: settings}
 		}
-		// TODO(nsgo#112): offer 退出“浏览”的登录 here once NSGo can clear the web views' cookies; until then turning 浏览器登录 off leaves the sign-in the pages took https://github.com/nsgo-dev/nsgo/issues/112
 		return core.Group([]core.Node{
 			ui.Button{Text: locales.BrowseSignInRefresh(cx), Variant: ui.ButtonGhost, Size: ui.SizeSmall, TestID: "browse-signin-refresh",
 				Disabled: func() bool { return state().SigningIn }, OnPress: live.Do(a, a.BrowseRefreshSignIn)},

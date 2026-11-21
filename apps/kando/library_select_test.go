@@ -153,12 +153,13 @@ func TestTrashSeveralFilms(t *testing.T) {
 	m := testlocale.Messages()
 	var trashed []string
 	prev := trashItem
-	trashItem = func(_ *ns.Scope, path string) error {
+	trashItem = func(_ *ns.Scope, path string, done func(error)) {
 		if strings.Contains(path, "Talk") {
-			return errors.New("not trashed")
+			done(errors.New("not trashed"))
+			return
 		}
 		trashed = append(trashed, path)
-		return os.RemoveAll(path)
+		done(os.RemoveAll(path))
 	}
 	t.Cleanup(func() { trashItem = prev })
 	items := []films.Film{must(films.Find(a.films(), ep1)), must(films.Find(a.films(), ep2)), must(films.Find(a.films(), "film"))}

@@ -406,14 +406,13 @@ func (a *app) correctShown() bool {
 	return subs.path != "" && subs.key == a.openKey && subs.ready && subs.err == ""
 }
 
-// correctCanUndo and correctCanRedo report whether there is a change of the open film's corrections to undo or redo, once its subtitles are read (correctLoaded). While a text field of the film page has the keyboard focus, the line's edit fields or the subtitle search, they leave Undo and Redo to it, as its typing is what the user would take back.
+// correctCanUndo and correctCanRedo report whether there is a change of the open film's corrections to undo or redo, once its subtitles are read (correctLoaded). Their items stay in the Edit menu while a text field of the film page has the keyboard focus, the line's edit fields or the subtitle search: ⌘Z and ⇧⌘Z then go to the field, which undoes its typing, and the items chosen with the pointer take back the corrections.
 func (a *app) correctCanUndo() bool { return a.correctUndoable() && len(a.correct.undo) > 0 }
 
 func (a *app) correctCanRedo() bool { return a.correctUndoable() && len(a.correct.redo) > 0 }
 
 func (a *app) correctUndoable() bool {
-	// TODO(nsgo#671): drop the focus checks (a.correct.editing, a.player.film.searchFocused) once a MenuAuto Undo or Redo item hands ⌘Z and ⇧⌘Z to the focused field's undo: and redo: on macOS, so the corrections' items can stay in the Edit menu while a field has the focus; until then the system's items have to be the Edit menu's then, or typing in the field could not be undone https://github.com/nsgo-dev/nsgo/issues/671
-	return a.openKey != "" && a.correctLoaded() && !a.correct.editing && !a.player.film.searchFocused
+	return a.openKey != "" && a.correctLoaded()
 }
 
 // correctUndo takes back the last change of the open film's corrections and says which on the picture.

@@ -150,22 +150,25 @@ func everyAPIRow(cx *core.Scope, a App) core.Node {
 	return form.Row{Title: locales.SettingsAIEveryAPICLI(cx), SubtitleFunc: note, Trailing: []core.Node{get, redetect}}
 }
 
-// providerSelect chooses the service among the presets. The drop-down shows their names, the ones on this Mac after their group, as 本机 · Ollama, and those plugin packs add after Kando's own, each with the host it talks to, as 插件 · Company gateway · llm.example.com; the setting keeps the id. The list follows the presets as packs are turned on, off, installed or removed.
+// providerSelect chooses the service among the presets. The drop-down shows their names, the ones on this Mac after their group, as 本机 · Ollama, and those plugin packs add after Kando's own, under a heading of their own (插件), each with the host it talks to, as 插件 · Company gateway · llm.example.com; the setting keeps the id. The list follows the presets as packs are turned on, off, installed or removed.
 func providerSelect(cx *core.Scope, a App) core.Node {
-	// labels is the options, joined, so the drop-down is built again only when the list changes.
+	// labels is the options, joined, each its id, its label and its group, so the drop-down is built again only when the list changes.
 	labels := core.NewMemo(cx, live.Func(a, func() string {
 		var out []string
 		for _, preset := range a.Presets() {
-			out = append(out, preset.ID+"\x00"+presetLabel(cx, preset))
+			group := ""
+			if preset.Plugin != "" {
+				group = locales.SettingsAIPluginServices(cx)
+			}
+			out = append(out, preset.ID+"\x00"+presetLabel(cx, preset)+"\x00"+group)
 		}
 		return strings.Join(out, "\x01")
 	}))
 	return core.Dynamic(func(cx *core.Scope) core.Node {
-		// TODO(nsgo#906): give ui.Select headed groups of options, so the services of plugin packs show under a heading of their own rather than only after Kando's, each marked in its label https://github.com/nsgo-dev/nsgo/issues/906
 		var options []ui.Option[string]
 		for _, item := range strings.Split(labels.Get(), "\x01") {
-			id, label, _ := strings.Cut(item, "\x00")
-			options = append(options, ui.Option[string]{Value: id, Label: label})
+			fields := strings.SplitN(item, "\x00", 3)
+			options = append(options, ui.Option[string]{Value: fields[0], Label: fields[1], Group: fields[2]})
 		}
 		return ui.Select[string]{Options: options, Label: locales.SettingsAIChooseService(cx), TestID: "settings-llm-provider",
 			Value: live.Func(a, a.LLMProvider), OnChange: live.On(a, a.SelectLLM), Style: core.Style{Width: core.Pt(220)}}

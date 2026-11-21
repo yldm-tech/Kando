@@ -12,7 +12,6 @@ import (
 	"net/http/httptest"
 	"os"
 	"path/filepath"
-	"reflect"
 	"regexp"
 	"runtime"
 	"slices"
@@ -83,12 +82,6 @@ func TestMain(m *testing.M) {
 
 // testOS is the system the tests' app runs on, a Mac unless usePlatform says another for a test.
 var testOS = ns.OSMacOS
-
-// windowClosingCanceled reports whether the close c stood for was held back (core.WindowClosing.Cancel), which keeps the window open. NSGo's WindowClosing only records it, for the platform that asked, so the tests read what it recorded.
-func windowClosingCanceled(c *ns.WindowClosing) bool {
-	// TODO(nsgo#201): read WindowClosing's Canceled() (or close the window through nsgotest) instead of its unexported canceled field, which NSGo can rename under these tests https://github.com/nsgo-dev/nsgo/issues/201
-	return reflect.ValueOf(c).Elem().FieldByName("canceled").Bool()
-}
 
 // usePlatform runs the apps t starts after it on os, with the words and the look of that system, and goes back to the Mac after t. Call it before newTestApp.
 func usePlatform(t *testing.T, os ns.OS) {
@@ -285,7 +278,7 @@ func pageFrame(v *nsgotest.View) ns.Bounds {
 	return b
 }
 
-// TODO(nsgo#346): drop the wait for the focus once a target test window reports a click's focus within the step that pressed https://github.com/nsgo-dev/nsgo/issues/346
+// TODO(nsgo): drop the wait for the focus once a target test window reports a click's focus within the step that pressed: nsgotest's Focus and Type now check the field took it (nsgotest/target.go focusField) and -activate covers an inactive app on macOS, but a Press still settles without waiting for the focus the window's thread reports
 // typeFocused types s into the text field that has the keyboard focus, as a user types without moving it, and fails t when none has it. Under `nsgo test -target` the focus is the platform's report of the press that gave it, which comes from the window's own thread and can come after the step that pressed settled, so there it waits up to two seconds for a field to have it; headless the press sets it as the step runs.
 func typeFocused(t *testing.T, tt *nsgotest.App, s string) {
 	t.Helper()

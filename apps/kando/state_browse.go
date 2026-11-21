@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"strings"
@@ -88,17 +89,43 @@ func (b *browseAgent) get() string {
 // browseBlank is the page home loads, which shows the start; the page's history keeps the pages before it, so back returns to them.
 const browseBlank = "about:blank"
 
-// browseHooks: once the window exists the browser removes the cookies folders of downloads that never finished, as none runs yet; its ready runs before the queue's (areas), which starts the first job left waiting. It reads nothing of the chosen browser's sign-in then: that waits for the browser's page to show (browseSignInOnOpen). After each change the confirmation closes when the window went to another page, the page's videos are paused and its sound off while another page shows, and the first time the browser's page shows in a launch its pages take the chosen browser's sign-in.
+// browseHooks: once the window exists the browser removes the cookies folders of downloads that never finished, as none runs yet, and every download asks the pages' cookies for its site (media.Tools.SiteCookies); its ready runs before the queue's (areas), which starts the first job left waiting, so that job gets the cookies too. It reads nothing of the chosen browser's sign-in then: that waits for the browser's page to show (browseSignInOnOpen). After each change the confirmation closes when the window went to another page, the page's videos are paused and its sound off while another page shows, and the first time the browser's page shows in a launch its pages take the chosen browser's sign-in.
 func (a *app) browseHooks() areaHooks {
 	return areaHooks{
 		ready: func() {
 			if tools, ok := a.pipeline.(media.Tools); ok {
 				media.SweepCookieDirs(tools.CookieDir)
-				// TODO(nsgo#112): give every download the cookies the browser's pages hold for its site, tools.SiteCookies = browse.CookieSource over the web view's cookie store with a.browse.agent.get, as MyGo's Cookies.List gave them; until then a site the user signed in to here downloads signed out, and a download that needs the sign-in fails with the queue's remedy of borrowing a browser's (media.Tools.Cookies) https://github.com/nsgo-dev/nsgo/issues/112
+				tools.SiteCookies = browse.CookieSource(a.browseListCookies, a.browse.agent.get)
+				a.pipeline = tools
 			}
 			// TODO(nsgo#114): clear the pages' cookies and storage (a.browse.clear), as MyGo's App.ClearBrowsingData did; until then 清除登录信息… is left out of the start and the File menu https://github.com/nsgo-dev/nsgo/issues/114
 		},
 		afterChange: a.browseAfterChange,
+	}
+}
+
+// browseListCookies lists the cookies of the pages' store that f picks (core.Scope.WebCookies), HttpOnly ones included, for a download on the pipeline's goroutine: it asks on the engine's goroutine and waits for the store's answer, or until ctx ends with the download.
+func (a *app) browseListCookies(ctx context.Context, f browse.CookieFilter) ([]media.Cookie, error) {
+	type answer struct {
+		cookies []core.WebCookie
+		err     error
+	}
+	got := make(chan answer, 1)
+	a.update(func() {
+		a.cx.WebCookies(core.WebCookieFilter{URL: f.URL, Domain: f.Domain}, func(cookies []core.WebCookie, err error) { got <- answer{cookies, err} })
+	})
+	select {
+	case r := <-got:
+		if r.err != nil {
+			return nil, r.err
+		}
+		out := make([]media.Cookie, 0, len(r.cookies))
+		for _, c := range r.cookies {
+			out = append(out, media.Cookie{Domain: c.Domain, Path: c.Path, Secure: c.Secure, HTTPOnly: c.HTTPOnly, Expires: c.Expires, Name: c.Name, Value: c.Value})
+		}
+		return out, nil
+	case <-ctx.Done():
+		return nil, ctx.Err()
 	}
 }
 

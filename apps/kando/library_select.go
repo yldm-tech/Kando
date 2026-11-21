@@ -54,13 +54,13 @@ func (a *app) libraryTargets() []films.Film {
 	return a.librarySelected()
 }
 
-// librarySelectionKeys are the File menu's rows for the films selected on the library page (librarySelected), without keys, as the selection's menu has them (films.SelectionMenu): 标记为已看完, 标记为未看, 重新处理, 重新翻译为 ▸ and 从资料库移除, dimmed while none is selected. The film page's ⋯ has them for the film open. 移到资料库 ▸ is libraryMoveRow.
+// librarySelectionKeys are the File menu's rows for the films selected on the library page (librarySelected), without keys, as the selection's menu has them (films.SelectionMenu): 标记为已看完, 标记为未看, 重新处理, 重新翻译为 ▸ and 从资料库移除, dimmed while none is selected. The film page's ⋯ has them for the film open. 移到资料库 ▸ is libraryMoveRow. Edit › 全选 stands in for the system's item while the library's films show, so chosen with the pointer it selects them all once no text field takes it (films.SelectAll), as Finder's does; ⌘A is the page's own (films.selectionKeys).
 func (a *app) librarySelectionKeys(cx *ns.Scope) []shortcut {
 	marks := func() (watched, unwatched bool) {
 		w, ready, u := films.SelectionMarks(a, a.librarySelected())
 		return w && ready, u
 	}
-	return []shortcut{
+	rows := []shortcut{
 		{Group: groupFile, Label: locales.FilmsMarkWatched(cx), When: func() bool { w, _ := marks(); return w }, Run: func() { a.MarkWatched(a.librarySelected()...) }},
 		{Group: groupFile, Label: locales.FilmsMarkUnwatched(cx), When: func() bool { _, u := marks(); return u }, Run: func() { a.MarkUnwatched(a.librarySelected()...) }},
 		{Group: groupFile, Label: locales.FilmsReprocess(cx), When: func() bool { return len(a.librarySelected()) > 0 }, Run: func() { a.AskReprocess(a.librarySelected()...) }},
@@ -69,6 +69,10 @@ func (a *app) librarySelectionKeys(cx *ns.Scope) []shortcut {
 		}},
 		{Group: groupFile, Label: locales.FilmsRemoveFromLibrary(cx), When: func() bool { return len(a.librarySelected()) > 0 }, Run: func() { a.AskRemove(a.librarySelected()...) }},
 	}
+	if a.libraryOwnsTitleBar() && a.libraryShown() {
+		rows = append(rows, shortcut{Group: groupEdit, Label: locales.MenuSelectAll(cx), Key: "mod+a", Role: nsdesktop.MenuSelectAll, Run: func() { films.SelectAll(cx, a) }})
+	}
+	return rows
 }
 
 // librarySay says in the message bar once how work on total films went: all of done when every film was done, else how many of how many and reason, why the first that was not done was not, a sentence of its own, with section the settings section that fixes it; reason alone when none was done. A film skipped without a reason, as one already waiting in the queue, counts as done.
@@ -93,31 +97,46 @@ func (a *app) TrashFilms(items ...films.Film) {
 		return
 	}
 	m := a.messages()
-	gone, trashed, reason := a.libraryTrashIn(a.snap().LibraryDir, items, m)
-	a.libraryForget(gone)
-	switch {
-	case len(items) == 1 && len(gone) == 0:
-		a.warn(reason, "")
-	case len(items) == 1 && trashed:
-		a.tell(m.LibraryTrashed(films.Name(items[0])))
-	case len(items) == 1:
-		a.tell(m.LibraryRemoved(films.Name(items[0])))
-	case trashed:
-		a.librarySay(len(items), len(gone), reason, "", m.LibraryTrashedMany, m.LibraryTrashedSome)
-	default:
-		a.librarySay(len(items), len(gone), reason, "", m.LibraryRemovedMany, m.LibraryTrashedSome)
-	}
+	a.libraryTrashIn(a.snap().LibraryDir, items, m, func(gone []films.Film, trashed bool, reason string) {
+		defer a.Changed()
+		a.libraryForget(gone)
+		switch {
+		case len(items) == 1 && len(gone) == 0:
+			a.warn(reason, "")
+		case len(items) == 1 && trashed:
+			a.tell(m.LibraryTrashed(films.Name(items[0])))
+		case len(items) == 1:
+			a.tell(m.LibraryRemoved(films.Name(items[0])))
+		case trashed:
+			a.librarySay(len(items), len(gone), reason, "", m.LibraryTrashedMany, m.LibraryTrashedSome)
+		default:
+			a.librarySay(len(items), len(gone), reason, "", m.LibraryRemovedMany, m.LibraryTrashedSome)
+		}
+	})
 }
 
-// libraryTrashIn moves the files of items, films of the library at root, to the Trash, one unit after another (films.Units), as TrashFilms does, and returns the films whose files went, or that had none to go, for libraryForget to take off the shelf; whether any file went; and why the first film that stayed did, in the language of m. It neither takes them off the shelf nor says anything.
-func (a *app) libraryTrashIn(root string, items []films.Film, m locales.Messages) (gone []films.Film, trashed bool, reason string) {
-	for _, unit := range films.Units(root, items) {
+// libraryTrashIn moves the files of items, films of the library at root, to the Trash, one unit after another (films.Units), as TrashFilms does, and once the last was tried calls done, on the engine's goroutine, with the films whose files went, or that had none to go, for libraryForget to take off the shelf; whether any file went; and why the first film that stayed did, in the language of m. It neither takes them off the shelf nor says anything.
+func (a *app) libraryTrashIn(root string, items []films.Film, m locales.Messages, done func(gone []films.Film, trashed bool, reason string)) {
+	units := films.Units(root, items)
+	var gone []films.Film
+	trashed, reason := false, ""
+	var next func(i int)
+	next = func(i int) {
+		if i == len(units) {
+			done(gone, trashed, reason)
+			return
+		}
+		unit := units[i]
 		files := []string{unit.Folder}
 		if unit.Folder == "" {
 			files = filmFiles(root, unit.Items[0])
 		}
-		if err := a.libraryTrash(files); err != nil {
-			if reason == "" {
+		a.libraryTrash(files, func(err error) {
+			switch {
+			case err == nil:
+				trashed = trashed || len(files) > 0
+				gone = append(gone, unit.Items...)
+			case reason == "":
 				name := films.Name(unit.Items[0])
 				// desktop.Trash fails with errors.ErrUnsupported where there is no Trash it can use, and with desktop.ErrNotTrashed when the item could not go there; it logs what the system said, so the bar says each in a sentence of its own.
 				reason = m.LibraryTrashFailed(name)
@@ -125,22 +144,25 @@ func (a *app) libraryTrashIn(root string, items []films.Film, m locales.Messages
 					reason = m.LibraryTrashUnsupported(name)
 				}
 			}
-			continue
-		}
-		trashed = trashed || len(files) > 0
-		gone = append(gone, unit.Items...)
+			next(i + 1)
+		})
 	}
-	return gone, trashed, reason
+	next(0)
 }
 
-// libraryTrash moves files to the Trash, stopping at the first that cannot go, whose error it returns.
-func (a *app) libraryTrash(files []string) error {
-	for _, path := range files {
-		if err := trashItem(a.cx, path); err != nil {
-			return err
-		}
+// libraryTrash moves files to the Trash one after another, stopping at the first that cannot go, and calls done with its error, or nil once all went.
+func (a *app) libraryTrash(files []string, done func(err error)) {
+	if len(files) == 0 {
+		done(nil)
+		return
 	}
-	return nil
+	trashItem(a.cx, files[0], func(err error) {
+		if err != nil {
+			done(err)
+			return
+		}
+		a.libraryTrash(files[1:], done)
+	})
 }
 
 // libraryForget takes items off the shelf once their files went to the Trash, or for a video outside the library without them: an open one closes, the title given to it in Kando goes, and its job; then the library's folder is read again, once.

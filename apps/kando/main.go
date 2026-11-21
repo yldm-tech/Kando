@@ -167,6 +167,8 @@ func main() {
 		nsgo.WindowConstraints(core.WindowConstraints{MinWidth: 900, MinHeight: 560}),
 		nsgo.Appearance(a.settingsAppearance()),
 		nsgo.WindowMaterial(sidebarMaterial()),
+		// The window opens hidden, and shows once the app is ready unless the system opened this run at login (trayHideAtLogin).
+		nsgo.StartHidden(),
 	}
 	if socket := os.Getenv("KANDO_SOCKET"); socket != "" {
 		opts = append(opts, nsgo.InstanceKey(socket))

@@ -158,7 +158,7 @@ func (r toolRow) Render(cx *core.Scope) core.Node {
 					{Value: copyOwn, Label: locales.SettingsGeneralToolOwn(cx)},
 					{Value: copyComputer, Label: locales.SettingsGeneralToolComputer(cx, a.DisplayPath(other.Get()))},
 				}
-				// TODO(nsgo#721): a select's Style reaches only the view around its field, which keeps 28 pt and 13 pt type beside the 11 pt line; once Kando's NSGo has the fix, give it Height: core.Pt(ui.SizeSmall.Height()) and FontSize: 12. https://github.com/nsgo-dev/nsgo/issues/721
+				// The select is as small as the line's other controls (ui.SizeSmall), its type a size under the body's, beside the 11 pt line.
 				return ui.Select[string]{Options: options, Label: locales.SettingsGeneralToolCopy(cx, r.name), TestID: "settings-tool-copy-" + r.name,
 					Value: live.Func(a, func() string {
 						if health().Own {
@@ -167,7 +167,7 @@ func (r toolRow) Render(cx *core.Scope) core.Node {
 						return copyComputer
 					}),
 					OnChange: live.On(a, func(value string) { a.UseComputerTool(r.name, value == copyComputer) }),
-					Style:    core.Style{Width: core.Pt(220), FlexShrink: 1}}
+					Style:    core.Style{Width: core.Pt(220), FlexShrink: 1, Height: core.Pt(ui.SizeSmall.Height()), FontSize: 12}}
 			})
 			return core.View{Style: core.Style{Direction: core.Row, Gap: 6, AlignItems: core.AlignCenter, MinWidth: core.Pt(0)}, Children: []core.Node{
 				core.Text{Content: r.use, Style: detailStyle, StyleFunc: ui.Colored(colors.Muted)},

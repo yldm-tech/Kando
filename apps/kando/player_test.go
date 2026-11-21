@@ -2717,24 +2717,26 @@ func TestSubtitlesInTheDefaultFaceKeepTheSystemsFont(t *testing.T) {
 	}
 }
 
-// TestPlayerFollowsTheMainWindowsLifecycle checks that the player hears that the main window went out of sight, and that it shows again. Every window goes out of sight together here, so it would pass as well on the app-wide lifecycle playerAwakeLifecycle read before nsgo#197.
-// TODO(nsgo#783): nsgotest.App.SetEnvironment gives every window the same environment (nsgotest/nsgotest.go:909-927) and nothing reports one window's lifecycle alone; once something does, put the main window in the background while the settings window shows, the case the main window's own lifecycle is read for. https://github.com/nsgo-dev/nsgo/issues/783
+// TestPlayerFollowsTheMainWindowsLifecycle checks that the player hears that the main window went out of sight while the settings window shows, the case the main window's own lifecycle is read for rather than the app-wide one playerAwakeLifecycle read before nsgo#197, and that it shows again.
 func TestPlayerFollowsTheMainWindowsLifecycle(t *testing.T) {
 	a, tt, _ := newTestApp(t, &fakePipeline{})
+	a.prefs.overMain = false
 	a.playerAwakeLifecycle()
 	refresh(tt, a)
 	if a.player.windowAway {
 		t.Fatal("the player thinks the window is away while it shows")
 	}
-	env := testEnvironment()
-	env.Lifecycle = ns.LifecycleBackground
-	tt.SetEnvironment(env)
+	a.OpenSettings("")
+	refresh(tt, a)
+	if a.prefs.win == nil {
+		t.Fatal("the settings did not open in a window of their own")
+	}
+	tt.SetWindowEnvironment("", func(env *ns.Environment) { env.Lifecycle = ns.LifecycleBackground })
 	refresh(tt, a)
 	if !a.player.windowAway {
-		t.Fatal("the player did not hear that the main window went out of sight")
+		t.Fatal("the player did not hear that the main window went out of sight behind the settings window")
 	}
-	env.Lifecycle = ns.LifecycleActive
-	tt.SetEnvironment(env)
+	tt.SetWindowEnvironment("", func(env *ns.Environment) { env.Lifecycle = ns.LifecycleActive })
 	refresh(tt, a)
 	if a.player.windowAway {
 		t.Fatal("the player did not hear that the main window shows again")

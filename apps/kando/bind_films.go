@@ -471,7 +471,7 @@ func (a *app) libraryCloseRemove() {
 	}
 }
 
-// trashItem moves a file or a folder to the Trash, under the scope cx. Tests replace it.
+// trashItem moves a file or a folder to the Trash, under the scope cx, and calls done once it went or could not. Tests replace it.
 var trashItem = desktop.Trash
 
 // filmFiles is what moving a film to the Trash moves: the folder of a film inside the library root, or, when that folder holds other videos or any folder too, or is the root itself, the video, its subtitles, the hidden files a job keeps beside it (media.Companions) and the media files of its name, its own sound (media.SameNamed), so none is left behind in the folder. A video outside the library has none.

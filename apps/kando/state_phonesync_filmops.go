@@ -118,21 +118,35 @@ func (p phoneFilmOps) DeleteFilm(ctx context.Context, caller psync.Caller, ref p
 	if err != nil {
 		return err
 	}
+	// The Trash answers later on the engine's goroutine, so the film's files are asked to go there on it and the answer is waited for here.
+	trashed := make(chan error, 1)
 	_, err = remote.OnUI(ctx, a.update, func() (struct{}, error) {
 		if a.libraryLocked(f.lib.Dir) {
 			return struct{}{}, psync.Errorf(psync.CodeNotFound, "no film %q", f.film.ID)
 		}
 		name := films.Name(f.item)
-		gone, _, reason := a.libraryTrashIn(f.lib.Dir, []films.Film{f.item}, remoteMessages())
-		if len(gone) == 0 {
-			return struct{}{}, psync.Errorf(psync.CodeNotReady, "%s", reason)
-		}
-		a.libraryForget(gone)
-		a.tell(a.messages().LibraryTrashed(name))
-		a.phoneLog(caller.Name, settings.ActivityDeleted, name, 0, 0)
+		a.libraryTrashIn(f.lib.Dir, []films.Film{f.item}, remoteMessages(), func(gone []films.Film, _ bool, reason string) {
+			if len(gone) == 0 {
+				trashed <- psync.Errorf(psync.CodeNotReady, "%s", reason)
+				return
+			}
+			defer a.Changed()
+			a.libraryForget(gone)
+			a.tell(a.messages().LibraryTrashed(name))
+			a.phoneLog(caller.Name, settings.ActivityDeleted, name, 0, 0)
+			trashed <- nil
+		})
 		return struct{}{}, nil
 	})
-	return err
+	if err != nil {
+		return err
+	}
+	select {
+	case err := <-trashed:
+		return err
+	case <-ctx.Done():
+		return ctx.Err()
+	}
 }
 
 // phoneExport is what the export of a film takes from the app: what the export dialog last chose, the film's subtitle delay, and what stands in for a missing translation.

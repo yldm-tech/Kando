@@ -85,12 +85,13 @@ func (a *app) trayHooks() areaHooks {
 	}
 }
 
-// trayHideAtLogin puts the main window away at once in a run the system opened at login, so Kando runs in the menu bar.
+// trayHideAtLogin keeps the main window, which nsgo.Run opens hidden (nsgo.StartHidden in main), away in a run the system opened at login, so Kando runs in the menu bar without the window showing for a moment, and shows it in any other run.
 func (a *app) trayHideAtLogin() {
 	if nsdesktop.LaunchedAtLogin(a.cx) {
-		// TODO(nsgo#670): open the main window hidden from the start for a run the system opened at login, as nsgo.Run has no option for it; it shows for a moment before it is put away here https://github.com/nsgo-dev/nsgo/issues/670
 		a.windowHide()
+		return
 	}
+	a.windowShowMain()
 }
 
 // traySystemDesktop reaches the system through NSGo, under the app's scope cx, which keeps the icon as long as the app runs. The menu bar's icon on macOS is drawn by tray.Icon; Windows shows the executable's own icon and Linux the app's.
@@ -107,11 +108,9 @@ func (a *app) traySystemDesktop(cx *ns.Scope) traySystem {
 		},
 		template: mac,
 	}
-	// TODO(nsgo#656): offer 登录电脑时打开看懂 on Windows and Linux too once desktop.SetLaunchAtLogin works there; it does nothing there yet, so the row shows on macOS alone https://github.com/nsgo-dev/nsgo/issues/656
-	if mac {
-		s.readLogin = func(done func(bool)) { nsdesktop.LaunchAtLogin(cx, done) }
-		s.setLogin = func(on bool) { nsdesktop.SetLaunchAtLogin(cx, on) }
-	}
+	// 登录电脑时打开看懂 is the system's login item on macOS, the user's Run key on Windows and an XDG autostart entry on Linux.
+	s.readLogin = func(done func(bool)) { nsdesktop.LaunchAtLogin(cx, done) }
+	s.setLogin = func(on bool) { nsdesktop.SetLaunchAtLogin(cx, on) }
 	return s
 }
 

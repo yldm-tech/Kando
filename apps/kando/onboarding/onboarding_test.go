@@ -479,12 +479,12 @@ func TestGuideFollowsTheLanguage(t *testing.T) {
 	}
 }
 
-// TestSheetCornersLineUp checks that the corners one sees are the sheet's on each platform: the clear box that casts the shadow is rounded as the design's dialogs on the platform are, up to ui.RadiusDialog, and the face, every view that clips it and the rim inside are all rounded one point tighter, so the face is not cut off inside a rounder shadow or the rim's arcs left outside it.
+// TestSheetCornersLineUp checks that the corners one sees are the sheet's on each platform: the clear box that casts the shadow is rounded as the design's dialogs on the platform are, and the face, every view that clips it and the rim inside are all rounded one point tighter, so the face is not cut off inside a rounder shadow or the rim's arcs left outside it.
 func TestSheetCornersLineUp(t *testing.T) {
 	for _, c := range []struct {
 		os   core.OS
 		want core.Points
-	}{{core.OSMacOS, 16}, {core.OSWindows, 8}, {core.OSLinux, 12}} {
+	}{{core.OSMacOS, 20}, {core.OSWindows, 8}, {core.OSLinux, 12}} {
 		app := start(t, newFakeApp(), c.os)
 		box := app.Find("id:onboarding")
 		if got := box.Style.CornerRadius; got != c.want {

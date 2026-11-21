@@ -856,6 +856,7 @@ var Parameters = map[string][]string{
 	"SettingsGeneralCLIOther":                  {"path"},
 	"SettingsGeneralDownloadFailed":            {"error_"},
 	"SettingsGeneralLastCheck":                 {"when"},
+	"SettingsGeneralLaunchAtLoginHint":         {"platform"},
 	"SettingsGeneralShowInFinder":              {"platform"},
 	"SettingsGeneralSignInChecking":            {"browser"},
 	"SettingsGeneralSignInOn":                  {"browser"},
@@ -1582,6 +1583,7 @@ type Translation struct {
 	SettingsGeneralCLIOther                  func(path string) string
 	SettingsGeneralDownloadFailed            func(error_ string) string
 	SettingsGeneralLastCheck                 func(hc string, when time.Time) string
+	SettingsGeneralLaunchAtLoginHint         func(platform string) string
 	SettingsGeneralShowInFinder              func(platform string) string
 	SettingsGeneralSignInChecking            func(browser string) string
 	SettingsGeneralSignInOn                  func(browser string) string
@@ -2932,6 +2934,7 @@ const (
 	textSettingsAINameSiliconFlow
 	textSettingsAINameZhipu
 	textSettingsAINotConfigured
+	textSettingsAIPluginServices
 	textSettingsAIRedetect
 	textSettingsAIRetry
 	textSettingsAISearchModels
@@ -3000,7 +3003,6 @@ const (
 	textSettingsGeneralKeepRunningHint
 	textSettingsGeneralLanguageName
 	textSettingsGeneralLaunchAtLogin
-	textSettingsGeneralLaunchAtLoginHint
 	textSettingsGeneralLibrary
 	textSettingsGeneralLibraryNote
 	textSettingsGeneralLocation
@@ -4741,6 +4743,7 @@ var keyOfText = [numTexts]string{
 	"settingsAINameSiliconFlow",
 	"settingsAINameZhipu",
 	"settingsAINotConfigured",
+	"settingsAIPluginServices",
 	"settingsAIRedetect",
 	"settingsAIRetry",
 	"settingsAISearchModels",
@@ -4809,7 +4812,6 @@ var keyOfText = [numTexts]string{
 	"settingsGeneralKeepRunningHint",
 	"settingsGeneralLanguageName",
 	"settingsGeneralLaunchAtLogin",
-	"settingsGeneralLaunchAtLoginHint",
 	"settingsGeneralLibrary",
 	"settingsGeneralLibraryNote",
 	"settingsGeneralLocation",
@@ -6548,6 +6550,7 @@ var textsEn = i18n.NewTexts(""+
 	"SiliconFlow"+
 	"Zhipu GLM"+
 	"Not set up"+
+	"Plugins"+
 	"Detect Again"+
 	"Retry"+
 	"Search models"+
@@ -6616,7 +6619,6 @@ var textsEn = i18n.NewTexts(""+
 	"The queue keeps processing, and the status icon brings the window back. With the icon hidden, closing the window quits."+
 	"English"+
 	"Open Kando at login"+
-	"Runs quietly in the menu bar without opening a window."+
 	"Library"+
 	"Switching libraries stops the jobs in progress. Removing a library from the list doesn't delete the files in it."+
 	"Location"+
@@ -8352,6 +8354,7 @@ var textsEn = i18n.NewTexts(""+
 		11,
 		9,
 		10,
+		7,
 		12,
 		5,
 		13,
@@ -8420,7 +8423,6 @@ var textsEn = i18n.NewTexts(""+
 		119,
 		7,
 		19,
-		54,
 		7,
 		112,
 		8,
@@ -10159,6 +10161,7 @@ var textsJa = i18n.NewTexts(""+
 	"SiliconFlow"+
 	"Zhipu GLM"+
 	"未設定"+
+	"プラグイン"+
 	"再検出"+
 	"再試行"+
 	"モデルを検索"+
@@ -10227,7 +10230,6 @@ var textsJa = i18n.NewTexts(""+
 	"キューの処理を続け、ステータスアイコンからウインドウを戻せます。アイコンを隠しているときは、ウインドウを閉じると終了します。"+
 	"日本語"+
 	"ログイン時に Kando を開く"+
-	"ウインドウを開かず、メニューバーで静かに動きます。"+
 	"ライブラリ"+
 	"ライブラリを切り替えると、進行中のジョブは停止します。ライブラリを一覧から取り除いても、中のファイルは削除されません。"+
 	"場所"+
@@ -11963,6 +11965,7 @@ var textsJa = i18n.NewTexts(""+
 		11,
 		9,
 		9,
+		15,
 		9,
 		9,
 		18,
@@ -12031,7 +12034,6 @@ var textsJa = i18n.NewTexts(""+
 		186,
 		9,
 		34,
-		75,
 		15,
 		177,
 		6,
@@ -13770,6 +13772,7 @@ var textsKo = i18n.NewTexts(""+
 	"SiliconFlow"+
 	"Zhipu GLM"+
 	"설정되지 않음"+
+	"플러그인"+
 	"다시 감지"+
 	"다시 시도"+
 	"모델 검색"+
@@ -13838,7 +13841,6 @@ var textsKo = i18n.NewTexts(""+
 	"대기열 처리를 계속하고, 상태 아이콘으로 창을 다시 열 수 있습니다. 아이콘을 숨기면 창을 닫을 때 종료됩니다."+
 	"한국어"+
 	"로그인할 때 Kando 열기"+
-	"창을 열지 않고 메뉴 막대에서 조용히 실행됩니다."+
 	"라이브러리"+
 	"라이브러리를 전환하면 진행 중인 작업이 중지됩니다. 목록에서 라이브러리를 제거해도 그 안의 파일은 삭제되지 않습니다."+
 	"위치"+
@@ -15574,6 +15576,7 @@ var textsKo = i18n.NewTexts(""+
 		11,
 		9,
 		19,
+		12,
 		13,
 		13,
 		13,
@@ -15642,7 +15645,6 @@ var textsKo = i18n.NewTexts(""+
 		150,
 		9,
 		29,
-		67,
 		15,
 		165,
 		6,
@@ -17381,6 +17383,7 @@ var textsZhHans = i18n.NewTexts(""+
 	"硅基流动"+
 	"智谱 GLM"+
 	"未配置"+
+	"插件"+
 	"重新检测"+
 	"重试"+
 	"搜索模型"+
@@ -17449,7 +17452,6 @@ var textsZhHans = i18n.NewTexts(""+
 	"队列照常处理，点状态图标可以找回窗口。图标隐藏时，关掉窗口会退出。"+
 	"简体中文"+
 	"登录电脑时打开看懂"+
-	"只在菜单栏里安静运行，不弹出窗口。"+
 	"资料库"+
 	"切换资料库会停止进行中的任务。从列表移出资料库不会删除里面的文件。"+
 	"位置"+
@@ -19185,6 +19187,7 @@ var textsZhHans = i18n.NewTexts(""+
 		12,
 		10,
 		9,
+		6,
 		12,
 		6,
 		12,
@@ -19253,7 +19256,6 @@ var textsZhHans = i18n.NewTexts(""+
 		99,
 		12,
 		27,
-		51,
 		9,
 		99,
 		6,
@@ -20992,6 +20994,7 @@ var textsZhHant = i18n.NewTexts(""+
 	"矽基流動"+
 	"智譜 GLM"+
 	"未設定"+
+	"外掛"+
 	"重新偵測"+
 	"重試"+
 	"搜尋模型"+
@@ -21060,7 +21063,6 @@ var textsZhHant = i18n.NewTexts(""+
 	"佇列照常處理，點狀態圖示可以找回視窗。圖示隱藏時，關掉視窗會結束。"+
 	"繁體中文"+
 	"登入電腦時打開看懂"+
-	"只在選單列裡安靜執行，不彈出視窗。"+
 	"資料庫"+
 	"切換資料庫會停止進行中的工作。從清單移除資料庫不會刪除裡面的檔案。"+
 	"位置"+
@@ -22796,6 +22798,7 @@ var textsZhHant = i18n.NewTexts(""+
 		12,
 		10,
 		9,
+		6,
 		12,
 		6,
 		12,
@@ -22864,7 +22867,6 @@ var textsZhHant = i18n.NewTexts(""+
 		99,
 		12,
 		27,
-		51,
 		9,
 		99,
 		6,
@@ -24818,6 +24820,9 @@ func Supply(lang string, t Translation) {
 	}
 	if t.SettingsGeneralLastCheck != nil {
 		s.SettingsGeneralLastCheck = t.SettingsGeneralLastCheck
+	}
+	if t.SettingsGeneralLaunchAtLoginHint != nil {
+		s.SettingsGeneralLaunchAtLoginHint = t.SettingsGeneralLaunchAtLoginHint
 	}
 	if t.SettingsGeneralShowInFinder != nil {
 		s.SettingsGeneralShowInFinder = t.SettingsGeneralShowInFinder
@@ -48433,6 +48438,17 @@ func (msgs Messages) SettingsAIPluginService(name string, host string) string {
 	}
 }
 
+// SettingsAIPluginServices says "Plugins"
+// in the language the app shows under cx.
+//
+// Heading in the AI service pop-up over the services plugin packs add, which show after Kando's own.
+func SettingsAIPluginServices(cx *core.Scope) string { return For(cx).SettingsAIPluginServices() }
+
+// SettingsAIPluginServices is the package's SettingsAIPluginServices in the language of msgs.
+func (msgs Messages) SettingsAIPluginServices() string {
+	return msgs.text(textSettingsAIPluginServices)
+}
+
 // SettingsAIRedetect says "Detect Again"
 // in the language the app shows under cx.
 //
@@ -49549,7 +49565,7 @@ func (msgs Messages) SettingsGeneralLastCheck(when time.Time) string {
 // SettingsGeneralLaunchAtLogin says "Open Kando at login"
 // in the language the app shows under cx.
 //
-// Switch in Settings › General (macOS) that has the system open Kando when the user logs in.
+// Switch in Settings › General that has the system open Kando when the user logs in.
 func SettingsGeneralLaunchAtLogin(cx *core.Scope) string {
 	return For(cx).SettingsGeneralLaunchAtLogin()
 }
@@ -49559,17 +49575,81 @@ func (msgs Messages) SettingsGeneralLaunchAtLogin() string {
 	return msgs.text(textSettingsGeneralLaunchAtLogin)
 }
 
-// SettingsGeneralLaunchAtLoginHint says "Runs quietly in the menu bar without opening a window."
+// SettingsGeneralLaunchAtLoginHint says "{platform, select, macOS {Runs quietly in the menu bar without opening a window.} Windows {Runs quietly in the notification area without opening a window.} other {Runs quietly in the system tray without opening a window.}}"
 // in the language the app shows under cx.
 //
-// Hint under the switch that opens Kando at login: a Kando opened so shows no window.
-func SettingsGeneralLaunchAtLoginHint(cx *core.Scope) string {
-	return For(cx).SettingsGeneralLaunchAtLoginHint()
+// Hint under the switch that opens Kando at login: a Kando opened so shows no window. {platform} is the system the app runs on: macOS, Windows or another (Linux); each case names where that system shows Kando's status icon.
+func SettingsGeneralLaunchAtLoginHint(cx *core.Scope, platform string) string {
+	return For(cx).SettingsGeneralLaunchAtLoginHint(platform)
 }
 
 // SettingsGeneralLaunchAtLoginHint is the package's SettingsGeneralLaunchAtLoginHint in the language of msgs.
-func (msgs Messages) SettingsGeneralLaunchAtLoginHint() string {
-	return msgs.text(textSettingsGeneralLaunchAtLoginHint)
+func (msgs Messages) SettingsGeneralLaunchAtLoginHint(platform string) string {
+	if i18n.IsPseudo(msgs.lang) {
+		return i18n.Pseudo(msgs.lang, Messages{lang: Source, mark: true}.SettingsGeneralLaunchAtLoginHint(platform))
+	}
+	for lang := msgs.lang; ; lang = i18n.Parent(lang) {
+		if f := supplied[lang].SettingsGeneralLaunchAtLoginHint; f != nil {
+			return f(platform)
+		}
+		switch lang {
+		case "", "en":
+			var b strings.Builder
+			switch platform {
+			case "macOS":
+				b.WriteString("Runs quietly in the menu bar without opening a window.")
+			case "Windows":
+				b.WriteString("Runs quietly in the notification area without opening a window.")
+			default:
+				b.WriteString("Runs quietly in the system tray without opening a window.")
+			}
+			return b.String()
+		case "ja":
+			var b strings.Builder
+			switch platform {
+			case "macOS":
+				b.WriteString("ウインドウを開かず、メニューバーで静かに動きます。")
+			case "Windows":
+				b.WriteString("ウインドウを開かず、通知領域で静かに動きます。")
+			default:
+				b.WriteString("ウインドウを開かず、システムトレイで静かに動きます。")
+			}
+			return b.String()
+		case "ko":
+			var b strings.Builder
+			switch platform {
+			case "macOS":
+				b.WriteString("창을 열지 않고 메뉴 막대에서 조용히 실행됩니다.")
+			case "Windows":
+				b.WriteString("창을 열지 않고 알림 영역에서 조용히 실행됩니다.")
+			default:
+				b.WriteString("창을 열지 않고 시스템 트레이에서 조용히 실행됩니다.")
+			}
+			return b.String()
+		case "zh-Hans":
+			var b strings.Builder
+			switch platform {
+			case "macOS":
+				b.WriteString("只在菜单栏里安静运行，不弹出窗口。")
+			case "Windows":
+				b.WriteString("只在任务栏通知区域里安静运行，不弹出窗口。")
+			default:
+				b.WriteString("只在系统托盘里安静运行，不弹出窗口。")
+			}
+			return b.String()
+		case "zh-Hant":
+			var b strings.Builder
+			switch platform {
+			case "macOS":
+				b.WriteString("只在選單列裡安靜執行，不彈出視窗。")
+			case "Windows":
+				b.WriteString("只在工作列通知區域裡安靜執行，不彈出視窗。")
+			default:
+				b.WriteString("只在系統匣裡安靜執行，不彈出視窗。")
+			}
+			return b.String()
+		}
+	}
 }
 
 // SettingsGeneralLibrary says "Library"

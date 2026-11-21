@@ -41,24 +41,9 @@ func browseApp(t *testing.T, p media.Pipeline) (*app, *nsgotest.App, chan func()
 	return a, tt, updates, &cleared
 }
 
-// browseReport reports nav for the web view as the platform does once a page starts loading and once it has loaded, and settles. The web view reports while it is hidden behind the start too (after home), where nsgotest's Navigate, which looks only at shown views, finds nothing, so the reports go to the mounted view as Navigate sends them.
+// browseReport reports nav for the web view as the platform does once a page starts loading and once it has loaded, and settles. The web view reports while it is hidden behind the start too (after home), which nsgotest's Navigate allows as it finds the mounted view.
 func browseReport(tt *nsgotest.App, nav ns.WebNavigation) {
-	// TODO(nsgo#201): let nsgotest's Navigate report for a mounted web view that is hidden, as a platform's hidden web view goes on reporting its loads, rather than only for a view it shows https://github.com/nsgo-dev/nsgo/issues/201
-	web := tt.FindMounted(browsePage)
-	for _, loading := range []bool{true, false} {
-		nav.Loading = loading
-		kind := nsgotest.EventLoad
-		if loading {
-			kind = nsgotest.EventLoadStart
-		}
-		for _, k := range []nsgotest.EventKind{kind, nsgotest.EventNavigationStateChange} {
-			if web.Events.Has(k) {
-				n := nav
-				tt.Report(nsgotest.Event{Kind: k, ID: web.ID, Navigation: &n})
-			}
-		}
-	}
-	tt.Settle()
+	tt.Navigate(browsePage, nav)
 }
 
 // browseOpen loads rawURL as the address field would and lets the page finish loading it.
@@ -95,6 +80,43 @@ func browseScripts(tt *nsgotest.App) []string {
 }
 
 // Enter in the address field opens what it holds: the first address makes the web view, later ones load in it, and words are searched for on the engine of the interface's language, read when Enter is pressed.
+// A download gets the cookies the pages' store holds for its video's whole site, HttpOnly ones included, with the pages' user agent, and none of another site's.
+func TestBrowseDownloadsGetThePagesCookies(t *testing.T) {
+	a, tt, updates := newTestApp(t, media.Tools{})
+	expires := time.Date(2030, 1, 1, 0, 0, 0, 0, time.UTC)
+	tt.WebCookies = []ns.WebCookie{
+		{Name: "SESSDATA", Value: "v", Domain: ".bilibili.com", Path: "/", Expires: expires, Secure: true, HTTPOnly: true},
+		{Name: "other", Value: "o", Domain: "example.com", Path: "/"},
+	}
+	a.browse.agent.set("Mozilla/5.0 Kando-Test")
+	// The tests' app never runs ready, where the browser gives the pipeline the pages' cookies.
+	a.browseHooks().ready()
+	tools, ok := a.pipeline.(media.Tools)
+	if !ok || tools.SiteCookies == nil {
+		t.Fatal("the downloads are given none of the pages' cookies")
+	}
+	type result struct {
+		cookies []media.Cookie
+		ua      string
+		err     error
+	}
+	got := make(chan result, 1)
+	go func() {
+		cookies, ua, err := tools.SiteCookies(t.Context(), "https://www.bilibili.com/video/BV1xx411c7mD")
+		got <- result{cookies, ua, err}
+	}()
+	waitUpdate(t, tt, a, updates)
+	select {
+	case r := <-got:
+		want := media.Cookie{Domain: ".bilibili.com", Path: "/", Secure: true, HTTPOnly: true, Expires: expires, Name: "SESSDATA", Value: "v"}
+		if r.err != nil || len(r.cookies) != 1 || r.cookies[0] != want || r.ua != "Mozilla/5.0 Kando-Test" {
+			t.Fatalf("cookies %+v, ua %q, err %v", r.cookies, r.ua, r.err)
+		}
+	case <-time.After(2 * time.Second):
+		t.Fatal("the pages' cookies were never listed")
+	}
+}
+
 func TestBrowseEnterLoadsTheAddress(t *testing.T) {
 	a, tt, _, _ := browseApp(t, &fakePipeline{})
 	if tt.Exists(browsePage) {

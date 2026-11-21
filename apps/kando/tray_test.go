@@ -223,8 +223,8 @@ func TestClosingTheWindowElsewhereKeepsKandoRunning(t *testing.T) {
 	e := &ns.WindowClosing{}
 	a.windowClosing(e)
 	tt.Settle()
-	if !windowClosingCanceled(e) || !a.window.hidden || tt.Quits != 0 || !a.running() {
-		t.Fatalf("close button: canceled %v, hidden %v, quits %d, job running %v", windowClosingCanceled(e), a.window.hidden, tt.Quits, a.running())
+	if !e.Canceled() || !a.window.hidden || tt.Quits != 0 || !a.running() {
+		t.Fatalf("close button: canceled %v, hidden %v, quits %d, job running %v", e.Canceled(), a.window.hidden, tt.Quits, a.running())
 	}
 	a.windowShowMain()
 	if a.window.hidden {

@@ -19,9 +19,9 @@ type CookieFilter struct {
 	Domain string
 }
 
-// CookieSource is media.Tools.SiteCookies over list, which lists the cookies of the browser's pages: for a source on a site, the cookies of its registrable domain and every host under it, so a video on www.example.com gets the sign-in example.com's accounts page left; for an IP address or a host without a public suffix, as localhost, those a request to it would send. It runs on the pipeline's goroutine; agent gives the pages' user agent, "" when it is not known. A source that is not an http or https address gets none.
-func CookieSource(list func(CookieFilter) ([]media.Cookie, error), agent func() string) func(context.Context, string) ([]media.Cookie, string, error) {
-	return func(_ context.Context, source string) ([]media.Cookie, string, error) {
+// CookieSource is media.Tools.SiteCookies over list, which lists the cookies of the browser's pages: for a source on a site, the cookies of its registrable domain and every host under it, so a video on www.example.com gets the sign-in example.com's accounts page left; for an IP address or a host without a public suffix, as localhost, those a request to it would send. It runs on the pipeline's goroutine, and list gets the download's context, which ends the wait for the store when the download ends; agent gives the pages' user agent, "" when it is not known. A source that is not an http or https address gets none.
+func CookieSource(list func(context.Context, CookieFilter) ([]media.Cookie, error), agent func() string) func(context.Context, string) ([]media.Cookie, string, error) {
+	return func(ctx context.Context, source string) ([]media.Cookie, string, error) {
 		u, err := url.Parse(source)
 		if err != nil || !Allowed(source) || u.Hostname() == "" {
 			return nil, "", nil
@@ -32,7 +32,7 @@ func CookieSource(list func(CookieFilter) ([]media.Cookie, error), agent func() 
 				filter = CookieFilter{Domain: site}
 			}
 		}
-		cookies, err := list(filter)
+		cookies, err := list(ctx, filter)
 		if err != nil {
 			return nil, "", err
 		}

@@ -54,8 +54,16 @@ func (a *app) queueSystemDesktop(cx *ns.Scope) queueDesktop {
 		// clear removes every notification of the app's, those earlier runs left too.
 		clear: cx.CloseNotifications,
 		badge: cx.SetBadge,
-		progress: func(queueBar) {
-			// TODO(nsgo#116): show the running job's progress on the Dock icon, the taskbar button and the launcher entry, indeterminate while its stage has not said how far it is, as MyGo's Window.SetProgressBar did https://github.com/nsgo-dev/nsgo/issues/116
+		// progress shows the running job's progress on the Dock icon, the taskbar buttons and the launcher entry, indeterminate while its stage has not said how far it is.
+		progress: func(p queueBar) {
+			switch {
+			case !p.Shown:
+				cx.SetTaskProgress(ns.TaskProgress{})
+			case p.Indeterminate:
+				cx.SetTaskProgress(ns.TaskProgress{State: ns.TaskProgressIndeterminate})
+			default:
+				cx.SetTaskProgress(ns.TaskProgress{State: ns.TaskProgressNormal, Value: p.Value})
+			}
 		},
 	}
 }

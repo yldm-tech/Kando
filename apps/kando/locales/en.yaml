@@ -5056,6 +5056,9 @@ settingsAIPluginService:
   placeholders:
     name: { type: "String", example: "Company gateway" }
     host: { type: "String", example: "llm.example.com" }
+settingsAIPluginServices:
+  message: "Plugins"
+  description: "Heading in the AI service pop-up over the services plugin packs add, which show after Kando's own."
 settingsAIRedetect:
   message: "Detect Again"
   description: "Button on the everyapi command line row looking for the program again and asking it again whether someone is signed in."
@@ -5320,10 +5323,12 @@ settingsGeneralLastCheck:
     when: { type: "DateTime" }
 settingsGeneralLaunchAtLogin:
   message: "Open Kando at login"
-  description: "Switch in Settings › General (macOS) that has the system open Kando when the user logs in."
+  description: "Switch in Settings › General that has the system open Kando when the user logs in."
 settingsGeneralLaunchAtLoginHint:
-  message: "Runs quietly in the menu bar without opening a window."
-  description: "Hint under the switch that opens Kando at login: a Kando opened so shows no window."
+  message: "{platform, select, macOS {Runs quietly in the menu bar without opening a window.} Windows {Runs quietly in the notification area without opening a window.} other {Runs quietly in the system tray without opening a window.}}"
+  description: "Hint under the switch that opens Kando at login: a Kando opened so shows no window. {platform} is the system the app runs on: macOS, Windows or another (Linux); each case names where that system shows Kando's status icon."
+  placeholders:
+    platform: { type: "String", example: "macOS" }
 settingsGeneralLibrary:
   message: "Library"
   description: "Heading of the General page's library card."
