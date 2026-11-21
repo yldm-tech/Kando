@@ -1112,8 +1112,8 @@ func (a *app) show(job core.Job) {
 	if !quiet {
 		a.queueNotifyEnded(was.Stage, ended)
 	}
-	// A film just translated says the AI service answers again.
-	if rewritten && job.TranslationErr == "" && !job.SameLanguage {
+	// A film just translated says the AI service answers again; one that only downloaded its video (core.RedoVideo) asked the service nothing, so it says nothing of it, and does not spend each film's one refill since launch while the service may still be gone.
+	if rewritten && was.Redo != core.RedoVideo && job.TranslationErr == "" && !job.SameLanguage {
 		a.queueRefill()
 	}
 	a.queueTellSystem()

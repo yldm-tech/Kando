@@ -3914,3 +3914,26 @@ func TestARefillThatFailsAgainSaysNothing(t *testing.T) {
 		t.Fatal("the film was tried again")
 	}
 }
+
+// A film that only downloaded its video asked the AI service nothing, so its completing does not refill the films a gone service left untranslated, which still wait for the service to answer.
+func TestDownloadingAFilmsVideoDoesNotRefill(t *testing.T) {
+	p := &retranslatePipeline{}
+	a, tt, updates := retranslateLibrary(t, p)
+	gone := stageOf(t, a, "talk")
+	gone.TranslationErr = `Post "https://api.example.com/v1/chat/completions": dial tcp: connection refused`
+	a.library.Upsert(gone)
+	clip := core.Job{ID: "clip", Source: "https://www.youtube.com/watch?v=aqz-KE-bpKQ", Language: "简体中文", Stage: core.StageDownloading, Redo: core.RedoVideo, LibraryDir: gone.LibraryDir, CompletedAt: time.Now()}
+	a.library.Upsert(clip)
+	refresh(tt, a)
+	clip.Stage, clip.Redo = core.StageComplete, ""
+	a.show(clip)
+	settle(t, a, tt, updates)
+	if len(p.sent) != 0 || a.queue.refilled["talk"] {
+		t.Fatalf("a video's download refilled talk: sent %q", p.sent)
+	}
+	a.areasLLMTested(nil, false)
+	settle(t, a, tt, updates)
+	if !slices.Equal(p.sent, []string{"How are you?"}) {
+		t.Fatalf("sent %q once the service answered", p.sent)
+	}
+}
