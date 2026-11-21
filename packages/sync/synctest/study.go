@@ -14,10 +14,12 @@ type study struct {
 	sections    []sync.ExplainSection
 	recap       []sync.RecapItem
 	noAI        bool
-	lookups     []sync.WordLookup
-	explains    []sync.LineExplain
-	asks        []sync.ExplainAsk
-	recaps      []sync.FilmRecap
+	// model is the model explanations, answers and recaps name, "test-model" when "".
+	model    string
+	lookups  []sync.WordLookup
+	explains []sync.LineExplain
+	asks     []sync.ExplainAsk
+	recaps   []sync.FilmRecap
 }
 
 // SetEntry has the desktop answer a lookup of word, whatever its case, with e.
@@ -54,6 +56,21 @@ func (d *Desktop) SetRecap(items ...sync.RecapItem) {
 	d.mu.Lock()
 	defer d.mu.Unlock()
 	d.study.recap = items
+}
+
+// SetModel has the desktop name model as the one its explanations, answers and recaps came from, rather than test-model.
+func (d *Desktop) SetModel(model string) {
+	d.mu.Lock()
+	defer d.mu.Unlock()
+	d.study.model = model
+}
+
+// modelLocked is the model the desktop names, with d.mu held.
+func (d *Desktop) modelLocked() string {
+	if d.study.model == "" {
+		return "test-model"
+	}
+	return d.study.model
 }
 
 // SetNoAI has the desktop answer lookups and explanations as one with no AI service set does (sync.CodeNoAI), or answer them again.
@@ -118,7 +135,7 @@ func (s studyService) Explain(_ context.Context, _ sync.Caller, req sync.LineExp
 	if text == "" {
 		text = "Explained: " + req.Lines[req.Index].Original
 	}
-	return sync.Explanation{Text: text, Sections: s.d.study.sections, Language: "简体中文", Model: "test-model"}, nil
+	return sync.Explanation{Text: text, Sections: s.d.study.sections, Language: "简体中文", Model: s.d.modelLocked()}, nil
 }
 
 // Ask answers a question with the question and the line it is about.
@@ -129,7 +146,7 @@ func (s studyService) Ask(_ context.Context, _ sync.Caller, req sync.ExplainAsk)
 	if s.d.study.noAI {
 		return sync.ExplainAnswer{}, sync.Errorf(sync.CodeNoAI, "no AI service is set")
 	}
-	return sync.ExplainAnswer{Text: "Answered: " + req.Question, Language: "简体中文", Model: "test-model"}, nil
+	return sync.ExplainAnswer{Text: "Answered: " + req.Question, Language: "简体中文", Model: s.d.modelLocked()}, nil
 }
 
 // Recap answers the items set, or else one at the first line sent and one at the last.
@@ -148,5 +165,5 @@ func (s studyService) Recap(_ context.Context, _ sync.Caller, req sync.FilmRecap
 			items = append(items, sync.RecapItem{StartMS: last.StartMS, Text: "Then: " + last.Original})
 		}
 	}
-	return sync.Recap{Items: items, Language: "简体中文", Model: "test-model"}, nil
+	return sync.Recap{Items: items, Language: "简体中文", Model: s.d.modelLocked()}, nil
 }
