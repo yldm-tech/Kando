@@ -132,7 +132,7 @@ func (p *Pool) URL(ctx context.Context, t Target, path string) (string, error) {
 	return p.proxy.URL(provider, path)
 }
 
-// Revoke stops the pool's Proxy serving the file link is the URL of (Proxy.Revoke), as when the player moves on from it; nothing when there is no Proxy yet.
+// Revoke gives back link, a URL the pool's Proxy gave, as when the player moves on from it, and the Proxy stops serving its file once every URL call that gave it has been given back (Proxy.Revoke); nothing when there is no Proxy yet.
 func (p *Pool) Revoke(link string) {
 	p.mu.Lock()
 	defer p.mu.Unlock()

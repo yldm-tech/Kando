@@ -368,3 +368,28 @@ func TestProxyRevokesAURL(t *testing.T) {
 		t.Fatalf("revoking what is not the new URL revoked it: %d", resp.StatusCode)
 	}
 }
+
+// TestProxyRevokesAURLOnceEveryHolderGaveItBack checks that a URL asked for twice, as by two openings of the same film whose lookups overlap, stays served when the first is revoked, so the stale opening's revoke does not cut off the one now playing, and is 404 once the second is revoked too.
+func TestProxyRevokesAURLOnceEveryHolderGaveItBack(t *testing.T) {
+	src := &memReader{files: map[string]string{"a.mp4": "aaa"}}
+	proxy := newProxy(t)
+	first, _ := proxy.URL(src, "a.mp4")
+	second, _ := proxy.URL(src, "a.mp4")
+	if first != second {
+		t.Fatalf("the same file got %s and %s", first, second)
+	}
+	proxy.Revoke(first)
+	if resp, body := get(t, second, nil); resp.StatusCode != http.StatusOK || body != "aaa" {
+		t.Fatalf("revoked by one of two holders: %d %q", resp.StatusCode, body)
+	}
+	proxy.Revoke(second)
+	if resp, _ := get(t, second, nil); resp.StatusCode != http.StatusNotFound {
+		t.Fatalf("revoked by both holders: %d", resp.StatusCode)
+	}
+	proxy.Revoke(second)
+	again, _ := proxy.URL(src, "a.mp4")
+	proxy.Revoke(again)
+	if resp, _ := get(t, again, nil); resp.StatusCode != http.StatusNotFound {
+		t.Fatalf("a revoke after the last one carried over to the new URL: %d", resp.StatusCode)
+	}
+}

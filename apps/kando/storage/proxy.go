@@ -108,6 +108,8 @@ type Proxy struct {
 	mu     sync.Mutex
 	files  map[string]proxied
 	tokens map[proxied]string
+	// holds counts, by token, the URL calls that gave it and were not revoked yet: the token is served until the last of them is.
+	holds map[string]int
 }
 
 // proxied is a file a Proxy serves.
@@ -122,13 +124,13 @@ func NewProxy() (*Proxy, error) {
 	if err != nil {
 		return nil, err
 	}
-	p := &Proxy{listener: listener, host: listener.Addr().String(), files: map[string]proxied{}, tokens: map[proxied]string{}}
+	p := &Proxy{listener: listener, host: listener.Addr().String(), files: map[string]proxied{}, tokens: map[proxied]string{}, holds: map[string]int{}}
 	p.server = &http.Server{Handler: p, ReadHeaderTimeout: 10 * time.Second, ErrorLog: log.New(io.Discard, "", 0)}
 	go p.server.Serve(listener)
 	return p, nil
 }
 
-// URL is the address the file at path of reader is served at, http://127.0.0.1:port/token/name, the name being the file's own so a player can tell its kind; asking again for the same file gives the same URL until it is revoked (Revoke), and a new one after. reader must be comparable, as a pointer is.
+// URL is the address the file at path of reader is served at, http://127.0.0.1:port/token/name, the name being the file's own so a player can tell its kind; asking again for the same file gives the same URL until it is revoked (Revoke) as many times as it was given, and a new one after. reader must be comparable, as a pointer is.
 func (p *Proxy) URL(reader Reader, filePath string) (string, error) {
 	clean, err := cleanFile(filePath)
 	if err != nil {
@@ -142,11 +144,12 @@ func (p *Proxy) URL(reader Reader, filePath string) (string, error) {
 		p.tokens[key] = token
 		p.files[token] = key
 	}
+	p.holds[token]++
 	p.mu.Unlock()
 	return fmt.Sprintf("http://%s/%s/%s", p.host, token, url.PathEscape(path.Base(clean))), nil
 }
 
-// Revoke stops serving the file link is the URL of, as URL gave it: a request with its token is 404 from then on, a request being answered goes on, and asking URL for the file again gives a new token. A link the Proxy did not give, or one revoked already, revokes nothing.
+// Revoke gives back the URL link, as URL gave it, and stops serving its file once every URL call that gave that link has been given back, so one holder moving on from a file does not cut off another that asked for the same file meanwhile, as two openings of the same film whose lookups overlap do: a request with its token is 404 from then on, a request being answered goes on, and asking URL for the file again gives a new token. A link the Proxy did not give, or one revoked already, revokes nothing.
 func (p *Proxy) Revoke(link string) {
 	token := tokenOf(link)
 	if token == "" {
@@ -155,6 +158,10 @@ func (p *Proxy) Revoke(link string) {
 	p.mu.Lock()
 	defer p.mu.Unlock()
 	if file, ok := p.files[token]; ok {
+		if p.holds[token]--; p.holds[token] > 0 {
+			return
+		}
+		delete(p.holds, token)
 		delete(p.files, token)
 		delete(p.tokens, file)
 	}
