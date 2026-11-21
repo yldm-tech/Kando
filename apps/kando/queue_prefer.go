@@ -8,20 +8,20 @@ import (
 	"kando/packages/media"
 )
 
-// The film opened goes first: a film made while it plays is made nearest where it is watched (queueWatch), and so, across films, the one opened is made before the others waiting. Opening a film whose subtitles are not made yet puts its job at the head of the queue; a job running that stopping loses no more than the work it is doing, as Make makes it (media.MakesAPartAtATime), gives way to it, going back to the queue right after it, as a paused job does (queuePausedJob), and goes on where it was once the opened film is made. A job that stopping would set back, as the download of a film's video (core.RedoVideo), runs on, and the opened film runs next.
+// The film opened goes first: a film made while it plays is made nearest where it is watched (queueWatch), and so, across films, the one opened is made before the others waiting. Opening a film whose job waits puts it at the head of the queue: one made for the first time, and a done film processed or translated again, or having its lines left translated (core.Job.Redo), whose new lines it shows cell by cell as they come, the quiet refill's among them (queueRefill), as the film watched is the one whose missing lines are missed. The download of the video of a film that keeps none (core.RedoVideo) does not go first: the film streams meanwhile with its subtitles, which the download does not change; a job running that stopping loses no more than the work it is doing, as Make makes it (media.MakesAPartAtATime), gives way to it, going back to the queue right after it, as a paused job does (queuePausedJob), and goes on where it was once the opened film is made. A job that stopping would set back, as the download of a film's video (core.RedoVideo), runs on, and the opened film runs next.
 
 // errYielding is the cause the running job is stopped with to give way to the film opened. It is a pause (errPausing), so the job reports nothing more and goes back to the queue once its pipeline has returned.
 var errYielding = fmt.Errorf("%w for the film opened", errPausing)
 
-// queuePreferOpen puts the open film's job first when its subtitles are not made yet and it waits, once for each film opened, and reports whether that changed the queue.
+// queuePreferOpen puts the open film's job first when it waits, once each time it is queued (queueAdd forgets the film put first when its job is queued again, as one translated again from the player), and reports whether that changed the queue.
 func (a *app) queuePreferOpen() bool {
 	id := a.openKey
-	if id == "" || id == a.queue.preferred || id == a.queue.active || a.queue.paused {
+	if id == "" || id == a.queue.active || a.queue.paused || id == a.queue.preferred {
 		return false
 	}
 	job, ok := a.library.Find(id)
 	// A job that cannot run now, as one of a library not open on this computer or a download while offline mode is on (queueCanRun), would not run first: the job running does not give way to it.
-	if !ok || job.Stage != core.StageQueued || queueHeld(job) || job.Redo != "" || !a.queueCanRun(job) {
+	if !ok || job.Stage != core.StageQueued || queueHeld(job) || job.Redo == core.RedoVideo || !a.queueCanRun(job) {
 		return false
 	}
 	a.queue.preferred = id

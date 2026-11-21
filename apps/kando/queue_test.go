@@ -3922,6 +3922,55 @@ func TestTheFilmOpenedIsMadeFirst(t *testing.T) {
 	}
 }
 
+// TestTheFilmOpenedIsTranslatedAgainFirst translates again the film open, which was made first once already as it was opened, while another film is being made: the translation again goes first, the film being made giving way to it, and goes on once it is done.
+func TestTheFilmOpenedIsTranslatedAgainFirst(t *testing.T) {
+	p := &preferPipeline{makerPipeline: makerPipeline{length: 90 * time.Second, released: make(chan struct{})}}
+	a, tt, updates := newTestApp(t, p)
+	dir := t.TempDir()
+	first, second := filepath.Join(dir, "first", "first.mp4"), filepath.Join(dir, "second", "second.mp4")
+	writeFakeClip(t, first, 90, "202020", "101010")
+	writeFakeClip(t, second, 90, "202020", "101010")
+	if err := a.Enqueue(core.FileURL(first), core.FileURL(second)); err != nil {
+		t.Fatal(err)
+	}
+	refresh(tt, a)
+	var firstID, secondID string
+	for _, j := range a.library.Jobs {
+		if strings.HasSuffix(j.Source, "first.mp4") {
+			firstID = j.ID
+		} else {
+			secondID = j.ID
+		}
+	}
+	queueUntilState(t, updates, func() bool { return stageOf(t, a, firstID).SubtitlePath != "" })
+	item, ok := films.Find(a.films(), secondID)
+	if !ok {
+		t.Fatal("no film for the second job")
+	}
+	apply(tt, a, func() { a.Open(item) })
+	queueUntilState(t, updates, func() bool {
+		return stageOf(t, a, secondID).Stage == core.StageComplete && a.queue.active == firstID
+	})
+	// The second, still open, is translated again from the player, as 重新翻译为 does, while the first is being made.
+	apply(tt, a, func() {
+		if err := a.queueRetranslate(stageOf(t, a, secondID), core.RedoTranslation, "日本語"); err != nil {
+			t.Fatal(err)
+		}
+	})
+	queueUntilState(t, updates, func() bool {
+		job := stageOf(t, a, secondID)
+		return job.Stage == core.StageComplete && job.Redo == "" && job.Language == "日本語"
+	})
+	if job := stageOf(t, a, firstID); job.Stage.Done() {
+		t.Fatalf("the first ended %s before the second was translated again", job.Stage)
+	}
+	close(p.released)
+	settle(t, a, tt, updates)
+	if job := stageOf(t, a, firstID); job.Stage != core.StageComplete {
+		t.Fatalf("the first ended %s: %v", job.Stage, job.Err)
+	}
+}
+
 // A film left untranslated from where the AI service was out of reach has its lines left translated by itself once the service is seen answering again, quietly; one the service refused waits for the user.
 func TestAFilmLeftUntranslatedByAServiceGoneIsTranslatedOnceItAnswers(t *testing.T) {
 	p := &retranslatePipeline{}
