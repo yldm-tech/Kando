@@ -35,7 +35,9 @@ type mediaSourceUI struct {
 	saveGen       int
 	editRelease   func()
 	removeRelease func()
-	open          func(ctx context.Context, k mediasource.Kind, s mediasource.Source, secrets map[string]string) (mediasource.Driver, error)
+	// secretsHeld is held by whoever is changing the sources' secrets in the secure store, from a save's first write until settings.json took the save or its secrets were put back as they were (mediaSourceSecretWrite), and by a removal's forgetting, so a save started after another that was abandoned reads the secrets that one put back, and nothing puts back a secret a removal forgot.
+	secretsHeld chan struct{}
+	open        func(ctx context.Context, k mediasource.Kind, s mediasource.Source, secrets map[string]string) (mediasource.Driver, error)
 	// pool keeps the connections the 媒体来源 page lists through and the jobs copy through (mediaSourcePoolSync); browse is that page's state (state_mediasource_browse.go). localHost, when set, judges whether a host is on the local network for offline mode in place of mediasource.Local, as a test's does.
 	pool      *mediasource.Pool
 	browse    mediaSourceBrowse
@@ -57,7 +59,7 @@ func newMediaSourceUI() mediaSourceUI {
 	if err := kinds.Register(mediasource.SMB()); err != nil {
 		panic(err)
 	}
-	return mediaSourceUI{kinds: kinds, tests: map[string]mediaSourceTest{}, open: mediaSourceOpen, pool: &mediasource.Pool{}}
+	return mediaSourceUI{kinds: kinds, tests: map[string]mediaSourceTest{}, open: mediaSourceOpen, pool: &mediasource.Pool{}, secretsHeld: make(chan struct{}, 1)}
 }
 
 // mediaSourceOpen connects to s, a source of kind k, with its secrets by key, as the kind does.
@@ -290,7 +292,7 @@ func mediaSourceProblem(k mediasource.Kind, s mediasource.Source) func(locales.M
 	return nil
 }
 
-// saveMediaSourceDraft keeps the dialog's draft as a new source or in place of the one edited, saves settings.json and closes the dialog. A source without a name is named after its server. The secrets typed are kept in the secure store first, off the engine's goroutine, as the system may ask the user; a secret left empty keeps the one stored. A draft that misses something, a secure store that is not there or refused, or a settings.json that cannot be written keeps the dialog open and says why.
+// saveMediaSourceDraft keeps the dialog's draft as a new source or in place of the one edited, saves settings.json and closes the dialog. A source without a name is named after its server. The secrets typed are kept in the secure store first, off the engine's goroutine, as the system may ask the user, remembering what the store held so they are put back as they were when the save does not finish (mediaSourceSecretWrite); a secret left empty keeps the one stored. A draft that misses something, a secure store that is not there or refused, or a settings.json that cannot be written keeps the dialog open and says why.
 func (a *app) saveMediaSourceDraft() {
 	m := &a.sources
 	if m.saving {
@@ -318,22 +320,75 @@ func (a *app) saveMediaSourceDraft() {
 	m.saveGen++
 	gen := m.saveGen
 	m.saving = true
-	store, update := a.mediaSourceSecretStore(), a.update
+	store, update, held := a.mediaSourceSecretStore(), a.update, m.secretsHeld
 	go func() {
+		held <- struct{}{}
+		w := mediaSourceSecretWrite{store: store, id: s.ID, held: held, prev: map[string]string{}}
 		var err error
 		for _, key := range slices.Sorted(maps.Keys(secrets)) {
-			if err = store.Set(mediaSourceSecretAccount(s.ID, key), secrets[key]); err != nil {
+			err = w.set(key, secrets[key])
+			if err != nil {
 				break
 			}
 		}
-		update(func() { a.mediaSourceSecretsKept(gen, s, err) })
+		update(func() { a.mediaSourceSecretsKept(gen, s, w, err) })
 	}()
 }
 
-// mediaSourceSecretsKept finishes the save gen of s once its secrets were kept, or says why they were not, unless the dialog closed or another save took its place.
-func (a *app) mediaSourceSecretsKept(gen int, s mediasource.Source, err error) {
+// mediaSourceSecretWrite is a save's write of the secrets of the source id to store, which holds held until it is done: the keys it wrote, and what each held before, in prev, a key absent from prev having held nothing. Until settings.json took the save, the store holds secrets settings.json does not describe, so a save that is abandoned or fails puts them back (undo); one that settings.json took keeps them (keep).
+type mediaSourceSecretWrite struct {
+	store ns.Secrets
+	id    string
+	held  chan struct{}
+	keys  []string
+	prev  map[string]string
+}
+
+// set writes v as the secret key, first reading what the store held there to put back.
+func (w *mediaSourceSecretWrite) set(key, v string) error {
+	account := mediaSourceSecretAccount(w.id, key)
+	old, had, err := w.store.Get(account)
+	if err != nil {
+		return err
+	}
+	if err := w.store.Set(account, v); err != nil {
+		return err
+	}
+	w.keys = append(w.keys, key)
+	if had {
+		w.prev[key] = old
+	}
+	return nil
+}
+
+// keep ends a write settings.json took.
+func (w mediaSourceSecretWrite) keep() { <-w.held }
+
+// undo puts back off the engine's goroutine what the write replaced, forgetting what it added, then ends it. A connection made meanwhile with the secrets written is closed.
+func (w mediaSourceSecretWrite) undo(pool *mediasource.Pool) {
+	go func() {
+		defer w.keep()
+		for _, key := range w.keys {
+			account := mediaSourceSecretAccount(w.id, key)
+			var err error
+			if old, ok := w.prev[key]; ok {
+				err = w.store.Set(account, old)
+			} else {
+				err = w.store.Delete(account)
+			}
+			if err != nil {
+				log.Printf("media source: putting a secret back failed: %v", err)
+			}
+		}
+		pool.Forget(w.id)
+	}()
+}
+
+// mediaSourceSecretsKept finishes the save gen of s once its secrets were written (w), or says why they were not, unless the dialog closed or another save took its place. Unless settings.json takes s, what w wrote is put back.
+func (a *app) mediaSourceSecretsKept(gen int, s mediasource.Source, w mediaSourceSecretWrite, err error) {
 	m := &a.sources
 	if !m.editing || m.saveGen != gen {
+		w.undo(m.pool)
 		return
 	}
 	m.saving = false
@@ -344,12 +399,16 @@ func (a *app) mediaSourceSecretsKept(gen int, s mediasource.Source, err error) {
 		log.Printf("media source: keeping a secret failed: %s", feedback.Scrubber{Secrets: a.feedbackSecrets()}.NoSecrets(err.Error()))
 		m.problem = locales.Messages.SettingsSourcesSecretFailed
 	default:
-		a.mediaSourceCommit(s)
+		if a.mediaSourceCommit(s) {
+			w.keep()
+			return
+		}
 	}
+	w.undo(m.pool)
 }
 
-// mediaSourceCommit puts s in the list, in place of the source of its ID or after the others, saves settings.json and closes the dialog, or keeps it open and says the settings could not be written.
-func (a *app) mediaSourceCommit(s mediasource.Source) {
+// mediaSourceCommit puts s in the list, in place of the source of its ID or after the others, saves settings.json and closes the dialog, or keeps it open and says the settings could not be written. It reports whether settings.json took s.
+func (a *app) mediaSourceCommit(s mediasource.Source) bool {
 	m := &a.sources
 	before := slices.Clone(m.list)
 	if i := a.mediaSourceIndex(s.ID); i >= 0 {
@@ -360,13 +419,14 @@ func (a *app) mediaSourceCommit(s mediasource.Source) {
 	if err := a.saveSettings(); err != nil {
 		m.list = before
 		m.problem = locales.Messages.SettingsSourcesSaveFailed
-		return
+		return false
 	}
 	// How a Test of the old settings went says nothing of the new ones, and a connection made with the old password is not one to keep.
 	delete(m.tests, s.ID)
 	a.mediaSourcePoolSync()
 	m.pool.Forget(s.ID)
 	a.closeMediaSourceDialog()
+	return true
 }
 
 // askRemoveMediaSource opens the confirmation of removing the source id, holding the window's modal flag until it is answered.
@@ -380,7 +440,7 @@ func (a *app) askRemoveMediaSource(id string) {
 	}
 }
 
-// answerRemoveMediaSource answers the confirmation and gives back its modal flag: yes removes the source, saves settings.json and forgets its secrets off the engine's goroutine. Nothing on the source is touched, and the films copied from it stay as they are.
+// answerRemoveMediaSource answers the confirmation and gives back its modal flag: yes removes the source, saves settings.json and, once it did, forgets its secrets off the engine's goroutine; a settings.json that cannot be written keeps the source, its secrets with it, and says so. Nothing on the source is touched, and the films copied from it stay as they are.
 func (a *app) answerRemoveMediaSource(yes bool) {
 	m := &a.sources
 	id := m.removing
@@ -393,13 +453,15 @@ func (a *app) answerRemoveMediaSource(yes bool) {
 	if !yes || i < 0 {
 		return
 	}
-	gone := m.list[i]
+	gone, before := m.list[i], slices.Clone(m.list)
 	m.list = slices.Delete(m.list, i, i+1)
+	if err := a.saveSettings(); err != nil {
+		m.list = before
+		a.saveErr = a.messages().SettingsSourcesSaveFailed()
+		return
+	}
 	delete(m.tests, id)
 	a.mediaSourcePoolSync()
-	if err := a.saveSettings(); err != nil {
-		a.saveErr = a.messages().SettingsSourcesSaveFailed()
-	}
 	var keys []string
 	if k, ok := mediasource.Builtin(gone.Kind); ok {
 		keys = k.SecretKeys()
@@ -409,8 +471,10 @@ func (a *app) answerRemoveMediaSource(yes bool) {
 	if len(keys) == 0 {
 		return
 	}
-	store := a.mediaSourceSecretStore()
+	store, held := a.mediaSourceSecretStore(), m.secretsHeld
 	go func() {
+		held <- struct{}{}
+		defer func() { <-held }()
 		for _, key := range keys {
 			_ = store.Delete(mediaSourceSecretAccount(id, key))
 		}

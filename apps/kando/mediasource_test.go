@@ -20,6 +20,7 @@ import (
 	"kando/apps/kando/settings"
 
 	"github.com/cloudsoda/go-smb2"
+	"github.com/nsgo-dev/nsgo/nsgotest"
 )
 
 // fakeSource is a media source in memory for the app's tests (docs/media-sources.md 19): a fixed tree of folders and files, each file's bytes read from a file on disk or given, which can be set unreachable. It has no method that writes, as no Driver has. It counts the connections made to it and records the secrets each was made with.
@@ -558,5 +559,146 @@ func TestMediaSourceCopierReadsTheStoredPassword(t *testing.T) {
 	}
 	if src.lastSecrets()[mediasource.SMBPassword] != "pa55" {
 		t.Fatalf("connected with %v", src.lastSecrets())
+	}
+}
+
+// storedMediaSource adds to a a source saved in a settings.json of the test's own whose password the secure store keeps as password, and returns it.
+func storedMediaSource(t *testing.T, a *app, password string) mediasource.Source {
+	t.Helper()
+	s := mediasource.Source{ID: "0123456789abcdef", Kind: mediasource.KindSMB, Name: "NAS", Config: map[string]string{mediasource.SMBHost: "nas.local", mediasource.SMBShare: "media", mediasource.SMBUser: "kando"}}
+	a.sources.list = []mediasource.Source{s}
+	a.settingsPath = filepath.Join(t.TempDir(), "settings.json")
+	if err := a.saveSettings(); err != nil {
+		t.Fatal(err)
+	}
+	if err := a.mediaSourceSecretStore().Set(mediaSourceSecretAccount(s.ID, mediasource.SMBPassword), password); err != nil {
+		t.Fatal(err)
+	}
+	return s
+}
+
+// mediaSourceStored is the password the secure store keeps for the source id, "" for none.
+func mediaSourceStored(t *testing.T, a *app, id string) string {
+	t.Helper()
+	v, _, err := a.mediaSourceSecretStore().Get(mediaSourceSecretAccount(id, mediasource.SMBPassword))
+	if err != nil {
+		t.Fatal(err)
+	}
+	return v
+}
+
+// unwritableSettings points a's settings.json under a file, so saving the settings fails.
+func unwritableSettings(t *testing.T, a *app) {
+	t.Helper()
+	file := filepath.Join(t.TempDir(), "file")
+	if err := os.WriteFile(file, nil, 0o600); err != nil {
+		t.Fatal(err)
+	}
+	a.settingsPath = filepath.Join(file, "settings.json")
+}
+
+// mediaSourceSecretsSettle waits until a save has written its secrets (written), then applies the background updates until none is left and nothing is changing the sources' secrets any more, as putting them back runs off the engine's goroutine without an update of its own.
+func mediaSourceSecretsSettle(t *testing.T, tt *nsgotest.App, a *app, updates chan func(), written func() bool) {
+	t.Helper()
+	deadline := time.Now().Add(5 * time.Second)
+	for !written() {
+		if time.Now().After(deadline) {
+			t.Fatal("the save wrote no secret")
+		}
+		time.Sleep(5 * time.Millisecond)
+	}
+	for {
+		select {
+		case fn := <-updates:
+			apply(tt, a, fn)
+			continue
+		default:
+		}
+		if len(a.sources.secretsHeld) == 0 && len(updates) == 0 {
+			return
+		}
+		if time.Now().After(deadline) {
+			t.Fatal("the sources' secrets are still being changed")
+		}
+		time.Sleep(5 * time.Millisecond)
+	}
+}
+
+// An edit whose dialog closes with the settings before its save finished leaves the password stored as it was, as settings.json still describes the source as it was.
+func TestMediaSourceAbandonedEditKeepsThePassword(t *testing.T) {
+	a, tt, updates := newTestApp(t, &fakePipeline{})
+	s := storedMediaSource(t, a, "old")
+	tt = settingsOpenAt(a, tt, settings.SectionMediaSources)
+	tt.Press("id:media-source-edit-" + s.ID)
+	tt.Type("id:media-source-field-password", "new")
+	tt.Press("id:media-source-dialog-save")
+	if !a.MediaSourceSaving() {
+		t.Fatal("not keeping the secret")
+	}
+	a.OpenSettings(settings.SectionGeneral)
+	refresh(tt, a)
+	mediaSourceSecretsSettle(t, tt, a, updates, func() bool { return mediaSourceStored(t, a, s.ID) == "new" })
+	if got := mediaSourceStored(t, a, s.ID); got != "old" || a.MediaSourceEditing() {
+		t.Fatalf("stored %q, editing %v", got, a.MediaSourceEditing())
+	}
+}
+
+// An edit that settings.json cannot take leaves the password stored as it was and says why; once settings.json can be written, Save keeps the new one.
+func TestMediaSourceEditNotSavedKeepsThePassword(t *testing.T) {
+	a, tt, updates := newTestApp(t, &fakePipeline{})
+	s := storedMediaSource(t, a, "old")
+	path := a.settingsPath
+	tt = settingsOpenAt(a, tt, settings.SectionMediaSources)
+	tt.Press("id:media-source-edit-" + s.ID)
+	tt.Type("id:media-source-field-password", "new")
+	unwritableSettings(t, a)
+	tt.Press("id:media-source-dialog-save")
+	mediaSourceSecretsSettle(t, tt, a, updates, func() bool { return mediaSourceStored(t, a, s.ID) == "new" })
+	if got := mediaSourceStored(t, a, s.ID); got != "old" || !a.MediaSourceEditing() || a.MediaSourceProblem() != testlocale.Messages().SettingsSourcesSaveFailed() {
+		t.Fatalf("stored %q, editing %v, problem %q", got, a.MediaSourceEditing(), a.MediaSourceProblem())
+	}
+	a.settingsPath = path
+	tt.Press("id:media-source-dialog-save")
+	mediaSourceSecretsSettle(t, tt, a, updates, func() bool { return mediaSourceStored(t, a, s.ID) == "new" })
+	if got := mediaSourceStored(t, a, s.ID); got != "new" || a.MediaSourceEditing() {
+		t.Fatalf("saved, but stored %q, editing %v", got, a.MediaSourceEditing())
+	}
+}
+
+// A new source that settings.json cannot take, or whose dialog closes before its save finished, leaves no password in the secure store.
+func TestMediaSourceNewSourceNotSavedLeavesNoSecret(t *testing.T) {
+	a, tt, updates := newTestApp(t, &fakePipeline{})
+	unwritableSettings(t, a)
+	tt = settingsOpenAt(a, tt, settings.SectionMediaSources)
+	tt.Press("id:media-source-add")
+	tt.Type("id:media-source-field-host", "nas.local")
+	tt.Type("id:media-source-field-user", "kando")
+	tt.Type("id:media-source-field-password", "pa55")
+	tt.Press("id:media-source-dialog-save")
+	mediaSourceSecretsSettle(t, tt, a, updates, func() bool { return len(tt.Secrets.Items()) > 0 })
+	if n := len(tt.Secrets.Items()); n != 0 || len(a.sources.list) != 0 || a.MediaSourceProblem() != testlocale.Messages().SettingsSourcesSaveFailed() {
+		t.Fatalf("%d secrets kept, list %+v, problem %q", n, a.sources.list, a.MediaSourceProblem())
+	}
+
+	tt.Press("id:media-source-dialog-save")
+	a.OpenSettings(settings.SectionGeneral)
+	refresh(tt, a)
+	mediaSourceSecretsSettle(t, tt, a, updates, func() bool { return len(tt.Secrets.Items()) > 0 })
+	if n := len(tt.Secrets.Items()); n != 0 || len(a.sources.list) != 0 {
+		t.Fatalf("%d secrets kept, list %+v", n, a.sources.list)
+	}
+}
+
+// A removal that settings.json cannot take keeps the source and its password, and says why.
+func TestMediaSourceRemoveNotSavedKeepsThePassword(t *testing.T) {
+	a, tt, updates := newTestApp(t, &fakePipeline{})
+	s := storedMediaSource(t, a, "old")
+	tt = settingsOpenAt(a, tt, settings.SectionMediaSources)
+	unwritableSettings(t, a)
+	tt.Press("id:media-source-remove-" + s.ID)
+	tt.Press("id:media-source-remove-ok")
+	mediaSourceSecretsSettle(t, tt, a, updates, func() bool { return true })
+	if got := mediaSourceStored(t, a, s.ID); got != "old" || len(a.sources.list) != 1 || a.SaveErr() != testlocale.Messages().SettingsSourcesSaveFailed() {
+		t.Fatalf("stored %q, list %+v, error %q", got, a.sources.list, a.SaveErr())
 	}
 }
