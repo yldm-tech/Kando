@@ -10,7 +10,7 @@ import (
 	"github.com/nsgo-dev/nsgo/nsgotest"
 )
 
-// An Android phone draws the design's Material pieces: its 20pt medium section headings in the content, as the Library's, the section of what is set on it headed This Phone, Material 3's switch, a grouped list's muted captions on a page Settings opens with the 22pt regular title in its toolbar, and the plus level with the Jobs page's 28pt medium title.
+// An Android phone draws the design's Material pieces: its 20pt medium section headings in the content, as the Library's, the section of what is set on it headed This Phone, the system's Material 3 switch, a grouped list's muted captions on a page Settings opens with the 22pt regular title in its toolbar, and the plus level with the Jobs page's 28pt medium title.
 func TestAnAndroidPhoneDrawsMaterial(t *testing.T) {
 	if nsgotest.Target() != "" {
 		t.Skip("the platform is the target's")
@@ -28,16 +28,13 @@ func TestAnAndroidPhoneDrawsMaterial(t *testing.T) {
 	if !p.app.Exists("text:" + msgs.SettingsThisPhone()) {
 		t.Fatalf("Settings on an Android phone heads its own section other than %q", msgs.SettingsThisPhone())
 	}
-	sw := p.app.Find("id:settings-remind-switch")
-	if len(sw.Children) != 1 {
-		t.Fatalf("the switch has %d parts, want its track", len(sw.Children))
+	// The system's Material 3 switch is mounted with no frame headless, so Find, which sees only what shows, would not find it.
+	sw := p.app.QueryMounted("id:settings-remind-switch")
+	if len(sw) != 1 {
+		t.Fatalf("%d switches are mounted, want 1", len(sw))
 	}
-	track := sw.Children[0]
-	if track.Frame.Size.Width != 52 || track.Frame.Size.Height != 32 || track.Style.BorderWidth != 2 || track.Style.CornerRadius != 16 {
-		t.Fatalf("the switch's track is %v×%v, outlined %v, %v round; want Material's 52×32, outlined 2, 16 round", track.Frame.Size.Width, track.Frame.Size.Height, track.Style.BorderWidth, track.Style.CornerRadius)
-	}
-	if len(track.Children) != 1 || track.Children[0].Frame.Size.Width != 24 {
-		t.Fatalf("the switch's knob is not Material's 24pt knob, scaled down while off")
+	if len(sw[0].Children) != 0 {
+		t.Fatalf("the switch is drawn in %d parts, not the system's", len(sw[0].Children))
 	}
 
 	p.app.Press("id:settings-style")

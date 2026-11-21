@@ -807,18 +807,12 @@ func thumb(cx *core.Scope, testID string, source func() core.ImageSource, over f
 		}}
 }
 
-// round is a card's round button: a glyph in the design's softer ink on the fill, 34 points in a 44-point target.
-//
-// TODO(nsgo#959): ui.IconButton has no fill style for a round inset button (ui/iconbutton.go:68-97), so this is a base.Button drawing its own fill; use ui.IconButton once it has one. https://github.com/nsgo-dev/nsgo/issues/959
+// round is a card's round button: a glyph in the design's softer ink on the inset fill, 34 points in a 44-point target.
 func round(cx *core.Scope, testID string, g glyph, label func() string, disabled func() bool, press func()) core.Node {
-	colors, own := ui.ColorsOf(cx), theme.Of(cx)
-	return base.Button{TestID: testID, LabelFunc: label, Disabled: disabled, OnPress: func(core.PressEvent) { press() },
-		Style: core.Style{Width: core.Pt(44), Height: core.Pt(44), AlignItems: core.AlignCenter, JustifyContent: core.JustifyCenter,
-			Active: &core.Style{Opacity: core.Alpha(0.6)}, Disabled: &core.Style{Opacity: core.Alpha(0.4)}},
-		StyleFunc: func() core.Style { return core.Style{FocusVisible: ui.FocusRing(cx, -2)} },
-		Children: []core.Node{core.View{Style: core.Style{Width: core.Pt(34), Height: core.Pt(34), CornerRadius: 17, AlignItems: core.AlignCenter, JustifyContent: core.JustifyCenter},
-			StyleFunc: func() core.Style { return core.Style{Background: colors.Inset(), Color: own.Glyph()} },
-			Children:  []core.Node{core.Icon{SVG: g.svg, Style: core.Style{Width: core.Pt(g.w), Height: core.Pt(g.h), FlexShrink: 0}}}}}}
+	own := theme.Of(cx)
+	return core.View{Style: core.Style{Width: core.Pt(44), Height: core.Pt(44), AlignItems: core.AlignCenter, JustifyContent: core.JustifyCenter},
+		Children: []core.Node{ui.IconButton{TestID: testID, Variant: ui.IconButtonFilled, Size: 34, IconSize: max(g.w, g.h), Icon: func() *core.SVG { return g.svg }, Tint: own.Glyph,
+			LabelFunc: label, Disabled: disabled, OnPress: press}}}
 }
 
 // pills lays small buttons out in a row that wraps.

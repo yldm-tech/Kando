@@ -12,7 +12,7 @@ import (
 	"github.com/nsgo-dev/nsgo/ui"
 )
 
-// TestScreenshotsMaterial is the Material pieces an Android phone draws, laid out on a page: the 28pt medium large title, a group of rows with Material 3's switch on and off, a 20pt medium section heading of content, as the Library's, and the 22pt regular title of a sub-page's toolbar. nsgo test -target reports the target's own OS, so the app's Android screens cannot show on a Mac; this scene draws the same pieces by hand, in the light and in the dark.
+// TestScreenshotsMaterial is the Material pieces an Android phone draws, laid out on a page: the 28pt medium large title, a group of rows with switches on and off (the system's, so Material 3's only on an Android target), a 20pt medium section heading of content, as the Library's, and the 22pt regular title of a sub-page's toolbar. nsgo test -target reports the target's own OS, so the app's Android screens cannot show on a Mac; this scene draws the same pieces by hand, in the light and in the dark.
 func TestScreenshotsMaterial(t *testing.T) {
 	screenshots(t)
 	for _, dark := range []bool{false, true} {
@@ -36,7 +36,7 @@ func materialLook(cx *core.Scope) core.Node {
 	text := func(s string) func() string { return func() string { return s } }
 	row := func(i int, title string, tile core.Color, on *core.Signal[bool]) core.Node {
 		return look.Row{Index: func() int { return i }, Title: text(title), Leading: look.ColorTile(cx, lucide.Bell, func() core.Color { return tile }),
-			Trailing: look.M3Switch(cx, look.Switch{Label: title, Checked: on.Get, OnChange: on.Set})}
+			Trailing: look.Switch{Label: title, Checked: on.Get, OnChange: on.Set}}
 	}
 	return core.View{TestID: "android-look", StyleFunc: ui.Filled(colors.Background), Style: core.Style{FlexGrow: 1}, Children: []core.Node{
 		core.View{Style: core.Style{Padding: core.Edges{Top: 56}}, Children: []core.Node{

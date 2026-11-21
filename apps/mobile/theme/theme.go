@@ -201,8 +201,7 @@ var (
 	PictureBlack = core.RGB(0x000000)
 	OnPicture    = core.RGB(0xFFFFFF)
 	PictureGlass = core.RGBA(0x000000, 0.3)
-	// The Material pieces of Android: M3Outline is the outline of a switch that is off and its knob, M3NavActive the selected tab's icon and name on the navigation bar (the accent in the dark, where this navy would be lost) and M3NavIndicator how opaque the accent is in the pill behind it; the bar does not take the last two yet (nsgo#936, shell.go).
-	M3Outline      = core.RGB(0x79747E)
+	// The Material pieces of Android: M3NavActive the selected tab's icon and name on the navigation bar (the accent in the dark, where this navy would be lost) and M3NavIndicator how opaque the accent is in the pill behind it; the bar cannot take them yet (shell.go).
 	M3NavActive    = core.RGB(0x0A3D7A)
 	M3NavIndicator = 0.16
 	// The laptop drawn for a computer: its body's gradient and its screen's.

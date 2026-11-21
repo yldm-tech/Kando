@@ -298,7 +298,7 @@ func field(cx *core.Scope, label string, control core.Node) core.Node {
 }
 
 // codeInput is the field of the pairing code, in cells a phone's thumb and eye find at once.
-// TODO(nsgo#482): ui.OtpInput's cells are ButtonHeight+8 square whatever its Style says (otpinput.go:35-39), so the code is base.OtpInput in the app's own cells; use ui.OtpInput once it takes a cell size https://github.com/nsgo-dev/nsgo/issues/482
+// TODO(nsgo): ui.OtpInput now takes its cells' side (Size, nsgo#482), but its cells are square, in the body's type, RadiusControl round, under a 16pt caret (ui/otpinput.go:44-50), where the design's are 44 by 52, 22pt semibold tabular digits, 10 round, under a 24pt caret, so the code is base.OtpInput in the app's own cells; use ui.OtpInput once it takes a cell's width and height, type and corner radius and the caret's height
 func codeInput(cx *core.Scope, value func() string, change func(string), disabled func() bool) core.Node {
 	colors := ui.ColorsOf(cx)
 	return base.OtpInput{TestID: "pair-code", Label: locales.PairCode(cx), Length: sync.CodeDigits, Groups: 2, Value: value, OnChange: change, Disabled: disabled,

@@ -21,7 +21,7 @@ const (
 )
 
 // Button is a phone's full-width button, 50 points tall and 14 round (44 Plain), with an optional leading icon. A Tall one is the introduction's call to action at a screen's foot: 56 points tall, 16 round, its text bold, and a Primary one lifted by a shadow in the accent. While Busy it shows a spinner in the icon's place, in the button's text color, and takes no presses, and BusyLabel, when set, is what assistive technology reads meanwhile.
-// TODO(nsgo#482): ui.Button is 32pt tall at most (size.go:10-15,31) and takes no Style (button.go:28-50), so a phone's large or full-width button is base.Button with the app's own style; use ui.Button once it has a size or style for that https://github.com/nsgo-dev/nsgo/issues/482
+// TODO(nsgo): ui.Button now takes a Style for its size (nsgo#482), but its Text is a string only (ui/button.go:31, nsgo#145), it draws the text at its Size's font in the regular weight (ui/button.go:129) where the design's is 17pt semibold, bold when Tall, and it has no look of the accent or danger's color on its tint (Tinted, Danger) nor a BusyLabel, so a phone's large or full-width button is still base.Button with the app's own style; use ui.Button once it takes those
 type Button struct {
 	Text      func() string
 	Icon      func() *core.SVG

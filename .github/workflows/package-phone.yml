@@ -39,8 +39,7 @@ jobs:
             ~/.cache/go-build
           key: go-${{ runner.os }}-mobile-${{ hashFiles('go.work.sum', '**/go.sum') }}
           restore-keys: go-${{ runner.os }}-mobile-
-      # A TestFlight run signs the IPA. The Apple Distribution certificate goes into a keychain of the job's own, which codesign finds on the user's keychain list and nsgo build picks from by the profile's certificate; its file is deleted at once. The profiles of the app (ai.yldm.kando.mobile) and of its widget extension (ai.yldm.kando.mobile.widgets) both grant the app group group.ai.yldm.kando.mobile, which the app shares with its widgets and nsgo build checks for. nsgo build takes the app's profile from -profile but the extension's only from nsgo.yaml's sign.widgets_profile, so the step adds a sign section to the runner's copy of nsgo.yaml, which keeps no signing of its own, naming both profiles.
-      # TODO(nsgo#879): nsgo build has no flag for sign.widgets_profile as it has -profile for sign.profile; pass the extension's profile with a flag once there is one, and leave nsgo.yaml alone https://github.com/nsgo-dev/nsgo/issues/879
+      # A TestFlight run signs the IPA. The Apple Distribution certificate goes into a keychain of the job's own, which codesign finds on the user's keychain list and nsgo build picks from by the profile's certificate; its file is deleted at once. The profiles of the app (ai.yldm.kando.mobile) and of its widget extension (ai.yldm.kando.mobile.widgets) both grant the app group group.ai.yldm.kando.mobile, which the app shares with its widgets and nsgo build checks for. The step hands both profiles' paths to the build, which passes them to nsgo build as -profile and -widgets-profile.
       - name: Import the distribution certificate and the profiles
         id: signing
         if: inputs.testflight
@@ -75,7 +74,8 @@ jobs:
           mkdir "$profiles"
           printf '%s' "$IOS_APPSTORE_PROFILE" | base64 --decode > "$profiles/AppStore.mobileprovision"
           printf '%s' "$IOS_WIDGETS_APPSTORE_PROFILE" | base64 --decode > "$profiles/Widgets.mobileprovision"
-          printf '\nsign:\n  profile: %s\n  widgets_profile: %s\n' "$profiles/AppStore.mobileprovision" "$profiles/Widgets.mobileprovision" >> apps/mobile/nsgo.yaml
+          echo "profile=$profiles/AppStore.mobileprovision" >> "$GITHUB_OUTPUT"
+          echo "widgets-profile=$profiles/Widgets.mobileprovision" >> "$GITHUB_OUTPUT"
           echo "keychain=$keychain" >> "$GITHUB_OUTPUT"
       # The upload key (alias upload, RSA 4096, valid until 2054) is a PKCS#12 whose store and key password are the same, kept in Vault at secret/yldm/production/kando-android-upload-key and here as the repository's ANDROID_UPLOAD_KEYSTORE_BASE64 and ANDROID_UPLOAD_KEYSTORE_PASSWORD. Its file is written for the Android build alone and removed after it, whatever the build did.
       - name: Write the upload key
@@ -99,61 +99,20 @@ jobs:
           BUILD_NUMBER: ${{ github.run_number }}
           KEYSTORE: ${{ steps.upload-key.outputs.keystore }}
           KEYSTORE_PASSWORD: ${{ secrets.ANDROID_UPLOAD_KEYSTORE_PASSWORD }}
+          PROFILE: ${{ steps.signing.outputs.profile }}
+          WIDGETS_PROFILE: ${{ steps.signing.outputs.widgets-profile }}
         run: |
-          go tool nsgo build -target ios -build-number "$BUILD_NUMBER" -output "$RUNNER_TEMP/ios" apps/mobile
+          sign=()
+          if [ -n "$PROFILE" ]; then
+            sign=(-profile "$PROFILE" -widgets-profile "$WIDGETS_PROFILE")
+          fi
+          go tool nsgo build -target ios "${sign[@]}" -build-number "$BUILD_NUMBER" -output "$RUNNER_TEMP/ios" apps/mobile
           NSGO_KEYSTORE_PASSWORD="$KEYSTORE_PASSWORD" NSGO_KEY_PASSWORD="$KEYSTORE_PASSWORD" go tool nsgo build -target android_arm64 -channel store -build-number "$BUILD_NUMBER" -keystore "$KEYSTORE" -key-alias upload -output "$RUNNER_TEMP/android" apps/mobile
       - name: Remove the upload key
         if: always() && steps.upload-key.outputs.keystore != ''
         env:
           KEYSTORE: ${{ steps.upload-key.outputs.keystore }}
         run: rm -f "$KEYSTORE"
-      # App Store Connect refuses an IPA whose app and widget extension do not say which SDK and Xcode built them (DTPlatformName, DTSDKName, DTXcode and the rest Xcode writes) and that they need arm64 (UIRequiredDeviceCapabilities), and nsgo build writes neither into their Info.plists. A TestFlight run adds them from the runner's Xcode and signs the extension and then the app again, with the same identity and the entitlements nsgo build signed them with; the embedded profiles stay as they are.
-      # TODO(nsgo#889): nsgo build's iOS Info.plists (cmd/nsgo/ios.go's iosPlist, widgets.go's addIOSWidgets) lack UIRequiredDeviceCapabilities and the DT* keys of the SDK and Xcode; drop this step once nsgo build writes them. https://github.com/nsgo-dev/nsgo/issues/889
-      - name: Add the SDK keys App Store Connect checks
-        if: inputs.testflight
-        run: |
-          shopt -s nullglob
-          ipas=("$RUNNER_TEMP"/ios/releases/*-ios.ipa)
-          if [ "${#ipas[@]}" -ne 1 ]; then
-            echo "::error::nsgo build made ${#ipas[@]} IPAs, not one"
-            exit 1
-          fi
-          ipa=${ipas[0]}
-          work="$RUNNER_TEMP/resign"
-          mkdir "$work"
-          unzip -q "$ipa" -d "$work"
-          xcode_version=$(xcodebuild -version | awk '/^Xcode/{print $2}')
-          xcode_build=$(xcodebuild -version | awk '/^Build version/{print $3}')
-          IFS=. read -r major minor patch <<< "$xcode_version"
-          dt_xcode=$(printf '%d%d%d' "$major" "${minor:-0}" "${patch:-0}")
-          [ "${#dt_xcode}" -lt 4 ] && dt_xcode="0$dt_xcode"
-          sdk_version=$(xcrun --sdk iphoneos --show-sdk-version)
-          sdk_build=$(xcrun --sdk iphoneos --show-sdk-build-version)
-          os_build=$(sw_vers -buildVersion)
-          echo "Xcode $xcode_version ($xcode_build, DTXcode $dt_xcode), iphoneos $sdk_version ($sdk_build)"
-          identity="Apple Distribution: YLDM Co., Ltd. (LXCL4Z68GU)"
-          app=$(echo "$work"/Payload/*.app)
-          # The extension first, as the app's signature seals it.
-          for bundle in "$app"/PlugIns/*.appex "$app"; do
-            plist="$bundle/Info.plist"
-            plutil -replace UIRequiredDeviceCapabilities -json '["arm64"]' "$plist"
-            plutil -replace DTPlatformName -string iphoneos "$plist"
-            plutil -replace DTPlatformVersion -string "$sdk_version" "$plist"
-            plutil -replace DTPlatformBuild -string "$sdk_build" "$plist"
-            plutil -replace DTSDKName -string "iphoneos$sdk_version" "$plist"
-            plutil -replace DTSDKBuild -string "$sdk_build" "$plist"
-            plutil -replace DTXcode -string "$dt_xcode" "$plist"
-            plutil -replace DTXcodeBuild -string "$xcode_build" "$plist"
-            plutil -replace DTCompiler -string com.apple.compilers.llvm.clang.1_0 "$plist"
-            plutil -replace BuildMachineOSBuild -string "$os_build" "$plist"
-            ents="$RUNNER_TEMP/resign.entitlements"
-            codesign -d --entitlements - --xml "$bundle" > "$ents"
-            codesign --force --sign "$identity" --entitlements "$ents" --generate-entitlement-der "$bundle"
-            rm "$ents"
-          done
-          rm "$ipa"
-          (cd "$work" && zip -qry "$ipa" .)
-          rm -rf "$work"
       # One IPA and one App Bundle, the IPA carrying the app's ID, the run's build number, its icon, the local network usage description iOS asks with and the export compliance answer TestFlight needs, the App Bundle signed by the upload key alone, by its certificate's SHA-256 fingerprint. A signed IPA's app and widget extension must also carry valid signatures, each with its App Store profile embedded.
       - name: Collect the packages
         id: collect

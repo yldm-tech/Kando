@@ -25,7 +25,7 @@ type Tab struct {
 	TestID  string
 	// Badge, when set, is a count the drawn tab bar and a tablet's sidebar show on the section while it is not 0, in the badges' orange while BadgeWarn reports true, red otherwise.
 	// The count is not in the section's spoken name yet: base.Tab.Label is a fixed string (nsgo#145, above), so a screen reader does not hear it.
-	// TODO(nsgo#741): ui.ShellTab and mobile.TabBarItem have no badge (ui/tabshell.go:10-20, core/tabbar.go:20-28), so the system's tab bar of an iPhone or an Android phone (UITabBarItem.badgeValue, BottomNavigationView's badge) shows no count, and the app shows the jobs' count on the Library's header there instead (SystemBar); pass Badge through once they take one, and drop that button. https://github.com/nsgo-dev/nsgo/issues/741
+	// TODO(nsgo): ui.ShellTab and mobile.TabBarItem have no badge (ui/tabshell.go:10-20, core/tabbar.go:20-28), so the system's tab bar of an iPhone or an Android phone (UITabBarItem.badgeValue, BottomNavigationView's badge) shows no count, and the app shows the jobs' count on the Library's header there instead (SystemBar); pass Badge through once they take one, and drop that button; nsgo#741 was closed without it.
 	Badge     func() int
 	BadgeWarn func() bool
 }
@@ -80,7 +80,7 @@ func (s Shell) phone(cx *core.Scope) core.Node {
 		}
 	}
 	// TODO(nsgo#145): ui.ShellTab.Text and TabShell.Label are strings only (ui/tabshell.go:10-36), so the tab titles keep the language they were built in; pass TextFunc/LabelFunc once ShellTab has them (mobile.TabBar already takes ItemsFunc) https://github.com/nsgo-dev/nsgo/issues/145
-	// TODO(nsgo#936): Android's navigation bar takes only the accent (core/tabbar.go tint) and fixes its fill, its idle color and its indicator's opacity (TabBar.java:62, 173-195), so it shows Material's lavender bar with the accent for the selected tab; give it the card's fill (colors.Surface), theme.TabInactive idle, the accent at theme.M3NavIndicator behind the selected tab and theme.M3NavActive (the accent in the dark) for it once the bar takes them. https://github.com/nsgo-dev/nsgo/issues/936
+	// TODO(nsgo): Android's navigation bar now takes its colors from the palette (nsgo#936), but from roles the rest of the app shares (core/tabbar.go:72-82): its fill is Surface, its idle tabs TextMuted and the selected tab's icon and name AccentText, which in this theme is the white drawn on the accent's fill, over an indicator of accentContainer or the accent at .12 (TabBar.java:186-203); so the selected tab is white on a faint pill of the accent where the design has theme.M3NavActive (the accent in the dark) on the accent at theme.M3NavIndicator, its idle tabs theme.TabInactive; give it those once the bar's idle and selected colors are roles of their own.
 	return ui.TabShell{Label: locales.AppName(cx), Selected: s.Selected, OnChange: s.OnChange, Tabs: tabs}
 }
 
@@ -95,7 +95,18 @@ func (s Shell) drawn(cx *core.Scope) core.Node {
 		seen := false
 		sections = append(sections, core.View{TestID: tab.TestID, Children: []core.Node{core.Show{
 			When: func() bool { seen = seen || s.Selected() == i; return seen },
-			Then: tab.Content}},
+			Then: func(cx *core.Scope) core.Node {
+				// The tab bar keeps clear of the bottom safe area itself, so the section ends above it; beside the sidebar, or while the keyboard hides the bar, the section reaches the bottom again.
+				outer := core.InsetsFunc(cx)
+				core.ProvideInsets(cx, func() core.Edges {
+					in := outer()
+					if !side() && env.KeyboardHeight() == 0 {
+						in.Bottom = 0
+					}
+					return in
+				})
+				return tab.Content(cx)
+			}}},
 			StyleFunc: func() core.Style {
 				st := ui.FillRest
 				if s.Selected() != i {
@@ -209,18 +220,12 @@ func (s Shell) aside() core.Node {
 	return s.Aside
 }
 
-// barStyle is the drawn tab bars' frosted fill.
+// barStyle is the drawn tab bars' frosted fill, under the hairline over it.
 func barStyle(cx *core.Scope) func() core.Style {
 	return func() core.Style {
-		return core.Style{Background: theme.Of(cx).Bar(), BackdropFilters: theme.BarBlur}
+		own := theme.Of(cx)
+		return core.Style{Background: own.Bar(), BackdropFilters: theme.BarBlur, Borders: core.Edges{Top: 0.5}, BorderColors: core.EdgeColors{Top: own.BarLine()}}
 	}
-}
-
-// barLine is the hairline over a drawn tab bar: a view of its own, as a border on the bar's frosted view does not show on macOS.
-// TODO(nsgo#935): on Apple a border on some sides only is a shape sublayer under the view's children (internal/platform/apple/border.go:12-16), and a view with BackdropFilters adds its blur and the tint that draws its Background as a subview (internal/platform/macos/material.go:191-221), which covers it, so the bar draws its hairline as a child view; use Borders on the bar once the border draws over the backdrop. https://github.com/nsgo-dev/nsgo/issues/935
-func barLine(cx *core.Scope) core.Node {
-	return core.View{Style: core.Style{Position: core.Absolute, Top: core.Pt(0), Left: core.Pt(0), Right: core.Pt(0), Height: core.Pt(0.5), PointerEvents: core.PointerEventsNone},
-		StyleFunc: ui.Filled(theme.Of(cx).BarLine)}
 }
 
 // tabStyle is a drawn tab's color: the accent while selected, the tab bar's grey otherwise.
@@ -260,7 +265,6 @@ func (s Shell) bar(cx *core.Scope) core.Node {
 			return st
 		},
 		Children: []core.Node{
-			barLine(cx),
 			base.Tabs{Label: locales.AppName(cx), TestID: "tab-bar", Style: core.Style{Direction: core.Row, FlexGrow: 1}, Children: tabs},
 		}}
 }
@@ -283,7 +287,6 @@ func (s Shell) wideBar(cx *core.Scope) core.Node {
 	return core.View{Style: core.Style{Direction: core.Row, Padding: core.Edges{Right: 40, Bottom: 14, Left: 40},
 		PaddingEnv: core.EnvEdges{Right: core.EnvSafeArea, Bottom: core.EnvSafeArea, Left: core.EnvSafeArea}},
 		StyleFunc: barStyle(cx), Children: []core.Node{
-			barLine(cx),
 			base.Tabs{Label: locales.AppName(cx), TestID: "tab-bar", Style: core.Style{Direction: core.Row, FlexGrow: 1, Gap: 4}, Children: tabs},
 		}}
 }

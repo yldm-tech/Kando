@@ -3,7 +3,6 @@ package player
 import (
 	"context"
 	"slices"
-	"strconv"
 	"sync/atomic"
 	"time"
 
@@ -100,9 +99,6 @@ type play struct {
 	heard int
 	now   func() time.Time
 	toast *ui.Toaster
-	// said is the toast last shown of each kind (say), and toasts how many were.
-	said   map[string]string
-	toasts int
 	// pip is the system's picture in picture of the video, as it last reported it: whether it is offered and whether its window shows.
 	pip *core.Signal[core.PictureInPictureState]
 	// status is the status bar while the player shows (Layer.StatusBar).
@@ -113,14 +109,9 @@ type play struct {
 	recut atomic.Bool
 }
 
-// say shows title in a toast in place of the last one of kind, as a line saved and then taken back says only the latter.
-// TODO(nsgo#749): ui.Toasts builds a toast's content once (ui/toast.go:272), so a toast shown with the ID of one still showing replaces it but keeps its old title; until it shows the new content, the old one is dismissed and the new one shown under an ID of its own https://github.com/nsgo-dev/nsgo/issues/749
+// say shows title in a toast in place of the last one of kind, as a line saved and then taken back says only the latter: the toast's ID is its kind, so one still showing takes the new title.
 func (p *play) say(kind, title string) {
-	if id, ok := p.said[kind]; ok {
-		p.toast.Dismiss(id)
-	}
-	p.toasts++
-	p.said[kind] = p.toast.Show(ui.ToastContent{ID: kind + "-" + strconv.Itoa(p.toasts), Title: title})
+	p.toast.Show(ui.ToastContent{ID: kind, Title: title})
 }
 
 func newPlay(cx *core.Scope, s *session.Session, key string) *play {
@@ -150,7 +141,6 @@ func newPlay(cx *core.Scope, s *session.Session, key string) *play {
 		heard:        -1,
 		now:          time.Now,
 		toast:        ui.NewToaster(cx),
-		said:         map[string]string{},
 	}
 	p.cues = core.NewResource(cx, func() (string, bool) { return key, true }, func(_ context.Context, key string, _ core.ResourceInfo) ([]cues.Cue, error) {
 		list, _, err := s.Store().Cues(f.Desktop, f.Film.ID)

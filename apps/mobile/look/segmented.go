@@ -15,7 +15,7 @@ type Segment struct {
 }
 
 // Segmented is a choice of one among a few, as the Add sheet's Save: the design's segmented control, 36 points tall on the fill, 10 round, with the chosen segment on a white thumb 8 round and in bold. Each segment is a radio button of the group Label names.
-// TODO(nsgo#958): ui.Tabs' segmented look has a capsule thumb and capsule tabs (ui/tabs.go:65-68, 109-111) and keeps the chosen tab's weight, and its labels are static (nsgo#145), so the design's 8-round thumb and bold choice are drawn here. https://github.com/nsgo-dev/nsgo/issues/958
+// TODO(nsgo#145): ui.Tabs' Label and its options' Label are strings only (ui/tabs.go:42, ui/option.go:8), so a segment's and the group's spoken names would keep the language they were built in, and the segments are drawn here with LabelFunc; use ui.Tabs with SegmentTrack, SegmentTab and SegmentThumb once they take a LabelFunc https://github.com/nsgo-dev/nsgo/issues/145
 type Segmented struct {
 	Segments []Segment
 	Value    func() string
@@ -49,6 +49,13 @@ func (s Segmented) Render(cx *core.Scope) core.Node {
 		Style:     core.Style{Direction: core.Row, Height: core.Pt(36), Padding: core.All(2), Gap: 2, CornerRadius: 10, BorderCurve: core.BorderCurveContinuous},
 		StyleFunc: ui.Filled(colors.Inset)}
 }
+
+// SegmentTrack, SegmentTab and SegmentThumb give ui.Tabs' segmented look the design's: a 10-round track under an 8-round thumb lifted by a 0 1 3 shadow of 0.12 black, as the Style, TabStyle and IndicatorStyle of the control.
+var (
+	SegmentTrack = core.Style{CornerRadius: 10, BorderCurve: core.BorderCurveContinuous}
+	SegmentTab   = core.Style{CornerRadius: 8, BorderCurve: core.BorderCurveContinuous}
+	SegmentThumb = core.Style{CornerRadius: 8, BorderCurve: core.BorderCurveContinuous, Shadows: []core.BoxShadow{{Offset: core.Point{Y: 1}, Blur: 3, Color: theme.SegmentShadow}}}
+)
 
 // RadioMark is the design's radio circle at a choice's end, 22 points: a ring of the accent around its dot while on, a light grey ring while off. It repeats the row's checked state, so assistive technology does not see it.
 func RadioMark(cx *core.Scope, on func() bool) core.Node {

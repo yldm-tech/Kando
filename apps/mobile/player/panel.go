@@ -85,8 +85,7 @@ func panel(cx *core.Scope, p *play, w *words) core.Node {
 			Children: []core.Node{core.Show{When: func() bool { seen = seen || selected.Get() == t; return seen }, Then: build}}}
 	}
 	return core.View{TestID: "player-panel", Style: core.Style{FlexGrow: 1, FlexShrink: 1, MinHeight: core.Pt(0)}, Children: []core.Node{
-		// TODO(nsgo#967): a Scroll shrinks to fit its parent (core/tree.go:2083) and a Style cannot say FlexShrink 0, its zero being unset (core/style.go:35, Merge), so the bar's height is held by MinHeight; drop it once a Scroll's shrink can be turned off. https://github.com/nsgo-dev/nsgo/issues/967
-		core.Scroll{Horizontal: true, HideIndicator: true, Style: core.Style{Height: core.Pt(38.5), MinHeight: core.Pt(38.5), Margin: core.Edges{Top: 10}, Borders: core.Edges{Bottom: 0.5}, BorderColors: core.EdgeColors{Bottom: theme.PlayerInk.Faded(0.14)}},
+		core.Scroll{Horizontal: true, HideIndicator: true, NoShrink: true, Style: core.Style{Height: core.Pt(38.5), Margin: core.Edges{Top: 10}, Borders: core.Edges{Bottom: 0.5}, BorderColors: core.EdgeColors{Bottom: theme.PlayerInk.Faded(0.14)}},
 			Children: []core.Node{core.View{Style: core.Style{Height: core.Pt(38), Padding: core.Symmetric(0, 20)}, Children: []core.Node{bar}}}},
 		page(linesTab, func(cx *core.Scope) core.Node { return lines(cx, p, false) }),
 		page(wordsTab, func(cx *core.Scope) core.Node { return wordsPage(cx, p, w) }),

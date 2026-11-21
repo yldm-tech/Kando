@@ -254,18 +254,29 @@ func review(cx *core.Scope, s *session.Session, items, due func() []learning.Ite
 
 // mode is the way the review goes, cards or the lines dictated, and under it when the reminder comes, which leads to Settings, while it is on.
 // Shadowing, the design's third way (reading the line along with the film, recorded and compared), is left for later: NSGo's microphone package records it (microphone.Capture streams samples on iOS, microphone.RecordWAV writes a file with levels on Android), but the comparison of the learner's take with the film's line, and the page that shows it, are still to be designed and built, so the review offers cards and dictation.
-// TODO(nsgo#958): ui.Tabs' segmented look has no way to set its corner radii (the design's 10 for the track, 8 for the thumb, where NSGo draws capsules), the selected label's weight (the design's 700) or the unselected label's color (the design's ink at 500, where NSGo draws it muted), so the mode keeps NSGo's segmented look. https://github.com/nsgo-dev/nsgo/issues/958
 func mode(cx *core.Scope, s *session.Session, settings func()) core.Node {
 	colors := ui.ColorsOf(cx)
 	row := core.View{Style: core.Style{Direction: core.Row, AlignItems: core.AlignCenter, Gap: 10}, Children: []core.Node{
 		core.Text{ContentFunc: func() string { return locales.LearnReviewMode(cx) }, MaxLines: 1, Style: look.Caption, StyleFunc: ui.Colored(colors.Muted)},
 		// ui.Tabs' labels are strings, so the modes are built again as the language changes.
 		core.View{Style: core.Style{FlexGrow: 1, FlexShrink: 1}, Children: []core.Node{core.Dynamic(func(cx *core.Scope) core.Node {
+			// The design's segmented control, its labels in the ink at 500, 700 while chosen, drawn as each option's Content.
+			option := func(value, label, testID string) ui.Option[string] {
+				return ui.Option[string]{Value: value, Label: label, TestID: testID,
+					Content: core.Text{Content: label, MaxLines: 1, StyleFunc: func() core.Style {
+						st := core.Style{FontWeight: core.FontWeightMedium, Color: colors.Text()}
+						if s.ReviewMode() == value {
+							st.FontWeight = core.FontWeightBold
+						}
+						return st
+					}}}
+			}
 			return ui.Tabs[string]{TestID: "learn-review-mode", Label: locales.LearnReviewMode(cx), Equal: true, Size: ui.SizeLarge,
 				Options: []ui.Option[string]{
-					{Value: session.ReviewCards, Label: locales.LearnReviewCards(cx), TestID: "learn-review-cards"},
-					{Value: session.ReviewDictation, Label: locales.LearnReviewDictation(cx), TestID: "learn-review-dictation"},
+					option(session.ReviewCards, locales.LearnReviewCards(cx), "learn-review-cards"),
+					option(session.ReviewDictation, locales.LearnReviewDictation(cx), "learn-review-dictation"),
 				},
+				Style: look.SegmentTrack, TabStyle: look.SegmentTab, IndicatorStyle: look.SegmentThumb,
 				Value: s.ReviewMode, OnChange: s.SetReviewMode}
 		})}},
 	}}

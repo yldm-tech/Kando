@@ -33,7 +33,6 @@ func MiniRoom(cx *core.Scope) core.Points {
 
 // ActionBar is the bar of a page's actions at its foot, the last of its column, where a thumb reaches them: over the software keyboard while it shows, else over the tab bar and the mini player, or over the safe area on a page outside the tabs.
 func ActionBar(cx *core.Scope, children ...core.Node) core.Node {
-	inTab := OverTabBar(cx)
 	return core.View{Style: core.Style{PaddingEnv: core.EnvEdges{Right: core.EnvSafeArea, Left: core.EnvSafeArea}},
 		// EnvEdges takes one inset an edge, so the bottom's switches between the keyboard's, the tab bar's and the safe area's.
 		StyleFunc: func() core.Style {
@@ -42,11 +41,10 @@ func ActionBar(cx *core.Scope, children ...core.Node) core.Node {
 			switch inset := ui.TabBarInset(cx); {
 			case cx.Env().KeyboardHeight() > 0:
 				pad.Bottom, env.Bottom = 8, core.EnvKeyboard
-			case inset > 0 || inTab():
-				// A drawn tab bar takes room of its own and keeps clear of the bottom safe area itself, so a page above it adds none.
-				// TODO(nsgo#493): TabShell's drawn bar takes the bottom safe area but its sections' screens still report it (core/nav.go:140-155, ui/tabshell.go:139-140), so the app marks a tab's pages to leave it out; drop the mark once TabShell gives its sections insets without the bottom it covers https://github.com/nsgo-dev/nsgo/issues/493
+			case inset > 0:
 				pad.Bottom = 12 + inset + MiniRoom(cx)
 			default:
+				// A tab bar that takes room of its own keeps clear of the bottom safe area itself, and its sections' insets leave it out, so a page above it adds none.
 				pad.Bottom, env.Bottom = 12+MiniRoom(cx), core.EnvSafeArea
 			}
 			return core.Style{Padding: pad, PaddingEnv: env}
