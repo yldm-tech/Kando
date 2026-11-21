@@ -240,7 +240,7 @@ func TestStatsDialogShowsTheStudy(t *testing.T) {
 		t.Fatalf("the CSV preview reads %q", p)
 	}
 	out := t.TempDir()
-	tt.PickDirectories = func(ns.DirectoriesRequest) []ns.Directory { return []ns.Directory{{Path: out}} }
+	tt.PickDirectories = func(nsgotest.DirectoryPick) []ns.Directory { return []ns.Directory{{Path: out}} }
 	tt.Press("id:stats-export")
 	data, err := os.ReadFile(filepath.Join(out, "Kando Vocabulary.csv"))
 	if err != nil || !strings.Contains(string(data), "Word,Reading,Meaning,Sentence,Translation,Film") || !strings.Contains(string(data), "trickle") {
@@ -685,7 +685,7 @@ func TestVocabExportForAnkiCutsTheSounds(t *testing.T) {
 	}
 	apply(tt, a, func() { a.OpenStats(vocabTabExport) })
 	out := t.TempDir()
-	tt.PickDirectories = func(ns.DirectoriesRequest) []ns.Directory { return []ns.Directory{{Path: out}} }
+	tt.PickDirectories = func(nsgotest.DirectoryPick) []ns.Directory { return []ns.Directory{{Path: out}} }
 	tt.Press("id:stats-export")
 	if !a.vocab.stats.exported.Busy {
 		t.Fatalf("the export for Anki is %+v", a.vocab.stats.exported)

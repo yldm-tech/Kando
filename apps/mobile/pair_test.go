@@ -199,7 +199,7 @@ func qrPhoto(t *testing.T, text string) []byte {
 }
 
 // startScanningPhone starts a new phone whose camera reads codes as scan answers, at its pairing step.
-func startScanningPhone(t *testing.T, scan func(core.ScanRequest) (*core.ScannedCode, error)) *phone {
+func startScanningPhone(t *testing.T, scan func(nsgotest.CodeScan) (*core.ScannedCode, error)) *phone {
 	t.Helper()
 	p := startPhone(t, "", nsgotest.Environment(core.Environment{Locale: lang, Camera: true, ScanCode: true}))
 	p.app.ScanCode = scan
@@ -211,7 +211,7 @@ func startScanningPhone(t *testing.T, scan func(core.ScanRequest) (*core.Scanned
 func TestScanningTheDesktopsQRCodeLivePairs(t *testing.T) {
 	d := newDesktop(t)
 	link := sync.PairURL{Addrs: []netip.AddrPort{d.Addr}, Code: "123456", Fingerprint: d.Fingerprint, Name: "Studio"}.String()
-	p := startScanningPhone(t, func(core.ScanRequest) (*core.ScannedCode, error) {
+	p := startScanningPhone(t, func(nsgotest.CodeScan) (*core.ScannedCode, error) {
 		return &core.ScannedCode{Kind: core.CodeQR, Text: link}, nil
 	})
 	p.app.WaitFor("id:pair-scan", wait)
@@ -231,22 +231,22 @@ func TestScanningTheDesktopsQRCodeLivePairs(t *testing.T) {
 // A scanned code that is not a pairing code says so; a scanner that fails says the camera could not open; closing the scanner changes nothing. None of them pairs.
 func TestScanningSomethingElseSaysSo(t *testing.T) {
 	d := newDesktop(t)
-	answer := func(core.ScanRequest) (*core.ScannedCode, error) {
+	answer := func(nsgotest.CodeScan) (*core.ScannedCode, error) {
 		return &core.ScannedCode{Kind: core.CodeQR, Text: "https://example.com"}, nil
 	}
-	p := startScanningPhone(t, func(r core.ScanRequest) (*core.ScannedCode, error) { return answer(r) })
+	p := startScanningPhone(t, func(r nsgotest.CodeScan) (*core.ScannedCode, error) { return answer(r) })
 	p.app.WaitFor("id:pair-scan", wait)
 	p.app.Press("id:pair-scan")
 	if got := p.app.WaitFor("id:pair-problem", wait).Text; got != msgs.PairErrNotPairQR() {
 		t.Fatalf("problem %q, want %q", got, msgs.PairErrNotPairQR())
 	}
-	answer = func(core.ScanRequest) (*core.ScannedCode, error) { return nil, errors.New("denied") }
+	answer = func(nsgotest.CodeScan) (*core.ScannedCode, error) { return nil, errors.New("denied") }
 	p.app.Press("id:pair-scan")
 	p.app.WaitUntil(wait, func() bool {
 		vs := p.app.Query("id:pair-problem")
 		return len(vs) == 1 && vs[0].Text == msgs.PairErrCamera()
 	})
-	answer = func(core.ScanRequest) (*core.ScannedCode, error) { return nil, nil }
+	answer = func(nsgotest.CodeScan) (*core.ScannedCode, error) { return nil, nil }
 	p.app.Press("id:pair-scan")
 	p.app.Settle()
 	if len(p.app.Scans) != 3 {
@@ -267,7 +267,7 @@ func TestScanningSomethingElseSaysSo(t *testing.T) {
 func startCameraPhone(t *testing.T, photos func() []byte) *phone {
 	t.Helper()
 	p := startPhone(t, "", nsgotest.Environment(core.Environment{Locale: lang, Camera: true}))
-	p.app.TakePhoto = func(core.PickRequest) (*core.PickedFile, error) {
+	p.app.TakePhoto = func(nsgotest.ImagePick) (*core.PickedFile, error) {
 		return &core.PickedFile{Name: "IMG_0001.jpg", MIME: "image/jpeg", Data: photos()}, nil
 	}
 	p.startPairing()
@@ -325,7 +325,7 @@ func TestNoCameraNoScanning(t *testing.T) {
 func TestScanningWithAFailingCameraSaysSo(t *testing.T) {
 	d := newDesktop(t)
 	p := startPhone(t, "", nsgotest.Environment(core.Environment{Locale: lang, Camera: true}))
-	p.app.TakePhoto = func(core.PickRequest) (*core.PickedFile, error) { return nil, errors.New("denied") }
+	p.app.TakePhoto = func(nsgotest.ImagePick) (*core.PickedFile, error) { return nil, errors.New("denied") }
 	p.startPairing()
 	p.app.WaitFor("id:pair-scan", wait)
 	p.app.Press("id:pair-scan")
@@ -341,7 +341,7 @@ func TestScanningWithAFailingCameraSaysSo(t *testing.T) {
 func TestCancellingTheScanChangesNothing(t *testing.T) {
 	d := newDesktop(t)
 	p := startPhone(t, "", nsgotest.Environment(core.Environment{Locale: lang, Camera: true}))
-	p.app.TakePhoto = func(core.PickRequest) (*core.PickedFile, error) { return nil, nil }
+	p.app.TakePhoto = func(nsgotest.ImagePick) (*core.PickedFile, error) { return nil, nil }
 	p.startPairing()
 	p.app.WaitFor("id:pair-scan", wait)
 	p.app.Press("id:pair-scan")

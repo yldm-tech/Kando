@@ -2162,7 +2162,7 @@ func TestPluginTemplateExportsTheSavedLines(t *testing.T) {
 		t.Fatalf("the choice was not kept: %+v", a.settingsFile().PluginExportTarget)
 	}
 	out := t.TempDir()
-	tt.PickDirectories = func(ns.DirectoriesRequest) []ns.Directory { return []ns.Directory{{Path: out}} }
+	tt.PickDirectories = func(nsgotest.DirectoryPick) []ns.Directory { return []ns.Directory{{Path: out}} }
 	apply(tt, a, a.ExportSaved)
 	waitUntil(t, tt, a, updates, func() bool { return a.saved.export.finished })
 	file := "Kando Saved Lines (example.cards).csv"
@@ -2208,7 +2208,7 @@ func TestPluginExportGlossaryAsPack(t *testing.T) {
 	}
 	apply(tt, a, func() { a.SetPluginExportName("River Terms") })
 	file := filepath.Join(t.TempDir(), "river.kandopack")
-	tt.SaveFile = func(r ns.SaveRequest) string {
+	tt.SaveFile = func(r nsgotest.FileSave) string {
 		if r.Name != "local.river-terms.kandopack" {
 			t.Errorf("the panel suggests %q", r.Name)
 		}
@@ -2254,7 +2254,7 @@ func TestPluginExportVocabularyAsWordList(t *testing.T) {
 	}
 	apply(tt, a, func() { a.SetPluginExportLanguage("en") })
 	file := filepath.Join(t.TempDir(), "words.kandopack")
-	tt.SaveFile = func(ns.SaveRequest) string { return file }
+	tt.SaveFile = func(nsgotest.FileSave) string { return file }
 	tt.Press("id:plugins-export-save")
 	pluginsExportSaved(t, a, tt, updates)
 	root := filepath.Join(t.TempDir(), "plugins")

@@ -2,6 +2,7 @@ package main
 
 import (
 	"errors"
+	"github.com/nsgo-dev/nsgo/nsgotest"
 	"os"
 	"path/filepath"
 	"runtime"
@@ -195,7 +196,7 @@ func TestExportSavedWritesTheNotes(t *testing.T) {
 	tt.Key("b")
 	tt.Key("escape")
 	out := t.TempDir()
-	tt.PickDirectories = func(ns.DirectoriesRequest) []ns.Directory { return []ns.Directory{{Path: out}} }
+	tt.PickDirectories = func(nsgotest.DirectoryPick) []ns.Directory { return []ns.Directory{{Path: out}} }
 	apply(tt, a, a.ExportSaved)
 	waitUntil(t, tt, a, updates, func() bool { return a.saved.export.finished })
 	if !a.saved.sheet || a.saved.export.err != nil || a.saved.export.result.Lines != 1 || !tt.Exists(whole(a.messages().SavedExportedNoAudio(1))) || !tt.Exists("id:saved-export-reveal") {
@@ -229,7 +230,7 @@ func TestExportSavedCanBeStopped(t *testing.T) {
 	tt.Key("b")
 	tt.Key("escape")
 	out := t.TempDir()
-	tt.PickDirectories = func(ns.DirectoriesRequest) []ns.Directory { return []ns.Directory{{Path: out}} }
+	tt.PickDirectories = func(nsgotest.DirectoryPick) []ns.Directory { return []ns.Directory{{Path: out}} }
 	apply(tt, a, a.ExportSaved)
 	msgs := a.messages()
 	if !a.saved.export.busy || tt.Exists("id:saved-export") {

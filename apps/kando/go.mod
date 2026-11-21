@@ -11,7 +11,7 @@ require (
 	github.com/aws/smithy-go v1.28.9
 	github.com/cloudsoda/go-smb2 v0.0.0-20261105190815-95be04a983b8
 	github.com/modelcontextprotocol/go-sdk v1.8.0
-	github.com/nsgo-dev/nsgo v0.2.1-0.20261120195319-314d18f6c98a
+	github.com/nsgo-dev/nsgo v0.2.1-0.20261121221132-091984681603
 	github.com/pkg/sftp v1.13.12
 	github.com/studio-b12/gowebdav v0.13.0
 	github.com/yldm-tech/ai-logo/nsgo v1.22.0
@@ -50,8 +50,8 @@ require (
 	github.com/aws/aws-sdk-go-v2/service/internal/presigned-url v1.14.12 // indirect
 	github.com/aws/aws-sdk-go-v2/service/internal/s3shared v1.20.12 // indirect
 	github.com/cloudsoda/sddl v0.0.0-20261105185302-1c8f96799263 // indirect
+	github.com/davecgh/go-spew v1.1.1 // indirect
 	github.com/dlclark/regexp2/v2 v2.11.0 // indirect
-	github.com/dop251/goja v0.0.0-20261027234916-5f913d1693d9 // indirect
 	github.com/ebitengine/purego v0.11.3 // indirect
 	github.com/egoist/mygo v0.9.0 // indirect
 	github.com/evanw/esbuild v0.28.2 // indirect
@@ -60,6 +60,7 @@ require (
 	github.com/go-sourcemap/sourcemap v2.1.4+incompatible // indirect
 	github.com/gofrs/flock v0.13.1 // indirect
 	github.com/google/jsonschema-go v0.4.3 // indirect
+	github.com/google/licenseclassifier/v2 v2.0.0 // indirect
 	github.com/google/pprof v0.0.0-20230207041349-798e818bf904 // indirect
 	github.com/hashicorp/go-uuid v1.0.3 // indirect
 	github.com/ikawaha/kagome-dict v1.1.7 // indirect
@@ -73,8 +74,10 @@ require (
 	github.com/jcmturner/rpc/v2 v2.0.3 // indirect
 	github.com/kr/fs v0.1.0 // indirect
 	github.com/makiuchi-d/gozxing v0.1.1 // indirect
+	github.com/nsgo-dev/goja v0.1.0-nsgo.2.0.20261121173409-f05dab9a4261 // indirect
 	github.com/segmentio/asm v1.1.3 // indirect
 	github.com/segmentio/encoding v0.5.4 // indirect
+	github.com/sergi/go-diff v1.1.0 // indirect
 	github.com/vcaesar/cedar v0.50.1 // indirect
 	github.com/yosida95/uritemplate/v3 v3.0.2 // indirect
 	github.com/yuin/goldmark v1.8.7 // indirect

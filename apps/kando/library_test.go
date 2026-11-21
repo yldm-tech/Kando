@@ -2427,15 +2427,15 @@ func TestLibraryFollowsTheDay(t *testing.T) {
 func TestPanelsSayWhatTheyAreFor(t *testing.T) {
 	a, tt, _ := newTestApp(t, &fakePipeline{})
 	m := testlocale.Messages()
-	var files ns.FilesRequest
-	tt.PickFiles = func(r ns.FilesRequest) []ns.File { files = r; return nil }
+	var files nsgotest.FilePick
+	tt.PickFiles = func(r nsgotest.FilePick) []ns.File { files = r; return nil }
 	a.pickVideos()
 	tt.Settle()
 	if files.Title != m.LibraryPickVideosTitle() || files.Button != m.LibraryPickVideosButton() || files.TypesName != m.LibraryVideoFilter() || len(files.Types) != len(media.MediaExtensions()) {
 		t.Fatalf("the videos' panel asks %+v", files)
 	}
-	var dirs []ns.DirectoriesRequest
-	tt.PickDirectories = func(r ns.DirectoriesRequest) []ns.Directory { dirs = append(dirs, r); return nil }
+	var dirs []nsgotest.DirectoryPick
+	tt.PickDirectories = func(r nsgotest.DirectoryPick) []ns.Directory { dirs = append(dirs, r); return nil }
 	a.pickLibrary()
 	tt.Settle()
 	a.pickLibraryParent()

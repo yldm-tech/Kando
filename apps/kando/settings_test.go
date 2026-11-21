@@ -735,7 +735,7 @@ func TestChoosingAModelFileUsesIt(t *testing.T) {
 	tt = settingsOpenAt(a, tt, settings.SectionSpeech)
 	picked := notes
 	held := false
-	tt.PickFiles = func(r ns.FilesRequest) []ns.File {
+	tt.PickFiles = func(r nsgotest.FilePick) []ns.File {
 		held = a.modalOpen()
 		if m := testlocale.Messages(); !slices.Equal(r.Types, []string{".bin"}) || r.TypesName != m.SettingsSpeechModels() || r.Title != m.SettingsSpeechChooseFileTitle() {
 			t.Errorf("the panel offers %q named %q under the title %q", r.Types, r.TypesName, r.Title)

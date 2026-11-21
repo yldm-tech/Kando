@@ -23,8 +23,8 @@ func useNoMenuBar(t *testing.T) {
 }
 
 // windowCommands are the actions of the window commands tt's app sent, oldest first.
-func windowCommands(tt *nsgotest.App) []ns.WindowAction {
-	var out []ns.WindowAction
+func windowCommands(tt *nsgotest.App) []nsgotest.WindowAction {
+	var out []nsgotest.WindowAction
 	for _, c := range tt.Window {
 		out = append(out, c.Action)
 	}
@@ -32,15 +32,15 @@ func windowCommands(tt *nsgotest.App) []ns.WindowAction {
 }
 
 // lastTitleBar is the title bar the app last asked its window for: whether hidden and how tall.
-func lastTitleBar(t *testing.T, tt *nsgotest.App) ns.WindowCommand {
+func lastTitleBar(t *testing.T, tt *nsgotest.App) nsgotest.WindowRequest {
 	t.Helper()
 	for i := len(tt.Window) - 1; i >= 0; i-- {
-		if tt.Window[i].Action == ns.WindowSetTitleBar {
+		if tt.Window[i].Action == nsgotest.WindowSetTitleBar {
 			return tt.Window[i]
 		}
 	}
 	t.Fatal("the app set no title bar")
-	return ns.WindowCommand{}
+	return nsgotest.WindowRequest{}
 }
 
 // TestChromeBarPerPlatform checks the main window's title bar on each system: none of the app's on macOS, which keeps its traffic lights in the sidebar and the palette's key in the menu bar; on Windows a 34-point bar with the window's title and the button that opens the palette, its key as Windows writes it, NSGo's caption buttons kept; on Linux a 46-point header bar with the palette's button, the title and round minimize, maximize and close buttons of its own, as GTK draws none. The status card's palette button gives way to the bar's.
@@ -107,7 +107,7 @@ func TestChromeLinuxWindowButtons(t *testing.T) {
 	for _, id := range []string{"chrome-minimize", "chrome-maximize", "chrome-close"} {
 		tt.Press("id:" + id)
 	}
-	if got, want := windowCommands(tt)[before:], []ns.WindowAction{ns.WindowMinimize, ns.WindowToggleMaximize, ns.WindowClose}; !slices.Equal(got, want) {
+	if got, want := windowCommands(tt)[before:], []nsgotest.WindowAction{nsgotest.WindowMinimize, nsgotest.WindowToggleMaximize, nsgotest.WindowClose}; !slices.Equal(got, want) {
 		t.Fatalf("the buttons sent %v, want %v", got, want)
 	}
 	if got := tt.Find("id:chrome-maximize").Props.Label; got != msgs.ChromeMaximize() {
@@ -174,7 +174,7 @@ func TestChromeSettingsWindowClose(t *testing.T) {
 		}
 		before := len(tt.Window)
 		tt.Press("id:chrome-window-close")
-		if got := windowCommands(tt)[before:]; !slices.Equal(got, []ns.WindowAction{ns.WindowClose}) {
+		if got := windowCommands(tt)[before:]; !slices.Equal(got, []nsgotest.WindowAction{nsgotest.WindowClose}) {
 			t.Fatalf("%v: the close button sent %v", c.os, got)
 		}
 	}
@@ -260,7 +260,7 @@ func TestPaletteRunsTheMenuOnlyCommands(t *testing.T) {
 	run(msgs.ChromeMaximize())
 	run(msgs.MenuToggleFullScreen())
 	run(msgs.MenuCloseWindow())
-	if got, want := windowCommands(tt)[before:], []ns.WindowAction{ns.WindowMinimize, ns.WindowToggleMaximize, ns.WindowToggleFullScreen, ns.WindowClose}; !slices.Equal(got, want) {
+	if got, want := windowCommands(tt)[before:], []nsgotest.WindowAction{nsgotest.WindowMinimize, nsgotest.WindowToggleMaximize, nsgotest.WindowToggleFullScreen, nsgotest.WindowClose}; !slices.Equal(got, want) {
 		t.Fatalf("the window's rows sent %v, want %v", got, want)
 	}
 	for _, c := range a.paletteCommands(a.cx) {
@@ -331,7 +331,7 @@ func TestPaletteQuitAndCloseAskWhileAJobRuns(t *testing.T) {
 	before := len(tt.Window)
 	tt.Press("id:chrome-close")
 	run(msgs.MenuCloseWindow())
-	if got, want := windowCommands(tt)[before:], []ns.WindowAction{ns.WindowClose, ns.WindowClose}; !slices.Equal(got, want) {
+	if got, want := windowCommands(tt)[before:], []nsgotest.WindowAction{nsgotest.WindowClose, nsgotest.WindowClose}; !slices.Equal(got, want) {
 		t.Fatalf("close sent %v, want %v", got, want)
 	}
 	// The window's close the system reports back for that command, which the test app, opening no main window on Linux, does not.

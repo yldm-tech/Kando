@@ -15,7 +15,6 @@ import (
 	"kando/packages/media"
 	"kando/packages/track"
 
-	ns "github.com/nsgo-dev/nsgo/core"
 	"github.com/nsgo-dev/nsgo/nsgotest"
 )
 
@@ -126,7 +125,7 @@ func TestExportSubtitlesSaveAs(t *testing.T) {
 	own := a.player.subs.path
 	before, _ := os.ReadFile(own)
 	elsewhere := filepath.Join(t.TempDir(), "mine.srt")
-	tt.SaveFile = func(r ns.SaveRequest) string {
+	tt.SaveFile = func(r nsgotest.FileSave) string {
 		if r.Name != "talk.dual.srt" {
 			t.Errorf("the panel suggests %q", r.Name)
 		}
@@ -141,7 +140,7 @@ func TestExportSubtitlesSaveAs(t *testing.T) {
 	if !tt.Exists("id:export-dialog") {
 		t.Fatal("the dialog closed after a save it put back")
 	}
-	tt.SaveFile = func(ns.SaveRequest) string { return elsewhere }
+	tt.SaveFile = func(nsgotest.FileSave) string { return elsewhere }
 	tt.Press("id:export-save-as")
 	data, err := os.ReadFile(elsewhere)
 	if err != nil || !strings.Contains(string(data), "哈喽。\nHello.") || strings.Contains(string(data), "Bye.") {
@@ -161,7 +160,7 @@ func TestExportSubtitlesSaveAsNewKandoName(t *testing.T) {
 	tt.Key("mod+e")
 	for _, name := range []string{"talk.srt", "talk.kando.srt"} {
 		target := filepath.Join(dir, name)
-		tt.SaveFile = func(ns.SaveRequest) string { return target }
+		tt.SaveFile = func(nsgotest.FileSave) string { return target }
 		tt.Press("id:export-save-as")
 		if _, err := os.Stat(target); !os.IsNotExist(err) {
 			t.Fatalf("%s: the export was kept: %v", name, err)
@@ -179,7 +178,7 @@ func TestExportSubtitlesSaveAsWhileKandoWrites(t *testing.T) {
 	msgs := testlocale.Messages()
 	own := a.player.subs.path
 	transcript := filepath.Join(filepath.Dir(own), "talk.srt")
-	tt.SaveFile = func(ns.SaveRequest) string {
+	tt.SaveFile = func(nsgotest.FileSave) string {
 		if err := os.WriteFile(transcript, []byte("1\n00:00:01,000 --> 00:00:02,000\nNew.\n"), 0o644); err != nil {
 			t.Error(err)
 		}
