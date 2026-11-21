@@ -16,6 +16,8 @@ import (
 
 // The App Store's screenshots: go tool nsgo test -target ios_simulator -device <an iPhone, then an iPad> -run TestScreenshotsStore -env KANDO_SCREENSHOTS=1 saves them as store-*.png. Unlike the other scenes they show a library a learner would have: films with posters, a talk in Japanese translated into English whose video really plays (an original animation, testdata/store/talk.mp4), its words marked, and days of watching behind it.
 
+// TODO(nsgo#1275): the scenes stop at the Library and the player, as a test cannot select Learn, Jobs or Settings in the system's tab bar on a target (openTab); add Learn's review and saved words once nsgotest can https://github.com/nsgo-dev/nsgo/issues/1275
+
 //go:embed testdata/store
 var storeAssets embed.FS
 

@@ -102,6 +102,7 @@ func (p *phone) openTab(i int, name string) {
 		p.app.Press("id:tab-bar >> label:" + name)
 		return
 	}
+	// TODO(nsgo#1275): nsgotest cannot select a tab of the system's bar on a target (Emit skips the test there, nsgotest/model.go:235-237), so every scene behind Jobs, Learn or Settings is skipped on the iOS simulator and the App Store screenshots stop at the Library and the player; select the tab with the step nsgotest gains, and shoot those tabs for the store (screenshot_store_test.go), once it has one https://github.com/nsgo-dev/nsgo/issues/1275
 	p.app.Emit("id:tab-bar", "change", float64(i))
 }
 
