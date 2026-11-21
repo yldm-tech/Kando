@@ -207,7 +207,12 @@ func TestScreenshotsLibrary(t *testing.T) {
 	})
 	// 处理中 down to the one film being translated, in a window tall enough for the design's whole hero over it and the first row of posters: the card keeps its line and its first bilingual line while a job runs.
 	f.shootSize(t, "library-hero-whole", 1304, 900, func(t *testing.T, a *app, tt *nsgotest.App, _ chan func()) {
+		// Under `nsgo test -target macos` the window is a real one, and on GitHub's macOS runners it still comes out 677 points high whatever the height asked, where the whole hero has no room over 处理中 and the posters (heroFits) and the compact card is right. The scene is then skipped there rather than checked in a window it did not get; headless the window is always the size asked, and anything else fails.
+		// TODO(nsgo#697): nsgotest.Size still gives a shorter window than asked on a target whose screen is shorter, without saying so (the fix in nsgo#941 does not hold on those runners); drop the skip once the test window keeps the size asked or reports it https://github.com/nsgo-dev/nsgo/issues/697
 		if got := tt.Find("id:films-page").Frame.Size.Height; got != 900 {
+			if nsgotest.Target() != "" {
+				t.Skipf("the screen gave the window %v points of the 900 asked", got)
+			}
 			t.Fatalf("the page is %v high in a window 900 high", got)
 		}
 		kept := false
