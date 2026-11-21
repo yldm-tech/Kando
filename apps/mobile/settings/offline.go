@@ -14,7 +14,7 @@ import (
 )
 
 // OfflinePage is Settings › Offline Films: how much space the films saved on this device take, and the films, each with its poster, its size and where its download stands, and Delete, which asks first.
-// TODO(nsgo): no API tells the space left on the device, so the design's bar of the films' share of it and its "about 38 GB free" line are left out; nsgo#969 was closed without it.
+// TODO(nsgo#1078): no API tells the space left on the device, so the design's bar of the films' share of it and its "about 38 GB free" line are left out https://github.com/nsgo-dev/nsgo/issues/1078
 func OfflinePage(cx *core.Scope, s *session.Session, back func()) base.NavPage {
 	colors := ui.ColorsOf(cx)
 	ref := &core.Ref{}

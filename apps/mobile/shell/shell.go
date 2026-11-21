@@ -24,8 +24,8 @@ type Tab struct {
 	Content func(cx *core.Scope) core.Node
 	TestID  string
 	// Badge, when set, is a count the drawn tab bar and a tablet's sidebar show on the section while it is not 0, in the badges' orange while BadgeWarn reports true, red otherwise.
-	// The count is not in the section's spoken name yet: base.Tab.Label is a fixed string (nsgo#145, above), so a screen reader does not hear it.
-	// TODO(nsgo): ui.ShellTab and mobile.TabBarItem have no badge (ui/tabshell.go:10-20, core/tabbar.go:20-28), so the system's tab bar of an iPhone or an Android phone (UITabBarItem.badgeValue, BottomNavigationView's badge) shows no count, and the app shows the jobs' count on the Library's header there instead (SystemBar); pass Badge through once they take one, and drop that button; nsgo#741 was closed without it.
+	// The count is not in the section's spoken name: the tab's LabelFunc is the section's name alone, so a screen reader does not hear it.
+	// TODO(nsgo#1076): ui.ShellTab and mobile.TabBarItem have no badge (ui/tabshell.go:10-20, core/tabbar.go:20-28), so the system's tab bar of an iPhone or an Android phone (UITabBarItem.badgeValue, BottomNavigationView's badge) shows no count, and the app shows the jobs' count on the Library's header there instead (SystemBar); pass Badge through once they take one, and drop that button https://github.com/nsgo-dev/nsgo/issues/1076
 	Badge     func() int
 	BadgeWarn func() bool
 }
@@ -80,7 +80,7 @@ func (s Shell) phone(cx *core.Scope) core.Node {
 		}
 	}
 	// TODO(nsgo#145): ui.ShellTab.Text and TabShell.Label are strings only (ui/tabshell.go:10-36), so the tab titles keep the language they were built in; pass TextFunc/LabelFunc once ShellTab has them (mobile.TabBar already takes ItemsFunc) https://github.com/nsgo-dev/nsgo/issues/145
-	// TODO(nsgo): Android's navigation bar now takes its colors from the palette (nsgo#936), but from roles the rest of the app shares (core/tabbar.go:72-82): its fill is Surface, its idle tabs TextMuted and the selected tab's icon and name AccentText, which in this theme is the white drawn on the accent's fill, over an indicator of accentContainer or the accent at .12 (TabBar.java:186-203); so the selected tab is white on a faint pill of the accent where the design has theme.M3NavActive (the accent in the dark) on the accent at theme.M3NavIndicator, its idle tabs theme.TabInactive; give it those once the bar's idle and selected colors are roles of their own.
+	// TODO(nsgo#1071): Android's navigation bar now takes its colors from the palette (nsgo#936), but from roles the rest of the app shares (core/tabbar.go:72-82): its fill is Surface, its idle tabs TextMuted and the selected tab's icon and name AccentText, which in this theme is the white drawn on the accent's fill, over an indicator of accentContainer or the accent at .12 (TabBar.java:186-203); so the selected tab is white on a faint pill of the accent where the design has theme.M3NavActive (the accent in the dark) on the accent at theme.M3NavIndicator, its idle tabs theme.TabInactive; give it those once the bar's idle and selected colors are roles of their own https://github.com/nsgo-dev/nsgo/issues/1071
 	return ui.TabShell{Label: locales.AppName(cx), Selected: s.Selected, OnChange: s.OnChange, Tabs: tabs}
 }
 
@@ -159,8 +159,7 @@ func (s Shell) sidebar(cx *core.Scope) core.Node {
 			}
 			return colors.Accent()
 		}
-		// TODO(nsgo#145): base.Tab.Label is a string only (base/tabs.go:13-28), so a tab's spoken name keeps the language it was built in; pass a LabelFunc once Tab has one https://github.com/nsgo-dev/nsgo/issues/145
-		rows = append(rows, base.Tab{TestID: "sidebar-" + tab.TestID, Label: tab.Text(), Selected: on, OnPress: func(core.PressEvent) { s.OnChange(i) },
+		rows = append(rows, base.Tab{TestID: "sidebar-" + tab.TestID, LabelFunc: tab.Text, Selected: on, OnPress: func(core.PressEvent) { s.OnChange(i) },
 			Style: core.Style{Direction: core.Row, AlignItems: core.AlignCenter, Gap: 12, MinHeight: core.Pt(44), Padding: core.Symmetric(0, 12), CornerRadius: 12, BorderCurve: core.BorderCurveContinuous},
 			StyleFunc: func() core.Style {
 				st := core.Style{Color: colors.Text(), Active: &core.Style{Background: colors.Pressed()}, FocusVisible: ui.FocusRing(cx, -2)}
@@ -240,8 +239,7 @@ func tabStyle(cx *core.Scope) func() core.Style {
 func (s Shell) bar(cx *core.Scope) core.Node {
 	var tabs []core.Node
 	for i, tab := range s.Tabs {
-		// TODO(nsgo#145): base.Tab.Label is a string only (base/tabs.go:13-28), so a tab's spoken name keeps the language it was built in; pass a LabelFunc once Tab has one https://github.com/nsgo-dev/nsgo/issues/145
-		tabs = append(tabs, base.Tab{TestID: "bar-" + tab.TestID, Label: tab.Text(), Selected: func() bool { return s.Selected() == i },
+		tabs = append(tabs, base.Tab{TestID: "bar-" + tab.TestID, LabelFunc: tab.Text, Selected: func() bool { return s.Selected() == i },
 			OnPress: func(core.PressEvent) { s.OnChange(i) },
 			Style: core.Style{FlexGrow: 1, FlexBasis: core.Pt(0), MinWidth: core.Pt(0), AlignItems: core.AlignCenter, JustifyContent: core.JustifyCenter, Gap: 3,
 				MinHeight: core.Pt(54), CornerRadius: 10},
@@ -273,8 +271,7 @@ func (s Shell) bar(cx *core.Scope) core.Node {
 func (s Shell) wideBar(cx *core.Scope) core.Node {
 	var tabs []core.Node
 	for i, tab := range s.Tabs {
-		// TODO(nsgo#145): base.Tab.Label is a string only (base/tabs.go:13-28), so a tab's spoken name keeps the language it was built in; pass a LabelFunc once Tab has one https://github.com/nsgo-dev/nsgo/issues/145
-		tabs = append(tabs, base.Tab{TestID: "bar-" + tab.TestID, Label: tab.Text(), Selected: func() bool { return s.Selected() == i },
+		tabs = append(tabs, base.Tab{TestID: "bar-" + tab.TestID, LabelFunc: tab.Text, Selected: func() bool { return s.Selected() == i },
 			OnPress: func(core.PressEvent) { s.OnChange(i) },
 			Style: core.Style{FlexGrow: 1, FlexBasis: core.Pt(0), MinWidth: core.Pt(0), Direction: core.Row, AlignItems: core.AlignCenter, JustifyContent: core.JustifyCenter, Gap: 8,
 				MinHeight: core.Pt(60), CornerRadius: 10},

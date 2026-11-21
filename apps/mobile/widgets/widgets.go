@@ -114,7 +114,7 @@ func Load(s *session.Session, snap Snapshot) Shown {
 }
 
 // Keep writes the widgets' timelines with publish (widget.Update) as what they show changes, in the language the app shows, the first time once the session has read the store. The disk is read and the timelines written on a goroutine of its own, which takes the latest change and drops the ones it has not reached.
-// TODO(nsgo): a tap on a widget only opens the app: iOS now registers url_schemes and hands their links to mobile.OnOpenLinks (nsgo#909), unchecked so far from a widget, but an Android app's own links do not reach it yet (NSGo's docs/roadmap.md, Widgets, The app's own links), so a widget's Entry.URL would open the review or the player on an iPhone alone; give the study widget a link to the review and the Continue widget one to the player, under a scheme of the app's own in nsgo.yaml, once the app's links reach it on Android too
+// TODO(nsgo#1080): a tap on a widget only opens the app: iOS now registers url_schemes and hands their links to mobile.OnOpenLinks (nsgo#909), unchecked so far from a widget, but an Android app's own links do not reach it yet (NSGo's docs/roadmap.md, Widgets, The app's own links), so a widget's Entry.URL would open the review or the player on an iPhone alone; give the study widget a link to the review and the Continue widget one to the player, under a scheme of the app's own in nsgo.yaml, once the app's links reach it on Android too https://github.com/nsgo-dev/nsgo/issues/1080
 func Keep(cx *core.Scope, s *session.Session, publish func(kind string, entries ...widget.Entry) error) {
 	changes := make(chan change, 1)
 	done := make(chan struct{})

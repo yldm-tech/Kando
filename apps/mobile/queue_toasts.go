@@ -23,7 +23,7 @@ func queueToasts(cx *core.Scope, s *session.Session, toaster *ui.Toaster, openFi
 	s.OnQueue(session.QueueEvents{
 		Done: func(desktop string, job sync.Job) {
 			// The design's banner of a finished job leads with the app's icon, opens its film from anywhere on it and stays a little longer than a toast.
-			// TODO(nsgo): ui.Toasts and ui.ToastContent take no style of a toast's surface (ui/toast.go:354-363), so the banner is NSGo's card rather than the design's frosted banner.
+			// TODO(nsgo#1072): ui.Toasts and ui.ToastContent take no style of a toast's surface (ui/toast.go:354-363), so the banner is NSGo's card rather than the design's frosted banner https://github.com/nsgo-dev/nsgo/issues/1072
 			t := ui.ToastContent{ID: "job-done-" + job.ID, Type: ui.ToastSuccess, Title: locales.JobsDoneTitle(cx, name(desktop)), Description: locales.JobsDoneBody(cx, job.Title),
 				Leading:  core.Image{Source: brand.Icon(), ResizeMode: core.Cover, ElementsHidden: true, Style: core.Style{Width: core.Pt(38), Height: core.Pt(38), CornerRadius: 9, BorderCurve: core.BorderCurveContinuous}},
 				Duration: 5200 * time.Millisecond}
@@ -92,7 +92,7 @@ func queueToasts(cx *core.Scope, s *session.Session, toaster *ui.Toaster, openFi
 }
 
 // brief is t as the design's toast of something done: a green check before its line, with no close button, gone after 2.6 seconds.
-// TODO(nsgo): ui.Toasts and ui.ToastContent take no style of a toast's surface (ui/toast.go:354-363), so the toast is NSGo's card rather than the design's dark pill.
+// TODO(nsgo#1072): ui.Toasts and ui.ToastContent take no style of a toast's surface (ui/toast.go:354-363), so the toast is NSGo's card rather than the design's dark pill https://github.com/nsgo-dev/nsgo/issues/1072
 func brief(t ui.ToastContent) ui.ToastContent {
 	t.Leading = ui.Icon(lucide.CircleCheck, 16, func() core.Color { return theme.StatusOK })
 	t.NoClose = true
