@@ -465,6 +465,8 @@ func TestTheWordsOfAJapaneseLineAreTappedOnTheCard(t *testing.T) {
 
 // A line saved on the phone goes to the computer, with the note written on it; one saved on the computer shows on the phone; a line taken back is gone on the computer too.
 func TestSavedLinesAndNotesSyncWithTheComputer(t *testing.T) {
+	// Saving the line and then writing its note are two changes of its note: at one time, a note written while the save's put was still out would be a tie the computer may settle for the empty note.
+	movingClock(t)
 	d := newDesktop(t)
 	at := now().Add(-time.Hour)
 	field := func(v any) sync.Field { return sync.Field{Value: sync.Value(v)} }

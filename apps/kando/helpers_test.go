@@ -450,10 +450,10 @@ func keysOf(files []cloud.File) []string {
 	return out
 }
 
-// waitUntil applies the background updates until done holds, then refreshes once.
+// waitUntil applies the background updates until done holds, then refreshes once. It waits as long as nsgotest's own waits do: on Windows CI, a fake tool is a copy of the test binary that runs its script through Git for Windows' sh (writeFakeScript), and a step that starts a few of them, as a film's copy for the system's player, took over five seconds.
 func waitUntil(t *testing.T, tt *nsgotest.App, a *app, updates <-chan func(), done func() bool) {
 	t.Helper()
-	timeout := time.After(5 * time.Second)
+	timeout := time.After(10 * time.Second)
 	for !done() {
 		select {
 		case fn := <-updates:
