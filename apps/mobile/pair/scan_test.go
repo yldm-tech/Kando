@@ -7,10 +7,13 @@ import (
 	"image/color"
 	"image/draw"
 	"image/jpeg"
+	"net/netip"
 	"testing"
 
 	"github.com/makiuchi-d/gozxing"
 	"github.com/makiuchi-d/gozxing/qrcode"
+
+	"kando/packages/sync"
 )
 
 // qrPhoto is a JPEG of text's QR code, as small on a grey page as a photo of a screen across a desk shows it.
@@ -49,5 +52,17 @@ func TestReadCodeSaysWhenThereIsNoCode(t *testing.T) {
 	}
 	if _, err := ReadCode([]byte("not a jpeg")); err == nil {
 		t.Fatal("ReadCode read something that is no picture")
+	}
+}
+
+// A pairing link whose code JPEG's noise hides at full size, one of about a hundred, is read at half the size.
+func TestReadCodeReadsACodeTheNoiseHides(t *testing.T) {
+	fp := make([]byte, 32)
+	for i := range fp {
+		fp[i] = byte(i*7 + 3*31)
+	}
+	link := sync.PairURL{Addrs: []netip.AddrPort{netip.MustParseAddrPort("127.0.0.1:40031")}, Code: "123456", Fingerprint: fp, Name: "Studio"}.String()
+	if got, err := ReadCode(qrPhoto(t, link)); err != nil || got != link {
+		t.Fatalf("ReadCode = %q, %v, want %q", got, err, link)
 	}
 }

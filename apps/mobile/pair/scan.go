@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"errors"
 	"image"
+	"image/color"
 	_ "image/jpeg"
 
 	"github.com/makiuchi-d/gozxing"
@@ -22,14 +23,32 @@ func ReadCode(photo []byte) (string, error) {
 	if err != nil {
 		return "", err
 	}
-	bmp, err := gozxing.NewBinaryBitmapFromImage(img)
-	if err != nil {
-		return "", err
+	// A code the photo shows clearly is still missed now and then, about one in a hundred, where the JPEG's noise breaks a finder pattern's edges; at half the size, each pixel the average of four, the noise is gone and the code is read.
+	for _, try := range []image.Image{img, halved(img)} {
+		bmp, err := gozxing.NewBinaryBitmapFromImage(try)
+		if err != nil {
+			return "", err
+		}
+		// TRY_HARDER looks past a photo's glare, tilt and the screen's own pixels, which a code printed flat on paper does not need.
+		if result, err := qrcode.NewQRCodeReader().Decode(bmp, map[gozxing.DecodeHintType]interface{}{gozxing.DecodeHintType_TRY_HARDER: true}); err == nil {
+			return result.GetText(), nil
+		}
 	}
-	// TRY_HARDER looks past a photo's glare, tilt and the screen's own pixels, which a code printed flat on paper does not need.
-	result, err := qrcode.NewQRCodeReader().Decode(bmp, map[gozxing.DecodeHintType]interface{}{gozxing.DecodeHintType_TRY_HARDER: true})
-	if err != nil {
-		return "", ErrNoCode
+	return "", ErrNoCode
+}
+
+// halved is img at half its width and height in grey, each pixel the average of the four it stands for.
+func halved(img image.Image) image.Image {
+	b := img.Bounds()
+	out := image.NewGray(image.Rect(0, 0, b.Dx()/2, b.Dy()/2))
+	for y := 0; y < out.Rect.Dy(); y++ {
+		for x := 0; x < out.Rect.Dx(); x++ {
+			sum := 0
+			for _, d := range [4][2]int{{0, 0}, {1, 0}, {0, 1}, {1, 1}} {
+				sum += int(color.GrayModel.Convert(img.At(b.Min.X+2*x+d[0], b.Min.Y+2*y+d[1])).(color.Gray).Y)
+			}
+			out.Pix[y*out.Stride+x] = uint8(sum / 4)
+		}
 	}
-	return result.GetText(), nil
+	return out
 }
