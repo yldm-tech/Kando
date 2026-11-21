@@ -262,3 +262,5 @@ func TestAFilmWithoutLinesIsNotShared(t *testing.T) {
 		t.Fatalf("files %v, status %+v", g.files(), g.told())
 	}
 }
+
+func (*filmSource) Making(context.Context, Library) ([]Film, error) { return nil, nil }

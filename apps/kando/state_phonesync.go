@@ -167,6 +167,7 @@ func (a *app) phoneSyncStart() {
 		Glossary:      phoneGlossary{a},
 		FilmOps:       phoneFilmOps{a},
 		Marks:         phoneMarks{a},
+		Watched:       a.phoneWatched,
 		Relay:         a.phoneRelayBucket(),
 		RelayHealth:   a.phoneRelayHealth(gen),
 		Films:         a.phoneFilmsConfig(gen, a.currentStore()),
@@ -365,6 +366,8 @@ type phoneShelf struct {
 	// tag is the interface's language, which orders the films' names (films.Next), and nexts the film after each film of the library, by key, made once the library is listed.
 	tag   string
 	nexts map[string]films.Film
+	// redo is the jobs that process or translate a done film again (core.Job.Redo), by ID.
+	redo map[string]bool
 }
 
 // Duration, ResumeAt and Furthest are the shelf as films.Progress, for films.WatchState: where a film stopped does not tell whether it was watched to its end.
@@ -433,8 +436,23 @@ func phoneFilmOf(item films.Film, shelf phoneShelf) phonesync.Film {
 	return f
 }
 
-// items are lib's films that are done, as the app files them: the jobs the shelf keeps for it and the videos in its folder (films.List), with what the app holds of them. A library locked since it was listed, or whose folder cannot be read, is not found.
+// items are lib's films that are done (phoneDone), as the app files them, with what the app holds of them (listed). A library locked since it was listed, or whose folder cannot be read, is not found.
 func (s phoneSource) items(ctx context.Context, lib phonesync.Library) ([]films.Film, phoneShelf, error) {
+	all, shelf, err := s.listed(ctx, lib)
+	if err != nil {
+		return nil, phoneShelf{}, err
+	}
+	var out []films.Film
+	for _, item := range all {
+		if phoneDone(item, shelf) {
+			out = append(out, item)
+		}
+	}
+	return out, shelf, nil
+}
+
+// listed is every film of lib as the app files it: the jobs the shelf keeps for it and the videos in its folder (films.List), with what the app holds of them. A library locked since it was listed, or whose folder cannot be read, is not found.
+func (s phoneSource) listed(ctx context.Context, lib phonesync.Library) ([]films.Film, phoneShelf, error) {
 	a := s.a
 	shelf, err := remote.OnUI(ctx, a.update, func() (phoneShelf, error) {
 		if a.libraryLocked(lib.Dir) {
@@ -454,13 +472,54 @@ func (s phoneSource) items(ctx context.Context, lib phonesync.Library) ([]films.
 	noDetail := func(core.Job) string { return "" }
 	all := storedMark(films.List(lib.Dir, shelf.jobs, videos, shelf.names, jobName, noDetail), shelf.stored)
 	shelf.nexts = films.Nexts(all, shelf.tag)
-	var out []films.Film
-	for _, item := range all {
-		if !films.InQueue(item) && item.VideoPath != "" {
-			out = append(out, item)
+	shelf.redo = map[string]bool{}
+	for _, job := range shelf.jobs {
+		if job.Redo != "" {
+			shelf.redo[job.ID] = true
 		}
 	}
-	return out, shelf, nil
+	return all, shelf, nil
+}
+
+// phoneDone reports whether item is a done film, as a phone lists it: one whose job is done, or that no job processed, and one done before that is processed or translated again (core.Job.Redo), which keeps the video and lines it had until the job writes the new ones, as the player shows it meanwhile, so it stays on the phones meanwhile.
+func phoneDone(item films.Film, shelf phoneShelf) bool {
+	return item.VideoPath != "" && (!films.InQueue(item) || shelf.redo[item.JobID])
+}
+
+// phoneMaking reports whether item is a film being made, as a phone lists it to watch while it is made (psync.Film.Making): one whose job waits or runs for the first time, as the player opens it from its card (films.Openable); a done film made again is done (phoneDone).
+func phoneMaking(item films.Film, shelf phoneShelf) bool {
+	return films.Openable(item) && !shelf.redo[item.JobID]
+}
+
+// Making are lib's films being made (phoneMaking), with their files as they are so far: the video, or a link's sound until its video comes (core.Job.SoundPath, phonesync.Film.ComingSound), none before either is in; the film, its lines, corrections and poster go by where its video is or will be (films.PlayPath), as the player keeps its place by it. A library locked since it was listed, or whose folder cannot be read, is not found.
+func (s phoneSource) Making(ctx context.Context, lib phonesync.Library) ([]phonesync.Film, error) {
+	all, shelf, err := s.listed(ctx, lib)
+	if err != nil {
+		return nil, err
+	}
+	var out []phonesync.Film
+	for _, item := range all {
+		if !phoneMaking(item, shelf) {
+			continue
+		}
+		at := films.PlayPath(item)
+		f := phonesync.Film{ID: phoneFilmID(item), Title: remoteFilmTitle(item), Source: films.SourceOf(item), Spoken: films.Heard(item), Making: true,
+			Duration: shelf.durations[at], Video: at, Subtitles: item.SubtitlePath}
+		if item.VideoPath == "" {
+			f.ComingSound = item.SoundPath
+		}
+		if at != "" {
+			f.Transcript, f.Corrections = media.TranscriptOf(at), media.CorrectionsPath(at)
+			if dest := posterDest(shelf.posterDir, at); dest != "" && fileExists(dest) {
+				f.Poster = dest
+			}
+		}
+		if !item.SameLanguage {
+			f.Translation = item.Language
+		}
+		out = append(out, f)
+	}
+	return out, nil
 }
 
 // Cues are f's subtitles as the control socket reads them (remoteFilmCues): its lines as its subtitle document holds them, each original split from its translation by the original .srt. A film without subtitles is not found.

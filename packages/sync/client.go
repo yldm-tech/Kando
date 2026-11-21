@@ -11,6 +11,7 @@ import (
 	"io"
 	"net/http"
 	"net/netip"
+	"slices"
 	"strconv"
 	"strings"
 )
@@ -103,6 +104,15 @@ func (c *Client) Films(ctx context.Context, lib string) ([]Film, error) {
 	var out Films
 	err := c.getJSON(ctx, http.MethodGet, FilmsPath(lib)+"?"+QueryWith+"="+WithSubtitlesOnly+","+WithSound, nil, &out)
 	return out.Films, err
+}
+
+// Making are the films of library lib being made (Film.Making), which a phone watches while they are made (OpFilmWatch); a desktop from before them lists none.
+func (c *Client) Making(ctx context.Context, lib string) ([]Film, error) {
+	var out Films
+	if err := c.getJSON(ctx, http.MethodGet, FilmsPath(lib)+"?"+QueryWith+"="+WithMaking, nil, &out); err != nil {
+		return nil, err
+	}
+	return slices.DeleteFunc(out.Films, func(f Film) bool { return !f.Making }), nil
 }
 
 // Subtitles are the lines of film id's subtitles.

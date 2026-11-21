@@ -443,3 +443,5 @@ func TestCallTimeout(t *testing.T) {
 		}
 	}
 }
+
+func (fakeSource) Making(context.Context, Library) ([]Film, error) { return nil, nil }

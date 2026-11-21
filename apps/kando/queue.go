@@ -50,8 +50,13 @@ type jobQueue struct {
 	done   chan struct{}
 	// watch is where the film the running job makes is watched (queuePlaying), nil while none runs.
 	watch *queueWatch
-	// preferred is the film last opened whose job was put first (queuePreferOpen); queueAdd forgets it when that job is queued again.
+	// preferred is the film last watched whose job was put first (queuePreferOpen); queueAdd forgets it when that job is queued again.
 	preferred string
+	// viewers are the paired phones watching a film being made, by device ID, and desk this computer's player as last seen, whose claims say which film is watched (queue_watched.go); lease looks at them again once a phone's claim stops counting. clock is a test's clock, nil for the time.
+	viewers map[string]queueViewer
+	desk    queueDesk
+	lease   *time.Timer
+	clock   func() time.Time
 	// cancelled is set once the running job was asked to stop for good (stopActive with context.Canceled: Cancel, Withdraw, removing it), and cleared as the next one starts. A job the queue's pause stopped first then ends cancelled rather than going back to the queue (queuePausedJob), as the context keeps only the first cause it was stopped with.
 	cancelled bool
 	// stopped is set once the app quits (queueQuit): no job starts after it.
@@ -906,10 +911,10 @@ func (a *app) queueRun(job core.Job) {
 	a.queue.active, a.queue.cancel, a.queue.done, a.queue.cancelled = job.ID, cancel, done, false
 	a.queueKeepAwake()
 	pipeline, update := a.queuePipeline(job), a.update
-	// A film made for the first time is made nearest where it is watched first: where the browser it came from was, until it is opened.
+	// A film made for the first time is made nearest where it is watched first: where the browser it came from was, until it is opened here or on a phone (queueWatched).
 	watch, device := newQueueWatch(job.ResumeAt), a.savedDevice()
-	if a.openKey != "" && a.openKey == job.ID && a.player.play != nil {
-		watch.move(a.player.play.head)
+	if at, ok := a.queueWatched(); ok && at.placed && at.film == job.ID {
+		watch.move(at.head)
 	}
 	a.queue.watch = watch
 	a.queue.whisperModel = ""

@@ -8,7 +8,7 @@ import (
 // queueJump is how far the playhead must move between two of the player's reports, about a quarter of a second apart while it plays, to count as a jump the film being made gives way to (media.Watcher).
 const queueJump = 3 * time.Second
 
-// queueWatch is where the film the running job makes is watched (media.Watcher): where it will be watched from (core.Job.ResumeAt) until it is opened, then the open film's playhead, which the player's reports move (queuePlaying). Make reads it on its own goroutine.
+// queueWatch is where the film the running job makes is watched (media.Watcher): where it will be watched from (core.Job.ResumeAt) until it is watched, then the playhead of the player watching it (queueWatched): this computer's, which its reports move (queuePlaying), or a phone's (queueWatchedBy). Make reads it on its own goroutine.
 type queueWatch struct {
 	at     atomic.Int64
 	jumped chan struct{}
@@ -35,10 +35,14 @@ func (w *queueWatch) move(at time.Duration) {
 	}
 }
 
-// queuePlaying follows the open film's playhead into the running job's watch when the open film is the one it makes, so the lines nearest where it is watched are made first. It changes nothing a binding reads.
+// keep puts the playhead at at without saying it jumped: where a phone that watches the film says it is, every few seconds (psync.WatchEvery), which is as far as playing moved it.
+func (w *queueWatch) keep(at time.Duration) { w.at.Store(int64(at)) }
+
+// queuePlaying notes this computer's player as it plays (queueDeskSeen), and follows its playhead into the running job's watch while the film watched is the open film and the one the job makes, so the lines nearest where it is watched are made first. It changes nothing a binding reads.
 func (a *app) queuePlaying() bool {
-	if w, p := a.queue.watch, a.player.play; w != nil && p != nil && a.openKey != "" && a.openKey == a.queue.active {
-		w.move(p.head)
+	a.queueDeskSeen()
+	if at, ok := a.queueWatched(); ok && a.queue.watch != nil && at.phone == "" && at.placed && at.film == a.queue.active {
+		a.queue.watch.move(at.head)
 	}
 	return false
 }

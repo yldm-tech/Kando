@@ -30,11 +30,12 @@ const (
 // FilmsPath is PathFilms for library lib.
 func FilmsPath(lib string) string { return "/v1/libraries/" + lib + "/films" }
 
-// QueryWith asks PathFilms for kinds of film a phone from before them did not know, so a desktop lists them only to a phone that asks, as "?with=subtitles_only,sound": WithSubtitlesOnly for the films that keep no video (Film.SubtitlesOnly), which a phone knew a film by; WithSound for the films of sound alone (Film.Sound), whose file a phone from before them would keep as an MP4 it cannot play (Extension).
+// QueryWith asks PathFilms for kinds of film a phone from before them did not know, so a desktop lists them only to a phone that asks, as "?with=subtitles_only,sound": WithSubtitlesOnly for the films that keep no video (Film.SubtitlesOnly), which a phone knew a film by; WithSound for the films of sound alone (Film.Sound), whose file a phone from before them would keep as an MP4 it cannot play (Extension); WithMaking for the films still being made (Film.Making), which a phone from before them would keep as done.
 const (
 	QueryWith         = "with"
 	WithSubtitlesOnly = "subtitles_only"
 	WithSound         = "sound"
+	WithMaking        = "making"
 )
 
 // AsksWith reports whether query, a request's QueryWith, asks for kind among the kinds it names.
@@ -88,7 +89,7 @@ type Libraries struct {
 	Libraries []Library `json:"libraries"`
 }
 
-// Film is a film of a library that a phone can play or study: one that is done processing, with its video on the desktop's disk, or, listed only to a phone that asks for them (WithSubtitlesOnly), one that keeps no video (SubtitlesOnly).
+// Film is a film of a library that a phone can play or study: one that is done processing, with its video on the desktop's disk, or, listed only to a phone that asks for them, one that keeps no video (WithSubtitlesOnly, SubtitlesOnly) and one still being made (WithMaking, Making).
 type Film struct {
 	ID    string `json:"id"`
 	Title string `json:"title"`
@@ -113,6 +114,8 @@ type Film struct {
 	Next string `json:"next,omitempty"`
 	// Updated is when the film's video or subtitles last changed on the desktop, so a phone knows to fetch them again.
 	Updated time.Time `json:"updated"`
+	// Making is a film whose job is waiting or running, listed only to a phone that asks for such films (WithMaking): its lines grow while it is made, nearest where it is watched first (OpFilmWatch); PathVideo answers what plays of it so far (FilmWatching.Plays), not_found while nothing does; and once it is done it is listed as any other film, under the same ID.
+	Making bool `json:"making,omitempty"`
 }
 
 // Films is PathFilms' answer.

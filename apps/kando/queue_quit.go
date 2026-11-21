@@ -109,6 +109,9 @@ func (a *app) queueQuitModal() bool {
 // queueQuit stops the running job as the app quits and waits for its pipeline to return, at most queueQuitWait, so yt-dlp, ffmpeg or whisper-cli are not left running. No job starts after it.
 func (a *app) queueQuit() {
 	a.queue.stopped = true
+	if a.queue.lease != nil {
+		a.queue.lease.Stop()
+	}
 	done := a.queue.done
 	if a.queue.cancel == nil {
 		return
