@@ -278,7 +278,7 @@ func pageFrame(v *nsgotest.View) ns.Bounds {
 	return b
 }
 
-// TODO(nsgo): drop the wait for the focus once a target test window reports a click's focus within the step that pressed: nsgotest's Focus and Type now check the field took it (nsgotest/target.go focusField) and -activate covers an inactive app on macOS, but a Press still settles without waiting for the focus the window's thread reports
+// TODO(nsgo#1083): drop the wait for the focus once a target test window reports a click's focus within the step that pressed: nsgotest's Focus and Type now check the field took it (nsgotest/target.go focusField) and -activate covers an inactive app on macOS, but a Press still settles without waiting for the focus the window's thread reports https://github.com/nsgo-dev/nsgo/issues/1083
 // typeFocused types s into the text field that has the keyboard focus, as a user types without moving it, and fails t when none has it. Under `nsgo test -target` the focus is the platform's report of the press that gave it, which comes from the window's own thread and can come after the step that pressed settled, so there it waits up to two seconds for a field to have it; headless the press sets it as the step runs.
 func typeFocused(t *testing.T, tt *nsgotest.App, s string) {
 	t.Helper()

@@ -175,7 +175,7 @@ func lineCard(cx *core.Scope, a ReviewApp, card func() Card, revealed func() boo
 }
 
 // clipPlayer plays the line's sound, Card.Clip, from its start each time Card.Plays counts another play, and tells ReviewClipEnded when it has played to its end. It is the system's video player with nothing to show, kept out of sight.
-// TODO(nsgo): play the clip with audio.Player once every desktop plays audio (core.Env.CanPlayAudio): macOS does now, but Windows and Linux still have no audio backend and report it does not (nsgo#36 was closed until a backend issue is split out); a core.Video without a picture plays it meanwhile
+// TODO(nsgo#1050): play the clip with audio.Player once every desktop plays audio (core.Env.CanPlayAudio): macOS does now, but Windows and Linux still have no audio backend and report it does not; a core.Video without a picture plays it meanwhile https://github.com/nsgo-dev/nsgo/issues/1050
 func clipPlayer(cx *core.Scope, a ReviewApp, card func() Card) core.Node {
 	ref := &core.Ref{}
 	clip := live.Memo(cx, a, func() string { return card().Clip })

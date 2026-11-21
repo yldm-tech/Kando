@@ -330,7 +330,7 @@ func (a *app) requestQuit() {
 
 // quitHeard runs as the app quits however it does (core.Scope.OnQuit). A quit requestQuit let through has told the areas already; any other, as the Dock's Quit, the system's at a logout or the updater's relaunch, tells them now with SessionEnding set, as the app is ending and cannot ask.
 func (a *app) quitHeard(context.Context) {
-	// TODO(nsgo): hold back the Dock's Quit, a logout, restart or shutdown and the updater's relaunch so a running job can ask first, as MyGo's OnBeforeQuit let the queue do. NSGo's OnQuitRequest (core/quit.go) runs on macOS alone, and neither says whether a quit is forced by a logout, restart or shutdown, which must not ask, nor answers one without the userCanceledErr that may cancel the logout (internal/platform/macos/macos.go applicationShouldTerminate:); Windows and Linux have no quit request. Until both are there, only ⌘Q and the app menu's Quit, which are the app's own items, ask
+	// TODO(nsgo#1081): hold back the Dock's Quit, a logout, restart or shutdown and the updater's relaunch so a running job can ask first, as MyGo's OnBeforeQuit let the queue do. NSGo's OnQuitRequest (core/quit.go) runs on macOS alone, and neither says whether a quit is forced by a logout, restart or shutdown, which must not ask, nor answers one without the userCanceledErr that may cancel the logout (internal/platform/macos/macos.go applicationShouldTerminate:); Windows and Linux have no quit request (nsgo#1082). Until both are there, only ⌘Q and the app menu's Quit, which are the app's own items, ask https://github.com/nsgo-dev/nsgo/issues/1081
 	if a.window.quitting {
 		return
 	}
