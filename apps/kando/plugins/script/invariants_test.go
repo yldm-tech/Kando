@@ -115,7 +115,7 @@ func TestScriptRuntimeEntrances(t *testing.T) {
 	}
 }
 
-// viewSandboxed reports whether lit, a tsx.View literal, sets its Sandbox, by key, to a call of Sandbox, and nothing else but its Package.
+// viewSandboxed reports whether lit, a tsx.View literal, sets its Sandbox, by key, to a call of Sandbox, and nothing else but its Package and the Export it shows.
 func viewSandboxed(lit *ast.CompositeLit) bool {
 	sandboxed := false
 	for _, e := range lit.Elts {
@@ -134,7 +134,7 @@ func viewSandboxed(lit *ast.CompositeLit) bool {
 			}
 			fn, ok := call.Fun.(*ast.Ident)
 			sandboxed = ok && fn.Name == "Sandbox"
-		case key.Name != "Package":
+		case key.Name != "Package" && key.Name != "Export":
 			return false
 		}
 	}

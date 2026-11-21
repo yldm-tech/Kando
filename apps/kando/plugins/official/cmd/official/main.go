@@ -1,10 +1,11 @@
 // Command official is what .github/scripts/official-plugins.sh, plugin-revocations.sh and the Release workflow run around nsgo's signing (docs/plugin-system.md 15, P3c). It never sees a secret key: nsgo publish and nsgo revoke sign, with keys only the owner's environment holds.
 //
+//	manifest -src <plugin folder> -out <file>
 //	wrap -src <plugin folder> -package <file.nsgopkg> -dir <folder> [-root <key>]
 //	revocations -list <file> [-previous <file>] [-root <key>] [-warn-days <n>]
 //	revocations -list <file> -next
 //
-// wrap checks that the package nsgo publish signed of the plugin in -src chains to the plugin root and is the plugin its kando-plugin.json says, and writes <id>-<version>.kandoplugin into -dir (official.Wrap), refusing to replace a file already there. revocations checks a revocation list before a release publishes it (official.CheckRevocations), warning when it expires within -warn-days; with -next it prints, a line each, the sequence the next list takes and the release keys and packages the list revokes now, comma-separated, which the next one must revoke again, as a newer list replaces the older one whole (1 and two empty lines when there is no list yet). -root is the plugin root's public key, signature.OfficialRoot unless a test gives its own.
+// manifest writes into -out what the package of the plugin in -src signs of its manifest (signature.SignedManifest), for nsgo publish -extra, and prints -out, when no Kando its kando-plugin.json says it runs on refuses it (signature.SignsManifest); otherwise it writes and prints nothing. wrap checks that the package nsgo publish signed of the plugin in -src chains to the plugin root and is the plugin its kando-plugin.json says, and writes <id>-<version>.kandoplugin into -dir (official.Wrap), refusing to replace a file already there. revocations checks a revocation list before a release publishes it (official.CheckRevocations), warning when it expires within -warn-days; with -next it prints, a line each, the sequence the next list takes and the release keys and packages the list revokes now, comma-separated, which the next one must revoke again, as a newer list replaces the older one whole (1 and two empty lines when there is no list yet). -root is the plugin root's public key, signature.OfficialRoot unless a test gives its own.
 package main
 
 import (
@@ -17,6 +18,7 @@ import (
 	"strings"
 	"time"
 
+	"kando/apps/kando/plugins"
 	"kando/apps/kando/plugins/official"
 	"kando/apps/kando/plugins/script/signature"
 
@@ -29,6 +31,8 @@ func main() {
 	}
 	var err error
 	switch os.Args[1] {
+	case "manifest":
+		err = manifest(os.Args[2:])
 	case "wrap":
 		err = wrap(os.Args[2:])
 	case "revocations":
@@ -43,8 +47,38 @@ func main() {
 }
 
 func usage() {
-	fmt.Fprintln(os.Stderr, "usage: official wrap -src <plugin folder> -package <file.nsgopkg> -dir <folder> [-root <key>]\n       official revocations -list <file> [-previous <file>] [-root <key>] [-warn-days <n>] [-next]")
+	fmt.Fprintln(os.Stderr, "usage: official manifest -src <plugin folder> -out <file>\n       official wrap -src <plugin folder> -package <file.nsgopkg> -dir <folder> [-root <key>]\n       official revocations -list <file> [-previous <file>] [-root <key>] [-warn-days <n>] [-next]")
 	os.Exit(2)
+}
+
+func manifest(args []string) error {
+	flags := flag.NewFlagSet("manifest", flag.ExitOnError)
+	src := flags.String("src", "", "the plugin's source `folder`, with its kando-plugin.json")
+	out := flags.String("out", "", "the `file` to write what the package signs of the manifest into")
+	flags.Parse(args)
+	if *src == "" || *out == "" {
+		usage()
+	}
+	data, err := os.ReadFile(filepath.Join(*src, "kando-plugin.json"))
+	if err != nil {
+		return err
+	}
+	m, err := plugins.Parse(data)
+	if err != nil {
+		return err
+	}
+	if !signature.SignsManifest(m) {
+		return nil
+	}
+	signed, err := signature.SignedManifest(m)
+	if err != nil {
+		return err
+	}
+	if err := os.WriteFile(*out, signed, 0o644); err != nil {
+		return err
+	}
+	fmt.Println(*out)
+	return nil
 }
 
 func wrap(args []string) error {

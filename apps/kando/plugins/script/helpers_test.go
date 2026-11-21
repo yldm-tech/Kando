@@ -74,6 +74,8 @@ type fixture struct {
 	// signManifest has the package sign its manifest (pkg.Contents.Extra) as signature.SignedManifest makes it, or entry when that is not "".
 	signManifest bool
 	entry        string
+	// kando is the manifest's kando, the Kando versions it runs on, none when "".
+	kando string
 }
 
 // manifestFields is the fixture's manifest fields that kandoManifest repeats, as JSON object members.
@@ -135,7 +137,11 @@ func (s signer) pack(t testing.TB, f fixture) plugins.Pack {
 		t.Fatal(err)
 	}
 	sum := sha256.Sum256(data)
-	manifest := `{"schema": 2, "id": "` + f.id + `", "kind": "script", "version": "` + f.version + `", "license": "MIT", "name": {"en": "Fixture"},
+	kando := ""
+	if f.kando != "" {
+		kando = `"kando": "` + f.kando + `", `
+	}
+	manifest := `{"schema": 2, "id": "` + f.id + `", "kind": "script", "version": "` + f.version + `", ` + kando + `"license": "MIT", "name": {"en": "Fixture"},
   "script": {"package": "plugin.nsgopkg", "sha256": "` + hex.EncodeToString(sum[:]) + `"}, ` + f.manifestFields() + `}`
 	dir := t.TempDir()
 	if err := os.WriteFile(filepath.Join(dir, plugins.ManifestName), []byte(manifest), 0o644); err != nil {

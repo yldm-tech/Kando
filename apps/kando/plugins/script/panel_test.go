@@ -102,34 +102,38 @@ export function Flip() {
 if (host.params.panel === "flip") mount(Flip)
 `}
 
-// TestScriptPanelShowsWhatItsModuleMounts checks that a panel's view shows what the entry module mounts once, even after a root that is a function renders again: a view that also rendered the export (tsx.View.Export) would show the mounted copy next to it then, as tsx leaves what the entry mounted running.
-func TestScriptPanelShowsWhatItsModuleMounts(t *testing.T) {
+// TestScriptPanelShowsItsExportOnce checks that a panel's view shows the export its panel names (tsx.View.Export) once, even after a root that is a function renders again, whether the entry module also mounts it from the host's parameters, as plugins for Kando 0.37 do, or not: what the entry mounts neither shows nor runs beside the export.
+func TestScriptPanelShowsItsExportOnce(t *testing.T) {
 	s := newSigner(t, AppIDPrefix+"acme.*")
 	roots := s.roots()
-	p := s.pack(t, flipFixture)
-	v, err := Verify(trustOf(t, roots), roots, p)
-	if err != nil {
-		t.Fatal(err)
-	}
-	var failed []error
-	app := nsgotest.Start(t, func(cx *core.Scope) core.Node {
-		r := &Runner{Post: cx.Post, Watch: DefaultWatch}
-		pl, err := Load(cx, v, plugins.Grant{}, core.NewHost())
+	unmounted := flipFixture
+	unmounted.code = strings.Replace(flipFixture.code, `if (host.params.panel === "flip") mount(Flip)`, "", 1)
+	for name, f := range map[string]fixture{"mounted": flipFixture, "not mounted": unmounted} {
+		p := s.pack(t, f)
+		v, err := Verify(trustOf(t, roots), roots, p)
 		if err != nil {
 			t.Fatal(err)
 		}
-		return r.Panel(pl, v, plugins.Grant{}, p.Contributes.Panels[0], core.NewHost, func(cx *core.Scope, err error, _ func()) core.Node {
-			failed = append(failed, err)
-			return core.Text{TestID: "failed", Content: "failed"}
+		var failed []error
+		app := nsgotest.Start(t, func(cx *core.Scope) core.Node {
+			r := &Runner{Post: cx.Post, Watch: DefaultWatch}
+			pl, err := Load(cx, v, plugins.Grant{}, core.NewHost())
+			if err != nil {
+				t.Fatal(err)
+			}
+			return r.Panel(pl, v, plugins.Grant{}, p.Contributes.Panels[0], core.NewHost, func(cx *core.Scope, err error, _ func()) core.Node {
+				failed = append(failed, err)
+				return core.Text{TestID: "failed", Content: "failed"}
+			})
 		})
-	})
-	if n := len(app.QueryMounted("id:flip")); n != 1 || len(failed) > 0 {
-		t.Fatalf("%d nodes before the timer, failed %v\n%s", n, failed, app.Dump())
-	}
-	app.Advance(50 * time.Millisecond)
-	app.Settle()
-	if n := len(app.QueryMounted("id:flip")); n != 2 {
-		t.Fatalf("%d nodes after the timer, not the two it renders\n%s", n, app.Dump())
+		if n := len(app.QueryMounted("id:flip")); n != 1 || len(failed) > 0 {
+			t.Fatalf("%s: %d nodes before the timer, failed %v\n%s", name, n, failed, app.Dump())
+		}
+		app.Advance(50 * time.Millisecond)
+		app.Settle()
+		if n := len(app.QueryMounted("id:flip")); n != 2 {
+			t.Fatalf("%s: %d nodes after the timer, not the two it renders\n%s", name, n, app.Dump())
+		}
 	}
 }
 

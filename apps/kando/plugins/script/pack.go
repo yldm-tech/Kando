@@ -13,6 +13,7 @@ import (
 	"time"
 
 	"kando/apps/kando/plugins"
+	"kando/apps/kando/plugins/script/signature"
 
 	"github.com/nsgo-dev/nsgo/tsx/bundler"
 	"github.com/nsgo-dev/nsgo/tsx/pkg"
@@ -81,8 +82,14 @@ func PackFolder(src, dst string, key ed25519.PrivateKey) error {
 		caps.Network = &pkg.Network{HTTP: declared.Network}
 	}
 	app := pkg.App{ID: AppIDPrefix + m.ID, Name: m.Name["en"], Version: m.Version, Build: uint64(now.Unix())}
-	// TODO(nsgo#924): nsgo publish cannot sign pkg.Contents.Extra, so no release signs a plugin's manifest and its code must say it (kandoManifest); a developer's package signs none either, so it is checked as the plugin will be once published. Once nsgo publish can, sign signature.SignedManifest here and in .github/scripts/official-plugins.sh for a manifest signature.SignsManifest takes, and keep requiring kandoManifest of a plugin until its manifest's oldest Kando is the first release whose signature.Verify compares Info.Extra (git tag --contains of the commit that made it), as the releases between 0.37.0 and that one take the entry but still ask the code (signature.ManifestEntrySince). https://github.com/nsgo-dev/nsgo/issues/924
-	signed, err := pkg.Build(pkg.Contents{App: app, Source: source, Capabilities: caps}, key, cert)
+	// A developer's package signs its manifest as nsgo publish -extra signs a published one, for a manifest no Kando it runs on refuses it for (signature.SignsManifest), so it is checked as it will be once published.
+	var extra []byte
+	if signature.SignsManifest(m) {
+		if extra, err = signature.SignedManifest(m); err != nil {
+			return err
+		}
+	}
+	signed, err := pkg.Build(pkg.Contents{App: app, Source: source, Capabilities: caps, Extra: extra}, key, cert)
 	if err != nil {
 		return err
 	}

@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"kando/apps/kando/plugins"
+	"kando/apps/kando/plugins/script/signature"
 
 	"github.com/nsgo-dev/nsgo/core"
 	"github.com/nsgo-dev/nsgo/tsx"
@@ -137,7 +138,7 @@ func TestScriptProbe(t *testing.T) {
 	}
 }
 
-// TestScriptSignedManifest checks a package that signed its manifest (pkg.Contents.Extra): Verify compares what it signed with the manifest, so Probe runs none of its code, whose kandoManifest need not say what it is, and Load checks the functions its contributions call; a manifest that is not what it signed, a signed entry with another key or that is no object, and a signed entry changed after signing are refused. A package that did not sign it, as every one published, is the kandoManifest's of TestScriptProbe.
+// TestScriptSignedManifest checks a package that signed its manifest (pkg.Contents.Extra): Verify compares what it signed with the manifest, so for a manifest whose every Kando compares it Probe runs none of its code, whose kandoManifest need not say what it is, while for one that runs on a Kando that still asks the code Probe asks it, and Load checks the functions its contributions call; a manifest that is not what it signed, a signed entry with another key or that is no object, and a signed entry changed after signing are refused. A package that did not sign it, as every one published, is the kandoManifest's of TestScriptProbe.
 func TestScriptSignedManifest(t *testing.T) {
 	s := newSigner(t, AppIDPrefix+"acme.*")
 	roots := s.roots()
@@ -149,8 +150,8 @@ func TestScriptSignedManifest(t *testing.T) {
 		return Verify(trust, roots, s.pack(t, f))
 	}
 
-	// Its code throws as it loads and says nothing of itself: Probe never runs it.
-	v, err := verify(fixture{id: "acme.tool", extra: commands, signManifest: true, said: "undefined", code: `throw new Error("ran before the user agreed")`})
+	// Its code throws as it loads and says nothing of itself: Probe never runs it, as every Kando its manifest runs on compares what it signed.
+	v, err := verify(fixture{id: "acme.tool", extra: commands, signManifest: true, kando: ">=" + signature.ManifestComparedSince, said: "undefined", code: `throw new Error("ran before the user agreed")`})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -161,7 +162,7 @@ func TestScriptSignedManifest(t *testing.T) {
 	if err != nil {
 		t.Errorf("a package that signed its manifest: %v", err)
 	}
-	v, err = verify(fixture{id: "acme.tool", extra: commands, signManifest: true, said: "undefined", code: "export function run() { return 1 }"})
+	v, err = verify(fixture{id: "acme.tool", extra: commands, signManifest: true, kando: ">=" + signature.ManifestComparedSince, said: "undefined", code: "export function run() { return 1 }"})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -176,8 +177,26 @@ func TestScriptSignedManifest(t *testing.T) {
 	}
 	e.do(func() { pl.p.Close() })
 
+	// The same package for a manifest that runs on a Kando that takes the signed manifest but still asks the code (signature.ComparesManifest): Probe asks it as that Kando does, so a kandoManifest that says nothing fails here, and one that says it passes.
+	for _, kando := range []string{">=" + signature.ManifestEntrySince, ""} {
+		v, err = verify(fixture{id: "acme.tool", extra: commands, signManifest: true, kando: kando, said: "undefined", code: "export function run() { return 1 }"})
+		if err != nil {
+			t.Fatal(err)
+		}
+		e.do(func() { err = Probe(e.root, v) })
+		wantErr(t, "kando "+kando+", a kandoManifest that says nothing", err, ErrNoManifest)
+	}
+	v, err = verify(fixture{id: "acme.tool", extra: commands, signManifest: true, kando: ">=" + signature.ManifestEntrySince, code: "export function run() { return 1 }"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	e.do(func() { err = Probe(e.root, v) })
+	if err != nil {
+		t.Errorf("kando >=%s, a kandoManifest that says it: %v", signature.ManifestEntrySince, err)
+	}
+
 	// A command whose function it does not export is refused as it loads, as Probe did not run it.
-	v, err = verify(fixture{id: "acme.tool", extra: commands, signManifest: true})
+	v, err = verify(fixture{id: "acme.tool", extra: commands, signManifest: true, kando: ">=" + signature.ManifestComparedSince})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -222,7 +241,7 @@ func TestScriptLimitsAreBounded(t *testing.T) {
 		if !v.FieldByName("Harden").Bool() {
 			t.Errorf("%s: not hardened", name)
 		}
-		for _, f := range []string{"Load", "Call", "Stack", "Nodes", "Timers", "Requests", "Body", "Storage"} {
+		for _, f := range []string{"Load", "Call", "Stack", "Nodes", "Timers", "Requests", "Body", "Storage", "Memory"} {
 			if v.FieldByName(f).Int() <= 0 {
 				t.Errorf("%s: %s is %v", name, f, v.FieldByName(f))
 			}
@@ -489,6 +508,36 @@ export function ping() { return 1 }`}), plugins.Grant{})
 	}
 }
 
+// TestScriptRunnerStopsAPluginAtItsMemoryQuota checks that a plugin tsx stopped at its memory quota (Limits.Memory) is stopped and reported for its memory by the call that ran into it, before the watchdog's heap threshold, and that the calls after it end with ErrStopped.
+func TestScriptRunnerStopsAPluginAtItsMemoryQuota(t *testing.T) {
+	s := newSigner(t, AppIDPrefix+"acme.*")
+	roots := s.roots()
+	e := newEngine(t)
+	// One string past the quota, which tsx checks before it allocates: a loop of smaller ones ran past the call's budget under the race detector before it reached the quota.
+	pl := e.load(t, trustOf(t, roots), roots, s.pack(t, fixture{id: "acme.big", code: `export function big() { return "x".repeat(128 << 20).length }
+export function ping() { return 1 }`}), plugins.Grant{})
+	stopped := make(chan string, 1)
+	watch := DefaultWatch
+	// The quota is what this test is about: the watchdog must not stop it first, as slow on a busy runner, or for the heap the plugin takes.
+	watch.Stall, watch.Heap = time.Hour, 0
+	r := &Runner{Post: e.post, Watch: watch, Stopped: func(id, hash, reason string) { stopped <- reason }}
+	var coded *core.Error
+	if got := wait(t, e.call(r, pl, "big"), 30*time.Second); !errors.As(got.err, &coded) || coded.Code != core.CodeQuotaExceeded || coded.Resource != "memory" {
+		t.Fatalf("the call ended with %v, %v", got.v, got.err)
+	}
+	select {
+	case reason := <-stopped:
+		if reason != plugins.ReasonMemory {
+			t.Errorf("reported %q", reason)
+		}
+	case <-time.After(5 * time.Second):
+		t.Fatal("the plugin tsx stopped was not stopped")
+	}
+	if got := wait(t, e.call(r, pl, "ping"), time.Second); !errors.Is(got.err, ErrStopped) {
+		t.Errorf("a call after it was stopped: %v", got.err)
+	}
+}
+
 // TestScriptRunnerSparesAPluginThatReportsAQuota checks that a plugin that rejects with a quota code of its own, as for a host's quota, is not taken for one tsx stopped.
 func TestScriptRunnerSparesAPluginThatReportsAQuota(t *testing.T) {
 	s := newSigner(t, AppIDPrefix+"acme.*")
@@ -576,6 +625,47 @@ func TestScriptPackFolder(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	if v.Package.Extra != nil {
+		t.Errorf("a manifest that runs on every Kando signed: %s", v.Package.Extra)
+	}
+
+	// A manifest no Kando it runs on refuses a signed manifest for is signed as nsgo publish -extra signs it, and Probe still asks its code, as the oldest Kando it runs on does.
+	os.WriteFile(filepath.Join(src, plugins.ManifestName), []byte(strings.Replace(manifest, `"license"`, `"kando": ">=`+signature.ManifestEntrySince+`", "license"`, 1)), 0o644)
+	dst = t.TempDir()
+	if err := PackFolder(src, dst, key); err != nil {
+		t.Fatal(err)
+	}
+	staged, p, err = plugins.Stage(root, dst)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer os.RemoveAll(staged)
+	if v, err = Verify(trustOf(t, roots), roots, p); err != nil {
+		t.Fatal(err)
+	}
+	if v.Package.Extra == nil {
+		t.Error("a manifest for Kando " + signature.ManifestEntrySince + " and newer signed none")
+	}
+	e.do(func() { err = Probe(e.root, v) })
+	if err != nil {
+		t.Fatal(err)
+	}
+	os.WriteFile(filepath.Join(src, Entry), []byte("export function hi() { return \"hi\" }\n"), 0o644)
+	dst = t.TempDir()
+	if err := PackFolder(src, dst, key); err != nil {
+		t.Fatal(err)
+	}
+	staged, p, err = plugins.Stage(root, dst)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer os.RemoveAll(staged)
+	if v, err = Verify(trustOf(t, roots), roots, p); err != nil {
+		t.Fatal(err)
+	}
+	e.do(func() { err = Probe(e.root, v) })
+	wantErr(t, "a signed manifest without kandoManifest for Kando "+signature.ManifestEntrySince, err, ErrNoManifest)
+
 	if err := PackFolder(t.TempDir(), t.TempDir(), key); !errors.Is(err, plugins.ErrBadManifest) {
 		t.Errorf("an empty folder: %v", err)
 	}

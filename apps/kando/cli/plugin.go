@@ -91,7 +91,7 @@ func pluginVerbAt(args []string) int {
 	return -1
 }
 
-// pluginValidate checks the pack at src as the app installs it (publish.Check): plugins.Stage, which runs plugins.Validate, and a script plugin's signature verified as the app does (signature.Verify) against Kando's official root and the revocation lists and builds the plugins folder's trust keeps, without writing to it. The developer key is in the system's secure store, which the command line does not open, so a developer plugin is refused here as signed by a key not trusted; and a package that signed its manifest (pkg.Contents.Extra) has it compared here as well, while one whose code says it (kandoManifest), as every package nsgo publish signs, is compared by the app alone, which runs it in a sandbox.
+// pluginValidate checks the pack at src as the app installs it (publish.Check): plugins.Stage, which runs plugins.Validate, and a script plugin's signature verified as the app does (signature.Verify) against Kando's official root and the revocation lists and builds the plugins folder's trust keeps, without writing to it. The developer key is in the system's secure store, which the command line does not open, so a developer plugin is refused here as signed by a key not trusted; and a package that signed its manifest (pkg.Contents.Extra) has it compared here as well, while one whose code says it (kandoManifest), as a package nsgo publish signs without -extra, is compared by the app alone, which runs it in a sandbox.
 func pluginValidate(e *env, src string) error {
 	work, err := os.MkdirTemp("", "kando-plugin-")
 	if err != nil {

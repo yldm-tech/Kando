@@ -13,10 +13,19 @@ import (
 // SignedKeys are the keys of a script plugin's manifest the signature must cover, as kando-plugin.json sits outside it (docs/plugin-system.md 4.3): what the plugin may reach and adds. A package holds them in its signed metadata (pkg.Contents.Extra, SignedManifest), or its code returns them from kandoManifest.
 var SignedKeys = []string{"capabilities", "optional", "contributes", "credentials", "settings", "events"}
 
-// ManifestEntrySince is the oldest Kando that does not refuse a package holding its signed manifest (pkg.Contents.Extra): 0.37.0 and older are built with NSGo ec272782be28, which does not know the entry, lists it in Info.Ignored, and Verify refuses the package for it (checkSigned); every release after 0.37.0 is built from a main that pins NSGo 729f238f5678 or newer, which knows it. It is not the oldest Kando that compares the entry in place of kandoManifest: a release built before Verify compared Info.Extra takes the package but still runs its code to ask it (script.Probe), so a package that signs its manifest keeps exporting kandoManifest until its manifest's oldest Kando is one that compares the entry, which is known only once that release ships.
+// ManifestEntrySince is the oldest Kando that does not refuse a package holding its signed manifest (pkg.Contents.Extra): 0.37.0 and older are built with NSGo ec272782be28, which does not know the entry, lists it in Info.Ignored, and Verify refuses the package for it (checkSigned); every release after 0.37.0 is built from a main that pins NSGo 729f238f5678 or newer, which knows it. It is not the oldest Kando that compares the entry in place of kandoManifest: a release built before Verify compared Info.Extra takes the package but still runs its code to ask it (script.Probe), so a package that signs its manifest keeps exporting kandoManifest until its manifest's oldest Kando is one that compares the entry (ManifestComparedSince).
 const ManifestEntrySince = "0.38.0"
 
-// SignsManifest reports whether the package of the script plugin m may hold its signed manifest (SignedManifest): only when no Kando m runs on refuses it, its oldest (Manifest.Kando) ManifestEntrySince or newer. Whether its code may leave out kandoManifest is another matter (ManifestEntrySince).
+// ManifestComparedSince is the oldest Kando whose Verify compares a package's signed manifest (pkg.Contents.Extra) with kando-plugin.json in place of asking its code (kandoManifest): 0.39.0, the first release with the change that made it (80eb9dbd, #358). 0.38.0 takes such a package but still runs its code to ask it.
+const ManifestComparedSince = "0.39.0"
+
+// ComparesManifest reports whether every Kando the script plugin m runs on compares its package's signed manifest in place of asking its code: its oldest (Manifest.Kando) ManifestComparedSince or newer. Until then a plugin whose package signs its manifest (SignsManifest) must still say it from its code (kandoManifest), so script.Probe asks it as the oldest of them would.
+func ComparesManifest(m plugins.Manifest) bool {
+	oldest, ok := strings.CutPrefix(m.Kando, ">=")
+	return ok && plugins.Manifest{Kando: ">=" + ManifestComparedSince}.RunsOn(oldest)
+}
+
+// SignsManifest reports whether the package of the script plugin m may hold its signed manifest (SignedManifest): only when no Kando m runs on refuses it, its oldest (Manifest.Kando) ManifestEntrySince or newer. Whether its code may leave out kandoManifest is another matter (ComparesManifest).
 func SignsManifest(m plugins.Manifest) bool {
 	oldest, ok := strings.CutPrefix(m.Kando, ">=")
 	return ok && plugins.Manifest{Kando: ">=" + ManifestEntrySince}.RunsOn(oldest)

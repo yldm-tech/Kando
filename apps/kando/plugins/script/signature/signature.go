@@ -127,7 +127,7 @@ func Verify(trust *pkg.Trust, roots Roots, p plugins.Pack) (Verified, error) {
 	if err := checkSigned(signed.Info, raw); err != nil {
 		return Verified{}, err
 	}
-	// A package that signed its manifest (pkg.Contents.Extra) is compared with it here, without running its code; one that did not, as no package nsgo publish signs does, says it from its code instead (script.Probe).
+	// A package that signed its manifest (pkg.Contents.Extra) is compared with it here, without running its code; one that did not, as a package nsgo publish signs without -extra, says it from its code instead (script.Probe).
 	if signed.Extra != nil {
 		if err := CheckManifest(signed.Extra, raw); err != nil {
 			return Verified{}, err
