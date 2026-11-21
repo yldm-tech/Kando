@@ -50,9 +50,9 @@ func Put(ctx context.Context, provider Provider, p, local string, progress Progr
 	return size, nil
 }
 
-// Get copies the file at p on provider to local on this computer, telling progress how far it got: into a hidden file beside local, renamed to local once it holds as many bytes as the provider says the file has, so local is never a part of it. It does not write over a file already at local. On any failure, a stop by ctx among them, nothing is left beside local.
-func Get(ctx context.Context, provider Provider, p, local string, progress Progress) error {
-	info, err := provider.Stat(ctx, p)
+// Get copies the file at p of reader, a provider or a media source, to local on this computer, telling progress how far it got: into a hidden file beside local, renamed to local once it holds as many bytes as the reader says the file has, so local is never a part of it. It does not write over a file already at local. On any failure, a stop by ctx among them, nothing is left beside local.
+func Get(ctx context.Context, reader Reader, p, local string, progress Progress) error {
+	info, err := reader.Stat(ctx, p)
 	if err != nil {
 		return err
 	}
@@ -62,7 +62,7 @@ func Get(ctx context.Context, provider Provider, p, local string, progress Progr
 	if _, err := os.Lstat(local); err == nil {
 		return fmt.Errorf("%s: %w", local, os.ErrExist)
 	}
-	r, err := provider.Open(ctx, p, 0, -1)
+	r, err := reader.Open(ctx, p, 0, -1)
 	if err != nil {
 		return err
 	}

@@ -17,7 +17,7 @@ func (c closeCounter) Close() error {
 	return nil
 }
 
-// TestPoolOpensATargetOnceAndAgainWhenItChanges checks that a Pool opens a target the first time it is asked for it and keeps it, opens it again once its settings changed, closing the old one, tries again after a failure, serves a file through its proxy by ranges and through Handler, answers 502 for a target it cannot open, and opens nothing once closed.
+// TestPoolOpensATargetOnceAndAgainWhenItChanges checks that a Pool opens a target the first time it is asked for it and keeps it, opens it again once its settings changed, closing the old one, tries again after a failure, serves a file through its proxy by ranges until its URL is revoked, and through Handler, answers 502 for a target it cannot open, and opens nothing once closed.
 func TestPoolOpensATargetOnceAndAgainWhenItChanges(t *testing.T) {
 	ctx := context.Background()
 	local := NewLocal(t.TempDir())
@@ -46,6 +46,8 @@ func TestPoolOpensATargetOnceAndAgainWhenItChanges(t *testing.T) {
 		t.Fatalf("after an edit: opened %d, closed %d, %v", opened, closed, err)
 	}
 
+	// Before the proxy starts there is nothing to revoke.
+	p.Revoke("http://127.0.0.1:1/token/video.mp4")
 	url, err := p.URL(ctx, edited, "Kando/video.mp4")
 	if err != nil {
 		t.Fatal(err)
@@ -60,6 +62,15 @@ func TestPoolOpensATargetOnceAndAgainWhenItChanges(t *testing.T) {
 	resp.Body.Close()
 	if resp.StatusCode != http.StatusPartialContent || string(body) != "pic" {
 		t.Fatalf("the proxy serves %d %q", resp.StatusCode, body)
+	}
+	p.Revoke(url)
+	if resp, err := http.Get(url); err != nil || resp.StatusCode != http.StatusNotFound {
+		t.Fatalf("a revoked URL answers %v, %v", resp, err)
+	} else {
+		resp.Body.Close()
+	}
+	if again, err := p.URL(ctx, edited, "Kando/video.mp4"); err != nil || again == url {
+		t.Fatalf("the URL after a revoke is %q, was %q, %v", again, url, err)
 	}
 	if _, err := p.URL(ctx, edited, "Kando/missing.mp4"); !errors.Is(err, ErrNotExist) {
 		t.Fatalf("URL of a missing file = %v", err)

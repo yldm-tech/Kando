@@ -24,7 +24,7 @@ type filmPlay struct {
 	path   string
 	source string
 	stream bool
-	// stored is set for a video moved to a storage location, which source plays through the proxy, "" while it is looked up (playerStored); storedURL is the proxy's address of it, which the copy the system's player can open is made from (playerRemux).
+	// stored is set for a video moved to a storage location, which source plays through the proxy, "" while it is looked up (playerStored); storedURL is the proxy's address of it, which the copy the system's player can open is made from (playerRemux), revoked once the page moves on from the video (dropPlayback).
 	stored    bool
 	storedURL string
 	// remux is the step the copy in source was made by, 0 for the video itself. While it is made, remuxAt is how far into the video ffmpeg got, of remuxLength, the video's length, 0 when that is not known.
@@ -451,6 +451,10 @@ func (a *app) dropPlayback() {
 	a.player.playGen++
 	a.playerStopRemux()
 	play := a.player.play
+	if play != nil && play.storedURL != "" {
+		// The loopback proxy stops serving the video once the page moves on from it, so its address reads nothing after.
+		a.stored.pool.Revoke(play.storedURL)
+	}
 	a.player.play = nil
 	a.player.playPath = ""
 	a.player.playErr = ""

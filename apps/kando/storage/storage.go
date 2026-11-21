@@ -1,4 +1,4 @@
-// Package storage is where a finished film's files can live other than the library folder: a folder on this computer (Local) or on a NAS, or a bucket of an object store (ObjectStore), each behind the same Provider, and a loopback proxy (Proxy) that serves a provider's file to the system player. Processing stays on this computer; a provider only keeps and hands back files.
+// Package storage is where a finished film's files can live other than the library folder: a folder on this computer (Local) or on a NAS, or a bucket of an object store (ObjectStore), each behind the same Provider, and a loopback proxy (Proxy) that serves a provider's file, or any Reader's, to the system player. Processing stays on this computer; a provider only keeps and hands back files.
 package storage
 
 import (
@@ -12,14 +12,20 @@ import (
 	"time"
 )
 
-// Provider keeps files under its root. Every path is slash-separated and relative to the root, "" being the root itself; a path that leaves the root (an absolute path, one with a backslash, or one that climbs above the root with "..") is ErrInvalidPath.
-type Provider interface {
+// Reader is what serving and copying a file needs of where it lives (Handler, Proxy, Get): a Provider, or anything else that reads files by path the way a Provider does, as a media source does. Paths follow Provider's rules.
+type Reader interface {
 	// Stat is the file or folder at p, ErrNotExist when there is none.
 	Stat(ctx context.Context, p string) (Info, error)
-	// List is what lies directly in the folder dir, in no set order; ErrNotExist when there is no such folder.
-	List(ctx context.Context, dir string) ([]Info, error)
 	// Open reads the file at p from offset, length bytes of it or, with length -1, to its end; an offset at or past the end reads nothing. The caller closes it.
 	Open(ctx context.Context, p string, offset, length int64) (io.ReadCloser, error)
+}
+
+// Provider keeps files under its root. Every path is slash-separated and relative to the root, "" being the root itself; a path that leaves the root (an absolute path, one with a backslash, or one that climbs above the root with "..") is ErrInvalidPath.
+type Provider interface {
+	// Reader stats and opens files: Stat is ErrNotExist for a path that holds nothing.
+	Reader
+	// List is what lies directly in the folder dir, in no set order; ErrNotExist when there is no such folder.
+	List(ctx context.Context, dir string) ([]Info, error)
 	// Write stores size bytes read from r as the file at p, making the folders above it, and replaces what was there only once all of them are stored where the backend can (both providers here can). r giving fewer than size bytes is an error and stores nothing.
 	Write(ctx context.Context, p string, r io.Reader, size int64) error
 	// Remove removes the file or the empty folder at p; nothing there is no error, a folder that is not empty is ErrNotEmpty.

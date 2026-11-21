@@ -168,6 +168,18 @@ func TestMoveVideoToALocationAndBack(t *testing.T) {
 		t.Fatalf("the system's player is given %q", v.Source)
 	}
 	a.closeFilm()
+	// Closing the film revokes the proxy's address of its video, and playing it again gives a new one.
+	if resp, err := http.Get(source); err != nil || resp.StatusCode != http.StatusNotFound {
+		t.Fatalf("after closing the film its address answers %v, %v", resp, err)
+	} else {
+		resp.Body.Close()
+	}
+	again := playStored(t, f, item)
+	if again == source || !strings.HasPrefix(again, "http://127.0.0.1:") {
+		t.Fatalf("playing again plays %q, was %q", again, source)
+	}
+	wantRange(t, again, "bytes=1-3", "ict")
+	a.closeFilm()
 
 	// What needs the file on disk says why it cannot.
 	a.Reprocess(item)

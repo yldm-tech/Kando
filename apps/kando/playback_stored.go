@@ -35,6 +35,10 @@ func (a *app) playerStored(path string, at time.Duration, jump bool) bool {
 		url, err := pool.URL(ctx, t, s.Path)
 		update(func() {
 			if a.player.play != p {
+				// The page moved on while the video was looked up: nothing plays the address.
+				if err == nil {
+					pool.Revoke(url)
+				}
 				return
 			}
 			switch {

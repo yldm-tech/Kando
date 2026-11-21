@@ -132,6 +132,15 @@ func (p *Pool) URL(ctx context.Context, t Target, path string) (string, error) {
 	return p.proxy.URL(provider, path)
 }
 
+// Revoke stops the pool's Proxy serving the file link is the URL of (Proxy.Revoke), as when the player moves on from it; nothing when there is no Proxy yet.
+func (p *Pool) Revoke(link string) {
+	p.mu.Lock()
+	defer p.mu.Unlock()
+	if p.proxy != nil {
+		p.proxy.Revoke(link)
+	}
+}
+
 // Handler serves the file at path of t over HTTP as Handler does, opening t as a request comes, within PoolOpenTimeout; 502 when t cannot be opened.
 func (p *Pool) Handler(t Target, path string) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
