@@ -64,6 +64,11 @@ func (v *view) options(cx *core.Scope, e catalog.Entry) {
 		opts = append(opts,
 			option{label: locales.FilmResume(cx), do: func() { s.Resume(key) }},
 			option{label: locales.FilmCancel(cx), danger: true, do: func() { s.Delete(key) }})
+	case e.Film.Making:
+		// Being made, it plays from its computer on its network as it is made, and downloads once done.
+		if s.OnNetwork(e.Desktop) {
+			opts = append(opts, option{label: locales.FilmPlay(cx), do: func() { s.Stream(e.Desktop, e.Library.Name, e.Film, v.act.Play, func(error) {}) }})
+		}
 	case s.Client(e.Desktop) != nil:
 		opts = append(opts, option{label: downloadLabel(cx, e), value: about(cx, downloadSize(e)), do: func() { s.Download(e.Desktop, e.Library.Name, e.Film) }})
 	}

@@ -170,6 +170,36 @@ func (c *Client) Video(ctx context.Context, id string, from, to int64, ifRange s
 	return part, nil
 }
 
+// ServeVideo answers r, a player's request for film id's video, with the desktop's answer: r's method, GET or HEAD, and its Range, If-Range and If-None-Match go to the desktop over the pinned connection with the device's token, and the status, the headers that say what is sent, and the body come back as the desktop sends them. It serves a player that opens a URL and cannot pin a certificate or send a token, such as the system's, from a loopback server of the phone's.
+func (c *Client) ServeVideo(w http.ResponseWriter, r *http.Request, id string) {
+	if r.Method != http.MethodGet && r.Method != http.MethodHead {
+		w.Header().Set("Allow", "GET, HEAD")
+		http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+	header := http.Header{}
+	for _, k := range []string{"Range", "If-Range", "If-None-Match"} {
+		if v := r.Header.Get(k); v != "" {
+			header.Set(k, v)
+		}
+	}
+	resp, err := c.request(r.Context(), r.Method, VideoPath(id), nil, header)
+	if err != nil {
+		http.Error(w, "the computer cannot be reached", http.StatusBadGateway)
+		return
+	}
+	defer resp.Body.Close()
+	for _, k := range []string{"Content-Type", "Content-Length", "Content-Range", "Accept-Ranges", "ETag", "Last-Modified"} {
+		if v := resp.Header.Get(k); v != "" {
+			w.Header().Set(k, v)
+		}
+	}
+	w.WriteHeader(resp.StatusCode)
+	if r.Method == http.MethodGet {
+		_, _ = io.Copy(w, resp.Body)
+	}
+}
+
 // getJSON sends a request and decodes its JSON answer into out.
 func (c *Client) getJSON(ctx context.Context, method, path string, body []byte, out any) error {
 	header := http.Header{}

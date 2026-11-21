@@ -233,9 +233,9 @@
 
 ### 10.3 播放和离线缓存
 
-- 串流：手机上也起一个回环串流服务器（同一份 `remotefs.Proxy`），`core.Video.Source` 是 `http://127.0.0.1:<端口>/<token>/<文件名>`。
-  - iOS：AVFoundation 读 `http://127.0.0.1` 受 App Transport Security 约束。NSGo 不写任何 ATS 键（固定版本里搜不到 `NSAppTransportSecurity`），但 `apple.info` 能写任意 Info.plist 字典（`cmd/nsgo/plistvalue.go:41-58`），所以在 `apps/mobile/nsgo.yaml` 加 `NSAppTransportSecurity: {NSAllowsLocalNetworking: true}` 就行，不算 NSGo 的缺口。是 `NSAllowsLocalNetworking` 够用、还是要 `NSAllowsArbitraryLoadsForMedia`，P5 在真机上确认。
-  - Android：targetSdk 35（`apps/mobile/nsgo.yaml`）默认拒绝明文 HTTP，`MediaPlayer` 读 `http://127.0.0.1` 很可能被拒（P5 真机确认）。NSGo 的 Android 清单模板没有 `usesCleartextTraffic`，也没有 `networkSecurityConfig`（`internal/platform/android/runtime/AndroidManifest.xml:29-33`），`nsgo.yaml` 的 `android` 只有 `permissions`、`target_sdk`、`recording`（`cmd/nsgo/project.go:171-175`），app 没有办法只对 127.0.0.1 放开。这是 NSGo 的缺口（第 13 节第 1 条）。上游修好之前，Android 上的手机直连**只做「下载到手机后播放」**，串流按钮不显示，代码里留 `// TODO(nsgo#1061): …`（[nsgo-dev/nsgo#1061](https://github.com/nsgo-dev/nsgo/issues/1061)）。
+- 串流：手机上也起一个回环串流服务器，`core.Video.Source` 是 `http://127.0.0.1:<端口>/<token>/<文件名>`。手机上已经有一个：`apps/mobile/loopback`，边播边生成用它把系统播放器的请求转给电脑（`sync.Client.ServeVideo`）。P5 让它也服务 `remotefs` 读出来的字节，不另起一个。
+  - iOS：AVFoundation 读 `http://127.0.0.1` 受 App Transport Security 约束；`apps/mobile/nsgo.yaml` 的 `apple.info` 已经写了 `NSAppTransportSecurity: {NSAllowsLocalNetworking: true}`。够不够用（还是要 `NSAllowsArbitraryLoadsForMedia`），要在真机上确认。
+  - Android：targetSdk 35 默认拒绝明文 HTTP。NSGo 已经补上只对回环放开的选项（nsgo#1061，nsgo PR #1153 的 `android.loopback_cleartext`），`apps/mobile/nsgo.yaml` 已经打开，所以 Android 上也能串流。
 - 下载到手机：`apps/mobile/download` 的 `Source` 接口（`download/download.go:20-24`）现在由 `*sync.Client` 和 `sync.RelayFilms` 实现，再加一个来源的实现，`video` 的续传（`.part` 的大小作为起点、`If-Range` 带 `Version`，`:123-191`）照用，对来源来说就是 `Driver.Open(path, offset, -1)`。
 - 字幕：手机不识别语音，直连 NAS 的影片本身没有字幕。两种办法给它字幕，都在 P5：
   - NAS 上视频旁边有字幕文件时，下载或串流时一起读。
@@ -349,9 +349,9 @@
 
 ## 13. NSGo 的缺口
 
-已查重并提交：第 1 条是 [nsgo-dev/nsgo#1061](https://github.com/nsgo-dev/nsgo/issues/1061)，第 2 条补在 [nsgo-dev/nsgo#681](https://github.com/nsgo-dev/nsgo/issues/681#issuecomment-7054165773) 下，第 3 条按第 17 节第 9 条留到 P5。
+已查重并提交：第 1 条是 [nsgo-dev/nsgo#1061](https://github.com/nsgo-dev/nsgo/issues/1061)（已由 nsgo PR #1153 修好：`android.loopback_cleartext`），第 2 条补在 [nsgo-dev/nsgo#681](https://github.com/nsgo-dev/nsgo/issues/681#issuecomment-7054165773) 下，第 3 条按第 17 节第 9 条留到 P5。
 
-1. **Android 不能允许 app 访问自己的回环 HTTP**：清单模板的 `<application>` 没有 `android:usesCleartextTraffic`，也没有 `android:networkSecurityConfig`（`internal/platform/android/runtime/AndroidManifest.xml:29-33`），`apk.Manifest` 没有对应字段（`cmd/nsgo/apk/axml.go:17-48`），`nsgo.yaml` 的 `android` 只有 `permissions`、`target_sdk`、`recording`（`cmd/nsgo/project.go:171-175`）。targetSdk ≥ 28 时系统默认拒绝明文，`core.Video` 在 Android 上用 `MediaPlayer.setDataSource(context, Uri)`（`VideoNode.java:219-242`），读不了 app 自己在 `127.0.0.1` 上的串流服务器。建议：`nsgo.yaml` 加一个只放开回环的选项（生成 `res/xml/network_security_config.xml`，`<domain-config cleartextTrafficPermitted="true">` 只含 `127.0.0.1` 和 `localhost`）。查重时 `gh issue list -R nsgo-dev/nsgo --state all --search cleartext` 和 `networkSecurityConfig` 都没有结果。影响：手机直连在 Android 上没有串流，只能下载后播放（10.3）。上游 `docs/architecture/updates.md:74` 已经提到「Android refuses cleartext」，可以在 issue 里引用。
+1. **（已修好，nsgo#1061）Android 不能允许 app 访问自己的回环 HTTP**：清单模板的 `<application>` 没有 `android:usesCleartextTraffic`，也没有 `android:networkSecurityConfig`（`internal/platform/android/runtime/AndroidManifest.xml:29-33`），`apk.Manifest` 没有对应字段（`cmd/nsgo/apk/axml.go:17-48`），`nsgo.yaml` 的 `android` 只有 `permissions`、`target_sdk`、`recording`（`cmd/nsgo/project.go:171-175`）。targetSdk ≥ 28 时系统默认拒绝明文，`core.Video` 在 Android 上用 `MediaPlayer.setDataSource(context, Uri)`（`VideoNode.java:219-242`），读不了 app 自己在 `127.0.0.1` 上的串流服务器。建议：`nsgo.yaml` 加一个只放开回环的选项（生成 `res/xml/network_security_config.xml`，`<domain-config cleartextTrafficPermitted="true">` 只含 `127.0.0.1` 和 `localhost`）。查重时 `gh issue list -R nsgo-dev/nsgo --state all --search cleartext` 和 `networkSecurityConfig` 都没有结果。影响：手机直连在 Android 上没有串流，只能下载后播放（10.3）。上游 `docs/architecture/updates.md:74` 已经提到「Android refuses cleartext」，可以在 issue 里引用。
 2. **`core.Video` 不能由 app 提供数据**：`driver.VideoConfig` 只有 `Source string`（`internal/driver/mount.go:1448-1461`），没有请求头、reader 或 resource loader（AVFoundation 的 `AVAssetResourceLoaderDelegate`、Media Foundation 的 `IMFByteStream`、Android 的 `MediaDataSource` 都能做到）。请求头的部分已有 [nsgo-dev/nsgo#681](https://github.com/nsgo-dev/nsgo/issues/681)（OPEN）；本设计的新场景是「app 用 Go 读的字节流（SMB、SFTP）」，适合在 #681 下补一条评论，提议一个 `Source` 之外的 `Open func(offset int64) (io.ReadCloser, error)` 加 `Size`，而不是另开 issue。看懂不等它：回环服务器在桌面和 iOS 上都能用。
 3. **没有局域网发现**：NSGo 没有 mDNS / Bonjour / NSD 的 API，`core.Permission` 里也没有本地网络这一项（`core/permissions.go:14-42`），固定版本里搜 `NWBrowser`、`NsdManager`、`zeroconf`、`avahi` 都没有。这不挡本设计（第一版由用户填地址），只是体验上的缺口；要不要提由 owner 定（第 17 节第 9 条）。
 

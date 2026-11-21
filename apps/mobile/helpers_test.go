@@ -34,6 +34,9 @@ const wait = 10 * time.Second
 // relayEvery is how often the tests' phones read a computer's state.json through its storage relay, away from its network.
 const relayEvery = 50 * time.Millisecond
 
+// watchEvery is how often the tests' players tell a computer where a film being made is watched.
+const watchEvery = 50 * time.Millisecond
+
 // now is the clock the tests' sessions date pairings and downloads by.
 func now() time.Time { return time.Date(2026, 11, 17, 9, 0, 0, 0, time.UTC) }
 
@@ -66,7 +69,7 @@ func startPhone(t *testing.T, dir string, opts ...nsgotest.Option) *phone {
 		opts = append([]nsgotest.Option{nsgotest.Size(390, 844)}, opts...)
 	}
 	app := nsgotest.Start(t, func(cx *core.Scope) core.Node {
-		return App(cx, session.Config{Dir: dir, Device: "Test Phone", Platform: sync.PlatformIOS, Now: sessionNow, RelayEvery: relayEvery})
+		return App(cx, session.Config{Dir: dir, Device: "Test Phone", Platform: sync.PlatformIOS, Now: sessionNow, RelayEvery: relayEvery, WatchEvery: watchEvery})
 	}, opts...)
 	return &phone{t: t, app: app, dir: dir}
 }

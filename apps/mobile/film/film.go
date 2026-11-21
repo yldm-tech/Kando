@@ -145,6 +145,10 @@ func Page(cx *core.Scope, s *session.Session, desktop, library string, f sync.Fi
 		case halted:
 			return look.Button{Kind: look.Primary, Text: text(locales.FilmResume), TestID: "film-resume", OnPress: func() { s.Resume(key) }}
 		}
+		// A film being made plays from its computer on its network as it is made; it downloads once done.
+		if f.Making && s.OnNetwork(desktop) {
+			return look.Button{Kind: look.Primary, Text: text(locales.FilmPlay), Icon: lucide.Play, TestID: "film-stream", Busy: streaming.Get, OnPress: stream}
+		}
 		download := look.Button{Kind: look.Primary, Text: text(locales.FilmDownload), Icon: lucide.Download, TestID: "film-download", OnPress: func() { s.Download(desktop, library, f) }}
 		if f.SubtitlesOnly {
 			// Its computer keeps no video of it: downloading it keeps its lines.
@@ -168,6 +172,9 @@ func Page(cx *core.Scope, s *session.Session, desktop, library string, f sync.Fi
 	// What the storage holds of a film whose video stays on the computer, and why it could not be read from there.
 	storageNote := core.Show{When: func() bool { return stored.Get() == linesStored && phase.Get() != whole && !noVideo() }, Then: func(cx *core.Scope) core.Node {
 		return core.Text{TestID: "film-lines-only", ContentFunc: func() string { d, _ := s.Desktop(desktop); return locales.FilmVideoAtHome(cx, d.Name) }, Style: look.Subhead, StyleFunc: ui.Colored(colors.Muted)}
+	}}
+	makingNote := core.Show{When: func() bool { return f.Making && phase.Get() != whole }, Then: func(cx *core.Scope) core.Node {
+		return core.Text{TestID: "film-making", ContentFunc: func() string { d, _ := s.Desktop(desktop); return locales.FilmMakingNote(cx, d.Name) }, Style: look.Subhead, StyleFunc: ui.Colored(colors.Muted)}
 	}}
 	storageFailed := core.Show{When: func() bool { return streamErr.Get() != nil }, Then: func(cx *core.Scope) core.Node {
 		return core.Text{TestID: "film-storage-failed", Content: locales.FilmStorageFailed(cx), LiveRegion: core.LiveRegionPolite, Style: look.Subhead, StyleFunc: ui.Colored(colors.Danger)}
@@ -260,6 +267,7 @@ func Page(cx *core.Scope, s *session.Session, desktop, library string, f sync.Fi
 					core.Text{TestID: "film-title", Content: f.Title, Role: core.RoleHeader, MaxLines: 3, Style: look.Heading, StyleFunc: ui.Colored(colors.Text)},
 					prompt,
 					storageNote,
+					makingNote,
 					storageFailed,
 					offline,
 					info,

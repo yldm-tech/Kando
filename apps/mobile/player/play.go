@@ -52,11 +52,13 @@ const (
 
 // play is the player's state on the engine's goroutine.
 type play struct {
-	cx   *core.Scope
-	s    *session.Session
-	key  string
-	ref  *core.Ref
-	cues *core.Resource[[]cues.Cue]
+	cx  *core.Scope
+	s   *session.Session
+	key string
+	// watcher tells the computer where a film being made is watched, nil for any other film (session.WatchMaking).
+	watcher *session.Watcher
+	ref     *core.Ref
+	cues    *core.Resource[[]cues.Cue]
 	// lines are the film's lines as the player shows them: the cues kept, with the fixes of their translations laid over them (session.Corrections).
 	lines *core.Memo[[]cues.Cue]
 	// marks are the word marks of the lines' originals, index for index, as the film's computer last answered them (session.FilmMarks), nil while there are none or Settings › Subtitle Style turns them off (marks.go).
@@ -180,6 +182,9 @@ func newPlay(cx *core.Scope, s *session.Session, key string) *play {
 	})
 	// The lines kept play at once; a desktop that has changed them since, as by translating the film again, gives its own, which take their place.
 	s.Follow(key, p.cues.Refetch)
+	// A film being made tells its computer where it is watched while it shows, so its lines are made there first, and reads them again as they come.
+	p.watcher = s.WatchMaking(key, p.at.GetUntracked(), p.cues.Refetch)
+	cx.Cleanup(func() { p.watcher.Stop() })
 	// The lines' word marks, as the phone keeps them, then as the computer has them once it answers.
 	s.OpenMarks(key)
 	// The lines saved from the film and their notes, as the phone keeps them, then as the desktop has them once it answers.
@@ -229,7 +234,7 @@ func (p *play) hasVideo() bool {
 	return ok && f.HasVideo()
 }
 
-// streamed reports whether the film is kept to play from its computer's storage, away from its network, rather than downloaded (store.Film.Streamed). Read it in a binding.
+// streamed reports whether the film is kept to stream rather than downloaded (store.Film.Streamed): from its computer on its network, or from its storage away from it (session.StreamLink). Read it in a binding.
 func (p *play) streamed() bool {
 	f, ok := p.s.Film(p.key)
 	return ok && f.Streamed && !f.Done()
@@ -283,6 +288,7 @@ func (p *play) seek(at time.Duration) {
 	p.ref.Seek(at)
 	p.at.Set(at)
 	p.heard = -1
+	p.watcher.Move(at, true)
 }
 
 // progress hears the video's position as it plays: it moves the playhead, takes a looped line back to its start, holds the film after a line for shadowing or the sleep timer, and keeps the position now and then.
@@ -291,6 +297,7 @@ func (p *play) progress(at, length time.Duration) {
 		p.length.Set(length)
 	}
 	p.at.Set(at)
+	p.watcher.Move(at, false)
 	// The time watched counts what played between two of the video's reports, at its speed, not a seek.
 	if d := at - p.reported; p.playing.GetUntracked() && d > 0 && d < time.Second {
 		p.watched += time.Duration(float64(d) / float64(max(p.rate.Get(), 0.25)))
@@ -378,6 +385,7 @@ func (p *play) toggle() {
 	}
 	p.held.Set(false)
 	p.playing.Update(func(on bool) bool { return !on })
+	p.watcher.Move(p.at.GetUntracked(), true)
 	if !p.playing.GetUntracked() {
 		p.save()
 	}

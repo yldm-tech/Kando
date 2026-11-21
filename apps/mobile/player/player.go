@@ -124,15 +124,17 @@ func view(cx *core.Scope, l *Layer, key string) core.Node {
 	// The keyboard's shortcuts act on the player while it shows over the app, not on the film playing on in the mini player.
 	keys(cx, p, w, shown)
 
-	// A film kept by its lines alone, as its computer keeps no video of it, shows in the picture's place what can be done to have the video (film.VideoPrompt), and plays it once it is on the phone. A film kept to stream plays from its computer's storage, and shows its lines alone when the storage holds no video of it (session.Stream).
+	// A film kept by its lines alone, as its computer keeps no video of it, shows in the picture's place what can be done to have the video (film.VideoPrompt), and plays it once it is on the phone. A film kept to stream plays from its computer on its network, or from its storage away from it, and shows its lines alone when neither has its video (session.Stream); a film being made plays a link's sound until its video comes, then the video from where it was, as the link changes (session.StreamLink) and the player opens it anew (OnLoad).
 	video := func(cx *core.Scope) core.Node {
 		k, _ := s.Film(key)
-		source := filepath.Join(s.Store().FilmDir(k.Desktop, k.Film.ID), k.Video)
-		if p.streamed() {
-			source = s.StreamLink(key)
-		}
+		kept := filepath.Join(s.Store().FilmDir(k.Desktop, k.Film.ID), k.Video)
 		return core.Video{TestID: "player-video", Ref: p.ref, Label: f.Film.Title,
-			Source:           source,
+			SourceFunc: func() string {
+				if p.streamed() {
+					return s.StreamLink(key)
+				}
+				return kept
+			},
 			PausedFunc:       func() bool { return !p.playing.Get() },
 			RateFunc:         p.speed,
 			ProgressInterval: 100 * time.Millisecond,
@@ -170,8 +172,13 @@ func view(cx *core.Scope, l *Layer, key string) core.Node {
 			},
 		}
 	}
-	// Without a video to play, a film kept by its lines and one streamed from a storage that holds only its lines alike say where the video is and how to have it (film.VideoPrompt).
+	// Without a video to play, a film kept by its lines and one streamed from a storage that holds only its lines alike say where the video is and how to have it (film.VideoPrompt); a film being made whose sound and video are not in yet says it plays once they are.
 	picture := core.Show{When: p.hasVideo, Then: video, Else: func(cx *core.Scope) core.Node {
+		if f.Film.Making && s.OnNetwork(f.Desktop) {
+			return core.View{Style: fill.Merge(core.Style{AlignItems: core.AlignCenter, JustifyContent: core.JustifyCenter, Padding: core.All(24), Background: theme.PlayerBG}), Children: []core.Node{
+				core.Text{TestID: "player-making", ContentFunc: func() string { d, _ := s.Desktop(f.Desktop); return locales.PlayerMakingWait(cx, d.Name) }, Style: look.Body.Merge(core.Style{TextAlign: core.TextAlignCenter, Color: theme.PlayerInk})},
+			}}
+		}
 		return core.View{Style: fill.Merge(core.Style{JustifyContent: core.JustifyCenter, Background: theme.PlayerBG}), Children: []core.Node{
 			film.VideoPrompt(cx, s, f.Desktop, f.Film, "player-no-video"),
 		}}

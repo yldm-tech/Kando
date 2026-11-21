@@ -36,7 +36,7 @@ type Listing struct {
 	Libraries []Library
 }
 
-// Load reads what the computer c serves: its libraries, the films of each and, where it serves protocol v2's learning state, where they were left, device being the ID it paired this phone under. A library the computer no longer serves, as one locked meanwhile, is left out; any other failure fails the listing. A computer that serves no learning state lists no positions.
+// Load reads what the computer c serves: its libraries, the films of each, those being made among them (sync.Film.Making), and, where it serves protocol v2's learning state, where they were left, device being the ID it paired this phone under. A library the computer no longer serves, as one locked meanwhile, is left out; any other failure fails the listing. A computer that serves no learning state lists no positions.
 func Load(ctx context.Context, c *sync.Client, device string) (Listing, error) {
 	libs, err := c.Libraries(ctx)
 	if err != nil {
@@ -51,6 +51,10 @@ func Load(ctx context.Context, c *sync.Client, device string) (Listing, error) {
 			if err != nil {
 				errs[i] = err
 				return
+			}
+			// The films being made follow, which a computer from before them lists none of; one that cannot list them now lists the films done alone.
+			if making, err := c.Making(ctx, lib.ID); err == nil {
+				films = append(films, making...)
 			}
 			out[i] = Library{Library: lib, Films: films}
 			// The learning state is v2's: a desktop that speaks v1 alone, or keeps no state, answers with an error, which leaves the library without positions.

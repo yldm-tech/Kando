@@ -726,6 +726,19 @@ filmNoVideo:
   description: "Under “Subtitles only” where a film’s video would play."
   placeholders:
     computer: { type: "String", example: "Studio" }
+filmMaking:
+  message: "Being made"
+  description: "Tag in the row of a film whose computer is still making its subtitles; it can be played meanwhile."
+filmMakingNote:
+  message: "{computer} is still making this film’s subtitles. Play it now: the lines come in as they are made, starting where you watch."
+  description: "On the page of a film whose computer is still making its subtitles, above its Play button."
+  placeholders:
+    computer: { type: "String", example: "Studio" }
+playerMakingWait:
+  message: "{computer} is getting this film ready. It plays as soon as its sound or video is in."
+  description: "Where the picture would show, for a film being made whose sound and video are not on the computer yet, as a link that has not started downloading."
+  placeholders:
+    computer: { type: "String", example: "Studio" }
 filmVideoComing:
   message: "{computer} is downloading the video."
   description: "Under “Subtitles only” while the computer downloads the film’s video."

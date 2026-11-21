@@ -4,9 +4,11 @@ import (
 	"context"
 	"io"
 	"net/http"
+	"net/http/httptest"
 	"os"
 	"path/filepath"
 	"slices"
+	"strings"
 	gosync "sync"
 	"testing"
 	"time"
@@ -155,4 +157,36 @@ func TestWatchingIsAnAddition(t *testing.T) {
 	}
 	_, err := c.WatchFilm(context.Background(), "talk", 0, true)
 	wantCode(t, err, http.StatusNotImplemented, psync.CodeUnsupported)
+}
+
+// A player that cannot pin the computer's certificate plays a film through the phone's forwarding (psync.Client.ServeVideo): ranges, its type and its ETag come through as the computer sends them.
+func TestAPlayerPlaysAFilmThroughThePhone(t *testing.T) {
+	srv, _, _ := startTest(t)
+	c := client(t, srv, "")
+	if _, err := pair(t, c, srv.NewOffer().Code); err != nil {
+		t.Fatal(err)
+	}
+	player := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) { c.ServeVideo(w, r, strings.TrimPrefix(r.URL.Path, "/")) }))
+	t.Cleanup(player.Close)
+	req, _ := http.NewRequest(http.MethodGet, player.URL+"/talk", nil)
+	req.Header.Set("Range", "bytes=2-4")
+	resp, err := http.DefaultClient.Do(req)
+	if err != nil {
+		t.Fatal(err)
+	}
+	body, _ := io.ReadAll(resp.Body)
+	resp.Body.Close()
+	if resp.StatusCode != http.StatusPartialContent || string(body) != "234" || resp.Header.Get("Content-Range") != "bytes 2-4/20" || resp.Header.Get("Content-Type") != "video/mp4" || resp.Header.Get("ETag") == "" {
+		t.Fatalf("a range answered %d %q, %v", resp.StatusCode, body, resp.Header)
+	}
+	resp, err = http.Head(player.URL + "/talk")
+	if err != nil || resp.StatusCode != http.StatusOK || resp.ContentLength != 20 {
+		t.Fatalf("HEAD answered %+v, %v", resp, err)
+	}
+	if resp, err := http.Get(player.URL + "/gone"); err != nil || resp.StatusCode != http.StatusNotFound {
+		t.Fatalf("a film whose video is gone answered %+v, %v", resp, err)
+	}
+	if resp, err := http.Post(player.URL+"/talk", "text/plain", nil); err != nil || resp.StatusCode != http.StatusMethodNotAllowed {
+		t.Fatalf("a POST answered %+v, %v", resp, err)
+	}
 }

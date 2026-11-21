@@ -96,6 +96,8 @@ type Config struct {
 	Now func() time.Time
 	// RelayEvery is how often the phone reads a computer's state.json through the storage relay while away from its network (relay.go), sync.RelayPoll when 0. Tests shorten it.
 	RelayEvery time.Duration
+	// WatchEvery is how often the player tells a computer where a film being made is watched (making.go), sync.WatchEvery when 0. Tests shorten it.
+	WatchEvery time.Duration
 }
 
 // Session is the app's state. Its methods belong to the engine's goroutine.
@@ -166,6 +168,8 @@ type Session struct {
 	gloss *glossaries
 	// marks are the word marks of the films' lines (marks.go).
 	marks *filmMarks
+	// making is the films being made that the player watches (making.go).
+	making *making
 }
 
 // filmSave is what is still to be written of a film's record: next, once pending; or its folder deleted, once removed.
@@ -227,6 +231,7 @@ func New(cx *core.Scope, cfg Config) *Session {
 		subs:         newSubscriptions(cx),
 		gloss:        newGlossaries(cx),
 		marks:        newFilmMarks(cx),
+		making:       newMaking(cx),
 		studies:      core.NewSignalFunc(cx, map[string]study.Library{}, nil),
 		studyLoading: map[string]bool{}, studyRuns: map[string]*studyRun{}, finding: map[string]bool{},
 		studySaving: map[string]uint64{}, studySaved: map[string]uint64{},
@@ -606,7 +611,7 @@ func (s *Session) Delete(key string) {
 // SavePosition keeps where the film under key was left playing, and that it was left there now, even where it was left there before: a film played from the beginning again is newer on the phone than where a computer left it (catalog.Merge). Its computer takes it through the film's library's learning state (yldm-tech/Kando#217), at once or once it can be reached, so the computer and the other devices go on from there; a film whose library is not known yet (Studyable) keeps it on the phone alone.
 func (s *Session) SavePosition(key string, at time.Duration) { s.savePosition(key, at, true) }
 
-// KeepPosition is SavePosition for a film that plays on: the computer takes the position with the next sync of the film's library rather than at once, so a film playing does not call the computer every few seconds.
+// KeepPosition is SavePosition for a film that plays on: the computer takes the position with the next sync of the film's library rather than at once, so a film playing does not call the computer every few seconds; a film being made tells its computer where it is watched on its own, every few seconds, as that decides which lines are made first (WatchMaking).
 func (s *Session) KeepPosition(key string, at time.Duration) { s.savePosition(key, at, false) }
 
 // savePosition keeps where the film under key was left, and syncs its library when send is set.

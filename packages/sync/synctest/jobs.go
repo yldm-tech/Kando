@@ -155,6 +155,9 @@ func (s jobService) Hello(context.Context, sync.Caller) (sync.Hello, error) {
 	if !s.d.marks.none {
 		ops = append(ops, sync.OpFilmMarks)
 	}
+	if !s.d.watch.none {
+		ops = append(ops, sync.OpFilmWatch)
+	}
 	return sync.Hello{Ops: ops,
 		Options: slices.Clone(s.d.queue.options), State: []string{sync.KindPosition, sync.KindLine, sync.KindCorrection, sync.KindWord, sync.KindWatched}, Receive: s.d.queue.receive}, nil
 }

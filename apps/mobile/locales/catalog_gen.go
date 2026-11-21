@@ -521,6 +521,8 @@ var Parameters = map[string][]string{
 	"FilmsUnsubscribeMessage":        {"computer"},
 	"FilmsUnsubscribeTitle":          {"title"},
 	"FilmNoVideo":                    {"computer"},
+	"FilmMakingNote":                 {"computer"},
+	"PlayerMakingWait":               {"computer"},
 	"FilmVideoComing":                {"computer"},
 	"FilmVideoAtHome":                {"computer"},
 	"FilmVideoReady":                 {"computer"},
@@ -736,6 +738,8 @@ type Translation struct {
 	FilmsUnsubscribeMessage        func(computer string) string
 	FilmsUnsubscribeTitle          func(title string) string
 	FilmNoVideo                    func(computer string) string
+	FilmMakingNote                 func(computer string) string
+	PlayerMakingWait               func(computer string) string
 	FilmVideoComing                func(computer string) string
 	FilmVideoAtHome                func(computer string) string
 	FilmVideoReady                 func(computer string) string
@@ -1027,6 +1031,7 @@ const (
 	textFilmSaveLines
 	textFilmLinesSaved
 	textFilmSubtitlesOnly
+	textFilmMaking
 	textFilmDownloadVideo
 	textFilmsExportSubtitles
 	textFilmsRetranslate
@@ -1576,6 +1581,7 @@ var keyOfText = [numTexts]string{
 	"filmSaveLines",
 	"filmLinesSaved",
 	"filmSubtitlesOnly",
+	"filmMaking",
 	"filmDownloadVideo",
 	"filmsExportSubtitles",
 	"filmsRetranslate",
@@ -2123,6 +2129,7 @@ var textsEn = i18n.NewTexts(""+
 	"Save Lines to Phone"+
 	"Lines saved"+
 	"Subtitles only"+
+	"Being made"+
 	"Download Video"+
 	"Export subtitles"+
 	"Translate again"+
@@ -2667,6 +2674,7 @@ var textsEn = i18n.NewTexts(""+
 		19,
 		11,
 		14,
+		10,
 		14,
 		16,
 		15,
@@ -3214,6 +3222,7 @@ var textsJa = i18n.NewTexts(""+
 	"セリフをスマートフォンに保存"+
 	"セリフを保存済み"+
 	"字幕のみ"+
+	"作成中"+
 	"動画をダウンロード"+
 	"字幕を書き出す"+
 	"もう一度翻訳"+
@@ -3758,6 +3767,7 @@ var textsJa = i18n.NewTexts(""+
 		42,
 		24,
 		12,
+		9,
 		27,
 		21,
 		18,
@@ -4305,6 +4315,7 @@ var textsKo = i18n.NewTexts(""+
 	"대사를 휴대폰에 저장"+
 	"대사 저장됨"+
 	"자막만"+
+	"생성 중"+
 	"동영상 다운로드"+
 	"자막 내보내기"+
 	"다시 번역"+
@@ -4849,6 +4860,7 @@ var textsKo = i18n.NewTexts(""+
 		29,
 		16,
 		9,
+		10,
 		22,
 		19,
 		13,
@@ -5396,6 +5408,7 @@ var textsZhHans = i18n.NewTexts(""+
 	"把台词存到手机"+
 	"已存台词"+
 	"仅字幕"+
+	"生成中"+
 	"下载视频"+
 	"导出字幕"+
 	"重新翻译"+
@@ -5939,6 +5952,7 @@ var textsZhHans = i18n.NewTexts(""+
 		12,
 		21,
 		12,
+		9,
 		9,
 		12,
 		12,
@@ -6487,6 +6501,7 @@ var textsZhHant = i18n.NewTexts(""+
 	"把台詞存到手機"+
 	"已存台詞"+
 	"僅字幕"+
+	"生成中"+
 	"下載影片"+
 	"匯出字幕"+
 	"重新翻譯"+
@@ -7030,6 +7045,7 @@ var textsZhHant = i18n.NewTexts(""+
 		12,
 		21,
 		12,
+		9,
 		9,
 		12,
 		12,
@@ -7677,6 +7693,12 @@ func Supply(lang string, t Translation) {
 	}
 	if t.FilmNoVideo != nil {
 		s.FilmNoVideo = t.FilmNoVideo
+	}
+	if t.FilmMakingNote != nil {
+		s.FilmMakingNote = t.FilmMakingNote
+	}
+	if t.PlayerMakingWait != nil {
+		s.PlayerMakingWait = t.PlayerMakingWait
 	}
 	if t.FilmVideoComing != nil {
 		s.FilmVideoComing = t.FilmVideoComing
@@ -11580,6 +11602,77 @@ func (msgs Messages) FilmNoVideo(computer string) string {
 			return computer + " 只有这部影片的台词，没有视频。"
 		case "zh-Hant":
 			return computer + " 只有這部影片的台詞，沒有影片檔。"
+		}
+	}
+}
+
+// FilmMaking says "Being made"
+// in the language the app shows under cx.
+//
+// Tag in the row of a film whose computer is still making its subtitles; it can be played meanwhile.
+func FilmMaking(cx *core.Scope) string { return For(cx).FilmMaking() }
+
+// FilmMaking is the package's FilmMaking in the language of msgs.
+func (msgs Messages) FilmMaking() string { return msgs.text(textFilmMaking) }
+
+// FilmMakingNote says "{computer} is still making this film’s subtitles. Play it now: the lines come in as they are made, starting where you watch."
+// in the language the app shows under cx.
+//
+// On the page of a film whose computer is still making its subtitles, above its Play button.
+func FilmMakingNote(cx *core.Scope, computer string) string { return For(cx).FilmMakingNote(computer) }
+
+// FilmMakingNote is the package's FilmMakingNote in the language of msgs.
+func (msgs Messages) FilmMakingNote(computer string) string {
+	if i18n.IsPseudo(msgs.lang) {
+		return i18n.Pseudo(msgs.lang, Messages{lang: Source, mark: true}.FilmMakingNote(computer))
+	}
+	for lang := msgs.lang; ; lang = i18n.Parent(lang) {
+		if f := supplied[lang].FilmMakingNote; f != nil {
+			return f(computer)
+		}
+		switch lang {
+		case "", "en":
+			return msgs.arg(computer) + " is still making this film’s subtitles. Play it now: the lines come in as they are made, starting where you watch."
+		case "ja":
+			return computer + " はまだこの作品の字幕を作っています。今すぐ再生できます。字幕は見ている所から先に作られ、できたそばから表示されます。"
+		case "ko":
+			return computer + "에서 아직 이 영화의 자막을 만들고 있습니다. 지금 바로 재생할 수 있어요. 자막은 보고 있는 곳부터 먼저 만들어져 바로바로 나타납니다."
+		case "zh-Hans":
+			return computer + " 还在生成这部影片的字幕。现在就能看：字幕边看边出，从你看到的地方先做。"
+		case "zh-Hant":
+			return computer + " 還在生成這部影片的字幕。現在就能看：字幕邊看邊出，從你看到的地方先做。"
+		}
+	}
+}
+
+// PlayerMakingWait says "{computer} is getting this film ready. It plays as soon as its sound or video is in."
+// in the language the app shows under cx.
+//
+// Where the picture would show, for a film being made whose sound and video are not on the computer yet, as a link that has not started downloading.
+func PlayerMakingWait(cx *core.Scope, computer string) string {
+	return For(cx).PlayerMakingWait(computer)
+}
+
+// PlayerMakingWait is the package's PlayerMakingWait in the language of msgs.
+func (msgs Messages) PlayerMakingWait(computer string) string {
+	if i18n.IsPseudo(msgs.lang) {
+		return i18n.Pseudo(msgs.lang, Messages{lang: Source, mark: true}.PlayerMakingWait(computer))
+	}
+	for lang := msgs.lang; ; lang = i18n.Parent(lang) {
+		if f := supplied[lang].PlayerMakingWait; f != nil {
+			return f(computer)
+		}
+		switch lang {
+		case "", "en":
+			return msgs.arg(computer) + " is getting this film ready. It plays as soon as its sound or video is in."
+		case "ja":
+			return computer + " がこの作品を準備しています。音声か動画が届きしだい再生します。"
+		case "ko":
+			return computer + "에서 이 영화를 준비하고 있습니다. 소리나 영상이 도착하면 바로 재생됩니다."
+		case "zh-Hans":
+			return computer + " 正在准备这部影片，声音或视频一到就开始播放。"
+		case "zh-Hant":
+			return computer + " 正在準備這部影片，聲音或影片一到就開始播放。"
 		}
 	}
 }

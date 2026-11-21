@@ -38,6 +38,8 @@ type Film struct {
 	// Poster is the poster's JPEG bytes, none when nil.
 	Poster []byte
 	Cues   []sync.Cue
+	// Plays is what Video is of a film being made (sync.Film.Making, sync.FilmWatching.Plays): its video, a link's sound, or "" while nothing of it plays yet, when the video's address answers not found.
+	Plays string
 }
 
 // Desktop is the stand-in server. Its methods may be called from any goroutine.
@@ -78,6 +80,8 @@ type Desktop struct {
 	ops filmOps
 	// marks are its films' word marks (marks.go).
 	marks marks
+	// watch is what phones said of the films being made they watch (making.go).
+	watch watching
 	desk  *sync.Desk
 	libs  []sync.Library
 	films []Film
@@ -122,7 +126,7 @@ func start(t testing.TB, name string, cert *tls.Certificate) *Desktop {
 	t.Helper()
 	d := &Desktop{Name: name, tokens: map[string]bool{}, names: map[string]string{}, modTime: time.Unix(1_700_000_000, 0), target: "zh-Hans", context: true}
 	d.queue.receive = sync.ReceiveQueue
-	d.desk = &sync.Desk{Service: jobService{d}, State: stateService{d}, Settings: settingsService{d}, Study: studyService{d}, Subscriptions: subscriptionService{d}, Glossary: glossaryService{d}, Films: filmService{d}, Marks: markService{d}, Journal: sync.NewJournal(), Desktop: name}
+	d.desk = &sync.Desk{Service: jobService{d}, State: stateService{d}, Settings: settingsService{d}, Study: studyService{d}, Subscriptions: subscriptionService{d}, Glossary: glossaryService{d}, Films: filmService{d}, Marks: markService{d}, Watch: watchService{d}, Journal: sync.NewJournal(), Desktop: name}
 	mux := http.NewServeMux()
 	mux.HandleFunc("POST "+sync.PathPair, d.pair)
 	mux.HandleFunc("GET "+sync.PathLibraries, d.authed(d.libraries))
@@ -170,7 +174,7 @@ func (d *Desktop) RemoveLibrary(id string) {
 	d.libs = slices.DeleteFunc(d.libs, func(l sync.Library) bool { return l.ID == id })
 }
 
-// AddFilm adds f to its library. A film that keeps no video (sync.Film.SubtitlesOnly) has none to serve, and is listed only to a phone that asks for such films (sync.WithSubtitlesOnly).
+// AddFilm adds f to its library. A film that keeps no video (sync.Film.SubtitlesOnly) has none to serve, and is listed only to a phone that asks for such films (sync.WithSubtitlesOnly); so is one being made (sync.Film.Making, sync.WithMaking), which plays what Plays says of it.
 func (d *Desktop) AddFilm(f Film) {
 	d.mu.Lock()
 	defer d.mu.Unlock()
@@ -186,7 +190,7 @@ func (d *Desktop) AddFilm(f Film) {
 	}
 	d.films = append(d.films, f)
 	for i := range d.libs {
-		if d.libs[i].ID == f.Library && !f.SubtitlesOnly {
+		if d.libs[i].ID == f.Library && !f.SubtitlesOnly && !f.Making {
 			d.libs[i].Films++
 		}
 	}
@@ -396,9 +400,9 @@ func (d *Desktop) filmList(w http.ResponseWriter, r *http.Request) {
 	}
 	out := sync.Films{Films: []sync.Film{}}
 	with := r.URL.Query().Get(sync.QueryWith)
-	subtitlesOnly, sound := sync.AsksWith(with, sync.WithSubtitlesOnly), sync.AsksWith(with, sync.WithSound)
+	subtitlesOnly, sound, making := sync.AsksWith(with, sync.WithSubtitlesOnly), sync.AsksWith(with, sync.WithSound), sync.AsksWith(with, sync.WithMaking)
 	for _, f := range d.films {
-		if f.Library == r.PathValue("lib") && (subtitlesOnly || !f.SubtitlesOnly) && (sound || !f.Sound) {
+		if f.Library == r.PathValue("lib") && (subtitlesOnly || !f.SubtitlesOnly) && (sound || !f.Sound) && (making || !f.Making) {
 			out.Films = append(out.Films, f.Film)
 		}
 	}
@@ -442,7 +446,7 @@ func (d *Desktop) video(w http.ResponseWriter, r *http.Request) {
 	if !ok {
 		return
 	}
-	if f.SubtitlesOnly {
+	if f.SubtitlesOnly || f.Making && f.Plays == "" {
 		fail(w, http.StatusNotFound, sync.CodeNotFound)
 		return
 	}

@@ -83,11 +83,14 @@ func (s *Session) RelayFilm(desktop, id string) (sync.RelayFilm, bool) {
 	return f, ok
 }
 
-// StreamLink is the link the film kept under key streams from, out of its computer's storage, "" when the storage holds no video of it. Read it in a binding.
+// StreamLink is the link the film kept under key streams from: on its computer's network, from the computer, through the phone's loopback server (lanLink); away from it, out of its computer's storage; "" when neither has anything of it to play. Read it in a binding.
 func (s *Session) StreamLink(key string) string {
 	f, ok := s.Film(key)
 	if !ok {
 		return ""
+	}
+	if s.OnNetwork(f.Desktop) {
+		return s.lanLink(f)
 	}
 	return s.remote.shelf.Get()[f.Desktop].films.VideoLink(f.Film.ID)
 }
@@ -118,11 +121,15 @@ func (s *Session) relayPoster(desktop, id string) (sync.RelayFilms, bool) {
 // streamFor is how long Stream waits for the storage to give a film's lines.
 const streamFor = listFor
 
-// Stream keeps film f of desktop's library to play from the user's storage away from its computer: its record, as a film kept to stream (store.Film.Streamed), and its lines, read by their link; then play runs with its key on the engine's goroutine, and the player streams the video from its link (StreamLink), or, for a film whose video is not in the storage, shows its lines alone. A film kept already plays as it is. failed hears why the lines could not be read.
+// Stream keeps film f of desktop's library to play from the user's storage away from its computer, or, for a film being made, from the computer on its network (streamMaking): its record, as a film kept to stream (store.Film.Streamed), and its lines, read by their link; then play runs with its key on the engine's goroutine, and the player streams the video from its link (StreamLink), or, for a film whose video is not in the storage, shows its lines alone. A film kept already plays as it is. failed hears why the lines could not be read.
 func (s *Session) Stream(desktop, library string, f sync.Film, play func(key string), failed func(error)) {
 	key := store.Key(desktop, f.ID)
 	if _, ok := s.Film(key); ok {
 		play(key)
+		return
+	}
+	if f.Making && s.OnNetwork(desktop) {
+		s.streamMaking(desktop, library, f, play, failed)
 		return
 	}
 	rf, ok := s.remote.shelf.GetUntracked()[desktop]
