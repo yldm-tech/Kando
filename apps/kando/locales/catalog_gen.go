@@ -2349,6 +2349,7 @@ const (
 	textFilmOpen
 	textFilmOpening
 	textFilmOpeningVideo
+	textFilmPictureComing
 	textFilmOrderOriginalFirst
 	textFilmOrderTranslationFirst
 	textFilmOriginalHeard
@@ -4195,6 +4196,7 @@ var keyOfText = [numTexts]string{
 	"filmOpen",
 	"filmOpening",
 	"filmOpeningVideo",
+	"filmPictureComing",
 	"filmOrderOriginalFirst",
 	"filmOrderTranslationFirst",
 	"filmOriginalHeard",
@@ -6039,6 +6041,7 @@ var textsEn = i18n.NewTexts(""+
 	"Open"+
 	"Opening"+
 	"Opening…"+
+	"Playing the sound while the video downloads. The picture comes in where you are once it is in."+
 	"Original on Top"+
 	"Translation on Top"+
 	"Recognized on this computer"+
@@ -7880,6 +7883,7 @@ var textsEn = i18n.NewTexts(""+
 		4,
 		7,
 		10,
+		94,
 		15,
 		18,
 		27,
@@ -9724,6 +9728,7 @@ var textsJa = i18n.NewTexts(""+
 	"開く"+
 	"開いています"+
 	"開いています…"+
+	"動画をダウンロードしているあいだ音声を再生しています。ダウンロードが済むと、今の位置から映像に切り替わります。"+
 	"原文を上に"+
 	"訳文を上に"+
 	"このコンピュータで認識"+
@@ -11565,6 +11570,7 @@ var textsJa = i18n.NewTexts(""+
 		6,
 		18,
 		21,
+		165,
 		15,
 		15,
 		33,
@@ -13409,6 +13415,7 @@ var textsKo = i18n.NewTexts(""+
 	"열기"+
 	"여는 중"+
 	"여는 중…"+
+	"동영상을 내려받는 동안 소리를 재생하고 있습니다. 다 받으면 지금 위치에서 화면으로 이어집니다."+
 	"원문을 위에"+
 	"번역을 위에"+
 	"이 컴퓨터에서 인식"+
@@ -15250,6 +15257,7 @@ var textsKo = i18n.NewTexts(""+
 		6,
 		10,
 		13,
+		133,
 		16,
 		16,
 		26,
@@ -17094,6 +17102,7 @@ var textsZhHans = i18n.NewTexts(""+
 	"打开"+
 	"正在打开"+
 	"正在打开…"+
+	"正在播放声音，视频还在下载，下载好后从当前位置接上画面。"+
 	"原文在上"+
 	"译文在上"+
 	"本机识别"+
@@ -18935,6 +18944,7 @@ var textsZhHans = i18n.NewTexts(""+
 		6,
 		12,
 		15,
+		84,
 		12,
 		12,
 		12,
@@ -20779,6 +20789,7 @@ var textsZhHant = i18n.NewTexts(""+
 	"打開"+
 	"正在開啟"+
 	"正在打開…"+
+	"正在播放聲音，影片還在下載，下載好後從目前位置接上畫面。"+
 	"原文在上"+
 	"譯文在上"+
 	"本機辨識"+
@@ -22620,6 +22631,7 @@ var textsZhHant = i18n.NewTexts(""+
 		6,
 		12,
 		15,
+		84,
 		12,
 		12,
 		12,
@@ -34029,6 +34041,15 @@ func FilmOpeningVideo(cx *core.Scope) string { return For(cx).FilmOpeningVideo()
 
 // FilmOpeningVideo is the package's FilmOpeningVideo in the language of msgs.
 func (msgs Messages) FilmOpeningVideo() string { return msgs.text(textFilmOpeningVideo) }
+
+// FilmPictureComing says "Playing the sound while the video downloads. The picture comes in where you are once it is in."
+// in the language the app shows under cx.
+//
+// Shown in the middle of the picture while a film added from a link plays its sound, downloaded first, and its video is still downloading; once it is in, the video plays on from the same point.
+func FilmPictureComing(cx *core.Scope) string { return For(cx).FilmPictureComing() }
+
+// FilmPictureComing is the package's FilmPictureComing in the language of msgs.
+func (msgs Messages) FilmPictureComing() string { return msgs.text(textFilmPictureComing) }
 
 // FilmOrderOriginalFirst says "Original on Top"
 // in the language the app shows under cx.

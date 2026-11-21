@@ -31,7 +31,7 @@ func (p *soundPipeline) Download(ctx context.Context, _ string) (string, error) 
 		return "", p.downloadErr
 	}
 	name := "video.mp4"
-	if formatFor(ctx) == "ba/b" {
+	if formatFor(ctx) == "ba[ext=m4a]/ba/b" {
 		name = "video.webm"
 	}
 	path := filepath.Join(p.root, p.folder, name)
@@ -94,7 +94,7 @@ func TestSubtitlesOnlyRemovesTheSound(t *testing.T) {
 	if _, err := os.Stat(done.SubtitlePath); err != nil || filepath.Dir(done.SubtitlePath) != filepath.Dir(want) {
 		t.Fatalf("subtitles %q: %v", done.SubtitlePath, err)
 	}
-	if !reflect.DeepEqual(p.asked, []string{"ba/b"}) {
+	if !reflect.DeepEqual(p.asked, []string{"ba[ext=m4a]/ba/b"}) {
 		t.Fatalf("asked for %v", p.asked)
 	}
 

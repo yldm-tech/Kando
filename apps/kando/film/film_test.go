@@ -163,6 +163,8 @@ func (f *fakeApp) PlayErr() string                       { return f.err }
 func (f *fakeApp) ErrText(_ *ns.Scope, id string) string { return "error " + id }
 func (f *fakeApp) PosterFile(string) string              { return f.poster }
 func (f *fakeApp) PlaySound() bool                       { return f.play != nil && f.sound }
+func (f *fakeApp) PictureComing() bool                   { return false }
+func (f *fakeApp) ComingCover() ns.ImageSource           { return ns.ImageSource{} }
 func (f *fakeApp) PlayHead() time.Duration {
 	if f.play == nil {
 		return 0

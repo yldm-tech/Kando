@@ -198,6 +198,8 @@ func (s *screen) stage() core.Node {
 			return stageNoteState{err: a.PlayErr()}
 		case a.PlayPath() != "" && a.Play() == nil:
 			return stageNoteState{opening: true}
+		case a.PictureComing():
+			return stageNoteState{coming: true}
 		case a.PlayPath() == "" && item.VideoPath == "" && item.Detail != "":
 			return stageNoteState{detail: item.Detail}
 		}
@@ -245,6 +247,8 @@ func (s *screen) stage() core.Node {
 									return text
 								}
 								return locales.FilmOpeningVideo(cx)
+							case n.coming:
+								return locales.FilmPictureComing(cx)
 							}
 							return n.detail
 						},
@@ -305,10 +309,11 @@ func (s *screen) unplayableRemedy(note func() stageNoteState) core.Node {
 	}}
 }
 
-// stageNoteState is what the stage says in place of the picture: why it would not play, that it opens, or how far the film's job is.
+// stageNoteState is what the stage says in place of the picture: why it would not play, that it opens, that its picture follows the sound playing (coming), or how far the film's job is.
 type stageNoteState struct {
 	err     string
 	opening bool
+	coming  bool
 	detail  string
 }
 
@@ -368,6 +373,8 @@ func (s *screen) soundCover(cx *core.Scope) core.Node {
 			core.Show{When: func() bool { return poster() != "" }, Then: func(*core.Scope) core.Node {
 				return core.Image{TestID: "film-sound-poster", ResizeMode: core.Contain, Style: fillStyle,
 					SourceFunc: func() core.ImageSource { return core.ImageSource{URI: fileURL(poster())} }}
+			}, Else: func(*core.Scope) core.Node {
+				return core.Image{TestID: "film-sound-cover", ResizeMode: core.Contain, Style: fillStyle, SourceFunc: live.Func(a, a.ComingCover)}
 			}},
 		}}
 }

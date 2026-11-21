@@ -366,7 +366,7 @@ func TestDownloadAsksForTheQuality(t *testing.T) {
 		"":                    "-f\nbv*+ba/b\n",
 		core.QualityBest:      "-f\nbv*+ba/b\n",
 		core.Quality720:       "-f\nbv*[height<=720]+ba/b[height<=720]/bv*+ba/b\n",
-		core.QualitySubtitles: "-f\nba/b\n",
+		core.QualitySubtitles: "-f\nba[ext=m4a]/ba/b\n",
 		core.Quality("x"):     "-f\nbv*+ba/b\n",
 	} {
 		tools.Download(withQuality(context.Background(), quality), "https://www.youtube.com/watch?v=jNQXAC9IVRw")

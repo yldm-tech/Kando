@@ -204,6 +204,10 @@ func Make(ctx context.Context, p Pipeline, job core.Job, language, device string
 		if soundOnly {
 			break
 		}
+		// The film plays its sound until its video comes (core.Job.SoundPath), named as the video will be (SoundVideo); a sound left at its own name, which the library would list as a film of its own until it goes, is not played.
+		if hearFrom != downloadedSound {
+			job.SoundPath = hearFrom
+		}
 		coming = make(chan downloaded, 1)
 		videoCtx, cancelVideo := context.WithCancel(WithTrace(ctx, &Trace{}))
 		videoDone := make(chan struct{})
@@ -276,7 +280,42 @@ func chats(p Pipeline) bool {
 }
 
 // soundPath is where the sound of the link whose video is to be at video is kept while it is made from it: a hidden file beside it, as ".video.sound", which moves with the video (Companions) and goes once the video is there.
-func soundPath(video string) string { return hiddenBeside(video, ".sound") }
+func soundPath(video string) string { return hiddenBeside(video, soundSuffix) + filepath.Ext(video) }
+
+// soundSuffix ends the hidden name of a link's sound (soundPath) before the sound's own extension, which the system's player opens it by.
+const soundSuffix = ".sound"
+
+// SoundVideo is the path the film whose sound is at sound (core.Job.SoundPath) goes by until its video comes: its documents, its subtitles and the files kept beside it are named after it, as the video will be but for its extension, and the player keeps the film's place by it. It is "" for a path no sound of a film is at (soundPath).
+func SoundVideo(sound string) string {
+	base := filepath.Base(sound)
+	ext := filepath.Ext(base)
+	stem, suffixed := strings.CutSuffix(strings.TrimSuffix(base, ext), soundSuffix)
+	name, hidden := strings.CutPrefix(stem, ".")
+	if ext == "" || !suffixed || !hidden || name == "" {
+		return ""
+	}
+	return filepath.Join(filepath.Dir(sound), name+ext)
+}
+
+// soundPaths are the sounds of the film at video beside it, those that exist: the one soundPath names after the extension its sound had, whatever the video's is, and one an older version named without it.
+func soundPaths(video string) []string {
+	prefix := filepath.Base(hiddenBeside(video, soundSuffix))
+	entries, err := os.ReadDir(filepath.Dir(video))
+	if err != nil {
+		return nil
+	}
+	var out []string
+	for _, e := range entries {
+		name := e.Name()
+		if !e.Type().IsRegular() || !strings.HasPrefix(name, prefix) {
+			continue
+		}
+		if rest := strings.TrimPrefix(name, prefix); rest == "" || (filepath.Ext(rest) == rest && len(rest) > 1) {
+			out = append(out, filepath.Join(filepath.Dir(video), name))
+		}
+	}
+	return out
+}
 
 // MakesAPartAtATime reports whether Make makes job a part at a time, so stopping it loses no more than the work it was doing: any job but one downloading the video of a film that keeps none (core.RedoVideo), which stopping sets back to the start of its download.
 func MakesAPartAtATime(job core.Job) bool {
@@ -2001,7 +2040,7 @@ func (m *making) videoCame(d downloaded) {
 		m.videoErr = d.err
 		return
 	}
-	m.job.VideoPath = d.path
+	m.job.VideoPath, m.job.SoundPath = d.path, ""
 	m.report(*m.job)
 }
 
@@ -2023,7 +2062,7 @@ func (m *making) project(gen string) {
 	m.projected = time.Now()
 	_ = m.append(events...)
 	// A film is shown with its subtitles once there is a video to show them on.
-	if m.job.VideoPath != "" && m.job.SubtitlePath != m.bilingual {
+	if (m.job.VideoPath != "" || m.job.SoundPath != "") && m.job.SubtitlePath != m.bilingual {
 		m.job.SubtitlePath = m.bilingual
 		m.report(*m.job)
 	}

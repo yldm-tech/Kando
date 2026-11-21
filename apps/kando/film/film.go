@@ -63,6 +63,9 @@ type App interface {
 	Play() Player
 	// PlaySound reports whether what the system's player has loaded is sound alone, as a podcast's mp3: the stage shows the film's poster in place of a picture (soundCover).
 	PlaySound() bool
+	// PictureComing reports whether what plays is a link's sound until its video comes, which the stage says (stageNoteState.coming); ComingCover is the thumbnail its site gives it, which the stage shows meanwhile, as it has no poster of its own yet (soundCover).
+	PictureComing() bool
+	ComingCover() ns.ImageSource
 	PlayPath() string
 	PlayErr() string
 	// OpeningText is what the stage says while the video opens, in the language the interface shows under cx: how far the copy the system's player can open has got, for a video it cannot play as it is, "" while it is not known, when the stage says the video opens.

@@ -327,14 +327,14 @@ func withQuality(ctx context.Context, q core.Quality) context.Context {
 	return context.WithValue(ctx, qualityKey{}, q)
 }
 
-// formatFor is yt-dlp's -f for the quality ctx asks for (withQuality): the best video and sound, merged, or the best single file; for 720P the same no taller than 720 lines, falling back to the best when the site has nothing that small; for 仅字幕 the best sound alone, or the best single file of a site that serves none apart.
+// formatFor is yt-dlp's -f for the quality ctx asks for (withQuality): the best video and sound, merged, or the best single file; for 720P the same no taller than 720 lines, falling back to the best when the site has nothing that small; for 仅字幕, as for the sound a link's subtitles are made from first, the best sound alone in an M4A, which every platform's player plays while the film's video downloads (core.Job.SoundPath), else the best sound alone, or the best single file of a site that serves none apart.
 func formatFor(ctx context.Context) string {
 	q, _ := ctx.Value(qualityKey{}).(core.Quality)
 	switch q {
 	case core.Quality720:
 		return "bv*[height<=720]+ba/b[height<=720]/bv*+ba/b"
 	case core.QualitySubtitles:
-		return "ba/b"
+		return "ba[ext=m4a]/ba/b"
 	}
 	return "bv*+ba/b"
 }

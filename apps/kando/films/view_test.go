@@ -799,18 +799,20 @@ func TestFailedCardsOfferTheirRemedy(t *testing.T) {
 	wantCalls(t, a, "remedy failed swap", "retry plain", "withdraw running", "report plain")
 }
 
-// A job that has its video can be watched before it is done: its card's thumbnail opens the film. One still downloading has nothing to watch yet.
+// A job waiting or running can be watched before it is done: its card's thumbnail opens the film, one still downloading too, as opening it puts it first and it plays once its sound or its video is in; a failed one does not.
 func TestAProcessingFilmCanBeWatched(t *testing.T) {
 	a := newFakeApp()
 	app := start(t, a)
-	if app.Exists("id:queue-watch") {
-		t.Fatal("a film still downloading offers to be watched")
-	}
+	app.Press("id:queue-watch")
 	change(app, a, func() {
 		a.items[2].Stage, a.items[2].VideoPath, a.items[2].SubtitlePath = core.StageTranslating, a.dir+"/Market/video.mp4", a.dir+"/Market/video.srt"
 	})
 	app.Press("id:queue-watch")
-	wantCalls(t, a, "open running")
+	wantCalls(t, a, "open running", "open running")
+	change(app, a, func() { a.items[2].Stage = core.StageFailed })
+	if app.Exists("id:queue-watch") {
+		t.Fatal("a failed film offers to be watched")
+	}
 }
 
 // Past one failure, the heading of 处理中 offers to retry those that can be and to remove them all.

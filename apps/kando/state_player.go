@@ -292,11 +292,12 @@ func (a *app) playerAfterChange() bool {
 	a.playerLoopSchedule()
 	tip := a.playerSubTip()
 	stream := a.playerStreamFollow()
+	coming := a.playerComingFollow()
 	drafts := a.playerDraftsFollow()
 	gaps := a.playerGapsFollow()
 	next := a.playerNextFollow()
 	redo := a.subtitlesFollowRedo()
-	return changed || tip || stream || drafts || gaps || next || redo
+	return changed || tip || stream || coming || drafts || gaps || next || redo
 }
 
 // playerTipFor is how long the tip that the subtitles can be dragged shows.
@@ -532,6 +533,15 @@ func (a *app) playerHooks() areaHooks {
 		videosMoved: func(move func(string) (string, bool)) {
 			if next, ok := move(a.player.film.video); ok {
 				a.player.film.video = next
+			}
+			// The open video's place is kept by its new path from now on, as where it plays is remembered by it (rememberPosition).
+			if next, ok := move(a.player.playPath); ok {
+				a.player.playPath = next
+			}
+			if p := a.player.play; p != nil {
+				if next, ok := move(p.path); ok {
+					p.path = next
+				}
 			}
 		},
 	}

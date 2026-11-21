@@ -52,6 +52,8 @@ type Film struct {
 	// SubtitlesOnly is true for a film that keeps no video, which streams from its site when watched (core.Job.SubtitlesOnly); VideoComing is true while its job waits to download the video, or downloads it (core.RedoVideo).
 	SubtitlesOnly bool
 	VideoComing   bool
+	// SoundPath is the sound a link's job downloaded first, which the film plays until its video comes (core.Job.SoundPath).
+	SoundPath string
 	// Stopped reports a failed job that was cancelled rather than one that went wrong; Canceled reads it.
 	Stopped bool
 	// Failure is the step a failed job failed at and why (media.StageError), which the card reads its reason from; nil for a job that did not fail, or one whose error names no step.
@@ -164,7 +166,7 @@ func FromJob(job core.Job, name, detail string) Film {
 		Progress: job.Progress, Thumbnail: job.Thumbnail, Untranslated: job.Untranslated, TranslationErr: job.TranslationErr, TranslationSource: job.TranslationSource, SameLanguage: job.SameLanguage,
 		Stopped: errors.Is(job.Err, context.Canceled), Failure: jobfailure.Of(job), Target: jobTarget(job), Device: job.Device, PausedBy: job.PausedBy,
 		PlatformSubtitles: job.PlatformSubtitles, LocalLines: job.LocalLines,
-		SubtitlesOnly: job.SubtitlesOnly, VideoComing: job.Redo == core.RedoVideo && !job.Stage.Done(),
+		SubtitlesOnly: job.SubtitlesOnly, VideoComing: job.Redo == core.RedoVideo && !job.Stage.Done(), SoundPath: job.SoundPath,
 		List: job.List, ListIndex: job.ListIndex,
 	}
 }

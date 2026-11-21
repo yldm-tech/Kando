@@ -9,6 +9,7 @@ import (
 	"kando/apps/kando/locales"
 	"kando/apps/kando/theme"
 	"kando/packages/core"
+	"kando/packages/media"
 
 	"github.com/nsgo-dev/nsgo/base"
 	ns "github.com/nsgo-dev/nsgo/core"
@@ -116,8 +117,8 @@ func (q queueCard) Render(cx *ns.Scope) ns.Node {
 		}}
 		return ns.Group{meta, stepsBar{item: item}, here}
 	}
-	// A job that has its video can be watched before it is done (Watchable): its thumbnail opens the film, with the transcript's lines once there are some.
-	thumb := ns.Show{When: func() bool { return Watchable(item()) }, Then: func(cx *ns.Scope) ns.Node {
+	// A job waiting or running opens from its thumbnail (Openable): the film plays its video or its sound once it has one (Watchable), with its lines once there are some.
+	thumb := ns.Show{When: func() bool { return Openable(item()) }, Then: func(cx *ns.Scope) ns.Node {
 		return base.Button{TestID: "queue-watch", LabelFunc: func() string { return locales.FilmsQueueWatch(cx, filmName(item())) },
 			OnPress:  live.On(a, func(ns.PressEvent) { a.Open(item()) }),
 			Style:    ns.Style{FlexShrink: 0, CornerRadius: 9, Cursor: ns.CursorDefault, FocusVisible: ui.FocusRing(cx, 2)},
@@ -210,9 +211,20 @@ func (q queueThumb) Render(cx *ns.Scope) ns.Node {
 	}
 }
 
-// Watchable reports whether a film still in 处理中 can be watched already: its job is waiting or running and has its video, downloaded or found on disk. Until its transcript is saved it plays without subtitles.
+// Watchable reports whether a film still in 处理中 can be watched already: its job is waiting or running and has its video, downloaded or found on disk, or a link's sound, which plays until its video comes (PlayPath). Until its first lines are made it plays without subtitles.
 func Watchable(item Film) bool {
-	return item.JobID != "" && item.VideoPath != "" && !item.Stage.Done()
+	return item.JobID != "" && PlayPath(item) != "" && !item.Stage.Done()
+}
+
+// Openable reports whether a film still in 处理中 opens from its card: any whose job waits or runs, as opening it is what puts it first in the queue (queuePreferOpen), and a link with nothing downloaded yet plays once its sound is in.
+func Openable(item Film) bool { return item.JobID != "" && !item.Stage.Done() }
+
+// PlayPath is the path the player opens item by and keeps its place by: its video, or while a link's sound plays until its video comes (SoundPath) the path the video will have but for its extension (media.SoundVideo); "" for a film with neither.
+func PlayPath(item Film) string {
+	if item.VideoPath != "" || item.SoundPath == "" {
+		return item.VideoPath
+	}
+	return media.SoundVideo(item.SoundPath)
 }
 
 // QueueMeta is the line under a waiting or running job's title, in the language of m: the stage and how far it has gone, as its tool reports it, and about how long it has left once that can be told (Remaining), or how many jobs run before a waiting one, or that it waits for the paused queue.

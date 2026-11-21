@@ -114,6 +114,8 @@ type Job struct {
 	SpeechLanguage string
 	// Quality is how good a picture the download of a link asks the site for, as the user chose it; empty until the queue gives the job the one Settings › 通用 › 在线视频 names, as it first runs. Like SpeechLanguage it is the user's choice, so it stays when a run fails or the film is processed again. A video already downloaded is not downloaded again for another quality.
 	Quality Quality
+	// SoundPath is the sound a link's job downloaded alone, first, and makes the subtitles from while its video downloads beside (media.Make), as long as VideoPath is not set yet: the film plays it until its video comes, named as the video will be (media.SoundVideo). It is "" for a film whose video came, a local video, a link to sound alone and one that keeps no video (SubtitlesOnly).
+	SoundPath string
 	// SubtitlesOnly is true for a link's film that keeps no video (QualitySubtitles): its download fetched the sound alone, which was removed once the subtitles were exported. VideoPath still names where that sound was, as the subtitles and the files kept beside them are named after it, and the film is watched by streaming Source. Downloading its video (RedoVideo) clears it.
 	SubtitlesOnly bool
 	// Linked is true for a film of a media source that was indexed rather than copied into the library (Source is its kando-source:// address, SourceScheme): its video stays on the source and is read from there, through the loopback stream server, to play it and to hear its speech, and VideoPath is a placeholder in the library's folder that no video is at, which the subtitles and the files kept beside them are named after.

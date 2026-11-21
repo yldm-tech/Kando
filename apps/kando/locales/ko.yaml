@@ -526,6 +526,7 @@ filmNoSubtitlesYet: "아직 자막이 없습니다. 처리가 끝나면 여기�
 filmOpen: "열기"
 filmOpening: "여는 중"
 filmOpeningVideo: "여는 중…"
+filmPictureComing: "동영상을 내려받는 동안 소리를 재생하고 있습니다. 다 받으면 지금 위치에서 화면으로 이어집니다."
 filmOrderOriginalFirst: "원문을 위에"
 filmOrderTranslationFirst: "번역을 위에"
 filmOriginalHeard: "이 컴퓨터에서 인식"

@@ -526,6 +526,7 @@ filmNoSubtitlesYet: "字幕はまだありません。処理が完了すると�
 filmOpen: "開く"
 filmOpening: "開いています"
 filmOpeningVideo: "開いています…"
+filmPictureComing: "動画をダウンロードしているあいだ音声を再生しています。ダウンロードが済むと、今の位置から映像に切り替わります。"
 filmOrderOriginalFirst: "原文を上に"
 filmOrderTranslationFirst: "訳文を上に"
 filmOriginalHeard: "このコンピュータで認識"

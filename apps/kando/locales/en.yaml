@@ -1846,6 +1846,9 @@ filmOpening:
 filmOpeningVideo:
   message: "Opening…"
   description: "Shown in the middle of the picture while the video or audio file opens."
+filmPictureComing:
+  message: "Playing the sound while the video downloads. The picture comes in where you are once it is in."
+  description: "Shown in the middle of the picture while a film added from a link plays its sound, downloaded first, and its video is still downloading; once it is in, the video plays on from the same point."
 filmOrderOriginalFirst:
   message: "Original on Top"
   description: "Bilingual order: the original over the translation."

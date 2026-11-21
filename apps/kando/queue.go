@@ -1092,6 +1092,12 @@ func (a *app) show(job core.Job) {
 		from, to := was.VideoPath, job.VideoPath
 		a.moveVideos(func(path string) (string, bool) { return to, path == from })
 	}
+	// A link that played its sound until its video came (core.Job.SoundPath) is watched from the video now: what was kept by the path it went by meanwhile (films.PlayPath) follows the video, once, as the job's report says it came.
+	if was.VideoPath == "" && was.SoundPath != "" && job.VideoPath != "" && job.SoundPath == "" {
+		if from, to := media.SoundVideo(was.SoundPath), job.VideoPath; from != "" && from != to {
+			a.moveVideos(func(path string) (string, bool) { return to, path == from })
+		}
+	}
 	a.library.Upsert(job)
 	if err := a.library.Save(); err != nil {
 		a.saveErr = a.shelfSaveErr(err, a.messages().QueueSaveFailed)
