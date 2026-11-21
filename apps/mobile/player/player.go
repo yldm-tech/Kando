@@ -153,7 +153,13 @@ func view(cx *core.Scope, l *Layer, key string) core.Node {
 			},
 			OnProgress: p.progress,
 			OnEnd:      func() { p.ended(l) },
-			OnError:    func(error) { p.failed.Set(true) },
+			// A film streamed from its computer that the system's player cannot open from there opens from the storage, where the storage holds it (session.StreamFailed).
+			OnError: func(error) {
+				if p.streamed() && s.StreamFailed(key) {
+					return
+				}
+				p.failed.Set(true)
+			},
 			// In picture in picture the film plays on in the system's window over other apps; the player leaves for the tabs once the window shows, and shows again when the window is turned back into it.
 			PictureInPicture: true,
 			OnPictureInPicture: func(st core.PictureInPictureState) {

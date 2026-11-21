@@ -26,10 +26,12 @@ type making struct {
 	watchers map[string]*Watcher
 	// server is the loopback server, started the first time a film streams from its computer.
 	server *loopback.Server
+	// fromStorage is the films the player could not open from their computer this session, by key, which stream from the storage instead (StreamFailed).
+	fromStorage *core.Signal[map[string]bool]
 }
 
 func newMaking(cx *core.Scope) *making {
-	m := &making{at: core.NewSignalFunc(cx, map[string]sync.FilmWatching{}, nil), watchers: map[string]*Watcher{}}
+	m := &making{at: core.NewSignalFunc(cx, map[string]sync.FilmWatching{}, nil), watchers: map[string]*Watcher{}, fromStorage: core.NewSignalFunc(cx, map[string]bool{}, nil)}
 	cx.Cleanup(func() {
 		if m.server != nil {
 			m.server.Close()
@@ -38,10 +40,10 @@ func newMaking(cx *core.Scope) *making {
 	return m
 }
 
-// OnNetwork reports whether the phone reaches desktop on its network now: it answered there, not through the storage. Read it in a binding.
+// OnNetwork reports whether the phone reaches desktop on its network now, as it follows the computer's queue: it answers there, not through the storage. Read it in a binding.
 func (s *Session) OnNetwork(desktop string) bool {
-	sh := s.Shelf(desktop)
-	return sh.Listed && !sh.Relayed && s.Client(desktop) != nil
+	q := s.Queue(desktop)
+	return q.Reach == Online && !q.Relayed && s.Client(desktop) != nil
 }
 
 // lanLink is the URL the player streams film f, kept to stream, from on its computer's network, "" away from it or while nothing of a film being made plays yet. A link's sound plays at a URL of its own until the video comes, so the player opens the video anew, where it was (WatchMaking). Read it in a binding.
@@ -74,6 +76,18 @@ func (s *Session) lanLink(f store.Film) string {
 	}
 	c, id := s.Client(f.Desktop), f.Film.ID
 	return m.server.URL(f.Key()+"/"+plays, name, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) { c.ServeVideo(w, r, id) }))
+}
+
+// StreamFailed is the player failing to open the film kept under key from where it streams: one it could not open from its computer on its network streams from the storage for the rest of the session, when the storage holds its video, and StreamFailed reports true, as the player opens it again from there (StreamLink); otherwise it reports false, and the film cannot play. Engine goroutine only.
+func (s *Session) StreamFailed(key string) bool {
+	f, ok := s.Film(key)
+	if !ok || !s.OnNetwork(f.Desktop) || s.making.fromStorage.GetUntracked()[key] || s.remote.shelf.GetUntracked()[f.Desktop].films.VideoLink(f.Film.ID) == "" {
+		return false
+	}
+	from := maps.Clone(s.making.fromStorage.GetUntracked())
+	from[key] = true
+	s.making.fromStorage.Set(from)
+	return true
 }
 
 // streamMaking keeps film f, being made, of desktop's library to play from its computer on its network, as Stream keeps a film to play from the storage: its record, as a film kept to stream, and its lines so far, none before its first are made; then play runs with its key on the engine's goroutine. failed hears why it could not be kept.

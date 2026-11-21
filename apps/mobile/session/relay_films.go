@@ -83,13 +83,13 @@ func (s *Session) RelayFilm(desktop, id string) (sync.RelayFilm, bool) {
 	return f, ok
 }
 
-// StreamLink is the link the film kept under key streams from: on its computer's network, from the computer, through the phone's loopback server (lanLink); away from it, out of its computer's storage; "" when neither has anything of it to play. Read it in a binding.
+// StreamLink is the link the film kept under key streams from: on its computer's network, from the computer, through the phone's loopback server (lanLink), unless the player could not open it from there (StreamFailed); away from it, out of its computer's storage; "" when neither has anything of it to play. Read it in a binding.
 func (s *Session) StreamLink(key string) string {
 	f, ok := s.Film(key)
 	if !ok {
 		return ""
 	}
-	if s.OnNetwork(f.Desktop) {
+	if s.OnNetwork(f.Desktop) && !s.making.fromStorage.Get()[key] {
 		return s.lanLink(f)
 	}
 	return s.remote.shelf.Get()[f.Desktop].films.VideoLink(f.Film.ID)

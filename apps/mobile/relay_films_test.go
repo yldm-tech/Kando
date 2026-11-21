@@ -2,11 +2,15 @@ package main
 
 import (
 	"bytes"
+	"net/http"
 	"os"
 	"path/filepath"
 	"slices"
 	"strings"
 	"testing"
+	"time"
+
+	"github.com/nsgo-dev/nsgo/nsgotest"
 
 	"kando/apps/mobile/store"
 	"kando/packages/sync"
@@ -86,4 +90,45 @@ func TestAwayFromTheComputerItsFilmsComeFromTheStorage(t *testing.T) {
 	if p.app.Exists("id:film-lines") {
 		t.Fatalf("back home, the page still offers the storage: %q", p.app.Texts())
 	}
+}
+
+// Back on its computer's network, a film kept to stream plays from the computer, and from the storage again should the player fail to open it from there.
+func TestAFilmStreamedPlaysFromTheComputerAtHome(t *testing.T) {
+	d := newDesktop(t)
+	bucket := synctest.NewBucket(t, now)
+	d.StartRelay(t, bucket, now, relayTurn)
+	d.ShareFilms(true)
+	dir := t.TempDir()
+	p := startPhone(t, dir, pairedWith(t, d, dir))
+	id := store.DesktopID(d.Fingerprint)
+	folder := sync.RelayPrefix(d.Fingerprint)
+	p.app.WaitUntil(wait, func() bool { return d.RelayJoins() == 1 && len(bucket.Keys(folder+"outbox/")) > 0 })
+	p.waitRelayJoined(id)
+	p.app.WaitFor(talkRow(id), wait)
+	d.SetOff(true)
+	p.app.Press(talkRow(id))
+	p.app.WaitFor("id:film-stream", reconnect)
+	p.app.Press("id:film-stream")
+	p.app.WaitFor("id:player-video", wait)
+	if src := p.playerSource(); !strings.Contains(src, folder+"films/") {
+		t.Fatalf("away, the player plays %q", src)
+	}
+
+	d.SetOff(false)
+	// The phone may try the storage once more as connections dropped while the computer was off are found closed: the computer's address holds once it answers on its network again.
+	onNetwork := func() bool { return strings.HasPrefix(p.playerSource(), "http://127.0.0.1:") }
+	p.app.WaitUntil(reconnect, onNetwork)
+	time.Sleep(20 * relayEvery)
+	p.app.WaitUntil(reconnect, onNetwork)
+	if code, body := fetch(t, p.playerSource()); code != http.StatusOK || len(body) != len(talkVideo) {
+		t.Fatalf("at home, the computer's address answers %d, %d bytes", code, len(body))
+	}
+	p.app.Report(nsgotest.Event{Kind: nsgotest.EventError, ID: p.app.Find("id:player-video").ID, Text: "the system's player could not open it"})
+	p.app.WaitUntil(wait, func() bool { return strings.Contains(p.playerSource(), folder+"films/") })
+	if p.app.Exists("id:player-failed") {
+		t.Fatal("the player says it cannot play a film the storage holds")
+	}
+	// Failing from the storage too, it cannot play.
+	p.app.Report(nsgotest.Event{Kind: nsgotest.EventError, ID: p.app.Find("id:player-video").ID, Text: "the system's player could not open it"})
+	p.app.WaitFor("id:player-failed", wait)
 }
