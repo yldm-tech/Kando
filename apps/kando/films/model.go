@@ -206,10 +206,12 @@ func InDir(dir, path string) bool {
 
 // SourceOf is the sidebar source a film comes from: the platform core.ParseLink reads from its source, or sidebar.SourceLocal for a film with no source it reads, such as a video found in the library folder.
 func SourceOf(item Film) string {
-	if link, ok := core.ParseLink(item.Source); ok {
-		return string(link.Platform)
+	link, ok := core.ParseLink(item.Source)
+	// A film copied from a media source is a file of the library, as a local one is.
+	if !ok || link.Platform == core.PlatformSource {
+		return sidebar.SourceLocal
 	}
-	return sidebar.SourceLocal
+	return string(link.Platform)
 }
 
 // BySource keeps the films that come from source; sidebar.SourceAll keeps them all.
@@ -480,8 +482,11 @@ func QueueSummary(m locales.Messages, items []Film) string {
 	return strings.Join(parts, " · ")
 }
 
-// Local reports whether the film's video is a file on this machine rather than a link to download.
-func Local(item Film) bool { return SourceOf(item) == sidebar.SourceLocal }
+// Local reports whether the film's video is a file on this machine rather than a link to download, or a media source's video to copy first.
+func Local(item Film) bool {
+	link, ok := core.ParseLink(item.Source)
+	return SourceOf(item) == sidebar.SourceLocal && !(ok && link.Platform == core.PlatformSource)
+}
 
 // Steps is how many stages a film's job goes through and how many of them are behind it: a local video is not downloaded, so it has three (生成字幕, 翻译, 导出) and a link four. A queued job has none behind it; a finished one has them all.
 func Steps(item Film) (total, done int) {
@@ -528,6 +533,8 @@ func PlatformLabel(m locales.Messages, link core.Link) string {
 		return m.SourceBilibili()
 	case core.PlatformLocal:
 		return m.SourceLocal()
+	case core.PlatformSource:
+		return m.MediaSourceSidebar()
 	}
 	if name := sitename.In(m, link.Site); name != "" {
 		return name

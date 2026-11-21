@@ -154,7 +154,7 @@ func (a *app) privacyLocalTranslation() bool {
 
 // privacyHolds reports whether offline mode holds job in the queue: a job that would download its video first, which waits until offline mode is off rather than failing. A local video, a video already downloaded and a done film translated again need no download.
 func (a *app) privacyHolds(job core.Job) bool {
-	if !a.privacy.offline || job.Redo.TranslatesOnly() || queueLocalPath(job.Source) != "" {
+	if !a.privacy.offline || job.Redo.TranslatesOnly() || queueLocalPath(job.Source) != "" || media.IsSourceRef(job.Source) {
 		return false
 	}
 	// The same test the pipeline makes before it downloads again (media.Downloaded), so a job it would download is held rather than refused.
@@ -183,7 +183,8 @@ func (a *app) privacyForgetRefusals() {
 
 // privacyRefusesLink is why source cannot be added while offline mode is on, in the interface's language: a link would be downloaded. nil for a local video, or while offline mode is off.
 func (a *app) privacyRefusesLink(source string) error {
-	if !a.privacy.offline || queueLocalPath(source) != "" {
+	// A media source's video is the copier's to judge, as one on the local network stays readable (mediasource.Copier).
+	if !a.privacy.offline || queueLocalPath(source) != "" || media.IsSourceRef(source) {
 		return nil
 	}
 	return errOffline(a.messages().PrivacyNoDownload())

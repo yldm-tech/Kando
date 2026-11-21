@@ -155,7 +155,10 @@ func Make(ctx context.Context, p Pipeline, job core.Job, language, device string
 	if err := check(); err != nil {
 		return fail(StageCheck, err)
 	}
-	_, local := localVideoPath(job.Source)
+	_, onDisk := localVideoPath(job.Source)
+	// A media source's video is copied whole into the library first, and is a local film from then on.
+	fromSource := IsSourceRef(job.Source)
+	local := onDisk || fromSource
 	// soundOnly is a link at core.QualitySubtitles, which keeps no video: it is made from its sound alone, which goes once its subtitles are written.
 	soundOnly := !local && job.Quality == core.QualitySubtitles
 	video := job.VideoPath
@@ -166,7 +169,11 @@ func Make(ctx context.Context, p Pipeline, job core.Job, language, device string
 	hearFrom := job.VideoPath
 	switch {
 	case local || Downloaded(video):
-		if local {
+		// A media source's video copied by an earlier try is not copied again.
+		if onDisk || (fromSource && !Downloaded(video)) {
+			if fromSource {
+				enter(core.StageDownloading)
+			}
 			var err error
 			if video, err = p.Download(ctx, job.Source); err != nil {
 				job.FailKind = downloadFailKind(job, err)
@@ -389,7 +396,7 @@ func (m *making) run(length time.Duration, language string, watch Watcher) core.
 		return m.fail(StageTranscribe, err)
 	}
 	m.transcript = TranscriptOf(m.video)
-	if _, local := localVideoPath(job.Source); local && !job.Transcribed && foreignTranscript(m.video) {
+	if _, onDisk := localVideoPath(job.Source); (onDisk || IsSourceRef(job.Source)) && !job.Transcribed && foreignTranscript(m.video) {
 		m.transcript = asideTranscriptPath(m.video)
 	}
 	m.bilingual = strings.TrimSuffix(m.video, filepath.Ext(m.video)) + ".bilingual.srt"

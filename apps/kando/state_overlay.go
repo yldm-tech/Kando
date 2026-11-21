@@ -40,6 +40,7 @@ func (a *app) overlays(cx *core.Scope) core.Node {
 		a.vocabOverlay(cx),
 		a.subexportOverlay(cx),
 		a.pluginsOverlay(cx),
+		a.mediaSourceOverlay(cx),
 	}
 }
 

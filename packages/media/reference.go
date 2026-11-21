@@ -58,7 +58,7 @@ func keepReference(ctx context.Context, p Pipeline, job core.Job, language strin
 	if !can || job.SubtitleSource != core.SubtitlesAuto || strings.TrimSpace(language) == "" || job.VideoPath == "" {
 		return nil
 	}
-	if _, isLocal := localVideoPath(job.Source); isLocal {
+	if _, isLocal := localVideoPath(job.Source); isLocal || IsSourceRef(job.Source) {
 		return nil
 	}
 	lines, err := captioner.AutoCaptions(ctx, job.Source, language)

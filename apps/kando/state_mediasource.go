@@ -35,6 +35,10 @@ type mediaSourceUI struct {
 	editRelease   func()
 	removeRelease func()
 	open          func(ctx context.Context, k mediasource.Kind, s mediasource.Source, secrets map[string]string) (mediasource.Driver, error)
+	// pool keeps the connections the 媒体来源 page lists through and the jobs copy through (mediaSourcePoolSync); browse is that page's state (state_mediasource_browse.go). localHost, when set, judges whether a host is on the local network for offline mode in place of mediasource.Local, as a test's does.
+	pool      *mediasource.Pool
+	browse    mediaSourceBrowse
+	localHost func(ctx context.Context, host string) (bool, error)
 }
 
 // mediaSourceTest is how a Test of a source went: running (gen is its number), connected, with the shares a server without a share offers (shares, listed is whether it listed them), or why not, as a function of the messages so it reads in the language shown.
@@ -52,7 +56,7 @@ func newMediaSourceUI() mediaSourceUI {
 	if err := kinds.Register(mediasource.SMB()); err != nil {
 		panic(err)
 	}
-	return mediaSourceUI{kinds: kinds, tests: map[string]mediaSourceTest{}, open: mediaSourceOpen}
+	return mediaSourceUI{kinds: kinds, tests: map[string]mediaSourceTest{}, open: mediaSourceOpen, pool: &mediasource.Pool{}}
 }
 
 // mediaSourceOpen connects to s, a source of kind k, with its secrets by key, as the kind does.
@@ -152,12 +156,17 @@ func (m mediaSourceUI) mediaSourceSecrets() []string {
 	return out
 }
 
-// mediaSourceHooks: the sources are saved in settings.json and taken back at startup; after each change, the dialog and the confirmation close when the page that draws them went away (mediaSourceModals).
+// mediaSourceHooks: the sources are saved in settings.json and taken back at startup. Their connections are made with the secure store, which the app's scope gives once the window exists, so the jobs left waiting from the last run copy their videos then; they all close as the app quits. After each change, the settings' dialog and confirmation close when the page that draws them went away (mediaSourceModals), and the 媒体来源 page follows a source removed and closes its import dialog once it went away (mediaSourceBrowseFollow).
 func (a *app) mediaSourceHooks() areaHooks {
 	return areaHooks{
-		save:        a.saveMediaSources,
-		restore:     a.restoreMediaSources,
-		afterChange: a.mediaSourceModals,
+		save:    a.saveMediaSources,
+		restore: a.restoreMediaSources,
+		ready:   a.mediaSourcePoolSync,
+		afterChange: func() bool {
+			modals := a.mediaSourceModals()
+			return a.mediaSourceBrowseFollow() || modals
+		},
+		quitting: a.sources.pool.Close,
 	}
 }
 
@@ -349,8 +358,10 @@ func (a *app) mediaSourceCommit(s mediasource.Source) {
 		m.problem = locales.Messages.SettingsSourcesSaveFailed
 		return
 	}
-	// How a Test of the old settings went says nothing of the new ones.
+	// How a Test of the old settings went says nothing of the new ones, and a connection made with the old password is not one to keep.
 	delete(m.tests, s.ID)
+	a.mediaSourcePoolSync()
+	m.pool.Forget(s.ID)
 	a.closeMediaSourceDialog()
 }
 
@@ -381,6 +392,7 @@ func (a *app) answerRemoveMediaSource(yes bool) {
 	gone := m.list[i]
 	m.list = slices.Delete(m.list, i, i+1)
 	delete(m.tests, id)
+	a.mediaSourcePoolSync()
 	if err := a.saveSettings(); err != nil {
 		a.saveErr = a.messages().SettingsSourcesSaveFailed()
 	}

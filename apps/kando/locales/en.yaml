@@ -9286,3 +9286,68 @@ settingsSourcesFailSigning:
 settingsSourcesNeedsShare:
   message: "A folder is inside a share: fill in the share, or leave the folder empty."
   description: "Shown in the media source dialog when a folder is filled in without a share."
+mediaSourceSidebar:
+  message: "Media Sources"
+  description: "Row of the sidebar, and title of its page, where the user browses the NAS shares and servers added in Settings › Media Sources and imports videos from them. Also how the library names where such a film came from."
+mediaSourceBrowse:
+  message: "Browse Media Sources"
+  description: "Command of the File menu and the command palette that opens the Media Sources page."
+mediaSourceNone:
+  message: "Add a NAS share or a server in Settings to browse its videos here."
+  description: "Shown on the Media Sources page while no source was added."
+mediaSourceAddSource:
+  message: "Add a Source…"
+  description: "Button on the Media Sources page while no source was added, opening Settings › Media Sources."
+mediaSourceListing:
+  message: "Loading…"
+  description: "Shown on the Media Sources page while the folder of a source is being listed."
+mediaSourceEmpty:
+  message: "No videos or folders here"
+  description: "Shown on the Media Sources page for a folder that holds no video, sound file or folder."
+mediaSourceRetry:
+  message: "Retry"
+  description: "Button on the Media Sources page listing the folder again after it could not be listed."
+mediaSourceEditSource:
+  message: "Edit Source…"
+  description: "Button on the Media Sources page, after a folder could not be listed, opening the source's settings."
+mediaSourceOffline:
+  message: "Offline mode is on, and this source isn't on the local network."
+  description: "Shown on the Media Sources page, and on a film's card, when offline mode keeps Kando from reaching a source on the internet."
+mediaSourceHasSubtitles:
+  message: "Subtitles"
+  description: "Tag on a video's row of the Media Sources page: a subtitle file beside it on the source, which is copied with it."
+mediaSourceInLibrary:
+  message: "In Library"
+  description: "Tag on a video's row of the Media Sources page that was already imported."
+mediaSourceSelect:
+  message: "Select {name}"
+  description: "Accessibility name of the check box choosing a video on the Media Sources page to import."
+  placeholders:
+    name: { type: "String", example: "Heat (1995).mkv" }
+mediaSourceImportSome:
+  message: "{count, plural, one {Import # Video} other {Import # Videos}}"
+  description: "Button on the Media Sources page importing the videos chosen."
+  placeholders:
+    count: { type: "int", example: "3" }
+mediaSourceImportTitle:
+  message: "{count, plural, one {Import # video from {source}?} other {Import # videos from {source}?}}"
+  description: "Title of the dialog confirming the import of the videos chosen on a media source."
+  placeholders:
+    count: { type: "int", example: "3" }
+    source: { type: "String", example: "Living Room NAS" }
+mediaSourceImportCopyNote:
+  message: "They are copied into the library, so you can watch them offline; they take {size} on this computer. Nothing on the source changes."
+  description: "Message of the dialog importing videos from a media source, with how much room the copies take."
+  placeholders:
+    size: { type: "String", example: "4.2 GB" }
+mediaSourceImportStart:
+  message: "Import"
+  description: "Button of the dialog importing videos from a media source, which starts copying them."
+mediaSourceCancel:
+  message: "Cancel"
+  description: "Button closing the dialog importing videos from a media source without importing."
+mediaSourceImported:
+  message: "{count, plural, one {Importing # video. It shows in Processing.} other {Importing # videos. They show in Processing.}}"
+  description: "Note on the Media Sources page once the videos chosen were added to the queue; Processing is the library's tab of jobs under way."
+  placeholders:
+    count: { type: "int", example: "3" }

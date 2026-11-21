@@ -1185,6 +1185,11 @@ var Parameters = map[string][]string{
 	"FilmNextIn":                               {"seconds"},
 	"SettingsSourcesShares":                    {"names"},
 	"SettingsSourcesRemoveConfirm":             {"count"},
+	"MediaSourceSelect":                        {"name"},
+	"MediaSourceImportSome":                    {"count"},
+	"MediaSourceImportTitle":                   {"count", "source"},
+	"MediaSourceImportCopyNote":                {"size"},
+	"MediaSourceImported":                      {"count"},
 }
 
 // Translation is a language's messages another package supplies:
@@ -1914,6 +1919,11 @@ type Translation struct {
 	FilmNextIn                               func(seconds int) string
 	SettingsSourcesShares                    func(names string) string
 	SettingsSourcesRemoveConfirm             func(count int) string
+	MediaSourceSelect                        func(name string) string
+	MediaSourceImportSome                    func(count int) string
+	MediaSourceImportTitle                   func(count int, source string) string
+	MediaSourceImportCopyNote                func(size string) string
+	MediaSourceImported                      func(count int) string
 }
 
 var supplied = map[string]Translation{}
@@ -3745,6 +3755,19 @@ const (
 	textSettingsSourcesSaving
 	textSettingsSourcesFailSigning
 	textSettingsSourcesNeedsShare
+	textMediaSourceSidebar
+	textMediaSourceBrowse
+	textMediaSourceNone
+	textMediaSourceAddSource
+	textMediaSourceListing
+	textMediaSourceEmpty
+	textMediaSourceRetry
+	textMediaSourceEditSource
+	textMediaSourceOffline
+	textMediaSourceHasSubtitles
+	textMediaSourceInLibrary
+	textMediaSourceImportStart
+	textMediaSourceCancel
 	numTexts
 )
 
@@ -5576,6 +5599,19 @@ var keyOfText = [numTexts]string{
 	"settingsSourcesSaving",
 	"settingsSourcesFailSigning",
 	"settingsSourcesNeedsShare",
+	"mediaSourceSidebar",
+	"mediaSourceBrowse",
+	"mediaSourceNone",
+	"mediaSourceAddSource",
+	"mediaSourceListing",
+	"mediaSourceEmpty",
+	"mediaSourceRetry",
+	"mediaSourceEditSource",
+	"mediaSourceOffline",
+	"mediaSourceHasSubtitles",
+	"mediaSourceInLibrary",
+	"mediaSourceImportStart",
+	"mediaSourceCancel",
 }
 
 // textsEn are the messages without arguments in en.
@@ -7404,7 +7440,20 @@ var textsEn = i18n.NewTexts(""+
 	"The password couldn't be kept in the system's keychain."+
 	"Saving…"+
 	"The server didn't sign its messages, which Kando requires. If this NAS doesn't support signing, or the share is open to guests, turn on This NAS doesn't support signing."+
-	"A folder is inside a share: fill in the share, or leave the folder empty.",
+	"A folder is inside a share: fill in the share, or leave the folder empty."+
+	"Media Sources"+
+	"Browse Media Sources"+
+	"Add a NAS share or a server in Settings to browse its videos here."+
+	"Add a Source…"+
+	"Loading…"+
+	"No videos or folders here"+
+	"Retry"+
+	"Edit Source…"+
+	"Offline mode is on, and this source isn't on the local network."+
+	"Subtitles"+
+	"In Library"+
+	"Import"+
+	"Cancel",
 	[]uint16{
 		5,
 		19,
@@ -9231,6 +9280,19 @@ var textsEn = i18n.NewTexts(""+
 		9,
 		169,
 		73,
+		13,
+		20,
+		66,
+		15,
+		10,
+		25,
+		5,
+		14,
+		63,
+		9,
+		10,
+		6,
+		6,
 	})
 
 // textsJa are the messages without arguments in ja.
@@ -11059,7 +11121,20 @@ var textsJa = i18n.NewTexts(""+
 	"パスワードをシステムのキーチェーンに保存できませんでした。"+
 	"保存中…"+
 	"サーバーがメッセージに署名しませんでしたが、Kando は署名を必要とします。この NAS が署名に対応していない場合や、共有がゲストに公開されている場合は「この NAS は署名に対応していない」をオンにしてください。"+
-	"フォルダは共有の中にあります。共有を入力するか、フォルダを空欄にしてください。",
+	"フォルダは共有の中にあります。共有を入力するか、フォルダを空欄にしてください。"+
+	"メディアソース"+
+	"メディアソースを表示"+
+	"設定で NAS の共有やサーバーを追加すると、ここで動画を表示できます。"+
+	"ソースを追加…"+
+	"読み込み中…"+
+	"ここには動画もフォルダもありません"+
+	"再試行"+
+	"ソースを編集…"+
+	"オフラインモードがオンで、このソースはローカルネットワーク上にありません。"+
+	"字幕あり"+
+	"ライブラリにあり"+
+	"読み込む"+
+	"キャンセル",
 	[]uint16{
 		5,
 		30,
@@ -12886,6 +12961,19 @@ var textsJa = i18n.NewTexts(""+
 		12,
 		295,
 		117,
+		21,
+		30,
+		98,
+		21,
+		18,
+		51,
+		9,
+		21,
+		111,
+		12,
+		24,
+		12,
+		15,
 	})
 
 // textsKo are the messages without arguments in ko.
@@ -14714,7 +14802,20 @@ var textsKo = i18n.NewTexts(""+
 	"암호를 시스템 키체인에 보관할 수 없습니다."+
 	"저장하는 중…"+
 	"서버가 메시지에 서명하지 않았지만 Kando는 서명을 요구합니다. 이 NAS가 서명을 지원하지 않거나 공유가 게스트에게 열려 있다면 '이 NAS는 서명을 지원하지 않음'을 켜세요."+
-	"폴더는 공유 안에 있습니다. 공유를 입력하거나 폴더를 비워 두세요.",
+	"폴더는 공유 안에 있습니다. 공유를 입력하거나 폴더를 비워 두세요."+
+	"미디어 소스"+
+	"미디어 소스 둘러보기"+
+	"설정에서 NAS 공유나 서버를 추가하면 여기서 동영상을 둘러볼 수 있습니다."+
+	"소스 추가…"+
+	"불러오는 중…"+
+	"여기에는 동영상이나 폴더가 없습니다"+
+	"다시 시도"+
+	"소스 편집…"+
+	"오프라인 모드가 켜져 있고 이 소스는 로컬 네트워크에 있지 않습니다."+
+	"자막"+
+	"라이브러리에 있음"+
+	"가져오기"+
+	"취소",
 	[]uint16{
 		5,
 		28,
@@ -16541,6 +16642,19 @@ var textsKo = i18n.NewTexts(""+
 		19,
 		228,
 		91,
+		16,
+		29,
+		100,
+		16,
+		19,
+		51,
+		13,
+		16,
+		94,
+		6,
+		25,
+		12,
+		6,
 	})
 
 // textsZhHans are the messages without arguments in zh-Hans.
@@ -18369,7 +18483,20 @@ var textsZhHans = i18n.NewTexts(""+
 	"无法把密码保存到系统的钥匙串。"+
 	"正在保存…"+
 	"服务器没有给消息签名，而看懂要求签名。如果这台 NAS 不支持签名，或者共享对访客开放，请打开「这台 NAS 不支持签名」。"+
-	"文件夹在共享里面：请填写共享，或者把文件夹留空。",
+	"文件夹在共享里面：请填写共享，或者把文件夹留空。"+
+	"媒体来源"+
+	"浏览媒体来源"+
+	"在设置里添加 NAS 共享或服务器后，就能在这里浏览它的视频。"+
+	"添加来源…"+
+	"正在读取…"+
+	"这里没有视频或文件夹"+
+	"重试"+
+	"编辑来源…"+
+	"离线模式已打开，而这个来源不在局域网里。"+
+	"有字幕"+
+	"已在资料库"+
+	"导入"+
+	"取消",
 	[]uint16{
 		6,
 		15,
@@ -20196,6 +20323,19 @@ var textsZhHans = i18n.NewTexts(""+
 		15,
 		166,
 		72,
+		12,
+		18,
+		83,
+		15,
+		15,
+		30,
+		6,
+		15,
+		60,
+		9,
+		15,
+		6,
+		6,
 	})
 
 // textsZhHant are the messages without arguments in zh-Hant.
@@ -22024,7 +22164,20 @@ var textsZhHant = i18n.NewTexts(""+
 	"無法把密碼儲存到系統的鑰匙圈。"+
 	"正在儲存…"+
 	"伺服器沒有為訊息簽署，而看懂要求簽署。如果這台 NAS 不支援簽署，或者共用資料夾對訪客開放，請開啟「這台 NAS 不支援簽署」。"+
-	"資料夾在共用資料夾裡面：請填寫共用資料夾，或者把資料夾留空。",
+	"資料夾在共用資料夾裡面：請填寫共用資料夾，或者把資料夾留空。"+
+	"媒體來源"+
+	"瀏覽媒體來源"+
+	"在設定裡新增 NAS 共用資料夾或伺服器後，就能在這裡瀏覽它的影片。"+
+	"新增來源…"+
+	"正在讀取…"+
+	"這裡沒有影片或資料夾"+
+	"重試"+
+	"編輯來源…"+
+	"離線模式已開啟，而這個來源不在區域網路裡。"+
+	"有字幕"+
+	"已在資料庫"+
+	"匯入"+
+	"取消",
 	[]uint16{
 		6,
 		15,
@@ -23851,6 +24004,19 @@ var textsZhHant = i18n.NewTexts(""+
 		15,
 		175,
 		90,
+		12,
+		18,
+		92,
+		15,
+		15,
+		30,
+		6,
+		15,
+		63,
+		9,
+		15,
+		6,
+		6,
 	})
 
 // texts returns the messages without arguments in lang, nil for a
@@ -26075,6 +26241,21 @@ func Supply(lang string, t Translation) {
 	}
 	if t.SettingsSourcesRemoveConfirm != nil {
 		s.SettingsSourcesRemoveConfirm = t.SettingsSourcesRemoveConfirm
+	}
+	if t.MediaSourceSelect != nil {
+		s.MediaSourceSelect = t.MediaSourceSelect
+	}
+	if t.MediaSourceImportSome != nil {
+		s.MediaSourceImportSome = t.MediaSourceImportSome
+	}
+	if t.MediaSourceImportTitle != nil {
+		s.MediaSourceImportTitle = t.MediaSourceImportTitle
+	}
+	if t.MediaSourceImportCopyNote != nil {
+		s.MediaSourceImportCopyNote = t.MediaSourceImportCopyNote
+	}
+	if t.MediaSourceImported != nil {
+		s.MediaSourceImported = t.MediaSourceImported
 	}
 	supplied[lang] = s
 	Catalog.Add(lang)
@@ -69799,6 +69980,406 @@ func SettingsSourcesNeedsShare(cx *core.Scope) string { return For(cx).SettingsS
 // SettingsSourcesNeedsShare is the package's SettingsSourcesNeedsShare in the language of msgs.
 func (msgs Messages) SettingsSourcesNeedsShare() string {
 	return msgs.text(textSettingsSourcesNeedsShare)
+}
+
+// MediaSourceSidebar says "Media Sources"
+// in the language the app shows under cx.
+//
+// Row of the sidebar, and title of its page, where the user browses the NAS shares and servers added in Settings › Media Sources and imports videos from them. Also how the library names where such a film came from.
+func MediaSourceSidebar(cx *core.Scope) string { return For(cx).MediaSourceSidebar() }
+
+// MediaSourceSidebar is the package's MediaSourceSidebar in the language of msgs.
+func (msgs Messages) MediaSourceSidebar() string { return msgs.text(textMediaSourceSidebar) }
+
+// MediaSourceBrowse says "Browse Media Sources"
+// in the language the app shows under cx.
+//
+// Command of the File menu and the command palette that opens the Media Sources page.
+func MediaSourceBrowse(cx *core.Scope) string { return For(cx).MediaSourceBrowse() }
+
+// MediaSourceBrowse is the package's MediaSourceBrowse in the language of msgs.
+func (msgs Messages) MediaSourceBrowse() string { return msgs.text(textMediaSourceBrowse) }
+
+// MediaSourceNone says "Add a NAS share or a server in Settings to browse its videos here."
+// in the language the app shows under cx.
+//
+// Shown on the Media Sources page while no source was added.
+func MediaSourceNone(cx *core.Scope) string { return For(cx).MediaSourceNone() }
+
+// MediaSourceNone is the package's MediaSourceNone in the language of msgs.
+func (msgs Messages) MediaSourceNone() string { return msgs.text(textMediaSourceNone) }
+
+// MediaSourceAddSource says "Add a Source…"
+// in the language the app shows under cx.
+//
+// Button on the Media Sources page while no source was added, opening Settings › Media Sources.
+func MediaSourceAddSource(cx *core.Scope) string { return For(cx).MediaSourceAddSource() }
+
+// MediaSourceAddSource is the package's MediaSourceAddSource in the language of msgs.
+func (msgs Messages) MediaSourceAddSource() string { return msgs.text(textMediaSourceAddSource) }
+
+// MediaSourceListing says "Loading…"
+// in the language the app shows under cx.
+//
+// Shown on the Media Sources page while the folder of a source is being listed.
+func MediaSourceListing(cx *core.Scope) string { return For(cx).MediaSourceListing() }
+
+// MediaSourceListing is the package's MediaSourceListing in the language of msgs.
+func (msgs Messages) MediaSourceListing() string { return msgs.text(textMediaSourceListing) }
+
+// MediaSourceEmpty says "No videos or folders here"
+// in the language the app shows under cx.
+//
+// Shown on the Media Sources page for a folder that holds no video, sound file or folder.
+func MediaSourceEmpty(cx *core.Scope) string { return For(cx).MediaSourceEmpty() }
+
+// MediaSourceEmpty is the package's MediaSourceEmpty in the language of msgs.
+func (msgs Messages) MediaSourceEmpty() string { return msgs.text(textMediaSourceEmpty) }
+
+// MediaSourceRetry says "Retry"
+// in the language the app shows under cx.
+//
+// Button on the Media Sources page listing the folder again after it could not be listed.
+func MediaSourceRetry(cx *core.Scope) string { return For(cx).MediaSourceRetry() }
+
+// MediaSourceRetry is the package's MediaSourceRetry in the language of msgs.
+func (msgs Messages) MediaSourceRetry() string { return msgs.text(textMediaSourceRetry) }
+
+// MediaSourceEditSource says "Edit Source…"
+// in the language the app shows under cx.
+//
+// Button on the Media Sources page, after a folder could not be listed, opening the source's settings.
+func MediaSourceEditSource(cx *core.Scope) string { return For(cx).MediaSourceEditSource() }
+
+// MediaSourceEditSource is the package's MediaSourceEditSource in the language of msgs.
+func (msgs Messages) MediaSourceEditSource() string { return msgs.text(textMediaSourceEditSource) }
+
+// MediaSourceOffline says "Offline mode is on, and this source isn't on the local network."
+// in the language the app shows under cx.
+//
+// Shown on the Media Sources page, and on a film's card, when offline mode keeps Kando from reaching a source on the internet.
+func MediaSourceOffline(cx *core.Scope) string { return For(cx).MediaSourceOffline() }
+
+// MediaSourceOffline is the package's MediaSourceOffline in the language of msgs.
+func (msgs Messages) MediaSourceOffline() string { return msgs.text(textMediaSourceOffline) }
+
+// MediaSourceHasSubtitles says "Subtitles"
+// in the language the app shows under cx.
+//
+// Tag on a video's row of the Media Sources page: a subtitle file beside it on the source, which is copied with it.
+func MediaSourceHasSubtitles(cx *core.Scope) string { return For(cx).MediaSourceHasSubtitles() }
+
+// MediaSourceHasSubtitles is the package's MediaSourceHasSubtitles in the language of msgs.
+func (msgs Messages) MediaSourceHasSubtitles() string { return msgs.text(textMediaSourceHasSubtitles) }
+
+// MediaSourceInLibrary says "In Library"
+// in the language the app shows under cx.
+//
+// Tag on a video's row of the Media Sources page that was already imported.
+func MediaSourceInLibrary(cx *core.Scope) string { return For(cx).MediaSourceInLibrary() }
+
+// MediaSourceInLibrary is the package's MediaSourceInLibrary in the language of msgs.
+func (msgs Messages) MediaSourceInLibrary() string { return msgs.text(textMediaSourceInLibrary) }
+
+// MediaSourceSelect says "Select {name}"
+// in the language the app shows under cx.
+//
+// Accessibility name of the check box choosing a video on the Media Sources page to import.
+func MediaSourceSelect(cx *core.Scope, name string) string { return For(cx).MediaSourceSelect(name) }
+
+// MediaSourceSelect is the package's MediaSourceSelect in the language of msgs.
+func (msgs Messages) MediaSourceSelect(name string) string {
+	if i18n.IsPseudo(msgs.lang) {
+		return i18n.Pseudo(msgs.lang, Messages{lang: Source, mark: true}.MediaSourceSelect(name))
+	}
+	for lang := msgs.lang; ; lang = i18n.Parent(lang) {
+		if f := supplied[lang].MediaSourceSelect; f != nil {
+			return f(name)
+		}
+		switch lang {
+		case "", "en":
+			return "Select " + msgs.arg(name)
+		case "ja":
+			return name + " を選択"
+		case "ko":
+			return name + " 선택"
+		case "zh-Hans":
+			return "选择 " + name
+		case "zh-Hant":
+			return "選擇 " + name
+		}
+	}
+}
+
+// MediaSourceImportSome says "{count, plural, one {Import # Video} other {Import # Videos}}"
+// in the language the app shows under cx.
+//
+// Button on the Media Sources page importing the videos chosen.
+func MediaSourceImportSome(cx *core.Scope, count int) string {
+	return For(cx).MediaSourceImportSome(count)
+}
+
+// MediaSourceImportSome is the package's MediaSourceImportSome in the language of msgs.
+func (msgs Messages) MediaSourceImportSome(count int) string {
+	if i18n.IsPseudo(msgs.lang) {
+		return i18n.Pseudo(msgs.lang, Messages{lang: Source, mark: true}.MediaSourceImportSome(count))
+	}
+	for lang := msgs.lang; ; lang = i18n.Parent(lang) {
+		if f := supplied[lang].MediaSourceImportSome; f != nil {
+			return f(count)
+		}
+		switch lang {
+		case "", "en":
+			var b strings.Builder
+			switch i18n.Cardinal("en", float64(count)) {
+			case i18n.One:
+				b.WriteString("Import ")
+				b.WriteString(msgs.arg(i18n.FormatNumber("en", float64(count))))
+				b.WriteString(" Video")
+			default:
+				b.WriteString("Import ")
+				b.WriteString(msgs.arg(i18n.FormatNumber("en", float64(count))))
+				b.WriteString(" Videos")
+			}
+			return b.String()
+		case "ja":
+			var b strings.Builder
+			switch i18n.Cardinal("ja", float64(count)) {
+			default:
+				b.WriteString(i18n.FormatNumber("ja", float64(count)))
+				b.WriteString(" 本の動画を読み込む")
+			}
+			return b.String()
+		case "ko":
+			var b strings.Builder
+			switch i18n.Cardinal("ko", float64(count)) {
+			default:
+				b.WriteString("동영상 ")
+				b.WriteString(i18n.FormatNumber("ko", float64(count)))
+				b.WriteString("개 가져오기")
+			}
+			return b.String()
+		case "zh-Hans":
+			var b strings.Builder
+			switch i18n.Cardinal("zh-Hans", float64(count)) {
+			default:
+				b.WriteString("导入 ")
+				b.WriteString(i18n.FormatNumber("zh-Hans", float64(count)))
+				b.WriteString(" 个视频")
+			}
+			return b.String()
+		case "zh-Hant":
+			var b strings.Builder
+			switch i18n.Cardinal("zh-Hant", float64(count)) {
+			default:
+				b.WriteString("匯入 ")
+				b.WriteString(i18n.FormatNumber("zh-Hant", float64(count)))
+				b.WriteString(" 部影片")
+			}
+			return b.String()
+		}
+	}
+}
+
+// MediaSourceImportTitle says "{count, plural, one {Import # video from {source}?} other {Import # videos from {source}?}}"
+// in the language the app shows under cx.
+//
+// Title of the dialog confirming the import of the videos chosen on a media source.
+func MediaSourceImportTitle(cx *core.Scope, count int, source string) string {
+	return For(cx).MediaSourceImportTitle(count, source)
+}
+
+// MediaSourceImportTitle is the package's MediaSourceImportTitle in the language of msgs.
+func (msgs Messages) MediaSourceImportTitle(count int, source string) string {
+	if i18n.IsPseudo(msgs.lang) {
+		return i18n.Pseudo(msgs.lang, Messages{lang: Source, mark: true}.MediaSourceImportTitle(count, source))
+	}
+	for lang := msgs.lang; ; lang = i18n.Parent(lang) {
+		if f := supplied[lang].MediaSourceImportTitle; f != nil {
+			return f(count, source)
+		}
+		switch lang {
+		case "", "en":
+			var b strings.Builder
+			switch i18n.Cardinal("en", float64(count)) {
+			case i18n.One:
+				b.WriteString("Import ")
+				b.WriteString(msgs.arg(i18n.FormatNumber("en", float64(count))))
+				b.WriteString(" video from ")
+				b.WriteString(msgs.arg(source))
+				b.WriteString("?")
+			default:
+				b.WriteString("Import ")
+				b.WriteString(msgs.arg(i18n.FormatNumber("en", float64(count))))
+				b.WriteString(" videos from ")
+				b.WriteString(msgs.arg(source))
+				b.WriteString("?")
+			}
+			return b.String()
+		case "ja":
+			var b strings.Builder
+			switch i18n.Cardinal("ja", float64(count)) {
+			default:
+				b.WriteString("「")
+				b.WriteString(source)
+				b.WriteString("」から ")
+				b.WriteString(i18n.FormatNumber("ja", float64(count)))
+				b.WriteString(" 本の動画を読み込みますか？")
+			}
+			return b.String()
+		case "ko":
+			var b strings.Builder
+			switch i18n.Cardinal("ko", float64(count)) {
+			default:
+				b.WriteString("‘")
+				b.WriteString(source)
+				b.WriteString("’에서 동영상 ")
+				b.WriteString(i18n.FormatNumber("ko", float64(count)))
+				b.WriteString("개를 가져올까요?")
+			}
+			return b.String()
+		case "zh-Hans":
+			var b strings.Builder
+			switch i18n.Cardinal("zh-Hans", float64(count)) {
+			default:
+				b.WriteString("从「")
+				b.WriteString(source)
+				b.WriteString("」导入 ")
+				b.WriteString(i18n.FormatNumber("zh-Hans", float64(count)))
+				b.WriteString(" 个视频？")
+			}
+			return b.String()
+		case "zh-Hant":
+			var b strings.Builder
+			switch i18n.Cardinal("zh-Hant", float64(count)) {
+			default:
+				b.WriteString("從「")
+				b.WriteString(source)
+				b.WriteString("」匯入 ")
+				b.WriteString(i18n.FormatNumber("zh-Hant", float64(count)))
+				b.WriteString(" 部影片？")
+			}
+			return b.String()
+		}
+	}
+}
+
+// MediaSourceImportCopyNote says "They are copied into the library, so you can watch them offline; they take {size} on this computer. Nothing on the source changes."
+// in the language the app shows under cx.
+//
+// Message of the dialog importing videos from a media source, with how much room the copies take.
+func MediaSourceImportCopyNote(cx *core.Scope, size string) string {
+	return For(cx).MediaSourceImportCopyNote(size)
+}
+
+// MediaSourceImportCopyNote is the package's MediaSourceImportCopyNote in the language of msgs.
+func (msgs Messages) MediaSourceImportCopyNote(size string) string {
+	if i18n.IsPseudo(msgs.lang) {
+		return i18n.Pseudo(msgs.lang, Messages{lang: Source, mark: true}.MediaSourceImportCopyNote(size))
+	}
+	for lang := msgs.lang; ; lang = i18n.Parent(lang) {
+		if f := supplied[lang].MediaSourceImportCopyNote; f != nil {
+			return f(size)
+		}
+		switch lang {
+		case "", "en":
+			return "They are copied into the library, so you can watch them offline; they take " + msgs.arg(size) + " on this computer. Nothing on the source changes."
+		case "ja":
+			return "動画はライブラリにコピーされ、オフラインでも視聴できます。このコンピュータで " + size + " を使用します。ソース上のファイルは変更されません。"
+		case "ko":
+			return "동영상은 라이브러리로 복사되어 오프라인에서도 볼 수 있으며, 이 컴퓨터에서 " + size + "를 차지합니다. 소스의 파일은 바뀌지 않습니다."
+		case "zh-Hans":
+			return "视频会复制进资料库，离线也能看，在这台电脑上占用 " + size + "。来源上的文件不会改动。"
+		case "zh-Hant":
+			return "影片會複製進資料庫，離線也能看，在這台電腦上佔用 " + size + "。來源上的檔案不會變動。"
+		}
+	}
+}
+
+// MediaSourceImportStart says "Import"
+// in the language the app shows under cx.
+//
+// Button of the dialog importing videos from a media source, which starts copying them.
+func MediaSourceImportStart(cx *core.Scope) string { return For(cx).MediaSourceImportStart() }
+
+// MediaSourceImportStart is the package's MediaSourceImportStart in the language of msgs.
+func (msgs Messages) MediaSourceImportStart() string { return msgs.text(textMediaSourceImportStart) }
+
+// MediaSourceCancel says "Cancel"
+// in the language the app shows under cx.
+//
+// Button closing the dialog importing videos from a media source without importing.
+func MediaSourceCancel(cx *core.Scope) string { return For(cx).MediaSourceCancel() }
+
+// MediaSourceCancel is the package's MediaSourceCancel in the language of msgs.
+func (msgs Messages) MediaSourceCancel() string { return msgs.text(textMediaSourceCancel) }
+
+// MediaSourceImported says "{count, plural, one {Importing # video. It shows in Processing.} other {Importing # videos. They show in Processing.}}"
+// in the language the app shows under cx.
+//
+// Note on the Media Sources page once the videos chosen were added to the queue; Processing is the library's tab of jobs under way.
+func MediaSourceImported(cx *core.Scope, count int) string { return For(cx).MediaSourceImported(count) }
+
+// MediaSourceImported is the package's MediaSourceImported in the language of msgs.
+func (msgs Messages) MediaSourceImported(count int) string {
+	if i18n.IsPseudo(msgs.lang) {
+		return i18n.Pseudo(msgs.lang, Messages{lang: Source, mark: true}.MediaSourceImported(count))
+	}
+	for lang := msgs.lang; ; lang = i18n.Parent(lang) {
+		if f := supplied[lang].MediaSourceImported; f != nil {
+			return f(count)
+		}
+		switch lang {
+		case "", "en":
+			var b strings.Builder
+			switch i18n.Cardinal("en", float64(count)) {
+			case i18n.One:
+				b.WriteString("Importing ")
+				b.WriteString(msgs.arg(i18n.FormatNumber("en", float64(count))))
+				b.WriteString(" video. It shows in Processing.")
+			default:
+				b.WriteString("Importing ")
+				b.WriteString(msgs.arg(i18n.FormatNumber("en", float64(count))))
+				b.WriteString(" videos. They show in Processing.")
+			}
+			return b.String()
+		case "ja":
+			var b strings.Builder
+			switch i18n.Cardinal("ja", float64(count)) {
+			default:
+				b.WriteString(i18n.FormatNumber("ja", float64(count)))
+				b.WriteString(" 本の動画を読み込んでいます。「処理中」で確認できます。")
+			}
+			return b.String()
+		case "ko":
+			var b strings.Builder
+			switch i18n.Cardinal("ko", float64(count)) {
+			default:
+				b.WriteString("동영상 ")
+				b.WriteString(i18n.FormatNumber("ko", float64(count)))
+				b.WriteString("개를 가져오는 중입니다. ‘처리 중’에서 볼 수 있습니다.")
+			}
+			return b.String()
+		case "zh-Hans":
+			var b strings.Builder
+			switch i18n.Cardinal("zh-Hans", float64(count)) {
+			default:
+				b.WriteString("正在导入 ")
+				b.WriteString(i18n.FormatNumber("zh-Hans", float64(count)))
+				b.WriteString(" 个视频，可在「处理中」查看。")
+			}
+			return b.String()
+		case "zh-Hant":
+			var b strings.Builder
+			switch i18n.Cardinal("zh-Hant", float64(count)) {
+			default:
+				b.WriteString("正在匯入 ")
+				b.WriteString(i18n.FormatNumber("zh-Hant", float64(count)))
+				b.WriteString(" 部影片，可在「處理中」查看。")
+			}
+			return b.String()
+		}
+	}
 }
 
 // dated is lang with the hour cycle the user set, which times take.

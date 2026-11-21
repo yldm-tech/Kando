@@ -43,6 +43,8 @@ type fakeApp struct {
 	paletteButton bool
 	// passwords are the libraries with a password, and locked those of them that are locked.
 	passwords, locked map[string]bool
+	// mediaSources is MediaSourcesShown: whether a media source was added.
+	mediaSources bool
 }
 
 func newFakeApp() *fakeApp {
@@ -82,6 +84,7 @@ func (f *fakeApp) PaletteKey() string          { return "mod+k" }
 func (f *fakeApp) TogglePalette()              { f.calls = append(f.calls, "palette") }
 func (f *fakeApp) Jobs() Jobs                  { return f.jobs }
 func (f *fakeApp) ShowJobs()                   { f.calls = append(f.calls, "jobs") }
+func (f *fakeApp) MediaSourcesShown() bool     { return f.mediaSources }
 func (f *fakeApp) SpokenCounts() []SpokenCount { return f.bySpoken }
 func (f *fakeApp) SpokenFilter() string        { return f.spoken }
 func (f *fakeApp) OpenSettings(section string) {
@@ -645,5 +648,26 @@ func TestSwitcherAndStatusAreCards(t *testing.T) {
 		if got, want := status.Style.Background, k.Card().Faded(0.55); got != want || status.Style.CornerRadius != 11 {
 			t.Errorf("dark %v: status card face %#x corners %v, want %#x and 11", dark, uint32(got), status.Style.CornerRadius, uint32(want))
 		}
+	}
+}
+
+// 媒体来源 shows at the end of the list only while a media source was added, without a count, and shows its page.
+func TestMediaSourcesRowShowsTheirPage(t *testing.T) {
+	a := newFakeApp()
+	app := start(t, a)
+	if app.Exists("id:source-" + PageMediaSources) {
+		t.Fatal("媒体来源 shows without a source")
+	}
+	change(app, a, func() { a.mediaSources = true })
+	if !app.Exists("id:source-"+PageMediaSources) || app.Exists("id:count-"+PageMediaSources) {
+		t.Fatalf("the row is missing or counted: %q", app.Texts())
+	}
+	app.Press("id:source-" + PageMediaSources)
+	if want := []string{"select " + PageMediaSources}; !slices.Equal(a.calls, want) {
+		t.Fatalf("calls %q, want %q", a.calls, want)
+	}
+	change(app, a, func() { a.page = PageMediaSources })
+	if !app.Find("id:source-" + PageMediaSources).Props.Selected {
+		t.Fatal("the row is not chosen while its page shows")
 	}
 }

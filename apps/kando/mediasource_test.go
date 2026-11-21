@@ -31,11 +31,12 @@ type fakeSource struct {
 	closed      int
 }
 
-// fakeSourceFile is a file of a fakeSource: its bytes, or the file on disk they are read from, and its time.
+// fakeSourceFile is a file of a fakeSource: its bytes, or the file on disk they are read from, and its time. size, when set, is the size it lists with in place of its bytes', as a scene's films have.
 type fakeSourceFile struct {
 	data     string
 	disk     string
 	modified time.Time
+	size     int64
 }
 
 func newFakeSource(files map[string]fakeSourceFile) *fakeSource {
@@ -66,6 +67,9 @@ func (f *fakeSource) lastSecrets() map[string]string {
 type fakeSourceDriver struct{ f *fakeSource }
 
 func (d fakeSourceDriver) size(file fakeSourceFile) int64 {
+	if file.size > 0 {
+		return file.size
+	}
 	if file.disk != "" {
 		if fi, err := os.Stat(file.disk); err == nil {
 			return fi.Size()
@@ -374,5 +378,138 @@ func TestMediaSourceDialogClosesWithTheSettings(t *testing.T) {
 	refresh(tt, a)
 	if a.sources.editing || a.modalOpen() {
 		t.Fatalf("editing %v modal %v", a.sources.editing, a.modalOpen())
+	}
+}
+
+// browseSource adds a source of a share to a, read from files, and returns it with the fake behind it.
+func browseSource(a *app, files map[string]fakeSourceFile) (mediasource.Source, *fakeSource) {
+	src := newFakeSource(files)
+	s := mediasource.Source{ID: "0123456789abcdef", Kind: mediasource.KindSMB, Name: "Living Room NAS", Config: map[string]string{mediasource.SMBHost: "nas.local", mediasource.SMBShare: "media", mediasource.SMBUser: "kando"}}
+	a.sources.list = []mediasource.Source{s}
+	a.sources.open = src.open
+	return s, src
+}
+
+// The sidebar's 媒体来源 row shows the page, which lists the folders and the media files of the source, its subtitle files as a tag on their video; a video chosen is imported through the dialog, which queues its address, and is then marked as in the library.
+func TestMediaSourceBrowseAndImport(t *testing.T) {
+	a, tt, updates := newTestApp(t, &fakePipeline{})
+	msgs := testlocale.Messages()
+	if tt.Exists("id:source-" + pageMediaSources) {
+		t.Fatal("the row shows without a source")
+	}
+	s, _ := browseSource(a, map[string]fakeSourceFile{
+		"Movies/Heat (1995).mkv": {data: "heat"},
+		"Movies/Heat (1995).srt": {data: "1\n"},
+		"Movies/Ronin.mp4":       {data: "ronin"},
+		"Movies/notes.txt":       {data: "x"},
+		"Docs/a.mkv":             {data: "a"},
+		".hidden/b.mkv":          {data: "b"},
+	})
+	refresh(tt, a)
+	tt.Press("id:source-" + pageMediaSources)
+	waitUntil(t, tt, a, updates, func() bool { return !a.sources.browse.loading })
+	if a.page != pageMediaSources || !tt.Exists("id:media-sources-entry-Docs") || !tt.Exists("id:media-sources-entry-Movies") || tt.Exists("id:media-sources-entry-.hidden") {
+		t.Fatalf("page %q; texts %q", a.page, tt.Texts())
+	}
+	tt.Press("id:media-sources-entry-Movies")
+	waitUntil(t, tt, a, updates, func() bool { return !a.sources.browse.loading })
+	heat := "Movies/Heat (1995).mkv"
+	if !tt.Exists("id:media-sources-entry-"+heat) || !tt.Exists("id:media-sources-subtitles-"+heat) || !tt.Exists("id:media-sources-entry-Movies/Ronin.mp4") {
+		t.Fatalf("texts %q", tt.Texts())
+	}
+	if tt.Exists("id:media-sources-entry-Movies/notes.txt") || tt.Exists("id:media-sources-entry-Movies/Heat (1995).srt") || tt.Exists("id:media-sources-subtitles-Movies/Ronin.mp4") {
+		t.Fatalf("a file that is no video is listed: %q", tt.Texts())
+	}
+	if tt.Exists("id:media-sources-import") {
+		t.Fatal("Import shows with nothing chosen")
+	}
+	tt.Press("id:media-sources-choose-" + heat)
+	if a.MediaBrowseChosen() != 1 {
+		t.Fatalf("chosen %d", a.MediaBrowseChosen())
+	}
+	tt.Press("id:media-sources-import")
+	if !tt.Exists("id:media-sources-import-dialog") || !a.modalOpen() {
+		t.Fatal("no import dialog")
+	}
+	wantText(t, tt, msgs.MediaSourceImportTitle(1, "Living Room NAS"))
+	tt.Press("id:media-sources-import-start")
+	if a.modalOpen() || tt.Exists("id:media-sources-import-dialog") {
+		t.Fatal("the dialog stayed")
+	}
+	ref := mediasource.Ref{Source: s.ID, Path: heat}.String()
+	if _, ok := a.queueFindSource(ref); !ok {
+		t.Fatalf("no job for %s among %+v", ref, a.library.Jobs)
+	}
+	refresh(tt, a)
+	wantText(t, tt, msgs.MediaSourceImported(1))
+	if !tt.Exists("id:media-sources-in-library-"+heat) || tt.Exists("id:media-sources-choose-"+heat) || a.MediaBrowseChosen() != 0 {
+		t.Fatalf("the video imported is not marked: %q", tt.Texts())
+	}
+	a.OpenMediaBrowseCrumb(0)
+	waitUntil(t, tt, a, updates, func() bool { return !a.sources.browse.loading })
+	if a.sources.browse.dir != "" || !tt.Exists("id:media-sources-entry-Docs") {
+		t.Fatalf("up to the root: dir %q", a.sources.browse.dir)
+	}
+}
+
+// A folder that cannot be listed says why, in the interface's language, with Retry and Edit Source…; offline mode lists no source on the internet, and says so.
+func TestMediaSourceBrowseFails(t *testing.T) {
+	a, tt, updates := newTestApp(t, &fakePipeline{})
+	msgs := testlocale.Messages()
+	s, src := browseSource(a, map[string]fakeSourceFile{"a.mkv": {data: "a"}})
+	src.unreachable = fmt.Errorf("mount: %w", &smb2.ResponseError{Code: 0xC000006D})
+	a.mediaSourceOpenPage()
+	refresh(tt, a)
+	waitUntil(t, tt, a, updates, func() bool { return !a.sources.browse.loading })
+	wantText(t, tt, msgs.AccountLocationFailSignIn())
+	src.unreachable = nil
+	tt.Press("id:media-sources-retry")
+	waitUntil(t, tt, a, updates, func() bool { return !a.sources.browse.loading })
+	if !tt.Exists("id:media-sources-entry-a.mkv") {
+		t.Fatalf("Retry did not list the folder: %q", tt.Texts())
+	}
+
+	a.privacy.offline = true
+	a.sources.localHost = func(context.Context, string) (bool, error) { return false, nil }
+	a.RetryMediaBrowse()
+	waitUntil(t, tt, a, updates, func() bool { return !a.sources.browse.loading })
+	wantText(t, tt, msgs.MediaSourceOffline())
+	a.sources.localHost = func(context.Context, string) (bool, error) { return true, nil }
+	a.RetryMediaBrowse()
+	waitUntil(t, tt, a, updates, func() bool { return !a.sources.browse.loading })
+	if !tt.Exists("id:media-sources-entry-a.mkv") {
+		t.Fatalf("a NAS on the local network is not listed offline: %q", tt.Texts())
+	}
+	// Offline mode adds a media source's video and leaves it to the copy to judge where it is.
+	if err := a.privacyRefusesLink(mediasource.Ref{Source: s.ID, Path: "a.mkv"}.String()); err != nil {
+		t.Fatalf("offline refused a media source's video: %v", err)
+	}
+
+	a.EditMediaBrowseSource()
+	refresh(tt, a)
+	if !a.prefs.open || a.SettingsSection() != settings.SectionMediaSources || !a.MediaSourceEditing() || a.sources.editID != s.ID {
+		t.Fatalf("Edit Source… opened %v %q editing %v %q", a.prefs.open, a.SettingsSection(), a.MediaSourceEditing(), a.sources.editID)
+	}
+}
+
+// A job copies a media source's video through the pool, connecting with the password the secure store keeps.
+func TestMediaSourceCopierReadsTheStoredPassword(t *testing.T) {
+	a, tt, _ := newTestApp(t, &fakePipeline{})
+	s, src := browseSource(a, map[string]fakeSourceFile{"Movies/Heat.mkv": {data: "heat"}})
+	if err := a.mediaSourceSecretStore().Set(mediaSourceSecretAccount(s.ID, mediasource.SMBPassword), "pa55"); err != nil {
+		t.Fatal(err)
+	}
+	a.mediaSourcePoolSync()
+	refresh(tt, a)
+	dir := t.TempDir()
+	got, err := a.mediaSourceCopier().Copy(context.Background(), mediasource.Ref{Source: s.ID, Path: "Movies/Heat.mkv"}.String(), dir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if b, err := os.ReadFile(got); err != nil || string(b) != "heat" || got != filepath.Join(dir, "Living Room NAS", "Movies", "Heat.mkv") {
+		t.Fatalf("copied %q: %q, %v", got, b, err)
+	}
+	if src.lastSecrets()[mediasource.SMBPassword] != "pa55" {
+		t.Fatalf("connected with %v", src.lastSecrets())
 	}
 }

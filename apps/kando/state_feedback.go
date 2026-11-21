@@ -242,6 +242,8 @@ func feedbackSource(item films.Film) string {
 		return "哔哩哔哩"
 	case core.PlatformLocal:
 		return "本地文件"
+	case core.PlatformSource:
+		return "媒体来源"
 	}
 	if name := sitename.In(locales.In(feedbackIssueLanguage), link.Site); name != "" {
 		return name

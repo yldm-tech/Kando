@@ -5,6 +5,7 @@ import (
 
 	"kando/apps/kando/mediasource"
 	"kando/apps/kando/settings"
+	"kando/apps/kando/sourcebrowser"
 )
 
 // The 媒体来源 page's reads and writes (settings.MediaSourcesApp). The page reads them in its bindings and calls the actions from its handlers, which tell the revision (package live), so none of them calls Changed itself; what they say is in the interface's language. The state and what the actions do are in state_mediasource.go.
@@ -115,3 +116,105 @@ func (a *app) MediaSourceRemoving() settings.MediaSourceRemoval {
 }
 
 func (a *app) AnswerRemoveMediaSource(yes bool) { a.answerRemoveMediaSource(yes) }
+
+// The 媒体来源 page's reads and writes (sourcebrowser.App), and the sidebar's row of it. The state and what the actions do are in state_mediasource_browse.go.
+
+func (a *app) MediaSourcesShown() bool { return len(a.sources.list) > 0 }
+
+func (a *app) MediaBrowseSources() []sourcebrowser.Source {
+	var out []sourcebrowser.Source
+	for _, s := range a.sources.list {
+		out = append(out, sourcebrowser.Source{ID: s.ID, Name: s.Name, Summary: a.mediaSourceSummary(s)})
+	}
+	return out
+}
+
+func (a *app) MediaBrowseSource() string { return a.sources.browse.source }
+
+func (a *app) ChooseMediaBrowseSource(id string) { a.mediaSourceChoose(id) }
+
+func (a *app) MediaBrowseCrumbs() []string {
+	b := a.sources.browse
+	i := a.mediaSourceIndex(b.source)
+	if i < 0 {
+		return nil
+	}
+	out := []string{a.sources.list[i].Name}
+	if b.dir != "" {
+		out = append(out, strings.Split(b.dir, "/")...)
+	}
+	return out
+}
+
+func (a *app) OpenMediaBrowseCrumb(index int) {
+	parts := a.MediaBrowseCrumbs()
+	if index < 0 || index >= len(parts) {
+		return
+	}
+	a.mediaSourceOpenDir(strings.Join(parts[1:index+1], "/"))
+}
+
+func (a *app) MediaBrowseEntries() []sourcebrowser.Entry {
+	b := a.sources.browse
+	share := b.dir == "" && a.mediaSourceServer()
+	out := make([]sourcebrowser.Entry, 0, len(b.entries))
+	for _, e := range b.entries {
+		p := b.entryPath(e.Name)
+		_, chosen := b.chosen[p]
+		x := sourcebrowser.Entry{Path: p, Name: e.Name, Dir: e.Dir, Share: share && e.Dir, Size: e.Size, Modified: e.Modified, Subtitles: b.subtitled[e.Name], Chosen: chosen}
+		if !e.Dir {
+			_, x.InLibrary = a.mediaSourceImported(a.mediaSourceRef(p))
+		}
+		out = append(out, x)
+	}
+	return out
+}
+
+func (a *app) MediaBrowseLoading() bool { return a.sources.browse.loading }
+
+func (a *app) MediaBrowseErr() string {
+	if a.sources.browse.err == nil {
+		return ""
+	}
+	return a.sources.browse.err(a.messages())
+}
+
+func (a *app) RetryMediaBrowse() { a.mediaSourceList() }
+
+func (a *app) EditMediaBrowseSource() { a.mediaSourceEditShown() }
+
+func (a *app) OpenMediaBrowseEntry(path string) { a.mediaSourceOpenEntry(path) }
+
+func (a *app) ToggleMediaBrowseEntry(path string) { a.mediaSourceToggle(path) }
+
+func (a *app) MediaBrowseChosen() int { return len(a.sources.browse.chosen) }
+
+func (a *app) ImportMediaBrowseChosen() { a.mediaSourceAskImport() }
+
+func (a *app) MediaBrowseNote() string {
+	if a.sources.browse.note == nil {
+		return ""
+	}
+	return a.sources.browse.note(a.messages())
+}
+
+func (a *app) OpenMediaSourceSettings() { a.OpenSettings(settings.SectionMediaSources) }
+
+func (a *app) MediaBrowseImport() sourcebrowser.Import {
+	b := a.sources.browse
+	if b.importing == nil {
+		return sourcebrowser.Import{}
+	}
+	in := sourcebrowser.Import{Open: true, Count: len(b.importing)}
+	for _, size := range b.importing {
+		in.Size += size
+	}
+	if i := a.mediaSourceIndex(b.source); i >= 0 {
+		in.Source = a.sources.list[i].Name
+	}
+	return in
+}
+
+func (a *app) StartMediaBrowseImport() { a.mediaSourceStartImport() }
+
+func (a *app) CancelMediaBrowseImport() { a.mediaSourceCloseImport() }

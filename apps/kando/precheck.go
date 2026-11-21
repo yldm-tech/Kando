@@ -32,7 +32,7 @@ func (a *app) precheckIn(m locales.Messages, sources []string) (msg, section str
 		if !ok {
 			return m.PrecheckNotLink(), ""
 		}
-		if a.privacy.offline && link.Platform != core.PlatformLocal {
+		if a.privacy.offline && link.Platform != core.PlatformLocal && link.Platform != core.PlatformSource {
 			return m.PrivacyNoDownload(), sectionid.Privacy
 		}
 		if !link.OneVideo() {

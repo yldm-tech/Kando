@@ -58,6 +58,8 @@ type Tools struct {
 	Offline bool
 	// OfflineSwitch, when set, is offline mode as it is now, shared by every copy of Tools: a job under way holds a copy made as it started, so offline mode turned on later still keeps that job from downloading or reaching a service off this computer in the steps it has not started yet. Tools are offline when Offline or the switch is on (offlineNow).
 	OfflineSwitch *atomic.Bool
+	// Sources, when set, copies the videos of the user's media sources (kando-source:// addresses) into the library for Download; nil fails such a video with ErrNoSourceReader.
+	Sources SourceReader
 }
 
 // EveryAPI is the default translation provider; setting KANDO_LLM_BASE_URL switches to any other OpenAI-compatible provider.
@@ -307,7 +309,7 @@ func (t Tools) CheckTranslate() error {
 	return errors.Join(errs...)
 }
 
-// Download fetches source with yt-dlp into its own folder under OutputDir and returns the video's path. While it runs it reports to the context's Trace the video's title and thumbnail, once yt-dlp has looked the video up, and how far the download has gone. When yt-dlp fails before it could say what the video is called, a YouTube video's title and thumbnail are asked of OEmbed, so the card that says why it failed can name it.
+// Download fetches source with yt-dlp into its own folder under OutputDir and returns the video's path; a local video's is where it is, and a media source's video is copied into the library by Sources (copySource). While it runs it reports to the context's Trace the video's title and thumbnail, once yt-dlp has looked the video up, and how far the download has gone. When yt-dlp fails before it could say what the video is called, a YouTube video's title and thumbnail are asked of OEmbed, so the card that says why it failed can name it.
 //
 // yt-dlp downloads into a folder kept for source (downloadTempFor), in DownloadTemp or a hidden folder of the library, and moves only the merged video into the library, where the library watcher would otherwise take a finished video track for a video of its own while the sound track is still downloading (GatherVideos). The folder is removed once the video is in the library and kept when the download fails, so a retry resumes it.
 func (t Tools) Download(ctx context.Context, source string) (string, error) {
@@ -316,6 +318,10 @@ func (t Tools) Download(ctx context.Context, source string) (string, error) {
 			return "", err
 		}
 		return path, nil
+	}
+	// A video of a media source is copied by the app's reader, not yt-dlp (copySource).
+	if IsSourceRef(source) {
+		return t.copySource(ctx, source)
 	}
 	if t.offlineNow() {
 		return "", ErrOffline

@@ -965,6 +965,7 @@ func (a *app) queuePipeline(job core.Job) media.Pipeline {
 	if job.LibraryDir != "" {
 		tools.OutputDir = job.LibraryDir
 	}
+	tools.Sources = a.mediaSourceCopier()
 	// A script plugin's translator chosen in Settings › 翻译 translates the film in place of the AI service (state_plugins_translate.go).
 	return a.pluginsTranslateTools(tools, job.SpokenLanguage)
 }

@@ -1,0 +1,283 @@
+package sourcebrowser
+
+import (
+	"fmt"
+	"slices"
+	"strings"
+
+	"kando/apps/kando/live"
+	"kando/apps/kando/locales"
+	"kando/apps/kando/theme"
+
+	"github.com/nsgo-dev/nsgo/base"
+	"github.com/nsgo-dev/nsgo/core"
+	"github.com/nsgo-dev/nsgo/i18n"
+	"github.com/nsgo-dev/nsgo/icons/lucide"
+	"github.com/nsgo-dev/nsgo/ui"
+)
+
+// Page is the 媒体来源 page beside the sidebar: its title, then the sources on the left and the folder of the one chosen on the right, under the path to it and 导入 N 个视频, or, while no source was added, where to add one. It is built again when the interface's language changes, as the words its buttons take are plain strings; within it what changes follows in bindings, so the list keeps where it was scrolled to as a video is chosen.
+type Page struct{ App App }
+
+// Render implements core.Node.
+func (p Page) Render(cx *core.Scope) core.Node {
+	a := p.App
+	return core.Dynamic(func(cx *core.Scope) core.Node {
+		_ = i18n.Language(cx)
+		return core.Func(func(cx *core.Scope) core.Node { return page(cx, a) })
+	})
+}
+
+// listWidth is the width of the list of sources.
+const listWidth core.Points = 220
+
+func page(cx *core.Scope, a App) core.Node {
+	colors := ui.ColorsOf(cx)
+	none := live.Memo(cx, a, func() bool { return len(a.MediaBrowseSources()) == 0 })
+	title := core.Text{TestID: "media-sources-title", Role: core.RoleHeader, Content: locales.MediaSourceSidebar(cx), MaxLines: 1,
+		Style: core.Style{FontSize: 20, LineHeight: 26, FontWeight: ui.Bold, FlexShrink: 0}, StyleFunc: ui.Colored(colors.Text)}
+	return core.View{TestID: "media-sources-page", Style: core.Style{FlexGrow: 1, FlexShrink: 1, MinHeight: core.Pt(0), Gap: 14, AlignItems: core.AlignStretch}, Children: []core.Node{
+		title,
+		core.Show{When: none, Then: func(cx *core.Scope) core.Node { return empty(cx, a) }, Else: func(cx *core.Scope) core.Node {
+			return core.View{Style: core.Style{Direction: core.Row, FlexGrow: 1, FlexShrink: 1, MinHeight: core.Pt(0), Gap: 18, AlignItems: core.AlignStretch},
+				Children: []core.Node{sources(cx, a), folder(cx, a)}}
+		}},
+	}}
+}
+
+// empty is the page while no source was added: what a source is for, and the button that adds one in the settings.
+func empty(cx *core.Scope, a App) core.Node {
+	colors := ui.ColorsOf(cx)
+	return core.View{Style: core.Style{Gap: 12, AlignItems: core.AlignStart, Padding: core.Edges{Top: 8}}, Children: []core.Node{
+		core.Text{TestID: "media-sources-none", Content: locales.MediaSourceNone(cx), Style: core.Style{FontSize: 13, LineHeight: 18}, StyleFunc: ui.Colored(colors.Muted)},
+		ui.Button{TestID: "media-sources-add", Text: locales.MediaSourceAddSource(cx), Variant: ui.ButtonSecondary, OnPress: live.Do(a, a.OpenMediaSourceSettings)},
+	}}
+}
+
+// sources is the list of the sources, each its name over its kind and place, the one shown marked.
+func sources(cx *core.Scope, a App) core.Node {
+	list := core.NewMemoFunc(cx, live.Func(a, a.MediaBrowseSources), slices.Equal[[]Source])
+	colors := ui.ColorsOf(cx)
+	return core.View{Style: core.Style{Width: core.Pt(listWidth), FlexShrink: 0, AlignItems: core.AlignStretch}, Children: []core.Node{ui.Sidebar{
+		TestID: "media-sources-list",
+		SectionsFunc: func() []ui.SidebarSection {
+			var items []ui.SidebarItem
+			for _, s := range list.Get() {
+				name := ui.Text(s.Name, 13, ui.Regular, colors.Text)
+				name.MaxLines = 1
+				place := ui.Text(s.Summary, 11, ui.Regular, colors.Muted)
+				place.MaxLines, place.EllipsizeMode = 1, core.EllipsizeMiddle
+				items = append(items, ui.SidebarItem{ID: s.ID, Text: s.Name, TestID: "media-sources-source-" + s.ID, Content: core.Group{
+					ui.Icon(lucide.Server, 16, theme.Of(cx).Glyph),
+					core.View{Style: core.Style{FlexGrow: 1, FlexShrink: 1, MinWidth: core.Pt(0)}, Children: []core.Node{name, place}},
+				}})
+			}
+			return []ui.SidebarSection{{Items: items}}
+		},
+		Selected: live.Func(a, a.MediaBrowseSource),
+		OnSelect: live.On(a, func(id string) {
+			if id != a.MediaBrowseSource() {
+				a.ChooseMediaBrowseSource(id)
+			}
+		}),
+	}}}
+}
+
+// folder is the right of the page: the path to the folder shown with 导入 N 个视频 at its end, what the last import did, and the folder's rows, or that it is being listed, empty, or could not be listed and why.
+func folder(cx *core.Scope, a App) core.Node {
+	colors := ui.ColorsOf(cx)
+	chosen := live.Func(a, a.MediaBrowseChosen)
+	// The path is plain strings, so it is built again for another folder.
+	crumbs := core.NewMemoFunc(cx, live.Func(a, a.MediaBrowseCrumbs), slices.Equal[[]string])
+	path := core.Dynamic(func(cx *core.Scope) core.Node {
+		items := crumbs.Get()
+		return ui.Breadcrumbs{TestID: "media-sources-path", Items: items, OnSelect: live.On(a, a.OpenMediaBrowseCrumb), Style: core.Style{FlexGrow: 1, FlexShrink: 1, MinWidth: core.Pt(0)}}
+	})
+	// The button shows while videos are chosen, and its words count them, so it is built again as that count changes.
+	count := core.NewMemo(cx, chosen)
+	importButton := core.Dynamic(func(cx *core.Scope) core.Node {
+		// TODO(nsgo#145): give ui.Button a TextFunc twin so its text follows the count without building the button again, then drop this Dynamic https://github.com/nsgo-dev/nsgo/issues/145
+		n := count.Get()
+		if n == 0 {
+			return nil
+		}
+		return ui.Button{TestID: "media-sources-import", Text: locales.MediaSourceImportSome(cx, n), OnPress: live.Do(a, a.ImportMediaBrowseChosen)}
+	})
+	bar := core.View{Style: core.Style{Direction: core.Row, Gap: 12, AlignItems: core.AlignCenter, FlexShrink: 0, MinHeight: core.Pt(32)}, Children: []core.Node{path, importButton}}
+	note := live.Func(a, a.MediaBrowseNote)
+	noteLine := core.Show{When: func() bool { return note() != "" }, Then: func(*core.Scope) core.Node {
+		return core.Text{TestID: "media-sources-note", ContentFunc: note, Style: core.Style{FontSize: 12, LineHeight: 17, FlexShrink: 0}, StyleFunc: ui.Colored(colors.Muted)}
+	}}
+	loading := live.Func(a, a.MediaBrowseLoading)
+	failed := live.Func(a, a.MediaBrowseErr)
+	entries := core.NewMemoFunc(cx, live.Func(a, a.MediaBrowseEntries), slices.Equal[[]Entry])
+	body := core.Show{When: loading, Then: func(cx *core.Scope) core.Node {
+		return said(cx, "media-sources-loading", locales.MediaSourceListing(cx))
+	}, Else: func(cx *core.Scope) core.Node {
+		return core.Show{When: func() bool { return failed() != "" }, Then: func(cx *core.Scope) core.Node { return failure(cx, a, failed) }, Else: func(cx *core.Scope) core.Node {
+			return core.Show{When: func() bool { return len(entries.Get()) == 0 }, Then: func(cx *core.Scope) core.Node {
+				return said(cx, "media-sources-empty", locales.MediaSourceEmpty(cx))
+			}, Else: func(cx *core.Scope) core.Node { return rows(cx, a, entries.Get) }}
+		}}
+	}}
+	return core.View{Style: core.Style{FlexGrow: 1, FlexShrink: 1, MinWidth: core.Pt(0), Gap: 10, AlignItems: core.AlignStretch},
+		Children: []core.Node{bar, noteLine, body}}
+}
+
+// said is a line the folder shows in place of its rows.
+func said(cx *core.Scope, test, text string) core.Node {
+	return core.Text{TestID: test, Content: text, Style: core.Style{FontSize: 13, LineHeight: 18, Padding: core.Symmetric(10, 4)}, StyleFunc: ui.Colored(ui.ColorsOf(cx).Muted)}
+}
+
+// failure is why the folder could not be listed, with 重试 and 编辑来源….
+func failure(cx *core.Scope, a App, why func() string) core.Node {
+	colors := ui.ColorsOf(cx)
+	return core.View{Style: core.Style{Gap: 10, AlignItems: core.AlignStart, Padding: core.Symmetric(10, 4)}, Children: []core.Node{
+		core.Text{TestID: "media-sources-error", ContentFunc: why, Selectable: core.SelectableOn, Style: core.Style{FontSize: 13, LineHeight: 18}, StyleFunc: ui.Colored(colors.Danger)},
+		core.View{Style: core.Style{Direction: core.Row, Gap: 8}, Children: []core.Node{
+			ui.Button{TestID: "media-sources-retry", Text: locales.MediaSourceRetry(cx), Variant: ui.ButtonSecondary, Size: ui.SizeSmall, OnPress: live.Do(a, a.RetryMediaBrowse)},
+			ui.Button{TestID: "media-sources-edit", Text: locales.MediaSourceEditSource(cx), Variant: ui.ButtonSecondary, Size: ui.SizeSmall, OnPress: live.Do(a, a.EditMediaBrowseSource)},
+		}},
+	}}
+}
+
+// rows are the folder's rows on a card, which scrolls.
+func rows(cx *core.Scope, a App, entries func() []Entry) core.Node {
+	k := theme.Of(cx)
+	list := core.Each(entries, func(e Entry) string { return e.Path }, func(cx *core.Scope, e func() Entry, index func() int) core.Node {
+		return core.View{Style: core.Style{AlignItems: core.AlignStretch, FlexShrink: 0}, Children: []core.Node{
+			core.Show{When: func() bool { return index() > 0 }, Then: func(cx *core.Scope) core.Node {
+				return core.View{Style: core.Style{Height: core.Pt(1), FlexShrink: 0, Margin: core.Edges{Left: 44}}, StyleFunc: func() core.Style { return core.Style{Background: k.Shade(0.08)} }}
+			}},
+			row(cx, a, e),
+		}}
+	})
+	card := core.View{TestID: "media-sources-rows", Style: core.Style{AlignItems: core.AlignStretch, CornerRadius: 12, FlexShrink: 0},
+		StyleFunc: func() core.Style {
+			return core.Style{Background: k.Card(), Shadows: []core.BoxShadow{{Spread: 0.5, Color: k.Shade(0.07)}}}
+		}, Children: []core.Node{list}}
+	return core.Scroll{TestID: "media-sources-folder", Style: core.Style{FlexGrow: 1, FlexShrink: 1, MinHeight: core.Pt(0)},
+		Children: []core.Node{core.View{Style: core.Style{AlignItems: core.AlignStretch, Padding: core.Edges{Bottom: 20}}, Children: []core.Node{card}}}}
+}
+
+// row is a folder or a video of the folder: a folder or a share opens with a press; a video has a check box that chooses it, its tags, its size and its time, and one already imported opens its film with a press instead.
+func row(cx *core.Scope, a App, e func() Entry) core.Node {
+	colors, k := ui.ColorsOf(cx), theme.Of(cx)
+	path := e().Path
+	opens := func() bool { x := e(); return x.Dir || x.InLibrary }
+	icon := func() *core.SVG {
+		switch x := e(); {
+		case x.Share:
+			return lucide.HardDrive()
+		case x.Dir:
+			return lucide.Folder()
+		}
+		return lucide.Film()
+	}
+	name := core.Text{ContentFunc: func() string { return e().Name }, MaxLines: 1, EllipsizeMode: core.EllipsizeMiddle,
+		Style: core.Style{FontSize: 13, LineHeight: 18, FlexGrow: 1, FlexShrink: 1, MinWidth: core.Pt(0)}, StyleFunc: ui.Colored(colors.Text)}
+	// A video not imported yet is chosen with its check box, whose label is its name; any other row is pressed as a whole.
+	lead := core.Show{When: opens, Then: func(*core.Scope) core.Node {
+		return core.View{Style: core.Style{Width: core.Pt(18), FlexShrink: 0}}
+	}, Else: func(cx *core.Scope) core.Node {
+		return ui.Checkbox{TestID: "media-sources-choose-" + path, Label: locales.MediaSourceSelect(cx, e().Name),
+			Checked: func() bool { return e().Chosen }, OnChange: live.On(a, func(bool) { a.ToggleMediaBrowseEntry(path) })}
+	}}
+	tag := func(test string, on func() bool, text string) core.Node {
+		return core.Show{When: on, Then: func(*core.Scope) core.Node {
+			return core.Text{TestID: test + path, Content: text, MaxLines: 1, Role: core.RoleNone,
+				Style:     core.Style{FontSize: 10, FontWeight: ui.Bold, LineHeight: 16, CornerRadius: 8, Padding: core.Symmetric(0, 7), FlexShrink: 0},
+				StyleFunc: func() core.Style { return core.Style{Background: k.Shade(0.07), Color: colors.Muted()} }}
+		}}
+	}
+	detail := func(text func() string, width core.Points) core.Node {
+		return core.Text{ContentFunc: text, MaxLines: 1, Style: core.Style{FontSize: 12, LineHeight: 17, Width: core.Pt(width), FlexShrink: 0, TextAlign: core.TextAlignRight},
+			StyleFunc: ui.Colored(colors.Muted)}
+	}
+	return core.View{
+		TestID: "media-sources-entry-" + path,
+		Role:   core.RoleButton,
+		LabelFunc: func() string {
+			x := e()
+			parts := []string{x.Name}
+			if x.Subtitles {
+				parts = append(parts, locales.MediaSourceHasSubtitles(cx))
+			}
+			if x.InLibrary {
+				parts = append(parts, locales.MediaSourceInLibrary(cx))
+			}
+			return strings.Join(parts, ", ")
+		},
+		OnPress: live.On(a, func(core.PressEvent) {
+			if opens() {
+				a.OpenMediaBrowseEntry(path)
+			} else {
+				a.ToggleMediaBrowseEntry(path)
+			}
+		}),
+		Style: core.Style{Direction: core.Row, MinHeight: core.Pt(40), Padding: core.Symmetric(6, 14), Gap: 10, AlignItems: core.AlignCenter, FlexShrink: 0},
+		StyleFunc: func() core.Style {
+			return core.Style{Hover: &core.Style{Background: k.Shade(0.04)}}
+		},
+		Children: []core.Node{
+			lead,
+			ui.Icon(icon, 16, k.Glyph),
+			name,
+			tag("media-sources-subtitles-", func() bool { return e().Subtitles }, locales.MediaSourceHasSubtitles(cx)),
+			tag("media-sources-in-library-", func() bool { return e().InLibrary }, locales.MediaSourceInLibrary(cx)),
+			detail(func() string {
+				if x := e(); !x.Dir {
+					return ByteSize(x.Size)
+				}
+				return ""
+			}, 70),
+			detail(func() string {
+				if x := e(); !x.Dir && !x.Modified.IsZero() {
+					return x.Modified.Local().Format("2006-01-02 15:04")
+				}
+				return ""
+			}, 130),
+		},
+	}
+}
+
+// ImportDialog is the dialog over the window that imports the videos chosen on the page: how many, from where, that they are copied and how much room that takes, with 取消 and 导入.
+type ImportDialog struct{ App App }
+
+// Render implements core.Node.
+func (d ImportDialog) Render(cx *core.Scope) core.Node {
+	a := d.App
+	in := core.NewMemo(cx, live.Func(a, a.MediaBrowseImport))
+	cancel := live.Do(a, a.CancelMediaBrowseImport)
+	return core.Show{When: func() bool { return in.Get().Open }, Then: func(cx *core.Scope) core.Node {
+		// Its words are read as it is built, so it is built again when the interface's language changes.
+		return core.Dynamic(func(cx *core.Scope) core.Node {
+			_ = i18n.Language(cx)
+			x := core.Untracked(cx, in.Get)
+			return ui.Dialog{TestID: "media-sources-import-dialog", Open: func() bool { return true }, NoCloseOnBackdropPress: true,
+				Title:       locales.MediaSourceImportTitle(cx, x.Count, x.Source),
+				Description: locales.MediaSourceImportCopyNote(cx, ByteSize(x.Size)),
+				OnOpenChange: func(open bool, _ base.Reason) {
+					if !open {
+						cancel()
+					}
+				},
+				Style: core.Style{Width: core.Pt(440)},
+				Footer: []core.Node{
+					ui.Button{Text: locales.MediaSourceCancel(cx), Variant: ui.ButtonSecondary, TestID: "media-sources-import-cancel", OnPress: cancel},
+					ui.Button{Text: locales.MediaSourceImportStart(cx), TestID: "media-sources-import-start", OnPress: live.Do(a, a.StartMediaBrowseImport)},
+				}}
+		})
+	}}
+}
+
+// ByteSize writes n bytes as the size a person reads: in KB, MB or GB, at least 1 KB.
+func ByteSize(n int64) string {
+	switch {
+	case n >= 1<<30:
+		return fmt.Sprintf("%.1f GB", float64(n)/(1<<30))
+	case n >= 1<<20:
+		return fmt.Sprintf("%.1f MB", float64(n)/(1<<20))
+	}
+	return fmt.Sprintf("%.0f KB", max(1, float64(n)/(1<<10)))
+}
