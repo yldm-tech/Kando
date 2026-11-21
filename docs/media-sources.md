@@ -33,7 +33,7 @@
 | SFTP：`pkg/sftp` 加 `x/crypto/ssh`，没有可信主机密钥就不连，`HostKeyError` 带服务器给的密钥和 SHA-256 指纹 | `storage/sftp.go:23-46`、`:154-216` | 照用，信任流程见 11.2 |
 | `storage.Handler`：把 provider 的一个文件当成文件服务器来答，GET 和 HEAD、Range、If-Range、条件请求，内部用 `http.ServeContent` 加按需打开的 `rangeReader` | `storage/proxy.go:21-44`、`:47-99` | 串流服务器和手机同步都用它 |
 | `storage.Proxy`：只听 `127.0.0.1:0`，每个文件一个随机 token，URL 是 `http://127.0.0.1:port/<token>/<文件名>` | `storage/proxy.go:101-158` | 第 7 节的回环串流服务器就是它的推广 |
-| `storage.Pool`：按 ID 打开、复用、在设置变了时重开连接，`URL` 给播放器、`Handler` 给手机同步 | `storage/pool.go:53-148` | 来源也放进同一种 Pool |
+| `storage.Pool`：按 ID 打开、复用、在设置变了时重开连接，`URL` 给播放器、`Handler` 给手机同步 | `storage/pool.go:53-148` | 来源照它的样子另有一个 `mediasource.Pool`（`mediasource/pool.go`），按来源 ID 持有驱动 |
 | `storage.Get`：从 provider 复制到本机，先写隐藏文件、大小对上才改名 | `storage/transfer.go:53-54` | 复制进资料库用它 |
 | 播放挪走的视频：`playerStored` 在后台 `pool.URL`，再把 URL 交给播放器 | `apps/kando/playback_stored.go:13-53` | 串流播放的写法照抄 |
 | 手机同步挪走的视频：`phoneFilmOf` 给 `phonesync.Film.Remote` 一个 `pool.Handler` | `state_phonesync.go:418-426`，`phonesync/server.go:45-48`、`:626-642` | 串流的影片同样这样发给手机 |
@@ -86,7 +86,7 @@
 - `ID`：随机的 16 位十六进制，创建时生成，之后不变。影片按它认来源（第 6 节）。
 - `Kind`：注册表里的种类 ID。
 - `Name`：用户起的名字（「客厅 NAS」），默认取主机名。
-- `Config`：不是秘密的字段，按种类的 `Fields`：SMB 是 `host`、`port`（默认 445）、`share`、`root`、`user`、`domain`；SFTP 是 `host`、`port`（默认 22）、`root`、`user`、`hostKey`（信任过的主机密钥，authorized_keys 的一行，见 12.2）；插件来源是插件声明的字段加上 `endpoint`（用户填的服务器地址，见 11.3）。
+- `Config`：不是秘密的字段，按种类的 `Fields`：SMB 是 `host`、`port`（默认 445）、`share`、`root`、`user`、`domain`，以及第 17 节第 4 条的「不支持签名」开关 `noSigning`；SFTP 是 `host`、`port`（默认 22）、`root`、`user`、`hostKey`（信任过的主机密钥，authorized_keys 的一行，见 12.2）；插件来源是插件声明的字段加上 `endpoint`（用户填的服务器地址，见 11.3）。
 - `Secrets`：秘密字段的名字（SMB 的 `password`；SFTP 的 `password`、`privateKey`、`passphrase`；插件声明为 `secret` 的字段），值不在这里。
 
 存放：
@@ -113,7 +113,7 @@
 - 每一行：名字、大小、修改时间；已经导入过的（按第 6 节的身份）标「已在资料库」，点它打开影片。多选后底部出现「导入 N 个」，打开导入对话框（`ui.Dialog`，经 `overlays()` 的 `mediaSourceOverlay`）：两个单选项「复制到资料库」「只建索引，从来源播放」，下面一行写清楚差别（「复制后离线也能看，占用这台电脑 X GB」「不占空间，播放和识别时需要连得上 <来源名>」），再加一个「记住我的选择」。确认后调 `Enqueue`（复制方式）或 `mediaSourceLink`（索引方式，见 5.2）。
 - 也可以把整个文件夹导入：文件夹那一行的右键菜单「导入这个文件夹」，递归最多 3 层、最多 500 个文件，超过时说明并只导入前 500 个。
 - 列目录在后台 goroutine 里做，经 `a.update` 回到引擎；构建界面的函数里不连接、不读盘（`AGENTS.md`）。正在列时显示进度，连接失败时页面上写 `storage.Diagnose` 给出的原因（`storage/diagnose.go:59`，密码错、主机不通、证书或主机密钥不对），带「重试」和「编辑来源」。
-- 设置里新增一节「媒体来源」（`settings/sectionid` 加 `Sources = "sources"`，`settings/sources.go`），列出来源，「添加来源…」先选种类（注册表里的全部种类，插件来源排在内置之后，写「插件 · <插件名>」），再填 3.2 的表单，「测试」连接一次并列根目录。表单、测试结果和 SFTP 的信任对话框照搬存储位置的 `account.Draft`、`locationTest`、`AlertTrust`、`AlertKeyChanged`（`state_locations.go:19-55`），不另写一套。
+- 设置里新增一节「媒体来源」（`settings/sectionid` 加 `MediaSources = "sources"`，`settings/mediasources.go`；Go 名字不叫 `Sources`，因为 `settings.Sources`、`SourcesApp`、`Window.Sources` 和 `settings/sources.go` 已经是翻译页的「翻译来源」），列出来源，「添加来源…」先选种类（注册表里的全部种类，插件来源排在内置之后，写「插件 · <插件名>」），再填 3.2 的表单，「测试」连接一次并列根目录。表单、测试结果和 SFTP 的信任对话框照搬存储位置的 `account.Draft`、`locationTest`、`AlertTrust`、`AlertKeyChanged`（`state_locations.go:19-55`），不另写一套。
 - 存储位置和媒体来源常常是同一台 NAS。添加来源时，如果已有存储位置，表单上给一个「从存储位置填入」的下拉框，只复制主机、端口、共享、用户这些非秘密字段，密码仍要用户输入（因为存储位置的密码在 settings.json 里，不能挪进来源再说它从没进过 settings.json）。
 
 ### 4.2 手机
@@ -137,7 +137,7 @@
   }
   ```
 
-  `Copy` 由 app 实现（`state_mediasource_import.go`）：按来源 ID 从 Pool 取驱动，用 `storage.Get` 复制到资料库文件夹（`Tools.OutputDir`），复制的进度经 `media.Trace` 的 `Progress` 报出去，所以卡片上显示「下载中 42%」和速度，和下载网上的视频一样。同名的字幕一起复制，交给已有的「本机视频旁边有字幕」那条路径处理。
+  P1 已经落地的 `media.SourceReader`（`packages/media/source.go`）只有 `Copy`，`URL` 在 P2 做索引方式时再加。`Copy` 的实现是非界面包里的 `mediasource.Copier`（`mediasource/copy.go`），`package main` 只在 `state_mediasource_browse.go` 的 `mediaSourceCopier` 把 Pool、离线开关和 `Local` 交给它，`queuePipeline` 赋给 `Tools.Sources`：按来源 ID 从 `mediasource.Pool` 取驱动，用 `storage.Get` 复制到资料库里的 `<资料库>/<来源名>/<来源里的路径>`（和 6.3 的占位路径同一个 `mediasource.Placeholder`，重名时加序号），复制的进度经 `media.ReportProgress` 报给 `media.Trace`，所以卡片上显示「下载中 42%」和速度，和下载网上的视频一样。同名的字幕（`mediasource.SubtitlesOf`）按复制后的视频改名一起复制，交给已有的「本机视频旁边有字幕」那条路径处理。离线模式下互联网上的来源以 `media.ErrOffline` 失败（12.4）。
 - 复制完的文件就是资料库里的普通视频，`core.Job.Source` 仍是来源地址，用来去重和在卡片上写「来自 <来源名>」。之后来源删掉、连不上都不影响这部影片。
 - 离线模式：`Tools.Download` 在离线时对非本机来源返回 `ErrOffline`（`tools.go:320-322`），`privacyRefusesLink` 也拒绝非本机链接（`state_privacy.go:185-190`）。媒体来源按 12.4 的规则：主机是局域网地址的来源在离线模式下照常可用，所以这两处要认出 `PlatformSource` 并问来源的地址，而不是一律拒绝。
 
@@ -364,7 +364,7 @@ iOS 的 ATS 不算缺口：`apple.info` 能写嵌套字典（`cmd/nsgo/plistvalu
 - 侧栏与浏览：`mediaSourceSidebar`（「媒体来源」）、`mediaSourceRoot`、`mediaSourceShares`、`mediaSourceEmpty`、`mediaSourceListing`、`mediaSourceHasSubtitles`、`mediaSourceInLibrary`、`mediaSourceImportSome`（`{count, plural, …}`，「导入 N 个」）、`mediaSourceImportFolder`、`mediaSourceTooMany`（`{limit}`）。
 - 导入对话框：`mediaSourceImportTitle`（`{count, plural}`）、`mediaSourceImportCopy`、`mediaSourceImportCopyNote`（`{size}`）、`mediaSourceImportLink`、`mediaSourceImportLinkNote`（`{source}`）、`mediaSourceImportRemember`、`mediaSourceImportStart`。
 - 状态与错误：`mediaSourceUnreachable`（`{source}`）、`mediaSourceGone`、`mediaSourceRemovedMark`、`mediaSourceChanged`（`{source}`）、`mediaSourceChangedRedo`、`mediaSourceChangedKeep`、`mediaSourceMissing`（`{source}`）、`mediaSourceFind`、`mediaSourcePluginOff`（`{plugin}`）、`mediaSourceOffline`、`mediaSourceNoHTTP`（ffmpeg 不能读网络地址）、`mediaSourceCopyToLibrary`、`mediaSourceFrom`（卡片上「来自 {source}」）。
-- 设置：`settingsSources`（节名）、`settingsSourcesAdd`、`settingsSourcesKind`、`settingsSourcesKindSMB`、`settingsSourcesKindSFTP`、`settingsSourcesPlugin`（`{plugin}`，「插件 · X」）、`settingsSourcesFromLocation`、`settingsSourcesPlainHTTP`、`settingsSourcesSMBWarning`、`settingsSourcesNoSecretStore`、`settingsSourcesRemoveConfirm`（`{count, plural}`）。SFTP 的信任和密钥变了的文案复用存储位置已有的 `accountLocation…` 条目，不复制一份。
+- 设置：`settingsSectionMediaSources`（节名）、`settingsSourcesAdd`、`settingsSourcesKind`、`settingsSourcesKindSMB`、`settingsSourcesKindSFTP`、`settingsSourcesPlugin`（`{plugin}`，「插件 · X」）、`settingsSourcesFromLocation`、`settingsSourcesPlainHTTP`、`settingsSourcesSMBWarning`、`settingsSourcesNoSecretStore`、`settingsSourcesRemoveConfirm`（`{count, plural}`）。SFTP 的信任和密钥变了的文案复用存储位置已有的 `accountLocation…` 条目，不复制一份。
 - 隐私：`privacySources`、`privacySourcesReadOnly`、`privacySourcesSecrets`、`privacySourcesStream`、`privacySourcesPhone`（12.3 的四句）。
 - 插件：`pluginsPermSourceFetch`、`pluginsPermSourceFetchNote`、`pluginsContribSource`（`{title}`）、`pluginsErrSourceNetwork`。
 - 手机（`apps/mobile/locales/`）：`mediaSourceSection`、`mediaSourceAdd`、`mediaSourceDownload`、`mediaSourceRemoveDownload`、`mediaSourceStreamUnavailable`（Android 上没有串流时的说明）、`mediaSourceSubtitlesFromComputer`（`{computer}`）、`mediaSourceMakeOnComputer`、`mediaSourceHomeOnly`（只在家里的网络可下载），以及 InfoPlist.strings 的 `NSLocalNetworkUsageDescription` 改写（4.2）。
@@ -374,7 +374,7 @@ iOS 的 ATS 不算缺口：`apple.info` 能写嵌套字典（`cmd/nsgo/plistvalu
 
 ### 15.1 非界面包（不导入任何界面包）
 
-- `apps/kando/mediasource/`：`Kind`、`Field`、`Source`、`Driver`、`Entry`、注册表（`Registry`，引擎 goroutine 上读写，驱动在后台用）、来源地址的 `Ref`（`Parse`、`String`）、`Local(ctx, host)`（12.4）、`SourceKey`（10.5）、占位路径的计算（6.3）。测试跟着进包。
+- `apps/kando/mediasource/`：`Kind`、`Field`、`Source`、`Driver`、`Entry`、注册表（`Registry`，引擎 goroutine 上读写，驱动在后台用）、来源地址的 `Ref`（`ParseRef`、`String`）、`Local(ctx, host)`（12.4）、`SourceKey`（10.5）、占位路径的计算（`Placeholder`，6.3）、按来源 ID 持有连接的 `Pool`、复制导入的 `Copier` 和旁边字幕的 `SubtitlesOf`（5.1）、内置种类的驱动（`smb.go`）。测试跟着进包。
 - `packages/remotefs/`（P5，从 `apps/kando/storage` 挪出来，10.1）。在 P5 之前，内置驱动直接包 `apps/kando/storage`。
 - `packages/core`：`PlatformSource` 和 `ParseLink` 认 `kando-source://`；`core.Job.Linked`。
 - `packages/media`：`SourceReader`、`Tools.Sources`、`Download` 和 `Make` 的两处分支（第 8 节）。
@@ -384,15 +384,16 @@ iOS 的 ATS 不算缺口：`apple.info` 能写嵌套字典（`cmd/nsgo/plistvalu
 ### 15.2 界面目录
 
 - `apps/kando/sourcebrowser/`：浏览页（4.1），读自己的 `App` 接口（嵌入 `live.State`），图标放 `icons.go`。
-- `apps/kando/settings/sources.go`：设置 › 媒体来源，照 `Window.Plugins` 的先例由 `settings.Window.Sources` 注入，不往 `settings.App` 里加方法。
+- `apps/kando/settings/mediasources.go`：设置 › 媒体来源，照 `Window.Plugins` 的先例由 `settings.Window.MediaSources` 注入（读自己的 `settings.MediaSourcesApp`），不往 `settings.App` 里加方法。
 - `apps/mobile/sources/`：手机的来源列表和目录页（4.2）。
 
 ### 15.3 根目录 package main 的新文件
 
 - `state_mediasource.go`：`mediaSourceUI`（来源列表、Pool 里的驱动、浏览状态、导入对话框的标志）、`savedMediaSources` 和 `clean()`、`mediaSourceHooks()`（`restore` 读设置；`quitStarting` 停掉正在列的目录；`quitting` 关驱动；插件块变化后重建插件种类）、`mediaSourceKeys(cx)`（「浏览媒体来源」一行，`Key` 留空）、`mediaSourceOverlay(cx)`（导入对话框、删除来源的确认）。
-- `state_mediasource_import.go`：`mediaSourceLink`、`Tools.Sources` 的实现（`Copy`、`URL`）、文件变了的检查。
+- `state_mediasource_browse.go`：浏览页和导入对话框的状态，`mediaSourceCopier` 把 `mediasource.Copier` 交给 `Tools.Sources`（P1）。
+- `state_mediasource_import.go`：`mediaSourceLink`、`Tools.Sources.URL` 的实现、文件变了的检查（P2）。
 - `playback_linked.go`：`linkedOf` 和播放的接法（7.3），挨着 `playback_stored.go`。
-- `bind_mediasource.go`：`sourcebrowser.App` 和 `settings.SourcesApp` 的 getter 和 action（`live.Func`、`live.Do`）。
+- `bind_mediasource.go`：`sourcebrowser.App` 和 `settings.MediaSourcesApp` 的 getter 和 action（`live.Func`、`live.Do`）。
 - `state_plugins_sources.go`：插件种类的注册和注销、插件驱动（调 `list`、`stat`、`open`）、`kando.source.fetch` handler（放在插件块里，和 `credentialFetch` 挨着）。
 - 测试：`mediasource_test.go`、`screenshot_mediasource_test.go`。
 
@@ -403,7 +404,7 @@ iOS 的 ATS 不算缺口：`apple.info` 能写嵌套字典（`cmd/nsgo/plistvalu
 - `events.go`：`areas()` 加 `a.mediaSourceHooks()`。
 - `keys.go`：`shortcuts()` 加 `a.mediaSourceKeys(cx)`。
 - `state_overlay.go`：`overlays()` 加 `a.mediaSourceOverlay(cx)`。
-- 另外 `state_settings.go` 的 `settingsWindow` 加 `Sources: settings.Sources{App: a}`，`settings/sections.go` 的 `sections` 加一行，`settings/sectionid` 加 `Sources`。
+- 另外 `state_settings.go` 的 `settingsWindow` 加 `MediaSources: settings.MediaSources{App: a}`，`settings/sections.go` 的 `sections` 加一行，`settings/sectionid` 加 `MediaSources`。
 
 ### 15.5 各接点的最小改动
 
