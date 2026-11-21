@@ -44,7 +44,7 @@
 
 1. **SMB 库**：owner 批准的是 `github.com/hirochachacha/go-smb2`，但仓库里已经用的是它的分支 `github.com/cloudsoda/go-smb2 v0.0.0-20261105190815-95be04a983b8`（`apps/kando/go.mod:12`）。上游最后一个版本是 `v1.1.0`（2022-03-12），分支在 2026-11-05 还有提交，两者都是 BSD-2-Clause。本设计建议**继续用已经在 go.mod 里的 cloudsoda 分支，不引入 hirochachacha**：同一个功能链接两份 SMB 实现没有意义，而且分支有上游没有的修复（例如 `Session.ListSharenames`，`cloudsoda/go-smb2@…/shares.go:104`，浏览一台 NAS 有哪些共享要用它）。是否同意见第 17 节第 1 条。`pkg/sftp` 已经是最新的 `v1.13.12`（2026-10-23），不用升级。
 2. **凭据**：存储位置的密码、私钥和口令现在写在 settings.json 里（`state_locations.go:58`：「in settings.json, which saveSettings writes with mode 0600」）。媒体来源按 owner 的决定一开始就放进 `core.Secrets`，不沿用这个做法；存储位置要不要一起迁，作为单独的 PR 由 owner 决定（第 17 节第 2 条）。
-3. **WebDAV**：`storage` 里已经有原生的 WebDAV provider（`storage/webdav.go`，`github.com/studio-b12/gowebdav v0.13.0`）。owner 定的是 WebDAV 作为官方脚本插件。本设计照这个决定写（WebDAV 是 P4 脚本来源 API 的参考插件，最适合用来验证 API），但要指出代价：手机不跑插件，所以手机直连 WebDAV 做不到，而原生实现几乎是现成的。是否另加内置 WebDAV 见第 17 节第 3 条。
+3. **WebDAV**：`storage` 里已经有原生的 WebDAV provider（`storage/webdav.go`，`github.com/studio-b12/gowebdav v0.13.0`）。owner 定的是 WebDAV 作为官方脚本插件。本设计照这个决定写（WebDAV 是 P4 脚本来源 API 的参考插件，最适合用来验证 API），但要指出代价：手机不跑插件，所以手机直连 WebDAV 做不到，而原生实现几乎是现成的。owner 已定另加内置 WebDAV（第 17 节第 3 条）：P3 之后注册成内置种类，手机也能直连，插件仍做。
 
 ## 3. 扩展点 E17 媒体来源
 
@@ -329,7 +329,7 @@
 
 - **主机密钥（SFTP）**：首次连接时信任（TOFU），照存储位置的做法：没有可信密钥就不连，`HostKeyError` 带服务器给的密钥和 `SHA256:` 指纹（`storage/sftp.go:32-46`），对话框写指纹、建议和 `ssh-keygen -l` 的输出比对，用户点「信任」后存进来源的 `hostKey`（非秘密，存 settings.json）；之后密钥变了一律不连，弹 `AlertKeyChanged`，只给「取消」和破坏性的「替换密钥」。手机同样，手机和电脑各自信任，不同步密钥（不让一台被骗的设备带坏另一台）。
 - **SMB 没有可验证的服务器身份**：NTLM 登录不认证服务器，`go-smb2` 也不暴露服务器 GUID（`cloudsoda/go-smb2@…/conn.go:154` 那一行是注释掉的），所以 SMB 做不了 TOFU。如实写出两条：一是冒充的服务器能拿到 NTLMv2 的应答，可以离线猜密码，所以来源表单在 SMB 下面写「只在你信任的网络里使用，不要和别的账号共用这个密码」；二是本设计建议默认开启消息签名（`smb2.Negotiator.RequireMessageSigning`，`conn.go:20-24`；现在的 `dialSMB` 没有设，`storage/smb.go:89`），签名用的会话密钥由密码导出，不知道密码的中间人改不了内容。有些老 NAS 不支持签名，默认值和例外见第 17 节第 4 条。
-- **HTTP 来源**：11.3 的 http 规则；https 来源校验证书，自签名证书第一版不支持（NAS 自签证书很常见，要不要做指纹固定见第 17 节第 5 条）。
+- **HTTP 来源**：11.3 的 http 规则；https 来源校验证书，自签名证书在 P4 起按证书指纹首次信任，规则和 SFTP 相同（第 17 节第 5 条）。
 - **回环服务器**：7.2。残余风险：同用户的程序可以读看懂的内存或抓它给播放器的 URL，这本来就在 `docs/plugin-system.md` 6.1 的 T7 范围之外。
 - **路径**：所有来源路径都过 `cleanPath`（`storage/storage.go:60-81`）；插件 `list` 回的名字按 11.2 的规则过滤，过滤不过的条目丢掉，不让插件用 `../` 把看懂引到根目录外，也不让它造出能写到资料库外面的占位路径（6.3 的占位路径再过一次 `filepath.IsLocal`）。
 - **写**：媒体来源的驱动接口里没有写方法（第 3 节），内置驱动包 `storage.Provider` 时不暴露 `Write`、`Remove`、`Move`、`MkdirAll`，用类型保证看懂不会改用户 NAS 上的文件。
@@ -431,18 +431,18 @@ owner 批准的 `github.com/hirochachacha/go-smb2` 最新是 `v1.1.0`（2022-03-
 
 P5 新增的是**已有依赖进入新的 module**：`packages/remotefs/go.mod` 和 `apps/mobile/go.mod` 会 require 上面的 go-smb2、pkg/sftp、x/crypto（版本同上，`go.work` 下统一），手机的二进制因此变大，P5 第一个 PR 量出 iOS 和 Android 包的增量报给 owner。`cloudsoda/go-smb2` 还会带进它的依赖 `github.com/jcmturner/gokrb5/v8 v8.4.4`、`github.com/geoffgarside/ber v1.1.0`、`github.com/cloudsoda/sddl`（`cloudsoda/go-smb2@…/go.mod`），桌面已经间接有了，手机是新的。
 
-## 17. 待 owner 决定
+## 17. owner 的决定（2026-11-21）
 
-1. **SMB 库**：用已经在 go.mod 里的 `cloudsoda/go-smb2`（建议），还是按原批准换成 `hirochachacha/go-smb2 v1.1.0`？换的话要连同存储位置一起换，并失去 `ListSharenames` 等分支上的修复。
-2. **存储位置的秘密要不要迁出 settings.json**：媒体来源一开始就用 `core.Secrets`；存储位置和对象存储的密钥现在在 settings.json（0600）。建议单独一个 PR 一起迁（Linux 没有 Secret Service 时的做法要定：保留明文退路，还是不能用），和 `docs/plugin-system.md` 12.3 第 6 条的 LLM key 一起决定。
-3. **WebDAV 要不要也内置**：原生 provider 已经有了（`storage/webdav.go`），内置后手机也能直连 WebDAV；插件版仍作为脚本来源 API 的参考插件。建议：P4 照原决定做插件，另外在 P3 之后加一个很小的 PR 把 WebDAV 也注册成内置种类，两者同时存在时内置的排在前面。
-4. **SMB 默认要求消息签名**：建议默认开，表单里给「这台 NAS 不支持签名」的开关（打开时写明风险）。
-5. **HTTPS 来源的自签名证书**：NAS 的 WebDAV 常用自签证书。要不要像 SFTP 一样做证书指纹的首次信任？建议做，放进 P4，规则和 SFTP 相同。
-6. **索引影片和挪走的视频经存储中转发给外出的手机**：要电脑从 NAS 读出来再上传 R2，占 R2 空间、费用由用户的桶承担。建议先不做，手机上标「只在家里的网络可下载」。
-7. **手机请电脑给 NAS 上的文件做字幕**（10.3 最后一条）：依赖两边按地址认出同一个来源，边界情况多。建议放在 P5 的最后，可以砍掉。
-8. **离线模式里什么算局域网**：建议只算回环、RFC 1918、ULA、链路本地；Tailscale 等 CGNAT 段（`100.64.0.0/10`）算互联网。要不要把 Tailscale 算局域网？
-9. **局域网发现的 NSGo issue 要不要提**（第 13 节第 3 条）：不挡本设计，是体验改进。
-10. **复制方式的默认值**：导入对话框默认选哪一种？建议默认「复制到资料库」（行为和拖进本机文件一致、离线可用），用户勾「记住我的选择」后按记住的。
+1. **SMB 库**：用已经在 go.mod 里的 `cloudsoda/go-smb2`，不加 `hirochachacha/go-smb2`（理由见第 2 节第 1 条）。
+2. **存储位置的秘密**：迁出 settings.json，单独一个 PR，和媒体来源同样放进 `core.Secrets`；Linux 没有 Secret Service 时保留明文退路，设置里写明。
+3. **WebDAV**：内置。P3 之后加一个小 PR 把 `storage/webdav.go` 注册成内置种类，手机也能直连 WebDAV；P4 的官方 WebDAV 插件照做，作为脚本来源 API 的参考插件，两者同时存在时内置的排在前面。
+4. **SMB 消息签名**：默认要求，表单里给「这台 NAS 不支持签名」的开关，打开时写明风险。
+5. **HTTPS 来源的自签名证书**：做证书指纹的首次信任，放进 P4，规则和 SFTP 相同。
+6. **索引影片经存储中转给外出的手机**：先不做，手机上标「只在家里的网络可下载」。
+7. **手机请电脑给 NAS 上的文件做字幕**：放在 P5 的最后，可以砍掉。
+8. **离线模式里的局域网**：只算回环、RFC 1918、ULA、链路本地；Tailscale 等 CGNAT 段（`100.64.0.0/10`）算互联网。
+9. **局域网发现的 NSGo issue**：不挡本设计，P5 做手机直连时再提。
+10. **导入方式的默认值**：默认「复制到资料库」，用户勾「记住我的选择」后按记住的。
 
 ## 18. 风险
 
