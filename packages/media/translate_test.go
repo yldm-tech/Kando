@@ -1111,3 +1111,30 @@ func TestChatTranslatorKeepsTheHalfThatCameBack(t *testing.T) {
 		t.Fatalf("got %+v, %v", got, err)
 	}
 }
+
+// A model whose every reply stops at its token limit before it writes a line, as a reasoning model that spends its whole budget thinking, is not sent every line of a batch alone: a batch is sent as any reply not its lines is, and the translation stops after maxFailedBatches of them.
+func TestChatTranslatorBoundsAModelAlwaysCutOffBeforeALine(t *testing.T) {
+	for _, c := range []struct {
+		content string
+		sends   int
+	}{
+		{"", maxFailedBatches * maxBatchSends},
+		// A reply that began its array, which may be the batch's lines written wrong, is sent once more in halves.
+		{"```json\n[", maxFailedBatches * 3 * maxBatchSends},
+	} {
+		calls := 0
+		srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			calls++
+			json.NewEncoder(w).Encode(map[string]any{"choices": []map[string]any{{"message": map[string]string{"role": "assistant", "content": c.content}, "finish_reason": "length"}}})
+		}))
+		segments := make([]core.Segment, translateBatch*(maxFailedBatches+2))
+		for i := range segments {
+			segments[i] = core.Segment{Text: fmt.Sprintf("line %d", i)}
+		}
+		_, err := ChatTranslator{BaseURL: srv.URL, Model: "m"}.Translate(context.Background(), segments, "English")
+		srv.Close()
+		if err == nil || calls != c.sends {
+			t.Fatalf("%q: %v after %d requests, want %d", c.content, err, calls, c.sends)
+		}
+	}
+}

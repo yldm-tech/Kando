@@ -488,8 +488,8 @@ func (t ChatTranslator) translateBatch(ctx context.Context, endpoint Endpoint, t
 		if err == nil {
 			return lines, nil
 		}
-		// A reply that stopped before its end, at the model's token limit or where a gateway ended it, is the batch sent again in halves at once: each half's reply is half as long, and the same batch sent whole is most often cut off again.
-		if len(texts) > 1 && ctx.Err() == nil && cutOff(reply) {
+		// A reply that stopped before its end, at the model's token limit or where a gateway ended it, is the batch sent again in halves at once: each half's reply is half as long, and the same batch sent whole is most often cut off again. One cut off before it wrote a line, as a reasoning model's that spent its whole budget thinking, says nothing of a shorter reply fitting: it is sent again whole like any other reply that is not the batch's lines, so such a model fails the batch after maxBatchSends sends rather than be sent its every line alone.
+		if len(texts) > 1 && ctx.Err() == nil && cutOff(reply) && cutOffLines(reply) > 0 {
 			return t.translateHalves(ctx, endpoint, texts, language, title, earlier, progress)
 		}
 		if send == maxBatchSends || ctx.Err() != nil {
@@ -576,6 +576,33 @@ func cutOff(reply chatResponse) bool {
 	var raw []json.RawMessage
 	var syntax *json.SyntaxError
 	return errors.As(json.Unmarshal([]byte(text), &raw), &syntax) && syntax.Offset >= int64(len(text))
+}
+
+// cutOffLines is how many lines a reply cut off before its end (cutOff) wrote whole and not empty before it stopped: the elements of its JSON array, from its first "[" as a reply cut off may not have closed what it began with, up to the one it stopped in.
+func cutOffLines(reply chatResponse) int {
+	if len(reply.Choices) == 0 {
+		return 0
+	}
+	text := stripCodeFence(reply.Choices[0].Message.Content)
+	start := strings.IndexByte(text, '[')
+	if start < 0 {
+		return 0
+	}
+	dec := json.NewDecoder(strings.NewReader(text[start:]))
+	if tok, err := dec.Token(); err != nil || tok != json.Delim('[') {
+		return 0
+	}
+	n := 0
+	for dec.More() {
+		var element json.RawMessage
+		if dec.Decode(&element) != nil {
+			break
+		}
+		if s := strings.TrimSpace(string(element)); s != `""` && s != "[]" && s != "null" {
+			n++
+		}
+	}
+	return n
 }
 
 // sentBackAgain is what a batch sent again after its reply sent its lines back untranslated (sentBack) adds to its instruction; %s is the language it is translated into.
