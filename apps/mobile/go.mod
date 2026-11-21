@@ -6,7 +6,7 @@ tool github.com/nsgo-dev/nsgo/cmd/nsgo
 
 require (
 	github.com/makiuchi-d/gozxing v0.1.1
-	github.com/nsgo-dev/nsgo v0.2.1-0.20261120114311-c94810a93e92
+	github.com/nsgo-dev/nsgo v0.2.1-0.20261120195319-314d18f6c98a
 	kando/packages/core v0.0.0
 	kando/packages/study v0.0.0
 	kando/packages/sync v0.0.0

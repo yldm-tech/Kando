@@ -95,8 +95,8 @@ github.com/makiuchi-d/gozxing v0.1.1 h1:xxqijhoedi+/lZlhINteGbywIrewVdVv2wl9r5O9
 github.com/makiuchi-d/gozxing v0.1.1/go.mod h1:eRIHbOjX7QWxLIDJoQuMLhuXg9LAuw6znsUtRkNw9DU=
 github.com/modelcontextprotocol/go-sdk v1.8.0 h1:KIvahhYqwtbeniWVPs3TcXEA7b8jEtwfBpOTAI+Urx4=
 github.com/modelcontextprotocol/go-sdk v1.8.0/go.mod h1:dL7u98E/zjJTGzEq+j30jQ8K2k1mb6LeAH4inEcSGts=
-github.com/nsgo-dev/nsgo v0.2.1-0.20261120114311-c94810a93e92 h1:CwsWY5ry2u8HaKLBPjxgZ98LNrSbRtSZ+rWhdjWboR8=
-github.com/nsgo-dev/nsgo v0.2.1-0.20261120114311-c94810a93e92/go.mod h1:RYc8YpKWZJk20UFsaxOSjWyXAcXFq2B/c+I//oWjzdU=
+github.com/nsgo-dev/nsgo v0.2.1-0.20261120195319-314d18f6c98a h1:jZufndXKbNxXeHc7jVCulVf57XtXM0pN2LZ/vL+71aU=
+github.com/nsgo-dev/nsgo v0.2.1-0.20261120195319-314d18f6c98a/go.mod h1:RYc8YpKWZJk20UFsaxOSjWyXAcXFq2B/c+I//oWjzdU=
 github.com/pkg/sftp v1.13.12 h1:Myhzy/ZzLPnCtE2F2WtDHsgs8RfgMnH2gfbHuCJhkMU=
 github.com/pkg/sftp v1.13.12/go.mod h1:uNkH9roSXglNJqM+glJJi+TQXQUm0fXFWqCFmT8hsN0=
 github.com/pmezard/go-difflib v1.0.0/go.mod h1:iKH77koFhYxTK1pcRnkKkqfTogsbg7gZNVY4sRDYZ/4=
