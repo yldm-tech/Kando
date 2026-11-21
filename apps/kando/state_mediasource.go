@@ -20,7 +20,7 @@ import (
 	ns "github.com/nsgo-dev/nsgo/core"
 )
 
-// mediaSourceUI is the state of the media sources (docs/media-sources.md): the kinds Kando knows (kinds, SMB alone for now), the sources added (list, saved in settings.json without their secrets, which the system's secure store keeps, mediaSourceSecrets), the dialog of 设置 › 媒体来源 that adds or edits one (editing, editID "" for a new one, draft as typed, problem why Save refused it, saving while Save keeps the secrets), how the last Test of each went (tests, by ID, the draft's under ""), and the confirmation of removing one (removing, the source's ID). gen numbers the Tests and the saves, so the answer of one started before another, or before the dialog closed, is dropped. editRelease and removeRelease give back the modal flags the dialog and the confirmation hold (holdModal). open connects to a source of a kind with its secrets, the kind's own Open unless a test sets another.
+// mediaSourceUI is the state of the media sources (docs/media-sources.md): the kinds Kando knows (kinds, SMB alone for now), the sources added (list, saved in settings.json without their secrets, which the system's secure store keeps, mediaSourceSecrets), the dialog of 设置 › 媒体来源 that adds or edits one (editing, editID "" for a new one, draft as typed, problem why Save refused it, saving while Save keeps the secrets), how the last Test of each went (tests, by ID, the draft's under ""), and the confirmation of removing one (removing, the source's ID). gen numbers the Tests, so the answer of one started before another, or before the dialog closed, is dropped; saveGen numbers the saves the same way, apart from the Tests, so a Test pressed while Save keeps the secrets does not drop the save's answer and leave the dialog saving, and a save of a dialog that closed does not finish in the next one. editRelease and removeRelease give back the modal flags the dialog and the confirmation hold (holdModal). open connects to a source of a kind with its secrets, the kind's own Open unless a test sets another.
 type mediaSourceUI struct {
 	kinds         *mediasource.Registry
 	list          []mediasource.Source
@@ -32,6 +32,7 @@ type mediaSourceUI struct {
 	tests         map[string]mediaSourceTest
 	removing      string
 	gen           int
+	saveGen       int
 	editRelease   func()
 	removeRelease func()
 	open          func(ctx context.Context, k mediasource.Kind, s mediasource.Source, secrets map[string]string) (mediasource.Driver, error)
@@ -176,6 +177,7 @@ func (a *app) mediaSourceModals() bool {
 	changed := false
 	if (m.editing || m.removing != "") && (!a.prefs.open || a.SettingsSection() != settings.SectionMediaSources) {
 		m.editing, m.removing, m.saving = false, "", false
+		m.saveGen++
 		changed = true
 	}
 	if !m.editing && m.editRelease != nil {
@@ -215,6 +217,7 @@ func (a *app) mediaSourceSecretStore() ns.Secrets {
 func (a *app) openMediaSourceDialog(id string, draft settings.MediaSourceDraft) {
 	m := &a.sources
 	m.editing, m.editID, m.draft, m.problem, m.saving = true, id, draft, nil, false
+	m.saveGen++
 	delete(m.tests, "")
 	if m.editRelease == nil {
 		m.editRelease = a.holdModal()
@@ -226,6 +229,7 @@ func (a *app) closeMediaSourceDialog() {
 	m := &a.sources
 	m.editing, m.draft, m.problem, m.saving = false, settings.MediaSourceDraft{}, nil, false
 	m.gen++
+	m.saveGen++
 	delete(m.tests, "")
 	if m.editRelease != nil {
 		m.editRelease()
@@ -311,8 +315,8 @@ func (a *app) saveMediaSourceDraft() {
 		a.mediaSourceCommit(s)
 		return
 	}
-	m.gen++
-	gen := m.gen
+	m.saveGen++
+	gen := m.saveGen
 	m.saving = true
 	store, update := a.mediaSourceSecretStore(), a.update
 	go func() {
@@ -329,7 +333,7 @@ func (a *app) saveMediaSourceDraft() {
 // mediaSourceSecretsKept finishes the save gen of s once its secrets were kept, or says why they were not, unless the dialog closed or another save took its place.
 func (a *app) mediaSourceSecretsKept(gen int, s mediasource.Source, err error) {
 	m := &a.sources
-	if !m.editing || m.gen != gen {
+	if !m.editing || m.saveGen != gen {
 		return
 	}
 	m.saving = false

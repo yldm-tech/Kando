@@ -330,6 +330,53 @@ func TestMediaSourceWithoutASecretStore(t *testing.T) {
 	}
 }
 
+// A Test pressed while Save is keeping the secrets does not drop the save's answer: the dialog stops saving and says how the save went, rather than staying on 正在保存 with Save greyed out.
+func TestMediaSourceTestWhileSaving(t *testing.T) {
+	updates := make(chan func(), 4)
+	a := newApp(&fakePipeline{}, func(fn func()) { updates <- fn })
+	a.settingsPath = filepath.Join(t.TempDir(), "settings.json")
+	a.sources.open = newFakeSource(map[string]fakeSourceFile{"Heat.mkv": {data: "heat"}}).open
+	a.AddMediaSource()
+	d := a.MediaSourceDraft()
+	d.Values[mediasource.SMBHost], d.Values[mediasource.SMBShare], d.Values[mediasource.SMBUser], d.Values[mediasource.SMBPassword] = "nas", "media", "kando", "secret"
+	a.SaveMediaSource()
+	a.TestMediaSource("")
+	for range 2 {
+		select {
+		case fn := <-updates:
+			fn()
+		case <-time.After(5 * time.Second):
+			t.Fatal("the save or the Test did not answer")
+		}
+	}
+	if a.MediaSourceSaving() || a.MediaSourceProblem() != testlocale.Messages().SettingsSourcesNoSecretStore() {
+		t.Fatalf("saving %v problem %q", a.MediaSourceSaving(), a.MediaSourceProblem())
+	}
+}
+
+// A save whose dialog closed with the settings does not finish in the dialog opened next: its answer neither adds the old draft nor says anything in the new dialog.
+func TestMediaSourceSaveOfAClosedDialog(t *testing.T) {
+	updates := make(chan func(), 4)
+	a := newApp(&fakePipeline{}, func(fn func()) { updates <- fn })
+	a.settingsPath = filepath.Join(t.TempDir(), "settings.json")
+	a.AddMediaSource()
+	d := a.MediaSourceDraft()
+	d.Values[mediasource.SMBHost], d.Values[mediasource.SMBShare], d.Values[mediasource.SMBUser], d.Values[mediasource.SMBPassword] = "nas", "media", "kando", "secret"
+	a.SaveMediaSource()
+	a.prefs.open = false
+	a.mediaSourceModals()
+	a.AddMediaSource()
+	select {
+	case fn := <-updates:
+		fn()
+	case <-time.After(5 * time.Second):
+		t.Fatal("the save did not answer")
+	}
+	if !a.MediaSourceEditing() || a.MediaSourceSaving() || a.MediaSourceProblem() != "" || len(a.sources.list) != 0 {
+		t.Fatalf("editing %v saving %v problem %q list %+v", a.MediaSourceEditing(), a.MediaSourceSaving(), a.MediaSourceProblem(), a.sources.list)
+	}
+}
+
 // settings.json's sources are tidied as they are read: one without a valid ID, a kind or a name, or with an ID seen before, is dropped; an SMB source keeps only its fields that are not secret, and a plugin's, whose kind this version may not know, keeps its own.
 func TestSavedMediaSourcesClean(t *testing.T) {
 	s := savedMediaSources{MediaSources: []savedMediaSource{
